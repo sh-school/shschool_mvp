@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}سلوك الأبناء{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,99 +9,40 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1 class="exec-title">{% include "components/icon.html" with name="scale" %} سلوك الأبناء</h1>
-      <p class="exec-subtitle">{{ school.name }}</p>
-    </div>
-    <a href="{% url 'parent_dashboard' %}" class="btn-secondary">العودة للبوابة</a>
-  </div>
-
-  {% if not children_behavior %}
-  <div class="card-qatar text-center py-12">
-    <p class="text-[var(--muted)] text-lg">لا يوجد أبناء مربوطين بحسابك حالياً</p>
-    <p class="text-sm text-[var(--muted)] mt-2">تواصل مع إدارة المدرسة لربط حسابك بأبنائك</p>
-  </div>
-  {% endif %}
+  {% page_header "سلوك الأبناء" subtitle=school.name icon="scale" %}
+    <a href="{% url 'parent_dashboard' %}" class="btn-secondary btn-sm">العودة للبوابة</a>
+  {% endpage_header %}
 
   {% for child in children_behavior %}
-  <div class="card-qatar">
-    {# Header #}
-    <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
-      <div>
-        <h2 class="text-lg font-bold">{{ child.student.full_name }}</h2>
-        <p class="text-sm text-[var(--muted)]">إجمالي المخالفات: {{ child.total_infractions }}</p>
+    {% section_card child.student.full_name meta="آخر 10 مخالفات" icon="user" %}
+      <div class="parent-child">
+        {% kpi_strip label="أرقام السلوك" %}
+          {% kpi "قائمة" child.unresolved tone=child.unresolved_tone title="مخالفاتٌ لم يُغلق إجراؤها" %}
+          {% kpi "الإجمالي" child.total_infractions tone="purple" %}
+        {% endkpi_strip %}
+        {% if child.infractions %}
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>التاريخ</th><th>الرمز</th><th>الوصف</th><th>الحالة</th></tr></thead>
+              <tbody>
+                {% for inf in child.infractions %}
+                  <tr>
+                    <td class="num">{{ inf.date|date:"d/m" }}</td>
+                    <td>{% if inf.violation_category %}<span class="status-badge {% if inf.violation_category.category == 'A' %}status-warning{% else %}status-danger{% endif %}">{{ inf.violation_category.code }}</span>{% else %}—{% endif %}</td>
+                    <td>{{ inf.description|truncatewords:10 }}</td>
+                    <td>{% if inf.is_resolved %}<span class="status-badge status-success">محلولة</span>{% else %}<span class="status-badge status-warning">قائمة</span>{% endif %}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          {% empty_state "لا مخالفاتٍ مسجّلة" sub="سجلٌّ نظيف" icon="check-circle" %}
+        {% endif %}
       </div>
-      <div class="text-center">
-        <div class="text-2xl font-bold {% if child.behavior_score >= 80 %}text-green-600{% elif child.behavior_score >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
-          {{ child.behavior_score }}%
-        </div>
-        <div class="text-xs text-[var(--muted)]">مؤشر السلوك</div>
-      </div>
-    </div>
-
-    {# KPI Row — نظام النقاط ملغى #}
-    <div class="kpi-strip" style="margin:0 0 1rem">
-      <div class="kpi-mini kpi-orange">
-        <div class="kpi-mini-value">{{ child.unresolved }}</div>
-        <div class="kpi-mini-label">غير محلولة</div>
-      </div>
-      <div class="kpi-mini kpi-purple">
-        <div class="kpi-mini-value">{{ child.total_infractions }}</div>
-        <div class="kpi-mini-label">إجمالي</div>
-      </div>
-    </div>
-
-    {# Recent Infractions #}
-    {% if child.infractions %}
-    <h3 class="font-semibold text-sm mb-2 text-[var(--muted)]">آخر المخالفات</h3>
-    <div class="table-wrap">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b border-[var(--border)]">
-            <th class="text-right py-2 px-2">التاريخ</th>
-            <th class="text-right py-2 px-2">الفئة</th>
-            <th class="text-right py-2 px-2">الوصف</th>
-            <th class="text-center py-2 px-2">الحالة</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for inf in child.infractions %}
-          <tr class="border-b border-[var(--border)]">
-            <td class="py-2 px-2 whitespace-nowrap">{{ inf.date|date:"m/d" }}</td>
-            <td class="py-2 px-2">
-              {% if inf.violation_category %}
-              <span class="status-badge
-                {% if inf.violation_category.category == 'A' %}status-orange
-                {% elif inf.violation_category.category == 'B' %}status-red
-                {% elif inf.violation_category.category == 'C' %}status-red
-                {% else %}status-red{% endif %}">
-                {{ inf.violation_category.code }}
-              </span>
-              {% else %}
-              <span class="text-[var(--muted)]">—</span>
-              {% endif %}
-            </td>
-            <td class="py-2 px-2">{{ inf.description|truncatewords:10 }}</td>
-            <td class="py-2 px-2 text-center">
-              {% if inf.is_resolved %}
-              <span class="status-badge status-green">محلولة</span>
-              {% else %}
-              <span class="status-badge status-orange">قائمة</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="text-center py-6 text-[var(--muted)]">
-      لا توجد مخالفات مسجلة — ممتاز!
-    </div>
-    {% endif %}
-  </div>
+    {% endsection_card %}
+  {% empty %}
+    {% section_card "الأبناء" icon="users" empty="لا أبناءَ مربوطين بحسابك حالياً" empty_sub="تواصل مع إدارة المدرسة لربط حسابك بأبنائك" %}{% endsection_card %}
   {% endfor %}
 
 </div>

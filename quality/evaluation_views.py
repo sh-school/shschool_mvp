@@ -13,8 +13,8 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.academic_calendar import academic_year_for, default_academic_year
+from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser, Membership
-from core.permissions import role_required
 
 from .models import (
     _EVALUABLE_ROLES,
@@ -22,6 +22,7 @@ from .models import (
     EvaluationCycle,
     RoleEvaluationTemplate,
 )
+from .presentation import evaluation_rating_tone, evaluation_status_tone
 
 
 #: يُقرأ وقت الطلب لا وقت الاستيراد — ثابتُ الوحدة يتجمّد عند إقلاع العملية.
@@ -112,7 +113,7 @@ def _get_evaluable_staff(school, year):
 
 
 @login_required
-@role_required({"principal", "vice_admin", "vice_academic"})
+@capability_required("quality.evaluations")
 def evaluation_dashboard(request):
     """لوحة تحكم تقييم الموظفين — مع قائمة الموظفين"""
     if not _require_evaluator(request):
@@ -122,13 +123,21 @@ def evaluation_dashboard(request):
     year = request.GET.get("year") or _default_year(request)
 
     cycles = EvaluationCycle.objects.filter(school=school, academic_year=year)
-    cycle_stats = [{"cycle": c, "completion_rate": c.completion_rate} for c in cycles]
+    cycle_stats = []
+    for c in cycles:
+        rate = c.completion_rate
+        # العتبةُ كما كانت في القالب: 100 أخضر، و50 فأكثر كهرمانيّ، وما دونها أحمر.
+        tone = "success" if rate == 100 else "warning" if rate >= 50 else "danger"
+        cycle_stats.append({"cycle": c, "completion_rate": rate, "tone": tone})
 
-    recent_evals = (
+    recent_evals = list(
         EmployeeEvaluation.objects.filter(school=school, academic_year=year)
         .select_related("employee", "evaluator")
         .order_by("-created_at")[:20]
     )
+    for ev in recent_evals:
+        ev.status_tone = evaluation_status_tone(ev.status)
+        ev.score_tone = evaluation_rating_tone(ev.rating)
 
     avg = EmployeeEvaluation.objects.filter(
         school=school,
@@ -143,6 +152,9 @@ def evaluation_dashboard(request):
     )
 
     staff_list = _get_evaluable_staff(school, year)
+    for row in staff_list:
+        row["s1_tone"] = evaluation_status_tone(row["s1"].status) if row["s1"] else ""
+        row["s2_tone"] = evaluation_status_tone(row["s2"].status) if row["s2"] else ""
 
     return render(
         request,
@@ -185,7 +197,7 @@ def _save_evaluation(request, obj, axes):
 
 
 @login_required
-@role_required({"principal", "vice_admin", "vice_academic"})
+@capability_required("quality.evaluations")
 def create_evaluation(request, employee_id):
     """إنشاء أو تعديل تقييم موظف — مع ربط قالب الدور"""
     if not _require_evaluator(request):
@@ -226,18 +238,30 @@ def create_evaluation(request, employee_id):
     # تقييمات المقيّمين المتعددين (إن وُجدت)
     scores = obj.scores.select_related("evaluator").all()
 
+    # قيمةُ كلّ محور — كانت سلسلةَ `{% if %}` بأربعة فروعٍ مكرّرةً مرّتين في القالب.
+    # ومحورُ القالب المخصَّص الذي لا حقلَ له في النموذج يبدأ من صفر كما كان.
+    axis_rows = [(key, label, weight, getattr(obj, key, 0) or 0) for key, label, weight in axes]
+    role_name = _get_employee_role(school, employee)
+    subtitle_parts = [employee.full_name, role_name, obj.get_period_display(), year]
+
     return render(
         request,
         "quality/evaluation_form.html",
         {
             "obj": obj,
+            "axis_rows": axis_rows,
+            "form_subtitle": " · ".join(p for p in subtitle_parts if p),
+            "axes_meta": (
+                f"قالب: {template.role_name} ({template.total_weight} درجة)" if template else ""
+            ),
+            "score_tone": evaluation_rating_tone(obj.rating),
             "employee": employee,
             "year": year,
             "period": period,
             "axes": axes,
             "template": template,
             "scores": scores,
-            "role_display": _get_employee_role(school, employee),
+            "role_display": role_name,
         },
     )
 
@@ -260,11 +284,14 @@ def acknowledge_evaluation(request, eval_id):
 def my_evaluations(request):
     """الموظف يرى تقييماته"""
     school = request.user.get_school()
-    evals = (
+    evals = list(
         EmployeeEvaluation.objects.filter(employee=request.user, school=school)
         .select_related("evaluator", "template")
         .order_by("-created_at")
     )
+    for ev in evals:
+        ev.card_title = f"{ev.get_period_display()} — {ev.academic_year}"
+        ev.score_tone = evaluation_rating_tone(ev.rating)
     return render(
         request,
         "quality/my_evaluations.html",

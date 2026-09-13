@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy ui %}
 
 {% block title %}ملف الموظف — {{ staff_user.full_name }}{% endblock %}
 
@@ -6,242 +7,176 @@
 {% include "components/breadcrumbs.html" with parent_url="/staff-affairs/list/" parent_label="سجل الموظفين" current=staff_user.full_name %}
 {% endblock %}
 
-{% block extra_css %}
-<style nonce="{{ request.csp_nonce }}">
-  .sa-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 14px; margin-top: 10px; }
-  .sa-field { display: flex; flex-direction: column; gap: 3px; }
-  .sa-field label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
-  .sa-field .form-control { width: 100%; }
-  .sa-hint { font-size: 11.5px; color: var(--text-muted); }
-  .sa-err { font-size: 11.5px; color: #991b1b; }
-  .sa-warn { margin-top: 8px; font-size: 12.5px; color: #92400e; }
-  .sa-actions { grid-column: 1 / -1; display: flex; justify-content: flex-start; }
-  .sa-change { font-size: 12px; }
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Profile Header ── #}
-  <div class="profile-header">
-    <div class="profile-avatar">{{ staff_user.full_name|truncatechars:1 }}</div>
-    <div class="profile-info">
-      <div class="profile-name">{{ staff_user.full_name }}</div>
-      <div class="profile-meta">
-        {% if membership %}<span>{{ role_display }}</span>{% endif %}
-        {% if membership.department_obj %}<span>{{ membership.department_obj.name }}</span>{% endif %}
-      </div>
-    </div>
-    <div class="exec-meta" style="gap:6px">
-      {% comment %}الجدولُ لمن يُدرّس — وملاحظُ الطلبة والمحاسبُ لا حصصَ لهما.{% endcomment %}
-      {% if teaches %}
-      <a href="{% url 'teacher_weekly_view' staff_user.id %}" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي
-      </a>
-      {% endif %}
-    </div>
-  </div>
+  {% page_header staff_user.full_name subtitle=profile_subtitle icon="user" %}
+    {% comment %}الجدولُ لمن يُدرّس — وملاحظُ الطلبة والمحاسبُ لا حصصَ لهما.{% endcomment %}
+    {% if teaches %}
+    <a href="{% url 'teacher_weekly_view' staff_user.id %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
+    {% endif %}
+  {% endpage_header %}
 
-  {# ── KPI Strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-maroon">
-      <div class="kpi-mini-label">حصص أسبوعية</div>
-      <div class="kpi-mini-value">{{ weekly_slots }}</div>
-    </div>
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">أيام غياب</div>
-      <div class="kpi-mini-value">{{ absence_count }}</div>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <div class="kpi-mini-label">تبديلات</div>
-      <div class="kpi-mini-value">{{ swaps_count }}</div>
-    </div>
-    <div class="kpi-mini kpi-teal">
-      <div class="kpi-mini-label">تعويضات</div>
-      <div class="kpi-mini-value">{{ compensatory_count }}</div>
-    </div>
-    <div class="kpi-mini kpi-blue">
-      <div class="kpi-mini-label">تقييمات</div>
-      <div class="kpi-mini-value">{{ evaluations|length }}</div>
-    </div>
-  </div>
+  {% kpi_strip label="أرقام الموظف" %}
+    {% kpi "حصص أسبوعية" weekly_slots %}
+    {% kpi "أيام الغياب" absence_count tone="red" %}
+    {% kpi "التبديلات" swaps_count tone="orange" %}
+    {% kpi "التعويضات" compensatory_count tone="teal" %}
+    {% kpi "التقييمات" evaluations|length tone="blue" %}
+  {% endkpi_strip %}
 
-  <div class="charts-grid-2">
-
-    {# ── البيانات الشخصية — تُحرَّر، وكلُّ حفظٍ يُختم بصاحبه ── #}
-    <div class="detail-section">
-      <div class="detail-section-title">{% include "components/icon.html" with name="user" %} البيانات الشخصية والرخصة المهنية</div>
-      <dl class="detail-dl">
-        <dt>الرقم الشخصي</dt><dd dir="ltr">{{ staff_user.national_id }}</dd>
-        {% if membership %}<dt>الدور في المنصّة</dt><dd>{{ membership.role.get_name_display }}</dd>{% endif %}
-      </dl>
-      <form method="post" action="{% url 'staff_affairs:staff_profile_save' staff_user.id 'person' %}" class="sa-form">
-        {% csrf_token %}
-        {% for field in person_form %}
-        <div class="sa-field">
-          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }}
-          {% if field.errors %}<div class="sa-err">{{ field.errors|join:" · " }}</div>{% endif %}
-        </div>
-        {% endfor %}
-        <div class="sa-actions">
-          <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check" %} حفظ البيانات</button>
-        </div>
-      </form>
-      {% if staff_user.professional_license_expiry and staff_user.professional_license_expiry < today %}
-      <p class="sa-warn">الرخصةُ المهنيّةُ منتهيةٌ منذ {{ staff_user.professional_license_expiry|date:"d/m/Y" }}.</p>
-      {% endif %}
-    </div>
-
-    {# ── سجل الغياب ── #}
-    <div class="detail-section">
-      <div class="detail-section-title">{% include "components/icon.html" with name="ban" %} سجل الغياب ({{ absence_count }} يوم)</div>
-      {% if absences_recent %}
-      <div class="dash-list">
-        {% for a in absences_recent %}
-        <div class="dash-list-item">
-          <div style="flex:1">
-            <span>{{ a.get_reason_display }}</span>
-            <span class="text-xs text-muted" style="margin-inline-start:4px">{{ a.date|date:"d/m/Y" }}</span>
-          </div>
-          <span class="status-badge {% if a.status == 'covered' %}status-success{% elif a.status == 'uncovered' %}status-danger{% else %}status-warning{% endif %}">{{ a.get_status_display }}</span>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      {% include "components/empty_state.html" with message="لا غيابات مسجّلة" %}
-      {% endif %}
-    </div>
-
-    {# ── التقييمات ── #}
-    <div class="detail-section">
-      <div class="detail-section-title">{% include "components/icon.html" with name="bar-chart" %} تقييم الأداء</div>
-      {% if evaluations %}
-      <div class="dash-list">
-        {% for ev in evaluations %}
-        <div class="dash-list-item">
-          <div style="flex:1">
-            <strong>{{ ev.academic_year }}</strong>
-            <span class="text-xs text-muted" style="margin-inline-start:4px">{{ ev.get_recommendation_display }}</span>
-          </div>
-          <span style="font-weight:700;font-size:.9rem;color:{% if ev.overall_score >= 4 %}var(--status-success){% elif ev.overall_score >= 3 %}var(--status-warning){% else %}var(--status-danger){% endif %}">
-            {{ ev.overall_score|floatformat:1 }}/5
-          </span>
-        </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      {% include "components/empty_state.html" with message="لا تقييمات مسجّلة" %}
-      {% endif %}
-    </div>
-
-    {# ── الإجازات ── #}
-    <div class="detail-section">
-      <div class="detail-section-title">{% include "components/icon.html" with name="calendar" %} الإجازات</div>
-      {% if leave_balances %}
-      <div class="detail-section-title" style="font-size:var(--text-xs);border:none;padding:0;margin-bottom:8px">أرصدة {{ year }}:</div>
-      <div class="dash-list">
-        {% for b in leave_balances %}
-        <div class="dash-list-item">
-          <span>{{ b.get_leave_type_display }}</span>
-          <span style="font-weight:600">{{ b.remaining_days }}/{{ b.total_days }} يوم</span>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
-      {% if leaves %}
-      <div class="detail-section-title" style="margin-top:8px;font-size:var(--text-xs);border:none;padding:0;margin-bottom:4px">آخر الطلبات:</div>
-      {% for l in leaves %}
-      <div class="dash-list-item">
-        <span>{{ l.get_leave_type_display }} ({{ l.days_count }} يوم)</span>
-        <span class="status-badge {% if l.status == 'approved' %}status-success{% elif l.status == 'rejected' %}status-danger{% elif l.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ l.get_status_display }}</span>
-      </div>
-      {% endfor %}
-      {% elif not leave_balances %}
-      {% include "components/empty_state.html" with message="لا إجازات مسجّلة" %}
-      {% endif %}
-    </div>
-
-  </div>
-
-  {% comment %}
-  المغادرةُ تُسجَّل ولا تمحو: من نُقل له حصصٌ في جدول العام الماضي، وحذفُ
-  عضويّته يقطعها عن صاحبها. فتُطفأ العضويّةُ بتاريخها وسببها ومرجعها.
-  {% endcomment %}
-  {% if employment_form %}
-  <div class="card-qatar" style="margin-top:14px">
-    <div class="detail-section-title">{% include "components/icon.html" with name="briefcase" %} بيانات الوظيفة</div>
-    <form method="post" action="{% url 'staff_affairs:staff_profile_save' staff_user.id 'employment' %}" class="sa-form">
+  {# ── البيانات الشخصية — تُحرَّر، وكلُّ حفظٍ يُختم بصاحبه. بعرض الصفحة: حقولُها كثيرة ── #}
+  {% section_card "البيانات الشخصية والرخصة المهنية" icon="user" %}
+    <dl class="detail-dl">
+      <dt>الرقم الشخصي</dt><dd dir="ltr">{{ staff_user.national_id|mask_id }}</dd>
+      {% if membership %}<dt>الدور في المنصّة</dt><dd>{{ membership.role.get_name_display }}</dd>{% endif %}
+    </dl>
+    <form method="post" action="{% url 'staff_affairs:staff_profile_save' staff_user.id 'person' %}" class="sa-form">
       {% csrf_token %}
-      {% for field in employment_form %}
+      {% for field in person_form %}
       <div class="sa-field">
         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
         {{ field }}
-        {% if field.help_text %}<span class="sa-hint">{{ field.help_text }}</span>{% endif %}
         {% if field.errors %}<div class="sa-err">{{ field.errors|join:" · " }}</div>{% endif %}
       </div>
       {% endfor %}
       <div class="sa-actions">
-        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check" %} حفظ بيانات الوظيفة</button>
+        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check" %} حفظ البيانات</button>
       </div>
     </form>
-    <p class="sa-hint">تغييرُ الدور نفسِه ليس تصحيحاً — هو تعيينٌ جديدٌ أو نقلٌ بين وظيفتين، وبابُه «تعيين منتسب».</p>
+    {% if staff_user.professional_license_expiry and staff_user.professional_license_expiry < today %}
+    <p class="form-note is-warning sa-note">{% include "components/icon.html" with name="alert-triangle" %} الرخصةُ المهنيّةُ منتهيةٌ منذ {{ staff_user.professional_license_expiry|date:"d/m/Y" }}.</p>
+    {% endif %}
+  {% endsection_card %}
+
+  {% comment %}
+  المغادرةُ تُسجَّل ولا تمحو: من نُقل له حصصٌ في جدول العام الماضي، وحذفُ
+  عضويّته يقطعها عن صاحبها. فتُطفأ العضويّةُ بتاريخها وسببها ومرجعها.
+  والبطاقتان متجاورتان: بياناتُ الوظيفة وسجلُّ التحاقها ومغادرتها شأنٌ واحد.
+  {% endcomment %}
+  {% if membership %}
+  <div class="ui-grid-2">
+    {% if employment_form %}
+    {% section_card "بيانات الوظيفة" icon="briefcase" %}
+      <form method="post" action="{% url 'staff_affairs:staff_profile_save' staff_user.id 'employment' %}" class="sa-form">
+        {% csrf_token %}
+        {% for field in employment_form %}
+        <div class="sa-field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<span class="sa-hint">{{ field.help_text }}</span>{% endif %}
+          {% if field.errors %}<div class="sa-err">{{ field.errors|join:" · " }}</div>{% endif %}
+        </div>
+        {% endfor %}
+        <div class="sa-actions">
+          <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check" %} حفظ بيانات الوظيفة</button>
+        </div>
+      </form>
+      <p class="form-note sa-note">تغييرُ الدور نفسِه ليس تصحيحاً — هو تعيينٌ جديدٌ أو نقلٌ بين وظيفتين، وبابُه «تعيين منتسب».</p>
+    {% endsection_card %}
+    {% endif %}
+
+    {% section_card "الالتحاق والمغادرة" icon="clipboard" %}
+      <ul class="plain-list">
+        <li class="plain-list__row">
+          <span class="plain-list__title">التحق في {{ membership.joined_at|date:"d/m/Y" }}</span>
+          <span class="plain-list__sub">{{ membership.appointment_reference|default:"بلا مرجعٍ مسجَّل" }}</span>
+        </li>
+        {% if membership.left_at %}
+        <li class="plain-list__row">
+          <span class="plain-list__title">غادر في {{ membership.left_at|date:"d/m/Y" }} — {{ membership.get_departure_reason_display }}</span>
+          <span class="plain-list__sub">{{ membership.departure_reference }}</span>
+        </li>
+        {% endif %}
+      </ul>
+      {% if membership.left_at %}
+      <form method="post" action="{% url 'staff_affairs:staff_reinstate' staff_user.id %}"
+            data-confirm="إلغاءُ مغادرة {{ staff_user.full_name }} وإعادتُه إلى الكادر؟"
+            class="sa-inline-form">
+        {% csrf_token %}
+        <div class="sa-field sa-field--grow">
+          <label for="reinstate-note">سببُ الإلغاء (اختياريّ)</label>
+          <input id="reinstate-note" type="text" name="note" class="form-control" placeholder="سُجّلت بالخطأ">
+        </div>
+        <button type="submit" class="btn-primary btn-sm">إلغاءُ المغادرة وإعادتُه</button>
+      </form>
+      {% else %}
+      <form method="post" action="{% url 'staff_affairs:staff_depart' staff_user.id %}"
+            data-confirm="تسجيلُ مغادرة {{ staff_user.full_name }}؟ العضويّةُ تُطفأ ويبقى سجلُّه."
+            class="sa-inline-form">
+        {% csrf_token %}
+        {% for field in departure_form %}
+        <div class="sa-field">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn-secondary btn-sm">تسجيلُ المغادرة</button>
+      </form>
+      {% endif %}
+    {% endsection_card %}
   </div>
   {% endif %}
 
-  {% if membership %}
-  <div class="card-qatar" style="margin-top:14px">
-    <div class="detail-section-title">سجلُّ الالتحاق والمغادرة</div>
-    <div class="dash-list-item">
-      <span>التحق في {{ membership.joined_at|date:"d/m/Y" }}</span>
-      <span class="text-xs text-muted">{{ membership.appointment_reference|default:"بلا مرجعٍ مسجَّل" }}</span>
-    </div>
-    {% if membership.left_at %}
-    <div class="dash-list-item">
-      <span>غادر في {{ membership.left_at|date:"d/m/Y" }} — {{ membership.get_departure_reason_display }}</span>
-      <span class="text-xs text-muted">{{ membership.departure_reference }}</span>
-    </div>
-    <form method="post" action="{% url 'staff_affairs:staff_reinstate' staff_user.id %}"
-          data-confirm="إلغاءُ مغادرة {{ staff_user.full_name }} وإعادتُه إلى الكادر؟"
-          style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px">
-      {% csrf_token %}
-      <div style="display:flex;flex-direction:column;gap:3px;flex:1 1 240px">
-        <label for="reinstate-note" style="font-size:12px;color:var(--text-secondary)">سببُ الإلغاء (اختياريّ)</label>
-        <input id="reinstate-note" type="text" name="note" class="form-control" placeholder="سُجّلت بالخطأ">
-      </div>
-      <button type="submit" class="btn-primary btn-sm">إلغاءُ المغادرة وإعادتُه</button>
-    </form>
-    {% else %}
-    <form method="post" action="{% url 'staff_affairs:staff_depart' staff_user.id %}"
-          data-confirm="تسجيلُ مغادرة {{ staff_user.full_name }}؟ العضويّةُ تُطفأ ويبقى سجلُّه."
-          style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px">
-      {% csrf_token %}
-      {% for field in departure_form %}
-      <div style="display:flex;flex-direction:column;gap:3px">
-        <label for="{{ field.id_for_label }}" style="font-size:12px;color:var(--text-secondary)">{{ field.label }}</label>
-        {{ field }}
-      </div>
-      {% endfor %}
-      <button type="submit" class="btn-secondary btn-sm">تسجيلُ المغادرة</button>
-    </form>
-    {% endif %}
+  <div class="ui-grid-2">
+    {% section_card "سجل الغياب" icon="ban" empty="لا غياباتٍ مسجّلة" %}{% if absences_recent %}
+      <ul class="plain-list">
+        {% for a in absences_recent %}
+        <li class="plain-list__row">
+          <span class="plain-list__main"><b class="plain-list__title">{{ a.get_reason_display }}</b><span class="plain-list__sub">{{ a.date|date:"d/m/Y" }}</span></span>
+          <span class="status-badge {% if a.status == 'covered' %}status-success{% elif a.status == 'uncovered' %}status-danger{% else %}status-warning{% endif %}">{{ a.get_status_display }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
+
+    {% section_card "تقييم الأداء" icon="bar-chart" empty="لا تقييماتٍ مسجّلة" %}{% if evaluations %}
+      <ul class="plain-list">
+        {% for ev in evaluations %}
+        <li class="plain-list__row">
+          <span class="plain-list__main"><b class="plain-list__title">{{ ev.academic_year }}</b><span class="plain-list__sub">{{ ev.get_recommendation_display }}</span></span>
+          <span class="status-badge status-{{ ev.score_tone }}">{{ ev.overall_score|floatformat:1 }}/5</span>
+        </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
   </div>
-  {% endif %}
+
+  <div class="ui-grid-2">
+    {% section_card "أرصدة الإجازات" meta=year icon="calendar" empty="لا أرصدةَ مسجّلةٌ لهذا العام" %}{% if leave_balances %}
+      <ul class="plain-list">
+        {% for b in leave_balances %}
+        <li class="plain-list__row">
+          <span class="plain-list__title">{{ b.get_leave_type_display }}</span>
+          <span class="chip-stat"><span class="chip-stat__key">المتبقّي</span><b class="chip-stat__value">{{ b.remaining_days }}/{{ b.total_days }} يوم</b></span>
+        </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
+
+    {% section_card "آخر طلبات الإجازة" icon="file-text" empty="لا طلباتِ إجازة" %}{% if leaves %}
+      <ul class="plain-list">
+        {% for l in leaves %}
+        <li class="plain-list__row">
+          <span class="plain-list__main"><b class="plain-list__title">{{ l.get_leave_type_display }}</b><span class="plain-list__sub">{{ l.days_count }} يوم</span></span>
+          <span class="status-badge {% if l.status == 'approved' %}status-success{% elif l.status == 'rejected' %}status-danger{% elif l.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ l.get_status_display }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
+  </div>
 
   {% comment %}
   من حفظ وماذا ومتى — يُقرأ من `AuditLog` غيرِ القابل للتعديل ولا للحذف.
   {% endcomment %}
-  <div class="card-qatar" style="margin-top:14px">
-    <div class="detail-section-title">{% include "components/icon.html" with name="clipboard-check" %} سجلُّ التعديلات</div>
-    {% if history %}
-    <div class="table-wrap-scroll">
+  {% section_card "سجلُّ التعديلات" meta=history|length icon="clipboard-check" flush=True empty="لا تعديلاتٍ مسجّلةٌ على هذا الملفّ بعد" %}{% if history %}
+    <div class="table-wrap">
       <table data-no-sort>
         <thead><tr><th>متى</th><th>من</th><th>الإجراء</th><th>ما تغيّر</th></tr></thead>
         <tbody>
           {% for entry in history %}
           <tr>
-            <td dir="ltr" style="white-space:nowrap">{{ entry.when|date:"d/m/Y — H:i" }}</td>
+            <td dir="ltr" class="sa-nowrap">{{ entry.when|date:"d/m/Y — H:i" }}</td>
             <td>{{ entry.who }}</td>
             <td>{{ entry.what }}</td>
             <td>
@@ -253,10 +188,7 @@
         </tbody>
       </table>
     </div>
-    {% else %}
-    <p class="sa-hint">لا تعديلاتٍ مسجّلةٌ على هذا الملفّ بعد.</p>
-    {% endif %}
-  </div>
+  {% endif %}{% endsection_card %}
 
 </div>
 {% endblock %}

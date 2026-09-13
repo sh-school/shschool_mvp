@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 
 {% block title %}الأنشطة والإنجازات{% endblock %}
 
@@ -7,20 +8,12 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="activity" %} الأنشطة والإنجازات</h1>
-      <p class="exec-subtitle">{{ year }}</p>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a href="{% url 'student_affairs:activity_add' %}" class="btn-primary btn-sm">
-        {% include "components/icon.html" with name="file-pen" %} تسجيل نشاط جديد
-      </a>
-      <a href="{% url 'student_affairs:activities_export' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
-      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
-    </div>
-  </div>
+<div class="exec-dash sa-page">
+  {% page_header "الأنشطة والإنجازات" subtitle=year icon="activity" %}
+    <a href="{% url 'student_affairs:activity_add' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} تسجيل نشاط جديد</a>
+    <a href="{% url 'student_affairs:activities_export' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
+    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+  {% endpage_header %}
 
   {# فلتر #}
   <form method="get" class="filter-bar">
@@ -58,7 +51,7 @@
             <th>النشاط</th>
             <th class="col-center">النوع</th>
             <th class="col-center">النطاق</th>
-            <th class="col-center">التاريخ</th>
+            <th class="num">التاريخ</th>
             <th class="col-actions">إجراءات</th>
           </tr>
         </thead>
@@ -66,7 +59,7 @@
           {% for act in activities %}
           <tr>
             <td>
-              <a href="{% url 'student_affairs:student_profile' act.student_id %}" style="color:var(--maroon);text-decoration:none;font-weight:600" class="hover:underline">
+              <a href="{% url 'student_affairs:student_profile' act.student_id %}" class="sa-link">
                 {{ act.student.full_name }}
               </a>
             </td>
@@ -83,13 +76,13 @@
                 {{ act.get_scope_display }}
               </span>
             </td>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ act.date|date:"d/m/Y" }}</td>
+            <td class="num">{{ act.date|date:"d/m/Y" }}</td>
             <td class="col-actions">
-              <div style="display:flex;gap:4px;justify-content:center">
+              <div class="sa-row-actions">
                 <a href="{% url 'student_affairs:activity_edit' act.pk %}" class="btn-secondary btn-xs" title="تعديل">{% include "components/icon.html" with name="file-pen" %}</a>
-                <form method="post" action="{% url 'student_affairs:activity_delete' act.pk %}" style="display:inline" data-confirm="حذف النشاط «{{ act.title }}»؟">
+                <form method="post" action="{% url 'student_affairs:activity_delete' act.pk %}" class="sa-inline-form" data-confirm="حذف النشاط «{{ act.title }}»؟">
                   {% csrf_token %}
-                  <button type="submit" class="btn-secondary btn-xs" style="color:var(--status-danger)" title="حذف">{% include "components/icon.html" with name="x-circle" %}</button>
+                  <button type="submit" class="btn-secondary btn-xs sa-btn-danger" title="حذف">{% include "components/icon.html" with name="x-circle" %}</button>
                 </form>
               </div>
             </td>
@@ -99,7 +92,7 @@
       </table>
     </div>
     {% else %}
-    {% include "components/empty_state.html" with message="لا أنشطة مسجّلة لهذا العام" %}
+    {% empty_state "لا أنشطة مسجّلة لهذا العام" icon="activity" %}
     {% endif %}
   </div>
 </div>

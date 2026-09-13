@@ -21,10 +21,9 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from core.permissions import (
     BEHAVIOR_COMMITTEE,
     BEHAVIOR_MANAGE,
-    BEHAVIOR_RECORD,
+    BEHAVIOR_STATS_TEACHING,
     BEHAVIOR_VIEW_ALL,
     get_teacher_student_ids,
-    role_required,
     teacher_can_access_student,
 )
 
@@ -65,6 +64,7 @@ def _behavior_report_redirect(
 
 from behavior.forms import InfractionForm
 from behavior.models import ViolationCategory
+from core.capabilities import capability_required
 from core.models import BehaviorInfraction, CustomUser
 
 
@@ -163,7 +163,7 @@ def _behaviour_year_window(school):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD | BEHAVIOR_VIEW_ALL)
+@capability_required("behavior.view")
 def behavior_dashboard(request):
     """لوحة تحكم السلوك — إحصائيات المخالفات والحالات الحرجة للمدرسة."""
     role = request.user.get_role()
@@ -235,16 +235,34 @@ def behavior_dashboard(request):
     )
 
     context["monthly_trend"] = monthly_trend
-    context["level_dist"] = level_dist
-    context["daily_trend"] = daily_trend
+    context["level_dist"] = list(level_dist)
+    context["daily_trend"] = list(daily_trend)
     context["top_violations"] = top_violations
+    context.update(_dashboard_presentation(context, today))
 
     return render(request, "behavior/dashboard.html", context)
 
 
+def _dashboard_presentation(context: dict, today) -> dict:
+    """أرقامُ رأس لوحة السلوك وألوانُها — الحكمُ هنا مرّةً لا شرطاً في القالب.
+
+    كان عددُ الجسيمة المعلّقة يُقال ثلاثاً: بطاقةٌ وشريطُ تنبيهٍ وعنوانُ قائمةٍ
+    مطويّة. فصار يُقال في البطاقة وحدَها، ولونُها يحمل التنبيه: أحمرُ متى وُجدت
+    جسيمةٌ بلا قرار لجنة (العتبةُ التي كانت في القالب: وجودُ واحدة).
+    """
+    critical = len(context.get("critical_unresolved") or [])
+    return {
+        "today_label": f"{today:%d/%m/%Y}",
+        "year_total": sum(row["count"] for row in context.get("level_dist", [])),
+        "week_total": sum(row["count"] for row in context.get("daily_trend", [])),
+        "critical_count": critical,
+        "critical_tone": "red" if critical else "green",
+    }
+
+
 # ── تسجيل مخالفة جديدة ───────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD)
+@capability_required("behavior.record")
 def report_infraction(request):
     """تسجيل مخالفة سلوكية جديدة مع إشعار ولي الأمر تلقائياً."""
     if not BehaviorPermissions.can_report(request.user):
@@ -352,13 +370,37 @@ def report_infraction(request):
             "students": students,
             "levels": BehaviorInfraction.LEVELS,
             "violations_by_degree": violations_by_degree,
+            "degree_panels": _degree_panels(violations_by_degree),
         },
     )
 
 
+#: لوحاتُ الدرجات الأربع — الاسمُ ولونُ الرمز. و`color` قيمةُ `data-color` القديمة تبقى للشيفرة.
+_DEGREE_PANELS = (
+    ("1", "الدرجة 1 — بسيطة", "green", "green"),
+    ("2", "الدرجة 2 — متوسطة", "amber", "yellow"),
+    ("3", "الدرجة 3 — خطيرة", "orange", "orange"),
+    ("4", "الدرجة 4 — جسيمة", "red", "red"),
+)
+
+
+def _degree_panels(violations_by_degree: dict) -> list[dict]:
+    """لوحةٌ لكلّ درجة بمخالفاتها — كانت أربعَ نسخٍ متطابقةً في القالب لا يفرّقها إلّا اللون."""
+    return [
+        {
+            "degree": degree,
+            "label": label,
+            "tone": tone,
+            "color": color,
+            "items": violations_by_degree.get(degree, []),
+        }
+        for degree, label, tone, color in _DEGREE_PANELS
+    ]
+
+
 # ── تسجيل مخالفة سريعة (HTMX Modal) ────────────────────────
 @login_required
-@role_required(BEHAVIOR_RECORD)
+@capability_required("behavior.record")
 def quick_log(request):
     """
     تسجيل مخالفة سريعة عبر HTMX Modal.
@@ -472,7 +514,7 @@ def _quick_log_context(user, school, preselected_student_id=""):
 
 # ── الملف السلوكي للطالب ─────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_MANAGE | BEHAVIOR_RECORD | BEHAVIOR_VIEW_ALL)
+@capability_required("behavior.view")
 def student_behavior_profile(request, student_id):
     """الملف السلوكي للطالب — جميع مخالفاته ونقاطه المخصومة والمستعادة."""
     school = request.user.get_school()
@@ -500,18 +542,20 @@ def student_behavior_profile(request, student_id):
 
 # ── لجنة الضبط السلوكي ───────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_COMMITTEE)
+@capability_required("behavior.committee")
 def committee_dashboard(request):
     """لوحة لجنة الضبط السلوكي — المخالفات الجسيمة من الدرجة 3 و4."""
     if not BehaviorPermissions.is_committee(request.user):
         return HttpResponseForbidden("ليس لديك صلاحية الوصول إلى هذه الصفحة.")
     school = request.user.get_school()
     context = BehaviorService.get_committee_data(school)
+    # القضايا المفتوحة حمراءُ متى وُجدت واحدة، وخضراءُ حين تُحلّ كلُّها.
+    context["open_tone"] = "red" if context["stats"]["open_count"] else "green"
     return render(request, "behavior/committee.html", context)
 
 
 @login_required
-@role_required(BEHAVIOR_COMMITTEE)
+@capability_required("behavior.committee")
 def committee_decision(request, infraction_id):
     """تسجيل قرار لجنة الضبط السلوكي في مخالفة جسيمة."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -537,21 +581,19 @@ def committee_decision(request, infraction_id):
         getattr(messages, level)(request, msg)
         return redirect("behavior:committee")
 
-    from .constants import ESCALATION_STEPS as ESC_STEPS
-
     return render(
         request,
         "behavior/committee_decision.html",
         {
             "infraction": infraction,
-            "escalation_steps": ESC_STEPS.get(infraction.level, []),
+            "escalation_steps": infraction.get_escalation_steps(),
         },
     )
 
 
 # ── تقرير سلوكي دوري ─────────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_RECORD | BEHAVIOR_MANAGE)
+@capability_required("behavior.record")
 def behavior_report(request, student_id):
     """التقرير السلوكي الدوري للطالب — مع إمكانية الإرسال لولي الأمر."""
     if not BehaviorPermissions.can_report(request.user) and not request.user.is_superuser:
@@ -620,18 +662,18 @@ def behavior_report(request, student_id):
             "period": period,
             "sent_to": sent_to,
             "period_choices": PERIOD_CHOICES,
+            "report_subtitle": f"{student.full_name} · {report['period_label']} · {year}",
             **report,
         },
     )
 
 
 # ── تقرير إحصائي ─────────────────────────────────────────────
-_STATS_TEACHER_ROLES = {"teacher", "coordinator", "ese_teacher"}
-_STATS_ALLOWED_ROLES = BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL | _STATS_TEACHER_ROLES
+_STATS_ALLOWED_ROLES = BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL | BEHAVIOR_STATS_TEACHING
 
 
 @login_required
-@role_required(_STATS_ALLOWED_ROLES)
+@capability_required("behavior.statistics")
 def behavior_statistics(request):
     """التقرير الإحصائي السلوكي — القيادة/اللجنة ترى الكل، المعلم/المنسق يرى طلابه فقط."""
     role = request.user.get_role()
@@ -639,7 +681,7 @@ def behavior_statistics(request):
     year = request.GET.get("year") or academic_year_for(request)
 
     # المعلم/المنسق/معلم ESE → إحصائيات مقيّدة بطلابهم فقط
-    if role in _STATS_TEACHER_ROLES:
+    if role in BEHAVIOR_STATS_TEACHING:
         student_ids = get_teacher_student_ids(request.user)
         stats = BehaviorService.get_statistics_scoped(school, student_ids=student_ids)
         stats["is_scoped"] = True
@@ -652,12 +694,40 @@ def behavior_statistics(request):
         stats["is_scoped"] = False
 
     stats["year"] = year
+    stats.update(_statistics_presentation(stats))
     return render(request, "behavior/statistics.html", stats)
+
+
+def _statistics_presentation(stats: dict) -> dict:
+    """ألوانُ صفحة الإحصاءات ونصوصُها المركّبة.
+
+    نسبةُ الحلّ خضراءُ من 80% وكهرمانيّةٌ من 50% وحمراءُ دونها — العتباتُ التي
+    كانت في القالب. وهي محسوبةٌ على **كلّ** مخالفات العام لا الجسيمة وحدها
+    (`resolved_pct` في الخدمة)، فالاسمُ يقول ذلك.
+
+    وشريطُ الشهر كان يُقاس على عشرين ثابتة فيفيض فوق 100% في شهرٍ مزدحم؛
+    فصار يُقاس على أكثر الشهور.
+    """
+    pct = stats.get("resolved_pct") or 0
+    by_level = stats.get("by_level") or {}
+    monthly = list(stats.get("monthly") or [])
+    peak = max((row["count"] for row in monthly), default=0)
+    # تنبيهُ «طلابك فقط» كان شريطاً بألوانٍ ثابتةٍ بين العنوان والأرقام — وهو وصفٌ للصفحة.
+    scope = " · طلابُك وحدَهم وفق جدولك الدراسي" if stats.get("is_scoped") else ""
+    return {
+        "subtitle": f"{stats.get('year')} · QNSA المعيار 2{scope}",
+        "severe_count": by_level.get(3, 0) + by_level.get(4, 0),
+        "resolved_label": f"{pct}%",
+        "resolved_tone": "green" if pct >= 80 else ("amber" if pct >= 50 else "red"),
+        "monthly_rows": [
+            {**row, "share": round(row["count"] * 100 / peak) if peak else 0} for row in monthly
+        ],
+    }
 
 
 # ── تصعيد إجراء ──────────────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_COMMITTEE)
+@capability_required("behavior.committee")
 def escalate_infraction(request, infraction_id):
     """تصعيد المخالفة إلى الخطوة التالية."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -681,7 +751,7 @@ def escalate_infraction(request, infraction_id):
 
 # ── تسجيل إحالة أمنية ────────────────────────────────────────
 @login_required
-@role_required(BEHAVIOR_COMMITTEE)
+@capability_required("behavior.committee")
 def security_referral(request, infraction_id):
     """تسجيل إحالة أمنية لمخالفة من الدرجة الرابعة."""
     if not BehaviorPermissions.is_committee(request.user):
@@ -732,7 +802,28 @@ def _render_behavior_pdf(template_name, context, filename):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE)
+@capability_required("behavior.view")
+def behavior_policy_pdf(request):
+    """PDF: لائحةُ السلوك والانضباط بترويسة المدرسة.
+
+    وثيقةُ مدرسةٍ لا مخالفة، فلا تأخذ `infraction_id`. وكان قالبُها
+    مكتوباً بلا مسارٍ يبلغه — أخواتُها الثلاثُ لكلٍّ مسار، وهي وحدَها
+    بلا واحد. كشفه حارسُ القوالب اليتيمة.
+    """
+    school = request.user.get_school()
+    return _render_behavior_pdf(
+        "behavior/pdf/policy_doc.html",
+        {
+            "school": school,
+            "academic_year": academic_year_for(request),
+            "generated_at": _tz.now(),
+        },
+        "behavior_policy.pdf",
+    )
+
+
+@login_required
+@capability_required("behavior.manage")
 def infraction_warning_pdf(request, infraction_id):
     """PDF: نموذج تحذير للطالب بسبب مخالفة سلوكية."""
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
@@ -746,7 +837,7 @@ def infraction_warning_pdf(request, infraction_id):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE)
+@capability_required("behavior.manage")
 def infraction_parent_pdf(request, infraction_id):
     """PDF: تعهد ولي الأمر المتعلق بمخالفة سلوكية."""
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
@@ -760,7 +851,7 @@ def infraction_parent_pdf(request, infraction_id):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE)
+@capability_required("behavior.manage")
 def infraction_student_pdf(request, infraction_id):
     """PDF: تعهد الطالب المتعلق بمخالفة سلوكية."""
     inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
@@ -774,7 +865,7 @@ def infraction_student_pdf(request, infraction_id):
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE | {"psychologist"})
+@capability_required("behavior.summon_parent")
 def summon_parent(request, student_id=None):
     """استدعاء ولي أمر طالب — إرسال إشعار رسمي (إداري فقط)."""
     school = request.user.get_school()
@@ -895,10 +986,20 @@ def summon_parent(request, student_id=None):
                     "is_primary": link.is_primary,
                 }
             )
+        # «مؤشرُ السلوك» ليس نقاطاً مخصومة (النظامُ ملغى): يُحسب في
+        # `get_student_score` من عدد المخالفات ودرجاتها، فيبقى رقماً حقيقيّاً.
+        behavior_score = score_data.get("net_score", 100)
         student_context = {
-            "behavior_score": score_data.get("net_score", 100),
+            "behavior_score": behavior_score,
+            # العتباتُ التي كانت في القالب: 80 فأكثر أخضر، 50 فأكثر كهرمانيّ.
+            "behavior_score_tone": (
+                "green" if behavior_score >= 80 else ("amber" if behavior_score >= 50 else "red")
+            ),
             "active_infractions": active_infractions,
+            "active_infractions_tone": "red" if active_infractions else "green",
             "parents_info": parents_info,
+            # لا وليَّ أمرٍ مربوطاً = لا إشعار يصل؛ فالبطاقةُ حمراء.
+            "parents_tone": "maroon" if parents_info else "red",
         }
 
     return render(
@@ -912,13 +1013,16 @@ def summon_parent(request, student_id=None):
             "urgency_levels": URGENCY_LEVELS,
             "meeting_places": MEETING_PLACES,
             "sender": request.user,
+            "summon_subtitle": (
+                f"{selected_student.full_name} · {school.name}" if selected_student else school.name
+            ),
             **student_context,
         },
     )
 
 
 @login_required
-@role_required(BEHAVIOR_MANAGE | BEHAVIOR_VIEW_ALL | BEHAVIOR_RECORD)
+@capability_required("behavior.view")
 def student_behavior_pdf(request, student_id):
     """تقرير سلوكي للطالب — A4 للطباعة (WeasyPrint)"""
     school = request.user.get_school()

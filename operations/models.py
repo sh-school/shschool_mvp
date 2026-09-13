@@ -41,30 +41,6 @@ class Subject(models.Model):
         verbose_name="حصة مزدوجة",
         help_text="يتطلب حصتين متتاليتين بدون استراحة",
     )
-    #: حصصُ المادّة في أيّامٍ مختلفةٍ — قيدٌ صلبٌ (HC18) بنطاقِ مرحلة.
-    #:
-    #: الفنّيّةُ مزدوجةٌ في الإعداديّ ومتباعدةٌ في الثانويّ (قرار 2026-09-08)،
-    #: وحقلُ الازدواج وحدَه لا يسع الحالين. فالنطاقُ يقول أين يسري التباعد،
-    #: وحيث سرى بطل الازدواجُ — القيدُ الصلبُ يعلو الترجيح.
-    SPREAD_SCOPES = [
-        ("none", "لا"),
-        ("prep", "الإعدادي"),
-        ("sec", "الثانوي"),
-        ("all", "كل المراحل"),
-    ]
-    spread_days_scope = models.CharField(
-        max_length=4,
-        choices=SPREAD_SCOPES,
-        default="none",
-        verbose_name="حصصها في أيام مختلفة",
-        help_text="لا تجتمع حصّتان منها في يومٍ واحدٍ للشعبة — في المرحلة المختارة",
-    )
-
-    def spreads_in(self, level_type: str) -> bool:
-        """هل يسري تباعدُ الأيّام على هذه المرحلة؟"""
-        return self.spread_days_scope == "all" or (
-            bool(level_type) and self.spread_days_scope == level_type
-        )
 
     class Meta:
         verbose_name = "مادة دراسية"
@@ -104,6 +80,19 @@ class Session(models.Model):
     #: يُسقط الثانيةَ بصمت في `bulk_create(ignore_conflicts=True)`.
     elective_group = models.CharField(
         max_length=40, blank=True, default="", verbose_name="مجموعة الاختيار"
+    )
+    #: صاحبُ الحصّة قبل التبديل — ووجودُه هو ما يقول إنّها مبدَّلة.
+    #:
+    #: التبديلُ يقع على يومٍ بعينه لا على قالب الأسبوع، فأثرُه يُكتب هنا لا في
+    #: `ScheduleSlot`. ومن نظر إلى جدول اليوم رأى المبدَّلةَ بلونها ورأى من
+    #: كانت له — ولو خُزّن المعلّمُ الجديدُ وحدَه لما عرف أحدٌ أنّ شيئاً جرى.
+    original_teacher = models.ForeignKey(
+        CustomUser,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="sessions_swapped_away",
+        verbose_name="المعلّم الأصليّ",
     )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -153,6 +142,25 @@ class StudentAttendance(models.Model):
         ("late", "متأخر"),
         ("excused", "معذور"),
     ]
+    #: أين الطالب — لا حالتُه. راجع الحقلَ `whereabouts`.
+    WHEREABOUTS = [
+        ("clinic", "في العيادة"),
+        ("activity", "في نشاطٍ مدرسيّ"),
+        ("out_permit", "خرج بإذن"),
+        ("out_no_permit", "خرج دون إذن"),
+        ("left_early", "استئذانٌ مبكّر"),
+        ("gate", "عند البوّابة (وصولٌ متأخّر)"),
+    ]
+
+    #: من سجّل — راجع الحقلَ `source`.
+    SOURCES = [
+        ("teacher", "معلّم الحصّة"),
+        ("supervisor", "مشرف الجناح"),
+        ("gate", "ملاحظ الطلبة"),
+        ("clinic", "العيادة"),
+        ("system", "النظام"),
+    ]
+
     EXCUSE = [
         ("medical", "طبي"),
         ("family", "ظروف عائلية"),
@@ -175,6 +183,40 @@ class StudentAttendance(models.Model):
         verbose_name="توقيت تسجيل التأخير",
         null=True,
         blank=True,
+    )
+    #: **أين الطالب** — حقلٌ مستقلٌّ عن `status` (قرارُ المستخدم 2026-09-12، §0.12).
+    #:
+    #: محاكاةُ يومٍ دراسيٍّ أنتجت سبعَ حالاتٍ و`status` يحمل أربعاً. فالطالبُ
+    #: في العيادة ليس حاضراً في فصله وليس غائباً عن مدرسته، والطالبُ في
+    #: مسابقةٍ مدرسيّةٍ **حاضرٌ في عهدة المدرسة** — وقائمةُ الأعذار في م
+    #: 3.4.1.4 **مغلقةٌ** لا يدخلها نشاطٌ تنظّمه المدرسة. والهاربُ غائبٌ
+    #: بمخالفةٍ لا كمن لم يأتِ أصلاً.
+    #:
+    #: فالحقيقةُ ثلاثيّة: حاضرٌ؟ · أين؟ · لماذا؟ و`status` وحدَها تكذب في
+    #: ثلاثٍ من سبع. والحدُّ الفاصلُ في النشاط: **هل خرج من عهدة المدرسة؟**
+    whereabouts = models.CharField(
+        max_length=14,
+        choices=WHEREABOUTS,
+        blank=True,
+        verbose_name="مكانُ الطالب",
+        help_text="فارغٌ = في فصله. وما سواه سببُ غيابه عن الفصل لا عن المدرسة",
+    )
+    #: من سجّل هذه الحالة — والحقبتان لا تُخلطان في إحصاء.
+    #:
+    #: قبل 2026-09 كان الرصدُ بيد معلّم الحصّة، وصار بيد مشرف الجناح (قرارُ
+    #: المدير). فسجلّاتُ الحقبتين تختلف مصدراً لا شكلاً، وإحصاءٌ يخلطهما
+    #: يقارن ما لا يُقارن. وفي أسبوع التشغيل الموازي **يرصد الاثنان معاً**،
+    #: فبلا هذا الحقل لا يُعرف أيُّ رقمٍ لأيّهما.
+    source = models.CharField(
+        max_length=12, choices=SOURCES, default="teacher", db_index=True, verbose_name="المصدر"
+    )
+    #: دقائقُ التأخّر عن بدء الحصّة — تُكتب مع حالة «متأخّر» وحدَها.
+    #:
+    #: والعدُّ مرّاتٍ وحدَه يسوّي بين من دخل بعد ست دقائق ومن دخل بعد ثلاثين،
+    #: والدقائقُ الضائعةُ هي ما يُقارَن لاحقاً بتحصيل الطالب في المادّة (طلبُ
+    #: المستخدم 2026-09-13). وفارغٌ يعني «لم تُقَس» لا «صفر».
+    late_minutes = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="دقائقُ التأخّر عن الحصّة"
     )
     excuse_type = models.CharField(max_length=20, choices=EXCUSE, blank=True)
     excuse_notes = models.TextField(blank=True)
@@ -468,6 +510,107 @@ class TimeSlotConfig(models.Model):
         return f"ح{self.period_number} ({self.get_day_type_display()}) {self.start_time:%H:%M}-{self.end_time:%H:%M}"
 
 
+class SectionDayConfirmation(models.Model):
+    """تثبيتُ مشرفِ الجناح رصدَ شعبةٍ في يوم — و**لا حضورَ افتراضيّاً**.
+
+    بلا هذا السجلّ لا يُفرَّق بين «شعبةٍ كلُّها حاضرة» و«شعبةٍ لم تُرصد» —
+    فالقاعدةُ في الحالين خاليةٌ من غياب. والفرقُ بينهما هو الفرقُ بين يومٍ
+    نظيفٍ ويومٍ مفقود، وبين مشرفٍ أنهى عمله ومشرفٍ لم يبدأه.
+
+    ومنه يُشتقّ «شُعبي المتبقّية n/5» الذي يراه المشرفُ صباحاً، وتنبيهُ
+    القيادة إن مضت الحصّةُ الثانيةُ وشعبةٌ لم تُرصد.
+
+    والعددان محفوظان لا محسوبان: يُقرآن في تقرير الوزارة بعد الحصّة الثانية
+    ثمّ تتبدّل الحالاتُ باعتماد الأعذار — فلو حُسبا وقتَ القراءة لأخرج
+    التقريرُ رقماً غيرَ الذي رُفع.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="day_confirmations")
+    class_group = models.ForeignKey(
+        ClassGroup, on_delete=models.CASCADE, related_name="day_confirmations"
+    )
+    date = models.DateField(db_index=True)
+    confirmed_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, related_name="day_confirmations"
+    )
+    confirmed_at = models.DateTimeField(auto_now=True)
+    present_count = models.PositiveSmallIntegerField(default=0)
+    absent_count = models.PositiveSmallIntegerField(default=0)
+    late_count = models.PositiveSmallIntegerField(default=0)
+    #: كم حصّةً كُتبت فيها الحالة — برهانُ السريان لا ادّعاؤه.
+    periods_written = models.PositiveSmallIntegerField(default=0)
+    note = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "تثبيتُ رصدِ شعبة"
+        verbose_name_plural = "تثبيتاتُ رصد الشُّعب"
+        ordering = ["-date", "class_group"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["class_group", "date"], name="unique_section_day_confirmation"
+            )
+        ]
+        indexes = [models.Index(fields=["school", "date"])]
+
+    def __str__(self):
+        return f"{self.class_group.short_code} · {self.date} · غياب {self.absent_count}"
+
+
+class PeriodConfirmation(models.Model):
+    """تثبيتُ مشرف الجناح رصدَ **حصّةٍ** لشعبة — لا يومِها.
+
+    المشرفُ يدخل الفصلَ في كلّ حصّة (قرارُ 2026-09-13): الأولى قبل نهايتها،
+    والبقيّةَ في بدايتها. فالتثبيتُ لكلّ خانةٍ زمنيّة، ومنه تُشتقّ نقاطُ الحصص على
+    بطاقة الشعبة، و«الفائتة» التي لم تُثبَّت حتى خمس دقائق بعد نهايتها
+    (`PERIOD_RECORDING_GRACE_MINUTES`) — ومحاسبتُها للنائب الإداريّ.
+
+    والخانةُ لا الحصّة: زوجُ الاختيار حصّتان في خانةٍ واحدة، يُثبَّتان معاً.
+
+    ووقتان لا وقتٌ واحد: `first_confirmed_at` لحظةُ أوّل تثبيتٍ ولا يتغيّر بعدها،
+    و`confirmed_at` آخرُ تثبيت. والحصّةُ التي ثُبّتت أوّلَ مرّةٍ بعد مهلتها تبقى
+    `confirmed_late` ولو ثُبّتت ثانيةً (قرارُ 2026-09-13) — فالتثبيتُ المتأخّر لا يمحو
+    أثرَ التأخير من تقرير النائب الإداريّ.
+
+    ولا نسخَ من حصّةٍ إلى أخرى: أُزيل الزرُّ بقرار 2026-09-13 — كلُّ حصّةٍ دخولٌ إلى الفصل.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="period_confirmations"
+    )
+    class_group = models.ForeignKey(
+        ClassGroup, on_delete=models.CASCADE, related_name="period_confirmations"
+    )
+    date = models.DateField(db_index=True)
+    start_time = models.TimeField(verbose_name="بدءُ الخانة")
+    end_time = models.TimeField(verbose_name="نهايةُ الخانة")
+    confirmed_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, related_name="period_confirmations"
+    )
+    first_confirmed_at = models.DateTimeField(verbose_name="أوّلُ تثبيت")
+    confirmed_at = models.DateTimeField(auto_now=True, verbose_name="آخرُ تثبيت")
+    confirmed_late = models.BooleanField(default=False, verbose_name="ثُبّتت بعد مهلتها")
+    present_count = models.PositiveSmallIntegerField(default=0)
+    absent_count = models.PositiveSmallIntegerField(default=0)
+    late_count = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "تثبيتُ رصدِ حصّة"
+        verbose_name_plural = "تثبيتاتُ رصد الحصص"
+        ordering = ["-date", "class_group", "start_time"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["class_group", "date", "start_time"],
+                name="unique_period_confirmation",
+            )
+        ]
+        indexes = [models.Index(fields=["school", "date"])]
+
+    def __str__(self):
+        return f"{self.class_group.short_code} · {self.date} {self.start_time:%H:%M}"
+
+
 class SubjectClassAssignment(AuditedModel):
     """ربط مادة بفصل بمعلم — المصفوفة الأساسية للتوليد التلقائي.
 
@@ -681,26 +824,20 @@ class TeacherPreference(models.Model):
         return f"تفضيلات: {self.teacher.full_name} ({self.academic_year})"
 
 
-#: قيودٌ شخصيّةٌ دائمةٌ سكنت جدولَ التفريغات لأنّه الوحيدُ الذي يقرأه المولّد.
-#: وهي ليست تفريغاً: التفريغُ غيابٌ لسببٍ خارجيٍّ له تاريخٌ ومرجع، وهذه صفةٌ
-#: لازمةٌ لصاحبها لا تنقضي. فتُستثنى من شاشة «تفريغات المعلمين والمنسقين»
-#: ويبقى أثرُها في الجدول كاملاً.
-PERSONAL_RULE_MARKERS = ("لا أولى ولا سابعة",)
-
-
-class TeacherExemptionQuerySet(models.QuerySet):
-    def releases(self):
-        """التفريغاتُ وحدَها — دون القيود الشخصيّة الدائمة."""
-        qs = self
-        for marker in PERSONAL_RULE_MARKERS:
-            qs = qs.exclude(reason__icontains=marker)
-        return qs
+#: كان هنا `PERSONAL_RULE_MARKERS` و`releases()`: قسمةُ التفريغات قسمين بمطابقة
+#: جملةٍ عربيّةٍ («لا أولى ولا سابعة») في حقلِ السبب الحرّ. حُذفت في 2026-09-09
+#: بقرار المستخدم، وقد أثبت القياسُ أنّها لا تعمل: ثلاثةٌ وتسعون تفريغاً نشطاً
+#: في المدرسة، **صفرٌ** منها يطابق الجملة — وستّون منها قيودٌ شخصيّةٌ دائمةٌ في
+#: المعنى (حصصُ 2·4·6) كُتب سببُها «تم». فصاحبُ القاعدة نفسُه لم يكتب الجملةَ
+#: التي تُفعّلها، ومطابقةُ نصٍّ حرٍّ لا تصلح تصنيفاً.
+#:
+#: والقيدُ الشخصيُّ الدائمُ يُدخل من شبكة التفريغات كسائرها، ويُلغى منها.
 
 
 class TeacherExemption(models.Model):
     """تفريغ معلم/منسق من حصص معينة أو يوم كامل — يُعيّنه النائب الأكاديمي"""
 
-    objects = TeacherExemptionQuerySet.as_manager()
+    objects = models.Manager()
 
     EXEMPTION_TYPE = [
         ("full_day", "يوم كامل"),
@@ -735,17 +872,34 @@ class TeacherExemption(models.Model):
     #: الأسبوع كلَّه. فيُسأل عن جهته — والسببُ وحدَه نصٌّ حرٌّ لا يُراجَع.
     #: (وكان يُسأل عن مرجع القرار أيضاً، فأُلغي بقرار الإدارة 2026-09-04: رقمُ
     #: التعميم لا يُعرف غالباً يومَ التفريغ، فكان يمنع الإدخالَ لا يُوثّقه.)
+    #: جهاتٌ يُلزم تفريغُها الناسَ كما يُلزم المولّد. وتفريغُ «لتوليد الجدول»
+    #: ليس قرارَ جهةٍ بل أداةُ تشكيلٍ: خاناتٌ تُغلق ليقع جدولُ المعلّم حيث يُراد
+    #: (كقيود 2·4·6). فالمولّدُ يحترمه كسائر التفريغات — وإلّا فما فائدتُه —
+    #: لكنّ البديلَ والتبديلَ يجوز فيه، لأنّ صاحبَه لم يُمنَع من الحصّة، بل
+    #: رُتّب له جدولُه (قرارُ المستخدم 2026-09-11).
+    SOFT_SOURCES = frozenset({"generation"})
+
     source = models.CharField(
         max_length=12,
         choices=[
             ("ministry", "قرارُ الوزارة"),
             ("school", "قرارُ إدارة المدرسة"),
             ("department", "قرارُ القسم الأكاديميّ"),
+            ("generation", "لتوليد الجدول"),
             ("other", "أخرى"),
         ],
         default="school",
         verbose_name="جهة القرار",
     )
+
+    @property
+    def binds_people(self) -> bool:
+        """أيمنع هذا التفريغُ إشغالَ صاحبه بديلاً أو تبديلَه فيه؟
+
+        قرارُ الوزارة والإدارة والقسم يمنعان؛ و«لتوليد الجدول» يُوسَم ولا يمنع.
+        """
+        return self.source not in self.SOFT_SOURCES
+
     created_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
@@ -793,6 +947,15 @@ class ScheduleBaseline(models.Model):
     academic_year = models.CharField(max_length=9)
     label = models.CharField(max_length=60, verbose_name="الاسم")
     metrics = models.JSONField(default=dict, verbose_name="المؤشرات")
+
+    #: المرجعُ المعتمَد الذي تُنسَب إليه الدرجةُ المعروضة — واحدٌ لكلّ عامٍ ومدرسة.
+    #:
+    #: وبلا هذه الرايةِ كان المرجعُ «آخرَ أساسٍ محفوظ»، فأيُّ ضغطةٍ على «حفظ
+    #: أساس» في شاشة المختبر تُحرّكه. ومرجعٌ يتحرّك مع كلّ توليدٍ سقّاطةٌ تقول
+    #: مئةً دائماً: كلُّ جدولٍ يُقاس بنفسه فيبدو كاملاً. فالتثبيتُ قرارٌ يُتَّخذ
+    #: مرّةً ويُراجَع سنويّاً، لا أثرٌ جانبيٌّ لضغطة زرّ.
+    is_pinned = models.BooleanField(default=False, verbose_name="مرجعٌ معتمَد")
+
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
         CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
@@ -805,11 +968,98 @@ class ScheduleBaseline(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["school", "academic_year", "label"], name="unique_schedule_baseline"
-            )
+            ),
+            # مرجعان معتمَدان لعامٍ واحدٍ يجعلان الدرجةَ تابعةً لترتيب الصفوف.
+            models.UniqueConstraint(
+                fields=["school", "academic_year"],
+                condition=models.Q(is_pinned=True),
+                name="one_pinned_baseline_per_year",
+            ),
         ]
 
     def __str__(self):
         return f"{self.label} — {self.academic_year}"
+
+
+class ScheduleConstraintOverride(models.Model):
+    """انحرافٌ متعمَّدٌ عن قيدٍ عرّفته الشيفرة — والصفوفُ استثناءاتٌ لا سجلّ.
+
+    صفرُ صفوفٍ هنا يعني «افتراضُ الكود بالضبط»، فلا بذرةَ تُزرع ولا انحرافَ
+    يقع بين قاعدة الإنتاج وقاعدة التطوير ولا أمرَ مزامنةٍ يُصان. وقيدٌ جديدٌ
+    يُنشَر بافتراضه ولا يحتاج هجرةَ بيانات.
+
+    والصفُّ يحمل أحدَ أمرين بحسب نوع القيد: **رتبةَ الكسر** للصلب — متى يتنازل
+    إن ضاق الجدول — أو **الوزنَ** للمرن. وقيودُ النواة لا تُحرَّر بحال؛ يحرسها
+    `ConstraintSpec.tunable` في السجلّ و`clean()` هنا.
+
+    راجع `operations.constraint_registry`.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="constraint_overrides"
+    )
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    code = models.CharField(max_length=20, verbose_name="رمز القيد")
+    break_at = models.CharField(
+        max_length=10,
+        blank=True,
+        default="",
+        verbose_name="متى يُكسَر",
+        help_text="للقيود الصلبة — فارغٌ يعني افتراضَ الكود",
+    )
+    weight = models.FloatField(
+        null=True,
+        blank=True,
+        verbose_name="الوزن",
+        help_text="للقيود المرنة — فارغٌ يعني افتراضَ الكود",
+    )
+    #: لماذا خُولف الافتراض — فانحرافٌ بلا سببٍ يُقرأ بعد شهرٍ خللاً لا قراراً.
+    reason = models.CharField(max_length=200, verbose_name="سبب المخالفة")
+    updated_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "استثناء قيد جدول"
+        verbose_name_plural = "استثناءات قيود الجدول"
+        ordering = ["code"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["school", "academic_year", "code"], name="unique_constraint_override"
+            )
+        ]
+
+    def __str__(self):
+        from .constraint_registry import spec
+
+        found = spec(self.code)
+        title = found.title if found else self.code
+        return f"{self.code} · {title} — {self.academic_year}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        from .constraint_registry import BREAK_CHOICES, HARD, SOFT, spec
+
+        found = spec(self.code)
+        if found is None:
+            raise ValidationError({"code": "رمزٌ لا يعرفه سجلُّ القيود."})
+        if not found.tunable:
+            raise ValidationError(
+                {"code": f"«{found.title}» من النواة — لا يُحرَّر: خرقُه يُنتج جدولاً مستحيلاً."}
+            )
+        if found.kind == HARD:
+            if self.break_at not in dict(BREAK_CHOICES):
+                raise ValidationError({"break_at": "رتبةٌ غيرُ معروفة."})
+            if self.weight is not None:
+                raise ValidationError({"weight": "الوزنُ للقيود المرنة وحدَها."})
+        if found.kind == SOFT:
+            if self.weight is None:
+                raise ValidationError({"weight": "القيدُ المرنُ يُعايَر بوزنه."})
+            if self.break_at:
+                raise ValidationError({"break_at": "الرتبةُ للقيود الصلبة وحدَها."})
 
 
 class ScheduleGenerationQuerySet(models.QuerySet):
@@ -1005,6 +1255,38 @@ class TeacherSwap(models.Model):
         verbose_name="مُنشئ الطلب",
     )
     b_responded_at = models.DateTimeField(null=True, blank=True)
+
+    #: توقيعُ منسّقِ كلِّ مادّة على حِدَة.
+    #:
+    #: كان توقيعاً واحداً يملكه أيُّ منسّقٍ في المدرسة، ويذهب إلى النائب حين
+    #: تختلف المادّتان. والتبديلُ يمسّ مادّتين وقسمَين، فلكلّ قسمٍ منسّقُه —
+    #: وقرارُ القسم قرارُ صاحبه (قرار المستخدم 2026-09-11).
+    #:
+    #: والنائبُ الأكاديميُّ بديلٌ عن الغائب منهما لا متجاوزٌ عليهما: يوقّع عن
+    #: جهةٍ لا منسّقَ لها، أو منسّقُها غائبٌ اليومَ، أو هو نفسُه طرفٌ في
+    #: التبديل — وتُعلَّم البديلُ في `*_by_substitute` فيُقرأ في السجلّ.
+    approved_a_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="swap_approvals_side_a",
+        verbose_name="موافقةُ منسّق المادّة الأولى",
+    )
+    approved_a_at = models.DateTimeField(null=True, blank=True)
+    approved_a_by_substitute = models.BooleanField(default=False)
+    approved_b_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="swap_approvals_side_b",
+        verbose_name="موافقةُ منسّق المادّة الثانية",
+    )
+    approved_b_at = models.DateTimeField(null=True, blank=True)
+    approved_b_by_substitute = models.BooleanField(default=False)
+
+    #: آخرُ من أتمّ الاعتماد — يبقى لتوافق الشاشات والسجلّات القديمة.
     approved_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
@@ -1049,7 +1331,7 @@ class TeacherSwap(models.Model):
 
     @property
     def is_cross_department(self):
-        """هل التبديل بين تخصصين مختلفين؟ (يحتاج نائب بدل منسق)"""
+        """هل التبديل بين تخصصين مختلفين؟"""
         subj_a = self.slot_a.subject
         subj_b = self.slot_b.subject
         if subj_a and subj_b:
@@ -1059,6 +1341,92 @@ class TeacherSwap(models.Model):
     @property
     def is_pending(self):
         return self.status in ("pending_b", "accepted_b", "pending_coordinator", "pending_vp")
+
+    # ── المنسّقان: قرارُ القسم قرارُ صاحبه ───────────────────────────
+
+    def coordinator_for(self, side: str):
+        """منسّقُ قسمِ معلّم هذه الجهة — أو `None` إن كان المقعدُ شاغراً.
+
+        ولا رابطَ بين المادّة والقسم في القاعدة؛ الرابطُ عضويّةُ المعلّم.
+        فمنسّقُ المادّة هو رئيسُ قسمِ من يُدرّسها في هذه الحصّة.
+        """
+        teacher = self.teacher_a if side == "a" else self.teacher_b
+        department = teacher.department_obj if teacher else None
+        return department.head if department else None
+
+    def needs_one_signature(self) -> bool:
+        """جهةٌ واحدةٌ حين يجمعهما منسّقٌ واحد — فلا يُطلب توقيعُه مرّتين."""
+        first, second = self.coordinator_for("a"), self.coordinator_for("b")
+        return first is not None and first == second
+
+    @property
+    def is_fully_approved(self) -> bool:
+        if self.needs_one_signature():
+            return bool(self.approved_a_by_id or self.approved_b_by_id)
+        return bool(self.approved_a_by_id and self.approved_b_by_id)
+
+    @property
+    def awaiting_sides(self) -> tuple[str, ...]:
+        """الجهاتُ التي لم تُوقَّع بعد — تقرؤها الشاشةُ لتقول لمن تنتظر."""
+        if self.is_fully_approved:
+            return ()
+        if self.needs_one_signature():
+            return ("a",)
+        return tuple(side for side in ("a", "b") if not getattr(self, f"approved_{side}_by_id"))
+
+    def sides_display(self):
+        """ما تعرضه البطاقةُ عن الجهتين: من وقّع ومن يُنتظَر.
+
+        ويُحسب في النموذج لا في القالب: القالبُ لا يستدعي دالّةً بمعاملات،
+        ونسخُ المنطق فيه يجعل الشاشةَ تقول غيرَ ما تفعله الخدمة.
+        """
+        shown = []
+        for side in ("a", "b"):
+            if side == "b" and self.needs_one_signature():
+                continue
+            slot = self.slot_a if side == "a" else self.slot_b
+            signer = getattr(self, f"approved_{side}_by")
+            head = self.coordinator_for(side)
+            shown.append(
+                (
+                    side,
+                    {
+                        "subject": str(slot.subject) if slot.subject else "المادّة",
+                        "signed": signer is not None,
+                        "who": (
+                            signer.full_name
+                            if signer
+                            else (head.full_name if head else "النائب الأكاديميّ")
+                        ),
+                        "substitute": getattr(self, f"approved_{side}_by_substitute"),
+                    },
+                )
+            )
+        return shown
+
+    # ── المدى: ينتهي بانتهاء الحصّة الأبعد ──────────────────────────
+
+    @property
+    def last_period_end(self):
+        """لحظةُ انتهاء آخرِ الحصّتين — بها ينقضي التبديل.
+
+        قرارُ المستخدم 2026-09-11: «يعود الجدول كما كان عند انتهاء الحصّة
+        البعيدة المبدَّلة». ولا يحتاج ذلك إجراءً ولا مهمّةً مجدولة: التبديلُ
+        لا يمسّ قالبَ الأسبوع أصلاً، فهو يعود من نفسه.
+        """
+        from datetime import datetime
+
+        pairs = (
+            (self.swap_date_a, self.slot_a.end_time),
+            (self.swap_date_b, self.slot_b.end_time),
+        )
+        return max(datetime.combine(day, end) for day, end in pairs)
+
+    @property
+    def has_ended(self) -> bool:
+        from django.utils import timezone as tz
+
+        return tz.localtime(tz.now()).replace(tzinfo=None) > self.last_period_end
 
 
 class CompensatorySession(models.Model):

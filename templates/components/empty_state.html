@@ -3,14 +3,17 @@
   ════════════════════════════════════════════
   الاستخدام:
     include "components/empty_state.html" with
-       icon="📭"
+       icon="inbox"
        title="لا توجد نتائج"
        subtitle="لم يتم العثور على أي عناصر تطابق معايير البحث."
        action_url="/students/add/"
        action_label="إضافة طالب جديد"
 
   المتغيرات:
-    icon         — رمز (emoji أو SVG)
+    icon         — اسمُ أيقونةٍ من `sprite.html` (مثل "inbox" أو "check-circle").
+                   وكان يُطبَع نصّاً خاماً، فمن مرّر اسماً رأى الاسمَ نفسَه
+                   بخطٍّ ضخمٍ مكانَ الأيقونة — «check-circle» في شاشة الغياب.
+                   ولا تُمرَّر emoji: أيقوناتُ المنصّة من مصدرٍ واحد.
     title        — العنوان الرئيسي
     subtitle     — النص التوضيحي
     action_url   — رابط الإجراء (اختياري)
@@ -20,7 +23,7 @@
 {% endcomment %}
 <div class="empty-state-v2 {% if compact %}py-8{% endif %}">
   {% if icon %}
-  <div class="es-icon">{{ icon }}</div>
+  <div class="es-icon">{% include "components/icon.html" with name=icon size="icon-2xl" %}</div>
   {% endif %}
   <div class="es-title">{{ title|default:"لا توجد بيانات" }}</div>
   {% if subtitle %}

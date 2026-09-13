@@ -6,7 +6,7 @@ core/middleware.py
 
 import logging
 
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 
@@ -92,6 +92,9 @@ class SchoolPermissionMiddleware:
         for protected_path, allowed_roles in self.protected_paths.items():
             if path.startswith(protected_path):
                 if user_role not in allowed_roles:
+                    from core.permissions import log_denial
+
+                    log_denial(request, role=user_role, required=allowed_roles, source="middleware")
                     if path.startswith("/api/"):
                         return JsonResponse(
                             {"error": "ليس لديك صلاحية للوصول", "code": "forbidden"}, status=403
@@ -168,6 +171,69 @@ class SentryScopeMiddleware:
         return self.get_response(request)
 
 
+# ── Middleware إلزام تغيير كلمة المرور ─────────────────────
+class ForcePasswordChangeMiddleware:
+    """من عليه تغييرُ كلمة مروره لا يبلغ صفحةً غيرَ صفحة التغيير.
+
+    كان الإلزامُ عند الدخول وحدَه: `login_view` يحوّل إلى صفحة التغيير، ثمّ
+    لا شيءَ يمنع من كتابة `/dashboard/` في الشريط — فتبقى الكلمةُ المؤقّتةُ
+    كما هي، ويبقى الإلزامُ رايةً لا تُلزم أحداً.
+
+    وخطرُه أثقلُ حين تكون المؤقّتةُ على نمطٍ معروف (قرارُ 2026-09-13: الرقمُ
+    الشخصيُّ بين علامتين). فمن عرف النمطَ ورقمَ زميلٍ دخل باسمه — والإلزامُ
+    عند أوّل دخولٍ لا يحمي إلّا إن كان إلزاماً فعلاً: أوّلُ من يدخل يُبدّلها،
+    صاحبُها أو غيرُه، ولا يمضي أحدٌ بالمؤقّتة.
+
+    والمستثنى ما لا يقوم التغييرُ إلّا به: الدخولُ والخروجُ وصفحةُ التغيير،
+    والملفّاتُ الثابتة، وفحوصُ الصحّة، وعاملُ الخدمة.
+    """
+
+    EXEMPT_PREFIXES = (
+        "/auth/login/",
+        "/auth/logout/",
+        "/auth/force_change_password/",
+        "/static/",
+        "/media/",
+        "/health/",
+        "/ready/",
+        "/status/",
+        "/sw.js",
+        "/manifest.json",
+        "/offline/",
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        if (
+            user is not None
+            and user.is_authenticated
+            and getattr(user, "must_change_password", False)
+            and not request.path.startswith(self.EXEMPT_PREFIXES)
+        ):
+            target = reverse("force_change_password")
+            if (
+                request.path.startswith("/api/")
+                or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            ):
+                # طلبٌ في الخلفيّة (عدّادُ الإشعارات كلَّ ثلاثين ثانية) لا تحويلَ له:
+                # كان يتبع التحويلَ فيقرأ صفحةَ HTML على أنّها JSON.
+                return JsonResponse(
+                    {"error": "يجب تغيير كلمة المرور أولاً", "code": "password_change_required"},
+                    status=403,
+                )
+            if request.headers.get("HX-Request"):
+                # طلبُ HTMX يُبدّل جزءاً من الصفحة — فالتحويلُ يُطلب من المتصفّح كلِّه.
+                response = HttpResponse(status=204)
+                response["HX-Redirect"] = target
+                return response
+            return redirect(target)
+
+        return self.get_response(request)
+
+
 # ── Middleware إجبار ولي الأمر على الموافقة ───────────────
 class ParentConsentMiddleware:
     """يُجبر ولي الأمر على الموافقة قبل الوصول لأي صفحة (بما فيها API)"""
@@ -199,3 +265,38 @@ class ParentConsentMiddleware:
             return redirect(reverse("parent_consent"))
 
         return self.get_response(request)
+
+
+class PrivateHtmlNoStoreMiddleware:
+    """صفحةُ مستخدمٍ مسجَّلٍ لا تُخزَّن في المتصفّح — `Cache-Control: no-store`.
+
+    كانت كلُّ صفحات المنصّة تخرج بلا `Cache-Control` البتّة. وحين لا يجد
+    المتصفّحُ توجيهاً ولا مُصادِقاً فله أن يُخزّن ويُعيد من تلقائه. وقد وقع
+    فعلاً: نُشر تغييرٌ وبقيت النوافذُ على حالها القديم، حتّى حُدّثت بتجاوز
+    الذاكرة (2026-09-12) فظهر الجديد — والخادمُ كان يخدم الأحدثَ طَوالها.
+
+    والأثرُ الثاني أثقل: هذه صفحاتٌ شخصيّة — جدولُ معلّمٍ، سجلُّ طالب، ملفٌّ
+    طبّيّ — تبقى على قرص جهازٍ قد يكون مشتركاً بعد الخروج، ويبلغها زرُّ
+    الرجوع. و`Vary: Cookie` يمنع الخلطَ بين مستخدمَين ولا يمنع البقاء.
+
+    والنطاقُ ضيّقٌ عمداً: HTML للمسجَّلين وحدَه. فالثابتُ يخدمه WhiteNoise
+    ببصمةٍ في اسمه ويجب أن يبقى مخزَّناً، وصفحاتُ الزائر (الدخول، الأخطاء)
+    ليست شخصيّةً، ومن ضبط ترويستَه بنفسه (`/health/`) أدرى بصفحته.
+
+    وثمنُه معلوم: `no-store` يُبطل bfcache، فزرُّ الرجوع يُعيد الطلب. وهو
+    الثمنُ المتعارَف عليه في تطبيقٍ خلفَ تسجيل دخول.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        if response.has_header("Cache-Control"):
+            return response
+        if not getattr(request, "user", None) or not request.user.is_authenticated:
+            return response
+        if response.get("Content-Type", "").partition(";")[0].strip() != "text/html":
+            return response
+        response["Cache-Control"] = "no-store"
+        return response

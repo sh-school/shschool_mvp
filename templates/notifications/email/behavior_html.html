@@ -1,37 +1,37 @@
-<!DOCTYPE html>
+{% load brand_tags %}<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
 <meta charset="UTF-8">
 <style>
-  body { font-family: Tahoma, Arial, sans-serif; direction: rtl; background:#f3f4f6; margin:0; padding:20px; }
-  .card { max-width:560px; margin:0 auto; background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
-  .header { background:#8A1538; color:#fff; padding:24px 28px; }
+  body { font-family: Tahoma, Arial, sans-serif; direction: rtl; background:{% brand_color "PAGE_BG" %}; margin:0; padding:20px; }
+  .card { max-width:560px; margin:0 auto; background:{% brand_color "SURFACE" %}; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.08); }
+  .header { background:{% brand_color "MAROON" %}; color:{% brand_color "ON_FILL" %}; padding:24px 28px; }
   .header h1 { margin:0; font-size:18px; font-weight:700; }
   .header p  { margin:6px 0 0; font-size:12px; opacity:.8; }
   .body { padding:24px 28px; }
   .level-box { border-radius:10px; padding:16px 20px; margin:16px 0; text-align:center; }
-  .level-1 { background:#fef9c3; border:1px solid #fde047; }
-  .level-2 { background:#fff7ed; border:1px solid #fed7aa; }
-  .level-3 { background:#fef2f2; border:1px solid #fca5a5; }
-  .level-4 { background:#fff1f2; border:2px solid #f43f5e; }
+  .level-1 { background:{% brand_color "STATUS_WARNING_BG" %}; border:1px solid {% brand_color "STATUS_WARNING_BORDER" %}; }
+  .level-2 { background:{% brand_color "SURFACE" %}; border:1px solid {% brand_color "STATUS_WARNING_BORDER" %}; }
+  .level-3 { background:{% brand_color "STATUS_DANGER_BG" %}; border:1px solid {% brand_color "STATUS_DANGER_BORDER" %}; }
+  .level-4 { background:{% brand_color "SURFACE_ALT" %}; border:2px solid {% brand_color "STATUS_DANGER" %}; }
   .level-label { font-size:22px; font-weight:800; display:block; }
-  .level-1 .level-label { color:#854d0e; }
-  .level-2 .level-label { color:#c2410c; }
-  .level-3 .level-label { color:#b91c1c; }
-  .level-4 .level-label { color:#be123c; }
+  .level-1 .level-label { color:{% brand_color "STATUS_WARNING_DARK" %}; }
+  .level-2 .level-label { color:{% brand_color "ACCENT_ORANGE_FG" %}; }
+  .level-3 .level-label { color:{% brand_color "STATUS_DANGER_FG" %}; }
+  .level-4 .level-label { color:{% brand_color "STATUS_DANGER_DARK" %}; }
   .level-sub { font-size:12px; display:block; margin-top:4px; }
-  .level-1 .level-sub { color:#713f12; }
-  .level-2 .level-sub { color:#9a3412; }
-  .level-3 .level-sub { color:#991b1b; }
-  .level-4 .level-sub { color:#9f1239; }
-  .info-row { display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid #f3f4f6; font-size:13px; }
+  .level-1 .level-sub { color:{% brand_color "STATUS_WARNING_DARK" %}; }
+  .level-2 .level-sub { color:{% brand_color "STATUS_WARNING_DARK" %}; }
+  .level-3 .level-sub { color:{% brand_color "STATUS_DANGER_DARK" %}; }
+  .level-4 .level-sub { color:{% brand_color "MAROON_LIGHT" %}; }
+  .info-row { display:flex; justify-content:space-between; padding:9px 0; border-bottom:1px solid {% brand_color "BORDER" %}; font-size:13px; }
   .info-row:last-child { border:none; }
-  .info-row span:first-child { color:#6b7280; }
-  .info-row span:last-child { font-weight:700; color:#111827; }
-  .desc-box { background:#f9fafb; border-right:3px solid #8A1538; border-radius:0 8px 8px 0; padding:12px 16px; margin:14px 0; font-size:13px; color:#374151; line-height:1.7; }
-  .action-box { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:12px 16px; margin:14px 0; font-size:13px; color:#166534; }
-  .warning-note { background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:12px 16px; margin:14px 0; font-size:12px; color:#92400e; }
-  .footer { background:#f9fafb; padding:14px 28px; font-size:11px; color:#9ca3af; text-align:center; border-top:1px solid #e5e7eb; }
+  .info-row span:first-child { color:{% brand_color "TEXT_MUTED" %}; }
+  .info-row span:last-child { font-weight:700; color:{% brand_color "TEXT_PRIMARY" %}; }
+  .desc-box { background:{% brand_color "SURFACE_ALT" %}; border-right:3px solid {% brand_color "MAROON" %}; border-radius:0 8px 8px 0; padding:12px 16px; margin:14px 0; font-size:13px; color:{% brand_color "TEXT_SECONDARY" %}; line-height:1.7; }
+  .action-box { background:{% brand_color "STATUS_SUCCESS_BG" %}; border:1px solid {% brand_color "STATUS_SUCCESS_BORDER" %}; border-radius:8px; padding:12px 16px; margin:14px 0; font-size:13px; color:{% brand_color "STATUS_SUCCESS_FG" %}; }
+  .warning-note { background:{% brand_color "STATUS_WARNING_BG" %}; border:1px solid {% brand_color "STATUS_WARNING_BORDER" %}; border-radius:8px; padding:12px 16px; margin:14px 0; font-size:12px; color:{% brand_color "STATUS_WARNING_FG" %}; }
+  .footer { background:{% brand_color "SURFACE_ALT" %}; padding:14px 28px; font-size:11px; color:{% brand_color "TEXT_MUTED" %}; text-align:center; border-top:1px solid {% brand_color "BORDER" %}; }
 </style>
 </head>
 <body>
@@ -43,7 +43,7 @@
   </div>
 
   <div class="body">
-    <p style="color:#374151;font-size:14px;margin:0 0 16px">
+    <p style="color:{% brand_color "TEXT_SECONDARY" %};font-size:14px;margin:0 0 16px">
       {{ parent_name }} الكريم / الكريمة،<br>
       نودّ إعلامكم بتسجيل مخالفة سلوكية لابنكم / ابنتكم:
     </p>
@@ -55,19 +55,19 @@
     </div>
 
     <!-- بيانات الطالب -->
-    <div style="background:#f9fafb;border-radius:8px;padding:12px 16px;margin:12px 0">
+    <div style="background:{% brand_color "SURFACE_ALT" %};border-radius:8px;padding:12px 16px;margin:12px 0">
       <div class="info-row"><span>الطالب</span><span>{{ student_name }}</span></div>
       <div class="info-row"><span>التاريخ</span><span>{{ infraction_date }}</span></div>
       <div class="info-row"><span>المُبلِّغ</span><span>{{ reported_by }}</span></div>
     </div>
 
     <!-- وصف المخالفة -->
-    <p style="font-size:12px;color:#6b7280;margin:14px 0 6px;font-weight:700">وصف المخالفة:</p>
+    <p style="font-size:12px;color:{% brand_color "TEXT_MUTED" %};margin:14px 0 6px;font-weight:700">وصف المخالفة:</p>
     <div class="desc-box">{{ description }}</div>
 
     <!-- الإجراء المتخذ -->
     {% if action_taken %}
-    <p style="font-size:12px;color:#6b7280;margin:14px 0 6px;font-weight:700">الإجراء المتخذ:</p>
+    <p style="font-size:12px;color:{% brand_color "TEXT_MUTED" %};margin:14px 0 6px;font-weight:700">الإجراء المتخذ:</p>
     <div class="action-box">{{ action_taken }}</div>
     {% endif %}
 
@@ -79,7 +79,7 @@
     </div>
     {% endif %}
 
-    <p style="font-size:13px;color:#374151;margin:16px 0 0">
+    <p style="font-size:13px;color:{% brand_color "TEXT_SECONDARY" %};margin:16px 0 0">
       نأمل منكم متابعة ابنكم / ابنتكم وتوجيهه نحو الالتزام بالنظام المدرسي.
       نحن شركاء في تربية جيل صالح بإذن الله.
     </p>

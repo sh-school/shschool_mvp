@@ -1,3 +1,4 @@
+{% load brand_tags %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -13,15 +14,15 @@
   body {
     font-family: 'Tajawal', 'Amiri', Tahoma, Arial, sans-serif;
     font-size: 13px;
-    color: #1a1a1a;
+    color: {% brand_color "TEXT_PRIMARY" %};
     margin: 0;
     padding: 0;
-    background: #fff;
-    border: 2px solid #8A1538;
+    background: {% brand_color "SURFACE" %};
+    border: 2px solid {% brand_color "MAROON" %};
   }
   .page-wrapper {
-    border-top: 2.5px solid #8A1538;
-    border-bottom: 1px solid #D4A843;
+    border-top: 2.5px solid {% brand_color "MAROON" %};
+    border-bottom: 1px solid {% brand_color "GOLD" %};
     padding: 0;
   }
   /* ===== HEADER ===== */
@@ -40,7 +41,7 @@
   }
   .doc-header-ministry {
     font-size: 10px;
-    color: #555;
+    color: {% brand_color "TEXT_SECONDARY" %};
     margin-bottom: 3px;
     font-weight: 600;
     letter-spacing: 0.3px;
@@ -48,7 +49,7 @@
   .doc-header-school {
     font-size: 19px;
     font-weight: 700;
-    color: #8A1538;
+    color: {% brand_color "MAROON" %};
     line-height: 1.4;
   }
   /* Suppress duplicated names from child templates */
@@ -64,15 +65,15 @@
   .section-title {
     font-size: 12px;
     font-weight: 700;
-    color: #fff;
-    background: #8A1538;
+    color: {% brand_color "ON_FILL" %};
+    background: {% brand_color "MAROON" %};
     padding: 5px 10px;
     border-radius: 3px;
     margin-bottom: 8px;
   }
-  .report-title { font-size: 13px; font-weight: 700; color: #8A1538; margin-bottom: 6px; }
-  .form-title { font-size: 15px; font-weight: 900; color: #8A1538; text-align: center !important; margin: 6px 0 2px 0; }
-  .date-line { font-size: 11px; color: #555; text-align: center !important; margin-bottom: 8px; }
+  .report-title { font-size: 13px; font-weight: 700; color: {% brand_color "MAROON" %}; margin-bottom: 6px; }
+  .form-title { font-size: 15px; font-weight: 900; color: {% brand_color "MAROON" %}; text-align: center !important; margin: 6px 0 2px 0; }
+  .date-line { font-size: 11px; color: {% brand_color "TEXT_SECONDARY" %}; text-align: center !important; margin-bottom: 8px; }
 
   /* ===== RTL for all tables ===== */
   table { direction: rtl; border-collapse: collapse; width: 100%; }
@@ -80,10 +81,10 @@
 
   /* ===== DATA TABLE (field rows) ===== */
   .data-table { margin-bottom: 8px; font-size: 12px; }
-  .data-table td { padding: 5px 8px; border-bottom: 1px dotted #ddd; }
-  .data-table .fl { font-weight: 700; color: #444; white-space: nowrap; width: 18%; }
-  .data-table .fv { color: #1a1a1a; }
-  .body-text { font-size: 12px; line-height: 1.7; color: #222; margin: 4px 0; }
+  .data-table td { padding: 5px 8px; border-bottom: 1px dotted {% brand_color "BORDER" %}; }
+  .data-table .fl { font-weight: 700; color: {% brand_color "TEXT_SECONDARY" %}; white-space: nowrap; width: 18%; }
+  .data-table .fv { color: {% brand_color "TEXT_PRIMARY" %}; }
+  .body-text { font-size: 12px; line-height: 1.7; color: {% brand_color "TEXT_PRIMARY" %}; margin: 4px 0; }
 
   /* ===== CHECKBOXES ===== */
   .checkbox-row { display: flex; flex-wrap: wrap; gap: 10px 24px; margin: 6px 0; }
@@ -92,7 +93,7 @@
     display: inline-block;
     width: 14px;
     height: 14px;
-    border: 1.5px solid #555;
+    border: 1.5px solid {% brand_color "TEXT_SECONDARY" %};
     text-align: center;
     line-height: 12px;
     font-size: 11px;
@@ -101,17 +102,17 @@
 
   /* ===== BADGES ===== */
   .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700; }
-  .badge-A { background: #fee2e2; color: #991b1b; }
-  .badge-B { background: #fef9c3; color: #854d0e; }
-  .badge-C { background: #f0fdf4; color: #166534; }
+  .badge-A { background: {% brand_color "STATUS_DANGER_BG" %}; color: {% brand_color "STATUS_DANGER_DARK" %}; }
+  .badge-B { background: {% brand_color "STATUS_WARNING_BG" %}; color: {% brand_color "STATUS_WARNING_DARK" %}; }
+  .badge-C { background: {% brand_color "STATUS_SUCCESS_BG" %}; color: {% brand_color "STATUS_SUCCESS_FG" %}; }
 
   /* ===== SIGNATURES ===== */
   .sig-section { margin-top: 30px; page-break-inside: avoid; }
   .sig-section-title {
     font-size: 12px;
     font-weight: 700;
-    color: #8A1538;
-    border-bottom: 1px solid #ddd;
+    color: {% brand_color "MAROON" %};
+    border-bottom: 1px solid {% brand_color "BORDER" %};
     padding-bottom: 4px;
     margin-bottom: 6px;
   }
@@ -124,10 +125,10 @@
     height: 60px;
   }
   .sig-table .sig-line {
-    border-top: 1.5px solid #555;
+    border-top: 1.5px solid {% brand_color "TEXT_SECONDARY" %};
     padding-top: 6px;
     font-size: 11px;
-    color: #333;
+    color: {% brand_color "TEXT_PRIMARY" %};
     text-align: center !important;
   }
 
@@ -135,19 +136,19 @@
   .doc-footer {
     margin-top: 16px;
     padding-top: 6px;
-    border-top: 1.5px solid #8A1538;
+    border-top: 1.5px solid {% brand_color "MAROON" %};
     text-align: center;
     font-size: 10px;
-    color: #111;
+    color: {% brand_color "TEXT_PRIMARY" %};
     font-weight: 600;
     line-height: 1.7;
   }
   .notice {
     margin-top: 18px;
     font-size: 10px;
-    color: #888;
+    color: {% brand_color "TEXT_MUTED" %};
     text-align: center !important;
-    border-top: 1px solid #eee;
+    border-top: 1px solid {% brand_color "BORDER" %};
     padding-top: 6px;
     page-break-inside: avoid;
   }
@@ -178,7 +179,7 @@
 {% endcomment %}
 <div class="doc-footer">
   {{ school.name }}{% if school.phone %} · هاتف: {{ school.phone }}{% endif %}{% if school.email %} · {{ school.email }}{% endif %}{% if school.city %} · {{ school.city }}، قطر{% endif %}
-  <div style="color:#6B1029; font-size:9px; font-weight:600;">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %} · SchoolOS-SAMM © {% now "Y" %}</div>
+  <div style="color:{% brand_color "MAROON_DARK" %}; font-size:9px; font-weight:600;">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %} · SchoolOS-SAMM © {% now "Y" %}</div>
 </div>
 
 </div>

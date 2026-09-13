@@ -28,7 +28,7 @@
         <td class="px-4 py-3">{{ v.reason }}</td>
         <td class="px-4 py-3 text-center">
           {% if v.temperature %}
-            <span class="font-mono {% if v.temperature >= 38 %}text-red-600 font-semibold{% else %}text-gray-600{% endif %}">
+            <span class="font-mono {% if v.temperature >= 38 %}text-[var(--status-danger-fg)] font-semibold{% else %}text-gray-600{% endif %}">
               {{ v.temperature }}°
             </span>
           {% else %}—{% endif %}

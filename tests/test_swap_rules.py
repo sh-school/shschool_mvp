@@ -718,7 +718,29 @@ class TestHappyPath:
     def test_full_lifecycle(
         self, school, teacher_a, teacher_b, slot_a, slot_b, coordinator_user, future_sunday
     ):
-        """دورة حياة كاملة: طلب → قبول → موافقة → تنفيذ"""
+        """دورة حياة كاملة: طلب → قبول → توقيع المنسّق → تنفيذ.
+
+        وقاعدتان تغيّرتا (قرارُ المستخدم 2026-09-11):
+
+        **التوقيعُ لمنسّق المادّة** لا لأيّ منسّقٍ في المدرسة. والمعلّمان هنا
+        في قسمٍ واحدٍ يرأسه هذا المنسّق، فتوقيعُه وحدَه يكفي — ولو كانا في
+        قسمين لاحتاج الطلبُ توقيعَين.
+
+        **والتبديلُ لا يمسّ قالبَ الأسبوع**: كان يبدّل المعلّمَ في
+        `ScheduleSlot` فتُبدَّل الحصّةُ كلَّ أسبوعٍ إلى الأبد. فالأثرُ على
+        حصّة اليوم وحدَها، والقالبُ يبقى كما هو — وبه يعود الجدولُ من نفسه.
+        """
+        from core.models.access import Membership
+        from core.models.department import Department
+        from operations.models import Session
+
+        department = Department.objects.create(
+            school=school, name="الرياضيات", code="math", head=coordinator_user
+        )
+        Membership.objects.filter(user__in=[teacher_a, teacher_b], school=school).update(
+            department_obj=department
+        )
+
         # 1. الطلب
         swap = SwapService.create_swap_request(
             school=school,
@@ -733,18 +755,25 @@ class TestHappyPath:
 
         # 2. المعلم ب يقبل
         SwapService.respond_to_swap(swap, accepted=True)
-        assert swap.status in ("pending_coordinator", "pending_vp")
+        assert swap.status == "pending_coordinator"
 
-        # 3. المنسق يوافق → تنفيذ تلقائي
+        # 3. منسّقُ القسم يوقّع → تنفيذ تلقائي
         SwapService.approve_swap(swap, approved_by=coordinator_user, approved=True)
         swap.refresh_from_db()
         assert swap.status == "executed"
 
-        # 4. تحقق أن المعلمين تبادلوا
+        # 4. قالبُ الأسبوع لم يُمَسّ
         slot_a.refresh_from_db()
         slot_b.refresh_from_db()
-        assert slot_a.teacher == teacher_b
-        assert slot_b.teacher == teacher_a
+        assert slot_a.teacher == teacher_a
+        assert slot_b.teacher == teacher_b
+
+        # 5. وحصّتا ذلك اليوم وحدَهما تبادلتا صاحبَيهما
+        first = Session.objects.get(date=future_sunday, start_time=slot_a.start_time)
+        second = Session.objects.get(date=future_sunday, start_time=slot_b.start_time)
+        assert first.teacher == teacher_b
+        assert second.teacher == teacher_a
+        assert first.original_teacher == teacher_a, "ووجودُه هو ما يُلوّن الخانة"
 
 
 # ══════════════════════════════════════════════════

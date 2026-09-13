@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}{% if is_leadership %}حصص المدرسة{% else %}جدول حصصي{% endif %}{% endblock %}
 
 {% block breadcrumbs %}
@@ -13,42 +14,29 @@
 
 <div class="exec-dash">
 
-{# ── Header ── #}
-<div class="exec-header">
-  <div>
-    <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} {% if is_leadership %}حصص المدرسة — تسجيل الحضور{% else %}جدول حصصي{% endif %}</h1>
-    <p class="text-gray-500 text-sm mt-1">{% if is_leadership %}{{ sessions|length }} حصة{% else %}{{ user.full_name }}{% endif %}</p>
-  </div>
-  <div class="flex items-center gap-2 flex-wrap">
-    <form method="get" class="flex items-center gap-2">
-      <input type="date" name="date" value="{{ selected_date }}"
-        class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-      <button type="submit" class="btn-primary btn-sm">عرض</button>
-    </form>
-    <span class="exec-date">{{ selected_date }}</span>
-    {% if user_role in "teacher,ese_teacher,coordinator,principal,vice_academic,vice_admin,platform_developer" or request.user.is_superuser %}
-    <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">طلبات التبديل</a>
-    <a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">الحصص التعويضية</a>
-    {% endif %}
-  </div>
-</div>
+{% comment %}
+عددُ الحصص يُقال مرّةً: كان في سطر الترويسة، وفي بطاقة «تحتاج تسجيل»، ومرّتين
+في شريط الجدول. فصار للقيادة شريطُ أرقامٍ من المجاميع، وعددُ المعروض بجوار
+البحث الذي يغيّره؛ وللمعلّم عددُ حصصه في طرف ترويسة الجدول.
+{% endcomment %}
+{% if is_leadership %}
+{% page_header "حصص المدرسة — تسجيل الحضور" subtitle=date_label icon="calendar" %}
+  {% include "teacher/partials/schedule_actions.html" %}
+{% endpage_header %}
+{% else %}
+{% page_header "جدول حصصي" subtitle=teacher_subtitle icon="calendar" %}
+  {% include "teacher/partials/schedule_actions.html" %}
+{% endpage_header %}
+{% endif %}
 
 {# ── ملخص سريع للقيادة ── #}
 {% if is_leader %}
-<div class="kpi-strip">
-  <div class="kpi-mini kpi-maroon">
-    <div class="kpi-mini-label">إجمالي الحصص</div>
-    <div class="kpi-mini-value">{{ all_count }}</div>
-  </div>
-  <div class="kpi-mini kpi-green">
-    <div class="kpi-mini-label">مكتملة</div>
-    <div class="kpi-mini-value">{{ completed_count }}</div>
-  </div>
-  <div class="kpi-mini kpi-orange">
-    <div class="kpi-mini-label">تحتاج تسجيل</div>
-    <div class="kpi-mini-value">{{ sessions|length }}</div>
-  </div>
-</div>
+{% url 'teacher_schedule' as schedule_url %}
+{% kpi_strip label="حصص اليوم" %}
+  {% kpi "إجمالي الحصص" all_count %}
+  {% kpi "مكتملة" completed_count tone="green" %}
+  {% kpi "غير مكتملة" open_count tone=open_tone title="حصصٌ لم يُنهَ رصدُها بعد — منها الملغاة" %}
+{% endkpi_strip %}
 
 {# ── فلاتر ذكية ── #}
 <form method="get" class="filter-bar">
@@ -88,110 +76,52 @@
     </select>
   </div>
   <div class="filter-actions">
-    <a href="{% url 'teacher_schedule' %}?date={{ selected_date }}" class="btn-secondary btn-xs">إعادة ضبط</a>
+    <a href="{{ schedule_url }}?date={{ selected_date }}" class="btn-secondary btn-xs">إعادة ضبط</a>
     {% if show_all %}
-    <a href="{% url 'teacher_schedule' %}?date={{ selected_date }}" class="btn-primary btn-xs">إخفاء المكتملة</a>
+    <a href="{{ schedule_url }}?date={{ selected_date }}" class="btn-primary btn-xs">إخفاء المكتملة</a>
     {% else %}
-    <a href="{% url 'teacher_schedule' %}?date={{ selected_date }}&all=1" class="btn-secondary btn-xs">عرض الكل ({{ all_count }})</a>
+    <a href="{{ schedule_url }}?date={{ selected_date }}&all=1" class="btn-secondary btn-xs">عرض الكل</a>
     {% endif %}
   </div>
 </form>
 {% endif %}
 
-{# ── Next Session Alert ── #}
+{# ── الحصة القادمة ── #}
 {% if next_session %}
-<div class="alert-strip" style="--alert-bg: var(--green-50, #f0fdf4); --alert-border: var(--green-400, #4ade80); border-color: #4ade80; background: #f0fdf4;">
-  <div class="flex items-center justify-between w-full flex-wrap gap-3">
-    <div>
-      <div class="text-xs font-bold text-green-700 uppercase tracking-wide mb-1">الحصة القادمة</div>
-      <div class="text-lg font-bold text-gray-900">{{ next_session.subject.name_ar|default:"حصة" }}</div>
-      <div class="text-sm text-gray-600">{{ next_session.class_group }} · {{ next_session.start_time }}</div>
-    </div>
-    <a href="{% url 'attendance' next_session.id %}"
-       class="btn-success text-white px-5 py-2.5 rounded-xl font-medium transition">
-      ابدأ الحضور ←
+{% section_card "الحصة القادمة" meta=next_session.start_time|time:"H:i" icon="clock" %}
+  <div class="plain-list__row next-session">
+    <span class="plain-list__main">
+      <b class="plain-list__title">{{ next_session.subject.name_ar|default:"حصة" }}</b>
+      <span class="plain-list__sub">{{ next_session.class_group }}</span>
+    </span>
+    <a href="{% url 'attendance' next_session.id %}" class="btn-primary btn-sm">
+      {% if is_recorder or not next_session.class_group.wing_id %}ابدأ الحضور ←{% else %}عرض الحضور ←{% endif %}
     </a>
   </div>
-</div>
+{% endsection_card %}
 {% endif %}
 
 {# ── Sessions Table ── #}
-<div class="card-qatar overflow-hidden">
-  <div class="card-bar m-0 rounded-t-xl flex items-center justify-between" style="padding:8px 16px">
-    <span style="font-size:.8rem;font-weight:600">{% include "components/icon.html" with name="list-checks" %} الحصص (<span id="shown-count">{{ sessions|length }}</span> / {{ sessions|length }})</span>
+{% if is_leader %}
+{% section_card "الحصص" icon="list-checks" flush=True empty="لا توجد حصص في هذا اليوم" empty_sub=date_label %}{% if sessions %}
+  <div class="filter-bar schedule-search">
+    <input type="text" id="session-search" class="form-control form-control-sm" placeholder="بحث بالمادة أو المعلم أو الفصل...">
+    <span class="schedule-search__count"><span id="shown-count">{{ sessions|length }}</span> من {{ sessions|length }}</span>
   </div>
-  {% if is_leader %}
-  <div class="filter-bar" style="border-top:0;border-radius:0;margin-bottom:0;padding:8px 16px">
-    <input type="text" id="session-search" class="form-control form-control-sm" placeholder="بحث بالمادة أو المعلم أو الفصل..." style="flex:1;min-width:200px">
-  </div>
-  {% endif %}
-  {% if sessions %}
-  <div class="table-wrap-scroll" style="max-height:420px">
-  <table class="w-full min-w-[480px]">
-    <thead class="bg-gray-50 border-b border-gray-200" style="position:sticky;top:0;z-index:1">
-      <tr>
-        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">المادة</th>
-        {% if is_leadership %}<th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">المعلم</th>{% endif %}
-          {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
-          <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase" data-sort="num" data-sort-first="asc">الفصل</th>
-        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الوقت</th>
-        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">الحالة</th>
-        <th scope="col" class="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase">إجراء</th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-100" id="sessions-tbody">
-      {% for session in sessions %}
-      <tr class="hover:bg-gray-50 transition
-        {% if next_session and session.id == next_session.id %}bg-green-50{% endif %}"
-        data-filter-row data-text="{{ session.subject.name_ar|default:'' }} {{ session.teacher.full_name|default:'' }} {{ session.class_group }}">
-        <td class="px-4 py-3">
-          <div class="font-medium text-gray-900">{{ session.subject.name_ar|default:"—" }}</div>
-        </td>
-        {% if is_leadership %}<td class="px-4 py-3 text-sm text-gray-600">{{ session.teacher.full_name }}</td>{% endif %}
-        <td class="px-4 py-3 text-sm text-gray-600" data-sort-value="{{ session.class_group.school_order }}">{{ session.class_group }}</td>
-        <td class="px-4 py-3 text-sm text-gray-600 font-mono">
-          {{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}
-        </td>
-        <td class="px-4 py-3">
-          <span class="status-badge
-            {% if session.status == 'completed' %}status-gray
-            {% elif session.status == 'in_progress' %}status-info
-            {% elif session.status == 'cancelled' %}status-danger
-            {% else %}status-warning{% endif %}">
-            {{ session.get_status_display }}
-          </span>
-        </td>
-        <td class="px-4 py-3">
-          {% if session.status != 'completed' and session.status != 'cancelled' %}
-          <a href="{% url 'attendance' session.id %}"
-             class="btn-primary btn-sm">
-            تسجيل حضور
-          </a>
-          {% else %}
-          <a href="{% url 'attendance' session.id %}"
-             class="text-sm text-gray-500 hover:text-gray-700">عرض</a>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>{# end tbl-wrap-mobile #}
-  {% else %}
-  <div class="py-16 text-center">
-    <div class="text-5xl mb-4">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</div>
-    <p class="text-gray-500 font-medium">لا توجد حصص في هذا اليوم</p>
-    <p class="text-gray-400 text-sm mt-1">{{ selected_date }}</p>
-  </div>
-  {% endif %}
-</div>
+  {% include "teacher/partials/sessions_table.html" %}
+{% endif %}{% endsection_card %}
+{% else %}
+{% section_card "الحصص" meta=sessions|length icon="list-checks" flush=True empty="لا توجد حصص في هذا اليوم" empty_sub=date_label %}{% if sessions %}
+  {% include "teacher/partials/sessions_table.html" %}
+{% endif %}{% endsection_card %}
+{% endif %}
 
 </div>{# end .exec-dash #}
 
 {% if is_leader %}
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
-  if (typeof window.smartFilter === 'function') {
+  if (typeof window.smartFilter === 'function' && document.getElementById('session-search')) {
     window.smartFilter('session-search', '#sessions-tbody tr[data-filter-row]', {
       textAttr: 'data-text',
       countEl: '#shown-count'

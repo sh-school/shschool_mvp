@@ -32,26 +32,26 @@
       <div class="form-group">
         <label class="form-label" for="{{ form.category.id_for_label }}">الجهة <span class="required">*</span></label>
         {{ form.category }}
-        {% if form.category.errors %}<p class="form-hint" style="color:var(--status-danger)">{{ form.category.errors|striptags }}</p>{% endif %}
+        {% if form.category.errors %}<p class="form-hint" style="color:var(--status-danger-fg)">{{ form.category.errors|striptags }}</p>{% endif %}
         <p class="form-hint">لا تظهر هنا إلّا الجهةُ التي تكتب باسمها.</p>
       </div>
 
       <div class="form-group">
         <label class="form-label" for="{{ form.title.id_for_label }}">العنوان <span class="required">*</span></label>
         {{ form.title }}
-        {% if form.title.errors %}<p class="form-hint" style="color:var(--status-danger)">{{ form.title.errors|striptags }}</p>{% endif %}
+        {% if form.title.errors %}<p class="form-hint" style="color:var(--status-danger-fg)">{{ form.title.errors|striptags }}</p>{% endif %}
       </div>
 
       <div class="form-group">
         <label class="form-label" for="{{ form.occurred_on.id_for_label }}">التاريخ <span class="required">*</span></label>
         {{ form.occurred_on }}
-        {% if form.occurred_on.errors %}<p class="form-hint" style="color:var(--status-danger)">{{ form.occurred_on.errors|striptags }}</p>{% endif %}
+        {% if form.occurred_on.errors %}<p class="form-hint" style="color:var(--status-danger-fg)">{{ form.occurred_on.errors|striptags }}</p>{% endif %}
       </div>
 
       <div class="form-group">
         <label class="form-label" for="{{ form.body.id_for_label }}">نصّ الملاحظة <span class="required">*</span></label>
         {{ form.body }}
-        {% if form.body.errors %}<p class="form-hint" style="color:var(--status-danger)">{{ form.body.errors|striptags }}</p>{% endif %}
+        {% if form.body.errors %}<p class="form-hint" style="color:var(--status-danger-fg)">{{ form.body.errors|striptags }}</p>{% endif %}
         <p class="form-hint">يُحفظ النصّ مشفَّراً في قاعدة البيانات، ويُسجَّل اسمُك كاتباً له.</p>
       </div>
 

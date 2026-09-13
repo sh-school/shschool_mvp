@@ -1,6 +1,7 @@
 """operations/views_swap.py — views التبديل والتعويض والحصص الحرة."""
 
 import logging
+from datetime import timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -9,7 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from core.permissions import SCHEDULE_MANAGE, SCHEDULE_VIEW, role_required
+from core.capabilities import capability_required
 
 from .models import (
     CompensatorySession,
@@ -21,28 +22,19 @@ from .services import CompensatoryService, FreeSlotService, SwapService
 
 logger = logging.getLogger(__name__)
 
-SCHEDULE_VIEW_ROLES = {
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "academic_advisor",
-}
-
 
 # ── قائمة طلبات التبديل ─────────────────────────────────────────
 
 
 @login_required
-@role_required(SCHEDULE_VIEW)
+@capability_required("schedule.view")
 def swap_list(request):
     """قائمة طلبات التبديل — مفلترة حسب الدور."""
     school = request.user.get_school()
     role = request.user.get_role()
 
-    if role in ("principal", "vice_academic", "vice_admin"):
+    #: من يرى السجلَّ كلَّه — والمطوّرُ منهم: يُسأل عن التبديل فيجب أن يجده.
+    if role in ("principal", "vice_academic", "vice_admin", "platform_developer"):
         swaps = TeacherSwap.objects.filter(school=school)
     elif role == "coordinator":
         from core.permissions import get_department_teacher_ids
@@ -69,6 +61,12 @@ def swap_list(request):
     if status_filter:
         swaps = swaps.filter(status=status_filter)
 
+    # التوقيعُ حقُّ منسّقِ الجهة، فالزرُّ يظهر لمن يملكه لا لكلّ منسّقٍ في
+    # المدرسة. ويُحسَب هنا لا في القالب: القالبُ لا يستدعي خدمةً بمعاملات.
+    swaps = list(swaps)
+    for swap in swaps:
+        swap.my_sides = SwapService.signable_sides(swap, request.user)
+
     return render(
         request,
         "schedule/swap_list.html",
@@ -80,18 +78,47 @@ def swap_list(request):
     )
 
 
+#: مدى التبديل: الأسبوعُ الجاري والذي يليه (قرارُ المستخدم 2026-09-11).
+#: أربعةَ عشرَ يوماً تسع الأسبوعين كاملَين مهما كان اليومُ الذي يُطلب فيه.
+SWAP_WINDOW_DAYS = 14
+
+
+def _swap_day(raw: str, slot):
+    """يقرأ تاريخَ حصّةٍ ويتحقّق أنّه يومُها وأنّه داخلَ المدى."""
+    from datetime import date as date_cls
+
+    if not raw:
+        raise ValueError("يرجى تحديد تاريخٍ لكلّ حصّة")
+    try:
+        day = date_cls.fromisoformat(raw)
+    except ValueError:
+        raise ValueError(f"تاريخٌ غيرُ صالح: {raw}") from None
+
+    today = timezone.localdate()
+    if not today <= day <= today + timedelta(days=SWAP_WINDOW_DAYS):
+        raise ValueError("التبديلُ في الأسبوع الجاري أو الذي يليه — لا قبلَهما ولا بعدَهما")
+    # الحصّةُ في قالب الأسبوع ليومٍ بعينه، فتاريخٌ من يومٍ آخرَ لا حصّةَ فيه.
+    if day.weekday() != _slot_weekday(slot):
+        raise ValueError(
+            f"الحصّةُ في {slot.get_day_of_week_display()} — والتاريخُ المختارُ ليس ذلك اليوم"
+        )
+    return day
+
+
+def _slot_weekday(slot) -> int:
+    """يومُ الأسبوع في القالب (الأحدُ صفرٌ) إلى ترقيم بايثون (الاثنينُ صفر)."""
+    return (int(slot.day_of_week) + 6) % 7
+
+
 @login_required
-@role_required("teacher", "ese_teacher", "principal", "vice_academic", "vice_admin")
+@capability_required("swap.request")
 def swap_request(request):
     """نموذج طلب تبديل."""
     school = request.user.get_school()
 
     if request.method == "POST":
-        from datetime import date as date_cls
-
         slot_a_id = request.POST.get("slot_a")
         slot_b_id = request.POST.get("slot_b")
-        swap_date_str = request.POST.get("swap_date", "")
         reason = request.POST.get("reason", "")
 
         if not slot_a_id or not slot_b_id:
@@ -101,12 +128,18 @@ def swap_request(request):
         slot_a = get_object_or_404(ScheduleSlot, pk=slot_a_id, school=school)
         slot_b = get_object_or_404(ScheduleSlot, pk=slot_b_id, school=school)
 
+        # تاريخٌ لكلّ حصّة: التبديلُ يجوز في أيّام الأسبوع أو الذي يليه، فقد
+        # تقع حصّتي الثلاثاءَ وحصّتُه الأحدَ من الأسبوع القادم. وتاريخٌ واحدٌ
+        # لهما كان يحصر التبديلَ في اليوم الواحد ويكذب على الطرف الآخر.
+        #
+        # وقيمةٌ خاطئةٌ تُردّ ولا تُستبدَل بتاريخ اليوم صامتةً: من كتب تاريخاً
+        # يقصده، وإبدالُه بغيره بلا قولٍ تبديلٌ في يومٍ لم يطلبه أحد.
         try:
-            swap_date = (
-                date_cls.fromisoformat(swap_date_str) if swap_date_str else timezone.now().date()
-            )
-        except ValueError:
-            swap_date = timezone.now().date()
+            swap_date_a = _swap_day(request.POST.get("swap_date_a", ""), slot_a)
+            swap_date_b = _swap_day(request.POST.get("swap_date_b", ""), slot_b)
+        except ValueError as bad:
+            messages.error(request, str(bad))
+            return redirect("swap_request")
 
         try:
             swap = SwapService.create_swap_request(
@@ -115,8 +148,8 @@ def swap_request(request):
                 teacher_b=slot_b.teacher,
                 slot_a=slot_a,
                 slot_b=slot_b,
-                swap_date_a=swap_date,
-                swap_date_b=swap_date,
+                swap_date_a=swap_date_a,
+                swap_date_b=swap_date_b,
                 reason=reason,
                 requested_by=request.user,
             )
@@ -133,11 +166,19 @@ def swap_request(request):
         .order_by("day_of_week", "period_number")
     )
 
-    return render(request, "schedule/swap_request.html", {"my_slots": my_slots})
+    return render(
+        request,
+        "schedule/swap_request.html",
+        {
+            "my_slots": my_slots,
+            "window_start": timezone.localdate(),
+            "window_end": timezone.localdate() + timedelta(days=SWAP_WINDOW_DAYS),
+        },
+    )
 
 
 @login_required
-@role_required(SCHEDULE_VIEW)
+@capability_required("schedule.view")
 def swap_options_htmx(request, slot_id):
     """HTMX partial — معلمون متاحون للتبديل مع حصة معيّنة."""
     school = request.user.get_school()
@@ -149,7 +190,7 @@ def swap_options_htmx(request, slot_id):
 
 
 @login_required
-@role_required("teacher", "ese_teacher", "coordinator", "principal", "vice_academic", "vice_admin")
+@capability_required("swap.respond")
 def swap_respond(request, swap_id):
     """المعلم ب يقبل أو يرفض طلب التبديل."""
     school = request.user.get_school()
@@ -185,11 +226,20 @@ def swap_respond(request, swap_id):
             messages.error(request, str(e))
         return redirect("swap_list")
 
-    return render(request, "schedule/swap_respond.html", {"swap": swap})
+    return render(
+        request,
+        "schedule/swap_respond.html",
+        {
+            "swap": swap,
+            # سطرُ الترويسة: من طلب ومتى — كان في ترويسةٍ مرسومةٍ خاصّةٍ بالصفحة.
+            "request_label": f"من {swap.teacher_a.full_name} — "
+            f"{timezone.localtime(swap.created_at):%Y/%m/%d %H:%M}",
+        },
+    )
 
 
 @login_required
-@role_required("coordinator", "principal", "vice_academic", "vice_admin")
+@capability_required("swap.approve")
 @require_POST
 def swap_approve(request, swap_id):
     """المنسق أو النائب يوافق/يرفض طلب التبديل."""
@@ -219,7 +269,7 @@ def swap_approve(request, swap_id):
 
 
 @login_required
-@role_required(SCHEDULE_VIEW)
+@capability_required("schedule.view")
 @require_POST
 def swap_cancel(request, swap_id):
     """إلغاء طلب تبديل."""
@@ -237,7 +287,7 @@ def swap_cancel(request, swap_id):
 
 
 @login_required
-@role_required(SCHEDULE_VIEW)
+@capability_required("schedule.view")
 def compensatory_list(request):
     """قائمة الحصص التعويضية."""
     school = request.user.get_school()
@@ -277,7 +327,7 @@ def compensatory_list(request):
 
 
 @login_required
-@role_required("teacher", "ese_teacher", "principal", "vice_academic", "vice_admin")
+@capability_required("compensatory.request")
 def compensatory_request(request):
     """نموذج طلب حصة تعويضية."""
     school = request.user.get_school()
@@ -337,7 +387,7 @@ def compensatory_request(request):
 
 
 @login_required
-@role_required("coordinator", "principal", "vice_academic", "vice_admin")
+@capability_required("compensatory.approve")
 @require_POST
 def compensatory_approve(request, comp_id):
     """المنسق/النائب يوافق أو يرفض طلب التعويض."""
@@ -370,7 +420,7 @@ def compensatory_approve(request, comp_id):
 
 
 @login_required
-@role_required(SCHEDULE_VIEW)
+@capability_required("schedule.view")
 def teacher_free_slots(request, teacher_id):
     """HTMX partial — الحصص الحرة لمعلم معيّن."""
     from core.models import CustomUser
@@ -397,7 +447,7 @@ def teacher_free_slots(request, teacher_id):
 
 
 @login_required
-@role_required(SCHEDULE_MANAGE)
+@capability_required("schedule.manage")
 @require_POST
 def build_free_slots(request):
     """بناء/إعادة بناء سجل الحصص الحرة."""
@@ -408,7 +458,7 @@ def build_free_slots(request):
 
 
 @login_required
-@role_required(SCHEDULE_VIEW)
+@capability_required("schedule.view")
 def teacher_weekly_view(request, teacher_id):
     """جدولُ معلّمٍ واحد — يُحوَّل إلى صفحة الجداول نفسِها.
 

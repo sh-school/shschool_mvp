@@ -83,8 +83,22 @@ def encrypt_field(value):
     return f.encrypt(value.encode()).decode()
 
 
+#: عدّادُ الحقول التي تعذّر فكُّها منذ إقلاع العملية.
+_decrypt_failures = 0
+
+
 def decrypt_field(value):
-    """فك تشفير — يحاول المفتاح الحالي ثم القديمة (MultiFernet)."""
+    """فك تشفير — يحاول المفتاح الحالي ثم القديمة (MultiFernet).
+
+    والإخفاقُ هنا حالةُ بيانٍ لا خطأَ برنامج: صفٌّ شُفِّر بمفتاحٍ لم يعد
+    معروفاً. وكان يُسجَّل بـ`logger.exception` — أثرُ مكدّسٍ كاملٌ لكلّ صفّ —
+    فيمتلئ السجلُّ بجدارٍ من النصّ يبدو عطلاً. وقد أضلّ ذلك تشخيصاً حقيقيّاً
+    يومَ 2026-09-11: نُسب سقوطُ ثماني صفحاتٍ إلى فكّ التشفير، وسببُه عمودٌ
+    حذفته هجرةٌ من فرعٍ آخر.
+
+    فيُسجَّل الآن تحذيراً بعدّاد: أوّلُ مرّةٍ، ثمّ العاشرةُ والمئة، ثمّ كلُّ
+    ألف. فمفتاحٌ خاطئٌ يُخفق آلافاً ويظهر، وصفٌّ قديمٌ واحدٌ لا يُغرق السجلّ.
+    """
     if not value:
         return value
     f = _get_fernet()
@@ -93,7 +107,13 @@ def decrypt_field(value):
     try:
         return f.decrypt(value.encode()).decode()
     except (InvalidToken, ValueError, TypeError, UnicodeDecodeError):
-        logger.exception("فشل فك تشفير الحقل — إعادة القيمة الأصلية")
+        global _decrypt_failures
+        _decrypt_failures += 1
+        if _decrypt_failures in (1, 10, 100) or _decrypt_failures % 1000 == 0:
+            logger.warning(
+                "تعذّر فكُّ تشفير حقل — تُعاد القيمةُ كما هي (المرّة %d منذ الإقلاع)",
+                _decrypt_failures,
+            )
         return value
 
 

@@ -275,8 +275,10 @@ def test_the_log_page_shows_metrics_against_the_baseline(client, small_school):
         reverse("smart_schedule") + f"?year={YEAR}", HTTP_HOST="localhost"
     ).content.decode()
 
-    assert "المؤشرات (" in body and "مقابل «أساس»" in body
-    assert "الفراغ الزائد عن الاستراحة (متوسّط)" in body
+    # جدولُ مؤشّراتٍ واحدٌ: عمودٌ للأساس المعتمَد وعمودٌ لكلّ توليد.
+    assert "مؤشرات التوليد" in body and "أساس" in body
+    assert '<th scope="col" class="num">الأساس</th>' in body
+    assert "الفراغ الزائد عن الاستراحة" in body
 
 
 def test_exemptions_and_preferences_reach_the_context(school):

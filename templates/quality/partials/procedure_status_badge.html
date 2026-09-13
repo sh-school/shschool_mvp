@@ -1,11 +1,1 @@
-<div>
-  <p class="text-gray-500 text-xs mb-1">الحالة</p>
-  <span class="status-badge
-    {% if procedure.status == 'Completed' %}status-success
-    {% elif procedure.status == 'InProgress' %}status-warning
-    {% elif procedure.status == 'PendingReview' %}status-info
-    {% elif procedure.status == 'Cancelled' %}status-gray line-through
-    {% else %}status-gray{% endif %}">
-    {{ procedure.get_status_display }}
-  </span>
-</div>
+<span class="status-badge status-{{ status_tone|default:'gray' }}">{{ procedure.get_status_display }}</span>

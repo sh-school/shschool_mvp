@@ -28,6 +28,7 @@ def make_admin(school):
     """ينشئ مستخدماً بدور principal (admin)"""
     role, _ = Role.objects.get_or_create(school=school, name="principal")
     user = CustomUser.objects.create_user(
+        must_change_password=False,
         national_id=f"ADM{school.pk!s:.6s}01",
         full_name="مدير المدرسة",
         email=f"admin_{school.pk!s:.6s}@school.qa",
@@ -41,6 +42,7 @@ def make_teacher(school, suffix="01"):
     """ينشئ مستخدماً بدور teacher"""
     role, _ = Role.objects.get_or_create(school=school, name="teacher")
     user = CustomUser.objects.create_user(
+        must_change_password=False,
         national_id=f"TCH{school.pk!s:.6s}{suffix}",
         full_name=f"معلم {suffix}",
         email=f"teacher_{school.pk!s:.6s}_{suffix}@school.qa",
@@ -984,6 +986,7 @@ class TestEvaluationDashboard:
     def test_vice_admin_can_view(self, client, school):
         role, _ = Role.objects.get_or_create(school=school, name="vice_admin")
         vice = CustomUser.objects.create_user(
+            must_change_password=False,
             national_id="VICE0000001",
             full_name="نائب مدير",
             email="vice@school.qa",

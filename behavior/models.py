@@ -141,7 +141,14 @@ class ViolationCategory(models.Model):
         return "tech" in self.tags and self.degree >= 3
 
     def get_escalation_steps(self):
-        """إرجاع خطوات الإجراءات التصاعدية لدرجة هذه المخالفة"""
+        """سلّمُ إجراءات هذه المخالفة — من الدليل التنظيميّ 2026 إن كانت منه.
+
+        وما سواها (لوائحُ سابقة) يبقى على السلّم العامّ للدرجة.
+        """
+        from .conduct_2026 import BY_CODE, ladder_text
+
+        if self.code in BY_CODE:
+            return ladder_text(self.code)
         return ESCALATION_STEPS.get(self.degree, [])
 
     # ── الحقن القديم للتوافق ──
@@ -256,6 +263,28 @@ class BehaviorInfraction(models.Model):
     # ── التواريخ ──
     date = models.DateField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
+    #: الحصّةُ التي وقعت فيها — وبها تُعرف المادّة. «الهروبُ من الحصّة» يُعدّ
+    #: تكرارُه **لكلّ مادّةٍ على حدة** (الدليل التنظيميّ 2026، ص91)، والمادّةُ
+    #: لا تُعرف بلا الحصّة.
+    session = models.ForeignKey(
+        "operations.Session",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="infractions",
+        verbose_name="الحصّة",
+    )
+    #: مخالفةٌ أنشأها الرصدُ لا شخص: التأخّرُ عن الحصّة بعد خمس دقائق، والهروبُ
+    #: منها. وبه تُصحَّح: حين يعدّل المشرفُ حالةَ الطالب تُزال المخالفةُ التي
+    #: صنعتها الحالةُ السابقة — ولا يُمسّ ما كتبه أحدٌ بيده.
+    AUTO_RULES = [
+        ("period_tardy", "تأخّرٌ عن الحصّة (من الرصد)"),
+        ("class_escape", "هروبٌ من الحصّة (من الرصد)"),
+        ("school_escape", "هروبٌ من المدرسة (من الرصد)"),
+    ]
+    auto_rule = models.CharField(
+        max_length=16, choices=AUTO_RULES, blank=True, default="", verbose_name="أنشأها الرصد"
+    )
 
     # ── الدرجة والوصف ──
     level = models.PositiveSmallIntegerField(
@@ -401,6 +430,14 @@ class BehaviorInfraction(models.Model):
                 fields=["school", "level", "is_resolved"], name="idx_infraction_level_resolved"
             ),
         ]
+        constraints = [
+            # الرصدُ يُعاد (تصحيحٌ، أو تثبيتٌ ثانٍ) — ومخالفتُه لا تتضاعف.
+            models.UniqueConstraint(
+                fields=["student", "session", "auto_rule"],
+                condition=~models.Q(auto_rule=""),
+                name="unique_auto_infraction_per_session",
+            )
+        ]
 
     def __str__(self):
         cat = f" [{self.violation_category.code}]" if self.violation_category else ""
@@ -430,6 +467,8 @@ class BehaviorInfraction(models.Model):
 
     def get_escalation_steps(self):
         """إرجاع الإجراءات التصاعدية المتاحة لهذه المخالفة"""
+        if self.violation_category_id:
+            return self.violation_category.get_escalation_steps()
         return ESCALATION_STEPS.get(self.level, [])
 
     def get_current_step_text(self):

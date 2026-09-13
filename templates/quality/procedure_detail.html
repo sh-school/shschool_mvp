@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}تفاصيل الإجراء{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,50 +9,22 @@
 {% block content %}
 <div class="qproc">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="clipboard-check" %} تفاصيل الإجراء</h1>
-      <p class="exec-date" dir="ltr">{{ procedure.number }}</p>
-    </div>
+  {% page_header "تفاصيل الإجراء" subtitle=procedure.indicator.target.domain.name icon="clipboard-check" %}
     <a href="{% url 'domain_detail' procedure.indicator.target.domain.id %}" class="btn-secondary btn-sm">← المجال</a>
-  </div>
+  {% endpage_header %}
 
-  {# ── KPI strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-blue">
-      <span class="kpi-mini-value">{{ procedure.indicator.target.domain.name|truncatechars:15 }}</span>
-      <span class="kpi-mini-label">المجال</span>
-    </div>
-    <div class="kpi-mini kpi-maroon">
-      <span class="kpi-mini-value">{{ procedure.get_status_display }}</span>
-      <span class="kpi-mini-label">الحالة</span>
-    </div>
-    <div class="kpi-mini kpi-teal">
-      <span class="kpi-mini-value">{{ procedure.executor_norm|truncatechars:15 }}</span>
-      <span class="kpi-mini-label">المنفذ</span>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <span class="kpi-mini-value">{{ evidences.count }}</span>
-      <span class="kpi-mini-label">أدلة</span>
-    </div>
-  </div>
+  {% section_card procedure_title meta=procedure.executor_norm icon="file-text" %}
+    <ul class="chip-row">
+      <li id="status-badge">{% include "quality/partials/procedure_status_badge.html" %}</li>
+      <li class="chip-stat"><span class="chip-stat__key">المؤشر</span><b class="chip-stat__value" dir="ltr">{{ procedure.indicator.number }}</b></li>
+      {% if procedure.executor_user %}
+      <li class="chip-stat"><span class="chip-stat__key">المسؤول</span><b class="chip-stat__value">{{ procedure.executor_user.full_name }}</b></li>
+      {% endif %}
+    </ul>
 
-  {# ── Procedure main card ── #}
-  <div class="card-qatar qproc-main">
-    <div class="card-bar">
-      <span class="qproc-num" dir="ltr">{{ procedure.number }}</span>
-    </div>
-    <div class="qproc-main__text">{{ procedure.text }}</div>
+    <p class="qproc-main__text">{{ procedure.text }}</p>
 
     <div class="qproc-grid">
-      <div class="qproc-field">
-        <span class="qproc-field__label">المنفذ</span>
-        <span class="qproc-field__val">{{ procedure.executor_norm }}</span>
-        {% if procedure.executor_user %}
-        <span class="qproc-field__sub">{{ procedure.executor_user.full_name }}</span>
-        {% endif %}
-      </div>
       <div class="qproc-field">
         <span class="qproc-field__label">الفترة الزمنية</span>
         <span class="qproc-field__val">{{ procedure.date_range|default:"—" }}</span>
@@ -59,35 +32,20 @@
       <div class="qproc-field">
         <span class="qproc-field__label">الموعد النهائي</span>
         {% if procedure.deadline %}
-          <span class="qproc-field__val {% if procedure.status != 'Completed' %}qproc-field__val--danger{% endif %}">
-            {{ procedure.deadline|date:"Y/m/d" }}
-          </span>
-        {% else %}
-          {% if can_edit %}
+          <span class="qproc-field__val{% if deadline_overdue %} qproc-field__val--danger{% endif %}"{% if deadline_overdue %} title="تجاوز الموعد ولم يكتمل"{% endif %}>{{ procedure.deadline|date:"Y/m/d" }}</span>
+        {% elif can_edit %}
           <form method="post" action="{% url 'update_proc_status' procedure.id %}" class="qproc-deadline-form">
             {% csrf_token %}
-            <input type="date" name="deadline" class="qproc-input">
+            <input type="date" name="deadline" class="qproc-input" aria-label="الموعد النهائي">
             <button type="submit" class="btn-primary btn-sm">حفظ</button>
           </form>
-          {% else %}
+        {% else %}
           <span class="qproc-field__val qproc-field__val--muted">غير محدد</span>
-          {% endif %}
         {% endif %}
       </div>
       <div class="qproc-field">
         <span class="qproc-field__label">نوع الدليل</span>
         <span class="qproc-field__val">{{ procedure.evidence_type|default:"—" }}</span>
-      </div>
-      <div class="qproc-field">
-        <span class="qproc-field__label">المجال</span>
-        <span class="qproc-field__val">{{ procedure.indicator.target.domain.name }}</span>
-      </div>
-      <div class="qproc-field">
-        <span class="qproc-field__label">المؤشر</span>
-        <span class="qproc-field__val qproc-num" dir="ltr">{{ procedure.indicator.number }}</span>
-      </div>
-      <div id="status-badge">
-        {% include "quality/partials/procedure_status_badge.html" %}
       </div>
       {% if procedure.follow_up %}
       <div class="qproc-field">
@@ -103,7 +61,6 @@
       {% endif %}
     </div>
 
-    {# ── Evaluation / comments strips ── #}
     {% if procedure.evaluation %}
     <div class="qproc-strip qproc-strip--info">
       <span class="qproc-strip__label">التقييم</span>
@@ -122,53 +79,47 @@
       <p class="qproc-strip__text">{{ procedure.comments }}</p>
     </div>
     {% endif %}
-  </div>
+  {% endsection_card %}
 
-  {# ── Update status form ── #}
   {% if can_edit %}
-  <div class="card-qatar qproc-update">
-    <div class="card-bar">تحديث الحالة</div>
+  <div class="qproc-noprint">
+  {% section_card "تحديث الحالة" icon="pencil" %}
     <form hx-post="{% url 'update_proc_status' procedure.id %}"
           hx-target="#status-badge" hx-swap="innerHTML"
           class="qproc-update__form">
       {% csrf_token %}
       <div class="qproc-update__field">
-        <label class="qproc-update__label">الحالة</label>
-        <select name="status" class="qproc-input qproc-input--full">
+        <label class="qproc-update__label" for="qproc-status">الحالة</label>
+        <select name="status" id="qproc-status" class="qproc-input qproc-input--full">
           {% for val, label in procedure.STATUS %}
           <option value="{{ val }}" {% if procedure.status == val %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
       </div>
       <div class="qproc-update__field qproc-update__field--grow">
-        <label class="qproc-update__label">التقييم</label>
-        <input type="text" name="evaluation" value="{{ procedure.evaluation }}"
+        <label class="qproc-update__label" for="qproc-evaluation">التقييم</label>
+        <input type="text" name="evaluation" id="qproc-evaluation" value="{{ procedure.evaluation }}"
                placeholder="أدخل ملاحظات التقييم..."
                class="qproc-input qproc-input--full">
       </div>
       <button type="submit" class="btn-primary btn-sm">حفظ</button>
     </form>
+  {% endsection_card %}
   </div>
   {% endif %}
 
-  {# ── Change log timeline ── #}
   {% if status_logs %}
-  <div class="card-qatar qproc-timeline">
-    <div class="card-bar">
-      {% include "components/icon.html" with name="clock" %} سجل التغييرات
-    </div>
-    <div class="qproc-timeline__list">
+  {% section_card "سجل التغييرات" meta=status_logs|length icon="clock" %}
+    <ol class="qproc-timeline__list">
       {% for log in status_logs %}
-      <div class="qproc-tl-item">
-        <div class="qproc-tl-dot {% if log.new_status == 'Completed' %}qproc-tl-dot--success{% elif log.new_status == 'Pending Review' %}qproc-tl-dot--blue{% elif log.new_status == 'In Progress' %}qproc-tl-dot--warning{% elif log.new_status == 'Cancelled' %}qproc-tl-dot--gray{% else %}qproc-tl-dot--default{% endif %}"></div>
+      <li class="qproc-tl-item">
+        <span class="qproc-tl-dot is-{{ log.tone }}"></span>
         <div class="qproc-tl-content">
           <div class="qproc-tl-header">
             <div class="qproc-tl-badges">
-              <span class="qdom-badge {% if log.new_status == 'Completed' %}qdom-badge--success{% elif log.new_status == 'Pending Review' %}qdom-badge--blue{% elif log.new_status == 'In Progress' %}qdom-badge--warning{% else %}qdom-badge--gray{% endif %}">
-                {{ log.new_status }}
-              </span>
+              <span class="status-badge status-{{ log.tone }}">{{ log.new_label }}</span>
               <span class="qproc-tl-arrow">&larr;</span>
-              <span class="qproc-tl-old">{{ log.old_status }}</span>
+              <span class="qproc-tl-old">{{ log.old_label }}</span>
             </div>
             <span class="qproc-tl-time">{{ log.created_at|timesince }} مضت</span>
           </div>
@@ -180,234 +131,52 @@
           <p class="qproc-tl-note">{{ log.note }}</p>
           {% endif %}
         </div>
-      </div>
+      </li>
       {% endfor %}
-    </div>
+    </ol>
+  {% endsection_card %}
+  {% endif %}
+
+  {% section_card "الأدلة المرفوعة" meta=evidences|length icon="paperclip" empty="لا توجد أدلة مرفوعة بعد" %}{% if evidences %}
+    <ul class="plain-list">
+      {% for ev in evidences %}
+      <li class="plain-list__row">
+        <span class="plain-list__main">
+          <b class="plain-list__title">{{ ev.title }}</b>
+          {% if ev.description %}<span class="plain-list__sub">{{ ev.description }}</span>{% endif %}
+          <span class="plain-list__sub">{{ ev.uploaded_by.full_name|default:"—" }} · {{ ev.created_at|date:"Y/m/d" }}</span>
+        </span>
+        {% if ev.file %}
+        <a href="{{ ev.file.url }}" target="_blank" rel="noopener" class="btn-secondary btn-sm">تحميل</a>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}{% endsection_card %}
+
+  {% if can_edit %}
+  <div class="qproc-noprint">
+  {% section_card "رفع دليل جديد" icon="upload" %}
+    <form method="post" action="{% url 'upload_evidence' procedure.id %}" enctype="multipart/form-data"
+          class="qproc-update__form">
+      {% csrf_token %}
+      <div class="qproc-update__field qproc-update__field--grow">
+        <label class="qproc-update__label" for="qproc-ev-title">العنوان *</label>
+        <input type="text" name="title" id="qproc-ev-title" required class="qproc-input qproc-input--full">
+      </div>
+      <div class="qproc-update__field qproc-update__field--grow">
+        <label class="qproc-update__label" for="qproc-ev-desc">وصف</label>
+        <input type="text" name="description" id="qproc-ev-desc" class="qproc-input qproc-input--full">
+      </div>
+      <div class="qproc-update__field">
+        <label class="qproc-update__label" for="qproc-ev-file">ملف</label>
+        <input type="file" name="file" id="qproc-ev-file" class="qproc-input">
+      </div>
+      <button type="submit" class="btn-primary btn-sm">رفع</button>
+    </form>
+  {% endsection_card %}
   </div>
   {% endif %}
 
-  {# ── Evidence section ── #}
-  <div class="card-qatar qproc-evidence">
-    <div class="card-bar">الأدلة المرفوعة ({{ evidences.count }})</div>
-    {% if evidences %}
-    <div class="qproc-evidence__list">
-      {% for ev in evidences %}
-      <div class="qproc-ev-item">
-        <div class="qproc-ev-item__info">
-          <span class="qproc-ev-item__title">{{ ev.title }}</span>
-          {% if ev.description %}<span class="qproc-ev-item__desc">{{ ev.description }}</span>{% endif %}
-          <span class="qproc-ev-item__meta">{{ ev.uploaded_by.full_name|default:"—" }} &middot; {{ ev.created_at|date:"Y/m/d" }}</span>
-        </div>
-        {% if ev.file %}
-        <a href="{{ ev.file.url }}" target="_blank" class="btn-secondary btn-sm">تحميل</a>
-        {% endif %}
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="qproc-evidence__empty">لا توجد أدلة مرفوعة بعد</p>
-    {% endif %}
-
-    {# Upload form #}
-    {% if can_edit %}
-    <div class="qproc-evidence__upload">
-      <h3 class="qproc-evidence__upload-title">رفع دليل جديد</h3>
-      <form method="post" action="{% url 'upload_evidence' procedure.id %}" enctype="multipart/form-data"
-            class="qproc-update__form">
-        {% csrf_token %}
-        <div class="qproc-update__field qproc-update__field--grow">
-          <label class="qproc-update__label">العنوان *</label>
-          <input type="text" name="title" required class="qproc-input qproc-input--full">
-        </div>
-        <div class="qproc-update__field qproc-update__field--grow">
-          <label class="qproc-update__label">وصف</label>
-          <input type="text" name="description" class="qproc-input qproc-input--full">
-        </div>
-        <div class="qproc-update__field">
-          <label class="qproc-update__label">ملف</label>
-          <input type="file" name="file" class="qproc-input" style="font-size:0.8rem;">
-        </div>
-        <button type="submit" class="btn-primary btn-sm">رفع</button>
-      </form>
-    </div>
-    {% endif %}
-  </div>
-
 </div>
-{% endblock %}
-
-{% block extra_css %}
-<style nonce="{{ request.csp_nonce }}">
-/* ═══════════════════════════════════════════════════
-   Procedure Detail — dark-mode safe, CSS variables
-   ═══════════════════════════════════════════════════ */
-.qproc { display: flex; flex-direction: column; gap: 12px; max-width: 800px; margin: 0 auto; }
-
-/* ── Main card ── */
-.qproc-main { overflow: hidden; }
-.qproc-main__text {
-  padding: 14px 20px; font-size: 1rem; font-weight: 700;
-  color: var(--text-primary); line-height: 1.7;
-}
-.qproc-num { font-family: monospace; font-size: 0.72rem; color: var(--text-secondary); }
-
-/* ── Fields grid ── */
-.qproc-grid {
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1px; padding: 0 20px 16px;
-}
-.qproc-field { padding: 8px 0; }
-.qproc-field__label {
-  display: block; font-size: 0.68rem; color: var(--text-secondary);
-  margin-bottom: 3px; font-weight: 600;
-}
-.qproc-field__val {
-  display: block; font-size: 0.85rem; font-weight: 600;
-  color: var(--text-primary);
-}
-.qproc-field__val--danger { color: var(--status-danger); }
-html.dark .qproc-field__val--danger { color: #fca5a5; }
-.qproc-field__val--muted { color: var(--text-secondary); font-weight: 400; font-size: 0.75rem; }
-.qproc-field__sub { font-size: 0.72rem; color: var(--maroon); margin-top: 2px; display: block; }
-html.dark .qproc-field__sub { color: #f9a8c0; }
-
-/* ── Strips (evaluation, comments) ── */
-.qproc-strip {
-  padding: 12px 20px; border-top: 1px solid var(--border);
-}
-.qproc-strip--info { background: var(--status-info-bg); }
-.qproc-strip--warning { background: var(--status-warning-bg); }
-html.dark .qproc-strip--info { background: rgba(37,99,235,.08); }
-html.dark .qproc-strip--warning { background: rgba(217,119,6,.08); }
-.qproc-strip__label {
-  font-size: 0.68rem; color: var(--text-secondary); margin-bottom: 4px;
-}
-.qproc-strip__text { font-size: 0.82rem; color: var(--text-primary); margin: 0; }
-
-/* ── Inputs ── */
-.qproc-input {
-  border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 6px 10px; font-size: 0.8rem;
-  background: var(--surface); color: var(--text-primary);
-  transition: border-color var(--transition-fast);
-}
-.qproc-input:focus {
-  outline: none; border-color: var(--maroon-border);
-  box-shadow: var(--focus-ring);
-}
-.qproc-input--full { width: 100%; }
-
-/* ── Deadline inline form ── */
-.qproc-deadline-form { display: flex; gap: 6px; align-items: center; }
-
-/* ── Update form ── */
-.qproc-update__form {
-  display: flex; flex-wrap: wrap; gap: 10px;
-  align-items: flex-end; padding: 14px 16px;
-}
-.qproc-update__field { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
-.qproc-update__field--grow { flex: 1; }
-.qproc-update__label { font-size: 0.68rem; color: var(--text-secondary); font-weight: 600; }
-
-/* ── Timeline ── */
-.qproc-timeline__list {
-  position: relative; padding: 16px 20px 16px 20px;
-}
-.qproc-timeline__list::before {
-  content: ''; position: absolute;
-  right: 30px; top: 16px; bottom: 16px;
-  width: 2px; background: var(--border);
-}
-html[dir="rtl"] .qproc-timeline__list::before,
-.qproc-timeline__list::before {
-  right: 30px; left: auto;
-}
-.qproc-tl-item {
-  position: relative; padding-inline-end: 30px; margin-bottom: 16px;
-}
-.qproc-tl-item:last-child { margin-bottom: 0; }
-.qproc-tl-dot {
-  position: absolute; inset-inline-end: -6px; top: 6px;
-  width: 14px; height: 14px; border-radius: 50%;
-  border: 2px solid var(--surface); box-shadow: var(--shadow-sm);
-  z-index: 1;
-}
-.qproc-tl-dot--success { background: var(--status-success); }
-.qproc-tl-dot--blue { background: var(--status-info); }
-.qproc-tl-dot--warning { background: var(--status-warning); }
-.qproc-tl-dot--gray { background: #94a3b8; }
-.qproc-tl-dot--default { background: var(--border-strong); }
-
-.qproc-tl-content {
-  background: var(--surface-alt); border-radius: var(--radius);
-  padding: 10px 14px;
-}
-.qproc-tl-header {
-  display: flex; align-items: center; justify-content: space-between;
-  flex-wrap: wrap; gap: 6px; margin-bottom: 4px;
-}
-.qproc-tl-badges { display: flex; align-items: center; gap: 6px; }
-.qproc-tl-arrow { color: var(--text-secondary); font-size: 0.72rem; }
-.qproc-tl-old { color: var(--text-secondary); font-size: 0.72rem; }
-.qproc-tl-time { font-size: 0.68rem; color: var(--text-secondary); }
-.qproc-tl-user { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; color: var(--text-secondary); }
-.qproc-tl-note {
-  font-size: 0.75rem; color: var(--text-primary);
-  margin: 6px 0 0; padding: 6px 10px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 6px;
-}
-
-/* ── Reuse domain badges ── */
-.qdom-badge {
-  padding: 2px 10px; border-radius: 6px;
-  font-size: 0.68rem; font-weight: 600; white-space: nowrap;
-}
-.qdom-badge--success { background: var(--status-success-bg); color: var(--status-success-dark); }
-.qdom-badge--warning { background: var(--status-warning-bg); color: var(--status-warning-dark); }
-.qdom-badge--blue    { background: var(--status-info-bg); color: var(--status-info-dark); }
-.qdom-badge--gray    { background: #f1f5f9; color: #64748b; }
-html.dark .qdom-badge--success { background: rgba(22,163,74,.15); color: #86efac; }
-html.dark .qdom-badge--warning { background: rgba(217,119,6,.15); color: #fbbf24; }
-html.dark .qdom-badge--blue    { background: rgba(37,99,235,.15); color: #93c5fd; }
-html.dark .qdom-badge--gray    { background: rgba(100,116,139,.15); color: #94a3b8; }
-
-/* ── Evidence section ── */
-.qproc-evidence { overflow: hidden; }
-.qproc-evidence__list { display: flex; flex-direction: column; }
-.qproc-ev-item {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
-}
-.qproc-ev-item:last-child { border-bottom: none; }
-.qproc-ev-item__info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.qproc-ev-item__title { font-size: 0.82rem; font-weight: 600; color: var(--text-primary); }
-.qproc-ev-item__desc { font-size: 0.72rem; color: var(--text-secondary); }
-.qproc-ev-item__meta { font-size: 0.68rem; color: var(--text-secondary); }
-.qproc-evidence__empty {
-  padding: 20px; text-align: center;
-  font-size: 0.82rem; color: var(--text-secondary);
-}
-.qproc-evidence__upload {
-  border-top: 1px solid var(--border);
-  padding: 14px 16px; background: var(--surface-alt);
-}
-.qproc-evidence__upload-title {
-  font-size: 0.82rem; font-weight: 600;
-  color: var(--text-primary); margin: 0 0 10px;
-}
-
-/* ── Responsive ── */
-@media (max-width: 640px) {
-  .qproc-grid { grid-template-columns: 1fr 1fr; }
-  .qproc-update__form { flex-direction: column; }
-  .qproc-tl-header { flex-direction: column; align-items: flex-start; }
-}
-
-/* ── Print ── */
-@media print {
-  .qproc-update, .qproc-evidence__upload { display: none; }
-}
-</style>
 {% endblock %}

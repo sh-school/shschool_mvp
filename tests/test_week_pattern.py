@@ -315,8 +315,14 @@ def test_the_lab_names_who_is_off_the_pattern(school, teacher_user):
 
     metrics = ScheduleLab.for_live(school, YEAR).compute()
 
-    assert metrics["teacher.pattern_breaches"]["value"] == 1
-    assert metrics["teacher.pattern_breaches"]["detail"] == {teacher_user.full_name: "4+2+3+2+4"}
+    # المؤشّرُ نسبةٌ من المعلّمين لا عددٌ مطلق — والمعلّمُ واحدٌ هنا فالنسبةُ مئةٌ
+    # بالمئة. والعددُ الخامُ يبقى في التفصيل مع الاسم والتوزيع، فمن يعتمد
+    # الجدولَ يعرف مَن ولماذا.
+    breaches = metrics["teacher.pattern_breaches"]
+    assert breaches["value"] == 100.0
+    assert breaches["detail"]["خارجون"] == 1
+    assert breaches["detail"]["المعلّمون"] == 1
+    assert breaches["detail"][teacher_user.full_name] == "4+2+3+2+4"
 
 
 # ══════════════════════ التفضيلُ الذي لا يتماشى يُردّ ══════════════

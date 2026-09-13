@@ -528,13 +528,7 @@ class BehaviorService:
         school = infraction.school
         student = infraction.student
 
-        enrollment = (
-            StudentEnrollment.objects.filter(
-                student=student, class_group__school=school, is_active=True
-            )
-            .select_related("class_group")
-            .first()
-        )
+        enrollment = StudentEnrollment.objects.current_of(student, school=school)
         cg = enrollment.class_group if enrollment else None
         class_name = str(cg) if cg else None
 
@@ -599,7 +593,24 @@ class BehaviorService:
                     "infraction": infraction,
                     "reporter": reporter,
                     "level": infraction.level,
+                    # ما يطلبه قالبُ البريد المنسَّق — أسماءٌ مقروءةٌ لا كائنات،
+                    # فالسياقُ يعبر Celery مُسلسَلاً.
+                    "student_name": infraction.student.full_name,
+                    "infraction_date": (
+                        infraction.date.strftime("%Y/%m/%d") if infraction.date else ""
+                    ),
+                    "level_display": LEVEL_DISPLAY.get(infraction.level, ""),
+                    "level_description": LEVEL_DESC.get(infraction.level, ""),
+                    "description": infraction.description or "",
+                    "action_taken": getattr(infraction, "action_taken", "") or "",
+                    "reported_by": reporter.full_name if reporter else "",
+                    "points_deducted": getattr(infraction, "points_deducted", 0) or 0,
                 },
+                # كان بريدُ السلوك يخرج نصّاً خاماً بينما يخرج بريدُ الغياب
+                # والرسوب منسَّقاً بترويسة المدرسة — وهو أشدُّ الإشعارات
+                # حساسيّةً. والقالبُ كان مكتوباً ولم يُوصَل بمُرسِل.
+                email_html_template="notifications/email/behavior_html.html",
+                email_text_template="notifications/email/behavior_text.txt",
                 related_object_id=infraction.pk,
                 related_url=f"/behavior/student/{infraction.student.pk}/",
                 sent_by=reporter,
@@ -627,7 +638,7 @@ class BehaviorService:
         Returns: (success: bool, message: str)
         """
         current_step = infraction.escalation_step or 0
-        steps = ESCALATION_STEPS.get(infraction.level, [])
+        steps = infraction.get_escalation_steps()
         max_step = len(steps)
 
         if current_step >= max_step:
@@ -716,8 +727,17 @@ class BehaviorService:
         school: School,
         level: int,
         violation_category=None,
+        on=None,
+        session=None,
     ) -> int:
-        """عدد المخالفات السابقة من نفس الدرجة (أو نفس الفئة)."""
+        """عدد المخالفات السابقة من نفس الدرجة (أو نفس الفئة).
+
+        ومخالفةُ الدليل التنظيميّ 2026 تُعدّ **لنفسها** و**في الفصل الدراسيّ الجاري**:
+        قرارُ المدرسة (2026-09-13) أنّ العدّادَ يُصفَّر كلَّ فصل، والدليلُ صامتٌ عن
+        النافذة. وكلُّ مخالفةٍ مسجَّلةٍ تكرارٌ — ولو كانت في اليوم نفسِه.
+        """
+        from .conduct_2026 import BY_CODE
+
         qs = BehaviorInfraction.objects.filter(
             student=student,
             school=school,
@@ -725,6 +745,17 @@ class BehaviorService:
         )
         if violation_category:
             qs = qs.filter(violation_category=violation_category)
+            if violation_category.code in BY_CODE:
+                from core.academic_calendar import AcademicCalendar
+
+                semester = AcademicCalendar.current(school, on).semester
+                if semester is not None:
+                    qs = qs.filter(date__gte=semester.start_date, date__lte=semester.end_date)
+                # «الهروبُ من الحصّة» يُعدّ لكلّ مادّةٍ على حدة (ص91).
+                from .conduct_2026 import CLASS_ESCAPE_CODE
+
+                if violation_category.code == CLASS_ESCAPE_CODE and session is not None:
+                    qs = qs.filter(session__subject_id=session.subject_id)
         return qs.count()
 
     # ── اقتراح الخطوة التصاعدية للمخالفة الجديدة ────────────
@@ -734,14 +765,27 @@ class BehaviorService:
         school: School,
         level: int,
         violation_category=None,
+        on=None,
+        session=None,
     ) -> int:
-        """يقترح خطوة التصعيد المناسبة بناءً على تكرار المخالفات."""
+        """خطوةُ التصعيد بحسب التكرار.
+
+        وسلّمُ الدليل 2026 لا يُقصّ عند آخره: التكرارُ الذي يتجاوزه يأخذ رقمَ
+        «ما بعد السلّم» (عادةً الإحالةُ إلى قسم حماية ورعاية الطلبة) — فالقصُّ
+        كان يُبقي الطالبَ على آخر درجةٍ مهما تكرّر، ولا يقول أحدٌ إنّه تجاوزها.
+        """
+        from .conduct_2026 import BY_CODE
+
         prior = BehaviorService.get_prior_infraction_count(
             student,
             school,
             level,
             violation_category,
+            on=on,
+            session=session,
         )
+        if violation_category and violation_category.code in BY_CODE:
+            return min(prior + 1, len(violation_category.get_escalation_steps()))
         steps = ESCALATION_STEPS.get(level, [])
         max_step = len(steps)
         # المخالفة الأولى = الخطوة 1, الثانية = 2, ...
@@ -760,6 +804,8 @@ class BehaviorService:
         violation_category=None,
         disciplinary_action_type: str = "",
         violation_description: str = "",
+        session=None,
+        auto_rule: str = "",
     ) -> BehaviorInfraction:
         """
         إنشاء مخالفة سلوكية جديدة — Service Layer الصحيح.
@@ -791,6 +837,7 @@ class BehaviorService:
             school,
             level,
             violation_category,
+            session=session,
         )
 
         infraction = BehaviorInfraction.objects.create(
@@ -805,6 +852,8 @@ class BehaviorService:
             points_deducted=points_deducted,
             disciplinary_action_type=disciplinary_action_type,
             violation_description=violation_description,
+            session=session,
+            auto_rule=auto_rule,
         )
 
         logger.info(

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy ui %}
 {% block title %}ربط المنفذين بالموظفين{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,110 +7,65 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="qexec">
 
-  <!-- Header -->
-  <div class="flex items-center justify-between flex-wrap gap-3">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="waypoints" %} ربط المنفذين بالموظفين</h1>
-      <p class="text-sm text-gray-500 mt-1">
-        ربط كل مسمى وظيفي في الخطة التشغيلية بموظف فعلي حتى تظهر إجراءاتهم في لوحة التحكم
-      </p>
-    </div>
-    <a href="{% url 'quality_dashboard' %}" class="text-sm text-blue-600 hover:underline">← الخطة التشغيلية</a>
-  </div>
-
-  <!-- إحصائيات -->
-  <div class="grid grid-cols-3 gap-4">
-    <div class="card-qatar text-center">
-      <div class="text-3xl font-bold text-maroon">{{ total }}</div>
-      <div class="text-xs text-gray-500 mt-1">إجمالي المسميات</div>
-    </div>
-    <div class="card-qatar text-center">
-      <div class="text-3xl font-bold text-green-700">{{ mapped_count }}</div>
-      <div class="text-xs text-gray-500 mt-1">مربوط</div>
-    </div>
-    <div class="card-qatar text-center">
-      <div class="text-3xl font-bold text-red-600">{{ unmapped_count }}</div>
-      <div class="text-xs text-gray-500 mt-1">غير مربوط</div>
-    </div>
-  </div>
-
-  <!-- تطبيق الكل -->
-  {% if mapped_count > 0 %}
-  <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-3 flex-wrap">
-    <div class="text-sm text-amber-800">
-      <strong>تطبيق جماعي:</strong> تحديث جميع الإجراءات بالربطات المحفوظة دفعةً واحدة
-    </div>
-    <form method="post" action="{% url 'apply_all_mappings' %}">
+  {% page_header "ربط المنفذين بالموظفين" subtitle="كلُّ مسمًّى وظيفيٍّ في الخطة يُربط بموظفٍ فعليٍّ لتظهر إجراءاتُه في لوحته" icon="waypoints" %}
+    {% if mapped_count > 0 %}
+    <form method="post" action="{% url 'apply_all_mappings' %}" class="qexec-apply">
       {% csrf_token %}
       <input type="hidden" name="year" value="{{ year }}">
-      <button type="submit"
-              class="px-4 py-2 bg-amber-600 text-white text-sm rounded-lg hover:bg-amber-700 transition">
-        تطبيق الكل ({{ mapped_count }} ربط)
-      </button>
+      <button type="submit" class="btn-primary btn-sm" title="تحديث جميع الإجراءات بالربطات المحفوظة دفعةً واحدة">تطبيق الكل ({{ mapped_count }} ربط)</button>
     </form>
-  </div>
-  {% endif %}
+    {% endif %}
+    <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">← الخطة التشغيلية</a>
+  {% endpage_header %}
 
-  <!-- بحث سريع في الجدول -->
-  <div class="filter-bar mb-4">
-    <input type="text" id="executor-search"
-           placeholder="بحث بالمسمى الوظيفي أو اسم الموظف..."
-           class="form-control w-full m-0"
-           aria-label="بحث في المنفذين">
-  </div>
+  {% kpi_strip label="أرقام الربط" %}
+    {% kpi "إجمالي المسميات" total %}
+    {% kpi "مربوط" mapped_count tone="green" %}
+    {% kpi "غير مربوط" unmapped_count tone=unmapped_tone %}
+  {% endkpi_strip %}
 
-  <!-- الجدول -->
-  <div class="card-qatar overflow-hidden">
-    <div class="bg-maroon px-6 py-4 flex items-center justify-between">
-      <h2 class="text-white font-bold">قائمة المنفذين — {{ year }}</h2>
-      <span class="text-blue-200 text-xs" id="executor-count">{{ total }} مسمى وظيفي</span>
+  {% section_card "قائمة المنفذين" meta=year icon="users" empty="لا مسمّياتٍ وظيفيّةً في خطة هذا العام" flush=True %}{% if executor_rows %}
+    <div class="qeval-search">
+      <input type="text" id="executor-search"
+             placeholder="بحث بالمسمى الوظيفي أو اسم الموظف..."
+             class="form-control"
+             aria-label="بحث في المنفذين">
+      <span class="qeval-search__count" id="executor-count">{{ total }} مسمى وظيفي</span>
     </div>
-
-    <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 border-b" style="position:sticky;top:0;z-index:2">
+    <div class="table-wrap table-wrap-scroll qeval-staff">
+      <table>
+        <thead>
           <tr>
-            <th scope="col" class="px-4 py-3 text-right">المسمى الوظيفي</th>
-            <th scope="col" class="px-4 py-3 text-center w-16">الإجراءات</th>
-            <th scope="col" class="px-4 py-3 text-right">الموظف الحالي</th>
-            <th scope="col" class="px-4 py-3 text-right w-72">ربط بـ</th>
-            <th scope="col" class="px-4 py-3 text-center w-24">الحالة</th>
+            <th scope="col">المسمى الوظيفي</th>
+            <th scope="col" class="num">الإجراءات</th>
+            <th scope="col">الموظف الحالي</th>
+            <th scope="col">ربط بـ</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-gray-100" id="executor-tbody">
+        <tbody id="executor-tbody">
           {% for row in executor_rows %}
-          <tr class="hover:bg-gray-50" data-text="{{ row.executor_norm }} {% if row.user %}{{ row.user.full_name }}{% endif %}">
-            <td class="px-4 py-3 font-medium text-gray-900">{{ row.executor_norm }}</td>
-            <td class="px-4 py-3 text-center">
-              <span class="status-badge status-info">
-                {{ row.proc_count }}
-              </span>
-            </td>
-            <td class="px-4 py-3 text-gray-600">
+          <tr data-text="{{ row.executor_norm }} {% if row.user %}{{ row.user.full_name }}{% endif %}">
+            <td>{{ row.executor_norm }}</td>
+            <td class="num">{{ row.proc_count }}</td>
+            <td>
               {% if row.user %}
-                <span class="text-green-700 font-medium">{{ row.user.full_name }}</span>
-                <span class="text-gray-400 text-xs me-1" dir="ltr">({{ row.user.national_id }})</span>
+                <span class="qexec-user">{{ row.user.full_name }}</span>
+                <span class="pr-muted" dir="ltr">({{ row.user.national_id|mask_id }})</span>
               {% else %}
-                <span class="text-gray-400 text-xs italic">غير مربوط</span>
+                <span class="status-badge status-danger">غير مربوط</span>
                 {% if row.suggested_user %}
-                  <div class="mt-1 text-xs text-blue-700">
-                    <span>مقترح: {{ row.suggested_user.full_name }}</span>
-                    <span class="text-gray-400" dir="ltr">({{ row.suggested_user.national_id }})</span>
-                  </div>
+                <span class="qexec-suggest">مقترح: {{ row.suggested_user.full_name }} <span dir="ltr">({{ row.suggested_user.national_id|mask_id }})</span></span>
                 {% endif %}
               {% endif %}
             </td>
-            <td class="px-4 py-3">
-              <form method="post" action="{% url 'save_executor_mapping' %}"
-                    class="flex items-center gap-2">
+            <td>
+              <form method="post" action="{% url 'save_executor_mapping' %}" class="qexec-form">
                 {% csrf_token %}
                 <input type="hidden" name="year" value="{{ year }}">
                 <input type="hidden" name="executor_norm" value="{{ row.executor_norm }}">
-                <select name="user_id"
-                        class="flex-1 text-xs border rounded-lg px-2 py-1.5 bg-white focus:ring-1 focus:ring-blue-400">
+                <select name="user_id" class="form-control form-control-sm" aria-label="الموظف المربوط بـ{{ row.executor_norm }}">
                   <option value="">— اختر موظف —</option>
                   {% for emp in staff %}
                    <option value="{{ emp.id }}"
@@ -118,57 +74,37 @@
                    </option>
                   {% endfor %}
                 </select>
-                <button type="submit"
-                        class="px-3 py-1.5 bg-maroon text-white text-xs rounded-lg hover:bg-skyline transition whitespace-nowrap">
-                  حفظ
-                </button>
+                <button type="submit" class="btn-primary btn-sm">حفظ</button>
               </form>
-            </td>
-            <td class="px-4 py-3 text-center">
-              {% if row.is_mapped %}
-                <span class="status-badge status-success">✓ مربوط</span>
-              {% else %}
-                <span class="status-badge status-danger">✕ فارغ</span>
-              {% endif %}
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-    </div>{# end table-wrap-scroll #}
-  </div>
-
-  <script nonce="{{ request.csp_nonce }}">
-  document.addEventListener('DOMContentLoaded', function(){
-    var input = document.getElementById('executor-search');
-    var countEl = document.getElementById('executor-count');
-    if (!input) return;
-    var rows = document.querySelectorAll('#executor-tbody tr[data-text]');
-    var total = rows.length;
-    input.addEventListener('input', function(){
-      var q = this.value;
-      var shown = 0;
-      rows.forEach(function(r){
-        var ok = window.smartMatch(q, r.getAttribute('data-text') || '');
-        r.style.display = ok ? '' : 'none';
-        if (ok) shown++;
-      });
-      if (countEl) countEl.textContent = shown + ' / ' + total + ' مسمى وظيفي';
-    });
-  });
-  </script>
-
-  <!-- إضافة إشعار تفاعلي عند الحفظ -->
-  {% if messages %}
-    <div class="mt-4">
-      {% for message in messages %}
-        <div class="rounded-lg p-3 mb-2 {% if message.tags == 'success' %}bg-green-50 text-green-700{% elif message.tags == 'error' %}bg-red-50 text-red-700{% else %}bg-blue-50 text-blue-700{% endif %}">
-          {{ message }}
-        </div>
-      {% endfor %}
-    </div>
-  {% endif %}
+  {% endif %}{% endsection_card %}
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script nonce="{{ request.csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function(){
+  var input = document.getElementById('executor-search');
+  var countEl = document.getElementById('executor-count');
+  if (!input) return;
+  var rows = document.querySelectorAll('#executor-tbody tr[data-text]');
+  var total = rows.length;
+  input.addEventListener('input', function(){
+    var q = this.value;
+    var shown = 0;
+    rows.forEach(function(r){
+      var ok = window.smartMatch(q, r.getAttribute('data-text') || '');
+      r.hidden = !ok;
+      if (ok) shown++;
+    });
+    if (countEl) countEl.textContent = shown + ' / ' + total + ' مسمى وظيفي';
+  });
+});
+</script>
 {% endblock %}

@@ -4,16 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SchoolOS — نظام الأيقونات الاحترافي Lucide</title>
+{% load static %}
+{# الرموزُ من ملفّ المنصّة — كانت هنا نسخةٌ ثانيةٌ بقيمٍ قديمة (--text-primary #1e293b و--border #e2e8f0). #}
+<link rel="stylesheet" href="{% static 'css/custom.css' %}">
 <style>
   :root {
-    --maroon: #8A1538;
-    --maroon-light: #f9e8ee;
-    --surface: #ffffff;
-    --surface-alt: #f8fafc;
-    --text-primary: #1e293b;
-    --text-secondary: #64748b;
-    --text-muted: #94a3b8;
-    --border: #e2e8f0;
     --radius: 12px;
     --shadow: 0 1px 3px rgba(0,0,0,.08);
   }
@@ -29,9 +24,9 @@
     text-align: center;
     margin-bottom: 32px;
     padding: 32px 20px;
-    background: linear-gradient(135deg, var(--maroon) 0%, #6b1030 100%);
+    background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-dark) 100%);
     border-radius: var(--radius);
-    color: #fff;
+    color: var(--on-fill);
   }
   .page-header h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; }
   .page-header p { font-size: 14px; opacity: .85; }
@@ -43,13 +38,13 @@
 
   .section { margin-bottom: 28px; }
   .section-title {
-    font-size: 15px; font-weight: 700; color: var(--maroon);
+    font-size: 15px; font-weight: 700; color:var(--maroon-fg);
     margin-bottom: 12px; padding-bottom: 8px;
-    border-bottom: 2px solid var(--maroon-light);
+    border-bottom: 2px solid var(--maroon-bg);
     display: flex; align-items: center; gap: 8px;
   }
   .section-title .count {
-    background: var(--maroon); color: #fff;
+    background: var(--maroon); color: var(--on-fill);
     font-size: 11px; padding: 2px 8px; border-radius: 99px;
   }
 
@@ -68,7 +63,7 @@
     cursor: default;
   }
   .icon-card:hover {
-    border-color: var(--maroon);
+    border-color:var(--maroon-fg);
     box-shadow: 0 4px 12px rgba(138,21,56,.12);
     transform: translateY(-2px);
   }
@@ -76,7 +71,7 @@
     width: 48px; height: 48px;
     margin: 0 auto 10px;
     display: flex; align-items: center; justify-content: center;
-    background: var(--maroon-light);
+    background: var(--maroon-bg);
     border-radius: 12px;
   }
   .icon-card svg {
@@ -96,7 +91,7 @@
   }
   .icon-card .icon-old {
     font-size: 18px; margin-top: 6px;
-    padding: 2px 8px; background: #fef2f2; border-radius: 6px;
+    padding: 2px 8px; background: var(--status-danger-bg); border-radius: 6px;
     display: inline-block;
   }
 
@@ -107,7 +102,7 @@
     padding: 24px;
     margin-bottom: 28px;
   }
-  .compare-section h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: var(--maroon); }
+  .compare-section h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; color:var(--maroon-fg); }
   .compare-row {
     display: flex; align-items: center; gap: 24px;
     padding: 12px 0; border-bottom: 1px solid var(--border);
@@ -119,7 +114,7 @@
   .compare-new {
     width: 48px; height: 48px;
     display: flex; align-items: center; justify-content: center;
-    background: var(--maroon-light); border-radius: 10px;
+    background: var(--maroon-bg); border-radius: 10px;
   }
   .compare-new svg {
     width: 24px; height: 24px; stroke: var(--maroon);
@@ -423,8 +418,8 @@
   <div class="grid">
 
     <div class="icon-card">
-      <div class="icon-wrap" style="background:#dcfce7;">
-        <svg viewBox="0 0 24 24" style="stroke:#16a34a;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      <div class="icon-wrap" style="background:var(--status-success-bg);">
+        <svg viewBox="0 0 24 24" style="stroke:var(--status-success);"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
       </div>
       <div class="icon-name">check-circle</div>
       <div class="icon-label">نجاح / مكتمل</div>
@@ -432,8 +427,8 @@
     </div>
 
     <div class="icon-card">
-      <div class="icon-wrap" style="background:#fee2e2;">
-        <svg viewBox="0 0 24 24" style="stroke:#dc2626;"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
+      <div class="icon-wrap" style="background:var(--status-danger-bg);">
+        <svg viewBox="0 0 24 24" style="stroke:var(--status-danger);"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>
       </div>
       <div class="icon-name">x-circle</div>
       <div class="icon-label">خطأ / مرفوض</div>
@@ -441,8 +436,8 @@
     </div>
 
     <div class="icon-card">
-      <div class="icon-wrap" style="background:#fef3c7;">
-        <svg viewBox="0 0 24 24" style="stroke:#d97706;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+      <div class="icon-wrap" style="background:var(--status-warning-bg);">
+        <svg viewBox="0 0 24 24" style="stroke:var(--status-warning);"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
       </div>
       <div class="icon-name">alert-triangle</div>
       <div class="icon-label">تحذير</div>
@@ -450,8 +445,8 @@
     </div>
 
     <div class="icon-card">
-      <div class="icon-wrap" style="background:#dbeafe;">
-        <svg viewBox="0 0 24 24" style="stroke:#2563eb;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <div class="icon-wrap" style="background:var(--status-info-bg);">
+        <svg viewBox="0 0 24 24" style="stroke:var(--status-info);"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
       </div>
       <div class="icon-name">info</div>
       <div class="icon-label">معلومة</div>
@@ -468,8 +463,8 @@
     </div>
 
     <div class="icon-card">
-      <div class="icon-wrap" style="background:#fee2e2;">
-        <svg viewBox="0 0 24 24" style="stroke:#dc2626;"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
+      <div class="icon-wrap" style="background:var(--status-danger-bg);">
+        <svg viewBox="0 0 24 24" style="stroke:var(--status-danger);"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg>
       </div>
       <div class="icon-name">ban</div>
       <div class="icon-label">غياب / محظور</div>
@@ -477,8 +472,8 @@
     </div>
 
     <div class="icon-card">
-      <div class="icon-wrap" style="background:#fee2e2;">
-        <svg viewBox="0 0 24 24" style="stroke:#dc2626;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><circle cx="12" cy="16" r="1"/><path d="M12 9v4"/></svg>
+      <div class="icon-wrap" style="background:var(--status-danger-bg);">
+        <svg viewBox="0 0 24 24" style="stroke:var(--status-danger);"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><circle cx="12" cy="16" r="1"/><path d="M12 9v4"/></svg>
       </div>
       <div class="icon-name">alert-critical</div>
       <div class="icon-label">إنذار عاجل</div>
@@ -610,7 +605,7 @@
       </div>
       <div class="icon-name">clipboard-check</div>
       <div class="icon-label">مراجعة</div>
-      <div class="icon-old" style="font-size:13px;background:#eef2ff;">fa-clipboard-check</div>
+      <div class="icon-old" style="font-size:13px;background:var(--page-bg);">fa-clipboard-check</div>
     </div>
 
     <div class="icon-card">
@@ -619,7 +614,7 @@
       </div>
       <div class="icon-name">gavel</div>
       <div class="icon-label">لجنة / قرار</div>
-      <div class="icon-old" style="font-size:13px;background:#eef2ff;">fa-gavel</div>
+      <div class="icon-old" style="font-size:13px;background:var(--page-bg);">fa-gavel</div>
     </div>
 
     <div class="icon-card">
@@ -628,7 +623,7 @@
       </div>
       <div class="icon-name">filter</div>
       <div class="icon-label">تصفية</div>
-      <div class="icon-old" style="font-size:13px;background:#eef2ff;">fa-filter</div>
+      <div class="icon-old" style="font-size:13px;background:var(--page-bg);">fa-filter</div>
     </div>
 
     <div class="icon-card">
@@ -637,7 +632,7 @@
       </div>
       <div class="icon-name">paperclip</div>
       <div class="icon-label">مرفقات</div>
-      <div class="icon-old" style="font-size:13px;background:#eef2ff;">fa-paperclip</div>
+      <div class="icon-old" style="font-size:13px;background:var(--page-bg);">fa-paperclip</div>
     </div>
 
     <div class="icon-card">
@@ -646,7 +641,7 @@
       </div>
       <div class="icon-name">pencil</div>
       <div class="icon-label">تعديل</div>
-      <div class="icon-old" style="font-size:13px;background:#eef2ff;">fa-pen-to-square</div>
+      <div class="icon-old" style="font-size:13px;background:var(--page-bg);">fa-pen-to-square</div>
     </div>
 
     <div class="icon-card">
@@ -655,7 +650,7 @@
       </div>
       <div class="icon-name">plus</div>
       <div class="icon-label">إضافة</div>
-      <div class="icon-old" style="font-size:13px;background:#eef2ff;">fa-plus</div>
+      <div class="icon-old" style="font-size:13px;background:var(--page-bg);">fa-plus</div>
     </div>
 
   </div>
@@ -727,7 +722,7 @@
 
 <!-- ── Footer ── -->
 <div style="text-align:center; padding:24px; color:var(--text-muted); font-size:13px;">
-  <p>Lucide Icons — MIT License — <a href="https://lucide.dev" style="color:var(--maroon);">lucide.dev</a></p>
+  <p>Lucide Icons — MIT License — <a href="https://lucide.dev" style="color:var(--maroon-fg);">lucide.dev</a></p>
   <p style="margin-top:4px;">SchoolOS Icon System v1.0 — 48 أيقونة مختارة</p>
 </div>
 

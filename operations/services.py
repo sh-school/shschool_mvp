@@ -114,24 +114,27 @@ class AttendanceService:
 
     @staticmethod
     def check_absence_threshold(student: CustomUser, school: School, on=None) -> None:
-        """يُنذر عند اقتراب كل عتبةٍ من عتبات «سياسة تقييم الطلبة».
+        """يُنذر عند اقتراب كلّ عتبةٍ من عتبات الدليل التنظيميّ 2026.
 
         كانت هذه الدالّة تُنذر عند «10٪ من أيام الدراسة» وتنسبها إلى المادة 7
         من قانون التعليم الإلزامي 25/2001. ونصّ القانون لا يذكر نسبةً ولا عدد
         أيام. وكانت الرسالة تقول لوليّ الأمر «تجاوز ابنكم **العتبة القانونية**»
         — ادّعاءٌ يصل إلى بيتٍ حقيقيّ.
 
-        والعتبات في الدليل الوزاريّ (القرار 22/2015): سبعةُ أيام تمدرس ثم عشرة
-        ثم ثلاثة عشر ثم خمسة عشر للصفوف ٤–١١، وعشرةٌ ثم خمسة عشر للثاني عشر.
+        ثمّ صُحّحت إلى «سياسة تقييم الطلبة 2018» (7·10·13·15)، وقد نسختها
+        **«سياسة إدارة سلوك الطلبة 2026»** م 3.4.1.3: خمسةٌ ثمّ ثمانيةٌ ثمّ
+        إحدى عشرةَ ثمّ خمسةَ عشر للصفوف 1–11، وثمانيةٌ ثمّ خمسةَ عشر للثاني
+        عشر وذوي الإعاقة. والأرقامُ في `absence_policy` لا هنا.
 
-        وثلاثة فروقٍ عمليّة عن القديم:
+        وثلاثة فروقٍ عمليّة عن الأقدم:
 
         - تُعدّ **أيام تمدرس** لا حصصاً — والفرق سبعة أضعاف بسبع حصصٍ في اليوم.
         - تنبيهٌ **لكل عتبة**. وكان التنبيه واحداً للعام كلّه، فمن تجاوز الأولى
           لم يُنذَر عند التي بعدها قطّ.
         - **إنذارٌ قبل الوقوع** بيومين، لا إعلامٌ بعده.
 
-        ولا تحجب هذه الدالّة شيئاً. قرار الحرمان لإدارة المدرسة.
+        ولا تحجب هذه الدالّة شيئاً. قرار الحرمان **لفريق إدارة سلوك الطلبة**
+        بنصّ الدليل.
 
         `on` للاختبار وللمعالجة بأثرٍ رجعيّ — لا يُمرَّر في الاستعمال العاديّ.
         """
@@ -139,16 +142,14 @@ class AttendanceService:
         from operations.absence_policy import gates_for
         from operations.absence_standing import standing_for
 
-        enrollment = (
-            StudentEnrollment.objects.filter(student=student, is_active=True)
-            .select_related("class_group")
-            .first()
-        )
+        enrollment = StudentEnrollment.objects.current_of(student)
         grade = enrollment.class_group.grade if enrollment else None
         if not gates_for(grade):
-            # الصفوف ١–٣ لها قسمٌ مستقلّ في الدليل لم يُشفَّر — فلا إنذار.
-            # وطالبٌ بلا تسجيلٍ نشط يقع هنا أيضاً، فيفقد إنذاراته كلّها. وذاك
-            # نقصٌ في البيانات لا حكمٌ من السياسة — فيُسجَّل كي يُرى.
+            # صفٌّ لا جدولَ له في السياسة — فلا إنذار بجدولٍ لا يخصّه.
+            # (ودليلُ 2026 يشمل «من الصف الأول»، فلم يبقَ خارجَه صفٌّ في مدرسةٍ
+            # إعداديّةٍ ثانويّة.) وطالبٌ بلا تسجيلٍ نشط يقع هنا أيضاً، فيفقد
+            # إنذاراته كلّها — وذاك نقصٌ في البيانات لا حكمٌ من السياسة، فيُسجَّل
+            # كي يُرى.
             if enrollment is None:
                 logger.warning(
                     "check_absence_threshold: لا تسجيل نشط للطالب %s — لا إنذار غياب",
@@ -197,7 +198,12 @@ class AttendanceService:
                     f"ويفصله {remaining} يوماً عن حدّ {gate.max_days} "
                     f"المقرّر لدخول {gate.label}."
                 )
-            source = "المرجع: سياسة تقييم الطلبة — وزارة التعليم والتعليم العالي."
+            # المرجعُ يُسمّى في الرسالة لأنّها تصل بيتاً: وليُّ أمرٍ يقرأ رقماً
+            # عن ابنه من حقّه أن يعرف من أين جاء.
+            source = (
+                "المرجع: الدليل التنظيمي لسياسة إدارة سلوك الطلبة 2026 (م 3.4.1.3) — "
+                "وزارة التربية والتعليم والتعليم العالي، قسم حماية ورعاية الطلبة."
+            )
 
             try:
                 from notifications.hub import NotificationHub
@@ -261,6 +267,8 @@ class AttendanceService:
             "late": late,
             "excused": excused,
             "percentage": pct,
+            # نصُّ البطاقة جاهزاً — لا سلسلةَ مرشِّحاتٍ في القالب تلصق «%».
+            "percentage_label": f"{pct}%",
         }
 
 
@@ -1290,7 +1298,12 @@ class SubstituteService:
             "teacher_id", flat=True
         )
 
-        available_ids = set(teacher_ids) - set(busy_ids) - set(absent_ids)
+        # ومن فُرّغ في هذه الخانة بقرارٍ ملزم — وكان البديلُ يتجاهل التفريغَ كلَّه،
+        # فيُقترح معلّمٌ أخرجته الوزارةُ من الحصّة. أمّا تفريغُ «لتوليد الجدول»
+        # فيُوسَم ولا يمنع: صاحبُه رُتّب له جدولُه ولم يُمنَع من الحصّة.
+        exempt_ids = SubstituteService.exempted_teacher_ids(school, day_of_week, period_number)
+
+        available_ids = set(teacher_ids) - set(busy_ids) - set(absent_ids) - exempt_ids
 
         from core.models import CustomUser
 
@@ -1315,6 +1328,26 @@ class SubstituteService:
             qs = qs.order_by("full_name")
 
         return qs
+
+    @staticmethod
+    def exempted_teacher_ids(school: School, day_of_week: int, period_number: int) -> set:
+        """من لا يجوز إشغالُه في هذه الخانة بحكم تفريغٍ ملزم.
+
+        يومٌ كاملٌ أو الحصّةُ بعينها، من عام المدرسة الجاري، وبجهةٍ تُلزم —
+        فتفريغُ «لتوليد الجدول» لا يدخل هنا (`TeacherExemption.SOFT_SOURCES`).
+        """
+        from core.querysets import year_or_current
+
+        rows = TeacherExemption.objects.filter(
+            school=school,
+            academic_year=year_or_current(school),
+            is_active=True,
+            day_of_week=day_of_week,
+        ).exclude(source__in=TeacherExemption.SOFT_SOURCES)
+        rows = rows.filter(
+            models.Q(exemption_type="full_day") | models.Q(period_number=period_number)
+        )
+        return set(rows.values_list("teacher_id", flat=True))
 
     @staticmethod
     @transaction.atomic
@@ -1640,6 +1673,16 @@ class SwapService:
         if slot_a.class_group_id != slot_b.class_group_id:
             errors.append("التبديل مسموح فقط مع معلمي نفس الفصل")
 
+        # ── القانون 9: لا تبديلَ إلى خانةٍ مفرَّغةٍ بقرارٍ ملزم ─────────────
+        # كلٌّ من المعلّمَين يأخذ خانةَ الآخر؛ فإن كان أحدُهما مفرَّغاً فيها
+        # بقرار وزارةٍ أو إدارةٍ أو قسمٍ رُفض التبديل — وكان لا يُفحص أصلاً.
+        # أمّا تفريغُ «لتوليد الجدول» فيُوسَم ولا يمنع (قرار 2026-09-11).
+        for mover, target in ((teacher, slot_b), (slot_b.teacher, slot_a)):
+            if mover and mover.id in SubstituteService.exempted_teacher_ids(
+                school, target.day_of_week, target.period_number
+            ):
+                errors.append(f"{mover.full_name} مفرَّغٌ في هذه الخانة بقرارٍ ملزم — لا يُبدَّل إليها")
+
         # ── القانون 6: تاريخ مستقبلي + 24 ساعة ────────────────────
         if swap_date < today:
             errors.append("لا يمكن التبديل في تاريخ ماضٍ")
@@ -1852,16 +1895,15 @@ class SwapService:
 
         swap.b_responded_at = tz.now()
         if accepted:
-            # تحديد المرحلة التالية
-            if swap.is_cross_department:
-                swap.status = "pending_vp"
-            else:
-                swap.status = "pending_coordinator"
+            # والجهةُ التاليةُ المنسّقون دائماً — لا النائبُ عند اختلاف
+            # المادّتين. فاختلافُهما يعني منسّقَين لا مرجعاً أعلى.
+            swap.status = "pending_coordinator"
+            waiting = "منسّق المادّة" if swap.needs_one_signature() else "منسّقَي المادّتين"
             SwapService._notify(
                 swap,
                 swap.teacher_a,
                 title=f"{swap.teacher_b.full_name} وافق على التبديل",
-                body="بانتظار موافقة المنسق",
+                body=f"بانتظار موافقة {waiting}",
                 event_type="swap_response",
             )
         else:
@@ -1878,6 +1920,40 @@ class SwapService:
         return swap
 
     @staticmethod
+    def signable_sides(swap: TeacherSwap, user: CustomUser) -> tuple[str, ...]:
+        """الجهاتُ التي يملك هذا المستخدمُ التوقيعَ عنها الآن.
+
+        منسّقُ الجهةِ يوقّع عنها. والنائبُ الأكاديميُّ (والمديرُ) بديلٌ عن
+        الغائب لا متجاوزٌ عليه: يوقّع عن جهةٍ لا منسّقَ لها، أو منسّقُها
+        غائبٌ اليوم، أو منسّقُها طرفٌ في التبديل — فلا يحكم في أمرِ نفسه.
+        """
+        role = user.get_role()
+        deputy = role in ("principal", "vice_academic")
+        parties = {swap.teacher_a_id, swap.teacher_b_id}
+        sides = []
+        for side in swap.awaiting_sides:
+            head = swap.coordinator_for(side)
+            if head is not None and head.pk == user.pk:
+                sides.append(side)
+            elif deputy and (
+                head is None
+                or head.pk in parties
+                or SwapService._is_absent_today(swap.school, head)
+            ):
+                sides.append(side)
+        return tuple(sides)
+
+    @staticmethod
+    def _is_absent_today(school, teacher) -> bool:
+        from django.utils import timezone as tz
+
+        return (
+            TeacherAbsence.objects.filter(school=school, teacher=teacher, date=tz.localdate())
+            .exclude(status="rejected")
+            .exists()
+        )
+
+    @staticmethod
     @transaction.atomic
     def approve_swap(
         swap: TeacherSwap,
@@ -1885,7 +1961,7 @@ class SwapService:
         approved: bool = True,
         rejection_reason: str = "",
     ) -> TeacherSwap:
-        """المنسق أو النائب يوافق/يرفض."""
+        """منسّقُ المادّة يوقّع عن جهته — ولا يُنفَّذ حتّى تُوقَّع الجهتان."""
         from django.utils import timezone as tz
 
         valid_statuses = ("pending_coordinator", "pending_vp", "accepted_b")
@@ -1896,6 +1972,31 @@ class SwapService:
         swap.approved_at = tz.now()
 
         if approved:
+            sides = SwapService.signable_sides(swap, approved_by)
+            if not sides:
+                raise ValueError(
+                    "لا تملك التوقيعَ عن جهةٍ في هذا الطلب — "
+                    "التوقيعُ لمنسّق المادّة، وللنائب عن الغائب منهما."
+                )
+            for side in sides:
+                setattr(swap, f"approved_{side}_by", approved_by)
+                setattr(swap, f"approved_{side}_at", tz.now())
+                head = swap.coordinator_for(side)
+                setattr(
+                    swap,
+                    f"approved_{side}_by_substitute",
+                    head is None or head.pk != approved_by.pk,
+                )
+            if not swap.is_fully_approved:
+                swap.save()
+                SwapService._notify(
+                    swap,
+                    swap.teacher_a,
+                    title="وُقّعت جهةٌ من التبديل",
+                    body="بانتظار توقيع منسّق المادّة الأخرى",
+                    event_type="swap_response",
+                )
+                return swap
             swap.status = "approved"
             # تنفيذ تلقائي
             SwapService.execute_swap(swap)
@@ -1917,30 +2018,22 @@ class SwapService:
     @staticmethod
     @transaction.atomic
     def execute_swap(swap: TeacherSwap) -> None:
-        """تنفيذ التبديل الفعلي — تبديل المعلمين في الحصتين."""
+        """تنفيذُ التبديل — في يومَيه وحدَهما لا في قالب الأسبوع.
+
+        كان يبدّل المعلّمَين في `ScheduleSlot`، وهو قالبُ الأسبوع كلِّه: فتبديلُ
+        حصّةِ يومٍ واحدٍ كان يُبدّلها كلَّ أسبوعٍ إلى الأبد، ولا يعود الجدولُ
+        كما كان أبداً. والتبديلُ مؤقّتٌ بطبعه (قرارُ المستخدم 2026-09-11):
+        ينقضي بانتهاء الحصّة الأبعد، ويعود الجدولُ من نفسه.
+
+        فالأثرُ يقع على حصّة اليوم `Session`. ولو لم تكن مُنشأةً بعد أُنشئت من
+        قالبها: القالبُ يقول إنّ هذه الحصّة قائمةٌ في ذلك اليوم، والتبديلُ
+        يحتاج صفّاً يحمل أثرَه. و`original_teacher` هو ما يُلوّن الخانةَ لاحقاً
+        ويقول لمن كانت.
+        """
         from django.utils import timezone as tz
 
-        # تبديل المعلمين في ScheduleSlot
-        slot_a = swap.slot_a
-        slot_b = swap.slot_b
-        slot_a.teacher, slot_b.teacher = slot_b.teacher, slot_a.teacher
-        slot_a.save(update_fields=["teacher"])
-        slot_b.save(update_fields=["teacher"])
-
-        # تحديث Session اليومية إذا وُجدت
-        Session.objects.filter(
-            school=swap.school,
-            teacher=swap.teacher_a,
-            date=swap.swap_date_a,
-            start_time=slot_a.start_time,
-        ).update(teacher=swap.teacher_b)
-
-        Session.objects.filter(
-            school=swap.school,
-            teacher=swap.teacher_b,
-            date=swap.swap_date_b,
-            start_time=slot_b.start_time,
-        ).update(teacher=swap.teacher_a)
+        SwapService._move_session(swap, swap.slot_a, swap.swap_date_a, swap.teacher_b)
+        SwapService._move_session(swap, swap.slot_b, swap.swap_date_b, swap.teacher_a)
 
         swap.status = "executed"
         swap.executed_at = tz.now()
@@ -1956,6 +2049,27 @@ class SwapService:
                 event_type="swap_approved",
             )
         logger.info("SwapService: executed swap %s", swap.pk)
+
+    @staticmethod
+    def _move_session(swap: TeacherSwap, slot, day, to_teacher) -> None:
+        """يُسلّم حصّةَ ذلك اليوم لمعلّمٍ آخر، ويحفظ اسمَ صاحبها الأوّل."""
+        session, _created = Session.objects.get_or_create(
+            school=swap.school,
+            class_group=slot.class_group,
+            date=day,
+            start_time=slot.start_time,
+            defaults={
+                "teacher": slot.teacher,
+                "subject": slot.subject,
+                "end_time": slot.end_time,
+            },
+        )
+        # صاحبُها الأوّلُ يُكتب مرّةً: حصّةٌ بُدّلت مرّتين صاحبُها الأوّلُ
+        # أوّلُها لا أوسطُها.
+        if session.original_teacher_id is None:
+            session.original_teacher_id = session.teacher_id
+        session.teacher = to_teacher
+        session.save(update_fields=["teacher", "original_teacher"])
 
     @staticmethod
     @transaction.atomic
@@ -2380,9 +2494,27 @@ class CapacityCheckService:
                         "demand": demand,
                         "capacity": weekly_capacity,
                         "overflow": demand - weekly_capacity,
+                        #: سببٌ مرجَّحٌ يُقال لا يُترك للتخمين: وسمُ توازٍ بلا
+                        #: شريكٍ في الشعبة. فالمجموعةُ تستهلك خانةً واحدةً
+                        #: لعضوَيها، وبعضوٍ واحدٍ لا خصمَ — فيظهر فائضٌ سببُه
+                        #: وسمٌ ناقصٌ لا نصابٌ زائد. وعلاجُه إشعالُ «متوازية»
+                        #: على شريكة المادّة في شاشة الإسناد.
+                        "orphan_parallels": CapacityCheckService._orphan_tags(class_rows[cid]),
                     }
                 )
         return overcapacity
+
+    @staticmethod
+    def _orphan_tags(rows) -> list[str]:
+        """أسماءُ الموادّ الموسومةِ بتوازٍ لا شريكَ له في هذه الشعبة."""
+        from collections import Counter as _C
+
+        tally = _C((r.parallel_group or "").strip() for r in rows if r.parallel_group)
+        return [
+            r.subject.name_ar
+            for r in rows
+            if r.parallel_group and tally[(r.parallel_group or "").strip()] < 2
+        ]
 
 
 class TeacherLoadService:

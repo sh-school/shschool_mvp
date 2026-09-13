@@ -11,38 +11,33 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
+from core.capabilities import capability_required
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
-from core.permissions import role_required
 
+from .day_attendance import can_record, is_recorder, recorded_by_supervisor
 from .models import Session, StudentAttendance
 from .services import AttendanceService, ScheduleService
 
 logger = logging.getLogger(__name__)
 
-_REPORT_ROLES = {
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "admin_supervisor",
-    "admin",
+#: لونُ شارة الحضور وحدِّ خليّته — ربطٌ مغلق: حالةٌ لا يعرفها يأخذ الرماديّ.
+#: كان القالبُ يكتب `status-{{ status }}` فتصير الحالةُ اسمَ صنفٍ لا تعريفَ له
+#: (`status-present`، `status-unmarked`)، ويكتب المعذورَ `status-purple` غيرَ المعرَّف.
+ATTENDANCE_TONES = {
+    "present": "success",
+    "absent": "danger",
+    "late": "warning",
+    "excused": "info",
 }
 
 
+def attendance_tone(status: str) -> str:
+    return ATTENDANCE_TONES.get(status, "gray")
+
+
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "academic_advisor",
-    "admin_supervisor",
-    "student",
-    "parent",
-)
+@capability_required("schedule.day")
 def schedule(request):
     """جدول حصص المعلم اليوم"""
     school = request.user.get_school()
@@ -104,6 +99,7 @@ def schedule(request):
             .order_by("start_time")
         )
         teacher_filter = class_filter = status_filter = period_filter = show_all = ""
+        all_count = completed_count = 0
 
     now = timezone.now().time()
     next_session = None
@@ -133,39 +129,50 @@ def schedule(request):
             school=school, academic_year=academic_year_for_school(school), is_active=True
         ).in_school_order()
 
+    open_count = all_count - completed_count
+    date_label = f"{selected_date:%d/%m/%Y}"
     return render(
         request,
         "teacher/schedule.html",
         {
+            # سطرُ الترويسة: التاريخُ مرّةً — كان فيها وفي شارةٍ بجوارها.
+            "date_label": date_label,
+            "teacher_subtitle": f"{request.user.full_name} · {date_label}",
+            "open_count": open_count,
+            # ما بقي بلا إنهاءٍ ينبّه، والصفرُ أخضر.
+            "open_tone": "orange" if open_count else "green",
             "sessions": sessions,
             "selected_date": selected_date,
             "today": timezone.now().date(),
             "next_session": next_session,
             "user_role": request.user.get_role(),
+            # الرصدُ لمشرف الجناح: المعلّمُ يرى «عرض الحضور» لا «تسجيل».
+            "is_recorder": is_recorder(request.user),
             "is_leader": is_leader,
             "teacher_filter": teacher_filter,
             "class_filter": class_filter,
             "status_filter": status_filter,
             "period_filter": period_filter,
             "show_all": show_all,
-            "all_count": all_count if is_leader else 0,
-            "completed_count": completed_count if is_leader else 0,
+            "all_count": all_count,
+            "completed_count": completed_count,
             "filter_teachers": filter_teachers,
             "filter_classes": filter_classes,
         },
     )
 
 
+def _session_heading(session) -> dict:
+    """عنوانُ صفحة الحضور وسطرُها — نصٌّ مركّبٌ يُبنى هنا لا في الترويسة."""
+    subject = (session.subject.name_ar if session.subject else "") or "حصة"
+    return {
+        "page_title": f"{subject} — {session.class_group}",
+        "session_label": f"{session.date:%d/%m/%Y} · {session.start_time:%H:%M}",
+    }
+
+
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin_supervisor",
-)
+@capability_required("attendance.mark")
 def attendance_view(request, session_id):
     """صفحة تسجيل الحضور لحصة"""
     school = request.user.get_school()
@@ -197,7 +204,25 @@ def attendance_view(request, session_id):
         }
         for e in enrollments
     ]
+    for row in students_data:
+        row["tone"] = attendance_tone(row["status"])
     summary = AttendanceService.get_session_summary(session)
+    if not can_record(request.user, session):
+        # اطّلاعٌ لا رصد: يرى المعلّمُ ما رصده مشرفُ الجناح، ولا زرَّ يكتب.
+        return render(
+            request,
+            "teacher/attendance_readonly.html",
+            {
+                "session": session,
+                "students_data": [
+                    {**row, "status": row["status"] if row["attendance"] else "unmarked"}
+                    for row in students_data
+                ],
+                "summary": summary,
+                "recorded": bool(existing),
+                **_session_heading(session),
+            },
+        )
     view_mode = request.GET.get("view", "list")
     template = "teacher/attendance_grid.html" if view_mode == "grid" else "teacher/attendance.html"
 
@@ -210,20 +235,13 @@ def attendance_view(request, session_id):
             "summary": summary,
             "existing_count": len(existing),
             "view_mode": view_mode,
+            **_session_heading(session),
         },
     )
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin_supervisor",
-)
+@capability_required("attendance.mark")
 @require_POST
 def mark_single(request, session_id):
     """HTMX: تسجيل حضور طالب واحد"""
@@ -240,6 +258,12 @@ def mark_single(request, session_id):
         return HttpResponse("حالة غير صالحة", status=400)
 
     student = get_object_or_404(CustomUser, id=student_id)
+    # الرصدُ لمشرف الجناح (قرارُ المدير) — والمعلّمُ لا يرصد في شُعب الأجنحة،
+    # وما رصده المشرفُ لا يُكتب فوقه إلّا من أهل الرصد.
+    if not can_record(request.user, session) or (
+        not is_recorder(request.user) and recorded_by_supervisor(session, student)
+    ):
+        return HttpResponse("الرصدُ لمشرف الجناح.", status=403)
     att, _ = AttendanceService.mark_attendance(
         session=session,
         student=student,
@@ -262,6 +286,7 @@ def mark_single(request, session_id):
             "student": student,
             "attendance": att,
             "status": att.status,
+            "tone": attendance_tone(att.status),
             "session": session,
             "summary": summary,
         },
@@ -269,15 +294,7 @@ def mark_single(request, session_id):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin_supervisor",
-)
+@capability_required("attendance.mark")
 @require_POST
 def mark_all_present(request, session_id):
     """HTMX: الكل حاضر بضغطة واحدة"""
@@ -286,6 +303,8 @@ def mark_all_present(request, session_id):
 
     if request.user != session.teacher and not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
+    if not can_record(request.user, session):
+        return HttpResponse("الرصدُ لمشرف الجناح.", status=403)
 
     AttendanceService.bulk_mark_all_present(session, marked_by=request.user)
     enrollments = (
@@ -307,6 +326,8 @@ def mark_all_present(request, session_id):
         }
         for e in enrollments
     ]
+    for row in students_data:
+        row["tone"] = attendance_tone(row["status"])
     summary = AttendanceService.get_session_summary(session)
     view_mode = request.POST.get("view", "list")
     partial_template = (
@@ -322,15 +343,7 @@ def mark_all_present(request, session_id):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin_supervisor",
-)
+@capability_required("attendance.mark")
 @require_POST
 def complete_session(request, session_id):
     """إنهاء الحصة"""
@@ -345,15 +358,7 @@ def complete_session(request, session_id):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin_supervisor",
-)
+@capability_required("attendance.mark")
 def session_summary(request, session_id):
     """ملخص الحصة — HTMX partial"""
     school = request.user.get_school()
@@ -365,7 +370,7 @@ def session_summary(request, session_id):
 
 
 @login_required
-@role_required(_REPORT_ROLES)
+@capability_required("operations.reports")
 def daily_report(request):
     """تقرير الغياب اليومي — للمدير والمنسق"""
     from django.db.models import Count

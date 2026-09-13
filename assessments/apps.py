@@ -25,6 +25,9 @@ class AssessmentsConfig(AppConfig):
                 "academic_advisor",
                 # v7 — مساعدون يدعمون إدخال الدرجات
                 "teacher_assistant",
+                # الوراثةُ تُدخلهم في حارس الواجهة، فتسعهم بوّابةُ المسار (اختبار `test_module_gates_match_guards`)
+                "activities_coordinator",
+                "e_projects_coordinator",
                 "ese_assistant",
             },
             sidebar_roles={
@@ -36,8 +39,6 @@ class AssessmentsConfig(AppConfig):
                 "ese_teacher",
                 "admin",
                 "academic_advisor",
-                "parent",
-                "student",
             },
             sort_order=10,
         )

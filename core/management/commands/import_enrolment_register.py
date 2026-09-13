@@ -8,17 +8,24 @@
 يجتهد: قواعدُ الترفيع طُبِّقت في الوزارة، وهذا مخرجُها. ومن كان في خانة شعبته
 «‑» فقرارُه لم يُتّخذ بعد — يُعرَض ولا يُقيَّد.
 
-بنيةُ الملفّ: ورقةٌ لكلّ صفّ («الصف- 07») وورقةٌ لكلّ شعبة، ورؤوسُها في السطر
-الثالث. وأوراقُ الصفوف هي المرجع لأنّها تضمّ من لا شعبةَ له.
+بنيةُ الملفّ شكلان، وكلاهما مقروء:
+
+    ورقةٌ لكلّ صفّ («الصف- 07») ورؤوسُها في السطر الثالث   — تصديرُ 2025-2026
+    ورقةٌ واحدةٌ «الجميع» ورؤوسُها في السطر الأوّل          — تصديرُ 2026-2027
+
+والأعمدةُ الأربعةُ واحدةٌ في الشكلين: الرقمُ الشخصيّ، الاسمُ، الصفُّ،
+الصفُّ/الشعبة. وموضعُ الرؤوس يُبحث عنه ولا يُفترض — واشتراطُ سطرٍ بعينه يجعل
+الأمرَ يقف بـ«لم يُقرأ طالبٌ واحد» كلَّما غيّرت الوزارةُ شكلَ تصديرها.
 
 **ولا يُؤخَذ المسارُ من هذا الملفّ.** أسماءُ أوراقه تكتب «11-2-Technology»
-و«11-4-Humanities»، والجدولُ المدرسيّ يقول عكسَه: 11/4 و12/4 وحدهما فيهما
-علومُ الحاسب وتكنولوجيا المعلومات. فالمسارُ يُضبط بـ`set_class_tracks` ويُقاس
-بما يُدرَّس فعلاً، وهذا الأمر يُنبّه على الخلاف ولا يكتبه.
+و«11-4-Humanities»، والمسارُ يُضبط بـ`set_class_tracks` ويُقاس بما يُدرَّس
+فعلاً — وهذا الأمر يُنبّه على الخلاف ولا يكتبه.
 
-**وترقيمُ الشُّعب قد يختلف بين السجلّ والمدرسة.** في الثاني عشر يضع السجلُّ
-سبعةَ طلاب التكنولوجي في «12/2» وتسمّيهم المدرسة «12/4»، فتُمرَّر المطابقةُ
-في `--map` صريحةً: بلا تخمينٍ ولا اشتقاقٍ من الأعداد.
+**وترقيمُ شُعب التكنولوجي حُسم 2026-09-10**: هي 11/2 و12/2 لا 11/4 و12/4.
+اتّفق على ذلك سجلُّ القيد الوزاريّ، والقاعدةُ المحلّيّة، وأحدثُ حصص الإنتاج
+(30 أغسطس مقابل 2–3 أغسطس للترقيم القديم) — وأكّدته المدرسة. فلا `--map`
+لهذه الشُّعب. وكان هنا قبل اليوم نصٌّ يقول عكسَه، فأُزيل: من قرأه بعد شهرٍ
+وضع طلابَ التكنولوجي في شعبةٍ لا يُدرَّس فيها تخصّصُهم.
 
 ولا يمسّ من كان في المنصّة وليس في السجلّ: خرّيجٌ أو منتقلٌ، وإغلاقُ قيده
 قرارٌ إداريٌّ لا يُتّخذ من سطر أوامر — يُعرَض عددُهم وحدَه.
@@ -74,7 +81,20 @@ class Command(BaseCommand):
     help = "يقيّد طلاب العام من سجلّ القيد الوزاريّ (xlsx)"
 
     def add_arguments(self, parser):
-        parser.add_argument("path", help="مسار ملفّ سجلّ القيد")
+        parser.add_argument("path", nargs="?", default="", help="مسار ملفّ سجلّ القيد")
+        parser.add_argument(
+            "--emit-b64",
+            action="store_true",
+            help="اطبع السجلَّ محزوماً ولا تكتب شيئاً — لتُمرَّر إلى --rows-b64 على قاعدةٍ أخرى",
+        )
+        parser.add_argument(
+            "--rows-b64",
+            default="",
+            help=(
+                "السجلُّ محزوماً gzip+base64 بدل الملفّ — لقاعدةٍ لا يصلها الملفّ."
+                " و«-» تقرأ الحزمةَ من المدخل القياسيّ، وهو الأسلم"
+            ),
+        )
         parser.add_argument("--year", required=True, help="مثال: 2026-2027")
         parser.add_argument("--school", default=None, help="كود المدرسة")
         parser.add_argument(
@@ -95,9 +115,21 @@ class Command(BaseCommand):
     # ── التنفيذ ──────────────────────────────────────────────────────
 
     def handle(self, *args, **options):
+        if bool(options["path"]) == bool(options["rows_b64"]):
+            raise CommandError("حدّد مسارَ الملفّ أو --rows-b64 — واحداً منهما.")
+
+        if options["rows_b64"]:
+            roster, tracks = _unpack(_payload(options["rows_b64"]))
+        else:
+            roster, tracks = self._read(options["path"])
+
+        if options["emit_b64"]:
+            self.stdout.write(_pack(roster, tracks))
+            self.stderr.write(f"حُزم {len(roster)} طالباً — مرّرها إلى --rows-b64 -")
+            return
+
         school = self._school(options["school"])
         year = options["year"]
-        roster, tracks = self._read(options["path"])
 
         # ترقيمُ السجلّ قد يخالف ترقيم المدرسة — والمطابقةُ تُكتب ولا تُخمَّن.
         mapping = self._mapping(options["section_map"])
@@ -142,15 +174,22 @@ class Command(BaseCommand):
         except FileNotFoundError as exc:
             raise CommandError(f"لا ملفّ في هذا المسار: {path}") from exc
 
+        # أوراقُ الصفوف هي المرجعُ متى وُجدت لأنّها تضمّ من لا شعبةَ له، وأوراقُ
+        # الشُّعب تكرارٌ لها. فإن لم توجد فالملفُّ مسطَّحٌ وتُقرأ كلُّ ورقةٍ لها رؤوس.
+        grade_sheets = [ws for ws in wb.worksheets if ws.title.startswith("الصف-")]
+        data_sheets = grade_sheets or list(wb.worksheets)
+
         roster, tracks, seen = {}, {}, Counter()
         for ws in wb.worksheets:
             match = SHEET_TRACK.search(ws.title)
             if match:
                 grade, section, track = match.groups()
                 tracks[canonical(f"{grade}/{section}")] = TRACKS[track]
-            if not ws.title.startswith("الصف-"):
+        for ws in data_sheets:
+            start = self._data_start(ws)
+            if start is None:
                 continue
-            for row in ws.iter_rows(min_row=FIRST_DATA_ROW, values_only=True):
+            for row in ws.iter_rows(min_row=start, values_only=True):
                 cells = [("" if c is None else str(c).strip()) for c in row[:4]]
                 if len(cells) < 4 or not NATIONAL_ID.match(cells[0]):
                     continue
@@ -165,6 +204,23 @@ class Command(BaseCommand):
         if repeated:
             raise CommandError(f"أرقامٌ مكرّرةٌ في السجلّ: {', '.join(repeated[:5])}")
         return roster, tracks
+
+    #: رأسُ العمود الأوّل في الشكلين — به يُعرَف سطرُ الرؤوس.
+    ID_HEADER = "الرقم الشخصي"
+
+    def _data_start(self, worksheet):
+        """أوّلُ سطرِ بياناتٍ في الورقة، أو `None` إن لم تكن ورقةَ قيد.
+
+        أوراقُ الصفوف تضع رؤوسَها في الثالث، والورقةُ المسطّحةُ في الأوّل. ولا
+        يُفترض أحدُهما: يُبحث عن السطر الذي أوّلُ خليّةٍ فيه «الرقم الشخصي».
+        """
+        if worksheet.title.startswith("الصف-"):
+            return FIRST_DATA_ROW
+        for index, row in enumerate(worksheet.iter_rows(max_row=5, values_only=True), 1):
+            first = "" if not row or row[0] is None else " ".join(str(row[0]).split())
+            if first.replace("ى", "ي") == self.ID_HEADER:
+                return index + 1
+        return None
 
     # ── الشُّعب ──────────────────────────────────────────────────────
 
@@ -387,3 +443,50 @@ class Command(BaseCommand):
         if len(schools) != 1:
             raise CommandError("أكثرُ من مدرسة — حدّد --school بالكود.")
         return schools[0]
+
+
+def _payload(value: str) -> str:
+    """الحزمةُ نفسُها، أو ما يقرؤه المدخلُ القياسيُّ إن كانت «-».
+
+    و«-» هي الصيغةُ الموصى بها: الحزمةُ في سطر الأوامر تضع بياناتِ 735 طالباً
+    في وسائط العمليّة — تُقرأ بـ`ps`، وتُسجَّل في سجلّات تشغيل الأوامر على
+    الخادم، وتبقى في تاريخ الصدَفة. وbase64 ترميزٌ لا تشفير.
+    """
+    if value != "-":
+        return value
+    import sys
+
+    data = sys.stdin.read().strip()
+    if not data:
+        raise CommandError("المدخلُ القياسيُّ فارغ — لم تصل حزمة.")
+    return data
+
+
+def _pack(roster, tracks) -> str:
+    import base64
+    import gzip
+    import json
+
+    payload = {
+        "roster": {nid: [name, section] for nid, (name, section) in roster.items()},
+        "tracks": dict(tracks),
+    }
+    raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    return base64.b64encode(gzip.compress(raw, 9)).decode("ascii")
+
+
+def _unpack(payload: str):
+    import base64
+    import gzip
+    import json
+
+    try:
+        data = json.loads(gzip.decompress(base64.b64decode(payload)).decode("utf-8"))
+    except (ValueError, OSError) as exc:
+        raise CommandError(f"حزمةُ --rows-b64 ليست gzip+base64 صالحة: {exc}") from exc
+    if not isinstance(data, dict) or "roster" not in data:
+        raise CommandError("الحزمةُ ليست سجلَّ قيد.")
+    roster = {nid: (row[0], row[1]) for nid, row in data["roster"].items()}
+    if not roster:
+        raise CommandError("الحزمةُ خالية.")
+    return roster, data.get("tracks", {})

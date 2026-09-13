@@ -1,4 +1,5 @@
-{% extends "base.html" %}
+{% extends "base/base.html" %}
+{% load ui %}
 {% block title %}تشكيل الكنترول{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,59 +7,38 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-3">
-  <h5 class="fw-bold mb-3" style="color:#8A1538">👥 تشكيل الكنترول — {{ session.name }}</h5>
+<div class="exec-dash">
 
-  <div class="row g-3">
-    <div class="col-md-4">
-      <div class="card p-3 shadow-sm">
-        <h6 class="fw-bold mb-3">إضافة مشرف</h6>
-        <form method="post">{% csrf_token %}
-          <div class="mb-2">
-            <label class="form-label small">الموظف</label>
-            <select name="staff_id" class="form-select form-select-sm" required>
-              <option value="">— اختر —</option>
-              {% for m in staff_list %}<option value="{{ m.user.pk }}">{{ m.user.full_name }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="mb-2">
-            <label class="form-label small">الدور</label>
-            <select name="role" class="form-select form-select-sm">
-              {% for v,l in roles %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="mb-2">
-            <label class="form-label small">القاعة (اختياري)</label>
-            <select name="room_id" class="form-select form-select-sm">
-              <option value="">— بدون —</option>
-              {% for r in rooms %}<option value="{{ r.pk }}">{{ r.name }}</option>{% endfor %}
-            </select>
-          </div>
-          <button type="submit" class="btn btn-primary btn-sm w-100">إضافة</button>
-        </form>
-      </div>
-    </div>
+  {% page_header "تشكيل الكنترول" subtitle=session.name icon="users" %}
+    <a href="{% url 'exam_control:session_detail' session.pk %}" class="btn-ghost btn-sm">رجوع إلى الدورة</a>
+  {% endpage_header %}
 
-    <div class="col-md-8">
-      <div class="table-responsive">
-        <table class="table table-sm table-bordered">
-          <thead class="table-dark">
-            <tr><th scope="col">الاسم</th><th scope="col">الدور</th><th scope="col">القاعة</th></tr>
-          </thead>
+  <div class="ui-split">
+    {% section_card "إضافة مشرف" icon="plus" %}
+      <form method="post" class="form-stack">{% csrf_token %}
+        <div class="form-group"><label class="form-label" for="sv-staff">الموظف</label>
+          <select id="sv-staff" name="staff_id" class="form-control" required><option value="">— اختر —</option>{% for m in staff_list %}<option value="{{ m.user.pk }}">{{ m.user.full_name }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label class="form-label" for="sv-role">الدور</label>
+          <select id="sv-role" name="role" class="form-control">{% for v,l in roles %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label class="form-label" for="sv-room">القاعة (اختياري)</label>
+          <select id="sv-room" name="room_id" class="form-control"><option value="">— بدون —</option>{% for r in rooms %}<option value="{{ r.pk }}">{{ r.name }}</option>{% endfor %}</select></div>
+        <button type="submit" class="btn-primary">إضافة</button>
+      </form>
+    {% endsection_card %}
+
+    {% section_card "المشرفون" meta=supervisors|length icon="users" flush=True empty="لا مشرفين بعد" %}{% if supervisors %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th scope="col">الاسم</th><th scope="col">الدور</th><th scope="col">القاعة</th></tr></thead>
           <tbody>
             {% for s in supervisors %}
-            <tr>
-              <td>{{ s.staff.full_name }}</td>
-              <td><span class="badge bg-secondary">{{ s.get_role_display }}</span></td>
-              <td>{{ s.room.name|default:"—" }}</td>
-            </tr>
-            {% empty %}<tr><td colspan="3" class="text-center text-muted">لا يوجد مشرفون بعد</td></tr>
+              <tr><td>{{ s.staff.full_name }}</td><td><span class="status-badge status-gray">{{ s.get_role_display }}</span></td><td>{{ s.room.name|default:"—" }}</td></tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
-      <a href="{% url 'exam_control:session_detail' session.pk %}" class="btn btn-outline-secondary btn-sm">← رجوع</a>
-    </div>
+    {% endif %}{% endsection_card %}
   </div>
+
 </div>
 {% endblock %}

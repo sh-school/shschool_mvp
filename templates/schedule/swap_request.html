@@ -1,31 +1,15 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}طلب تبديل حصة{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/schedule/swaps/" parent_label="طلبات التبديل" current="طلب تبديل" %}
-{% endblock %}
-
-{% block extra_css %}
-<style nonce="{{ request.csp_nonce }}">
-.form-page { max-width: 700px; margin: 0 auto; padding: 16px; }
-.form-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 20px 24px; }
-.form-title { font-size: 1.1rem; font-weight: 700; color: var(--maroon, #8A1538); margin-bottom: 16px; }
-.form-group { margin-bottom: 14px; }
-.form-group label { display: block; font-size: .8rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
-.form-group select, .form-group input, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: .85rem; font-family: inherit; }
-.form-group textarea { min-height: 60px; resize: vertical; }
-.btn-submit { background: var(--maroon, #8A1538); color: #fff; padding: 10px 28px; border: none; border-radius: 8px; font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; }
-.btn-submit:hover { opacity: .9; }
-.slot-option { padding: 6px 8px; font-size: .8rem; }
-.hint { font-size: .72rem; color: #9ca3af; margin-top: 2px; }
-#swap-options-container { margin-top: 12px; min-height: 40px; }
-</style>
+{% include "components/breadcrumbs.html" with parent_url="/teacher/schedule/swaps/" parent_label="طلبات التبديل" current="طلب تبديل" %}
 {% endblock %}
 
 {% block content %}
-<div class="form-page">
-  <div class="form-card">
-    <h2 class="form-title">{% include "components/icon.html" with name="refresh" %} طلب تبديل حصة</h2>
+<div class="exec-dash form-page">
+  {% page_header "طلب تبديل حصة" icon="refresh" %}{% endpage_header %}
+  {% section_card "بيانات الطلب" icon="file-pen" %}
 
     <form method="post">
       {% csrf_token %}
@@ -53,9 +37,25 @@
         </div>
       </div>
 
+      {% comment %}
+      تاريخٌ لكلّ حصّة لا تاريخٌ لهما معاً: التبديلُ يجوز في أيّام الأسبوع
+      الجاري أو الذي يليه، فقد تقع حصّتي الثلاثاءَ وحصّتُه الأحدَ من الأسبوع
+      القادم. وتاريخٌ واحدٌ كان يحصرهما في اليوم نفسِه.
+
+      والمدى محروسٌ في الخادم أيضاً — `min`/`max` هنا تيسيرٌ للقارئ لا حارس.
+      {% endcomment %}
       <div class="form-group">
-        <label>تاريخ التبديل</label>
-        <input type="date" name="swap_date" required>
+        <label for="swap_date_a">تاريخ حصتك</label>
+        <input type="date" name="swap_date_a" id="swap_date_a" required
+               min="{{ window_start|date:'Y-m-d' }}" max="{{ window_end|date:'Y-m-d' }}">
+        <p class="hint">في الأسبوع الجاري أو الذي يليه — ويجب أن يوافق يومَ الحصة</p>
+      </div>
+
+      <div class="form-group">
+        <label for="swap_date_b">تاريخ حصة المعلم الآخر</label>
+        <input type="date" name="swap_date_b" id="swap_date_b" required
+               min="{{ window_start|date:'Y-m-d' }}" max="{{ window_end|date:'Y-m-d' }}">
+        <p class="hint">قد يكون يوماً آخر — والتبديل ينتهي بانتهاء الحصة الأبعد</p>
       </div>
 
       <div class="form-group">
@@ -65,7 +65,7 @@
 
       <button type="submit" class="btn-submit">إرسال طلب التبديل</button>
     </form>
-  </div>
+  {% endsection_card %}
 </div>
 
 <script nonce="{{ request.csp_nonce }}">

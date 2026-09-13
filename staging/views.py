@@ -15,35 +15,39 @@ from django.utils import timezone
 
 from assessments.models import Assessment
 from assessments.services import GradeService
+from core import brand
 from core.academic_calendar import academic_year_for
+from core.capabilities import capability_required
+from core.export_utils import excel_table_styles, xl_fill, xl_font
 from core.models import CustomUser, StudentEnrollment
-from core.permissions import role_required
 
 from .models import ImportLog
 
 try:
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment
 
     OPENPYXL_OK = True
 except ImportError:
     OPENPYXL_OK = False
 
 
+#: شارةُ عملية الاستيراد بحالها: مكتملٌ أخضر، وفشلٌ أحمر، وما بينهما كهرمانيّ.
+_LOG_BADGES = {"completed": "status-success", "failed": "status-danger"}
+
+
+def _with_status_badges(logs) -> list:
+    logs = list(logs)
+    for log in logs:
+        log.badge_class = _LOG_BADGES.get(log.status, "status-warning")
+    return logs
+
+
 # ── صفحة الاستيراد الرئيسية ────────────────────────────────
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin",
-    "secretary",
-)
+@capability_required("grades.import")
 def import_grades_select(request):
     """اختيار التقييم المراد استيراد درجاته"""
     school = request.user.get_school()
@@ -84,6 +88,13 @@ def import_grades_select(request):
         )
 
     logs = ImportLog.objects.filter(school=school).order_by("-started_at")[:20]
+    assessments = list(assessments)
+    for a in assessments:
+        # مصحَّحٌ أخضر، ومنشورٌ لم يُصحَّح بعدُ أزرق — كما كان في القالب.
+        a.badge_class, a.badge_label = (
+            ("status-success", "مصحَّح") if a.status == "graded" else ("status-info", "منشور")
+        )
+    logs = _with_status_badges(logs)
 
     return render(
         request,
@@ -101,16 +112,7 @@ def import_grades_select(request):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin",
-    "secretary",
-)
+@capability_required("grades.import")
 def download_grade_template(request, assessment_id):
     """تحميل ملف Excel فارغ لإدخال الدرجات — مُعبَّأ بأسماء الطلاب"""
     if not OPENPYXL_OK:
@@ -134,14 +136,14 @@ def download_grade_template(request, assessment_id):
     ws.sheet_view.rightToLeft = True
 
     # ── الستايل ──
-    header_fill = PatternFill("solid", fgColor="0F2347")
-    header_font = Font(bold=True, color="FFFFFF", size=11)
-    info_fill = PatternFill("solid", fgColor="E8F0FE")
+    table = excel_table_styles()
+    header_fill = table.header_fill
+    header_font = table.header_font
+    info_fill = xl_fill(brand.MAROON_BG)
     center_align = Alignment(horizontal="center", vertical="center")
     right_align = Alignment(horizontal="right", vertical="center")
 
-    thin = Side(style="thin", color="CCCCCC")
-    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    border = table.border
 
     # ── معلومات التقييم (صف 1–4) ──
     info_rows = [
@@ -151,9 +153,9 @@ def download_grade_template(request, assessment_id):
         ("الدرجة القصوى", str(assessment.max_grade)),
     ]
     for i, (label, val) in enumerate(info_rows, start=1):
-        ws.cell(i, 1, label).font = Font(bold=True, size=10)
+        ws.cell(i, 1, label).font = xl_font(bold=True)
         ws.cell(i, 2, val).fill = info_fill
-        ws.cell(i, 2).font = Font(size=10)
+        ws.cell(i, 2).font = xl_font()
 
     # ── رأس الجدول (صف 6) ──
     headers = ["الرقم الشخصي", "اسم الطالب", "الدرجة", "غائب (1/0)", "ملاحظة"]
@@ -181,6 +183,7 @@ def download_grade_template(request, assessment_id):
 
         for col in range(1, 6):
             ws.cell(row_idx, col).border = border
+            ws.cell(row_idx, col).font = table.cell_font
 
     # ── قفل العمودين A وB ──
     ws.protection.sheet = False  # يظل قابلاً للتعديل على C:E
@@ -287,16 +290,7 @@ def _validate_upload_request(request):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin",
-    "secretary",
-)
+@capability_required("grades.import")
 def upload_grade_file(request, assessment_id):
     """استيراد الدرجات من ملف Excel — يدعم وضع المعاينة (dry_run)"""
     school = request.user.get_school()
@@ -414,24 +408,40 @@ def upload_grade_file(request, assessment_id):
             "imported": imported,
             "is_dry_run": dry_run,
             "preview_rows": preview_rows,
+            **_result_presentation(dry_run, imported, errors),
         },
     )
+
+
+def _result_presentation(dry_run: bool, imported: int, errors: list) -> dict:
+    """عنوانُ النتيجة ولونُها — الحالاتُ الخمس التي كانت شرطاً متداخلاً في القالب.
+
+    المعاينةُ بأخطاءٍ كهرمانيّة وبلا أخطاءٍ زرقاء؛ والاستيرادُ الفعليُّ أخضرُ إن
+    لم يُخطئ صفّ، وكهرمانيٌّ إن أُدخل بعضُه، وأحمرُ إن لم يُدخل شيء.
+    """
+    if dry_run and errors:
+        title, icon, tone = f"معاينة — يوجد {len(errors)} خطأ", "eye", "amber"
+    elif dry_run:
+        title, icon, tone = "معاينة — الملف جاهز للاستيراد", "eye", "blue"
+    elif imported > 0 and not errors:
+        title, icon, tone = "اكتمل الاستيراد بنجاح", "check-circle", "green"
+    elif imported > 0:
+        title, icon, tone = "اكتمل الاستيراد مع تحذيرات", "alert-triangle", "amber"
+    else:
+        title, icon, tone = "فشل الاستيراد", "x-circle", "red"
+    return {
+        "result_title": title,
+        "result_icon": icon,
+        "result_tone": tone,
+        "failed_tone": "red" if errors else "green",
+    }
 
 
 # ── سجل الاستيراد ──────────────────────────────────────────
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin",
-    "secretary",
-)
+@capability_required("grades.import")
 def import_log_list(request):
     """سجل كل عمليات الاستيراد"""
     if not request.user.is_admin():
@@ -444,4 +454,8 @@ def import_log_list(request):
         .order_by("-started_at")[:50]
     )
 
-    return render(request, "staging/import_log.html", {"logs": logs})
+    return render(
+        request,
+        "staging/import_log.html",
+        {"logs": logs, "log_rows": _with_status_badges(logs)},
+    )

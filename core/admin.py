@@ -16,6 +16,8 @@ from .models import (
     Semester,
     StudentEnrollment,
     TimeBand,
+    Wing,
+    WingCoverage,
 )
 
 
@@ -240,13 +242,54 @@ class ClassGroupAdmin(admin.ModelAdmin):
         "track",
         "academic_year",
         "time_band",
+        "wing",
         "is_active",
     )
-    list_filter = ("school", "grade", "track", "academic_year", "time_band", "is_active")
-    list_editable = ("time_band",)
+    list_filter = ("school", "grade", "track", "academic_year", "time_band", "wing", "is_active")
+    list_editable = ("time_band", "wing")
     search_fields = ("grade", "section")
     autocomplete_fields = ("supervisor",)
-    list_select_related = ("time_band",)
+    list_select_related = ("time_band", "wing")
+
+
+@admin.register(Wing)
+class WingAdmin(admin.ModelAdmin):
+    """المشرفُ يُعيَّن من هنا — و`seed_wings` لا يخمّنه.
+
+    و`autocomplete_fields` على المشرف يفتح على كلّ مستخدمي القاعدة؛ والنموذجُ
+    يردُّ من ليس مشرفاً إداريّاً ولا نائباً إداريّاً عند الحفظ، لا بعده.
+    """
+
+    list_display = (
+        "name",
+        "code",
+        "floor",
+        "academic_year",
+        "supervisor",
+        "section_count",
+        "is_active",
+    )
+    list_filter = ("school", "academic_year", "floor", "is_active")
+    search_fields = ("name", "code")
+    autocomplete_fields = ("supervisor",)
+    list_select_related = ("supervisor", "school")
+    ordering = ("order", "code")
+
+    @admin.display(description="عدد الشُّعب")
+    def section_count(self, obj):
+        return obj.class_groups.count()
+
+
+@admin.register(WingCoverage)
+class WingCoverageAdmin(admin.ModelAdmin):
+    """تغطيةُ الجناح مدّةٌ لا علم — والسجلُّ يُقرأ بالتاريخ فيُجيب عن أمسِ أيضاً."""
+
+    list_display = ("wing", "substitute", "start_date", "end_date", "reason", "assigned_by")
+    list_filter = ("wing", "reason")
+    search_fields = ("wing__name", "substitute__full_name")
+    autocomplete_fields = ("substitute", "assigned_by", "ended_by")
+    list_select_related = ("wing", "substitute", "assigned_by")
+    date_hierarchy = "start_date"
 
 
 @admin.register(TimeBand)

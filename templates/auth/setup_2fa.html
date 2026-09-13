@@ -42,8 +42,8 @@
   <!-- خطوات الإعداد -->
   <div class="form-card mb-6">
 
-    <h2 class="font-semibold text-[var(--text)] mb-4">الخطوة 1 — امسح رمز QR</h2>
-    <p class="text-sm text-[var(--muted)] mb-4">
+    <h2 class="font-semibold text-[var(--text-primary)] mb-4">الخطوة 1 — امسح رمز QR</h2>
+    <p class="text-sm text-[var(--text-muted)] mb-4">
       افتح <strong>Google Authenticator</strong> أو <strong>Microsoft Authenticator</strong>
       واضغط "إضافة حساب" ثم امسح الرمز أدناه.
     </p>
@@ -59,17 +59,17 @@
 
     <!-- المفتاح اليدوي -->
     <details class="mb-6">
-      <summary class="text-sm text-[var(--muted)] cursor-pointer hover:text-[var(--text)]">
+      <summary class="text-sm text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-primary)]">
         لا يمكنك مسح الرمز؟ أدخله يدوياً
       </summary>
       <div class="mt-3 bg-[var(--surface-alt)] rounded-lg px-4 py-3 flex items-center justify-between gap-2">
-        <code class="text-sm font-mono text-[var(--text)] tracking-wider select-all">{{ secret }}</code>
+        <code class="text-sm font-mono text-[var(--text-primary)] tracking-wider select-all">{{ secret }}</code>
         <button data-copy="{{ secret }}"
                 class="text-xs text-maroon dark:text-maroon-light hover:underline flex-shrink-0">نسخ</button>
       </div>
     </details>
 
-    <h2 class="font-semibold text-[var(--text)] mb-3">الخطوة 2 — أدخل رمز التحقق</h2>
+    <h2 class="font-semibold text-[var(--text-primary)] mb-3">الخطوة 2 — أدخل رمز التحقق</h2>
     <form method="post">
       {% csrf_token %}
       <div class="mb-4">
@@ -90,6 +90,6 @@
 
   {% endif %}
 
-  <a href="{% url 'dashboard' %}" class="text-sm text-[var(--muted)] hover:text-[var(--text)]">← العودة للوحة التحكم</a>
+  <a href="{% url 'dashboard' %}" class="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)]">← العودة للوحة التحكم</a>
 </div>
 {% endblock %}

@@ -116,3 +116,94 @@ class TestParentLinkAdmin:
         )
         assert resp.status_code in [200, 302]
         assert ParentStudentLink.objects.filter(parent=new_parent, student=new_student).exists()
+
+
+class TestChildKpis:
+    """أرقامُ بطاقة الابن: اللونُ يحمل الحكم، والرقمُ الذي لا يُقاس لا يُعرض."""
+
+    class _Link:
+        def __init__(self, grades=True, attendance=True):
+            self.can_view_grades = grades
+            self.can_view_attendance = attendance
+
+    def _kpis(self, **child):
+        from parents.services import _child_kpis
+
+        child.setdefault("link", self._Link())
+        return {k["label"]: k for k in _child_kpis(child)}
+
+    def test_behavior_score_is_gone_because_nothing_computes_it(self):
+        assert "درجة السلوك" not in self._kpis(attendance_pct=95)
+
+    def test_attendance_thresholds_colour_the_number(self):
+        assert self._kpis(attendance_pct=90)["الحضور"]["tone"] == "green"
+        assert self._kpis(attendance_pct=75)["الحضور"]["tone"] == "amber"
+        assert self._kpis(attendance_pct=74)["الحضور"]["tone"] == "red"
+        assert self._kpis(attendance_pct=None)["الحضور"]["value"] == "—"
+
+    def test_five_absences_are_red_and_lateness_rides_along(self):
+        absent = self._kpis(absent_30=5, late_30=2)["الغياب"]
+        assert absent["tone"] == "red" and absent["sub"] == "و2 تأخّر"
+
+    def test_a_failed_subject_is_red(self):
+        subjects = self._kpis(subjects_count=9, failed=2, passed=7)["المواد"]
+        assert subjects["tone"] == "red" and subjects["sub"] == "راسب في 2"
+
+    def test_permissions_hide_what_the_parent_may_not_see(self):
+        kpis = self._kpis(link=self._Link(grades=False, attendance=True), attendance_pct=90)
+        assert set(kpis) == {"الحضور", "الغياب"}
+
+
+@pytest.mark.django_db
+def test_the_dashboard_draws_each_child_with_the_shared_components(
+    client_as, parent_with_consent, student_user, school
+):
+    ParentStudentLink.objects.get_or_create(
+        parent=parent_with_consent, student=student_user, school=school
+    )
+    body = client_as(parent_with_consent).get("/parents/").content.decode()
+
+    assert "ui-section" in body and "ui-kpis" in body
+    assert "kpi-mini" not in body and "alert-strip" not in body
+    assert (
+        '<div id="pwa-banner" class="pwa-banner" hidden>' in body
+    ), "الشريطُ يُخفى بالسمة لا بتنسيقٍ في الوسم"
+
+
+class TestAttendanceWeeks:
+    """تقويمُ حضور الابن: خمسةُ أيّامِ دراسة، والشهرُ يُكتب حيث يبدأ."""
+
+    def _weeks(self, by_date, since, today):
+        from parents.services import attendance_weeks
+
+        return attendance_weeks(by_date, since, today)
+
+    def test_weeks_run_sunday_to_thursday(self):
+        import datetime as dt
+
+        weeks = self._weeks({}, dt.date(2026, 9, 6), dt.date(2026, 9, 10))
+        assert [c["date"].weekday() for c in weeks[0]] == [6, 0, 1, 2, 3]
+
+    def test_state_follows_the_day_record(self):
+        import datetime as dt
+
+        sunday, monday = dt.date(2026, 9, 6), dt.date(2026, 9, 7)
+        by_date = {
+            sunday: {"has_absent": True, "has_late": False},
+            monday: {"has_absent": False, "has_late": True},
+        }
+        cells = self._weeks(by_date, sunday, dt.date(2026, 9, 9))[0]
+        assert [c["state"] for c in cells] == ["absent", "late", "none", "none", "future"]
+
+    def test_a_week_wholly_before_the_period_is_dropped(self):
+        import datetime as dt
+
+        weeks = self._weeks({}, dt.date(2026, 9, 11), dt.date(2026, 9, 14))
+        assert all(any(c["state"] == "none" for c in w) for w in weeks)
+
+    def test_the_month_is_named_where_it_starts(self):
+        import datetime as dt
+
+        weeks = self._weeks({}, dt.date(2026, 8, 30), dt.date(2026, 9, 3))
+        labels = [c["label"] for w in weeks for c in w if "label" in c]
+        assert labels[0] == "30/8" and "1/9" in labels

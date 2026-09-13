@@ -1,3 +1,5 @@
+import os as _os
+
 from .base import *
 
 DEBUG = True
@@ -7,6 +9,26 @@ if not SECRET_KEY:
     SECRET_KEY = "django-insecure-dev-only-do-not-use-in-production-12345"
 
 SESSION_COOKIE_SECURE = False
+
+# ── تطوير: لكلّ خادمِ جلسةٍ كوكيُّه ─────────────────────────────
+# خوادمُ الجلسات كلُّها على `localhost` (8000، 8011، 8012…)، والمتصفّحُ يُفرز
+# الكوكي بالمضيف لا بالمنفذ. فكانت تتقاسم `sessionid` و`csrftoken`، وكلُّ
+# خادمٍ يحذف جلسةً لا يعرفها — قِيس يومَ 2026-09-13:
+#
+#     طلبٌ إلى 8000 بجلسةٍ من 8011  →  Set-Cookie: sessionid=""; Max-Age=0
+#
+# فيكفي فتحُ صفحةٍ على منفذٍ ليُخرجك من آخر، وتُرفض نماذجُ بخطأ CSRF لأنّ
+# رمزَها صار من خادمٍ غيره. وسبعُ عمليّاتِ دخولٍ في أربعين دقيقةً على 8011
+# كانت هذا.
+#
+# والاسمُ يُشتقّ من قاعدة الجلسة كما يُشتقّ اسمُ قاعدة الاختبار (`testing.py`)،
+# وبالبادئة نفسِها: `ss_` تعني شجرةَ جلسة. والحزمةُ الأصليّةُ (`shschool_db`)
+# تبقى على الاسمين الافتراضيَّين. وJavaScript لا يقرأ الكوكي باسمه — يأخذ
+# رمزَ CSRF من الحقل المخفيّ (`tests/test_csrf_cookie_httponly.py`).
+_session_db = _os.environ.get("DB_NAME", "")
+if _session_db.startswith("ss_"):
+    SESSION_COOKIE_NAME = f"sessionid_{_session_db}"
+    CSRF_COOKIE_NAME = f"csrftoken_{_session_db}"
 
 # ✅ v5.1.1: Django Debug Toolbar للتطوير — يكشف N+1 queries
 try:
@@ -39,6 +61,16 @@ STORAGES = {
 # ── تطوير: CSP معطّلة — Tailwind CDN يتعارض معها ──────────
 # نزعُ الوسيط يكفي؛ وأيّ توجيهات هنا لا تُقرأ بعد ذلك، فلا تُترك موهِمة.
 MIDDLEWARE = [m for m in MIDDLEWARE if m != "csp.middleware.CSPMiddleware"]
+
+# ── تطوير: الملفُّ الثابتُ يُعاد التحقّقُ منه دائماً ───────
+# `runserver` يخدم `/static/` عبر `StaticFilesHandler` **قبل** سلسلة الوسائط،
+# فلا يبلغها طلبُ الملفّ الثابت ولا تُضاف إليه ترويسة. و`runserver_nostatic`
+# يرفع ذلك المعترِض، فيمرّ الطلبُ بالسلسلة ويخدمه WhiteNoise من مجلّدات
+# المصدر مباشرةً (`USE_FINDERS`) — فلا `collectstatic` في التطوير أصلاً.
+INSTALLED_APPS.insert(0, "whitenoise.runserver_nostatic")
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = True
+WHITENOISE_MAX_AGE = 0
 
 # ── Celery — وضع التطوير ─────────────────────────────────────
 # CELERY_TASK_ALWAYS_EAGER = True يُشغّل المهام مباشرة بدون broker

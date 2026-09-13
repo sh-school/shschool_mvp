@@ -116,13 +116,27 @@ def test_the_attendance_summary_covers_the_academic_year_not_the_calendar_year(
     assert ctx["attendance"]["absent"] == 3, "الترشيح الميلاديّ كان يُسقط أحد الشطرين"
 
 
-def test_no_gate_table_is_shown_for_a_grade_the_policy_does_not_cover(
+def test_no_gate_table_is_shown_for_a_grade_with_no_table(
     client, db, school, principal_user, student, year_window
 ):
-    """الصفوف ١–٣ لها قسمٌ مستقلّ لم يُشفَّر — فلا جدول بدل جدولٍ خاطئ."""
+    """صفٌّ لا جدولَ له في السياسة — فلا جدولٌ بدل جدولٍ خاطئ.
+
+    وكان هذا الاختبارُ على الصفّ الثاني، لأنّ سياسة 2018 تبدأ من الرابع.
+    ودليلُ 2026 يقول «من الصف **الأول**» — فلم تبقَ الصفوفُ 1–3 خارجَه.
+    """
+    from operations.absence_standing import standing_for
+
+    standing = standing_for(student, school, grade="G13")
+
+    assert standing.has_no_policy
+    assert standing.gates == ()
+
+
+def test_the_second_grade_now_has_a_table(client, db, school, principal_user, student, year_window):
+    """أثرُ «من الصف الأول» في دليل 2026 — ولا أثرَ له في مدرستنا (7–12)."""
     from operations.absence_standing import standing_for
 
     standing = standing_for(student, school, grade="G2")
 
-    assert standing.has_no_policy
-    assert standing.gates == ()
+    assert not standing.has_no_policy
+    assert [g.max_days for g in standing.gates] == [5, 8, 11, 15]

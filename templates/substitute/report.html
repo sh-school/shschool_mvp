@@ -1,88 +1,78 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}تقرير الحصص البديلة{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/substitute/" parent_label="الاحتياط" current="تقرير الحصص البديلة" %}
+{% include "components/breadcrumbs.html" with parent_url="/teacher/absences/" parent_label="غيابات المعلمين" current="تقرير الحصص البديلة" %}
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-  <div class="flex items-center justify-between flex-wrap gap-3">
-    <h1 class="page-title">{% include "components/icon.html" with name="file-text" %} تقرير الحصص البديلة</h1>
-    <a href="{% url 'absence_list' %}" class="text-sm text-blue-600 hover:underline">← قائمة الغيابات</a>
-  </div>
+<div class="exec-dash">
 
-  <!-- Date Filter -->
-  <form method="get" class="card-qatar flex flex-wrap gap-4 items-end">
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">من</label>
-      <input type="date" name="from" value="{{ date_from|date:'Y-m-d' }}" class="border rounded-lg px-3 py-2 text-sm">
+  {% page_header "تقرير الحصص البديلة" subtitle="من غطّى حصصَ الغائبين في الفترة" icon="file-text" %}
+    <a href="{% url 'absence_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="arrow-right" %} قائمة الغيابات</a>
+  {% endpage_header %}
+
+  <form method="get" class="filter-bar">
+    <div class="filter-field">
+      <label class="filter-label" for="report-from">من</label>
+      <input type="date" id="report-from" name="from" value="{{ date_from|date:'Y-m-d' }}" class="form-control form-control-sm">
     </div>
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">إلى</label>
-      <input type="date" name="to" value="{{ date_to|date:'Y-m-d' }}" class="border rounded-lg px-3 py-2 text-sm">
+    <div class="filter-field">
+      <label class="filter-label" for="report-to">إلى</label>
+      <input type="date" id="report-to" name="to" value="{{ date_to|date:'Y-m-d' }}" class="form-control form-control-sm">
     </div>
-    <button class="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm">تحديث</button>
+    <div class="filter-actions">
+      <button type="submit" class="btn-secondary btn-sm">{% include "components/icon.html" with name="refresh" %} تحديث</button>
+    </div>
   </form>
 
-  <!-- Summary Cards -->
   {% if summary %}
-  <div>
-    <h2 class="text-sm font-semibold text-gray-600 mb-3">ملخص: حصص لكل معلم بديل</h2>
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-      {% for name, count in summary %}
-      <div class="card-qatar text-center">
-        <p class="text-2xl font-bold text-skyline">{{ count }}</p>
-        <p class="text-xs text-gray-600 mt-1">{{ name }}</p>
-      </div>
-      {% endfor %}
+  {% section_card "حصص كلّ معلمٍ بديل" meta=summary|length icon="users" flush=True %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th scope="col">المعلم البديل</th><th scope="col" class="num" data-sort="num">الحصص</th></tr></thead>
+        <tbody>
+          {% for name, count in summary %}
+          <tr><td>{{ name }}</td><td class="num">{{ count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-  </div>
+  {% endsection_card %}
   {% endif %}
 
-  <!-- Detail Table -->
-  {% if assignments %}
-  <div class="card-qatar overflow-hidden">
-    <table class="w-full text-sm">
-      <thead class="bg-maroon text-white">
-        <tr>
-          <th scope="col" class="px-4 py-3 text-right">التاريخ</th>
-          <th scope="col" class="px-4 py-3 text-right">المعلم الأصلي</th>
-          <th scope="col" class="px-4 py-3 text-right">المادة</th>
-          {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
-          <th scope="col" class="px-4 py-3 text-right" data-sort="num" data-sort-first="asc">الفصل</th>
-          <th scope="col" class="px-4 py-3 text-right">الحصة</th>
-          <th scope="col" class="px-4 py-3 text-right">البديل</th>
-          <th scope="col" class="px-4 py-3 text-right">الحالة</th>
-        </tr>
-      </thead>
-      <tbody class="divide-y divide-gray-100">
-        {% for a in assignments %}
-        <tr class="hover:bg-gray-50">
-          <td class="px-4 py-3">{{ a.absence.date }}</td>
-          <td class="px-4 py-3 font-medium text-gray-700">{{ a.absence.teacher.full_name }}</td>
-          <td class="px-4 py-3 text-gray-600">{{ a.slot.subject|default:"—" }}</td>
-          <td class="px-4 py-3 text-gray-600" data-sort-value="{{ a.slot.class_group.school_order }}">{{ a.slot.class_group }}</td>
-          <td class="px-4 py-3 text-center">{{ a.slot.period_number }}</td>
-          <td class="px-4 py-3 font-semibold text-skyline">{{ a.substitute.full_name }}</td>
-          <td class="px-4 py-3">
-            <span class="status-badge
-              {% if a.status == 'confirmed' %}status-success
-              {% elif a.status == 'declined' %}status-danger
-              {% else %}status-info{% endif %}">
-              {{ a.get_status_display }}
-            </span>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <div class="card-qatar text-center">
-    لا توجد حصص بديلة في هذه الفترة
-  </div>
-  {% endif %}
+  {% section_card "الحصص البديلة" meta=assignments|length icon="clipboard" empty="لا توجد حصص بديلة في هذه الفترة" flush=True %}{% if assignments %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">التاريخ</th>
+            <th scope="col">المعلم الأصلي</th>
+            <th scope="col">المادة</th>
+            {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
+            <th scope="col" data-sort="num" data-sort-first="asc">الفصل</th>
+            <th scope="col" class="num">الحصة</th>
+            <th scope="col">البديل</th>
+            <th scope="col">الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in assignments %}
+          <tr>
+            <td>{{ a.absence.date }}</td>
+            <td>{{ a.absence.teacher.full_name }}</td>
+            <td>{{ a.slot.subject|default:"—" }}</td>
+            <td data-sort-value="{{ a.slot.class_group.school_order }}">{{ a.slot.class_group }}</td>
+            <td class="num">{{ a.slot.period_number }}</td>
+            <td><b>{{ a.substitute.full_name }}</b></td>
+            <td><span class="status-badge status-{{ a.status_tone }}">{{ a.get_status_display }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
 
 </div>
 {% endblock %}

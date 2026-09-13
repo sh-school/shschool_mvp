@@ -1,90 +1,48 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}غيابات المعلمين{% endblock %}
 
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/substitute/" parent_label="الاحتياط" current="غيابات المعلمين" %}
+{% include "components/breadcrumbs.html" with parent_url="/staff-affairs/" parent_label="شؤون الموظفين" current="غيابات المعلمين" %}
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-  <div class="flex items-center justify-between flex-wrap gap-3">
-    <h1 class="page-title">{% include "components/icon.html" with name="ban" %} غيابات المعلمين</h1>
-    <div class="flex gap-2">
-      <a href="{% url 'register_absence' %}"
-         class="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm hover:bg-amber-700 transition">
-        + تسجيل غياب
-      </a>
-      <a href="{% url 'substitute_report' %}"
-         class="px-4 py-2 bg-skyline text-white rounded-lg text-sm hover:bg-maroon transition">
-        تقرير البدلاء
-      </a>
-    </div>
-  </div>
+<div class="exec-dash">
 
-  <!-- Date Filter + Search -->
-  <div class="flex flex-wrap gap-3 items-end">
-    <form method="get" class="flex gap-3 items-end">
-      <div>
-        <label class="block text-xs text-gray-500 mb-1">التاريخ</label>
-        <input type="date" name="date" value="{{ abs_date|date:'Y-m-d' }}"
-               class="border rounded-lg px-3 py-2 text-sm">
-      </div>
-      <button class="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm">عرض</button>
-    </form>
-    <div>
-      <label class="block text-xs text-gray-500 mb-1">بحث بالاسم</label>
-      <input type="text" id="absence-search" class="form-control" style="max-width:260px"
-             placeholder="ابحث باسم المعلم..." autocomplete="off">
-    </div>
-  </div>
+  {% page_header "غيابات المعلمين" subtitle="غيابُ اليوم ومن يحلّ محلَّه — والبدلاءُ يُقترحون من الحصص الحرّة" icon="ban" %}
+    <a href="{% url 'register_absence' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} تسجيل غياب</a>
+    <a href="{% url 'substitute_report' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} تقرير البدلاء</a>
+  {% endpage_header %}
 
-  <!-- Absences -->
-  {% if absences %}
-  <div class="table-wrap-scroll space-y-4" style="max-height:420px" id="absence-cards">
-    {% for absence in absences %}
-    <div class="card-qatar overflow-hidden" data-filter-row data-text="{{ absence.teacher.full_name }}">
-      <div class="flex items-center justify-between px-5 py-3 border-b
-        {% if absence.status == 'covered' %}bg-green-50{% elif absence.status == 'uncovered' %}bg-red-50{% else %}bg-amber-50{% endif %}">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-skyline text-white flex items-center justify-center font-bold text-sm">
-            {{ absence.teacher.full_name|first }}
-          </div>
-          <div>
-            <p class="font-bold text-gray-800">{{ absence.teacher.full_name }}</p>
-            <p class="text-xs text-gray-500">{{ absence.get_reason_display }}</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="status-badge
-            {% if absence.status == 'covered' %}status-success
-            {% elif absence.status == 'uncovered' %}status-danger
-            {% else %}status-warning{% endif %}">
-            {{ absence.get_status_display }}
-          </span>
-          <a href="{% url 'absence_detail' absence.id %}"
-             class="px-3 py-1 bg-skyline text-white rounded text-xs hover:bg-maroon">
-            تفاصيل وتعيين
-          </a>
-        </div>
-      </div>
-      {% if absence.assignments.all %}
-      <div class="px-5 py-3">
-        <p class="text-xs text-gray-500 mb-2">البدلاء المُعيَّنون:</p>
-        <div class="flex flex-wrap gap-2">
-          {% for a in absence.assignments.all %}
-          <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs border border-blue-200">
-            {{ a.substitute.full_name }} — ح{{ a.slot.period_number }}
-          </span>
-          {% endfor %}
-        </div>
-      </div>
-      {% endif %}
+  <form method="get" class="filter-bar">
+    <div class="filter-field">
+      <label class="filter-label" for="absence-date">التاريخ</label>
+      <input type="date" id="absence-date" name="date" value="{{ abs_date|date:'Y-m-d' }}" class="form-control form-control-sm">
     </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  {% include "components/empty_state.html" with icon="check-circle" title="لا توجد غيابات" subtitle="لا توجد غيابات مسجّلة في هذا التاريخ" %}
-  {% endif %}
+    <div class="filter-field filter-field--grow">
+      <label class="filter-label" for="absence-search">بحث بالاسم</label>
+      <input type="text" id="absence-search" class="form-control form-control-sm" placeholder="ابحث باسم المعلم..." autocomplete="off">
+    </div>
+    <div class="filter-actions">
+      <button type="submit" class="btn-secondary btn-sm">{% include "components/icon.html" with name="search" %} عرض</button>
+    </div>
+  </form>
+
+  {% section_card "الغيابات" meta=absences|length icon="users" empty="لا توجد غيابات" empty_sub="لا توجد غيابات مسجّلة في هذا التاريخ" %}{% if absences %}
+    {# الاسمُ في `data-text` على غلافٍ لكلّ بطاقة: `smartFilter` يُخفي الغلافَ كلَّه. #}
+    <div class="ui-entity-grid" id="absence-cards">
+      {% for absence in absences %}
+      <div class="slot-cell" data-filter-row data-text="{{ absence.teacher.full_name }}">
+        {% url 'absence_detail' absence.id as detail_url %}
+        {% entity_card absence.teacher.full_name who=absence.get_reason_display href=detail_url tone=absence.tone %}
+          {% if absence.assignments.all %}{% entity_chips %}{% for a in absence.assignments.all %}<span class="chip">{{ a.substitute.full_name }} — ح{{ a.slot.period_number }}</span>{% endfor %}{% endentity_chips %}{% endif %}
+          {% entity_status tone=absence.status_tone %}{{ absence.get_status_display }}{% endentity_status %}
+        {% endentity_card %}
+      </div>
+      {% endfor %}
+    </div>
+  {% endif %}{% endsection_card %}
+
 </div>
 {% endblock %}
 

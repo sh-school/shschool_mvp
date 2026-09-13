@@ -1,53 +1,43 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}الحصص التعويضية{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/teacher/weekly-schedule/" parent_label="الجدول" current="الحصص التعويضية" %}
 {% endblock %}
 
-{% block extra_css %}
-<style nonce="{{ request.csp_nonce }}">
-.comp-page { max-width: 1100px; margin: 0 auto; padding: 16px; }
-.comp-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
-
-.comp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
-.comp-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-.comp-badge { display: inline-block; font-size: .7rem; font-weight: 700; padding: 2px 10px; border-radius: 99px; }
-.comp-badge.pending { background: #FEF3C7; color: #92400E; }
-.comp-badge.approved, .comp-badge.completed { background: #D1FAE5; color: #065F46; }
-.comp-badge.cancelled, .comp-badge.expired { background: #FEE2E2; color: #991B1B; }
-.comp-info { font-size: .78rem; color: #6b7280; margin-top: 4px; }
-.comp-actions { display: flex; gap: 6px; margin-top: 8px; }
-.btn-sm { padding: 5px 14px; border-radius: 6px; font-size: .75rem; font-weight: 700; border: none; cursor: pointer; font-family: inherit; }
-.btn-approve { background: #059669; color: #fff; }
-.btn-reject { background: #DC2626; color: #fff; }
-.empty-state { text-align: center; padding: 48px 16px; color: #9ca3af; }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="comp-page">
-  <div class="comp-header">
-    <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</h1>
+{% comment %}
+كانت بأغلفةٍ خاصّةٍ بها (`comp-page` و`comp-header`) وصفِّ ترشيحٍ عارٍ، فلا
+ترث بنيةَ المنصّة. فصارت كأخواتها: عنوانٌ بسطرٍ يشرحه، وبطاقةُ ترشيح،
+وحالةُ فراغٍ من المكوّن الموحَّد.
+{% endcomment %}
+<div class="exec-dash">
+  {% page_header "الحصص التعويضية" subtitle="حصّةٌ فاتت تُعوَّض في وقتٍ آخر — بطلبٍ يُعتمَد" icon="list-checks" %}
     {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" %}
-    <a href="{% url 'compensatory_request' %}" class="btn-primary no-underline px-4 py-2 text-xs">+ طلب تعويض</a>
+    <a href="{% url 'compensatory_request' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} طلب تعويض</a>
     {% endif %}
-  </div>
+  {% endpage_header %}
 
-  <div class="mb-3 flex flex-wrap gap-3 items-end">
-    <form method="get" class="inline">
-      <select name="status" data-autosubmit class="form-control px-2.5 py-1.5 rounded-md text-sm">
+  <form method="get" class="filter-bar">
+    <div class="filter-field">
+      <label class="filter-label">الحالة</label>
+      <select name="status" data-autosubmit class="form-control form-control-sm">
         <option value="">كل الحالات</option>
         {% for val, label in status_choices %}
         <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
         {% endfor %}
       </select>
-    </form>
-    <input type="text" id="comp-search" class="form-control" style="max-width:280px"
-           placeholder="ابحث باسم المعلم..." autocomplete="off">
-  </div>
+    </div>
+    <div class="filter-field filter-field--grow">
+      <label class="filter-label">بحث بالاسم</label>
+      <input type="text" id="comp-search" class="form-control form-control-sm"
+             placeholder="ابحث باسم المعلم..." autocomplete="off">
+    </div>
+  </form>
 
-  <div class="table-wrap-scroll" style="max-height:420px" id="comp-cards">
+  {% section_card "الطلبات" icon="list-checks" flush=True empty="لا توجد حصص تعويضية" empty_sub="ستظهر هنا حين يُطلب تعويضُ حصّةٍ فاتت" %}{% if compensatory_sessions %}
+  <div class="table-wrap-scroll schedule-cards" id="comp-cards">
   {% for comp in compensatory_sessions %}
   <div class="comp-card" data-filter-row data-text="{{ comp.teacher.full_name }}">
     <div class="comp-row">
@@ -79,13 +69,9 @@
       {% endif %}
     {% endif %}
   </div>
-  {% empty %}
-  <div class="empty-state">
-    <p class="text-3xl mb-2">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</p>
-    <p>لا توجد حصص تعويضية</p>
-  </div>
   {% endfor %}
   </div>
+  {% endif %}{% endsection_card %}
 </div>
 {% endblock %}
 

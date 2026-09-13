@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "developer_feedback.apps.DeveloperFeedbackConfig",
     # ✅ مركز معلومات الطلبة — ملفّ الطالب الجامع وملاحظات الجهات الخمس
     "student_info.apps.StudentInfoConfig",
+    "wings.apps.WingsConfig",
     # ✅ فلترة احترافية
     "django_filters",
     # ✅ [SEC-02] قائمة حظر توكنات التحديث بعد التدوير (JWT) — تتطلب migrate
@@ -92,7 +93,11 @@ MIDDLEWARE = [
     "core.middleware.SentryScopeMiddleware",  # ✅ v5.5: Sentry context (school_id + role)
     "operations.middleware.SessionAutoGenerateMiddleware",  # ✅ توليد الحصص تلقائياً — بدون Celery
     "csp.middleware.CSPMiddleware",
+    # الإلزامُ بتغيير كلمة المرور قبل موافقة وليّ الأمر: من لم يُبدّل كلمتَه لا يوافق بها.
+    "core.middleware.ForcePasswordChangeMiddleware",
     "core.middleware.ParentConsentMiddleware",
+    # صفحةُ المسجَّل لا تُخزَّن: طزاجةٌ بعد النشر، وخصوصيّةٌ على جهازٍ مشترك
+    "core.middleware.PrivateHtmlNoStoreMiddleware",
     # ✅ v5.1: Prometheus آخر middleware لقياس وقت الاستجابة كاملاً
     "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
@@ -458,7 +463,12 @@ AXES_SENSITIVE_PARAMETERS = ["password"]
 AXES_VERBOSE = False
 
 # الحقل المستخدم كـ "username" في هذا المشروع
-AXES_USERNAME_FORM_FIELD = "national_id"
+# حقلُ النموذج، ومعه الدالّةُ التي تحوّله إلى مفتاحٍ معياريّ. وبلا الدالّة يقرأ
+# axes ما كُتب خاماً فيحفظ الرقمَ الشخصيَّ نصّاً صريحاً في `axes_accessattempt`
+# — بينما نشفّره في `CustomUser`. ولها أثرٌ ثانٍ: معرّفان لمستخدمٍ واحدٍ كانا
+# سيعطيانه مفتاحَي قفلٍ اثنين، أي عشرَ محاولاتٍ لا خمساً.
+AXES_USERNAME_FORM_FIELD = "identifier"
+AXES_USERNAME_CALLABLE = "core.auth_identity.axes_username"
 
 # إعادة توجيه مخصصة عند القفل — None = HTTP 403 الافتراضي
 AXES_LOCKOUT_URL = None

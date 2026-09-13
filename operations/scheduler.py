@@ -19,6 +19,7 @@ from django.utils import timezone
 
 from core.models import School
 
+from . import constraint_registry
 from .models import (
     ScheduleGeneration,
     ScheduleSlot,
@@ -91,10 +92,15 @@ class Task:
     #: عقوبةٌ مرنةٌ ترجّح التجاور وتُلغي عقوبةَ تكرار المادّة في اليوم.
     #: (وحقلُ القاعدة `Subject.requires_double_period` يحمل الاسمَ القديم.)
     prefers_double: bool = False
-    #: HC18: حصصُ المادّة في أيّامٍ مختلفةٍ للشعبة — من `Subject.spread_days_scope`
     #: بنطاق مرحلة الشعبة، وحيث سرى بطل الازدواج.
-    spread_days: bool = False
     preferred_periods: list = field(default_factory=list)
+    #: طبيعةُ المادّة تربويّاً — `heavy` / `activity` / `regular`، من `Subject.pedagogy`.
+    #:
+    #: وكانت الترجيحاتُ تشتقّها من رموزٍ محفورة (`CORE_CODES`، و`code == "PE"`)
+    #: بينما المختبرُ يقيسها بهذا الحقل. فمصدرانِ لحقيقةٍ واحدة: تغيّر الإدارةُ
+    #: طبيعةَ مادّةٍ من الشاشة، فيتغيّر ما يقيسه المختبرُ ولا يتغيّر ما يفعله
+    #: المولّد — ثمّ يُقرأ الفرقُ خللاً في الخوارزميّة وهو خللٌ في المصدر.
+    pedagogy: str = "regular"
     level_type: str = ""  # "prep" (إعدادي) أو "sec" (ثانوي) — للخميس
     #: صفُّ الشعبة («G7»…«G12») — قيدُ الخميس الصلب يخصّ الحادي عشر والثاني عشر.
     grade: str = ""
@@ -156,8 +162,12 @@ class Task:
         فستُّ حصصٍ على خمسة أيّامٍ سقفُها حصّتان، وعلى أربعةٍ سقفُها حصّتان
         أيضاً — والفرقُ في **عدد** الأيّام التي تبلغ السقف لا في السقف نفسه.
         """
+        #: بالكتل لا بالحصص: `ScheduleGrid` يعدّ المهمّةَ الموضوعةَ كتلةً
+        #: واحدةً مهما طالت، فقسمةُ الحصص هنا تقيس بوحدةٍ غيرِ وحدة العدّاد.
+        #: صحيحٌ بالمصادفة ما دامت المزدوجةُ نصابُها أربعٌ فأقلّ، ويخطئ عند
+        #: ستٍّ: ⌈6/5⌉ = كتلتان = أربعُ حصصٍ في يومٍ واحد.
         days = max(1, self.available_days)
-        return max(1, math.ceil(self.weekly_periods / days))
+        return max(1, math.ceil(self._blocks / days))
 
     @property
     def days_allowed_at_cap(self) -> int:
@@ -169,8 +179,13 @@ class Task:
         خمسةٍ: لا مزدوجَ البتّة، والأيّامُ الخمسةُ كلُّها «عند السقف» وهو واحد.
         """
         days = max(1, self.available_days)
-        remainder = self.weekly_periods % days
+        remainder = self._blocks % days
         return remainder if remainder else days
+
+    @property
+    def _blocks(self) -> int:
+        """عددُ ما تضعه الشبكةُ من هذه المهمّة — كتلةٌ لكلّ `span` حصص."""
+        return math.ceil(self.weekly_periods / max(1, self.span))
 
 
 class ScheduleGrid:
@@ -197,6 +212,7 @@ class ScheduleGrid:
         band_times: dict | None = None,
         coverage: dict | None = None,
         break_times: dict | None = None,
+        policy=None,
     ):
         #: _grid[class_id][day][period] = Task
         self._grid: dict[str, dict[int, dict[int, Task | None]]] = {}
@@ -212,6 +228,11 @@ class ScheduleGrid:
         #: والموضعُ مهمّةٌ واحدة: المزدوجةُ حصّتان في يومٍ واحد، فثلاثُ مزدوجاتٍ
         #: لا تغطّي خمسةَ أيّامٍ مهما وُزّعت — وصاحبُها مستثنىً كقليل الحصص.
         self.coverage: dict = coverage or {}
+        #: رتبُ الكسر السارية — افتراضُ الشيفرة ما لم تُمرَّر سياسةُ العام.
+        #: تُبنى مرّةً قبل التوليد ولا تُستعلَم في الحلقة الساخنة أبداً.
+        from .constraint_registry import default_policy
+
+        self.policy = policy or default_policy()
         #: كم مهمّةً وُضعت لكلّ معلّم — بالمواضع لا بالخانات.
         self._teacher_tasks: dict[str, int] = defaultdict(int)
         # فهارس سريعة
@@ -487,32 +508,52 @@ class ScheduleGrid:
             pairs += sum(1 for i in range(1, len(ordered)) if ordered[i] == ordered[i - 1] + 1)
         return pairs
 
-    def teacher_last_periods(self, teacher_id: str) -> int:
-        """كم حصّةً سابعةً لهذا المعلّم في الأسبوع."""
-        return sum(1 for _, period in self._teacher_slots[teacher_id] if period == LAST_PERIOD)
+    def teacher_periods_at(self, teacher_id: str, at: int) -> int:
+        """كم حصّةً لهذا المعلّم في هذا الموضع من اليوم، طوالَ الأسبوع."""
+        return sum(1 for _, period in self._teacher_slots[teacher_id] if period == at)
 
-    def teacher_last_period_classes(self, teacher_id: str) -> set[str]:
-        """شُعبُ المعلّم في الحصّة السابعة — أيّامَ الأسبوع كلَّها."""
+    def teacher_edge_periods(self, teacher_id: str) -> int:
+        """طرفا اليوم معاً: الأولى والسابعة.
+
+        وهما عبءٌ واحدٌ في ميزان المعلّم — من بدأ يومَه أوّلَ الدوام كمن أنهاه
+        آخرَه (قرار الإدارة 2026-09-10). ومقياسُ «عدالة الأولى والسابعة» يعدّهما
+        في سلّةٍ واحدةٍ منذ كُتب، فصار الترجيحُ يوافقه.
+        """
+        return self.teacher_periods_at(teacher_id, 1) + self.teacher_periods_at(
+            teacher_id, LAST_PERIOD
+        )
+
+    def teacher_classes_at(self, teacher_id: str, at: int) -> set[str]:
+        """شُعبُ المعلّم في هذا الموضع من اليوم — أيّامَ الأسبوع كلَّها."""
         return {
             task.class_id
             for (tid, _, period), task in self._teacher_at.items()
-            if tid == teacher_id and period == LAST_PERIOD
+            if tid == teacher_id and period == at
         }
 
     def teacher_consecutive_counted(self, teacher_id: str, day: int, period: int) -> int:
-        """تتابعُ المعلّم عبر الشُّعب — و`PE`/`SCI` تُعيد العدّاد.
+        """تتابعُ المعلّم عبر الشُّعب — وحصّةُ المكان الخاصّ تُعيد العدّاد.
 
         والتتابعُ صفةُ معلّمٍ لا صفةُ شعبة: حصّتان متتاليتان في شعبتين
         مختلفتين تتابعٌ يُتعب صاحبَه كما يُتعبه التتابعُ في شعبةٍ واحدة.
-        """
-        from .scheduler_constraints import CONSECUTIVE_RESET_CODES
 
+        وما يقطع السلسلةَ تغيُّرُ **المكان أو النشاط** — وكان يُعرَف برمزين
+        محفورين (`PE`/`SCI`) يجمعان المعنيين في قائمةٍ واحدة. وكلاهما مسجَّلٌ
+        في القاعدة بلا رمز:
+
+            المكانُ    `SchedulingResource` — ملعبٌ أو معملٌ يُخرج المعلّمَ من صفّه
+            النشاطُ    `Subject.pedagogy == "activity"` — بدنيّةٌ أو فنّيّةٌ أو تكنولوجيا
+
+        فالبدنيّةُ تقطع السلسلةَ بالوجهين، والعلومُ المعمليّةُ بمعملها. ومدرسةٌ
+        لم تُسجّل ملعباً تبقى بدنيّتُها قاطعةً بطبيعتها — فلا يسقط المعنى بسقوط
+        أحد المصدرين.
+        """
         count = 0
         for step in (-1, 1):
             p = period + step
             while 1 <= p <= 7:
                 task = self.teacher_task_at(teacher_id, day, p)
-                if task is None or task.subject_code in CONSECUTIVE_RESET_CODES:
+                if task is None or task.resources or task.pedagogy == "activity":
                     break
                 count += 1
                 p += step
@@ -581,13 +622,8 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
             "id", flat=True
         )
     )
-    #: نطاقُ التباعد لكلّ مادّة — يُقرأ مرّةً ويُحسم لكلّ شعبةٍ بمرحلتها.
-    spread_scopes = dict(
-        Subject.objects.filter(school=school)
-        .exclude(spread_days_scope="none")
-        .values_list("id", "spread_days_scope")
-    )
-
+    #: طبيعةُ المادّة تربويّاً — تُقرأ مرّةً كما يقرؤها المختبر، ولا تُشتقّ من رمز.
+    pedagogies = dict(Subject.objects.filter(school=school).values_list("id", "pedagogy"))
     assignments = SubjectClassAssignment.objects.filter(
         school=school, academic_year=academic_year, is_active=True
     ).select_related("class_group", "subject", "teacher")
@@ -649,20 +685,15 @@ def build_tasks(school: School, academic_year: str) -> list[Task]:
             if a.double_period is not None
             else a.subject_id in double_period_subjects
         )
-        # والتباعدُ قيدٌ صلبٌ يعلو ترجيحَ الازدواج: مادّةٌ موسومةٌ بالتباعد في
-        # هذه المرحلة تُبنى مفردةً ولو وُسمت بالازدواج في المرحلة الأخرى.
-        scope = spread_scopes.get(a.subject_id, "none")
-        spread = scope == "all" or (bool(level_type) and scope == level_type)
-        if spread:
-            is_double = False
-
         available = len(DAYS) - len(exempt_days.get(str(a.teacher_id), ()))
-        rows.append((a, level_type, is_double, spread, max(1, available)))
+        rows.append((a, level_type, is_double, max(1, available)))
 
-    return _to_tasks(rows, resources_by_subject, personal_cap, personal_gap)
+    return _to_tasks(rows, resources_by_subject, personal_cap, personal_gap, pedagogies)
 
 
-def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=None) -> list[Task]:
+def _to_tasks(
+    rows, resources_by_subject=None, personal_cap=None, personal_gap=None, pedagogies=None
+) -> list[Task]:
     """يحوّل الإسنادات إلى مهامّ — والمتوازيةُ منها مهمّةٌ واحدةٌ بساكنَين.
 
     فالشعبةُ المنقسمةُ تأخذ مادّتين في التوقيت نفسه، فلو صارتا مهمّتين لطلب
@@ -683,8 +714,9 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=N
     resources_by_subject = resources_by_subject or {}
     personal_cap = personal_cap or {}
     personal_gap = personal_gap or {}
+    pedagogies = pedagogies or {}
 
-    def build(a, level_type, is_double, members, available, spread=False):
+    def build(a, level_type, is_double, members, available):
         #: المهمّةُ المنقسمةُ تستهلك مواردَ ساكنيها جميعاً.
         used = []
         for member in members:
@@ -702,8 +734,8 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=N
             weekly_periods=a.weekly_periods,
             requires_lab=a.requires_lab,
             prefers_double=is_double,
-            spread_days=spread,
             preferred_periods=a.preferred_periods or [],
+            pedagogy=pedagogies.get(a.subject_id) or "regular",
             level_type=level_type,
             grade=a.class_group.grade or "",
             available_days=available,
@@ -727,12 +759,10 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=N
 
     grouped = _dd(list)
     tasks = []
-    for a, level_type, is_double, spread, available in rows:
+    for a, level_type, is_double, available in rows:
         label = (a.parallel_group or "").strip()
         if label:
-            grouped[(str(a.class_group_id), label)].append(
-                (a, level_type, is_double, spread, available)
-            )
+            grouped[(str(a.class_group_id), label)].append((a, level_type, is_double, available))
             continue
         if is_double and a.weekly_periods >= 2:
             # المزدوجةُ مهمّةٌ واحدةٌ تشغل خانتين — ونصابٌ فرديٌّ يترك حصّةً
@@ -745,26 +775,23 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=N
                 tasks.append(build(a, level_type, is_double, [member(a)], available))
             continue
         for _ in range(a.weekly_periods):
-            tasks.append(build(a, level_type, is_double, [member(a)], available, spread))
+            tasks.append(build(a, level_type, is_double, [member(a)], available))
 
     for entries in grouped.values():
-        members = [member(a) for a, _, _, _, _ in entries]
-        lead, level_type, _, _, _ = entries[0]
-        # التباعدُ يسري على المجموعة إن طلبه أحدُ أعضائها: الفنّيّةُ متباعدةٌ في
-        # الثانويّ فتجرّ شريكتَها التكنولوجيا معها — وهما في التوقيت نفسِه أصلاً.
-        spread = any(s for _, _, _, s, _ in entries)
+        members = [member(a) for a, _, _, _ in entries]
+        lead, level_type, _, _ = entries[0]
         # والازدواجُ لا يُفرض على شريكٍ لا يطلبه: الفنّيّةُ مزدوجةٌ والكيمياءُ
         # ليست كذلك، وهما متوازيتان في الحادي عشر/4 والثاني عشر/4. فلو أُخذ
         # الوصفُ من أوّل العضوين لجرّت الفنّيّةُ الكيمياءَ إلى يومٍ واحد —
         # والأولى بالكيمياء يومان. فالمجموعةُ تُزدوَج إن طلب الازدواجَ
         # أعضاؤها **جميعاً**، وإلّا فحصصٌ مفردةٌ تُفرّقها القسمةُ على الأيّام.
-        is_double = all(d for _, _, d, _, _ in entries) and not spread
+        is_double = all(d for _, _, d, _ in entries)
         # المجموعةُ المتوازيةُ تأخذ أضيقَ أيّامِ أعضائها: من فُرّغ يومان
         # فأيّامُ المجموعةِ أيّامُه.
-        available = min(av for _, _, _, _, av in entries)
+        available = min(av for _, _, _, av in entries)
         # الخاناتُ بأكبرِ نصابٍ في المجموعة: لو كانت الفنونُ حصّتين
         # والتكنولوجيا ثلاثاً فالخاناتُ ثلاث.
-        slots = max(a.weekly_periods for a, _, _, _, _ in entries)
+        slots = max(a.weekly_periods for a, _, _, _ in entries)
         # والمجموعةُ المزدوجةُ تُزدوَج كغيرها: تكنولوجيا الحادي عشر/1 حصّتان
         # متلاصقتان وإن شاركتها الفنونُ في التوقيت نفسه. وكانت تُبنى مفردةً
         # لأنّ الازدواجَ كان مقصوراً على غير المتوازي.
@@ -777,7 +804,7 @@ def _to_tasks(rows, resources_by_subject=None, personal_cap=None, personal_gap=N
                 tasks.append(build(lead, level_type, is_double, list(members), available))
             continue
         for _ in range(slots):
-            tasks.append(build(lead, level_type, is_double, list(members), available, spread))
+            tasks.append(build(lead, level_type, is_double, list(members), available))
 
     return tasks
 
@@ -1404,6 +1431,17 @@ def _capacity_shortfalls(tasks: list[Task], prefs, blocked_slots: set) -> list[s
 #: والمُزيِّنُ جزءٌ من الدالّة: حين أُدرجت `load_band_times` فوقها (#121) سرقته،
 #: فعاد الجرسُ يُسأل آلافَ المرّات في جولة الإصلاح — 4,136 استعلاماً في توليدٍ
 #: واحد، وعلى الإنتاج كلُّ استعلامٍ رحلةٌ إلى قاعدةٍ في خادمٍ آخر.
+def _feasibility_snapshot(school, academic_year: str) -> dict:
+    """حكمُ فحص الجدوى كما كان لحظةَ التوليد — ولا يُسقط التوليدَ إن تعذّر."""
+    try:
+        from .schedule_feasibility import check
+
+        return check(school, academic_year).as_dict()
+    except Exception:  # pragma: no cover - لقطةٌ للسجلّ لا شرطٌ للتوليد
+        logger.exception("تعذّر حساب فحص الجدوى للقطة التوليد")
+        return {}
+
+
 @joinable_pairs_cached()
 def generate_schedule(
     school: School,
@@ -1500,7 +1538,12 @@ def generate_schedule(
         attempt += 1
         attempt_started = time.time()
         rng = random.Random(attempt)
-        grid = ScheduleGrid(band_times=band_times, coverage=coverage, break_times=break_times)
+        grid = ScheduleGrid(
+            band_times=band_times,
+            coverage=coverage,
+            break_times=break_times,
+            policy=constraint_registry.resolve(school, academic_year),
+        )
         leftovers, repaired, relaxed, densed, tight_done = _run_attempt(
             grid, sorted_tasks, blocked_slots, preferences, prefs_qs, school, rng, max_backtrack
         )
@@ -1646,6 +1689,13 @@ def generate_schedule(
                         "relaxed": relaxed,
                         "densed": densed,
                         "preferences_count": len(preferences),
+                        #: حكمُ العدّ يومَ التوليد — فجدولٌ نصفُ تامٍّ يُقرأ بعد
+                        #: أشهرٍ ولا يُعرف أكان المولّدُ عاجزاً أم الطلبُ فوقَ
+                        #: الطاقة. راجع `schedule_feasibility`.
+                        "feasibility": _feasibility_snapshot(school, academic_year),
+                        #: رتبُ الكسر السارية يومَ التوليد — فجدولٌ فيه تلاصقٌ
+                        #: يُقرأ بعد أشهرٍ ويُعرف أكان رخصةَ ضرورةٍ أم قراراً.
+                        "constraints": grid.policy.as_dict(),
                     },
                 }
                 for key, value in fields.items():

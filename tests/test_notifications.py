@@ -631,7 +631,12 @@ class TestAbsenceHubIntegration:
             )
 
     def _reach_a_gate(self, school, student, teacher_user):
-        """ستّةُ أيامٍ غياب: يفصله يومٌ عن العتبة الأولى — فيُنذَر."""
+        """ثلاثةُ أيّامِ غياب: يفصله يومان عن العتبة الأولى — فيُنذَر مرّةً.
+
+        والعددُ ثلاثةٌ لا ستّة بعد اعتماد دليل 2026: العتبةُ الأولى صارت خمسةً
+        والثانيةُ ثمانية، فستّةُ أيّامٍ تعبر الأولى **وتقترب من الثانية** —
+        فإنذاران، ويصير اختبارُ «مرّةً واحدة» يقيس شيئاً آخر.
+        """
         from datetime import timedelta
 
         from django.core.management import call_command
@@ -641,7 +646,7 @@ class TestAbsenceHubIntegration:
         call_command("seed_academic_calendar", school=school.code, verbosity=0)
         start, _ = academic_year_window(school)
         cg = self._enrol(school, student)
-        self._absent_days(school, cg, teacher_user, student, start, 6)
+        self._absent_days(school, cg, teacher_user, student, start, 3)
         return start + timedelta(days=30)
 
     @patch("notifications.hub._queue_external_after_commit")

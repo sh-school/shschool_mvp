@@ -1,0 +1,116 @@
+{% extends "base/base.html" %}
+{% load ui %}
+
+{% block title %}مكوّنات الواجهة{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/styleguide/" parent_label="دليل المكوّنات" current="مكوّنات الواجهة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "مكوّنات الواجهة" subtitle="خمسة مكوّنات تبني بها كلُّ صفحةٍ بطاقاتِها — الأمثلةُ توضيحيّة" icon="layers" %}
+    <a href="/styleguide/" class="btn-secondary btn-sm">{% include "components/icon.html" with name="book-open" %} الدليل القديم</a>
+  {% endpage_header %}
+
+  {# ══ 1 ══ #}
+  {% section_card "1 · شريط الأرقام" meta="kpi_strip · kpi" icon="bar-chart" %}
+    <div class="sg-demo">
+      {% kpi_strip %}
+        {% kpi "زيارات اليوم" 12 %}
+        {% kpi "أُعيدوا للمنزل" 2 tone="amber" %}
+        {% kpi "متكرّرو الزيارة" 4 sub="هذا الشهر" tone="red" href="#" title="طلابٌ زاروا العيادة ثلاث مرّاتٍ فأكثر" %}
+        {% kpi "سجلّات صحّيّة" 735 tone="teal" %}
+      {% endkpi_strip %}
+      <pre class="sg-code" dir="ltr">{% templatetag openblock %} kpi_strip {% templatetag closeblock %}
+  {% templatetag openblock %} kpi "زيارات اليوم" visits_today {% templatetag closeblock %}
+  {% templatetag openblock %} kpi "متكرّرو الزيارة" frequent sub="هذا الشهر" tone="red" href=url {% templatetag closeblock %}
+{% templatetag openblock %} endkpi_strip {% templatetag closeblock %}</pre>
+      <ul class="sg-rules">
+        <li>الاسم ثمّ الرقم ثمّ تفصيلٌ قصير — في سطرٍ واحد. التفصيل يُخفى على الهاتف ويبقى في التلميح.</li>
+        <li>ستّ بطاقات على الأكثر؛ السابعة خطأٌ يظهر في الاختبار لا التفافٌ صامت.</li>
+        <li>الألوان: maroon · green · blue · red · amber · teal · orange · purple · sky — ولونٌ غيرها خطأ.</li>
+        <li>البطاقة التي تُفتح تُمرَّر بـ<code>href</code>، فتصير رابطاً بتركيزٍ ظاهر.</li>
+      </ul>
+    </div>
+  {% endsection_card %}
+
+  {# ══ 2 ══ #}
+  {% section_card "2 · بطاقة القسم" meta="section_card" icon="users" %}
+    <div class="sg-pair">
+      {% section_card "الغائبون اليوم" meta="3 طلاب" icon="users" flush=True %}
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>الطالب</th><th>الشعبة</th><th>الحصص</th></tr></thead>
+            <tbody>
+              <tr><td>طالبٌ أوّل</td><td>10/2</td><td>1–3</td></tr>
+              <tr><td>طالبٌ ثانٍ</td><td>7/4</td><td>اليوم كلّه</td></tr>
+              <tr><td>طالبٌ ثالث</td><td>12/1</td><td>5</td></tr>
+            </tbody>
+          </table>
+        </div>
+      {% endsection_card %}
+      {% section_card "المتأخّرون اليوم" meta="0" icon="clock" empty="لم يتأخّر أحدٌ اليوم" empty_sub="يظهر هنا من يُسجَّل بعد الجرس الأوّل" %}{% for item in nothing %}{{ item }}{% endfor %}{% endsection_card %}
+    </div>
+    <pre class="sg-code" dir="ltr">{% templatetag openblock %} section_card "الغائبون اليوم" meta=absent|length icon="users" flush=True empty="لم يغب أحد" {% templatetag closeblock %}
+  … {% templatetag openblock %} for s in absent {% templatetag closeblock %} … {% templatetag openblock %} endfor {% templatetag closeblock %}
+{% templatetag openblock %} endsection_card {% templatetag closeblock %}</pre>
+    <ul class="sg-rules">
+      <li>الترويسة دائماً الشريط العنّابيّ، والعدد أو الفترة في طرفه لا في سطرٍ تحته.</li>
+      <li>المحتوى الفارغ يُرسم حالةً فارغةً موحّدة تلقائيّاً — لا <code>{% templatetag openblock %} empty {% templatetag closeblock %}</code> بجملةٍ خاصّة.</li>
+      <li><code>flush</code> لجدولٍ يملأ البطاقة حتى حوافّها.</li>
+      <li>المثالان هنا بطاقتان داخل بطاقة للعرض وحده — في الصفحات لا تتداخل البطاقات.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 3 ══ #}
+  {% section_card "3 · بطاقة الكيان" meta="entity_card · entity_chips · entity_status" icon="building" %}
+    <div class="ui-entity-grid">
+      {% entity_card "جناح 1" who="اسم المشرف الإداريّ الكامل" count="164 طالباً" %}
+        {% entity_chips %}<span class="chip">7.1</span><span class="chip">7.2</span><span class="chip">7.3</span><span class="chip">7.4</span><span class="chip">8.1</span>{% endentity_chips %}
+        {% entity_status %}{% include "components/icon.html" with name="clock" %} الحصّة 7 · حتّى 13:30{% endentity_status %}
+      {% endentity_card %}
+
+      {% entity_card "جناح 3" who="اسم مشرفٍ آخر" count="155 طالباً" badge="جرسان" badge_title="ممرٌّ بجرسين — الحصّةُ فيه تُقال بالساعة" %}
+        {% entity_chips %}<span class="chip">9.3</span><span class="chip">9.4</span><span class="chip">10.1</span><span class="chip">10.2</span><span class="chip">10.3</span>{% endentity_chips %}
+        {% entity_status tone="warning" title="الثانويّ 10–12" %}{% include "components/icon.html" with name="clock" %} الفسحة · حتّى 10:45{% endentity_status %}
+      {% endentity_card %}
+
+      {% entity_card "حافلة 7" who="اسم السائق" count="38/40" tone="amber" href="#" %}
+        {% entity_chips %}<span class="chip">الشحانية</span><span class="chip">أمّ صلال</span><span class="chip">المسار 3</span>{% endentity_chips %}
+        {% entity_status tone="danger" %}{% include "components/icon.html" with name="alert-triangle" %} إشغال 95%{% endentity_status %}
+      {% endentity_card %}
+
+      {% entity_card "جناح 5" count="130 طالباً" %}
+        {% entity_chips %}<span class="chip">11.5</span><span class="chip">12.1</span>{% endentity_chips %}
+        {% entity_status tone="success" %}{% include "components/icon.html" with name="check-circle" %} رُصدت كلُّ الشُّعب{% endentity_status %}
+      {% endentity_card %}
+    </div>
+    <pre class="sg-code" dir="ltr">{% templatetag openblock %} entity_card wing.name who=holder.full_name count=students {% templatetag closeblock %}
+  {% templatetag openblock %} entity_chips {% templatetag closeblock %}…{% templatetag openblock %} endentity_chips {% templatetag closeblock %}
+  {% templatetag openblock %} entity_status tone="warning" {% templatetag closeblock %}…{% templatetag openblock %} endentity_status {% templatetag closeblock %}
+{% templatetag openblock %} endentity_card {% templatetag closeblock %}</pre>
+    <ul class="sg-rules">
+      <li>ثلاثة أسطر: من وكم · الرقاقات · الحالة. أيُّ محتوى غيرها خطأ — الشرح تلميح.</li>
+      <li>اسم المسؤول الطويل يُقصّ بنقاطٍ وكاملُه في التلميح؛ العنوان والعدد لا يُقصّان.</li>
+      <li>الحالة: neutral · success · warning · danger · info.</li>
+      <li>الشبكة <code>ui-entity-grid</code> تملأ السطر ولا تترك عموداً فارغاً.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 4 + 5 ══ #}
+  <div class="sg-pair">
+    {% section_card "4 · الحالة الفارغة" meta="empty_state" icon="inbox" %}
+      {% empty_state "لا توجد نتائج" sub="جرّب كلمةً أخرى أو وسّع الفترة" icon="search" %}
+    {% endsection_card %}
+    {% section_card "5 · ترويسة الصفحة" meta="page_header" icon="file-text" %}
+      <p class="sg-p">الترويسة أعلى هذه الصفحة مرسومةٌ به: العنوان وأيقونته، والسطر الوصفيّ، والإجراءات في طرفها.</p>
+      <pre class="sg-code" dir="ltr">{% templatetag openblock %} page_header "العيادة" subtitle=today icon="hospital" {% templatetag closeblock %}
+  &lt;a class="btn-primary btn-sm" href="…"&gt;تسجيل زيارة&lt;/a&gt;
+{% templatetag openblock %} endpage_header {% templatetag closeblock %}</pre>
+    {% endsection_card %}
+  </div>
+
+</div>
+{% endblock %}

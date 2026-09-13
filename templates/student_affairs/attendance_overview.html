@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static %}
+{% load static ui %}
 
 {% block title %}إحصائيات الغياب — شؤون الطلاب{% endblock %}
 
@@ -8,189 +8,84 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash">
+<div class="exec-dash sa-page">
 
-  {# ══════════════════ Header ══════════════════ #}
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="bar-chart" %} إحصائيات الغياب</h1>
-      <p class="exec-subtitle">ملخص الحضور والغياب — {{ today|date:"D، d M Y" }}</p>
-    </div>
-    <div class="exec-meta" style="gap:6px">
-      <a href="/teacher/schedule/" class="btn-primary btn-sm">
-        {% include "components/icon.html" with name="list-checks" %} تسجيل الحضور
-      </a>
-      <a href="/teacher/reports/daily/" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="calendar" %} التقرير اليومي
-      </a>
-      <a href="{% url 'student_affairs:attendance_export' %}" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="download" %} تصدير Excel
-      </a>
-      <a href="{% url 'student_affairs:attendance_pdf' %}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
-      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
-    </div>
-  </div>
+  {% page_header "إحصائيات الغياب" subtitle=page_subtitle icon="bar-chart" %}
+    <a href="/teacher/schedule/" class="btn-primary btn-sm">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
+    <a href="/teacher/reports/daily/" class="btn-secondary btn-sm">{% include "components/icon.html" with name="calendar" %} التقرير اليومي</a>
+    <a href="{% url 'student_affairs:attendance_export' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
+    <a href="{% url 'student_affairs:attendance_pdf' %}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
+    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+  {% endpage_header %}
 
-  {# ══════════════════ KPI Strip ══════════════════ #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-{% if summary.pct >= 90 %}green{% elif summary.pct >= 75 %}orange{% else %}red{% endif %}" style="flex:1.5">
-      <div class="kpi-mini-label">نسبة الحضور اليوم</div>
-      <div class="kpi-mini-value" style="font-size:2rem">{{ summary.pct }}%</div>
-    </div>
-    <div class="kpi-mini kpi-green">
-      <div class="kpi-mini-label">{% include "components/icon.html" with name="check-circle" %} حاضرون</div>
-      <div class="kpi-mini-value">{{ summary.present }}</div>
-    </div>
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">{% include "components/icon.html" with name="alert-triangle" %} غائبون</div>
-      <div class="kpi-mini-value">{{ summary.absent }}</div>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <div class="kpi-mini-label">{% include "components/icon.html" with name="clock" %} متأخرون</div>
-      <div class="kpi-mini-value">{{ summary.late }}</div>
-    </div>
-    <div class="kpi-mini kpi-blue">
-      <div class="kpi-mini-label">{% include "components/icon.html" with name="mail" %} معذورون</div>
-      <div class="kpi-mini-value">{{ summary.excused }}</div>
-    </div>
-  </div>
+  {% kpi_strip label="حضور اليوم" %}
+    {% kpi "نسبة الحضور" pct_label tone=pct_tone title="الحاضرون من سجلّات حضور اليوم" %}
+    {% kpi "حاضرون" summary.present tone="green" %}
+    {% kpi "غائبون" summary.absent tone="red" %}
+    {% kpi "متأخرون" summary.late tone="orange" %}
+    {% kpi "معذورون" summary.excused tone="blue" %}
+  {% endkpi_strip %}
 
-  {# ══════════════════ شريط الحضور ══════════════════ #}
-  {% if summary.total > 0 %}
-  <div class="card-qatar" style="padding:12px 16px">
-    <div style="height:10px;background:var(--border);border-radius:5px;overflow:hidden;display:flex">
-      {% if summary.present %}<div style="width:{% widthratio summary.present summary.total 100 %}%;background:var(--status-success)" title="حاضر {{ summary.present }}"></div>{% endif %}
-      {% if summary.late %}<div style="width:{% widthratio summary.late summary.total 100 %}%;background:var(--status-warning)" title="متأخر {{ summary.late }}"></div>{% endif %}
-      {% if summary.excused %}<div style="width:{% widthratio summary.excused summary.total 100 %}%;background:var(--skyline,#0D4261)" title="بعذر {{ summary.excused }}"></div>{% endif %}
-      {% if summary.absent %}<div style="width:{% widthratio summary.absent summary.total 100 %}%;background:var(--status-danger)" title="غائب {{ summary.absent }}"></div>{% endif %}
+  {% section_card "اتجاه الحضور والغياب" meta="آخر 14 يوماً" icon="bar-chart" %}
+    <div class="dash-chart-wrap">
+      <canvas id="attendanceChart" role="img" aria-label="رسم بياني: نسبتا الحضور والغياب آخر 14 يوماً"></canvas>
     </div>
-    <div style="display:flex;gap:16px;justify-content:center;margin-top:8px;font-size:.7rem;color:var(--muted)">
-      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--status-success)"></span> حاضر</span>
-      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--status-warning)"></span> متأخر</span>
-      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--skyline,#0D4261)"></span> بعذر</span>
-      <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:50%;background:var(--status-danger)"></span> غائب</span>
-    </div>
-  </div>
-  {% endif %}
+  {% endsection_card %}
 
-  {# ══════════════════ Chart — آخر 14 يوم ══════════════════ #}
-  <div class="card-qatar" style="padding:16px">
-    <h3 style="margin:0 0 12px;font-size:.9rem;font-weight:700;color:var(--heading)">
-      {% include "components/icon.html" with name="bar-chart" %} اتجاه الحضور والغياب — آخر 14 يوم
-    </h3>
-    <div style="position:relative;height:280px">
-      <canvas id="attendanceChart"></canvas>
-    </div>
-  </div>
-
-  {# ══════════════════ توزيع حسب الصف ══════════════════ #}
-  <div class="card-qatar" style="padding:16px">
-    <h3 style="margin:0 0 12px;font-size:.9rem;font-weight:700;color:var(--heading)">
-      {% include "components/icon.html" with name="users" %} توزيع الحضور حسب الصف — اليوم
-    </h3>
-    {% if class_breakdown %}
+  {% section_card "توزيع الحضور حسب الصف" meta="اليوم" icon="users" empty="لا بيانات حضور لليوم" flush=True %}{% if class_breakdown %}
     <div class="table-wrap">
-      <table class="data-table">
+      <table>
         <thead>
           <tr>
             <th>الصف</th>
-            <th>إجمالي</th>
-            <th>حاضرون</th>
-            <th>غائبون</th>
-            <th>متأخرون</th>
-            <th>نسبة الحضور</th>
+            <th class="num">إجمالي</th>
+            <th class="num">حاضرون</th>
+            <th class="num">غائبون</th>
+            <th class="num">متأخرون</th>
+            <th class="num">نسبة الحضور</th>
           </tr>
         </thead>
         <tbody>
           {% for row in class_breakdown %}
           <tr>
-            <td style="font-weight:600">{{ row.session__class_group__grade }}</td>
-            <td>{{ row.total }}</td>
-            <td style="color:var(--status-success)">{{ row.present_count }}</td>
-            <td style="color:var(--status-danger)">{{ row.absent_count }}</td>
-            <td style="color:var(--status-warning)">{{ row.late_count }}</td>
-            <td>
-              {% widthratio row.present_count row.total 100 as grade_pct %}
-              <span class="status-badge {% if grade_pct >= 90 %}status-success{% elif grade_pct >= 75 %}status-warning{% else %}status-danger{% endif %}">
-                {% widthratio row.present_count row.total 100 %}%
-              </span>
-            </td>
+            <td>{{ row.label }}</td>
+            <td class="num">{{ row.total }}</td>
+            <td class="num">{{ row.present_count }}</td>
+            <td class="num">{{ row.absent_count }}</td>
+            <td class="num">{{ row.late_count }}</td>
+            <td class="num"><span class="status-badge {{ row.badge }}">{{ row.pct }}%</span></td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-    {% else %}
-    {% include "components/empty_state.html" with message="لا بيانات حضور لليوم" %}
-    {% endif %}
-  </div>
+  {% endif %}{% endsection_card %}
 
-  <div class="charts-grid-2">
-
-    {# ══════════════════ أكثر الطلاب غياباً ══════════════════ #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="alert-triangle" %} أكثر الطلاب غياباً (آخر 30 يوم)</div>
-      {% if worst_students %}
-      <div class="table-wrap">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>الطالب</th>
-              <th>أيام الغياب</th>
-              <th>الملف</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for s in worst_students %}
-            <tr>
-              <td>{{ forloop.counter }}</td>
-              <td style="font-weight:600">{{ s.student__full_name }}</td>
-              <td>
-                <span class="status-badge {% if s.absence_count >= 10 %}status-danger{% elif s.absence_count >= 5 %}status-warning{% else %}status-info{% endif %}">
-                  {{ s.absence_count }} يوم
-                </span>
-              </td>
-              <td>
-                <a href="{% url 'student_affairs:student_profile' s.student__id %}" class="btn-secondary btn-xs">
-                  {% include "components/icon.html" with name="search" %} عرض
-                </a>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      {% include "components/empty_state.html" with message="لا بيانات غياب في آخر 30 يوم" %}
-      {% endif %}
-    </div>
-
-    {# ══════════════════ تنبيهات الغياب المتكرر ══════════════════ #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="alert-triangle" %} تنبيهات الغياب المتكرر</div>
-      {% if alerts %}
-      <div class="dash-list">
-        {% for alert in alerts %}
-        <div class="dash-list-item">
-          <div style="flex:1">
-            <a href="{% url 'student_affairs:student_profile' alert.student.id %}"
-               style="font-weight:600;font-size:.8rem;color:var(--maroon);text-decoration:none" class="hover:underline">
-              {{ alert.student.full_name }}
-            </a>
-            <span style="font-size:.65rem;color:var(--muted);margin-right:4px">{{ alert.absence_count }} يوم غياب</span>
-          </div>
-          <span class="status-badge status-warning">
-            {{ alert.get_status_display }}
-          </span>
-        </div>
+  <div class="ui-grid-2">
+    {% section_card "أكثر الطلاب غياباً" meta="آخر 30 يوماً" icon="alert-triangle" empty="لا بيانات غياب في آخر 30 يوماً" %}{% if worst_students %}
+      <ol class="plain-list is-scroll">
+        {% for s in worst_students %}
+          <li class="plain-list__row">
+            <a href="{% url 'student_affairs:student_profile' s.student__id %}" class="plain-list__title sa-link">{{ s.student__full_name }}</a>
+            <span class="status-badge {{ s.badge }}">{{ s.absence_count }} يوم</span>
+          </li>
         {% endfor %}
-      </div>
-      {% else %}
-      {% include "components/empty_state.html" with message="لا تنبيهات معلقة" %}
-      {% endif %}
-    </div>
+      </ol>
+    {% endif %}{% endsection_card %}
 
+    {% section_card "تنبيهات الغياب المتكرر" meta=alerts|length icon="alert-triangle" empty="لا تنبيهات معلقة" %}{% if alerts %}
+      <ul class="plain-list is-scroll">
+        {% for alert in alerts %}
+          <li class="plain-list__row">
+            <span class="plain-list__main">
+              <a href="{% url 'student_affairs:student_profile' alert.student.id %}" class="plain-list__title sa-link">{{ alert.student.full_name }}</a>
+              <span class="plain-list__sub">{{ alert.absence_count }} يوم غياب</span>
+            </span>
+            <span class="status-badge status-warning">{{ alert.get_status_display }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
   </div>
 
 </div>
@@ -207,9 +102,8 @@
   var presentData = {{ chart_present_json|safe }};
   var absentData = {{ chart_absent_json|safe }};
 
-  var isDark = document.documentElement.classList.contains('dark');
-  var gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)';
-  var textColor = isDark ? '#ccc' : '#555';
+  var gridColor = chartColor('border');
+  var textColor = chartColor('text-secondary');
 
   new Chart(ctx, {
     type: 'line',
@@ -219,8 +113,8 @@
         {
           label: 'نسبة الحضور %',
           data: presentData,
-          borderColor: '#16a34a',
-          backgroundColor: 'rgba(22,163,74,0.08)',
+          borderColor: chartColor('status-success'),
+          backgroundColor: chartAlpha('status-success', .08),
           fill: true,
           tension: 0.3,
           borderWidth: 2,
@@ -230,8 +124,8 @@
         {
           label: 'نسبة الغياب %',
           data: absentData,
-          borderColor: '#dc2626',
-          backgroundColor: 'rgba(220,38,38,0.08)',
+          borderColor: chartColor('status-danger'),
+          backgroundColor: chartAlpha('status-danger', .08),
           fill: true,
           tension: 0.3,
           borderWidth: 2,

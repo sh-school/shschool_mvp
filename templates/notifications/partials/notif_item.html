@@ -1,10 +1,11 @@
 {% comment %}
-  عنصر إشعار واحد — SchoolOS v5.1
-  يُستخدم في inbox.html وعند HTMX swap بعد mark_read
+  عنصر إشعار واحد — يُستخدم في inbox.html وعند HTMX swap بعد mark_read.
+  كان تنسيقُه كلُّه في وسمه (خلفيّةٌ وإطارٌ وحشوٌ لكلّ حال)؛ فصار صنفين:
+  `notif-item` و`is-unread` — والألوانُ من الرموز في custom.css.
 {% endcomment %}
 <div
   id="notif-{{ notif.id }}"
-  class="notif-item"
+  class="notif-item{% if not notif.is_read %} is-unread{% endif %}"
   data-filter-item
   data-id="{{ notif.id }}"
   data-url="{{ notif.related_url|default:'' }}"
@@ -12,69 +13,37 @@
   data-body="{{ notif.body|default:'' }}"
   tabindex="0"
   role="article"
-  aria-label="{{ notif.title }}"
-  style="background:{% if notif.is_read %}#fff{% else %}var(--maroon-bg){% endif %};
-         border:1px solid {% if notif.is_read %}var(--border){% else %}var(--maroon-border){% endif %};
-         border-right-width:{% if not notif.is_read %}4px{% else %}1px{% endif %};
-         border-right-color:{% if not notif.is_read %}var(--maroon){% else %}var(--border){% endif %};
-         border-radius:12px;padding:14px 18px;
-         transition:box-shadow .14s, opacity .2s;">
+  aria-label="{{ notif.title }}">
 
-  <div class="flex justify-between items-start gap-2">
-    <div class="flex-1 min-w-0">
-
-      {# Priority badge #}
-      <div class="mb-1">
-        {% if notif.priority == "urgent" %}
-          <span class="status-badge status-danger" class="text-xs">{% include "components/icon.html" with name="alert-critical" %} عاجل</span>
-        {% elif notif.priority == "high" %}
-          <span class="status-badge status-warning" class="text-xs">{% include "components/icon.html" with name="alert-triangle" %} مهم</span>
-        {% elif not notif.is_read %}
-          <span class="status-badge status-maroon" class="text-xs">جديد</span>
-        {% endif %}
-      </div>
-
-      {# Title #}
-      <h3 style="font-size:14.5px;font-weight:{% if notif.is_read %}500{% else %}700{% endif %};
-                 margin:0 0 5px;color:var(--text-primary);line-height:1.4;">
-        {% if notif.related_url %}
-          <a href="{{ notif.related_url }}" style="color:var(--text-primary);text-decoration:none;">{{ notif.title }}</a>
-        {% else %}
-          {{ notif.title }}
-        {% endif %}
-      </h3>
-
-      {# Body #}
-      {% if notif.body %}
-      <p class="text-sm text-secondary m-0 mb-2 leading-normal">
-        {{ notif.body|truncatechars:160 }}
-      </p>
-      {% endif %}
-
-      {# Meta #}
-      <div class="flex gap-3 text-xs text-muted">
-        <span>{{ notif.get_event_type_display }}</span>
-        <span>{{ notif.created_at|timesince }} مضت</span>
-      </div>
-
-    </div>
-
-    {# Mark read button — HTMX #}
-    {% if not notif.is_read %}
-    <button
-      hx-post="{% url 'mark_notification_read' notif.id %}"
-      hx-target="#notif-{{ notif.id }}"
-      hx-swap="outerHTML"
-      hx-include="[name=csrfmiddlewaretoken]"
-      title="تحديد كمقروء (m)"
-      style="background:var(--maroon-bg);border:1px solid var(--maroon-border);
-             color:var(--maroon);border-radius:8px;cursor:pointer;
-             font-size:13px;padding:5px 10px;font-family:inherit;
-             transition:background .12s;flex-shrink:0;min-width:36px;min-height:36px;"
-    >{% include "components/icon.html" with name="check" %}</button>
-    {% else %}
-    <span class="text-muted text-sm flex-shrink-0 px-2 py-1">{% include "components/icon.html" with name="check" %}</span>
+  <div class="notif-item__main">
+    {% if notif.priority == "urgent" %}
+      <span class="status-badge status-danger">{% include "components/icon.html" with name="alert-critical" %} عاجل</span>
+    {% elif notif.priority == "high" %}
+      <span class="status-badge status-warning">{% include "components/icon.html" with name="alert-triangle" %} مهم</span>
+    {% elif not notif.is_read %}
+      <span class="status-badge status-maroon">جديد</span>
     {% endif %}
 
+    <h3 class="notif-item__title">
+      {% if notif.related_url %}<a href="{{ notif.related_url }}">{{ notif.title }}</a>{% else %}{{ notif.title }}{% endif %}
+    </h3>
+
+    {% if notif.body %}<p class="notif-item__body">{{ notif.body|truncatechars:160 }}</p>{% endif %}
+
+    <p class="notif-item__meta"><span>{{ notif.get_event_type_display }}</span><span>{{ notif.created_at|timesince }} مضت</span></p>
   </div>
+
+  {% if not notif.is_read %}
+  <button
+    hx-post="{% url 'mark_notification_read' notif.id %}"
+    hx-target="#notif-{{ notif.id }}"
+    hx-swap="outerHTML"
+    hx-include="[name=csrfmiddlewaretoken]"
+    title="تحديد كمقروء (m)"
+    aria-label="تحديد «{{ notif.title }}» كمقروء"
+    class="notif-item__read"
+  >{% include "components/icon.html" with name="check" %}</button>
+  {% else %}
+  <span class="notif-item__done" aria-label="مقروء">{% include "components/icon.html" with name="check" %}</span>
+  {% endif %}
 </div>

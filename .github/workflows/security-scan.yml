@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # طابورُ الدمج: الفحصُ الإلزاميُّ يُشغَّل على «main + الطلب» قبل الدمج، فلا يُطلب
+  # تحديثُ الفرع يدويّاً كلّما دمجت محادثةٌ أخرى (قرارُ 2026-09-13).
+  merge_group:
   schedule:
     - cron: "0 4 * * 0"  # every Sunday 4:00 UTC
   workflow_dispatch:

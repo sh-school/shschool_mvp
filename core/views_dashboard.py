@@ -10,9 +10,9 @@ from assessments.models import AnnualSubjectResult, SubjectClassSetup
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for_school
-from core.models.academic import grade_order
-from core.models.access import ALL_STAFF_ROLES
-from core.permissions import role_required
+from core.capabilities import capability_required
+from core.dashboard_presentation import present
+from core.models.academic import Wing, grade_order
 from library.models import BookBorrowing
 from operations.models import (
     AbsenceAlert,
@@ -48,11 +48,7 @@ def _get_student_ctx(user, school, today):
     att_pct = round(present / total * 100) if total else 100
 
     # حصص اليوم عبر فصل الطالب
-    enrollment = (
-        StudentEnrollment.objects.filter(student=user, is_active=True)
-        .select_related("class_group")
-        .first()
-    )
+    enrollment = StudentEnrollment.objects.current_of(user)
     student_sessions = []
     if enrollment and enrollment.class_group:
         student_sessions = (
@@ -409,13 +405,37 @@ def _get_admin_ops_ctx(user, school, today, role):
         .order_by("-created_at")[:5]
     )
 
-    return {
+    ctx = {
         "view_type": "admin_ops",
         "admin_role": role,
         "absent_teachers_today": absent_teachers,
         "pending_swaps": pending_swaps,
         "pending_comp": pending_comp,
         "recent_alerts": recent_alerts,
+    }
+    if role == "admin_supervisor":
+        ctx.update(_supervisor_record_ctx(user, school, today))
+    return ctx
+
+
+def _supervisor_record_ctx(user, school, today):
+    """رصدُ الغياب في رأس لوحة مشرف الجناح — فهو عملُه الأوّل كلَّ صباح.
+
+    كان الرابطُ في القائمة وحدَها، ولوحتُه التي يفتحها أوّلَ الدخول لا تذكر
+    الرصدَ أصلاً: عملُه اليوميُّ الرئيسيُّ غائبٌ عن صفحته الرئيسيّة.
+    """
+    from operations.bells import day_type_for
+    from operations.services import ScheduleService
+    from wings.services import record_panels
+
+    year = academic_year_for_school(school)
+    if day_type_for(today):
+        # الحصصُ تُولَّد إن لم تكن — وإلّا بدت الشُّعبُ «بلا حصص» صباحاً.
+        ScheduleService.ensure_sessions_for_date(school, today)
+    return {
+        "record_panels": record_panels(user, school, year, today),
+        "day": today,
+        "is_school_day": bool(day_type_for(today)),
     }
 
 
@@ -424,12 +444,18 @@ def _get_transport_ctx(user, school, today):
     سياق مسؤول النقل + مشرف الحافلة.
     يُركّز على: الحافلات النشطة + المسارات.
     """
-    active_buses = SchoolBus.objects.filter(school=school, is_active=True).count()
-    total_routes = BusRoute.objects.filter(school=school).count()
+    # `SchoolBus` لا حقلَ فيه اسمُه `is_active` — حقولُه رقمُ الحافلة والسائقُ
+    # والمشرفُ والسعةُ ورقمُ كروة والرابط. وكان الاستعلامُ يطلبه، فتسقط لوحةُ
+    # **كلّ** من دورُه نقلٌ بخطأ خادمٍ لا بصفحةٍ ناقصة. ولا يُخترع الحقلُ لإرضاء
+    # الاستعلام: الحافلةُ إمّا مسجَّلةٌ في المدرسة أو ليست فيها، ولا حالةَ ثالثة.
+    buses = SchoolBus.objects.filter(school=school).count()
+    # والمسارُ لا يحمل مدرستَه — يحملها بحافلته. وكان هذا السطرُ يسقط هو أيضاً،
+    # لكنّ الاستعلامَ قبله كان يسقط أوّلاً فيحجبه: عطبان متتاليان يُرى أوّلُهما وحدَه.
+    total_routes = BusRoute.objects.filter(bus__school=school).count()
 
     return {
         "view_type": "transport_mgmt",
-        "active_buses": active_buses,
+        "buses_count": buses,
         "total_routes": total_routes,
     }
 
@@ -515,7 +541,7 @@ _TRANSPORT_ROLES = {"transport_officer", "bus_supervisor"}
 
 
 @login_required
-@role_required(ALL_STAFF_ROLES | {"student", "parent"})
+@capability_required("dashboard.open")
 def dashboard(request):
     """لوحة التحكم الرئيسية — موزّع يعيد التوجيه أو يبني السياق حسب الدور."""
     user = request.user
@@ -550,7 +576,13 @@ def dashboard(request):
         ctx.update(_get_transport_ctx(user, school, today))
     elif role in _SERVICE_ROLES:
         ctx.update(_get_service_ctx(user, school, today, role))
+    elif Wing.is_held_by(user, today):
+        # بديلُ الجناح من ملاحظي الطلبة وعمّال الخدمات (قرارُ المدير): لا لوحةَ لدوره،
+        # ولوحتُه يومَ تكليفه رصدُ جناحه — لا «لم تُفعَّل صلاحيّاتُك».
+        ctx["view_type"] = "wing_holder"
+        ctx.update(_supervisor_record_ctx(user, school, today))
     else:
         ctx["view_type"] = "other"
 
+    ctx.update(present(ctx))
     return render(request, "dashboard/main.html", ctx)

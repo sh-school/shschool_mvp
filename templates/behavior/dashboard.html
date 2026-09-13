@@ -1,6 +1,5 @@
 {% extends "base/base.html" %}
-{% load static %}
-{% load i18n %}
+{% load static ui %}
 {% block title %}لوحة السلوك{% endblock %}
 
 {% block breadcrumbs %}
@@ -10,98 +9,63 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <h1>{% include "components/icon.html" with name="scale" %} لوحة السلوك</h1>
-    <span class="exec-date">{{ today|default:"" }}</span>
-  </div>
+  {% page_header "لوحة السلوك" subtitle=today_label icon="scale" %}
+    {% if can_report %}<a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} تسجيل مخالفة</a>{% endif %}
+    {% if is_committee %}<a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="scale" %} لجنة الضبط</a>{% endif %}
+    {% if can_stats %}<a href="{% url 'behavior:statistics' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} الإحصائيات</a>{% endif %}
+    {% if can_summon %}<a href="{% url 'behavior:summon_parent' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>{% endif %}
+    <a href="{% url 'behavior:policy_pdf' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="file-text" %} لائحة السلوك (PDF)</a>
+  {% endpage_header %}
 
-  {# ── KPI Strip — نظام النقاط ملغى ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">مخالفات جسيمة معلّقة</div>
-      <div class="kpi-mini-value">{{ critical_unresolved|length }}</div>
-      {% if critical_unresolved %}
-      <div class="kpi-mini-alert">تحتاج قرار لجنة</div>
-      {% endif %}
-    </div>
-  </div>
-
-  {# ── Alert Strip ── #}
-  {% if critical_unresolved %}
-  <div class="alert-strip">
-    {% include "components/icon.html" with name="alert-critical" %}
-    يوجد {{ critical_unresolved|length }} مخالفة جسيمة (درجة 3-4) بدون قرار لجنة —
-    <a href="{% url 'behavior:committee' %}" style="color:inherit;text-decoration:underline">عرض اللجنة</a>
-  </div>
-  {% endif %}
-
-  {# ── Charts Grid ── #}
-  <div class="charts-grid-2">
-
-    {# Chart 1: Monthly Trend Line #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">الاتجاه الشهري — آخر 6 أشهر</div>
-      <div class="dash-chart-wrap">
-        <canvas id="chartBehaviorTrend"></canvas>
-      </div>
-    </div>
-
-    {# Chart 2: Level Distribution Doughnut #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">توزيع المخالفات حسب الدرجة</div>
-      <div class="dash-chart-wrap">
-        <canvas id="chartLevelDist"></canvas>
-      </div>
-    </div>
-
-  </div>
-
-  {# ── Top Violations List ── #}
-  {% if top_violations %}
-  <div class="dash-chart-card">
-    <div class="dash-chart-title">أكثر المخالفات شيوعاً هذا العام</div>
-    <div class="dash-list">
-      {% for v in top_violations %}
-      <div class="dash-list-item">
-        <span>{{ v.violation_category__name_ar }}</span>
-        <span class="font-semibold" style="color:var(--maroon)">{{ v.count }}</span>
-      </div>
-      {% endfor %}
-    </div>
-  </div>
-  {% endif %}
-
-  {# ── Quick Links ── #}
-  <div class="quick-links">
-    {% if can_report %}
-    <a href="{% url 'behavior:report_infraction' %}" class="ql-item">{% include "components/icon.html" with name="plus" %} تسجيل مخالفة</a>
-    {% endif %}
+  {# نظامُ النقاط ملغى — الأرقامُ عددُ مخالفات. #}
+  {% kpi_strip label="أرقام السلوك" %}
+    {% kpi "مخالفات العام الدراسي" year_total tone="maroon" %}
+    {% kpi "آخر 7 أيّام" week_total tone="blue" %}
     {% if is_committee %}
-    <a href="{% url 'behavior:committee' %}" class="ql-item">{% include "components/icon.html" with name="scale" %} لجنة الضبط</a>
+      {% url 'behavior:committee' as committee_url %}
+      {% kpi "جسيمة بلا قرار لجنة" critical_count sub="الدرجة 3–4" tone=critical_tone href=committee_url %}
+    {% else %}
+      {% kpi "جسيمة بلا قرار لجنة" critical_count sub="الدرجة 3–4" tone=critical_tone %}
     {% endif %}
-    {% if can_stats %}
-    <a href="{% url 'behavior:statistics' %}" class="ql-item">{% include "components/icon.html" with name="bar-chart" %} الإحصائيات</a>
-    {% endif %}
-    {% if can_summon %}
-    <a href="{% url 'behavior:summon_parent' %}" class="ql-item">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>
-    {% endif %}
+  {% endkpi_strip %}
+
+  <div class="ui-grid-2">
+    {% section_card "الاتجاه الشهري" meta="آخر 6 أشهر" icon="activity" empty="لا مخالفاتٍ في آخر 6 أشهر" %}{% if monthly_trend %}
+      <div class="dash-chart-wrap">
+        <canvas id="chartBehaviorTrend" role="img" aria-label="رسم بياني: المخالفات شهرياً آخر 6 أشهر"></canvas>
+      </div>
+    {% endif %}{% endsection_card %}
+
+    {% section_card "توزيع المخالفات حسب الدرجة" meta="العام الدراسي" icon="bar-chart" empty="لا مخالفاتٍ هذا العام" %}{% if level_dist %}
+      <div class="dash-chart-wrap">
+        <canvas id="chartLevelDist" role="img" aria-label="رسم بياني: توزيع المخالفات حسب الدرجة"></canvas>
+      </div>
+    {% endif %}{% endsection_card %}
   </div>
 
-  {# ── Collapsible: Critical Cases ── #}
-  {% if critical_unresolved %}
-  <details class="exec-details">
-    <summary class="exec-details-summary">تفاصيل المخالفات الجسيمة المعلّقة ({{ critical_unresolved|length }})</summary>
-    <div class="dash-list" style="margin-top:.5rem">
-      {% for inf in critical_unresolved %}
-      <div class="dash-list-item">
-        <span>{{ inf.student.full_name }} — {{ inf.description|truncatechars:50 }}</span>
-        <span style="color:var(--status-danger);font-weight:600">درجة {{ inf.level }}</span>
-      </div>
-      {% endfor %}
-    </div>
-  </details>
-  {% endif %}
+  <div class="ui-grid-2">
+    {% section_card "أكثر المخالفات شيوعاً" meta="العام الدراسي" icon="list-checks" empty="لا مخالفاتٍ هذا العام" %}{% if top_violations %}
+      <ul class="plain-list">
+        {% for v in top_violations %}
+          <li class="plain-list__row">
+            <span class="plain-list__title">{{ v.violation_category__name_ar|default:"بلا تصنيف" }}</span>
+            <span class="status-badge status-maroon">{{ v.count }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
+
+    {% section_card "المخالفات الجسيمة المعلّقة" icon="alert-triangle" empty="لا مخالفاتٍ جسيمةً بلا قرار" empty_sub="تظهر هنا مخالفاتُ الدرجة 3 و4 حتى تبتّ فيها اللجنة" %}{% if critical_unresolved %}
+      <ul class="plain-list is-scroll">
+        {% for inf in critical_unresolved %}
+          <li class="plain-list__row">
+            <span class="plain-list__main"><b class="plain-list__title">{{ inf.student.full_name }}</b><span class="plain-list__sub" title="{{ inf.description }}">{{ inf.description|truncatechars:80 }}</span></span>
+            <span class="status-badge status-danger">درجة {{ inf.level }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
+  </div>
 
 </div>
 {% endblock %}
@@ -126,8 +90,8 @@ document.addEventListener('DOMContentLoaded', function(){
         datasets:[{
           label:'المخالفات',
           data: monthData,
-          borderColor:'var(--chart-1,#8A1538)',
-          backgroundColor:'rgba(138,21,56,0.1)',
+          borderColor:chartColor('chart-1'),
+          backgroundColor:chartAlpha('chart-1', .1),
           fill:true,
           tension:0.3
         }]
@@ -144,7 +108,7 @@ document.addEventListener('DOMContentLoaded', function(){
   // ── Level Distribution ──
   var levelLabels = [{% for l in level_dist %}'الدرجة {{ l.level }}'{% if not forloop.last %},{% endif %}{% endfor %}];
   var levelData   = [{% for l in level_dist %}{{ l.count }}{% if not forloop.last %},{% endif %}{% endfor %}];
-  var levelColors = ['#D4A843','#d97706','#dc2626','#8A1538']; /* chart-4, warning, danger, chart-1 */
+  var levelColors = [chartColor('chart-4'), chartColor('status-warning'), chartColor('status-danger'), chartColor('chart-1')];
 
   var el2 = document.getElementById('chartLevelDist');
   if(el2 && levelLabels.length){

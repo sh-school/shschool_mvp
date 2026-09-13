@@ -19,6 +19,8 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.utils import timezone
 
+from core import brand
+
 logger = logging.getLogger(__name__)
 
 # ── Cache للـ backend الناجح — نتجنّب إعادة المحاولة في كل طلب ────────────
@@ -211,10 +213,10 @@ table {{ direction: rtl !important; border-collapse: collapse; }}
     font-family:  'Tajawal', 'Amiri', Arial, sans-serif;
     font-size:    9.5px;
     font-weight:  700;
-    color:        #8A1538;
+    color:        {brand.MAROON};
     text-align:   center !important;
     padding:      3px 0 5px;
-    border-bottom: 1.5px solid #8A1538;
+    border-bottom: 1.5px solid {brand.MAROON};
     width:        100%;
 }}
 .wp-page-footer {{
@@ -552,7 +554,7 @@ def _playwright_header_template(school: str, title: str) -> str:
     display:     flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1.5px solid #8A1538;
+    border-bottom: 1.5px solid {brand.MAROON};
     background:  white;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
@@ -560,12 +562,12 @@ def _playwright_header_template(school: str, title: str) -> str:
 .ph-school {{
     font-size:   9px;
     font-weight: bold;
-    color:       #8A1538;
+    color:       {brand.MAROON};
     white-space: nowrap;
 }}
 .ph-brand {{
     font-size: 8.5px;
-    color:     #8A1538;
+    color:     {brand.MAROON};
     font-weight: bold;
 }}
 .ph-ministry {{
@@ -845,12 +847,14 @@ def _content_disposition(filename: str, as_attachment: bool) -> str:
     """
     disposition = "attachment" if as_attachment else "inline"
 
-    # الامتداد يُفصل أوّلاً، فتنظيفُ الاسم لا يبتلع النقطة ويُنتج «pdf.pdf».
-    stem = re.sub(r"\.pdf$", "", filename, flags=re.I)
+    # الامتداد يُفصل أوّلاً، فتنظيفُ الاسم لا يبتلع النقطة ويُنتج «pdf.pdf». وهو
+    # امتدادُ الملفّ أيّاً كان — فملفّاتُ Excel تمرّ من هنا أيضاً.
+    match = re.match(r"^(.*?)(\.[A-Za-z0-9]{1,5})?$", filename)
+    stem, ext = match.group(1), (match.group(2) or ".pdf").lower()
     ascii_stem = unicodedata.normalize("NFKD", stem).encode("ascii", "ignore").decode()
     ascii_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", ascii_stem).strip("._-")
     # اسمٌ عربيّ بالكامل لا يُبقي حرفاً لاتينياً — فالبديل اسمٌ عامّ لا امتدادٌ عارٍ.
-    ascii_name = f"{ascii_stem or 'document'}.pdf"
+    ascii_name = f"{ascii_stem or 'document'}{ext}"
 
     encoded = quote(filename, safe="")
     return f"{disposition}; filename=\"{ascii_name}\"; filename*=UTF-8''{encoded}"

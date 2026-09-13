@@ -371,11 +371,7 @@ class ParentStudentLinkSerializer(serializers.ModelSerializer):
         ]
 
     def get_class_name(self, obj):
-        enr = (
-            StudentEnrollment.objects.filter(student=obj.student, is_active=True)
-            .select_related("class_group")
-            .first()
-        )
+        enr = StudentEnrollment.objects.current_of(obj.student)
         return str(enr.class_group) if enr else None
 
 

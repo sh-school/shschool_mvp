@@ -16,7 +16,9 @@ from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_cookie
 
 from assessments.models import StudentSubjectResult
+from core import brand
 from core.academic_calendar import academic_year_for
+from core.capabilities import capability_required
 from core.models import (
     BehaviorInfraction,
     BookBorrowing,
@@ -29,7 +31,6 @@ from core.models import (
 )
 from core.models.academic import grade_order
 from core.pdf_utils import render_pdf
-from core.permissions import leadership_required
 from operations.models import Session, StudentAttendance
 from quality.models import OperationalDomain, OperationalProcedure
 
@@ -38,7 +39,7 @@ from .services import KPIService
 
 # ── لوحة القيادة الرئيسية ────────────────────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def analytics_dashboard(request):
@@ -127,13 +128,43 @@ def analytics_dashboard(request):
             "year": year,
             "school": school,
             "today": today,
+            **_dashboard_presentation(kpis, school),
         },
     )
 
 
+def _dashboard_presentation(kpis: dict, school) -> dict:
+    """نصوصُ بطاقات لوحة المدير وألوانُها — ما كان يُركَّب ويُشرَط في القالب.
+
+    كانت بطاقاتُ الخدمات تُلحق بالرقم سطرَ تنبيهٍ («3 مزمنة»، «2 جسيمة»،
+    «5 متأخرة») ثمّ يكرّره شريطُ تنبيهٍ تحتها. فصار اللونُ التنبيه: أحمرُ حين
+    يوجد ما يُنبَّه إليه (العتبةُ التي كانت في القالب: أكبرُ من صفر)، والتفصيلُ
+    سطرٌ واحد.
+    """
+    chronic, critical, overdue = (
+        kpis["chronic_cases"],
+        kpis["critical_issues"],
+        kpis["overdue_books"],
+    )
+    return {
+        "subtitle": f"نظرة شاملة على أداء {getattr(school, 'name', '') or 'المدرسة'}",
+        "att_label": f"{kpis['att_pct_today']}%",
+        "present_label": f"{kpis['present_today']} حاضر",
+        "plan_label": f"{kpis['plan_pct']}%",
+        "procs_label": f"{kpis['completed_procs']}/{kpis['total_procs']}",
+        "clinic_sub": f"{chronic} حالة مزمنة",
+        "clinic_tone": "red" if chronic > 0 else "teal",
+        "behavior_sub": f"{critical} جسيمة" if critical > 0 else "لا جسيمة",
+        "behavior_tone": "red" if critical > 0 else "orange",
+        "buses_sub": f"{kpis['total_buses']} حافلة",
+        "library_sub": f"{overdue} متأخرة" if overdue > 0 else "إعارة نشطة",
+        "library_tone": "red" if overdue > 0 else "purple",
+    }
+
+
 # ── API 1: منحنى الحضور (آخر 30 يوم) ────────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_attendance_trend(request):
@@ -169,16 +200,16 @@ def api_attendance_trend(request):
                 {
                     "label": "نسبة الحضور %",
                     "data": present_data,
-                    "borderColor": "#16a34a",
-                    "backgroundColor": "rgba(22,163,74,0.1)",
+                    "borderColor": brand.STATUS_SUCCESS,
+                    "backgroundColor": brand.rgba(brand.STATUS_SUCCESS, 0.1),
                     "fill": True,
                     "tension": 0.3,
                 },
                 {
                     "label": "نسبة الغياب %",
                     "data": absent_data,
-                    "borderColor": "#dc2626",
-                    "backgroundColor": "rgba(220,38,38,0.1)",
+                    "borderColor": brand.STATUS_DANGER,
+                    "backgroundColor": brand.rgba(brand.STATUS_DANGER, 0.1),
                     "fill": True,
                     "tension": 0.3,
                 },
@@ -189,7 +220,7 @@ def api_attendance_trend(request):
 
 # ── API 2: توزيع الدرجات ────────────────────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_grades_distribution(request):
@@ -218,7 +249,14 @@ def api_grades_distribution(request):
         else:
             buckets["أقل من 50"] += 1
 
-    colors = ["#16a34a", "#2563eb", "#d97706", "#ea580c", "#7c3aed", "#dc2626"]
+    colors = [
+        brand.STATUS_SUCCESS,
+        brand.STATUS_INFO,
+        brand.STATUS_WARNING,
+        brand.ACCENT_ORANGE,
+        brand.ACCENT_PURPLE,
+        brand.STATUS_DANGER,
+    ]
 
     return JsonResponse(
         {
@@ -237,7 +275,7 @@ def api_grades_distribution(request):
 
 # ── API 3: مقارنة الفصول الدراسية ───────────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_class_comparison(request):
@@ -264,8 +302,8 @@ def api_class_comparison(request):
                 {
                     "label": "متوسط الدرجات",
                     "data": data,
-                    "backgroundColor": "rgba(138,21,56,0.7)",
-                    "borderColor": "#8A1538",
+                    "backgroundColor": brand.rgba(brand.MAROON, 0.7),
+                    "borderColor": brand.MAROON,
                     "borderWidth": 1,
                 }
             ],
@@ -275,7 +313,7 @@ def api_class_comparison(request):
 
 # ── API 4: مقارنة المواد الدراسية ───────────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_subject_comparison(request):
@@ -304,16 +342,16 @@ def api_subject_comparison(request):
                 {
                     "label": "متوسط الدرجة",
                     "data": avg_data,
-                    "backgroundColor": "rgba(37,99,235,0.7)",
-                    "borderColor": "#2563eb",
+                    "backgroundColor": brand.rgba(brand.STATUS_INFO, 0.7),
+                    "borderColor": brand.STATUS_INFO,
                     "borderWidth": 1,
                     "yAxisID": "y",
                 },
                 {
                     "label": "نسبة الرسوب %",
                     "data": fail_rates,
-                    "backgroundColor": "rgba(220,38,38,0.7)",
-                    "borderColor": "#dc2626",
+                    "backgroundColor": brand.rgba(brand.STATUS_DANGER, 0.7),
+                    "borderColor": brand.STATUS_DANGER,
                     "borderWidth": 1,
                     "yAxisID": "y1",
                     "type": "line",
@@ -325,7 +363,7 @@ def api_subject_comparison(request):
 
 # ── API 5: تقدم الخطة التشغيلية (حسب المجال) ───────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_plan_progress(request):
@@ -352,12 +390,12 @@ def api_plan_progress(request):
                 {
                     "label": "مكتمل",
                     "data": complete,
-                    "backgroundColor": "#16a34a",
+                    "backgroundColor": brand.STATUS_SUCCESS,
                 },
                 {
                     "label": "قيد التنفيذ",
                     "data": pending,
-                    "backgroundColor": "#d97706",
+                    "backgroundColor": brand.STATUS_WARNING,
                 },
             ],
         }
@@ -366,7 +404,7 @@ def api_plan_progress(request):
 
 # ── API 6: مخالفات السلوك (آخر 6 أشهر) ─────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_behavior_trend(request):
@@ -412,10 +450,10 @@ def api_behavior_trend(request):
         data_by_level[row["level"]][key] = row["count"]
 
     level_colors = {
-        1: ("#16a34a", "بسيطة"),
-        2: ("#d97706", "متوسطة"),
-        3: ("#ea580c", "جسيمة"),
-        4: ("#dc2626", "شديدة الخطورة"),
+        1: (brand.STATUS_SUCCESS, "بسيطة"),
+        2: (brand.STATUS_WARNING, "متوسطة"),
+        3: (brand.ACCENT_ORANGE, "جسيمة"),
+        4: (brand.STATUS_DANGER, "شديدة الخطورة"),
     }
 
     datasets = []
@@ -433,7 +471,7 @@ def api_behavior_trend(request):
 
 # ── API 7: الطلاب الراسبون (حسب الفصل) ─────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_failing_by_class(request):
@@ -459,7 +497,7 @@ def api_failing_by_class(request):
                 {
                     "label": "طلاب راسبون",
                     "data": [r["fail_count"] for r in qs],
-                    "backgroundColor": "#dc2626",
+                    "backgroundColor": brand.STATUS_DANGER,
                 }
             ],
         }
@@ -468,7 +506,7 @@ def api_failing_by_class(request):
 
 # ── API 8: إحصائيات العيادة (آخر 30 يوم) ────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_clinic_stats(request):
@@ -493,14 +531,14 @@ def api_clinic_stats(request):
                 {
                     "label": "إجمالي الزيارات",
                     "data": visits,
-                    "borderColor": "#dc2626",
+                    "borderColor": brand.STATUS_DANGER,
                     "fill": False,
                     "tension": 0.3,
                 },
                 {
                     "label": "أُرسل للمنزل",
                     "data": sent_home,
-                    "borderColor": "#d97706",
+                    "borderColor": brand.STATUS_WARNING,
                     "fill": False,
                     "tension": 0.3,
                 },
@@ -516,16 +554,24 @@ def api_clinic_stats(request):
 
 
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 def kpi_dashboard(request):
     """لوحة KPIs العشرة — للمدير فقط"""
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
-    return render(request, "analytics/kpi_dashboard.html", {"school": school, "year": year})
+    return render(
+        request,
+        "analytics/kpi_dashboard.html",
+        {
+            "school": school,
+            "year": year,
+            "subtitle": f"{getattr(school, 'name', '') or 'المدرسة'} — {year}",
+        },
+    )
 
 
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_kpis_all(request):
@@ -550,7 +596,7 @@ def api_kpis_all(request):
 
 
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 def kpi_monthly_pdf(request):
     """PDF: تقرير KPIs الشهري"""
     school = request.user.get_school()

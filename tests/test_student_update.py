@@ -29,7 +29,10 @@ def _class(school, grade, section):
 def enrolled_student(db, school):
     cg = _class(school, "G7", "أ")
     student = CustomUser.objects.create_user(
-        national_id="29955500011", full_name="طالب الاختبار", password="x"
+        must_change_password=False,
+        national_id="29955500011",
+        full_name="طالب الاختبار",
+        password="x",
     )
     role, _ = Role.objects.get_or_create(school=school, name="student")
     Membership.objects.create(user=student, school=school, role=role, is_active=True)

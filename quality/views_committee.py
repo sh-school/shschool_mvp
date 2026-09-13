@@ -13,13 +13,19 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, default_academic_year
+from core.capabilities import capability_required
 from core.models import CustomUser, Membership
-from core.permissions import QUALITY_MANAGE, role_required
 
 from .models import (
     OperationalDomain,
     OperationalProcedure,
     QualityCommitteeMember,
+)
+from .presentation import (
+    bar_tone,
+    kpi_progress_tone,
+    procedure_status_tone,
+    responsibility_tone,
 )
 from .services import QualityService
 
@@ -50,7 +56,7 @@ def _committee_redirect(request, committee_type, year):
 
 
 @login_required
-@role_required(QUALITY_MANAGE)
+@capability_required("quality.manage")
 def quality_committee(request):
     school = request.user.get_school()
     year = request.GET.get("year") or _default_year(request)
@@ -118,6 +124,7 @@ def quality_committee(request):
         member_review_stats.append(
             {
                 "member": member,
+                "responsibility_tone": responsibility_tone(member.responsibility),
                 "reviewed_count": (
                     reviewed_domain_map.get(member.domain_id, 0)
                     if member.domain_id
@@ -131,6 +138,22 @@ def quality_committee(request):
             }
         )
 
+    # تغطيةُ المجالات: كان المسؤولُ ولونُ النسبة يُحسبان في القالب (عتبةُ 80/50).
+    domains = list(
+        OperationalDomain.objects.filter(school=school, academic_year=year).order_by("order")
+    )
+    for domain in domains:
+        responsible = domain.committee_members.first()
+        domain.responsible_name = (
+            (getattr(responsible.user, "full_name", "") or responsible.job_title)
+            if responsible
+            else ""
+        )
+        domain.responsible_tone = "neutral" if domain.responsible_name else "danger"
+        pct = domain.completion_pct
+        domain.pct_label = f"{pct}%"
+        domain.coverage_tone = bar_tone(pct, green_at=80, amber_at=50)
+
     return render(
         request,
         "quality/committee.html",
@@ -141,16 +164,14 @@ def quality_committee(request):
             "committee_type": QualityCommitteeMember.REVIEW,
             "committee_label": "لجنة المراجعة الذاتية",
             "staff": CustomUser.objects.filter(id__in=staff_ids).order_by("full_name"),
-            "domains": OperationalDomain.objects.filter(school=school, academic_year=year).order_by(
-                "order"
-            ),
+            "domains": domains,
             "RESP_CHOICES": QualityCommitteeMember.RESPONSIBILITY,
         },
     )
 
 
 @login_required
-@role_required(QUALITY_MANAGE)
+@capability_required("quality.manage")
 @require_POST
 def add_committee_member(request):
     if not request.user.is_admin():
@@ -194,7 +215,7 @@ def add_committee_member(request):
 
 
 @login_required
-@role_required(QUALITY_MANAGE)
+@capability_required("quality.manage")
 @require_POST
 def remove_committee_member(request, member_id):
     if not request.user.is_admin():
@@ -210,7 +231,7 @@ def remove_committee_member(request, member_id):
 
 
 @login_required
-@role_required(QUALITY_MANAGE)
+@capability_required("quality.manage")
 def executor_committee(request):
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
@@ -222,6 +243,11 @@ def executor_committee(request):
     staff_ids = Membership.objects.filter(school=school, is_active=True).values_list(
         "user_id", flat=True
     )
+    for stat in data["member_stats"]:
+        stat["responsibility_tone"] = responsibility_tone(stat["member"].responsibility)
+        # العتبةُ كما كانت في القالب: 70 فأكثر أخضر، و40 فأكثر كهرمانيّ.
+        stat["bar_tone"] = bar_tone(stat["pct"])
+    overall = data["overall"]
 
     return render(
         request,
@@ -230,9 +256,15 @@ def executor_committee(request):
             "member_stats": data["member_stats"],
             "unmapped_norms": data["unmapped_norms"],
             "year": year,
-            "total_all": data["overall"]["total"],
-            "completed_all": data["overall"]["completed"],
-            "pct_all": data["overall"]["pct"],
+            "total_all": overall["total"],
+            "completed_all": overall["completed"],
+            "pct_all": overall["pct"],
+            # كان «قيد التنفيذ» = الإجماليّ − المكتمل، فيعدّ ما لم يبدأ والملغى
+            # وما ينتظر المراجعة. والعددُ الحقيقيُّ محسوبٌ في الخدمة أصلاً.
+            "in_progress_all": overall["in_progress"],
+            "pending_review_all": overall["pending_review"],
+            "pct_label": f"{overall['pct']}%",
+            "pct_tone": kpi_progress_tone(overall["pct"], overall["total"]),
             "committee_type": QualityCommitteeMember.EXECUTOR,
             "committee_label": "لجنة منفذي الخطة التشغيلية",
             "all_users": CustomUser.objects.filter(id__in=staff_ids).order_by("full_name"),
@@ -244,7 +276,7 @@ def executor_committee(request):
 
 
 @login_required
-@role_required(QUALITY_MANAGE)
+@capability_required("quality.manage")
 def executor_member_detail(request, member_id):
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
@@ -271,12 +303,21 @@ def executor_member_detail(request, member_id):
 
     stats = QualityService._calc_stats(qs)
 
+    procedures = list(qs)
+    for proc in procedures:
+        proc.status_tone = procedure_status_tone(proc.status)
+    subtitle = " · ".join(p for p in (member.job_title, member.responsibility) if p)
+
     return render(
         request,
         "quality/executor_member_detail.html",
         {
             "member": member,
-            "procedures": qs,
+            "member_subtitle": subtitle,
+            "pct_label": f"{stats['pct']}%",
+            # كانت العتبةُ في شريط التقدّم 70/40 — صارت عتبةَ الوحدة الواحدة.
+            "pct_tone": kpi_progress_tone(stats["pct"], stats["total"]),
+            "procedures": procedures,
             "year": year,
             "status_filter": status_filter,
             "domain_filter": domain_filter,

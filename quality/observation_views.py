@@ -15,6 +15,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
+from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
 from core.pdf_utils import render_pdf
 from core.permissions import (
@@ -23,7 +24,6 @@ from core.permissions import (
     OBSERVATION_SELF_CREATE,
     OBSERVATION_SEND,
     OBSERVATION_VIEW_ALL,
-    role_required,
 )
 from core.sorting import apply_sort
 
@@ -37,6 +37,7 @@ from .observation_models import (
     ClassroomObservation,
 )
 from .observation_services import ObservationService
+from .presentation import decorate_observation
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +183,32 @@ def _form_context(school, *, obs=None, scores_map=None, is_self=False, is_peer=F
             "is_peer": is_peer or bool(obs and obs.kind == "peer"),
         }
     )
+    ctx.update(_form_labels(ctx["mode"], ctx["is_self"], ctx["is_peer"], obs))
     return ctx
+
+
+def _form_labels(mode, is_self, is_peer, obs):
+    """نصوصُ الاستمارة بحسب نوعها ووضعها — كانت ثلاثَ سلاسلَ `{% if %}` في القالب."""
+    edit = mode == "edit"
+    if is_peer:
+        title = "تعديل زيارة الزميل" if edit else "زيارة زميل"
+        submit = "إرسال إلى الزميل وإشعاره"
+        sent_note = "زيارة الزميل مُرسَلة — سيراها."
+    elif is_self:
+        title = "تعديل التقييم الذاتي" if edit else "التقييم الذاتي لأدائي"
+        submit = "اعتماد التقييم الذاتي"
+        sent_note = "تقييم ذاتي معتمد."
+    else:
+        title = "تعديل زيارة صفّية" if edit else "استمارة الإشراف على أداء المعلّم"
+        submit = "إرسال للمعلّم وإشعاره"
+        sent_note = "الملاحظة مُرسَلة — سيرى المعلّم أحدث نسخة."
+    return {
+        "form_title": title,
+        "submit_label": submit,
+        "sent_note": sent_note,
+        # بعد الإرسال لا مسودةَ ولا إرسال — حفظُ التعديلات وحده.
+        "is_sent_edit": edit and obs is not None and obs.status != "draft",
+    }
 
 
 def _get_observation(request, obs_id):
@@ -263,7 +289,7 @@ def _groups_with_scores(obs):
 
 # ══════════════════════════ إنشاء / تعديل ════════════════════════════
 @login_required
-@role_required(OBSERVATION_CREATE)
+@capability_required("observation.create")
 def observation_create(request):
     school = request.user.get_school()
     if request.method == "POST":
@@ -302,7 +328,7 @@ def observation_create(request):
 
 
 @login_required
-@role_required(OBSERVATION_SELF_CREATE)
+@capability_required("observation.self")
 def observation_self_create(request):
     """تقييم ذاتي — المعلّم يقيّم نفسه (هو المعلّم والمُقيِّم معاً)."""
     school = request.user.get_school()
@@ -335,7 +361,7 @@ def observation_self_create(request):
 
 
 @login_required
-@role_required(OBSERVATION_PEER_CREATE)
+@capability_required("observation.peer")
 def observation_peer_create(request):
     """تبادل الزيارات — معلّمٌ يزور زميله.
 
@@ -477,6 +503,8 @@ def observation_list(request):
 
     page = Paginator(qs, 25).get_page(g.get("page"))
     rows = [(o, _obs_perms(request.user, o)) for o in page]
+    for o, _perms in rows:
+        decorate_observation(o)
 
     params = g.copy()
     params.pop("page", None)
@@ -520,7 +548,15 @@ def observation_detail(request, obs_id):
     obs, allowed = _get_observation(request, obs_id)
     if not allowed:
         return render(request, "403.html", status=403)
-    ctx = {"obs": obs, "grouped": _groups_with_scores(obs)}
+    decorate_observation(obs)
+    kind_title = "التقييم الذاتي" if obs.kind == "self" else obs.get_kind_display()
+    ctx = {
+        "obs": obs,
+        "grouped": _groups_with_scores(obs),
+        # كان العنوانُ «الزيارة الصفّية» لزيارة الزميل أيضاً، والنوعُ يُكرَّر حقلاً تحته.
+        "page_title": f"{kind_title}: {obs.teacher.full_name}",
+        "score_label": f"{obs.score_percent}%" if obs.score_percent is not None else "—",
+    }
     ctx.update(_obs_perms(request.user, obs))
     return render(request, "quality/observation_detail.html", ctx)
 
@@ -647,6 +683,7 @@ def observation_archive(request):
     page = Paginator(rows, 25).get_page(request.GET.get("page"))
     for obs in page:
         obs.perms = _obs_perms(request.user, obs)
+        decorate_observation(obs)
 
     return render(
         request,

@@ -5,6 +5,7 @@ parents/views.py — thin views (Phase 4)
 
 import json
 import logging
+import re
 
 from django.conf import settings
 
@@ -13,22 +14,25 @@ logger = logging.getLogger(__name__)
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db import transaction
+from django.db.models import CharField, Exists, F, Func, OuterRef, Q, Subquery, Value
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from behavior.models import BehaviorInfraction
-from core.models import ConsentRecord, CustomUser, Membership, ParentStudentLink, StudentEnrollment
-from core.permissions import role_required
-from core.sorting import apply_sort
+from core.capabilities import capability_required
+from core.models import (
+    ConsentRecord,
+    CustomUser,
+    Membership,
+    ParentStudentLink,
+    Role,
+    StudentEnrollment,
+)
+from core.sorting import apply_sort, arabic_key
 from operations.models import AbsenceAlert
-
-# ── أدوار مسموح لها بالوصول لبوابة ولي الأمر ──
-_PARENT_ROLES = {"parent", "principal", "vice_admin", "vice_academic", "admin"}
-# ── أدوار إدارة ربط أولياء الأمور ──
-_ADMIN_ROLES = {"principal", "admin"}
 
 from .services import ParentService
 
@@ -45,7 +49,7 @@ def _get_parent_school(request):
 
 
 @login_required
-@role_required(_PARENT_ROLES)
+@capability_required("parents.portal")
 def parent_dashboard(request):
     """لوحة تحكم ولي الأمر — بيانات أبنائه من درجات وغياب."""
     school = _get_parent_school(request)
@@ -74,7 +78,7 @@ def parent_dashboard(request):
 
 
 @login_required
-@role_required(_PARENT_ROLES)
+@capability_required("parents.portal")
 def student_grades(request, student_id):
     """درجات الطالب — لولي الأمر بعد التحقق من صلاحية العرض."""
     school = _get_parent_school(request) or request.user.get_school()
@@ -95,11 +99,7 @@ def student_grades(request, student_id):
         return HttpResponse("ليس لديك صلاحية عرض الدرجات", status=403)
 
     data = ParentService.get_student_grades(student, school, year)
-    enrollment = (
-        StudentEnrollment.objects.filter(student=student, is_active=True)
-        .select_related("class_group")
-        .first()
-    )
+    enrollment = StudentEnrollment.objects.current_of(student)
 
     return render(
         request,
@@ -109,6 +109,16 @@ def student_grades(request, student_id):
             "link": link,
             "year": year,
             "enrollment": enrollment,
+            "subtitle": " · ".join(
+                part
+                for part in (enrollment.class_group.short_code if enrollment else "", year)
+                if part
+            ),
+            # الرسوبُ في لون الرقم وتلميحه — لا شريطَ تنبيهٍ تحت الجدول يكرّره.
+            "failed_tone": "red" if data.get("failed") else "green",
+            "failed_title": "يُرجى التواصل مع المدرسة لمتابعة المواد المتعثّرة"
+            if data.get("failed")
+            else "",
             **data,
         },
     )
@@ -118,7 +128,7 @@ def student_grades(request, student_id):
 
 
 @login_required
-@role_required(_PARENT_ROLES)
+@capability_required("parents.portal")
 def student_attendance(request, student_id):
     """سجل غياب الطالب — لولي الأمر مع تنبيهات الغياب المتكرر."""
     school = _get_parent_school(request) or request.user.get_school()
@@ -145,11 +155,7 @@ def student_attendance(request, student_id):
         days = 30
 
     data = ParentService.get_student_attendance(student, school, days)
-    enrollment = (
-        StudentEnrollment.objects.filter(student=student, is_active=True)
-        .select_related("class_group")
-        .first()
-    )
+    enrollment = StudentEnrollment.objects.current_of(student)
     alerts = AbsenceAlert.objects.filter(student=student, school=school).order_by("-created_at")[:5]
 
     return render(
@@ -163,6 +169,14 @@ def student_attendance(request, student_id):
             "period": period,
             "year": year,
             "period_choices": ["7", "14", "30", "60"],
+            "subtitle": " · ".join(
+                part
+                for part in (
+                    enrollment.class_group.short_code if enrollment else "",
+                    f"آخر {days} يوماً منذ {data['since']:%d/%m}",
+                )
+                if part
+            ),
             **data,
         },
     )
@@ -172,7 +186,7 @@ def student_attendance(request, student_id):
 
 
 @login_required
-@role_required(_PARENT_ROLES)
+@capability_required("parents.portal")
 def parent_all_grades(request):
     """ملخص درجات كل أبناء ولي الأمر."""
     school = _get_parent_school(request)
@@ -188,16 +202,17 @@ def parent_all_grades(request):
     for link in links:
         if not link.can_view_grades:
             continue
-        enrollment = (
-            StudentEnrollment.objects.filter(student=link.student, is_active=True)
-            .select_related("class_group")
-            .first()
-        )
+        enrollment = StudentEnrollment.objects.current_of(link.student)
         data = ParentService.get_student_grades(link.student, school, year)
+        avg = data.get("avg") or 0
         children_grades.append(
             {
                 "student": link.student,
                 "enrollment": enrollment,
+                # العتباتُ التي كانت ألوانَ القالب: 80 فأعلى أخضر، و60 فأعلى كهرمانيّ.
+                "avg_label": f"{data.get('avg')}%",
+                "avg_tone": "green" if avg >= 80 else "amber" if avg >= 60 else "red",
+                "failed_tone": "red" if data.get("failed") else "green",
                 **data,
             }
         )
@@ -207,6 +222,7 @@ def parent_all_grades(request):
         "parents/all_grades.html",
         {
             "children_grades": children_grades,
+            "subtitle": f"{school.name} · {year}",
             "school": school,
             "year": year,
         },
@@ -217,7 +233,7 @@ def parent_all_grades(request):
 
 
 @login_required
-@role_required(_PARENT_ROLES)
+@capability_required("parents.portal")
 def parent_all_attendance(request):
     """ملخص حضور كل أبناء ولي الأمر."""
     school = _get_parent_school(request)
@@ -238,20 +254,19 @@ def parent_all_attendance(request):
     for link in links:
         if not link.can_view_attendance:
             continue
-        enrollment = (
-            StudentEnrollment.objects.filter(student=link.student, is_active=True)
-            .select_related("class_group")
-            .first()
-        )
+        enrollment = StudentEnrollment.objects.current_of(link.student)
         data = ParentService.get_student_attendance(link.student, school, days)
         alerts = AbsenceAlert.objects.filter(student=link.student, school=school).order_by(
             "-created_at"
         )[:3]
+        pct = data["att_pct"]
         children_attendance.append(
             {
                 "student": link.student,
                 "enrollment": enrollment,
                 "alerts": alerts,
+                "att_label": f"{pct}%",
+                "att_tone": "green" if pct >= 90 else "amber" if pct >= 75 else "red",
                 **data,
             }
         )
@@ -272,7 +287,7 @@ def parent_all_attendance(request):
 
 
 @login_required
-@role_required(_PARENT_ROLES)
+@capability_required("parents.portal")
 def parent_behavior(request):
     """ملخص السلوك لأبناء ولي الأمر."""
     school = _get_parent_school(request)
@@ -297,7 +312,8 @@ def parent_behavior(request):
                 "student": link.student,
                 "infractions": infractions[:10],
                 "total_infractions": infractions.count(),
-                "unresolved": infractions.filter(is_resolved=False).count(),
+                "unresolved": (unresolved := infractions.filter(is_resolved=False).count()),
+                "unresolved_tone": "amber" if unresolved else "green",
             }
         )
 
@@ -318,14 +334,15 @@ def parent_behavior(request):
 
 # حقولُ الفرز المسموحة — `?sort=` نصٌّ من المستخدم لا يبلغ ORM إلّا مصفّى.
 LINK_SORTS = {
-    "student": ("student__full_name", "parent__full_name"),
-    "parent": ("parent__full_name", "student__full_name"),
-    "relationship": ("relationship", "student__full_name"),
+    "student": ("student_key", "parent_key"),
+    "parent": ("parent_key", "student_key"),
+    "relationship": ("relationship", "student_key"),
+    "klass": ("grade_key", "section_key", "student_key"),
 }
 
 
 @login_required
-@role_required(_ADMIN_ROLES)
+@capability_required("parents.admin")
 def manage_parent_links(request):
     """صفحة المدير: ربط أولياء الأمور بأبنائهم"""
     if not request.user.is_admin():
@@ -336,31 +353,91 @@ def manage_parent_links(request):
     search = request.GET.get("q", "").strip()
     rel_filter = request.GET.get("rel", "").strip()
 
-    # جميع ارتباطات المدرسة
+    # ── الارتباطُ يبقى بعد أن يغادر صاحبُه، فالعددُ يكذب ─────────────
+    #
+    # «742 طالباً مرتبطاً» لمدرسةٍ سجلُّ قيدها 735: مئةٌ واثنان وأربعون منهم
+    # غادروا وبقيت ارتباطاتُهم. والرقمُ الذي يُعمَل به غائبٌ عن الشاشة —
+    # **من لا وليَّ أمرٍ له** من طلاب هذا العام.
+    enrolled = StudentEnrollment.objects.filter(
+        student_id=OuterRef("student_id"),
+        class_group__school=school,
+        class_group__academic_year=year,
+        is_active=True,
+    )
+    section = StudentEnrollment.objects.filter(
+        student_id=OuterRef("student_id"),
+        class_group__school=school,
+        class_group__academic_year=year,
+        is_active=True,
+    ).order_by("-enrolled_at")
+
     links = (
         ParentStudentLink.objects.filter(school=school)
         .select_related("parent", "student")
-        .order_by("student__full_name", "parent__full_name")
+        .annotate(
+            is_enrolled=Exists(enrolled),
+            grade_code=Subquery(section.values("class_group__grade")[:1]),
+            section_code=Subquery(section.values("class_group__section")[:1]),
+            student_key=arabic_key(F("student__full_name")),
+            parent_key=arabic_key(F("parent__full_name")),
+        )
+        .annotate(
+            grade_key=Func(
+                Func(
+                    F("grade_code"),
+                    Value(r"\D"),
+                    Value(""),
+                    Value("g"),
+                    function="REGEXP_REPLACE",
+                    output_field=CharField(),
+                ),
+                Value(2),
+                Value("0"),
+                function="LPAD",
+                output_field=CharField(),
+            ),
+            section_key=F("section_code"),
+        )
     )
+
+    #: الافتراضُ طلابُ هذا العام، ومن غادر يُرى بترشيحٍ صريحٍ لا يضيع.
+    status = request.GET.get("status") or "enrolled"
+    if status == "enrolled":
+        links = links.filter(is_enrolled=True)
+    elif status == "left":
+        links = links.filter(is_enrolled=False)
 
     total_count = links.count()
 
-    # فلترة بالبحث
     if search:
         links = links.filter(
             Q(parent__full_name__icontains=search)
             | Q(student__full_name__icontains=search)
             | Q(parent__national_id__icontains=search)
             | Q(student__national_id__icontains=search)
+            | Q(parent__phone__icontains=search)
+            | Q(grade_code__icontains=search)
         )
 
-    # فلترة بصلة القرابة
     if rel_filter:
         links = links.filter(relationship=rel_filter)
 
-    # إحصائيات
     parent_count = links.values("parent").distinct().count()
     student_count = links.values("student").distinct().count()
+
+    # ── العددُ الذي يُعمَل به: من بقي بلا وليّ أمر ────────────────────
+    current = set(
+        StudentEnrollment.objects.filter(
+            class_group__school=school, class_group__academic_year=year, is_active=True
+        ).values_list("student_id", flat=True)
+    )
+    linked_now = set(
+        ParentStudentLink.objects.filter(school=school, student_id__in=current).values_list(
+            "student_id", flat=True
+        )
+    )
+    enrolled_count = len(current)
+    unlinked_count = len(current - linked_now)
 
     # الفرزُ قبل التقسيم: القائمةُ كلُّها تُرتَّب ثمّ تُقتطع صفحةٌ منها.
     links, sort = apply_sort(links, request, LINK_SORTS, "student")
@@ -375,6 +452,16 @@ def manage_parent_links(request):
         "total_count": total_count,
         "parent_count": parent_count,
         "student_count": student_count,
+        "enrolled_count": enrolled_count,
+        "unlinked_count": unlinked_count,
+        "enrolled_label": f"من {enrolled_count}",
+        "unlinked_tone": "red" if unlinked_count else "green",
+        "status": status,
+        "statuses": (
+            ("enrolled", "طلابُ هذا العام"),
+            ("left", "غادروا — ارتباطٌ قديم"),
+            ("all", "الكلّ"),
+        ),
         "search": search,
         "rel_filter": rel_filter,
         "year": year,
@@ -402,20 +489,82 @@ def manage_parent_links(request):
     return render(request, "parents/manage_links.html", ctx)
 
 
+def _parent_from_identity(request, school, national_id, full_name, phone, email=""):
+    """وليٌّ بالرقم الشخصيّ — يُستعاد إن كان في النظام، وإلّا يُنشأ.
+
+    والحسابُ الجديدُ يُفتح **بلا كلمة مرورٍ صالحة**: كان يُفتح بكلمةٍ هي
+    الرقمُ الشخصيُّ نفسُه — وهو رقمٌ في كشوف الوزارة وفي يد المدرسة، فمن
+    يعرفه يدخل بحساب الرجل قبل أن يدخل هو. وإلزامُه بالتغيير بعد الدخول لا
+    يمنع غيرَه من السبق إليه.
+
+    فتُصدَر له كلمةٌ مؤقّتةٌ بـ`issue_temporary_passwords` حين يُراد تسليمُه.
+    """
+    if not national_id or not full_name:
+        messages.error(request, "اختر وليّاً من القائمة، أو اكتب رقمَه الشخصيَّ واسمَه.")
+        return None
+    if not re.fullmatch(r"\d{5,20}", national_id):
+        messages.error(request, "الرقمُ الشخصيُّ أرقامٌ فقط (5–20 خانة).")
+        return None
+    if len(full_name) < 4:
+        messages.error(request, "الاسمُ قصيرٌ جدّاً.")
+        return None
+
+    parent = CustomUser.objects.filter(national_id=national_id).first()
+    with transaction.atomic():
+        if parent is None:
+            parent = CustomUser(
+                national_id=national_id, full_name=full_name, phone=phone, email=email
+            )
+            parent.set_unusable_password()
+            parent.save()
+            messages.info(
+                request,
+                f"أُنشئ حسابُ {parent.full_name} بلا كلمة مرور — تُصدَر له بأمر"
+                " issue_temporary_passwords.",
+            )
+        role, _ = Role.objects.get_or_create(school=school, name="parent")
+        Membership.objects.get_or_create(
+            user=parent, school=school, role=role, defaults={"is_active": True}
+        )
+    return parent
+
+
 @login_required
-@role_required(_ADMIN_ROLES)
+@capability_required("parents.admin")
 def add_parent_link(request):
-    """إضافة ربط جديد بين ولي أمر وطالب — للمدير فقط."""
+    """ربطُ وليّ أمرٍ بطالب — قائماً كان أو جديداً.
+
+    كان لهذا الفعل بابان: هذه الاستمارةُ تربط قائماً، وشاشةٌ منفصلةٌ تُنشئ
+    وتربط. والمستخدمُ لا يعرف من الشاشة أيَّهما يفتح. فصار باباً واحداً حيث
+    يُرى العمل: في الصفحة التي تقول كم طالباً بلا وليّ أمر.
+
+    وثلاثُ حالاتٍ يجمعها:
+      اختيارُ وليٍّ من القائمة · رقمٌ شخصيٌّ لمن في النظام ولم يُوسَم وليّاً
+      · رقمٌ لا يعرفه النظام فيُنشأ له حساب.
+    """
     if request.method != "POST" or not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
     school = request.user.get_school()
     parent_id = request.POST.get("parent_id")
+    national_id = (request.POST.get("parent_national_id") or "").strip()
+    full_name = (request.POST.get("parent_full_name") or "").strip()
+    phone = (request.POST.get("parent_phone") or "").strip()
+    email = (request.POST.get("parent_email") or "").strip()
     student_id = request.POST.get("student_id")
     rel = request.POST.get("relationship", "father")
 
-    parent = get_object_or_404(CustomUser, id=parent_id)
+    if not student_id:
+        messages.error(request, "اختر الطالبَ المراد ربطُه.")
+        return redirect("manage_parent_links")
     student = get_object_or_404(CustomUser, id=student_id)
+
+    if parent_id:
+        parent = get_object_or_404(CustomUser, id=parent_id)
+    else:
+        parent = _parent_from_identity(request, school, national_id, full_name, phone, email)
+        if parent is None:
+            return redirect("manage_parent_links")
 
     link, created = ParentStudentLink.objects.get_or_create(
         school=school,
@@ -436,7 +585,7 @@ def add_parent_link(request):
 
 
 @login_required
-@role_required(_ADMIN_ROLES)
+@capability_required("parents.admin")
 def remove_parent_link(request, link_id):
     """حذف ربط ولي الأمر بالطالب — للمدير فقط."""
     if not request.user.is_admin():
@@ -462,7 +611,7 @@ DATA_TYPES = [
 
 
 @login_required
-@role_required(_PARENT_ROLES)
+@capability_required("parents.portal")
 def consent_view(request):
     """ولي الأمر يمنح / يسحب الموافقة على أنواع البيانات"""
     if not request.user.has_role("parent") and not request.user.is_superuser:

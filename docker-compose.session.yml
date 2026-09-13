@@ -40,8 +40,8 @@ services:
     # لا `build`: الصورةُ من الحزمة الأصليّة — شغّلها مرّةً قبل هذه.
     image: ${SCHOOLOS_IMAGE:-shschool_mvp-web}
     restart: unless-stopped
-    # runserver وحدَه بدور التطبيق غير-superuser (shschool_app) ليخضع لـRLS —
-    # بلا migrate، فالقاعدةُ مشتركةٌ بين الجلسات.
+    # runserver وحدَه بدور التطبيق غير-superuser (shschool_app) ليخضع لـRLS.
+    # والهجرةُ تُطبَّق هنا الآن: لكلّ شجرةٍ قاعدتُها (انظر SESSION_DB أدناه).
     command: sh -c "DB_USER=shschool_app DB_PASSWORD=$$APP_DB_PASSWORD python manage.py runserver 0.0.0.0:8000"
     environment:
       DJANGO_SETTINGS_MODULE: shschool.settings.development
@@ -49,6 +49,10 @@ services:
       # المضيف المنشورَين لا عبر شبكةِ الإنشاء.
       DB_HOST: host.docker.internal
       DB_PORT: ${DB_HOST_PORT:-5433}
+      # قاعدةٌ لكلّ شجرة: أنشئها مرّةً بـ`bash scripts/session-db.sh`، ومرّرِ
+      # اسمَها هنا. وبلا SESSION_DB تعود المشاركةُ القديمةُ وما فيها من خطر:
+      # هجرةُ فرعٍ تُسقط صفحاتِ كلّ الأشجار.
+      DB_NAME: ${SESSION_DB:-shschool_db}
       REDIS_URL: redis://host.docker.internal:${REDIS_HOST_PORT:-6380}/0
       PYTHONUNBUFFERED: "1"
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
@@ -75,6 +79,10 @@ services:
       DJANGO_SETTINGS_MODULE: shschool.settings.development
       DB_HOST: host.docker.internal
       DB_PORT: ${DB_HOST_PORT:-5433}
+      # قاعدةٌ لكلّ شجرة: أنشئها مرّةً بـ`bash scripts/session-db.sh`، ومرّرِ
+      # اسمَها هنا. وبلا SESSION_DB تعود المشاركةُ القديمةُ وما فيها من خطر:
+      # هجرةُ فرعٍ تُسقط صفحاتِ كلّ الأشجار.
+      DB_NAME: ${SESSION_DB:-shschool_db}
       REDIS_URL: redis://host.docker.internal:${REDIS_HOST_PORT:-6380}/0
       PYTHONUNBUFFERED: "1"
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}

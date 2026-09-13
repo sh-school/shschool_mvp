@@ -11,27 +11,33 @@ from urllib.parse import quote
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
-from django.db.models import Count, Exists, OuterRef, Q
+from django.core.paginator import Paginator
+from django.db.models import CharField, Count, Exists, F, Func, OuterRef, Q, Subquery, Value
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.formats import date_format
 from django.views.decorators.http import require_POST
 
 from assessments.models import AnnualSubjectResult
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit, HealthRecord
+from core import brand
 from core.academic_calendar import academic_year_for, academic_year_window
+from core.capabilities import capability_required
 from core.export_utils import (
     add_excel_footer,
     add_excel_header,
+    excel_table_styles,
     excel_to_response,
     generate_export_filename,
     get_export_context,
     get_pdf_footer_html,
     get_pdf_header_html,
+    xl_fill,
 )
+from core.labels import class_label
 from core.models.academic import (
     ClassGroup,
     ParentStudentLink,
@@ -39,14 +45,16 @@ from core.models.academic import (
     grade_number,
     grade_order,
 )
-from core.models.access import Membership, Role
+from core.models.access import Membership
 from core.models.audit import AuditLog
-from core.models.user import CustomUser, Profile
+from core.models.user import CustomUser
 from core.pdf_utils import render_pdf
-from core.permissions import STUDENT_AFFAIRS_MANAGE, STUDENT_DEACTIVATE, role_required
+from core.privacy import mask_national_id
+from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 from library.models import BookBorrowing
 from operations.absence_standing import standing_for
 from operations.models import AbsenceAlert, Session, StudentAttendance
+from operations.tardiness import tardiness_now
 
 from .models import StudentActivity, StudentTransfer
 
@@ -61,7 +69,7 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_dashboard(request):
     """لوحة شؤون الطلاب — KPIs عبر Service Layer."""
     from .services import StudentService
@@ -73,6 +81,11 @@ def student_dashboard(request):
     # ✅ v5.4: StudentService.get_dashboard_context — جميع queries في service layer
     ctx = StudentService.get_dashboard_context(school, year, today=today)
     att = ctx["today_attendance"]
+    total_students = ctx["total_students"]
+    absent_today = att["absent"] or 0
+    late_today = att["late"] or 0
+    behavior_today = ctx.get("today_behavior_count", 0)
+    stage_map = ctx.get("stage_map", {})
 
     # ملاحظة: حُذفت أقسام "آخر المخالفات" / "آخر الانتقالات" / "التأخر الصباحي" /
     # "آخر الأنشطة" / "طلاب بدون ولي أمر" بطلب المدير — لا نمرّر context keys لها
@@ -83,22 +96,69 @@ def student_dashboard(request):
             "today": today,
             "year": year,
             "current_school": school,
-            "total_students": ctx["total_students"],
-            "absent_today": att["absent"] or 0,
-            "late_today": att["late"] or 0,
-            "grade_distribution": ctx["grade_distribution"],
-            # الجزء 1 — إحصائيات اليوم
-            "stage_map": ctx.get("stage_map", {}),
-            "qatari_pct": ctx.get("qatari_pct", 0),
-            "absent_pct": ctx.get("absent_pct", 0),
-            "late_pct": ctx.get("late_pct", 0),
-            "today_behavior_count": ctx.get("today_behavior_count", 0),
+            "page_subtitle": _dated_subtitle(getattr(school, "name", ""), year, today),
+            "total_students": total_students,
+            "absent_today": absent_today,
+            "late_today": late_today,
+            "today_behavior_count": behavior_today,
+            # الجزء 1 — إحصائيات اليوم: المرحلتان تفصيلُ الإجمالي لا بطاقةٌ بسطرين.
+            "stage_label": f"إعدادي {stage_map.get(2, 0)} · ثانوي {stage_map.get(3, 0)}",
+            "qatari_label": f"{ctx.get('qatari_pct', 0)}%",
+            "absent_label": f"{ctx.get('absent_pct', 0)}%",
+            "late_label": f"{ctx.get('late_pct', 0)}%",
+            # اللونُ يحمل التنبيه — والعددُ نفسُه في ترويسة قائمته، لا تحت النسبة.
+            "absent_tone": "red" if absent_today else "green",
+            "late_tone": "orange" if late_today else "green",
+            "behavior_tone": "red" if behavior_today else "green",
             # الجزء 2 — القوائم اليومية
             "absent_list": ctx.get("absent_list", []),
             "late_list": ctx.get("late_list", []),
-            "today_infraction_list": ctx.get("today_infraction_list", []),
+            "infraction_rows": [
+                {
+                    "student": inf.student.full_name,
+                    "category": inf.violation_category.name_ar if inf.violation_category else "",
+                    "level": inf.level,
+                    # د1 نجاح، ود2–د3 تحذير، ود4 خطر — كما كانت في القالب.
+                    "badge": _LEVEL_BADGE.get(inf.level, "status-danger"),
+                }
+                for inf in ctx.get("today_infraction_list", [])
+            ],
+            "grade_rows": _grade_share(ctx["grade_distribution"], total_students),
         },
     )
+
+
+#: لونُ شارة درجة المخالفة — وما فوق الثالثة خطر.
+_LEVEL_BADGE = {1: "status-success", 2: "status-warning", 3: "status-warning"}
+
+_GRADE_NAMES = dict(ClassGroup.GRADES)
+
+
+def _dated_subtitle(school_name: str, year: str, day) -> str:
+    """«المدرسة · 2026-2027 · التاريخ» — سطرُ الترويسة الوصفيّ."""
+    parts = [school_name or "المدرسة", year, date_format(day, "D، d M Y")]
+    return " · ".join(part for part in parts if part)
+
+
+def _grade_share(rows, total: int) -> list[dict]:
+    """توزيعُ الطلاب على الصفوف: الاسمُ الوزاريّ، والعدد، ونصيبُه من الكلّ."""
+    return [
+        {
+            "label": _GRADE_NAMES.get(row["class_group__grade"], row["class_group__grade"]),
+            "count": row["count"],
+            "pct": round(row["count"] * 100 / total) if total else 0,
+        }
+        for row in rows
+    ]
+
+
+def _share_tone(pct, green: int = 90, amber: int = 75) -> tuple[str, str]:
+    """(لونُ البطاقة، صنفُ الشارة) لنسبة حضور — العتباتُ التي كانت في القوالب: 90 · 75."""
+    if pct >= green:
+        return "green", "status-success"
+    if pct >= amber:
+        return "orange", "status-warning"
+    return "red", "status-danger"
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -106,8 +166,26 @@ def student_dashboard(request):
 # ═════════════════════════════════════════════════════════════════════
 
 
+#: صفحةُ السجلّ — كصفحة سجلّ الكادر، فلا يختلف إيقاعُ الشاشتين على قارئهما.
+STUDENT_PAGE_SIZE = 50
+
+#: مفاتيحُ الفرز المصرَّحة. و`?sort=` نصٌّ من المستخدم فلا يبلغ `order_by`
+#: إلّا عبر هذه القائمة. وكلُّها تنتهي بالاسم فاصلاً يقطع التساوي.
+STUDENT_SORTS = {
+    "name": ("name_key",),
+    "national": ("national_key", "name_key"),
+    # الصفُّ والشعبةُ عمودٌ واحدٌ يُعرض، فمفتاحُهما واحدٌ يُفرَز.
+    "class": ("grade_key", "section_key", "name_key"),
+    "guardian": ("guardian_key", "name_key"),
+}
+
+
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+# قائمةٌ تُقرأ ولا تُكتب — فحارسُها `VIEW` لا `MANAGE`. والمجموعتان مفصولتان
+# أصلاً في `core/permissions.py` بقرار MTG-2026-012: المنسّقُ والأخصائيّان
+# يرون الطلبة ولا يبتّون في قيدهم. وكانت القائمةُ تعرض الشاشةَ للمنسّق
+# ويردُّه حارسُها — إذنٌ مكتوبٌ في موضعٍ وممنوعٌ في آخر.
+@capability_required("student_affairs.view")
 def student_list(request):
     """قائمة الطلاب مع بحث وفلتر حسب الصف والشعبة."""
     school = request.user.get_school()
@@ -124,35 +202,11 @@ def student_list(request):
         .order_by("user__full_name")
     )
 
-    # ── إرفاق بيانات التسجيل (الصف + الشعبة) ──
-    # نبني dict سريع: user_id → enrollment
-    student_ids = list(students.values_list("user_id", flat=True))
-    enrollments = {
-        e["student_id"]: e
-        for e in StudentEnrollment.objects.filter(
-            student_id__in=student_ids,
-            class_group__academic_year=year,
-            is_active=True,
-        )
-        .select_related("class_group")
-        .values(
-            "student_id",
-            "class_group__grade",
-            "class_group__section",
-            "class_group_id",
-        )
-    }
-
     # ── الفلاتر ──
     q = request.GET.get("q", "").strip()
     grade_filter = request.GET.get("grade", "")
     section_filter = request.GET.get("section", "")
     parent_status = request.GET.get("parent_status", "")
-
-    if q:
-        students = students.filter(
-            Q(user__full_name__icontains=q) | Q(user__national_id__icontains=q)
-        )
 
     if grade_filter:
         # ✅ subquery مباشر — لا تحميل IDs إلى Python
@@ -189,28 +243,115 @@ def student_list(request):
         elif parent_status == "unlinked":
             students = students.annotate(_has_parent=parent_link_exists).filter(_has_parent=False)
 
-    # ── بناء القائمة مع بيانات التسجيل ──
-    student_rows = []
-    for m in students[:200]:
-        enr = enrollments.get(m.user_id, {})
-        student_rows.append(
-            {
-                "id": m.user_id,
-                "full_name": m.user.full_name,
-                "national_id": m.user.national_id,
-                "phone": m.user.phone,
-                "email": m.user.email,
-                "gender": getattr(m.user, "profile", None) and m.user.profile.gender or "",
-                "grade": enr.get("class_group__grade", "—"),
-                "section": enr.get("class_group__section", "—"),
-                # مفتاحُ فرزٍ مدرسيّ: «G10» نصّاً يسبق «G7»، وعدداً يليه.
-                # ومن لا قيدَ له لا صفَّ له: يُترك مفتاحُه فارغاً فيسقط إلى
-                # ذيل الجدول في الاتّجاهين، لا يتصدّره في التنازليّ.
-                "grade_order": (
-                    grade_number(enr["class_group__grade"]) if enr.get("class_group__grade") else ""
-                ),
-            }
+    # ── المقيَّدُ أوّلاً، ومن أُغلق قيدُه لا يسقط بل يُرشَّح ──────────────
+    #
+    # العضويّةُ تقول «هذا طالبُ المدرسة» والقيدُ يقول «هذا صفُّه هذا العام»،
+    # وهما شيئان: من نُقل هذا الصيفَ أُغلق قيدُه وبقيت عضويّتُه. فكان السجلُّ
+    # يعدّهما واحداً ويقول «881 طالباً مسجّلاً» لمدرسةٍ سجلُّ قيدها 735 —
+    # ويخالف الكشفَ الوزاريَّ في رقمٍ يُقرأ في أوّل الشاشة.
+    #
+    # فالافتراضُ المقيَّدون، ومن لا قيدَ له يُرى بترشيحٍ صريحٍ لا يضيع.
+    status = request.GET.get("status") or "enrolled"
+    is_enrolled = Exists(
+        StudentEnrollment.objects.filter(
+            student_id=OuterRef("user_id"),
+            class_group__school=school,
+            class_group__academic_year=year,
+            is_active=True,
         )
+    )
+    if status == "enrolled":
+        students = students.filter(is_enrolled)
+    elif status == "unenrolled":
+        students = students.exclude(is_enrolled)
+
+    # ── الصفُّ والشعبةُ صفتا قيدٍ لا صفتا شخص، والتصفّحُ على الأشخاص ──
+    #
+    # فتُجلبان بالاستعلام نفسِه ليصحّ الفرزُ بهما على السجلّ كلِّه لا على
+    # الصفحة الظاهرة. وكان الفرزُ في المتصفّح على مئتين مقطوعةٍ من سبعمئةٍ
+    # وخمسٍ وثلاثين — يُوهم القارئَ أنّه رأى الأوّلَ وهو أوّلُ صفحةٍ واحدة.
+    enrolment = StudentEnrollment.objects.filter(
+        student_id=OuterRef("user_id"),
+        class_group__academic_year=year,
+        is_active=True,
+    ).order_by("-class_group__academic_year", "-enrolled_at")
+    guardian = ParentStudentLink.objects.filter(
+        student_id=OuterRef("user_id"), school=school
+    ).order_by("-is_primary", "created_at")
+
+    students = students.annotate(
+        grade_code=Subquery(enrolment.values("class_group__grade")[:1]),
+        section_code=Subquery(enrolment.values("class_group__section")[:1]),
+        name_key=arabic_key(F("user__full_name")),
+        national_key=blank_as_null("user__national_id"),
+        # وليُّ الأمر: الأساسيُّ أوّلاً، فإن لم يُعلَّم أحدٌ فأقدمُ ارتباط.
+        # وجوّالُه هو الفعلُ المقصودُ من هذه الشاشة — الاتّصالُ بالأسرة.
+        guardian_name=Subquery(guardian.values("parent__full_name")[:1]),
+        guardian_phone=Subquery(guardian.values("parent__phone")[:1]),
+        guardian_relation=Subquery(guardian.values("relationship")[:1]),
+    ).annotate(
+        # «G10» نصّاً يسبق «G7»، وعدداً يليه. فيُحشى الجزءُ الرقميُّ بصفرٍ
+        # فيصير ترتيبُ الحروف ترتيبَ الأعداد — ومن لا قيدَ له يبقى عَدَماً
+        # فيسقط إلى الذيل في الاتّجاهين لا يتصدّر التنازليّ.
+        # وتُنزع الحروفُ أوّلاً: `RIGHT('G7', 2)` تلتقط الحرفَ فتُعيد «G7»،
+        # و«10» أصغرُ من «G7» في ترتيب المحارف — فيسبق العاشرُ السابع.
+        grade_key=Func(
+            Func(
+                F("grade_code"),
+                Value(r"\D"),
+                Value(""),
+                Value("g"),
+                function="REGEXP_REPLACE",
+                output_field=CharField(),
+            ),
+            Value(2),
+            Value("0"),
+            function="LPAD",
+            output_field=CharField(),
+        ),
+        section_key=blank_as_null("section_code"),
+        guardian_key=arabic_key(F("guardian_name")),
+    )
+
+    # والبحثُ يقع على الرقم **الكامل** لا على المستور: من كتب رقماً كاملاً
+    # وجد صاحبَه، وإن كان الجدولُ لا يعرض منه إلّا ذيلَه.
+    if q:
+        shaped = normalise_arabic(q)
+        students = students.filter(
+            Q(name_key__icontains=shaped)
+            | Q(user__national_id__icontains=q)
+            | Q(guardian_key__icontains=shaped)
+            | Q(guardian_phone__icontains=q)
+            | Q(grade_code__icontains=q)
+            | Q(section_code__icontains=q)
+        )
+
+    students, sort = apply_sort(students, request, allowed=STUDENT_SORTS, default="name")
+
+    paginator = Paginator(students, STUDENT_PAGE_SIZE)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    # الصلةُ تُعرض بعنوانها العربيّ لا بمفتاحها المخزَّن، والقائمةُ من النموذج
+    # نفسِه فلا قاموسَ ثانٍ يتخلّف عنه.
+    relations = dict(ParentStudentLink._meta.get_field("relationship").choices)
+
+    student_rows = [
+        {
+            "id": m.user_id,
+            "full_name": m.user.full_name,
+            # آخرُ أربعِ خاناتٍ وما قبلها مستور: القارئُ يحتاج أن يميّز لا أن
+            # يعرف، والرقمُ كاملاً في ملفّ صاحبه لمن فتحه بقصد.
+            "national_id": mask_national_id(m.user.national_id),
+            # «07/2» كما تكتبه الوزارة — عمودٌ واحدٌ لا عمودان، ورقمُ الصفّ
+            # بلا حرفٍ وبخانتين، فيطابق ما في يد القارئ من كشوف.
+            "class_label": class_label(m.grade_code, m.section_code),
+            "guardian_name": m.guardian_name or "",
+            "guardian_phone": m.guardian_phone or "",
+            "guardian_relation": relations.get(m.guardian_relation, ""),
+            "can_sign_in": m.user.is_active and m.user.has_usable_password(),
+        }
+        for m in page_obj
+    ]
 
     # ── خيارات الفلتر ──
     available_grades = sorted(
@@ -230,7 +371,17 @@ def student_list(request):
 
     ctx = {
         "students": student_rows,
-        "total": len(student_rows),
+        # وكان العددُ عددَ الصفّ المعروض، فتقول الترويسةُ «200 طالب مسجّل»
+        # لمدرسةٍ فيها سبعُمئةٍ وخمسةٌ وثلاثون. العددُ عددُ السجلّ.
+        "total": paginator.count,
+        "page_obj": page_obj,
+        "sort": sort,
+        "status": status,
+        "statuses": (
+            ("enrolled", "مقيَّدون هذا العام"),
+            ("unenrolled", "بلا قيدٍ نشط"),
+            ("all", "الكلّ"),
+        ),
         "q": q,
         "grade_filter": grade_filter,
         "section_filter": section_filter,
@@ -248,7 +399,7 @@ def student_list(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_table_partial(request):
     """HTMX partial — يُعيد التوجيه لـ student_list مع نفس المعاملات."""
     return student_list(request)
@@ -260,11 +411,11 @@ def student_table_partial(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_export_excel(request):
     """تصدير قائمة الطلاب إلى Excel — مع هيدر وفوتر احترافي."""
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment
 
     school = request.user.get_school()
     year = academic_year_for(request)
@@ -324,15 +475,9 @@ def student_export_excel(request):
     data_start = add_excel_header(ws, ctx, num_cols)
 
     # Header row
-    header_fill = PatternFill(start_color="8A1538", end_color="8A1538", fill_type="solid")
-    header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
-    cell_font = Font(name="Tajawal", size=10)
-    thin_border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
+    table = excel_table_styles()
+    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
+    thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=data_start, column=col, value=h)
@@ -357,7 +502,7 @@ def student_export_excel(request):
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
-                cell.fill = PatternFill(start_color="FDF2F5", end_color="FDF2F5", fill_type="solid")
+                cell.fill = alt_fill
 
     # Auto-width
     for col_idx in range(1, num_cols + 1):
@@ -382,7 +527,7 @@ def student_export_excel(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_add(request):
     """
     إضافة طالب جديد — مُفوَّض لـ StudentService.create_student().
@@ -468,7 +613,7 @@ def student_add(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_edit(request, student_id):
     """تعديل بيانات طالب موجود."""
     school = request.user.get_school()
@@ -548,7 +693,7 @@ def student_edit(request, student_id):
 
 
 @login_required
-@role_required(STUDENT_DEACTIVATE)
+@capability_required("student_affairs.deactivate")
 @require_POST
 def student_deactivate(request, student_id):
     """
@@ -581,7 +726,7 @@ def student_deactivate(request, student_id):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_profile(request, student_id):
     """ملف الطالب الشامل — يجمع بيانات من 7 تطبيقات."""
     school = request.user.get_school()
@@ -643,6 +788,9 @@ def student_profile(request, student_id):
         grade=enrollment.class_group.grade if enrollment else None,
     )
 
+    # ── 2ج. عدّادا التأخّر عن الحصص — مرّاتٍ ودقائق، للفصل والعام وبالمادّة ──
+    tardiness = tardiness_now(student, school)
+
     # ── 3. السلوك (behavior) ──
     infractions = (
         BehaviorInfraction.objects.filter(student=student, school=school)
@@ -695,16 +843,33 @@ def student_profile(request, student_id):
         "-created_at"
     )[:5]
 
+    # ── ما يُرسم: سطرُ الترويسة ولونُ الحضور (90 · 75 — عتبتا القالب) ──
+    subtitle_parts = []
+    if enrollment:
+        subtitle_parts.append(
+            class_label(enrollment.class_group.grade, enrollment.class_group.section)
+        )
+    if student.national_id:
+        subtitle_parts.append(f"****{mask_national_id(student.national_id)[-4:]}")
+    if profile and profile.gender:
+        subtitle_parts.append("ذكر" if profile.gender == "M" else "أنثى")
+
     return render(
         request,
         "student_affairs/student_profile.html",
         {
+            "profile_subtitle": " · ".join(subtitle_parts),
+            "attendance_label": f"{attendance_summary['pct']}%",
+            "attendance_sub": f"من {attendance_summary['total']} حصة",
+            "attendance_tone": _share_tone(attendance_summary["pct"])[0],
+            "subjects_sub": f"ناجح {grades_summary.get('passed') or 0}",
             "student": student,
             "profile": profile,
             "enrollment": enrollment,
             "parent_links": parent_links,
             "attendance": attendance_summary,
             "absence_standing": absence_standing,
+            "tardiness": tardiness,
             "behavior": behavior_summary,
             "clinic_visits": clinic_visits,
             "health_record": health_record,
@@ -724,7 +889,7 @@ def student_profile(request, student_id):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def transfer_list(request):
     """قائمة الانتقالات مع فلتر حسب الحالة والاتجاه."""
     school = request.user.get_school()
@@ -755,7 +920,7 @@ def transfer_list(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def transfer_create(request):
     """تسجيل طلب انتقال جديد."""
     school = request.user.get_school()
@@ -807,16 +972,23 @@ def transfer_create(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def transfer_detail(request, pk):
     """تفاصيل طلب انتقال."""
     school = request.user.get_school()
     transfer = get_object_or_404(StudentTransfer, pk=pk, school=school)
-    return render(request, "student_affairs/transfer_detail.html", {"transfer": transfer})
+    return render(
+        request,
+        "student_affairs/transfer_detail.html",
+        {
+            "transfer": transfer,
+            "page_subtitle": f"{transfer.student.full_name} — {transfer.get_direction_display()}",
+        },
+    )
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 @require_POST
 def transfer_review(request, pk):
     """مراجعة طلب انتقال — موافقة / رفض / إتمام."""
@@ -861,7 +1033,7 @@ def transfer_review(request, pk):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def attendance_overview(request):
     """إحصائيات الحضور والغياب — شاملة مع Trends."""
     school = request.user.get_school()
@@ -937,6 +1109,34 @@ def attendance_overview(request):
     # ── الصفوف المتاحة للفلتر ──
     grades = ClassGroup.GRADES
 
+    # ── ما يُرسم: الألوانُ بعتباتها هنا لا شروطاً في القالب ──
+    pct_tone, _badge = _share_tone(pct)
+    class_rows = []
+    for row in class_breakdown:
+        row_pct = round(row["present_count"] * 100 / row["total"]) if row["total"] else 0
+        class_rows.append(
+            {
+                **row,
+                "label": _GRADE_NAMES.get(
+                    row["session__class_group__grade"], row["session__class_group__grade"]
+                ),
+                "pct": row_pct,
+                "badge": _share_tone(row_pct)[1],
+            }
+        )
+    # الغيابُ المتكرّر: عشرةُ أيّامٍ فأكثر خطر، وخمسةٌ تحذير — عتبتا القالب.
+    worst_students = [
+        {
+            **s,
+            "badge": "status-danger"
+            if s["absence_count"] >= 10
+            else "status-warning"
+            if s["absence_count"] >= 5
+            else "status-info",
+        }
+        for s in worst_students_qs
+    ]
+
     return render(
         request,
         "student_affairs/attendance_overview.html",
@@ -944,8 +1144,11 @@ def attendance_overview(request):
             "summary": summary,
             "today": today,
             "year": year,
-            "worst_students": worst_students_qs,
-            "class_breakdown": class_breakdown,
+            "page_subtitle": f"ملخص الحضور والغياب — {date_format(today, 'D، d M Y')}",
+            "pct_label": f"{pct}%",
+            "pct_tone": pct_tone,
+            "worst_students": worst_students,
+            "class_breakdown": class_rows,
             "chart_labels_json": json.dumps(chart_labels),
             "chart_present_json": json.dumps(chart_present),
             "chart_absent_json": json.dumps(chart_absent),
@@ -957,11 +1160,11 @@ def attendance_overview(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def attendance_export_excel(request):
     """تصدير إحصائيات الغياب — أكثر الطلاب غياباً (آخر 30 يوم) + حضور اليوم."""
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment
 
     school = request.user.get_school()
     today = timezone.localdate()
@@ -989,15 +1192,9 @@ def attendance_export_excel(request):
     )
 
     # أنماط مشتركة
-    header_fill = PatternFill(start_color="8A1538", end_color="8A1538", fill_type="solid")
-    header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
-    cell_font = Font(name="Tajawal", size=10)
-    thin_border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
+    table = excel_table_styles()
+    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
+    thin_border, alt_fill = table.border, table.alt_fill
 
     wb = openpyxl.Workbook()
 
@@ -1026,7 +1223,7 @@ def attendance_export_excel(request):
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
-                cell.fill = PatternFill(start_color="FDF2F5", end_color="FDF2F5", fill_type="solid")
+                cell.fill = alt_fill
 
     for col_idx in range(1, 5):  # 4 columns
         max_len = 0
@@ -1068,11 +1265,11 @@ def attendance_export_excel(request):
             cell.font = cell_font
             cell.border = thin_border
             if rec.status == "absent":
-                cell.fill = PatternFill(start_color="FEE2E2", end_color="FEE2E2", fill_type="solid")
+                cell.fill = xl_fill(brand.STATUS_DANGER_BG)
             elif rec.status == "late":
-                cell.fill = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
+                cell.fill = xl_fill(brand.STATUS_WARNING_BG)
             elif i % 2 == 0:
-                cell.fill = PatternFill(start_color="FDF2F5", end_color="FDF2F5", fill_type="solid")
+                cell.fill = alt_fill
 
     for col_idx in range(1, 6):  # 5 columns
         max_len = 0
@@ -1098,7 +1295,7 @@ def _behaviour_window(school, today):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def behavior_overview(request):
     """ملخص سلوك الطلاب — إحصائيات شاملة."""
     school = request.user.get_school()
@@ -1172,10 +1369,32 @@ def behavior_overview(request):
     # ── الصفوف المتاحة للفلتر ──
     grades = ClassGroup.GRADES
 
+    # ── ألوانُ البطاقات بعتباتها التي كانت في القالب ──
+    # نسبةُ المخالفين: دون 10% أخضر، ودون 25% برتقاليّ — وبها يُلوَّن الإجماليّ أيضاً.
+    pct_tone = "green" if infraction_pct < 10 else "orange" if infraction_pct < 25 else "red"
+    # مخالفاتُ اليوم: صفرٌ أخضر، ودون 5 برتقاليّ. وغيرُ المحلولة: صفرٌ أخضر، ودون 10 برتقاليّ.
+    today_tone = "green" if not today_infractions else "orange" if today_infractions < 5 else "red"
+    unresolved_tone = "green" if not unresolved else "orange" if unresolved < 10 else "red"
+    degree_rows = [
+        (label, degree_map.get(degree, {}).get("count", 0))
+        for degree, label in (
+            (1, "الدرجة 1 — تحذير"),
+            (2, "الدرجة 2 — إنذار"),
+            (3, "الدرجة 3 — خطيرة"),
+            (4, "الدرجة 4 — جسيمة"),
+        )
+    ]
+
     return render(
         request,
         "student_affairs/behavior_overview.html",
         {
+            "pct_label": f"{infraction_pct}%",
+            "offenders_label": f"{students_with_infractions} من {total_students}",
+            "pct_tone": pct_tone,
+            "today_tone": today_tone,
+            "unresolved_tone": unresolved_tone,
+            "degree_rows": degree_rows,
             "today": today,
             "total_infractions": total_infractions,
             "unresolved": unresolved,
@@ -1199,7 +1418,7 @@ def behavior_overview(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.activities")
 def activity_list(request):
     """قائمة الأنشطة والإنجازات مع فلتر."""
     school = request.user.get_school()
@@ -1232,7 +1451,7 @@ def activity_list(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.activities")
 def activity_add(request):
     """تسجيل نشاط أو إنجاز جديد."""
     school = request.user.get_school()
@@ -1285,7 +1504,7 @@ def activity_add(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.activities")
 def activity_edit(request, pk):
     """تعديل نشاط."""
     school = request.user.get_school()
@@ -1337,7 +1556,7 @@ def activity_edit(request, pk):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.activities")
 @require_POST
 def activity_delete(request, pk):
     """حذف نشاط."""
@@ -1350,116 +1569,12 @@ def activity_delete(request, pk):
 
 
 # ═════════════════════════════════════════════════════════════════════
-# إضافة ولي أمر جديد + ربطه بطالب
-# ═════════════════════════════════════════════════════════════════════
-
-
-@login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
-def parent_add(request):
-    """إضافة ولي أمر جديد وربطه بطالب — ينشئ 3 سجلات ذرّياً (User + Membership + ParentStudentLink)."""
-
-    from .forms import ParentAddForm
-
-    school = request.user.get_school()
-    year = academic_year_for(request)
-
-    # ✅ subquery مباشر — بدون تحميل student_ids إلى Python memory
-    students = (
-        CustomUser.objects.filter(
-            enrollments__class_group__school=school,
-            enrollments__class_group__academic_year=year,
-            enrollments__is_active=True,
-        )
-        .distinct()
-        .order_by("full_name")
-    )
-
-    if request.method == "POST":
-        form = ParentAddForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-            student = get_object_or_404(CustomUser, id=cd["student_id"])
-
-            existing = CustomUser.objects.filter(national_id=cd["national_id"]).first()
-
-            try:
-                with transaction.atomic():
-                    if existing:
-                        parent = existing
-                        # تأكد من وجود Membership كـ parent
-                        parent_role, _ = Role.objects.get_or_create(school=school, name="parent")
-                        Membership.objects.get_or_create(
-                            user=parent,
-                            school=school,
-                            role=parent_role,
-                            defaults={"is_active": True},
-                        )
-                    else:
-                        # إنشاء حساب جديد
-                        parent = CustomUser.objects.create_user(
-                            national_id=cd["national_id"],
-                            password=cd["national_id"],
-                            full_name=cd["full_name"],
-                            phone=cd.get("phone", ""),
-                            email=cd.get("email", ""),
-                            must_change_password=True,
-                        )
-                        Profile.objects.get_or_create(user=parent)
-                        parent_role, _ = Role.objects.get_or_create(school=school, name="parent")
-                        Membership.objects.create(
-                            user=parent,
-                            school=school,
-                            role=parent_role,
-                            is_active=True,
-                        )
-
-                    # ربط ولي الأمر بالطالب
-                    link, created = ParentStudentLink.objects.get_or_create(
-                        school=school,
-                        parent=parent,
-                        student=student,
-                        defaults={
-                            "relationship": cd["relationship"],
-                            "can_view_grades": True,
-                            "can_view_attendance": True,
-                        },
-                    )
-
-                if created:
-                    messages.success(
-                        request,
-                        f"تم إضافة {parent.full_name} وربطه بالطالب {student.full_name} بنجاح.",
-                    )
-                else:
-                    messages.warning(
-                        request,
-                        f"الربط بين {parent.full_name} والطالب {student.full_name} موجود مسبقاً.",
-                    )
-                return redirect("manage_parent_links")
-
-            except Exception as e:
-                messages.error(request, f"خطأ أثناء إضافة ولي الأمر: {e}")
-    else:
-        form = ParentAddForm()
-
-    return render(
-        request,
-        "student_affairs/parent_form.html",
-        {
-            "form": form,
-            "students": students,
-        },
-    )
-
-
-# ═════════════════════════════════════════════════════════════════════
 # تصدير ملف الطالب PDF
 # ═════════════════════════════════════════════════════════════════════
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def student_profile_pdf(request, student_id):
     """ملف الطالب الشامل — PDF للطباعة (A4)."""
     school = request.user.get_school()
@@ -1560,7 +1675,7 @@ def student_profile_pdf(request, student_id):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def protected_media(request, path):
     """تقديم ملفات media محمية — يتحقق من المدرسة قبل التقديم عبر X-Accel-Redirect."""
     # F-001-a: Path traversal sanitization
@@ -1591,7 +1706,7 @@ def protected_media(request, path):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def tardiness_list(request):
     """قائمة الطلاب المتأخرين — مفلترة حسب التاريخ والصف."""
     school = request.user.get_school()
@@ -1643,6 +1758,9 @@ def tardiness_list(request):
     )
     for rec in late_records:
         rec.cumulative_late = cumulative_counts.get(rec.student_id, 0)
+        # خمسُ مرّاتٍ فأكثر هذا العام تُلوَّن خطراً — العتبةُ التي كانت في القالب.
+        rec.cumulative_badge = "status-danger" if rec.cumulative_late >= 5 else "status-gray"
+        rec.class_text = class_label(rec.session.class_group.grade, rec.session.class_group.section)
 
     # KPIs إضافية
     total_students_today = (
@@ -1690,6 +1808,25 @@ def tardiness_list(request):
         request,
         "student_affairs/tardiness_list.html",
         {
+            "page_subtitle": f"الطلاب المتأخرون — {date_format(selected_date, 'D، d M Y')}",
+            "empty_label": f"لا يوجد طلاب متأخرون في {date_format(selected_date, 'd M Y')}",
+            # صفرٌ أخضر، وحتى خمسةٍ برتقاليّ، وما فوقها أحمر — عتباتُ القالب.
+            "total_late_tone": "green"
+            if not total_late
+            else "orange"
+            if total_late <= 5
+            else "red",
+            "late_pct_label": f"{late_pct}%",
+            "late_pct_sub": f"من {total_students_today}",
+            "class_chips": [
+                {
+                    "label": class_label(
+                        row["session__class_group__grade"], row["session__class_group__section"]
+                    ),
+                    "count": row["count"],
+                }
+                for row in class_breakdown
+            ],
             "late_records": late_records,
             "selected_date": selected_date,
             "total_late": total_late,
@@ -1713,11 +1850,11 @@ def tardiness_list(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def behavior_export_excel(request):
     """تصدير إحصائيات السلوك — المخالفات + أكثر الطلاب."""
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment
 
     school = request.user.get_school()
     ctx = get_export_context(request, "تقرير السلوك الطلابي")
@@ -1739,15 +1876,9 @@ def behavior_export_excel(request):
     num_cols = len(headers)
     data_start = add_excel_header(ws, ctx, num_cols)
 
-    header_fill = PatternFill(start_color="8A1538", end_color="8A1538", fill_type="solid")
-    header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
-    cell_font = Font(name="Tajawal", size=10)
-    thin_border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
+    table = excel_table_styles()
+    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
+    thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=data_start, column=col, value=h)
@@ -1769,7 +1900,7 @@ def behavior_export_excel(request):
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
-                cell.fill = PatternFill(start_color="FDF2F5", end_color="FDF2F5", fill_type="solid")
+                cell.fill = alt_fill
         row_count = i
 
     for col_idx in range(1, num_cols + 1):
@@ -1784,11 +1915,11 @@ def behavior_export_excel(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def tardiness_export_excel(request):
     """تصدير قائمة المتأخرين ليوم محدد."""
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment
 
     school = request.user.get_school()
 
@@ -1847,15 +1978,9 @@ def tardiness_export_excel(request):
     num_cols = len(headers)
     data_start = add_excel_header(ws, ctx, num_cols)
 
-    header_fill = PatternFill(start_color="8A1538", end_color="8A1538", fill_type="solid")
-    header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
-    cell_font = Font(name="Tajawal", size=10)
-    thin_border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
+    table = excel_table_styles()
+    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
+    thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=data_start, column=col, value=h)
@@ -1887,7 +2012,7 @@ def tardiness_export_excel(request):
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
-                cell.fill = PatternFill(start_color="FDF2F5", end_color="FDF2F5", fill_type="solid")
+                cell.fill = alt_fill
         row_count = i
 
     for col_idx in range(1, num_cols + 1):
@@ -1907,11 +2032,11 @@ def tardiness_export_excel(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.activities")
 def activities_export_excel(request):
     """تصدير قائمة الأنشطة والإنجازات."""
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment
 
     school = request.user.get_school()
     ctx = get_export_context(request, "تقرير الأنشطة والإنجازات")
@@ -1932,15 +2057,9 @@ def activities_export_excel(request):
     num_cols = len(headers)
     data_start = add_excel_header(ws, ctx, num_cols)
 
-    header_fill = PatternFill(start_color="8A1538", end_color="8A1538", fill_type="solid")
-    header_font = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
-    cell_font = Font(name="Tajawal", size=10)
-    thin_border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
+    table = excel_table_styles()
+    header_fill, header_font, cell_font = table.header_fill, table.header_font, table.cell_font
+    thin_border, alt_fill = table.border, table.alt_fill
 
     for col, h in enumerate(headers, 1):
         cell = ws.cell(row=data_start, column=col, value=h)
@@ -1964,7 +2083,7 @@ def activities_export_excel(request):
             cell.font = cell_font
             cell.border = thin_border
             if i % 2 == 0:
-                cell.fill = PatternFill(start_color="FDF2F5", end_color="FDF2F5", fill_type="solid")
+                cell.fill = alt_fill
         row_count = i
 
     for col_idx in range(1, num_cols + 1):
@@ -1984,7 +2103,7 @@ def activities_export_excel(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def attendance_overview_pdf(request):
     """تصدير إحصائيات الحضور والغياب — PDF."""
     school = request.user.get_school()
@@ -2042,7 +2161,7 @@ def attendance_overview_pdf(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def behavior_overview_pdf(request):
     """تصدير ملخص السلوك — PDF."""
     school = request.user.get_school()
@@ -2114,7 +2233,7 @@ def behavior_overview_pdf(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def tardiness_pdf(request):
     """تصدير قائمة المتأخرين — PDF."""
     school = request.user.get_school()
@@ -2208,7 +2327,7 @@ def tardiness_pdf(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 def tardiness_search_students(request):
     """HTMX — بحث عن طلاب بالاسم لتسجيل تأخير."""
     from django.http import JsonResponse
@@ -2254,7 +2373,7 @@ def tardiness_search_students(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 @require_POST
 def tardiness_record(request):
     """POST — تسجيل تأخير صباحي لطالب."""
@@ -2366,7 +2485,7 @@ def tardiness_record(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@capability_required("student_affairs.manage")
 @require_POST
 def tardiness_delete(request, pk):
     """حذف سجل تأخير (إعادته لحاضر)."""

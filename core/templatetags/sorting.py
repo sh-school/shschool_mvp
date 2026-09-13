@@ -67,3 +67,22 @@ def sort_th(context, state, key, label, css="", target=""):
         label,
         arrow,
     )
+
+
+@register.simple_tag(takes_context=True)
+def page_query(context, number):
+    """سلسلةُ الاستعلام لصفحةٍ أخرى — بكلّ ما قبلها من ترشيحٍ وبحثٍ وفرز.
+
+    كان رابطُ الصفحة `?page=2` وحدَه، فيُسقط `grade` و`q` و`status` و`sort`
+    معاً: يختار القارئُ الصفَّ السابعَ ثمّ ينقر «2» فتُفتح له الصفحةُ الثانية
+    من **كلّ** المدرسة — والقائمةُ المنسدلةُ ما زالت تقول «G7»، فيظنّ ما يراه
+    سابعاً وهو غيرُه. وهذا أسوأُ من ضياع الترشيح: شاشةٌ تكذب ولا تقول.
+
+    فتُنسخ معاملاتُ الرابط كما هي ويُبدَّل `page` وحدَه.
+    """
+    request = context.get("request")
+    if request is None:  # pragma: no cover - قالبٌ بلا request
+        return f"page={number}"
+    params = request.GET.copy()
+    params.setlist("page", [str(number)])
+    return params.urlencode()

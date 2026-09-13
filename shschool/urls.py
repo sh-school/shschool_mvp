@@ -49,6 +49,7 @@ urlpatterns = [
     # ✅ v7: شؤون الطلاب
     path("student-affairs/", include("student_affairs.urls", namespace="student_affairs")),
     path("student-info/", include("student_info.urls", namespace="student_info")),
+    path("wings/", include("wings.urls", namespace="wings")),
     # ✅ v7: شؤون الموظفين
     path("staff-affairs/", include("staff_affairs.urls", namespace="staff_affairs")),
     # ✅ REQ-SH-002: إدارة الشؤون الأكاديمية (Client #001) — stub phase
@@ -70,6 +71,11 @@ urlpatterns = [
         "styleguide/",
         login_required(TemplateView.as_view(template_name="components/_styleguide.html")),
         name="styleguide",
+    ),
+    path(
+        "styleguide/components/",
+        login_required(TemplateView.as_view(template_name="styleguide/components.html")),
+        name="ui_components",
     ),
     path(
         "styleguide/icons/",

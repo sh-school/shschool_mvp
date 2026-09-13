@@ -1,0 +1,38 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% block title %}حضور — {{ session.class_group }}{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'teacher_schedule' as schedule_url %}
+{% include "components/breadcrumbs.html" with parent_url=schedule_url parent_label="الأكاديمية" current="حضور الحصّة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header page_title subtitle=session_label icon="list-checks" %}{% endpage_header %}
+
+  <p class="form-note is-warning">
+    {% include "components/icon.html" with name="alert-triangle" %}
+    <span>رصدُ الغياب لمشرف الجناح بقرار إدارة المدرسة — هذه الشاشة للاطّلاع.
+    {% if not recorded %}ولم يُرصد هذا اليومُ بعد.{% endif %}</span>
+  </p>
+
+  <ol class="rec-list">
+    {% for item in students_data %}
+    <li class="rec-row" data-state="{{ item.status }}">
+      <span class="rec-row__no">{{ forloop.counter }}</span>
+      <span class="rec-row__name">{{ item.student.full_name }}</span>
+      <span class="rec-row__pick">
+        {% if item.status == "absent" %}<span class="badge badge--danger">غائب</span>
+        {% elif item.status == "late" %}<span class="badge badge--warning">متأخّر</span>
+        {% elif item.status == "excused" %}<span class="badge badge--info">معذور</span>
+        {% elif item.status == "present" %}<span class="badge badge--success">حاضر</span>
+        {% else %}<span class="badge badge--neutral">لم يُرصد</span>{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ol>
+
+</div>
+{% endblock %}

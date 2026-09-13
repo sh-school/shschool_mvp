@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}إجراءاتي{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,202 +9,62 @@
 {% block content %}
 <div class="qmy">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="clipboard-check" %} إجراءاتي في الخطة التشغيلية</h1>
-    </div>
+  {% page_header "إجراءاتي في الخطة التشغيلية" subtitle=year icon="clipboard-check" %}
     <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">← العودة</a>
-  </div>
+  {% endpage_header %}
 
-  {# ── Unmapped alert ── #}
-  {% if not mapping_exists %}
-  <div class="alert-strip" style="background:var(--status-warning-bg);border:1px solid var(--status-warning-border)">
-    <span class="qmy-alert__icon">{% include "components/icon.html" with name="alert-triangle" %}</span>
-    <div>
-      <p class="qmy-alert__title">حسابك غير مربوط بالخطة التشغيلية</p>
-      <p class="qmy-alert__text">
-        لم يتم ربط حسابك بأي مسمى وظيفي في الخطة التشغيلية بعد.
-        تواصل مع مدير المدرسة لإتمام الربط من صفحة
-        <strong>ربط المنفذين بالموظفين</strong>.
-      </p>
-    </div>
-  </div>
-  {% endif %}
+  {% kpi_strip label="أرقام إجراءاتي" %}
+    {% kpi "إجمالي" total %}
+    {% kpi "مكتمل" completed tone="green" %}
+    {% kpi "نسبة الإنجاز" pct_label tone=pct_tone %}
+  {% endkpi_strip %}
 
-  {# ── KPI strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-blue">
-      <span class="kpi-mini-value">{{ total }}</span>
-      <span class="kpi-mini-label">إجمالي</span>
+  <form method="get" class="filter-bar qmy-filters">
+    <div class="filter-field">
+      <label class="filter-label" for="qmy-status">الحالة</label>
+      <select name="status" id="qmy-status">
+        <option value="">— كل الحالات —</option>
+        {% for val, label in STATUS_CHOICES %}
+        <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
     </div>
-    <div class="kpi-mini kpi-green">
-      <span class="kpi-mini-value">{{ completed }}</span>
-      <span class="kpi-mini-label">مكتمل</span>
+    <div class="filter-field filter-field--grow">
+      <label class="filter-label" for="qmy-search">بحث</label>
+      <input type="text" id="qmy-search" placeholder="ابحث في الإجراءات...">
     </div>
-    <div class="kpi-mini kpi-maroon">
-      <span class="kpi-mini-value">{{ pct }}%</span>
-      <span class="kpi-mini-label">نسبة الإنجاز</span>
+    <div class="filter-actions">
+      <button type="submit" class="btn-primary btn-sm">فلترة</button>
+      <a href="{% url 'my_procedures' %}" class="btn-secondary btn-sm">إعادة ضبط</a>
     </div>
-  </div>
-
-  {# ── Filters ── #}
-  <form method="get" class="qmy-filters">
-    <select name="status" class="qmy-filters__select">
-      <option value="">— كل الحالات —</option>
-      {% for val, label in STATUS_CHOICES %}
-      <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-    <input type="text" id="qmy-search" placeholder="ابحث في الإجراءات..." class="qmy-filters__select qmy-filters__search">
-    <button type="submit" class="btn-primary btn-sm">فلترة</button>
-    <a href="{% url 'my_procedures' %}" class="btn-secondary btn-sm">إعادة ضبط</a>
   </form>
 
-  {# ── Procedure list ── #}
-  <div class="card-qatar qmy-list" id="qmy-list">
-    {% for proc in procedures %}
-    <a href="{% url 'procedure_detail' proc.id %}" class="qmy-item" data-text="{{ proc.text|lower }}">
-      <div class="qmy-item__body">
-        <p class="qmy-item__num">
-          <span dir="ltr">{{ proc.number }}</span> &middot; {{ proc.indicator.target.domain.name }}
-        </p>
-        <p class="qmy-item__text">{{ proc.text|truncatechars:100 }}</p>
-        <p class="qmy-item__meta">
-          {% include "components/icon.html" with name="calendar" %} {{ proc.date_range }}
-          {% if proc.deadline %}
-          &middot; <span class="{% if proc.status != 'Completed' %}qmy-item__deadline{% endif %}">
-            {% include "components/icon.html" with name="clock" %} {{ proc.deadline|date:"Y/m/d" }}
+  {% section_card "الإجراءات" meta=procedures|length icon="list-checks" empty="لا توجد إجراءات مرتبطة بحسابك" %}{% if not mapping_exists %}
+    <p class="form-note is-warning">
+      {% include "components/icon.html" with name="alert-triangle" %}
+      <span><b>حسابك غير مربوط بالخطة التشغيلية.</b> تواصل مع مدير المدرسة ليربطه بمسمّاك الوظيفيّ من صفحة «ربط المنفذين بالموظفين».</span>
+    </p>
+  {% elif procedures %}
+    <ul class="plain-list" id="qmy-list">
+      {% for proc in procedures %}
+      <li class="plain-list__row qmy-item" data-text="{{ proc.text|lower }}">
+        <a href="{% url 'procedure_detail' proc.id %}" class="plain-list__main qmy-item__link">
+          <span class="plain-list__sub"><span dir="ltr">{{ proc.number }}</span> · {{ proc.indicator.target.domain.name }}</span>
+          <span class="plain-list__title">{{ proc.text|truncatechars:100 }}</span>
+          <span class="plain-list__sub">
+            {% include "components/icon.html" with name="calendar" %} {{ proc.date_range }}
+            {% if proc.deadline %}
+            · <span class="{% if proc.deadline_overdue %}qmy-item__deadline{% endif %}"{% if proc.deadline_overdue %} title="تجاوز الموعد ولم يكتمل"{% endif %}>{% include "components/icon.html" with name="clock" %} {{ proc.deadline|date:"Y/m/d" }}</span>
+            {% endif %}
           </span>
-          {% endif %}
-        </p>
-      </div>
-      <span class="qdom-badge {% if proc.status == 'Completed' %}qdom-badge--success{% elif proc.status == 'In Progress' %}qdom-badge--warning{% elif proc.status == 'Pending Review' %}qdom-badge--blue{% else %}qdom-badge--gray{% endif %}">
-        {{ proc.get_status_display }}
-      </span>
-    </a>
-    {% empty %}
-    <div class="qmy-empty">لا توجد إجراءات مرتبطة بحسابك</div>
-    {% endfor %}
-  </div>
+        </a>
+        <span class="status-badge status-{{ proc.status_tone }}">{{ proc.get_status_display }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}{% endsection_card %}
 
 </div>
-{% endblock %}
-
-{% block extra_css %}
-<style nonce="{{ request.csp_nonce }}">
-/* ═══════════════════════════════════════════════════
-   My Procedures — dark-mode safe, CSS variables
-   ═══════════════════════════════════════════════════ */
-.qmy { display: flex; flex-direction: column; gap: 12px; }
-
-/* ── Alert banner ── */
-.qmy-alert {
-  display: flex; align-items: flex-start; gap: 10px;
-  padding: 12px 16px; border-radius: var(--radius);
-  background: var(--status-warning-bg);
-  border: 1px solid var(--status-warning-border);
-}
-html.dark .qmy-alert {
-  background: rgba(217,119,6,.1);
-  border-color: rgba(245,158,11,.25);
-}
-.qmy-alert__icon { font-size: 1.3rem; color: var(--status-warning); flex-shrink: 0; }
-.qmy-alert__title { font-size: 0.82rem; font-weight: 700; color: var(--status-warning-dark); margin: 0; }
-html.dark .qmy-alert__title { color: #fbbf24; }
-.qmy-alert__text { font-size: 0.72rem; color: var(--text-secondary); margin: 4px 0 0; line-height: 1.5; }
-
-/* ── KPI cards ── */
-.qmy-kpis {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-}
-@media (max-width: 480px) { .qmy-kpis { grid-template-columns: 1fr; } }
-.qmy-kpi { text-align: center; padding: 14px 10px; }
-.qmy-kpi__val {
-  display: block; font-size: 1.5rem; font-weight: 800; line-height: 1.2;
-}
-.qmy-kpi__lbl {
-  display: block; font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px;
-}
-.qmy-kpi__val--primary { color: var(--skyline); }
-.qmy-kpi__val--success { color: var(--status-success); }
-html.dark .qmy-kpi__val--primary { color: #7dd3fc; }
-html.dark .qmy-kpi__val--success { color: #86efac; }
-
-/* ── Filters row ── */
-.qmy-filters {
-  display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-}
-.qmy-filters__select {
-  border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 6px 12px; font-size: 0.8rem;
-  background: var(--surface); color: var(--text-primary);
-  transition: border-color var(--transition-fast);
-}
-.qmy-filters__select:focus {
-  outline: none; border-color: var(--maroon-border);
-  box-shadow: var(--focus-ring);
-}
-.qmy-filters__search { flex: 1; min-width: 180px; }
-
-/* ── Procedure list ── */
-.qmy-list { overflow: hidden; }
-.qmy-item {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 12px; padding: 12px 16px; text-decoration: none;
-  border-bottom: 1px solid var(--border);
-  transition: background var(--transition-fast);
-}
-.qmy-item:last-child { border-bottom: none; }
-.qmy-item:hover { background: var(--surface-alt); }
-.qmy-item__body { flex: 1; min-width: 0; }
-.qmy-item__num {
-  font-size: 0.68rem; font-family: monospace;
-  color: var(--text-secondary); margin-bottom: 2px;
-}
-.qmy-item__text {
-  font-size: 0.82rem; font-weight: 600;
-  color: var(--text-primary); line-height: 1.5;
-}
-.qmy-item__meta {
-  font-size: 0.7rem; color: var(--text-secondary); margin-top: 4px;
-}
-.qmy-item__deadline { color: var(--status-danger); font-weight: 600; }
-html.dark .qmy-item__deadline { color: #fca5a5; }
-
-/* ── Empty state ── */
-.qmy-empty {
-  padding: 40px; text-align: center;
-  color: var(--text-secondary); font-size: 0.85rem;
-}
-
-/* ── Reuse domain badges ── */
-.qdom-badge {
-  padding: 2px 10px; border-radius: 6px;
-  font-size: 0.68rem; font-weight: 600; white-space: nowrap;
-  flex-shrink: 0; margin-inline-start: 8px;
-}
-.qdom-badge--success { background: var(--status-success-bg); color: var(--status-success-dark); }
-.qdom-badge--warning { background: var(--status-warning-bg); color: var(--status-warning-dark); }
-.qdom-badge--blue    { background: var(--status-info-bg); color: var(--status-info-dark); }
-.qdom-badge--gray    { background: #f1f5f9; color: #64748b; }
-html.dark .qdom-badge--success { background: rgba(22,163,74,.15); color: #86efac; }
-html.dark .qdom-badge--warning { background: rgba(217,119,6,.15); color: #fbbf24; }
-html.dark .qdom-badge--blue    { background: rgba(37,99,235,.15); color: #93c5fd; }
-html.dark .qdom-badge--gray    { background: rgba(100,116,139,.15); color: #94a3b8; }
-
-/* ── Responsive ── */
-@media (max-width: 640px) {
-  .qmy-item { flex-direction: column; gap: 6px; }
-  .qdom-badge { align-self: flex-end; margin-inline-start: 0; }
-}
-
-/* ── Print ── */
-@media print {
-  .qmy-filters, .qmy-alert { display: none; }
-  .qmy-item:hover { background: none; }
-}
-</style>
 {% endblock %}
 
 {% block extra_js %}

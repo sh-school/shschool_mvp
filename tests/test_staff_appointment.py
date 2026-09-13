@@ -11,6 +11,8 @@
 حصّةً في جدول العام الماضي — ومحوُ عضويّته يقطع تلك الحصص عن صاحبها.
 """
 
+import re
+
 import pytest
 from django.core.exceptions import ValidationError
 from django.urls import reverse
@@ -495,4 +497,8 @@ def test_the_register_counts_people_not_memberships(client_as, school, principal
 
     body = client_as(principal).get(reverse("staff_affairs:staff_list")).content.decode()
 
-    assert body.count(membership.user.full_name) == 1
+    # العدُّ على رابط الصفّ لا على ورود الاسم في الصفحة: الاسمُ يتكرّر في
+    # `aria-label` زرِّ الملفّ — وزرٌّ أيقونيٌّ بلا اسمٍ مقروءٍ لا يصلح لقارئ
+    # الشاشة. والمقصودُ هنا صفٌّ واحدٌ لا اسمٌ واحد.
+    rows = re.findall(r'class="staff-name"[^>]*>\s*([^<]+?)\s*</a>', body)
+    assert rows.count(membership.user.full_name) == 1

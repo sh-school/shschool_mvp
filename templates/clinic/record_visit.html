@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy %}
 {% block title %}تسجيل زيارة جديدة{% endblock %}
 
 {% block breadcrumbs %}
@@ -26,7 +27,7 @@
             <option value="">— اختر الطالب —</option>
             {% for student in students %}
             <option value="{{ student.id }}" {% if student_id == student.id|stringformat:"s" %}selected{% endif %}>
-              {{ student.full_name }} ({{ student.national_id }})
+              {{ student.full_name }} ({{ student.national_id|mask_id }})
             </option>
             {% endfor %}
           </select>
@@ -62,7 +63,7 @@
 
         {# ── إرسال للمنزل ── #}
         <div class="status-badge status-warning flex items-center gap-3 p-3 rounded-lg text-sm w-full" style="white-space:normal">
-          <input type="checkbox" name="is_sent_home" id="sent_home" class="w-4 h-4" style="accent-color:var(--maroon)">
+          <input type="checkbox" name="is_sent_home" id="sent_home" class="w-4 h-4" style="accent-color:var(--maroon-fg)">
           <label for="sent_home" class="font-medium cursor-pointer m-0">
             {% include "components/icon.html" with name="alert-triangle" %} تم إرسال الطالب إلى المنزل (سيتم إبلاغ ولي الأمر تلقائياً)
           </label>

@@ -1,12 +1,12 @@
-<!DOCTYPE html>
+{% load brand_tags %}<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#8A1538" id="meta-theme-color">
+  <meta name="theme-color" content="{% brand_color 'MAROON' %}" id="meta-theme-color">
   <meta name="color-scheme" content="light" id="meta-color-scheme">
   <script nonce="{{ request.csp_nonce }}">
-    (function(){var t=localStorage.getItem('theme'),isDark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='#1a0a12';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
+    (function(){var t=localStorage.getItem('theme'),isDark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='{% brand_color "MAROON_BG" "dark" %}';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
   </script>
   <title>تسجيل الدخول — {{ current_school.name|default:"المدرسة" }}</title>
   {% load static %}
@@ -20,8 +20,8 @@
   <link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
 
   {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
-  <style>@import url("{% static 'css/tailwind.min.css' %}?v=9") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=157">
+  <style>@import url("{% static 'css/tailwind.min.css' %}") layer(tailwind);</style>
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}">
 
   {# Login styles — defined in custom.css section 15 #}
 </head>
@@ -60,18 +60,18 @@
       {% csrf_token %}
 
       <div>
-        <label class="form-label" for="id_national_id">
-          الرقم الشخصي
+        <label class="form-label" for="id_identifier">
+          الرقم الوظيفي أو الرقم الشخصي
         </label>
         <input
           type="text"
-          id="id_national_id"
-          name="national_id"
+          id="id_identifier"
+          name="identifier"
           class="login-input"
           required
           autofocus
           autocomplete="username"
-          placeholder="أدخل رقمك الشخصي"
+          placeholder="الموظّفون: الرقم الوظيفي — الطلبة وأولياء الأمور: الرقم الشخصي"
           dir="ltr"
           inputmode="numeric"
           pattern="\d{5,20}"
@@ -118,7 +118,7 @@
       <div class="site-footer-brand" aria-label="Azkia brand attribution" style="margin-top:1rem;justify-content:center">
         <span class="site-footer-brand-label">طُوِّر بواسطة</span>
         <img
-          src="{% static 'brand/azkia-logo.svg' %}?v=2026-04-10"
+          src="{% static 'brand/azkia-logo.svg' %}"
           alt="شعار أذكياء للبرمجيات"
           class="site-footer-brand-logo"
           width="20"

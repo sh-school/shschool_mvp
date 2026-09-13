@@ -1,108 +1,242 @@
-"""[LEGAL] عتبات الغياب هي أرقام الوزارة — لا نسبةٌ من عندنا.
+"""[LEGAL] عتباتُ الغياب والتأخّر هي أرقامُ الوزارة — لا نسبةٌ من عندنا.
 
-كانت المنصّة تحسب «10٪ من أيام الدراسة (≈19 يوماً من 190)» وتنسبها إلى
-المادة 7 من قانون التعليم الإلزامي 25/2001. وراجعتُ نصّ القانون: مادّته
-السابعة توجب إخطار المسؤول عن الطفل بكتابٍ مسجَّل، ولا تذكر نسبةً ولا عدد
-أيام — لا هي ولا سائر مواده الثلاث عشرة.
+## ثلاثةُ مصادرَ تعاقبت
 
-والأرقام الحقيقية في «الدليل التعريفي لسياسة تقييم الطلبة» (القرار الوزاري
-22/2015)، ص 27 و37:
+كانت المنصّةُ تحسب «10٪ من أيام الدراسة (≈19 يوماً من 190)» وتنسبها إلى
+المادة 7 من قانون التعليم الإلزامي 25/2001. وراجعتُ نصّ القانون: مادّتُه
+السابعة توجب إخطارَ المسؤول عن الطفل بكتابٍ مسجَّل، ولا تذكر نسبةً ولا عددَ
+أيّام — لا هي ولا سائرُ مواده الثلاث عشرة.
 
-    الصفوف ٤–١١     7 · 10 · 13 · 15
-    الصف ١٢            10 · 15
+ثمّ صُحّحت إلى «سياسة تقييم الطلبة 2018» (القرار 22/2015): 7·10·13·15 للصفوف
+4–11، و10·15 للثاني عشر.
 
-تراكميّاً من بداية العام، متصلةً أو غير متصلة، وأثرها الحرمان من دخول
-الاختبار — لا إشعار وليّ الأمر.
+**والنافذُ اليوم** «الدليل التنظيمي لسياسة إدارة سلوك الطلبة **2026**» — قسم
+حماية ورعاية الطلبة، والملفُّ في `data/2026-2027/`:
 
-وهذه الحرّاس تُثبّت الأرقام بأعيانها. فرقمٌ يتغيّر بلا مراجعةٍ للنصّ يحرم
-طالباً من حقّه أو يترك آخر يدخل وهو محروم — وكلاهما لا يُخفق في أيّ شاشة.
+    1–11          5 · 8 · 11 · 15     م 3.4.1.3 (ص29)
+    الثاني عشر    8 · 15              (عتبتا المنتصف مقصورتان على 1–11)
+    ذوو الإعاقة   8 · 15              م 3.7.3.3 (ص139–140)
+
+تراكميّاً من بداية العام، متصلةً أو غيرَ متصلة، وأثرُها الحرمانُ من دخول
+الاختبار بقرارِ **فريق إدارة سلوك الطلبة** — لا إشعارُ وليّ الأمر.
+
+## ولمَ ملفٌّ واحد
+
+كُتبت أرقامُ 2026 أوّلاً في ملفٍّ ثانٍ إلى جانب هذا، فصار للوحدة حارسان
+بأرقامٍ متعارضة: أحدُهما يُثبّت السبعةَ والآخرُ الخمسة. وحارسان يتناقضان أسوأُ
+من حارسٍ واحدٍ يُخفق — فمن يقرأ لا يدري أيُّهما الحقّ. فدُمجا هنا.
+
+## وهذه الحرّاسُ تُثبّت الأرقامَ بأعيانها
+
+فرقمٌ يتغيّر بلا مراجعةٍ للنصّ يحرم طالباً من حقّه، أو يترك آخرَ يدخل وهو
+محروم — وكلاهما **لا يُخفق في أيّ شاشة**.
 """
 
 import pytest
 
 from operations import absence_policy as policy
-
-# ── الأرقام نفسها ─────────────────────────────────────────────────────
-
-
-@pytest.mark.parametrize(
-    "key,days",
-    [("s1_midterm", 7), ("s1_final", 10), ("s2_midterm", 13), ("first_round", 15)],
+from operations.absence_policy import (
+    ACCEPTED_EXCUSES,
+    BAND_1_11,
+    BAND_12,
+    BAND_ESE,
+    BAND_UNKNOWN,
+    GATES_1_11,
+    GATES_12,
+    GATES_ESE,
+    GUARDIAN_REPLY_DAYS,
+    MEDICAL_PROOF_DAYS_AFTER_RETURN,
+    MIN_PERIODS_FOR_PRESENCE,
+    SUMMON_DAYS,
+    TARDIES_PER_ABSENCE_DAY,
+    TARDY_AFTER_MINUTES,
+    TARDY_LADDER,
+    absence_days_from_tardies,
+    band_for,
+    breached,
+    gates_for,
+    next_gate,
+    tardy_step,
 )
-def test_the_four_gates_for_grades_four_to_eleven(key, days):
-    """الدليل ص 27."""
-    gate = next(g for g in policy.GATES_4_11 if g.key == key)
-
-    assert gate.max_days == days
 
 
-@pytest.mark.parametrize("key,days", [("s1_final", 10), ("s2_final", 15)])
-def test_the_two_gates_for_grade_twelve(key, days):
-    """الدليل ص 37 — عتبتان لا أربع."""
-    gate = next(g for g in policy.GATES_12 if g.key == key)
+class TestTheNumbersAreTheGuides:
+    def test_grades_one_to_eleven_have_four_gates(self):
+        """م 3.4.1.3: خمسةٌ · ثمانيةٌ · إحدى عشرةَ · خمسةَ عشر."""
+        assert [g.max_days for g in GATES_1_11] == [5, 8, 11, 15]
 
-    assert gate.max_days == days
+    def test_grade_twelve_has_two(self):
+        """عتبتا المنتصف مقصورتان على «الأول إلى الحادي عشر» بنصّ الدليل."""
+        assert [g.max_days for g in GATES_12] == [8, 15]
 
+    def test_the_disability_band_has_two(self):
+        """م 3.7.3.3: «تجاوز ثمانية أيام» ثمّ «16 يوماً»."""
+        assert [g.max_days for g in GATES_ESE] == [8, 15]
 
-def test_grade_twelve_has_no_midterm_gate():
-    """الفارق البنيويّ بين الجدولين، لا مجرّد فارقٍ في الأرقام."""
-    assert not [g for g in policy.GATES_12 if "midterm" in g.event_type]
-    assert [g for g in policy.GATES_4_11 if "midterm" in g.event_type]
+    def test_no_gate_carries_a_2018_number(self):
+        """7 و10 و13 أرقامُ سياسة 2018 — لا وجودَ لها في دليل 2026."""
+        every = {g.max_days for g in GATES_1_11 + GATES_12 + GATES_ESE}
 
+        assert not every & {7, 10, 13}, "رقمٌ من سياسة 2018 عاد"
 
-def test_the_gates_rise_in_order():
-    """عتبةٌ أدنى بعد أعلى تجعل `next_gate` تتخطّى ما لم يُتجاوز."""
-    for gates in (policy.GATES_4_11, policy.GATES_12):
-        days = [g.max_days for g in gates]
-        assert days == sorted(days), gates
+    def test_the_gates_rise(self):
+        for gates in (GATES_1_11, GATES_12, GATES_ESE):
+            days = [g.max_days for g in gates]
+            assert days == sorted(days)
 
-
-# ── إلى أيّ جدولٍ ينتمي الصفّ ──────────────────────────────────────────
-
-
-@pytest.mark.parametrize("grade", ["G4", "7", "G11", 11])
-def test_grades_four_to_eleven_take_the_four_gate_table(grade):
-    assert policy.gates_for(grade) is policy.GATES_4_11
-
-
-@pytest.mark.parametrize("grade", ["G12", 12])
-def test_grade_twelve_takes_its_own_table(grade):
-    assert policy.gates_for(grade) is policy.GATES_12
+    def test_every_gate_names_its_exam_and_semester(self):
+        for gate in GATES_1_11 + GATES_12 + GATES_ESE:
+            assert gate.key and gate.label
+            assert gate.event_type in ("midterm_exam", "final_exam")
+            assert gate.semester in ("S1", "S2")
 
 
-@pytest.mark.parametrize("grade", ["G1", "G3", 2, "", None])
-def test_the_early_grades_get_no_table_rather_than_the_wrong_one(grade):
-    """الصفوف ١–٣ لها قسمٌ مستقلّ في الدليل لم يُشفَّر.
+class TestExceedingNotReaching:
+    """نصُّ الدليل: «في حال **تجاوز** غيابه المدة المسموح بها»."""
 
-    وإرجاع جدولٍ لا يخصّها أسوأ من إرجاع لا شيء: يُنتج رقماً يبدو صحيحاً.
-    """
-    assert policy.gates_for(grade) == ()
-    assert policy.next_gate(grade, 99) is None
-    assert policy.breached(grade, 99) == ()
+    def test_matching_the_allowance_does_not_bar(self):
+        assert breached("G8", 5) == ()
+
+    def test_one_day_past_it_bars(self):
+        assert [g.key for g in breached("G8", 6)] == ["s1_midterm"]
+
+    def test_the_count_rises_with_the_days(self):
+        assert len(breached("G8", 9)) == 2
+        assert len(breached("G8", 12)) == 3
+        assert len(breached("G8", 16)) == 4
+
+    def test_the_upcoming_gate_is_the_first_not_passed(self):
+        assert next_gate("G8", 0).max_days == 5
+        assert next_gate("G8", 5).max_days == 5
+        assert next_gate("G8", 6).max_days == 8
+
+    def test_when_all_are_passed_there_is_no_next(self):
+        assert next_gate("G8", 99) is None
+
+    def test_a_twelfth_grader_is_not_barred_at_six(self):
+        """عتبةُ الخمسة لا تخصّه — فمن غاب ستّاً في الثاني عشر لم يُحرم."""
+        assert breached("G12", 6) == ()
+        assert [g.key for g in breached("G12", 9)] == ["s1_final"]
 
 
-# ── حدُّ العتبة ───────────────────────────────────────────────────────
+class TestTheBands:
+    @pytest.mark.parametrize("grade", ["G1", "G7", "G8", "G11", 7, "11"])
+    def test_one_to_eleven(self, grade):
+        assert band_for(grade) == BAND_1_11
+
+    def test_twelve_stands_alone(self):
+        assert band_for("G12") == BAND_12
+
+    def test_the_disability_band_is_a_flag_not_a_grade(self):
+        """طالبُ التربية الخاصّة في الثامن صفُّه ثامنٌ وسلّمُه سلّمُه."""
+        assert band_for("G8", ese=True) == BAND_ESE
+        assert band_for("G12", ese=True) == BAND_ESE
+        assert gates_for("G8", ese=True) == GATES_ESE
+
+    def test_a_grade_with_no_table_returns_unknown(self):
+        assert band_for("") == BAND_UNKNOWN
+        assert band_for("G13") == BAND_UNKNOWN
+        assert gates_for("G13") == ()
+
+    def test_an_unknown_band_bars_nobody(self):
+        """جدولٌ لا يخصّ الصفَّ لا يُطبَّق عليه — ولا يُحرم أحدٌ بالقياس."""
+        assert breached("G13", 99) == ()
+        assert next_gate("G13", 99) is None
 
 
-def test_the_limit_itself_does_not_deprive():
-    """النصّ يقول «إذا تجاوزت» — فالمساواة بالعدد لا تحرم."""
-    assert policy.breached("G7", 7) == ()
-    assert policy.breached("G7", 8)[0].key == "s1_midterm"
+class TestTheSeventhTardyIsADay:
+    """م 3.4.2.2 الدرجة السابعة: «يتم احتساب الطالب غيابًا يومًا كاملًا بدون
+    عذر رسمي مع إبلاغ وليّ الأمر»."""
+
+    def test_the_limit_is_seven(self):
+        assert TARDIES_PER_ABSENCE_DAY == 7
+
+    @pytest.mark.parametrize(
+        ("tardies", "days"), [(0, 0), (1, 0), (6, 0), (7, 1), (13, 1), (14, 2), (21, 3)]
+    )
+    def test_every_seven_makes_one_day(self, tardies, days):
+        assert absence_days_from_tardies(tardies) == days
+
+    def test_a_negative_count_makes_nothing(self):
+        assert absence_days_from_tardies(-3) == 0
+
+    def test_the_tardy_days_feed_the_gates(self):
+        """وهذا سببُ بنائهما معاً: من تأخّر أربعةَ عشرَ يُضاف يومان إلى عدّه،
+        فيقفز من تحت العتبة إلى فوقها."""
+        own_absences = 4
+        total = own_absences + absence_days_from_tardies(14)
+
+        assert breached("G8", own_absences) == ()
+        assert [g.key for g in breached("G8", total)] == ["s1_midterm"]
+
+    def test_the_ladder_is_seven_steps(self):
+        assert [step for step, _ in TARDY_LADDER] == [1, 2, 3, 4, 5, 6, 7]
+
+    def test_the_fourth_step_warns_and_the_seventh_counts(self):
+        assert "التكرار يُحسب غيابًا" in tardy_step(4)
+        assert "يوم غياب كامل" in tardy_step(7)
+
+    def test_beyond_the_seventh_the_last_step_holds(self):
+        assert tardy_step(9) == tardy_step(7)
+
+    def test_no_step_before_the_first(self):
+        assert tardy_step(0) == ""
+
+    def test_tardiness_begins_after_the_assembly(self):
+        """م 3.4.2.1: «بعد 15 دقيقة من بدء الدوام»."""
+        assert TARDY_AFTER_MINUTES == 15
 
 
-def test_the_next_gate_is_the_first_not_yet_passed():
-    assert policy.next_gate("G7", 0).key == "s1_midterm"
-    assert policy.next_gate("G7", 7).key == "s1_midterm"
-    assert policy.next_gate("G7", 8).key == "s1_final"
-    assert policy.next_gate("G7", 15).key == "first_round"
-    assert policy.next_gate("G7", 16) is None
+class TestTheExcusesAreAClosedFive:
+    def test_there_are_five(self):
+        assert len(ACCEPTED_EXCUSES) == 5
+
+    @pytest.mark.parametrize(
+        "word", ["المرض", "الوفاة", "الظروف العائلية", "تمثيل الدولة", "المحكمة"]
+    )
+    def test_each_of_the_five_is_named(self, word):
+        assert any(word in excuse for excuse in ACCEPTED_EXCUSES)
+
+    def test_the_school_activity_is_not_among_them(self):
+        """نشاطٌ تنظّمه المدرسة ليس من الخمسة، والقائمةُ مغلقة.
+
+        فالطالبُ في مسابقةٍ مدرسيّةٍ **حاضرٌ في عهدة المدرسة** لا غائبٌ بعذر —
+        كفترة العيادة. ومن سجّله عذراً خالف نصّاً صريحاً.
+        """
+        assert not any("نشاط مدرسي" in excuse for excuse in ACCEPTED_EXCUSES)
+
+    def test_the_medical_deadline_runs_from_the_return(self):
+        """«في غضون يومين من العودة إلى المدرسة» — لا من يوم الغياب."""
+        assert MEDICAL_PROOF_DAYS_AFTER_RETURN == 2
+
+    def test_the_guardian_has_two_days_to_answer(self):
+        """م 3.4.1.5: إن لم يردّ خلال يومين حُسب الغيابُ بلا عذر."""
+        assert GUARDIAN_REPLY_DAYS == 2
 
 
-def test_breaching_a_later_gate_implies_the_earlier_ones():
-    """من تجاوز الخامسة عشرة فقد تجاوز ما قبلها — والعرض يجب أن يقولها كلّها."""
-    keys = [g.key for g in policy.breached("G7", 20)]
+class TestFourPeriodsMakeADay:
+    def test_the_minimum_is_four(self):
+        """م 3.4.3: «يجب استكمال 4 حصص على الأقل ليُحسب حضور الطالب»."""
+        assert MIN_PERIODS_FOR_PRESENCE == 4
 
-    assert keys == ["s1_midterm", "s1_final", "s2_midterm", "first_round"]
+
+class TestTheSummonLadders:
+    def test_each_band_has_one(self):
+        assert set(SUMMON_DAYS) == {BAND_1_11, BAND_12, BAND_ESE}
+
+    def test_the_disability_ladder_is_the_tightest(self):
+        """م 3.7.3.3 يُشعر من اليوم الأوّل ويُعهِّد من الثاني — لا من الخامس."""
+        assert SUMMON_DAYS[BAND_ESE][0] == 1
+        assert SUMMON_DAYS[BAND_1_11][0] == 5
+
+    def test_every_ladder_rises(self):
+        for days in SUMMON_DAYS.values():
+            assert list(days) == sorted(days)
+
+    def test_no_summon_day_exceeds_its_last_gate(self):
+        """سلّمٌ يستدعي بعد آخر عتبةٍ يستدعي لطالبٍ حُرم أصلاً."""
+        for band, gates in ((BAND_1_11, GATES_1_11), (BAND_12, GATES_12), (BAND_ESE, GATES_ESE)):
+            assert max(SUMMON_DAYS[band]) <= gates[-1].max_days + 1
 
 
 # ── ما لم يعد يُدّعى ──────────────────────────────────────────────────
@@ -130,8 +264,14 @@ def test_no_module_claims_the_compulsory_education_law_sets_a_threshold():
 
 
 def test_the_policy_cites_where_its_numbers_come_from():
-    """رقمٌ بلا مصدرٍ في نصّه يُغيَّر بعد أشهرٍ بلا مراجعة."""
+    """رقمٌ بلا مصدرٍ في نصّه يُغيَّر بعد أشهرٍ بلا مراجعة.
+
+    وقد وقع ذلك فعلاً: أرقامُ 2018 بقيت سنةً بعد أن نسخها دليلُ 2026، ولم
+    يُمسكها إلّا التحفّظُ المكتوبُ في صدر الملفّ.
+    """
     doc = policy.__doc__ or ""
 
-    assert "22" in doc and "2015" in doc, "القرار الوزاري"
-    assert "27" in doc and "37" in doc, "صفحتا الدليل"
+    assert "2026" in doc, "سنةُ الدليل النافذ"
+    assert "3.4.1.3" in doc, "مادّةُ العتبات"
+    assert "حماية ورعاية الطلبة" in doc, "الجهةُ المُصدِرة"
+    assert "2018" in doc, "ما نُسخ يُذكر كي لا يُعاد"

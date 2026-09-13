@@ -7,16 +7,19 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Case, CharField, F, Func, OuterRef, Q, Subquery, Value, When
+from django.db.models.functions import Coalesce, NullIf
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for
+from core.capabilities import capability_required
 from core.models.access import DEPARTMENT_ROLES, Membership
 from core.models.department import Department
 from core.models.user import CustomUser
-from core.permissions import role_required
+from core.privacy import mask_national_id
+from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 
 from . import appointments, profile_service
 from .forms import (
@@ -27,8 +30,6 @@ from .forms import (
 )
 from .models import LeaveRequest
 from .services import LeaveService, StaffService
-
-STAFF_AFFAIRS_MANAGE = {"principal", "vice_admin", "vice_academic", "platform_developer"}
 
 
 def role_label(name: str) -> str:
@@ -50,7 +51,7 @@ def role_label(name: str) -> str:
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def staff_dashboard(request):
     """لوحة شؤون الموظفين — KPIs + روابط سريعة."""
     school = request.user.get_school()
@@ -61,11 +62,14 @@ def staff_dashboard(request):
     stats = StaffService.get_dashboard_stats(school, year, today=today)
 
     # role_distribution_raw → قائمة مع labels للـ template
+    total_staff = stats.get("total_staff") or 0
     role_distribution = [
         {
             "role_name": r["role__name"],
             "role_display": role_label(r["role__name"]),
             "count": r["count"],
+            # النسبةُ من عدد الأشخاص — كانت `widthratio` في القالب مرّتين.
+            "share": round(100 * r["count"] / total_staff) if total_staff else 0,
         }
         for r in stats.pop("role_distribution_raw", [])
     ]
@@ -78,8 +82,32 @@ def staff_dashboard(request):
             "year": year,
             "role_distribution": role_distribution,
             **stats,
+            **_dashboard_presentation(stats, school, today),
         },
     )
+
+
+def _dashboard_presentation(stats: dict, school, today) -> dict:
+    """ألوانُ بطاقات اللوحة وسطرُها الوصفيّ — الحكمُ هنا لا شرطاً في القالب.
+
+    كانت الألوانُ ثابتة (الغيابُ أحمرُ ولو كان صفراً)، ورقمُ الرخص المنتهية
+    يُقال مرّتين: عنواناً مطويّاً وبطاقةً تحته. فصار اللونُ يحمل التنبيه:
+    العددُ الموجبُ ينبّه، والصفرُ أخضر.
+    """
+    from django.urls import reverse
+
+    def alert(key, tone):
+        return tone if stats.get(key) else "green"
+
+    return {
+        "page_subtitle": f"{today:%d/%m/%Y} · {getattr(school, 'name', '') or 'المدرسة'}",
+        "absences_tone": alert("absences_today", "red"),
+        "swaps_tone": alert("pending_swaps", "amber"),
+        "leaves_tone": alert("pending_leaves", "amber"),
+        "evals_tone": alert("pending_evals", "amber"),
+        "licenses_tone": alert("expiring_licenses", "orange"),
+        "pending_leaves_url": f"{reverse('staff_affairs:leave_list')}?status=pending",
+    }
 
 
 # ═══ الخطوة 4: سجل الموظفين ═══
@@ -108,9 +136,35 @@ def _member_or_404(user_id, school, *, active_only=False):
 #: التدريسيّةِ والإداريّةِ والفنّيّةِ والخدماتِ المساندة.
 PAGE_SIZE = 50
 
+#: ما يجوز الفرزُ به في سجلّ المنتسبين — مفتاحُ الرابط ← حقولُ الترتيب.
+#:
+#: `?sort=` نصٌّ يأتي من المستخدم، فلا يبلغ `order_by` إلّا عبر هذه القائمة.
+#: والاسمُ فاصلٌ يقطع التساوي في كلّ عمودٍ سواه، وإلّا تراقص ترتيبُ المتساوين
+#: بين صفحةٍ وأخرى.
+#: مفاتيحُ فرز السجلّ. وكلُّها تنتهي بالاسم فاصلاً يقطع التساوي، وإلّا تبدّل
+#: ترتيبُ المتساوين بين نقرةٍ وأخرى فبدا للقارئ أنّ الصفحةَ تتحرّك تحت يده.
+#: والمفاتيحُ مُسوّاةٌ عربيّاً ومُفرَّغةٌ من الفراغ في `staff_list` — لا أسماءَ
+#: حقولٍ خام: الفرزُ بالحقل الخام يرتّب بالنقطة البرمجيّة لا بالحرف.
+STAFF_SORTS = {
+    "name": ("name_key",),
+    "employee": ("employee_key", "name_key"),
+    "national": ("national_key", "name_key"),
+    # «المسمّى الوظيفيّ» يُفرَز بما يُعرض في خليّته: المسمّى المسجَّل، ودورُ
+    # المنصّة بالعربيّة حين لا مسمّى. وكان يُفرَز بـ`role.name` الإنجليزيّ —
+    # ترويسةٌ تَعرض شيئاً وترتّب بغيره.
+    "title": ("title_key", "name_key"),
+    "department": ("dept_key", "name_key"),
+    "phone": ("phone_key", "name_key"),
+    "email": ("email_key", "name_key"),
+    "residence": ("residence_key", "name_key"),
+    "nationality": ("nationality_key", "name_key"),
+    "joined": ("gov_joined", "name_key"),
+    "license": ("professional_license_expiry", "name_key"),
+}
+
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def staff_list(request):
     """سجلُّ منتسبي المدرسة — بحثٌ وترشيحٌ بالفئة والدور والقسم.
 
@@ -139,16 +193,91 @@ def staff_list(request):
     if dept_filter:
         memberships = memberships.filter(department_obj_id=dept_filter)
 
-    people = CustomUser.objects.filter(id__in=memberships.values("user_id")).order_by("full_name")
+    people = CustomUser.objects.filter(id__in=memberships.values("user_id"))
+
+    # الدورُ والقسمُ وتاريخُ الالتحاق صفاتُ عضويّةٍ لا صفاتُ شخص، والتصفّحُ على
+    # الأشخاص. فتُجلب صفاتُ **العضويّة الحاكمة** بالاستعلام نفسِه ليصحّ الفرزُ
+    # بها على القائمة كلِّها لا على الصفحة الظاهرة.
+    from core.models.access import Role
+    from core.models.user import role_rank
+
+    governing = memberships.filter(user=OuterRef("pk")).order_by(role_rank(), "joined_at")
+    people = people.annotate(
+        gov_role=Subquery(governing.values("role__name")[:1]),
+        gov_department=Subquery(governing.values("department_obj__name")[:1]),
+        gov_joined=Subquery(governing.values("joined_at")[:1]),
+        # المسمّى المعروض: المسجَّلُ إن وُجد، وإلّا عنوانُ الدور بالعربيّة.
+        # ويُحسَب **داخلَ** الاستعلام المترابط لا خارجَه: بناءُ `Case` على وسمٍ
+        # مصدرُه استعلامٌ مترابطٌ يُعيد كتابةَ ذلك الاستعلام في كلّ فرعٍ من
+        # فروعه — ثلاثون فرعاً فثلاثون تنفيذاً لكلّ صفّ، وخمسُ ثوانٍ لفرزةٍ
+        # أختُها جزءٌ من الثانية. وقائمةُ الأدوار واحدةٌ في `Role.ROLES`.
+        gov_title=Subquery(
+            governing.annotate(
+                shown=Coalesce(
+                    NullIf(F("job_title"), Value("")),
+                    Case(
+                        *[When(role__name=name, then=Value(label)) for name, label in Role.ROLES],
+                        default=F("role__name"),
+                        output_field=CharField(),
+                    ),
+                )
+            ).values("shown")[:1]
+        ),
+        # الرقمُ الوظيفيُّ نصٌّ في القاعدة وأطوالُه مختلفة (أربعُ خاناتٍ إلى ستّ)،
+        # وفرزُ النصّ يضع «9907» قبل «85308». فيُحشى بأصفارٍ إلى طولٍ واحدٍ
+        # فيصير ترتيبُ الحروف هو ترتيبَ الأعداد — بلا تحويلٍ يسقط على قيمةٍ
+        # غيرِ رقميّةٍ يوماً. والفارغُ يبقى عَدَماً فلا يتصدّر بأصفارٍ مصنوعة.
+        employee_key=Func(
+            NullIf(F("employee_number"), Value("")),
+            Value(12),
+            Value("0"),
+            function="LPAD",
+            output_field=CharField(),
+        ),
+        name_key=arabic_key(F("full_name")),
+        dept_key=arabic_key(F("gov_department")),
+        national_key=blank_as_null("national_id"),
+        phone_key=blank_as_null("phone"),
+        email_key=blank_as_null("email"),
+        residence_key=blank_as_null("residence_area"),
+        nationality_key=arabic_key(F("nationality")),
+        title_key=arabic_key(F("gov_title")),
+    )
+
+    # والبحثُ بعد الوسوم ليبلغ ما تحمله العضويّةُ لا ما يحمله الشخصُ وحدَه.
+    # وكلُّ عمودٍ معروضٍ مطلوبٌ به: من يرى «الوكرة» في عمودٍ يتوقّع أن يجدها
+    # بكتابتها. والاسمُ والمسمّى يُطابَقان بمفتاحهما المسوّى، فتجد «احمد» من
+    # كُتب «أحمد» — وهو أكثرُ ما يُكتب في صندوق بحثٍ عربيّ.
     if q:
-        people = people.filter(Q(full_name__icontains=q) | Q(national_id__icontains=q))
+        shaped = normalise_arabic(q)
+        held_by_membership = memberships.filter(
+            Q(job_title__icontains=q) | Q(department_obj__name__icontains=q)
+        ).values("user_id")
+        people = people.filter(
+            Q(name_key__icontains=shaped)
+            | Q(title_key__icontains=shaped)
+            | Q(national_id__icontains=q)
+            | Q(employee_number__icontains=q)
+            | Q(phone__icontains=q)
+            | Q(email__icontains=q)
+            | Q(residence_area__icontains=q)
+            | Q(nationality__icontains=q)
+            | Q(professional_license_number__icontains=q)
+            | Q(id__in=held_by_membership)
+        )
+
+    people, sort = apply_sort(
+        people,
+        request,
+        allowed=STAFF_SORTS,
+        default="name",
+        desc_first=("joined", "license"),
+    )
 
     paginator = Paginator(people, PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page"))
 
     # عضويّاتُ صفحةٍ واحدةٍ في استعلامٍ واحد، والحاكمةُ منها أوّلاً.
-    from core.models.user import role_rank
-
     held = {}
     for m in (
         memberships.filter(user__in=list(page_obj))
@@ -164,19 +293,30 @@ def staff_list(request):
             {
                 "id": user.id,
                 "full_name": user.full_name,
-                "national_id": user.national_id,
+                # آخرُ أربعِ خاناتٍ وما قبلها مستور — والرقمُ كاملاً في
+                # وثائق الطباعة وحدَها. والبحثُ يقع على المخزَّن لا المستور.
+                "national_id": mask_national_id(user.national_id),
+                "employee_number": user.employee_number,
                 "role": m.role.name if m and m.role else "—",
                 # المسمّى الرسميُّ أوّلاً — والدورُ حين لا مسمّى مسجَّل.
                 "role_display": ((m.job_title or role_label(m.role.name)) if m and m.role else "—"),
+                # ودورُ المنصّة بجانبه: المسمّى وثيقةٌ إداريّة، والدورُ مفتاحُ
+                # الصلاحيّات — و«معلم علوم شرعية» لا يقول أيَّ شاشةٍ تُفتح له.
+                "role_label": role_label(m.role.name) if m and m.role else "—",
                 "department": (m.department_name if m else "") or "—",
                 "phone": user.phone,
                 "email": user.email,
+                "residence_area": user.residence_area,
+                "nationality": user.nationality,
                 "joined": m.joined_at if m else None,
+                "left": m.left_at if m else None,
+                "reference": (m.appointment_reference if m else "") or "",
+                "license_number": user.professional_license_number,
                 "license_expiry": user.professional_license_expiry,
+                "can_sign_in": user.is_active and user.has_usable_password(),
             }
         )
 
-    from core.models.access import Role
     from core.models.department import Department
 
     available_roles = (
@@ -194,6 +334,8 @@ def staff_list(request):
         "staff": staff_rows,
         "total": paginator.count,
         "page_obj": page_obj,
+        "sort": sort,
+        "today": timezone.localdate(),
         "q": q,
         "role_filter": role_filter,
         "dept_filter": dept_filter,
@@ -213,7 +355,7 @@ def staff_list(request):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def staff_appoint(request):
     """تعيينُ منتسبٍ جديد — حسابُه وعضويّتُه ومرجعُ قراره في نموذجٍ واحد.
 
@@ -265,7 +407,7 @@ def staff_appoint(request):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 @require_POST
 def staff_depart(request, user_id):
     """يسجّل مغادرةَ منتسبٍ — تاريخاً وسبباً ومرجعاً، ولا يمحو تاريخَه."""
@@ -314,7 +456,7 @@ def staff_depart(request, user_id):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 @require_POST
 def staff_reinstate(request, user_id):
     """يُلغي مغادرةً سُجّلت بالخطأ ويُعيد المنتسبَ إلى الكادر."""
@@ -355,7 +497,7 @@ def _as_errors(exc) -> dict:
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def staff_profile(request, user_id):
     """ملف الموظف الشامل — بيانات + غياب + تقييم + إجازات + رخصة."""
     school = request.user.get_school()
@@ -375,6 +517,23 @@ def staff_profile(request, user_id):
     role_display = "—"
     if membership and membership.role:
         role_display = membership.job_title or membership.role.get_name_display()
+    # سطرُ الترويسة: المسمّى ثمّ القسم — كانا وسمين في ترويسةٍ ثالثةِ الشكل.
+    department = membership.department_obj.name if membership and membership.department_obj else ""
+    profile_subtitle = " · ".join(
+        part for part in (role_display, department) if part and part != "—"
+    )
+    # لونُ درجة التقييم (من 5) — العتباتُ التي كانت في القالب: 4 فأعلى نجاح، 3 فأعلى تنبيه.
+    for evaluation in profile_data.get("evaluations") or []:
+        score = evaluation.overall_score
+        evaluation.score_tone = (
+            "gray"
+            if score is None
+            else "success"
+            if score >= 4
+            else "warning"
+            if score >= 3
+            else "danger"
+        )
 
     person_form = StaffPersonForm(
         initial={
@@ -402,6 +561,7 @@ def staff_profile(request, user_id):
             "staff_user": user,
             "year": year,
             "role_display": role_display,
+            "profile_subtitle": profile_subtitle,
             "today": timezone.localdate(),
             "departure_form": StaffDepartureForm(initial={"on": timezone.localdate()}),
             "person_form": person_form,
@@ -415,7 +575,7 @@ def staff_profile(request, user_id):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 @require_POST
 def staff_profile_save(request, user_id, section):
     """يحفظ قسماً من الملفّ — ويكتب في سجلّ المراجعة من غيّر وماذا ومتى."""
@@ -489,7 +649,7 @@ def _flash_errors(request, exc):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def leave_list(request):
     """قائمة طلبات الإجازات مع فلتر."""
     school = request.user.get_school()
@@ -520,7 +680,7 @@ def leave_list(request):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def leave_request_create(request):
     """تقديم طلب إجازة جديد."""
     school = request.user.get_school()
@@ -567,7 +727,7 @@ def leave_request_create(request):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def leave_detail(request, pk):
     """تفاصيل طلب إجازة."""
     school = request.user.get_school()
@@ -576,7 +736,7 @@ def leave_detail(request, pk):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 @require_POST
 def leave_review(request, pk):
     """مراجعة طلب إجازة — موافقة أو رفض."""
@@ -611,7 +771,7 @@ def leave_review(request, pk):
 
 
 @login_required
-@role_required(STAFF_AFFAIRS_MANAGE)
+@capability_required("staff_affairs.manage")
 def licensing_overview(request):
     """نظرة شاملة على الرخص المهنية — منتهية / تنتهي قريباً / سارية."""
     school = request.user.get_school()
@@ -621,11 +781,24 @@ def licensing_overview(request):
     # يتجنّب تحميل جميع الموظفين في الذاكرة لتصنيفهم (O(n) memory → O(1))
     license_data = StaffService.get_license_overview(school, today=today)
 
+    # الأعدادُ تُحسب مرّةً على المجموعات نفسِها فتُخزَّن نتائجُها وتُقرأ القوائمُ
+    # منها — واللونُ يحمل التنبيه: الموجبُ ينبّه والصفرُ أخضر.
+    counts = {
+        key: len(license_data[key]) for key in ("expired", "expiring_soon", "valid", "no_license")
+    }
+
     return render(
         request,
         "staff_affairs/licensing.html",
         {
             "today": today,
             **license_data,
+            "expired_count": counts["expired"],
+            "expiring_count": counts["expiring_soon"],
+            "valid_count": counts["valid"],
+            "no_license_count": counts["no_license"],
+            "expired_tone": "red" if counts["expired"] else "green",
+            "expiring_tone": "amber" if counts["expiring_soon"] else "green",
+            "no_license_tone": "orange" if counts["no_license"] else "green",
         },
     )

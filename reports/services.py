@@ -22,7 +22,9 @@ from assessments.models import (
     StudentSubjectResult,
     SubjectClassSetup,
 )
+from core import brand
 from core.academic_calendar import academic_year_for_school
+from core.export_utils import add_excel_title_rows, brand_cell, excel_table_styles, xl_font
 from core.models import StudentEnrollment
 from operations.models import StudentAttendance
 
@@ -83,11 +85,7 @@ class ReportDataService:
         grades = [float(r.annual_total) for r in annual if r.annual_total]
         avg = round(sum(grades) / len(grades), 2) if grades else None
 
-        enrollment = (
-            StudentEnrollment.objects.filter(student=student, is_active=True)
-            .select_related("class_group")
-            .first()
-        )
+        enrollment = StudentEnrollment.objects.current_of(student)
 
         att = StudentAttendance.objects.filter(student=student, session__school=school)
         absent_total = att.filter(status="absent").count()
@@ -975,38 +973,26 @@ class ExcelService:
       - RTL عربي + صفوف متبادلة + تلوين شرطي
     """
 
-    MAROON = "8A1538"
-    WHITE = "FFFFFF"
-    ALT_BG = "FDF2F5"
-    HEADER1 = "F5EEF1"  # وزارة
-    HEADER2 = "FAFAFA"  # مدرسة
-    HEADER3 = "FDF2F5"  # عنوان
-
     # ── بنية تحتية ────────────────────────────────────────────────────
 
     @classmethod
     def _make_workbook(cls, sheet_title: str) -> tuple:
         """Workbook جديد مع ستايل الهوية القطرية"""
         import openpyxl
-        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.title = sheet_title
         ws.sheet_view.rightToLeft = True
 
+        shared = excel_table_styles()
         styles = {
-            "header_font": Font(name="Arial", bold=True, color=cls.WHITE, size=11),
-            "header_fill": PatternFill("solid", fgColor=cls.MAROON),
-            "header_align": Alignment(horizontal="center", vertical="center", wrap_text=True),
-            "data_align": Alignment(horizontal="center", vertical="center", wrap_text=True),
-            "thin_border": Border(
-                left=Side(style="thin", color="DDDDDD"),
-                right=Side(style="thin", color="DDDDDD"),
-                top=Side(style="thin", color="DDDDDD"),
-                bottom=Side(style="thin", color="DDDDDD"),
-            ),
-            "alt_fill": PatternFill("solid", fgColor=cls.ALT_BG),
+            "header_font": shared.header_font,
+            "header_fill": shared.header_fill,
+            "header_align": shared.header_align,
+            "data_align": shared.data_align,
+            "thin_border": shared.border,
+            "alt_fill": shared.alt_fill,
         }
         return wb, ws, styles
 
@@ -1015,66 +1001,26 @@ class ExcelService:
         cls, ws: object, school_name: str, report_title: str, year: str, num_cols: int
     ) -> None:
         """
-        4 صفوف رأس احترافية:
-          الصف 1 — وزارة التربية والتعليم العالي — دولة قطر  + تاريخ الطباعة
-          الصف 2 — اسم المدرسة (كبير، كستنائي)
-          الصف 3 — عنوان التقرير | السنة الدراسية
+        صفوفُ الرأس الثلاثة — ترويسةُ المنصّة الواحدة (`add_excel_title_rows`):
+          الصف 1 — اسم المدرسة وشعارُها
+          الصف 2 — عنوان التقرير — السنة الدراسية
+          الصف 3 — الوزارة | تاريخ الطباعة
           الصف 4 — رأس الأعمدة (يملأه المستدعي عبر _add_header_row)
         """
-        from pathlib import Path
-
-        from django.conf import settings
-        from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-
-        col_letter = ws.cell(row=1, column=num_cols).column_letter
         today_str = timezone.now().strftime("%Y/%m/%d")
+        add_excel_title_rows(
+            ws,
+            num_cols,
+            school_name,
+            f"{report_title}  —  السنة الدراسية {year}",
+            f"وزارة التربية والتعليم والتعليم العالي — دولة قطر  |  {today_str}",
+        )
+        # رأسُ الصفحة المطبوعة باسم المدرسة التي صدر عنها الملفّ — لا باسمٍ ثابت.
+        cls._print_header(ws, school_name)
 
-        bottom_border = Border(bottom=Side(style="medium", color=cls.MAROON))
-
-        # ── صف 1: وزارة التربية + تاريخ الطباعة ─────────────────────
-        ws.merge_cells(f"A1:{col_letter}1")
-        c = ws["A1"]
-        c.value = f"وزارة التربية والتعليم والتعليم العالي — دولة قطر          {today_str}"
-        c.font = Font(name="Arial", size=9, color="555555")
-        c.fill = PatternFill("solid", fgColor=cls.HEADER1)
-        c.alignment = Alignment(horizontal="center", vertical="center")
-        c.border = bottom_border
-        ws.row_dimensions[1].height = 22
-
-        # ── صف 2: اسم المدرسة ────────────────────────────────────────
-        ws.merge_cells(f"A2:{col_letter}2")
-        c = ws["A2"]
-        c.value = school_name
-        c.font = Font(name="Arial", bold=True, size=16, color=cls.MAROON)
-        c.fill = PatternFill("solid", fgColor=cls.HEADER2)
-        c.alignment = Alignment(horizontal="center", vertical="center")
-        c.border = bottom_border
-        ws.row_dimensions[2].height = 38
-
-        # ── صف 3: عنوان التقرير + السنة الدراسية ─────────────────────
-        ws.merge_cells(f"A3:{col_letter}3")
-        c = ws["A3"]
-        c.value = f"{report_title}   |   السنة الدراسية: {year}"
-        c.font = Font(name="Arial", bold=True, size=12, color=cls.MAROON)
-        c.fill = PatternFill("solid", fgColor=cls.HEADER3)
-        c.alignment = Alignment(horizontal="center", vertical="center")
-        c.border = bottom_border
-        ws.row_dimensions[3].height = 26
-
-        # ── شعار المدرسة ──────────────────────────────────────────────
-        try:
-            from openpyxl.drawing.image import Image as XLImage
-
-            logo_path = Path(settings.BASE_DIR) / "static" / "icons" / "badge-72.png"
-            if not logo_path.exists():
-                logo_path = Path(settings.BASE_DIR) / "static" / "icons" / "icon-192.png"
-            if logo_path.exists():
-                img = XLImage(str(logo_path))
-                img.width = 54
-                img.height = 54
-                ws.add_image(img, "A1")
-        except (ImportError, OSError, ValueError) as exc:
-            logger.debug("Excel logo: %s", exc)
+    @classmethod
+    def _print_header(cls, ws: object, text: str) -> None:
+        ws.oddHeader.center.text = f'&"Arial,Bold"&9{text}'
 
     @classmethod
     def _add_header_row(cls, ws: object, styles: dict, row_num: int, columns: list) -> None:
@@ -1097,6 +1043,7 @@ class ExcelService:
             cell = ws.cell(row=row_num, column=col_idx)
             cell.border = styles["thin_border"]
             cell.alignment = styles["data_align"]
+            brand_cell(cell)
             if is_alt:
                 cell.fill = styles["alt_fill"]
         ws.row_dimensions[row_num].height = 20
@@ -1122,6 +1069,7 @@ class ExcelService:
         num_data_rows: int,
         paper: str = "a4",
         orientation: str = "portrait",
+        header_text: str = "",
     ) -> None:
         """
         إعداد الطباعة — يدعم A4/A3 بوضع عمودي أو أفقي.
@@ -1132,6 +1080,10 @@ class ExcelService:
             num_data_rows: عدد صفوف البيانات
             paper: "a4" (paperSize=9) أو "a3" (paperSize=8)
             orientation: "portrait" أو "landscape"
+            header_text: رأسُ الصفحة المطبوعة. ويكتبه `_add_professional_header` باسم
+                المدرسة أصلاً؛ فهذا لمن بنى ترويستَه بغيره. كان اسمُ مدرسةٍ بعينها
+                مكتوباً هنا بمحارفَ مرمَّزة فيطبعه ملفُّ كلّ مدرسة، ولم يلتقطه حارسُ
+                الهويّة لأنّه يبحث عن الحروف لا عن رموزها.
         """
         from openpyxl.worksheet.properties import PageSetupProperties
 
@@ -1171,10 +1123,8 @@ class ExcelService:
         ws.print_area = f"A1:{col_letter}{last_row}"
 
         # هيدر وفوتر الطباعة (Excel format codes)
-        ws.oddHeader.center.text = (
-            '&"Arial,Bold"&9'
-            "\u0645\u062f\u0631\u0633\u0629 \u0627\u0644\u0634\u062d\u0627\u0646\u064a\u0629"
-        )
+        if header_text:
+            cls._print_header(ws, header_text)
         ws.oddFooter.center.text = "&P / &N"
         ws.oddFooter.right.text = "&D"
 
@@ -1198,7 +1148,11 @@ class ExcelService:
             buf.read(),
             content_type=("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
         )
-        resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+        # الاسمُ العربيّ في `filename="…"` يُرمّزه Django بـRFC 2047 فلا يفهمه المتصفّح —
+        # الترويسةُ المشتركةُ تبقى ASCII وتحمل العربيّ في `filename*`.
+        from core.pdf_utils import _content_disposition
+
+        resp["Content-Disposition"] = _content_disposition(filename, True)
         return resp
 
     # ── التقارير ──────────────────────────────────────────────────────
@@ -1220,7 +1174,6 @@ class ExcelService:
         - فلاتر تلقائية + تجميد الرأس + حماية الورقة
         """
         year = year or academic_year_for_school(school)
-        from openpyxl.styles import Font
 
         data = ReportDataService.get_class_results(class_group, school, year)
         subjects = data["subjects"]
@@ -1274,7 +1227,7 @@ class ExcelService:
                     row=row_num, column=col_off, value=grade if grade is not None else "—"
                 )
                 if grade is not None and grade < 50:
-                    cell.font = Font(name="Arial", color="DC2626", bold=True)
+                    cell.font = xl_font(brand.STATUS_DANGER_FG, bold=True)
 
             ws.cell(
                 row=row_num,
@@ -1284,9 +1237,9 @@ class ExcelService:
 
             status_cell = ws.cell(row=row_num, column=5 + len(subjects), value=row["status"])
             if row["status"] == "ناجح":
-                status_cell.font = Font(name="Arial", color="15803D", bold=True)
+                status_cell.font = xl_font(brand.STATUS_SUCCESS_FG, bold=True)
             elif row["status"] == "راسب":
-                status_cell.font = Font(name="Arial", color="DC2626", bold=True)
+                status_cell.font = xl_font(brand.STATUS_DANGER_FG, bold=True)
 
             ws.cell(row=row_num, column=6 + len(subjects), value=rank)
             cls._style_data_row(ws, styles, row_num, num_cols, is_alt)
@@ -1316,7 +1269,6 @@ class ExcelService:
         - فلاتر تلقائية + تجميد الرأس + حماية الورقة
         """
         year = year or academic_year_for_school(school)
-        from openpyxl.styles import Font
 
         data = ReportDataService.get_attendance_report(class_group, school, year)
         num_cols = 8
@@ -1360,15 +1312,15 @@ class ExcelService:
 
             absent_cell = ws.cell(row=row_num, column=6, value=row["absent"])
             if row["absent"] > 10:
-                absent_cell.font = Font(name="Arial", color="DC2626", bold=True)
+                absent_cell.font = xl_font(brand.STATUS_DANGER_FG, bold=True)
 
             ws.cell(row=row_num, column=7, value=row["late"])
 
             pct_cell = ws.cell(row=row_num, column=8, value=pct)
             if pct < 80:
-                pct_cell.font = Font(name="Arial", color="DC2626", bold=True)
+                pct_cell.font = xl_font(brand.STATUS_DANGER_FG, bold=True)
             elif pct >= 95:
-                pct_cell.font = Font(name="Arial", color="15803D", bold=True)
+                pct_cell.font = xl_font(brand.STATUS_SUCCESS_FG, bold=True)
 
             cls._style_data_row(ws, styles, row_num, num_cols, idx % 2 == 0)
 
@@ -1395,7 +1347,6 @@ class ExcelService:
         - فلاتر تلقائية + تجميد الرأس + حماية الورقة
         """
         year = year or academic_year_for_school(school)
-        from openpyxl.styles import Font
 
         data = ReportDataService.get_behavior_report(school, year)
 
@@ -1405,7 +1356,12 @@ class ExcelService:
             3: "درجة 3 — جسيمة",
             4: "درجة 4 — شديدة",
         }
-        LEVEL_COLORS = {1: "854D0E", 2: "C2410C", 3: "B91C1C", 4: "BE123C"}
+        LEVEL_COLORS = {
+            1: brand.STATUS_WARNING_FG,
+            2: brand.ACCENT_ORANGE_FG,
+            3: brand.STATUS_DANGER_FG,
+            4: brand.MAROON,
+        }
         num_cols = 8
 
         wb, ws, styles = cls._make_workbook("مخالفات السلوك")
@@ -1446,11 +1402,7 @@ class ExcelService:
                 column=5,
                 value=LEVEL_LABELS.get(inf.level, str(inf.level)),
             )
-            level_cell.font = Font(
-                name="Arial",
-                color=LEVEL_COLORS.get(inf.level, "000000"),
-                bold=True,
-            )
+            level_cell.font = xl_font(LEVEL_COLORS.get(inf.level, brand.TEXT_PRIMARY), bold=True)
 
             ws.cell(
                 row=row_num, column=6, value=inf.reported_by.full_name if inf.reported_by else "—"

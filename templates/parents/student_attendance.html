@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
-{% block title %}غياب {{ student.full_name }}{% endblock %}
+{% load ui %}
+{% block title %}حضور {{ student.full_name }}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/parents/" parent_label="بوابة ولي الأمر" current="حضور الطالب" %}
@@ -8,115 +9,53 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1 class="exec-title">{% include "components/icon.html" with name="list-checks" %} حضور {{ student.full_name }}</h1>
-      <p class="exec-subtitle">
-        {% if enrollment %}{{ enrollment.class_group }} · {% endif %}
-        آخر {{ period }} يوم (منذ {{ since }})
-      </p>
-    </div>
-    <div class="flex flex-wrap gap-2">
+  {% page_header student.full_name subtitle=subtitle icon="list-checks" %}
+    <nav class="period-switch" aria-label="الفترة">
       {% for d in period_choices %}
-      <a href="?period={{ d }}"
-         class="status-badge {% if period == d %}status-maroon{% else %}status-gray{% endif %}">
-        {{ d }} يوم
-      </a>
+        <a href="?period={{ d }}" class="period-switch__item{% if period == d %} is-current{% endif %}"{% if period == d %} aria-current="page"{% endif %}>{{ d }} يوماً</a>
       {% endfor %}
-    </div>
-  </div>
+    </nav>
+  {% endpage_header %}
 
-  {# ── KPI Strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-blue">
-      <div class="kpi-mini-value">{{ total }}</div>
-      <div class="kpi-mini-label">إجمالي الحصص</div>
-    </div>
-    <div class="kpi-mini kpi-green">
-      <div class="kpi-mini-value">{{ present }}</div>
-      <div class="kpi-mini-label">حاضر</div>
-    </div>
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-value">{{ absent }}</div>
-      <div class="kpi-mini-label">غائب</div>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <div class="kpi-mini-value">{{ late }}</div>
-      <div class="kpi-mini-label">متأخر</div>
-    </div>
-    <div class="kpi-mini kpi-teal">
-      <div class="kpi-mini-value">{{ att_pct }}%</div>
-      <div class="kpi-mini-label">نسبة الحضور</div>
-    </div>
-  </div>
+  {% kpi_strip label="أرقام الحضور" %}
+    {% if total %}{% kpi "الحضور" att_pct|stringformat:"s"|add:"%" tone="teal" title="الحصص الحاضرة من الحصص المرصودة" %}{% else %}{% kpi "الحضور" "—" tone="teal" title="لا حصصَ مرصودةً في الفترة" %}{% endif %}
+    {% kpi "حصص الغياب" absent tone="red" %}
+    {% kpi "حصص التأخّر" late tone="amber" %}
+    {% kpi "الحصص المرصودة" total tone="blue" %}
+  {% endkpi_strip %}
 
-  {# ── تنبيهات الغياب المتكرر ── #}
   {% if alerts %}
-  <div class="alert-strip" style="--alert-color: var(--status-danger);">
-    <div class="w-full">
-      <h2 class="font-bold text-red-800 dark:text-red-300 text-sm mb-2">{% include "components/icon.html" with name="alert-triangle" %} تنبيهات الغياب المتكرر</h2>
-      <div class="dash-list">
-        {% for alert in alerts %}
-        <div class="dash-list-item">
-          <span>{{ alert.absence_count }} غياب خلال {{ alert.period_start }} — {{ alert.period_end }}</span>
-          <span class="status-badge {% if alert.status == 'resolved' %}status-green{% else %}status-red{% endif %}">
-            {{ alert.get_status_display }}
-          </span>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-  </div>
+  {% section_card "تنبيهات الغياب المتكرّر" meta=alerts|length icon="alert-triangle" %}
+    <ul class="plain-list">
+      {% for alert in alerts %}
+        <li class="plain-list__row">
+          <span>{{ alert.absence_count }} غياب · {{ alert.period_start|date:"d/m" }} – {{ alert.period_end|date:"d/m" }}</span>
+          <span class="status-badge {% if alert.status == 'resolved' %}status-success{% else %}status-danger{% endif %}">{{ alert.get_status_display }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endsection_card %}
   {% endif %}
 
-  {# ── سجل الغياب اليومي ── #}
-  {% if days_list %}
-  <div class="space-y-3">
-    {% for day in days_list %}
-    <div class="card-qatar overflow-hidden
-      {% if day.has_absent %}border-red-200{% elif day.has_late %}border-amber-200{% endif %}">
-      <div class="flex items-center justify-between px-5 py-3 border-b border-[var(--border)]
-        {% if day.has_absent %}bg-red-50 dark:bg-red-900/10{% elif day.has_late %}bg-amber-50 dark:bg-amber-900/10{% else %}bg-[var(--surface-alt)]{% endif %}">
-        <span class="font-medium text-sm">{{ day.date|date:"l، d/m/Y" }}</span>
-        <div class="flex gap-1">
-          {% if day.has_absent %}
-          <span class="status-badge status-red">غائب</span>
-          {% endif %}
-          {% if day.has_late %}
-          <span class="status-badge status-orange">تأخر</span>
-          {% endif %}
-          {% if not day.has_absent and not day.has_late %}
-          <span class="status-badge status-green">منتظم</span>
-          {% endif %}
-        </div>
-      </div>
-      <div class="divide-y divide-[var(--border)]">
-        {% for rec in day.records %}
-        <div class="flex items-center justify-between px-5 py-2.5 text-sm">
-          <div class="flex items-center gap-3">
-            <span class="text-[var(--muted)] text-xs w-10">{{ rec.session.start_time|time:"H:i" }}</span>
-            <span>{{ rec.session.subject.name_ar|default:"—" }}</span>
-          </div>
-          <span class="status-badge
-            {% if rec.status == 'present' %}status-green
-            {% elif rec.status == 'absent' %}status-red
-            {% elif rec.status == 'late' %}status-orange
-            {% else %}status-blue{% endif %}">
-            {{ rec.get_status_display }}
-          </span>
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-    {% endfor %}
-  </div>
+  {% section_card "تقويم الفترة" meta=enrollment.class_group.short_code icon="calendar" empty="لا حصصَ مرصودةً في هذه الفترة" %}{% if total %}
+    {% include "parents/_attendance_calendar.html" with weeks=weeks %}
+  {% endif %}{% endsection_card %}
 
-  {% else %}
-  <div class="card-qatar text-center py-12">
-    <p class="text-4xl mb-3">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</p>
-    <p class="text-[var(--muted)]">لا توجد سجلات حضور في هذه الفترة</p>
-  </div>
+  {% if total %}
+  {% section_card "أيّامٌ فيها غيابٌ أو تأخّر" meta=flagged_days|length icon="clock" empty="لا غيابَ ولا تأخّرَ في هذه الفترة" %}{% if flagged_days %}
+    <div class="ui-entity-grid">
+      {% for day in flagged_days %}
+        {% entity_card day.date|date:"l d/m" count=day.sessions_label tone=day.has_absent|yesno:"red,amber" %}
+          {% entity_chips %}{% for rec in day.records %}{% if rec.status == "absent" or rec.status == "late" %}<span class="chip">{{ rec.session.start_time|time:"H:i" }} {{ rec.session.subject.name_ar|default:"—" }}</span>{% endif %}{% endfor %}{% endentity_chips %}
+          {% if day.has_absent %}
+            {% entity_status tone="danger" %}{% include "components/icon.html" with name="x-circle" %} غياب{% if day.has_late %} وتأخّر{% endif %}{% endentity_status %}
+          {% else %}
+            {% entity_status tone="warning" %}{% include "components/icon.html" with name="clock" %} تأخّر{% endentity_status %}
+          {% endif %}
+        {% endentity_card %}
+      {% endfor %}
+    </div>
+  {% endif %}{% endsection_card %}
   {% endif %}
 
 </div>

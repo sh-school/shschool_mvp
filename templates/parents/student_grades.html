@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}درجات {{ student.full_name }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,138 +9,43 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1 class="exec-title">{% include "components/icon.html" with name="bar-chart" %} درجات {{ student.full_name }}</h1>
-      <p class="exec-subtitle">
-        {% if enrollment %}{{ enrollment.class_group }} · {% endif %}
-        العام الدراسي {{ year }}
-      </p>
-    </div>
-    <span class="exec-date">{{ year }}</span>
-  </div>
+  {% page_header student.full_name subtitle=subtitle icon="bar-chart" %}{% endpage_header %}
 
-  {# ── KPI Strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-blue">
-      <div class="kpi-mini-value">{{ total }}</div>
-      <div class="kpi-mini-label">مادة</div>
-    </div>
-    <div class="kpi-mini kpi-green">
-      <div class="kpi-mini-value">{{ passed }}</div>
-      <div class="kpi-mini-label">ناجح</div>
-    </div>
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-value">{{ failed }}</div>
-      <div class="kpi-mini-label">راسب</div>
-    </div>
-    {% if avg %}
-    <div class="kpi-mini kpi-amber">
-      <div class="kpi-mini-value">{{ avg }}</div>
-      <div class="kpi-mini-label">متوسط</div>
-    </div>
-    {% endif %}
-  </div>
+  {% kpi_strip label="أرقام الدرجات" %}
+    {% if avg %}{% kpi "المعدّل" avg tone="amber" %}{% endif %}
+    {% kpi "ناجح" passed tone="green" %}
+    {% kpi "راسب" failed tone=failed_tone title=failed_title %}
+    {% kpi "المواد" total tone="blue" %}
+  {% endkpi_strip %}
 
-  {# ── جدول الدرجات ── #}
-  {% if rows %}
-  <div class="card-qatar overflow-hidden">
+  {% section_card "الدرجات بالمادّة" meta=year icon="bar-chart" flush=True empty="لا درجاتٍ مسجّلة لهذا العام" empty_sub="تظهر هنا حين يرصدها المعلّمون" %}{% if rows %}
     <div class="table-wrap">
-      <table class="w-full text-sm">
-        <thead class="bg-[var(--surface-alt)] border-b border-[var(--border)]">
+      <table>
+        <thead>
           <tr>
-            <th scope="col" class="px-4 py-3 text-right">المادة</th>
-            <th scope="col" class="px-4 py-3 text-center">الفصل الأول <span class="text-gray-400 font-normal">/40</span></th>
-            <th scope="col" class="px-4 py-3 text-center">الفصل الثاني <span class="text-gray-400 font-normal">/60</span></th>
-            <th scope="col" class="px-4 py-3 text-center">المجموع <span class="text-gray-400 font-normal">/100</span></th>
-            <th scope="col" class="px-4 py-3 text-center">التقدير</th>
-            <th scope="col" class="px-4 py-3 text-center">الحالة</th>
+            <th scope="col">المادة</th>
+            <th scope="col">الفصل الأول <small>/40</small></th>
+            <th scope="col">الفصل الثاني <small>/60</small></th>
+            <th scope="col">المجموع <small>/100</small></th>
+            <th scope="col">التقدير</th>
+            <th scope="col">الحالة</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-[var(--border)]">
+        <tbody>
           {% for row in rows %}
-          <tr class="hover:bg-[var(--surface-alt)] {% if row.annual.status == 'fail' %}bg-red-50 dark:bg-red-900/10{% endif %}">
-            <td class="px-4 py-3 font-medium text-[var(--text)]">{{ row.subject }}</td>
-
-            <td class="px-4 py-3 text-center">
-              {% if row.s1 and row.s1.total is not None %}
-                <span class="font-mono">{{ row.s1.total }}</span>
-              {% else %}
-                <span class="text-gray-300">—</span>
-              {% endif %}
-            </td>
-
-            <td class="px-4 py-3 text-center">
-              {% if row.s2 and row.s2.total is not None %}
-                <span class="font-mono">{{ row.s2.total }}</span>
-              {% else %}
-                <span class="text-gray-300">—</span>
-              {% endif %}
-            </td>
-
-            <td class="px-4 py-3 text-center">
-              {% if row.annual.annual_total is not None %}
-                <span class="font-bold font-mono text-lg
-                  {% if row.annual.annual_total >= 80 %}text-green-700
-                  {% elif row.annual.annual_total >= 65 %}text-blue-700
-                  {% elif row.annual.annual_total >= 50 %}text-amber-600
-                  {% else %}text-red-600{% endif %}">
-                  {{ row.annual.annual_total }}
-                </span>
-              {% else %}
-                <span class="text-gray-300 text-xs">لم تكتمل</span>
-              {% endif %}
-            </td>
-
-            <td class="px-4 py-3 text-center">
-              {% if row.annual %}
-              <span class="font-bold text-sm
-                {% if row.annual.annual_total >= 80 %}text-green-700
-                {% elif row.annual.annual_total >= 50 %}text-blue-700
-                {% else %}text-red-600{% endif %}">
-                {{ row.annual.letter_grade }}
-              </span>
-              {% endif %}
-            </td>
-
-            <td class="px-4 py-3 text-center">
-              {% if row.annual %}
-                {% if row.annual.status == "pass" %}
-                  <span class="status-badge status-green">ناجح</span>
-                {% elif row.annual.status == "fail" %}
-                  <span class="status-badge status-red">راسب</span>
-                {% else %}
-                  <span class="status-badge status-gray">جارٍ</span>
-                {% endif %}
-              {% endif %}
-            </td>
-          </tr>
+            <tr{% if row.annual.status == "fail" %} class="is-danger"{% endif %}>
+              <td>{{ row.subject }}</td>
+              <td class="num">{% if row.s1 and row.s1.total is not None %}{{ row.s1.total }}{% else %}—{% endif %}</td>
+              <td class="num">{% if row.s2 and row.s2.total is not None %}{{ row.s2.total }}{% else %}—{% endif %}</td>
+              <td class="num"><span class="grade-total is-{{ row.tone }}">{% if row.annual.annual_total is not None %}{{ row.annual.annual_total }}{% else %}لم تكتمل{% endif %}</span></td>
+              <td class="num"><span class="grade-total is-{{ row.tone }}">{{ row.annual.letter_grade|default:"—" }}</span></td>
+              <td>{% if row.annual.status == "pass" %}<span class="status-badge status-success">ناجح</span>{% elif row.annual.status == "fail" %}<span class="status-badge status-danger">راسب</span>{% else %}<span class="status-badge status-gray">جارٍ</span>{% endif %}</td>
+            </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
-
-  {# ── تنبيه الرسوب ── #}
-  {% if failed %}
-  <div class="alert-strip" style="--alert-color: var(--status-danger);">
-    <span class="text-2xl">{% include "components/icon.html" with name="alert-triangle" %}</span>
-    <div>
-      <p class="font-bold text-red-800 dark:text-red-300">{{ student.full_name }} راسب في {{ failed }} مادة</p>
-      <p class="text-red-700 dark:text-red-400 text-sm mt-1">
-        يُرجى التواصل مع المدرسة ومتابعة مستوى الطالب في المواد المشار إليها.
-      </p>
-    </div>
-  </div>
-  {% endif %}
-
-  {% else %}
-  <div class="card-qatar text-center py-12">
-    <p class="text-4xl mb-3">{% include "components/icon.html" with name="bar-chart" size="icon-2xl" %}</p>
-    <p class="text-[var(--muted)]">لا توجد درجات مسجلة للعام الدراسي {{ year }}</p>
-  </div>
-  {% endif %}
+  {% endif %}{% endsection_card %}
 
 </div>
 {% endblock %}

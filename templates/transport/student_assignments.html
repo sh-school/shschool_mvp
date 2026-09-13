@@ -35,7 +35,7 @@
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     <div class="card-qatar">
-      <h2 class="font-bold mb-4" style="color:var(--status-danger)">{% include "components/icon.html" with name="x-circle" %} طلاب غير مسندون ({{ unassigned_students.count }})</h2>
+      <h2 class="font-bold mb-4" style="color:var(--status-danger-fg)">{% include "components/icon.html" with name="x-circle" %} طلاب غير مسندون ({{ unassigned_students.count }})</h2>
       {% if unassigned_students %}
       <div class="space-y-2 max-h-96 overflow-y-auto">
         {% for st in unassigned_students %}
@@ -50,7 +50,7 @@
       {% endif %}
     </div>
     <div class="card-qatar">
-      <h2 class="font-bold mb-4" style="color:var(--status-success)">{% include "components/icon.html" with name="check-circle" %} طلاب مسندون ({{ assigned_students.count }})</h2>
+      <h2 class="font-bold mb-4" style="color:var(--status-success-fg)">{% include "components/icon.html" with name="check-circle" %} طلاب مسندون ({{ assigned_students.count }})</h2>
       <div class="space-y-2 max-h-96 overflow-y-auto">
         {% for st in assigned_students %}
         <div class="py-2 border-b last:border-0 text-sm text-gray-700" data-filter-item data-name="{{ st.full_name }}">{{ st.full_name }}</div>

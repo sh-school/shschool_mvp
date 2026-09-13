@@ -116,6 +116,8 @@ class NotificationHub:
         related_url="",
         related_object_id="",
         sent_by=None,
+        email_html_template=None,
+        email_text_template=None,
     ):
         """
         إرسال إشعار لقائمة مستلمين عبر كل القنوات المناسبة.
@@ -131,6 +133,11 @@ class NotificationHub:
             related_url: رابط مباشر للصفحة المعنية
             related_object_id: UUID الكائن المرتبط
             sent_by: المستخدم المُرسل (اختياري)
+            email_html_template: قالبُ بريدٍ مُنسَّق — يُرندَر لكلّ مستلمٍ
+                بسياقه واسمه، ويُمرَّر `body_html`. وبدونه يخرج البريدُ
+                نصّاً خاماً كما كان.
+            email_text_template: نظيرُه النصّيّ — بديلُ البريد حين لا يُعرض
+                الـHTML. وبدونه يُستعمل `body` نفسُه.
 
         Returns:
             dict: {"in_app": count, "queued": {"email": n, "sms": n, ...}}
@@ -163,6 +170,29 @@ class NotificationHub:
             "default_channels": default_channels,
         }
 
+        def _render_email(template_name, user):
+            """يُرندَر لكلّ مستلمٍ على حدة — القالبُ يخاطبه باسمه."""
+            if not template_name:
+                return None
+            try:
+                from django.template.loader import render_to_string
+
+                return render_to_string(
+                    template_name,
+                    {
+                        **(context or {}),
+                        "recipient": user,
+                        "parent_name": user.full_name,
+                        "school_name": school.name,
+                        "title": title,
+                        "body": body,
+                    },
+                )
+            except Exception:
+                # قالبٌ ناقصٌ لا يمنع الإشعار — يخرج بالنصّ القصير كما كان.
+                logger.exception("email template failed template=%s", template_name)
+                return None
+
         def _register(user, external_channels, dispatch_id):
             # [B4-PRE2] يُسجَّل الآن ويُنفَّذ بعد الالتزام.
             #
@@ -179,6 +209,8 @@ class NotificationHub:
                 context=context,
                 sent_by=sent_by,
                 dispatch_id=dispatch_id,
+                email_html=_render_email(email_html_template, user),
+                email_text=_render_email(email_text_template, user),
             )
 
         if not _tracked_pipeline_enabled():
@@ -627,7 +659,17 @@ def _enqueue_intent_now(intent_id, school_id):
 
 
 def _queue_external_after_commit(
-    user, school, channels, title, body, event_type, context, sent_by, dispatch_id=None
+    user,
+    school,
+    channels,
+    title,
+    body,
+    event_type,
+    context,
+    sent_by,
+    dispatch_id=None,
+    email_html=None,
+    email_text=None,
 ):
     """[B4-PRE2] يُؤجّل الخروج إلى القنوات الخارجية حتى تلتزم معاملة المستدعي.
 
@@ -656,14 +698,34 @@ def _queue_external_after_commit(
     """
     transaction.on_commit(
         lambda: _queue_external_now(
-            user, school, channels, title, body, event_type, context, sent_by, dispatch_id
+            user,
+            school,
+            channels,
+            title,
+            body,
+            event_type,
+            context,
+            sent_by,
+            dispatch_id,
+            email_html,
+            email_text,
         ),
         robust=True,
     )
 
 
 def _queue_external_now(
-    user, school, channels, title, body, event_type, context, sent_by, dispatch_id=None
+    user,
+    school,
+    channels,
+    title,
+    body,
+    event_type,
+    context,
+    sent_by,
+    dispatch_id=None,
+    email_html=None,
+    email_text=None,
 ):
     """يُرسل المهام للقنوات الخارجية عبر Celery — بعد الالتزام.
 
@@ -693,6 +755,12 @@ def _queue_external_now(
             context=_serialize_context(context),
             sent_by_id=str(sent_by.id) if sent_by else None,
             dispatch_id=dispatch_id,
+            # لا تُمرَّر وسيطةٌ فارغة. عاملٌ قديمٌ يستقبل كلمةً لا يعرفها يرفع
+            # `TypeError`، وCelery يعدّها فشلاً ويؤكّد الرسالة — فتُفقد ولا
+            # تُعاد. وأكثرُ الإشعارات بلا قالبٍ بريديّ، فحمولتُها تبقى حرفاً
+            # بحرفٍ كما كانت، ولا يبلغ العاملَ القديمَ منها جديد.
+            **({"email_html": email_html} if email_html else {}),
+            **({"email_text": email_text} if email_text else {}),
         )
         return True
     except _PUBLISH_FAILURES as e:
@@ -713,7 +781,18 @@ def _queue_external_now(
         # [B4-7O] نوعُ الاستثناء لا نصّه — نصوص أخطاء الوسيط والمزوّد قد تحمل
         # عناوين اتصال.
         logger.warning("broker unavailable — sending sync error=%s", type(e).__name__)
-        _send_sync(user, school, channels, title, body, event_type, context, sent_by)
+        _send_sync(
+            user,
+            school,
+            channels,
+            title,
+            body,
+            event_type,
+            context,
+            sent_by,
+            email_html,
+            email_text,
+        )
         return False
 
 
@@ -732,7 +811,18 @@ def _serialize_context(context):
     return safe
 
 
-def _send_sync(user, school, channels, title, body, event_type, context, sent_by):
+def _send_sync(
+    user,
+    school,
+    channels,
+    title,
+    body,
+    event_type,
+    context,
+    sent_by,
+    email_html=None,
+    email_text=None,
+):
     """Fallback: إرسال مباشر بدون Celery"""
     from .services import NotificationService
 
@@ -742,7 +832,8 @@ def _send_sync(user, school, channels, title, body, event_type, context, sent_by
                 school=school,
                 recipient_email=user.email,
                 subject=title,
-                body_text=body,
+                body_text=email_text or body,
+                body_html=email_html,
                 notif_type=_map_event_type(event_type),
                 sent_by=sent_by,
             )

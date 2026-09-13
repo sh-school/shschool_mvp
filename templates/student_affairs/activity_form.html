@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 
 {% block title %}{% if mode == "add" %}تسجيل نشاط{% else %}تعديل نشاط{% endif %}{% endblock %}
 
@@ -7,28 +8,27 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash" style="max-width:700px;margin:0 auto">
-  <div class="exec-header">
-    <h1 class="page-title">
-      {% include "components/icon.html" with name="activity" %}
-      {% if mode == "add" %}تسجيل نشاط / إنجاز{% else %}تعديل «{{ activity.title }}»{% endif %}
-    </h1>
-  </div>
+<div class="exec-dash sa-page sa-form-page">
+  {% if mode == "add" %}
+  {% page_header "تسجيل نشاط / إنجاز" icon="activity" %}{% endpage_header %}
+  {% else %}
+  {% page_header "تعديل النشاط" subtitle=activity.title icon="activity" %}{% endpage_header %}
+  {% endif %}
 
-  <div class="card-qatar" style="padding:20px 24px">
+  <div class="form-card">
     <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
 
       {% if form.non_field_errors %}
-      <div class="msg-bar bg-red-50 border border-red-200 text-red-800" style="margin-bottom:16px">
+      <div class="msg-bar msg-error sa-form-errors" role="alert">
         {% for err in form.non_field_errors %}<span class="msg-text">{{ err }}</span>{% endfor %}
       </div>
       {% endif %}
 
       <div class="form-row">
 
-        <div class="form-group" style="grid-column:span 2">
-          <label class="form-label">الطالب <span style="color:red">*</span></label>
+        <div class="form-group sa-span-full">
+          <label class="form-label">الطالب <span class="req-star">*</span></label>
           <select name="student_id" class="form-control" required {% if mode == "edit" %}disabled{% endif %}>
             <option value="">— اختر الطالب —</option>
             {% for m in students %}
@@ -44,13 +44,13 @@
           {% endif %}
         </div>
 
-        <div class="form-group" style="grid-column:span 2">
-          <label class="form-label">العنوان <span style="color:red">*</span></label>
+        <div class="form-group sa-span-full">
+          <label class="form-label">العنوان <span class="req-star">*</span></label>
           <input type="text" name="title" value="{{ form.title.value|default:'' }}" class="form-control" placeholder="مثال: المركز الأول في مسابقة الرياضيات" required>
         </div>
 
         <div class="form-group">
-          <label class="form-label">نوع النشاط <span style="color:red">*</span></label>
+          <label class="form-label">نوع النشاط <span class="req-star">*</span></label>
           <select name="activity_type" class="form-control" required>
             {% for val, label in form.fields.activity_type.choices %}
             <option value="{{ val }}" {% if form.activity_type.value == val %}selected{% endif %}>{{ label }}</option>
@@ -59,7 +59,7 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">النطاق <span style="color:red">*</span></label>
+          <label class="form-label">النطاق <span class="req-star">*</span></label>
           <select name="scope" class="form-control" required>
             {% for val, label in form.fields.scope.choices %}
             <option value="{{ val }}" {% if form.scope.value == val %}selected{% endif %}>{{ label }}</option>
@@ -68,7 +68,7 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label">التاريخ <span style="color:red">*</span></label>
+          <label class="form-label">التاريخ <span class="req-star">*</span></label>
           <input type="date" name="date" value="{{ form.date.value|default:'' }}" class="form-control" required>
         </div>
 
@@ -76,11 +76,11 @@
           <label class="form-label">مرفق</label>
           <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx">
           {% if mode == "edit" and activity.attachment %}
-          <span style="font-size:.7rem;color:var(--muted);margin-top:4px;display:block">مرفق حالي: {{ activity.attachment.name|cut:"student_activities/" }}</span>
+          <div class="form-hint">مرفق حالي: {{ activity.attachment.name|cut:"student_activities/" }}</div>
           {% endif %}
         </div>
 
-        <div class="form-group" style="grid-column:span 2">
+        <div class="form-group sa-span-full">
           <label class="form-label">الوصف</label>
           <textarea name="description" rows="3" class="form-control" placeholder="وصف النشاط أو الإنجاز...">{{ form.description.value|default:'' }}</textarea>
         </div>

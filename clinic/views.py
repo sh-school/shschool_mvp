@@ -10,12 +10,12 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from clinic.services import ClinicService
+from core.capabilities import capability_required
 from core.models import AuditLog, ClinicVisit, CustomUser, HealthRecord
-from core.permissions import nurse_required
 
 
 @login_required
-@nurse_required
+@capability_required("clinic.access")
 def clinic_dashboard(request):
     """لوحة تحكم العيادة المدرسية"""
     school = request.user.get_school()
@@ -23,11 +23,17 @@ def clinic_dashboard(request):
     today = timezone.now().date()
     # ✅ v5.4: ClinicService.get_dashboard_stats — 7 استعلامات في service layer
     context = ClinicService.get_dashboard_stats(school, today=today)
+    context.update(
+        today_label=f"{today:%d/%m/%Y} · متابعةُ الزيارات والسجلات الصحّيّة",
+        # اللونُ يحمل التنبيه — لا سطرَ «تنبيه» تحت الرقم ولا شريطَ يكرّره.
+        sent_home_tone="red" if context.get("sent_home_today") else "green",
+        frequent_tone="amber" if context.get("frequent") else "green",
+    )
     return render(request, "clinic/dashboard.html", context)
 
 
 @login_required
-@nurse_required
+@capability_required("clinic.access")
 @require_http_methods(["GET", "POST"])
 def student_health_record(request, student_id):
     """عرض وتعديل السجل الصحي للطالب — مع فك تشفير البيانات الحساسة"""
@@ -80,7 +86,7 @@ def student_health_record(request, student_id):
 
 
 @login_required
-@nurse_required
+@capability_required("clinic.access")
 @require_http_methods(["GET", "POST"])
 def record_visit(request, student_id=None):
     """تسجيل زيارة جديدة للعيادة"""
@@ -122,7 +128,7 @@ def record_visit(request, student_id=None):
 
 
 @login_required
-@nurse_required
+@capability_required("clinic.access")
 def visits_list(request):
     """قائمة الزيارات بالعيادة"""
     school = request.user.get_school()
@@ -156,7 +162,7 @@ def visits_list(request):
 
 
 @login_required
-@nurse_required
+@capability_required("clinic.access")
 def health_statistics(request):
     """إحصائيات صحية للمدرسة"""
     school = request.user.get_school()
@@ -167,7 +173,7 @@ def health_statistics(request):
 
 
 @login_required
-@nurse_required
+@capability_required("clinic.access")
 def api_clinic_charts(request):
     """API: بيانات الرسوم البيانية للعيادة — آخر 30 يوم"""
     school = request.user.get_school()

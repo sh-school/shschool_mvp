@@ -21,8 +21,16 @@ from django.http import HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
 
+from core import brand
 from core.academic_calendar import academic_year_for_school, default_academic_year
-from core.permissions import role_required
+from core.capabilities import capability_required
+from core.export_utils import (
+    add_excel_title_rows,
+    brand_cell,
+    excel_table_styles,
+    xl_fill,
+    xl_font,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +59,6 @@ TEMPLATE_COLUMNS = [
     ("صلة القرابة (father/mother/guardian)", 30),
 ]
 
-MAROON = "8A1538"
-WHITE = "FFFFFF"
-ALT_BG = "FDF2F5"
-
-
 # ══════════════════════════════════════════════════════════════════════
 # مساعدات Excel
 # ══════════════════════════════════════════════════════════════════════
@@ -64,22 +67,17 @@ ALT_BG = "FDF2F5"
 def _make_styles():
     """يُعيد قاموس ستايلات openpyxl مشتركة."""
     import openpyxl  # noqa: F401 — imported for side-effects check
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
+    shared = excel_table_styles()
     return {
-        "header_font": Font(name="Arial", bold=True, color=WHITE, size=11),
-        "header_fill": PatternFill("solid", fgColor=MAROON),
-        "header_align": Alignment(horizontal="center", vertical="center", wrap_text=True),
-        "data_align": Alignment(horizontal="center", vertical="center", wrap_text=True),
-        "thin_border": Border(
-            left=Side(style="thin", color="DDDDDD"),
-            right=Side(style="thin", color="DDDDDD"),
-            top=Side(style="thin", color="DDDDDD"),
-            bottom=Side(style="thin", color="DDDDDD"),
-        ),
-        "alt_fill": PatternFill("solid", fgColor=ALT_BG),
-        "note_font": Font(name="Arial", size=9, color="555555", italic=True),
-        "note_fill": PatternFill("solid", fgColor="FFF9E6"),
+        "header_font": shared.header_font,
+        "header_fill": shared.header_fill,
+        "header_align": shared.header_align,
+        "data_align": shared.data_align,
+        "thin_border": shared.border,
+        "alt_fill": shared.alt_fill,
+        "note_font": xl_font(brand.TEXT_MUTED, size=9, italic=True),
+        "note_fill": xl_fill(brand.STATUS_WARNING_BG),
     }
 
 
@@ -101,6 +99,7 @@ def _style_data_row(ws, styles, row_num, num_cols, is_alt=False):
         cell = ws.cell(row=row_num, column=col_idx)
         cell.border = styles["thin_border"]
         cell.alignment = styles["data_align"]
+        brand_cell(cell)
         if is_alt:
             cell.fill = styles["alt_fill"]
     ws.row_dimensions[row_num].height = 20
@@ -130,43 +129,21 @@ def _finalize_workbook(
     wb, ws, styles, num_cols, school_name, report_title, year, today_str, num_data_rows
 ):
     """يضيف الرأس الاحترافي، يُجمّد، ويُعدّ الطباعة."""
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
     from openpyxl.worksheet.properties import PageSetupProperties
 
     col_letter = get_column_letter(num_cols)
 
-    bottom_border = Border(bottom=Side(style="medium", color=MAROON))
-
     # ── الصفوف الثلاثة الأولى للرأس ──────────────────────────────────
     ws.insert_rows(1, 3)
 
-    ws.merge_cells(f"A1:{col_letter}1")
-    c = ws["A1"]
-    c.value = f"وزارة التربية والتعليم والتعليم العالي — دولة قطر          {today_str}"
-    c.font = Font(name="Arial", size=9, color="555555")
-    c.fill = PatternFill("solid", fgColor="F5EEF1")
-    c.alignment = Alignment(horizontal="center", vertical="center")
-    c.border = bottom_border
-    ws.row_dimensions[1].height = 22
-
-    ws.merge_cells(f"A2:{col_letter}2")
-    c = ws["A2"]
-    c.value = school_name
-    c.font = Font(name="Arial", bold=True, size=16, color=MAROON)
-    c.fill = PatternFill("solid", fgColor="FAFAFA")
-    c.alignment = Alignment(horizontal="center", vertical="center")
-    c.border = bottom_border
-    ws.row_dimensions[2].height = 38
-
-    ws.merge_cells(f"A3:{col_letter}3")
-    c = ws["A3"]
-    c.value = f"{report_title}   |   السنة الدراسية: {year}"
-    c.font = Font(name="Arial", bold=True, size=12, color=MAROON)
-    c.fill = PatternFill("solid", fgColor="FDF2F5")
-    c.alignment = Alignment(horizontal="center", vertical="center")
-    c.border = bottom_border
-    ws.row_dimensions[3].height = 26
+    add_excel_title_rows(
+        ws,
+        num_cols,
+        school_name,
+        f"{report_title}  —  السنة الدراسية {year}",
+        f"وزارة التربية والتعليم والتعليم العالي — دولة قطر  |  {today_str}",
+    )
 
     # الصف 4 هو الرأس (تم تعبئته قبل insert_rows → أصبح الصف 7 مؤقتاً، لذا نعيد الترتيب)
     # ملاحظة: لتجنب إعادة الترتيب، نضيف الرأس بعد insert_rows مباشرة
@@ -212,7 +189,7 @@ def _wb_to_response(wb, filename):
 
 
 @login_required
-@role_required("principal", "vice_admin", "vice_academic", "admin")
+@capability_required("students.import_export")
 def student_import_export(request):
     """
     GET  → صفحة الاستيراد/التصدير
@@ -235,6 +212,7 @@ def student_import_export(request):
     ctx = {
         "school": school,
         "year": year,
+        "subtitle": f"إدارة بيانات الطلاب عبر ملفات Excel — {year}",
         "total_students": total_students,
         "import_result": None,
     }
@@ -255,6 +233,11 @@ def student_import_export(request):
     try:
         result = _process_import(uploaded_file, school, year)
         ctx["import_result"] = result
+        # الأخطاءُ تُعرض عشرين، وما بقي يُقال عدداً؛ والكهرمانيُّ حين يوجد خطأ
+        # (العتبةُ التي كانت في القالب: أكبرُ من صفر).
+        error_count = result.get("error_count", len(result.get("errors", [])))
+        ctx["errors_more"] = max(0, error_count - len(result.get("errors", [])))
+        ctx["errors_tone"] = "amber" if error_count > 0 else "green"
     except (OSError, ValueError, KeyError, TypeError) as exc:
         logger.exception("فشل استيراد الطلاب")
         ctx["import_error"] = f"خطأ في قراءة الملف: {exc}"
@@ -548,7 +531,7 @@ def _process_import(uploaded_file, school, year):
 
 
 @login_required
-@role_required("principal", "vice_admin", "vice_academic", "admin")
+@capability_required("students.import_export")
 def student_export_excel(request):
     """
     GET → تنزيل ملف Excel بكل بيانات الطلاب في المدرسة.
@@ -582,7 +565,6 @@ def student_export_excel(request):
 
     # ── بناء Workbook ───────────────────────────────────────────────
     import openpyxl
-    from openpyxl.styles import Alignment, Font, PatternFill
     from openpyxl.utils import get_column_letter
     from openpyxl.worksheet.properties import PageSetupProperties
 
@@ -597,37 +579,14 @@ def student_export_excel(request):
     num_cols = len(EXPORT_COLUMNS)
     col_letter = get_column_letter(num_cols)
 
-    from openpyxl.styles import Border, Side
-
-    bottom_border = Border(bottom=Side(style="medium", color=MAROON))
-
     # ── صفوف الرأس الثلاثة ──────────────────────────────────────────
-    ws.merge_cells(f"A1:{col_letter}1")
-    c = ws["A1"]
-    c.value = f"وزارة التربية والتعليم والتعليم العالي — دولة قطر          {today_str}"
-    c.font = Font(name="Arial", size=9, color="555555")
-    c.fill = PatternFill("solid", fgColor="F5EEF1")
-    c.alignment = Alignment(horizontal="center", vertical="center")
-    c.border = bottom_border
-    ws.row_dimensions[1].height = 22
-
-    ws.merge_cells(f"A2:{col_letter}2")
-    c = ws["A2"]
-    c.value = school.name
-    c.font = Font(name="Arial", bold=True, size=16, color=MAROON)
-    c.fill = PatternFill("solid", fgColor="FAFAFA")
-    c.alignment = Alignment(horizontal="center", vertical="center")
-    c.border = bottom_border
-    ws.row_dimensions[2].height = 38
-
-    ws.merge_cells(f"A3:{col_letter}3")
-    c = ws["A3"]
-    c.value = f"كشف الطلاب الكامل   |   السنة الدراسية: {year}"
-    c.font = Font(name="Arial", bold=True, size=12, color=MAROON)
-    c.fill = PatternFill("solid", fgColor="FDF2F5")
-    c.alignment = Alignment(horizontal="center", vertical="center")
-    c.border = bottom_border
-    ws.row_dimensions[3].height = 26
+    add_excel_title_rows(
+        ws,
+        num_cols,
+        school.name,
+        f"كشف الطلاب الكامل  —  السنة الدراسية {year}",
+        f"وزارة التربية والتعليم والتعليم العالي — دولة قطر  |  {today_str}",
+    )
 
     # ── صف رأس الأعمدة (الصف 4) ────────────────────────────────────
     _add_header_row(ws, styles, 4, EXPORT_COLUMNS)
@@ -680,13 +639,13 @@ def student_export_excel(request):
 
 
 @login_required
-@role_required("principal", "vice_admin", "vice_academic", "admin")
+@capability_required("students.import_export")
 def student_import_template(request):
     """
     GET → تنزيل قالب Excel فارغ مع تعليمات الاستيراد.
     """
     import openpyxl
-    from openpyxl.styles import Alignment, Border, PatternFill, Side
+    from openpyxl.styles import Alignment
     from openpyxl.utils import get_column_letter
     from openpyxl.worksheet.properties import PageSetupProperties
 
@@ -700,8 +659,6 @@ def student_import_template(request):
 
     num_cols = len(TEMPLATE_COLUMNS)
     col_letter = get_column_letter(num_cols)
-
-    bottom_border = Border(bottom=Side(style="medium", color=MAROON))
 
     # ── صف 1: تعليمات ──────────────────────────────────────────────
     ws.merge_cells(f"A1:{col_letter}1")
@@ -749,16 +706,14 @@ def student_import_template(request):
             "father",
         ),
     ]
-    from openpyxl.styles import Font as XLFont
-
     for idx, row_data in enumerate(examples, start=3):
         for col_idx, val in enumerate(row_data, start=1):
             cell = ws.cell(row=idx, column=col_idx, value=val)
             cell.border = styles["thin_border"]
             cell.alignment = styles["data_align"]
             # تمييز لوني خفيف للأمثلة
-            cell.fill = PatternFill("solid", fgColor="F0F9FF")
-            cell.font = XLFont(name="Arial", size=10, color="1E40AF", italic=True)
+            cell.fill = xl_fill(brand.STATUS_INFO_BG)
+            cell.font = xl_font(brand.STATUS_INFO_FG, italic=True)
         ws.row_dimensions[idx].height = 20
 
     # ── تجميد الصف 2 ────────────────────────────────────────────────

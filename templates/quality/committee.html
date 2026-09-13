@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static %}
+{% load privacy static ui %}
 
 {% block title %}لجنة المراجعة الذاتية — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
@@ -8,143 +8,99 @@
 {% endblock %}
 
 {% block content %}
-<div class="quality-page">
+<div class="qcom">
 
-  {# ══ Header ══════════════════════════════════════════════ #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="clipboard-check" %} {{ committee_label }}</h1>
-      <p class="exec-date">{{ year }} — {{ members|length }} عضو</p>
-    </div>
-    <div class="flex flex-wrap gap-2 items-center">
-      <a href="{% url 'executor_committee' %}?year={{ year }}" class="btn-secondary btn-sm">لجنة المنفذين</a>
-      <a href="{% url 'review_list' %}" class="btn-secondary btn-sm">المراجعة الذاتية</a>
-      <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
-    </div>
+  {% page_header committee_label subtitle=year icon="clipboard-check" %}
+    <button type="button" class="btn-primary btn-sm" data-call="toggleForm" aria-controls="add-form">{% include "components/icon.html" with name="plus" %} إضافة عضو</button>
+    <a href="{% url 'executor_committee' %}?year={{ year }}" class="btn-secondary btn-sm">لجنة المنفذين</a>
+    <a href="{% url 'review_list' %}" class="btn-secondary btn-sm">المراجعة الذاتية</a>
+    <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
+  {% endpage_header %}
+
+  <div id="add-form" class="qcom-add">
+  {% section_card "إضافة عضو جديد للجنة" icon="user-plus" %}
+    <form method="post" action="{% url 'add_committee_member' %}">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ year }}">
+      <input type="hidden" name="committee_type" value="review">
+
+      <div class="q-add-form-grid">
+        <div class="q-add-form-field">
+          <label for="qcom-user">الموظف</label>
+          <select name="user_id" id="qcom-user" data-call-change="fillJobTitle">
+            <option value="">— اختر موظف —</option>
+            {% for emp in staff %}
+              <option value="{{ emp.id }}" data-name="{{ emp.full_name }}">{{ emp.full_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="q-add-form-field">
+          <label for="job_title_input">المسمى الوظيفي <span class="required-star">*</span></label>
+          <input type="text" name="job_title" id="job_title_input" required placeholder="مثال: منسق الرياضيات">
+        </div>
+        <div class="q-add-form-field">
+          <label for="qcom-resp">المسؤولية</label>
+          <select name="responsibility" id="qcom-resp">
+            {% for val, label in RESP_CHOICES %}
+              <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="q-add-form-field">
+          <label for="qcom-domain">المجال (اختياري)</label>
+          <select name="domain_id" id="qcom-domain">
+            <option value="">— بدون مجال محدد —</option>
+            {% for d in domains %}
+              <option value="{{ d.id }}">{{ d.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-actions qcom-add__actions">
+        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} إضافة للجنة</button>
+      </div>
+    </form>
+  {% endsection_card %}
   </div>
 
-  {# ══ Add Member Form ═══════════════════════════════════════ #}
-  <div class="q-add-form">
-    <button type="button" class="q-add-form-header" data-call="toggleForm">
-      <span>{% include "components/icon.html" with name="plus" %} إضافة عضو جديد للجنة</span>
-      <span id="form-toggle-icon" class="toggle-icon">＋</span>
-    </button>
-    <div id="add-form" class="q-add-form-body" style="display:none">
-      <form method="post" action="{% url 'add_committee_member' %}">
-        {% csrf_token %}
-        <input type="hidden" name="year" value="{{ year }}">
-        <input type="hidden" name="committee_type" value="review">
-
-        <div class="q-add-form-grid">
-          <div class="q-add-form-field">
-            <label>الموظف</label>
-            <select name="user_id" data-call-change="fillJobTitle">
-              <option value="">— اختر موظف —</option>
-              {% for emp in staff %}
-                <option value="{{ emp.id }}" data-name="{{ emp.full_name }}">{{ emp.full_name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="q-add-form-field">
-            <label>المسمى الوظيفي <span class="required-star">*</span></label>
-            <input type="text" name="job_title" id="job_title_input" required placeholder="مثال: منسق الرياضيات">
-          </div>
-          <div class="q-add-form-field">
-            <label>المسؤولية</label>
-            <select name="responsibility">
-              {% for val, label in RESP_CHOICES %}
-                <option value="{{ val }}">{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
-          <div class="q-add-form-field">
-            <label>المجال (اختياري)</label>
-            <select name="domain_id">
-              <option value="">— بدون مجال محدد —</option>
-              {% for d in domains %}
-                <option value="{{ d.id }}">{{ d.name }}</option>
-              {% endfor %}
-            </select>
-          </div>
-        </div>
-
-        <div class="q-add-form-actions">
-          <button type="submit" class="q-btn q-btn-maroon">
-            {% include "components/icon.html" with name="plus" %} إضافة للجنة
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  {# ══ Members Table ═════════════════════════════════════════ #}
-  <div class="quality-table-wrap">
-    <div class="quality-filters-header">
-      {% include "components/icon.html" with name="users" %} الأعضاء الحاليون ({{ members|length }})
-    </div>
-
-    {% if member_review_stats %}
-    <div class="quality-table-scroll">
-      <table class="plans-table">
+  {% section_card "الأعضاء الحاليون" meta=members|length icon="users" empty="لا يوجد أعضاء في اللجنة حتى الآن" empty_sub="ابدأ بزرّ «إضافة عضو» في رأس الصفحة" flush=True %}{% if member_review_stats %}
+    <div class="table-wrap">
+      <table>
         <thead>
           <tr>
-            <th>المسمى الوظيفي</th>
-            <th>الاسم</th>
-            <th>المسؤولية</th>
-            <th>المجال</th>
-            <th>تم مراجعتها</th>
-            <th>بحاجة مراجعة</th>
-            <th>مراجعة المجال</th>
-            <th>حذف</th>
+            <th scope="col">المسمى الوظيفي</th>
+            <th scope="col">الاسم</th>
+            <th scope="col" class="num">المسؤولية</th>
+            <th scope="col">المجال</th>
+            <th scope="col" class="num">تم مراجعتها</th>
+            <th scope="col" class="num">بحاجة مراجعة</th>
+            <th scope="col" class="num">مراجعة المجال</th>
+            <th scope="col" class="num">حذف</th>
           </tr>
         </thead>
         <tbody>
           {% for ms in member_review_stats %}
           <tr>
-            <td><strong>{{ ms.member.job_title }}</strong></td>
+            <td><span class="qcom-member__name">{{ ms.member.job_title }}</span></td>
             <td>
-              <span class="member-name">{{ ms.member.user.full_name|default:"—" }}</span>
-              {% if ms.member.user %}
-                <br><span class="member-nid" dir="ltr">{{ ms.member.user.national_id }}</span>
-              {% endif %}
+              <span class="qcom-member__name">{{ ms.member.user.full_name|default:"—" }}</span>
+              {% if ms.member.user %}<span class="qcom-member__job" dir="ltr">{{ ms.member.user.national_id|mask_id }}</span>{% endif %}
             </td>
-            <td class="cell-center">
-              <span class="q-badge {% if ms.member.responsibility == 'رئيس اللجنة' %}q-badge-danger{% elif ms.member.responsibility == 'نائب رئيس اللجنة' %}q-badge-warning{% elif ms.member.responsibility == 'مقرر' %}q-badge-info{% else %}q-badge-neutral{% endif %}">
-                {{ ms.member.responsibility }}
-              </span>
-            </td>
+            <td class="num"><span class="status-badge status-{{ ms.responsibility_tone }}">{{ ms.member.responsibility }}</span></td>
             <td class="cell-domain">{{ ms.member.domain.name|default:"—" }}</td>
-            <td class="cell-center">
-              {% if ms.reviewed_count %}
-                <span class="q-badge q-badge-success">{{ ms.reviewed_count }}</span>
-              {% else %}
-                <span class="cell-zero">0</span>
-              {% endif %}
-            </td>
-            <td class="cell-center">
-              {% if ms.pending_in_domain %}
-                <span class="q-badge q-badge-warning">{{ ms.pending_in_domain }}</span>
-              {% else %}
-                <span class="cell-zero">0</span>
-              {% endif %}
-            </td>
-            <td class="cell-center">
+            <td class="num cell-count-success">{{ ms.reviewed_count }}</td>
+            <td class="num">{% if ms.pending_in_domain %}<span class="status-badge status-warning">{{ ms.pending_in_domain }}</span>{% else %}0{% endif %}</td>
+            <td class="num">
               {% if ms.member.domain %}
-                <a href="{% url 'review_list' %}?field={{ ms.member.domain.id }}"
-                   class="q-btn q-btn-maroon" btn-sm>
-                  {% include "components/icon.html" with name="gavel" %} مراجعة
-                </a>
-              {% else %}
-                <span class="cell-empty">—</span>
-              {% endif %}
+                <a href="{% url 'review_list' %}?field={{ ms.member.domain.id }}" class="btn-primary btn-sm">{% include "components/icon.html" with name="gavel" %} مراجعة</a>
+              {% else %}—{% endif %}
             </td>
-            <td class="cell-center">
-              <form method="post" action="{% url 'remove_committee_member' ms.member.id %}"
+            <td class="num">
+              <form method="post" action="{% url 'remove_committee_member' ms.member.id %}" class="form-inline"
                     data-confirm="حذف {{ ms.member.job_title }}؟">
                 {% csrf_token %}
-                <button type="submit" class="q-btn q-btn-outline q-btn-delete">
-                  {% include "components/icon.html" with name="trash" %} حذف
-                </button>
+                <button type="submit" class="btn-danger btn-sm">{% include "components/icon.html" with name="trash" %} حذف</button>
               </form>
             </td>
           </tr>
@@ -152,48 +108,18 @@
         </tbody>
       </table>
     </div>
-    {% else %}
-    <div class="quality-empty">
-      {% include "components/icon.html" with name="users" %}
-      <p>لا يوجد أعضاء في اللجنة حتى الآن</p>
-      <p class="sub">استخدم النموذج أعلاه لإضافة أعضاء اللجنة</p>
-    </div>
-    {% endif %}
-  </div>
+  {% endif %}{% endsection_card %}
 
-  {# ══ Domain Coverage ═══════════════════════════════════════ #}
   {% if domains %}
-  <div>
-    <div class="q-section-title">
-      {% include "components/icon.html" with name="layers" %} تغطية المجالات
-    </div>
-    <div class="q-domain-grid">
+  {% section_card "تغطية المجالات" meta=domains|length icon="layers" %}
+    <div class="ui-entity-grid">
       {% for domain in domains %}
-      {% with responsible=domain.committee_members.first %}
-      <div class="q-domain-card">
-        <div class="domain-header">
-          <span class="domain-name">{{ domain.name }}</span>
-          <span class="q-badge {% if domain.completion_pct >= 80 %}q-badge-success{% elif domain.completion_pct >= 50 %}q-badge-warning{% else %}q-badge-danger{% endif %}">
-            {{ domain.completion_pct }}%
-          </span>
-        </div>
-        <div class="domain-responsible">
-          المسؤول:
-          {% if responsible %}
-            <strong>{{ responsible.user.full_name|default:responsible.job_title }}</strong>
-          {% else %}
-            <span class="text-danger">غير محدد</span>
-          {% endif %}
-        </div>
-        <div class="domain-bar">
-          <div class="domain-bar-fill {% if domain.completion_pct >= 80 %}green{% elif domain.completion_pct >= 50 %}amber{% else %}red{% endif %}"
-               style="--progress-w:{{ domain.completion_pct }}%"></div>
-        </div>
-      </div>
-      {% endwith %}
+      {% entity_card domain.name count=domain.pct_label tone=domain.coverage_tone %}
+        {% entity_status tone=domain.responsible_tone %}{% if domain.responsible_name %}المسؤول: {{ domain.responsible_name }}{% else %}لا مسؤولَ محدَّد{% endif %}{% endentity_status %}
+      {% endentity_card %}
       {% endfor %}
     </div>
-  </div>
+  {% endsection_card %}
   {% endif %}
 
 </div>

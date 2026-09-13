@@ -24,11 +24,22 @@ class TeacherExemptionForm(forms.Form):
     GROUPS = {"coordinators": ("coordinator",)}
 
     teacher = forms.CharField(max_length=40, label="المعلم/المنسق")
+    #: النوعُ اختياريٌّ لأنّ الشبكةَ تحمله في الخانة: «يوم:*» يومٌ كاملٌ وما
+    #: عداه حصّةٌ بعينها. وكان مطلوباً بعد أن رُفع من الشاشة، فكان كلُّ تظليلٍ
+    #: يُردّ بـ«نوع التفريغ: هذا الحقل مطلوب» — رسالةٌ عن حقلٍ لا يراه أحد.
     exemption_type = forms.ChoiceField(
-        choices=TeacherExemption.EXEMPTION_TYPE, initial="full_day", label="نوع التفريغ"
+        choices=TeacherExemption.EXEMPTION_TYPE,
+        initial="full_day",
+        required=False,
+        label="نوع التفريغ",
     )
+    #: خاناتٌ مفردةٌ من الشبكة: «يوم:حصّة» مكرّراً. وهي المسارُ المفضَّل —
+    #: تحمل ما عجز عنه الضربُ: «الأحدَ الأولى والاثنينَ الثالثة» خانتان لا
+    #: أربع. فإن جاءت أُهملت الأيّامُ والحصصُ، وإلّا فالضربُ كما كان (وهو
+    #: البابُ الذي يُفرَّغ به المنسّقون جميعاً في يومٍ وحصّةٍ واحدة).
+    slots = forms.CharField(required=False, label="الخانات")
     day_of_week = forms.TypedMultipleChoiceField(
-        choices=ScheduleSlot.DAYS, coerce=int, label="الأيام"
+        choices=ScheduleSlot.DAYS, coerce=int, required=False, label="الأيام"
     )
     #: حصصٌ عدّةٌ كالأيّام: الأولى والسابعةُ تفريغان بطلبٍ واحد. وفي «يوم كامل»
     #: تُهمَل، فالقائمةُ تصير `[None]` — حصّةً واحدةً بلا رقم.
@@ -91,11 +102,39 @@ class TeacherExemptionForm(forms.Form):
         return [teacher]
 
     def clean(self):
+        """يوحّد المسارين في `pairs`: قائمةُ (يوم، حصّة) — والحصّةُ `None` ليومٍ كامل.
+
+        فالعرضُ لا يعرف من أين جاء الطلب: من الشبكة أم من الاستمارة القديمة.
+        """
         cleaned = super().clean()
+        from operations.exemption_grid import parse_slots
+
+        raw = (cleaned.get("slots") or "").replace("،", ",")
+        picked = parse_slots([p for p in raw.split(",") if p.strip()])
+        if picked:
+            # الشبكةُ تحمل الخانةَ بيومها، فلا معنى لأيّامٍ معها. والنوعُ
+            # يُشتقّ لكلّ زوجٍ على حدة في العرض: «يوم:*» يومٌ كاملٌ وغيرُه
+            # حصّةٌ بعينها — فالطلبُ الواحدُ قد يحمل النوعين معاً.
+            cleaned["exemption_type"] = ""
+            cleaned["pairs"] = picked
+            cleaned["day_of_week"] = sorted({day for day, _ in picked})
+            return cleaned
+
+        days = cleaned.get("day_of_week")
+        if not days:
+            # لا شبكةَ ولا أيّام: الطلبُ فارغٌ من موضعه.
+            self.add_error("slots", "ظلِّل خانةً واحدةً على الأقلّ في الشبكة.")
+            return cleaned
+        if not cleaned.get("exemption_type"):
+            cleaned["exemption_type"] = "full_day"
         if cleaned.get("exemption_type") == "specific_period" and not cleaned.get("period_number"):
             self.add_error("period_number", "حدّد الحصص لتفريغ حصصٍ بعينها.")
-        if cleaned.get("exemption_type") == "full_day":
-            cleaned["period_number"] = [None]
+            return cleaned
+        periods = (
+            [None] if cleaned.get("exemption_type") == "full_day" else cleaned["period_number"]
+        )
+        cleaned["period_number"] = periods
+        cleaned["pairs"] = [(day, period) for day in days for period in periods]
         return cleaned
 
 

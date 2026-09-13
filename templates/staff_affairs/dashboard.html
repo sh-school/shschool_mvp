@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 
 {% block title %}شؤون الموظفين{% endblock %}
 
@@ -9,163 +10,74 @@
 {% block content %}
 <div class="exec-dash">
 
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="settings" %} شؤون الموظفين</h1>
-      <p class="exec-subtitle">نظرة شاملة على الموظفين — {{ current_school.name|default:"المدرسة" }}</p>
-    </div>
-    <span class="exec-date">{{ today|date:"D، d M Y" }}</span>
-  </div>
+  {% page_header "شؤون الموظفين" subtitle=page_subtitle icon="settings" %}
+    <a href="{% url 'staff_affairs:staff_list' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="list-checks" %} سجل الموظفين</a>
+    <a href="{% url 'absence_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="ban" %} غياب المعلمين</a>
+    <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
+    <a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
+    <a href="{% url 'staff_affairs:leave_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="calendar" %} الإجازات</a>
+    <a href="{% url 'evaluation_dashboard' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} تقييم الأداء</a>
+    <a href="{% url 'staff_affairs:licensing' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="lock" %} الرخص المهنية</a>
+    <a href="{% url 'teacher_load_report' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="activity" %} أعباء المعلمين</a>
+  {% endpage_header %}
 
-  {# ── KPI Strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-maroon">
-      <div class="kpi-mini-label">إجمالي الموظفين</div>
-      <div class="kpi-mini-value">{{ total_staff }}</div>
-    </div>
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">غائبون اليوم</div>
-      <div class="kpi-mini-value">{{ absences_today }}</div>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <div class="kpi-mini-label">طلبات تبديل معلقة</div>
-      <div class="kpi-mini-value">{{ pending_swaps }}</div>
-    </div>
-    <div class="kpi-mini kpi-blue">
-      <div class="kpi-mini-label">طلبات إجازة معلقة</div>
-      <div class="kpi-mini-value">{{ pending_leaves }}</div>
-    </div>
-    <div class="kpi-mini kpi-teal">
-      <div class="kpi-mini-label">تقييمات غير مكتملة</div>
-      <div class="kpi-mini-value">{{ pending_evals }}</div>
-    </div>
-  </div>
+  {% url 'absence_list' as absences_url %}
+  {% url 'swap_list' as swaps_url %}
+  {% url 'evaluation_dashboard' as evals_url %}
+  {% url 'staff_affairs:licensing' as licensing_url %}
+  {% kpi_strip label="أرقام شؤون الموظفين" %}
+    {% kpi "الموظفون" total_staff %}
+    {% kpi "غائبون اليوم" absences_today tone=absences_tone href=absences_url %}
+    {% kpi "تبديلاتٌ معلّقة" pending_swaps tone=swaps_tone href=swaps_url %}
+    {% kpi "إجازاتٌ معلّقة" pending_leaves tone=leaves_tone href=pending_leaves_url %}
+    {% kpi "تقييماتٌ غير مكتملة" pending_evals tone=evals_tone href=evals_url title="تقييماتُ أداءٍ ما زالت مسودّةً هذا العام" %}
+    {% kpi "رخصٌ تنتهي قريباً" expiring_licenses sub="90 يوماً" tone=licenses_tone href=licensing_url title="رخصٌ مهنيّةٌ تنتهي خلال تسعين يوماً" %}
+  {% endkpi_strip %}
 
-  {# ── KPIs ثانوية ── #}
-  {% if expiring_licenses %}
-  <details class="exec-details">
-    <summary class="exec-details-summary">{% include "components/icon.html" with name="alert-triangle" %} {{ expiring_licenses }} رخصة مهنية تنتهي قريباً</summary>
-    <div class="kpi-strip" style="margin-top:8px">
-      <div class="kpi-mini kpi-orange">
-        <div class="kpi-mini-label">رخص تنتهي خلال 90 يوم</div>
-        <div class="kpi-mini-value">{{ expiring_licenses }}</div>
-      </div>
-    </div>
-  </details>
-  {% endif %}
-
-  {# ── الروابط السريعة ── #}
-  <div class="quick-links">
-    <a href="{% url 'staff_affairs:staff_list' %}" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="list-checks" %}</span> سجل الموظفين
-    </a>
-    <a href="/teacher/absences/" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="ban" %}</span> غياب المعلمين
-    </a>
-    <a href="/teacher/schedule/swaps/" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="refresh" %}</span> طلبات التبديل
-    </a>
-    <a href="/teacher/schedule/compensatory/" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="list-checks" %}</span> الحصص التعويضية
-    </a>
-    <a href="{% url 'staff_affairs:leave_list' %}" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="calendar" %}</span> طلبات الإجازات
-    </a>
-    <a href="/quality/evaluations/" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="bar-chart" %}</span> تقييم الأداء
-    </a>
-    <a href="{% url 'staff_affairs:licensing' %}" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="lock" %}</span> الرخص المهنية
-    </a>
-    <a href="/teacher/reports/teacher-load/" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="activity" %}</span> أعباء المعلمين
-    </a>
-  </div>
-
-  {# ── توزيع الموظفين حسب الدور ── #}
-  {% if role_distribution %}
-  <div class="dash-chart-card">
-    <div class="dash-chart-title">{% include "components/icon.html" with name="users" %} توزيع الموظفين حسب الدور</div>
-    <div class="table-wrap-scroll">
-      <table style="width:100%;font-size:.8rem;border-collapse:collapse">
-        <thead>
-          <tr style="border-bottom:2px solid var(--border)">
-            <th style="padding:8px;text-align:right;font-weight:600">الدور</th>
-            <th style="padding:8px;text-align:center;font-weight:600">العدد</th>
-            <th style="padding:8px;text-align:right;font-weight:600">النسبة</th>
-          </tr>
-        </thead>
+  {% section_card "توزيع الموظفين حسب الدور" meta=role_distribution|length icon="users" flush=True empty="لا أدوارَ مسجّلة" %}{% if role_distribution %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>الدور</th><th class="num">العدد</th><th>النسبة</th></tr></thead>
         <tbody>
           {% for r in role_distribution %}
-          <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:8px">{{ r.role_display }}</td>
-            <td style="padding:8px;text-align:center;font-weight:600">{{ r.count }}</td>
-            <td style="padding:8px">
-              {% if total_staff > 0 %}
-              <div style="display:flex;align-items:center;gap:6px">
-                <div style="height:6px;background:var(--maroon,#8A1538);border-radius:3px;width:{% widthratio r.count total_staff 100 %}%"></div>
-                <span style="font-size:.7rem;color:var(--muted)">{% widthratio r.count total_staff 100 %}%</span>
+          <tr>
+            <td>{{ r.role_display }}</td>
+            <td class="num">{{ r.count }}</td>
+            <td>
+              <div class="sa-share">
+                <div class="progress-qatar sa-share__bar"><div class="progress-qatar-fill" style="--progress-w:{{ r.share }}%"></div></div>
+                <span class="sa-share__pct">{{ r.share }}%</span>
               </div>
-              {% endif %}
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
-  {% endif %}
+  {% endif %}{% endsection_card %}
 
-  {# ── آخر الغيابات + آخر الإجازات ── #}
-  <div class="charts-grid-2">
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="ban" %} آخر حالات الغياب</div>
-      {% if recent_absences %}
-      <div class="dash-list">
+  <div class="ui-grid-2">
+    {% section_card "آخر حالات الغياب" icon="ban" empty="لا غياباتٍ مسجّلة" %}{% if recent_absences %}
+      <ul class="plain-list">
         {% for a in recent_absences %}
-        <div class="dash-list-item">
-          <div style="flex:1">
-            <span style="font-weight:600;font-size:.8rem">{{ a.teacher.full_name }}</span>
-            <span style="font-size:.65rem;color:var(--muted);margin-right:6px">{{ a.date|date:"d/m" }}</span>
-          </div>
-          <span class="status-badge
-            {% if a.status == "covered" %}status-success
-            {% elif a.status == "uncovered" %}status-danger
-            {% else %}status-warning{% endif %}">
-            {{ a.get_status_display }}
-          </span>
-        </div>
+        <li class="plain-list__row">
+          <span class="plain-list__main"><b class="plain-list__title">{{ a.teacher.full_name }}</b><span class="plain-list__sub">{{ a.date|date:"d/m/Y" }}</span></span>
+          <span class="status-badge {% if a.status == 'covered' %}status-success{% elif a.status == 'uncovered' %}status-danger{% else %}status-warning{% endif %}">{{ a.get_status_display }}</span>
+        </li>
         {% endfor %}
-      </div>
-      {% else %}
-      {% include "components/empty_state.html" with message="لا غيابات مسجّلة" %}
-      {% endif %}
-    </div>
+      </ul>
+    {% endif %}{% endsection_card %}
 
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="calendar" %} آخر طلبات الإجازات</div>
-      {% if recent_leaves %}
-      <div class="dash-list">
+    {% section_card "آخر طلبات الإجازات" icon="calendar" empty="لا طلباتِ إجازات" %}{% if recent_leaves %}
+      <ul class="plain-list">
         {% for l in recent_leaves %}
-        <div class="dash-list-item">
-          <div style="flex:1">
-            <span style="font-weight:600;font-size:.8rem">{{ l.staff.full_name }}</span>
-            <span style="font-size:.65rem;color:var(--muted);margin-right:6px">{{ l.get_leave_type_display }}</span>
-          </div>
-          <span class="status-badge
-            {% if l.status == "approved" %}status-success
-            {% elif l.status == "rejected" %}status-danger
-            {% elif l.status == "pending" %}status-warning
-            {% else %}status-gray{% endif %}">
-            {{ l.get_status_display }}
-          </span>
-        </div>
+        <li class="plain-list__row">
+          <span class="plain-list__main"><b class="plain-list__title">{{ l.staff.full_name }}</b><span class="plain-list__sub">{{ l.get_leave_type_display }}</span></span>
+          <span class="status-badge {% if l.status == 'approved' %}status-success{% elif l.status == 'rejected' %}status-danger{% elif l.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ l.get_status_display }}</span>
+        </li>
         {% endfor %}
-      </div>
-      {% else %}
-      {% include "components/empty_state.html" with message="لا طلبات إجازات" %}
-      {% endif %}
-    </div>
+      </ul>
+    {% endif %}{% endsection_card %}
   </div>
 
 </div>

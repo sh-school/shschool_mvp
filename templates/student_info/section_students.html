@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy %}
 
 {% block title %}طلاب {{ group.grade|slice:"1:" }}/{{ group.section }}{% endblock %}
 
@@ -33,11 +34,11 @@
           <tr>
             <td class="col-center">{{ forloop.counter }}</td>
             <td>
-              <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" style="color:var(--maroon);text-decoration:none;font-weight:600">
+              <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" style="color:var(--maroon-fg);text-decoration:none;font-weight:600">
                 {{ e.student.full_name }}
               </a>
             </td>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ e.student.national_id }}</td>
+            <td class="col-center" style="font-size:var(--text-xs)">{{ e.student.national_id|mask_id }}</td>
             <td class="col-actions">
               <a href="{% url 'student_info:student_file' e.student_id %}?year={{ year }}" class="btn-secondary btn-xs">فتح الملفّ</a>
             </td>

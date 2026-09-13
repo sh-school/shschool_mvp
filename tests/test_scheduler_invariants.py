@@ -23,8 +23,8 @@ import pytest
 from operations.scheduler import DAYS, ScheduleGrid, Task
 from operations.scheduler_constraints import (
     check_class_conflict,
-    check_high_weekly_daily_limit,
     check_max_consecutive,
+    check_subject_distribution,
     check_teacher_conflict,
     get_max_periods_for_day,
     is_slot_valid,
@@ -45,6 +45,7 @@ def make_task(
     weekly=4,
     level_type="prep",
     prefers_double=False,
+    pedagogy="regular",
 ):
     return Task(
         class_id=klass,
@@ -57,6 +58,7 @@ def make_task(
         weekly_periods=weekly,
         level_type=level_type,
         prefers_double=prefers_double,
+        pedagogy=pedagogy,
     )
 
 
@@ -205,7 +207,9 @@ def tiny_school(db, school):
     from core.models import ClassGroup, CustomUser
     from operations.models import Subject, SubjectClassAssignment
 
-    teacher = CustomUser.objects.create(national_id="28800000201", full_name="معلّم الرياضيات")
+    teacher = CustomUser.objects.create(
+        must_change_password=False, national_id="28800000201", full_name="معلّم الرياضيات"
+    )
     group = ClassGroup.objects.create(
         school=school, grade="G7", section="1", level_type="prep", academic_year="2026-2027"
     )
@@ -327,39 +331,54 @@ def test_a_teacher_is_capped_at_three_consecutive_periods():
     assert not check_max_consecutive(grid, 0, 4, make_task(klass="c-9"))
 
 
-def test_physical_education_softens_the_run_but_does_not_permit_adjacency():
-    """البدنيّةُ تُعيد عدّادَ الترجيح، ولا تُبيح التلاصقَ الممنوع.
+def test_an_activity_period_softens_the_run_but_does_not_permit_adjacency():
+    """حصّةُ النشاط تُعيد عدّادَ الترجيح، ولا تُبيح التلاصقَ الممنوع.
 
     فالإعفاءُ قرارٌ تربويٌّ يليق بوزنٍ مرن: حصّةٌ تغيّر المكانَ والنشاط. أمّا
     المنعُ الصلبُ فيسأل: أيقف المعلّمُ حصّتين متلاصقتين؟ والبدنيّةُ حصّةٌ
     يقفها كغيرها.
+
+    والصفةُ من `Subject.pedagogy` لا من رمزٍ محفور: تغيّر الإدارةُ طبيعةَ
+    المادّة في الشاشة فيتبعها الترجيح.
     """
     grid = ScheduleGrid()
     grid.place(0, 1, make_task(klass="c-a", code="MAT", subject="s-a"))
-    grid.place(0, 2, make_task(klass="c-b", code="PE", subject="s-b"))
+    grid.place(0, 2, make_task(klass="c-b", code="PE", subject="s-b", pedagogy="activity"))
 
     assert grid.teacher_consecutive_counted(TEACHER, 0, 3) == 0, "العدّادُ المرنُ صُفِّر"
+    plain = ScheduleGrid()
+    plain.place(0, 1, make_task(klass="c-a", code="MAT", subject="s-a"))
+    plain.place(0, 2, make_task(klass="c-b", code="PE", subject="s-b"))
+    assert (
+        plain.teacher_consecutive_counted(TEACHER, 0, 3) == 2
+    ), "ورمزُ المادّة وحدَه لا يُعفي — الصفةُ في القاعدة لا في الحروف"
     assert not check_max_consecutive(grid, 0, 3, make_task(klass="c-d")), "والتلاصقُ ممنوع"
 
 
 def test_a_heavy_subject_gets_at_most_two_periods_a_day():
-    """مادّةٌ نصابُها خمسٌ فأكثر: حصّتان في اليوم للشعبة الواحدة."""
+    """مادّةٌ نصابُها ستٌّ على خمسة أيّام: حصّتان في اليوم للشعبة الواحدة.
+
+    كان يحرس هذا `check_high_weekly_daily_limit` بسقفٍ محفورٍ (٢) لمادّةِ خمسٍ
+    فأكثر، ولم تكن تُستدعى من موضع. والحارسُ الحقيقيُّ `check_subject_distribution`
+    يحسب السقفَ من القسمة لكلّ مادّة — وأدقُّ منها: مادّةُ خمسٍ سقفُها واحدة.
+    """
     grid = ScheduleGrid()
     heavy = make_task(weekly=6)
     grid.place(0, 1, heavy)
-    grid.place(0, 2, heavy)
+    grid.place(0, 3, heavy)
 
-    assert not check_high_weekly_daily_limit(grid, 0, heavy)
-    assert check_high_weekly_daily_limit(grid, 1, heavy), "واليومُ التالي مفتوح"
+    assert not check_subject_distribution(grid, 0, heavy)
+    assert check_subject_distribution(grid, 1, heavy), "واليومُ التالي مفتوح"
 
 
-def test_a_light_subject_is_not_bound_by_that_rule():
+def test_a_light_subject_takes_a_different_day_instead():
+    """والخفيفةُ لا تُعفى من السقف بل يصير سقفُها واحدةً — وهو أضيق."""
     grid = ScheduleGrid()
     light = make_task(weekly=2)
     grid.place(0, 1, light)
-    grid.place(0, 2, light)
 
-    assert check_high_weekly_daily_limit(grid, 0, light)
+    assert not check_subject_distribution(grid, 0, light)
+    assert check_subject_distribution(grid, 1, light)
 
 
 # ══════════════════════════════════════════════════════════════
@@ -413,7 +432,9 @@ def two_stage_school(db, school):
         ("prep", "G8", "prep", "28800000301"),
         ("sec", "G11", "sec", "28800000302"),
     ):
-        teacher = CustomUser.objects.create(national_id=nid, full_name=f"معلّم {key}")
+        teacher = CustomUser.objects.create(
+            must_change_password=False, national_id=nid, full_name=f"معلّم {key}"
+        )
         group = ClassGroup.objects.create(
             school=school,
             grade=grade,
@@ -580,7 +601,9 @@ def test_a_plain_subject_is_penalised_for_repeating_in_one_day():
     grid.place(0, 1, plain)
 
     assert evaluate_soft_constraints(grid, 0, 2, plain).total > 0
-    assert evaluate_soft_constraints(grid, 1, 1, plain).total == 0
+    #: ويومٌ آخرُ في وسط اليوم بلا ثمن. والحصّةُ الأولى ليست وسطاً منذ صارت
+    #: طرفاً مثقَّلاً كالسابعة (قرار الإدارة 2026-09-10).
+    assert evaluate_soft_constraints(grid, 1, 3, plain).total == 0
 
 
 # ══════════════════════════════════════════════════════════════
@@ -606,7 +629,7 @@ def test_a_partly_exempt_teacher_still_respects_every_other_rule(db, school):
     assert all(d != 1 for d, _ in available), "يومُ التفريغ مغلق"
     assert (0, 4) not in available, "والرابعةُ متتاليةٌ رابعة"
     assert (4, 7) not in available, "والخميسُ إعداديٌّ يقف عند السادسة"
-    assert (2, 1) in available, "وما سوى ذلك مفتوح"
+    assert (2, 1) in available, "وما سوى ذلك مفتوح — والأولى تُثقَّل ولا تُمنع"
 
 
 def test_a_heavy_subject_under_a_narrow_week_still_obeys_its_daily_cap(db, school):
@@ -644,8 +667,12 @@ def solvable_only_by_revising(db, school):
     from core.models import ClassGroup, CustomUser
     from operations.models import Subject, SubjectClassAssignment, TeacherExemption
 
-    free = CustomUser.objects.create(national_id="28800000401", full_name="معلّم الجغرافيا")
-    bound = CustomUser.objects.create(national_id="28800000402", full_name="معلّم التاريخ")
+    free = CustomUser.objects.create(
+        must_change_password=False, national_id="28800000401", full_name="معلّم الجغرافيا"
+    )
+    bound = CustomUser.objects.create(
+        must_change_password=False, national_id="28800000402", full_name="معلّم التاريخ"
+    )
     group = ClassGroup.objects.create(
         school=school, grade="G7", section="1", level_type="prep", academic_year="2026-2027"
     )
@@ -741,7 +768,9 @@ def test_the_generated_week_holds_every_invariant_at_once(db, school):
         )
         for offset, subject in enumerate(subjects):
             teacher = CustomUser.objects.create(
-                national_id=f"2880000{index}{offset}50", full_name=f"معلّم {index}{offset}"
+                must_change_password=False,
+                national_id=f"2880000{index}{offset}50",
+                full_name=f"معلّم {index}{offset}",
             )
             SubjectClassAssignment.objects.create(
                 school=school,

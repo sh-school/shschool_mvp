@@ -13,7 +13,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from core.permissions import leadership_required, role_required
+from core.capabilities import capability_required
 from core.sorting import apply_sort
 
 from .models import NotificationLog, NotificationSettings
@@ -31,7 +31,7 @@ LOG_SORTS = {
 
 
 @login_required
-@leadership_required
+@capability_required("notifications.broadcast")
 def notifications_dashboard(request):
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
@@ -73,12 +73,29 @@ def notifications_dashboard(request):
             "cfg": cfg,
             "year": year,
             **stats,
+            **_dashboard_presentation(stats, year),
         },
     )
 
 
+def _dashboard_presentation(stats: dict, year) -> dict:
+    """ألوانُ شريط الأرقام وسطرُ الترويسة — الحكمُ هنا لا شرطاً في القالب.
+
+    كان الفشلُ أحمرَ دائماً وتحته «يحتاج مراجعة» حين يوجد، وتنبيهاتُ الغياب
+    برتقاليّةً وتحتها عددُها مرّةً ثانية. فصار اللونُ وحدَه التنبيه: أحمرُ أو
+    برتقاليٌّ حين يوجد ما يُراجَع أو يُرسَل، وأخضرُ حين لا شيء.
+    """
+    return {
+        "subtitle": f"إشعارات البريد الإلكتروني وSMS لأولياء الأمور · {year}",
+        "failed_tone": "red" if stats.get("total_failed") else "green",
+        "pending_tone": "amber" if stats.get("total_pending") else "green",
+        "absence_alerts_tone": "orange" if stats.get("pending_absence_count") else "green",
+        "failing_tone": "red" if stats.get("failing_students") else "green",
+    }
+
+
 @login_required
-@leadership_required
+@capability_required("notifications.broadcast")
 @require_POST
 def send_absence_alerts(request):
     """إرسال كل تنبيهات الغياب المعلقة"""
@@ -93,7 +110,7 @@ def send_absence_alerts(request):
 
 
 @login_required
-@leadership_required
+@capability_required("notifications.broadcast")
 @require_POST
 def send_fail_alerts(request):
     """إرسال إشعارات الرسوب للسنة الدراسية"""
@@ -109,7 +126,7 @@ def send_fail_alerts(request):
 
 
 @login_required
-@leadership_required
+@capability_required("notifications.broadcast")
 @require_POST
 def resend_notification(request, log_id):
     """إعادة إرسال إشعار فشل"""
@@ -144,7 +161,7 @@ def resend_notification(request, log_id):
 
 
 @login_required
-@leadership_required
+@capability_required("notifications.broadcast")
 def save_settings(request):
     """حفظ إعدادات الإشعارات"""
     if request.method != "POST":
@@ -218,7 +235,12 @@ def notification_inbox(request):
     if event_filter:
         qs = qs.filter(event_type=event_filter)
 
-    notifications = qs.order_by("-created_at")[:100]
+    notifications = list(qs.order_by("-created_at")[:100])
+    # العاجلُ غيرُ المقروء يُثبَّت أعلى الصندوق **ويُطرح من القائمة تحته**.
+    # كان القالبُ يعرضه في الموضعين، ويفتح قسمَه بـ`forloop.first` للقائمة كلّها —
+    # فلا يُفتح إلّا إن كان أوّلُ إشعارٍ عاجلاً، ويتكرّر `id` العنصر في الصفحة.
+    urgent = [n for n in notifications if n.priority == "urgent" and not n.is_read]
+    rest = [n for n in notifications if not (n.priority == "urgent" and not n.is_read)]
     unread_count = InAppNotification.objects.unread_count(request.user)
 
     # فلترة أنواع الإشعارات حسب الدور
@@ -247,6 +269,8 @@ def notification_inbox(request):
         "notifications/inbox.html",
         {
             "notifications": notifications,
+            "urgent_notifications": urgent,
+            "other_notifications": rest,
             "unread_count": unread_count,
             "event_filter": event_filter,
             "event_types": visible_types,
@@ -335,7 +359,7 @@ def notification_preferences(request):
 
 
 @login_required
-@role_required("principal", "vice_admin", "vice_academic")
+@capability_required("notifications.broadcast")
 @require_POST
 def emergency_broadcast(request):
     """

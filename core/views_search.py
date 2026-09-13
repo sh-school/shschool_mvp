@@ -6,6 +6,9 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import JsonResponse
 
+from core.permissions import ALL_STAFF_ROLES, STUDENT_AFFAIRS_VIEW
+from core.privacy import mask_national_id
+
 # ✅ v5.1.1: regex للتحقق من صحة استعلامات البحث (عربي + لاتيني + أرقام + مسافات)
 _SEARCH_RE = re.compile(r"^[\w\s\u0600-\u06FF\u0750-\u077F\-_.@]+$")
 
@@ -23,25 +26,34 @@ def global_search(request):
         return JsonResponse({"results": []})
 
     results = []
+    role = request.user.get_role()
 
     # بحث في الطلاب (عبر StudentEnrollment → CustomUser)
+    # للكادر وحدَه: الطالبُ ووليُّ الأمر لا يبحثان في طلبة المدرسة. والرقمُ الشخصيُّ
+    # مفتاحُ بحثٍ لمن يدير سجلَّ الطلبة فقط — كان مفتوحاً لكلّ حساب، فمن يعرف رقماً
+    # يعرف صاحبَه، والإخفاءُ في النتيجة لا يحمي ما كتبه السائلُ بنفسه (ن٤).
     from core.models import StudentEnrollment
 
-    student_enrollments = (
-        StudentEnrollment.objects.filter(
-            class_group__school=school,
-            is_active=True,
+    student_enrollments = StudentEnrollment.objects.none()
+    if request.user.is_superuser or role in ALL_STAFF_ROLES:
+        match = Q(student__full_name__icontains=q)
+        if request.user.is_superuser or role in STUDENT_AFFAIRS_VIEW:
+            match |= Q(student__national_id__icontains=q)
+        student_enrollments = (
+            StudentEnrollment.objects.filter(
+                class_group__school=school,
+                is_active=True,
+            )
+            .filter(match)
+            .select_related("student")
+            .values("student__id", "student__full_name", "student__national_id")
+            .distinct()[:6]
         )
-        .filter(Q(student__full_name__icontains=q) | Q(student__national_id__icontains=q))
-        .select_related("student")
-        .values("student__id", "student__full_name", "student__national_id")
-        .distinct()[:6]
-    )
     students = [
         {
             "id": s["student__id"],
             "full_name": s["student__full_name"],
-            "national_id": s["student__national_id"],
+            "national_id": mask_national_id(s["student__national_id"]),
         }
         for s in student_enrollments
     ]
@@ -57,7 +69,8 @@ def global_search(request):
         )
 
     # بحث في المعلمين/الموظفين (فقط للمدير)
-    if request.user.is_admin:
+    # `is_admin` دالّة: بلا قوسين كانت صادقةً دائماً فعُرضت أسماءُ الكادر وبريدُهم للجميع (ن٣).
+    if request.user.is_admin():
         from core.models import CustomUser, Membership
 
         staff_ids = (

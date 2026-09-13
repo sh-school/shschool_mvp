@@ -1,4 +1,5 @@
-{% extends "base.html" %}
+{% extends "base/base.html" %}
+{% load ui %}
 {% block title %}دورة اختبار جديدة{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,34 +7,30 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mt-4" style="max-width:600px">
-  <h5 class="fw-bold mb-3" style="color:#8A1538">➕ دورة اختبار جديدة</h5>
-  <form method="post" class="card p-4 shadow-sm">{% csrf_token %}
-    <div class="mb-3">
-      <label class="form-label fw-semibold">اسم الدورة</label>
-      <input name="name" class="form-control" placeholder="مثال: نهاية الفصل الأول 2025-2026" required>
-    </div>
-    <div class="mb-3">
-      <label class="form-label fw-semibold">النوع</label>
-      <select name="session_type" class="form-select">
-        {% for v,l in session_types %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="mb-3">
-      <label class="form-label fw-semibold">العام الدراسي</label>
-      <input name="academic_year" class="form-control" value="2025-2026">
-    </div>
-    <div class="row g-2 mb-3">
-      <div class="col">
-        <label class="form-label fw-semibold">تاريخ البداية</label>
-        <input name="start_date" type="date" class="form-control" required>
+<div class="exec-dash form-page">
+
+  {% page_header "دورةُ اختبارٍ جديدة" subtitle="كنترول الاختبارات" icon="plus" %}{% endpage_header %}
+
+  {% section_card "بياناتُ الدورة" icon="clipboard-check" %}
+    <form method="post" class="form-stack">{% csrf_token %}
+      <div class="form-group"><label class="form-label" for="ses-name">اسم الدورة</label>
+        <input id="ses-name" name="name" class="form-control" placeholder="مثال: نهاية الفصل الأوّل {{ default_year }}" required></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label" for="ses-type">النوع</label>
+          <select id="ses-type" name="session_type" class="form-control">{% for v,l in session_types %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label class="form-label" for="ses-year">العام الدراسي</label>
+          <input id="ses-year" name="academic_year" class="form-control" value="{{ default_year }}"></div>
       </div>
-      <div class="col">
-        <label class="form-label fw-semibold">تاريخ النهاية</label>
-        <input name="end_date" type="date" class="form-control" required>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label" for="ses-start">تاريخ البداية</label><input id="ses-start" name="start_date" type="date" class="form-control" required></div>
+        <div class="form-group"><label class="form-label" for="ses-end">تاريخ النهاية</label><input id="ses-end" name="end_date" type="date" class="form-control" required></div>
       </div>
-    </div>
-    <button type="submit" class="btn btn-primary w-100">إنشاء الدورة</button>
-  </form>
+      <div class="form-actions">
+        <a href="{% url 'exam_control:dashboard' %}" class="btn-ghost">إلغاء</a>
+        <button type="submit" class="btn-primary">إنشاء الدورة</button>
+      </div>
+    </form>
+  {% endsection_card %}
+
 </div>
 {% endblock %}

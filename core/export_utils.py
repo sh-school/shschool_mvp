@@ -5,10 +5,12 @@ core/export_utils.py — أدوات تصدير موحّدة لكل المنصة
 
 import uuid
 from pathlib import Path
+from typing import NamedTuple
 
 from django.conf import settings
 from django.utils import timezone
 
+from core import brand
 from core.academic_calendar import academic_year_for_school
 
 
@@ -36,21 +38,13 @@ def get_export_context(request, title: str) -> dict:
     school = user.get_school()
     now = timezone.localtime()
 
-    ROLE_AR = {
-        "principal": "مدير المدرسة",
-        "vice_admin": "نائب المدير الإداري",
-        "vice_academic": "نائب المدير الأكاديمي",
-        "coordinator": "المنسق",
-        "teacher": "المعلم",
-        "social_worker": "الأخصائي الاجتماعي",
-        "psychologist": "الأخصائي النفسي",
-        "admin": "الإداري",
-        "platform_developer": "مطور المنصة",
-        "nurse": "الممرض",
-        "librarian": "أمين المكتبة",
-    }
+    from core.models import Role
 
-    role_en = user.get_role() or "—"
+    # أسماءُ الأدوار من `Role.ROLES` — مصدرُها الواحد. كانت هنا قائمةٌ من أحد عشر
+    # دوراً فيُطبع ما سواها برمزه الإنجليزيّ («admin_supervisor»)، و`exporter_role`
+    # نفسُه يُطبع رمزاً في ترويسة Excel وذيله وستّةِ قوالبِ PDF.
+    role_code = user.get_role() or ""
+    role_ar = dict(Role.ROLES).get(role_code, role_code) or "—"
     logo_path = str(Path(settings.BASE_DIR) / "static" / "brand" / "logoMaroon.png")
 
     return {
@@ -58,8 +52,9 @@ def get_export_context(request, title: str) -> dict:
         "school_logo_path": str(Path(settings.BASE_DIR) / "static" / "brand" / "logowhite.png"),
         "logo_path": logo_path,
         "exported_by": user.full_name,
-        "exporter_role": role_en,
-        "exporter_role_ar": ROLE_AR.get(role_en, role_en),
+        "exporter_role": role_ar,
+        "exporter_role_code": role_code,
+        "exporter_role_ar": role_ar,
         "export_date": now.strftime("%d/%m/%Y"),
         "export_time": now.strftime("%H:%M"),
         "export_datetime": now.strftime("%d/%m/%Y %H:%M"),
@@ -67,6 +62,112 @@ def get_export_context(request, title: str) -> dict:
         "academic_year": academic_year_for_school(school),
         "ministry": "وزارة التربية والتعليم والتعليم العالي — دولة قطر",
     }
+
+
+#: خطُّ الهويّة في كلّ ملفّ Excel — خطُّ المنصّة نفسُه. وكانت المولّداتُ على
+#: ثلاثة: Tajawal في شؤون الطلبة، وArial في التقارير وتصدير الطلبة، وخطُّ Excel
+#: الافتراضيّ في كشف الدرجات. ومن لا يملك Tajawal يرى بديلَ Excel العربيّ.
+EXCEL_FONT = "Tajawal"
+
+
+def xl_fill(colour: str):
+    """حشوٌ صمتٌ بلونٍ من `core.brand`."""
+    from openpyxl.styles import PatternFill
+
+    value = brand.excel(colour)
+    return PatternFill(start_color=value, end_color=value, fill_type="solid")
+
+
+def xl_font(
+    colour: str = brand.TEXT_PRIMARY, size: float = 10, bold: bool = False, italic: bool = False
+):
+    """خطُّ الهويّة بلونٍ من `core.brand` — لا خطَّ ولا لونَ يُكتب في مولّد."""
+    from openpyxl.styles import Font
+
+    return Font(name=EXCEL_FONT, size=size, bold=bold, italic=italic, color=brand.excel(colour))
+
+
+class ExcelTableStyles(NamedTuple):
+    header_fill: object
+    header_font: object
+    header_align: object
+    cell_font: object
+    data_align: object
+    border: object
+    alt_fill: object
+
+
+def excel_table_styles() -> ExcelTableStyles:
+    """ترويسةُ الجدول وصفوفُه في كلّ تصديرات Excel — نمطٌ واحدٌ للمنصّة كلِّها.
+
+    كانت ستُّ نسخٍ في أربعة ملفّات، تتّفق على العنّابيّ وتختلف في كلّ ما سواه:
+    ثلاثةُ خطوط، وشبكةٌ بلا لونٍ أو `DDDDDD` أو `CCCCCC`، وصفٌّ متناوبٌ بلونين،
+    وترويسةٌ كحليّةٌ في تصدير الدرجات. فصار الجدولُ واحداً أيّاً كان مصدرُه.
+    """
+    from openpyxl.styles import Alignment, Border, Side
+
+    side = Side(style="thin", color=brand.excel(brand.BORDER))
+    return ExcelTableStyles(
+        header_fill=xl_fill(brand.MAROON),
+        header_font=xl_font(brand.ON_FILL, size=11, bold=True),
+        header_align=Alignment(horizontal="center", vertical="center", wrap_text=True),
+        cell_font=xl_font(),
+        data_align=Alignment(horizontal="center", vertical="center", wrap_text=True),
+        border=Border(left=side, right=side, top=side, bottom=side),
+        alt_fill=xl_fill(brand.MAROON_BG),
+    )
+
+
+def brand_cell(cell) -> None:
+    """خانةٌ بلا خطٍّ صريحٍ تأخذ خطَّ الهويّة — وما لُوِّن قبلها يبقى لونُه وعرضُه."""
+    from openpyxl.styles import Font
+
+    f = cell.font
+    if f.name == EXCEL_FONT:
+        return
+    color = f.color if (f.color is not None and f.color.rgb not in (None, "FF000000")) else None
+    cell.font = Font(
+        name=EXCEL_FONT,
+        size=f.sz if f.name not in (None, "Calibri") else 10,
+        bold=f.b,
+        italic=f.i,
+        color=color or brand.excel(brand.TEXT_PRIMARY),
+    )
+
+
+def add_excel_title_rows(ws, num_cols: int, first: str, second: str, third: str) -> None:
+    """الصفوفُ الثلاثةُ الأولى في كلّ ملفّ Excel — ترويسةٌ واحدةٌ للمنصّة.
+
+    ١ عنّابيٌّ بنصٍّ أبيضَ كبير وشعارِ المدرسة، ٢ عنّابيٌّ فاتحٌ بنصٍّ أبيض،
+    ٣ عنّابيٌّ خفيفٌ بنصٍّ خافت. وكانت نسختان منها بتصميمين: هذه في شؤون
+    الطلبة، وأخرى فاتحةٌ بخطٍّ عنّابيّ في التقارير وتصدير الطلبة — ثلاثَ مرّات.
+    """
+    from openpyxl.drawing.image import Image as XLImage
+    from openpyxl.styles import Alignment
+
+    center = Alignment(horizontal="center", vertical="center")
+    rows = (
+        (first, xl_fill(brand.MAROON), xl_font(brand.ON_FILL, size=14, bold=True), 40),
+        (second, xl_fill(brand.MAROON_LIGHT), xl_font(brand.ON_FILL, size=11, bold=True), 28),
+        (third, xl_fill(brand.MAROON_BG), xl_font(brand.TEXT_MUTED, size=9), 22),
+    )
+    for row, (value, fill, font, height) in enumerate(rows, start=1):
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=num_cols)
+        cell = ws.cell(row=row, column=1, value=value)
+        cell.fill = fill
+        cell.font = font
+        cell.alignment = center
+        ws.row_dimensions[row].height = height
+
+    logo = Path(settings.BASE_DIR) / "static" / "brand" / "logowhite.png"
+    if logo.exists():
+        try:
+            img = XLImage(str(logo))
+            img.width = 36
+            img.height = 36
+            ws.add_image(img, "A1")
+        except (OSError, ValueError):
+            pass
 
 
 def add_excel_header(ws, context: dict, num_cols: int):
@@ -79,65 +180,14 @@ def add_excel_header(ws, context: dict, num_cols: int):
     صف 5: بداية headers البيانات
     يُعيد رقم أول صف للبيانات (5)
     """
-    from openpyxl.drawing.image import Image as XLImage
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-
-    MAROON = "8A1538"
-    header_fill = PatternFill(start_color=MAROON, end_color=MAROON, fill_type="solid")
-    white_font_lg = Font(name="Tajawal", bold=True, color="FFFFFF", size=14)
-    white_font_md = Font(name="Tajawal", bold=True, color="FFFFFF", size=11)
-    gray_font_sm = Font(name="Tajawal", color="666666", size=9)
-    center = Alignment(horizontal="center", vertical="center")
-    thin_border = Border(
-        left=Side(style="thin", color="DDDDDD"),
-        right=Side(style="thin", color="DDDDDD"),
-        top=Side(style="thin", color="DDDDDD"),
-        bottom=Side(style="thin", color="DDDDDD"),
+    add_excel_title_rows(
+        ws,
+        num_cols,
+        f"{context['school_name']}  —  {context['ministry']}",
+        f"{context['title']}  —  العام الدراسي {context['academic_year']}",
+        f"صدر بواسطة: {context['exported_by']} — {context['exporter_role']}  |  {context['export_datetime']}",
     )
-
-    last_col_letter = chr(64 + min(num_cols, 26))  # A=65
-
-    # صف 1: اسم المدرسة
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=num_cols)
-    cell1 = ws.cell(row=1, column=1, value=f"{context['school_name']}  —  {context['ministry']}")
-    cell1.fill = header_fill
-    cell1.font = white_font_lg
-    cell1.alignment = center
-    ws.row_dimensions[1].height = 40
-
-    # شعار المدرسة
-    logo_path = context.get("school_logo_path", "")
-    if logo_path and Path(logo_path).exists():
-        try:
-            img = XLImage(logo_path)
-            img.width = 36
-            img.height = 36
-            ws.add_image(img, "A1")
-        except Exception:
-            pass
-
-    # صف 2: عنوان التقرير
-    ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=num_cols)
-    cell2 = ws.cell(
-        row=2, column=1, value=f"{context['title']}  —  العام الدراسي {context['academic_year']}"
-    )
-    cell2.fill = PatternFill(start_color="B91C38", end_color="B91C38", fill_type="solid")
-    cell2.font = white_font_md
-    cell2.alignment = center
-    ws.row_dimensions[2].height = 28
-
-    # صف 3: معلومات التصدير
-    ws.merge_cells(start_row=3, start_column=1, end_row=3, end_column=num_cols)
-    export_info = f"صدر بواسطة: {context['exported_by']} — {context['exporter_role']}  |  {context['export_datetime']}"
-    cell3 = ws.cell(row=3, column=1, value=export_info)
-    cell3.font = gray_font_sm
-    cell3.alignment = Alignment(horizontal="center", vertical="center")
-    cell3.fill = PatternFill(start_color="FDF2F5", end_color="FDF2F5", fill_type="solid")
-    ws.row_dimensions[3].height = 22
-
-    # صف 4: فارغ
     ws.row_dimensions[4].height = 8
-
     return 5  # أول صف للبيانات
 
 
@@ -145,11 +195,11 @@ def add_excel_footer(ws, context: dict, row: int, num_cols: int):
     """
     فوتر Excel: توقيع المُصدِّر + معلومات المدرسة
     """
-    from openpyxl.styles import Alignment, Border, Font, Side
+    from openpyxl.styles import Alignment, Border, Side
 
-    thin_top = Border(top=Side(style="medium", color="8A1538"))
-    footer_font = Font(name="Tajawal", size=9, color="666666")
-    sig_font = Font(name="Tajawal", size=9, color="333333", bold=True)
+    thin_top = Border(top=Side(style="medium", color=brand.excel(brand.MAROON)))
+    footer_font = xl_font(brand.TEXT_MUTED, size=9)
+    sig_font = xl_font(brand.TEXT_SECONDARY, size=9, bold=True)
 
     # صف فارغ
     row += 1
@@ -187,8 +237,8 @@ def get_pdf_header_html(context: dict) -> str:
     HTML هيدر PDF موحّد — يُدرج في أعلى كل template PDF
     """
     return f"""
-    <div style="text-align:center;border-bottom:3px solid #8A1538;padding-bottom:12px;margin-bottom:20px">
-      <h1 style="color:#8A1538;font-size:16pt;margin:0">{context["school_name"]}</h1>
+    <div style="text-align:center;border-bottom:3px solid {brand.MAROON};padding-bottom:12px;margin-bottom:20px">
+      <h1 style="color:{brand.MAROON};font-size:16pt;margin:0">{context["school_name"]}</h1>
       <p style="font-size:9pt;color:#666;margin:2px 0 0">{context["ministry"]}</p>
       <p style="font-size:11pt;font-weight:700;color:#333;margin:8px 0 0">{context["title"]}</p>
       <p style="font-size:8pt;color:#999;margin:4px 0 0">العام الدراسي {context["academic_year"]}</p>
@@ -222,5 +272,8 @@ def excel_to_response(wb, filename: str):
         output.getvalue(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    # ترويسةُ الـPDF نفسُها: ASCII دائماً، والاسمُ العربيّ في `filename*`.
+    from core.pdf_utils import _content_disposition
+
+    response["Content-Disposition"] = _content_disposition(filename, True)
     return response

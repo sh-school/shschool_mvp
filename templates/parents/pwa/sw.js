@@ -1,13 +1,20 @@
-/* SchoolOS PWA Service Worker — بوابة ولي الأمر */
-const CACHE_NAME = 'schoolos-parents-v1';
+/* SchoolOS PWA Service Worker — بوابة ولي الأمر
+
+   والأصلُ غيرُ المبصوم لا يُخدَم من الذاكرة أوّلاً: عنوانُه ثابتٌ ومحتواه
+   يتغيّر، فيبقى القديمُ إلى الأبد ولا يُقرأ `Cache-Control` أصلاً — عاملُ
+   الخدمة أمام الشبكة والترويسات. انظر `templates/pwa/sw_global.js`. */
+const CACHE_NAME = 'schoolos-parents-v2';
 const OFFLINE_URL = '/parents/offline/';
 
+/* لا يُخزَّن مسبقاً إلّا ما لا يشيخ — والأصولُ في التطوير غيرُ مبصومة. */
 const CACHE_ASSETS = [
   '/parents/',
   '/parents/offline/',
-  '/static/css/custom.css',
-  '/static/css/tailwind.min.css',
 ];
+
+/* بصمةُ المحتوى: `name.<hex8+>.ext` — ما يكتبه manifest storage. */
+const FINGERPRINTED = /\.[0-9a-f]{8,}\.[a-z0-9]+$/i;
+const isFingerprinted = (url) => FINGERPRINTED.test(url.split('?')[0].split('#')[0]);
 
 /* ── Install: cache core assets ── */
 self.addEventListener('install', event => {
@@ -64,9 +71,30 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static assets — cache-first
+  // الأصولُ الثابتة: المبصومُ من الذاكرة أوّلاً، وغيرُه من الشبكة أوّلاً
+  // مع سقوطٍ إلى الذاكرة عند الانقطاع — فتبقى فائدةُ العمل دون شبكة.
+  if (isFingerprinted(event.request.url)) {
+    event.respondWith(
+      caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
+        if (res && res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return res;
+      }))
+    );
+    return;
+  }
   event.respondWith(
-    caches.match(event.request).then(cached => cached || fetch(event.request))
+    fetch(event.request)
+      .then(res => {
+        if (res && res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return res;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
 

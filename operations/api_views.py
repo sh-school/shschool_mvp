@@ -1,63 +1,24 @@
 """
 operations/api_views.py
-نقاط API للحضور والجداول والبحث
-[مهمة 7] إضافة Rate Limiting على كل نقطة API
+نقطة بحث الطلاب — [مهمة 7] محدودةٌ بمعدّل.
+
+كانت هنا ``SessionListView`` و``AttendanceListView`` بـ``IsAuthenticated``، وحُذفتا مع
+مساريهما: نظيراهما في ``api/views.py`` تحت ``/api/v1/`` (مراجعةُ 2026-09-13، ن١).
 """
 
-from django.utils.decorators import method_decorator
-from django_ratelimit.decorators import ratelimit
-from rest_framework import generics, permissions
-
-from .models import Session, StudentAttendance
-from .serializers import AttendanceSerializer, SessionSerializer
-
-# ── [مهمة 7] Rate Limit: 60 طلب/دقيقة لكل IP على Class-Based Views ──
-
-
-@method_decorator(ratelimit(key="user", rate="60/m", method="GET", block=True), name="dispatch")
-class SessionListView(generics.ListAPIView):
-    """قائمة حصص المعلم — محدودة بـ 60 طلب/دقيقة"""
-
-    serializer_class = SessionSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        school = self.request.user.get_school()
-        return (
-            Session.objects.filter(school=school, teacher=self.request.user)
-            .select_related("class_group", "subject")
-            .order_by("-date", "start_time")
-        )
-
-
-@method_decorator(ratelimit(key="user", rate="60/m", method="GET", block=True), name="dispatch")
-class AttendanceListView(generics.ListAPIView):
-    """سجل الحضور — محدود بـ 60 طلب/دقيقة"""
-
-    serializer_class = AttendanceSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_queryset(self):
-        school = self.request.user.get_school()
-        session_id = self.request.query_params.get("session")
-        qs = StudentAttendance.objects.filter(school=school)
-        if session_id:
-            qs = qs.filter(session_id=session_id)
-        return qs.select_related("student", "session")
-
-
 # ── بحث الطلاب ────────────────────────────────────────────────────────
-
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import JsonResponse
+from django_ratelimit.decorators import ratelimit
 
+from core.capabilities import capability_required
 from core.models import CustomUser, StudentEnrollment
-from core.permissions import ALL_STAFF_ROLES, role_required
+from core.privacy import mask_national_id
 
 
 @login_required
-@role_required(ALL_STAFF_ROLES)
+@capability_required("students.search")
 @ratelimit(key="user", rate="30/m", method="GET", block=True)
 def student_search_api(request):
     """
@@ -86,7 +47,7 @@ def student_search_api(request):
                 {
                     "id": str(s.id),
                     "full_name": s.full_name,
-                    "national_id": s.national_id,
+                    "national_id": mask_national_id(s.national_id),
                 }
                 for s in qs
             ]

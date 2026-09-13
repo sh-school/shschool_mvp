@@ -244,28 +244,66 @@ document.addEventListener('click', function(e) {
 
 
 /* ── PWA Install Banner ───────────────────────────────────── */
+// الإظهارُ والإخفاءُ بسمة `hidden` لا بصنف `.visible`: قاعدةُ `.pwa-banner` في طبقة
+// `utilities` (#232) تجعله `flex` وتغلب `display:none` القديمةَ في `components` —
+// فكان الشريطُ ظاهراً دائماً ولا يُغلقه زرُّه. و`[hidden]` في `reset` بـ`!important`
+// يغلب الطبقاتِ كلَّها.
+//
+// ولا يعود الشريطُ أبداً (قرارُ 2026-09-13) إن: أُغلق بـ✕، أو ثُبّت التطبيق، أو فُتحت
+// المنصّةُ تطبيقاً مثبّتاً.
 var _pwaPrompt = null;
+
+function _pwaRemember(key) {
+  try { localStorage.setItem(key, '1'); } catch (e) { /* لا تخزين */ }
+}
+
+function _pwaSettled() {
+  var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+    || window.navigator.standalone === true;
+  try {
+    return standalone || !!localStorage.getItem('pwaDismissed') || !!localStorage.getItem('pwaInstalled');
+  } catch (e) {
+    return standalone;
+  }
+}
+
+function _pwaHide() {
+  var b = document.getElementById('pwa-banner');
+  if (b) b.hidden = true;
+}
+
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   _pwaPrompt = e;
-  if (!localStorage.getItem('pwaDismissed')) {
-    setTimeout(function() {
-      var b = document.getElementById('pwa-banner');
-      if (b) b.classList.add('visible');
-    }, 5000);
-  }
+  if (_pwaSettled()) return;
+  setTimeout(function() {
+    var b = document.getElementById('pwa-banner');
+    if (b && !_pwaSettled()) b.hidden = false;
+  }, 5000);
+});
+
+// المتصفّحُ يُعلن التثبيتَ أيّاً كان بابُه — زرُّنا أو قائمتُه.
+window.addEventListener('appinstalled', function() {
+  _pwaRemember('pwaInstalled');
+  _pwaHide();
 });
 
 window.installPWA = function() {
-  if (_pwaPrompt) { _pwaPrompt.prompt(); _pwaPrompt = null; }
-  var b = document.getElementById('pwa-banner');
-  if (b) b.classList.remove('visible');
+  _pwaHide();
+  if (!_pwaPrompt) return;
+  var prompt = _pwaPrompt;
+  _pwaPrompt = null;
+  prompt.prompt();
+  if (prompt.userChoice && prompt.userChoice.then) {
+    prompt.userChoice.then(function(choice) {
+      if (choice && choice.outcome === 'accepted') _pwaRemember('pwaInstalled');
+    });
+  }
 };
 
 window.dismissBanner = function() {
-  var b = document.getElementById('pwa-banner');
-  if (b) b.classList.remove('visible');
-  localStorage.setItem('pwaDismissed', '1');
+  _pwaHide();
+  _pwaRemember('pwaDismissed');
 };
 
 
@@ -571,7 +609,9 @@ document.addEventListener('click', function(e) {
   function updateIcon() {
     var dark = isDark();
     if (icon) icon.innerHTML = dark ? '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-sun"/></svg>' : '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-moon"/></svg>';
-    if (meta) meta.content = dark ? '#1a0a12' : '#8A1538';
+    // لونُ شريط المتصفّح من الرموز — العنّابيُّ نهاراً وأرضيّتُه ليلاً.
+    if (meta) meta.content = getComputedStyle(document.documentElement)
+      .getPropertyValue(dark ? '--maroon-bg' : '--maroon').trim();
     if (metaCS) metaCS.content = dark ? 'dark' : 'light';
     var menuIcon = document.getElementById('theme-menu-icon');
     var menuText = document.getElementById('theme-menu-text');

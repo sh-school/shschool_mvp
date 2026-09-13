@@ -1,5 +1,8 @@
+from django.contrib.postgres.constraints import ExclusionConstraint
+from django.contrib.postgres.fields import DateRangeField, RangeBoundary, RangeOperators
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Func, Q
 from django.db.models.functions import Cast, Substr
 from django.utils import timezone
 
@@ -105,21 +108,42 @@ class ClassGroupManager(models.Manager.from_queryset(ClassGroupQuerySet)):
         return super().get_queryset().order_by(GRADE_ORDER.asc(), "section")
 
 
+#: طوابقُ المبنى — يقرؤه الجرسُ (`TimeBand.floor`) والجناحُ (`Wing.floor`) معاً.
+#:
+#: وُضع في موضعٍ واحدٍ لأنّ الطابقَ ليس صفةً في اثنين: هو **الرابطُ** بينهما.
+#: فجناحٌ في الأرضيّ لا تصحّ فيه شعبةٌ على جرسٍ علويّ، ومن كتب القائمةَ مرّتين
+#: أمكنه أن يزيد قيمةً في إحداهما فيصير الفحصُ بلا معنى.
+FLOORS = [("ground", "الطابق الأرضيّ"), ("first", "الطابق الأوّل")]
+
+
 class TimeBand(models.Model):
     """نطاقُ توقيت: مجموعةُ شُعبٍ تتقاسم جرسَ اليوم نفسَه.
 
-    في المدرسة طابقان بجرسين: الأرضيّ (السابع والثامن وتاسع/1) والعلويّ
-    (تاسع 2·3·4 والثانويّ) — الحصّةُ الثانية تبدأ 8:00 هنا وتنتهي 8:50، وهناك
-    8:45. والخميسُ ثلاثةُ أجراس. فرقمُ الحصّة لا يعني الوقتَ نفسَه في النطاقين،
-    ومعلّمٌ يقطع الطابقين يُحكَم بالساعة لا بالرقم.
+    المدرسةُ طابقان، وأجراسُها **ثلاثة** لا اثنان — وهذا ما يجعل «الطابق» لا
+    يكفي وحدَه مفتاحاً للتوقيت:
 
-    والنسبةُ بالشعبة لا بالمرحلة: تاسع/1 أرضيٌّ وتاسع/2 علويّ.
+        الأرضيّ   ground     السابع · الثامن · تاسع/1 · تاسع/2
+        الأوّل    ninth      تاسع 3 · تاسع 4
+        الأوّل    secondary  العاشر إلى الثاني عشر
+
+    فمن الأحد إلى الأربعاء يتطابق جرسا الطابق الأوّل حرفاً، ويوم **الخميس
+    يفترقان**: تاسع 3·4 فسحتُهم بعد الثالثة وصلاتُهم آخرَ اليوم، والثانويُّ
+    فسحتُه بعد الرابعة وحصصُه أقصر. فثلاثةُ أجراسٍ يومَ الخميس واثنان قبله.
+
+    والطابقُ محفوظٌ هنا لا مشتقٌّ من الرمز: بلا حقلٍ لا يعرف الخلفيّةُ أنّ
+    `ninth` و`secondary` طابقٌ واحد، فيتعذّر السؤالُ «ما يرنّه الطابقُ الأوّلُ
+    الآن؟» إلّا بتسميةِ رموزٍ في الكود — وهي تسميةٌ تكذب في أوّل جرسٍ يُضاف.
+
+    والنسبةُ بالشعبة لا بالمرحلة: تاسع/1 وتاسع/2 أرضيّان، وتاسع 3·4 علويّان
+    (نُقل تاسع/2 إلى الأرضيّ بقرار الإدارة 2026-09-09).
     """
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="time_bands")
     code = models.SlugField(max_length=20, verbose_name="الرمز")
     name = models.CharField(max_length=60, verbose_name="الاسم")
+    #: طابقُ الجرس — ولا يُشتقّ من الرمز. راجع صدرَ الصنف.
+    floor = models.CharField(max_length=6, choices=FLOORS, default="ground", verbose_name="الطابق")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="الترتيب")
     is_active = models.BooleanField(default=True)
 
@@ -133,6 +157,357 @@ class TimeBand(models.Model):
 
     def __str__(self):
         return self.name
+
+
+#: أجراسُ مجموعةٍ من الشُّعب مرتّبةً بلا تكرار.
+#:
+#: دالّةٌ لا خاصّيّةٌ لأنّ لها نداءين: `Wing.time_bands` يمرّر استعلامَه،
+#: وشاشةُ الأجنحة تمرّر ما سبق جلبُه بـ`prefetch_related` — فلو كُتب المنطقُ
+#: في الخاصّيّة وحدَها لأعادت الشاشةُ الاستعلامَ خمسَ مرّاتٍ أو كرّرت المنطق.
+def bands_of(sections) -> list:
+    bands = {klass.time_band for klass in sections if klass.time_band_id}
+    return sorted(bands, key=lambda band: (band.order, band.code))
+
+
+class Wing(models.Model):
+    """جناحٌ من أجنحة المدرسة الخمسة: ممرٌّ بخمس شُعبٍ ومشرفٍ إداريٍّ واحد.
+
+    المدرسةُ خمسةُ أجنحة، لكلٍّ مشرفٌ إداريّ، وخمسُ شُعبٍ لكلّ جناحٍ بلا تكرارٍ
+    ولا فراغ — خمسٌ وعشرون شعبةً (قرار الإدارة 2026-09-09). وشُعبُ التربية
+    الخاصّة الثلاث **خارجَ الأجنحة** بقرارٍ صريح: حضورُها بيد معلّميها، فتبقى
+    `ClassGroup.wing` فيها فارغةً عمداً لا سهواً.
+
+    والجناحُ ليس زينةً في شاشة: هو **نطاقُ** مشرفه — من يقرأ ومن يكتب ومن
+    يعتمد العذرَ ومن يصله صندوقُ المخالفات. فكلُّ صلاحيّةٍ في المرحلة 3 تمرّ
+    عليه.
+
+    وثلاثُ خصائصَ تجعل الحدّ الأعلى للتعميم منخفضاً، ولذلك تُحسب لا تُفترض:
+
+    1. **الجناحُ قد يعبر جرسين.** جناح 3 فيه 9/3 و9/4 على جرس التاسع و10/1–3
+       على جرس الثانويّ — فـ«الحصّةُ الحالية» فيه لا تُقال برقمٍ بل بالساعة.
+       `is_split_band` يقول ذلك، ولا يُقرأ رقمُ الحصّة من الشعبة الأولى.
+    2. **الجناحُ قد يعبر مرحلتين.** جناح 3 تاسعٌ إعداديٌّ وعاشرٌ ثانويّ —
+       سياستان في ممرٍّ واحد، فـ`levels` مجموعةٌ لا قيمة.
+    3. **الجناحُ قد يكون صفّاً واحداً تقريباً.** أربعُ شُعبِ جناح 5 ثاني عشر،
+       وعتباتُ غيابه تخالف عتبات ما دونه — فعرضُ العتبة العامّة يكذب في
+       أغلب طلابه.
+
+    والصفُّ الواحدُ في عامين جناحان: الصفوفُ تتحرّك والمشرفون يتبدّلون، فحمل
+    السجلُّ `academic_year` وصار سجلَّ عامٍ لا سجلَّ مبنى.
+    """
+
+    #: قائمةٌ واحدةٌ يقرؤها الجرسُ والجناح — راجع `FLOORS` في صدر الملفّ.
+    FLOORS = FLOORS
+
+    #: من يصلح مشرفاً لجناح. والنائبُ الإداريُّ منهم لأنّه يرث المشرف
+    #: (`core/permissions.py`) — فيصحّ أن يحمل جناحاً عند النقص.
+    SUPERVISOR_ROLES = ("admin_supervisor", "vice_admin")
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="wings")
+    code = models.SlugField(max_length=20, verbose_name="الرمز")
+    name = models.CharField(max_length=60, verbose_name="الاسم")
+    floor = models.CharField(max_length=6, choices=FLOORS, default="ground", verbose_name="الطابق")
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="الترتيب")
+    #: يبقى فارغاً حتّى تسمّي الإدارةُ المشرفين — وجناحٌ بلا مشرفٍ حالةٌ
+    #: تُعرض وتُنبَّه، لا حالةٌ يُمنع حفظُها.
+    supervisor = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="supervised_wings",
+        verbose_name="المشرف الإداريّ",
+    )
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "جناح"
+        verbose_name_plural = "الأجنحة"
+        ordering = ["order", "code"]
+        constraints = [
+            # الرمزُ مع العام لا الرمزُ وحدَه: «جناح 1» يتكرّر كلَّ عامٍ بشُعبٍ
+            # ومشرفٍ غيرِ ما كان، فقيدٌ بلا عامٍ يمنع فتحَ العام القادم.
+            models.UniqueConstraint(
+                fields=["school", "code", "academic_year"],
+                name="unique_wing_code_per_year",
+            ),
+            # ولا يحمل أحدٌ جناحين في عامٍ واحد: خمسةُ أجنحةٍ لخمسةِ أشخاص،
+            # ومن حمل اثنين صار نقطةَ فشلٍ مضاعفة. والقيدُ جزئيٌّ كي لا
+            # يتصادم جناحان بلا مشرفٍ بعدُ (`NULL` لا يساوي `NULL` في
+            # الفهرس، لكنّ الشرطَ يقولها صراحةً لقارئ الهجرة).
+            models.UniqueConstraint(
+                fields=["school", "supervisor", "academic_year"],
+                condition=models.Q(supervisor__isnull=False, is_active=True),
+                name="unique_wing_supervisor_per_year",
+            ),
+        ]
+
+    def clean(self):
+        """مشرفُ الجناح عضوٌ نشطٌ بدورٍ يسمح — لا أيُّ مستخدمٍ في القاعدة."""
+        super().clean()
+        if self.supervisor_id is None or self.school_id is None:
+            return
+        from .access import Membership
+
+        eligible = Membership.objects.filter(
+            user_id=self.supervisor_id,
+            school_id=self.school_id,
+            is_active=True,
+            role__name__in=self.SUPERVISOR_ROLES,
+        ).exists()
+        if not eligible:
+            raise ValidationError(
+                {"supervisor": "مشرفُ الجناح عضوٌ نشطٌ بدور «مشرف إداريّ» أو «النائب الإداريّ»."}
+            )
+
+    @property
+    def sections(self):
+        """شُعبُ الجناح النشطةُ بترتيب المدرسة."""
+        return self.class_groups.filter(is_active=True)
+
+    @property
+    def student_count(self) -> int:
+        return StudentEnrollment.objects.filter(class_group__wing=self, is_active=True).count()
+
+    @property
+    def time_bands(self) -> list:
+        """أجراسُ الجناح — واحدٌ في الغالب، واثنان في جناحٍ يعبر طابقين.
+
+        باستعلامٍ واحد: كانت قراءةُ المعرّفات ثمّ قراءةُ الأجراس استعلامَين،
+        وخمسةُ أجنحةٍ تُعرض معاً تجعلهما عشرة.
+        """
+        return bands_of(self.class_groups.filter(is_active=True).select_related("time_band"))
+
+    @property
+    def is_split_band(self) -> bool:
+        """جناحٌ بجرسين لا يُقال فيه «الحصّة الثالثة» — تُقال الساعة."""
+        return len(self.time_bands) > 1
+
+    @property
+    def bells_off_floor(self) -> list:
+        """أجراسُ الجناح التي طابقُها ليس طابقَه — والصحيحُ أن تكون فارغة.
+
+        شعبةٌ في جناحٍ أرضيٍّ على جرسٍ علويٍّ تعني أنّ أحدَ الرقمين خطأ: إمّا
+        نسبةُ الشعبة إلى جناحها وإمّا نسبتُها إلى جرسها. وأثرُه لا يُرى في
+        شاشةِ أجنحة: يُرى معلّماً يدخل فصلاً بعد أن خرج طلابُه، وطالباً
+        يُرصد غائباً في حصّةٍ لم تبدأ عنده بعد.
+
+        ولا يُفرَض في القاعدة: القيدُ يعبر ثلاثةَ جداول (جناح ← شعبة ← جرس)
+        فلا يبلغه `CHECK`. فيُقاس ويُعرض — و`seed_wings` يقوله في تقريره.
+        """
+        return [band for band in self.time_bands if band.floor != self.floor]
+
+    @property
+    def levels(self) -> set:
+        """مراحلُ الجناح — مجموعةٌ لأنّ جناحاً واحداً يعبر الإعداديَّ والثانويّ."""
+        return set(self.class_groups.filter(is_active=True).values_list("level_type", flat=True))
+
+    def active_coverage(self, on_date=None):
+        """التغطيةُ الساريةُ في هذا اليوم — أو `None`.
+
+        والأحدثُ بدايةً يغلب عند التساوي: قيدُ الاستبعاد يمنع التداخلَ في
+        القاعدة، لكنّ قراءةً بلا ترتيبٍ تُرجع ما تُرجعه القاعدةُ أوّلاً.
+        """
+        day = on_date or timezone.localdate()
+        return (
+            self.coverages.filter(start_date__lte=day)
+            .filter(Q(end_date__isnull=True) | Q(end_date__gte=day))
+            .select_related("substitute")
+            .order_by("-start_date")
+            .first()
+        )
+
+    def current_supervisor(self, on_date=None):
+        """من يحمل الجناحَ في هذا اليوم — البديلُ إن غُطّي، وإلّا الأصيل.
+
+        **كلُّ صلاحيّةٍ واستعلامٍ يمرّ على هذه**، لا على `supervisor`. فالأصيلُ
+        حقيقةُ سجلٍّ والحاملُ حقيقةُ يوم: مشرفٌ في إجازةٍ أسبوعاً يبقى أصيلَ
+        جناحه، ومن يقرأ ملفّات طلابه في ذلك الأسبوع غيرُه. ومن قرأ `supervisor`
+        مباشرةً منح الغائبَ ومنع الحاضر.
+        """
+        cover = self.active_coverage(on_date)
+        return cover.substitute if cover else self.supervisor
+
+    @classmethod
+    def is_held_by(cls, user, on_date=None) -> bool:
+        """أيحمل هذا المستخدمُ جناحاً نشطاً في هذا اليوم — أصيلاً أو بديلاً؟
+
+        البديلُ قد يكون ملاحظَ طلبةٍ أو عاملَ خدمات (قرارُ المدير، `SUBSTITUTE_ROLES`)،
+        ودورُه لا يفتح الرصد. فالتكليفُ نفسُه هو الإذن — ما دام سارياً.
+        وبالسؤال نفسِه الذي يسأله `current_supervisor`: البديلُ الساري يحمل الجناح،
+        والأصيلُ يحمله ما لم يُغطَّ.
+        """
+        if user is None or not getattr(user, "is_authenticated", False):
+            return False
+        day = on_date or timezone.localdate()
+        live = Q(start_date__lte=day) & (Q(end_date__isnull=True) | Q(end_date__gte=day))
+        covering = WingCoverage.objects.filter(live, wing__is_active=True)
+        if covering.filter(substitute=user).exists():
+            return True
+        return (
+            cls.objects.filter(supervisor=user, is_active=True)
+            .exclude(id__in=covering.values("wing_id"))
+            .exists()
+        )
+
+    def __str__(self):
+        return f"{self.name} ({self.academic_year})"
+
+
+class DateRange(Func):
+    """`daterange(بداية، نهاية، '[]')` — ونهايةٌ فارغةٌ تعني مدّةً بلا أفق."""
+
+    function = "DATERANGE"
+    output_field = DateRangeField()
+
+
+class WingCoverage(models.Model):
+    """تغطيةُ جناحٍ في غياب مشرفه — مدّةٌ لا علمٌ يُرفع ويُنزل.
+
+    الجناحُ نطاقُ مشرفه، فغيابُه يوماً يعني خمسَ شُعبٍ لا يرصد غيابَها أحد،
+    وعذراً لا يعتمده أحد، وصندوقَ مخالفاتٍ لا يفتحه أحد. ولهذا لا يكفي حقلٌ
+    بوليٌّ «غائب»: يلزم **من** يحمله و**إلى متى**.
+
+    ولهذا هو سجلٌّ زمنيٌّ لا حقلٌ على الجناح: الحقلُ يُكتب فوق سابقه فلا يبقى
+    أثرٌ لمن حمل الجناحَ في يومٍ ماضٍ — ومن يقرأ غيابَ الأسبوع الماضي يحتاج أن
+    يعرف من كان يرصده. والسجلُّ يُقرأ بالتاريخ، فيُجيب عن أمسِ كما يُجيب عن
+    اليوم.
+
+    ## من يصلح بديلاً
+
+    قرارُ المدير 2026-09-12: «جميعُ من مسمّاه مشرفٌ إداريٌّ، عاملُ خدمات،
+    وملاحظُ حافلة» — وملاحظُ الحافلة هو ملاحظُ الطلبة نفسُه.
+
+    ويُقرأ الحوضُ **بالدور** لا بنصّ المسمّى الوظيفيّ: المسمّى نصٌّ حرٌّ يُكتب
+    «ملاحظ طلبه» بهاءٍ في كشفٍ و«ملاحظ طلبة» بتاءٍ في آخر، ومطابقةُ نصٍّ حرٍّ
+    لا تصلح صلاحيّة. و**مشرفُ المقصف** يحمل لفظَ «مشرف» وليس من الحوض —
+    فمطابقةُ الكلمة كانت ستضمّه.
+
+    ## ولا تتداخل مدّتان
+
+    قيدُ استبعادٍ في القاعدة على (الجناح، المدّة): تغطيتان متداخلتان لجناحٍ
+    واحدٍ تعنيان أنّ اثنين يحملانه في يومٍ واحد، فيقرأ كلاهما ويكتب كلاهما
+    ولا يُدرى من المسؤول. و`clean()` وحدَه لا يكفي: كتابتان متزامنتان تمرّان
+    عليه معاً ثمّ تقعان معاً.
+    """
+
+    REASONS = [
+        ("absence", "غيابُ المشرف"),
+        ("leave", "إجازة"),
+        ("vacancy", "جناحٌ بلا مشرف"),
+        ("other", "أخرى"),
+    ]
+
+    #: من يصلح بديلاً — بالدور، مقابلاً لمسمّيات المدير الثلاثة.
+    SUBSTITUTE_ROLES = ("admin_supervisor", "services_worker", "student_observer")
+
+    #: من يعيّن. والأكاديميُّ منهم لأنّه يحمل صلاحيّاتِ المدير في غيابه عادةً —
+    #: وحصرُه في الإداريّ يعني جناحاً بلا مشرفٍ يومَ يغيب المديرُ ونائبُه معاً.
+    ASSIGNER_ROLES = ("principal", "vice_admin", "vice_academic", "platform_developer")
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    wing = models.ForeignKey("core.Wing", on_delete=models.CASCADE, related_name="coverages")
+    substitute = models.ForeignKey(
+        CustomUser,
+        on_delete=models.PROTECT,
+        related_name="wing_coverages",
+        verbose_name="البديل",
+    )
+    assigned_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="wing_coverages_assigned",
+        verbose_name="عيّنه",
+    )
+    reason = models.CharField(max_length=10, choices=REASONS, default="absence")
+    start_date = models.DateField(verbose_name="من")
+    #: فارغةٌ = مفتوحةٌ حتّى تُنهى. ومدّةٌ بلا نهايةٍ ليست إهمالاً: غيابٌ طارئٌ
+    #: لا يُعرف مداه يومَ يقع، والتاريخُ يُكتب حين يعود صاحبُه.
+    end_date = models.DateField(null=True, blank=True, verbose_name="إلى")
+    ended_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="wing_coverages_ended",
+        verbose_name="أنهاها",
+    )
+    note = models.TextField(blank=True, verbose_name="ملاحظة")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "تغطيةُ جناح"
+        verbose_name_plural = "تغطياتُ الأجنحة"
+        ordering = ["-start_date"]
+        constraints = [
+            models.CheckConstraint(
+                condition=Q(end_date__isnull=True) | Q(end_date__gte=models.F("start_date")),
+                name="wing_coverage_ends_after_it_starts",
+            ),
+            ExclusionConstraint(
+                name="no_overlapping_wing_coverage",
+                expressions=[
+                    (
+                        DateRange("start_date", "end_date", RangeBoundary(inclusive_upper=True)),
+                        RangeOperators.OVERLAPS,
+                    ),
+                    ("wing", RangeOperators.EQUAL),
+                ],
+            ),
+        ]
+        indexes = [models.Index(fields=["wing", "start_date"])]
+
+    def covers(self, day) -> bool:
+        return self.start_date <= day and (self.end_date is None or day <= self.end_date)
+
+    def clean(self):
+        """أربعةُ شروطٍ يبلغها المُدخِلُ في حقله، لا رفضاً من المحرّك بلا بيان."""
+        super().clean()
+        errors = {}
+
+        if self.end_date and self.start_date and self.end_date < self.start_date:
+            errors["end_date"] = "النهايةُ قبل البداية."
+
+        if self.substitute_id and self.wing_id:
+            if self.substitute_id == self.wing.supervisor_id:
+                errors["substitute"] = "البديلُ هو الأصيلُ نفسُه — لا تغطيةَ في ذلك."
+            else:
+                from .access import Membership
+
+                eligible = Membership.objects.filter(
+                    user_id=self.substitute_id,
+                    school_id=self.wing.school_id,
+                    is_active=True,
+                    role__name__in=self.SUBSTITUTE_ROLES,
+                ).exists()
+                if not eligible:
+                    errors["substitute"] = "البديلُ من مشرفٍ إداريٍّ أو عاملِ خدماتٍ أو ملاحظِ طلبة."
+
+        # ولا يحمل أحدٌ تغطيتين متداخلتين: نقطةُ فشلٍ مضاعفةٌ في يومٍ واحد.
+        if self.substitute_id and self.start_date:
+            clash = (
+                WingCoverage.objects.filter(substitute_id=self.substitute_id)
+                .exclude(pk=self.pk)
+                .filter(Q(end_date__isnull=True) | Q(end_date__gte=self.start_date))
+            )
+            if self.end_date:
+                clash = clash.filter(start_date__lte=self.end_date)
+            other = clash.select_related("wing").first()
+            if other:
+                errors["substitute"] = (
+                    f"يغطّي {other.wing.name} في المدّة نفسها — ولا تغطيتين لشخصٍ واحد."
+                )
+
+        if errors:
+            raise ValidationError(errors)
+
+    def __str__(self):
+        end = f"{self.end_date}" if self.end_date else "مفتوحة"
+        return f"{self.wing.name}: {self.substitute.full_name} ({self.start_date} → {end})"
 
 
 class ClassGroup(models.Model):
@@ -178,6 +553,20 @@ class ClassGroup(models.Model):
     #: الحقلَ نفسه في الاستمارة، بدل رفضٍ من المحرّك بلا بيان.
     track = models.CharField(max_length=12, choices=TRACKS, blank=True, verbose_name="المسار")
     academic_year = models.CharField(max_length=9, default=default_academic_year)
+    #: جناحُ الشعبة — وفارغُه ليس نقصاً دائماً: شُعبُ التربية الخاصّة خارجَ
+    #: الأجنحة بقرار الإدارة. و`seed_wings` يسمّي كلَّ شعبةٍ بلا جناحٍ كي لا
+    #: يُقرأ الفارغُ المقصودُ والفارغُ المنسيُّ سواءً.
+    wing = models.ForeignKey(
+        "core.Wing",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="class_groups",
+        verbose_name="الجناح",
+    )
+    #: مهجورٌ منذ 2026-09-12 لصالح `wing.supervisor`: كان حقلاً شبهَ ميّتٍ
+    #: يُعرض اسمُه في شاشةٍ واحدة ولا يُستعلَم عنه، والإشرافُ صار على الجناح
+    #: لا على الشعبة. يُحذف بعد نقل استخدامه الأخير.
     supervisor = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
@@ -256,6 +645,41 @@ class ClassGroup(models.Model):
         return f"{self.get_grade_display()} / {self.section}{track} ({self.academic_year})"
 
 
+class StudentEnrollmentQuerySet(models.QuerySet):
+    """قيدُ الطالب مدّةٌ لا حالة — و`is_active` وحدَها لا تقول في أيّ عام.
+
+    القيدُ القديم لا يُغلق عند بداية العام: المستورِد يُطفئ القيدَ حين ينتقل
+    الطالبُ داخل العام نفسِه، أمّا قيدُ العام الماضي فخارجُ نظره. والقيدُ
+    الفريدُ في القاعدة مفروضٌ على الزوج (طالب، شعبة) — وهما شعبتان في عامين
+    فيمرّ. فحمل مئاتُ الطلاب قيدَين نشطَين معاً.
+
+    و`filter(student=…, is_active=True).first()` بلا ترتيبٍ يُرجع ما تُرجعه
+    القاعدةُ أوّلاً — أي صفّاً عشوائيّاً. قِيس ذلك على بيانات المدرسة: من 448
+    طالباً بقيدَين، 215 كانوا يُعرضون في صفِّ العام الماضي. وأسوأُ من الخطأ
+    أنّه غيرُ ثابت: ترتيبُ الصفوف يتغيّر بعد أيّ تحديثٍ أو كنس، فيصحّ الطالبُ
+    اليومَ ويُخطئ غداً بلا تغييرٍ في البيانات.
+    """
+
+    def newest_first(self) -> "StudentEnrollmentQuerySet":
+        """الأحدثُ عاماً أوّلاً — واسمُ العام «2026-2027» يُفرَز نصّاً كما يُقرأ."""
+        return self.order_by("-class_group__academic_year", "-enrolled_at")
+
+
+class StudentEnrollmentManager(models.Manager.from_queryset(StudentEnrollmentQuerySet)):
+    """السؤالُ «في أيّ شعبةٍ هذا الطالب؟» يمرّ من هنا وحدَه."""
+
+    def current_of(self, student, school=None):
+        """قيدُ الطالب القائم — أحدثُ قيودِه النشطة عاماً، أو `None`.
+
+        ولا يُقيَّد بالعام الجاري قصداً: طالبٌ لم يُقيَّد بعدُ لهذا العام يبقى
+        له صفٌّ يُعرض به بدل أن تخلو شاشتُه — والأحدثُ حتماً أصوبُ من العشوائيّ.
+        """
+        qs = self.filter(student=student, is_active=True)
+        if school is not None:
+            qs = qs.filter(class_group__school=school)
+        return qs.select_related("class_group").newest_first().first()
+
+
 class StudentEnrollment(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="enrollments")
@@ -264,6 +688,8 @@ class StudentEnrollment(models.Model):
     )
     is_active = models.BooleanField(default=True)
     enrolled_at = models.DateField(default=timezone.now)
+
+    objects = StudentEnrollmentManager()
 
     class Meta:
         verbose_name = "تسجيل طالب"

@@ -87,12 +87,18 @@ def draft(school, teacher, by, **kw):
 
 
 def test_the_capability_is_configured_by_the_school_not_hard_coded(school, coordinator):
-    """لا نصَّ وزاريّاً منشوراً يقول إنّ الاعتمادَ لوظيفةٍ بعينها — فلا نحفره."""
-    assert flow.capability_roles(school, flow.APPROVE) == {"principal"}
+    """لا نصَّ وزاريّاً منشوراً يقول إنّ الاعتمادَ لوظيفةٍ بعينها — فلا نحفره.
+
+    ومطوّرُ المنصّة خارجَ هذه المقايسة: هو في كلّ قدرةٍ مهما هيّأت المدرسة
+    (قرار 2026-09-09)، فيُطرح من المقارنة ولا يُقارَن به.
+    """
+    school_roles = lambda cap: flow.capability_roles(school, cap) - flow._ALWAYS  # noqa: E731
+
+    assert school_roles(flow.APPROVE) == {"principal"}
 
     WorkloadGovernance.objects.create(school=school, approve_roles=["vice_academic"])
 
-    assert flow.capability_roles(school, flow.APPROVE) == {
+    assert school_roles(flow.APPROVE) == {
         "vice_academic"
     }, "المدرسةُ تربط القدرةَ بدورها — والافتراضُ افتراضٌ لا قاعدةٌ محفورة"
 
@@ -101,7 +107,10 @@ def test_an_empty_configuration_means_the_default_not_nobody(school):
     """فراغُ القائمة «خُذ الافتراض»، لا «لا أحدَ يملك القدرة»."""
     WorkloadGovernance.objects.create(school=school)
 
-    assert flow.capability_roles(school, flow.REVIEW) == {"vice_academic", "principal"}
+    assert flow.capability_roles(school, flow.REVIEW) - flow._ALWAYS == {
+        "vice_academic",
+        "principal",
+    }
 
 
 def test_a_teacher_cannot_open_a_draft(school, teacher_user, target_teacher):

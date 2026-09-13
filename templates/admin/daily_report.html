@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load privacy %}
 {% block title %}تقرير الغياب اليومي{% endblock %}
 
 {% block breadcrumbs %}
@@ -57,8 +58,9 @@
       {{ present_pct }}%
     </span>
   </div>
-  <div class="h-3 bg-gray-100 rounded-full overflow-hidden">
-    <div class="h-full rounded-full transition-all {% if present_pct >= 85 %}bg-green-500{% elif present_pct >= 70 %}bg-yellow-500{% else %}bg-red-500{% endif %}"
+  {# `--progress-w` لا يقرؤه إلّا `.progress-qatar-fill` — وبأصنافٍ غيرِه كان الشريطُ بعرضٍ صفريٍّ دائماً. #}
+  <div class="progress-qatar">
+    <div class="progress-qatar-fill {% if present_pct >= 85 %}pf-success{% elif present_pct >= 70 %}pf-warning{% else %}pf-danger{% endif %}"
          style="--progress-w:{{ present_pct }}%"></div>
   </div>
 </div>
@@ -85,13 +87,13 @@
       {% for record in absences %}
       <tr class="hover:bg-gray-50 transition">
         <td class="px-4 py-3 font-medium text-gray-900 text-sm">{{ record.student.full_name }}</td>
-        <td class="px-4 py-3 text-xs text-gray-500 font-mono">{{ record.student.national_id }}</td>
+        <td class="px-4 py-3 text-xs text-gray-500 font-mono">{{ record.student.national_id|mask_id }}</td>
         <td class="px-4 py-3 text-sm text-gray-600" data-sort-value="{{ record.session.class_group.school_order }}">{{ record.session.class_group }}</td>
         <td class="px-4 py-3">
           <span class="status-badge
             {% if record.status == 'absent' %}status-danger
             {% elif record.status == 'late' %}status-warning
-            {% else %}status-purple{% endif %}">
+            {% else %}status-info{% endif %}">
             {{ record.get_status_display }}
           </span>
         </td>
