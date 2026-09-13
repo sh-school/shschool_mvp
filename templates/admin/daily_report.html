@@ -93,7 +93,7 @@
           <span class="status-badge
             {% if record.status == 'absent' %}status-danger
             {% elif record.status == 'late' %}status-warning
-            {% else %}status-purple{% endif %}">
+            {% else %}status-info{% endif %}">
             {{ record.get_status_display }}
           </span>
         </td>

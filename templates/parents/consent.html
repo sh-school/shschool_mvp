@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}إعدادات الموافقة على البيانات{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,92 +7,55 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash max-w-2xl mx-auto">
+<div class="exec-dash consent-page">
 
-  <div class="card-qatar overflow-hidden">
-    <div class="exec-header" style="border-radius:var(--radius) var(--radius) 0 0;">
-      <div>
-        <h1 class="exec-title">{% include "components/icon.html" with name="lock" %} الموافقة على معالجة البيانات</h1>
-        <p class="exec-subtitle">
-          بموجب قانون حماية البيانات الشخصية القطري (PDPPL)، يحق لك التحكم في أنواع البيانات التي تعالجها المدرسة.
-        </p>
-      </div>
-    </div>
+  {% page_header "الموافقة على معالجة البيانات" subtitle="قانون حماية البيانات الشخصية القطري رقم 13 لسنة 2016" icon="lock" %}{% endpage_header %}
 
-    <form method="post" class="p-6 space-y-6">
-      {% csrf_token %}
+  <form method="post" class="consent-form">
+    {% csrf_token %}
 
-      {% for link in links %}
-      <div class="border border-[var(--border)] rounded-xl overflow-hidden">
-        <div class="bg-[var(--surface-alt)] px-4 py-3 border-b border-[var(--border)]">
-          <p class="font-semibold text-[var(--text-primary)]">{% include "components/icon.html" with name="user" %} {{ link.student.full_name }}</p>
-        </div>
-        <div class="divide-y">
+    {% for link in links %}
+      {% section_card link.student.full_name meta="اختر ما تسمح بمعالجته" icon="user" %}
+        <ul class="plain-list">
           {% for dt, label in data_types %}
-          <div class="flex items-center justify-between px-4 py-3">
-            <label class="text-sm text-gray-700 font-medium">{{ label }}</label>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="hidden" name="consent_{{ link.student_id }}_{{ dt }}" value="0">
-              <input type="checkbox"
-                     name="consent_{{ link.student_id }}_{{ dt }}"
-                     value="1"
-                     class="sr-only peer">
-              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
-            </label>
-          </div>
+            <li class="plain-list__row">
+              <label class="ui-switch">
+                <span class="ui-switch__label">{{ label }}</span>
+                <input type="hidden" name="consent_{{ link.student_id }}_{{ dt }}" value="0">
+                <input type="checkbox" role="switch" class="ui-switch__input" name="consent_{{ link.student_id }}_{{ dt }}" value="1">
+                <span class="ui-switch__track" aria-hidden="true"></span>
+              </label>
+            </li>
           {% endfor %}
-        </div>
-      </div>
-      {% empty %}
-      <div class="text-center py-8 text-gray-400">
-        <p class="text-4xl mb-2">{% include "components/icon.html" with name="waypoints" size="icon-2xl" %}</p>
-        <p>لا يوجد طلاب مرتبطون بحسابك</p>
-      </div>
-      {% endfor %}
+        </ul>
+      {% endsection_card %}
+    {% empty %}
+      {% section_card "الأبناء" icon="users" empty="لا طلابَ مرتبطين بحسابك" %}{% endsection_card %}
+    {% endfor %}
 
-      {% if links %}
-      <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
-        <p class="font-semibold mb-1">{% include "components/icon.html" with name="alert-triangle" %} تنبيه مهم</p>
-        <p>سحب الموافقة على نوع من البيانات قد يؤثر على قدرتك في متابعة أداء ابنك في ذلك المجال.</p>
+    {% if links %}
+      <p class="form-note is-warning" role="note">
+        {% include "components/icon.html" with name="alert-triangle" %}
+        سحبُ الموافقة على نوعٍ من البيانات يحجب عنك متابعةَ ابنك في ذلك المجال.
+      </p>
+      <div class="form-actions">
+        <a href="{% url 'parent_dashboard' %}" class="btn-ghost">إلغاء</a>
+        <button type="submit" class="btn-primary">{% include "components/icon.html" with name="check" %} حفظ الإعدادات</button>
       </div>
-
-      <div class="flex gap-3 justify-end">
-        <a href="{% url 'parent_dashboard' %}"
-           class="px-5 py-2 border rounded-xl text-sm text-gray-600 hover:bg-gray-50">إلغاء</a>
-        <button type="submit"
-                class="btn-primary btn-sm">
-          {% include "components/icon.html" with name="check" %} حفظ الإعدادات
-        </button>
-      </div>
-      {% endif %}
-
-    </form>
-  </div>
-
-  <!-- قانونية -->
-  <div class="text-xs text-gray-400 text-center leading-relaxed">
-    هذه الصفحة متوافقة مع قانون حماية البيانات الشخصية القطري رقم 13 لسنة 2016 (PDPPL)
-    وإرشادات NCSA 2021.
-  </div>
+    {% endif %}
+  </form>
 
 </div>
 
 <script nonce="{{ request.csp_nonce }}">
-// تفعيل حالة checkboxes من بيانات الموافقة
-// ✅ v5.1.1: استخدام json_script بدل |safe لمنع XSS
+// حالةُ المفاتيح من الموافقات المحفوظة — وما لم يُحفظ بعدُ موافَقٌ عليه افتراضاً.
 const consentData = JSON.parse('{{ consent_data_json|escapejs }}');
-document.querySelectorAll('input[type=checkbox]').forEach(cb => {
-  const name = cb.name; // مثال: consent_UUID_health
-  const parts = name.split('_');
+document.querySelectorAll('.ui-switch__input').forEach(cb => {
+  const parts = cb.name.split('_');
   if (parts.length < 3) return;
   const dt  = parts[parts.length - 1];
-  // find student_id: everything between consent_ and _dt
   const sid = parts.slice(1, parts.length - 1).join('_');
-  if (consentData[sid] && consentData[sid][dt] !== undefined) {
-    cb.checked = consentData[sid][dt];
-  } else {
-    cb.checked = true; // default: موافق
-  }
+  cb.checked = consentData[sid] && consentData[sid][dt] !== undefined ? consentData[sid][dt] : true;
 });
 </script>
 {% endblock %}
