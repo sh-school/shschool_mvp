@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash">
+<div class="exec-dash"{% if panels|length == 2 %} style="--floor-a: {{ panels.0.width_weight|stringformat:'s' }}; --floor-b: {{ panels.1.width_weight|stringformat:'s' }}"{% endif %}>
 
   <div class="exec-header">
     <div>
@@ -27,7 +27,9 @@
     </div>
   </div>
 
-  <div class="kpi-strip">
+  {% comment %}كلُّ بطاقةٍ سطرٌ واحد: الاسمُ فالعددُ فالتفصيل — والشُّعبُ المستثناة
+     بأسمائها في تلميح التفصيل، بعد أن كانت فقرةً بين البطاقات.{% endcomment %}
+  <div class="kpi-strip kpi-strip--line">
     <div class="kpi-mini kpi-maroon">
       <div class="kpi-mini-label">الأجنحة</div>
       <div class="kpi-mini-value">{{ wing_count }}</div>
@@ -36,7 +38,7 @@
     <div class="kpi-mini kpi-blue">
       <div class="kpi-mini-label">شُعبُ الأجنحة</div>
       <div class="kpi-mini-value">{{ section_count }}</div>
-      <div class="kpi-mini-sub">
+      <div class="kpi-mini-sub"{% if outside.sections %} title="خارجَ الأجنحة بقرار الإدارة: {% for section in outside.sections %}{{ section.short_code }}{% if not forloop.last %} · {% endif %}{% endfor %}"{% endif %}>
         {% if outside.section_count %}و{{ outside.section_count }} خارجَها (تربيةٌ خاصّة){% else %}كلُّ شُعب المدرسة{% endif %}
       </div>
     </div>
@@ -55,7 +57,7 @@
   </div>
 
   {# ══ الطابقان — بطاقتان في سطر، تنفكّان عموداً في الشاشة الضيّقة ══ #}
-  <div class="wing-pair">
+  <div class="wing-pair wing-pair--floors">
   {% for panel in panels %}
   <div class="card-qatar">
     <div class="card-bar">
@@ -75,23 +77,21 @@
 
     <div class="wing-grid">
       {% for card in panel.wings %}
-      <div class="wing-box">
+      {# ثلاثةُ أسطر: مَن وكم — أيُّ الشُّعب — أين هو من الساعة. #}
+      <div class="wing-box wing-box--lines{% if card.is_split %} wing-box--split{% endif %}">
 
-        <div class="wing-box__head">
-          <div>
-            <div class="wing-box__name">{{ card.wing.name }}</div>
-            <div class="wing-box__who{% if not card.holder %} is-vacant{% endif %}">
-              {% if card.holder %}{{ card.holder.full_name }}{% else %}بلا مشرفٍ بعد{% endif %}
-            </div>
-          </div>
-          <div class="wing-box__tags">
-            {% if card.coverage %}
-              <span class="badge badge--info" title="الأصيل: {{ card.wing.supervisor.full_name|default:'—' }}{% if card.coverage.end_date %} · حتّى {{ card.coverage.end_date }}{% endif %}">بديل</span>
-            {% endif %}
-            {% if card.is_split %}
-              <span class="badge badge--warning" title="ممرٌّ بجرسين — الحصّةُ فيه تُقال بالساعة لا بالرقم">جرسان</span>
-            {% endif %}
-          </div>
+        <div class="wing-line">
+          <span class="wing-box__name">{{ card.wing.name }}</span>
+          <span class="wing-box__who{% if not card.holder %} is-vacant{% endif %}"{% if card.holder %} title="{{ card.holder.full_name }}"{% endif %}>
+            {% if card.holder %}{{ card.holder.full_name }}{% else %}بلا مشرفٍ بعد{% endif %}
+          </span>
+          {% if card.coverage %}
+            <span class="badge badge--info" title="الأصيل: {{ card.wing.supervisor.full_name|default:'—' }}{% if card.coverage.end_date %} · حتّى {{ card.coverage.end_date }}{% endif %}">بديل</span>
+          {% endif %}
+          {% if card.is_split %}
+            <span class="badge badge--warning" title="ممرٌّ بجرسين — الحصّةُ فيه تُقال بالساعة لا بالرقم">جرسان</span>
+          {% endif %}
+          <span class="wing-box__count"><b>{{ card.student_count }}</b> طالباً</span>
         </div>
 
         <div class="wing-sections">
@@ -100,22 +100,20 @@
           {% endfor %}
         </div>
 
-        <div class="wing-box__count"><b>{{ card.student_count }}</b> طالباً</div>
-
-        {% if card.off_floor %}
-          <div class="wing-warn">
-            {% include "components/icon.html" with name="alert-triangle" %}
-            جرسٌ من طابقٍ آخر: {% for band in card.off_floor %}{{ band.name }}{% if not forloop.last %} · {% endif %}{% endfor %}
-          </div>
-        {% endif %}
-
-        {% for position in card.positions %}
-          <div class="wing-now{% if position.running.is_break %} is-break{% endif %}{% if not position.running and not position.upcoming %} is-over{% endif %}">
-            {% include "components/icon.html" with name="clock" %}
-            {% if card.is_split %}<span class="wing-now__bell">{{ position.bell.band_code }}</span>{% endif %}
-            <span>{{ position.says }}</span>
-          </div>
-        {% endfor %}
+        <div class="wing-line wing-line--now">
+          {% if card.off_floor %}
+            <span class="wing-warn" title="جرسٌ من طابقٍ آخر: {% for band in card.off_floor %}{{ band.name }}{% if not forloop.last %} · {% endif %}{% endfor %}">
+              {% include "components/icon.html" with name="alert-triangle" %}
+              جرسٌ من طابقٍ آخر
+            </span>
+          {% endif %}
+          {% for position in card.positions %}
+            <span class="wing-now{% if position.running.is_break %} is-break{% endif %}{% if not position.running and not position.upcoming %} is-over{% endif %}" title="{% if card.is_split %}{{ position.bell.band_name }}: {% endif %}{{ position.says }}">
+              {% if card.is_split %}<span class="wing-now__bell">{{ position.bell.band_short }}</span>{% else %}{% include "components/icon.html" with name="clock" %}{% endif %}
+              <span>{{ position.says }}</span>
+            </span>
+          {% endfor %}
+        </div>
 
       </div>
       {% endfor %}
@@ -124,17 +122,8 @@
   {% endfor %}
   </div>
 
-  {% if outside.sections %}
-  <p class="bell-note">
-    وخارجَ الأجنحة {{ outside.section_count }} شُعبِ تربيةٍ خاصّة
-    ({% for section in outside.sections %}{{ section.short_code }}{% if not forloop.last %} · {% endif %}{% endfor %})
-    فيها {{ outside.student_count }} طلاب — بقرار الإدارة، وحضورُهم بيد معلّمي التربية الخاصّة.
-    فمجموعُ السجلّ {{ register_count }}.
-  </p>
-  {% endif %}
-
   {# ══ جدولا اليومين — في سطرٍ كذلك ══ #}
-  <div class="wing-pair">
+  <div class="wing-pair wing-pair--floors">
   {% for table in tables %}
   <div class="card-qatar">
     <div class="card-bar">
@@ -146,16 +135,14 @@
       <table class="bell-table">
         <thead>
           <tr>
-            <th class="bell-idx">#</th>
-            {% for bell in table.bells %}
-              <th>{{ bell.band_name }}</th>
+            {% for column in table.columns %}
+              <th>{{ column.name }}</th>
             {% endfor %}
           </tr>
         </thead>
         <tbody>
           {% for row in table.rows %}
           <tr>
-            <td class="bell-idx">{{ forloop.counter }}</td>
             {% for slot in row %}
               {% if slot %}
                 <td{% if slot.is_break %} class="is-break"{% endif %}>
