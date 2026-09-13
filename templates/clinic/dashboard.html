@@ -21,7 +21,7 @@
   </div>
 
   {# ── KPI Strip ── #}
-  <div class="kpi-strip" style="grid-template-columns:repeat(4,1fr)">
+  <div class="kpi-strip">
     <div class="kpi-mini kpi-blue">
       <div class="kpi-mini-label">زيارات اليوم</div>
       <div class="kpi-mini-value">{{ visits_today }}</div>
@@ -149,9 +149,9 @@
   </details>
 
   {# ── Quick Links ── #}
-  <div class="quick-links" style="grid-template-columns:repeat(3,1fr)">
+  <div class="quick-links quick-links--few">
     <a href="{% url 'clinic:record_visit' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="plus-circle" %}</span> تسجيل زيارة</a>
-    <a href="{% url 'clinic:visits_list' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bar-chart" %}</span> الإحصائيات</a>
+    <a href="{% url 'clinic:statistics' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bar-chart" %}</span> الإحصائيات</a>
     <a href="{% url 'clinic:visits_list' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="clipboard" %}</span> السجلات الصحية</a>
   </div>
 

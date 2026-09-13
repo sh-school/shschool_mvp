@@ -33,7 +33,7 @@
       </div>
       <div>
         <span class="text-gray-500">مُغطَّى:</span>
-        <span class="font-medium me-1">{% for s in slots_data %}{% if s.assignment %}1{% endif %}{% endfor %}</span>
+        <span class="font-medium me-1">{{ covered_count }}</span>
       </div>
     </div>
     {% if absence.reason_notes %}

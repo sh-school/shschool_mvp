@@ -4616,6 +4616,15 @@ html.dark .q-kpi-summary__item {
   gap: 8px;
   min-height: 0;
 }
+/* ثلاثُ قوائمَ متجاورة — كانت شؤونُ الطلاب تستعمل الصنفَ ولا تعريفَ له،
+   فتتراصّ قوائمُها الثلاث بعرض الصفحة. و`auto-fit` بحدٍّ أدنى يفكّها عموداً
+   في الشاشة الضيّقة بلا استعلامِ وسَط. */
+.charts-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 8px;
+  min-height: 0;
+}
 .dash-chart-card {
   background: var(--surface);
   border-radius: var(--radius-md);
@@ -6960,6 +6969,11 @@ th[aria-sort="descending"] .th-sort-label {
   .charts-grid { grid-template-columns: 1fr; }
   .quick-links { grid-template-columns: repeat(2, 1fr); }
 }
+/* روابطُ قليلة (اثنان أو ثلاثة): شبكةُ الثمانية تتركها رفيعةً في طرف السطر.
+   وكانت الصفحاتُ تكتب `repeat(3,1fr)` داخل القالب، فيغلب قاعدةَ الهاتف أعلاه
+   ويبقى ثلاثةَ أعمدةٍ في شاشةٍ عرضُها 375. و`auto-fit` يملأ السطرَ ويلتفّ وحدَه.
+   وموضعُه بعد استعلامَي الشاشة الضيّقة عمداً — فالوزنُ واحدٌ والأخيرُ يغلب. */
+.quick-links--few { grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); }
 /* ── Miller's Law: collapsible secondary KPIs ── */
 .exec-details { margin-bottom: 16px; }
 .exec-details-summary {
