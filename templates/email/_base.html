@@ -7,7 +7,9 @@
 لا تُكتب نسخةً. والرسالةُ الوارثة لا تحمل `<style>` ولا `style=`: أصنافُ هذا
 الأساس وحدها.
 
-الكتل: `title`، `content`، `footer`.
+الكتل: `title`، `content`، `footer` — وللإشعار الموجَّه إلى وليّ الأمر بطاقةٌ
+كاملة: `body_attrs` (` class="mail-canvas"`) و`body` يستبدل الإطارَ البسيط
+ببطاقة `mail-card`، وأصنافُها هنا كذلك.
 {% endcomment %}
 <html dir="rtl" lang="ar">
 <head>
@@ -20,13 +22,73 @@
   .mail-quote { background: {% brand_color "SURFACE_ALT" %}; padding: 12px; border-right: 3px solid {% brand_color "MAROON" %}; }
   .mail-notice { background: {% brand_color "STATUS_WARNING_BG" %}; border-right: 4px solid {% brand_color "STATUS_WARNING_BORDER" %}; padding: 10px; margin: 10px 0; color: {% brand_color "STATUS_WARNING_FG" %}; }
   .mail-footer { color: {% brand_color "TEXT_MUTED" %}; font-size: 12px; }
+
+  /* ── بطاقةُ الإشعار: ترويسةُ المدرسة، ومتنٌ، وتذييلٌ رماديّ ── */
+  .mail-canvas { font-family: Tahoma, Arial, sans-serif; direction: rtl; background: {% brand_color "PAGE_BG" %}; margin: 0; padding: 20px; }
+  .mail-card { max-width: 560px; margin: 0 auto; background: {% brand_color "SURFACE" %}; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .mail-head { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; padding: 24px 28px; }
+  .mail-head h1 { margin: 0; font-size: 18px; font-weight: 700; }
+  .mail-head p { margin: 6px 0 0; font-size: 12px; opacity: .8; }
+  .mail-body { padding: 24px 28px; }
+  .mail-foot { background: {% brand_color "SURFACE_ALT" %}; padding: 14px 28px; font-size: 11px; color: {% brand_color "TEXT_MUTED" %}; text-align: center; border-top: 1px solid {% brand_color "BORDER" %}; }
+
+  /* فقراتُ المتن: التحيّةُ، والنصُّ، وعنوانُ ما يليه. */
+  .mail-greeting { color: {% brand_color "TEXT_SECONDARY" %}; font-size: 14px; margin: 0 0 16px; }
+  .mail-text { font-size: 13px; color: {% brand_color "TEXT_SECONDARY" %}; margin: 12px 0; }
+  .mail-text.is-spaced { margin: 14px 0; }
+  .mail-text.is-closing { margin: 16px 0 0; }
+  .mail-label { font-size: 12px; color: {% brand_color "TEXT_MUTED" %}; margin: 8px 0; }
+  .mail-label.is-strong { margin: 14px 0 6px; font-weight: 700; }
+
+  /* الرقمُ الذي يُكتب الإشعارُ من أجله — غيابٌ أو رسوب. */
+  .mail-figure { background: {% brand_color "STATUS_DANGER_BG" %}; border: 1px solid {% brand_color "STATUS_DANGER_BORDER" %}; border-radius: 8px; padding: 16px; margin: 16px 0; text-align: center; }
+  .mail-figure__num { font-size: 36px; font-weight: 800; color: {% brand_color "STATUS_DANGER" %}; display: block; text-align: center; }
+  .mail-figure__lbl { font-size: 12px; color: {% brand_color "STATUS_DANGER_FG" %}; text-align: center; display: block; margin-top: 2px; }
+  .mail-figure.is-compact { padding: 14px; margin: 14px 0; }
+  .mail-figure.is-compact .mail-figure__num { font-size: 40px; }
+
+  /* بياناتُ الطالب: اسمٌ ← قيمة، سطراً سطراً. */
+  .mail-rows, .mail-list { background: {% brand_color "SURFACE_ALT" %}; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+  .mail-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid {% brand_color "BORDER" %}; font-size: 13px; }
+  .mail-row:last-child { border: none; }
+  .mail-row span:first-child { color: {% brand_color "TEXT_MUTED" %}; }
+  .mail-row span:last-child { font-weight: 700; color: {% brand_color "TEXT_PRIMARY" %}; }
+  .mail-rows.is-roomy .mail-row { padding: 9px 0; }
+
+  /* قائمةُ الموادّ بنقطةٍ حمراء — على سطح `mail-rows` نفسه. */
+  .mail-list__item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid {% brand_color "BORDER" %}; font-size: 13px; }
+  .mail-list__item:last-child { border: none; }
+  .mail-dot { width: 8px; height: 8px; border-radius: 50%; background: {% brand_color "STATUS_DANGER" %}; flex-shrink: 0; }
+
+  /* درجةُ المخالفة من 1 إلى 4 — الإطارُ والنصُّ يشتدّان معها. */
+  .mail-level { border-radius: 10px; padding: 16px 20px; margin: 16px 0; text-align: center; }
+  .mail-level.level-1 { background: {% brand_color "STATUS_WARNING_BG" %}; border: 1px solid {% brand_color "STATUS_WARNING_BORDER" %}; }
+  .mail-level.level-2 { background: {% brand_color "SURFACE" %}; border: 1px solid {% brand_color "STATUS_WARNING_BORDER" %}; }
+  .mail-level.level-3 { background: {% brand_color "STATUS_DANGER_BG" %}; border: 1px solid {% brand_color "STATUS_DANGER_BORDER" %}; }
+  .mail-level.level-4 { background: {% brand_color "SURFACE_ALT" %}; border: 2px solid {% brand_color "STATUS_DANGER" %}; }
+  .mail-level__label { font-size: 22px; font-weight: 800; display: block; }
+  .level-1 .mail-level__label { color: {% brand_color "STATUS_WARNING_DARK" %}; }
+  .level-2 .mail-level__label { color: {% brand_color "ACCENT_ORANGE_FG" %}; }
+  .level-3 .mail-level__label { color: {% brand_color "STATUS_DANGER_FG" %}; }
+  .level-4 .mail-level__label { color: {% brand_color "STATUS_DANGER_DARK" %}; }
+  .mail-level__sub { font-size: 12px; display: block; margin-top: 4px; }
+  .level-1 .mail-level__sub, .level-2 .mail-level__sub { color: {% brand_color "STATUS_WARNING_DARK" %}; }
+  .level-3 .mail-level__sub { color: {% brand_color "STATUS_DANGER_DARK" %}; }
+  .level-4 .mail-level__sub { color: {% brand_color "MAROON_LIGHT" %}; }
+
+  /* صناديقُ النصّ: وصفٌ بحدٍّ عنّابيّ، وإجراءٌ أخضر، وتحذيرٌ كهرمانيّ. */
+  .mail-desc { background: {% brand_color "SURFACE_ALT" %}; border-right: 3px solid {% brand_color "MAROON" %}; border-radius: 0 8px 8px 0; padding: 12px 16px; margin: 14px 0; font-size: 13px; color: {% brand_color "TEXT_SECONDARY" %}; line-height: 1.7; }
+  .mail-action { background: {% brand_color "STATUS_SUCCESS_BG" %}; border: 1px solid {% brand_color "STATUS_SUCCESS_BORDER" %}; border-radius: 8px; padding: 12px 16px; margin: 14px 0; font-size: 13px; color: {% brand_color "STATUS_SUCCESS_FG" %}; }
+  .mail-warning { background: {% brand_color "STATUS_WARNING_BG" %}; border: 1px solid {% brand_color "STATUS_WARNING_BORDER" %}; border-radius: 8px; padding: 12px 16px; margin: 14px 0; font-size: 12px; color: {% brand_color "STATUS_WARNING_FG" %}; }
 </style>
 </head>
-<body>
+<body{% block body_attrs %}{% endblock %}>
+{% block body %}
 <div class="mail" dir="rtl">
 {% block content %}{% endblock %}
 <hr>
 <p class="mail-footer">{% block footer %}{% endblock %}</p>
 </div>
+{% endblock %}
 </body>
 </html>

@@ -76,7 +76,14 @@ LIGHT_ON_PURPOSE = {
     ".schedule-paper-frame",
     # قرصٌ أبيضُ على شريطٍ عنّابيّ — والشريطُ عنّابيٌّ في الوضعين.
     ".child-action-btn--solid:hover",
+    # إطارُ ورقة الجدول الأسبوعيّ: الورقةُ تُطبع بيضاءَ، والإطارُ أرضيّتُها قبل أن تُحمَّل.
+    ".schedule-sheet-frame",
 }
+
+#: رموزُ الوثائق المطبوعة (`--form-*` و`--print-*` و`--dept-*` في `:root`) لا تُرسم
+#: على الشاشة، فلا نظيرةَ ليليّةَ لها — ولا تُحسب في عدد «غير المنقلبة» الذي
+#: يُطمأنّ به إلى أنّ المسحَ يقيس شيئاً.
+PRINT_TOKEN_PREFIXES = ("--form-", "--print-", "--dept-")
 
 
 def _css() -> str:
@@ -214,7 +221,7 @@ def test_the_scan_actually_reaches_the_stylesheet():
     light, _dark = token_table(css)
     assert len(light) >= 90, f"رموزُ `:root` {len(light)} — التفكيكُ لم يبلغها"
     flipped = dark_overrides(css)
-    fixed = {k for k in light if k not in flipped}
+    fixed = {k for k in light if k not in flipped and not k.startswith(PRINT_TOKEN_PREFIXES)}
     assert 20 <= len(fixed) <= 100, f"الرموزُ غيرُ المنقلبة {len(fixed)} — رقمٌ لا يُصدَّق"
 
     rules = _screen_rules(css)

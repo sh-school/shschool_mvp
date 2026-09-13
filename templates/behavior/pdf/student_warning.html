@@ -73,7 +73,7 @@
   </p>
 </div>
 
-<p class="body-text" style="margin:14px 0">
+<p class="body-text is-spaced">
   هذا إنذار سلوكي
   <strong>
     {% if infraction_count == 1 %}أول{% elif infraction_count == 2 %}ثانٍ{% else %}نهائي{% endif %}
@@ -103,10 +103,10 @@
 </div>
 
 {% if exported_by %}
-<div style="text-align:center;font-size:8pt;color:{% brand_color "TEXT_MUTED" %};border-top:1px solid {% brand_color "BORDER" %};padding-top:8px;margin-top:30px">
-  <p style="margin:0"><strong style="color:{% brand_color "TEXT_PRIMARY" %}">صدر بواسطة:</strong> {{ exported_by }} — {{ exporter_role }}</p>
-  <p style="margin:2px 0 0">التاريخ: {{ export_datetime }}</p>
-  <p style="margin:2px 0 0">{{ school_name }} — وثيقة رسمية — SchoolOS</p>
+<div class="export-stamp">
+  <p><strong>صدر بواسطة:</strong> {{ exported_by }} — {{ exporter_role }}</p>
+  <p>التاريخ: {{ export_datetime }}</p>
+  <p>{{ school_name }} — وثيقة رسمية — SchoolOS</p>
 </div>
 {% endif %}
 {% endblock %}

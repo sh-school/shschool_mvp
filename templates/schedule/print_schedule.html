@@ -58,6 +58,8 @@
     font-weight: 600;
   }
   .print-controls a:hover { text-decoration: underline; }
+  /* نماذجُ الاختيار في الشريط تجري مع أزراره في سطرٍ واحد. */
+  .print-controls .controls-form { display: inline; }
   /* زرّا التصدير: كالزرّ شكلاً ورابطٌ حقيقةً — فالتنزيلُ انتقالٌ لا حدثُ زرّ. */
   .print-controls a.btn-export {
     border: 1px solid {% brand_color "MAROON" %};
@@ -305,26 +307,26 @@
      السطورُ مرتّبةٌ بالقسم أصلاً، واللونُ يفصل بينها بلا شريطِ عنوانٍ يأكل
      سطراً ولا عمودٍ يأكل عرضاً. والألوانُ فاتحةٌ كي يبقى الأسودُ مقروءاً
      فوقها، ومتباعدةٌ في الدرجة بين كلّ قسمين متجاورين في الترتيب. */
-  .schedule-matrix tbody tr.dept-sharia       td { background: #d9ead3; }
-  .schedule-matrix tbody tr.dept-arabic       td { background: #fce5cd; }
-  .schedule-matrix tbody tr.dept-math         td { background: #cfe2f3; }
-  .schedule-matrix tbody tr.dept-english      td { background: #ead1dc; }
-  .schedule-matrix tbody tr.dept-science_prep td { background: #d0e8e4; }
-  .schedule-matrix tbody tr.dept-science_sec  td { background: #eef3cf; }
-  .schedule-matrix tbody tr.dept-chemistry    td { background: #fad4d0; }
-  .schedule-matrix tbody tr.dept-physics      td { background: #dcd8f0; }
-  .schedule-matrix tbody tr.dept-social       td { background: #fdedb3; }
-  .schedule-matrix tbody tr.dept-tech         td { background: #d8e2e6; }
-  .schedule-matrix tbody tr.dept-business     td { background: #e8e0c8; }
-  .schedule-matrix tbody tr.dept-pe           td { background: #cfe8d8; }
-  .schedule-matrix tbody tr.dept-arts         td { background: #f4d9e8; }
-  .schedule-matrix tbody tr.dept-life_skills  td { background: #e8ded0; }
-  .schedule-matrix tbody tr.dept-other        td { background: #e8e8e8; }
+  .schedule-matrix tbody tr.dept-sharia       td { background: {% brand_color "DEPT_SHARIA" %}; }
+  .schedule-matrix tbody tr.dept-arabic       td { background: {% brand_color "DEPT_ARABIC" %}; }
+  .schedule-matrix tbody tr.dept-math         td { background: {% brand_color "DEPT_MATH" %}; }
+  .schedule-matrix tbody tr.dept-english      td { background: {% brand_color "DEPT_ENGLISH" %}; }
+  .schedule-matrix tbody tr.dept-science_prep td { background: {% brand_color "DEPT_SCIENCE" %}; }
+  .schedule-matrix tbody tr.dept-science_sec  td { background: {% brand_color "DEPT_BIOLOGY" %}; }
+  .schedule-matrix tbody tr.dept-chemistry    td { background: {% brand_color "DEPT_CHEMISTRY" %}; }
+  .schedule-matrix tbody tr.dept-physics      td { background: {% brand_color "DEPT_PHYSICS" %}; }
+  .schedule-matrix tbody tr.dept-social       td { background: {% brand_color "DEPT_SOCIAL" %}; }
+  .schedule-matrix tbody tr.dept-tech         td { background: {% brand_color "DEPT_TECH" %}; }
+  .schedule-matrix tbody tr.dept-business     td { background: {% brand_color "DEPT_BUSINESS" %}; }
+  .schedule-matrix tbody tr.dept-pe           td { background: {% brand_color "DEPT_PE" %}; }
+  .schedule-matrix tbody tr.dept-arts         td { background: {% brand_color "DEPT_ARTS" %}; }
+  .schedule-matrix tbody tr.dept-life_skills  td { background: {% brand_color "DEPT_LIFE_SKILLS" %}; }
+  .schedule-matrix tbody tr.dept-other        td { background: {% brand_color "DEPT_OTHER" %}; }
   /* رموزُ جدول الأقسام المسجَّل — وما فوقها رموزُ الاشتقاق الاحتياطيّ. */
-  .schedule-matrix tbody tr.dept-islamic      td { background: #d9ead3; }
-  .schedule-matrix tbody tr.dept-science      td { background: #d0e8e4; }
-  .schedule-matrix tbody tr.dept-biology      td { background: #eef3cf; }
-  .schedule-matrix tbody tr.dept-art          td { background: #f4d9e8; }
+  .schedule-matrix tbody tr.dept-islamic      td { background: {% brand_color "DEPT_SHARIA" %}; }
+  .schedule-matrix tbody tr.dept-science      td { background: {% brand_color "DEPT_SCIENCE" %}; }
+  .schedule-matrix tbody tr.dept-biology      td { background: {% brand_color "DEPT_BIOLOGY" %}; }
+  .schedule-matrix tbody tr.dept-art          td { background: {% brand_color "DEPT_ARTS" %}; }
   /* سطرُ المجموع: أبيضُ بلا لونِ قسمٍ — فهو للجدول كلّه لا لقسمٍ منه. */
   .schedule-matrix tfoot td {
     background: {% brand_color "SURFACE" %};
@@ -614,7 +616,7 @@
 
   {# قائمة الاختيار لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
   {% if may_browse %}
-  <form id="schedule-view-form" method="get" style="display:inline">
+  <form id="schedule-view-form" method="get" class="controls-form">
     <input type="hidden" name="view" value="{{ view_type }}">
     <input type="hidden" name="teacher" value="{% if target_teacher %}{{ target_teacher.id }}{% endif %}">
     <input type="hidden" name="class" value="{% if target_class %}{{ target_class.id }}{% endif %}">
@@ -649,7 +651,7 @@
   </script>
   {% endif %}
 
-  <form method="get" style="display:inline">
+  <form method="get" class="controls-form">
     <input type="hidden" name="view" value="{{ view_type }}">
     {% if target_teacher %}<input type="hidden" name="teacher" value="{{ target_teacher.id }}">{% endif %}
     {% if target_class %}<input type="hidden" name="class" value="{{ target_class.id }}">{% endif %}

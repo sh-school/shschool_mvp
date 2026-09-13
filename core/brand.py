@@ -84,6 +84,30 @@ MAROON_DARK = "#6b0f2a"
 MAROON_BORDER = "#e8b4c3"
 SKYLINE = "#0D4261"
 
+#: ألوانُ الوثائق المطبوعة — `--form-*` و`--print-*`: استمارةُ الإشراف طبقَ
+#: نموذج المدرسة (docx) بلونَيه وحبره الأسود.
+FORM_BAND = "#943634"
+FORM_KEY_BG = "#DDD9C3"
+PRINT_INK = "#000000"
+PRINT_INK_SOFT = "#444444"
+
+#: `--dept-*` — فرزُ الأقسام لوناً في مصفوفة الجدول المطبوعة.
+DEPT_SHARIA = "#d9ead3"
+DEPT_ARABIC = "#fce5cd"
+DEPT_MATH = "#cfe2f3"
+DEPT_ENGLISH = "#ead1dc"
+DEPT_SCIENCE = "#d0e8e4"
+DEPT_BIOLOGY = "#eef3cf"
+DEPT_CHEMISTRY = "#fad4d0"
+DEPT_PHYSICS = "#dcd8f0"
+DEPT_SOCIAL = "#fdedb3"
+DEPT_TECH = "#d8e2e6"
+DEPT_BUSINESS = "#e8e0c8"
+DEPT_PE = "#cfe8d8"
+DEPT_ARTS = "#f4d9e8"
+DEPT_LIFE_SKILLS = "#e8ded0"
+DEPT_OTHER = "#e8e8e8"
+
 
 #: قيمُ الليل لما يُرسم خارجَ `custom.css` ويتبع الوضع — صفحاتُ الخطأ.
 #: الاسمُ اسمُ ثابت النهار، والرمزُ في `TOKEN_OF`؛ ويُقارَن بكتلة `html.dark`.
@@ -157,5 +181,24 @@ TOKEN_OF = {
     "MAROON_DARK": "maroon-dark",
     "MAROON_BORDER": "maroon-border",
     "SKYLINE": "skyline",
+    "FORM_BAND": "form-band",
+    "FORM_KEY_BG": "form-key-bg",
+    "PRINT_INK": "print-ink",
+    "PRINT_INK_SOFT": "print-ink-soft",
+    "DEPT_SHARIA": "dept-sharia",
+    "DEPT_ARABIC": "dept-arabic",
+    "DEPT_MATH": "dept-math",
+    "DEPT_ENGLISH": "dept-english",
+    "DEPT_SCIENCE": "dept-science",
+    "DEPT_BIOLOGY": "dept-biology",
+    "DEPT_CHEMISTRY": "dept-chemistry",
+    "DEPT_PHYSICS": "dept-physics",
+    "DEPT_SOCIAL": "dept-social",
+    "DEPT_TECH": "dept-tech",
+    "DEPT_BUSINESS": "dept-business",
+    "DEPT_PE": "dept-pe",
+    "DEPT_ARTS": "dept-arts",
+    "DEPT_LIFE_SKILLS": "dept-life-skills",
+    "DEPT_OTHER": "dept-other",
     "MAROON_FG": "maroon-fg",
 }
