@@ -18,6 +18,7 @@ from functools import wraps
 
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
 
@@ -842,8 +843,6 @@ def get_teacher_student_ids(user):
 
     # ── 3) حصص الإشغال (بديل) — اليوم فقط ──
     import datetime
-
-from django.utils import timezone
 
     # تاريخُ قطر لا UTC: بين منتصف الليل والثالثة فجراً كان تكليفُ الأمس يُقرأ تكليفَ اليوم.
     today = timezone.localdate()

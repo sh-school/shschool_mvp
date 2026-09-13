@@ -35,7 +35,5 @@ def test_every_scheduled_task_exists_and_the_schedule_is_not_empty():
     app.loader.import_default_modules()
     schedule = app.conf.beat_schedule
     assert len(schedule) >= 5
-    missing = [
-        name for name, entry in schedule.items() if entry["task"] not in app.tasks
-    ]
+    missing = [name for name, entry in schedule.items() if entry["task"] not in app.tasks]
     assert not missing, f"مهامٌّ مجدولةٌ لا وجودَ لها: {missing}"

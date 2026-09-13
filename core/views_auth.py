@@ -55,6 +55,8 @@ ROLES_REQUIRING_2FA = {"principal", "vice_admin", "vice_academic", "admin"}
 def requires_two_factor(user) -> bool:
     """أعلى الثنائيّةُ على هذا المستخدم؟ — الكادرُ كلُّه، لا الطلبةُ ولا أولياءُ الأمور."""
     return bool(user.is_superuser or user.is_staff_member())
+
+
 #: خلفيّةُ التصديق الأصليّة — تُستعمل إن ضاعت من الجلسة (جلسةٌ سابقةٌ للنشر).
 PRIMARY_AUTH_BACKEND = "core.backends.HMACAuthBackend"
 
