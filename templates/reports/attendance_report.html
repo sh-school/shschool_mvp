@@ -1,122 +1,60 @@
 {% extends "reports/base_qatar_report.html" %}
 {% load brand_tags %}
-{# تقرير الحضور والغياب — يرث التصميم الكامل من base_qatar_report.html #}
+{# تقرير الحضور والغياب — الهيكلُ من base_qatar_report.html، والنغماتُ من reports/views.py #}
 
 {% block extra_styles %}
-.bar-bg   { background:{% brand_color "BORDER" %}; border-radius:4px; height:9px; overflow:hidden; display:inline-block; width:60px; vertical-align:middle; }
-.bar-fill { height:100%; border-radius:4px; }
+.pct-cell { white-space: nowrap; }
+.pct-bar { display: inline-block; vertical-align: middle; width: 60px; height: 9px; border-radius: 4px; overflow: hidden; background: {% brand_color "BORDER" %}; margin-left: 4px; }
+.pct-bar__fill { display: block; height: 100%; width: var(--progress-w, 0); background: currentColor; border-radius: 4px; }
+.pct-value { font-size: 10px; font-weight: 700; }
 {% endblock %}
 
-{% block report_title_bar %}
-<div class="report-title-bar">تقرير الحضور والغياب — {{ class_group }} — {{ year }}</div>
-{% endblock %}
+{% block report_title %}تقرير الحضور والغياب — {{ class_group }} — {{ year }}{% endblock %}
 
-{% block report_meta %}
-<table class="report-meta">
-  <tr>
-    <td>الفصل: <strong>{{ class_group }}</strong></td>
-    <td>السنة الدراسية: <strong>{{ year }}</strong></td>
-    <td>تاريخ الطباعة: <strong>{{ print_date }}</strong></td>
-  </tr>
-</table>
+{% block report_meta_cells %}
+<td>الفصل: <strong>{{ class_group }}</strong></td>
+<td>السنة الدراسية: <strong>{{ year }}</strong></td>
+<td>تاريخ الطباعة: <strong>{{ print_date }}</strong></td>
 {% endblock %}
 
 {% block content %}
-
-<div class="stats-row">
-  <div class="stat-card">
-    <div class="value">{{ student_rows|length }}</div>
-    <div class="label">إجمالي الطلاب</div>
-  </div>
-  <div class="stat-card">
-    <div class="value text-green-600">
-      {{ student_rows|length }}
-    </div>
-    <div class="label">طلاب لديهم بيانات</div>
-  </div>
-</div>
-
 <table>
   <thead>
     <tr>
-      <th scope="col" style="width:4%">#</th>
-      <th scope="col" style="width:26%" class="text-right">اسم الطالب</th>
+      <th scope="col">اسم الطالب</th>
       <th scope="col">الرقم الشخصي</th>
       <th scope="col">إجمالي الحصص</th>
       <th scope="col">حاضر</th>
       <th scope="col">غائب</th>
       <th scope="col">متأخر</th>
       <th scope="col">مستأذن</th>
-      <th scope="col" style="width:14%">نسبة الحضور</th>
+      <th scope="col">نسبة الحضور</th>
       <th scope="col">الحالة</th>
     </tr>
   </thead>
   <tbody>
     {% for row in student_rows %}
     <tr>
-      <td>{{ forloop.counter }}</td>
-      <td class="text-right font-semibold">{{ row.student.full_name }}</td>
+      <th scope="row">{{ row.student.full_name }}</th>
       <td>{{ row.student.national_id|default:"—" }}</td>
       <td>{{ row.total_sessions }}</td>
       <td>{{ row.present }}</td>
-      <td>
-        <span {% if row.absent > 10 %}class="text-red-600 font-bold"{% endif %}>
-          {{ row.absent }}
-        </span>
-      </td>
+      <td>{% if row.absent_tone %}<b class="c-{{ row.absent_tone }}">{{ row.absent }}</b>{% else %}{{ row.absent }}{% endif %}</td>
       <td>{{ row.late }}</td>
       <td>{{ row.excused }}</td>
-      <td>
-        <div class="flex items-center gap-1">
-          <div class="bar-bg">
-            <div class="bar-fill {% if row.attendance_pct >= 95 %}pf-success{% elif row.attendance_pct >= 80 %}pf-warning{% else %}pf-danger{% endif %}"
-                 style="--progress-w:{{ row.attendance_pct }}%">
-            </div>
-          </div>
-          <span class="font-bold text-xs {% if row.attendance_pct >= 95 %}attend-high{% elif row.attendance_pct >= 80 %}attend-medium{% else %}attend-low{% endif %}">
-            {{ row.attendance_pct }}%
-          </span>
-        </div>
+      <td class="pct-cell">
+        <span class="pct-bar"><span class="pct-bar__fill c-{{ row.attendance_tone }}" style="--progress-w:{{ row.attendance_pct }}%"></span></span>
+        <span class="pct-value c-{{ row.attendance_tone }}">{{ row.attendance_pct }}%</span>
       </td>
-      <td>
-        {% if row.attendance_pct >= 95 %}
-          <span class="status-pass">ممتاز</span>
-        {% elif row.attendance_pct >= 80 %}
-          <span class="status-incomplete">مقبول</span>
-        {% else %}
-          <span class="status-fail">منخفض</span>
-        {% endif %}
-      </td>
+      <td><b class="c-{{ row.attendance_tone }}">{{ row.attendance_label }}</b></td>
     </tr>
     {% empty %}
-    <tr><td colspan="10" class="text-center text-gray-400">لا توجد بيانات</td></tr>
+    <tr><td colspan="9">لا توجد بيانات</td></tr>
     {% endfor %}
   </tbody>
 </table>
-
 {% endblock %}
 
-{% block signatures %}
-<div class="signature-section">
-  <div class="signature-box">
-    <div class="line"></div>
-    <div>وكيل شؤون التعليم</div>
-  </div>
-  <div class="signature-box">
-    <div class="line"></div>
-    <div>مدير المدرسة</div>
-  </div>
-  <div class="signature-box">
-    <div class="line"></div>
-    <div>المشرف الإداري</div>
-  </div>
-</div>
-
-{% if exported_by %}
-<div style="text-align:center;font-size:8pt;color:{% brand_color "TEXT_MUTED" %};border-top:1px solid {% brand_color "BORDER" %};padding-top:8px;margin-top:30px">
-  <p style="margin:0"><strong style="color:{% brand_color "TEXT_PRIMARY" %}">صدر بواسطة:</strong> {{ exported_by }} — {{ exporter_role }}</p>
-  <p style="margin:2px 0 0">التاريخ: {{ export_datetime }}</p>
-  <p style="margin:2px 0 0">{{ school.name }} — وثيقة رسمية — SchoolOS</p>
-</div>
-{% endif %}
-{% endblock %}
+{% block signature_1 %}وكيل شؤون التعليم{% endblock %}
+{% block signature_2 %}مدير المدرسة{% endblock %}
+{% block signature_3 %}المشرف الإداري{% endblock %}
