@@ -40,7 +40,7 @@
     hx-swap="outerHTML"
     hx-include="[name=csrfmiddlewaretoken]"
     title="تحديد كمقروء (m)"
-    aria-label="تحديد كمقروء"
+    aria-label="تحديد «{{ notif.title }}» كمقروء"
     class="notif-item__read"
   >{% include "components/icon.html" with name="check" %}</button>
   {% else %}

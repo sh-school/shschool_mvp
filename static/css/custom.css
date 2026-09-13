@@ -96,6 +96,10 @@
   --transition-slow:   250ms ease;
   --focus-ring:        0 0 0 3px color-mix(in srgb, var(--maroon) 22%, transparent);
   --focus-ring-offset: 2px;
+  /* لونُ حلقة التركيز — العنّابيُّ المقروء، فينقلب ليلاً إلى الورديّ. وكان
+     `--maroon` الثابت: 9.35 على السطح نهاراً و1.56 ليلاً، فلا يرى المتنقّلُ
+     بلوحة المفاتيح أين هو (قِيس في المتصفّح 2026-09-13). */
+  --focus-color: var(--maroon-fg);
 
   /* ── Status Colors — unified across all pages ── */
   --status-danger:       #dc2626;
@@ -582,14 +586,17 @@ input[type="date"]:focus,
 input[type="tel"]:focus,
 select:focus,
 textarea:focus {
+  /* الحدُّ هو علامةُ التركيز هنا، والحلقةُ الشفّافةُ لا تظهر إلّا في وضع
+     التباين العالي للنظام. فلونُ الحدّ `--focus-color` لا `--maroon`: الثابتُ
+     كان 1.23 ليلاً على حدٍّ داكن. */
   outline: 2px solid transparent;
-  border-color: var(--maroon);
+  border-color: var(--focus-color);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--maroon) 12%, transparent);
 }
 
 /* ── الروابط النشطة ─────────────────────────────────────────── */
 a:focus-visible {
-  outline: 2px solid var(--maroon);
+  outline: 2px solid var(--focus-color);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -1007,7 +1014,6 @@ tr.active {
   background: var(--surface-alt);
   color: var(--maroon-fg);
   border-color: var(--border);
-  outline: none;
 }
 .btn-ghost.text-danger,
 .btn-ghost.text-danger:hover {
@@ -2011,7 +2017,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid var(--maroon);
+  outline: 2px solid var(--focus-color);
   outline-offset: var(--focus-ring-offset);
   box-shadow: var(--focus-ring);
 }
@@ -2922,7 +2928,6 @@ html[dir="rtl"] .search-wrap .htmx-indicator { left: 12px; right: auto; }
 .quality-filter-field input:focus {
   border-color: var(--maroon);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--maroon) 15%, transparent);
-  outline: none;
 }
 .quality-filters-actions {
   display: flex;
@@ -3396,7 +3401,6 @@ html[dir="rtl"] .search-wrap .htmx-indicator { left: 12px; right: auto; }
 .q-modal-field textarea:focus {
   border-color: var(--maroon);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--maroon) 10%, transparent);
-  outline: none;
 }
 
 /* Committee decision card (maroon bg) */
@@ -3732,7 +3736,6 @@ html[dir="rtl"] .search-wrap .htmx-indicator { left: 12px; right: auto; }
 .q-add-form-field input:focus {
   border-color: var(--maroon);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--maroon) 10%, transparent);
-  outline: none;
 }
 .q-add-form-actions {
   margin-top: 1rem;
@@ -4088,7 +4091,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   border: 1.5px solid #d1d5db;
   border-radius: 12px;
   font-size: var(--text-sm); font-family: inherit;
-  outline: none; transition: border-color .15s, box-shadow .15s;
+  transition: border-color .15s, box-shadow .15s;
   background: #fafafa;
 }
 .login-input:focus {
@@ -5652,7 +5655,7 @@ html.dark input:focus,
 html.dark select:focus,
 html.dark textarea:focus {
   background: var(--surface);
-  border-color: var(--maroon);
+  border-color: var(--focus-color);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--maroon) 25%, transparent);
 }
 html.dark input::placeholder,
@@ -6246,7 +6249,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   display: inline-flex; align-items: center; gap: 4px;
   font-size: var(--text-xs); color: var(--text-muted); cursor: help;
 }
-.notif-shortcuts:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; border-radius: var(--radius-sm); }
+.notif-shortcuts:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; border-radius: var(--radius-sm); }
 
 /* عنصرُ الإشعار: غيرُ المقروء بأرضيّةٍ عنّابيّةٍ خفيفةٍ وشريطٍ على حافّته. */
 .notif-item {
@@ -6262,7 +6265,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   border-color: var(--maroon-border);
   border-inline-start: 4px solid var(--maroon-fg);
 }
-.notif-item.is-active { outline: 2px solid var(--maroon); outline-offset: 2px; }
+.notif-item.is-active { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 .notif-item__main { flex: 1; min-inline-size: 0; display: grid; gap: 4px; justify-items: start; }
 .notif-item__title { margin: 0; font-size: var(--text-sm); font-weight: 500; line-height: 1.4; color: var(--text-primary); }
 .notif-item.is-unread .notif-item__title { font-weight: 700; }
@@ -6414,7 +6417,7 @@ html.dark .report-tab.active .wl-tab-count { color: var(--gold); }
 /* ── البطاقات الأربع ── */
 .wl-stats { margin-bottom: 0; }
 .wl-stat-link { display: block; text-decoration: none; color: inherit; }
-.wl-stat-link:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+.wl-stat-link:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 .wl-stat-of { font-size: .5em; font-weight: 700; color: var(--text-muted); margin-inline-start: 2px; }
 
 /* ── البطاقة والبوّابة ── */
@@ -6512,7 +6515,7 @@ html.dark .wl-card-title { color: var(--gold); }
 .wl-legend-wrap > summary::-webkit-details-marker { display: none; }
 .wl-legend-wrap > summary .icon { width: 16px; height: 16px; }
 html.dark .wl-legend-wrap > summary { color: var(--gold); }
-.wl-legend-wrap > summary:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; border-radius: var(--radius-sm); }
+.wl-legend-wrap > summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; border-radius: var(--radius-sm); }
 .wl-legend-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -6811,7 +6814,7 @@ th[aria-sort="descending"] .th-sort-label {
 }
 .exg-cell:hover { border-color: var(--maroon); }
 .exg-cell:active { transform: scale(.96); }
-.exg-cell:focus-visible { outline: 2px solid var(--maroon); outline-offset: 1px; }
+.exg-cell:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 1px; }
 
 /* مفرَّغةٌ الآن: قائمةٌ في القاعدة فلا تُختار ثانيةً — ولونٌ باهتٌ يجعلها
    كالفارغة، فتُملأ صريحاً ويُخطَّط عليها. */
@@ -7255,7 +7258,7 @@ html.dark .kpi-unavail-icon { background: var(--surface-alt); }
   transition: border-color .15s, box-shadow .15s;
 }
 .qd-domain:hover { border-color: var(--maroon-border); box-shadow: var(--shadow-sm); }
-.qd-domain:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+.qd-domain:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 .qd-domain__ring { position: relative; width: 52px; height: 52px; flex-shrink: 0; }
 .qd-domain__ring svg { width: 52px; height: 52px; transform: rotate(-90deg); }
 .qd-domain__arc { transition: stroke-dasharray .9s ease-out; }
@@ -7411,7 +7414,7 @@ html.dark .kpi-unavail-icon { background: var(--surface-alt); }
   transition: border-color var(--transition-fast);
 }
 .qproc-input:focus {
-  outline: none; border-color: var(--maroon-border);
+  border-color: var(--maroon-border);
   box-shadow: var(--focus-ring);
 }
 .qproc-input--full { width: 100%; }
@@ -8339,7 +8342,6 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
 .df-form-group select:focus {
   border-color: var(--maroon-fg);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--maroon) 15%, transparent);
-  outline: none;
 }
 
 .df-errorlist {
@@ -8883,7 +8885,7 @@ html.dark .df-badge-edited {
    ========================================================================== */
 .df-container :focus-visible,
 .df-form :focus-visible {
-  outline: 2px solid var(--maroon);
+  outline: 2px solid var(--focus-color);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -9271,7 +9273,7 @@ html.dark {
 .att-btn.is-absent.is-current  { background: var(--status-danger); }
 .att-btn.is-late.is-current    { background: var(--status-warning); }
 .att-btn.is-excused.is-current { background: var(--status-info); }
-.att-btn:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+.att-btn:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 
 /* الشبكة: خليّةٌ لكلّ طالب، وأزرارُها مربّعاتٌ لا تقلّ عن 44px لمسًا. */
 .att-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--sp-3); }
@@ -9285,7 +9287,7 @@ html.dark {
   border-radius: var(--radius-lg);
   transition: border-color var(--transition-base), background var(--transition-base);
 }
-.grid-cell:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+.grid-cell:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 .grid-cell.is-success { border-color: var(--status-success); background: var(--status-success-bg); }
 .grid-cell.is-danger  { border-color: var(--status-danger);  background: var(--status-danger-bg); }
 .grid-cell.is-warning { border-color: var(--status-warning); background: var(--status-warning-bg); }
@@ -9698,7 +9700,7 @@ html.dark {
   background: var(--status-warning-dark); color: var(--on-fill);
   border-color: var(--status-warning-dark);
 }
-.rec-pick input:focus-visible + span { outline: 2px solid var(--maroon); outline-offset: 2px; }
+.rec-pick input:focus-visible + span { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 
 /* ── الذيل: زرُّ التثبيت يلزم الشاشةَ في الهاتف ── */
 .rec-foot {
@@ -9772,7 +9774,7 @@ html.dark {
 }
 .ui-kpi.is-link { transition: border-color var(--transition-base), box-shadow var(--transition-base); }
 .ui-kpi.is-link:hover { box-shadow: var(--shadow-sm); border-color: var(--kc, var(--maroon)); }
-.ui-kpi.is-link:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+.ui-kpi.is-link:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 
 @media (max-width: 640px) {
   .ui-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -9976,7 +9978,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 .period-switch__item + .period-switch__item { border-inline-start: 1px solid var(--maroon-border); }
 .period-switch__item.is-current { background: var(--maroon); color: var(--on-fill); }
-.period-switch__item:focus-visible { outline: 2px solid var(--maroon); outline-offset: -2px; }
+.period-switch__item:focus-visible { outline: 2px solid var(--focus-color); outline-offset: -2px; }
 
 /* ── 7. تقويمُ الحضور: خمسةُ أيّامِ دراسةٍ في الأسبوع ──
    خانةٌ مربّعةٌ لكلّ يوم، ولونُها الحال. والأسبوعُ من الأحد إلى الخميس،
@@ -10058,7 +10060,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 .ui-switch__input:checked + .ui-switch__track { background: var(--status-success); }
 .ui-switch__input:checked + .ui-switch__track::after { inset-inline-start: 22px; }
-.ui-switch__input:focus-visible + .ui-switch__track { outline: 2px solid var(--maroon); outline-offset: 2px; }
+.ui-switch__input:focus-visible + .ui-switch__track { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .ui-switch__track, .ui-switch__track::after { transition: none; } }
 
 /* ── 10. ملاحظةُ النموذج وأزرارُه ── */
@@ -10214,7 +10216,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   cursor: pointer;
 }
 .beh-vitem:hover { background: var(--surface-alt); }
-.beh-vitem:focus-visible { outline: 2px solid var(--maroon); outline-offset: -2px; }
+.beh-vitem:focus-visible { outline: 2px solid var(--focus-color); outline-offset: -2px; }
 .beh-vitem.is-selected { background: var(--status-info-bg); border-color: var(--status-info); font-weight: 700; }
 .beh-vitem__code { color: var(--kc-fg); font-variant-numeric: tabular-nums; }
 .beh-selected { margin-block-start: var(--sp-3); align-items: center; }
@@ -10259,7 +10261,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .beh-level-pick__option:hover .beh-level-pick__box { border-color: var(--border-strong); }
 .beh-level-pick__option input:checked + .beh-level-pick__box { border-color: var(--maroon); background: var(--maroon-bg); color: var(--maroon-fg); }
 .beh-level-pick__option.is-severe input:checked + .beh-level-pick__box { border-color: var(--status-danger); background: var(--status-danger-bg); color: var(--status-danger-fg); }
-.beh-level-pick__option input:focus-visible + .beh-level-pick__box { outline: 2px solid var(--maroon); outline-offset: 2px; }
+.beh-level-pick__option input:focus-visible + .beh-level-pick__box { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 
 /* ── التقارير الأكاديميّة — templates/academic_management/reports/ ── */
 /* صفحةُ التقارير: كلُّ سطرٍ رابطٌ إلى تقريره، والعنوانُ يأخذ لونَ الهويّة عند المرور. */
@@ -10267,7 +10269,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .report-link .plain-list__title { display: inline-flex; align-items: center; gap: 6px; }
 .report-link:hover .plain-list__title,
 .report-link:focus-visible .plain-list__title { color: var(--maroon-fg); }
-.report-link:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; border-radius: var(--radius-sm); }
+.report-link:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; border-radius: var(--radius-sm); }
 
 /* ── التقييمات ── templates/assessments/ ──
    ما يخصّ شاشاتِ الرصد والباقات وحدَها؛ والبطاقاتُ والشرائطُ من المكوّنات. */
