@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}استمارة {{ obs.teacher.full_name }} — PDF{% endblock %}
 
 {% block breadcrumbs %}
@@ -13,26 +14,21 @@
 و`{# … #}` لا يصلح هنا: صيغة التعليق تلك في Django **سطرٌ واحد**، والمتعدّد
 يُطبع نصّاً ظاهراً فوق الصفحة. وقد وقع ذلك فعلاً.
 {% endcomment %}
-<div class="card-qatar obs-pdf-page">
-  <div class="exec-header">
-    <h1>{% include "components/icon.html" with name="file-text" %}
-      استمارة {% if obs.kind == "self" %}التقييم الذاتي{% else %}الإشراف{% endif %}:
-      {{ obs.teacher.full_name }}</h1>
-    <div class="obs-pdf-actions">
-      {% if can_send %}
-      <button type="button" class="btn-primary btn-sm"
-              data-toggle="#send-box">
-        إرسال نسخة
-      </button>
-      {% endif %}
-      <a href="{% url 'observation_pdf' obs.id %}" download class="btn-secondary btn-sm">تحميل</a>
-      {% comment %}
-      الرجوع إلى القائمة لا إلى التفصيل: من يفتح الاستمارة يكون قد فرغ منها،
-      ووجهتُه التالية زيارةٌ أخرى — لا الصفحة التي جاء منها.
-      {% endcomment %}
-      <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">← رجوع للقائمة</a>
-    </div>
-  </div>
+<div class="obs-pdf-page">
+  {% page_header page_title icon="file-text" %}
+    {% if can_send %}
+    <button type="button" class="btn-primary btn-sm"
+            data-toggle="#send-box">
+      إرسال نسخة
+    </button>
+    {% endif %}
+    <a href="{% url 'observation_pdf' obs.id %}" download class="btn-secondary btn-sm">تحميل</a>
+    {% comment %}
+    الرجوع إلى القائمة لا إلى التفصيل: من يفتح الاستمارة يكون قد فرغ منها،
+    ووجهتُه التالية زيارةٌ أخرى — لا الصفحة التي جاء منها.
+    {% endcomment %}
+    <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">← رجوع للقائمة</a>
+  {% endpage_header %}
 
   {% if can_send %}
   <form id="send-box" hidden method="post" action="{% url 'observation_send' obs.id %}"

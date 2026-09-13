@@ -1,6 +1,7 @@
 {% extends "base/base.html" %}
 {% load static %}
 {% load sorting %}
+{% load ui %}
 
 {% block title %}تنفيذ الخطة التشغيلية — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
@@ -12,11 +13,7 @@
 <div class="quality-page">
 
   {# ══ Header ══════════════════════════════════════════════ #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="clipboard-check" %} تنفيذ الخطة التشغيلية</h1>
-      <p class="exec-date">المهام: {{ page_obj.paginator.count }}</p>
-    </div>
+  {% page_header "تنفيذ الخطة التشغيلية" subtitle=page_subtitle icon="clipboard-check" %}
     <div class="flex flex-wrap gap-2 items-center">
       <form method="GET" class="quality-per-page">
         {% for key, val in request.GET.items %}
@@ -36,7 +33,7 @@
       <a href="{% url 'execution_list' %}?status=Completed" class="btn-secondary btn-sm">مكتملة</a>
       <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">مسح</a>
     </div>
-  </div>
+  {% endpage_header %}
 
   {# ══ Filters ═════════════════════════════════════════════ #}
   <div class="quality-filters">

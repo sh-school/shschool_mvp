@@ -168,6 +168,7 @@ def tracking_map(request, bus_id):
 
     context = {
         "bus": bus,
+        "page_title": f"تتبع حافلة {bus.bus_number}",
         "has_karwa": bool(bus.karwa_id),
         "has_gps": bool(bus.gps_link),
     }
