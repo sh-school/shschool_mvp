@@ -394,7 +394,8 @@ def _render_card(request, school, year, teacher, caps, **extra):
 
     html = render_to_string(
         CARD_TEMPLATE,
-        {"card": _card(school, year, teacher, caps, **extra)},
+        # مفتوحةً: البطاقاتُ مطويّةٌ افتراضاً، ومن حفظ فيها لا تُطوى في وجهه.
+        {"card": _card(school, year, teacher, caps, **extra), "open": True},
         request=request,
     )
     html += _stale_card_html(request, school, year, caps, teacher)

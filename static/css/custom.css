@@ -5201,6 +5201,21 @@ th[aria-sort="descending"] .th-sort-label {
   .asg-dept { margin: 20px 0 8px; font-size: 15px; font-weight: 800; color: var(--maroon-fg); border-bottom: 2px solid var(--border); padding-bottom: 5px; }
   .asg-dept small { font-weight: 400; color: var(--text-muted); font-size: var(--text-xs); }
   .asg-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px 12px; margin-bottom: 10px; }
+  /* بطاقتان في الصفّ حيث يتّسع الجدولُ بأعمدته الثمانية، وواحدةٌ دون ذلك (قرارُ 2026-09-13).
+     `align-items: start`: البطاقةُ لا تتمدّد إلى طول جارتها المفتوحة. */
+  .asg-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-items: start; }
+  .asg-grid > .asg-card { margin-bottom: 0; min-width: 0; }
+  @media (min-width: 1600px) { .asg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .asg-tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .asg-fold > .asg-summary { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; cursor: pointer; list-style: none; }
+  .asg-fold > .asg-summary::-webkit-details-marker { display: none; }
+  .asg-fold > .asg-summary::before { content: "◂"; color: var(--text-muted); font-size: 12px; transition: transform var(--transition-base); }
+  .asg-fold[open] > .asg-summary::before { transform: rotate(-90deg); }
+  .asg-fold > .asg-summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 3px; border-radius: 6px; }
+  .asg-fold[open] > .asg-head { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+  .asg-count { font-size: 12px; color: var(--text-muted); }
+  .asg-chip-alert { background: var(--status-danger-bg); color: var(--status-danger-fg); border-color: var(--status-danger-border); }
+  .asg-table-wrap { overflow-x: auto; max-width: 100%; }
   .asg-card.asg-APPROVED, .asg-card.asg-LOCKED { border-inline-start: 4px solid var(--status-success-dark); }
   .asg-card.asg-SUBMITTED { border-inline-start: 4px solid var(--status-warning-deep); }
   .asg-card.asg-REVIEWED { border-inline-start: 4px solid var(--status-info-strong); }

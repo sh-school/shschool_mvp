@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load static %}
 {% comment %}
 شاشةُ «الإسناد» الواحدة (قرار 2026-09-06): لكلّ معلّمٍ بطاقة — نصابُه وما يدرّسه
 ومن يحضّر — والحفظُ في لحظته بلا زرٍّ ولا صفحةٍ وسيطة. المنسّقُ يُدخل لقسمه ثمّ
@@ -22,6 +23,9 @@
         — يُحفظ كلُّ تغييرٍ في لحظته
       </p>
     </div>
+    <div class="exec-meta asg-tools">
+    <button type="button" class="btn-secondary btn-sm" data-asg-fold="open">فتحُ الكلّ</button>
+    <button type="button" class="btn-secondary btn-sm" data-asg-fold="close">طيُّ الكلّ</button>
     <form method="get" class="exec-meta">
       <input type="hidden" name="year" value="{{ year }}">
       <select name="dept" class="form-select" data-autosubmit title="القسم" aria-label="القسم">
@@ -31,6 +35,7 @@
         {% endfor %}
       </select>
     </form>
+    </div>
   </div>
 
   {% comment %}
@@ -87,11 +92,17 @@
 
   {% for department in groups %}
     <h2 class="asg-dept">{{ department.name }} <small>— {{ department.cards|length }} معلّماً</small></h2>
+    <div class="asg-grid">
     {% for card in department.cards %}
       {% include "academic_management/partials/assignment_teacher.html" %}
     {% endfor %}
+    </div>
   {% empty %}
     {% include "components/empty_state.html" with title="لا معلّمين في هذا النطاق" %}
   {% endfor %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/assignment-fold.js' %}" defer></script>
 {% endblock %}
