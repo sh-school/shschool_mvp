@@ -12,8 +12,10 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from core import brand
 from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.capabilities import capability_required
+from core.export_utils import excel_table_styles, xl_font
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_order
 from core.permissions import teacher_can_access_student
@@ -467,7 +469,7 @@ def export_gradebook(request, setup_id):
     import io
 
     from openpyxl import Workbook
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment
     from openpyxl.utils import get_column_letter
 
     school = request.user.get_school()
@@ -497,12 +499,12 @@ def export_gradebook(request, setup_id):
     ws.sheet_view.rightToLeft = True
 
     # ألوان
-    HEADER_FILL = PatternFill("solid", fgColor="8A1538")
-    HEADER_FONT = Font(bold=True, color="FFFFFF", size=11)
-    ALT_FILL = PatternFill("solid", fgColor="FFF0F3")
-    BORDER_SIDE = Side(style="thin", color="CCCCCC")
-    THIN_BORDER = Border(left=BORDER_SIDE, right=BORDER_SIDE, top=BORDER_SIDE, bottom=BORDER_SIDE)
-    CENTER = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    table = excel_table_styles()
+    HEADER_FILL = table.header_fill
+    HEADER_FONT = table.header_font
+    ALT_FILL = table.alt_fill
+    THIN_BORDER = table.border
+    CENTER = table.data_align
     RIGHT_ALIGN = Alignment(horizontal="right", vertical="center")
 
     pkg_labels = {
@@ -521,7 +523,7 @@ def export_gradebook(request, setup_id):
     )
     ws.merge_cells("A1:H1")
     ws["A1"] = title
-    ws["A1"].font = Font(bold=True, size=13, color="8A1538")
+    ws["A1"].font = xl_font(brand.MAROON, size=13, bold=True)
     ws["A1"].alignment = CENTER
     ws.row_dimensions[1].height = 28
 
@@ -582,6 +584,7 @@ def export_gradebook(request, setup_id):
         for col_idx, value in enumerate(row_data, start=1):
             cell = ws.cell(row=excel_row, column=col_idx, value=value)
             cell.border = THIN_BORDER
+            cell.font = table.cell_font
             cell.alignment = CENTER if col_idx != 2 else RIGHT_ALIGN
             if fill:
                 cell.fill = fill

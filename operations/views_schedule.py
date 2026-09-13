@@ -501,7 +501,14 @@ def absence_detail(request, absence_id):
         )
 
     return render(
-        request, "substitute/absence_detail.html", {"absence": absence, "slots_data": slots_data}
+        request,
+        "substitute/absence_detail.html",
+        {
+            "absence": absence,
+            "slots_data": slots_data,
+            # عددٌ لا سلسلةُ آحاد: القالبُ كان يطبع «1» لكلّ حصّةٍ مغطّاة، فثلاثٌ تُقرأ «111».
+            "covered_count": sum(1 for row in slots_data if row["assignment"]),
+        },
     )
 
 

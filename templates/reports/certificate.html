@@ -1,8 +1,9 @@
 {% extends "reports/base_qatar_report.html" %}
+{% load brand_tags %}
 
 {% block extra_styles %}
 .cert-frame {
-  border: 4px double #8A1538;
+  border: 4px double {% brand_color "MAROON" %};
   border-radius: 8px;
   padding: 20px;
   margin: 10px 0;
@@ -20,12 +21,12 @@
 .cert-avg {
   font-size: 52px;
   font-weight: 700;
-  color: #8A1538;
+  color: {% brand_color "MAROON" %};
   line-height: 1;
 }
 .cert-avg-lbl {
   font-size: 11px;
-  color: #666;
+  color: {% brand_color "TEXT_MUTED" %};
   margin-top: 4px;
 }
 .cert-status {
@@ -74,7 +75,7 @@
   </div>
 
   <div class="cert-status" style="
-    background:{% if final_status == 'ناجح' %}#dcfce7{% elif final_status == 'راسب' %}#fee2e2{% else %}#fef3c7{% endif %};
+    background:{% if final_status == 'ناجح' %}{% brand_color "STATUS_SUCCESS_BG" %}{% elif final_status == 'راسب' %}{% brand_color "STATUS_DANGER_BG" %}{% else %}{% brand_color "STATUS_WARNING_BG" %}{% endif %};
     color:{{ status_color }}">
     {{ final_status }}
   </div>

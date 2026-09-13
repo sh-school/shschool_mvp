@@ -21,7 +21,7 @@
   </div>
 
   {# ── KPI Strip ── #}
-  <div class="kpi-strip" style="grid-template-columns:repeat(4,1fr)">
+  <div class="kpi-strip">
     <div class="kpi-mini kpi-maroon">
       <div class="kpi-mini-label">إجمالي الكتب</div>
       <div class="kpi-mini-value">{{ total_books }}</div>
@@ -158,10 +158,9 @@
   </div>
 
   {# ── Quick Links ── #}
-  <div class="quick-links" style="grid-template-columns:repeat(3,1fr)">
+  <div class="quick-links quick-links--few">
     <a href="{% url 'library:borrow_book' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="plus-circle" %}</span> إعارة جديدة</a>
     <a href="{% url 'library:book_list' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="book-open" %}</span> قائمة الكتب</a>
-    <a href="{% url 'library:book_list' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="corner-down-left" %}</span> إرجاع كتاب</a>
   </div>
 
 </div>
@@ -178,7 +177,7 @@ Chart.defaults.plugins.legend.labels.padding=6;
 Chart.defaults.plugins.legend.labels.font={size:9};
 
 const OPTS={responsive:true,maintainAspectRatio:false};
-const COLORS=['#8A1538','#0D7B6A','#1A3A5C','#D4A843','#4194B3','#6B7280']; /* chart-1→6 */
+const COLORS=chartPalette();
 
 async function fc(url,chartId){
   var loadEl=document.getElementById('loading-'+chartId);
@@ -213,7 +212,7 @@ async function fc(url,chartId){
   if(elMon && d.monthly && d.monthly.labels.length){
     new Chart(elMon,{
       type:'bar',
-      data:{labels:d.monthly.labels,datasets:[{label:'عدد الإعارات',data:d.monthly.data,backgroundColor:'#8A1538',borderRadius:4}]},
+      data:{labels:d.monthly.labels,datasets:[{label:'عدد الإعارات',data:d.monthly.data,backgroundColor:chartColor('chart-1'),borderRadius:4}]},
       options:{...OPTS,
         plugins:{legend:{display:false}},
         scales:{y:{beginAtZero:true,ticks:{precision:0,font:{size:9}}}}}

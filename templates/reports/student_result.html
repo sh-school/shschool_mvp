@@ -1,7 +1,8 @@
 {% extends "reports/base_qatar_report.html" %}
+{% load brand_tags %}
 
 {% block extra_styles %}
-.pkg { font-size: 9px; color: #888; }
+.pkg { font-size: 9px; color: {% brand_color "TEXT_MUTED" %}; }
 {% endblock %}
 
 {% block report_title_bar %}
@@ -62,7 +63,7 @@
       <th scope="col">التقدير</th>
       <th scope="col">الحالة</th>
     </tr>
-    <tr class="text-[9px] bg-[#f8f0f3]">
+    <tr class="text-[9px]" style="background:{% brand_color "MAROON_BG" %}">
       <th scope="col"></th>
       <th scope="col">الباقات</th><th scope="col">الإجمالي</th>
       <th scope="col">الباقات</th><th scope="col">الإجمالي</th>

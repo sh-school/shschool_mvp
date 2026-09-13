@@ -65,17 +65,17 @@
 
       <div class="form-group">
         <label class="form-label">وصف الخرق التفصيلي <span class="required">*</span></label>
-        <textarea name="description" class="form-control" rows="3" required
-          placeholder="ماذا حدث؟ كيف اكتُشف؟ ما البيانات المتأثرة؟" class="resize-y"></textarea>
+        <textarea name="description" class="form-control resize-y" rows="3" required
+          placeholder="ماذا حدث؟ كيف اكتُشف؟ ما البيانات المتأثرة؟"></textarea>
       </div>
       <div class="form-group">
         <label class="form-label">الإجراء الفوري المتخذ</label>
-        <textarea name="immediate_action" class="form-control" rows="2"
-          placeholder="عزل النظام، تغيير كلمات المرور، إغلاق الثغرة..." class="resize-y"></textarea>
+        <textarea name="immediate_action" class="form-control resize-y" rows="2"
+          placeholder="عزل النظام، تغيير كلمات المرور، إغلاق الثغرة..."></textarea>
       </div>
       <div class="form-group">
         <label class="form-label">إجراءات الاحتواء</label>
-        <textarea name="containment_action" class="form-control" rows="2" class="resize-y"></textarea>
+        <textarea name="containment_action" class="form-control resize-y" rows="2"></textarea>
       </div>
     </div>
 
@@ -84,8 +84,8 @@
       <div class="card-bar" style="margin:-24px -28px 20px">إشعار NCSA</div>
       <div class="form-group">
         <label class="form-label">نص الإشعار لـ NCSA (يمكن تعديله لاحقاً)</label>
-        <textarea name="notification_text" class="form-control" rows="4"
-          placeholder="وفق نموذج NCSA الرسمي..." class="resize-y">{{ ncsa_template }}</textarea>
+        <textarea name="notification_text" class="form-control resize-y" rows="4"
+          placeholder="وفق نموذج NCSA الرسمي...">{{ ncsa_template }}</textarea>
       </div>
     </div>
 

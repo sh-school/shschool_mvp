@@ -1,4 +1,4 @@
-{% autoescape off %}{
+{% load brand_tags %}{% autoescape off %}{
   "name": "مدرسة الشحانية الإعدادية",
   "short_name": "الشحانية",
   "description": "منصة إدارة مدرسة الشحانية الإعدادية الثانوية للبنين",
@@ -6,8 +6,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#8A1538",
-  "theme_color": "#8A1538",
+  "background_color": "{% brand_color 'MAROON' %}",
+  "theme_color": "{% brand_color 'MAROON' %}",
   "lang": "ar",
   "dir": "rtl",
   "categories": ["education"],

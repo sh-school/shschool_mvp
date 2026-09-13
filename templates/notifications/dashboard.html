@@ -227,8 +227,8 @@ document.addEventListener('DOMContentLoaded', function(){
       data: {
         labels: trendLabels,
         datasets: [
-          { label: 'ناجح', data: trendSuccess, backgroundColor: '#0D7B6A' },  /* chart-2 */
-          { label: 'فاشل', data: trendFailed, backgroundColor: '#dc2626' }   /* status-danger */
+          { label: 'ناجح', data: trendSuccess, backgroundColor: chartColor('chart-2') },
+          { label: 'فاشل', data: trendFailed, backgroundColor: chartColor('status-danger') }
         ]
       },
       options: {
@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', function(){
   /* ── Channel distribution (doughnut) ── */
   var chLabels = [{% for c in channel_stats %}'{{ c.channel }}'{% if not forloop.last %},{% endif %}{% endfor %}];
   var chData = [{% for c in channel_stats %}{{ c.total }}{% if not forloop.last %},{% endif %}{% endfor %}];
-  var chColors = ['#8A1538', '#0D7B6A', '#1A3A5C', '#D4A843', '#4194B3', '#6B7280']; /* chart-1→6 */
+  var chColors = chartPalette();
 
   var el2 = document.getElementById('chartChannels');
   if (el2 && chLabels.length) {
