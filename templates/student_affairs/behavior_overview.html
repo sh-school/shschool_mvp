@@ -120,7 +120,8 @@
               <span class="status-badge status-danger">{{ s.infraction_count }}</span>
             </td>
             <td style="text-align:center">
-              <a href="{% url 'student_affairs:student_profile' s.student__id %}" class="btn-xs btn-secondary">
+              <a href="{% url 'student_affairs:student_profile' s.student__id %}" class="btn-xs btn-secondary"
+                 aria-label="ملف الطالب {{ s.student__full_name }}">
                 {% include "components/icon.html" with name="file-pen" %}
               </a>
             </td>
