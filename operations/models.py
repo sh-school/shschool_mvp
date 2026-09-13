@@ -210,6 +210,14 @@ class StudentAttendance(models.Model):
     source = models.CharField(
         max_length=12, choices=SOURCES, default="teacher", db_index=True, verbose_name="المصدر"
     )
+    #: دقائقُ التأخّر عن بدء الحصّة — تُكتب مع حالة «متأخّر» وحدَها.
+    #:
+    #: والعدُّ مرّاتٍ وحدَه يسوّي بين من دخل بعد ست دقائق ومن دخل بعد ثلاثين،
+    #: والدقائقُ الضائعةُ هي ما يُقارَن لاحقاً بتحصيل الطالب في المادّة (طلبُ
+    #: المستخدم 2026-09-13). وفارغٌ يعني «لم تُقَس» لا «صفر».
+    late_minutes = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="دقائقُ التأخّر عن الحصّة"
+    )
     excuse_type = models.CharField(max_length=20, choices=EXCUSE, blank=True)
     excuse_notes = models.TextField(blank=True)
     excuse_file = models.FileField(
