@@ -557,6 +557,60 @@ class SectionDayConfirmation(models.Model):
         return f"{self.class_group.short_code} · {self.date} · غياب {self.absent_count}"
 
 
+class PeriodConfirmation(models.Model):
+    """تثبيتُ مشرف الجناح رصدَ **حصّةٍ** لشعبة — لا يومِها.
+
+    المشرفُ يدخل الفصلَ في كلّ حصّة (قرارُ 2026-09-13): الأولى قبل نهايتها،
+    والبقيّةَ في بدايتها. فالتثبيتُ لكلّ خانةٍ زمنيّة، ومنه تُشتقّ نقاطُ الحصص على
+    بطاقة الشعبة، و«الفائتة» التي لم تُثبَّت حتى خمس دقائق بعد نهايتها
+    (`PERIOD_RECORDING_GRACE_MINUTES`) — ومحاسبتُها للنائب الإداريّ.
+
+    والخانةُ لا الحصّة: زوجُ الاختيار حصّتان في خانةٍ واحدة، يُثبَّتان معاً.
+
+    ووقتان لا وقتٌ واحد: `first_confirmed_at` لحظةُ أوّل تثبيتٍ ولا يتغيّر بعدها،
+    و`confirmed_at` آخرُ تثبيت. والحصّةُ التي ثُبّتت أوّلَ مرّةٍ بعد مهلتها تبقى
+    `confirmed_late` ولو ثُبّتت ثانيةً (قرارُ 2026-09-13) — فالتثبيتُ المتأخّر لا يمحو
+    أثرَ التأخير من تقرير النائب الإداريّ.
+
+    ولا نسخَ من حصّةٍ إلى أخرى: أُزيل الزرُّ بقرار 2026-09-13 — كلُّ حصّةٍ دخولٌ إلى الفصل.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="period_confirmations"
+    )
+    class_group = models.ForeignKey(
+        ClassGroup, on_delete=models.CASCADE, related_name="period_confirmations"
+    )
+    date = models.DateField(db_index=True)
+    start_time = models.TimeField(verbose_name="بدءُ الخانة")
+    end_time = models.TimeField(verbose_name="نهايةُ الخانة")
+    confirmed_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, related_name="period_confirmations"
+    )
+    first_confirmed_at = models.DateTimeField(verbose_name="أوّلُ تثبيت")
+    confirmed_at = models.DateTimeField(auto_now=True, verbose_name="آخرُ تثبيت")
+    confirmed_late = models.BooleanField(default=False, verbose_name="ثُبّتت بعد مهلتها")
+    present_count = models.PositiveSmallIntegerField(default=0)
+    absent_count = models.PositiveSmallIntegerField(default=0)
+    late_count = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "تثبيتُ رصدِ حصّة"
+        verbose_name_plural = "تثبيتاتُ رصد الحصص"
+        ordering = ["-date", "class_group", "start_time"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["class_group", "date", "start_time"],
+                name="unique_period_confirmation",
+            )
+        ]
+        indexes = [models.Index(fields=["school", "date"])]
+
+    def __str__(self):
+        return f"{self.class_group.short_code} · {self.date} {self.start_time:%H:%M}"
+
+
 class SubjectClassAssignment(AuditedModel):
     """ربط مادة بفصل بمعلم — المصفوفة الأساسية للتوليد التلقائي.
 

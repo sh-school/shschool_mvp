@@ -5,6 +5,7 @@ import datetime as dt
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -13,13 +14,17 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for_school
 from core.models import ClassGroup, CustomUser, Wing, WingCoverage
 from core.permissions import WING_DAY_RECORD, role_required
+from operations.absence_policy import next_gate
+from operations.absence_standing import unexcused_days_for_class
 from operations.bells import day_type_for
-from operations.day_attendance import (
-    MORNING_STATES,
-    day_state,
-    enrolled_of,
-    record_day,
-    slots_of,
+from operations.day_attendance import enrolled_of
+from operations.models import StudentAttendance
+from operations.period_register import (
+    absent_yesterday,
+    cells_of,
+    confirm_period,
+    focus_period,
+    periods_of,
 )
 from operations.services import ScheduleService
 
@@ -30,6 +35,7 @@ from .services import (
     outside_the_wings,
     record_panels,
     substitute_pool,
+    wings_of,
 )
 
 DAY_LABEL = {"regular": "الأحد – الأربعاء", "thursday": "الخميس"}
@@ -193,52 +199,106 @@ def record_index(request):
     )
 
 
-@login_required
-@role_required(WING_DAY_RECORD)
-def record_section(request, class_id):
-    """رصدُ شعبةٍ ليومٍ كامل — بالاستثناء: يُلمس الغائبُ وحدَه.
+def _time(raw):
+    try:
+        return dt.time.fromisoformat(raw)
+    except (TypeError, ValueError):
+        return None
 
-    و`POST` يكتب الحالةَ في **كلّ** حصص اليوم (السريان، §0.11) ويثبّت الشعبة.
+
+def _own_class(request, class_id):
+    """شعبةٌ من أجنحة المستخدم وحدَها — والمشرفُ لجناحه فقط (قرارُ 2026-09-13).
+
+    والقيادةُ ترى الأجنحةَ الخمسة (`wings_of`). ومن طلب شعبةَ جناحٍ آخر برابطها
+    المباشر يلقى 404 لا 403: وجودُ الشعبة في جناحٍ غيرِه ليس شأنَه.
     """
     school = request.user.get_school()
     klass = get_object_or_404(ClassGroup, id=class_id, school=school)
-    day = _day(request.POST.get("date") or request.GET.get("date"), timezone.localdate())
+    year = academic_year_for_school(school)
+    if klass.wing_id not in {w.id for w in wings_of(request.user, school, year)}:
+        raise Http404("ليست من شُعب جناحك")
+    return school, klass
+
+
+@login_required
+@role_required(WING_DAY_RECORD)
+def record_section(request, class_id):
+    """كشفُ الشعبة: الطلابُ صفوفاً، والحصصُ أعمدةً، والحصّةُ المفتوحةُ للرصد.
+
+    تُفتح الحصّةُ الجارية، وإلّا أوّلُ فائتة، وإلّا أوّلُ قادمة — ويُختار غيرُها
+    بـ`?p=HH:MM`. وكلُّ طالبٍ بجانبه ما يغيّر قرارَ المشرف في لحظته: «غاب أمس»،
+    وأيّامُ غيابه بلا عذرٍ أمام أوّل عتبةٍ لم يتجاوزها.
+    """
+    school, klass = _own_class(request, class_id)
+    day = _day(request.GET.get("date"), timezone.localdate())
     ScheduleService.ensure_sessions_for_date(school, day)
 
-    if request.method == "POST":
-        states = {
-            key.removeprefix("s-"): value
-            for key, value in request.POST.items()
-            if key.startswith("s-") and value in MORNING_STATES
-        }
-        result = record_day(
-            klass, day, states, by=request.user, note=(request.POST.get("note") or "").strip()
-        )
-        if result.confirmation is None:
-            messages.error(
-                request,
-                f"لا حصصَ لـ{klass.short_code} في {day} — فلا شيءَ يُرصد.",
-            )
-        else:
-            messages.success(request, f"ثُبّتت {klass.short_code}: {result.says}.")
-        return redirect(f"{reverse('wings:record_index')}?date={day.isoformat()}")
+    now = timezone.now()
+    periods = periods_of(klass, day)
+    wanted = _time(request.GET.get("p"))
+    focus = next((p for p in periods if p.start == wanted), None) or focus_period(periods, day, now)
+    cells = cells_of(klass, day)
+    yesterday = absent_yesterday(klass, day)
+    unexcused = unexcused_days_for_class(klass, school, day)
 
-    state = day_state(klass, day)
-    students = [
-        {
-            "student": e.student,
-            "status": state.get(e.student_id, {}).get("status", "present"),
-        }
-        for e in enrolled_of(klass)
-    ]
+    rows = []
+    for enrollment in enrolled_of(klass):
+        sid = enrollment.student_id
+        days = unexcused.get(sid, 0)
+        gate = next_gate(klass.grade, days)
+        own = cells.get(sid, {})
+        rows.append(
+            {
+                "student": enrollment.student,
+                "track": [(p, own.get(p.start)) for p in periods],
+                "cell": own.get(focus.start) if focus else None,
+                "absent_yesterday": sid in yesterday,
+                "days": days,
+                "gate": gate,
+            }
+        )
     return render(
         request,
         "wings/record_section.html",
         {
             "klass": klass,
             "day": day,
-            "students": students,
-            "periods": slots_of(klass, day),
-            "already": bool(state),
+            "periods": [(p, p.status(day, now)) for p in periods],
+            "focus": focus,
+            "focus_status": focus.status(day, now) if focus else "",
+            "measured_now": bool(focus and focus.in_window(day, now)),
+            "rows": rows,
+            "whereabouts": [w for w in StudentAttendance.WHEREABOUTS if w[0] != "gate"],
+            "draft_key": f"rec:{klass.id}:{day.isoformat()}:{focus.key if focus else ''}",
         },
     )
+
+
+@login_required
+@role_required(WING_DAY_RECORD)
+@require_POST
+def record_period(request, class_id):
+    """تثبيتُ حصّة — ومعه مخالفتا التأخّر والهروب إن استوجبهما الرصد."""
+    school, klass = _own_class(request, class_id)
+    day = _day(request.POST.get("date"), timezone.localdate())
+    start = _time(request.POST.get("start"))
+    back = f"{reverse('wings:record_section', args=[klass.id])}?date={day.isoformat()}"
+
+    marks: dict = {}
+    for key, value in request.POST.items():
+        for prefix, field in (
+            ("s-", "status"),
+            ("w-", "whereabouts"),
+            ("m-", "late_minutes"),
+            ("t-", "tapped_at"),
+        ):
+            if key.startswith(prefix):
+                marks.setdefault(key.removeprefix(prefix), {})[field] = value
+    try:
+        result = confirm_period(klass, day, start, marks, by=request.user)
+    except ValueError as err:
+        messages.error(request, str(err))
+        return redirect(back)
+
+    messages.success(request, f"ثُبّتت {klass.short_code} — {result.says}.")
+    return redirect(back)

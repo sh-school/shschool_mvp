@@ -5,9 +5,9 @@
       {{ panel.wing.name }}
       <span class="card-bar-sub">
         {% if panel.done == panel.total %}
-          رُصدت كلُّها — {{ panel.done }}/{{ panel.total }}
+          لا حصّةَ تنتظر — {{ panel.done }}/{{ panel.total }}
         {% else %}
-          المتبقّية {{ panel.remaining }} من {{ panel.total }}
+          تنتظر الرصدَ {{ panel.remaining }} من {{ panel.total }}
         {% endif %}
       </span>
     </div>
@@ -15,16 +15,28 @@
     <div class="rec-sections">
       {% for row in panel.rows %}
         <a href="{% url 'wings:record_section' row.class_group.id %}?date={{ day|date:'Y-m-d' }}"
-           class="rec-chip{% if row.is_recorded %} is-done{% endif %}{% if not row.periods %} is-empty{% endif %}">
+           class="rec-chip{% if row.is_recorded and row.shown %} is-done{% elif row.is_recorded %} is-waiting{% endif %}{% if not row.periods %} is-empty{% endif %}{% if row.missed %} is-missed{% endif %}">
           <span class="rec-chip__code">{{ row.class_group.short_code }}</span>
-          <span class="rec-chip__say">
-            {% if not row.periods %}
-              لا حصصَ اليوم
-            {% else %}
-              {{ row.says }}
-            {% endif %}
+          {% if not row.periods %}
+            <span class="rec-chip__say">لا حصصَ اليوم</span>
+          {% elif row.shown %}
+            {% with c=row.shown.confirmation %}
+            <span class="rec-chip__counts" aria-label="الحصّة {{ row.shown.number }}">
+              <span class="rec-count is-present">حاضر {{ c.present_count }}</span>
+              <span class="rec-count is-absent">غائب {{ c.absent_count }}</span>
+              <span class="rec-count is-late">متأخّر {{ c.late_count }}</span>
+            </span>
+            <span class="rec-chip__meta">آخرُ تثبيت: الحصّة {{ row.shown.number }}{% if row.missed %} · حصصٌ لم تُرصد {{ row.missed }}{% endif %}</span>
+            {% endwith %}
+          {% else %}
+            <span class="rec-chip__say">لم تُرصد{% if row.missed %} · حصصٌ لم تُرصد {{ row.missed }}{% endif %}</span>
+          {% endif %}
+          <span class="per-track" aria-label="حصص اليوم">
+            {% for period, status in row.dots %}
+              <span class="per-dot is-{{ status }}" title="ح{{ period.number }} {{ period.start|time:'H:i' }}"></span>
+            {% endfor %}
           </span>
-          <span class="rec-chip__meta">{{ row.students }} طالباً · {{ row.periods }} حصّة</span>
+          <span class="rec-chip__meta">{{ row.students }} طالباً</span>
         </a>
       {% endfor %}
     </div>

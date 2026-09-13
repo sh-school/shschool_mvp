@@ -199,6 +199,67 @@ def standing_for(student, school, grade=None, on=None, ese: bool = False) -> Sta
     )
 
 
+def unexcused_days_for_class(class_group, school, on=None) -> dict:
+    """أيّامُ الغياب بلا عذرٍ لطلاب شعبةٍ كلِّهم — لكشف الحصص.
+
+    `standing_for` لطالبٍ واحد: استعلامان. وكشفُ شعبةٍ من خمسةٍ وثلاثين طالباً
+    يعرض لكلٍّ منهم «n أيّام» بجانب اسمه — فسبعون استعلاماً لصفحةٍ تُفتح كلَّ
+    حصّة. فهنا استعلامان للشعبة كلِّها، والحكمُ نفسُه (`_judge`).
+    """
+    from core.academic_calendar import academic_year_window
+    from operations.models import Session, StudentAttendance
+
+    window = academic_year_window(school, on)
+    if window is None:
+        return {}
+    start, end = window[0], min(window[1], on or _today())
+
+    scheduled: dict = {}
+    for date, start_time in (
+        Session.objects.filter(
+            school=school, class_group=class_group, date__gte=start, date__lte=end
+        )
+        .exclude(status="cancelled")
+        .values_list("date", "start_time")
+        .distinct()
+    ):
+        scheduled.setdefault(date, set()).add(start_time)
+
+    per_student: dict = {}
+    rows = StudentAttendance.objects.filter(
+        school=school,
+        session__class_group=class_group,
+        session__date__gte=start,
+        session__date__lte=end,
+    ).values_list("student_id", "session__date", "session__start_time", "status", "excuse_type")
+    for student_id, date, start_time, status, excuse in rows:
+        days = per_student.setdefault(student_id, {})
+        day = days.setdefault(
+            date,
+            {
+                "scheduled": set(scheduled.get(date, ())),
+                "recorded": set(),
+                "attended": set(),
+                "unexcused": set(),
+                "excused": set(),
+            },
+        )
+        day["scheduled"].add(start_time)
+        day["recorded"].add(start_time)
+        if status in ATTENDED:
+            day["attended"].add(start_time)
+        elif status == "absent":
+            day["excused" if excuse else "unexcused"].add(start_time)
+
+    result = {}
+    for student_id, days in per_student.items():
+        for day in days.values():
+            day["unexcused"] -= day["attended"]
+            day["excused"] -= day["attended"] | day["unexcused"]
+        result[student_id] = sum(1 for d in days.values() if _judge(d) == "absent_unexcused")
+    return result
+
+
 def _today():
     from django.utils import timezone
 

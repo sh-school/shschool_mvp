@@ -263,6 +263,28 @@ class BehaviorInfraction(models.Model):
     # ── التواريخ ──
     date = models.DateField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
+    #: الحصّةُ التي وقعت فيها — وبها تُعرف المادّة. «الهروبُ من الحصّة» يُعدّ
+    #: تكرارُه **لكلّ مادّةٍ على حدة** (الدليل التنظيميّ 2026، ص91)، والمادّةُ
+    #: لا تُعرف بلا الحصّة.
+    session = models.ForeignKey(
+        "operations.Session",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="infractions",
+        verbose_name="الحصّة",
+    )
+    #: مخالفةٌ أنشأها الرصدُ لا شخص: التأخّرُ عن الحصّة بعد خمس دقائق، والهروبُ
+    #: منها. وبه تُصحَّح: حين يعدّل المشرفُ حالةَ الطالب تُزال المخالفةُ التي
+    #: صنعتها الحالةُ السابقة — ولا يُمسّ ما كتبه أحدٌ بيده.
+    AUTO_RULES = [
+        ("period_tardy", "تأخّرٌ عن الحصّة (من الرصد)"),
+        ("class_escape", "هروبٌ من الحصّة (من الرصد)"),
+        ("school_escape", "هروبٌ من المدرسة (من الرصد)"),
+    ]
+    auto_rule = models.CharField(
+        max_length=16, choices=AUTO_RULES, blank=True, default="", verbose_name="أنشأها الرصد"
+    )
 
     # ── الدرجة والوصف ──
     level = models.PositiveSmallIntegerField(
@@ -407,6 +429,14 @@ class BehaviorInfraction(models.Model):
             models.Index(
                 fields=["school", "level", "is_resolved"], name="idx_infraction_level_resolved"
             ),
+        ]
+        constraints = [
+            # الرصدُ يُعاد (تصحيحٌ، أو تثبيتٌ ثانٍ) — ومخالفتُه لا تتضاعف.
+            models.UniqueConstraint(
+                fields=["student", "session", "auto_rule"],
+                condition=~models.Q(auto_rule=""),
+                name="unique_auto_infraction_per_session",
+            )
         ]
 
     def __str__(self):
