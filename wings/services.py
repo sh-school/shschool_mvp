@@ -67,6 +67,12 @@ class FloorPanel:
     def section_count(self) -> int:
         return sum(len(card.sections) for card in self.wings)
 
+    @property
+    def width_weight(self) -> float:
+        """نصيبُ الطابق من عرض السطر: جناحٌ بواحد، وذو الجرسين بواحدٍ ونصف
+        — لأنّه يقول موضعين في سطرٍ واحد."""
+        return max(1, sum(1.5 if card.is_split else 1 for card in self.wings))
+
 
 @dataclass(frozen=True)
 class BellTable:
@@ -82,12 +88,60 @@ class BellTable:
     bells: list[Bell]
 
     @property
+    def columns(self) -> list[BellColumn]:
+        """الأجراسُ المتطابقةُ خاناتٍ عمودٌ واحد — والمختلفةُ أعمدةٌ متجاورة.
+
+        التاسعُ والثانويُّ في الطابق الأوّل يرنّان معاً من الأحد إلى الأربعاء،
+        فعمودان لهما يكرّران تسعةَ أسطرٍ حرفاً بحرف. ويوم الخميس يفترقان،
+        فيفترق عموداهما. فالدمجُ بالخانات لا بالاسم.
+        """
+        columns: list[BellColumn] = []
+        for bell in self.bells:
+            twin = next((c for c in columns if _reads_the_same(c.slots, bell.slots)), None)
+            if twin:
+                twin.bells.append(bell)
+            else:
+                columns.append(BellColumn(bells=[bell]))
+        return columns
+
+    @property
     def rows(self) -> list[list]:
-        depth = max((len(bell.slots) for bell in self.bells), default=0)
+        columns = self.columns
+        depth = max((len(column.slots) for column in columns), default=0)
         return [
-            [bell.slots[index] if index < len(bell.slots) else None for bell in self.bells]
+            [column.slots[index] if index < len(column.slots) else None for column in columns]
             for index in range(depth)
         ]
+
+
+def _reads_the_same(a, b) -> bool:
+    """خاناتٌ تُقرأ واحدةً: الاسمُ والوقتُ — لا رقمُ الصفّ الداخليّ في الإعدادات."""
+    return [(s.label, s.start, s.end, s.is_break) for s in a] == [
+        (s.label, s.start, s.end, s.is_break) for s in b
+    ]
+
+
+@dataclass
+class BellColumn:
+    """عمودٌ في جدول التوقيت: جرسٌ أو أجراسٌ خاناتُها واحدة."""
+
+    bells: list[Bell]
+
+    @property
+    def slots(self):
+        return self.bells[0].slots
+
+    @property
+    def name(self) -> str:
+        """«التاسع 3·4 والثانويّ 10–12 (الطابق الأوّل)» — والطابقُ المشترك يُقال مرّة."""
+        names = [bell.band_name for bell in self.bells]
+        if len(names) == 1:
+            return names[0]
+        tails = {name.rsplit(" (", 1)[1] for name in names if " (" in name}
+        if len(tails) == 1 and all(" (" in name for name in names):
+            heads = [name.rsplit(" (", 1)[0] for name in names]
+            return " و".join(heads) + " (" + tails.pop()
+        return " و".join(names)
 
 
 @dataclass(frozen=True)

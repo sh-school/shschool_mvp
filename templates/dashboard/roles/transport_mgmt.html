@@ -1,0 +1,17 @@
+{% load ui %}
+<div class="exec-dash">
+
+  {% page_header "لوحة النقل المدرسي" subtitle=subtitle icon="bus" %}{% endpage_header %}
+
+  {% kpi_strip label="النقل" %}
+    {% kpi "حافلات المدرسة" buses_count tone="green" %}
+    {% kpi "مساراتٌ معرَّفة" total_routes tone="teal" %}
+  {% endkpi_strip %}
+
+  <nav class="ui-actions" aria-label="إجراءات سريعة">
+    {% url 'transport:dashboard' as u %}{% action_tile "لوحة النقل" desc="الحافلاتُ والمسارات" icon="map" href=u primary=True %}
+    {% url 'transport:buses_list' as u %}{% action_tile "الأسطول" desc="قائمة الحافلات" icon="bus" href=u %}
+    {% url 'transport:statistics' as u %}{% action_tile "التقارير" desc="إحصاءاتُ النقل" icon="bar-chart" href=u %}
+  </nav>
+
+</div>

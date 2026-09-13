@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static %}
+{% load static ui %}
 {% block title %}العيادة المدرسية — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -9,151 +9,72 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1 class="exec-title">{% include "components/icon.html" with name="hospital" %} لوحة العيادة</h1>
-      <p class="exec-subtitle">متابعة زيارات الطلاب والسجلات الصحية</p>
-    </div>
-    <div class="exec-meta">
-      <span class="exec-date">{{ today|date:"D، d M Y"|default:"اليوم" }}</span>
-    </div>
-  </div>
+  {% page_header "لوحة العيادة" subtitle=today_label icon="hospital" %}
+    <a href="{% url 'clinic:record_visit' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} تسجيل زيارة</a>
+    <a href="{% url 'clinic:statistics' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} الإحصائيات</a>
+    <a href="{% url 'clinic:visits_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="clipboard" %} السجلات</a>
+  {% endpage_header %}
 
-  {# ── KPI Strip ── #}
-  <div class="kpi-strip" style="grid-template-columns:repeat(4,1fr)">
-    <div class="kpi-mini kpi-blue">
-      <div class="kpi-mini-label">زيارات اليوم</div>
-      <div class="kpi-mini-value">{{ visits_today }}</div>
-      <div class="kpi-mini-sub">{% now "d/m/Y" %}</div>
-    </div>
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">أُرسلوا للمنزل</div>
-      <div class="kpi-mini-value">{{ sent_home_today }}</div>
-      {% if sent_home_today > 0 %}<div class="kpi-mini-alert">{% include "components/icon.html" with name="alert-triangle" %} تنبيه</div>
-      {% else %}<div class="kpi-mini-sub">لا يوجد</div>{% endif %}
-    </div>
-    <div class="kpi-mini kpi-teal">
-      <div class="kpi-mini-label">إجمالي الشهر</div>
-      <div class="kpi-mini-value">{{ month_total }}</div>
-      <div class="kpi-mini-sub">زيارة هذا الشهر</div>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <div class="kpi-mini-label">زوار متكررون (3+)</div>
-      <div class="kpi-mini-value">{{ frequent|length }}</div>
-      {% if frequent|length > 0 %}<div class="kpi-mini-alert">يحتاج متابعة</div>
-      {% else %}<div class="kpi-mini-sub">لا يوجد</div>{% endif %}
-    </div>
-  </div>
+  {% kpi_strip label="أرقام العيادة" %}
+    {% kpi "زيارات اليوم" visits_today tone="blue" %}
+    {% kpi "أُعيدوا للمنزل" sent_home_today tone=sent_home_tone title="طلابٌ أُرسلوا إلى المنزل اليوم" %}
+    {% kpi "زيارات الشهر" month_total tone="teal" %}
+    {% kpi "متكرّرو الزيارة" frequent|length sub="3 فأكثر" tone=frequent_tone title="طلابٌ زاروا العيادة ثلاثَ مرّاتٍ فأكثر هذا الشهر" %}
+  {% endkpi_strip %}
 
-  {# ── Alert Strip ── #}
-  {% if follow_up_visits %}
-  <div class="alert-strip">
-    <span>{% include "components/icon.html" with name="alert-triangle" %}</span>
-    <a href="{% url 'clinic:visits_list' %}">{{ follow_up_visits|length }} طالب أُرسل للمنزل اليوم</a>
-  </div>
-  {% endif %}
-
-  {# ── Charts Grid ── #}
-  <div class="charts-grid-2">
-    {# Chart 1: 30-day visits trend #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="activity" %} اتجاه الزيارات — آخر 30 يوم</div>
+  <div class="ui-grid-2">
+    {% section_card "اتجاه الزيارات" meta="آخر 30 يوماً" icon="activity" %}
       <div class="dash-chart-wrap">
         <div class="chart-loading" id="loading-chartClinic">جاري التحميل...</div>
-        <canvas id="chartClinic" role="img" aria-label="رسم بياني: اتجاه الزيارات آخر 30 يوم"></canvas>
+        <canvas id="chartClinic" role="img" aria-label="رسم بياني: اتجاه الزيارات آخر 30 يوماً"></canvas>
       </div>
-    </div>
+    {% endsection_card %}
 
-    {# Card 2: Frequent visitors list #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="users" %} الزوار المتكررون هذا الشهر</div>
-      {% if frequent %}
-      <div class="dash-list" style="max-height:220px;overflow-y:auto">
-        {% for f in frequent %}
-        <div class="dash-list-item" style="display:flex;align-items:center;justify-content:space-between">
-          <span>{{ f.student__full_name }}</span>
-          <span class="kpi-mini-alert">{{ f.visit_count }} زيارة</span>
-        </div>
+    {% section_card "أُرسلوا للمنزل اليوم" meta=follow_up_visits|length icon="alert-triangle" empty="لم يُرسَل أحدٌ إلى المنزل اليوم" %}{% if follow_up_visits %}
+      <ul class="plain-list is-scroll">
+        {% for visit in follow_up_visits %}
+          <li class="plain-list__row">
+            <span class="plain-list__main"><b class="plain-list__title">{{ visit.student.full_name }}</b><span class="plain-list__sub">{{ visit.reason }}</span></span>
+            <span class="status-badge {% if visit.parent_notified %}status-success{% else %}status-danger{% endif %}">{{ visit.parent_notified|yesno:"أُشعر وليّ الأمر,لم يُشعَر بعد" }}</span>
+          </li>
         {% endfor %}
-      </div>
-      {% else %}
-      <p style="font-size:.75rem;color:var(--text-muted);padding:8px 10px">لا يوجد زوار متكررون هذا الشهر</p>
-      {% endif %}
-    </div>
+      </ul>
+    {% endif %}{% endsection_card %}
   </div>
 
-  {# ── Peak Hours (collapsible) ── #}
+  <div class="ui-grid-2">
+    {% section_card "آخر الزيارات" meta=recent_visits|length icon="clipboard" empty="لا زياراتٍ مسجّلة" %}{% if recent_visits %}
+      <ul class="plain-list is-scroll">
+        {% for visit in recent_visits %}
+          <li class="plain-list__row">
+            <span class="plain-list__main"><b class="plain-list__title">{{ visit.student.full_name }}</b><span class="plain-list__sub">{{ visit.reason }} · {{ visit.visit_date|date:"d/m H:i" }}</span></span>
+            <span class="status-badge {% if visit.is_sent_home %}status-danger{% else %}status-success{% endif %}">{% if visit.is_sent_home %}أُرسل للمنزل{% else %}عولج{% endif %}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
+
+    {% section_card "متكرّرو الزيارة هذا الشهر" meta=frequent|length icon="users" empty="لا زوّارَ متكرّرين هذا الشهر" %}{% if frequent %}
+      <ul class="plain-list is-scroll">
+        {% for f in frequent %}
+          <li class="plain-list__row">
+            <span class="plain-list__title">{{ f.student__full_name }}</span>
+            <span class="status-badge status-warning">{{ f.visit_count }} زيارات</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
+  </div>
+
   {% if peak_hours %}
-  <details class="exec-details">
-    <summary class="exec-details-summary">
-      {% include "components/icon.html" with name="clock" %} ساعات الذروة (آخر 7 أيام)
-    </summary>
-    <div class="kpi-strip mt-3" style="grid-template-columns:repeat(auto-fill,minmax(100px,1fr))">
+  {% section_card "ساعات الذروة" meta="آخر 7 أيّام" icon="clock" %}
+    <ul class="chip-row" aria-label="الزيارات بالساعة">
       {% for ph in peak_hours %}
-      <div class="kpi-mini kpi-blue">
-        <div class="kpi-mini-label">{{ ph.hour }}:00</div>
-        <div class="kpi-mini-value">{{ ph.count }}</div>
-        <div class="kpi-mini-sub">زيارة</div>
-      </div>
+        <li class="chip-stat"><span class="chip-stat__key">{{ ph.hour }}:00</span><b class="chip-stat__value">{{ ph.count }}</b></li>
       {% endfor %}
-    </div>
-  </details>
+    </ul>
+  {% endsection_card %}
   {% endif %}
-
-  {# ── Students sent home today (collapsible) ── #}
-  {% if follow_up_visits %}
-  <details class="exec-details" open>
-    <summary class="exec-details-summary">
-      {% include "components/icon.html" with name="alert-triangle" %} طلاب أُرسلوا للمنزل اليوم
-      <span class="kpi-mini-alert ms-2">{{ follow_up_visits|length }}</span>
-    </summary>
-    <div class="dash-list mt-3">
-      {% for visit in follow_up_visits %}
-      <div class="dash-list-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <div>
-          <strong style="font-size:.75rem">{{ visit.student.full_name }}</strong>
-          <span style="font-size:.65rem;color:var(--text-muted);display:block">{{ visit.reason }}</span>
-        </div>
-        <span style="font-size:.6rem;font-weight:600;color:{% if visit.parent_notified %}var(--status-success-fg){% else %}var(--status-danger-fg){% endif %}">
-          {{ visit.parent_notified|yesno:"أُشعر ولي الأمر,لم يُشعَر بعد" }}
-        </span>
-      </div>
-      {% endfor %}
-    </div>
-  </details>
-  {% endif %}
-
-  {# ── Recent visits ── #}
-  <details class="exec-details" open>
-    <summary class="exec-details-summary">
-      {% include "components/icon.html" with name="list" %} آخر الزيارات
-    </summary>
-    {% if recent_visits %}
-    <div class="dash-list mt-3" style="max-height:300px;overflow-y:auto">
-      {% for visit in recent_visits %}
-      <div class="dash-list-item" style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <div>
-          <strong style="font-size:.75rem">{{ visit.student.full_name }}</strong>
-          <span style="font-size:.6rem;color:var(--text-muted);display:block">{{ visit.reason }} — {{ visit.visit_date|date:"d/m/Y H:i" }}</span>
-        </div>
-        <span style="font-size:.6rem;font-weight:600;color:{% if visit.is_sent_home %}var(--status-danger-fg){% else %}var(--status-success-fg){% endif %}">
-          {% if visit.is_sent_home %}أُرسل للمنزل{% else %}عولج{% endif %}
-        </span>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p style="font-size:.75rem;color:var(--text-muted);padding:12px 10px">لا توجد زيارات مسجّلة</p>
-    {% endif %}
-  </details>
-
-  {# ── Quick Links ── #}
-  <div class="quick-links" style="grid-template-columns:repeat(3,1fr)">
-    <a href="{% url 'clinic:record_visit' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="plus-circle" %}</span> تسجيل زيارة</a>
-    <a href="{% url 'clinic:visits_list' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="bar-chart" %}</span> الإحصائيات</a>
-    <a href="{% url 'clinic:visits_list' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="clipboard" %}</span> السجلات الصحية</a>
-  </div>
 
 </div>
 {% endblock %}

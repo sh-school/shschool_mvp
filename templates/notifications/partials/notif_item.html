@@ -26,11 +26,11 @@
       {# Priority badge #}
       <div class="mb-1">
         {% if notif.priority == "urgent" %}
-          <span class="status-badge status-danger" class="text-xs">{% include "components/icon.html" with name="alert-critical" %} عاجل</span>
+          <span class="status-badge status-danger text-xs">{% include "components/icon.html" with name="alert-critical" %} عاجل</span>
         {% elif notif.priority == "high" %}
-          <span class="status-badge status-warning" class="text-xs">{% include "components/icon.html" with name="alert-triangle" %} مهم</span>
+          <span class="status-badge status-warning text-xs">{% include "components/icon.html" with name="alert-triangle" %} مهم</span>
         {% elif not notif.is_read %}
-          <span class="status-badge status-maroon" class="text-xs">جديد</span>
+          <span class="status-badge status-maroon text-xs">جديد</span>
         {% endif %}
       </div>
 

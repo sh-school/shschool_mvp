@@ -73,6 +73,11 @@ urlpatterns = [
         name="styleguide",
     ),
     path(
+        "styleguide/components/",
+        login_required(TemplateView.as_view(template_name="styleguide/components.html")),
+        name="ui_components",
+    ),
+    path(
         "styleguide/icons/",
         login_required(TemplateView.as_view(template_name="styleguide/icon_preview.html")),
         name="icon_preview",
