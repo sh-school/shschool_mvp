@@ -87,7 +87,9 @@ def test_the_national_id_is_encrypted_on_save(db, placeholder):
 
 def test_it_refuses_a_record_that_is_not_a_placeholder(db, school):
     """سجلٌّ حقيقيّ بياناته من شؤون الموظفين، ولا يُصحَّح من سطر أوامر."""
-    CustomUser.objects.create(national_id="28912345678", full_name="جمال صالح")
+    CustomUser.objects.create(
+        must_change_password=False, national_id="28912345678", full_name="جمال صالح"
+    )
 
     with pytest.raises(CommandError, match="سجلٌّ حقيقيٌّ"):
         _run("--placeholder", "جمال صالح", *_args(), "--apply")
@@ -100,7 +102,9 @@ def test_a_missing_name_stops_the_command(db, school):
 
 def test_a_national_id_held_by_another_is_refused(db, placeholder):
     """رقمٌ يحمله غيرُه قد يكون شخصاً آخر لا خطأ إدخال."""
-    CustomUser.objects.create(national_id="29273603822", full_name="آخر")
+    CustomUser.objects.create(
+        must_change_password=False, national_id="29273603822", full_name="آخر"
+    )
 
     with pytest.raises(CommandError, match="الرقم الشخصي"):
         _run("--placeholder", "جمال صالح", *_args(), "--apply")
@@ -110,7 +114,12 @@ def test_a_national_id_held_by_another_is_refused(db, placeholder):
 
 
 def test_an_employee_number_held_by_another_is_refused(db, placeholder):
-    CustomUser.objects.create(national_id="28900000001", full_name="آخر", employee_number="197985")
+    CustomUser.objects.create(
+        must_change_password=False,
+        national_id="28900000001",
+        full_name="آخر",
+        employee_number="197985",
+    )
 
     with pytest.raises(CommandError, match="الرقم الوظيفي"):
         _run("--placeholder", "جمال صالح", *_args(), "--apply")
@@ -118,8 +127,8 @@ def test_an_employee_number_held_by_another_is_refused(db, placeholder):
 
 def test_blank_employee_numbers_do_not_collide(db, school):
     """الشرط يستثني الفراغ — وأكثرُ السجلّات بلا رقمٍ وظيفيّ بعد."""
-    CustomUser.objects.create(national_id="28900000002", full_name="أ")
-    CustomUser.objects.create(national_id="28900000003", full_name="ب")
+    CustomUser.objects.create(must_change_password=False, national_id="28900000002", full_name="أ")
+    CustomUser.objects.create(must_change_password=False, national_id="28900000003", full_name="ب")
 
     assert CustomUser.objects.filter(employee_number="").count() == 2
 
