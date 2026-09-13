@@ -18,15 +18,12 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, academic_year_for_school
+from core.capabilities import capability_required
 from core.models import CustomUser, Membership
 from core.models.academic import grade_order
 from core.models.access import EXEMPTABLE_ROLES
 from core.permissions import (
-    OPERATIONS_REPORTS,
-    SCHEDULE_ADMIN,
     SCHEDULE_BROWSE,
-    SCHEDULE_SETTINGS,
-    role_required,
 )
 
 from .models import (
@@ -109,18 +106,7 @@ def _safe_schedule_settings_redirect(request, fallback_year=None):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "e_projects_coordinator",
-    "teacher",
-    "ese_teacher",
-    "academic_advisor",
-    "admin_supervisor",
-    "admin",
-)
+@capability_required("schedule.weekly")
 def weekly_schedule(request):
     """صفحةُ الجدول الأسبوعيّ — وهي ورقةُ الطباعة نفسُها داخل المنصّة.
 
@@ -310,7 +296,7 @@ def _schedule_print_payload(request) -> dict:
 # صفحة العرض في المنصّة — والمصدرُ هو الموقع نفسه، فـ sameorigin يكفي.
 @xframe_options_sameorigin
 @login_required
-@role_required(SCHEDULE_BROWSE | {"teacher", "ese_teacher", "academic_advisor"})
+@capability_required("schedule.print")
 def schedule_print(request):
     """ورقةُ الطباعة نفسها — A4/A3، بلا هيدر المنصّة ولا فوترها."""
     return render(request, "schedule/print_schedule.html", _schedule_print_payload(request))
@@ -329,7 +315,7 @@ def _export_filename(ctx: dict, extension: str) -> str:
 
 
 @login_required
-@role_required(SCHEDULE_BROWSE | {"teacher", "ese_teacher", "academic_advisor"})
+@capability_required("schedule.print")
 def schedule_export_pdf(request):
     """الورقةُ نفسها ملفَّ PDF — قالبٌ واحدٌ للشاشة والورق والملفّ.
 
@@ -355,7 +341,7 @@ def schedule_export_pdf(request):
 
 
 @login_required
-@role_required(SCHEDULE_BROWSE | {"teacher", "ese_teacher", "academic_advisor"})
+@capability_required("schedule.print")
 def schedule_export_excel(request):
     """الورقةُ نفسها مصنَّفَ Excel — بالشكل نفسه لا ببياناتٍ خام."""
     from io import BytesIO
@@ -381,7 +367,7 @@ def schedule_export_excel(request):
 
 
 @login_required
-@role_required(SCHEDULE_BROWSE | {"teacher", "ese_teacher", "academic_advisor"})
+@capability_required("schedule.print")
 def schedule_print_view(request):
     """الرابطُ القديم لصفحة الطباعة — صارت هي صفحةَ الجدول، فيُحال إليها.
 
@@ -398,7 +384,7 @@ def schedule_print_view(request):
 
 
 @login_required
-@role_required(OPERATIONS_REPORTS)
+@capability_required("operations.reports")
 def teacher_absence_list(request):
     """قائمة غيابات المعلمين — للمدير والمنسق"""
     from core.permissions import get_department_teacher_ids
@@ -425,7 +411,7 @@ def teacher_absence_list(request):
 
 
 @login_required
-@role_required(OPERATIONS_REPORTS)
+@capability_required("operations.reports")
 def register_teacher_absence(request):
     """تسجيل غياب معلم — للمدير والمنسق"""
     from core.permissions import get_department_teacher_ids
@@ -473,7 +459,7 @@ def register_teacher_absence(request):
 
 
 @login_required
-@role_required(OPERATIONS_REPORTS)
+@capability_required("operations.reports")
 def absence_detail(request, absence_id):
     """تفاصيل الغياب + تعيين البدلاء"""
     from core.permissions import get_department_teacher_ids
@@ -527,7 +513,7 @@ def absence_detail(request, absence_id):
 
 
 @login_required
-@role_required(OPERATIONS_REPORTS)
+@capability_required("operations.reports")
 @require_POST
 def assign_substitute(request, absence_id, slot_id):
     """HTMX: تعيين بديل لحصة"""
@@ -570,7 +556,7 @@ def assign_substitute(request, absence_id, slot_id):
 
 
 @login_required
-@role_required(OPERATIONS_REPORTS)
+@capability_required("operations.reports")
 def substitute_report(request):
     """تقرير الحصص البديلة"""
     from core.permissions import get_department_teacher_ids
@@ -606,7 +592,7 @@ def substitute_report(request):
 
 
 @login_required
-@role_required(SCHEDULE_ADMIN)
+@capability_required("schedule.admin")
 def schedule_quality_lab(request):
     """مختبرُ جودة الجدول بصريّاً: بوّابةُ الصلاحية، ورادارُ المجموعات، وبطاقاتُ
     المؤشرات بفرقها عن المرجع، وأشدُّ المعلّمين ضغطاً، والموارد.
@@ -709,7 +695,7 @@ def schedule_quality_lab(request):
 
 
 @login_required
-@role_required(SCHEDULE_ADMIN)
+@capability_required("schedule.admin")
 def smart_schedule_view(request):
     """صفحة إدارة الجدولة الذكية"""
     school = request.user.get_school()
@@ -817,7 +803,7 @@ def _smart_schedule_redirect(year):
 
 
 @login_required
-@role_required(SCHEDULE_ADMIN)
+@capability_required("schedule.admin")
 @require_POST
 def smart_generate(request):
     """يضع التوليدَ في الطابور — ولا يُولّد داخل الطلب.
@@ -877,7 +863,7 @@ def smart_generate(request):
 
 
 @login_required
-@role_required(SCHEDULE_ADMIN)
+@capability_required("schedule.admin")
 def smart_generate_status(request):
     """حالةُ آخر توليدٍ — تسألها الصفحةُ كلَّ بضع ثوانٍ ما دام هناك جارٍ.
 
@@ -920,7 +906,7 @@ def smart_generate_status(request):
 
 
 @login_required
-@role_required(OPERATIONS_REPORTS)
+@capability_required("operations.reports")
 def teacher_load_report(request):
     """تقرير أحمال المعلمين"""
     from core.permissions import get_department_teacher_ids
@@ -958,9 +944,7 @@ def teacher_load_report(request):
 
 
 @login_required
-@role_required(
-    "teacher", "ese_teacher", "coordinator", "activities_coordinator", "e_projects_coordinator"
-)
+@capability_required("schedule.preferences")
 def teacher_preferences(request):
     """صفحة تفضيلات المعلم للجدولة الذكية"""
     school = request.user.get_school()
@@ -1057,7 +1041,7 @@ def teacher_preferences(request):
 
 
 @login_required
-@role_required(SCHEDULE_SETTINGS)
+@capability_required("schedule.settings")
 @require_POST
 def approve_schedule(request, generation_id):
     """اعتماد الجدول المولّد"""
@@ -1093,7 +1077,7 @@ def _one_of(raw, allowed, fallback):
 
 
 @login_required
-@role_required(SCHEDULE_SETTINGS)
+@capability_required("schedule.settings")
 def schedule_settings(request):
     """إعدادات الجدول الذكي — تفريغات المعلمين + حصص مزدوجة"""
     school = request.user.get_school()
@@ -1137,7 +1121,7 @@ def schedule_settings(request):
 
 
 @login_required
-@role_required(SCHEDULE_SETTINGS)
+@capability_required("schedule.settings")
 def exemption_grid(request):
     """شبكةُ أسبوعِ معلّمٍ بعينه — جزءٌ يُحمّل عند اختياره من القائمة.
 
@@ -1185,7 +1169,7 @@ def exemption_grid(request):
 
 
 @login_required
-@role_required(SCHEDULE_SETTINGS)
+@capability_required("schedule.settings")
 @require_POST
 def add_exemption(request):
     """إضافة تفريغ معلم — POST.
@@ -1294,7 +1278,7 @@ def add_exemption(request):
 
 
 @login_required
-@role_required(SCHEDULE_SETTINGS)
+@capability_required("schedule.settings")
 @require_POST
 def remove_exemption(request, exemption_id):
     """إلغاء تفريغ"""
@@ -1310,7 +1294,7 @@ def remove_exemption(request, exemption_id):
 
 
 @login_required
-@role_required(SCHEDULE_SETTINGS)
+@capability_required("schedule.settings")
 @require_POST
 def remove_exemptions(request):
     """إلغاءُ ما اختير من التفريغات دفعةً واحدة.
@@ -1348,7 +1332,7 @@ def remove_exemptions(request):
 
 
 @login_required
-@role_required(SCHEDULE_SETTINGS)
+@capability_required("schedule.settings")
 @require_POST
 def remove_preferences(request):
     """حذفُ ما اختير من تفضيلات المعلّمين — بمربّعاتٍ وزرٍّ واحدٍ كالتفريغات.
@@ -1379,7 +1363,7 @@ def remove_preferences(request):
 
 
 @login_required
-@role_required(SCHEDULE_SETTINGS)
+@capability_required("schedule.settings")
 @require_POST
 def save_subject_scheduling(request):
     """ازدواجُ الموادّ في الجدول يُحفظ دفعةً واحدة.
@@ -1475,7 +1459,7 @@ def _pages_payload(request) -> dict:
 
 
 @login_required
-@role_required(SCHEDULE_BROWSE)
+@capability_required("schedule.browse")
 def schedule_pages(request):
     """الصفحةُ داخل المنصّة — هيدرٌ وفوترٌ وأدوات، والورقةُ في إطارٍ يُطبع وحده."""
     return render(request, "schedule/pages_view.html", _pages_payload(request))
@@ -1483,14 +1467,14 @@ def schedule_pages(request):
 
 @xframe_options_sameorigin
 @login_required
-@role_required(SCHEDULE_BROWSE)
+@capability_required("schedule.browse")
 def schedule_pages_paper(request):
     """الورقةُ وحدها — للإطار وللطباعة."""
     return render(request, "schedule/print_pages.html", _pages_payload(request))
 
 
 @login_required
-@role_required(SCHEDULE_BROWSE)
+@capability_required("schedule.browse")
 def schedule_pages_pdf(request):
     """الورقةُ نفسها ملفَّ PDF — قالبٌ واحدٌ للشاشة والورق والملفّ."""
     from django.template.loader import render_to_string

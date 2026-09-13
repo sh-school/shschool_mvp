@@ -12,13 +12,13 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core import brand
+from core.capabilities import capability_required
 from core.models import BookBorrowing, CustomUser, LibraryBook
-from core.permissions import LIBRARY_FULL, LIBRARY_VIEW, librarian_required, role_required
 from library.services import LibraryService
 
 
 @login_required
-@role_required(LIBRARY_VIEW | LIBRARY_FULL)
+@capability_required("library.view")
 def library_dashboard(request):
     """لوحة تحكم المكتبة"""
     school = request.user.get_school()
@@ -32,7 +32,7 @@ def library_dashboard(request):
 
 
 @login_required
-@role_required(LIBRARY_VIEW | LIBRARY_FULL)
+@capability_required("library.view")
 def book_list(request):
     """
     قائمة الكتب مع البحث
@@ -68,7 +68,7 @@ def book_list(request):
 
 
 @login_required
-@librarian_required
+@capability_required("library.lend")
 def borrow_book(request):
     """تسجيل عملية إعارة جديدة"""
     if request.method == "POST":
@@ -121,7 +121,7 @@ def borrow_book(request):
 
 
 @login_required
-@librarian_required
+@capability_required("library.lend")
 def return_book(request, borrowing_id):
     """تسجيل إرجاع كتاب"""
     school = request.user.get_school()
@@ -138,7 +138,7 @@ def return_book(request, borrowing_id):
 
 
 @login_required
-@role_required(LIBRARY_VIEW | LIBRARY_FULL)
+@capability_required("library.view")
 def api_library_charts(request):
     """API: بيانات الرسوم البيانية للمكتبة"""
     school = request.user.get_school()
