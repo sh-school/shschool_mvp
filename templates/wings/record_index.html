@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 
 {% block title %}رصد الغياب{% endblock %}
 
@@ -9,18 +10,12 @@
 {% block content %}
 <div class="exec-dash">
 
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} رصد الغياب</h1>
-      <p class="exec-subtitle">شُعبي اليومَ — يُلمس الغائبُ وحدَه، والباقي حاضر</p>
-    </div>
-    <div class="exec-meta">
-      <form method="get" class="rec-datebar">
-        <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="form-control">
-        <button type="submit" class="btn-secondary btn-sm">اعرض</button>
-      </form>
-    </div>
-  </div>
+  {% page_header "رصد الغياب" subtitle="شُعبي اليومَ — يُلمس الغائبُ وحدَه، والباقي حاضر" icon="list-checks" %}
+    <form method="get" class="rec-datebar">
+      <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="form-control">
+      <button type="submit" class="btn-secondary btn-sm">اعرض</button>
+    </form>
+  {% endpage_header %}
 
   {% if not day_type %}
     <div class="wing-warn">

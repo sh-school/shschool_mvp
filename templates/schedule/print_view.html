@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}الجدول الأسبوعي — {{ title }}{% endblock %}
 {% block main_class %}page-wide{% endblock %}
 
@@ -34,11 +35,10 @@
   {% for c in conflicts %}<span>{{ c.message }}{% if not forloop.last %} · {% endif %}</span>{% endfor %}
 </div>
 {% endif %}
-<div class="exec-header schedule-pages-head">
-  <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} {{ title }}{% if preview %} — مسودّة{% endif %}</h1>
-</div>
-<div class="card-qatar schedule-pages-card">
-  <div class="exec-header schedule-head">
+{% page_header heading icon="calendar" %}{% endpage_header %}
+{# بطاقةٌ عاريةٌ بشريط أدواتٍ وإطار — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
+<div class="schedule-pages-card">
+  <div class="schedule-head">
     <div class="schedule-tools">
       {# القائمةُ الواحدة لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
       {% if may_browse %}{% include "schedule/partials/schedule_picker.html" %}{% endif %}

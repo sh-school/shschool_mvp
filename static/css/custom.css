@@ -5992,8 +5992,11 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
      الحافّة. فينكسر الشريطُ سطوراً، والقائمةُ والبحثُ بعرضه، وحجمُ الورق
      واتّجاهُه يتقاسمان سطراً.
 
-     وكانت هذه الكتلةُ مكتوبةً مرّتين — لكلّ قالبٍ نسخة — فوُحّدت. */
-  .schedule-head { justify-content: center; }
+     وكانت هذه الكتلةُ مكتوبةً مرّتين — لكلّ قالبٍ نسخة — فوُحّدت.
+
+     والشريطُ صفٌّ مرنٌ يتوسّط بنفسه: كان يستعير صفَّه من `exec-header` — وهي
+     ترويسةُ الصفحة التي يرسمها المكوّنُ وحده، لا شريطُ أدواتٍ داخل بطاقة. */
+  .schedule-head { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
   .schedule-tools { display: flex; gap: 8px; align-items: center; justify-content: center; flex-wrap: wrap; width: 100%; }
   .schedule-tools > .form-select,
   .schedule-tools .schedule-search { flex: 1 1 100%; min-width: 0; }
@@ -6007,9 +6010,27 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
     .schedule-tools form .form-select { width: auto; min-width: 280px; flex: initial; }
     .schedule-tools .schedule-search { width: 200px; flex: initial; }
   }
-  /* صفحاتُ الجداول: الورقةُ في إطارٍ بطول النافذة، بيضاءُ في الوضعين لأنّها ورقة. */
-  .schedule-pages-head { margin-block-end: 10px; }
-  .schedule-pages-card { inline-size: 100%; }
+  /* صفحاتُ الجداول: الورقةُ في إطارٍ بطول النافذة، بيضاءُ في الوضعين لأنّها ورقة.
+     والبطاقةُ التي تحمل شريطَ الأدوات والإطارَ بلا شريطٍ عنّابيّ — فليست
+     `section_card` — بطاقةٌ عاريةٌ بالرموز نفسِها (سطحٌ وحدٌّ وزوايا وظلٌّ
+     وحشو 18×20)، والمسافةُ العشرُ التي كانت تحت الترويسة صارت فوقها. */
+  .schedule-pages-card {
+    inline-size: 100%;
+    margin-block-start: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 18px 20px;
+    min-inline-size: 0;
+    transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
+  }
+  .schedule-pages-card:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--maroon-border);
+    transform: translateY(-1px);
+  }
+  html.dark .schedule-pages-card { color: var(--text-primary); }
   .schedule-paper-frame {
     inline-size: 100%;
     block-size: calc(100vh - 230px);
@@ -7469,9 +7490,58 @@ html.dark {
    مهما بلغت نوعيّتُها — فلا يبلغه حكمُ الوضع الداكن ولا تصحيحُ رمزٍ في
    مكانٍ واحد. وهو ما عُولج في القسم 36 لعشرين صفحة، فلا يُستأنف هنا.
 
-   والترويسةُ `card-bar` العنّابيّة لا `card-header`: هي ترويسةُ الأقسام في
-   كلّ صفحات المنصّة، ونصُّها أبيضُ دائماً.
+   والترويسةُ العنّابيّة لا `card-header`: هي ترويسةُ الأقسام في كلّ صفحات
+   المنصّة، ونصُّها أبيضُ دائماً.
    ══════════════════════════════════════════════════════════════ */
+
+/* ── لوحُ الجناح: بطاقةٌ بشريطٍ عنّابيٍّ فيه ما لا يحمله `section_card` ──
+   ترويسةُ الطابق تحمل شاراتِ الجرس، وترويسةُ لوح الرصد تحمل أزرارَ التصدير —
+   ومكوّنُ القسم يأخذ عنواناً ومعلومةً نصّيّةً لا غير. فاللوحُ صنفٌ خاصٌّ
+   بالوحدة يرسم شكلَ البطاقة والشريط نفسَه من الرموز نفسِها (السطحُ والحدُّ
+   والزوايا والظلّ والحشو 18×20، والشريطُ يخرج بهامشٍ سالبٍ إلى الحافّة).
+   ولا يُكتب `card-qatar`/`card-bar` في القالب بالاسم: المكوّنُ وحده يرسمهما. */
+.wing-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 20px;
+  min-inline-size: 0;
+  transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
+}
+.wing-panel:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--maroon-border);
+  transform: translateY(-1px);
+}
+.wing-panel__bar {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--maroon);
+  color: var(--on-fill);
+  padding: 10px 16px;
+  margin: -18px -20px 16px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  font-size: var(--text-sm); font-weight: 700;
+  line-height: 1.4;
+}
+.wing-panel__bar .badge {
+  background: color-mix(in srgb, var(--on-fill) 20%, transparent);
+  color: var(--on-fill);
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.wing-panel__sub {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  opacity: .85;
+  margin-inline-start: auto;
+}
+html.dark .wing-panel { color: var(--text-primary); }
+html.dark .wing-panel__bar { background: var(--maroon-dark); }
+@media (prefers-contrast: more) { .wing-panel { border-width: 2px; } }
+@media print { .wing-panel { box-shadow: none; border: 1px solid var(--paper-rule); break-inside: avoid; } }
 
 /* ── سطرٌ ببطاقتين: الطابقان جنباً إلى جنب، وكذلك جدولا اليومين ──
    والقسمةُ تنفكّ من نفسها في الشاشات الضيّقة: `auto-fit` مع حدٍّ أدنى
@@ -7486,13 +7556,16 @@ html.dark {
   min-inline-size: 0;
 }
 /* والبطاقةُ الممدودةُ تحتاج أن تُمدّ محتواها أيضاً، وإلّا بقي الفراغُ فوق
-   لا تحت. */
-.wing-pair > .card-qatar {
+   لا تحت. الطابقُ لوحُ جناح، وجدولُ التوقيت `section_card` — وجسمُه
+   (`ui-section__body`) هو ما يُمدّ فيه الجدولُ حتّى الملاحظة. */
+.wing-pair > .wing-panel {
   display: flex;
   flex-direction: column;
   min-inline-size: 0;
 }
-.wing-pair > .card-qatar > .wing-grid { flex: 1; align-content: start; }
+.wing-pair > .wing-panel > .wing-grid { flex: 1; align-content: start; }
+.wing-pair > .ui-section > .ui-section__body { display: flex; flex-direction: column; }
+.wing-pair > .ui-section > .ui-section__body > .table-wrap { flex: 1; }
 
 /* ── الطابقان بعرضٍ على قدر أجنحتهما، وجدولا التوقيت تحتهما بالنسبة نفسها ──
    نصفان متساويان يضيّقان الطابقَ ذا الأجنحة الثلاثة ويتركان في ذي الجناحين
@@ -7500,18 +7573,17 @@ html.dark {
    أساسٌ صفريّ ونموٌّ بالوزن. والسطرُ الثاني يأخذ الوزنين نفسيهما فتتحاذى
    حوافُّه مع الأوّل. والحدُّ الأدنى يعيدهما عموداً في الشاشة الضيّقة. */
 .wing-pair--floors { display: flex; flex-wrap: wrap; }
-.wing-pair--floors > .card-qatar {
+.wing-pair--floors > :is(.wing-panel, .ui-section) {
   flex: var(--floor-a, 1) 1 0;
   min-inline-size: min(100%, 430px);
 }
-.wing-pair--floors > .card-qatar:nth-child(2) { flex-grow: var(--floor-b, 1); }
+.wing-pair--floors > :is(.wing-panel, .ui-section):nth-child(2) { flex-grow: var(--floor-b, 1); }
 /* والجناحُ ذو الجرسين يقول موضعين في سطرٍ واحد، فيأخذ من جاريه ما يسعهما.
    شبكةُ أعمدةٍ متساويةٍ لا تعرف هذا، فالمرونةُ هنا بدلُها. */
 .wing-pair--floors .wing-grid { display: flex; flex-wrap: wrap; }
 .wing-pair--floors .wing-box--lines { flex: 1 1 215px; }
 .wing-pair--floors .wing-box--split { flex: 1.5 1 340px; }
 .wing-box--lines .wing-chip { padding-inline: 5px; }
-.wing-pair > .card-qatar > .table-wrap { flex: 1; }
 
 /* ── شبكةُ الأجنحة داخل الطابق ── */
 .wing-grid {
@@ -7697,13 +7769,12 @@ html.dark {
   align-items: stretch;
   min-inline-size: 0;
 }
-.wing-row > .card-qatar {
-  display: flex;
-  flex-direction: column;
-  padding: 14px 16px;
-  min-inline-size: 0;
-}
+/* البطاقةُ `section_card` بحشوٍ أضيق، وشريطُها يخرج إلى حافّتها بالمقدار
+   نفسه؛ وجسمُها عمودٌ مرنٌ كي تمتدّ بطاقةُ الجناح إلى القاع وتبقى ملاحظةُ
+   «سابقاً» تحتها. */
+.wing-row > .ui-section { padding: 14px 16px; }
 .wing-row .card-bar { margin: -14px -16px 12px; }
+.wing-row .ui-section__body { display: flex; flex-direction: column; }
 .wing-row .wing-box { flex: 1; }
 /* خانةٌ في سطرٍ واحد: البطاقةُ خُمسُ الشاشة، فحقلان متجاوران يقصّان نصَّهما. */
 .wing-row .wing-cover-form { grid-template-columns: 1fr; }
@@ -8070,7 +8141,7 @@ html.dark {
 
 /* أزرارُ التصدير والطباعة: في رأس كشف الشعبة، وفي شريط بطاقة الجناح بعد عدّاد الانتظار. */
 .per-exports { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.card-bar .per-exports { margin-inline-start: auto; }
+.wing-panel__bar .per-exports { margin-inline-start: auto; }
 .per-orient { width: auto; min-height: 32px; padding-block: 2px; font-size: var(--text-xs); }
 
 @media (max-width: 640px) {
