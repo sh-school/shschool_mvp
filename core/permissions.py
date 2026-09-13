@@ -842,8 +842,6 @@ def get_teacher_student_ids(user):
             )
 
     # ── 3) حصص الإشغال (بديل) — اليوم فقط ──
-    import datetime
-
     # تاريخُ قطر لا UTC: بين منتصف الليل والثالثة فجراً كان تكليفُ الأمس يُقرأ تكليفَ اليوم.
     today = timezone.localdate()
     substitute_class_ids = set(
