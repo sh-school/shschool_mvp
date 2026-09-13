@@ -23,6 +23,12 @@ def clinic_dashboard(request):
     today = timezone.now().date()
     # ✅ v5.4: ClinicService.get_dashboard_stats — 7 استعلامات في service layer
     context = ClinicService.get_dashboard_stats(school, today=today)
+    context.update(
+        today_label=f"{today:%d/%m/%Y} · متابعةُ الزيارات والسجلات الصحّيّة",
+        # اللونُ يحمل التنبيه — لا سطرَ «تنبيه» تحت الرقم ولا شريطَ يكرّره.
+        sent_home_tone="red" if context.get("sent_home_today") else "green",
+        frequent_tone="amber" if context.get("frequent") else "green",
+    )
     return render(request, "clinic/dashboard.html", context)
 
 

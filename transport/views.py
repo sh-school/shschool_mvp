@@ -15,7 +15,40 @@ def transport_dashboard(request):
     school = request.user.get_school()
     # ✅ v5.4: TransportService.get_dashboard_context — queries في service layer
     context = TransportService.get_dashboard_context(school)
+    context.update(_dashboard_presentation(context))
     return render(request, "transport/dashboard.html", context)
+
+
+def _dashboard_presentation(context: dict) -> dict:
+    """ألوانُ لوحة النقل وعناوينُها — الحكمُ يُكتب هنا مرّةً لا شرطاً في القالب.
+
+    الإشغالُ فوق 90% أحمر (العتبةُ التي كانت في القالب)، وحافلةٌ فوق 100%
+    حالتُها «فوق الطاقة» وفوق 80% «قريبةٌ من الامتلاء». واللونُ يحمل التنبيه،
+    فلا شريطَ تنبيهٍ يكرّر عددَ الحافلات الفائضة.
+    """
+    from django.urls import reverse
+
+    occupancy = context.get("overall_occupancy") or 0
+    for item in context.get("bus_data", []):
+        rate = item.get("occupancy_rate") or 0
+        bus = item["bus"]
+        item["url"] = reverse("transport:bus_detail", args=[bus.id])
+        item["seats_label"] = f"{item.get('students_count') or 0}/{bus.capacity}"
+        if rate > 100:
+            item.update(tone="red", status_tone="danger", status_label=f"فوق الطاقة · {rate:.0f}%")
+        elif rate > 80:
+            item.update(
+                tone="amber", status_tone="warning", status_label=f"قريبةٌ من الامتلاء · {rate:.0f}%"
+            )
+        else:
+            item.update(tone="green", status_tone="success", status_label=f"إشغال {rate:.0f}%")
+    return {
+        "capacity_label": f"من {context.get('total_capacity') or 0} مقعد",
+        "occupancy_label": f"{occupancy}%",
+        "occupancy_tone": "red" if occupancy > 90 else "teal",
+        "overcapacity_tone": "red" if context.get("overcapacity_count") else "green",
+        "no_supervisor_tone": "amber" if context.get("no_supervisor") else "green",
+    }
 
 
 @login_required

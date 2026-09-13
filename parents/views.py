@@ -109,6 +109,16 @@ def student_grades(request, student_id):
             "link": link,
             "year": year,
             "enrollment": enrollment,
+            "subtitle": " · ".join(
+                part
+                for part in (enrollment.class_group.short_code if enrollment else "", year)
+                if part
+            ),
+            # الرسوبُ في لون الرقم وتلميحه — لا شريطَ تنبيهٍ تحت الجدول يكرّره.
+            "failed_tone": "red" if data.get("failed") else "green",
+            "failed_title": "يُرجى التواصل مع المدرسة لمتابعة المواد المتعثّرة"
+            if data.get("failed")
+            else "",
             **data,
         },
     )
@@ -159,6 +169,14 @@ def student_attendance(request, student_id):
             "period": period,
             "year": year,
             "period_choices": ["7", "14", "30", "60"],
+            "subtitle": " · ".join(
+                part
+                for part in (
+                    enrollment.class_group.short_code if enrollment else "",
+                    f"آخر {days} يوماً منذ {data['since']:%d/%m}",
+                )
+                if part
+            ),
             **data,
         },
     )
@@ -186,10 +204,15 @@ def parent_all_grades(request):
             continue
         enrollment = StudentEnrollment.objects.current_of(link.student)
         data = ParentService.get_student_grades(link.student, school, year)
+        avg = data.get("avg") or 0
         children_grades.append(
             {
                 "student": link.student,
                 "enrollment": enrollment,
+                # العتباتُ التي كانت ألوانَ القالب: 80 فأعلى أخضر، و60 فأعلى كهرمانيّ.
+                "avg_label": f"{data.get('avg')}%",
+                "avg_tone": "green" if avg >= 80 else "amber" if avg >= 60 else "red",
+                "failed_tone": "red" if data.get("failed") else "green",
                 **data,
             }
         )
@@ -199,6 +222,7 @@ def parent_all_grades(request):
         "parents/all_grades.html",
         {
             "children_grades": children_grades,
+            "subtitle": f"{school.name} · {year}",
             "school": school,
             "year": year,
         },
@@ -235,11 +259,14 @@ def parent_all_attendance(request):
         alerts = AbsenceAlert.objects.filter(student=link.student, school=school).order_by(
             "-created_at"
         )[:3]
+        pct = data["att_pct"]
         children_attendance.append(
             {
                 "student": link.student,
                 "enrollment": enrollment,
                 "alerts": alerts,
+                "att_label": f"{pct}%",
+                "att_tone": "green" if pct >= 90 else "amber" if pct >= 75 else "red",
                 **data,
             }
         )
@@ -285,7 +312,8 @@ def parent_behavior(request):
                 "student": link.student,
                 "infractions": infractions[:10],
                 "total_infractions": infractions.count(),
-                "unresolved": infractions.filter(is_resolved=False).count(),
+                "unresolved": (unresolved := infractions.filter(is_resolved=False).count()),
+                "unresolved_tone": "amber" if unresolved else "green",
             }
         )
 
@@ -426,6 +454,8 @@ def manage_parent_links(request):
         "student_count": student_count,
         "enrolled_count": enrolled_count,
         "unlinked_count": unlinked_count,
+        "enrolled_label": f"من {enrolled_count}",
+        "unlinked_tone": "red" if unlinked_count else "green",
         "status": status,
         "statuses": (
             ("enrolled", "طلابُ هذا العام"),

@@ -26,6 +26,8 @@ def library_dashboard(request):
     # ✅ v5.4: LibraryService.get_dashboard_context — جميع الـ queries في service layer
     context = LibraryService.get_dashboard_context(school)
     context["maroon_color"] = brand.MAROON
+    # اللونُ يحمل التنبيه — لا سطرَ «تنبيه» تحت الرقم ولا شريطَ يكرّره.
+    context["overdue_tone"] = "red" if context.get("overdue_borrowings") else "green"
     return render(request, "library/dashboard.html", context)
 
 

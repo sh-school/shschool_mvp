@@ -77,6 +77,14 @@ class Bell:
     slots: tuple[Slot, ...]
 
     @property
+    def band_short(self) -> str:
+        """أوّلُ كلمةٍ من اسم النطاق — «التاسع» من «التاسع 3·4 (الطابق الأوّل)».
+
+        تميّز جرسَي الجناح في سطرٍ ضيّق، والاسمُ كاملاً في التلميح.
+        """
+        return self.band_name.split(maxsplit=1)[0] if self.band_name else self.band_code
+
+    @property
     def periods(self) -> tuple[Slot, ...]:
         return tuple(slot for slot in self.slots if not slot.is_break)
 

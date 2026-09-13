@@ -11,6 +11,7 @@ from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required
+from core.dashboard_presentation import present
 from core.models.academic import grade_order
 from library.models import BookBorrowing
 from operations.models import (
@@ -578,4 +579,5 @@ def dashboard(request):
     else:
         ctx["view_type"] = "other"
 
+    ctx.update(present(ctx))
     return render(request, "dashboard/main.html", ctx)

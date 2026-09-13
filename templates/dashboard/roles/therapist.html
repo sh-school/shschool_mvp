@@ -1,0 +1,32 @@
+{% load ui %}
+<div class="exec-dash">
+
+  {% page_header "لوحة جلسات العلاج" subtitle=subtitle icon="activity" %}{% endpage_header %}
+
+  {% kpi_strip label="الجلسات" %}
+    {% kpi "جلسات اليوم" total_sessions_today sub=sessions_sub tone="teal" %}
+    {% if next_session %}{% kpi "الجلسة القادمة" next_session.start_time|time:"H:i" sub=next_session.class_group.short_code tone="green" %}{% endif %}
+    {% kpi "جلسات الأسبوع" week_label sub="مكتملةٌ من المجدولة" tone="blue" %}
+    {% if unique_groups_today %}{% kpi "شُعب اليوم" unique_groups_today tone="maroon" %}{% endif %}
+  {% endkpi_strip %}
+
+  {% section_card "جدول جلسات اليوم" meta=sessions_today|length icon="calendar" flush=True empty="لا جلساتٍ مجدولةٌ لهذا اليوم" %}{% if sessions_today %}
+    <div class="table-wrap">
+      <table>
+        {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
+        <thead><tr><th>الوقت</th><th data-sort="num" data-sort-first="asc">الشعبة</th><th>المادة</th><th>الحالة</th></tr></thead>
+        <tbody>
+          {% for s in sessions_today %}
+            <tr>
+              <td class="num">{{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}</td>
+              <td data-sort-value="{{ s.class_group.school_order }}">{{ s.class_group }}</td>
+              <td>{{ s.subject|default:"جلسة" }}</td>
+              <td><span class="badge-status {{ s.status }}">{{ s.get_status_display }}</span></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
+</div>
