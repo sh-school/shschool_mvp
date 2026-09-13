@@ -1,0 +1,7 @@
+{% comment %}
+صفحةُ رفضٍ برسالتها — `core.permissions.forbidden_page(request, message)`.
+
+كانت الديكوريتوراتُ وملفّاتُ السلوك تبني الرفضَ نصّاً في بايثون: عنوانٌ أحمرُ
+بتنسيقٍ داخل الوسم ولونٍ لا رمزَ له، وصفحةٌ بلا ترويسةٍ ولا طريقِ عودة.
+فصار الرفضُ صفحةَ الخطأ الواحدة نفسَها، والرسالةُ في موضع الوصف.
+{% endcomment %}{% include "errors/_error_page.html" with code="403" heading="غير مصرح بالوصول" desc=message desc2="" icon="lock" accent="STATUS_WARNING" accent_dark="STATUS_WARNING_FG" %}

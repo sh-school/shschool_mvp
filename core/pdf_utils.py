@@ -224,10 +224,10 @@ table {{ direction: rtl !important; border-collapse: collapse; }}
     direction:    rtl;
     font-family:  'Tajawal', Arial, sans-serif;
     font-size:    8px;
-    color:        #888;
+    color:        {brand.TEXT_MUTED};
     text-align:   center !important;
     padding:      4px 0 0;
-    border-top:   1px solid #e5e5e5;
+    border-top:   1px solid {brand.BORDER};
     width:        100%;
 }}
 
@@ -245,7 +245,7 @@ table {{ direction: rtl !important; border-collapse: collapse; }}
         content:      "SchoolOS v6";
         font-family:  'Tajawal', Arial, sans-serif;
         font-size:    8px;
-        color:        #bbb;
+        color:        {brand.BORDER_STRONG};
         vertical-align: top;
         padding-top:  5px;
     }}
@@ -253,7 +253,7 @@ table {{ direction: rtl !important; border-collapse: collapse; }}
         content:      counter(page) " / " counter(pages);
         font-family:  'Tajawal', Arial, sans-serif;
         font-size:    8.5px;
-        color:        #555;
+        color:        {brand.TEXT_SECONDARY};
         vertical-align: top;
         padding-top:  5px;
     }}
@@ -261,7 +261,7 @@ table {{ direction: rtl !important; border-collapse: collapse; }}
         content:      "{today_str}";
         font-family:  'Tajawal', Arial, sans-serif;
         font-size:    8px;
-        color:        #aaa;
+        color:        {brand.TEXT_MUTED};
         vertical-align: top;
         padding-top:  5px;
     }}
@@ -555,7 +555,7 @@ def _playwright_header_template(school: str, title: str) -> str:
     justify-content: space-between;
     align-items: center;
     border-bottom: 1.5px solid {brand.MAROON};
-    background:  white;
+    background:  {brand.SURFACE};
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
 }}
@@ -572,7 +572,7 @@ def _playwright_header_template(school: str, title: str) -> str:
 }}
 .ph-ministry {{
     font-size: 8px;
-    color:     #777;
+    color:     {brand.TEXT_MUTED};
     direction: rtl;
 }}
 </style>
@@ -596,16 +596,16 @@ def _playwright_footer_template(today: str) -> str:
     display:     flex;
     justify-content: space-between;
     align-items: center;
-    border-top:  1px solid #e0e0e0;
-    background:  white;
+    border-top:  1px solid {brand.BORDER};
+    background:  {brand.SURFACE};
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     font-size:   8px;
-    color:       #888;
+    color:       {brand.TEXT_MUTED};
 }}
-.pf-brand {{ color: #ccc; font-size: 7.5px; letter-spacing: 0.5px; }}
-.pf-pages {{ color: #555; direction: ltr; font-size: 8.5px; }}
-.pf-date  {{ color: #aaa; font-size: 7.5px; direction: ltr; }}
+.pf-brand {{ color: {brand.BORDER_STRONG}; font-size: 7.5px; letter-spacing: 0.5px; }}
+.pf-pages {{ color: {brand.TEXT_SECONDARY}; direction: ltr; font-size: 8.5px; }}
+.pf-date  {{ color: {brand.TEXT_MUTED}; font-size: 7.5px; direction: ltr; }}
 </style>
 <div class="pf">
     <span class="pf-brand">SchoolOS v6</span>

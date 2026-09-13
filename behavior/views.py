@@ -23,6 +23,7 @@ from core.permissions import (
     BEHAVIOR_MANAGE,
     BEHAVIOR_STATS_TEACHING,
     BEHAVIOR_VIEW_ALL,
+    forbidden_page,
     get_teacher_student_ids,
     teacher_can_access_student,
 )
@@ -485,10 +486,7 @@ def student_behavior_profile(request, student_id):
 
     # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──
     if not teacher_can_access_student(request.user, student.id):
-        return HttpResponseForbidden(
-            "<h2 dir='rtl' style='font-family:Tajawal,sans-serif;padding:40px;color:#B91C1C'>"
-            "هذا الطالب ليس من طلابك — لا يمكنك عرض ملفه السلوكي.</h2>"
-        )
+        return forbidden_page(request, "هذا الطالب ليس من طلابك — لا يمكنك عرض ملفه السلوكي.")
 
     context = BehaviorService.get_student_profile(student)
     context["student"] = student
@@ -565,10 +563,7 @@ def behavior_report(request, student_id):
 
     # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──
     if not teacher_can_access_student(request.user, student.id):
-        return HttpResponseForbidden(
-            "<h2 dir='rtl' style='font-family:Tajawal,sans-serif;padding:40px;color:#B91C1C'>"
-            "هذا الطالب ليس من طلابك.</h2>"
-        )
+        return forbidden_page(request, "هذا الطالب ليس من طلابك.")
     year = request.GET.get("year") or academic_year_for(request)
     period = request.GET.get("period", "full")
 
@@ -949,10 +944,7 @@ def student_behavior_pdf(request, student_id):
 
     # تقييد الوصول: المعلم/المنسق يرى طلابه فقط
     if not teacher_can_access_student(request.user, student.id):
-        return HttpResponseForbidden(
-            "<h2 dir='rtl' style='font-family:Tajawal,sans-serif;padding:40px;color:#B91C1C'>"
-            "هذا الطالب ليس من طلابك — لا يمكنك طباعة تقريره السلوكي.</h2>"
-        )
+        return forbidden_page(request, "هذا الطالب ليس من طلابك — لا يمكنك طباعة تقريره السلوكي.")
 
     year = request.GET.get("year") or academic_year_for(request)
     period = request.GET.get("period", "full")
