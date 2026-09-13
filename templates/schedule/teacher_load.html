@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}تقرير أعباء المعلمين — {{ year }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,86 +7,70 @@
 {% endblock %}
 
 {% block content %}
+<div class="exec-dash">
 
-<div class="page-header">
-  <div>
-    <h1 class="page-title">{% include "components/icon.html" with name="activity" %} تقرير أعباء المعلمين</h1>
-    <p class="page-subtitle">توزيع الحصص والعدالة — {{ year }}</p>
-  </div>
-  <div class="page-actions">
-    <span class="status-badge status-maroon">{{ total_teachers }} معلم</span>
-    <span class="status-badge status-success">متوسط: {{ avg_weekly }} ح/أسبوع</span>
-  </div>
-</div>
+{% page_header "تقرير أعباء المعلمين" subtitle=year icon="activity" %}{% endpage_header %}
 
-<div class="table-wrap">
-  <div class="filter-bar px-4 py-3">
+{% kpi_strip label="أرقام الأعباء" %}
+  {% kpi "المعلمون" total_teachers %}
+  {% kpi "متوسط الحصص" avg_label sub="في الأسبوع" tone="green" %}
+{% endkpi_strip %}
+
+{% section_card "توزيع الحصص والعدالة" icon="users" flush=True empty="لا معلّمين في النطاق" %}{% if teacher_data %}
+  <div class="filter-bar load-search">
     <input type="text"
            id="teacher-search"
-           class="form-control form-control-sm w-full md:w-1/2"
+           class="form-control form-control-sm"
            placeholder="بحث باسم المعلم...">
   </div>
-  <div class="table-wrap-scroll" style="max-height:420px;overflow-y:auto">
-  <table class="w-full text-sm">
+  <div class="table-wrap-scroll load-scroll">
+  <table>
     <thead>
       <tr>
-        <th class="text-right">#</th>
-        <th class="text-right">المعلم</th>
-        <th class="text-center">أسبوعي</th>
-        <th class="text-center">أحد</th>
-        <th class="text-center">اثنين</th>
-        <th class="text-center">ثلاثاء</th>
-        <th class="text-center">أربعاء</th>
-        <th class="text-center">خميس</th>
-        <th class="text-center">أقصى/يوم</th>
-        <th class="text-center">أيام فارغة</th>
-        <th class="text-center">بدائل/شهر</th>
+        <th>المعلم</th>
+        <th class="num">أسبوعي</th>
+        <th class="num">أحد</th>
+        <th class="num">اثنين</th>
+        <th class="num">ثلاثاء</th>
+        <th class="num">أربعاء</th>
+        <th class="num">خميس</th>
+        <th class="num">أقصى/يوم</th>
+        <th class="num">أيام فارغة</th>
+        <th class="num">بدائل/شهر</th>
       </tr>
     </thead>
     <tbody id="teacher-tbody">
       {% for d in teacher_data %}
       <tr class="filterable-row" data-text="{{ d.teacher.full_name|lower }}">
-        <td class="text-gray-400">{{ forloop.counter }}</td>
-        <td class="font-medium text-maroon">{{ d.teacher.full_name }}</td>
-        <td class="text-center font-bold
-          {% if d.weekly > avg_weekly|add:3 %}text-red-600
-          {% elif d.weekly < avg_weekly|add:-3 %}text-blue-600
-          {% else %}text-gray-800{% endif %}">
-          {{ d.weekly }}
-        </td>
-        {% for day_count in d.days %}
-        <td class="text-center {% if day_count >= 6 %}text-red-600 font-bold{% elif day_count == 0 %}text-gray-300{% endif %}">
-          {{ day_count }}
-        </td>
+        <td class="load-name">{{ d.teacher.full_name }}</td>
+        <td class="num load-weekly {{ d.weekly_class }}">{{ d.weekly }}</td>
+        {% for count, cls in d.day_cells %}
+        <td class="num {{ cls }}">{{ count }}</td>
         {% endfor %}
-        <td class="text-center {% if d.max_daily >= 6 %}text-red-600 font-bold{% endif %}">
-          {{ d.max_daily }}
-        </td>
-        <td class="text-center {% if d.free_days > 0 %}text-green-600{% else %}text-gray-400{% endif %}">
-          {{ d.free_days }}
-        </td>
-        <td class="text-center {% if d.subs >= 3 %}text-amber-600 font-bold{% endif %}">
-          {{ d.subs }}
-        </td>
+        <td class="num {{ d.max_class }}">{{ d.max_daily }}</td>
+        <td class="num {{ d.free_class }}">{{ d.free_days }}</td>
+        <td class="num {{ d.subs_class }}">{{ d.subs }}</td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
   </div>
-</div>
+  <ul class="chip-row load-legend" aria-label="مفتاح الألوان">
+    <li class="chip-stat"><b class="chip-stat__value load-over">حمل زائد</b><span class="chip-stat__key">أكثر من {{ legend_over }} ح/أسبوع أو 6 ح/يوم فأكثر</span></li>
+    <li class="chip-stat"><b class="chip-stat__value load-under">حمل منخفض</b><span class="chip-stat__key">أقلّ من {{ legend_under }} ح/أسبوع</span></li>
+    <li class="chip-stat"><b class="chip-stat__value load-free">يوم فارغ</b><span class="chip-stat__key">تفريغ</span></li>
+  </ul>
+{% endif %}{% endsection_card %}
 
-<div class="flex gap-4 text-xs text-gray-500 mt-4 flex-wrap">
-  <span><span class="text-red-600 font-bold">أحمر</span> = حمل زائد (> {{ avg_weekly|add:3 }} ح/أسبوع أو ≥ 6 ح/يوم)</span>
-  <span><span class="text-blue-600 font-bold">أزرق</span> = حمل منخفض (< {{ avg_weekly|add:-3 }} ح/أسبوع)</span>
-  <span><span class="text-green-600">أخضر</span> = يوم فارغ (تفريغ)</span>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
-  window.smartFilter('teacher-search', '#teacher-tbody .filterable-row', { textAttr: 'data-text' });
+  if (document.getElementById('teacher-search')) {
+    window.smartFilter('teacher-search', '#teacher-tbody .filterable-row', { textAttr: 'data-text' });
+  }
 });
 </script>
 {% endblock %}

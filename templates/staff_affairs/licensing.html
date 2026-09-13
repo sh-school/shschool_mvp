@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}الرخص المهنية{% endblock %}
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/staff-affairs/" parent_label="شؤون الموظفين" current="الرخص المهنية" %}
@@ -6,74 +7,53 @@
 
 {% block content %}
 <div class="exec-dash">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="lock" %} الرخص المهنية</h1>
-      <p class="exec-subtitle">تتبع رخص المعلمين — rukhsa.edu.gov.qa</p>
-    </div>
-  </div>
+  {% page_header "الرخص المهنية" subtitle="تتبّع رخص المعلمين — rukhsa.edu.gov.qa" icon="lock" %}{% endpage_header %}
 
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">منتهية</div>
-      <div class="kpi-mini-value">{{ expired|length }}</div>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <div class="kpi-mini-label">تنتهي خلال 90 يوم</div>
-      <div class="kpi-mini-value">{{ expiring_soon|length }}</div>
-    </div>
-    <div class="kpi-mini kpi-green">
-      <div class="kpi-mini-label">سارية</div>
-      <div class="kpi-mini-value">{{ valid|length }}</div>
-    </div>
-    <div class="kpi-mini kpi-maroon">
-      <div class="kpi-mini-label">بدون رخصة</div>
-      <div class="kpi-mini-value">{{ no_license|length }}</div>
-    </div>
-  </div>
+  {% kpi_strip label="أرقام الرخص" %}
+    {% kpi "منتهية" expired_count tone=expired_tone %}
+    {% kpi "تنتهي قريباً" expiring_count sub="90 يوماً" tone=expiring_tone title="رخصٌ تنتهي خلال تسعين يوماً" %}
+    {% kpi "سارية" valid_count tone="green" %}
+    {% kpi "بلا رخصة" no_license_count tone=no_license_tone title="معلّمون ومنسّقون لا رقمَ رخصةٍ لهم" %}
+  {% endkpi_strip %}
 
-  <div class="charts-grid-2">
-    {% if expired %}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title" style="color:var(--status-danger-fg)">{% include "components/icon.html" with name="x-circle" %} رخص منتهية</div>
-      <div class="dash-list">
+  {% comment %}
+  البطاقاتُ الثلاثُ في سطرٍ واحد، وكلٌّ منها يُرسم ولو فرغت — كانت في شبكة
+  عمودين تُخفي الفارغةَ فتبقى الثالثةُ وحيدة، ولا تقول الصفحةُ شيئاً إن
+  فرغت كلُّها.
+  {% endcomment %}
+  <div class="sa-grid-3">
+    {% section_card "رخص منتهية" icon="x-circle" empty="لا رخصَ منتهية" %}{% if expired %}
+      <ul class="plain-list is-scroll">
         {% for u in expired %}
-        <div class="dash-list-item">
-          <a href="{% url 'staff_affairs:staff_profile' u.id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon-fg);text-decoration:none" class="hover:underline">{{ u.full_name }}</a>
+        <li class="plain-list__row">
+          <a href="{% url 'staff_affairs:staff_profile' u.id %}" class="plain-list__title sa-link">{{ u.full_name }}</a>
           <span class="status-badge status-danger">{{ u.professional_license_expiry|date:"d/m/Y" }}</span>
-        </div>
+        </li>
         {% endfor %}
-      </div>
-    </div>
-    {% endif %}
+      </ul>
+    {% endif %}{% endsection_card %}
 
-    {% if expiring_soon %}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title" style="color:var(--status-warning-fg)">{% include "components/icon.html" with name="alert-triangle" %} تنتهي قريباً</div>
-      <div class="dash-list">
+    {% section_card "تنتهي قريباً" icon="alert-triangle" empty="لا رخصَ تنتهي خلال تسعين يوماً" %}{% if expiring_soon %}
+      <ul class="plain-list is-scroll">
         {% for u in expiring_soon %}
-        <div class="dash-list-item">
-          <a href="{% url 'staff_affairs:staff_profile' u.id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon-fg);text-decoration:none" class="hover:underline">{{ u.full_name }}</a>
+        <li class="plain-list__row">
+          <a href="{% url 'staff_affairs:staff_profile' u.id %}" class="plain-list__title sa-link">{{ u.full_name }}</a>
           <span class="status-badge status-warning">{{ u.professional_license_expiry|date:"d/m/Y" }}</span>
-        </div>
+        </li>
         {% endfor %}
-      </div>
-    </div>
-    {% endif %}
+      </ul>
+    {% endif %}{% endsection_card %}
 
-    {% if no_license %}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="alert-triangle" %} معلمون بدون رخصة مهنية</div>
-      <div class="dash-list">
+    {% section_card "معلمون بلا رخصة مهنية" icon="alert-triangle" empty="لكلّ معلّمٍ رقمُ رخصةٍ مسجَّل" %}{% if no_license %}
+      <ul class="plain-list is-scroll">
         {% for m in no_license %}
-        <div class="dash-list-item">
-          <a href="{% url 'staff_affairs:staff_profile' m.user_id %}" style="flex:1;font-weight:600;font-size:.8rem;color:var(--maroon-fg);text-decoration:none" class="hover:underline">{{ m.user.full_name }}</a>
+        <li class="plain-list__row">
+          <a href="{% url 'staff_affairs:staff_profile' m.user_id %}" class="plain-list__title sa-link">{{ m.user.full_name }}</a>
           <span class="status-badge status-gray">غير مسجّلة</span>
-        </div>
+        </li>
         {% endfor %}
-      </div>
-    </div>
-    {% endif %}
+      </ul>
+    {% endif %}{% endsection_card %}
   </div>
 </div>
 {% endblock %}

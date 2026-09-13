@@ -1,42 +1,32 @@
 {% load privacy %}
-<div id="student-{{ student.id }}"
-     class="flex items-center px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800 transition status-{{ status }}">
+{% comment %}
+سطرُ طالبٍ في رصد الحضور — يُستبدل بنفسه (`outerHTML`) بعد كلّ ضغطة.
+`tone` لونُ الشارة من ربطٍ مغلقٍ في العرض (`attendance_tone`): الحالةُ لا تصير
+اسمَ صنفٍ مباشرةً، فحالةٌ غيرُ معروفةٍ رماديّةٌ لا صنفٌ بلا تعريف.
+{% endcomment %}
+<div id="student-{{ student.id }}" class="att-row" data-state="{{ status }}">
 
-  <!-- Student info -->
-  <div class="flex-1 min-w-0">
-    <div class="font-medium text-sm truncate" style="color:var(--text-primary)">{{ student.full_name }}</div>
-    <div class="text-xs font-mono" style="color:var(--text-muted)">{{ student.national_id|mask_id }}</div>
+  <div class="att-row__info">
+    <div class="att-row__name">{{ student.full_name }}</div>
+    <div class="att-row__nid" dir="ltr">{{ student.national_id|mask_id }}</div>
   </div>
 
-  <!-- Status Badge -->
-  <div class="mx-3">
-    <span id="badge-{{ student.id }}" class="status-badge
-      {% if status == 'present' %}status-success
-      {% elif status == 'absent' %}status-danger
-      {% elif status == 'late' %}status-warning
-      {% elif status == 'excused' %}status-info
-      {% else %}status-gray{% endif %}">
-      {% if status == 'present' %}حاضر
-      {% elif status == 'absent' %}غائب
-      {% elif status == 'late' %}متأخر
-      {% elif status == 'excused' %}معذور
-      {% else %}—{% endif %}
-    </span>
-  </div>
+  <span id="badge-{{ student.id }}" class="status-badge status-{{ tone|default:'gray' }}">
+    {% if status == 'present' %}حاضر
+    {% elif status == 'absent' %}غائب
+    {% elif status == 'late' %}متأخر
+    {% elif status == 'excused' %}معذور
+    {% else %}—{% endif %}
+  </span>
 
-  <!-- Action Buttons -->
-  <div class="flex items-center gap-1">
-    {% for st, label, color in action_buttons %}
-    {% endfor %}
-
+  <div class="att-row__actions">
     <button
       hx-post="{% url 'mark_single' session.id %}"
       hx-vals='{"student_id": "{{ student.id }}", "status": "present"}'
       hx-target="#student-{{ student.id }}"
       hx-swap="outerHTML"
       hx-include="[name=csrfmiddlewaretoken]"
-      class="px-2.5 py-1.5 rounded-lg text-xs font-medium transition
-        {% if status == 'present' %}bg-green-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-700{% endif %}">
+      class="att-btn is-present{% if status == 'present' %} is-current{% endif %}">
       حاضر
     </button>
 
@@ -46,8 +36,7 @@
       hx-target="#student-{{ student.id }}"
       hx-swap="outerHTML"
       hx-include="[name=csrfmiddlewaretoken]"
-      class="px-2.5 py-1.5 rounded-lg text-xs font-medium transition
-        {% if status == 'absent' %}bg-red-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700{% endif %}">
+      class="att-btn is-absent{% if status == 'absent' %} is-current{% endif %}">
       غائب
     </button>
 
@@ -57,8 +46,7 @@
       hx-target="#student-{{ student.id }}"
       hx-swap="outerHTML"
       hx-include="[name=csrfmiddlewaretoken]"
-      class="px-2.5 py-1.5 rounded-lg text-xs font-medium transition
-        {% if status == 'late' %}bg-[var(--status-warning-dark)] text-white{% else %}bg-gray-100 text-gray-600 hover:bg-yellow-100 hover:text-yellow-700{% endif %}">
+      class="att-btn is-late{% if status == 'late' %} is-current{% endif %}">
       متأخر
     </button>
 
@@ -68,8 +56,7 @@
       hx-target="#student-{{ student.id }}"
       hx-swap="outerHTML"
       hx-include="[name=csrfmiddlewaretoken]"
-      class="px-2.5 py-1.5 rounded-lg text-xs font-medium transition
-        {% if status == 'excused' %}bg-purple-600 text-white{% else %}bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-700{% endif %}">
+      class="att-btn is-excused{% if status == 'excused' %} is-current{% endif %}">
       معذور
     </button>
   </div>

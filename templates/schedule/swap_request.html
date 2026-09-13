@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}طلب تبديل حصة{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,9 +7,9 @@
 {% endblock %}
 
 {% block content %}
-<div class="form-page">
-  <div class="form-card">
-    <h2 class="form-title">{% include "components/icon.html" with name="refresh" %} طلب تبديل حصة</h2>
+<div class="exec-dash form-page">
+  {% page_header "طلب تبديل حصة" icon="refresh" %}{% endpage_header %}
+  {% section_card "بيانات الطلب" icon="file-pen" %}
 
     <form method="post">
       {% csrf_token %}
@@ -64,7 +65,7 @@
 
       <button type="submit" class="btn-submit">إرسال طلب التبديل</button>
     </form>
-  </div>
+  {% endsection_card %}
 </div>
 
 <script nonce="{{ request.csp_nonce }}">

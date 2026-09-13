@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static %}
+{% load ui %}
 {% block title %}تقرير التقدم — الخطة التشغيلية{% endblock %}
 
 {% block breadcrumbs %}
@@ -9,69 +9,28 @@
 {% block content %}
 <div class="pr-page">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="activity" %} تقرير التقدم الكلي</h1>
-      <p class="exec-date">{{ year }} — {{ current_school.name|default:"المدرسة" }}</p>
-    </div>
-    <div class="flex flex-wrap gap-2 items-center">
-      <a href="{% url 'quality_report_pdf' %}?year={{ year }}" class="btn-primary btn-sm">
-        {% include "components/icon.html" with name="file-text" %} تصدير PDF
-      </a>
-      <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
-    </div>
-  </div>
+  {% page_header "تقرير التقدم الكلي" subtitle=report_subtitle icon="activity" %}
+    <a href="{% url 'quality_report_pdf' %}?year={{ year }}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-text" %} تصدير PDF</a>
+    <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
+  {% endpage_header %}
 
-  {# ── KPI strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-maroon">
-      <span class="kpi-mini-value">{{ total_all }}</span>
-      <span class="kpi-mini-label">إجمالي الإجراءات</span>
-    </div>
-    <div class="kpi-mini kpi-green">
-      <span class="kpi-mini-value">{{ completed_all }}</span>
-      <span class="kpi-mini-label">مكتمل</span>
-    </div>
-    <div class="kpi-mini kpi-blue">
-      <span class="kpi-mini-value">{{ in_progress_all }}</span>
-      <span class="kpi-mini-label">قيد التنفيذ</span>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <span class="kpi-mini-value">{{ pending_review_all }}</span>
-      <span class="kpi-mini-label">بانتظار المراجعة</span>
-    </div>
-    <div class="kpi-mini kpi-red">
-      <span class="kpi-mini-value">{{ overdue_count }}</span>
-      <span class="kpi-mini-label">متأخرة</span>
-    </div>
-  </div>
+  {% kpi_strip label="أرقام الخطة" %}
+    {% kpi "الإنجاز الكلي" pct_label tone=pct_tone title="نسبة الإجراءات المكتملة من الإجمالي" %}
+    {% kpi "إجمالي الإجراءات" total_all %}
+    {% kpi "مكتمل" completed_all tone="green" %}
+    {% kpi "قيد التنفيذ" in_progress_all tone="amber" %}
+    {% kpi "بانتظار المراجعة" pending_review_all tone="blue" %}
+    {% kpi "متأخرة" overdue_count tone="red" %}
+  {% endkpi_strip %}
 
-  {# ── Hero: Big ring — card-qatar ── #}
-  <div class="card-qatar" style="display:flex;justify-content:center;padding:24px">
-    <div class="pr-hero__ring" data-pct="{{ pct_all }}">
-      <svg viewBox="0 0 36 36" class="pr-ring-svg" aria-hidden="true">
-        <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--ring-track)" stroke-width="2"/>
-        <circle class="pr-ring-arc" cx="18" cy="18" r="15.9" fill="none"
-                stroke="{% if pct_all == 100 %}#16a34a{% elif pct_all > 60 %}var(--maroon){% elif pct_all > 30 %}var(--skyline){% else %}var(--maroon){% endif %}"
-                stroke-width="2.5" stroke-dasharray="0 100" stroke-linecap="round"/>
-      </svg>
-      <span class="pr-ring-pct" id="pr-main-pct">0%</span>
-      <span class="pr-ring-label">الإنجاز الكلي</span>
-    </div>
-  </div>
-
-  {# ── Domains: Donut grid — card-qatar ── #}
-  <div class="card-qatar">
-    <div class="card-bar">التقدم حسب المجال</div>
+  {% section_card "التقدم حسب المجال" meta=domain_stats|length icon="layers" empty="لا مجالاتٍ في الخطة لهذا العام" %}{% if domain_stats %}
     <div class="pr-domains" id="pr-domains">
       {% for ds in domain_stats %}
       <div class="pr-dom" data-pct="{{ ds.pct }}" data-done="{{ ds.completed }}" data-total="{{ ds.total }}">
         <div class="pr-dom__ring">
           <svg viewBox="0 0 36 36" aria-hidden="true">
-            <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--ring-track)" stroke-width="3.5"/>
-            <circle class="pr-dom__arc" cx="18" cy="18" r="15.9" fill="none"
-                    stroke="{% if ds.pct == 100 %}#16a34a{% elif ds.pct > 50 %}var(--maroon){% elif ds.pct > 25 %}var(--skyline){% else %}#94a3b8{% endif %}"
+            <circle class="q-ring-track" cx="18" cy="18" r="15.9" fill="none" stroke-width="3.5"/>
+            <circle class="pr-dom__arc q-ring-arc is-{{ ds.tone }}" cx="18" cy="18" r="15.9" fill="none"
                     stroke-width="3.5" stroke-dasharray="0 100" stroke-linecap="round"/>
           </svg>
           <span class="pr-dom__pct">{{ ds.pct }}%</span>
@@ -84,39 +43,32 @@
       </div>
       {% endfor %}
     </div>
-  </div>
+  {% endif %}{% endsection_card %}
 
-  {# ── Executors: Top 20 as donuts — card-qatar ── #}
-  <div class="card-qatar">
-    <div class="card-bar">أداء المنفذين <span class="badge">أول 20</span></div>
+  {% section_card "أداء المنفذين" meta="أول 20" icon="users" empty="لا منفّذين بإجراءاتٍ لهذا العام" %}{% if executor_stats %}
     <div class="pr-executors" id="pr-executors">
       {% for ex in executor_stats %}
-      <div class="pr-exec" {% if ex.total %}data-pct="{% widthratio ex.completed ex.total 100 %}"{% else %}data-pct="0"{% endif %}>
+      <div class="pr-exec" data-pct="{{ ex.pct }}">
         <div class="pr-exec__ring">
           <svg viewBox="0 0 36 36" aria-hidden="true">
-            <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--ring-track)" stroke-width="3.5"/>
-            <circle class="pr-exec__arc" cx="18" cy="18" r="15.9" fill="none"
-                    stroke="{% if ex.total and ex.completed == ex.total %}#16a34a{% elif ex.total %}var(--maroon){% else %}#94a3b8{% endif %}"
+            <circle class="q-ring-track" cx="18" cy="18" r="15.9" fill="none" stroke-width="3.5"/>
+            <circle class="pr-exec__arc q-ring-arc is-{{ ex.tone }}" cx="18" cy="18" r="15.9" fill="none"
                     stroke-width="3.5" stroke-dasharray="0 100" stroke-linecap="round"/>
           </svg>
-          <span class="pr-exec__pct">{% if ex.total %}{% widthratio ex.completed ex.total 100 %}%{% else %}—{% endif %}</span>
+          <span class="pr-exec__pct">{% if ex.total %}{{ ex.pct }}%{% else %}—{% endif %}</span>
         </div>
         <div class="pr-exec__info">
-          <span class="pr-exec__name">{{ ex.executor_norm }}</span>
+          <span class="pr-exec__name" title="{{ ex.executor_norm }}">{{ ex.executor_norm }}</span>
           {% if ex.user_name %}<span class="pr-exec__user">{{ ex.user_name }}</span>{% endif %}
-          <span class="pr-exec__meta">
-            <strong class="text-green-700">{{ ex.completed }}</strong> مكتمل من <strong>{{ ex.total }}</strong>
-          </span>
+          <span class="pr-exec__meta"><strong>{{ ex.completed }}</strong> مكتمل من <strong>{{ ex.total }}</strong></span>
         </div>
       </div>
       {% endfor %}
     </div>
-  </div>
+  {% endif %}{% endsection_card %}
 
-  {# ── Overdue — card-qatar + global table ── #}
   {% if overdue_procedures %}
-  <div class="card-qatar">
-    <div class="card-bar">الإجراءات المتأخرة <span class="badge">{{ overdue_count }}</span></div>
+  {% section_card "الإجراءات المتأخرة" meta=overdue_count icon="alert-triangle" flush=True %}
     <div class="table-wrap">
       {# تقريرٌ للطباعة: لا فرزَ على الورق. #}
       <table data-no-sort>
@@ -126,33 +78,29 @@
             <th scope="col">الإجراء</th>
             <th scope="col">المنفذ</th>
             <th scope="col">المجال</th>
-            <th scope="col" class="text-center">الموعد</th>
-            <th scope="col" class="text-center">التأخير</th>
+            <th scope="col" class="num">الموعد</th>
+            <th scope="col" class="num">التأخير</th>
           </tr>
         </thead>
         <tbody>
           {% for item in overdue_procedures %}
           <tr>
-            <td class="font-mono text-xs font-semibold" dir="ltr">{{ item.procedure.number }}</td>
+            <td class="pr-code" dir="ltr">{{ item.procedure.number }}</td>
             <td>{{ item.procedure.text|truncatewords:8 }}</td>
-            <td class="text-xs text-secondary">{{ item.procedure.executor_user.full_name|default:item.procedure.executor_norm }}</td>
-            <td class="text-xs text-secondary">{{ item.procedure.indicator.target.domain.name|default:"—" }}</td>
-            <td class="text-center text-xs text-secondary">{{ item.procedure.deadline|date:"Y-m-d" }}</td>
-            <td class="text-center">
-              <span class="status-badge status-danger">{{ item.days_overdue }} يوم</span>
-            </td>
+            <td class="pr-muted">{{ item.procedure.executor_user.full_name|default:item.procedure.executor_norm }}</td>
+            <td class="pr-muted">{{ item.procedure.indicator.target.domain.name|default:"—" }}</td>
+            <td class="num pr-muted">{{ item.procedure.deadline|date:"Y-m-d" }}</td>
+            <td class="num"><span class="status-badge status-danger">{{ item.days_overdue }} يوم</span></td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
+  {% endsection_card %}
   {% endif %}
 
-  {# ── Evidence Requests — card-qatar + global table ── #}
   {% if evidence_requests %}
-  <div class="card-qatar">
-    <div class="card-bar">طلبات الدليل المعلقة <span class="badge">{{ evidence_requests|length }}</span></div>
+  {% section_card "طلبات الدليل المعلقة" meta=evidence_requests|length icon="paperclip" flush=True %}
     <div class="table-wrap">
       {# تقريرٌ للطباعة: لا فرزَ على الورق. #}
       <table data-no-sort>
@@ -162,25 +110,23 @@
             <th scope="col">الإجراء</th>
             <th scope="col">المنفذ</th>
             <th scope="col">المجال</th>
-            <th scope="col" class="text-center">الحالة</th>
+            <th scope="col" class="num">الحالة</th>
           </tr>
         </thead>
         <tbody>
           {% for proc in evidence_requests %}
           <tr>
-            <td class="font-mono text-xs font-semibold" dir="ltr">{{ proc.number }}</td>
+            <td class="pr-code" dir="ltr">{{ proc.number }}</td>
             <td>{{ proc.text|truncatewords:8 }}</td>
-            <td class="text-xs text-secondary">{{ proc.executor_user.full_name|default:proc.executor_norm }}</td>
-            <td class="text-xs text-secondary">{{ proc.indicator.target.domain.name|default:"—" }}</td>
-            <td class="text-center">
-              <span class="status-badge status-maroon text-xs">{{ proc.get_status_display }}</span>
-            </td>
+            <td class="pr-muted">{{ proc.executor_user.full_name|default:proc.executor_norm }}</td>
+            <td class="pr-muted">{{ proc.indicator.target.domain.name|default:"—" }}</td>
+            <td class="num"><span class="status-badge status-maroon">{{ proc.get_status_display }}</span></td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
+  {% endsection_card %}
   {% endif %}
 
 </div>
@@ -189,26 +135,6 @@
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
-  /* ── Big ring animation ── */
-  var hero = document.querySelector('.pr-hero__ring');
-  if (hero) {
-    var target = parseInt(hero.dataset.pct, 10) || 0;
-    var arc = hero.querySelector('.pr-ring-arc');
-    var label = document.getElementById('pr-main-pct');
-    if (arc && label) {
-      var start = performance.now();
-      var dur = 1000;
-      (function animate(ts) {
-        var p = Math.min((ts - start) / dur, 1);
-        var e = 1 - Math.pow(1 - p, 3);
-        var cur = Math.round(target * e);
-        arc.setAttribute('stroke-dasharray', cur + ' ' + (100 - cur));
-        label.textContent = cur + '%';
-        if (p < 1) requestAnimationFrame(animate);
-      })(performance.now());
-    }
-  }
-
   /* ── Domain donuts staggered animation ── */
   var doms = document.querySelectorAll('.pr-dom');
   doms.forEach(function(el, i) {

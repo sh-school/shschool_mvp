@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}غيابات المعلمين{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,97 +7,42 @@
 {% endblock %}
 
 {% block content %}
-{% comment %}
-كانت هذه الشاشةُ مكتوبةً بأصناف Tailwind خاماً: زرٌّ كهرمانيٌّ وآخرُ رماديٌّ
-داكن وثالثٌ بلون «skyline» — ألوانٌ لا وجودَ لها في شاشةٍ أخرى، وصفُّ ترشيحٍ
-عارٍ بلا بطاقةٍ تحمله. فبدت غريبةً عن أخواتها وهي في القائمة نفسِها.
-
-فصارت على بنية المنصّة: `exec-header` و`filter-bar` و`btn-primary` — وهي
-الأصنافُ التي يقرؤها ملفُّ الأنماط الواحد، فتتبع الوضعَ الداكنَ والهويّةَ
-العنابيّةَ من نفسها ولا تحتاج لوناً مكتوباً بيد.
-{% endcomment %}
 <div class="exec-dash">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="ban" %} غيابات المعلمين</h1>
-      <p class="exec-subtitle">غيابُ اليوم ومن يحلّ محلَّه — والبدلاءُ يُقترحون من الحصص الحرّة</p>
-    </div>
-    <div class="flex gap-2">
-      <a href="{% url 'register_absence' %}" class="btn-primary btn-sm">
-        {% include "components/icon.html" with name="file-pen" %} تسجيل غياب
-      </a>
-      <a href="{% url 'substitute_report' %}" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="bar-chart" %} تقرير البدلاء
-      </a>
-    </div>
-  </div>
+
+  {% page_header "غيابات المعلمين" subtitle="غيابُ اليوم ومن يحلّ محلَّه — والبدلاءُ يُقترحون من الحصص الحرّة" icon="ban" %}
+    <a href="{% url 'register_absence' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} تسجيل غياب</a>
+    <a href="{% url 'substitute_report' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} تقرير البدلاء</a>
+  {% endpage_header %}
 
   <form method="get" class="filter-bar">
     <div class="filter-field">
-      <label class="filter-label">التاريخ</label>
-      <input type="date" name="date" value="{{ abs_date|date:'Y-m-d' }}"
-             class="form-control form-control-sm">
+      <label class="filter-label" for="absence-date">التاريخ</label>
+      <input type="date" id="absence-date" name="date" value="{{ abs_date|date:'Y-m-d' }}" class="form-control form-control-sm">
     </div>
     <div class="filter-field filter-field--grow">
-      <label class="filter-label">بحث بالاسم</label>
-      <input type="text" id="absence-search" class="form-control form-control-sm"
-             placeholder="ابحث باسم المعلم..." autocomplete="off">
+      <label class="filter-label" for="absence-search">بحث بالاسم</label>
+      <input type="text" id="absence-search" class="form-control form-control-sm" placeholder="ابحث باسم المعلم..." autocomplete="off">
     </div>
     <div class="filter-actions">
-      <button type="submit" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="search" %} عرض
-      </button>
+      <button type="submit" class="btn-secondary btn-sm">{% include "components/icon.html" with name="search" %} عرض</button>
     </div>
   </form>
 
-  <!-- Absences -->
-  {% if absences %}
-  <div class="table-wrap-scroll space-y-4" style="max-height:420px" id="absence-cards">
-    {% for absence in absences %}
-    <div class="card-qatar overflow-hidden" data-filter-row data-text="{{ absence.teacher.full_name }}">
-      {% comment %}
-      الحالةُ تُقال بشريطٍ على الحافّة يقرأ الرمزَ نفسَه الذي يقرؤه الوسمُ
-      بجانبه — لونٌ واحدٌ للحالة في موضعين، ولا تُنافس خلفيّةُ الرأس وسمَها.
-      {% endcomment %}
-      <div class="flex items-center justify-between px-5 py-3 border-b absence-head
-        {% if absence.status == 'covered' %}is-covered{% elif absence.status == 'uncovered' %}is-uncovered{% else %}is-pending{% endif %}">
-        <div class="flex items-center gap-3">
-          <div class="absence-initial">{{ absence.teacher.full_name|first }}</div>
-          <div>
-            <p class="font-bold">{{ absence.teacher.full_name }}</p>
-            <p class="text-xs text-muted">{{ absence.get_reason_display }}</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="status-badge
-            {% if absence.status == 'covered' %}status-success
-            {% elif absence.status == 'uncovered' %}status-danger
-            {% else %}status-warning{% endif %}">
-            {{ absence.get_status_display }}
-          </span>
-          <a href="{% url 'absence_detail' absence.id %}" class="btn-primary btn-xs">
-            تفاصيل وتعيين
-          </a>
-        </div>
+  {% section_card "الغيابات" meta=absences|length icon="users" empty="لا توجد غيابات" empty_sub="لا توجد غيابات مسجّلة في هذا التاريخ" %}{% if absences %}
+    {# الاسمُ في `data-text` على غلافٍ لكلّ بطاقة: `smartFilter` يُخفي الغلافَ كلَّه. #}
+    <div class="ui-entity-grid" id="absence-cards">
+      {% for absence in absences %}
+      <div class="slot-cell" data-filter-row data-text="{{ absence.teacher.full_name }}">
+        {% url 'absence_detail' absence.id as detail_url %}
+        {% entity_card absence.teacher.full_name who=absence.get_reason_display href=detail_url tone=absence.tone %}
+          {% if absence.assignments.all %}{% entity_chips %}{% for a in absence.assignments.all %}<span class="chip">{{ a.substitute.full_name }} — ح{{ a.slot.period_number }}</span>{% endfor %}{% endentity_chips %}{% endif %}
+          {% entity_status tone=absence.status_tone %}{{ absence.get_status_display }}{% endentity_status %}
+        {% endentity_card %}
       </div>
-      {% if absence.assignments.all %}
-      <div class="px-5 py-3">
-        <p class="text-xs text-gray-500 mb-2">البدلاء المُعيَّنون:</p>
-        <div class="flex flex-wrap gap-2">
-          {% for a in absence.assignments.all %}
-          <span class="px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs border border-blue-200">
-            {{ a.substitute.full_name }} — ح{{ a.slot.period_number }}
-          </span>
-          {% endfor %}
-        </div>
-      </div>
-      {% endif %}
+      {% endfor %}
     </div>
-    {% endfor %}
-  </div>
-  {% else %}
-  {% include "components/empty_state.html" with icon="check-circle" title="لا توجد غيابات" subtitle="لا توجد غيابات مسجّلة في هذا التاريخ" %}
-  {% endif %}
+  {% endif %}{% endsection_card %}
+
 </div>
 {% endblock %}
 

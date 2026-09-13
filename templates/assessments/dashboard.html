@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static %}
+{% load static ui %}
 {% block title %}التقييمات — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -9,144 +9,88 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="file-pen" %} لوحة التقييمات</h1>
-      <p class="exec-subtitle">الباقات الأربع — {{ year }}</p>
-    </div>
-    <div class="exec-meta">
-      <form method="get">
-        <select name="semester" data-autosubmit class="exec-year-select">
-          {% for val, label in SEMESTERS %}
-          <option value="{{ val }}" {% if semester == val %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-      </form>
-      {% if request.user.is_admin or request.user.is_superuser %}
-      <a href="{% url 'setup_subject' %}" class="btn-primary btn-sm no-underline">+ ربط مادة بفصل</a>
-      {% endif %}
-    </div>
-  </div>
+  {% page_header "لوحة التقييمات" subtitle=subtitle icon="file-pen" %}
+    <form method="get">
+      <select name="semester" data-autosubmit class="exec-year-select" aria-label="الفصل الدراسي">
+        {% for val, label in SEMESTERS %}
+        <option value="{{ val }}" {% if semester == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% if request.user.is_admin or request.user.is_superuser %}
+    <a href="{% url 'setup_subject' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} ربط مادة بفصل</a>
+    {% endif %}
+  {% endpage_header %}
 
-  {# ── KPI Strip ── #}
   {% if request.user.is_admin or request.user.is_superuser %}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-green">
-      <div class="kpi-mini-label">نسبة النجاح</div>
-      <div class="kpi-mini-value">{{ pass_pct|default:"0" }}%</div>
-      <div class="kpi-mini-sub">من إجمالي النتائج</div>
-    </div>
-    <div class="kpi-mini kpi-green">
-      <div class="kpi-mini-label">ناجح</div>
-      <div class="kpi-mini-value">{{ passed }}</div>
-      <div class="kpi-mini-sub">طالب</div>
-    </div>
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">راسب</div>
-      <div class="kpi-mini-value">{{ failed }}</div>
-      <div class="kpi-mini-sub">طالب</div>
-    </div>
-    <div class="kpi-mini kpi-maroon">
-      <div class="kpi-mini-label">مادة × فصل</div>
-      <div class="kpi-mini-value">{{ setups|length }}</div>
-      <div class="kpi-mini-sub">إعداد تقييم</div>
-    </div>
-  </div>
+  {% kpi_strip label="أرقام التقييمات" %}
+    {% kpi "نسبة النجاح" pass_pct_label tone="green" title="الناجحون من النتائج السنويّة المحسومة" %}
+    {% kpi "ناجح" passed tone="green" %}
+    {% url 'failing_students' as failing_url %}{% kpi "راسب" failed tone=failed_tone href=failing_url title="نتائجُ سنويّةٌ راسبة — افتح قائمة الراسبين" %}
+    {% kpi "مادة × فصل" setups|length tone="maroon" title="إعداداتُ التقييم النشطة هذا العام" %}
+  {% endkpi_strip %}
 
-  {# ── Failing Students Alert ── #}
-  {% if failing_list %}
-  <div class="alert-strip">
-    <span>{% include "components/icon.html" with name="alert-triangle" %}</span>
-    <span>{{ failing_list|length }} طالب راسب</span>
-    <a href="{% url 'failing_students' %}">عرض الكل</a>
-    {% for r in failing_list|slice:":5" %}
-    <span style="font-size:.6rem">{{ r.student.full_name }} — {{ r.setup.subject.name_ar }}</span>{% if not forloop.last %} · {% endif %}
-    {% endfor %}
-    {% if failing_list|length > 5 %}<span style="font-size:.6rem">و {{ failing_list|length|add:"-5" }} آخرين</span>{% endif %}
-  </div>
-  {% endif %}
-  {% endif %}
+  <div class="ui-grid-2">
+    {% section_card "توزيع الدرجات" icon="bar-chart" %}
+      <div class="dash-chart-wrap">
+        <canvas id="chartGradeDist" role="img" aria-label="رسم بياني: توزيع الدرجات"></canvas>
+      </div>
+    {% endsection_card %}
 
-  {# ── Charts Grid (3 columns) ── #}
-  {% if request.user.is_admin or request.user.is_superuser %}
-  <div class="charts-grid">
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="bar-chart" %} توزيع الدرجات</div>
+    {% section_card "مقارنة الفصول" meta="المعدّل" icon="building" %}
       <div class="dash-chart-wrap">
-        <canvas id="chartGradeDist"></canvas>
+        <canvas id="chartClassComp" role="img" aria-label="رسم بياني: معدّل كل فصل"></canvas>
       </div>
-    </div>
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="building" %} مقارنة الفصول</div>
+    {% endsection_card %}
+
+    {% section_card "أداء المواد" meta="المعدّل ونسبة الرسوب" icon="activity" %}
       <div class="dash-chart-wrap">
-        <canvas id="chartClassComp"></canvas>
+        <canvas id="chartSubjects" role="img" aria-label="رسم بياني: معدّل كل مادة ونسبة الرسوب فيها"></canvas>
       </div>
-    </div>
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="activity" %} أداء المواد</div>
-      <div class="dash-chart-wrap">
-        <canvas id="chartSubjects"></canvas>
-      </div>
-    </div>
+    {% endsection_card %}
+
+    {% section_card "نتائج راسبة" meta=failing_list|length icon="alert-triangle" empty="لا نتائجَ راسبةً هذا العام" %}{% if failing_list %}
+      <ul class="plain-list is-scroll">
+        {% for r in failing_list %}
+          <li class="plain-list__row">
+            <span class="plain-list__main"><a class="plain-list__title" href="{% url 'student_report' r.student.id %}?year={{ year }}">{{ r.student.full_name }}</a><span class="plain-list__sub">{{ r.setup.subject.name_ar }} · {{ r.setup.class_group }}</span></span>
+            <span class="status-badge status-danger">{{ r.annual_total|default:"—" }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
   </div>
   {% endif %}
 
-</div>
-
-{# ── Subjects grouped by class ── #}
-<div class="mt-4">
-  <div class="section-header">
-    <h2>{% if request.user.is_admin or request.user.is_superuser %}كل المواد{% else %}موادي{% endif %}</h2>
-  </div>
-
-  {# ── Search filter ── #}
-  <div class="filter-bar mb-4">
-    <input type="text" id="subject-search" class="form-control"
+  <div class="filter-bar">
+    <input type="text" id="subject-search" class="form-control" aria-label="بحث في المواد"
            placeholder="بحث بالمادة أو المعلم أو الفصل...">
   </div>
 
-  <div id="subjects-container" style="max-height:600px;overflow-y:auto;padding:4px">
+  <div id="subjects-container" class="asm-groups">
   {% regroup setups by class_group as grouped %}
   {% for group in grouped %}
-  <div class="mb-5 subject-group" data-filter-row data-text="{{ group.grouper }}{% for s in group.list %} {{ s.subject.name_ar }} {{ s.teacher.full_name }}{% endfor %}">
-    <p class="text-sm font-bold text-secondary mb-2 pe-1">
-      {% include "components/icon.html" with name="book-open" %} {{ group.grouper }}
-    </p>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {% for setup in group.list %}
-      <div class="card-qatar p-4">
-        <div class="flex items-start justify-between gap-2 mb-2">
-          <div class="min-w-0">
-            <a href="{% url 'setup_detail' setup.id %}?semester={{ semester }}" class="text-maroon font-bold text-sm no-underline hover:underline block truncate">
-              {{ setup.subject.name_ar }}
-            </a>
-            <p class="text-xs text-secondary m-0 mt-1">{{ setup.teacher.full_name }}</p>
-          </div>
-          <span class="status-badge status-info flex-shrink-0 text-xs">{{ setup.packages.count }} باقة</span>
-        </div>
-        <div class="pt-2 border-t flex gap-2">
-          <a href="{% url 'setup_detail' setup.id %}?semester={{ semester }}" class="btn-secondary btn-sm text-xs no-underline">تفاصيل المادة</a>
-          <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}" class="btn-secondary btn-sm text-xs no-underline">كشف الدرجات</a>
-        </div>
+    <div class="subject-group" data-filter-row data-text="{{ group.grouper }}{% for s in group.list %} {{ s.subject.name_ar }} {{ s.teacher.full_name }}{% endfor %}">
+    {% section_card group.grouper meta=group.list|length icon="book-open" %}
+      <div class="ui-entity-grid">
+        {% for setup in group.list %}
+          {% url 'setup_detail' setup.id as detail_url %}
+          {% entity_card setup.subject.name_ar who=setup.teacher.full_name href=detail_url|add:"?semester="|add:semester %}
+            {% entity_chips %}<span class="chip">{{ setup.packages.count }} باقة</span><a class="chip" href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}">كشف الدرجات</a>{% endentity_chips %}
+          {% endentity_card %}
+        {% endfor %}
       </div>
-      {% endfor %}
+    {% endsection_card %}
     </div>
-  </div>
-
   {% empty %}
-  <div class="empty-state card-qatar">
-    <span class="empty-icon">{% include "components/icon.html" with name="book-open" size="icon-2xl" %}</span>
-    <p class="empty-title">لا توجد مواد مُعدَّة بعد</p>
-    <p class="empty-sub">يجب ربط المواد بالفصول الدراسية أولاً</p>
     {% if request.user.is_admin or request.user.is_superuser %}
-    <a href="{% url 'setup_subject' %}" class="btn-primary mt-3 inline-block no-underline text-sm">
-      + ربط مادة بفصل
-    </a>
+      {% section_card "كل المواد" icon="book-open" empty="لا توجد مواد مُعدَّة بعد" empty_sub="اربط المادةَ بفصلها أوّلاً من «ربط مادة بفصل»" %}{% endsection_card %}
+    {% else %}
+      {% section_card "موادي" icon="book-open" empty="لا توجد مواد مُسندةٌ إليك بعد" empty_sub="تظهر هنا حين تربط الإدارةُ موادَّك بفصولها" %}{% endsection_card %}
     {% endif %}
-  </div>
   {% endfor %}
   </div>
+
 </div>
 
 <script nonce="{{ request.csp_nonce }}">
@@ -179,6 +123,8 @@ const OPTS={responsive:true,maintainAspectRatio:false};
 
 async function fc(u){try{return await(await fetch(u)).json()}catch(e){return null}}
 (async()=>{
+  // الرسومُ للإدارة وحدَها — ولا جلبَ بلا لوحةٍ ترسمها.
+  if(!document.getElementById('chartGradeDist'))return;
   const d=await fc('/assessments/api/charts/');
   if(!d)return;
   // Grade Distribution - Bar

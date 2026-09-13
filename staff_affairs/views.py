@@ -62,11 +62,14 @@ def staff_dashboard(request):
     stats = StaffService.get_dashboard_stats(school, year, today=today)
 
     # role_distribution_raw → قائمة مع labels للـ template
+    total_staff = stats.get("total_staff") or 0
     role_distribution = [
         {
             "role_name": r["role__name"],
             "role_display": role_label(r["role__name"]),
             "count": r["count"],
+            # النسبةُ من عدد الأشخاص — كانت `widthratio` في القالب مرّتين.
+            "share": round(100 * r["count"] / total_staff) if total_staff else 0,
         }
         for r in stats.pop("role_distribution_raw", [])
     ]
@@ -79,8 +82,32 @@ def staff_dashboard(request):
             "year": year,
             "role_distribution": role_distribution,
             **stats,
+            **_dashboard_presentation(stats, school, today),
         },
     )
+
+
+def _dashboard_presentation(stats: dict, school, today) -> dict:
+    """ألوانُ بطاقات اللوحة وسطرُها الوصفيّ — الحكمُ هنا لا شرطاً في القالب.
+
+    كانت الألوانُ ثابتة (الغيابُ أحمرُ ولو كان صفراً)، ورقمُ الرخص المنتهية
+    يُقال مرّتين: عنواناً مطويّاً وبطاقةً تحته. فصار اللونُ يحمل التنبيه:
+    العددُ الموجبُ ينبّه، والصفرُ أخضر.
+    """
+    from django.urls import reverse
+
+    def alert(key, tone):
+        return tone if stats.get(key) else "green"
+
+    return {
+        "page_subtitle": f"{today:%d/%m/%Y} · {getattr(school, 'name', '') or 'المدرسة'}",
+        "absences_tone": alert("absences_today", "red"),
+        "swaps_tone": alert("pending_swaps", "amber"),
+        "leaves_tone": alert("pending_leaves", "amber"),
+        "evals_tone": alert("pending_evals", "amber"),
+        "licenses_tone": alert("expiring_licenses", "orange"),
+        "pending_leaves_url": f"{reverse('staff_affairs:leave_list')}?status=pending",
+    }
 
 
 # ═══ الخطوة 4: سجل الموظفين ═══
@@ -490,6 +517,23 @@ def staff_profile(request, user_id):
     role_display = "—"
     if membership and membership.role:
         role_display = membership.job_title or membership.role.get_name_display()
+    # سطرُ الترويسة: المسمّى ثمّ القسم — كانا وسمين في ترويسةٍ ثالثةِ الشكل.
+    department = membership.department_obj.name if membership and membership.department_obj else ""
+    profile_subtitle = " · ".join(
+        part for part in (role_display, department) if part and part != "—"
+    )
+    # لونُ درجة التقييم (من 5) — العتباتُ التي كانت في القالب: 4 فأعلى نجاح، 3 فأعلى تنبيه.
+    for evaluation in profile_data.get("evaluations") or []:
+        score = evaluation.overall_score
+        evaluation.score_tone = (
+            "gray"
+            if score is None
+            else "success"
+            if score >= 4
+            else "warning"
+            if score >= 3
+            else "danger"
+        )
 
     person_form = StaffPersonForm(
         initial={
@@ -517,6 +561,7 @@ def staff_profile(request, user_id):
             "staff_user": user,
             "year": year,
             "role_display": role_display,
+            "profile_subtitle": profile_subtitle,
             "today": timezone.localdate(),
             "departure_form": StaffDepartureForm(initial={"on": timezone.localdate()}),
             "person_form": person_form,
@@ -736,11 +781,24 @@ def licensing_overview(request):
     # يتجنّب تحميل جميع الموظفين في الذاكرة لتصنيفهم (O(n) memory → O(1))
     license_data = StaffService.get_license_overview(school, today=today)
 
+    # الأعدادُ تُحسب مرّةً على المجموعات نفسِها فتُخزَّن نتائجُها وتُقرأ القوائمُ
+    # منها — واللونُ يحمل التنبيه: الموجبُ ينبّه والصفرُ أخضر.
+    counts = {
+        key: len(license_data[key]) for key in ("expired", "expiring_soon", "valid", "no_license")
+    }
+
     return render(
         request,
         "staff_affairs/licensing.html",
         {
             "today": today,
             **license_data,
+            "expired_count": counts["expired"],
+            "expiring_count": counts["expiring_soon"],
+            "valid_count": counts["valid"],
+            "no_license_count": counts["no_license"],
+            "expired_tone": "red" if counts["expired"] else "green",
+            "expiring_tone": "amber" if counts["expiring_soon"] else "green",
+            "no_license_tone": "orange" if counts["no_license"] else "green",
         },
     )

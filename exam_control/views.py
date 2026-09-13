@@ -34,7 +34,27 @@ def dashboard(request):
     school = request.user.get_school()
     # ✅ v5.4: ExamControlService.get_dashboard_sessions — annotate في service layer
     sessions = ExamControlService.get_dashboard_sessions(school)
+    # التكرارُ يملأ ذاكرةَ الاستعلام، فالسماتُ المضافةُ تبقى حين يمرّ القالبُ عليه.
+    for s in sessions:
+        _present_session(s)
     return render(request, "exam_control/dashboard.html", {"sessions": sessions, "school": school})
+
+
+def _present_session(session) -> None:
+    """لونُ بطاقة الدورة وسطرُ حالها — الحكمُ هنا لا شرطاً في القالب.
+
+    الحالُ يُقال بما ينتظر فعلاً: حوادثُ مفتوحةٌ أوّلاً (خطر)، ثمّ أوراقُ رصدٍ
+    معلّقة (تنبيه)، وإلّا «لا شيءَ معلّق».
+    """
+    session.status_tone = {"active": "green", "planned": "amber"}.get(session.status, "blue")
+    incidents = getattr(session, "incident_count", 0) or 0
+    pending = getattr(session, "pending_sheets", 0) or 0
+    if incidents:
+        session.attention_tone, session.attention_label = "danger", f"{incidents} حوادثُ تنتظر"
+    elif pending:
+        session.attention_tone, session.attention_label = "warning", f"{pending} أوراقُ رصدٍ معلّقة"
+    else:
+        session.attention_tone, session.attention_label = "success", "لا شيءَ معلّق"
 
 
 @login_required
@@ -59,6 +79,8 @@ def session_create(request):
         "exam_control/session_form.html",
         {
             "session_types": ExamSession.SESSION_TYPES,
+            # كان القالبُ يكتب «2025-2026» ثابتاً — فيقترح عاماً مضى.
+            "default_year": academic_year_for(request),
         },
     )
 
@@ -81,6 +103,8 @@ def session_detail(request, pk):
             schedule__session=session, status="pending"
         ).count(),
     }
+    context["incidents_tone"] = "red" if context["incidents"] else "green"
+    context["pending_tone"] = "amber" if context["pending_sheets"] else "green"
     return render(request, "exam_control/session_detail.html", context)
 
 

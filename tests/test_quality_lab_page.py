@@ -71,7 +71,8 @@ def test_the_page_shows_gate_radar_and_tiles(principal_client, tiny_schedule):
         reverse("schedule_quality_lab") + f"?year={YEAR}", HTTP_HOST="localhost"
     ).content.decode()
 
-    assert body.count('class="gate-tile') == 3 and "gate-pass" in body
+    # البوّابةُ شريطُ أرقامٍ من ثلاث بطاقات (`kpi_strip`)، والناجحةُ خضراء.
+    assert body.count("data-ui-kpi") == 3 and "ui-kpi kpi-green" in body
     assert 'id="lab-radar"' in body and "lab-radar-data" in body
     assert "الفراغ الزائد عن الاستراحة (متوسّط)" in body and "أشدّ خمسة معلّمين ضغطاً" in body
     assert "الأساس (لا أساس بعد)" in body

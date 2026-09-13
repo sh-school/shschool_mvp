@@ -1,31 +1,27 @@
 {% load privacy %}
+{% comment %}
+خليّةُ طالبٍ في شبكة الحضور — `.grid-cell` يقرؤها سكربتُ لوحة المفاتيح، و`hx-vals`
+بصيغتها هذه يطابقها (`"status": "present"`). ولونُ الحدّ والشارة من `tone`:
+ربطٌ مغلقٌ في العرض لا اسمُ الحالة صنفاً.
+{% endcomment %}
 <div
   id="student-grid-{{ student.id }}"
-  class="grid-cell bg-white rounded-xl border-2 p-3 flex flex-col gap-2 transition-all
-    {% if status == 'present' %}border-green-400 bg-green-50
-    {% elif status == 'absent' %}border-red-400 bg-red-50
-    {% elif status == 'late' %}border-yellow-400 bg-yellow-50
-    {% elif status == 'excused' %}border-purple-400 bg-purple-50
-    {% else %}border-gray-200{% endif %}"
+  class="grid-cell is-{{ tone|default:'gray' }}"
   data-student-id="{{ student.id }}"
+  data-state="{{ status }}"
   tabindex="0"
   role="group"
   aria-label="{{ student.full_name }}"
 >
   {# اسم الطالب #}
-  <div class="text-center">
-    <p class="font-semibold text-gray-900 text-sm leading-tight line-clamp-2">{{ student.full_name }}</p>
-    <p class="text-xs text-gray-400 font-mono mt-0.5">{{ student.national_id|mask_id }}</p>
+  <div class="grid-cell__who">
+    <p class="grid-cell__name">{{ student.full_name }}</p>
+    <p class="grid-cell__nid" dir="ltr">{{ student.national_id|mask_id }}</p>
   </div>
 
   {# حالة الحضور الحالية #}
-  <div class="text-center">
-    <span class="status-badge
-      {% if status == 'present' %}status-success
-      {% elif status == 'absent' %}status-danger
-      {% elif status == 'late' %}status-warning
-      {% elif status == 'excused' %}status-info
-      {% else %}status-gray{% endif %}">
+  <div class="grid-cell__state">
+    <span class="status-badge status-{{ tone|default:'gray' }}">
       {% if status == 'present' %}{% include "components/icon.html" with name="check" %} حاضر
       {% elif status == 'absent' %}{% include "components/icon.html" with name="x-circle" %} غائب
       {% elif status == 'late' %}{% include "components/icon.html" with name="clock" %} متأخر
@@ -35,17 +31,16 @@
   </div>
 
   {# أزرار الحالة (44×44px minimum) #}
-  <div class="grid grid-cols-2 gap-1 mt-1">
+  <div class="grid-cell__actions">
     <button
       hx-post="{% url 'mark_single' session.id %}"
       hx-vals='{"student_id": "{{ student.id }}", "status": "present", "view": "grid"}'
       hx-target="#student-grid-{{ student.id }}"
       hx-swap="outerHTML"
       hx-include="[name=csrfmiddlewaretoken]"
-      class="min-h-[44px] rounded-lg text-xs font-bold transition-all
-        {% if status == 'present' %}bg-green-600 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-green-100 hover:text-green-700{% endif %}"
+      class="att-btn att-btn--tile is-present{% if status == 'present' %} is-current{% endif %}"
       title="P — حاضر"
-    >{% include "components/icon.html" with name="check" %}<br><span class="text-[10px]">حاضر</span></button>
+    >{% include "components/icon.html" with name="check" %}<span>حاضر</span></button>
 
     <button
       hx-post="{% url 'mark_single' session.id %}"
@@ -53,10 +48,9 @@
       hx-target="#student-grid-{{ student.id }}"
       hx-swap="outerHTML"
       hx-include="[name=csrfmiddlewaretoken]"
-      class="min-h-[44px] rounded-lg text-xs font-bold transition-all
-        {% if status == 'absent' %}bg-red-600 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-red-100 hover:text-red-700{% endif %}"
+      class="att-btn att-btn--tile is-absent{% if status == 'absent' %} is-current{% endif %}"
       title="A — غائب"
-    >{% include "components/icon.html" with name="x-circle" %}<br><span class="text-[10px]">غائب</span></button>
+    >{% include "components/icon.html" with name="x-circle" %}<span>غائب</span></button>
 
     <button
       hx-post="{% url 'mark_single' session.id %}"
@@ -64,10 +58,9 @@
       hx-target="#student-grid-{{ student.id }}"
       hx-swap="outerHTML"
       hx-include="[name=csrfmiddlewaretoken]"
-      class="min-h-[44px] rounded-lg text-xs font-bold transition-all
-        {% if status == 'late' %}bg-yellow-500 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-yellow-100 hover:text-yellow-700{% endif %}"
+      class="att-btn att-btn--tile is-late{% if status == 'late' %} is-current{% endif %}"
       title="L — متأخر"
-    >{% include "components/icon.html" with name="clock" %}<br><span class="text-[10px]">متأخر</span></button>
+    >{% include "components/icon.html" with name="clock" %}<span>متأخر</span></button>
 
     <button
       hx-post="{% url 'mark_single' session.id %}"
@@ -75,10 +68,9 @@
       hx-target="#student-grid-{{ student.id }}"
       hx-swap="outerHTML"
       hx-include="[name=csrfmiddlewaretoken]"
-      class="min-h-[44px] rounded-lg text-xs font-bold transition-all
-        {% if status == 'excused' %}bg-purple-600 text-white shadow-sm{% else %}bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-700{% endif %}"
+      class="att-btn att-btn--tile is-excused{% if status == 'excused' %} is-current{% endif %}"
       title="E — معذور"
-    >{% include "components/icon.html" with name="file-text" %}<br><span class="text-[10px]">معذور</span></button>
+    >{% include "components/icon.html" with name="file-text" %}<span>معذور</span></button>
   </div>
 </div>
 {% if summary %}<script nonce="{{ request.csp_nonce }}">document.body.dispatchEvent(new Event('refresh'));</script>{% endif %}
