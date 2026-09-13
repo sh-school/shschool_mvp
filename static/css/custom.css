@@ -8048,6 +8048,17 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
     .schedule-tools form .form-select { width: auto; min-width: 280px; flex: initial; }
     .schedule-tools .schedule-search { width: 200px; flex: initial; }
   }
+  /* صفحاتُ الجداول: الورقةُ في إطارٍ بطول النافذة، بيضاءُ في الوضعين لأنّها ورقة. */
+  .schedule-pages-head { margin-block-end: 10px; }
+  .schedule-pages-card { inline-size: 100%; }
+  .schedule-paper-frame {
+    inline-size: 100%;
+    block-size: calc(100vh - 230px);
+    min-block-size: 560px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--on-fill);
+  }
 
 /* ── templates/schedule/print_view.html ── */
   /* الورقةُ على عرض الشاشة كلِّه بهامشٍ صغير: الجدولُ العامّ خمسةٌ وثلاثون
@@ -9363,11 +9374,6 @@ html.dark {
    كلّ صفحات المنصّة، ونصُّها أبيضُ دائماً.
    ══════════════════════════════════════════════════════════════ */
 
-/* ── بطاقةُ «اليوم» قيمتُها كلمةٌ لا رقم ──
-   `--text-2xl` مقاسُ عددٍ يُلمح، و«الأحد – الأربعاء» يلتفّ فيه سطرين
-   ويطاول جارتَه بلا أن يقول أكثر. */
-.kpi-mini-value.is-words { font-size: var(--text-base); line-height: 1.5; }
-
 /* ── سطرٌ ببطاقتين: الطابقان جنباً إلى جنب، وكذلك جدولا اليومين ──
    والقسمةُ تنفكّ من نفسها في الشاشات الضيّقة: `auto-fit` مع حدٍّ أدنى
    يعيدهما عموداً واحداً بلا استعلامِ وسَطٍ يُكتب ويُنسى. */
@@ -9548,29 +9554,6 @@ html.dark {
 .wing-cover-field--wide { grid-column: 1 / -1; }
 .wing-cover-form button { align-self: end; }
 .wing-box__tags { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
-
-/* ── شريطُ الأعداد سطراً واحداً: الاسمُ ثمّ العددُ ثمّ التفصيل ──
-   البطاقةُ ثلاثةُ أسطرٍ مكدّسةٌ لتقول «الأجنحة 5 طابقان» — وهي جملةٌ تُقرأ
-   في سطر. والتفصيلُ وحدَه يُقصّ بنقاطٍ حين يضيق، والاسمُ والعددُ لا يُقصّان.
-   ومُعدِّلٌ لا تعديل: `.kpi-strip` في ستّين صفحةٍ غيرِ هذه. */
-.kpi-strip--line .kpi-mini {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-2);
-  padding: 8px 14px;
-  min-inline-size: 0;
-}
-.kpi-strip--line .kpi-mini-label { margin: 0; white-space: nowrap; }
-.kpi-strip--line .kpi-mini-value,
-.kpi-strip--line .kpi-mini-value.is-words { font-size: var(--text-lg); line-height: 1.4; white-space: nowrap; }
-.kpi-strip--line .kpi-mini-sub {
-  margin: 0;
-  font-size: var(--text-xs);
-  min-inline-size: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
 /* ── بطاقةُ الجناح في ثلاثة أسطر ──
    مَن وكم، ثمّ الشُّعب، ثمّ الساعة. والجناحُ ذو الجرسين موضعاه في السطر
@@ -10117,6 +10100,44 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 @media (max-width: 640px) { .ui-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .ui-actions .action-card { padding: 14px 16px; min-inline-size: 0; }
+
+/* ── العيادة ──
+   كانت هذه كلُّها تنسيقاً داخل الوسوم (style=) وألوانَ Tailwind الخضراءَ الثابتة
+   في قوالب templates/clinic/ — فلا تتبع الوضعَ الداكن ولا تتغيّر من موضع. */
+.clinic-form-page { max-inline-size: 42rem; margin-inline: auto; inline-size: 100%; }
+.clinic-check { inline-size: 1rem; block-size: 1rem; flex-shrink: 0; accent-color: var(--maroon-fg); }
+.filter-bar .clinic-search-input { padding-inline-start: 2rem; }
+.filter-bar .clinic-visit-search { max-inline-size: 300px; }
+/* سجلُّ زيارات الطالب: زيارةٌ لكلّ بند، والقائمةُ تتمرّر داخل بطاقتها. */
+.clinic-visits { list-style: none; margin: 0; padding: 0; max-block-size: 600px; overflow-y: auto; }
+.clinic-visit { padding: var(--sp-4) var(--sp-5); border-block-end: 1px solid var(--border); }
+.clinic-visit:last-child { border-block-end: 0; }
+.clinic-visit__head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); margin-block-end: var(--sp-2); }
+.clinic-visit__date { font-size: var(--text-sm); font-weight: 500; color: var(--text-primary); }
+.clinic-visit__line { margin: 0 0 4px; font-size: var(--text-sm); color: var(--text-primary); }
+.clinic-visit__line.is-muted { color: var(--text-secondary); }
+.clinic-visit__nurse { margin: 4px 0 0; font-size: var(--text-xs); color: var(--text-muted); }
+/* الحرارة: الحُمّى (ClinicVisit.is_feverish) بلون الخطر. */
+.clinic-temp { font-size: var(--text-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.clinic-visit__head .clinic-temp { margin-inline-start: auto; }
+.clinic-temp.is-fever { color: var(--status-danger-fg); font-weight: 600; }
+/* ردُّ HTMX بعد تسجيل الزيارة. */
+.clinic-done { margin-block-start: var(--sp-4); background: var(--status-success-bg); color: var(--status-success-fg); }
+.clinic-done__title { margin: 0; font-weight: 700; }
+.clinic-done__sub { margin: 4px 0 0; }
+.clinic-done__link { display: inline-block; margin-block-start: var(--sp-2); color: inherit; text-decoration: underline; }
+
+/* ── النقل المدرسي ── */
+.transport-form-page { max-inline-size: 640px; margin-inline: auto; inline-size: 100%; }
+.transport-search { margin-block-end: var(--sp-2); }
+.ui-section.is-flush .transport-search { margin: 0; padding: var(--sp-2) var(--sp-3); border-block-end: 1px solid var(--border); }
+.table-wrap.transport-scroll { max-block-size: 420px; overflow-y: auto; }
+/* ردُّ HTMX بعد حفظ الحافلة أو خطّ السير. */
+.transport-done { margin-block-start: var(--sp-3); align-items: center; background: var(--status-success-bg); color: var(--status-success-fg); }
+
+/* ── المكتبة ── */
+.library-form-page { max-inline-size: 36rem; margin-inline: auto; inline-size: 100%; }
+.library-borrow-link { margin-inline-start: auto; font-weight: 700; color: inherit; text-decoration: underline; }
 
 /* ── 4. ترويسةُ الصفحة ── */
 .ui-page-header__text { min-inline-size: 0; }

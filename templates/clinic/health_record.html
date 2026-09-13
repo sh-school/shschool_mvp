@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load privacy %}
+{% load privacy ui %}
 {% block title %}السجل الصحي — {{ student.full_name }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -25,10 +25,8 @@
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
     {# ── البيانات الصحية ── #}
-    <div class="lg:col-span-1 space-y-4">
-      <div class="form-card">
-        <div class="card-bar" style="margin:-24px -28px 20px">{% include "components/icon.html" with name="list-checks" %} البيانات الصحية</div>
-
+    <div class="lg:col-span-1">
+      {% section_card "البيانات الصحية" icon="list-checks" %}
         <form method="post" action="">
           {% csrf_token %}
           <div class="space-y-3">
@@ -73,57 +71,45 @@
         </form>
 
         {% if health_record.updated_at %}
-        <p class="text-xs mt-2 text-center" style="color:var(--text-secondary)">آخر تحديث: {{ health_record.updated_at|date:"d/m/Y H:i" }}</p>
+        <p class="form-hint text-center">آخر تحديث: {{ health_record.updated_at|date:"d/m/Y H:i" }}</p>
         {% endif %}
-      </div>
+      {% endsection_card %}
     </div>
 
     {# ── سجل الزيارات ── #}
     <div class="lg:col-span-2">
-      <div class="dash-chart-card">
-        <div class="dash-chart-title">{% include "components/icon.html" with name="calendar" %} سجل الزيارات ({{ visits.count }} زيارة)</div>
-
-        {% if visits %}
-        {# ── فلتر بحث ── #}
+      {% section_card "سجل الزيارات" meta=visits|length icon="calendar" empty="لا توجد زيارات مسجلة لهذا الطالب" %}{% if visits %}
         <div class="filter-bar">
-          <input type="text" id="visit-search" class="form-control" placeholder="بحث في الزيارات..." style="max-width:300px">
+          <input type="text" id="visit-search" class="form-control clinic-visit-search" placeholder="بحث في الزيارات...">
         </div>
 
-        <div class="divide-y" style="max-height:600px;overflow-y:auto" id="visit-list">
+        <ul class="clinic-visits" id="visit-list">
           {% for visit in visits %}
-          <div class="px-5 py-4 visit-row" style="transition:background .15s">
-            <div class="flex justify-between items-start mb-2">
-              <div class="flex items-center gap-2">
-                <span class="text-sm font-medium" style="color:var(--text-primary)">{{ visit.visit_date|date:"d/m/Y — H:i" }}</span>
-                {% if visit.is_sent_home %}
-                <span class="status-badge status-warning">أُرسل للمنزل</span>
-                {% endif %}
-                {% if visit.parent_notified %}
-                <span class="status-badge status-success">{% include "components/icon.html" with name="check" %} أُبلغ ولي الأمر</span>
-                {% endif %}
-              </div>
+          <li class="clinic-visit">
+            <div class="clinic-visit__head">
+              <span class="clinic-visit__date">{{ visit.visit_date|date:"d/m/Y — H:i" }}</span>
+              {% if visit.is_sent_home %}
+              <span class="status-badge status-warning">أُرسل للمنزل</span>
+              {% endif %}
+              {% if visit.parent_notified %}
+              <span class="status-badge status-success">{% include "components/icon.html" with name="check" %} أُبلغ ولي الأمر</span>
+              {% endif %}
               {% if visit.temperature %}
-              <span class="text-sm" style="color:var(--text-secondary)">{{ visit.temperature }}°</span>
+              <span class="clinic-temp{% if visit.is_feverish %} is-fever{% endif %}">{{ visit.temperature }}°</span>
               {% endif %}
             </div>
-            <p class="text-sm m-0 mb-1" style="color:var(--text-primary)"><strong>السبب:</strong> {{ visit.reason }}</p>
+            <p class="clinic-visit__line"><strong>السبب:</strong> {{ visit.reason }}</p>
             {% if visit.symptoms %}
-            <p class="text-sm m-0 mb-1" style="color:var(--text-secondary)"><strong>الأعراض:</strong> {{ visit.symptoms }}</p>
+            <p class="clinic-visit__line is-muted"><strong>الأعراض:</strong> {{ visit.symptoms }}</p>
             {% endif %}
             {% if visit.treatment %}
-            <p class="text-sm m-0 mb-1" style="color:var(--text-secondary)"><strong>الإجراء:</strong> {{ visit.treatment }}</p>
+            <p class="clinic-visit__line is-muted"><strong>الإجراء:</strong> {{ visit.treatment }}</p>
             {% endif %}
-            <p class="text-xs mt-1 m-0" style="color:var(--text-secondary);opacity:.7">الممرض: {{ visit.nurse.full_name|default:"—" }}</p>
-          </div>
+            <p class="clinic-visit__nurse">الممرض: {{ visit.nurse.full_name|default:"—" }}</p>
+          </li>
           {% endfor %}
-        </div>
-        {% else %}
-        <div class="empty-state p-8">
-          <span class="empty-icon">{% include "components/icon.html" with name="list-checks" size="icon-2xl" %}</span>
-          <p class="empty-title">لا توجد زيارات مسجلة لهذا الطالب</p>
-        </div>
-        {% endif %}
-      </div>
+        </ul>
+      {% endif %}{% endsection_card %}
     </div>
 
   </div>
@@ -135,11 +121,11 @@
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   if (typeof window.smartFilter === 'function') {
-    window.smartFilter('visit-search', '#visit-list .visit-row');
+    window.smartFilter('visit-search', '#visit-list .clinic-visit');
   } else {
     var input = document.getElementById('visit-search');
     if (!input) return;
-    var items = document.querySelectorAll('#visit-list .visit-row');
+    var items = document.querySelectorAll('#visit-list .clinic-visit');
     input.addEventListener('input', function(){
       var q = this.value;
       items.forEach(function(el){
