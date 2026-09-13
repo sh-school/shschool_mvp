@@ -46,6 +46,4 @@
 </table>
 {% endblock %}
 
-{% block signature_1 %}رائد الفصل{% endblock %}
-{% block signature_2 %}وكيل شؤون التعليم{% endblock %}
-{% block signature_3 %}مدير المدرسة{% endblock %}
+{% block signatures %}{% include "reports/pdf/_signatures.html" with s1="رائد الفصل" s2="وكيل شؤون التعليم" s3="مدير المدرسة" %}{% endblock %}

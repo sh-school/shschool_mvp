@@ -65,7 +65,7 @@
   <script src="{% static 'js/htmx.min.js' %}" defer></script>
 </head>
 
-<body class="bg-gray-50 min-h-screen flex flex-col">
+<body class="app-body min-h-screen flex flex-col">
 
 {# ✅ SVG Icon Sprite — loaded once, used everywhere via <use href="#icon-name"/> #}
 {% include "components/sprite.html" %}
@@ -436,7 +436,7 @@
 {% if is_admin_role %}
 
 <div class="sd-menu" id="m-academic" role="menu" aria-label="إدارة الشؤون الأكاديمية">
-  {# ✅ REQ-SH-002 — Client #001 menu restructure (10 items, exact order) #}
+  {# ✅ REQ-SH-002 — Client 001 menu restructure (10 items, exact order) #}
   {% if request.user|can_open:"academic_management:evaluations" %}
   <a href="{% url 'academic_management:evaluations' %}" role="menuitem">{% include "components/icon.html" with name="file-pen" %} التقييمات والدرجات</a>
   {% endif %}
@@ -826,11 +826,7 @@
 {% if messages %}
 <div class="msgs-wrap space-y-2" id="msgs-wrap">
   {% for msg in messages %}
-  <div class="msg-bar
-    {% if msg.tags == 'success' %}bg-green-50 border border-green-200 text-green-800
-    {% elif msg.tags == 'error'   %}bg-red-50   border border-red-200   text-red-800
-    {% elif msg.tags == 'warning' %}bg-amber-50 border border-amber-200 text-amber-800
-    {% else %}bg-blue-50 border border-blue-200 text-blue-800{% endif %}">
+  <div class="msg-bar {% if msg.tags == 'success' %}msg-success{% elif msg.tags == 'error' %}msg-error{% elif msg.tags == 'warning' %}msg-warning{% else %}msg-info{% endif %}">
     <span class="msg-icon">
       {% if msg.tags == 'success' %}{% include "components/icon.html" with name="check-circle" %}{% elif msg.tags == 'error' %}{% include "components/icon.html" with name="x-circle" %}{% elif msg.tags == 'warning' %}{% include "components/icon.html" with name="alert-triangle" %}{% else %}{% include "components/icon.html" with name="info" %}{% endif %}
     </span>

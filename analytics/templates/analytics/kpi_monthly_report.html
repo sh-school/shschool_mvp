@@ -203,6 +203,4 @@
 
 {% endblock %}
 
-{% block signature_1 %}مدير المدرسة{% endblock %}
-{% block signature_2 %}مسؤول الجودة{% endblock %}
-{% block signature_3 %}وكيل شؤون التعليم{% endblock %}
+{% block signatures %}{% include "reports/pdf/_signatures.html" with s1="مدير المدرسة" s2="مسؤول الجودة" s3="وكيل شؤون التعليم" %}{% endblock %}

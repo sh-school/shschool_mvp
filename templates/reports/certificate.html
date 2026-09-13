@@ -119,6 +119,4 @@
 </table>
 {% endblock %}
 
-{% block signature_1 %}المعلم المشرف{% endblock %}
-{% block signature_2 %}ولي الأمر{% endblock %}
-{% block signature_3 %}مدير المدرسة{% endblock %}
+{% block signatures %}{% include "reports/pdf/_signatures.html" with s1="المعلم المشرف" s2="ولي الأمر" s3="مدير المدرسة" %}{% endblock %}
