@@ -25,8 +25,21 @@ def test_the_banner_is_shown_and_closed_by_the_hidden_attribute():
     block = script[start : script.index("Service Worker", start)]
 
     assert "classList" not in block, "الصنفُ لا يغلب `display:flex` في طبقة utilities"
-    assert block.count("b.hidden = true") == 2, "التثبيتُ والإغلاقُ كلاهما يُخفيان"
+    assert "b.hidden = true" in block
     assert "b.hidden = false" in block
+
+
+def test_the_banner_never_returns_once_installed_or_dismissed():
+    """قرارُ 2026-09-13: بعد التثبيت أو الإغلاق أو الفتح تطبيقاً مثبّتاً لا يعود الشريط."""
+    script = _read("static/js/base.js")
+    start = script.index("PWA Install Banner")
+    block = script[start : script.index("Service Worker", start)]
+
+    assert "'appinstalled'" in block
+    assert "display-mode: standalone" in block
+    assert "localStorage.setItem(key, '1')" in block
+    assert "pwaInstalled" in block and "pwaDismissed" in block
+    assert block.count("_pwaSettled()") >= 2, "يُسأل قبل الإظهار وعند حلول موعده"
 
 
 def test_hidden_wins_over_every_layer():
