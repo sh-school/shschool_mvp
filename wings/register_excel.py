@@ -88,7 +88,12 @@ def _signatures(ws, row: int, num_cols: int, signatories) -> int:
 
 
 def write_section_sheet(
-    ws, register, school_name: str, exported_by: str, orientation: str = "landscape"
+    ws,
+    register,
+    school_name: str,
+    exported_by: str,
+    orientation: str = "landscape",
+    footer: tuple[str, str] = ("", ""),
 ) -> None:
     """ورقةُ شعبةٍ واحدة: الطلابُ صفوفاً، والحصصُ أعمدة، وذيلٌ لكلّ حصّة، ثمّ التواقيع."""
     ws.sheet_view.rightToLeft = True
@@ -141,7 +146,7 @@ def write_section_sheet(
         ws.row_dimensions[row].height = 20
 
     # ذيلُ الحصص: الحالُ، ووقتُ أوّل تثبيت، ومن ثبّت، والعدد.
-    footer = (
+    period_foot = (
         ("الحال", lambda c: c.label),
         (
             "أوّل تثبيت",
@@ -153,7 +158,7 @@ def write_section_sheet(
             lambda c: f"{c.present} / {c.absent} / {c.late}" if c.is_confirmed else "—",
         ),
     )
-    for label, value_of in footer:
+    for label, value_of in period_foot:
         row += 1
         head = ws.cell(row=row, column=2, value=label)
         head.font = xl_font(brand.MAROON, size=9, bold=True)
@@ -177,6 +182,7 @@ def write_section_sheet(
     _merge_line(ws, row, num_cols, LEGEND, font=xl_font(brand.TEXT_MUTED, size=8))
     ws.row_dimensions[row].height = 28
     row = _signatures(ws, row, num_cols, register.signatories)
+    row = _footer(ws, row, num_cols, footer)
 
     ws.freeze_panes = ws.cell(row=HEADER_ROW + 1, column=3)
     _setup_page(ws, num_cols, row, school_name, orientation)
@@ -184,7 +190,12 @@ def write_section_sheet(
 
 
 def write_wing_summary(
-    ws, register, school_name: str, exported_by: str, orientation: str = "landscape"
+    ws,
+    register,
+    school_name: str,
+    exported_by: str,
+    orientation: str = "landscape",
+    footer: tuple[str, str] = ("", ""),
 ) -> None:
     """مصفوفةُ الجناح: الشُّعبُ صفوفاً وحصصُ اليوم أعمدة — وقتُ التثبيت وعددُ الغائبين."""
     ws.sheet_view.rightToLeft = True
@@ -263,11 +274,41 @@ def write_wing_summary(
         font=xl_font(brand.TEXT_MUTED, size=8),
     )
     row = _signatures(ws, row, num_cols, register.signatories)
+    row = _footer(ws, row, num_cols, footer)
     _setup_page(ws, num_cols, row, school_name, orientation)
     ExcelService._apply_protection(ws, num_cols)
 
 
 ORIENTATIONS = ("landscape", "portrait")
+
+
+def _footer(ws, row: int, num_cols: int, footer: tuple[str, str]) -> int:
+    """ذيلُ الوثيقة بعد التواقيع — سطرُ المدرسة ثمّ سطرُ الوزارة، كذيل الـPDF.
+
+    ويبقى ترقيمُ الصفحة وتاريخُها في ذيل الطباعة (`oddFooter`) كما يضعه `_setup_print`.
+    """
+    school, ministry = footer
+    if not (school or ministry):
+        return row
+    line = Border(top=Side(style="medium", color=brand.excel(brand.MAROON)))
+    row += 1
+    first = _merge_line(
+        ws, row, num_cols, school, font=xl_font(brand.TEXT_PRIMARY, size=9, bold=True), align=CENTER
+    )
+    for col in range(1, num_cols + 1):
+        ws.cell(row=row, column=col).border = line
+    first.border = line
+    row += 1
+    _merge_line(
+        ws,
+        row,
+        num_cols,
+        ministry,
+        font=xl_font(brand.MAROON_DARK, size=8, bold=True),
+        align=CENTER,
+    )
+    ws.row_dimensions[row].height = 28
+    return row
 
 
 def _setup_page(ws, num_cols: int, last_row: int, school_name: str, orientation: str) -> None:
@@ -294,16 +335,20 @@ def _sheet_title(text: str) -> str:
     return text[:31]
 
 
-def section_workbook(register, school_name: str, exported_by: str, orientation="landscape"):
+def section_workbook(
+    register, school_name: str, exported_by: str, orientation="landscape", footer=("", "")
+):
     wb, ws, _ = ExcelService._make_workbook(_sheet_title(register.class_group.short_code))
-    write_section_sheet(ws, register, school_name, exported_by, orientation)
+    write_section_sheet(ws, register, school_name, exported_by, orientation, footer)
     return wb
 
 
-def wing_workbook(register, school_name: str, exported_by: str, orientation="landscape"):
+def wing_workbook(
+    register, school_name: str, exported_by: str, orientation="landscape", footer=("", "")
+):
     wb, ws, _ = ExcelService._make_workbook("ملخّص الجناح")
-    write_wing_summary(ws, register, school_name, exported_by, orientation)
+    write_wing_summary(ws, register, school_name, exported_by, orientation, footer)
     for section in register.sections:
         sheet = wb.create_sheet(_sheet_title(section.class_group.short_code))
-        write_section_sheet(sheet, section, school_name, exported_by, orientation)
+        write_section_sheet(sheet, section, school_name, exported_by, orientation, footer)
     return wb

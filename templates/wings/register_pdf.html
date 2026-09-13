@@ -14,7 +14,13 @@
   @bottom-center { vertical-align: top; padding-top: 3mm; }
 }
 {% if for_screen %}
+/* المتصفّحُ لا يفهم `position: running()` — فالذيلُ المتكرّرُ يُخفى، ويُكتب بدلَه
+   ذيلٌ في آخر كلّ صفحة فصلٍ (`.sheet-footer`) بالنصّ نفسِه. */
 .running-footer { display: none; }
+.sheet-footer { margin-top: 8px; padding-top: 5px; border-top: 1.5px solid {% brand_color "MAROON" %}; text-align: center !important; line-height: 1.7; page-break-inside: avoid; }
+.sheet-footer div { text-align: center !important; }
+.sheet-footer .ft-school { font-size: 10px; color: {% brand_color "TEXT_PRIMARY" %}; font-weight: 600; }
+.sheet-footer .ft-ministry { font-size: 9px; color: {% brand_color "MAROON_DARK" %}; font-weight: 600; }
 .print-bar { display: flex; gap: 8px; justify-content: center; padding: 10px; }
 @media print { .print-bar { display: none; } }
 {% endif %}
@@ -104,15 +110,18 @@
 {% if wing_register %}
   <section class="sheet">
     {% include "wings/pdf/wing_summary.html" with register=wing_register %}
+    {% if for_screen %}{% include "wings/pdf/sheet_footer.html" %}{% endif %}
   </section>
   {% for register in wing_register.sections %}
   <section class="sheet">
     {% include "wings/pdf/section_sheet.html" %}
+    {% if for_screen %}{% include "wings/pdf/sheet_footer.html" %}{% endif %}
   </section>
   {% endfor %}
 {% else %}
   <section class="sheet">
     {% include "wings/pdf/section_sheet.html" with register=section_register %}
+    {% if for_screen %}{% include "wings/pdf/sheet_footer.html" %}{% endif %}
   </section>
 {% endif %}
 {% endblock %}

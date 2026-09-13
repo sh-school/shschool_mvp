@@ -234,6 +234,33 @@ class TestTheOrientation:
             assert (sheet.page_setup.fitToWidth, sheet.page_setup.fitToHeight) == (1, 1)
 
 
+class TestTheFooter:
+    """الذيلُ في المخارج الثلاثة — كان في الـPDF وحدَه (ملاحظةُ 2026-09-13)."""
+
+    def test_the_print_view_ends_each_class_page_with_the_footer(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        _periods(school, klass, teacher, 2)
+
+        body = client_as(supervisor).get(_wing_url(klass.wing.code)).content.decode()
+
+        assert body.count('class="sheet-footer"') == 2, "ملخّصُ الجناح وكشفُ الشعبة"
+        assert "الريادة في توفير فرص تعلم" in body
+
+    def test_every_excel_sheet_ends_with_the_footer_inside_its_print_area(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        _periods(school, klass, teacher, 2)
+
+        response = client_as(supervisor).get(_wing_url(klass.wing.code, "xlsx"))
+
+        book = openpyxl.load_workbook(io.BytesIO(response.content))
+        for sheet in book.worksheets:
+            last = sheet.cell(row=sheet.max_row, column=1).value or ""
+            assert "وزارة التربية والتعليم" in last
+            assert sheet.print_area.endswith(f"${sheet.max_row}")
+
+
 class TestOnlyHisOwnWing:
     def test_another_wings_supervisor_is_turned_away(
         self, client_as, school, year, klass, kids, teacher, supervisor

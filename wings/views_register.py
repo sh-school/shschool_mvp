@@ -21,7 +21,7 @@ from core.export_utils import generate_export_filename, get_export_context
 from core.pdf_utils import render_pdf
 from reports.services import ExcelService
 
-from .register import section_register, wing_register
+from .register import footer_lines, section_register, wing_register
 from .register_excel import section_workbook, wing_workbook
 from .services import wings_of
 from .views import _day, _own_class
@@ -48,9 +48,10 @@ def _respond(request, *, fmt, title, slug, context, workbook):
     ctx = get_export_context(request, title)
     ctx["school"] = request.user.get_school()
     ctx["orient"] = _orientation(request)
+    ctx["footer"] = footer_lines(ctx["school"])
     if fmt == "xlsx":
         return ExcelService.to_response(
-            workbook(ctx["school_name"], ctx["exported_by"], ctx["orient"]),
+            workbook(ctx["school_name"], ctx["exported_by"], ctx["orient"], ctx["footer"]),
             generate_export_filename("wings", slug, "xlsx"),
         )
     ctx.update(context)
@@ -75,8 +76,8 @@ def section_register_export(request, class_id):
         title=register.title,
         slug=f"register_{_slug(klass.short_code)}",
         context={"section_register": register},
-        workbook=lambda school_name, by, orient: section_workbook(
-            register, school_name, by, orient
+        workbook=lambda school_name, by, orient, footer: section_workbook(
+            register, school_name, by, orient, footer
         ),
     )
 
@@ -98,5 +99,7 @@ def wing_register_export(request, code):
         title=register.title,
         slug=f"wing_register_{_slug(wing.code)}",
         context={"wing_register": register},
-        workbook=lambda school_name, by, orient: wing_workbook(register, school_name, by, orient),
+        workbook=lambda school_name, by, orient, footer: wing_workbook(
+            register, school_name, by, orient, footer
+        ),
     )
