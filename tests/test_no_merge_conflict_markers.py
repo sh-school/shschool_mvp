@@ -6,6 +6,7 @@
 أخرى بعرض الصفحة، ولا خطأَ في سجلٍّ ولا اختبار.
 """
 
+import os
 import re
 import subprocess
 
@@ -13,11 +14,22 @@ MARKER = re.compile(r"^(?:<{7}|={7}|>{7}|\|{7})(?: |$)", re.M)
 CHECKED = (".css", ".js", ".html", ".py", ".json", ".txt", ".toml", ".yml", ".yaml", ".cfg", ".ini")
 
 
+SKIPPED_DIRS = {".git", "node_modules", ".local", "staticfiles", "__pycache__", ".venv", "venv"}
+
+
 def _tracked_files():
-    out = subprocess.run(["git", "ls-files", "-z"], capture_output=True, check=True).stdout.decode(
-        "utf-8"
-    )
-    return [name for name in out.split("\0") if name.endswith(CHECKED)]
+    """ملفّاتُ git — وحيث لا git (حاويةُ الجلسة ترى الشجرةَ بلا مستودعها) فالشجرةُ نفسها."""
+    try:
+        out = subprocess.run(["git", "ls-files", "-z"], capture_output=True, check=True).stdout
+        names = out.decode("utf-8").split("\0")
+    except (OSError, subprocess.CalledProcessError):
+        names = [
+            os.path.relpath(os.path.join(root, f))
+            for root, dirs, files in os.walk(".")
+            if not dirs.__setitem__(slice(None), [d for d in dirs if d not in SKIPPED_DIRS])
+            for f in files
+        ]
+    return [name for name in names if name.endswith(CHECKED)]
 
 
 def test_no_tracked_file_carries_a_merge_conflict_marker():
