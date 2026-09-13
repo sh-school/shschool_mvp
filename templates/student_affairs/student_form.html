@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load privacy %}
+{% load privacy ui %}
 
 {% block title %}{% if mode == "add" %}إضافة طالب{% else %}تعديل طالب{% endif %}{% endblock %}
 
@@ -8,30 +8,23 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash" style="max-width:700px;margin:0 auto">
+<div class="exec-dash sa-page sa-form-page">
 
   {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">
-        {% if mode == "add" %}
-          {% include "components/icon.html" with name="file-pen" %} إضافة طالب جديد
-        {% else %}
-          {% include "components/icon.html" with name="file-pen" %} تعديل بيانات {{ student.full_name }}
-        {% endif %}
-      </h1>
-      <p class="exec-subtitle">{{ year }}</p>
-    </div>
-  </div>
+  {% if mode == "add" %}
+  {% page_header "إضافة طالب جديد" subtitle=year icon="file-pen" %}{% endpage_header %}
+  {% else %}
+  {% page_header "تعديل بيانات الطالب" subtitle=student.full_name icon="file-pen" %}{% endpage_header %}
+  {% endif %}
 
   {# ── النموذج ── #}
-  <div class="card-qatar" style="padding:20px 24px">
+  <div class="form-card">
     <form method="post" enctype="multipart/form-data">
       {% csrf_token %}
 
       {# ── أخطاء عامة ── #}
       {% if form.non_field_errors %}
-      <div class="msg-bar bg-red-50 border border-red-200 text-red-800" style="margin-bottom:16px">
+      <div class="msg-bar msg-error sa-form-errors" role="alert">
         {% for err in form.non_field_errors %}
         <span class="msg-text">{{ err }}</span>
         {% endfor %}
@@ -41,11 +34,11 @@
       <div class="form-row">
 
         {# الرقم الشخصي #}
-        <div class="form-group" {% if mode == "edit" %}style="grid-column:span 2"{% endif %}>
+        <div class="form-group{% if mode == 'edit' %} sa-span-full{% endif %}{% if form.national_id.errors %} has-error{% endif %}">
           <label class="form-label">الرقم الشخصي <span class="req-star">*</span></label>
           {% if mode == "add" %}
           <input type="text" name="national_id" value="{{ form.national_id.value|default:'' }}"
-                 class="form-control {% if form.national_id.errors %}border-red-400{% endif %}"
+                 class="form-control"
                  placeholder="مثال: 29812345678" required dir="ltr">
           {% else %}
           <input type="text" value="{{ student.national_id|mask_id }}" class="form-control" disabled dir="ltr">
@@ -56,10 +49,10 @@
         </div>
 
         {# الاسم الكامل #}
-        <div class="form-group" style="grid-column:span 2">
+        <div class="form-group sa-span-full{% if form.full_name.errors %} has-error{% endif %}">
           <label class="form-label">الاسم الكامل <span class="req-star">*</span></label>
           <input type="text" name="full_name" value="{{ form.full_name.value|default:'' }}"
-                 class="form-control {% if form.full_name.errors %}border-red-400{% endif %}"
+                 class="form-control"
                  placeholder="الاسم الرباعي" required>
           {% if form.full_name.errors %}
           <span class="field-error">{{ form.full_name.errors.0 }}</span>
@@ -104,10 +97,10 @@
         </div>
 
         {# الشعبة #}
-        <div class="form-group">
+        <div class="form-group{% if form.section.errors %} has-error{% endif %}">
           <label class="form-label">الشعبة <span class="req-star">*</span></label>
           <input type="text" name="section" value="{{ form.section.value|default:'' }}"
-                 class="form-control {% if form.section.errors %}border-red-400{% endif %}"
+                 class="form-control"
                  placeholder="مثال: أ" required>
           {% if form.section.errors %}
           <span class="field-error">{{ form.section.errors.0 }}</span>
@@ -130,7 +123,7 @@
 
         {% if mode == "edit" %}
         {# ملاحظات — فقط في التعديل #}
-        <div class="form-group" style="grid-column:span 2">
+        <div class="form-group sa-span-full">
           <label class="form-label">ملاحظات</label>
           <textarea name="notes" rows="3" class="form-control"
                     placeholder="ملاحظات إضافية عن الطالب...">{{ form.notes.value|default:'' }}</textarea>

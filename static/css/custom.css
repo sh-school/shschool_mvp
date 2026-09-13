@@ -8087,6 +8087,86 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
 .tab-content { display: none; }
 .tab-content.active { display: block; }
 
+/* ── شؤون الطلاب — templates/student_affairs/ ──
+   ما لا يملكه مكوّنٌ مشترك: شريطُ التبويبات، ونموذجُ التأخّر الصباحيّ
+   ونتائجُ بحثه، وأعمدةُ الجداول. كلُّه رموزٌ واتّجاهاتٌ منطقيّة. */
+/* الإجراءاتُ في الترويسة كثيرة (سبعةٌ في الملفّ الشامل): تلتفّ ولا تدفع الصفحة. */
+.sa-page .ui-page-header .exec-meta { flex-wrap: wrap; justify-content: flex-end; }
+.sa-page .tab-content.active { display: grid; gap: var(--sp-2); }
+.sa-form-page { max-inline-size: 700px; margin-inline: auto; inline-size: 100%; }
+.sa-form-errors { margin-block-end: var(--sp-4); }
+.sa-span-full { grid-column: 1 / -1; }
+
+.sa-link { color: var(--maroon-fg); font-weight: 600; text-decoration: none; }
+.sa-link:hover { text-decoration: underline; }
+.sa-btn-danger { color: var(--status-danger-fg); }
+.sa-inline-form { display: inline; }
+.sa-row-actions { display: flex; gap: 4px; justify-content: center; flex-wrap: nowrap; }
+.sa-cell-clip { max-inline-size: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-block-gap { margin-block-start: var(--sp-3); }
+.sa-flush { padding: 0; }
+.sa-mono { font-family: ui-monospace, monospace; font-size: var(--text-xs); }
+.sa-small { font-size: var(--text-xs); }
+.sa-spinner { font-size: var(--text-xs); color: var(--text-muted); }
+.sa-table-count { padding: var(--sp-2); }
+
+/* نصيبُ الصفّ من الطلاب — شريطٌ عنّابيّ ونسبتُه بجانبه. */
+.sa-share { background: var(--maroon); }
+.sa-share-pct { min-inline-size: 3ch; font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* شريطُ التبويبات في ملفّ الطالب. */
+.sa-tabs { padding: 0; overflow: hidden; }
+.sa-tabs__list { display: flex; border-block-end: 2px solid var(--border); overflow-x: auto; }
+
+/* مرشِّحُ التأخّر في الترويسة. */
+.sa-filter { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.sa-filter .form-control { inline-size: auto; min-inline-size: 120px; }
+.sa-filter .sa-filter__narrow { min-inline-size: 0; inline-size: 80px; }
+
+/* تسجيلُ التأخّر: البحثُ ثمّ النموذجُ المخفيُّ حتى يُختار الطالب.
+   `display` الابتدائيُّ هنا، والسكربتُ يقلبه بـ`style.display`. */
+.sa-late-search { position: relative; margin-block-end: var(--sp-3); }
+.sa-late-search > .form-control { inline-size: 100%; max-inline-size: 400px; }
+.sa-late-results {
+  display: none;
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-start: 0;
+  inline-size: 100%;
+  max-inline-size: 400px;
+  max-block-size: 220px;
+  overflow-y: auto;
+  margin-block-start: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 50;
+}
+.sa-late-result {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 8px 14px;
+  border-block-end: 1px solid var(--border);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.sa-late-result:hover, .sa-late-result:focus-visible { background: var(--surface-alt); }
+.sa-late-result.is-already { cursor: default; opacity: .5; }
+.sa-late-result__meta { font-size: var(--text-xs); color: var(--text-muted); }
+.sa-late-msg { padding: 10px 14px; font-size: var(--text-sm); color: var(--text-muted); }
+.sa-late-msg.is-error { color: var(--status-danger-fg); }
+.sa-late-form { display: none; }
+.sa-late-fields { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.sa-late-field { flex: 1; min-inline-size: 160px; }
+.sa-late-field.is-narrow { flex: 0 0 140px; min-inline-size: 0; }
+.sa-late-field > label { display: block; margin-block-end: 2px; font-size: var(--text-xs); color: var(--text-muted); }
+.sa-late-field > .form-control.is-readonly { background: var(--surface-alt); cursor: default; }
+.sa-late-field > input[type="file"] { font-size: var(--text-xs); padding: 4px 8px; }
+.sa-late-preview { display: none; margin-block-start: 2px; font-size: var(--text-xs); color: var(--text-muted); }
+
 
 /* ── developer_feedback — ضُمّ من `developer_feedback/static/.../feedback.css` ──
    كان ملفَّ أنماطٍ ثانياً يحمّله سبعةُ قوالب، فيه 75 لوناً مميّزاً وأربعون

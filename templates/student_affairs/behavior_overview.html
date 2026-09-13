@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static %}
+{% load static ui %}
 
 {% block title %}ملخص سلوك الطلاب — شؤون الطلاب{% endblock %}
 
@@ -8,149 +8,50 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash">
+<div class="exec-dash sa-page">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="scale" %} ملخص سلوك الطلاب</h1>
-      <p class="exec-subtitle">{{ today|date:"F Y" }}</p>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">
-        {% include "components/icon.html" with name="file-pen" %} تسجيل مخالفة
-      </a>
-      <a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="users" %} فريق السلوك
-      </a>
-      <a href="{% url 'student_affairs:behavior_export' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
-      <a href="{% url 'student_affairs:behavior_pdf' %}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
-      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
-    </div>
-  </div>
+  {% page_header "ملخص سلوك الطلاب" subtitle=today|date:"F Y" icon="scale" %}
+    <a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} تسجيل مخالفة</a>
+    <a href="{% url 'behavior:dashboard' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} لوحة السلوك</a>
+    <a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="users" %} فريق السلوك</a>
+    <a href="{% url 'behavior:policy_pdf' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="lock" %} لائحة السلوك PDF</a>
+    <a href="{% url 'student_affairs:behavior_export' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
+    <a href="{% url 'student_affairs:behavior_pdf' %}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
+    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+  {% endpage_header %}
 
-  {# ── KPI Strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-{% if infraction_pct < 10 %}green{% elif infraction_pct < 25 %}orange{% else %}red{% endif %}">
-      <div class="kpi-mini-label">إجمالي المخالفات</div>
-      <div class="kpi-mini-value">{{ total_infractions }}</div>
-    </div>
-    <div class="kpi-mini kpi-{% if today_infractions == 0 %}green{% elif today_infractions < 5 %}orange{% else %}red{% endif %}">
-      <div class="kpi-mini-label">مخالفات اليوم</div>
-      <div class="kpi-mini-value">{{ today_infractions }}</div>
-    </div>
-    <div class="kpi-mini kpi-{% if infraction_pct < 10 %}green{% elif infraction_pct < 25 %}orange{% else %}red{% endif %}">
-      <div class="kpi-mini-label">نسبة الطلاب المخالفين</div>
-      <div class="kpi-mini-value">{{ infraction_pct }}%</div>
-    </div>
-    <div class="kpi-mini kpi-{% if unresolved == 0 %}green{% elif unresolved < 10 %}orange{% else %}red{% endif %}">
-      <div class="kpi-mini-label">غير محلولة</div>
-      <div class="kpi-mini-value">{{ unresolved }}</div>
-    </div>
-    <div class="kpi-mini">
-      <div class="kpi-mini-label">إجمالي الطلاب</div>
-      <div class="kpi-mini-value">{{ total_students }}</div>
-    </div>
-  </div>
+  {% kpi_strip label="أرقام السلوك هذا العام" %}
+    {% kpi "إجمالي المخالفات" total_infractions tone=pct_tone title="مخالفات العام الدراسي" %}
+    {% kpi "مخالفات اليوم" today_infractions tone=today_tone %}
+    {% kpi "الطلاب المخالفون" pct_label sub=offenders_label tone=pct_tone title="من خالف مرّةً فأكثر هذا العام، من إجمالي الطلاب" %}
+    {% kpi "غير محلولة" unresolved tone=unresolved_tone %}
+  {% endkpi_strip %}
 
-  {# ── توزيع المخالفات حسب الدرجة ── #}
-  <h2 style="font-size:1rem;font-weight:700;margin:24px 0 12px;color:var(--text-primary)">
-    {% include "components/icon.html" with name="list-checks" %} توزيع المخالفات حسب الدرجة
-  </h2>
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-green">
-      <div class="kpi-mini-label">الدرجة 1 — تحذير</div>
-      <div class="kpi-mini-value">{{ degree_map.1.count|default:"0" }}</div>
-      <div style="font-size:.65rem;color:var(--text-muted);margin-top:2px">{{ degree_map.1.points|default:"0" }} نقطة</div>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <div class="kpi-mini-label">الدرجة 2 — إنذار</div>
-      <div class="kpi-mini-value">{{ degree_map.2.count|default:"0" }}</div>
-      <div style="font-size:.65rem;color:var(--text-muted);margin-top:2px">{{ degree_map.2.points|default:"0" }} نقطة</div>
-    </div>
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">الدرجة 3 — خطيرة</div>
-      <div class="kpi-mini-value">{{ degree_map.3.count|default:"0" }}</div>
-      <div style="font-size:.65rem;color:var(--text-muted);margin-top:2px">{{ degree_map.3.points|default:"0" }} نقطة</div>
-    </div>
-    <div class="kpi-mini kpi-maroon">
-      <div class="kpi-mini-label">الدرجة 4 — جسيمة</div>
-      <div class="kpi-mini-value">{{ degree_map.4.count|default:"0" }}</div>
-      <div style="font-size:.65rem;color:var(--text-muted);margin-top:2px">{{ degree_map.4.points|default:"0" }} نقطة</div>
-    </div>
-  </div>
+  {% section_card "توزيع المخالفات حسب الدرجة" meta="هذا العام" icon="list-checks" %}
+    <ul class="chip-row" aria-label="المخالفات حسب الدرجة">
+      {% for label, count in degree_rows %}
+        <li class="chip-stat"><span class="chip-stat__key">{{ label }}</span><b class="chip-stat__value">{{ count }}</b></li>
+      {% endfor %}
+    </ul>
+  {% endsection_card %}
 
-  {# ── Chart — اتجاه المخالفات الشهري ── #}
-  <div class="card-qatar" style="margin-top:24px;padding:20px">
-    <h2 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text-primary)">
-      {% include "components/icon.html" with name="bar-chart" %} اتجاه المخالفات الشهري (آخر 6 أشهر)
-    </h2>
-    <div style="position:relative;height:280px">
-      <canvas id="infractions-chart"></canvas>
-    </div>
-  </div>
+  <div class="ui-grid-2">
+    {% section_card "اتجاه المخالفات الشهري" meta="آخر 6 أشهر" icon="bar-chart" %}
+      <div class="dash-chart-wrap">
+        <canvas id="infractions-chart" role="img" aria-label="رسم بياني: عدد المخالفات في كل شهر من آخر ستة أشهر"></canvas>
+      </div>
+    {% endsection_card %}
 
-  {# ── أكثر 15 طالب مخالفات ── #}
-  <div class="card-qatar" style="margin-top:24px;padding:20px">
-    <h2 style="font-size:1rem;font-weight:700;margin-bottom:16px;color:var(--text-primary)">
-      {% include "components/icon.html" with name="alert-triangle" %} أكثر الطلاب مخالفات (هذا العام)
-    </h2>
-    {% if worst_students %}
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th style="width:40px">#</th>
-            <th>اسم الطالب</th>
-            <th style="width:100px;text-align:center">المخالفات</th>
-            <th style="width:80px;text-align:center">إجراء</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for s in worst_students %}
-          <tr>
-            <td>{{ forloop.counter }}</td>
-            <td>
-              <a href="{% url 'student_affairs:student_profile' s.student__id %}"
-                 style="color:var(--maroon-fg);text-decoration:none;font-weight:600">
-                {{ s.student__full_name }}
-              </a>
-            </td>
-            <td style="text-align:center">
-              <span class="status-badge status-danger">{{ s.infraction_count }}</span>
-            </td>
-            <td style="text-align:center">
-              <a href="{% url 'student_affairs:student_profile' s.student__id %}" class="btn-xs btn-secondary">
-                {% include "components/icon.html" with name="file-pen" %}
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="empty-state">
-      {% include "components/icon.html" with name="check-circle" %}
-      <p>لا مخالفات مسجّلة هذا العام</p>
-    </div>
-    {% endif %}
-  </div>
-
-  {# ── روابط سريعة ── #}
-  <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:24px">
-    <a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">
-      {% include "components/icon.html" with name="file-pen" %} تسجيل مخالفة
-    </a>
-    <a href="{% url 'behavior:dashboard' %}" class="btn-secondary btn-sm">
-      {% include "components/icon.html" with name="bar-chart" %} لوحة السلوك
-    </a>
-    <a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">
-      {% include "components/icon.html" with name="users" %} فريق السلوك
-    </a>
-    <a href="{% url 'behavior:policy_pdf' %}" class="btn-secondary btn-sm">
-      {% include "components/icon.html" with name="lock" %} لائحة السلوك PDF
-    </a>
+    {% section_card "أكثر الطلاب مخالفات" meta="هذا العام" icon="alert-triangle" empty="لا مخالفات مسجّلة هذا العام" %}{% if worst_students %}
+      <ol class="plain-list is-scroll">
+        {% for s in worst_students %}
+          <li class="plain-list__row">
+            <a href="{% url 'student_affairs:student_profile' s.student__id %}" class="plain-list__title sa-link">{{ s.student__full_name }}</a>
+            <span class="status-badge status-danger" title="عدد المخالفات">{{ s.infraction_count }}</span>
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}{% endsection_card %}
   </div>
 
 </div>
@@ -187,7 +88,7 @@
         y: {
           beginAtZero: true,
           ticks: { precision: 0 },
-          grid: { color: 'rgba(0,0,0,0.06)' },
+          grid: { color: chartColor('border') },
         },
         x: {
           grid: { display: false },

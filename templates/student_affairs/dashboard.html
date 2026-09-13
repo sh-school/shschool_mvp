@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static %}
+{% load ui %}
 
 {% block title %}شؤون الطلاب{% endblock %}
 
@@ -8,236 +8,82 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash">
+<div class="exec-dash sa-page">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="users" %} شؤون الطلاب</h1>
-      <p class="exec-subtitle">نظرة شاملة على بيانات الطلاب — {{ current_school.name|default:"المدرسة" }}</p>
-    </div>
-    <div class="exec-meta">
-      <span class="exec-date">{{ today|date:"D، d M Y" }}</span>
-      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
-    </div>
+  {% page_header "شؤون الطلاب" subtitle=page_subtitle icon="users" %}
+    <a href="{% url 'student_affairs:student_add' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} إضافة طالب</a>
+    <a href="{% url 'student_affairs:student_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="list-checks" %} سجل الطلاب</a>
+    <a href="{% url 'student_affairs:transfer_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="refresh" %} الانتقالات</a>
+    <a href="{% url 'student_affairs:activity_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="activity" %} الأنشطة</a>
+    <a href="{% url 'student_import_export' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} استيراد/تصدير</a>
+    <a href="{% url 'manage_parent_links' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="waypoints" %} ربط الأولياء</a>
+    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+  {% endpage_header %}
+
+  {# الإحصائيات اليومية (SOS-20260420-9A91) — والمرحلتان تفصيلُ الإجمالي لا بطاقةٌ بسطرين #}
+  {% url 'student_affairs:attendance_overview' as attendance_url %}
+  {% url 'student_affairs:tardiness_list' as tardiness_url %}
+  {% url 'student_affairs:behavior_overview' as behavior_url %}
+  {% kpi_strip label="الإحصائيات اليومية" %}
+    {% kpi "إجمالي الطلاب" total_students sub=stage_label tone="maroon" title="إعدادي 7–9 · ثانوي 10–12" %}
+    {% kpi "القطريون" qatari_label tone="green" title="نسبة الطلاب القطريين من الإجمالي" %}
+    {% kpi "الغياب" absent_label tone=absent_tone href=attendance_url title="نسبة الغائبين اليوم من الإجمالي" %}
+    {% kpi "التأخير" late_label tone=late_tone href=tardiness_url title="نسبة المتأخرين اليوم من الإجمالي" %}
+    {% kpi "مخالفات اليوم" today_behavior_count tone=behavior_tone href=behavior_url %}
+  {% endkpi_strip %}
+
+  {# القوائم اليومية (SOS-20260420-9A91) #}
+  <div class="charts-grid-3">
+    {% section_card "الغائبون اليوم" meta=absent_today icon="user-x" empty="لا غياب اليوم" %}{% if absent_list %}
+      <ul class="plain-list is-scroll">
+        {% for s in absent_list %}
+          <li class="plain-list__row"><span class="plain-list__title">{{ s.full_name }}</span><span class="status-badge status-gray">{{ s.class_group }}</span></li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
+
+    {% section_card "المتأخرون اليوم" meta=late_today icon="clock" empty="لا تأخير اليوم" %}{% if late_list %}
+      <ul class="plain-list is-scroll">
+        {% for s in late_list %}
+          <li class="plain-list__row"><span class="plain-list__title">{{ s.full_name }}</span><span class="status-badge status-gray">{{ s.class_group }}</span></li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
+
+    {% section_card "مخالفات اليوم السلوكية" meta=today_behavior_count icon="scale" empty="لا مخالفات اليوم" %}{% if infraction_rows %}
+      <ul class="plain-list is-scroll">
+        {% for inf in infraction_rows %}
+          <li class="plain-list__row">
+            <span class="plain-list__main"><b class="plain-list__title">{{ inf.student }}</b><span class="plain-list__sub" title="{{ inf.category }}">{{ inf.category }}</span></span>
+            <span class="status-badge {{ inf.badge }}" title="درجة المخالفة">د{{ inf.level }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
   </div>
 
-  {# ── الجزء الأول: الإحصائيات اليومية (SOS-20260420-9A91) — 6 عناصر حسب طلب المدير ── #}
-  <div class="dash-chart-card">
-    <div class="dash-chart-title">{% include "components/icon.html" with name="bar-chart-2" %} الإحصائيات اليومية</div>
-    <div class="kpi-strip" style="margin-top:12px">
-
-      {# 1. إجمالي الطلاب #}
-      <div class="kpi-mini kpi-maroon">
-        <div class="kpi-mini-label">إجمالي الطلاب</div>
-        <div class="kpi-mini-value">{{ total_students }}</div>
-        <div class="kpi-mini-sub">{{ year }}</div>
-      </div>
-
-      {# 2. أعداد الطلاب على مستوى المراحل — إعدادي + ثانوي #}
-      <div class="kpi-mini kpi-blue">
-        <div class="kpi-mini-label">أعداد الطلاب على مستوى المراحل</div>
-        <div class="kpi-mini-value" style="font-size:1.1rem;line-height:1.4">
-          <span>إعدادي: <strong>{{ stage_map.2|default:0 }}</strong></span>
-          <span style="margin-right:10px">ثانوي: <strong>{{ stage_map.3|default:0 }}</strong></span>
-        </div>
-        <div class="kpi-mini-sub">7-9 / 10-12</div>
-      </div>
-
-      {# 3. نسبة الطلاب القطريين #}
-      <div class="kpi-mini kpi-green">
-        <div class="kpi-mini-label">نسبة الطلاب القطريين</div>
-        <div class="kpi-mini-value">{{ qatari_pct }}%</div>
-        <div class="kpi-mini-sub">من إجمالي الطلاب</div>
-      </div>
-
-      {# 4. نسبة الغياب #}
-      <div class="kpi-mini kpi-red">
-        <div class="kpi-mini-label">نسبة الغياب</div>
-        <div class="kpi-mini-value">{{ absent_pct }}%</div>
-        <div class="kpi-mini-sub">{{ absent_today }} طالب</div>
-      </div>
-
-      {# 5. نسبة التأخير #}
-      <div class="kpi-mini kpi-orange">
-        <div class="kpi-mini-label">نسبة التأخير</div>
-        <div class="kpi-mini-value">{{ late_pct }}%</div>
-        <div class="kpi-mini-sub">{{ late_today }} طالب</div>
-      </div>
-
-      {# 6. عدد المخالفات اليومية #}
-      <div class="kpi-mini kpi-maroon">
-        <div class="kpi-mini-label">عدد المخالفات اليومية</div>
-        <div class="kpi-mini-value">{{ today_behavior_count }}</div>
-        <div class="kpi-mini-sub">{{ today|date:"d/m/Y" }}</div>
-      </div>
-
-    </div>
-  </div>
-
-  {# ── قسم 2: القوائم اليومية (SOS-20260420-9A91) ── #}
-  <div class="charts-grid-3" style="margin-top:1.5rem">
-
-    {# قائمة الغائبين #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="user-x" %}الغائبون اليوم
-        <span class="status-badge status-danger" style="margin-right:8px;font-size:.7rem">{{ absent_today }}</span>
-      </div>
-      {% if absent_list %}
-      <div class="table-wrap-scroll" style="max-height:260px;overflow-y:auto">
-        <table style="width:100%;font-size:.8rem;border-collapse:collapse">
-          <thead style="position:sticky;top:0;background:var(--surface)">
-            <tr style="border-bottom:2px solid var(--border)">
-              <th style="padding:6px 8px;text-align:right;font-weight:600">#</th>
-              <th style="padding:6px 8px;text-align:right;font-weight:600">اسم الطالب</th>
-              <th style="padding:6px 8px;text-align:center;font-weight:600">الصف</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for s in absent_list %}
-            <tr style="border-bottom:1px solid var(--border)">
-              <td style="padding:6px 8px;color:var(--text-muted)">{{ forloop.counter }}</td>
-              <td style="padding:6px 8px;font-weight:500">{{ s.full_name }}</td>
-              <td style="padding:6px 8px;text-align:center">{{ s.class_group }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:.85rem">لا غياب اليوم</div>
-      {% endif %}
-    </div>
-
-    {# قائمة المتأخرين #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="clock" %}المتأخرون اليوم
-        <span class="status-badge status-warning" style="margin-right:8px;font-size:.7rem">{{ late_today }}</span>
-      </div>
-      {% if late_list %}
-      <div class="table-wrap-scroll" style="max-height:260px;overflow-y:auto">
-        <table style="width:100%;font-size:.8rem;border-collapse:collapse">
-          <thead style="position:sticky;top:0;background:var(--surface)">
-            <tr style="border-bottom:2px solid var(--border)">
-              <th style="padding:6px 8px;text-align:right;font-weight:600">#</th>
-              <th style="padding:6px 8px;text-align:right;font-weight:600">اسم الطالب</th>
-              <th style="padding:6px 8px;text-align:center;font-weight:600">الصف</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for s in late_list %}
-            <tr style="border-bottom:1px solid var(--border)">
-              <td style="padding:6px 8px;color:var(--text-muted)">{{ forloop.counter }}</td>
-              <td style="padding:6px 8px;font-weight:500">{{ s.full_name }}</td>
-              <td style="padding:6px 8px;text-align:center">{{ s.class_group }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:.85rem">لا تأخير اليوم</div>
-      {% endif %}
-    </div>
-
-    {# قائمة المخالفين #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">{% include "components/icon.html" with name="scale" %}مخالفات اليوم السلوكية
-        <span class="status-badge status-danger" style="margin-right:8px;font-size:.7rem">{{ today_behavior_count }}</span>
-      </div>
-      {% if today_infraction_list %}
-      <div class="table-wrap-scroll" style="max-height:260px;overflow-y:auto">
-        <table style="width:100%;font-size:.8rem;border-collapse:collapse">
-          <thead style="position:sticky;top:0;background:var(--surface)">
-            <tr style="border-bottom:2px solid var(--border)">
-              <th style="padding:6px 8px;text-align:right;font-weight:600">#</th>
-              <th style="padding:6px 8px;text-align:right;font-weight:600">اسم الطالب</th>
-              <th style="padding:6px 8px;text-align:right;font-weight:600">المخالفة</th>
-              <th style="padding:6px 8px;text-align:center;font-weight:600">د</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for inf in today_infraction_list %}
-            <tr style="border-bottom:1px solid var(--border)">
-              <td style="padding:6px 8px;color:var(--text-muted)">{{ forloop.counter }}</td>
-              <td style="padding:6px 8px;font-weight:500">{{ inf.student.full_name }}</td>
-              <td style="padding:6px 8px;font-size:.75rem">{{ inf.violation_category.name_ar|truncatechars:40 }}</td>
-              <td style="padding:6px 8px;text-align:center">
-                <span class="status-badge {% if inf.level == 1 %}status-success{% elif inf.level == 2 %}status-warning{% elif inf.level == 3 %}status-warning{% else %}status-danger{% endif %}">
-                  د{{ inf.level }}
-                </span>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:.85rem">لا مخالفات اليوم</div>
-      {% endif %}
-    </div>
-
-  </div>
-  {# ── الروابط السريعة ── #}
-  <div class="quick-links">
-    <a href="{% url 'student_affairs:student_list' %}" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="list-checks" %}</span> سجل الطلاب
-    </a>
-    <a href="{% url 'student_affairs:student_add' %}" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="file-pen" %}</span> إضافة طالب
-    </a>
-    <a href="{% url 'student_affairs:transfer_list' %}" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="refresh" %}</span> الانتقالات
-    </a>
-    <a href="{% url 'student_affairs:attendance_overview' %}" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="calendar" %}</span> الحضور
-    </a>
-    <a href="{% url 'student_affairs:behavior_overview' %}" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="scale" %}</span> السلوك
-    </a>
-    <a href="{% url 'student_affairs:activity_list' %}" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="activity" %}</span> الأنشطة
-    </a>
-    <a href="{% url 'student_import_export' %}" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="download" %}</span> استيراد/تصدير
-    </a>
-    <a href="{% url 'manage_parent_links' %}" class="ql-item">
-      <span class="ql-icon">{% include "components/icon.html" with name="waypoints" %}</span> ربط الأولياء
-    </a>
-  </div>
-
-  {# ── توزيع الطلاب حسب الصف ── #}
-  {% if grade_distribution %}
-  <div class="dash-chart-card">
-    <div class="dash-chart-title">{% include "components/icon.html" with name="bar-chart" %} توزيع الطلاب حسب الصف</div>
-    <div class="table-wrap-scroll">
-      <table style="width:100%;font-size:.8rem;border-collapse:collapse">
-        <thead>
-          <tr style="border-bottom:2px solid var(--border)">
-            <th style="padding:8px;text-align:right;font-weight:600">الصف</th>
-            <th style="padding:8px;text-align:center;font-weight:600">العدد</th>
-            <th style="padding:8px;text-align:right;font-weight:600">النسبة</th>
-          </tr>
-        </thead>
+  {% if grade_rows %}
+  {% section_card "توزيع الطلاب حسب الصف" icon="bar-chart" flush=True %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>الصف</th><th class="num">العدد</th><th>النسبة</th></tr></thead>
         <tbody>
-          {% for g in grade_distribution %}
-          <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:8px">{{ g.class_group__grade }}</td>
-            <td style="padding:8px;text-align:center;font-weight:600">{{ g.count }}</td>
-            <td style="padding:8px">
-              {% if total_students > 0 %}
-              <div style="display:flex;align-items:center;gap:6px">
-                <div style="height:6px;background:var(--maroon);border-radius:3px;width:{% widthratio g.count total_students 100 %}%"></div>
-                <span style="font-size:.7rem;color:var(--text-muted)">{% widthratio g.count total_students 100 %}%</span>
+          {% for g in grade_rows %}
+          <tr>
+            <td>{{ g.label }}</td>
+            <td class="num">{{ g.count }}</td>
+            <td>
+              <div class="mini-progress-wrap">
+                <div class="mini-progress-track"><div class="mini-progress-fill sa-share" style="--progress-w:{{ g.pct }}%"></div></div>
+                <span class="sa-share-pct">{{ g.pct }}%</span>
               </div>
-              {% endif %}
             </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
+  {% endsection_card %}
   {% endif %}
 
 </div>
