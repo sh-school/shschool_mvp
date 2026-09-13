@@ -1,0 +1,10 @@
+{% comment %}بطاقةُ كيان — تُرسم من الوسم `{% entity_card %}` في core/templatetags/ui.py.{% endcomment %}
+<article class="ui-entity kpi-{{ tone }}">
+  <div class="ui-entity__head">
+    {% if href %}<a href="{{ href }}" class="ui-entity__title">{{ title }}</a>{% else %}<span class="ui-entity__title">{{ title }}</span>{% endif %}
+    {% if who %}<span class="ui-entity__who" title="{{ who }}">{{ who }}</span>{% endif %}
+    {% if badge %}<span class="badge badge--warning"{% if badge_title %} title="{{ badge_title }}"{% endif %}>{{ badge }}</span>{% endif %}
+    {% if count or count == 0 %}<span class="ui-entity__count">{{ count }}</span>{% endif %}
+  </div>
+  {{ content }}
+</article>
