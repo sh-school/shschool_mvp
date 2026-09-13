@@ -1,14 +1,15 @@
 {% extends "reports/base_qatar_report.html" %}
+{% load brand_tags %}
 {# تقرير تقدم الخطة التشغيلية — يرث من القالب القطري الأساسي #}
 
 {% block extra_styles %}
 .pct-text  { font-weight: 700; }
-.pct-green { color: #16a34a !important; }
-.pct-amber { color: #d97706 !important; }
-.pct-red   { color: #dc2626 !important; }
+.pct-green { color: {% brand_color "STATUS_SUCCESS" %} !important; }
+.pct-amber { color: {% brand_color "STATUS_WARNING" %} !important; }
+.pct-red   { color: {% brand_color "STATUS_DANGER" %} !important; }
 
 .bar-bg {
-  background: #e5e7eb;
+  background: {% brand_color "BORDER" %};
   border-radius: 4px;
   height: 10px;
   width: 100px;
@@ -16,21 +17,21 @@
   vertical-align: middle;
 }
 .bar-fill       { height: 10px; border-radius: 4px; display: block; }
-.bar-green      { background: #16a34a; }
-.bar-amber      { background: #d97706; }
-.bar-red        { background: #dc2626; }
+.bar-green      { background: {% brand_color "STATUS_SUCCESS" %}; }
+.bar-amber      { background: {% brand_color "STATUS_WARNING" %}; }
+.bar-red        { background: {% brand_color "STATUS_DANGER" %}; }
 
 .stat-box {
   flex: 1;
-  border: 1px solid #e2e8f0;
+  border: 1px solid {% brand_color "BORDER" %};
   border-radius: 8px;
   padding: 12px 8px;
   text-align: center;
 }
-.stat-box .num  { font-size: 26px; font-weight: 700; color: #8A1538; line-height: 1; }
-.stat-box .lbl  { font-size: 9px; color: #666; margin-top: 4px; }
-.stat-box.green .num { color: #16a34a; }
-.stat-box.amber .num { color: #d97706; }
+.stat-box .num  { font-size: 26px; font-weight: 700; color: {% brand_color "MAROON" %}; line-height: 1; }
+.stat-box .lbl  { font-size: 9px; color: {% brand_color "TEXT_MUTED" %}; margin-top: 4px; }
+.stat-box.green .num { color: {% brand_color "STATUS_SUCCESS" %}; }
+.stat-box.amber .num { color: {% brand_color "STATUS_WARNING" %}; }
 {% endblock %}
 
 {% block report_title_bar %}
@@ -92,7 +93,7 @@
       <td class="cell-num">{{ ds.total }}</td>
       <td class="cell-num c-green">{{ ds.completed }}</td>
       <td class="cell-num c-orange">{{ ds.in_progress }}</td>
-      <td class="cell-num" style="color:#6366f1">{{ ds.pending_review }}</td>
+      <td class="cell-num" style="color:{% brand_color "STATUS_INFO" %}">{{ ds.pending_review }}</td>
       <td>
         <span class="pct-text {% if ds.pct >= 70 %}pct-green{% elif ds.pct >= 40 %}pct-amber{% else %}pct-red{% endif %}">
           {{ ds.pct }}%
@@ -111,7 +112,7 @@
   </tbody>
 </table>
 
-<p class="mt-20" style="font-size:9px; color:#9ca3af; border-top:1px solid #e5e7eb; padding-top:6px;">
+<p class="mt-20" style="font-size:9px; color:{% brand_color "TEXT_MUTED" %}; border-top:1px solid {% brand_color "BORDER" %}; padding-top:6px;">
   * هذا التقرير تلقائي من نظام SchoolOS — {{ school.name|default:"المدرسة" }}
 </p>
 
