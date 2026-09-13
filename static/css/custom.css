@@ -1980,6 +1980,8 @@ tfoot td {
 .action-card-body .action-title {
   font-size: var(--text-sm); font-weight: 700; margin: 0 0 2px;
 }
+/* البلاطةُ من الوسم تكتب العنوانَ والوصفَ `span` لا `p` — داخل رابط. */
+.action-card-body { display: grid; min-inline-size: 0; }
 .action-card-body .action-desc {
   font-size: var(--text-xs); color: var(--text-muted); margin: 0;
 }
@@ -10102,6 +10104,17 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .form-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); flex-wrap: wrap; }
 .consent-page { max-width: 720px; margin-inline: auto; }
 .consent-form { display: grid; gap: var(--sp-3); }
+
+/* ── 11. شبكةُ بلاطات الانتقال ──
+   `auto-fit` بحدٍّ أدنى: ثلاثٌ في سطرٍ حيث يتّسع، واثنتان على الهاتف. */
+.ui-actions {
+  display: grid;
+  /* 300px: أربعٌ في سطرٍ على الشاشة العريضة — فثمانٍ سطران كاملان لا خمسٌ وثلاث. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: var(--sp-2);
+}
+@media (max-width: 640px) { .ui-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ui-actions .action-card { padding: 14px 16px; min-inline-size: 0; }
 
 /* ── 4. ترويسةُ الصفحة ── */
 .ui-page-header__text { min-inline-size: 0; }
