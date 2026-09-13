@@ -56,6 +56,7 @@ from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 from library.models import BookBorrowing
 from operations.absence_standing import standing_for
 from operations.models import AbsenceAlert, Session, StudentAttendance
+from operations.tardiness import tardiness_now
 
 from .models import StudentActivity, StudentTransfer
 
@@ -743,6 +744,9 @@ def student_profile(request, student_id):
         grade=enrollment.class_group.grade if enrollment else None,
     )
 
+    # ── 2ج. عدّادا التأخّر عن الحصص — مرّاتٍ ودقائق، للفصل والعام وبالمادّة ──
+    tardiness = tardiness_now(student, school)
+
     # ── 3. السلوك (behavior) ──
     infractions = (
         BehaviorInfraction.objects.filter(student=student, school=school)
@@ -805,6 +809,7 @@ def student_profile(request, student_id):
             "parent_links": parent_links,
             "attendance": attendance_summary,
             "absence_standing": absence_standing,
+            "tardiness": tardiness,
             "behavior": behavior_summary,
             "clinic_visits": clinic_visits,
             "health_record": health_record,
