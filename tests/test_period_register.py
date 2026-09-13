@@ -552,6 +552,60 @@ class TestEscape:
 
 
 # ══════════════════════════════════════════════════════════════════
+# إنذاراتُ عتبات الغياب
+# ══════════════════════════════════════════════════════════════════
+
+
+class TestAbsenceAlerts:
+    """الكشفُ يُنذر بعتبات الغياب كما كان يفعل رصدُ المعلّم — لا صمتَ بعد الانتقال."""
+
+    def _absent_days(self, school, klass, kids, teacher, supervisor, count):
+        for offset in range(count):
+            day = SUNDAY + dt.timedelta(days=offset)
+            for session in _periods(school, klass, teacher, 7, day=day):
+                _confirm(klass, session, {kids[0]: "absent"}, supervisor, day=day)
+
+    def test_three_absent_days_raise_the_first_gate_warning(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        """عتبةُ السابع الأولى خمسةُ أيّام، والإنذارُ قبلها بيومين — فالثالثُ يُنذر."""
+        from operations.models import AbsenceAlert
+
+        self._absent_days(school, klass, kids, teacher, supervisor, 3)
+
+        assert AbsenceAlert.objects.filter(student=kids[0]).exists()
+        assert not AbsenceAlert.objects.filter(student=kids[1]).exists()
+
+    def test_the_same_gate_is_not_raised_again_on_the_next_period(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        from operations.models import AbsenceAlert
+
+        self._absent_days(school, klass, kids, teacher, supervisor, 3)
+        before = AbsenceAlert.objects.filter(student=kids[0]).count()
+
+        day = SUNDAY + dt.timedelta(days=3)
+        (period,) = _periods(school, klass, teacher, 1, day=day)
+        _confirm(klass, period, {kids[0]: "absent"}, supervisor, day=day)
+
+        assert AbsenceAlert.objects.filter(student=kids[0]).count() == before
+
+    def test_a_single_absent_period_is_not_an_absent_day(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        from operations.models import AbsenceAlert
+
+        for offset in range(3):
+            day = SUNDAY + dt.timedelta(days=offset)
+            periods = _periods(school, klass, teacher, 7, day=day)
+            for index, session in enumerate(periods):
+                marks = {kids[0]: "absent"} if index == 0 else {}
+                _confirm(klass, session, marks, supervisor, day=day)
+
+        assert not AbsenceAlert.objects.filter(student=kids[0]).exists()
+
+
+# ══════════════════════════════════════════════════════════════════
 # المعلّم
 # ══════════════════════════════════════════════════════════════════
 

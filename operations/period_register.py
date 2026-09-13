@@ -233,10 +233,13 @@ def confirm_period(
 
     tally = {"present": 0, "absent": 0, "late": 0}
     tardy = 0
+    absentees = []
     for enrollment in enrolled_of(class_group):
         student = enrollment.student
         mark = marks.get(str(student.id)) or marks.get(student.id) or {}
         status = mark.get("status") if mark.get("status") in STATES else "present"
+        if status == "absent":
+            absentees.append(student)
         where = mark.get("whereabouts") if mark.get("whereabouts") in WHEREABOUTS else ""
         minutes = None
         if status == "late":
@@ -312,7 +315,22 @@ def confirm_period(
             ]
         )
     escapes = sync_escapes(class_group, day, by)
+    _warn_of_gates(class_group.school, absentees, day)
     return PeriodResult(period, tally["present"], tally["absent"], tally["late"], tardy, escapes)
+
+
+def _warn_of_gates(school, absentees, day: dt.date) -> None:
+    """إنذاراتُ عتبات الغياب لمن غاب في هذه الحصّة — كما كان يفعل رصدُ المعلّم.
+
+    كان `check_absence_threshold` يُستدعى من رصد المعلّم القديم وحدَه، فلمّا انتقل
+    الرصدُ إلى كشف الأجنحة لم يُنشأ تنبيهٌ ولم يُبلَّغ وليُّ أمرٍ (اكتُشف 2026-09-13).
+    وهو يعدّ أيّامَ تمدرسٍ لا حصصاً، ولا يكرّر إنذاراً — فاستدعاؤه بعد كلّ حصّةٍ آمن،
+    ويُنذر حين تكتمل حصصُ اليوم الغائب.
+    """
+    from operations.services import AttendanceService
+
+    for student in absentees:
+        AttendanceService.check_absence_threshold(student, school, on=day)
 
 
 RULE_TEXT = {
