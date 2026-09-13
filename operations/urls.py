@@ -10,7 +10,11 @@ urlpatterns = [
     path("attendance/<uuid:session_id>/late-tap/", views.mark_late_tap, name="mark_late_tap"),
     path("attendance/<uuid:session_id>/exit/", views.mark_exit, name="mark_exit"),
     path("attendance/<uuid:session_id>/return/", views.mark_return, name="mark_return"),
-    path("attendance/<uuid:session_id>/late-tap/undo/", views.undo_late_tap_view, name="undo_late_tap"),
+    path(
+        "attendance/<uuid:session_id>/late-tap/undo/",
+        views.undo_late_tap_view,
+        name="undo_late_tap",
+    ),
     path("attendance/<uuid:session_id>/exit/cancel/", views.cancel_exit_view, name="cancel_exit"),
     path("attendance/<uuid:session_id>/complete/", views.complete_session, name="complete_session"),
     path("attendance/<uuid:session_id>/summary/", views.session_summary, name="session_summary"),
