@@ -90,6 +90,70 @@ def _parse_int(value, default=None):
         return default
 
 
+# ── عرضُ التقارير: ما كان يُركَّب ويُلوَّن في القالب ─────────────────────
+
+#: أسماءُ الأشهر لقائمة الشهر — كانت اثنتي عشرة سطراً مكتوبةً باليد.
+MONTH_CHOICES = [
+    (1, "يناير"),
+    (2, "فبراير"),
+    (3, "مارس"),
+    (4, "أبريل"),
+    (5, "مايو"),
+    (6, "يونيو"),
+    (7, "يوليو"),
+    (8, "أغسطس"),
+    (9, "سبتمبر"),
+    (10, "أكتوبر"),
+    (11, "نوفمبر"),
+    (12, "ديسمبر"),
+]
+
+
+def _num(value) -> str:
+    """رقمٌ بلا أصفارٍ زائدة، و«—» حين لا قيمة — والصفرُ صفرٌ لا شَرطة."""
+    return "—" if value is None else f"{value:g}"
+
+
+def _range_label(low, high) -> str:
+    """الأدنى والأعلى في خانةٍ واحدة: «40–95»."""
+    if low is None or high is None:
+        return "—"
+    return f"{low:g}–{high:g}"
+
+
+def _combined_tone(score) -> str:
+    """لونُ التقييم المدمج — العتباتُ التي كانت في القالب: 75 فأكثر، ثمّ 50."""
+    if score is None:
+        return "is-muted"
+    if score >= 75:
+        return "is-success"
+    if score >= 50:
+        return "is-warning"
+    return "is-danger"
+
+
+def _present_quiz(data: dict) -> None:
+    data["range_label"] = _range_label(data.get("min_pct"), data.get("max_pct"))
+    for r in data["rows"]:
+        r["grade_label"] = f"{_num(r['raw_grade'])} / {_num(r['max_grade'])}"
+
+
+def _present_exam_results(data: dict) -> None:
+    for r in data["rows"]:
+        r["range_label"] = _range_label(r["min_score"], r["max_score"])
+
+
+def _present_progress(data: dict) -> None:
+    for s in data["students"]:
+        s["range_label"] = _range_label(s["min_pct"], s["max_pct"])
+
+
+def _present_monthly(data: dict) -> None:
+    data["month_choices"] = MONTH_CHOICES
+    for r in data["rows"]:
+        r["combined_tone"] = _combined_tone(r["combined_score"])
+
+
 @login_required
 @role_required(ACADEMIC_REPORTS_VIEW)
 def reports_landing(request):
@@ -102,6 +166,7 @@ def reports_landing(request):
         "academic_management/reports/landing.html",
         {
             "page_title": "التقارير الأكاديمية",
+            "page_subtitle": "أربعة تقارير لقرارات الإدارة الأكاديمية — تُصدَّر PDF وExcel",
             "module_name": MODULE_NAME,
         },
     )
@@ -142,6 +207,7 @@ def quiz_reports(request):
         date_from=request.GET.get("date_from") or None,
         date_to=request.GET.get("date_to") or None,
     )
+    _present_quiz(data)
 
     export_resp = _export_response(
         request,
@@ -160,6 +226,7 @@ def quiz_reports(request):
             "data": data,
             "school": school,
             "page_title": "تقارير الاختبارات القصيرة",
+            "page_subtitle": "نتائج الاختبارات القصيرة حسب المواد على مستوى الطالب أو الشعبة",
             "module_name": MODULE_NAME,
         },
     )
@@ -179,6 +246,7 @@ def exam_results_reports(request):
         semester=request.GET.get("semester") or None,
         class_group_id=request.GET.get("class_group_id") or None,
     )
+    _present_exam_results(data)
 
     export_resp = _export_response(
         request,
@@ -197,6 +265,7 @@ def exam_results_reports(request):
             "data": data,
             "school": school,
             "page_title": "تقارير نتائج الاختبارات",
+            "page_subtitle": "نتائج اختبارات الباقات (P1-P4, AW) — مقارنة بين الفصول والطلاب",
             "module_name": MODULE_NAME,
         },
     )
@@ -216,6 +285,7 @@ def academic_progress_reports(request):
         date_from=request.GET.get("date_from") or None,
         date_to=request.GET.get("date_to") or None,
     )
+    _present_progress(data)
 
     export_resp = _export_response(
         request,
@@ -234,6 +304,7 @@ def academic_progress_reports(request):
             "data": data,
             "school": school,
             "page_title": "تقارير التقدم الأكاديمي",
+            "page_subtitle": "نتائج التقييمات في شعبةٍ خلال فترة — مرتّبةً بمتوسط الطالب",
             "module_name": MODULE_NAME,
         },
     )
@@ -266,6 +337,7 @@ def monthly_ba_report(request):
         class_group_id=request.GET.get("class_group_id") or None,
         student_id=request.GET.get("student_id") or None,
     )
+    _present_monthly(data)
 
     export_resp = _export_response(
         request,
@@ -284,6 +356,7 @@ def monthly_ba_report(request):
             "data": data,
             "school": school,
             "page_title": "التقرير السلوكي والتعليمي الشهري",
+            "page_subtitle": "متوسط الاختبارات القصيرة مع عدد المخالفات خلال شهر — للطالب أو الشعبة",
             "module_name": MODULE_NAME,
             "flagship": True,
         },

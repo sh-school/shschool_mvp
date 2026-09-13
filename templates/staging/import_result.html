@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load privacy %}
+{% load privacy ui %}
 {% block title %}{% if is_dry_run %}معاينة الاستيراد{% else %}نتيجة الاستيراد{% endif %}{% endblock %}
 
 {% block breadcrumbs %}
@@ -7,163 +7,76 @@
 {% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto space-y-6">
+<div class="exec-dash">
 
-  <!-- Header -->
-  <div class="flex items-center gap-2 text-sm text-gray-500">
-    <a href="{% url 'import_grades_select' %}" class="hover:text-blue-600">الاستيراد</a> /
-    <span class="text-gray-800 font-medium">{% if is_dry_run %}معاينة{% else %}نتيجة العملية{% endif %}</span>
-  </div>
+  {% page_header result_title subtitle=assessment.title icon=result_icon %}
+    {% if not is_dry_run %}
+    <a href="{% url 'grade_entry' assessment.id %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="list-checks" %} عرض كشف الدرجات</a>
+    {% endif %}
+    <a href="{% url 'import_grades_select' %}" class="{% if is_dry_run %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">{% include "components/icon.html" with name="arrow-up-from-line" %} {% if is_dry_run %}ارفع الملف للاستيراد الفعلي{% else %}رجوع للاستيراد{% endif %}</a>
+  {% endpage_header %}
 
-  <!-- بانر المعاينة -->
-  {% if is_dry_run %}
-  <div class="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start gap-3">
-    <span class="text-2xl">{% include "components/icon.html" with name="eye" size="icon-lg" %}</span>
-    <div>
-      <p class="font-bold text-amber-800">وضع المعاينة — لم يتم حفظ أي درجات</p>
-      <p class="text-sm text-amber-700 mt-0.5">
-        هذه نتيجة تجريبية فقط. راجع الأخطاء أدناه، ثم ارفع الملف مجدداً واختر <strong>استيراد</strong> للحفظ الفعلي.
-      </p>
-    </div>
-  </div>
+  {% kpi_strip label="نتيجة الملف" %}
+    {% kpi "إجمالي الصفوف" log.total_rows %}
+    {% if is_dry_run %}
+      {% kpi "ستُستورد" imported tone=result_tone %}
+    {% else %}
+      {% kpi "تم استيرادها" imported tone=result_tone %}
+    {% endif %}
+    {% kpi "سجلات بها خطأ" log.failed_rows tone=failed_tone %}
+  {% endkpi_strip %}
+
+  {% section_card "الملف والتقييم" meta=log.file_name icon="file-spreadsheet" %}
+    {% if is_dry_run %}
+    <p class="form-note is-warning" role="note">
+      {% include "components/icon.html" with name="eye" %}
+      <span>وضع المعاينة — لم يُحفظ أيُّ درجة. راجع الأخطاء، ثمّ ارفع الملف مجدداً واختر <strong>استيراد</strong> للحفظ الفعلي.</span>
+    </p>
+    {% endif %}
+    <ul class="chip-row import-meta" aria-label="التقييم">
+      <li class="chip-stat"><span class="chip-stat__key">المادة</span><b class="chip-stat__value">{{ assessment.package.setup.subject.name_ar }}</b></li>
+      <li class="chip-stat"><span class="chip-stat__key">الفصل</span><b class="chip-stat__value">{{ assessment.class_group }}</b></li>
+    </ul>
+  {% endsection_card %}
+
+  {% if errors %}
+  {% section_card "الأخطاء" meta=errors|length icon="x-circle" %}
+    <ul class="plain-list is-scroll">
+      {% for err in errors %}
+      <li class="plain-list__row import-error">{% include "components/icon.html" with name="x" %}<span class="plain-list__main">{{ err }}</span></li>
+      {% endfor %}
+    </ul>
+  {% endsection_card %}
   {% endif %}
 
-  <!-- بطاقة النتيجة -->
-  <div class="card-qatar overflow-hidden">
-
-    {% if is_dry_run %}
-      {% if errors %}
-      <div class="bg-amber-500 px-6 py-5">
-        <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="eye" size="icon-2xl" %}</div>
-        <h1 class="page-title text-white">معاينة — يوجد {{ errors|length }} خطأ</h1>
-      </div>
-      {% else %}
-      <div class="bg-blue-600 px-6 py-5">
-        <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="eye" size="icon-2xl" %}</div>
-        <h1 class="page-title text-white">معاينة — الملف جاهز للاستيراد</h1>
-      </div>
-      {% endif %}
-    {% elif imported > 0 and not errors %}
-    <div class="bg-green-600 px-6 py-5">
-      <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="check-circle" size="icon-2xl" %}</div>
-      <h1 class="page-title text-white">اكتمل الاستيراد بنجاح</h1>
-    </div>
-    {% elif imported > 0 %}
-    <div class="bg-amber-500 px-6 py-5">
-      <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="alert-triangle" size="icon-2xl" %}</div>
-      <h1 class="page-title text-white">اكتمل الاستيراد مع تحذيرات</h1>
-    </div>
-    {% else %}
-    <div class="bg-red-600 px-6 py-5">
-      <div class="text-white text-4xl mb-1">{% include "components/icon.html" with name="x-circle" size="icon-2xl" %}</div>
-      <h1 class="page-title text-white">فشل الاستيراد</h1>
-    </div>
-    {% endif %}
-
-    <div class="px-6 py-5 space-y-4">
-
-      <!-- إحصائيات -->
-      <div class="grid grid-cols-3 gap-4 text-center">
-        <div class="bg-gray-50 rounded-lg p-4">
-          <div class="text-2xl font-bold text-gray-800">{{ log.total_rows }}</div>
-          <div class="text-xs text-gray-500 mt-1">إجمالي الصفوف</div>
-        </div>
-        <div class="bg-green-50 rounded-lg p-4">
-          <div class="text-2xl font-bold text-green-700">{{ imported }}</div>
-          <div class="text-xs text-gray-500 mt-1">تم استيرادها</div>
-        </div>
-        <div class="bg-red-50 rounded-lg p-4">
-          <div class="text-2xl font-bold text-red-700">{{ log.failed_rows }}</div>
-          <div class="text-xs text-gray-500 mt-1">سجلات بها خطأ</div>
-        </div>
-      </div>
-
-      <!-- معلومات التقييم -->
-      <div class="bg-blue-50 rounded-lg p-4 text-sm space-y-1">
-        <div class="flex justify-between">
-          <span class="text-gray-500">التقييم</span>
-          <span class="font-medium">{{ assessment.title }}</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-500">المادة</span>
-          <span class="font-medium">{{ assessment.package.setup.subject.name_ar }}</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-500">الفصل</span>
-          <span class="font-medium">{{ assessment.class_group }}</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-gray-500">الملف</span>
-          <span class="font-medium text-gray-600">{{ log.file_name }}</span>
-        </div>
-      </div>
-
-      <!-- الأخطاء -->
-      {% if errors %}
-      <div>
-        <h2 class="font-bold text-red-700 mb-2 text-sm">الأخطاء ({{ errors|length }})</h2>
-        <div class="bg-red-50 border border-red-200 rounded-lg p-3 max-h-60 overflow-y-auto space-y-1">
-          {% for err in errors %}
-          <div class="text-xs text-red-700 flex items-start gap-1.5">
-            <span class="text-red-400 mt-0.5">✕</span>
-            <span>{{ err }}</span>
-          </div>
+  {% if is_dry_run and preview_rows %}
+  {% section_card "الصفوف التي ستُستورد" meta=preview_rows|length icon="check-circle" flush=True %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">الرقم الشخصي</th>
+            <th scope="col">الاسم</th>
+            <th scope="col" class="num">الدرجة</th>
+            <th scope="col" class="num">غائب</th>
+            <th scope="col">ملاحظة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in preview_rows %}
+          <tr>
+            <td dir="ltr">{{ row.national_id|mask_id }}</td>
+            <td>{{ row.name }}</td>
+            <td class="num"><b>{{ row.grade }}</b></td>
+            <td class="num">{% if row.is_absent %}<span class="status-badge status-danger">غائب</span>{% else %}—{% endif %}</td>
+            <td>{{ row.notes|default:"" }}</td>
+          </tr>
           {% endfor %}
-        </div>
-      </div>
-      {% endif %}
-
-      <!-- الإجراءات -->
-      <div class="flex gap-3 pt-2 flex-wrap">
-        {% if not is_dry_run %}
-        <a href="{% url 'grade_entry' assessment.id %}"
-           class="px-4 py-2 bg-maroon text-white text-sm rounded-lg hover:bg-skyline transition">
-          عرض كشف الدرجات
-        </a>
-        {% endif %}
-        <a href="{% url 'import_grades_select' %}"
-           class="px-4 py-2 border border-gray-300 text-gray-700 text-sm rounded-lg hover:bg-gray-50 transition">
-          {% if is_dry_run %}ارفع الملف للاستيراد الفعلي{% else %}رجوع للاستيراد{% endif %}
-        </a>
-      </div>
-
-      <!-- جدول معاينة الصفوف الصحيحة (في وضع المعاينة فقط) -->
-      {% if is_dry_run and preview_rows %}
-      <div class="mt-4 pt-4 border-t">
-        <h3 class="font-bold text-green-700 text-sm mb-2">
-          ✓ الصفوف التي ستُستورد ({{ preview_rows|length }})
-        </h3>
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs border-collapse">
-            <thead>
-              <tr class="bg-green-50 text-green-800">
-                <th scope="col" class="px-3 py-2 text-right border border-green-200">الرقم الشخصي</th>
-                <th scope="col" class="px-3 py-2 text-right border border-green-200">الاسم</th>
-                <th scope="col" class="px-3 py-2 text-center border border-green-200">الدرجة</th>
-                <th scope="col" class="px-3 py-2 text-center border border-green-200">غائب</th>
-                <th scope="col" class="px-3 py-2 text-right border border-green-200">ملاحظة</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in preview_rows %}
-              <tr class="{% cycle 'bg-white' 'bg-gray-50' %}">
-                <td class="px-3 py-1.5 border border-gray-200 font-mono">{{ row.national_id|mask_id }}</td>
-                <td class="px-3 py-1.5 border border-gray-200">{{ row.name }}</td>
-                <td class="px-3 py-1.5 border border-gray-200 text-center font-bold">{{ row.grade }}</td>
-                <td class="px-3 py-1.5 border border-gray-200 text-center">
-                  {% if row.is_absent %}<span class="text-red-600">غائب</span>{% else %}—{% endif %}
-                </td>
-                <td class="px-3 py-1.5 border border-gray-200 text-gray-500">{{ row.notes|default:"" }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {% endif %}
-
+        </tbody>
+      </table>
     </div>
-  </div>
+  {% endsection_card %}
+  {% endif %}
 
 </div>
 {% endblock %}

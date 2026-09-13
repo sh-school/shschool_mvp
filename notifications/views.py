@@ -73,8 +73,25 @@ def notifications_dashboard(request):
             "cfg": cfg,
             "year": year,
             **stats,
+            **_dashboard_presentation(stats, year),
         },
     )
+
+
+def _dashboard_presentation(stats: dict, year) -> dict:
+    """ألوانُ شريط الأرقام وسطرُ الترويسة — الحكمُ هنا لا شرطاً في القالب.
+
+    كان الفشلُ أحمرَ دائماً وتحته «يحتاج مراجعة» حين يوجد، وتنبيهاتُ الغياب
+    برتقاليّةً وتحتها عددُها مرّةً ثانية. فصار اللونُ وحدَه التنبيه: أحمرُ أو
+    برتقاليٌّ حين يوجد ما يُراجَع أو يُرسَل، وأخضرُ حين لا شيء.
+    """
+    return {
+        "subtitle": f"إشعارات البريد الإلكتروني وSMS لأولياء الأمور · {year}",
+        "failed_tone": "red" if stats.get("total_failed") else "green",
+        "pending_tone": "amber" if stats.get("total_pending") else "green",
+        "absence_alerts_tone": "orange" if stats.get("pending_absence_count") else "green",
+        "failing_tone": "red" if stats.get("failing_students") else "green",
+    }
 
 
 @login_required
