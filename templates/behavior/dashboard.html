@@ -127,8 +127,8 @@ document.addEventListener('DOMContentLoaded', function(){
         datasets:[{
           label:'المخالفات',
           data: monthData,
-          borderColor:'var(--chart-1,#8A1538)',
-          backgroundColor:'rgba(138,21,56,0.1)',
+          borderColor:chartColor('chart-1'),
+          backgroundColor:chartAlpha('chart-1', .1),
           fill:true,
           tension:0.3
         }]
@@ -145,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function(){
   // ── Level Distribution ──
   var levelLabels = [{% for l in level_dist %}'الدرجة {{ l.level }}'{% if not forloop.last %},{% endif %}{% endfor %}];
   var levelData   = [{% for l in level_dist %}{{ l.count }}{% if not forloop.last %},{% endif %}{% endfor %}];
-  var levelColors = ['#D4A843','#d97706','#dc2626','#8A1538']; /* chart-4, warning, danger, chart-1 */
+  var levelColors = [chartColor('chart-4'), chartColor('status-warning'), chartColor('status-danger'), chartColor('chart-1')];
 
   var el2 = document.getElementById('chartLevelDist');
   if(el2 && levelLabels.length){

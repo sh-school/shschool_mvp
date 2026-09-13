@@ -1009,7 +1009,7 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
     data:{labels:d.labels.slice(-7), datasets:[{
       label:'نسبة الحضور %',
       data:d.datasets[0].data.slice(-7),
-      borderColor:'#0D7B6A',backgroundColor:'rgba(13,123,106,0.1)', /* chart-2 */
+      borderColor:chartColor('chart-2'),backgroundColor:chartAlpha('chart-2', .1),
       fill:true,tension:0.4,pointRadius:2,borderWidth:1.5
     }]},
     options:{...OPTS,plugins:{legend:{display:false}},
