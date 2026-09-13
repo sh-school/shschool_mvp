@@ -7,6 +7,7 @@ class WingsConfig(AppConfig):
     verbose_name = "أجنحة المدرسة"
 
     def ready(self):
+        from core.models.academic import WingCoverage
         from core.module_registry import register_module
 
         # النطاقُ مفتوحٌ على الأجنحة الخمسة حتّى تُبنى المرحلة 3 (`wing_scoped`):
@@ -17,12 +18,16 @@ class WingsConfig(AppConfig):
             label="أجنحة المدرسة",
             url_prefix="/wings/",
             icon="bi-layers",
+            # وأدوارُ البديل (قرارُ المدير: مشرفٌ إداريٌّ أو ملاحظُ طلبةٍ أو عاملُ خدمات):
+            # البوّابةُ تُدخلهم، وكلُّ شاشةٍ تقرّر بحارسها — والرصدُ يُفتح لمن يحمل الجناحَ
+            # بتكليفه (`wings.record_day`)، والطوابقُ والتكليفُ لا.
             allowed_roles={
                 "principal",
                 "vice_admin",
                 "vice_academic",
                 "admin_supervisor",
                 "platform_developer",
+                *WingCoverage.SUBSTITUTE_ROLES,
             },
             sidebar_roles={
                 "principal",
