@@ -10130,7 +10130,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   gap: var(--sp-2);
 }
 
-/* ── صفحةُ عرض المكوّنات — templates/styleguide/components.html ── */
+/* ── دليلُ الهويّة — templates/styleguide/components.html و icon_preview.html ── */
 .sg-demo { display: grid; gap: var(--sp-3); }
 .sg-pair {
   display: grid;
@@ -10163,6 +10163,78 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   color: var(--text-secondary);
 }
 .sg-p { margin: 0; font-size: var(--text-sm); color: var(--text-secondary); }
+/* اسمُ صنفٍ أو رمزٍ وسطَ جملةٍ عربيّة: `--on-fill` كان يُقرأ «on-fill--». */
+.sg-rules code, .sg-p code, .sg-label code { direction: ltr; unicode-bidi: isolate; }
+/* صفٌّ من أمثلةٍ متجاورة — أزرارٌ أو شاراتٌ أو رقاقات. */
+.sg-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.sg-stack { display: grid; gap: var(--sp-3); }
+.sg-label {
+  margin: var(--sp-3) 0 var(--sp-2);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.sg-label:first-child { margin-block-start: 0; }
+
+/* لوحةُ الرموز: المربّعُ يقرأ `--swatch` الذي يمرّره القالبُ اسماً لا رقماً،
+   والقيمةُ تُكتب من المتصفّح فتُرى قيمةُ الوضع الذي فيه القارئ. */
+.sg-swatches {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  gap: var(--sp-2);
+}
+.sg-swatch { display: flex; align-items: center; gap: var(--sp-2); min-inline-size: 0; }
+.sg-swatch__chip {
+  flex-shrink: 0;
+  inline-size: 36px;
+  block-size: 36px;
+  border-radius: var(--radius-md);
+  background: var(--swatch, transparent);
+  /* حدٌّ ظاهرٌ على كلّ أرضيّة: السطحُ الأبيضُ لا يُرى على السطح الأبيض. */
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.sg-swatch__text { display: grid; min-inline-size: 0; }
+.sg-swatch__name {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sg-swatch__value { font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* صفحةُ الأيقونات — templates/styleguide/icon_preview.html */
+.sg-icons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
+  gap: var(--sp-2);
+}
+.sg-icon {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--maroon-fg);
+}
+.sg-icon__name {
+  max-inline-size: 100%;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.sg-sizes { display: flex; flex-wrap: wrap; align-items: end; justify-content: center; gap: var(--sp-6); color: var(--maroon-fg); }
+.sg-size { display: grid; justify-items: center; gap: var(--sp-1); }
 
 /* ── 5. قائمةٌ بسيطة: سطرٌ لكلّ عنصر، نصُّه في البداية وحالتُه في النهاية ── */
 .plain-list { list-style: none; margin: 0; padding: 0; }
