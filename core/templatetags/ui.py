@@ -246,3 +246,24 @@ def page_header(content, title, subtitle="", icon=""):
             {"title": title, "subtitle": subtitle, "icon": icon, "actions": content},
         )
     )
+
+
+# ── 6. بلاطةُ الانتقال ────────────────────────────────────────────────────
+
+
+@register.simple_tag
+def action_tile(title, desc="", icon="", href="", primary=False):
+    """بلاطةُ انتقالٍ إلى صفحة: أيقونةٌ وعنوانٌ وسطرُ وصف — داخل `<nav class="ui-actions">`.
+
+    كانت كلُّ لوحة دورٍ تكتبها بأربعة أسطرٍ من الوسوم وتصفّها بشبكة Tailwind
+    مختلفة (grid-cols-2 sm:grid-cols-3، md:grid-cols-3، quick-action-grid).
+    والأولى في الصفّ `primary` — فعلُ الدور الأوّل — ولا تكون إلّا واحدة.
+    """
+    _require(title, "action_tile", "العنوان")
+    _require(href, "action_tile", "الرابط")
+    return mark_safe(
+        render_to_string(
+            "components/ui/action_tile.html",
+            {"title": title, "desc": desc, "icon": icon, "href": href, "primary": primary},
+        )
+    )
