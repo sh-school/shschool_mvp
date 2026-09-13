@@ -41,8 +41,12 @@ def observation(db, school, criteria):
     from core.models import CustomUser
     from quality.observation_models import ClassroomObservation
 
-    teacher = CustomUser.objects.create(national_id="28800000001", full_name="معلّم")
-    observer = CustomUser.objects.create(national_id="28800000002", full_name="زائر")
+    teacher = CustomUser.objects.create(
+        must_change_password=False, national_id="28800000001", full_name="معلّم"
+    )
+    observer = CustomUser.objects.create(
+        must_change_password=False, national_id="28800000002", full_name="زائر"
+    )
     return ClassroomObservation.objects.create(
         school=school,
         teacher=teacher,

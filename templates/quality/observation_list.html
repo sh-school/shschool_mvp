@@ -72,6 +72,8 @@
   </form>
 
   {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على كلّ الزيارات لا على الصفحة. #}
+  {# في غلافٍ يُمرَّر: ثمانيةُ أعمدةٍ وأزرارٌ لا تُلفّ كانت تدفع الصفحةَ كلَّها 394px في الهاتف. #}
+  <div class="table-wrap">
   <table class="table table-qatar" data-no-sort>
     <thead>
       <tr>
@@ -119,6 +121,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 
   {# ── ترقيم يحفظ الفلاتر ── #}
   {% if page_obj.has_other_pages %}
