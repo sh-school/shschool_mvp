@@ -45,7 +45,9 @@ def fernet(settings):
 
 @pytest.fixture
 def student(db, school):
-    return CustomUser.objects.create(national_id="28800000101", full_name="طالب")
+    return CustomUser.objects.create(
+        must_change_password=False, national_id="28800000101", full_name="طالب"
+    )
 
 
 @pytest.fixture

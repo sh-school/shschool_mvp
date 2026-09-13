@@ -15,6 +15,7 @@ from core.models import StudentEnrollment
 from core.models.academic import grade_order
 from core.permissions import OPERATIONS_REPORTS, role_required
 
+from .day_attendance import can_record, is_recorder, recorded_by_supervisor
 from .models import Session, StudentAttendance
 from .services import AttendanceService, ScheduleService
 
@@ -133,6 +134,8 @@ def schedule(request):
             "today": timezone.now().date(),
             "next_session": next_session,
             "user_role": request.user.get_role(),
+            # الرصدُ لمشرف الجناح: المعلّمُ يرى «عرض الحضور» لا «تسجيل».
+            "is_recorder": is_recorder(request.user),
             "is_leader": is_leader,
             "teacher_filter": teacher_filter,
             "class_filter": class_filter,
@@ -189,6 +192,21 @@ def attendance_view(request, session_id):
         for e in enrollments
     ]
     summary = AttendanceService.get_session_summary(session)
+    if not can_record(request.user, session):
+        # اطّلاعٌ لا رصد: يرى المعلّمُ ما رصده مشرفُ الجناح، ولا زرَّ يكتب.
+        return render(
+            request,
+            "teacher/attendance_readonly.html",
+            {
+                "session": session,
+                "students_data": [
+                    {**row, "status": row["status"] if row["attendance"] else "unmarked"}
+                    for row in students_data
+                ],
+                "summary": summary,
+                "recorded": bool(existing),
+            },
+        )
     view_mode = request.GET.get("view", "list")
     template = "teacher/attendance_grid.html" if view_mode == "grid" else "teacher/attendance.html"
 
@@ -231,6 +249,12 @@ def mark_single(request, session_id):
         return HttpResponse("حالة غير صالحة", status=400)
 
     student = get_object_or_404(CustomUser, id=student_id)
+    # الرصدُ لمشرف الجناح (قرارُ المدير) — والمعلّمُ لا يرصد في شُعب الأجنحة،
+    # وما رصده المشرفُ لا يُكتب فوقه إلّا من أهل الرصد.
+    if not can_record(request.user, session) or (
+        not is_recorder(request.user) and recorded_by_supervisor(session, student)
+    ):
+        return HttpResponse("الرصدُ لمشرف الجناح.", status=403)
     att, _ = AttendanceService.mark_attendance(
         session=session,
         student=student,
@@ -277,6 +301,8 @@ def mark_all_present(request, session_id):
 
     if request.user != session.teacher and not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
+    if not can_record(request.user, session):
+        return HttpResponse("الرصدُ لمشرف الجناح.", status=403)
 
     AttendanceService.bulk_mark_all_present(session, marked_by=request.user)
     enrollments = (
