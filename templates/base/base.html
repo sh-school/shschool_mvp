@@ -1,4 +1,5 @@
 {% load privacy brand_tags %}
+{% load navigation %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -89,11 +90,13 @@
   <div class="nav-inner">
 
     {# ── Logo + اسم المدرسة ── #}
+    {% if request.user|can_open:"dashboard" %}
     <a href="{% url 'dashboard' %}" class="nb nav-logo">
       <img src="{% static 'icons/favicon.png' %}" width="27" height="27"
            alt="{{ current_school.name|default:'شعار المدرسة' }}" class="nav-logo-img">
       <span class="nav-logo-text">{{ current_school.name|default:"المدرسة" }}</span>
     </a>
+    {% endif %}
 
     <div class="nav-spacer"></div>
 
@@ -103,6 +106,7 @@
     </button>
 
     {# ── Notification Bell ── #}
+    {% if request.user|can_open:"notification_inbox" %}
     <a href="{% url 'notification_inbox' %}" class="nb nav-bell" title="الإشعارات" id="notif-bell">
       <svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"
            viewBox="0 0 24 24" class="nav-bell-icon" aria-hidden="true">
@@ -111,6 +115,7 @@
       </svg>
       <span id="notif-badge" class="notif-badge" aria-label="عدد الإشعارات غير المقروءة"></span>
     </a>
+    {% endif %}
 
     {# ── User Menu ── #}
     <button class="nb nav-user-btn" id="btn-user" data-sd="m-user" aria-expanded="false" aria-controls="m-user" aria-label="قائمة المستخدم">
@@ -133,7 +138,9 @@
     {# ── Role-based nav ── #}
     <div class="nb-bar">
     {% if is_admin_role %}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
       <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} إدارة الشؤون الأكاديمية <span class="chv">▼</span></button>
       <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% include "components/icon.html" with name="settings" %} شؤون الموظفين <span class="chv">▼</span></button>
       <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} إدارة شؤون الطلاب <span class="chv">▼</span></button>
@@ -143,128 +150,270 @@
       <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% include "components/icon.html" with name="wrench" %} الإدارة <span class="chv">▼</span></button>
 
     {% elif role == "nurse" %}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
+      {% if request.user|can_open:"student_info:sections" %}
       <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
+      {% endif %}
+      {% if request.user|can_open:"clinic:dashboard" %}
       <a href="{% url 'clinic:dashboard' %}" class="nb">{% include "components/icon.html" with name="hospital" %} العيادة</a>
+      {% endif %}
+      {% if request.user|can_open:"clinic:visits_list" %}
       <a href="{% url 'clinic:visits_list' %}" class="nb">سجل الزيارات</a>
+      {% endif %}
+      {% if request.user|can_open:"clinic:record_visit" %}
       <a href="{% url 'clinic:record_visit' %}" class="nb">تسجيل زيارة</a>
+      {% endif %}
+      {% if request.user|can_open:"clinic:statistics" %}
       <a href="{% url 'clinic:statistics' %}" class="nb">الإحصائيات</a>
+      {% endif %}
 
     {% elif role == "bus_supervisor" %}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
+      {% if request.user|can_open:"transport:dashboard" %}
       <a href="{% url 'transport:dashboard' %}" class="nb">{% include "components/icon.html" with name="bus" %} النقل</a>
+      {% endif %}
+      {% if request.user|can_open:"transport:buses_list" %}
       <a href="{% url 'transport:buses_list' %}" class="nb">الحافلات</a>
+      {% endif %}
+      {% if request.user|can_open:"transport:student_assignments" %}
       <a href="{% url 'transport:student_assignments' %}" class="nb">إسناد الطلاب</a>
+      {% endif %}
+      {% if request.user|can_open:"transport:statistics" %}
       <a href="{% url 'transport:statistics' %}" class="nb">الإحصائيات</a>
+      {% endif %}
 
     {% elif role == "librarian" %}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
+      {% if request.user|can_open:"library:dashboard" %}
       <a href="{% url 'library:dashboard' %}" class="nb">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
+      {% endif %}
+      {% if request.user|can_open:"library:book_list" %}
       <a href="{% url 'library:book_list' %}" class="nb">الكتب</a>
+      {% endif %}
+      {% if request.user|can_open:"library:borrow_book" %}
       <a href="{% url 'library:borrow_book' %}" class="nb">إعارة جديدة</a>
+      {% endif %}
 
     {% elif role == "coordinator" %}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
+      {% if request.user|can_open:"student_info:sections" %}
       <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
+      {% endif %}
       <button class="nb" id="btn-coord-schedule" data-sd="m-coord-schedule" aria-expanded="false" aria-controls="m-coord-schedule">{% include "components/icon.html" with name="calendar" %} الجداول <span class="chv">▼</span></button>
+      {% if request.user|can_open:"student_affairs:student_list" %}
       <a href="{% url 'student_affairs:student_list' %}" class="nb">{% include "components/icon.html" with name="users" %} طلاب قسمي</a>
+      {% endif %}
+      {% if request.user|can_open:"observation_list" %}
       <a href="{% url 'observation_list' %}" class="nb">{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</a>
+      {% endif %}
+      {% if request.user|can_open:"assessments_dashboard" %}
       <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
+      {% endif %}
+      {% if request.user|can_open:"reports_index" %}
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
+      {% endif %}
+      {% if request.user|can_open:"my_procedures" %}
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
+      {% endif %}
       {% if is_quality_reviewer %}
+      {% if request.user|can_open:"review_list" %}
       <a href="{% url 'review_list' %}" class="nb">{% include "components/icon.html" with name="search" %} المراجعة الذاتية</a>
       {% endif %}
+      {% endif %}
+      {% if request.user|can_open:"behavior:dashboard" %}
       <a href="{% url 'behavior:dashboard' %}" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
+      {% endif %}
 
     {% elif role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" or role == "e_projects_coordinator" %}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
+      {% if request.user|can_open:"student_info:sections" %}
       <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
+      {% endif %}
       <button class="nb" id="btn-teacher-schedule" data-sd="m-teacher-schedule" aria-expanded="false" aria-controls="m-teacher-schedule">{% include "components/icon.html" with name="calendar" %} جدولي <span class="chv">▼</span></button>
+      {% if request.user|can_open:"observation_list" %}
       <a href="{% url 'observation_list' %}" class="nb">{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</a>
+      {% endif %}
+      {% if request.user|can_open:"assessments_dashboard" %}
       <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
+      {% endif %}
+      {% if request.user|can_open:"reports_index" %}
       <a href="{% url 'reports_index' %}" class="nb">التقارير</a>
+      {% endif %}
+      {% if request.user|can_open:"my_procedures" %}
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
+      {% endif %}
       {% if is_quality_reviewer %}
+      {% if request.user|can_open:"review_list" %}
       <a href="{% url 'review_list' %}" class="nb">{% include "components/icon.html" with name="search" %} المراجعة الذاتية</a>
       {% endif %}
+      {% endif %}
+      {% if request.user|can_open:"behavior:dashboard" %}
       <a href="{% url 'behavior:dashboard' %}" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
+      {% endif %}
 
     {% elif role == "social_worker" or role == "psychologist" %}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
+      {% if request.user|can_open:"student_info:sections" %}
       <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
+      {% endif %}
       <button class="nb" id="btn-sw-behavior" data-sd="m-sw-behavior" aria-expanded="false" aria-controls="m-sw-behavior">{% include "components/icon.html" with name="scale" %} السلوك <span class="chv">▼</span></button>
       <button class="nb" id="btn-sw-students" data-sd="m-sw-students" aria-expanded="false" aria-controls="m-sw-students">{% include "components/icon.html" with name="users" %} متابعة الطلاب <span class="chv">▼</span></button>
+      {% if request.user|can_open:"my_procedures" %}
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
+      {% endif %}
 
     {% elif role == "academic_advisor" %}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
+      {% if request.user|can_open:"student_info:sections" %}
       <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
+      {% endif %}
+      {% if request.user|can_open:"observation_list" %}
       <a href="{% url 'observation_list' %}" class="nb">{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</a>
+      {% endif %}
+      {% if request.user|can_open:"assessments_dashboard" %}
       <a href="{% url 'assessments_dashboard' %}" class="nb">التقييمات</a>
+      {% endif %}
+      {% if request.user|can_open:"my_procedures" %}
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
+      {% endif %}
 
     {% elif role == "admin" %}
       {# الإداري (T4) — قوائم مقيّدة: لا يحصل على قوائم المدير الكاملة #}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
+      {% if request.user|can_open:"notification_inbox" %}
       <a href="{% url 'notification_inbox' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
+      {% endif %}
+      {% if request.user|can_open:"my_procedures" %}
       <a href="{% url 'my_procedures' %}" class="nb">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
+      {% endif %}
 
     {% elif role == "secretary" or role == "admin_supervisor" %}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
       {% if role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} رصد الغياب</a>
+      {% if request.user|can_open:"wings:floors" %}
       <a href="{% url 'wings:floors' %}" class="nb">{% include "components/icon.html" with name="layers" %} أجنحة المدرسة</a>
+      {% endif %}
       <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>{% endif %}
+      {% if request.user|can_open:"notification_inbox" %}
       <a href="{% url 'notification_inbox' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
+      {% endif %}
+      {% if request.user|can_open:"my_procedures" %}
       <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
+      {% endif %}
 
     {% elif role == "it_technician" %}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
       <a href="/admin/" class="nb">{% include "components/icon.html" with name="wrench" %} لوحة الإدارة</a>
 
     {# ── الأدوار الجديدة v7 ── #}
 
     {% elif role == "speech_therapist" or role == "occupational_therapist" %}
       {# أخصائي النطق + أخصائي العلاج الوظائفي — يعملون مع طلاب محددين #}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
+      {% if request.user|can_open:"my_procedures" %}
       <a href="{% url 'my_procedures' %}" class="nb">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
+      {% endif %}
 
     {% elif role == "activities_coordinator" %}
       {# منسق الأنشطة المدرسية — يُدير الأنشطة اللاصفية ومشاركة الطلاب #}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
+      {% if request.user|can_open:"student_info:sections" %}
       <a href="{% url 'student_info:sections' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} مركز معلومات الطلبة</a>
+      {% endif %}
+      {% if request.user|can_open:"student_affairs:activity_list" %}
       <a href="{% url 'student_affairs:activity_list' %}" class="nb">{% include "components/icon.html" with name="activity" %} الأنشطة</a>
+      {% endif %}
+      {% if request.user|can_open:"behavior:dashboard" %}
       <a href="{% url 'behavior:dashboard' %}" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
+      {% endif %}
+      {% if request.user|can_open:"reports_index" %}
       <a href="{% url 'reports_index' %}" class="nb">{% include "components/icon.html" with name="bar-chart" %} التقارير</a>
+      {% endif %}
+      {% if request.user|can_open:"my_procedures" %}
       <a href="{% url 'my_procedures' %}" class="nb">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
+      {% endif %}
 
     {% elif role == "receptionist" %}
       {# موظف الاستقبال — استقبال الزوار والتواصل الإداري #}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
+      {% if request.user|can_open:"notification_inbox" %}
       <a href="{% url 'notification_inbox' %}" class="nb">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
+      {% endif %}
+      {% if request.user|can_open:"my_procedures" %}
       <a href="{% url 'my_procedures' %}" class="nb">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
+      {% endif %}
 
     {% elif role == "transport_officer" %}
       {# مسؤول النقل — إدارة منظومة النقل المدرسي بالكامل #}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
+      {% if request.user|can_open:"transport:dashboard" %}
       <a href="{% url 'transport:dashboard' %}" class="nb">{% include "components/icon.html" with name="bus" %} إدارة النقل</a>
+      {% endif %}
+      {% if request.user|can_open:"transport:buses_list" %}
       <a href="{% url 'transport:buses_list' %}" class="nb">الحافلات</a>
+      {% endif %}
+      {% if request.user|can_open:"transport:student_assignments" %}
       <a href="{% url 'transport:student_assignments' %}" class="nb">إسناد الطلاب</a>
+      {% endif %}
+      {% if request.user|can_open:"transport:statistics" %}
       <a href="{% url 'transport:statistics' %}" class="nb">الإحصائيات</a>
+      {% endif %}
 
     {% elif role == "student" %}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
+      {% if request.user|can_open:"library:dashboard" %}
       <a href="{% url 'library:dashboard' %}" class="nb">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
+      {% endif %}
 
     {% elif role == "parent" %}
+      {% if request.user|can_open:"parent_dashboard" %}
       <a href="{% url 'parent_dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} بوابتي</a>
+      {% endif %}
+      {% if request.user|can_open:"parent_all_grades" %}
       <a href="{% url 'parent_all_grades' %}" class="nb">{% include "components/icon.html" with name="bar-chart" %} الدرجات</a>
+      {% endif %}
+      {% if request.user|can_open:"parent_all_attendance" %}
       <a href="{% url 'parent_all_attendance' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} الحضور</a>
+      {% endif %}
+      {% if request.user|can_open:"parent_behavior" %}
       <a href="{% url 'parent_behavior' %}" class="nb">{% include "components/icon.html" with name="scale" %} السلوك</a>
+      {% endif %}
 
     {% else %}
       {# platform_developer أو أي دور آخر — نفس المدير #}
+      {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
+      {% endif %}
       <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} إدارة الشؤون الأكاديمية <span class="chv">▼</span></button>
       <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% include "components/icon.html" with name="settings" %} شؤون الموظفين <span class="chv">▼</span></button>
       <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} إدارة شؤون الطلاب <span class="chv">▼</span></button>
@@ -284,15 +433,23 @@
 
 <div class="sd-menu" id="m-academic" role="menu" aria-label="إدارة الشؤون الأكاديمية">
   {# ✅ REQ-SH-002 — Client #001 menu restructure (10 items, exact order) #}
+  {% if request.user|can_open:"academic_management:evaluations" %}
   <a href="{% url 'academic_management:evaluations' %}" role="menuitem">{% include "components/icon.html" with name="file-pen" %} التقييمات والدرجات</a>
+  {% endif %}
+  {% if request.user|can_open:"academic_management:departments" %}
   <a href="{% url 'academic_management:departments' %}" role="menuitem">{% include "components/icon.html" with name="settings" %} إدارة الأقسام التعليمية</a>
+  {% endif %}
+  {% if request.user|can_open:"academic_management:test_analytics" %}
   <a href="{% url 'academic_management:test_analytics' %}" role="menuitem">{% include "components/icon.html" with name="activity" %} تحليلات الاختبارات</a>
+  {% endif %}
   {% comment %}
   شاشةُ الإسناد الواحدة (2026-09-06): حلّت محلّ «إسناد الأنصبة» و«توزيعات المواد
   على الشُّعب» و«التكاليف» — بابٌ واحدٌ على قدر صلاحيّته — للمنسّق والنائب والمدير.
   {% endcomment %}
   {% if role == "principal" or role == "vice_academic" or role == "coordinator" or user.is_superuser %}
+  {% if request.user|can_open:"academic_management:assignments" %}
   <a href="{% url 'academic_management:assignments' %}" role="menuitem">{% include "components/icon.html" with name="list-checks" %} الإسناد</a>
+  {% endif %}
   {% endif %}
   {% comment %}
   الجدولةُ الذكيّةُ كانت بلا بابٍ في الواجهة: الصفحةُ تعمل والدورُ يصل إليها،
@@ -300,120 +457,218 @@
   صفحةٍ في المنصّة (تستبدل الجدولَ كلَّه)، فبابُها مقصورٌ على من يملك اعتمادَه.
   {% endcomment %}
   {% if role == "principal" or role == "vice_academic" or role == "admin" or user.is_superuser %}
+  {% if request.user|can_open:"smart_schedule" %}
   <a href="{% url 'smart_schedule' %}" role="menuitem">{% include "components/icon.html" with name="calendar" %} الجدولة الذكية (توليد الجدول)</a>
+  {% endif %}
+  {% if request.user|can_open:"schedule_settings" %}
   <a href="{% url 'schedule_settings' %}" role="menuitem">{% include "components/icon.html" with name="settings-2" %} إعدادات الجدول والتفريغات</a>
   {% endif %}
+  {% endif %}
+  {% if request.user|can_open:"academic_management:department_reports" %}
   <a href="{% url 'academic_management:department_reports' %}" role="menuitem">{% include "components/icon.html" with name="bar-chart" %} التقارير الخاصة بالقسم</a>
+  {% endif %}
+  {% if request.user|can_open:"observation_list" %}
   <a href="{% url 'observation_list' %}" role="menuitem">{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</a>
+  {% endif %}
+  {% if request.user|can_open:"academic_management:elearning" %}
   <a href="{% url 'academic_management:elearning' %}" role="menuitem">{% include "components/icon.html" with name="book-open" %} التعليم الإلكتروني</a>
+  {% endif %}
+  {% if request.user|can_open:"academic_management:class_performance" %}
   <a href="{% url 'academic_management:class_performance' %}" role="menuitem">{% include "components/icon.html" with name="bar-chart" %} تقارير الأداء الصفي</a>
+  {% endif %}
+  {% if request.user|can_open:"academic_management:underperformance" %}
   <a href="{% url 'academic_management:underperformance' %}" role="menuitem">{% include "components/icon.html" with name="alert-triangle" %} إدارة الأداء دون المستوى</a>
+  {% endif %}
 </div>
 
 <div class="sd-menu" id="m-staff-affairs" role="menu" aria-label="شؤون الموظفين">
   <div class="sd-label">نظرة عامة</div>
+  {% if request.user|can_open:"staff_affairs:dashboard" %}
   <a href="{% url 'staff_affairs:dashboard' %}">{% include "components/icon.html" with name="bar-chart" %} لوحة شؤون الموظفين</a>
+  {% endif %}
+  {% if request.user|can_open:"staff_affairs:staff_list" %}
   <a href="{% url 'staff_affairs:staff_list' %}">{% include "components/icon.html" with name="list-checks" %} سجل الموظفين</a>
+  {% endif %}
   {% comment %}
   شاشةُ العمل في هذه القائمة: التعيين. وكانت غائبةً عنها فلا يبلغها إلّا من
   فتح السجلَّ أوّلاً ورأى الزرَّ في ترويسته — وأختُها «شؤون الطلاب» تعرض
   «إضافة طالب جديد» و«إضافة وليّ أمر» في قائمتها مباشرةً. فاختلفت القائمتان
   في ما يُفعَل لا في ما يُقرأ.
   {% endcomment %}
+  {% if request.user|can_open:"staff_affairs:staff_appoint" %}
   <a href="{% url 'staff_affairs:staff_appoint' %}">{% include "components/icon.html" with name="user-plus" %} تعيين منتسب</a>
+  {% endif %}
   <hr>
   <div class="sd-label">الحضور والإجازات</div>
+  {% if request.user|can_open:"absence_list" %}
   <a href="{% url 'absence_list' %}">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>
+  {% endif %}
+  {% if request.user|can_open:"swap_list" %}
   <a href="{% url 'swap_list' %}">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
+  {% endif %}
+  {% if request.user|can_open:"compensatory_list" %}
   <a href="{% url 'compensatory_list' %}">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
+  {% endif %}
+  {% if request.user|can_open:"staff_affairs:leave_list" %}
   <a href="{% url 'staff_affairs:leave_list' %}">{% include "components/icon.html" with name="calendar" %} طلبات الإجازات</a>
+  {% endif %}
   <hr>
   <div class="sd-label">التقييم والتطوير</div>
   {% if is_leadership %}
+  {% if request.user|can_open:"evaluation_dashboard" %}
   <a href="{% url 'evaluation_dashboard' %}">{% include "components/icon.html" with name="bar-chart" %} تقييم أداء الموظفين</a>
   {% endif %}
+  {% endif %}
+  {% if request.user|can_open:"staff_affairs:licensing" %}
   <a href="{% url 'staff_affairs:licensing' %}">{% include "components/icon.html" with name="lock" %} الرخص المهنية</a>
+  {% endif %}
+  {% if request.user|can_open:"teacher_load_report" %}
   <a href="{% url 'teacher_load_report' %}">{% include "components/icon.html" with name="activity" %} تقرير أعباء المعلمين</a>
+  {% endif %}
 </div>
 
 <div class="sd-menu" id="m-quality" role="menu" aria-label="الجودة">
   <div class="sd-label">الخطة التشغيلية</div>
+  {% if request.user|can_open:"quality_dashboard" %}
   <a href="{% url 'quality_dashboard' %}">{% include "components/icon.html" with name="bar-chart" %} لوحة الخطة</a>
+  {% endif %}
+  {% if request.user|can_open:"execution_list" %}
   <a href="{% url 'execution_list' %}">{% include "components/icon.html" with name="rocket" %} تنفيذ الخطة</a>
+  {% endif %}
+  {% if request.user|can_open:"review_list" %}
   <a href="{% url 'review_list' %}">{% include "components/icon.html" with name="search" %} المراجعة الذاتية</a>
+  {% endif %}
+  {% if request.user|can_open:"quality_report" %}
   <a href="{% url 'quality_report' %}">{% include "components/icon.html" with name="activity" %} تقرير التقدم</a>
+  {% endif %}
   <hr>
   <div class="sd-label">اللجان</div>
+  {% if request.user|can_open:"executor_committee" %}
   <a href="{% url 'executor_committee' %}">{% include "components/icon.html" with name="settings" %} لجنة منفذي الخطة</a>
+  {% endif %}
+  {% if request.user|can_open:"quality_committee" %}
   <a href="{% url 'quality_committee' %}">{% include "components/icon.html" with name="search" %} لجنة المراجعة الذاتية</a>
+  {% endif %}
   <hr>
+  {% if request.user|can_open:"my_procedures" %}
   <a href="{% url 'my_procedures' %}">{% include "components/icon.html" with name="file-pen" %} إجراءاتي</a>
+  {% endif %}
 </div>
 
 <div class="sd-menu" id="m-admin" role="menu" aria-label="الإدارة">
   <div class="sd-label">إدارة المدرسة</div>
+  {% if request.user|can_open:"notifications_dashboard" %}
   <a href="{% url 'notifications_dashboard' %}">{% include "components/icon.html" with name="bell" %} مركز الإشعارات</a>
+  {% endif %}
   <hr>
   <a href="/admin/">{% include "components/icon.html" with name="wrench" %} لوحة الإدارة التقنية</a>
+  {% if request.user|can_open:"developer_feedback:message_create" %}
   <a href="{% url 'developer_feedback:message_create' %}">{% include "components/icon.html" with name="mail" %} أرسل إلى المطوّر</a>
+  {% endif %}
   {% if is_developer %}
   <hr>
   <div class="sd-label">أدوات المطوّر</div>
+  {% if request.user|can_open:"developer_feedback:inbox_list" %}
   <a href="{% url 'developer_feedback:inbox_list' %}" role="menuitem"
      aria-label="صندوق الوارد للمطوّر">
     {% include "components/icon.html" with name="mail" %} صندوق الوارد
   </a>
+  {% endif %}
+  {% if request.user|can_open:"developer_feedback:inbox_list" %}
   <a href="{% url 'developer_feedback:inbox_list' %}?status=new" role="menuitem"
      aria-label="الرسائل الجديدة غير المقروءة">
     {% include "components/icon.html" with name="alert-triangle" %} الرسائل الجديدة
   </a>
+  {% endif %}
+  {% if request.user|can_open:"developer_feedback:my_messages" %}
   <a href="{% url 'developer_feedback:my_messages' %}" role="menuitem"
      aria-label="الرسائل التي أرسلتها">
     {% include "components/icon.html" with name="list-checks" %} رسائلي المرسلة
   </a>
   {% endif %}
+  {% endif %}
   {% if is_leadership %}
   <hr>
   <div class="sd-label">الأمان والصلاحيات</div>
+  {% if request.user|can_open:"permission_audit_log" %}
   <a href="{% url 'permission_audit_log' %}">{% include "components/icon.html" with name="lock" %} سجل تغييرات الصلاحيات</a>
+  {% endif %}
   {% endif %}
 </div>
 
 <div class="sd-menu" id="m-services" role="menu" aria-label="الخدمات">
   <div class="sd-label">الخدمات المساندة</div>
+  {% if request.user|can_open:"clinic:dashboard" %}
   <a href="{% url 'clinic:dashboard' %}">{% include "components/icon.html" with name="hospital" %} العيادة المدرسية</a>
+  {% endif %}
+  {% if request.user|can_open:"transport:dashboard" %}
   <a href="{% url 'transport:dashboard' %}">{% include "components/icon.html" with name="bus" %} النقل المدرسي</a>
+  {% endif %}
+  {% if request.user|can_open:"library:dashboard" %}
   <a href="{% url 'library:dashboard' %}">{% include "components/icon.html" with name="book-open" %} المكتبة</a>
+  {% endif %}
 </div>
 
 <div class="sd-menu" id="m-student-affairs" role="menu" aria-label="شؤون الطلاب">
   <div class="sd-label">نظرة عامة</div>
+  {% if request.user|can_open:"student_affairs:dashboard" %}
   <a href="{% url 'student_affairs:dashboard' %}">{% include "components/icon.html" with name="bar-chart" %} لوحة شؤون الطلاب</a>
+  {% endif %}
+  {% if request.user|can_open:"student_affairs:student_list" %}
   <a href="{% url 'student_affairs:student_list' %}">{% include "components/icon.html" with name="list-checks" %} سجلات الطلاب</a>
+  {% endif %}
+  {% if request.user|can_open:"student_affairs:student_add" %}
   <a href="{% url 'student_affairs:student_add' %}">{% include "components/icon.html" with name="file-pen" %} إضافة طالب جديد</a>
+  {% endif %}
+  {% if request.user|can_open:"manage_parent_links" %}
   <a href="{% url 'manage_parent_links' %}">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور بالطلاب</a>
+  {% endif %}
+  {% if request.user|can_open:"student_affairs:transfer_list" %}
   <a href="{% url 'student_affairs:transfer_list' %}">{% include "components/icon.html" with name="refresh" %} التنقلات</a>
+  {% endif %}
   <hr>
   <div class="sd-label">الحضور والغياب</div>
+  {% if request.user|can_open:"wings:record_index" %}
   <a href="{% url 'wings:record_index' %}">{% include "components/icon.html" with name="list-checks" %} رصد الغياب — شُعب الأجنحة</a>
+  {% endif %}
+  {% if request.user|can_open:"wings:floors" %}
   <a href="{% url 'wings:floors' %}">{% include "components/icon.html" with name="layers" %} أجنحة المدرسة والتوقيت</a>
+  {% endif %}
   {% if role == "principal" or role == "vice_admin" or role == "vice_academic" or role == "platform_developer" %}
+  {% if request.user|can_open:"wings:coverage" %}
   <a href="{% url 'wings:coverage' %}">{% include "components/icon.html" with name="waypoints" %} تغطية الأجنحة والإنابة</a>
   {% endif %}
+  {% endif %}
+  {% if request.user|can_open:"student_affairs:attendance_overview" %}
   <a href="{% url 'student_affairs:attendance_overview' %}">{% include "components/icon.html" with name="bar-chart" %} إحصائيات الغياب</a>
+  {% endif %}
+  {% if request.user|can_open:"teacher_schedule" %}
   <a href="{% url 'teacher_schedule' %}">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
+  {% endif %}
+  {% if request.user|can_open:"daily_report" %}
   <a href="{% url 'daily_report' %}">{% include "components/icon.html" with name="calendar" %} سجلات الحضور والغياب</a>
+  {% endif %}
   <hr>
   <div class="sd-label">إدارة سلوك الطلبة</div>
+  {% if request.user|can_open:"student_affairs:behavior_overview" %}
   <a href="{% url 'student_affairs:behavior_overview' %}">{% include "components/icon.html" with name="scale" %} ملخص سلوك الطلاب</a>
+  {% endif %}
+  {% if request.user|can_open:"student_affairs:tardiness_list" %}
   <a href="{% url 'student_affairs:tardiness_list' %}">{% include "components/icon.html" with name="clock" %} التأخر الصباحي</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:report_infraction" %}
   <a href="{% url 'behavior:report_infraction' %}">{% include "components/icon.html" with name="alert-triangle" %} تسجيل سلوك</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:committee" %}
   <a href="{% url 'behavior:committee' %}">{% include "components/icon.html" with name="users" %} فريق سلوك الطلبة</a>
+  {% endif %}
 </div>
 
 <div class="sd-menu" id="m-student-info" role="menu" aria-label="مركز معلومات الطلبة">
   <div class="sd-label">التحصيل</div>
+  {% if request.user|can_open:"student_info:levels" %}
   <a href="{% url 'student_info:levels' %}">{% include "components/icon.html" with name="bar-chart" %} المستويات التعليمية وتحصيل الطلبة</a>
+  {% endif %}
   <hr>
   <div class="sd-label">ملاحظات الجهات</div>
   <a href="{% url 'student_info:notes' 'teacher' %}">{% include "components/icon.html" with name="file-pen" %} ملاحظات المعلمين</a>
@@ -423,9 +678,13 @@
   <a href="{% url 'student_info:notes' 'student_affairs' %}">{% include "components/icon.html" with name="file-pen" %} ملاحظات منسق شؤون الطلاب</a>
   <hr>
   <div class="sd-label">الأنشطة</div>
+  {% if request.user|can_open:"student_info:activities" %}
   <a href="{% url 'student_info:activities' %}">{% include "components/icon.html" with name="activity" %} الأنشطة</a>
+  {% endif %}
   <hr>
+  {% if request.user|can_open:"student_info:sections" %}
   <a href="{% url 'student_info:sections' %}">{% include "components/icon.html" with name="users" %} تصفّح الشُّعب والطلاب</a>
+  {% endif %}
 </div>
 
 {% endif %}
@@ -434,31 +693,59 @@
 {% if role == "coordinator" %}
 <div class="sd-menu" id="m-coord-schedule" role="menu" aria-label="جدول المنسق">
   <div class="sd-label">جدولي</div>
+  {% if request.user|can_open:"teacher_schedule" %}
   <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} حصص اليوم</a>
+  {% endif %}
+  {% if request.user|can_open:"weekly_schedule" %}
   <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
+  {% endif %}
+  {% if request.user|can_open:"schedule_print" %}
   <a href="{% url 'schedule_print' %}">{% include "components/icon.html" with name="printer" %} طباعة الجدول</a>
+  {% endif %}
+  {% if request.user|can_open:"teacher_preferences" %}
   <a href="{% url 'teacher_preferences' %}">{% include "components/icon.html" with name="settings" %} تفضيلاتي للجدولة</a>
+  {% endif %}
   <hr>
   <div class="sd-label">إدارة التخصص</div>
   {# المنسّقُ له صلاحيّةُ مرصد الأنصبة (قراءةً، ومحرّرُ الخطّة إن مُنح قدرةَ التحرير) — وكان بلا رابطٍ إليه. #}
+  {% if request.user|can_open:"academic_management:assignments" %}
   <a href="{% url 'academic_management:assignments' %}">{% include "components/icon.html" with name="list-checks" %} الإسناد</a>
+  {% endif %}
+  {% if request.user|can_open:"swap_list" %}
   <a href="{% url 'swap_list' %}">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
+  {% endif %}
+  {% if request.user|can_open:"compensatory_list" %}
   <a href="{% url 'compensatory_list' %}">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
+  {% endif %}
+  {% if request.user|can_open:"absence_list" %}
   <a href="{% url 'absence_list' %}">{% include "components/icon.html" with name="ban" %} غياب المعلمين والبدلاء</a>
+  {% endif %}
 </div>
 {% endif %}
 
 {# ── Teacher Schedule Dropdown — يشمل مساعدي المعلم v7 ── #}
 {% if role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" or role == "e_projects_coordinator" %}
 <div class="sd-menu" id="m-teacher-schedule" role="menu" aria-label="جدول المعلم">
+  {% if request.user|can_open:"teacher_schedule" %}
   <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} حصص اليوم</a>
+  {% endif %}
+  {% if request.user|can_open:"weekly_schedule" %}
   <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
+  {% endif %}
+  {% if request.user|can_open:"schedule_print" %}
   <a href="{% url 'schedule_print' %}">{% include "components/icon.html" with name="printer" %} طباعة الجدول</a>
+  {% endif %}
+  {% if request.user|can_open:"teacher_preferences" %}
   <a href="{% url 'teacher_preferences' %}">{% include "components/icon.html" with name="settings" %} تفضيلاتي للجدولة</a>
+  {% endif %}
   <hr>
   {% if role != "teacher_assistant" and role != "ese_assistant" %}
+  {% if request.user|can_open:"swap_list" %}
   <a href="{% url 'swap_list' %}">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
+  {% endif %}
+  {% if request.user|can_open:"compensatory_list" %}
   <a href="{% url 'compensatory_list' %}">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
+  {% endif %}
   {% endif %}
 </div>
 {% endif %}
@@ -467,16 +754,28 @@
 {% if role == "social_worker" or role == "psychologist" %}
 <div class="sd-menu" id="m-sw-behavior" role="menu" aria-label="السلوك">
   <div class="sd-label">السلوك الطلابي</div>
+  {% if request.user|can_open:"behavior:dashboard" %}
   <a href="{% url 'behavior:dashboard' %}">{% include "components/icon.html" with name="scale" %} لوحة السلوك</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:report_infraction" %}
   <a href="{% url 'behavior:report_infraction' %}">{% include "components/icon.html" with name="alert-triangle" %} تسجيل مخالفة</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:statistics" %}
   <a href="{% url 'behavior:statistics' %}">{% include "components/icon.html" with name="bar-chart" %} الإحصائيات</a>
+  {% endif %}
   <hr>
+  {% if request.user|can_open:"behavior:summon_parent" %}
   <a href="{% url 'behavior:summon_parent' %}">{% include "components/icon.html" with name="phone" %} استدعاء ولي أمر</a>
+  {% endif %}
 </div>
 <div class="sd-menu" id="m-sw-students" role="menu" aria-label="متابعة الطلاب">
   <div class="sd-label">متابعة الطلاب</div>
+  {% if request.user|can_open:"student_affairs:student_list" %}
   <a href="{% url 'student_affairs:student_list' %}">{% include "components/icon.html" with name="users" %} قائمة الطلاب</a>
+  {% endif %}
+  {% if request.user|can_open:"failing_students" %}
   <a href="{% url 'failing_students' %}">{% include "components/icon.html" with name="alert-triangle" %} الطلاب المتعثرون</a>
+  {% endif %}
 </div>
 {% endif %}
 
@@ -489,18 +788,24 @@
   {% if request.user.memberships.count > 1 %}
   <a href="/auth/choose-role/">{% include "components/icon.html" with name="refresh" %} تبديل الدور</a>
   {% endif %}
+  {% if request.user|can_open:"notification_inbox" %}
   <a href="{% url 'notification_inbox' %}">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
+  {% endif %}
   <a href="#" id="theme-toggle-menu" data-click="#theme-toggle">
     <span id="theme-menu-icon">{% include "components/icon.html" with name="moon" %}</span> <span id="theme-menu-text">الوضع الليلي</span>
   </a>
+  {% if request.user|can_open:"change_password" %}
   <a href="{% url 'change_password' %}">{% include "components/icon.html" with name="lock" %} تغيير كلمة المرور</a>
+  {% endif %}
   {% if is_admin_role %}
   <a href="/admin/">{% include "components/icon.html" with name="settings" %} لوحة الإدارة</a>
   {% endif %}
   {% if is_admin_role %}
+  {% if request.user|can_open:"setup_2fa" %}
   <a href="{% url 'setup_2fa' %}" class="{% if request.user.totp_enabled %}sd-2fa-enabled{% else %}sd-2fa-disabled{% endif %}">
     {% include "components/icon.html" with name="lock" %} المصادقة الثنائية{% if not request.user.totp_enabled %} (غير مفعّلة){% else %} (مفعّلة ✓){% endif %}
   </a>
+  {% endif %}
   {% endif %}
   <hr>
   <form method="post" action="{% url 'logout' %}" class="sd-logout-form">
@@ -623,39 +928,55 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
 {% with role=request.user.get_role %}
 <nav class="mobile-bottom-nav" aria-label="التنقل السريع">
   <div class="mobile-bottom-nav-inner">
+    {% if request.user|can_open:"dashboard" %}
     <a href="{% url 'dashboard' %}" class="mobile-nav-item {% if request.path == '/dashboard/' %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="home" %}</span><span>الرئيسية</span>
     </a>
+    {% endif %}
     {% if role == 'teacher' or role == 'coordinator' or role == 'specialist' or role == 'ese_teacher' %}
+    {% if request.user|can_open:"teacher_schedule" %}
     <a href="{% url 'teacher_schedule' %}" class="mobile-nav-item {% if request.path == '/teacher/schedule/' or 'attendance' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="list-checks" %}</span><span>حصصي</span>
     </a>
+    {% endif %}
+    {% if request.user|can_open:"weekly_schedule" %}
     <a href="{% url 'weekly_schedule' %}" class="mobile-nav-item {% if 'weekly' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="calendar" %}</span><span>جدولي</span>
     </a>
     {% endif %}
+    {% endif %}
     {% if role == 'parent' %}
+    {% if request.user|can_open:"parent_dashboard" %}
     <a href="{% url 'parent_dashboard' %}" class="mobile-nav-item {% if 'parents' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="waypoints" %}</span><span>أبنائي</span>
     </a>
     {% endif %}
+    {% endif %}
     {% if role == 'student' %}
+    {% if request.user|can_open:"reports_index" %}
     <a href="{% url 'reports_index' %}" class="mobile-nav-item {% if 'reports' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="bar-chart" %}</span><span>درجاتي</span>
     </a>
     {% endif %}
+    {% endif %}
     {% if role == 'admin_supervisor' or is_admin_role %}
+    {% if request.user|can_open:"wings:record_index" %}
     <a href="{% url 'wings:record_index' %}" class="mobile-nav-item {% if '/wings/record' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="list-checks" %}</span><span>رصد الغياب</span>
     </a>
     {% endif %}
+    {% endif %}
+    {% if request.user|can_open:"notification_inbox" %}
     <a href="{% url 'notification_inbox' %}" class="mobile-nav-item {% if 'notifications' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="bell" %}</span><span>الإشعارات</span>
     </a>
+    {% endif %}
     {% if is_admin_role %}
+    {% if request.user|can_open:"analytics_dashboard" %}
     <a href="{% url 'analytics_dashboard' %}" class="mobile-nav-item {% if 'analytics' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="bar-chart" %}</span><span>التحليلات</span>
     </a>
+    {% endif %}
     {% endif %}
   </div>
 </nav>
