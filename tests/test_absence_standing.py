@@ -7,9 +7,9 @@
 (حصصاً) بـ`0.10 × 190` (أياماً)، والمتغيّر اسمه `threshold_days`. فبسبعِ حصصٍ
 في اليوم يصير الفارق بين الوحدتين سبعة أضعاف — ولا شيء في الشاشة يكشفه.
 
-فالقاعدة هنا صريحة: اليوم غيابٌ بلا عذر إذا كان الطالب غائباً بلا عذرٍ في
-**كل** حصصه المسجَّلة ذلك اليوم. وما دونه غيابٌ جزئيّ يُحصى منفصلاً — يُعرض
-ولا يُحتسب.
+والقاعدةُ نصُّ المادة 3.4.3 (ص34): «يجب استكمال 4 حصص على الأقل خلال اليوم
+الدراسي الواحد ليُحسب حضور الطالب». فمن حضر أقلَّ من أربعِ خاناتٍ فيومُه غياب،
+ومن حضرها فغيابُه فيه جزئيٌّ يُعرض ولا يُحتسب. ويومٌ رصدُه ناقصٌ لا يُحسم.
 """
 
 from datetime import date, time, timedelta
@@ -224,3 +224,152 @@ def test_the_gates_come_from_the_grade_not_from_the_calendar(db, school, student
     assert standing.unexcused_days == 0
     assert [g.max_days for g in standing.gates] == [5, 8, 11, 15]
     assert standing.upcoming.key == "s1_midterm"
+
+
+# ══════════════════════════════════════════════════════════════════
+# المادة 3.4.3 — أربعُ حصصٍ على الأقلّ ليُحسب الحضور
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_three_periods_then_leaving_is_a_day_of_absence(
+    db, school, class_group, teacher_user, subject, student, seeded_year
+):
+    """حضر ثلاثاً ثمّ استأذن بلا عذر — القاعدةُ القديمة لم تحسبه، والنصُّ يحسبه."""
+    start, _ = seeded_year
+    marks = [("present", "")] * 3 + [("absent", "")] * 4
+    _day(school, class_group, teacher_user, subject, student, start, marks)
+
+    standing = standing_for(student, school, grade="G7", on=start)
+
+    assert standing.unexcused_days == 1
+    assert standing.partial_days == 0
+
+
+def test_four_periods_make_the_day_count_as_presence(
+    db, school, class_group, teacher_user, subject, student, seeded_year
+):
+    start, _ = seeded_year
+    marks = [("present", "")] * 4 + [("absent", "")] * 3
+    _day(school, class_group, teacher_user, subject, student, start, marks)
+
+    standing = standing_for(student, school, grade="G7", on=start)
+
+    assert standing.unexcused_days == 0
+    assert standing.partial_days == 1
+
+
+def test_a_late_period_is_an_attended_period(
+    db, school, class_group, teacher_user, subject, student, seeded_year
+):
+    """المتأخّرُ عن الحصّة حاضرٌ فيها — ومخالفتُه شأنٌ آخر."""
+    start, _ = seeded_year
+    marks = [("late", "")] * 2 + [("present", "")] * 2 + [("absent", "")] * 3
+    _day(school, class_group, teacher_user, subject, student, start, marks)
+
+    assert standing_for(student, school, grade="G7", on=start).unexcused_days == 0
+
+
+def test_leaving_early_with_an_accepted_excuse_is_an_excused_day(
+    db, school, class_group, teacher_user, subject, student, seeded_year
+):
+    start, _ = seeded_year
+    marks = [("present", "")] * 2 + [("absent", "medical")] * 5
+    _day(school, class_group, teacher_user, subject, student, start, marks)
+
+    standing = standing_for(student, school, grade="G7", on=start)
+
+    assert standing.unexcused_days == 0
+    assert standing.excused_days == 1
+
+
+def test_unrecorded_periods_leave_the_day_undecided(
+    db, school, class_group, teacher_user, subject, student, seeded_year
+):
+    """حصّةٌ لم يرصدها المشرفُ تبقى «لم تُرصد» — ولا يُبنى حرمانٌ على رصدٍ ناقص.
+
+    حضر اثنتين، وغاب اثنتين، وثلاثٌ بلا رصد: قد يكون حضرها فبلغ الخمس.
+    """
+    from tests.conftest import StudentEnrollmentFactory
+
+    start, _ = seeded_year
+    StudentEnrollmentFactory(student=student, class_group=class_group)
+    marks = [("present", "")] * 2 + [("absent", "")] * 2
+    _day(school, class_group, teacher_user, subject, student, start, marks)
+    for i in range(3):
+        Session.objects.create(
+            school=school,
+            class_group=class_group,
+            teacher=teacher_user,
+            subject=subject,
+            date=start,
+            start_time=time(12 + i, 0),
+            end_time=time(12 + i, 45),
+            status="scheduled",
+        )
+
+    standing = standing_for(student, school, grade="G7", on=start)
+
+    assert standing.unexcused_days == 0
+    assert standing.incomplete_days == 1
+
+
+def test_a_day_nobody_recorded_is_not_held_against_the_student(
+    db, school, class_group, teacher_user, subject, student, seeded_year
+):
+    from tests.conftest import StudentEnrollmentFactory
+
+    start, _ = seeded_year
+    StudentEnrollmentFactory(student=student, class_group=class_group)
+    Session.objects.create(
+        school=school,
+        class_group=class_group,
+        teacher=teacher_user,
+        subject=subject,
+        date=start,
+        start_time=time(8, 0),
+        end_time=time(8, 45),
+        status="scheduled",
+    )
+
+    standing = standing_for(student, school, grade="G7", on=start)
+
+    assert (standing.unexcused_days, standing.incomplete_days, standing.partial_days) == (0, 0, 0)
+
+
+def test_an_elective_pair_is_one_slot_not_two(
+    db, school, class_group, teacher_user, subject, student, seeded_year
+):
+    """زوجُ الاختيار حصّتان في خانةٍ واحدة: الطالبُ في إحداهما، والخانةُ تُحضَر مرّة.
+
+    ثلاثُ خاناتٍ عاديّةٌ حاضرة، وخانةُ زوجٍ حاضرٌ فيها — فأربعُ خاناتٍ لا خمس،
+    ويبلغ الحدّ. ولو عُدّت الحصص لبدا غائباً عن حصّةٍ من الزوج.
+    """
+    from tests.conftest import UserFactory
+
+    start, _ = seeded_year
+    marks = [("present", "")] * 3 + [("absent", "")] * 3
+    _day(school, class_group, teacher_user, subject, student, start, marks)
+    other = UserFactory(full_name="معلّم الزوج")
+    for elective, teacher, status in (
+        ("تكنولوجيا", teacher_user, "present"),
+        ("فنون", other, "present"),
+    ):
+        session = Session.objects.create(
+            school=school,
+            class_group=class_group,
+            teacher=teacher,
+            subject=subject,
+            date=start,
+            start_time=time(14, 0),
+            end_time=time(14, 45),
+            status="scheduled",
+            elective_group=elective,
+        )
+        StudentAttendance.objects.create(
+            session=session, student=student, school=school, status=status
+        )
+
+    standing = standing_for(student, school, grade="G7", on=start)
+
+    assert standing.unexcused_days == 0
+    assert standing.partial_days == 1

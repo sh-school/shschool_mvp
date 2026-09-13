@@ -13,7 +13,7 @@
   tabindex="0"
   role="article"
   aria-label="{{ notif.title }}"
-  style="background:{% if notif.is_read %}#fff{% else %}var(--maroon-bg){% endif %};
+  style="background:{% if notif.is_read %}var(--surface){% else %}var(--maroon-bg){% endif %};
          border:1px solid {% if notif.is_read %}var(--border){% else %}var(--maroon-border){% endif %};
          border-right-width:{% if not notif.is_read %}4px{% else %}1px{% endif %};
          border-right-color:{% if not notif.is_read %}var(--maroon-fg){% else %}var(--border){% endif %};
@@ -26,11 +26,11 @@
       {# Priority badge #}
       <div class="mb-1">
         {% if notif.priority == "urgent" %}
-          <span class="status-badge status-danger" class="text-xs">{% include "components/icon.html" with name="alert-critical" %} عاجل</span>
+          <span class="status-badge status-danger text-xs">{% include "components/icon.html" with name="alert-critical" %} عاجل</span>
         {% elif notif.priority == "high" %}
-          <span class="status-badge status-warning" class="text-xs">{% include "components/icon.html" with name="alert-triangle" %} مهم</span>
+          <span class="status-badge status-warning text-xs">{% include "components/icon.html" with name="alert-triangle" %} مهم</span>
         {% elif not notif.is_read %}
-          <span class="status-badge status-maroon" class="text-xs">جديد</span>
+          <span class="status-badge status-maroon text-xs">جديد</span>
         {% endif %}
       </div>
 

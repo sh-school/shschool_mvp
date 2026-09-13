@@ -638,7 +638,7 @@ class BehaviorService:
         Returns: (success: bool, message: str)
         """
         current_step = infraction.escalation_step or 0
-        steps = ESCALATION_STEPS.get(infraction.level, [])
+        steps = infraction.get_escalation_steps()
         max_step = len(steps)
 
         if current_step >= max_step:
@@ -727,8 +727,16 @@ class BehaviorService:
         school: School,
         level: int,
         violation_category=None,
+        on=None,
     ) -> int:
-        """عدد المخالفات السابقة من نفس الدرجة (أو نفس الفئة)."""
+        """عدد المخالفات السابقة من نفس الدرجة (أو نفس الفئة).
+
+        ومخالفةُ الدليل التنظيميّ 2026 تُعدّ **لنفسها** و**في الفصل الدراسيّ الجاري**:
+        قرارُ المدرسة (2026-09-13) أنّ العدّادَ يُصفَّر كلَّ فصل، والدليلُ صامتٌ عن
+        النافذة. وكلُّ مخالفةٍ مسجَّلةٍ تكرارٌ — ولو كانت في اليوم نفسِه.
+        """
+        from .conduct_2026 import BY_CODE
+
         qs = BehaviorInfraction.objects.filter(
             student=student,
             school=school,
@@ -736,6 +744,12 @@ class BehaviorService:
         )
         if violation_category:
             qs = qs.filter(violation_category=violation_category)
+            if violation_category.code in BY_CODE:
+                from core.academic_calendar import AcademicCalendar
+
+                semester = AcademicCalendar.current(school, on).semester
+                if semester is not None:
+                    qs = qs.filter(date__gte=semester.start_date, date__lte=semester.end_date)
         return qs.count()
 
     # ── اقتراح الخطوة التصاعدية للمخالفة الجديدة ────────────
@@ -745,14 +759,25 @@ class BehaviorService:
         school: School,
         level: int,
         violation_category=None,
+        on=None,
     ) -> int:
-        """يقترح خطوة التصعيد المناسبة بناءً على تكرار المخالفات."""
+        """خطوةُ التصعيد بحسب التكرار.
+
+        وسلّمُ الدليل 2026 لا يُقصّ عند آخره: التكرارُ الذي يتجاوزه يأخذ رقمَ
+        «ما بعد السلّم» (عادةً الإحالةُ إلى قسم حماية ورعاية الطلبة) — فالقصُّ
+        كان يُبقي الطالبَ على آخر درجةٍ مهما تكرّر، ولا يقول أحدٌ إنّه تجاوزها.
+        """
+        from .conduct_2026 import BY_CODE
+
         prior = BehaviorService.get_prior_infraction_count(
             student,
             school,
             level,
             violation_category,
+            on=on,
         )
+        if violation_category and violation_category.code in BY_CODE:
+            return min(prior + 1, len(violation_category.get_escalation_steps()))
         steps = ESCALATION_STEPS.get(level, [])
         max_step = len(steps)
         # المخالفة الأولى = الخطوة 1, الثانية = 2, ...

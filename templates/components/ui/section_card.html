@@ -1,0 +1,11 @@
+{% comment %}بطاقةُ قسم — تُرسم من الوسم `{% section_card %}` في core/templatetags/ui.py.{% endcomment %}
+<section class="card-qatar ui-section{% if flush %} is-flush{% endif %}">
+  <header class="card-bar">
+    {% if icon %}{% include "components/icon.html" with name=icon %}{% endif %}
+    <h2 class="ui-section__title">{{ title }}</h2>
+    {% if meta or meta == 0 %}<span class="card-bar-sub">{{ meta }}</span>{% endif %}
+  </header>
+  <div class="ui-section__body">
+    {% if body %}{{ body }}{% else %}{% include "components/empty_state.html" with title=empty subtitle=empty_sub icon="inbox" compact=True %}{% endif %}
+  </div>
+</section>
