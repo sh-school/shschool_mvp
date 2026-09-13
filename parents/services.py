@@ -177,14 +177,23 @@ class ParentService:
                 by_date[d]["has_absent"] = True
             if att.status == "late":
                 by_date[d]["has_late"] = True
+        for day in by_date.values():
+            day["sessions_label"] = f"{len(day['records'])} حصص"
 
         total = attendance.count()
         absent = attendance.filter(status="absent").count()
         late = attendance.filter(status="late").count()
         present = attendance.filter(status="present").count()
 
+        today = timezone.now().date()
         return {
             "days_list": sorted(by_date.values(), key=lambda x: x["date"], reverse=True),
+            "weeks": attendance_weeks(by_date, since, today),
+            "flagged_days": [
+                day
+                for day in sorted(by_date.values(), key=lambda x: x["date"], reverse=True)
+                if day["has_absent"] or day["has_late"]
+            ],
             "total": total,
             "present": present,
             "absent": absent,
@@ -266,5 +275,100 @@ class ParentService:
                 round(att_present * 100 / att_total) if att_total else None
             )
             child_data["week_attendance"] = week_att_map.get(sid, [])
+            child_data["kpis"] = _child_kpis(child_data)
 
         return children
+
+
+
+def _child_kpis(child: dict) -> list[dict]:
+    """أرقامُ بطاقة الابن جاهزةً للوسم `{% kpi %}` — والحكمُ في اللون يُكتب هنا.
+
+    كان القالبُ يزن كلَّ رقمٍ بشرطٍ ويكرّر حكمَه ثلاثاً: لونٌ، وسطرُ تنبيهٍ تحت
+    الرقم، وشريطُ تنبيهٍ تحت البطاقات. فاللونُ وحدَه يحمل الحكم هنا، والعتباتُ
+    هي التي كانت: الحضورُ 90 فأعلى أخضر و75 فأعلى كهرمانيّ، والغيابُ خمسةٌ فأكثر
+    أحمر، والرسوبُ في مادّةٍ أحمر.
+
+    و«درجةُ السلوك» حُذفت: نظامُ النقاط ملغى، ولا يحسبها أحد — فكانت تُعرض 100
+    خضراءَ لكلّ ابنٍ مهما كان سلوكُه. رقمٌ لا يُقاس لا يُعرض.
+    """
+    link = child["link"]
+    kpis = []
+    if link.can_view_attendance:
+        pct = child.get("attendance_pct")
+        kpis.append(
+            {
+                "label": "الحضور",
+                "value": "—" if pct is None else f"{pct}%",
+                "sub": "30 يوماً",
+                "tone": (
+                    "blue"
+                    if pct is None
+                    else "green"
+                    if pct >= 90
+                    else "amber"
+                    if pct >= 75
+                    else "red"
+                ),
+                "title": "نسبةُ الحصص الحاضرة في آخر 30 يوماً",
+            }
+        )
+        absent, late = child.get("absent_30") or 0, child.get("late_30") or 0
+        kpis.append(
+            {
+                "label": "الغياب",
+                "value": absent,
+                "sub": f"و{late} تأخّر" if late else "",
+                "tone": "red" if absent >= 5 else "amber" if absent else "green",
+                "title": "أيّامُ الغياب في آخر 30 يوماً",
+            }
+        )
+    if link.can_view_grades:
+        failed, passed = child.get("failed") or 0, child.get("passed") or 0
+        kpis.append(
+            {
+                "label": "المواد",
+                "value": child.get("subjects_count") or 0,
+                "sub": f"راسب في {failed}" if failed else "",
+                "tone": "red" if failed else "blue",
+                "title": f"ناجح {passed} · راسب {failed}",
+            }
+        )
+    return kpis
+
+
+#: أيّامُ الدراسة بترتيب الأسبوع القطريّ: الأحد (6 في بايثون) إلى الخميس (3).
+SCHOOL_WEEKDAYS = (6, 0, 1, 2, 3)
+
+
+def attendance_weeks(by_date: dict, since, today) -> list[list[dict]]:
+    """تقويمُ الفترة أسابيعَ من خمسة أيّام — خانةٌ لكلّ يومِ دراسة.
+
+    كانت الصفحةُ بطاقةً لكلّ يوم: ستّون يوماً تعني أربعين بطاقةً متراصّةً على
+    هاتف. والتقويمُ يضع الفترةَ كلَّها في شاشةٍ واحدة، واللونُ يقول الحال:
+    ``absent`` غياب، و``late`` تأخّر، و``present`` منتظم، و``none`` يومٌ بلا
+    حصصٍ مرصودة، و``future``/``before`` خارج الفترة (يُرسمان فراغاً).
+    """
+    start = since - timedelta(days=(since.weekday() - 6) % 7)  # أحدُ أسبوع البداية
+    weeks, cursor = [], start
+    while cursor <= today:
+        week = []
+        for offset in range(5):
+            day = cursor + timedelta(days=offset)
+            record = by_date.get(day)
+            if day < since:
+                state = "before"
+            elif day > today:
+                state = "future"
+            elif record is None:
+                state = "none"
+            elif record["has_absent"]:
+                state = "absent"
+            elif record["has_late"]:
+                state = "late"
+            else:
+                state = "present"
+            week.append({"date": day, "state": state})
+        weeks.append(week)
+        cursor += timedelta(days=7)
+    return weeks

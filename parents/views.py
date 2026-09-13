@@ -159,6 +159,14 @@ def student_attendance(request, student_id):
             "period": period,
             "year": year,
             "period_choices": ["7", "14", "30", "60"],
+            "subtitle": " · ".join(
+                part
+                for part in (
+                    enrollment.class_group.short_code if enrollment else "",
+                    f"آخر {days} يوماً منذ {data['since']:%d/%m}",
+                )
+                if part
+            ),
             **data,
         },
     )

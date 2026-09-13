@@ -1714,7 +1714,7 @@ html.dark .free-slot-badge { background: var(--status-success-bg); color: var(--
 
 /* ── نقطة الحالة (status dot) ── */
 .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.status-dot-online { background: #22c55e; }
+.status-dot-online { background: var(--status-success); }
 
 /* ── حقول النماذج ── */
 .form-group { margin-bottom: 18px; }
@@ -6079,6 +6079,43 @@ html.dark .link-maroon { color: #f9a8d4; }
 .child-meta {
   color: rgba(255,255,255,.75); font-size: var(--text-xs); margin: 0;
 }
+
+/* ── PWA Banner ──────────────────────────────────────────────────────
+   كان تنسيقُه كلُّه في وسمه، وإظهارُه بـ`style.display` — فصار صنفاً يُظهَر
+   بسمة `hidden`، وهي التي يضبطها زرُّ الإغلاق أصلاً (`data-hide`). */
+.pwa-banner {
+  position: fixed;
+  inset-block-end: 16px;
+  inset-inline: 12px;
+  z-index: 9999;
+  max-width: 360px;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--maroon);
+  color: var(--on-fill);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+.pwa-banner__icon { flex-shrink: 0; display: inline-flex; }
+.pwa-banner__icon .icon { width: 28px; height: 28px; }
+.pwa-banner__text { flex: 1; min-inline-size: 0; }
+.pwa-banner__title { margin: 0 0 2px; font-size: var(--text-sm); font-weight: 700; }
+.pwa-banner .pwa-subtitle { margin: 0; font-size: var(--text-xs); }
+
+/* ── مؤشّرُ الاتّصال: لونان من الرموز لا من الشيفرة ── */
+.status-dot-offline { background: var(--status-danger); animation: status-dot-pulse 1s infinite; }
+@keyframes status-dot-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .status-dot-offline { animation: none; } }
+
+/* ── بطاقةُ الابن في بوّابة وليّ الأمر ──
+   أرقامٌ في سطرٍ ثمّ روابطُ التفصيل — والروابطُ أزرارٌ بارتفاعٍ يُلمس
+   (≥40px): الصفحةُ تُفتح على الهاتف غالباً. */
+.parent-child { display: grid; gap: var(--sp-3); }
+.parent-child__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.parent-child__actions .btn-secondary { min-height: 40px; display: inline-flex; align-items: center; gap: 6px; }
 
 /* ── PWA Banner — close button ───────────────────────────────────── */
 .pwa-close-btn {
