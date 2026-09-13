@@ -1,0 +1,12 @@
+{% comment %}التواقيعُ الثلاثة: مشرفُ الجناح، والنائبُ الإداريّ، ومديرُ المدرسة (قرارُ 2026-09-13).{% endcomment %}
+<div class="sig-block no-break">
+  {% for person in register.signatories %}
+  <div class="sig-item">
+    <div class="sig-title">{{ person.title }}</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">{% if person.name %}{{ person.name }}{% else %}&nbsp;{% endif %}</div>
+    <div class="sig-role">{% if forloop.last %}التوقيع والختم{% else %}التوقيع{% endif %}</div>
+  </div>
+  {% endfor %}
+</div>

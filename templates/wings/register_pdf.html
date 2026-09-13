@@ -1,0 +1,80 @@
+{% extends "reports/base_qatar_report.html" %}
+{% load static brand_tags %}
+{% comment %}
+  كشفُ الحصص مطبوعاً — كشفُ شعبةٍ، أو كشفُ جناحٍ (ملخّصٌ ثمّ شعبةٌ في كلّ صفحة).
+  قالبٌ واحدٌ للـPDF وللطباعة من المتصفّح (`for_screen`)، والبياناتُ من `wings/register.py`.
+  ولا رقمَ شخصيّاً فيه (قرارُ 2026-09-13).
+{% endcomment %}
+
+{% block extra_styles %}
+@page { size: A4 landscape; margin: 9mm 10mm 14mm 10mm; }
+{% if for_screen %}
+.running-footer { display: none; }
+.print-bar { display: flex; gap: 8px; justify-content: center; padding: 10px; }
+@media print { .print-bar { display: none; } }
+{% endif %}
+.sheet + .sheet { page-break-before: always; }
+.doc-body { padding: 6px 14px 12px; }
+.report-title-bar { font-size: 13px; padding: 6px 16px; }
+.report-meta td { padding: 4px 10px; font-size: 10px; }
+.stamp-partial { color: {% brand_color "STATUS_WARNING_DARK" %}; font-weight: 700; }
+.stamp-full { color: {% brand_color "STATUS_SUCCESS_DARK" %}; font-weight: 700; }
+
+.grid { width: 100%; border-collapse: collapse; font-size: 9px; line-height: 1.25; table-layout: fixed; }
+.grid th { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; padding: 4px 3px; font-weight: 700; text-align: center; border: 1px solid {% brand_color "MAROON" %}; line-height: 1.35; }
+.grid th small { display: block; font-weight: 400; font-size: 8px; }
+.grid td { padding: 2px 3px; border: 1px solid {% brand_color "BORDER_STRONG" %}; text-align: center; color: {% brand_color "TEXT_PRIMARY" %}; }
+.grid tbody tr:nth-child(even) td { background: {% brand_color "SURFACE_ALT" %}; }
+.grid .col-no { width: 22px; }
+.grid .col-name { width: 230px; }
+.grid .col-sum { width: 44px; }
+.grid td.name { text-align: right; font-weight: 600; }
+.grid td.mark-present { color: {% brand_color "STATUS_SUCCESS_DARK" %}; font-weight: 700; }
+.grid tbody tr td.mark-absent { background: {% brand_color "STATUS_DANGER_BG" %}; color: {% brand_color "STATUS_DANGER_DARK" %}; font-weight: 700; }
+.grid tbody tr td.mark-late { background: {% brand_color "STATUS_WARNING_BG" %}; color: {% brand_color "STATUS_WARNING_DARK" %}; font-weight: 700; }
+.grid td.mark-none { color: {% brand_color "TEXT_MUTED" %}; }
+.grid tbody.foot tr td { background: {% brand_color "MAROON_BG" %}; font-size: 8.5px; color: {% brand_color "TEXT_SECONDARY" %}; }
+.grid tbody.foot td.foot-label { text-align: right; font-weight: 700; color: {% brand_color "MAROON" %}; }
+.grid tbody.foot td.is-late-confirm { color: {% brand_color "STATUS_WARNING_DARK" %}; font-weight: 700; }
+.grid td.sum { font-weight: 700; }
+
+.matrix td { height: 34px; font-size: 9px; }
+.matrix td.code { font-weight: 700; font-size: 10.5px; }
+.matrix tbody tr td.cell-confirmed { background: {% brand_color "STATUS_SUCCESS_BG" %}; color: {% brand_color "STATUS_SUCCESS_DARK" %}; font-weight: 700; }
+.matrix tbody tr td.cell-confirmed_late { background: {% brand_color "STATUS_WARNING_BG" %}; color: {% brand_color "STATUS_WARNING_DARK" %}; font-weight: 700; }
+.matrix tbody tr td.cell-missed { background: {% brand_color "STATUS_DANGER_BG" %}; color: {% brand_color "STATUS_DANGER_DARK" %}; font-weight: 700; }
+.matrix tbody tr td.cell-current, .matrix tbody tr td.cell-upcoming { color: {% brand_color "TEXT_MUTED" %}; }
+
+.legend { margin-top: 6px; font-size: 8.5px; color: {% brand_color "TEXT_SECONDARY" %}; }
+.sig-block { margin-top: 10px; padding-top: 6px; gap: 10px; }
+.sig-item { width: 31%; padding: 5px 10px; }
+.sig-space { height: 22px; }
+/* سطرُ التوقيع حدٌّ فوق الاسم لا عنصرٌ مستقلّ: `margin: auto` في عنصرٍ بعرضٍ نسبيٍّ يُزاح في الـPDF خارجَ خانته. */
+.sig-line { display: none; }
+.sig-name { display: inline-block; min-width: 60%; border-top: 1px solid {% brand_color "TEXT_PRIMARY" %}; padding-top: 3px; }
+{% endblock %}
+
+{% block content %}
+{% if for_screen %}
+<div class="print-bar">
+  <button type="button" data-action="print">طباعة</button>
+</div>
+<script src="{% static 'js/actions.js' %}" defer></script>
+{% if autoprint %}<script src="{% static 'js/print-on-open.js' %}" defer></script>{% endif %}
+{% endif %}
+
+{% if wing_register %}
+  <section class="sheet">
+    {% include "wings/pdf/wing_summary.html" with register=wing_register %}
+  </section>
+  {% for register in wing_register.sections %}
+  <section class="sheet">
+    {% include "wings/pdf/section_sheet.html" %}
+  </section>
+  {% endfor %}
+{% else %}
+  <section class="sheet">
+    {% include "wings/pdf/section_sheet.html" with register=section_register %}
+  </section>
+{% endif %}
+{% endblock %}

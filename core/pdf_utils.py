@@ -847,12 +847,14 @@ def _content_disposition(filename: str, as_attachment: bool) -> str:
     """
     disposition = "attachment" if as_attachment else "inline"
 
-    # الامتداد يُفصل أوّلاً، فتنظيفُ الاسم لا يبتلع النقطة ويُنتج «pdf.pdf».
-    stem = re.sub(r"\.pdf$", "", filename, flags=re.I)
+    # الامتداد يُفصل أوّلاً، فتنظيفُ الاسم لا يبتلع النقطة ويُنتج «pdf.pdf». وهو
+    # امتدادُ الملفّ أيّاً كان — فملفّاتُ Excel تمرّ من هنا أيضاً.
+    match = re.match(r"^(.*?)(\.[A-Za-z0-9]{1,5})?$", filename)
+    stem, ext = match.group(1), (match.group(2) or ".pdf").lower()
     ascii_stem = unicodedata.normalize("NFKD", stem).encode("ascii", "ignore").decode()
     ascii_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", ascii_stem).strip("._-")
     # اسمٌ عربيّ بالكامل لا يُبقي حرفاً لاتينياً — فالبديل اسمٌ عامّ لا امتدادٌ عارٍ.
-    ascii_name = f"{ascii_stem or 'document'}.pdf"
+    ascii_name = f"{ascii_stem or 'document'}{ext}"
 
     encoded = quote(filename, safe="")
     return f"{disposition}; filename=\"{ascii_name}\"; filename*=UTF-8''{encoded}"
