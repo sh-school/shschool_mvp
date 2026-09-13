@@ -12,13 +12,13 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django_ratelimit.decorators import ratelimit
 
+from core.capabilities import capability_required
 from core.models import CustomUser, StudentEnrollment
-from core.permissions import ALL_STAFF_ROLES, role_required
 from core.privacy import mask_national_id
 
 
 @login_required
-@role_required(ALL_STAFF_ROLES)
+@capability_required("students.search")
 @ratelimit(key="user", rate="30/m", method="GET", block=True)
 def student_search_api(request):
     """
