@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 
 {% block title %}لجنة الضبط السلوكي{% endblock %}
 
@@ -9,158 +10,92 @@
 {% block content %}
 <div class="exec-dash">
 
- {# ── Exec Header ── #}
- <div class="exec-header">
-   <div>
-     <h1>{% include "components/icon.html" with name="scale" %} لجنة الضبط السلوكي</h1>
-     <p style="font-size:.85rem;opacity:.75;margin:.25rem 0 0">المخالفات من الدرجة الثالثة والرابعة — اتخاذ القرار الجماعي</p>
-   </div>
-   <a href="{% url 'behavior:dashboard' %}" class="btn-secondary btn-sm no-underline">← لوحة السلوك</a>
- </div>
+  {% page_header "لجنة الضبط السلوكي" subtitle="المخالفات من الدرجة الثالثة والرابعة — اتخاذ القرار الجماعي" icon="scale" %}{% endpage_header %}
 
- {# ── KPI Strip ── #}
- <div class="kpi-strip">
-   <div class="kpi-mini kpi-red">
-     <span class="kpi-mini-value">{{ stats.open_count }}</span>
-     <span class="kpi-mini-label">قضايا مفتوحة</span>
-   </div>
-   <div class="kpi-mini kpi-green">
-     <span class="kpi-mini-value">{{ stats.resolved_count }}</span>
-     <span class="kpi-mini-label">محلولة</span>
-   </div>
-   <div class="kpi-mini kpi-orange">
-     <span class="kpi-mini-value">{{ stats.level3 }}</span>
-     <span class="kpi-mini-label">درجة ثالثة (جسيمة)</span>
-   </div>
-   <div class="kpi-mini kpi-maroon">
-     <span class="kpi-mini-value">{{ stats.level4 }}</span>
-     <span class="kpi-mini-label">درجة رابعة (شديدة)</span>
-   </div>
- </div>
+  {% kpi_strip label="أرقام اللجنة" %}
+    {% kpi "قضايا مفتوحة" stats.open_count tone=open_tone %}
+    {% kpi "محلولة" stats.resolved_count tone="green" %}
+    {% kpi "درجة ثالثة" stats.level3 sub="جسيمة · مفتوحة" tone="orange" %}
+    {% kpi "درجة رابعة" stats.level4 sub="شديدة · مفتوحة" tone="red" %}
+  {% endkpi_strip %}
 
- {# ── شريط الفلترة ── #}
- <div class="filter-bar" id="committee-filters">
- <input type="text" id="filter-student" placeholder="بحث باسم الطالب..." class="form-control text-sm flex-1 min-w-[160px]">
- <select id="filter-status" class="form-control text-sm">
- <option value="">الكل</option>
- <option value="open">مفتوحة</option>
- <option value="resolved">محلولة</option>
- </select>
- <select id="filter-level" class="form-control text-sm">
- <option value="">كل الدرجات</option>
- <option value="3">درجة 3</option>
- <option value="4">درجة 4</option>
- </select>
- <input type="date" id="filter-date-from" title="من تاريخ" class="form-control text-sm">
- <input type="date" id="filter-date-to" title="إلى تاريخ" class="form-control text-sm">
- <button type="button" id="btn-reset-filters" class="text-xs text-gray-500 hover:text-maroon transition" title="إعادة تعيين">مسح</button>
- </div>
+  <div class="filter-bar" id="committee-filters">
+    <input type="search" id="filter-student" placeholder="بحث باسم الطالب..." aria-label="بحث باسم الطالب" class="form-control form-control-sm filter-field--grow">
+    <select id="filter-status" class="form-control form-control-sm" aria-label="الحالة">
+      <option value="">الكل</option>
+      <option value="open">مفتوحة</option>
+      <option value="resolved">محلولة</option>
+    </select>
+    <select id="filter-level" class="form-control form-control-sm" aria-label="الدرجة">
+      <option value="">كل الدرجات</option>
+      <option value="3">درجة 3</option>
+      <option value="4">درجة 4</option>
+    </select>
+    <input type="date" id="filter-date-from" title="من تاريخ" aria-label="من تاريخ" class="form-control form-control-sm">
+    <input type="date" id="filter-date-to" title="إلى تاريخ" aria-label="إلى تاريخ" class="form-control form-control-sm">
+    <button type="button" id="btn-reset-filters" class="btn-ghost btn-sm" title="إعادة تعيين">مسح</button>
+  </div>
 
- <!-- Open Cases -->
- {% if open_cases %}
- <div class="card-qatar overflow-hidden mb-6" id="open-cases-card" data-section="open">
- <div class="flex justify-between items-center px-6 py-4 border-b bg-red-50">
- <h2 class="font-bold text-red-800">{% include "components/icon.html" with name="alert-critical" %} القضايا المفتوحة تحتاج قرار اللجنة</h2>
- <span class="text-xs bg-red-600 text-white px-2 py-0.5 rounded-full">{{ stats.open_count }}</span>
- </div>
- <div class="divide-y">
- {% for inf in open_cases %}
- <div class="px-6 py-4 hover:bg-gray-50 transition" data-filter-row data-status="open" data-student="{{ inf.student.full_name }}" data-date="{{ inf.date|date:'Y-m-d' }}" data-level="{{ inf.level }}">
- <div class="flex flex-wrap justify-between items-start gap-3">
- <div class="flex-1">
- <div class="flex items-center gap-2 mb-1">
- <span class="font-bold text-gray-800">{{ inf.student.full_name }}</span>
- <span class="status-badge
- {% if inf.level == 4 %}status-danger{% else %}status-warning{% endif %}">
- الدرجة {{ inf.level }} — {{ inf.get_level_display }}
- </span>
- </div>
- <p class="text-sm text-gray-600 mb-1">{{ inf.description }}</p>
- {% if inf.action_taken %}
- <p class="text-xs text-gray-400">الإجراء الأولي: {{ inf.action_taken }}</p>
- {% endif %}
- <div class="flex gap-3 text-xs text-gray-400 mt-1">
- <span>{% include "components/icon.html" with name="calendar" %} {{ inf.date }}</span>
- <span>{% include "components/icon.html" with name="user" %} رصد بواسطة: {{ inf.reported_by.full_name|default:"—" }}</span>
- </div>
- </div>
+  <div id="open-cases-card" data-section="open">
+    {% section_card "القضايا المفتوحة — تحتاج قرار اللجنة" icon="alert-triangle" empty="لا توجد قضايا مفتوحة" empty_sub="جميع المخالفات الجسيمة تمت معالجتها" %}{% if open_cases %}
+      <ul class="plain-list">
+        {% for inf in open_cases %}
+          <li class="plain-list__row beh-case" data-filter-row data-status="open" data-student="{{ inf.student.full_name }}" data-date="{{ inf.date|date:'Y-m-d' }}" data-level="{{ inf.level }}">
+            <div class="plain-list__main beh-case__main">
+              <span class="beh-case__head">
+                <a href="{% url 'behavior:student_profile' inf.student.id %}" class="plain-list__title link-maroon">{{ inf.student.full_name }}</a>
+                <span class="status-badge {% if inf.level == 4 %}status-danger{% else %}status-warning{% endif %}">الدرجة {{ inf.level }} — {{ inf.get_level_display }}</span>
+              </span>
+              <span class="beh-case__text">{{ inf.description }}</span>
+              {% if inf.action_taken %}<span class="plain-list__sub" title="{{ inf.action_taken }}">الإجراء الأوّلي: {{ inf.action_taken }}</span>{% endif %}
+              <span class="plain-list__sub">{{ inf.date }} · رصدها {{ inf.reported_by.full_name|default:"—" }}</span>
+            </div>
 
- <!-- قرار اللجنة -->
- <form method="post" action="{% url 'behavior:committee_decision' inf.id %}"
- class="bg-gray-50 rounded-lg p-4 border border-gray-200 min-w-[280px]">
- {% csrf_token %}
- <p class="text-xs font-bold text-gray-700 mb-2">قرار اللجنة:</p>
+            <form method="post" action="{% url 'behavior:committee_decision' inf.id %}" class="beh-decision" aria-label="قرار اللجنة في مخالفة {{ inf.student.full_name }}">
+              {% csrf_token %}
+              <textarea name="action_taken" rows="2" placeholder="ملاحظات اللجنة (اختياري)" aria-label="ملاحظات اللجنة" class="form-control form-control-sm"></textarea>
+              <div class="beh-decision__actions">
+                <button name="decision" value="resolve" class="btn-success btn-sm">{% include "components/icon.html" with name="check-circle" %} حل وإغلاق</button>
+                <button name="decision" value="suspend" class="btn-warning btn-sm">{% include "components/icon.html" with name="clock" %} إيقاف مؤقت</button>
+                {% if inf.level == 3 %}
+                <button name="decision" value="escalate" class="btn-danger btn-sm">{% include "components/icon.html" with name="activity" %} تصعيد</button>
+                {% endif %}
+              </div>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
+  </div>
 
- <textarea name="action_taken" rows="2" placeholder="ملاحظات اللجنة (اختياري)"
- class="w-full text-xs border border-gray-200 rounded p-2 mb-2 resize-none bg-white text-gray-900 placeholder:text-gray-400"></textarea>
-
- <div class="flex gap-2">
- <button name="decision" value="resolve"
- class="btn-success flex-1 text-white text-xs rounded px-3 py-1.5 transition">
- {% include "components/icon.html" with name="check-circle" %} حل وإغلاق
- </button>
- <button name="decision" value="suspend"
- class="flex-1 btn-warning btn-sm">
- {% include "components/icon.html" with name="clock" %} إيقاف مؤقت
- </button>
- {% if inf.level == 3 %}
- <button name="decision" value="escalate"
- class="btn-danger flex-1 text-white text-xs rounded px-3 py-1.5 transition">
- {% include "components/icon.html" with name="activity" %} تصعيد
- </button>
- {% endif %}
- </div>
- </form>
-
- </div>
- </div>
- {% endfor %}
- </div>
- </div>
- {% else %}
- <div class="bg-green-50 border border-green-200 rounded-xl p-8 text-center mb-6">
- <p class="text-4xl mb-2">{% include "components/icon.html" with name="check-circle" size="icon-2xl" %}</p>
- <p class="font-bold text-green-800">لا توجد قضايا مفتوحة</p>
- <p class="text-sm text-green-600 mt-1">جميع المخالفات الجسيمة تمت معالجتها</p>
- </div>
- {% endif %}
-
- <!-- Resolved Cases -->
- {% if resolved_cases %}
- <div class="card-qatar overflow-hidden" id="resolved-cases-card" data-section="resolved">
- <div class="px-6 py-4 border-b bg-gray-50">
- <h2 class="font-bold text-gray-700">{% include "components/icon.html" with name="list-checks" %} القضايا المحلولة (آخر 20)</h2>
- </div>
- <table class="w-full text-sm text-right">
- <thead class="bg-gray-100 text-gray-500 text-xs">
- <tr>
- <th scope="col" class="px-4 py-3">الطالب</th>
- <th scope="col" class="px-4 py-3">الدرجة</th>
- <th scope="col" class="px-4 py-3">التاريخ</th>
- <th scope="col" class="px-4 py-3">اعتمدها</th>
- </tr>
- </thead>
- <tbody class="divide-y">
- {% for inf in resolved_cases %}
- <tr class="hover:bg-gray-50" data-filter-row data-status="resolved" data-student="{{ inf.student.full_name }}" data-date="{{ inf.date|date:'Y-m-d' }}" data-level="{{ inf.level }}">
- <td class="px-4 py-3 font-medium">
- <a href="{% url 'behavior:student_profile' inf.student.id %}" class="text-red-700 hover:underline">
- {{ inf.student.full_name }}
- </a>
- </td>
- <td class="px-4 py-3">
- <span class="status-badge status-gray">الدرجة {{ inf.level }}</span>
- </td>
- <td class="px-4 py-3 text-gray-500">{{ inf.date }}</td>
- <td class="px-4 py-3 text-gray-500 text-xs">
- {% if inf.recovery %}{{ inf.recovery.approved_by.full_name|default:"—" }}{% else %}—{% endif %}
- </td>
- </tr>
- {% endfor %}
- </tbody>
- </table>
- </div>
- {% endif %}
+  {% if resolved_cases %}
+  <div id="resolved-cases-card" data-section="resolved">
+    {% section_card "القضايا المحلولة" meta="آخر 20" icon="list-checks" flush=True %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">الطالب</th>
+              <th scope="col">الدرجة</th>
+              <th scope="col">التاريخ</th>
+              <th scope="col">اعتمدها</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inf in resolved_cases %}
+            <tr data-filter-row data-status="resolved" data-student="{{ inf.student.full_name }}" data-date="{{ inf.date|date:'Y-m-d' }}" data-level="{{ inf.level }}">
+              <td><a href="{% url 'behavior:student_profile' inf.student.id %}" class="link-maroon">{{ inf.student.full_name }}</a></td>
+              <td><span class="status-badge status-gray">الدرجة {{ inf.level }}</span></td>
+              <td class="num">{{ inf.date }}</td>
+              <td>{% if inf.recovery %}{{ inf.recovery.approved_by.full_name|default:"—" }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endsection_card %}
+  </div>
+  {% endif %}
 
 </div>
 {% endblock %}
@@ -206,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function(){
       if (show && from && dt < from) show = false;
       if (show && to   && dt > to)   show = false;
 
-      row.style.display = show ? '' : 'none';
+      row.hidden = !show;
       if (show) {
         if (st === 'open') openVisible++;
         else resVisible++;
@@ -214,8 +149,8 @@ document.addEventListener('DOMContentLoaded', function(){
     });
 
     /* Hide entire section cards when all their rows are hidden */
-    if (openCard) openCard.style.display = (status === 'resolved' || openVisible === 0) && status ? 'none' : '';
-    if (resCard)  resCard.style.display  = (status === 'open' || resVisible === 0) && status ? 'none' : '';
+    if (openCard) openCard.hidden = Boolean((status === 'resolved' || openVisible === 0) && status);
+    if (resCard)  resCard.hidden  = Boolean((status === 'open' || resVisible === 0) && status);
   }
 
   studentInput.addEventListener('input', applyFilters);
@@ -230,8 +165,8 @@ document.addEventListener('DOMContentLoaded', function(){
     dateFrom.value     = '';
     dateTo.value       = '';
     applyFilters();
-    if (openCard) openCard.style.display = '';
-    if (resCard)  resCard.style.display  = '';
+    if (openCard) openCard.hidden = false;
+    if (resCard)  resCard.hidden  = false;
   });
 });
 </script>
