@@ -83,3 +83,19 @@ class TestTheRatchetItself:
         source = "{% if a %}status-red{% else %}status-green{% endif %}"
         value = ratchet.DYNAMIC_RE.sub("\0", ratchet.LOGIC_RE.sub(" ", source))
         assert value.split() == ["status-red", "status-green"]
+
+    def test_a_class_defined_by_the_parent_template_is_defined(self):
+        """الوثيقةُ ترث `base_qatar_report.html` فتعرف `sig-block` من أبيها."""
+        child = '{% extends "reports/base_qatar_report.html" %}'
+        assert "sig-block" in ratchet._local_classes(child)
+
+    def test_a_self_extending_chain_does_not_loop(self, tmp_path, monkeypatch):
+        (tmp_path / "loop.html").write_text(
+            '{% extends "loop.html" %}<style>.x{}</style>', encoding="utf-8"
+        )
+        monkeypatch.setattr(ratchet, "TEMPLATE_ROOTS", (tmp_path,))
+        assert ratchet._local_classes('{% extends "loop.html" %}') == {"x"}
+
+    def test_admin_classes_count_only_under_the_django_admin(self):
+        assert ratchet.ADMIN_EXTENDS_RE.search('{% extends "admin/base_site.html" %}')
+        assert not ratchet.ADMIN_EXTENDS_RE.search('{% extends "base/base.html" %}')
