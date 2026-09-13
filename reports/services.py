@@ -1015,6 +1015,12 @@ class ExcelService:
             f"{report_title}  —  السنة الدراسية {year}",
             f"وزارة التربية والتعليم والتعليم العالي — دولة قطر  |  {today_str}",
         )
+        # رأسُ الصفحة المطبوعة باسم المدرسة التي صدر عنها الملفّ — لا باسمٍ ثابت.
+        cls._print_header(ws, school_name)
+
+    @classmethod
+    def _print_header(cls, ws: object, text: str) -> None:
+        ws.oddHeader.center.text = f'&"Arial,Bold"&9{text}'
 
     @classmethod
     def _add_header_row(cls, ws: object, styles: dict, row_num: int, columns: list) -> None:
@@ -1063,6 +1069,7 @@ class ExcelService:
         num_data_rows: int,
         paper: str = "a4",
         orientation: str = "portrait",
+        header_text: str = "",
     ) -> None:
         """
         إعداد الطباعة — يدعم A4/A3 بوضع عمودي أو أفقي.
@@ -1073,6 +1080,10 @@ class ExcelService:
             num_data_rows: عدد صفوف البيانات
             paper: "a4" (paperSize=9) أو "a3" (paperSize=8)
             orientation: "portrait" أو "landscape"
+            header_text: رأسُ الصفحة المطبوعة. ويكتبه `_add_professional_header` باسم
+                المدرسة أصلاً؛ فهذا لمن بنى ترويستَه بغيره. كان اسمُ مدرسةٍ بعينها
+                مكتوباً هنا بمحارفَ مرمَّزة فيطبعه ملفُّ كلّ مدرسة، ولم يلتقطه حارسُ
+                الهويّة لأنّه يبحث عن الحروف لا عن رموزها.
         """
         from openpyxl.worksheet.properties import PageSetupProperties
 
@@ -1112,10 +1123,8 @@ class ExcelService:
         ws.print_area = f"A1:{col_letter}{last_row}"
 
         # هيدر وفوتر الطباعة (Excel format codes)
-        ws.oddHeader.center.text = (
-            '&"Arial,Bold"&9'
-            "\u0645\u062f\u0631\u0633\u0629 \u0627\u0644\u0634\u062d\u0627\u0646\u064a\u0629"
-        )
+        if header_text:
+            cls._print_header(ws, header_text)
         ws.oddFooter.center.text = "&P / &N"
         ws.oddFooter.right.text = "&D"
 
@@ -1139,7 +1148,11 @@ class ExcelService:
             buf.read(),
             content_type=("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
         )
-        resp["Content-Disposition"] = f'attachment; filename="{filename}"'
+        # الاسمُ العربيّ في `filename="…"` يُرمّزه Django بـRFC 2047 فلا يفهمه المتصفّح —
+        # الترويسةُ المشتركةُ تبقى ASCII وتحمل العربيّ في `filename*`.
+        from core.pdf_utils import _content_disposition
+
+        resp["Content-Disposition"] = _content_disposition(filename, True)
         return resp
 
     # ── التقارير ──────────────────────────────────────────────────────

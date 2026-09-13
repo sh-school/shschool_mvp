@@ -15,6 +15,14 @@
       <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} {{ klass.get_grade_display }} / {{ klass.section }}</h1>
       <p class="exec-subtitle">{{ day|date:"D، d M Y" }} · {{ rows|length }} طالباً · {{ periods|length }} حصّة</p>
     </div>
+    {% if periods %}
+    <div class="exec-meta per-exports">
+      {% url 'wings:section_register' klass.id as register_url %}
+      <a href="{{ register_url }}?date={{ day|date:'Y-m-d' }}&amp;format=xlsx" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
+      <a href="{{ register_url }}?date={{ day|date:'Y-m-d' }}&amp;format=pdf" class="btn-secondary btn-sm">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
+      <a href="{{ register_url }}?date={{ day|date:'Y-m-d' }}&amp;print=1" class="btn-secondary btn-sm" target="_blank" rel="noopener">{% include "components/icon.html" with name="printer" %} طباعة</a>
+    </div>
+    {% endif %}
   </div>
 
   {% if not periods %}
