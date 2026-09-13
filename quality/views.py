@@ -32,6 +32,7 @@ from .models import (
     ProcedureStatusLog,
     QualityCommitteeMember,
 )
+from .presentation import kpi_progress_tone, procedure_status_tone, progress_tone
 from .services import QualityService
 
 # Re-exports for backward compat with urls.py
@@ -331,11 +332,36 @@ def plan_dashboard(request):
     unmapped_count = QualityService.get_unmapped_count(school, year) if is_admin else 0
 
     my_procedures = [] if is_admin else QualityService.get_my_procedures(request.user, school, year)
+
+    # ── العرض: الألوانُ والنصوصُ المركّبة هنا لا في القالب ──
+    domains = list(domains)
+    for domain in domains:
+        # كانت العتباتُ في القالب 50/25، وفي الحلقة الكبرى 60 — صارت واحدة.
+        domain.progress_tone = progress_tone(domain.completion_pct, domain.total_procedures)
+    my_procedures_preview = list(my_procedures[:6])
+    for proc in my_procedures_preview:
+        proc.status_tone = procedure_status_tone(proc.status)
+    # لافتةُ الدور كانت فقرةً بين الترويسة والأرقام — صارت سطرَ الترويسة الوصفيّ.
+    if is_admin:
+        role_note = ""
+    elif is_reviewer and reviewer_domain:
+        role_note = f" · مراجعُ مجال {reviewer_domain.name}"
+    elif not is_reviewer:
+        role_note = " · الأرقامُ لإجراءاتك وحدها"
+    else:
+        role_note = ""
+    school_name = school.name if school else "المدرسة"
+
     return render(
         request,
         "quality/dashboard.html",
         {
             "domains": domains,
+            "plan_subtitle": f"{year} · {school_name}{role_note}",
+            "pct_label": f"{stats['pct']}%",
+            "pct_tone": kpi_progress_tone(stats["pct"], stats["total"]),
+            "my_procedures_preview": my_procedures_preview,
+            "my_procedures_count": len(my_procedures),
             "year": year,
             "review_committee": review_committee,
             "my_procedures": my_procedures,
@@ -376,12 +402,25 @@ def domain_detail(request, domain_id):
 
     data = QualityService.get_domain_procedures(school, domain, status_filter, executor_filter)
 
+    # الخدمةُ تجلب إجراءاتِ كلّ مؤشّرٍ مصفّاةً مسبقاً (`_filtered_procedures`)، وكان
+    # القالبُ يتجاهلها ويستعلم `indicator.procedures.all` لكلّ مؤشّر ثمّ يعيد التصفية
+    # بشرطين. والاسمُ المبدوءُ بشرطةٍ لا يُقرأ في القالب، فيُنقل إلى اسمٍ يُقرأ.
+    targets = list(data["targets"])
+    for target in targets:
+        for indicator in target.indicators.all():
+            indicator.visible_procedures = indicator._filtered_procedures
+            for proc in indicator.visible_procedures:
+                proc.status_tone = procedure_status_tone(proc.status)
+
     return render(
         request,
         "quality/domain_detail.html",
         {
             "domain": domain,
-            "targets": data["targets"],
+            "pct_label": f"{data['pct']}%",
+            "pct_tone": kpi_progress_tone(data["pct"], data["total"]),
+            "total_procedures": data["total"],
+            "targets": targets,
             "executors": data["executors"],
             "status_filter": status_filter,
             "executor_filter": executor_filter,
@@ -407,19 +446,29 @@ def procedure_detail(request, proc_id):
         return HttpResponse("غير مسموح — لا تملك صلاحية لعرض هذا الإجراء", status=403)
     evidences = procedure.evidences.select_related("uploaded_by").all()
 
-    status_logs = (
+    status_logs = list(
         ProcedureStatusLog.objects.filter(
             procedure=procedure,
         )
         .select_related("changed_by")
         .order_by("-created_at")
     )
+    # السجلُّ يخزّن مفتاحَ الحالة الإنجليزيّ — كان يُعرض خاماً («In Progress»).
+    labels = dict(OperationalProcedure.STATUS)
+    for log in status_logs:
+        log.new_label = labels.get(log.new_status, log.new_status)
+        log.old_label = labels.get(log.old_status, log.old_status)
+        log.tone = procedure_status_tone(log.new_status)
 
     return render(
         request,
         "quality/procedure_detail.html",
         {
             "procedure": procedure,
+            "procedure_title": f"الإجراء {procedure.number}",
+            "status_tone": procedure_status_tone(procedure.status),
+            # كان الموعدُ أحمرَ لكلّ إجراءٍ غيرِ مكتمل ولو بعيداً — صار للمتأخّر وحده.
+            "deadline_overdue": procedure.is_overdue,
             "evidences": evidences,
             "can_edit": _can_edit_procedure(request.user, procedure),
             "is_reviewer": _is_review_member(
@@ -487,7 +536,11 @@ def update_procedure_status(request, proc_id):
                     body=f'الإجراء "{procedure.text[:50]}" تم تقديمه للمراجعة',
                 )
 
-    return render(request, "quality/partials/procedure_status_badge.html", {"procedure": procedure})
+    return render(
+        request,
+        "quality/partials/procedure_status_badge.html",
+        {"procedure": procedure, "status_tone": procedure_status_tone(procedure.status)},
+    )
 
 
 @login_required
@@ -615,16 +668,24 @@ def my_procedures(request):
         ).exists()
     )
 
+    procedures = list(qs)
+    for proc in procedures:
+        proc.status_tone = procedure_status_tone(proc.status)
+        # كان الموعدُ أحمرَ لكلّ إجراءٍ غيرِ مكتمل ولو بعيداً — صار للمتأخّر وحده.
+        proc.deadline_overdue = proc.is_overdue
+
     return render(
         request,
         "quality/my_procedures.html",
         {
-            "procedures": qs,
+            "procedures": procedures,
             "status_filter": status_filter,
             "STATUS_CHOICES": OperationalProcedure.STATUS,
             "total": total,
             "completed": completed,
             "pct": pct,
+            "pct_label": f"{pct}%",
+            "pct_tone": kpi_progress_tone(pct, total),
             "year": year,
             "mapping_exists": mapping_exists,
         },

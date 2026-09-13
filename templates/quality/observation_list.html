@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load sorting %}
+{% load sorting ui %}
 {% block title %}الزيارات الصفية{% endblock %}
 
 {% block breadcrumbs %}
@@ -7,21 +7,17 @@
 {% endblock %}
 
 {% block content %}
-<div class="card-qatar">
-  <div class="exec-header">
-    <h1>{% include "components/icon.html" with name="clipboard-check" %} الزيارات الصفية</h1>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a href="{% url 'observation_archive' %}" class="btn-secondary btn-sm">الأرشيف</a>
-      {% if can_create %}<a href="{% url 'observation_create' %}" class="btn-primary btn-sm">+ زيارة إشرافية جديدة</a>{% endif %}
-      {% if can_self %}<a href="{% url 'observation_self_create' %}" class="btn-secondary btn-sm">+ تقييم ذاتي جديد</a>{% endif %}
-      {% if can_peer %}<a href="{% url 'observation_peer_create' %}" class="btn-secondary btn-sm">+ زيارة زميل</a>{% endif %}
-    </div>
-  </div>
+<div class="qobs">
 
-  {# ── شريط الفلاتر ── #}
-  <form method="get" class="filter-bar"
-        style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end;margin-bottom:14px">
-    <label>الحالة
+  {% page_header "الزيارات الصفية" icon="clipboard-check" %}
+    {% if can_create %}<a href="{% url 'observation_create' %}" class="btn-primary btn-sm">+ زيارة إشرافية جديدة</a>{% endif %}
+    {% if can_self %}<a href="{% url 'observation_self_create' %}" class="btn-secondary btn-sm">+ تقييم ذاتي جديد</a>{% endif %}
+    {% if can_peer %}<a href="{% url 'observation_peer_create' %}" class="btn-secondary btn-sm">+ زيارة زميل</a>{% endif %}
+    <a href="{% url 'observation_archive' %}" class="btn-secondary btn-sm">الأرشيف</a>
+  {% endpage_header %}
+
+  <form method="get" class="filter-bar qobs-filters">
+    <label class="filter-field"><span class="filter-label">الحالة</span>
       <select name="status" class="form-control">
         <option value="">الكل</option>
         {% for v,l in status_choices %}
@@ -29,7 +25,7 @@
         {% endfor %}
       </select>
     </label>
-    <label>النوع
+    <label class="filter-field"><span class="filter-label">النوع</span>
       <select name="kind" class="form-control">
         <option value="">الكل</option>
         {% for v,l in kind_choices %}
@@ -37,7 +33,7 @@
         {% endfor %}
       </select>
     </label>
-    <label>المعلّم
+    <label class="filter-field"><span class="filter-label">المعلّم</span>
       <select name="teacher" class="form-control">
         <option value="">الكل</option>
         {% for t in teachers %}
@@ -46,7 +42,7 @@
       </select>
     </label>
     {% if is_leadership %}
-    <label>الزائر
+    <label class="filter-field"><span class="filter-label">الزائر</span>
       <select name="observer" class="form-control">
         <option value="">الكل</option>
         {% for o in observers %}
@@ -55,85 +51,75 @@
       </select>
     </label>
     {% endif %}
-    <label>من تاريخ <input type="date" name="date_from" class="form-control" value="{{ f.date_from }}"></label>
-    <label>إلى تاريخ <input type="date" name="date_to" class="form-control" value="{{ f.date_to }}"></label>
-    <label>بحث <input type="search" name="q" class="form-control" placeholder="موضوع أو اسم معلّم" value="{{ f.q }}"></label>
-    <label>الترتيب
+    <label class="filter-field"><span class="filter-label">من تاريخ</span><input type="date" name="date_from" class="form-control" value="{{ f.date_from }}"></label>
+    <label class="filter-field"><span class="filter-label">إلى تاريخ</span><input type="date" name="date_to" class="form-control" value="{{ f.date_to }}"></label>
+    <label class="filter-field"><span class="filter-label">بحث</span><input type="search" name="q" class="form-control" placeholder="موضوع أو اسم معلّم" value="{{ f.q }}"></label>
+    <label class="filter-field"><span class="filter-label">الترتيب</span>
       <select name="sort" class="form-control">
         {% for v,l in sort_choices %}
         <option value="{{ v }}" {% if f.sort == v %}selected{% endif %}>{{ l }}</option>
         {% endfor %}
       </select>
     </label>
-    <div style="display:flex;gap:6px">
+    <div class="filter-actions">
       <button type="submit" class="btn-primary btn-sm">تصفية</button>
       <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">مسح</a>
     </div>
   </form>
 
-  {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على كلّ الزيارات لا على الصفحة. #}
-  {# في غلافٍ يُمرَّر: ثمانيةُ أعمدةٍ وأزرارٌ لا تُلفّ كانت تدفع الصفحةَ كلَّها 394px في الهاتف. #}
-  <div class="table-wrap">
-  <table class="table table-qatar" data-no-sort>
-    <thead>
-      <tr>
-        {% sort_th sort "teacher" "المعلّم" %}{% sort_th sort "observer" "الزائر" %}
-        {% sort_th sort "subject" "المادّة" %}{% sort_th sort "date" "التاريخ" %}
-        {% sort_th sort "kind" "النوع" %}{% sort_th sort "score" "النسبة" %}
-        {% sort_th sort "status" "الحالة" %}<th>إجراءات</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for o, p in rows %}
-      <tr>
-        <td>{{ o.teacher.full_name }}</td>
-        <td>{{ o.observer.full_name }}</td>
-        <td>{{ o.subject.name_ar|default:"—" }}</td>
-        <td class="col-num">{{ o.observation_date }}</td>
-        <td>{% if o.kind == "self" %}<span class="badge badge--accent">تقييم ذاتي</span>{% elif o.kind == "peer" %}<span class="badge badge--success">زيارة زميل</span>{% else %}<span class="badge badge--info">إشرافية</span>{% endif %}</td>
-        <td class="col-num">
-          {% if o.score_percent != None %}
-            {% if o.score_percent >= 75 %}<span style="color:var(--status-success-fg);font-weight:600">{{ o.score_percent }}%</span>
-            {% elif o.score_percent >= 50 %}<span style="color:var(--status-warning-fg);font-weight:600">{{ o.score_percent }}%</span>
-            {% else %}<span style="color:var(--status-danger-fg);font-weight:600">{{ o.score_percent }}%</span>{% endif %}
-          {% else %}—{% endif %}
-        </td>
-        <td>
-          {% if o.status == "acknowledged" %}<span class="badge badge--success">{{ o.get_status_display }}</span>
-          {% elif o.status == "submitted" %}<span class="badge badge--warning">{{ o.get_status_display }}</span>
-          {% else %}<span class="badge badge--neutral">{{ o.get_status_display }}</span>{% endif %}
-        </td>
-        <td style="white-space:nowrap">
-          <a href="{% url 'observation_detail' o.id %}" class="btn-secondary btn-sm">عرض</a>
-          {% if p.can_edit %}<a href="{% url 'observation_edit' o.id %}" class="btn-secondary btn-sm">تعديل</a>{% endif %}
-          <a href="{% url 'observation_pdf_view' o.id %}" class="btn-secondary btn-sm">PDF</a>
-          {% if p.can_delete and o.status == "draft" %}
-          <form method="post" action="{% url 'observation_delete' o.id %}" style="display:inline"
-                data-confirm="حذف هذه المسودة؟">
-            {% csrf_token %}
-            <button type="submit" class="btn-danger btn-sm">حذف</button>
-          </form>
-          {% endif %}
-        </td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="8" style="text-align:center;color:var(--text-muted)">لا توجد زيارات مطابقة.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
+  {% section_card "الزيارات" meta=page_obj.paginator.count icon="list-checks" empty="لا توجد زيارات مطابقة." flush=True %}{% if rows %}
+    {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على كلّ الزيارات لا على الصفحة. #}
+    {# في غلافٍ يُمرَّر: ثمانيةُ أعمدةٍ وأزرارٌ لا تُلفّ كانت تدفع الصفحةَ كلَّها 394px في الهاتف. #}
+    <div class="table-wrap">
+    <table class="table table-qatar" data-no-sort>
+      <thead>
+        <tr>
+          {% sort_th sort "teacher" "المعلّم" %}{% sort_th sort "observer" "الزائر" %}
+          {% sort_th sort "subject" "المادّة" %}{% sort_th sort "date" "التاريخ" %}
+          {% sort_th sort "kind" "النوع" %}{% sort_th sort "score" "النسبة" %}
+          {% sort_th sort "status" "الحالة" %}<th>إجراءات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o, p in rows %}
+        <tr>
+          <td>{{ o.teacher.full_name }}</td>
+          <td>{{ o.observer.full_name }}</td>
+          <td>{{ o.subject.name_ar|default:"—" }}</td>
+          <td class="col-num">{{ o.observation_date }}</td>
+          <td><span class="badge badge--{{ o.kind_tone }}">{{ o.get_kind_display }}</span></td>
+          <td class="col-num">{% if o.score_percent != None %}<b class="grade-total is-{{ o.score_tone }}">{{ o.score_percent }}%</b>{% else %}—{% endif %}</td>
+          <td><span class="badge badge--{{ o.status_tone }}">{{ o.get_status_display }}</span></td>
+          <td class="qobs-actions">
+            <a href="{% url 'observation_detail' o.id %}" class="btn-secondary btn-sm">عرض</a>
+            {% if p.can_edit %}<a href="{% url 'observation_edit' o.id %}" class="btn-secondary btn-sm">تعديل</a>{% endif %}
+            <a href="{% url 'observation_pdf_view' o.id %}" class="btn-secondary btn-sm">PDF</a>
+            {% if p.can_delete and o.status == "draft" %}
+            <form method="post" action="{% url 'observation_delete' o.id %}" class="form-inline"
+                  data-confirm="حذف هذه المسودة؟">
+              {% csrf_token %}
+              <button type="submit" class="btn-danger btn-sm">حذف</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
 
-  {# ── ترقيم يحفظ الفلاتر ── #}
-  {% if page_obj.has_other_pages %}
-  <div class="pagination" style="display:flex;gap:8px;justify-content:center;margin-top:14px;align-items:center">
-    {% if page_obj.has_previous %}
-    <a class="btn-secondary btn-sm" href="?{{ querystring }}&page={{ page_obj.previous_page_number }}">السابق</a>
+    {% if page_obj.has_other_pages %}
+    <nav class="qobs-pager" aria-label="صفحات الزيارات">
+      {% if page_obj.has_previous %}
+      <a class="btn-secondary btn-sm" href="?{{ querystring }}&page={{ page_obj.previous_page_number }}">السابق</a>
+      {% endif %}
+      <span class="qobs-pager__label">صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
+      {% if page_obj.has_next %}
+      <a class="btn-secondary btn-sm" href="?{{ querystring }}&page={{ page_obj.next_page_number }}">التالي</a>
+      {% endif %}
+    </nav>
     {% endif %}
-    <span style="color:var(--text-muted)">صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
-    {% if page_obj.has_next %}
-    <a class="btn-secondary btn-sm" href="?{{ querystring }}&page={{ page_obj.next_page_number }}">التالي</a>
-    {% endif %}
-  </div>
-  {% endif %}
+  {% endif %}{% endsection_card %}
+
 </div>
 {% endblock %}
