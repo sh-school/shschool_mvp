@@ -843,7 +843,10 @@ def get_teacher_student_ids(user):
     # ── 3) حصص الإشغال (بديل) — اليوم فقط ──
     import datetime
 
-    today = datetime.date.today()
+from django.utils import timezone
+
+    # تاريخُ قطر لا UTC: بين منتصف الليل والثالثة فجراً كان تكليفُ الأمس يُقرأ تكليفَ اليوم.
+    today = timezone.localdate()
     substitute_class_ids = set(
         SubstituteAssignment.objects.filter(
             substitute=user,

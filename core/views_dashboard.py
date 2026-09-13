@@ -555,7 +555,7 @@ def dashboard(request):
     if role == "parent":
         return redirect("parent_dashboard")
 
-    today = timezone.now().date()
+    today = timezone.localdate()  # تاريخُ قطر — كما يقرؤه حارسُ التكليف
     ctx = {"today": today, "school": school}
 
     if role == "student":
