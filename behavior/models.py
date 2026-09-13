@@ -141,7 +141,14 @@ class ViolationCategory(models.Model):
         return "tech" in self.tags and self.degree >= 3
 
     def get_escalation_steps(self):
-        """إرجاع خطوات الإجراءات التصاعدية لدرجة هذه المخالفة"""
+        """سلّمُ إجراءات هذه المخالفة — من الدليل التنظيميّ 2026 إن كانت منه.
+
+        وما سواها (لوائحُ سابقة) يبقى على السلّم العامّ للدرجة.
+        """
+        from .conduct_2026 import BY_CODE, ladder_text
+
+        if self.code in BY_CODE:
+            return ladder_text(self.code)
         return ESCALATION_STEPS.get(self.degree, [])
 
     # ── الحقن القديم للتوافق ──
@@ -430,6 +437,8 @@ class BehaviorInfraction(models.Model):
 
     def get_escalation_steps(self):
         """إرجاع الإجراءات التصاعدية المتاحة لهذه المخالفة"""
+        if self.violation_category_id:
+            return self.violation_category.get_escalation_steps()
         return ESCALATION_STEPS.get(self.level, [])
 
     def get_current_step_text(self):
