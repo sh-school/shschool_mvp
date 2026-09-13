@@ -5,9 +5,21 @@
 ثمّ اعتماد — لكلٍّ صاحبُه، ولا يظهر زرٌّ لمن لا يملكه.
 {% endcomment %}
 <section class="asg-card asg-{{ card.status|default:"none" }}" id="teacher-{{ card.teacher.id }}"{% if oob %} hx-swap-oob="outerHTML"{% endif %}>
-  <div class="asg-head">
+  {% comment %}
+  البطاقةُ مطويّةٌ افتراضاً (قرارُ 2026-09-13): ثلاثةٌ وسبعون معلّماً ومنسّقاً كانوا صفحةً
+  لا تنتهي. والملخّصُ يقول ما يلزم للقرار دون فتحها: الاسمُ والحالةُ والحملُ وعددُ الإسنادات
+  وتنبيهٌ إن احتاجت عملاً. وتُفتح وحدَها بعد كلّ حفظٍ فيها (`open`) — فلا تُطوى في وجه من
+  يعدّلها — وحين يقع خطأٌ أو نقلٌ ينتظر تأكيداً.
+  {% endcomment %}
+  <details class="asg-fold"{% if open or card.error or card.transfer %} open{% endif %}>
+  <summary class="asg-summary">
     <span class="asg-name">{{ card.teacher.full_name }}</span>
     <span class="asg-chip asg-chip-{{ card.status|default:"none" }}">{{ card.status_label }}</span>
+    {% if card.diverged or card.room and not card.room.fits %}<span class="asg-chip asg-chip-alert">يحتاج انتباهاً</span>{% endif %}
+    <span class="asg-count">{{ card.rows|length }} إسناداً</span>
+    <span class="asg-load {% if card.load.over_target %}over{% elif card.load.delta == 0 %}exact{% endif %}">{{ card.load.label }}</span>
+  </summary>
+  <div class="asg-head">
 
     {% comment %}
     نقلُ معلّمٍ بين الأقسام قرارُ إدارةٍ — للنائب والمدير. ومن عُيّن حديثاً أو
@@ -37,10 +49,10 @@
              {% if not card.writable %}disabled{% endif %} placeholder="—">
     </form>
 
-    <span class="asg-load {% if card.load.over_target %}over{% elif card.load.delta == 0 %}exact{% endif %}">{{ card.load.label }}</span>
   </div>
 
   {% comment %}جدولُ بطاقةٍ من ثلاثة سطورٍ لا يُفرَز — والفرزُ فيه ضجيجٌ لا فائدة.{% endcomment %}
+  <div class="asg-table-wrap">
   <table class="asg" data-no-sort>
     <thead>
       <tr><th>المرحلة</th><th>الشعبة</th><th>المادّة</th><th>الحصص</th><th>يحضّر</th><th title="حصّتان متلاصقتان لهذه المادّة في هذه الشعبة">مزدوجة</th><th title="الشعبةُ تنقسم نصفين في التوقيت الواحد">متوازية</th><th></th></tr>
@@ -143,6 +155,7 @@
       {% endif %}
     </tbody>
   </table>
+  </div>
 
   {% comment %}
   المادّةُ في الشعبة لمعلّمٍ واحد: إسنادُها إلى ثانٍ يُسقطها عن الأوّل. فيُقال
@@ -211,4 +224,5 @@
     {% if card.can_revise %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="revise" label="إصدارٌ جديدٌ للتعديل" style="ghost" %}{% endif %}
   </div>
   {% endif %}
+  </details>
 </section>
