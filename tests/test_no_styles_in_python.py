@@ -32,6 +32,13 @@ SHORT_HEX_RE = re.compile(r"(?:[:,]\s*|\bsolid\s+)#(?:[0-9a-fA-F]{3,4})\b")
 
 #: سمةُ تنسيقٍ داخل وسم HTML في سلسلة.
 STYLE_ATTR_RE = re.compile(r"(?<![\w-])style\s*=\s*\\?[\"']")
+#: صنفُ لونٍ من لوحة Tailwind (`text-red-600`) مبنيٌّ في بايثون — اللوحةُ أُغلقت في
+#: `tailwind.config.js` فلا يرسم شيئاً، وكان `grade_color_css` يُخرجه لقالبٍ لم يعد يقرؤه.
+PALETTE_CLASS_RE = re.compile(
+    r"(?<![\w-])(?:bg|text|border|ring|from|via|to|divide|outline|fill|stroke|placeholder|accent|shadow|decoration)"
+    r"-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)"
+    r"-\d{2,3}(?![\w-])"
+)
 
 #: استثناءاتٌ مسمّاة — لكلٍّ سببُه. ويسقط الفحصُ إن زال سببُ استثناءٍ ولم يُحذف.
 ALLOWED = {
@@ -57,6 +64,8 @@ def violations(source: str) -> list[str]:
             found.append(f"{line}: لونٌ ثلاثيّ {match.group().split('#')[-1]!r}")
         if STYLE_ATTR_RE.search(text):
             found.append(f"{line}: تنسيقٌ داخل الوسم (style=)")
+        for match in PALETTE_CLASS_RE.finditer(text):
+            found.append(f"{line}: صنفُ لونٍ من لوحة Tailwind {match.group()}")
     return found
 
 
@@ -107,8 +116,9 @@ def test_the_scanner_catches_what_it_should_and_nothing_else():
         'b = f"<p>{x}</p><div style=\\"margin:0\\">"\n'
         'c = "#B91C1C"\n'
         'd = f"""\n.x {{ color: #888; border-top: 1px solid #ddd; }}\n"""\n'
+        'e = "text-red-600" if bad else "text-gray-400"\n'
     )
-    assert len(caught) == 5, caught
+    assert len(caught) == 7, caught
 
     clean = violations(
         "# تعليقٌ فيه style='x' و#B91C1C\n"
@@ -116,6 +126,7 @@ def test_the_scanner_catches_what_it_should_and_nothing_else():
         'init(transaction_style="url")\n'
         '"""(#222) و Client #001"""\n'
         'e = "<style>.x { color: var(--maroon); }</style>"\n'
+        'f = "text-muted status-badge bg-adaam-bg"\n'
     )
     assert clean == [], clean
 

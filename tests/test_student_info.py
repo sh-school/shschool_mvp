@@ -81,7 +81,7 @@ def _login(client, user):
     ],
 )
 def test_the_band_uses_the_thresholds_the_platform_already_colours_by(total, expected):
-    """٨٠ و٦٥ و٥٠ هي عتباتُ `grade_color_css` منذ البداية.
+    """٨٠ و٦٥ و٥٠ هي عتباتُ تلوين النتائج منذ البداية — وهنا مصدرُها الوحيد اليوم.
 
     ولو اخترعنا للمركز عتباتٍ أخرى لصار للطالب مستويان مختلفان في شاشتين
     من المنصّة نفسها.

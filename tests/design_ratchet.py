@@ -76,7 +76,7 @@ METRICS: dict[str, tuple[str, re.Pattern | _InlineStyle]] = {
     "palette_class": (
         "لونٌ من لوحة Tailwind لا من رموز المنصّة (bg-red-50…)",
         re.compile(
-            rf"(?<![\w-])(?:[a-z0-9]+:)*(?:{_UTILITY})-(?:{_PALETTE})-\d{{2,3}}(?:/\d+)?(?![\w-])"
+            rf"(?<![\w-])(?:[a-z0-9]+:)*(?:{_UTILITY})-(?:(?:{_PALETTE})-\d{{2,3}}(?:/\d+)?|white|black)(?![\w-])"
         ),
     ),
     "hex_colour": (
