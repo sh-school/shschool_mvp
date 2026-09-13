@@ -33,11 +33,13 @@ class MessageEditTests(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user_a = User.objects.create_superuser(
+            must_change_password=False,
             national_id="29900000001",
             full_name="المستخدم أ",
             password="password-A-123",
         )
         cls.user_b = User.objects.create_superuser(
+            must_change_password=False,
             national_id="29900000002",
             full_name="المستخدم ب",
             password="password-B-123",
