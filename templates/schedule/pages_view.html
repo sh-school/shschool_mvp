@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}{{ title }}{% endblock %}
 {% block main_class %}page-wide{% endblock %}
 
@@ -12,11 +13,10 @@
 الأدواتُ لنا، والورقةُ في إطارٍ يُطبع وحده. والاختيارُ كلُّه في الرابط فتصدّر
 أزرارُ الطباعة والتنزيل ما هو معروضٌ لا غيره.
 {% endcomment %}
-<div class="exec-header schedule-pages-head">
-  <h1 class="page-title">{% include "components/icon.html" with name="printer" %} {{ title }}</h1>
-</div>
-<div class="card-qatar schedule-pages-card">
-  <div class="exec-header schedule-head">
+{% page_header title icon="printer" %}{% endpage_header %}
+{# بطاقةٌ عاريةٌ بشريط أدواتٍ وإطار — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
+<div class="schedule-pages-card">
+  <div class="schedule-head">
     <div class="schedule-tools">
       {% include "schedule/partials/schedule_picker.html" %}
 

@@ -11,22 +11,16 @@
 {% block content %}
 <div class="exec-dash"{% if panels|length == 2 %} style="--floor-a: {{ panels.0.width_weight|stringformat:'s' }}; --floor-b: {{ panels.1.width_weight|stringformat:'s' }}"{% endif %}>
 
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="layers" %} أجنحة المدرسة</h1>
-      <p class="exec-subtitle">طابقان · {{ wing_count }} أجنحة · {{ section_count }} شعبة · {{ year }}</p>
-    </div>
-    <div class="exec-meta">
-      <span class="exec-date">
-        {{ day_label }}{% if is_school_day %} · الساعة {{ now|date:"H:i" }}{% endif %}
-      </span>
-      {% if perms_can_cover %}
-        <a href="{% url 'wings:coverage' %}" class="btn-secondary btn-sm">
-          {% include "components/icon.html" with name="waypoints" %} التغطية والإنابة
-        </a>
-      {% endif %}
-    </div>
-  </div>
+  {% page_header "أجنحة المدرسة" subtitle=subtitle icon="layers" %}
+    <span class="exec-date">
+      {{ day_label }}{% if is_school_day %} · الساعة {{ now|date:"H:i" }}{% endif %}
+    </span>
+    {% if perms_can_cover %}
+      <a href="{% url 'wings:coverage' %}" class="btn-secondary btn-sm">
+        {% include "components/icon.html" with name="waypoints" %} التغطية والإنابة
+      </a>
+    {% endif %}
+  {% endpage_header %}
 
   {% comment %}كلُّ بطاقةٍ سطرٌ واحد: الاسمُ فالعددُ فالتفصيل — والشُّعبُ المستثناة
      بأسمائها في التلميح، بعد أن كانت فقرةً بين البطاقات. والتفصيلُ يُبنى في العرض.{% endcomment %}
@@ -38,10 +32,11 @@
   {% endkpi_strip %}
 
   {# ══ الطابقان — بطاقتان في سطر، تنفكّان عموداً في الشاشة الضيّقة ══ #}
+  {# لوحُ الطابق لا `section_card`: شريطُه يحمل شاراتِ الجرس، والمكوّنُ يأخذ نصّاً. #}
   <div class="wing-pair wing-pair--floors">
   {% for panel in panels %}
-  <div class="card-qatar">
-    <div class="card-bar">
+  <div class="wing-panel">
+    <div class="wing-panel__bar">
       {% include "components/icon.html" with name="building" %}
       {{ panel.label }}
       <span class="floor-meta">
@@ -52,7 +47,7 @@
         {% empty %}
           <span class="badge">لا جرسَ اليوم</span>
         {% endfor %}
-        <span class="card-bar-sub">{{ panel.section_count }} شعبة · {{ panel.student_count }} طالباً</span>
+        <span class="wing-panel__sub">{{ panel.section_count }} شعبة · {{ panel.student_count }} طالباً</span>
       </span>
     </div>
 
@@ -106,12 +101,7 @@
   {# ══ جدولا اليومين — في سطرٍ كذلك ══ #}
   <div class="wing-pair wing-pair--floors">
   {% for table in tables %}
-  <div class="card-qatar">
-    <div class="card-bar">
-      {% include "components/icon.html" with name="clock" %}
-      التوقيت — {{ table.label }}
-      <span class="card-bar-sub">حصصاً وفسحةً وصلاة</span>
-    </div>
+  {% section_card table.title meta="حصصاً وفسحةً وصلاة" icon="clock" %}
     <div class="table-wrap">
       <table class="bell-table">
         <thead>
@@ -145,7 +135,7 @@
       الأعمدةُ متجاورةٌ لا متطابقة: رقمُ الصفّ موضعٌ في اليوم لا رقمُ حصّة — فالحصّةُ
       الرابعة تبدأ في الطابق الأرضيّ بعد فسحته، وفي الأوّل قبل فسحته.
     </p>
-  </div>
+  {% endsection_card %}
   {% endfor %}
   </div>
 

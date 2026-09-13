@@ -1,9 +1,10 @@
-{% comment %}لوحُ رصد جناحٍ واحد — يقرؤه فهرسُ الرصد ولوحةُ المشرف الرئيسيّة.{% endcomment %}
-  <div class="card-qatar">
-    <div class="card-bar">
+{% comment %}لوحُ رصد جناحٍ واحد — يقرؤه فهرسُ الرصد ولوحةُ المشرف الرئيسيّة.
+شريطُه يحمل أزرارَ التصدير، فهو لوحُ جناحٍ (`wing-panel`) لا `section_card`.{% endcomment %}
+  <div class="wing-panel">
+    <div class="wing-panel__bar">
       {% include "components/icon.html" with name="building" %}
       {{ panel.wing.name }}
-      <span class="card-bar-sub">
+      <span class="wing-panel__sub">
         {% if panel.done == panel.total %}
           لا حصّةَ تنتظر — {{ panel.done }}/{{ panel.total }}
         {% else %}
