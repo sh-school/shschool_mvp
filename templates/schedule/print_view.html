@@ -44,7 +44,7 @@
       {# القائمةُ الواحدة لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
       {% if may_browse %}{% include "schedule/partials/schedule_picker.html" %}{% endif %}
 
-      <form method="get" style="display:inline">
+      <form method="get">
         <input type="hidden" name="view" value="{{ view_type }}">
         {% if target_teacher %}<input type="hidden" name="teacher" value="{{ target_teacher.id }}">{% endif %}
         {% if target_class %}<input type="hidden" name="class" value="{{ target_class.id }}">{% endif %}
