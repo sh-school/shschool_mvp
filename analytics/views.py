@@ -128,8 +128,38 @@ def analytics_dashboard(request):
             "year": year,
             "school": school,
             "today": today,
+            **_dashboard_presentation(kpis, school),
         },
     )
+
+
+def _dashboard_presentation(kpis: dict, school) -> dict:
+    """نصوصُ بطاقات لوحة المدير وألوانُها — ما كان يُركَّب ويُشرَط في القالب.
+
+    كانت بطاقاتُ الخدمات تُلحق بالرقم سطرَ تنبيهٍ («3 مزمنة»، «2 جسيمة»،
+    «5 متأخرة») ثمّ يكرّره شريطُ تنبيهٍ تحتها. فصار اللونُ التنبيه: أحمرُ حين
+    يوجد ما يُنبَّه إليه (العتبةُ التي كانت في القالب: أكبرُ من صفر)، والتفصيلُ
+    سطرٌ واحد.
+    """
+    chronic, critical, overdue = (
+        kpis["chronic_cases"],
+        kpis["critical_issues"],
+        kpis["overdue_books"],
+    )
+    return {
+        "subtitle": f"نظرة شاملة على أداء {getattr(school, 'name', '') or 'المدرسة'}",
+        "att_label": f"{kpis['att_pct_today']}%",
+        "present_label": f"{kpis['present_today']} حاضر",
+        "plan_label": f"{kpis['plan_pct']}%",
+        "procs_label": f"{kpis['completed_procs']}/{kpis['total_procs']}",
+        "clinic_sub": f"{chronic} حالة مزمنة",
+        "clinic_tone": "red" if chronic > 0 else "teal",
+        "behavior_sub": f"{critical} جسيمة" if critical > 0 else "لا جسيمة",
+        "behavior_tone": "red" if critical > 0 else "orange",
+        "buses_sub": f"{kpis['total_buses']} حافلة",
+        "library_sub": f"{overdue} متأخرة" if overdue > 0 else "إعارة نشطة",
+        "library_tone": "red" if overdue > 0 else "purple",
+    }
 
 
 # ── API 1: منحنى الحضور (آخر 30 يوم) ────────────────────────
@@ -529,7 +559,15 @@ def kpi_dashboard(request):
     """لوحة KPIs العشرة — للمدير فقط"""
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
-    return render(request, "analytics/kpi_dashboard.html", {"school": school, "year": year})
+    return render(
+        request,
+        "analytics/kpi_dashboard.html",
+        {
+            "school": school,
+            "year": year,
+            "subtitle": f"{getattr(school, 'name', '') or 'المدرسة'} — {year}",
+        },
+    )
 
 
 @login_required

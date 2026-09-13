@@ -32,6 +32,17 @@ except ImportError:
     OPENPYXL_OK = False
 
 
+#: شارةُ عملية الاستيراد بحالها: مكتملٌ أخضر، وفشلٌ أحمر، وما بينهما كهرمانيّ.
+_LOG_BADGES = {"completed": "status-success", "failed": "status-danger"}
+
+
+def _with_status_badges(logs) -> list:
+    logs = list(logs)
+    for log in logs:
+        log.badge_class = _LOG_BADGES.get(log.status, "status-warning")
+    return logs
+
+
 # ── صفحة الاستيراد الرئيسية ────────────────────────────────
 
 
@@ -86,6 +97,13 @@ def import_grades_select(request):
         )
 
     logs = ImportLog.objects.filter(school=school).order_by("-started_at")[:20]
+    assessments = list(assessments)
+    for a in assessments:
+        # مصحَّحٌ أخضر، ومنشورٌ لم يُصحَّح بعدُ أزرق — كما كان في القالب.
+        a.badge_class, a.badge_label = (
+            ("status-success", "مصحَّح") if a.status == "graded" else ("status-info", "منشور")
+        )
+    logs = _with_status_badges(logs)
 
     return render(
         request,
@@ -417,8 +435,33 @@ def upload_grade_file(request, assessment_id):
             "imported": imported,
             "is_dry_run": dry_run,
             "preview_rows": preview_rows,
+            **_result_presentation(dry_run, imported, errors),
         },
     )
+
+
+def _result_presentation(dry_run: bool, imported: int, errors: list) -> dict:
+    """عنوانُ النتيجة ولونُها — الحالاتُ الخمس التي كانت شرطاً متداخلاً في القالب.
+
+    المعاينةُ بأخطاءٍ كهرمانيّة وبلا أخطاءٍ زرقاء؛ والاستيرادُ الفعليُّ أخضرُ إن
+    لم يُخطئ صفّ، وكهرمانيٌّ إن أُدخل بعضُه، وأحمرُ إن لم يُدخل شيء.
+    """
+    if dry_run and errors:
+        title, icon, tone = f"معاينة — يوجد {len(errors)} خطأ", "eye", "amber"
+    elif dry_run:
+        title, icon, tone = "معاينة — الملف جاهز للاستيراد", "eye", "blue"
+    elif imported > 0 and not errors:
+        title, icon, tone = "اكتمل الاستيراد بنجاح", "check-circle", "green"
+    elif imported > 0:
+        title, icon, tone = "اكتمل الاستيراد مع تحذيرات", "alert-triangle", "amber"
+    else:
+        title, icon, tone = "فشل الاستيراد", "x-circle", "red"
+    return {
+        "result_title": title,
+        "result_icon": icon,
+        "result_tone": tone,
+        "failed_tone": "red" if errors else "green",
+    }
 
 
 # ── سجل الاستيراد ──────────────────────────────────────────
@@ -447,4 +490,8 @@ def import_log_list(request):
         .order_by("-started_at")[:50]
     )
 
-    return render(request, "staging/import_log.html", {"logs": logs})
+    return render(
+        request,
+        "staging/import_log.html",
+        {"logs": logs, "log_rows": _with_status_badges(logs)},
+    )

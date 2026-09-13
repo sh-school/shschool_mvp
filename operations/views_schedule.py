@@ -13,6 +13,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.formats import date_format
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
@@ -396,6 +397,53 @@ def schedule_print_view(request):
 
 # ── نظام البديل ──────────────────────────────────────────────────
 
+#: لونُ الغياب بحاله — كان شرطاً في القالبين: مغطّى أخضر، وغيرُ مغطّى أحمر،
+#: وما سواهما (بانتظار البديل) كهرمانيّ.
+_ABSENCE_TONES = {"covered": ("green", "success"), "uncovered": ("red", "danger")}
+_ABSENCE_TONE_DEFAULT = ("amber", "warning")
+
+#: حالُ التعيين: قبِل أخضر، ورفض أحمر، ومُعيَّنٌ لم يُجِب بعدُ أزرق.
+_ASSIGNMENT_TONES = {"confirmed": "success", "declined": "danger"}
+
+
+def _assignment_tone(assignment) -> str:
+    return _ASSIGNMENT_TONES.get(assignment.status, "info")
+
+
+def _absence_presentation(absence) -> None:
+    """يلصق بالغياب لونَ بطاقته ولونَ سطر حاله — الحكمُ هنا لا في القالب."""
+    absence.tone, absence.status_tone = _ABSENCE_TONES.get(absence.status, _ABSENCE_TONE_DEFAULT)
+
+
+def _slot_presentation(slot, assignment, available) -> dict:
+    """حصّةُ الغائب في بطاقة كيان: الحصّة · البديل · الحالة.
+
+    المغطّاةُ خضراء وسطرُ حالها حالُ التعيين (قبِل/رفض/مُعيَّن)؛ وغيرُ المغطّاة
+    حمراء وسطرُها عددُ المتاحين — أو «لا معلمين متاحين» حين لا يُوجد أحد.
+    """
+    if assignment:
+        status_tone = _assignment_tone(assignment)
+        tone, status_label = "green", f"مُغطّاة · {assignment.get_status_display()}"
+    elif available:
+        tone, status_tone = "red", "danger"
+        status_label = f"بحاجة بديل · {len(available)} متاح"
+    else:
+        tone, status_tone = "red", "danger"
+        status_label = "بحاجة بديل · لا معلمين متاحين في هذا الوقت"
+    return {
+        "slot": slot,
+        "assignment": assignment,
+        "available": available,
+        "title": f"الحصّة {slot.period_number}",
+        "who": f"{slot.subject or '—'} · {slot.class_group}",
+        "time_label": f"{slot.start_time:%H:%M}–{slot.end_time:%H:%M}"
+        if slot.start_time and slot.end_time
+        else "",
+        "tone": tone,
+        "status_tone": status_tone,
+        "status_label": status_label,
+    }
+
 
 @login_required
 @role_required(OPERATIONS_REPORTS)
@@ -418,6 +466,9 @@ def teacher_absence_list(request):
     dept_ids = get_department_teacher_ids(request.user)
     if dept_ids is not None:
         absences = absences.filter(teacher_id__in=dept_ids)
+    absences = list(absences)
+    for absence in absences:
+        _absence_presentation(absence)
 
     return render(
         request, "substitute/absence_list.html", {"absences": absences, "abs_date": abs_date}
@@ -506,22 +557,22 @@ def absence_detail(request, absence_id):
             exclude_teacher=absence.teacher,
             subject_id=slot.subject_id,
         )
-        slots_data.append(
-            {
-                "slot": slot,
-                "assignment": assignments.get(slot.id),
-                "available": available,
-            }
-        )
+        slots_data.append(_slot_presentation(slot, assignments.get(slot.id), available))
 
+    # عددٌ لا سلسلةُ آحاد: القالبُ كان يطبع «1» لكلّ حصّةٍ مغطّاة، فثلاثٌ تُقرأ «111».
+    covered_count = sum(1 for row in slots_data if row["assignment"])
+    _absence_presentation(absence)
     return render(
         request,
         "substitute/absence_detail.html",
         {
             "absence": absence,
             "slots_data": slots_data,
-            # عددٌ لا سلسلةُ آحاد: القالبُ كان يطبع «1» لكلّ حصّةٍ مغطّاة، فثلاثٌ تُقرأ «111».
-            "covered_count": sum(1 for row in slots_data if row["assignment"]),
+            "subtitle": f"{absence.teacher.full_name} — {date_format(absence.date)}",
+            "covered_count": covered_count,
+            "covered_label": f"من {len(slots_data)}",
+            # حصّةٌ بلا بديلٍ واحدةٌ تكفي للأحمر؛ ولا حصصَ = لا شيءَ ينتظر.
+            "covered_tone": "green" if covered_count == len(slots_data) else "red",
         },
     )
 
@@ -560,12 +611,7 @@ def assign_substitute(request, absence_id, slot_id):
     return render(
         request,
         "substitute/partials/slot_card.html",
-        {
-            "slot": slot,
-            "assignment": assignment,
-            "available": available,
-            "absence": absence,
-        },
+        {"item": _slot_presentation(slot, assignment, available), "absence": absence},
     )
 
 
@@ -586,7 +632,9 @@ def substitute_report(request):
         assignments = [a for a in assignments if a.absence.teacher_id in dept_ids]
 
     summary = {}
+    assignments = list(assignments)
     for a in assignments:
+        a.status_tone = _assignment_tone(a)
         name = a.substitute.full_name
         summary[name] = summary.get(name, 0) + 1
 
