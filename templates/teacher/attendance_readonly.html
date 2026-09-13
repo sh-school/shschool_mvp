@@ -15,7 +15,8 @@
   <p class="form-note is-warning">
     {% include "components/icon.html" with name="alert-triangle" %}
     <span>رصدُ الغياب لمشرف الجناح بقرار إدارة المدرسة — هذه الشاشة للاطّلاع.
-    {% if not recorded %}ولم يُرصد هذا اليومُ بعد.{% endif %}</span>
+    {% if not recorded %}ولم يُرصد هذا اليومُ بعد.{% endif %}
+    {% if can_tap_late %}ومن دخل متأخّراً انقر «دخل الآن» عند دخوله — يُسجَّل الوقتُ ويراه المشرف.{% endif %}</span>
   </p>
 
   <ol class="rec-list">
@@ -23,12 +24,17 @@
     <li class="rec-row" data-state="{{ item.status }}">
       <span class="rec-row__no">{{ forloop.counter }}</span>
       <span class="rec-row__name">{{ item.student.full_name }}</span>
-      <span class="rec-row__pick">
-        {% if item.status == "absent" %}<span class="badge badge--danger">غائب</span>
+      <span class="rec-row__pick" id="late-tap-{{ item.student.id }}">
+        {% if item.tap_minutes is not None %}
+          {% include "teacher/partials/late_tap.html" with student=item.student minutes=item.tap_minutes tapped=True %}
+        {% elif item.status == "absent" %}<span class="badge badge--danger">غائب</span>
         {% elif item.status == "late" %}<span class="badge badge--warning">متأخّر</span>
         {% elif item.status == "excused" %}<span class="badge badge--info">معذور</span>
         {% elif item.status == "present" %}<span class="badge badge--success">حاضر</span>
         {% else %}<span class="badge badge--neutral">لم يُرصد</span>{% endif %}
+        {% if can_tap_late and item.tap_minutes is None and item.status != "late" %}
+          {% include "teacher/partials/late_tap.html" with student=item.student tapped=False %}
+        {% endif %}
       </span>
     </li>
     {% endfor %}
