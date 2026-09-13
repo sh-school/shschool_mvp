@@ -114,7 +114,7 @@ class TestTheCountIsTheWorkLeft:
         body = _body(client_as, admin)
 
         assert "بلا وليِّ أمرٍ مرتبط" in body
-        assert re.search(r'kpi-mini-value">\s*2\s*<', body), "اثنان بلا وليّ من ثلاثة"
+        assert re.search(r'ui-kpi__value">\s*2\s*<', body), "اثنان بلا وليّ من ثلاثة"
 
     def test_the_linked_count_is_read_against_the_register_not_alone(
         self, client_as, school, admin, year
