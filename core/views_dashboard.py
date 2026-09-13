@@ -12,7 +12,7 @@ from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required
 from core.dashboard_presentation import present
-from core.models.academic import grade_order
+from core.models.academic import Wing, grade_order
 from library.models import BookBorrowing
 from operations.models import (
     AbsenceAlert,
@@ -576,6 +576,11 @@ def dashboard(request):
         ctx.update(_get_transport_ctx(user, school, today))
     elif role in _SERVICE_ROLES:
         ctx.update(_get_service_ctx(user, school, today, role))
+    elif Wing.is_held_by(user, today):
+        # بديلُ الجناح من ملاحظي الطلبة وعمّال الخدمات (قرارُ المدير): لا لوحةَ لدوره،
+        # ولوحتُه يومَ تكليفه رصدُ جناحه — لا «لم تُفعَّل صلاحيّاتُك».
+        ctx["view_type"] = "wing_holder"
+        ctx.update(_supervisor_record_ctx(user, school, today))
     else:
         ctx["view_type"] = "other"
 

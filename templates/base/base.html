@@ -414,6 +414,10 @@
       {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% include "components/icon.html" with name="home" %} الرئيسية</a>
       {% endif %}
+      {# بديلُ الجناح من ملاحظي الطلبة وعمّال الخدمات يفتحه بتكليفه — والقيادةُ تجده في قوائمها. #}
+      {% if not is_admin_role and request.user|can_open:"wings:record_index" %}
+      <a href="{% url 'wings:record_index' %}" class="nb">{% include "components/icon.html" with name="list-checks" %} رصد الغياب</a>
+      {% endif %}
       <button class="nb" id="btn-academic" data-sd="m-academic" aria-expanded="false" aria-controls="m-academic">{% include "components/icon.html" with name="book-open" %} إدارة الشؤون الأكاديمية <span class="chv">▼</span></button>
       <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% include "components/icon.html" with name="settings" %} شؤون الموظفين <span class="chv">▼</span></button>
       <button class="nb" id="btn-student-affairs" data-sd="m-student-affairs" aria-expanded="false" aria-controls="m-student-affairs">{% include "components/icon.html" with name="users" %} إدارة شؤون الطلاب <span class="chv">▼</span></button>
@@ -959,12 +963,11 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
     </a>
     {% endif %}
     {% endif %}
-    {% if role == 'admin_supervisor' or is_admin_role %}
+    {% comment %} لمن يفتحه — ومنهم بديلُ الجناح بتكليفه أيّاً كان دورُه، فالشرطُ الحارسُ لا اسمُ الدور. {% endcomment %}
     {% if request.user|can_open:"wings:record_index" %}
     <a href="{% url 'wings:record_index' %}" class="mobile-nav-item {% if '/wings/record' in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% include "components/icon.html" with name="list-checks" %}</span><span>رصد الغياب</span>
     </a>
-    {% endif %}
     {% endif %}
     {% if request.user|can_open:"notification_inbox" %}
     <a href="{% url 'notification_inbox' %}" class="mobile-nav-item {% if 'notifications' in request.path %}active{% endif %}">

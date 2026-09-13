@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cache
 
@@ -35,15 +36,27 @@ class Capability:
     roles: frozenset
     scope: str = "المدرسة"
     basis: str = PLATFORM_ASSUMPTION
+    #: منحٌ لا يقرؤه الدور: ``grant(user) -> bool``. لقدرةٍ يملكها المستخدمُ بتكليفٍ ساري
+    #: لا بمسمّاه — كبديل الجناح من ملاحظي الطلبة وعمّال الخدمات.
+    grant: Callable | None = None
 
     @property
     def expanded_roles(self) -> frozenset:
         """الأدوارُ بعد الوراثة — ما يفحصه الحارسُ فعلاً."""
         return frozenset(expand_roles(set(self.roles)))
 
+    def granted(self, user) -> bool:
+        return self.grant is not None and bool(self.grant(user))
 
-def _cap(key, label, roles, scope="المدرسة", basis=PLATFORM_ASSUMPTION):
-    return Capability(key, label, frozenset(roles), scope, basis)
+
+def _cap(key, label, roles, scope="المدرسة", basis=PLATFORM_ASSUMPTION, grant=None):
+    return Capability(key, label, frozenset(roles), scope, basis, grant)
+
+
+def _holds_a_wing(user) -> bool:
+    from core.models.academic import Wing
+
+    return Wing.is_held_by(user)
 
 
 @cache
@@ -322,7 +335,11 @@ def registry() -> dict[str, Capability]:
             "رصدُ يوم الشعبة في الجناح",
             P.WING_DAY_RECORD,
             scope="أجنحةُ المشرف (أصيلاً أو بديلاً)",
-            basis="قرارُ 2026-09-12: المشرفُ الإداريّ يحصر الغياب",
+            basis=(
+                "قرارُ 2026-09-12: المشرفُ الإداريّ يحصر الغياب — وقرارُ المدير: البديلُ "
+                "مشرفٌ إداريٌّ أو ملاحظُ طلبةٍ أو عاملُ خدمات، فيرصد بتكليفه لا بدوره"
+            ),
+            grant=_holds_a_wing,
         ),
     ]
     out = {}
@@ -345,7 +362,8 @@ def has_capability(user, key: str) -> bool:
         return False
     if user.is_superuser:
         return True
-    return user.get_role() in capability(key).expanded_roles
+    cap = capability(key)
+    return user.get_role() in cap.expanded_roles or cap.granted(user)
 
 
 def capability_required(key: str):
@@ -356,8 +374,41 @@ def capability_required(key: str):
     cap = capability(key)
 
     def decorator(view_func):
-        wrapped = role_required(cap.roles)(view_func)
+        if cap.grant is None:
+            wrapped = role_required(cap.roles)(view_func)
+        else:
+            wrapped = _roles_or_grant(cap, view_func)
         wrapped._capability = key
         return wrapped
 
     return decorator
+
+
+def _roles_or_grant(cap: Capability, view_func):
+    """``role_required`` نفسُه — ويمرّ معه من مُنح القدرةَ بتكليفه (``cap.grant``).
+
+    والأدوارُ تبقى على الدالّة (``_required_roles``) كما هي: السجلُّ والقائمةُ وحارسُ
+    «كلُّ مسارٍ محروس» تقرؤها، والمنحُ في ``_grant`` يُسأل عنه لكلّ مستخدمٍ على حدة.
+    """
+    from functools import wraps
+
+    from django.shortcuts import redirect
+
+    from core.permissions import _forbidden_response, log_denial
+
+    expanded = cap.expanded_roles
+
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        user = request.user
+        if not user.is_authenticated:
+            return redirect("login")
+        if user.is_superuser or user.get_role() in expanded or cap.granted(user):
+            return view_func(request, *args, **kwargs)
+        role = user.get_role()
+        log_denial(request, role=role, required=expanded)
+        return _forbidden_response(request, f"ليس لديك صلاحية الوصول — دورك: {role or 'غير محدد'}")
+
+    wrapper._required_roles = tuple(expanded)
+    wrapper._grant = cap.grant
+    return wrapper
