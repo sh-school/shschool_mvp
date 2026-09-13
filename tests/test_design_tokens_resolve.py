@@ -145,6 +145,21 @@ def test_the_python_mirror_matches_the_stylesheet():
     assert not drifted, "مرآةُ الألوان انجرفت عن custom.css:\n  " + "\n  ".join(drifted)
 
 
+def test_the_dark_mirror_matches_the_stylesheet():
+    """`brand.DARK` قيمُ الليل لصفحات الخطأ ولون شريط المتصفّح — تُقارَن بكتلة `html.dark`."""
+    from core import brand
+    from tests.css_contrast import dark_overrides
+
+    dark = dark_overrides(CSS.read_text(encoding="utf-8"))
+    drifted = []
+    for const, value in brand.DARK.items():
+        token = brand.TOKEN_OF.get(const)
+        theirs = (dark.get(f"--{token}") or "").split()[0].rstrip(";").lower() if token else None
+        if theirs != value.lower():
+            drifted.append(f"{const}: بايثون {value} و--{token} ليلاً {theirs}")
+    assert not drifted, "مرآةُ الليل انجرفت عن custom.css:\n  " + "\n  ".join(drifted)
+
+
 def test_no_module_copies_a_colour_the_stylesheet_already_names():
     """لونٌ له رمزٌ لا يُكتب رقماً في بايثون — يُقرأ من `core.brand`."""
     named = set(_root_colours().values())
@@ -178,9 +193,7 @@ def test_no_excel_writer_copies_a_brand_colour_without_its_hash():
     """
     from core import brand
 
-    identity = {
-        getattr(brand, const).lstrip("#").lower() for const in brand.TOKEN_OF if const != "ON_FILL"
-    }
+    identity = {getattr(brand, const).lstrip("#").lower() for const in brand.TOKEN_OF} - {"ffffff"}
     offenders = {}
     for module in sorted(pathlib.Path(".").rglob("*.py")):
         parts = module.parts

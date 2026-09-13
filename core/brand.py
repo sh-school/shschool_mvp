@@ -64,6 +64,43 @@ STATUS_SUCCESS_FG = "#166534"
 STATUS_INFO_BG = "#dbeafe"
 STATUS_INFO_FG = "#1d4ed8"
 ACCENT_ORANGE_FG = "#c2410c"
+ACCENT_TEAL_FG = "#0f766e"
+
+#: حدودُ الحالات وحشواتُها الداكنة — للوثائق المطبوعة (PDF والبريد) لا للشاشة.
+STATUS_DANGER_BORDER = "#fecaca"
+STATUS_DANGER_DARK = "#991b1b"
+STATUS_SUCCESS_BG = "#dcfce7"
+STATUS_SUCCESS_BORDER = "#86efac"
+STATUS_SUCCESS_DARK = "#166534"
+STATUS_WARNING_BORDER = "#f59e0b"
+STATUS_WARNING_DARK = "#92400e"
+
+#: أسطحُ النهار وحدودُه وأخواتُ العنّابيّ.
+SURFACE = "#ffffff"
+SURFACE_ALT = "#f9fafb"
+PAGE_BG = "#eef1f5"
+BORDER_STRONG = "#d1d5db"
+MAROON_DARK = "#6b0f2a"
+MAROON_BORDER = "#e8b4c3"
+SKYLINE = "#0D4261"
+
+
+#: قيمُ الليل لما يُرسم خارجَ `custom.css` ويتبع الوضع — صفحاتُ الخطأ.
+#: الاسمُ اسمُ ثابت النهار، والرمزُ في `TOKEN_OF`؛ ويُقارَن بكتلة `html.dark`.
+DARK = {
+    "PAGE_BG": "#0f172a",
+    "SURFACE": "#1e293b",
+    "BORDER": "#334155",
+    "TEXT_PRIMARY": "#f1f5f9",
+    "TEXT_MUTED": "#94a3b8",
+    "MAROON_BG": "#3b1125",
+    "MAROON_FG": "#f9a8c9",
+    "STATUS_DANGER_FG": "#fca5a5",
+    "STATUS_WARNING_FG": "#fbbf24",
+}
+
+#: `--maroon-fg` — العنّابيُّ حين يُقرأ نصّاً (ينقلب ليلاً).
+MAROON_FG = "#8A1538"
 
 
 def rgba(colour: str, alpha: float) -> str:
@@ -105,4 +142,20 @@ TOKEN_OF = {
     "STATUS_INFO_BG": "status-info-bg",
     "STATUS_INFO_FG": "status-info-fg",
     "ACCENT_ORANGE_FG": "accent-orange-fg",
+    "ACCENT_TEAL_FG": "accent-teal-fg",
+    "STATUS_DANGER_BORDER": "status-danger-border",
+    "STATUS_DANGER_DARK": "status-danger-dark",
+    "STATUS_SUCCESS_BG": "status-success-bg",
+    "STATUS_SUCCESS_BORDER": "status-success-border",
+    "STATUS_SUCCESS_DARK": "status-success-dark",
+    "STATUS_WARNING_BORDER": "status-warning-border",
+    "STATUS_WARNING_DARK": "status-warning-dark",
+    "SURFACE": "surface",
+    "SURFACE_ALT": "surface-alt",
+    "PAGE_BG": "page-bg",
+    "BORDER_STRONG": "border-strong",
+    "MAROON_DARK": "maroon-dark",
+    "MAROON_BORDER": "maroon-border",
+    "SKYLINE": "skyline",
+    "MAROON_FG": "maroon-fg",
 }

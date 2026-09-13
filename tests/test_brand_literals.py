@@ -1,14 +1,15 @@
 """
 tests/test_brand_literals.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-العنّابيُّ في صفحةٍ حيّةٍ يُقرأ من رمزه — لا يُكتب رقماً في `style=`.
+هويّةٌ بصريّةٌ واحدة: كلُّ لونٍ في المنصّة يُقرأ من مصدرٍ واحد، أينما رُسم.
 
-الصفحةُ الحيّةُ تحمّل `custom.css`، فالرمزُ متاحٌ لها، وهو ينقلب ليلاً إلى
-درجةٍ تُقرأ على السطح الداكن. والرقمُ المكتوبُ لا ينقلب: كان `custom.css`
-يتداركه بمطابقة السلسلة (`[style*="color:#8A1538"]`) وتلك رُقعةٌ لا مبدأ.
+  - الصفحةُ الحيّة: من رمزها في `custom.css` (`var()` أو صنفٌ كـ`text-maroon`).
+  - الرسومُ البيانيّة: من الرموز بمساعدات رأس `base.html` — canvas لا يحلّ `var()`.
+  - ملفّاتُ Excel: من `core.export_utils` (خطٌّ واحدٌ ونمطُ جدولٍ واحد).
+  - الوثائقُ (PDF والطباعة والبريد وصفحاتُ الخطأ): من `core.brand` عبر
+    `{% brand_color %}` — فمولّدُ الـPDF الاحتياطيّ والبريدُ لا يحلّان `var()`.
 
-وقوالبُ الورق — PDF والطباعة — تبقى على الرقم عمداً: مولّدُ الـPDF لا يحلّ
-`var()`، فيسقط اللونُ كلُّه. فالحارسُ يقصر نفسَه على ما يرث قالبَ المنصّة.
+و`core.brand` مرآةُ `:root` و`html.dark` يحرسها `test_design_tokens_resolve`.
 """
 
 import pathlib
@@ -138,3 +139,88 @@ def test_no_excel_writer_paints_by_hand():
 def test_the_excel_scan_reaches_the_writers():
     names = {m.as_posix() for m, _ in _excel_writers()}
     assert {"student_affairs/views.py", "reports/services.py", "core/views_students.py"} <= names
+
+
+# ══════════════════════════════════════════════════════════════════
+# الوثائق — PDF والطباعة والبريد وصفحاتُ الخطأ وتطبيقُ الوليّ
+# ══════════════════════════════════════════════════════════════════
+#
+# قالبٌ لا يرث قالبَ المنصّة لا يحمّل `custom.css`، ومولّدُ الـPDF الاحتياطيّ
+# وعملاءُ البريد لا يحلّون `var()`. فلونُه يُكتب رقماً — لكن من `core.brand`
+# عبر `{% brand_color "…" %}`، لا بيدٍ في القالب. وكانت 662 لوناً بـ138 قيمةً
+# في ثلاثةٍ وثلاثين قالباً.
+
+#: قوالبُ بألوانٍ ليست ألوانَ المنصّة **بقصد** — ولكلٍّ سببُه.
+DOCUMENT_EXCEPTIONS = {
+    # طبقُ الأصل من استمارة الوزارة — ألوانُها ألوانُ النموذج الرسميّ لا العلامة،
+    # ويحرسها `tests/test_observation_pdf_form.py`.
+    "templates/quality/observation_pdf.html",
+}
+
+#: سطورٌ مستثناةٌ داخل قالبٍ محروس: لوحةُ ألوان الأقسام في ورقة الجدول العامّ
+#: ترمز إلى القسم لا إلى العلامة — وتوحيدُها يمحو الفرقَ بين قسمٍ وقسم.
+DOCUMENT_LINE_EXCEPTIONS = {"templates/schedule/print_schedule.html": re.compile(r"tr\.dept-")}
+
+HEX_IN_DOC = re.compile(r"(?<![&\w])#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\b")
+COMMENTS = re.compile(
+    r"\{#.*?#\}|\{%\s*comment\s*%\}.*?\{%\s*endcomment\s*%\}|/\*.*?\*/|<!--.*?-->", re.S
+)
+
+
+def _all_templates():
+    found = {}
+    for root in ROOTS:
+        for path in root.rglob("*"):
+            if path.suffix in {".html", ".json"}:
+                found[path.relative_to(root).as_posix()] = path
+    return found
+
+
+def _documents():
+    """ما لا يرث `base.html` — مباشرةً أو عبر سلسلة وراثة."""
+    found = _all_templates()
+    parent = re.compile(r"""\{%\s*extends\s+["']([^"']+)["']""")
+
+    def inherits_platform(name, depth=0):
+        if depth > 8 or name not in found:
+            return False
+        m = parent.search(found[name].read_text(encoding="utf-8", errors="ignore"))
+        return bool(m) and (
+            m.group(1) in {"base.html", "base/base.html"}
+            or inherits_platform(m.group(1), depth + 1)
+        )
+
+    for name, path in sorted(found.items()):
+        if not inherits_platform(name) and path.as_posix() not in {"templates/base/base.html"}:
+            yield path
+
+
+def test_documents_take_their_colours_from_the_brand():
+    offenders = []
+    for path in _documents():
+        posix = path.as_posix()
+        if posix in DOCUMENT_EXCEPTIONS:
+            continue
+        text = COMMENTS.sub(
+            lambda m: "\n" * m.group(0).count("\n"), path.read_text(encoding="utf-8")
+        )
+        skip_line = DOCUMENT_LINE_EXCEPTIONS.get(posix)
+        for n, line in enumerate(text.splitlines(), start=1):
+            if skip_line and skip_line.search(line):
+                continue
+            for m in HEX_IN_DOC.finditer(line):
+                offenders.append(f"  {posix}:{n}  {m.group(0)}  «{line.strip()[:60]}»")
+    assert not offenders, (
+        'لونٌ مكتوبٌ بيدٍ في وثيقة — استعمل {% brand_color "…" %} من core.brand:\n'
+        + "\n".join(offenders)
+    )
+
+
+def test_the_document_scan_reaches_the_documents():
+    names = {p.as_posix() for p in _documents()}
+    assert {
+        "templates/reports/base_qatar_report.html",
+        "templates/notifications/email/behavior_html.html",
+        "templates/errors/_error_page.html",
+        "templates/auth/login.html",
+    } <= names

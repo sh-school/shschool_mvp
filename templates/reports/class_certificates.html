@@ -1,23 +1,24 @@
 {% extends "reports/base_qatar_report.html" %}
+{% load brand_tags %}
 {# شهادات الفصل — شهادة لكل طالب على صفحة منفصلة #}
 
 {% block extra_styles %}
 .cert-page        { page-break-after: always; padding: 20px 0; }
 .cert-page:last-child { page-break-after: avoid; }
-.cert-frame       { border: 6px double #8A1538; border-radius: 8px; padding: 28px 36px; min-height: 520px; }
-.cert-inner       { border: 1.5px solid #c8a96e; border-radius: 4px; padding: 22px 30px; }
+.cert-frame       { border: 6px double {% brand_color "MAROON" %}; border-radius: 8px; padding: 28px 36px; min-height: 520px; }
+.cert-inner       { border: 1.5px solid {% brand_color "GOLD" %}; border-radius: 4px; padding: 22px 30px; }
 .cert-header      { text-align: center; margin-bottom: 18px; }
-.cert-header .school-name { font-size: 16px; font-weight: 700; color: #8A1538; }
-.cert-title       { font-size: 22px; font-weight: 700; color: #8A1538; text-align: center; margin: 12px 0; border-top: 2px solid #c8a96e; border-bottom: 2px solid #c8a96e; padding: 8px 0; }
+.cert-header .school-name { font-size: 16px; font-weight: 700; color: {% brand_color "MAROON" %}; }
+.cert-title       { font-size: 22px; font-weight: 700; color: {% brand_color "MAROON" %}; text-align: center; margin: 12px 0; border-top: 2px solid {% brand_color "GOLD" %}; border-bottom: 2px solid {% brand_color "GOLD" %}; padding: 8px 0; }
 .cert-body        { font-size: 13px; line-height: 2.2; margin: 16px 0; }
-.cert-student     { font-size: 18px; font-weight: 700; color: #1e293b; }
-.cert-avg         { font-size: 42px; font-weight: 800; color: #8A1538; text-align: center; line-height: 1; }
-.cert-avg-label   { font-size: 12px; color: #64748b; text-align: center; margin-bottom: 12px; }
+.cert-student     { font-size: 18px; font-weight: 700; color: {% brand_color "TEXT_PRIMARY" %}; }
+.cert-avg         { font-size: 42px; font-weight: 800; color: {% brand_color "MAROON" %}; text-align: center; line-height: 1; }
+.cert-avg-label   { font-size: 12px; color: {% brand_color "TEXT_MUTED" %}; text-align: center; margin-bottom: 12px; }
 .cert-status      { display: inline-block; padding: 5px 20px; border-radius: 20px; font-size: 14px; font-weight: 700; text-align: center; margin: 8px auto; }
 .cert-subjects    { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 11px; }
-.cert-subjects th { background: #8A1538; color: #fff; padding: 5px 8px; text-align: center; }
-.cert-subjects td { border: 1px solid #e2e8f0; padding: 4px 8px; text-align: center; }
-.cert-subjects tr:nth-child(even) td { background: #fdf6f0; }
+.cert-subjects th { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; padding: 5px 8px; text-align: center; }
+.cert-subjects td { border: 1px solid {% brand_color "BORDER" %}; padding: 4px 8px; text-align: center; }
+.cert-subjects tr:nth-child(even) td { background: {% brand_color "SURFACE_ALT" %}; }
 {% endblock %}
 
 {% block report_title_bar %}
