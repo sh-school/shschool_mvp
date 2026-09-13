@@ -1,30 +1,23 @@
 {% extends "base/base.html" %}
-{% load static i18n %}
+{% load static i18n ui %}
+{% comment %}
+الإعدادُ القانونيّ قبل أوّل استعمال — الشرحُ التمهيديّ في `section_card`،
+وقسما الاستمارة (الموافقاتُ ثمّ الاختبار) بطاقتان منه، والأزرارُ `form-actions`.
+الحقولُ وأسماؤها كما هي، والقالبُ لا يقرّر شيئاً من المنطق.
+{% endcomment %}
 
 {% block title %}{% trans "الإعداد القانوني — أرسل إلى المطوّر" %}{% endblock %}
-
-{% block extra_css %}
-{{ block.super }}
-{% endblock %}
-
-{% block page_header %}
-<div class="df-container">
-  <h1 class="df-page-title">{% trans "الإعداد القانوني — أرسل إلى المطوّر" %}</h1>
-  <p class="df-page-subtitle">{% trans "قبل استخدام الميزة لأول مرة — 3 دقائق فقط" %}</p>
-</div>
-{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with current="تواصل مع المطوّر" %}
 {% endblock %}
 
 {% block content %}
-<main id="main-content" class="df-container" role="main">
+<div class="exec-dash df-page">
+  {% page_header _("الإعداد القانوني — أرسل إلى المطوّر") subtitle=_("قبل استخدام الميزة لأول مرة — 3 دقائق فقط") icon="shield" %}{% endpage_header %}
 
-  {# ── بطاقة المقدمة (3 دقائق) ── #}
-  <section class="df-card df-card-hero" aria-labelledby="df-intro-title">
-    <h2 id="df-intro-title" class="df-card-title">{% trans "ما قبل الإرسال — اقرأ بعناية" %}</h2>
-
+  {# ── المقدمة (3 دقائق) ── #}
+  {% section_card _("ما قبل الإرسال — اقرأ بعناية") icon="info" %}
     <div class="df-intro-block">
       <h3>{% trans "ما هي هذه الميزة؟" %}</h3>
       <p>{% trans "قناة مباشرة تتيح لك إرسال ملاحظاتك (أعطال، اقتراحات، أسئلة، شكاوى) إلى فريق تطوير المنصّة — داخل النظام ودون الحاجة إلى بريد خارجي." %}</p>
@@ -44,7 +37,7 @@
         {% trans "إرسال أي بيانات محمية يُعرّضك للمساءلة الإدارية والقانونية. استخدم الوصف العام فقط (مثل: «الطالب في الصف العاشر»)، ولا تذكر هوية أي شخص." %}
       </p>
     </div>
-  </section>
+  {% endsection_card %}
 
   {# ── فورم الموافقة + الاختبار ── #}
   <form method="post" novalidate class="df-form" aria-labelledby="df-form-title">
@@ -61,9 +54,7 @@
     {% endif %}
 
     {# قسم 1: الموافقات القانونية #}
-    <section class="df-card" role="group" aria-labelledby="df-section-1-title">
-      <h2 class="df-card-title" id="df-section-1-title">{% trans "القسم 1 — الموافقات القانونية" %}</h2>
-
+    {% section_card _("القسم 1 — الموافقات القانونية") icon="check-circle" %}
       {% for field in consent_form %}
         <div class="df-form-group">
           {% if field.field.widget.input_type == "checkbox" %}
@@ -96,12 +87,10 @@
           {% endif %}
         </div>
       {% endfor %}
-    </section>
+    {% endsection_card %}
 
     {# قسم 2: الاختبار (3 أسئلة) #}
-    <section class="df-card" role="group" aria-labelledby="df-section-2-title">
-      <h2 class="df-card-title" id="df-section-2-title">{% trans "القسم 2 — اختبار فهم قصير (3 أسئلة)" %}</h2>
-
+    {% section_card _("القسم 2 — اختبار فهم قصير") meta=_("3 أسئلة") icon="list-checks" %}
       {% for field in quiz_form %}
         <div class="df-form-group df-quiz-question">
           <div class="df-quiz-label" id="label-{{ field.id_for_label }}">
@@ -123,18 +112,17 @@
           {% endif %}
         </div>
       {% endfor %}
-    </section>
+    {% endsection_card %}
 
-    {# ── أزرار الإرسال ── #}
-    <div class="df-btn-group">
-      <button type="submit" class="btn btn-primary">
+    <div class="form-actions">
+      <a href="{% url 'dashboard' %}" class="btn-secondary">{% trans "إلغاء" %}</a>
+      <button type="submit" class="btn-primary">
         {% include "components/icon.html" with name="check-circle" %}
         {% trans "أؤكد وأكمل الاختبار" %}
       </button>
-      <a href="{% url 'dashboard' %}" class="btn btn-secondary">{% trans "إلغاء" %}</a>
     </div>
   </form>
-</main>
+</div>
 {% endblock %}
 
 {% block extra_js %}
