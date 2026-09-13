@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from django.db import models, transaction
 from django.db.models import Count, QuerySet
+from django.urls import reverse
 
 from core.academic_calendar import (
     AcademicCalendar,
@@ -215,7 +216,7 @@ class AttendanceService:
                     title=f"⚠️ {headline} — {student.full_name}",
                     body=NEWLINE.join([detail, source, "يُرجى التواصل مع المدرسة."]),
                     context={"student": student, "absence_count": standing.unexcused_days},
-                    related_url=f"/operations/attendance/student/{student.pk}/",
+                    related_url=reverse("student_affairs:student_profile", args=[student.pk]),
                 )
             except Exception as exc:
                 logger.warning(

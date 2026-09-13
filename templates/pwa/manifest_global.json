@@ -27,8 +27,7 @@
   ],
   "shortcuts": [
     {% if role == 'teacher' or role == 'coordinator' or role == 'specialist' %}
-    {"name": "جدولي", "url": "/teacher/schedule/", "description": "جدول اليوم"},
-    {"name": "تسجيل حضور", "url": "/teacher/attendance/", "description": "تسجيل الحضور"},
+    {"name": "حصصي اليوم", "url": "/teacher/schedule/", "description": "حصص اليوم"},
     {"name": "الإشعارات", "url": "/notifications/inbox/", "description": "صندوق الإشعارات"}
     {% elif role == 'parent' %}
     {"name": "أبنائي", "url": "/parents/", "description": "بوابة ولي الأمر"},
