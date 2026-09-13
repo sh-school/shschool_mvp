@@ -7,9 +7,20 @@
 {% endcomment %}
 
 {% block extra_styles %}
-@page { size: A4 landscape; margin: 9mm 10mm 14mm 10mm; }
+@page {
+  size: A4 {{ orient|default:"landscape" }};
+  margin: 9mm 10mm 22mm 10mm;
+  /* الذيلُ في أعلى مساحته لا في حافّة الورقة: كان يلتصق بها فتقصّه الطابعات. */
+  @bottom-center { vertical-align: top; padding-top: 3mm; }
+}
 {% if for_screen %}
+/* المتصفّحُ لا يفهم `position: running()` — فالذيلُ المتكرّرُ يُخفى، ويُكتب بدلَه
+   ذيلٌ في آخر كلّ صفحة فصلٍ (`.sheet-footer`) بالنصّ نفسِه. */
 .running-footer { display: none; }
+.sheet-footer { margin-top: 8px; padding-top: 5px; border-top: 1.5px solid {% brand_color "MAROON" %}; text-align: center !important; line-height: 1.7; page-break-inside: avoid; }
+.sheet-footer div { text-align: center !important; }
+.sheet-footer .ft-school { font-size: 10px; color: {% brand_color "TEXT_PRIMARY" %}; font-weight: 600; }
+.sheet-footer .ft-ministry { font-size: 9px; color: {% brand_color "MAROON_DARK" %}; font-weight: 600; }
 .print-bar { display: flex; gap: 8px; justify-content: center; padding: 10px; }
 @media print { .print-bar { display: none; } }
 {% endif %}
@@ -52,6 +63,39 @@
 /* سطرُ التوقيع حدٌّ فوق الاسم لا عنصرٌ مستقلّ: `margin: auto` في عنصرٍ بعرضٍ نسبيٍّ يُزاح في الـPDF خارجَ خانته. */
 .sig-line { display: none; }
 .sig-name { display: inline-block; min-width: 60%; border-top: 1px solid {% brand_color "TEXT_PRIMARY" %}; padding-top: 3px; }
+
+{% if orient == "portrait" %}
+/* عموديٌّ: صفحةٌ واحدةٌ لكلّ فصل (قرارُ 2026-09-13). العرضُ 190mm لسبع حصصٍ وثلاثة
+   أعمدة عدّ، والطولُ لثلاثين طالباً مع الذيل والتواقيع — فكلُّ شيءٍ أصغر، والمادّةُ
+   تُحذف من رأس العمود (وقتُها يكفي، وهي في الكشف الأفقيّ). */
+@page { margin: 7mm 7mm 22mm 7mm; }
+.doc-header { padding: 3px 12px; }
+.doc-header .emblem { width: 38px; height: 38px; margin-bottom: 2px; }
+.school-name { font-size: 15px; margin: 0; }
+.ministry-name { font-size: 8px; }
+.sheet { page-break-inside: avoid; }
+.doc-body { padding: 3px 6px 6px; }
+.report-title-bar { font-size: 11.5px; padding: 4px 8px; }
+.report-meta { margin-bottom: 4px; }
+.report-meta td { font-size: 8.5px; padding: 3px 4px; }
+.grid { font-size: 8.8px; line-height: 1.2; }
+.grid th { padding: 3px 1px; font-size: 8.4px; line-height: 1.25; }
+.grid th small { font-size: 7.4px; }
+.grid th small.subject { display: none; }
+.grid td { padding: 2.5px 2px; }
+.grid .col-no { width: 14px; }
+.grid .col-name { width: 170px; }
+.grid .col-sum { width: 28px; }
+.grid tbody.foot tr td { font-size: 7.6px; }
+.matrix td { height: 26px; font-size: 7.6px; }
+.legend { font-size: 7.6px; margin-top: 4px; }
+.sig-block { margin-top: 5px; padding-top: 3px; gap: 6px; }
+.sig-item { padding: 2px 6px; }
+.sig-title { font-size: 8px; padding-bottom: 2px; }
+.sig-space { height: 22px; }
+.sig-name { font-size: 8px; }
+.sig-role { font-size: 7px; }
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -66,15 +110,18 @@
 {% if wing_register %}
   <section class="sheet">
     {% include "wings/pdf/wing_summary.html" with register=wing_register %}
+    {% if for_screen %}{% include "wings/pdf/sheet_footer.html" %}{% endif %}
   </section>
   {% for register in wing_register.sections %}
   <section class="sheet">
     {% include "wings/pdf/section_sheet.html" %}
+    {% if for_screen %}{% include "wings/pdf/sheet_footer.html" %}{% endif %}
   </section>
   {% endfor %}
 {% else %}
   <section class="sheet">
     {% include "wings/pdf/section_sheet.html" with register=section_register %}
+    {% if for_screen %}{% include "wings/pdf/sheet_footer.html" %}{% endif %}
   </section>
 {% endif %}
 {% endblock %}

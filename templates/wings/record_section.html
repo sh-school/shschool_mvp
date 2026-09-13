@@ -16,12 +16,17 @@
       <p class="exec-subtitle">{{ day|date:"D، d M Y" }} · {{ rows|length }} طالباً · {{ periods|length }} حصّة</p>
     </div>
     {% if periods %}
-    <div class="exec-meta per-exports">
-      {% url 'wings:section_register' klass.id as register_url %}
-      <a href="{{ register_url }}?date={{ day|date:'Y-m-d' }}&amp;format=xlsx" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
-      <a href="{{ register_url }}?date={{ day|date:'Y-m-d' }}&amp;format=pdf" class="btn-secondary btn-sm">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
-      <a href="{{ register_url }}?date={{ day|date:'Y-m-d' }}&amp;print=1" class="btn-secondary btn-sm" target="_blank" rel="noopener">{% include "components/icon.html" with name="printer" %} طباعة</a>
-    </div>
+    {% comment %} نموذجُ GET بلا سكربت: الاتّجاهُ يُختار مرّةً، وكلُّ زرٍّ يرسل صيغتَه. {% endcomment %}
+    <form method="get" action="{% url 'wings:section_register' klass.id %}" class="exec-meta per-exports">
+      <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
+      <select name="orient" class="form-select per-orient" aria-label="اتّجاه الصفحة">
+        <option value="landscape">أفقي</option>
+        <option value="portrait">عمودي — صفحةٌ واحدة</option>
+      </select>
+      <button type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</button>
+      <button type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</button>
+      <button type="submit" name="print" value="1" formtarget="_blank" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+    </form>
     {% endif %}
   </div>
 
