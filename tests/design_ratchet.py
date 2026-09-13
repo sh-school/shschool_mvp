@@ -96,9 +96,17 @@ METRICS: dict[str, tuple[str, re.Pattern | _InlineStyle]] = {
 
 CLASS_ATTR_RE = re.compile(r'\sclass="([^"]*)"')
 #: ما يُحسب في القالب أو في JS لا يُعرف اسمُه قبل التشغيل — فيُطرح ما يلاصقه.
-DYNAMIC_RE = re.compile(r"\{%.*?%\}|\{\{.*?\}\}|\$\{.*?\}", re.S)
+DYNAMIC_RE = re.compile(r"\{\{.*?\}\}|\$\{.*?\}", re.S)
+#: وسومُ المنطق فواصلُ لا أجزاءُ أسماء: `{% if a %}status-red{% endif %}` صنفٌ حرفيٌّ يُفحص.
+#: كانت تُطرح مع المتغيّرات، فمرّ `status-green` و`status-red` غيرَ معرَّفين في صفحاتٍ كثيرة
+#: وشاراتُها بلا لون.
+LOGIC_RE = re.compile(r"\{%.*?%\}", re.S)
 CLASS_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z0-9_:/.\[\]%-]*")
 CSS_CLASS_RE = re.compile(r"\.((?:\\.|[A-Za-z0-9_-])+)")
+#: أنماطُ القالب نفسِه: `<style>` أو كتلةُ `extra_styles` في قوالب التقارير المطبوعة.
+STYLE_BLOCK_RE = re.compile(
+    r"<style[^>]*>(.*?)</style>|\{% block extra_styles %\}(.*?)\{% endblock", re.S
+)
 
 
 def live_templates():
@@ -137,12 +145,23 @@ def undefined_classes() -> list[str]:
     known = defined_classes()
     missing = set()
     for path in live_templates():
-        for attr in CLASS_ATTR_RE.finditer(path.read_text(encoding="utf-8")):
-            value = DYNAMIC_RE.sub("\0", attr.group(1))
+        text = path.read_text(encoding="utf-8")
+        # صنفٌ يعرّفه القالبُ في `<style>` نفسه معرَّف — قوالبُ التقارير تفعل ذلك.
+        local = {
+            re.sub(r"\\(.)", r"\1", m.group(1))
+            for blocks in STYLE_BLOCK_RE.findall(text)
+            for m in CSS_CLASS_RE.finditer("".join(blocks))
+        }
+        for attr in CLASS_ATTR_RE.finditer(text):
+            raw = attr.group(1)
+            # `kpi-{% if %}green{% endif %}` يلصق الوسمَ باسمٍ فالناتجُ لا يُعرف قبل التشغيل؛
+            # وحيث لا لصقَ فالوسمُ فاصلٌ والأسماءُ بين الوسوم حرفيّةٌ تُفحص.
+            glued = re.search(r"[\w-]\{%|%\}[\w-]*-\{", raw) and re.search(r"-\{%", raw)
+            value = DYNAMIC_RE.sub("\0", LOGIC_RE.sub("\0" if glued else " ", raw))
             for token in value.split():
                 if "\0" in token or not CLASS_TOKEN_RE.fullmatch(token):
                     continue
-                if token not in known:
+                if token not in known and token not in local:
                     missing.add(token)
     return sorted(missing)
 

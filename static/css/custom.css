@@ -1980,6 +1980,8 @@ tfoot td {
 .action-card-body .action-title {
   font-size: var(--text-sm); font-weight: 700; margin: 0 0 2px;
 }
+/* البلاطةُ من الوسم تكتب العنوانَ والوصفَ `span` لا `p` — داخل رابط. */
+.action-card-body { display: grid; min-inline-size: 0; }
 .action-card-body .action-desc {
   font-size: var(--text-xs); color: var(--text-muted); margin: 0;
 }
@@ -9948,6 +9950,42 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 .plain-list__row:last-child { border-block-end: 0; }
 
+.plain-list__main { display: grid; gap: 1px; min-inline-size: 0; }
+.plain-list__title { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); }
+.plain-list__sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plain-list__row > .status-badge { flex-shrink: 0; }
+/* قائمةٌ طويلةٌ في بطاقةٍ بجوار رسم: تتمرّر داخلها ولا تُطيل السطر. */
+.plain-list.is-scroll { max-block-size: 280px; overflow-y: auto; padding-inline-end: 4px; }
+
+/* ── شبكةُ بطاقتين: تتجاوران حيث يتّسع وتنفكّان عموداً حيث يضيق ── */
+.ui-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: var(--sp-2);
+  align-items: stretch;
+}
+
+/* ── رقاقاتُ عدٍّ صغيرة: مفتاحٌ وقيمة — لأرقامٍ كثيرةٍ لا تستحقّ بطاقة ── */
+.chip-row { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-alt);
+  font-size: var(--text-xs);
+}
+.chip-stat__key { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.chip-stat__value { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
 /* ── 6. مبدِّلُ الفترة: روابطُ متلاصقةٌ والحاليُّ مصمَت ── */
 .period-switch {
   display: inline-flex;
@@ -10066,6 +10104,17 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .form-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); flex-wrap: wrap; }
 .consent-page { max-width: 720px; margin-inline: auto; }
 .consent-form { display: grid; gap: var(--sp-3); }
+
+/* ── 11. شبكةُ بلاطات الانتقال ──
+   `auto-fit` بحدٍّ أدنى: ثلاثٌ في سطرٍ حيث يتّسع، واثنتان على الهاتف. */
+.ui-actions {
+  display: grid;
+  /* 300px: أربعٌ في سطرٍ على الشاشة العريضة — فثمانٍ سطران كاملان لا خمسٌ وثلاث. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: var(--sp-2);
+}
+@media (max-width: 640px) { .ui-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ui-actions .action-card { padding: 14px 16px; min-inline-size: 0; }
 
 /* ── 4. ترويسةُ الصفحة ── */
 .ui-page-header__text { min-inline-size: 0; }

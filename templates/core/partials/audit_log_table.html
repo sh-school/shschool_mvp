@@ -40,8 +40,8 @@
             {% elif log.action == 'account_disabled' %}status-warning
             {% elif log.action == 'account_enabled' %}status-success
             {% elif log.action == 'dept_changed' or log.action == 'dept_head_set' or log.action == 'dept_head_removed' %}status-info
-            {% elif log.action == 'substitute_assigned' %}status-purple
-            {% elif log.action == 'swap_approved' or log.action == 'compensatory_approved' %}status-teal
+            {% elif log.action == 'substitute_assigned' %}status-maroon
+            {% elif log.action == 'swap_approved' or log.action == 'compensatory_approved' %}status-success
             {% elif log.action == 'swap_rejected' %}status-danger
             {% else %}status-gray
             {% endif %}">
