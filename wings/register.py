@@ -199,6 +199,29 @@ def _holder(school, role: str) -> str:
     return membership.user.full_name if membership else ""
 
 
+def footer_lines(school) -> tuple[str, str]:
+    """ذيلُ كلّ صفحةٍ مطبوعة — نصُّ ذيل `base_qatar_report` نفسُه، للطباعة وExcel.
+
+    كان الذيلُ في الـPDF وحدَه: يُكرَّر فيه أسفلَ كلّ صفحةٍ بصندوق هامشٍ لا يفهمه
+    المتصفّح، فتُخفيه نسخةُ الطباعة، ولا يُكتب في Excel. والرؤيةُ من مكوّنها الواحد.
+    """
+    from django.template.loader import render_to_string
+
+    parts = [getattr(school, "name", "") or ""]
+    if getattr(school, "phone", ""):
+        parts.append(f"هاتف: {school.phone}")
+    if getattr(school, "email", ""):
+        parts.append(school.email)
+    if getattr(school, "city", ""):
+        parts.append(f"{school.city}، قطر")
+    vision = render_to_string("components/ministry_vision.html").strip()
+    year = timezone.localdate().year
+    return (
+        " · ".join(p for p in parts if p),
+        f"وزارة التربية والتعليم والتعليم العالي — دولة قطر — {vision} · SchoolOS-SAMM © {year}",
+    )
+
+
 def signatories(wing, day: dt.date) -> list[Signatory]:
     """المشرفُ ثمّ النائبُ الإداريّ ثمّ المدير — بترتيب التوقيع على الورق."""
     holder = wing.current_supervisor(day) if wing is not None else None

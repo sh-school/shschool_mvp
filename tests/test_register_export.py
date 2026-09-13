@@ -205,6 +205,62 @@ class TestTheExports:
             assert response["Content-Disposition"].startswith("attachment;")
 
 
+class TestTheOrientation:
+    """أفقيٌّ افتراضاً، وعموديٌّ بالاختيار — صفحةٌ واحدةٌ لكلّ فصل (قرارُ 2026-09-13)."""
+
+    def test_the_print_view_follows_the_chosen_orientation(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        _periods(school, klass, teacher, 2)
+        client = client_as(supervisor)
+
+        assert "size: A4 landscape" in client.get(_section_url(klass)).content.decode()
+        portrait = client.get(_section_url(klass) + "&orient=portrait").content.decode()
+        assert "size: A4 portrait" in portrait
+        assert "page-break-inside: avoid" in portrait, "العموديُّ صفحةٌ واحدةٌ للفصل"
+
+    def test_a_portrait_excel_fits_each_sheet_on_one_page(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        _periods(school, klass, teacher, 2)
+
+        response = client_as(supervisor).get(
+            _wing_url(klass.wing.code, "xlsx") + "&orient=portrait"
+        )
+
+        book = openpyxl.load_workbook(io.BytesIO(response.content))
+        for sheet in book.worksheets:
+            assert sheet.page_setup.orientation == "portrait"
+            assert (sheet.page_setup.fitToWidth, sheet.page_setup.fitToHeight) == (1, 1)
+
+
+class TestTheFooter:
+    """الذيلُ في المخارج الثلاثة — كان في الـPDF وحدَه (ملاحظةُ 2026-09-13)."""
+
+    def test_the_print_view_ends_each_class_page_with_the_footer(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        _periods(school, klass, teacher, 2)
+
+        body = client_as(supervisor).get(_wing_url(klass.wing.code)).content.decode()
+
+        assert body.count('class="sheet-footer"') == 2, "ملخّصُ الجناح وكشفُ الشعبة"
+        assert "الريادة في توفير فرص تعلم" in body
+
+    def test_every_excel_sheet_ends_with_the_footer_inside_its_print_area(
+        self, client_as, school, klass, kids, teacher, supervisor
+    ):
+        _periods(school, klass, teacher, 2)
+
+        response = client_as(supervisor).get(_wing_url(klass.wing.code, "xlsx"))
+
+        book = openpyxl.load_workbook(io.BytesIO(response.content))
+        for sheet in book.worksheets:
+            last = sheet.cell(row=sheet.max_row, column=1).value or ""
+            assert "وزارة التربية والتعليم" in last
+            assert sheet.print_area.endswith(f"${sheet.max_row}")
+
+
 class TestOnlyHisOwnWing:
     def test_another_wings_supervisor_is_turned_away(
         self, client_as, school, year, klass, kids, teacher, supervisor
