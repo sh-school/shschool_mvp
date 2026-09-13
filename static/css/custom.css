@@ -5746,8 +5746,6 @@ html.dark .card,
 html.dark .card-qatar,
 html.dark .chart-card,
 html.dark .dash-chart-card,
-html.dark .df-card,
-html.dark .df-card-hero,
 html.dark .form-card {
   background: var(--surface);
   border-color: var(--border);
@@ -8915,21 +8913,13 @@ html.dark .df-badge-edited {
    ═══════════════ DARK MODE — html.dark ═══════════════
    القاعدة: الأبيض/الفاتح للنصوص والإطارات فقط — ممنوع كخلفيات كاملة.
    الخلفيات الداكنة مبنية على ظلال الماروون.
+
+   `.df-card` و`.df-card-hero` بلا نظيرةٍ ليليّة عمداً: قاعدتا النهار مكتوبتان
+   برموزٍ تنقلب (`--surface` و`--maroon-border`، و`--maroon-bg` و`--maroon-fg`
+   للبارزة)، فالليلُ صورةُ النهار. وكانت لهما نظيرتان متعارضتان — هنا أرضيّةٌ
+   عنّابيّةٌ لكلّ بطاقة، وفي القسم 35e سطحٌ رماديٌّ بإطارٍ رماديّ — فغلبت
+   الثانيةُ بطبقتها: ضاع الإطارُ العنّابيّ، وصارت البطاقةُ البارزةُ كسائر البطاقات.
    ========================================================================== */
-html.dark .df-card {
-  background: var(--maroon-bg);
-  border-color: var(--maroon-border);
-  color: var(--text-primary);
-}
-
-html.dark .df-card-title {
-  color: var(--maroon-fg);
-}
-
-html.dark .df-card-hero {
-  background: var(--maroon-bg);
-  border-color: var(--maroon);
-}
 
 html.dark .df-intro-block h3 {
   color: var(--maroon-fg);
