@@ -166,7 +166,8 @@
       <dl class="detail-dl">
         <dt>أيام غياب بلا عذر</dt><dd><strong>{{ absence_standing.unexcused_days }}</strong> يوماً</dd>
         <dt>أيام بعذر</dt><dd>{{ absence_standing.excused_days }}</dd>
-        <dt>غياب جزئي (حصص متفرقة)</dt><dd>{{ absence_standing.partial_days }} — لا تُحتسب يوماً</dd>
+        <dt>غياب جزئي (حضر 4 حصص فأكثر)</dt><dd>{{ absence_standing.partial_days }} — لا تُحتسب يوماً</dd>
+        {% if absence_standing.incomplete_days %}<dt>أيام رصدُها ناقص</dt><dd>{{ absence_standing.incomplete_days }} — لا تُحسم حتى تُرصد حصصُها</dd>{% endif %}
       </dl>
 
       <table class="data-table" style="margin-top:12px">
