@@ -68,8 +68,8 @@ git push origin main
 GitHub Actions: deploy-railway.yml
   |
   ├── Job 1: preflight (CI subset of deploy-preflight.sh)
-  ├── Job 2: test (pytest + coverage)
-  |       (both run in parallel)
+  |       (pytest + coverage: quality-gate.yml on the same push —
+  |        removed from this pipeline 2026-09-13 as a duplicate)
   v
   ├── Job 3: deploy (Railway webhook POST)
   |       -> Railway builds Docker image
