@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static %}
+{% load ui %}
 
 {% block title %}التأخر الصباحي — شؤون الطلاب{% endblock %}
 
@@ -8,210 +8,144 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash">
+<div class="exec-dash sa-page">
 
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="clock" %} التأخر الصباحي</h1>
-      <p class="exec-subtitle">الطلاب المتأخرون — {{ selected_date|date:"D، d M Y" }}</p>
-    </div>
-    <div class="exec-meta" style="gap:6px">
-      <form method="get" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control" style="width:155px">
-        <select name="grade" class="form-control" style="width:120px">
-          <option value="">كل الصفوف</option>
-          {% for val, label in grades %}
-          <option value="{{ val }}" {% if grade_filter == val %}selected{% endif %}>{{ label }}</option>
-          {% endfor %}
-        </select>
-        <input type="text" name="section" value="{{ section_filter }}" class="form-control" style="width:80px" placeholder="الشعبة">
-        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="search" %} بحث</button>
-      </form>
-      <a href="{% url 'student_affairs:tardiness_export' %}?date={{ selected_date|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
-      <a href="{% url 'student_affairs:tardiness_pdf' %}?date={{ selected_date|date:'Y-m-d' }}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
-      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
-    </div>
-  </div>
+  {% page_header "التأخر الصباحي" subtitle=page_subtitle icon="clock" %}
+    <form method="get" class="sa-filter">
+      <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-control" aria-label="التاريخ">
+      <select name="grade" class="form-control" aria-label="الصف">
+        <option value="">كل الصفوف</option>
+        {% for val, label in grades %}
+        <option value="{{ val }}" {% if grade_filter == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <input type="text" name="section" value="{{ section_filter }}" class="form-control sa-filter__narrow" placeholder="الشعبة" aria-label="الشعبة">
+      <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="search" %} بحث</button>
+    </form>
+    <a href="{% url 'student_affairs:tardiness_export' %}?date={{ selected_date|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
+    <a href="{% url 'student_affairs:tardiness_pdf' %}?date={{ selected_date|date:'Y-m-d' }}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
+    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+  {% endpage_header %}
 
-  {# KPI Strip #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-{% if total_late == 0 %}green{% elif total_late <= 5 %}orange{% else %}red{% endif %}">
-      <div class="kpi-mini-label">متأخرون اليوم</div>
-      <div class="kpi-mini-value">{{ total_late }}</div>
-    </div>
-    <div class="kpi-mini">
-      <div class="kpi-mini-label">نسبة التأخر</div>
-      <div class="kpi-mini-value">{{ late_pct }}%</div>
-    </div>
-    <div class="kpi-mini">
-      <div class="kpi-mini-label">متأخرون هذا الأسبوع</div>
-      <div class="kpi-mini-value">{{ weekly_late }}</div>
-    </div>
-    <div class="kpi-mini">
-      <div class="kpi-mini-label">إجمالي طلاب اليوم</div>
-      <div class="kpi-mini-value">{{ total_students_today }}</div>
-    </div>
-  </div>
+  {% kpi_strip label="أرقام التأخر" %}
+    {% kpi "المتأخرون" total_late tone=total_late_tone title="سجلّاتُ التأخر في اليوم المختار" %}
+    {% kpi "نسبة التأخر" late_pct_label sub=late_pct_sub title="المتأخرون من الطلاب الذين رُصد حضورهم ذلك اليوم" %}
+    {% kpi "هذا الأسبوع" weekly_late tone="blue" title="سجلّاتُ التأخر من أوّل الأسبوع حتى اليوم المختار" %}
+  {% endkpi_strip %}
 
-  {# ══════ Section 1: Recording Form (today only) ══════ #}
   {% if is_today %}
-  <div class="card-qatar" style="margin-bottom:1.5rem;padding:16px 20px">
-    <h3 style="font-size:.95rem;font-weight:600;margin-bottom:12px">
-      {% include "components/icon.html" with name="plus" %} تسجيل تأخير جديد
-    </h3>
-
-    {# Search row #}
-    <div style="position:relative;margin-bottom:12px">
+  {% section_card "تسجيل تأخير جديد" icon="plus" %}
+    <div class="sa-late-search">
       <label for="tardiness-search" class="sr-only">بحث عن طالب</label>
       <input id="tardiness-search" type="text" class="form-control"
              placeholder="اكتب اسم الطالب للبحث..." autocomplete="off"
-             aria-label="بحث عن طالب لتسجيل التأخير"
-             style="width:100%;max-width:400px">
-      <div id="tardiness-results" role="listbox" aria-label="نتائج البحث"
-           style="display:none;position:absolute;top:100%;right:0;width:100%;max-width:400px;
-                  background:var(--surface);border:1px solid var(--border);border-radius:8px;
-                  box-shadow:var(--shadow-lg);z-index:50;max-height:220px;overflow-y:auto;margin-top:4px">
-      </div>
+             aria-label="بحث عن طالب لتسجيل التأخير">
+      <div id="tardiness-results" class="sa-late-results" role="listbox" aria-label="نتائج البحث"></div>
     </div>
 
-    {# Mini form — hidden until student selected #}
-    <form id="tardiness-form" method="post" action="{% url 'student_affairs:tardiness_record' %}"
-          enctype="multipart/form-data" style="display:none" aria-label="نموذج تسجيل التأخير">
+    {# نموذجٌ مخفيٌّ حتى يُختار الطالب #}
+    <form id="tardiness-form" class="sa-late-form" method="post" action="{% url 'student_affairs:tardiness_record' %}"
+          enctype="multipart/form-data" aria-label="نموذج تسجيل التأخير">
       {% csrf_token %}
       <input type="hidden" id="tardiness-student-id" name="student_id" value="">
-      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
-        <div style="flex:1;min-width:160px">
-          <label style="font-size:.8rem;color:var(--text-muted);margin-bottom:2px;display:block">الطالب</label>
-          <input id="tardiness-student-name" type="text" class="form-control" readonly
-                 style="background:var(--surface-alt);cursor:default" aria-label="اسم الطالب المحدد">
+      <div class="sa-late-fields">
+        <div class="sa-late-field">
+          <label for="tardiness-student-name">الطالب</label>
+          <input id="tardiness-student-name" type="text" class="form-control is-readonly" readonly aria-label="اسم الطالب المحدد">
         </div>
-        <div style="width:140px">
-          <label for="tardiness-excuse-min" style="font-size:.8rem;color:var(--text-muted);margin-bottom:2px;display:block">التماس (دقائق)</label>
+        <div class="sa-late-field is-narrow">
+          <label for="tardiness-excuse-min">التماس (دقائق)</label>
           <input id="tardiness-excuse-min" type="number" name="excuse_minutes" class="form-control"
                  placeholder="مثال: 15" min="1" max="120" aria-label="دقائق الالتماس">
-          <span id="tardiness-excuse-preview" style="font-size:.75rem;color:var(--text-muted);display:none;margin-top:2px"></span>
+          <span id="tardiness-excuse-preview" class="sa-late-preview"></span>
         </div>
-        <div style="flex:1;min-width:160px">
-          <label for="tardiness-file" style="font-size:.8rem;color:var(--text-muted);margin-bottom:2px;display:block">ملف ولي الأمر</label>
+        <div class="sa-late-field">
+          <label for="tardiness-file">ملف ولي الأمر</label>
           <input id="tardiness-file" type="file" name="excuse_file" class="form-control"
-                 accept=".pdf,.jpg,.jpeg,.png" aria-label="رفع ملف إذن ولي الأمر"
-                 style="font-size:.82rem;padding:4px 8px">
+                 accept=".pdf,.jpg,.jpeg,.png" aria-label="رفع ملف إذن ولي الأمر">
         </div>
-        <div>
-          <button type="submit" class="btn-primary btn-sm" id="tardiness-submit-btn"
-                  aria-label="تسجيل التأخير">
-            {% include "components/icon.html" with name="check-circle" %} تسجيل
-          </button>
-        </div>
-        <div>
-          <button type="button" class="btn-secondary btn-sm" id="tardiness-cancel-btn"
-                  aria-label="إلغاء التسجيل">
-            {% include "components/icon.html" with name="x-circle" %} إلغاء
-          </button>
-        </div>
+        <button type="submit" class="btn-primary btn-sm" id="tardiness-submit-btn" aria-label="تسجيل التأخير">
+          {% include "components/icon.html" with name="check-circle" %} تسجيل
+        </button>
+        <button type="button" class="btn-secondary btn-sm" id="tardiness-cancel-btn" aria-label="إلغاء التسجيل">
+          {% include "components/icon.html" with name="x-circle" %} إلغاء
+        </button>
       </div>
     </form>
-  </div>
+  {% endsection_card %}
   {% endif %}
 
-  {# ══════ Class Breakdown ══════ #}
-  {% if class_breakdown %}
-  <div class="card-qatar" style="margin-bottom:1.5rem;padding:16px 20px">
-    <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">{% include "components/icon.html" with name="bar-chart" %} توزيع التأخر حسب الفصل</h3>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      {% for item in class_breakdown %}
-      <span style="background:var(--surface-alt);padding:4px 12px;border-radius:6px;font-size:.85rem">
-        {{ item.session__class_group__grade }}/{{ item.session__class_group__section }}: <strong>{{ item.count }}</strong>
-      </span>
-      {% endfor %}
-    </div>
-  </div>
-  {% endif %}
-
-  {# ══════ Section 2: Stage Breakdown ══════ #}
-  {% if stage_breakdown %}
-  <div class="card-qatar" style="margin-bottom:1.5rem;padding:16px 20px">
-    <h3 style="font-size:.95rem;font-weight:600;margin-bottom:10px">{% include "components/icon.html" with name="bar-chart" %} توزيع التأخر حسب المرحلة</h3>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      {% for item in stage_breakdown %}
-      <span style="background:var(--surface-alt);padding:4px 12px;border-radius:6px;font-size:.85rem">
-        {{ item.stage_label }}: <strong>{{ item.count }}</strong>
-      </span>
-      {% endfor %}
-    </div>
-  </div>
-  {% endif %}
-
-  {# ══════ Section 3: Enhanced Table ══════ #}
-  {% if late_records %}
-  <div class="table-wrap">
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>اسم الطالب</th>
-          {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
-          <th data-sort="num" data-sort-first="asc">الفصل</th>
-          <th>عدد التكرار</th>
-          <th>التوقيت</th>
-          <th>الملاحظات</th>
-          <th>المرفق</th>
-          <th>الإجراءات</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for rec in late_records %}
-        <tr>
-          <td>{{ forloop.counter }}</td>
-          <td>
-            <a href="{% url 'student_affairs:student_profile' rec.student.id %}" class="link">
-              {{ rec.student.full_name }}
-            </a>
-          </td>
-          <td data-sort-value="{{ rec.session.class_group.school_order }}">{{ rec.session.class_group.grade }} / {{ rec.session.class_group.section }}</td>
-          <td>
-            <span style="background:var(--surface-alt);padding:2px 8px;border-radius:4px;font-size:.85rem{% if rec.cumulative_late >= 5 %};color:var(--status-danger-fg);font-weight:600{% endif %}">
-              {{ rec.cumulative_late }}
-            </span>
-          </td>
-          <td style="font-variant-numeric:tabular-nums">{{ rec.tardiness_recorded_at|time:"H:i"|default:"—" }}</td>
-          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
-              title="{{ rec.excuse_notes }}">
-            {{ rec.excuse_notes|default:"—" }}
-          </td>
-          <td>
-            {% if rec.excuse_file %}
-            <a href="{% url 'student_affairs:protected_media' rec.excuse_file.name %}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-xs">
-              {% include "components/icon.html" with name="file-pen" %} عرض
-            </a>
-            {% else %}—{% endif %}
-          </td>
-          <td style="display:flex;gap:4px;flex-wrap:nowrap">
-            <a href="{% url 'student_affairs:student_profile' rec.student.id %}" class="btn-secondary btn-xs">
-              {% include "components/icon.html" with name="user" %} الملف
-            </a>
-            {% if is_today %}
-            <form method="post" action="{% url 'student_affairs:tardiness_delete' rec.pk %}"
-                  style="display:inline" data-confirm="هل تريد إلغاء تسجيل التأخير؟">
-              {% csrf_token %}
-              <button type="submit" class="btn-secondary btn-xs" style="color:var(--status-danger-fg)"
-                      aria-label="إلغاء تأخير {{ rec.student.full_name }}">
-                {% include "components/icon.html" with name="trash" %} إلغاء
-              </button>
-            </form>
-            {% endif %}
-          </td>
-        </tr>
+  {% if class_chips or stage_breakdown %}
+  <div class="ui-grid-2">
+    {% if class_chips %}
+    {% section_card "توزيع التأخر حسب الشعبة" icon="bar-chart" %}
+      <ul class="chip-row" aria-label="التأخر حسب الشعبة">
+        {% for item in class_chips %}
+          <li class="chip-stat"><span class="chip-stat__key">{{ item.label }}</span><b class="chip-stat__value">{{ item.count }}</b></li>
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  {% else %}
-  <div class="empty-state">
-    {% include "components/icon.html" with name="check-circle" %}
-    <p>لا يوجد طلاب متأخرون في {{ selected_date|date:"d M Y" }}</p>
+      </ul>
+    {% endsection_card %}
+    {% endif %}
+    {% if stage_breakdown %}
+    {% section_card "توزيع التأخر حسب المرحلة" icon="bar-chart" %}
+      <ul class="chip-row" aria-label="التأخر حسب المرحلة">
+        {% for item in stage_breakdown %}
+          <li class="chip-stat"><span class="chip-stat__key">{{ item.stage_label }}</span><b class="chip-stat__value">{{ item.count }}</b></li>
+        {% endfor %}
+      </ul>
+    {% endsection_card %}
+    {% endif %}
   </div>
   {% endif %}
+
+  {% section_card "المتأخرون" icon="clock" empty=empty_label flush=True %}{% if late_records %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>اسم الطالب</th>
+            {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}
+            <th data-sort="num" data-sort-first="asc">الفصل</th>
+            <th class="num" title="مرّاتُ التأخر هذا العام">عدد التكرار</th>
+            <th class="num">التوقيت</th>
+            <th>الملاحظات</th>
+            <th>المرفق</th>
+            {% if is_today %}<th>الإجراءات</th>{% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for rec in late_records %}
+          <tr>
+            <td><a href="{% url 'student_affairs:student_profile' rec.student.id %}" class="sa-link">{{ rec.student.full_name }}</a></td>
+            <td data-sort-value="{{ rec.session.class_group.school_order }}">{{ rec.class_text }}</td>
+            <td class="num"><span class="status-badge {{ rec.cumulative_badge }}">{{ rec.cumulative_late }}</span></td>
+            <td class="num">{{ rec.tardiness_recorded_at|time:"H:i"|default:"—" }}</td>
+            <td class="sa-cell-clip" title="{{ rec.excuse_notes }}">{{ rec.excuse_notes|default:"—" }}</td>
+            <td>
+              {% if rec.excuse_file %}
+              <a href="{% url 'student_affairs:protected_media' rec.excuse_file.name %}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-xs">
+                {% include "components/icon.html" with name="file-pen" %} عرض
+              </a>
+              {% else %}—{% endif %}
+            </td>
+            {% if is_today %}
+            <td>
+              <form method="post" action="{% url 'student_affairs:tardiness_delete' rec.pk %}"
+                    class="sa-inline-form" data-confirm="هل تريد إلغاء تسجيل التأخير؟">
+                {% csrf_token %}
+                <button type="submit" class="btn-secondary btn-xs sa-btn-danger"
+                        aria-label="إلغاء تأخير {{ rec.student.full_name }}">
+                  {% include "components/icon.html" with name="trash" %} إلغاء
+                </button>
+              </form>
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
 
 </div>
 
@@ -227,6 +161,15 @@
   var studentName = document.getElementById('tardiness-student-name');
   var cancelBtn   = document.getElementById('tardiness-cancel-btn');
   var debounceTimer = null;
+
+  function showMessage(text, isError) {
+    var msg = document.createElement('div');
+    msg.className = 'sa-late-msg' + (isError ? ' is-error' : '');
+    msg.textContent = text;
+    resultsBox.innerHTML = '';
+    resultsBox.appendChild(msg);
+    resultsBox.style.display = 'block';
+  }
 
   /* ── Search on input ── */
   searchInput.addEventListener('input', function() {
@@ -245,8 +188,7 @@
       .then(function(data) {
         var items = data.results || [];
         if (items.length === 0) {
-          resultsBox.innerHTML = '<div style="padding:10px 14px;color:var(--text-muted);font-size:.85rem">لا توجد نتائج</div>';
-          resultsBox.style.display = 'block';
+          showMessage('لا توجد نتائج', false);
           return;
         }
         resultsBox.innerHTML = '';
@@ -255,19 +197,15 @@
           var already = s.already_late;
           var row = document.createElement('div');
           row.setAttribute('role', 'option');
-          row.className = 'tardiness-result-item';
+          row.className = 'tardiness-result-item sa-late-result' + (already ? ' is-already' : '');
           row.dataset.id = s.id;
           row.dataset.name = s.name;
           if (already) row.dataset.already = '1';
           row.setAttribute('tabindex', '0');
-          row.style.cssText = 'padding:8px 14px;cursor:' + (already ? 'default' : 'pointer')
-            + ';display:flex;justify-content:space-between;align-items:center;'
-            + 'border-bottom:1px solid var(--border);font-size:.88rem'
-            + (already ? ';opacity:.5' : '');
           var nameSpan = document.createElement('span');
           nameSpan.textContent = s.name;
           var metaSpan = document.createElement('span');
-          metaSpan.style.cssText = 'color:var(--text-muted);font-size:.78rem';
+          metaSpan.className = 'sa-late-result__meta';
           metaSpan.textContent = (s.nid || '') + (already ? ' — مسجّل' : '');
           row.appendChild(nameSpan);
           row.appendChild(metaSpan);
@@ -277,8 +215,7 @@
         attachResultListeners();
       })
       .catch(function() {
-        resultsBox.innerHTML = '<div style="padding:10px 14px;color:var(--status-danger-fg);font-size:.85rem">خطأ في البحث</div>';
-        resultsBox.style.display = 'block';
+        showMessage('خطأ في البحث', true);
       });
     }, 250);
   });

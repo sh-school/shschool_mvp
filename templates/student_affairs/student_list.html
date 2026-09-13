@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 
 {% block title %}سجل الطلاب{% endblock %}
 
@@ -7,27 +8,15 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash">
+<div class="exec-dash sa-page">
 
   {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} سجل الطلاب</h1>
-      <p class="exec-subtitle">{{ total }} طالب مسجّل — {{ year }}</p>
-    </div>
-    <div class="exec-meta">
-      <a href="{% url 'student_affairs:student_add' %}" class="btn-primary btn-sm">
-        {% include "components/icon.html" with name="file-pen" %} إضافة طالب
-      </a>
-      <a href="/core/students/import-export/" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="download" %} استيراد Excel
-      </a>
-      <a href="{% url 'student_affairs:student_export' %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="download" %} تصدير Excel
-      </a>
-      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
-    </div>
-  </div>
+  {% page_header "سجل الطلاب" subtitle=year icon="list-checks" %}
+    <a href="{% url 'student_affairs:student_add' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} إضافة طالب</a>
+    <a href="/core/students/import-export/" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} استيراد Excel</a>
+    <a href="{% url 'student_affairs:student_export' %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
+    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+  {% endpage_header %}
 
   {# ── فلتر + بحث ── #}
   <form method="get" class="filter-bar">
@@ -112,7 +101,7 @@
       <a href="{% url 'student_affairs:student_list' %}" class="btn-secondary btn-sm">
         {% include "components/icon.html" with name="refresh" %} إعادة ضبط
       </a>
-      <span id="search-spinner" class="htmx-indicator" style="font-size:.7rem;color:var(--text-muted)">جارٍ البحث...</span>
+      <span id="search-spinner" class="htmx-indicator sa-spinner">جارٍ البحث...</span>
     </div>
   </form>
 

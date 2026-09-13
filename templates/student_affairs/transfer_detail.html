@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 
 {% block title %}تفاصيل الانتقال — {{ transfer.student.full_name }}{% endblock %}
 
@@ -7,26 +8,21 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash" style="max-width:700px;margin:0 auto">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="refresh" %} تفاصيل الانتقال</h1>
-      <p class="exec-subtitle">{{ transfer.student.full_name }} — {{ transfer.get_direction_display }}</p>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <span class="status-badge
-        {% if transfer.status == 'pending' %}status-warning
-        {% elif transfer.status == 'approved' %}status-info
-        {% elif transfer.status == 'completed' %}status-success
-        {% elif transfer.status == 'rejected' %}status-danger
-        {% else %}status-gray{% endif %}">
-        {{ transfer.get_status_display }}
-      </span>
-      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
-    </div>
-  </div>
+<div class="exec-dash sa-page sa-form-page">
 
-  <div class="detail-section">
+  {% page_header "تفاصيل الانتقال" subtitle=page_subtitle icon="refresh" %}
+    <span class="status-badge
+      {% if transfer.status == 'pending' %}status-warning
+      {% elif transfer.status == 'approved' %}status-info
+      {% elif transfer.status == 'completed' %}status-success
+      {% elif transfer.status == 'rejected' %}status-danger
+      {% else %}status-gray{% endif %}">
+      {{ transfer.get_status_display }}
+    </span>
+    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+  {% endpage_header %}
+
+  {% section_card "بيانات الانتقال" icon="file-text" %}
     <dl class="detail-dl">
       <dt>الطالب</dt><dd><strong>{{ transfer.student.full_name }}</strong></dd>
       <dt>الاتجاه</dt><dd>{% if transfer.direction == "in" %}← وارد{% else %}→ صادر{% endif %}</dd>
@@ -38,11 +34,10 @@
       {% if transfer.notes %}<dt>ملاحظات</dt><dd>{{ transfer.notes }}</dd>{% endif %}
       <dt>تاريخ التسجيل</dt><dd>{{ transfer.created_at|date:"d/m/Y H:i" }}</dd>
     </dl>
-  </div>
+  {% endsection_card %}
 
   {% if transfer.status == "pending" or transfer.status == "approved" %}
-  <div class="detail-section">
-    <div class="detail-section-title">{% include "components/icon.html" with name="list-checks" %} مراجعة الطلب</div>
+  {% section_card "مراجعة الطلب" icon="list-checks" %}
     <form method="post" action="{% url 'student_affairs:transfer_review' transfer.pk %}">
       {% csrf_token %}
       <div class="form-row">
@@ -64,13 +59,11 @@
           <input type="text" name="notes" class="form-control" placeholder="ملاحظات المراجعة...">
         </div>
       </div>
-      <div class="form-card" style="padding:0;border:none;box-shadow:none">
-        <div class="form-footer" style="border:none;margin:0;padding-top:12px">
-          <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check-circle" %} تنفيذ القرار</button>
-        </div>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check-circle" %} تنفيذ القرار</button>
       </div>
     </form>
-  </div>
+  {% endsection_card %}
   {% endif %}
 
 </div>
