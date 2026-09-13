@@ -251,21 +251,25 @@ window.addEventListener('beforeinstallprompt', function(e) {
   if (!localStorage.getItem('pwaDismissed')) {
     setTimeout(function() {
       var b = document.getElementById('pwa-banner');
-      if (b) b.classList.add('visible');
+      if (b) b.hidden = false;
     }, 5000);
   }
 });
 
+// الإظهارُ والإخفاءُ بسمة `hidden` لا بصنف `.visible`: قاعدةُ `.pwa-banner` في طبقة
+// `utilities` (#232) تجعله `flex` وتغلب `display:none` القديمةَ في `components` —
+// فكان الشريطُ ظاهراً دائماً ولا يُغلقه زرُّه. و`[hidden]` في `reset` بـ`!important`
+// يغلب الطبقاتِ كلَّها.
 window.installPWA = function() {
   if (_pwaPrompt) { _pwaPrompt.prompt(); _pwaPrompt = null; }
   var b = document.getElementById('pwa-banner');
-  if (b) b.classList.remove('visible');
+  if (b) b.hidden = true;
 };
 
 window.dismissBanner = function() {
   var b = document.getElementById('pwa-banner');
-  if (b) b.classList.remove('visible');
-  localStorage.setItem('pwaDismissed', '1');
+  if (b) b.hidden = true;
+  try { localStorage.setItem('pwaDismissed', '1'); } catch (e) { /* لا تخزين */ }
 };
 
 
