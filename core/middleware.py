@@ -234,6 +234,69 @@ class ForcePasswordChangeMiddleware:
         return self.get_response(request)
 
 
+class TwoFactorEnforcementMiddleware:
+    """المنتسبُ الذي لم يفعّل المصادقةَ الثنائيّة لا يبلغ صفحةً غيرَ صفحة إعدادها.
+
+    قرارُ 2026-09-14: الثنائيّةُ لكلّ الكادر لا للقيادة وحدَها. وكانت اختياريّةً
+    فعلاً: من لم يفعّلها دخل بكلمة مرورٍ فقط — ومن فعّلها سقط عند التحقّق 500
+    (أُصلح في #253). فالإلزامُ هنا على نمط إلزام تغيير كلمة المرور: وسيطٌ لا
+    رايةٌ عند الدخول. والطلبةُ وأولياءُ الأمور خارجَه، والمستثنى ما لا يقوم
+    الإعدادُ إلّا به. و`TWO_FACTOR_REQUIRED_FOR_STAFF=false` بابُ طوارئ.
+    """
+
+    EXEMPT_PREFIXES = (
+        "/auth/",
+        "/static/",
+        "/media/",
+        "/health/",
+        "/ready/",
+        "/status/",
+        "/sw.js",
+        "/manifest.json",
+        "/offline/",
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    @staticmethod
+    def _must_set_up(user) -> bool:
+        from django.conf import settings
+
+        if not getattr(settings, "TWO_FACTOR_REQUIRED_FOR_STAFF", True):
+            return False
+        return (
+            getattr(user, "is_authenticated", False)
+            and not getattr(user, "totp_enabled", False)
+            and not getattr(user, "must_change_password", False)
+            and user.is_staff_member()
+        )
+
+    def __call__(self, request):
+        user = getattr(request, "user", None)
+        if (
+            user is not None
+            and not request.path.startswith(self.EXEMPT_PREFIXES)
+            and self._must_set_up(user)
+        ):
+            target = reverse("setup_2fa")
+            if (
+                request.path.startswith("/api/")
+                or request.headers.get("X-Requested-With") == "XMLHttpRequest"
+            ):
+                return JsonResponse(
+                    {"error": "يجب تفعيل المصادقة الثنائية أولاً", "code": "two_factor_required"},
+                    status=403,
+                )
+            if request.headers.get("HX-Request"):
+                response = HttpResponse(status=204)
+                response["HX-Redirect"] = target
+                return response
+            return redirect(target)
+
+        return self.get_response(request)
+
+
 # ── Middleware إجبار ولي الأمر على الموافقة ───────────────
 class ParentConsentMiddleware:
     """يُجبر ولي الأمر على الموافقة قبل الوصول لأي صفحة (بما فيها API)"""

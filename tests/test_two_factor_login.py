@@ -88,3 +88,69 @@ class TestVerificationLogsTheLeaderIn:
         assert _login(client, user)["Location"].endswith(reverse("verify_2fa"))
         client.post(reverse("verify_2fa"), {"code": pyotp.TOTP(secret).now()})
         assert client.session.get("_auth_user_id") == str(user.pk)
+
+
+def _staff(school, role="teacher"):
+    user = UserFactory(password=PASSWORD)
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name=role))
+    return user
+
+
+@pytest.mark.django_db
+class TestEveryStaffMemberMustSetItUp:
+    """قرارُ 2026-09-14: الثنائيّةُ لكلّ الكادر — وسيطٌ يُلزم لا رايةٌ عند الدخول.
+
+    الإلزامُ مُطفأٌ في إعدادات الاختبار (كما axes) فيُشعَل هنا وحدَه.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _enforced(self, settings):
+        settings.TWO_FACTOR_REQUIRED_FOR_STAFF = True
+
+    def test_a_teacher_without_totp_reaches_only_the_setup_page(self, client, school):
+        user = _staff(school)
+        client.force_login(user)
+
+        resp = client.get(reverse("dashboard"))
+
+        assert resp.status_code == 302 and resp["Location"].endswith(reverse("setup_2fa"))
+        assert client.get(reverse("setup_2fa")).status_code == 200
+        assert client.post(reverse("logout")).status_code == 302, "الخروجُ يبقى مفتوحاً"
+
+    def test_an_htmx_request_asks_the_browser_to_redirect(self, client, school):
+        client.force_login(_staff(school, "nurse"))
+
+        resp = client.get(reverse("dashboard"), HTTP_HX_REQUEST="true")
+
+        assert resp.status_code == 204 and resp["HX-Redirect"].endswith(reverse("setup_2fa"))
+
+    def test_a_teacher_with_totp_passes(self, client, school):
+        user, _ = _leader_with_totp(school)
+        client.force_login(user)
+
+        assert client.get(reverse("dashboard")).status_code == 200
+
+    @pytest.mark.parametrize("role", ["student", "parent"])
+    def test_students_and_parents_are_outside_the_rule(self, client, school, role):
+        client.force_login(_staff(school, role))
+
+        resp = client.get(reverse("dashboard"))
+
+        assert not (resp.status_code == 302 and resp["Location"].endswith(reverse("setup_2fa")))
+
+    def test_the_password_change_comes_first(self, client, school):
+        """المؤقّتةُ تُبدَّل قبل أيّ شيء — ثمّ الثنائيّة."""
+        user = _staff(school)
+        user.must_change_password = True
+        user.save(update_fields=["must_change_password"])
+        client.force_login(user)
+
+        resp = client.get(reverse("dashboard"))
+
+        assert resp["Location"].endswith(reverse("force_change_password"))
+
+    def test_the_emergency_flag_lifts_the_rule(self, client, school, settings):
+        settings.TWO_FACTOR_REQUIRED_FOR_STAFF = False
+        client.force_login(_staff(school))
+
+        assert client.get(reverse("dashboard")).status_code == 200
