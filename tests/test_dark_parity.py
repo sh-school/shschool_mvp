@@ -114,7 +114,8 @@ def test_no_rule_paints_text_with_a_colour_that_dies_at_night():
     """
     css = _css()
     _light, dark = token_table(css)
-    fixed = {k for k in _light if k not in dark_overrides(css)}
+    flipped = dark_overrides(css)  # مرّةً واحدة: داخلَ الشرط كان يُعيد تفكيكَ الملفّ لكلّ رمز
+    fixed = {k for k in _light if k not in flipped}
     rules = _screen_rules(css)
     dark_sels = _dark_selectors(rules)
 
@@ -210,7 +211,8 @@ def test_the_scan_actually_reaches_the_stylesheet():
     css = _css()
     light, _dark = token_table(css)
     assert len(light) >= 90, f"رموزُ `:root` {len(light)} — التفكيكُ لم يبلغها"
-    fixed = {k for k in light if k not in dark_overrides(css)}
+    flipped = dark_overrides(css)
+    fixed = {k for k in light if k not in flipped}
     assert 20 <= len(fixed) <= 100, f"الرموزُ غيرُ المنقلبة {len(fixed)} — رقمٌ لا يُصدَّق"
 
     rules = _screen_rules(css)

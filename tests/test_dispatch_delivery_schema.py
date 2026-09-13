@@ -12,6 +12,7 @@ tests/test_dispatch_delivery_schema.py
 لمعرفة أنها وصلت.
 """
 
+import functools
 import os
 from contextlib import contextmanager
 
@@ -555,16 +556,25 @@ SKIPPED_DIRS = {
 }
 
 
+@functools.cache
 def _application_sources():
-    """كل ملفّ Python في شيفرة التطبيق — لا الترحيلات ولا الاختبارات."""
+    """كل ملفّ Python في شيفرة التطبيق — لا الترحيلات ولا الاختبارات.
+
+    يُقرأ مرّةً للجلسة، ويُقلَّم المجلّدُ المتخطّى **قبل** دخوله: كان `rglob`
+    يمشي `.venv` و`.git` كاملَين ثمّ يُسقط ما وجد، وأربعةُ اختباراتٍ تُعيد
+    المشيَ كلٌّ لنفسه — ثلاثَ عشرةَ ثانيةً لكلٍّ منها في CI.
+    """
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
-
-    for path in root.rglob("*.py"):
-        if SKIPPED_DIRS & set(path.relative_to(root).parts):
-            continue
-        yield path, path.read_text(encoding="utf-8")
+    found = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(d for d in dirnames if d not in SKIPPED_DIRS)
+        for name in sorted(filenames):
+            if name.endswith(".py"):
+                path = Path(dirpath) / name
+                found.append((path, path.read_text(encoding="utf-8")))
+    return tuple(found)
 
 
 #: أنماط الإنشاء وحدها. القراءة ليست كتابة — و[B4-1] يقرأ هذه الجداول عمداً
@@ -584,8 +594,14 @@ CREATION_PATTERNS = (
 TRACKED_WRITER = ("notifications/hub.py", "_create_dispatch")
 
 
+@functools.cache
 def _writers_of(models):
-    """مواضع إنشاء صفوف لهذه النماذج، مع الدالّة الحاوية لكلٍّ منها."""
+    """مواضع إنشاء صفوف لهذه النماذج، مع الدالّة الحاوية لكلٍّ منها.
+
+    ملفٌّ لا يذكر `<النموذج>.objects.` لا يحوي نداءَ إنشاءٍ له — فأنماطُ الإنشاء
+    كلُّها تبدأ بذلك — فلا يُفكَّك. وهو شرطٌ مكافئٌ لا تقريب: المقطعُ الذي يُطابَق
+    جزءٌ من نصّ الملفّ.
+    """
     import ast
     from pathlib import Path
 
@@ -595,6 +611,8 @@ def _writers_of(models):
     for path, text in _application_sources():
         # تعريف النموذج نفسه ليس كتابةً فيه.
         if path.name == "models.py" and path.parent.name == "notifications":
+            continue
+        if not any(f"{model}.objects." in text for model in models):
             continue
 
         try:
@@ -623,7 +641,7 @@ def _writers_of(models):
 
         _visit(tree, None)
 
-    return found
+    return tuple(found)
 
 
 def test_only_the_tracked_writer_creates_a_dispatch_or_delivery():
