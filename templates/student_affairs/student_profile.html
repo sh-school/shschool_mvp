@@ -199,6 +199,36 @@
       </p>
     </div>
     {% endif %}
+
+    {% comment %}
+      عدّادا التأخّر عن الحصص: مرّاتٌ بعد خمس دقائق (قرار المدرسة) ومجموعُ الدقائق.
+      والدقائقُ بالمادّة لأنّها ما يُقارَن لاحقاً بالتحصيل.
+    {% endcomment %}
+    {% if tardiness.year %}
+    <div class="detail-section">
+      <div class="detail-section-title">{% include "components/icon.html" with name="clock" %} التأخّر عن الحصص</div>
+      <dl class="detail-dl">
+        {% if tardiness.semester %}
+        <dt>هذا الفصل</dt><dd><strong>{{ tardiness.semester.count }}</strong> مرّة · {{ tardiness.semester.minutes }} دقيقة</dd>
+        {% endif %}
+        <dt>هذا العام</dt><dd><strong>{{ tardiness.year.count }}</strong> مرّة · {{ tardiness.year.minutes }} دقيقة</dd>
+        {% if tardiness.year.under_threshold %}<dt>دخولٌ متأخّرٌ دون 5 دقائق</dt><dd>{{ tardiness.year.under_threshold }} — دقائقُه محسوبة، ولا مخالفة</dd>{% endif %}
+        {% if tardiness.year.unmeasured %}<dt>تأخّرٌ بلا دقائقَ مقيسة</dt><dd>{{ tardiness.year.unmeasured }}</dd>{% endif %}
+      </dl>
+      {% if tardiness.year.by_subject %}
+      <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>المادّة</th><th>المرّات</th><th>الدقائق</th></tr></thead>
+        <tbody>
+          {% for row in tardiness.year.by_subject.values %}
+          <tr><td>{{ row.subject }}</td><td>{{ row.count }}</td><td>{{ row.minutes }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
   </div>
 
   {# ── السلوك ── #}
