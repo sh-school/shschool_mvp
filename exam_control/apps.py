@@ -20,6 +20,8 @@ class ExamControlConfig(AppConfig):
                 "vice_admin",
                 "coordinator",
                 "admin_supervisor",
+                # الوراثةُ تُدخلهم في حارس الواجهة، فتسعهم بوّابةُ المسار (اختبار `test_module_gates_match_guards`)
+                "activities_coordinator",
                 "admin",
             },
             sort_order=15,

@@ -12,7 +12,7 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
 from core.models import ClassGroup, CustomUser, Wing, WingCoverage
-from core.permissions import role_required
+from core.permissions import WING_DAY_RECORD, role_required
 from operations.bells import day_type_for
 from operations.day_attendance import (
     MORNING_STATES,
@@ -168,18 +168,8 @@ def coverage_end(request, pk):
     return redirect("wings:coverage")
 
 
-#: من يرصد: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادةُ ومطوّرُ المنصّة.
-RECORD_ROLES = (
-    "admin_supervisor",
-    "vice_admin",
-    "vice_academic",
-    "principal",
-    "platform_developer",
-)
-
-
 @login_required
-@role_required(*RECORD_ROLES)
+@role_required(WING_DAY_RECORD)
 def record_index(request):
     """شُعبي اليومَ وحالُ رصدِها — «شُعبي المتبقّية n/5»."""
     school = request.user.get_school()
@@ -217,7 +207,7 @@ def record_index(request):
 
 
 @login_required
-@role_required(*RECORD_ROLES)
+@role_required(WING_DAY_RECORD)
 def record_section(request, class_id):
     """رصدُ شعبةٍ ليومٍ كامل — بالاستثناء: يُلمس الغائبُ وحدَه.
 

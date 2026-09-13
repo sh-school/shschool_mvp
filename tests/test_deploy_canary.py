@@ -61,9 +61,11 @@ def _executed_commands():
 # ═══════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.parametrize("upstream", ["test", "preflight"])
+# و`test` (pytest) كانت هنا أيضاً، ثمّ حُذفت الوظيفةُ نفسُها من خطّ النشر
+# ٢٠٢٦-٠٩-١٣ — وعدمُ عودتها يحرسه `test_ci_suite_parity.py`.
+@pytest.mark.parametrize("upstream", ["preflight"])
 def test_the_canary_does_not_wait_for_ci(upstream):
-    """`pytest` و`preflight` لا يحجبان التحقّق من نشرٍ وقع بالفعل."""
+    """`preflight` لا يحجب التحقّق من نشرٍ وقع بالفعل."""
     assert upstream in _workflow()["jobs"], "اسم الوظيفة تغيّر — الحارس يقيس لا شيء"
 
     assert upstream not in _canary().get("needs", [])

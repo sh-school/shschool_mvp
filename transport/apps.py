@@ -20,7 +20,6 @@ class TransportConfig(AppConfig):
                 "vice_admin",
                 "bus_supervisor",
                 "transport_officer",
-                "parent",
             },
             sort_order=60,
         )
