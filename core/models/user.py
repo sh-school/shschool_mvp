@@ -231,8 +231,15 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.memberships.filter(is_active=True, role__name=role_name).exists()
 
     def has_any_role(self, *role_names):
-        """يتحقق من أن المستخدم لديه أحد الأدوار المعطاة (أسرع من استدعاء has_role عدة مرات)."""
-        return self.get_role() in role_names
+        """أله عضويّةٌ نشطةٌ بأحد هذه الأدوار؟ — استعلامٌ واحدٌ لا استعلامٌ لكلّ دور.
+
+        وكان تنفيذُها `get_role() in role_names` — أي فحصَ **الدور الحاكم**
+        وحدَه، بينما توثيقُها واسمُها يَعِدان بفحص الأدوار كلِّها. فمعلّمٌ هو
+        وليُّ أمرٍ أيضاً يُجاب عنه بـ«لا» في سؤال «أهو وليُّ أمر؟»، لأنّ
+        الكادرَ يتقدّم في `role_rank`. والفرقُ لا يظهر اليومَ إلّا في عشرة
+        حساباتٍ محلّيّاً — وكلُّها كادرٌ ووليُّ أمرٍ معاً.
+        """
+        return self.memberships.filter(is_active=True, role__name__in=role_names).exists()
 
     def get_parent_membership(self):
         return (

@@ -44,7 +44,13 @@ from core.models.access import Membership
 from core.models.audit import AuditLog
 from core.models.user import CustomUser
 from core.pdf_utils import render_pdf
-from core.permissions import STUDENT_AFFAIRS_MANAGE, STUDENT_DEACTIVATE, role_required
+from core.permissions import (
+    ACTIVITIES_MANAGE,
+    STUDENT_AFFAIRS_MANAGE,
+    STUDENT_AFFAIRS_VIEW,
+    STUDENT_DEACTIVATE,
+    role_required,
+)
 from core.privacy import mask_national_id
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 from library.models import BookBorrowing
@@ -124,7 +130,11 @@ STUDENT_SORTS = {
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+# قائمةٌ تُقرأ ولا تُكتب — فحارسُها `VIEW` لا `MANAGE`. والمجموعتان مفصولتان
+# أصلاً في `core/permissions.py` بقرار MTG-2026-012: المنسّقُ والأخصائيّان
+# يرون الطلبة ولا يبتّون في قيدهم. وكانت القائمةُ تعرض الشاشةَ للمنسّق
+# ويردُّه حارسُها — إذنٌ مكتوبٌ في موضعٍ وممنوعٌ في آخر.
+@role_required(STUDENT_AFFAIRS_VIEW)
 def student_list(request):
     """قائمة الطلاب مع بحث وفلتر حسب الصف والشعبة."""
     school = request.user.get_school()
@@ -1289,7 +1299,7 @@ def behavior_overview(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@role_required(ACTIVITIES_MANAGE)
 def activity_list(request):
     """قائمة الأنشطة والإنجازات مع فلتر."""
     school = request.user.get_school()
@@ -1322,7 +1332,7 @@ def activity_list(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@role_required(ACTIVITIES_MANAGE)
 def activity_add(request):
     """تسجيل نشاط أو إنجاز جديد."""
     school = request.user.get_school()
@@ -1375,7 +1385,7 @@ def activity_add(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@role_required(ACTIVITIES_MANAGE)
 def activity_edit(request, pk):
     """تعديل نشاط."""
     school = request.user.get_school()
@@ -1427,7 +1437,7 @@ def activity_edit(request, pk):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@role_required(ACTIVITIES_MANAGE)
 @require_POST
 def activity_delete(request, pk):
     """حذف نشاط."""
@@ -1893,7 +1903,7 @@ def tardiness_export_excel(request):
 
 
 @login_required
-@role_required(STUDENT_AFFAIRS_MANAGE)
+@role_required(ACTIVITIES_MANAGE)
 def activities_export_excel(request):
     """تصدير قائمة الأنشطة والإنجازات."""
     import openpyxl

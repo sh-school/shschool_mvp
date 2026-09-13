@@ -17,7 +17,7 @@ from django.urls import reverse
 
 from core.models import CustomUser
 from core.models.access import Membership, Role
-from operations.views_schedule import SCHEDULE_BROWSE_ROLES
+from core.permissions import SCHEDULE_BROWSE
 
 
 @pytest.fixture
@@ -92,7 +92,7 @@ def test_a_teacher_cannot_read_a_whole_class_schedule(db, person, school):
 # ── والقيادة على حالها ───────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("role", sorted(SCHEDULE_BROWSE_ROLES))
+@pytest.mark.parametrize("role", sorted(SCHEDULE_BROWSE))
 def test_the_browsers_still_browse(db, person, role):
     """الإصلاح يضيّق على المعلّم ولا يمسّ من وظيفتُه تصفّح الجداول."""
     browser = person(f"متصفّح {role}", role)

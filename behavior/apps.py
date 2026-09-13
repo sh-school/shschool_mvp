@@ -42,8 +42,6 @@ class BehaviorConfig(AppConfig):
                 "social_worker",
                 "psychologist",
                 "admin_supervisor",
-                "parent",
-                "student",
             },
             sort_order=30,
         )

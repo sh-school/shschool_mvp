@@ -50,7 +50,9 @@ TITLE_ROLES = {
     "فني تقنية معلومات": "it_technician",
     "مسؤول مصادر التعلم": "librarian",
     "ممرض المدرسة": "nurse",
-    "مرافق الدعم": "ese_assistant",
+    # ليس `ese_assistant`: التفريقُ منصوصٌ في سياسة الدعم التعليميّ الإضافيّ
+    # (ص155 و161-163 مقابل ص129) — راجع التعليقَ عند تعريف الدور في `access.py`.
+    "مرافق الدعم": "support_companion",
     "معلم تربية خاصة": "ese_teacher",
     "منسق المشاريع الالكترونية": "e_projects_coordinator",
     "ملاحظ طلبه": "student_observer",

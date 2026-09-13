@@ -28,6 +28,8 @@ class LibraryConfig(AppConfig):
                 "activities_coordinator",
                 "e_projects_coordinator",
                 "teacher_assistant",
+                # الوراثةُ تُدخلهم في حارس الواجهة، فتسعهم بوّابةُ المسار (اختبار `test_module_gates_match_guards`)
+                "vice_academic",
                 "ese_assistant",
             },
             sort_order=55,

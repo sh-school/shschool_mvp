@@ -92,6 +92,9 @@ class SchoolPermissionMiddleware:
         for protected_path, allowed_roles in self.protected_paths.items():
             if path.startswith(protected_path):
                 if user_role not in allowed_roles:
+                    from core.permissions import log_denial
+
+                    log_denial(request, role=user_role, required=allowed_roles, source="middleware")
                     if path.startswith("/api/"):
                         return JsonResponse(
                             {"error": "ليس لديك صلاحية للوصول", "code": "forbidden"}, status=403

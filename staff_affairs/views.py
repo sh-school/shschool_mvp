@@ -17,7 +17,7 @@ from core.academic_calendar import academic_year_for
 from core.models.access import DEPARTMENT_ROLES, Membership
 from core.models.department import Department
 from core.models.user import CustomUser
-from core.permissions import role_required
+from core.permissions import STAFF_AFFAIRS_MANAGE, role_required
 from core.privacy import mask_national_id
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 
@@ -30,8 +30,6 @@ from .forms import (
 )
 from .models import LeaveRequest
 from .services import LeaveService, StaffService
-
-STAFF_AFFAIRS_MANAGE = {"principal", "vice_admin", "vice_academic", "platform_developer"}
 
 
 def role_label(name: str) -> str:

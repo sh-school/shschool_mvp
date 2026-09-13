@@ -10,10 +10,7 @@ from django.utils import timezone
 
 from core.academic_calendar import academic_year_for, default_academic_year
 from core.pdf_utils import render_pdf
-from core.permissions import QUALITY_MANAGE, QUALITY_VIEW, role_required
-
-# All roles that can access quality module
-_QUALITY_ALL = QUALITY_MANAGE | QUALITY_VIEW | {"ese_teacher"}
+from core.permissions import QUALITY_ACCESS, role_required
 
 from .models import ExecutorMapping, OperationalProcedure, QualityCommitteeMember
 from .services import QualityService
@@ -25,7 +22,7 @@ def _default_year(request=None):
 
 
 @login_required
-@role_required(_QUALITY_ALL)
+@role_required(QUALITY_ACCESS)
 def progress_report(request):
     school = request.user.get_school()
     year = request.GET.get("year") or _default_year(request)
@@ -101,7 +98,7 @@ def progress_report(request):
 
 
 @login_required
-@role_required(_QUALITY_ALL)
+@role_required(QUALITY_ACCESS)
 def progress_report_pdf(request):
     school = request.user.get_school()
     year = request.GET.get("year") or _default_year(request)

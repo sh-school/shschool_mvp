@@ -22,6 +22,7 @@ from core.permissions import (
     BEHAVIOR_COMMITTEE,
     BEHAVIOR_MANAGE,
     BEHAVIOR_RECORD,
+    BEHAVIOR_STATS_TEACHING,
     BEHAVIOR_VIEW_ALL,
     get_teacher_student_ids,
     role_required,
@@ -626,8 +627,7 @@ def behavior_report(request, student_id):
 
 
 # ── تقرير إحصائي ─────────────────────────────────────────────
-_STATS_TEACHER_ROLES = {"teacher", "coordinator", "ese_teacher"}
-_STATS_ALLOWED_ROLES = BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL | _STATS_TEACHER_ROLES
+_STATS_ALLOWED_ROLES = BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL | BEHAVIOR_STATS_TEACHING
 
 
 @login_required
@@ -639,7 +639,7 @@ def behavior_statistics(request):
     year = request.GET.get("year") or academic_year_for(request)
 
     # المعلم/المنسق/معلم ESE → إحصائيات مقيّدة بطلابهم فقط
-    if role in _STATS_TEACHER_ROLES:
+    if role in BEHAVIOR_STATS_TEACHING:
         student_ids = get_teacher_student_ids(request.user)
         stats = BehaviorService.get_statistics_scoped(school, student_ids=student_ids)
         stats["is_scoped"] = True

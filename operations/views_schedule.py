@@ -21,7 +21,13 @@ from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.models import CustomUser, Membership
 from core.models.academic import grade_order
 from core.models.access import EXEMPTABLE_ROLES
-from core.permissions import role_required
+from core.permissions import (
+    OPERATIONS_REPORTS,
+    SCHEDULE_ADMIN,
+    SCHEDULE_BROWSE,
+    SCHEDULE_SETTINGS,
+    role_required,
+)
 
 from .models import (
     ScheduleBaseline,
@@ -37,23 +43,6 @@ from .models import (
 from .services import ScheduleService, SubstituteService
 
 logger = logging.getLogger(__name__)
-
-_REPORT_ROLES = {
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "admin_supervisor",
-    "admin",
-}
-_ADMIN_SCHEDULE_ROLES = {"principal", "vice_academic", "admin"}
-#: من يكتب توزيعاتِ المواد — الوقودَ الذي يقرؤه المولّد.
-SCHEDULE_MANAGE_ROLES = {"principal", "vice_academic"}
-
-#: من يفتح «إعدادات الجدول والتفريغات» — والمطوّرُ معهم صراحةً (قرارُ المستخدم
-#: 2026-09-09): كان يمرّ بصفة `is_superuser` وحدَها، وهي صفةُ حسابٍ لا دورٌ في
-#: مدرسة — فحسابُ مطوّرٍ بلا تلك الصفة يُردّ عن شاشةٍ هي عملُه.
-SCHEDULE_SETTINGS_ROLES = ("principal", "vice_academic", "platform_developer")
 
 #: بعدها يُعدّ التوليدُ المعلّقُ ميّتاً. والحدُّ أكبرُ من `soft_time_limit`
 #: للمهمّة (خمس عشرة دقيقة) بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد
@@ -114,21 +103,6 @@ def _safe_schedule_settings_redirect(request, fallback_year=None):
             return redirect(target)
 
     return redirect("schedule_settings")
-
-
-#: من يتصفّح جداول غيره — القيادة ومن يُنسّق الجداول.
-#: ومن سواهم يرى جدوله هو، مهما كتب في الرابط.
-SCHEDULE_BROWSE_ROLES = {
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    #: مسؤولُ حصص التعليم الإلكترونيّ — قرارُ المدير 2026-09-06: له معاينةُ
-    #: الجدول كاملاً وجدولِ كلّ معلّمٍ وجداولِ الأقسام، شأنَ المنسّق.
-    "e_projects_coordinator",
-    "admin_supervisor",
-    "admin",
-}
 
 
 # ── الجدول الأسبوعي ──────────────────────────────────────────────
@@ -222,7 +196,7 @@ def _schedule_print_selection(request):
     # المعلّم يطبع جدوله هو. وكان الاختيار يُقرأ من الرابط بلا نظرٍ إلى
     # طالبه، و`get_object_or_404(CustomUser, id=…)` بلا قيد مدرسة — أي
     # جدولُ معلّمٍ في مدرسةٍ أخرى.
-    may_browse = request.user.is_admin() or request.user.get_role() in SCHEDULE_BROWSE_ROLES
+    may_browse = request.user.is_admin() or request.user.get_role() in SCHEDULE_BROWSE
 
     if not may_browse:
         view_type = "teacher"
@@ -336,7 +310,7 @@ def _schedule_print_payload(request) -> dict:
 # صفحة العرض في المنصّة — والمصدرُ هو الموقع نفسه، فـ sameorigin يكفي.
 @xframe_options_sameorigin
 @login_required
-@role_required(SCHEDULE_BROWSE_ROLES | {"teacher", "ese_teacher", "academic_advisor"})
+@role_required(SCHEDULE_BROWSE | {"teacher", "ese_teacher", "academic_advisor"})
 def schedule_print(request):
     """ورقةُ الطباعة نفسها — A4/A3، بلا هيدر المنصّة ولا فوترها."""
     return render(request, "schedule/print_schedule.html", _schedule_print_payload(request))
@@ -355,7 +329,7 @@ def _export_filename(ctx: dict, extension: str) -> str:
 
 
 @login_required
-@role_required(SCHEDULE_BROWSE_ROLES | {"teacher", "ese_teacher", "academic_advisor"})
+@role_required(SCHEDULE_BROWSE | {"teacher", "ese_teacher", "academic_advisor"})
 def schedule_export_pdf(request):
     """الورقةُ نفسها ملفَّ PDF — قالبٌ واحدٌ للشاشة والورق والملفّ.
 
@@ -381,7 +355,7 @@ def schedule_export_pdf(request):
 
 
 @login_required
-@role_required(SCHEDULE_BROWSE_ROLES | {"teacher", "ese_teacher", "academic_advisor"})
+@role_required(SCHEDULE_BROWSE | {"teacher", "ese_teacher", "academic_advisor"})
 def schedule_export_excel(request):
     """الورقةُ نفسها مصنَّفَ Excel — بالشكل نفسه لا ببياناتٍ خام."""
     from io import BytesIO
@@ -407,7 +381,7 @@ def schedule_export_excel(request):
 
 
 @login_required
-@role_required(SCHEDULE_BROWSE_ROLES | {"teacher", "ese_teacher", "academic_advisor"})
+@role_required(SCHEDULE_BROWSE | {"teacher", "ese_teacher", "academic_advisor"})
 def schedule_print_view(request):
     """الرابطُ القديم لصفحة الطباعة — صارت هي صفحةَ الجدول، فيُحال إليها.
 
@@ -424,7 +398,7 @@ def schedule_print_view(request):
 
 
 @login_required
-@role_required(_REPORT_ROLES)
+@role_required(OPERATIONS_REPORTS)
 def teacher_absence_list(request):
     """قائمة غيابات المعلمين — للمدير والمنسق"""
     from core.permissions import get_department_teacher_ids
@@ -451,7 +425,7 @@ def teacher_absence_list(request):
 
 
 @login_required
-@role_required(_REPORT_ROLES)
+@role_required(OPERATIONS_REPORTS)
 def register_teacher_absence(request):
     """تسجيل غياب معلم — للمدير والمنسق"""
     from core.permissions import get_department_teacher_ids
@@ -499,7 +473,7 @@ def register_teacher_absence(request):
 
 
 @login_required
-@role_required(_REPORT_ROLES)
+@role_required(OPERATIONS_REPORTS)
 def absence_detail(request, absence_id):
     """تفاصيل الغياب + تعيين البدلاء"""
     from core.permissions import get_department_teacher_ids
@@ -546,7 +520,7 @@ def absence_detail(request, absence_id):
 
 
 @login_required
-@role_required(_REPORT_ROLES)
+@role_required(OPERATIONS_REPORTS)
 @require_POST
 def assign_substitute(request, absence_id, slot_id):
     """HTMX: تعيين بديل لحصة"""
@@ -589,7 +563,7 @@ def assign_substitute(request, absence_id, slot_id):
 
 
 @login_required
-@role_required(_REPORT_ROLES)
+@role_required(OPERATIONS_REPORTS)
 def substitute_report(request):
     """تقرير الحصص البديلة"""
     from core.permissions import get_department_teacher_ids
@@ -625,7 +599,7 @@ def substitute_report(request):
 
 
 @login_required
-@role_required(_ADMIN_SCHEDULE_ROLES)
+@role_required(SCHEDULE_ADMIN)
 def schedule_quality_lab(request):
     """مختبرُ جودة الجدول بصريّاً: بوّابةُ الصلاحية، ورادارُ المجموعات، وبطاقاتُ
     المؤشرات بفرقها عن المرجع، وأشدُّ المعلّمين ضغطاً، والموارد.
@@ -728,7 +702,7 @@ def schedule_quality_lab(request):
 
 
 @login_required
-@role_required(_ADMIN_SCHEDULE_ROLES)
+@role_required(SCHEDULE_ADMIN)
 def smart_schedule_view(request):
     """صفحة إدارة الجدولة الذكية"""
     school = request.user.get_school()
@@ -836,7 +810,7 @@ def _smart_schedule_redirect(year):
 
 
 @login_required
-@role_required(_ADMIN_SCHEDULE_ROLES)
+@role_required(SCHEDULE_ADMIN)
 @require_POST
 def smart_generate(request):
     """يضع التوليدَ في الطابور — ولا يُولّد داخل الطلب.
@@ -896,7 +870,7 @@ def smart_generate(request):
 
 
 @login_required
-@role_required(_ADMIN_SCHEDULE_ROLES)
+@role_required(SCHEDULE_ADMIN)
 def smart_generate_status(request):
     """حالةُ آخر توليدٍ — تسألها الصفحةُ كلَّ بضع ثوانٍ ما دام هناك جارٍ.
 
@@ -939,7 +913,7 @@ def smart_generate_status(request):
 
 
 @login_required
-@role_required(_REPORT_ROLES)
+@role_required(OPERATIONS_REPORTS)
 def teacher_load_report(request):
     """تقرير أحمال المعلمين"""
     from core.permissions import get_department_teacher_ids
@@ -1076,7 +1050,7 @@ def teacher_preferences(request):
 
 
 @login_required
-@role_required(*SCHEDULE_SETTINGS_ROLES)
+@role_required(SCHEDULE_SETTINGS)
 @require_POST
 def approve_schedule(request, generation_id):
     """اعتماد الجدول المولّد"""
@@ -1112,7 +1086,7 @@ def _one_of(raw, allowed, fallback):
 
 
 @login_required
-@role_required(*SCHEDULE_SETTINGS_ROLES)
+@role_required(SCHEDULE_SETTINGS)
 def schedule_settings(request):
     """إعدادات الجدول الذكي — تفريغات المعلمين + حصص مزدوجة"""
     school = request.user.get_school()
@@ -1156,7 +1130,7 @@ def schedule_settings(request):
 
 
 @login_required
-@role_required(*SCHEDULE_SETTINGS_ROLES)
+@role_required(SCHEDULE_SETTINGS)
 def exemption_grid(request):
     """شبكةُ أسبوعِ معلّمٍ بعينه — جزءٌ يُحمّل عند اختياره من القائمة.
 
@@ -1204,7 +1178,7 @@ def exemption_grid(request):
 
 
 @login_required
-@role_required(*SCHEDULE_SETTINGS_ROLES)
+@role_required(SCHEDULE_SETTINGS)
 @require_POST
 def add_exemption(request):
     """إضافة تفريغ معلم — POST.
@@ -1313,7 +1287,7 @@ def add_exemption(request):
 
 
 @login_required
-@role_required(*SCHEDULE_SETTINGS_ROLES)
+@role_required(SCHEDULE_SETTINGS)
 @require_POST
 def remove_exemption(request, exemption_id):
     """إلغاء تفريغ"""
@@ -1329,7 +1303,7 @@ def remove_exemption(request, exemption_id):
 
 
 @login_required
-@role_required(*SCHEDULE_SETTINGS_ROLES)
+@role_required(SCHEDULE_SETTINGS)
 @require_POST
 def remove_exemptions(request):
     """إلغاءُ ما اختير من التفريغات دفعةً واحدة.
@@ -1367,7 +1341,7 @@ def remove_exemptions(request):
 
 
 @login_required
-@role_required(*SCHEDULE_SETTINGS_ROLES)
+@role_required(SCHEDULE_SETTINGS)
 @require_POST
 def remove_preferences(request):
     """حذفُ ما اختير من تفضيلات المعلّمين — بمربّعاتٍ وزرٍّ واحدٍ كالتفريغات.
@@ -1398,7 +1372,7 @@ def remove_preferences(request):
 
 
 @login_required
-@role_required(*SCHEDULE_SETTINGS_ROLES)
+@role_required(SCHEDULE_SETTINGS)
 @require_POST
 def save_subject_scheduling(request):
     """ازدواجُ الموادّ في الجدول يُحفظ دفعةً واحدة.
@@ -1494,7 +1468,7 @@ def _pages_payload(request) -> dict:
 
 
 @login_required
-@role_required(SCHEDULE_BROWSE_ROLES)
+@role_required(SCHEDULE_BROWSE)
 def schedule_pages(request):
     """الصفحةُ داخل المنصّة — هيدرٌ وفوترٌ وأدوات، والورقةُ في إطارٍ يُطبع وحده."""
     return render(request, "schedule/pages_view.html", _pages_payload(request))
@@ -1502,14 +1476,14 @@ def schedule_pages(request):
 
 @xframe_options_sameorigin
 @login_required
-@role_required(SCHEDULE_BROWSE_ROLES)
+@role_required(SCHEDULE_BROWSE)
 def schedule_pages_paper(request):
     """الورقةُ وحدها — للإطار وللطباعة."""
     return render(request, "schedule/print_pages.html", _pages_payload(request))
 
 
 @login_required
-@role_required(SCHEDULE_BROWSE_ROLES)
+@role_required(SCHEDULE_BROWSE)
 def schedule_pages_pdf(request):
     """الورقةُ نفسها ملفَّ PDF — قالبٌ واحدٌ للشاشة والورق والملفّ."""
     from django.template.loader import render_to_string
