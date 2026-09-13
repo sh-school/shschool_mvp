@@ -728,6 +728,7 @@ class BehaviorService:
         level: int,
         violation_category=None,
         on=None,
+        session=None,
     ) -> int:
         """عدد المخالفات السابقة من نفس الدرجة (أو نفس الفئة).
 
@@ -750,6 +751,11 @@ class BehaviorService:
                 semester = AcademicCalendar.current(school, on).semester
                 if semester is not None:
                     qs = qs.filter(date__gte=semester.start_date, date__lte=semester.end_date)
+                # «الهروبُ من الحصّة» يُعدّ لكلّ مادّةٍ على حدة (ص91).
+                from .conduct_2026 import CLASS_ESCAPE_CODE
+
+                if violation_category.code == CLASS_ESCAPE_CODE and session is not None:
+                    qs = qs.filter(session__subject_id=session.subject_id)
         return qs.count()
 
     # ── اقتراح الخطوة التصاعدية للمخالفة الجديدة ────────────
@@ -760,6 +766,7 @@ class BehaviorService:
         level: int,
         violation_category=None,
         on=None,
+        session=None,
     ) -> int:
         """خطوةُ التصعيد بحسب التكرار.
 
@@ -775,6 +782,7 @@ class BehaviorService:
             level,
             violation_category,
             on=on,
+            session=session,
         )
         if violation_category and violation_category.code in BY_CODE:
             return min(prior + 1, len(violation_category.get_escalation_steps()))
@@ -796,6 +804,8 @@ class BehaviorService:
         violation_category=None,
         disciplinary_action_type: str = "",
         violation_description: str = "",
+        session=None,
+        auto_rule: str = "",
     ) -> BehaviorInfraction:
         """
         إنشاء مخالفة سلوكية جديدة — Service Layer الصحيح.
@@ -827,6 +837,7 @@ class BehaviorService:
             school,
             level,
             violation_category,
+            session=session,
         )
 
         infraction = BehaviorInfraction.objects.create(
@@ -841,6 +852,8 @@ class BehaviorService:
             points_deducted=points_deducted,
             disciplinary_action_type=disciplinary_action_type,
             violation_description=violation_description,
+            session=session,
+            auto_rule=auto_rule,
         )
 
         logger.info(
