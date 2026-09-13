@@ -1,32 +1,29 @@
 {% extends "base/base.html" %}
-{% load static i18n %}
+{% load i18n sorting ui %}
+{% comment %}
+رسائلُ المستخدم إلى المطوّر — الترويسةُ `page_header` وفعلُها الأوّل «إرسال
+رسالة جديدة»، والجدولُ في `section_card` بعدّه، والحالةُ الفارغةُ من البطاقة
+نفسِها (كان زرُّ «إرسال أول رسالة» فيها يكرّر زرَّ الترويسة فسقط).
+{% endcomment %}
 
 {% block title %}{% trans "رسائلي للمطوّر" %}{% endblock %}
-
-{% block extra_css %}
-{{ block.super }}
-{% endblock %}
-
-{% block page_header %}
-<div class="df-container df-page-header-row">
-  <h1 class="df-page-title">{% trans "رسائلي للمطوّر" %}</h1>
-  <a href="{% url 'developer_feedback:message_create' %}" class="btn btn-primary">
-    {% include "components/icon.html" with name="mail" %}
-    {% trans "إرسال رسالة جديدة" %}
-  </a>
-</div>
-{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/developer-feedback/" parent_label="تواصل مع المطوّر" current="رسائلي" %}
 {% endblock %}
 
 {% block content %}
-<main id="main-content" class="df-container" role="main">
+<div class="exec-dash df-page">
+  {% page_header _("رسائلي للمطوّر") subtitle=_("ما أرسلتَه إلى المطوّر وحالةُ كلّ تذكرة") icon="mail" %}
+    <a href="{% url 'developer_feedback:message_create' %}" class="btn-primary btn-sm">
+      {% include "components/icon.html" with name="mail" %}
+      {% trans "إرسال رسالة جديدة" %}
+    </a>
+  {% endpage_header %}
 
-  {% if messages_list %}
-    <div class="df-table-wrap" role="region" aria-label="{% trans 'قائمة رسائلي' %}">
-      <table class="df-table">
+  {% section_card _("رسائلي") meta=page_obj.paginator.count icon="list-checks" flush=True empty=_("لم تُرسل أي رسالة بعد") empty_sub=_("ابدأ بإرسال أول رسالة إلى المطوّر لتحسين تجربتك في المنصّة.") %}{% if messages_list %}
+    <div class="table-wrap" role="region" aria-label="{% trans 'قائمة رسائلي' %}">
+      <table data-no-sort>
         <thead>
           <tr>
             <th scope="col">{% trans "رقم التذكرة" %}</th>
@@ -35,7 +32,7 @@
             <th scope="col">{% trans "الأولوية" %}</th>
             <th scope="col">{% trans "الحالة" %}</th>
             <th scope="col">{% trans "التاريخ" %}</th>
-            <th scope="col">{% trans "إجراءات" %}</th>
+            <th scope="col" class="col-actions">{% trans "إجراءات" %}</th>
           </tr>
         </thead>
         <tbody>
@@ -54,11 +51,11 @@
               <td><span class="df-badge df-badge-priority-{{ msg.priority }}">{{ msg.get_priority_display }}</span></td>
               <td>{% include "developer_feedback/_status_badge.html" with status=msg.status %}</td>
               <td><time datetime="{{ msg.created_at|date:'c' }}">{{ msg.created_at|date:"Y/m/d H:i" }}</time></td>
-              <td>
+              <td class="col-actions">
                 <a href="{% url 'developer_feedback:message_edit' pk=msg.pk %}"
-                   class="btn btn-sm btn-secondary"
+                   class="btn-secondary btn-xs"
                    aria-label="{% trans 'تعديل الرسالة' %} {{ msg.ticket_number }}">
-                  {% include "components/icon.html" with name="edit" %}
+                  {% include "components/icon.html" with name="file-pen" %}
                   {% trans "تعديل" %}
                 </a>
               </td>
@@ -68,36 +65,19 @@
       </table>
     </div>
 
-    {# ── Pagination ── #}
     {% if is_paginated %}
-      <nav class="df-pagination" role="navigation" aria-label="{% trans 'تصفّح الصفحات' %}">
+      <nav class="pagination-wrap" aria-label="{% trans 'تصفّح الصفحات' %}">
         {% if page_obj.has_previous %}
-          <a href="?page={{ page_obj.previous_page_number }}" class="df-page-link">{% trans "السابق" %}</a>
+          <a href="?{% page_query page_obj.previous_page_number %}" class="btn-secondary">{% trans "السابق" %}</a>
         {% endif %}
-        <span class="df-page-info">
-          {% blocktrans with current=page_obj.number total=page_obj.paginator.num_pages %}
-            صفحة {{ current }} من {{ total }}
-          {% endblocktrans %}
+        <span class="pagination-info">
+          {% blocktrans with current=page_obj.number total=page_obj.paginator.num_pages %}صفحة {{ current }} من {{ total }}{% endblocktrans %}
         </span>
         {% if page_obj.has_next %}
-          <a href="?page={{ page_obj.next_page_number }}" class="df-page-link">{% trans "التالي" %}</a>
+          <a href="?{% page_query page_obj.next_page_number %}" class="btn-secondary">{% trans "التالي" %}</a>
         {% endif %}
       </nav>
     {% endif %}
-
-  {% else %}
-    {# ── Empty State ── #}
-    <div class="df-empty-state" role="status">
-      <div class="df-empty-icon" aria-hidden="true">
-        {% include "components/icon.html" with name="inbox" %}
-      </div>
-      <h3>{% trans "لم تُرسل أي رسالة بعد" %}</h3>
-      <p>{% trans "ابدأ بإرسال أول رسالة إلى المطوّر لتحسين تجربتك في المنصّة." %}</p>
-      <a href="{% url 'developer_feedback:message_create' %}" class="btn btn-primary">
-        {% include "components/icon.html" with name="mail" %}
-        {% trans "إرسال أول رسالة" %}
-      </a>
-    </div>
-  {% endif %}
-</main>
+  {% endif %}{% endsection_card %}
+</div>
 {% endblock %}

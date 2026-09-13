@@ -9,14 +9,9 @@
 {% block content %}
 <div class="exec-dash">
 
-{# ── Header ── #}
-<div class="exec-header">
-  <div>
-    <h1 class="exec-title">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور بالطلاب</h1>
-    <p class="exec-subtitle">إدارة ارتباطات ولي الأمر بأبنائه — {{ year }}</p>
-  </div>
+{% page_header "ربط أولياء الأمور بالطلاب" subtitle=links_subtitle icon="waypoints" %}
   <span class="status-badge status-maroon">{{ total_count }} ارتباط</span>
-</div>
+{% endpage_header %}
 
 {% comment %}
 كان العدّادُ يقول «742 طالباً مرتبطاً» لمدرسةٍ سجلُّ قيدها 735: مئةٌ واثنان
@@ -30,12 +25,12 @@
   {% kpi "أولياءُ الأمور" parent_count tone="blue" %}
 {% endkpi_strip %}
 
-{# ── إضافة ربط جديد (قابل للطي) ── #}
-<details class="card-qatar links-add">
-  <summary class="card-bar links-add__bar">
+{# ── إضافة ربط جديد (قابل للطي): بطاقةٌ شريطُها هو `<summary>` — فليست `section_card` ── #}
+<details class="links-add">
+  <summary class="links-add__bar">
     {% include "components/icon.html" with name="plus" %}
     <h2 class="ui-section__title">إضافة ربط جديد</h2>
-    <span class="card-bar-sub" aria-hidden="true">▼</span>
+    <span class="links-add__chevron" aria-hidden="true">▼</span>
   </summary>
 
   <form method="post" action="{% url 'add_parent_link' %}" class="p-5">
