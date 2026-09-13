@@ -304,7 +304,14 @@ def _color_mix(v: str, tokens, depth):
     if total <= 0:
         return None
     pa, pb = pa / total, pb / total
-    return tuple([round(ca[i] * pa + cb[i] * pb) for i in range(3)] + [ca[3] * pa + cb[3] * pb])
+    # المزجُ بألفا مضروبةٍ سلفاً (CSS Color 5 §2.3): `transparent` أسودُ شفّاف،
+    # ومزجُه غيرَ مضروبٍ يُعتِم اللون — فكان `color-mix(in srgb, #fff 55%,
+    # transparent)` يُقرأ رماديّاً (140,140,140) والمتصفّحُ يرسمه أبيضَ بشفّافيّة.
+    alpha = ca[3] * pa + cb[3] * pb
+    if alpha <= 0:
+        return (0, 0, 0, 0.0)
+    rgb = [round((ca[i] * ca[3] * pa + cb[i] * cb[3] * pb) / alpha) for i in range(3)]
+    return tuple(rgb + [alpha])
 
 
 def _with_share(text: str, tokens, depth):
