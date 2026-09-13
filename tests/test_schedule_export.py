@@ -29,7 +29,9 @@ def teaching_school(db, school, class_group):
             ("معلّم العربية", "اللغة العربية"),
         )
     ):
-        user = CustomUser.objects.create(national_id=f"2864400{index:04d}", full_name=name)
+        user = CustomUser.objects.create(
+            must_change_password=False, national_id=f"2864400{index:04d}", full_name=name
+        )
         role, _ = Role.objects.get_or_create(school=school, name="teacher")
         Membership.objects.create(user=user, school=school, role=role)
         ScheduleSlot.objects.create(
@@ -49,7 +51,9 @@ def teaching_school(db, school, class_group):
 
 @pytest.fixture
 def principal(db, school):
-    user = CustomUser.objects.create(national_id="28644099999", full_name="مدير")
+    user = CustomUser.objects.create(
+        must_change_password=False, national_id="28644099999", full_name="مدير"
+    )
     role, _ = Role.objects.get_or_create(school=school, name="principal")
     Membership.objects.create(user=user, school=school, role=role)
     return user
@@ -75,7 +79,9 @@ def test_the_sheet_names_each_department_beside_its_teachers(db, principal, teac
 
 def test_the_department_cell_carries_a_rowspan(db, principal, teaching_school, school, class_group):
     """معلّمان في قسمٍ واحد ⇐ خانةٌ واحدةٌ ممتدّةٌ على سطرين."""
-    second = CustomUser.objects.create(national_id="28644012345", full_name="معلّم عربية ثانٍ")
+    second = CustomUser.objects.create(
+        must_change_password=False, national_id="28644012345", full_name="معلّم عربية ثانٍ"
+    )
     role, _ = Role.objects.get_or_create(school=school, name="teacher")
     Membership.objects.create(user=second, school=school, role=role)
     ScheduleSlot.objects.create(

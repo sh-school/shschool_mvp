@@ -37,6 +37,7 @@ class ProtectedMediaTests(TestCase):
     def _authorized_user(self, national_id):
         """مستخدمٌ يجتاز `@role_required` — وإلّا لم يبلغ الفحص المقصود."""
         user = User.objects.create_user(
+            must_change_password=False,
             national_id=national_id,
             full_name="مستخدم الاختبار",
             password="TestPass-123!",
@@ -95,12 +96,18 @@ class ProtectedMediaTests(TestCase):
 
         role = Role.objects.create(school=school, name="teacher")
         teacher = User.objects.create_user(
-            national_id=national_id, full_name="معلّم", password="TestPass-123!"
+            must_change_password=False,
+            national_id=national_id,
+            full_name="معلّم",
+            password="TestPass-123!",
         )
         Membership.objects.create(user=teacher, school=school, role=role, is_active=True)
 
         student = User.objects.create_user(
-            national_id=str(int(national_id) + 1), full_name="طالب", password="TestPass-123!"
+            must_change_password=False,
+            national_id=str(int(national_id) + 1),
+            full_name="طالب",
+            password="TestPass-123!",
         )
         cg = ClassGroup.objects.create(school=school, grade="G7", section="1")
         subject = Subject.objects.create(school=school, name_ar="العلوم", code=national_id[-4:])
