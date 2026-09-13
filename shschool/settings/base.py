@@ -93,6 +93,8 @@ MIDDLEWARE = [
     "core.middleware.SentryScopeMiddleware",  # ✅ v5.5: Sentry context (school_id + role)
     "operations.middleware.SessionAutoGenerateMiddleware",  # ✅ توليد الحصص تلقائياً — بدون Celery
     "csp.middleware.CSPMiddleware",
+    # الإلزامُ بتغيير كلمة المرور قبل موافقة وليّ الأمر: من لم يُبدّل كلمتَه لا يوافق بها.
+    "core.middleware.ForcePasswordChangeMiddleware",
     "core.middleware.ParentConsentMiddleware",
     # صفحةُ المسجَّل لا تُخزَّن: طزاجةٌ بعد النشر، وخصوصيّةٌ على جهازٍ مشترك
     "core.middleware.PrivateHtmlNoStoreMiddleware",

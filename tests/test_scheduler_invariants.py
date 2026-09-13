@@ -207,7 +207,9 @@ def tiny_school(db, school):
     from core.models import ClassGroup, CustomUser
     from operations.models import Subject, SubjectClassAssignment
 
-    teacher = CustomUser.objects.create(national_id="28800000201", full_name="معلّم الرياضيات")
+    teacher = CustomUser.objects.create(
+        must_change_password=False, national_id="28800000201", full_name="معلّم الرياضيات"
+    )
     group = ClassGroup.objects.create(
         school=school, grade="G7", section="1", level_type="prep", academic_year="2026-2027"
     )
@@ -430,7 +432,9 @@ def two_stage_school(db, school):
         ("prep", "G8", "prep", "28800000301"),
         ("sec", "G11", "sec", "28800000302"),
     ):
-        teacher = CustomUser.objects.create(national_id=nid, full_name=f"معلّم {key}")
+        teacher = CustomUser.objects.create(
+            must_change_password=False, national_id=nid, full_name=f"معلّم {key}"
+        )
         group = ClassGroup.objects.create(
             school=school,
             grade=grade,
@@ -663,8 +667,12 @@ def solvable_only_by_revising(db, school):
     from core.models import ClassGroup, CustomUser
     from operations.models import Subject, SubjectClassAssignment, TeacherExemption
 
-    free = CustomUser.objects.create(national_id="28800000401", full_name="معلّم الجغرافيا")
-    bound = CustomUser.objects.create(national_id="28800000402", full_name="معلّم التاريخ")
+    free = CustomUser.objects.create(
+        must_change_password=False, national_id="28800000401", full_name="معلّم الجغرافيا"
+    )
+    bound = CustomUser.objects.create(
+        must_change_password=False, national_id="28800000402", full_name="معلّم التاريخ"
+    )
     group = ClassGroup.objects.create(
         school=school, grade="G7", section="1", level_type="prep", academic_year="2026-2027"
     )
@@ -760,7 +768,9 @@ def test_the_generated_week_holds_every_invariant_at_once(db, school):
         )
         for offset, subject in enumerate(subjects):
             teacher = CustomUser.objects.create(
-                national_id=f"2880000{index}{offset}50", full_name=f"معلّم {index}{offset}"
+                must_change_password=False,
+                national_id=f"2880000{index}{offset}50",
+                full_name=f"معلّم {index}{offset}",
             )
             SubjectClassAssignment.objects.create(
                 school=school,

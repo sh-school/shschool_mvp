@@ -549,6 +549,51 @@
     position: absolute; width: 1px; height: 1px; overflow: hidden;
     clip: rect(0 0 0 0); white-space: nowrap;
   }
+
+  /* ── الهاتف: الورقةُ تُمرَّر ولا تُحشر (قرار 2026-09-13، الخيارُ أ) ──
+     الجدولُ `width: 100%` بتخطيطٍ ثابت: ستٌّ وثلاثون خانةً في عرض الإطار،
+     فكانت الخانةُ على 390px ثمانيةَ بكسلاتٍ وخطُّها 8px — «10.» و«9.4» مقطوعة،
+     والأسماءُ «ابراهيم محمد …». و`.matrix-wrap` تُمرِّر أصلاً، لكنّ الجدولَ لم
+     يتجاوزها قطّ فلم يكن ما يُمرَّر.
+     فيأخذ الجدولُ عرضَه الطبيعيَّ بخطٍّ مقروء، ويُمرَّر أفقيّاً، ويثبت عمودا
+     القسم والمعلّم فلا يضيع السطرُ عن صاحبه. والطباعةُ وملفُّ PDF لا يريان
+     هذا: الكتلةُ داخل `embed` و`@media screen`. */
+  @media (max-width: 900px) {
+    .schedule-matrix {
+      table-layout: auto;
+      width: max-content;
+      min-width: 100%;
+      font-size: 12px;
+    }
+    .schedule-matrix th, .schedule-matrix td { padding: 2px 3px; line-height: 1.6; }
+    .schedule-matrix .m-cell { min-width: 30px; }
+    .schedule-matrix .m-day { font-size: 13px; }
+    .schedule-matrix .m-period { font-size: 11px; }
+
+    /* العمودان المثبَّتان — والعرضُ صريحٌ لأنّ إزاحةَ الثاني تُحسب منه. */
+    .schedule-matrix .m-dept {
+      position: sticky; inset-inline-start: 0; z-index: 3;
+      width: 60px; min-width: 60px; max-width: 60px;
+      font-size: 10px;
+    }
+    /* والاسمُ ينكسر سطرين ولا يُقصّ: «ومن قُصَّ اسمه بنقاطٍ ثلاثٍ لم يجد سطره»
+       (أعلاه). والسطرُ يطول قليلاً — وذاك أهونُ من اسمٍ لا يُقرأ. */
+    .schedule-matrix .m-name {
+      position: sticky; inset-inline-start: 60px; z-index: 3;
+      width: 150px; min-width: 150px; max-width: 150px;
+      font-size: 12.5px;
+      white-space: normal; overflow: visible; text-overflow: clip;
+      line-height: 1.35;
+    }
+    .schedule-matrix .m-name.m-name-tagged { font-size: 11px; }
+    /* الخلايا المثبَّتة معتمةٌ وإلّا مرّت الخاناتُ من تحتها مرئيّة. وخلايا
+       الجسم تحمل لونَ قسمها من `tbody tr.dept-x td`، والرأسُ والذيلُ أبيضان. */
+    .schedule-matrix thead .m-dept,
+    .schedule-matrix thead .m-name,
+    .schedule-matrix tfoot .m-name { background: #fff; }
+    /* مجموعُ الحصص يمتدّ على العمودين، فيثبت عند الحافّة كأنّهما واحد. */
+    .schedule-matrix tfoot .m-name[colspan] { inset-inline-start: 0; width: 210px; min-width: 210px; max-width: 210px; }
+  }
 }
 </style>
 {% endif %}

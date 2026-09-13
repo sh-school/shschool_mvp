@@ -36,7 +36,9 @@ def test_beneficiaries_are_not_staff(role):
 @pytest.mark.django_db
 def test_a_developer_who_is_not_a_superuser_reaches_the_dashboard(client, school):
     """الدعوى على الشاشة: حسابٌ بدور المطوّر وحده — بلا مفاتيح النظام."""
-    user = CustomUser.objects.create(national_id="28700000001", full_name="مطوّر")
+    user = CustomUser.objects.create(
+        must_change_password=False, national_id="28700000001", full_name="مطوّر"
+    )
     user.set_password("Aa!23456789")
     user.save()
     role, _ = Role.objects.get_or_create(school=school, name="platform_developer")
