@@ -18,7 +18,7 @@
   {% endpage_header %}
 
   {% kpi_strip label="أرقام الحضور" %}
-    {% kpi "الحضور" att_pct|stringformat:"s"|add:"%" tone="teal" title="الحصص الحاضرة من الحصص المرصودة" %}
+    {% if total %}{% kpi "الحضور" att_pct|stringformat:"s"|add:"%" tone="teal" title="الحصص الحاضرة من الحصص المرصودة" %}{% else %}{% kpi "الحضور" "—" tone="teal" title="لا حصصَ مرصودةً في الفترة" %}{% endif %}
     {% kpi "حصص الغياب" absent tone="red" %}
     {% kpi "حصص التأخّر" late tone="amber" %}
     {% kpi "الحصص المرصودة" total tone="blue" %}
@@ -38,30 +38,10 @@
   {% endif %}
 
   {% section_card "تقويم الفترة" meta=enrollment.class_group.short_code icon="calendar" empty="لا حصصَ مرصودةً في هذه الفترة" %}{% if total %}
-    <div class="att-cal" role="table" aria-label="تقويم الحضور">
-      <div class="att-cal__row att-cal__head" role="row">
-        <span role="columnheader">أحد</span><span role="columnheader">إثنين</span><span role="columnheader">ثلاثاء</span><span role="columnheader">أربعاء</span><span role="columnheader">خميس</span>
-      </div>
-      {% for week in weeks %}
-        <div class="att-cal__row" role="row">
-          {% for cell in week %}
-            {% if cell.state == "before" or cell.state == "future" %}
-              <span class="att-cal__cell is-out" role="cell" aria-hidden="true"></span>
-            {% else %}
-              <span class="att-cal__cell is-{{ cell.state }}" role="cell" title="{{ cell.date|date:'l d/m' }}">{{ cell.date|date:"j" }}</span>
-            {% endif %}
-          {% endfor %}
-        </div>
-      {% endfor %}
-    </div>
-    <ul class="att-cal__legend" aria-label="مفتاح الألوان">
-      <li><i class="is-present"></i>منتظم</li>
-      <li><i class="is-late"></i>تأخّر</li>
-      <li><i class="is-absent"></i>غياب</li>
-      <li><i class="is-none"></i>بلا رصد</li>
-    </ul>
+    {% include "parents/_attendance_calendar.html" with weeks=weeks %}
   {% endif %}{% endsection_card %}
 
+  {% if total %}
   {% section_card "أيّامٌ فيها غيابٌ أو تأخّر" meta=flagged_days|length icon="clock" empty="لا غيابَ ولا تأخّرَ في هذه الفترة" %}{% if flagged_days %}
     <div class="ui-entity-grid">
       {% for day in flagged_days %}
@@ -76,6 +56,7 @@
       {% endfor %}
     </div>
   {% endif %}{% endsection_card %}
+  {% endif %}
 
 </div>
 {% endblock %}

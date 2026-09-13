@@ -136,6 +136,7 @@ class ParentService:
                 "s1": s1_map.get(ann.setup_id),
                 "s2": s2_map.get(ann.setup_id),
                 "annual": ann,
+                "tone": _grade_tone(ann.annual_total),
             }
             for ann in annual
         ]
@@ -369,6 +370,25 @@ def attendance_weeks(by_date: dict, since, today) -> list[list[dict]]:
             else:
                 state = "present"
             week.append({"date": day, "state": state})
-        weeks.append(week)
+        if any(cell["state"] not in ("before", "future") for cell in week):
+            weeks.append(week)
         cursor += timedelta(days=7)
+    # الشهرُ يُكتب حيث يبدأ — في أوّل خانةٍ ظاهرة وفي أوّل كلّ شهر — وإلّا
+    # قُرئت «30، 31، 1» تسلسلاً بلا فاصلٍ بين أغسطس وسبتمبر.
+    first = True
+    for week in weeks:
+        for cell in week:
+            if cell["state"] in ("before", "future"):
+                continue
+            day = cell["date"]
+            cell["label"] = f"{day.day}/{day.month}" if first or day.day == 1 else str(day.day)
+            first = False
     return weeks
+
+
+def _grade_tone(total) -> str:
+    """لونُ المجموع السنويّ — العتباتُ التي كانت في القالب: 80 · 65 · 50."""
+    if total is None:
+        return "muted"
+    total = float(total)
+    return "success" if total >= 80 else "info" if total >= 65 else "warning" if total >= 50 else "danger"

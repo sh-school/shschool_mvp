@@ -166,3 +166,42 @@ def test_the_dashboard_draws_each_child_with_the_shared_components(
     assert "ui-section" in body and "ui-kpis" in body
     assert "kpi-mini" not in body and "alert-strip" not in body
     assert 'style="display:none' not in body
+
+
+class TestAttendanceWeeks:
+    """تقويمُ حضور الابن: خمسةُ أيّامِ دراسة، والشهرُ يُكتب حيث يبدأ."""
+
+    def _weeks(self, by_date, since, today):
+        from parents.services import attendance_weeks
+
+        return attendance_weeks(by_date, since, today)
+
+    def test_weeks_run_sunday_to_thursday(self):
+        import datetime as dt
+
+        weeks = self._weeks({}, dt.date(2026, 9, 6), dt.date(2026, 9, 10))
+        assert [c["date"].weekday() for c in weeks[0]] == [6, 0, 1, 2, 3]
+
+    def test_state_follows_the_day_record(self):
+        import datetime as dt
+
+        sunday, monday = dt.date(2026, 9, 6), dt.date(2026, 9, 7)
+        by_date = {
+            sunday: {"has_absent": True, "has_late": False},
+            monday: {"has_absent": False, "has_late": True},
+        }
+        cells = self._weeks(by_date, sunday, dt.date(2026, 9, 9))[0]
+        assert [c["state"] for c in cells] == ["absent", "late", "none", "none", "future"]
+
+    def test_a_week_wholly_before_the_period_is_dropped(self):
+        import datetime as dt
+
+        weeks = self._weeks({}, dt.date(2026, 9, 11), dt.date(2026, 9, 14))
+        assert all(any(c["state"] == "none" for c in w) for w in weeks)
+
+    def test_the_month_is_named_where_it_starts(self):
+        import datetime as dt
+
+        weeks = self._weeks({}, dt.date(2026, 8, 30), dt.date(2026, 9, 3))
+        labels = [c["label"] for w in weeks for c in w if "label" in c]
+        assert labels[0] == "30/8" and "1/9" in labels
