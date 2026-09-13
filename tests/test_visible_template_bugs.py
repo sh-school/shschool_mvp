@@ -81,16 +81,6 @@ class TestUrgentNotificationsShowOnce:
         assert 'id="urgent-section"' in body
 
 
-@pytest.mark.django_db
-class TestDailyReportBarHasWidth:
-    def test_the_attendance_bar_uses_the_class_that_reads_its_width(
-        self, client_as, principal_user
-    ):
-        body = client_as(principal_user).get(reverse("daily_report")).content.decode()
-
-        assert re.search(r'class="progress-qatar-fill[^"]*"\s+style="--progress-w:', body)
-
-
 class TestTemplatesAgreeWithTheStylesheet:
     def test_no_tag_carries_two_class_attributes(self):
         """المتصفّحُ يأخذ الأولى ويُهمل الثانية بصمت — فلا خطأ يُرى ولا لون."""

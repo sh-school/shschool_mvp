@@ -646,11 +646,9 @@
   {% if request.user|can_open:"student_affairs:attendance_overview" %}
   <a href="{% url 'student_affairs:attendance_overview' %}">{% include "components/icon.html" with name="bar-chart" %} إحصائيات الغياب</a>
   {% endif %}
-  {% if request.user|can_open:"teacher_schedule" %}
-  <a href="{% url 'teacher_schedule' %}">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
-  {% endif %}
+  {% comment %} «تسجيل الحضور» القديمة للمعلّم وحدَه («حصصي اليوم» في قائمته) — القيادةُ والمشرفون يرصدون من كشف الأجنحة (قرارُ 2026-09-13). {% endcomment %}
   {% if request.user|can_open:"daily_report" %}
-  <a href="{% url 'daily_report' %}">{% include "components/icon.html" with name="calendar" %} سجلات الحضور والغياب</a>
+  <a href="{% url 'daily_report' %}">{% include "components/icon.html" with name="calendar" %} غياب اليوم</a>
   {% endif %}
   <hr>
   <div class="sd-label">إدارة سلوك الطلبة</div>
@@ -698,7 +696,7 @@
 <div class="sd-menu" id="m-coord-schedule" role="menu" aria-label="جدول المنسق">
   <div class="sd-label">جدولي</div>
   {% if request.user|can_open:"teacher_schedule" %}
-  <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} حصص اليوم</a>
+  <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} حصصي اليوم</a>
   {% endif %}
   {% if request.user|can_open:"weekly_schedule" %}
   <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>
@@ -731,7 +729,7 @@
 {% if role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" or role == "e_projects_coordinator" %}
 <div class="sd-menu" id="m-teacher-schedule" role="menu" aria-label="جدول المعلم">
   {% if request.user|can_open:"teacher_schedule" %}
-  <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} حصص اليوم</a>
+  <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% include "components/icon.html" with name="list-checks" %} حصصي اليوم</a>
   {% endif %}
   {% if request.user|can_open:"weekly_schedule" %}
   <a href="{% url 'weekly_schedule' %}">{% include "components/icon.html" with name="calendar" %} الجدول الأسبوعي</a>

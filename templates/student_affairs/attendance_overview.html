@@ -11,8 +11,8 @@
 <div class="exec-dash sa-page">
 
   {% page_header "إحصائيات الغياب" subtitle=page_subtitle icon="bar-chart" %}
-    <a href="/teacher/schedule/" class="btn-primary btn-sm">{% include "components/icon.html" with name="list-checks" %} تسجيل الحضور</a>
-    <a href="/teacher/reports/daily/" class="btn-secondary btn-sm">{% include "components/icon.html" with name="calendar" %} التقرير اليومي</a>
+    <a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="list-checks" %} رصد الغياب</a>
+    <a href="{% url 'daily_report' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="calendar" %} غياب اليوم</a>
     <a href="{% url 'student_affairs:attendance_export' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
     <a href="{% url 'student_affairs:attendance_pdf' %}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
     <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>

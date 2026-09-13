@@ -13,7 +13,6 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required
 from core.models import StudentEnrollment
-from core.models.academic import grade_order
 
 from .day_attendance import can_record, is_recorder, recorded_by_supervisor
 from .models import Session, StudentAttendance
@@ -372,65 +371,27 @@ def session_summary(request, session_id):
 @login_required
 @capability_required("operations.reports")
 def daily_report(request):
-    """تقرير الغياب اليومي — للمدير والمنسق"""
-    from django.db.models import Count
+    """غيابُ اليوم — طالبٌ في سطرٍ لأيّ تاريخ، ووسمُ الوزارة لمن غاب الأولى والثانية.
 
+    حلّ محلَّ «سجلّات الحضور والغياب» (قرارُ 2026-09-13)، وبقي اسمُ المسار كما هو
+    كي لا ينكسر رابطٌ محفوظ. والمنسّقُ لقسمه كما كان.
+    """
     from core.permissions import get_department_teacher_ids
+    from operations.daily_absence import daily_report as build
 
     school = request.user.get_school()
-    selected = request.GET.get("date", timezone.now().date().isoformat())
     try:
-        report_date = date.fromisoformat(selected)
+        report_date = date.fromisoformat(request.GET.get("date") or "")
     except ValueError:
-        report_date = timezone.now().date()
-
-    # ── تأكد من وجود حصص لتاريخ التقرير ──
+        report_date = timezone.localdate()
     ScheduleService.ensure_sessions_for_date(school, report_date)
 
-    absences = (
-        StudentAttendance.objects.filter(
-            school=school,
-            session__date=report_date,
-            status__in=["absent", "late"],
-        )
-        .select_related("student", "session__class_group")
-        .order_by(grade_order("session__class_group__grade"), "student__full_name")
-    )
-    sessions = Session.objects.filter(school=school, date=report_date).select_related("teacher")
-
-    dept_ids = get_department_teacher_ids(request.user)
-    if dept_ids is not None:
-        absences = absences.filter(session__teacher_id__in=dept_ids)
-        sessions = sessions.filter(teacher_id__in=dept_ids)
-
-    att_qs = StudentAttendance.objects.filter(school=school, session__date=report_date)
-    if dept_ids is not None:
-        att_qs = att_qs.filter(session__teacher_id__in=dept_ids)
-    summary = att_qs.values("status").annotate(count=Count("id"))
-    stats = {s["status"]: s["count"] for s in summary}
-    total = sum(stats.values())
-    present_pct = round(stats.get("present", 0) / total * 100) if total else 0
-    # لونُ النسبة — عتباتُ القالب القديم: 85 فأكثر جيّدة، ودون 70 منخفضة.
-    present_tone, present_bar = (
-        ("green", "success")
-        if present_pct >= 85
-        else ("amber", "warning")
-        if present_pct >= 70
-        else ("red", "danger")
-    )
-
+    report = build(school, report_date, teacher_ids=get_department_teacher_ids(request.user))
     return render(
         request,
-        "admin/daily_report.html",
+        "operations/daily_absence.html",
         {
-            "absences": absences,
-            "report_date": report_date,
-            "sessions": sessions,
-            "stats": stats,
-            "total": total,
-            "present_pct": present_pct,
-            "present_pct_label": f"{present_pct}%",
-            "present_tone": present_tone,
-            "present_bar": present_bar,
+            "report": report,
+            "subtitle": f"{school.name} · {report_date:%A %d/%m/%Y}",
         },
     )
