@@ -11,8 +11,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
+from core.capabilities import capability_required
 from core.models import ClassGroup, CustomUser, Wing, WingCoverage
-from core.permissions import WING_DAY_RECORD, role_required
 from operations.bells import day_type_for
 from operations.day_attendance import (
     MORNING_STATES,
@@ -36,13 +36,7 @@ DAY_LABEL = {"regular": "الأحد – الأربعاء", "thursday": "الخم
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_admin",
-    "vice_academic",
-    "admin_supervisor",
-    "platform_developer",
-)
+@capability_required("wings.floors")
 def floors(request):
     school = request.user.get_school()
     now = timezone.localtime()
@@ -83,7 +77,7 @@ def _day(raw, fallback=None):
 
 
 @login_required
-@role_required(*WingCoverage.ASSIGNER_ROLES)
+@capability_required("wings.assign_cover")
 def coverage(request):
     """تغطيةُ الأجنحة — من يحمل كلَّ جناحٍ اليوم، ومن يُناب عند الغياب.
 
@@ -107,7 +101,7 @@ def coverage(request):
 
 
 @login_required
-@role_required(*WingCoverage.ASSIGNER_ROLES)
+@capability_required("wings.assign_cover")
 @require_POST
 def coverage_assign(request, code):
     school = request.user.get_school()
@@ -146,7 +140,7 @@ def coverage_assign(request, code):
 
 
 @login_required
-@role_required(*WingCoverage.ASSIGNER_ROLES)
+@capability_required("wings.assign_cover")
 @require_POST
 def coverage_end(request, pk):
     """إنهاءُ التغطية — بتاريخٍ لا بحذف.
@@ -168,7 +162,7 @@ def coverage_end(request, pk):
 
 
 @login_required
-@role_required(WING_DAY_RECORD)
+@capability_required("wings.record_day")
 def record_index(request):
     """شُعبي اليومَ وحالُ رصدِها — «شُعبي المتبقّية n/5»."""
     school = request.user.get_school()
@@ -194,7 +188,7 @@ def record_index(request):
 
 
 @login_required
-@role_required(WING_DAY_RECORD)
+@capability_required("wings.record_day")
 def record_section(request, class_id):
     """رصدُ شعبةٍ ليومٍ كامل — بالاستثناء: يُلمس الغائبُ وحدَه.
 

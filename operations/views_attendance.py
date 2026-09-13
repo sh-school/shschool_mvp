@@ -11,9 +11,9 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
+from core.capabilities import capability_required
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
-from core.permissions import OPERATIONS_REPORTS, role_required
 
 from .day_attendance import can_record, is_recorder, recorded_by_supervisor
 from .models import Session, StudentAttendance
@@ -23,18 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "academic_advisor",
-    "admin_supervisor",
-    "student",
-    "parent",
-)
+@capability_required("schedule.day")
 def schedule(request):
     """جدول حصص المعلم اليوم"""
     school = request.user.get_school()
@@ -151,15 +140,7 @@ def schedule(request):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin_supervisor",
-)
+@capability_required("attendance.mark")
 def attendance_view(request, session_id):
     """صفحة تسجيل الحضور لحصة"""
     school = request.user.get_school()
@@ -224,15 +205,7 @@ def attendance_view(request, session_id):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin_supervisor",
-)
+@capability_required("attendance.mark")
 @require_POST
 def mark_single(request, session_id):
     """HTMX: تسجيل حضور طالب واحد"""
@@ -284,15 +257,7 @@ def mark_single(request, session_id):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin_supervisor",
-)
+@capability_required("attendance.mark")
 @require_POST
 def mark_all_present(request, session_id):
     """HTMX: الكل حاضر بضغطة واحدة"""
@@ -339,15 +304,7 @@ def mark_all_present(request, session_id):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin_supervisor",
-)
+@capability_required("attendance.mark")
 @require_POST
 def complete_session(request, session_id):
     """إنهاء الحصة"""
@@ -362,15 +319,7 @@ def complete_session(request, session_id):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "admin_supervisor",
-)
+@capability_required("attendance.mark")
 def session_summary(request, session_id):
     """ملخص الحصة — HTMX partial"""
     school = request.user.get_school()
@@ -382,7 +331,7 @@ def session_summary(request, session_id):
 
 
 @login_required
-@role_required(OPERATIONS_REPORTS)
+@capability_required("operations.reports")
 def daily_report(request):
     """تقرير الغياب اليومي — للمدير والمنسق"""
     from django.db.models import Count
