@@ -11,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import urlencode
 from django.views.decorators.http import require_http_methods
 
 from core.academic_calendar import academic_year_for
@@ -81,8 +82,25 @@ def sections(request):
     return render(
         request,
         "student_info/sections.html",
-        {"groups": groups, "year": year, "school": school},
+        {
+            "groups": groups,
+            "cards": [_section_card(g, year) for g in groups],
+            "subtitle": f"اختر شعبةً ثمّ طالباً — {year}",
+            "year": year,
+            "school": school,
+        },
     )
+
+
+def _section_card(group, year):
+    """عنوانُ بطاقة الشعبة وعددُها ورابطُها — نصٌّ مركّبٌ يُبنى هنا لا في القالب."""
+    url = reverse("student_info:section_students", args=[group.id])
+    return {
+        "group": group,
+        "title": f"{group.grade[1:]}/{group.section}",
+        "count": f"{group.student_count} طالباً",
+        "href": f"{url}?{urlencode({'year': year})}",
+    }
 
 
 @login_required
@@ -100,6 +118,8 @@ def section_students(request, class_id):
         "student_info/section_students.html",
         {
             "group": group,
+            "title": f"{group.get_grade_display()} — الشعبة {group.section}",
+            "subtitle": " · ".join(filter(None, [group.get_track_display(), str(year)])),
             "enrollments": services.students_of_section(group),
             "year": year,
         },
@@ -119,6 +139,7 @@ def student_file(request, student_id):
 
     grouped = services.notes_by_category(student, year)
     _audit_sensitive_read(request, student, [c for c, notes in grouped.items() if notes])
+    class_group = services.current_class_group(student, year)
 
     return render(
         request,
@@ -126,7 +147,8 @@ def student_file(request, student_id):
         {
             "student": student,
             "year": year,
-            "class_group": services.current_class_group(student, year),
+            "class_group": class_group,
+            "subtitle": _file_subtitle(class_group, year),
             "results": services.student_results(student, year),
             "average": services.student_average(student, year),
             "note_groups": [
@@ -137,6 +159,14 @@ def student_file(request, student_id):
             "can_write": writable_categories(request.user),
         },
     )
+
+
+def _file_subtitle(class_group, year):
+    """«الصفّ — الشعبة · المسار · العام» — ومن لا شعبةَ له هذا العام: العامُ وحده."""
+    if not class_group:
+        return str(year)
+    head = f"{class_group.get_grade_display()} — الشعبة {class_group.section}"
+    return " · ".join(filter(None, [head, class_group.get_track_display(), str(year)]))
 
 
 # ── المستويات التعليمية وربطها بالتحصيل ──────────────────────────────
@@ -162,6 +192,8 @@ def levels(request):
             "grades": grades,
             "tracks": tracks,
             "bands": services.ACHIEVEMENT_BANDS,
+            "band_kpis": services.band_kpis(data["overall"]),
+            "subtitle": f"{data['total']} نتيجةً مرصودة — {year}",
             "data": data,
         },
     )

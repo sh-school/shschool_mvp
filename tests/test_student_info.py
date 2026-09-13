@@ -98,6 +98,21 @@ def test_a_student_without_a_result_has_no_band():
     assert band_for(None) is None
 
 
+def test_each_band_is_drawn_by_a_status_tone_not_a_fixed_colour():
+    """الشريحةُ نغمةُ حالةٍ لها صنفٌ معرَّف — لا رقمٌ سداسيٌّ لا ينقلب ليلاً.
+
+    والإجمالُ يرسمها بطاقاتٍ بألوان `kpi` المتاحة، والدنيا حدُّها «دون 50».
+    """
+    from core.templatetags.ui import KPI_TONES
+    from student_info.services import ACHIEVEMENT_BANDS, band_kpis
+
+    assert [tone for *_, tone in ACHIEVEMENT_BANDS] == ["success", "info", "warning", "danger"]
+    cards = band_kpis({"advanced": 3, "proficient": 2, "basic": 1, "below": 4})
+    assert [c["value"] for c in cards] == [3, 2, 1, 4]
+    assert all(c["tone"] in KPI_TONES for c in cards)
+    assert [c["sub"] for c in cards] == ["80 فأعلى", "65 فأعلى", "50 فأعلى", "دون 50"]
+
+
 # ── من يكتب: أهلُ الخانة وحدهم ────────────────────────────────────────
 
 

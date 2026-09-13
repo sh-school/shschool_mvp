@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 
 {% block title %}ملفّ {{ student.full_name }}{% endblock %}
 
@@ -8,37 +9,24 @@
 
 {% block content %}
 <div class="exec-dash">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="users" %} {{ student.full_name }}</h1>
-      <p class="exec-subtitle">
-        {% if class_group %}{{ class_group.get_grade_display }} — الشعبة {{ class_group.section }}{% if class_group.track %} · {{ class_group.get_track_display }}{% endif %} · {% endif %}{{ year }}
-      </p>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      {% if can_write %}
-      <a href="{% url 'student_info:note_create' student.id %}?year={{ year }}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} إضافة ملاحظة</a>
-      {% endif %}
-      {% if class_group %}
-      <a href="{% url 'student_info:section_students' class_group.id %}?year={{ year }}" class="btn-secondary btn-sm">رجوع للشعبة</a>
-      {% endif %}
-    </div>
-  </div>
+  {% page_header student.full_name subtitle=subtitle icon="users" %}
+    {% if can_write %}
+    <a href="{% url 'student_info:note_create' student.id %}?year={{ year }}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} إضافة ملاحظة</a>
+    {% endif %}
+    {% if class_group %}
+    <a href="{% url 'student_info:section_students' class_group.id %}?year={{ year }}" class="btn-secondary btn-sm">رجوع للشعبة</a>
+    {% endif %}
+  {% endpage_header %}
 
-  {# ── التحصيل ومستواه ── #}
-  <div class="form-card" style="margin-bottom:var(--sp-6)">
-    <div class="card-header">
-      <div class="card-header-icon">{% include "components/icon.html" with name="bar-chart" %}</div>
-      <h3 class="card-header-title">التحصيل ومستواه</h3>
-      {% if average %}
-      <span class="status-badge" style="background:{{ average.band_color }};color:#fff;margin-inline-start:auto">
-        المتوسّط {{ average.value }} — {{ average.band_label }}
-      </span>
-      {% endif %}
-    </div>
+  {# ── التحصيل ومستواه: المتوسّطُ بلون شريحته، ثمّ نتيجةُ كلّ مادّة ── #}
+  {% if average %}
+  {% kpi_strip label="متوسّط التحصيل" %}
+    {% kpi "المتوسّط السنوي" average.value sub=average.band_label tone=average.kpi_tone title="متوسّط المجموع السنوي في موادّ الطالب — من 100" %}
+  {% endkpi_strip %}
+  {% endif %}
 
-    {% if results %}
-    <div class="table-wrap-scroll">
+  {% section_card "التحصيل ومستواه" meta=results|length icon="bar-chart" flush=True empty="لم تُرصد نتائج سنوية لهذا الطالب بعد" %}{% if results %}
+    <div class="table-wrap">
       <table>
         <thead>
           <tr>
@@ -53,74 +41,52 @@
           {% for r in results %}
           <tr>
             <td>{{ r.subject }}</td>
-            <td class="col-center">{{ r.total|default:"—" }}</td>
+            <td class="num">{{ r.total|default:"—" }}</td>
             <td class="col-center">{{ r.letter }}</td>
-            <td class="col-center">
-              <span class="status-badge" style="background:{{ r.band_color }};color:#fff">{{ r.band_label }}</span>
-            </td>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ r.status }}</td>
+            <td class="col-center"><span class="status-badge status-{{ r.band_tone }}">{{ r.band_label }}</span></td>
+            <td class="col-center text-xs">{{ r.status }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-    {% else %}
-    {% include "components/empty_state.html" with title="لم تُرصد نتائج سنوية لهذا الطالب بعد" %}
-    {% endif %}
-  </div>
+  {% endif %}{% endsection_card %}
 
   {# ── ملاحظات الجهات الخمس ── #}
   {% for g in note_groups %}
-  <div class="form-card" style="margin-bottom:var(--sp-4)">
-    <div class="card-header">
-      <div class="card-header-icon">{% include "components/icon.html" with name="file-pen" %}</div>
-      <h3 class="card-header-title">{{ g.label }}</h3>
-      <span class="status-badge status-gray" style="margin-inline-start:auto">{{ g.notes|length }}</span>
-    </div>
-
-    {% if g.notes %}
-    <div class="table-wrap-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th style="width:110px" class="col-center">التاريخ</th>
-            <th style="width:200px">العنوان</th>
-            <th>النصّ</th>
-            <th class="col-center" style="width:160px">الكاتب</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for n in g.notes %}
-          <tr>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ n.occurred_on|date:"d/m/Y" }}</td>
-            <td style="font-weight:600">{{ n.title }}</td>
-            <td style="white-space:pre-line">{{ n.body }}</td>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ n.created_by.full_name|default:"—" }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <p style="margin:0;padding:var(--sp-4);color:var(--text-secondary)">لا ملاحظات من هذه الجهة.</p>
-    {% endif %}
-  </div>
+    {% section_card g.label meta=g.notes|length icon="file-pen" flush=True empty="لا ملاحظات من هذه الجهة" %}{% if g.notes %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="col-center sinfo-col-date">التاريخ</th>
+              <th class="sinfo-col-title">العنوان</th>
+              <th>النصّ</th>
+              <th class="col-center sinfo-col-author">الكاتب</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for n in g.notes %}
+            <tr>
+              <td class="col-center text-xs">{{ n.occurred_on|date:"d/m/Y" }}</td>
+              <td class="font-semibold">{{ n.title }}</td>
+              <td class="sinfo-note-body">{{ n.body }}</td>
+              <td class="col-center text-xs">{{ n.created_by.full_name|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}{% endsection_card %}
   {% endfor %}
 
   {# ── الأنشطة ── #}
-  <div class="form-card">
-    <div class="card-header">
-      <div class="card-header-icon">{% include "components/icon.html" with name="activity" %}</div>
-      <h3 class="card-header-title">الأنشطة</h3>
-      <span class="status-badge status-gray" style="margin-inline-start:auto">{{ activities|length }}</span>
-    </div>
-
-    {% if activities %}
-    <div class="table-wrap-scroll">
+  {% section_card "الأنشطة" meta=activities|length icon="activity" flush=True empty="لا أنشطة مسجّلة لهذا الطالب هذا العام" %}{% if activities %}
+    <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th style="width:110px" class="col-center">التاريخ</th>
+            <th class="col-center sinfo-col-date">التاريخ</th>
             <th>النشاط</th>
             <th class="col-center">النوع</th>
             <th class="col-center">النطاق</th>
@@ -129,18 +95,15 @@
         <tbody>
           {% for a in activities %}
           <tr>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ a.date|date:"d/m/Y" }}</td>
+            <td class="col-center text-xs">{{ a.date|date:"d/m/Y" }}</td>
             <td>{{ a.title }}</td>
             <td class="col-center"><span class="status-badge status-info">{{ a.get_activity_type_display }}</span></td>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ a.get_scope_display }}</td>
+            <td class="col-center text-xs">{{ a.get_scope_display }}</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-    {% else %}
-    <p style="margin:0;padding:var(--sp-4);color:var(--text-secondary)">لا أنشطة مسجّلة لهذا الطالب هذا العام.</p>
-    {% endif %}
-  </div>
+  {% endif %}{% endsection_card %}
 </div>
 {% endblock %}
