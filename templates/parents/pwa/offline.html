@@ -1,3 +1,4 @@
+{% load brand_tags %}
 {% load static %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -6,14 +7,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>غير متصل — SchoolOS</title>
   <style>
-    body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #0F2347;
-           color: #e2e8f0; display: flex; align-items: center; justify-content: center;
+    {% comment %}
+    كانت صفحةُ «غير متصل» في تطبيق الوليّ كحليّةً (#0F2347) — لونٌ لا أثرَ له في
+    المنصّة، وملفُّ تثبيت التطبيق نفسُه عنّابيّ. فصارت على العلامة.
+    {% endcomment %}
+    body { font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif; background: {% brand_color "MAROON" %};
+           color: {% brand_color "ON_FILL" %}; display: flex; align-items: center; justify-content: center;
            min-height: 100vh; margin: 0; text-align: center; padding: 24px; }
-    .card { background: #1e3a5f; border-radius: 20px; padding: 48px 32px; max-width: 360px; width: 100%; }
+    .card { background: {% brand_color "MAROON_DARK" %}; border-radius: 20px; padding: 48px 32px; max-width: 360px; width: 100%; }
     .icon { font-size: 64px; margin-bottom: 16px; }
     h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
-    p  { color: #94a3b8; font-size: 14px; line-height: 1.7; margin-bottom: 24px; }
-    button { background: #8A1538; color: white; border: none; border-radius: 12px;
+    p  { color: {% brand_color "MAROON_BORDER" %}; font-size: 14px; line-height: 1.7; margin-bottom: 24px; }
+    button { background: {% brand_color "SURFACE" %}; color: {% brand_color "MAROON" %}; border: none; border-radius: 12px;
              padding: 12px 28px; font-size: 15px; font-weight: 600; cursor: pointer;
              font-family: inherit; }
     button:active { opacity: 0.8; }

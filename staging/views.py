@@ -15,7 +15,9 @@ from django.utils import timezone
 
 from assessments.models import Assessment
 from assessments.services import GradeService
+from core import brand
 from core.academic_calendar import academic_year_for
+from core.export_utils import excel_table_styles, xl_fill, xl_font
 from core.models import CustomUser, StudentEnrollment
 from core.permissions import role_required
 
@@ -23,7 +25,7 @@ from .models import ImportLog
 
 try:
     import openpyxl
-    from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+    from openpyxl.styles import Alignment
 
     OPENPYXL_OK = True
 except ImportError:
@@ -134,14 +136,14 @@ def download_grade_template(request, assessment_id):
     ws.sheet_view.rightToLeft = True
 
     # ── الستايل ──
-    header_fill = PatternFill("solid", fgColor="0F2347")
-    header_font = Font(bold=True, color="FFFFFF", size=11)
-    info_fill = PatternFill("solid", fgColor="E8F0FE")
+    table = excel_table_styles()
+    header_fill = table.header_fill
+    header_font = table.header_font
+    info_fill = xl_fill(brand.MAROON_BG)
     center_align = Alignment(horizontal="center", vertical="center")
     right_align = Alignment(horizontal="right", vertical="center")
 
-    thin = Side(style="thin", color="CCCCCC")
-    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    border = table.border
 
     # ── معلومات التقييم (صف 1–4) ──
     info_rows = [
@@ -151,9 +153,9 @@ def download_grade_template(request, assessment_id):
         ("الدرجة القصوى", str(assessment.max_grade)),
     ]
     for i, (label, val) in enumerate(info_rows, start=1):
-        ws.cell(i, 1, label).font = Font(bold=True, size=10)
+        ws.cell(i, 1, label).font = xl_font(bold=True)
         ws.cell(i, 2, val).fill = info_fill
-        ws.cell(i, 2).font = Font(size=10)
+        ws.cell(i, 2).font = xl_font()
 
     # ── رأس الجدول (صف 6) ──
     headers = ["الرقم الشخصي", "اسم الطالب", "الدرجة", "غائب (1/0)", "ملاحظة"]
@@ -181,6 +183,7 @@ def download_grade_template(request, assessment_id):
 
         for col in range(1, 6):
             ws.cell(row_idx, col).border = border
+            ws.cell(row_idx, col).font = table.cell_font
 
     # ── قفل العمودين A وB ──
     ws.protection.sheet = False  # يظل قابلاً للتعديل على C:E
