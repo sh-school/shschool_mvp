@@ -21,7 +21,7 @@
   </div>
 
   {# ── KPI Strip ── #}
-  <div class="kpi-strip" style="grid-template-columns:repeat(4,1fr)">
+  <div class="kpi-strip">
     <div class="kpi-mini kpi-maroon">
       <div class="kpi-mini-label">إجمالي الكتب</div>
       <div class="kpi-mini-value">{{ total_books }}</div>
@@ -158,10 +158,9 @@
   </div>
 
   {# ── Quick Links ── #}
-  <div class="quick-links" style="grid-template-columns:repeat(3,1fr)">
+  <div class="quick-links quick-links--few">
     <a href="{% url 'library:borrow_book' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="plus-circle" %}</span> إعارة جديدة</a>
     <a href="{% url 'library:book_list' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="book-open" %}</span> قائمة الكتب</a>
-    <a href="{% url 'library:book_list' %}" class="ql-item"><span class="ql-icon">{% include "components/icon.html" with name="corner-down-left" %}</span> إرجاع كتاب</a>
   </div>
 
 </div>

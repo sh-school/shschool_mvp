@@ -218,7 +218,12 @@ def notification_inbox(request):
     if event_filter:
         qs = qs.filter(event_type=event_filter)
 
-    notifications = qs.order_by("-created_at")[:100]
+    notifications = list(qs.order_by("-created_at")[:100])
+    # العاجلُ غيرُ المقروء يُثبَّت أعلى الصندوق **ويُطرح من القائمة تحته**.
+    # كان القالبُ يعرضه في الموضعين، ويفتح قسمَه بـ`forloop.first` للقائمة كلّها —
+    # فلا يُفتح إلّا إن كان أوّلُ إشعارٍ عاجلاً، ويتكرّر `id` العنصر في الصفحة.
+    urgent = [n for n in notifications if n.priority == "urgent" and not n.is_read]
+    rest = [n for n in notifications if not (n.priority == "urgent" and not n.is_read)]
     unread_count = InAppNotification.objects.unread_count(request.user)
 
     # فلترة أنواع الإشعارات حسب الدور
@@ -247,6 +252,8 @@ def notification_inbox(request):
         "notifications/inbox.html",
         {
             "notifications": notifications,
+            "urgent_notifications": urgent,
+            "other_notifications": rest,
             "unread_count": unread_count,
             "event_filter": event_filter,
             "event_types": visible_types,
