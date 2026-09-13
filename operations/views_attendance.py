@@ -21,6 +21,20 @@ from .services import AttendanceService, ScheduleService
 
 logger = logging.getLogger(__name__)
 
+#: لونُ شارة الحضور وحدِّ خليّته — ربطٌ مغلق: حالةٌ لا يعرفها يأخذ الرماديّ.
+#: كان القالبُ يكتب `status-{{ status }}` فتصير الحالةُ اسمَ صنفٍ لا تعريفَ له
+#: (`status-present`، `status-unmarked`)، ويكتب المعذورَ `status-purple` غيرَ المعرَّف.
+ATTENDANCE_TONES = {
+    "present": "success",
+    "absent": "danger",
+    "late": "warning",
+    "excused": "info",
+}
+
+
+def attendance_tone(status: str) -> str:
+    return ATTENDANCE_TONES.get(status, "gray")
+
 
 @login_required
 @role_required(
@@ -96,6 +110,7 @@ def schedule(request):
             .order_by("start_time")
         )
         teacher_filter = class_filter = status_filter = period_filter = show_all = ""
+        all_count = completed_count = 0
 
     now = timezone.now().time()
     next_session = None
@@ -125,10 +140,18 @@ def schedule(request):
             school=school, academic_year=academic_year_for_school(school), is_active=True
         ).in_school_order()
 
+    open_count = all_count - completed_count
+    date_label = f"{selected_date:%d/%m/%Y}"
     return render(
         request,
         "teacher/schedule.html",
         {
+            # سطرُ الترويسة: التاريخُ مرّةً — كان فيها وفي شارةٍ بجوارها.
+            "date_label": date_label,
+            "teacher_subtitle": f"{request.user.full_name} · {date_label}",
+            "open_count": open_count,
+            # ما بقي بلا إنهاءٍ ينبّه، والصفرُ أخضر.
+            "open_tone": "orange" if open_count else "green",
             "sessions": sessions,
             "selected_date": selected_date,
             "today": timezone.now().date(),
@@ -142,12 +165,21 @@ def schedule(request):
             "status_filter": status_filter,
             "period_filter": period_filter,
             "show_all": show_all,
-            "all_count": all_count if is_leader else 0,
-            "completed_count": completed_count if is_leader else 0,
+            "all_count": all_count,
+            "completed_count": completed_count,
             "filter_teachers": filter_teachers,
             "filter_classes": filter_classes,
         },
     )
+
+
+def _session_heading(session) -> dict:
+    """عنوانُ صفحة الحضور وسطرُها — نصٌّ مركّبٌ يُبنى هنا لا في الترويسة."""
+    subject = (session.subject.name_ar if session.subject else "") or "حصة"
+    return {
+        "page_title": f"{subject} — {session.class_group}",
+        "session_label": f"{session.date:%d/%m/%Y} · {session.start_time:%H:%M}",
+    }
 
 
 @login_required
@@ -191,6 +223,8 @@ def attendance_view(request, session_id):
         }
         for e in enrollments
     ]
+    for row in students_data:
+        row["tone"] = attendance_tone(row["status"])
     summary = AttendanceService.get_session_summary(session)
     if not can_record(request.user, session):
         # اطّلاعٌ لا رصد: يرى المعلّمُ ما رصده مشرفُ الجناح، ولا زرَّ يكتب.
@@ -205,6 +239,7 @@ def attendance_view(request, session_id):
                 ],
                 "summary": summary,
                 "recorded": bool(existing),
+                **_session_heading(session),
             },
         )
     view_mode = request.GET.get("view", "list")
@@ -219,6 +254,7 @@ def attendance_view(request, session_id):
             "summary": summary,
             "existing_count": len(existing),
             "view_mode": view_mode,
+            **_session_heading(session),
         },
     )
 
@@ -277,6 +313,7 @@ def mark_single(request, session_id):
             "student": student,
             "attendance": att,
             "status": att.status,
+            "tone": attendance_tone(att.status),
             "session": session,
             "summary": summary,
         },
@@ -324,6 +361,8 @@ def mark_all_present(request, session_id):
         }
         for e in enrollments
     ]
+    for row in students_data:
+        row["tone"] = attendance_tone(row["status"])
     summary = AttendanceService.get_session_summary(session)
     view_mode = request.POST.get("view", "list")
     partial_template = (

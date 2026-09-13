@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}تسجيل حضور — {{ session.class_group }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -9,95 +10,75 @@
 {% block content %}
 <div class="exec-dash">
 
-{# ── Header ── #}
-<div class="exec-header">
-  <div>
-    <h1 class="page-title">
-      {% include "components/icon.html" with name="list-checks" %} {{ session.subject.name_ar|default:"حصة" }} — {{ session.class_group }}
-    </h1>
-    <p class="text-gray-500 text-sm mt-1">{{ session.date }} · {{ session.start_time|time:"H:i" }}</p>
-  </div>
-  <div class="flex items-center gap-2 flex-wrap">
-    <span class="exec-date">{{ session.date }}</span>
-    <span class="btn-primary text-xs px-3 py-1.5 cursor-default">{% include "components/icon.html" with name="list-checks" %} قائمة</span>
-    <a href="?view=grid" class="btn-secondary text-xs px-3 py-1.5">{% include "components/icon.html" with name="bar-chart" %} شبكة</a>
-  </div>
-</div>
+{% page_header page_title subtitle=session_label icon="list-checks" %}
+  <nav class="period-switch" aria-label="طريقة العرض">
+    <span class="period-switch__item is-current" aria-current="page">{% include "components/icon.html" with name="list-checks" %} قائمة</span>
+    <a href="?view=grid" class="period-switch__item">{% include "components/icon.html" with name="bar-chart" %} شبكة</a>
+  </nav>
+{% endpage_header %}
 
-{# ── KPI Strip (HTMX updates) ── #}
+{# ── ملخّص الحضور — يُستبدل داخله كلّما رُصد طالب ── #}
 <div id="summary-widget"
      hx-get="{% url 'session_summary' session.id %}"
      hx-trigger="refresh from:body"
-     hx-swap="innerHTML transition:false"
-     class="kpi-strip">
+     hx-swap="innerHTML transition:false">
   {% include "teacher/partials/summary_widget.html" %}
 </div>
 
-{# ── Search & Bulk Actions ── #}
-<div class="filter-bar">
-  <div class="flex flex-wrap items-center gap-3 w-full">
-    <div class="relative flex-1 min-w-[180px] max-w-xs">
-      <input type="text" id="search-input" placeholder="بحث عن طالب..."
-             class="form-control text-sm w-full pe-9"
-             autocomplete="off" />
-      <span class="absolute start-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-        {% include "components/icon.html" with name="search" %}
-      </span>
-    </div>
-    <span class="text-sm text-secondary">{{ students_data|length }} طالب</span>
-  </div>
-</div>
+{# ── البحث والإجراءات ── #}
+<div class="filter-bar att-toolbar">
+  <input type="text" id="search-input" placeholder="بحث عن طالب..."
+         class="form-control form-control-sm att-toolbar__search"
+         aria-label="بحث عن طالب" autocomplete="off" />
 
-<div class="flex flex-wrap items-center gap-2">
   <form method="post" action="{% url 'mark_all_present' session.id %}"
         hx-post="{% url 'mark_all_present' session.id %}"
         hx-target="#students-list"
         hx-swap="outerHTML">
     {% csrf_token %}
-    <button type="submit"
-            class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
-      <span>{% include "components/icon.html" with name="check" %}</span> الكل حاضر
+    <button type="submit" class="btn-success btn-sm">
+      {% include "components/icon.html" with name="check" %} الكل حاضر
     </button>
   </form>
 
   {% if session.status != 'completed' %}
-  <form method="post" action="{% url 'complete_session' session.id %}"
-        class="mr-auto">
+  <form method="post" action="{% url 'complete_session' session.id %}" class="att-toolbar__end">
     {% csrf_token %}
-    <button type="submit"
-            class="bg-maroon hover:bg-skyline text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+    <button type="submit" class="btn-primary btn-sm">
       إنهاء الحصة {% include "components/icon.html" with name="check" %}
     </button>
   </form>
   {% else %}
-  <span class="mr-auto status-badge status-gray">{% include "components/icon.html" with name="check" %} الحصة منتهية</span>
+  <span class="att-toolbar__end status-badge status-gray">{% include "components/icon.html" with name="check" %} الحصة منتهية</span>
   {% endif %}
 </div>
 
-{# ── Students List ── #}
-<div id="students-list" class="card-qatar overflow-hidden">
-  <div class="divide-y divide-gray-100 dark:divide-slate-700">
+{# ── قائمة الطلاب — `#students-list` يستبدله «الكل حاضر» بنفسه ── #}
+{% section_card "الطلاب" meta=students_data|length icon="users" flush=True empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}
+  <div id="students-list" class="att-list">
     {% for item in students_data %}
-    {% include "teacher/partials/student_row.html" with student=item.student attendance=item.attendance status=item.status session=session only %}
+    {% include "teacher/partials/student_row.html" with student=item.student attendance=item.attendance status=item.status tone=item.tone session=session only %}
     {% endfor %}
   </div>
-</div>
+{% endif %}{% endsection_card %}
 
 </div>{# end .exec-dash #}
 {% endblock %}
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
-  /* ── Client-side student search (smart Arabic) ── */
+  /* ── Client-side student search (smart Arabic) ──
+     الأسطرُ تُقرأ عند كلّ كتابة لا مرّةً عند التحميل: «الكل حاضر» يستبدل القائمةَ
+     كلَّها، ورصدُ طالبٍ يستبدل سطرَه — فالقائمةُ المحفوظةُ سلفاً تشير إلى عناصرَ
+     خرجت من الصفحة، ويتوقّف البحثُ بعد أوّل ضغطة. */
   var searchEl = document.getElementById('search-input');
   if (!searchEl) return;
 
-  var rows = document.querySelectorAll('#students-list > div > div[id^="student-"]');
   searchEl.addEventListener('input', function(){
     var q = this.value;
-    rows.forEach(function(row){
-      var name = (row.querySelector('.font-medium') || {}).textContent || '';
-      var nid  = (row.querySelector('.font-mono') || {}).textContent || '';
+    document.querySelectorAll('#students-list .att-row').forEach(function(row){
+      var name = (row.querySelector('.att-row__name') || {}).textContent || '';
+      var nid  = (row.querySelector('.att-row__nid') || {}).textContent || '';
       var ok = window.smartMatch(q, name + ' ' + nid);
       row.style.display = ok ? '' : 'none';
     });

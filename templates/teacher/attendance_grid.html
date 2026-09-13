@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}تسجيل حضور (شبكة) — {{ session.class_group }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -7,76 +8,59 @@
 
 {% block content %}
 {% csrf_token %}
+<div class="exec-dash">
 
-{# ── شريط العنوان ── #}
-<div class="flex flex-wrap items-center gap-3 mb-5">
-  <a href="{% url 'teacher_schedule' %}" class="text-gray-400 hover:text-gray-600 text-sm">← الجدول</a>
-  <span class="text-gray-300">/</span>
-  <h1 class="page-title">
-    {% include "components/icon.html" with name="list-checks" %} {{ session.subject.name_ar|default:"حصة" }} — {{ session.class_group }}
-  </h1>
-  <span class="text-sm text-gray-500">{{ session.date }} · {{ session.start_time|time:"H:i" }}</span>
+{% page_header page_title subtitle=session_label icon="list-checks" %}
+  <a href="{% url 'teacher_schedule' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="arrow-right" %} الجدول</a>
+  <nav class="period-switch" aria-label="طريقة العرض">
+    <a href="?view=list" class="period-switch__item">{% include "components/icon.html" with name="list-checks" %} قائمة</a>
+    <span class="period-switch__item is-current" aria-current="page">{% include "components/icon.html" with name="bar-chart" %} شبكة</span>
+  </nav>
+{% endpage_header %}
 
-  {# تبديل العرض #}
-  <div class="mr-auto flex items-center gap-2">
-    <a href="?view=list"
-       class="btn-secondary text-xs px-3 py-1.5">
-      {% include "components/icon.html" with name="list-checks" %} قائمة
-    </a>
-    <span class="btn-primary text-xs px-3 py-1.5 cursor-default">
-      {% include "components/icon.html" with name="bar-chart" %} شبكة
-    </span>
-  </div>
-</div>
-
-{# ── ملخص الحضور (تحديث كل 10 ثوانٍ) ── #}
+{# ── ملخّص الحضور — يُستبدل داخله كلّما رُصد طالب ── #}
 <div id="summary-widget"
      hx-get="{% url 'session_summary' session.id %}"
      hx-trigger="refresh from:body"
-     hx-swap="innerHTML transition:false"
-     class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+     hx-swap="innerHTML transition:false">
   {% include "teacher/partials/summary_widget.html" %}
 </div>
 
 {# ── أزرار الإجراءات العامة ── #}
-<div class="flex flex-wrap items-center gap-2 mb-4">
+<div class="filter-bar att-toolbar">
   <form method="post" action="{% url 'mark_all_present' session.id %}"
         hx-post="{% url 'mark_all_present' session.id %}"
         hx-target="#grid-container"
         hx-swap="outerHTML">
     {% csrf_token %}
     <input type="hidden" name="view" value="grid">
-    <button type="submit"
-            class="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+    <button type="submit" class="btn-success btn-sm">
       {% include "components/icon.html" with name="check" %} الكل حاضر
     </button>
   </form>
 
-  <span class="text-sm text-gray-500">{{ students_data|length }} طالب</span>
-
   {% if session.status != 'completed' %}
-  <form method="post" action="{% url 'complete_session' session.id %}"
-        class="mr-auto">
+  <form method="post" action="{% url 'complete_session' session.id %}" class="att-toolbar__end">
     {% csrf_token %}
-    <button type="submit"
-            class="bg-maroon hover:opacity-90 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+    <button type="submit" class="btn-primary btn-sm">
       إنهاء الحصة {% include "components/icon.html" with name="check" %}
     </button>
   </form>
   {% else %}
-  <span class="mr-auto text-sm status-badge status-gray">{% include "components/icon.html" with name="check" %} الحصة منتهية</span>
+  <span class="att-toolbar__end status-badge status-gray">{% include "components/icon.html" with name="check" %} الحصة منتهية</span>
   {% endif %}
 </div>
 
-{# ── شبكة الطلاب ── #}
-<div id="grid-container"
-     class="grid gap-3"
-     style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))">
-  {% for item in students_data %}
-  {% include "teacher/partials/grid_cell.html" with student=item.student attendance=item.attendance status=item.status session=session only %}
-  {% endfor %}
-</div>
+{# ── شبكة الطلاب — `#grid-container` يستبدله «الكل حاضر» بنفسه ── #}
+{% section_card "الطلاب" meta=students_data|length icon="users" empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}
+  <div id="grid-container" class="att-grid">
+    {% for item in students_data %}
+    {% include "teacher/partials/grid_cell.html" with student=item.student attendance=item.attendance status=item.status tone=item.tone session=session only %}
+    {% endfor %}
+  </div>
+{% endif %}{% endsection_card %}
 
+</div>
 {% endblock %}
 
 {% block extra_js %}

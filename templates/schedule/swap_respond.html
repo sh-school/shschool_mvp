@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}رد على طلب تبديل{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,16 +7,12 @@
 {% endblock %}
 
 {% block content %}
-<div class="respond-page">
-  <a href="{% url 'swap_list' %}" class="back-link">&rarr; العودة لقائمة التبديلات</a>
+<div class="exec-dash respond-page">
+  {% page_header "طلب تبديل حصة" subtitle=request_label icon="refresh" %}
+    <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="arrow-right" %} قائمة التبديلات</a>
+  {% endpage_header %}
 
-  <div class="respond-card">
-    <div class="respond-header">
-      <h1 class="page-title">{% include "components/icon.html" with name="refresh" %} طلب تبديل حصة</h1>
-      <p>من {{ swap.teacher_a.full_name }} &mdash; {{ swap.created_at|date:"Y/m/d H:i" }}</p>
-    </div>
-
-    <div class="respond-body">
+  {% section_card "الحصّتان" meta=swap.get_status_display icon="refresh" %}
       <div class="swap-detail">
         <div class="swap-side">
           <div class="swap-side-label">حصة المعلم أ</div>
@@ -41,14 +38,11 @@
       </div>
 
       {% if swap.reason %}
-      <div class="swap-reason">
-        <strong>سبب الطلب:</strong>
-        {{ swap.reason }}
-      </div>
+      <p class="form-note is-warning"><span><strong>سبب الطلب:</strong> {{ swap.reason }}</span></p>
       {% endif %}
 
       {% if swap.status == "pending_b" %}
-      <div class="reject-reason" id="reject-section" style="display:none">
+      <div class="reject-reason" id="reject-section" hidden>
         <label for="rejection_reason">سبب الرفض (اختياري):</label>
         <textarea name="rejection_reason" id="rejection_reason" form="reject-form" placeholder="اكتب سبب الرفض إن وجد..."></textarea>
       </div>
@@ -64,12 +58,9 @@
         </form>
       </div>
       {% else %}
-      <div class="text-center p-4 text-sm text-gray-500">
-        هذا الطلب بحالة: <strong>{{ swap.get_status_display }}</strong> &mdash; لا يمكن الرد عليه الآن.
-      </div>
+      <p class="form-note respond-closed">هذا الطلب بحالة: <strong>{{ swap.get_status_display }}</strong> &mdash; لا يمكن الرد عليه الآن.</p>
       {% endif %}
-    </div>
-  </div>
+  {% endsection_card %}
 </div>
 {% endblock %}
 
@@ -83,8 +74,8 @@
     var section = document.getElementById("reject-section");
     if (!btn || !section) return;
     btn.addEventListener("click", function () {
-      if (section.style.display !== "none") return;
-      section.style.display = "block";
+      if (!section.hidden) return;
+      section.hidden = false;
       btn.textContent = "تأكيد الرفض";
       btn.type = "submit";
     });

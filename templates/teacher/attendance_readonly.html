@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}حضور — {{ session.class_group }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -9,20 +10,13 @@
 {% block content %}
 <div class="exec-dash">
 
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">
-        {% include "components/icon.html" with name="list-checks" %} {{ session.subject.name_ar|default:"حصة" }} — {{ session.class_group }}
-      </h1>
-      <p class="exec-subtitle">{{ session.date }} · {{ session.start_time|time:"H:i" }}</p>
-    </div>
-  </div>
+  {% page_header page_title subtitle=session_label icon="list-checks" %}{% endpage_header %}
 
-  <div class="wing-warn">
+  <p class="form-note is-warning">
     {% include "components/icon.html" with name="alert-triangle" %}
-    رصدُ الغياب لمشرف الجناح بقرار إدارة المدرسة — هذه الشاشة للاطّلاع.
-    {% if not recorded %}ولم يُرصد هذا اليومُ بعد.{% endif %}
-  </div>
+    <span>رصدُ الغياب لمشرف الجناح بقرار إدارة المدرسة — هذه الشاشة للاطّلاع.
+    {% if not recorded %}ولم يُرصد هذا اليومُ بعد.{% endif %}</span>
+  </p>
 
   <ol class="rec-list">
     {% for item in students_data %}
