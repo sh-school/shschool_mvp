@@ -25,7 +25,7 @@
              placeholder="بحث بالاسم..." autocomplete="off" aria-label="بحث بالاسم">
       <ul class="plain-list is-scroll">
         {% for s in top_students %}
-          <li class="plain-list__row filterable-row" data-text="{{ s.student__full_name }}">
+          <li class="plain-list__row js-filter-row" data-text="{{ s.student__full_name }}">
             <a href="{% url 'behavior:behavior_report' s.student__id %}" class="plain-list__title link-maroon" title="التقرير السلوكي">{{ s.student__full_name }}</a>
             <span class="status-badge status-maroon">{{ s.count }}</span>
           </li>
@@ -55,7 +55,7 @@
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   if (typeof window.smartFilter === 'function') {
-    window.smartFilter('topStudentsSearch', '.filterable-row', { textAttr: 'data-text' });
+    window.smartFilter('topStudentsSearch', '.js-filter-row', { textAttr: 'data-text' });
   }
 });
 </script>

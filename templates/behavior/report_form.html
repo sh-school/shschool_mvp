@@ -25,14 +25,14 @@
 
       <div class="beh-degrees" id="degreePanels">
         {% for panel in degree_panels %}
-        <div class="degree-panel beh-degree kpi-{{ panel.tone }}" data-degree="{{ panel.degree }}" data-color="{{ panel.color }}">
+        <div class="js-degree-panel beh-degree kpi-{{ panel.tone }}" data-degree="{{ panel.degree }}" data-color="{{ panel.color }}">
           <div class="beh-degree__head">
             <span>{{ panel.label }}</span>
-            <span class="degree-count beh-degree__count">{{ panel.items|length }}</span>
+            <span class="js-degree-count beh-degree__count">{{ panel.items|length }}</span>
           </div>
-          <div class="violation-list beh-degree__list">
+          <div class="beh-degree__list">
             {% for vc in panel.items %}
-            <button type="button" class="v-item beh-vitem"
+            <button type="button" class="js-v-item beh-vitem"
                     data-id="{{ vc.id }}" data-degree="{{ panel.degree }}" data-points="{{ vc.points }}" data-name="[{{ vc.code }}] {{ vc.name_ar }}">
               <span class="beh-vitem__code">{{ vc.code }}</span> {{ vc.name_ar }}
             </button>
@@ -58,7 +58,7 @@
                    role="combobox" aria-controls="studentDropdown" aria-expanded="false">
             <div id="studentDropdown" class="beh-combo__list" role="listbox" hidden>
               {% for s in students %}
-              <div class="student-option beh-combo__option" role="option" data-id="{{ s.id }}" data-name="{{ s.full_name }}">{{ s.full_name }}</div>
+              <div class="js-student-option beh-combo__option" role="option" data-id="{{ s.id }}" data-name="{{ s.full_name }}">{{ s.full_name }}</div>
               {% endfor %}
             </div>
           </div>
@@ -122,9 +122,9 @@
  var clearBtn = document.getElementById('clearSelection');
  var searchInput = document.getElementById('violationSearch');
  var searchCount = document.getElementById('searchCount');
- var allItems = document.querySelectorAll('.v-item');
- var allPanels = document.querySelectorAll('.degree-panel');
- var degreeCounts = document.querySelectorAll('.degree-count');
+ var allItems = document.querySelectorAll('.js-v-item');
+ var allPanels = document.querySelectorAll('.js-degree-panel');
+ var degreeCounts = document.querySelectorAll('.js-degree-count');
 
  /* ── بحث ذكي — يفلتر المخالفات أثناء الكتابة ── */
  searchInput.addEventListener('input', function() {
@@ -141,7 +141,7 @@
 
   /* تحديث العدادات */
   degreeCounts.forEach(function(el) {
-   var panel = el.closest('.degree-panel');
+   var panel = el.closest('.js-degree-panel');
    el.textContent = panelVisible[panel.dataset.degree];
   });
 
@@ -161,7 +161,7 @@
    clearMarks();
    item.classList.add('is-selected');
    item.setAttribute('aria-pressed', 'true');
-   item.closest('.degree-panel').classList.add('is-selected');
+   item.closest('.js-degree-panel').classList.add('is-selected');
 
    hiddenId.value = item.dataset.id;
    hiddenLevel.value = item.dataset.degree;
@@ -175,7 +175,7 @@
  var studentSearch = document.getElementById('studentSearchInput');
  var studentDropdown = document.getElementById('studentDropdown');
  var studentSelect = document.getElementById('studentSelect');
- var studentOptions = document.querySelectorAll('.student-option');
+ var studentOptions = document.querySelectorAll('.js-student-option');
 
  function setDropdown(open) {
   studentDropdown.hidden = !open;

@@ -6,21 +6,5 @@
   "legacy_header": {},
   "palette_class": {}
  },
- "undefined_classes": [
-  "badge-status",
-  "degree-count",
-  "degree-panel",
-  "df-badge-status",
-  "df-main-col",
-  "df-sidebar-col",
-  "exg-corner",
-  "filterable-row",
-  "htmx-indicator-spin",
-  "student-option",
-  "subject-group",
-  "table-qatar",
-  "ticket-number-badge",
-  "v-item",
-  "violation-list"
- ]
+ "undefined_classes": []
 }
