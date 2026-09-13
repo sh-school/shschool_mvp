@@ -41,7 +41,7 @@
     </thead>
     <tbody id="teacher-tbody">
       {% for d in teacher_data %}
-      <tr class="filterable-row" data-text="{{ d.teacher.full_name|lower }}">
+      <tr class="js-filter-row" data-text="{{ d.teacher.full_name|lower }}">
         <td class="load-name">{{ d.teacher.full_name }}</td>
         <td class="num load-weekly {{ d.weekly_class }}">{{ d.weekly }}</td>
         {% for count, cls in d.day_cells %}
@@ -69,7 +69,7 @@
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   if (document.getElementById('teacher-search')) {
-    window.smartFilter('teacher-search', '#teacher-tbody .filterable-row', { textAttr: 'data-text' });
+    window.smartFilter('teacher-search', '#teacher-tbody .js-filter-row', { textAttr: 'data-text' });
   }
 });
 </script>

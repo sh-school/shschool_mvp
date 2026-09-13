@@ -8237,6 +8237,13 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
   gap: 1.5rem;
 }
 
+/* عنصرُ الشبكة أدنى عرضه `auto` — فنصُّ رسالةٍ طويلٌ بلا فواصل يمطّ عمودَه
+   ويدفع الشريطَ الجانبيَّ خارج الصفحة. */
+.df-main-col,
+.df-sidebar-col {
+  min-inline-size: 0;
+}
+
 .df-row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;

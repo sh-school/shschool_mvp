@@ -70,7 +70,7 @@ def test_the_table_wrapper_scrolls_instead_of_cutting():
 def test_the_observations_table_sits_in_a_scroll_wrapper():
     """ثمانيةُ أعمدةٍ بلا غلافٍ كانت تدفع الصفحةَ 394px."""
     html = (TEMPLATES / "quality" / "observation_list.html").read_text(encoding="utf-8")
-    table = html.index('<table class="table table-qatar"')
+    table = html.index('<table class="table"')
     before = html[:table]
     assert before.rfind('<div class="table-wrap">') > before.rfind(
         "</div>"
