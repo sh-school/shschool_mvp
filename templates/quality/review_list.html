@@ -1,6 +1,7 @@
 {% extends "base/base.html" %}
 {% load static %}
 {% load sorting %}
+{% load ui %}
 
 {% block title %}لجنة المراجعة الذاتية — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
@@ -12,14 +13,7 @@
 <div class="quality-page">
 
   {# ══ Header ══════════════════════════════════════════════ #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="clipboard-check" %} لجنة المراجعة الذاتية</h1>
-      <p class="exec-date">
-        الإجراءات: {{ page_obj.paginator.count }}
-        {% if member_domain %} · <span title="يُعرض مجالك وحده — أنت مسؤولٌ عنه في لجنة المراجعة">مجالك: <strong>{{ member_domain.name }}</strong></span>{% endif %}
-      </p>
-    </div>
+  {% page_header "لجنة المراجعة الذاتية" subtitle=page_subtitle icon="clipboard-check" %}
     <div class="flex flex-wrap gap-2 items-center">
       <form method="GET" class="quality-per-page">
         {% for key, val in request.GET.items %}
@@ -40,7 +34,7 @@
       <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
       {% endif %}
     </div>
-  </div>
+  {% endpage_header %}
 
   {# ══ Filters ═════════════════════════════════════════════ #}
   <div class="quality-filters">
@@ -56,7 +50,8 @@
         <div class="quality-filter-field">
           <label>المجال</label>
           {% if member_domain %}
-          <select name="field" disabled class="opacity-70 cursor-not-allowed">
+          <select name="field" disabled class="opacity-70 cursor-not-allowed"
+                  title="يُعرض مجالك وحده — أنت مسؤولٌ عنه في لجنة المراجعة">
             <option value="{{ member_domain.id }}" selected>{{ member_domain.name }}</option>
           </select>
           {% else %}

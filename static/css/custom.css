@@ -3647,6 +3647,25 @@ html.dark .kpi-link         { color: var(--maroon-fg); }
 }
 .report-tab-icon { font-size: 1.1rem; }
 
+/* ── templates/reports/index.html — بطاقةُ الفصل ──
+   بطاقةٌ بلا ترويسةٍ عنّابيّة عمداً: اسمُ الفصل وشعبتُه وعددُه وأزرارُ تصديره
+   في صندوقٍ واحدٍ صغير، وعشرون منها في شبكة. صندوقُها صندوقُ البطاقة
+   القياسيّة بالرموز نفسها — والصفحةُ لا تكتب `card-qatar` بيدها. */
+.report-class-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 20px;
+  min-inline-size: 0;
+  transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
+}
+.report-class-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--maroon-border);
+  transform: translateY(-1px);
+}
+
 /* ── Student search dropdown ─────────────────── */
 .report-student-search { position: relative; }
 .report-student-search summary::-webkit-details-marker { display: none; }
@@ -5697,8 +5716,19 @@ html.dark .kpi-unavail-icon { background: var(--surface-alt); }
 }
 
 /* ── templates/quality/observation_pdf_view.html ──
-   الاستمارةُ في إطارٍ تحت شريط أدواتها، وصندوقُ الإرسال يُطوى فوقها. */
-.obs-pdf-page { max-inline-size: 1100px; margin-inline: auto; }
+   الاستمارةُ في إطارٍ تحت شريط أدواتها، وصندوقُ الإرسال يُطوى فوقها.
+   والصفحةُ كلُّها صندوقٌ واحدٌ بحدود البطاقة القياسيّة — ترويسةُ الصفحة
+   داخله لا فوقه — فتُكتب حدودُه هنا بالرموز، لا `card-qatar` باليد. */
+.obs-pdf-page {
+  max-inline-size: 1100px;
+  margin-inline: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px 20px;
+  min-inline-size: 0;
+}
 .obs-pdf-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .obs-send-box { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 14px; }
 .obs-send-box__title { margin: 0 0 8px; }
