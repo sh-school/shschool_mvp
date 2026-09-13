@@ -10007,6 +10007,10 @@ html.dark {
 .per-bar__actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
 .per-bar__actions .btn-primary, .per-bar__actions .btn-secondary { min-height: 44px; }
 
+/* أزرارُ التصدير والطباعة: في رأس كشف الشعبة، وفي شريط بطاقة الجناح بعد عدّاد الانتظار. */
+.per-exports { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.card-bar .per-exports { margin-inline-start: auto; }
+
 @media (max-width: 640px) {
   .per-head { padding: var(--sp-3); }
   .per-head__badge { width: 44px; height: 44px; font-size: var(--text-base); }
