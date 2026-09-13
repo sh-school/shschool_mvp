@@ -22,7 +22,7 @@ from django.shortcuts import render
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school, default_academic_year
-from core.permissions import role_required
+from core.capabilities import capability_required
 
 logger = logging.getLogger(__name__)
 
@@ -212,7 +212,7 @@ def _wb_to_response(wb, filename):
 
 
 @login_required
-@role_required("principal", "vice_admin", "vice_academic", "admin")
+@capability_required("students.import_export")
 def student_import_export(request):
     """
     GET  → صفحة الاستيراد/التصدير
@@ -548,7 +548,7 @@ def _process_import(uploaded_file, school, year):
 
 
 @login_required
-@role_required("principal", "vice_admin", "vice_academic", "admin")
+@capability_required("students.import_export")
 def student_export_excel(request):
     """
     GET → تنزيل ملف Excel بكل بيانات الطلاب في المدرسة.
@@ -680,7 +680,7 @@ def student_export_excel(request):
 
 
 @login_required
-@role_required("principal", "vice_admin", "vice_academic", "admin")
+@capability_required("students.import_export")
 def student_import_template(request):
     """
     GET → تنزيل قالب Excel فارغ مع تعليمات الاستيراد.

@@ -92,3 +92,28 @@ def test_the_decorator_carries_the_capability_and_the_same_roles():
 
     assert view._capability == "quality.manage"
     assert frozenset(view._required_roles) == capability("quality.manage").expanded_roles
+
+
+def _capability_of(callback):
+    fn, seen = callback, set()
+    while fn is not None and id(fn) not in seen:
+        seen.add(id(fn))
+        if getattr(fn, "_capability", None):
+            return fn._capability
+        fn = getattr(fn, "__wrapped__", None)
+    return None
+
+
+def test_every_guarded_route_names_its_capability():
+    """الحارسُ يسمّي قدرتَه — لا قائمةَ أدوارٍ حرفيّةً تعود من الباب الخلفيّ.
+
+    حُوِّلت الحرّاسُ كلُّها إلى ``capability_required`` بعد أن ثبت بلقطةٍ قبل التحويل وبعده
+    أنّ 903 مساراتٍ لم يتغيّر عضوٌ في أدوارها. فحارسٌ جديدٌ بـ``role_required`` مباشرةً
+    يُسقط هذا الاختبار: يُضاف إلى السجلّ باسمه، أو يُستعمل ما فيه.
+    """
+    bare = []
+    for callback in _walk(get_resolver().url_patterns):
+        if _guard_roles(callback) is not None and _capability_of(callback) is None:
+            bare.append(f"{callback.__module__}.{getattr(callback, '__qualname__', '')}")
+
+    assert not bare, "حارسٌ بلا قدرةٍ مسمّاة:\n  " + "\n  ".join(sorted(bare))

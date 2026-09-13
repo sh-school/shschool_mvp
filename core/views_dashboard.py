@@ -10,9 +10,8 @@ from assessments.models import AnnualSubjectResult, SubjectClassSetup
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for_school
+from core.capabilities import capability_required
 from core.models.academic import grade_order
-from core.models.access import ALL_STAFF_ROLES
-from core.permissions import role_required
 from library.models import BookBorrowing
 from operations.models import (
     AbsenceAlert,
@@ -541,7 +540,7 @@ _TRANSPORT_ROLES = {"transport_officer", "bus_supervisor"}
 
 
 @login_required
-@role_required(ALL_STAFF_ROLES | {"student", "parent"})
+@capability_required("dashboard.open")
 def dashboard(request):
     """لوحة التحكم الرئيسية — موزّع يعيد التوجيه أو يبني السياق حسب الدور."""
     user = request.user

@@ -22,6 +22,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from behavior.models import BehaviorInfraction
+from core.capabilities import capability_required
 from core.models import (
     ConsentRecord,
     CustomUser,
@@ -30,7 +31,6 @@ from core.models import (
     Role,
     StudentEnrollment,
 )
-from core.permissions import PARENT_PORTAL, PARENT_PORTAL_ADMIN, role_required
 from core.sorting import apply_sort, arabic_key
 from operations.models import AbsenceAlert
 
@@ -49,7 +49,7 @@ def _get_parent_school(request):
 
 
 @login_required
-@role_required(PARENT_PORTAL)
+@capability_required("parents.portal")
 def parent_dashboard(request):
     """لوحة تحكم ولي الأمر — بيانات أبنائه من درجات وغياب."""
     school = _get_parent_school(request)
@@ -78,7 +78,7 @@ def parent_dashboard(request):
 
 
 @login_required
-@role_required(PARENT_PORTAL)
+@capability_required("parents.portal")
 def student_grades(request, student_id):
     """درجات الطالب — لولي الأمر بعد التحقق من صلاحية العرض."""
     school = _get_parent_school(request) or request.user.get_school()
@@ -118,7 +118,7 @@ def student_grades(request, student_id):
 
 
 @login_required
-@role_required(PARENT_PORTAL)
+@capability_required("parents.portal")
 def student_attendance(request, student_id):
     """سجل غياب الطالب — لولي الأمر مع تنبيهات الغياب المتكرر."""
     school = _get_parent_school(request) or request.user.get_school()
@@ -168,7 +168,7 @@ def student_attendance(request, student_id):
 
 
 @login_required
-@role_required(PARENT_PORTAL)
+@capability_required("parents.portal")
 def parent_all_grades(request):
     """ملخص درجات كل أبناء ولي الأمر."""
     school = _get_parent_school(request)
@@ -209,7 +209,7 @@ def parent_all_grades(request):
 
 
 @login_required
-@role_required(PARENT_PORTAL)
+@capability_required("parents.portal")
 def parent_all_attendance(request):
     """ملخص حضور كل أبناء ولي الأمر."""
     school = _get_parent_school(request)
@@ -260,7 +260,7 @@ def parent_all_attendance(request):
 
 
 @login_required
-@role_required(PARENT_PORTAL)
+@capability_required("parents.portal")
 def parent_behavior(request):
     """ملخص السلوك لأبناء ولي الأمر."""
     school = _get_parent_school(request)
@@ -314,7 +314,7 @@ LINK_SORTS = {
 
 
 @login_required
-@role_required(PARENT_PORTAL_ADMIN)
+@capability_required("parents.admin")
 def manage_parent_links(request):
     """صفحة المدير: ربط أولياء الأمور بأبنائهم"""
     if not request.user.is_admin():
@@ -500,7 +500,7 @@ def _parent_from_identity(request, school, national_id, full_name, phone, email=
 
 
 @login_required
-@role_required(PARENT_PORTAL_ADMIN)
+@capability_required("parents.admin")
 def add_parent_link(request):
     """ربطُ وليّ أمرٍ بطالب — قائماً كان أو جديداً.
 
@@ -555,7 +555,7 @@ def add_parent_link(request):
 
 
 @login_required
-@role_required(PARENT_PORTAL_ADMIN)
+@capability_required("parents.admin")
 def remove_parent_link(request, link_id):
     """حذف ربط ولي الأمر بالطالب — للمدير فقط."""
     if not request.user.is_admin():
@@ -581,7 +581,7 @@ DATA_TYPES = [
 
 
 @login_required
-@role_required(PARENT_PORTAL)
+@capability_required("parents.portal")
 def consent_view(request):
     """ولي الأمر يمنح / يسحب الموافقة على أنواع البيانات"""
     if not request.user.has_role("parent") and not request.user.is_superuser:

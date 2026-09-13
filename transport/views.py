@@ -3,13 +3,13 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
+from core.capabilities import capability_required
 from core.models import BusRoute, CustomUser, SchoolBus
-from core.permissions import bus_supervisor_required
 from transport.services import TransportService
 
 
 @login_required
-@bus_supervisor_required
+@capability_required("transport.access")
 def transport_dashboard(request):
     """لوحة تحكم النقل والمواصلات"""
     school = request.user.get_school()
@@ -19,7 +19,7 @@ def transport_dashboard(request):
 
 
 @login_required
-@bus_supervisor_required
+@capability_required("transport.access")
 def buses_list(request):
     """قائمة الحافلات المدرسية"""
     school = request.user.get_school()
@@ -38,7 +38,7 @@ def buses_list(request):
 
 
 @login_required
-@bus_supervisor_required
+@capability_required("transport.access")
 @require_http_methods(["GET", "POST"])
 def bus_detail(request, bus_id):
     """تفاصيل الحافلة وإدارة الطلاب"""
@@ -74,7 +74,7 @@ def bus_detail(request, bus_id):
 
 
 @login_required
-@bus_supervisor_required
+@capability_required("transport.access")
 @require_http_methods(["GET", "POST"])
 def manage_route(request, bus_id, route_id=None):
     """إدارة خطوط السير"""
@@ -118,7 +118,7 @@ def manage_route(request, bus_id, route_id=None):
 
 
 @login_required
-@bus_supervisor_required
+@capability_required("transport.access")
 def tracking_map(request, bus_id):
     """خريطة تتبع الحافلة (تكامل كروة و GPS)"""
     school = request.user.get_school()
@@ -133,7 +133,7 @@ def tracking_map(request, bus_id):
 
 
 @login_required
-@bus_supervisor_required
+@capability_required("transport.access")
 def student_assignments(request):
     """إسناد الطلاب للحافلات"""
     school = request.user.get_school()
@@ -160,7 +160,7 @@ def student_assignments(request):
 
 
 @login_required
-@bus_supervisor_required
+@capability_required("transport.access")
 def transport_statistics(request):
     """إحصائيات النقل والمواصلات"""
     school = request.user.get_school()

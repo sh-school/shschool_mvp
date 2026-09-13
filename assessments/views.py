@@ -13,9 +13,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, academic_year_for_school
+from core.capabilities import capability_required
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_order
-from core.permissions import leadership_required, role_required, teacher_can_access_student
+from core.permissions import teacher_can_access_student
 from operations.models import Subject
 
 from .forms import CreateAssessmentForm
@@ -33,15 +34,7 @@ from .services import GradeService
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "academic_advisor",
-)
+@capability_required("assessments.view_results")
 def assessments_dashboard(request):
     """لوحة تحكم التقييمات — نتائج الفصول والمواد حسب دور المستخدم."""
     school = request.user.get_school()
@@ -99,15 +92,7 @@ def assessments_dashboard(request):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "academic_advisor",
-)
+@capability_required("assessments.view_results")
 def api_assessment_charts(request):
     """بيانات الرسوم البيانية للتقييمات"""
     school = request.user.get_school()
@@ -122,7 +107,7 @@ def api_assessment_charts(request):
 
 
 @login_required
-@role_required("principal", "vice_academic", "coordinator", "teacher", "ese_teacher")
+@capability_required("assessments.enter_grades")
 def setup_detail(request, setup_id):
     """تفاصيل إعداد مادة — الباقات الأربع"""
     school = request.user.get_school()
@@ -192,7 +177,7 @@ def setup_detail(request, setup_id):
 
 
 @login_required
-@role_required("principal", "vice_academic", "coordinator", "teacher", "ese_teacher")
+@capability_required("assessments.enter_grades")
 @require_POST
 def create_assessment(request, package_id):
     """إنشاء تقييم جديد في باقة"""
@@ -232,7 +217,7 @@ def create_assessment(request, package_id):
 
 
 @login_required
-@role_required("principal", "vice_academic", "coordinator", "teacher", "ese_teacher")
+@capability_required("assessments.enter_grades")
 def grade_entry(request, assessment_id):
     """صفحة إدخال درجات — تعرض كل طلاب الفصل"""
     school = request.user.get_school()
@@ -278,7 +263,7 @@ def grade_entry(request, assessment_id):
 
 
 @login_required
-@role_required("principal", "vice_academic", "coordinator", "teacher", "ese_teacher")
+@capability_required("assessments.enter_grades")
 @require_POST
 def save_single_grade(request, assessment_id):
     """HTMX: حفظ درجة طالب واحد"""
@@ -329,7 +314,7 @@ def save_single_grade(request, assessment_id):
 
 
 @login_required
-@role_required("principal", "vice_academic", "coordinator", "teacher", "ese_teacher")
+@capability_required("assessments.enter_grades")
 @require_POST
 def save_all_grades(request, assessment_id):
     """حفظ كل الدرجات دفعة واحدة من form"""
@@ -387,15 +372,7 @@ def save_all_grades(request, assessment_id):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "academic_advisor",
-)
+@capability_required("assessments.view_results")
 def class_gradebook(request, setup_id):
     """كشف الدرجات الكامل للفصل في مادة — يدعم عرض فصل أو السنوي"""
     school = request.user.get_school()
@@ -484,15 +461,7 @@ def class_gradebook(request, setup_id):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "academic_advisor",
-)
+@capability_required("assessments.view_results")
 def export_gradebook(request, setup_id):
     """تصدير كشف الدرجات إلى Excel"""
     import io
@@ -642,7 +611,7 @@ def export_gradebook(request, setup_id):
 
 
 @login_required
-@role_required("principal", "vice_academic", "coordinator", "teacher", "ese_teacher")
+@capability_required("assessments.enter_grades")
 @require_POST
 def recalculate_class(request, setup_id):
     """إعادة حساب درجات كل طلاب الفصل — Admin أو المعلم المسؤول فقط"""
@@ -660,15 +629,7 @@ def recalculate_class(request, setup_id):
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_academic",
-    "vice_admin",
-    "coordinator",
-    "teacher",
-    "ese_teacher",
-    "academic_advisor",
-)
+@capability_required("assessments.view_results")
 def student_report(request, student_id):
     """كشف درجات سنوي للطالب في كل مواده"""
     school = request.user.get_school()
@@ -710,7 +671,7 @@ def student_report(request, student_id):
 
 
 @login_required
-@leadership_required
+@capability_required("assessments.oversee")
 def failing_students(request):
     """قائمة الطلاب الراسبين — للمدير"""
     if not request.user.is_admin():
@@ -752,7 +713,7 @@ def failing_students(request):
 
 
 @login_required
-@leadership_required
+@capability_required("assessments.oversee")
 def setup_subject(request):
     """ربط مادة بفصل ومعلم"""
     if not request.user.is_admin():

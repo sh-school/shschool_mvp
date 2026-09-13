@@ -100,7 +100,7 @@ def registry() -> dict[str, Capability]:
             {"principal", "vice_admin", "vice_academic", "admin"},
         ),
         # ── الإشعارات والتحليلات ────────────────────────────────────
-        _cap("notifications.broadcast", "الإرسالُ الجماعيُّ والطارئ", leadership),
+        _cap("notifications.broadcast", "إدارةُ الإشعارات والإرسالُ الجماعيّ", leadership),
         _cap("analytics.school", "تحليلاتُ المدرسة", leadership),
         # ── التقييم والدرجات ────────────────────────────────────────
         _cap(

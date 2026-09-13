@@ -13,7 +13,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from core.permissions import leadership_required, role_required
+from core.capabilities import capability_required
 from core.sorting import apply_sort
 
 from .models import NotificationLog, NotificationSettings
@@ -31,7 +31,7 @@ LOG_SORTS = {
 
 
 @login_required
-@leadership_required
+@capability_required("notifications.broadcast")
 def notifications_dashboard(request):
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
@@ -78,7 +78,7 @@ def notifications_dashboard(request):
 
 
 @login_required
-@leadership_required
+@capability_required("notifications.broadcast")
 @require_POST
 def send_absence_alerts(request):
     """إرسال كل تنبيهات الغياب المعلقة"""
@@ -93,7 +93,7 @@ def send_absence_alerts(request):
 
 
 @login_required
-@leadership_required
+@capability_required("notifications.broadcast")
 @require_POST
 def send_fail_alerts(request):
     """إرسال إشعارات الرسوب للسنة الدراسية"""
@@ -109,7 +109,7 @@ def send_fail_alerts(request):
 
 
 @login_required
-@leadership_required
+@capability_required("notifications.broadcast")
 @require_POST
 def resend_notification(request, log_id):
     """إعادة إرسال إشعار فشل"""
@@ -144,7 +144,7 @@ def resend_notification(request, log_id):
 
 
 @login_required
-@leadership_required
+@capability_required("notifications.broadcast")
 def save_settings(request):
     """حفظ إعدادات الإشعارات"""
     if request.method != "POST":
@@ -335,7 +335,7 @@ def notification_preferences(request):
 
 
 @login_required
-@role_required("principal", "vice_admin", "vice_academic")
+@capability_required("notifications.broadcast")
 @require_POST
 def emergency_broadcast(request):
     """
