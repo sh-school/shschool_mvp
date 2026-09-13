@@ -105,10 +105,20 @@ export default defineRailway(() => {
     variables: keep(WORKER_VARIABLES),
   });
 
+  // Beat يرسل الجدولَ (`shschool/celery.py: beat_schedule`) إلى الوسيط والعاملُ ينفّذه.
+  // كان غائباً منذ الإنشاء فكانت كلُّ المهامّ المجدولة ميتةً في الإنتاج. نسخةٌ واحدةٌ فقط.
+  const beat = service("celery-beat", {
+    source: github(REPO),
+    build: DOCKER_BUILD,
+    start: "bash scripts/railway-beat.sh",
+    deploy: RESTART_ON_FAILURE,
+    variables: keep(SHARED_VARIABLES),
+  });
+
   // قواعدُ البيانات والحاوية تُدار من Railway نفسِه؛ ذكرُها هنا يمنع `apply` من حذفها.
   const db = postgres("Postgres");
   const cache = redis("Redis");
   const pitr = bucket("Postgres-PITR", { region: "sjc" });
 
-  return project("shschool_mvp", { resources: [web, worker, db, cache, pitr] });
+  return project("shschool_mvp", { resources: [web, worker, beat, db, cache, pitr] });
 });
