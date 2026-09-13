@@ -6940,6 +6940,14 @@ th[aria-sort="descending"] .th-sort-label {
 /* ── templates/academic_management/assignments.html ── */
   /* `.form-select` عامّةٌ بعرضٍ كامل — وهنا قائمةُ ترشيحٍ في الترويسة لا حقلُ نموذج. */
   .exec-meta .form-select { width: auto; min-width: 190px; }
+
+/* ── templates/operations/daily_absence.html — غيابُ اليوم: حرفُ الحال في كلّ خانة ── */
+  .dab td.num { text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; }
+  .dab td.dab-present { color: var(--status-success-fg); }
+  .dab td.dab-absent { color: var(--status-danger-fg); background: var(--status-danger-bg); }
+  .dab td.dab-absent.dab-excused { color: var(--status-info-fg); background: var(--status-info-bg); }
+  .dab td.dab-late { color: var(--status-warning-fg); background: var(--status-warning-bg); }
+  .dab td.dab-none { color: var(--text-muted); font-weight: 400; }
   .asg-guard { border-radius: 12px; padding: 10px 14px; margin: 4px 0 14px; border: 1px solid var(--border); font-size: 13px; }
   .asg-guard.ok { background: var(--status-success-bg); border-color: var(--status-success-border); color: var(--status-success-fg); }
   .asg-guard.bad { background: var(--status-warning-bg); border-color: #fde68a; color: var(--status-warning-fg); }

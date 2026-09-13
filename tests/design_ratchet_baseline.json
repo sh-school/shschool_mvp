@@ -1,7 +1,6 @@
 {
  "counts": {
   "hand_kpi": {
-   "templates/admin/daily_report.html": 5,
    "templates/clinic/statistics.html": 4,
    "templates/transport/bus_detail.html": 3,
    "templates/transport/statistics.html": 4,
@@ -64,7 +63,6 @@
   },
   "palette_class": {
    "templates/academic_management/stub.html": 25,
-   "templates/admin/daily_report.html": 24,
    "templates/auth/change_password.html": 6,
    "templates/auth/disable_2fa.html": 19,
    "templates/auth/force_change_password.html": 3,
