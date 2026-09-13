@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load privacy %}
+{% load privacy ui %}
 
 {% block title %}ملف الطالب — {{ student.full_name }}{% endblock %}
 
@@ -8,161 +8,90 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash">
+<div class="exec-dash sa-page">
 
-  {# ── Profile Header ── #}
-  <div class="profile-header">
-    <div class="profile-avatar">{{ student.full_name|truncatechars:1 }}</div>
-    <div class="profile-info">
-      <div class="profile-name">
-        {{ student.full_name }}
-        {% if enrollment %}
-        <span class="status-badge status-info" style="font-size:.75rem;margin-inline-start:8px">{{ enrollment.class_group.grade }}/{{ enrollment.class_group.section }}</span>
-        {% endif %}
-        <span class="status-badge status-success" style="font-size:.75rem;margin-inline-start:4px">نشط</span>
-      </div>
-      <div class="profile-meta">
-        <span dir="ltr" title="الرقم الشخصي — مخفي لحماية الخصوصية">****{{ student.national_id|mask_id|slice:"-4:" }}</span>
-        {% if enrollment %}<span>{{ enrollment.class_group.grade }}/{{ enrollment.class_group.section }}</span>{% endif %}
-        {% if profile and profile.gender %}<span>{% if profile.gender == "M" %}ذكر{% else %}أنثى{% endif %}</span>{% endif %}
-      </div>
-    </div>
-    <div class="exec-meta" style="gap:6px">
-      <a href="{% url 'student_affairs:student_edit' student.id %}" class="btn-primary btn-sm">
-        {% include "components/icon.html" with name="file-pen" %} تعديل
-      </a>
-      <a href="{% url 'behavior:student_profile' student.id %}" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="scale" %} الملف السلوكي
-      </a>
-      <a href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="bar-chart" %} كشف الدرجات
-      </a>
-      <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
-    </div>
-  </div>
+  {% page_header student.full_name subtitle=profile_subtitle icon="user" %}
+    <a href="{% url 'student_affairs:student_edit' student.id %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} تعديل البيانات</a>
+    <a href="{% url 'behavior:student_profile' student.id %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="scale" %} الملف السلوكي</a>
+    <a href="{% url 'behavior:summon_parent_student' student.id %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="mail" %} استدعاء ولي الأمر</a>
+    <a href="{% url 'behavior:report_infraction' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="alert-triangle" %} تسجيل مخالفة</a>
+    <a href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} كشف الدرجات</a>
+    <a href="{% url 'student_affairs:student_profile_pdf' student.id %}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="printer" %} تصدير PDF</a>
+    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+  {% endpage_header %}
 
-  {# ── Quick Actions Bar ── #}
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem">
-    <a href="{% url 'student_affairs:student_edit' student.id %}" class="btn-primary btn-sm">
-      {% include "components/icon.html" with name="file-pen" %} تعديل البيانات
-    </a>
-    <a href="{% url 'behavior:summon_parent_student' student.id %}" class="btn-secondary btn-sm">
-      {% include "components/icon.html" with name="mail" %} استدعاء ولي الأمر
-    </a>
-    <a href="{% url 'behavior:report_infraction' %}" class="btn-secondary btn-sm">
-      {% include "components/icon.html" with name="alert-triangle" %} تسجيل مخالفة
-    </a>
-    <a href="{% url 'student_affairs:student_profile_pdf' student.id %}" class="btn-secondary btn-sm" target="_blank">
-      {% include "components/icon.html" with name="printer" %} تصدير PDF
-    </a>
-  </div>
+  {% kpi_strip label="ملخص الطالب" %}
+    {% kpi "نسبة الحضور" attendance_label sub=attendance_sub tone=attendance_tone title="الحصص التي حضرها هذا العام من كل حصصه المرصودة" %}
+    {% kpi "المواد" grades_summary.total_subjects|default:0 sub=subjects_sub tone="blue" %}
+    {% kpi "زيارات العيادة" clinic_visits|length tone="teal" title="آخر الزيارات المعروضة في تبويب العيادة" %}
+    {% kpi "الأنشطة" activities|length tone="maroon" title="آخر الأنشطة المعروضة في تبويب الأنشطة" %}
+  {% endkpi_strip %}
 
-  {# ── KPI Strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-{% if attendance.pct >= 90 %}green{% elif attendance.pct >= 75 %}orange{% else %}red{% endif %}">
-      <div class="kpi-mini-label">نسبة الحضور</div>
-      <div class="kpi-mini-value">{{ attendance.pct }}%</div>
-      <div class="kpi-mini-sub">{{ attendance.present }}/{{ attendance.total }} حصة</div>
-    </div>
-    <div class="kpi-mini kpi-{% if behavior.net_score >= 80 %}green{% elif behavior.net_score >= 50 %}orange{% else %}red{% endif %}">
-      <div class="kpi-mini-label">رصيد السلوك</div>
-      <div class="kpi-mini-value">{{ behavior.net_score }}<small>/100</small></div>
-      <div class="kpi-mini-sub">-{{ behavior.total_deducted }} +{{ behavior.total_restored }}</div>
-    </div>
-    <div class="kpi-mini kpi-blue">
-      <div class="kpi-mini-label">المواد</div>
-      <div class="kpi-mini-value">{{ grades_summary.total_subjects|default:0 }}</div>
-      <div class="kpi-mini-sub">ناجح: {{ grades_summary.passed|default:0 }}</div>
-    </div>
-    <div class="kpi-mini kpi-teal">
-      <div class="kpi-mini-label">زيارات العيادة</div>
-      <div class="kpi-mini-value">{{ clinic_visits|length }}</div>
-    </div>
-    <div class="kpi-mini kpi-maroon">
-      <div class="kpi-mini-label">الأنشطة</div>
-      <div class="kpi-mini-value">{{ activities|length }}</div>
-    </div>
-  </div>
-
-  {# ════════════ Tab Navigation ════════════ #}
-  <div class="card-qatar" style="padding:0;margin-bottom:1.5rem;overflow:hidden">
-    <div style="display:flex;border-bottom:2px solid var(--border);overflow-x:auto" role="tablist">
+  {# ════════════ التبويبات ════════════ #}
+  <div class="card-qatar sa-tabs">
+    <div class="sa-tabs__list" role="tablist">
       <button class="tab-btn active" data-tab="personal" role="tab" aria-selected="true">{% include "components/icon.html" with name="user" %} البيانات الشخصية</button>
       <button class="tab-btn" data-tab="attendance" role="tab" aria-selected="false">{% include "components/icon.html" with name="calendar" %} الحضور</button>
       <button class="tab-btn" data-tab="behavior" role="tab" aria-selected="false">{% include "components/icon.html" with name="scale" %} السلوك</button>
       <button class="tab-btn" data-tab="grades" role="tab" aria-selected="false">{% include "components/icon.html" with name="bar-chart" %} الدرجات</button>
       <button class="tab-btn" data-tab="clinic" role="tab" aria-selected="false">{% include "components/icon.html" with name="hospital" %} العيادة</button>
       <button class="tab-btn" data-tab="activities" role="tab" aria-selected="false">{% include "components/icon.html" with name="activity" %} الأنشطة</button>
+      {% if transfers %}<button class="tab-btn" data-tab="transfers" role="tab" aria-selected="false">{% include "components/icon.html" with name="refresh" %} الانتقالات</button>{% endif %}
     </div>
   </div>
 
-  {# ════════════ Tab Contents ════════════ #}
-
   {# ── البيانات الشخصية + ولي الأمر ── #}
   <div id="tab-personal" class="tab-content active">
-    <div class="detail-section">
-      <div class="detail-section-title">{% include "components/icon.html" with name="user" %} البيانات الشخصية</div>
-      <dl class="detail-dl">
-        <dt>الاسم</dt><dd>{{ student.full_name }}</dd>
-        <dt>الرقم الشخصي</dt><dd dir="ltr">{{ student.national_id|mask_id }}</dd>
-        {% if enrollment %}
-        <dt>الصف / الشعبة</dt><dd>{{ enrollment.class_group.grade }} / {{ enrollment.class_group.section }}</dd>
-        {% endif %}
-        {% if profile and profile.birth_date %}
-        <dt>تاريخ الميلاد</dt><dd>{{ profile.birth_date|date:"d/m/Y" }}</dd>
-        {% endif %}
-        {% if student.phone %}
-        <dt>الجوال</dt><dd dir="ltr">{{ student.phone }}</dd>
-        {% endif %}
-        {% if student.email %}
-        <dt>البريد</dt><dd dir="ltr">{{ student.email }}</dd>
-        {% endif %}
-      </dl>
+    <div class="ui-grid-2">
+      {% section_card "البيانات الشخصية" icon="user" %}
+        <dl class="detail-dl">
+          <dt>الاسم</dt><dd>{{ student.full_name }}</dd>
+          <dt>الرقم الشخصي</dt><dd dir="ltr">{{ student.national_id|mask_id }}</dd>
+          {% if enrollment %}
+          <dt>الصف / الشعبة</dt><dd>{{ enrollment.class_group.grade }} / {{ enrollment.class_group.section }}</dd>
+          {% endif %}
+          {% if profile and profile.birth_date %}
+          <dt>تاريخ الميلاد</dt><dd>{{ profile.birth_date|date:"d/m/Y" }}</dd>
+          {% endif %}
+          {% if student.phone %}
+          <dt>الجوال</dt><dd dir="ltr">{{ student.phone }}</dd>
+          {% endif %}
+          {% if student.email %}
+          <dt>البريد</dt><dd dir="ltr">{{ student.email }}</dd>
+          {% endif %}
+        </dl>
+      {% endsection_card %}
 
-      {# أولياء الأمور #}
-      {% if parent_links %}
-      <div class="detail-section-title" style="margin-top:12px;padding-top:12px">{% include "components/icon.html" with name="waypoints" %} أولياء الأمور</div>
-      <div class="dash-list">
-        {% for link in parent_links %}
-        <div class="dash-list-item">
-          <div style="flex:1">
-            <strong>{{ link.parent.full_name }}</strong>
-            <span class="text-xs text-secondary"> — {{ link.get_relationship_display }}</span>
-          </div>
-          <span class="text-xs col-num">{{ link.parent.phone|default:"—" }}</span>
-        </div>
-        {% endfor %}
-      </div>
-      {% endif %}
+      {% section_card "أولياء الأمور" meta=parent_links|length icon="waypoints" empty="لا وليّ أمرٍ مرتبط" %}{% if parent_links %}
+        <ul class="plain-list">
+          {% for link in parent_links %}
+            <li class="plain-list__row">
+              <span class="plain-list__main"><b class="plain-list__title">{{ link.parent.full_name }}</b><span class="plain-list__sub">{{ link.get_relationship_display }}</span></span>
+              <span class="col-num" dir="ltr">{{ link.parent.phone|default:"—" }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}{% endsection_card %}
     </div>
   </div>
 
   {# ── الحضور ── #}
   <div id="tab-attendance" class="tab-content">
-    <div class="detail-section">
-      <div class="detail-section-title">{% include "components/icon.html" with name="calendar" %} الحضور ({{ year }})</div>
+    {% section_card "الحضور" meta=year icon="calendar" %}
       <dl class="detail-dl">
         <dt>حاضر</dt><dd class="attend-high">{{ attendance.present }}</dd>
         <dt>غائب</dt><dd class="attend-low">{{ attendance.absent }}</dd>
         <dt>متأخر</dt><dd class="attend-medium">{{ attendance.late }}</dd>
         <dt>بعذر</dt><dd>{{ attendance.excused }}</dd>
       </dl>
-      {% if attendance.total > 0 %}
-      <div class="q-kpi__progress" style="margin-top:8px">
-        <div class="q-kpi__progress-fill" style="width:{{ attendance.pct }}%;background:{% if attendance.pct >= 90 %}var(--status-success){% elif attendance.pct >= 75 %}var(--status-warning){% else %}var(--status-danger){% endif %}"></div>
-      </div>
-      <div style="text-align:center;font-size:var(--text-xs);color:var(--text-muted);margin-top:4px">{{ attendance.pct }}% حضور</div>
-      {% endif %}
-    </div>
+    {% endsection_card %}
 
     {% comment %}
       موقفه من عتبات «سياسة تقييم الطلبة» (القرار الوزاري 22/2015).
       عرضٌ محض: لا حجبَ ولا إشعار — والحرمان قرارٌ بشريّ.
     {% endcomment %}
     {% if absence_standing.gates %}
-    <div class="detail-section">
-      <div class="detail-section-title">{% include "components/icon.html" with name="scale" %} عتبات الغياب — سياسة تقييم الطلبة</div>
-
+    {% section_card "عتبات الغياب — سياسة تقييم الطلبة" icon="scale" %}
       <dl class="detail-dl">
         <dt>أيام غياب بلا عذر</dt><dd><strong>{{ absence_standing.unexcused_days }}</strong> يوماً</dd>
         <dt>أيام بعذر</dt><dd>{{ absence_standing.excused_days }}</dd>
@@ -170,35 +99,37 @@
         {% if absence_standing.incomplete_days %}<dt>أيام رصدُها ناقص</dt><dd>{{ absence_standing.incomplete_days }} — لا تُحسم حتى تُرصد حصصُها</dd>{% endif %}
       </dl>
 
-      <table class="data-table" style="margin-top:12px">
-        <thead>
-          <tr><th>الاختبار</th><th>الحدّ</th><th>الموقف</th></tr>
-        </thead>
-        <tbody>
-          {% for gate in absence_standing.gates %}
-          <tr>
-            <td>{{ gate.label }}</td>
-            <td>{{ gate.max_days }} يوماً</td>
-            <td>
-              {% if gate in absence_standing.breached %}
-                <span class="attend-low">تجاوز الحدّ</span>
-              {% elif gate == absence_standing.upcoming %}
-                <span class="attend-medium">يفصله {{ absence_standing.days_to_next }} يوماً</span>
-              {% else %}
-                <span class="attend-high">ضمن الحدّ</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="table-wrap sa-block-gap">
+        <table>
+          <thead>
+            <tr><th>الاختبار</th><th class="num">الحدّ</th><th>الموقف</th></tr>
+          </thead>
+          <tbody>
+            {% for gate in absence_standing.gates %}
+            <tr>
+              <td>{{ gate.label }}</td>
+              <td class="num">{{ gate.max_days }} يوماً</td>
+              <td>
+                {% if gate in absence_standing.breached %}
+                  <span class="status-badge status-danger">تجاوز الحدّ</span>
+                {% elif gate == absence_standing.upcoming %}
+                  <span class="status-badge status-warning">يفصله {{ absence_standing.days_to_next }} يوماً</span>
+                {% else %}
+                  <span class="status-badge status-success">ضمن الحدّ</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
 
-      <p style="font-size:var(--text-xs);color:var(--text-muted);margin-top:8px">
+      <p class="form-note sa-block-gap">
         تُحتسب تراكمياً من بداية العام، متصلةً أو غير متصلة. والعذر المقبول:
         مرضٌ بشهادة طبية حكومية معتمدة، أو ظرفٌ قهريّ، أو مهمّة رسمية بشهادة من جهة العمل.
         وهذا عرضٌ للاطّلاع — قرار الحرمان لإدارة المدرسة.
       </p>
-    </div>
+    {% endsection_card %}
     {% endif %}
 
     {% comment %}
@@ -206,8 +137,7 @@
       والدقائقُ بالمادّة لأنّها ما يُقارَن لاحقاً بالتحصيل.
     {% endcomment %}
     {% if tardiness.year %}
-    <div class="detail-section">
-      <div class="detail-section-title">{% include "components/icon.html" with name="clock" %} التأخّر عن الحصص</div>
+    {% section_card "التأخّر عن الحصص" icon="clock" %}
       <dl class="detail-dl">
         {% if tardiness.semester %}
         <dt>هذا الفصل</dt><dd><strong>{{ tardiness.semester.count }}</strong> مرّة · {{ tardiness.semester.minutes }} دقيقة</dd>
@@ -217,152 +147,130 @@
         {% if tardiness.year.unmeasured %}<dt>تأخّرٌ بلا دقائقَ مقيسة</dt><dd>{{ tardiness.year.unmeasured }}</dd>{% endif %}
       </dl>
       {% if tardiness.year.by_subject %}
-      <div class="table-wrap">
-      <table class="data-table">
-        <thead><tr><th>المادّة</th><th>المرّات</th><th>الدقائق</th></tr></thead>
-        <tbody>
-          {% for row in tardiness.year.by_subject.values %}
-          <tr><td>{{ row.subject }}</td><td>{{ row.count }}</td><td>{{ row.minutes }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+      <div class="table-wrap sa-block-gap">
+        <table>
+          <thead><tr><th>المادّة</th><th class="num">المرّات</th><th class="num">الدقائق</th></tr></thead>
+          <tbody>
+            {% for row in tardiness.year.by_subject.values %}
+            <tr><td>{{ row.subject }}</td><td class="num">{{ row.count }}</td><td class="num">{{ row.minutes }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
       {% endif %}
-    </div>
+    {% endsection_card %}
     {% endif %}
   </div>
 
   {# ── السلوك ── #}
   <div id="tab-behavior" class="tab-content">
-    <div class="detail-section">
-      <div class="detail-section-title">{% include "components/icon.html" with name="scale" %} السلوك</div>
-      <dl class="detail-dl">
-        <dt>إجمالي المخالفات</dt><dd><strong>{{ behavior.total }}</strong></dd>
-        <dt>د1 (بسيطة)</dt><dd>{{ behavior.by_level.1 }}</dd>
-        <dt>د2 (متوسطة)</dt><dd>{{ behavior.by_level.2 }}</dd>
-        <dt>د3 (خطيرة)</dt><dd class="{% if behavior.by_level.3 %}attend-medium{% endif %}">{{ behavior.by_level.3 }}</dd>
-        <dt>د4 (جسيمة)</dt><dd class="{% if behavior.by_level.4 %}attend-low{% endif %}" style="{% if behavior.by_level.4 %}font-weight:700{% endif %}">{{ behavior.by_level.4 }}</dd>
-      </dl>
-      {% if behavior.recent %}
-      <div class="detail-section-title" style="margin-top:8px;font-size:var(--text-xs)">آخر المخالفات:</div>
-      {% for inf in behavior.recent %}
-      <div class="dash-list-item">
-        <span>{{ inf.description|truncatechars:50 }}</span>
-        <span class="text-xs text-muted">{{ inf.date|date:"d/m" }}</span>
-      </div>
-      {% endfor %}
-      {% endif %}
+    <div class="ui-grid-2">
+      {% section_card "السلوك" icon="scale" %}
+        <dl class="detail-dl">
+          <dt>إجمالي المخالفات</dt><dd><strong>{{ behavior.total }}</strong></dd>
+          <dt>د1 (بسيطة)</dt><dd>{{ behavior.by_level.1 }}</dd>
+          <dt>د2 (متوسطة)</dt><dd>{{ behavior.by_level.2 }}</dd>
+          <dt>د3 (خطيرة)</dt><dd{% if behavior.by_level.3 %} class="attend-medium"{% endif %}>{{ behavior.by_level.3 }}</dd>
+          <dt>د4 (جسيمة)</dt><dd{% if behavior.by_level.4 %} class="attend-low"{% endif %}>{% if behavior.by_level.4 %}<strong>{{ behavior.by_level.4 }}</strong>{% else %}{{ behavior.by_level.4 }}{% endif %}</dd>
+        </dl>
+      {% endsection_card %}
+
+      {% section_card "آخر المخالفات" icon="alert-triangle" empty="لا مخالفات مسجّلة" %}{% if behavior.recent %}
+        <ul class="plain-list">
+          {% for inf in behavior.recent %}
+            <li class="plain-list__row"><span>{{ inf.description|truncatechars:50 }}</span><span class="plain-list__sub">{{ inf.date|date:"d/m" }}</span></li>
+          {% endfor %}
+        </ul>
+      {% endif %}{% endsection_card %}
     </div>
   </div>
 
   {# ── الدرجات ── #}
   <div id="tab-grades" class="tab-content">
-    <div class="detail-section">
-      <div class="detail-section-title">{% include "components/icon.html" with name="bar-chart" %} الدرجات ({{ year }})</div>
-      {% if grades %}
-      <div class="table-wrap" style="box-shadow:none;border:none">
-        <div class="table-wrap-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>المادة</th>
-                <th class="col-center">ف1</th>
-                <th class="col-center">ف2</th>
-                <th class="col-center">المجموع</th>
-                <th class="col-center">الحالة</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for g in grades %}
-              <tr>
-                <td>{{ g.setup.subject.name_ar }}</td>
-                <td class="col-center">{{ g.s1_total|default:"—" }}</td>
-                <td class="col-center">{{ g.s2_total|default:"—" }}</td>
-                <td class="col-center" style="font-weight:600">{{ g.annual_total|default:"—" }}</td>
-                <td class="col-center">
-                  {% if g.status == "pass" %}
-                  <span class="status-badge status-success">ناجح</span>
-                  {% elif g.status == "fail" %}
-                  <span class="status-badge status-danger">راسب</span>
-                  {% else %}
-                  <span class="status-badge status-gray">—</span>
-                  {% endif %}
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+    {% section_card "الدرجات" meta=year icon="bar-chart" empty="لا توجد نتائج لهذا العام" flush=True %}{% if grades %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>المادة</th>
+              <th class="num">ف1</th>
+              <th class="num">ف2</th>
+              <th class="num">المجموع</th>
+              <th class="col-center">الحالة</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for g in grades %}
+            <tr>
+              <td>{{ g.setup.subject.name_ar }}</td>
+              <td class="num">{{ g.s1_total|default:"—" }}</td>
+              <td class="num">{{ g.s2_total|default:"—" }}</td>
+              <td class="num"><span class="grade-total">{{ g.annual_total|default:"—" }}</span></td>
+              <td class="col-center">
+                {% if g.status == "pass" %}
+                <span class="status-badge status-success">ناجح</span>
+                {% elif g.status == "fail" %}
+                <span class="status-badge status-danger">راسب</span>
+                {% else %}
+                <span class="status-badge status-gray">—</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
-      {% else %}
-      {% include "components/empty_state.html" with message="لا توجد نتائج لهذا العام" %}
-      {% endif %}
-    </div>
+    {% endif %}{% endsection_card %}
   </div>
 
   {# ── العيادة ── #}
   <div id="tab-clinic" class="tab-content">
-    <div class="detail-section">
-      <div class="detail-section-title">{% include "components/icon.html" with name="hospital" %} العيادة</div>
-      {% if health_record %}
+    {% section_card "العيادة" icon="hospital" empty="لا زيارات عيادة" %}{% if health_record.blood_type or clinic_visits %}
+      {% if health_record.blood_type %}
       <dl class="detail-dl">
-        {% if health_record.blood_type %}
         <dt>فصيلة الدم</dt><dd><strong>{{ health_record.blood_type }}</strong></dd>
-        {% endif %}
       </dl>
       {% endif %}
       {% if clinic_visits %}
-      <div class="detail-section-title" style="margin-top:8px;font-size:var(--text-xs)">آخر الزيارات:</div>
-      {% for v in clinic_visits %}
-      <div class="dash-list-item">
-        <span>{{ v.reason|truncatechars:40 }}</span>
-        <div style="display:flex;gap:4px;align-items:center">
-          {% if v.is_sent_home %}<span class="status-badge status-danger">أُرسل للمنزل</span>{% endif %}
-          <span class="text-xs text-muted">{{ v.visit_date|date:"d/m" }}</span>
-        </div>
-      </div>
-      {% endfor %}
-      {% else %}
-      {% include "components/empty_state.html" with message="لا زيارات عيادة" %}
+      <ul class="plain-list">
+        {% for v in clinic_visits %}
+          <li class="plain-list__row">
+            <span class="plain-list__main"><b class="plain-list__title">{{ v.reason|truncatechars:40 }}</b><span class="plain-list__sub">{{ v.visit_date|date:"d/m" }}</span></span>
+            {% if v.is_sent_home %}<span class="status-badge status-danger">أُرسل للمنزل</span>{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
       {% endif %}
-    </div>
+    {% endif %}{% endsection_card %}
   </div>
 
   {# ── الأنشطة والإنجازات ── #}
   <div id="tab-activities" class="tab-content">
-    <div class="detail-section">
-      <div class="detail-section-title">{% include "components/icon.html" with name="activity" %} الأنشطة والإنجازات</div>
-      {% if activities %}
-      {% for act in activities %}
-      <div class="dash-list-item">
-        <div style="flex:1">
-          <strong>{{ act.title }}</strong>
-          <span class="text-xs text-muted" style="margin-inline-start:4px">{{ act.get_activity_type_display }}</span>
-        </div>
-        <span class="status-badge status-info">{{ act.get_scope_display }}</span>
-      </div>
-      {% endfor %}
-      {% else %}
-      {% include "components/empty_state.html" with message="لا أنشطة مسجّلة" %}
-      {% endif %}
-    </div>
+    {% section_card "الأنشطة والإنجازات" icon="activity" empty="لا أنشطة مسجّلة" %}{% if activities %}
+      <ul class="plain-list">
+        {% for act in activities %}
+          <li class="plain-list__row">
+            <span class="plain-list__main"><b class="plain-list__title">{{ act.title }}</b><span class="plain-list__sub">{{ act.get_activity_type_display }}</span></span>
+            <span class="status-badge status-info">{{ act.get_scope_display }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
   </div>
 
-  {# ── الانتقالات ── #}
+  {# ── الانتقالات — كانت قسماً خارج التبويبات يظهر تحت كلّ تبويب ── #}
   {% if transfers %}
-  <div class="detail-section">
-    <div class="detail-section-title">{% include "components/icon.html" with name="refresh" %} سجل الانتقالات</div>
-    {% for tr in transfers %}
-    <div class="dash-list-item">
-      <div style="flex:1">
-        <span>{% if tr.direction == "in" %}← وارد من{% else %}→ صادر إلى{% endif %} {{ tr.other_school_name }}</span>
-        <span class="text-xs text-muted" style="margin-inline-start:6px">{{ tr.transfer_date|date:"d/m/Y" }}</span>
-      </div>
-      <span class="status-badge {% if tr.status == 'completed' %}status-success{% elif tr.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">
-        {{ tr.get_status_display }}
-      </span>
-    </div>
-    {% endfor %}
+  <div id="tab-transfers" class="tab-content">
+    {% section_card "سجل الانتقالات" meta=transfers|length icon="refresh" %}
+      <ul class="plain-list">
+        {% for tr in transfers %}
+          <li class="plain-list__row">
+            <span class="plain-list__main"><b class="plain-list__title">{% if tr.direction == "in" %}← وارد من{% else %}→ صادر إلى{% endif %} {{ tr.other_school_name }}</b><span class="plain-list__sub">{{ tr.transfer_date|date:"d/m/Y" }}</span></span>
+            <span class="status-badge {% if tr.status == 'completed' %}status-success{% elif tr.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ tr.get_status_display }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endsection_card %}
   </div>
   {% endif %}
 

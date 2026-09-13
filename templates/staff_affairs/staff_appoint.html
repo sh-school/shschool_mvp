@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% comment %}
 تعيينُ منتسبٍ جديد — نموذجٌ واحدٌ يُنشئ الحسابَ والعضويّةَ ومرجعَ القرار.
 والقسمُ يُعرض للأدوار التدريسيّة وحدَها، فلا يخالف الانتماءُ المسمّى الوظيفيّ.
@@ -11,12 +12,7 @@
 
 {% block content %}
 <div class="exec-dash">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="user" %} تعيين منتسب</h1>
-      <p class="exec-subtitle">التعيينُ قرارٌ — يُسجَّل بتاريخه ومرجعه</p>
-    </div>
-  </div>
+  {% page_header "تعيين منتسب" subtitle="التعيينُ قرارٌ — يُسجَّل بتاريخه ومرجعه" icon="user" %}{% endpage_header %}
 
   <form method="post" class="card-qatar ap-form" data-confirm="تأكيدُ تعيين المنتسب؟">
     {% csrf_token %}

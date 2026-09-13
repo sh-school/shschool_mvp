@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}إحصاءات السلوك{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,108 +9,43 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Exec Header ── #}
-  <div class="exec-header">
-    <h1>{% include "components/icon.html" with name="bar-chart" %} إحصاءات السلوك المدرسي</h1>
-    <span class="exec-date">{{ year }} · QNSA المعيار 2</span>
-  </div>
+  {% page_header "إحصاءات السلوك المدرسي" subtitle=subtitle icon="bar-chart" %}{% endpage_header %}
 
-  {% if is_scoped %}
-  <div class="alert alert-info" style="margin-bottom:1rem;padding:10px 16px;background:var(--status-info-bg);border:1px solid var(--info-border,#bfdbfe);border-radius:8px;font-size:var(--text-sm);color:#1e40af">
-    {% include "components/icon.html" with name="info" %}
-    تعرض هذه الإحصائيات بيانات طلابك فقط وفق جدولك الدراسي.
-  </div>
-  {% endif %}
+  {% kpi_strip label="أرقام العام الدراسي" %}
+    {% kpi "إجمالي المخالفات" total tone="maroon" %}
+    {% kpi "الدرجة الأولى" by_level.1 tone="blue" %}
+    {% kpi "الدرجة الثانية" by_level.2 tone="orange" %}
+    {% kpi "الدرجة 3 و4" severe_count tone="red" %}
+    {% kpi "نسبة الحلّ" resolved_label tone=resolved_tone title="المخالفات المحلولة من كلّ مخالفات العام" %}
+  {% endkpi_strip %}
 
-  {# ── KPI Strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-maroon">
-      <span class="kpi-mini-value">{{ total }}</span>
-      <span class="kpi-mini-label">إجمالي المخالفات</span>
-    </div>
-    <div class="kpi-mini kpi-blue">
-      <span class="kpi-mini-value">{{ by_level.1 }}</span>
-      <span class="kpi-mini-label">درجة أولى</span>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <span class="kpi-mini-value">{{ by_level.2 }}</span>
-      <span class="kpi-mini-label">درجة ثانية</span>
-    </div>
-    <div class="kpi-mini kpi-red">
-      <span class="kpi-mini-value">{{ by_level.3|add:by_level.4 }}</span>
-      <span class="kpi-mini-label">درجة 3 و4</span>
-    </div>
-  </div>
+  <div class="ui-grid-2">
+    {% section_card "أكثر الطلاب مخالفة" meta="أعلى 10" icon="users" empty="لا مخالفاتٍ هذا العام" %}{% if top_students %}
+      <input type="search" id="topStudentsSearch" class="form-control form-control-sm beh-search"
+             placeholder="بحث بالاسم..." autocomplete="off" aria-label="بحث بالاسم">
+      <ul class="plain-list is-scroll">
+        {% for s in top_students %}
+          <li class="plain-list__row filterable-row" data-text="{{ s.student__full_name }}">
+            <a href="{% url 'behavior:behavior_report' s.student__id %}" class="plain-list__title link-maroon" title="التقرير السلوكي">{{ s.student__full_name }}</a>
+            <span class="status-badge status-maroon">{{ s.count }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-    {# ── أكثر الطلاب مخالفة ── #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">أكثر الطلاب مخالفة</div>
-      <div class="filter-bar px-4 py-2 border-b">
-        <input type="text" id="topStudentsSearch" class="form-control form-control-sm"
-               placeholder="بحث بالاسم..." autocomplete="off">
-      </div>
-      <div class="dash-chart-wrap" style="max-height:420px;overflow-y:auto">
-        <div class="dash-list">
-          {% for s in top_students %}
-          <div class="dash-list-item filterable-row" data-text="{{ s.student__full_name }}">
-            <div>
-              <p class="text-sm font-semibold m-0 mb-0.5 text-primary">{{ s.student__full_name }}</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-bold text-primary">{{ s.count }}</span>
-              <a href="{% url 'behavior:behavior_report' s.student__id %}" class="link-maroon text-xs no-underline">تقرير</a>
-            </div>
-          </div>
-          {% empty %}
-          <div class="empty-state p-8">
-            <p class="empty-sub">لا توجد بيانات</p>
-          </div>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-
-    {# ── التوزيع الشهري ── #}
-    <div class="dash-chart-card">
-      <div class="dash-chart-title">التوزيع الشهري</div>
-      <div class="dash-chart-wrap" style="max-height:420px;overflow-y:auto">
-        <div class="dash-list">
-          {% for m in monthly %}
-          <div class="dash-list-item">
-            <p class="text-sm m-0 text-primary">{{ m.month|date:"F Y" }}</p>
-            <div class="flex items-center gap-2">
-              <div class="progress-qatar w-20">
-                <div class="progress-qatar-fill" style="width:{% widthratio m.count 20 100 %}%"></div>
-              </div>
-              <span class="text-sm font-semibold text-left text-primary min-w-6">{{ m.count }}</span>
-            </div>
-          </div>
-          {% empty %}
-          <div class="empty-state p-8">
-            <p class="empty-sub">لا توجد بيانات</p>
-          </div>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  {# ── نسبة الحل ── #}
-  <div class="alert-strip">
-    <div class="flex items-center justify-between mb-2">
-      <span class="text-sm font-semibold text-primary">نسبة حل المخالفات الجسيمة</span>
-      <span class="text-xl font-extrabold
-        {% if resolved_pct >= 80 %}text-status-success
-        {% elif resolved_pct >= 50 %}text-status-warning
-        {% else %}text-status-danger{% endif %}">{{ resolved_pct }}%</span>
-    </div>
-    <div class="progress-qatar h-2.5">
-      <div class="progress-qatar-fill {% if resolved_pct >= 80 %}pf-success{% elif resolved_pct >= 50 %}pf-warning{% else %}pf-danger{% endif %}"
-           style="--progress-w:{{ resolved_pct }}%"></div>
-    </div>
+    {% section_card "التوزيع الشهري" icon="calendar" empty="لا مخالفاتٍ هذا العام" %}{% if monthly_rows %}
+      <ul class="plain-list is-scroll">
+        {% for m in monthly_rows %}
+          <li class="plain-list__row">
+            <span class="plain-list__title">{{ m.month|date:"F Y" }}</span>
+            <span class="beh-bar">
+              <span class="progress-qatar beh-bar__track"><span class="progress-qatar-fill" style="--progress-w:{{ m.share }}%"></span></span>
+              <b class="beh-bar__value">{{ m.count }}</b>
+            </span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
   </div>
 
 </div>

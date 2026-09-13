@@ -226,7 +226,16 @@ def swap_respond(request, swap_id):
             messages.error(request, str(e))
         return redirect("swap_list")
 
-    return render(request, "schedule/swap_respond.html", {"swap": swap})
+    return render(
+        request,
+        "schedule/swap_respond.html",
+        {
+            "swap": swap,
+            # سطرُ الترويسة: من طلب ومتى — كان في ترويسةٍ مرسومةٍ خاصّةٍ بالصفحة.
+            "request_label": f"من {swap.teacher_a.full_name} — "
+            f"{timezone.localtime(swap.created_at):%Y/%m/%d %H:%M}",
+        },
+    )
 
 
 @login_required

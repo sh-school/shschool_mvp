@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}الحصص التعويضية{% endblock %}
 
 {% block breadcrumbs %}
@@ -12,17 +13,11 @@
 وحالةُ فراغٍ من المكوّن الموحَّد.
 {% endcomment %}
 <div class="exec-dash">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</h1>
-      <p class="exec-subtitle">حصّةٌ فاتت تُعوَّض في وقتٍ آخر — بطلبٍ يُعتمَد</p>
-    </div>
+  {% page_header "الحصص التعويضية" subtitle="حصّةٌ فاتت تُعوَّض في وقتٍ آخر — بطلبٍ يُعتمَد" icon="list-checks" %}
     {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" %}
-    <a href="{% url 'compensatory_request' %}" class="btn-primary btn-sm">
-      {% include "components/icon.html" with name="file-pen" %} طلب تعويض
-    </a>
+    <a href="{% url 'compensatory_request' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} طلب تعويض</a>
     {% endif %}
-  </div>
+  {% endpage_header %}
 
   <form method="get" class="filter-bar">
     <div class="filter-field">
@@ -41,8 +36,8 @@
     </div>
   </form>
 
-  <div class="card-qatar" style="padding:0">
-  <div class="table-wrap-scroll" style="max-height:420px" id="comp-cards">
+  {% section_card "الطلبات" icon="list-checks" flush=True empty="لا توجد حصص تعويضية" empty_sub="ستظهر هنا حين يُطلب تعويضُ حصّةٍ فاتت" %}{% if compensatory_sessions %}
+  <div class="table-wrap-scroll schedule-cards" id="comp-cards">
   {% for comp in compensatory_sessions %}
   <div class="comp-card" data-filter-row data-text="{{ comp.teacher.full_name }}">
     <div class="comp-row">
@@ -74,11 +69,9 @@
       {% endif %}
     {% endif %}
   </div>
-  {% empty %}
-  {% include "components/empty_state.html" with icon="calendar" title="لا توجد حصص تعويضية" subtitle="ستظهر هنا حين يُطلب تعويضُ حصّةٍ فاتت" %}
   {% endfor %}
   </div>
-  </div>
+  {% endif %}{% endsection_card %}
 </div>
 {% endblock %}
 

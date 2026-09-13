@@ -17,6 +17,7 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.utils import timezone
+from django.utils.formats import date_format
 from django.views.decorators.http import require_POST
 
 from assessments.models import AnnualSubjectResult
@@ -80,6 +81,11 @@ def student_dashboard(request):
     # ✅ v5.4: StudentService.get_dashboard_context — جميع queries في service layer
     ctx = StudentService.get_dashboard_context(school, year, today=today)
     att = ctx["today_attendance"]
+    total_students = ctx["total_students"]
+    absent_today = att["absent"] or 0
+    late_today = att["late"] or 0
+    behavior_today = ctx.get("today_behavior_count", 0)
+    stage_map = ctx.get("stage_map", {})
 
     # ملاحظة: حُذفت أقسام "آخر المخالفات" / "آخر الانتقالات" / "التأخر الصباحي" /
     # "آخر الأنشطة" / "طلاب بدون ولي أمر" بطلب المدير — لا نمرّر context keys لها
@@ -90,22 +96,69 @@ def student_dashboard(request):
             "today": today,
             "year": year,
             "current_school": school,
-            "total_students": ctx["total_students"],
-            "absent_today": att["absent"] or 0,
-            "late_today": att["late"] or 0,
-            "grade_distribution": ctx["grade_distribution"],
-            # الجزء 1 — إحصائيات اليوم
-            "stage_map": ctx.get("stage_map", {}),
-            "qatari_pct": ctx.get("qatari_pct", 0),
-            "absent_pct": ctx.get("absent_pct", 0),
-            "late_pct": ctx.get("late_pct", 0),
-            "today_behavior_count": ctx.get("today_behavior_count", 0),
+            "page_subtitle": _dated_subtitle(getattr(school, "name", ""), year, today),
+            "total_students": total_students,
+            "absent_today": absent_today,
+            "late_today": late_today,
+            "today_behavior_count": behavior_today,
+            # الجزء 1 — إحصائيات اليوم: المرحلتان تفصيلُ الإجمالي لا بطاقةٌ بسطرين.
+            "stage_label": f"إعدادي {stage_map.get(2, 0)} · ثانوي {stage_map.get(3, 0)}",
+            "qatari_label": f"{ctx.get('qatari_pct', 0)}%",
+            "absent_label": f"{ctx.get('absent_pct', 0)}%",
+            "late_label": f"{ctx.get('late_pct', 0)}%",
+            # اللونُ يحمل التنبيه — والعددُ نفسُه في ترويسة قائمته، لا تحت النسبة.
+            "absent_tone": "red" if absent_today else "green",
+            "late_tone": "orange" if late_today else "green",
+            "behavior_tone": "red" if behavior_today else "green",
             # الجزء 2 — القوائم اليومية
             "absent_list": ctx.get("absent_list", []),
             "late_list": ctx.get("late_list", []),
-            "today_infraction_list": ctx.get("today_infraction_list", []),
+            "infraction_rows": [
+                {
+                    "student": inf.student.full_name,
+                    "category": inf.violation_category.name_ar if inf.violation_category else "",
+                    "level": inf.level,
+                    # د1 نجاح، ود2–د3 تحذير، ود4 خطر — كما كانت في القالب.
+                    "badge": _LEVEL_BADGE.get(inf.level, "status-danger"),
+                }
+                for inf in ctx.get("today_infraction_list", [])
+            ],
+            "grade_rows": _grade_share(ctx["grade_distribution"], total_students),
         },
     )
+
+
+#: لونُ شارة درجة المخالفة — وما فوق الثالثة خطر.
+_LEVEL_BADGE = {1: "status-success", 2: "status-warning", 3: "status-warning"}
+
+_GRADE_NAMES = dict(ClassGroup.GRADES)
+
+
+def _dated_subtitle(school_name: str, year: str, day) -> str:
+    """«المدرسة · 2026-2027 · التاريخ» — سطرُ الترويسة الوصفيّ."""
+    parts = [school_name or "المدرسة", year, date_format(day, "D، d M Y")]
+    return " · ".join(part for part in parts if part)
+
+
+def _grade_share(rows, total: int) -> list[dict]:
+    """توزيعُ الطلاب على الصفوف: الاسمُ الوزاريّ، والعدد، ونصيبُه من الكلّ."""
+    return [
+        {
+            "label": _GRADE_NAMES.get(row["class_group__grade"], row["class_group__grade"]),
+            "count": row["count"],
+            "pct": round(row["count"] * 100 / total) if total else 0,
+        }
+        for row in rows
+    ]
+
+
+def _share_tone(pct, green: int = 90, amber: int = 75) -> tuple[str, str]:
+    """(لونُ البطاقة، صنفُ الشارة) لنسبة حضور — العتباتُ التي كانت في القوالب: 90 · 75."""
+    if pct >= green:
+        return "green", "status-success"
+    if pct >= amber:
+        return "orange", "status-warning"
+    return "red", "status-danger"
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -790,10 +843,26 @@ def student_profile(request, student_id):
         "-created_at"
     )[:5]
 
+    # ── ما يُرسم: سطرُ الترويسة ولونُ الحضور (90 · 75 — عتبتا القالب) ──
+    subtitle_parts = []
+    if enrollment:
+        subtitle_parts.append(
+            class_label(enrollment.class_group.grade, enrollment.class_group.section)
+        )
+    if student.national_id:
+        subtitle_parts.append(f"****{mask_national_id(student.national_id)[-4:]}")
+    if profile and profile.gender:
+        subtitle_parts.append("ذكر" if profile.gender == "M" else "أنثى")
+
     return render(
         request,
         "student_affairs/student_profile.html",
         {
+            "profile_subtitle": " · ".join(subtitle_parts),
+            "attendance_label": f"{attendance_summary['pct']}%",
+            "attendance_sub": f"من {attendance_summary['total']} حصة",
+            "attendance_tone": _share_tone(attendance_summary["pct"])[0],
+            "subjects_sub": f"ناجح {grades_summary.get('passed') or 0}",
             "student": student,
             "profile": profile,
             "enrollment": enrollment,
@@ -908,7 +977,14 @@ def transfer_detail(request, pk):
     """تفاصيل طلب انتقال."""
     school = request.user.get_school()
     transfer = get_object_or_404(StudentTransfer, pk=pk, school=school)
-    return render(request, "student_affairs/transfer_detail.html", {"transfer": transfer})
+    return render(
+        request,
+        "student_affairs/transfer_detail.html",
+        {
+            "transfer": transfer,
+            "page_subtitle": f"{transfer.student.full_name} — {transfer.get_direction_display()}",
+        },
+    )
 
 
 @login_required
@@ -1033,6 +1109,34 @@ def attendance_overview(request):
     # ── الصفوف المتاحة للفلتر ──
     grades = ClassGroup.GRADES
 
+    # ── ما يُرسم: الألوانُ بعتباتها هنا لا شروطاً في القالب ──
+    pct_tone, _badge = _share_tone(pct)
+    class_rows = []
+    for row in class_breakdown:
+        row_pct = round(row["present_count"] * 100 / row["total"]) if row["total"] else 0
+        class_rows.append(
+            {
+                **row,
+                "label": _GRADE_NAMES.get(
+                    row["session__class_group__grade"], row["session__class_group__grade"]
+                ),
+                "pct": row_pct,
+                "badge": _share_tone(row_pct)[1],
+            }
+        )
+    # الغيابُ المتكرّر: عشرةُ أيّامٍ فأكثر خطر، وخمسةٌ تحذير — عتبتا القالب.
+    worst_students = [
+        {
+            **s,
+            "badge": "status-danger"
+            if s["absence_count"] >= 10
+            else "status-warning"
+            if s["absence_count"] >= 5
+            else "status-info",
+        }
+        for s in worst_students_qs
+    ]
+
     return render(
         request,
         "student_affairs/attendance_overview.html",
@@ -1040,8 +1144,11 @@ def attendance_overview(request):
             "summary": summary,
             "today": today,
             "year": year,
-            "worst_students": worst_students_qs,
-            "class_breakdown": class_breakdown,
+            "page_subtitle": f"ملخص الحضور والغياب — {date_format(today, 'D، d M Y')}",
+            "pct_label": f"{pct}%",
+            "pct_tone": pct_tone,
+            "worst_students": worst_students,
+            "class_breakdown": class_rows,
             "chart_labels_json": json.dumps(chart_labels),
             "chart_present_json": json.dumps(chart_present),
             "chart_absent_json": json.dumps(chart_absent),
@@ -1262,10 +1369,32 @@ def behavior_overview(request):
     # ── الصفوف المتاحة للفلتر ──
     grades = ClassGroup.GRADES
 
+    # ── ألوانُ البطاقات بعتباتها التي كانت في القالب ──
+    # نسبةُ المخالفين: دون 10% أخضر، ودون 25% برتقاليّ — وبها يُلوَّن الإجماليّ أيضاً.
+    pct_tone = "green" if infraction_pct < 10 else "orange" if infraction_pct < 25 else "red"
+    # مخالفاتُ اليوم: صفرٌ أخضر، ودون 5 برتقاليّ. وغيرُ المحلولة: صفرٌ أخضر، ودون 10 برتقاليّ.
+    today_tone = "green" if not today_infractions else "orange" if today_infractions < 5 else "red"
+    unresolved_tone = "green" if not unresolved else "orange" if unresolved < 10 else "red"
+    degree_rows = [
+        (label, degree_map.get(degree, {}).get("count", 0))
+        for degree, label in (
+            (1, "الدرجة 1 — تحذير"),
+            (2, "الدرجة 2 — إنذار"),
+            (3, "الدرجة 3 — خطيرة"),
+            (4, "الدرجة 4 — جسيمة"),
+        )
+    ]
+
     return render(
         request,
         "student_affairs/behavior_overview.html",
         {
+            "pct_label": f"{infraction_pct}%",
+            "offenders_label": f"{students_with_infractions} من {total_students}",
+            "pct_tone": pct_tone,
+            "today_tone": today_tone,
+            "unresolved_tone": unresolved_tone,
+            "degree_rows": degree_rows,
             "today": today,
             "total_infractions": total_infractions,
             "unresolved": unresolved,
@@ -1629,6 +1758,9 @@ def tardiness_list(request):
     )
     for rec in late_records:
         rec.cumulative_late = cumulative_counts.get(rec.student_id, 0)
+        # خمسُ مرّاتٍ فأكثر هذا العام تُلوَّن خطراً — العتبةُ التي كانت في القالب.
+        rec.cumulative_badge = "status-danger" if rec.cumulative_late >= 5 else "status-gray"
+        rec.class_text = class_label(rec.session.class_group.grade, rec.session.class_group.section)
 
     # KPIs إضافية
     total_students_today = (
@@ -1676,6 +1808,25 @@ def tardiness_list(request):
         request,
         "student_affairs/tardiness_list.html",
         {
+            "page_subtitle": f"الطلاب المتأخرون — {date_format(selected_date, 'D، d M Y')}",
+            "empty_label": f"لا يوجد طلاب متأخرون في {date_format(selected_date, 'd M Y')}",
+            # صفرٌ أخضر، وحتى خمسةٍ برتقاليّ، وما فوقها أحمر — عتباتُ القالب.
+            "total_late_tone": "green"
+            if not total_late
+            else "orange"
+            if total_late <= 5
+            else "red",
+            "late_pct_label": f"{late_pct}%",
+            "late_pct_sub": f"من {total_students_today}",
+            "class_chips": [
+                {
+                    "label": class_label(
+                        row["session__class_group__grade"], row["session__class_group__section"]
+                    ),
+                    "count": row["count"],
+                }
+                for row in class_breakdown
+            ],
             "late_records": late_records,
             "selected_date": selected_date,
             "total_late": total_late,

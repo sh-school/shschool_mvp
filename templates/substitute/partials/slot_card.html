@@ -1,22 +1,12 @@
-<div id="slot-{{ slot.id }}" class="card-qatar overflow-hidden">
-  <div class="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
-    <div class="flex items-center gap-3">
-      <span class="w-9 h-9 rounded-lg bg-skyline text-white flex items-center justify-center font-bold text-sm">
-        {{ slot.period_number }}
-      </span>
-      <div>
-        <p class="font-semibold text-gray-800">{{ slot.subject|default:"—" }}</p>
-        <p class="text-xs text-gray-500">{{ slot.class_group }} | {{ slot.start_time|time:"H:i" }}–{{ slot.end_time|time:"H:i" }}</p>
-      </div>
-    </div>
-    <span class="status-badge status-success">✓ مُغطَّى</span>
-  </div>
-  <div class="px-5 py-4 flex items-center justify-between">
-    <div>
-      <p class="text-sm text-gray-500">البديل المُعيَّن:</p>
-      <p class="font-bold text-skyline">{{ assignment.substitute.full_name }}</p>
-      {% if assignment.notes %}<p class="text-xs text-gray-400 mt-0.5">{{ assignment.notes }}</p>{% endif %}
-    </div>
-    <span class="text-xs px-2 py-1 rounded bg-blue-50 text-blue-700">{{ assignment.get_status_display }}</span>
-  </div>
+{% load ui %}{% comment %}
+حصّةُ المعلم الغائب في ثلاثة أسطر: الحصّة · البديل · الحالة. تُضمَّن في
+`absence_detail.html` وتعود وحدَها من `assign_substitute` (HTMX يبدّل
+`#slot-<id>` كلَّه) — فالشكلُ واحدٌ قبل التعيين وبعده. والألوانُ والنصوصُ
+من `_slot_presentation` في operations/views_schedule.py.
+{% endcomment %}
+<div id="slot-{{ item.slot.id }}" class="slot-cell">
+  {% entity_card item.title who=item.who count=item.time_label tone=item.tone %}
+    {% entity_chips %}{% if item.assignment %}<span class="chip"{% if item.assignment.notes %} title="{{ item.assignment.notes }}"{% endif %}>{{ item.assignment.substitute.full_name }}</span>{% else %}<form class="slot-assign" hx-post="{% url 'assign_substitute' absence.id item.slot.id %}" hx-target="#slot-{{ item.slot.id }}" hx-swap="outerHTML">{% csrf_token %}<select name="substitute" required class="form-select form-control-sm" aria-label="البديل"><option value="">— اختر المعلم —</option>{% for t in item.available %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}</select><input type="text" name="notes" placeholder="ملاحظة (اختياري)" aria-label="ملاحظة" class="form-control form-control-sm"><button type="submit" class="btn-primary btn-sm">تعيين</button></form>{% endif %}{% endentity_chips %}
+    {% entity_status tone=item.status_tone %}{% if item.assignment %}{% include "components/icon.html" with name="check-circle" %}{% else %}{% include "components/icon.html" with name="alert-triangle" %}{% endif %} {{ item.status_label }}{% endentity_status %}
+  {% endentity_card %}
 </div>

@@ -13,6 +13,7 @@ from core.capabilities import capability_required
 from core.pdf_utils import render_pdf
 
 from .models import ExecutorMapping, OperationalProcedure, QualityCommitteeMember
+from .presentation import kpi_progress_tone, progress_tone
 from .services import QualityService
 
 
@@ -49,6 +50,9 @@ def progress_report(request):
     executor_stats = []
     for ex in executor_raw:
         ex["user_name"] = mapping_dict.get(ex["executor_norm"], "")
+        # كانت النسبةُ تُحسب في القالب بـ`widthratio` مرّتين، واللونُ بشرطٍ ثالث.
+        ex["pct"] = round(ex["completed"] * 100 / ex["total"]) if ex["total"] else 0
+        ex["tone"] = progress_tone(ex["pct"], ex["total"])
         executor_stats.append(ex)
 
     # ── مسؤول كل مجال (من لجنة المراجعة) ──
@@ -66,6 +70,7 @@ def progress_report(request):
     domain_stats = data["domain_stats"]
     for ds in domain_stats:
         ds["reviewer_name"] = reviewer_map.get(ds["domain"].pk, "")
+        ds["tone"] = progress_tone(ds["pct"], ds["total"])
 
     base_qs = OperationalProcedure.objects.filter(school=school, academic_year=year)
     today = timezone.now().date()
@@ -90,6 +95,9 @@ def progress_report(request):
             "in_progress_all": overall["in_progress"],
             "pending_review_all": overall["pending_review"],
             "pct_all": overall["pct"],
+            "pct_label": f"{overall['pct']}%",
+            "pct_tone": kpi_progress_tone(overall["pct"], overall["total"]),
+            "report_subtitle": f"{year} · {school.name}" if school else year,
             "overdue_procedures": overdue_procedures,
             "overdue_count": len(overdue_procedures),
             "evidence_requests": evidence_requests,

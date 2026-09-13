@@ -1,24 +1,15 @@
-<div class="kpi-mini kpi-blue">
-  <div class="kpi-mini-value">{{ summary.total|default:0 }}</div>
-  <div class="kpi-mini-label">إجمالي الطلاب</div>
-</div>
-<div class="kpi-mini kpi-teal">
-  <div class="kpi-mini-value">{{ summary.marked|default:0 }}</div>
-  <div class="kpi-mini-label">تم التسجيل</div>
-</div>
-<div class="kpi-mini kpi-green">
-  <div class="kpi-mini-value">{{ summary.present|default:0 }}</div>
-  <div class="kpi-mini-label">حاضر</div>
-</div>
-<div class="kpi-mini kpi-red">
-  <div class="kpi-mini-value">{{ summary.absent|default:0 }}</div>
-  <div class="kpi-mini-label">غائب</div>
-</div>
-<div class="kpi-mini kpi-orange">
-  <div class="kpi-mini-value">{{ summary.late|default:0 }}</div>
-  <div class="kpi-mini-label">متأخر</div>
-</div>
-<div class="kpi-mini kpi-maroon">
-  <div class="kpi-mini-value">{{ summary.percentage|default:0 }}%</div>
-  <div class="kpi-mini-label">نسبة الحضور</div>
-</div>
+{% load ui %}
+{% comment %}
+ملخّصُ الحصّة — يُستبدل داخل `#summary-widget` كلّما رُصد طالب (`refresh from:body`).
+كانت ستُّ بطاقاتٍ القيمةُ فيها قبل الاسم وتنكسر 4+2، وإحداها «تم التسجيل»
+تقرأ `summary.marked` الذي لا تُرجعه الخدمة فتبقى صفراً أبداً. والعدّادُ `total`
+هو عددُ المرصودين لا طلابِ الشعبة، فسُمّي باسمه.
+{% endcomment %}
+{% kpi_strip label="ملخّص الحضور" %}
+  {% kpi "المرصودون" summary.total|default:0 tone="blue" %}
+  {% kpi "حاضر" summary.present|default:0 tone="green" %}
+  {% kpi "غائب" summary.absent|default:0 tone="red" %}
+  {% kpi "متأخر" summary.late|default:0 tone="amber" %}
+  {% kpi "معذور" summary.excused|default:0 tone="sky" %}
+  {% kpi "نسبة الحضور" summary.percentage_label|default:"0%" %}
+{% endkpi_strip %}

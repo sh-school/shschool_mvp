@@ -308,3 +308,38 @@ class TestPWAViews:
         response = client.get("/manifest.json")
         content = response.content.decode()
         assert "/parents/" in content
+
+
+@pytest.mark.django_db
+class TestExamScreensUseThePlatformComponents:
+    """كانت شاشاتُ الكنترول مكتوبةً بأصناف Bootstrap والمنصّةُ لا تحمّله — فبلا تنسيق."""
+
+    BOOTSTRAP = ("container-fluid", "col-md-", "btn-outline-", "table-dark", "d-flex", "fw-bold")
+
+    def test_every_session_screen_is_drawn_with_components(self, client, school):
+        user = make_principal(None, school)
+        session = make_exam_session(school, user)
+        client.force_login(user)
+        pages = [
+            "/exam-control/",
+            "/exam-control/session/create/",
+            f"/exam-control/session/{session.pk}/",
+            f"/exam-control/session/{session.pk}/supervisors/",
+            f"/exam-control/session/{session.pk}/schedule/",
+            f"/exam-control/session/{session.pk}/incidents/",
+            f"/exam-control/session/{session.pk}/incident/add/",
+            f"/exam-control/session/{session.pk}/grade-sheets/",
+        ]
+        for url in pages:
+            body = client.get(url).content.decode()
+            assert "exec-title" in body, url
+            for cls in self.BOOTSTRAP:
+                assert cls not in body, f"{url}: {cls}"
+
+    def test_the_new_session_form_suggests_the_current_year(self, client, school):
+        from core.academic_calendar import academic_year_for_school
+
+        user = make_principal(None, school)
+        client.force_login(user)
+        body = client.get("/exam-control/session/create/").content.decode()
+        assert f'value="{academic_year_for_school(school)}"' in body
