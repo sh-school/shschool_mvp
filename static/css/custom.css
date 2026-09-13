@@ -45,6 +45,10 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
+/* قاموسُ الأيقونات (core/icons.py + static/icons/sprite.svg): الرسومُ بلا سُمكٍ
+   مكتوب، فالسُّمكُ رمزٌ يُضبط هنا — والانعكاسُ لما يدلّ على اتّجاه. */
+.icon-hg { stroke-width: var(--icon-stroke, 1.5); }
+html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
 .icon-sm  { width: 16px; height: 16px; }
 .icon-lg  { width: 24px; height: 24px; }
 .icon-xl  { width: 32px; height: 32px; }
