@@ -3700,7 +3700,9 @@ html.dark .kpi-link         { color: var(--maroon-fg); }
   flex-wrap: wrap;
 }
 .exec-subtitle { font-size: .7rem; color: var(--text-muted); margin: 0; }
-.exec-meta { display: flex; align-items: center; gap: 8px; }
+/* صفُّ أزرار الترويسة: ينكسر سطراً على الهاتف، وسقفُه عرضُ الصفحة — `flex-shrink: 0`
+   وحدَه كان يُبقي الصفَّ بعرض أزراره فتخرج «الجدولة الذكيّة» 54px خارج الشاشة. */
+.exec-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; max-width: 100%; min-inline-size: 0; }
 .exec-date {
   font-size: .7rem; background: var(--status-danger-bg); color: var(--maroon-fg);
   border: 1px solid var(--border); padding: 4px 10px; border-radius: 6px; font-weight: 500;
@@ -5277,7 +5279,6 @@ th[aria-sort="descending"] .th-sort-label {
 }
 .exec-title { font-size: var(--text-xl); font-weight: 700; color: var(--maroon-fg); margin: 0; }
 .exec-subtitle { font-size: .7rem; color: var(--text-muted); margin: 0; }
-.exec-meta { display: flex; align-items: center; gap: 8px; }
 .exec-year-select {
   font-size: var(--text-xs); border: 1px solid var(--border); border-radius: 6px;
   padding: 4px 8px; background: var(--surface);

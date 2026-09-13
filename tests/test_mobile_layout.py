@@ -82,15 +82,14 @@ def test_the_observations_table_sits_in_a_scroll_wrapper():
 # ══════════════════════════════════════════════════════════════════
 
 
-def test_page_actions_wrap():
+def test_page_header_actions_wrap():
     """`flex-wrap` وحدَه لا يكفي: `flex-shrink: 0` يُبقي الصفَّ بعرض أزراره.
 
     فالجدولةُ الذكيّة بقيت 54px خارج الشاشة بعد إضافة `wrap` — حتى سُقِّف العرض.
+    كان الصفُّ `.page-actions`؛ واليومَ ترسمه `{% page_header %}` باسم `.exec-meta`.
     """
-    assert _decl(".page-actions", "flex-wrap") == "wrap", "أزرارُ الصفحة لا تنكسر سطراً"
-    assert (
-        _decl(".page-actions", "max-width") == "100%"
-    ), "صفُّ الأزرار بلا سقف — لا يبلغ حدّاً ينكسر عنده"
+    assert _decl(".exec-meta", "flex-wrap") == "wrap", "أزرارُ الترويسة لا تنكسر سطراً"
+    assert _decl(".exec-meta", "max-width") == "100%", "صفُّ الأزرار بلا سقف — لا يبلغ حدّاً ينكسر عنده"
 
 
 def test_the_schedule_toolbar_wraps_on_phones_and_holds_one_line_on_desktop():
