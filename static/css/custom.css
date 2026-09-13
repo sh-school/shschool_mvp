@@ -9347,6 +9347,24 @@ html.dark {
   min-inline-size: 0;
 }
 .wing-pair > .card-qatar > .wing-grid { flex: 1; align-content: start; }
+
+/* ── الطابقان بعرضٍ على قدر أجنحتهما، وجدولا التوقيت تحتهما بالنسبة نفسها ──
+   نصفان متساويان يضيّقان الطابقَ ذا الأجنحة الثلاثة ويتركان في ذي الجناحين
+   سعة. فالعرضُ وزنُ الطابق (`FloorPanel.width_weight`، في `--floor-a/b`):
+   أساسٌ صفريّ ونموٌّ بالوزن. والسطرُ الثاني يأخذ الوزنين نفسيهما فتتحاذى
+   حوافُّه مع الأوّل. والحدُّ الأدنى يعيدهما عموداً في الشاشة الضيّقة. */
+.wing-pair--floors { display: flex; flex-wrap: wrap; }
+.wing-pair--floors > .card-qatar {
+  flex: var(--floor-a, 1) 1 0;
+  min-inline-size: min(100%, 430px);
+}
+.wing-pair--floors > .card-qatar:nth-child(2) { flex-grow: var(--floor-b, 1); }
+/* والجناحُ ذو الجرسين يقول موضعين في سطرٍ واحد، فيأخذ من جاريه ما يسعهما.
+   شبكةُ أعمدةٍ متساويةٍ لا تعرف هذا، فالمرونةُ هنا بدلُها. */
+.wing-pair--floors .wing-grid { display: flex; flex-wrap: wrap; }
+.wing-pair--floors .wing-box--lines { flex: 1 1 215px; }
+.wing-pair--floors .wing-box--split { flex: 1.5 1 340px; }
+.wing-box--lines .wing-chip { padding-inline: 5px; }
 .wing-pair > .card-qatar > .table-wrap { flex: 1; }
 
 /* ── شبكةُ الأجنحة داخل الطابق ── */
@@ -9445,7 +9463,6 @@ html.dark {
 .floor-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-inline-start: auto; }
 
 /* ── جدولا التوقيت ── */
-.bell-idx { width: 44px; text-align: center; color: var(--text-muted); font-size: var(--text-xs); }
 /* الاسمُ والوقتُ في سطرٍ واحد: عمودان في خليّةٍ يضاعفان ارتفاعَ الجدول
    تسعَ مرّات بلا أن يزيدا شيئاً — والعينُ تقرأ «الحصّة 3 · 08:50–09:35»
    سطراً كما تُقال. */
@@ -9490,6 +9507,62 @@ html.dark {
 .wing-cover-field--wide { grid-column: 1 / -1; }
 .wing-cover-form button { align-self: end; }
 .wing-box__tags { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+
+/* ── شريطُ الأعداد سطراً واحداً: الاسمُ ثمّ العددُ ثمّ التفصيل ──
+   البطاقةُ ثلاثةُ أسطرٍ مكدّسةٌ لتقول «الأجنحة 5 طابقان» — وهي جملةٌ تُقرأ
+   في سطر. والتفصيلُ وحدَه يُقصّ بنقاطٍ حين يضيق، والاسمُ والعددُ لا يُقصّان.
+   ومُعدِّلٌ لا تعديل: `.kpi-strip` في ستّين صفحةٍ غيرِ هذه. */
+.kpi-strip--line .kpi-mini {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: 8px 14px;
+  min-inline-size: 0;
+}
+.kpi-strip--line .kpi-mini-label { margin: 0; white-space: nowrap; }
+.kpi-strip--line .kpi-mini-value,
+.kpi-strip--line .kpi-mini-value.is-words { font-size: var(--text-lg); line-height: 1.4; white-space: nowrap; }
+.kpi-strip--line .kpi-mini-sub {
+  margin: 0;
+  font-size: var(--text-xs);
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── بطاقةُ الجناح في ثلاثة أسطر ──
+   مَن وكم، ثمّ الشُّعب، ثمّ الساعة. والجناحُ ذو الجرسين موضعاه في السطر
+   الثالث متجاوران، يلتفّان إن ضاق العرضُ ولا يصيران سطرين مكدّسين. */
+.wing-box--lines { gap: 6px; padding: var(--sp-2) var(--sp-3); }
+.wing-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px var(--sp-2);
+  min-inline-size: 0;
+}
+/* السطرُ الأوّل لا يلتفّ: اسمُ المشرف الطويل يُقصّ بنقاطٍ واسمُه كاملاً في
+   التلميح، والجناحُ والعددُ ثابتان. */
+.wing-line:not(.wing-line--now) { flex-wrap: nowrap; }
+.wing-line .wing-box__name,
+.wing-line .badge { flex-shrink: 0; }
+.wing-line .wing-box__who {
+  margin: 0;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wing-line .wing-box__count { margin-inline-start: auto; white-space: nowrap; }
+.wing-line--now .wing-now,
+.wing-line--now .wing-warn { padding: 2px var(--sp-2); font-size: var(--text-xs); }
+.wing-line--now { flex-wrap: nowrap; }
+.wing-line--now { gap: 4px; }
+.wing-line--now .wing-now { flex: 1 1 0; min-inline-size: 0; gap: 4px; padding-inline: 6px; }
+/* اسمُ الجرس عربيٌّ هنا، فالخطُّ الثابتُ العرض يوسّعه بلا فائدة. */
+.wing-line--now .wing-now__bell { font-family: inherit; white-space: nowrap; }
+.wing-line--now .wing-now > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── سطرٌ بخمسِ بطاقات: جناحٌ لكلٍّ منها ──
    حدٌّ أدنى صغيرٌ لأنّ البطاقاتِ خمسٌ لا اثنتان، و`auto-fit` لا يزيد على

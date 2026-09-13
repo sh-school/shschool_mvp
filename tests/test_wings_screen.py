@@ -15,6 +15,7 @@ from django.urls import reverse
 from core.academic_calendar import academic_year_for_school
 from core.management.commands.seed_wings import WINGS
 from core.models import ClassGroup, TimeBand, Wing
+from operations.bells import Bell, Slot
 from tests.conftest import (
     ClassGroupFactory,
     MembershipFactory,
@@ -22,7 +23,7 @@ from tests.conftest import (
     StudentEnrollmentFactory,
     UserFactory,
 )
-from wings.services import bell_tables, floors_overview, outside_the_wings
+from wings.services import BellTable, bell_tables, floors_overview, outside_the_wings
 
 pytestmark = pytest.mark.django_db
 
@@ -157,11 +158,49 @@ class TestTheDayTables:
     def test_there_are_two_tables_one_per_day_kind(self, school, built):
         assert [table.label for table in bell_tables(school)] == ["الأحد – الأربعاء", "الخميس"]
 
-    def test_a_row_holds_one_cell_per_bell(self, school, built):
+    def test_a_row_holds_one_cell_per_column(self, school, built):
         regular = bell_tables(school)[0]
 
         assert len(regular.bells) == 3
-        assert all(len(row) == 3 for row in regular.rows)
+        assert all(len(row) == len(regular.columns) for row in regular.rows)
+
+    def test_bells_that_ring_alike_share_one_column(self):
+        """التاسعُ والثانويُّ يرنّان معاً الأحدَ — فعمودٌ واحدٌ باسميهما والطابقُ مرّة."""
+
+        def bell(code, name, first_end):
+            slots = (
+                Slot(1, "الحصّة 1", dt.time(7, 10), first_end, False),
+                Slot(2, "الحصّة 2", first_end, dt.time(9, 0), False),
+            )
+            return Bell(code, name, "first", "regular", slots)
+
+        table = BellTable(
+            day_type="regular",
+            label="",
+            bells=[
+                bell("ground", "الطابق الأرضيّ (7، 8)", dt.time(8, 5)),
+                bell("ninth", "التاسع 3·4 (الطابق الأوّل)", dt.time(8, 0)),
+                bell("secondary", "الثانويّ 10–12 (الطابق الأوّل)", dt.time(8, 0)),
+            ],
+        )
+
+        assert [c.name for c in table.columns] == [
+            "الطابق الأرضيّ (7، 8)",
+            "التاسع 3·4 والثانويّ 10–12 (الطابق الأوّل)",
+        ]
+        assert all(len(row) == 2 for row in table.rows)
+
+    def test_bells_that_differ_keep_their_own_columns(self):
+        def bell(code, end):
+            return Bell(
+                code, code, "first", "thursday", (Slot(1, "الحصّة 1", dt.time(7, 10), end, False),)
+            )
+
+        table = BellTable(
+            "thursday", "", [bell("ninth", dt.time(8, 0)), bell("secondary", dt.time(7, 55))]
+        )
+
+        assert len(table.columns) == 2
 
     def test_the_table_is_as_deep_as_the_longest_bell(self, school, built):
         """الخميسُ يوماه مختلفا الطول — والأقصرُ يُملأ بفراغٍ لا يُقصّ الجدول."""
@@ -254,6 +293,7 @@ class TestNoStudentGoesMissing:
     def test_the_page_names_every_excluded_section(self, client_as, school, built, leader):
         body = client_as(leader).get(reverse("wings:floors")).content.decode()
 
-        assert "وخارجَ الأجنحة 3 شُعبِ تربيةٍ خاصّة" in body
+        assert "و3 خارجَها (تربيةٌ خاصّة)" in body
+        assert "خارجَ الأجنحة بقرار الإدارة:" in body
         for grade, _s in ESE_SECTIONS:
             assert f"{grade.removeprefix('G')}.ESE" in body
