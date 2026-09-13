@@ -17,7 +17,7 @@ import logging
 from functools import wraps
 
 from django.http import HttpResponseForbidden, JsonResponse
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 
 from core.academic_calendar import academic_year_for_school
 
@@ -508,13 +508,20 @@ def log_denial(request, *, role, required=None, source="decorator"):
     )
 
 
+def forbidden_page(request, message):
+    """صفحةُ الرفض 403 برسالتها — قالبُ الخطأ الواحد لا نصٌّ يُبنى هنا.
+
+    كان عنوانٌ أحمرُ يُبنى هنا نصّاً بتنسيقٍ داخل الوسم ولونٍ لا رمزَ له، في
+    أربعة مواضع. والرسالةُ الآن تُهرَّب في القالب.
+    """
+    return render(request, "errors/forbidden.html", {"message": message}, status=403)
+
+
 def _forbidden_response(request, message):
     """يُعيد رد مناسب حسب نوع الطلب (API vs HTML)."""
     if request.path.startswith("/api/"):
         return JsonResponse({"error": message, "code": "forbidden"}, status=403)
-    return HttpResponseForbidden(
-        f"<h2 dir='rtl' style='font-family:Tajawal,sans-serif;padding:40px;color:#B91C1C'>{message}</h2>"
-    )
+    return forbidden_page(request, message)
 
 
 def role_required(*roles):

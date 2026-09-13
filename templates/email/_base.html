@@ -1,0 +1,32 @@
+{% load brand_tags %}<!DOCTYPE html>
+{% comment %}
+أساسُ رسائل البريد — ترثه كلُّ رسالةٍ تُبنى في بايثون وتُرسَل HTML.
+
+عميلُ البريد لا يقرأ `custom.css` ولا يحلّ `var()`، فالقيمةُ رقمٌ في `<style>`
+هنا — لكنّها تُقرأ من `core.brand` بـ`{% brand_color %}` (مرآةُ `:root` المحروسة)
+لا تُكتب نسخةً. والرسالةُ الوارثة لا تحمل `<style>` ولا `style=`: أصنافُ هذا
+الأساس وحدها.
+
+الكتل: `title`، `content`، `footer`.
+{% endcomment %}
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>{% block title %}SchoolOS{% endblock %}</title>
+<style>
+  .mail { font-family: Tajawal, Arial, sans-serif; direction: rtl; max-width: 640px; color: {% brand_color "TEXT_PRIMARY" %}; }
+  .mail-title { color: {% brand_color "MAROON" %}; }
+  .mail-table { border-collapse: collapse; width: 100%; }
+  .mail-quote { background: {% brand_color "SURFACE_ALT" %}; padding: 12px; border-right: 3px solid {% brand_color "MAROON" %}; }
+  .mail-notice { background: {% brand_color "STATUS_WARNING_BG" %}; border-right: 4px solid {% brand_color "STATUS_WARNING_BORDER" %}; padding: 10px; margin: 10px 0; color: {% brand_color "STATUS_WARNING_FG" %}; }
+  .mail-footer { color: {% brand_color "TEXT_MUTED" %}; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="mail" dir="rtl">
+{% block content %}{% endblock %}
+<hr>
+<p class="mail-footer">{% block footer %}{% endblock %}</p>
+</div>
+</body>
+</html>

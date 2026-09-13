@@ -13,6 +13,7 @@ import logging
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
 from django.utils import timezone
 
 from developer_feedback.models import (
@@ -61,8 +62,13 @@ def _build_safe_payload(message: DeveloperMessage) -> dict:
     }
 
 
-def _render_email(payload: dict) -> tuple[str, str, str]:
-    """يُرجع (subject, text_body, html_body) بدون اعتماد على templates خارجية."""
+def _render_email(payload: dict, edit_count: int | None = None) -> tuple[str, str, str]:
+    """يُرجع (subject, text_body, html_body).
+
+    الـHTML من `developer_feedback/email/notification.html` الوارث لأساس البريد
+    `email/_base.html` — فلا لونَ ولا نمطَ هنا، والنصُّ يُهرَّب في القالب.
+    و`edit_count` يُظهر تنبيهَ التعديل أعلى الرسالة.
+    """
     subject = f"[SchoolOS Feedback] {payload['ticket_number']} — {payload['subject']}"
 
     user_hash_short = (payload["user_id_hash"] or "")[:12]
@@ -86,26 +92,9 @@ def _render_email(payload: dict) -> tuple[str, str, str]:
         f"محتوى الإيميل مقيَّد وفق PDPPL (E1).\n"
     )
 
-    body_html = payload["body"].replace("\n", "<br>")
-    html_body = (
-        f"<div dir='rtl' style='font-family: Tajawal, Arial; max-width: 640px;'>"
-        f"<h2 style='color: #8B0000;'>SchoolOS Feedback</h2>"
-        f"<table cellpadding='6' style='border-collapse: collapse; width: 100%;'>"
-        f"<tr><td><b>رقم التذكرة</b></td><td><code>{payload['ticket_number']}</code></td></tr>"
-        f"<tr><td><b>التاريخ</b></td><td>{payload['timestamp']}</td></tr>"
-        f"<tr><td><b>النوع</b></td><td>{payload['message_type']}</td></tr>"
-        f"<tr><td><b>الأولوية</b></td><td>{payload['priority']}</td></tr>"
-        f"<tr><td><b>الدور</b></td><td>{payload['role']}</td></tr>"
-        f"<tr><td><b>المسار</b></td><td><code>{payload['url_path']}</code></td></tr>"
-        f"<tr><td><b>User Hash</b></td><td><code>{user_hash_short}...</code></td></tr>"
-        f"</table>"
-        f"<h3>{payload['subject']}</h3>"
-        f"<div style='background: #f5f5f5; padding: 12px; border-right: 3px solid #8B0000;'>"
-        f"{body_html}"
-        f"</div>"
-        f"<hr><p style='color: #888; font-size: 12px;'>"
-        f"محتوى الإيميل مقيَّد وفق PDPPL (E1) — Azkia Software"
-        f"</p></div>"
+    html_body = render_to_string(
+        "developer_feedback/email/notification.html",
+        {**payload, "user_hash_short": user_hash_short, "edit_count": edit_count},
     )
 
     return subject, text_body, html_body
@@ -197,21 +186,14 @@ def send_developer_edit_notification(
     payload = _build_safe_payload(message)
     edit_count = message.edit_history.count()
 
-    original_subject, text_body, html_body = _render_email(payload)
-    # إضافة بادئة [تعديل] + ملاحظة التعديل
+    # بادئة [تعديل] + ملاحظة التعديل (في HTML يرسمها القالب من edit_count)
+    original_subject, text_body, html_body = _render_email(payload, edit_count=edit_count)
     subject = f"[تعديل #{edit_count}] {original_subject}"
     edit_notice_text = (
         f"\n⚠️ تنبيه: هذه رسالة مُعدَّلة (التعديل رقم {edit_count}).\n"
         f"تم تعديلها بعد الإرسال الأصلي.\n\n"
     )
-    edit_notice_html = (
-        f"<div style='background:#fff3cd;border-right:4px solid #ff9800;"
-        f"padding:10px;margin:10px 0;color:#856404;'>"
-        f"⚠️ <b>رسالة مُعدَّلة</b> — التعديل رقم {edit_count}. "
-        f"عُدّلت بعد الإرسال الأصلي.</div>"
-    )
     text_body = edit_notice_text + text_body
-    html_body = html_body.replace("<h2", edit_notice_html + "<h2", 1)
 
     notification = DeveloperMessageNotification.objects.create(
         message=message,
