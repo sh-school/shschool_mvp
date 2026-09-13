@@ -18,6 +18,7 @@ from functools import wraps
 
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect
+from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
 
@@ -834,9 +835,8 @@ def get_teacher_student_ids(user):
             )
 
     # ── 3) حصص الإشغال (بديل) — اليوم فقط ──
-    import datetime
-
-    today = datetime.date.today()
+    # تاريخُ قطر لا UTC: بين منتصف الليل والثالثة فجراً كان تكليفُ الأمس يُقرأ تكليفَ اليوم.
+    today = timezone.localdate()
     substitute_class_ids = set(
         SubstituteAssignment.objects.filter(
             substitute=user,
