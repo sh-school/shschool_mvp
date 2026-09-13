@@ -36,9 +36,10 @@ CSS_DIR = pathlib.Path("static/css")
 #: جذورُ القوالب الحيّة — كما في `test_design_tokens_resolve`.
 TEMPLATE_ROOTS = (pathlib.Path("templates"),)
 
-#: قوالبُ الطباعة والبريد خارجُ النطاق: WeasyPrint والبريدُ لا يقرآن `var()`،
-#: فالرقمُ السداسيُّ والتنسيقُ داخل الوسم فيهما ضرورةٌ لا مخالفة.
-PRINT_RE = re.compile(r"pdf|print|/email/|base_qatar_report|certificate")
+#: كانت قوالبُ الطباعة والبريد خارجَ النطاق بحجّة أنّ WeasyPrint والبريدَ لا يقرآن
+#: `var()`. والحجّةُ لا تُلزم بالسداسيّ ولا بـ`style=`: ألوانُهما من `{% brand_color %}`
+#: وأنماطُهما أصنافٌ في `<style>` الوثيقة أو أبيها — فدخلت الحارسَ يومَ 2026-09-13
+#: بصفرِ مخالفة، ولا قالبَ في المنصّة خارجَه.
 
 _PALETTE = "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose"
 _UTILITY = "bg|text|border(?:-[trblxyse])?|ring|from|via|to|divide|outline|fill|stroke|placeholder|accent|shadow|decoration"
@@ -149,12 +150,46 @@ def _local_classes(text: str, seen: frozenset[str] = frozenset()) -> set[str]:
     return names
 
 
+INCLUDE_RE = re.compile(r"""\{%\s*include\s+["']([^"']+)["']""")
+
+
+def _includers() -> dict[str, list[pathlib.Path]]:
+    """اسمُ القالب ← القوالبُ التي تضمّنه.
+
+    جزءُ الوثيقة (`reports/pdf/_signatures.html`، `wings/pdf/section_sheet.html`)
+    لا يرث أحداً: يُضمَّن في وثيقةٍ أنماطُها في رأسها أو في أبيها — فأصنافُه
+    معرَّفةٌ هناك.
+    """
+    found: dict[str, list[pathlib.Path]] = {}
+    for root in list(TEMPLATE_ROOTS) + sorted(pathlib.Path(".").glob("*/templates")):
+        for path in root.rglob("*.html"):
+            for name in INCLUDE_RE.findall(path.read_text(encoding="utf-8")):
+                found.setdefault(name, []).append(path)
+    return found
+
+
+def _host_classes(
+    name: str, includers: dict[str, list[pathlib.Path]], seen: frozenset[str] = frozenset()
+) -> set[str]:
+    names: set[str] = set()
+    for host in includers.get(name, []):
+        host_name = _template_name(host)
+        if host_name in seen or host_name == name:
+            continue
+        names |= _local_classes(host.read_text(encoding="utf-8"))
+        names |= _host_classes(host_name, includers, seen | {name})
+    return names
+
+
+def _template_name(path: pathlib.Path) -> str:
+    parts = path.as_posix().split("/templates/", 1)
+    return parts[1] if len(parts) == 2 else path.as_posix().removeprefix("templates/")
+
+
 def live_templates():
     roots = list(TEMPLATE_ROOTS) + sorted(pathlib.Path(".").glob("*/templates"))
     for root in roots:
-        for path in sorted(root.rglob("*.html")):
-            if not PRINT_RE.search(path.as_posix().lower()):
-                yield path
+        yield from sorted(root.rglob("*.html"))
 
 
 def measure() -> dict[str, dict[str, int]]:
@@ -183,11 +218,14 @@ def defined_classes() -> set[str]:
 def undefined_classes() -> list[str]:
     """أصنافٌ في القوالب لا يعرّفها أيُّ ملفّ CSS — مرتّبةً بلا تكرار."""
     known = defined_classes()
+    includers = _includers()
     missing = set()
     for path in live_templates():
         text = path.read_text(encoding="utf-8")
         # صنفٌ يعرّفه القالبُ أو أحدُ آبائه في `<style>` معرَّف — قوالبُ التقارير تفعل ذلك.
         local = _local_classes(text)
+        # وجزءٌ مضمَّنٌ يرى أنماطَ من يضمّنه، ومن يضمّن ذاك (`signatures` ← `section_sheet` ← الوثيقة).
+        local |= _host_classes(_template_name(path), includers)
         if ADMIN_EXTENDS_RE.search(text):
             local |= ADMIN_CLASSES
         for attr in CLASS_ATTR_RE.finditer(text):

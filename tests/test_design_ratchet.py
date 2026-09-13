@@ -116,3 +116,13 @@ class TestTheRatchetItself:
     def test_admin_classes_count_only_under_the_django_admin(self):
         assert ratchet.ADMIN_EXTENDS_RE.search('{% extends "admin/base_site.html" %}')
         assert not ratchet.ADMIN_EXTENDS_RE.search('{% extends "base/base.html" %}')
+
+    def test_an_included_fragment_sees_the_styles_of_the_document_that_includes_it(self):
+        """`wings/pdf/signatures.html` ← `section_sheet.html` ← `register_pdf.html` ← أبوها."""
+        includers = ratchet._includers()
+        assert "sig-block" in ratchet._host_classes("wings/pdf/signatures.html", includers)
+
+    def test_print_and_email_templates_are_inside_the_guard(self):
+        names = {p.as_posix() for p in ratchet.live_templates()}
+        assert "templates/reports/base_qatar_report.html" in names
+        assert any("/email/" in n for n in names)
