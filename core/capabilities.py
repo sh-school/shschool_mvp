@@ -1,0 +1,363 @@
+"""سجلُّ القدرات — «من يفعل ماذا» بالفعل لا بالدور.
+
+كان الحارسُ يسأل «أيُّ دورٍ أنت؟»، والجوابُ مكتوبٌ في مئتي موضعٍ بصيغٍ مختلفة: مجموعةٌ
+مركزيّةٌ هنا، وقائمةٌ حرفيّةٌ هناك، وديكوريتورٌ مختصرٌ في ثالث. فالقائمةُ الجانبيّةُ تَعِد بما
+يردّه الحارس، والبوّابةُ لا تعرف ما يعرفه، ومراجعةُ «من يرى درجاتِ الطلبة؟» تتطلّب قراءةَ
+الشيفرة كلِّها — وهكذا مرّت ثغراتُ مراجعة 2026-09-13.
+
+والقدرةُ تسمّي **الفعل**: ``assessments.enter_grades`` لا ``{"principal", "coordinator", ...}``.
+فقدرتان تحملان اليومَ الأعضاءَ أنفسَهم تبقيان اثنتين، ويفترقان متى قُرّر ذلك دون أن تمسّ
+إحداهما الأخرى.
+
+**هذه الخطوةُ الأولى:** السجلُّ وحدَه. أعضاءُ كلّ قدرةٍ هم أعضاءُ الحرّاس القائمة حرفاً — مأخوذون
+من المجموعات نفسِها حيث وُجدت — ولم يُحوَّل حارسٌ واحد. و``tests/test_capabilities_registry.py``
+يُثبت أنّ كلَّ حارسٍ في المنصّة يطابق قدرةً في السجلّ، فلا يُعرض سجلٌّ ناقصٌ ولا مخترَع.
+
+**والأساس** (``basis``) يقول من أين جاءت القدرة: نصٌّ وزاريٌّ بمرجعه، أو قرارٌ مؤرَّخ، أو
+«افتراضُ المنصّة» — أي أنّها كذلك في الشيفرة ولم تُراجَع بعدُ مقابل نصّ. لا يُكتب مرجعٌ غيرُ موجود.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from functools import cache
+
+from core.permissions import expand_roles, role_required
+
+#: الأساسُ حين لا نصَّ ولا قرار — القدرةُ كما في الشيفرة، تنتظر المراجعة.
+PLATFORM_ASSUMPTION = "افتراضُ المنصّة — لم يُراجَع مقابل نصّ"
+
+
+@dataclass(frozen=True)
+class Capability:
+    key: str
+    label: str
+    roles: frozenset
+    scope: str = "المدرسة"
+    basis: str = PLATFORM_ASSUMPTION
+
+    @property
+    def expanded_roles(self) -> frozenset:
+        """الأدوارُ بعد الوراثة — ما يفحصه الحارسُ فعلاً."""
+        return frozenset(expand_roles(set(self.roles)))
+
+
+def _cap(key, label, roles, scope="المدرسة", basis=PLATFORM_ASSUMPTION):
+    return Capability(key, label, frozenset(roles), scope, basis)
+
+
+@cache
+def registry() -> dict[str, Capability]:
+    """السجلُّ مبنيّاً — كسولٌ لأنّ بعضَ المجموعات في تطبيقاتٍ تستورد ``core``."""
+    from academic_management.workload_workflow import _DEFAULT_ROLES as WORKLOAD
+    from academic_management.workload_workflow import APPROVE, EDIT, REVIEW
+    from core import permissions as P  # noqa: N812 — اختصارٌ يُقرأ به السجلُّ كجدول
+    from core.models.academic import WingCoverage
+    from student_info.access import MODULE_ROLES as STUDENT_INFO_ROLES
+
+    leadership = P.LEADERSHIP
+    caps = [
+        # ── لوحة التحكّم ────────────────────────────────────────────
+        _cap("dashboard.open", "فتحُ لوحة التحكّم", P.ALL_STAFF_ROLES | {"student", "parent"}),
+        # ── شؤون الطلبة ─────────────────────────────────────────────
+        _cap("student_affairs.manage", "إدارةُ سجلّات الطلبة", P.STUDENT_AFFAIRS_MANAGE),
+        _cap("student_affairs.view", "الاطّلاعُ على سجلّات الطلبة", P.STUDENT_AFFAIRS_VIEW),
+        _cap("student_affairs.deactivate", "إيقافُ قيد طالب", P.STUDENT_DEACTIVATE),
+        _cap(
+            "student_affairs.activities",
+            "إدارةُ الأنشطة الطلابيّة",
+            P.ACTIVITIES_MANAGE,
+            basis="ضوابط البرامج والأنشطة ص3: الدخولُ للنائب الأكاديميّ وأخصائيّ الأنشطة",
+        ),
+        _cap(
+            "students.import_export",
+            "استيرادُ الطلبة وتصديرُهم",
+            {"principal", "vice_admin", "vice_academic", "admin"},
+        ),
+        _cap(
+            "student_info.read",
+            "مركزُ معلومات الطالب",
+            STUDENT_INFO_ROLES,
+            scope="المدرسة للقيادة والجهات؛ المعلّمُ لطلبة شُعبه",
+            basis="قرارُ المستخدم: القراءةُ لكلّ من يُدرّس الطالب",
+        ),
+        _cap(
+            "students.search",
+            "البحثُ السريعُ عن الطلبة",
+            P.ALL_STAFF_ROLES,
+            scope="عشرُ نتائجَ بحدٍّ أقصى",
+        ),
+        # ── شؤون الموظّفين والتدقيق ─────────────────────────────────
+        _cap("staff_affairs.manage", "إدارةُ شؤون الموظّفين", P.STAFF_AFFAIRS_MANAGE),
+        _cap(
+            "audit.permissions_log",
+            "سجلُّ تغييرات الصلاحيّات",
+            {"principal", "vice_admin", "vice_academic"},
+        ),
+        _cap(
+            "breach.manage",
+            "تقاريرُ خرق البيانات",
+            {"principal", "vice_admin", "vice_academic", "admin"},
+        ),
+        # ── الإشعارات والتحليلات ────────────────────────────────────
+        _cap("notifications.broadcast", "إدارةُ الإشعارات والإرسالُ الجماعيّ", leadership),
+        _cap("analytics.school", "تحليلاتُ المدرسة", leadership),
+        # ── التقييم والدرجات ────────────────────────────────────────
+        _cap(
+            "assessments.enter_grades",
+            "إنشاءُ التقييمات وإدخالُ الدرجات",
+            {"principal", "vice_academic", "coordinator", "teacher", "ese_teacher"},
+            scope="بحسب الشُّعب والموادّ داخلَ الشاشة",
+        ),
+        _cap(
+            "assessments.view_results",
+            "لوحةُ التقييم وسجلُّ درجات الشعبة",
+            {
+                "principal",
+                "vice_academic",
+                "vice_admin",
+                "coordinator",
+                "teacher",
+                "ese_teacher",
+                "academic_advisor",
+            },
+        ),
+        _cap("assessments.oversee", "إعدادُ الموادّ ومتابعةُ المتعثّرين", leadership),
+        _cap(
+            "grades.import",
+            "استيرادُ الدرجات من ملفّ",
+            {
+                "principal",
+                "vice_academic",
+                "vice_admin",
+                "coordinator",
+                "teacher",
+                "ese_teacher",
+                "admin",
+                "secretary",
+            },
+        ),
+        _cap(
+            "reports.results",
+            "كشوفُ النتائج وشهاداتُ الطلبة",
+            {"principal", "vice_academic", "vice_admin", "coordinator", "teacher", "ese_teacher"},
+        ),
+        _cap("reports.school", "تقاريرُ الحضور والسلوك والشهادات للشعبة", leadership),
+        _cap(
+            "academic.reports_school",
+            "التقاريرُ الأكاديميّةُ على مستوى المدرسة",
+            P.ACADEMIC_REPORTS_VIEW,
+            basis="مراجعةُ الصلاحيّات 2026-09-13 (#222)",
+        ),
+        # ── الأنصبة — تهيّئها المدرسةُ في WorkloadGovernance ─────────
+        _cap(
+            "workload.edit",
+            "إدخالُ خطط الأنصبة",
+            WORKLOAD[EDIT],
+            scope="قسمُ المنسّق",
+            basis="افتراضٌ موصى به — تُبدّله المدرسة (WorkloadGovernance)",
+        ),
+        _cap(
+            "workload.review",
+            "مراجعةُ خطط الأنصبة",
+            WORKLOAD[REVIEW],
+            basis="افتراضٌ موصى به — تُبدّله المدرسة (WorkloadGovernance)",
+        ),
+        _cap(
+            "workload.approve",
+            "اعتمادُ خطط الأنصبة",
+            WORKLOAD[APPROVE],
+            basis="افتراضٌ موصى به — تُبدّله المدرسة (WorkloadGovernance)",
+        ),
+        # ── السلوك ──────────────────────────────────────────────────
+        _cap(
+            "behavior.view",
+            "ملفُّ السلوك ولوحتُه",
+            P.BEHAVIOR_MANAGE | P.BEHAVIOR_RECORD | P.BEHAVIOR_VIEW_ALL,
+        ),
+        _cap("behavior.record", "تسجيلُ مخالفةٍ وتقريرُها", P.BEHAVIOR_MANAGE | P.BEHAVIOR_RECORD),
+        _cap("behavior.manage", "إدارةُ المخالفات والإجراءات", P.BEHAVIOR_MANAGE),
+        _cap("behavior.committee", "لجنةُ الانضباط", P.BEHAVIOR_COMMITTEE),
+        _cap(
+            "behavior.statistics",
+            "إحصاءاتُ السلوك",
+            P.BEHAVIOR_COMMITTEE | P.BEHAVIOR_VIEW_ALL | P.BEHAVIOR_STATS_TEACHING,
+        ),
+        _cap("behavior.summon_parent", "استدعاءُ وليّ الأمر", P.BEHAVIOR_MANAGE | {"psychologist"}),
+        # ── العيادة والمكتبة والنقل ─────────────────────────────────
+        _cap("clinic.access", "وحدةُ العيادة", {"nurse", "principal", "vice_admin"}),
+        _cap("library.view", "المكتبةُ والكتب", P.LIBRARY_VIEW | P.LIBRARY_FULL),
+        _cap("library.lend", "الإعارةُ والإرجاع", {"librarian", "principal", "vice_admin"}),
+        _cap("library.borrowings_all", "سجلُّ استعارات المدرسة", P.LIBRARY_BORROWINGS_ALL),
+        _cap("transport.access", "وحدةُ النقل", P.TRANSPORT_FULL | P.TRANSPORT_MANAGE),
+        # ── الكنترول ────────────────────────────────────────────────
+        _cap(
+            "exam_control.access",
+            "نظامُ الكنترول",
+            P.EXAM_CONTROL_ACCESS,
+            basis="افتراضُ المنصّة — والنصُّ الوزاريُّ يجعله لجنةً موقوتة (الدراسة، ملحق د)",
+        ),
+        # ── الحضور والجدول ──────────────────────────────────────────
+        _cap(
+            "attendance.mark",
+            "رصدُ حضور الحصّة",
+            {
+                "principal",
+                "vice_academic",
+                "vice_admin",
+                "coordinator",
+                "teacher",
+                "ese_teacher",
+                "admin_supervisor",
+            },
+        ),
+        _cap("operations.reports", "تقاريرُ الجدول والحضور", P.OPERATIONS_REPORTS),
+        _cap(
+            "schedule.day",
+            "جدولُ اليوم",
+            {
+                "principal",
+                "vice_academic",
+                "vice_admin",
+                "coordinator",
+                "teacher",
+                "ese_teacher",
+                "academic_advisor",
+                "admin_supervisor",
+                "student",
+                "parent",
+            },
+            scope="جدولُ المستخدم نفسِه لغير القيادة",
+        ),
+        _cap(
+            "schedule.weekly",
+            "الجدولُ الأسبوعيّ",
+            {
+                "principal",
+                "vice_academic",
+                "vice_admin",
+                "coordinator",
+                "e_projects_coordinator",
+                "teacher",
+                "ese_teacher",
+                "academic_advisor",
+                "admin_supervisor",
+                "admin",
+            },
+            scope="جدولُ المستخدم لغير من يتصفّح",
+        ),
+        _cap("schedule.view", "عرضُ الجدول والتبديلات", P.SCHEDULE_VIEW),
+        _cap("schedule.browse", "تصفّحُ جداول الآخرين", P.SCHEDULE_BROWSE),
+        _cap(
+            "schedule.print",
+            "طباعةُ الجدول وتصديرُه",
+            P.SCHEDULE_BROWSE | {"teacher", "ese_teacher", "academic_advisor"},
+            scope="جدولُ المستخدم لغير من يتصفّح",
+        ),
+        _cap(
+            "schedule.preferences",
+            "تفضيلاتُ المعلّم في الجدول",
+            {
+                "teacher",
+                "ese_teacher",
+                "coordinator",
+                "activities_coordinator",
+                "e_projects_coordinator",
+            },
+            scope="تفضيلاتُه هو",
+        ),
+        _cap("schedule.settings", "إعداداتُ الجدول والتفريغات", P.SCHEDULE_SETTINGS),
+        _cap("schedule.admin", "إعدادُ الجدول الإداريّ", P.SCHEDULE_ADMIN),
+        _cap("schedule.manage", "توزيعاتُ الموادّ", P.SCHEDULE_MANAGE),
+        _cap(
+            "swap.request",
+            "طلبُ تبديل حصّة",
+            {"teacher", "ese_teacher", "principal", "vice_academic", "vice_admin"},
+        ),
+        _cap(
+            "swap.respond",
+            "الردُّ على طلب تبديل",
+            {"teacher", "ese_teacher", "coordinator", "principal", "vice_academic", "vice_admin"},
+        ),
+        _cap(
+            "swap.approve",
+            "اعتمادُ التبديل",
+            {"coordinator", "principal", "vice_academic", "vice_admin", "platform_developer"},
+            scope="منسّقا المادّتين",
+        ),
+        _cap(
+            "compensatory.request",
+            "طلبُ حصّةٍ تعويضيّة",
+            {"teacher", "ese_teacher", "principal", "vice_academic", "vice_admin"},
+        ),
+        _cap(
+            "compensatory.approve",
+            "اعتمادُ الحصّة التعويضيّة",
+            {"coordinator", "principal", "vice_academic", "vice_admin"},
+        ),
+        # ── الجودة ──────────────────────────────────────────────────
+        _cap("quality.access", "وحدةُ الجودة", P.QUALITY_ACCESS),
+        _cap("quality.manage", "إدارةُ الخطّة التشغيليّة", P.QUALITY_MANAGE),
+        _cap(
+            "quality.evaluations",
+            "تقييمُ أداء الموظّفين",
+            {"principal", "vice_admin", "vice_academic"},
+            basis="افتراضُ المنصّة — والنصُّ يجعل الرئيسَ المباشرَ كاتبَ التقييم (م16)",
+        ),
+        _cap("observation.create", "الزيارةُ الإشرافيّة", P.OBSERVATION_CREATE),
+        _cap("observation.self", "التقييمُ الذاتيّ", P.OBSERVATION_SELF_CREATE),
+        _cap("observation.peer", "تبادلُ الزيارات", P.OBSERVATION_PEER_CREATE),
+        # ── وليّ الأمر ──────────────────────────────────────────────
+        _cap("parents.portal", "بوّابةُ وليّ الأمر", P.PARENT_PORTAL, scope="أبناؤه وحدَهم"),
+        _cap("parents.admin", "إدارةُ ربط أولياء الأمور", P.PARENT_PORTAL_ADMIN),
+        # ── الأجنحة ─────────────────────────────────────────────────
+        _cap(
+            "wings.floors",
+            "شاشةُ الأجنحة والطوابق",
+            {"principal", "vice_admin", "vice_academic", "admin_supervisor", "platform_developer"},
+        ),
+        _cap("wings.assign_cover", "تكليفُ بديلٍ لجناح", WingCoverage.ASSIGNER_ROLES),
+        _cap(
+            "wings.record_day",
+            "رصدُ يوم الشعبة في الجناح",
+            P.WING_DAY_RECORD,
+            scope="أجنحةُ المشرف (أصيلاً أو بديلاً)",
+            basis="قرارُ 2026-09-12: المشرفُ الإداريّ يحصر الغياب",
+        ),
+    ]
+    out = {}
+    for cap in caps:
+        assert cap.key not in out, f"قدرةٌ مكرّرة: {cap.key}"
+        out[cap.key] = cap
+    return out
+
+
+def capability(key: str) -> Capability:
+    try:
+        return registry()[key]
+    except KeyError:
+        raise KeyError(f"لا قدرةَ باسم «{key}» في core/capabilities.py") from None
+
+
+def has_capability(user, key: str) -> bool:
+    """أيملك هذا المستخدمُ هذه القدرة؟ — بالوراثة نفسِها التي يفحص بها الحارس."""
+    if user is None or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return user.get_role() in capability(key).expanded_roles
+
+
+def capability_required(key: str):
+    """حارسُ الشاشة بالقدرة — ``role_required`` بأعضائها، ويحمل اسمَها لمن يقرأ.
+
+    ويُسقط الخطأُ في الاسم عند الاستيراد لا عند الطلب: قدرةٌ مكتوبةٌ خطأً لا تمرّ صامتة.
+    """
+    cap = capability(key)
+
+    def decorator(view_func):
+        wrapped = role_required(cap.roles)(view_func)
+        wrapped._capability = key
+        return wrapped
+
+    return decorator

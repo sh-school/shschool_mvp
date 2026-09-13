@@ -14,13 +14,12 @@ from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
 from core.academic_calendar import academic_year_for
+from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
 from core.models.academic import ClassGroup
-from core.permissions import role_required
 from core.sorting import apply_sort
 from student_info import services
 from student_info.access import (
-    MODULE_ROLES,
     can_read_student,
     visible_class_groups,
     writable_categories,
@@ -73,7 +72,7 @@ def _audit_sensitive_read(request, student, categories):
 
 
 @login_required
-@role_required(MODULE_ROLES)
+@capability_required("student_info.read")
 def sections(request):
     """الشُّعبُ — مدخلُ المركز."""
     school = request.user.get_school()
@@ -87,7 +86,7 @@ def sections(request):
 
 
 @login_required
-@role_required(MODULE_ROLES)
+@capability_required("student_info.read")
 def section_students(request, class_id):
     """طلابُ شعبةٍ واحدة."""
     school = request.user.get_school()
@@ -108,7 +107,7 @@ def section_students(request, class_id):
 
 
 @login_required
-@role_required(MODULE_ROLES)
+@capability_required("student_info.read")
 def student_file(request, student_id):
     """ملفُّ الطالب الجامع: تحصيلُه، وملاحظاتُ الجهات الخمس، وأنشطتُه."""
     school = request.user.get_school()
@@ -144,7 +143,7 @@ def student_file(request, student_id):
 
 
 @login_required
-@role_required(MODULE_ROLES)
+@capability_required("student_info.read")
 def levels(request):
     """شرائحُ التحصيل: الإجمالُ، ولكلّ صفٍّ، ولكلّ مادّة — بمرشِّح الصفّ والمسار."""
     school = request.user.get_school()
@@ -172,7 +171,7 @@ def levels(request):
 
 
 @login_required
-@role_required(MODULE_ROLES)
+@capability_required("student_info.read")
 def notes(request, category):
     """قائمةُ ملاحظاتِ جهةٍ واحدة — مقصورةً على الطلاب الذين يراهم صاحبُ الطلب."""
     if category not in CATEGORY_LABELS:
@@ -228,7 +227,7 @@ def _sees_whole_school(user):
 
 
 @login_required
-@role_required(MODULE_ROLES)
+@capability_required("student_info.read")
 @require_http_methods(["GET", "POST"])
 def note_create(request, student_id):
     """كتابةُ ملاحظةٍ على طالب — في خانةِ جهتِه وحدها."""
@@ -265,7 +264,7 @@ def note_create(request, student_id):
 
 
 @login_required
-@role_required(MODULE_ROLES)
+@capability_required("student_info.read")
 def activities(request):
     """أنشطةُ الطلاب — من `StudentActivity` القائم، لا نموذجٍ ثانٍ يوازيه."""
     from student_affairs.models import StudentActivity

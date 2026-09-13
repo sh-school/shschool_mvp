@@ -96,6 +96,10 @@
   --transition-slow:   250ms ease;
   --focus-ring:        0 0 0 3px color-mix(in srgb, var(--maroon) 22%, transparent);
   --focus-ring-offset: 2px;
+  /* لونُ حلقة التركيز — العنّابيُّ المقروء، فينقلب ليلاً إلى الورديّ. وكان
+     `--maroon` الثابت: 9.35 على السطح نهاراً و1.56 ليلاً، فلا يرى المتنقّلُ
+     بلوحة المفاتيح أين هو (قِيس في المتصفّح 2026-09-13). */
+  --focus-color: var(--maroon-fg);
 
   /* ── Status Colors — unified across all pages ── */
   --status-danger:       #dc2626;
@@ -582,14 +586,17 @@ input[type="date"]:focus,
 input[type="tel"]:focus,
 select:focus,
 textarea:focus {
+  /* الحدُّ هو علامةُ التركيز هنا، والحلقةُ الشفّافةُ لا تظهر إلّا في وضع
+     التباين العالي للنظام. فلونُ الحدّ `--focus-color` لا `--maroon`: الثابتُ
+     كان 1.23 ليلاً على حدٍّ داكن. */
   outline: 2px solid transparent;
-  border-color: var(--maroon);
+  border-color: var(--focus-color);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--maroon) 12%, transparent);
 }
 
 /* ── الروابط النشطة ─────────────────────────────────────────── */
 a:focus-visible {
-  outline: 2px solid var(--maroon);
+  outline: 2px solid var(--focus-color);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -1007,7 +1014,6 @@ tr.active {
   background: var(--surface-alt);
   color: var(--maroon-fg);
   border-color: var(--border);
-  outline: none;
 }
 .btn-ghost.text-danger,
 .btn-ghost.text-danger:hover {
@@ -2011,7 +2017,7 @@ button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid var(--maroon);
+  outline: 2px solid var(--focus-color);
   outline-offset: var(--focus-ring-offset);
   box-shadow: var(--focus-ring);
 }
@@ -2922,7 +2928,6 @@ html[dir="rtl"] .search-wrap .htmx-indicator { left: 12px; right: auto; }
 .quality-filter-field input:focus {
   border-color: var(--maroon);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--maroon) 15%, transparent);
-  outline: none;
 }
 .quality-filters-actions {
   display: flex;
@@ -3396,7 +3401,6 @@ html[dir="rtl"] .search-wrap .htmx-indicator { left: 12px; right: auto; }
 .q-modal-field textarea:focus {
   border-color: var(--maroon);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--maroon) 10%, transparent);
-  outline: none;
 }
 
 /* Committee decision card (maroon bg) */
@@ -3732,7 +3736,6 @@ html[dir="rtl"] .search-wrap .htmx-indicator { left: 12px; right: auto; }
 .q-add-form-field input:focus {
   border-color: var(--maroon);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--maroon) 10%, transparent);
-  outline: none;
 }
 .q-add-form-actions {
   margin-top: 1rem;
@@ -4088,7 +4091,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   border: 1.5px solid #d1d5db;
   border-radius: 12px;
   font-size: var(--text-sm); font-family: inherit;
-  outline: none; transition: border-color .15s, box-shadow .15s;
+  transition: border-color .15s, box-shadow .15s;
   background: #fafafa;
 }
 .login-input:focus {
@@ -5606,7 +5609,7 @@ html.dark input:focus,
 html.dark select:focus,
 html.dark textarea:focus {
   background: var(--surface);
-  border-color: var(--maroon);
+  border-color: var(--focus-color);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--maroon) 25%, transparent);
 }
 html.dark input::placeholder,
@@ -6342,7 +6345,7 @@ html.dark .report-tab.active .wl-tab-count { color: var(--gold); }
 /* ── البطاقات الأربع ── */
 .wl-stats { margin-bottom: 0; }
 .wl-stat-link { display: block; text-decoration: none; color: inherit; }
-.wl-stat-link:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+.wl-stat-link:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 .wl-stat-of { font-size: .5em; font-weight: 700; color: var(--text-muted); margin-inline-start: 2px; }
 
 /* ── البطاقة والبوّابة ── */
@@ -6440,7 +6443,7 @@ html.dark .wl-card-title { color: var(--gold); }
 .wl-legend-wrap > summary::-webkit-details-marker { display: none; }
 .wl-legend-wrap > summary .icon { width: 16px; height: 16px; }
 html.dark .wl-legend-wrap > summary { color: var(--gold); }
-.wl-legend-wrap > summary:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; border-radius: var(--radius-sm); }
+.wl-legend-wrap > summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; border-radius: var(--radius-sm); }
 .wl-legend-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -6739,7 +6742,7 @@ th[aria-sort="descending"] .th-sort-label {
 }
 .exg-cell:hover { border-color: var(--maroon); }
 .exg-cell:active { transform: scale(.96); }
-.exg-cell:focus-visible { outline: 2px solid var(--maroon); outline-offset: 1px; }
+.exg-cell:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 1px; }
 
 /* مفرَّغةٌ الآن: قائمةٌ في القاعدة فلا تُختار ثانيةً — ولونٌ باهتٌ يجعلها
    كالفارغة، فتُملأ صريحاً ويُخطَّط عليها. */
@@ -7483,7 +7486,7 @@ html.dark .qd-proc__badge--gray    { background: rgba(100,116,139,.15); color: v
   transition: border-color var(--transition-fast);
 }
 .qdom-filters__select:focus {
-  outline: none; border-color: var(--maroon-border);
+  border-color: var(--maroon-border);
   box-shadow: var(--focus-ring);
 }
 .qdom-filters__actions {
@@ -7629,7 +7632,7 @@ html.dark .qmy-kpi__val--success { color: var(--status-success-fg); }
   transition: border-color var(--transition-fast);
 }
 .qmy-filters__select:focus {
-  outline: none; border-color: var(--maroon-border);
+  border-color: var(--maroon-border);
   box-shadow: var(--focus-ring);
 }
 .qmy-filters__search { flex: 1; min-width: 180px; }
@@ -7747,7 +7750,7 @@ html.dark .qproc-strip--warning { background: color-mix(in srgb, var(--status-wa
   transition: border-color var(--transition-fast);
 }
 .qproc-input:focus {
-  outline: none; border-color: var(--maroon-border);
+  border-color: var(--maroon-border);
   box-shadow: var(--focus-ring);
 }
 .qproc-input--full { width: 100%; }
@@ -8446,7 +8449,6 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
 .df-form-group select:focus {
   border-color: var(--maroon-fg);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--maroon) 15%, transparent);
-  outline: none;
 }
 
 .df-errorlist {
@@ -8990,7 +8992,7 @@ html.dark .df-badge-edited {
    ========================================================================== */
 .df-container :focus-visible,
 .df-form :focus-visible {
-  outline: 2px solid var(--maroon);
+  outline: 2px solid var(--focus-color);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
@@ -9734,7 +9736,7 @@ html.dark {
   background: var(--status-warning-dark); color: var(--on-fill);
   border-color: var(--status-warning-dark);
 }
-.rec-pick input:focus-visible + span { outline: 2px solid var(--maroon); outline-offset: 2px; }
+.rec-pick input:focus-visible + span { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 
 /* ── الذيل: زرُّ التثبيت يلزم الشاشةَ في الهاتف ── */
 .rec-foot {
@@ -10075,7 +10077,7 @@ html.dark {
 }
 .ui-kpi.is-link { transition: border-color var(--transition-base), box-shadow var(--transition-base); }
 .ui-kpi.is-link:hover { box-shadow: var(--shadow-sm); border-color: var(--kc, var(--maroon)); }
-.ui-kpi.is-link:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; }
+.ui-kpi.is-link:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 
 @media (max-width: 640px) {
   .ui-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -10279,7 +10281,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 .period-switch__item + .period-switch__item { border-inline-start: 1px solid var(--maroon-border); }
 .period-switch__item.is-current { background: var(--maroon); color: var(--on-fill); }
-.period-switch__item:focus-visible { outline: 2px solid var(--maroon); outline-offset: -2px; }
+.period-switch__item:focus-visible { outline: 2px solid var(--focus-color); outline-offset: -2px; }
 
 /* ── 7. تقويمُ الحضور: خمسةُ أيّامِ دراسةٍ في الأسبوع ──
    خانةٌ مربّعةٌ لكلّ يوم، ولونُها الحال. والأسبوعُ من الأحد إلى الخميس،
@@ -10361,7 +10363,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 .ui-switch__input:checked + .ui-switch__track { background: var(--status-success); }
 .ui-switch__input:checked + .ui-switch__track::after { inset-inline-start: 22px; }
-.ui-switch__input:focus-visible + .ui-switch__track { outline: 2px solid var(--maroon); outline-offset: 2px; }
+.ui-switch__input:focus-visible + .ui-switch__track { outline: 2px solid var(--focus-color); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .ui-switch__track, .ui-switch__track::after { transition: none; } }
 
 /* ── 10. ملاحظةُ النموذج وأزرارُه ── */

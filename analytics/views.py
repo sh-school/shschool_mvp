@@ -18,6 +18,7 @@ from django.views.decorators.vary import vary_on_cookie
 from assessments.models import StudentSubjectResult
 from core import brand
 from core.academic_calendar import academic_year_for
+from core.capabilities import capability_required
 from core.models import (
     BehaviorInfraction,
     BookBorrowing,
@@ -30,7 +31,6 @@ from core.models import (
 )
 from core.models.academic import grade_order
 from core.pdf_utils import render_pdf
-from core.permissions import leadership_required
 from operations.models import Session, StudentAttendance
 from quality.models import OperationalDomain, OperationalProcedure
 
@@ -39,7 +39,7 @@ from .services import KPIService
 
 # ── لوحة القيادة الرئيسية ────────────────────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def analytics_dashboard(request):
@@ -134,7 +134,7 @@ def analytics_dashboard(request):
 
 # ── API 1: منحنى الحضور (آخر 30 يوم) ────────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_attendance_trend(request):
@@ -190,7 +190,7 @@ def api_attendance_trend(request):
 
 # ── API 2: توزيع الدرجات ────────────────────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_grades_distribution(request):
@@ -245,7 +245,7 @@ def api_grades_distribution(request):
 
 # ── API 3: مقارنة الفصول الدراسية ───────────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_class_comparison(request):
@@ -283,7 +283,7 @@ def api_class_comparison(request):
 
 # ── API 4: مقارنة المواد الدراسية ───────────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_subject_comparison(request):
@@ -333,7 +333,7 @@ def api_subject_comparison(request):
 
 # ── API 5: تقدم الخطة التشغيلية (حسب المجال) ───────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_plan_progress(request):
@@ -374,7 +374,7 @@ def api_plan_progress(request):
 
 # ── API 6: مخالفات السلوك (آخر 6 أشهر) ─────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_behavior_trend(request):
@@ -441,7 +441,7 @@ def api_behavior_trend(request):
 
 # ── API 7: الطلاب الراسبون (حسب الفصل) ─────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_failing_by_class(request):
@@ -476,7 +476,7 @@ def api_failing_by_class(request):
 
 # ── API 8: إحصائيات العيادة (آخر 30 يوم) ────────────────────
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_clinic_stats(request):
@@ -524,7 +524,7 @@ def api_clinic_stats(request):
 
 
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 def kpi_dashboard(request):
     """لوحة KPIs العشرة — للمدير فقط"""
     school = request.user.get_school()
@@ -533,7 +533,7 @@ def kpi_dashboard(request):
 
 
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 @cache_page(300)
 @vary_on_cookie
 def api_kpis_all(request):
@@ -558,7 +558,7 @@ def api_kpis_all(request):
 
 
 @login_required
-@leadership_required
+@capability_required("analytics.school")
 def kpi_monthly_pdf(request):
     """PDF: تقرير KPIs الشهري"""
     school = request.user.get_school()

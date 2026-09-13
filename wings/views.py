@@ -12,8 +12,8 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
+from core.capabilities import capability_required
 from core.models import ClassGroup, CustomUser, Wing, WingCoverage
-from core.permissions import WING_DAY_RECORD, role_required
 from operations.absence_policy import next_gate
 from operations.absence_standing import unexcused_days_for_class
 from operations.bells import day_type_for
@@ -42,13 +42,7 @@ DAY_LABEL = {"regular": "الأحد – الأربعاء", "thursday": "الخم
 
 
 @login_required
-@role_required(
-    "principal",
-    "vice_admin",
-    "vice_academic",
-    "admin_supervisor",
-    "platform_developer",
-)
+@capability_required("wings.floors")
 def floors(request):
     school = request.user.get_school()
     now = timezone.localtime()
@@ -89,7 +83,7 @@ def _day(raw, fallback=None):
 
 
 @login_required
-@role_required(*WingCoverage.ASSIGNER_ROLES)
+@capability_required("wings.assign_cover")
 def coverage(request):
     """تغطيةُ الأجنحة — من يحمل كلَّ جناحٍ اليوم، ومن يُناب عند الغياب.
 
@@ -113,7 +107,7 @@ def coverage(request):
 
 
 @login_required
-@role_required(*WingCoverage.ASSIGNER_ROLES)
+@capability_required("wings.assign_cover")
 @require_POST
 def coverage_assign(request, code):
     school = request.user.get_school()
@@ -152,7 +146,7 @@ def coverage_assign(request, code):
 
 
 @login_required
-@role_required(*WingCoverage.ASSIGNER_ROLES)
+@capability_required("wings.assign_cover")
 @require_POST
 def coverage_end(request, pk):
     """إنهاءُ التغطية — بتاريخٍ لا بحذف.
@@ -174,7 +168,7 @@ def coverage_end(request, pk):
 
 
 @login_required
-@role_required(WING_DAY_RECORD)
+@capability_required("wings.record_day")
 def record_index(request):
     """شُعبي اليومَ وحالُ رصدِها — «شُعبي المتبقّية n/5»."""
     school = request.user.get_school()
@@ -221,7 +215,7 @@ def _own_class(request, class_id):
 
 
 @login_required
-@role_required(WING_DAY_RECORD)
+@capability_required("wings.record_day")
 def record_section(request, class_id):
     """كشفُ الشعبة: الطلابُ صفوفاً، والحصصُ أعمدةً، والحصّةُ المفتوحةُ للرصد.
 
@@ -275,7 +269,7 @@ def record_section(request, class_id):
 
 
 @login_required
-@role_required(WING_DAY_RECORD)
+@capability_required("wings.record_day")
 @require_POST
 def record_period(request, class_id):
     """تثبيتُ حصّة — ومعه مخالفتا التأخّر والهروب إن استوجبهما الرصد."""
