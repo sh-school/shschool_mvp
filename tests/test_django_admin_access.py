@@ -31,6 +31,7 @@ def _run(*args):
 def person(db, school):
     def _make(name, role_name, *, staff=True, superuser=False):
         user = CustomUser.objects.create(
+            must_change_password=False,
             national_id=f"288{abs(hash(name)) % 10**8:08d}",
             full_name=name,
             is_staff=staff,

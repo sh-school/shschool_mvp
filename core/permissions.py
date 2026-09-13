@@ -202,6 +202,9 @@ LIBRARY_VIEW = {
     "student",
     "e_projects_coordinator",
 }
+#: سجلُّ استعارات المدرسة كلِّها — أمينُ المكتبة والقيادةُ التي تشرف عليها. ومن سواهم يرى
+#: استعاراتِه هو، ووليُّ الأمر استعاراتِ أبنائه (مراجعةُ 2026-09-13، ن٥).
+LIBRARY_BORROWINGS_ALL = frozenset(LIBRARY_FULL | {"principal", "vice_admin"})
 
 # ── النقل المدرسي ───────────────────────────────────────────────
 # bus_supervisor = مشرف الحافلة (ميداني — يرافق الطلاب)
@@ -420,6 +423,12 @@ PARENT_PORTAL_ADMIN = frozenset({"principal", "admin"})
 QUALITY_ACCESS = frozenset(QUALITY_MANAGE | QUALITY_VIEW | {"ese_teacher"})
 #: من يدرّس ويرى تقريرَ السلوك الإحصائيّ لطلبته.
 BEHAVIOR_STATS_TEACHING = frozenset({"teacher", "coordinator", "ese_teacher"})
+#: التقاريرُ الأكاديميّةُ على مستوى المدرسة (الاختباراتُ القصيرة، ونتائجُ الاختبارات،
+#: والتقدّم، والشهريُّ للسلوك والأداء) — درجةُ كلّ طالبٍ وسلوكُه بلا قيدِ شعبةٍ ولا قسم.
+#: فهي لمن يرى تقييماتِ المدرسة كلِّها. كانت ``@login_required`` وحدَها فبلغها الطالبُ
+#: وعاملُ الخدمات وصدّراها (مراجعةُ 2026-09-13، ن٢). ومن يُراد له نطاقٌ أضيق — المنسّقُ
+#: لقسمه، والمعلّمُ لشُعبه — يحتاج تقريراً مقيَّداً بنطاقه، لا فتحَ هذا.
+ACADEMIC_REPORTS_VIEW = frozenset(ASSESSMENT_VIEW_ALL)
 #: رصدُ حضور اليوم في الجناح: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادةُ ومطوّرُ المنصّة.
 WING_DAY_RECORD = frozenset(
     {"admin_supervisor", "vice_admin", "vice_academic", "principal", "platform_developer"}

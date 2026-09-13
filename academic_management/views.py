@@ -12,6 +12,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 from core.pdf_utils import render_pdf
+from core.permissions import ACADEMIC_REPORTS_VIEW, role_required
 from reports.services import AcademicReportsExcel, AcademicReportsService
 
 MODULE_NAME = "إدارة الشؤون الأكاديمية"
@@ -90,6 +91,7 @@ def _parse_int(value, default=None):
 
 
 @login_required
+@role_required(ACADEMIC_REPORTS_VIEW)
 def reports_landing(request):
     """
     REQ-SH-003 — Academic reports landing page.
@@ -125,6 +127,7 @@ def _export_response(request, template: str, data: dict, excel_fn, pdf_name: str
 
 
 @login_required
+@role_required(ACADEMIC_REPORTS_VIEW)
 def quiz_reports(request):
     """Report 1 — تقارير الاختبارات القصيرة."""
     school = _get_school(request)
@@ -163,6 +166,7 @@ def quiz_reports(request):
 
 
 @login_required
+@role_required(ACADEMIC_REPORTS_VIEW)
 def exam_results_reports(request):
     """Report 2 — تقارير نتائج الاختبارات (package comparison)."""
     school = _get_school(request)
@@ -199,6 +203,7 @@ def exam_results_reports(request):
 
 
 @login_required
+@role_required(ACADEMIC_REPORTS_VIEW)
 def academic_progress_reports(request):
     """Report 3 — تقارير التقدم الأكاديمي."""
     school = _get_school(request)
@@ -235,6 +240,7 @@ def academic_progress_reports(request):
 
 
 @login_required
+@role_required(ACADEMIC_REPORTS_VIEW)
 def monthly_ba_report(request):
     """
     Report 4 — FLAGSHIP التقرير السلوكي والتعليمي الشهري.

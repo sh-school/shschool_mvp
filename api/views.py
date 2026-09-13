@@ -28,6 +28,7 @@ SchoolOS REST API v1 — ViewSets + APIViews
 
 import logging
 
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -48,6 +49,7 @@ from core.models import (
     ParentStudentLink,
     StudentEnrollment,
 )
+from core.permissions import LIBRARY_BORROWINGS_ALL
 from library.models import BookBorrowing, LibraryBook
 from notifications.models import InAppNotification, UserNotificationPreference
 from operations.models import Session, StudentAttendance
@@ -851,8 +853,19 @@ class BorrowingListView(generics.ListAPIView):
         return super().get(*args, **kwargs)
 
     def get_queryset(self):
+        """المدرسةُ كلُّها لأمين المكتبة والقيادة؛ ولغيرهم استعاراتُه واستعاراتُ أبنائه.
+
+        كان الاستعلامُ مقيَّداً بالمدرسة وحدَها، فأيُّ حسابٍ يقرأ استعاراتِ الجميع.
+        """
+        user = self.request.user
         school = _school(self.request)
-        return BookBorrowing.objects.filter(book__school=school).with_details()
+        qs = BookBorrowing.objects.filter(book__school=school)
+        if not (user.is_superuser or user.get_role() in LIBRARY_BORROWINGS_ALL):
+            children = ParentStudentLink.objects.filter(parent=user, school=school).values(
+                "student_id"
+            )
+            qs = qs.filter(Q(user=user) | Q(user_id__in=children))
+        return qs.with_details()
 
 
 # ══════════════════════════════════════════════════════════════════════
