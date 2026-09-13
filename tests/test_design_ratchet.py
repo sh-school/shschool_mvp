@@ -75,5 +75,11 @@ class TestTheRatchetItself:
         assert len(count('<div style="--a: 2; margin-top: 4px">')) == 1
 
     def test_dynamic_class_fragments_are_not_reported(self):
-        value = ratchet.DYNAMIC_RE.sub("\0", "status-{{ s }} {% if a %}x{% endif %}")
+        value = ratchet.DYNAMIC_RE.sub("\0", "status-{{ s }}")
         assert [t for t in value.split() if "\0" not in t] == []
+
+    def test_a_class_inside_a_condition_is_still_checked(self):
+        """`{% if a %}status-red{% endif %}` كان يُطرح مع الوسم، فمرّ صنفٌ غيرُ معرَّف."""
+        source = "{% if a %}status-red{% else %}status-green{% endif %}"
+        value = ratchet.DYNAMIC_RE.sub("\0", ratchet.LOGIC_RE.sub(" ", source))
+        assert value.split() == ["status-red", "status-green"]

@@ -33,7 +33,7 @@
                     <td class="num">{% if row.s1 %}{{ row.s1.total|floatformat:0 }}{% else %}—{% endif %}</td>
                     <td class="num">{% if row.s2 %}{{ row.s2.total|floatformat:0 }}{% else %}—{% endif %}</td>
                     <td class="num"><b>{% if row.annual.annual_total %}{{ row.annual.annual_total|floatformat:0 }}{% else %}—{% endif %}</b></td>
-                    <td>{% if row.annual.status == "pass" %}<span class="status-badge status-green">ناجح</span>{% elif row.annual.status == "fail" %}<span class="status-badge status-red">راسب</span>{% else %}—{% endif %}</td>
+                    <td>{% if row.annual.status == "pass" %}<span class="status-badge status-success">ناجح</span>{% elif row.annual.status == "fail" %}<span class="status-badge status-danger">راسب</span>{% else %}—{% endif %}</td>
                   </tr>
                 {% endfor %}
               </tbody>

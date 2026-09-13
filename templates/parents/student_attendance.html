@@ -30,7 +30,7 @@
       {% for alert in alerts %}
         <li class="plain-list__row">
           <span>{{ alert.absence_count }} غياب · {{ alert.period_start|date:"d/m" }} – {{ alert.period_end|date:"d/m" }}</span>
-          <span class="status-badge {% if alert.status == 'resolved' %}status-green{% else %}status-red{% endif %}">{{ alert.get_status_display }}</span>
+          <span class="status-badge {% if alert.status == 'resolved' %}status-success{% else %}status-danger{% endif %}">{{ alert.get_status_display }}</span>
         </li>
       {% endfor %}
     </ul>

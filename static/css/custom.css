@@ -9948,6 +9948,42 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 .plain-list__row:last-child { border-block-end: 0; }
 
+.plain-list__main { display: grid; gap: 1px; min-inline-size: 0; }
+.plain-list__title { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); }
+.plain-list__sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plain-list__row > .status-badge { flex-shrink: 0; }
+/* قائمةٌ طويلةٌ في بطاقةٍ بجوار رسم: تتمرّر داخلها ولا تُطيل السطر. */
+.plain-list.is-scroll { max-block-size: 280px; overflow-y: auto; padding-inline-end: 4px; }
+
+/* ── شبكةُ بطاقتين: تتجاوران حيث يتّسع وتنفكّان عموداً حيث يضيق ── */
+.ui-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: var(--sp-2);
+  align-items: stretch;
+}
+
+/* ── رقاقاتُ عدٍّ صغيرة: مفتاحٌ وقيمة — لأرقامٍ كثيرةٍ لا تستحقّ بطاقة ── */
+.chip-row { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-alt);
+  font-size: var(--text-xs);
+}
+.chip-stat__key { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.chip-stat__value { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
 /* ── 6. مبدِّلُ الفترة: روابطُ متلاصقةٌ والحاليُّ مصمَت ── */
 .period-switch {
   display: inline-flex;
