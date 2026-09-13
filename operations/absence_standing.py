@@ -7,12 +7,29 @@ operations/absence_standing.py — موقف الطالب من عتبات الغ�
 
 ## أيام التمدرس لا الحصص
 
-نصّ السياسة يعدّ **أيام التمدرس**، وقاعدتنا تُسجّل الحضور **بالحصّة**. فيوم
-الطالب المسجَّل قد يحوي سبع حصص، وغيابُه عن حصّةٍ واحدة ليس غياب يوم.
+نصّ السياسة يعدّ **أيام التمدرس**، وقاعدتنا تُسجّل الحضور **بالحصّة**. والجسرُ
+بينهما نصٌّ لا اجتهاد — المادة 3.4.3 (ص34): «يجب استكمال **4 حصص على الأقل**
+خلال اليوم الدراسي الواحد ليُحسب حضور الطالب».
 
-فالقاعدة هنا: يُعدّ اليومُ غياباً بلا عذر إذا كان الطالب غائباً بلا عذرٍ في
-**كل** حصصه المسجَّلة ذلك اليوم. وما دون ذلك يُحصى منفصلاً بوصفه غياباً
-جزئياً — يُعرض ولا يُحتسب، كي يرى الناظر الفرق بدل أن يبتلعه الرقم.
+فالقاعدة هنا:
+
+- **حضر 4 خاناتٍ فأكثر** — يومُ حضور. وما غابه فيه يُحصى «جزئيّاً» يُعرض ولا
+  يُحتسب.
+- **حضر أقلَّ من 4** — يومُ غياب، ولو حضر ثلاثاً ثمّ استأذن. وهو **بلا عذر** إن
+  كان في غيابه حصّةٌ بلا عذر، و**بعذر** إن كانت كلُّها معذورة.
+- **لم يُحسم** — إن كان ما حضره مع الخانات **غير المرصودة** يبلغ 4. فالحصّةُ
+  التي لم يرصدها المشرفُ تبقى «لم تُرصد» (قرار 2026-09-13)، ولا يُبنى حرمانٌ
+  على رصدٍ ناقص: يُعرض اليومُ ناقصاً ولا يُحتسب.
+
+وكانت القاعدةُ قبلها: «غائبٌ في **كلّ** حصصه». فمن حضر حصّتين ثمّ هرب لم
+يُحسب عليه يوم، والنصُّ يحسبه.
+
+**والعدُّ بالخانة الزمنيّة لا بالحصّة**: شعبةٌ فيها زوجُ اختيار (تكنولوجيا وفنون
+بصريّة في 09:35) لها حصّتان في خانةٍ واحدة، والطالبُ يحضر إحداهما. فالخاناتُ
+سبعٌ والحصصُ ثمانٍ، وحضورُ الخانة مرّةً لا مرّتين.
+
+و«الأربع» أقلُّ من خانات اليوم إن قصُر اليوم: يومٌ بثلاث خاناتٍ لا يُطلب فيه
+أربع، فيُطلب حضورُها كلِّها.
 
 ## العذر
 
@@ -35,7 +52,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from operations.absence_policy import Gate, band_for, breached, gates_for, next_gate
+from operations.absence_policy import (
+    MIN_PERIODS_FOR_PRESENCE,
+    Gate,
+    band_for,
+    breached,
+    gates_for,
+    next_gate,
+)
 
 
 @dataclass(frozen=True)
@@ -49,6 +73,8 @@ class Standing:
     gates: tuple[Gate, ...]
     breached: tuple[Gate, ...]
     upcoming: Gate | None
+    #: أيامٌ لم تُحسم: رصدُها ناقص، وما حضره مع ما لم يُرصد يبلغ الحدّ.
+    incomplete_days: int = 0
 
     @property
     def days_to_next(self) -> int | None:
@@ -63,28 +89,84 @@ class Standing:
         return not self.gates
 
 
+ATTENDED = ("present", "late")
+
+
 def _day_map(student, school, start, end) -> dict:
-    """لكل يومٍ: عدد حصصه، وكم منها غيابٌ بلا عذر، وكم بعذر."""
-    from operations.models import StudentAttendance
+    """لكلّ يوم: خاناتُه، وما حضره منها، وما غابه بلا عذرٍ وبعذر — بالخانة الزمنيّة.
+
+    والخاناتُ المجدولة تُقرأ من حصص شُعب الطالب ذلك اليوم، لا من سجلّاته وحدَها:
+    فالخانةُ التي لم تُرصد لا سجلَّ لها، وبلا حصرها يُقرأ الرصدُ الناقصُ غياباً.
+    """
+    from operations.models import Session, StudentAttendance
+
+    days: dict = {}
+
+    def slot_of(date):
+        return days.setdefault(
+            date,
+            {
+                "scheduled": set(),
+                "recorded": set(),
+                "attended": set(),
+                "unexcused": set(),
+                "excused": set(),
+            },
+        )
 
     rows = StudentAttendance.objects.filter(
         student=student,
         school=school,
         session__date__gte=start,
         session__date__lte=end,
-    ).values_list("session__date", "status", "excuse_type")
+    ).values_list("session__date", "session__start_time", "status", "excuse_type")
+    for date, start_time, status, excuse in rows:
+        day = slot_of(date)
+        day["scheduled"].add(start_time)
+        day["recorded"].add(start_time)
+        if status in ATTENDED:
+            day["attended"].add(start_time)
+        elif status == "absent":
+            day["excused" if excuse else "unexcused"].add(start_time)
 
-    days: dict = {}
-    for date, status, excuse in rows:
-        slot = days.setdefault(date, {"total": 0, "unexcused": 0, "excused": 0})
-        slot["total"] += 1
-        if status != "absent":
-            continue
-        if excuse:
-            slot["excused"] += 1
-        else:
-            slot["unexcused"] += 1
+    scheduled = (
+        Session.objects.filter(
+            school=school,
+            class_group__enrollments__student=student,
+            class_group__enrollments__is_active=True,
+            date__gte=start,
+            date__lte=end,
+        )
+        .exclude(status="cancelled")
+        .values_list("date", "start_time")
+        .distinct()
+    )
+    for date, start_time in scheduled:
+        slot_of(date)["scheduled"].add(start_time)
+
+    # خانةٌ حضرها في إحدى حصّتَي الزوج حاضرةٌ ولو كُتب في الأخرى غير ذلك.
+    for day in days.values():
+        day["unexcused"] -= day["attended"]
+        day["excused"] -= day["attended"] | day["unexcused"]
     return days
+
+
+def _judge(day) -> str:
+    """حكمُ اليوم: present · absent_unexcused · absent_excused · incomplete · unrecorded.
+
+    ويومٌ لا رصدَ فيه أصلاً «لم يُرصد» — لا يُعرض على الطالب ناقصاً: عدمُ الرصد
+    تقصيرُ من يرصد، ومحاسبتُه عند النائب الإداريّ لا في موقف الطالب.
+    """
+    if not day["recorded"]:
+        return "unrecorded"
+    need = min(MIN_PERIODS_FOR_PRESENCE, len(day["scheduled"]))
+    attended = len(day["attended"])
+    if attended >= need:
+        return "present"
+    unrecorded = len(day["scheduled"] - day["recorded"])
+    if attended + unrecorded >= need:
+        return "incomplete"
+    return "absent_unexcused" if day["unexcused"] else "absent_excused"
 
 
 def standing_for(student, school, grade=None, on=None, ese: bool = False) -> Standing:
@@ -99,9 +181,11 @@ def standing_for(student, school, grade=None, on=None, ese: bool = False) -> Sta
     today = on or _today()
     days = _day_map(student, school, start, min(end, today))
 
-    unexcused = sum(1 for d in days.values() if d["total"] and d["unexcused"] == d["total"])
-    partial = sum(1 for d in days.values() if d["unexcused"] and d["unexcused"] < d["total"])
-    excused = sum(1 for d in days.values() if d["excused"] and not d["unexcused"])
+    verdicts = [(_judge(d), d) for d in days.values()]
+    unexcused = sum(1 for v, _ in verdicts if v == "absent_unexcused")
+    excused = sum(1 for v, _ in verdicts if v == "absent_excused")
+    incomplete = sum(1 for v, _ in verdicts if v == "incomplete")
+    partial = sum(1 for v, d in verdicts if v == "present" and d["unexcused"])
 
     return Standing(
         unexcused_days=unexcused,
@@ -111,6 +195,7 @@ def standing_for(student, school, grade=None, on=None, ese: bool = False) -> Sta
         gates=gates_for(grade, ese),
         breached=breached(grade, unexcused, ese),
         upcoming=next_gate(grade, unexcused, ese),
+        incomplete_days=incomplete,
     )
 
 
