@@ -1,0 +1,23 @@
+{% comment %}تقويمُ حضورٍ أسابيعَ من خمسة أيّام — `weeks` من `parents.services.attendance_weeks`.{% endcomment %}
+    <div class="att-cal" role="table" aria-label="تقويم الحضور">
+      <div class="att-cal__row att-cal__head" role="row">
+        <span role="columnheader">أحد</span><span role="columnheader">إثنين</span><span role="columnheader">ثلاثاء</span><span role="columnheader">أربعاء</span><span role="columnheader">خميس</span>
+      </div>
+      {% for week in weeks %}
+        <div class="att-cal__row" role="row">
+          {% for cell in week %}
+            {% if cell.state == "before" or cell.state == "future" %}
+              <span class="att-cal__cell is-out" role="cell" aria-hidden="true"></span>
+            {% else %}
+              <span class="att-cal__cell is-{{ cell.state }}" role="cell" title="{{ cell.date|date:'l d/m' }}">{{ cell.label }}</span>
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+    <ul class="att-cal__legend" aria-label="مفتاح الألوان">
+      <li><i class="is-present"></i>منتظم</li>
+      <li><i class="is-late"></i>تأخّر</li>
+      <li><i class="is-absent"></i>غياب</li>
+      <li><i class="is-none"></i>بلا رصد</li>
+    </ul>

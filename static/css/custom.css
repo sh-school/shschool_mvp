@@ -1714,7 +1714,7 @@ html.dark .free-slot-badge { background: var(--status-success-bg); color: var(--
 
 /* ── نقطة الحالة (status dot) ── */
 .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-.status-dot-online { background: #22c55e; }
+.status-dot-online { background: var(--status-success); }
 
 /* ── حقول النماذج ── */
 .form-group { margin-bottom: 18px; }
@@ -6080,6 +6080,43 @@ html.dark .link-maroon { color: #f9a8d4; }
   color: rgba(255,255,255,.75); font-size: var(--text-xs); margin: 0;
 }
 
+/* ── PWA Banner ──────────────────────────────────────────────────────
+   كان تنسيقُه كلُّه في وسمه، وإظهارُه بـ`style.display` — فصار صنفاً يُظهَر
+   بسمة `hidden`، وهي التي يضبطها زرُّ الإغلاق أصلاً (`data-hide`). */
+.pwa-banner {
+  position: fixed;
+  inset-block-end: 16px;
+  inset-inline: 12px;
+  z-index: 9999;
+  max-width: 360px;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--maroon);
+  color: var(--on-fill);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+.pwa-banner__icon { flex-shrink: 0; display: inline-flex; }
+.pwa-banner__icon .icon { width: 28px; height: 28px; }
+.pwa-banner__text { flex: 1; min-inline-size: 0; }
+.pwa-banner__title { margin: 0 0 2px; font-size: var(--text-sm); font-weight: 700; }
+.pwa-banner .pwa-subtitle { margin: 0; font-size: var(--text-xs); }
+
+/* ── مؤشّرُ الاتّصال: لونان من الرموز لا من الشيفرة ── */
+.status-dot-offline { background: var(--status-danger); animation: status-dot-pulse 1s infinite; }
+@keyframes status-dot-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .status-dot-offline { animation: none; } }
+
+/* ── بطاقةُ الابن في بوّابة وليّ الأمر ──
+   أرقامٌ في سطرٍ ثمّ روابطُ التفصيل — والروابطُ أزرارٌ بارتفاعٍ يُلمس
+   (≥40px): الصفحةُ تُفتح على الهاتف غالباً. */
+.parent-child { display: grid; gap: var(--sp-3); }
+.parent-child__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.parent-child__actions .btn-secondary { min-height: 40px; display: inline-flex; align-items: center; gap: 6px; }
+
 /* ── PWA Banner — close button ───────────────────────────────────── */
 .pwa-close-btn {
   background: none; border: none; color: rgba(255,255,255,.6);
@@ -9347,6 +9384,24 @@ html.dark {
   min-inline-size: 0;
 }
 .wing-pair > .card-qatar > .wing-grid { flex: 1; align-content: start; }
+
+/* ── الطابقان بعرضٍ على قدر أجنحتهما، وجدولا التوقيت تحتهما بالنسبة نفسها ──
+   نصفان متساويان يضيّقان الطابقَ ذا الأجنحة الثلاثة ويتركان في ذي الجناحين
+   سعة. فالعرضُ وزنُ الطابق (`FloorPanel.width_weight`، في `--floor-a/b`):
+   أساسٌ صفريّ ونموٌّ بالوزن. والسطرُ الثاني يأخذ الوزنين نفسيهما فتتحاذى
+   حوافُّه مع الأوّل. والحدُّ الأدنى يعيدهما عموداً في الشاشة الضيّقة. */
+.wing-pair--floors { display: flex; flex-wrap: wrap; }
+.wing-pair--floors > .card-qatar {
+  flex: var(--floor-a, 1) 1 0;
+  min-inline-size: min(100%, 430px);
+}
+.wing-pair--floors > .card-qatar:nth-child(2) { flex-grow: var(--floor-b, 1); }
+/* والجناحُ ذو الجرسين يقول موضعين في سطرٍ واحد، فيأخذ من جاريه ما يسعهما.
+   شبكةُ أعمدةٍ متساويةٍ لا تعرف هذا، فالمرونةُ هنا بدلُها. */
+.wing-pair--floors .wing-grid { display: flex; flex-wrap: wrap; }
+.wing-pair--floors .wing-box--lines { flex: 1 1 215px; }
+.wing-pair--floors .wing-box--split { flex: 1.5 1 340px; }
+.wing-box--lines .wing-chip { padding-inline: 5px; }
 .wing-pair > .card-qatar > .table-wrap { flex: 1; }
 
 /* ── شبكةُ الأجنحة داخل الطابق ── */
@@ -9445,7 +9500,6 @@ html.dark {
 .floor-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-inline-start: auto; }
 
 /* ── جدولا التوقيت ── */
-.bell-idx { width: 44px; text-align: center; color: var(--text-muted); font-size: var(--text-xs); }
 /* الاسمُ والوقتُ في سطرٍ واحد: عمودان في خليّةٍ يضاعفان ارتفاعَ الجدول
    تسعَ مرّات بلا أن يزيدا شيئاً — والعينُ تقرأ «الحصّة 3 · 08:50–09:35»
    سطراً كما تُقال. */
@@ -9490,6 +9544,62 @@ html.dark {
 .wing-cover-field--wide { grid-column: 1 / -1; }
 .wing-cover-form button { align-self: end; }
 .wing-box__tags { display: flex; flex-direction: column; gap: 3px; align-items: flex-end; }
+
+/* ── شريطُ الأعداد سطراً واحداً: الاسمُ ثمّ العددُ ثمّ التفصيل ──
+   البطاقةُ ثلاثةُ أسطرٍ مكدّسةٌ لتقول «الأجنحة 5 طابقان» — وهي جملةٌ تُقرأ
+   في سطر. والتفصيلُ وحدَه يُقصّ بنقاطٍ حين يضيق، والاسمُ والعددُ لا يُقصّان.
+   ومُعدِّلٌ لا تعديل: `.kpi-strip` في ستّين صفحةٍ غيرِ هذه. */
+.kpi-strip--line .kpi-mini {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: 8px 14px;
+  min-inline-size: 0;
+}
+.kpi-strip--line .kpi-mini-label { margin: 0; white-space: nowrap; }
+.kpi-strip--line .kpi-mini-value,
+.kpi-strip--line .kpi-mini-value.is-words { font-size: var(--text-lg); line-height: 1.4; white-space: nowrap; }
+.kpi-strip--line .kpi-mini-sub {
+  margin: 0;
+  font-size: var(--text-xs);
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── بطاقةُ الجناح في ثلاثة أسطر ──
+   مَن وكم، ثمّ الشُّعب، ثمّ الساعة. والجناحُ ذو الجرسين موضعاه في السطر
+   الثالث متجاوران، يلتفّان إن ضاق العرضُ ولا يصيران سطرين مكدّسين. */
+.wing-box--lines { gap: 6px; padding: var(--sp-2) var(--sp-3); }
+.wing-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px var(--sp-2);
+  min-inline-size: 0;
+}
+/* السطرُ الأوّل لا يلتفّ: اسمُ المشرف الطويل يُقصّ بنقاطٍ واسمُه كاملاً في
+   التلميح، والجناحُ والعددُ ثابتان. */
+.wing-line:not(.wing-line--now) { flex-wrap: nowrap; }
+.wing-line .wing-box__name,
+.wing-line .badge { flex-shrink: 0; }
+.wing-line .wing-box__who {
+  margin: 0;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wing-line .wing-box__count { margin-inline-start: auto; white-space: nowrap; }
+.wing-line--now .wing-now,
+.wing-line--now .wing-warn { padding: 2px var(--sp-2); font-size: var(--text-xs); }
+.wing-line--now { flex-wrap: nowrap; }
+.wing-line--now { gap: 4px; }
+.wing-line--now .wing-now { flex: 1 1 0; min-inline-size: 0; gap: 4px; padding-inline: 6px; }
+/* اسمُ الجرس عربيٌّ هنا، فالخطُّ الثابتُ العرض يوسّعه بلا فائدة. */
+.wing-line--now .wing-now__bell { font-family: inherit; white-space: nowrap; }
+.wing-line--now .wing-now > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* ── سطرٌ بخمسِ بطاقات: جناحٌ لكلٍّ منها ──
    حدٌّ أدنى صغيرٌ لأنّ البطاقاتِ خمسٌ لا اثنتان، و`auto-fit` لا يزيد على
@@ -9705,6 +9815,12 @@ html.dark {
 .ui-section__title { font: inherit; margin: 0; }
 .ui-section__body { flex: 1; min-inline-size: 0; }
 .ui-section.is-flush { padding: 0; overflow: hidden; }
+/* الفراغُ داخل بطاقةٍ لا يحتاج حشوَ صفحةٍ كاملة: 48px فوقه وتحته كانت تجعل
+   البطاقةَ الفارغةَ أطولَ من الممتلئة. */
+.ui-section .empty-state-v2 { padding: var(--sp-6, 24px) var(--sp-4); }
+.ui-section .empty-state-v2 .es-icon { margin-bottom: var(--sp-2); }
+.ui-section .empty-state-v2 .es-title { font-size: var(--text-base); margin-bottom: 4px; }
+.ui-section .empty-state-v2 .es-sub { margin-bottom: 0; }
 .ui-section.is-flush > .card-bar { margin: 0; }
 .ui-section.is-flush > .ui-section__body > .table-wrap { border: 0; border-radius: 0; box-shadow: none; }
 
@@ -9818,6 +9934,174 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   color: var(--text-secondary);
 }
 .sg-p { margin: 0; font-size: var(--text-sm); color: var(--text-secondary); }
+
+/* ── 5. قائمةٌ بسيطة: سطرٌ لكلّ عنصر، نصُّه في البداية وحالتُه في النهاية ── */
+.plain-list { list-style: none; margin: 0; padding: 0; }
+.plain-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding-block: var(--sp-2);
+  border-block-end: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+.plain-list__row:last-child { border-block-end: 0; }
+
+.plain-list__main { display: grid; gap: 1px; min-inline-size: 0; }
+.plain-list__title { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); }
+.plain-list__sub {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.plain-list__row > .status-badge { flex-shrink: 0; }
+/* قائمةٌ طويلةٌ في بطاقةٍ بجوار رسم: تتمرّر داخلها ولا تُطيل السطر. */
+.plain-list.is-scroll { max-block-size: 280px; overflow-y: auto; padding-inline-end: 4px; }
+
+/* ── شبكةُ بطاقتين: تتجاوران حيث يتّسع وتنفكّان عموداً حيث يضيق ── */
+.ui-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: var(--sp-2);
+  align-items: stretch;
+}
+
+/* ── رقاقاتُ عدٍّ صغيرة: مفتاحٌ وقيمة — لأرقامٍ كثيرةٍ لا تستحقّ بطاقة ── */
+.chip-row { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-alt);
+  font-size: var(--text-xs);
+}
+.chip-stat__key { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.chip-stat__value { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+/* ── 6. مبدِّلُ الفترة: روابطُ متلاصقةٌ والحاليُّ مصمَت ── */
+.period-switch {
+  display: inline-flex;
+  border: 1px solid var(--maroon-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.period-switch__item {
+  padding: 6px 12px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--maroon-fg);
+  text-decoration: none;
+  white-space: nowrap;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+}
+.period-switch__item + .period-switch__item { border-inline-start: 1px solid var(--maroon-border); }
+.period-switch__item.is-current { background: var(--maroon); color: var(--on-fill); }
+.period-switch__item:focus-visible { outline: 2px solid var(--maroon); outline-offset: -2px; }
+
+/* ── 7. تقويمُ الحضور: خمسةُ أيّامِ دراسةٍ في الأسبوع ──
+   خانةٌ مربّعةٌ لكلّ يوم، ولونُها الحال. والأسبوعُ من الأحد إلى الخميس،
+   فالعمودُ الأوّلُ يمينٌ في الاتّجاه العربيّ بلا قاعدةٍ ثانية. */
+.att-cal { display: grid; gap: 4px; max-width: 420px; }
+.att-cal__row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.att-cal__head span { font-size: var(--text-xs); color: var(--text-muted); text-align: center; }
+.att-cal__cell {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface-alt);
+  color: var(--text-muted);
+}
+.att-cal__cell.is-present { background: var(--status-success-bg); color: var(--status-success-fg); }
+.att-cal__cell.is-late    { background: var(--status-warning-bg); color: var(--status-warning-fg); }
+.att-cal__cell.is-absent  { background: var(--status-danger-bg);  color: var(--status-danger-fg); box-shadow: inset 0 0 0 2px var(--status-danger); }
+.att-cal__cell.is-out     { background: transparent; }
+.att-cal__cell.is-none    { background: var(--surface-alt); color: var(--text-muted); }
+.att-cal__legend {
+  list-style: none;
+  margin: var(--sp-3) 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+.att-cal__legend li { display: inline-flex; align-items: center; gap: 6px; }
+.att-cal__legend i { inline-size: 12px; block-size: 12px; border-radius: 3px; background: var(--surface-alt); }
+.att-cal__legend i.is-none    { background: var(--surface-alt); box-shadow: inset 0 0 0 1px var(--border); }
+.att-cal__legend i.is-present { background: var(--status-success-bg); }
+.att-cal__legend i.is-late    { background: var(--status-warning-bg); }
+.att-cal__legend i.is-absent  { background: var(--status-danger-bg); box-shadow: inset 0 0 0 2px var(--status-danger); }
+
+/* ── 8. أرقامُ الجداول: أعمدةٌ تتحاذى أرقامُها ── */
+.table-wrap td.num, .table-wrap th.num { text-align: center; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.table-wrap th small { font-weight: 400; opacity: .75; }
+.table-wrap tr.is-danger > td { background: var(--status-danger-bg); }
+.grade-total { font-weight: 700; }
+.grade-total.is-success { color: var(--status-success-fg); }
+.grade-total.is-info    { color: var(--status-info-fg); }
+.grade-total.is-warning { color: var(--status-warning-fg); }
+.grade-total.is-danger  { color: var(--status-danger-fg); }
+.grade-total.is-muted   { color: var(--text-muted); font-weight: 400; font-size: var(--text-xs); }
+
+/* ── 9. مفتاحُ تبديل — `input[role=switch]` حقيقيٌّ تحت مسارٍ مرسوم ──
+   كان مرسوماً بعشرين صنفَ Tailwind بلونٍ أخضرَ ثابتٍ ومسارٍ رماديٍّ لا يُرى
+   ليلاً. هنا الحقلُ نفسُه يُقرأ بقارئ الشاشة ويُضغط بلوحة المفاتيح، والمسارُ
+   ظلُّه. والاتّجاهُ منطقيّ: المقبضُ يبدأ من البداية ويذهب إلى النهاية. */
+.ui-switch { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); inline-size: 100%; cursor: pointer; }
+.ui-switch__label { font-size: var(--text-sm); color: var(--text-primary); }
+.ui-switch__input { position: absolute; opacity: 0; inline-size: 1px; block-size: 1px; }
+.ui-switch__track {
+  position: relative;
+  flex-shrink: 0;
+  inline-size: 44px;
+  block-size: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--border);
+  transition: background var(--transition-base);
+}
+.ui-switch__track::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 2px;
+  inline-size: 20px;
+  block-size: 20px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: inset-inline-start var(--transition-base);
+}
+.ui-switch__input:checked + .ui-switch__track { background: var(--status-success); }
+.ui-switch__input:checked + .ui-switch__track::after { inset-inline-start: 22px; }
+.ui-switch__input:focus-visible + .ui-switch__track { outline: 2px solid var(--maroon); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .ui-switch__track, .ui-switch__track::after { transition: none; } }
+
+/* ── 10. ملاحظةُ النموذج وأزرارُه ── */
+.form-note {
+  display: flex; align-items: flex-start; gap: var(--sp-2);
+  margin: 0; padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  background: var(--surface-alt); color: var(--text-secondary);
+}
+.form-note.is-warning { background: var(--status-warning-bg); color: var(--status-warning-fg); }
+.form-note .icon { flex-shrink: 0; margin-block-start: 2px; }
+.form-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); flex-wrap: wrap; }
+.consent-page { max-width: 720px; margin-inline: auto; }
+.consent-form { display: grid; gap: var(--sp-3); }
 
 /* ── 4. ترويسةُ الصفحة ── */
 .ui-page-header__text { min-inline-size: 0; }
