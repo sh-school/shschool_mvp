@@ -118,6 +118,53 @@ class TestTheTeacherLetsAStudentOut:
         assert response.status_code == 200 and "خرج بإذن" in response.content.decode()
 
 
+class TestTheSupervisorIsNotified:
+    """الطالبُ يأخذ بطاقةَ الخروج من الجناح من المشرف — فيُشعَر فوراً (قرارُ 2026-09-14)."""
+
+    @pytest.mark.parametrize("destination", ["clinic", "admin"])
+    def test_leaving_the_wing_notifies_its_holder(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor, destination
+    ):
+        from notifications.models import InAppNotification
+
+        (period,) = _periods(school, klass, teacher, 1)
+
+        leave(period, kids[0], destination, by=teacher, now=at(7, 20))
+
+        notif = InAppNotification.objects.get(user=supervisor)
+        assert kids[0].full_name in notif.title
+        assert "بطاقةَ خروجٍ" in notif.body
+        assert notif.priority == "high"
+
+    def test_the_restroom_stays_inside_the_wing_and_is_silent(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        from notifications.models import InAppNotification
+
+        (period,) = _periods(school, klass, teacher, 1)
+
+        leave(period, kids[0], "restroom", by=teacher, now=at(7, 20))
+
+        assert not InAppNotification.objects.filter(user=supervisor).exists()
+
+    def test_a_section_outside_the_wings_has_nobody_to_notify(
+        self, school, seeded_calendar, year, teacher
+    ):
+        from notifications.models import InAppNotification
+        from tests.conftest import ClassGroupFactory, StudentEnrollmentFactory, UserFactory
+
+        ese = ClassGroupFactory(
+            school=school, grade="G7", section="9", level_type="prep", academic_year=year
+        )
+        student = UserFactory(full_name="طالب خاصّ", national_id="29300000098")
+        StudentEnrollmentFactory(student=student, class_group=ese)
+        (period,) = _periods(school, ese, teacher, 1)
+
+        exit_ = leave(period, student, "clinic", by=teacher, now=at(7, 20))
+
+        assert exit_.pk and not InAppNotification.objects.exists()
+
+
 class TestPresenceMinutesBySubject:
     def test_minutes_are_schedule_minus_absence_late_and_exits(
         self, school, seeded_calendar, klass, kids, teacher, supervisor, subjects

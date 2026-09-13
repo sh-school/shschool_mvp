@@ -55,6 +55,9 @@ _PUBLISH_FAILURES = (ImportError, OSError, RuntimeError, OperationalError)
 DEFAULT_CHANNELS = {
     # event_type: [channels]
     "behavior_l1": ["in_app", "push", "email"],
+    # خروجُ طالبٍ من الفصل إلى الإدارة/العيادة: المشرفُ يُعطيه بطاقةَ الخروج من الجناح،
+    # فيُشعَر فوراً على هاتفه (قرارُ 2026-09-14) — ولا بريدَ لكلّ خروج.
+    "class_exit": ["in_app", "push"],
     "behavior_l2": ["in_app", "push", "whatsapp", "email"],
     "behavior_l3": ["in_app", "push", "whatsapp", "email", "sms"],
     "behavior_l4": ["in_app", "push", "whatsapp", "email", "sms"],
@@ -81,6 +84,7 @@ DEFAULT_PRIORITY = {
     "behavior_l3": "high",
     "behavior_l4": "urgent",
     "absence": "medium",
+    "class_exit": "high",
     "grade": "low",
     "fail": "high",
     "clinic": "medium",
@@ -534,6 +538,7 @@ def _map_event_type(hub_event):
         "behavior_l4": "behavior",
         "behavior_risk": "behavior",
         "absence": "absence",
+        "class_exit": "general",
         "grade": "grade",
         "fail": "fail",
         "clinic": "clinic",

@@ -19,6 +19,10 @@ from django.utils import timezone
 
 from operations.models import ClassExit, StudentAttendance
 
+#: وجهاتٌ تُخرج الطالبَ من الجناح فيحتاج بطاقةَ المشرف — فيُشعَر فوراً (قرارُ 2026-09-14).
+#: دورةُ المياه داخل الجناح، بلا إشعار.
+NOTIFY_SUPERVISOR_FOR = ("clinic", "admin")
+
 #: وجهةُ الخروج → «أين الطالب» في سجلّ الحضور لمن لم يعد.
 WHEREABOUTS_OF = {
     "clinic": "clinic",
@@ -44,7 +48,7 @@ def leave(session, student, destination: str, by, now: dt.datetime | None = None
         return current
     if destination not in dict(ClassExit.DESTINATIONS):
         destination = "other"
-    return ClassExit.objects.create(
+    exit_ = ClassExit.objects.create(
         school=session.school,
         session=session,
         student=student,
@@ -52,6 +56,46 @@ def leave(session, student, destination: str, by, now: dt.datetime | None = None
         left_at=now,
         allowed_by=by,
     )
+    if destination in NOTIFY_SUPERVISOR_FOR:
+        _notify_supervisor(exit_)
+    return exit_
+
+
+def _notify_supervisor(exit_: ClassExit) -> None:
+    """يُشعِر من يحمل الجناحَ اليوم (أصيلاً أو بديلاً) — الطالبُ قادمٌ إليه لبطاقة الخروج.
+
+    الإشعارُ لا يُسقط الخروجَ إن تعذّر: نقرةُ المعلّم حقيقةٌ تُحفظ أوّلاً.
+    """
+    import logging
+
+    from django.urls import reverse
+
+    logger = logging.getLogger(__name__)
+    wing = exit_.session.class_group.wing if exit_.session.class_group.wing_id else None
+    holder = wing.current_supervisor(exit_.session.date) if wing is not None else None
+    if holder is None:
+        return
+    try:
+        from notifications.hub import NotificationHub
+
+        NotificationHub.dispatch(
+            event_type="class_exit",
+            school=exit_.school,
+            recipients=[holder],
+            title=f"خروجٌ من الفصل — {exit_.student.full_name}",
+            body=(
+                f"{exit_.student.full_name} ({exit_.session.class_group}) خرج إلى "
+                f"{exit_.get_destination_display()} الساعة {timezone.localtime(exit_.left_at):%H:%M} "
+                f"بإذن {exit_.allowed_by.full_name if exit_.allowed_by else 'المعلّم'} — "
+                "يحتاج بطاقةَ خروجٍ من الجناح."
+            ),
+            related_url=reverse("wings:record_section", args=[exit_.session.class_group_id])
+            + f"?date={exit_.session.date.isoformat()}",
+            related_object_id=str(exit_.pk),
+            sent_by=exit_.allowed_by,
+        )
+    except Exception as exc:  # noqa: BLE001 — الإشعارُ تابعٌ للحدث لا شرطٌ له
+        logger.warning("class_exit: إشعارُ المشرف تعذّر [exit=%s]: %s", exit_.pk, exc)
 
 
 @transaction.atomic
