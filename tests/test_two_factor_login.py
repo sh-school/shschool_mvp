@@ -115,7 +115,7 @@ class TestEveryStaffMemberMustSetItUp:
 
         assert resp.status_code == 302 and resp["Location"].endswith(reverse("setup_2fa"))
         assert client.get(reverse("setup_2fa")).status_code == 200
-        assert client.get(reverse("logout")).status_code in (200, 302)
+        assert client.post(reverse("logout")).status_code == 302, "الخروجُ يبقى مفتوحاً"
 
     def test_an_htmx_request_asks_the_browser_to_redirect(self, client, school):
         client.force_login(_staff(school, "nurse"))
