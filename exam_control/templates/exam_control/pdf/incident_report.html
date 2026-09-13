@@ -1,24 +1,25 @@
 {% extends "reports/base_qatar_report.html" %}
+{% load brand_tags %}
 {# محضر حادثة اختبارية — يرث من القالب القطري الأساسي #}
 
 {% block extra_styles %}
 .info-section {
   margin: 12px 0;
-  border: 1px solid #e5e7eb;
+  border: 1px solid {% brand_color "BORDER" %};
   border-radius: 6px;
   padding: 12px 14px;
 }
 .info-section-title {
   font-size: 11.5px;
   font-weight: 700;
-  color: #8A1538;
+  color: {% brand_color "MAROON" %};
   margin-bottom: 8px;
-  border-bottom: 1px solid #f0e6ea;
+  border-bottom: 1px solid {% brand_color "BORDER" %};
   padding-bottom: 5px;
 }
 .info-section p {
   font-size: 11px;
-  color: #222;
+  color: {% brand_color "TEXT_PRIMARY" %};
   line-height: 1.7;
   margin: 0;
 }

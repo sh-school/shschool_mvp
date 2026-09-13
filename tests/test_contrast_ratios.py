@@ -205,3 +205,15 @@ def test_the_scan_actually_reaches_the_stylesheet():
         if fg is not None and bg is not None and bg[3] >= 1:
             measured += 1
     assert measured >= 150, f"لم يُقَس إلّا {measured} زوجاً — المسحُ فارغ"
+
+
+def test_conditional_tokens_do_not_pose_as_the_normal_theme():
+    """رمزٌ داخل `@media` لا يُقاس به الوضعُ العاديّ.
+
+    كانت كتلةُ `prefers-contrast: more` تُقرأ نهاراً، فقاس الحارسُ
+    `--text-muted` بـ`#555` و`--border` بـ`#999` — أغمقَ ممّا يُرسم —
+    فكان يُجيز نصّاً باهتاً بتباينٍ لا يراه أحد.
+    """
+    css = ":root { --x: #5f6775; }\n@media (prefers-contrast: more) { :root { --x: #555; } }"
+    light, dark = token_table(css)
+    assert light["--x"] == "#5f6775" and dark["--x"] == "#5f6775"
