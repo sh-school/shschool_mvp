@@ -330,6 +330,28 @@ class Wing(models.Model):
         cover = self.active_coverage(on_date)
         return cover.substitute if cover else self.supervisor
 
+    @classmethod
+    def is_held_by(cls, user, on_date=None) -> bool:
+        """أيحمل هذا المستخدمُ جناحاً نشطاً في هذا اليوم — أصيلاً أو بديلاً؟
+
+        البديلُ قد يكون ملاحظَ طلبةٍ أو عاملَ خدمات (قرارُ المدير، `SUBSTITUTE_ROLES`)،
+        ودورُه لا يفتح الرصد. فالتكليفُ نفسُه هو الإذن — ما دام سارياً.
+        وبالسؤال نفسِه الذي يسأله `current_supervisor`: البديلُ الساري يحمل الجناح،
+        والأصيلُ يحمله ما لم يُغطَّ.
+        """
+        if user is None or not getattr(user, "is_authenticated", False):
+            return False
+        day = on_date or timezone.localdate()
+        live = Q(start_date__lte=day) & (Q(end_date__isnull=True) | Q(end_date__gte=day))
+        covering = WingCoverage.objects.filter(live, wing__is_active=True)
+        if covering.filter(substitute=user).exists():
+            return True
+        return (
+            cls.objects.filter(supervisor=user, is_active=True)
+            .exclude(id__in=covering.values("wing_id"))
+            .exists()
+        )
+
     def __str__(self):
         return f"{self.name} ({self.academic_year})"
 

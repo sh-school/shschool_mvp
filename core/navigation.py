@@ -49,10 +49,39 @@ def _role_opens(role: str, url_name: str) -> bool:
     return roles is None or role in roles
 
 
+def _guard_grant(view):
+    fn, seen = view, set()
+    while fn is not None and id(fn) not in seen:
+        seen.add(id(fn))
+        grant = getattr(fn, "_grant", None)
+        if grant is not None:
+            return grant
+        fn = getattr(fn, "__wrapped__", None)
+    return None
+
+
+@lru_cache(maxsize=1024)
+def _url_grant(url_name: str):
+    """منحُ الحارس لهذا الرابط — ما لا تقرؤه الأدوار (بديلُ الجناح بتكليفه)."""
+    from core.module_registry import get_protected_paths
+
+    try:
+        path = reverse(url_name)
+    except NoReverseMatch:
+        return None
+    # الشاشةُ خلف بوّابة وحدةٍ بالدور لا يبلغها المنحُ — فلا يَعِد به الرابط.
+    if any(path.startswith(prefix) for prefix in get_protected_paths()):
+        return None
+    return _guard_grant(resolve(path).func)
+
+
 def can_open(user, url_name: str) -> bool:
     """هل يُفتح الرابطُ ``url_name`` (بلا وسائط) لهذا المستخدم؟"""
     if user is None or not getattr(user, "is_authenticated", False):
         return False
     if user.is_superuser:
         return True
-    return _role_opens(user.get_role() or "", url_name)
+    if _role_opens(user.get_role() or "", url_name):
+        return True
+    grant = _url_grant(url_name)
+    return grant is not None and bool(grant(user))
