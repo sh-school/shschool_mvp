@@ -172,6 +172,31 @@
   --role-executor-bg: #eff6ff;
   --role-executor-border: #93c5fd;
 
+  /* ══ ألوانُ الوثائق المطبوعة — لا تُرسم على الشاشة، فلا تنقلب ليلاً ══
+     تصلها قوالبُ الـPDF والطباعة بـ`{% brand_color %}` من مرآتها في `core/brand.py`. */
+  /* استمارةُ الإشراف طبقَ نموذج المدرسة (docx): شريطُ العناوين، وأرضيّةُ خانة العنوان، والحبر. */
+  --form-band:      #943634;
+  --form-key-bg:    #DDD9C3;
+  --print-ink:      #000000;
+  --print-ink-soft: #444444;
+  /* فرزُ الأقسام لوناً في مصفوفة الجدول المطبوعة — فاتحةٌ يُقرأ الأسودُ فوقها،
+     ومتباعدةٌ بين كلّ قسمين متجاورين. */
+  --dept-sharia:      #d9ead3;
+  --dept-arabic:      #fce5cd;
+  --dept-math:        #cfe2f3;
+  --dept-english:     #ead1dc;
+  --dept-science:     #d0e8e4;
+  --dept-biology:     #eef3cf;
+  --dept-chemistry:   #fad4d0;
+  --dept-physics:     #dcd8f0;
+  --dept-social:      #fdedb3;
+  --dept-tech:        #d8e2e6;
+  --dept-business:    #e8e0c8;
+  --dept-pe:          #cfe8d8;
+  --dept-arts:        #f4d9e8;
+  --dept-life-skills: #e8ded0;
+  --dept-other:       #e8e8e8;
+
   /* Quality module tokens */
   /* وحدةُ الجودة كان لها عنّابيٌّ ثانٍ (#8d1b3d) يخالف علامةَ المنصّة — رُدّ إليها */
   --q-silver: #C0C0C0;
@@ -7506,6 +7531,20 @@ html.dark .kpi-unavail-icon { background: var(--surface-alt); }
   .qproc-noprint { display: none; }
 }
 
+/* ── templates/quality/observation_pdf_view.html ──
+   الاستمارةُ في إطارٍ تحت شريط أدواتها، وصندوقُ الإرسال يُطوى فوقها. */
+.obs-pdf-page { max-inline-size: 1100px; margin-inline: auto; }
+.obs-pdf-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.obs-send-box { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 14px; }
+.obs-send-box__title { margin: 0 0 8px; }
+.obs-send-box__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.obs-send-box__option { display: flex; align-items: center; gap: 6px; }
+/* مستلمٌ لم يُعيَّن بعد: خانتُه معطَّلةٌ وتخفت. */
+.obs-send-box__option.is-unavailable { opacity: .55; }
+.obs-send-box__who { color: var(--text-muted); }
+.obs-send-box__actions { margin-top: 10px; display: flex; gap: 8px; }
+.obs-pdf-frame { width: 100%; height: 78vh; border: 1px solid var(--border); border-radius: 8px; }
+
 /* ── templates/quality/progress_report.html ── */
 /* ═══════════════════════════════════════════════════════
    Progress Report — MINIMAL scoped styles
@@ -7825,6 +7864,17 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
   /* وفي الهاتف يقع اللوحُ تحت الورقة لا بجوارها: كان بعرضٍ ثابتٍ 250px إلى
      جانب إطارٍ في شاشةٍ عرضُها 390px، فيضيق الجدولُ إلى نحو 140px متى فُتح. */
   .schedule-stage { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
+  /* مسرحُ الورقة بطول النافذة، والإطارُ يملؤه — ورقةٌ بيضاءُ في الوضعين. */
+  .schedule-stage.is-sheet { block-size: calc(100vh - 230px); min-block-size: 560px; }
+  .schedule-sheet-frame {
+    inline-size: 100%;
+    block-size: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--on-fill);
+  }
+  /* لافتةُ معاينة المسودّة: إطارٌ كهرمانيٌّ كي لا تُقرأ المسودّةُ جدولاً معتمَداً. */
+  .schedule-draft-banner { border: 2px solid var(--status-warning); background: var(--surface-alt); }
   .schedule-stage > iframe { flex: 1 1 auto; min-width: 0; min-height: 0; }
   .teacher-panel {
     flex: 0 0 auto; border: 1px solid var(--border); border-radius: var(--radius-md);

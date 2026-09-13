@@ -202,6 +202,31 @@ def _subject_rows_presentation(rows: list[dict]) -> None:
         )
 
 
+def _annual_grade(total) -> str:
+    """صنفُ مجموع المادّة في كشف النتائج السنويّ (`grade-*` في قالبه).
+
+    عتباتُ القالب القديم كما كانت: 90 ممتاز، 75 جيّد، 60 مقبول، وما دونها
+    يُبرَز — وبلا مجموعٍ رماديّ. وليست عتباتِ `_grade_tone` (50 للنجاح):
+    كشفٌ رسميٌّ لا يتغيّر لونُه في ترحيل.
+    """
+    if not total:
+        return "na"
+    if total >= 90:
+        return "a"
+    if total >= 75:
+        return "b"
+    if total >= 60:
+        return "c"
+    return "f"
+
+
+def _annual_result_presentation(ctx: dict) -> None:
+    """نغمةُ مجموع كلّ مادّةٍ في كشف النتائج السنويّ."""
+    for row in ctx["rows"]:
+        annual = row["annual"]
+        row["annual_grade"] = _annual_grade(annual.annual_total if annual else None)
+
+
 def _attendance_presentation(ctx: dict) -> None:
     """رقمُ تقرير الحضور ونغمةُ كلّ طالب — عتباتُ القالب القديم: 95 ممتاز، 80 مقبول،
     وأكثرُ من عشرة غياباتٍ تُبرَز."""
@@ -462,6 +487,7 @@ def student_annual_result_pdf(request, student_id):
 
     ctx = ReportDataService.get_student_report(student, school, year)
     _set_final_status(ctx)
+    _annual_result_presentation(ctx)
     ctx["paper_size"] = paper
 
     if preview:

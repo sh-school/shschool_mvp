@@ -313,6 +313,40 @@ body {
   font-weight: 600;
 }
 
+/* ══════════ ختمُ التصدير ══════════ */
+/* من صدّر الوثيقةَ ومتى — يُلحقه التقريرُ الوارث إن مُرِّر `exported_by`. */
+.export-stamp {
+  text-align: center;
+  font-size: 8pt;
+  color: {% brand_color "TEXT_MUTED" %};
+  border-top: 1px solid {% brand_color "BORDER" %};
+  padding-top: 8px;
+  margin-top: 30px;
+}
+.export-stamp p { margin: 2px 0 0; }
+.export-stamp p:first-child { margin: 0; }
+.export-stamp strong { color: {% brand_color "TEXT_PRIMARY" %}; }
+
+/* ══════════ عروضُ الأعمدة ══════════ */
+/* عرضُ عمودٍ في جدول الوثيقة بنسبةٍ من عرضها — يوضع على `th` الترويسة.
+   كان كلُّ تقريرٍ يكتبه `style="width:…"`؛ والنسبُ هنا ما استُعمل منها فقط. */
+.col-w-5 { width: 5%; }
+.col-w-6 { width: 6%; }
+.col-w-7 { width: 7%; }
+.col-w-8 { width: 8%; }
+.col-w-10 { width: 10%; }
+.col-w-12 { width: 12%; }
+.col-w-14 { width: 14%; }
+.col-w-15 { width: 15%; }
+.col-w-16 { width: 16%; }
+.col-w-17 { width: 17%; }
+.col-w-18 { width: 18%; }
+.col-w-20 { width: 20%; }
+.col-w-22 { width: 22%; }
+.col-w-25 { width: 25%; }
+.col-w-33 { width: 33%; }
+.col-w-34 { width: 34%; }
+
 /* ══════════ مساعدات ══════════ */
 .no-break { page-break-inside: avoid; }
 .no-data { text-align: center; color: {% brand_color "TEXT_MUTED" %}; padding: 18px; font-size: 11px; }

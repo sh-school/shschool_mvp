@@ -143,6 +143,25 @@
     font-weight: 600;
     line-height: 1.7;
   }
+  .doc-footer-vision { color: {% brand_color "MAROON_DARK" %}; font-size: 9px; font-weight: 600; }
+
+  /* ختمُ التصدير: من صدّر الوثيقةَ ومتى — تُلحقه الاستماراتُ الوارثة إن مُرِّر. */
+  .export-stamp {
+    text-align: center;
+    font-size: 8pt;
+    color: {% brand_color "TEXT_MUTED" %};
+    border-top: 1px solid {% brand_color "BORDER" %};
+    padding-top: 8px;
+    margin-top: 30px;
+  }
+  .export-stamp p { margin: 2px 0 0; }
+  .export-stamp p:first-child { margin: 0; }
+  .export-stamp strong { color: {% brand_color "TEXT_PRIMARY" %}; }
+
+  /* تباعدٌ تطلبه استمارةٌ بعينها — بين فقرتين أو قبل جدولٍ ثانٍ. */
+  .data-table.is-spaced { margin-top: 10px; }
+  .body-text.is-spaced { margin: 14px 0; }
+
   .notice {
     margin-top: 18px;
     font-size: 10px;
@@ -152,6 +171,8 @@
     padding-top: 6px;
     page-break-inside: avoid;
   }
+
+  {% block extra_styles %}{% endblock %}
 
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -179,7 +200,7 @@
 {% endcomment %}
 <div class="doc-footer">
   {{ school.name }}{% if school.phone %} · هاتف: {{ school.phone }}{% endif %}{% if school.email %} · {{ school.email }}{% endif %}{% if school.city %} · {{ school.city }}، قطر{% endif %}
-  <div style="color:{% brand_color "MAROON_DARK" %}; font-size:9px; font-weight:600;">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %} · SchoolOS-SAMM © {% now "Y" %}</div>
+  <div class="doc-footer-vision">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %} · SchoolOS-SAMM © {% now "Y" %}</div>
 </div>
 
 </div>
