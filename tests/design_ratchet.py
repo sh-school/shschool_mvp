@@ -43,11 +43,34 @@ PRINT_RE = re.compile(r"pdf|print|/email/|base_qatar_report|certificate")
 _PALETTE = "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose"
 _UTILITY = "bg|text|border(?:-[trblxyse])?|ring|from|via|to|divide|outline|fill|stroke|placeholder|accent|shadow|decoration"
 
+
+class _InlineStyle:
+    """`style="…"` فيه تصريحٌ واحدٌ على الأقلّ ليس متغيّراً مخصَّصاً.
+
+    `style="--progress-w: 40%"` بيانٌ يمرّره القالبُ إلى صنفٍ يقرؤه — والرقمُ
+    لا يُعرف قبل التشغيل، فلا مكانَ له في ملفّ الأنماط. أمّا `style="color:red"`
+    فتنسيقٌ مكانُه الصنف. والعدُّ الأعمى كان يسوّي بينهما، فيدفع إلى حيلةٍ
+    أسوأ من المتغيّر.
+    """
+
+    ATTR = re.compile(r'\sstyle="([^"]*)"')
+    TAG = re.compile(r"\{%.*?%\}|\{\{.*?\}\}", re.S)
+
+    def findall(self, text: str) -> list[str]:
+        found = []
+        for value in self.ATTR.findall(text):
+            flat = self.TAG.sub("x", value)
+            declarations = [d.strip() for d in flat.split(";") if d.strip()]
+            if not declarations or any(not d.startswith("--") for d in declarations):
+                found.append(value)
+        return found
+
+
 #: المخالفاتُ المعدودة — اسمٌ يُقرأ في رسالة السقوط، ونمطٌ يعدّه.
-METRICS: dict[str, tuple[str, re.Pattern]] = {
+METRICS: dict[str, tuple[str, re.Pattern | _InlineStyle]] = {
     "inline_style": (
         "تنسيقٌ داخل الوسم (style=)",
-        re.compile(r'\sstyle="'),
+        _InlineStyle(),
     ),
     "palette_class": (
         "لونٌ من لوحة Tailwind لا من رموز المنصّة (bg-red-50…)",

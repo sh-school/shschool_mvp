@@ -68,6 +68,12 @@ class TestTheRatchetItself:
             "hand_kpi": 1,
         }
 
+    def test_a_style_that_only_passes_a_custom_property_is_data_not_styling(self):
+        count = ratchet.METRICS["inline_style"][1].findall
+        assert count('<div style="--progress-w:{{ pct }}%">') == []
+        assert count('<div style="--a: 2; --b: 3.5">') == []
+        assert len(count('<div style="--a: 2; margin-top: 4px">')) == 1
+
     def test_dynamic_class_fragments_are_not_reported(self):
         value = ratchet.DYNAMIC_RE.sub("\0", "status-{{ s }} {% if a %}x{% endif %}")
         assert [t for t in value.split() if "\0" not in t] == []
