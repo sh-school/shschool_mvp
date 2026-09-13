@@ -911,7 +911,7 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
 
 {# ── PWA Install Banner ── #}
 {% if user.is_authenticated %}
-<div id="pwa-banner" class="pwa-banner">
+<div id="pwa-banner" class="pwa-banner" hidden>
   <span class="pwa-icon" aria-hidden="true">📲</span>
   <div class="pwa-text">
     <strong class="pwa-title">أضف المنصة لشاشتك الرئيسية</strong>
