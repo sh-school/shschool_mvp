@@ -1,4 +1,5 @@
 {% extends "behavior/pdf/base_form.html" %}
+{% load brand_tags %}
 {% block content %}
 
 <!-- الهيدر الرئيسي -->
@@ -44,36 +45,36 @@
   <div class="section-title">توزيع المخالفات حسب الدرجة</div>
   <table style="width:100%; border-collapse:collapse; font-size:12px; margin-top:6px;">
     <thead>
-      <tr style="background:#8A1538; color:#fff;">
+      <tr style="background:{% brand_color "MAROON" %}; color:{% brand_color "ON_FILL" %};">
         <th style="padding:6px 10px; text-align:right;">الدرجة</th>
         <th style="padding:6px 10px; text-align:center;">الوصف</th>
         <th style="padding:6px 10px; text-align:center;">عدد المخالفات</th>
       </tr>
     </thead>
     <tbody>
-      <tr style="background:#fff;">
-        <td style="padding:5px 10px; font-weight:bold; color:#D97706;">الدرجة الأولى</td>
-        <td style="padding:5px 10px; text-align:center; color:#555;">تنبيه شفهي</td>
+      <tr style="background:{% brand_color "SURFACE" %};">
+        <td style="padding:5px 10px; font-weight:bold; color:{% brand_color "STATUS_WARNING" %};">الدرجة الأولى</td>
+        <td style="padding:5px 10px; text-align:center; color:{% brand_color "TEXT_SECONDARY" %};">تنبيه شفهي</td>
         <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.1|length }}</td>
       </tr>
-      <tr style="background:#fdf2f5;">
-        <td style="padding:5px 10px; font-weight:bold; color:#EA580C;">الدرجة الثانية</td>
-        <td style="padding:5px 10px; text-align:center; color:#555;">إنذار رسمي</td>
+      <tr style="background:{% brand_color "MAROON_BG" %};">
+        <td style="padding:5px 10px; font-weight:bold; color:{% brand_color "ACCENT_ORANGE" %};">الدرجة الثانية</td>
+        <td style="padding:5px 10px; text-align:center; color:{% brand_color "TEXT_SECONDARY" %};">إنذار رسمي</td>
         <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.2|length }}</td>
       </tr>
-      <tr style="background:#fff;">
-        <td style="padding:5px 10px; font-weight:bold; color:#DC2626;">الدرجة الثالثة</td>
-        <td style="padding:5px 10px; text-align:center; color:#555;">مخالفة جسيمة</td>
+      <tr style="background:{% brand_color "SURFACE" %};">
+        <td style="padding:5px 10px; font-weight:bold; color:{% brand_color "STATUS_DANGER" %};">الدرجة الثالثة</td>
+        <td style="padding:5px 10px; text-align:center; color:{% brand_color "TEXT_SECONDARY" %};">مخالفة جسيمة</td>
         <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.3|length }}</td>
       </tr>
-      <tr style="background:#fdf2f5;">
-        <td style="padding:5px 10px; font-weight:bold; color:#7F1D1D;">الدرجة الرابعة</td>
-        <td style="padding:5px 10px; text-align:center; color:#555;">مخالفة خطيرة</td>
+      <tr style="background:{% brand_color "MAROON_BG" %};">
+        <td style="padding:5px 10px; font-weight:bold; color:{% brand_color "STATUS_DANGER_DARK" %};">الدرجة الرابعة</td>
+        <td style="padding:5px 10px; text-align:center; color:{% brand_color "TEXT_SECONDARY" %};">مخالفة خطيرة</td>
         <td style="padding:5px 10px; text-align:center; font-weight:bold;">{{ by_level.4|length }}</td>
       </tr>
     </tbody>
     <tfoot>
-      <tr style="background:#8A1538; color:#fff;">
+      <tr style="background:{% brand_color "MAROON" %}; color:{% brand_color "ON_FILL" %};">
         <td style="padding:6px 10px; font-weight:bold;" colspan="2">المجموع الكلي</td>
         <td style="padding:6px 10px; text-align:center; font-weight:bold;">{{ infractions|length }}</td>
       </tr>
@@ -87,7 +88,7 @@
   <div class="section-title">سجل المخالفات التفصيلي</div>
   <table style="width:100%; border-collapse:collapse; font-size:11px; margin-top:8px;">
     <thead>
-      <tr style="background:#8A1538; color:#fff;">
+      <tr style="background:{% brand_color "MAROON" %}; color:{% brand_color "ON_FILL" %};">
         <th style="padding:5px 6px; text-align:center; width:5%;">#</th>
         <th style="padding:5px 6px; text-align:right; width:12%;">التاريخ</th>
         <th style="padding:5px 6px; text-align:right; width:22%;">فئة المخالفة</th>
@@ -98,32 +99,32 @@
     </thead>
     <tbody>
       {% for inf in infractions %}
-      <tr style="background:{% cycle '#fff' '#fdf2f5' %}; vertical-align:top;">
+      <tr style="background:{% if forloop.counter|divisibleby:2 %}{% brand_color "MAROON_BG" %}{% else %}{% brand_color "SURFACE" %}{% endif %}; vertical-align:top;">
         <td style="padding:5px 6px; text-align:center;">{{ forloop.counter }}</td>
         <td style="padding:5px 6px; white-space:nowrap;">{{ inf.date|date:"Y/m/d" }}</td>
         <td style="padding:5px 6px;">
           {% if inf.violation_category %}
-            <span style="font-size:10px; background:#f3f4f6; padding:1px 5px; border-radius:10px;">{{ inf.violation_category.code }}</span>
+            <span style="font-size:10px; background:{% brand_color "PAGE_BG" %}; padding:1px 5px; border-radius:10px;">{{ inf.violation_category.code }}</span>
             {{ inf.violation_category.name_ar }}
           {% else %}
             {{ inf.get_level_display }}
           {% endif %}
         </td>
         <td style="padding:5px 6px; text-align:center; font-weight:bold;
-          color:{% if inf.level == 1 %}#D97706{% elif inf.level == 2 %}#EA580C{% elif inf.level == 3 %}#DC2626{% else %}#7F1D1D{% endif %};">
+          color:{% if inf.level == 1 %}{% brand_color "STATUS_WARNING" %}{% elif inf.level == 2 %}{% brand_color "ACCENT_ORANGE" %}{% elif inf.level == 3 %}{% brand_color "STATUS_DANGER" %}{% else %}{% brand_color "STATUS_DANGER_DARK" %}{% endif %};">
           {{ inf.level }}
         </td>
         <td style="padding:5px 6px; text-align:center;">
           {% if inf.is_resolved %}
-            <span style="color:#15803D; font-size:10px;">محلولة</span>
+            <span style="color:{% brand_color "STATUS_SUCCESS_DARK" %}; font-size:10px;">محلولة</span>
           {% else %}
-            <span style="color:#B91C1C; font-size:10px;">قائمة</span>
+            <span style="color:{% brand_color "STATUS_DANGER_FG" %}; font-size:10px;">قائمة</span>
           {% endif %}
         </td>
         <td style="padding:5px 6px; font-size:10px; line-height:1.5;">
           {{ inf.description|truncatechars:80 }}
           {% if inf.action_taken %}
-            <br><span style="color:#555;">الإجراء: {{ inf.action_taken|truncatechars:60 }}</span>
+            <br><span style="color:{% brand_color "TEXT_SECONDARY" %};">الإجراء: {{ inf.action_taken|truncatechars:60 }}</span>
           {% endif %}
         </td>
       </tr>
@@ -133,7 +134,7 @@
 </div>
 {% else %}
 <div class="section" style="text-align:center; padding:20px;">
-  <p style="color:#555;">لا توجد مخالفات مسجّلة في هذه الفترة</p>
+  <p style="color:{% brand_color "TEXT_SECONDARY" %};">لا توجد مخالفات مسجّلة في هذه الفترة</p>
 </div>
 {% endif %}
 
@@ -159,8 +160,8 @@
 </div>
 
 {% if exported_by %}
-<div style="text-align:center;font-size:8pt;color:#999;border-top:1px solid #ddd;padding-top:8px;margin-top:30px">
-  <p style="margin:0"><strong style="color:#333">صدر بواسطة:</strong> {{ exported_by }} — {{ exporter_role }}</p>
+<div style="text-align:center;font-size:8pt;color:{% brand_color "TEXT_MUTED" %};border-top:1px solid {% brand_color "BORDER" %};padding-top:8px;margin-top:30px">
+  <p style="margin:0"><strong style="color:{% brand_color "TEXT_PRIMARY" %}">صدر بواسطة:</strong> {{ exported_by }} — {{ exporter_role }}</p>
   <p style="margin:2px 0 0">التاريخ: {{ export_datetime }}</p>
   <p style="margin:2px 0 0">{{ school_name }} — وثيقة رسمية — SchoolOS</p>
 </div>

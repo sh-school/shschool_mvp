@@ -1,9 +1,10 @@
 {% extends "reports/base_qatar_report.html" %}
+{% load brand_tags %}
 {# تقرير دورة الاختبار — يرث من القالب القطري الأساسي #}
 
 {% block extra_styles %}
-.badge-open { color: #b02a37; font-weight: 700; }
-.badge-done { color: #157347; font-weight: 700; }
+.badge-open { color: {% brand_color "STATUS_DANGER_DARK" %}; font-weight: 700; }
+.badge-done { color: {% brand_color "STATUS_SUCCESS_DARK" %}; font-weight: 700; }
 {% endblock %}
 
 {% block report_title_bar %}
@@ -102,7 +103,7 @@
   </tbody>
 </table>
 {% else %}
-<p class="no-data" style="color:#157347">لا توجد حوادث مسجلة</p>
+<p class="no-data" style="color:{% brand_color "STATUS_SUCCESS_DARK" %}">لا توجد حوادث مسجلة</p>
 {% endif %}
 
 {# ── رابعاً: حالة أوراق الرصد ────────────────────────────────────── #}

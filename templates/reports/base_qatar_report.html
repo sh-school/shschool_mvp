@@ -1,3 +1,4 @@
+{% load brand_tags %}
 {% load static %}
 {# base_qatar_report.html v4.0 — قالب PDF حكومي قطري — WeasyPrint #}
 {# النسبة الذهبية 1:1.618 — ألوان غامقة مقروءة — أحجام متناسبة #}
@@ -31,14 +32,14 @@ body {
   font-family: 'Tajawal', 'Amiri', 'Arial', sans-serif;
   font-size: 11px;
   line-height: 1.65;
-  color: #111;
-  background: #fff;
+  color: {% brand_color "TEXT_PRIMARY" %};
+  background: {% brand_color "SURFACE" %};
 }
 
 /* ══════════ الإطار ══════════ */
 .page-wrapper {
   min-height: 100%;
-  border: 2px solid #8A1538;
+  border: 2px solid {% brand_color "MAROON" %};
 }
 
 /* ══════════ الهيدر ══════════ */
@@ -53,7 +54,7 @@ body {
 }
 .state-name {
   font-size: 11px;
-  color: #6B1029;
+  color: {% brand_color "MAROON_DARK" %};
   font-weight: 700;
   letter-spacing: 0.6px;
   text-align: center !important;
@@ -61,13 +62,13 @@ body {
 .school-name {
   font-size: 19px;
   font-weight: 700;
-  color: #8A1538;
+  color: {% brand_color "MAROON" %};
   margin: 4px 0;
   text-align: center !important;
 }
 .ministry-name {
   font-size: 10px;
-  color: #333;
+  color: {% brand_color "TEXT_PRIMARY" %};
   text-align: center !important;
 }
 
@@ -75,15 +76,15 @@ body {
 .ornament-hr {
   height: 5px;
   border: none;
-  border-top: 2.5px solid #8A1538;
-  border-bottom: 1px solid #D4A843;
+  border-top: 2.5px solid {% brand_color "MAROON" %};
+  border-bottom: 1px solid {% brand_color "GOLD" %};
   margin: 0;
 }
 
 /* ══════════ شريط العنوان ══════════ */
 .report-title-bar {
-  background: #8A1538;
-  color: #fff;
+  background: {% brand_color "MAROON" %};
+  color: {% brand_color "ON_FILL" %};
   padding: 8px 20px;
   font-size: 14px;
   font-weight: 700;
@@ -96,16 +97,16 @@ body {
   width: 100%;
   border-collapse: collapse;
   margin-bottom: 16px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid {% brand_color "BORDER" %};
 }
 .report-meta td {
   padding: 7px 14px;
   font-size: 10.5px;
-  color: #333;
+  color: {% brand_color "TEXT_PRIMARY" %};
   text-align: center !important;
   border: none;
 }
-.report-meta strong { color: #111; font-weight: 700; }
+.report-meta strong { color: {% brand_color "TEXT_PRIMARY" %}; font-weight: 700; }
 
 /* ══════════ المحتوى ══════════ */
 .doc-body {
@@ -116,7 +117,7 @@ body {
 .kpi-strip {
   display: flex;
   gap: 10px;
-  border-bottom: 2.5px solid #8A1538;
+  border-bottom: 2.5px solid {% brand_color "MAROON" %};
   margin-bottom: 24px;
   padding-bottom: 10px;
 }
@@ -129,30 +130,30 @@ body {
   font-size: 32px;
   font-weight: 700;
   line-height: 1;
-  color: #8A1538;
+  color: {% brand_color "MAROON" %};
   text-align: center !important;
   display: block;
 }
 .kpi-label {
   font-size: 10px;
-  color: #222;
+  color: {% brand_color "TEXT_PRIMARY" %};
   margin-top: 6px;
   text-align: center !important;
   display: block;
   font-weight: 600;
 }
-.c-green { color: #0a6e35 !important; }
-.c-red { color: #b91c2e !important; }
-.c-orange { color: #c45a09 !important; }
-.c-maroon { color: #8A1538 !important; }
+.c-green { color: {% brand_color "STATUS_SUCCESS_DARK" %} !important; }
+.c-red { color: {% brand_color "STATUS_DANGER_DARK" %} !important; }
+.c-orange { color: {% brand_color "ACCENT_ORANGE_FG" %} !important; }
+.c-maroon { color: {% brand_color "MAROON" %} !important; }
 
 /* ══════════ عناوين الأقسام ══════════ */
 .section-head {
   font-size: 13px;
   font-weight: 700;
-  color: #8A1538;
+  color: {% brand_color "MAROON" %};
   padding-bottom: 5px;
-  border-bottom: 2px solid #8A1538;
+  border-bottom: 2px solid {% brand_color "MAROON" %};
   margin: 22px 0 10px;
 }
 
@@ -163,8 +164,8 @@ body {
   font-size: 11px;
 }
 .report-table th {
-  background: #8A1538;
-  color: #fff;
+  background: {% brand_color "MAROON" %};
+  color: {% brand_color "ON_FILL" %};
   padding: 8px 14px;
   font-weight: 600;
   text-align: center;
@@ -172,16 +173,16 @@ body {
 }
 .report-table td {
   padding: 7px 14px;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid {% brand_color "BORDER" %};
   text-align: center;
-  color: #111;
+  color: {% brand_color "TEXT_PRIMARY" %};
 }
 .report-table tr:nth-child(even) td {
-  background: #faf7f8;
+  background: {% brand_color "SURFACE_ALT" %};
 }
-.cell-name { text-align: right; font-weight: 600; color: #111; }
-.cell-num { text-align: center; font-weight: 700; color: #222; }
-.cell-danger { text-align: center; font-weight: 700; color: #b91c2e; }
+.cell-name { text-align: right; font-weight: 600; color: {% brand_color "TEXT_PRIMARY" %}; }
+.cell-num { text-align: center; font-weight: 700; color: {% brand_color "TEXT_PRIMARY" %}; }
+.cell-danger { text-align: center; font-weight: 700; color: {% brand_color "STATUS_DANGER_DARK" %}; }
 
 /* جدول البيانات الشخصية */
 .info-table {
@@ -191,24 +192,24 @@ body {
   margin-bottom: 8px;
 }
 .info-table th {
-  background: #f5f0f1;
-  color: #333;
+  background: {% brand_color "PAGE_BG" %};
+  color: {% brand_color "TEXT_PRIMARY" %};
   font-weight: 700;
   padding: 7px 14px;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid {% brand_color "BORDER" %};
   text-align: right;
   width: 20%;
   font-size: 10.5px;
 }
 .info-table td {
   padding: 7px 14px;
-  border-bottom: 1px solid #ddd;
-  color: #111;
+  border-bottom: 1px solid {% brand_color "BORDER" %};
+  color: {% brand_color "TEXT_PRIMARY" %};
 }
 
 /* Badges */
-.badge-pass { color: #0a6e35; font-weight: 700; font-size: 10px; }
-.badge-fail { color: #b91c2e; font-weight: 700; font-size: 10px; }
+.badge-pass { color: {% brand_color "STATUS_SUCCESS_DARK" %}; font-weight: 700; font-size: 10px; }
+.badge-fail { color: {% brand_color "STATUS_DANGER_DARK" %}; font-weight: 700; font-size: 10px; }
 
 /* ══════════ التوقيعات ══════════ */
 .sig-block {
@@ -217,22 +218,22 @@ body {
   gap: 16px;
   margin-top: 30px;
   padding-top: 14px;
-  border-top: 1px dashed #999;
+  border-top: 1px dashed {% brand_color "TEXT_MUTED" %};
 }
 .sig-item {
   text-align: center !important;
   width: 38%;
-  border: 1px solid #bbb;
+  border: 1px solid {% brand_color "BORDER_STRONG" %};
   border-radius: 8px;
   padding: 10px 14px 8px;
-  background: #fafafa;
+  background: {% brand_color "SURFACE_ALT" %};
 }
 .sig-title {
   font-size: 10px;
   font-weight: 700;
-  color: #8A1538;
+  color: {% brand_color "MAROON" %};
   text-align: center !important;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid {% brand_color "BORDER" %};
   padding-bottom: 5px;
   margin-bottom: 0;
 }
@@ -240,25 +241,25 @@ body {
   height: 24px;
 }
 .sig-line {
-  border-top: 1px solid #333;
+  border-top: 1px solid {% brand_color "TEXT_PRIMARY" %};
   width: 55%;
   margin: 0 auto 5px;
 }
 .sig-name {
   font-size: 9.5px;
-  color: #111;
+  color: {% brand_color "TEXT_PRIMARY" %};
   font-weight: 700;
   text-align: center !important;
   margin-bottom: 2px;
 }
 .sig-role {
   font-size: 8px;
-  color: #333;
+  color: {% brand_color "TEXT_PRIMARY" %};
   text-align: center !important;
 }
 .sig-stamp {
   font-size: 8.5px;
-  color: #6B1029;
+  color: {% brand_color "MAROON_DARK" %};
   font-weight: 700;
   margin-top: 4px;
   text-align: center !important;
@@ -269,7 +270,7 @@ body {
   position: running(page-footer);
   text-align: center !important;
   padding-top: 6px;
-  border-top: 1.5px solid #8A1538;
+  border-top: 1.5px solid {% brand_color "MAROON" %};
   line-height: 1.7;
 }
 .running-footer div {
@@ -277,18 +278,18 @@ body {
 }
 .running-footer .ft-school {
   font-size: 10px;
-  color: #111;
+  color: {% brand_color "TEXT_PRIMARY" %};
   font-weight: 600;
 }
 .running-footer .ft-ministry {
-  color: #6B1029;
+  color: {% brand_color "MAROON_DARK" %};
   font-size: 9px;
   font-weight: 600;
 }
 
 /* ══════════ مساعدات ══════════ */
 .no-break { page-break-inside: avoid; }
-.no-data { text-align: center; color: #777; padding: 18px; font-size: 11px; }
+.no-data { text-align: center; color: {% brand_color "TEXT_MUTED" %}; padding: 18px; font-size: 11px; }
 .mt-16 { margin-top: 16px; }
 .mt-20 { margin-top: 20px; }
 

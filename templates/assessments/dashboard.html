@@ -198,7 +198,7 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
       type:'bar',
       data:{labels:d.class_comparison.labels,datasets:[{
         label:'المعدل',data:d.class_comparison.data,
-        backgroundColor:'#8A1538' /* chart-1 */
+        backgroundColor:chartColor('chart-1')
       }]},
       options:{...OPTS,indexAxis:'y',plugins:{legend:{display:false}},
         scales:{x:{min:0,max:100,ticks:{font:{size:9}}},y:{ticks:{font:{size:9}}}}}
@@ -209,9 +209,9 @@ async function fc(u){try{return await(await fetch(u)).json()}catch(e){return nul
     new Chart(document.getElementById('chartSubjects'),{
       type:'bar',
       data:{labels:d.subject_comparison.labels,datasets:[
-        {label:'المعدل',data:d.subject_comparison.avgs,backgroundColor:'#1A3A5C',order:2}, /* chart-3 */
+        {label:'المعدل',data:d.subject_comparison.avgs,backgroundColor:chartColor('chart-3'),order:2},
         {label:'نسبة الرسوب %',data:d.subject_comparison.fail_rates,type:'line',
-         borderColor:'#dc2626',backgroundColor:'transparent',yAxisID:'y1',order:1,borderWidth:1.5,pointRadius:2} /* status-danger */
+         borderColor:chartColor('status-danger'),backgroundColor:'transparent',yAxisID:'y1',order:1,borderWidth:1.5,pointRadius:2}
       ]},
       options:{...OPTS,
         scales:{y:{beginAtZero:true,max:100,ticks:{font:{size:9}}},y1:{position:'left',beginAtZero:true,max:100,display:false},x:{ticks:{font:{size:9}}}},

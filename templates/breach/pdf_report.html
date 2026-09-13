@@ -1,22 +1,23 @@
 {% extends "reports/base_qatar_report.html" %}
+{% load brand_tags %}
 {# تقرير خرق البيانات PDPPL م.11 — يرث من القالب القطري الأساسي #}
 
 {% block extra_styles %}
-.badge-critical { background: #111;    color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
-.badge-high     { background: #dc2626; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
-.badge-medium   { background: #d97706; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
-.badge-low      { background: #6b7280; color: #fff; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
+.badge-critical { background: {% brand_color "TEXT_PRIMARY" %};    color: {% brand_color "ON_FILL" %}; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
+.badge-high     { background: {% brand_color "STATUS_DANGER" %}; color: {% brand_color "ON_FILL" %}; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
+.badge-medium   { background: {% brand_color "STATUS_WARNING" %}; color: {% brand_color "ON_FILL" %}; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
+.badge-low      { background: {% brand_color "TEXT_MUTED" %}; color: {% brand_color "ON_FILL" %}; padding: 2px 8px; border-radius: 4px; font-size: 10px; }
 .breach-section {
-  border: 1px solid #e5e7eb;
+  border: 1px solid {% brand_color "BORDER" %};
   border-radius: 6px;
   padding: 10px 14px;
   margin: 8px 0;
   font-size: 11px;
-  color: #222;
+  color: {% brand_color "TEXT_PRIMARY" %};
   line-height: 1.7;
 }
 pre {
-  background: #f9fafb;
+  background: {% brand_color "SURFACE_ALT" %};
   padding: 10px;
   border-radius: 4px;
   white-space: pre-wrap;
