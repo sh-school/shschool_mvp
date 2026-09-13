@@ -244,32 +244,66 @@ document.addEventListener('click', function(e) {
 
 
 /* ── PWA Install Banner ───────────────────────────────────── */
-var _pwaPrompt = null;
-window.addEventListener('beforeinstallprompt', function(e) {
-  e.preventDefault();
-  _pwaPrompt = e;
-  if (!localStorage.getItem('pwaDismissed')) {
-    setTimeout(function() {
-      var b = document.getElementById('pwa-banner');
-      if (b) b.hidden = false;
-    }, 5000);
-  }
-});
-
 // الإظهارُ والإخفاءُ بسمة `hidden` لا بصنف `.visible`: قاعدةُ `.pwa-banner` في طبقة
 // `utilities` (#232) تجعله `flex` وتغلب `display:none` القديمةَ في `components` —
 // فكان الشريطُ ظاهراً دائماً ولا يُغلقه زرُّه. و`[hidden]` في `reset` بـ`!important`
 // يغلب الطبقاتِ كلَّها.
-window.installPWA = function() {
-  if (_pwaPrompt) { _pwaPrompt.prompt(); _pwaPrompt = null; }
+//
+// ولا يعود الشريطُ أبداً (قرارُ 2026-09-13) إن: أُغلق بـ✕، أو ثُبّت التطبيق، أو فُتحت
+// المنصّةُ تطبيقاً مثبّتاً.
+var _pwaPrompt = null;
+
+function _pwaRemember(key) {
+  try { localStorage.setItem(key, '1'); } catch (e) { /* لا تخزين */ }
+}
+
+function _pwaSettled() {
+  var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+    || window.navigator.standalone === true;
+  try {
+    return standalone || !!localStorage.getItem('pwaDismissed') || !!localStorage.getItem('pwaInstalled');
+  } catch (e) {
+    return standalone;
+  }
+}
+
+function _pwaHide() {
   var b = document.getElementById('pwa-banner');
   if (b) b.hidden = true;
+}
+
+window.addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  _pwaPrompt = e;
+  if (_pwaSettled()) return;
+  setTimeout(function() {
+    var b = document.getElementById('pwa-banner');
+    if (b && !_pwaSettled()) b.hidden = false;
+  }, 5000);
+});
+
+// المتصفّحُ يُعلن التثبيتَ أيّاً كان بابُه — زرُّنا أو قائمتُه.
+window.addEventListener('appinstalled', function() {
+  _pwaRemember('pwaInstalled');
+  _pwaHide();
+});
+
+window.installPWA = function() {
+  _pwaHide();
+  if (!_pwaPrompt) return;
+  var prompt = _pwaPrompt;
+  _pwaPrompt = null;
+  prompt.prompt();
+  if (prompt.userChoice && prompt.userChoice.then) {
+    prompt.userChoice.then(function(choice) {
+      if (choice && choice.outcome === 'accepted') _pwaRemember('pwaInstalled');
+    });
+  }
 };
 
 window.dismissBanner = function() {
-  var b = document.getElementById('pwa-banner');
-  if (b) b.hidden = true;
-  try { localStorage.setItem('pwaDismissed', '1'); } catch (e) { /* لا تخزين */ }
+  _pwaHide();
+  _pwaRemember('pwaDismissed');
 };
 
 
