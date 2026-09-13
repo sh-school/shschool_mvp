@@ -56,7 +56,7 @@ def test_the_scan_reaches_the_live_pages():
 # فالرسومُ تقرأ الرموزَ بمساعدات رأس `base.html`: `chartColor` و`chartPalette`
 # و`chartAlpha`.
 
-SCRIPT = re.compile(r"<script\b(?![^>]*\bsrc=)[^>]*>(.*?)</script>", re.S)
+SCRIPT = re.compile(r"<script\b(?![^>]*\bsrc=)[^>]*>(.*?)</script\s*>", re.S | re.I)
 CHART_KEYS = r"(?:border|background|pointBackground|pointBorder|hoverBackground|hoverBorder)Color"
 LITERAL_CHART_COLOUR = re.compile(CHART_KEYS + r"""\s*:\s*['"](?:#|rgba?\(|hsla?\(|var\()""")
 LITERAL_PALETTE = re.compile(r"""\[\s*['"]#[0-9a-fA-F]{3,8}['"]\s*,""")
