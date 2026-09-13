@@ -10296,6 +10296,43 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .report-link:focus-visible .plain-list__title { color: var(--maroon-fg); }
 .report-link:focus-visible { outline: 2px solid var(--maroon); outline-offset: 2px; border-radius: var(--radius-sm); }
 
+/* ── التقييمات ── templates/assessments/ ──
+   ما يخصّ شاشاتِ الرصد والباقات وحدَها؛ والبطاقاتُ والشرائطُ من المكوّنات. */
+.asm-groups { display: grid; gap: var(--sp-3); }
+.asm-form-page { max-width: 640px; margin-inline: auto; }
+
+/* سطرُ التقييم في الباقة: الحالةُ وزرُّ الرصد متجاوران لا يلتفّان. */
+.asm-row-actions { display: inline-flex; align-items: center; gap: var(--sp-2); flex-shrink: 0; }
+.ui-section .chip-row + .plain-list,
+.ui-section .chip-row + .empty-state-v2 { margin-block-start: var(--sp-2); }
+
+/* إضافةُ تقييم: زرٌّ يفتح نموذجاً مطويّاً في ذيل الباقة. */
+.asm-new { margin-block-start: var(--sp-2); padding-block-start: var(--sp-2); border-block-start: 1px solid var(--border); }
+.asm-new__form { display: grid; gap: var(--sp-2); margin-block-start: var(--sp-2); }
+.asm-new__fields { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.asm-new__title { flex: 1 1 150px; }
+.asm-new__max { inline-size: 7rem; }
+
+/* شاشةُ الرصد: الحقلُ على قدر الدرجة، والصفُّ المحفوظُ يُعلَّم بخفّة. */
+.asm-grade-input { inline-size: 6rem; text-align: center; margin-inline: auto; }
+.asm-grade-input:disabled { opacity: .35; }
+.asm-check { inline-size: 1.1rem; block-size: 1.1rem; }
+.asm-check.is-absent  { accent-color: var(--status-danger); }
+.asm-check.is-excused { accent-color: var(--accent-purple); }
+.table-wrap tr.is-done > td { background: color-mix(in srgb, var(--status-success-bg) 45%, transparent); }
+.ui-section.is-flush .scroll-x-hint { margin: 0; padding: var(--sp-2) var(--sp-3) 0; }
+.asm-save-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-block-start: 1px solid var(--border);
+}
+.asm-save-bar .form-note { flex: 1 1 280px; padding: var(--sp-2) var(--sp-3); }
+.ui-section.is-flush > .ui-section__body > .form-note { border-radius: 0; border-block-start: 1px solid var(--border); }
+
 
 /* ── 4. ترويسةُ الصفحة ── */
 .ui-page-header__text { min-inline-size: 0; }

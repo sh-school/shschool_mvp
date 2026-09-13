@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui dict_filters %}
 {% block title %}{{ setup.subject.name_ar }} — {{ setup.class_group }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,107 +9,59 @@
 {% block content %}
 <div class="exec-dash">
 
-  <!-- Header -->
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title text-white">{% include "components/icon.html" with name="book-open" %} {{ setup.subject.name_ar }}</h1>
-      <p class="exec-date">{{ setup.class_group }} | {{ setup.teacher.full_name }}</p>
-    </div>
-    <div class="flex items-center gap-2 flex-wrap">
+  {% page_header setup.subject.name_ar subtitle=subtitle icon="book-open" %}
+    <nav class="period-switch" aria-label="الفصل الدراسي">
       {% for val, label in SEMESTERS %}
-      <a href="?semester={{ val }}"
-         class="btn-secondary btn-sm
-           {% if semester == val %}bg-white/30 text-white{% else %}bg-white/10 text-white/80 hover:bg-white/20{% endif %}">
-        {{ label }}
-      </a>
+        <a href="?semester={{ val }}" class="period-switch__item{% if semester == val %} is-current{% endif %}"{% if semester == val %} aria-current="page"{% endif %}>{{ label }}</a>
       {% endfor %}
-      <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}"
-         class="btn-secondary btn-sm bg-white/20 text-white hover:bg-white/30">كشف الدرجات</a>
-    </div>
-  </div>
+    </nav>
+    <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}" class="btn-primary btn-sm">{% include "components/icon.html" with name="bar-chart" %} كشف الدرجات</a>
+  {% endpage_header %}
 
-  <!-- KPI Strip -->
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-blue">
-      <div class="kpi-mini-label">طالب</div>
-      <div class="kpi-mini-value">{{ student_count }}</div>
-    </div>
-    <div class="kpi-mini kpi-green">
-      <div class="kpi-mini-label">ناجح</div>
-      <div class="kpi-mini-value">{{ summary.passed }}</div>
-    </div>
-    <div class="kpi-mini kpi-red">
-      <div class="kpi-mini-label">راسب</div>
-      <div class="kpi-mini-value">{{ summary.failed }}</div>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <div class="kpi-mini-label">متوسط</div>
-      <div class="kpi-mini-value">{{ summary.avg|default:"—" }}</div>
-    </div>
-  </div>
+  {% kpi_strip label="أرقام المادة" %}
+    {% kpi "الطلاب" student_count tone="blue" %}
+    {% kpi "ناجح" summary.passed tone="green" title="النتائج السنويّة لهذه المادة" %}
+    {% kpi "راسب" summary.failed tone=failed_tone title="النتائج السنويّة لهذه المادة" %}
+    {% kpi "المتوسط" summary.avg|default:"—" sub="من 100" tone="orange" title="متوسّط المجموع السنويّ" %}
+  {% endkpi_strip %}
 
-  <!-- الباقات الأربع -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+  <div class="ui-grid-2">
     {% for pkg in packages %}
-    <div class="card-qatar overflow-hidden">
-      <!-- عنوان الباقة -->
-      <div class="px-5 py-3 border-b flex items-center justify-between
-        {% if pkg.package_type == 'P1' %}bg-blue-50{% elif pkg.package_type == 'P2' %}bg-amber-50{% elif pkg.package_type == 'P3' %}bg-purple-50{% else %}bg-green-50{% endif %}">
-        <div>
-          <p class="font-bold
-            {% if pkg.package_type == 'P1' %}text-blue-800{% elif pkg.package_type == 'P2' %}text-amber-800{% elif pkg.package_type == 'P3' %}text-purple-800{% else %}text-green-800{% endif %}">
-            {{ pkg.get_package_type_display }}
-          </p>
-          <p class="text-xs text-gray-500">الوزن: {{ pkg.weight }}%</p>
-        </div>
-        <span class="text-sm font-bold
-          {% if pkg.package_type == 'P1' %}text-blue-700{% elif pkg.package_type == 'P2' %}text-amber-700{% elif pkg.package_type == 'P3' %}text-purple-700{% else %}text-green-700{% endif %}">
-          {{ pkg.assessments.count }} تقييم
-        </span>
-      </div>
+    {% section_card pkg.get_package_type_display meta=pkg.assessments.count icon="layers" %}
+      <ul class="chip-row" aria-label="وزن الباقة">
+        <li class="chip-stat"><span class="chip-stat__key">الرمز</span><b class="chip-stat__value">{{ pkg.package_type }}</b></li>
+        <li class="chip-stat"><span class="chip-stat__key">الوزن</span><b class="chip-stat__value">{{ pkg.weight|floatformat:"-2" }}%</b></li>
+        <li class="chip-stat"><span class="chip-stat__key">من الفصل</span><b class="chip-stat__value">{{ pkg.effective_max_grade|floatformat:"-2" }} / {{ pkg.semester_max_grade|floatformat:"-2" }}</b></li>
+      </ul>
 
-      <!-- قائمة التقييمات -->
-      <div class="divide-y" style="max-height:320px;overflow-y:auto">
-        {% for assessment in pkg.assessments.all %}
-        <div class="flex items-center justify-between px-5 py-3 hover:bg-gray-50">
-          <div>
-            <p class="text-sm font-medium text-gray-800">{{ assessment.title }}</p>
-            <p class="text-xs text-gray-500 mt-0.5">
-              {{ assessment.get_assessment_type_display }}
-              {% if assessment.date %}· {{ assessment.date }}{% endif %}
-              · {{ assessment.grades.count }}/{{ student_count }} مُدخَل
-            </p>
-          </div>
-          <div class="flex items-center gap-2">
-            <span class="status-badge
-              {% if assessment.status == 'graded' %}status-success
-              {% elif assessment.status == 'published' %}status-info
-              {% elif assessment.status == 'closed' %}status-gray
-              {% else %}status-warning{% endif %}">
-              {{ assessment.get_status_display }}
+      {% with items=pkg.assessments.all %}
+      {% if items %}
+      <ul class="plain-list is-scroll">
+        {% for assessment in items %}
+          <li class="plain-list__row">
+            <span class="plain-list__main">
+              <b class="plain-list__title">{{ assessment.title }}</b>
+              <span class="plain-list__sub">{{ assessment.get_assessment_type_display }}{% if assessment.date %} · {{ assessment.date }}{% endif %} · {{ assessment.grades.count }}/{{ student_count }} مُدخَل</span>
             </span>
-            <a href="{% url 'grade_entry' assessment.id %}"
-               class="text-xs px-2 py-1 bg-skyline text-white rounded hover:bg-maroon">
-              إدخال الدرجات
-            </a>
-          </div>
-        </div>
-        {% empty %}
-        <p class="px-5 py-3 text-xs text-gray-400">لا توجد تقييمات بعد</p>
+            <span class="asm-row-actions">
+              <span class="status-badge {{ status_tones|get_item:assessment.status|default:'status-warning' }}">{{ assessment.get_status_display }}</span>
+              <a href="{% url 'grade_entry' assessment.id %}" class="btn-secondary btn-sm">إدخال الدرجات</a>
+            </span>
+          </li>
         {% endfor %}
-      </div>
+      </ul>
+      {% else %}
+        {% empty_state "لا توجد تقييمات بعد" sub="أضف أوّلَ تقييمٍ في هذه الباقة" icon="inbox" %}
+      {% endif %}
+      {% endwith %}
 
-      <!-- إضافة تقييم -->
-      <div class="border-t px-5 py-3 bg-gray-50">
-        <button data-toggle-class="#form-{{ pkg.id }}|hidden"
-                class="text-xs text-blue-600 hover:underline">+ إضافة تقييم</button>
-        <form id="form-{{ pkg.id }}" method="post" action="{% url 'create_assessment' pkg.id %}"
-              class="hidden mt-3 space-y-2">
+      <div class="asm-new">
+        <button type="button" class="btn-ghost btn-sm" data-toggle-class="#form-{{ pkg.id }}|hidden">{% include "components/icon.html" with name="plus" %} إضافة تقييم</button>
+        <form id="form-{{ pkg.id }}" method="post" action="{% url 'create_assessment' pkg.id %}" class="asm-new__form hidden">
           {% csrf_token %}
-          <div class="flex flex-wrap gap-2">
-            <input type="text" name="title" placeholder="عنوان التقييم *" required
-                   class="flex-1 min-w-[150px] border rounded px-2 py-1.5 text-sm">
-            <select name="assessment_type" class="border rounded px-2 py-1.5 text-sm">
+          <div class="asm-new__fields">
+            <input type="text" name="title" placeholder="عنوان التقييم *" required class="form-control asm-new__title" aria-label="عنوان التقييم">
+            <select name="assessment_type" class="form-control" aria-label="نوع التقييم">
               <option value="exam">اختبار</option>
               <option value="quiz">اختبار قصير</option>
               <option value="homework">واجب</option>
@@ -117,20 +70,19 @@
               <option value="oral">شفهي</option>
               <option value="practical">عملي</option>
             </select>
-            <input type="date" name="date" class="border rounded px-2 py-1.5 text-sm">
+            <input type="date" name="date" class="form-control" aria-label="التاريخ">
             <input type="number" name="max_grade" value="100" min="1" max="100"
-                   placeholder="الدرجة القصوى" class="w-24 border rounded px-2 py-1.5 text-sm">
+                   placeholder="الدرجة القصوى" class="form-control asm-new__max" aria-label="الدرجة القصوى">
           </div>
-          <div class="flex gap-2">
-            <button type="submit" class="px-4 py-1.5 bg-skyline text-white rounded text-sm hover:bg-maroon">حفظ</button>
-            <button type="button" data-toggle-class="#form-{{ pkg.id }}|hidden"
-                    class="px-4 py-1.5 bg-gray-100 text-gray-700 rounded text-sm">إلغاء</button>
+          <div class="form-actions">
+            <button type="button" class="btn-ghost btn-sm" data-toggle-class="#form-{{ pkg.id }}|hidden">إلغاء</button>
+            <button type="submit" class="btn-primary btn-sm">حفظ</button>
           </div>
         </form>
       </div>
-    </div>
+    {% endsection_card %}
     {% endfor %}
   </div>
 
-</div><!-- /exec-dash -->
+</div>
 {% endblock %}
