@@ -12,12 +12,14 @@
 
 from __future__ import annotations
 
+from core import brand
+
 #: عرضُ خانة الحصّة: رمزُ الشعبة أربعةُ محارف («11/2») لا أكثر.
 _CELL_WIDTH = 4.6
 
 #: شريطُ القسم: الأقسامُ المتجاورة تتناوب على لونين فاتحين — فالحدُّ بينها
 #: يُرى دون أن تُنسخ لوحةُ ألوان الورقة المطبوعة في موضعٍ ثانٍ تشيخ فيه.
-_BAND_FILL = "F4F1F2"
+_BAND_FILL = brand.excel(brand.MAROON_BG)
 
 #: خطُّ المنصّة — هو خطُّ الشاشة والورقة، فليكن خطَّ الملفّ. وأنماطُ
 #: `ExcelService` مكتوبةٌ بـArial، فتُمرّ الورقةُ بعد بنائها ويُبدَّل الاسمُ
@@ -70,9 +72,10 @@ def _matrix_workbook(ctx: dict):
     والرأسُ سطران — الأيامُ مدموجةً فوق أرقام الحصص — كما في الورقة، فلا
     يقرأ أحدٌ رقم «٣» دون أن يعرف يومه.
     """
-    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.styles import Alignment, PatternFill
     from openpyxl.utils import get_column_letter
 
+    from core.export_utils import xl_font
     from reports.services import ExcelService
 
     matrix = ctx.get("matrix") or []
@@ -162,8 +165,8 @@ def _matrix_workbook(ctx: dict):
         # المطبوعة: العلامةُ هناك لونٌ وخطٌّ تحته، وهنا لونٌ وعرضٌ في خانةٍ
         # لا تُقرأ إلّا على الشاشة.
         for column in range(1, num_cols + 1):
-            ws.cell(row=last_row, column=column).font = Font(
-                name="Arial", bold=True, color="B00020" if column in short_columns else "000000"
+            ws.cell(row=last_row, column=column).font = xl_font(
+                brand.STATUS_DANGER_FG if column in short_columns else brand.TEXT_PRIMARY, bold=True
             )
 
     # ── القياسات والطباعة ──

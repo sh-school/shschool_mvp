@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}حضور الأبناء{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,136 +9,44 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1 class="exec-title">{% include "components/icon.html" with name="list-checks" %} حضور الأبناء</h1>
-      <p class="exec-subtitle">{{ school.name }} — آخر {{ period }} يوم</p>
-    </div>
-    <div class="flex flex-wrap gap-2">
+  {% page_header "حضور الأبناء" subtitle=school.name icon="list-checks" %}
+    <nav class="period-switch" aria-label="الفترة">
       {% for d in period_choices %}
-      <a href="?period={{ d }}"
-         class="status-badge {% if period == d %}status-maroon{% else %}status-gray{% endif %}">
-        {{ d }} يوم
-      </a>
+        <a href="?period={{ d }}" class="period-switch__item{% if period == d %} is-current{% endif %}"{% if period == d %} aria-current="page"{% endif %}>{{ d }} يوماً</a>
       {% endfor %}
-    </div>
-  </div>
-
-  {% if not children_attendance %}
-  <div class="card-qatar text-center py-12">
-    <p class="text-[var(--text-muted)] text-lg">لا يوجد أبناء مربوطين أو ليس لديك صلاحية عرض الحضور</p>
-  </div>
-  {% endif %}
+    </nav>
+  {% endpage_header %}
 
   {% for child in children_attendance %}
-  <div class="card-qatar">
-    {# Header #}
-    <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
-      <div>
-        <h2 class="text-lg font-bold">{{ child.student.full_name }}</h2>
-        <p class="text-sm text-[var(--text-muted)]">
-          {% if child.enrollment %}{{ child.enrollment.class_group }} · {% endif %}
-          منذ {{ child.since|date:"Y/m/d" }}
-        </p>
+    {% section_card child.student.full_name meta=child.enrollment.class_group.short_code icon="user" %}
+      <div class="parent-child">
+        {% kpi_strip label="أرقام الحضور" %}
+          {% if child.total %}{% kpi "الحضور" child.att_label tone=child.att_tone %}{% else %}{% kpi "الحضور" "—" tone="blue" title="لا حصصَ مرصودةً في الفترة" %}{% endif %}
+          {% kpi "حصص الغياب" child.absent tone="red" %}
+          {% kpi "حصص التأخّر" child.late tone="amber" %}
+          {% kpi "الحصص المرصودة" child.total tone="blue" %}
+        {% endkpi_strip %}
+        {% if child.total %}
+          {% include "parents/_attendance_calendar.html" with weeks=child.weeks %}
+        {% endif %}
+        {% if child.alerts %}
+          <ul class="plain-list" aria-label="تنبيهات الغياب">
+            {% for alert in child.alerts %}
+              <li class="plain-list__row">
+                <span>{% include "components/icon.html" with name="alert-triangle" %} {{ alert.absence_count }} غياب · {{ alert.period_start|date:"d/m" }} – {{ alert.period_end|date:"d/m" }}</span>
+                <span class="status-badge {% if alert.status == 'resolved' %}status-success{% else %}status-danger{% endif %}">{{ alert.get_status_display }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+        <nav class="parent-child__actions">
+          <a href="{% url 'parent_student_attendance' child.student.id %}?period={{ period }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="calendar" %} التفاصيل بالحصص</a>
+        </nav>
       </div>
-      <div class="text-center">
-        <div class="text-2xl font-bold {% if child.att_pct >= 90 %}text-green-600{% elif child.att_pct >= 75 %}text-yellow-600{% else %}text-red-600{% endif %}">
-          {{ child.att_pct }}%
-        </div>
-        <div class="text-xs text-[var(--text-muted)]">نسبة الحضور</div>
-      </div>
-    </div>
-
-    {# KPI Row #}
-    <div class="kpi-strip" style="margin:0 0 1rem">
-      <div class="kpi-mini kpi-green">
-        <div class="kpi-mini-value">{{ child.present }}</div>
-        <div class="kpi-mini-label">حاضر</div>
-      </div>
-      <div class="kpi-mini kpi-red">
-        <div class="kpi-mini-value">{{ child.absent }}</div>
-        <div class="kpi-mini-label">غائب</div>
-      </div>
-      <div class="kpi-mini kpi-orange">
-        <div class="kpi-mini-value">{{ child.late }}</div>
-        <div class="kpi-mini-label">متأخر</div>
-      </div>
-      <div class="kpi-mini kpi-blue">
-        <div class="kpi-mini-value">{{ child.total }}</div>
-        <div class="kpi-mini-label">إجمالي الحصص</div>
-      </div>
-    </div>
-
-    {# Alerts #}
-    {% if child.alerts %}
-    <div class="mb-4">
-      <h3 class="font-semibold text-sm mb-2 text-red-600 dark:text-red-400">{% include "components/icon.html" with name="alert-triangle" %} تنبيهات الغياب</h3>
-      {% for alert in child.alerts %}
-      <div class="alert-strip mb-2" style="--alert-color:var(--status-danger-fg); padding:.5rem .75rem;">
-        {{ alert.message|default:"تنبيه غياب متكرر" }} — {{ alert.created_at|date:"Y/m/d" }}
-      </div>
-      {% endfor %}
-    </div>
-    {% endif %}
-
-    {# Days List #}
-    {% if child.days_list %}
-    <h3 class="font-semibold text-sm mb-2 text-[var(--text-muted)]">سجل الحضور</h3>
-    <div class="filter-bar mb-2">
-      <input type="text"
-             placeholder="بحث بالتاريخ أو الحالة..."
-             class="form-control w-full m-0 att-day-search"
-             aria-label="بحث في سجل الحضور"
-             data-target="att-days-{{ forloop.counter }}">
-    </div>
-    <div class="table-wrap" style="max-height:420px;overflow-y:auto">
-      <table class="w-full text-sm">
-        <thead style="position:sticky;top:0;z-index:2">
-          <tr class="border-b border-[var(--border)] bg-[var(--surface)] dark:bg-[var(--surface)]">
-            <th class="text-right py-2 px-2">التاريخ</th>
-            <th class="text-center py-2 px-2">الحصص</th>
-            <th class="text-center py-2 px-2">الحالة</th>
-          </tr>
-        </thead>
-        <tbody id="att-days-{{ forloop.counter }}">
-          {% for day in child.days_list %}
-          <tr class="border-b border-[var(--border)] {% if day.has_absent %}bg-red-50/50 dark:bg-red-900/10{% endif %}"
-              data-text="{{ day.date|date:'m/d D' }} {% if day.has_absent %}غياب{% elif day.has_late %}تأخر{% else %}حاضر{% endif %}">
-            <td class="py-2 px-2 whitespace-nowrap">{{ day.date|date:"m/d D" }}</td>
-            <td class="py-2 px-2 text-center">{{ day.records|length }}</td>
-            <td class="py-2 px-2 text-center">
-              {% if day.has_absent %}
-              <span class="status-badge status-red">غياب</span>
-              {% elif day.has_late %}
-              <span class="status-badge status-orange">تأخر</span>
-              {% else %}
-              <span class="status-badge status-green">حاضر</span>
-              {% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    {% else %}
-    <div class="text-center py-6 text-[var(--text-muted)]">
-      لا توجد بيانات حضور مسجلة في هذه الفترة
-    </div>
-    {% endif %}
-  </div>
+    {% endsection_card %}
+  {% empty %}
+    {% section_card "الأبناء" icon="users" empty="لا أبناءَ مربوطين أو لا صلاحيةَ لعرض حضورهم" empty_sub="تواصل مع إدارة المدرسة" %}{% endsection_card %}
   {% endfor %}
-
-  <script nonce="{{ request.csp_nonce }}">
-  document.addEventListener('DOMContentLoaded', function(){
-    document.querySelectorAll('.att-day-search').forEach(function(input){
-      var tbodyId = input.getAttribute('data-target');
-      if (!tbodyId) return;
-      if (!input.id) input.id = 'att-search-' + tbodyId;
-      window.smartFilter(input.id, '#' + tbodyId + ' tr[data-text]', { textAttr: 'data-text' });
-    });
-  });
-  </script>
 
 </div>
 {% endblock %}

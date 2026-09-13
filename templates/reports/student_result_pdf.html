@@ -1,4 +1,5 @@
 {% extends "reports/base_qatar_report.html" %}
+{% load brand_tags %}
 
 {% block extra_styles %}
 /* ════════════════════════════════════════
@@ -8,26 +9,26 @@
   width: 100%;
   border-collapse: collapse;
   margin: 8px 0 12px;
-  border: 1.5px solid #8A1538;
+  border: 1.5px solid {% brand_color "MAROON" %};
   border-radius: 4px;
 }
 .student-info-card td {
   padding: 6px 12px;
   font-size: 10.5px;
-  border: 1px solid #E8D0D8;
-  background: #FDF8F9;
+  border: 1px solid {% brand_color "MAROON_BORDER" %};
+  background: {% brand_color "SURFACE_ALT" %};
   text-align: right;
   vertical-align: middle;
 }
 .student-info-card .lbl {
   font-weight: 600;
-  color: #8A1538;
+  color: {% brand_color "MAROON" %};
   white-space: nowrap;
   width: 1%;
 }
 .student-info-card .val {
   font-weight: 700;
-  color: #111;
+  color: {% brand_color "TEXT_PRIMARY" %};
 }
 
 /* ════════════════════════════════════════
@@ -40,22 +41,22 @@
   font-size: 10px;
 }
 .results-table thead tr.header-top th {
-  background: #8A1538;
-  color: #fff;
+  background: {% brand_color "MAROON" %};
+  color: {% brand_color "ON_FILL" %};
   padding: 7px 5px;
   text-align: center;
-  border: 1px solid #6B1029;
+  border: 1px solid {% brand_color "MAROON_DARK" %};
   font-size: 10.5px;
   font-weight: 700;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 .results-table thead tr.header-sub th {
-  background: #F5EEF1;
-  color: #5a1029;
+  background: {% brand_color "PAGE_BG" %};
+  color: {% brand_color "MAROON_DARK" %};
   padding: 4px 4px;
   text-align: center;
-  border: 1px solid #DBC5CC;
+  border: 1px solid {% brand_color "BORDER_STRONG" %};
   font-size: 9px;
   font-weight: 600;
   -webkit-print-color-adjust: exact;
@@ -63,13 +64,13 @@
 }
 .results-table tbody td {
   padding: 5px 5px;
-  border: 1px solid #E8E8E8;
+  border: 1px solid {% brand_color "BORDER" %};
   text-align: center;
   vertical-align: middle;
   font-size: 10px;
 }
 .results-table tbody tr:nth-child(even) td {
-  background: #FDF8F9;
+  background: {% brand_color "SURFACE_ALT" %};
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -85,7 +86,7 @@
 }
 .results-table .pkg-scores {
   font-size: 8.5px;
-  color: #666;
+  color: {% brand_color "TEXT_MUTED" %};
   line-height: 1.5;
 }
 
@@ -93,9 +94,9 @@
    صف ملخص النتائج (أسفل الجدول)
 ════════════════════════════════════════ */
 .summary-row td {
-  background: #F5EEF1 !important;
+  background: {% brand_color "PAGE_BG" %} !important;
   font-weight: 700;
-  border-top: 2px solid #8A1538;
+  border-top: 2px solid {% brand_color "MAROON" %};
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -105,7 +106,7 @@
 ════════════════════════════════════════ */
 .decision-section {
   margin-top: 14px;
-  border: 2px solid #8A1538;
+  border: 2px solid {% brand_color "MAROON" %};
   border-radius: 4px;
   padding: 10px 14px;
   -webkit-print-color-adjust: exact;
@@ -114,9 +115,9 @@
 .decision-title {
   font-size: 11px;
   font-weight: 700;
-  color: #8A1538;
+  color: {% brand_color "MAROON" %};
   margin-bottom: 8px;
-  border-bottom: 1px dashed #C8A0B0;
+  border-bottom: 1px dashed {% brand_color "MAROON_BORDER" %};
   padding-bottom: 5px;
 }
 .decision-table {
@@ -134,23 +135,23 @@
   display: inline-block;
   width: 14px;
   height: 14px;
-  border: 1.5px solid #8A1538;
+  border: 1.5px solid {% brand_color "MAROON" %};
   border-radius: 2px;
   margin-left: 6px;
   vertical-align: middle;
 }
 .decision-checkbox.checked {
-  background: #8A1538;
+  background: {% brand_color "MAROON" %};
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 .decision-label {
   font-weight: 600;
-  color: #333;
+  color: {% brand_color "TEXT_PRIMARY" %};
 }
 .decision-note {
   font-size: 9.5px;
-  color: #777;
+  color: {% brand_color "TEXT_MUTED" %};
   margin-top: 6px;
 }
 
@@ -164,9 +165,9 @@
   margin: 10px 0 8px;
 }
 .stats-bar td {
-  background: #fff;
-  border: 1px solid #E8D0D8;
-  border-top: 3px solid #8A1538;
+  background: {% brand_color "SURFACE" %};
+  border: 1px solid {% brand_color "MAROON_BORDER" %};
+  border-top: 3px solid {% brand_color "MAROON" %};
   padding: 8px 6px;
   text-align: center;
   vertical-align: middle;
@@ -180,16 +181,16 @@
 }
 .stats-bar .sl {
   font-size: 8.5px;
-  color: #777;
+  color: {% brand_color "TEXT_MUTED" %};
   margin-top: 2px;
 }
 
 /* ألوان الدرجات */
-.grade-a   { color: #15803d; }
-.grade-b   { color: #1d4ed8; }
-.grade-c   { color: #d97706; }
-.grade-f   { color: #dc2626; }
-.grade-na  { color: #999; }
+.grade-a   { color: {% brand_color "STATUS_SUCCESS_DARK" %}; }
+.grade-b   { color: {% brand_color "STATUS_INFO_FG" %}; }
+.grade-c   { color: {% brand_color "STATUS_WARNING" %}; }
+.grade-f   { color: {% brand_color "STATUS_DANGER" %}; }
+.grade-na  { color: {% brand_color "TEXT_MUTED" %}; }
 {% endblock %}
 
 {% block report_title_bar %}
@@ -226,7 +227,7 @@
 <table class="stats-bar">
   <tr>
     <td>
-      <div class="sv" style="color:#8A1538">{{ total }}</div>
+      <div class="sv" style="color:{% brand_color "MAROON" %}">{{ total }}</div>
       <div class="sl">إجمالي المواد</div>
     </td>
     <td>
@@ -238,15 +239,15 @@
       <div class="sl">مواد راسب</div>
     </td>
     <td>
-      <div class="sv" style="color:#8A1538">{{ avg|default:"—" }}</div>
+      <div class="sv" style="color:{% brand_color "MAROON" %}">{{ avg|default:"—" }}</div>
       <div class="sl">المعدل السنوي / 100</div>
     </td>
     <td>
-      <div class="sv" style="color:#d97706">{{ absent_total }}</div>
+      <div class="sv" style="color:{% brand_color "STATUS_WARNING" %}">{{ absent_total }}</div>
       <div class="sl">أيام الغياب</div>
     </td>
     <td>
-      <div class="sv" style="color:#555">{{ late_total }}</div>
+      <div class="sv" style="color:{% brand_color "TEXT_SECONDARY" %}">{{ late_total }}</div>
       <div class="sl">حالات التأخر</div>
     </td>
   </tr>
@@ -321,7 +322,7 @@
       </td>
 
       {# المجموع السنوي #}
-      <td class="bold-grade" style="color:{% if row.annual and row.annual.annual_total %}{% if row.annual.annual_total >= 90 %}#15803d{% elif row.annual.annual_total >= 75 %}#1d4ed8{% elif row.annual.annual_total >= 60 %}#d97706{% else %}#dc2626{% endif %}{% else %}#999{% endif %}">
+      <td class="bold-grade" style="color:{% if row.annual and row.annual.annual_total %}{% if row.annual.annual_total >= 90 %}{% brand_color "STATUS_SUCCESS_DARK" %}{% elif row.annual.annual_total >= 75 %}{% brand_color "STATUS_INFO_FG" %}{% elif row.annual.annual_total >= 60 %}{% brand_color "STATUS_WARNING" %}{% else %}{% brand_color "STATUS_DANGER" %}{% endif %}{% else %}{% brand_color "TEXT_MUTED" %}{% endif %}">
         {% if row.annual and row.annual.annual_total %}
           {{ row.annual.annual_total }}
         {% else %}—{% endif %}
@@ -345,7 +346,7 @@
     </tr>
     {% empty %}
     <tr>
-      <td colspan="10" style="text-align:center;color:#aaa;padding:16px">
+      <td colspan="10" style="text-align:center;color:{% brand_color "TEXT_MUTED" %};padding:16px">
         لا توجد درجات مسجّلة لهذا الطالب
       </td>
     </tr>
@@ -354,16 +355,16 @@
     {# ── صف المجاميع ── #}
     {% if rows %}
     <tr class="summary-row">
-      <td class="subject-name" style="color:#8A1538">المجموع والمعدل</td>
-      <td colspan="6" style="font-size:9.5px;color:#666;text-align:center">
+      <td class="subject-name" style="color:{% brand_color "MAROON" %}">المجموع والمعدل</td>
+      <td colspan="6" style="font-size:9.5px;color:{% brand_color "TEXT_MUTED" %};text-align:center">
         إجمالي المواد: {{ total }} &nbsp;|&nbsp;
         ناجح: {{ passed }} &nbsp;|&nbsp;
         راسب: {{ failed }}
       </td>
-      <td class="bold-grade" style="color:#8A1538;font-size:12px">
+      <td class="bold-grade" style="color:{% brand_color "MAROON" %};font-size:12px">
         {{ avg|default:"—" }}
       </td>
-      <td colspan="2" style="color:#555;font-size:9px;text-align:center">
+      <td colspan="2" style="color:{% brand_color "TEXT_SECONDARY" %};font-size:9px;text-align:center">
         المعدل<br>من 100
       </td>
     </tr>
@@ -439,8 +440,8 @@
 </div>
 
 {% if exported_by %}
-<div style="text-align:center;font-size:8pt;color:#999;border-top:1px solid #ddd;padding-top:8px;margin-top:30px">
-  <p style="margin:0"><strong style="color:#333">صدر بواسطة:</strong> {{ exported_by }} — {{ exporter_role }}</p>
+<div style="text-align:center;font-size:8pt;color:{% brand_color "TEXT_MUTED" %};border-top:1px solid {% brand_color "BORDER" %};padding-top:8px;margin-top:30px">
+  <p style="margin:0"><strong style="color:{% brand_color "TEXT_PRIMARY" %}">صدر بواسطة:</strong> {{ exported_by }} — {{ exporter_role }}</p>
   <p style="margin:2px 0 0">التاريخ: {{ export_datetime }}</p>
   <p style="margin:2px 0 0">{{ school.name }} — وثيقة رسمية — SchoolOS</p>
 </div>

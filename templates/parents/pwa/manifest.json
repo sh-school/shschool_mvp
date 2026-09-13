@@ -1,4 +1,4 @@
-{
+{% load brand_tags %}{
   "name": "SchoolOS — بوابة ولي الأمر",
   "short_name": "SchoolOS",
   "description": "تابع أداء ابنك — درجات، حضور، سلوك",
@@ -6,8 +6,8 @@
   "scope": "/parents/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#8A1538",
-  "theme_color": "#8A1538",
+  "background_color": "{% brand_color 'MAROON' %}",
+  "theme_color": "{% brand_color 'MAROON' %}",
   "lang": "ar",
   "dir": "rtl",
   "icons": [

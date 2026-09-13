@@ -1,0 +1,44 @@
+{% load ui %}
+<div class="exec-dash">
+
+  {% page_header "مرحباً، "|add:request.user.full_name subtitle=subtitle icon="home" %}{% endpage_header %}
+
+  {% if service_role == "nurse" %}
+    {% kpi_strip label="العيادة اليوم" %}
+      {% kpi "زيارات العيادة" clinic_today sub=clinic_sub tone=clinic_tone %}
+    {% endkpi_strip %}
+    <nav class="ui-actions" aria-label="إجراءات سريعة">
+      {% url 'clinic:dashboard' as u %}{% action_tile "لوحة العيادة" desc="الزياراتُ والسجلّاتُ الصحّيّة" icon="hospital" href=u primary=True %}
+      {% url 'clinic:record_visit' as u %}{% action_tile "تسجيل زيارة" desc="زيارةُ عيادةٍ جديدة" icon="file-pen" href=u %}
+      {% url 'clinic:statistics' as u %}{% action_tile "الإحصائيات" desc="تقاريرُ العيادة" icon="bar-chart" href=u %}
+    </nav>
+
+  {% elif service_role == "librarian" %}
+    {% kpi_strip label="المكتبة اليوم" %}
+      {% kpi "إعارات اليوم" library_today tone="teal" %}
+      {% kpi "متأخّرةُ الإعادة" library_overdue tone=library_tone %}
+    {% endkpi_strip %}
+    <nav class="ui-actions" aria-label="إجراءات سريعة">
+      {% url 'library:dashboard' as u %}{% action_tile "لوحة المكتبة" desc="الكتبُ والإعارةُ والإعادة" icon="book-open" href=u primary=True %}
+      {% url 'library:borrow_book' as u %}{% action_tile "إعارة جديدة" desc="تسجيلُ استعارة كتاب" icon="book-open" href=u %}
+      {% url 'library:book_list' as u %}{% action_tile "فهرس الكتب" desc="البحثُ في المقتنيات" icon="search" href=u %}
+    </nav>
+
+  {% elif service_role == "it_technician" %}
+    {% kpi_strip label="المستخدمون" %}
+      {% kpi "مستخدمون نشطون" active_users|default:0 tone="blue" %}
+      {% kpi "إجمالي المستخدمين" total_users|default:0 tone="maroon" %}
+    {% endkpi_strip %}
+    {% section_card "الأدوات التقنيّة" icon="wrench" %}
+      <nav class="ui-actions" aria-label="الأدوات التقنيّة">
+        {% action_tile "لوحة الإدارة التقنيّة" desc="إدارةُ النظام والإعدادات" icon="settings" href="/admin/" primary=True %}
+        {% action_tile "إدارة المستخدمين" desc="حساباتُ المعلّمين والموظّفين" icon="users" href="/admin/core/customuser/" %}
+        {% action_tile "سجلّ النشاطات" desc="آخرُ العمليّات على النظام" icon="file-pen" href="/admin/admin/logentry/" %}
+      </nav>
+    {% endsection_card %}
+
+  {% else %}
+    {% section_card "لوحة التحكّم" icon="building" empty="لم تُفعَّل لوحةُ التحكّم لدورك بعد" empty_sub="تواصل مع مدير النظام" %}{% endsection_card %}
+  {% endif %}
+
+</div>

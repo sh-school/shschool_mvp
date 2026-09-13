@@ -8,7 +8,7 @@
 {% block content %}
 <div class="container-fluid mt-3">
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h5 class="fw-bold" style="color:#8A1538">{{ session.name }}
+    <h5 class="fw-bold text-maroon">{{ session.name }}
       <span class="badge bg-{% if session.status == 'active' %}success{% elif session.status == 'planned' %}warning text-dark{% else %}secondary{% endif %} fs-6">
         {{ session.get_status_display }}
       </span>
@@ -23,7 +23,7 @@
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
       <div class="card text-center p-3 shadow-sm">
-        <div class="fs-2 fw-bold" style="color:#8A1538">{{ rooms.count }}</div>
+        <div class="fs-2 fw-bold text-maroon">{{ rooms.count }}</div>
         <div class="text-muted small">قاعة</div>
       </div>
     </div>

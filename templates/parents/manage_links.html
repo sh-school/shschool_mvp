@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load privacy %}
+{% load privacy ui %}
 {% block title %}ربط أولياء الأمور — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -24,20 +24,11 @@
 أصلاً — **من بقي من طلاب هذا العام بلا وليّ أمر**، وهو الصفُّ الذي يُفتح
 ليُعمَل فيه شيء.
 {% endcomment %}
-<div class="kpi-strip">
-  <div class="kpi-mini kpi-green">
-    <div class="kpi-mini-value">{{ student_count }} <span class="kpi-mini-sub">من {{ enrolled_count }}</span></div>
-    <div class="kpi-mini-label">طلابُ هذا العام ولهم وليُّ أمر</div>
-  </div>
-  <div class="kpi-mini {% if unlinked_count %}kpi-red{% else %}kpi-green{% endif %}">
-    <div class="kpi-mini-value">{{ unlinked_count }}</div>
-    <div class="kpi-mini-label">بلا وليِّ أمرٍ مرتبط</div>
-  </div>
-  <div class="kpi-mini kpi-blue">
-    <div class="kpi-mini-value">{{ parent_count }}</div>
-    <div class="kpi-mini-label">أولياءُ أمورٍ مرتبطون</div>
-  </div>
-</div>
+{% kpi_strip label="أرقام الارتباط" %}
+  {% kpi "لهم وليُّ أمر" student_count sub=enrolled_label tone="green" title="طلابُ هذا العام المرتبطون بوليّ أمر" %}
+  {% kpi "بلا وليِّ أمر" unlinked_count tone=unlinked_tone title="طلابُ هذا العام بلا وليِّ أمرٍ مرتبط" %}
+  {% kpi "أولياءُ الأمور" parent_count tone="blue" %}
+{% endkpi_strip %}
 
 {# ── إضافة ربط جديد (قابل للطي) ── #}
 <details class="card-qatar mb-6">

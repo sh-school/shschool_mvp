@@ -141,11 +141,23 @@ def _declares(selector: str, wanted: str) -> bool:
     return any(part.strip() == wanted for part in selector.split(","))
 
 
+def _conditional(ctx: list[str]) -> bool:
+    """رمزٌ يُعرَّف داخل `@media` لا يسري إلّا بشرطه.
+
+    كانت كتلةُ `@media (prefers-contrast: more)` تُقرأ قيمَ النهار نفسَها،
+    فقاس الحارسُ `--text-muted` بـ`#555` والشاشةُ ترسمه `#5f6775` — أي قاس
+    وضعَ التباين العالي وحكم به على الوضع العاديّ.
+    """
+    return any(c.startswith("@media") for c in ctx)
+
+
 def token_table(css: str) -> tuple[dict[str, str], dict[str, str]]:
     """رموزُ النهار، ورموزُ الليل (النهارُ ثمّ ما يُبدّله `html.dark`)."""
     light: dict[str, str] = {}
     dark_over: dict[str, str] = {}
-    for sel, decls, _ctx in iter_rules(css):
+    for sel, decls, ctx in iter_rules(css):
+        if _conditional(ctx):
+            continue
         target = None
         if _declares(sel, ":root"):
             target = light
@@ -166,8 +178,8 @@ def dark_overrides(css: str) -> dict[str, str]:
     مدموجاً فلا يُقرأ منه ذلك.
     """
     out: dict[str, str] = {}
-    for sel, decls, _ctx in iter_rules(css):
-        if _declares(sel, "html.dark"):
+    for sel, decls, ctx in iter_rules(css):
+        if _declares(sel, "html.dark") and not _conditional(ctx):
             out.update({k: v for k, v in decls.items() if k.startswith("--")})
     return out
 

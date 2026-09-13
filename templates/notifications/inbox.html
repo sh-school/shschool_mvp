@@ -58,33 +58,27 @@
   {# ── Filter chips — HTMX ── #}
   <div class="flex gap-2 flex-wrap mb-4">
     <a href="{% url 'notification_inbox' %}"
-       class="status-badge {% if not event_filter %}status-maroon{% else %}status-gray{% endif %}"
-       class="no-underline px-3 py-1 text-xs">الكل</a>
+       class="status-badge {% if not event_filter %}status-maroon{% else %}status-gray{% endif %} no-underline px-3 py-1 text-xs">الكل</a>
     {% for code, label in event_types %}
     <a href="{% url 'notification_inbox' %}?type={{ code }}"
-       class="status-badge {% if event_filter == code %}status-maroon{% else %}status-gray{% endif %}"
-       class="no-underline px-3 py-1 text-xs">{{ label }}</a>
+       class="status-badge {% if event_filter == code %}status-maroon{% else %}status-gray{% endif %} no-underline px-3 py-1 text-xs">{{ label }}</a>
     {% endfor %}
   </div>
 
   {# ── قسم الإشعارات العاجلة (منفصل في الأعلى) ── #}
-  {% with urgent_list=notifications|dictsort:"priority" %}
-  {% for notif in notifications %}{% if notif.priority == "urgent" and not notif.is_read %}
-    {% if forloop.first %}
-    <div class="mb-4">
-      <div class="flex items-center gap-2 mb-2">
-        <span class="text-sm font-bold text-status-danger">{% include "components/icon.html" with name="alert-triangle" %} إشعارات عاجلة</span>
-        <div class="flex-1 h-px" style="background:var(--status-danger-border);"></div>
-      </div>
-      <div class="flex flex-col gap-1" id="urgent-section">
-    {% endif %}
-        {% include "notifications/partials/notif_item.html" with notif=notif %}
-    {% if forloop.last %}
-      </div>
+  {% if urgent_notifications %}
+  <div class="mb-4">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="text-sm font-bold text-status-danger">{% include "components/icon.html" with name="alert-triangle" %} إشعارات عاجلة</span>
+      <div class="flex-1 h-px" style="background:var(--status-danger-border);"></div>
     </div>
-    {% endif %}
-  {% endif %}{% endfor %}
-  {% endwith %}
+    <div class="flex flex-col gap-1" id="urgent-section">
+      {% for notif in urgent_notifications %}
+        {% include "notifications/partials/notif_item.html" with notif=notif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 
   {# ── Keyboard shortcut hint ── #}
   <p class="text-xs text-muted mb-3 text-left">
@@ -95,15 +89,15 @@
 
   {# ── قائمة الإشعارات ── #}
   <div id="notif-list" class="flex flex-col gap-1.5">
-    {% for notif in notifications %}
+    {% for notif in other_notifications %}
     {% include "notifications/partials/notif_item.html" with notif=notif %}
-    {% empty %}
+    {% empty %}{% if not urgent_notifications %}
     <div class="empty-state">
       <span class="empty-icon">{% include "components/icon.html" with name="bell" size="icon-2xl" %}</span>
       <p class="empty-title">لا توجد إشعارات</p>
       <p class="empty-sub">ستظهر هنا إشعارات المدرسة والتنبيهات الهامة</p>
     </div>
-    {% endfor %}
+    {% endif %}{% endfor %}
   </div>
 
 </div>

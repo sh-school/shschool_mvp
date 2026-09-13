@@ -209,7 +209,7 @@
 
   var isDark = document.documentElement.classList.contains('dark');
   var gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)';
-  var textColor = isDark ? '#ccc' : '#555';
+  var textColor = chartColor('text-secondary');
 
   new Chart(ctx, {
     type: 'line',
@@ -219,8 +219,8 @@
         {
           label: 'نسبة الحضور %',
           data: presentData,
-          borderColor: '#16a34a',
-          backgroundColor: 'rgba(22,163,74,0.08)',
+          borderColor: chartColor('status-success'),
+          backgroundColor: chartAlpha('status-success', .08),
           fill: true,
           tension: 0.3,
           borderWidth: 2,
@@ -230,8 +230,8 @@
         {
           label: 'نسبة الغياب %',
           data: absentData,
-          borderColor: '#dc2626',
-          backgroundColor: 'rgba(220,38,38,0.08)',
+          borderColor: chartColor('status-danger'),
+          backgroundColor: chartAlpha('status-danger', .08),
           fill: true,
           tension: 0.3,
           borderWidth: 2,

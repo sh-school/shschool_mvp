@@ -1,8 +1,9 @@
 {% extends "reports/base_qatar_report.html" %}
+{% load brand_tags %}
 {# تقرير الحضور والغياب — يرث التصميم الكامل من base_qatar_report.html #}
 
 {% block extra_styles %}
-.bar-bg   { background:#e5e7eb; border-radius:4px; height:9px; overflow:hidden; display:inline-block; width:60px; vertical-align:middle; }
+.bar-bg   { background:{% brand_color "BORDER" %}; border-radius:4px; height:9px; overflow:hidden; display:inline-block; width:60px; vertical-align:middle; }
 .bar-fill { height:100%; border-radius:4px; }
 {% endblock %}
 
@@ -112,8 +113,8 @@
 </div>
 
 {% if exported_by %}
-<div style="text-align:center;font-size:8pt;color:#999;border-top:1px solid #ddd;padding-top:8px;margin-top:30px">
-  <p style="margin:0"><strong style="color:#333">صدر بواسطة:</strong> {{ exported_by }} — {{ exporter_role }}</p>
+<div style="text-align:center;font-size:8pt;color:{% brand_color "TEXT_MUTED" %};border-top:1px solid {% brand_color "BORDER" %};padding-top:8px;margin-top:30px">
+  <p style="margin:0"><strong style="color:{% brand_color "TEXT_PRIMARY" %}">صدر بواسطة:</strong> {{ exported_by }} — {{ exporter_role }}</p>
   <p style="margin:2px 0 0">التاريخ: {{ export_datetime }}</p>
   <p style="margin:2px 0 0">{{ school.name }} — وثيقة رسمية — SchoolOS</p>
 </div>

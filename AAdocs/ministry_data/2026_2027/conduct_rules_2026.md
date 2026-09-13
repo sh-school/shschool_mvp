@@ -96,7 +96,7 @@
 | 1 | التأخّرُ عن الحصّة = دخولٌ **بعد 5 دقائق** من بدئها | `operations.absence_policy.PERIOD_TARDY_AFTER_MINUTES` — وأتمتتُها في `operations/period_register.py` |
 | 2 | عدّادُ تكرار المخالفة **يُصفَّر كلَّ فصلٍ دراسيّ** | `BehaviorService.get_prior_infraction_count` |
 | 3 | المخالفةُ **مرّتين في اليوم نفسِه تكراران** | كذلك |
-| 4 | مخالفةُ التأخّر تُنشأ **نافذةً مباشرةً** بلا اعتماد | `period_register._sync_auto_infractions` |
+| 4 | مخالفةُ التأخّر تُنشأ **نافذةً مباشرةً** بلا اعتماد | `period_register._sync_rule` |
 | 5 | الحصّةُ تُعدّ «فائتةَ الرصد» إن لم تُثبَّت حتى **5 دقائق بعد نهايتها** | `operations.absence_policy.PERIOD_RECORDING_GRACE_MINUTES` — PR #221 |
 | 6 | تحديثُ قائمة المخالفات في المنصّة إلى الدليل 2026 | هجرة `behavior/0015` |
 | 7 | الرصدُ لمشرف الجناح وحدَه، والمعلّمُ لا يرصد في شُعب الأجنحة | PR #212 |

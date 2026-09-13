@@ -173,9 +173,9 @@
     var data = JSON.parse(document.getElementById("lab-radar-data").textContent);
     var el = document.getElementById("lab-radar");
     if (!el || !window.Chart || !data.labels.length) return;
-    var datasets = [{ label: "الحالي", data: data.current, borderColor: "#8A1538", backgroundColor: "rgba(138,21,56,.18)", pointBackgroundColor: "#8A1538" }];
+    var datasets = [{ label: "الحالي", data: data.current, borderColor: chartColor("chart-1"), backgroundColor: chartAlpha("chart-1", .18), pointBackgroundColor: chartColor("chart-1") }];
     if (data.reference.some(function (v) { return v !== null; })) {
-      datasets.push({ label: "المرجع", data: data.reference, borderColor: "#D4A843", backgroundColor: "rgba(212,168,67,.15)", pointBackgroundColor: "#D4A843" });
+      datasets.push({ label: "المرجع", data: data.reference, borderColor: chartColor("chart-4"), backgroundColor: chartAlpha("chart-4", .15), pointBackgroundColor: chartColor("chart-4") });
     }
     new Chart(el, {
       type: "radar",

@@ -1,3 +1,4 @@
+{% load brand_tags %}
 {% load static dict_filters %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -10,8 +11,8 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: 'Tajawal', 'Segoe UI', sans-serif;
-    color: #1e293b;
-    background: #fff;
+    color: {% brand_color "TEXT_PRIMARY" %};
+    background: {% brand_color "SURFACE" %};
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -19,8 +20,8 @@
   /* ── Print Controls — hidden when printing ── */
   .print-controls {
     padding: 14px 24px;
-    background: #f8f5f6;
-    border-bottom: 2px solid #8A1538;
+    background: {% brand_color "SURFACE_ALT" %};
+    border-bottom: 2px solid {% brand_color "MAROON" %};
     display: flex;
     gap: 12px;
     align-items: center;
@@ -29,29 +30,29 @@
   }
   .print-controls .print-label {
     font-weight: 700;
-    color: #8A1538;
+    color: {% brand_color "MAROON" %};
     font-size: 15px;
   }
   .print-controls select,
   .print-controls button {
     padding: 7px 14px;
     border-radius: 6px;
-    border: 1px solid #ccc;
+    border: 1px solid {% brand_color "BORDER_STRONG" %};
     font-family: inherit;
     font-size: 13px;
-    background: #fff;
+    background: {% brand_color "SURFACE" %};
   }
   .print-controls button {
-    background: #8A1538;
-    color: #fff;
+    background: {% brand_color "MAROON" %};
+    color: {% brand_color "ON_FILL" %};
     border: none;
     cursor: pointer;
     font-weight: 600;
     padding: 8px 20px;
   }
-  .print-controls button:hover { background: #6b1030; }
+  .print-controls button:hover { background: {% brand_color "MAROON_DARK" %}; }
   .print-controls a {
-    color: #8A1538;
+    color: {% brand_color "MAROON" %};
     text-decoration: none;
     font-size: 13px;
     font-weight: 600;
@@ -59,14 +60,14 @@
   .print-controls a:hover { text-decoration: underline; }
   /* زرّا التصدير: كالزرّ شكلاً ورابطٌ حقيقةً — فالتنزيلُ انتقالٌ لا حدثُ زرّ. */
   .print-controls a.btn-export {
-    border: 1px solid #8A1538;
+    border: 1px solid {% brand_color "MAROON" %};
     border-radius: 6px;
     padding: 7px 14px;
     font-size: 13px;
   }
   .print-controls a.btn-export:hover {
-    background: #8A1538;
-    color: #fff;
+    background: {% brand_color "MAROON" %};
+    color: {% brand_color "ON_FILL" %};
     text-decoration: none;
   }
 
@@ -93,23 +94,23 @@
   }
   .schedule-header .ministry {
     font-size: 13px;
-    color: #555;
+    color: {% brand_color "TEXT_SECONDARY" %};
     margin-bottom: 4px;
   }
   .schedule-header .school-name {
     font-size: 22px;
     font-weight: 700;
-    color: #8A1538;
+    color: {% brand_color "MAROON" %};
     margin: 6px 0;
   }
   .schedule-header .title {
     font-size: 16px;
     font-weight: 600;
-    color: #1e293b;
+    color: {% brand_color "TEXT_PRIMARY" %};
   }
   .schedule-header .year {
     font-size: 12px;
-    color: #666;
+    color: {% brand_color "TEXT_MUTED" %};
     margin-top: 4px;
   }
 
@@ -121,13 +122,13 @@
     table-layout: fixed;
   }
   .schedule-grid th {
-    background: #8A1538;
-    color: #fff;
+    background: {% brand_color "MAROON" %};
+    color: {% brand_color "ON_FILL" %};
     padding: 8px 6px;
     text-align: center;
     font-weight: 600;
     font-size: 13px;
-    border: 1px solid #6b1030;
+    border: 1px solid {% brand_color "MAROON_DARK" %};
   }
   /* العمودُ الأوّل صار اسمَ يومٍ لا رقمَ حصّة، و«الأربعاء» لا تسع اثنين
      وستّين بكسلاً. */
@@ -138,47 +139,47 @@
     padding: 5px 4px;
     /* توسيطٌ في الاتّجاهين: الخانةُ إطارٌ للحصّة لا عمودَ نصّ. */
     text-align: center;
-    border: 1px solid #ddd;
+    border: 1px solid {% brand_color "BORDER" %};
     vertical-align: middle;
     height: 54px;
   }
   .schedule-grid .period-cell {
-    background: #f0e6e9;
+    background: {% brand_color "BORDER" %};
     font-weight: 800;
-    color: #8A1538;
+    color: {% brand_color "MAROON" %};
     font-size: 14px;
     vertical-align: middle;
     width: 92px;
   }
   .schedule-grid tr:nth-child(even) td:not(.period-cell) {
-    background: #fdf8f9;
+    background: {% brand_color "SURFACE_ALT" %};
   }
 
   /* ── Slot Content ── */
   .slot-subject {
     font-weight: 700;
-    color: #8A1538;
+    color: {% brand_color "MAROON" %};
     font-size: 11px;
     line-height: 1.3;
   }
   .slot-teacher {
     font-size: 10px;
-    color: #555;
+    color: {% brand_color "TEXT_SECONDARY" %};
     margin-top: 1px;
   }
   .slot-class {
     font-size: 10px;
-    color: #888;
+    color: {% brand_color "TEXT_MUTED" %};
     margin-top: 1px;
   }
   .slot-empty {
-    color: #ccc;
+    color: {% brand_color "TEXT_MUTED" %};
     font-size: 11px;
   }
   /* توقيتُ الحصّة داخل خانتها — فالورقةُ تُقرأ خانةً خانةً لا عموداً عموداً. */
   .slot-time {
     font-size: 9px;
-    color: #8A1538;
+    color: {% brand_color "MAROON" %};
     direction: ltr;
     text-align: center;
     margin-top: 2px;
@@ -192,8 +193,8 @@
     text-align: center;
     margin-top: 16px;
     font-size: 11px;
-    color: #888;
-    border-top: 1px solid #ddd;
+    color: {% brand_color "TEXT_MUTED" %};
+    border-top: 1px solid {% brand_color "BORDER" %};
     padding-top: 10px;
   }
 
@@ -221,11 +222,11 @@
     border-collapse: collapse;
     table-layout: fixed;
     font-size: 8px;
-    color: #000;
+    color: {% brand_color "TEXT_PRIMARY" %};
   }
   .schedule-matrix th,
   .schedule-matrix td {
-    border: 1px solid #000;
+    border: 1px solid {% brand_color "TEXT_PRIMARY" %};
     text-align: center;
     padding: 0;
     line-height: 1.35;
@@ -237,7 +238,7 @@
     font-size: 12px;
     font-weight: 700;
     padding: 3px 0;
-    background: #fff;
+    background: {% brand_color "SURFACE" %};
   }
   .schedule-matrix .m-period {
     font-size: 9px;
@@ -259,7 +260,7 @@
   /* تخصّصُ من أُلحق إدارياً بقسمٍ غيرِ تخصّصه — بلونٍ يفرّقه عن الاسم كي
      يُقرأ لاحقةً لا جزءاً منه. */
   .schedule-matrix .m-specialty {
-    color: #8A1538;
+    color: {% brand_color "MAROON" %};
     font-weight: 500;
     font-size: 7px;
   }
@@ -326,33 +327,33 @@
   .schedule-matrix tbody tr.dept-art          td { background: #f4d9e8; }
   /* سطرُ المجموع: أبيضُ بلا لونِ قسمٍ — فهو للجدول كلّه لا لقسمٍ منه. */
   .schedule-matrix tfoot td {
-    background: #fff;
+    background: {% brand_color "SURFACE" %};
     font-weight: 700;
     border-top-width: 2px;
   }
   /* خانةٌ دون المتوقَّع = شعبةٌ بلا معلّم في تلك الحصّة. والعلامةُ لونٌ
      وخطٌّ تحته معاً: اللونُ يضيع على طابعةٍ بالأبيض والأسود، والخطُّ يبقى. */
   .schedule-matrix tfoot td.m-short {
-    color: #b00020;
+    color: {% brand_color "STATUS_DANGER_FG" %};
     text-decoration: underline;
   }
   .matrix-empty {
     text-align: center;
     padding: 40px 0;
-    color: #666;
+    color: {% brand_color "TEXT_MUTED" %};
     font-size: 14px;
   }
   /* ترويسةُ الجدول العام: اسمُ المدرسة سطرٌ صغير، والعنوانُ كبيرٌ تحته. */
   .matrix-head { text-align: center; margin-bottom: 8px; }
-  .matrix-head .ministry { font-size: 11px; color: #333; }
-  .matrix-head .title { font-size: 26px; font-weight: 700; color: #000; margin: 2px 0; }
-  .matrix-head .sub { font-size: 11px; color: #333; }
-  .matrix-foot .foot-short { color: #b00020; font-weight: 700; }
+  .matrix-head .ministry { font-size: 11px; color: {% brand_color "TEXT_PRIMARY" %}; }
+  .matrix-head .title { font-size: 26px; font-weight: 700; color: {% brand_color "TEXT_PRIMARY" %}; margin: 2px 0; }
+  .matrix-head .sub { font-size: 11px; color: {% brand_color "TEXT_PRIMARY" %}; }
+  .matrix-foot .foot-short { color: {% brand_color "STATUS_DANGER_FG" %}; font-weight: 700; }
   .matrix-foot {
     display: flex;
     justify-content: space-between;
     font-size: 10px;
-    color: #333;
+    color: {% brand_color "TEXT_PRIMARY" %};
     margin-top: 6px;
   }
 
@@ -473,15 +474,15 @@
   /* شريطُ الإرشاد: سطرٌ يقول ما تفعله اليدُ قبل أن تجرّب. */
   .mx-hint {
     display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
-    font-size: 11px; color: #555; margin: 0 0 6px; padding: 5px 8px;
-    background: #f6f6f7; border: 1px solid #e2e2e6; border-radius: 6px;
+    font-size: 11px; color: {% brand_color "TEXT_SECONDARY" %}; margin: 0 0 6px; padding: 5px 8px;
+    background: {% brand_color "SURFACE_ALT" %}; border: 1px solid {% brand_color "BORDER" %}; border-radius: 6px;
   }
-  .mx-hint b { color: #8A1538; font-weight: 700; }
+  .mx-hint b { color: {% brand_color "MAROON" %}; font-weight: 700; }
   .mx-hint .mx-clear {
-    margin-inline-start: auto; border: 1px solid #cfcfd4; background: #fff;
-    border-radius: 5px; padding: 2px 10px; font: inherit; color: #444; cursor: pointer;
+    margin-inline-start: auto; border: 1px solid {% brand_color "BORDER_STRONG" %}; background: {% brand_color "SURFACE" %};
+    border-radius: 5px; padding: 2px 10px; font: inherit; color: {% brand_color "TEXT_SECONDARY" %}; cursor: pointer;
   }
-  .mx-hint .mx-clear:hover { background: #f0eaec; border-color: #8A1538; color: #8A1538; }
+  .mx-hint .mx-clear:hover { background: {% brand_color "BORDER" %}; border-color: {% brand_color "MAROON" %}; color: {% brand_color "MAROON" %}; }
   .mx-hint[hidden] { display: none; }
 
   .schedule-matrix { cursor: default; }
@@ -490,7 +491,7 @@
   /* ── التقاطع: الصفُّ بالمرور، والعمودُ بسمةٍ على الجدول ──
      وألوانُ الأقسام مصبوبةٌ على `tbody tr.dept-x td`، فرفعُ الوزن هنا
      ضرورةٌ لا زينة — وإلّا غلبَ لونُ القسمِ الإضاءةَ. */
-  .schedule-matrix tbody tr:hover > td { background: #fdf6e8; }
+  .schedule-matrix tbody tr:hover > td { background: {% brand_color "STATUS_WARNING_BG" %}; }
   .schedule-matrix[data-hl-col="0"] td[data-col="0"], .schedule-matrix[data-hl-col="1"] td[data-col="1"],
   .schedule-matrix[data-hl-col="2"] td[data-col="2"], .schedule-matrix[data-hl-col="3"] td[data-col="3"],
   .schedule-matrix[data-hl-col="4"] td[data-col="4"], .schedule-matrix[data-hl-col="5"] td[data-col="5"],
@@ -508,42 +509,42 @@
   .schedule-matrix[data-hl-col="28"] td[data-col="28"], .schedule-matrix[data-hl-col="29"] td[data-col="29"],
   .schedule-matrix[data-hl-col="30"] td[data-col="30"], .schedule-matrix[data-hl-col="31"] td[data-col="31"],
   .schedule-matrix[data-hl-col="32"] td[data-col="32"], .schedule-matrix[data-hl-col="33"] td[data-col="33"],
-  .schedule-matrix[data-hl-col="34"] td[data-col="34"] { background: #fbeecd; }
+  .schedule-matrix[data-hl-col="34"] td[data-col="34"] { background: {% brand_color "STATUS_WARNING_BG" %}; }
 
   /* ── التثبيت: الشعبةُ المثبَّتةُ تُضاء وما عداها يخفت ── */
   .schedule-matrix.has-pin tbody td { opacity: .34; }
   .schedule-matrix.has-pin tbody td.is-pin {
-    opacity: 1; background: #8A1538; color: #fff; font-weight: 700;
-    box-shadow: inset 0 0 0 1px #fff;
+    opacity: 1; background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; font-weight: 700;
+    box-shadow: inset 0 0 0 1px {% brand_color "SURFACE" %};
   }
   .schedule-matrix.has-pin tbody tr.is-pin-row > td { opacity: 1; }
   .schedule-matrix.has-pin tbody tr.is-pin-row > td.m-name,
-  .schedule-matrix.has-pin tbody tr.is-pin-row > td.m-total { background: #8A1538; color: #fff; }
+  .schedule-matrix.has-pin tbody tr.is-pin-row > td.m-total { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; }
   /* والتاجُ عنّابيٌّ على الأبيض — فإذا ثُبِّت السطرُ صارت الخلفيّةُ عنّابيّةً
      واختفى التاجُ في لونها. فيُقلَب فاتحاً ما دام السطرُ مثبَّتاً. */
-  .schedule-matrix.has-pin tbody tr.is-pin-row > td.m-name .m-specialty { color: #f3c6d2; }
+  .schedule-matrix.has-pin tbody tr.is-pin-row > td.m-name .m-specialty { color: {% brand_color "MAROON_BORDER" %}; }
 
   /* ── البحث: غيرُ المطابق يخفت ولا يختفي — فالسطرُ يبقى في موضعه ── */
   .schedule-matrix tbody tr.is-dim > td { opacity: .18; }
 
   /* ── الخانةُ المركَّزةُ بلوحة المفاتيح ── */
-  .schedule-matrix td.is-focus { outline: 2px solid #8A1538; outline-offset: -2px; }
+  .schedule-matrix td.is-focus { outline: 2px solid {% brand_color "MAROON" %}; outline-offset: -2px; }
 
   /* ── البطاقة ── */
   .mx-tip {
     position: fixed; z-index: 60; max-width: 320px; pointer-events: none;
-    background: #ffffff; color: #1e293b; border: 1px solid #8A1538;
+    background: {% brand_color "SURFACE" %}; color: {% brand_color "TEXT_PRIMARY" %}; border: 1px solid {% brand_color "MAROON" %};
     border-radius: 8px; padding: 8px 11px; font-size: 12px; line-height: 1.7;
     box-shadow: 0 8px 24px rgba(0,0,0,.18); opacity: 0;
     transition: opacity .1s linear;
   }
   .mx-tip.is-on { opacity: 1; }
-  .mx-tip .t-head { font-weight: 700; color: #8A1538; border-bottom: 1px solid #eee; padding-bottom: 3px; margin-bottom: 4px; }
+  .mx-tip .t-head { font-weight: 700; color: {% brand_color "MAROON" %}; border-bottom: 1px solid {% brand_color "BORDER" %}; padding-bottom: 3px; margin-bottom: 4px; }
   .mx-tip .t-line { display: block; }
-  .mx-tip .t-muted { color: #666; font-size: 11px; }
-  .mx-tip .t-spec { color: #8A1538; font-weight: 500; }
-  .mx-tip .t-free { color: #0b6b3a; font-weight: 600; }
-  .mx-tip .t-none { color: #b00020; font-weight: 600; }
+  .mx-tip .t-muted { color: {% brand_color "TEXT_MUTED" %}; font-size: 11px; }
+  .mx-tip .t-spec { color: {% brand_color "MAROON" %}; font-weight: 500; }
+  .mx-tip .t-free { color: {% brand_color "STATUS_SUCCESS_DARK" %}; font-weight: 600; }
+  .mx-tip .t-none { color: {% brand_color "STATUS_DANGER_FG" %}; font-weight: 600; }
 
   .mx-sr {
     position: absolute; width: 1px; height: 1px; overflow: hidden;
@@ -590,7 +591,7 @@
        الجسم تحمل لونَ قسمها من `tbody tr.dept-x td`، والرأسُ والذيلُ أبيضان. */
     .schedule-matrix thead .m-dept,
     .schedule-matrix thead .m-name,
-    .schedule-matrix tfoot .m-name { background: #fff; }
+    .schedule-matrix tfoot .m-name { background: {% brand_color "SURFACE" %}; }
     /* مجموعُ الحصص يمتدّ على العمودين، فيثبت عند الحافّة كأنّهما واحد. */
     .schedule-matrix tfoot .m-name[colspan] { inset-inline-start: 0; width: 210px; min-width: 210px; max-width: 210px; }
   }

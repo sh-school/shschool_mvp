@@ -1,0 +1,19 @@
+{% load ui %}
+<div class="exec-dash">
+
+  {% page_header "لوحة منسّق الأنشطة" subtitle=subtitle icon="star" %}{% endpage_header %}
+
+  {% kpi_strip label="الأنشطة" %}
+    {% kpi "فعاليات اليوم" sessions_today.count tone="teal" %}
+    {% kpi "أنشطة هذا الشهر" activities_this_month sub=activities_sub tone="green" %}
+    {% kpi "طلابٌ مشاركون" students_participating tone="blue" %}
+    {% kpi "مخالفات الشهر" behavior_monthly tone="maroon" %}
+  {% endkpi_strip %}
+
+  <nav class="ui-actions" aria-label="إجراءات سريعة">
+    {% url 'behavior:report_infraction' as u %}{% action_tile "السلوك" desc="تسجيلُ ومتابعةُ المخالفات" icon="shield" href=u primary=True %}
+    {% url 'student_affairs:student_list' as u %}{% action_tile "قائمة الطلاب" desc="مشاركةُ الطلاب في الأنشطة" icon="users" href=u %}
+    {% url 'analytics_dashboard' as u %}{% action_tile "التقارير" desc="إحصاءاتُ الأنشطة" icon="bar-chart-2" href=u %}
+  </nav>
+
+</div>

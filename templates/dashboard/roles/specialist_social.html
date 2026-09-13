@@ -1,0 +1,28 @@
+{% load ui %}
+<div class="exec-dash">
+
+  {% page_header "لوحة الأخصائي الاجتماعي والنفسي" subtitle=subtitle icon="users" %}{% endpage_header %}
+
+  {% kpi_strip label="هذا الشهر" %}
+    {% kpi "غيابٌ متكرّر" chronic_absent sub="أكثر من 3 أيّام" tone=chronic_tone %}
+    {% kpi "مخالفاتٌ سلوكيّة" behavior_monthly sub=behavior_sub tone=behavior_tone %}
+    {% kpi "طلابٌ راسبون" failing_students tone=failing_tone %}
+  {% endkpi_strip %}
+
+  {% if recent_alerts %}
+  {% section_card "تنبيهات الغياب المعلّقة" meta=recent_alerts|length icon="alert-triangle" %}
+    <ul class="plain-list">
+      {% for alert in recent_alerts %}
+        <li class="plain-list__row"><span class="plain-list__title">{{ alert.student.full_name }}</span><span class="status-badge status-danger">{{ alert.absence_count }} أيّام</span></li>
+      {% endfor %}
+    </ul>
+  {% endsection_card %}
+  {% endif %}
+
+  <nav class="ui-actions" aria-label="إجراءات سريعة">
+    {% url 'behavior:report_infraction' as u %}{% action_tile "المخالفات السلوكيّة" desc="عرضٌ وتسجيل" icon="alert-triangle" href=u primary=True %}
+    {% url 'student_affairs:student_list' as u %}{% action_tile "قائمة الطلاب" desc="البحث في ملفّات الطلاب" icon="users" href=u %}
+    {% url 'absence_list' as u %}{% action_tile "غياب المعلّمين" desc="متابعة الحالات" icon="bell" href=u %}
+  </nav>
+
+</div>
