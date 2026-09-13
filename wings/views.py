@@ -25,6 +25,7 @@ from operations.period_register import (
     confirm_period,
     focus_period,
     periods_of,
+    teacher_outs_of,
     teacher_taps_of,
 )
 from operations.services import ScheduleService
@@ -234,6 +235,7 @@ def record_section(request, class_id):
     focus = next((p for p in periods if p.start == wanted), None) or focus_period(periods, day, now)
     cells = cells_of(klass, day)
     taps = teacher_taps_of(klass, day)
+    outs = teacher_outs_of(klass, day)
     yesterday = absent_yesterday(klass, day)
     unexcused = unexcused_days_for_class(klass, school, day)
 
@@ -250,6 +252,8 @@ def record_section(request, class_id):
                 "cell": own.get(focus.start) if focus else None,
                 # نقرةُ المعلّم «دخل متأخّراً» قبل التثبيت: تُملأ الخانةُ «متأخّراً» بدقائقه.
                 "tap": taps.get(sid, {}).get(focus.start) if focus else None,
+                # خرج بإذن المعلّم ولم يعد: تُملأ الخانةُ «غائباً» ومكانُه.
+                "out": outs.get(sid, {}).get(focus.start) if focus else None,
                 "absent_yesterday": sid in yesterday,
                 "days": days,
                 "gate": gate,
@@ -299,4 +303,90 @@ def record_period(request, class_id):
         return redirect(back)
 
     messages.success(request, f"ثُبّتت {klass.short_code} — {result.says}.")
+    return redirect(back)
+
+
+# ═════════════════════════════════════════════════════════════════════
+# تصحيحُ إدخالٍ خاطئ — أحداثُ الطالب بحذفٍ مُسبَّب (قرارُ 2026-09-13)
+# ═════════════════════════════════════════════════════════════════════
+
+
+@login_required
+@capability_required("wings.record_day")
+def student_events(request, class_id, student_id):
+    """أحداثُ طالبٍ من شُعب جناحي (غياب/تأخّر/خروج) سطراً سطراً — لحذف ما رُصد بالخطأ.
+
+    الحذفُ بسبب، ويُسجَّل في سجلّ المراجعة، ويُعاد حكمُ الكشف على يومه فتزول مخالفةُ
+    التأخّر أو الهروب التي بُنيت عليه. والخانةُ تعود «لم تُرصد» لا «حاضراً».
+    """
+    from operations.models import ClassExit
+
+    school, klass = _own_class(request, class_id)
+    student = get_object_or_404(
+        CustomUser, id=student_id, enrollments__class_group=klass, enrollments__is_active=True
+    )
+    attendance_events = list(
+        StudentAttendance.objects.filter(student=student, school=school)
+        .exclude(status="present")
+        .select_related("session__subject", "session__class_group")
+        .order_by("-session__date", "-session__start_time")[:60]
+    )
+    exit_events = list(
+        ClassExit.objects.filter(student=student, school=school)
+        .select_related("session__subject", "allowed_by")
+        .order_by("-left_at")[:60]
+    )
+    return render(
+        request,
+        "wings/student_events.html",
+        {
+            "klass": klass,
+            "student": student,
+            "attendance_events": attendance_events,
+            "exit_events": exit_events,
+            "can_delete_events": True,
+        },
+    )
+
+
+@login_required
+@capability_required("wings.record_day")
+@require_POST
+def attendance_event_delete(request, pk):
+    """حذفُ سجلّ حضورٍ (غياب/تأخّر) بسبب — ويُعاد حكمُ الكشف على يومه."""
+    from operations.undo import delete_attendance_event
+
+    school = request.user.get_school()
+    row = get_object_or_404(
+        StudentAttendance.objects.select_related("session"), pk=pk, school=school
+    )
+    _own_class(request, row.session.class_group_id)
+    back = reverse("wings:student_events", args=[row.session.class_group_id, row.student_id])
+    reason = (request.POST.get("reason") or "").strip()
+    if not reason:
+        messages.error(request, "اكتب سببَ الحذف.")
+        return redirect(back)
+    delete_attendance_event(request, row, reason)
+    messages.success(request, "حُذف السجلُّ وسُجّل التراجعُ في سجلّ المراجعة.")
+    return redirect(back)
+
+
+@login_required
+@capability_required("wings.record_day")
+@require_POST
+def exit_event_delete(request, pk):
+    """حذفُ خروجٍ من الفصل بسبب."""
+    from operations.models import ClassExit
+    from operations.undo import delete_exit_event
+
+    school = request.user.get_school()
+    exit_ = get_object_or_404(ClassExit.objects.select_related("session"), pk=pk, school=school)
+    _own_class(request, exit_.session.class_group_id)
+    back = reverse("wings:student_events", args=[exit_.session.class_group_id, exit_.student_id])
+    reason = (request.POST.get("reason") or "").strip()
+    if not reason:
+        messages.error(request, "اكتب سببَ الحذف.")
+        return redirect(back)
+    delete_exit_event(request, exit_, reason)
+    messages.success(request, "حُذف الخروجُ وسُجّل التراجعُ في سجلّ المراجعة.")
     return redirect(back)

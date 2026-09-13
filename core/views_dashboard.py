@@ -555,7 +555,9 @@ def dashboard(request):
     if role == "parent":
         return redirect("parent_dashboard")
 
-    today = timezone.now().date()
+    # بتوقيت المدرسة لا UTC: بين 21:00 و00:00 UTC يختلف اليومان، فكان تكليفُ بديلٍ
+    # يبدأ «اليوم» (بتوقيت قطر) لا يُرى في اللوحة (سقوطُ البوّابة عند منتصف الليل 2026-09-14).
+    today = timezone.localdate()
     ctx = {"today": today, "school": school}
 
     if role == "student":

@@ -40,11 +40,11 @@ def attendance_tone(status: str) -> str:
 def schedule(request):
     """جدول حصص المعلم اليوم"""
     school = request.user.get_school()
-    today = request.GET.get("date", timezone.now().date().isoformat())
+    today = request.GET.get("date", timezone.localdate().isoformat())
     try:
         selected_date = date.fromisoformat(today)
     except ValueError:
-        selected_date = timezone.now().date()
+        selected_date = timezone.localdate()
 
     # ── تأكد من وجود حصص للتاريخ المختار (أي تاريخ) ──
     ScheduleService.ensure_sessions_for_date(school, selected_date)
@@ -142,7 +142,7 @@ def schedule(request):
             "open_tone": "orange" if open_count else "green",
             "sessions": sessions,
             "selected_date": selected_date,
-            "today": timezone.now().date(),
+            "today": timezone.localdate(),
             "next_session": next_session,
             "user_role": request.user.get_role(),
             # الرصدُ لمشرف الجناح: المعلّمُ يرى «عرض الحضور» لا «تسجيل».
@@ -206,6 +206,9 @@ def attendance_view(request, session_id):
     for row in students_data:
         row["tone"] = attendance_tone(row["status"])
     summary = AttendanceService.get_session_summary(session)
+    from .class_exit import exits_of_session
+
+    exits = exits_of_session(session)
     if not can_record(request.user, session):
         # اطّلاعٌ لا رصد: يرى المعلّمُ ما رصده مشرفُ الجناح، ولا زرَّ يكتب —
         # إلّا نقرةَ «دخل متأخّراً» لصاحب الحصّة (قرارُ 2026-09-13).
@@ -215,6 +218,8 @@ def attendance_view(request, session_id):
             {
                 "session": session,
                 "can_tap_late": request.user == session.teacher,
+                "exits": exits,
+                "out_now": sum(1 for cur, _ in exits.values() if cur is not None),
                 "students_data": [
                     {
                         **row,
@@ -224,6 +229,8 @@ def attendance_view(request, session_id):
                             if row["attendance"] and row["attendance"].source == "teacher_late"
                             else None
                         ),
+                        "exit": exits.get(row["student"].id, (None, []))[0],
+                        "exit_count": len(exits.get(row["student"].id, (None, []))[1]),
                     }
                     for row in students_data
                 ],
@@ -331,6 +338,99 @@ def mark_late_tap(request, session_id):
         "teacher/partials/late_tap.html",
         {"session": session, "student": student, "minutes": minutes, "tapped": True},
     )
+
+
+def _own_session_or_403(request, session_id):
+    school = request.user.get_school()
+    session = get_object_or_404(Session, id=session_id, school=school)
+    if request.user != session.teacher and not request.user.is_leadership():
+        return session, HttpResponse("هذه الحصّة ليست لك.", status=403)
+    return session, None
+
+
+def _enrolled_student(request, session):
+    from core.models import CustomUser
+
+    return get_object_or_404(
+        CustomUser,
+        id=request.POST.get("student_id"),
+        enrollments__class_group=session.class_group,
+        enrollments__is_active=True,
+    )
+
+
+def _exit_cell(request, session, student):
+    from .class_exit import open_exit
+
+    return render(
+        request,
+        "teacher/partials/exit_tap.html",
+        {"session": session, "student": student, "current": open_exit(session, student)},
+    )
+
+
+@login_required
+@capability_required("attendance.mark")
+@require_POST
+def mark_exit(request, session_id):
+    """HTMX: نقرةُ «خرج بإذن» — بوجهةٍ، والنظامُ يسجّل لحظتَها (قرارُ 2026-09-13)."""
+    from .class_exit import leave
+
+    session, denied = _own_session_or_403(request, session_id)
+    if denied:
+        return denied
+    student = _enrolled_student(request, session)
+    leave(session, student, request.POST.get("destination", "restroom"), by=request.user)
+    return _exit_cell(request, session, student)
+
+
+@login_required
+@capability_required("attendance.mark")
+@require_POST
+def mark_return(request, session_id):
+    """HTMX: نقرةُ «عاد» — تُغلق الخروجَ بلحظتها."""
+    from .class_exit import come_back
+
+    session, denied = _own_session_or_403(request, session_id)
+    if denied:
+        return denied
+    student = _enrolled_student(request, session)
+    come_back(session, student)
+    return _exit_cell(request, session, student)
+
+
+@login_required
+@capability_required("attendance.mark")
+@require_POST
+def undo_late_tap_view(request, session_id):
+    """HTMX: تراجعُ المعلّم عن «دخل الآن» — نقرةٌ على طالبٍ آخر (ما لم يثبّت المشرف)."""
+    from .undo import undo_late_tap
+
+    session, denied = _own_session_or_403(request, session_id)
+    if denied:
+        return denied
+    student = _enrolled_student(request, session)
+    undo_late_tap(request, session, student)
+    return render(
+        request,
+        "teacher/partials/late_tap.html",
+        {"session": session, "student": student, "tapped": False},
+    )
+
+
+@login_required
+@capability_required("attendance.mark")
+@require_POST
+def cancel_exit_view(request, session_id):
+    """HTMX: إلغاءُ «خرج بإذن» المفتوح — لا «عاد»: الإلغاءُ لا يترك دقائق."""
+    from .undo import cancel_exit
+
+    session, denied = _own_session_or_403(request, session_id)
+    if denied:
+        return denied
+    student = _enrolled_student(request, session)
+    cancel_exit(request, session, student)
+    return _exit_cell(request, session, student)
 
 
 @login_required

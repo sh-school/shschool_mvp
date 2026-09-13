@@ -1,30 +1,49 @@
 {% extends "base/base.html" %}
 {% load ui %}
-{% block title %}حضور — {{ session.class_group }}{% endblock %}
+{% comment %}
+حصّةُ المعلّم في شُعب الأجنحة — لا رصدَ غيابٍ فيها (الرصدُ لمشرف الجناح، قرارُ المدير).
+للمعلّم نقرتان تسجّلان اللحظةَ بلا إدخال: «دخل الآن» لمن دخل متأخّراً، و«خرج بإذن» ثمّ
+«عاد» لمن غادر الفصل أثناء الحصّة (قرارُ 2026-09-13). ولا رقمَ شخصيّاً: الاسمُ يكفي.
+{% endcomment %}
+{% block title %}حصّتي — {{ session.class_group }}{% endblock %}
 
 {% block breadcrumbs %}
 {% url 'teacher_schedule' as schedule_url %}
-{% include "components/breadcrumbs.html" with parent_url=schedule_url parent_label="الأكاديمية" current="حضور الحصّة" %}
+{% include "components/breadcrumbs.html" with parent_url=schedule_url parent_label="حصصي اليوم" current="الحصّة" %}
 {% endblock %}
 
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header page_title subtitle=session_label icon="list-checks" %}{% endpage_header %}
+  {% page_header page_title subtitle=session_label icon="list-checks" %}
+    {% if recorded %}<span class="status-badge status-success">{% include "components/icon.html" with name="check" %} رصدها المشرف</span>
+    {% else %}<span class="status-badge status-warning">{% include "components/icon.html" with name="clock" %} لم يُرصد بعد</span>{% endif %}
+  {% endpage_header %}
 
-  <p class="form-note is-warning">
-    {% include "components/icon.html" with name="alert-triangle" %}
-    <span>رصدُ الغياب لمشرف الجناح بقرار إدارة المدرسة — هذه الشاشة للاطّلاع.
-    {% if not recorded %}ولم يُرصد هذا اليومُ بعد.{% endif %}
-    {% if can_tap_late %}ومن دخل متأخّراً انقر «دخل الآن» عند دخوله — يُسجَّل الوقتُ ويراه المشرف.{% endif %}</span>
+  {% kpi_strip label="الحصّة الآن" %}
+    {% kpi "الطلاب" students_data|length %}
+    {% kpi "حاضر" summary.present|default:0 tone="green" %}
+    {% kpi "غائب" summary.absent|default:0 tone="red" %}
+    {% kpi "متأخّر" summary.late|default:0 tone="amber" %}
+    {% kpi "خارج الفصل الآن" out_now|default:0 tone="blue" %}
+  {% endkpi_strip %}
+
+  {% if can_tap_late %}
+  <p class="form-note">
+    {% include "components/icon.html" with name="info" %}
+    <span>الرصدُ لمشرف الجناح. ولك نقرتان تسجّلان الوقتَ من فورهما: <b>دخل الآن</b> لمن دخل متأخّراً، و<b>خرج بإذن</b> ثمّ <b>عاد</b> لمن غادر الفصل.</span>
   </p>
+  {% endif %}
 
-  <ol class="rec-list">
+  {% section_card "الطلاب" meta=students_data|length icon="users" flush=True empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}
+  <ul class="plain-list tch-list">
     {% for item in students_data %}
-    <li class="rec-row" data-state="{{ item.status }}">
-      <span class="rec-row__no">{{ forloop.counter }}</span>
-      <span class="rec-row__name">{{ item.student.full_name }}</span>
-      <span class="rec-row__pick" id="late-tap-{{ item.student.id }}">
+    <li class="plain-list__row" data-state="{{ item.status }}">
+      <span class="plain-list__main">
+        <span class="plain-list__title"><span class="tch-no">{{ forloop.counter }}</span> {{ item.student.full_name }}</span>
+        {% if item.exit_count %}<span class="plain-list__sub">خرج {{ item.exit_count }} مرّة في هذه الحصّة</span>{% endif %}
+      </span>
+      <span class="tch-state" id="late-tap-{{ item.student.id }}">
         {% if item.tap_minutes is not None %}
           {% include "teacher/partials/late_tap.html" with student=item.student minutes=item.tap_minutes tapped=True %}
         {% elif item.status == "absent" %}<span class="badge badge--danger">غائب</span>
@@ -36,9 +55,15 @@
           {% include "teacher/partials/late_tap.html" with student=item.student tapped=False %}
         {% endif %}
       </span>
+      {% if can_tap_late %}
+      <span class="tch-exit" id="exit-tap-{{ item.student.id }}">
+        {% include "teacher/partials/exit_tap.html" with student=item.student current=item.exit %}
+      </span>
+      {% endif %}
     </li>
     {% endfor %}
-  </ol>
+  </ul>
+  {% endif %}{% endsection_card %}
 
 </div>
 {% endblock %}
