@@ -67,6 +67,9 @@ AAdocs/ministry_data/2026_2027/*
 !AAdocs/ministry_data/2026_2027/06b_attendance_performance_thirdpass.md
 !AAdocs/ministry_data/2026_2027/07b_forms_catalog_thirdpass.md
 !AAdocs/ministry_data/2026_2027/08b_conduct_policy_thirdpass.md
+!AAdocs/ministry_data/2026_2027/07c_student_forms_catalog.md
+!AAdocs/ministry_data/2026_2027/07d_additional_forms_catalog.md
+!AAdocs/ministry_data/2026_2027/rbac_job_code_conflict_proposal.md
 nginx/ssl/
 node_modules/
 ZZZZ.zip
