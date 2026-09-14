@@ -417,7 +417,6 @@ def supervisor_watchlist(user: CustomUser, school: School, year: str, day: dt.da
     from operations.absence_policy import breached, next_gate
     from operations.absence_standing import unexcused_days_for_class
     from operations.guardian_contact import awaiting_contact
-
     from wings.scope import student_scope
 
     scope = student_scope(user, school)

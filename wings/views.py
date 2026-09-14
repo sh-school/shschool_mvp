@@ -30,7 +30,6 @@ from operations.period_register import (
     teacher_taps_of,
 )
 from operations.services import ScheduleService
-
 from wings.scope import student_scope_for
 
 from .services import (
