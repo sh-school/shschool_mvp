@@ -93,7 +93,8 @@ class TestTemplatesAgreeWithTheStylesheet:
         ]
         assert offenders == []
 
-    @pytest.mark.parametrize("name", ["charts-grid-3", "quick-links--few"])
+    # `quick-links--few` كانت هنا — حُذفت مع «الوصول السريع» لمّا صار أزراراً في الترويسة.
+    @pytest.mark.parametrize("name", ["charts-grid-3"])
     def test_the_grid_classes_the_dashboards_use_are_defined(self, name):
         assert re.search(rf"\.{re.escape(name)}\s*\{{", CSS.read_text(encoding="utf-8"))
 

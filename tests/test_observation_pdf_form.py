@@ -90,11 +90,18 @@ def test_the_vertical_margins_hold_the_bands_and_no_more(source):
 
 
 @pytest.mark.parametrize(
-    ("colour", "where"),
-    [("#943634", "شرائط العناوين"), ("#DDD9C3", "أرضيّة رؤوس الأعمدة")],
+    ("const", "colour", "where"),
+    [
+        ("FORM_BAND", "#943634", "شرائط العناوين"),
+        ("FORM_KEY_BG", "#DDD9C3", "أرضيّة رؤوس الأعمدة"),
+    ],
 )
-def test_the_colours_come_from_the_original(source, colour, where):
-    assert colour in source, where
+def test_the_colours_come_from_the_original(source, const, colour, where):
+    """اللونان من الأصل — يُقرآن من `core.brand` (مرآةِ `:root`) لا يُكتبان في القالب."""
+    from core import brand
+
+    assert getattr(brand, const).lower() == colour.lower(), where
+    assert f'{{% brand_color "{const}" %}}' in source, where
 
 
 def test_the_original_font_is_asked_for_first_but_never_shipped(source):

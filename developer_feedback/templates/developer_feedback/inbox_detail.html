@@ -1,71 +1,49 @@
 {% extends "base/base.html" %}
-{% load static i18n %}
+{% load i18n ui %}
+{% comment %}
+تفصيلُ التذكرة — عنوانُ الرسالة هو عنوانُ الصفحة، ورقمُ التذكرة في طرف
+الترويسة بصنفه (`dir="ltr"` يحفظ ترتيبَ حروفه داخل سطرٍ عربيّ) فلا يُعاد في
+بطاقة البيانات. والبطاقاتُ الخمس من `section_card`: النصُّ، والسياقُ التقنيُّ
+(حالتُه الفارغةُ من البطاقة)، وتحديثُ الحالة، والبياناتُ، والسجلُّ الزمنيّ.
+والعمودان `df-grid-2` خاصّان بالوحدة.
+{% endcomment %}
 
 {% block title %}{% trans "تذكرة" %} {{ dev_message.ticket_number }}{% endblock %}
-
-{% block extra_css %}
-{{ block.super }}
-{% endblock %}
-
-{% block page_header %}
-<div class="df-container df-page-header-row">
-  <div>
-    <h1 class="df-page-title">
-      {% trans "تذكرة" %} <code dir="ltr">{{ dev_message.ticket_number }}</code>
-    </h1>
-  </div>
-  <a href="{% url 'developer_feedback:inbox_list' %}" class="btn btn-secondary">
-    {% include "components/icon.html" with name="arrow-right" %}
-    {% trans "عودة للصندوق" %}
-  </a>
-</div>
-{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent2_url="/developer-feedback/" parent2_label="تواصل مع المطوّر" parent_url="/developer-feedback/inbox/" parent_label="صندوق الوارد" current="تفصيل الرسالة" %}
 {% endblock %}
 
 {% block content %}
-<main id="main-content" class="df-container" role="main">
+<div class="exec-dash df-page">
+  {% page_header dev_message.subject subtitle=dev_message.get_message_type_display icon="inbox" %}
+    <code class="df-ticket-inline" dir="ltr">{{ dev_message.ticket_number }}</code>
+    <a href="{% url 'developer_feedback:inbox_list' %}" class="btn-secondary btn-sm">
+      {% include "components/icon.html" with name="arrow-right" %}
+      {% trans "عودة للصندوق" %}
+    </a>
+  {% endpage_header %}
 
   <div class="df-grid-2">
 
     {# ═══════════════════════ الجانب الرئيسي ═══════════════════════ #}
     <div class="df-main-col">
 
-      {# ── بطاقة الرسالة ── #}
-      <article class="df-card" aria-labelledby="df-msg-subject">
-        <h2 id="df-msg-subject" class="df-card-title">{{ dev_message.subject }}</h2>
+      {% section_card _("نصّ الرسالة") icon="mail" %}
         <div class="df-message-body">{{ dev_message.body|linebreaks }}</div>
-      </article>
+      {% endsection_card %}
 
-      {# ── بطاقة السياق التقني ── #}
-      <section class="df-card" aria-labelledby="df-context-card-title">
-        <h2 id="df-context-card-title" class="df-card-title">
-          {% include "components/icon.html" with name="info" %}
-          {% trans "معلومات السياق التقني" %}
-        </h2>
+      {% section_card _("معلومات السياق التقني") icon="info" empty=_("لا توجد معلومات سياق مرفقة.") %}{% if dev_message.context_json %}
+        <dl class="df-context-preview">
+          {% for key, value in dev_message.context_json.items %}
+            <dt>{{ key }}</dt>
+            <dd>{{ value }}</dd>
+          {% endfor %}
+        </dl>
+      {% endif %}{% endsection_card %}
 
-        {% if dev_message.context_json %}
-          <dl class="df-context-preview">
-            {% for key, value in dev_message.context_json.items %}
-              <dt>{{ key }}</dt>
-              <dd>{{ value }}</dd>
-            {% endfor %}
-          </dl>
-        {% else %}
-          <p class="helptext">{% trans "لا توجد معلومات سياق مرفقة." %}</p>
-        {% endif %}
-      </section>
-
-      {# ── تحديث الحالة ── #}
-      <section class="df-card" aria-labelledby="df-update-title">
-        <h2 id="df-update-title" class="df-card-title">
-          {% include "components/icon.html" with name="refresh" %}
-          {% trans "تحديث حالة التذكرة" %}
-        </h2>
-
-        <form method="post" action="" novalidate>
+      {% section_card _("تحديث حالة التذكرة") icon="refresh" %}
+        <form method="post" action="" novalidate class="df-form">
           {% csrf_token %}
 
           <div class="df-form-group">
@@ -92,27 +70,21 @@
             <small class="helptext">{% trans "ستظهر في سجل التغييرات أسفل الصفحة." %}</small>
           </div>
 
-          <div class="df-btn-group">
-            <button type="submit" class="btn btn-primary">
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">
               {% include "components/icon.html" with name="check" %}
               {% trans "تحديث الحالة" %}
             </button>
           </div>
         </form>
-      </section>
+      {% endsection_card %}
     </div>
 
     {# ═══════════════════════ الجانب الفرعي (Sidebar) ═══════════════════════ #}
     <aside class="df-sidebar-col" aria-label="{% trans 'بيانات التذكرة' %}">
 
-      {# ── بطاقة البيانات ── #}
-      <div class="df-card df-card-sidebar">
-        <h2 class="df-card-title">{% trans "بيانات التذكرة" %}</h2>
-
+      {% section_card _("بيانات التذكرة") icon="file-text" %}
         <dl class="df-meta-list">
-          <dt>{% trans "رقم التذكرة" %}</dt>
-          <dd><code dir="ltr">{{ dev_message.ticket_number }}</code></dd>
-
           <dt>{% trans "النوع" %}</dt>
           <dd><span class="df-badge df-badge-type">{{ dev_message.get_message_type_display }}</span></dd>
 
@@ -140,37 +112,31 @@
           <dt>{% trans "آخر تحديث" %}</dt>
           <dd><time datetime="{{ dev_message.updated_at|date:'c' }}">{{ dev_message.updated_at|date:"Y/m/d H:i" }}</time></dd>
         </dl>
-      </div>
+      {% endsection_card %}
 
-      {# ── Timeline ── #}
-      <div class="df-card df-card-sidebar">
-        <h2 class="df-card-title">{% trans "سجل الحالة" %}</h2>
-        {% if status_logs %}
-          <ul class="df-timeline">
-            {% for log in status_logs %}
-              <li>
-                <div class="df-timeline-change">
-                  {% include "developer_feedback/_status_badge.html" with status=log.old_status %}
-                  <span aria-hidden="true">←</span>
-                  {% include "developer_feedback/_status_badge.html" with status=log.new_status %}
-                </div>
-                <div class="df-timeline-meta">
-                  <time datetime="{{ log.changed_at|date:'c' }}">{{ log.changed_at|date:"Y/m/d H:i" }}</time>
-                  {% if log.changed_by %}
-                    — {{ log.changed_by.full_name|default:log.changed_by }}
-                  {% endif %}
-                </div>
-                {% if log.note %}
-                  <div class="df-timeline-note">{{ log.note }}</div>
+      {% section_card _("سجل الحالة") meta=status_logs|length icon="clock" empty=_("لا يوجد سجل تغييرات حتى الآن.") %}{% if status_logs %}
+        <ul class="df-timeline">
+          {% for log in status_logs %}
+            <li>
+              <div class="df-timeline-change">
+                {% include "developer_feedback/_status_badge.html" with status=log.old_status %}
+                <span aria-hidden="true">←</span>
+                {% include "developer_feedback/_status_badge.html" with status=log.new_status %}
+              </div>
+              <div class="df-timeline-meta">
+                <time datetime="{{ log.changed_at|date:'c' }}">{{ log.changed_at|date:"Y/m/d H:i" }}</time>
+                {% if log.changed_by %}
+                  — {{ log.changed_by.full_name|default:log.changed_by }}
                 {% endif %}
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="helptext">{% trans "لا يوجد سجل تغييرات حتى الآن." %}</p>
-        {% endif %}
-      </div>
+              </div>
+              {% if log.note %}
+                <div class="df-timeline-note">{{ log.note }}</div>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}{% endsection_card %}
     </aside>
   </div>
-</main>
+</div>
 {% endblock %}

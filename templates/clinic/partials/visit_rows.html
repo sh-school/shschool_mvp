@@ -2,64 +2,50 @@
   Partial: صفوف جدول الزيارات — SchoolOS v5.1
   يُعاد هذا القالب في طلبات HTMX (البحث الحي والترشيح)
   Target: #visits-container
-{% endcomment %}
-{% if visits %}
-<div class="card-qatar overflow-hidden">
-  <table class="w-full text-sm text-right">
-    <thead class="bg-gray-50 text-gray-500 text-xs border-b">
-      <tr>
-        <th scope="col" class="px-4 py-3">الطالب</th>
-        <th scope="col" class="px-4 py-3">التاريخ والوقت</th>
-        <th scope="col" class="px-4 py-3">السبب</th>
-        <th scope="col" class="px-4 py-3 text-center">الحرارة</th>
-        <th scope="col" class="px-4 py-3">الإجراء</th>
-        <th scope="col" class="px-4 py-3">ملاحظات</th>
-      </tr>
-    </thead>
-    <tbody class="divide-y" id="visits-tbody">
-      {% for v in visits %}
-      <tr class="hover:bg-gray-50 transition-colors">
-        <td class="px-4 py-3">
-          <a href="{% url 'clinic:health_record' v.student.id %}" class="font-medium text-red-700 hover:underline">
-            {{ v.student.full_name }}
-          </a>
-        </td>
-        <td class="px-4 py-3 text-gray-500 whitespace-nowrap">{{ v.visit_date|date:"d/m/Y H:i" }}</td>
-        <td class="px-4 py-3">{{ v.reason }}</td>
-        <td class="px-4 py-3 text-center">
-          {% if v.temperature %}
-            <span class="font-mono {% if v.temperature >= 38 %}text-[var(--status-danger-fg)] font-semibold{% else %}text-gray-600{% endif %}">
-              {{ v.temperature }}°
-            </span>
-          {% else %}—{% endif %}
-        </td>
-        <td class="px-4 py-3 text-gray-500">{{ v.treatment|default:"—" }}</td>
-        <td class="px-4 py-3">
-          <div class="flex flex-wrap gap-1">
-            {% if v.is_sent_home %}
-              <span class="status-badge status-warning">{% include "components/icon.html" with name="home" %} منزل</span>
-            {% endif %}
-            {% if v.parent_notified %}
-              <span class="status-badge status-success">{% include "components/icon.html" with name="phone" %} أُبلغ</span>
-            {% endif %}
-            {% if not v.is_sent_home and not v.parent_notified %}
-              <span class="text-xs text-gray-400">—</span>
-            {% endif %}
-          </div>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-
-{# عدّاد النتائج #}
-<p class="text-xs text-gray-400 mt-2 text-left">
-  {{ visits|length }} زيارة
-  {% if date_filter %} — {{ date_filter }}{% endif %}
-  {% if student_filter %} — {{ student_filter }}{% endif %}
-</p>
-
-{% else %}
-{% include "components/empty_state.html" with icon="list-checks" title="لا توجد زيارات" subtitle="لا توجد زيارات مطابقة للمعايير المحددة" %}
-{% endif %}
+{% endcomment %}{% load ui %}
+{% section_card "الزيارات" meta=visits|length icon="clipboard" flush=True empty="لا توجد زيارات" empty_sub="لا توجد زيارات مطابقة للمعايير المحددة" %}{% if visits %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">الطالب</th>
+          <th scope="col">التاريخ والوقت</th>
+          <th scope="col">السبب</th>
+          <th scope="col" class="num">الحرارة</th>
+          <th scope="col">الإجراء</th>
+          <th scope="col">ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody id="visits-tbody">
+        {% for v in visits %}
+        <tr>
+          <td>
+            <a href="{% url 'clinic:health_record' v.student.id %}" class="link-maroon">{{ v.student.full_name }}</a>
+          </td>
+          <td class="num text-secondary">{{ v.visit_date|date:"d/m/Y H:i" }}</td>
+          <td>{{ v.reason }}</td>
+          <td class="num">
+            {% if v.temperature %}
+              <span class="clinic-temp{% if v.is_feverish %} is-fever{% endif %}">{{ v.temperature }}°</span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-secondary">{{ v.treatment|default:"—" }}</td>
+          <td>
+            <div class="flex flex-wrap gap-1">
+              {% if v.is_sent_home %}
+                <span class="status-badge status-warning">{% include "components/icon.html" with name="home" %} منزل</span>
+              {% endif %}
+              {% if v.parent_notified %}
+                <span class="status-badge status-success">{% include "components/icon.html" with name="phone" %} أُبلغ</span>
+              {% endif %}
+              {% if not v.is_sent_home and not v.parent_notified %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endif %}{% endsection_card %}

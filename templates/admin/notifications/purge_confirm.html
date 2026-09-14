@@ -4,6 +4,64 @@
   زيارةُ الرابط بالخطأ — أو استباقُ المتصفّح له — لا تحذف شيئاً.
 {% endcomment %}
 
+{% block extrastyle %}
+{{ block.super }}
+{% comment %}
+  لوحةُ الإدارة لا تحمل `custom.css`، وأصنافُها (`errornote`، `button`…) معرَّفةٌ
+  في ملفّات Django لا في ملفّات المنصّة — فكان الحارسُ يعدّها بلا تعريف. فالأصنافُ
+  هنا لهذه الصفحة وحدها، تقرأ متغيّراتِ لوحة الإدارة نفسَها فتتبع وضعَها الليليّ،
+  وقيمُها ما كانت الصفحةُ تُرسم به: `errornote` و`module` و`a.button` من
+  `base.css`، وحشوُ `.aligned label` و`.submit-row` من `rtl.css`/`responsive.css`.
+  وما سواها (`aligned` و`submit-row` و`deletelink` على زرّ الإرسال و`cancel-link`)
+  لم يكن يرسم شيئاً: `forms.css` لا تُحمَّل في هذه الصفحة، و`input[type=submit]`
+  أخصُّ من `.deletelink`.
+  والمتغيّراتُ تعرّفها `admin/css/base.css` لا `custom.css`، فلكلٍّ بديلٌ من ألوان
+  النظام: لا يُرى ما دامت لوحةُ الإدارة تحمّل ملفَّها، ويمنع سقوطَ التصريح كلِّه إن لم تفعل.
+{% endcomment %}
+<style>
+  .purge-warning {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 700;
+    padding: 10px 12px;
+    margin: 0 0 10px 0;
+    color: var(--error-fg, currentColor);
+    border: 1px solid var(--error-fg, currentColor);
+    border-radius: 4px;
+    background-color: var(--body-bg, Canvas);
+    overflow-wrap: break-word;
+  }
+  .purge-fieldset { border: none; margin-bottom: 30px; background: var(--body-bg, Canvas); }
+  .purge-fieldset label { padding: 0 0 3px 1em; }
+  .purge-actions { text-align: right; }
+  a.purge-button {
+    background: var(--button-bg, ButtonFace);
+    padding: 4px 5px;
+    border: none;
+    border-radius: 4px;
+    color: var(--button-fg, ButtonText);
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  form a.purge-button {
+    margin: 2px 0;
+    vertical-align: middle;
+    font-family: var(--font-family-primary, sans-serif);
+    font-weight: normal;
+    font-size: 0.8125rem;
+  }
+  a.purge-button:active, a.purge-button:focus, a.purge-button:hover { background: var(--button-hover-bg, ButtonFace); }
+  @media (max-width: 1024px) {
+    .purge-fieldset label { padding-top: 6px; }
+    .purge-actions { padding: 8px; }
+    a.purge-button { padding: 7px; }
+  }
+  @media (max-width: 767px) {
+    .purge-fieldset label { width: 100%; min-width: auto; padding: 0 0 10px; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
   {# لا شريطَ تصفّحٍ هنا: مكوّنُه من واجهة المنصّة لا من لوحة الإدارة. #}
   <h1>حذف كلّ {{ opts.verbose_name_plural }}</h1>
@@ -11,7 +69,7 @@
   <p>{{ purge_warning }}</p>
 
   {% if total %}
-    <p class="errornote" style="display:block">
+    <p class="purge-warning">
       سيُحذف <strong>{{ total }}</strong> صفّاً نهائياً من جدول
       <code>{{ opts.db_table }}</code>. لا تراجُعَ عن هذا الفعل، ولا يستعيده إلّا
       نسخةٌ احتياطيّة.
@@ -19,7 +77,7 @@
 
     <form method="post">
       {% csrf_token %}
-      <fieldset class="module aligned">
+      <fieldset class="purge-fieldset">
         <div class="form-row">
           <label for="confirm_word">اكتب كلمة <strong>حذف</strong> للتأكيد:</label>
           <input type="text" name="confirm_word" id="confirm_word"
@@ -27,15 +85,15 @@
         </div>
       </fieldset>
 
-      <div class="submit-row">
-        <input type="submit" class="deletelink" value="نعم، احذف الكلّ ({{ total }})">
-        <a href="{{ changelist_url }}" class="button cancel-link">إلغاء</a>
+      <div class="purge-actions">
+        <input type="submit" value="نعم، احذف الكلّ ({{ total }})">
+        <a href="{{ changelist_url }}" class="purge-button">إلغاء</a>
       </div>
     </form>
   {% else %}
     <p>الجدولُ فارغٌ أصلاً — لا شيءَ ليُحذف.</p>
-    <div class="submit-row">
-      <a href="{{ changelist_url }}" class="button">رجوع</a>
+    <div class="purge-actions">
+      <a href="{{ changelist_url }}" class="purge-button">رجوع</a>
     </div>
   {% endif %}
 {% endblock %}

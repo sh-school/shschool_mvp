@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}الجدول الأسبوعي — {{ title }}{% endblock %}
 {% block main_class %}page-wide{% endblock %}
 
@@ -15,8 +16,7 @@
 {% endcomment %}
 {% if preview %}
 {% comment %}معاينةُ مسودّة — لا الجدول الحيّ. اللافتةُ قبل كلّ شيءٍ كي لا تُقرأ المسودّةُ جدولاً معتمَداً.{% endcomment %}
-<div role="status" class="p-4 rounded-lg mb-2"
-     style="border:2px solid var(--status-warning);background:var(--surface-alt)">
+<div role="status" class="schedule-draft-banner p-4 rounded-lg mb-2">
   <p class="font-semibold text-status-warning">
     {% include "components/icon.html" with name="alert-triangle" %}
     معاينة مسودّة توليد — {{ preview.generated_at|date:"d/m/Y H:i" }} · {{ preview.get_status_display }} · جودة {{ preview.quality_score|floatformat:0 }}%
@@ -29,17 +29,16 @@
 </div>
 {% endif %}
 {% if conflicts %}
-<div class="alert-strip bg-red-50 border-red-200 mb-2">
+<div class="alert-strip mb-2">
   <span>{% include "components/icon.html" with name="alert-triangle" %}</span>
   <strong>{{ conflicts|length }} تعارض:</strong>
   {% for c in conflicts %}<span>{{ c.message }}{% if not forloop.last %} · {% endif %}</span>{% endfor %}
 </div>
 {% endif %}
-<div class="exec-header" style="margin-bottom:10px">
-  <h1 class="page-title">{% include "components/icon.html" with name="calendar" %} {{ title }}{% if preview %} — مسودّة{% endif %}</h1>
-</div>
-<div class="card-qatar" style="width:100%">
-  <div class="exec-header schedule-head">
+{% page_header heading icon="calendar" %}{% endpage_header %}
+{# بطاقةٌ عاريةٌ بشريط أدواتٍ وإطار — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
+<div class="schedule-pages-card">
+  <div class="schedule-head">
     <div class="schedule-tools">
       {# القائمةُ الواحدة لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
       {% if may_browse %}{% include "schedule/partials/schedule_picker.html" %}{% endif %}
@@ -72,10 +71,10 @@
     </div>
   </div>
 
-  <div class="schedule-stage" style="height:calc(100vh - 230px);min-height:560px">
+  <div class="schedule-stage is-sheet">
     <iframe id="schedule-print-frame" title="{{ title }}"
             src="{% url 'schedule_print' %}?embed=1&amp;{{ selection_query }}"
-            style="width:100%;height:100%;border:1px solid var(--border);border-radius:8px;background:#fff"></iframe>
+            class="schedule-sheet-frame"></iframe>
     {% if view_type == 'all_teachers' %}
     {# يُملأ من الورقة عبر postMessage — ولا شيء فيه قبل أن يُنقر اسمٌ في الجدول. #}
     <aside id="teacher-panel" class="teacher-panel" hidden aria-live="polite"></aside>

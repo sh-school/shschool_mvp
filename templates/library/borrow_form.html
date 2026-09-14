@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}إعارة كتاب{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,16 +7,11 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash" style="max-width:36rem;margin-inline:auto">
+<div class="exec-dash library-form-page">
 
-  {# ── Exec Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="book-open" %} تسجيل إعارة جديدة</h1>
-      <span class="exec-date">تسجيل إعارة كتاب لطالب أو موظف</span>
-    </div>
-    <a href="{% url 'library:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
-  </div>
+  {% page_header "تسجيل إعارة جديدة" subtitle="تسجيل إعارة كتاب لطالب أو موظف" icon="book-open" %}
+    <a href="{% url 'library:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
+  {% endpage_header %}
 
   <div class="form-card">
     <form method="post">

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}إحصائيات العيادة{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,34 +9,16 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Exec Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="bar-chart" %} إحصائيات العيادة المدرسية</h1>
-      <span class="exec-date">ملخّص بيانات العيادة والسجلات الصحية</span>
-    </div>
-    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
-  </div>
+  {% page_header "إحصائيات العيادة المدرسية" subtitle="ملخّص بيانات العيادة والسجلات الصحية" icon="bar-chart" %}
+    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
+  {% endpage_header %}
 
-  {# ── KPI Strip ── #}
-  <div class="kpi-strip">
-    <div class="kpi-mini kpi-red">
-      <span class="kpi-mini-value">{{ visits_count }}</span>
-      <span class="kpi-mini-label">إجمالي الزيارات</span>
-    </div>
-    <div class="kpi-mini kpi-orange">
-      <span class="kpi-mini-value">{{ visits_this_month }}</span>
-      <span class="kpi-mini-label">زيارات هذا الشهر</span>
-    </div>
-    <div class="kpi-mini kpi-maroon">
-      <span class="kpi-mini-value">{{ health_records_count }}</span>
-      <span class="kpi-mini-label">طلاب بأمراض مزمنة</span>
-    </div>
-    <div class="kpi-mini kpi-blue">
-      <span class="kpi-mini-value">{{ allergies_count }}</span>
-      <span class="kpi-mini-label">طلاب لديهم حساسية</span>
-    </div>
-  </div>
+  {% kpi_strip label="أرقام العيادة" %}
+    {% kpi "إجمالي الزيارات" visits_count tone="red" %}
+    {% kpi "زيارات هذا الشهر" visits_this_month tone="orange" %}
+    {% kpi "طلاب بأمراض مزمنة" health_records_count %}
+    {% kpi "طلاب لديهم حساسية" allergies_count tone="blue" %}
+  {% endkpi_strip %}
 
 </div>
 {% endblock %}

@@ -14,7 +14,7 @@
 <div class="exec-dash">
   {% page_header "تعيين منتسب" subtitle="التعيينُ قرارٌ — يُسجَّل بتاريخه ومرجعه" icon="user" %}{% endpage_header %}
 
-  <form method="post" class="card-qatar ap-form" data-confirm="تأكيدُ تعيين المنتسب؟">
+  <form method="post" class="sa-panel ap-form" data-confirm="تأكيدُ تعيين المنتسب؟">
     {% csrf_token %}
     {% if form.non_field_errors %}
     <div class="ap-err" role="alert">{{ form.non_field_errors|join:" · " }}</div>

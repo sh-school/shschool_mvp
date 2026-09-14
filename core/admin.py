@@ -107,7 +107,8 @@ class CustomUserAdmin(UserAdmin):
             return "****"
         suffix = nid[-4:]
         return format_html(
-            '<span title="الرقم الشخصي — مخفي (PDPPL م.8)" style="font-family:monospace">****{}</span>',
+            # `<code>` خطٌّ ثابتُ العرض بأنماط لوحة الإدارة نفسِها — لا `style=` هنا.
+            '<code title="الرقم الشخصي — مخفي (PDPPL م.8)">****{}</code>',
             suffix,
         )
 

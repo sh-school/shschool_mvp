@@ -1,42 +1,41 @@
 {% extends "base/base.html" %}
-{% load static i18n %}
+{% load static i18n ui %}
+{% comment %}
+استمارةُ الرسالة — ثلاثُ بطاقاتٍ من `section_card`: الرسالةُ، والسياقُ التقنيُّ
+الذي سيُرسَل معها، والموافقةُ. والتنبيهُ التمهيديُّ الذي كان بطاقةً بارزةً
+فوق الاستمارة صار `form-note` داخل بطاقة الرسالة (وجملتُه الثالثة كانت
+سطرَ الترويسة نفسَه فلم تُكرَّر). والحقولُ وأسماؤها و`data-df-*` التي يقرؤها
+`feedback.js` كما هي.
+{% endcomment %}
 
 {% block title %}{% trans "أرسل ملاحظتك إلى المطوّر" %}{% endblock %}
-
-{% block extra_css %}
-{{ block.super }}
-{% endblock %}
-
-{% block page_header %}
-<div class="df-container">
-  <h1 class="df-page-title">{% trans "أرسل ملاحظتك إلى المطوّر" %}</h1>
-  <p class="df-page-subtitle">{% trans "رسالتك تساعد على تحسين المنصّة — كلما كان الوصف أدق، كان الحل أسرع" %}</p>
-</div>
-{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/developer-feedback/" parent_label="تواصل مع المطوّر" current="رسالة جديدة" %}
 {% endblock %}
 
 {% block content %}
-<main id="main-content" class="df-container" role="main">
-
-  {# ── بطاقة تعليمية قصيرة ── #}
-  <aside class="df-card df-card-hero" aria-labelledby="df-tip-title">
-    <h2 id="df-tip-title" class="df-card-title">{% trans "قبل أن تبدأ" %}</h2>
-    <p>{% trans "اكتب العنوان والوصف بوضوح. لا ترفق أي بيانات شخصية لطلاب. رسالتك تساعد على تحسين المنصّة — كلما كان الوصف أدق، كان الحل أسرع." %}</p>
-  </aside>
-
-  {# ── أخطاء عامة ── #}
-  {% if form.non_field_errors %}
-    <div class="df-errorlist" role="alert">{{ form.non_field_errors }}</div>
-  {% endif %}
+<div class="exec-dash df-page">
+  {% page_header _("أرسل ملاحظتك إلى المطوّر") subtitle=_("رسالتك تساعد على تحسين المنصّة — كلما كان الوصف أدق، كان الحل أسرع") icon="mail" %}
+    <a href="{% url 'developer_feedback:my_messages' %}" class="btn-secondary btn-sm">
+      {% include "components/icon.html" with name="list-checks" %}
+      {% trans "رسائلي السابقة" %}
+    </a>
+  {% endpage_header %}
 
   <form method="post" novalidate class="df-form" aria-labelledby="df-msg-form-title">
     {% csrf_token %}
     <h2 id="df-msg-form-title" class="sr-only">{% trans "نموذج إرسال رسالة إلى المطوّر" %}</h2>
 
-    <div class="df-card">
+    {% if form.non_field_errors %}
+      <div class="df-errorlist" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    {% section_card _("الرسالة") icon="pen-square" %}
+      <p class="form-note is-warning">
+        {% include "components/icon.html" with name="alert-triangle" %}
+        {% trans "اكتب العنوان والوصف بوضوح. لا ترفق أي بيانات شخصية لطلاب." %}
+      </p>
 
       {# ── نوع الرسالة + الأولوية (جنباً إلى جنب) ── #}
       <div class="df-row-2">
@@ -104,25 +103,24 @@
           </ul>
         {% endif %}
       </div>
-    </div>
+    {% endsection_card %}
 
     {# ── معاينة السياق التقني الذي سيُرسَل ── #}
-    <div class="df-card" aria-labelledby="df-context-title">
-      <h2 id="df-context-title" class="df-card-title">
+    {% section_card _("معلومات تقنية ستُرسَل مع رسالتك") meta=_("لا تحوي بياناتك الشخصية") icon="info" %}
+      <p class="form-note">
         {% include "components/icon.html" with name="info" %}
-        {% trans "معلومات تقنية ستُرسَل مع رسالتك (لا تحوي بياناتك الشخصية)" %}
-      </h2>
-      <p class="helptext">{% trans "هذه المعلومات تساعد المطوّر على تشخيص المشكلة بسرعة. لا تُرسل أي tokens ولا بيانات حساسة." %}</p>
+        {% trans "هذه المعلومات تساعد المطوّر على تشخيص المشكلة بسرعة. لا تُرسل أي tokens ولا بيانات حساسة." %}
+      </p>
       <dl class="df-context-preview" data-df-context-preview>
         <dt>{% trans "الصفحة الحالية" %}</dt><dd>—</dd>
         <dt>{% trans "الدور" %}</dt><dd>—</dd>
         <dt>{% trans "وقت الإرسال" %}</dt><dd>—</dd>
         <dt>{% trans "المتصفح" %}</dt><dd>—</dd>
       </dl>
-    </div>
+    {% endsection_card %}
 
-    {# ── Consent Checkbox + Hidden context ── #}
-    <div class="df-card">
+    {# ── Consent Checkbox ── #}
+    {% section_card _("الموافقة") icon="check-circle" %}
       <div class="df-form-group">
         <label for="{{ form.consent_privacy.id_for_label }}" class="df-checkbox-label">
           <input
@@ -141,22 +139,20 @@
           </ul>
         {% endif %}
       </div>
+    {% endsection_card %}
 
-      {# الحقل المخفي — JS سيملؤه #}
-      {{ form.context_json_raw }}
-    </div>
+    {# الحقل المخفي — JS سيملؤه #}
+    {{ form.context_json_raw }}
 
-    {# ── الأزرار ── #}
-    <div class="df-btn-group">
-      <button type="submit" class="btn btn-primary">
+    <div class="form-actions">
+      <a href="{% url 'dashboard' %}" class="btn-secondary">{% trans "إلغاء" %}</a>
+      <button type="submit" class="btn-primary">
         {% include "components/icon.html" with name="mail" %}
         {% trans "إرسال" %}
       </button>
-      <a href="{% url 'dashboard' %}" class="btn btn-secondary">{% trans "إلغاء" %}</a>
-      <a href="{% url 'developer_feedback:my_messages' %}" class="df-link-muted">{% trans "عرض رسائلي السابقة" %}</a>
     </div>
   </form>
-</main>
+</div>
 {% endblock %}
 
 {% block extra_js %}

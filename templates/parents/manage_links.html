@@ -9,14 +9,9 @@
 {% block content %}
 <div class="exec-dash">
 
-{# ── Header ── #}
-<div class="exec-header">
-  <div>
-    <h1 class="exec-title">{% include "components/icon.html" with name="waypoints" %} ربط أولياء الأمور بالطلاب</h1>
-    <p class="exec-subtitle">إدارة ارتباطات ولي الأمر بأبنائه — {{ year }}</p>
-  </div>
+{% page_header "ربط أولياء الأمور بالطلاب" subtitle=links_subtitle icon="waypoints" %}
   <span class="status-badge status-maroon">{{ total_count }} ارتباط</span>
-</div>
+{% endpage_header %}
 
 {% comment %}
 كان العدّادُ يقول «742 طالباً مرتبطاً» لمدرسةٍ سجلُّ قيدها 735: مئةٌ واثنان
@@ -30,12 +25,12 @@
   {% kpi "أولياءُ الأمور" parent_count tone="blue" %}
 {% endkpi_strip %}
 
-{# ── إضافة ربط جديد (قابل للطي) ── #}
-<details class="card-qatar mb-6">
-  <summary class="card-header cursor-pointer list-none select-none">
-    <div class="card-header-icon">+</div>
-    <h2 class="card-header-title flex-1 m-0">إضافة ربط جديد</h2>
-    <span class="text-muted text-xs" aria-hidden="true">▼</span>
+{# ── إضافة ربط جديد (قابل للطي): بطاقةٌ شريطُها هو `<summary>` — فليست `section_card` ── #}
+<details class="links-add">
+  <summary class="links-add__bar">
+    {% include "components/icon.html" with name="plus" %}
+    <h2 class="ui-section__title">إضافة ربط جديد</h2>
+    <span class="links-add__chevron" aria-hidden="true">▼</span>
   </summary>
 
   <form method="post" action="{% url 'add_parent_link' %}" class="p-5">
@@ -56,7 +51,7 @@
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-      <div class="form-group mb-0 mode-pane mode-pane--existing">
+      <div class="form-group mb-0 mode-pane--existing">
         <label class="form-label" for="parent-select">ولي الأمر</label>
         <select name="parent_id" id="parent-select" class="form-control">
           <option value="">— اختر ولي أمر —</option>
@@ -66,7 +61,7 @@
         </select>
       </div>
 
-      <div class="form-group mb-0 mode-pane mode-pane--new">
+      <div class="form-group mb-0 mode-pane--new">
         <label class="form-label" for="parent-nid">الرقم الشخصيّ لوليِّ الأمر</label>
         <input type="text" name="parent_national_id" id="parent-nid" class="form-control"
                inputmode="numeric" maxlength="11" autocomplete="off"
@@ -74,19 +69,19 @@
         <p class="form-hint">إن كان في النظام رُبط، وإلّا أُنشئ له حساب.</p>
       </div>
 
-      <div class="form-group mb-0 mode-pane mode-pane--new">
+      <div class="form-group mb-0 mode-pane--new">
         <label class="form-label" for="parent-name">اسمُ وليِّ الأمر</label>
         <input type="text" name="parent_full_name" id="parent-name" class="form-control"
                autocomplete="off" placeholder="الاسم الرباعيّ">
       </div>
 
-      <div class="form-group mb-0 mode-pane mode-pane--new">
+      <div class="form-group mb-0 mode-pane--new">
         <label class="form-label" for="parent-phone">الجوّال</label>
         <input type="tel" name="parent_phone" id="parent-phone" class="form-control"
                inputmode="tel" autocomplete="off" placeholder="اختياريّ">
       </div>
 
-      <div class="form-group mb-0 mode-pane mode-pane--new">
+      <div class="form-group mb-0 mode-pane--new">
         <label class="form-label" for="parent-email">البريد الإلكترونيّ</label>
         <input type="email" name="parent_email" id="parent-email" class="form-control"
                autocomplete="off" placeholder="اختياريّ">
@@ -94,7 +89,7 @@
 
       <div class="form-group mb-0">
         <label class="form-label" for="student-select">
-          الطالب <span class="text-red-500">*</span>
+          الطالب <span class="required">*</span>
         </label>
         <select name="student_id" id="student-select" required class="form-control">
           <option value="">— اختر طالب —</option>

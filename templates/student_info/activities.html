@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load sorting %}
+{% load sorting ui %}
 
 {% block title %}الأنشطة — مركز معلومات الطلبة{% endblock %}
 
@@ -9,17 +9,12 @@
 
 {% block content %}
 <div class="exec-dash">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="activity" %} الأنشطة</h1>
-      <p class="exec-subtitle">{{ page.paginator.count }} نشاطاً — {{ year }}</p>
-    </div>
+  {% page_header "الأنشطة" subtitle=year icon="activity" %}
     <a href="{% url 'student_info:sections' %}" class="btn-secondary btn-sm">الشُّعب</a>
-  </div>
+  {% endpage_header %}
 
-  <div class="table-wrap">
-    {% if page.object_list %}
-    <div class="table-wrap-scroll">
+  {% section_card "أنشطة الطلاب" meta=page.paginator.count icon="activity" flush=True empty="لا أنشطة مسجّلة هذا العام" %}{% if page.object_list %}
+    <div class="table-wrap">
       {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على كلّ البيانات لا على الصفحة. #}
       <table data-no-sort>
         <thead>
@@ -34,15 +29,13 @@
         <tbody>
           {% for a in page.object_list %}
           <tr>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ a.date|date:"d/m/Y" }}</td>
+            <td class="col-center text-xs">{{ a.date|date:"d/m/Y" }}</td>
             <td>
-              <a href="{% url 'student_info:student_file' a.student_id %}?year={{ year }}" style="color:var(--maroon-fg);text-decoration:none;font-weight:600">
-                {{ a.student.full_name }}
-              </a>
+              <a href="{% url 'student_info:student_file' a.student_id %}?year={{ year }}" class="font-semibold text-maroon hover:underline">{{ a.student.full_name }}</a>
             </td>
             <td>{{ a.title }}</td>
             <td class="col-center"><span class="status-badge status-info">{{ a.get_activity_type_display }}</span></td>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ a.get_scope_display }}</td>
+            <td class="col-center text-xs">{{ a.get_scope_display }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -56,9 +49,6 @@
       {% if page.has_next %}<a href="?page={{ page.next_page_number }}" class="btn-secondary btn-xs">التالي</a>{% endif %}
     </div>
     {% endif %}
-    {% else %}
-    {% include "components/empty_state.html" with title="لا أنشطة مسجّلة هذا العام" %}
-    {% endif %}
-  </div>
+  {% endif %}{% endsection_card %}
 </div>
 {% endblock %}

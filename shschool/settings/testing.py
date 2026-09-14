@@ -106,6 +106,10 @@ RATELIMIT_ENABLE = False
 # ✅ v5.4: AXES_ENABLED=False يُعطّل كل منطق axes أثناء pytest
 AXES_ENABLED = False
 
+# الإلزامُ بالمصادقة الثنائيّة يُطفأ في الاختبارات كما axes: آلافُ الاختبارات تدخل بحساباتِ
+# كادرٍ بلا TOTP. واختباراتُ الوسيط نفسِه تشغّله بـ`override_settings`.
+TWO_FACTOR_REQUIRED_FOR_STAFF = False
+
 # ميزانيةُ توليد الجدول في الاختبارات: ثوانٍ لا دقيقة — فاختبارُ «حصّةٍ مستحيلة»
 # كان يبحث دقيقتين كاملتين قبل أن يُقرّ بالعجز.
 SCHEDULE_TIME_BUDGET_SECONDS = 4

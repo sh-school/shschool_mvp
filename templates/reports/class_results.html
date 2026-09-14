@@ -1,64 +1,31 @@
 {% extends "reports/base_qatar_report.html" %}
 {% load brand_tags %}
+{# كشف نتائج الفصل — الهيكلُ من base_qatar_report.html، والنغماتُ من reports/views.py #}
 
 {% block extra_styles %}
-.grade-a { color: {% brand_color "STATUS_SUCCESS_DARK" %}; font-weight: 700; }
-.grade-b { color: {% brand_color "STATUS_INFO_FG" %}; font-weight: 700; }
-.grade-c { color: {% brand_color "STATUS_WARNING" %}; font-weight: 700; }
-.grade-f { color: {% brand_color "STATUS_DANGER" %}; font-weight: 700; }
 .rank-badge {
   display: inline-block; width: 22px; height: 22px;
   border-radius: 50%; background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %};
   font-size: 10px; font-weight: 700; line-height: 22px; text-align: center;
 }
+.doc-body > table:not([class]) thead th.subject-head { font-size: 9px; }
 {% endblock %}
 
-{% block report_title_bar %}
-<div class="report-title-bar">كشف النتائج السنوية — {{ class_group }} — {{ year }}</div>
-{% endblock %}
+{% block report_title %}كشف النتائج السنوية — {{ class_group }} — {{ year }}{% endblock %}
 
-{% block report_meta %}
-<table class="report-meta">
-  <tr>
-    <td>الفصل: <strong>{{ class_group }}</strong></td>
-    <td>السنة: <strong>{{ year }}</strong></td>
-    <td>تاريخ الطباعة: <strong>{{ print_date }}</strong></td>
-  </tr>
-</table>
+{% block report_meta_cells %}
+<td>الفصل: <strong>{{ class_group }}</strong></td>
+<td>السنة: <strong>{{ year }}</strong></td>
+<td>تاريخ الطباعة: <strong>{{ print_date }}</strong></td>
 {% endblock %}
 
 {% block content %}
-{# ── بطاقات الإحصائيات (table-based للـ PDF) ── #}
-<table class="stats-row-table">
-  <tr>
-    <td>
-      <div class="value">{{ total_students }}</div>
-      <div class="label">إجمالي الطلاب</div>
-    </td>
-    <td>
-      <div class="value text-green-600">{{ total_passed }}</div>
-      <div class="label">ناجحون</div>
-    </td>
-    <td>
-      <div class="value text-red-600">{{ total_failed }}</div>
-      <div class="label">راسبون</div>
-    </td>
-    <td>
-      <div class="value">
-        {% if total_students %}{% widthratio total_passed total_students 100 %}%{% else %}—{% endif %}
-      </div>
-      <div class="label">نسبة النجاح</div>
-    </td>
-  </tr>
-</table>
-
-{# ── جدول النتائج ── #}
 <table>
   <thead>
     <tr>
-      <th scope="col" style="width:5%">ترتيب</th>
-      <th scope="col" style="width:22%" class="text-right">اسم الطالب</th>
-      {% for subj in subjects %}<th scope="col" class="text-[9px]">{{ subj.name_ar|truncatechars:10 }}</th>{% endfor %}
+      <th scope="col">ترتيب</th>
+      <th scope="col">اسم الطالب</th>
+      {% for subj in subjects %}<th scope="col" class="subject-head">{{ subj.name_ar|truncatechars:10 }}</th>{% endfor %}
       <th scope="col">المتوسط</th>
       <th scope="col">الحالة</th>
     </tr>
@@ -67,64 +34,16 @@
     {% for row in student_rows %}
     <tr>
       <td><span class="rank-badge">{{ row.rank }}</span></td>
-      <td class="text-right font-semibold">{{ row.student.full_name }}</td>
-      {% for ann in row.grades_list %}
-      <td>
-        {% if ann and ann.annual_total %}
-          <span class="{% if ann.annual_total >= 90 %}grade-a{% elif ann.annual_total >= 75 %}grade-b{% elif ann.annual_total >= 50 %}grade-c{% else %}grade-f{% endif %}">
-            {{ ann.annual_total }}
-          </span>
-        {% else %}—{% endif %}
-      </td>
+      <th scope="row">{{ row.student.full_name }}</th>
+      {% for cell in row.grade_cells %}
+      <td>{% if cell.value %}<b class="c-{{ cell.tone }}">{{ cell.value }}</b>{% else %}—{% endif %}</td>
       {% endfor %}
-      <td class="font-bold">{{ row.avg|default:"—" }}</td>
-      <td>
-        {% if row.status == "ناجح" %}<span class="badge-pass">{{ row.status }}</span>
-        {% elif row.status == "راسب" %}<span class="badge-fail">{{ row.status }}</span>
-        {% else %}<span class="badge-warn">{{ row.status }}</span>{% endif %}
-      </td>
+      <td><b>{{ row.avg|default:"—" }}</b></td>
+      <td><b class="c-{{ row.status_tone }}">{{ row.status }}</b></td>
     </tr>
-    {% empty %}
-    <tr><td colspan="20" class="text-center text-gray-400">لا توجد بيانات</td></tr>
     {% endfor %}
   </tbody>
 </table>
 {% endblock %}
 
-{% block signatures %}
-<div class="signature-section">
-  <table class="signature-table">
-    <tr>
-      <td>
-        <div class="signature-box">
-          <div class="sig-title">رائد الفصل</div>
-          <div class="line"></div>
-          <div class="sig-name"></div>
-        </div>
-      </td>
-      <td>
-        <div class="signature-box">
-          <div class="sig-title">وكيل شؤون التعليم</div>
-          <div class="line"></div>
-          <div class="sig-name"></div>
-        </div>
-      </td>
-      <td>
-        <div class="signature-box">
-          <div class="sig-title">مدير المدرسة</div>
-          <div class="line"></div>
-          <div class="sig-name"></div>
-        </div>
-      </td>
-    </tr>
-  </table>
-</div>
-
-{% if exported_by %}
-<div style="text-align:center;font-size:8pt;color:{% brand_color "TEXT_MUTED" %};border-top:1px solid {% brand_color "BORDER" %};padding-top:8px;margin-top:30px">
-  <p style="margin:0"><strong style="color:{% brand_color "TEXT_PRIMARY" %}">صدر بواسطة:</strong> {{ exported_by }} — {{ exporter_role }}</p>
-  <p style="margin:2px 0 0">التاريخ: {{ export_datetime }}</p>
-  <p style="margin:2px 0 0">{{ school.name }} — وثيقة رسمية — SchoolOS</p>
-</div>
-{% endif %}
-{% endblock %}
+{% block signatures %}{% include "reports/pdf/_signatures.html" with s1="رائد الفصل" s2="وكيل شؤون التعليم" s3="مدير المدرسة" %}{% endblock %}

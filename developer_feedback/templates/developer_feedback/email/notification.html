@@ -1,0 +1,22 @@
+{% extends "email/_base.html" %}
+{% comment %}
+إشعارُ المطوّر برسالةٍ جديدةٍ أو معدَّلة — `developer_feedback.services.notifications`.
+المحتوى مقيَّدٌ وفق E1 (PDPPL): رقمُ التذكرة والتاريخُ والدورُ والمسارُ والنصُّ فقط.
+{% endcomment %}
+{% block title %}SchoolOS Feedback — {{ ticket_number }}{% endblock %}
+{% block content %}
+{% if edit_count %}<div class="mail-notice">⚠️ <b>رسالة مُعدَّلة</b> — التعديل رقم {{ edit_count }}. عُدّلت بعد الإرسال الأصلي.</div>{% endif %}
+<h2 class="mail-title">SchoolOS Feedback</h2>
+<table cellpadding="6" class="mail-table">
+<tr><td><b>رقم التذكرة</b></td><td><code>{{ ticket_number }}</code></td></tr>
+<tr><td><b>التاريخ</b></td><td>{{ timestamp }}</td></tr>
+<tr><td><b>النوع</b></td><td>{{ message_type }}</td></tr>
+<tr><td><b>الأولوية</b></td><td>{{ priority }}</td></tr>
+<tr><td><b>الدور</b></td><td>{{ role }}</td></tr>
+<tr><td><b>المسار</b></td><td><code>{{ url_path }}</code></td></tr>
+<tr><td><b>User Hash</b></td><td><code>{{ user_hash_short }}...</code></td></tr>
+</table>
+<h3>{{ subject }}</h3>
+<div class="mail-quote">{{ body|linebreaksbr }}</div>
+{% endblock %}
+{% block footer %}محتوى الإيميل مقيَّد وفق PDPPL (E1) — Azkia Software{% endblock %}

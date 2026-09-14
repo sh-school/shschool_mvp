@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}تتبع الحافلة — {{ bus.bus_number }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,61 +9,35 @@
 {% block content %}
 <div class="space-y-6">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="bus" %} تتبع حافلة {{ bus.bus_number }}</h1>
-      <p class="exec-date">معلومات التتبع والموقع</p>
-    </div>
+  {% page_header page_title subtitle="معلومات التتبع والموقع" icon="bus" %}
     <a href="{% url 'transport:bus_detail' bus.id %}" class="btn-secondary btn-sm">← رجوع</a>
-  </div>
+  {% endpage_header %}
 
   {% if has_karwa or has_gps %}
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div class="ui-grid-2">
     {% if has_karwa %}
-    <div class="card-qatar">
-      <div class="flex items-center gap-2 mb-2">
-        {% include "components/icon.html" with name="file-text" %}
-        <span class="font-semibold text-primary">رقم كروة</span>
-      </div>
+    {% section_card "رقم كروة" icon="file-text" %}
       <p class="text-lg font-bold text-status-info mt-1">{{ bus.karwa_id }}</p>
       <a href="https://www.karwa.com.qa" target="_blank"
          class="link-maroon mt-2 inline-block text-sm no-underline">→ فتح بوابة كروة</a>
-    </div>
+    {% endsection_card %}
     {% endif %}
     {% if has_gps %}
-    <div class="card-qatar">
-      <div class="flex items-center gap-2 mb-2">
-        {% include "components/icon.html" with name="target" %}
-        <span class="font-semibold text-primary">تتبع GPS</span>
-      </div>
+    {% section_card "تتبع GPS" icon="target" %}
       <a href="{{ bus.gps_link }}" target="_blank" class="btn-success mt-2 inline-block">
         {% include "components/icon.html" with name="bus" %} فتح الخريطة
       </a>
-    </div>
+    {% endsection_card %}
     {% endif %}
   </div>
 
-  <div class="card-qatar">
-    <div class="empty-state p-8">
-      <span class="empty-icon">{% include "components/icon.html" with name="bus" size="icon-2xl" %}</span>
-      <p class="empty-title">التكامل الكامل مع كروة يتطلب API رسمي</p>
-      <p class="empty-sub">استخدم الروابط أعلاه للوصول للتتبع المباشر</p>
-    </div>
-  </div>
+  {% section_card "الخريطة الحيّة" icon="map" empty="التكامل الكامل مع كروة يتطلب API رسمي" empty_sub="استخدم الروابط أعلاه للوصول للتتبع المباشر" %}{% endsection_card %}
 
   {% else %}
-  <div class="card-qatar">
-    <div class="empty-state p-8">
-      <span class="empty-icon">{% include "components/icon.html" with name="bus" size="icon-2xl" %}</span>
-      <p class="empty-title">لم يتم إعداد بيانات التتبع لهذه الحافلة</p>
-      <p class="empty-sub">
-        <a href="{% url 'transport:bus_detail' bus.id %}" class="link-maroon no-underline">
-          أضف رقم كروة أو رابط GPS من صفحة بيانات الحافلة
-        </a>
-      </p>
-    </div>
-  </div>
+  {% url 'transport:bus_detail' bus.id as bus_detail_url %}
+  {% section_card "الخريطة الحيّة" icon="map" %}
+    {% include "components/empty_state.html" with icon="bus" title="لم يتم إعداد بيانات التتبع لهذه الحافلة" subtitle="أضف رقم كروة أو رابط GPS من صفحة بيانات الحافلة" action_url=bus_detail_url action_label="بيانات الحافلة" compact=True %}
+  {% endsection_card %}
   {% endif %}
 
 </div>

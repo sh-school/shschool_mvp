@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 
 {% block title %}مركز معلومات الطلبة{% endblock %}
 
@@ -8,29 +9,25 @@
 
 {% block content %}
 <div class="exec-dash">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="users" %} مركز معلومات الطلبة</h1>
-      <p class="exec-subtitle">اختر شعبةً ثمّ طالباً — {{ year }}</p>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <a href="{% url 'student_info:levels' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} المستويات التعليمية</a>
-      <a href="{% url 'student_info:activities' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="activity" %} الأنشطة</a>
-    </div>
-  </div>
+  {% page_header "مركز معلومات الطلبة" subtitle=subtitle icon="users" %}
+    <a href="{% url 'student_info:levels' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} المستويات التعليمية</a>
+    <a href="{% url 'student_info:activities' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="activity" %} الأنشطة</a>
+  {% endpage_header %}
 
-  {% if groups %}
-  <div class="stat-row">
-    {% for g in groups %}
-    <a href="{% url 'student_info:section_students' g.id %}?year={{ year }}" class="stat-card" style="text-decoration:none;display:block">
-      <div class="stat-card-value">{{ g.grade|slice:"1:" }}/{{ g.section }}</div>
-      <div class="stat-card-label">{{ g.get_grade_display }}{% if g.track %} — {{ g.get_track_display }}{% endif %}</div>
-      <div class="stat-card-trend">{{ g.student_count }} طالباً{% if g.supervisor %} · {{ g.supervisor.full_name }}{% endif %}</div>
-    </a>
+  {% comment %}
+  كلُّ شعبةٍ كيان: رمزُها ومشرفُها وعددُ طلابها في السطر الأوّل، والصفُّ
+  والمسارُ رقاقتان. ورمزُ الشعبة رابطٌ إلى طلابها.
+  {% endcomment %}
+  {% if cards %}
+  <div class="ui-entity-grid">
+    {% for c in cards %}
+      {% entity_card c.title who=c.group.supervisor.full_name count=c.count href=c.href %}
+        {% entity_chips %}<span class="chip">{{ c.group.get_grade_display }}</span>{% if c.group.track %}<span class="chip">{{ c.group.get_track_display }}</span>{% endif %}{% endentity_chips %}
+      {% endentity_card %}
     {% endfor %}
   </div>
   {% else %}
-  {% include "components/empty_state.html" with title="لا شُعب في نطاقك لهذا العام" %}
+  {% empty_state "لا شُعب في نطاقك لهذا العام" %}
   {% endif %}
 </div>
 {% endblock %}
