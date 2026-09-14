@@ -22,6 +22,7 @@ from core.domain.grades import (
     GRADE_BANDS,
     SEMESTER_MAX,
     band_of,
+    jabr_fraction,
     package_weights,
 )
 from core.models import AuditLog, StudentEnrollment
@@ -38,6 +39,20 @@ from .models import (
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
+
+
+def _package_grade(raw: Decimal) -> Decimal:
+    """درجةُ الباقة من مجموع الفصل: تُقصّ إلى جزءٍ من مئة ثمّ يُجبر كسرُها (م8).
+
+    القصُّ إلى 0.01 أوّلاً يمحو أثرَ الأوزان الدوريّة (66.67٪ من 60 = 40.002)
+    فلا يُجبر صفرٌ حسابيٌّ زائدٌ نصفَ درجةٍ للطالب. ثمّ `jabr_fraction`:
+    «يجبر ما دون النصف إلى النصف، يثبت النصف، يجبر ما زاد على النصف إلى واحد
+    صحيح» — سياسة 4–11 م8 ص9، والثاني عشر م7. والباقاتُ منتصفُ الفصل (P1/P3)
+    ونهايتُه (P2/P4) وأعمالُه (AW)، فمجموعُها أنصافٌ صحيحة لا يغيّره الجبرُ ثانيةً.
+    """
+    result = jabr_fraction(raw.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+    assert result is not None
+    return result
 
 
 class GradeService:
@@ -210,9 +225,7 @@ class GradeService:
                     results[(sid, pkg.package_type)] = None
                 else:
                     actual = weighted_pct * pkg.weight * pkg.semester_max_grade / Decimal("10000")
-                    results[(sid, pkg.package_type)] = actual.quantize(
-                        Decimal("0.01"), rounding=ROUND_HALF_UP
-                    )
+                    results[(sid, pkg.package_type)] = _package_grade(actual)
 
         return results
 
@@ -276,7 +289,7 @@ class GradeService:
         # تحويل إلى الدرجة الفعلية من مجموع الفصل
         # = أداء% × وزن_الباقة% × درجة_الفصل_القصوى / 100 / 100
         actual_score = weighted_pct * package.weight * package.semester_max_grade / Decimal("10000")
-        return actual_score.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        return _package_grade(actual_score)
 
     # ── نتيجة الفصل ────────────────────────────────────────
 
@@ -371,7 +384,9 @@ class GradeService:
             status = "incomplete"
         else:
             annual_total = (s1_total or Decimal("0")) + (s2_total or Decimal("0"))
-            annual_total = annual_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            # م8 على المجموع الذي يُحكم به — لا أثرَ له على مجموع باقاتٍ مجبورة،
+            # ويُنصف نتيجةً قديمةً خُزّنت قبل الجبر عند إعادة حسابها.
+            annual_total = _package_grade(annual_total)
 
             if s1_total is None or s2_total is None:
                 status = "incomplete"

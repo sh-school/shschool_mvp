@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_CEILING, Decimal
 
 Score = int | float | Decimal
 
@@ -139,3 +139,32 @@ def package_weight(grade: int, semester: str, package_type: str) -> Decimal | No
     (True, Decimal('100'))
     """
     return package_weights(grade, semester).get(package_type)
+
+
+# ─────────────────────────────────────────────────────────────
+# جبرُ الكسور — المادّة 8
+# ─────────────────────────────────────────────────────────────
+
+
+def jabr_fraction(value: Score | None) -> Decimal | None:
+    """جبرُ كسور الدرجة إلى أقرب نصفٍ **صعوداً** — لا تقريبٌ إلى أقرب عدد.
+
+    سياسة تقييم الطلبة للصفوف 4–11 (أغسطس 2015)، المادّة 8، صفحة 9 — نصُّها:
+        «عند حساب درجات أية مادة من المواد الدراسية في منتصف الفصل أو نهايته
+         أو الدور الثاني تطبق الأحكام الآتية لجبر الكسور:
+         1- يجبر ما دون النصف إلى النصف.  2- يثبت النصف.
+         3- يجبر ما زاد على النصف إلى واحد صحيح.»
+    وسياسة الثاني عشر، المادّة 7 (صفحة 5)، بالنصّ نفسه.
+
+    فالكسرُ لا يُنزَّل أبداً: 47.2 ← 47.5، و47.5 تثبت، و47.6 ← 48.
+    (كان استخراجُ `04_academic.md` قد لخّصها «أقل من نصف تُجبر لأسفل» — وهو
+    خلافُ النصّ المصوَّر؛ صُحِّح في الاستخراج 2026-09-14.)
+
+    >>> [str(jabr_fraction(v)) for v in ("47", "47.01", "47.5", "47.51", "49.99")]
+    ['47', '47.5', '47.5', '48', '50']
+    """
+    if value is None:
+        return None
+    halves = (Decimal(str(value)) * 2).to_integral_value(rounding=ROUND_CEILING)
+    result = halves / 2
+    return result.quantize(Decimal("1")) if halves % 2 == 0 else result.quantize(Decimal("0.1"))
