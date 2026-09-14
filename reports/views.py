@@ -18,6 +18,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from assessments.models import SubjectClassSetup
 from core.academic_calendar import academic_year_for
+from core.audit_export import log_export
 from core.capabilities import capability_required
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_number
@@ -337,6 +338,13 @@ def class_results_pdf(request, class_id):
         messages.warning(request, "لا يوجد طلاب في هذا الفصل لتوليد التقرير.")
         return redirect("reports_index")
     _class_results_presentation(ctx)
+    log_export(
+        request,
+        "reports.class_results",
+        rows=len(ctx["student_rows"]),
+        object_id=class_grp.pk,
+        object_repr=f"كشف نتائج {class_grp} — {year}",
+    )
 
     if preview:
         return render(request, "reports/class_results.html", ctx)
@@ -384,6 +392,14 @@ def class_certificates_pdf(request, class_id):
         "print_date": timezone.now().date(),
         "paper_size": paper,
     }
+    # شهاداتُ فصلٍ في ملفٍّ واحدٍ كشفٌ جماعيّ — الرقمُ فيها مستور.
+    log_export(
+        request,
+        "reports.class_certificates",
+        rows=len(students_ctx),
+        object_id=class_grp.pk,
+        object_repr=f"شهادات {class_grp} — {year}",
+    )
     if preview:
         return render(request, "reports/class_certificates.html", page_ctx)
 
@@ -413,6 +429,13 @@ def attendance_report_pdf(request, class_id):
     ctx = ReportDataService.get_attendance_report(class_grp, school, year)
     ctx["paper_size"] = paper
     _attendance_presentation(ctx)
+    log_export(
+        request,
+        "reports.attendance",
+        rows=len(ctx["student_rows"]),
+        object_id=class_grp.pk,
+        object_repr=f"تقرير حضور {class_grp} — {year}",
+    )
     if preview:
         return render(request, "reports/attendance_report.html", ctx)
 
@@ -453,6 +476,15 @@ def student_result_pdf(request, student_id):
     ctx = ReportDataService.get_student_report(student, school, year)
     ctx["paper_size"] = paper
     _student_result_presentation(ctx)
+    # وثيقةٌ فرديّةٌ تُسلَّم لصاحبها: الرقمُ كاملاً — والتدقيقُ ثمنُه.
+    log_export(
+        request,
+        "reports.student_result",
+        rows=1,
+        full_national_id=True,
+        object_id=student.pk,
+        object_repr=f"نتيجة {student.full_name} — {year}",
+    )
     if preview:
         return render(request, "reports/student_result.html", ctx)
 
@@ -489,6 +521,14 @@ def student_annual_result_pdf(request, student_id):
     _set_final_status(ctx)
     _annual_result_presentation(ctx)
     ctx["paper_size"] = paper
+    log_export(
+        request,
+        "reports.student_annual_result",
+        rows=1,
+        full_national_id=True,
+        object_id=student.pk,
+        object_repr=f"كشف نتائج {student.full_name} — {year}",
+    )
 
     if preview:
         return render(request, "reports/student_result_pdf.html", ctx)
@@ -526,6 +566,14 @@ def student_certificate_pdf(request, student_id):
     _set_final_status(ctx)
     _subject_rows_presentation(ctx["rows"])
     ctx["paper_size"] = paper
+    log_export(
+        request,
+        "reports.certificate",
+        rows=1,
+        full_national_id=True,
+        object_id=student.pk,
+        object_repr=f"شهادة {student.full_name} — {year}",
+    )
 
     if preview:
         return render(request, "reports/certificate.html", ctx)
@@ -560,6 +608,14 @@ def class_results_excel(request, class_id):
 
         raise PermissionDenied("لا تملك صلاحية الوصول إلى تقارير هذا الفصل")
     paper = _get_paper_size(request).lower()
+    log_export(
+        request,
+        "reports.class_results_xlsx",
+        rows=StudentEnrollment.objects.filter(class_group=class_grp, is_active=True).count(),
+        full_national_id=True,
+        object_id=class_grp.pk,
+        object_repr=f"Excel نتائج {class_grp} — {year}",
+    )
     return ExcelService.class_results_excel(class_grp, school, year, paper=paper)
 
 
@@ -573,12 +629,16 @@ def attendance_excel(request, class_id):
     school = request.user.get_school()
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     paper = _get_paper_size(request).lower()
-    return ExcelService.attendance_excel(
-        class_grp,
-        school,
-        request.GET.get("year") or academic_year_for(request),
-        paper=paper,
+    year = request.GET.get("year") or academic_year_for(request)
+    log_export(
+        request,
+        "reports.attendance_xlsx",
+        rows=StudentEnrollment.objects.filter(class_group=class_grp, is_active=True).count(),
+        full_national_id=True,
+        object_id=class_grp.pk,
+        object_repr=f"Excel حضور {class_grp} — {year}",
     )
+    return ExcelService.attendance_excel(class_grp, school, year, paper=paper)
 
 
 @login_required
@@ -590,8 +650,11 @@ def behavior_excel(request):
 
     school = request.user.get_school()
     paper = _get_paper_size(request).lower()
-    return ExcelService.behavior_excel(
-        school,
-        request.GET.get("year") or academic_year_for(request),
-        paper=paper,
+    year = request.GET.get("year") or academic_year_for(request)
+    log_export(
+        request,
+        "reports.behavior_xlsx",
+        full_national_id=True,
+        object_repr=f"Excel سلوك — {year}",
     )
+    return ExcelService.behavior_excel(school, year, paper=paper)

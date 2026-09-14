@@ -35,13 +35,16 @@
   <div class="form-card">
     <form method="post">
       {% csrf_token %}
-      <div class="mb-5">
-        <label class="form-label">رمز التحقق الحالي من التطبيق</label>
+      {# حقلُ الرمز باليد: أصنافُ العرض (توسيطٌ وخطٌّ أحاديّ وتباعدٌ) على الحقل نفسِه لا على غلافه #}
+      <div class="ui-field mb-5">
+        <label for="f-code" class="ui-field__label">رمز التحقق الحالي من التطبيق</label>
         <input type="text"
+               id="f-code"
                name="code"
                maxlength="6"
                inputmode="numeric"
                pattern="[0-9]{6}"
+               autocomplete="one-time-code"
                autofocus
                placeholder="• • • • • •"
                class="form-control text-center text-2xl font-mono tracking-widest">

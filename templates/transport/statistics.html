@@ -22,10 +22,7 @@
 
   {% section_card "تفاصيل الحافلات" icon="bus" flush=True empty="لا توجد حافلات مسجلة" %}{% if buses %}
     <div class="transport-search">
-      <input type="text"
-             id="bus-search"
-             class="form-control"
-             placeholder="بحث برقم الحافلة أو اسم السائق...">
+      {% field "q" "بحث برقم الحافلة أو اسم السائق" id="bus-search" hide_label=True placeholder="بحث برقم الحافلة أو اسم السائق..." %}
     </div>
     <div class="table-wrap transport-scroll">
       <table>

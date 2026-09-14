@@ -17,15 +17,12 @@
   <div class="form-card">
     <form method="post">
       {% csrf_token %}
-      <div class="space-y-4">
-        <div class="form-group">
-          <label class="form-label">اسم المنطقة</label>
-          <input type="text" name="area_name" value="{{ route.area_name|default:'' }}" required
-                 class="form-control" placeholder="مثال: حي الشحانية">
-        </div>
-        <div class="form-group">
-          <label class="form-label">الطلاب في هذا الخط</label>
-          <select name="students" multiple size="8" class="form-control">
+      <div class="form-stack">
+        {% field "area_name" "اسم المنطقة" value=route.area_name|default:'' required=True placeholder="مثال: حي الشحانية" %}
+        {# الطلاب: اختيارٌ متعدّدٌ يُقارَن بعضويّة الخطّ (`st in route.students.all`) — لا يُعبَّر بـchoices، فالقائمةُ باليد بتسميتها #}
+        <div class="ui-field">
+          <label for="f-students" class="ui-field__label">الطلاب في هذا الخط</label>
+          <select id="f-students" name="students" multiple size="8" class="form-control" aria-describedby="f-students-help">
             {% for st in available_students %}
             <option value="{{ st.id }}"
               {% if route and st in route.students.all %}selected{% endif %}>
@@ -33,7 +30,7 @@
             </option>
             {% endfor %}
           </select>
-          <p class="form-hint">اضغط Ctrl للاختيار المتعدد</p>
+          <p id="f-students-help" class="form-hint">اضغط Ctrl للاختيار المتعدد</p>
         </div>
       </div>
       <div class="flex gap-3 mt-6">

@@ -2,39 +2,16 @@
 {% load ui %}
 
 {% block filters %}
-<form method="get" class="filter-bar" aria-label="تصفية تقرير الباقات">
-  <div class="filter-field">
-    <label for="f-package" class="filter-label">نوع الباقة</label>
-    <select id="f-package" name="package_type" class="form-select form-control-sm">
-      <option value="">كل الباقات</option>
-      {% for code, label in data.package_type_choices %}
-      <option value="{{ code }}" {% if data.filters.package_type == code %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="filter-field">
-    <label for="f-semester" class="filter-label">الفصل الدراسي</label>
-    <select id="f-semester" name="semester" class="form-select form-control-sm">
-      <option value="">الفصلين</option>
-      {% for code, label in data.semester_choices %}
-      <option value="{{ code }}" {% if data.filters.semester == code %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="filter-field">
-    <label for="f-class" class="filter-label">الشعبة</label>
-    <select id="f-class" name="class_group_id" class="form-select form-control-sm">
-      <option value="">كل الشعب</option>
-      {% for c in data.classes %}
-      <option value="{{ c.id }}" {% if data.filters.class_group_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
-      {% endfor %}
-    </select>
-  </div>
+{% url 'academic_management:exam_results_reports' as reset_url %}
+{% filter_bar "تصفية تقرير الباقات" %}
+  {% field "package_type" "نوع الباقة" type="select" choices=data.package_type_choices value=data.filters.package_type blank="كل الباقات" %}
+  {% field "semester" "الفصل الدراسي" type="select" choices=data.semester_choices value=data.filters.semester blank="الفصلين" %}
+  {% field "class_group_id" "الشعبة" type="select" choices=data.classes value=data.filters.class_group_id blank="كل الشعب" %}
   <div class="filter-actions">
     <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="search" %} عرض التقرير</button>
-    <a href="{% url 'academic_management:exam_results_reports' %}" class="btn-secondary btn-sm">مسح</a>
+    <a href="{{ reset_url }}" class="btn-secondary btn-sm">مسح</a>
   </div>
-</form>
+{% endfilter_bar %}
 {% endblock %}
 
 {% block report_body %}

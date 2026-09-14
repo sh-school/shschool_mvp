@@ -39,42 +39,29 @@
 {% endkpi_strip %}
 
 {# ── فلاتر ذكية ── #}
-<form method="get" class="filter-bar">
+{% filter_bar "ترشيحُ الحصص" %}
   <input type="hidden" name="date" value="{{ selected_date }}">
-  <div class="filter-field">
-    <label class="filter-label">المعلم</label>
-    <select name="teacher" class="form-control form-control-sm" data-autosubmit>
+  {# المعلّم والفصل: نصُّ الخيار مركّبٌ (اسمٌ كامل، صفٌّ/شعبة) — لا يُعبَّر بـchoices، فالقائمتان باليد بتسميتَيهما #}
+  <div class="ui-field">
+    <label for="f-teacher" class="ui-field__label">المعلم</label>
+    <select id="f-teacher" name="teacher" class="form-control" data-autosubmit>
       <option value="">— كل المعلمين —</option>
       {% for m in filter_teachers %}
       <option value="{{ m.user_id }}" {% if teacher_filter == m.user_id|slugify %}selected{% endif %}>{{ m.user.full_name }}</option>
       {% endfor %}
     </select>
   </div>
-  <div class="filter-field">
-    <label class="filter-label">الفصل</label>
-    <select name="class" class="form-control form-control-sm" data-autosubmit>
+  <div class="ui-field">
+    <label for="f-class" class="ui-field__label">الفصل</label>
+    <select id="f-class" name="class" class="form-control" data-autosubmit>
       <option value="">— كل الفصول —</option>
       {% for cg in filter_classes %}
       <option value="{{ cg.id }}" {% if class_filter == cg.id|slugify %}selected{% endif %}>{{ cg.grade }}/{{ cg.section }}</option>
       {% endfor %}
     </select>
   </div>
-  <div class="filter-field">
-    <label class="filter-label">الحصة</label>
-    <select name="period" class="form-control form-control-sm" data-autosubmit>
-      <option value="">— الكل —</option>
-      {% for p in "1234567" %}<option value="{{ p }}" {% if period_filter == p %}selected{% endif %}>الحصة {{ p }}</option>{% endfor %}
-    </select>
-  </div>
-  <div class="filter-field">
-    <label class="filter-label">الحالة</label>
-    <select name="status" class="form-control form-control-sm" data-autosubmit>
-      <option value="">— الكل —</option>
-      <option value="scheduled" {% if status_filter == "scheduled" %}selected{% endif %}>لم يُسجَّل</option>
-      <option value="in_progress" {% if status_filter == "in_progress" %}selected{% endif %}>جارٍ</option>
-      <option value="completed" {% if status_filter == "completed" %}selected{% endif %}>مكتمل</option>
-    </select>
-  </div>
+  {% field "period" "الحصة" type="select" choices="1=الحصة 1|2=الحصة 2|3=الحصة 3|4=الحصة 4|5=الحصة 5|6=الحصة 6|7=الحصة 7" value=period_filter blank="— الكل —" data_autosubmit=True %}
+  {% field "status" "الحالة" type="select" choices="scheduled=لم يُسجَّل|in_progress=جارٍ|completed=مكتمل" value=status_filter blank="— الكل —" data_autosubmit=True %}
   <div class="filter-actions">
     <a href="{{ schedule_url }}?date={{ selected_date }}" class="btn-secondary btn-xs">إعادة ضبط</a>
     {% if show_all %}
@@ -83,7 +70,7 @@
     <a href="{{ schedule_url }}?date={{ selected_date }}&all=1" class="btn-secondary btn-xs">عرض الكل</a>
     {% endif %}
   </div>
-</form>
+{% endfilter_bar %}
 {% endif %}
 
 {# ── الحصة القادمة ── #}
@@ -104,10 +91,10 @@
 {# ── Sessions Table ── #}
 {% if is_leader %}
 {% section_card "الحصص" icon="list-checks" flush=True empty="لا توجد حصص في هذا اليوم" empty_sub=date_label %}{% if sessions %}
-  <div class="filter-bar schedule-search">
-    <input type="text" id="session-search" class="form-control form-control-sm" placeholder="بحث بالمادة أو المعلم أو الفصل...">
+  {% filter_bar "بحثٌ في الحصص" live=True css="schedule-search" %}
+    {% field "q" "بحث بالمادة أو المعلم أو الفصل" id="session-search" hide_label=True grow=True placeholder="بحث بالمادة أو المعلم أو الفصل..." %}
     <span class="schedule-search__count"><span id="shown-count">{{ sessions|length }}</span> من {{ sessions|length }}</span>
-  </div>
+  {% endfilter_bar %}
   {% include "teacher/partials/sessions_table.html" %}
 {% endif %}{% endsection_card %}
 {% else %}

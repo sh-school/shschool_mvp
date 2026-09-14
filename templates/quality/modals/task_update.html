@@ -63,8 +63,8 @@
             <div class="q-modal-form-grid">
               {# حالة المتابعة #}
               <div class="q-modal-field">
-                <label>حالة المتابعة</label>
-                <select name="follow_up">
+                <label for="task-follow-up">حالة المتابعة</label>
+                <select name="follow_up" id="task-follow-up">
                   <option value="">--- اختر ---</option>
                   {% for val, label in follow_up_choices %}
                   <option value="{{ val }}" {% if task.follow_up == val %}selected{% endif %}>{{ label }}</option>
@@ -74,8 +74,8 @@
 
               {# نوع الدليل #}
               <div class="q-modal-field">
-                <label>نوع الدليل</label>
-                <select name="evidence_type">
+                <label for="task-evidence-type">نوع الدليل</label>
+                <select name="evidence_type" id="task-evidence-type">
                   <option value="">--- اختر ---</option>
                   {% for val, label in evidence_type_choices %}
                   <option value="{{ val }}" {% if task.evidence_type == val %}selected{% endif %}>{{ label }}</option>
@@ -85,8 +85,8 @@
 
               {# موقع الدليل #}
               <div class="q-modal-field">
-                <label>موقع الدليل</label>
-                <input type="text" name="evidence_source_file"
+                <label for="task-evidence-source">موقع الدليل</label>
+                <input type="text" name="evidence_source_file" id="task-evidence-source"
                        value="{{ task.evidence_source_file }}"
                        placeholder="مثال: القسم / الملف الإلكتروني">
               </div>
@@ -94,8 +94,8 @@
 
             {# ملاحظات المنفذ #}
             <div class="q-modal-field full-width">
-              <label>ملاحظات المنفذ</label>
-              <textarea name="comments" rows="3"
+              <label for="task-comments">ملاحظات المنفذ</label>
+              <textarea name="comments" id="task-comments" rows="3"
                         placeholder="اكتب ما تم إنجازه...">{{ task.comments }}</textarea>
             </div>
           </div>
@@ -129,7 +129,9 @@
           <label class="q-upload-area cursor-pointer" for="evidence-file-input" role="button" tabindex="0">
             <input type="file" name="evidence_file" id="evidence-file-input" class="hidden"
                    data-file-name="#file-name-display|PDF, Word, Images (Max 10MB)">
+            {# التسميةُ الملتفّة تشير بـ`for` إلى حقل الملفّ لا إلى هذا — فاسمُه في السمة. #}
             <input type="text" name="evidence_title" placeholder="عنوان الدليل (اختياري)"
+                   aria-label="عنوان الدليل (اختياري)"
                    data-action="stop"
                    class="q-modal-field">
             <div class="upload-icon">

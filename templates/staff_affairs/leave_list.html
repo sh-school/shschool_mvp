@@ -11,25 +11,13 @@
     <a href="{% url 'staff_affairs:leave_request' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} طلب إجازة جديد</a>
   {% endpage_header %}
 
-  <form method="get" class="filter-bar">
-    <div class="filter-field">
-      <label class="filter-label">الحالة</label>
-      <select name="status" class="form-control form-control-sm" data-autosubmit>
-        <option value="">— الكل —</option>
-        {% for val, label in status_choices %}<option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="filter-field">
-      <label class="filter-label">النوع</label>
-      <select name="type" class="form-control form-control-sm" data-autosubmit>
-        <option value="">— الكل —</option>
-        {% for val, label in type_choices %}<option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
-      </select>
-    </div>
+  {% filter_bar "ترشيحُ طلبات الإجازات" %}
+    {% field "status" "الحالة" type="select" choices=status_choices value=status_filter blank="— الكل —" data_autosubmit=True %}
+    {% field "type" "النوع" type="select" choices=type_choices value=type_filter blank="— الكل —" data_autosubmit=True %}
     <div class="filter-actions">
       <a href="{% url 'staff_affairs:leave_list' %}" class="btn-secondary btn-xs">إعادة ضبط</a>
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {% section_card "الطلبات" icon="list-checks" flush=True empty="لا طلباتِ إجازاتٍ مطابقة" %}{% if leaves %}
     <div class="table-wrap">

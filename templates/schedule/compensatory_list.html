@@ -19,22 +19,15 @@
     {% endif %}
   {% endpage_header %}
 
-  <form method="get" class="filter-bar">
-    <div class="filter-field">
-      <label class="filter-label">الحالة</label>
-      <select name="status" data-autosubmit class="form-control form-control-sm">
-        <option value="">كل الحالات</option>
-        {% for val, label in status_choices %}
-        <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-field filter-field--grow">
-      <label class="filter-label">بحث بالاسم</label>
-      <input type="text" id="comp-search" class="form-control form-control-sm"
+  {% filter_bar "ترشيحُ الحصص التعويضية" %}
+    {% field "status" "الحالة" type="select" choices=status_choices value=status_filter blank="كل الحالات" data_autosubmit=True %}
+    {# بحثٌ في المتصفّح وحده (`smartFilter`) بلا اسمٍ يُرسَل — فلا يُعطى اسماً. #}
+    <div class="ui-field ui-field--grow">
+      <label for="comp-search" class="ui-field__label">بحث بالاسم</label>
+      <input type="text" id="comp-search" class="form-control"
              placeholder="ابحث باسم المعلم..." autocomplete="off">
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {% section_card "الطلبات" icon="list-checks" flush=True empty="لا توجد حصص تعويضية" empty_sub="ستظهر هنا حين يُطلب تعويضُ حصّةٍ فاتت" %}{% if compensatory_sessions %}
   <div class="table-wrap-scroll schedule-cards" id="comp-cards">

@@ -19,22 +19,14 @@
     {% kpi "درجة رابعة" stats.level4 sub="شديدة · مفتوحة" tone="red" %}
   {% endkpi_strip %}
 
-  <div class="filter-bar" id="committee-filters">
-    <input type="search" id="filter-student" placeholder="بحث باسم الطالب..." aria-label="بحث باسم الطالب" class="form-control form-control-sm filter-field--grow">
-    <select id="filter-status" class="form-control form-control-sm" aria-label="الحالة">
-      <option value="">الكل</option>
-      <option value="open">مفتوحة</option>
-      <option value="resolved">محلولة</option>
-    </select>
-    <select id="filter-level" class="form-control form-control-sm" aria-label="الدرجة">
-      <option value="">كل الدرجات</option>
-      <option value="3">درجة 3</option>
-      <option value="4">درجة 4</option>
-    </select>
-    <input type="date" id="filter-date-from" title="من تاريخ" aria-label="من تاريخ" class="form-control form-control-sm">
-    <input type="date" id="filter-date-to" title="إلى تاريخ" aria-label="إلى تاريخ" class="form-control form-control-sm">
+  {% filter_bar "ترشيحُ قضايا اللجنة" id="committee-filters" live=True %}
+    {% field "q" "بحث باسم الطالب" type="search" id="filter-student" hide_label=True grow=True placeholder="بحث باسم الطالب..." %}
+    {% field "status" "الحالة" type="select" id="filter-status" choices="open=مفتوحة|resolved=محلولة" blank="الكل" hide_label=True %}
+    {% field "level" "الدرجة" type="select" id="filter-level" choices="3=درجة 3|4=درجة 4" blank="كل الدرجات" hide_label=True %}
+    {% field "date_from" "من تاريخ" type="date" id="filter-date-from" hide_label=True title="من تاريخ" %}
+    {% field "date_to" "إلى تاريخ" type="date" id="filter-date-to" hide_label=True title="إلى تاريخ" %}
     <button type="button" id="btn-reset-filters" class="btn-ghost btn-sm" title="إعادة تعيين">مسح</button>
-  </div>
+  {% endfilter_bar %}
 
   <div id="open-cases-card" data-section="open">
     {% section_card "القضايا المفتوحة — تحتاج قرار اللجنة" icon="alert-triangle" empty="لا توجد قضايا مفتوحة" empty_sub="جميع المخالفات الجسيمة تمت معالجتها" %}{% if open_cases %}

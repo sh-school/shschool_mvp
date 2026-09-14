@@ -9,18 +9,13 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Profile Header ── #}
-  <div class="profile-header">
-    <div class="profile-avatar">{{ student.full_name|truncatechars:1 }}</div>
-    <div class="profile-info">
-      <div class="profile-name">{% include "components/icon.html" with name="hospital" %} السجل الصحي</div>
-      <div class="profile-meta"><span>{{ student.full_name }}</span><span dir="ltr">{{ student.national_id|mask_id }}</span></div>
-    </div>
-    <div class="flex gap-2 flex-wrap">
-      <a href="{% url 'clinic:record_visit_student' student.id %}" class="btn-danger btn-sm no-underline">+ تسجيل زيارة جديدة</a>
-      <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
-    </div>
-  </div>
+  {# ── ترويسةُ الصفحة: الطالبُ ورقمُه المستور في السطر الوصفيّ ── #}
+  {% with masked=student.national_id|mask_id %}
+  {% page_header "السجل الصحي" subtitle=student.full_name|add:" · "|add:masked icon="hospital" %}
+    <a href="{% url 'clinic:record_visit_student' student.id %}" class="btn-primary btn-sm no-underline">+ تسجيل زيارة جديدة</a>
+    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
+  {% endpage_header %}
+  {% endwith %}
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -29,41 +24,13 @@
       {% section_card "البيانات الصحية" icon="list-checks" %}
         <form method="post" action="">
           {% csrf_token %}
-          <div class="space-y-3">
-            <div class="form-group">
-              <label class="form-label">فصيلة الدم</label>
-              <select name="blood_type" class="form-control">
-                <option value="">غير محدد</option>
-                {% for v,l in health_record.BLOOD_TYPES %}
-                <option value="{{ v }}" {% if health_record.blood_type == v %}selected{% endif %}>{{ l }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">الحساسية</label>
-              <textarea name="allergies" rows="2" class="form-control resize-none"
-                        placeholder="لا يوجد">{{ health_record.allergies }}</textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label">الأمراض المزمنة</label>
-              <textarea name="chronic_diseases" rows="2" class="form-control resize-none"
-                        placeholder="لا يوجد">{{ health_record.chronic_diseases }}</textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label">الأدوية المستمرة</label>
-              <textarea name="medications" rows="2" class="form-control resize-none"
-                        placeholder="لا يوجد">{{ health_record.medications }}</textarea>
-            </div>
-            <div class="form-group">
-              <label class="form-label">اسم جهة الطوارئ</label>
-              <input type="text" name="emergency_contact_name" value="{{ health_record.emergency_contact_name }}"
-                     class="form-control" placeholder="اسم ولي الأمر">
-            </div>
-            <div class="form-group">
-              <label class="form-label">هاتف الطوارئ</label>
-              <input type="text" name="emergency_contact_phone" value="{{ health_record.emergency_contact_phone }}"
-                     class="form-control" placeholder="+974XXXXXXXX">
-            </div>
+          <div class="form-stack">
+            {% field "blood_type" "فصيلة الدم" type="select" choices=health_record.BLOOD_TYPES value=health_record.blood_type blank="غير محدد" %}
+            {% field "allergies" "الحساسية" type="textarea" rows=2 value=health_record.allergies placeholder="لا يوجد" %}
+            {% field "chronic_diseases" "الأمراض المزمنة" type="textarea" rows=2 value=health_record.chronic_diseases placeholder="لا يوجد" %}
+            {% field "medications" "الأدوية المستمرة" type="textarea" rows=2 value=health_record.medications placeholder="لا يوجد" %}
+            {% field "emergency_contact_name" "اسم جهة الطوارئ" value=health_record.emergency_contact_name placeholder="اسم ولي الأمر" %}
+            {% field "emergency_contact_phone" "هاتف الطوارئ" type="tel" inputmode="tel" value=health_record.emergency_contact_phone placeholder="+974XXXXXXXX" %}
           </div>
           <button type="submit" class="btn-danger mt-4 w-full py-2 text-sm font-bold">
             {% include "components/icon.html" with name="save" %} حفظ السجل الصحي
@@ -79,9 +46,9 @@
     {# ── سجل الزيارات ── #}
     <div class="lg:col-span-2">
       {% section_card "سجل الزيارات" meta=visits|length icon="calendar" empty="لا توجد زيارات مسجلة لهذا الطالب" %}{% if visits %}
-        <div class="filter-bar">
-          <input type="text" id="visit-search" class="form-control clinic-visit-search" placeholder="بحث في الزيارات...">
-        </div>
+        {% filter_bar "بحثٌ في الزيارات" live=True %}
+          {% field "visit_q" "بحث في الزيارات" type="search" id="visit-search" hide_label=True grow=True placeholder="بحث في الزيارات..." autocomplete="off" %}
+        {% endfilter_bar %}
 
         <ul class="clinic-visits" id="visit-list">
           {% for visit in visits %}

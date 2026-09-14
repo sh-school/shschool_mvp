@@ -14,21 +14,10 @@
   {% endpage_header %}
 
   {% if log_rows %}
-  <div class="filter-bar">
-    <div class="filter-field filter-field--grow">
-      <label class="filter-label" for="log-search-input">بحث</label>
-      <input type="text" id="log-search-input" placeholder="بحث باسم الملف أو المستخدم..." class="form-control form-control-sm" autocomplete="off">
-    </div>
-    <div class="filter-field">
-      <label class="filter-label" for="log-status-filter">الحالة</label>
-      <select id="log-status-filter" class="form-select form-control-sm">
-        <option value="">كل الحالات</option>
-        <option value="completed">مكتمل</option>
-        <option value="failed">فشل</option>
-        <option value="other">أخرى</option>
-      </select>
-    </div>
-  </div>
+  {% filter_bar "ترشيحُ سجلّ الاستيراد" live=True %}
+    {% field "q" "بحث" type="search" id="log-search-input" grow=True placeholder="بحث باسم الملف أو المستخدم..." autocomplete="off" %}
+    {% field "status" "الحالة" type="select" id="log-status-filter" choices="completed=مكتمل|failed=فشل|other=أخرى" blank="كل الحالات" %}
+  {% endfilter_bar %}
   {% endif %}
 
   {# العددُ في طرف الترويسة، ويُحدَّث مع البحث: «12 من 50 عملية». #}

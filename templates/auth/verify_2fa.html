@@ -31,17 +31,21 @@
 
       <form method="post" autocomplete="off">
         {% csrf_token %}
-        <div class="mb-6">
-          <label class="form-label">رمز التحقق (6 أرقام)</label>
+        {# حقلُ الرمز باليد: أصنافُ العرض (توسيطٌ وخطٌّ أحاديّ وتباعدٌ) على الحقل نفسِه لا على غلافه #}
+        <div class="ui-field mb-6">
+          <label for="f-code" class="ui-field__label">رمز التحقق (6 أرقام)</label>
           <input type="text"
+                 id="f-code"
                  name="code"
                  maxlength="6"
                  inputmode="numeric"
                  pattern="[0-9]{6}"
+                 autocomplete="one-time-code"
                  autofocus
+                 aria-describedby="f-code-help"
                  placeholder="• • • • • •"
                  class="form-control text-center text-2xl font-mono tracking-widest">
-          <p class="form-hint text-center mt-2">الرمز يتجدد كل 30 ثانية</p>
+          <p id="f-code-help" class="form-hint text-center mt-2">الرمز يتجدد كل 30 ثانية</p>
         </div>
 
         <button type="submit" class="btn-primary w-full py-3">

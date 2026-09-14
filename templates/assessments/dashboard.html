@@ -62,10 +62,9 @@
   </div>
   {% endif %}
 
-  <div class="filter-bar">
-    <input type="text" id="subject-search" class="form-control" aria-label="بحث في المواد"
-           placeholder="بحث بالمادة أو المعلم أو الفصل...">
-  </div>
+  {% filter_bar "بحثٌ في المواد" live=True %}
+    {% field "q" "بحث في المواد" id="subject-search" hide_label=True grow=True placeholder="بحث بالمادة أو المعلم أو الفصل..." %}
+  {% endfilter_bar %}
 
   <div id="subjects-container" class="asm-groups">
   {% regroup setups by class_group as grouped %}

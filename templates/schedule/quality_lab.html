@@ -12,12 +12,12 @@
 {% page_header "مختبر جودة الجدول" subtitle=lab_subtitle icon="activity" %}{% endpage_header %}
 
 {# ── ما يُقاس وبماذا يُقارَن، وحفظُ القياس أساساً ── #}
-<div class="filter-bar lab-head">
+{% filter_bar "قياسُ الجدول ومرجعُه" live=True css="lab-head" %}
   <form method="get">
     <input type="hidden" name="year" value="{{ year }}">
     <div class="form-group">
-      <label class="form-label text-xs">الجدول المقيس</label>
-      <select name="schedule" class="form-control" data-autosubmit>
+      <label class="form-label text-xs" for="lab-schedule">الجدول المقيس</label>
+      <select id="lab-schedule" name="schedule" class="form-control" data-autosubmit>
         <option value="live" {% if schedule_param == 'live' %}selected{% endif %}>الجدول الحيّ</option>
         {% for g in generations %}
         <option value="{{ g.id }}" {% if schedule_param == g.id|stringformat:"s" %}selected{% endif %}>{{ g.generated_at|date:"Y-m-d H:i" }} — {{ g.get_status_display }}</option>
@@ -25,8 +25,8 @@
       </select>
     </div>
     <div class="form-group">
-      <label class="form-label text-xs">المرجع</label>
-      <select name="ref" class="form-control" data-autosubmit>
+      <label class="form-label text-xs" for="lab-ref">المرجع</label>
+      <select id="lab-ref" name="ref" class="form-control" data-autosubmit>
         <option value="baseline" {% if ref_param == 'baseline' %}selected{% endif %}>{% if baseline %}الأساس «{{ baseline.label }}»{% else %}الأساس (لا أساس بعد){% endif %}</option>
         <option value="live" {% if ref_param == 'live' %}selected{% endif %}>الجدول الحيّ</option>
         {% for g in generations %}
@@ -38,14 +38,11 @@
   {% if can_save %}
   <form method="post" action="?year={{ year }}&amp;schedule={{ schedule_param }}">
     {% csrf_token %}
-    <div class="form-group">
-      <label class="form-label text-xs">حفظ هذا القياس أساساً</label>
-      <input type="text" name="label" class="form-control" placeholder="أساس 2026-09" maxlength="60">
-    </div>
+    {% field "label" "حفظ هذا القياس أساساً" placeholder="أساس 2026-09" maxlength=60 css="form-group" %}
     <button type="submit" name="save_baseline" value="1" class="btn-primary btn-sm">حفظ كأساس</button>
   </form>
   {% endif %}
-</div>
+{% endfilter_bar %}
 
 {# ── بوّابة الصلاحية: ثلاثة أرقام لا تقبل النقاش ── #}
 {% kpi_strip label="بوّابة الصلاحية" %}

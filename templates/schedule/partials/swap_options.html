@@ -1,6 +1,8 @@
-<div class="form-group">
-  <label>اختر حصة المعلم الآخر للتبديل</label>
-  <select name="slot_b" id="slot_b" required>
+{# تُبدَّل في `#swap-options-container` بصفحة طلب التبديل — على بنية الحقل نفسِها هناك. #}
+{# تسميةُ الخيار مركّبةٌ من معلّمٍ ويومٍ ومادّةٍ وشعبةٍ وشرط — فالقائمةُ يدويّةٌ مسمّاة. #}
+<div class="ui-field">
+  <label for="slot_b" class="ui-field__label">اختر حصة المعلم الآخر للتبديل</label>
+  <select name="slot_b" id="slot_b" class="form-control" required>
     <option value="">— اختر —</option>
     {% for opt in options %}
     <option value="{{ opt.slot.pk }}">

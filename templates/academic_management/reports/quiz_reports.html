@@ -2,38 +2,17 @@
 {% load ui %}
 
 {% block filters %}
-<form method="get" class="filter-bar" aria-label="تصفية التقرير">
-  <div class="filter-field">
-    <label for="f-subject" class="filter-label">المادة</label>
-    <select id="f-subject" name="subject_id" class="form-select form-control-sm">
-      <option value="">كل المواد</option>
-      {% for s in data.subjects %}
-      <option value="{{ s.id }}" {% if data.filters.subject_id == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name_ar }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="filter-field">
-    <label for="f-class" class="filter-label">الشعبة</label>
-    <select id="f-class" name="class_group_id" class="form-select form-control-sm">
-      <option value="">كل الشعب</option>
-      {% for c in data.classes %}
-      <option value="{{ c.id }}" {% if data.filters.class_group_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
-      {% endfor %}
-    </select>
-  </div>
-  <div class="filter-field">
-    <label for="f-from" class="filter-label">من تاريخ</label>
-    <input id="f-from" type="date" name="date_from" value="{{ data.filters.date_from }}" class="form-control form-control-sm">
-  </div>
-  <div class="filter-field">
-    <label for="f-to" class="filter-label">إلى تاريخ</label>
-    <input id="f-to" type="date" name="date_to" value="{{ data.filters.date_to }}" class="form-control form-control-sm">
-  </div>
+{% url 'academic_management:quiz_reports' as reset_url %}
+{% filter_bar "تصفية التقرير" %}
+  {% field "subject_id" "المادة" type="select" choices=data.subjects value=data.filters.subject_id blank="كل المواد" %}
+  {% field "class_group_id" "الشعبة" type="select" choices=data.classes value=data.filters.class_group_id blank="كل الشعب" %}
+  {% field "date_from" "من تاريخ" type="date" value=data.filters.date_from %}
+  {% field "date_to" "إلى تاريخ" type="date" value=data.filters.date_to %}
   <div class="filter-actions">
     <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="search" %} عرض التقرير</button>
-    <a href="{% url 'academic_management:quiz_reports' %}" class="btn-secondary btn-sm">مسح</a>
+    <a href="{{ reset_url }}" class="btn-secondary btn-sm">مسح</a>
   </div>
-</form>
+{% endfilter_bar %}
 {% endblock %}
 
 {% block report_body %}

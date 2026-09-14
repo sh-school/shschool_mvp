@@ -15,9 +15,9 @@
   {% endpage_header %}
 
   {# ── HTMX Live Search ── #}
-  <div class="filter-bar">
+  {% filter_bar "بحثُ الكتب" live=True %}
     {% include "components/search_input.html" with search_url=request.path target="#books-container" placeholder="بحث بالعنوان أو المؤلف أو ISBN أو التصنيف..." name="q" value=query %}
-  </div>
+  {% endfilter_bar %}
 
   {# ── Skeleton على التحميل الأولي ── #}
   <div id="books-skeleton" class="htmx-indicator">

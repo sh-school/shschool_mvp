@@ -140,9 +140,150 @@ class TestPageHeaderAndEmptyState:
         assert "empty-state-v2" in html and "#icon-search" in html
 
 
+class TestField:
+    """الحقلُ بتسميته: `label[for]` و`id` من اسمٍ واحد — و`name` والقيمُ كما هي."""
+
+    def test_a_text_field_has_a_label_bound_to_its_id(self):
+        html = render('{% field "q" "بحث" value="أحمد" placeholder="اسم…" %}')
+        assert '<label for="f-q" class="ui-field__label">بحث</label>' in html
+        assert '<input type="text" id="f-q" name="q" class="form-control" value="أحمد"' in html
+        assert 'placeholder="اسم…"' in html
+
+    def test_the_id_is_derived_from_the_name_or_given(self):
+        assert 'id="f-date-from"' in render('{% field "date from" "من" %}')
+        assert 'for="q2"' in render('{% field "q" "بحث" id="q2" %}')
+
+    def test_a_select_marks_the_chosen_option_and_keeps_values(self):
+        html = render(
+            '{% field "grade" "الصفّ" type="select" choices=grades value=7 blank="— الكل —" %}',
+            grades=[(7, "السابع"), (8, "الثامن")],
+        )
+        assert '<select id="f-grade" name="grade" class="form-control">' in html
+        assert '<option value="">— الكل —</option>' in html
+        assert '<option value="7" selected>السابع</option>' in html
+        assert '<option value="8">الثامن</option>' in html
+
+    def test_flat_choices_and_dicts_are_accepted(self):
+        assert '<option value="أ">أ</option>' in render(
+            '{% field "x" "س" type="select" choices=c %}', c=["أ"]
+        )
+        assert '<option value="a">ألف</option>' in render(
+            '{% field "x" "س" type="select" choices=c %}', c={"a": "ألف"}
+        )
+
+    def test_literal_choices_are_written_as_a_string_in_the_template(self):
+        html = render(
+            '{% field "p" "وليّ الأمر" type="select" choices="linked=مرتبط|unlinked=غير مرتبط|A4" value="unlinked" %}'
+        )
+        assert '<option value="linked">مرتبط</option>' in html
+        assert '<option value="unlinked" selected>غير مرتبط</option>' in html
+        assert '<option value="A4">A4</option>' in html
+
+    def test_a_textarea_carries_its_value_as_content(self):
+        html = render('{% field "notes" "ملاحظات" type="textarea" rows=2 value=v %}', v="<b>")
+        assert (
+            '<textarea id="f-notes" name="notes" class="form-control" rows="2">&lt;b&gt;</textarea>'
+            in html
+        )
+
+    def test_a_checkbox_puts_the_label_after_the_box(self):
+        html = render('{% field "notify" "إشعار" type="checkbox" checked=True value="yes" %}')
+        assert html.index("<input") < html.index("<label")
+        assert 'type="checkbox" id="f-notify" name="notify"' in html
+        assert 'value="yes" checked' in html
+
+    def test_htmx_and_data_attributes_pass_through_with_hyphens(self):
+        html = render(
+            '{% field "q" "بحث" hx_get="/s/" hx_trigger="input changed delay:400ms" '
+            "data_autosubmit=True min=1 maxlength=60 required=True %}"
+        )
+        assert 'hx-get="/s/"' in html and 'hx-trigger="input changed delay:400ms"' in html
+        assert " data-autosubmit" in html and 'min="1"' in html and 'maxlength="60"' in html
+        assert " required" in html and '<span class="req-star" aria-hidden="true">*</span>' in html
+
+    def test_false_and_empty_attributes_are_dropped(self):
+        html = render(
+            '{% field "q" "بحث" required=False data_autosubmit=flag hx_get="" %}', flag=None
+        )
+        assert "required" not in html and "data-autosubmit" not in html and "hx-get" not in html
+
+    def test_help_and_error_are_linked_by_aria_describedby(self):
+        html = render('{% field "phone" "الجوّال" type="tel" help="بصيغة دوليّة" error="غيرُ صالح" %}')
+        assert 'aria-describedby="f-phone-help f-phone-error"' in html
+        assert 'aria-invalid="true"' in html
+        assert '<p id="f-phone-help" class="form-hint">بصيغة دوليّة</p>' in html
+        assert '<p id="f-phone-error" class="field-error" role="alert">غيرُ صالح</p>' in html
+        assert "ui-field has-error" in html
+
+    def test_a_hidden_label_stays_for_the_reader(self):
+        html = render('{% field "q" "بحث" hide_label=True %}')
+        assert 'class="ui-field__label sr-only">بحث</label>' in html
+
+    def test_values_are_escaped(self):
+        html = render('{% field "q" label value=v %}', label="<i>", v='"><script>')
+        assert "<i>" not in html and "&lt;i&gt;" in html
+        assert "<script>" not in html and "&quot;&gt;&lt;script&gt;" in html
+
+    def test_a_field_without_a_label_is_refused(self):
+        with pytest.raises(TemplateSyntaxError, match="التسمية"):
+            render('{% field "q" "" %}')
+
+    def test_an_unknown_type_is_refused(self):
+        with pytest.raises(TemplateSyntaxError, match="غيرُ معروف"):
+            render('{% field "q" "بحث" type="color" %}')
+
+    def test_a_select_without_choices_is_refused(self):
+        with pytest.raises(TemplateSyntaxError, match="بلا choices"):
+            render('{% field "g" "الصفّ" type="select" %}')
+
+    def test_an_attribute_that_is_not_an_html_name_is_refused(self):
+        with pytest.raises(TemplateSyntaxError, match="سمةٌ لا تصلح"):
+            render('{% field "q" "بحث" _x="1" %}')
+
+
+class TestFilterBar:
+    def test_it_is_a_get_form_with_a_search_role_and_a_name(self):
+        html = render('{% filter_bar "ترشيحُ الطلاب" %}{% field "q" "بحث" %}{% endfilter_bar %}')
+        assert html.startswith(
+            '<form method="get" class="filter-bar" role="search" aria-label="ترشيحُ الطلاب">'
+        )
+        assert html.rstrip().endswith("</form>")
+
+    def test_live_filtering_is_a_search_region_not_a_form(self):
+        html = render(
+            '{% filter_bar "بحث" live=True id="x" css="att-toolbar" %}{% field "q" "بحث" %}{% endfilter_bar %}'
+        )
+        assert html.startswith(
+            '<div class="filter-bar att-toolbar" role="search" aria-label="بحث" id="x">'
+        )
+        assert "<form" not in html
+
+    def test_htmx_attributes_pass_through(self):
+        html = render(
+            '{% filter_bar "ترشيح" id="f" action="/l/" hx_get="/l/" hx_target="#t" %}{% field "q" "بحث" %}{% endfilter_bar %}'
+        )
+        assert 'id="f" action="/l/" hx-get="/l/" hx-target="#t"' in html
+
+    def test_a_bar_without_a_field_is_refused(self):
+        with pytest.raises(TemplateSyntaxError, match="بلا حقل"):
+            render('{% filter_bar "ترشيح" %}<a href="/">x</a>{% endfilter_bar %}')
+
+    def test_the_name_is_required(self):
+        with pytest.raises(TemplateSyntaxError, match="المعلَن"):
+            render('{% filter_bar "" %}{% field "q" "بحث" %}{% endfilter_bar %}')
+
+
 @pytest.mark.django_db
 def test_the_components_page_renders_every_component(client_as, principal_user):
     body = client_as(principal_user).get(reverse("ui_components")).content.decode()
 
-    for marker in ("ui-kpis", "ui-section", "ui-entity", "empty-state-v2", "ui-page-header"):
+    for marker in (
+        "ui-kpis",
+        "ui-section",
+        "ui-entity",
+        "empty-state-v2",
+        "ui-page-header",
+        'role="search"',
+        'for="f-sg_phone"',
+    ):
         assert marker in body

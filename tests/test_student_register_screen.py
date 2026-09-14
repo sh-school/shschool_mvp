@@ -134,24 +134,24 @@ class TestTheNationalIdIsNotBared:
     """قانونُ حماية البيانات يقوم على التقليل — والقارئُ يحتاج أن يميّز لا أن يعرف."""
 
     def test_only_the_last_four_digits_are_shown(self, client_as, school, reader, year):
-        _student(school, "الطالب", "31473600538", year=year)
+        _student(school, "الطالب", "99900000538", year=year)
 
         body = _body(client_as, reader)
 
         assert "*******0538" in body
-        assert "31473600538" not in body, "الرقمُ كاملاً في ملفّ صاحبه لا في الكشف"
+        assert "99900000538" not in body, "الرقمُ كاملاً في ملفّ صاحبه لا في الكشف"
 
     def test_the_search_still_finds_the_full_number(self, client_as, school, reader, year):
         """من كتب رقماً كاملاً وجد صاحبَه — البحثُ على المخزَّن لا على المستور."""
-        _student(school, "المطلوب", "31473600538", year=year)
-        _student(school, "سواه", "31473600539", year=year)
+        _student(school, "المطلوب", "99900000538", year=year)
+        _student(school, "سواه", "99900000539", year=year)
 
-        assert _names(_body(client_as, reader, "?q=31473600538")) == ["المطلوب"]
+        assert _names(_body(client_as, reader, "?q=99900000538")) == ["المطلوب"]
 
     @pytest.mark.parametrize(
         ("raw", "masked"),
         [
-            ("31473600538", "*******0538"),
+            ("99900000538", "*******0538"),
             ("", ""),
             ("1234", "****"),
             ("12345", "*****"),

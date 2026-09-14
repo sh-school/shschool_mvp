@@ -33,101 +33,25 @@
 
       <div class="form-row">
 
-        {# الرقم الشخصي #}
-        <div class="form-group{% if mode == 'edit' %} sa-span-full{% endif %}{% if form.national_id.errors %} has-error{% endif %}">
-          <label class="form-label">الرقم الشخصي <span class="req-star">*</span></label>
-          {% if mode == "add" %}
-          <input type="text" name="national_id" value="{{ form.national_id.value|default:'' }}"
-                 class="form-control"
-                 placeholder="مثال: 29812345678" required dir="ltr">
-          {% else %}
-          <input type="text" value="{{ student.national_id|mask_id }}" class="form-control" disabled dir="ltr">
-          {% endif %}
-          {% if form.national_id.errors %}
-          <span class="field-error">{{ form.national_id.errors.0 }}</span>
-          {% endif %}
-        </div>
+        {# الرقم الشخصي — في الإضافة يُكتب، وفي التعديل يُعرض مستوراً (|mask_id) معطَّلاً فلا يُرسَل #}
+        {% if mode == "add" %}
+        {% field "national_id" "الرقم الشخصي" value=form.national_id.value placeholder="مثال: 29812345678" required=True dir="ltr" error=form.national_id.errors.0 %}
+        {% else %}
+        {% field "national_id" "الرقم الشخصي" value=student.national_id|mask_id disabled=True required=True dir="ltr" css="sa-span-full" error=form.national_id.errors.0 %}
+        {% endif %}
 
-        {# الاسم الكامل #}
-        <div class="form-group sa-span-full{% if form.full_name.errors %} has-error{% endif %}">
-          <label class="form-label">الاسم الكامل <span class="req-star">*</span></label>
-          <input type="text" name="full_name" value="{{ form.full_name.value|default:'' }}"
-                 class="form-control"
-                 placeholder="الاسم الرباعي" required>
-          {% if form.full_name.errors %}
-          <span class="field-error">{{ form.full_name.errors.0 }}</span>
-          {% endif %}
-        </div>
-
-        {# الجنس #}
-        <div class="form-group">
-          <label class="form-label">الجنس</label>
-          <select name="gender" class="form-control">
-            <option value="M" {% if form.gender.value == "M" %}selected{% endif %}>ذكر</option>
-            <option value="F" {% if form.gender.value == "F" %}selected{% endif %}>أنثى</option>
-          </select>
-        </div>
-
-        {# الجنسية #}
-        <div class="form-group">
-          <label class="form-label">الجنسية</label>
-          <input type="text" name="nationality" value="{{ form.nationality.value|default:'قطري' }}"
-                 class="form-control" placeholder="مثال: قطري">
-        </div>
-
-        {# تاريخ الميلاد #}
-        <div class="form-group">
-          <label class="form-label">تاريخ الميلاد</label>
-          <input type="date" name="birth_date" value="{{ form.birth_date.value|default:'' }}"
-                 class="form-control">
-        </div>
-
-        {# الصف #}
-        <div class="form-group">
-          <label class="form-label">الصف <span class="req-star">*</span></label>
-          <select name="grade" class="form-control" required>
-            <option value="">— اختر الصف —</option>
-            {% for val, label in grades %}
-            <option value="{{ val }}" {% if form.grade.value == val %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-          {% if form.grade.errors %}
-          <span class="field-error">{{ form.grade.errors.0 }}</span>
-          {% endif %}
-        </div>
-
-        {# الشعبة #}
-        <div class="form-group{% if form.section.errors %} has-error{% endif %}">
-          <label class="form-label">الشعبة <span class="req-star">*</span></label>
-          <input type="text" name="section" value="{{ form.section.value|default:'' }}"
-                 class="form-control"
-                 placeholder="مثال: أ" required>
-          {% if form.section.errors %}
-          <span class="field-error">{{ form.section.errors.0 }}</span>
-          {% endif %}
-        </div>
-
-        {# الجوال #}
-        <div class="form-group">
-          <label class="form-label">الجوال</label>
-          <input type="text" name="phone" value="{{ form.phone.value|default:'' }}"
-                 class="form-control" placeholder="مثال: 55001234" dir="ltr">
-        </div>
-
-        {# البريد #}
-        <div class="form-group">
-          <label class="form-label">البريد الإلكتروني</label>
-          <input type="email" name="email" value="{{ form.email.value|default:'' }}"
-                 class="form-control" placeholder="student@example.com" dir="ltr">
-        </div>
+        {% field "full_name" "الاسم الكامل" value=form.full_name.value placeholder="الاسم الرباعي" required=True css="sa-span-full" error=form.full_name.errors.0 %}
+        {% field "gender" "الجنس" type="select" choices="M=ذكر|F=أنثى" value=form.gender.value %}
+        {% field "nationality" "الجنسية" value=form.nationality.value|default:'قطري' placeholder="مثال: قطري" %}
+        {% field "birth_date" "تاريخ الميلاد" type="date" value=form.birth_date.value %}
+        {% field "grade" "الصف" type="select" choices=grades value=form.grade.value blank="— اختر الصف —" required=True error=form.grade.errors.0 %}
+        {% field "section" "الشعبة" value=form.section.value placeholder="مثال: أ" required=True error=form.section.errors.0 %}
+        {% field "phone" "الجوال" value=form.phone.value placeholder="مثال: 55001234" dir="ltr" %}
+        {% field "email" "البريد الإلكتروني" type="email" value=form.email.value placeholder="student@example.com" dir="ltr" %}
 
         {% if mode == "edit" %}
         {# ملاحظات — فقط في التعديل #}
-        <div class="form-group sa-span-full">
-          <label class="form-label">ملاحظات</label>
-          <textarea name="notes" rows="3" class="form-control"
-                    placeholder="ملاحظات إضافية عن الطالب...">{{ form.notes.value|default:'' }}</textarea>
-        </div>
+        {% field "notes" "ملاحظات" type="textarea" rows=3 value=form.notes.value placeholder="ملاحظات إضافية عن الطالب..." css="sa-span-full" %}
         {% endif %}
 
       </div>

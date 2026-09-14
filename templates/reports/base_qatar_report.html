@@ -385,7 +385,11 @@ body {
   نصوصَها (`report_title`، خاناتِ `report_meta_cells`، `signature_1..3`) ويبقى
   الشكلُ هنا. ومن يستبدل الكتلةَ الخارجيّةَ كاملةً يبقى على ما كان.
   {% endcomment %}
-  {% block report_title_bar %}<div class="report-title-bar">{% block report_title %}{% endblock %}</div>{% endblock %}
+  {% comment %}
+  عنوانُ الوثيقة `<h1>` لا `<div>`: الشكلُ من الصنف (والقالبُ يصفّر هوامشَ العناوين
+  وحجومَها في رأسه)، والدلالةُ لقارئ الشاشة وفهرسِ PDF — فالشاشةُ لا تتغيّر.
+  {% endcomment %}
+  {% block report_title_bar %}<h1 class="report-title-bar">{% block report_title %}{% endblock %}</h1>{% endblock %}
   {% block report_meta %}<table class="report-meta"><tr>{% block report_meta_cells %}{% endblock %}</tr></table>{% endblock %}
 
   <div class="doc-body">

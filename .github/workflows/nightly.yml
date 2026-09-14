@@ -1,11 +1,13 @@
-name: Nightly — Full Test Suite (Safety Net)
+name: Nightly — المجموعةُ كاملةً بلا توزيع (شبكةُ أمان)
 
 # ══════════════════════════════════════════════════════
-#  Safety net للـ fast CI (xdist + testmon)
-#  - يشغّل كل الـ 1181 test بدون testmon
-#  - يكتشف flaky tests
-#  - يكتشف regressions عبر transitive dependencies
-#  - يفرض coverage gate 85% على الـ full suite
+#  شبكةُ أمانٍ لبوّابة الجودة
+#  - المجموعةُ كلُّها متسلسلةً (بلا -n auto ولا testmon) — فالاختبارُ المتقلّب
+#    يظهر هنا حيث لا يُخفيه التوزيع
+#  - عتبةُ التغطية هي عتبةُ البوّابة نفسُها: `fail_under` في pyproject.toml،
+#    لا رقمَ هنا. كان العنوانُ يقول 85 والعتبةُ 60 والبوّابةُ 70.
+#  - الفشلُ يفتح قضيّةً (أو يُعلّق على المفتوحة) ويُغلقها النجاحُ التالي —
+#    كما في خطّ النشر؛ كان هنا `TODO: إضافة إشعار` منذ إنشاء الملفّ.
 # ══════════════════════════════════════════════════════
 
 on:
@@ -20,10 +22,11 @@ concurrency:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   full-pytest:
-    name: pytest — full suite (no testmon, coverage gate 85%)
+    name: pytest — المجموعة كاملةً متسلسلةً
     runs-on: ubuntu-latest
 
     services:
@@ -76,26 +79,20 @@ jobs:
             pkg-config
 
       - name: تثبيت المتطلبات
-        run: |
-          pip install -r requirements.txt
-          pip install -r requirements-dev.txt
+        run: pip install -r requirements-dev.txt
 
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
 
-      - name: "★ FULL pytest — كل الاختبارات + coverage gate"
+      - name: "★ FULL pytest — كل الاختبارات + عتبة pyproject"
         # -p no:cacheprovider: لا cache (كل شيء من الصفر)
-        # بدون --testmon (full suite)
-        # بدون -n auto (sequential — لاكتشاف flaky tests بسهولة)
-        # أعلام --cov صريحة: pytest.ini كان يحجب إعداد pyproject فلا تُقَس التغطية.
-        # العتبة 60% أرضية حالية (≈63%)؛ تُرفَع تدريجياً نحو 85%.
+        # بدون -n auto (متسلسل — لاكتشاف الاختبار المتقلّب بسهولة)
+        # العتبةُ من `[tool.coverage.report].fail_under` — pytest-cov يقرؤها.
         run: |
-          pytest \
+          python -m pytest \
             --junit-xml=test-results.xml \
-            --tb=short \
             -p no:cacheprovider \
-            --cov=. --cov-report=xml:coverage.xml --cov-report=term \
-            --cov-fail-under=60
+            --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
 
       - name: رفع نتائج الاختبارات
         uses: actions/upload-artifact@v4
@@ -110,26 +107,84 @@ jobs:
       - name: ملخص Coverage في GitHub Summary
         if: always()
         run: |
-          echo "## Nightly Full Test Suite" >> $GITHUB_STEP_SUMMARY
+          echo "## Nightly — المجموعة كاملةً" >> $GITHUB_STEP_SUMMARY
           echo "| المقياس | القيمة |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
           python3 -c "
+          import tomllib
           import xml.etree.ElementTree as ET
+          with open('pyproject.toml', 'rb') as f:
+              threshold = tomllib.load(f)['tool']['coverage']['report']['fail_under']
           try:
-              tree = ET.parse('coverage.xml')
-              root = tree.getroot()
-              rate = float(root.attrib.get('line-rate', 0)) * 100
-              status = 'ناجح' if rate >= 85 else 'فاشل'
+              rate = float(ET.parse('coverage.xml').getroot().attrib['line-rate']) * 100
+              status = 'ناجح' if rate >= threshold else 'فاشل'
               print(f'| التغطية | {rate:.1f}% |')
-              print(f'| Gate (85%) | {status} |')
+              print(f'| العتبة (pyproject) | {threshold}% — {status} |')
           except Exception as e:
-              print('| التغطية | غير متاح |')
+              print(f'| التغطية | غير متاح ({e}) — الوظيفةُ فشلت |')
           " >> $GITHUB_STEP_SUMMARY
 
-      - name: تنبيه عند الفشل
+      # الفشلُ لا يُترك في سجلّ تشغيلٍ لا يفتحه أحد: قضيّةٌ واحدة، تُعلَّق عند
+      # كلّ فشلٍ لاحق وتُغلق عند أوّل نجاح — الملكيّةُ بالشروط الثلاثة نفسِها
+      # التي في `deploy-railway.yml` (ليست PR، من github-actions[bot]، بالبادئة).
+      - name: "الفشل: فتحُ قضيّةٍ أو التعليقُ على المفتوحة"
         if: failure()
-        run: |
-          echo "::error::Nightly full test suite FAILED — testmon في fast CI فاته شيء!"
-          echo "## Nightly FAILED" >> $GITHUB_STEP_SUMMARY
-          echo "الـ full test suite فشل. هذا يعني أن fast CI (testmon) فاته regression." >> $GITHUB_STEP_SUMMARY
-          echo "TODO: إضافة Slack/email notification" >> $GITHUB_STEP_SUMMARY
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prefix = '🌙 NIGHTLY FAILED';
+            const detail = [
+              `**Commit**: \`${context.sha}\``,
+              `**Time**: ${new Date().toISOString()}`,
+              `**Run**: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `**Result**: المجموعةُ الكاملةُ المتسلسلة فشلت — إمّا اختبارٌ متقلّبٌ يُخفيه التوزيع في البوّابة، أو التغطيةُ دون عتبة pyproject.`,
+            ].join('\n');
+            const isOurs = (item) =>
+              !item.pull_request &&
+              item.user &&
+              item.user.login === 'github-actions[bot]' &&
+              typeof item.title === 'string' &&
+              item.title.startsWith(prefix);
+            const open = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: 'nightly-failure',
+              sort: 'updated', direction: 'desc', per_page: 100,
+            });
+            const existing = open.data.filter(isOurs);
+            if (existing.length > 0) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: existing[0].number,
+                body: `### فشلٌ ليليٌّ إضافيّ\n\n${detail}`,
+              });
+              core.info(`appended to issue #${existing[0].number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                ...context.repo,
+                title: `${prefix} — المجموعة الكاملة لا تمرّ`,
+                body: [`## Nightly — فشلٌ آليّ`, ``, detail, ``,
+                       `تُحدَّث هذه القضيّة عند كلّ فشلٍ لاحق، وتُغلق تلقائيّاً عند أوّل ليلةٍ ناجحة.`].join('\n'),
+                labels: ['bug', 'nightly-failure'],
+              });
+              core.info(`opened issue #${created.data.number}`);
+            }
+
+      - name: "النجاح: إغلاقُ قضايا الفشل المفتوحة"
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prefix = '🌙 NIGHTLY FAILED';
+            const open = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: 'nightly-failure',
+              sort: 'updated', direction: 'desc', per_page: 100,
+            });
+            for (const issue of open.data) {
+              if (issue.pull_request || !issue.user || issue.user.login !== 'github-actions[bot]'
+                  || typeof issue.title !== 'string' || !issue.title.startsWith(prefix)) continue;
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: issue.number,
+                body: `مرّت المجموعةُ الكاملة على \`${context.sha.substring(0, 7)}\` — تُغلق تلقائيّاً.`,
+              });
+              await github.rest.issues.update({
+                ...context.repo, issue_number: issue.number, state: 'closed', state_reason: 'completed',
+              });
+            }

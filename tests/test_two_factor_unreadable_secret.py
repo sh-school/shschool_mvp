@@ -17,7 +17,7 @@ from core.models import AuditLog, decrypt_field
 from core.views_auth import usable_totp_secret
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
-PASSWORD = "Probe-Passw0rd-2FA!"
+PASSWORD = "Probe-Passw0rd-2FA!"  # pragma: allowlist secret
 #: رمزُ Fernet شكلاً لا يُفكّ بأيّ مفتاح — كما يبدو السرُّ المشفَّرُ بمفتاحٍ آخر.
 FOREIGN_TOKEN = "gAAAAABo" + "x" * 132
 

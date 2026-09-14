@@ -782,8 +782,8 @@ PDPPL م.11 — يجب إشعار NCSA خلال 72 ساعة من الاكتشا�
 
     # جمع المستلمين: المسؤول (DPO) + المُبلِّغ
     recipients = []
-    # DPO الافتراضي من settings
-    dpo_email = getattr(settings, "DPO_EMAIL", "s.mesyef0904@education.qa")
+    # مسؤولُ حماية البيانات من الإعدادات (البيئة) — وإن لم يُضبط بقي المُبلِّغُ والمكلَّف.
+    dpo_email = getattr(settings, "DPO_EMAIL", "")
     if dpo_email:
         recipients.append(dpo_email)
     if breach.assigned_to and breach.assigned_to.email:
@@ -796,7 +796,7 @@ PDPPL م.11 — يجب إشعار NCSA خلال 72 ساعة من الاكتشا�
             send_mail(
                 subject=subject,
                 message=body,
-                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "s.mesyef0904@education.qa"),
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
                 recipient_list=list(set(recipients)),
                 fail_silently=True,
             )
@@ -887,7 +887,7 @@ def send_push_task(self, user_id, title, body, url="/parents/", school_id=None, 
             from pywebpush import WebPushException, webpush
 
             vapid_private = getattr(settings, "VAPID_PRIVATE_KEY", "").replace("\\n", "\n")
-            vapid_email = getattr(settings, "VAPID_CLAIMS_EMAIL", "admin@shahaniya.edu.qa")
+            vapid_email = getattr(settings, "VAPID_CLAIMS_EMAIL", "")
 
             sent = invalidated = 0
             transient = []

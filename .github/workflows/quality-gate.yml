@@ -19,11 +19,20 @@ concurrency:
 
 jobs:
   # ══════════════════════════════════════════════════════
-  #  1. pytest + Coverage ≥70%
+  #  1. pytest + عتبةُ التغطية (الرقمُ في pyproject.toml وحدَه)
   # ══════════════════════════════════════════════════════
+  #
+  # مصفوفةٌ على إصدارَين: 3.12 هو ما تُشغَّل عليه كلُّ البوّابات، و3.11 هو ما
+  # يُشغَّل عليه الإنتاجُ فعلاً (`Dockerfile: python:3.11-slim`). كانت الفجوةُ
+  # بلا حارس: صياغةٌ لا يعرفها 3.11 تمرّ البوّابةَ وتسقط عند الإقلاع على Railway.
+  # والوظيفتان متوازيتان فلا تُطيلان زمنَ البوّابة.
   test-coverage:
-    name: pytest — تغطية ≥70%
+    name: pytest (py${{ matrix.python-version }}) — تغطية
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.11"]
 
     services:
       postgres:
@@ -59,7 +68,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
           cache: pip
 
       - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
@@ -91,24 +100,23 @@ jobs:
         run: python manage.py check --fail-level WARNING
 
       - name: "pytest + Coverage Gate"
-        # بوّابة تغطية حقيقية: pytest.ini كان يحجب أعلام --cov في pyproject فلم
-        # تُقَس التغطية إطلاقاً. الآن أعلام صريحة. العتبة 70% (التغطية الفعلية
-        # ≈75% في 2026-09)؛ ارفعها تدريجياً نحو 85% كلما زادت الاختبارات.
+        # العتبةُ ليست هنا: pytest-cov يقرأ `fail_under` من
+        # `[tool.coverage.report]` في pyproject.toml — الرقمُ الوحيدُ في المستودع.
+        # كانت 70 هنا و60 في nightly و85 في عنوانه، والملخّصُ يطبع PASS عند 60.
         #
         # و`-n auto`: المجموعةُ نفسُها تمرّ في CI في اثنتي عشرةَ دقيقةً وتمرّ هنا
         # في اثنتين وأربعين — والفرقُ أنّ تلك تُوزّعها على الأنوية وهذه تُسلسلها.
         # ثلاثون دقيقةً تُهدر في كلّ دورة، وبوّابةٌ بهذا الطول تُغري بتخطّيها لا
-        # باحترامها. و`-v` أُسقط معها: ثلاثةُ آلافِ سطرٍ لا يقرؤها أحد.
+        # باحترامها.
         run: |
           python -m pytest -n auto --junit-xml=test-results.xml \
-            --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov \
-            --cov-fail-under=70
+            --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov
 
       - name: رفع تقارير التغطية
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-report
+          name: coverage-report-py${{ matrix.python-version }}
           path: |
             test-results.xml
             coverage.xml
@@ -117,22 +125,24 @@ jobs:
 
       - name: ملخص Coverage
         if: always()
+        # الحالةُ تُحسب بالعتبة نفسِها التي حكمت — تُقرأ من pyproject لا تُكتب هنا.
         run: |
-          echo "## نتائج التغطية — Quality Gate" >> $GITHUB_STEP_SUMMARY
+          echo "## نتائج التغطية — Quality Gate (py${{ matrix.python-version }})" >> $GITHUB_STEP_SUMMARY
           echo "| المقياس | القيمة |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
           python3 -c "
+          import tomllib
           import xml.etree.ElementTree as ET
+          with open('pyproject.toml', 'rb') as f:
+              threshold = tomllib.load(f)['tool']['coverage']['report']['fail_under']
           try:
-              tree = ET.parse('coverage.xml')
-              root = tree.getroot()
-              rate = float(root.attrib.get('line-rate', 0)) * 100
-              status = 'PASS' if rate >= 60 else 'FAIL'
+              rate = float(ET.parse('coverage.xml').getroot().attrib['line-rate']) * 100
+              status = 'PASS' if rate >= threshold else 'FAIL'
               print(f'| التغطية | {rate:.1f}% |')
-              print(f'| الحد الأدنى | 70% |')
+              print(f'| الحد الأدنى (pyproject) | {threshold}% |')
               print(f'| الحالة | {status} |')
           except Exception as e:
-              print(f'| التغطية | غير متاح ({e}) |')
+              print(f'| التغطية | غير متاح ({e}) — الوظيفةُ فشلت |')
           " >> $GITHUB_STEP_SUMMARY
 
   # ══════════════════════════════════════════════════════
@@ -159,10 +169,15 @@ jobs:
         run: ruff format --check .
 
   # ══════════════════════════════════════════════════════
-  #  3. mypy — فحص الأنواع (strict)
+  #  3. mypy — سقّاطةُ الأنواع (tests/mypy_ratchet.py)
   # ══════════════════════════════════════════════════════
+  #
+  # كانت `mypy … | head -50 || true` ثمّ `::warning` — فتخضرّ مهما أخرج،
+  # والملخّصُ يكتب PASS لفحصٍ لم يحكم قطّ. الآن سقّاطة: العددُ المسجَّل لكلّ
+  # ملفٍّ في `tests/mypy_ratchet_baseline.json` لا يزيد، وملفٌّ جديدٌ يبدأ من
+  # الصفر، وإن سقط mypy نفسُه سقطت الوظيفة.
   mypy:
-    name: mypy — فحص الأنواع
+    name: mypy — سقّاطة الأنواع
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -186,19 +201,13 @@ jobs:
       - name: تثبيت المتطلبات (لحل أنواع Django)
         run: pip install -r requirements.txt
 
-      - name: فحص الأنواع — core/ و shschool/
+      - name: فحص الأنواع — core/ و shschool/ (بإعداد pyproject، لا يزيد عن المسجَّل)
         env:
           DJANGO_SETTINGS_MODULE: shschool.settings.testing
           SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
           FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
           EXCEL_PROTECTION_PASSWORD: ci-testing-only
-        run: |
-          # Phase 1: warn-only mode. Phase 2: strict enforcement
-          mypy core/ shschool/ \
-            --ignore-missing-imports \
-            --exclude "migrations|\.venv|manage\.py|conftest" \
-            --no-error-summary 2>&1 | head -50 || true
-          echo "::warning::mypy type checking completed (warn-only mode — Phase 1)"
+        run: python -m tests.mypy_ratchet
 
   # ══════════════════════════════════════════════════════
   #  4. Radon — تعقيد حلقي (CC 11-30 = تحذير، CC >= 31 = فشل)
@@ -289,50 +298,30 @@ jobs:
           fi
           echo "لا أرقامَ شخصيّةً ولا جوّالاتٍ حقيقيّةً في الملفّات المتتبَّعة."
 
-      - name: فحص الأسرار المسربة (مقارنة بالـ baseline)
+      - name: فحص الأسرار المسربة — سرٌّ ليس في السجلّ يُسقط البوّابة
+        # كان `detect-secrets scan … || true` ثمّ عدٌّ للجديد يُطبع ولا يُقارن —
+        # فلا سرَّ كان يُسقط شيئاً. الخطّافُ يقارن كلَّ ملفٍّ متتبَّع بالسجلّ
+        # (`.secrets.baseline`، وفيه فلاتر الاستثناء نفسُها) ويخرج بـ1 على أيّ
+        # سرٍّ جديد. وخروجُه بـ3 ليس سرّاً: السجلُّ تقادم (رقمُ سطرٍ تحرّك أو سرٌّ
+        # مسجَّلٌ زال) — يُطبع تحذيرٌ بأمر التحديث ولا يُسقط، لأنّ الخطّاف لا يصل
+        # إلى 3 إلّا وقد وجد صفرَ سرٍّ جديد. ولا xargs: يقسم القائمةَ فتتعدّد
+        # الاستدعاءات ويضيع رمزُ الخروج (123).
+        #
+        # تحديثُ السجلّ (على لينكس — المساراتُ فيه بشرطةٍ أماميّة؛ ويندوز يكتبها
+        # بشرطةٍ خلفيّة فلا يطابقها الخطّاف في CI):
+        #   detect-secrets scan --all-files --exclude-files '<كما في السجلّ>' \
+        #     --exclude-lines '<كما في السجلّ>' > .secrets.baseline
         run: |
-          # Scan against baseline — only NEW secrets fail the build
-          if [ -f ".secrets.baseline" ]; then
-            detect-secrets scan \
-              --exclude-files '\.venv|migrations|\.git|staticfiles|htmlcov|node_modules|\.pyc|\.dump' \
-              --exclude-lines 'SECRET_KEY.*=.*decouple|getenv|config\(|ci-testing-only' \
-              --baseline .secrets.baseline \
-              > .secrets-results.json 2>&1 || true
-
-            # audit for new secrets not in baseline
-            new_secrets=$(detect-secrets audit .secrets.baseline --report --json 2>/dev/null | python3 -c "
-          import json, sys
-          try:
-              data = json.load(sys.stdin)
-              new = [s for s in data if s.get('is_secret') is None]
-              print(len(new))
-          except:
-              print(0)
-          " 2>/dev/null || echo "0")
-
-            echo "Baseline exists. New unaudited findings: $new_secrets"
-            echo "لم يتم العثور على أسرار جديدة (baseline موجود)"
-          else
-            # No baseline — scan fresh, warn only
-            detect-secrets scan \
-              --exclude-files '\.venv|migrations|\.git|staticfiles|htmlcov|node_modules|\.pyc|\.dump' \
-              --exclude-lines 'SECRET_KEY.*=.*decouple|getenv|config\(|ci-testing-only' \
-              > .secrets-results.json
-
-            secrets_count=$(python3 -c "
-          import json
-          with open('.secrets-results.json') as f:
-              data = json.load(f)
-          count = sum(len(v) for v in data.get('results', {}).values())
-          print(count)
-          ")
-
-            if [ "$secrets_count" -gt "0" ]; then
-              echo "::warning::Potential secrets detected: $secrets_count findings (no baseline)"
-              echo "Run 'detect-secrets scan > .secrets.baseline' to create baseline"
-            fi
-            echo "لم يتم العثور على أسرار مسربة"
-          fi
+          mapfile -t files < <(git ls-files)
+          set +e
+          detect-secrets-hook --baseline .secrets.baseline "${files[@]}"
+          rc=$?
+          set -e
+          case "$rc" in
+            0) echo "لا سرَّ جديداً في ${#files[@]} ملفّاً متتبَّعاً." ;;
+            3) echo "::warning::سجلُّ الأسرار تقادم (أرقامُ أسطرٍ تحرّكت أو سرٌّ مسجَّلٌ زال) — أعد توليده وأودعه؛ لا سرَّ جديداً." ;;
+            *) echo "::error::سرٌّ جديدٌ ليس في .secrets.baseline (أو انهار detect-secrets، رمز $rc) — راجع المخرَجات أعلاه"; exit 1 ;;
+          esac
 
   # ══════════════════════════════════════════════════════
   #  ملخص بوابة الجودة
@@ -348,9 +337,9 @@ jobs:
           echo "## بوابة الجودة — Quality Gate" >> $GITHUB_STEP_SUMMARY
           echo "| الفحص | النتيجة |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|---------|" >> $GITHUB_STEP_SUMMARY
-          echo "| pytest + Coverage ≥70% | ${{ needs.test-coverage.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| pytest + التغطية (py3.12 + py3.11، العتبة في pyproject) | ${{ needs.test-coverage.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Ruff lint + format | ${{ needs.ruff.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| mypy type checking | ${{ needs.mypy.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| mypy — سقّاطة الأنواع | ${{ needs.mypy.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Radon CC ≤ 30 | ${{ needs.complexity.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| detect-secrets | ${{ needs.secrets-scan.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
 

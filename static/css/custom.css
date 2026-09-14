@@ -1314,42 +1314,6 @@ tr.active {
    Detail/Profile Layout (MTG-2026-004-STR)
    ══════════════════════════════════════════════════════════════ */
 
-/* ── Profile Header ── */
-.profile-header {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-  padding: var(--sp-4) var(--sp-5);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-}
-.profile-avatar {
-  width: 64px; height: 64px;
-  border-radius: 50%;
-  background: var(--maroon-bg);
-  color: var(--maroon-fg);
-  display: flex; align-items: center; justify-content: center;
-  font-size: var(--text-2xl); font-weight: 800;
-  flex-shrink: 0;
-  border: 2px solid var(--maroon-border);
-}
-.profile-info { flex: 1; min-width: 0; }
-.profile-name {
-  font-size: var(--text-xl); font-weight: 800;
-  color: var(--text-primary);
-  line-height: 1.2;
-  margin-bottom: 2px;
-}
-.profile-meta {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  display: flex; gap: var(--sp-3); flex-wrap: wrap;
-}
-html.dark .profile-header { background: var(--surface); border-color: var(--border); }
-html.dark .profile-avatar { background: color-mix(in srgb, var(--maroon) 15%, transparent); border-color: color-mix(in srgb, var(--maroon) 30%, transparent); }
-
 /* ── Definition List (key-value pairs) ── */
 .detail-dl {
   display: grid;
@@ -1368,8 +1332,6 @@ html.dark .profile-avatar { background: color-mix(in srgb, var(--maroon) 15%, tr
 @media (max-width: 640px) {
   .detail-dl { grid-template-columns: 1fr; gap: 2px var(--sp-2); }
   .detail-dt { font-size: var(--text-xs); }
-  .profile-header { flex-direction: column; text-align: center; }
-  .profile-meta { justify-content: center; }
 }
 
 /* ── بطاقة KPI ── */
@@ -1449,18 +1411,6 @@ html.dark .profile-avatar { background: color-mix(in srgb, var(--maroon) 15%, tr
   padding: 6px 10px;
   font-size: var(--text-xs);
   border-radius: var(--radius-md);
-}
-.filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 140px;
-}
-.filter-field--grow { flex: 1; }
-.filter-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--text-secondary);
 }
 .filter-actions {
   display: flex;
@@ -2642,107 +2592,6 @@ html[dir="rtl"] .search-wrap .htmx-indicator { left: 12px; right: auto; }
   color: var(--text-primary);
 }
 
-/* ── 4. Filter Card ──────────────────────────────────────────── */
-.quality-filters {
-  background: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--maroon) 20%, transparent);
-  border-radius: var(--q-radius);
-  overflow: hidden;
-  margin-bottom: 1rem;
-}
-.quality-filters-header {
-  background: var(--maroon);
-  padding: 0.75rem 1rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--on-fill);
-  font-weight: 700;
-  font-size: var(--text-sm);
-}
-.quality-filters-header i { font-size: var(--text-base); }
-
-.quality-filters-body {
-  padding: 1.25rem;
-}
-.quality-filters-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0.75rem 1rem;
-  padding-bottom: 0.75rem;
-}
-.quality-filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  min-width: 0;
-}
-.quality-filter-field label {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--maroon-fg);
-  margin: 0;
-}
-.quality-filter-field select,
-.quality-filter-field input {
-  font-size: 0.8rem;
-  padding: 0.6rem 0.75rem;
-  border: 2px solid color-mix(in srgb, var(--maroon) 25%, transparent);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--maroon-fg);
-  transition: border-color var(--q-transition), box-shadow var(--q-transition);
-  width: 100%;
-}
-.quality-filter-field select:focus,
-.quality-filter-field input:focus {
-  border-color: var(--maroon);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--maroon) 15%, transparent);
-}
-.quality-filters-actions {
-  display: flex;
-  justify-content: center;
-  gap: 0.75rem;
-  padding-top: 1rem;
-  border-top: 2px solid color-mix(in srgb, var(--maroon) 8%, transparent);
-}
-.quality-btn-search {
-  padding: 0.6rem 2.5rem;
-  background: var(--maroon);
-  color: var(--on-fill);
-  font-size: 0.85rem;
-  font-weight: 700;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all var(--q-transition);
-  box-shadow: 0 2px 4px color-mix(in srgb, var(--shadow-ink) 10%, transparent);
-}
-.quality-btn-search:hover {
-  background: var(--maroon-dark);
-  box-shadow: 0 4px 8px color-mix(in srgb, var(--shadow-ink) 15%, transparent);
-}
-.quality-btn-clear {
-  padding: 0.6rem 2.5rem;
-  background: var(--border);
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  font-weight: 700;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  text-decoration: none;
-  transition: all var(--q-transition);
-  box-shadow: 0 2px 4px color-mix(in srgb, var(--shadow-ink) 5%, transparent);
-}
-.quality-btn-clear:hover { background: var(--border-strong); }
-
 /* ── 5. Plans Table ──────────────────────────────────────────── */
 .plans-table {
   width: 100%;
@@ -3544,7 +3393,6 @@ html.dark .tfa-status-badge { background-color: var(--status-success); }
 
 /* ── 16. Responsive — Mobile-First ───────────────────────────── */
 .quality-page { width: 100%; padding: 0.5rem; }
-.quality-filters-grid { grid-template-columns: repeat(2, 1fr); }
 .q-modal-form-grid { grid-template-columns: 1fr; }
 .q-modal-info .info-grid { grid-template-columns: 1fr; }
 .q-modal { max-width: 95vw; }
@@ -3552,7 +3400,6 @@ html.dark .tfa-status-badge { background-color: var(--status-success); }
 
 @media (min-width: 769px) {
   .quality-page { width: auto; padding: 1rem; }
-  .quality-filters-grid { grid-template-columns: repeat(4, 1fr); }
   .q-modal-form-grid { grid-template-columns: 1fr 1fr; }
   .q-modal-info .info-grid { grid-template-columns: 1fr 1fr; }
   .q-modal { max-width: 600px; }
@@ -4369,12 +4216,6 @@ html.dark .pwa-banner { background: var(--maroon-bg); }
 
 /* ── 27. Quality Module ─────────────────────────────────────────── */
 html.dark .quality-page { color: var(--text-primary); }
-html.dark .quality-filters-grid select,
-html.dark .quality-filters-grid input {
-  background: var(--surface-alt);
-  border-color: var(--border-strong);
-  color: var(--text-primary);
-}
 
 /* Progress bar card */
 
@@ -4692,13 +4533,6 @@ html.dark .exec-date {
 }
 
 /* ── 35u. Quality-specific white elements ─────────────────────── */
-html.dark .quality-filters {
-  border-color: var(--border);
-}
-html.dark .quality-btn-clear {
-  color: var(--text-primary);
-  border-color: var(--border-strong);
-}
 html.dark .quality-table-wrap {
   border-color: var(--border);
 }
@@ -5953,7 +5787,6 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
   align-items: end;
   margin: 0;
 }
-.qobs-filters .filter-field { min-width: 0; }
 .qobs-filters .filter-actions { margin-inline-start: 0; }
 
 .qobs-actions { white-space: nowrap; }
@@ -8377,6 +8210,30 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .form-page { max-width: 760px; margin-inline: auto; }
 .inline-form { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .inline-form .form-control { inline-size: auto; min-inline-size: 140px; }
+
+/* ── 13. الحقلُ وشريطُ الترشيح — `{% field %}` · `{% filter_bar %}` ──
+   حقلٌ واحدٌ بتسميته (`label[for]` + `id`) يُرسم في نموذجٍ كاملٍ وفي شريط
+   الترشيح سواءً: الفرقُ سياقٌ لا صنفٌ ثانٍ. في النموذج التسميةُ بحجم النصّ
+   والحقلُ بعرض السطر؛ وداخل `.filter-bar` تصغر التسميةُ ويضيق الحقل —
+   وهو ما كان `filter-field`/`filter-label` يفعلانه في سبعةٍ وثلاثين شريطاً
+   مكتوباً باليد. والفراغُ بين الحقول من حاويتها (`form-stack`، `ui-grid-2`،
+   `.filter-bar` gap) لا من هامشٍ في الحقل، فلا يتضاعف في الشبكات. */
+.ui-field { display: flex; flex-direction: column; gap: 6px; min-inline-size: 0; }
+.ui-field__label { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); }
+.ui-field--grow { flex: 1 1 240px; }
+.ui-field--check { flex-direction: row; align-items: center; gap: 8px; }
+.ui-field__check { accent-color: var(--maroon); inline-size: 16px; block-size: 16px; margin: 0; }
+.ui-field.has-error .form-control {
+  border-color: var(--status-danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-danger) 10%, transparent);
+}
+.ui-field .form-hint,
+.ui-field .field-error { margin: 0; }
+.filter-bar .ui-field { min-inline-size: 140px; gap: 2px; }
+.filter-bar .ui-field__label { font-size: 10px; color: var(--text-secondary); }
+.filter-bar .ui-field--grow { flex: 1 1 240px; }
+/* حقلٌ يجاور أزراراً في سطرٍ واحد (`filter-actions`) يتحاذى معها من الأسفل. */
+.filter-bar .filter-actions { align-self: flex-end; }
 
 /* ── السلوك وخرق البيانات — templates/behavior · templates/breach ──
    ما لا يغطّيه القسمُ المشترك: صفُّ قضيّةٍ بنموذج قرارٍ في طرفه، وشريطُ

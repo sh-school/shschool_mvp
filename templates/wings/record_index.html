@@ -12,7 +12,7 @@
 
   {% page_header "رصد الغياب" subtitle="شُعبي اليومَ — يُلمس الغائبُ وحدَه، والباقي حاضر" icon="list-checks" %}
     <form method="get" class="rec-datebar">
-      <input type="date" name="date" value="{{ day|date:'Y-m-d' }}" class="form-control">
+      {% field "date" "اليوم" type="date" value=day|date:'Y-m-d' hide_label=True %}
       <button type="submit" class="btn-secondary btn-sm">اعرض</button>
     </form>
   {% endpage_header %}

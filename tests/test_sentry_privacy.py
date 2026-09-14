@@ -15,7 +15,7 @@ from core.sentry_config import _scrub_event_pii, before_send
 
 EMAIL = "parent@school.qa"
 PHONE = "+97466123456"
-QID = "28760000001"
+QID = "99900000001"
 ARABIC_NAME = "أحمد محمد الكواري"
 NOTIFICATION_TITLE = "استدعاء ولي أمر — أحمد محمد"
 

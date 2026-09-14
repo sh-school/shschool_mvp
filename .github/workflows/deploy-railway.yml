@@ -71,7 +71,8 @@ jobs:
               ('django', 'django'),
               ('rest_framework', 'djangorestframework'),
               ('psycopg2', 'psycopg2-binary'),
-              ('gunicorn', 'gunicorn'),
+              ('daphne', 'daphne'),
+              ('channels', 'channels'),
               ('redis', 'redis'),
           ]
           for mod, pkg in packages:
@@ -86,27 +87,26 @@ jobs:
           "
           echo "PASS: Core dependencies importable" >> $GITHUB_STEP_SUMMARY
 
-      - name: "Preflight: Gunicorn config check (test 2)"
+      # كان هنا «Gunicorn config check» يقرأ `gunicorn.conf.py` ويطبع PASS — وما
+      # يخدم الإنتاجَ هو daphne (Procfile وDockerfile)، فكان الفحصُ لملفٍّ لا
+      # يُستعمل. أُزيل الملفُّ والحزمةُ (2026-09-14)، والفحصُ صار لما يُشغَّل فعلاً.
+      - name: "Preflight: Procfile يشغّل daphne على PORT (test 2)"
         run: |
           python -c "
-          import os, runpy, sys
-          os.environ.setdefault('PORT', '8000')
-          if not os.path.exists('gunicorn.conf.py'):
-              print('FAIL: gunicorn.conf.py not found', file=sys.stderr)
-              sys.exit(1)
-          conf = runpy.run_path('gunicorn.conf.py')
-          bind = conf.get('bind', '')
-          worker_class = conf.get('worker_class', 'sync')
-          print(f'bind={bind}, worker_class={worker_class}')
-          if '0.0.0.0' not in str(bind):
-              print('FAIL: bind should use 0.0.0.0:\$PORT', file=sys.stderr)
-              sys.exit(1)
-          print('Gunicorn config OK')
+          import sys
+          web = next((l for l in open('Procfile', encoding='utf-8') if l.startswith('web:')), '')
+          if not web:
+              print('FAIL: Procfile has no web process', file=sys.stderr); sys.exit(1)
+          if 'daphne' not in web or 'shschool.asgi:application' not in web:
+              print('FAIL: web process must run daphne with shschool.asgi:application', file=sys.stderr); sys.exit(1)
+          if '-p \${PORT' not in web and '-p \$PORT' not in web:
+              print('FAIL: web process must bind daphne to \$PORT', file=sys.stderr); sys.exit(1)
+          print('Procfile web:', web.strip())
           "
-          echo "PASS: Gunicorn config valid" >> $GITHUB_STEP_SUMMARY
+          echo "PASS: Procfile runs daphne (ASGI) on \$PORT" >> $GITHUB_STEP_SUMMARY
 
-      # Tests 3 & 4 (gunicorn boot + health endpoint) skipped in CI
-      # Railway handles gunicorn startup; post-deploy smoke test covers health
+      # Tests 3 & 4 (daphne boot + health endpoint) skipped in CI —
+      # the post-deploy canary verifies the live commit on /health/.
 
       - name: "Preflight: Security settings check (test 9)"
         run: |

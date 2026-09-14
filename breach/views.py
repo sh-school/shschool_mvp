@@ -170,8 +170,16 @@ def breach_pdf(request, pk):
     breach = get_object_or_404(BreachReport, pk=pk, school=request.user.get_school())
     from django.template.loader import render_to_string
 
+    from core.audit_export import log_export
     from core.pdf_utils import render_pdf
 
+    log_export(
+        request,
+        "breach.report_pdf",
+        rows=1,
+        object_id=breach.pk,
+        object_repr=f"تقرير خرق — {breach.title}",
+    )
     html = render_to_string(
         "breach/pdf_report.html",
         {

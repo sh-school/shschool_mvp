@@ -11,51 +11,18 @@
 
   {% page_header "سجل تغييرات الصلاحيات" subtitle="آخر 200 تغيير في الأدوار والصلاحيات — سجلٌّ غير قابل للتعديل أو الحذف (Immutable Audit Trail)" icon="lock" %}{% endpage_header %}
 
-  <form method="get"
-        id="audit-filter-form"
-        class="filter-bar"
-        hx-get="{% url 'permission_audit_log' %}"
-        hx-target="#audit-table-wrap"
-        hx-trigger="change from:select, change from:input[type=date]"
-        hx-push-url="true"
-        hx-indicator="#audit-loading">
-    <div class="filter-field filter-field--grow">
-      <label for="q" class="filter-label">بحث بالاسم</label>
-      <input type="text"
-             id="q"
-             name="q"
-             value="{{ search }}"
-             placeholder="اسم المنفّذ أو المستهدف..."
-             class="form-control form-control-sm"
-             hx-get="{% url 'permission_audit_log' %}"
-             hx-target="#audit-table-wrap"
-             hx-trigger="input changed delay:400ms"
-             hx-include="#audit-filter-form"
-             hx-push-url="true">
-    </div>
-    <div class="filter-field">
-      <label for="action" class="filter-label">نوع الإجراء</label>
-      <select id="action" name="action" class="form-select form-control-sm">
-        <option value="">— الكل —</option>
-        {% for val, label in actions %}
-        <option value="{{ val }}" {% if val == selected_action %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-field">
-      <label for="date_from" class="filter-label">من تاريخ</label>
-      <input type="date" id="date_from" name="date_from" value="{{ date_from }}" class="form-control form-control-sm">
-    </div>
-    <div class="filter-field">
-      <label for="date_to" class="filter-label">إلى تاريخ</label>
-      <input type="date" id="date_to" name="date_to" value="{{ date_to }}" class="form-control form-control-sm">
-    </div>
+  {% url 'permission_audit_log' as log_url %}
+  {% filter_bar "ترشيحُ سجلّ الصلاحيات" id="audit-filter-form" hx_get=log_url hx_target="#audit-table-wrap" hx_trigger="change from:select, change from:input[type=date]" hx_push_url="true" hx_indicator="#audit-loading" %}
+    {% field "q" "بحث بالاسم" id="q" value=search grow=True placeholder="اسم المنفّذ أو المستهدف..." hx_get=log_url hx_target="#audit-table-wrap" hx_trigger="input changed delay:400ms" hx_include="#audit-filter-form" hx_push_url="true" %}
+    {% field "action" "نوع الإجراء" id="action" type="select" choices=actions value=selected_action blank="— الكل —" %}
+    {% field "date_from" "من تاريخ" id="date_from" type="date" value=date_from %}
+    {% field "date_to" "إلى تاريخ" id="date_to" type="date" value=date_to %}
     <div class="filter-actions">
       <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="filter" %} تصفية</button>
-      <a href="{% url 'permission_audit_log' %}" class="btn-secondary btn-sm">إعادة تعيين</a>
+      <a href="{{ log_url }}" class="btn-secondary btn-sm">إعادة تعيين</a>
       <span id="audit-loading" class="htmx-indicator audit-loading" aria-live="polite">{% include "components/icon.html" with name="loader" %} جارٍ التحديث...</span>
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {% section_card "السجلات" meta=total_count icon="clipboard" flush=True %}
     <ul class="chip-row audit-legend" aria-label="مفتاح الألوان">

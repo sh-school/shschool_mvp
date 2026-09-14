@@ -19,25 +19,18 @@
     {% kpi "نسبة الإنجاز" pct_label tone=pct_tone %}
   {% endkpi_strip %}
 
-  <form method="get" class="filter-bar qmy-filters">
-    <div class="filter-field">
-      <label class="filter-label" for="qmy-status">الحالة</label>
-      <select name="status" id="qmy-status">
-        <option value="">— كل الحالات —</option>
-        {% for val, label in STATUS_CHOICES %}
-        <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-field filter-field--grow">
-      <label class="filter-label" for="qmy-search">بحث</label>
-      <input type="text" id="qmy-search" placeholder="ابحث في الإجراءات...">
+  {% filter_bar "ترشيحُ إجراءاتي" css="qmy-filters" %}
+    {% field "status" "الحالة" type="select" choices=STATUS_CHOICES value=status_filter blank="— كل الحالات —" %}
+    {# بحثٌ في المتصفّح وحده (`smartFilter`) بلا اسمٍ يُرسَل — فلا يُعطى اسماً. #}
+    <div class="ui-field ui-field--grow">
+      <label for="qmy-search" class="ui-field__label">بحث</label>
+      <input type="text" id="qmy-search" class="form-control" placeholder="ابحث في الإجراءات...">
     </div>
     <div class="filter-actions">
       <button type="submit" class="btn-primary btn-sm">فلترة</button>
       <a href="{% url 'my_procedures' %}" class="btn-secondary btn-sm">إعادة ضبط</a>
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {% section_card "الإجراءات" meta=procedures|length icon="list-checks" empty="لا توجد إجراءات مرتبطة بحسابك" %}{% if not mapping_exists %}
     <p class="form-note is-warning">

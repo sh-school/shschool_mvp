@@ -2,40 +2,25 @@
 {% load ui %}
 
 {% block filters %}
-<form method="get" class="filter-bar" aria-label="تصفية التقرير السلوكي والتعليمي الشهري">
-  <div class="filter-field">
-    <label for="f-month" class="filter-label">الشهر</label>
-    <select id="f-month" name="month" class="form-select form-control-sm">
+{% url 'academic_management:monthly_ba_report' as reset_url %}
+{% filter_bar "تصفية التقرير السلوكي والتعليمي الشهري" %}
+  {# الشهرُ تسميتُه مركّبة (الرقم — الاسم) لا تعبّر عنها choices، فالقائمةُ باليد بتسميةٍ مربوطة #}
+  <div class="ui-field">
+    <label for="f-month" class="ui-field__label">الشهر</label>
+    <select id="f-month" name="month" class="form-control">
       {% for value, label in data.month_choices %}
       <option value="{{ value }}" {% if data.month == value %}selected{% endif %}>{{ value }} — {{ label }}</option>
       {% endfor %}
     </select>
   </div>
-  <div class="filter-field">
-    <label for="f-year" class="filter-label">السنة</label>
-    <input id="f-year" type="number" name="year" min="2000" max="2100" value="{{ data.year }}" class="form-control form-control-sm">
-  </div>
-  <div class="filter-field">
-    <label for="f-scope" class="filter-label">المستوى</label>
-    <select id="f-scope" name="scope" class="form-select form-control-sm">
-      <option value="section" {% if data.scope == "section" %}selected{% endif %}>شعبة</option>
-      <option value="student" {% if data.scope == "student" %}selected{% endif %}>طالب</option>
-    </select>
-  </div>
-  <div class="filter-field">
-    <label for="f-class" class="filter-label">الشعبة</label>
-    <select id="f-class" name="class_group_id" class="form-select form-control-sm">
-      <option value="">— اختر —</option>
-      {% for c in data.classes %}
-      <option value="{{ c.id }}" {% if data.filters.class_group_id == c.id|stringformat:"s" %}selected{% endif %}>{{ c }}</option>
-      {% endfor %}
-    </select>
-  </div>
+  {% field "year" "السنة" type="number" min=2000 max=2100 value=data.year %}
+  {% field "scope" "المستوى" type="select" choices="section=شعبة|student=طالب" value=data.scope %}
+  {% field "class_group_id" "الشعبة" type="select" choices=data.classes value=data.filters.class_group_id blank="— اختر —" %}
   <div class="filter-actions">
     <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="search" %} عرض</button>
-    <a href="{% url 'academic_management:monthly_ba_report' %}" class="btn-secondary btn-sm">مسح</a>
+    <a href="{{ reset_url }}" class="btn-secondary btn-sm">مسح</a>
   </div>
-</form>
+{% endfilter_bar %}
 {% endblock %}
 
 {% block report_body %}

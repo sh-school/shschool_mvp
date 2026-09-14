@@ -16,6 +16,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
+from core.audit_export import log_export
 from core.capabilities import capability_required
 from core.export_utils import generate_export_filename, get_export_context
 from core.pdf_utils import render_pdf
@@ -49,6 +50,9 @@ def _respond(request, *, fmt, title, slug, context, workbook):
     ctx["school"] = request.user.get_school()
     ctx["orient"] = _orientation(request)
     ctx["footer"] = footer_lines(ctx["school"])
+    # الكشفُ بلا رقمٍ شخصيّ (قرار 2026-09-13) — ويُدقَّق إخراجُه ملفّاً كأيّ مصدِّر.
+    if fmt in ("xlsx", "pdf"):
+        log_export(request, f"wings.register_{fmt}", object_repr=title)
     if fmt == "xlsx":
         return ExcelService.to_response(
             workbook(ctx["school_name"], ctx["exported_by"], ctx["orient"], ctx["footer"]),

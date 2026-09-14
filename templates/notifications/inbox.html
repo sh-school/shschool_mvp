@@ -33,12 +33,9 @@
     {% endkpi_strip %}
   </div>
 
-  <div class="filter-bar">
-    <div class="filter-field filter-field--grow">
-      <label class="filter-label" for="notif-search">بحث</label>
-      <input type="text" id="notif-search" class="form-control form-control-sm" placeholder="بحث في الإشعارات..." autocomplete="off">
-    </div>
-  </div>
+  {% filter_bar "بحثٌ في الإشعارات" live=True %}
+    {% field "q" "بحث" type="search" id="notif-search" grow=True placeholder="بحث في الإشعارات..." autocomplete="off" %}
+  {% endfilter_bar %}
 
   <nav class="chip-row" aria-label="نوع الإشعار">
     <a href="{% url 'notification_inbox' %}" class="status-badge notif-type {% if not event_filter %}status-maroon{% else %}status-gray{% endif %}"{% if not event_filter %} aria-current="page"{% endif %}>الكل</a>
