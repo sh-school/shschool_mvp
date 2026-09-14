@@ -14,7 +14,7 @@ from django.utils import timezone
 from core import views_auth
 
 
-def _login(client, user, password="wrong", identifier=None):
+def _login(client, user, password="wrong", identifier=None):  # pragma: allowlist secret
     return client.post(
         "/auth/login/",
         {"national_id": identifier or user.national_id, "password": password},
