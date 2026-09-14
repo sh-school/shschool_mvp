@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load static ui %}
 {% block title %}التقييمات — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
@@ -9,7 +10,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "لوحة التقييمات" subtitle=subtitle icon="file-pen" %}
+  {% page_header "لوحة التقييمات" subtitle=subtitle icon="assessments" %}
     <form method="get">
       <select name="semester" data-autosubmit class="exec-year-select" aria-label="الفصل الدراسي">
         {% for val, label in SEMESTERS %}
@@ -18,7 +19,7 @@
       </select>
     </form>
     {% if request.user.is_admin or request.user.is_superuser %}
-    <a href="{% url 'setup_subject' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} ربط مادة بفصل</a>
+    <a href="{% url 'setup_subject' %}" class="btn-primary btn-sm">{% icon "add" %} ربط مادة بفصل</a>
     {% endif %}
   {% endpage_header %}
 
@@ -31,25 +32,25 @@
   {% endkpi_strip %}
 
   <div class="ui-grid-2">
-    {% section_card "توزيع الدرجات" icon="bar-chart" %}
+    {% section_card "توزيع الدرجات" icon="grades" %}
       <div class="dash-chart-wrap">
         <canvas id="chartGradeDist" role="img" aria-label="رسم بياني: توزيع الدرجات"></canvas>
       </div>
     {% endsection_card %}
 
-    {% section_card "مقارنة الفصول" meta="المعدّل" icon="building" %}
+    {% section_card "مقارنة الفصول" meta="المعدّل" icon="stats" %}
       <div class="dash-chart-wrap">
         <canvas id="chartClassComp" role="img" aria-label="رسم بياني: معدّل كل فصل"></canvas>
       </div>
     {% endsection_card %}
 
-    {% section_card "أداء المواد" meta="المعدّل ونسبة الرسوب" icon="activity" %}
+    {% section_card "أداء المواد" meta="المعدّل ونسبة الرسوب" icon="academic" %}
       <div class="dash-chart-wrap">
         <canvas id="chartSubjects" role="img" aria-label="رسم بياني: معدّل كل مادة ونسبة الرسوب فيها"></canvas>
       </div>
     {% endsection_card %}
 
-    {% section_card "نتائج راسبة" meta=failing_list|length icon="alert-triangle" empty="لا نتائجَ راسبةً هذا العام" %}{% if failing_list %}
+    {% section_card "نتائج راسبة" meta=failing_list|length icon="failing_students" empty="لا نتائجَ راسبةً هذا العام" %}{% if failing_list %}
       <ul class="plain-list is-scroll">
         {% for r in failing_list %}
           <li class="plain-list__row">
@@ -70,7 +71,7 @@
   {% regroup setups by class_group as grouped %}
   {% for group in grouped %}
     <div data-filter-row data-text="{{ group.grouper }}{% for s in group.list %} {{ s.subject.name_ar }} {{ s.teacher.full_name }}{% endfor %}">
-    {% section_card group.grouper meta=group.list|length icon="book-open" %}
+    {% section_card group.grouper meta=group.list|length icon="library" %}
       <div class="ui-entity-grid">
         {% for setup in group.list %}
           {% url 'setup_detail' setup.id as detail_url %}
@@ -83,9 +84,9 @@
     </div>
   {% empty %}
     {% if request.user.is_admin or request.user.is_superuser %}
-      {% section_card "كل المواد" icon="book-open" empty="لا توجد مواد مُعدَّة بعد" empty_sub="اربط المادةَ بفصلها أوّلاً من «ربط مادة بفصل»" %}{% endsection_card %}
+      {% section_card "كل المواد" icon="academic" empty="لا توجد مواد مُعدَّة بعد" empty_sub="اربط المادةَ بفصلها أوّلاً من «ربط مادة بفصل»" %}{% endsection_card %}
     {% else %}
-      {% section_card "موادي" icon="book-open" empty="لا توجد مواد مُسندةٌ إليك بعد" empty_sub="تظهر هنا حين تربط الإدارةُ موادَّك بفصولها" %}{% endsection_card %}
+      {% section_card "موادي" icon="academic" empty="لا توجد مواد مُسندةٌ إليك بعد" empty_sub="تظهر هنا حين تربط الإدارةُ موادَّك بفصولها" %}{% endsection_card %}
     {% endif %}
   {% endfor %}
   </div>

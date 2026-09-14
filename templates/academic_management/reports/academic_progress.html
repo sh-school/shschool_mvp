@@ -1,4 +1,5 @@
 {% extends "academic_management/reports/_base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block filters %}
@@ -8,7 +9,7 @@
   {% field "date_from" "من تاريخ" type="date" value=data.filters.date_from %}
   {% field "date_to" "إلى تاريخ" type="date" value=data.filters.date_to %}
   <div class="filter-actions">
-    <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="search" %} عرض التقرير</button>
+    <button type="submit" class="btn-primary btn-sm">{% icon "search" %} عرض التقرير</button>
     <a href="{{ reset_url }}" class="btn-secondary btn-sm">مسح</a>
   </div>
 {% endfilter_bar %}
@@ -22,7 +23,7 @@
       {% kpi "المتوسط العام %" data.overall_avg|default_if_none:"—" tone="teal" %}
     {% endkpi_strip %}
 
-    {% section_card "ترتيب الطلاب" icon="trending-up" empty="لا توجد بيانات تقييمات لهذه الشعبة في الفترة المحددة" flush=True %}{% if data.students %}
+    {% section_card "ترتيب الطلاب" icon="stats" empty="لا توجد بيانات تقييمات لهذه الشعبة في الفترة المحددة" flush=True %}{% if data.students %}
       <div class="table-wrap">
         <table aria-label="جدول التقدم الأكاديمي">
           <thead>
@@ -49,6 +50,6 @@
       </div>
     {% endif %}{% endsection_card %}
   {% else %}
-    {% section_card "ترتيب الطلاب" icon="trending-up" empty="اختر شعبةً لعرض تقرير التقدم الأكاديمي" %}{% endsection_card %}
+    {% section_card "ترتيب الطلاب" icon="stats" empty="اختر شعبةً لعرض تقرير التقدم الأكاديمي" %}{% endsection_card %}
   {% endif %}
 {% endblock %}

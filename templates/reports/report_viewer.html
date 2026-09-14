@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}{{ report_title }}{% endblock %}
 
@@ -12,8 +13,8 @@
 فتات خبز ولا رجوع. وهنا تُعرض داخل الصفحة ويبقى شريط الأدوات لنا.
 {% endcomment %}
 <div class="report-viewer">
-  {% page_header report_title icon="file-text" %}
-    <a href="{{ report_url }}&download=1" class="btn-primary btn-sm">{% include "components/icon.html" with name="download" %} تحميل</a>
+  {% page_header report_title icon="document" %}
+    <a href="{{ report_url }}&download=1" class="btn-primary btn-sm">{% icon "download" %} تحميل</a>
     <a href="{% url 'reports_index' %}{{ back_query }}" class="btn-secondary btn-sm">← رجوع للتقارير</a>
   {% endpage_header %}
 

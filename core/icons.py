@@ -156,6 +156,7 @@ ICONS: dict[str, Icon] = {
     "teacher": Icon("المعلّم", "entity", "hi:teacher"),
     "student": Icon("الطالب", "entity", "hi:student"),
     # ── البيانات والتقارير ──
+    "location": Icon("الموقع والخريطة", "data", "hi:maps-location-01"),
     "stats": Icon("الإحصائيّات والتوزيعات", "data", "hi:chart-column"),
     "checklist": Icon("قائمة بنود", "data", "hi:check-list"),
     "document": Icon("مستند", "data", "hi:file-01"),
@@ -226,8 +227,16 @@ def get(key: str) -> Icon:
         raise KeyError(f"لا أيقونةَ بالمعنى {key!r} في core/icons.py") from None
 
 
-def symbol_id(key: str, degree: int | None = None) -> str:
-    """معرّفُ الرمز في الورقة — ``i-<key>``، ولدرجة المخالفة ``i-violation-degree-<n>``."""
+#: معانٍ لها رسمٌ مفصَّلٌ في الأحجام الكبيرة — وفي القوائم يُزدحم فيُبسَّط.
+#: الجناحُ نجمةٌ ثمانيّة في 16–24 بكسل، ومبنًى داخلها في 32 و48.
+DETAILED_AT = {"wings": ("xl", "2xl")}
+
+
+def symbol_id(key: str, degree: int | None = None, size: str = "") -> str:
+    """معرّفُ الرمز في الورقة — ``i-<key>``، ولدرجة المخالفة ``i-violation-degree-<n>``،
+    وللرسم المفصَّل في الحجم الكبير ``i-<key>-lg``."""
     if degree is not None:
         return f"i-violation-degree-{degree}"
+    if size and size in DETAILED_AT.get(key, ()):
+        return f"i-{key}-lg"
     return f"i-{key}"

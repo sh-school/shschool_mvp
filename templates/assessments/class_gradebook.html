@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui dict_filters %}
 {% block title %}كشف الدرجات — {{ setup.subject.name_ar }}{% endblock %}
 
@@ -9,17 +10,17 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "كشف الدرجات" subtitle=subtitle icon="bar-chart" %}
+  {% page_header "كشف الدرجات" subtitle=subtitle icon="grades" %}
     <nav class="period-switch" aria-label="الفصل الدراسي">
       {% for val, label in SEMESTERS %}
         <a href="?semester={{ val }}" class="period-switch__item{% if semester == val %} is-current{% endif %}"{% if semester == val %} aria-current="page"{% endif %}>{{ label }}</a>
       {% endfor %}
       <a href="?semester=annual" class="period-switch__item{% if show_annual %} is-current{% endif %}"{% if show_annual %} aria-current="page"{% endif %}>السنوي (100)</a>
     </nav>
-    <a href="{% url 'export_gradebook' setup.id %}{% if not show_annual %}?semester={{ semester }}{% endif %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
+    <a href="{% url 'export_gradebook' setup.id %}{% if not show_annual %}?semester={{ semester }}{% endif %}" class="btn-primary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
     <form method="post" action="{% url 'recalculate_class' setup.id %}" data-confirm="إعادة حساب جميع الدرجات؟">
       {% csrf_token %}
-      <button type="submit" class="btn-secondary btn-sm">{% include "components/icon.html" with name="refresh-cw" %} إعادة الحساب</button>
+      <button type="submit" class="btn-secondary btn-sm">{% icon "refresh" %} إعادة الحساب</button>
     </form>
   {% endpage_header %}
 
@@ -34,7 +35,7 @@
     {% field "q" "ابحث باسم الطالب" id="gradebook-search" hide_label=True grow=True placeholder="ابحث باسم الطالب..." autocomplete="off" %}
   {% endfilter_bar %}
 
-  {% section_card "درجات الطلاب" meta=rows|length icon="users" flush=True empty="لا يوجد طلاب في هذا الفصل" %}{% if rows %}
+  {% section_card "درجات الطلاب" meta=rows|length icon="students" flush=True empty="لا يوجد طلاب في هذا الفصل" %}{% if rows %}
     <div class="table-wrap table-wrap-scroll">
       <table>
         <thead>

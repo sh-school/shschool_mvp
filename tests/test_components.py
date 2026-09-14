@@ -251,18 +251,18 @@ class TestEmptyStateComponent:
         html = render_component(
             "components/empty_state.html",
             {
-                "icon": "📚",
+                "icon": "library",
                 "title": "عنوان",
                 "subtitle": "",
             },
         )
-        assert "📚" in html
+        assert "icons/sprite.svg#i-library" in html
 
     def test_optional_action_button(self):
         html = render_component(
             "components/empty_state.html",
             {
-                "icon": "📋",
+                "icon": "checklist",
                 "title": "لا شيء",
                 "subtitle": "فارغ",
                 "action_url": "/add/",

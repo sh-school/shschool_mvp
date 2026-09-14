@@ -9,9 +9,9 @@
 {% block content %}
 <div class="exec-dash substitute-form-page">
 
-  {% page_header "تسجيل غياب معلم" subtitle="يُطلق نظامُ البديل تلقائيّاً لتغطية حصصه" icon="ban" %}{% endpage_header %}
+  {% page_header "تسجيل غياب معلم" subtitle="يُطلق نظامُ البديل تلقائيّاً لتغطية حصصه" icon="attendance_teacher_absence" %}{% endpage_header %}
 
-  {% section_card "بيانات الغياب" icon="file-pen" %}
+  {% section_card "بيانات الغياب" icon="attendance_teacher_absence" %}
     <form method="post">
       {% csrf_token %}
       <div class="form-group">

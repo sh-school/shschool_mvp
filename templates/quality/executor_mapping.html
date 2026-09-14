@@ -9,7 +9,7 @@
 {% block content %}
 <div class="qexec">
 
-  {% page_header "ربط المنفذين بالموظفين" subtitle="كلُّ مسمًّى وظيفيٍّ في الخطة يُربط بموظفٍ فعليٍّ لتظهر إجراءاتُه في لوحته" icon="waypoints" %}
+  {% page_header "ربط المنفذين بالموظفين" subtitle="كلُّ مسمًّى وظيفيٍّ في الخطة يُربط بموظفٍ فعليٍّ لتظهر إجراءاتُه في لوحته" icon="link" %}
     {% if mapped_count > 0 %}
     <form method="post" action="{% url 'apply_all_mappings' %}" class="qexec-apply">
       {% csrf_token %}
@@ -26,7 +26,7 @@
     {% kpi "غير مربوط" unmapped_count tone=unmapped_tone %}
   {% endkpi_strip %}
 
-  {% section_card "قائمة المنفذين" meta=year icon="users" empty="لا مسمّياتٍ وظيفيّةً في خطة هذا العام" flush=True %}{% if executor_rows %}
+  {% section_card "قائمة المنفذين" meta=year icon="quality" empty="لا مسمّياتٍ وظيفيّةً في خطة هذا العام" flush=True %}{% if executor_rows %}
     <div class="qeval-search">
       <input type="text" id="executor-search"
              placeholder="بحث بالمسمى الوظيفي أو اسم الموظف..."

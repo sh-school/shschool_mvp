@@ -1,3 +1,4 @@
+{% load icons %}
 {% comment %}
   مكوّن Toast للعرض المباشر في القوالب — SchoolOS v5.2
 
@@ -22,13 +23,13 @@
   aria-live="polite"
 >
   {% if type == 'success' or type == 'حسن' %}
-    <span class="toast-icon">{% include "components/icon.html" with name="check-circle" %}</span>
+    <span class="toast-icon">{% icon "status_success" %}</span>
   {% elif type == 'danger' or type == 'error' or type == 'خطأ' %}
-    <span class="toast-icon">{% include "components/icon.html" with name="x-circle" %}</span>
+    <span class="toast-icon">{% icon "status_error" %}</span>
   {% elif type == 'warning' or type == 'تحذير' %}
-    <span class="toast-icon">{% include "components/icon.html" with name="alert-triangle" %}</span>
+    <span class="toast-icon">{% icon "status_warning" %}</span>
   {% else %}
-    <span class="toast-icon">{% include "components/icon.html" with name="info" %}</span>
+    <span class="toast-icon">{% icon "status_info" %}</span>
   {% endif %}
   <span>{{ msg }}</span>
   <button

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}تسجيل خرق بيانات{% endblock %}
 
@@ -9,11 +10,11 @@
 {% block content %}
 <div class="exec-dash beh-narrow">
 
-  {% page_header "تسجيل خرق بيانات جديد" subtitle="PDPPL م.11 — تُحسب مهلةُ إشعار NCSA تلقائيّاً (72 ساعة)" icon="flag" %}{% endpage_header %}
+  {% page_header "تسجيل خرق بيانات جديد" subtitle="PDPPL م.11 — تُحسب مهلةُ إشعار NCSA تلقائيّاً (72 ساعة)" icon="breach" %}{% endpage_header %}
 
   <form method="post" class="beh-form-stack" data-validate>{% csrf_token %}
 
-    {% section_card "عنوان الخرق والتصنيف" icon="flag" %}
+    {% section_card "عنوان الخرق والتصنيف" icon="breach" %}
       <div class="form-group">
         <label class="form-label" for="breachTitle">عنوان الخرق <span class="required">*</span></label>
         <input name="title" id="breachTitle" class="form-control" required placeholder="مثال: تسريب بيانات طلاب من قاعدة البيانات">
@@ -51,7 +52,7 @@
       </div>
     {% endsection_card %}
 
-    {% section_card "وصف الخرق والإجراءات" icon="file-text" %}
+    {% section_card "وصف الخرق والإجراءات" icon="breach" %}
       <div class="form-group">
         <label class="form-label" for="breachDescription">وصف الخرق التفصيلي <span class="required">*</span></label>
         <textarea name="description" id="breachDescription" class="form-control resize-y" rows="3" required
@@ -68,21 +69,21 @@
       </div>
     {% endsection_card %}
 
-    {% section_card "إشعار NCSA" icon="mail" %}
+    {% section_card "إشعار NCSA" icon="notifications" %}
       <div class="form-group">
         <label class="form-label" for="breachNotification">نص الإشعار لـ NCSA (يمكن تعديله لاحقاً)</label>
         <textarea name="notification_text" id="breachNotification" class="form-control resize-y" rows="4"
           placeholder="وفق نموذج NCSA الرسمي...">{{ ncsa_template }}</textarea>
       </div>
       <p class="form-note is-warning" role="note">
-        {% include "components/icon.html" with name="clock" %}
+        {% icon "time" %}
         <span>بعد الحفظ يبدأ عدٌّ تنازليٌّ لـ72 ساعة، وتصل تنبيهاتٌ تلقائيّةٌ للمسؤول.</span>
       </p>
     {% endsection_card %}
 
     <div class="form-actions">
       <a href="{% url 'breach:dashboard' %}" class="btn-secondary">إلغاء</a>
-      <button type="submit" class="btn-danger">{% include "components/icon.html" with name="flag" %} تسجيل الخرق</button>
+      <button type="submit" class="btn-danger">{% icon "breach" %} تسجيل الخرق</button>
     </div>
   </form>
 

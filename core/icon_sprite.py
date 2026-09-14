@@ -21,7 +21,7 @@ import re
 from functools import lru_cache
 from pathlib import Path
 
-from core.icons import BADGES, ICONS, VIOLATION_DEGREES, symbol_id
+from core.icons import BADGES, DETAILED_AT, ICONS, VIOLATION_DEGREES, symbol_id
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 SOURCE = BASE_DIR / "core" / "icon_sources" / "hugeicons.json"
@@ -122,6 +122,14 @@ def _local(name: str) -> str:
             '<path d="M12 7.5V12l-3 2" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>'
         )
     if name == "wing":
+        # في القوائم نجمةٌ وحدها — المبنى داخلها لا يُقرأ في 20 بكسل
+        return (
+            '<g fill="none" stroke="currentColor" stroke-linejoin="round">'
+            '<rect x="5" y="5" width="14" height="14" rx="1.5"/>'
+            '<rect x="5" y="5" width="14" height="14" rx="1.5" transform="rotate(45 12 12)"/></g>'
+            '<circle cx="12" cy="12" r="1.6" fill="var(--gold)" stroke="none"/>'
+        )
+    if name == "wing-lg":
         return (
             '<g fill="none" stroke="var(--gold)" stroke-width="1" stroke-linejoin="round">'
             '<rect x="4.5" y="4.5" width="15" height="15" rx="1.5"/>'
@@ -159,6 +167,11 @@ def build_sprite() -> str:
     for key in sorted(ICONS):
         icon = ICONS[key]
         parts.append(_symbol(symbol_id(key), icon.label, glyph_body(icon.glyph)))
+    for key, sizes in sorted(DETAILED_AT.items()):
+        icon = ICONS[key]
+        parts.append(
+            _symbol(symbol_id(key, size=sizes[0]), icon.label, _local(f"{icon.source}-lg"))
+        )
     for degree in VIOLATION_DEGREES:
         parts.append(
             _symbol(

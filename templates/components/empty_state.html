@@ -21,9 +21,10 @@
     action_modal — data-modal-open value بدلاً من URL
     compact      — True لحجم أصغر
 {% endcomment %}
+{% load icons %}
 <div class="empty-state-v2 {% if compact %}py-8{% endif %}">
   {% if icon %}
-  <div class="es-icon">{% include "components/icon.html" with name=icon size="icon-2xl" %}</div>
+  <div class="es-icon">{% icon_named icon size="2xl" %}</div>
   {% endif %}
   <div class="es-title">{{ title|default:"لا توجد بيانات" }}</div>
   {% if subtitle %}

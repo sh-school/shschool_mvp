@@ -1,7 +1,7 @@
 {% load ui %}
 {% comment %}ملخّصُ المخالفة في رأس نماذج القرار — قرارُ اللجنة والإحالةُ الأمنيّة.
 كان صندوقاً أحمرَ بألوانٍ ثابتة؛ والدرجةُ الآن في طرف الشريط، ولونُ الشارة يحمل الخطورة.{% endcomment %}
-{% section_card infraction.student.full_name icon="alert-triangle" %}
+{% section_card infraction.student.full_name icon="status_warning" %}
   <dl class="detail-dl">
     <dt class="detail-dt">الدرجة</dt>
     <dd class="detail-dd"><span class="status-badge {% if infraction.level == 4 %}status-danger{% else %}status-warning{% endif %}">{{ infraction.get_level_display }}</span></dd>

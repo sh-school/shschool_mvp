@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}تصحيح — {{ student.full_name }}{% endblock %}
 
@@ -9,12 +10,12 @@
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header student.full_name subtitle=klass icon="list-checks" %}
+  {% page_header student.full_name subtitle=klass icon="checklist" %}
     <a href="{% url 'wings:record_section' klass.id %}" class="btn-secondary btn-sm">إلى الكشف</a>
   {% endpage_header %}
 
   <p class="form-note">
-    {% include "components/icon.html" with name="info" %}
+    {% icon "status_info" %}
     <span>رُصد شيءٌ على هذا الطالب بالخطأ؟ احذفه هنا بسبب. الحذفُ لا يمحو الأصل: يُسجَّل في سجلّ المراجعة، وتزول معه المخالفةُ التي بُنيت عليه، وتعود الخانةُ «لم تُرصد». ولتصحيحِ حصّةٍ كاملةٍ أعِد تثبيتَها من الكشف.</span>
   </p>
 

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block title %}{{ page_title }} — {{ module_name }}{% endblock %}
@@ -16,10 +17,10 @@
 {% endcomment %}
 <div class="exec-dash">
 
-  {% page_header page_title|default:"التقارير الأكاديمية" subtitle=page_subtitle icon="file-text" %}
-    {% if flagship %}<span class="status-badge status-maroon">{% include "components/icon.html" with name="star" %} تقرير رئيسي</span>{% endif %}
-    <a href="?{{ request.GET.urlencode }}{% if request.GET %}&{% endif %}export=pdf" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير PDF</a>
-    <a href="?{{ request.GET.urlencode }}{% if request.GET %}&{% endif %}export=excel" class="btn-secondary btn-sm">{% include "components/icon.html" with name="file-spreadsheet" %} تصدير Excel</a>
+  {% page_header page_title|default:"التقارير الأكاديمية" subtitle=page_subtitle icon="document" %}
+    {% if flagship %}<span class="status-badge status-maroon">{% icon "reports" %} تقرير رئيسي</span>{% endif %}
+    <a href="?{{ request.GET.urlencode }}{% if request.GET %}&{% endif %}export=pdf" class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير PDF</a>
+    <a href="?{{ request.GET.urlencode }}{% if request.GET %}&{% endif %}export=excel" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
   {% endpage_header %}
 
   {% block filters %}{% endblock %}

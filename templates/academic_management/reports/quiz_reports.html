@@ -1,4 +1,5 @@
 {% extends "academic_management/reports/_base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block filters %}
@@ -9,7 +10,7 @@
   {% field "date_from" "من تاريخ" type="date" value=data.filters.date_from %}
   {% field "date_to" "إلى تاريخ" type="date" value=data.filters.date_to %}
   <div class="filter-actions">
-    <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="search" %} عرض التقرير</button>
+    <button type="submit" class="btn-primary btn-sm">{% icon "search" %} عرض التقرير</button>
     <a href="{{ reset_url }}" class="btn-secondary btn-sm">مسح</a>
   </div>
 {% endfilter_bar %}
@@ -22,7 +23,7 @@
     {% kpi "الأدنى–الأعلى %" data.range_label tone="teal" %}
   {% endkpi_strip %}
 
-  {% section_card "نتائج الاختبارات القصيرة" icon="pen-square" empty="لا توجد نتائج اختبارات قصيرة للفلاتر المحددة" empty_sub="جرّب توسيع نطاق التاريخ أو اختيار مادة أخرى" flush=True %}{% if data.rows %}
+  {% section_card "نتائج الاختبارات القصيرة" icon="assessments" empty="لا توجد نتائج اختبارات قصيرة للفلاتر المحددة" empty_sub="جرّب توسيع نطاق التاريخ أو اختيار مادة أخرى" flush=True %}{% if data.rows %}
     <div class="table-wrap">
       <table aria-label="جدول نتائج الاختبارات القصيرة">
         <thead>

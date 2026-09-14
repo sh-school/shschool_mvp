@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block title %}{{ page_title }} — {{ module_name }}{% endblock %}
@@ -9,8 +10,8 @@
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header page_title subtitle=module_name icon="wrench" %}
-    <a href="{% url 'dashboard' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="arrow-right" %} العودة إلى الرئيسية</a>
+  {% page_header page_title subtitle=module_name icon="maintenance" %}
+    <a href="{% url 'dashboard' %}" class="btn-secondary btn-sm">{% icon "back" %} العودة إلى الرئيسية</a>
   {% endpage_header %}
 
   {% comment %}
@@ -19,7 +20,7 @@
   من مكوّنات المنصّة، بلا بطاقةٍ حولها كسائر الحالات الفارغة على مستوى الصفحة.
   {% endcomment %}
   <div role="status" aria-live="polite">
-    {% empty_state "هذه الميزة قيد التطوير" sub="سيتم إضافة الميزات الكاملة في التحديثات القادمة. شكراً لصبركم." icon="wrench" %}
+    {% empty_state "هذه الميزة قيد التطوير" sub="سيتم إضافة الميزات الكاملة في التحديثات القادمة. شكراً لصبركم." icon="maintenance" %}
   </div>
 </div>
 {% endblock %}

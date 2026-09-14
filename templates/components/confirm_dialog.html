@@ -1,3 +1,4 @@
+{% load icons %}
 {% comment %}
   مكوّن تأكيد الإجراءات التدميرية — SchoolOS v5.1
   ══════════════════════════════════════════════════
@@ -29,7 +30,7 @@
 
     <div class="modal-header">
       <span id="confirm-title-{{ confirm_id }}" class="confirm-dialog-title">
-        {% include "components/icon.html" with name="alert-triangle" %} {{ title|default:"تأكيد الإجراء" }}
+        {% icon "status_warning" %} {{ title|default:"تأكيد الإجراء" }}
       </span>
       <button class="modal-close-btn" data-modal-close="{{ confirm_id }}" aria-label="إغلاق">×</button>
     </div>

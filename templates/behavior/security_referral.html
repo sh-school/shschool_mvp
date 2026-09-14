@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}إحالة أمنية{% endblock %}
 
@@ -9,13 +10,13 @@
 {% block content %}
 <div class="exec-dash beh-narrow">
 
-  {% page_header "تسجيل إحالة أمنية" icon="lock" %}
-    <a href="{% url 'behavior:student_profile' infraction.student.pk %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="user" %} الملف السلوكي</a>
+  {% page_header "تسجيل إحالة أمنية" icon="security" %}
+    <a href="{% url 'behavior:student_profile' infraction.student.pk %}" class="btn-secondary btn-sm">{% icon "behavior" %} الملف السلوكي</a>
   {% endpage_header %}
 
   {% include "behavior/partials/infraction_summary.html" %}
 
-  {% section_card "بيانات الإحالة" icon="lock" %}
+  {% section_card "بيانات الإحالة" icon="behavior_committee" %}
     <form method="post">
       {% csrf_token %}
       <div class="form-group">
@@ -37,7 +38,7 @@
       </div>
       <div class="form-actions">
         <a href="{% url 'behavior:student_profile' infraction.student.pk %}" class="btn-secondary">إلغاء</a>
-        <button type="submit" class="btn-danger">{% include "components/icon.html" with name="lock" %} تسجيل الإحالة الأمنية</button>
+        <button type="submit" class="btn-danger">{% icon "behavior_committee" %} تسجيل الإحالة الأمنية</button>
       </div>
     </form>
   {% endsection_card %}

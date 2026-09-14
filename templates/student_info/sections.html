@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block title %}مركز معلومات الطلبة{% endblock %}
@@ -9,9 +10,9 @@
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header "مركز معلومات الطلبة" subtitle=subtitle icon="users" %}
-    <a href="{% url 'student_info:levels' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} المستويات التعليمية</a>
-    <a href="{% url 'student_info:activities' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="activity" %} الأنشطة</a>
+  {% page_header "مركز معلومات الطلبة" subtitle=subtitle icon="student_info" %}
+    <a href="{% url 'student_info:levels' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "grades" %} المستويات التعليمية</a>
+    <a href="{% url 'student_info:activities' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "activities" %} الأنشطة</a>
   {% endpage_header %}
 
   {% comment %}

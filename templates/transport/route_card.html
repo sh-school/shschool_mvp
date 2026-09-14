@@ -1,5 +1,6 @@
+{% load icons %}
 <div class="form-note transport-done">
-  {% include "components/icon.html" with name="check-circle" %}
+  {% icon "status_success" %}
   <span class="plain-list__main">
     <b class="plain-list__title">{{ route.area_name }}</b>
     <span class="plain-list__sub">{{ route.students.count }} طالب</span>

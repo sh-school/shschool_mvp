@@ -9,7 +9,7 @@
 {% block content %}
 <div class="qeval">
 
-  {% page_header "تقييم أداء الموظفين" subtitle="القرار الأميري 9/2016 · QNSA المعيار 1" icon="list-checks" %}{% endpage_header %}
+  {% page_header "تقييم أداء الموظفين" subtitle="القرار الأميري 9/2016 · QNSA المعيار 1" icon="staff_evaluation" %}{% endpage_header %}
 
   {% if avg_score %}
   {% kpi_strip label="أرقام التقييم" %}
@@ -20,7 +20,7 @@
   {% endkpi_strip %}
   {% endif %}
 
-  {% section_card "دورات التقييم" meta=cycle_stats|length icon="calendar" empty="لا دوراتِ تقييمٍ لهذا العام" %}{% if cycle_stats %}
+  {% section_card "دورات التقييم" meta=cycle_stats|length icon="date" empty="لا دوراتِ تقييمٍ لهذا العام" %}{% if cycle_stats %}
     <ul class="plain-list">
       {% for cs in cycle_stats %}
       <li class="plain-list__row">
@@ -36,7 +36,7 @@
   {% endif %}{% endsection_card %}
 
   {% if staff_list %}
-  {% section_card "الموظفون القابلون للتقييم" icon="users" flush=True %}
+  {% section_card "الموظفون القابلون للتقييم" icon="staff" flush=True %}
     <div class="qeval-search">
       <input type="text" id="eval-staff-search"
              placeholder="بحث باسم الموظف أو الدور..."
@@ -81,7 +81,7 @@
   {% endsection_card %}
   {% endif %}
 
-  {% section_card "التقييمات الأخيرة" meta=recent_evals|length icon="clipboard-check" empty="لا توجد تقييمات بعد لهذا العام" %}{% if recent_evals %}
+  {% section_card "التقييمات الأخيرة" meta=recent_evals|length icon="staff_evaluation" empty="لا توجد تقييمات بعد لهذا العام" %}{% if recent_evals %}
     <ul class="plain-list is-scroll" id="eval-recent-list">
       {% for ev in recent_evals %}
       <li class="plain-list__row" data-text="{{ ev.employee.full_name }} {{ ev.get_period_display }}">

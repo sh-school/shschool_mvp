@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block title %}تفاصيل الانتقال — {{ transfer.student.full_name }}{% endblock %}
@@ -10,7 +11,7 @@
 {% block content %}
 <div class="exec-dash sa-page sa-form-page">
 
-  {% page_header "تفاصيل الانتقال" subtitle=page_subtitle icon="refresh" %}
+  {% page_header "تفاصيل الانتقال" subtitle=page_subtitle icon="swap_requests" %}
     <span class="status-badge
       {% if transfer.status == 'pending' %}status-warning
       {% elif transfer.status == 'approved' %}status-info
@@ -19,10 +20,10 @@
       {% else %}status-gray{% endif %}">
       {{ transfer.get_status_display }}
     </span>
-    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+    <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
-  {% section_card "بيانات الانتقال" icon="file-text" %}
+  {% section_card "بيانات الانتقال" icon="swap_requests" %}
     <dl class="detail-dl">
       <dt>الطالب</dt><dd><strong>{{ transfer.student.full_name }}</strong></dd>
       <dt>الاتجاه</dt><dd>{% if transfer.direction == "in" %}← وارد{% else %}→ صادر{% endif %}</dd>
@@ -37,7 +38,7 @@
   {% endsection_card %}
 
   {% if transfer.status == "pending" or transfer.status == "approved" %}
-  {% section_card "مراجعة الطلب" icon="list-checks" %}
+  {% section_card "مراجعة الطلب" icon="checklist" %}
     <form method="post" action="{% url 'student_affairs:transfer_review' transfer.pk %}">
       {% csrf_token %}
       <div class="form-row">
@@ -62,7 +63,7 @@
         {% endif %}
       </div>
       <div class="form-actions">
-        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check-circle" %} تنفيذ القرار</button>
+        <button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} تنفيذ القرار</button>
       </div>
     </form>
   {% endsection_card %}

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}الحافلات المدرسية{% endblock %}
 
@@ -9,7 +10,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "الحافلات المدرسية" subtitle=buses_label icon="bus" %}
+  {% page_header "الحافلات المدرسية" subtitle=buses_label icon="transport" %}
     <a href="{% url 'transport:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
   {% endpage_header %}
 
@@ -25,15 +26,15 @@
     <div data-filter-item data-text="{{ bus.bus_number|lower }} {{ bus.driver_name|lower }}">
       {% entity_card bus.bus_number who=bus.driver_name count=bus.seats_label href=bus_url tone="blue" %}
         {% entity_chips %}
-          <span class="chip">{% include "components/icon.html" with name="phone" %} <span dir="ltr">{{ bus.driver_phone|default:"—" }}</span></span>
-          {% if bus.karwa_id %}<span class="chip">{% include "components/icon.html" with name="file-text" %} {{ bus.karwa_id }}</span>{% endif %}
+          <span class="chip">{% icon "call_parent" %} <span dir="ltr">{{ bus.driver_phone|default:"—" }}</span></span>
+          {% if bus.karwa_id %}<span class="chip">{% icon "document" %} {{ bus.karwa_id }}</span>{% endif %}
         {% endentity_chips %}
       {% endentity_card %}
     </div>
     {% endfor %}
   </div>
   {% else %}
-  {% empty_state "لا توجد حافلات مسجلة" icon="bus" %}
+  {% empty_state "لا توجد حافلات مسجلة" icon="transport" %}
   {% endif %}
 
 </div>

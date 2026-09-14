@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}إدارة خط السير{% endblock %}
 
@@ -9,7 +10,7 @@
 {% block content %}
 <div class="exec-dash transport-form-page">
 
-  {% page_header page_title subtitle=bus_label icon="bus" %}
+  {% page_header page_title subtitle=bus_label icon="transport" %}
     <a href="{% url 'transport:bus_detail' bus.id %}" class="btn-secondary btn-sm">← رجوع</a>
   {% endpage_header %}
 
@@ -35,7 +36,7 @@
       </div>
       <div class="flex gap-3 mt-6">
         <button class="btn-primary flex-1 py-2.5">
-          {% include "components/icon.html" with name="save" %} حفظ خط السير
+          {% icon "save" %} حفظ خط السير
         </button>
         <a href="{% url 'transport:bus_detail' bus.id %}" class="btn-secondary py-2.5">إلغاء</a>
       </div>

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}سجل الاستيراد{% endblock %}
 
@@ -9,8 +10,8 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "سجل عمليات الاستيراد" subtitle="آخر 50 عملية استيراد" icon="file-text" %}
-    <a href="{% url 'import_grades_select' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} استيراد جديد</a>
+  {% page_header "سجل عمليات الاستيراد" subtitle="آخر 50 عملية استيراد" icon="import" %}
+    <a href="{% url 'import_grades_select' %}" class="btn-primary btn-sm">{% icon "import" %} استيراد جديد</a>
   {% endpage_header %}
 
   {% if log_rows %}
@@ -21,7 +22,7 @@
   {% endif %}
 
   {# العددُ في طرف الترويسة، ويُحدَّث مع البحث: «12 من 50 عملية». #}
-  {% section_card "العمليات" meta=log_rows|length icon="folder-open" empty="لا توجد عمليات استيراد" empty_sub="لم يتم تنفيذ أي عمليات استيراد بعد." flush=True %}{% if log_rows %}
+  {% section_card "العمليات" meta=log_rows|length icon="folder" empty="لا توجد عمليات استيراد" empty_sub="لم يتم تنفيذ أي عمليات استيراد بعد." flush=True %}{% if log_rows %}
     <div class="table-wrap">
       <table id="import-log-table">
         <thead>

@@ -1,4 +1,5 @@
 {% extends "academic_management/reports/_base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block filters %}
@@ -8,7 +9,7 @@
   {% field "semester" "الفصل الدراسي" type="select" choices=data.semester_choices value=data.filters.semester blank="الفصلين" %}
   {% field "class_group_id" "الشعبة" type="select" choices=data.classes value=data.filters.class_group_id blank="كل الشعب" %}
   <div class="filter-actions">
-    <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="search" %} عرض التقرير</button>
+    <button type="submit" class="btn-primary btn-sm">{% icon "search" %} عرض التقرير</button>
     <a href="{{ reset_url }}" class="btn-secondary btn-sm">مسح</a>
   </div>
 {% endfilter_bar %}
@@ -16,7 +17,7 @@
 
 {% block report_body %}
   {% if data.class_summary %}
-  {% section_card "مقارنة الفصول" meta=data.class_summary|length icon="bar-chart" flush=True %}
+  {% section_card "مقارنة الفصول" meta=data.class_summary|length icon="stats" flush=True %}
     <div class="table-wrap">
       <table aria-label="مقارنة الفصول">
         <thead>
@@ -40,7 +41,7 @@
   {% endsection_card %}
   {% endif %}
 
-  {% section_card "تفاصيل الباقات" meta=data.total_packages icon="layers" empty="لا توجد بيانات باقات للفلاتر المحددة" empty_sub="حدّد نوع الباقة أو الفصل الدراسي لعرض النتائج" flush=True %}{% if data.rows %}
+  {% section_card "تفاصيل الباقات" meta=data.total_packages icon="wings" empty="لا توجد بيانات باقات للفلاتر المحددة" empty_sub="حدّد نوع الباقة أو الفصل الدراسي لعرض النتائج" flush=True %}{% if data.rows %}
     <div class="table-wrap">
       <table aria-label="تفاصيل الباقات">
         <thead>
