@@ -1,571 +1,82 @@
 """
-بذر قوالب التقييم الوزارية السبعة — الاستمارات الرسمية من 06_attendance_performance_review.md
-الإصدار: 2026-09-14
+بذرُ قوالب تقييم الأداء من الاستمارات الوزاريّة السبع.
+
+المرجع: AAdocs/ministry_data/2026_2027/06_attendance_performance_review.md §2.3–2.9
+البيانات: quality/ministry_appraisal_forms.json — والمنطق: quality/appraisal_seed.py
+
+    python manage.py seed_quality_templates                 # يعرض الفرق ولا يكتب
+    python manage.py seed_quality_templates --apply         # يكتب
+    python manage.py seed_quality_templates --apply --prune-orphans
+    python manage.py seed_quality_templates --school SHH --year 2026-2027
 """
-import sys
-from decimal import Decimal
 
-from django.core.management.base import BaseCommand, CommandError
+from __future__ import annotations
 
-from core.models import CustomUser, School, Role
-from core.academic_calendar import default_academic_year
-from quality.models import RoleEvaluationTemplate, EvaluationAxis
+from typing import Any
 
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
-# === البيانات الوزارية المستخرجة حرفياً من المرجع ===
+from core.academic_calendar import academic_year_for_school
+from core.models import School
+from quality.appraisal_seed import SchoolPlan, apply_plan, build_plan
 
-
-TEMPLATES = {
-    # ────────────────────────────────────────────────────────────────
-    # 1. استمارة تقييم المعلم (2.4 — 7 مجالات، 100 درجة)
-    # المرجع: 06_attendance_performance_review.md §2.4
-    # ────────────────────────────────────────────────────────────────
-    "teacher": {
-        "label": "استمارة تقييم المعلم",
-        "source": "06_attendance_performance_review.md §2.4",
-        "axes": [
-            {
-                "key": "planning_development",
-                "label": "التخطيط لتطوير أداء وتحصيل الطلبة",
-                "weight": 15,
-                "order": 1,
-            },
-            {
-                "key": "student_engagement",
-                "label": "إشراك الطلبة في عملية التعلم وتطويرهم كمتعلمين",
-                "weight": 25,
-                "order": 2,
-            },
-            {
-                "key": "learning_environment",
-                "label": "توفير بيئة تعلم آمنة وداعمة ومثيرة للتحدي",
-                "weight": 10,
-                "order": 3,
-            },
-            {
-                "key": "assessment",
-                "label": "تقييم تعلم الطلبة واستخدام بيانات التقييم لتحسين تحصيلهم",
-                "weight": 15,
-                "order": 4,
-            },
-            {
-                "key": "professional_practices",
-                "label": "إظهار ممارسات مهنية عالية الجودة والمشاركة في التطوير المهني المستمر",
-                "weight": 10,
-                "order": 5,
-            },
-            {
-                "key": "partnerships",
-                "label": "الحفاظ على الشراكة الفاعلة مع أولياء الأمور والمجتمع",
-                "weight": 10,
-                "order": 6,
-            },
-            {
-                "key": "personal_professional",
-                "label": "الجوانب الشخصية والمهنية",
-                "weight": 15,
-                "order": 7,
-            },
-        ],
-    },
-    # ────────────────────────────────────────────────────────────────
-    # 2. استمارة تقييم النائب الإداري (2.5 — 6 مجالات)
-    # المرجع: 06_attendance_performance_review.md §2.5
-    # ────────────────────────────────────────────────────────────────
-    "admin_vice_principal": {
-        "label": "استمارة تقييم النائب الإداري",
-        "source": "06_attendance_performance_review.md §2.5",
-        "axes": [
-            {
-                "key": "planning_organization",
-                "label": "التخطيط والتنظيم",
-                "weight": 10,
-                "order": 1,
-            },
-            {
-                "key": "hr_financial",
-                "label": "إدارة الموارد البشرية والمالية",
-                "weight": 20,
-                "order": 2,
-            },
-            {
-                "key": "responsibility",
-                "label": "تحمل مسؤولياته الوظيفية",
-                "weight": 20,
-                "order": 3,
-            },
-            {
-                "key": "staff_development",
-                "label": "إدارة وتطوير الموظفين",
-                "weight": 25,
-                "order": 4,
-            },
-            {
-                "key": "community_partnership",
-                "label": "الشراكة المجتمعية",
-                "weight": 10,
-                "order": 5,
-            },
-            {
-                "key": "personal_aspects",
-                "label": "الجوانب الشخصية",
-                "weight": 15,
-                "order": 6,
-            },
-        ],
-    },
-    # ────────────────────────────────────────────────────────────────
-    # 3. استمارة تقييم النائب الأكاديمي (2.6 — 5 مجالات)
-    # المرجع: 06_attendance_performance_review.md §2.6
-    # ────────────────────────────────────────────────────────────────
-    "academic_vice_principal": {
-        "label": "استمارة تقييم النائب الأكاديمي",
-        "source": "06_attendance_performance_review.md §2.6",
-        "axes": [
-            {
-                "key": "strategic_leadership",
-                "label": "الإدارة والقيادة الاستراتيجية للمدرسة",
-                "weight": 20,
-                "order": 1,
-            },
-            {
-                "key": "teaching_management",
-                "label": "قيادة وإدارة التعليم والتعلم والتقييم",
-                "weight": 35,
-                "order": 2,
-            },
-            {
-                "key": "people_management",
-                "label": "قيادة وإدارة الأفراد والفرق وتطويرهم",
-                "weight": 25,
-                "order": 3,
-            },
-            {
-                "key": "community_partnership",
-                "label": "الشراكة المجتمعية",
-                "weight": 10,
-                "order": 4,
-            },
-            {
-                "key": "professional_personal",
-                "label": "الجوانب المهنية والسمات الشخصية",
-                "weight": 10,
-                "order": 5,
-            },
-        ],
-    },
-    # ────────────────────────────────────────────────────────────────
-    # 4. الفئة العمالية (2.3 — 20 عنصر بلا مجالات موزونة)
-    # المرجع: 06_attendance_performance_review.md §2.3
-    # ملاحظة: هذه الاستمارة لا تُقسم إلى مجالات موزونة؛ بل 20 عنصر مسطح
-    # كل عنصر له درجة ثابتة، المجموع = 100
-    # ────────────────────────────────────────────────────────────────
-    "worker": {
-        "label": "استمارة تقييم الفئة العمالية",
-        "source": "06_attendance_performance_review.md §2.3",
-        "axes": [
-            {"key": "appearance", "label": "المظهر", "weight": 8, "order": 1},
-            {"key": "personal_conduct", "label": "التصرف الشخصي", "weight": 4, "order": 2},
-            {
-                "key": "work_quality",
-                "label": "مدى تأديته للعمل بمستوى عالٍ من حيث السرعة والجودة والدقة",
-                "weight": 5,
-                "order": 3,
-            },
-            {
-                "key": "discipline_attendance",
-                "label": "الانضباط والمواظبة",
-                "weight": 4,
-                "order": 4,
-            },
-            {
-                "key": "independent_work",
-                "label": "القدرة على أداء الأعمال دون الرجوع إلى المسؤول",
-                "weight": 4,
-                "order": 5,
-            },
-            {
-                "key": "integrity_responsibility",
-                "label": "الأمانة الوظيفية والشعور بالمسؤولية",
-                "weight": 4,
-                "order": 6,
-            },
-            {
-                "key": "follow_instructions",
-                "label": "مراعاة توجيهات المسؤول وتعليمات الالتزام بالعمل",
-                "weight": 8,
-                "order": 7,
-            },
-            {
-                "key": "diligence_adaptability",
-                "label": "الاجتهاد والتجاوب مع ضغوط العمل",
-                "weight": 4,
-                "order": 8,
-            },
-            {
-                "key": "confidentiality",
-                "label": "الأمانة والمحافظة على سرية معلومات العمل",
-                "weight": 5,
-                "order": 9,
-            },
-            {
-                "key": "self_control_respect",
-                "label": "القدرة على ضبط النفس واكتساب احترام المسؤولين",
-                "weight": 6,
-                "order": 10,
-            },
-            {
-                "key": "initiative_persistence",
-                "label": "المبادرة والمثابرة (التحرك الذاتي لإنجاز الأعمال – إبداء الاقتراحات لتحسين العمل)",
-                "weight": 4,
-                "order": 11,
-            },
-            {
-                "key": "avoid_exploitation",
-                "label": "الامتناع عن استغلال الوظيفة لأغراض شخصية",
-                "weight": 4,
-                "order": 12,
-            },
-            {
-                "key": "comply_systems",
-                "label": "القيام بالواجبات الوظيفية حسب الأنظمة والتعليمات",
-                "weight": 4,
-                "order": 13,
-            },
-            {
-                "key": "time_management",
-                "label": "التقيد بمواعيد العمل والمحافظة على الوقت",
-                "weight": 6,
-                "order": 14,
-            },
-            {
-                "key": "teamwork_cooperation",
-                "label": "الإسهام في الواجبات التي تستلزم فرق عمل وتعاون مع الزملاء",
-                "weight": 4,
-                "order": 15,
-            },
-            {
-                "key": "work_without_supervision",
-                "label": "القدرة على العمل دون مراقبة",
-                "weight": 4,
-                "order": 16,
-            },
-            {
-                "key": "accept_feedback",
-                "label": "تقبل توجيهات وانتقادات الرؤساء",
-                "weight": 5,
-                "order": 17,
-            },
-            {
-                "key": "relationships",
-                "label": "العلاقة والسلوكيات مع الموظفين (العلاقة السلوكية مع الرؤساء – العلاقة السلوكية مع الزملاء – العلاقة السلوكية مع المراجعين)",
-                "weight": 6,
-                "order": 18,
-            },
-            {
-                "key": "public_interest",
-                "label": "تغليب المصلحة العامة على المصلحة الخاصة",
-                "weight": 5,
-                "order": 19,
-            },
-            {
-                "key": "comply_policies",
-                "label": "الالتزام بالأنظمة والسياسات المعمول بها",
-                "weight": 6,
-                "order": 20,
-            },
-        ],
-    },
-    # ────────────────────────────────────────────────────────────────
-    # 5. الوظائف الإدارية 1 (2.7 — 6 مجالات)
-    # المرجع: 06_attendance_performance_review.md §2.7
-    # الفئات: مسؤول الإرشاد والتوجيه، منسق شؤون الطلاب، أخصائيون...
-    # ────────────────────────────────────────────────────────────────
-    "admin_role_1": {
-        "label": "استمارة تقييم الوظائف الإدارية 1 (إرشاد، أخصائيون...)",
-        "source": "06_attendance_performance_review.md §2.7",
-        "axes": [
-            {
-                "key": "planning_organization",
-                "label": "التخطيط والتنظيم",
-                "weight": 12,
-                "order": 1,
-            },
-            {
-                "key": "supervision_follow_up",
-                "label": "الإشراف والمتابعة والتوجيه",
-                "weight": 23,
-                "order": 2,
-            },
-            {
-                "key": "responsibility",
-                "label": "تحمل مسؤولياته الوظيفية",
-                "weight": 20,
-                "order": 3,
-            },
-            {
-                "key": "professional_growth",
-                "label": "النمو والتطوير المهني",
-                "weight": 20,
-                "order": 4,
-            },
-            {
-                "key": "community_partnership",
-                "label": "الشراكة المجتمعية",
-                "weight": 10,
-                "order": 5,
-            },
-            {
-                "key": "personal_aspects",
-                "label": "الجوانب الشخصية",
-                "weight": 15,
-                "order": 6,
-            },
-        ],
-    },
-    # ────────────────────────────────────────────────────────────────
-    # 6. الوظائف الإدارية 2 (2.8 — 8 مجالات)
-    # المرجع: 06_attendance_performance_review.md §2.8
-    # الفئات: سكرتير مدرسة، محاسب، موظف استقبال، فني تقنية معلومات
-    # ────────────────────────────────────────────────────────────────
-    "admin_role_2": {
-        "label": "استمارة تقييم الوظائف الإدارية 2 (إدارة، سكرتير، فني...)",
-        "source": "06_attendance_performance_review.md §2.8",
-        "axes": [
-            {
-                "key": "planning_organization",
-                "label": "التخطيط والتنظيم",
-                "weight": 10,
-                "order": 1,
-            },
-            {
-                "key": "responsibility",
-                "label": "القدرة على تحمل المسؤولية",
-                "weight": 20,
-                "order": 2,
-            },
-            {
-                "key": "initiative_innovation",
-                "label": "القدرة على المبادرة والابتكار",
-                "weight": 10,
-                "order": 3,
-            },
-            {
-                "key": "task_accomplishment",
-                "label": "إنجاز المهام الوظيفية",
-                "weight": 25,
-                "order": 4,
-            },
-            {
-                "key": "professional_development",
-                "label": "التطوير المهني",
-                "weight": 10,
-                "order": 5,
-            },
-            {
-                "key": "work_relationships",
-                "label": "علاقات العمل",
-                "weight": 10,
-                "order": 6,
-            },
-            {
-                "key": "commitment_discipline",
-                "label": "الالتزام والانضباط",
-                "weight": 10,
-                "order": 7,
-            },
-            {
-                "key": "general_appearance",
-                "label": "المظهر العام",
-                "weight": 5,
-                "order": 8,
-            },
-        ],
-    },
-    # ────────────────────────────────────────────────────────────────
-    # 7. الوظائف الإدارية 3 (2.9 — 6 مجالات)
-    # المرجع: 06_attendance_performance_review.md §2.9
-    # الفئات: منسق مشاريع، محضر مختبر، مرشد أكاديمي، مساعد معلم...
-    # ────────────────────────────────────────────────────────────────
-    "admin_role_3": {
-        "label": "استمارة تقييم الوظائف الإدارية 3 (مشاريع، مختبر، مرشد...)",
-        "source": "06_attendance_performance_review.md §2.9",
-        "axes": [
-            {
-                "key": "planning_organization",
-                "label": "التخطيط والتنظيم",
-                "weight": 10,
-                "order": 1,
-            },
-            {
-                "key": "supervision_implementation",
-                "label": "الإشراف والمتابعة والتنفيذ",
-                "weight": 22,
-                "order": 2,
-            },
-            {
-                "key": "responsibility",
-                "label": "تحمل مسؤولياته الوظيفية",
-                "weight": 24,
-                "order": 3,
-            },
-            {
-                "key": "professional_growth",
-                "label": "النمو والتطوير المهني",
-                "weight": 14,
-                "order": 4,
-            },
-            {
-                "key": "community_partnership",
-                "label": "الشراكة المجتمعية",
-                "weight": 10,
-                "order": 5,
-            },
-            {
-                "key": "personal_aspects",
-                "label": "الجوانب الشخصية",
-                "weight": 20,
-                "order": 6,
-            },
-        ],
-    },
-}
-
-# خريطة ربط بين role_name في النظام والقالب الموجود في TEMPLATES
-ROLE_TO_TEMPLATE = {
-    "teacher": "teacher",
-    "admin_vice_principal": "admin_vice_principal",
-    "academic_vice_principal": "academic_vice_principal",
-    "worker": "worker",
-    "coordinator": "admin_role_1",  # منسق ← الوظائف الإدارية 1
-    "counselor": "admin_role_1",  # مرشد ← الوظائف الإدارية 1
-    "nurse": "admin_role_2",  # ممرضة ← الوظائف الإدارية 2
-    "secretary": "admin_role_2",  # سكرتيرة ← الوظائف الإدارية 2
-    "lab_technician": "admin_role_3",  # فني مختبر ← الوظائف الإدارية 3
+_STATUS_LABEL = {
+    "new": "جديد",
+    "same": "مطابق",
+    "changed": "يختلف",
+    "locked": "يختلف — مقفل (عليه تقييمات، لا يُغيَّر)",
 }
 
 
 class Command(BaseCommand):
-    help = """
-    بذر قوالب التقييم الوزارية السبعة من المرجع 06_attendance_performance_review.md
+    help = "بذرُ قوالب التقييم الوزاريّة لكلّ دور. بلا --apply يعرض الفرقَ عن القائم ولا يكتب."
 
-    الاستخدام:
-        python manage.py seed_quality_templates --dry-run
-        python manage.py seed_quality_templates --apply
-    """
-
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
+        parser.add_argument("--apply", action="store_true", help="اكتب التغييرات")
         parser.add_argument(
             "--dry-run",
             action="store_true",
-            help="عرض الفروقات بدون تطبيق",
+            help="اعرض الفرق فقط (الافتراضيّ؛ للصراحة في الأوامر المكتوبة)",
         )
+        parser.add_argument("--school", help="رمز المدرسة (الافتراضيّ: كلّ المدارس)")
+        parser.add_argument("--year", help="العام الأكاديميّ (الافتراضيّ: عامُ كلّ مدرسة)")
         parser.add_argument(
-            "--apply",
+            "--prune-orphans",
             action="store_true",
-            help="تطبيق التغييرات",
+            help="مع --apply: احذف قوالبَ لأدوارٍ غيرِ موجودة ولا تقييمَ عليها",
         )
 
-    def handle(self, *args, **options):
-        dry_run = options.get("dry_run")
-        apply_changes = options.get("apply")
+    def handle(self, *args: Any, **options: Any) -> None:
+        if options["apply"] and options["dry_run"]:
+            raise CommandError("--apply و--dry-run لا يجتمعان")
+        schools = School.objects.order_by("code")
+        if options["school"]:
+            schools = schools.filter(code=options["school"])
+        if not schools.exists():
+            raise CommandError("لا مدرسةَ مطابقة")
 
-        if not dry_run and not apply_changes:
+        for school in schools:
+            year = options["year"] or academic_year_for_school(school)
+            plan = build_plan(school, year)
+            self._show(plan)
+            if options["apply"]:
+                counts = apply_plan(plan, prune_orphans=options["prune_orphans"])
+                self.stdout.write(self.style.SUCCESS(f"  كُتب: {counts}"))
+        if not options["apply"]:
+            self.stdout.write(self.style.WARNING("عرضٌ فقط — لم يُكتب شيء. أعد التشغيل بـ --apply."))
+
+    def _show(self, plan: SchoolPlan) -> None:
+        self.stdout.write(self.style.MIGRATE_HEADING(f"{plan.school.code} — {plan.year}"))
+        for tp in plan.templates:
             self.stdout.write(
-                self.style.ERROR("استخدم --dry-run أو --apply")
+                f"  [{_STATUS_LABEL[tp.status]}] {tp.role_name} ← {tp.form.title} "
+                f"(§{tp.form.section}، المحاور {len(tp.form.axes)}، المجموع {tp.form.total_weight})"
             )
-            return
-
-        try:
-            school = School.objects.first()
-            if not school:
-                raise CommandError("لا توجد مدارس في قاعدة البيانات")
-
-            academic_year = default_academic_year()
-            self.stdout.write(f"المدرسة: {school.name}")
-            self.stdout.write(f"العام الأكاديمي: {academic_year}")
-            self.stdout.write("")
-
-            if dry_run:
-                self._dry_run(school, academic_year)
-            elif apply_changes:
-                self._apply(school, academic_year)
-
-        except Exception as e:
-            raise CommandError(str(e))
-
-    def _dry_run(self, school, academic_year):
-        """عرض الفروقات المتوقعة"""
-        self.stdout.write(self.style.WARNING("وضع --dry-run: عرض فقط"))
-        self.stdout.write("")
-
-        for template_key, template_data in TEMPLATES.items():
+            for change in tp.changes:
+                self.stdout.write(f"      {change}")
+        for orphan in plan.orphans:
             self.stdout.write(
-                self.style.SUCCESS(f"قالب: {template_data['label']}")
+                self.style.WARNING(
+                    f"  [يتيم] {orphan.role_name}: لا دورَ بهذا الاسم في Role.ROLES — لا تقرؤه شاشة"
+                )
             )
-            self.stdout.write(f"  المصدر: {template_data['source']}")
-            self.stdout.write(f"  المحاور: {len(template_data['axes'])}")
-
-            # حساب مجموع الأوزان
-            total_weight = sum(a["weight"] for a in template_data["axes"])
-            if total_weight == 100:
-                self.stdout.write(
-                    self.style.SUCCESS(f"  ✓ مجموع الأوزان: {total_weight}")
-                )
-            else:
-                self.stdout.write(
-                    self.style.ERROR(
-                        f"  ✗ مجموع الأوزان: {total_weight} (يجب أن يكون 100)"
-                    )
-                )
-
-            for axis in template_data["axes"]:
-                self.stdout.write(f"    - {axis['label']} ({axis['weight']}%)")
-            self.stdout.write("")
-
-    def _apply(self, school, academic_year):
-        """تطبيق البذر"""
-        created_count = 0
-        updated_count = 0
-
-        for template_key, template_data in TEMPLATES.items():
-            template, created = RoleEvaluationTemplate.objects.get_or_create(
-                school=school,
-                role_name=template_key,
-                academic_year=academic_year,
-                defaults={"is_active": True},
-            )
-
-            if created:
-                created_count += 1
-                self.stdout.write(
-                    self.style.SUCCESS(f"✓ أنشئ: {template_data['label']}")
-                )
-            else:
-                updated_count += 1
-                self.stdout.write(
-                    self.style.WARNING(f"⟳ موجود: {template_data['label']}")
-                )
-
-            # إضافة المحاور
-            for axis_data in template_data["axes"]:
-                axis, axis_created = EvaluationAxis.objects.get_or_create(
-                    template=template,
-                    key=axis_data["key"],
-                    defaults={
-                        "label": axis_data["label"],
-                        "weight": axis_data["weight"],
-                        "order": axis_data["order"],
-                    },
-                )
-                if not axis_created and (
-                    axis.label != axis_data["label"]
-                    or axis.weight != axis_data["weight"]
-                ):
-                    axis.label = axis_data["label"]
-                    axis.weight = axis_data["weight"]
-                    axis.order = axis_data["order"]
-                    axis.save()
-
-        self.stdout.write(self.style.SUCCESS(f"✓ تم إنشاء: {created_count} قالب"))
-        self.stdout.write(self.style.WARNING(f"⟳ تم تحديث: {updated_count} قالب"))

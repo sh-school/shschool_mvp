@@ -14,6 +14,7 @@ quality/models.py
 import uuid
 from datetime import timedelta
 from functools import cached_property
+from typing import Any
 
 from django.db import models
 from django.db.models import Q
@@ -52,6 +53,20 @@ _EVALUABLE_ROLES = frozenset(
         "it_technician",
         "vice_admin",
         "vice_academic",
+        # أدوارٌ تسمّيها الاستماراتُ الوزاريّة نصّاً (06_attendance_performance_review.md
+        # §2.3، §2.7–2.9) — بذرُ قوالبها بلا ظهورها في قائمة التقييم بذرٌ لا يُقرأ.
+        "student_observer",
+        "services_worker",
+        "support_companion",
+        "messenger",
+        "storekeeper",
+        "canteen_supervisor",
+        "accountant",
+        "receptionist",
+        "e_projects_coordinator",
+        "lab_technician",
+        "teacher_assistant",
+        "ese_assistant",
     ]
 )
 
@@ -744,7 +759,18 @@ class EmployeeEvaluation(models.Model):
         ]
     )
 
-    def calculate_total(self):
+    @staticmethod
+    def rating_for(total: int) -> str:
+        """التقديرُ من المجموع — العتباتُ في ثوابت أعلى الوحدة."""
+        if total >= _SCORE_EXCELLENT:
+            return "excellent"
+        if total >= _SCORE_VERY_GOOD:
+            return "very_good"
+        if total >= _SCORE_GOOD:
+            return "good"
+        return "needs_dev"
+
+    def calculate_total(self) -> None:
         """حساب المجموع من المحاور الأربعة الافتراضية + التقدير"""
         self.total_score = (
             self.axis_professional
@@ -752,14 +778,7 @@ class EmployeeEvaluation(models.Model):
             + self.axis_teamwork
             + self.axis_development
         )
-        if self.total_score >= _SCORE_EXCELLENT:
-            self.rating = "excellent"
-        elif self.total_score >= _SCORE_VERY_GOOD:
-            self.rating = "very_good"
-        elif self.total_score >= _SCORE_GOOD:
-            self.rating = "good"
-        else:
-            self.rating = "needs_dev"
+        self.rating = self.rating_for(self.total_score)
 
     def calculate_weighted_total(self):
         """
@@ -784,16 +803,9 @@ class EmployeeEvaluation(models.Model):
             self.calculate_total()
             return
 
-        if self.total_score >= _SCORE_EXCELLENT:
-            self.rating = "excellent"
-        elif self.total_score >= _SCORE_VERY_GOOD:
-            self.rating = "very_good"
-        elif self.total_score >= _SCORE_GOOD:
-            self.rating = "good"
-        else:
-            self.rating = "needs_dev"
+        self.rating = self.rating_for(self.total_score)
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         # إصلاح #3: حساب المجموع فقط عندما لا يكون update_fields محدداً
         # أو عندما تتضمن update_fields أحد حقول المحاور
         update_fields = kwargs.get("update_fields")

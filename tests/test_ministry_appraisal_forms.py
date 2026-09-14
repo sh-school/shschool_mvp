@@ -1,0 +1,265 @@
+"""[LEGAL] قوالبُ تقييم الأداء هي الاستماراتُ الوزاريّةُ السبع — حرفاً ورقماً.
+
+المرجع: `AAdocs/ministry_data/2026_2027/06_attendance_performance_review.md`
+(الملفّاتُ المصدر: `data/2026-2027/06- تقييم أداء الموظفين/*.pdf`)
+
+    §2.3  استمارة تقييم الفئة العمالية        20 عنصراً مسطَّحاً      سطر 127–157
+    §2.4  استمارة تقييم المعلم                 7 مجالات               سطر 163–207
+    §2.5  استمارة تقييم النائب الإداري         6 مجالات               سطر 215–240
+    §2.6  استمارة تقييم النائب الأكاديمي       5 مجالات               سطر 254–281
+    §2.7  استمارة تقييم الوظائف الإدارية 1     6 مجالات               سطر 289–314
+    §2.8  استمارة تقييم الوظائف الإدارية 2     8 مجالات               سطر 320–345
+    §2.9  استمارة تقييم الوظائف الإدارية 3     6 مجالات               سطر 351–376
+
+والملخّصُ المقارن في §3 (سطر 384–392) مصدرٌ ثانٍ للأوزان: الاختبارُ يقرأ الجداولَ
+التفصيليّة ويقارنها بملفّ البيانات، ويقارن الاثنين بأوزان الملخّص المنسوخة هنا
+يدويّاً — فخطأُ محلِّلٍ واحدٍ لا يمرّ.
+
+وكانت الجولةُ الأولى تبذر هذه الأوزانَ صحيحةً بأسماء أدوارٍ لا وجودَ لها
+(`worker`، `admin_role_1`…) فلا تقرؤها شاشةُ التقييم، التي تطلب القالبَ بـ`Role.name`
+للموظّف. ولهذا يُختبر هنا البذرُ من طرف القراءة لا من طرف الكتابة.
+"""
+
+from __future__ import annotations
+
+import re
+from io import StringIO
+from pathlib import Path
+
+import pytest
+from django.core.management import call_command
+
+from core.models import Role
+from quality.appraisal_forms import forms_by_role, load_forms
+from quality.evaluation_views import _get_axes_for_employee
+from quality.models import (
+    _EVALUABLE_ROLES,
+    EmployeeEvaluation,
+    EvaluationAxis,
+    RoleEvaluationTemplate,
+)
+
+REFERENCE = Path("AAdocs/ministry_data/2026_2027/06_attendance_performance_review.md")
+YEAR = "2026-2027"
+
+#: §3 «ملخص مقارن سريع» — منسوخٌ يدويّاً، والفئةُ العمالية من §2.3 مباشرةً.
+SUMMARY_WEIGHTS = {
+    "2.3": [8, 4, 5, 4, 4, 4, 8, 4, 5, 6, 4, 4, 4, 6, 4, 4, 5, 6, 5, 6],
+    "2.4": [15, 25, 10, 15, 10, 10, 15],
+    "2.5": [10, 20, 20, 25, 10, 15],
+    "2.6": [20, 35, 25, 10, 10],
+    "2.7": [12, 23, 20, 20, 10, 15],
+    "2.8": [10, 20, 10, 25, 10, 10, 10, 5],
+    "2.9": [10, 22, 24, 14, 10, 20],
+}
+
+#: §2.4 سطر 209: «المجال 2 وزنه 25% لكن مجموع مؤشراته الفرعية = 26؛ المجال 4 وزنه 15%
+#: لكن مجموعه = 17؛ المجال 5 وزنه 10% لكن مجموعه = 8؛ المجال 6 وزنه 10% لكن مجموعه = 9».
+TEACHER_INDICATOR_SUMS = [15, 26, 10, 17, 8, 9, 15]
+
+
+def _reference_section(section: str) -> list[str]:
+    lines = REFERENCE.read_text(encoding="utf-8").split("\n")
+    start = next(i for i, line in enumerate(lines) if line.startswith(f"### {section} "))
+    end = next(i for i in range(start + 1, len(lines)) if lines[i].startswith(("### ", "## ")))
+    return lines[start:end]
+
+
+def _cells(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def _reference_axes(section: str) -> list[tuple[str, int, list[tuple[str, str, int]]]]:
+    """(اسم المجال، وزنه، [(رمز المؤشّر، نصّه، درجته)]) كما في جدول القسم."""
+    rows = [
+        _cells(line)
+        for line in _reference_section(section)
+        if line.startswith("|") and not line.startswith("|---")
+    ][1:]
+    axes: list[tuple[str, int, list[tuple[str, str, int]]]] = []
+    for c in rows:
+        if "المجموع" in "".join(c):
+            continue
+        if section == "2.3":
+            axes.append((c[1], int(c[2]), []))
+        elif c[0]:
+            name = re.sub(r"^\d+-\s*", "", c[0].replace("**", "").strip())
+            axes.append((name, int(c[1].rstrip("%")), [(c[2], c[3], int(c[4]))]))
+        else:
+            axes[-1][2].append((c[2], c[3], int(c[4])))
+    return axes
+
+
+def _reference_categories(section: str) -> list[str]:
+    line = next(x for x in _reference_section(section) if x.startswith("**الفئ"))
+    text = re.sub(r"\s*\([^)]*\)", "", line.split(":**", 1)[1].strip().rstrip("."))
+    return [c.strip() for c in text.split("،")]
+
+
+FORMS = {f.section: f for f in load_forms()}
+
+
+def test_seven_forms_in_reference_order():
+    assert list(FORMS) == ["2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9"]
+
+
+@pytest.mark.parametrize("section", sorted(SUMMARY_WEIGHTS))
+def test_axes_match_reference_verbatim(section):
+    """اسمُ كلّ مجالٍ ووزنُه ومؤشّراتُه = جدولُ القسم في المرجع، خانةً بخانة."""
+    form = FORMS[section]
+    expected = _reference_axes(section)
+    actual = [
+        (a.label, a.weight, [(i.code, i.label, i.score) for i in a.indicators]) for a in form.axes
+    ]
+    assert actual == expected
+    assert form.title == _reference_section(section)[0][len(f"### {section} ") :].strip()
+
+
+@pytest.mark.parametrize("section", sorted(SUMMARY_WEIGHTS))
+def test_weights_sum_to_100_and_match_summary(section):
+    form = FORMS[section]
+    assert [a.weight for a in form.axes] == SUMMARY_WEIGHTS[section]
+    assert len(form.axes) == len(SUMMARY_WEIGHTS[section])
+    assert form.total_weight == 100
+
+
+@pytest.mark.parametrize("section", ["2.5", "2.6", "2.7", "2.8", "2.9"])
+def test_indicators_sum_to_domain_weight_where_reference_says_consistent(section):
+    """«متّسقة داخلياً تماماً: كل مجموع فرعي يطابق وزن مجاله» — في هذه الخمس."""
+    for axis in FORMS[section].axes:
+        assert sum(i.score for i in axis.indicators) == axis.weight, axis.label
+
+
+def test_teacher_form_keeps_the_ministry_inconsistency():
+    """§2.4: التعارضُ مطبوعٌ في نموذج الوزارة — يُنقل كما هو ولا «يُصحَّح»."""
+    teacher = FORMS["2.4"]
+    assert [sum(i.score for i in a.indicators) for a in teacher.axes] == TEACHER_INDICATOR_SUMS
+    assert sum(i.score for a in teacher.axes for i in a.indicators) == 100
+
+
+@pytest.mark.parametrize("section", sorted(SUMMARY_WEIGHTS))
+def test_role_categories_are_quoted_from_form_header(section):
+    """كلُّ خانةِ فئةٍ في رأس الاستمارة: إمّا دورٌ مربوطٌ بنصّها، وإمّا مذكورةٌ بلا دور."""
+    form = FORMS[section]
+    quoted = [text for _role, text in form.roles] + list(form.unmapped_categories)
+    assert sorted(quoted) == sorted(_reference_categories(section))
+
+
+def test_every_mapped_role_exists_is_evaluable_and_unique():
+    known = {name for name, _label in Role.ROLES}
+    mapping = forms_by_role()  # يرفع ValueError إن تكرّر دور
+    assert set(mapping) <= known
+    assert set(mapping) <= _EVALUABLE_ROLES, set(mapping) - _EVALUABLE_ROLES
+    assert len(mapping) == 21
+
+
+def test_axis_keys_unique_per_form():
+    for form in load_forms():
+        keys = [a.key for a in form.axes]
+        assert len(keys) == len(set(keys)), form.code
+
+
+# ── البذر ────────────────────────────────────────────────────────────
+
+
+def _seed(school, *flags):
+    out = StringIO()
+    call_command(
+        "seed_quality_templates", "--school", school.code, "--year", YEAR, *flags, stdout=out
+    )
+    return out.getvalue()
+
+
+def _counts(school):
+    return (
+        RoleEvaluationTemplate.objects.filter(school=school).count(),
+        EvaluationAxis.objects.filter(template__school=school).count(),
+    )
+
+
+@pytest.mark.django_db
+def test_dry_run_writes_nothing(school):
+    output = _seed(school)
+    assert _counts(school) == (0, 0)
+    assert "[جديد] teacher" in output
+    assert "لم يُكتب شيء" in output
+
+
+@pytest.mark.django_db
+def test_apply_is_idempotent(school):
+    _seed(school, "--apply")
+    first = _counts(school)
+    # 21 دوراً؛ ومحاورُها: 4×20 + 7 + 6 + 5 + 5×6 + 4×8 + 5×6 = 190
+    assert first == (21, 190)
+    output = _seed(school, "--apply")
+    assert _counts(school) == first
+    assert "'created': 0, 'updated': 0, 'same': 21" in output
+
+
+@pytest.mark.django_db
+def test_dry_run_shows_drift_and_apply_repairs_it(school):
+    _seed(school, "--apply")
+    axis = EvaluationAxis.objects.get(
+        template__school=school, template__role_name="teacher", key="assessment"
+    )
+    axis.weight = 20
+    axis.save()
+    EvaluationAxis.objects.create(template=axis.template, key="legacy", label="قديم", weight=5)
+
+    output = _seed(school)
+    assert "[يختلف] teacher" in output
+    assert "~ assessment: الوزن 20 ← 15" in output
+    assert "- legacy" in output
+    axis.refresh_from_db()
+    assert axis.weight == 20  # العرضُ لم يكتب
+
+    _seed(school, "--apply")
+    template = RoleEvaluationTemplate.objects.get(
+        school=school, role_name="teacher", academic_year=YEAR
+    )
+    assert template.total_weight == 100
+    assert not template.axes.filter(key="legacy").exists()
+
+
+@pytest.mark.django_db
+def test_template_with_evaluations_is_never_rewritten(school, principal_user, teacher_user):
+    _seed(school, "--apply")
+    template = RoleEvaluationTemplate.objects.get(
+        school=school, role_name="teacher", academic_year=YEAR
+    )
+    EmployeeEvaluation.objects.create(
+        school=school,
+        employee=teacher_user,
+        evaluator=principal_user,
+        template=template,
+        academic_year=YEAR,
+        period="S1",
+    )
+    template.axes.filter(key="assessment").update(weight=20)
+
+    output = _seed(school, "--apply")
+    assert "مقفل" in output
+    assert template.axes.get(key="assessment").weight == 20
+
+
+@pytest.mark.django_db
+def test_orphan_templates_from_first_round_are_reported_and_pruned(school):
+    """قوالبُ الجولة الأولى بأسماءٍ ليست أدواراً: تُعرض يتيمة، وتُحذف بطلبٍ صريح."""
+    RoleEvaluationTemplate.objects.create(
+        school=school, role_name="admin_role_1", academic_year=YEAR
+    )
+    assert "[يتيم] admin_role_1" in _seed(school)
+    _seed(school, "--apply")
+    assert RoleEvaluationTemplate.objects.filter(role_name="admin_role_1").exists()
+    _seed(school, "--apply", "--prune-orphans")
+    assert not RoleEvaluationTemplate.objects.filter(role_name="admin_role_1").exists()
+
+
+@pytest.mark.django_db
+def test_evaluation_screen_reads_the_seeded_axes(school, teacher_user, it_technician_user):
+    """طرفُ القراءة: ما يبذره الأمرُ هو ما يعرضه نموذجُ التقييم لهذا الدور."""
+    _seed(school, "--apply")
+    for user, section in ((teacher_user, "2.4"), (it_technician_user, "2.8")):
+        axes, template = _get_axes_for_employee(school, user, YEAR)
+        assert template is not None
+        assert axes == [(a.key, a.label, a.weight) for a in FORMS[section].axes]
