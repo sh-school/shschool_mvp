@@ -15,6 +15,7 @@ core/permissions.py
 
 import logging
 from functools import wraps
+from typing import Any
 
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
@@ -896,7 +897,7 @@ def get_teacher_student_ids(user, scope=None):
     )
 
 
-def _wing_student_ids(user, scope=None):
+def _wing_student_ids(user: Any, scope: Any = None) -> set[Any]:
     """طلبةُ أجنحة المشرف من النطاق المركزيّ — ومشرفٌ بلا مدرسةٍ لا يرى أحداً."""
     from wings.scope import student_scope
 

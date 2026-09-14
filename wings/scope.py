@@ -40,8 +40,10 @@ from django.http import Http404, HttpRequest
 from core.models import ClassGroup, CustomUser, School, StudentEnrollment
 from core.permissions import WING_BOUND_ROLES
 
-#: خاناتُ مركز المعلومات التي لا يقرؤها المقيَّدُ بجناحه.
-SPECIALIST_CATEGORIES = frozenset({"social_worker", "psychologist"})
+#: خاناتُ مركز المعلومات التي لا يقرؤها المقيَّدُ بجناحه: الأخصائيّان (القرار 2)، والممرّضُ —
+#: فملاحظتُه تحمل سببَ زيارة العيادة، والقرارُ 3 لا يُعطي المشرفَ من العيادة إلّا التاريخَ
+#: و«أُعيد إلى المنزل».
+SPECIALIST_CATEGORIES = frozenset({"social_worker", "psychologist", "nurse"})
 
 
 @dataclass(frozen=True)
@@ -156,12 +158,12 @@ def _as_key(value: Any) -> str:
 
 def student_scope(user: CustomUser, school: School) -> StudentScope:
     """نطاقُ المستخدم في المدرسة. غيرُ المقيَّد بلا أيّ استعلام."""
-    if getattr(user, "is_superuser", False) or user.get_role() not in WING_BOUND_ROLES:
+    if getattr(user, "is_superuser", False) or user.get_role() not in WING_BOUND_ROLES:  # type: ignore[no-untyped-call]
         return StudentScope(school, None)
     from core.academic_calendar import academic_year_for_school
     from wings.services import wings_of
 
-    year = academic_year_for_school(school)  # type: ignore[no-untyped-call]
+    year = academic_year_for_school(school)
     wings = wings_of(user, school, year)
     return StudentScope(school, frozenset(w.id for w in wings), year)
 

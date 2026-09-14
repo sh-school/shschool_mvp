@@ -251,13 +251,10 @@ def test_the_supervisor_reads_his_students_file_without_grades_or_specialist_not
     assert response.context["results"] == []
     assert response.context["average"] is None
     assert "التحصيل ومستواه" not in body
-    assert [g["key"] for g in response.context["note_groups"]] == [
-        "teacher",
-        "nurse",
-        "student_affairs",
-    ]
+    assert [g["key"] for g in response.context["note_groups"]] == ["teacher", "student_affairs"]
     assert "سرية" not in body
-    assert "ملاحظة الممرض" in body
+    # ملاحظةُ الممرّض تحمل سببَ زيارة العيادة — والمشرفُ لا يرى من العيادة إلّا التاريخ (القرار 3).
+    assert "ملاحظة الممرض" not in body
     # ما لم يُقرأ لا يُسجَّل قراءةً.
     assert not AuditLog.objects.filter(model_name="StudentNote", user=supervisor).exists()
 

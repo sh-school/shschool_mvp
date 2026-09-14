@@ -312,6 +312,61 @@ class TestExamIncident:
             )
         assert not ExamIncident.objects.exists()
 
+    def _incident(self, exam, school, principal, student):
+        return ExamControlService.add_incident(
+            session=exam,
+            school=school,
+            reported_by=principal,
+            incident_type="other",
+            severity=1,
+            description=f"حادثة {student.full_name if student else 'قاعة'}",
+            student=student,
+        )
+
+    def test_the_incident_list_and_pdf_are_his_wing_and_student_less_incidents(
+        self, client_as, school, supervisor, principal, exam, mine, theirs
+    ):
+        own = self._incident(exam, school, principal, mine)
+        other = self._incident(exam, school, principal, theirs)
+        room = self._incident(exam, school, principal, None)
+        client = client_as(supervisor)
+
+        listed = set(
+            client.get(reverse("exam_control:incidents", args=[exam.pk])).context["incidents"]
+        )
+
+        assert listed == {own, room}
+        assert client.get(reverse("exam_control:incident_pdf", args=[other.pk])).status_code == 404
+        assert set(
+            client_as(principal)
+            .get(reverse("exam_control:incidents", args=[exam.pk]))
+            .context["incidents"]
+        ) == {own, other, room}
+
+    def test_a_student_of_another_school_cannot_be_written_on(
+        self, client_as, school, principal, exam
+    ):
+        from tests.conftest import SchoolFactory
+
+        elsewhere = SchoolFactory()
+        stranger_class = ClassGroupFactory(
+            school=elsewhere,
+            grade="G7",
+            section="9",
+            level_type="prep",
+            academic_year=exam.academic_year,
+        )
+        stranger = UserFactory(full_name="طالبُ مدرسةٍ أخرى", national_id="29400000099")
+        StudentEnrollmentFactory(student=stranger, class_group=stranger_class)
+
+        response = client_as(principal).post(
+            reverse("exam_control:incident_add", args=[exam.pk]),
+            {"student_id": str(stranger.id), "incident_type": "other", "description": "خطأ"},
+        )
+
+        assert response.status_code == 404
+        assert not ExamIncident.objects.exists()
+
 
 # ══════════════════════════════════════════════════════════════════
 # ملفّاتُ الطلبة في /dbmedia/
