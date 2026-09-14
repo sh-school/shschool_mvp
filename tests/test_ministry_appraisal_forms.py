@@ -147,7 +147,42 @@ def test_every_mapped_role_exists_is_evaluable_and_unique():
     mapping = forms_by_role()  # يرفع ValueError إن تكرّر دور
     assert set(mapping) <= known
     assert set(mapping) <= _EVALUABLE_ROLES, set(mapping) - _EVALUABLE_ROLES
-    assert len(mapping) == 21
+    assert len(mapping) == 23
+
+
+def test_librarian_and_activities_specialist_are_named_by_admin_form_3():
+    """
+    رأسُ «استمارة تقييم الوظائف الادارية 3.pdf» ص1 يسمّي «مسؤول مركز مصادر التعلم»
+    و«اخصائي أنشطة مدرسية». الأوّلُ مسمّى librarian الوزاريّ (بطاقةُ الوصف الوظيفي بالعنوان
+    نفسه)، والثاني «أخصائي الأنشطة» في «06- ضوابط البرامج والأنشطة.pdf» ص3 وص12 — وهو
+    activities_coordinator في المنصّة، ولفظُ «منسق الأنشطة» لا يرد في مصدر.
+    """
+    form = forms_by_role()
+    assert form["librarian"].section == form["activities_coordinator"].section == "2.9"
+    roles = dict(form["librarian"].roles)
+    assert roles["librarian"] == "مسؤول مركز مصادر التعلم"
+    assert roles["activities_coordinator"] == "اخصائي أنشطة مدرسية"
+
+
+@pytest.mark.parametrize(
+    "role_name",
+    [
+        # «وتتولى لجنة شؤون المدارس تقييم أداء مديري المدارس سنوياً» (02_staff_affairs.md:199)
+        "principal",
+        # بلا خانةٍ في رأس أيٍّ من الاستمارات السبع — لا تُربط تخميناً (ADR-0002 §6.4).
+        "coordinator",
+        "ese_teacher",
+        "nurse",
+        "speech_therapist",
+        "occupational_therapist",
+        "bus_supervisor",
+        "transport_officer",
+        "admin",
+        "specialist",
+    ],
+)
+def test_roles_without_a_form_header_are_not_mapped(role_name):
+    assert role_name not in forms_by_role()
 
 
 def test_axis_keys_unique_per_form():
@@ -186,11 +221,11 @@ def test_dry_run_writes_nothing(school):
 def test_apply_is_idempotent(school):
     _seed(school, "--apply")
     first = _counts(school)
-    # 21 دوراً؛ ومحاورُها: 4×20 + 7 + 6 + 5 + 5×6 + 4×8 + 5×6 = 190
-    assert first == (21, 190)
+    # 23 دوراً؛ ومحاورُها: 4×20 + 7 + 6 + 5 + 5×6 + 4×8 + 7×6 = 202
+    assert first == (23, 202)
     output = _seed(school, "--apply")
     assert _counts(school) == first
-    assert "'created': 0, 'updated': 0, 'same': 21" in output
+    assert "'created': 0, 'updated': 0, 'same': 23" in output
 
 
 @pytest.mark.django_db

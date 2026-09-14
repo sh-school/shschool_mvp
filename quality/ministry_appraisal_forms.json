@@ -549,11 +549,11 @@
         "lab_technician": "محضّر مختبر",
         "academic_advisor": "مرشد أكاديمي",
         "teacher_assistant": "مساعد معلم",
-        "ese_assistant": "مساعد معلم تربية خاصة"
+        "ese_assistant": "مساعد معلم تربية خاصة",
+        "librarian": "مسؤول مركز مصادر التعلم",
+        "activities_coordinator": "اخصائي أنشطة مدرسية"
       },
       "unmapped_categories": [
-        "مسؤول مركز مصادر التعلم",
-        "اخصائي أنشطة مدرسية",
         "مهندس مختبرات العلوم والتكنولوجيا"
       ],
       "axes": [
