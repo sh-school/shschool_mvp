@@ -5823,6 +5823,21 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
     border-radius: 8px;
     background: var(--on-fill);
   }
+  /* شاشةُ اللمس والهاتف: لا إطار — آيفون يرسمه أبيض، والتمريرُ فيه تمريرٌ داخل
+     تمرير. والشرطُ نفسُه في سكربت pages_view.html فلا يُحمَّل الإطارُ هناك. */
+  .schedule-paper-touch { display: none; }
+  @media (max-width: 640px), (hover: none) and (pointer: coarse) {
+    .schedule-paper-frame,
+    .schedule-frame-print { display: none; }
+    .schedule-paper-touch {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+      margin-block-start: 14px;
+      text-align: center;
+    }
+  }
 
 /* ── templates/schedule/print_view.html ── */
   /* الورقةُ على عرض الشاشة كلِّه بهامشٍ صغير: الجدولُ العامّ خمسةٌ وثلاثون
