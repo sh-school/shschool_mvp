@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static ui %}
+{% load static ui icons %}
 
 {% block title %}رصد {{ klass.short_code }}{% endblock %}
 
@@ -155,10 +155,21 @@
         <span class="rec-count is-late">متأخّر <b data-count="late">0</b></span>
       </p>
       <div class="per-bar__actions">
+        {% if following %}
+        <button type="submit" class="btn-secondary">
+          {% include "components/icon.html" with name="check" %}
+          ثبّتِ الحصّة {{ focus.number }}
+        </button>
+        <button type="submit" name="next" value="1" class="btn-primary" title="ثمّ {{ following.short_code }}">
+          {% icon "next" %}
+          ثبّت وانتقل إلى {{ following.short_code }}
+        </button>
+        {% else %}
         <button type="submit" class="btn-primary">
           {% include "components/icon.html" with name="check" %}
           ثبّتِ الحصّة {{ focus.number }}
         </button>
+        {% endif %}
       </div>
     </div>
   </form>

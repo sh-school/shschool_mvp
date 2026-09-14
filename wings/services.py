@@ -374,6 +374,43 @@ def sections_to_record(wing, day, now=None) -> list[SectionToRecord]:
     return rows
 
 
+def next_section_awaiting(klass, day, start) -> ClassGroup | None:
+    """الشعبةُ التالية في جناح `klass` التي لم تُثبَّت حصّتُها الواقعةُ في `start` بعد.
+
+    المشرفُ يمرّ على شُعبه الخمس في الحصّة نفسِها، فبعد تثبيت واحدةٍ يُنقل إلى
+    التي تليها بترتيب الفهرس — ويُدار عليها دورةً كاملة، فلا تُهمل شعبةٌ قبله.
+    ولا شعبةَ بلا حصّةٍ في تلك الساعة (اختيارٌ أو فراغ) ولا شعبةَ ثُبّتت.
+    """
+    from operations.models import PeriodConfirmation, Session
+
+    if klass.wing_id is None:
+        return None
+    ordered = list(
+        klass.wing.class_groups.filter(is_active=True)
+        .exclude(pk=klass.pk)
+        .order_by("grade", "section")
+    )
+    after = [c for c in ordered if (c.grade, c.section) > (klass.grade, klass.section)]
+    before = [c for c in ordered if (c.grade, c.section) <= (klass.grade, klass.section)]
+    ids = [c.pk for c in after + before]
+    if not ids:
+        return None
+    scheduled = set(
+        Session.objects.filter(class_group_id__in=ids, date=day, start_time=start)
+        .exclude(status="cancelled")
+        .values_list("class_group_id", flat=True)
+    )
+    confirmed = set(
+        PeriodConfirmation.objects.filter(
+            class_group_id__in=ids, date=day, start_time=start
+        ).values_list("class_group_id", flat=True)
+    )
+    for candidate in after + before:
+        if candidate.pk in scheduled and candidate.pk not in confirmed:
+            return candidate
+    return None
+
+
 def wings_of(user, school, year):
     """أجنحةُ هذا المستخدم — ما يحمله اليوم أصيلاً أو بديلاً.
 

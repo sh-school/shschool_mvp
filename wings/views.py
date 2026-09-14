@@ -34,6 +34,7 @@ from .services import (
     bell_tables,
     coverage_rows,
     floors_overview,
+    next_section_awaiting,
     outside_the_wings,
     record_panels,
     substitute_pool,
@@ -260,6 +261,7 @@ def record_section(request, class_id):
     wanted = _time(request.GET.get("p"))
     focus = next((p for p in periods if p.start == wanted), None) or focus_period(periods, day, now)
     cells = cells_of(klass, day)
+    following = next_section_awaiting(klass, day, focus.start) if focus else None
     taps = teacher_taps_of(klass, day)
     outs = teacher_outs_of(klass, day)
     yesterday = absent_yesterday(klass, day)
@@ -303,6 +305,8 @@ def record_section(request, class_id):
             "rows": rows,
             "whereabouts": [w for w in StudentAttendance.WHEREABOUTS if w[0] != "gate"],
             "draft_key": f"rec:{klass.id}:{day.isoformat()}:{focus.key if focus else ''}",
+            # «ثبّت وانتقل»: الشعبةُ التي تنتظر الحصّةَ نفسَها بعد هذه — إن بقيت.
+            "following": following,
         },
     )
 
@@ -334,6 +338,15 @@ def record_period(request, class_id):
         return redirect(back)
 
     messages.success(request, f"ثُبّتت {klass.short_code} — {result.says}.")
+    if request.POST.get("next"):
+        following = next_section_awaiting(klass, day, start)
+        if following is not None:
+            return redirect(
+                f"{reverse('wings:record_section', args=[following.id])}"
+                f"?date={day.isoformat()}&p={start:%H:%M}"
+            )
+        messages.info(request, "لا شعبةَ أخرى في الجناح تنتظر هذه الحصّة.")
+        return redirect(f"{reverse('wings:record_index')}?date={day.isoformat()}")
     return redirect(back)
 
 
