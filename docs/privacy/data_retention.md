@@ -106,6 +106,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `operations_periodconfirmation` | تثبيتُ رصد الحصّة |
 | `operations_classexit` | الخروجُ من الفصل وعودتُه |
 | `operations_absencealert` | تنبيهاتُ عتبات الغياب |
+| `operations_absenceexcuse` | أعذارُ الغياب المقدَّمة للمشرف — جزءٌ من سجلّ الحضور |
 | `core_behaviorinfraction` | المخالفاتُ السلوكيّة |
 | `core_behaviorpointrecovery` | استعادةُ النقاط |
 | `core_healthrecord` | الملفُّ الصحّيّ (مشفَّر) |
