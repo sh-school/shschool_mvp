@@ -49,6 +49,12 @@ app.conf.beat_schedule = {
         "task": "behavior.weekly_risk_check",
         "schedule": crontab(hour=6, minute=0, day_of_week="0"),  # 0=الأحد (قطر)
     },
+    # الاحتفاظُ بالبيانات (PDPPL م.7 و10) — أسبوعيّاً فجرَ الجمعة، والمدرسةُ نائمة.
+    # السياسةُ في docs/privacy/data_retention.md، والصفرُ في الإعداد يعطّلها.
+    "enforce-data-retention-weekly": {
+        "task": "core.enforce_data_retention",
+        "schedule": crontab(hour=3, minute=30, day_of_week="5"),  # 5=الجمعة
+    },
 }
 
 app.conf.update(timezone="Asia/Qatar")
