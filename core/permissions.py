@@ -435,6 +435,9 @@ WING_DAY_RECORD = frozenset(
     {"admin_supervisor", "vice_admin", "vice_academic", "principal", "platform_developer"}
 )
 
+#: قبولُ عذرِ غيابٍ بعد مهلة اليومين (الدليل 2026 م 3.4.1.5) — النائبُ الإداريّ لا المشرف.
+EXCUSE_AFTER_DEADLINE = frozenset({"vice_admin", "principal", "platform_developer"})
+
 
 # ══════════════════════════════════════════════════════════════════════
 # 2. ROLE GROUPS — مجموعات جاهزة للاستخدام في الديكوريتور

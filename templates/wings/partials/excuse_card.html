@@ -1,0 +1,63 @@
+{% load ui %}
+{% comment %}قبولُ عذرِ غيابٍ من القائمة المغلقة (الدليل 2026 م 3.4.1.4) في مهلة يومين (م 3.4.1.5) — يحتاج: klass, student, excuse_kinds, excuse_day, grace_days, may_override, excuses.{% endcomment %}
+{% section_card "عذرٌ للغياب — من القائمة المغلقة" icon="clipboard-check" meta=excuses|length %}
+  <form method="post" action="{% url 'wings:excuse_grant' klass.id student.id %}" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="exc-form__grid">
+      <label class="form-label">من
+        <input type="date" name="date_from" class="form-control" value="{{ excuse_day|date:'Y-m-d' }}" required>
+      </label>
+      <label class="form-label">إلى
+        <input type="date" name="date_to" class="form-control" value="{{ excuse_day|date:'Y-m-d' }}">
+      </label>
+      <label class="form-label">نوعُ العذر
+        <select name="kind" class="form-select" required>
+          <option value="">— اختر —</option>
+          {% for key, label, doc in excuse_kinds %}
+          <option value="{{ key }}">{{ label }}{% if doc %} · يلزم {{ doc }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="form-label">المستند
+        <input type="file" name="document" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp">
+      </label>
+      <label class="form-label exc-form__wide">بيان
+        <input type="text" name="notes" class="form-control" placeholder="صلةُ القرابة، أو جهةُ الموعد…">
+      </label>
+      {% if may_override %}
+      <label class="form-label exc-form__wide">سببُ القبول بعد المهلة <small>(إن مضى على آخر يومِ غيابٍ أكثرُ من {{ grace_days }} يومين)</small>
+        <input type="text" name="override_reason" class="form-control">
+      </label>
+      {% endif %}
+    </div>
+    <div class="exc-form__actions">
+      <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check" %} اقبل العذر</button>
+    </div>
+  </form>
+  <p class="bell-note">يغطّي العذرُ كلَّ حصص الغياب بلا عذرٍ في المدّة، ويُسقط أيّامَها من عدّ الحرمان. المشرفُ يقبله خلال {{ grace_days }} يومين من آخر يومِ غياب، ومن بعدها النائبُ الإداريّ بسبب. وما ليس في القائمة «غيابٌ بدون عذر».</p>
+
+  {% if excuses %}
+  <div class="table-wrap">
+    <table data-no-sort>
+      <thead><tr><th>المدّة</th><th>العذر</th><th>المستند</th><th>قَبِله</th><th>إلغاء</th></tr></thead>
+      <tbody>
+        {% for x in excuses %}
+        <tr>
+          <td>{{ x.date_from|date:"d/m" }}{% if x.date_to != x.date_from %} – {{ x.date_to|date:"d/m" }}{% endif %}</td>
+          <td>{{ x.get_kind_display }}{% if x.notes %} <small>{{ x.notes }}</small>{% endif %}{% if x.after_deadline %} <span class="status-badge status-warning">بعد المهلة</span>{% endif %}</td>
+          <td>{% if x.document %}<a href="{% url 'student_affairs:protected_media' x.document.name %}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-xs">{% include "components/icon.html" with name="file-text" %} افتح</a>{% else %}—{% endif %}</td>
+          <td><small>{{ x.granted_by.full_name|default:"—" }} · {{ x.granted_at|date:"d/m H:i" }}</small></td>
+          <td>
+            <form method="post" action="{% url 'wings:excuse_revoke' x.pk %}" class="sa-undo" data-confirm="إلغاءُ العذر وإعادةُ حصصه بلا عذر؟">
+              {% csrf_token %}
+              <input type="text" name="reason" class="form-control form-control-sm" placeholder="السبب" required aria-label="سببُ الإلغاء">
+              <button type="submit" class="btn-secondary btn-xs">إلغاء</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+{% endsection_card %}
