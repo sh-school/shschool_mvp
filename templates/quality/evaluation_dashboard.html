@@ -9,14 +9,16 @@
 {% block content %}
 <div class="qeval">
 
-  {% page_header "تقييم أداء الموظفين" subtitle="القرار الأميري 9/2016 · QNSA المعيار 1" icon="staff_evaluation" %}{% endpage_header %}
+  {% page_header "تقييم أداء الموظفين" subtitle="النظام الوظيفي لموظفي المدارس (قرار 32/2019) · المواد 15–21" icon="staff_evaluation" %}{% endpage_header %}
 
   {% if avg_score %}
   {% kpi_strip label="أرقام التقييم" %}
     {% kpi "متوسط الدرجات" avg_score title="متوسط التقييمات المقدَّمة والمعتمدة والمستلمة" %}
     {% kpi "ممتاز" rating_dist.excellent|default:0 tone="green" %}
     {% kpi "جيد جداً" rating_dist.very_good|default:0 tone="blue" %}
-    {% kpi "يحتاج تطوير" rating_dist.needs_dev|default:0 tone="amber" %}
+    {% kpi "جيد" rating_dist.good|default:0 tone="amber" %}
+    {% kpi "مقبول" rating_dist.acceptable|default:0 tone="amber" %}
+    {% kpi "ضعيف" rating_dist.weak|default:0 tone="red" %}
   {% endkpi_strip %}
   {% endif %}
 
@@ -50,8 +52,8 @@
           <tr>
             <th scope="col">الموظف</th>
             <th scope="col">الدور</th>
-            <th scope="col" class="num">الفصل الأول (S1)</th>
-            <th scope="col" class="num">نهاية العام (S2)</th>
+            <th scope="col" class="num">متابعة داخليّة (S1)</th>
+            <th scope="col" class="num">التقرير السنويّ (S2)</th>
           </tr>
         </thead>
         <tbody id="eval-staff-tbody">

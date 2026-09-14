@@ -53,6 +53,7 @@ SUMMARY_WEIGHTS = {
     "2.9": [10, 22, 24, 14, 10, 20],
 }
 
+
 def _reference_section(section: str) -> list[str]:
     lines = REFERENCE.read_text(encoding="utf-8").split("\n")
     start = next(i for i, line in enumerate(lines) if line.startswith(f"### {section} "))

@@ -13,6 +13,8 @@ quality/models.py
 
 import uuid
 from datetime import timedelta
+from decimal import Decimal
+from fractions import Fraction
 from functools import cached_property
 from typing import Any
 
@@ -29,10 +31,19 @@ def _uuid():
 
 
 # ── ثوابت وحدة الجودة ── Clean Code: G25 لا أرقام سحرية ──────
-# عتبات تقييم الأداء (القرار الأميري 9/2016)
-_SCORE_EXCELLENT = 90
-_SCORE_VERY_GOOD = 75
-_SCORE_GOOD = 60
+# عتباتُ مستويات تقييم الأداء — المادة 16 من النظام الوظيفي لموظفي المدارس
+# (قرار مجلس الوزراء 32/2019)، «02- النظام الوظيفي لموظفي المدارس.pdf» صفحتا
+# الملفّ 10–11 (المطبوعتان 24–25)، ونقلُها في 02_staff_affairs.md:201-205:
+#   ممتاز «(90%) فأعلى» · جيد جداً «أعلى من (75%) إلى أقل من (90%)»
+#   جيد «أعلى من (65%) إلى (75%)» · مقبول «من (50%) إلى (65%)» · ضعيف «أقل من (50%)»
+# فالحدودُ مغلقةٌ عند 90 و50 ومفتوحةٌ عند 75 و65. ومفتاحُ الاستمارات السبع
+# (06_attendance_performance_review.md §2.2: 100–90 / 89–76 / 75–66 / 65–50 / أقل من 50)
+# يطابقها في الأعداد الصحيحة. وكان التعليقُ هنا يُسند 90/75/60 إلى «القرار الأميري
+# 9/2016» ولا أثرَ له في المصدر.
+_SCORE_EXCELLENT = 90  # ممتاز: s >= 90
+_SCORE_VERY_GOOD_ABOVE = 75  # جيد جداً: 75 < s < 90
+_SCORE_GOOD_ABOVE = 65  # جيد: 65 < s <= 75
+_SCORE_ACCEPTABLE = 50  # مقبول: 50 <= s <= 65؛ وما دونه ضعيف
 
 # الأدوار القابلة للتقييم — إصلاح #7: شاملة لكل الأدوار الوظيفية
 _EVALUABLE_ROLES = frozenset(
@@ -671,15 +682,22 @@ class EvaluationAxis(models.Model):
 
 
 class EmployeeEvaluation(models.Model):
+    #: التقريرُ الوزاريّ سنويٌّ واحد: «تضع المدرسة تقارير تقييم أداء الموظفين سنوياً»
+    #: (02_staff_affairs.md:199)، و«سنوية في كل الاستمارات السبع» (06:99). فـS2 هو
+    #: التقرير، وS1 متابعةٌ داخليّةٌ لا سندَ وزاريَّ لها — تبقى ببياناتها، ومصيرُها للمالك
+    #: (ADR-0002 §6.6).
     PERIODS = [
-        ("S1", "نهاية الفصل الأول"),
-        ("S2", "نهاية العام الدراسي"),
+        ("S1", "متابعة منتصف العام (داخليّة، غير وزاريّة)"),
+        ("S2", "التقرير السنويّ (الوزاريّ)"),
     ]
+    MINISTRY_PERIOD = "S2"
+    #: مستوياتُ المادة 16 الخمسة بأسمائها، والنطاقُ بمفتاح الاستمارات (06 §2.2).
     RATINGS = [
-        ("excellent", "ممتاز (90–100)"),
-        ("very_good", "جيد جداً (75–89)"),
-        ("good", "جيد (60–74)"),
-        ("needs_dev", "يحتاج تطوير (أقل من 60)"),
+        ("excellent", "ممتاز (100–90)"),
+        ("very_good", "جيد جداً (89–76)"),
+        ("good", "جيد (75–66)"),
+        ("acceptable", "مقبول (65–50)"),
+        ("weak", "ضعيف (أقل من 50)"),
     ]
     STATUS = [
         ("draft", "مسودة"),
@@ -760,15 +778,24 @@ class EmployeeEvaluation(models.Model):
     )
 
     @staticmethod
-    def rating_for(total: int) -> str:
-        """التقديرُ من المجموع — العتباتُ في ثوابت أعلى الوحدة."""
+    def rating_for(total: int | Decimal | Fraction) -> str:
+        """
+        المستوى من المجموع بحدود المادة 16 كما صيغت (ثوابت أعلى الوحدة).
+
+        يقبل الكسرَ عمداً: المادةُ تصوغ الحدودَ متّصلةً («أعلى من 75»، «أقل من 90»)،
+        فالتصنيفُ يُحسب على المجموع المرجَّح **غير المقرَّب** — 89.5 جيد جداً لا ممتاز،
+        و75.3 جيد جداً لا جيد، و49.5 ضعيف لا مقبول. أمّا `total_score` المخزَّن فعددٌ
+        صحيحٌ للعرض، يُقرَّب كما كان.
+        """
         if total >= _SCORE_EXCELLENT:
             return "excellent"
-        if total >= _SCORE_VERY_GOOD:
+        if total > _SCORE_VERY_GOOD_ABOVE:
             return "very_good"
-        if total >= _SCORE_GOOD:
+        if total > _SCORE_GOOD_ABOVE:
             return "good"
-        return "needs_dev"
+        if total >= _SCORE_ACCEPTABLE:
+            return "acceptable"
+        return "weak"
 
     def calculate_total(self) -> None:
         """حساب المجموع من المحاور الأربعة الافتراضية + التقدير"""
@@ -798,12 +825,14 @@ class EmployeeEvaluation(models.Model):
             total_weight += score.weight
 
         if total_weight > 0:
-            self.total_score = round(weighted_sum / total_weight)
+            exact = Fraction(weighted_sum, total_weight)
+            self.total_score = round(exact)
         else:
             self.calculate_total()
             return
 
-        self.rating = self.rating_for(self.total_score)
+        # التصنيفُ على المجموع غير المقرَّب — انظر `rating_for` (المادة 16).
+        self.rating = self.rating_for(exact)
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         # إصلاح #3: حساب المجموع فقط عندما لا يكون update_fields محدداً

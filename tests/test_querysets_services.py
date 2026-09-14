@@ -9,6 +9,8 @@ tests/test_querysets_services.py
 """
 
 from datetime import date, time, timedelta
+from decimal import Decimal
+from fractions import Fraction
 
 import pytest
 from django.utils import timezone
@@ -32,6 +34,7 @@ from operations.querysets import (
 from quality.models import (
     EmployeeEvaluation,
     EvaluationCycle,
+    EvaluationScore,
     ExecutorMapping,
     OperationalDomain,
     OperationalIndicator,
@@ -1137,15 +1140,15 @@ class TestEmployeeEvaluation:
         assert ev.total_score == 80
         assert ev.rating == "very_good"
 
-    def test_calculate_total_good(self):
+    def test_calculate_total_acceptable(self):
         ev = self._eval(prof=15, commit=15, team=15, dev=18)
         assert ev.total_score == 63
-        assert ev.rating == "good"
+        assert ev.rating == "acceptable"
 
-    def test_calculate_total_needs_dev(self):
+    def test_calculate_total_weak(self):
         ev = self._eval(prof=10, commit=10, team=10, dev=10)
         assert ev.total_score == 40
-        assert ev.rating == "needs_dev"
+        assert ev.rating == "weak"
 
     def test_boundary_90(self):
         ev = self._eval(prof=25, commit=25, team=25, dev=15)
@@ -1153,19 +1156,82 @@ class TestEmployeeEvaluation:
         assert ev.rating == "excellent"
 
     def test_boundary_75(self):
+        """المادة 16: جيد «أعلى من (65%) إلى (75%)» — فالخمسةُ والسبعون جيد لا جيد جداً."""
         ev = self._eval(prof=20, commit=20, team=20, dev=15)
         assert ev.total_score == 75
-        assert ev.rating == "very_good"
+        assert ev.rating == "good"
 
     def test_boundary_60(self):
         ev = self._eval(prof=15, commit=15, team=15, dev=15)
         assert ev.total_score == 60
-        assert ev.rating == "good"
+        assert ev.rating == "acceptable"
 
     def test_boundary_59(self):
         ev = self._eval(prof=15, commit=15, team=15, dev=14)
         assert ev.total_score == 59
-        assert ev.rating == "needs_dev"
+        assert ev.rating == "acceptable"
+
+    # حدودُ المادة 16 (02_staff_affairs.md:201-205؛ «02- النظام الوظيفي لموظفي المدارس.pdf»
+    # صفحتا الملفّ 10–11) ومفتاحُ الاستمارات (06_attendance_performance_review.md §2.2):
+    # 100–90 ممتاز · 89–76 جيد جداً · 75–66 جيد · 65–50 مقبول · أقل من 50 ضعيف.
+    @pytest.mark.parametrize(
+        ("total", "rating"),
+        [
+            (100, "excellent"),
+            (90, "excellent"),
+            (89, "very_good"),
+            (76, "very_good"),
+            (75, "good"),
+            (66, "good"),
+            (65, "acceptable"),
+            (50, "acceptable"),
+            (49, "weak"),
+            (0, "weak"),
+        ],
+    )
+    def test_article_16_integer_boundaries(self, total, rating):
+        assert EmployeeEvaluation.rating_for(total) == rating
+
+    # المادةُ تصوغ الحدودَ متّصلةً («أعلى من»، «أقل من»)، فالكسرُ يُصنَّف بها لا بعد تقريبه.
+    @pytest.mark.parametrize(
+        ("total", "rating"),
+        [
+            ("89.5", "very_good"),
+            ("89.99", "very_good"),
+            ("75.5", "very_good"),
+            ("75.3", "very_good"),
+            ("65.5", "good"),
+            ("65.01", "good"),
+            ("49.9", "weak"),
+            ("49.5", "weak"),
+        ],
+    )
+    def test_article_16_fractional_totals(self, total, rating):
+        assert EmployeeEvaluation.rating_for(Decimal(total)) == rating
+        assert EmployeeEvaluation.rating_for(Fraction(Decimal(total))) == rating
+
+    @pytest.mark.parametrize(
+        ("scores", "displayed", "rating"),
+        [
+            # (89×50 + 90×50) / 100 = 89.5 → يُعرض 90، والمستوى جيد جداً لا ممتاز.
+            (((89, 50), (90, 50)), 90, "very_good"),
+            # (75×70 + 76×30) / 100 = 75.3 → يُعرض 75، والمستوى جيد جداً لا جيد.
+            (((75, 70), (76, 30)), 75, "very_good"),
+            # (49×50 + 50×50) / 100 = 49.5 → يُعرض 50، والمستوى ضعيف لا مقبول.
+            (((49, 50), (50, 50)), 50, "weak"),
+        ],
+    )
+    def test_weighted_total_is_classified_before_rounding(self, scores, displayed, rating):
+        """التصنيفُ على المجموع المرجَّح غير المقرَّب؛ و`total_score` المخزَّن للعرض كما هو."""
+        ev = self._eval()
+        for i, (total, weight) in enumerate(scores):
+            evaluator = self.evaluator if i == 0 else self.employee
+            EvaluationScore.objects.create(
+                evaluation=ev, evaluator=evaluator, weight=weight, custom_axes={"x": total}
+            )
+        ev.recalculate_from_scores()
+        ev.refresh_from_db()
+        assert (ev.total_score, ev.rating) == (displayed, rating)
 
     def test_str(self):
         ev = self._eval()

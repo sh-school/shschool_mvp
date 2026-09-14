@@ -1,7 +1,9 @@
 """
 quality/evaluation_views.py
 Phase 6 — واجهات تقييم الموظفين
-القرار الأميري 9/2016 + قانون تنظيم المدارس 9/2017
+المرجع: النظام الوظيفي لموظفي المدارس (قرار مجلس الوزراء 32/2019) المواد 15–21
+(02_staff_affairs.md:199-215)، والاستمارات السبع (06_attendance_performance_review.md §2).
+وكان الرأسُ يُسند إلى «القرار الأميري 9/2016» ولا أثرَ له في المصدر.
 
 إصلاح: ربط RoleEvaluationTemplate + EvaluationScore + قائمة الموظفين
 """
@@ -196,7 +198,7 @@ def create_evaluation(request, employee_id):
     school = request.user.get_school()
     employee = get_object_or_404(CustomUser, id=employee_id)
     year = request.GET.get("year") or _default_year(request)
-    period = request.GET.get("period", "S1")
+    period = request.GET.get("period", EmployeeEvaluation.MINISTRY_PERIOD)
 
     if not Membership.objects.filter(school=school, user=employee, is_active=True).exists():
         return HttpResponse("الموظف ليس في مدرستك", status=403)

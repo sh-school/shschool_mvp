@@ -15,6 +15,7 @@ quality/evaluation_services.py
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from fractions import Fraction
 from typing import TYPE_CHECKING
 
 from django.db import transaction
@@ -69,8 +70,13 @@ def _uses_default_axes(axes: Sequence[AxisSpec]) -> bool:
     return {key for key, _label, _max in axes} <= DEFAULT_AXIS_FIELDS
 
 
-def _weighted_total(evaluation: EmployeeEvaluation, evaluator: CustomUser, own_total: int) -> int:
-    """المجموعُ المرجَّح كما يحسبه `calculate_weighted_total` — بدرجات هذا المقيِّم الجديدة."""
+def _weighted_total(
+    evaluation: EmployeeEvaluation, evaluator: CustomUser, own_total: int
+) -> Fraction:
+    """
+    المجموعُ المرجَّح **غير المقرَّب** كما يحسبه `calculate_weighted_total` — بدرجات هذا
+    المقيِّم الجديدة. التقريبُ للعرض وحده؛ والتصنيفُ على هذا (المادة 16، `rating_for`).
+    """
     own_weight = 100
     pairs: list[tuple[int, int]] = []
     for score in evaluation.scores.all():
@@ -80,7 +86,9 @@ def _weighted_total(evaluation: EmployeeEvaluation, evaluator: CustomUser, own_t
             pairs.append((score.total_score, score.weight))
     pairs.append((own_total, own_weight))
     total_weight = sum(w for _t, w in pairs)
-    return round(sum(t * w for t, w in pairs) / total_weight) if total_weight else own_total
+    if not total_weight:
+        return Fraction(own_total)
+    return Fraction(sum(t * w for t, w in pairs), total_weight)
 
 
 @transaction.atomic
@@ -110,8 +118,9 @@ def save_evaluation(
             setattr(evaluation, key, value)
         evaluation.calculate_total()
     else:
-        evaluation.total_score = _weighted_total(evaluation, evaluator, sum(scores.values()))
-        evaluation.rating = EmployeeEvaluation.rating_for(evaluation.total_score)
+        exact = _weighted_total(evaluation, evaluator, sum(scores.values()))
+        evaluation.total_score = round(exact)
+        evaluation.rating = EmployeeEvaluation.rating_for(exact)
 
     if evaluation.rating in SANCTION_BARRED_RATINGS and has_active_sanction(
         evaluation.employee, evaluation.academic_year
