@@ -159,6 +159,21 @@ class TestGranting:
 
 
 class TestTheDeadline:
+    def test_the_two_days_are_school_days_not_calendar_days(self, school, seeded_calendar):
+        """قرارُ 2026-09-14: يومان دراسيّان — الخميسُ تليه الجمعةُ والسبتُ فلا يُعدّان."""
+        from operations.excuses import deadline_of, is_after_deadline
+
+        thursday = dt.date(2026, 9, 17)
+        assert deadline_of(school, thursday) == dt.date(2026, 9, 21), "الأحدُ الأوّل والاثنينُ الثاني"
+        assert not is_after_deadline(school, thursday, dt.date(2026, 9, 21))
+        assert is_after_deadline(school, thursday, dt.date(2026, 9, 22))
+
+    def test_a_ministry_break_does_not_count_against_the_guardian(self, school, seeded_calendar):
+        """إجازةُ منتصف الفصل (25–29 أكتوبر 2026) تقفز فوقها المهلة."""
+        from operations.excuses import deadline_of
+
+        assert deadline_of(school, dt.date(2026, 10, 22)) == dt.date(2026, 11, 2)
+
     def test_after_two_days_the_supervisor_is_refused(
         self, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
