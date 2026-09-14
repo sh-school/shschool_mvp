@@ -1,192 +1,91 @@
-# الطبقاتُ المُلزِمة في SchoolOS
+# الطبقاتُ المُلزِمة
 
-## المبدأ الأساسي
+العرضُ يستقبل الطلبَ ويردّ. القراءةُ في `selectors.py`، والكتابةُ في `services.py`،
+وقواعدُ المجال التي لا تعرف قاعدةَ البيانات في `core/domain/`. وحارسٌ يعدّ ويمنع
+الزيادة: `tests/layering_ratchet.py`.
 
-كلُّ طلب HTTP يمرّ عبر ثلاث طبقات، لا رابعة:
+## ما يجوز في العرض
 
-```
- Middleware (core/middleware.py)
-      ↓
- View Layer (*/views*.py) — بلا منطق عميق
-      ↓
- Service Layer (*/services.py) — كلّ ORM و business logic
-```
+- قراءةُ الطلب: `request.GET`، `request.POST`، `request.FILES`، `request.school`.
+- الحراسة: المزيِّنات، و`get_object_or_404` على نموذجٍ أو QuerySet من selector.
+- تركيبُ السياق: أسماءُ مفاتيح القالب، ونصوصُ البطاقات وألوانُها (`tone_for`، `_share_tone`).
+- استدعاءُ selector أو service أو دالّةِ مجال — ثمّ `render` أو `redirect` أو ملفّ.
 
-## القوائس الأربع المفروسة
+وما سوى ذلك يخرج: عرضٌ فوق **60 سطراً** أو **5 استدعاءات ORM** مباشرة يُسجَّل
+ولا يزيد.
 
-### 1. لا View يزيد على 60 سطر
+## selectors — القراءة
 
-الحدّ الأقصى هو 60 سطر (بدون decorators). الـ views الأطول تشير إلى منطق معقّد يجب أن يذهب إلى service layer.
+دوالُّ بلا أثرٍ جانبيّ، تأخذ مدرسةً وعاماً ويوماً (لا `request`) وتُرجع QuerySet أو
+قاموساً أو عدداً. تُختبر بلا طلبٍ ولا قالب. أمثلة:
 
-مثال:
+| الملفّ | ما فيه |
+|---|---|
+| `student_affairs/selectors.py` | سجلُّ الطلبة بفرزه وفلاتره، ملفُّ الطالب ووثيقتُه، ملخّصُ السلوك، التأخّرُ الصباحيّ |
+| `operations/selectors.py` | عدّاداتُ الحضور، تنبيهاتُ الغياب المعلّقة، حصصُ المعلّم والشعبة، طلباتُ التبديل |
+| `core/dashboard_selectors.py` | عدّاداتُ لوحة التحكم لكلّ دور (نتائج، سلوك، عيادة، مكتبة، حسابات) |
+| `analytics/selectors.py` | مؤشّراتُ لوحة الإحصاءات الستّةَ عشر |
 
-```python
-@login_required
-def student_list(request):
-    """استدعِ service، اعرض النتيجة — بس."""
-    school = request.school
-    year = academic_year_for(request)
-    
-    students = StudentService.list_for_school(
-        school=school, year=year, page=request.GET.get("page")
-    )
-    
-    return render(request, "template.html", {"students": students})
-```
+قراءةٌ تشترك فيها شاشتان تُكتب في تطبيقها مرّةً (`operations.selectors.attendance_status_counts`
+تقرؤها لوحةُ التحكم وشؤونُ الطلبة) — لا نسخةَ في كلّ تطبيق.
 
-### 2. لا استدعاءُ ORM يزيد على 5 لكل View
+## services — الكتابة
 
-استدعاءات ORM المعدودة:
-- `.objects.`
-- `.filter()`
-- `.annotate()`
-- `.aggregate()`
-- `select_related()`
-- `prefetch_related()`
-- `Q(`
+`@transaction.atomic`، وتُرجع نتيجةً صريحة (الكائنَ المكتوب، أو `None` حين لا شيءَ
+يُكتب)، وسجلُّ التدقيق في المعاملة نفسِها. مثال: `TardinessService.record_morning_tardiness`.
+والتحقّقُ من المُدخَل (نوعُ الملفّ وحجمُه) في العرض أو النموذج قبل الخدمة.
 
-إذا تجاوزتَ 5: انقل المنطق إلى service layer.
+## core/domain — القواعد
 
-```python
-# صحيح (3 استدعاءات)
-students = Student.objects.filter(
-    school=school, year=year
-).select_related('grade')
+نسبةُ الحضور (`attendance_rate`، `percent`)، وشرائحُ الدرجات، وسلالمُ الألوان. لا ORM،
+ولا تُعاد كتابتُها في selector: `round(x / y * 100)` في موضعٍ و`x * 100 / y` في آخر
+يختلفان عند الأنصاف.
 
-# خطأ (6 استدعاءات) — انقل إلى service
-students = Student.objects.filter(...)
-grades = Grade.objects.filter(...)
-classes = ClassGroup.objects.annotate(...).aggregate(...)
-# إلخ
-```
+## الحارس
 
-### 3. `core` لا يستورد من وحدات نازلة
+`tests/layering_ratchet.py` يعدّ بشجرة `ast` (التعليقُ والنصُّ لا يُعدّان) ثلاثةَ أشياء:
 
-`core/` هي النواة. لا تستورد من:
-- analytics
-- assessments
-- behavior
-- clinic
-- exam_control
-- library
-- operations
-- parents
-- quality
-- reports
-- staff_affairs
-- student_affairs
-- transport
-- wings
-- notifications
+1. **كلُّ دالّةٍ في `*/views*.py`** — العرضُ ومساعدُه وتوابعُ أصنافه: الأسطرُ من `def`
+   إلى آخرها، واستدعاءاتُ ORM (`.objects`، `.filter(`، `.annotate(`، `.aggregate(`،
+   `select_related(`، `prefetch_related(`، `Q(`). ما فوق السقف وحده يُسجَّل.
+2. **`get_school()` في ملفّات العروض** — كلُّها لا ما في العروض وحدها.
+3. **استيرادُ `core` لوحدةٍ نازلة** — ولو كسولاً داخل دالّة — معدوداً لكلّ تطبيقٍ على
+   النواة كلِّها.
 
-إذا احتجتَ إلى نموذج من وحدة نازلة: استخدم lazy import في الدالّة نفسها.
-
-```python
-# خطأ
-from analytics.models import StudentAnalytics
-
-def some_function():
-    analytics = StudentAnalytics.objects.filter(...)
-
-# صحيح
-def some_function():
-    from analytics.models import StudentAnalytics
-    analytics = StudentAnalytics.objects.filter(...)
-```
-
-### 4. لا `get_school()` في العروض
-
-استخدم `request.school` بدلاً منه. هو محقون عبر `SchoolContextMiddleware`.
-
-```python
-# خطأ
-def some_view(request):
-    school = get_school()
-    ...
-
-# صحيح
-def some_view(request):
-    school = request.school
-    ...
-```
-
-## الحارسُ الآلي
-
-ملف `tests/test_layering.py` يفرض هذه القوائس تلقائياً:
+والسجلُّ `tests/layering_baseline.json`: **زاد** → يسقط `tests/test_layering.py`؛
+**نقص** → يسقط كذلك حتى يُثبَّت؛ عرضٌ جديدٌ فوق السقف يسقط.
 
 ```bash
-# تشغيل الحارس
-python tests/test_layering.py
-
-# تحديثُ baseline بعد تحسينٍ مقصود
-python tests/test_layering.py --update-baseline
+python -m tests.layering_ratchet             # الفحص
+python -m tests.layering_ratchet --update     # تثبيتُ ما نقص — يرفض أيَّ زيادة
+python -m tests.layering_ratchet --rebaseline # حين يتغيّر تعريفُ العدّ نفسُه — يُراجَع سطراً سطراً
 ```
 
-الـ baseline (`tests/layering_baseline.json`) يسجّل الحالة الحالية لكلّ view. الحارسُ يمنع الزيادة فقط.
+## الأرقام
 
-## مثال: ترحيل منطق من View إلى Service
+| الموضع | عروضٌ فوق سقف | فوق الأسطر | فوق ORM | `get_school()` | استيرادٌ نازلٌ في core |
+|---|---|---|---|---|---|
+| قبل الترحيل (تعريف 1: ما أوّلُ وسائطه `request`) | 82 | 52 | 62 | 146 | 61 جملةً / 14 ملفّاً |
+| بعد شؤون الطلبة | 67 | 38 | 49 | 146 | 61 / 14 |
+| تعريف 2 (كلُّ دالّة) — الشيفرةُ نفسُها | 79 | 40 | 60 | 146 | 61 / 14 |
+| بعد لوحة التحكم والإحصاءات و`request.school` | 70 | 38 | 51 | 77 | 61 / 15 |
 
-### قبل الترحيل (منطق في View)
+- **شؤون الطلبة**: 17 عرضاً فوق السقف → 2. رُحِّل خمسةَ عشرَ (الاثنا عشرَ الأثقلُ وثلاثةٌ
+  تشاركها قراءاتِها)، وبقي `student_add` و`student_edit` فوق الأسطر وحدها (82 و76) —
+  كتابتُهما في `StudentService` أصلاً.
+- **لوحة التحكم**: ثمانيةُ مساعدات (`_get_director_ctx` 113 سطراً و46 استدعاءً …) → 0.
+- **الإحصاءات**: `analytics_dashboard` (89 سطراً، 31 استدعاءً) → 0.
+- **`request.school`** في `analytics`، `operations/views_swap`، `reports`، `exam_control`،
+  `wings`، `operations/views_attendance`، `parents` (69 موضعاً). والسلوكُ واحد: الوسيطُ
+  يضع `user.get_school()` للمسجَّل و`None` لغيره، وكلُّ هذه العروض خلف `login_required`.
+- الملفُّ الخامسَ عشرَ في core هو `core/dashboard_selectors.py`: انتقلت إليه استيراداتُ
+  اللوحة من العرض، فالجُملُ 61 كما هي.
 
-```python
-# views.py — سيء
-def student_dashboard(request):
-    today = timezone.localdate()
-    school = request.school
-    year = academic_year_for(request)
-    
-    # 8 استدعاءات ORM هنا!
-    students = Student.objects.filter(school=school, year=year)
-    absent_today = StudentAttendance.objects.filter(
-        student__in=students, date=today, status='absent'
-    ).count()
-    late_today = StudentAttendance.objects.filter(...).count()
-    behavior_today = BehaviorInfraction.objects.filter(...).count()
-    # إلخ
-    
-    return render(request, "dashboard.html", {...})
-```
+## الباقي
 
-### بعد الترحيل (منطق في Service)
-
-```python
-# services.py
-class StudentService:
-    @staticmethod
-    def get_dashboard_context(school, year, today):
-        """كلّ الاستعلامات هنا."""
-        students = Student.objects.filter(school=school, year=year)
-        
-        absent_today = StudentAttendance.objects.filter(
-            student__in=students, date=today, status='absent'
-        ).count()
-        late_today = StudentAttendance.objects.filter(...).count()
-        behavior_today = BehaviorInfraction.objects.filter(...).count()
-        
-        return {
-            'absent': absent_today,
-            'late': late_today,
-            'behavior': behavior_today,
-        }
-
-# views.py — نظيفة
-def student_dashboard(request):
-    school = request.school
-    year = academic_year_for(request)
-    ctx = StudentService.get_dashboard_context(
-        school=school, year=year, today=timezone.localdate()
-    )
-    return render(request, "dashboard.html", ctx)
-```
-
-## الملفات المسؤولة
-
-- `tests/test_layering.py` — الحارس
-- `tests/layering_baseline.json` — baseline
-- `*/services.py` — خدمات كلّ وحدة
-- `*/selectors.py` — استعلامات قراءة (QuerySets محضّرة)
-- `*/views*.py` — عروض نظيفة (≤60 سطر، ≤5 ORM calls)
-
-## الاستثناءات المعروفة
-
-لا توجد استثناءات. إن وُجد view يتجاوز الحدود: يجب ترحيله.
+- `quality/views.py` — 12 `get_school()` (يملكه وكيلُ الامتثال H).
+- `staff_affairs/views.py` — `staff_list` و`staff_profile` فوق السقف لم تُرحَّلا (يعدّله وكيلُ الامتثال G).
+- 70 دالّةً فوق السقف في بقيّة التطبيقات، و77 `get_school()`؛ والسجلُّ يسمّيها.
+- الاستيرادُ النازلُ في core (61 جملة): لوحةُ التحكم تقرأ من التطبيقات بطبيعتها؛
+  وإخراجُه يحتاج سجلَّ مزوّدين يُملأ من `apps.ready()` — لم يُبدأ.
+- `behavior/views.py::_behaviour_year_window` تكرارٌ لـ`student_affairs.selectors.behaviour_window`.
