@@ -318,6 +318,47 @@ class AbsenceExcuse(models.Model):
         return f"{self.student.full_name} | {self.get_kind_display()} | {self.date_from}–{self.date_to}"
 
 
+class GuardianContact(models.Model):
+    """إخطارُ وليّ الأمر بغياب ابنه — من اتّصل ومتى وعن أيّ يومٍ وبمَ أُجيب.
+
+    الدليلُ 2026 م 3.4.1.5: الإخطارُ في اليوم نفسِه هاتفيّاً ونصّيّاً، ومهلةُ الردّ
+    يومان **من الإخطار** (قرارُ 2026-09-13). حقيقةٌ تُكتب ولا تُحذف.
+    """
+
+    OUTCOMES = [
+        ("answered", "ردّ"),
+        ("no_answer", "لم يردّ"),
+        ("will_excuse", "سيُحضر عذراً"),
+    ]
+    CHANNELS = [("phone", "هاتف"), ("sms", "رسالة نصّيّة")]
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="guardian_contacts")
+    student = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="guardian_contacts"
+    )
+    absence_date = models.DateField(verbose_name="يومُ الغياب")
+    outcome = models.CharField(max_length=12, choices=OUTCOMES, verbose_name="النتيجة")
+    channel = models.CharField(max_length=6, choices=CHANNELS, default="phone")
+    note = models.CharField(max_length=200, blank=True, verbose_name="ملاحظة")
+    contacted_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, related_name="guardian_contacts_made"
+    )
+    contacted_at = models.DateTimeField(verbose_name="وقتُ الاتّصال")
+
+    class Meta:
+        verbose_name = "إخطارُ وليّ أمر"
+        verbose_name_plural = "إخطاراتُ أولياء الأمور"
+        ordering = ["-contacted_at"]
+        indexes = [
+            models.Index(fields=["school", "student"]),
+            models.Index(fields=["student", "absence_date"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.student.full_name} | {self.absence_date} | {self.get_outcome_display()}"
+
+
 # ─────────────────────────────────────────────
 # المرحلة 2 — الجداول الذكية + نظام البديل
 # ─────────────────────────────────────────────

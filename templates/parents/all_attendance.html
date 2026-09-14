@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}حضور الأبناء{% endblock %}
 
@@ -9,7 +10,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "حضور الأبناء" subtitle=school.name icon="list-checks" %}
+  {% page_header "حضور الأبناء" subtitle=school.name icon="attendance_register" %}
     <nav class="period-switch" aria-label="الفترة">
       {% for d in period_choices %}
         <a href="?period={{ d }}" class="period-switch__item{% if period == d %} is-current{% endif %}"{% if period == d %} aria-current="page"{% endif %}>{{ d }} يوماً</a>
@@ -18,7 +19,7 @@
   {% endpage_header %}
 
   {% for child in children_attendance %}
-    {% section_card child.student.full_name meta=child.enrollment.class_group.short_code icon="user" %}
+    {% section_card child.student.full_name meta=child.enrollment.class_group.short_code icon="profile" %}
       <div class="parent-child">
         {% kpi_strip label="أرقام الحضور" %}
           {% if child.total %}{% kpi "الحضور" child.att_label tone=child.att_tone %}{% else %}{% kpi "الحضور" "—" tone="blue" title="لا حصصَ مرصودةً في الفترة" %}{% endif %}
@@ -33,19 +34,19 @@
           <ul class="plain-list" aria-label="تنبيهات الغياب">
             {% for alert in child.alerts %}
               <li class="plain-list__row">
-                <span>{% include "components/icon.html" with name="alert-triangle" %} {{ alert.absence_count }} غياب · {{ alert.period_start|date:"d/m" }} – {{ alert.period_end|date:"d/m" }}</span>
+                <span>{% icon "absence" %} {{ alert.absence_count }} غياب · {{ alert.period_start|date:"d/m" }} – {{ alert.period_end|date:"d/m" }}</span>
                 <span class="status-badge {% if alert.status == 'resolved' %}status-success{% else %}status-danger{% endif %}">{{ alert.get_status_display }}</span>
               </li>
             {% endfor %}
           </ul>
         {% endif %}
         <nav class="parent-child__actions">
-          <a href="{% url 'parent_student_attendance' child.student.id %}?period={{ period }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="calendar" %} التفاصيل بالحصص</a>
+          <a href="{% url 'parent_student_attendance' child.student.id %}?period={{ period }}" class="btn-secondary btn-sm">{% icon "periods_today" %} التفاصيل بالحصص</a>
         </nav>
       </div>
     {% endsection_card %}
   {% empty %}
-    {% section_card "الأبناء" icon="users" empty="لا أبناءَ مربوطين أو لا صلاحيةَ لعرض حضورهم" empty_sub="تواصل مع إدارة المدرسة" %}{% endsection_card %}
+    {% section_card "الأبناء" icon="children" empty="لا أبناءَ مربوطين أو لا صلاحيةَ لعرض حضورهم" empty_sub="تواصل مع إدارة المدرسة" %}{% endsection_card %}
   {% endfor %}
 
 </div>

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load privacy ui %}
 
 {% block title %}طلب انتقال جديد{% endblock %}
@@ -46,7 +47,7 @@
 
       <div class="form-footer">
         <a href="{% url 'student_affairs:transfer_list' %}" class="btn-secondary btn-sm">إلغاء</a>
-        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check-circle" %} تسجيل الانتقال</button>
+        <button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} تسجيل الانتقال</button>
       </div>
     </form>
   </div>

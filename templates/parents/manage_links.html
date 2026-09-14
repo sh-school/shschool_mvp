@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load privacy ui %}
 {% block title %}ربط أولياء الأمور — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
@@ -9,7 +10,7 @@
 {% block content %}
 <div class="exec-dash">
 
-{% page_header "ربط أولياء الأمور بالطلاب" subtitle=links_subtitle icon="waypoints" %}
+{% page_header "ربط أولياء الأمور بالطلاب" subtitle=links_subtitle icon="parents" %}
   <span class="status-badge status-maroon">{{ total_count }} ارتباط</span>
 {% endpage_header %}
 
@@ -28,7 +29,7 @@
 {# ── إضافة ربط جديد (قابل للطي): بطاقةٌ شريطُها هو `<summary>` — فليست `section_card` ── #}
 <details class="links-add">
   <summary class="links-add__bar">
-    {% include "components/icon.html" with name="plus" %}
+    {% icon "add" %}
     <h2 class="ui-section__title">إضافة ربط جديد</h2>
     <span class="links-add__chevron" aria-hidden="true">▼</span>
   </summary>
@@ -129,7 +130,7 @@
   {% field "rel" "صلة القرابة" id="rel-filter" type="select" choices=RELATIONSHIP value=rel_filter blank="كل الصلات" hx_get=request.path hx_trigger="change" hx_target="#links-container" hx_swap="innerHTML" hx_include="#links-search,#link-status" hx_push_url="false" %}
   <div class="filter-actions">
     <a href="{% url 'manage_parent_links' %}" class="btn-secondary btn-sm">
-      {% include "components/icon.html" with name="refresh" %} إعادة ضبط
+      {% icon "refresh" %} إعادة ضبط
     </a>
   </div>
 {% endfilter_bar %}

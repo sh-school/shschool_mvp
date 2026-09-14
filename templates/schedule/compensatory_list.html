@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}الحصص التعويضية{% endblock %}
 
@@ -13,9 +14,9 @@
 وحالةُ فراغٍ من المكوّن الموحَّد.
 {% endcomment %}
 <div class="exec-dash">
-  {% page_header "الحصص التعويضية" subtitle="حصّةٌ فاتت تُعوَّض في وقتٍ آخر — بطلبٍ يُعتمَد" icon="list-checks" %}
+  {% page_header "الحصص التعويضية" subtitle="حصّةٌ فاتت تُعوَّض في وقتٍ آخر — بطلبٍ يُعتمَد" icon="compensation" %}
     {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" %}
-    <a href="{% url 'compensatory_request' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} طلب تعويض</a>
+    <a href="{% url 'compensatory_request' %}" class="btn-primary btn-sm">{% icon "edit_record" %} طلب تعويض</a>
     {% endif %}
   {% endpage_header %}
 
@@ -29,7 +30,7 @@
     </div>
   {% endfilter_bar %}
 
-  {% section_card "الطلبات" icon="list-checks" flush=True empty="لا توجد حصص تعويضية" empty_sub="ستظهر هنا حين يُطلب تعويضُ حصّةٍ فاتت" %}{% if compensatory_sessions %}
+  {% section_card "الطلبات" icon="checklist" flush=True empty="لا توجد حصص تعويضية" empty_sub="ستظهر هنا حين يُطلب تعويضُ حصّةٍ فاتت" %}{% if compensatory_sessions %}
   <div class="table-wrap-scroll schedule-cards" id="comp-cards">
   {% for comp in compensatory_sessions %}
   <div class="comp-card" data-filter-row data-text="{{ comp.teacher.full_name }}">

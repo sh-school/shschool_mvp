@@ -1,3 +1,4 @@
+{% load icons %}
 {% comment %}
   عنصر إشعار واحد — يُستخدم في inbox.html وعند HTMX swap بعد mark_read.
   كان تنسيقُه كلُّه في وسمه (خلفيّةٌ وإطارٌ وحشوٌ لكلّ حال)؛ فصار صنفين:
@@ -17,9 +18,9 @@
 
   <div class="notif-item__main">
     {% if notif.priority == "urgent" %}
-      <span class="status-badge status-danger">{% include "components/icon.html" with name="alert-critical" %} عاجل</span>
+      <span class="status-badge status-danger">{% icon "status_critical" %} عاجل</span>
     {% elif notif.priority == "high" %}
-      <span class="status-badge status-warning">{% include "components/icon.html" with name="alert-triangle" %} مهم</span>
+      <span class="status-badge status-warning">{% icon "status_warning" %} مهم</span>
     {% elif not notif.is_read %}
       <span class="status-badge status-maroon">جديد</span>
     {% endif %}
@@ -42,8 +43,8 @@
     title="تحديد كمقروء (m)"
     aria-label="تحديد «{{ notif.title }}» كمقروء"
     class="notif-item__read"
-  >{% include "components/icon.html" with name="check" %}</button>
+  >{% icon "confirm" %}</button>
   {% else %}
-  <span class="notif-item__done" aria-label="مقروء">{% include "components/icon.html" with name="check" %}</span>
+  <span class="notif-item__done" aria-label="مقروء">{% icon "confirm" %}</span>
   {% endif %}
 </div>

@@ -1,6 +1,6 @@
-{% load ui %}
+{% load ui icons %}
 {% comment %}قبولُ عذرِ غيابٍ من القائمة المغلقة (الدليل 2026 م 3.4.1.4) في مهلة يومين (م 3.4.1.5) — يحتاج: klass, student, excuse_kinds, excuse_day, grace_days, may_override, excuses.{% endcomment %}
-{% section_card "عذرٌ للغياب — من القائمة المغلقة" icon="clipboard-check" meta=excuses|length %}
+{% section_card "عذرٌ للغياب — من القائمة المغلقة" icon="checklist" meta=excuses|length %}
   <form method="post" action="{% url 'wings:excuse_grant' klass.id student.id %}" enctype="multipart/form-data">
     {% csrf_token %}
     <div class="exc-form__grid">
@@ -31,10 +31,10 @@
       {% endif %}
     </div>
     <div class="exc-form__actions">
-      <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check" %} اقبل العذر</button>
+      <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} اقبل العذر</button>
     </div>
   </form>
-  <p class="bell-note">يغطّي العذرُ كلَّ حصص الغياب بلا عذرٍ في المدّة، ويُسقط أيّامَها من عدّ الحرمان. المشرفُ يقبله خلال يومين دراسيّين من آخر يومِ غياب، ومن بعدها النائبُ الإداريّ بسبب. وما ليس في القائمة «غيابٌ بدون عذر».</p>
+  <p class="bell-note">يغطّي العذرُ كلَّ حصص الغياب بلا عذرٍ في المدّة، ويُسقط أيّامَها من عدّ الحرمان. المشرفُ يقبله خلال يومين دراسيّين من إخطار وليّ الأمر (أو من آخر يومِ غيابٍ إن لم يُخطَر)، ومن بعدها النائبُ الإداريّ بسبب. وما ليس في القائمة «غيابٌ بدون عذر».</p>
 
   {% if excuses %}
   <div class="table-wrap">
@@ -45,7 +45,7 @@
         <tr>
           <td>{{ x.date_from|date:"d/m" }}{% if x.date_to != x.date_from %} – {{ x.date_to|date:"d/m" }}{% endif %}</td>
           <td>{{ x.get_kind_display }}{% if x.notes %} <small>{{ x.notes }}</small>{% endif %}{% if x.after_deadline %} <span class="status-badge status-warning">بعد المهلة</span>{% endif %}</td>
-          <td>{% if x.document %}<a href="{% url 'student_affairs:protected_media' x.document.name %}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-xs">{% include "components/icon.html" with name="file-text" %} افتح</a>{% else %}—{% endif %}</td>
+          <td>{% if x.document %}<a href="{% url 'student_affairs:protected_media' x.document.name %}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-xs">{% icon "document" %} افتح</a>{% else %}—{% endif %}</td>
           <td><small>{{ x.granted_by.full_name|default:"—" }} · {{ x.granted_at|date:"d/m H:i" }}</small></td>
           <td>
             <form method="post" action="{% url 'wings:excuse_revoke' x.pk %}" class="sa-undo" data-confirm="إلغاءُ العذر وإعادةُ حصصه بلا عذر؟">

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}قرار اللجنة{% endblock %}
 
@@ -9,12 +10,12 @@
 {% block content %}
 <div class="exec-dash beh-narrow">
 
-  {% page_header "قرار لجنة الضبط السلوكي" icon="scale" %}{% endpage_header %}
+  {% page_header "قرار لجنة الضبط السلوكي" icon="behavior_committee" %}{% endpage_header %}
 
   {% include "behavior/partials/infraction_summary.html" with show_step=True %}
 
   {% if escalation_steps %}
-  {% section_card "الإجراءات التصاعدية" icon="list-checks" %}
+  {% section_card "الإجراءات التصاعدية" icon="behavior_committee" %}
     <ol class="beh-steps">
       {% for step_num, step_text in escalation_steps %}
       <li class="beh-steps__item{% if step_num == infraction.escalation_step %} is-current{% endif %}"{% if step_num == infraction.escalation_step %} aria-current="step"{% endif %}>
@@ -25,7 +26,7 @@
   {% endsection_card %}
   {% endif %}
 
-  {% section_card "قرار اللجنة" icon="check-circle" %}
+  {% section_card "قرار اللجنة" icon="status_success" %}
     <form method="post">
       {% csrf_token %}
       <div class="form-group">
@@ -46,10 +47,10 @@
         </div>
       </div>
       <div class="form-actions">
-        <button name="decision" value="resolve" class="btn-success">{% include "components/icon.html" with name="check-circle" %} حل وإغلاق</button>
-        <button name="decision" value="suspend" class="btn-warning">{% include "components/icon.html" with name="clock" %} إيقاف مؤقت</button>
+        <button name="decision" value="resolve" class="btn-success">{% icon "status_success" %} حل وإغلاق</button>
+        <button name="decision" value="suspend" class="btn-warning">{% icon "time" %} إيقاف مؤقت</button>
         {% if infraction.level == 3 %}
-        <button name="decision" value="escalate" class="btn-danger">{% include "components/icon.html" with name="activity" %} تصعيد للدرجة 4</button>
+        <button name="decision" value="escalate" class="btn-danger">{% icon "stats" %} تصعيد للدرجة 4</button>
         {% endif %}
       </div>
     </form>

@@ -121,6 +121,7 @@ ICONS: dict[str, Icon] = {
     "password": Icon("كلمة المرور", "module", "hi:lock-password"),
     "two_factor": Icon("المصادقة الثنائيّة", "module", "hi:two-factor-access"),
     # ── الحياة المدرسيّة ──
+    "reinforcement": Icon("التعزيز الإيجابيّ", "school", "hi:medal-01"),
     "psychology": Icon("الأخصائي النفسيّ", "school", "hi:brain-02"),
     "behavior_team": Icon("فريق سلوك الطلبة", "school", "hi:user-shield-01"),
     "wing_coverage": Icon("تغطية الأجنحة والإنابة", "school", "hi:user-arrow-left-right"),

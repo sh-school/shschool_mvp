@@ -20,11 +20,11 @@
 البحث الذي يغيّره؛ وللمعلّم عددُ حصصه في طرف ترويسة الجدول.
 {% endcomment %}
 {% if is_leadership %}
-{% page_header "حصص المدرسة — تسجيل الحضور" subtitle=date_label icon="calendar" %}
+{% page_header "حصص المدرسة — تسجيل الحضور" subtitle=date_label icon="attendance_register" %}
   {% include "teacher/partials/schedule_actions.html" %}
 {% endpage_header %}
 {% else %}
-{% page_header "جدول حصصي" subtitle=teacher_subtitle icon="calendar" %}
+{% page_header "جدول حصصي" subtitle=teacher_subtitle icon="periods_today" %}
   {% include "teacher/partials/schedule_actions.html" %}
 {% endpage_header %}
 {% endif %}
@@ -75,7 +75,7 @@
 
 {# ── الحصة القادمة ── #}
 {% if next_session %}
-{% section_card "الحصة القادمة" meta=next_session.start_time|time:"H:i" icon="clock" %}
+{% section_card "الحصة القادمة" meta=next_session.start_time|time:"H:i" icon="time" %}
   <div class="plain-list__row next-session">
     <span class="plain-list__main">
       <b class="plain-list__title">{{ next_session.subject.name_ar|default:"حصة" }}</b>
@@ -90,7 +90,7 @@
 
 {# ── Sessions Table ── #}
 {% if is_leader %}
-{% section_card "الحصص" icon="list-checks" flush=True empty="لا توجد حصص في هذا اليوم" empty_sub=date_label %}{% if sessions %}
+{% section_card "الحصص" icon="periods_today" flush=True empty="لا توجد حصص في هذا اليوم" empty_sub=date_label %}{% if sessions %}
   {% filter_bar "بحثٌ في الحصص" live=True css="schedule-search" %}
     {% field "q" "بحث بالمادة أو المعلم أو الفصل" id="session-search" hide_label=True grow=True placeholder="بحث بالمادة أو المعلم أو الفصل..." %}
     <span class="schedule-search__count"><span id="shown-count">{{ sessions|length }}</span> من {{ sessions|length }}</span>
@@ -98,7 +98,7 @@
   {% include "teacher/partials/sessions_table.html" %}
 {% endif %}{% endsection_card %}
 {% else %}
-{% section_card "الحصص" meta=sessions|length icon="list-checks" flush=True empty="لا توجد حصص في هذا اليوم" empty_sub=date_label %}{% if sessions %}
+{% section_card "الحصص" meta=sessions|length icon="periods_today" flush=True empty="لا توجد حصص في هذا اليوم" empty_sub=date_label %}{% if sessions %}
   {% include "teacher/partials/sessions_table.html" %}
 {% endif %}{% endsection_card %}
 {% endif %}

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}تسجيل مخالفة سلوكية{% endblock %}
 
@@ -9,14 +10,14 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "تسجيل مخالفة سلوكية" subtitle="لائحة السلوك الطلابي — قطر 2025-2026" icon="scale" %}{% endpage_header %}
+  {% page_header "تسجيل مخالفة سلوكية" subtitle="لائحة السلوك الطلابي — قطر 2025-2026" icon="behavior_violation" %}{% endpage_header %}
 
   <form method="post" class="beh-form-stack" data-validate>
     {% csrf_token %}
     <input type="hidden" name="violation_category" id="hiddenViolationId" value="">
     <input type="hidden" name="level" id="hiddenLevel" value="1">
 
-    {% section_card "اختر المخالفة" icon="list-checks" %}
+    {% section_card "اختر المخالفة" icon="behavior_violation" %}
       <div class="beh-search-field">
         <input type="search" id="violationSearch" placeholder="ابحث في المخالفات... (مثال: هاتف، غش، تأخر، ضرب)"
                aria-label="ابحث في المخالفات" class="form-control" autocomplete="off">
@@ -43,13 +44,13 @@
       </div>
 
       <div id="selectedViolation" class="form-note beh-selected" role="status" hidden>
-        {% include "components/icon.html" with name="check-circle" %}
+        {% icon "status_success" %}
         <span>المخالفة المختارة: <b id="selectedText"></b></span>
         <button type="button" id="clearSelection" class="btn-ghost btn-xs">تغيير</button>
       </div>
     {% endsection_card %}
 
-    {% section_card "بيانات المخالفة" icon="file-text" %}
+    {% section_card "بيانات المخالفة" icon="behavior_violation" %}
       <div class="form-row form-group">
         <div>
           <label class="form-label" for="studentSearchInput">الطالب <span class="required">*</span></label>
@@ -100,13 +101,13 @@
       </div>
 
       <p class="form-note is-warning" role="note">
-        {% include "components/icon.html" with name="alert-triangle" %}
+        {% icon "status_warning" %}
         <span>المخالفات من الدرجة 3 و4 تُحال تلقائياً إلى لجنة الضبط السلوكي.</span>
       </p>
 
       <div class="form-actions beh-form-actions">
         <a href="{% url 'behavior:dashboard' %}" class="btn-secondary">إلغاء</a>
-        <button type="submit" class="btn-danger">{% include "components/icon.html" with name="scale" %} تسجيل المخالفة</button>
+        <button type="submit" class="btn-danger">{% icon "behavior_violation" %} تسجيل المخالفة</button>
       </div>
     {% endsection_card %}
 

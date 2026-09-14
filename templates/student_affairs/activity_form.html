@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block title %}{% if mode == "add" %}تسجيل نشاط{% else %}تعديل نشاط{% endif %}{% endblock %}
@@ -10,9 +11,9 @@
 {% block content %}
 <div class="exec-dash sa-page sa-form-page">
   {% if mode == "add" %}
-  {% page_header "تسجيل نشاط / إنجاز" icon="activity" %}{% endpage_header %}
+  {% page_header "تسجيل نشاط / إنجاز" icon="activities" %}{% endpage_header %}
   {% else %}
-  {% page_header "تعديل النشاط" subtitle=activity.title icon="activity" %}{% endpage_header %}
+  {% page_header "تعديل النشاط" subtitle=activity.title icon="activities" %}{% endpage_header %}
   {% endif %}
 
   <div class="form-card">
@@ -63,7 +64,7 @@
       <div class="form-footer">
         <a href="{% url 'student_affairs:activity_list' %}" class="btn-secondary btn-sm">إلغاء</a>
         <button type="submit" class="btn-primary btn-sm">
-          {% include "components/icon.html" with name="check-circle" %}
+          {% icon "status_success" %}
           {% if mode == "add" %}تسجيل النشاط{% else %}حفظ التعديلات{% endif %}
         </button>
       </div>

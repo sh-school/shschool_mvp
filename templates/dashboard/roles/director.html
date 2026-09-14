@@ -1,10 +1,11 @@
+{% load icons %}
 {% load ui %}
 {% comment %}لوحةُ المدير — اليومُ أوّلاً، ثمّ نبضُ الأقسام، ثمّ العامُ الدراسيّ.{% endcomment %}
 <div class="exec-dash">
 
-  {% page_header "لوحة تحكم المدير" subtitle=subtitle icon="home" %}
-    <button type="button" class="btn-secondary btn-sm js-print-btn">{% include "components/icon.html" with name="printer" %} طباعة</button>
-    <a href="{% url 'daily_report' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-text" %} غياب اليوم</a>
+  {% page_header "لوحة تحكم المدير" subtitle=subtitle icon="dashboard" %}
+    <button type="button" class="btn-secondary btn-sm js-print-btn">{% icon "print" %} طباعة</button>
+    <a href="{% url 'daily_report' %}" class="btn-primary btn-sm">{% icon "absence" %} غياب اليوم</a>
   {% endpage_header %}
 
   {% kpi_strip label="الحضور اليوم" %}
@@ -14,7 +15,7 @@
     {% kpi "حصص اليوم" sessions_today sub=sessions_sub tone="maroon" %}
   {% endkpi_strip %}
 
-  {% section_card "نبض الأقسام" meta="اليوم وهذا الشهر" icon="activity" %}
+  {% section_card "نبض الأقسام" meta="اليوم وهذا الشهر" icon="departments" %}
     {% kpi_strip label="نبض الأقسام" %}
       {% kpi "مخالفات الشهر" behavior_monthly|default:0 sub=behavior_sub tone=behavior_tone href=behavior_url %}
       {% kpi "زيارات العيادة" clinic_today|default:0 sub=clinic_sub tone=clinic_tone href=clinic_url %}
@@ -26,7 +27,7 @@
   {% endsection_card %}
 
   {% if total_annual %}
-  {% section_card "العام الدراسي" meta=year icon="target" %}
+  {% section_card "العام الدراسي" meta=year icon="academic" %}
     {% kpi_strip label="نتائج العام" %}
       {% kpi "نسبة النجاح" pass_label tone="green" %}
       {% kpi "نتائجُ ناجحة" passed_annual tone="green" title="نتيجةُ مادّةٍ لطالب" %}
@@ -37,7 +38,7 @@
   {% endif %}
 
   {% if alerts %}
-  {% section_card "تنبيهات الغياب المتكرّر" meta=alerts|length icon="alert-triangle" %}
+  {% section_card "تنبيهات الغياب المتكرّر" meta=alerts|length icon="absence" %}
     <ul class="plain-list">
       {% for alert in alerts %}
         <li class="plain-list__row">
@@ -50,23 +51,23 @@
   {% endif %}
 
   <div class="ui-grid-2">
-    {% section_card "اتجاه الحضور" meta="آخر 7 أيّام" icon="activity" %}
+    {% section_card "اتجاه الحضور" meta="آخر 7 أيّام" icon="trend" %}
       <div class="dash-chart-wrap"><canvas id="miniAttendance" role="img" aria-label="رسم بياني: نسبة الحضور آخر 7 أيام"></canvas></div>
     {% endsection_card %}
-    {% section_card "توزيع الدرجات السنويّة" icon="target" %}
+    {% section_card "توزيع الدرجات السنويّة" icon="stats" %}
       <div class="dash-chart-wrap"><canvas id="miniGrades" role="img" aria-label="رسم بياني: توزيع الدرجات السنوية"></canvas></div>
     {% endsection_card %}
   </div>
 
   <nav class="ui-actions" aria-label="الأقسام">
-    {% url 'analytics_dashboard' as u %}{% action_tile "التحليلات" icon="bar-chart" href=u primary=True %}
-    {% url 'behavior:dashboard' as u %}{% action_tile "السلوك" icon="shield" href=u %}
-    {% url 'clinic:dashboard' as u %}{% action_tile "العيادة" icon="hospital" href=u %}
-    {% url 'library:dashboard' as u %}{% action_tile "المكتبة" icon="book-open" href=u %}
-    {% url 'transport:dashboard' as u %}{% action_tile "النقل" icon="bus" href=u %}
-    {% url 'quality_dashboard' as u %}{% action_tile "الجودة" icon="check-circle" href=u %}
-    {% url 'notifications_dashboard' as u %}{% action_tile "الإشعارات" icon="bell" href=u %}
-    {% action_tile "الاختبارات" icon="clipboard" href="/exam-control/" %}
+    {% url 'analytics_dashboard' as u %}{% action_tile "التحليلات" icon="stats" href=u primary=True %}
+    {% url 'behavior:dashboard' as u %}{% action_tile "السلوك" icon="behavior" href=u %}
+    {% url 'clinic:dashboard' as u %}{% action_tile "العيادة" icon="clinic" href=u %}
+    {% url 'library:dashboard' as u %}{% action_tile "المكتبة" icon="library" href=u %}
+    {% url 'transport:dashboard' as u %}{% action_tile "النقل" icon="transport" href=u %}
+    {% url 'quality_dashboard' as u %}{% action_tile "الجودة" icon="status_success" href=u %}
+    {% url 'notifications_dashboard' as u %}{% action_tile "الإشعارات" icon="notifications" href=u %}
+    {% action_tile "الاختبارات" icon="assessments" href="/exam-control/" %}
   </nav>
 
 </div>

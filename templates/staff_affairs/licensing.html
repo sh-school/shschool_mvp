@@ -7,7 +7,7 @@
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header "الرخص المهنية" subtitle="تتبّع رخص المعلمين — rukhsa.edu.gov.qa" icon="lock" %}{% endpage_header %}
+  {% page_header "الرخص المهنية" subtitle="تتبّع رخص المعلمين — rukhsa.edu.gov.qa" icon="security" %}{% endpage_header %}
 
   {% kpi_strip label="أرقام الرخص" %}
     {% kpi "منتهية" expired_count tone=expired_tone %}
@@ -22,7 +22,7 @@
   فرغت كلُّها.
   {% endcomment %}
   <div class="sa-grid-3">
-    {% section_card "رخص منتهية" icon="x-circle" empty="لا رخصَ منتهية" %}{% if expired %}
+    {% section_card "رخص منتهية" icon="status_error" empty="لا رخصَ منتهية" %}{% if expired %}
       <ul class="plain-list is-scroll">
         {% for u in expired %}
         <li class="plain-list__row">
@@ -33,7 +33,7 @@
       </ul>
     {% endif %}{% endsection_card %}
 
-    {% section_card "تنتهي قريباً" icon="alert-triangle" empty="لا رخصَ تنتهي خلال تسعين يوماً" %}{% if expiring_soon %}
+    {% section_card "تنتهي قريباً" icon="status_warning" empty="لا رخصَ تنتهي خلال تسعين يوماً" %}{% if expiring_soon %}
       <ul class="plain-list is-scroll">
         {% for u in expiring_soon %}
         <li class="plain-list__row">
@@ -44,7 +44,7 @@
       </ul>
     {% endif %}{% endsection_card %}
 
-    {% section_card "معلمون بلا رخصة مهنية" icon="alert-triangle" empty="لكلّ معلّمٍ رقمُ رخصةٍ مسجَّل" %}{% if no_license %}
+    {% section_card "معلمون بلا رخصة مهنية" icon="licences" empty="لكلّ معلّمٍ رقمُ رخصةٍ مسجَّل" %}{% if no_license %}
       <ul class="plain-list is-scroll">
         {% for m in no_license %}
         <li class="plain-list__row">

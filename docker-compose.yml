@@ -36,7 +36,12 @@ services:
       retries: 10
 
   web:
-    build: .
+    # الصورةُ نفسُها تخدم حاوياتِ الجلسات (docker-compose.session.yml)، فأدواتُ
+    # الاختبار فيها مبنيّةٌ لا مثبَّتةٌ في كلّ حاوية — انظر INSTALL_DEV في Dockerfile.
+    build:
+      context: .
+      args:
+        INSTALL_DEV: "true"
     container_name: shschool-dev-web
     restart: unless-stopped
     # migrate يعمل بدور المالك (env_file=shschool_user) لتطبيق DDL،
@@ -65,7 +70,10 @@ services:
   # عاملُ المهامّ الخلفيّة — توليدُ الجدول وحده يستغرق دقائقَ لا تحتملها دورةُ الطلب.
   # وبدونه يبقى الطلبُ «في الانتظار» حتّى يُوسمَ فاشلاً بعد عشرين دقيقة.
   worker:
-    build: .
+    build:
+      context: .
+      args:
+        INSTALL_DEV: "true"
     container_name: shschool-dev-worker
     restart: unless-stopped
     command: sh -c "DB_USER=shschool_app DB_PASSWORD=$$APP_DB_PASSWORD celery -A shschool worker -l info --concurrency=2"

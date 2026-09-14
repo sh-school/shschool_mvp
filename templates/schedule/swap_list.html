@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}طلبات التبديل{% endblock %}
 
@@ -15,10 +16,10 @@
 <div class="exec-dash">
   {% page_header "طلبات التبديل" subtitle="تبديلُ حصّةٍ بحصّة — يوافق عليه المعلّمُ الآخر ثمّ منسّقُ المادّة" icon="refresh" %}
     {% if current_role == "teacher" or current_role == "ese_teacher" or current_role == "principal" or current_role == "vice_academic" %}
-    <a href="{% url 'swap_request' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} طلب تبديل</a>
+    <a href="{% url 'swap_request' %}" class="btn-primary btn-sm">{% icon "edit_record" %} طلب تبديل</a>
     {% endif %}
     <form method="post" action="{% url 'build_free_slots' %}">{% csrf_token %}
-      <button type="submit" class="btn-secondary btn-sm">{% include "components/icon.html" with name="refresh-cw" %} بناء سجل الحصص الحرة</button>
+      <button type="submit" class="btn-secondary btn-sm">{% icon "generate" %} بناء سجل الحصص الحرة</button>
     </form>
   {% endpage_header %}
 

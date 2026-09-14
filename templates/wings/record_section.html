@@ -10,7 +10,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header heading subtitle=subtitle icon="list-checks" %}
+  {% page_header heading subtitle=subtitle icon="checklist" %}
     {% if periods %}
     {% comment %} نموذجُ GET بلا سكربت: الاتّجاهُ يُختار مرّةً، وكلُّ زرٍّ يرسل صيغتَه. {% endcomment %}
     <form method="get" action="{% url 'wings:section_register' klass.id %}" class="per-exports">
@@ -19,16 +19,16 @@
         <option value="landscape">أفقي</option>
         <option value="portrait">عمودي — صفحةٌ واحدة</option>
       </select>
-      <button type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</button>
-      <button type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</button>
-      <button type="submit" name="print" value="1" formtarget="_blank" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+      <button type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</button>
+      <button type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير PDF</button>
+      <button type="submit" name="print" value="1" formtarget="_blank" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
     </form>
     {% endif %}
   {% endpage_header %}
 
   {% if not periods %}
     <div class="wing-warn">
-      {% include "components/icon.html" with name="alert-triangle" %}
+      {% icon "status_warning" %}
       لا حصصَ لهذه الشعبة في {{ day|date:"d M" }} — فلا شيءَ يُرصد.
     </div>
   {% else %}
@@ -97,6 +97,7 @@
               {% if row.absent_yesterday or row.days %}
               <span class="rec-row__flags">
                 {% if row.absent_yesterday %}<span class="badge badge--warning">غاب أمس</span>{% endif %}
+                {% if row.needs_contact %}<a href="{% url 'wings:student_events' klass.id sid %}" class="badge badge--danger" title="أخطِر وليَّ الأمر عن غياب {{ row.needs_contact|date:'d/m' }}">لم يُخطَر وليُّ الأمر</a>{% endif %}
                 {% if row.days %}<span class="badge badge--neutral">{{ row.days }} يوم بلا عذر{% if row.gate %} · الحرمانُ بعد {{ row.gate.max_days }}{% endif %}</span>{% endif %}
               </span>
               {% endif %}
@@ -157,7 +158,7 @@
       <div class="per-bar__actions">
         {% if following %}
         <button type="submit" class="btn-secondary">
-          {% include "components/icon.html" with name="check" %}
+          {% icon "confirm" %}
           ثبّتِ الحصّة {{ focus.number }}
         </button>
         <button type="submit" name="next" value="1" class="btn-primary" title="ثمّ {{ following.short_code }}">
@@ -166,7 +167,7 @@
         </button>
         {% else %}
         <button type="submit" class="btn-primary">
-          {% include "components/icon.html" with name="check" %}
+          {% icon "confirm" %}
           ثبّتِ الحصّة {{ focus.number }}
         </button>
         {% endif %}

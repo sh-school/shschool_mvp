@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block title %}أجنحة المدرسة{% endblock %}
@@ -11,13 +12,13 @@
 {% block content %}
 <div class="exec-dash"{% if panels|length == 2 %} style="--floor-a: {{ panels.0.width_weight|stringformat:'s' }}; --floor-b: {{ panels.1.width_weight|stringformat:'s' }}"{% endif %}>
 
-  {% page_header "أجنحة المدرسة" subtitle=subtitle icon="layers" %}
+  {% page_header "أجنحة المدرسة" subtitle=subtitle icon="wings" %}
     <span class="exec-date">
       {{ day_label }}{% if is_school_day %} · الساعة {{ now|date:"H:i" }}{% endif %}
     </span>
     {% if perms_can_cover %}
       <a href="{% url 'wings:coverage' %}" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="waypoints" %} التغطية والإنابة
+        {% icon "link" %} التغطية والإنابة
       </a>
     {% endif %}
   {% endpage_header %}
@@ -37,7 +38,7 @@
   {% for panel in panels %}
   <div class="wing-panel">
     <div class="wing-panel__bar">
-      {% include "components/icon.html" with name="building" %}
+      {% icon "school_building" %}
       {{ panel.label }}
       <span class="floor-meta">
         {% for bell in panel.bells %}
@@ -79,13 +80,13 @@
         <div class="wing-line wing-line--now">
           {% if card.off_floor %}
             <span class="wing-warn" title="جرسٌ من طابقٍ آخر: {% for band in card.off_floor %}{{ band.name }}{% if not forloop.last %} · {% endif %}{% endfor %}">
-              {% include "components/icon.html" with name="alert-triangle" %}
+              {% icon "status_warning" %}
               جرسٌ من طابقٍ آخر
             </span>
           {% endif %}
           {% for position in card.positions %}
             <span class="wing-now{% if position.running.is_break %} is-break{% endif %}{% if not position.running and not position.upcoming %} is-over{% endif %}" title="{% if card.is_split %}{{ position.bell.band_name }}: {% endif %}{{ position.says }}">
-              {% if card.is_split %}<span class="wing-now__bell">{{ position.bell.band_short }}</span>{% else %}{% include "components/icon.html" with name="clock" %}{% endif %}
+              {% if card.is_split %}<span class="wing-now__bell">{{ position.bell.band_short }}</span>{% else %}{% icon "time" %}{% endif %}
               <span>{{ position.says }}</span>
             </span>
           {% endfor %}
@@ -101,7 +102,7 @@
   {# ══ جدولا اليومين — في سطرٍ كذلك ══ #}
   <div class="wing-pair wing-pair--floors">
   {% for table in tables %}
-  {% section_card table.title meta="حصصاً وفسحةً وصلاة" icon="clock" %}
+  {% section_card table.title meta="حصصاً وفسحةً وصلاة" icon="time" %}
     <div class="table-wrap">
       <table class="bell-table">
         <thead>

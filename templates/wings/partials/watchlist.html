@@ -1,0 +1,28 @@
+{% load ui icons %}
+{% comment %}ما ينتظر المشرفَ اليوم — إخطارُ أولياء الأمور ومن عند العتبات (لوحةُ المشرف v1). يحتاج: awaiting_contact, at_gates.{% endcomment %}
+{% if awaiting_contact %}
+{% section_card "ينتظرون إخطارَ وليّ الأمر — غابوا أمس" meta=awaiting_contact|length icon="call_parent" %}
+  <ul class="plain-list">
+    {% for row in awaiting_contact %}
+    <li class="plain-list__row">
+      <span class="plain-list__title">{{ row.student.full_name }} <small>{{ row.class_group.short_code }}</small></span>
+      <a href="{% url 'wings:student_events' row.class_group.id row.student.id %}?date={{ row.needs_contact|date:'Y-m-d' }}" class="btn-secondary btn-xs">{% icon "call_parent" %} اتّصلتُ</a>
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="bell-note">الإخطارُ في اليوم نفسِه هاتفيّاً ونصّيّاً (م 3.4.1.5) — ومهلةُ العذر تُعدّ منه.</p>
+{% endsection_card %}
+{% endif %}
+{% if at_gates %}
+{% section_card "عند عتبات الغياب بلا عذر" meta=at_gates|length icon="status_warning" %}
+  <ul class="plain-list">
+    {% for row in at_gates %}
+    <li class="plain-list__row">
+      <span class="plain-list__title">{{ row.student.full_name }} <small>{{ row.class_group.short_code }}</small></span>
+      <span class="status-badge {% if row.passed %}status-danger{% else %}status-warning{% endif %}">{{ row.days }} يوم · {{ row.says }}</span>
+      <a href="{% url 'wings:student_events' row.class_group.id row.student.id %}" class="btn-secondary btn-xs">عذر / تصحيح</a>
+    </li>
+    {% endfor %}
+  </ul>
+{% endsection_card %}
+{% endif %}

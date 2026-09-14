@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load privacy ui %}
 {% block title %}الملف السلوكي — {{ student.full_name }}{% endblock %}
 
@@ -9,10 +10,10 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header student.full_name subtitle=student.national_id|mask_id icon="scale" %}
-    {% if can_report %}<a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} مخالفة جديدة</a>{% endif %}
-    {% if can_summon %}<a href="{% url 'behavior:summon_parent_student' student.pk %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>{% endif %}
-    <a href="{% url 'behavior:student_behavior_pdf' student.pk %}" target="_blank" class="btn-secondary btn-sm" title="طباعة التقرير السلوكي الشامل للطالب A4">{% include "components/icon.html" with name="printer" %} طباعة التقرير الكامل</a>
+  {% page_header student.full_name subtitle=student.national_id|mask_id icon="behavior" %}
+    {% if can_report %}<a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">{% icon "add" %} مخالفة جديدة</a>{% endif %}
+    {% if can_summon %}<a href="{% url 'behavior:summon_parent_student' student.pk %}" class="btn-secondary btn-sm">{% icon "call_parent" %} استدعاء ولي أمر</a>{% endif %}
+    <a href="{% url 'behavior:student_behavior_pdf' student.pk %}" target="_blank" class="btn-secondary btn-sm" title="طباعة التقرير السلوكي الشامل للطالب A4">{% icon "print" %} طباعة التقرير الكامل</a>
   {% endpage_header %}
 
   {# نظامُ النقاط ملغى — الأرقامُ عددُ المخالفات. #}
@@ -24,7 +25,7 @@
     {% kpi "الدرجة الرابعة" by_level.4 tone="red" %}
   {% endkpi_strip %}
 
-  {% section_card "سجل المخالفات" icon="file-text" empty="لا توجد مخالفات مسجلة" %}{% if infractions %}
+  {% section_card "سجل المخالفات" icon="behavior_violation" empty="لا توجد مخالفات مسجلة" %}{% if infractions %}
     <input type="search" id="infractionsSearch" class="form-control form-control-sm beh-search"
            placeholder="بحث في المخالفات..." aria-label="بحث في المخالفات" autocomplete="off">
     <ul class="plain-list">
@@ -49,15 +50,15 @@
             {% if is_committee and not inf.is_resolved %}
             <form method="post" action="{% url 'behavior:escalate_infraction' inf.id %}">
               {% csrf_token %}
-              <button type="submit" class="btn-warning btn-xs">{% include "components/icon.html" with name="activity" %} تصعيد</button>
+              <button type="submit" class="btn-warning btn-xs">{% icon "stats" %} تصعيد</button>
             </form>
             {% endif %}
             {% if is_committee and inf.level == 4 and not inf.security_agency %}
-            <a href="{% url 'behavior:security_referral' inf.id %}" class="btn-danger btn-xs">{% include "components/icon.html" with name="lock" %} إحالة أمنية</a>
+            <a href="{% url 'behavior:security_referral' inf.id %}" class="btn-danger btn-xs">{% icon "security" %} إحالة أمنية</a>
             {% endif %}
-            <a href="{% url 'behavior:warning_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% include "components/icon.html" with name="printer" %} إنذار</a>
-            <a href="{% url 'behavior:parent_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% include "components/icon.html" with name="printer" %} تعهد ولي</a>
-            <a href="{% url 'behavior:student_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% include "components/icon.html" with name="printer" %} تعهد طالب</a>
+            <a href="{% url 'behavior:warning_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% icon "print" %} إنذار</a>
+            <a href="{% url 'behavior:parent_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% icon "print" %} تعهد ولي</a>
+            <a href="{% url 'behavior:student_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% icon "print" %} تعهد طالب</a>
           </div>
         </li>
       {% endfor %}

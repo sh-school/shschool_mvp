@@ -9,7 +9,7 @@
 {% block content %}
 <div class="qd">
 
-  {% page_header "الخطة التشغيلية" subtitle=plan_subtitle icon="bar-chart" %}
+  {% page_header "الخطة التشغيلية" subtitle=plan_subtitle icon="quality" %}
     {% if is_admin %}
     <a href="{% url 'quality_report' %}" class="btn-primary btn-sm">تقرير التقدم</a>
     <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">تنفيذ الخطة</a>
@@ -38,7 +38,7 @@
     {% endif %}
   {% endkpi_strip %}
 
-  {% section_card "المجالات" meta=domains|length icon="layers" empty="لا توجد بيانات للخطة التشغيلية" %}{% if domains %}
+  {% section_card "المجالات" meta=domains|length icon="wings" empty="لا توجد بيانات للخطة التشغيلية" %}{% if domains %}
     <div class="qd-domains__grid" id="domains-grid">
       {% for domain in domains %}
       <a href="{% url 'domain_detail' domain.id %}" class="qd-domain"
@@ -63,7 +63,7 @@
   {% endif %}{% endsection_card %}
 
   {% if my_procedures_count %}
-  {% section_card "إجراءاتي" meta=my_procedures_count icon="clipboard-check" %}
+  {% section_card "إجراءاتي" meta=my_procedures_count icon="my_actions" %}
     <div class="qd-myprocs__head">
       <div class="period-switch qd-myprocs__tabs" role="group" aria-label="تصفية حسب الحالة">
         <button type="button" data-call="filterProcs" data-arg="all" id="tab-all" class="period-switch__item qd-tab is-current">الكل</button>

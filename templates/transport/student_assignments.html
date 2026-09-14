@@ -9,7 +9,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "إسناد الطلاب للحافلات" icon="users" %}
+  {% page_header "إسناد الطلاب للحافلات" icon="workload" %}
     <a href="{% url 'transport:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
   {% endpage_header %}
 
@@ -23,7 +23,7 @@
   {% endfilter_bar %}
 
   <div class="ui-grid-2">
-    {% section_card "طلاب غير مسندين" meta=unassigned_students.count icon="x-circle" empty="جميع الطلاب مسندون" %}{% if unassigned_students %}
+    {% section_card "طلاب غير مسندين" meta=unassigned_students.count icon="status_error" empty="جميع الطلاب مسندون" %}{% if unassigned_students %}
       <ul class="plain-list is-scroll">
         {% for st in unassigned_students %}
         <li class="plain-list__row" data-filter-item data-name="{{ st.full_name }}">
@@ -34,7 +34,7 @@
       </ul>
     {% endif %}{% endsection_card %}
 
-    {% section_card "طلاب مسندون" meta=assigned_students.count icon="check-circle" empty="لم يُسنَد أيُّ طالبٍ بعد" %}{% if assigned_students %}
+    {% section_card "طلاب مسندون" meta=assigned_students.count icon="status_success" empty="لم يُسنَد أيُّ طالبٍ بعد" %}{% if assigned_students %}
       <ul class="plain-list is-scroll">
         {% for st in assigned_students %}
         <li class="plain-list__row" data-filter-item data-name="{{ st.full_name }}">

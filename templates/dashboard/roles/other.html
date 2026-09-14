@@ -1,5 +1,5 @@
 {% load ui %}
 <div class="exec-dash">
-  {% page_header "مرحباً، "|add:request.user.full_name subtitle=subtitle icon="home" %}{% endpage_header %}
-  {% section_card "لوحة التحكّم" icon="building" empty="لم تُفعَّل صلاحيّاتُك بعد" empty_sub="تواصل مع مدير النظام لتفعيل لوحتك" %}{% endsection_card %}
+  {% page_header "مرحباً، "|add:request.user.full_name subtitle=subtitle icon="dashboard" %}{% endpage_header %}
+  {% section_card "لوحة التحكّم" icon="dashboard" empty="لم تُفعَّل صلاحيّاتُك بعد" empty_sub="تواصل مع مدير النظام لتفعيل لوحتك" %}{% endsection_card %}
 </div>

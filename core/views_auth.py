@@ -26,8 +26,30 @@ from core.privacy import mask_national_id
 logger = logging.getLogger(__name__)
 
 #: محاولاتٌ فاشلةٌ قبل القفل، ومدّتُه — لكلمة المرور ولرمز التحقّق سواء.
+#: والمدّةُ تساوي `AXES_COOLOFF_TIME` في الإعدادات (قرار 2026-09-14: خمسُ دقائق).
 FAILURES_BEFORE_LOCK = 5
-LOCK_MINUTES = 15
+LOCK_MINUTES = 5
+
+#: المعرّفُ بالأرقام اللاتينيّة وحدها (قرار 2026-09-14). و`str.isdigit` يقبل ١٢٣
+#: ويقبل ۱۲۳، والبحثُ في القاعدة لا يطابقها — فكانت تُردّ «غير صحيحة» بلا تفسير.
+LATIN_DIGITS_ONLY = "اكتب المعرّف بالأرقام الإنجليزية 0–9 — لا بالأرقام العربية."
+
+
+def _non_latin_digits(identifier: str) -> bool:
+    return any(ch.isdigit() and not ch.isascii() for ch in identifier)
+
+
+def _release_expired_lock(user: CustomUser) -> None:
+    """قفلٌ انتهت مدّتُه يُرفع ويبدأ العدُّ من الصفر.
+
+    وإلّا بقي العدّادُ عند حدّه، فأوّلُ خطأٍ بعد انقضاء المدّة يقفل الحسابَ فوراً
+    من جديد — فلا تكون المدّةُ مدّةً بل بابٌ يُغلق على من يجرّب مرّةً واحدة.
+    وaxes يفعل هذا من نفسه: محاولاتٌ مضت مدّتُها تُنسى.
+    """
+    if user.locked_until and user.locked_until <= timezone.now():
+        CustomUser.objects.filter(pk=user.pk).update(failed_login_attempts=0, locked_until=None)
+        user.failed_login_attempts = 0
+        user.locked_until = None
 
 
 def _count_failure(user) -> bool:
@@ -187,7 +209,14 @@ def login_view(request):
             messages.error(request, "يرجى إدخال المعرّف وكلمة المرور")
             return render(request, "auth/login.html")
 
+        # لا يُعدّ فشلاً ولا يكشف وجودَ حساب: خطأُ لوحة مفاتيحٍ لا تخمينُ كلمة.
+        if _non_latin_digits(identifier):
+            messages.error(request, LATIN_DIGITS_ONLY)
+            return render(request, "auth/login.html")
+
         candidate = resolve_user(identifier, request)
+        if candidate:
+            _release_expired_lock(candidate)
 
         # ── التحقق من قفل الحساب (الرسالة هنا مقبولة لأن القفل يحدث بعد محاولات) ──
         if candidate and candidate.locked_until and candidate.locked_until > timezone.now():

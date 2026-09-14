@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}{{ domain.name }}{% endblock %}
 
@@ -9,7 +10,7 @@
 {% block content %}
 <div class="qdom">
 
-  {% page_header domain.name icon="layers" %}
+  {% page_header domain.name icon="wings" %}
     <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">← العودة</a>
   {% endpage_header %}
 
@@ -43,7 +44,7 @@
   {% endfilter_bar %}
 
   {% for target in targets %}
-  {% section_card target.text|truncatechars:120 meta=target.number icon="target" flush=True %}
+  {% section_card target.text|truncatechars:120 meta=target.number icon="kpi" flush=True %}
     {% for indicator in target.indicators.all %}
     <div class="qdom-indicator">
       <div class="qdom-indicator__head">
@@ -55,9 +56,9 @@
         <div class="qdom-proc__body">
           <p class="qdom-proc__text">{{ proc.text|truncatechars:100 }}</p>
           <div class="qdom-proc__meta">
-            <span>{% include "components/icon.html" with name="target" %} {{ proc.executor_norm }}</span>
-            <span>{% include "components/icon.html" with name="calendar" %} {{ proc.date_range }}</span>
-            {% if proc.evidence_type %}<span>{% include "components/icon.html" with name="file-text" %} {{ proc.evidence_type }}</span>{% endif %}
+            <span>{% icon "kpi" %} {{ proc.executor_norm }}</span>
+            <span>{% icon "date" %} {{ proc.date_range }}</span>
+            {% if proc.evidence_type %}<span>{% icon "document" %} {{ proc.evidence_type }}</span>{% endif %}
           </div>
         </div>
         <div class="qdom-proc__actions">
@@ -70,7 +71,7 @@
     {% endfor %}
   {% endsection_card %}
   {% empty %}
-  {% empty_state "لا توجد أهداف لهذا المجال" icon="target" %}
+  {% empty_state "لا توجد أهداف لهذا المجال" icon="kpi" %}
   {% endfor %}
 
 </div>

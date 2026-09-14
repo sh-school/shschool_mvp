@@ -49,7 +49,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="الشحانية">
+  <meta name="apple-mobile-web-app-title" content="{{ current_school.city|default:'المدرسة' }}">
   {% endif %}
 
   {# ── الخط العربي: Tajawal محلي (WOFF2) — أسرع من Google Fonts ── #}
@@ -67,7 +67,7 @@
 
 <body class="app-body min-h-screen flex flex-col">
 
-{# ✅ SVG Icon Sprite — loaded once, used everywhere via <use href="#icon-name"/> #}
+{# الورقةُ القديمة (Lucide) — لم يبقَ ما يطلبها إلّا صفحةُ دليلها ووسمُ الانتقال؛ تُحذف في المرحلة 5، والأيقوناتُ من core/icons.py #}
 {% include "components/sprite.html" %}
 
 {# ✅ Skip Navigation — WCAG 2.1 AA #}

@@ -9,7 +9,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header student.full_name subtitle=subtitle icon="bar-chart" %}{% endpage_header %}
+  {% page_header student.full_name subtitle=subtitle icon="grades" %}{% endpage_header %}
 
   {% kpi_strip label="أرقام الدرجات" %}
     {% if avg %}{% kpi "المعدّل" avg tone="amber" %}{% endif %}
@@ -18,7 +18,7 @@
     {% kpi "المواد" total tone="blue" %}
   {% endkpi_strip %}
 
-  {% section_card "الدرجات بالمادّة" meta=year icon="bar-chart" flush=True empty="لا درجاتٍ مسجّلة لهذا العام" empty_sub="تظهر هنا حين يرصدها المعلّمون" %}{% if rows %}
+  {% section_card "الدرجات بالمادّة" meta=year icon="grades" flush=True empty="لا درجاتٍ مسجّلة لهذا العام" empty_sub="تظهر هنا حين يرصدها المعلّمون" %}{% if rows %}
     <div class="table-wrap">
       <table>
         <thead>

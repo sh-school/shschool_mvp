@@ -16,8 +16,17 @@ from dataclasses import dataclass
 from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
 
-from core.models import ClassGroup, CustomUser, Membership, StudentEnrollment, Wing, WingCoverage
+from core.models import (
+    ClassGroup,
+    CustomUser,
+    Membership,
+    School,
+    StudentEnrollment,
+    Wing,
+    WingCoverage,
+)
 from core.models.academic import FLOORS, bands_of
+from operations.absence_policy import Gate
 from operations.bells import REGULAR, THURSDAY, Bell, Position, bells_for, day_type_for
 from operations.day_attendance import enrolled_of
 
@@ -374,6 +383,63 @@ def sections_to_record(wing, day, now=None) -> list[SectionToRecord]:
     return rows
 
 
+@dataclass(frozen=True)
+class WatchRow:
+    """طالبٌ يستحقّ نظرةَ المشرف اليوم — ولماذا."""
+
+    student: CustomUser
+    class_group: ClassGroup
+    days: int
+    gate: Gate | None
+    passed: tuple
+    needs_contact: dt.date | None
+
+    @property
+    def says(self) -> str:
+        if self.passed:
+            return f"تجاوز {self.passed[-1].label} ({self.passed[-1].max_days} يوماً)"
+        if self.gate is not None:
+            left = self.gate.max_days - self.days
+            return f"{self.gate.label} بعد {left} يوم" if left > 0 else f"عند {self.gate.label}"
+        return ""
+
+
+def supervisor_watchlist(user: CustomUser, school: School, year: str, day: dt.date) -> dict:
+    """ما ينتظر المشرفَ اليوم في أجنحته (لوحتُه، النسخةُ الأولى — قرارُ 2026-09-13).
+
+    - **ينتظرون إخطارَ وليّ الأمر**: غابوا أمس ولم يُتّصل بأهلهم (م 3.4.1.5: الإخطارُ في
+      اليوم نفسِه).
+    - **عند العتبات**: من تجاوز عتبةَ غيابٍ بلا عذر، أو بقي له يومٌ واحدٌ عليها —
+      فالإجراءُ بيد المشرف من أوّل عتبة (م 3.4.1.2).
+
+    استعلامان لكلّ شعبة (الأيّامُ والإخطار) لا لكلّ طالب.
+    """
+    from operations.absence_policy import breached, next_gate
+    from operations.absence_standing import unexcused_days_for_class
+    from operations.guardian_contact import awaiting_contact
+
+    contacts: list[WatchRow] = []
+    gates: list[WatchRow] = []
+    for wing in wings_of(user, school, year):
+        for klass in wing.class_groups.filter(is_active=True).order_by("grade", "section"):
+            awaiting = awaiting_contact(klass, day)
+            days_of = unexcused_days_for_class(klass, school, day)
+            if not awaiting and not days_of:
+                continue
+            for enrollment in enrolled_of(klass):
+                sid = enrollment.student_id
+                days = days_of.get(sid, 0)
+                gate = next_gate(klass.grade, days)
+                passed = breached(klass.grade, days)
+                row = WatchRow(enrollment.student, klass, days, gate, passed, awaiting.get(sid))
+                if row.needs_contact:
+                    contacts.append(row)
+                if days and (passed or (gate is not None and gate.max_days - days <= 1)):
+                    gates.append(row)
+    gates.sort(key=lambda r: -r.days)
+    return {"awaiting_contact": contacts, "at_gates": gates}
+
+
 def next_section_awaiting(klass: ClassGroup, day: dt.date, start: dt.time) -> ClassGroup | None:
     """الشعبةُ التالية في جناح `klass` التي لم تُثبَّت حصّتُها الواقعةُ في `start` بعد.
 
@@ -410,7 +476,7 @@ def next_section_awaiting(klass: ClassGroup, day: dt.date, start: dt.time) -> Cl
     return None
 
 
-def wings_of(user, school, year):
+def wings_of(user: CustomUser, school: School, year: str) -> list[Wing]:
     """أجنحةُ هذا المستخدم — ما يحمله اليوم أصيلاً أو بديلاً.
 
     والقيادةُ ترى الخمسةَ: المرحلة 3ب لم تُبنَ بعد، والتضييقُ هناك لا هنا.

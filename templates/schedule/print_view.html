@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}الجدول الأسبوعي — {{ title }}{% endblock %}
 {% block main_class %}page-wide{% endblock %}
@@ -18,7 +19,7 @@
 {% comment %}معاينةُ مسودّة — لا الجدول الحيّ. اللافتةُ قبل كلّ شيءٍ كي لا تُقرأ المسودّةُ جدولاً معتمَداً.{% endcomment %}
 <div role="status" class="schedule-draft-banner p-4 rounded-lg mb-2">
   <p class="font-semibold text-status-warning">
-    {% include "components/icon.html" with name="alert-triangle" %}
+    {% icon "status_warning" %}
     معاينة مسودّة توليد — {{ preview.generated_at|date:"d/m/Y H:i" }} · {{ preview.get_status_display }} · جودة {{ preview.quality_score|floatformat:0 }}%
   </p>
   <p class="text-sm text-secondary mt-1">
@@ -30,12 +31,12 @@
 {% endif %}
 {% if conflicts %}
 <div class="alert-strip mb-2">
-  <span>{% include "components/icon.html" with name="alert-triangle" %}</span>
+  <span>{% icon "status_warning" %}</span>
   <strong>{{ conflicts|length }} تعارض:</strong>
   {% for c in conflicts %}<span>{{ c.message }}{% if not forloop.last %} · {% endif %}</span>{% endfor %}
 </div>
 {% endif %}
-{% page_header heading icon="calendar" %}{% endpage_header %}
+{% page_header heading icon="date" %}{% endpage_header %}
 {# بطاقةٌ عاريةٌ بشريط أدواتٍ وإطار — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
 <div class="schedule-pages-card">
   <div class="schedule-head">

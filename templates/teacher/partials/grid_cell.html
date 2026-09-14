@@ -1,3 +1,4 @@
+{% load icons %}
 {% load privacy %}
 {% comment %}
 خليّةُ طالبٍ في شبكة الحضور — `.grid-cell` يقرؤها سكربتُ لوحة المفاتيح، و`hx-vals`
@@ -22,10 +23,10 @@
   {# حالة الحضور الحالية #}
   <div class="grid-cell__state">
     <span class="status-badge status-{{ tone|default:'gray' }}">
-      {% if status == 'present' %}{% include "components/icon.html" with name="check" %} حاضر
-      {% elif status == 'absent' %}{% include "components/icon.html" with name="x-circle" %} غائب
-      {% elif status == 'late' %}{% include "components/icon.html" with name="clock" %} متأخر
-      {% elif status == 'excused' %}{% include "components/icon.html" with name="file-text" %} معذور
+      {% if status == 'present' %}{% icon "confirm" %} حاضر
+      {% elif status == 'absent' %}{% icon "status_error" %} غائب
+      {% elif status == 'late' %}{% icon "time" %} متأخر
+      {% elif status == 'excused' %}{% icon "document" %} معذور
       {% else %}— غير محدد{% endif %}
     </span>
   </div>
@@ -40,7 +41,7 @@
       hx-include="[name=csrfmiddlewaretoken]"
       class="att-btn att-btn--tile is-present{% if status == 'present' %} is-current{% endif %}"
       title="P — حاضر"
-    >{% include "components/icon.html" with name="check" %}<span>حاضر</span></button>
+    >{% icon "confirm" %}<span>حاضر</span></button>
 
     <button
       hx-post="{% url 'mark_single' session.id %}"
@@ -50,7 +51,7 @@
       hx-include="[name=csrfmiddlewaretoken]"
       class="att-btn att-btn--tile is-absent{% if status == 'absent' %} is-current{% endif %}"
       title="A — غائب"
-    >{% include "components/icon.html" with name="x-circle" %}<span>غائب</span></button>
+    >{% icon "status_error" %}<span>غائب</span></button>
 
     <button
       hx-post="{% url 'mark_single' session.id %}"
@@ -60,7 +61,7 @@
       hx-include="[name=csrfmiddlewaretoken]"
       class="att-btn att-btn--tile is-late{% if status == 'late' %} is-current{% endif %}"
       title="L — متأخر"
-    >{% include "components/icon.html" with name="clock" %}<span>متأخر</span></button>
+    >{% icon "time" %}<span>متأخر</span></button>
 
     <button
       hx-post="{% url 'mark_single' session.id %}"
@@ -70,7 +71,7 @@
       hx-include="[name=csrfmiddlewaretoken]"
       class="att-btn att-btn--tile is-excused{% if status == 'excused' %} is-current{% endif %}"
       title="E — معذور"
-    >{% include "components/icon.html" with name="file-text" %}<span>معذور</span></button>
+    >{% icon "document" %}<span>معذور</span></button>
   </div>
 </div>
 {% if summary %}<script nonce="{{ request.csp_nonce }}">document.body.dispatchEvent(new Event('refresh'));</script>{% endif %}

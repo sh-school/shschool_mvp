@@ -1,7 +1,7 @@
 {% load ui %}
 <div class="exec-dash">
 
-  {% page_header "مرحباً، "|add:request.user.full_name subtitle=subtitle icon="home" %}{% endpage_header %}
+  {% page_header "مرحباً، "|add:request.user.full_name subtitle=subtitle icon="dashboard" %}{% endpage_header %}
 
   {% kpi_strip label="حضوري هذا العام" %}
     {% kpi "نسبة الحضور" student_att_label tone="green" %}
@@ -13,7 +13,7 @@
     {% endif %}
   {% endkpi_strip %}
 
-  {% section_card "حصصي اليوم" meta=student_sessions|length icon="calendar" empty="لا حصصَ اليوم" empty_sub="يومُ راحةٍ أو عطلةٌ رسميّة" %}{% if student_sessions %}
+  {% section_card "حصصي اليوم" meta=student_sessions|length icon="periods_today" empty="لا حصصَ اليوم" empty_sub="يومُ راحةٍ أو عطلةٌ رسميّة" %}{% if student_sessions %}
     <ul class="plain-list">
       {% for s in student_sessions %}
         <li class="plain-list__row">
@@ -25,9 +25,9 @@
   {% endif %}{% endsection_card %}
 
   <nav class="ui-actions" aria-label="إجراءات سريعة">
-    {% url 'reports_index' as u %}{% action_tile "درجاتي" desc="النتائج والشهادات" icon="bar-chart" href=u primary=True %}
-    {% url 'library:dashboard' as u %}{% action_tile "المكتبة" desc="الكتب والإعارة" icon="book-open" href=u %}
-    {% url 'notification_inbox' as u %}{% action_tile "الإشعارات" desc="رسائل المدرسة" icon="bell" href=u %}
+    {% url 'reports_index' as u %}{% action_tile "درجاتي" desc="النتائج والشهادات" icon="grades" href=u primary=True %}
+    {% url 'library:dashboard' as u %}{% action_tile "المكتبة" desc="الكتب والإعارة" icon="library" href=u %}
+    {% url 'notification_inbox' as u %}{% action_tile "الإشعارات" desc="رسائل المدرسة" icon="notifications" href=u %}
   </nav>
 
 </div>

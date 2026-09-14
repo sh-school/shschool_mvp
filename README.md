@@ -15,7 +15,7 @@
 
 <p align="center">
   <img alt="Django" src="https://img.shields.io/badge/Django-5.2-092E20?logo=django&logoColor=white" />
-  <img alt="Python" src="https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white" />
+  <img alt="Python" src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" />
   <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-16-316192?logo=postgresql&logoColor=white" />
   <img alt="Redis" src="https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white" />
   <img alt="CI" src="https://img.shields.io/badge/CI-GitHub_Actions_%E2%9C%85-2088FF?logo=githubactions&logoColor=white" />
@@ -61,7 +61,7 @@
 
 | الطبقة | التقنية |
 |--------|---------|
-| **Backend** | Django 5.2 (Python 3.11+) |
+| **Backend** | Django 5.2 (Python 3.12) |
 | **قاعدة البيانات** | PostgreSQL 16 |
 | **Cache / Queue** | Redis 7 + Celery 5.3 + django-celery-beat |
 | **Frontend** | HTMX 1.9 + Tailwind CSS 3.4 + Tajawal (خط عربي) |
@@ -122,7 +122,7 @@ npm install && npm run build
 
 > للبيئة المحلية بدون Docker (Windows PowerShell):
 > ```powershell
-> py -3.11 -m venv .venv
+> py -3.12 -m venv .venv
 > .\.venv\Scripts\Activate.ps1
 > pip install -r requirements.txt
 > copy .env.example .env   # ثم عدّل القيم
@@ -132,7 +132,7 @@ npm install && npm run build
 >
 > للبيئة المحلية بدون Docker (macOS/Linux):
 > ```bash
-> python3.11 -m venv .venv && source .venv/bin/activate
+> python3.12 -m venv .venv && source .venv/bin/activate
 > pip install -r requirements.txt
 > cp .env.example .env   # ثم عدّل القيم
 > python manage.py migrate && python manage.py runserver
@@ -240,7 +240,7 @@ shschool_mvp/
 │
 ├── docker-compose.yml       # بيئة التطوير
 ├── docker-compose.prod.yml  # بيئة الإنتاج (8 خدمات)
-├── Dockerfile               # Python 3.11-slim
+├── Dockerfile               # Python 3.12-slim
 ├── requirements.txt         # ~125 حزمة
 ├── pyproject.toml           # Ruff + pytest + mypy + coverage
 ├── package.json             # Tailwind CSS

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}طلب إجازة جديد{% endblock %}
 {% block breadcrumbs %}
@@ -7,11 +8,11 @@
 
 {% block content %}
 <div class="exec-dash sa-narrow">
-  {% page_header "طلب إجازة جديد" icon="calendar" %}{% endpage_header %}
+  {% page_header "طلب إجازة جديد" icon="leave" %}{% endpage_header %}
 
-  {% section_card "بيانات الطلب" icon="file-pen" %}
+  {% section_card "بيانات الطلب" icon="edit_record" %}
     <form method="post" enctype="multipart/form-data">{% csrf_token %}
-      {% if form.non_field_errors %}<p class="form-note is-warning sa-errors" role="alert">{% include "components/icon.html" with name="alert-triangle" %} {{ form.non_field_errors|join:" · " }}</p>{% endif %}
+      {% if form.non_field_errors %}<p class="form-note is-warning sa-errors" role="alert">{% icon "status_warning" %} {{ form.non_field_errors|join:" · " }}</p>{% endif %}
 
       <div class="form-row">
         {# الموظّف: قيمتُه معرّفُ المستخدم ونصُّه اسمُه الكامل — خياراتٌ مركّبةٌ لا تُعبَّر بـchoices، فالقائمةُ باليد بتسميتها #}
@@ -31,7 +32,7 @@
 
       <div class="form-actions sa-form-footer">
         <a href="{% url 'staff_affairs:leave_list' %}" class="btn-secondary btn-sm">إلغاء</a>
-        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check-circle" %} تقديم الطلب</button>
+        <button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} تقديم الطلب</button>
       </div>
     </form>
   {% endsection_card %}

@@ -9,12 +9,12 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "سلوك الأبناء" subtitle=school.name icon="scale" %}
+  {% page_header "سلوك الأبناء" subtitle=school.name icon="behavior" %}
     <a href="{% url 'parent_dashboard' %}" class="btn-secondary btn-sm">العودة للبوابة</a>
   {% endpage_header %}
 
   {% for child in children_behavior %}
-    {% section_card child.student.full_name meta="آخر 10 مخالفات" icon="user" %}
+    {% section_card child.student.full_name meta="آخر 10 مخالفات" icon="behavior_violation" %}
       <div class="parent-child">
         {% kpi_strip label="أرقام السلوك" %}
           {% kpi "قائمة" child.unresolved tone=child.unresolved_tone title="مخالفاتٌ لم يُغلق إجراؤها" %}
@@ -37,12 +37,12 @@
             </table>
           </div>
         {% else %}
-          {% empty_state "لا مخالفاتٍ مسجّلة" sub="سجلٌّ نظيف" icon="check-circle" %}
+          {% empty_state "لا مخالفاتٍ مسجّلة" sub="سجلٌّ نظيف" icon="status_success" %}
         {% endif %}
       </div>
     {% endsection_card %}
   {% empty %}
-    {% section_card "الأبناء" icon="users" empty="لا أبناءَ مربوطين بحسابك حالياً" empty_sub="تواصل مع إدارة المدرسة لربط حسابك بأبنائك" %}{% endsection_card %}
+    {% section_card "الأبناء" icon="children" empty="لا أبناءَ مربوطين بحسابك حالياً" empty_sub="تواصل مع إدارة المدرسة لربط حسابك بأبنائك" %}{% endsection_card %}
   {% endfor %}
 
 </div>

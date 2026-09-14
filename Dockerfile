@@ -5,7 +5,9 @@
 # - HEALTHCHECK instruction
 # ══════════════════════════════════════════════════════════════
 
-FROM python:3.11-slim-bookworm
+# 3.12 = ما تُفحص عليه البوّابات (ruff/mypy/pytest). كان 3.11 هنا وحدَه منذ
+# 2026-04 فتُفحص الشيفرةُ على إصدارٍ وتعمل على غيره.
+FROM python:3.12-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -33,8 +35,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies
-COPY requirements.txt .
+COPY requirements.txt requirements-dev.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
+
+# أدواتُ التطوير (pytest وruff وmypy) للصورة المحلّيّة وحدها: `docker-compose.yml`
+# يمرّر INSTALL_DEV=true، وRailway يبني بلا وسيطٍ فتبقى صورةُ الإنتاج كما هي.
+# وبلاها كانت كلُّ حاويةِ جلسةٍ تثبّت pytest بيدها، ويضيع مع إعادة إنشائها.
+ARG INSTALL_DEV=false
+RUN if [ "$INSTALL_DEV" = "true" ]; then pip install --no-cache-dir -r requirements-dev.txt; fi
 
 # Application code
 COPY . .
