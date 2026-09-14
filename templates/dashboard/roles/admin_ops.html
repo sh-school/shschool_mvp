@@ -7,6 +7,7 @@
   {% endpage_header %}
 
   {% if admin_role == "admin_supervisor" %}
+    {% include "wings/partials/student_search_form.html" %}
     {% if not is_school_day %}
       <div class="wing-warn">{% icon "status_warning" %} لا دوامَ اليوم — فلا رصد.</div>
     {% endif %}

@@ -7,6 +7,8 @@
     <a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>
   {% endpage_header %}
 
+  {% include "wings/partials/student_search_form.html" %}
+
   {% if not is_school_day %}
     <div class="wing-warn">{% icon "status_warning" %} لا دوامَ اليوم — فلا رصد.</div>
   {% endif %}
