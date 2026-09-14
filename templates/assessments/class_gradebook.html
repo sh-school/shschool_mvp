@@ -64,7 +64,7 @@
               {% for cell in row.cells %}
               <td class="num">{% if cell.score is not None %}<span class="grade-total is-{{ cell.tone }}">{{ cell.score }}</span>{% else %}<span class="grade-total is-muted">—</span>{% endif %}</td>
               {% endfor %}
-              <td class="num">{% if row.semester_result and row.semester_result.total is not None %}<span class="grade-total is-{{ row.sem_tone }}">{{ row.semester_result.total }}</span>{% else %}<span class="grade-total is-muted">—</span>{% endif %}</td>
+              <td class="num">{% if row.sem_total is not None %}<span class="grade-total is-{{ row.sem_tone }}">{{ row.sem_total }}</span>{% else %}<span class="grade-total is-muted">—</span>{% endif %}</td>
               <td class="num">{% if row.sem_passed is None %}<span class="grade-total is-muted">—</span>{% elif row.sem_passed %}<span class="status-badge status-success">ناجح</span>{% else %}<span class="status-badge status-danger">راسب</span>{% endif %}</td>
             {% else %}
               <td class="num">{{ row.annual_result.s1_total|default:"—" }}</td>

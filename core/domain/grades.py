@@ -164,6 +164,13 @@ def jabr_fraction(value: Score | None) -> Decimal | None:
     (كان استخراجُ `04_academic.md` قد لخّصها «أقل من نصف تُجبر لأسفل» — وهو
     خلافُ النصّ المصوَّر؛ صُحِّح في الاستخراج 2026-09-14.)
 
+    **وموضعُه** — النصُّ يسمّي لحظاتِ حساب درجة **المادّة**: «في منتصف الفصل أو
+    نهايته أو الدور الثاني» (4–11، م8 ص9)، و«في نهاية كل فصل دراسي أو الدور
+    الثاني» (الثاني عشر، م7 ص5). فيُجبر اختبارُ منتصف الفصل (P1/P3) — وهو درجةُ
+    المادّة في منتصفه — ثمّ مجموعُ الفصل مرّةً واحدة (`semester_total`). ولا تُجبر
+    كلُّ باقةٍ على حدة ثمّ تُجمع: أعمالُ الفصل (AW) ليست لحظةً في النصّ، وجبرُ كلّ
+    مكوّنٍ يمنح حتّى درجةً ونصفاً في الفصل لا أصلَ لها. (تصحيح 2026-09-15.)
+
     >>> [str(jabr_fraction(v)) for v in ("47", "47.01", "47.5", "47.51", "49.99")]
     ['47', '47.5', '47.5', '48', '50']
     """
@@ -172,6 +179,47 @@ def jabr_fraction(value: Score | None) -> Decimal | None:
     halves = (Decimal(str(value)) * 2).to_integral_value(rounding=ROUND_CEILING)
     result = halves / 2
     return result.quantize(Decimal("1")) if halves % 2 == 0 else result.quantize(Decimal("0.1"))
+
+
+#: الباقاتُ التي هي «منتصفُ الفصل» في م8 — تُجبر وحدَها قبل الجمع.
+MIDTERM_PACKAGES = frozenset({"P1", "P3"})
+
+_CENT = Decimal("0.01")
+
+
+def package_score(package_type: str, raw: Score) -> Decimal:
+    """درجةُ باقةٍ للعرض والتخزين: منتصفُ الفصل مجبور (م8)، وغيرُه مقصوصٌ إلى 0.01.
+
+    >>> [str(package_score(p, v)) for p, v in (("P1", "7.1"), ("P2", "9.104"), ("AW", "2.1"))]
+    ['7.5', '9.10', '2.10']
+    """
+    value = Decimal(str(raw))
+    if package_type in MIDTERM_PACKAGES:
+        result = jabr_fraction(value.quantize(_CENT))
+        assert result is not None
+        return result
+    return value.quantize(_CENT)
+
+
+def semester_total(raw_scores: dict[str, Score | None]) -> Decimal | None:
+    """مجموعُ الفصل من درجات باقاته **الخام**، مجبوراً مرّةً واحدة (م8 «نهايته»).
+
+    يُجبر المنتصفُ أوّلاً، ثمّ يُجمع مع البقيّة خاماً، ويُقصّ المجموعُ إلى 0.01
+    (يمحو أثرَ الأوزان الدوريّة: 66.67٪ من 60 = 40.002) ثمّ يُجبر.
+
+    >>> str(semester_total({"P1": "7.1", "AW": "2.1", "P2": "9.1"}))
+    '19'
+    >>> semester_total({"P1": None}) is None
+    True
+    """
+    present = {k: v for k, v in raw_scores.items() if v is not None}
+    if not present:
+        return None
+    total = Decimal("0")
+    for ptype, raw in present.items():
+        assert raw is not None
+        total += package_score(ptype, raw) if ptype in MIDTERM_PACKAGES else Decimal(str(raw))
+    return jabr_fraction(total.quantize(_CENT))
 
 
 # ─────────────────────────────────────────────────────────────
@@ -221,8 +269,30 @@ def jabr_fraction(value: Score | None) -> Decimal | None:
 
 PASS_MARK = Decimal("50")
 MAX_FAILED_FOR_SECOND_ROUND = 3
+FULL_MARK = Decimal("100")
+
+# ── قواعدُ الترفيع — سياسة 4–11، الفصل السابع، م50–51 (ص33، صفحة PDF 34) ──
+#
+#   «القاعدة الأولى: يُرفّع الطالب الراسب في أية مادة من المواد الدراسية التي لها
+#    نهاية صغرى إذا كانت الدرجات التي يحتاجها للنجاح لا تزيد عن درجتين.
+#    القاعدة الثانية: يرفّع الطالب الراسب في مادتين إذا كانت الدرجات التي
+#    يحتاجها للنجاح أربع درجات في كل مادة من المادتين.
+#    القاعدة الثالثة: … وتطبق هذه القاعدة في الدور الثاني فقط.»
+#   م51: «في جميع الأحوال لا يجوز أن تطبق إلا قاعدة واحدة فقط من القواعد الثلاثة.»
+#
+# فالأوليان تسريان في مراجعة نتائج الدور الأول. والاستخراج `04_academic.md:110-113`.
+# ولا قواعدَ ترفيعٍ في سياسة الثاني عشر (`04_academic.md:165`).
+#
+# وقراءتان هنا تُعلَنان: (1) الأولى لراسبٍ في مادّةٍ واحدة — فالثانيةُ تسمّي
+# «مادتين» والثالثةُ «مادة وحيدة»، والتدرّجُ 2 ثمّ 4 لا يستقيم إن كانت الأولى لأيّ
+# عدد. (2) لا تُطبَّق على من بقيت له مادّةٌ معذورٌ فيها تنتظر الدور الثاني: النتيجةُ
+# لم تكتمل، وم51 تمنع قاعدةً ثانيةً بعدها. والمادّةُ الراسبةُ بالغياب («غائب»، م27)
+# لا درجةَ لها يُحسب منها النقص.
+PROMOTION_RULE_1_GAP = Decimal("2")
+PROMOTION_RULE_2_GAP = Decimal("4")
 
 PASSED = "passed"
+PROMOTED = "promoted"
 FAILED_ELIGIBLE = "failed_eligible"
 FAILED_INELIGIBLE = "failed_ineligible"
 EXCUSED = "excused"
@@ -231,10 +301,13 @@ INCOMPLETE = "incomplete"
 
 SECOND_ROUND_LABELS: dict[str, str] = {
     PASSED: "ناجح",
+    PROMOTED: "مُرفَّعٌ بقواعد الترفيع",
     FAILED_ELIGIBLE: "راسبٌ مؤهَّلٌ للدور الثاني",
     FAILED_INELIGIBLE: "راسبٌ غيرُ مؤهَّل",
     EXCUSED: "معذور",
-    DEPRIVED: "محروم",
+    # الحرمانُ «قرار عدم أهلية» يُصدره فريقُ إدارة سلوك الطلبة ويُخطَر به وليُّ الأمر
+    # (`08_conduct_policy_2026.md:117-137`) — فالشاشةُ تعرض بلوغَ العتبة لا الحكم.
+    DEPRIVED: "بلغ عتبةَ الحرمان — القرارُ لفريق السلوك",
     INCOMPLETE: "لم تكتمل الدرجات",
 }
 
@@ -246,7 +319,10 @@ class SubjectOutcome:
     subject: str
     #: المجموعُ السنويّ من مئة بعد جبر الكسور، و`None` لما لم يُرصد.
     annual_total: Decimal | None
-    #: غاب بعذرٍ مقبول عن اختبار نهاية الفصل الأول أو الثاني — م12-ب.
+    #: معذورٌ يُحال عذرُه إلى الدور الثاني — م12-ب: عن نهاية الفصل الثاني (م25–26)،
+    #: أو عن الفصل الأول بكامله والملحق (م21)؛ وفي الثاني عشر عن نهاية أيّ فصل (م13،
+    #: م16). أمّا المعذورُ عن نهاية الفصل الأول وحدَها في 4–11 فيسبقه الملحق (م19)،
+    #: فإن بقي بلا درجة فمادّتُه بمجموعها (م20) — لا يُعلَّم هنا.
     excused_final_absence: bool = False
     #: غاب بلا عذر عن اختبار نهاية الفصل الثاني — م13، وم27: «ضمن مواد الرسوب».
     unexcused_final_absence: bool = False
@@ -263,6 +339,8 @@ class FirstRoundDecision:
     excused: tuple[str, ...]
     #: الموضعُ الذي قضى بالصنف — «م12-أ» للصفوف 4–11، «م8-أ» للثاني عشر.
     article: str
+    #: موادُّ رُفِّع فيها بقاعدة ترفيع (م50) — لا تدخل الدورَ الثاني.
+    promoted: tuple[str, ...] = ()
 
     @property
     def label(self) -> str:
@@ -293,15 +371,35 @@ def _art(key: str, grade: int, suffix: str = "") -> str:
     return _ARTICLES[key][grade == FINAL_GRADE] + suffix
 
 
+def _promotion_rule(score_failed: list[SubjectOutcome], grade: int) -> str:
+    """القاعدةُ (م50) التي تُرفِّع هذه الموادَّ الراسبةَ بدرجتها، أو "" إن لم تنطبق."""
+    if grade == FINAL_GRADE or not score_failed:
+        return ""
+    gaps = [PASS_MARK - o.annual_total for o in score_failed if o.annual_total is not None]
+    if len(gaps) == 1 and gaps[0] <= PROMOTION_RULE_1_GAP:
+        return "م50 القاعدة الأولى"
+    if len(gaps) == 2 and all(g <= PROMOTION_RULE_2_GAP for g in gaps):
+        return "م50 القاعدة الثانية"
+    return ""
+
+
 def classify_first_round(
     outcomes: list[SubjectOutcome] | tuple[SubjectOutcome, ...],
     grade: int,
     deprived: bool = False,
     cancelled: bool = False,
+    deprived_before_first_final: bool = False,
 ) -> FirstRoundDecision:
-    """صنفُ الطالب بعد الدور الأول — ناجح/راسبٌ مؤهَّل/غيرُ مؤهَّل/معذور/محروم.
+    """صنفُ الطالب بعد الدور الأول — ناجح/مُرفَّع/راسبٌ مؤهَّل/غيرُ مؤهَّل/معذور/محروم.
 
-    >>> o = [SubjectOutcome("ع", Decimal("49")), SubjectOutcome("ر", Decimal("80"))]
+    الترتيبُ نصّيّ: «ملغي» أوّلاً (م45 مكرر)؛ ثمّ م23 (12: م15) — «لا يسمح له
+    بحضور اختبارات الفصل الدراسي الثاني **والدور الثاني**، ويكون راسباً وباقياً
+    للإعادة» (ص21) — قبل الحرمان، لأنّ حكمَ الفصل الأول وقع قبل عتبة نهاية العام
+    فلا يُسقطه حرمانٌ لاحق. إلّا حرمانَ الثاني عشر من نهاية الفصل الأول
+    (`deprived_before_first_final`، م19-1 ص11): غيابُه عن اختباراته حينئذٍ
+    «محروم» لا «غائب» (م20)، فلا يُعدّ في م15.
+
+    >>> o = [SubjectOutcome("ع", Decimal("45")), SubjectOutcome("ر", Decimal("80"))]
     >>> classify_first_round(o, 10).category, classify_first_round(o, 10).article
     ('failed_eligible', 'م12-أ')
     """
@@ -330,15 +428,23 @@ def classify_first_round(
     unexcused = sum(1 for o in outcomes if o.unexcused_final_absence)
     unexcused_s1 = sum(1 for o in outcomes if o.unexcused_first_semester_absence)
 
-    def decide(category: str, retake: tuple[str, ...], article: str) -> FirstRoundDecision:
-        return FirstRoundDecision(category, retake, failed, excused, article)
+    def decide(
+        category: str,
+        retake: tuple[str, ...],
+        article: str,
+        failed_: tuple[str, ...] = failed,
+        promoted: tuple[str, ...] = (),
+    ) -> FirstRoundDecision:
+        return FirstRoundDecision(category, retake, failed_, excused, article, promoted)
 
     if cancelled:
         return decide(FAILED_INELIGIBLE, (), _art("cancelled", grade))
-    if deprived:
+    if deprived and deprived_before_first_final:
         return decide(DEPRIVED, names, _art("deprived", grade))
     if unexcused_s1 > MAX_FAILED_FOR_SECOND_ROUND:
         return decide(FAILED_INELIGIBLE, (), _art("barred_s1", grade))
+    if deprived:
+        return decide(DEPRIVED, names, _art("deprived", grade))
     if unexcused > MAX_FAILED_FOR_SECOND_ROUND:
         return decide(FAILED_INELIGIBLE, (), _art("barred", grade))
     if len(failed) > MAX_FAILED_FOR_SECOND_ROUND:
@@ -348,31 +454,54 @@ def classify_first_round(
     if excused:
         suffix = "-ج" if failed else "-ب"
         return decide(EXCUSED, failed + excused, _art("eligible", grade, suffix))
+    by_score = [
+        o
+        for o in outcomes
+        if o.subject in failed
+        and not (o.unexcused_final_absence or o.unexcused_first_semester_absence)
+    ]
+    rule = _promotion_rule(by_score, grade) if len(by_score) == len(failed) else ""
+    if rule:
+        return decide(PROMOTED, (), rule, failed_=(), promoted=failed)
     if failed:
         return decide(FAILED_ELIGIBLE, failed, _art("eligible", grade, "-أ"))
     return decide(PASSED, (), "م10–11" if grade != FINAL_GRADE else "م6")
 
 
-def second_round_credit(kind: str, score: Score, carried: Score = 0) -> tuple[bool, Decimal]:
+def second_round_credit(
+    kind: str, score: Score, carried: Score = 0, *, grade: int
+) -> tuple[bool, Decimal]:
     """(نجح؟، الدرجةُ المحتسبة) لمادّةٍ في الدور الثاني — م16 (12: م12).
 
     `kind` صنفُ المادّة لا الطالب (`FirstRoundDecision.kind_of`): فالجامعُ بين
     الرسوب والعذر (م12-ج) ينال الصغرى فيما رسب فيه، ودرجتَه فيما عُذر عنه.
 
     الراسبُ والمحرومُ يُختبران من مئة (م14 / 12: م10) وينالان النهايةَ الصغرى
-    وحدَها عند النجاح. والمعذورُ درجتَه الفعليّة «كما تحسب له الدرجة الكلية للمادة
-    وفقاً لما تنص عليه هذه السياسة» (م16-2): فمن عُذر عن نهاية الفصل الثاني وحدَه
-    تُجمع درجةُ اختباره مع ما حصّله قبلها (`carried`: الفصلُ الأول ومنتصفُ الثاني
-    وأعمالُه — م25، وم26 للفصل الثاني كلِّه)، ومن عُذر عن الفصلين يُختبر من مئة
-    و`carried` صفر (م21، والثاني عشر م16: «ولا تحسب له درجات الفصل الأول»).
-    ومن لم يبلغ الصغرى تُحتسب له درجتُه كما هي ويبقى راسباً.
+    وحدَها عند النجاح، وما حصّلاه قبلُ لا يُضاف. والمعذورُ درجتَه الفعليّة «كما
+    تحسب له الدرجة الكلية للمادة وفقاً لما تنص عليه هذه السياسة» (م16-2)، وفي
+    الصفوف 4–11 تُضاف `carried` بحسب حاله:
+      م25 (ص22) معذورٌ عن نهاية الفصل الثاني وحدَها: الفصلُ الأول ومنتصفُ الثاني وأعمالُه.
+      م26 معذورٌ عن الفصل الثاني كلِّه: الفصلُ الأول.
+      م21 (ص20) معذورٌ عن الفصل الأول كلِّه والملحق: لا شيء — من مئة.
+    أمّا **الثاني عشر** فالمعذورُ فيه يُختبر في «منهاج الفصلين» في كلّ حال —
+    م13-ت (ص10) عن الفصل الأول، وم16 عن نهاية الثاني: «ولا تحسب له درجات الفصل
+    الأول» — فلا `carried` له أبداً، ويُرفض ما يُمرَّر منه.
 
-    >>> second_round_credit(FAILED_ELIGIBLE, 83), second_round_credit(EXCUSED, 83)
+    والمجموعُ لا يتجاوز النهايةَ العظمى (م2: 100) — ما جاوزها خطأُ مُدخِلٍ يُرفض.
+
+    >>> second_round_credit(FAILED_ELIGIBLE, 83, grade=10), second_round_credit(EXCUSED, 83, grade=12)
     ((True, Decimal('50')), (True, Decimal('83')))
     """
     if kind not in (FAILED_ELIGIBLE, EXCUSED, DEPRIVED):
         raise ValueError(f"صنفٌ لا يدخل الدور الثاني: {kind}")
-    raw = Decimal(str(score)) + (Decimal(str(carried)) if kind == EXCUSED else 0)
+    score_d, carried_d = Decimal(str(score)), Decimal(str(carried))
+    if score_d < 0 or carried_d < 0:
+        raise ValueError("درجةٌ سالبة")
+    if kind == EXCUSED and grade == FINAL_GRADE and carried_d:
+        raise ValueError("الثاني عشر: المعذورُ يُختبر في منهاج الفصلين ولا يُحمل له شيء (م13، م16)")
+    raw = score_d + (carried_d if kind == EXCUSED else 0)
+    if raw > FULL_MARK or score_d > FULL_MARK:
+        raise ValueError(f"درجةٌ فوق النهاية العظمى: {raw}")
     value = jabr_fraction(raw)
     assert value is not None
     if value < PASS_MARK:

@@ -556,7 +556,6 @@ class Command(BaseCommand):
     def _step_grades(self, school, subject_map, class_map, role_objs):
         from assessments.models import (
             Assessment,
-            AssessmentPackage,
             StudentAssessmentGrade,
             SubjectClassSetup,
         )
@@ -592,37 +591,21 @@ class Command(BaseCommand):
                 )
                 setups_done += 1
 
-                for semester, sem_max, weights in [
-                    ("S1", Decimal("40"), {"P1": Decimal("50"), "P4": Decimal("50")}),
-                    (
-                        "S2",
-                        Decimal("60"),
-                        {"P1": Decimal("16.67"), "P3": Decimal("33.33"), "P4": Decimal("50")},
-                    ),
-                ]:
-                    for ptype, weight in weights.items():
-                        pkg, _ = AssessmentPackage.objects.get_or_create(
-                            setup=setup,
-                            package_type=ptype,
-                            semester=semester,
-                            defaults={
-                                "school": school,
-                                "weight": weight,
-                                "semester_max_grade": sem_max,
-                                "is_active": True,
-                            },
-                        )
+                # البنيةُ من `package_weights` وحدَه (القرار 14/2018 م3): الثاني عشر P2/P4 فقط.
+                for semester in ("S1", "S2"):
+                    for pkg in GradeService.ensure_packages(setup, semester):
+                        ptype = pkg.package_type
 
                         if pkg.assessments.exists():
                             continue
 
-                        type_map = {"P1": "classwork", "P3": "exam", "P4": "exam"}
+                        type_map = {"AW": "classwork"}
                         title_map = {
-                            "P1": "أعمال مستمرة",
-                            "P3": "اختبار منتصف الفصل",
-                            "P4": "اختبار نهاية الفصل"
-                            if semester == "S1"
-                            else "اختبار نهاية العام",
+                            "P1": "اختبار منتصف الفصل الأول",
+                            "P2": "اختبار نهاية الفصل الأول",
+                            "P3": "اختبار منتصف الفصل الثاني",
+                            "P4": "اختبار نهاية العام",
+                            "AW": "أعمال الفصل",
                         }
                         assessment = Assessment.objects.create(
                             package=pkg,

@@ -93,27 +93,36 @@ def _package(school, teacher, grade, sem, ptype, weight):
 @pytest.mark.parametrize(
     "pct,expected",
     [
-        # P2 للثاني عشر = 40 كاملة: الدرجةُ = النسبة × 0.4
+        # P2 للثاني عشر = 40 كاملة: مجموعُ الفصل = النسبة × 0.4 — ويُجبر المجموع (م7)
         ("6.25", "2.5"),  # 2.5 تثبت
         ("6", "2.5"),  # 2.4 ← 2.5
         ("6.5", "3"),  # 2.6 ← 3
     ],
 )
-def test_calc_package_score_single_and_batch(school, teacher_user, pct, expected):
-    """`calc_package_score` و`calc_package_scores_batch` — الموضعان اللذان كانا يقرّبان إلى 0.01."""
+def test_semester_total_is_jabred_single_and_batch(school, teacher_user, pct, expected):
+    """المساران المفرد والدُّفعي يكتبان مجموعَ الفصل مجبوراً — والباقةُ (نهايةُ الفصل) خامٌ."""
     setup, pkg, exam = _package(school, teacher_user, "G12", "S1", "P2", "100")
     student = UserFactory()
+    StudentEnrollmentFactory(student=student, class_group=setup.class_group)
     StudentAssessmentGrade.objects.create(
         assessment=exam, student=student, school=school, grade=Decimal(pct)
     )
-    assert GradeService.calc_package_score(student, pkg) == Decimal(expected)
+    raw = Decimal(pct) * Decimal("0.4")
+    assert GradeService.calc_package_score(student, pkg) == raw.quantize(Decimal("0.01"))
     batch = GradeService.calc_package_scores_batch([student.id], [pkg])
-    assert batch[(student.id, "P2")] == Decimal(expected)
+    assert batch[(student.id, "P2")] == raw.quantize(Decimal("0.01"))
+
+    single = GradeService.recalculate_semester_result(student, setup, "S1")
+    assert single.total == Decimal(expected)
+    GradeService.recalculate_full_class(setup)
+    assert StudentSubjectResult.objects.get(pk=single.pk).total == Decimal(expected)
 
 
 @pytest.mark.django_db
-def test_annual_total_is_jabred_from_stored_semester_totals(school, teacher_user):
-    """`recalculate_annual_result`: مجموعٌ خُزّن قبل الجبر (49.6) يُحكم به 50 ناجحاً."""
+def test_annual_total_is_the_sum_of_jabred_semesters_not_rejabred(school, teacher_user):
+    """`recalculate_annual_result` يجمع مجموعَي الفصلين المجبورَين عند كتابتهما ولا يجبر
+    ثانيةً: جبرُ المجموع كان يُنصف مجموعاً قديماً (49.6 ← 50) كلّما أُعيد حسابُ طالبٍ
+    واحد، فتختلط في الشعبة قاعدتان. وتوحيدُ القديم بأمر `recalculate_grade_results`."""
     setup, _, _ = _package(school, teacher_user, "G10", "S1", "P2", "50")
     student = UserFactory()
     StudentEnrollmentFactory(student=student, class_group=setup.class_group)
@@ -122,9 +131,8 @@ def test_annual_total_is_jabred_from_stored_semester_totals(school, teacher_user
             student=student, setup=setup, school=school, semester=sem, total=Decimal(total)
         )
     annual = GradeService.recalculate_annual_result(student, setup)
-    assert annual.annual_total == Decimal("50")
-    assert annual.status == "pass"
-    assert AnnualSubjectResult.objects.get(pk=annual.pk).annual_total == Decimal("50.00")
+    assert AnnualSubjectResult.objects.get(pk=annual.pk).annual_total == Decimal("49.60")
+    assert annual.status == "fail"
 
 
 @pytest.mark.django_db
@@ -135,4 +143,4 @@ def test_two_and_a_half_stays(school, teacher_user):
     StudentAssessmentGrade.objects.create(
         assessment=exam, student=student, school=school, grade=Decimal("6.25")
     )
-    assert GradeService.calc_package_score(student, pkg) == Decimal("2.5")
+    assert GradeService.recalculate_semester_result(student, setup, "S1").total == Decimal("2.5")

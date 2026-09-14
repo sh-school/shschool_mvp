@@ -67,9 +67,9 @@ SAMPLE = [
     ("درجاتٌ عالية", 7, (99, 98, 97, 96, 95, 94), (), (), False, PASSED, "م10–11", ()),
     # ── راسبٌ مؤهَّل: م12-أ «ثلاث مواد دراسية أو أقل»
     (
-        "مادّةٌ واحدة 49.5",
+        "مادّةٌ واحدة 47.5 — نقصُها فوق درجتين فلا ترفّعه م50",
         8,
-        (49.5, 80, 70, 60, 55, 50),
+        (47.5, 80, 70, 60, 55, 50),
         (),
         (),
         False,
@@ -262,7 +262,7 @@ def test_bars_beyond_the_twenty(desc, grade, kwargs, category, article):
 def test_no_invented_minimum_grade_for_eligibility():
     """م12-أ لا تشترط درجةً دنيا: الصفرُ في مادّةٍ واحدة يؤهّل كالتسعة والأربعين."""
     zero = classify_first_round(_student((0, 90, 90, 90, 90, 90)), 10)
-    near = classify_first_round(_student((49, 90, 90, 90, 90, 90)), 10)
+    near = classify_first_round(_student((47, 90, 90, 90, 90, 90)), 10)
     assert zero.category == near.category == FAILED_ELIGIBLE
 
 
@@ -283,7 +283,7 @@ def test_no_invented_minimum_grade_for_eligibility():
     ],
 )
 def test_second_round_credit(kind, score, expected):
-    assert second_round_credit(kind, score) == expected
+    assert second_round_credit(kind, score, grade=10) == expected
 
 
 @pytest.mark.parametrize(
@@ -293,30 +293,30 @@ def test_second_round_credit(kind, score, expected):
         # حصّل 40 (ف1 30 + منتصفُ ف2 وأعمالُه 10) واختبارُ الدور الثاني من 40.
         (Decimal("12"), Decimal("40"), (True, Decimal("52"))),
         (Decimal("9.2"), Decimal("40"), (False, Decimal("49.5"))),  # م8 قبل الحكم
-        # م21 / الثاني عشر م16: معذورٌ عن الفصلين — من مئة ولا محمول
+        # م21: معذورٌ عن الفصل الأول كلِّه والملحق — من مئة ولا محمول
         (Decimal("64"), Decimal("0"), (True, Decimal("64"))),
     ],
 )
 def test_excused_credit_adds_what_was_earned(score, carried, expected):
-    assert second_round_credit(EXCUSED, score, carried) == expected
+    assert second_round_credit(EXCUSED, score, carried, grade=10) == expected
 
 
 def test_carried_is_ignored_for_failed_and_deprived():
     """م16-1 و3: الصغرى فقط — ما حُصّل في الدور الأول لا يُضاف."""
-    assert second_round_credit(FAILED_ELIGIBLE, 50, carried=45) == (True, Decimal("50"))
-    assert second_round_credit(DEPRIVED, 49, carried=45) == (False, Decimal("49"))
+    assert second_round_credit(FAILED_ELIGIBLE, 50, carried=45, grade=10) == (True, Decimal("50"))
+    assert second_round_credit(DEPRIVED, 49, carried=45, grade=10) == (False, Decimal("49"))
 
 
 def test_combined_student_credit_per_subject():
     """م12-ج + م16: الجامعُ ينال الصغرى فيما رسب فيه ودرجتَه فيما عُذر عنه."""
     decision = classify_first_round(_student((30, None, 70, 60, 55, 50), excused=("إنجليزي",)), 8)
-    assert second_round_credit(decision.kind_of("عربي"), 90) == (True, Decimal("50"))
-    assert second_round_credit(decision.kind_of("إنجليزي"), 90) == (True, Decimal("90"))
+    assert second_round_credit(decision.kind_of("عربي"), 90, grade=8) == (True, Decimal("50"))
+    assert second_round_credit(decision.kind_of("إنجليزي"), 90, grade=8) == (True, Decimal("90"))
 
 
 def test_passed_student_has_no_second_round_credit():
     with pytest.raises(ValueError):
-        second_round_credit(PASSED, 70)
+        second_round_credit(PASSED, 70, grade=10)
 
 
 # ── الخدمةُ والشاشة ────────────────────────────────────────────
@@ -397,7 +397,7 @@ def test_roster_reads_totals_and_final_exam_absences(school, teacher_user):
 
 
 @pytest.mark.django_db
-def test_second_round_screen(client_as, school, teacher_user, coordinator_user, student_user):
+def test_second_round_screen(client_as, school, teacher_user, principal_user, student_user):
     from tests.conftest import StudentEnrollmentFactory, UserFactory
 
     cg, setups, year = _setup_class(school, teacher_user, n_subjects=2)
@@ -406,7 +406,7 @@ def test_second_round_screen(client_as, school, teacher_user, coordinator_user, 
     _annual(student, setups[0], "30")
     _annual(student, setups[1], "90")
 
-    resp = client_as(coordinator_user).get(f"/assessments/second-round/?class_group={cg.id}")
+    resp = client_as(principal_user).get(f"/assessments/second-round/?class_group={cg.id}")
     assert resp.status_code == 200
     body = resp.content.decode()
     assert "طالبُ الدور الثاني" in body and "م12-أ" in body

@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 """
 seed_assessments.py — بيانات تجريبية للتقييمات
-يطبّق الأوزان الصحيحة حسب سياسة وزارة التعليم القطرية:
-  الفصل الأول  (40): أعمال مستمرة 50% + اختبار الفصل 50%
-  الفصل الثاني (60): أعمال مستمرة 17% + اختبار نصفي 33% + اختبار نهائي 50%
+يطبّق بنيةَ الباقات من `GradeService.ensure_packages` (القرار 14/2018، المادّة 3).
 """
 
 import csv
@@ -67,78 +65,31 @@ SUBJECT_COORDINATOR = {
     "الفنون البصرية": "منسق الفنون البصريه",
 }
 
-# ── تعريف باقات كل فصل بالأوزان الصحيحة ─────────────────────
-#
-# الفصل الأول (semester_max=40):
-#   P1 أعمال مستمرة  weight=50  → 50%×40 = 20 درجة
-#   P4 اختبار نهائي  weight=50  → 50%×40 = 20 درجة
-#
-# الفصل الثاني (semester_max=60):
-#   P1 أعمال مستمرة  weight=16.67 → ~10 درجة
-#   P3 اختبار منتصف  weight=33.33 → 20 درجة
-#   P4 اختبار نهائي  weight=50    → 30 درجة
-PACKAGES_CONFIG = {
-    "S1": [
-        {"type": "P1", "weight": Decimal("50"), "max": Decimal("40"), "label": "أعمال مستمرة"},
-        {
-            "type": "P2",
-            "weight": Decimal("0"),
-            "max": Decimal("40"),
-            "label": "اختبارات قصيرة (غ.م.)",
-        },
-        {"type": "P3", "weight": Decimal("0"), "max": Decimal("40"), "label": "نصفي (غ.م.)"},
-        {
-            "type": "P4",
-            "weight": Decimal("50"),
-            "max": Decimal("40"),
-            "label": "اختبار نهاية الفصل الأول",
-        },
-    ],
-    "S2": [
-        {"type": "P1", "weight": Decimal("16.67"), "max": Decimal("60"), "label": "أعمال مستمرة"},
-        {
-            "type": "P2",
-            "weight": Decimal("0"),
-            "max": Decimal("60"),
-            "label": "اختبارات قصيرة (غ.م.)",
-        },
-        {
-            "type": "P3",
-            "weight": Decimal("33.33"),
-            "max": Decimal("60"),
-            "label": "اختبار منتصف الفصل الثاني",
-        },
-        {
-            "type": "P4",
-            "weight": Decimal("50"),
-            "max": Decimal("60"),
-            "label": "اختبار نهاية العام",
-        },
-    ],
-}
+# ── الباقاتُ من `GradeService.ensure_packages` — جدولُ `core.domain.grades.package_weights`
+# (القرار 14/2018، المادّة 3): 4–11 منتصفٌ ونهايةٌ وأعمالٌ في كلّ فصل، والثاني عشر
+# P2 (40) وP4 (60) لا غير. كان هنا جدولٌ ثانٍ يُنشئ P1/P3 لكلّ الصفوف.
 
 # تقييمات داخل كل باقة نشطة
 ASSESSMENTS_IN_PACKAGE = {
-    # الفصل الأول
     ("S1", "P1"): [
-        {"title": "أعمال صفية", "type": "classwork", "weight": 40, "max": Decimal("10")},
-        {"title": "واجبات منزلية", "type": "homework", "weight": 30, "max": Decimal("10")},
-        {"title": "مشاركة صفية", "type": "participation", "weight": 30, "max": Decimal("10")},
+        {"title": "اختبار منتصف الفصل الأول", "type": "exam", "weight": 100, "max": Decimal("15")}
     ],
-    ("S1", "P4"): [
-        {"title": "اختبار نهاية الفصل الأول", "type": "exam", "weight": 100, "max": Decimal("20")},
+    ("S1", "P2"): [
+        {"title": "اختبار نهاية الفصل الأول", "type": "exam", "weight": 100, "max": Decimal("20")}
     ],
-    # الفصل الثاني
-    ("S2", "P1"): [
-        {"title": "أعمال صفية", "type": "classwork", "weight": 40, "max": Decimal("10")},
-        {"title": "واجبات منزلية", "type": "homework", "weight": 30, "max": Decimal("10")},
-        {"title": "مشاركة صفية", "type": "participation", "weight": 30, "max": Decimal("10")},
+    ("S1", "AW"): [
+        {"title": "أعمال صفية", "type": "classwork", "weight": 50, "max": Decimal("10")},
+        {"title": "واجبات منزلية", "type": "homework", "weight": 50, "max": Decimal("10")},
     ],
     ("S2", "P3"): [
-        {"title": "اختبار منتصف الفصل الثاني", "type": "exam", "weight": 100, "max": Decimal("20")},
+        {"title": "اختبار منتصف الفصل الثاني", "type": "exam", "weight": 100, "max": Decimal("15")}
     ],
     ("S2", "P4"): [
-        {"title": "اختبار نهاية العام", "type": "exam", "weight": 100, "max": Decimal("30")},
+        {"title": "اختبار نهاية العام", "type": "exam", "weight": 100, "max": Decimal("40")}
+    ],
+    ("S2", "AW"): [
+        {"title": "أعمال صفية", "type": "classwork", "weight": 50, "max": Decimal("10")},
+        {"title": "واجبات منزلية", "type": "homework", "weight": 50, "max": Decimal("10")},
     ],
 }
 
@@ -200,22 +151,11 @@ def run():
                 if sc:
                     setups_n += 1
 
-                # الباقات بالأوزان الصحيحة
-                for sem, pkg_list in PACKAGES_CONFIG.items():
-                    for pc in pkg_list:
-                        _, pc_new = AssessmentPackage.objects.update_or_create(
-                            setup=setup,
-                            package_type=pc["type"],
-                            semester=sem,
-                            defaults={
-                                "school": school,
-                                "weight": pc["weight"],
-                                "semester_max_grade": pc["max"],
-                                "is_active": True,
-                            },
-                        )
-                        if pc_new:
-                            packages_n += 1
+                # الباقات بحسب الصفّ — الثاني عشر P2/P4 فقط
+                for sem in ("S1", "S2"):
+                    before = AssessmentPackage.objects.filter(setup=setup, semester=sem).count()
+                    after = len(GradeService.ensure_packages(setup, sem))
+                    packages_n += after - before
 
         print(f"  ✅ إعدادات: {setups_n} | باقات: {packages_n}")
 
@@ -308,9 +248,7 @@ def run():
     print("\n" + "═" * 55)
     print("🎉 اكتمل حقن التقييمات!")
     print(f"  ناجح: {passed}  |  راسب: {failed}  |  غير مكتمل: {incomp}")
-    print("\n📐 الأوزان المطبّقة:")
-    print("  الفصل الأول  (40): أعمال 50% + اختبار الفصل 50%")
-    print("  الفصل الثاني (60): أعمال 17% + نصفي 33% + نهائي 50%")
+    print("\n📐 البنية: 4–11 منتصف/نهاية/أعمال · الثاني عشر P2=40 وP4=60")
     print("  درجة النجاح السنوية: 50 من 100")
     print("═" * 55)
 

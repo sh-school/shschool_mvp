@@ -143,10 +143,17 @@ def registry() -> dict[str, Capability]:
             },
         ),
         _cap("assessments.oversee", "إعدادُ الموادّ ومتابعةُ المتعثّرين", leadership),
+        # الكشفُ صنفُ الطالب في موادّه **كلّها** (م12 تعدّ الراسبةَ جميعاً) ووسمُ بلوغ
+        # عتبة الحرمان — فلا يُقصر على قسم. والمنسّقُ «إشراف (نطاق القسم)»، ولا
+        # يرث قسمَه غيرُه (منسّقُ الأنشطة يرث المنسّق)؛ فالقدرةُ لمن نطاقُه المدرسة.
         _cap(
             "assessments.second_round",
             "كشفُ المؤهَّلين للدور الثاني",
-            {"principal", "vice_academic", "coordinator"},
+            {"principal", "vice_academic"},
+            basis=(
+                "rbac_permissions_matrix.md:51 (النائب الأكاديمي GRADING إشراف/اعتماد) "
+                "و:80 (منسّق المادّة: نطاق القسم)"
+            ),
         ),
         _cap(
             "grades.import",

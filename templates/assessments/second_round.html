@@ -24,7 +24,7 @@
     {% empty_state "لا شُعبَ في هذا العام" sub="أنشئ الشُّعبَ أوّلاً ثمّ عُد إلى هذه الشاشة" icon="students" %}
   {% else %}
 
-  {% section_card "يدخلون الدور الثاني" meta=sitting|length icon="failing_students" flush=True empty="لا أحدَ في هذه الشعبة يدخل الدور الثاني" empty_sub="راسبٌ في ثلاث موادّ فأقلّ، أو معذور، أو محروم — سياسة التقييم م12 وم29" %}{% if sitting %}
+  {% section_card "يدخلون الدور الثاني" meta=sitting|length icon="failing_students" flush=True empty="لا أحدَ في هذه الشعبة يدخل الدور الثاني" empty_sub="راسبٌ في ثلاث موادّ فأقلّ لم تُرفّعه قاعدة، أو معذور، أو بلغ عتبةَ الحرمان — سياسة التقييم م12 وم29 وم50" %}{% if sitting %}
     <div class="table-wrap">
       <table aria-label="طلبةُ الدور الثاني">
         <thead>
@@ -65,7 +65,7 @@
           <tr>
             <td>{{ row.student.full_name }}</td>
             <td><span class="status-badge {{ badges|get_item:row.decision.category }}">{{ row.decision.label }}</span></td>
-            <td>{{ row.decision.failed|join:"، "|default:"—" }}</td>
+            <td>{% if row.decision.promoted %}{{ row.decision.promoted|join:"، " }} — رُفِّع فيها{% else %}{{ row.decision.failed|join:"، "|default:"—" }}{% endif %}</td>
             <td>{{ row.decision.article|default:"—" }}</td>
           </tr>
           {% endfor %}
@@ -74,7 +74,7 @@
     </div>
   {% endif %}{% endsection_card %}
 
-  <p class="text-muted">الحرمانُ هنا تجاوزُ عتبة غياب نهاية الفصل الثاني في سجلّ الحضور، وقرارُه الرسميُّ لفريق إدارة سلوك الطلبة.</p>
+  <p class="text-muted">«بلغ عتبةَ الحرمان»: أيّامُ الغياب بلا عذرٍ حتّى عشيّة اختبار نهاية الفصل تجاوزت عتبتَه في سجلّ الحضور. وقرارُ عدم الأهليّة لفريق إدارة سلوك الطلبة، والشاشةُ لا تُصدره.</p>
   {% endif %}
 
 </div>
