@@ -16,6 +16,7 @@ from core.academic_calendar import academic_year_for, default_academic_year
 from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser, Membership
 
+from .evaluation_services import EvaluationRejectedError, axis_values, save_evaluation
 from .models import (
     _EVALUABLE_ROLES,
     EmployeeEvaluation,
@@ -172,19 +173,8 @@ def evaluation_dashboard(request):
 
 
 def _save_evaluation(request, obj, axes):
-    """معالجة POST لحفظ التقييم — يدعم المحاور الافتراضية والمخصصة"""
-    # المحاور الافتراضية الأربعة
-    for field_name, _label, _max_val in _DEFAULT_AXES:
-        val = int(request.POST.get(field_name, 0))
-        setattr(obj, field_name, val)
-
-    obj.strengths = request.POST.get("strengths", "")
-    obj.improvements = request.POST.get("improvements", "")
-    obj.goals_next = request.POST.get("goals_next", "")
-    obj.status = request.POST.get("action", "draft")
-    obj.evaluator = request.user
-    obj.save()
-
+    """معالجة POST: الحفظُ والتحقّقُ وقيدُ الجزاء في `evaluation_services.save_evaluation`."""
+    save_evaluation(evaluation=obj, evaluator=request.user, axes=axes, data=request.POST)
     AuditLog.log(
         user=request.user,
         action="update",
@@ -228,7 +218,11 @@ def create_evaluation(request, employee_id):
         obj.save(update_fields=["template"])
 
     if request.method == "POST":
-        _save_evaluation(request, obj, axes)
+        try:
+            _save_evaluation(request, obj, axes)
+        except EvaluationRejectedError as exc:
+            messages.error(request, str(exc))
+            return redirect(request.get_full_path())
         if obj.status == "submitted":
             messages.success(request, f"تم تقديم تقييم {employee.full_name} بنجاح.")
         else:
@@ -239,8 +233,9 @@ def create_evaluation(request, employee_id):
     scores = obj.scores.select_related("evaluator").all()
 
     # قيمةُ كلّ محور — كانت سلسلةَ `{% if %}` بأربعة فروعٍ مكرّرةً مرّتين في القالب.
-    # ومحورُ القالب المخصَّص الذي لا حقلَ له في النموذج يبدأ من صفر كما كان.
-    axis_rows = [(key, label, weight, getattr(obj, key, 0) or 0) for key, label, weight in axes]
+    # ومحورُ قالب الدور لا حقلَ له في النموذج: قيمتُه من درجات هذا المقيِّم.
+    values = axis_values(obj, request.user, axes)
+    axis_rows = [(key, label, weight, values[key]) for key, label, weight in axes]
     role_name = _get_employee_role(school, employee)
     subtitle_parts = [employee.full_name, role_name, obj.get_period_display(), year]
 
