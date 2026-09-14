@@ -599,7 +599,6 @@ document.addEventListener('click', function(e) {
 /* ── Dark Mode Toggle ────────────────────────────────────── */
 (function() {
   var btn = document.getElementById('theme-toggle');
-  var icon = document.getElementById('theme-icon');
   var meta = document.getElementById('meta-theme-color');
   var metaCS = document.getElementById('meta-color-scheme');
   if (!btn) return;
@@ -608,14 +607,15 @@ document.addEventListener('click', function(e) {
 
   function updateIcon() {
     var dark = isDark();
-    if (icon) icon.innerHTML = dark ? '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-sun"/></svg>' : '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-moon"/></svg>';
+    // الرسمان في القالب من قاموس الأيقونات — يُظهَر أحدُهما، فلا رسمَ يُكتب هنا
+    document.querySelectorAll('[data-theme-icon]').forEach(function (el) {
+      el.hidden = (el.getAttribute('data-theme-icon') === 'light') !== dark;
+    });
     // لونُ شريط المتصفّح من الرموز — العنّابيُّ نهاراً وأرضيّتُه ليلاً.
     if (meta) meta.content = getComputedStyle(document.documentElement)
       .getPropertyValue(dark ? '--maroon-bg' : '--maroon').trim();
     if (metaCS) metaCS.content = dark ? 'dark' : 'light';
-    var menuIcon = document.getElementById('theme-menu-icon');
     var menuText = document.getElementById('theme-menu-text');
-    if (menuIcon) menuIcon.innerHTML = dark ? '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-sun"/></svg>' : '<svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-moon"/></svg>';
     if (menuText) menuText.textContent = dark ? 'الوضع النهاري' : 'الوضع الليلي';
   }
 

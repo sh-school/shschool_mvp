@@ -168,6 +168,39 @@ def test_misuse_fails_loudly(src):
         _render(src)
 
 
+TEMPLATES = ROOT / "templates"
+ICON_TAG = re.compile(r'\{%\s*icon\s+"([^"]+)"')
+
+
+def _icon_calls():
+    for path in sorted(TEMPLATES.rglob("*.html")):
+        for key in ICON_TAG.findall(path.read_text(encoding="utf-8")):
+            yield path.relative_to(TEMPLATES).as_posix(), key
+
+
+@pytest.mark.parametrize("path,key", sorted(set(_icon_calls())))
+def test_every_requested_meaning_exists(path, key):
+    """الوسمُ يسقط عند العرض — وهذا يسقط قبله، في صفحةٍ لم يفتحها اختبار."""
+    assert key in ICONS, f"{path}: لا أيقونةَ بالمعنى {key!r}"
+
+
+def test_the_shell_speaks_only_the_dictionary():
+    """القائمةُ وشريطُ الهاتف والرأس: لا ورقةَ قديمة، ولا حرفَ يقوم مقامَ رسم."""
+    base = (TEMPLATES / "base" / "base.html").read_text(encoding="utf-8")
+    assert "components/icon.html" not in base
+    for glyph in ("☰", "✕", "📲"):
+        assert glyph not in base, glyph
+    assert '<path stroke-linecap="round"' not in base, "رسمٌ مكتوبٌ داخل القالب"
+
+
+def test_the_theme_toggle_carries_both_glyphs_from_the_dictionary():
+    """base.js يُظهر أحدَهما — كان يكتب رسمَ الورقة القديمة بعد أوّل نقرة."""
+    base = (TEMPLATES / "base" / "base.html").read_text(encoding="utf-8")
+    assert base.count('data-theme-icon="dark"') == base.count('data-theme-icon="light"') >= 2
+    js = (ROOT / "static" / "js" / "base.js").read_text(encoding="utf-8")
+    assert "#icon-sun" not in js and "#icon-moon" not in js
+
+
 def test_the_new_icon_classes_are_styled():
     css = (ROOT / "static" / "css" / "custom.css").read_text(encoding="utf-8")
     assert ".icon-hg" in css and ".icon-mirror" in css
