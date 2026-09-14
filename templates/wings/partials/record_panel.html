@@ -1,3 +1,4 @@
+{% load ui %}
 {% comment %}لوحُ رصد جناحٍ واحد — يقرؤه فهرسُ الرصد ولوحةُ المشرف الرئيسيّة.
 شريطُه يحمل أزرارَ التصدير، فهو لوحُ جناحٍ (`wing-panel`) لا `section_card`.{% endcomment %}
   <div class="wing-panel">
@@ -49,6 +50,8 @@
           </span>
           <span class="rec-chip__meta">{{ row.students }} طالباً</span>
         </a>
+      {% empty %}
+        {% empty_state "لا شُعبَ في هذا الجناح" icon="building" %}
       {% endfor %}
     </div>
   </div>

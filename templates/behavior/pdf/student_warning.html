@@ -4,7 +4,8 @@
 
 <div class="header">
   <div class="school-name">{{ school.name|default:"المدرسة" }}</div>
-  <div class="form-title">نموذج إنذار سلوكي</div>
+  {# عنوانُ الوثيقة `<h1>` لا `<div>`: الشكلُ من `.form-title` في الأب، والدلالةُ لفهرس PDF وقارئ الشاشة. #}
+  <h1 class="form-title">نموذج إنذار سلوكي</h1>
   <div class="date-line">التاريخ: {{ infraction.date|date:"Y/m/d" }}</div>
 </div>
 

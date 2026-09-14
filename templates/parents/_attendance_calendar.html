@@ -1,4 +1,6 @@
-{% comment %}تقويمُ حضورٍ أسابيعَ من خمسة أيّام — `weeks` من `parents.services.attendance_weeks`.{% endcomment %}
+{% load ui %}
+{% comment %}تقويمُ حضورٍ أسابيعَ من خمسة أيّام — `weeks` من `parents.services.attendance_weeks`. وبلا أسابيعَ لا يُرسم جدولٌ فارغٌ بل حالةُ الفراغ.{% endcomment %}
+    {% if weeks %}
     <div class="att-cal" role="table" aria-label="تقويم الحضور">
       <div class="att-cal__row att-cal__head" role="row">
         <span role="columnheader">أحد</span><span role="columnheader">إثنين</span><span role="columnheader">ثلاثاء</span><span role="columnheader">أربعاء</span><span role="columnheader">خميس</span>
@@ -21,3 +23,6 @@
       <li><i class="is-absent"></i>غياب</li>
       <li><i class="is-none"></i>بلا رصد</li>
     </ul>
+    {% else %}
+    {% empty_state "لا رصدَ في هذه الفترة" icon="calendar" %}
+    {% endif %}

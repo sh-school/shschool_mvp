@@ -1,4 +1,4 @@
-{% load sorting %}
+{% load sorting ui %}
 {% comment %}
   لوحُ سجلّ الإشعارات — الجزءُ الذي يُستبدَل وحدَه عند الفرز أو تغيير الصفحة.
 
@@ -50,6 +50,8 @@
             {% else %}—{% endif %}
           </td>
         </tr>
+        {% empty %}
+        <tr><td colspan="7">{% empty_state "لا إشعاراتٍ في السجلّ" icon="bell" %}</td></tr>
         {% endfor %}
       </tbody>
     </table>

@@ -1617,7 +1617,8 @@ html.dark .staff-name { color: var(--gold); }
 .attend-low      { color: var(--status-danger-fg);  }   /* <80%  */
 
 /* ── فري سلوتس / شبكة الحصص ── */
-.free-slots-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+/* والبطاقةُ أبو الجدول تمرِّره أفقيّاً إن ضاق الهاتفُ عن أيّامه الخمسة — بلا أثرٍ حيث يسع. */
+.free-slots-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; overflow-x: auto; }
 html.dark .free-slots-card { background: var(--surface); border-color: var(--border); }
 .free-slots-title { font-size: .9rem; font-weight: 700; color: var(--maroon-fg); margin-bottom: 10px; }
 .free-slots-th { background: var(--surface-alt); padding: 6px 8px; font-weight: 700; text-align: center; border: 1px solid var(--border); }
@@ -4892,6 +4893,10 @@ th[aria-sort="descending"] .th-sort-label {
 .exg-impossible { color: var(--status-danger-fg); font-weight: 600; }
 .exg-muted { color: var(--text-muted); font-weight: 400; }
 
+/* غلافُ الشبكة يُمرِّر أفقيّاً (حارسُ `tests/a11y_ratchet.py`): وهو غلافٌ باسمها لا
+   `table-wrap` — فقواعدُ ذاك للترويسة والخلايا (حشوٌ وتثبيتٌ وحجم) تُفسد خاناتِ
+   التفريغ الصغيرة. */
+.exg-scroll { overflow-x: auto; }
 .exg-grid { width: 100%; border-collapse: separate; border-spacing: 2px; }
 .exg-grid th {
   font-size: var(--text-xs); font-weight: 600;
