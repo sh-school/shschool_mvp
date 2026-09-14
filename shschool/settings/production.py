@@ -1,3 +1,5 @@
+from typing import Any
+
 from decouple import config
 from django.core.exceptions import ImproperlyConfigured
 
@@ -43,7 +45,7 @@ if SENTRY_DSN:
     #
     # `enable_tracing` وحدها لا تكفي: `traces_sampler` مضبوطاً يُفعّل التتبّع
     # ضمناً في بعض إصدارات المكتبة. فالوضعان صريحان ومتقابلان.
-    _sentry_performance = (
+    _sentry_performance: dict[str, Any] = (
         {
             "traces_sampler": traces_sampler,  # يتخطى health/static/media
             "profiles_sample_rate": 0.1,  # 10% profiling

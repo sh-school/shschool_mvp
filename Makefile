@@ -65,7 +65,7 @@ test:
 # الاختبارات داخل حاوية التطوير — كما يشغّلها CI تماماً.
 #
 # `docker exec … pytest` وحدَها تُشغّل الاختبارات على إعدادات *التطوير*: متغيّرُ
-# البيئة DJANGO_SETTINGS_MODULE في الحاوية يتغلّب على pytest.ini، وهناك Redis
+# البيئة DJANGO_SETTINGS_MODULE في الحاوية يتغلّب على pyproject.toml، وهناك Redis
 # موجودٌ فـCelery غيرُ فوريّ — فمهمّةُ التوليد تذهب إلى العامل الحقيقيّ خارج
 # معاملة الاختبار ويرى الاختبارُ «queued». فتخضرّ اختباراتٌ كاذبةً وتحمرّ صادقة.
 # هذا الهدف يمرّر إعدادات الاختبار ويُعيد توجيه قاعدة الاختبار إلى `db`.
@@ -74,14 +74,12 @@ T ?= tests/
 test-docker:
 	docker exec -i shschool-dev-web sh -c '	  DJANGO_SETTINGS_MODULE=shschool.settings.testing 	  TEST_DB_HOST=$$DB_HOST TEST_DB_PORT=$$DB_PORT 	  TEST_DB_USER=$$DB_USER TEST_DB_PASSWORD=$$DB_PASSWORD 	  python -m pytest $(T) -q -p no:cacheprovider'
 
-# الاختبارات + Coverage Gate 80%
+# الاختبارات + عتبةُ التغطية (الرقمُ والاستثناءاتُ في pyproject.toml وحدَه)
 test-cov:
-	pytest tests/ -v \
+	pytest \
 	  --cov=. \
 	  --cov-report=html:htmlcov \
-	  --cov-report=term-missing \
-	  --cov-fail-under=70 \
-	  --cov-omit="*/migrations/*,*/tests/*,manage.py,*/settings/*,*/.venv/*"
+	  --cov-report=term-missing
 	@echo "التقرير: htmlcov/index.html"
 
 # جودة الكود — ruff
@@ -129,12 +127,10 @@ ci:
 	  --severity-level high \
 	  --confidence-level high
 	@echo ""
-	@echo "=== 3. pytest + Coverage ==="
-	pytest tests/ -v \
+	@echo "=== 3. pytest + Coverage (العتبة والاستثناءات في pyproject.toml) ==="
+	pytest \
 	  --cov=. \
 	  --cov-report=term-missing \
-	  --cov-fail-under=70 \
-	  --cov-omit="*/migrations/*,*/tests/*,manage.py,*/settings/*,*/.venv/*" \
 	  -q
 	@echo ""
 	@echo "CI محلي: اجتاز جميع الفحوصات"

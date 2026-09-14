@@ -157,90 +157,68 @@ else
     fi
 fi
 
-# ── 2. Gunicorn config check ──────────────────────────────────────────
-echo -e "\n${BOLD}[2/10] Gunicorn config check${NC}"
-if [ ! -f "gunicorn.conf.py" ]; then
-    fail_check "gunicorn.conf.py not found"
+# ── 2. Procfile / daphne check ────────────────────────────────────────
+# كان هنا فحصُ `gunicorn.conf.py` — وما يخدم الإنتاجَ daphne (Procfile وDockerfile)،
+# فأُزيل الملفُّ والحزمةُ (2026-09-14) وصار الفحصُ لما يُشغَّل فعلاً.
+echo -e "\n${BOLD}[2/10] Procfile / daphne check${NC}"
+if [ ! -f "Procfile" ]; then
+    fail_check "Procfile not found"
 else
-    # Check worker_class — if uvicorn is set, verify it is installed
-    WORKER_CLASS=$($PYTHON -c "
-import os, runpy
-os.environ.setdefault('PORT', '8000')
-conf = runpy.run_path('gunicorn.conf.py')
-print(conf.get('worker_class', 'sync'))
-" 2>/dev/null || echo "UNKNOWN")
-
-    if [[ "$WORKER_CLASS" == *uvicorn* ]]; then
-        if $PYTHON -c "import uvicorn" 2>/dev/null; then
-            pass_check "worker_class=$WORKER_CLASS (uvicorn installed)"
-        else
-            fail_check "worker_class=$WORKER_CLASS but uvicorn is NOT installed"
-        fi
-    elif [[ "$WORKER_CLASS" == "sync" || "$WORKER_CLASS" == "gthread" ]]; then
-        pass_check "worker_class=$WORKER_CLASS (standard WSGI)"
+    WEB_LINE=$(grep -E '^web:' Procfile || true)
+    if [ -z "$WEB_LINE" ]; then
+        fail_check "Procfile has no web process"
+    elif [[ "$WEB_LINE" != *daphne* ]] || [[ "$WEB_LINE" != *"shschool.asgi:application"* ]]; then
+        fail_check "web process must run daphne with shschool.asgi:application: $WEB_LINE"
+    elif [[ "$WEB_LINE" != *'-p ${PORT'* ]] && [[ "$WEB_LINE" != *'-p $PORT'* ]]; then
+        fail_check "web process must bind daphne to \$PORT: $WEB_LINE"
     else
-        warn_check "worker_class=$WORKER_CLASS (unexpected value)"
+        pass_check "Procfile runs daphne (ASGI) on \$PORT"
     fi
 
-    # Check bind uses $PORT
-    BIND_VALUE=$($PYTHON -c "
-import os, runpy
-os.environ.setdefault('PORT', '8000')
-conf = runpy.run_path('gunicorn.conf.py')
-print(conf.get('bind', ''))
-" 2>/dev/null || echo "")
-
-    if [[ "$BIND_VALUE" == *"0.0.0.0"* ]]; then
-        pass_check "bind=$BIND_VALUE (respects \$PORT)"
+    if $PYTHON -c "import daphne, channels" 2>/dev/null; then
+        pass_check "daphne + channels importable"
     else
-        fail_check "bind=$BIND_VALUE (should use 0.0.0.0:\$PORT)"
+        fail_check "daphne/channels not installed"
     fi
 fi
 
-# ── 3. Local gunicorn test ─────────────────────────────────────────────
-echo -e "\n${BOLD}[3/10] Local gunicorn boot test${NC}"
-# gunicorn uses fcntl which is Linux-only — skip boot test on Windows
+# ── 3. Local daphne boot test ──────────────────────────────────────────
+echo -e "\n${BOLD}[3/10] Local daphne boot test${NC}"
 IS_WINDOWS=false
 if [[ "$(uname -s)" == MINGW* ]] || [[ "$(uname -s)" == MSYS* ]] || [[ "$(uname -s)" == CYGWIN* ]] || [[ "${OS:-}" == "Windows_NT" ]]; then
     IS_WINDOWS=true
 fi
 
 if $IS_WINDOWS; then
-    warn_check "gunicorn boot test skipped on Windows (fcntl unavailable — test runs in CI/Docker)"
+    warn_check "daphne boot test skipped on Windows (background-process handling differs — test runs in CI/Docker)"
     echo -e "\n${BOLD}[4/10] Health endpoint check${NC}"
-    warn_check "health check skipped on Windows (depends on gunicorn)"
-elif ! $PYTHON -c "import gunicorn" 2>/dev/null; then
-    fail_check "gunicorn not installed"
+    warn_check "health check skipped on Windows (depends on the boot test)"
+elif ! $PYTHON -c "import daphne" 2>/dev/null; then
+    fail_check "daphne not installed"
 else
     export PORT=19876
-    # Start gunicorn in background, capture PID
-    $PYTHON -m gunicorn shschool.wsgi:application \
-        --bind "0.0.0.0:$PORT" \
-        --workers 1 \
-        --timeout 10 \
-        --log-level error \
-        --error-logfile - \
-        --access-logfile /dev/null \
-        --pid /tmp/preflight_gunicorn.pid \
-        &>/tmp/preflight_gunicorn.log &
-    GUNICORN_PID=$!
+    $PYTHON -m daphne -b 127.0.0.1 -p "$PORT" shschool.asgi:application \
+        &>/tmp/preflight_daphne.log &
+    DAPHNE_PID=$!
 
-    # Wait up to 5 seconds for it to boot
+    # Wait up to 8 seconds for it to boot
     BOOTED=false
-    for i in 1 2 3 4 5; do
+    for i in 1 2 3 4 5 6 7 8; do
         sleep 1
-        if kill -0 "$GUNICORN_PID" 2>/dev/null; then
+        if ! kill -0 "$DAPHNE_PID" 2>/dev/null; then
+            break
+        fi
+        if curl -s -o /dev/null --max-time 2 "http://127.0.0.1:$PORT/health/" 2>/dev/null; then
             BOOTED=true
-        else
             break
         fi
     done
 
     if $BOOTED; then
-        pass_check "gunicorn booted successfully on port $PORT"
+        pass_check "daphne booted successfully on port $PORT"
     else
-        BOOT_LOG=$(cat /tmp/preflight_gunicorn.log 2>/dev/null | tail -5)
-        fail_check "gunicorn failed to boot: $BOOT_LOG"
+        BOOT_LOG=$(tail -5 /tmp/preflight_daphne.log 2>/dev/null || true)
+        fail_check "daphne failed to boot: $BOOT_LOG"
     fi
 
     # ── 4. Health endpoint check ────────────────────────────────────────
@@ -253,13 +231,12 @@ else
             fail_check "/health/ returned HTTP $HTTP_CODE (expected 200)"
         fi
     else
-        fail_check "/health/ skipped (gunicorn not running)"
+        fail_check "/health/ skipped (daphne not running)"
     fi
 
-    # Kill gunicorn
-    kill "$GUNICORN_PID" 2>/dev/null || true
-    wait "$GUNICORN_PID" 2>/dev/null || true
-    rm -f /tmp/preflight_gunicorn.pid /tmp/preflight_gunicorn.log
+    kill "$DAPHNE_PID" 2>/dev/null || true
+    wait "$DAPHNE_PID" 2>/dev/null || true
+    rm -f /tmp/preflight_daphne.log
     unset PORT
 fi
 

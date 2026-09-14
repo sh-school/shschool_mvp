@@ -15,7 +15,7 @@ collect_ignore_glob = [
     "tests/e2e/**",
 ]
 
-#: إعداداتُ الاختبار كما يعرفها CI — وهي ما في pytest.ini.
+#: إعداداتُ الاختبار كما يعرفها CI — وهي ما في `[tool.pytest.ini_options]` بـpyproject.toml.
 _TESTING_SETTINGS = "shschool.settings.testing"
 
 
@@ -23,7 +23,7 @@ def pytest_sessionstart(session):
     """اختبارٌ يخضرّ كاذباً أسوأُ من اختبارٍ يحمرّ.
 
     داخل حاوية التطوير يكون `DJANGO_SETTINGS_MODULE=…development` في البيئة،
-    والبيئةُ تتغلّب على pytest.ini. وإعداداتُ التطوير تجعل Celery غيرَ فوريّ
+    والبيئةُ تتغلّب على pyproject.toml. وإعداداتُ التطوير تجعل Celery غيرَ فوريّ
     حين يوجد Redis — فمهمّةُ توليد الجدول تذهب إلى العامل الحقيقيّ خارج معاملة
     الاختبار، ويرى الاختبارُ «queued» ويسقط، بينما CI أخضر. وأخطرُ منه العكس:
     اختبارٌ يمرّ محلّياً لأنّ العامل أنجز شيئاً لم يُقَس.

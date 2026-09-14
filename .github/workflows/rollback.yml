@@ -1,186 +1,220 @@
-name: Rollback — Railway Emergency Rollback
+name: Rollback — التراجعُ إلى commit سابق
+
+# ══════════════════════════════════════════════════════
+#  كيف يتراجع الإنتاجُ فعلاً
+# ══════════════════════════════════════════════════════
+#
+# Railway ينشر من تكامل GitHub لحظةَ وصول commit إلى `main` — لا من هذا
+# المستودع ولا من Actions. وكانت هذه الوظيفةُ تعمل `git checkout <sha>` على
+# عدّاء CI (لا أثرَ له في أيّ مكان) ثمّ تستدعي `RAILWAY_DEPLOY_WEBHOOK`، وهو
+# سرٌّ أُزيل من `deploy-railway.yml` لأنّه مصدرُ نشرٍ ثانٍ مخبّأ — فكانت «تتراجع»
+# بنجاحٍ أخضر ولا يتغيّر شيء. ولا `RAILWAY_TOKEN` في أسرار المستودع ولا في
+# بيئة `production` (تحقّقٌ بـ`gh secret list` يوم 2026-09-14)، فلا CLI ولا API.
+#
+# فالتراجعُ الصادق الوحيدُ من هنا هو ما يُغيّر `main`:
+#
+#   ١. `revert-pr` (الافتراضيّ): إيداعٌ جديدٌ فوق `main` شجرتُه شجرةُ الهدف
+#      حرفيّاً (`git commit-tree`) — لا `git revert` لكلّ إيداعٍ على حدة، فذاك
+#      يتعثّر بإيداعات الدمج ويحتاج `-m 1` — ثمّ طلبُ دمجٍ يمرّ على البوّابات
+#      كأيّ طلب. دمجُه يدفع Railway إلى نشر شجرة الهدف، والكناري في
+#      `deploy-railway.yml` يُثبت أنّ الإيداعَ الجديد صار حيّاً.
+#
+#   ٢. `verify_only`: بعد الدمج (أو بعد تراجعٍ يدويّ من لوحة Railway) — يقارن
+#      `commit` الذي يخدمه `/health/` بالـSHA المطلوب، ويفشل بصوتٍ عالٍ إن خالفه.
+#
+# والطريقُ اليدويّ حين يكون GitHub نفسُه هو العطب:
+#   Railway → Project → web → Deployments → النشرُ السابق السليم → ⋯ → Rollback
+#   (والعامل `worker` كذلك إن كان التغييرُ يمسّه). ثمّ شغّل هذه الوظيفة بـ
+#   `verify_only=true` وSHA النشر الذي عُدت إليه.
 
 on:
   workflow_dispatch:
     inputs:
       commit_sha:
-        description: "Commit SHA to rollback to"
+        description: "SHA الهدف: ما يُراد أن يخدمه الإنتاج (كاملاً أو 7 خانات)"
         required: true
         type: string
       reason:
-        description: "Reason for rollback"
+        description: "سببُ التراجع (يُكتب في طلب الدمج)"
         required: false
         type: string
-        default: "Manual rollback"
+        default: "تراجعٌ يدويّ"
+      verify_only:
+        description: "لا تُنشئ طلبَ دمج — تحقّق فقط أنّ الإنتاج يخدم commit_sha"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
   group: railway-deploy
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+
+env:
+  PRODUCTION_URL: ${{ secrets.PRODUCTION_URL || 'https://shschoolmvp-production.up.railway.app' }}
 
 jobs:
   # ══════════════════════════════════════════════════════
-  #  1. Validate and rollback
+  #  1. طلبُ دمجٍ يُعيد شجرةَ main إلى شجرة الهدف
   # ══════════════════════════════════════════════════════
-  rollback:
-    name: Rollback to ${{ inputs.commit_sha }}
+  revert-pr:
+    name: طلبُ دمجِ التراجع إلى ${{ inputs.commit_sha }}
+    if: ${{ !inputs.verify_only }}
     runs-on: ubuntu-latest
-    environment: production
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Full history to access any commit
+          ref: main
+          fetch-depth: 0 # التاريخُ كاملاً — الهدفُ قد يكون قديماً
 
-      - name: Validate commit SHA exists
+      - name: التحقّق من الهدف
+        id: target
         run: |
-          echo "Rollback requested to: ${{ inputs.commit_sha }}"
-          echo "Reason: ${{ inputs.reason }}"
-
-          if ! git cat-file -t "${{ inputs.commit_sha }}" 2>/dev/null; then
-            echo "::error::Commit SHA ${{ inputs.commit_sha }} not found in repository"
+          set -euo pipefail
+          TARGET="$(git rev-parse --verify --quiet '${{ inputs.commit_sha }}^{commit}' || true)"
+          if [ -z "$TARGET" ]; then
+            echo "::error::لا commit بهذا الـSHA في المستودع: ${{ inputs.commit_sha }}"
             exit 1
           fi
-
-          COMMIT_MSG=$(git log --format="%s" -1 "${{ inputs.commit_sha }}")
-          COMMIT_DATE=$(git log --format="%ci" -1 "${{ inputs.commit_sha }}")
-          echo "Rolling back to: $COMMIT_MSG ($COMMIT_DATE)"
-
-          echo "## Rollback Details" >> $GITHUB_STEP_SUMMARY
-          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Target commit | \`${{ inputs.commit_sha }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Commit message | $COMMIT_MSG |" >> $GITHUB_STEP_SUMMARY
-          echo "| Commit date | $COMMIT_DATE |" >> $GITHUB_STEP_SUMMARY
-          echo "| Reason | ${{ inputs.reason }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Triggered by | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
-
-      - name: Checkout target commit
-        run: git checkout "${{ inputs.commit_sha }}"
-
-      - name: Trigger Railway deploy webhook (rollback)
-        run: |
-          echo "Triggering Railway deploy for rollback commit ${{ inputs.commit_sha }}..."
-
-          HTTP_CODE=$(curl -s -o /tmp/railway_response.txt -w "%{http_code}" \
-            -X POST "${{ secrets.RAILWAY_DEPLOY_WEBHOOK }}")
-
-          echo "Railway webhook response: HTTP $HTTP_CODE"
-          cat /tmp/railway_response.txt || true
-
-          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
-            echo "::error::Railway rollback webhook failed with HTTP $HTTP_CODE"
+          if ! git merge-base --is-ancestor "$TARGET" origin/main; then
+            echo "::error::$TARGET ليس سلفاً لـmain — التراجعُ يكون إلى ما كان على main يوماً"
             exit 1
           fi
+          if [ "$(git rev-parse "$TARGET^{tree}")" = "$(git rev-parse 'origin/main^{tree}')" ]; then
+            echo "::error::شجرةُ main هي شجرةُ الهدف أصلاً — لا شيءَ يُتراجَع عنه"
+            exit 1
+          fi
+          echo "sha=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "short=${TARGET:0:7}" >> "$GITHUB_OUTPUT"
+          {
+            echo "## التراجع"
+            echo "| البند | القيمة |"
+            echo "|-------|--------|"
+            echo "| الهدف | \`$TARGET\` |"
+            echo "| رسالتُه | $(git log --format=%s -1 "$TARGET") |"
+            echo "| تاريخُه | $(git log --format=%ci -1 "$TARGET") |"
+            echo "| ما يُلغى | $(git rev-list --count "$TARGET..origin/main") إيداعاً على main بعده |"
+            echo "| السبب | ${{ inputs.reason }} |"
+            echo "| طلبه | ${{ github.actor }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-          echo "Railway rollback deploy triggered"
-
-      - name: Wait for Railway deployment to stabilize
+      - name: إيداعٌ شجرتُه شجرةُ الهدف، على فرعٍ جديد
+        id: branch
+        env:
+          TARGET: ${{ steps.target.outputs.sha }}
+          SHORT: ${{ steps.target.outputs.short }}
+          REASON: ${{ inputs.reason }}
         run: |
-          echo "Waiting 60s for Railway to rebuild and deploy..."
-          sleep 60
+          set -euo pipefail
+          BRANCH="rollback/${SHORT}-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          NEW=$(git commit-tree "$TARGET^{tree}" -p origin/main \
+            -m "revert: التراجعُ إلى ${SHORT} — ${REASON}" \
+            -m "شجرةُ هذا الإيداع هي شجرةُ ${TARGET} حرفيّاً؛ ما بعده على main يُلغى أثرُه دون حذف تاريخه." \
+            -m "Rollback-Target: ${TARGET}")
+          git branch "$BRANCH" "$NEW"
+          git push origin "$BRANCH"
+          echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "commit=$NEW" >> "$GITHUB_OUTPUT"
+
+      - name: فتحُ طلب الدمج
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ steps.branch.outputs.name }}
+          TARGET: ${{ steps.target.outputs.sha }}
+          SHORT: ${{ steps.target.outputs.short }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          set -euo pipefail
+          BODY=$(cat <<EOF
+          ## تراجعٌ إلى \`${SHORT}\`
+
+          **السبب:** ${REASON}
+          **طلبه:** @${{ github.actor }} — [التشغيل](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+          هذا الإيداعُ يُعيد شجرةَ \`main\` إلى شجرة \`${TARGET}\` حرفيّاً (\`git commit-tree\`)،
+          فيُلغي أثرَ كلّ ما دُمج بعده دون حذف تاريخه.
+
+          ### ما بعد الدمج
+          - Railway ينشر تلقائيّاً، والكناري في \`deploy-railway.yml\` يُثبت أنّ إيداعَ الدمج صار حيّاً.
+          - وللتحقّق اليدويّ: \`gh workflow run rollback.yml -f commit_sha=<SHA إيداع الدمج> -f verify_only=true\`.
+          - **الهجرات لا تُتراجَع تلقائيّاً**: إن كان بين الهدف وmain هجرةٌ حذفت عموداً أو جدولاً فالبياناتُ ذهبت،
+            وإن أضافت عموداً فيبقى العمودُ بلا شيفرةٍ تقرؤه — راجع \`git diff ${SHORT}..main -- '*/migrations/*'\` قبل الدمج.
+
+          ### إن لم تبدأ الفحوصُ على هذا الطلب
+          طلبٌ يفتحه \`GITHUB_TOKEN\` لا يُطلق سيرَ عملٍ آخر (قاعدةُ GitHub). أغلقه وأعد فتحه
+          (\`gh pr close\` ثمّ \`gh pr reopen\`) أو ادفع إيداعاً فارغاً على الفرع — فتبدأ البوّابات.
+
+          ### إن كان GitHub نفسُه هو العطب
+          Railway → web → Deployments → النشرُ السابق السليم → Rollback (والعامل \`worker\` كذلك إن لزم).
+          EOF
+          )
+          URL=$(gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "revert: التراجعُ إلى ${SHORT} — ${REASON}" \
+            --body "$BODY" \
+            --label rollback 2>/dev/null \
+            || gh pr create --base main --head "$BRANCH" \
+                 --title "revert: التراجعُ إلى ${SHORT} — ${REASON}" --body "$BODY")
+          echo "طلبُ الدمج: $URL"
+          {
+            echo ""
+            echo "طلبُ الدمج: $URL"
+            echo ""
+            echo "**التراجعُ لا يقع قبل دمجه.** بعد الدمج يُثبت كناري \`deploy-railway.yml\` أنّه صار حيّاً."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # ══════════════════════════════════════════════════════
-  #  2. Post-rollback smoke tests
+  #  2. التحقّق: هل يخدم الإنتاجُ الهدفَ فعلاً؟
   # ══════════════════════════════════════════════════════
-  smoke-test:
-    name: Post-Rollback Smoke Tests
+  verify:
+    name: التحقّق أنّ الإنتاج يخدم ${{ inputs.commit_sha }}
+    if: ${{ inputs.verify_only }}
     runs-on: ubuntu-latest
-    needs: [rollback]
+    timeout-minutes: 15
 
     steps:
-      - name: "Smoke test: /health/ endpoint"
-        id: health_check
+      - name: مقارنةُ commit من /health/ بالهدف
         run: |
-          PROD_URL="${{ secrets.PRODUCTION_URL }}"
-          if [ -z "$PROD_URL" ]; then
-            echo "::warning::PRODUCTION_URL secret not set — skipping smoke tests"
-            echo "health_ok=skip" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "Checking $PROD_URL/health/ after rollback..."
-
-          for attempt in 1 2 3 4 5; do
-            HTTP_CODE=$(curl -s -o /tmp/health_response.txt -w "%{http_code}" \
-              --max-time 15 "$PROD_URL/health/" 2>/dev/null || echo "000")
-
-            echo "Attempt $attempt: HTTP $HTTP_CODE"
-
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "health_ok=true" >> $GITHUB_OUTPUT
-              echo "Health check passed after rollback"
-              cat /tmp/health_response.txt || true
-              break
+          set -uo pipefail
+          WANT="$(echo '${{ inputs.commit_sha }}' | cut -c1-7)"
+          echo "الهدف: $WANT — على $PRODUCTION_URL/health/"
+          SERVED=""; HTTP_CODE="000"
+          # ١٨ محاولة × (١٥ث + ٢٥ث) ≈ ١٢ دقيقة — زمنُ بناءٍ ونشرٍ على Railway.
+          for attempt in $(seq 1 18); do
+            HTTP_CODE=$(curl -s -o /tmp/health.json -w "%{http_code}" --max-time 15 "$PRODUCTION_URL/health/" 2>/dev/null || echo "000")
+            SERVED=$(python3 -c "import sys,json; print(json.load(open('/tmp/health.json')).get('commit',''))" 2>/dev/null || echo "")
+            echo "المحاولة $attempt: HTTP $HTTP_CODE | served=${SERVED:-?} want=$WANT"
+            if [ "$HTTP_CODE" = "200" ] && [ "$SERVED" = "$WANT" ]; then
+              {
+                echo "## التحقّق من التراجع"
+                echo "| البند | القيمة |"
+                echo "|-------|--------|"
+                echo "| الهدف | \`$WANT\` |"
+                echo "| ما يخدمه الإنتاج | \`$SERVED\` |"
+                echo "| /health/ | HTTP $HTTP_CODE |"
+                echo "| الحكم | PASS — الإنتاجُ على الهدف |"
+              } >> "$GITHUB_STEP_SUMMARY"
+              cat /tmp/health.json
+              exit 0
             fi
-
-            if [ "$attempt" -lt 5 ]; then
-              echo "Retrying in 15s..."
-              sleep 15
-            fi
+            [ "$attempt" -lt 18 ] && sleep 25
           done
-
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "health_ok=false" >> $GITHUB_OUTPUT
-            echo "::error::Health check failed after rollback — /health/ returned HTTP $HTTP_CODE"
-          fi
-
-      - name: "Smoke test: / returns HTML"
-        id: html_check
-        run: |
-          PROD_URL="${{ secrets.PRODUCTION_URL }}"
-          if [ -z "$PROD_URL" ]; then
-            echo "html_ok=skip" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 15 "$PROD_URL/" 2>/dev/null || echo "000")
-
-          CONTENT_TYPE=$(curl -s -o /dev/null -w "%{content_type}" \
-            --max-time 15 "$PROD_URL/" 2>/dev/null || echo "")
-
-          echo "HTTP $HTTP_CODE, Content-Type: $CONTENT_TYPE"
-
-          if echo "$CONTENT_TYPE" | grep -qi "text/html"; then
-            echo "html_ok=true" >> $GITHUB_OUTPUT
-            echo "HTML response confirmed after rollback"
-          else
-            echo "html_ok=false" >> $GITHUB_OUTPUT
-            echo "::warning::Root URL did not return HTML after rollback"
-          fi
-
-      - name: Rollback smoke test summary
-        if: always()
-        run: |
-          echo "## Post-Rollback Smoke Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "| Test | Result |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
-
-          HEALTH="${{ steps.health_check.outputs.health_ok }}"
-          HTML="${{ steps.html_check.outputs.html_ok }}"
-
-          case "$HEALTH" in
-            true)  echo "| /health/ endpoint | PASS |" >> $GITHUB_STEP_SUMMARY ;;
-            skip)  echo "| /health/ endpoint | SKIPPED |" >> $GITHUB_STEP_SUMMARY ;;
-            *)     echo "| /health/ endpoint | FAIL |" >> $GITHUB_STEP_SUMMARY ;;
-          esac
-
-          case "$HTML" in
-            true)  echo "| / HTML response | PASS |" >> $GITHUB_STEP_SUMMARY ;;
-            skip)  echo "| / HTML response | SKIPPED |" >> $GITHUB_STEP_SUMMARY ;;
-            *)     echo "| / HTML response | FAIL |" >> $GITHUB_STEP_SUMMARY ;;
-          esac
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Rollback target: \`${{ github.event.inputs.commit_sha }}\`" >> $GITHUB_STEP_SUMMARY
-
-          if [ "$HEALTH" = "false" ]; then
-            echo "::error::CRITICAL — Rollback smoke test failed! Manual intervention required."
-            exit 1
-          fi
-
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Rollback completed successfully." >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## التحقّق من التراجع"
+            echo "| البند | القيمة |"
+            echo "|-------|--------|"
+            echo "| الهدف | \`$WANT\` |"
+            echo "| ما يخدمه الإنتاج | \`${SERVED:-?}\` |"
+            echo "| /health/ | HTTP $HTTP_CODE |"
+            echo "| الحكم | FAIL — الإنتاجُ ليس على الهدف |"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::error::الإنتاجُ يخدم '${SERVED:-?}' (HTTP $HTTP_CODE) لا الهدفَ $WANT — التراجعُ لم يقع. الطريقُ اليدويّ في رأس هذا الملفّ."
+          exit 1

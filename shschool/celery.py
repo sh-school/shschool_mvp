@@ -51,7 +51,7 @@ app.conf.beat_schedule = {
     },
 }
 
-app.conf.timezone = "Asia/Qatar"
+app.conf.update(timezone="Asia/Qatar")
 
 # ── v5.2: Task reliability — retry + ack-late + reject on worker lost ──────
 app.conf.task_acks_late = True  # Ack بعد اكتمال المهمة (لا قبلها)
