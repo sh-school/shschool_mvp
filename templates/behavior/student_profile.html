@@ -56,9 +56,11 @@
             {% if is_committee and inf.level == 4 and not inf.security_agency %}
             <a href="{% url 'behavior:security_referral' inf.id %}" class="btn-danger btn-xs">{% icon "security" %} إحالة أمنية</a>
             {% endif %}
+            {% if can_print_forms %}
             <a data-app-file href="{% url 'behavior:warning_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% icon "print" %} إنذار</a>
             <a data-app-file href="{% url 'behavior:parent_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% icon "print" %} تعهد ولي</a>
             <a data-app-file href="{% url 'behavior:student_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% icon "print" %} تعهد طالب</a>
+            {% endif %}
           </div>
         </li>
       {% endfor %}

@@ -11,8 +11,11 @@
 {% block content %}
 <div class="exec-dash">
   {% page_header "مركز معلومات الطلبة" subtitle=subtitle icon="student_info" %}
+    {# المستوياتُ والأنشطةُ ليست من مهامّ المشرف الإداريّ — والشاشتان تردّانه 404 #}
+    {% if not wing_bound %}
     <a href="{% url 'student_info:levels' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "grades" %} المستويات التعليمية</a>
     <a href="{% url 'student_info:activities' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "activities" %} الأنشطة</a>
+    {% endif %}
   {% endpage_header %}
 
   {% comment %}

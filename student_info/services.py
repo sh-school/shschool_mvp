@@ -204,14 +204,17 @@ def student_average(student, year):
     }
 
 
-def notes_by_category(student, year):
-    """ملاحظاتُ الطالب مجموعةً بجهاتها، وكلُّ جهةٍ حاضرةٌ ولو خالية."""
-    grouped = OrderedDict((key, []) for key, _ in NOTE_CATEGORIES)
-    for note in (
-        StudentNote.objects.filter(student=student, academic_year=year)
-        .select_related("created_by")
-        .order_by("-occurred_on", "-created_at")
-    ):
+def notes_by_category(student, year, hidden=()):
+    """ملاحظاتُ الطالب مجموعةً بجهاتها، وكلُّ جهةٍ حاضرةٌ ولو خالية.
+
+    و`hidden` خاناتٌ لا يقرؤها صاحبُ الطلب (ملاحظاتُ الأخصائيَّين للمشرف): تُستبعد
+    من الاستعلام نفسِه لا من العرض، فلا تبلغ الذاكرةَ ولا القالبَ ولا سجلَّ التدقيق.
+    """
+    grouped = OrderedDict((key, []) for key, _ in NOTE_CATEGORIES if key not in hidden)
+    notes = StudentNote.objects.filter(student=student, academic_year=year)
+    if hidden:
+        notes = notes.exclude(category__in=hidden)
+    for note in notes.select_related("created_by").order_by("-occurred_on", "-created_at"):
         grouped[note.category].append(note)
     return grouped
 

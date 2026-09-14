@@ -26,7 +26,7 @@ from clinic.models import ClinicVisit, HealthRecord
 from core import brand
 from core.academic_calendar import academic_year_for, academic_year_window
 from core.audit_export import log_export
-from core.capabilities import capability_required
+from core.capabilities import capability_required, has_capability
 from core.domain.attendance import attendance_rate
 from core.domain.tones import ATTENDANCE_SUMMARY, tone_for
 from core.export_utils import (
@@ -59,6 +59,7 @@ from operations.absence_standing import standing_for
 from operations.models import AbsenceAlert, Session, StudentAttendance
 from operations.presence import presence_now
 from operations.tardiness import tardiness_now
+from wings.scope import student_scope_for
 
 from .models import StudentActivity, StudentTransfer
 
@@ -72,18 +73,33 @@ logger = logging.getLogger(__name__)
 # ═════════════════════════════════════════════════════════════════════
 
 
+def _year_in_scope(request, scope) -> str:
+    """العامُ المعروض — `?year=` لغير المقيَّد كما كان، والمقيَّدُ بجناحه على عامه الجاري.
+
+    فالرابطُ لا يوسّع نطاقَ المشرف إلى شُعب عامٍ مضى (`StudentScope.year_for`). ويُقرأ
+    العامُ الجاري بعد `?year=` لا قبله، فلا يزيد على القيادة استعلامٌ حين تمرّره.
+    """
+    requested = request.GET.get("year")
+    if requested and not scope.is_wing_bound:
+        return requested
+    return scope.year_for(requested, scope.year or academic_year_for(request))
+
+
 @login_required
-@capability_required("student_affairs.manage")
+# متابعةُ اليوم — الغائبون والمتأخّرون ومخالفاتُ اليوم — عملُ المشرف الإداريّ اليوميّ،
+# فيفتحها بقدرة المتابعة ويرى فيها طلبةَ جناحه وحدَهم (قرارُ المستخدم 2026-09-14).
+@capability_required("student_affairs.follow_up")
 def student_dashboard(request):
     """لوحة شؤون الطلاب — KPIs عبر Service Layer."""
     from .services import StudentService
 
     school = request.school
     today = timezone.localdate()
-    year = request.GET.get("year") or academic_year_for(request)
+    scope = student_scope_for(request)
+    year = _year_in_scope(request, scope)
 
     # ✅ v5.4: StudentService.get_dashboard_context — جميع queries في service layer
-    ctx = StudentService.get_dashboard_context(school, year, today=today)
+    ctx = StudentService.get_dashboard_context(school, year, today=today, scope=scope)
     att = ctx["today_attendance"]
     total_students = ctx["total_students"]
     absent_today = att["absent"] or 0
@@ -100,7 +116,11 @@ def student_dashboard(request):
             "today": today,
             "year": year,
             "current_school": school,
-            "page_subtitle": _dated_subtitle(getattr(school, "name", ""), year, today),
+            "page_subtitle": _dated_subtitle(
+                getattr(school, "name", ""), year, today, wing_bound=scope.is_wing_bound
+            ),
+            # القالبُ يُخفي عن المقيَّد روابطَ ما لا يفتحه — والحراسةُ على الشاشات.
+            "limited": scope.is_wing_bound,
             "total_students": total_students,
             "absent_today": absent_today,
             "late_today": late_today,
@@ -138,9 +158,13 @@ _LEVEL_BADGE = {1: "status-success", 2: "status-warning", 3: "status-warning"}
 _GRADE_NAMES = dict(ClassGroup.GRADES)
 
 
-def _dated_subtitle(school_name: str, year: str, day) -> str:
-    """«المدرسة · 2026-2027 · التاريخ» — سطرُ الترويسة الوصفيّ."""
-    parts = [school_name or "المدرسة", year, date_format(day, "D، d M Y")]
+def _dated_subtitle(school_name: str, year: str, day, wing_bound: bool = False) -> str:
+    """«المدرسة · 2026-2027 · التاريخ» — سطرُ الترويسة الوصفيّ.
+
+    والمقيَّدُ بجناحه يُقال له ذلك في الترويسة: رقمٌ لجناحٍ يُقرأ رقماً للمدرسة إن سكت.
+    """
+    parts = [school_name or "المدرسة", "طلبة جناحك" if wing_bound else "", year]
+    parts.append(date_format(day, "D، d M Y"))
     return " · ".join(part for part in parts if part)
 
 
@@ -195,19 +219,26 @@ STUDENT_SORTS = {
 # ويردُّه حارسُها — إذنٌ مكتوبٌ في موضعٍ وممنوعٌ في آخر.
 @capability_required("student_affairs.view")
 def student_list(request):
-    """قائمة الطلاب مع بحث وفلتر حسب الصف والشعبة."""
-    school = request.school
-    year = request.GET.get("year") or academic_year_for(request)
+    """قائمة الطلاب مع بحث وفلتر حسب الصف والشعبة.
 
-    # ── الاستعلام الأساسي: طلاب فعّالون في المدرسة ──
-    students = (
+    والمشرفُ الإداريُّ يقرؤها لطلبة جناحه وحدَهم (قرارُ المستخدم 2026-09-14): النطاقُ
+    يُطبَّق على الاستعلام الأساسيّ **قبل** كلّ مرشِّحٍ وفرزٍ وترقيم، فالعددُ والصفحاتُ
+    والبحثُ بالرقم الشخصيّ لا تبلغ طالباً خارجه.
+    """
+    school = request.school
+    scope = student_scope_for(request)
+    year = _year_in_scope(request, scope)
+
+    # ── الاستعلام الأساسي: طلاب فعّالون في المدرسة — أو في الجناح ──
+    students = scope.narrow(
         Membership.objects.filter(
             school=school,
             role__name="student",
             is_active=True,
         )
         .select_related("user", "user__profile")
-        .order_by("user__full_name")
+        .order_by("user__full_name"),
+        "user_id",
     )
 
     # ── الفلاتر ──
@@ -219,24 +250,28 @@ def student_list(request):
     if grade_filter:
         # ✅ subquery مباشر — لا تحميل IDs إلى Python
         grade_enrollment_exists = Exists(
-            StudentEnrollment.objects.filter(
-                class_group__school=school,
-                class_group__academic_year=year,
-                class_group__grade=grade_filter,
-                is_active=True,
-                student_id=OuterRef("user_id"),
+            scope.narrow_classes(
+                StudentEnrollment.objects.filter(
+                    class_group__school=school,
+                    class_group__academic_year=year,
+                    class_group__grade=grade_filter,
+                    is_active=True,
+                    student_id=OuterRef("user_id"),
+                )
             )
         )
         students = students.filter(grade_enrollment_exists)
 
     if section_filter:
         section_enrollment_exists = Exists(
-            StudentEnrollment.objects.filter(
-                class_group__school=school,
-                class_group__academic_year=year,
-                class_group__section=section_filter,
-                is_active=True,
-                student_id=OuterRef("user_id"),
+            scope.narrow_classes(
+                StudentEnrollment.objects.filter(
+                    class_group__school=school,
+                    class_group__academic_year=year,
+                    class_group__section=section_filter,
+                    is_active=True,
+                    student_id=OuterRef("user_id"),
+                )
             )
         )
         students = students.filter(section_enrollment_exists)
@@ -259,7 +294,9 @@ def student_list(request):
     # ويخالف الكشفَ الوزاريَّ في رقمٍ يُقرأ في أوّل الشاشة.
     #
     # فالافتراضُ المقيَّدون، ومن لا قيدَ له يُرى بترشيحٍ صريحٍ لا يضيع.
-    status = request.GET.get("status") or "enrolled"
+    # والمقيَّدُ بجناحه لا يرى إلّا المقيَّدين: طالبٌ بلا قيدٍ نشطٍ لا جناحَ له،
+    # فـ`all` و`unenrolled` لا تفتحان له المدرسة.
+    status = "enrolled" if scope.is_wing_bound else (request.GET.get("status") or "enrolled")
     is_enrolled = Exists(
         StudentEnrollment.objects.filter(
             student_id=OuterRef("user_id"),
@@ -278,10 +315,12 @@ def student_list(request):
     # فتُجلبان بالاستعلام نفسِه ليصحّ الفرزُ بهما على السجلّ كلِّه لا على
     # الصفحة الظاهرة. وكان الفرزُ في المتصفّح على مئتين مقطوعةٍ من سبعمئةٍ
     # وخمسٍ وثلاثين — يُوهم القارئَ أنّه رأى الأوّلَ وهو أوّلُ صفحةٍ واحدة.
-    enrolment = StudentEnrollment.objects.filter(
-        student_id=OuterRef("user_id"),
-        class_group__academic_year=year,
-        is_active=True,
+    enrolment = scope.narrow_classes(
+        StudentEnrollment.objects.filter(
+            student_id=OuterRef("user_id"),
+            class_group__academic_year=year,
+            is_active=True,
+        )
     ).order_by("-class_group__academic_year", "-enrolled_at")
     guardian = ParentStudentLink.objects.filter(
         student_id=OuterRef("user_id"), school=school
@@ -361,21 +400,12 @@ def student_list(request):
         for m in page_obj
     ]
 
-    # ── خيارات الفلتر ──
-    available_grades = sorted(
-        set(
-            ClassGroup.objects.filter(
-                school=school, academic_year=year, is_active=True
-            ).values_list("grade", flat=True)
-        ),
-        key=grade_number,
+    # ── خيارات الفلتر — من شُعب الجناح للمقيَّد ──
+    groups = scope.narrow_classes(
+        ClassGroup.objects.filter(school=school, academic_year=year, is_active=True), "pk"
     )
-    available_sections = (
-        ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
-        .values_list("section", flat=True)
-        .distinct()
-        .order_by("section")
-    )
+    available_grades = sorted(set(groups.values_list("grade", flat=True)), key=grade_number)
+    available_sections = groups.values_list("section", flat=True).distinct().order_by("section")
 
     ctx = {
         "students": student_rows,
@@ -386,9 +416,13 @@ def student_list(request):
         "sort": sort,
         "status": status,
         "statuses": (
-            ("enrolled", "مقيَّدون هذا العام"),
-            ("unenrolled", "بلا قيدٍ نشط"),
-            ("all", "الكلّ"),
+            (("enrolled", "مقيَّدون هذا العام"),)
+            if scope.is_wing_bound
+            else (
+                ("enrolled", "مقيَّدون هذا العام"),
+                ("unenrolled", "بلا قيدٍ نشط"),
+                ("all", "الكلّ"),
+            )
         ),
         "q": q,
         "grade_filter": grade_filter,
@@ -397,6 +431,10 @@ def student_list(request):
         "grades": available_grades,
         "sections": available_sections,
         "year": year,
+        "page_subtitle": f"{year} · طلبة جناحك" if scope.is_wing_bound else year,
+        # القالبُ يُخفي عن المقيَّد روابطَ ما لا يفتحه، وزرَّ «تعديل» — والحراسةُ على الشاشات.
+        "limited": scope.is_wing_bound,
+        "can_edit": _profile_actions(request.user, scope)["can_edit"],
     }
 
     # HTMX: إرجاع الجدول فقط
@@ -742,18 +780,44 @@ def student_deactivate(request, student_id):
 # ═════════════════════════════════════════════════════════════════════
 
 
+def _profile_actions(user, scope) -> dict:
+    """أزرارُ ملفّ الطالب ذواتُ المعرّف — `can_open` لا يقرأ رابطاً بوسائط.
+
+    غيرُ المقيَّد يرى الأزرارَ كما كانت حرفاً؛ والمقيَّدُ بجناحه يُعرض له منها ما
+    يفتحه حارسُه وحدَه. والحراسةُ على الشاشات نفسِها لا هنا.
+    """
+    if not scope.is_wing_bound:
+        return {"can_edit": True, "can_summon": True, "can_see_results": True}
+    return {
+        "can_edit": has_capability(user, "student_affairs.manage"),
+        "can_summon": has_capability(user, "behavior.summon_parent"),
+        "can_see_results": not scope.hides_grades and has_capability(user, "reports.results"),
+    }
+
+
 @login_required
-@capability_required("student_affairs.manage")
+# كلُّ قائمةٍ في شؤون الطلبة تنتهي إلى هذا الملفّ، فالفحصُ عنده هو الحارسُ الحقيقيّ:
+# المشرفُ الإداريُّ يفتحه لطالبٍ من جناحه وحدَه، وغيرُه 404 لا يُميَّز عن غير الموجود.
+@capability_required("student_affairs.follow_up")
 def student_profile(request, student_id):
-    """ملف الطالب الشامل — يجمع بيانات من 7 تطبيقات."""
+    """ملف الطالب الشامل — يجمع بيانات من 7 تطبيقات.
+
+    وللمقيَّد بجناحه (قرارُ المستخدم 2026-09-15) لا تُحسب ولا تُعرض: الدرجاتُ،
+    وفصيلةُ الدم وأسبابُ زيارات العيادة (يرى تاريخَ الزيارة و«أُعيد إلى المنزل»)،
+    والإعاراتُ، والأنشطةُ، والانتقالات.
+    """
     school = request.school
+    scope = student_scope_for(request)
+    # قبل جلب الطالب، وعلى العام الجاري لا على `?year=`.
+    scope.require_student(student_id)
     student = get_object_or_404(
         CustomUser,
         id=student_id,
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year") or academic_year_for(request)
+    year = _year_in_scope(request, scope)
+    limited = scope.is_wing_bound
 
     # ── 1. البيانات الشخصية (core) ──
     profile = getattr(student, "profile", None)
@@ -824,43 +888,55 @@ def student_profile(request, student_id):
     }
 
     # ── 4. العيادة (clinic) — ClinicVisit + HealthRecord مُستورَدان من أعلى الملف ──
-    clinic_visits = ClinicVisit.objects.filter(student=student, school=school).order_by(
-        "-visit_date"
-    )[:5]
-    health_record = HealthRecord.objects.filter(student=student).first()
+    visits = ClinicVisit.objects.filter(student=student, school=school).order_by("-visit_date")
+    if scope.clinic_summary_only:
+        # التاريخُ و«أُعيد إلى المنزل» وحدَهما يبلغان القالب — لا السببُ ولا الحرارة.
+        clinic_visits = visits.values("visit_date", "is_sent_home")[:5]
+        health_record = None
+    else:
+        clinic_visits = visits[:5]
+        health_record = HealthRecord.objects.filter(student=student).first()
 
     # ── 5. الدرجات (assessments) — AnnualSubjectResult مُستورَد من أعلى الملف ──
-    grades = (
-        AnnualSubjectResult.objects.filter(
-            student=student,
-            school=school,
-            academic_year=year,
+    if scope.hides_grades:
+        grades = AnnualSubjectResult.objects.none()
+        grades_summary = {}
+    else:
+        grades = (
+            AnnualSubjectResult.objects.filter(
+                student=student,
+                school=school,
+                academic_year=year,
+            )
+            .select_related("setup__subject", "setup__class_group")
+            .order_by("setup__subject__name_ar")
         )
-        .select_related("setup__subject", "setup__class_group")
-        .order_by("setup__subject__name_ar")
-    )
-    grades_summary = grades.aggregate(
-        total_subjects=Count("id"),
-        passed=Count("id", filter=Q(status="pass")),
-        failed=Count("id", filter=Q(status="fail")),
-    )
+        grades_summary = grades.aggregate(
+            total_subjects=Count("id"),
+            passed=Count("id", filter=Q(status="pass")),
+            failed=Count("id", filter=Q(status="fail")),
+        )
 
-    # ── 6. المكتبة (library) — BookBorrowing مُستورَد من أعلى الملف ──
-    borrowings = (
-        BookBorrowing.objects.filter(user=student)
-        .select_related("book")
-        .order_by("-borrow_date")[:5]
-    )
+    if limited:
+        # الإعاراتُ والأنشطةُ والانتقالاتُ ليست من متابعة المشرف — فلا تُحسب له.
+        borrowings, activities, transfers = [], [], []
+    else:
+        # ── 6. المكتبة (library) — BookBorrowing مُستورَد من أعلى الملف ──
+        borrowings = (
+            BookBorrowing.objects.filter(user=student)
+            .select_related("book")
+            .order_by("-borrow_date")[:5]
+        )
 
-    # ── 7. الأنشطة (student_affairs) ──
-    activities = StudentActivity.objects.filter(student=student, school=school).order_by("-date")[
-        :10
-    ]
+        # ── 7. الأنشطة (student_affairs) ──
+        activities = StudentActivity.objects.filter(student=student, school=school).order_by(
+            "-date"
+        )[:10]
 
-    # ── الانتقالات ──
-    transfers = StudentTransfer.objects.filter(student=student, school=school).order_by(
-        "-created_at"
-    )[:5]
+        # ── الانتقالات ──
+        transfers = StudentTransfer.objects.filter(student=student, school=school).order_by(
+            "-created_at"
+        )[:5]
 
     # ── ما يُرسم: سطرُ الترويسة ولونُ الحضور (90 · 75 — عتبتا القالب) ──
     subtitle_parts = []
@@ -899,6 +975,9 @@ def student_profile(request, student_id):
             "activities": activities,
             "transfers": transfers,
             "year": year,
+            # القالبُ يُخفي ولا يحرس: الأقسامُ المحجوبةُ لم تُحسب أصلاً.
+            "limited": limited,
+            **_profile_actions(request.user, scope),
         },
     )
 
@@ -1052,17 +1131,54 @@ def transfer_review(request, pk):
 # ═════════════════════════════════════════════════════════════════════
 
 
+def _followup_scope(request):
+    """نطاقُ صاحب الطلب في شاشات المتابعة: المدرسةُ للقيادة، وشُعبُ جناحه للمشرف.
+
+    `wings.scope.student_scope_for` وحدَها تجيب، وتُحسب مرّةً للطلب. وكلُّ استعلامٍ
+    في هذه الشاشات يمرّ على `scope.narrow` قبل المرشِّحات والعدّ والاقتطاع والتصدير —
+    وغيرُ المقيَّد يُعاد له استعلامُه كما هو بلا استعلامٍ زائد.
+    """
+    from wings.scope import student_scope_for
+
+    return student_scope_for(request)
+
+
+def _followup_wing_label(scope) -> str:
+    """«جناح 1، جناح 2» للمقيَّد بجناحه — ولا شيءَ لغيره فتبقى عناوينُ القيادة حرفاً.
+
+    ملفٌّ صُدِّر من جناحٍ لا يُقرأ بعد أسبوعٍ على أنّه المدرسةُ كلُّها.
+    """
+    if not scope.is_wing_bound:
+        return ""
+    from core.models.academic import Wing
+
+    names = list(
+        Wing.objects.filter(pk__in=scope.wing_ids or ())
+        .order_by("order", "code")
+        .values_list("name", flat=True)
+    )
+    return "، ".join(names) or "بلا جناح"
+
+
+def _with_wing(text: str, wing: str) -> str:
+    return f"{text} — {wing}" if wing else text
+
+
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.follow_up")
 def attendance_overview(request):
     """إحصائيات الحضور والغياب — شاملة مع Trends."""
     school = request.school
     today = timezone.localdate()
-    year = request.GET.get("year") or academic_year_for(request)
+    scope = _followup_scope(request)
+    # المقيَّدُ على العام الجاري دائماً — `?year=` لا يوسّع نطاقَه؛ وغيرُه كما كان.
+    year = scope.year_for(request.GET.get("year"), "") or academic_year_for(request)
     grade_filter = request.GET.get("grade", "")
 
     # ── إحصائيات اليوم — استعلامٌ واحدٌ بدل خمسة ──
-    today_counts = StudentAttendance.objects.filter(school=school, session__date=today).aggregate(
+    today_counts = scope.narrow(
+        StudentAttendance.objects.filter(school=school, session__date=today)
+    ).aggregate(
         total=Count("id"),
         present=Count("id", filter=Q(status="present")),
         absent=Count("id", filter=Q(status="absent")),
@@ -1082,11 +1198,14 @@ def attendance_overview(request):
 
     # ── أكثر 20 طالب غياباً (آخر 30 يوم) ──
     thirty_days_ago = today - timedelta(days=30)
+    # الأكثرُ غياباً يُحسب داخل النطاق قبل الاقتطاع — لا عشرون المدرسةِ ثمّ يُصفّى.
     worst_students_qs = (
-        StudentAttendance.objects.filter(
-            school=school,
-            status="absent",
-            session__date__gte=thirty_days_ago,
+        scope.narrow(
+            StudentAttendance.objects.filter(
+                school=school,
+                status="absent",
+                session__date__gte=thirty_days_ago,
+            )
         )
         .values("student__id", "student__full_name")
         .annotate(absence_count=Count("id"))
@@ -1095,7 +1214,7 @@ def attendance_overview(request):
 
     # ── توزيع حسب الصف (الحضور اليوم) ──
     class_breakdown = (
-        StudentAttendance.objects.filter(school=school, session__date=today)
+        scope.narrow(StudentAttendance.objects.filter(school=school, session__date=today))
         .values("session__class_group__grade")
         .annotate(
             total=Count("id"),
@@ -1110,8 +1229,10 @@ def attendance_overview(request):
     chart_start = today - timedelta(days=13)
     by_day = {
         row["session__date"]: row
-        for row in StudentAttendance.objects.filter(
-            school=school, session__date__gte=chart_start, session__date__lte=today
+        for row in scope.narrow(
+            StudentAttendance.objects.filter(
+                school=school, session__date__gte=chart_start, session__date__lte=today
+            )
         )
         .values("session__date")
         .annotate(
@@ -1132,7 +1253,7 @@ def attendance_overview(request):
 
     # ── تنبيهات الغياب المتكرر — AbsenceAlert مُستورَد من أعلى الملف ──
     alerts = (
-        AbsenceAlert.objects.filter(school=school, status="pending")
+        scope.narrow(AbsenceAlert.objects.filter(school=school, status="pending"))
         .select_related("student")
         .order_by("-absence_count")[:10]
     )
@@ -1175,7 +1296,11 @@ def attendance_overview(request):
             "summary": summary,
             "today": today,
             "year": year,
-            "page_subtitle": f"ملخص الحضور والغياب — {date_format(today, 'D، d M Y')}",
+            "page_subtitle": _with_wing(
+                f"ملخص الحضور والغياب — {date_format(today, 'D، d M Y')}",
+                _followup_wing_label(scope),
+            ),
+            "wing_bound": scope.is_wing_bound,
             "pct_label": f"{pct}%",
             "pct_tone": pct_tone,
             "worst_students": worst_students,
@@ -1191,7 +1316,7 @@ def attendance_overview(request):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.follow_up")
 def attendance_export_excel(request):
     """تصدير إحصائيات الغياب — أكثر الطلاب غياباً (آخر 30 يوم) + حضور اليوم."""
     import openpyxl
@@ -1201,14 +1326,19 @@ def attendance_export_excel(request):
     today = timezone.localdate()
     thirty_ago = today - timedelta(days=30)
 
-    ctx = get_export_context(request, "تقرير الحضور والغياب")
+    scope = _followup_scope(request)
+    wing = _followup_wing_label(scope)
+
+    ctx = get_export_context(request, _with_wing("تقرير الحضور والغياب", wing))
 
     # أكثر الطلاب غياباً — Count مُستورَد من أعلى الملف
     absence_data = (
-        StudentAttendance.objects.filter(
-            school=school,
-            status="absent",
-            session__date__gte=thirty_ago,
+        scope.narrow(
+            StudentAttendance.objects.filter(
+                school=school,
+                status="absent",
+                session__date__gte=thirty_ago,
+            )
         )
         .values("student__full_name", "student__national_id")
         .annotate(absence_count=Count("id"))
@@ -1217,7 +1347,7 @@ def attendance_export_excel(request):
 
     # سجل الحضور اليومي
     today_records = (
-        StudentAttendance.objects.filter(school=school, session__date=today)
+        scope.narrow(StudentAttendance.objects.filter(school=school, session__date=today))
         .select_related("student", "session__class_group")
         .order_by(grade_order("session__class_group__grade"), "student__full_name")
     )
@@ -1322,7 +1452,7 @@ def attendance_export_excel(request):
         "student_affairs.attendance_xlsx",
         rows=absence_count_total + today_count,
         full_national_id=False,
-        object_repr=f"إحصائيات الغياب Excel — {today:%Y-%m-%d}",
+        object_repr=_with_wing(f"إحصائيات الغياب Excel — {today:%Y-%m-%d}", wing),
     )
     filename = generate_export_filename("attendance", "stats", "xlsx")
     return excel_to_response(wb, filename)
@@ -1339,19 +1469,21 @@ def _behaviour_window(school, today):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.follow_up")
 def behavior_overview(request):
     """ملخص سلوك الطلاب — إحصائيات شاملة."""
     school = request.school
     today = timezone.localdate()
     grade_filter = request.GET.get("grade", "")
+    scope = _followup_scope(request)
+    # كلُّ مخالفةٍ تُعدّ هنا — للعام وللرسم — تمرّ على النطاق أوّلاً.
+    school_infractions = scope.narrow(BehaviorInfraction.objects.filter(school=school))
 
     # ── مخالفات العام الدراسي ──
     # كان الترشيح `date__year` — أي السنة الميلادية. والعام يمتدّ أغسطس–يونيو،
     # فيسقط الفصل الأول كلّه في يناير والعنوان يقول «السنة الحالية».
     _start, _end = _behaviour_window(school, today)
-    year_infractions = BehaviorInfraction.objects.filter(
-        school=school,
+    year_infractions = school_infractions.filter(
         date__gte=_start,
         date__lte=_end,
     )
@@ -1362,11 +1494,15 @@ def behavior_overview(request):
     students_with_infractions = year_infractions.values("student").distinct().count()
 
     # ── إجمالي الطلاب المسجلين ──
-    total_students = Membership.objects.filter(
-        school=school,
-        role__name="student",
-        is_active=True,
-    ).count()
+    # والمقامُ للمقيَّد طلبةُ جناحه — لا المدرسةُ فتصغر النسبةُ كذباً.
+    if scope.is_wing_bound:
+        total_students = len(scope.student_ids())
+    else:
+        total_students = Membership.objects.filter(
+            school=school,
+            role__name="student",
+            is_active=True,
+        ).count()
     infraction_pct = (
         round(students_with_infractions * 100 / total_students) if total_students else 0
     )
@@ -1399,8 +1535,7 @@ def behavior_overview(request):
             next_month = (month_start + timedelta(days=32)).replace(day=1)
         else:
             next_month = today + timedelta(days=1)
-        count = BehaviorInfraction.objects.filter(
-            school=school,
+        count = school_infractions.filter(
             date__gte=month_start,
             date__lt=next_month,
         ).count()
@@ -1452,6 +1587,11 @@ def behavior_overview(request):
             "chart_data_json": json.dumps(chart_data),
             "grades": grades,
             "grade_filter": grade_filter,
+            "wing_bound": scope.is_wing_bound,
+            # الشهرُ واسمُ الجناح للمقيَّد؛ والقيادةُ على الشهر وحدَه كما يرسمه القالب.
+            "wing_subtitle": _with_wing(date_format(today, "F Y"), _followup_wing_label(scope))
+            if scope.is_wing_bound
+            else "",
         },
     )
 
@@ -1618,17 +1758,25 @@ def activity_delete(request, pk):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+# نسخةُ الملفّ نفسِه — فتتقيّد كما يتقيّد: طالبٌ من جناح المشرف وحدَه.
+@capability_required("student_affairs.follow_up")
 def student_profile_pdf(request, student_id):
-    """ملف الطالب الشامل — PDF للطباعة (A4)."""
+    """ملف الطالب الشامل — PDF للطباعة (A4).
+
+    وللمقيَّد بجناحه: لا درجاتٍ ولا أنشطة، والرقمُ الشخصيُّ مستور — فوثيقتُه متابعةٌ
+    لا وثيقةٌ رسميّة، والرقمُ كاملاً لمن يُصدر الوثيقةَ الرسميّة.
+    """
     school = request.school
+    scope = student_scope_for(request)
+    scope.require_student(student_id)
     student = get_object_or_404(
         CustomUser,
         id=student_id,
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year") or academic_year_for(request)
+    year = _year_in_scope(request, scope)
+    limited = scope.is_wing_bound
 
     # enrollment
     enrollment = (
@@ -1669,20 +1817,26 @@ def student_profile_pdf(request, student_id):
     )
 
     # درجات — AnnualSubjectResult مُستورَد من أعلى الملف
-    grades = (
-        AnnualSubjectResult.objects.filter(
-            student=student,
-            school=school,
-            academic_year=year,
+    if scope.hides_grades:
+        grades = AnnualSubjectResult.objects.none()
+    else:
+        grades = (
+            AnnualSubjectResult.objects.filter(
+                student=student,
+                school=school,
+                academic_year=year,
+            )
+            .select_related("setup__subject")
+            .order_by("setup__subject__name_ar")
         )
-        .select_related("setup__subject")
-        .order_by("setup__subject__name_ar")
-    )
 
-    # أنشطة
-    activities = StudentActivity.objects.filter(school=school, student=student).order_by("-date")[
-        :10
-    ]
+    # أنشطة — ليست من متابعة المقيَّد بجناحه
+    if limited:
+        activities = StudentActivity.objects.none()
+    else:
+        activities = StudentActivity.objects.filter(school=school, student=student).order_by(
+            "-date"
+        )[:10]
 
     # أولياء الأمور
     parent_links = ParentStudentLink.objects.filter(
@@ -1691,14 +1845,17 @@ def student_profile_pdf(request, student_id):
     ).select_related("parent")
 
     ctx = get_export_context(request, "ملف الطالب الشامل")
-    # ملفُّ طالبٍ واحدٍ وثيقةٌ فرديّة: الرقمُ كاملاً، والتدقيقُ ثمنُه.
+    # ملفُّ طالبٍ واحدٍ وثيقةٌ فرديّة: الرقمُ كاملاً — للمشرف كما للقيادة، فالوثيقةُ المستورةُ
+    # لا تُغني عن صاحبها (test_national_id_masking) — والتدقيقُ ثمنُه.
     log_export(
         request,
         "student_affairs.student_profile_pdf",
         rows=1,
         full_national_id=True,
         object_id=student.pk,
-        object_repr=f"ملف الطالب {student.full_name} — {year}",
+        object_repr=(
+            f"ملف الطالب {student.full_name} — {year}" + (" — طلبة الجناح" if limited else "")
+        ),
     )
 
     html_string = render_to_string(
@@ -1715,6 +1872,7 @@ def student_profile_pdf(request, student_id):
             "parent_links": parent_links,
             "today": today,
             "year": year,
+            "limited": limited,
             **ctx,
         },
     )
@@ -1728,7 +1886,8 @@ def student_profile_pdf(request, student_id):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+# مرفقُ عذر التأخّر من عمل المشرف الإداريّ (الدليل 2026 م 3.4.2.2) — لطلبة جناحه وحدَهم.
+@capability_required("student_affairs.follow_up")
 def protected_media(request, path):
     """تقديم ملفات media محمية — يتحقق من المدرسة قبل التقديم عبر X-Accel-Redirect."""
     # F-001-a: Path traversal sanitization
@@ -1737,10 +1896,10 @@ def protected_media(request, path):
 
     school = request.school
 
-    # تحقق أن الملف يخص مدرسة المستخدم
-    attendance = get_object_or_404(
-        StudentAttendance,
-        school=school,
+    # تحقق أن الملف يخص مدرسة المستخدم — وطالباً من جناحه للمقيَّد، وإلّا 404
+    # لا يُميَّز عن ملفٍّ غير موجود.
+    get_object_or_404(
+        student_scope_for(request).narrow(StudentAttendance.objects.filter(school=school)),
         excuse_file=path,
     )
 
@@ -1758,31 +1917,78 @@ def protected_media(request, path):
 # ═════════════════════════════════════════════════════════════════════
 
 
+def _tardiness_day(request):
+    """اليومُ المختار من `?date=` — واليومُ إن غاب أو فسد."""
+    from datetime import date as date_type
+
+    try:
+        return date_type.fromisoformat(request.GET.get("date") or "")
+    except ValueError:
+        return timezone.localdate()
+
+
+def _late_on(school, scope, day):
+    """سجلّاتُ تأخّر اليوم في النطاق — قبل مرشِّحَي الصفّ والشعبة.
+
+    فشعبةُ جناحٍ آخر مكتوبةٌ باليد في `?section=` تعطي قائمةً فارغة لا صفوفَه.
+    """
+    return scope.narrow(
+        StudentAttendance.objects.filter(school=school, status="late", session__date=day)
+    )
+
+
+def _late_this_year(request, school, scope) -> dict:
+    """مرّاتُ تأخّر كلّ طالبٍ هذا العام — `{student_id: عدد}` داخل النطاق وحدَه."""
+    return dict(
+        scope.narrow(
+            StudentAttendance.objects.filter(
+                school=school,
+                status="late",
+                session__class_group__academic_year=academic_year_for(request),
+            )
+        )
+        .values("student_id")
+        .annotate(total=Count("id"))
+        .values_list("student_id", "total")
+    )
+
+
+def _attended_on(school, scope, day) -> int:
+    """من رُصد حضورُه في اليوم — مقامُ نسبة التأخّر."""
+    return (
+        scope.narrow(StudentAttendance.objects.filter(school=school, session__date=day))
+        .values("student")
+        .distinct()
+        .count()
+    )
+
+
+def _late_this_week(school, scope, day) -> int:
+    """سجلّاتُ التأخّر من أوّل الأسبوع حتى اليوم المختار."""
+    week_start = day - timedelta(days=day.weekday())
+    return scope.narrow(
+        StudentAttendance.objects.filter(
+            school=school,
+            status="late",
+            session__date__gte=week_start,
+            session__date__lte=day,
+        )
+    ).count()
+
+
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.follow_up")
 def tardiness_list(request):
     """قائمة الطلاب المتأخرين — مفلترة حسب التاريخ والصف."""
     school = request.school
 
-    date_str = request.GET.get("date")
-    if date_str:
-        try:
-            from datetime import date as date_type
-
-            selected_date = date_type.fromisoformat(date_str)
-        except ValueError:
-            selected_date = timezone.localdate()
-    else:
-        selected_date = timezone.localdate()
+    scope = _followup_scope(request)
+    selected_date = _tardiness_day(request)
 
     grade_filter = request.GET.get("grade", "")
     section_filter = request.GET.get("section", "")
 
-    late_qs = StudentAttendance.objects.filter(
-        school=school,
-        status="late",
-        session__date=selected_date,
-    )
+    late_qs = _late_on(school, scope, selected_date)
     if grade_filter:
         late_qs = late_qs.filter(session__class_group__grade=grade_filter)
     if section_filter:
@@ -1799,16 +2005,7 @@ def tardiness_list(request):
     total_late = len(late_records)
 
     # العدّ التراكمي لتأخرات كل طالب هذا العام — مُرفَق مباشرة بكل سجل
-    cumulative_counts = dict(
-        StudentAttendance.objects.filter(
-            school=school,
-            status="late",
-            session__class_group__academic_year=academic_year_for(request),
-        )
-        .values("student_id")
-        .annotate(total=Count("id"))
-        .values_list("student_id", "total")
-    )
+    cumulative_counts = _late_this_year(request, school, scope)
     for rec in late_records:
         rec.cumulative_late = cumulative_counts.get(rec.student_id, 0)
         # خمسُ مرّاتٍ فأكثر هذا العام تُلوَّن خطراً — العتبةُ التي كانت في القالب.
@@ -1816,15 +2013,7 @@ def tardiness_list(request):
         rec.class_text = class_label(rec.session.class_group.grade, rec.session.class_group.section)
 
     # KPIs إضافية
-    total_students_today = (
-        StudentAttendance.objects.filter(
-            school=school,
-            session__date=selected_date,
-        )
-        .values("student")
-        .distinct()
-        .count()
-    )
+    total_students_today = _attended_on(school, scope, selected_date)
     late_pct = round(total_late * 100 / total_students_today) if total_students_today else 0
 
     # توزيع التأخر حسب الصف
@@ -1835,13 +2024,7 @@ def tardiness_list(request):
     )
 
     # التأخر هذا الأسبوع
-    week_start = selected_date - timedelta(days=selected_date.weekday())
-    weekly_late = StudentAttendance.objects.filter(
-        school=school,
-        status="late",
-        session__date__gte=week_start,
-        session__date__lte=selected_date,
-    ).count()
+    weekly_late = _late_this_week(school, scope, selected_date)
 
     grades = ClassGroup.GRADES
 
@@ -1861,7 +2044,10 @@ def tardiness_list(request):
         request,
         "student_affairs/tardiness_list.html",
         {
-            "page_subtitle": f"الطلاب المتأخرون — {date_format(selected_date, 'D، d M Y')}",
+            "page_subtitle": _with_wing(
+                f"الطلاب المتأخرون — {date_format(selected_date, 'D، d M Y')}",
+                _followup_wing_label(scope),
+            ),
             "empty_label": f"لا يوجد طلاب متأخرون في {date_format(selected_date, 'd M Y')}",
             # صفرٌ أخضر، وحتى خمسةٍ برتقاليّ، وما فوقها أحمر — عتباتُ القالب.
             "total_late_tone": "green"
@@ -1893,6 +2079,8 @@ def tardiness_list(request):
             "section_filter": section_filter,
             "cumulative_counts": cumulative_counts,
             "is_today": selected_date == timezone.localdate(),
+            # المقيَّدُ يُلغي ما رُصد صباحاً وحدَه — لا تأخّرَ حصّةٍ من كشف الجناح.
+            "wing_bound": scope.is_wing_bound,
         },
     )
 
@@ -1903,18 +2091,20 @@ def tardiness_list(request):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.follow_up")
 def behavior_export_excel(request):
     """تصدير إحصائيات السلوك — المخالفات + أكثر الطلاب."""
     import openpyxl
     from openpyxl.styles import Alignment
 
     school = request.school
-    ctx = get_export_context(request, "تقرير السلوك الطلابي")
+    scope = _followup_scope(request)
+    wing = _followup_wing_label(scope)
+    ctx = get_export_context(request, _with_wing("تقرير السلوك الطلابي", wing))
 
-    # بيانات
+    # بيانات — مضيَّقةٌ بالنطاق قبل التجميع
     infractions = (
-        BehaviorInfraction.objects.filter(school=school)
+        scope.narrow(BehaviorInfraction.objects.filter(school=school))
         .values("student__full_name", "student__national_id")
         .annotate(count=Count("id"))
         .order_by("-count")
@@ -1970,13 +2160,13 @@ def behavior_export_excel(request):
         "student_affairs.behavior_xlsx",
         rows=row_count,
         full_national_id=False,
-        object_repr="إحصائيات السلوك Excel",
+        object_repr=_with_wing("إحصائيات السلوك Excel", wing),
     )
     return excel_to_response(wb, generate_export_filename("behavior", "stats", "xlsx"))
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.follow_up")
 def tardiness_export_excel(request):
     """تصدير قائمة المتأخرين ليوم محدد."""
     import openpyxl
@@ -1984,27 +2174,17 @@ def tardiness_export_excel(request):
 
     school = request.school
 
-    date_str = request.GET.get("date")
-    if date_str:
-        try:
-            from datetime import date as date_type
-
-            selected_date = date_type.fromisoformat(date_str)
-        except ValueError:
-            selected_date = timezone.localdate()
-    else:
-        selected_date = timezone.localdate()
+    scope = _followup_scope(request)
+    wing = _followup_wing_label(scope)
+    selected_date = _tardiness_day(request)
 
     ctx = get_export_context(
-        request, f"تقرير التأخر الصباحي — {selected_date.strftime('%d/%m/%Y')}"
+        request,
+        _with_wing(f"تقرير التأخر الصباحي — {selected_date.strftime('%d/%m/%Y')}", wing),
     )
 
     late_records = (
-        StudentAttendance.objects.filter(
-            school=school,
-            status="late",
-            session__date=selected_date,
-        )
+        _late_on(school, scope, selected_date)
         .select_related("student", "session__class_group", "session__subject")
         .order_by(grade_order("session__class_group__grade"), "student__full_name")
     )
@@ -2014,16 +2194,7 @@ def tardiness_export_excel(request):
     ws.title = "التأخر"
     ws.sheet_view.rightToLeft = True
 
-    cumulative_counts = dict(
-        StudentAttendance.objects.filter(
-            school=school,
-            status="late",
-            session__class_group__academic_year=academic_year_for(request),
-        )
-        .values("student_id")
-        .annotate(total=Count("id"))
-        .values_list("student_id", "total")
-    )
+    cumulative_counts = _late_this_year(request, school, scope)
 
     headers = [
         "#",
@@ -2093,7 +2264,7 @@ def tardiness_export_excel(request):
         request,
         "student_affairs.tardiness_xlsx",
         rows=row_count,
-        object_repr=f"المتأخّرون Excel — {selected_date:%Y-%m-%d}",
+        object_repr=_with_wing(f"المتأخّرون Excel — {selected_date:%Y-%m-%d}", wing),
     )
     return excel_to_response(wb, generate_export_filename("tardiness", "daily", "xlsx"))
 
@@ -2176,14 +2347,16 @@ def activities_export_excel(request):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.follow_up")
 def attendance_overview_pdf(request):
     """تصدير إحصائيات الحضور والغياب — PDF."""
     school = request.school
     today = timezone.localdate()
 
     # ── إحصائيات اليوم ──
-    today_qs = StudentAttendance.objects.filter(school=school, session__date=today)
+    scope = _followup_scope(request)
+    wing = _followup_wing_label(scope)
+    today_qs = scope.narrow(StudentAttendance.objects.filter(school=school, session__date=today))
     total_today = today_qs.count()
     present = today_qs.filter(status="present").count()
     absent = today_qs.filter(status="absent").count()
@@ -2203,17 +2376,19 @@ def attendance_overview_pdf(request):
     # ── أكثر 20 طالب غياباً (آخر 30 يوم) ──
     thirty_days_ago = today - timedelta(days=30)
     worst_students = (
-        StudentAttendance.objects.filter(
-            school=school,
-            status="absent",
-            session__date__gte=thirty_days_ago,
+        scope.narrow(
+            StudentAttendance.objects.filter(
+                school=school,
+                status="absent",
+                session__date__gte=thirty_days_ago,
+            )
         )
         .values("student__id", "student__full_name")
         .annotate(absence_count=Count("id"))
         .order_by("-absence_count")[:20]
     )
 
-    ctx = get_export_context(request, "تقرير الحضور والغياب")
+    ctx = get_export_context(request, _with_wing("تقرير الحضور والغياب", wing))
     pdf_header = get_pdf_header_html(ctx)
     pdf_footer = get_pdf_footer_html(ctx)
 
@@ -2233,14 +2408,14 @@ def attendance_overview_pdf(request):
         request,
         "student_affairs.attendance_overview_pdf",
         rows=len(worst_students),
-        object_repr=f"تقرير الحضور والغياب — {today:%Y-%m-%d}",
+        object_repr=_with_wing(f"تقرير الحضور والغياب — {today:%Y-%m-%d}", wing),
     )
     filename = generate_export_filename("attendance", "overview", "pdf")
     return render_pdf(html, filename, paper_size="A4")
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.follow_up")
 def behavior_overview_pdf(request):
     """تصدير ملخص السلوك — PDF."""
     school = request.school
@@ -2249,22 +2424,29 @@ def behavior_overview_pdf(request):
     # ── مخالفات العام الدراسي ──
     # كان الترشيح `date__year` — أي السنة الميلادية. والعام يمتدّ أغسطس–يونيو،
     # فيسقط الفصل الأول كلّه في يناير والعنوان يقول «السنة الحالية».
+    scope = _followup_scope(request)
+    wing = _followup_wing_label(scope)
     _start, _end = _behaviour_window(school, today)
-    year_infractions = BehaviorInfraction.objects.filter(
-        school=school,
-        date__gte=_start,
-        date__lte=_end,
+    year_infractions = scope.narrow(
+        BehaviorInfraction.objects.filter(
+            school=school,
+            date__gte=_start,
+            date__lte=_end,
+        )
     )
     total_infractions = year_infractions.count()
     unresolved = year_infractions.filter(is_resolved=False).count()
 
     # ── نسبة المخالفين ──
     students_with_infractions = year_infractions.values("student").distinct().count()
-    total_students = Membership.objects.filter(
-        school=school,
-        role__name="student",
-        is_active=True,
-    ).count()
+    if scope.is_wing_bound:
+        total_students = len(scope.student_ids())
+    else:
+        total_students = Membership.objects.filter(
+            school=school,
+            role__name="student",
+            is_active=True,
+        ).count()
     infraction_pct = (
         round(students_with_infractions * 100 / total_students) if total_students else 0
     )
@@ -2288,7 +2470,7 @@ def behavior_overview_pdf(request):
         .order_by("-infraction_count")[:15]
     )
 
-    ctx = get_export_context(request, "تقرير السلوك")
+    ctx = get_export_context(request, _with_wing("تقرير السلوك", wing))
     pdf_header = get_pdf_header_html(ctx)
     pdf_footer = get_pdf_footer_html(ctx)
 
@@ -2311,35 +2493,24 @@ def behavior_overview_pdf(request):
         request,
         "student_affairs.behavior_overview_pdf",
         rows=len(worst_students),
-        object_repr=f"تقرير السلوك — {today:%Y-%m-%d}",
+        object_repr=_with_wing(f"تقرير السلوك — {today:%Y-%m-%d}", wing),
     )
     filename = generate_export_filename("behavior", "overview", "pdf")
     return render_pdf(html, filename, paper_size="A4")
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.follow_up")
 def tardiness_pdf(request):
     """تصدير قائمة المتأخرين — PDF."""
     school = request.school
 
-    date_str = request.GET.get("date")
-    if date_str:
-        try:
-            from datetime import date as date_type
-
-            selected_date = date_type.fromisoformat(date_str)
-        except ValueError:
-            selected_date = timezone.localdate()
-    else:
-        selected_date = timezone.localdate()
+    scope = _followup_scope(request)
+    wing = _followup_wing_label(scope)
+    selected_date = _tardiness_day(request)
 
     late_records = list(
-        StudentAttendance.objects.filter(
-            school=school,
-            status="late",
-            session__date=selected_date,
-        )
+        _late_on(school, scope, selected_date)
         .select_related("student", "session__class_group", "session__subject")
         .order_by(
             grade_order("session__class_group__grade"),
@@ -2350,41 +2521,18 @@ def tardiness_pdf(request):
 
     total_late = len(late_records)
 
-    cumulative_counts = dict(
-        StudentAttendance.objects.filter(
-            school=school,
-            status="late",
-            session__class_group__academic_year=academic_year_for(request),
-        )
-        .values("student_id")
-        .annotate(total=Count("id"))
-        .values_list("student_id", "total")
-    )
+    cumulative_counts = _late_this_year(request, school, scope)
     for rec in late_records:
         rec.cumulative = cumulative_counts.get(rec.student_id, 0)
 
     # نسبة التأخر
-    total_students_today = (
-        StudentAttendance.objects.filter(
-            school=school,
-            session__date=selected_date,
-        )
-        .values("student")
-        .distinct()
-        .count()
-    )
+    total_students_today = _attended_on(school, scope, selected_date)
     late_pct = round(total_late * 100 / total_students_today) if total_students_today else 0
 
     # التأخر هذا الأسبوع
-    week_start = selected_date - timedelta(days=selected_date.weekday())
-    weekly_late = StudentAttendance.objects.filter(
-        school=school,
-        status="late",
-        session__date__gte=week_start,
-        session__date__lte=selected_date,
-    ).count()
+    weekly_late = _late_this_week(school, scope, selected_date)
 
-    ctx = get_export_context(request, "تقرير التأخر الصباحي")
+    ctx = get_export_context(request, _with_wing("تقرير التأخر الصباحي", wing))
     pdf_header = get_pdf_header_html(ctx)
     pdf_footer = get_pdf_footer_html(ctx)
 
@@ -2406,7 +2554,7 @@ def tardiness_pdf(request):
         request,
         "student_affairs.tardiness_pdf",
         rows=total_late,
-        object_repr=f"المتأخّرون — {selected_date:%Y-%m-%d}",
+        object_repr=_with_wing(f"المتأخّرون — {selected_date:%Y-%m-%d}", wing),
     )
     filename = generate_export_filename("tardiness", "list", "pdf")
     return render_pdf(html, filename, paper_size="A4")
@@ -2418,7 +2566,7 @@ def tardiness_pdf(request):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.tardiness")
 def tardiness_search_students(request):
     """HTMX — بحث عن طلاب بالاسم لتسجيل تأخير."""
     from django.http import JsonResponse
@@ -2430,22 +2578,29 @@ def tardiness_search_students(request):
     if len(q) < 2:
         return JsonResponse({"results": []})
 
+    # المقيَّدُ يبحث في طلبة جناحه وحدهم — اسمُ طالبِ جناحٍ آخر لا يُعاد.
+    scope = _followup_scope(request)
     students = (
-        CustomUser.objects.filter(
-            memberships__school=school,
-            memberships__role__name="student",
-            memberships__is_active=True,
-            full_name__icontains=q,
+        scope.narrow(
+            CustomUser.objects.filter(
+                memberships__school=school,
+                memberships__role__name="student",
+                memberships__is_active=True,
+                full_name__icontains=q,
+            ),
+            "pk",
         )
         .distinct()
         .values("id", "full_name", "national_id")[:15]
     )
 
     already_late_ids = set(
-        StudentAttendance.objects.filter(
-            school=school,
-            status="late",
-            session__date=today,
+        scope.narrow(
+            StudentAttendance.objects.filter(
+                school=school,
+                status="late",
+                session__date=today,
+            )
         ).values_list("student_id", flat=True)
     )
 
@@ -2465,7 +2620,7 @@ def tardiness_search_students(request):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.tardiness")
 @require_POST
 def tardiness_record(request):
     """POST — تسجيل تأخير صباحي لطالب."""
@@ -2490,6 +2645,10 @@ def tardiness_record(request):
             messages.error(request, "حجم الملف يتجاوز 5 ميغابايت.")
             return redirect("student_affairs:tardiness_list")
 
+    # طالبُ جناحٍ آخر: 404 قبل أيّ قراءةٍ أو كتابة — ومعرّفٌ فاسدٌ مثلُه للمقيَّد.
+    scope = _followup_scope(request)
+    scope.require_student(student_id)
+
     student = get_object_or_404(
         CustomUser,
         pk=student_id,
@@ -2502,17 +2661,21 @@ def tardiness_record(request):
     excuse_notes = f"إذن تأخير {excuse_val} دقيقة" if excuse_val else ""
 
     session = (
-        Session.objects.filter(
-            school=school,
-            date=today,
-            class_group__enrollments__student=student,
-            class_group__enrollments__is_active=True,
+        scope.narrow_classes(
+            Session.objects.filter(
+                school=school,
+                date=today,
+                class_group__enrollments__student=student,
+                class_group__enrollments__is_active=True,
+            )
         )
         .order_by("start_time")
         .first()
     )
 
-    if not session:
+    # الرجوعُ إلى «أوّل حصّةٍ في المدرسة» يعلّق التأخّرَ على شعبةٍ ليست شعبتَه —
+    # فلا يُنفَّذ للمقيَّد بجناحه: لا حصّةَ لشعبته اليوم يعني لا رصد.
+    if not session and not scope.is_wing_bound:
         session = (
             Session.objects.filter(
                 school=school,
@@ -2526,17 +2689,21 @@ def tardiness_record(request):
         messages.error(request, "لا توجد حصة مجدولة اليوم لتسجيل التأخير.")
         return redirect("student_affairs:tardiness_list")
 
+    defaults = {
+        "status": "late",
+        "tardiness_minutes": excuse_val,
+        "excuse_notes": excuse_notes,
+        "tardiness_recorded_at": now,
+        "marked_by": request.user,
+    }
+    if scope.is_wing_bound:
+        # رصدُ المشرف عند البوّابة (م 3.4.2.2) — والمصدرُ يفصله عن نقرة المعلّم في الإحصاء.
+        defaults.update(source="supervisor", whereabouts="gate")
     attendance, created = StudentAttendance.objects.get_or_create(
         session=session,
         student=student,
         school=school,
-        defaults={
-            "status": "late",
-            "tardiness_minutes": excuse_val,
-            "excuse_notes": excuse_notes,
-            "tardiness_recorded_at": now,
-            "marked_by": request.user,
-        },
+        defaults=defaults,
     )
 
     if not created:
@@ -2567,7 +2734,7 @@ def tardiness_record(request):
         action="create",
         model_name="other",
         object_id=str(attendance.pk),
-        object_repr=f"تسجيل تأخير {student.full_name}",
+        object_repr=_with_wing(f"تسجيل تأخير {student.full_name}", _followup_wing_label(scope)),
         ip_address=request.META.get("REMOTE_ADDR"),
     )
 
@@ -2577,12 +2744,21 @@ def tardiness_record(request):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+@capability_required("student_affairs.tardiness")
 @require_POST
 def tardiness_delete(request, pk):
     """حذف سجل تأخير (إعادته لحاضر)."""
     school = request.school
-    rec = get_object_or_404(StudentAttendance, pk=pk, school=school, status="late")
+    scope = _followup_scope(request)
+    late = StudentAttendance.objects.filter(school=school, status="late")
+    if scope.is_wing_bound:
+        # المقيَّدُ يُلغي تأخّراً صباحيّاً رُصد اليوم لطالبٍ من جناحه، ولا شيءَ غيرَه:
+        # تأخّرُ الحصّة من كشف الجناح (`tardiness_recorded_at` فارغ) يُصحَّح من الكشف،
+        # وتأخّرُ يومٍ مضى سجلٌّ لا يُمحى — وكلاهما 404 كصفِّ جناحٍ آخر.
+        late = scope.narrow(
+            late.filter(session__date=timezone.localdate(), tardiness_recorded_at__isnull=False)
+        )
+    rec = get_object_or_404(late, pk=pk)
     rec.status = "present"
     rec.tardiness_minutes = None
     rec.excuse_notes = ""
@@ -2590,16 +2766,19 @@ def tardiness_delete(request, pk):
     if rec.excuse_file:
         rec.excuse_file.delete(save=False)
     rec.excuse_file = ""
-    rec.save(
-        update_fields=[
-            "status",
-            "tardiness_minutes",
-            "excuse_notes",
-            "tardiness_recorded_at",
-            "excuse_file",
-            "updated_at",
-        ]
-    )
+    fields = [
+        "status",
+        "tardiness_minutes",
+        "excuse_notes",
+        "tardiness_recorded_at",
+        "excuse_file",
+        "updated_at",
+    ]
+    if rec.whereabouts == "gate":
+        # «عند البوّابة» وسمُ الرصد الصباحيّ — يزول بإلغائه فلا يبقى على حاضر.
+        rec.whereabouts = ""
+        fields.append("whereabouts")
+    rec.save(update_fields=fields)
 
     # ── Audit Trail (PDPPL) ──
     AuditLog.objects.create(
@@ -2608,7 +2787,7 @@ def tardiness_delete(request, pk):
         action="delete",
         model_name="other",
         object_id=str(rec.pk),
-        object_repr=f"إلغاء تأخير {rec.student.full_name}",
+        object_repr=_with_wing(f"إلغاء تأخير {rec.student.full_name}", _followup_wing_label(scope)),
         ip_address=request.META.get("REMOTE_ADDR"),
     )
 

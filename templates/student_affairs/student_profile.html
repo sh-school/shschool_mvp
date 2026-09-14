@@ -1,6 +1,12 @@
 {% extends "base/base.html" %}
 {% load icons %}
+{% load navigation %}
 {% load privacy ui %}
+{% comment %}
+  المشرفُ الإداريُّ يفتح هذا الملفَّ لطالبٍ من جناحه (`limited`، قرارُ 2026-09-15): لا درجاتٍ
+  ولا أنشطةَ ولا انتقالات، ومن العيادة تاريخُ الزيارة و«أُعيد إلى المنزل» وحدَهما. والشاشةُ
+  لا تحسب المحجوبَ أصلاً — والقالبُ يُخفي أقسامَه وأزرارَ ما لا يفتحه، ويبقى لغيره ما كان.
+{% endcomment %}
 
 {% block title %}ملف الطالب — {{ student.full_name }}{% endblock %}
 
@@ -12,20 +18,20 @@
 <div class="exec-dash sa-page">
 
   {% page_header student.full_name subtitle=profile_subtitle icon="profile" %}
-    <a href="{% url 'student_affairs:student_edit' student.id %}" class="btn-primary btn-sm">{% icon "edit_record" %} تعديل البيانات</a>
+    {% if can_edit %}<a href="{% url 'student_affairs:student_edit' student.id %}" class="btn-primary btn-sm">{% icon "edit_record" %} تعديل البيانات</a>{% endif %}
     <a href="{% url 'behavior:student_profile' student.id %}" class="btn-secondary btn-sm">{% icon "behavior" %} الملف السلوكي</a>
-    <a href="{% url 'behavior:summon_parent_student' student.id %}" class="btn-secondary btn-sm">{% icon "call_parent" %} استدعاء ولي الأمر</a>
-    <a href="{% url 'behavior:report_infraction' %}" class="btn-secondary btn-sm">{% icon "behavior_violation" %} تسجيل مخالفة</a>
-    <a data-app-file href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">{% icon "grades" %} كشف الدرجات</a>
+    {% if can_summon %}<a href="{% url 'behavior:summon_parent_student' student.id %}" class="btn-secondary btn-sm">{% icon "call_parent" %} استدعاء ولي الأمر</a>{% endif %}
+    {% if not limited or request.user|can_open:'behavior:report_infraction' %}<a href="{% url 'behavior:report_infraction' %}" class="btn-secondary btn-sm">{% icon "behavior_violation" %} تسجيل مخالفة</a>{% endif %}
+    {% if can_see_results %}<a data-app-file href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">{% icon "grades" %} كشف الدرجات</a>{% endif %}
     <a data-app-file href="{% url 'student_affairs:student_profile_pdf' student.id %}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>
     <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
   {% kpi_strip label="ملخص الطالب" %}
     {% kpi "نسبة الحضور" attendance_label sub=attendance_sub tone=attendance_tone title="الحصص التي حضرها هذا العام من كل حصصه المرصودة" %}
-    {% kpi "المواد" grades_summary.total_subjects|default:0 sub=subjects_sub tone="blue" %}
+    {% if not limited %}{% kpi "المواد" grades_summary.total_subjects|default:0 sub=subjects_sub tone="blue" %}{% endif %}
     {% kpi "زيارات العيادة" clinic_visits|length tone="teal" title="آخر الزيارات المعروضة في تبويب العيادة" %}
-    {% kpi "الأنشطة" activities|length tone="maroon" title="آخر الأنشطة المعروضة في تبويب الأنشطة" %}
+    {% if not limited %}{% kpi "الأنشطة" activities|length tone="maroon" title="آخر الأنشطة المعروضة في تبويب الأنشطة" %}{% endif %}
   {% endkpi_strip %}
 
   {# ════════════ التبويبات ════════════ #}
@@ -34,9 +40,9 @@
       <button class="tab-btn active" data-tab="personal" role="tab" aria-selected="true">{% icon "profile" %} البيانات الشخصية</button>
       <button class="tab-btn" data-tab="attendance" role="tab" aria-selected="false">{% icon "attendance_register" %} الحضور</button>
       <button class="tab-btn" data-tab="behavior" role="tab" aria-selected="false">{% icon "behavior" %} السلوك</button>
-      <button class="tab-btn" data-tab="grades" role="tab" aria-selected="false">{% icon "grades" %} الدرجات</button>
+      {% if not limited %}<button class="tab-btn" data-tab="grades" role="tab" aria-selected="false">{% icon "grades" %} الدرجات</button>{% endif %}
       <button class="tab-btn" data-tab="clinic" role="tab" aria-selected="false">{% icon "clinic" %} العيادة</button>
-      <button class="tab-btn" data-tab="activities" role="tab" aria-selected="false">{% icon "activities" %} الأنشطة</button>
+      {% if not limited %}<button class="tab-btn" data-tab="activities" role="tab" aria-selected="false">{% icon "activities" %} الأنشطة</button>{% endif %}
       {% if transfers %}<button class="tab-btn" data-tab="transfers" role="tab" aria-selected="false">{% icon "refresh" %} الانتقالات</button>{% endif %}
     </div>
   </div>
@@ -220,7 +226,8 @@
     </div>
   </div>
 
-  {# ── الدرجات ── #}
+  {# ── الدرجات — محجوبةٌ عن المقيَّد بجناحه ── #}
+  {% if not limited %}
   <div id="tab-grades" class="tab-content">
     {% section_card "الدرجات" meta=year icon="grades" empty="لا توجد نتائج لهذا العام" flush=True %}{% if grades %}
       <div class="table-wrap">
@@ -257,8 +264,9 @@
       </div>
     {% endif %}{% endsection_card %}
   </div>
+  {% endif %}
 
-  {# ── العيادة ── #}
+  {# ── العيادة — وللمقيَّد تاريخُ الزيارة و«أُعيد إلى المنزل» وحدَهما ── #}
   <div id="tab-clinic" class="tab-content">
     {% section_card "العيادة" icon="clinic" empty="لا زيارات عيادة" %}{% if health_record.blood_type or clinic_visits %}
       {% if health_record.blood_type %}
@@ -270,7 +278,11 @@
       <ul class="plain-list">
         {% for v in clinic_visits %}
           <li class="plain-list__row">
+            {% if limited %}
+            <span class="plain-list__main"><b class="plain-list__title">{{ v.visit_date|date:"d/m/Y" }}</b></span>
+            {% else %}
             <span class="plain-list__main"><b class="plain-list__title">{{ v.reason|truncatechars:40 }}</b><span class="plain-list__sub">{{ v.visit_date|date:"d/m" }}</span></span>
+            {% endif %}
             {% if v.is_sent_home %}<span class="status-badge status-danger">أُرسل للمنزل</span>{% endif %}
           </li>
         {% endfor %}
@@ -279,7 +291,8 @@
     {% endif %}{% endsection_card %}
   </div>
 
-  {# ── الأنشطة والإنجازات ── #}
+  {# ── الأنشطة والإنجازات — ليست من متابعة المقيَّد بجناحه ── #}
+  {% if not limited %}
   <div id="tab-activities" class="tab-content">
     {% section_card "الأنشطة والإنجازات" icon="activities" empty="لا أنشطة مسجّلة" %}{% if activities %}
       <ul class="plain-list">
@@ -292,6 +305,7 @@
       </ul>
     {% endif %}{% endsection_card %}
   </div>
+  {% endif %}
 
   {# ── الانتقالات — كانت قسماً خارج التبويبات يظهر تحت كلّ تبويب ── #}
   {% if transfers %}
