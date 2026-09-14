@@ -260,3 +260,157 @@ def test_evaluation_screen_reads_the_seeded_axes(school, teacher_user, it_techni
         axes, template = _get_axes_for_employee(school, user, YEAR)
         assert template is not None
         assert axes == [(a.key, a.label, a.weight) for a in FORMS[section].axes]
+
+
+# ── البذرُ لا يمسّ تقييماً محفوظاً ─────────────────────────────────────
+# مراجعة 2026-09-15: القفلُ كان يعدّ التقييماتِ المربوطةَ بالقالب وحدها. فتقييمٌ حُفظ على
+# المحاور الافتراضيّة (template=None)، أو على قالب دورٍ سابق، كان يُربط عند مجرّد فتحه بعد
+# البذر بالقالب الجديد فتُعرض محاورُه صفراً — حتى المعتمَد — ثمّ يمحو الحفظُ درجاتِه.
+
+
+def _form_page(client, user, period="S2"):
+    from django.urls import reverse
+
+    return client.get(
+        reverse("create_evaluation", kwargs={"employee_id": user.pk})
+        + f"?year={YEAR}&period={period}"
+    )
+
+
+def _default_axes_evaluation(school, employee, evaluator, **extra):
+    return EmployeeEvaluation.objects.create(
+        school=school,
+        employee=employee,
+        evaluator=evaluator,
+        academic_year=YEAR,
+        period="S2",
+        axis_professional=22,
+        axis_commitment=22,
+        axis_teamwork=22,
+        axis_development=22,
+        **extra,
+    )
+
+
+@pytest.mark.django_db
+def test_seeding_counts_and_spares_evaluations_saved_on_default_axes(
+    client, school, principal_user, teacher_user
+):
+    evaluation = _default_axes_evaluation(school, teacher_user, principal_user, status="approved")
+    assert (evaluation.template_id, evaluation.total_score) == (None, 88)
+
+    output = _seed(school)
+    assert "خارج القالب: 1" in output
+    _seed(school, "--apply")
+
+    client.force_login(principal_user)
+    page = _form_page(client, teacher_user)
+    rows = {key: value for key, _label, _max, value in page.context["axis_rows"]}
+    assert rows == {
+        "axis_professional": 22,
+        "axis_commitment": 22,
+        "axis_teamwork": 22,
+        "axis_development": 22,
+    }
+    evaluation.refresh_from_db()
+    assert (evaluation.template_id, evaluation.total_score, evaluation.status) == (
+        None,
+        88,
+        "approved",
+    )
+
+
+@pytest.mark.django_db
+def test_evaluation_keeps_its_template_after_the_employee_changes_role(
+    client, school, principal_user, teacher_user
+):
+    from quality.evaluation_services import save_evaluation
+    from tests.conftest import RoleFactory
+
+    _seed(school, "--apply")
+    teacher_template = RoleEvaluationTemplate.objects.get(
+        school=school, role_name="teacher", academic_year=YEAR
+    )
+    evaluation = EmployeeEvaluation.objects.create(
+        school=school,
+        employee=teacher_user,
+        evaluator=principal_user,
+        academic_year=YEAR,
+        period="S2",
+        template=teacher_template,
+    )
+    teacher_axes = [(a.key, a.label, a.weight) for a in FORMS["2.4"].axes]
+    data = {key: str(weight) for key, _l, weight in teacher_axes} | {"action": "draft"}
+    save_evaluation(evaluation=evaluation, evaluator=principal_user, axes=teacher_axes, data=data)
+
+    membership = teacher_user.memberships.get(school=school)
+    membership.role = RoleFactory(school=school, name="it_technician")
+    membership.save()
+
+    client.force_login(principal_user)
+    page = _form_page(client, teacher_user)
+    assert [row[0] for row in page.context["axis_rows"]] == [k for k, _l, _w in teacher_axes]
+    assert all(row[3] == row[2] for row in page.context["axis_rows"])
+    evaluation.refresh_from_db()
+    assert (evaluation.template_id, evaluation.total_score) == (teacher_template.pk, 100)
+
+
+@pytest.mark.django_db
+def test_blank_draft_is_still_moved_to_the_role_template(
+    client, school, principal_user, teacher_user
+):
+    EmployeeEvaluation.objects.create(
+        school=school,
+        employee=teacher_user,
+        evaluator=principal_user,
+        academic_year=YEAR,
+        period="S2",
+    )
+    _seed(school, "--apply")
+    client.force_login(principal_user)
+    page = _form_page(client, teacher_user)
+    assert [row[0] for row in page.context["axis_rows"]] == [a.key for a in FORMS["2.4"].axes]
+
+
+@pytest.mark.django_db
+def test_lock_is_rechecked_inside_the_write(school, principal_user, teacher_user):
+    """تقييمٌ رُبط بالقالب بين بناء الخطّة وتطبيقها يُقفله — فلا تُحذف محاورُه."""
+    from quality.appraisal_seed import apply_plan, build_plan
+
+    _seed(school, "--apply")
+    template = RoleEvaluationTemplate.objects.get(
+        school=school, role_name="teacher", academic_year=YEAR
+    )
+    template.axes.filter(key="assessment").update(weight=20)
+    plan = build_plan(school, YEAR)
+    assert next(tp for tp in plan.templates if tp.role_name == "teacher").status == "changed"
+
+    EmployeeEvaluation.objects.create(
+        school=school,
+        employee=teacher_user,
+        evaluator=principal_user,
+        template=template,
+        academic_year=YEAR,
+        period="S2",
+    )
+    counts = apply_plan(plan)
+    assert counts["locked"] == 1
+    assert template.axes.get(key="assessment").weight == 20
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("year", ["2026/2027", "2026-27", "2026-2028"])
+def test_malformed_year_writes_nothing(school, year):
+    from django.core.management.base import CommandError
+
+    with pytest.raises(CommandError, match="--year"):
+        call_command(
+            "seed_quality_templates",
+            "--apply",
+            "--school",
+            school.code,
+            "--year",
+            year,
+            stdout=StringIO(),
+        )
+    assert _counts(school) == (0, 0)

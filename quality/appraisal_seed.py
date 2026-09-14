@@ -9,7 +9,12 @@ quality/appraisal_seed.py
 تُبذر أربعَ مرّات (سكرتير، محاسب، استقبال، فنّيّ تقنية).
 
 الخطّةُ لا تكتب شيئاً، والتطبيقُ لا يلمس ما طابق (فالتشغيلُ الثاني صفرُ كتابات)،
-ولا يغيّر قالباً عليه تقييماتٌ محفوظة — درجاتُها مخزّنةٌ بمفاتيح محاوره.
+ولا يغيّر قالباً عليه تقييماتٌ محفوظة — درجاتُها مخزّنةٌ بمفاتيح محاوره. ويُعاد فحصُ
+هذا القفل داخل معاملة الكتابة، فتقييمٌ رُبط بالقالب بين العرض والتطبيق يُقفله.
+
+والتقييماتُ القائمةُ خارج القالب (على المحاور الافتراضيّة، أو على قالب دورٍ سابقٍ
+للموظّف) تُعدّ في الخطّة لكلّ دور ولا تُنقل: شاشةُ التقييم تعرض ما عليه درجاتٌ على
+محاوره التي حُفظ بها (`evaluation_views._axes_for_evaluation`).
 """
 
 from __future__ import annotations
@@ -18,12 +23,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, Q
 
-from core.models import Role, School
+from core.models import Membership, Role, School
 
 from .appraisal_forms import AppraisalForm, forms_by_role
-from .models import EvaluationAxis, RoleEvaluationTemplate
+from .models import EmployeeEvaluation, EvaluationAxis, RoleEvaluationTemplate
 
 _KNOWN_ROLE_NAMES = frozenset(name for name, _label in Role.ROLES)
 
@@ -35,6 +40,8 @@ class TemplatePlan:
     template: RoleEvaluationTemplate | None
     changes: list[str] = field(default_factory=list)
     evaluations: int = 0
+    #: تقييماتٌ محفوظةٌ لموظّفين بهذا الدور في العام، ليست على هذا القالب — لا تُنقل إليه.
+    outside_template: int = 0
 
     @property
     def status(self) -> str:
@@ -76,6 +83,32 @@ def _diff(template: RoleEvaluationTemplate, form: AppraisalForm) -> list[str]:
     return changes
 
 
+def _saved_outside_template(
+    school: School, year: str, templates: dict[str, RoleEvaluationTemplate]
+) -> dict[str, int]:
+    """الدورُ ← عددُ التقييمات المحفوظة لأصحابه في العام وليست على قالبه القائم."""
+    roles = dict(
+        Membership.objects.filter(school=school, is_active=True).values_list(
+            "user_id", "role__name"
+        )
+    )
+    saved = (
+        EmployeeEvaluation.objects.filter(school=school, academic_year=year)
+        .filter(~Q(status="draft") | Q(total_score__gt=0) | Q(scores__isnull=False))
+        .values_list("pk", "employee_id", "template_id")
+        .distinct()
+    )
+    counts: dict[str, int] = {}
+    for _pk, employee_id, template_id in saved:
+        role_name = roles.get(employee_id)
+        if role_name is None:
+            continue
+        current = templates.get(role_name)
+        if current is None or template_id != current.pk:
+            counts[role_name] = counts.get(role_name, 0) + 1
+    return counts
+
+
 def build_plan(school: School, year: str) -> SchoolPlan:
     existing = {
         t.role_name: t
@@ -83,10 +116,16 @@ def build_plan(school: School, year: str) -> SchoolPlan:
         .annotate(n_evaluations=Count("evaluations"))
         .prefetch_related("axes")
     }
+    outside = _saved_outside_template(school, year, existing)
     plans = []
     for role_name, form in sorted(forms_by_role().items(), key=lambda kv: (kv[1].section, kv[0])):
         template = existing.pop(role_name, None)
-        plan = TemplatePlan(role_name=role_name, form=form, template=template)
+        plan = TemplatePlan(
+            role_name=role_name,
+            form=form,
+            template=template,
+            outside_template=outside.get(role_name, 0),
+        )
         if template is not None:
             plan.changes = _diff(template, form)
             plan.evaluations = template.n_evaluations
@@ -100,6 +139,13 @@ def apply_plan(plan: SchoolPlan, *, prune_orphans: bool = False) -> dict[str, in
     """يكتب ما في الخطّة. يُرجع عدّاداتٍ للعرض."""
     counts = {"created": 0, "updated": 0, "same": 0, "locked": 0, "pruned": 0}
     for tp in plan.templates:
+        if tp.status == "changed" and tp.template is not None:
+            # الخطّةُ بُنيت خارج هذه المعاملة: قد يكون تقييمٌ رُبط بالقالب منذئذ.
+            locked = (
+                RoleEvaluationTemplate.objects.select_for_update().filter(pk=tp.template.pk).first()
+            )
+            if locked is not None and locked.evaluations.exists():
+                tp.evaluations = locked.evaluations.count()
         if tp.status in ("same", "locked"):
             counts[tp.status] += 1
             continue

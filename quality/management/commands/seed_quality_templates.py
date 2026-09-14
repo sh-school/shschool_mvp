@@ -19,6 +19,7 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from core.academic_calendar import academic_year_for_school
 from core.models import School
 from quality.appraisal_seed import SchoolPlan, apply_plan, build_plan
+from quality.evaluation_services import is_academic_year
 
 _STATUS_LABEL = {
     "new": "جديد",
@@ -49,6 +50,10 @@ class Command(BaseCommand):
     def handle(self, *args: Any, **options: Any) -> None:
         if options["apply"] and options["dry_run"]:
             raise CommandError("--apply و--dry-run لا يجتمعان")
+        # عامٌ بصيغةٍ أخرى («2026/2027») كان يكتب 21 قالباً لا تقرؤها شاشة ولا يزيلها
+        # --prune-orphans (أسماءُ أدوارها صحيحة).
+        if options["year"] and not is_academic_year(options["year"]):
+            raise CommandError(f"--year {options['year']}: الصيغة «2026-2027» لعامين متتاليين")
         schools = School.objects.order_by("code")
         if options["school"]:
             schools = schools.filter(code=options["school"])
@@ -74,6 +79,13 @@ class Command(BaseCommand):
             )
             for change in tp.changes:
                 self.stdout.write(f"      {change}")
+            if tp.outside_template:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"      تقييماتٌ محفوظةٌ لهذا الدور خارج القالب: {tp.outside_template}"
+                        " — لا تُنقل إليه، وتُعرض على محاورها"
+                    )
+                )
         for orphan in plan.orphans:
             self.stdout.write(
                 self.style.WARNING(
