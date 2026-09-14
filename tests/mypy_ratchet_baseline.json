@@ -124,7 +124,7 @@
   "operations/day_attendance.py": 4,
   "operations/departments.py": 11,
   "operations/models.py": 54,
-  "operations/period_register.py": 15,
+  "operations/period_register.py": 13,
   "operations/preference_capacity.py": 1,
   "operations/schedule_feasibility.py": 5,
   "operations/schedule_lab.py": 14,
@@ -151,7 +151,7 @@
   "student_info/models.py": 2,
   "transport/models.py": 3,
   "transport/querysets.py": 4,
-  "wings/services.py": 17
+  "wings/services.py": 15
  },
- "total": 1874
+ "total": 1870
 }

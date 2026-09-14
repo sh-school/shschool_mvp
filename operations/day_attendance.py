@@ -18,7 +18,9 @@
 
 from __future__ import annotations
 
-from core.models import StudentEnrollment
+from django.db.models import QuerySet
+
+from core.models import ClassGroup, StudentEnrollment
 from core.permissions import WING_DAY_RECORD
 
 from .models import StudentAttendance
@@ -52,7 +54,7 @@ def recorded_by_supervisor(session, student) -> bool:
     ).exists()
 
 
-def enrolled_of(class_group):
+def enrolled_of(class_group: ClassGroup) -> QuerySet[StudentEnrollment]:
     return (
         StudentEnrollment.objects.filter(class_group=class_group, is_active=True)
         .select_related("student")
