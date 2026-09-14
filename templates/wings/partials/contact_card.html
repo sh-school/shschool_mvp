@@ -1,0 +1,50 @@
+{% load ui %}
+{% comment %}إخطارُ وليّ الأمر بغياب ابنه — بضغطةٍ بنتيجته (م 3.4.1.5، قرارُ 2026-09-13). يحتاج: klass, student, contact_day, contact_outcomes, contacts.{% endcomment %}
+{% section_card "إخطارُ وليّ الأمر" icon="phone" meta=contacts|length %}
+  <form method="post" action="{% url 'wings:guardian_contact_log' klass.id student.id %}" class="exc-form__grid">
+    {% csrf_token %}
+    <label class="form-label">يومُ الغياب
+      <input type="date" name="absence_date" class="form-control" value="{{ contact_day|date:'Y-m-d' }}" required>
+    </label>
+    <label class="form-label">الوسيلة
+      <select name="channel" class="form-select">
+        <option value="phone">هاتف</option>
+        <option value="sms">رسالة نصّيّة</option>
+      </select>
+    </label>
+    <fieldset class="exc-form__wide rec-row__pick" aria-label="نتيجةُ الاتّصال">
+      {% for key, label in contact_outcomes %}
+      <label class="rec-pick{% if key == 'answered' %} rec-pick--present{% elif key == 'no_answer' %} rec-pick--absent{% else %} rec-pick--late{% endif %}">
+        <input type="radio" name="outcome" value="{{ key }}" {% if forloop.first %}checked{% endif %}>
+        <span>{{ label }}</span>
+      </label>
+      {% endfor %}
+    </fieldset>
+    <label class="form-label exc-form__wide">ملاحظة
+      <input type="text" name="note" class="form-control" maxlength="200" placeholder="اختياريّ">
+    </label>
+    <div class="exc-form__wide exc-form__actions">
+      <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="phone" %} اتّصلتُ بوليّ الأمر</button>
+    </div>
+  </form>
+  <p class="bell-note">الإخطارُ في اليوم نفسِه هاتفيّاً ونصّيّاً (م 3.4.1.5)، ومهلةُ العذر يومان دراسيّان تُعدّ من الإخطار. السجلُّ حقيقةٌ تُكتب ولا تُحذف.</p>
+
+  {% if contacts %}
+  <div class="table-wrap">
+    <table data-no-sort>
+      <thead><tr><th>عن غياب</th><th>متى</th><th>الوسيلة</th><th>النتيجة</th><th>من</th></tr></thead>
+      <tbody>
+        {% for c in contacts %}
+        <tr>
+          <td>{{ c.absence_date|date:"d/m" }}</td>
+          <td>{{ c.contacted_at|date:"d/m H:i" }}</td>
+          <td><small>{{ c.get_channel_display }}</small></td>
+          <td><span class="status-badge {% if c.outcome == 'answered' %}status-success{% elif c.outcome == 'no_answer' %}status-danger{% else %}status-warning{% endif %}">{{ c.get_outcome_display }}</span>{% if c.note %} <small>{{ c.note }}</small>{% endif %}</td>
+          <td><small>{{ c.contacted_by.full_name|default:"—" }}</small></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+{% endsection_card %}

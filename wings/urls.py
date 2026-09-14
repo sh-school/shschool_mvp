@@ -30,6 +30,11 @@ urlpatterns = [
     ),
     path("record/excuse/<uuid:pk>/revoke/", views.excuse_revoke, name="excuse_revoke"),
     path(
+        "record/<uuid:class_id>/student/<uuid:student_id>/contact/",
+        views.guardian_contact_log,
+        name="guardian_contact_log",
+    ),
+    path(
         "record/<uuid:class_id>/register/",
         views_register.section_register_export,
         name="section_register",

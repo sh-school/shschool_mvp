@@ -18,6 +18,7 @@ from operations.absence_policy import next_gate
 from operations.absence_standing import unexcused_days_for_class
 from operations.bells import day_type_for
 from operations.day_attendance import enrolled_of
+from operations.guardian_contact import awaiting_contact
 from operations.models import StudentAttendance
 from operations.period_register import (
     absent_yesterday,
@@ -261,6 +262,7 @@ def record_section(request, class_id):
     wanted = _time(request.GET.get("p"))
     focus = next((p for p in periods if p.start == wanted), None) or focus_period(periods, day, now)
     cells = cells_of(klass, day)
+    awaiting = awaiting_contact(klass, day)
     following = next_section_awaiting(klass, day, focus.start) if focus else None
     taps = teacher_taps_of(klass, day)
     outs = teacher_outs_of(klass, day)
@@ -283,6 +285,8 @@ def record_section(request, class_id):
                 # خرج بإذن المعلّم ولم يعد: تُملأ الخانةُ «غائباً» ومكانُه.
                 "out": outs.get(sid, {}).get(focus.start) if focus else None,
                 "absent_yesterday": sid in yesterday,
+                # غاب أمس ولم يُخطَر وليُّ أمره بعد — الإخطارُ في اليوم نفسِه (م 3.4.1.5).
+                "needs_contact": awaiting.get(sid),
                 "days": days,
                 "gate": gate,
             }
@@ -364,7 +368,9 @@ def student_events(request, class_id, student_id):
     التأخّر أو الهروب التي بُنيت عليه. والخانةُ تعود «لم تُرصد» لا «حاضراً».
     """
     from operations.excuses import GRACE_DAYS, kinds
-    from operations.models import AbsenceExcuse, ClassExit
+    from operations.guardian_contact import awaiting_contact as _awaiting
+    from operations.guardian_contact import contacts_of
+    from operations.models import AbsenceExcuse, ClassExit, GuardianContact
 
     school, klass = _own_class(request, class_id)
     student = get_object_or_404(
@@ -398,6 +404,10 @@ def student_events(request, class_id, student_id):
             .order_by("-date_from")[:20],
             "excuse_kinds": kinds(),
             "excuse_day": focus_day,
+            # إخطارُ وليّ الأمر — بضغطةٍ بنتيجته (قرارُ 2026-09-13).
+            "contacts": contacts_of(student, school),
+            "contact_outcomes": GuardianContact.OUTCOMES,
+            "contact_day": _awaiting(klass, today).get(student.id) or focus_day,
             "grace_days": GRACE_DAYS,
             "may_override": has_capability(request.user, "wings.excuse_after_deadline"),
         },
@@ -442,6 +452,43 @@ def excuse_grant(request, class_id, student_id):
         request,
         f"قُبل العذرُ ({excuse.get_kind_display()}) وغُطّي {excuse.rows.count()} حصّةً"
         + (" — بعد المهلة." if excuse.after_deadline else "."),
+    )
+    return redirect(back)
+
+
+@login_required
+@capability_required("wings.record_day")
+@require_POST
+def guardian_contact_log(request, class_id, student_id):
+    """«اتّصلتُ بوليّ الأمر» بنتيجته — عن يومِ غيابٍ بعينه."""
+    from operations.guardian_contact import ContactError, log_contact
+
+    school, klass = _own_class(request, class_id)
+    student = get_object_or_404(
+        CustomUser, id=student_id, enrollments__class_group=klass, enrollments__is_active=True
+    )
+    back = reverse("wings:student_events", args=[klass.id, student.id])
+    absence_date = _day(request.POST.get("absence_date"))
+    if absence_date is None:
+        messages.error(request, "اختر يومَ الغياب.")
+        return redirect(back)
+    try:
+        contact = log_contact(
+            student=student,
+            school=school,
+            absence_date=absence_date,
+            outcome=request.POST.get("outcome", ""),
+            note=request.POST.get("note", ""),
+            channel=request.POST.get("channel", "phone"),
+            by=request.user,
+        )
+    except ContactError as err:
+        messages.error(request, str(err))
+        return redirect(back)
+    messages.success(
+        request,
+        f"سُجّل الإخطارُ عن غياب {absence_date:%d/%m}: {contact.get_outcome_display()} — "
+        "ومهلةُ العذر تُعدّ من اليوم.",
     )
     return redirect(back)
 
