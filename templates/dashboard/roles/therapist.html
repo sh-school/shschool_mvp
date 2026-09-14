@@ -1,7 +1,7 @@
 {% load ui dict_filters %}
 <div class="exec-dash">
 
-  {% page_header "لوحة جلسات العلاج" subtitle=subtitle icon="activity" %}{% endpage_header %}
+  {% page_header "لوحة جلسات العلاج" subtitle=subtitle icon="stats" %}{% endpage_header %}
 
   {% kpi_strip label="الجلسات" %}
     {% kpi "جلسات اليوم" total_sessions_today sub=sessions_sub tone="teal" %}
@@ -10,7 +10,7 @@
     {% if unique_groups_today %}{% kpi "شُعب اليوم" unique_groups_today tone="maroon" %}{% endif %}
   {% endkpi_strip %}
 
-  {% section_card "جدول جلسات اليوم" meta=sessions_today|length icon="calendar" flush=True empty="لا جلساتٍ مجدولةٌ لهذا اليوم" %}{% if sessions_today %}
+  {% section_card "جدول جلسات اليوم" meta=sessions_today|length icon="periods_today" flush=True empty="لا جلساتٍ مجدولةٌ لهذا اليوم" %}{% if sessions_today %}
     <div class="table-wrap">
       <table>
         {# الشعبةُ تُفرَز بترتيبها المدرسيّ: من 7/1 صعوداً لا بترتيب الحروف. #}

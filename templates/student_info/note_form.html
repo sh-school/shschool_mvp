@@ -9,11 +9,11 @@
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header "ملاحظة على "|add:student.full_name subtitle=year icon="file-pen" %}
+  {% page_header "ملاحظة على "|add:student.full_name subtitle=year icon="edit_record" %}
     <a href="{% url 'student_info:student_file' student.id %}?year={{ year }}" class="btn-secondary btn-sm">رجوع للملفّ</a>
   {% endpage_header %}
 
-  {% section_card "بيانات الملاحظة" icon="file-pen" %}
+  {% section_card "بيانات الملاحظة" icon="edit_record" %}
     <form method="post">
       {% csrf_token %}
 

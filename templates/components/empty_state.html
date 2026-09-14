@@ -3,14 +3,14 @@
   ════════════════════════════════════════════
   الاستخدام:
     include "components/empty_state.html" with
-       icon="inbox"
+       icon="empty"
        title="لا توجد نتائج"
        subtitle="لم يتم العثور على أي عناصر تطابق معايير البحث."
        action_url="/students/add/"
        action_label="إضافة طالب جديد"
 
   المتغيرات:
-    icon         — اسمُ أيقونةٍ من `sprite.html` (مثل "inbox" أو "check-circle").
+    icon         — معنًى من قاموس الأيقونات `core/icons.py` (مثل "empty" أو "status_success").
                    وكان يُطبَع نصّاً خاماً، فمن مرّر اسماً رأى الاسمَ نفسَه
                    بخطٍّ ضخمٍ مكانَ الأيقونة — «check-circle» في شاشة الغياب.
                    ولا تُمرَّر emoji: أيقوناتُ المنصّة من مصدرٍ واحد.

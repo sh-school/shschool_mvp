@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}سجل الزيارات{% endblock %}
 
@@ -9,7 +10,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "سجل زيارات العيادة" icon="hospital" %}
+  {% page_header "سجل زيارات العيادة" icon="clinic" %}
     <a href="{% url 'clinic:record_visit' %}" class="btn-primary btn-sm">+ زيارة جديدة</a>
     <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
   {% endpage_header %}
@@ -29,7 +30,7 @@
         hx-swap="innerHTML"
         hx-push-url="true"
         hx-on:click="document.getElementById('date-filter').value=''; document.getElementById('student-filter').value='';"
-      >{% include "components/icon.html" with name="x-circle" %} مسح</a>
+      >{% icon "status_error" %} مسح</a>
     </div>
     {% endif %}
   {% endfilter_bar %}

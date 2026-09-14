@@ -9,7 +9,7 @@
 {% block content %}
 <div class="exec-dash">
 
-{% page_header "مختبر جودة الجدول" subtitle=lab_subtitle icon="activity" %}{% endpage_header %}
+{% page_header "مختبر جودة الجدول" subtitle=lab_subtitle icon="schedule" %}{% endpage_header %}
 
 {# ── ما يُقاس وبماذا يُقارَن، وحفظُ القياس أساساً ── #}
 {% filter_bar "قياسُ الجدول ومرجعُه" live=True css="lab-head" %}
@@ -53,7 +53,7 @@
 
 <div class="lab-main">
   {# ── الرادار: درجةٌ مشتقّةٌ لكلّ مجموعة، الحاليُّ عنّابيٌّ والمرجعُ ذهبيّ ── #}
-  {% section_card "الصورة الكلّية" meta="درجة من 100" icon="activity" %}
+  {% section_card "الصورة الكلّية" meta="درجة من 100" icon="stats" %}
     <canvas id="lab-radar" class="lab-radar" aria-label="رادار مجموعات الجودة" role="img"></canvas>
     <div class="score-list">
       {% for g in groups %}
@@ -71,7 +71,7 @@
 
   {# ── أشدّ المعلّمين ضغطاً والموارد ── #}
   <div class="lab-tables">
-    {% section_card "أشدّ خمسة معلّمين ضغطاً" icon="alert-triangle" flush=True empty="لا ضغطَ مقيس" %}{% if stress_top %}
+    {% section_card "أشدّ خمسة معلّمين ضغطاً" icon="status_warning" flush=True empty="لا ضغطَ مقيس" %}{% if stress_top %}
       <div class="table-wrap">
         <table>
           <thead><tr><th>المعلّم</th><th class="num" title="الضغط = (الفراغ الموزون + الأولى والسابعة + تجاوزات التتابع + تفاوت الأيام) ÷ النصاب">ضغط لكلّ حصّة</th></tr></thead>
@@ -84,7 +84,7 @@
       </div>
     {% endif %}{% endsection_card %}
 
-    {% section_card "الموارد" icon="layers" flush=True %}
+    {% section_card "الموارد" icon="school_building" flush=True %}
       {% if resources %}
       <div class="table-wrap">
         <table>
@@ -97,7 +97,7 @@
         </table>
       </div>
       {% else %}
-      {% empty_state "لا موارد معرَّفة" icon="layers" %}
+      {% empty_state "لا موارد معرَّفة" icon="empty" %}
       {% endif %}
       <ul class="chip-row lab-chips">
         {% with r=by_key|get_item:"resources.saturated_slots" %}
@@ -135,7 +135,7 @@
 {% endfor %}
 
 {% if missed_prefs %}
-{% section_card "تفضيلات لم تتحقّق" meta=missed_prefs|length icon="users" flush=True %}
+{% section_card "تفضيلات لم تتحقّق" meta=missed_prefs|length icon="settings" flush=True %}
   <div class="table-wrap">
     <table>
       <thead><tr><th>المعلّم</th><th>القاعدة</th></tr></thead>

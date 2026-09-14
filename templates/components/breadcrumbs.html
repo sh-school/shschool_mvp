@@ -8,10 +8,11 @@
   For deeper nesting, use parent2_url/parent2_label.
   Add no_back=True to hide the back button.
 {% endcomment %}
+{% load icons %}
 <nav class="breadcrumbs" aria-label="مسار التصفح">
   {% if not no_back %}
   <button type="button" class="bc-back" data-action="back" aria-label="رجوع للصفحة السابقة" title="رجوع">
-    <svg width="14" height="14" aria-hidden="true"><use href="#icon-chevron-left"/></svg>
+    {% icon "next" size="sm" %}
   </button>
   <span class="bc-sep" aria-hidden="true">/</span>
   {% endif %}

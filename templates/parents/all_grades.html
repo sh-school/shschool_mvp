@@ -9,12 +9,12 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "درجات الأبناء" subtitle=subtitle icon="bar-chart" %}
+  {% page_header "درجات الأبناء" subtitle=subtitle icon="grades" %}
     <a href="{% url 'parent_dashboard' %}" class="btn-secondary btn-sm">العودة للبوابة</a>
   {% endpage_header %}
 
   {% for child in children_grades %}
-    {% section_card child.student.full_name meta=child.enrollment.class_group.short_code icon="user" %}
+    {% section_card child.student.full_name meta=child.enrollment.class_group.short_code icon="grades" %}
       <div class="parent-child">
         {% kpi_strip label="أرقام الدرجات" %}
           {% if child.avg %}{% kpi "المعدّل" child.avg_label tone=child.avg_tone %}{% endif %}
@@ -40,12 +40,12 @@
             </table>
           </div>
         {% else %}
-          {% empty_state "لم تُدخل الدرجاتُ بعد" sub="تظهر هنا حين يرصدها المعلّمون" icon="bar-chart" %}
+          {% empty_state "لم تُدخل الدرجاتُ بعد" sub="تظهر هنا حين يرصدها المعلّمون" icon="grades" %}
         {% endif %}
       </div>
     {% endsection_card %}
   {% empty %}
-    {% section_card "الأبناء" icon="users" empty="لا أبناءَ مربوطين أو لا صلاحيةَ لعرض درجاتهم" empty_sub="تواصل مع إدارة المدرسة" %}{% endsection_card %}
+    {% section_card "الأبناء" icon="children" empty="لا أبناءَ مربوطين أو لا صلاحيةَ لعرض درجاتهم" empty_sub="تواصل مع إدارة المدرسة" %}{% endsection_card %}
   {% endfor %}
 
 </div>

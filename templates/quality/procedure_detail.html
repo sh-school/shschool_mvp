@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}تفاصيل الإجراء{% endblock %}
 
@@ -9,11 +10,11 @@
 {% block content %}
 <div class="qproc">
 
-  {% page_header "تفاصيل الإجراء" subtitle=procedure.indicator.target.domain.name icon="clipboard-check" %}
+  {% page_header "تفاصيل الإجراء" subtitle=procedure.indicator.target.domain.name icon="observation" %}
     <a href="{% url 'domain_detail' procedure.indicator.target.domain.id %}" class="btn-secondary btn-sm">← المجال</a>
   {% endpage_header %}
 
-  {% section_card procedure_title meta=procedure.executor_norm icon="file-text" %}
+  {% section_card procedure_title meta=procedure.executor_norm icon="document" %}
     <ul class="chip-row">
       <li id="status-badge">{% include "quality/partials/procedure_status_badge.html" %}</li>
       <li class="chip-stat"><span class="chip-stat__key">المؤشر</span><b class="chip-stat__value" dir="ltr">{{ procedure.indicator.number }}</b></li>
@@ -83,7 +84,7 @@
 
   {% if can_edit %}
   <div class="qproc-noprint">
-  {% section_card "تحديث الحالة" icon="pencil" %}
+  {% section_card "تحديث الحالة" icon="edit" %}
     <form hx-post="{% url 'update_proc_status' procedure.id %}"
           hx-target="#status-badge" hx-swap="innerHTML"
           class="qproc-update__form">
@@ -109,7 +110,7 @@
   {% endif %}
 
   {% if status_logs %}
-  {% section_card "سجل التغييرات" meta=status_logs|length icon="clock" %}
+  {% section_card "سجل التغييرات" meta=status_logs|length icon="time" %}
     <ol class="qproc-timeline__list">
       {% for log in status_logs %}
       <li class="qproc-tl-item">
@@ -124,7 +125,7 @@
             <span class="qproc-tl-time">{{ log.created_at|timesince }} مضت</span>
           </div>
           <div class="qproc-tl-user">
-            {% include "components/icon.html" with name="user" %}
+            {% icon "profile" %}
             <span>{{ log.changed_by.full_name|default:"النظام" }}</span>
           </div>
           {% if log.note %}
@@ -137,7 +138,7 @@
   {% endsection_card %}
   {% endif %}
 
-  {% section_card "الأدلة المرفوعة" meta=evidences|length icon="paperclip" empty="لا توجد أدلة مرفوعة بعد" %}{% if evidences %}
+  {% section_card "الأدلة المرفوعة" meta=evidences|length icon="quality" empty="لا توجد أدلة مرفوعة بعد" %}{% if evidences %}
     <ul class="plain-list">
       {% for ev in evidences %}
       <li class="plain-list__row">

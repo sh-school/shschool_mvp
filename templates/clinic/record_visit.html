@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load privacy ui %}
 {% block title %}تسجيل زيارة جديدة{% endblock %}
 
@@ -9,7 +10,7 @@
 {% block content %}
 <div class="exec-dash clinic-form-page">
 
-  {% page_header "تسجيل زيارة جديدة" icon="hospital" %}
+  {% page_header "تسجيل زيارة جديدة" icon="clinic" %}
     <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
   {% endpage_header %}
 
@@ -47,7 +48,7 @@
         <div class="form-note is-warning items-center">
           <input type="checkbox" name="is_sent_home" id="sent_home" class="clinic-check">
           <label for="sent_home" class="font-medium cursor-pointer m-0">
-            {% include "components/icon.html" with name="alert-triangle" %} تم إرسال الطالب إلى المنزل (سيتم إبلاغ ولي الأمر تلقائياً)
+            {% icon "status_warning" %} تم إرسال الطالب إلى المنزل (سيتم إبلاغ ولي الأمر تلقائياً)
           </label>
         </div>
 
@@ -55,7 +56,7 @@
 
       <div class="flex gap-3 mt-6">
         <button type="submit" class="btn-danger flex-1 p-3 text-sm font-bold">
-          {% include "components/icon.html" with name="save" %} تسجيل الزيارة
+          {% icon "save" %} تسجيل الزيارة
         </button>
         <a href="{% url 'clinic:dashboard' %}" class="btn-secondary px-6 py-3 no-underline">إلغاء</a>
       </div>

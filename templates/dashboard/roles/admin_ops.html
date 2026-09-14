@@ -1,18 +1,19 @@
+{% load icons %}
 {% load ui %}
 <div class="exec-dash">
 
-  {% page_header "اللوحة الإدارية" subtitle=subtitle icon="briefcase" %}
-    {% if admin_role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="list-checks" %} رصد الغياب</a>{% endif %}
+  {% page_header "اللوحة الإدارية" subtitle=subtitle icon="workload" %}
+    {% if admin_role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>{% endif %}
   {% endpage_header %}
 
   {% if admin_role == "admin_supervisor" %}
     {% if not is_school_day %}
-      <div class="wing-warn">{% include "components/icon.html" with name="alert-triangle" %} لا دوامَ اليوم — فلا رصد.</div>
+      <div class="wing-warn">{% icon "status_warning" %} لا دوامَ اليوم — فلا رصد.</div>
     {% endif %}
     {% for panel in record_panels %}
       {% include "wings/partials/record_panel.html" %}
     {% empty %}
-      <div class="wing-warn">{% include "components/icon.html" with name="alert-triangle" %} لا جناحَ مُسنَدٌ إليك اليوم — راجع النائبَ الإداريّ.</div>
+      <div class="wing-warn">{% icon "status_warning" %} لا جناحَ مُسنَدٌ إليك اليوم — راجع النائبَ الإداريّ.</div>
     {% endfor %}
   {% endif %}
 
@@ -23,7 +24,7 @@
   {% endkpi_strip %}
 
   {% if recent_alerts %}
-  {% section_card "تنبيهات الغياب المعلّقة" meta=recent_alerts|length icon="bell" %}
+  {% section_card "تنبيهات الغياب المعلّقة" meta=recent_alerts|length icon="absence" %}
     <ul class="plain-list">
       {% for alert in recent_alerts %}
         <li class="plain-list__row"><span class="plain-list__title">{{ alert.student.full_name }}</span><span class="status-badge status-danger">{{ alert.absence_count }} أيّام</span></li>
@@ -33,9 +34,9 @@
   {% endif %}
 
   <nav class="ui-actions" aria-label="إجراءات سريعة">
-    {% url 'staff_affairs:dashboard' as u %}{% action_tile "شؤون الموظفين" desc="الحضورُ والغيابُ والإجازات" icon="users" href=u primary=True %}
-    {% url 'student_affairs:student_list' as u %}{% action_tile "شؤون الطلاب" desc="بياناتُ الطلاب وملفّاتُهم" icon="user" href=u %}
-    {% url 'weekly_schedule' as u %}{% action_tile "الجدول الدراسي" desc="الحصصُ والمعلّمون" icon="calendar" href=u %}
+    {% url 'staff_affairs:dashboard' as u %}{% action_tile "شؤون الموظفين" desc="الحضورُ والغيابُ والإجازات" icon="staff" href=u primary=True %}
+    {% url 'student_affairs:student_list' as u %}{% action_tile "شؤون الطلاب" desc="بياناتُ الطلاب وملفّاتُهم" icon="students" href=u %}
+    {% url 'weekly_schedule' as u %}{% action_tile "الجدول الدراسي" desc="الحصصُ والمعلّمون" icon="schedule" href=u %}
   </nav>
 
 </div>

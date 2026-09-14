@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load static ui %}
 {% block title %}لوحة المكتبة — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
@@ -9,9 +10,9 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "لوحة المكتبة" subtitle="إدارة الكتب والإعارة" icon="book-open" %}
-    <a href="{% url 'library:borrow_book' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} إعارة جديدة</a>
-    <a href="{% url 'library:book_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="book-open" %} قائمة الكتب</a>
+  {% page_header "لوحة المكتبة" subtitle="إدارة الكتب والإعارة" icon="library" %}
+    <a href="{% url 'library:borrow_book' %}" class="btn-primary btn-sm">{% icon "add" %} إعارة جديدة</a>
+    <a href="{% url 'library:book_list' %}" class="btn-secondary btn-sm">{% icon "library" %} قائمة الكتب</a>
   {% endpage_header %}
 
   {% kpi_strip label="أرقام المكتبة" %}
@@ -22,13 +23,13 @@
   {% endkpi_strip %}
 
   <div class="ui-grid-2">
-    {% section_card "توزيع الكتب حسب التصنيف" icon="pie-chart" %}
+    {% section_card "توزيع الكتب حسب التصنيف" icon="stats" %}
       <div class="dash-chart-wrap">
         <div class="chart-loading" id="loading-chartCategories">جاري التحميل...</div>
         <canvas id="chartCategories" role="img" aria-label="رسم بياني: توزيع الكتب حسب التصنيف"></canvas>
       </div>
     {% endsection_card %}
-    {% section_card "حركة الإعارة" meta="آخر 6 أشهر" icon="trending-up" %}
+    {% section_card "حركة الإعارة" meta="آخر 6 أشهر" icon="trend" %}
       <div class="dash-chart-wrap">
         <div class="chart-loading" id="loading-chartMonthly">جاري التحميل...</div>
         <canvas id="chartMonthly" role="img" aria-label="رسم بياني: حركة الإعارة آخر 6 أشهر"></canvas>
@@ -37,7 +38,7 @@
   </div>
 
   <div class="ui-grid-2">
-    {% section_card "تستحقّ الإعادة قريباً" meta=due_soon|length icon="clock" empty="لا إعاراتٍ تستحقّ الإعادة قريباً" %}{% if due_soon %}
+    {% section_card "تستحقّ الإعادة قريباً" meta=due_soon|length icon="time" empty="لا إعاراتٍ تستحقّ الإعادة قريباً" %}{% if due_soon %}
       <ul class="plain-list is-scroll">
         {% for b in due_soon %}
           <li class="plain-list__row">
@@ -48,7 +49,7 @@
       </ul>
     {% endif %}{% endsection_card %}
 
-    {% section_card "الأكثر إعارة" meta=stats.popular_books|length icon="trending-up" empty="لا إعاراتٍ بعد" %}{% if stats.popular_books %}
+    {% section_card "الأكثر إعارة" meta=stats.popular_books|length icon="library" empty="لا إعاراتٍ بعد" %}{% if stats.popular_books %}
       <ul class="plain-list is-scroll">
         {% for pb in stats.popular_books %}
           <li class="plain-list__row">
@@ -61,7 +62,7 @@
   </div>
 
   <div class="ui-grid-2">
-    {% section_card "آخر الكتب المضافة" meta=recent_books|length icon="book" empty="لا كتبَ مضافة" %}{% if recent_books %}
+    {% section_card "آخر الكتب المضافة" meta=recent_books|length icon="library" empty="لا كتبَ مضافة" %}{% if recent_books %}
       <ul class="plain-list is-scroll">
         {% for book in recent_books %}
           <li class="plain-list__row">
@@ -72,7 +73,7 @@
       </ul>
     {% endif %}{% endsection_card %}
 
-    {% section_card "آخر الإعارات" meta=recent_borrowings|length icon="repeat" empty="لا إعاراتٍ مسجّلة" %}{% if recent_borrowings %}
+    {% section_card "آخر الإعارات" meta=recent_borrowings|length icon="library" empty="لا إعاراتٍ مسجّلة" %}{% if recent_borrowings %}
       <ul class="plain-list is-scroll">
         {% for b in recent_borrowings %}
           <li class="plain-list__row">

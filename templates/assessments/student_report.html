@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui dict_filters %}
 {% block title %}كشف درجات — {{ student.full_name }}{% endblock %}
 
@@ -9,7 +10,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "كشف الدرجات السنوي" subtitle=subtitle icon="bar-chart" %}{% endpage_header %}
+  {% page_header "كشف الدرجات السنوي" subtitle=subtitle icon="grades" %}{% endpage_header %}
 
   {% kpi_strip label="أرقام الطالب" %}
     {% kpi "المواد" total_subjects tone="blue" %}
@@ -17,7 +18,7 @@
     {% kpi "راسب" failed tone=failed_tone %}
   {% endkpi_strip %}
 
-  {% section_card "النتائج السنوية" meta=year icon="bar-chart" flush=True empty="لا توجد نتائج بعد" %}{% if rows %}
+  {% section_card "النتائج السنوية" meta=year icon="grades" flush=True empty="لا توجد نتائج بعد" %}{% if rows %}
     <div class="table-wrap">
       <table>
         <thead>
@@ -46,7 +47,7 @@
         </tbody>
       </table>
     </div>
-    <p class="form-note" role="note">{% include "components/icon.html" with name="calculator" %} المجموع السنوي = الفصل الأول (من 40) + الفصل الثاني (من 60)، والنجاح من 50 من 100.</p>
+    <p class="form-note" role="note">{% icon "calculate" %} المجموع السنوي = الفصل الأول (من 40) + الفصل الثاني (من 60)، والنجاح من 50 من 100.</p>
   {% endif %}{% endsection_card %}
 
 </div>

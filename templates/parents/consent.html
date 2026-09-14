@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}إعدادات الموافقة على البيانات{% endblock %}
 
@@ -9,13 +10,13 @@
 {% block content %}
 <div class="exec-dash consent-page">
 
-  {% page_header "الموافقة على معالجة البيانات" subtitle="قانون حماية البيانات الشخصية القطري رقم 13 لسنة 2016" icon="lock" %}{% endpage_header %}
+  {% page_header "الموافقة على معالجة البيانات" subtitle="قانون حماية البيانات الشخصية القطري رقم 13 لسنة 2016" icon="policy" %}{% endpage_header %}
 
   <form method="post" class="consent-form">
     {% csrf_token %}
 
     {% for link in links %}
-      {% section_card link.student.full_name meta="اختر ما تسمح بمعالجته" icon="user" %}
+      {% section_card link.student.full_name meta="اختر ما تسمح بمعالجته" icon="profile" %}
         <ul class="plain-list">
           {% for dt, label in data_types %}
             <li class="plain-list__row">
@@ -30,17 +31,17 @@
         </ul>
       {% endsection_card %}
     {% empty %}
-      {% section_card "الأبناء" icon="users" empty="لا طلابَ مرتبطين بحسابك" %}{% endsection_card %}
+      {% section_card "الأبناء" icon="children" empty="لا طلابَ مرتبطين بحسابك" %}{% endsection_card %}
     {% endfor %}
 
     {% if links %}
       <p class="form-note is-warning" role="note">
-        {% include "components/icon.html" with name="alert-triangle" %}
+        {% icon "status_warning" %}
         سحبُ الموافقة على نوعٍ من البيانات يحجب عنك متابعةَ ابنك في ذلك المجال.
       </p>
       <div class="form-actions">
         <a href="{% url 'parent_dashboard' %}" class="btn-ghost">إلغاء</a>
-        <button type="submit" class="btn-primary">{% include "components/icon.html" with name="check" %} حفظ الإعدادات</button>
+        <button type="submit" class="btn-primary">{% icon "confirm" %} حفظ الإعدادات</button>
       </div>
     {% endif %}
   </form>

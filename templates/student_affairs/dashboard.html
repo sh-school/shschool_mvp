@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block title %}شؤون الطلاب{% endblock %}
@@ -10,14 +11,14 @@
 {% block content %}
 <div class="exec-dash sa-page">
 
-  {% page_header "شؤون الطلاب" subtitle=page_subtitle icon="users" %}
-    <a href="{% url 'student_affairs:student_add' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} إضافة طالب</a>
-    <a href="{% url 'student_affairs:student_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="list-checks" %} سجل الطلاب</a>
-    <a href="{% url 'student_affairs:transfer_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="refresh" %} الانتقالات</a>
-    <a href="{% url 'student_affairs:activity_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="activity" %} الأنشطة</a>
-    <a href="{% url 'student_import_export' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} استيراد/تصدير</a>
-    <a href="{% url 'manage_parent_links' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="waypoints" %} ربط الأولياء</a>
-    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+  {% page_header "شؤون الطلاب" subtitle=page_subtitle icon="students" %}
+    <a href="{% url 'student_affairs:student_add' %}" class="btn-primary btn-sm">{% icon "student_add" %} إضافة طالب</a>
+    <a href="{% url 'student_affairs:student_list' %}" class="btn-secondary btn-sm">{% icon "student_info" %} سجل الطلاب</a>
+    <a href="{% url 'student_affairs:transfer_list' %}" class="btn-secondary btn-sm">{% icon "refresh" %} الانتقالات</a>
+    <a href="{% url 'student_affairs:activity_list' %}" class="btn-secondary btn-sm">{% icon "activities" %} الأنشطة</a>
+    <a href="{% url 'student_import_export' %}" class="btn-secondary btn-sm">{% icon "import" %} استيراد/تصدير</a>
+    <a href="{% url 'manage_parent_links' %}" class="btn-secondary btn-sm">{% icon "link" %} ربط الأولياء</a>
+    <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
   {# الإحصائيات اليومية (SOS-20260420-9A91) — والمرحلتان تفصيلُ الإجمالي لا بطاقةٌ بسطرين #}
@@ -34,7 +35,7 @@
 
   {# القوائم اليومية (SOS-20260420-9A91) #}
   <div class="charts-grid-3">
-    {% section_card "الغائبون اليوم" meta=absent_today icon="user-x" empty="لا غياب اليوم" %}{% if absent_list %}
+    {% section_card "الغائبون اليوم" meta=absent_today icon="absence" empty="لا غياب اليوم" %}{% if absent_list %}
       <ul class="plain-list is-scroll">
         {% for s in absent_list %}
           <li class="plain-list__row"><span class="plain-list__title">{{ s.full_name }}</span><span class="status-badge status-gray">{{ s.class_group }}</span></li>
@@ -42,7 +43,7 @@
       </ul>
     {% endif %}{% endsection_card %}
 
-    {% section_card "المتأخرون اليوم" meta=late_today icon="clock" empty="لا تأخير اليوم" %}{% if late_list %}
+    {% section_card "المتأخرون اليوم" meta=late_today icon="tardiness" empty="لا تأخير اليوم" %}{% if late_list %}
       <ul class="plain-list is-scroll">
         {% for s in late_list %}
           <li class="plain-list__row"><span class="plain-list__title">{{ s.full_name }}</span><span class="status-badge status-gray">{{ s.class_group }}</span></li>
@@ -50,7 +51,7 @@
       </ul>
     {% endif %}{% endsection_card %}
 
-    {% section_card "مخالفات اليوم السلوكية" meta=today_behavior_count icon="scale" empty="لا مخالفات اليوم" %}{% if infraction_rows %}
+    {% section_card "مخالفات اليوم السلوكية" meta=today_behavior_count icon="behavior" empty="لا مخالفات اليوم" %}{% if infraction_rows %}
       <ul class="plain-list is-scroll">
         {% for inf in infraction_rows %}
           <li class="plain-list__row">
@@ -63,7 +64,7 @@
   </div>
 
   {% if grade_rows %}
-  {% section_card "توزيع الطلاب حسب الصف" icon="bar-chart" flush=True %}
+  {% section_card "توزيع الطلاب حسب الصف" icon="stats" flush=True %}
     <div class="table-wrap">
       <table>
         <thead><tr><th>الصف</th><th class="num">العدد</th><th>النسبة</th></tr></thead>

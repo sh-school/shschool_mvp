@@ -1,3 +1,4 @@
+{% load icons %}
 {% load sorting %}
 {% load privacy ui %}
 {% comment %}
@@ -65,10 +66,10 @@
         <td class="col-actions">
           <div class="sa-row-actions">
             <a href="{% url 'student_affairs:student_profile' s.id %}" class="btn-secondary btn-xs" title="الملف الشامل">
-              {% include "components/icon.html" with name="user" %}
+              {% icon "student_info" %}
             </a>
             <a href="{% url 'student_affairs:student_edit' s.id %}" class="btn-secondary btn-xs" title="تعديل">
-              {% include "components/icon.html" with name="file-pen" %}
+              {% icon "edit_record" %}
             </a>
           </div>
         </td>

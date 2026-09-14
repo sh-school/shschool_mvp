@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load static ui %}
 {% block title %}لوحة النقل المدرسي{% endblock %}
 
@@ -9,10 +10,10 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "لوحة النقل المدرسي" subtitle="الحافلات وإشغالها ومشرفوها" icon="bus" %}
-    <a href="{% url 'transport:student_assignments' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="users" %} إسناد الطلاب</a>
-    <a href="{% url 'transport:buses_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bus" %} الحافلات</a>
-    <a href="{% url 'transport:statistics' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} الإحصائيات</a>
+  {% page_header "لوحة النقل المدرسي" subtitle="الحافلات وإشغالها ومشرفوها" icon="transport" %}
+    <a href="{% url 'transport:student_assignments' %}" class="btn-primary btn-sm">{% icon "workload" %} إسناد الطلاب</a>
+    <a href="{% url 'transport:buses_list' %}" class="btn-secondary btn-sm">{% icon "transport" %} الحافلات</a>
+    <a href="{% url 'transport:statistics' %}" class="btn-secondary btn-sm">{% icon "stats" %} الإحصائيات</a>
   {% endpage_header %}
 
   {% kpi_strip label="أرقام النقل" %}
@@ -24,14 +25,14 @@
   {% endkpi_strip %}
 
   {% if bus_data %}
-  {% section_card "إشغالُ كلّ حافلة" meta="من سعتها" icon="bar-chart" %}
+  {% section_card "إشغالُ كلّ حافلة" meta="من سعتها" icon="transport" %}
     <div class="dash-chart-wrap">
       <canvas id="chartBusOccupancy" role="img" aria-label="رسم بياني: نسبة إشغال كل حافلة"></canvas>
     </div>
   {% endsection_card %}
   {% endif %}
 
-  {% section_card "الحافلات" meta=bus_data|length icon="bus" empty="لا حافلاتٍ مسجّلة" %}{% if bus_data %}
+  {% section_card "الحافلات" meta=bus_data|length icon="transport" empty="لا حافلاتٍ مسجّلة" %}{% if bus_data %}
     <div class="ui-entity-grid">
       {% for item in bus_data %}
         {% entity_card item.bus.bus_number who=item.bus.driver_name count=item.seats_label href=item.url tone=item.tone %}

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block title %}شؤون الموظفين{% endblock %}
@@ -11,14 +12,14 @@
 <div class="exec-dash">
 
   {% page_header "شؤون الموظفين" subtitle=page_subtitle icon="settings" %}
-    <a href="{% url 'staff_affairs:staff_list' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="list-checks" %} سجل الموظفين</a>
-    <a href="{% url 'absence_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="ban" %} غياب المعلمين</a>
-    <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="refresh" %} طلبات التبديل</a>
-    <a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="list-checks" %} الحصص التعويضية</a>
-    <a href="{% url 'staff_affairs:leave_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="calendar" %} الإجازات</a>
-    <a href="{% url 'evaluation_dashboard' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} تقييم الأداء</a>
-    <a href="{% url 'staff_affairs:licensing' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="lock" %} الرخص المهنية</a>
-    <a href="{% url 'teacher_load_report' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="activity" %} أعباء المعلمين</a>
+    <a href="{% url 'staff_affairs:staff_list' %}" class="btn-primary btn-sm">{% icon "staff_register" %} سجل الموظفين</a>
+    <a href="{% url 'absence_list' %}" class="btn-secondary btn-sm">{% icon "attendance_teacher_absence" %} غياب المعلمين</a>
+    <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">{% icon "refresh" %} طلبات التبديل</a>
+    <a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">{% icon "compensation" %} الحصص التعويضية</a>
+    <a href="{% url 'staff_affairs:leave_list' %}" class="btn-secondary btn-sm">{% icon "leave" %} الإجازات</a>
+    <a href="{% url 'evaluation_dashboard' %}" class="btn-secondary btn-sm">{% icon "staff_evaluation" %} تقييم الأداء</a>
+    <a href="{% url 'staff_affairs:licensing' %}" class="btn-secondary btn-sm">{% icon "licences" %} الرخص المهنية</a>
+    <a href="{% url 'teacher_load_report' %}" class="btn-secondary btn-sm">{% icon "workload" %} أعباء المعلمين</a>
   {% endpage_header %}
 
   {% url 'absence_list' as absences_url %}
@@ -34,7 +35,7 @@
     {% kpi "رخصٌ تنتهي قريباً" expiring_licenses sub="90 يوماً" tone=licenses_tone href=licensing_url title="رخصٌ مهنيّةٌ تنتهي خلال تسعين يوماً" %}
   {% endkpi_strip %}
 
-  {% section_card "توزيع الموظفين حسب الدور" meta=role_distribution|length icon="users" flush=True empty="لا أدوارَ مسجّلة" %}{% if role_distribution %}
+  {% section_card "توزيع الموظفين حسب الدور" meta=role_distribution|length icon="stats" flush=True empty="لا أدوارَ مسجّلة" %}{% if role_distribution %}
     <div class="table-wrap">
       <table>
         <thead><tr><th>الدور</th><th class="num">العدد</th><th>النسبة</th></tr></thead>
@@ -57,7 +58,7 @@
   {% endif %}{% endsection_card %}
 
   <div class="ui-grid-2">
-    {% section_card "آخر حالات الغياب" icon="ban" empty="لا غياباتٍ مسجّلة" %}{% if recent_absences %}
+    {% section_card "آخر حالات الغياب" icon="absence" empty="لا غياباتٍ مسجّلة" %}{% if recent_absences %}
       <ul class="plain-list">
         {% for a in recent_absences %}
         <li class="plain-list__row">
@@ -68,7 +69,7 @@
       </ul>
     {% endif %}{% endsection_card %}
 
-    {% section_card "آخر طلبات الإجازات" icon="calendar" empty="لا طلباتِ إجازات" %}{% if recent_leaves %}
+    {% section_card "آخر طلبات الإجازات" icon="leave" empty="لا طلباتِ إجازات" %}{% if recent_leaves %}
       <ul class="plain-list">
         {% for l in recent_leaves %}
         <li class="plain-list__row">

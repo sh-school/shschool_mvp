@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load static ui %}
 {% block title %}العيادة المدرسية — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
@@ -9,10 +10,10 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "لوحة العيادة" subtitle=today_label icon="hospital" %}
-    <a href="{% url 'clinic:record_visit' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} تسجيل زيارة</a>
-    <a href="{% url 'clinic:statistics' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} الإحصائيات</a>
-    <a href="{% url 'clinic:visits_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="clipboard" %} السجلات</a>
+  {% page_header "لوحة العيادة" subtitle=today_label icon="clinic" %}
+    <a href="{% url 'clinic:record_visit' %}" class="btn-primary btn-sm">{% icon "add" %} تسجيل زيارة</a>
+    <a href="{% url 'clinic:statistics' %}" class="btn-secondary btn-sm">{% icon "stats" %} الإحصائيات</a>
+    <a href="{% url 'clinic:visits_list' %}" class="btn-secondary btn-sm">{% icon "document" %} السجلات</a>
   {% endpage_header %}
 
   {% kpi_strip label="أرقام العيادة" %}
@@ -23,14 +24,14 @@
   {% endkpi_strip %}
 
   <div class="ui-grid-2">
-    {% section_card "اتجاه الزيارات" meta="آخر 30 يوماً" icon="activity" %}
+    {% section_card "اتجاه الزيارات" meta="آخر 30 يوماً" icon="trend" %}
       <div class="dash-chart-wrap">
         <div class="chart-loading" id="loading-chartClinic">جاري التحميل...</div>
         <canvas id="chartClinic" role="img" aria-label="رسم بياني: اتجاه الزيارات آخر 30 يوماً"></canvas>
       </div>
     {% endsection_card %}
 
-    {% section_card "أُرسلوا للمنزل اليوم" meta=follow_up_visits|length icon="alert-triangle" empty="لم يُرسَل أحدٌ إلى المنزل اليوم" %}{% if follow_up_visits %}
+    {% section_card "أُرسلوا للمنزل اليوم" meta=follow_up_visits|length icon="sent_home" empty="لم يُرسَل أحدٌ إلى المنزل اليوم" %}{% if follow_up_visits %}
       <ul class="plain-list is-scroll">
         {% for visit in follow_up_visits %}
           <li class="plain-list__row">
@@ -43,7 +44,7 @@
   </div>
 
   <div class="ui-grid-2">
-    {% section_card "آخر الزيارات" meta=recent_visits|length icon="clipboard" empty="لا زياراتٍ مسجّلة" %}{% if recent_visits %}
+    {% section_card "آخر الزيارات" meta=recent_visits|length icon="clinic_visit" empty="لا زياراتٍ مسجّلة" %}{% if recent_visits %}
       <ul class="plain-list is-scroll">
         {% for visit in recent_visits %}
           <li class="plain-list__row">
@@ -54,7 +55,7 @@
       </ul>
     {% endif %}{% endsection_card %}
 
-    {% section_card "متكرّرو الزيارة هذا الشهر" meta=frequent|length icon="users" empty="لا زوّارَ متكرّرين هذا الشهر" %}{% if frequent %}
+    {% section_card "متكرّرو الزيارة هذا الشهر" meta=frequent|length icon="clinic_visit" empty="لا زوّارَ متكرّرين هذا الشهر" %}{% if frequent %}
       <ul class="plain-list is-scroll">
         {% for f in frequent %}
           <li class="plain-list__row">
@@ -67,7 +68,7 @@
   </div>
 
   {% if peak_hours %}
-  {% section_card "ساعات الذروة" meta="آخر 7 أيّام" icon="clock" %}
+  {% section_card "ساعات الذروة" meta="آخر 7 أيّام" icon="time" %}
     <ul class="chip-row" aria-label="الزيارات بالساعة">
       {% for ph in peak_hours %}
         <li class="chip-stat"><span class="chip-stat__key">{{ ph.hour }}:00</span><b class="chip-stat__value">{{ ph.count }}</b></li>
