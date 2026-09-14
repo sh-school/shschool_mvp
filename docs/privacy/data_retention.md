@@ -131,6 +131,8 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `core_role` | الأدوار |
 | `staff_affairs_leavebalance` | أرصدةُ الإجازات |
 | `staff_affairs_leaverequest` | طلباتُ الإجازات |
+| `staff_affairs_staffattendance` | حضورُ الموظّف اليوميّ: الحالةُ ودقائقُ التأخّر والإذن — سندُ الخصم (سياسة الحضور ت/د 2027/01، البند 5) |
+| `staff_affairs_permitrequest` | طلباتُ الأذونات القصيرة واعتمادُها (نموذج 02) — رصيدُ الساعات الشهريّ يُحسب منها |
 | `operations_staffevaluation` | تقييمُ الأداء |
 | `quality_employeeevaluation` | تقييمُ الموظّف |
 | `quality_evaluationscore` | درجاتُ المقيِّمين |
