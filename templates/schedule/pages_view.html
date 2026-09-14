@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}{{ title }}{% endblock %}
 {% block main_class %}page-wide{% endblock %}
 
@@ -12,11 +13,10 @@
 الأدواتُ لنا، والورقةُ في إطارٍ يُطبع وحده. والاختيارُ كلُّه في الرابط فتصدّر
 أزرارُ الطباعة والتنزيل ما هو معروضٌ لا غيره.
 {% endcomment %}
-<div class="exec-header" style="margin-bottom:10px">
-  <h1 class="page-title">{% include "components/icon.html" with name="printer" %} {{ title }}</h1>
-</div>
-<div class="card-qatar" style="width:100%">
-  <div class="exec-header schedule-head">
+{% page_header title icon="printer" %}{% endpage_header %}
+{# بطاقةٌ عاريةٌ بشريط أدواتٍ وإطار — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
+<div class="schedule-pages-card">
+  <div class="schedule-head">
     <div class="schedule-tools">
       {% include "schedule/partials/schedule_picker.html" %}
 
@@ -42,7 +42,7 @@
 
   <iframe id="pages-frame" title="{{ title }}"
           src="{% url 'schedule_pages_paper' %}?embed=1&amp;{{ selection_query }}"
-          style="width:100%;height:calc(100vh - 230px);min-height:560px;border:1px solid var(--border);border-radius:8px;background:#fff"></iframe>
+          class="schedule-paper-frame"></iframe>
 </div>
 
 <script nonce="{{ request.csp_nonce }}">

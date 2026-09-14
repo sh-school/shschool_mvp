@@ -43,17 +43,18 @@
 .card-red    { background: {% brand_color "STATUS_DANGER_BG" %}; color: {% brand_color "STATUS_DANGER_DARK" %}; border: 1px solid {% brand_color "STATUS_DANGER_BORDER" %}; }
 .card-grey   { background: {% brand_color "PAGE_BG" %}; color: {% brand_color "TEXT_SECONDARY" %}; border: 1px solid {% brand_color "BORDER" %}; }
 
-/* ── جدول KPIs ──────────────────────────────── */
-.kpi-table { font-size: 10.5px; }
-.kpi-table th { font-size: 10px; padding: 7px 5px; }
-.kpi-table td { padding: 7px 5px; }
-.kpi-table tr.row-green  td { background: {% brand_color "STATUS_SUCCESS_BG" %}; }
-.kpi-table tr.row-yellow td { background: {% brand_color "STATUS_WARNING_BG" %}; }
-.kpi-table tr.row-red    td { background: {% brand_color "SURFACE_ALT" %}; }
-.kpi-table tr.row-grey   td { background: {% brand_color "SURFACE_ALT" %}; }
+/* ── جدول KPIs — الشكلُ من القالب الأساسيّ، والخاناتُ أضيق ── */
+.doc-body > table:not([class]) thead th,
+.doc-body > table:not([class]) td,
+.doc-body > table:not([class]) tbody th { padding: 7px 5px; }
+.doc-body > table:not([class]) tr.row-green  td { background: {% brand_color "STATUS_SUCCESS_BG" %}; }
+.doc-body > table:not([class]) tr.row-yellow td { background: {% brand_color "STATUS_WARNING_BG" %}; }
+.doc-body > table:not([class]) tr.row-red    td { background: {% brand_color "SURFACE_ALT" %}; }
+.doc-body > table:not([class]) tr.row-grey   td { background: {% brand_color "SURFACE_ALT" %}; }
 
 .kpi-value { font-size: 13px; font-weight: 700; }
 .note-text { font-size: 10px; color: {% brand_color "TEXT_MUTED" %}; font-style: italic; }
+.muted { color: {% brand_color "TEXT_MUTED" %}; }
 
 /* ── تقدم الخطة التشغيلية ───────────────────── */
 .domain-bar-wrap {
@@ -72,6 +73,7 @@
 }
 .bar-fill {
   height: 100%;
+  width: var(--progress-w, 0);
   border-radius: 4px;
   background: {% brand_color "MAROON" %};
 }
@@ -79,20 +81,26 @@
 .bar-fill.pct-medium { background: {% brand_color "STATUS_WARNING" %}; }
 .bar-fill.pct-low    { background: {% brand_color "STATUS_DANGER" %}; }
 .bar-pct { flex: 0 0 36px; font-size: 10px; font-weight: 700; text-align: left; }
+
+/* ── مؤشّراتٌ تستوجب تدخّلاً ── */
+.red-kpis {
+  margin-top: 16px;
+  padding: 12px;
+  background: {% brand_color "SURFACE_ALT" %};
+  border-right: 4px solid {% brand_color "STATUS_DANGER" %};
+  border-radius: 4px;
+}
+.red-kpis__title { font-weight: 700; color: {% brand_color "STATUS_DANGER_DARK" %}; margin-bottom: 8px; }
+.red-kpis__line { font-size: 11px; margin-bottom: 4px; }
+.plan-progress { margin-top: 20px; }
 {% endblock %}
 
-{% block report_title_bar %}
-<div class="report-title-bar">تقرير المؤشرات الكمية (KPIs) — {{ month_label }}</div>
-{% endblock %}
+{% block report_title %}تقرير المؤشرات الكمية (KPIs) — {{ month_label }}{% endblock %}
 
-{% block report_meta %}
-<table class="report-meta">
-  <tr>
-    <td>السنة الدراسية: <strong>{{ year }}</strong></td>
-    <td>تاريخ الإصدار: <strong>{{ generated_at }}</strong></td>
-    <td>المدرسة: <strong>{{ school.name }}</strong></td>
-  </tr>
-</table>
+{% block report_meta_cells %}
+<td>السنة الدراسية: <strong>{{ year }}</strong></td>
+<td>تاريخ الإصدار: <strong>{{ generated_at }}</strong></td>
+<td>المدرسة: <strong>{{ school.name }}</strong></td>
 {% endblock %}
 
 {% block content %}
@@ -118,30 +126,28 @@
 </div>
 
 {# ── جدول المؤشرات ──────────────────────────────────────────────── #}
-<table class="report-table kpi-table">
+<table>
   <thead>
     <tr>
-      <th scope="col" style="width:4%">#</th>
-      <th scope="col" style="width:28%">المؤشر</th>
-      <th scope="col" style="width:12%">القيمة</th>
-      <th scope="col" style="width:10%">الهدف</th>
-      <th scope="col" style="width:10%">الحد الأدنى</th>
-      <th scope="col" style="width:10%">الوحدة</th>
-      <th scope="col" style="width:10%">التكرار</th>
-      <th scope="col" style="width:8%">الحالة</th>
-      <th scope="col" style="width:8%">ملاحظة</th>
+      <th scope="col">المؤشر</th>
+      <th scope="col">القيمة</th>
+      <th scope="col">الهدف</th>
+      <th scope="col">الحد الأدنى</th>
+      <th scope="col">الوحدة</th>
+      <th scope="col">التكرار</th>
+      <th scope="col">الحالة</th>
+      <th scope="col">ملاحظة</th>
     </tr>
   </thead>
   <tbody>
     {% for key, kpi in kpis.items %}
     <tr class="row-{{ kpi.traffic }}">
-      <td>{{ forloop.counter }}</td>
-      <td class="cell-name">{{ kpi.label }}</td>
+      <th scope="row">{{ kpi.label }}</th>
       <td>
         {% if kpi.value is not None %}
           <span class="kpi-value">{{ kpi.value }}{{ kpi.unit }}</span>
         {% else %}
-          <span style="color:{% brand_color "TEXT_MUTED" %}">—</span>
+          <span class="muted">—</span>
         {% endif %}
       </td>
       <td>{{ kpi.target }}{{ kpi.unit }}</td>
@@ -163,8 +169,8 @@
 
 {# ── تقدم الخطة التشغيلية ────────────────────────────────────────── #}
 {% if plan_domains %}
-<div class="mt-20">
-  <div class="section-head">تقدم الخطة التشغيلية حسب المجال</div>
+<div class="plan-progress">
+  <h2>تقدم الخطة التشغيلية حسب المجال</h2>
   {% for domain in plan_domains %}
   <div class="domain-bar-wrap">
     <div class="domain-name">{{ domain.name }}</div>
@@ -173,7 +179,7 @@
         {% if domain.completion_pct >= 80 %}pct-high
         {% elif domain.completion_pct >= 60 %}pct-medium
         {% else %}pct-low{% endif %}"
-        style="width: {{ domain.completion_pct }}%"></div>
+        style="--progress-w:{{ domain.completion_pct }}%"></div>
     </div>
     <div class="bar-pct">{{ domain.completion_pct }}%</div>
   </div>
@@ -183,13 +189,10 @@
 
 {# ── التوصيات التلقائية ──────────────────────────────────────────── #}
 {% if red_kpis %}
-<div class="mt-16" style="padding: 12px; background: {% brand_color "SURFACE_ALT" %};
-            border-right: 4px solid {% brand_color "STATUS_DANGER" %}; border-radius: 4px;">
-  <div style="font-weight:700; color:{% brand_color "STATUS_DANGER_DARK" %}; margin-bottom:8px">
-    مؤشرات تستوجب تدخلاً فورياً
-  </div>
+<div class="red-kpis">
+  <div class="red-kpis__title">مؤشرات تستوجب تدخلاً فورياً</div>
   {% for kpi in red_kpis %}
-  <div style="font-size:11px; margin-bottom:4px">
+  <div class="red-kpis__line">
     • {{ kpi.label }}: القيمة الحالية
     <strong>{{ kpi.value }}{{ kpi.unit }}</strong>
     — الهدف <strong>{{ kpi.target }}{{ kpi.unit }}</strong>
@@ -200,25 +203,4 @@
 
 {% endblock %}
 
-{% block signatures %}
-<div class="sig-block">
-  <div class="sig-item">
-    <div class="sig-title">مدير المدرسة</div>
-    <div class="sig-space"></div>
-    <div class="sig-line"></div>
-    <div class="sig-role">التوقيع والختم</div>
-  </div>
-  <div class="sig-item">
-    <div class="sig-title">مسؤول الجودة</div>
-    <div class="sig-space"></div>
-    <div class="sig-line"></div>
-    <div class="sig-role">التوقيع والختم</div>
-  </div>
-  <div class="sig-item">
-    <div class="sig-title">وكيل شؤون التعليم</div>
-    <div class="sig-space"></div>
-    <div class="sig-line"></div>
-    <div class="sig-role">التوقيع والختم</div>
-  </div>
-</div>
-{% endblock %}
+{% block signatures %}{% include "reports/pdf/_signatures.html" with s1="مدير المدرسة" s2="مسؤول الجودة" s3="وكيل شؤون التعليم" %}{% endblock %}

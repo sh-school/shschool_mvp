@@ -12,6 +12,15 @@ from __future__ import annotations
 
 from django.urls import reverse
 
+#: شارةُ حالة الحصّة في لوحة المعالج — كانت `badge-status {{ s.status }}` بلا
+#: تعريفٍ في CSS فتُكتب الحالةُ نصّاً عارياً بلا لون.
+SESSION_STATUS_BADGE = {
+    "scheduled": "status-info",
+    "in_progress": "status-warning",
+    "completed": "status-success",
+    "cancelled": "status-gray",
+}
+
 
 def _delta(value, unit: str = "") -> str:
     """«↑ 3% عن أمس» — والصفرُ «= كأمس»، والمجهولُ فراغ."""
@@ -89,6 +98,7 @@ def present(ctx: dict) -> dict:
         out.update(
             sessions_sub=f"{ctx.get('completed_sessions_today', 0)} مكتملة",
             week_label=f"{ctx.get('week_completed', 0)}/{ctx.get('week_total', 0)}",
+            session_status_badges=SESSION_STATUS_BADGE,
         )
     elif kind == "activities":
         out.update(activities_sub=f"من {ctx.get('activities_total', 0)} هذا العام")

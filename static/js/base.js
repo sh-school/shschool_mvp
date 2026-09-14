@@ -529,7 +529,7 @@ document.addEventListener('keydown', function(e) {
     overlay.style.display = 'flex';
     overlay.innerHTML =
       '<div class="modal-box modal-sm" role="document">' +
-      '  <div class="modal-header"><span id="confirm-dlg-title" style="color:#dc2626">' +
+      '  <div class="modal-header"><span id="confirm-dlg-title" style="color:var(--status-danger)">' +
       '    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-alert-triangle"/></svg> ' +
       '    \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0625\u062c\u0631\u0627\u0621</span>' +
       '    <button type="button" class="modal-close-btn" data-action="cancel" aria-label="\u0625\u063a\u0644\u0627\u0642">\u00d7</button>' +

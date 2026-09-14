@@ -1,56 +1,37 @@
 {% extends "base/base.html" %}
-{% load static i18n %}
+{% load static i18n ui %}
+{% comment %}
+تعديلُ رسالةٍ سبق إرسالُها — رقمُ التذكرة في طرف الترويسة بصنفه (`dir="ltr"`
+يحفظ ترتيبَ حروفه داخل سطرٍ عربيّ)، وملاحظةُ عدد التعديلات السابقة `form-note`
+داخل بطاقة الاستمارة لا بطاقةً بارزةً فوقها، وسجلُّ التعديلات `section_card`.
+{% endcomment %}
 
 {% block title %}{% trans "تعديل رسالة" %} {{ object.ticket_number }}{% endblock %}
-
-{% block extra_css %}
-{{ block.super }}
-{% endblock %}
-
-{% block page_header %}
-<div class="df-container">
-  <h1 class="df-page-title">
-    {% trans "تعديل رسالة" %}
-    <code class="df-ticket-inline" dir="ltr">{{ object.ticket_number }}</code>
-  </h1>
-  <p class="df-page-subtitle">
-    {% trans "سيُخطَر المطوّر بالتعديل، وستُحفظ القيم السابقة في سجل التعديلات." %}
-  </p>
-</div>
-{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/developer-feedback/" parent_label="تواصل مع المطوّر" current="تعديل الرسالة" %}
 {% endblock %}
 
 {% block content %}
-<main id="main-content" class="df-container" role="main">
-
-  {# ── معلومات ── #}
-  <aside class="df-card df-card-hero" aria-labelledby="df-edit-tip-title">
-    <h2 id="df-edit-tip-title" class="df-card-title">
-      {% include "components/icon.html" with name="info" %}
-      {% trans "ملاحظة" %}
-    </h2>
-    <p>
-      {% blocktrans count counter=object.edit_history.count %}
-        لم تعدّل هذه الرسالة من قبل. عند الحفظ سيُرسَل إشعار للمطوّر.
-      {% plural %}
-        عدد التعديلات السابقة على هذه الرسالة: {{ counter }}.
-      {% endblocktrans %}
-    </p>
-  </aside>
-
-  {# ── أخطاء عامة ── #}
-  {% if form.non_field_errors %}
-    <div class="df-errorlist" role="alert">{{ form.non_field_errors }}</div>
-  {% endif %}
+<div class="exec-dash df-page">
+  {% page_header _("تعديل رسالة") subtitle=_("سيُخطَر المطوّر بالتعديل، وستُحفظ القيم السابقة في سجل التعديلات.") icon="pen-square" %}
+    <code class="df-ticket-inline" dir="ltr">{{ object.ticket_number }}</code>
+  {% endpage_header %}
 
   <form method="post" novalidate class="df-form" aria-labelledby="df-edit-form-title">
     {% csrf_token %}
     <h2 id="df-edit-form-title" class="sr-only">{% trans "نموذج تعديل رسالة" %}</h2>
 
-    <div class="df-card">
+    {% if form.non_field_errors %}
+      <div class="df-errorlist" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    {% section_card _("الرسالة") icon="pen-square" %}
+      <p class="form-note">
+        {% include "components/icon.html" with name="info" %}
+        {% blocktrans count counter=object.edit_history.count %}لم تعدّل هذه الرسالة من قبل. عند الحفظ سيُرسَل إشعار للمطوّر.{% plural %}عدد التعديلات السابقة على هذه الرسالة: {{ counter }}.{% endblocktrans %}
+      </p>
+
       {# ── نوع الرسالة + الأولوية ── #}
       <div class="df-row-2">
         <div class="df-form-group">
@@ -112,15 +93,11 @@
           </ul>
         {% endif %}
       </div>
-    </div>
+    {% endsection_card %}
 
     {# ── سجل التعديلات السابقة ── #}
     {% if object.edit_history.exists %}
-    <div class="df-card" aria-labelledby="df-history-title">
-      <h2 id="df-history-title" class="df-card-title">
-        {% include "components/icon.html" with name="clock" %}
-        {% trans "سجل التعديلات السابقة" %}
-      </h2>
+    {% section_card _("سجل التعديلات السابقة") meta=object.edit_history.count icon="clock" %}
       <ol class="df-history-list">
         {% for h in object.edit_history.all %}
           <li>
@@ -130,21 +107,18 @@
           </li>
         {% endfor %}
       </ol>
-    </div>
+    {% endsection_card %}
     {% endif %}
 
-    {# ── الأزرار ── #}
-    <div class="df-btn-group">
-      <button type="submit" class="btn btn-primary">
+    <div class="form-actions">
+      <a href="{% url 'developer_feedback:my_messages' %}" class="btn-secondary">{% trans "إلغاء" %}</a>
+      <button type="submit" class="btn-primary">
         {% include "components/icon.html" with name="save" %}
         {% trans "حفظ التعديلات" %}
       </button>
-      <a href="{% url 'developer_feedback:my_messages' %}" class="btn btn-secondary">
-        {% trans "إلغاء" %}
-      </a>
     </div>
   </form>
-</main>
+</div>
 {% endblock %}
 
 {% block extra_js %}

@@ -47,7 +47,18 @@ def _safe_redirect(url, request, fallback="dashboard"):
     return redirect(fallback)
 
 
+#: كانت الثنائيّةُ للقيادة وحدَها — وقرارُ 2026-09-14: لكلّ الكادر. الاسمُ باقٍ
+#: لمن يستورده، ومعناه اليوم في `requires_two_factor`.
 ROLES_REQUIRING_2FA = {"principal", "vice_admin", "vice_academic", "admin"}
+
+
+def requires_two_factor(user) -> bool:
+    """أعلى الثنائيّةُ على هذا المستخدم؟ — الكادرُ كلُّه، لا الطلبةُ ولا أولياءُ الأمور."""
+    return bool(user.is_superuser or user.is_staff_member())
+
+
+#: خلفيّةُ التصديق الأصليّة — تُستعمل إن ضاعت من الجلسة (جلسةٌ سابقةٌ للنشر).
+PRIMARY_AUTH_BACKEND = "core.backends.HMACAuthBackend"
 
 
 def password_expired(user) -> bool:
@@ -124,10 +135,13 @@ def login_view(request):
             kind = identifier_kind(user, identifier)
             request.login_identifier_kind = kind
 
-            role = user.get_role()
-            if user.totp_enabled and role in ROLES_REQUIRING_2FA:
+            if user.totp_enabled and requires_two_factor(user):
                 request.session["pending_2fa_user"] = str(user.id)
                 request.session["pending_identifier_kind"] = kind
+                # `authenticate()` يعلّق على المستخدم اسمَ الخلفيّة التي صدّقته، و`login()`
+                # يشترطه حين تتعدّد الخلفيّات. وصفحةُ التحقّق تُحمِّل المستخدمَ من القاعدة
+                # من جديد فلا تجده — فيُحمَل هنا في الجلسة إلى هناك.
+                request.session["pending_2fa_backend"] = getattr(user, "backend", "")
                 return redirect("verify_2fa")
 
             login(request, user)
@@ -204,7 +218,10 @@ def verify_2fa(request):
             request.login_identifier_kind = request.session.pop(
                 "pending_identifier_kind", "unknown"
             )
-            login(request, user)
+            # بلا هذا كان `login()` يرفع ValueError («خلفيّاتٌ متعدّدة») فتسقط الصفحةُ 500 —
+            # أي أنّ كلَّ من فعّل المصادقةَ الثنائيّة لم يعد يستطيع الدخول.
+            backend = request.session.pop("pending_2fa_backend", "") or PRIMARY_AUTH_BACKEND
+            login(request, user, backend=backend)
             _enforce_rotation(user)
             if user.must_change_password:
                 return redirect("force_change_password")
@@ -220,10 +237,9 @@ def verify_2fa(request):
 def setup_2fa(request):
     """إعداد المصادقة الثنائية — توليد QR وتفعيل TOTP للمدير والنواب."""
     user = request.user
-    role = user.get_role()
 
-    if role not in ROLES_REQUIRING_2FA and not user.is_superuser:
-        messages.info(request, "المصادقة الثنائية متاحة للمدير والنواب فقط.")
+    if not requires_two_factor(user):
+        messages.info(request, "المصادقة الثنائية للكادر — لا للطلبة وأولياء الأمور.")
         return redirect("dashboard")
 
     if not user.totp_secret:
@@ -333,8 +349,7 @@ def force_change_password(request):
             update_session_auth_hash(request, user)
             messages.success(request, "✅ تم تغيير كلمة المرور بنجاح!")
 
-            role = user.get_role()
-            if role in ROLES_REQUIRING_2FA and not user.totp_enabled:
+            if requires_two_factor(user) and not user.totp_enabled:
                 return redirect("setup_2fa")
 
             return redirect("dashboard")

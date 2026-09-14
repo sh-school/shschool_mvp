@@ -13,7 +13,6 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required
 from core.models import StudentEnrollment
-from core.models.academic import grade_order
 
 from .day_attendance import can_record, is_recorder, recorded_by_supervisor
 from .models import Session, StudentAttendance
@@ -208,14 +207,24 @@ def attendance_view(request, session_id):
         row["tone"] = attendance_tone(row["status"])
     summary = AttendanceService.get_session_summary(session)
     if not can_record(request.user, session):
-        # اطّلاعٌ لا رصد: يرى المعلّمُ ما رصده مشرفُ الجناح، ولا زرَّ يكتب.
+        # اطّلاعٌ لا رصد: يرى المعلّمُ ما رصده مشرفُ الجناح، ولا زرَّ يكتب —
+        # إلّا نقرةَ «دخل متأخّراً» لصاحب الحصّة (قرارُ 2026-09-13).
         return render(
             request,
             "teacher/attendance_readonly.html",
             {
                 "session": session,
+                "can_tap_late": request.user == session.teacher,
                 "students_data": [
-                    {**row, "status": row["status"] if row["attendance"] else "unmarked"}
+                    {
+                        **row,
+                        "status": row["status"] if row["attendance"] else "unmarked",
+                        "tap_minutes": (
+                            row["attendance"].late_minutes
+                            if row["attendance"] and row["attendance"].source == "teacher_late"
+                            else None
+                        ),
+                    }
                     for row in students_data
                 ],
                 "summary": summary,
@@ -290,6 +299,37 @@ def mark_single(request, session_id):
             "session": session,
             "summary": summary,
         },
+    )
+
+
+@login_required
+@capability_required("attendance.mark")
+@require_POST
+def mark_late_tap(request, session_id):
+    """HTMX: نقرةُ المعلّم «دخل متأخّراً» — النظامُ يسجّل الوقت (قرارُ 2026-09-13).
+
+    للمعلّم في شُعب الأجنحة حيث لا يرصد: المشرفُ يصل بعد بدء الحصّة فلا يرى من دخل
+    قبله متأخّراً، والمعلّمُ يراه. النقرةُ لا تكتب فوق رصد المشرف.
+    """
+    from core.models import CustomUser
+
+    from .period_register import tap_late
+
+    school = request.user.get_school()
+    session = get_object_or_404(Session, id=session_id, school=school)
+    if request.user != session.teacher and not request.user.is_leadership():
+        return HttpResponse("هذه الحصّة ليست لك.", status=403)
+    student = get_object_or_404(
+        CustomUser,
+        id=request.POST.get("student_id"),
+        enrollments__class_group=session.class_group,
+        enrollments__is_active=True,
+    )
+    minutes = tap_late(session, student, by=request.user)
+    return render(
+        request,
+        "teacher/partials/late_tap.html",
+        {"session": session, "student": student, "minutes": minutes, "tapped": True},
     )
 
 
@@ -372,54 +412,27 @@ def session_summary(request, session_id):
 @login_required
 @capability_required("operations.reports")
 def daily_report(request):
-    """تقرير الغياب اليومي — للمدير والمنسق"""
-    from django.db.models import Count
+    """غيابُ اليوم — طالبٌ في سطرٍ لأيّ تاريخ، ووسمُ الوزارة لمن غاب الأولى والثانية.
 
+    حلّ محلَّ «سجلّات الحضور والغياب» (قرارُ 2026-09-13)، وبقي اسمُ المسار كما هو
+    كي لا ينكسر رابطٌ محفوظ. والمنسّقُ لقسمه كما كان.
+    """
     from core.permissions import get_department_teacher_ids
+    from operations.daily_absence import daily_report as build
 
     school = request.user.get_school()
-    selected = request.GET.get("date", timezone.now().date().isoformat())
     try:
-        report_date = date.fromisoformat(selected)
+        report_date = date.fromisoformat(request.GET.get("date") or "")
     except ValueError:
-        report_date = timezone.now().date()
-
-    # ── تأكد من وجود حصص لتاريخ التقرير ──
+        report_date = timezone.localdate()
     ScheduleService.ensure_sessions_for_date(school, report_date)
 
-    absences = (
-        StudentAttendance.objects.filter(
-            school=school,
-            session__date=report_date,
-            status__in=["absent", "late"],
-        )
-        .select_related("student", "session__class_group")
-        .order_by(grade_order("session__class_group__grade"), "student__full_name")
-    )
-    sessions = Session.objects.filter(school=school, date=report_date).select_related("teacher")
-
-    dept_ids = get_department_teacher_ids(request.user)
-    if dept_ids is not None:
-        absences = absences.filter(session__teacher_id__in=dept_ids)
-        sessions = sessions.filter(teacher_id__in=dept_ids)
-
-    att_qs = StudentAttendance.objects.filter(school=school, session__date=report_date)
-    if dept_ids is not None:
-        att_qs = att_qs.filter(session__teacher_id__in=dept_ids)
-    summary = att_qs.values("status").annotate(count=Count("id"))
-    stats = {s["status"]: s["count"] for s in summary}
-    total = sum(stats.values())
-    present_pct = round(stats.get("present", 0) / total * 100) if total else 0
-
+    report = build(school, report_date, teacher_ids=get_department_teacher_ids(request.user))
     return render(
         request,
-        "admin/daily_report.html",
+        "operations/daily_absence.html",
         {
-            "absences": absences,
-            "report_date": report_date,
-            "sessions": sessions,
-            "stats": stats,
-            "total": total,
-            "present_pct": present_pct,
+            "report": report,
+            "subtitle": f"{school.name} · {report_date:%A %d/%m/%Y}",
         },
     )

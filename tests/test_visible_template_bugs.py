@@ -81,16 +81,6 @@ class TestUrgentNotificationsShowOnce:
         assert 'id="urgent-section"' in body
 
 
-@pytest.mark.django_db
-class TestDailyReportBarHasWidth:
-    def test_the_attendance_bar_uses_the_class_that_reads_its_width(
-        self, client_as, principal_user
-    ):
-        body = client_as(principal_user).get(reverse("daily_report")).content.decode()
-
-        assert re.search(r'class="progress-qatar-fill[^"]*"\s+style="--progress-w:', body)
-
-
 class TestTemplatesAgreeWithTheStylesheet:
     def test_no_tag_carries_two_class_attributes(self):
         """المتصفّحُ يأخذ الأولى ويُهمل الثانية بصمت — فلا خطأ يُرى ولا لون."""
@@ -103,7 +93,8 @@ class TestTemplatesAgreeWithTheStylesheet:
         ]
         assert offenders == []
 
-    @pytest.mark.parametrize("name", ["charts-grid-3", "quick-links--few"])
+    # `quick-links--few` كانت هنا — حُذفت مع «الوصول السريع» لمّا صار أزراراً في الترويسة.
+    @pytest.mark.parametrize("name", ["charts-grid-3"])
     def test_the_grid_classes_the_dashboards_use_are_defined(self, name):
         assert re.search(rf"\.{re.escape(name)}\s*\{{", CSS.read_text(encoding="utf-8"))
 

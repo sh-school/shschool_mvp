@@ -2,8 +2,9 @@
 منطقُ مركز معلومات الطلبة — خارج الشاشات.
 
 وأهمُّ ما فيه شريحةُ التحصيل: عتباتُها ليست جديدةً ولا مُختلَقة، بل هي
-العتباتُ نفسها التي تلوّن بها المنصّةُ نتائجَ الطلاب منذ البداية في
-`AnnualSubjectResult.grade_color_css` — ٨٠ و٦٥ و٥٠. ولو اخترعنا لها عتباتٍ
+العتباتُ نفسها التي لوّنت بها المنصّةُ نتائجَ الطلاب منذ البداية — ٨٠ و٦٥ و٥٠
+(كانت في `AnnualSubjectResult.grade_color_css`، وحُذفت لمّا صار اللونُ من
+الشريحة نفسها هنا). ولو اخترعنا لها عتباتٍ
 أخرى لصار للطالب مستويان مختلفان في شاشتين من المنصّة نفسها.
 """
 
@@ -12,22 +13,48 @@ from collections import OrderedDict, defaultdict
 from django.db.models import Avg, Count, Q
 
 from assessments.models import AnnualSubjectResult
-from core import brand
 from core.models.academic import ClassGroup, StudentEnrollment, grade_number
 from student_affairs.models import StudentActivity
 from student_info.models import NOTE_CATEGORIES, StudentNote
 
-#: شرائحُ التحصيل من الأعلى إلى الأدنى: (المفتاح، الاسم، الحدّ الأدنى، لون).
+#: شرائحُ التحصيل من الأعلى إلى الأدنى: (المفتاح، الاسم، الحدّ الأدنى، نغمة الحالة).
 #: والترتيبُ مقصود — `band_for` يمرّ عليها بالترتيب فيقف عند أوّل ما ينطبق.
+#: والنغمةُ اسمُ حالةٍ لا لون: كانت أرقاماً سداسيّةً ثابتةً تُكتب في `style=`
+#: فلا تنقلب ليلاً؛ وصارت `status-<نغمة>` و`is-<نغمة>` معرَّفَين من رموز المنصّة.
 ACHIEVEMENT_BANDS = (
-    ("advanced", "متقدّم", 80, "#146356"),
-    ("proficient", "متمكّن", 65, "#1D4E89"),
-    ("basic", "مقبول", 50, "#8A6512"),
-    ("below", "دون مستوى النجاح", 0, "#A8261E"),
+    ("advanced", "متقدّم", 80, "success"),
+    ("proficient", "متمكّن", 65, "info"),
+    ("basic", "مقبول", 50, "warning"),
+    ("below", "دون مستوى النجاح", 0, "danger"),
 )
 
 BAND_LABELS = OrderedDict((key, label) for key, label, _, _ in ACHIEVEMENT_BANDS)
-BAND_COLORS = {key: color for key, _, _, color in ACHIEVEMENT_BANDS}
+BAND_TONES = {key: tone for key, _, _, tone in ACHIEVEMENT_BANDS}
+
+#: نغمةُ من لا شريحةَ له بعد — رماديٌّ محايد كما كان `TEXT_MUTED`.
+NO_BAND_TONE = "gray"
+
+#: نغمةُ الحالة ← لونُ بطاقة الرقم (`KPI_TONES` في `core/templatetags/ui.py`).
+_KPI_TONE_OF = {"success": "green", "info": "blue", "warning": "amber", "danger": "red"}
+
+
+def band_kpis(overall):
+    """بطاقاتُ الإجمال: لكلّ شريحةٍ عددُها ولونُها وحدُّها (من 100).
+
+    والشريحةُ الدنيا حدُّها «دون» عتبةِ ما فوقها — «0 فأعلى» لا يقول شيئاً.
+    """
+    cards, ceiling = [], None
+    for key, label, floor, tone in ACHIEVEMENT_BANDS:
+        cards.append(
+            {
+                "label": label,
+                "value": overall.get(key, 0),
+                "sub": f"{floor} فأعلى" if floor else f"دون {ceiling}",
+                "tone": _KPI_TONE_OF[tone],
+            }
+        )
+        ceiling = floor
+    return cards
 
 
 def band_for(total):
@@ -152,7 +179,7 @@ def student_results(student, year):
                 "status": r.get_status_display(),
                 "band": band,
                 "band_label": BAND_LABELS.get(band, "—"),
-                "band_color": BAND_COLORS.get(band, brand.TEXT_MUTED),
+                "band_tone": BAND_TONES.get(band, NO_BAND_TONE),
             }
         )
     return rows
@@ -172,7 +199,8 @@ def student_average(student, year):
         "value": round(float(avg), 1),
         "band": band,
         "band_label": BAND_LABELS[band],
-        "band_color": BAND_COLORS[band],
+        "band_tone": BAND_TONES[band],
+        "kpi_tone": _KPI_TONE_OF[BAND_TONES[band]],
     }
 
 

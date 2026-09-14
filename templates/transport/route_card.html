@@ -1,6 +1,7 @@
-<div class="border rounded-lg p-3 flex justify-between items-center bg-green-50">
-  <div>
-    <p class="font-medium text-sm text-green-800">{% include "components/icon.html" with name="check-circle" %} {{ route.area_name }}</p>
-    <p class="text-xs text-gray-400">{{ route.students.count }} طالب</p>
-  </div>
+<div class="form-note transport-done">
+  {% include "components/icon.html" with name="check-circle" %}
+  <span class="plain-list__main">
+    <b class="plain-list__title">{{ route.area_name }}</b>
+    <span class="plain-list__sub">{{ route.students.count }} طالب</span>
+  </span>
 </div>

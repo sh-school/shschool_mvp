@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}سجل الزيارات{% endblock %}
 
 {% block breadcrumbs %}
@@ -8,14 +9,10 @@
 {% block content %}
 <div class="exec-dash">
 
-  {# ── Exec Header ── #}
-  <div class="exec-header">
-    <h1>{% include "components/icon.html" with name="hospital" %} سجل زيارات العيادة</h1>
-    <div class="flex gap-2 flex-wrap">
-      <a href="{% url 'clinic:record_visit' %}" class="btn-primary btn-sm no-underline">+ زيارة جديدة</a>
-      <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
-    </div>
-  </div>
+  {% page_header "سجل زيارات العيادة" icon="hospital" %}
+    <a href="{% url 'clinic:record_visit' %}" class="btn-primary btn-sm">+ زيارة جديدة</a>
+    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
+  {% endpage_header %}
 
   {# ── فلاتر HTMX (تاريخ + بحث نصي) ── #}
   <div class="filter-bar">
@@ -23,12 +20,12 @@
 
       {# فلتر التاريخ #}
       <div class="flex flex-col gap-1">
-        <label class="form-label" style="margin-bottom:0">التاريخ</label>
+        <label class="form-label mb-0">التاريخ</label>
         <input
           type="date"
           name="date"
           id="date-filter"
-          value="{{ date_filter }}"
+          value="{{ date_filter|default:'' }}"
           class="form-control"
           hx-get="{{ request.path }}"
           hx-trigger="change"
@@ -42,16 +39,15 @@
 
       {# بحث بالاسم #}
       <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
-        <label class="form-label" style="margin-bottom:0">اسم الطالب</label>
+        <label class="form-label mb-0">اسم الطالب</label>
         <div class="relative">
           <input
             type="text"
             name="student"
             id="student-filter"
-            value="{{ student_filter }}"
+            value="{{ student_filter|default:'' }}"
             placeholder="ابحث باسم الطالب..."
-            class="form-control"
-            style="padding-inline-start:2rem"
+            class="form-control clinic-search-input"
             hx-get="{{ request.path }}"
             hx-trigger="input changed delay:400ms, search"
             hx-target="#visits-container"
@@ -60,9 +56,9 @@
             hx-indicator="#visits-skeleton"
             hx-push-url="false"
           >
-          <span class="absolute left-2 top-1/2 -translate-y-1/2 text-sm pointer-events-none" style="color:var(--text-secondary)">{% include "components/icon.html" with name="search" %}</span>
+          <span class="absolute left-2 top-1/2 -translate-y-1/2 text-sm pointer-events-none text-secondary">{% include "components/icon.html" with name="search" %}</span>
           <span class="htmx-indicator absolute left-8 top-1/2 -translate-y-1/2">
-            <svg class="animate-spin h-4 w-4" style="color:var(--maroon-fg)" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <svg class="animate-spin h-4 w-4 text-maroon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
               <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
               <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
             </svg>

@@ -1,4 +1,4 @@
-{% load static %}
+{% load static brand_tags %}
 {% comment %}
 استمارة الإشراف على أداء المعلّم — طبق الأصل من نموذج المدرسة (docx).
 
@@ -12,6 +12,7 @@
 المتن ليكبُر خطُّه — والصفحةُ واحدة.
 
 واللونان من الملفّ نفسه: 943634 لشرائط العناوين، وDDD9C3 لكل خليّة عنوان
+(`FORM_BAND` و`FORM_KEY_BG` في `core/brand.py`، ورمزاهما في `:root`)
 — عناوينِ الأعمدة وعناوينِ الحقول معاً؛ وقد أُحصيت سبعاً وخمسين مرّة فيه.
 
 والأصل صفحتان، وطلبت المدرسة صفحةً واحدة — فجُمعت المجالات الأربعة في
@@ -72,8 +73,8 @@ body {
   font-family: 'Traditional Arabic', 'Noto Naskh Arabic', 'Amiri', serif;
   font-size: 11.6pt;
   line-height: 1.15;
-  color: #000;
-  background: #fff;
+  color: {% brand_color "PRINT_INK" %};
+  background: {% brand_color "SURFACE" %};
 }
 
 /* صندوق الهامش بلا عرضٍ محدَّد، فـ`width: 100%` لا تُحلّ عليه: تعود
@@ -87,15 +88,15 @@ body {
 #sheet-header img, #sheet-footer img { width: 6.8in; display: block; margin: 0 auto; }
 
 /* عنوانٌ نصّيّ لمن لم يرفع ترويسته — لا ترويسة مدرسةٍ أخرى */
-.plain-head { text-align: center; border-bottom: 2pt solid #943634; padding-bottom: 4pt; }
-.plain-head .ministry { font-size: 10pt; color: #444; }
-.plain-head .school { font-size: 14pt; font-weight: 700; color: #943634; }
+.plain-head { text-align: center; border-bottom: 2pt solid {% brand_color "FORM_BAND" %}; padding-bottom: 4pt; }
+.plain-head .ministry { font-size: 10pt; color: {% brand_color "PRINT_INK_SOFT" %}; }
+.plain-head .school { font-size: 14pt; font-weight: 700; color: {% brand_color "FORM_BAND" %}; }
 .plain-foot {
   text-align: center;
-  border-top: 1pt solid #943634;
+  border-top: 1pt solid {% brand_color "FORM_BAND" %};
   padding-top: 3pt;
   font-size: 9pt;
-  color: #943634;
+  color: {% brand_color "FORM_BAND" %};
 }
 
 .form-title {
@@ -104,11 +105,11 @@ body {
   font-weight: 700;
   margin: 2pt 0 5pt;
 }
-.form-title .subject { color: #943634; }
+.form-title .subject { color: {% brand_color "FORM_BAND" %}; }
 
 table { width: 100%; border-collapse: collapse; direction: rtl; margin-bottom: 3pt; }
 td {
-  border: 0.5pt solid #000;
+  border: 0.5pt solid {% brand_color "PRINT_INK" %};
   padding: 1pt 3.5pt;
   font-size: 10.7pt;
   vertical-align: middle;
@@ -116,12 +117,12 @@ td {
 }
 
 /* شريط القسم: أبيضُ على العنّابي */
-.band { background: #943634; color: #FFFFFF; font-weight: 700; text-align: center; }
+.band { background: {% brand_color "FORM_BAND" %}; color: {% brand_color "ON_FILL" %}; font-weight: 700; text-align: center; }
 
 /* كل خليّة عنوان: أرضيّةٌ رمليّة — عناوين الحقول والأعمدة معاً */
-.key { background: #DDD9C3; font-weight: 700; white-space: nowrap; }
+.key { background: {% brand_color "FORM_KEY_BG" %}; font-weight: 700; white-space: nowrap; }
 .head {
-  background: #DDD9C3;
+  background: {% brand_color "FORM_KEY_BG" %};
   font-weight: 700;
   font-size: 8.2pt;
   line-height: 1.1;
@@ -136,7 +137,11 @@ td {
 
 /* خطٌّ أسمك يفصل مجالاً عن مجال — الحدُّ العاديّ نصفُ نقطة،
    فلا تكاد العينُ ترى أين ينتهي «التخطيط» ويبدأ «تنفيذ الدرس». */
-.domain-start td { border-top: 1.5pt solid #000; }
+.domain-start td { border-top: 1.5pt solid {% brand_color "PRINT_INK" %}; }
+
+/* خانتا العنوان في سطر المدرسة: عرضُهما يثبّت ما تحتهما من أعمدة. */
+.key.is-school { width: 8%; }
+.key.is-date { width: 11%; }
 
 /* الأصل يكتب رؤوس الأعمدة وعمود المجال عمودياً. وجُرّب
    `writing-mode: vertical-rl` فأخرج WeasyPrint حروفاً عربيةً مُشوَّهة
@@ -194,9 +199,9 @@ td {
 <table>
   <tr><td class="band" colspan="12">المعلومات الأساسيّة</td></tr>
   <tr>
-    <td class="key" style="width:8%">المــدرسة</td>
+    <td class="key is-school">المــدرسة</td>
     <td colspan="5">{{ obs.school.name }}</td>
-    <td class="key" colspan="2" style="width:11%">اليوم/التاريخ</td>
+    <td class="key is-date" colspan="2">اليوم/التاريخ</td>
     <td colspan="4">{{ obs.observation_date|date:"Y/m/d" }}</td>
   </tr>
   <tr>

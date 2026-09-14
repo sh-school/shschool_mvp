@@ -217,11 +217,11 @@
     {% if card.can_review or card.can_return %}
     <input type="text" name="comment" class="asg-comment" placeholder="ملاحظةُ المراجعة (اختياريّة)">
     {% endif %}
-    {% if card.can_submit %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="submit" label="رفعٌ للمراجعة" style="primary" %}{% endif %}
-    {% if card.can_review %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="review" label="روجعت" style="primary" %}{% endif %}
-    {% if card.can_return %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="return" label="ردٌّ للتعديل" style="ghost" %}{% endif %}
-    {% if card.can_approve %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="approve" label="اعتماد" style="approve" %}{% endif %}
-    {% if card.can_revise %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="revise" label="إصدارٌ جديدٌ للتعديل" style="ghost" %}{% endif %}
+    {% if card.can_submit %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="submit" label="رفعٌ للمراجعة" variant="primary" %}{% endif %}
+    {% if card.can_review %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="review" label="روجعت" variant="primary" %}{% endif %}
+    {% if card.can_return %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="return" label="ردٌّ للتعديل" variant="ghost" %}{% endif %}
+    {% if card.can_approve %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="approve" label="اعتماد" variant="approve" %}{% endif %}
+    {% if card.can_revise %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="revise" label="إصدارٌ جديدٌ للتعديل" variant="ghost" %}{% endif %}
   </div>
   {% endif %}
   </details>

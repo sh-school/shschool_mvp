@@ -1,0 +1,25 @@
+{% comment %}
+ثلاثُ خاناتِ توقيعٍ للوثيقة الرسميّة — الشكلُ في `base_qatar_report.html`، والابنُ يسمّي الموقِّعين:
+  {% block signatures %}{% include "reports/pdf/_signatures.html" with s1="رائد الفصل" s2="…" s3="…" %}{% endblock %}
+كانت الخاناتُ في الأب افتراضيّاً، فرسمت ثلاثَ خاناتٍ فارغةٍ تحت كلّ وثيقةٍ تكتب توقيعاتِها بنفسها.
+{% endcomment %}
+<div class="sig-block">
+  <div class="sig-item">
+    <div class="sig-title">{{ s1 }}</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-role">التوقيع</div>
+  </div>
+  <div class="sig-item">
+    <div class="sig-title">{{ s2 }}</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-role">التوقيع</div>
+  </div>
+  <div class="sig-item">
+    <div class="sig-title">{{ s3 }}</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-role">التوقيع</div>
+  </div>
+</div>

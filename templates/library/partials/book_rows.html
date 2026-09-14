@@ -2,39 +2,21 @@
   Partial: قائمة الكتب — SchoolOS v5.1
   يُعاد هذا القالب في طلبات HTMX (البحث الحي والترقيم)
   Target: #books-container
-{% endcomment %}
+{% endcomment %}{% load ui %}
 {% if books %}
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="books-grid">
+<div class="ui-entity-grid" id="books-grid">
   {% for book in books %}
-  <div class="card-qatar hover:shadow-md transition-shadow">
-    <div class="flex justify-between items-start mb-2">
-      <div class="flex-1 min-w-0">
-        <p class="font-medium text-gray-800 text-sm leading-snug">{{ book.title }}</p>
-        <p class="text-xs text-gray-500 mt-0.5 truncate">{{ book.author }}</p>
-      </div>
-      <span class="status-badge me-2 shrink-0
-        {% if book.book_type == 'PRINT' %}status-info
-        {% elif book.book_type == 'DIGITAL' %}status-maroon
-        {% else %}status-gray{% endif %}">
-        {{ book.get_book_type_display }}
-      </span>
-    </div>
-    <div class="flex items-center justify-between mt-3 pt-3 border-t">
-      <div class="text-xs text-gray-500 min-w-0">
-        {% if book.isbn %}<span class="block truncate">ISBN: {{ book.isbn }}</span>{% endif %}
-        {% if book.category %}<span class="text-gray-400">{{ book.category }}</span>{% endif %}
-      </div>
-      <div class="flex items-center gap-2 shrink-0 me-2">
-        <span class="text-xs font-medium {% if book.available_qty > 0 %}text-green-600{% else %}text-red-600{% endif %}">
-          {{ book.available_qty }}/{{ book.quantity }} متوفر
-        </span>
-        {% if book.available_qty > 0 %}
-        <a href="{% url 'library:borrow_book' %}?book={{ book.id }}"
-           class="btn-primary btn-sm">إعارة</a>
-        {% endif %}
-      </div>
-    </div>
-  </div>
+    {% entity_card book.title who=book.author tone="maroon" %}
+      {% entity_chips %}
+        <span class="chip">{{ book.get_book_type_display }}</span>
+        {% if book.category %}<span class="chip">{{ book.category }}</span>{% endif %}
+        {% if book.isbn %}<span class="chip" dir="ltr">ISBN {{ book.isbn }}</span>{% endif %}
+      {% endentity_chips %}
+      {% entity_status tone=book.stock_tone %}
+        {{ book.stock_label }}
+        {% if book.available_qty > 0 %}<a href="{% url 'library:borrow_book' %}?book={{ book.id }}" class="library-borrow-link">إعارة ←</a>{% endif %}
+      {% endentity_status %}
+    {% endentity_card %}
   {% endfor %}
 </div>
 

@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
 {% load static %}
+{% load ui %}
 {% comment %}
 شاشةُ «الإسناد» الواحدة (قرار 2026-09-06): لكلّ معلّمٍ بطاقة — نصابُه وما يدرّسه
 ومن يحضّر — والحفظُ في لحظته بلا زرٍّ ولا صفحةٍ وسيطة. المنسّقُ يُدخل لقسمه ثمّ
@@ -13,17 +14,8 @@
 
 {% block content %}
 <div class="exec-dash">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} الإسناد</h1>
-      <p class="exec-subtitle">
-        {{ year }} · {{ totals.teachers }} معلّماً · {{ totals.rows }} إسناداً
-        {% if totals.pending %}· {{ totals.pending }} بانتظار المراجعة{% endif %}
-        {% if totals.approved %}· {{ totals.approved }} معتمَداً{% endif %}
-        — يُحفظ كلُّ تغييرٍ في لحظته
-      </p>
-    </div>
-    <div class="exec-meta asg-tools">
+  {% page_header page_title subtitle=page_subtitle icon="list-checks" %}
+    <div class="asg-tools">
     <button type="button" class="btn-secondary btn-sm" data-asg-fold="open">فتحُ الكلّ</button>
     <button type="button" class="btn-secondary btn-sm" data-asg-fold="close">طيُّ الكلّ</button>
     <form method="get" class="exec-meta">
@@ -36,7 +28,7 @@
       </select>
     </form>
     </div>
-  </div>
+  {% endpage_header %}
 
   {% comment %}
   حارسُ المدرسة: الحملُ الفرديُّ لا يكشف شعبةً بلا معلّم. فيُقاس المطلوبُ من

@@ -88,6 +88,11 @@ class BellTable:
     bells: list[Bell]
 
     @property
+    def title(self) -> str:
+        """عنوانُ بطاقة الجدول — يُبنى هنا لا في القالب."""
+        return f"التوقيت — {self.label}"
+
+    @property
     def columns(self) -> list[BellColumn]:
         """الأجراسُ المتطابقةُ خاناتٍ عمودٌ واحد — والمختلفةُ أعمدةٌ متجاورة.
 

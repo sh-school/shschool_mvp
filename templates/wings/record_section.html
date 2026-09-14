@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static %}
+{% load static ui %}
 
 {% block title %}رصد {{ klass.short_code }}{% endblock %}
 
@@ -10,14 +10,10 @@
 {% block content %}
 <div class="exec-dash">
 
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="list-checks" %} {{ klass.get_grade_display }} / {{ klass.section }}</h1>
-      <p class="exec-subtitle">{{ day|date:"D، d M Y" }} · {{ rows|length }} طالباً · {{ periods|length }} حصّة</p>
-    </div>
+  {% page_header heading subtitle=subtitle icon="list-checks" %}
     {% if periods %}
     {% comment %} نموذجُ GET بلا سكربت: الاتّجاهُ يُختار مرّةً، وكلُّ زرٍّ يرسل صيغتَه. {% endcomment %}
-    <form method="get" action="{% url 'wings:section_register' klass.id %}" class="exec-meta per-exports">
+    <form method="get" action="{% url 'wings:section_register' klass.id %}" class="per-exports">
       <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
       <select name="orient" class="form-select per-orient" aria-label="اتّجاه الصفحة">
         <option value="landscape">أفقي</option>
@@ -28,7 +24,7 @@
       <button type="submit" name="print" value="1" formtarget="_blank" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
     </form>
     {% endif %}
-  </div>
+  {% endpage_header %}
 
   {% if not periods %}
     <div class="wing-warn">
@@ -110,7 +106,7 @@
               <td class="per-cell is-focus">
                 <span class="rec-row__pick" role="radiogroup" aria-label="حال {{ row.student.full_name }}">
                   <label class="rec-pick rec-pick--present">
-                    <input type="radio" name="s-{{ sid }}" value="present" {% if not cell or cell.status == "present" %}checked{% endif %}>
+                    <input type="radio" name="s-{{ sid }}" value="present" {% if not cell and row.tap is None or cell.status == "present" %}checked{% endif %}>
                     <span>حاضر</span>
                   </label>
                   <label class="rec-pick rec-pick--absent">
@@ -118,8 +114,8 @@
                     <span>غائب</span>
                   </label>
                   <label class="rec-pick rec-pick--late">
-                    <input type="radio" name="s-{{ sid }}" value="late" {% if cell.status == "late" %}checked{% endif %} data-tap="t-{{ sid }}">
-                    <span>متأخّر</span>
+                    <input type="radio" name="s-{{ sid }}" value="late" {% if cell.status == "late" or not cell and row.tap is not None %}checked{% endif %} data-tap="t-{{ sid }}">
+                    <span>متأخّر{% if not cell and row.tap is not None %} <small title="نقرةُ المعلّم">{{ row.tap }} د</small>{% endif %}</span>
                   </label>
                 </span>
                 <input type="hidden" name="t-{{ sid }}" value="">

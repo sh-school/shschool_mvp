@@ -237,11 +237,18 @@ def get_pdf_header_html(context: dict) -> str:
     HTML هيدر PDF موحّد — يُدرج في أعلى كل template PDF
     """
     return f"""
-    <div style="text-align:center;border-bottom:3px solid {brand.MAROON};padding-bottom:12px;margin-bottom:20px">
-      <h1 style="color:{brand.MAROON};font-size:16pt;margin:0">{context["school_name"]}</h1>
-      <p style="font-size:9pt;color:#666;margin:2px 0 0">{context["ministry"]}</p>
-      <p style="font-size:11pt;font-weight:700;color:#333;margin:8px 0 0">{context["title"]}</p>
-      <p style="font-size:8pt;color:#999;margin:4px 0 0">العام الدراسي {context["academic_year"]}</p>
+    <style>
+      .xp-head {{ text-align:center; border-bottom:3px solid {brand.MAROON}; padding-bottom:12px; margin-bottom:20px; }}
+      .xp-head h1 {{ color:{brand.MAROON}; font-size:16pt; margin:0; }}
+      .xp-head-ministry {{ font-size:9pt; color:{brand.TEXT_SECONDARY}; margin:2px 0 0; }}
+      .xp-head-title {{ font-size:11pt; font-weight:700; color:{brand.TEXT_PRIMARY}; margin:8px 0 0; }}
+      .xp-head-year {{ font-size:8pt; color:{brand.TEXT_MUTED}; margin:4px 0 0; }}
+    </style>
+    <div class="xp-head">
+      <h1>{context["school_name"]}</h1>
+      <p class="xp-head-ministry">{context["ministry"]}</p>
+      <p class="xp-head-title">{context["title"]}</p>
+      <p class="xp-head-year">العام الدراسي {context["academic_year"]}</p>
     </div>
     """
 
@@ -251,10 +258,16 @@ def get_pdf_footer_html(context: dict) -> str:
     HTML فوتر PDF — توقيع المُصدِّر في أسفل كل صفحة
     """
     return f"""
-    <div style="text-align:center;font-size:8pt;color:#999;border-top:1px solid #ddd;padding-top:8px;margin-top:30px">
-      <p style="margin:0"><strong style="color:#333">صدر بواسطة:</strong> {context["exported_by"]} — {context["exporter_role"]}</p>
-      <p style="margin:2px 0 0">التاريخ: {context["export_datetime"]}</p>
-      <p style="margin:2px 0 0">{context["school_name"]} — وثيقة رسمية — SchoolOS</p>
+    <style>
+      .xp-foot {{ text-align:center; font-size:8pt; color:{brand.TEXT_MUTED}; border-top:1px solid {brand.BORDER}; padding-top:8px; margin-top:30px; }}
+      .xp-foot p {{ margin:2px 0 0; }}
+      .xp-foot p:first-child {{ margin:0; }}
+      .xp-foot strong {{ color:{brand.TEXT_PRIMARY}; }}
+    </style>
+    <div class="xp-foot">
+      <p><strong>صدر بواسطة:</strong> {context["exported_by"]} — {context["exporter_role"]}</p>
+      <p>التاريخ: {context["export_datetime"]}</p>
+      <p>{context["school_name"]} — وثيقة رسمية — SchoolOS</p>
     </div>
     """
 

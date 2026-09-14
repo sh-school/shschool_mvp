@@ -747,11 +747,13 @@ def observation_pdf_view(request, obs_id):
     obs, allowed = _get_observation(request, obs_id)
     if not allowed:
         return render(request, "403.html", status=403)
+    kind = "التقييم الذاتي" if obs.kind == "self" else "الإشراف"
     return render(
         request,
         "quality/observation_pdf_view.html",
         {
             "obs": obs,
+            "page_title": f"استمارة {kind}: {obs.teacher.full_name}",
             "can_send": _can_send(request.user),
             "recipients": ObservationService.recipient_options(obs),
         },
