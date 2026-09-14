@@ -41,7 +41,7 @@ from .services import ParentService
 def _get_parent_school(request):
     """يُعيد school لولي الأمر أو None"""
     if request.user.is_superuser:
-        return request.user.get_school()
+        return request.school
     m = request.user.get_parent_membership()
     return m.school if m else None
 
@@ -82,7 +82,7 @@ def parent_dashboard(request):
 @capability_required("parents.portal")
 def student_grades(request, student_id):
     """درجات الطالب — لولي الأمر بعد التحقق من صلاحية العرض."""
-    school = _get_parent_school(request) or request.user.get_school()
+    school = _get_parent_school(request) or request.school
     student = get_object_or_404(
         CustomUser,
         id=student_id,
@@ -132,7 +132,7 @@ def student_grades(request, student_id):
 @capability_required("parents.portal")
 def student_attendance(request, student_id):
     """سجل غياب الطالب — لولي الأمر مع تنبيهات الغياب المتكرر."""
-    school = _get_parent_school(request) or request.user.get_school()
+    school = _get_parent_school(request) or request.school
     student = get_object_or_404(
         CustomUser,
         id=student_id,
@@ -358,7 +358,7 @@ def manage_parent_links(request):
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     search = request.GET.get("q", "").strip()
     rel_filter = request.GET.get("rel", "").strip()
@@ -556,7 +556,7 @@ def add_parent_link(request):
     if request.method != "POST" or not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
-    school = request.user.get_school()
+    school = request.school
     parent_id = request.POST.get("parent_id")
     national_id = (request.POST.get("parent_national_id") or "").strip()
     full_name = (request.POST.get("parent_full_name") or "").strip()
@@ -602,7 +602,7 @@ def remove_parent_link(request, link_id):
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
-    school = request.user.get_school()
+    school = request.school
     link = get_object_or_404(ParentStudentLink, id=link_id, school=school)
     name = f"{link.parent.full_name} ← {link.student.full_name}"
     link.delete()
@@ -628,7 +628,7 @@ def consent_view(request):
     if not request.user.has_role("parent") and not request.user.is_superuser:
         return HttpResponse("هذه الصفحة لأولياء الأمور فقط.", status=403)
 
-    school = request.user.get_school()
+    school = request.school
     links = ParentStudentLink.objects.filter(parent=request.user, school=school).select_related(
         "student"
     )
@@ -704,7 +704,7 @@ def push_subscribe(request):
         auth = data.get("keys", {}).get("auth", "").strip()
         if not all([endpoint, p256dh, auth]):
             return JsonResponse({"error": "بيانات ناقصة"}, status=400)
-        school = _get_parent_school(request) or request.user.get_school()
+        school = _get_parent_school(request) or request.school
         if not school:
             return JsonResponse({"error": "مدرسة غير معروفة"}, status=400)
         # [B4-5] التسجيل يمرّ بمالك السقف لا بـ`update_or_create` مباشرةً:

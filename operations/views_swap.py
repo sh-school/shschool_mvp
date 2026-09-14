@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 @capability_required("schedule.view")
 def swap_list(request):
     """قائمة طلبات التبديل — مفلترة حسب الدور."""
-    school = request.user.get_school()
+    school = request.school
     role = request.user.get_role()
 
     #: من يرى السجلَّ كلَّه — والمطوّرُ منهم: يُسأل عن التبديل فيجب أن يجده.
@@ -114,7 +114,7 @@ def _slot_weekday(slot) -> int:
 @capability_required("swap.request")
 def swap_request(request):
     """نموذج طلب تبديل."""
-    school = request.user.get_school()
+    school = request.school
 
     if request.method == "POST":
         slot_a_id = request.POST.get("slot_a")
@@ -181,7 +181,7 @@ def swap_request(request):
 @capability_required("schedule.view")
 def swap_options_htmx(request, slot_id):
     """HTMX partial — معلمون متاحون للتبديل مع حصة معيّنة."""
-    school = request.user.get_school()
+    school = request.school
     slot = get_object_or_404(ScheduleSlot, pk=slot_id, school=school)
     options = SwapService.get_swap_options(request.user, slot, school)
     return render(
@@ -193,7 +193,7 @@ def swap_options_htmx(request, slot_id):
 @capability_required("swap.respond")
 def swap_respond(request, swap_id):
     """المعلم ب يقبل أو يرفض طلب التبديل."""
-    school = request.user.get_school()
+    school = request.school
     swap = get_object_or_404(
         TeacherSwap.objects.select_related(
             "teacher_a",
@@ -243,7 +243,7 @@ def swap_respond(request, swap_id):
 @require_POST
 def swap_approve(request, swap_id):
     """المنسق أو النائب يوافق/يرفض طلب التبديل."""
-    school = request.user.get_school()
+    school = request.school
     swap = get_object_or_404(TeacherSwap, pk=swap_id, school=school)
     action = request.POST.get("action", "")
     rejection_reason = request.POST.get("rejection_reason", "")
@@ -273,7 +273,7 @@ def swap_approve(request, swap_id):
 @require_POST
 def swap_cancel(request, swap_id):
     """إلغاء طلب تبديل."""
-    school = request.user.get_school()
+    school = request.school
     swap = get_object_or_404(TeacherSwap, pk=swap_id, school=school)
     try:
         SwapService.cancel_swap(swap, cancelled_by=request.user)
@@ -290,7 +290,7 @@ def swap_cancel(request, swap_id):
 @capability_required("schedule.view")
 def compensatory_list(request):
     """قائمة الحصص التعويضية."""
-    school = request.user.get_school()
+    school = request.school
     role = request.user.get_role()
 
     if role in ("principal", "vice_academic", "vice_admin"):
@@ -330,7 +330,7 @@ def compensatory_list(request):
 @capability_required("compensatory.request")
 def compensatory_request(request):
     """نموذج طلب حصة تعويضية."""
-    school = request.user.get_school()
+    school = request.school
 
     if request.method == "POST":
         from datetime import date as date_cls
@@ -391,7 +391,7 @@ def compensatory_request(request):
 @require_POST
 def compensatory_approve(request, comp_id):
     """المنسق/النائب يوافق أو يرفض طلب التعويض."""
-    school = request.user.get_school()
+    school = request.school
     comp = get_object_or_404(CompensatorySession, pk=comp_id, school=school)
     action = request.POST.get("action", "")
     rejection_reason = request.POST.get("rejection_reason", "")
@@ -425,7 +425,7 @@ def teacher_free_slots(request, teacher_id):
     """HTMX partial — الحصص الحرة لمعلم معيّن."""
     from core.models import CustomUser
 
-    school = request.user.get_school()
+    school = request.school
     teacher = get_object_or_404(
         CustomUser,
         pk=teacher_id,
@@ -451,7 +451,7 @@ def teacher_free_slots(request, teacher_id):
 @require_POST
 def build_free_slots(request):
     """بناء/إعادة بناء سجل الحصص الحرة."""
-    school = request.user.get_school()
+    school = request.school
     count = FreeSlotService.build_registry(school)
     messages.success(request, f"تم بناء سجل الحصص الحرة: {count} حصة")
     return redirect("swap_list")

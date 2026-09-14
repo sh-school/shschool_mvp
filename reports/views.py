@@ -257,7 +257,7 @@ def _get_paper_size(request) -> str:
 @capability_required("reports.results")
 def reports_index(request):
     """فهرس التقارير — تبويبات + فلاتر + بطاقات فصول."""
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     tab = request.GET.get("tab", "results")
     grade_filter = request.GET.get("grade", "")
@@ -317,7 +317,7 @@ def reports_index(request):
 @xframe_options_sameorigin
 def class_results_pdf(request, class_id):
     """PDF: كشف نتائج كامل لجميع طلاب فصل"""
-    school = request.user.get_school()
+    school = request.school
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     year = request.GET.get("year") or academic_year_for(request)
     # [SEC-04] المعلّم لا يصدّر إلا فصوله — المدرسة وحدها لا تكفي كنطاق
@@ -365,7 +365,7 @@ def class_certificates_pdf(request, class_id):
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
-    school = request.user.get_school()
+    school = request.school
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     year = request.GET.get("year") or academic_year_for(request)
     preview = request.GET.get("preview") == "1"
@@ -419,7 +419,7 @@ def attendance_report_pdf(request, class_id):
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
-    school = request.user.get_school()
+    school = request.school
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     year = request.GET.get("year") or academic_year_for(request)
     preview = request.GET.get("preview") == "1"
@@ -457,7 +457,7 @@ def attendance_report_pdf(request, class_id):
 @xframe_options_sameorigin
 def student_result_pdf(request, student_id):
     """PDF: تقرير نتيجة طالب مفصّل"""
-    school = request.user.get_school()
+    school = request.school
     student = get_object_or_404(
         CustomUser,
         id=student_id,
@@ -501,7 +501,7 @@ def student_result_pdf(request, student_id):
 @xframe_options_sameorigin
 def student_annual_result_pdf(request, student_id):
     """كشف نتائج الطالب السنوي — PDF للطباعة الرسمية"""
-    school = request.user.get_school()
+    school = request.school
     student = get_object_or_404(
         CustomUser,
         id=student_id,
@@ -546,7 +546,7 @@ def student_annual_result_pdf(request, student_id):
 @xframe_options_sameorigin
 def student_certificate_pdf(request, student_id):
     """PDF: شهادة نتيجة سنوية رسمية"""
-    school = request.user.get_school()
+    school = request.school
     student = get_object_or_404(
         CustomUser,
         id=student_id,
@@ -598,7 +598,7 @@ def class_results_excel(request, class_id):
     if not (request.user.is_admin() or request.user.is_teacher()):
         return HttpResponse("غير مسموح", status=403)
 
-    school = request.user.get_school()
+    school = request.school
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     year = request.GET.get("year") or academic_year_for(request)
     # [SEC-04] المعلّم لا يصدّر إلا فصوله — المدرسة وحدها لا تكفي كنطاق
@@ -626,7 +626,7 @@ def attendance_excel(request, class_id):
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
-    school = request.user.get_school()
+    school = request.school
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     paper = _get_paper_size(request).lower()
     year = request.GET.get("year") or academic_year_for(request)
@@ -649,7 +649,7 @@ def behavior_excel(request):
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
-    school = request.user.get_school()
+    school = request.school
     paper = _get_paper_size(request).lower()
     year = request.GET.get("year") or academic_year_for(request)
     # الرقم الشخصيّ: مستور — `ExcelService.behavior_excel` يستره.

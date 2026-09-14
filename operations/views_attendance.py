@@ -39,7 +39,7 @@ def attendance_tone(status: str) -> str:
 @capability_required("schedule.day")
 def schedule(request):
     """جدول حصص المعلم اليوم"""
-    school = request.user.get_school()
+    school = request.school
     today = request.GET.get("date", timezone.localdate().isoformat())
     try:
         selected_date = date.fromisoformat(today)
@@ -174,7 +174,7 @@ def _session_heading(session) -> dict:
 @capability_required("attendance.mark")
 def attendance_view(request, session_id):
     """صفحة تسجيل الحضور لحصة"""
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(Session, id=session_id, school=school)
 
     if (
@@ -263,7 +263,7 @@ def mark_single(request, session_id):
     """HTMX: تسجيل حضور طالب واحد"""
     from core.models import CustomUser
 
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(Session, id=session_id, school=school)
     student_id = request.POST.get("student_id")
     status = request.POST.get("status", "present")
@@ -322,7 +322,7 @@ def mark_late_tap(request, session_id):
 
     from .period_register import tap_late
 
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(Session, id=session_id, school=school)
     if request.user != session.teacher and not request.user.is_leadership():
         return HttpResponse("هذه الحصّة ليست لك.", status=403)
@@ -341,7 +341,7 @@ def mark_late_tap(request, session_id):
 
 
 def _own_session_or_403(request, session_id):
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(Session, id=session_id, school=school)
     if request.user != session.teacher and not request.user.is_leadership():
         return session, HttpResponse("هذه الحصّة ليست لك.", status=403)
@@ -438,7 +438,7 @@ def cancel_exit_view(request, session_id):
 @require_POST
 def mark_all_present(request, session_id):
     """HTMX: الكل حاضر بضغطة واحدة"""
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(Session, id=session_id, school=school)
 
     if request.user != session.teacher and not request.user.is_admin():
@@ -487,7 +487,7 @@ def mark_all_present(request, session_id):
 @require_POST
 def complete_session(request, session_id):
     """إنهاء الحصة"""
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(Session, id=session_id, school=school)
     AttendanceService.complete_session(session)
     messages.success(
@@ -501,7 +501,7 @@ def complete_session(request, session_id):
 @capability_required("attendance.mark")
 def session_summary(request, session_id):
     """ملخص الحصة — HTMX partial"""
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(Session, id=session_id, school=school)
     summary = AttendanceService.get_session_summary(session)
     return render(
@@ -520,7 +520,7 @@ def daily_report(request):
     from core.permissions import get_department_teacher_ids
     from operations.daily_absence import daily_report as build
 
-    school = request.user.get_school()
+    school = request.school
     try:
         report_date = date.fromisoformat(request.GET.get("date") or "")
     except ValueError:

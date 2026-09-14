@@ -48,7 +48,7 @@ DAY_LABEL = {"regular": "الأحد – الأربعاء", "thursday": "الخم
 @login_required
 @capability_required("wings.floors")
 def floors(request):
-    school = request.user.get_school()
+    school = request.school
     now = timezone.localtime()
     year = academic_year_for_school(school)
     day_type = day_type_for(now.date())
@@ -120,7 +120,7 @@ def coverage(request):
     المدير والمطوّر بقرار المدرسة، فبلا هذه الشاشة لا يستطيع النائبان تعيينَ
     بديلٍ — وهما اثنان من الأربعة الذين أذن لهم المدير.
     """
-    school = request.user.get_school()
+    school = request.school
     year = academic_year_for_school(school)
     today = timezone.localdate()
     return render(
@@ -140,7 +140,7 @@ def coverage(request):
 @capability_required("wings.assign_cover")
 @require_POST
 def coverage_assign(request, code):
-    school = request.user.get_school()
+    school = request.school
     year = academic_year_for_school(school)
     wing = get_object_or_404(Wing, school=school, code=code, academic_year=year)
     today = timezone.localdate()
@@ -184,7 +184,7 @@ def coverage_end(request, pk):
     الحذفُ يمحو من حمل الجناحَ أمسِ، ومن يقرأ غيابَ الأسبوع الماضي يحتاج أن
     يعرف من كان يرصده. فتُغلق المدّةُ ويبقى السجلّ.
     """
-    school = request.user.get_school()
+    school = request.school
     cover = get_object_or_404(WingCoverage, pk=pk, wing__school=school)
     today = timezone.localdate()
     cover.end_date = max(_day(request.POST.get("end_date"), today), cover.start_date)
@@ -201,7 +201,7 @@ def coverage_end(request, pk):
 @capability_required("wings.record_day")
 def record_index(request):
     """شُعبي اليومَ وحالُ رصدِها — «شُعبي المتبقّية n/5»."""
-    school = request.user.get_school()
+    school = request.school
     year = academic_year_for_school(school)
     day = _day(request.GET.get("date"), timezone.localdate())
 
@@ -236,7 +236,7 @@ def _own_class(request, class_id):
     والقيادةُ ترى الأجنحةَ الخمسة (`wings_of`). ومن طلب شعبةَ جناحٍ آخر برابطها
     المباشر يلقى 404 لا 403: وجودُ الشعبة في جناحٍ غيرِه ليس شأنَه.
     """
-    school = request.user.get_school()
+    school = request.school
     klass = get_object_or_404(ClassGroup, id=class_id, school=school)
     year = academic_year_for_school(school)
     if klass.wing_id not in {w.id for w in wings_of(request.user, school, year)}:
@@ -502,7 +502,7 @@ def excuse_revoke(request, pk):
     from operations.excuses import ExcuseError, revoke_excuse
     from operations.models import AbsenceExcuse
 
-    school = request.user.get_school()
+    school = request.school
     excuse = get_object_or_404(AbsenceExcuse, pk=pk, school=school)
     active = StudentEnrollment.objects.filter(student=excuse.student, is_active=True).first()
     if active is None:
@@ -530,7 +530,7 @@ def attendance_event_delete(request, pk):
     """حذفُ سجلّ حضورٍ (غياب/تأخّر) بسبب — ويُعاد حكمُ الكشف على يومه."""
     from operations.undo import delete_attendance_event
 
-    school = request.user.get_school()
+    school = request.school
     row = get_object_or_404(
         StudentAttendance.objects.select_related("session"), pk=pk, school=school
     )
@@ -553,7 +553,7 @@ def exit_event_delete(request, pk):
     from operations.models import ClassExit
     from operations.undo import delete_exit_event
 
-    school = request.user.get_school()
+    school = request.school
     exit_ = get_object_or_404(ClassExit.objects.select_related("session"), pk=pk, school=school)
     _own_class(request, exit_.session.class_group_id)
     back = reverse("wings:student_events", args=[exit_.session.class_group_id, exit_.student_id])

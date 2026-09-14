@@ -31,7 +31,7 @@ def _can_access(user):
 @capability_required("exam_control.access")
 def dashboard(request):
     """لوحة القيادة — ملخص كل دورات الاختبار"""
-    school = request.user.get_school()
+    school = request.school
     # ✅ v5.4: ExamControlService.get_dashboard_sessions — annotate في service layer
     sessions = ExamControlService.get_dashboard_sessions(school)
     # التكرارُ يملأ ذاكرةَ الاستعلام، فالسماتُ المضافةُ تبقى حين يمرّ القالبُ عليه.
@@ -62,7 +62,7 @@ def _present_session(session) -> None:
 def session_create(request):
     """إنشاء دورة اختبار جديدة"""
     if request.method == "POST":
-        school = request.user.get_school()
+        school = request.school
         # ✅ v5.4: ExamControlService.create_session — atomic في service layer
         session = ExamControlService.create_session(
             school=school,
@@ -89,7 +89,7 @@ def session_create(request):
 @capability_required("exam_control.access")
 def session_detail(request, pk):
     """تفاصيل دورة الاختبار"""
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(ExamSession, pk=pk, school=school)
     context = {
         "session": session,
@@ -112,7 +112,7 @@ def session_detail(request, pk):
 @capability_required("exam_control.access")
 def supervisors(request, pk):
     """تشكيل الكنترول — المحور 1"""
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(ExamSession, pk=pk, school=school)
     if request.method == "POST":
         from core.models import CustomUser
@@ -144,7 +144,7 @@ def supervisors(request, pk):
 @capability_required("exam_control.access")
 def schedule(request, pk):
     """جدول الاختبارات"""
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(ExamSession, pk=pk, school=school)
     if request.method == "POST":
         room = get_object_or_404(ExamRoom, id=request.POST["room_id"], session=session)
@@ -173,7 +173,7 @@ def schedule(request, pk):
 @capability_required("exam_control.access")
 def incidents(request, pk):
     """قائمة حوادث الاختبار"""
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(ExamSession, pk=pk, school=school)
     qs = session.incidents.select_related("student", "room", "reported_by").order_by(
         "-incident_time"
@@ -185,7 +185,7 @@ def incidents(request, pk):
 @capability_required("exam_control.access")
 def incident_add(request, pk):
     """تسجيل حادث جديد — محضر رسمي (الأقسام أ–ز من Template_IncidentReport)"""
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(ExamSession, pk=pk, school=school)
     if request.method == "POST":
         from core.models import CustomUser
@@ -237,7 +237,7 @@ def incident_pdf(request, pk):
     from core.audit_export import log_export
     from core.pdf_utils import render_pdf
 
-    incident = get_object_or_404(ExamIncident, pk=pk, session__school=request.user.get_school())
+    incident = get_object_or_404(ExamIncident, pk=pk, session__school=request.school)
     log_export(
         request,
         "exam_control.incident_pdf",
@@ -260,7 +260,7 @@ def incident_pdf(request, pk):
 @capability_required("exam_control.access")
 def grade_sheets(request, pk):
     """إدارة أوراق الرصد والتصحيح"""
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(ExamSession, pk=pk, school=school)
     if request.method == "POST":
         sheet_id = request.POST.get("sheet_id")
@@ -289,7 +289,7 @@ def session_report_pdf(request, pk):
     from core.audit_export import log_export
     from core.pdf_utils import render_pdf
 
-    school = request.user.get_school()
+    school = request.school
     session = get_object_or_404(ExamSession, pk=pk, school=school)
     log_export(
         request,
