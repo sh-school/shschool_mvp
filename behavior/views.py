@@ -788,11 +788,26 @@ def security_referral(request, infraction_id):
 # ════════════════════════════════════════════════════════════════
 
 
-def _render_behavior_pdf(template_name, context, filename):
+def _render_behavior_pdf(request, template_name, context, filename, *, kind, student=None):
+    """يولّد نموذجَ السلوك ويسجّل توليدَه.
+
+    النماذجُ الفرديّةُ (إنذار، تعهّد، تقرير) تحمل الرقمَ الشخصيَّ كاملاً لأنّها
+    تُسلَّم لصاحبها — والتدقيقُ ثمنُ الكمال (`core/privacy.py`). واللائحةُ
+    وثيقةُ مدرسةٍ بلا طالب فتُسجَّل بلا رقم.
+    """
     from django.template.loader import render_to_string
 
+    from core.audit_export import log_export
     from core.pdf_utils import render_pdf
 
+    log_export(
+        request,
+        kind,
+        rows=1 if student else None,
+        full_national_id=student is not None,
+        object_id=student.pk if student else "",
+        object_repr=f"{kind} — {student.full_name}" if student else kind,
+    )
     return render_pdf(render_to_string(template_name, context), filename)
 
 
@@ -807,6 +822,7 @@ def behavior_policy_pdf(request):
     """
     school = request.user.get_school()
     return _render_behavior_pdf(
+        request,
         "behavior/pdf/policy_doc.html",
         {
             "school": school,
@@ -814,6 +830,7 @@ def behavior_policy_pdf(request):
             "generated_at": _tz.now(),
         },
         "behavior_policy.pdf",
+        kind="behavior.policy_pdf",
     )
 
 
@@ -825,9 +842,12 @@ def infraction_warning_pdf(request, infraction_id):
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
     return _render_behavior_pdf(
+        request,
         "behavior/pdf/student_warning.html",
         ctx,
         f"warning_{inf.student.national_id}_{inf.date}.pdf",
+        kind="behavior.warning_pdf",
+        student=inf.student,
     )
 
 
@@ -839,9 +859,12 @@ def infraction_parent_pdf(request, infraction_id):
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
     return _render_behavior_pdf(
+        request,
         "behavior/pdf/parent_undertaking.html",
         ctx,
         f"parent_undertaking_{inf.student.national_id}.pdf",
+        kind="behavior.parent_undertaking_pdf",
+        student=inf.student,
     )
 
 
@@ -853,9 +876,12 @@ def infraction_student_pdf(request, infraction_id):
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
     return _render_behavior_pdf(
+        request,
         "behavior/pdf/student_undertaking.html",
         ctx,
         f"student_undertaking_{inf.student.national_id}.pdf",
+        kind="behavior.student_undertaking_pdf",
+        student=inf.student,
     )
 
 
@@ -1061,7 +1087,14 @@ def student_behavior_pdf(request, student_id):
     }
     # [PII-08] لا نضع الرقم الشخصي في اسم الملف (يظهر في سجل التنزيلات والوكيل)
     filename = f"behavior_report_{student.id}_{year}.pdf"
-    return _render_behavior_pdf("behavior/pdf/student_report.html", ctx, filename)
+    return _render_behavior_pdf(
+        request,
+        "behavior/pdf/student_report.html",
+        ctx,
+        filename,
+        kind="behavior.student_report_pdf",
+        student=student,
+    )
 
 
 @login_required

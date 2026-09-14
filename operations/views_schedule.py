@@ -19,6 +19,7 @@ from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, academic_year_for_school
+from core.audit_export import log_export
 from core.capabilities import capability_required
 from core.models import CustomUser, Membership
 from core.models.academic import grade_order
@@ -335,6 +336,7 @@ def schedule_export_pdf(request):
     # الويب، فرابطُ `/static/…` المطلق يقع خارج جذره ويخرج الشعارُ نصّاً.
     ctx["for_pdf"] = True
     html = render_to_string("schedule/print_schedule.html", ctx, request=request)
+    log_export(request, "schedule.pdf", object_repr=_export_filename(ctx, "pdf"))
     return render_pdf(
         html,
         _export_filename(ctx, "pdf"),
@@ -357,6 +359,7 @@ def schedule_export_excel(request):
     schedule_workbook(ctx).save(buffer)
 
     filename = _export_filename(ctx, "xlsx")
+    log_export(request, "schedule.xlsx", object_repr=filename)
     response = HttpResponse(
         buffer.getvalue(),
         content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1675,4 +1678,5 @@ def schedule_pages_pdf(request):
     ctx["embed"] = True
     ctx["for_pdf"] = True
     html = render_to_string("schedule/print_pages.html", ctx, request=request)
+    log_export(request, "schedule.pages_pdf", object_repr=_export_filename(ctx, "pdf"))
     return render_pdf(html, _export_filename(ctx, "pdf"), paper_size="A4", as_attachment=True)

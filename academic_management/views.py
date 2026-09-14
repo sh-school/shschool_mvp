@@ -180,6 +180,12 @@ def _export_response(request, template: str, data: dict, excel_fn, pdf_name: str
     export = request.GET.get("export")
     school = _get_school(request)
 
+    if export in ("pdf", "excel"):
+        from core.audit_export import log_export
+
+        rows = data.get("rows") if isinstance(data.get("rows"), list) else None
+        log_export(request, f"academic.{template.rsplit('/', 1)[-1]}:{export}", rows=rows)
+
     if export == "pdf":
         ctx = {"data": data, "school": school, "pdf_mode": True}
         html = render_to_string(template, ctx, request=request)

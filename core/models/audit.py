@@ -39,6 +39,10 @@ class AuditLog(models.Model):
         ("export", "تصدير"),
         ("login", "تسجيل دخول"),
         ("logout", "تسجيل خروج"),
+        # الفشلُ يُدقَّق كالنجاح: عشرُ محاولاتٍ خاطئةٍ على حسابٍ واحدٍ في دقيقةٍ
+        # هجومٌ يُرى في السجلّ لا في ذاكرة الخادم وحدَها.
+        ("login_failed", "محاولة دخول فاشلة"),
+        ("mfa_failed", "رمز تحقّق خاطئ"),
     ]
     MODEL_CHOICES = [
         ("HealthRecord", "سجل صحي"),
@@ -64,7 +68,7 @@ class AuditLog(models.Model):
     user = models.ForeignKey(
         CustomUser, on_delete=models.SET_NULL, null=True, related_name="audit_actions"
     )
-    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
     model_name = models.CharField(max_length=50, choices=MODEL_CHOICES, default="other")
     object_id = models.CharField(max_length=100, blank=True)
     object_repr = models.CharField(max_length=300, blank=True, verbose_name="وصف السجل")

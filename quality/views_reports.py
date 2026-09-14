@@ -108,10 +108,13 @@ def progress_report(request):
 @login_required
 @capability_required("quality.access")
 def progress_report_pdf(request):
+    from core.audit_export import log_export
+
     school = request.user.get_school()
     year = request.GET.get("year") or _default_year(request)
     data = QualityService.get_progress_report_data(school, year)
     overall = data["overall"]
+    log_export(request, "quality.progress_report_pdf", object_repr=f"الخطّة التشغيليّة — {year}")
 
     html_content = render_to_string(
         "quality/pdf/progress_report.html",

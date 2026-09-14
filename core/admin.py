@@ -21,6 +21,28 @@ from .models import (
 )
 
 
+class SchoolScopedAdmin(admin.ModelAdmin):
+    """لوحةُ الإدارة تُري كلَّ لوحةٍ بياناتِ مدرستها وحدَها — والمشرفُ الأعلى يرى الكلّ.
+
+    كانت كلُّ `ModelAdmin` تعرض بيانات أشخاصٍ تقرأ الجدولَ كاملاً: من أُعطي
+    `is_staff` في مدرسةٍ رأى طلبةَ غيرها وأولياءَهم وسجلاتِهم. والمستأجرون
+    مدارسُ، والمدرسةُ حدُّ الاطّلاع (PDPPL: التقليل). فالمسارُ إلى المدرسة
+    يُسمّى في كلّ لوحة (`school_lookup`)، ومن لا مدرسةَ له لا يرى شيئاً.
+    """
+
+    #: مسارُ الترشيح من النموذج إلى `School` — يُسمّى في كلّ لوحةٍ ترث هذا.
+    school_lookup = "school"
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.is_superuser:
+            return queryset
+        school = request.user.get_school() if hasattr(request.user, "get_school") else None
+        if school is None:
+            return queryset.none()
+        return queryset.filter(**{self.school_lookup: school}).distinct()
+
+
 class MembershipInline(admin.TabularInline):
     model = Membership
     extra = 1
@@ -34,13 +56,14 @@ class ProfileInline(admin.StackedInline):
 
 
 @admin.register(CustomUser)
-class CustomUserAdmin(UserAdmin):
+class CustomUserAdmin(SchoolScopedAdmin, UserAdmin):
     """
     ✅ v5.4 PDPPL م.8: الرقم الشخصي مُخفًى في قائمة المستخدمين (آخر 4 أرقام فقط).
     يظهر كاملاً في نموذج التعديل للمسؤول المعتمد فقط.
     """
 
     model = CustomUser
+    school_lookup = "memberships__school"
     # ── PDPPL: نستخدم masked_national_id بدل national_id في القائمة ──
     list_display = (
         "masked_national_id",
@@ -212,7 +235,7 @@ class DepartmentAdmin(admin.ModelAdmin):
 
 
 @admin.register(Membership)
-class MembershipAdmin(admin.ModelAdmin):
+class MembershipAdmin(SchoolScopedAdmin):
     #: القسمُ والتخصّصُ يُحرَّران من القائمة: ورقةُ جداول المعلّمين تقرأ منهما،
     #: وتصحيحُ قسمِ رجلٍ لا يستحقّ فتحَ صفحةٍ لكلّ عضو.
     list_display = (
@@ -282,9 +305,10 @@ class WingAdmin(admin.ModelAdmin):
 
 
 @admin.register(WingCoverage)
-class WingCoverageAdmin(admin.ModelAdmin):
+class WingCoverageAdmin(SchoolScopedAdmin):
     """تغطيةُ الجناح مدّةٌ لا علم — والسجلُّ يُقرأ بالتاريخ فيُجيب عن أمسِ أيضاً."""
 
+    school_lookup = "wing__school"
     list_display = ("wing", "substitute", "start_date", "end_date", "reason", "assigned_by")
     list_filter = ("wing", "reason")
     search_fields = ("wing__name", "substitute__full_name")
@@ -305,7 +329,8 @@ class TimeBandAdmin(admin.ModelAdmin):
 
 
 @admin.register(StudentEnrollment)
-class StudentEnrollmentAdmin(admin.ModelAdmin):
+class StudentEnrollmentAdmin(SchoolScopedAdmin):
+    school_lookup = "class_group__school"
     list_display = ("student", "class_group", "is_active", "enrolled_at")
     list_filter = ("is_active", "class_group__grade")
     list_select_related = ("student", "class_group__school")
@@ -374,7 +399,7 @@ admin.site.index_title = "لوحة إدارة النظام"
 
 
 @admin.register(ParentStudentLink)
-class ParentStudentLinkAdmin(admin.ModelAdmin):
+class ParentStudentLinkAdmin(SchoolScopedAdmin):
     list_display = (
         "student",
         "parent",
@@ -399,7 +424,7 @@ from core.models import AuditLog, ConsentRecord
 
 
 @admin.register(AuditLog)
-class AuditLogAdmin(admin.ModelAdmin):
+class AuditLogAdmin(SchoolScopedAdmin):
     list_display = (
         "timestamp",
         "user",
@@ -440,7 +465,7 @@ class AuditLogAdmin(admin.ModelAdmin):
 
 
 @admin.register(ConsentRecord)
-class ConsentRecordAdmin(admin.ModelAdmin):
+class ConsentRecordAdmin(SchoolScopedAdmin):
     list_display = (
         "parent",
         "student",

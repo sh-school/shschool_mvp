@@ -1,12 +1,14 @@
-"""الرقمُ الشخصيُّ مستورٌ في الشاشة، كاملٌ في الطباعة.
+"""الرقمُ الشخصيُّ مستورٌ في الشاشة، كاملٌ في الوثيقة الفرديّة.
 
 الرقمُ معرّفٌ حكوميٌّ دائمٌ لا يُبدَّل، وكشفُه بالجملة أثقلُ من كشفه واحداً:
 شاشةٌ فيها خمسون رقماً تُصوَّر وتُرسَل، وواحدٌ يُفتح ملفُّه لا يُصوَّر. وحاجةُ
 من يقرأ كشفاً أن **يميّز** لا أن **يعرف** — وأربعُ خاناتٍ تكفي للتمييز.
 
-والطباعةُ استثناءٌ مقصود (قرارُ المستخدم 2026-09-11): شهادةٌ أو كشفُ نتائجَ أو
-تعهّدٌ برقمٍ مستورٍ لا يُغني عن صاحبه. وكذلك حقولُ الإدخال: قيمةٌ مستورةٌ في
-حقلٍ تُحفَظ نجوماً.
+والوثيقةُ الفرديّةُ استثناءٌ مقصود (قرارُ المستخدم 2026-09-11، وحُدّ 2026-09-14):
+شهادةٌ أو كشفُ نتيجةِ طالبٍ أو تعهّدٌ برقمٍ مستورٍ لا يُغني عن صاحبه — أمّا
+كشفُ فصلٍ كاملٍ فكشفٌ جماعيٌّ وإن طُبع، يُستر. والقائمةُ المسمّاة في
+`test_national_id_never_bulk.INDIVIDUAL_DOCUMENTS`. وكذلك حقولُ الإدخال:
+قيمةٌ مستورةٌ في حقلٍ تُحفَظ نجوماً.
 """
 
 import re
@@ -15,11 +17,9 @@ from pathlib import Path
 import pytest
 
 from core.privacy import VISIBLE_TAIL, mask_national_id
+from tests.test_national_id_never_bulk import INDIVIDUAL_DOCUMENTS
 
 TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
-
-#: وثائقُ الطباعة — الرقمُ فيها كاملٌ عمداً.
-PRINTED = re.compile(r"(^reports/|^behavior/pdf/|_pdf\.html$|(^|/)print_)")
 
 #: حقولُ الإدخال: `{{ form.national_id.value }}` قيمةٌ تُعاد إلى الحقل، وسترُها
 #: يحفظ نجوماً مكانَ الرقم.
@@ -31,7 +31,7 @@ RENDER = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z_.]*national_id)((?:\|[^}]*?)?)\s*
 def _screens():
     for path in sorted(TEMPLATES.rglob("*.html")):
         rel = str(path.relative_to(TEMPLATES)).replace("\\", "/")
-        if PRINTED.search(rel):
+        if rel in INDIVIDUAL_DOCUMENTS:
             continue
         text = path.read_text(encoding="utf-8")
         for expr, filters in RENDER.findall(text):
@@ -43,7 +43,7 @@ def _screens():
 def _printed():
     for path in sorted(TEMPLATES.rglob("*.html")):
         rel = str(path.relative_to(TEMPLATES)).replace("\\", "/")
-        if not PRINTED.search(rel):
+        if rel not in INDIVIDUAL_DOCUMENTS:
             continue
         for expr, filters in RENDER.findall(path.read_text(encoding="utf-8")):
             yield rel, expr, filters
@@ -53,8 +53,8 @@ class TestTheMask:
     @pytest.mark.parametrize(
         ("raw", "shown"),
         [
-            ("31473600538", "*******0538"),
-            ("28576002649", "*******2649"),
+            ("99900000538", "*******0538"),
+            ("99900002649", "*******2649"),
             ("", ""),
             (None, ""),
             ("1234", "****"),
@@ -70,17 +70,17 @@ class TestTheMask:
 
     def test_a_masked_number_keeps_its_length(self):
         """الطولُ يُبقي الشكلَ مألوفاً في عمودٍ — ولا يُعيد بناءَ الرقم."""
-        assert len(mask_national_id("31473600538")) == len("31473600538")
+        assert len(mask_national_id("99900000538")) == len("99900000538")
 
     def test_masking_twice_changes_nothing(self):
         """العرضُ يستر والقالبُ يستر — فلو لم يكن الستْرُ محايدَ التكرار
         لأكل النجومُ بعضَها وضاع الذيل."""
-        once = mask_national_id("31473600538")
+        once = mask_national_id("99900000538")
 
         assert mask_national_id(once) == once
 
     def test_nothing_but_the_tail_leaks(self):
-        raw = "31473600538"
+        raw = "99900000538"
         assert raw[:-4] not in mask_national_id(raw)
 
 
@@ -99,7 +99,7 @@ class TestEveryScreenMasks:
 
 
 class TestPrintingKeepsTheFullNumber:
-    """قرارُ المستخدم: الستْرُ للمنصّة لا للطباعة."""
+    """قرارُ المستخدم: الوثيقةُ الفرديّةُ تحمل الرقمَ كاملاً — والتدقيقُ ثمنُه."""
 
     @pytest.mark.parametrize(("path", "expr", "filters"), list(_printed()), ids=lambda v: str(v))
     def test_the_document_is_not_masked(self, path, expr, filters):

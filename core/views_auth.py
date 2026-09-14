@@ -18,10 +18,56 @@ from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
 from core.auth_identity import identifier_kind, lockout_key, resolve_user
-from core.models import CustomUser
+from core.models import AuditLog, CustomUser
 from core.models.access import TIER_5_BENEFICIARIES
+from core.privacy import mask_national_id
 
 logger = logging.getLogger(__name__)
+
+#: محاولاتٌ فاشلةٌ قبل القفل، ومدّتُه — لكلمة المرور ولرمز التحقّق سواء.
+FAILURES_BEFORE_LOCK = 5
+LOCK_MINUTES = 15
+
+
+def _count_failure(user) -> bool:
+    """يزيد عدّادَ الفشل على الحساب ويقفله عند الحدّ — ويعيد هل قُفل الآن.
+
+    قفلٌ صفّيٌّ بـ`select_for_update`: محاولتان متزامنتان لا تضيع إحداهما.
+    ورمزُ التحقّق الخاطئ يُعدّ كالكلمة الخاطئة: من جاوز كلمةَ المرور ووقف
+    عند الرمز يجرّب ستّةَ أرقامٍ لا كلمة — والعدّادُ واحدٌ لكليهما.
+    """
+    with transaction.atomic():
+        CustomUser.objects.filter(pk=user.pk).select_for_update().update(
+            failed_login_attempts=F("failed_login_attempts") + 1
+        )
+        fresh = CustomUser.objects.get(pk=user.pk)
+        if fresh.failed_login_attempts >= FAILURES_BEFORE_LOCK:
+            fresh.locked_until = timezone.now() + timedelta(minutes=LOCK_MINUTES)
+            fresh.save(update_fields=["locked_until"])
+            return True
+    return False
+
+
+def _log_login_failure(request, candidate, identifier: str, *, locked: bool) -> None:
+    """أثرُ محاولةٍ فاشلة في سجلّ التدقيق — بلا معرّفٍ خام.
+
+    الحسابُ إن عُرف يُربط بالسجلّ (`user`)، والمعرّفُ المكتوبُ يُستر: رقمٌ
+    شخصيٌّ خامٌ في سجلٍّ يُقرأ ويُصدَّر كشفٌ لا تدقيق. و«مجهول» حين لا حساب —
+    فتعدادُ المحاولات على معرّفاتٍ لا وجودَ لها إشارةُ مسحٍ لا خطأِ طباعة.
+    """
+    AuditLog.log(
+        user=candidate,
+        action="login_failed",
+        model_name="CustomUser",
+        object_id=candidate.pk if candidate else "",
+        object_repr=f"محاولة دخول فاشلة — {mask_national_id(identifier) or 'بلا معرّف'}",
+        changes={
+            "known": candidate is not None,
+            "identifier_kind": identifier_kind(candidate, identifier),
+            "locked": locked,
+        },
+        request=request,
+    )
 
 
 def _axes_reset(request, key: str) -> None:
@@ -156,28 +202,20 @@ def login_view(request):
             # ── إصلاح User Enumeration ────────────────────────────────────────
             # نزيد العداد بصمت إذا وُجد المستخدم، لكن نُظهر نفس الرسالة دائماً
             # سواء عُرف المعرّف أم لم يُعرف — المهاجم لا يعرف الفرق
+            locked = False
             try:
-                with transaction.atomic():
-                    updated = 0
-                    if candidate:
-                        updated = (
-                            CustomUser.objects.filter(pk=candidate.pk)
-                            .select_for_update()
-                            .update(failed_login_attempts=F("failed_login_attempts") + 1)
-                        )
-                    if updated:
-                        u = CustomUser.objects.get(pk=candidate.pk)
-                        if u.failed_login_attempts >= 5:
-                            u.locked_until = timezone.now() + timedelta(minutes=15)
-                            u.save(update_fields=["locked_until"])
-                            # رسالة القفل مقبولة — تظهر فقط بعد 5 محاولات
-                            messages.error(
-                                request, "تم قفل الحساب لمدة 15 دقيقة بسبب المحاولات المتكررة."
-                            )
-                            return render(request, "auth/login.html")
+                if candidate:
+                    locked = _count_failure(candidate)
             except (django.db.DatabaseError, ValueError) as e:
                 logger.exception("فشل تحديث عداد محاولات تسجيل الدخول الفاشلة: %s", e)
-                pass
+            _log_login_failure(request, candidate, identifier, locked=locked)
+            if locked:
+                # رسالة القفل مقبولة — تظهر فقط بعد 5 محاولات
+                messages.error(
+                    request,
+                    f"تم قفل الحساب لمدة {LOCK_MINUTES} دقيقة بسبب المحاولات المتكررة.",
+                )
+                return render(request, "auth/login.html")
 
             # رسالة موحّدة في كل الحالات الأخرى — لا تكشف وجود الحساب
             messages.error(request, _AUTH_ERROR)
@@ -227,6 +265,26 @@ def verify_2fa(request):
                 return redirect("force_change_password")
             return _safe_redirect(request.GET.get("next", ""), request)
         else:
+            # الرمزُ الخاطئ فشلُ دخولٍ كالكلمة الخاطئة: يُعدّ على الحساب نفسِه
+            # ويُدقَّق — وإلّا كان الحدُّ الأدنى للقوّة الغاشمة ستّةَ أرقامٍ بلا عدّاد.
+            locked = _count_failure(user)
+            AuditLog.log(
+                user=user,
+                action="mfa_failed",
+                model_name="CustomUser",
+                object_id=user.pk,
+                object_repr=f"رمز تحقّق خاطئ — {user.full_name}",
+                changes={"locked": locked},
+                request=request,
+            )
+            if locked:
+                for key in ("pending_2fa_user", "pending_identifier_kind", "pending_2fa_backend"):
+                    request.session.pop(key, None)
+                messages.error(
+                    request,
+                    f"تم قفل الحساب لمدة {LOCK_MINUTES} دقيقة بسبب المحاولات المتكررة.",
+                )
+                return redirect("login")
             messages.error(request, "رمز التحقق غير صحيح. حاول مجدداً.")
 
     return render(request, "auth/verify_2fa.html", {"user": user})

@@ -1,6 +1,7 @@
 {% extends "reports/base_qatar_report.html" %}
-{% load brand_tags %}
+{% load brand_tags privacy %}
 {# تقرير الحضور والغياب — الهيكلُ من base_qatar_report.html، والنغماتُ من reports/views.py #}
+{# كشفٌ جماعيٌّ لفصلٍ كامل: الرقمُ مستورٌ فيه وإن طُبع — القاعدة في core/privacy.py #}
 
 {% block extra_styles %}
 .pct-cell { white-space: nowrap; }
@@ -36,7 +37,7 @@
     {% for row in student_rows %}
     <tr>
       <th scope="row">{{ row.student.full_name }}</th>
-      <td>{{ row.student.national_id|default:"—" }}</td>
+      <td dir="ltr">{{ row.student.national_id|mask_id|default:"—" }}</td>
       <td>{{ row.total_sessions }}</td>
       <td>{{ row.present }}</td>
       <td>{% if row.absent_tone %}<b class="c-{{ row.absent_tone }}">{{ row.absent }}</b>{% else %}{{ row.absent }}{% endif %}</td>

@@ -56,7 +56,7 @@ class Command(BaseCommand):
             self.stdout.write(f"VAPID_PRIVATE_KEY={priv_pem}")
             self.stdout.write(f"VAPID_PUBLIC_KEY={pub_pem}")
             self.stdout.write(f"VAPID_PUBLIC_KEY_B64={pub_b64}")
-            self.stdout.write("VAPID_CLAIMS_EMAIL=admin@shahaniya.edu.qa\n")
+            self.stdout.write("VAPID_CLAIMS_EMAIL=your-email@education.qa\n")
 
         except Exception as e:
             logger.exception("فشل توليد VAPID keys")
