@@ -131,6 +131,8 @@
             </td>
             {% if is_today %}
             <td>
+              {# المقيَّدُ بجناحه يُلغي التأخّرَ الصباحيَّ وحدَه؛ وتأخّرُ الحصّة يُصحَّح من كشف الجناح. #}
+              {% if not wing_bound or rec.tardiness_recorded_at %}
               <form method="post" action="{% url 'student_affairs:tardiness_delete' rec.pk %}"
                     class="sa-inline-form" data-confirm="هل تريد إلغاء تسجيل التأخير؟">
                 {% csrf_token %}
@@ -139,6 +141,7 @@
                   {% icon "delete" %} إلغاء
                 </button>
               </form>
+              {% else %}—{% endif %}
             </td>
             {% endif %}
           </tr>
