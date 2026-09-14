@@ -1,0 +1,27 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% block title %}تصحيح — {{ student.full_name }}{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'wings:record_section' klass.id as section_url %}
+{% include "components/breadcrumbs.html" with parent2_url="/wings/record/" parent2_label="رصد الغياب" parent_url=section_url parent_label=klass.short_code current=student.full_name %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header student.full_name subtitle=klass icon="list-checks" %}
+    <a href="{% url 'wings:record_section' klass.id %}" class="btn-secondary btn-sm">إلى الكشف</a>
+  {% endpage_header %}
+
+  <p class="form-note">
+    {% include "components/icon.html" with name="info" %}
+    <span>رُصد شيءٌ على هذا الطالب بالخطأ؟ احذفه هنا بسبب. الحذفُ لا يمحو الأصل: يُسجَّل في سجلّ المراجعة، وتزول معه المخالفةُ التي بُنيت عليه، وتعود الخانةُ «لم تُرصد». ولتصحيحِ حصّةٍ كاملةٍ أعِد تثبيتَها من الكشف.</span>
+  </p>
+
+  {% if attendance_events or exit_events %}
+    {% include "wings/partials/student_events.html" %}
+  {% else %}
+    {% include "components/empty_state.html" with title="لا غيابَ ولا تأخّرَ ولا خروجاً مسجَّلاً على هذا الطالب" %}
+  {% endif %}
+</div>
+{% endblock %}

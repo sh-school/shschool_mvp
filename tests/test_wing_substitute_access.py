@@ -114,3 +114,25 @@ def test_the_owner_does_not_hold_a_covered_wing(school, wing, principal):
 
     assert not Wing.is_held_by(wing.supervisor)
     assert Wing.is_held_by(substitute)
+
+
+def test_the_dashboard_uses_the_schools_day_not_utc(client_as, school, wing, principal, settings):
+    """21:30 UTC = 00:30 بتوقيت قطر: تكليفٌ يبدأ «اليوم» بتوقيت المدرسة يجب أن تراه اللوحة.
+
+    سقطت البوّابةُ على `main` عند منتصف الليل (2026-09-14) لأنّ اللوحةَ كانت تقرأ
+    `timezone.now().date()` (UTC) والتكليفُ بـ`localdate()` (قطر).
+    """
+    import datetime as dt
+    from unittest import mock
+
+    from django.utils import timezone as tz
+
+    frozen = dt.datetime(2026, 9, 13, 21, 30, tzinfo=dt.UTC)  # 00:30 بتوقيت قطر، 2026-09-14
+    substitute = _staff(school, "بديلُ منتصف الليل", "student_observer", "29400000009")
+    with mock.patch("django.utils.timezone.now", return_value=frozen):
+        _cover(wing, substitute, principal, tz.localdate())
+        assert tz.localdate() == dt.date(2026, 9, 14)
+        body = client_as(substitute).get(reverse("dashboard")).content.decode()
+
+    assert "رصد الغياب — جناحي اليوم" in body
+    assert "لم تُفعَّل صلاحيّاتُك" not in body

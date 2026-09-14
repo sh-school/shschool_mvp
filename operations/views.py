@@ -12,13 +12,17 @@ operations/views.py — Thin façade
 # ── Attendance ──────────────────────────────────────────────────
 from .views_attendance import (
     attendance_view,
+    cancel_exit_view,
     complete_session,
     daily_report,
     mark_all_present,
+    mark_exit,
     mark_late_tap,
+    mark_return,
     mark_single,
     schedule,
     session_summary,
+    undo_late_tap_view,
 )
 
 # ── Schedule & Substitute ───────────────────────────────────────
@@ -78,6 +82,10 @@ __all__ = [
     "session_summary",
     "daily_report",
     "mark_late_tap",
+    "mark_exit",
+    "mark_return",
+    "undo_late_tap_view",
+    "cancel_exit_view",
     # schedule
     "weekly_schedule",
     "schedule_export_excel",

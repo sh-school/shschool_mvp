@@ -157,6 +157,17 @@ def cells_of(class_group, day: dt.date) -> dict:
     return cells
 
 
+def teacher_outs_of(class_group, day: dt.date) -> dict:
+    """من كتبته نقراتُ المعلّم «خرج ولم يعد» قبل تثبيت المشرف: `{student_id: {start: whereabouts}}`."""
+    rows = StudentAttendance.objects.filter(
+        session__class_group=class_group, session__date=day, source="teacher_out"
+    ).values_list("student_id", "session__start_time", "whereabouts")
+    outs: dict = {}
+    for student_id, start_time, where in rows:
+        outs.setdefault(student_id, {}).setdefault(start_time, where)
+    return outs
+
+
 def teacher_taps_of(class_group, day: dt.date) -> dict:
     """نقراتُ المعلّمين «دخل متأخّراً» التي لم يثبّتها المشرفُ بعد: `{student_id: {start: minutes}}`.
 
@@ -280,8 +291,14 @@ def confirm_period(
     if period is None:
         raise ValueError("لا حصّةَ لهذه الشعبة في هذا الوقت")
     measured_now = period.in_window(day, now)
+    # من خرج بإذن المعلّم ولم يعد حتى نهاية الحصّة — يُغلق خروجُه قبل الرصد ليُقرأ.
+    from operations.class_exit import close_unreturned
+
+    for session in period.sessions:
+        close_unreturned(session, by=by)
     earlier = cells_of(class_group, day)
     taps = teacher_taps_of(class_group, day)
+    outs = teacher_outs_of(class_group, day)
 
     tally = {"present": 0, "absent": 0, "late": 0}
     tardy = 0
@@ -290,9 +307,14 @@ def confirm_period(
         student = enrollment.student
         mark = marks.get(str(student.id)) or marks.get(student.id) or {}
         status = mark.get("status") if mark.get("status") in STATES else "present"
+        where = mark.get("whereabouts") if mark.get("whereabouts") in WHEREABOUTS else ""
+        # خرج بإذن المعلّم ولم يعد، ولم يقل المشرفُ فيه شيئاً: يبقى «غائباً بإذن» بمكانه —
+        # لا «حاضراً» بالافتراض. وقولُ المشرف الصريح يغلب.
+        out = outs.get(student.id, {}).get(period.start)
+        if out is not None and "status" not in mark:
+            status, where = "absent", (where or out)
         if status == "absent":
             absentees.append(student)
-        where = mark.get("whereabouts") if mark.get("whereabouts") in WHEREABOUTS else ""
         minutes = None
         if status == "late":
             tapped = _tapped(mark.get("tapped_at"), day, period, now)

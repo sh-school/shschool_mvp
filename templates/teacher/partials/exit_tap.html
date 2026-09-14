@@ -1,0 +1,25 @@
+{% comment %}خليّةُ «خرج بإذن / عاد» — تستبدل نفسَها بعد كلّ نقرة (HTMX). تحتاج: session, student, current.{% endcomment %}
+{% if current %}
+<span class="badge badge--info" title="خرج {{ current.left_at|time:'H:i' }}">{{ current.get_destination_display }} منذ {{ current.left_at|timesince }}</span>
+<form hx-post="{% url 'mark_return' session.id %}" hx-target="#exit-tap-{{ student.id }}" hx-swap="innerHTML" class="asg-inline">
+  {% csrf_token %}
+  <input type="hidden" name="student_id" value="{{ student.id }}">
+  <button type="submit" class="btn-primary btn-sm">عاد</button>
+</form>
+<form hx-post="{% url 'cancel_exit' session.id %}" hx-target="#exit-tap-{{ student.id }}" hx-swap="innerHTML" hx-confirm="إلغاءُ الخروج — نقرةٌ بالخطأ على {{ student.full_name }}؟" class="asg-inline">
+  {% csrf_token %}
+  <input type="hidden" name="student_id" value="{{ student.id }}">
+  <button type="submit" class="btn-secondary btn-xs" title="نقرةٌ بالخطأ — تُحذف بلا دقائق ويُسجَّل الإلغاء">إلغاء</button>
+</form>
+{% else %}
+<details class="tch-exit-menu">
+  <summary class="btn-secondary btn-sm">خرج بإذن</summary>
+  <form hx-post="{% url 'mark_exit' session.id %}" hx-target="#exit-tap-{{ student.id }}" hx-swap="innerHTML" class="tch-exit-menu__list">
+    {% csrf_token %}
+    <input type="hidden" name="student_id" value="{{ student.id }}">
+    <button type="submit" name="destination" value="clinic" class="btn-secondary btn-sm">العيادة</button>
+    <button type="submit" name="destination" value="admin" class="btn-secondary btn-sm">الإدارة / المشرف</button>
+    <button type="submit" name="destination" value="restroom" class="btn-secondary btn-sm">دورة المياه</button>
+  </form>
+</details>
+{% endif %}

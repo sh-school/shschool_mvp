@@ -163,6 +163,8 @@ class StudentAttendance(models.Model):
         #: لكنّه يرى من دخل متأخّراً قبل وصول المشرف. النظامُ يسجّل لحظةَ النقرة،
         #: والمشرفُ يجدها في كشفه ويثبّتها.
         ("teacher_late", "نقرةُ المعلّم — دخل متأخّراً"),
+        #: خرج بإذن المعلّم ولم يعد حتى نهاية الحصّة (`operations/class_exit.py`).
+        ("teacher_out", "نقرةُ المعلّم — خرج بإذنٍ ولم يعد"),
     ]
 
     EXCUSE = [
@@ -559,6 +561,61 @@ class SectionDayConfirmation(models.Model):
 
     def __str__(self):
         return f"{self.class_group.short_code} · {self.date} · غياب {self.absent_count}"
+
+
+class ClassExit(models.Model):
+    """خروجُ طالبٍ من الفصل بإذن المعلّم أثناء الحصّة — ومتى عاد.
+
+    المعلّمُ يملك إذنَ الخروج من **الفصل** لا من المدرسة (الدليل 2026، 3.4.3: الخروجُ
+    من المدرسة بحضور وليّ الأمر ببطاقته). والخروجُ بلا استئذانٍ مخالفة 1-02، و«عدمُ
+    العودة بعد استئذانه» هروبٌ من الحصّة (تعريفات ص6). فالسجلُّ يحمل ما يفرّق الثلاثة:
+    خرج بإذن، ومتى، وهل عاد ومتى.
+
+    سطرٌ لكلّ خروج — فالطالبُ قد يخرج مرّتين في الحصّة، وسجلُّ الحضور سطرٌ واحدٌ
+    لكلّ طالبٍ في الحصّة لا يحمل ذلك. ومنه عدّادا الخروج بالمادّة (مرّاتٍ ودقائق)
+    و«دقائقُ الحضور الفعليّ» التي تُقارَن بالتحصيل (قرارُ 2026-09-13).
+    """
+
+    DESTINATIONS = [
+        ("clinic", "العيادة"),
+        ("admin", "الإدارة / المشرف"),
+        ("restroom", "دورة المياه"),
+        ("other", "أخرى"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="class_exits")
+    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="class_exits")
+    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="class_exits")
+    destination = models.CharField(max_length=10, choices=DESTINATIONS, default="restroom")
+    left_at = models.DateTimeField(verbose_name="وقتُ الخروج")
+    returned_at = models.DateTimeField(null=True, blank=True, verbose_name="وقتُ العودة")
+    allowed_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, related_name="class_exits_allowed"
+    )
+
+    class Meta:
+        verbose_name = "خروجٌ من الفصل"
+        verbose_name_plural = "خروجٌ من الفصل"
+        ordering = ["-left_at"]
+        indexes = [
+            models.Index(fields=["school", "session"]),
+            models.Index(fields=["student", "left_at"]),
+        ]
+
+    @property
+    def is_out(self) -> bool:
+        return self.returned_at is None
+
+    def minutes_away(self, until=None) -> int:
+        """دقائقُ الغياب عن الفصل — حتى العودة، أو حتى `until` (نهايةُ الحصّة) لمن لم يعد."""
+        end = self.returned_at or until
+        if end is None:
+            return 0
+        return max(0, int((end - self.left_at).total_seconds() // 60))
+
+    def __str__(self):
+        return f"{self.student.full_name} · {self.get_destination_display()} · {self.left_at:%H:%M}"
 
 
 class PeriodConfirmation(models.Model):

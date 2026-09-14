@@ -160,6 +160,40 @@
       {% endif %}
     {% endsection_card %}
     {% endif %}
+    {% comment %}
+      دقائقُ الحضور الفعليّ بالمادّة: دقائقُ الجدول ناقصَ حصصِ الغياب والتأخّرِ والخروجِ بإذن —
+      محسوبةٌ من السجلّات المؤرَّخة لا مخزَّنة، وهي ما يُقارَن بالتحصيل (قرارُ 2026-09-13).
+    {% endcomment %}
+    {% if presence.year and presence.year.by_subject %}
+    {% section_card "دقائقُ الحضور الفعليّ بالمادّة" icon="clock" meta=presence.year.total.present_pct|stringformat:"s%%" %}
+      <div class="table-wrap">
+        <table data-no-sort>
+          <thead><tr><th>المادّة</th><th class="num">حصص</th><th class="num">دقائق الجدول</th><th class="num">غياب</th><th class="num">تأخّر</th><th class="num">خروج بإذن</th><th class="num">هروب</th><th class="num">حضر (د)</th><th class="num">%</th></tr></thead>
+          <tbody>
+            {% for row in presence.year.by_subject.values %}
+            <tr>
+              <td>{{ row.subject }}</td>
+              <td class="num">{{ row.scheduled_periods }}</td>
+              <td class="num">{{ row.scheduled_minutes }}</td>
+              <td class="num">{{ row.absent_periods }}{% if row.absent_excused_periods %} <small>({{ row.absent_excused_periods }} بعذر)</small>{% endif %}</td>
+              <td class="num">{{ row.late_count }} <small>· {{ row.late_minutes }} د</small></td>
+              <td class="num">{{ row.exit_count }} <small>· {{ row.exit_minutes }} د</small></td>
+              <td class="num">{{ row.escape_count }}</td>
+              <td class="num"><strong>{{ row.present_minutes }}</strong></td>
+              <td class="num {% if row.present_pct < 70 %}attend-low{% elif row.present_pct < 85 %}attend-medium{% endif %}">{{ row.present_pct }}%</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot><tr>
+            {% with t=presence.year.total %}
+            <th>المجموع</th><th class="num">{{ t.scheduled_periods }}</th><th class="num">{{ t.scheduled_minutes }}</th><th class="num">{{ t.absent_periods }}</th><th class="num">{{ t.late_count }} · {{ t.late_minutes }} د</th><th class="num">{{ t.exit_count }} · {{ t.exit_minutes }} د</th><th class="num">{{ t.escape_count }}</th><th class="num">{{ t.present_minutes }}</th><th class="num">{{ t.present_pct }}%</th>
+            {% endwith %}
+          </tr></tfoot>
+        </table>
+      </div>
+      {% if presence.semester %}<p class="bell-note">هذا الفصل: حضر {{ presence.semester.total.present_minutes }} من {{ presence.semester.total.scheduled_minutes }} دقيقة ({{ presence.semester.total.present_pct }}%). وحصصٌ لم تُرصد: {{ presence.year.total.unrecorded_periods }}.</p>{% endif %}
+    {% endsection_card %}
+    {% endif %}
   </div>
 
   {# ── السلوك ── #}
