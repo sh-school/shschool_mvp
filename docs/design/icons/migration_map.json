@@ -1,0 +1,7146 @@
+{
+"base": "0e2441a6",
+"count": 1020,
+"uses": [
+{
+"file": "templates/academic_management/assignments.html",
+"line": 18,
+"old": "list-checks",
+"key": "workload",
+"label": "الإسناد"
+},
+{
+"file": "templates/academic_management/reports/_base.html",
+"line": 19,
+"old": "file-text",
+"key": "document",
+"label": "components/icon.html"
+},
+{
+"file": "templates/academic_management/reports/_base.html",
+"line": 20,
+"old": "star",
+"key": "reports",
+"label": "تقرير رئيسي"
+},
+{
+"file": "templates/academic_management/reports/_base.html",
+"line": 21,
+"old": "download",
+"key": "export_pdf",
+"label": "تصدير PDF"
+},
+{
+"file": "templates/academic_management/reports/_base.html",
+"line": 22,
+"old": "file-spreadsheet",
+"key": "export_excel",
+"label": "تصدير Excel"
+},
+{
+"file": "templates/academic_management/reports/academic_progress.html",
+"line": 24,
+"old": "search",
+"key": "search",
+"label": "عرض التقرير"
+},
+{
+"file": "templates/academic_management/reports/academic_progress.html",
+"line": 38,
+"old": "trending-up",
+"key": "stats",
+"label": "ترتيب الطلاب"
+},
+{
+"file": "templates/academic_management/reports/academic_progress.html",
+"line": 65,
+"old": "trending-up",
+"key": "stats",
+"label": "ترتيب الطلاب"
+},
+{
+"file": "templates/academic_management/reports/exam_results.html",
+"line": 34,
+"old": "search",
+"key": "search",
+"label": "عرض التقرير"
+},
+{
+"file": "templates/academic_management/reports/exam_results.html",
+"line": 42,
+"old": "bar-chart",
+"key": "stats",
+"label": "مقارنة الفصول"
+},
+{
+"file": "templates/academic_management/reports/exam_results.html",
+"line": 66,
+"old": "layers",
+"key": "wings",
+"label": "تفاصيل الباقات"
+},
+{
+"file": "templates/academic_management/reports/landing.html",
+"line": 13,
+"old": "file-text",
+"key": "reports",
+"label": "التقارير"
+},
+{
+"file": "templates/academic_management/reports/landing.html",
+"line": 15,
+"old": "clipboard",
+"key": "reports",
+"label": "التقارير"
+},
+{
+"file": "templates/academic_management/reports/landing.html",
+"line": 19,
+"old": "clipboard-check",
+"key": "behavior",
+"label": "التقرير السلوكي والتعليمي الشهري"
+},
+{
+"file": "templates/academic_management/reports/landing.html",
+"line": 22,
+"old": "star",
+"key": "reports",
+"label": "تقرير رئيسي"
+},
+{
+"file": "templates/academic_management/reports/landing.html",
+"line": 26,
+"old": "pen-square",
+"key": "assessments",
+"label": "تقارير الاختبارات القصيرة"
+},
+{
+"file": "templates/academic_management/reports/landing.html",
+"line": 32,
+"old": "bar-chart",
+"key": "assessments",
+"label": "تقارير نتائج الاختبارات"
+},
+{
+"file": "templates/academic_management/reports/landing.html",
+"line": 38,
+"old": "trending-up",
+"key": "academic",
+"label": "تقارير التقدم الأكاديمي"
+},
+{
+"file": "templates/academic_management/reports/monthly_ba.html",
+"line": 35,
+"old": "search",
+"key": "search",
+"label": "عرض"
+},
+{
+"file": "templates/academic_management/reports/monthly_ba.html",
+"line": 49,
+"old": "users",
+"key": "students",
+"label": "تفاصيل الطلاب"
+},
+{
+"file": "templates/academic_management/reports/quiz_reports.html",
+"line": 33,
+"old": "search",
+"key": "search",
+"label": "عرض التقرير"
+},
+{
+"file": "templates/academic_management/reports/quiz_reports.html",
+"line": 46,
+"old": "pen-square",
+"key": "assessments",
+"label": "نتائج الاختبارات القصيرة"
+},
+{
+"file": "templates/admin/daily_report.html",
+"line": 16,
+"old": "calendar",
+"key": "absence",
+"label": "تقرير الغياب اليومي"
+},
+{
+"file": "templates/admin/daily_report.html",
+"line": 109,
+"old": "check-circle",
+"key": "status_success",
+"label": ""
+},
+{
+"file": "templates/analytics/dashboard.html",
+"line": 13,
+"old": "bar-chart",
+"key": "dashboard",
+"label": "لوحة تحكم المدير"
+},
+{
+"file": "templates/analytics/dashboard.html",
+"line": 20,
+"old": "list-checks",
+"key": "quality",
+"label": "الخطة"
+},
+{
+"file": "templates/analytics/dashboard.html",
+"line": 21,
+"old": "file-pen",
+"key": "edit_record",
+"label": "التقييمات"
+},
+{
+"file": "templates/analytics/dashboard.html",
+"line": 22,
+"old": "file-text",
+"key": "reports",
+"label": "التقارير"
+},
+{
+"file": "templates/analytics/dashboard.html",
+"line": 23,
+"old": "bell",
+"key": "notifications",
+"label": "الإشعارات"
+},
+{
+"file": "templates/analytics/dashboard.html",
+"line": 33,
+"old": "layers",
+"key": "wings",
+"label": "زيارات اليوم"
+},
+{
+"file": "templates/analytics/dashboard.html",
+"line": 44,
+"old": "activity",
+"key": "attendance_register",
+"label": "الحضور"
+},
+{
+"file": "templates/analytics/dashboard.html",
+"line": 50,
+"old": "target",
+"key": "grades",
+"label": "توزيع الدرجات السنوية"
+},
+{
+"file": "templates/analytics/dashboard.html",
+"line": 59,
+"old": "list-checks",
+"key": "quality",
+"label": "إنجاز الخطة"
+},
+{
+"file": "templates/analytics/dashboard.html",
+"line": 65,
+"old": "book-open",
+"key": "academic",
+"label": "المواد"
+},
+{
+"file": "templates/analytics/dashboard.html",
+"line": 74,
+"old": "scale",
+"key": "behavior",
+"label": "السلوك"
+},
+{
+"file": "templates/analytics/dashboard.html",
+"line": 80,
+"old": "building",
+"key": "school_building",
+"label": "الأداء"
+},
+{
+"file": "templates/analytics/kpi_dashboard.html",
+"line": 16,
+"old": "bar-chart",
+"key": "kpi",
+"label": "مؤشرات الأداء الرئيسية"
+},
+{
+"file": "templates/analytics/kpi_dashboard.html",
+"line": 26,
+"old": "download",
+"key": "export_pdf",
+"label": "تقرير PDF"
+},
+{
+"file": "templates/analytics/kpi_dashboard.html",
+"line": 31,
+"old": "activity",
+"key": "quality",
+"label": "ملخّص المؤشرات"
+},
+{
+"file": "templates/analytics/kpi_dashboard.html",
+"line": 36,
+"old": "target",
+"key": "kpi",
+"label": "بصمة أداء المدرسة"
+},
+{
+"file": "templates/analytics/kpi_dashboard.html",
+"line": 39,
+"old": "bar-chart",
+"key": "quality",
+"label": "المؤشرات"
+},
+{
+"file": "templates/analytics/kpi_dashboard.html",
+"line": 44,
+"old": "list-checks",
+"key": "quality",
+"label": "تفاصيل المؤشرات"
+},
+{
+"file": "templates/analytics/kpi_dashboard.html",
+"line": 56,
+"old": "pencil",
+"key": "kpi",
+"label": "مؤشرات تحتاج إدخالاً يدوياً"
+},
+{
+"file": "templates/assessments/class_gradebook.html",
+"line": 12,
+"old": "bar-chart",
+"key": "grades",
+"label": "كشف الدرجات"
+},
+{
+"file": "templates/assessments/class_gradebook.html",
+"line": 19,
+"old": "download",
+"key": "export_excel",
+"label": "تصدير Excel"
+},
+{
+"file": "templates/assessments/class_gradebook.html",
+"line": 22,
+"old": "refresh-cw",
+"key": "refresh",
+"label": "إعادة الحساب"
+},
+{
+"file": "templates/assessments/class_gradebook.html",
+"line": 38,
+"old": "users",
+"key": "students",
+"label": "{{ pkg.get_"
+},
+{
+"file": "templates/assessments/dashboard.html",
+"line": 12,
+"old": "file-pen",
+"key": "assessments",
+"label": "لوحة التقييمات"
+},
+{
+"file": "templates/assessments/dashboard.html",
+"line": 21,
+"old": "plus",
+"key": "add",
+"label": "ربط مادة بفصل"
+},
+{
+"file": "templates/assessments/dashboard.html",
+"line": 34,
+"old": "bar-chart",
+"key": "grades",
+"label": "توزيع الدرجات"
+},
+{
+"file": "templates/assessments/dashboard.html",
+"line": 40,
+"old": "building",
+"key": "stats",
+"label": "مقارنة الفصول"
+},
+{
+"file": "templates/assessments/dashboard.html",
+"line": 46,
+"old": "activity",
+"key": "academic",
+"label": "أداء المواد"
+},
+{
+"file": "templates/assessments/dashboard.html",
+"line": 52,
+"old": "alert-triangle",
+"key": "failing_students",
+"label": "نتائج راسبة"
+},
+{
+"file": "templates/assessments/dashboard.html",
+"line": 74,
+"old": "book-open",
+"key": "library",
+"label": "setup_detail"
+},
+{
+"file": "templates/assessments/dashboard.html",
+"line": 87,
+"old": "book-open",
+"key": "academic",
+"label": "كل المواد"
+},
+{
+"file": "templates/assessments/dashboard.html",
+"line": 89,
+"old": "book-open",
+"key": "academic",
+"label": "موادي"
+},
+{
+"file": "templates/assessments/failing_students.html",
+"line": 12,
+"old": "alert-triangle",
+"key": "failing_students",
+"label": "الطلاب الراسبون"
+},
+{
+"file": "templates/assessments/failing_students.html",
+"line": 41,
+"old": "check-circle",
+"key": "status_success",
+"label": "لا يوجد طلاب راسبون"
+},
+{
+"file": "templates/assessments/failing_students.html",
+"line": 44,
+"old": "search",
+"key": "search",
+"label": "لا توجد نتائج مطابقة للبحث"
+},
+{
+"file": "templates/assessments/grade_entry.html",
+"line": 12,
+"old": "file-pen",
+"key": "absence",
+"label": "سجلّاتُ الدرجة والغياب المحفوظة"
+},
+{
+"file": "templates/assessments/grade_entry.html",
+"line": 28,
+"old": "users",
+"key": "grades",
+"label": "درجات الطلاب"
+},
+{
+"file": "templates/assessments/grade_entry.html",
+"line": 51,
+"old": "info",
+"key": "status_info",
+"label": "Enter يحفظ الصفَّ وينتقل إلى التالي، و↑↓ أو Tab للتنقّل — أو"
+},
+{
+"file": "templates/assessments/grade_entry.html",
+"line": 67,
+"old": "check",
+"key": "confirm",
+"label": "حفظ الكل وإغلاق"
+},
+{
+"file": "templates/assessments/setup_detail.html",
+"line": 12,
+"old": "book-open",
+"key": "library",
+"label": ""
+},
+{
+"file": "templates/assessments/setup_detail.html",
+"line": 18,
+"old": "bar-chart",
+"key": "grades",
+"label": "كشف الدرجات"
+},
+{
+"file": "templates/assessments/setup_detail.html",
+"line": 30,
+"old": "layers",
+"key": "wings",
+"label": ""
+},
+{
+"file": "templates/assessments/setup_detail.html",
+"line": 54,
+"old": "inbox",
+"key": "assessments",
+"label": "لا توجد تقييمات بعد"
+},
+{
+"file": "templates/assessments/setup_detail.html",
+"line": 59,
+"old": "plus",
+"key": "add",
+"label": "إضافة تقييم"
+},
+{
+"file": "templates/assessments/setup_subject.html",
+"line": 12,
+"old": "waypoints",
+"key": "academic",
+"label": "ربط مادة بفصل ومعلم"
+},
+{
+"file": "templates/assessments/setup_subject.html",
+"line": 14,
+"old": "book-open",
+"key": "library",
+"label": "بيانات الربط"
+},
+{
+"file": "templates/assessments/student_report.html",
+"line": 12,
+"old": "bar-chart",
+"key": "grades",
+"label": "كشف الدرجات السنوي"
+},
+{
+"file": "templates/assessments/student_report.html",
+"line": 20,
+"old": "bar-chart",
+"key": "grades",
+"label": "النتائج السنوية"
+},
+{
+"file": "templates/assessments/student_report.html",
+"line": 49,
+"old": "calculator",
+"key": "calculate",
+"label": "المجموع السنوي = الفصل الأول (من 40) + الفصل الثاني (من 60)،"
+},
+{
+"file": "templates/auth/change_password.html",
+"line": 14,
+"old": "lock",
+"key": "security",
+"label": "تغيير كلمة المرور"
+},
+{
+"file": "templates/auth/change_password.html",
+"line": 25,
+"old": "x-circle",
+"key": "status_error",
+"label": ""
+},
+{
+"file": "templates/auth/change_password.html",
+"line": 83,
+"old": "save",
+"key": "save",
+"label": "حفظ كلمة المرور"
+},
+{
+"file": "templates/auth/disable_2fa.html",
+"line": 13,
+"old": "lock",
+"key": "security",
+"label": "إيقاف المصادقة الثنائية"
+},
+{
+"file": "templates/auth/disable_2fa.html",
+"line": 28,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/auth/force_change_password.html",
+"line": 14,
+"old": "lock",
+"key": "security",
+"label": "تغيير كلمة المرور"
+},
+{
+"file": "templates/auth/force_change_password.html",
+"line": 25,
+"old": "x-circle",
+"key": "status_error",
+"label": ""
+},
+{
+"file": "templates/auth/force_change_password.html",
+"line": 68,
+"old": "save",
+"key": "save",
+"label": "حفظ كلمة المرور"
+},
+{
+"file": "templates/auth/setup_2fa.html",
+"line": 13,
+"old": "lock",
+"key": "security",
+"label": "إعداد المصادقة الثنائية (2FA)"
+},
+{
+"file": "templates/auth/setup_2fa.html",
+"line": 30,
+"old": "check",
+"key": "confirm",
+"label": ""
+},
+{
+"file": "templates/auth/verify_2fa.html",
+"line": 15,
+"old": "lock",
+"key": "security",
+"label": ""
+},
+{
+"file": "templates/base/base.html",
+"line": 105,
+"old": "moon",
+"key": "theme_dark",
+"label": "تبديل الثيم الليلي"
+},
+{
+"file": "templates/base/base.html",
+"line": 142,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 144,
+"old": "book-open",
+"key": "academic",
+"label": "إدارة الشؤون الأكاديمية"
+},
+{
+"file": "templates/base/base.html",
+"line": 145,
+"old": "settings",
+"key": "staff",
+"label": "شؤون الموظفين"
+},
+{
+"file": "templates/base/base.html",
+"line": 146,
+"old": "users",
+"key": "students",
+"label": "إدارة شؤون الطلاب"
+},
+{
+"file": "templates/base/base.html",
+"line": 147,
+"old": "list-checks",
+"key": "student_info",
+"label": "مركز معلومات الطلبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 148,
+"old": "list-checks",
+"key": "quality",
+"label": "الجودة"
+},
+{
+"file": "templates/base/base.html",
+"line": 149,
+"old": "hospital",
+"key": "clinic",
+"label": "الخدمات"
+},
+{
+"file": "templates/base/base.html",
+"line": 150,
+"old": "wrench",
+"key": "maintenance",
+"label": "الإدارة"
+},
+{
+"file": "templates/base/base.html",
+"line": 154,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 157,
+"old": "list-checks",
+"key": "student_info",
+"label": "مركز معلومات الطلبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 160,
+"old": "hospital",
+"key": "clinic",
+"label": "العيادة"
+},
+{
+"file": "templates/base/base.html",
+"line": 174,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 177,
+"old": "bus",
+"key": "transport",
+"label": "النقل"
+},
+{
+"file": "templates/base/base.html",
+"line": 191,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 194,
+"old": "book-open",
+"key": "library",
+"label": "المكتبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 205,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 208,
+"old": "list-checks",
+"key": "student_info",
+"label": "مركز معلومات الطلبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 210,
+"old": "calendar",
+"key": "schedule",
+"label": "الجداول"
+},
+{
+"file": "templates/base/base.html",
+"line": 212,
+"old": "users",
+"key": "students",
+"label": "طلاب قسمي"
+},
+{
+"file": "templates/base/base.html",
+"line": 215,
+"old": "clipboard-check",
+"key": "observation",
+"label": "الزيارات الصفية"
+},
+{
+"file": "templates/base/base.html",
+"line": 228,
+"old": "search",
+"key": "quality",
+"label": "المراجعة الذاتية"
+},
+{
+"file": "templates/base/base.html",
+"line": 232,
+"old": "scale",
+"key": "behavior",
+"label": "السلوك"
+},
+{
+"file": "templates/base/base.html",
+"line": 237,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 240,
+"old": "list-checks",
+"key": "student_info",
+"label": "مركز معلومات الطلبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 242,
+"old": "calendar",
+"key": "schedule",
+"label": "جدولي"
+},
+{
+"file": "templates/base/base.html",
+"line": 244,
+"old": "clipboard-check",
+"key": "observation",
+"label": "الزيارات الصفية"
+},
+{
+"file": "templates/base/base.html",
+"line": 257,
+"old": "search",
+"key": "quality",
+"label": "المراجعة الذاتية"
+},
+{
+"file": "templates/base/base.html",
+"line": 261,
+"old": "scale",
+"key": "behavior",
+"label": "السلوك"
+},
+{
+"file": "templates/base/base.html",
+"line": 266,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 269,
+"old": "list-checks",
+"key": "student_info",
+"label": "مركز معلومات الطلبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 271,
+"old": "scale",
+"key": "behavior",
+"label": "السلوك"
+},
+{
+"file": "templates/base/base.html",
+"line": 272,
+"old": "users",
+"key": "students",
+"label": "متابعة الطلاب"
+},
+{
+"file": "templates/base/base.html",
+"line": 279,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 282,
+"old": "list-checks",
+"key": "student_info",
+"label": "مركز معلومات الطلبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 285,
+"old": "clipboard-check",
+"key": "observation",
+"label": "الزيارات الصفية"
+},
+{
+"file": "templates/base/base.html",
+"line": 297,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 300,
+"old": "bell",
+"key": "notifications",
+"label": "الإشعارات"
+},
+{
+"file": "templates/base/base.html",
+"line": 303,
+"old": "file-pen",
+"key": "quality",
+"label": "إجراءاتي"
+},
+{
+"file": "templates/base/base.html",
+"line": 308,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 310,
+"old": "list-checks",
+"key": "attendance_register",
+"label": "رصد الغياب"
+},
+{
+"file": "templates/base/base.html",
+"line": 312,
+"old": "layers",
+"key": "wings",
+"label": "أجنحة المدرسة"
+},
+{
+"file": "templates/base/base.html",
+"line": 314,
+"old": "list-checks",
+"key": "student_info",
+"label": "مركز معلومات الطلبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 316,
+"old": "bell",
+"key": "notifications",
+"label": "الإشعارات"
+},
+{
+"file": "templates/base/base.html",
+"line": 324,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 326,
+"old": "wrench",
+"key": "maintenance",
+"label": "لوحة الإدارة"
+},
+{
+"file": "templates/base/base.html",
+"line": 333,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 336,
+"old": "file-pen",
+"key": "quality",
+"label": "إجراءاتي"
+},
+{
+"file": "templates/base/base.html",
+"line": 342,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 345,
+"old": "list-checks",
+"key": "student_info",
+"label": "مركز معلومات الطلبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 348,
+"old": "activity",
+"key": "activities",
+"label": "الأنشطة"
+},
+{
+"file": "templates/base/base.html",
+"line": 351,
+"old": "scale",
+"key": "behavior",
+"label": "السلوك"
+},
+{
+"file": "templates/base/base.html",
+"line": 354,
+"old": "bar-chart",
+"key": "reports",
+"label": "التقارير"
+},
+{
+"file": "templates/base/base.html",
+"line": 357,
+"old": "file-pen",
+"key": "quality",
+"label": "إجراءاتي"
+},
+{
+"file": "templates/base/base.html",
+"line": 363,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 366,
+"old": "bell",
+"key": "notifications",
+"label": "الإشعارات"
+},
+{
+"file": "templates/base/base.html",
+"line": 369,
+"old": "file-pen",
+"key": "quality",
+"label": "إجراءاتي"
+},
+{
+"file": "templates/base/base.html",
+"line": 375,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 378,
+"old": "bus",
+"key": "transport",
+"label": "إدارة النقل"
+},
+{
+"file": "templates/base/base.html",
+"line": 392,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 395,
+"old": "book-open",
+"key": "library",
+"label": "المكتبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 400,
+"old": "home",
+"key": "dashboard",
+"label": "بوابتي"
+},
+{
+"file": "templates/base/base.html",
+"line": 403,
+"old": "bar-chart",
+"key": "grades",
+"label": "الدرجات"
+},
+{
+"file": "templates/base/base.html",
+"line": 406,
+"old": "list-checks",
+"key": "attendance_register",
+"label": "الحضور"
+},
+{
+"file": "templates/base/base.html",
+"line": 409,
+"old": "scale",
+"key": "behavior",
+"label": "السلوك"
+},
+{
+"file": "templates/base/base.html",
+"line": 415,
+"old": "home",
+"key": "dashboard",
+"label": "الرئيسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 419,
+"old": "list-checks",
+"key": "attendance_register",
+"label": "رصد الغياب"
+},
+{
+"file": "templates/base/base.html",
+"line": 421,
+"old": "book-open",
+"key": "academic",
+"label": "إدارة الشؤون الأكاديمية"
+},
+{
+"file": "templates/base/base.html",
+"line": 422,
+"old": "settings",
+"key": "staff",
+"label": "شؤون الموظفين"
+},
+{
+"file": "templates/base/base.html",
+"line": 423,
+"old": "users",
+"key": "students",
+"label": "إدارة شؤون الطلاب"
+},
+{
+"file": "templates/base/base.html",
+"line": 424,
+"old": "list-checks",
+"key": "student_info",
+"label": "مركز معلومات الطلبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 425,
+"old": "list-checks",
+"key": "quality",
+"label": "الجودة"
+},
+{
+"file": "templates/base/base.html",
+"line": 426,
+"old": "hospital",
+"key": "clinic",
+"label": "الخدمات"
+},
+{
+"file": "templates/base/base.html",
+"line": 427,
+"old": "wrench",
+"key": "maintenance",
+"label": "الإدارة"
+},
+{
+"file": "templates/base/base.html",
+"line": 441,
+"old": "file-pen",
+"key": "assessments",
+"label": "التقييمات والدرجات"
+},
+{
+"file": "templates/base/base.html",
+"line": 444,
+"old": "settings",
+"key": "settings",
+"label": "إدارة الأقسام التعليمية"
+},
+{
+"file": "templates/base/base.html",
+"line": 447,
+"old": "activity",
+"key": "assessments",
+"label": "تحليلات الاختبارات"
+},
+{
+"file": "templates/base/base.html",
+"line": 455,
+"old": "list-checks",
+"key": "workload",
+"label": "الإسناد"
+},
+{
+"file": "templates/base/base.html",
+"line": 465,
+"old": "calendar",
+"key": "generate",
+"label": "الجدولة الذكية (توليد الجدول)"
+},
+{
+"file": "templates/base/base.html",
+"line": 468,
+"old": "settings-2",
+"key": "settings",
+"label": "إعدادات الجدول والتفريغات"
+},
+{
+"file": "templates/base/base.html",
+"line": 472,
+"old": "bar-chart",
+"key": "reports",
+"label": "التقارير الخاصة بالقسم"
+},
+{
+"file": "templates/base/base.html",
+"line": 475,
+"old": "clipboard-check",
+"key": "observation",
+"label": "الزيارات الصفية"
+},
+{
+"file": "templates/base/base.html",
+"line": 478,
+"old": "book-open",
+"key": "library",
+"label": "التعليم الإلكتروني"
+},
+{
+"file": "templates/base/base.html",
+"line": 481,
+"old": "bar-chart",
+"key": "observation",
+"label": "تقارير الأداء الصفي"
+},
+{
+"file": "templates/base/base.html",
+"line": 484,
+"old": "alert-triangle",
+"key": "grades",
+"label": "إدارة الأداء دون المستوى"
+},
+{
+"file": "templates/base/base.html",
+"line": 491,
+"old": "bar-chart",
+"key": "staff",
+"label": "لوحة شؤون الموظفين"
+},
+{
+"file": "templates/base/base.html",
+"line": 494,
+"old": "list-checks",
+"key": "staff",
+"label": "سجل الموظفين"
+},
+{
+"file": "templates/base/base.html",
+"line": 503,
+"old": "user-plus",
+"key": "staff",
+"label": "تعيين منتسب"
+},
+{
+"file": "templates/base/base.html",
+"line": 508,
+"old": "ban",
+"key": "attendance_teacher_absence",
+"label": "غياب المعلمين والبدلاء"
+},
+{
+"file": "templates/base/base.html",
+"line": 511,
+"old": "refresh",
+"key": "swap_requests",
+"label": "طلبات التبديل"
+},
+{
+"file": "templates/base/base.html",
+"line": 514,
+"old": "list-checks",
+"key": "compensation",
+"label": "الحصص التعويضية"
+},
+{
+"file": "templates/base/base.html",
+"line": 517,
+"old": "calendar",
+"key": "leave",
+"label": "طلبات الإجازات"
+},
+{
+"file": "templates/base/base.html",
+"line": 523,
+"old": "bar-chart",
+"key": "staff_evaluation",
+"label": "تقييم أداء الموظفين"
+},
+{
+"file": "templates/base/base.html",
+"line": 527,
+"old": "lock",
+"key": "licences",
+"label": "الرخص المهنية"
+},
+{
+"file": "templates/base/base.html",
+"line": 530,
+"old": "activity",
+"key": "workload",
+"label": "تقرير أعباء المعلمين"
+},
+{
+"file": "templates/base/base.html",
+"line": 537,
+"old": "bar-chart",
+"key": "quality",
+"label": "لوحة الخطة"
+},
+{
+"file": "templates/base/base.html",
+"line": 540,
+"old": "rocket",
+"key": "quality",
+"label": "تنفيذ الخطة"
+},
+{
+"file": "templates/base/base.html",
+"line": 543,
+"old": "search",
+"key": "quality",
+"label": "المراجعة الذاتية"
+},
+{
+"file": "templates/base/base.html",
+"line": 546,
+"old": "activity",
+"key": "trend",
+"label": "تقرير التقدم"
+},
+{
+"file": "templates/base/base.html",
+"line": 551,
+"old": "settings",
+"key": "quality",
+"label": "لجنة منفذي الخطة"
+},
+{
+"file": "templates/base/base.html",
+"line": 554,
+"old": "search",
+"key": "quality",
+"label": "لجنة المراجعة الذاتية"
+},
+{
+"file": "templates/base/base.html",
+"line": 558,
+"old": "file-pen",
+"key": "quality",
+"label": "إجراءاتي"
+},
+{
+"file": "templates/base/base.html",
+"line": 565,
+"old": "bell",
+"key": "notifications",
+"label": "مركز الإشعارات"
+},
+{
+"file": "templates/base/base.html",
+"line": 568,
+"old": "wrench",
+"key": "maintenance",
+"label": "لوحة الإدارة التقنية"
+},
+{
+"file": "templates/base/base.html",
+"line": 570,
+"old": "mail",
+"key": "developer",
+"label": "أرسل إلى المطوّر"
+},
+{
+"file": "templates/base/base.html",
+"line": 578,
+"old": "mail",
+"key": "messages",
+"label": "صندوق الوارد"
+},
+{
+"file": "templates/base/base.html",
+"line": 584,
+"old": "alert-triangle",
+"key": "messages",
+"label": "الرسائل الجديدة"
+},
+{
+"file": "templates/base/base.html",
+"line": 590,
+"old": "list-checks",
+"key": "messages",
+"label": "رسائلي المرسلة"
+},
+{
+"file": "templates/base/base.html",
+"line": 598,
+"old": "lock",
+"key": "security",
+"label": "سجل تغييرات الصلاحيات"
+},
+{
+"file": "templates/base/base.html",
+"line": 606,
+"old": "hospital",
+"key": "clinic",
+"label": "العيادة المدرسية"
+},
+{
+"file": "templates/base/base.html",
+"line": 609,
+"old": "bus",
+"key": "transport",
+"label": "النقل المدرسي"
+},
+{
+"file": "templates/base/base.html",
+"line": 612,
+"old": "book-open",
+"key": "library",
+"label": "المكتبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 619,
+"old": "bar-chart",
+"key": "students",
+"label": "لوحة شؤون الطلاب"
+},
+{
+"file": "templates/base/base.html",
+"line": 622,
+"old": "list-checks",
+"key": "student_info",
+"label": "سجلات الطلاب"
+},
+{
+"file": "templates/base/base.html",
+"line": 625,
+"old": "file-pen",
+"key": "student_add",
+"label": "إضافة طالب جديد"
+},
+{
+"file": "templates/base/base.html",
+"line": 628,
+"old": "waypoints",
+"key": "parents",
+"label": "ربط أولياء الأمور بالطلاب"
+},
+{
+"file": "templates/base/base.html",
+"line": 631,
+"old": "refresh",
+"key": "swap_requests",
+"label": "التنقلات"
+},
+{
+"file": "templates/base/base.html",
+"line": 636,
+"old": "list-checks",
+"key": "attendance_register",
+"label": "رصد الغياب — شُعب الأجنحة"
+},
+{
+"file": "templates/base/base.html",
+"line": 639,
+"old": "layers",
+"key": "wings",
+"label": "أجنحة المدرسة والتوقيت"
+},
+{
+"file": "templates/base/base.html",
+"line": 643,
+"old": "waypoints",
+"key": "wings",
+"label": "تغطية الأجنحة والإنابة"
+},
+{
+"file": "templates/base/base.html",
+"line": 647,
+"old": "bar-chart",
+"key": "absence",
+"label": "إحصائيات الغياب"
+},
+{
+"file": "templates/base/base.html",
+"line": 650,
+"old": "list-checks",
+"key": "attendance_register",
+"label": "تسجيل الحضور"
+},
+{
+"file": "templates/base/base.html",
+"line": 653,
+"old": "calendar",
+"key": "absence",
+"label": "سجلات الحضور والغياب"
+},
+{
+"file": "templates/base/base.html",
+"line": 658,
+"old": "scale",
+"key": "behavior",
+"label": "ملخص سلوك الطلاب"
+},
+{
+"file": "templates/base/base.html",
+"line": 661,
+"old": "clock",
+"key": "tardiness",
+"label": "التأخر الصباحي"
+},
+{
+"file": "templates/base/base.html",
+"line": 664,
+"old": "alert-triangle",
+"key": "behavior_violation",
+"label": "تسجيل سلوك"
+},
+{
+"file": "templates/base/base.html",
+"line": 667,
+"old": "users",
+"key": "behavior",
+"label": "فريق سلوك الطلبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 674,
+"old": "bar-chart",
+"key": "grades",
+"label": "المستويات التعليمية وتحصيل الطلبة"
+},
+{
+"file": "templates/base/base.html",
+"line": 678,
+"old": "file-pen",
+"key": "teacher",
+"label": "ملاحظات المعلمين"
+},
+{
+"file": "templates/base/base.html",
+"line": 679,
+"old": "file-pen",
+"key": "counseling",
+"label": "ملاحظات الأخصائي الاجتماعي"
+},
+{
+"file": "templates/base/base.html",
+"line": 680,
+"old": "file-pen",
+"key": "counseling",
+"label": "ملاحظات الأخصائي النفسي"
+},
+{
+"file": "templates/base/base.html",
+"line": 681,
+"old": "file-pen",
+"key": "clinic",
+"label": "ملاحظات الممرض"
+},
+{
+"file": "templates/base/base.html",
+"line": 682,
+"old": "file-pen",
+"key": "students",
+"label": "ملاحظات منسق شؤون الطلاب"
+},
+{
+"file": "templates/base/base.html",
+"line": 686,
+"old": "activity",
+"key": "activities",
+"label": "الأنشطة"
+},
+{
+"file": "templates/base/base.html",
+"line": 690,
+"old": "users",
+"key": "students",
+"label": "تصفّح الشُّعب والطلاب"
+},
+{
+"file": "templates/base/base.html",
+"line": 701,
+"old": "list-checks",
+"key": "periods_today",
+"label": "حصص اليوم"
+},
+{
+"file": "templates/base/base.html",
+"line": 704,
+"old": "calendar",
+"key": "schedule",
+"label": "الجدول الأسبوعي"
+},
+{
+"file": "templates/base/base.html",
+"line": 707,
+"old": "printer",
+"key": "print",
+"label": "طباعة الجدول"
+},
+{
+"file": "templates/base/base.html",
+"line": 710,
+"old": "settings",
+"key": "settings",
+"label": "تفضيلاتي للجدولة"
+},
+{
+"file": "templates/base/base.html",
+"line": 716,
+"old": "list-checks",
+"key": "workload",
+"label": "الإسناد"
+},
+{
+"file": "templates/base/base.html",
+"line": 719,
+"old": "refresh",
+"key": "swap_requests",
+"label": "طلبات التبديل"
+},
+{
+"file": "templates/base/base.html",
+"line": 722,
+"old": "list-checks",
+"key": "compensation",
+"label": "الحصص التعويضية"
+},
+{
+"file": "templates/base/base.html",
+"line": 725,
+"old": "ban",
+"key": "attendance_teacher_absence",
+"label": "غياب المعلمين والبدلاء"
+},
+{
+"file": "templates/base/base.html",
+"line": 734,
+"old": "list-checks",
+"key": "periods_today",
+"label": "حصص اليوم"
+},
+{
+"file": "templates/base/base.html",
+"line": 737,
+"old": "calendar",
+"key": "schedule",
+"label": "الجدول الأسبوعي"
+},
+{
+"file": "templates/base/base.html",
+"line": 740,
+"old": "printer",
+"key": "print",
+"label": "طباعة الجدول"
+},
+{
+"file": "templates/base/base.html",
+"line": 743,
+"old": "settings",
+"key": "settings",
+"label": "تفضيلاتي للجدولة"
+},
+{
+"file": "templates/base/base.html",
+"line": 748,
+"old": "refresh",
+"key": "swap_requests",
+"label": "طلبات التبديل"
+},
+{
+"file": "templates/base/base.html",
+"line": 751,
+"old": "list-checks",
+"key": "compensation",
+"label": "الحصص التعويضية"
+},
+{
+"file": "templates/base/base.html",
+"line": 762,
+"old": "scale",
+"key": "behavior",
+"label": "لوحة السلوك"
+},
+{
+"file": "templates/base/base.html",
+"line": 765,
+"old": "alert-triangle",
+"key": "behavior_violation",
+"label": "تسجيل مخالفة"
+},
+{
+"file": "templates/base/base.html",
+"line": 768,
+"old": "bar-chart",
+"key": "stats",
+"label": "الإحصائيات"
+},
+{
+"file": "templates/base/base.html",
+"line": 772,
+"old": "phone",
+"key": "call_parent",
+"label": "استدعاء ولي أمر"
+},
+{
+"file": "templates/base/base.html",
+"line": 778,
+"old": "users",
+"key": "students",
+"label": "قائمة الطلاب"
+},
+{
+"file": "templates/base/base.html",
+"line": 781,
+"old": "alert-triangle",
+"key": "failing_students",
+"label": "الطلاب المتعثرون"
+},
+{
+"file": "templates/base/base.html",
+"line": 793,
+"old": "refresh",
+"key": "role_switch",
+"label": "تبديل الدور"
+},
+{
+"file": "templates/base/base.html",
+"line": 796,
+"old": "bell",
+"key": "notifications",
+"label": "الإشعارات"
+},
+{
+"file": "templates/base/base.html",
+"line": 799,
+"old": "moon",
+"key": "theme_dark",
+"label": ""
+},
+{
+"file": "templates/base/base.html",
+"line": 802,
+"old": "lock",
+"key": "security",
+"label": "تغيير كلمة المرور"
+},
+{
+"file": "templates/base/base.html",
+"line": 805,
+"old": "settings",
+"key": "settings",
+"label": "لوحة الإدارة"
+},
+{
+"file": "templates/base/base.html",
+"line": 810,
+"old": "lock",
+"key": "security",
+"label": "المصادقة الثنائية"
+},
+{
+"file": "templates/base/base.html",
+"line": 817,
+"old": "log-out",
+"key": "logout",
+"label": "تسجيل الخروج"
+},
+{
+"file": "templates/base/base.html",
+"line": 835,
+"old": "check-circle",
+"key": "status_success",
+"label": ""
+},
+{
+"file": "templates/base/base.html",
+"line": 835,
+"old": "x-circle",
+"key": "status_error",
+"label": ""
+},
+{
+"file": "templates/base/base.html",
+"line": 835,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/base/base.html",
+"line": 835,
+"old": "info",
+"key": "status_info",
+"label": ""
+},
+{
+"file": "templates/base/base.html",
+"line": 861,
+"old": "search",
+"key": "search",
+"label": "البحث السريع"
+},
+{
+"file": "templates/base/base.html",
+"line": 937,
+"old": "home",
+"key": "dashboard",
+"label": ""
+},
+{
+"file": "templates/base/base.html",
+"line": 943,
+"old": "list-checks",
+"key": "checklist",
+"label": ""
+},
+{
+"file": "templates/base/base.html",
+"line": 948,
+"old": "calendar",
+"key": "date",
+"label": ""
+},
+{
+"file": "templates/base/base.html",
+"line": 955,
+"old": "waypoints",
+"key": "link",
+"label": ""
+},
+{
+"file": "templates/base/base.html",
+"line": 962,
+"old": "bar-chart",
+"key": "stats",
+"label": ""
+},
+{
+"file": "templates/base/base.html",
+"line": 969,
+"old": "list-checks",
+"key": "checklist",
+"label": ""
+},
+{
+"file": "templates/base/base.html",
+"line": 974,
+"old": "bell",
+"key": "notifications",
+"label": ""
+},
+{
+"file": "templates/base/base.html",
+"line": 980,
+"old": "bar-chart",
+"key": "stats",
+"label": ""
+},
+{
+"file": "templates/behavior/behavior_report.html",
+"line": 12,
+"old": "file-text",
+"key": "behavior",
+"label": "التقرير السلوكي الدوري"
+},
+{
+"file": "templates/behavior/behavior_report.html",
+"line": 18,
+"old": "user",
+"key": "behavior",
+"label": "الملف السلوكي"
+},
+{
+"file": "templates/behavior/behavior_report.html",
+"line": 46,
+"old": "list-checks",
+"key": "behavior_violation",
+"label": "تفاصيل المخالفات"
+},
+{
+"file": "templates/behavior/behavior_report.html",
+"line": 61,
+"old": "search",
+"key": "search",
+"label": "لا توجد نتائج مطابقة"
+},
+{
+"file": "templates/behavior/behavior_report.html",
+"line": 65,
+"old": "mail",
+"key": "parents",
+"label": "إرسال التقرير لوليّ الأمر"
+},
+{
+"file": "templates/behavior/behavior_report.html",
+"line": 74,
+"old": "mail",
+"key": "messages",
+"label": "إرسال التقرير بالبريد الإلكتروني"
+},
+{
+"file": "templates/behavior/committee.html",
+"line": 13,
+"old": "scale",
+"key": "behavior_committee",
+"label": "لجنة الضبط السلوكي"
+},
+{
+"file": "templates/behavior/committee.html",
+"line": 40,
+"old": "alert-triangle",
+"key": "behavior_committee",
+"label": "القضايا المفتوحة — تحتاج قرار اللجنة"
+},
+{
+"file": "templates/behavior/committee.html",
+"line": 58,
+"old": "check-circle",
+"key": "status_success",
+"label": "حل وإغلاق"
+},
+{
+"file": "templates/behavior/committee.html",
+"line": 59,
+"old": "clock",
+"key": "time",
+"label": "إيقاف مؤقت"
+},
+{
+"file": "templates/behavior/committee.html",
+"line": 61,
+"old": "activity",
+"key": "stats",
+"label": "تصعيد"
+},
+{
+"file": "templates/behavior/committee.html",
+"line": 73,
+"old": "list-checks",
+"key": "behavior_violation",
+"label": "القضايا المحلولة"
+},
+{
+"file": "templates/behavior/committee_decision.html",
+"line": 12,
+"old": "scale",
+"key": "behavior_committee",
+"label": "قرار لجنة الضبط السلوكي"
+},
+{
+"file": "templates/behavior/committee_decision.html",
+"line": 17,
+"old": "list-checks",
+"key": "behavior_committee",
+"label": "الإجراءات التصاعدية"
+},
+{
+"file": "templates/behavior/committee_decision.html",
+"line": 28,
+"old": "check-circle",
+"key": "status_success",
+"label": "قرار اللجنة"
+},
+{
+"file": "templates/behavior/committee_decision.html",
+"line": 49,
+"old": "check-circle",
+"key": "status_success",
+"label": "حل وإغلاق"
+},
+{
+"file": "templates/behavior/committee_decision.html",
+"line": 50,
+"old": "clock",
+"key": "time",
+"label": "إيقاف مؤقت"
+},
+{
+"file": "templates/behavior/committee_decision.html",
+"line": 52,
+"old": "activity",
+"key": "stats",
+"label": "تصعيد للدرجة 4"
+},
+{
+"file": "templates/behavior/dashboard.html",
+"line": 12,
+"old": "scale",
+"key": "behavior",
+"label": "لوحة السلوك"
+},
+{
+"file": "templates/behavior/dashboard.html",
+"line": 13,
+"old": "plus",
+"key": "add",
+"label": "تسجيل مخالفة"
+},
+{
+"file": "templates/behavior/dashboard.html",
+"line": 14,
+"old": "scale",
+"key": "behavior_committee",
+"label": "لجنة الضبط"
+},
+{
+"file": "templates/behavior/dashboard.html",
+"line": 15,
+"old": "bar-chart",
+"key": "stats",
+"label": "الإحصائيات"
+},
+{
+"file": "templates/behavior/dashboard.html",
+"line": 16,
+"old": "mail",
+"key": "call_parent",
+"label": "استدعاء ولي أمر"
+},
+{
+"file": "templates/behavior/dashboard.html",
+"line": 17,
+"old": "file-text",
+"key": "export_pdf",
+"label": "لائحة السلوك (PDF)"
+},
+{
+"file": "templates/behavior/dashboard.html",
+"line": 33,
+"old": "activity",
+"key": "trend",
+"label": "الاتجاه الشهري"
+},
+{
+"file": "templates/behavior/dashboard.html",
+"line": 39,
+"old": "bar-chart",
+"key": "behavior_violation",
+"label": "توزيع المخالفات حسب الدرجة"
+},
+{
+"file": "templates/behavior/dashboard.html",
+"line": 47,
+"old": "list-checks",
+"key": "behavior_violation",
+"label": "أكثر المخالفات شيوعاً"
+},
+{
+"file": "templates/behavior/dashboard.html",
+"line": 58,
+"old": "alert-triangle",
+"key": "behavior_violation",
+"label": "المخالفات الجسيمة المعلّقة"
+},
+{
+"file": "templates/behavior/partials/infraction_summary.html",
+"line": 4,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/behavior/partials/quick_log_form.html",
+"line": 47,
+"old": "alert-critical",
+"key": "status_critical",
+"label": ""
+},
+{
+"file": "templates/behavior/partials/quick_log_form.html",
+"line": 47,
+"old": "ban",
+"key": "status_blocked",
+"label": ""
+},
+{
+"file": "templates/behavior/partials/quick_log_form.html",
+"line": 47,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/behavior/partials/quick_log_form.html",
+"line": 72,
+"old": "loader",
+"key": "loading",
+"label": ""
+},
+{
+"file": "templates/behavior/report_form.html",
+"line": 12,
+"old": "scale",
+"key": "behavior_violation",
+"label": "تسجيل مخالفة سلوكية"
+},
+{
+"file": "templates/behavior/report_form.html",
+"line": 19,
+"old": "list-checks",
+"key": "behavior_violation",
+"label": "اختر المخالفة"
+},
+{
+"file": "templates/behavior/report_form.html",
+"line": 46,
+"old": "check-circle",
+"key": "status_success",
+"label": ""
+},
+{
+"file": "templates/behavior/report_form.html",
+"line": 52,
+"old": "file-text",
+"key": "behavior_violation",
+"label": "بيانات المخالفة"
+},
+{
+"file": "templates/behavior/report_form.html",
+"line": 103,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/behavior/report_form.html",
+"line": 109,
+"old": "scale",
+"key": "behavior_violation",
+"label": "تسجيل المخالفة"
+},
+{
+"file": "templates/behavior/security_referral.html",
+"line": 12,
+"old": "lock",
+"key": "security",
+"label": "تسجيل إحالة أمنية"
+},
+{
+"file": "templates/behavior/security_referral.html",
+"line": 13,
+"old": "user",
+"key": "behavior",
+"label": "الملف السلوكي"
+},
+{
+"file": "templates/behavior/security_referral.html",
+"line": 18,
+"old": "lock",
+"key": "behavior_committee",
+"label": "بيانات الإحالة"
+},
+{
+"file": "templates/behavior/security_referral.html",
+"line": 40,
+"old": "lock",
+"key": "behavior_committee",
+"label": "تسجيل الإحالة الأمنية"
+},
+{
+"file": "templates/behavior/statistics.html",
+"line": 12,
+"old": "bar-chart",
+"key": "behavior",
+"label": "إحصاءات السلوك المدرسي"
+},
+{
+"file": "templates/behavior/statistics.html",
+"line": 23,
+"old": "users",
+"key": "behavior_violation",
+"label": "أكثر الطلاب مخالفة"
+},
+{
+"file": "templates/behavior/statistics.html",
+"line": 36,
+"old": "calendar",
+"key": "trend",
+"label": "التوزيع الشهري"
+},
+{
+"file": "templates/behavior/student_profile.html",
+"line": 12,
+"old": "scale",
+"key": "behavior",
+"label": "behavior:report_infraction"
+},
+{
+"file": "templates/behavior/student_profile.html",
+"line": 13,
+"old": "plus",
+"key": "add",
+"label": "مخالفة جديدة"
+},
+{
+"file": "templates/behavior/student_profile.html",
+"line": 14,
+"old": "mail",
+"key": "call_parent",
+"label": "استدعاء ولي أمر"
+},
+{
+"file": "templates/behavior/student_profile.html",
+"line": 15,
+"old": "printer",
+"key": "print",
+"label": "طباعة التقرير الكامل"
+},
+{
+"file": "templates/behavior/student_profile.html",
+"line": 27,
+"old": "file-text",
+"key": "behavior_violation",
+"label": "سجل المخالفات"
+},
+{
+"file": "templates/behavior/student_profile.html",
+"line": 52,
+"old": "activity",
+"key": "stats",
+"label": "تصعيد"
+},
+{
+"file": "templates/behavior/student_profile.html",
+"line": 56,
+"old": "lock",
+"key": "security",
+"label": "إحالة أمنية"
+},
+{
+"file": "templates/behavior/student_profile.html",
+"line": 58,
+"old": "printer",
+"key": "print",
+"label": "إنذار"
+},
+{
+"file": "templates/behavior/student_profile.html",
+"line": 59,
+"old": "printer",
+"key": "print",
+"label": "تعهد ولي"
+},
+{
+"file": "templates/behavior/student_profile.html",
+"line": 60,
+"old": "printer",
+"key": "print",
+"label": "تعهد طالب"
+},
+{
+"file": "templates/behavior/summon_parent.html",
+"line": 12,
+"old": "mail",
+"key": "behavior_violation",
+"label": "يُحسب من عدد المخالفات ودرجاتها — لا نقاط مخصومة"
+},
+{
+"file": "templates/behavior/summon_parent.html",
+"line": 21,
+"old": "waypoints",
+"key": "parents",
+"label": "أولياء الأمور — سيستلمون الإشعار"
+},
+{
+"file": "templates/behavior/summon_parent.html",
+"line": 49,
+"old": "mail",
+"key": "call_parent",
+"label": "بيانات الاستدعاء"
+},
+{
+"file": "templates/behavior/summon_parent.html",
+"line": 126,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "مكان الاجتماع"
+},
+{
+"file": "templates/behavior/summon_parent.html",
+"line": 132,
+"old": "mail",
+"key": "call_parent",
+"label": "إرسال الاستدعاء"
+},
+{
+"file": "templates/behavior/summon_parent.html",
+"line": 137,
+"old": "user",
+"key": "call_parent",
+"label": "مرسل الاستدعاء"
+},
+{
+"file": "templates/breach/dashboard.html",
+"line": 12,
+"old": "flag",
+"key": "notifications",
+"label": "تقاريرُ فاتتها مهلةُ إشعار NCSA (72"
+},
+{
+"file": "templates/breach/dashboard.html",
+"line": 13,
+"old": "plus",
+"key": "add",
+"label": "تسجيل خرق"
+},
+{
+"file": "templates/breach/dashboard.html",
+"line": 23,
+"old": "list-checks",
+"key": "reports",
+"label": "سجلّ التقارير"
+},
+{
+"file": "templates/breach/form.html",
+"line": 12,
+"old": "flag",
+"key": "breach",
+"label": "تسجيل خرق بيانات جديد"
+},
+{
+"file": "templates/breach/form.html",
+"line": 16,
+"old": "flag",
+"key": "breach",
+"label": "عنوان الخرق والتصنيف"
+},
+{
+"file": "templates/breach/form.html",
+"line": 54,
+"old": "file-text",
+"key": "breach",
+"label": "وصف الخرق والإجراءات"
+},
+{
+"file": "templates/breach/form.html",
+"line": 71,
+"old": "mail",
+"key": "notifications",
+"label": "إشعار NCSA"
+},
+{
+"file": "templates/breach/form.html",
+"line": 78,
+"old": "clock",
+"key": "time",
+"label": ""
+},
+{
+"file": "templates/breach/form.html",
+"line": 85,
+"old": "flag",
+"key": "breach",
+"label": "تسجيل الخرق"
+},
+{
+"file": "templates/clinic/dashboard.html",
+"line": 12,
+"old": "hospital",
+"key": "clinic",
+"label": "لوحة العيادة"
+},
+{
+"file": "templates/clinic/dashboard.html",
+"line": 13,
+"old": "plus",
+"key": "add",
+"label": "تسجيل زيارة"
+},
+{
+"file": "templates/clinic/dashboard.html",
+"line": 14,
+"old": "bar-chart",
+"key": "stats",
+"label": "الإحصائيات"
+},
+{
+"file": "templates/clinic/dashboard.html",
+"line": 15,
+"old": "clipboard",
+"key": "document",
+"label": "السجلات"
+},
+{
+"file": "templates/clinic/dashboard.html",
+"line": 26,
+"old": "activity",
+"key": "observation",
+"label": "اتجاه الزيارات"
+},
+{
+"file": "templates/clinic/dashboard.html",
+"line": 33,
+"old": "alert-triangle",
+"key": "sent_home",
+"label": "أُرسلوا للمنزل اليوم"
+},
+{
+"file": "templates/clinic/dashboard.html",
+"line": 46,
+"old": "clipboard",
+"key": "observation",
+"label": "آخر الزيارات"
+},
+{
+"file": "templates/clinic/dashboard.html",
+"line": 57,
+"old": "users",
+"key": "clinic_visit",
+"label": "متكرّرو الزيارة هذا الشهر"
+},
+{
+"file": "templates/clinic/dashboard.html",
+"line": 70,
+"old": "clock",
+"key": "time",
+"label": "ساعات الذروة"
+},
+{
+"file": "templates/clinic/health_record.html",
+"line": 16,
+"old": "hospital",
+"key": "clinic",
+"label": "السجل الصحي"
+},
+{
+"file": "templates/clinic/health_record.html",
+"line": 30,
+"old": "list-checks",
+"key": "clinic",
+"label": "البيانات الصحية"
+},
+{
+"file": "templates/clinic/health_record.html",
+"line": 71,
+"old": "save",
+"key": "save",
+"label": "حفظ السجل الصحي"
+},
+{
+"file": "templates/clinic/health_record.html",
+"line": 84,
+"old": "calendar",
+"key": "observation",
+"label": "سجل الزيارات ( زيارة)"
+},
+{
+"file": "templates/clinic/health_record.html",
+"line": 102,
+"old": "check",
+"key": "confirm",
+"label": "أُبلغ ولي الأمر"
+},
+{
+"file": "templates/clinic/health_record.html",
+"line": 122,
+"old": "list-checks",
+"key": "checklist",
+"label": ""
+},
+{
+"file": "templates/clinic/partials/visit_rows.html",
+"line": 40,
+"old": "home",
+"key": "dashboard",
+"label": "منزل"
+},
+{
+"file": "templates/clinic/partials/visit_rows.html",
+"line": 43,
+"old": "phone",
+"key": "call_parent",
+"label": "أُبلغ"
+},
+{
+"file": "templates/clinic/partials/visit_rows.html",
+"line": 64,
+"old": "list-checks",
+"key": "checklist",
+"label": "لا توجد زيارات"
+},
+{
+"file": "templates/clinic/record_visit.html",
+"line": 14,
+"old": "hospital",
+"key": "clinic",
+"label": "تسجيل زيارة جديدة"
+},
+{
+"file": "templates/clinic/record_visit.html",
+"line": 68,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "تم إرسال الطالب إلى المنزل (سيتم إبلاغ ولي الأمر تلقائياً)"
+},
+{
+"file": "templates/clinic/record_visit.html",
+"line": 76,
+"old": "save",
+"key": "save",
+"label": "تسجيل الزيارة"
+},
+{
+"file": "templates/clinic/statistics.html",
+"line": 14,
+"old": "bar-chart",
+"key": "clinic",
+"label": "إحصائيات العيادة المدرسية"
+},
+{
+"file": "templates/clinic/visit_card.html",
+"line": 2,
+"old": "check-circle",
+"key": "status_success",
+"label": "تم تسجيل الزيارة بنجاح"
+},
+{
+"file": "templates/clinic/visits_list.html",
+"line": 13,
+"old": "hospital",
+"key": "clinic",
+"label": "سجل زيارات العيادة"
+},
+{
+"file": "templates/clinic/visits_list.html",
+"line": 63,
+"old": "search",
+"key": "search",
+"label": ""
+},
+{
+"file": "templates/clinic/visits_list.html",
+"line": 83,
+"old": "x-circle",
+"key": "status_error",
+"label": "مسح"
+},
+{
+"file": "templates/components/confirm_dialog.html",
+"line": 33,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/components/file_upload.html",
+"line": 33,
+"old": "file-text",
+"key": "document",
+"label": ""
+},
+{
+"file": "templates/components/file_upload.html",
+"line": 49,
+"old": "file-text",
+"key": "document",
+"label": ""
+},
+{
+"file": "templates/components/search_input.html",
+"line": 21,
+"old": "search",
+"key": "search",
+"label": ""
+},
+{
+"file": "templates/components/search_input.html",
+"line": 43,
+"old": "clock",
+"key": "time",
+"label": ""
+},
+{
+"file": "templates/components/toast.html",
+"line": 26,
+"old": "check-circle",
+"key": "status_success",
+"label": ""
+},
+{
+"file": "templates/components/toast.html",
+"line": 28,
+"old": "x-circle",
+"key": "status_error",
+"label": ""
+},
+{
+"file": "templates/components/toast.html",
+"line": 30,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/components/toast.html",
+"line": 32,
+"old": "info",
+"key": "status_info",
+"label": ""
+},
+{
+"file": "templates/components/ui/section_card.html",
+"line": 9,
+"old": "inbox",
+"key": "empty",
+"label": "components/empty_state.html"
+},
+{
+"file": "templates/core/permission_audit_log.html",
+"line": 12,
+"old": "lock",
+"key": "security",
+"label": "سجل تغييرات الصلاحيات"
+},
+{
+"file": "templates/core/permission_audit_log.html",
+"line": 54,
+"old": "filter",
+"key": "filter",
+"label": "تصفية"
+},
+{
+"file": "templates/core/permission_audit_log.html",
+"line": 56,
+"old": "loader",
+"key": "loading",
+"label": "جارٍ التحديث..."
+},
+{
+"file": "templates/core/permission_audit_log.html",
+"line": 60,
+"old": "clipboard",
+"key": "document",
+"label": "السجلات"
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 12,
+"old": "users",
+"key": "import",
+"label": "استيراد / تصدير الطلاب"
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 22,
+"old": "check-circle",
+"key": "status_success",
+"label": "اكتمل الاستيراد بنجاح"
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 41,
+"old": "x-circle",
+"key": "status_error",
+"label": "فشل الاستيراد"
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 42,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 54,
+"old": "file-spreadsheet",
+"key": "messages",
+"label": "الرقم الشخصي — الاسم — الصف — الشعبة — الجوال — البريد الإلكتروني · رأس احترافي + فلاتر + RTL + طباعة A4"
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 61,
+"old": "download",
+"key": "export_excel",
+"label": "تصدير Excel"
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 68,
+"old": "arrow-down-to-line",
+"key": "download",
+"label": "تحميل القالب"
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 76,
+"old": "arrow-up-from-line",
+"key": "import",
+"label": "رفع ملف الاستيراد"
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 84,
+"old": "arrow-up-from-line",
+"key": "export_excel",
+"label": "رفع ملف Excel للاستيراد"
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 86,
+"old": "alert-circle",
+"key": "status_error",
+"label": "نموذج استيراد الطلاب"
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 90,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 104,
+"old": "file-spreadsheet",
+"key": "export_excel",
+"label": "منطقة رفع ملف Excel"
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 113,
+"old": "file-spreadsheet",
+"key": "export_excel",
+"label": ""
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 121,
+"old": "arrow-up-from-line",
+"key": "import",
+"label": "بدء الاستيراد"
+},
+{
+"file": "templates/core/student_import_export.html",
+"line": 126,
+"old": "loader",
+"key": "loading",
+"label": "جارٍ معالجة الملف…"
+},
+{
+"file": "templates/dashboard/partials/_sessions_list.html",
+"line": 21,
+"old": "clock",
+"key": "time",
+"label": "التالية"
+},
+{
+"file": "templates/dashboard/partials/_sessions_list.html",
+"line": 40,
+"old": "calendar",
+"key": "date",
+"label": ""
+},
+{
+"file": "templates/dashboard/roles/activities.html",
+"line": 4,
+"old": "star",
+"key": "activities",
+"label": "لوحة منسّق الأنشطة"
+},
+{
+"file": "templates/dashboard/roles/activities.html",
+"line": 14,
+"old": "shield",
+"key": "behavior",
+"label": "السلوك"
+},
+{
+"file": "templates/dashboard/roles/activities.html",
+"line": 15,
+"old": "users",
+"key": "students",
+"label": "قائمة الطلاب"
+},
+{
+"file": "templates/dashboard/roles/activities.html",
+"line": 16,
+"old": "bar-chart-2",
+"key": "reports",
+"label": "التقارير"
+},
+{
+"file": "templates/dashboard/roles/admin_ops.html",
+"line": 4,
+"old": "briefcase",
+"key": "workload",
+"label": "اللوحة الإدارية"
+},
+{
+"file": "templates/dashboard/roles/admin_ops.html",
+"line": 5,
+"old": "list-checks",
+"key": "attendance_register",
+"label": "رصد الغياب"
+},
+{
+"file": "templates/dashboard/roles/admin_ops.html",
+"line": 10,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "لا دوامَ اليوم — فلا رصد."
+},
+{
+"file": "templates/dashboard/roles/admin_ops.html",
+"line": 15,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "لا جناحَ مُسنَدٌ إليك اليوم — راجع النائبَ الإداريّ."
+},
+{
+"file": "templates/dashboard/roles/admin_ops.html",
+"line": 26,
+"old": "bell",
+"key": "absence",
+"label": "تنبيهات الغياب المعلّقة"
+},
+{
+"file": "templates/dashboard/roles/admin_ops.html",
+"line": 36,
+"old": "users",
+"key": "staff",
+"label": "شؤون الموظفين"
+},
+{
+"file": "templates/dashboard/roles/admin_ops.html",
+"line": 37,
+"old": "user",
+"key": "students",
+"label": "شؤون الطلاب"
+},
+{
+"file": "templates/dashboard/roles/admin_ops.html",
+"line": 38,
+"old": "calendar",
+"key": "schedule",
+"label": "الجدول الدراسي"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 5,
+"old": "home",
+"key": "dashboard",
+"label": "لوحة تحكم المدير"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 6,
+"old": "printer",
+"key": "print",
+"label": "طباعة"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 7,
+"old": "file-text",
+"key": "absence",
+"label": "تقرير الغياب"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 17,
+"old": "activity",
+"key": "stats",
+"label": "نبض الأقسام"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 29,
+"old": "target",
+"key": "academic",
+"label": "نتيجةُ مادّةٍ لطالب"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 40,
+"old": "alert-triangle",
+"key": "absence",
+"label": "تنبيهات الغياب المتكرّر"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 53,
+"old": "activity",
+"key": "trend",
+"label": "اتجاه الحضور"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 56,
+"old": "target",
+"key": "grades",
+"label": "توزيع الدرجات السنويّة"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 62,
+"old": "bar-chart",
+"key": "stats",
+"label": "التحليلات"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 63,
+"old": "shield",
+"key": "behavior",
+"label": "السلوك"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 64,
+"old": "hospital",
+"key": "clinic",
+"label": "العيادة"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 65,
+"old": "book-open",
+"key": "library",
+"label": "المكتبة"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 66,
+"old": "bus",
+"key": "transport",
+"label": "النقل"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 67,
+"old": "check-circle",
+"key": "status_success",
+"label": "الجودة"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 68,
+"old": "bell",
+"key": "notifications",
+"label": "الإشعارات"
+},
+{
+"file": "templates/dashboard/roles/director.html",
+"line": 69,
+"old": "clipboard",
+"key": "assessments",
+"label": "الاختبارات"
+},
+{
+"file": "templates/dashboard/roles/other.html",
+"line": 3,
+"old": "home",
+"key": "dashboard",
+"label": "مرحباً، "
+},
+{
+"file": "templates/dashboard/roles/other.html",
+"line": 4,
+"old": "building",
+"key": "dashboard",
+"label": "لوحة التحكّم"
+},
+{
+"file": "templates/dashboard/roles/service.html",
+"line": 4,
+"old": "home",
+"key": "dashboard",
+"label": "مرحباً، "
+},
+{
+"file": "templates/dashboard/roles/service.html",
+"line": 11,
+"old": "hospital",
+"key": "clinic",
+"label": "لوحة العيادة"
+},
+{
+"file": "templates/dashboard/roles/service.html",
+"line": 12,
+"old": "file-pen",
+"key": "observation",
+"label": "تسجيل زيارة"
+},
+{
+"file": "templates/dashboard/roles/service.html",
+"line": 13,
+"old": "bar-chart",
+"key": "stats",
+"label": "الإحصائيات"
+},
+{
+"file": "templates/dashboard/roles/service.html",
+"line": 22,
+"old": "book-open",
+"key": "library",
+"label": "لوحة المكتبة"
+},
+{
+"file": "templates/dashboard/roles/service.html",
+"line": 23,
+"old": "book-open",
+"key": "library",
+"label": "إعارة جديدة"
+},
+{
+"file": "templates/dashboard/roles/service.html",
+"line": 24,
+"old": "search",
+"key": "library",
+"label": "فهرس الكتب"
+},
+{
+"file": "templates/dashboard/roles/service.html",
+"line": 32,
+"old": "wrench",
+"key": "maintenance",
+"label": "الأدوات التقنيّة"
+},
+{
+"file": "templates/dashboard/roles/service.html",
+"line": 34,
+"old": "settings",
+"key": "settings",
+"label": "لوحة الإدارة التقنيّة"
+},
+{
+"file": "templates/dashboard/roles/service.html",
+"line": 35,
+"old": "users",
+"key": "staff",
+"label": "إدارة المستخدمين"
+},
+{
+"file": "templates/dashboard/roles/service.html",
+"line": 36,
+"old": "file-pen",
+"key": "activities",
+"label": "سجلّ النشاطات"
+},
+{
+"file": "templates/dashboard/roles/service.html",
+"line": 41,
+"old": "building",
+"key": "dashboard",
+"label": "لوحة التحكّم"
+},
+{
+"file": "templates/dashboard/roles/specialist_social.html",
+"line": 4,
+"old": "users",
+"key": "counseling",
+"label": "لوحة الأخصائي الاجتماعي والنفسي"
+},
+{
+"file": "templates/dashboard/roles/specialist_social.html",
+"line": 13,
+"old": "alert-triangle",
+"key": "absence",
+"label": "تنبيهات الغياب المعلّقة"
+},
+{
+"file": "templates/dashboard/roles/specialist_social.html",
+"line": 23,
+"old": "alert-triangle",
+"key": "behavior_violation",
+"label": "المخالفات السلوكيّة"
+},
+{
+"file": "templates/dashboard/roles/specialist_social.html",
+"line": 24,
+"old": "users",
+"key": "students",
+"label": "قائمة الطلاب"
+},
+{
+"file": "templates/dashboard/roles/specialist_social.html",
+"line": 25,
+"old": "bell",
+"key": "absence",
+"label": "غياب المعلّمين"
+},
+{
+"file": "templates/dashboard/roles/student.html",
+"line": 4,
+"old": "home",
+"key": "dashboard",
+"label": "مرحباً، "
+},
+{
+"file": "templates/dashboard/roles/student.html",
+"line": 16,
+"old": "calendar",
+"key": "periods_today",
+"label": "حصصي اليوم"
+},
+{
+"file": "templates/dashboard/roles/student.html",
+"line": 28,
+"old": "bar-chart",
+"key": "grades",
+"label": "درجاتي"
+},
+{
+"file": "templates/dashboard/roles/student.html",
+"line": 29,
+"old": "book-open",
+"key": "library",
+"label": "المكتبة"
+},
+{
+"file": "templates/dashboard/roles/student.html",
+"line": 30,
+"old": "bell",
+"key": "notifications",
+"label": "الإشعارات"
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 6,
+"old": "home",
+"key": "dashboard",
+"label": "مرحباً، "
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 7,
+"old": "file-pen",
+"key": "edit_record",
+"label": "التقييمات"
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 17,
+"old": "home",
+"key": "dashboard",
+"label": "مرحباً، "
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 18,
+"old": "refresh",
+"key": "refresh",
+"label": ""
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 19,
+"old": "file-pen",
+"key": "edit_record",
+"label": "التقييمات"
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 23,
+"old": "calendar",
+"key": "periods_today",
+"label": "حصصي اليوم"
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 28,
+"old": "book-open",
+"key": "library",
+"label": "موادّ التقييم"
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 31,
+"old": "book-open",
+"key": "library",
+"label": "swap_list"
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 39,
+"old": "refresh",
+"key": "swap_requests",
+"label": "طلبات التبديل"
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 40,
+"old": "ban",
+"key": "absence",
+"label": "غياب المعلّمين"
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 41,
+"old": "file-pen",
+"key": "assessments",
+"label": "التقييمات"
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 43,
+"old": "list-checks",
+"key": "periods_today",
+"label": "حصص اليوم"
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 44,
+"old": "calendar",
+"key": "schedule",
+"label": "الجدول الأسبوعي"
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 45,
+"old": "file-pen",
+"key": "assessments",
+"label": "التقييمات"
+},
+{
+"file": "templates/dashboard/roles/teacher.html",
+"line": 46,
+"old": "refresh",
+"key": "swap_requests",
+"label": "طلب تبديل"
+},
+{
+"file": "templates/dashboard/roles/therapist.html",
+"line": 4,
+"old": "activity",
+"key": "stats",
+"label": "لوحة جلسات العلاج"
+},
+{
+"file": "templates/dashboard/roles/therapist.html",
+"line": 13,
+"old": "calendar",
+"key": "periods_today",
+"label": "جدول جلسات اليوم"
+},
+{
+"file": "templates/dashboard/roles/transport_mgmt.html",
+"line": 4,
+"old": "bus",
+"key": "transport",
+"label": "لوحة النقل المدرسي"
+},
+{
+"file": "templates/dashboard/roles/transport_mgmt.html",
+"line": 12,
+"old": "map",
+"key": "transport",
+"label": "لوحة النقل"
+},
+{
+"file": "templates/dashboard/roles/transport_mgmt.html",
+"line": 13,
+"old": "bus",
+"key": "transport",
+"label": "الأسطول"
+},
+{
+"file": "templates/dashboard/roles/transport_mgmt.html",
+"line": 14,
+"old": "bar-chart",
+"key": "reports",
+"label": "التقارير"
+},
+{
+"file": "templates/dashboard/roles/wing_holder.html",
+"line": 5,
+"old": "list-checks",
+"key": "attendance_register",
+"label": "رصد الغياب — جناحي اليوم"
+},
+{
+"file": "templates/dashboard/roles/wing_holder.html",
+"line": 6,
+"old": "list-checks",
+"key": "attendance_register",
+"label": "رصد الغياب"
+},
+{
+"file": "templates/dashboard/roles/wing_holder.html",
+"line": 10,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "لا دوامَ اليوم — فلا رصد."
+},
+{
+"file": "templates/dashboard/roles/wing_holder.html",
+"line": 15,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "لا جناحَ مُسنَدٌ إليك اليوم — راجع النائبَ الإداريّ."
+},
+{
+"file": "templates/library/book_list.html",
+"line": 13,
+"old": "book-open",
+"key": "library",
+"label": "قائمة الكتب والمصادر"
+},
+{
+"file": "templates/library/borrow_form.html",
+"line": 14,
+"old": "book-open",
+"key": "library",
+"label": "تسجيل إعارة جديدة"
+},
+{
+"file": "templates/library/borrow_form.html",
+"line": 53,
+"old": "book-open",
+"key": "library",
+"label": "تسجيل الإعارة"
+},
+{
+"file": "templates/library/dashboard.html",
+"line": 12,
+"old": "book-open",
+"key": "library",
+"label": "لوحة المكتبة"
+},
+{
+"file": "templates/library/dashboard.html",
+"line": 13,
+"old": "plus",
+"key": "add",
+"label": "إعارة جديدة"
+},
+{
+"file": "templates/library/dashboard.html",
+"line": 14,
+"old": "book-open",
+"key": "library",
+"label": "قائمة الكتب"
+},
+{
+"file": "templates/library/dashboard.html",
+"line": 25,
+"old": "pie-chart",
+"key": "library",
+"label": "توزيع الكتب حسب التصنيف"
+},
+{
+"file": "templates/library/dashboard.html",
+"line": 31,
+"old": "trending-up",
+"key": "library",
+"label": "حركة الإعارة"
+},
+{
+"file": "templates/library/dashboard.html",
+"line": 40,
+"old": "clock",
+"key": "time",
+"label": "تستحقّ الإعادة قريباً"
+},
+{
+"file": "templates/library/dashboard.html",
+"line": 51,
+"old": "trending-up",
+"key": "library",
+"label": "الأكثر إعارة"
+},
+{
+"file": "templates/library/dashboard.html",
+"line": 64,
+"old": "book",
+"key": "library",
+"label": "آخر الكتب المضافة"
+},
+{
+"file": "templates/library/dashboard.html",
+"line": 75,
+"old": "repeat",
+"key": "library",
+"label": "آخر الإعارات"
+},
+{
+"file": "templates/library/partials/book_rows.html",
+"line": 46,
+"old": "book-open",
+"key": "library",
+"label": "لا توجد نتائج"
+},
+{
+"file": "templates/notifications/dashboard.html",
+"line": 12,
+"old": "bell",
+"key": "notifications",
+"label": "لوحة الإشعارات"
+},
+{
+"file": "templates/notifications/dashboard.html",
+"line": 15,
+"old": "calendar",
+"key": "absence",
+"label": "إرسال تنبيهات الغياب"
+},
+{
+"file": "templates/notifications/dashboard.html",
+"line": 20,
+"old": "alert-triangle",
+"key": "failing_students",
+"label": "إرسال إشعارات الرسوب"
+},
+{
+"file": "templates/notifications/dashboard.html",
+"line": 22,
+"old": "mail",
+"key": "notifications",
+"label": "صندوق الإشعارات"
+},
+{
+"file": "templates/notifications/dashboard.html",
+"line": 23,
+"old": "settings",
+"key": "settings",
+"label": "التفضيلات"
+},
+{
+"file": "templates/notifications/dashboard.html",
+"line": 35,
+"old": "bar-chart",
+"key": "stats",
+"label": "حركة الإرسال"
+},
+{
+"file": "templates/notifications/dashboard.html",
+"line": 40,
+"old": "pie-chart",
+"key": "stats",
+"label": "التوزيع حسب القناة"
+},
+{
+"file": "templates/notifications/dashboard.html",
+"line": 47,
+"old": "clipboard",
+"key": "notifications",
+"label": "سجل الإشعارات الأخيرة"
+},
+{
+"file": "templates/notifications/dashboard.html",
+"line": 58,
+"old": "mail",
+"key": "settings",
+"label": "إعدادات البريد الإلكتروني"
+},
+{
+"file": "templates/notifications/dashboard.html",
+"line": 98,
+"old": "phone",
+"key": "settings",
+"label": "إعدادات SMS (Twilio)"
+},
+{
+"file": "templates/notifications/dashboard.html",
+"line": 120,
+"old": "save",
+"key": "save",
+"label": "حفظ الإعدادات"
+},
+{
+"file": "templates/notifications/inbox.html",
+"line": 13,
+"old": "bell",
+"key": "notifications",
+"label": "اختصارات: j/k للتنقل · m للتحديد كمقروء · Enter لفتح الرابط"
+},
+{
+"file": "templates/notifications/inbox.html",
+"line": 14,
+"old": "lightbulb",
+"key": "tip",
+"label": "الاختصارات"
+},
+{
+"file": "templates/notifications/inbox.html",
+"line": 22,
+"old": "check-circle",
+"key": "status_success",
+"label": "تحديد الكل كمقروء"
+},
+{
+"file": "templates/notifications/inbox.html",
+"line": 25,
+"old": "settings",
+"key": "settings",
+"label": "التفضيلات"
+},
+{
+"file": "templates/notifications/inbox.html",
+"line": 52,
+"old": "alert-triangle",
+"key": "notifications",
+"label": "إشعارات عاجلة"
+},
+{
+"file": "templates/notifications/inbox.html",
+"line": 65,
+"old": "bell",
+"key": "notifications",
+"label": "الإشعارات"
+},
+{
+"file": "templates/notifications/inbox.html",
+"line": 71,
+"old": "bell",
+"key": "notifications",
+"label": "لا إشعاراتَ غيرُ العاجلة"
+},
+{
+"file": "templates/notifications/inbox.html",
+"line": 73,
+"old": "bell",
+"key": "notifications",
+"label": "لا توجد إشعارات"
+},
+{
+"file": "templates/notifications/partials/notif_item.html",
+"line": 20,
+"old": "alert-critical",
+"key": "status_critical",
+"label": "عاجل"
+},
+{
+"file": "templates/notifications/partials/notif_item.html",
+"line": 22,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "مهم"
+},
+{
+"file": "templates/notifications/partials/notif_item.html",
+"line": 45,
+"old": "check",
+"key": "confirm",
+"label": "تحديد كمقروء (m)"
+},
+{
+"file": "templates/notifications/partials/notif_item.html",
+"line": 47,
+"old": "check",
+"key": "confirm",
+"label": "مقروء"
+},
+{
+"file": "templates/notifications/preferences.html",
+"line": 13,
+"old": "bell",
+"key": "settings",
+"label": "تفضيلات الإشعارات"
+},
+{
+"file": "templates/notifications/preferences.html",
+"line": 14,
+"old": "arrow-right",
+"key": "back",
+"label": "صندوق الإشعارات"
+},
+{
+"file": "templates/notifications/preferences.html",
+"line": 20,
+"old": "bell",
+"key": "notifications",
+"label": "قنوات الإشعارات"
+},
+{
+"file": "templates/notifications/preferences.html",
+"line": 60,
+"old": "clock",
+"key": "time",
+"label": "ساعات الهدوء"
+},
+{
+"file": "templates/notifications/preferences.html",
+"line": 75,
+"old": "save",
+"key": "save",
+"label": "حفظ التفضيلات"
+},
+{
+"file": "templates/parents/all_attendance.html",
+"line": 12,
+"old": "list-checks",
+"key": "attendance_register",
+"label": "حضور الأبناء"
+},
+{
+"file": "templates/parents/all_attendance.html",
+"line": 21,
+"old": "user",
+"key": "profile",
+"label": "لا حصصَ مرصودةً في الفترة"
+},
+{
+"file": "templates/parents/all_attendance.html",
+"line": 36,
+"old": "alert-triangle",
+"key": "absence",
+"label": "غياب · –"
+},
+{
+"file": "templates/parents/all_attendance.html",
+"line": 43,
+"old": "calendar",
+"key": "periods_today",
+"label": "التفاصيل بالحصص"
+},
+{
+"file": "templates/parents/all_attendance.html",
+"line": 48,
+"old": "users",
+"key": "children",
+"label": "الأبناء"
+},
+{
+"file": "templates/parents/all_grades.html",
+"line": 12,
+"old": "bar-chart",
+"key": "grades",
+"label": "درجات الأبناء"
+},
+{
+"file": "templates/parents/all_grades.html",
+"line": 17,
+"old": "user",
+"key": "grades",
+"label": "المعدّل"
+},
+{
+"file": "templates/parents/all_grades.html",
+"line": 43,
+"old": "bar-chart",
+"key": "grades",
+"label": "لم تُدخل الدرجاتُ بعد"
+},
+{
+"file": "templates/parents/all_grades.html",
+"line": 48,
+"old": "users",
+"key": "children",
+"label": "الأبناء"
+},
+{
+"file": "templates/parents/behavior.html",
+"line": 12,
+"old": "scale",
+"key": "behavior",
+"label": "سلوك الأبناء"
+},
+{
+"file": "templates/parents/behavior.html",
+"line": 17,
+"old": "user",
+"key": "behavior_violation",
+"label": "مخالفاتٌ لم يُغلق إجراؤها"
+},
+{
+"file": "templates/parents/behavior.html",
+"line": 40,
+"old": "check-circle",
+"key": "status_success",
+"label": "لا مخالفاتٍ مسجّلة"
+},
+{
+"file": "templates/parents/behavior.html",
+"line": 45,
+"old": "users",
+"key": "children",
+"label": "الأبناء"
+},
+{
+"file": "templates/parents/consent.html",
+"line": 12,
+"old": "lock",
+"key": "policy",
+"label": "الموافقة على معالجة البيانات"
+},
+{
+"file": "templates/parents/consent.html",
+"line": 18,
+"old": "user",
+"key": "profile",
+"label": ""
+},
+{
+"file": "templates/parents/consent.html",
+"line": 33,
+"old": "users",
+"key": "children",
+"label": "الأبناء"
+},
+{
+"file": "templates/parents/consent.html",
+"line": 38,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "سحبُ الموافقة على نوعٍ من البيانات يحجب عنك متابعةَ ابنك في "
+},
+{
+"file": "templates/parents/consent.html",
+"line": 43,
+"old": "check",
+"key": "confirm",
+"label": "حفظ الإعدادات"
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 23,
+"old": "download",
+"key": "download",
+"label": ""
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 29,
+"old": "x-circle",
+"key": "status_error",
+"label": "إغلاق"
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 34,
+"old": "waypoints",
+"key": "link",
+"label": "متصل"
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 40,
+"old": "user",
+"key": "profile",
+"label": ""
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 49,
+"old": "bar-chart",
+"key": "grades",
+"label": "الدرجات"
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 52,
+"old": "calendar",
+"key": "attendance_register",
+"label": "الحضور"
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 54,
+"old": "shield",
+"key": "behavior",
+"label": "السلوك"
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 59,
+"old": "users",
+"key": "children",
+"label": "أبنائي"
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 63,
+"old": "layers",
+"key": "wings",
+"label": "روابط عامّة"
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 65,
+"old": "bar-chart",
+"key": "grades",
+"label": "كل الدرجات"
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 66,
+"old": "calendar",
+"key": "attendance_register",
+"label": "كل الحضور"
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 67,
+"old": "bell",
+"key": "notifications",
+"label": "الإشعارات"
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 68,
+"old": "lock",
+"key": "settings",
+"label": "إعدادات الخصوصية"
+},
+{
+"file": "templates/parents/dashboard.html",
+"line": 69,
+"old": "printer",
+"key": "print",
+"label": "لائحة السلوك"
+},
+{
+"file": "templates/parents/manage_links.html",
+"line": 15,
+"old": "waypoints",
+"key": "parents",
+"label": "ربط أولياء الأمور بالطلاب"
+},
+{
+"file": "templates/parents/manage_links.html",
+"line": 171,
+"old": "refresh",
+"key": "refresh",
+"label": "إعادة ضبط"
+},
+{
+"file": "templates/parents/partials/links_table.html",
+"line": 90,
+"old": "waypoints",
+"key": "link",
+"label": ""
+},
+{
+"file": "templates/parents/student_attendance.html",
+"line": 12,
+"old": "list-checks",
+"key": "checklist",
+"label": ""
+},
+{
+"file": "templates/parents/student_attendance.html",
+"line": 28,
+"old": "alert-triangle",
+"key": "absence",
+"label": "تنبيهات الغياب المتكرّر"
+},
+{
+"file": "templates/parents/student_attendance.html",
+"line": 40,
+"old": "calendar",
+"key": "date",
+"label": "تقويم الفترة"
+},
+{
+"file": "templates/parents/student_attendance.html",
+"line": 45,
+"old": "clock",
+"key": "absence",
+"label": "أيّامٌ فيها غيابٌ أو تأخّر"
+},
+{
+"file": "templates/parents/student_attendance.html",
+"line": 51,
+"old": "x-circle",
+"key": "status_error",
+"label": "غياب"
+},
+{
+"file": "templates/parents/student_attendance.html",
+"line": 53,
+"old": "clock",
+"key": "tardiness",
+"label": "تأخّر"
+},
+{
+"file": "templates/parents/student_grades.html",
+"line": 12,
+"old": "bar-chart",
+"key": "grades",
+"label": "المعدّل"
+},
+{
+"file": "templates/parents/student_grades.html",
+"line": 21,
+"old": "bar-chart",
+"key": "grades",
+"label": "الدرجات بالمادّة"
+},
+{
+"file": "templates/quality/committee.html",
+"line": 13,
+"old": "clipboard-check",
+"key": "observation",
+"label": "components/icon.html"
+},
+{
+"file": "templates/quality/committee.html",
+"line": 14,
+"old": "plus",
+"key": "add",
+"label": "إضافة عضو"
+},
+{
+"file": "templates/quality/committee.html",
+"line": 21,
+"old": "user-plus",
+"key": "user_add",
+"label": "إضافة عضو جديد للجنة"
+},
+{
+"file": "templates/quality/committee.html",
+"line": 61,
+"old": "plus",
+"key": "add",
+"label": "إضافة للجنة"
+},
+{
+"file": "templates/quality/committee.html",
+"line": 67,
+"old": "users",
+"key": "staff",
+"label": "الأعضاء الحاليون"
+},
+{
+"file": "templates/quality/committee.html",
+"line": 96,
+"old": "gavel",
+"key": "behavior_committee",
+"label": "مراجعة"
+},
+{
+"file": "templates/quality/committee.html",
+"line": 103,
+"old": "trash",
+"key": "delete",
+"label": "حذف"
+},
+{
+"file": "templates/quality/committee.html",
+"line": 114,
+"old": "layers",
+"key": "wings",
+"label": "تغطية المجالات"
+},
+{
+"file": "templates/quality/dashboard.html",
+"line": 12,
+"old": "bar-chart",
+"key": "quality",
+"label": "الخطة التشغيلية"
+},
+{
+"file": "templates/quality/dashboard.html",
+"line": 41,
+"old": "layers",
+"key": "wings",
+"label": "المجالات"
+},
+{
+"file": "templates/quality/dashboard.html",
+"line": 66,
+"old": "clipboard-check",
+"key": "quality",
+"label": "إجراءاتي"
+},
+{
+"file": "templates/quality/domain_detail.html",
+"line": 12,
+"old": "layers",
+"key": "wings",
+"label": "نسبة الإجراءات المكتملة في المجال"
+},
+{
+"file": "templates/quality/domain_detail.html",
+"line": 52,
+"old": "target",
+"key": "kpi",
+"label": ""
+},
+{
+"file": "templates/quality/domain_detail.html",
+"line": 64,
+"old": "target",
+"key": "kpi",
+"label": ""
+},
+{
+"file": "templates/quality/domain_detail.html",
+"line": 65,
+"old": "calendar",
+"key": "date",
+"label": ""
+},
+{
+"file": "templates/quality/domain_detail.html",
+"line": 66,
+"old": "file-text",
+"key": "document",
+"label": ""
+},
+{
+"file": "templates/quality/domain_detail.html",
+"line": 79,
+"old": "target",
+"key": "kpi",
+"label": "لا توجد أهداف لهذا المجال"
+},
+{
+"file": "templates/quality/evaluation_dashboard.html",
+"line": 12,
+"old": "list-checks",
+"key": "assessments",
+"label": "متوسط التقييمات المقدَّمة والمعتمدة والمستلمة"
+},
+{
+"file": "templates/quality/evaluation_dashboard.html",
+"line": 23,
+"old": "calendar",
+"key": "date",
+"label": "دورات التقييم"
+},
+{
+"file": "templates/quality/evaluation_dashboard.html",
+"line": 39,
+"old": "users",
+"key": "staff",
+"label": "الموظفون القابلون للتقييم"
+},
+{
+"file": "templates/quality/evaluation_dashboard.html",
+"line": 84,
+"old": "clipboard-check",
+"key": "assessments",
+"label": "التقييمات الأخيرة"
+},
+{
+"file": "templates/quality/evaluation_form.html",
+"line": 12,
+"old": "list-checks",
+"key": "staff_evaluation",
+"label": "تقييم أداء الموظف"
+},
+{
+"file": "templates/quality/evaluation_form.html",
+"line": 17,
+"old": "bar-chart",
+"key": "quality",
+"label": "محاور التقييم"
+},
+{
+"file": "templates/quality/evaluation_form.html",
+"line": 43,
+"old": "users",
+"key": "assessments",
+"label": "تقييمات المقيّمين المتعددين"
+},
+{
+"file": "templates/quality/evaluation_form.html",
+"line": 58,
+"old": "file-text",
+"key": "document",
+"label": "الملاحظات"
+},
+{
+"file": "templates/quality/execution_list.html",
+"line": 17,
+"old": "clipboard-check",
+"key": "quality",
+"label": "تنفيذ الخطة التشغيلية"
+},
+{
+"file": "templates/quality/execution_list.html",
+"line": 44,
+"old": "filter",
+"key": "filter",
+"label": "أدوات التصفية"
+},
+{
+"file": "templates/quality/execution_list.html",
+"line": 131,
+"old": "search",
+"key": "search",
+"label": "بحث"
+},
+{
+"file": "templates/quality/execution_list.html",
+"line": 143,
+"old": "chevron-right",
+"key": "prev",
+"label": "السابق"
+},
+{
+"file": "templates/quality/execution_list.html",
+"line": 148,
+"old": "chevron-left",
+"key": "next",
+"label": ""
+},
+{
+"file": "templates/quality/execution_list.html",
+"line": 183,
+"old": "inbox",
+"key": "empty",
+"label": ""
+},
+{
+"file": "templates/quality/execution_list.html",
+"line": 198,
+"old": "chevron-right",
+"key": "prev",
+"label": "السابق"
+},
+{
+"file": "templates/quality/execution_list.html",
+"line": 203,
+"old": "chevron-left",
+"key": "next",
+"label": ""
+},
+{
+"file": "templates/quality/executor_committee.html",
+"line": 13,
+"old": "settings",
+"key": "quality",
+"label": "لجنة منفذي الخطة التشغيلية"
+},
+{
+"file": "templates/quality/executor_committee.html",
+"line": 14,
+"old": "plus",
+"key": "add",
+"label": "إضافة عضو"
+},
+{
+"file": "templates/quality/executor_committee.html",
+"line": 28,
+"old": "user-plus",
+"key": "quality",
+"label": "إضافة عضو للجنة المنفذين"
+},
+{
+"file": "templates/quality/executor_committee.html",
+"line": 69,
+"old": "plus",
+"key": "add",
+"label": "إضافة للجنة"
+},
+{
+"file": "templates/quality/executor_committee.html",
+"line": 76,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "منفذون لم يُربطوا بمستخدم"
+},
+{
+"file": "templates/quality/executor_committee.html",
+"line": 83,
+"old": "waypoints",
+"key": "link",
+"label": "ربط المنفذين"
+},
+{
+"file": "templates/quality/executor_committee.html",
+"line": 88,
+"old": "bar-chart",
+"key": "quality",
+"label": "أعضاء اللجنة وتقارير الإنجاز"
+},
+{
+"file": "templates/quality/executor_mapping.html",
+"line": 12,
+"old": "waypoints",
+"key": "quality",
+"label": "ربط المنفذين بالموظفين"
+},
+{
+"file": "templates/quality/executor_mapping.html",
+"line": 29,
+"old": "users",
+"key": "quality",
+"label": "قائمة المنفذين"
+},
+{
+"file": "templates/quality/executor_member_detail.html",
+"line": 12,
+"old": "user",
+"key": "profile",
+"label": "executor_committee"
+},
+{
+"file": "templates/quality/executor_member_detail.html",
+"line": 51,
+"old": "clipboard-check",
+"key": "observation",
+"label": "الإجراءات"
+},
+{
+"file": "templates/quality/modals/review_evaluate.html",
+"line": 10,
+"old": "gavel",
+"key": "staff_evaluation",
+"label": "تقييم الأداء والمراجعة الذاتية"
+},
+{
+"file": "templates/quality/modals/review_evaluate.html",
+"line": 17,
+"old": "x",
+"key": "close",
+"label": "إغلاق"
+},
+{
+"file": "templates/quality/modals/review_evaluate.html",
+"line": 26,
+"old": "info",
+"key": "status_info",
+"label": "بيانات الإجراء والمؤشر"
+},
+{
+"file": "templates/quality/modals/review_evaluate.html",
+"line": 49,
+"old": "clipboard-check",
+"key": "quality",
+"label": "بيانات التنفيذ والأدلة"
+},
+{
+"file": "templates/quality/modals/review_evaluate.html",
+"line": 76,
+"old": "download",
+"key": "download",
+"label": ""
+},
+{
+"file": "templates/quality/modals/review_evaluate.html",
+"line": 99,
+"old": "stamp",
+"key": "behavior_committee",
+"label": "قرار اللجنة"
+},
+{
+"file": "templates/quality/modals/review_evaluate.html",
+"line": 108,
+"old": "file-warning",
+"key": "quality",
+"label": "طلب أدلة إضافية من المنفذ"
+},
+{
+"file": "templates/quality/modals/review_evaluate.html",
+"line": 152,
+"old": "check-double",
+"key": "all_present",
+"label": "حفظ واعتماد"
+},
+{
+"file": "templates/quality/modals/task_update.html",
+"line": 10,
+"old": "pen-square",
+"key": "edit",
+"label": "تحديث بيانات التنفيذ"
+},
+{
+"file": "templates/quality/modals/task_update.html",
+"line": 17,
+"old": "x",
+"key": "close",
+"label": "إغلاق"
+},
+{
+"file": "templates/quality/modals/task_update.html",
+"line": 26,
+"old": "info",
+"key": "status_info",
+"label": "بيانات الإجراء والمؤشر"
+},
+{
+"file": "templates/quality/modals/task_update.html",
+"line": 50,
+"old": "lock",
+"key": "security",
+"label": "وضع المعاينة فقط — ليس لديك صلاحية التعديل"
+},
+{
+"file": "templates/quality/modals/task_update.html",
+"line": 106,
+"old": "alert-triangle",
+"key": "quality",
+"label": "مطلوب رفع دليل من لجنة المراجعة"
+},
+{
+"file": "templates/quality/modals/task_update.html",
+"line": 121,
+"old": "paperclip",
+"key": "attach",
+"label": ""
+},
+{
+"file": "templates/quality/modals/task_update.html",
+"line": 136,
+"old": "cloud-upload",
+"key": "upload",
+"label": ""
+},
+{
+"file": "templates/quality/modals/task_update.html",
+"line": 148,
+"old": "floppy-disk",
+"key": "save",
+"label": "حفظ التغييرات"
+},
+{
+"file": "templates/quality/my_evaluations.html",
+"line": 12,
+"old": "list-checks",
+"key": "assessments",
+"label": "تقييمات الأداء الخاصة بي"
+},
+{
+"file": "templates/quality/my_evaluations.html",
+"line": 15,
+"old": "clipboard-check",
+"key": "observation",
+"label": ""
+},
+{
+"file": "templates/quality/my_evaluations.html",
+"line": 30,
+"old": "check",
+"key": "confirm",
+"label": "تم الإقرار بالاستلام"
+},
+{
+"file": "templates/quality/my_evaluations.html",
+"line": 34,
+"old": "list-checks",
+"key": "assessments",
+"label": "لا توجد تقييمات بعد"
+},
+{
+"file": "templates/quality/my_procedures.html",
+"line": 12,
+"old": "clipboard-check",
+"key": "quality",
+"label": "إجراءاتي في الخطة التشغيلية"
+},
+{
+"file": "templates/quality/my_procedures.html",
+"line": 42,
+"old": "list-checks",
+"key": "checklist",
+"label": "الإجراءات"
+},
+{
+"file": "templates/quality/my_procedures.html",
+"line": 44,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/quality/my_procedures.html",
+"line": 55,
+"old": "calendar",
+"key": "date",
+"label": ""
+},
+{
+"file": "templates/quality/my_procedures.html",
+"line": 57,
+"old": "clock",
+"key": "time",
+"label": "تجاوز الموعد ولم يكتمل"
+},
+{
+"file": "templates/quality/observation_archive.html",
+"line": 16,
+"old": "inbox",
+"key": "observation",
+"label": "أرشيف الزيارات الصفية"
+},
+{
+"file": "templates/quality/observation_archive.html",
+"line": 20,
+"old": "inbox",
+"key": "observation",
+"label": "الزيارات المؤرشفة"
+},
+{
+"file": "templates/quality/observation_detail.html",
+"line": 13,
+"old": "clipboard-check",
+"key": "observation",
+"label": "observation_submit"
+},
+{
+"file": "templates/quality/observation_detail.html",
+"line": 34,
+"old": "info",
+"key": "status_info",
+"label": "بيانات الزيارة"
+},
+{
+"file": "templates/quality/observation_detail.html",
+"line": 49,
+"old": "list-checks",
+"key": "checklist",
+"label": ""
+},
+{
+"file": "templates/quality/observation_detail.html",
+"line": 69,
+"old": "file-text",
+"key": "document",
+"label": "ملاحظات وتوصيات عامّة"
+},
+{
+"file": "templates/quality/observation_detail.html",
+"line": 75,
+"old": "check-circle",
+"key": "status_success",
+"label": "الإقرار بالاطّلاع"
+},
+{
+"file": "templates/quality/observation_detail.html",
+"line": 85,
+"old": "check-circle",
+"key": "status_success",
+"label": "إقرار المعلّم"
+},
+{
+"file": "templates/quality/observation_detail.html",
+"line": 113,
+"old": "trash",
+"key": "delete",
+"label": "حذف ملاحظة مُرسَلة"
+},
+{
+"file": "templates/quality/observation_form.html",
+"line": 12,
+"old": "clipboard-check",
+"key": "observation",
+"label": "observation_detail"
+},
+{
+"file": "templates/quality/observation_form.html",
+"line": 21,
+"old": "info",
+"key": "status_info",
+"label": "المعلومات الأساسيّة"
+},
+{
+"file": "templates/quality/observation_form.html",
+"line": 77,
+"old": "list-checks",
+"key": "checklist",
+"label": ""
+},
+{
+"file": "templates/quality/observation_form.html",
+"line": 108,
+"old": "file-text",
+"key": "document",
+"label": "ملاحظات وتوصيات عامّة"
+},
+{
+"file": "templates/quality/observation_list.html",
+"line": 12,
+"old": "clipboard-check",
+"key": "observation",
+"label": "الزيارات الصفية"
+},
+{
+"file": "templates/quality/observation_list.html",
+"line": 70,
+"old": "list-checks",
+"key": "observation",
+"label": "الزيارات"
+},
+{
+"file": "templates/quality/observation_pdf_view.html",
+"line": 18,
+"old": "file-text",
+"key": "document",
+"label": "استمارة"
+},
+{
+"file": "templates/quality/partials/review_row.html",
+"line": 7,
+"old": "check-circle",
+"key": "status_success",
+"label": "معتمد"
+},
+{
+"file": "templates/quality/partials/review_row.html",
+"line": 14,
+"old": "gavel",
+"key": "behavior_committee",
+"label": "القرار"
+},
+{
+"file": "templates/quality/partials/review_row.html",
+"line": 74,
+"old": "download",
+"key": "download",
+"label": ""
+},
+{
+"file": "templates/quality/partials/review_row.html",
+"line": 92,
+"old": "circle-alert",
+"key": "status_error",
+"label": "مطلوب"
+},
+{
+"file": "templates/quality/partials/review_row.html",
+"line": 94,
+"old": "check",
+"key": "confirm",
+"label": "تم الإرفاق"
+},
+{
+"file": "templates/quality/partials/review_row.html",
+"line": 100,
+"old": "file-warning",
+"key": "quality",
+"label": "طلب دليل"
+},
+{
+"file": "templates/quality/procedure_detail.html",
+"line": 12,
+"old": "clipboard-check",
+"key": "observation",
+"label": "تفاصيل الإجراء"
+},
+{
+"file": "templates/quality/procedure_detail.html",
+"line": 16,
+"old": "file-text",
+"key": "document",
+"label": "quality/partials/procedure_status_badge.html"
+},
+{
+"file": "templates/quality/procedure_detail.html",
+"line": 86,
+"old": "pencil",
+"key": "edit",
+"label": "تحديث الحالة"
+},
+{
+"file": "templates/quality/procedure_detail.html",
+"line": 112,
+"old": "clock",
+"key": "time",
+"label": "سجل التغييرات"
+},
+{
+"file": "templates/quality/procedure_detail.html",
+"line": 127,
+"old": "user",
+"key": "profile",
+"label": ""
+},
+{
+"file": "templates/quality/procedure_detail.html",
+"line": 140,
+"old": "paperclip",
+"key": "quality",
+"label": "الأدلة المرفوعة"
+},
+{
+"file": "templates/quality/procedure_detail.html",
+"line": 159,
+"old": "upload",
+"key": "quality",
+"label": "رفع دليل جديد"
+},
+{
+"file": "templates/quality/progress_report.html",
+"line": 12,
+"old": "activity",
+"key": "trend",
+"label": "تقرير التقدم الكلي"
+},
+{
+"file": "templates/quality/progress_report.html",
+"line": 13,
+"old": "file-text",
+"key": "export_pdf",
+"label": "تصدير PDF"
+},
+{
+"file": "templates/quality/progress_report.html",
+"line": 26,
+"old": "layers",
+"key": "trend",
+"label": "التقدم حسب المجال"
+},
+{
+"file": "templates/quality/progress_report.html",
+"line": 48,
+"old": "users",
+"key": "quality",
+"label": "أداء المنفذين"
+},
+{
+"file": "templates/quality/progress_report.html",
+"line": 71,
+"old": "alert-triangle",
+"key": "quality",
+"label": "الإجراءات المتأخرة"
+},
+{
+"file": "templates/quality/progress_report.html",
+"line": 103,
+"old": "paperclip",
+"key": "quality",
+"label": "طلبات الدليل المعلقة"
+},
+{
+"file": "templates/quality/review_list.html",
+"line": 17,
+"old": "clipboard-check",
+"key": "quality",
+"label": "لجنة المراجعة الذاتية"
+},
+{
+"file": "templates/quality/review_list.html",
+"line": 48,
+"old": "filter",
+"key": "filter",
+"label": "أدوات التصفية"
+},
+{
+"file": "templates/quality/review_list.html",
+"line": 142,
+"old": "search",
+"key": "search",
+"label": "بحث"
+},
+{
+"file": "templates/quality/review_list.html",
+"line": 154,
+"old": "chevron-right",
+"key": "prev",
+"label": "السابق"
+},
+{
+"file": "templates/quality/review_list.html",
+"line": 159,
+"old": "chevron-left",
+"key": "next",
+"label": ""
+},
+{
+"file": "templates/quality/review_list.html",
+"line": 194,
+"old": "inbox",
+"key": "empty",
+"label": ""
+},
+{
+"file": "templates/quality/review_list.html",
+"line": 209,
+"old": "chevron-right",
+"key": "prev",
+"label": "السابق"
+},
+{
+"file": "templates/quality/review_list.html",
+"line": 214,
+"old": "chevron-left",
+"key": "next",
+"label": ""
+},
+{
+"file": "templates/reports/index.html",
+"line": 13,
+"old": "file-text",
+"key": "reports",
+"label": "التقارير والشهادات"
+},
+{
+"file": "templates/reports/index.html",
+"line": 19,
+"old": "user",
+"key": "student_info",
+"label": "بحث طالب فردي"
+},
+{
+"file": "templates/reports/index.html",
+"line": 39,
+"old": "bar-chart",
+"key": "stats",
+"label": ""
+},
+{
+"file": "templates/reports/index.html",
+"line": 43,
+"old": "file-text",
+"key": "document",
+"label": ""
+},
+{
+"file": "templates/reports/index.html",
+"line": 47,
+"old": "calendar",
+"key": "date",
+"label": ""
+},
+{
+"file": "templates/reports/index.html",
+"line": 52,
+"old": "scale",
+"key": "behavior",
+"label": ""
+},
+{
+"file": "templates/reports/index.html",
+"line": 117,
+"old": "scale",
+"key": "behavior_violation",
+"label": "كشف المخالفات السلوكية"
+},
+{
+"file": "templates/reports/index.html",
+"line": 122,
+"old": "download",
+"key": "export_excel",
+"label": "تنزيل Excel"
+},
+{
+"file": "templates/reports/index.html",
+"line": 144,
+"old": "file-text",
+"key": "export_pdf",
+"label": "PDF"
+},
+{
+"file": "templates/reports/index.html",
+"line": 150,
+"old": "file-text",
+"key": "export_pdf",
+"label": "PDF"
+},
+{
+"file": "templates/reports/index.html",
+"line": 154,
+"old": "file-text",
+"key": "export_pdf",
+"label": "PDF"
+},
+{
+"file": "templates/reports/index.html",
+"line": 165,
+"old": "list-checks",
+"key": "checklist",
+"label": "لا توجد فصول"
+},
+{
+"file": "templates/reports/report_viewer.html",
+"line": 15,
+"old": "file-text",
+"key": "document",
+"label": ""
+},
+{
+"file": "templates/schedule/compensatory_form.html",
+"line": 11,
+"old": "list-checks",
+"key": "compensation",
+"label": "طلب حصة تعويضية"
+},
+{
+"file": "templates/schedule/compensatory_form.html",
+"line": 12,
+"old": "file-pen",
+"key": "edit_record",
+"label": "بيانات الطلب"
+},
+{
+"file": "templates/schedule/compensatory_form.html",
+"line": 13,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "الحد الأقصى للتعويض: أسبوع واحد من تاريخ الغياب"
+},
+{
+"file": "templates/schedule/compensatory_list.html",
+"line": 16,
+"old": "list-checks",
+"key": "compensation",
+"label": "الحصص التعويضية"
+},
+{
+"file": "templates/schedule/compensatory_list.html",
+"line": 18,
+"old": "file-pen",
+"key": "edit_record",
+"label": "طلب تعويض"
+},
+{
+"file": "templates/schedule/compensatory_list.html",
+"line": 39,
+"old": "list-checks",
+"key": "checklist",
+"label": "الطلبات"
+},
+{
+"file": "templates/schedule/pages_view.html",
+"line": 16,
+"old": "printer",
+"key": "print",
+"label": ""
+},
+{
+"file": "templates/schedule/partials/exemption_grid.html",
+"line": 91,
+"old": "trash-2",
+"key": "delete",
+"label": "إلغاءُ التفريغ عن 0 خانة"
+},
+{
+"file": "templates/schedule/partials/swap_card.html",
+"line": 35,
+"old": "check-circle",
+"key": "status_success",
+"label": ":"
+},
+{
+"file": "templates/schedule/partials/swap_card.html",
+"line": 38,
+"old": "clock",
+"key": "time",
+"label": ": بانتظار"
+},
+{
+"file": "templates/schedule/print_view.html",
+"line": 21,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "معاينة مسودّة توليد — · · جودة %"
+},
+{
+"file": "templates/schedule/print_view.html",
+"line": 33,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/schedule/print_view.html",
+"line": 39,
+"old": "calendar",
+"key": "date",
+"label": ""
+},
+{
+"file": "templates/schedule/quality_lab.html",
+"line": 12,
+"old": "activity",
+"key": "schedule",
+"label": "مختبر جودة الجدول"
+},
+{
+"file": "templates/schedule/quality_lab.html",
+"line": 59,
+"old": "activity",
+"key": "stats",
+"label": "الصورة الكلّية"
+},
+{
+"file": "templates/schedule/quality_lab.html",
+"line": 77,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "الضغط = (الفراغ الموزون + الأولى والسابعة + تجاوزات التتابع + تفاوت الأيام) ÷ النصاب"
+},
+{
+"file": "templates/schedule/quality_lab.html",
+"line": 90,
+"old": "layers",
+"key": "wings",
+"label": "الموارد"
+},
+{
+"file": "templates/schedule/quality_lab.html",
+"line": 103,
+"old": "layers",
+"key": "wings",
+"label": "لا موارد معرَّفة"
+},
+{
+"file": "templates/schedule/quality_lab.html",
+"line": 141,
+"old": "users",
+"key": "settings",
+"label": "تفضيلات لم تتحقّق"
+},
+{
+"file": "templates/schedule/schedule_settings.html",
+"line": 14,
+"old": "settings-2",
+"key": "settings",
+"label": "إعدادات الجدول والتفريغات"
+},
+{
+"file": "templates/schedule/schedule_settings.html",
+"line": 15,
+"old": "arrow-right",
+"key": "generate",
+"label": "الجدولة الذكية"
+},
+{
+"file": "templates/schedule/schedule_settings.html",
+"line": 19,
+"old": "user-minus",
+"key": "exemptions",
+"label": "تفريغات المعلمين والمنسقين"
+},
+{
+"file": "templates/schedule/schedule_settings.html",
+"line": 85,
+"old": "plus",
+"key": "add",
+"label": "إضافة تفريغ"
+},
+{
+"file": "templates/schedule/schedule_settings.html",
+"line": 102,
+"old": "trash-2",
+"key": "delete",
+"label": "إلغاء المحدَّد ("
+},
+{
+"file": "templates/schedule/schedule_settings.html",
+"line": 146,
+"old": "trash-2",
+"key": "delete",
+"label": "إلغاء"
+},
+{
+"file": "templates/schedule/schedule_settings.html",
+"line": 156,
+"old": "user-minus",
+"key": "user_remove",
+"label": "لا توجد تفريغات حالياً"
+},
+{
+"file": "templates/schedule/schedule_settings.html",
+"line": 176,
+"old": "users",
+"key": "settings",
+"label": "تفضيلات المعلمين المسجلة"
+},
+{
+"file": "templates/schedule/schedule_settings.html",
+"line": 184,
+"old": "trash-2",
+"key": "delete",
+"label": "حذف المحدَّد ("
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 13,
+"old": "bot",
+"key": "generate",
+"label": "الجدولة الذكية"
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 14,
+"old": "book-open",
+"key": "workload",
+"label": "الإسناد"
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 15,
+"old": "settings-2",
+"key": "settings",
+"label": "الإعدادات"
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 16,
+"old": "activity",
+"key": "quality",
+"label": "مختبر الجودة"
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 17,
+"old": "calendar",
+"key": "schedule",
+"label": "الجدول الحالي"
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 37,
+"old": "list-checks",
+"key": "checklist",
+"label": "فحصُ الجدوى قبل التوليد"
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 41,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 53,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 110,
+"old": "bot",
+"key": "generate",
+"label": "توليد الجدول التلقائي"
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 140,
+"old": "bot",
+"key": "generate",
+"label": "توليد الجدول التلقائي"
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 141,
+"old": "list-checks",
+"key": "stats",
+"label": "لا توجد توزيعات مواد"
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 143,
+"old": "book-open",
+"key": "workload",
+"label": "شاشة توزيعات المواد"
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 150,
+"old": "bar-chart",
+"key": "stats",
+"label": "منسوبةً إلى الأساس المعتمَد"
+},
+{
+"file": "templates/schedule/smart_schedule.html",
+"line": 231,
+"old": "activity",
+"key": "kpi",
+"label": "مؤشرات التوليد"
+},
+{
+"file": "templates/schedule/swap_list.html",
+"line": 16,
+"old": "refresh",
+"key": "swap_requests",
+"label": "طلبات التبديل"
+},
+{
+"file": "templates/schedule/swap_list.html",
+"line": 18,
+"old": "file-pen",
+"key": "edit_record",
+"label": "طلب تبديل"
+},
+{
+"file": "templates/schedule/swap_list.html",
+"line": 21,
+"old": "refresh-cw",
+"key": "generate",
+"label": "بناء سجل الحصص الحرة"
+},
+{
+"file": "templates/schedule/swap_list.html",
+"line": 42,
+"old": "refresh",
+"key": "refresh",
+"label": "الطلبات"
+},
+{
+"file": "templates/schedule/swap_request.html",
+"line": 11,
+"old": "refresh",
+"key": "swap_requests",
+"label": "طلب تبديل حصة"
+},
+{
+"file": "templates/schedule/swap_request.html",
+"line": 12,
+"old": "file-pen",
+"key": "edit_record",
+"label": "بيانات الطلب"
+},
+{
+"file": "templates/schedule/swap_respond.html",
+"line": 11,
+"old": "refresh",
+"key": "swap_requests",
+"label": "طلب تبديل حصة"
+},
+{
+"file": "templates/schedule/swap_respond.html",
+"line": 12,
+"old": "arrow-right",
+"key": "back",
+"label": "قائمة التبديلات"
+},
+{
+"file": "templates/schedule/swap_respond.html",
+"line": 15,
+"old": "refresh",
+"key": "refresh",
+"label": "الحصّتان"
+},
+{
+"file": "templates/schedule/teacher_load.html",
+"line": 12,
+"old": "activity",
+"key": "workload",
+"label": "تقرير أعباء المعلمين"
+},
+{
+"file": "templates/schedule/teacher_load.html",
+"line": 19,
+"old": "users",
+"key": "workload",
+"label": "توزيع الحصص والعدالة"
+},
+{
+"file": "templates/schedule/teacher_preferences.html",
+"line": 12,
+"old": "settings",
+"key": "settings",
+"label": "تفضيلاتي للجدولة الذكية"
+},
+{
+"file": "templates/schedule/teacher_preferences.html",
+"line": 15,
+"old": "sliders-horizontal",
+"key": "settings",
+"label": "تفضيلات الجدول"
+},
+{
+"file": "templates/staff_affairs/_staff_table.html",
+"line": 88,
+"old": "users",
+"key": "staff",
+"label": "لا منتسبين مطابقين"
+},
+{
+"file": "templates/staff_affairs/dashboard.html",
+"line": 13,
+"old": "settings",
+"key": "staff",
+"label": "شؤون الموظفين"
+},
+{
+"file": "templates/staff_affairs/dashboard.html",
+"line": 14,
+"old": "list-checks",
+"key": "staff",
+"label": "سجل الموظفين"
+},
+{
+"file": "templates/staff_affairs/dashboard.html",
+"line": 15,
+"old": "ban",
+"key": "attendance_teacher_absence",
+"label": "غياب المعلمين"
+},
+{
+"file": "templates/staff_affairs/dashboard.html",
+"line": 16,
+"old": "refresh",
+"key": "refresh",
+"label": "طلبات التبديل"
+},
+{
+"file": "templates/staff_affairs/dashboard.html",
+"line": 17,
+"old": "list-checks",
+"key": "compensation",
+"label": "الحصص التعويضية"
+},
+{
+"file": "templates/staff_affairs/dashboard.html",
+"line": 18,
+"old": "calendar",
+"key": "leave",
+"label": "الإجازات"
+},
+{
+"file": "templates/staff_affairs/dashboard.html",
+"line": 19,
+"old": "bar-chart",
+"key": "staff_evaluation",
+"label": "تقييم الأداء"
+},
+{
+"file": "templates/staff_affairs/dashboard.html",
+"line": 20,
+"old": "lock",
+"key": "licences",
+"label": "الرخص المهنية"
+},
+{
+"file": "templates/staff_affairs/dashboard.html",
+"line": 21,
+"old": "activity",
+"key": "workload",
+"label": "أعباء المعلمين"
+},
+{
+"file": "templates/staff_affairs/dashboard.html",
+"line": 37,
+"old": "users",
+"key": "staff",
+"label": "توزيع الموظفين حسب الدور"
+},
+{
+"file": "templates/staff_affairs/dashboard.html",
+"line": 60,
+"old": "ban",
+"key": "absence",
+"label": "آخر حالات الغياب"
+},
+{
+"file": "templates/staff_affairs/dashboard.html",
+"line": 71,
+"old": "calendar",
+"key": "leave",
+"label": "آخر طلبات الإجازات"
+},
+{
+"file": "templates/staff_affairs/leave_detail.html",
+"line": 10,
+"old": "calendar",
+"key": "leave",
+"label": "تفاصيل طلب الإجازة"
+},
+{
+"file": "templates/staff_affairs/leave_detail.html",
+"line": 14,
+"old": "file-text",
+"key": "document",
+"label": "بيانات الطلب"
+},
+{
+"file": "templates/staff_affairs/leave_detail.html",
+"line": 29,
+"old": "list-checks",
+"key": "checklist",
+"label": "مراجعة الطلب"
+},
+{
+"file": "templates/staff_affairs/leave_detail.html",
+"line": 41,
+"old": "check-circle",
+"key": "status_success",
+"label": "تنفيذ القرار"
+},
+{
+"file": "templates/staff_affairs/leave_form.html",
+"line": 10,
+"old": "calendar",
+"key": "leave",
+"label": "طلب إجازة جديد"
+},
+{
+"file": "templates/staff_affairs/leave_form.html",
+"line": 12,
+"old": "file-pen",
+"key": "edit_record",
+"label": "بيانات الطلب"
+},
+{
+"file": "templates/staff_affairs/leave_form.html",
+"line": 14,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/staff_affairs/leave_form.html",
+"line": 38,
+"old": "check-circle",
+"key": "status_success",
+"label": "تقديم الطلب"
+},
+{
+"file": "templates/staff_affairs/leave_list.html",
+"line": 10,
+"old": "calendar",
+"key": "leave",
+"label": "طلبات الإجازات"
+},
+{
+"file": "templates/staff_affairs/leave_list.html",
+"line": 11,
+"old": "file-pen",
+"key": "edit_record",
+"label": "طلب إجازة جديد"
+},
+{
+"file": "templates/staff_affairs/leave_list.html",
+"line": 34,
+"old": "list-checks",
+"key": "checklist",
+"label": "الطلبات"
+},
+{
+"file": "templates/staff_affairs/licensing.html",
+"line": 10,
+"old": "lock",
+"key": "security",
+"label": "رخصٌ تنتهي خلال تسعين يوماً"
+},
+{
+"file": "templates/staff_affairs/licensing.html",
+"line": 25,
+"old": "x-circle",
+"key": "status_error",
+"label": "رخص منتهية"
+},
+{
+"file": "templates/staff_affairs/licensing.html",
+"line": 36,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "تنتهي قريباً"
+},
+{
+"file": "templates/staff_affairs/licensing.html",
+"line": 47,
+"old": "alert-triangle",
+"key": "licences",
+"label": "معلمون بلا رخصة مهنية"
+},
+{
+"file": "templates/staff_affairs/staff_appoint.html",
+"line": 15,
+"old": "user",
+"key": "staff",
+"label": "تعيين منتسب"
+},
+{
+"file": "templates/staff_affairs/staff_appoint.html",
+"line": 42,
+"old": "check",
+"key": "confirm",
+"label": "تعيين"
+},
+{
+"file": "templates/staff_affairs/staff_list.html",
+"line": 17,
+"old": "list-checks",
+"key": "staff",
+"label": "سجل الكادر"
+},
+{
+"file": "templates/staff_affairs/staff_list.html",
+"line": 18,
+"old": "user",
+"key": "staff",
+"label": "تعيين منتسب"
+},
+{
+"file": "templates/staff_affairs/staff_list.html",
+"line": 68,
+"old": "refresh",
+"key": "refresh",
+"label": "إعادة ضبط"
+},
+{
+"file": "templates/staff_affairs/staff_profile.html",
+"line": 13,
+"old": "user",
+"key": "profile",
+"label": "teacher_weekly_view"
+},
+{
+"file": "templates/staff_affairs/staff_profile.html",
+"line": 16,
+"old": "calendar",
+"key": "schedule",
+"label": "الجدول الأسبوعي"
+},
+{
+"file": "templates/staff_affairs/staff_profile.html",
+"line": 29,
+"old": "user",
+"key": "licences",
+"label": "البيانات الشخصية والرخصة المهنية"
+},
+{
+"file": "templates/staff_affairs/staff_profile.html",
+"line": 44,
+"old": "check",
+"key": "confirm",
+"label": "حفظ البيانات"
+},
+{
+"file": "templates/staff_affairs/staff_profile.html",
+"line": 48,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "الرخصةُ المهنيّةُ منتهيةٌ منذ ."
+},
+{
+"file": "templates/staff_affairs/staff_profile.html",
+"line": 60,
+"old": "briefcase",
+"key": "workload",
+"label": "بيانات الوظيفة"
+},
+{
+"file": "templates/staff_affairs/staff_profile.html",
+"line": 72,
+"old": "check",
+"key": "confirm",
+"label": "حفظ بيانات الوظيفة"
+},
+{
+"file": "templates/staff_affairs/staff_profile.html",
+"line": 79,
+"old": "clipboard",
+"key": "document",
+"label": "الالتحاق والمغادرة"
+},
+{
+"file": "templates/staff_affairs/staff_profile.html",
+"line": 122,
+"old": "ban",
+"key": "absence",
+"label": "سجل الغياب"
+},
+{
+"file": "templates/staff_affairs/staff_profile.html",
+"line": 133,
+"old": "bar-chart",
+"key": "staff_evaluation",
+"label": "تقييم الأداء"
+},
+{
+"file": "templates/staff_affairs/staff_profile.html",
+"line": 146,
+"old": "calendar",
+"key": "leave",
+"label": "أرصدة الإجازات"
+},
+{
+"file": "templates/staff_affairs/staff_profile.html",
+"line": 157,
+"old": "file-text",
+"key": "leave",
+"label": "آخر طلبات الإجازة"
+},
+{
+"file": "templates/staff_affairs/staff_profile.html",
+"line": 172,
+"old": "clipboard-check",
+"key": "observation",
+"label": "سجلُّ التعديلات"
+},
+{
+"file": "templates/staging/import_grades.html",
+"line": 12,
+"old": "download",
+"key": "import",
+"label": "استيراد الدرجات"
+},
+{
+"file": "templates/staging/import_grades.html",
+"line": 13,
+"old": "clock",
+"key": "time",
+"label": "سجل العمليات السابقة"
+},
+{
+"file": "templates/staging/import_grades.html",
+"line": 15,
+"old": "list-checks",
+"key": "assessments",
+"label": "التقييمات"
+},
+{
+"file": "templates/staging/import_grades.html",
+"line": 19,
+"old": "list-checks",
+"key": "import",
+"label": "التقييمات المتاحة للاستيراد"
+},
+{
+"file": "templates/staging/import_grades.html",
+"line": 22,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/staging/import_grades.html",
+"line": 49,
+"old": "arrow-down-to-line",
+"key": "export_excel",
+"label": "قالب Excel"
+},
+{
+"file": "templates/staging/import_grades.html",
+"line": 51,
+"old": "arrow-down-to-line",
+"key": "export_excel",
+"label": "قالب Excel"
+},
+{
+"file": "templates/staging/import_grades.html",
+"line": 54,
+"old": "arrow-up-from-line",
+"key": "upload",
+"label": "رفع الدرجات"
+},
+{
+"file": "templates/staging/import_grades.html",
+"line": 65,
+"old": "eye",
+"key": "view",
+"label": "معاينة"
+},
+{
+"file": "templates/staging/import_grades.html",
+"line": 68,
+"old": "arrow-up-from-line",
+"key": "import",
+"label": "استيراد"
+},
+{
+"file": "templates/staging/import_grades.html",
+"line": 70,
+"old": "x",
+"key": "close",
+"label": "إغلاق"
+},
+{
+"file": "templates/staging/import_grades.html",
+"line": 83,
+"old": "clock",
+"key": "import",
+"label": "آخر عمليات الاستيراد"
+},
+{
+"file": "templates/staging/import_log.html",
+"line": 12,
+"old": "file-text",
+"key": "import",
+"label": "سجل عمليات الاستيراد"
+},
+{
+"file": "templates/staging/import_log.html",
+"line": 13,
+"old": "plus",
+"key": "import",
+"label": "استيراد جديد"
+},
+{
+"file": "templates/staging/import_log.html",
+"line": 35,
+"old": "folder-open",
+"key": "folder",
+"label": "العمليات"
+},
+{
+"file": "templates/staging/import_result.html",
+"line": 14,
+"old": "list-checks",
+"key": "grades",
+"label": "عرض كشف الدرجات"
+},
+{
+"file": "templates/staging/import_result.html",
+"line": 16,
+"old": "arrow-up-from-line",
+"key": "upload",
+"label": ""
+},
+{
+"file": "templates/staging/import_result.html",
+"line": 29,
+"old": "file-spreadsheet",
+"key": "export_excel",
+"label": "الملف والتقييم"
+},
+{
+"file": "templates/staging/import_result.html",
+"line": 32,
+"old": "eye",
+"key": "view",
+"label": ""
+},
+{
+"file": "templates/staging/import_result.html",
+"line": 43,
+"old": "x-circle",
+"key": "status_error",
+"label": "الأخطاء"
+},
+{
+"file": "templates/staging/import_result.html",
+"line": 46,
+"old": "x",
+"key": "close",
+"label": ""
+},
+{
+"file": "templates/staging/import_result.html",
+"line": 53,
+"old": "check-circle",
+"key": "status_success",
+"label": "الصفوف التي ستُستورد"
+},
+{
+"file": "templates/student_affairs/_student_table.html",
+"line": 68,
+"old": "user",
+"key": "student_info",
+"label": "الملف الشامل"
+},
+{
+"file": "templates/student_affairs/_student_table.html",
+"line": 71,
+"old": "file-pen",
+"key": "edit_record",
+"label": "تعديل"
+},
+{
+"file": "templates/student_affairs/_student_table.html",
+"line": 82,
+"old": "search",
+"key": "students",
+"label": "لا يوجد طلاب مطابقون للبحث"
+},
+{
+"file": "templates/student_affairs/activity_form.html",
+"line": 13,
+"old": "activity",
+"key": "activities",
+"label": "تسجيل نشاط / إنجاز"
+},
+{
+"file": "templates/student_affairs/activity_form.html",
+"line": 15,
+"old": "activity",
+"key": "activities",
+"label": "تعديل النشاط"
+},
+{
+"file": "templates/student_affairs/activity_form.html",
+"line": 93,
+"old": "check-circle",
+"key": "status_success",
+"label": ""
+},
+{
+"file": "templates/student_affairs/activity_list.html",
+"line": 12,
+"old": "activity",
+"key": "activities",
+"label": "الأنشطة والإنجازات"
+},
+{
+"file": "templates/student_affairs/activity_list.html",
+"line": 13,
+"old": "file-pen",
+"key": "edit_record",
+"label": "تسجيل نشاط جديد"
+},
+{
+"file": "templates/student_affairs/activity_list.html",
+"line": 14,
+"old": "download",
+"key": "export_excel",
+"label": "تصدير Excel"
+},
+{
+"file": "templates/student_affairs/activity_list.html",
+"line": 15,
+"old": "printer",
+"key": "print",
+"label": "طباعة"
+},
+{
+"file": "templates/student_affairs/activity_list.html",
+"line": 82,
+"old": "file-pen",
+"key": "edit_record",
+"label": "تعديل"
+},
+{
+"file": "templates/student_affairs/activity_list.html",
+"line": 85,
+"old": "x-circle",
+"key": "status_error",
+"label": "حذف"
+},
+{
+"file": "templates/student_affairs/activity_list.html",
+"line": 95,
+"old": "activity",
+"key": "stats",
+"label": "لا أنشطة مسجّلة لهذا العام"
+},
+{
+"file": "templates/student_affairs/attendance_overview.html",
+"line": 13,
+"old": "bar-chart",
+"key": "absence",
+"label": "إحصائيات الغياب"
+},
+{
+"file": "templates/student_affairs/attendance_overview.html",
+"line": 14,
+"old": "list-checks",
+"key": "attendance_register",
+"label": "تسجيل الحضور"
+},
+{
+"file": "templates/student_affairs/attendance_overview.html",
+"line": 15,
+"old": "calendar",
+"key": "reports",
+"label": "التقرير اليومي"
+},
+{
+"file": "templates/student_affairs/attendance_overview.html",
+"line": 16,
+"old": "download",
+"key": "export_excel",
+"label": "تصدير Excel"
+},
+{
+"file": "templates/student_affairs/attendance_overview.html",
+"line": 17,
+"old": "file-pen",
+"key": "export_pdf",
+"label": "تصدير PDF"
+},
+{
+"file": "templates/student_affairs/attendance_overview.html",
+"line": 18,
+"old": "printer",
+"key": "print",
+"label": "طباعة"
+},
+{
+"file": "templates/student_affairs/attendance_overview.html",
+"line": 29,
+"old": "bar-chart",
+"key": "absence",
+"label": "اتجاه الحضور والغياب"
+},
+{
+"file": "templates/student_affairs/attendance_overview.html",
+"line": 35,
+"old": "users",
+"key": "stats",
+"label": "توزيع الحضور حسب الصف"
+},
+{
+"file": "templates/student_affairs/attendance_overview.html",
+"line": 65,
+"old": "alert-triangle",
+"key": "absence",
+"label": "أكثر الطلاب غياباً"
+},
+{
+"file": "templates/student_affairs/attendance_overview.html",
+"line": 76,
+"old": "alert-triangle",
+"key": "absence",
+"label": "تنبيهات الغياب المتكرر"
+},
+{
+"file": "templates/student_affairs/behavior_overview.html",
+"line": 13,
+"old": "scale",
+"key": "behavior",
+"label": "ملخص سلوك الطلاب"
+},
+{
+"file": "templates/student_affairs/behavior_overview.html",
+"line": 14,
+"old": "file-pen",
+"key": "edit_record",
+"label": "تسجيل مخالفة"
+},
+{
+"file": "templates/student_affairs/behavior_overview.html",
+"line": 15,
+"old": "bar-chart",
+"key": "behavior",
+"label": "لوحة السلوك"
+},
+{
+"file": "templates/student_affairs/behavior_overview.html",
+"line": 16,
+"old": "users",
+"key": "behavior",
+"label": "فريق السلوك"
+},
+{
+"file": "templates/student_affairs/behavior_overview.html",
+"line": 17,
+"old": "lock",
+"key": "export_pdf",
+"label": "لائحة السلوك PDF"
+},
+{
+"file": "templates/student_affairs/behavior_overview.html",
+"line": 18,
+"old": "download",
+"key": "export_excel",
+"label": "تصدير Excel"
+},
+{
+"file": "templates/student_affairs/behavior_overview.html",
+"line": 19,
+"old": "file-pen",
+"key": "export_pdf",
+"label": "تصدير PDF"
+},
+{
+"file": "templates/student_affairs/behavior_overview.html",
+"line": 20,
+"old": "printer",
+"key": "print",
+"label": "طباعة"
+},
+{
+"file": "templates/student_affairs/behavior_overview.html",
+"line": 30,
+"old": "list-checks",
+"key": "behavior_violation",
+"label": "توزيع المخالفات حسب الدرجة"
+},
+{
+"file": "templates/student_affairs/behavior_overview.html",
+"line": 39,
+"old": "bar-chart",
+"key": "behavior_violation",
+"label": "اتجاه المخالفات الشهري"
+},
+{
+"file": "templates/student_affairs/behavior_overview.html",
+"line": 45,
+"old": "alert-triangle",
+"key": "behavior_violation",
+"label": "أكثر الطلاب مخالفات"
+},
+{
+"file": "templates/student_affairs/dashboard.html",
+"line": 13,
+"old": "users",
+"key": "students",
+"label": "شؤون الطلاب"
+},
+{
+"file": "templates/student_affairs/dashboard.html",
+"line": 14,
+"old": "file-pen",
+"key": "student_add",
+"label": "إضافة طالب"
+},
+{
+"file": "templates/student_affairs/dashboard.html",
+"line": 15,
+"old": "list-checks",
+"key": "student_info",
+"label": "سجل الطلاب"
+},
+{
+"file": "templates/student_affairs/dashboard.html",
+"line": 16,
+"old": "refresh",
+"key": "refresh",
+"label": "الانتقالات"
+},
+{
+"file": "templates/student_affairs/dashboard.html",
+"line": 17,
+"old": "activity",
+"key": "activities",
+"label": "الأنشطة"
+},
+{
+"file": "templates/student_affairs/dashboard.html",
+"line": 18,
+"old": "download",
+"key": "import",
+"label": "استيراد/تصدير"
+},
+{
+"file": "templates/student_affairs/dashboard.html",
+"line": 19,
+"old": "waypoints",
+"key": "link",
+"label": "ربط الأولياء"
+},
+{
+"file": "templates/student_affairs/dashboard.html",
+"line": 20,
+"old": "printer",
+"key": "print",
+"label": "طباعة"
+},
+{
+"file": "templates/student_affairs/dashboard.html",
+"line": 37,
+"old": "user-x",
+"key": "absence",
+"label": "الغائبون اليوم"
+},
+{
+"file": "templates/student_affairs/dashboard.html",
+"line": 45,
+"old": "clock",
+"key": "tardiness",
+"label": "المتأخرون اليوم"
+},
+{
+"file": "templates/student_affairs/dashboard.html",
+"line": 53,
+"old": "scale",
+"key": "behavior",
+"label": "{{ inf.category }}"
+},
+{
+"file": "templates/student_affairs/dashboard.html",
+"line": 66,
+"old": "bar-chart",
+"key": "stats",
+"label": "توزيع الطلاب حسب الصف"
+},
+{
+"file": "templates/student_affairs/student_form.html",
+"line": 15,
+"old": "file-pen",
+"key": "student_add",
+"label": "إضافة طالب جديد"
+},
+{
+"file": "templates/student_affairs/student_form.html",
+"line": 17,
+"old": "file-pen",
+"key": "student_add",
+"label": "تعديل بيانات الطالب"
+},
+{
+"file": "templates/student_affairs/student_form.html",
+"line": 140,
+"old": "check-circle",
+"key": "status_success",
+"label": "إضافة الطالب"
+},
+{
+"file": "templates/student_affairs/student_form.html",
+"line": 142,
+"old": "check-circle",
+"key": "status_success",
+"label": "حفظ التعديلات"
+},
+{
+"file": "templates/student_affairs/student_list.html",
+"line": 14,
+"old": "list-checks",
+"key": "student_info",
+"label": "سجل الطلاب"
+},
+{
+"file": "templates/student_affairs/student_list.html",
+"line": 15,
+"old": "file-pen",
+"key": "student_add",
+"label": "إضافة طالب"
+},
+{
+"file": "templates/student_affairs/student_list.html",
+"line": 16,
+"old": "download",
+"key": "export_excel",
+"label": "استيراد Excel"
+},
+{
+"file": "templates/student_affairs/student_list.html",
+"line": 17,
+"old": "download",
+"key": "export_excel",
+"label": "تصدير Excel"
+},
+{
+"file": "templates/student_affairs/student_list.html",
+"line": 18,
+"old": "printer",
+"key": "print",
+"label": "طباعة"
+},
+{
+"file": "templates/student_affairs/student_list.html",
+"line": 102,
+"old": "refresh",
+"key": "refresh",
+"label": "إعادة ضبط"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 13,
+"old": "user",
+"key": "profile",
+"label": "student_affairs:student_edit"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 14,
+"old": "file-pen",
+"key": "edit_record",
+"label": "تعديل البيانات"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 15,
+"old": "scale",
+"key": "behavior",
+"label": "الملف السلوكي"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 16,
+"old": "mail",
+"key": "call_parent",
+"label": "استدعاء ولي الأمر"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 17,
+"old": "alert-triangle",
+"key": "behavior_violation",
+"label": "تسجيل مخالفة"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 18,
+"old": "bar-chart",
+"key": "grades",
+"label": "كشف الدرجات"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 19,
+"old": "printer",
+"key": "export_pdf",
+"label": "تصدير PDF"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 20,
+"old": "printer",
+"key": "print",
+"label": "طباعة"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 33,
+"old": "user",
+"key": "profile",
+"label": "البيانات الشخصية"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 34,
+"old": "calendar",
+"key": "attendance_register",
+"label": "الحضور"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 35,
+"old": "scale",
+"key": "behavior",
+"label": "السلوك"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 36,
+"old": "bar-chart",
+"key": "grades",
+"label": "الدرجات"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 37,
+"old": "hospital",
+"key": "clinic",
+"label": "العيادة"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 38,
+"old": "activity",
+"key": "activities",
+"label": "الأنشطة"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 39,
+"old": "refresh",
+"key": "refresh",
+"label": "الانتقالات"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 46,
+"old": "user",
+"key": "profile",
+"label": "البيانات الشخصية"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 65,
+"old": "waypoints",
+"key": "parents",
+"label": "أولياء الأمور"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 80,
+"old": "calendar",
+"key": "attendance_register",
+"label": "الحضور"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 94,
+"old": "scale",
+"key": "absence",
+"label": "عتبات الغياب — سياسة تقييم الطلبة"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 140,
+"old": "clock",
+"key": "tardiness",
+"label": "التأخّر عن الحصص"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 168,
+"old": "scale",
+"key": "behavior",
+"label": "السلوك"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 178,
+"old": "alert-triangle",
+"key": "behavior_violation",
+"label": "آخر المخالفات"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 190,
+"old": "bar-chart",
+"key": "grades",
+"label": "الدرجات"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 228,
+"old": "hospital",
+"key": "clinic",
+"label": "العيادة"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 249,
+"old": "activity",
+"key": "activities",
+"label": "الأنشطة والإنجازات"
+},
+{
+"file": "templates/student_affairs/student_profile.html",
+"line": 264,
+"old": "refresh",
+"key": "swap_requests",
+"label": "سجل الانتقالات"
+},
+{
+"file": "templates/student_affairs/tardiness_list.html",
+"line": 13,
+"old": "clock",
+"key": "tardiness",
+"label": "التأخر الصباحي"
+},
+{
+"file": "templates/student_affairs/tardiness_list.html",
+"line": 23,
+"old": "search",
+"key": "search",
+"label": "بحث"
+},
+{
+"file": "templates/student_affairs/tardiness_list.html",
+"line": 25,
+"old": "download",
+"key": "export_excel",
+"label": "تصدير Excel"
+},
+{
+"file": "templates/student_affairs/tardiness_list.html",
+"line": 26,
+"old": "file-pen",
+"key": "export_pdf",
+"label": "تصدير PDF"
+},
+{
+"file": "templates/student_affairs/tardiness_list.html",
+"line": 27,
+"old": "printer",
+"key": "print",
+"label": "طباعة"
+},
+{
+"file": "templates/student_affairs/tardiness_list.html",
+"line": 37,
+"old": "plus",
+"key": "add",
+"label": "تسجيل تأخير جديد"
+},
+{
+"file": "templates/student_affairs/tardiness_list.html",
+"line": 68,
+"old": "check-circle",
+"key": "status_success",
+"label": "تسجيل"
+},
+{
+"file": "templates/student_affairs/tardiness_list.html",
+"line": 71,
+"old": "x-circle",
+"key": "status_error",
+"label": "إلغاء"
+},
+{
+"file": "templates/student_affairs/tardiness_list.html",
+"line": 81,
+"old": "bar-chart",
+"key": "tardiness",
+"label": "توزيع التأخر حسب الشعبة"
+},
+{
+"file": "templates/student_affairs/tardiness_list.html",
+"line": 90,
+"old": "bar-chart",
+"key": "tardiness",
+"label": "توزيع التأخر حسب المرحلة"
+},
+{
+"file": "templates/student_affairs/tardiness_list.html",
+"line": 101,
+"old": "clock",
+"key": "tardiness",
+"label": "مرّاتُ التأخر هذ"
+},
+{
+"file": "templates/student_affairs/tardiness_list.html",
+"line": 127,
+"old": "file-pen",
+"key": "edit_record",
+"label": "عرض"
+},
+{
+"file": "templates/student_affairs/tardiness_list.html",
+"line": 138,
+"old": "trash",
+"key": "delete",
+"label": "إلغاء"
+},
+{
+"file": "templates/student_affairs/transfer_detail.html",
+"line": 13,
+"old": "refresh",
+"key": "swap_requests",
+"label": "تفاصيل الانتقال"
+},
+{
+"file": "templates/student_affairs/transfer_detail.html",
+"line": 22,
+"old": "printer",
+"key": "print",
+"label": "طباعة"
+},
+{
+"file": "templates/student_affairs/transfer_detail.html",
+"line": 25,
+"old": "file-text",
+"key": "swap_requests",
+"label": "بيانات الانتقال"
+},
+{
+"file": "templates/student_affairs/transfer_detail.html",
+"line": 40,
+"old": "list-checks",
+"key": "checklist",
+"label": "مراجعة الطلب"
+},
+{
+"file": "templates/student_affairs/transfer_detail.html",
+"line": 63,
+"old": "check-circle",
+"key": "status_success",
+"label": "تنفيذ القرار"
+},
+{
+"file": "templates/student_affairs/transfer_form.html",
+"line": 12,
+"old": "refresh",
+"key": "swap_requests",
+"label": "طلب انتقال جديد"
+},
+{
+"file": "templates/student_affairs/transfer_form.html",
+"line": 75,
+"old": "check-circle",
+"key": "status_success",
+"label": "تسجيل الانتقال"
+},
+{
+"file": "templates/student_affairs/transfer_list.html",
+"line": 12,
+"old": "refresh",
+"key": "swap_requests",
+"label": "سجل الانتقالات"
+},
+{
+"file": "templates/student_affairs/transfer_list.html",
+"line": 13,
+"old": "file-pen",
+"key": "edit_record",
+"label": "طلب انتقال جديد"
+},
+{
+"file": "templates/student_affairs/transfer_list.html",
+"line": 14,
+"old": "printer",
+"key": "print",
+"label": "طباعة"
+},
+{
+"file": "templates/student_affairs/transfer_list.html",
+"line": 89,
+"old": "refresh",
+"key": "refresh",
+"label": "لا توجد انتقالات"
+},
+{
+"file": "templates/student_info/activities.html",
+"line": 14,
+"old": "activity",
+"key": "activities",
+"label": "الأنشطة"
+},
+{
+"file": "templates/student_info/levels.html",
+"line": 14,
+"old": "bar-chart",
+"key": "grades",
+"label": "المستويات التعليمية وتحصيل الطلبة"
+},
+{
+"file": "templates/student_info/levels.html",
+"line": 60,
+"old": "list-checks",
+"key": "checklist",
+"label": ""
+},
+{
+"file": "templates/student_info/levels.html",
+"line": 69,
+"old": "book-open",
+"key": "library",
+"label": ""
+},
+{
+"file": "templates/student_info/note_form.html",
+"line": 13,
+"old": "file-pen",
+"key": "edit_record",
+"label": "ملاحظة على"
+},
+{
+"file": "templates/student_info/note_form.html",
+"line": 21,
+"old": "file-pen",
+"key": "edit_record",
+"label": ""
+},
+{
+"file": "templates/student_info/notes.html",
+"line": 14,
+"old": "file-pen",
+"key": "edit_record",
+"label": ""
+},
+{
+"file": "templates/student_info/section_students.html",
+"line": 14,
+"old": "users",
+"key": "students",
+"label": "— الشعبة"
+},
+{
+"file": "templates/student_info/section_students.html",
+"line": 17,
+"old": "refresh",
+"key": "refresh",
+"label": "كل الشُّعب"
+},
+{
+"file": "templates/student_info/sections.html",
+"line": 13,
+"old": "users",
+"key": "student_info",
+"label": "مركز معلومات الطلبة"
+},
+{
+"file": "templates/student_info/sections.html",
+"line": 17,
+"old": "bar-chart",
+"key": "grades",
+"label": "المستويات التعليمية"
+},
+{
+"file": "templates/student_info/sections.html",
+"line": 18,
+"old": "activity",
+"key": "activities",
+"label": "الأنشطة"
+},
+{
+"file": "templates/student_info/student_file.html",
+"line": 13,
+"old": "users",
+"key": "students",
+"label": ""
+},
+{
+"file": "templates/student_info/student_file.html",
+"line": 20,
+"old": "file-pen",
+"key": "edit_record",
+"label": "إضافة ملاحظة"
+},
+{
+"file": "templates/student_info/student_file.html",
+"line": 31,
+"old": "bar-chart",
+"key": "stats",
+"label": ""
+},
+{
+"file": "templates/student_info/student_file.html",
+"line": 76,
+"old": "file-pen",
+"key": "edit_record",
+"label": ""
+},
+{
+"file": "templates/student_info/student_file.html",
+"line": 113,
+"old": "activity",
+"key": "stats",
+"label": ""
+},
+{
+"file": "templates/substitute/absence_detail.html",
+"line": 12,
+"old": "users",
+"key": "attendance_teacher_absence",
+"label": "تعيين البدلاء"
+},
+{
+"file": "templates/substitute/absence_detail.html",
+"line": 13,
+"old": "arrow-right",
+"key": "back",
+"label": "قائمة الغيابات"
+},
+{
+"file": "templates/substitute/absence_detail.html",
+"line": 22,
+"old": "clock",
+"key": "periods_today",
+"label": "حصص اليوم"
+},
+{
+"file": "templates/substitute/absence_list.html",
+"line": 12,
+"old": "ban",
+"key": "absence",
+"label": "غيابات المعلمين"
+},
+{
+"file": "templates/substitute/absence_list.html",
+"line": 13,
+"old": "file-pen",
+"key": "edit_record",
+"label": "تسجيل غياب"
+},
+{
+"file": "templates/substitute/absence_list.html",
+"line": 14,
+"old": "bar-chart",
+"key": "attendance_teacher_absence",
+"label": "تقرير البدلاء"
+},
+{
+"file": "templates/substitute/absence_list.html",
+"line": 27,
+"old": "search",
+"key": "search",
+"label": "عرض"
+},
+{
+"file": "templates/substitute/absence_list.html",
+"line": 31,
+"old": "users",
+"key": "absence",
+"label": "الغيابات"
+},
+{
+"file": "templates/substitute/partials/slot_card.html",
+"line": 10,
+"old": "check-circle",
+"key": "status_success",
+"label": ""
+},
+{
+"file": "templates/substitute/partials/slot_card.html",
+"line": 10,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/substitute/register_absence.html",
+"line": 12,
+"old": "ban",
+"key": "absence",
+"label": "تسجيل غياب معلم"
+},
+{
+"file": "templates/substitute/register_absence.html",
+"line": 14,
+"old": "file-pen",
+"key": "absence",
+"label": "بيانات الغياب"
+},
+{
+"file": "templates/substitute/report.html",
+"line": 12,
+"old": "file-text",
+"key": "attendance_teacher_absence",
+"label": "تقرير الحصص البديلة"
+},
+{
+"file": "templates/substitute/report.html",
+"line": 13,
+"old": "arrow-right",
+"key": "back",
+"label": "قائمة الغيابات"
+},
+{
+"file": "templates/substitute/report.html",
+"line": 26,
+"old": "refresh",
+"key": "refresh",
+"label": "تحديث"
+},
+{
+"file": "templates/substitute/report.html",
+"line": 31,
+"old": "users",
+"key": "substitution",
+"label": "حصص كلّ معلمٍ بديل"
+},
+{
+"file": "templates/substitute/report.html",
+"line": 45,
+"old": "clipboard",
+"key": "attendance_teacher_absence",
+"label": "الحصص البديلة"
+},
+{
+"file": "templates/teacher/attendance.html",
+"line": 13,
+"old": "list-checks",
+"key": "checklist",
+"label": "components/icon.html"
+},
+{
+"file": "templates/teacher/attendance.html",
+"line": 15,
+"old": "list-checks",
+"key": "checklist",
+"label": "قائمة"
+},
+{
+"file": "templates/teacher/attendance.html",
+"line": 16,
+"old": "bar-chart",
+"key": "stats",
+"label": "شبكة"
+},
+{
+"file": "templates/teacher/attendance.html",
+"line": 40,
+"old": "check",
+"key": "all_present",
+"label": "الكل حاضر"
+},
+{
+"file": "templates/teacher/attendance.html",
+"line": 48,
+"old": "check",
+"key": "confirm",
+"label": ""
+},
+{
+"file": "templates/teacher/attendance.html",
+"line": 52,
+"old": "check",
+"key": "confirm",
+"label": "الحصة منتهية"
+},
+{
+"file": "templates/teacher/attendance.html",
+"line": 57,
+"old": "users",
+"key": "students",
+"label": "الطلاب"
+},
+{
+"file": "templates/teacher/attendance_grid.html",
+"line": 13,
+"old": "list-checks",
+"key": "checklist",
+"label": "teacher_schedule"
+},
+{
+"file": "templates/teacher/attendance_grid.html",
+"line": 14,
+"old": "arrow-right",
+"key": "back",
+"label": "الجدول"
+},
+{
+"file": "templates/teacher/attendance_grid.html",
+"line": 16,
+"old": "list-checks",
+"key": "checklist",
+"label": "قائمة"
+},
+{
+"file": "templates/teacher/attendance_grid.html",
+"line": 17,
+"old": "bar-chart",
+"key": "stats",
+"label": "شبكة"
+},
+{
+"file": "templates/teacher/attendance_grid.html",
+"line": 38,
+"old": "check",
+"key": "all_present",
+"label": "الكل حاضر"
+},
+{
+"file": "templates/teacher/attendance_grid.html",
+"line": 46,
+"old": "check",
+"key": "confirm",
+"label": ""
+},
+{
+"file": "templates/teacher/attendance_grid.html",
+"line": 50,
+"old": "check",
+"key": "confirm",
+"label": "الحصة منتهية"
+},
+{
+"file": "templates/teacher/attendance_grid.html",
+"line": 55,
+"old": "users",
+"key": "students",
+"label": "الطلاب"
+},
+{
+"file": "templates/teacher/attendance_readonly.html",
+"line": 13,
+"old": "list-checks",
+"key": "checklist",
+"label": "components/icon.html"
+},
+{
+"file": "templates/teacher/attendance_readonly.html",
+"line": 16,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": ""
+},
+{
+"file": "templates/teacher/partials/grid_cell.html",
+"line": 25,
+"old": "check",
+"key": "confirm",
+"label": "حاضر"
+},
+{
+"file": "templates/teacher/partials/grid_cell.html",
+"line": 26,
+"old": "x-circle",
+"key": "status_error",
+"label": "غائب"
+},
+{
+"file": "templates/teacher/partials/grid_cell.html",
+"line": 27,
+"old": "clock",
+"key": "time",
+"label": "متأخر"
+},
+{
+"file": "templates/teacher/partials/grid_cell.html",
+"line": 28,
+"old": "file-text",
+"key": "document",
+"label": "معذور"
+},
+{
+"file": "templates/teacher/partials/grid_cell.html",
+"line": 43,
+"old": "check",
+"key": "confirm",
+"label": "P — حاضر"
+},
+{
+"file": "templates/teacher/partials/grid_cell.html",
+"line": 53,
+"old": "x-circle",
+"key": "status_error",
+"label": "A — غائب"
+},
+{
+"file": "templates/teacher/partials/grid_cell.html",
+"line": 63,
+"old": "clock",
+"key": "time",
+"label": "L — متأخر"
+},
+{
+"file": "templates/teacher/partials/grid_cell.html",
+"line": 73,
+"old": "file-text",
+"key": "document",
+"label": "E — معذور"
+},
+{
+"file": "templates/teacher/partials/sessions_table.html",
+"line": 29,
+"old": "refresh",
+"key": "refresh",
+"label": "مبدَّلة — كانت لـ"
+},
+{
+"file": "templates/teacher/schedule.html",
+"line": 23,
+"old": "calendar",
+"key": "attendance_register",
+"label": "حصص المدرسة — تسجيل الحضور"
+},
+{
+"file": "templates/teacher/schedule.html",
+"line": 27,
+"old": "calendar",
+"key": "periods_today",
+"label": "جدول حصصي"
+},
+{
+"file": "templates/teacher/schedule.html",
+"line": 91,
+"old": "clock",
+"key": "time",
+"label": "الحصة القادمة"
+},
+{
+"file": "templates/teacher/schedule.html",
+"line": 106,
+"old": "list-checks",
+"key": "periods_today",
+"label": "الحصص"
+},
+{
+"file": "templates/teacher/schedule.html",
+"line": 114,
+"old": "list-checks",
+"key": "periods_today",
+"label": "الحصص"
+},
+{
+"file": "templates/transport/bus_detail.html",
+"line": 14,
+"old": "bus",
+"key": "transport",
+"label": "حافلة"
+},
+{
+"file": "templates/transport/bus_detail.html",
+"line": 68,
+"old": "save",
+"key": "save",
+"label": "حفظ"
+},
+{
+"file": "templates/transport/bus_detail.html",
+"line": 84,
+"old": "bus",
+"key": "transport",
+"label": "تتبع الحافلة"
+},
+{
+"file": "templates/transport/bus_info.html",
+"line": 2,
+"old": "check-circle",
+"key": "status_success",
+"label": "تم حفظ بيانات الحافلة"
+},
+{
+"file": "templates/transport/buses_list.html",
+"line": 14,
+"old": "bus",
+"key": "transport",
+"label": "الحافلات المدرسية"
+},
+{
+"file": "templates/transport/buses_list.html",
+"line": 33,
+"old": "bus",
+"key": "transport",
+"label": ""
+},
+{
+"file": "templates/transport/buses_list.html",
+"line": 39,
+"old": "phone",
+"key": "call_parent",
+"label": ""
+},
+{
+"file": "templates/transport/buses_list.html",
+"line": 40,
+"old": "file-text",
+"key": "document",
+"label": ""
+},
+{
+"file": "templates/transport/buses_list.html",
+"line": 45,
+"old": "bus",
+"key": "transport",
+"label": ""
+},
+{
+"file": "templates/transport/dashboard.html",
+"line": 12,
+"old": "bus",
+"key": "transport",
+"label": "لوحة النقل المدرسي"
+},
+{
+"file": "templates/transport/dashboard.html",
+"line": 13,
+"old": "users",
+"key": "workload",
+"label": "إسناد الطلاب"
+},
+{
+"file": "templates/transport/dashboard.html",
+"line": 14,
+"old": "bus",
+"key": "transport",
+"label": "الحافلات"
+},
+{
+"file": "templates/transport/dashboard.html",
+"line": 15,
+"old": "bar-chart",
+"key": "stats",
+"label": "الإحصائيات"
+},
+{
+"file": "templates/transport/dashboard.html",
+"line": 27,
+"old": "bar-chart",
+"key": "transport",
+"label": "إشغالُ كلّ حافلة"
+},
+{
+"file": "templates/transport/dashboard.html",
+"line": 34,
+"old": "bus",
+"key": "transport",
+"label": "الحافلات"
+},
+{
+"file": "templates/transport/manage_route.html",
+"line": 14,
+"old": "bus",
+"key": "transport",
+"label": ""
+},
+{
+"file": "templates/transport/manage_route.html",
+"line": 45,
+"old": "save",
+"key": "save",
+"label": "حفظ خط السير"
+},
+{
+"file": "templates/transport/route_card.html",
+"line": 3,
+"old": "check-circle",
+"key": "status_success",
+"label": ""
+},
+{
+"file": "templates/transport/statistics.html",
+"line": 14,
+"old": "bar-chart",
+"key": "transport",
+"label": "إحصائيات النقل المدرسي"
+},
+{
+"file": "templates/transport/student_assignments.html",
+"line": 14,
+"old": "users",
+"key": "workload",
+"label": "إسناد الطلاب للحافلات"
+},
+{
+"file": "templates/transport/student_assignments.html",
+"line": 38,
+"old": "x-circle",
+"key": "status_error",
+"label": "طلاب غير مسندون ( )"
+},
+{
+"file": "templates/transport/student_assignments.html",
+"line": 49,
+"old": "check-circle",
+"key": "status_success",
+"label": "جميع الطلاب مسندون"
+},
+{
+"file": "templates/transport/student_assignments.html",
+"line": 53,
+"old": "check-circle",
+"key": "status_success",
+"label": "طلاب مسندون ( )"
+},
+{
+"file": "templates/transport/tracking_map.html",
+"line": 14,
+"old": "bus",
+"key": "transport",
+"label": "تتبع حافلة"
+},
+{
+"file": "templates/transport/tracking_map.html",
+"line": 25,
+"old": "file-text",
+"key": "document",
+"label": ""
+},
+{
+"file": "templates/transport/tracking_map.html",
+"line": 36,
+"old": "target",
+"key": "kpi",
+"label": ""
+},
+{
+"file": "templates/transport/tracking_map.html",
+"line": 40,
+"old": "bus",
+"key": "transport",
+"label": "فتح الخريطة"
+},
+{
+"file": "templates/transport/tracking_map.html",
+"line": 48,
+"old": "bus",
+"key": "transport",
+"label": ""
+},
+{
+"file": "templates/transport/tracking_map.html",
+"line": 57,
+"old": "bus",
+"key": "transport",
+"label": ""
+},
+{
+"file": "templates/wings/coverage.html",
+"line": 14,
+"old": "waypoints",
+"key": "wings",
+"label": "تغطية الأجنحة"
+},
+{
+"file": "templates/wings/coverage.html",
+"line": 33,
+"old": "building",
+"key": "school_building",
+"label": ""
+},
+{
+"file": "templates/wings/coverage.html",
+"line": 64,
+"old": "calendar",
+"key": "date",
+"label": ""
+},
+{
+"file": "templates/wings/coverage.html",
+"line": 92,
+"old": "check",
+"key": "confirm",
+"label": ""
+},
+{
+"file": "templates/wings/coverage.html",
+"line": 132,
+"old": "user-plus",
+"key": "user_add",
+"label": "عيّن بديلاً"
+},
+{
+"file": "templates/wings/floors.html",
+"line": 15,
+"old": "layers",
+"key": "wings",
+"label": "أجنحة المدرسة"
+},
+{
+"file": "templates/wings/floors.html",
+"line": 24,
+"old": "waypoints",
+"key": "link",
+"label": "التغطية والإنابة"
+},
+{
+"file": "templates/wings/floors.html",
+"line": 64,
+"old": "building",
+"key": "school_building",
+"label": ""
+},
+{
+"file": "templates/wings/floors.html",
+"line": 106,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "جرسٌ من طابقٍ آخر"
+},
+{
+"file": "templates/wings/floors.html",
+"line": 112,
+"old": "clock",
+"key": "time",
+"label": ""
+},
+{
+"file": "templates/wings/floors.html",
+"line": 130,
+"old": "clock",
+"key": "bells",
+"label": "التوقيت —"
+},
+{
+"file": "templates/wings/partials/record_panel.html",
+"line": 4,
+"old": "building",
+"key": "school_building",
+"label": ""
+},
+{
+"file": "templates/wings/partials/record_panel.html",
+"line": 19,
+"old": "download",
+"key": "export_excel",
+"label": "Excel"
+},
+{
+"file": "templates/wings/partials/record_panel.html",
+"line": 20,
+"old": "file-pen",
+"key": "export_pdf",
+"label": "PDF"
+},
+{
+"file": "templates/wings/partials/record_panel.html",
+"line": 21,
+"old": "printer",
+"key": "print",
+"label": "طباعة كشف الجناح"
+},
+{
+"file": "templates/wings/record_index.html",
+"line": 14,
+"old": "list-checks",
+"key": "attendance_register",
+"label": "رصد الغياب"
+},
+{
+"file": "templates/wings/record_index.html",
+"line": 27,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "— لا دوامَ فيه، فلا رصد."
+},
+{
+"file": "templates/wings/record_index.html",
+"line": 36,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "لا جناحَ مُسنَدٌ إليك اليوم — راجع «تغطية الأجنحة»."
+},
+{
+"file": "templates/wings/record_section.html",
+"line": 15,
+"old": "list-checks",
+"key": "checklist",
+"label": "/"
+},
+{
+"file": "templates/wings/record_section.html",
+"line": 26,
+"old": "download",
+"key": "export_excel",
+"label": "تصدير Excel"
+},
+{
+"file": "templates/wings/record_section.html",
+"line": 27,
+"old": "file-pen",
+"key": "export_pdf",
+"label": "تصدير PDF"
+},
+{
+"file": "templates/wings/record_section.html",
+"line": 28,
+"old": "printer",
+"key": "print",
+"label": "طباعة"
+},
+{
+"file": "templates/wings/record_section.html",
+"line": 35,
+"old": "alert-triangle",
+"key": "status_warning",
+"label": "لا حصصَ لهذه الشعبة في — فلا شيءَ يُرصد."
+},
+{
+"file": "templates/wings/record_section.html",
+"line": 163,
+"old": "check",
+"key": "confirm",
+"label": "ثبّتِ الحصّة"
+}
+]
+}
