@@ -1,460 +1,532 @@
-"""
-اختباراتُ شاملة لنموذجَي StaffAttendance و PermitRequest
-موجةٌ 3G، الأجزاءُ 1.1 و 1.3
+"""حضورُ الموظّفين (1.1) والأذوناتُ القصيرة (1.3) — القواعدُ من النصّ حرفاً.
 
-المرجعُ: وثيقةُ ت/د 2027/01 (سياسةُ الشحانية)
-    - البند 1.1: الدوامُ الرسميّ من 7:00 إلى 14:00
-    - البند 2.1: متأخّرٌ إن حضر بعد 7:00
-    - البند 2.4: غائبٌ إن حضر بعد 9:00
-    - البند 4.2: سقفُ استئذان 7 ساعات/شهر
-    - البند 4.4: حدٌّ أقصى ساعتان/مرّة
+المرجع: ``AAdocs/ministry_data/2026_2027/06_attendance_performance_review.md`` §1
+«سياسة وضوابط الحضور والانصراف» (ت/د: 2027/01 بتاريخ 2026-08-23، مدرسة الشحانية —
+وثيقةٌ من صفحتين)، و``07_forms_catalog.md`` جدول 1 بند 02.
+
+    البند 1.1 «يبدأ الدوام الرسمي لموظفي المدرسة من الساعة السابعة صباحاً»
+    البند 2.1 «يعتبر الموظف متأخراً إذا حضر بعد الساعة 7:00 صباحاً»
+    البند 2.4 «يعتبر الموظف غائباً إذا حضر بعد الساعة التاسعة صباحاً دون إذن أو عذر مقبول»
+    البند 4.1 «لا يجوز الاعتداد بالإذن إلا بعد اعتماده من الرئيس المباشر»
+    البند 4.2 «يكون الحد الأقصى للأذونات بواقع (7) ساعات في الشهر»
+    البند 4.3 «لا يجوز الإذن أكثر من مرة واحدة في اليوم الواحد»
+    البند 4.4 «يكون الحد الأقصى للإذن ساعتين في المرة الواحدة»
+
+«بعد» في 2.1 و2.4 تعني أنّ 7:00 بالضبط حاضر و9:00 بالضبط متأخّر لا غائب.
+والأشخاصُ هنا اصطناعيّون: لا رقمَ شخصيّاً يُكتب، والرقمُ الوظيفيُّ «T-000n».
 """
+
+from __future__ import annotations
+
+from datetime import date, time
 
 import pytest
-from datetime import datetime, time, timedelta, date as date_type
-from django.db import IntegrityError
-from django.utils import timezone
+from django.db import IntegrityError, transaction
+from django.urls import reverse
 
-from core.models import School, CustomUser
-from core.models.access import Role, Membership
-from staff_affairs.models import StaffAttendance, PermitRequest
-from staff_affairs.services import StaffAttendanceService
+from core.models import AuditLog
+from staff_affairs.attendance import (
+    MONTHLY_PERMIT_CAP,
+    PermitService,
+    PolicyError,
+    StaffAttendanceService,
+    classify_arrival,
+    minutes_between,
+)
+from staff_affairs.models import PermitRequest, StaffAttendance
+from tests.conftest import MembershipFactory, RoleFactory, UserFactory
+
+pytestmark = pytest.mark.django_db
+
+FEB = date(2026, 2, 1)
 
 
-@pytest.mark.django_db
-class TestStaffAttendanceService:
-    """اختباراتُ الخدمة الأساسيّة للحضور"""
+def _staff(school, n, role="teacher"):
+    user = UserFactory(full_name=f"موظف اصطناعي {n}", employee_number=f"T-{n:04d}")
+    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name=role))
+    return user
 
-    @pytest.fixture
-    def school(self):
-        """مدرسةٌ تجريبيّة"""
-        return School.objects.create(
-            code="TST",
-            name="Test School",
+
+def _permit(school, staff, reviewer, day, start, end, kind="during_day", approve=True):
+    permit = PermitService.submit(
+        school=school,
+        staff=staff,
+        permit_type=kind,
+        day=day,
+        start_time=start,
+        end_time=end,
+        reason="ظرف عائلي",
+    )
+    if approve is not None:
+        PermitService.review(permit, reviewer=reviewer, approve=approve)
+    return permit
+
+
+def _mark(school, staff, actor, day, status, check_in=None):
+    return StaffAttendanceService.mark(
+        school=school, staff=staff, day=day, status=status, actor=actor, check_in=check_in
+    )
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  التصنيف — البنود 2.1 و2.4
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestClassifyArrival:
+    @pytest.mark.parametrize(
+        ("check_in", "expected"),
+        [
+            (time(6, 45), ("present", 0)),
+            (time(7, 0), ("present", 0)),  # 2.1: «بعد 7:00» — فالسابعةُ نفسُها حضور
+            (time(7, 1), ("late", 1)),
+            (time(8, 59), ("late", 119)),
+            (time(9, 0), ("late", 120)),  # 2.4: «بعد التاسعة» — فالتاسعةُ نفسُها تأخّر
+            (time(9, 1), ("absent", 0)),
+            (time(11, 30), ("absent", 0)),
+        ],
+    )
+    def test_the_boundaries_read_after_as_strictly_after(self, check_in, expected):
+        assert classify_arrival(check_in) == expected
+
+    def test_an_approved_late_arrival_permit_covers_and_lifts_absence(self):
+        # 2.4: «دون إذن» — فالمستأذنُ حتّى 9:30 لا يُعدّ غائباً.
+        assert classify_arrival(time(9, 20), covered_until=time(9, 30)) == ("permitted", 0)
+        assert classify_arrival(time(9, 40), covered_until=time(9, 30)) == ("late", 10)
+
+    def test_minutes_between_is_whole_minutes_and_never_negative(self):
+        assert minutes_between(time(7, 0), time(8, 30)) == 90
+        assert minutes_between(time(9, 0), time(8, 0)) == 0
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  الرصد (1.1)
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestMark:
+    def test_on_time(self, school, principal_user):
+        staff = _staff(school, 1)
+        record = _mark(school, staff, principal_user, FEB, "present", time(6, 55))
+
+        assert (record.status, record.late_minutes) == ("present", 0)
+        assert record.created_by == principal_user
+
+    def test_late_before_nine(self, school, principal_user):
+        staff = _staff(school, 1)
+        record = _mark(school, staff, principal_user, FEB, "late", time(8, 40))
+
+        assert (record.status, record.late_minutes) == ("late", 100)
+
+    def test_after_nine_is_absence(self, school, principal_user):
+        staff = _staff(school, 1)
+        record = _mark(school, staff, principal_user, FEB, "absent", time(9, 1))
+
+        assert record.status == "absent"
+
+    def test_a_click_that_contradicts_the_time_is_refused_by_name(self, school, principal_user):
+        staff = _staff(school, 1)
+
+        with pytest.raises(PolicyError, match="متأخّر"):
+            _mark(school, staff, principal_user, FEB, "present", time(8, 10))
+        assert not StaffAttendance.objects.exists()
+
+    def test_permitted_needs_an_approved_permit(self, school, principal_user):
+        staff = _staff(school, 1)
+        with pytest.raises(PolicyError, match="4.1"):
+            _mark(school, staff, principal_user, FEB, "permitted")
+
+        _permit(school, staff, principal_user, FEB, time(7, 0), time(8, 30), "late_arrival")
+        record = _mark(school, staff, principal_user, FEB, "permitted", time(8, 15))
+
+        assert (record.status, record.permit_minutes) == ("permitted", 90)
+
+    def test_remarking_the_same_is_idempotent_and_a_change_is_audited(self, school, principal_user):
+        staff = _staff(school, 1)
+        _mark(school, staff, principal_user, FEB, "absent")
+        _mark(school, staff, principal_user, FEB, "absent")
+        _mark(school, staff, principal_user, FEB, "late", time(7, 30))
+
+        assert StaffAttendance.objects.count() == 1
+        logged = list(
+            AuditLog.objects.filter(object_repr__startswith="StaffAttendance").values_list(
+                "action", flat=True
+            )
+        )
+        assert sorted(logged) == ["create", "update"]
+
+    def test_future_days_unknown_statuses_and_outsiders_are_refused(
+        self, school, principal_user, student_user
+    ):
+        staff = _staff(school, 1)
+        with pytest.raises(PolicyError):
+            _mark(school, staff, principal_user, date(2099, 1, 1), "present")
+        with pytest.raises(PolicyError):
+            _mark(school, staff, principal_user, FEB, "holiday")
+        with pytest.raises(PolicyError, match="كادر"):
+            _mark(school, student_user, principal_user, FEB, "present")
+
+    def test_approving_a_permit_updates_an_already_marked_day(self, school, principal_user):
+        staff = _staff(school, 1)
+        record = _mark(school, staff, principal_user, FEB, "present", time(6, 50))
+        _permit(school, staff, principal_user, FEB, time(12, 0), time(13, 0), "early_departure")
+
+        record.refresh_from_db()
+        assert record.permit_minutes == 60
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  الأذونات (1.3) — البنود 4.1 إلى 4.4
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestPermits:
+    def test_a_permit_within_the_cap_deducts_exactly_its_minutes_on_approval(
+        self, school, principal_user
+    ):
+        staff = _staff(school, 1)
+        permit = _permit(
+            school, staff, principal_user, FEB, time(10, 0), time(11, 15), approve=None
         )
 
-    @pytest.fixture
-    def staff_user(self, school):
-        """موظّفٌ تجريبيّ"""
-        user = CustomUser.objects.create_user(
-            username="teacher_test",
-            email="teacher@test.qa",
-            password="TempPass123!",
-            full_name="معلّمٌ تجريبيّ",
-            national_id="123456789012",
-        )
-        # ربطُه بالمدرسة
-        role = Role.objects.get_or_create(name="teacher")[0]
-        Membership.objects.create(
-            user=user,
-            school=school,
-            role=role,
-            joined_at=timezone.now(),
-            is_active=True,
-        )
-        return user
+        # 4.1: لا يُعتدّ به قبل الاعتماد — معلَّقٌ لا يخصم.
+        pending = PermitService.balance(school, staff, FEB)
+        assert (pending.approved, pending.pending, pending.remaining) == (0, 75, 420)
 
-    def test_calculate_status_present_exactly_7_00(self):
-        """الحاضرون: وقتُ الدخول ≤7:00 — البند 1.1"""
-        status = StaffAttendanceService.calculate_status(time(7, 0))
-        assert status == "present"
+        PermitService.review(permit, reviewer=principal_user, approve=True)
+        after = PermitService.balance(school, staff, FEB)
+        assert (after.approved, after.pending, after.remaining) == (75, 0, 345)
 
-    def test_calculate_status_present_before_7_00(self):
-        """الحاضرون: وقتُ الدخول قبل 7:00"""
-        status = StaffAttendanceService.calculate_status(time(6, 30))
-        assert status == "present"
+    def test_exactly_two_hours_passes_and_one_minute_more_is_refused(self, school, principal_user):
+        staff = _staff(school, 1)
+        _permit(school, staff, principal_user, FEB, time(10, 0), time(12, 0))
 
-    def test_calculate_status_late_7_01(self):
-        """المتأخّرون: وقتُ الدخول > 7:00 — البند 2.1"""
-        status = StaffAttendanceService.calculate_status(time(7, 1))
-        assert status == "late"
+        with pytest.raises(PolicyError, match="4.4"):
+            _permit(school, staff, principal_user, date(2026, 2, 2), time(10, 0), time(12, 1))
 
-    def test_calculate_status_late_8_59(self):
-        """المتأخّرون: وقتُ الدخول < 9:00"""
-        status = StaffAttendanceService.calculate_status(time(8, 59))
-        assert status == "late"
+    def test_a_permit_that_exceeds_the_monthly_cap_is_refused(self, school, principal_user):
+        staff = _staff(school, 1)
+        for day in (2, 3, 4):  # 3 × 120 = 360
+            _permit(school, staff, principal_user, date(2026, 2, day), time(10, 0), time(12, 0))
+        _permit(school, staff, principal_user, date(2026, 2, 5), time(10, 0), time(11, 0))
+        assert PermitService.balance(school, staff, FEB).remaining == 0  # 420 كاملةً جائزة
 
-    def test_calculate_status_absent_exactly_9_00(self):
-        """الغائبون: وقتُ الدخول ≥9:00 — البند 2.4"""
-        status = StaffAttendanceService.calculate_status(time(9, 0))
-        assert status == "absent"
+        with pytest.raises(PolicyError, match="4.2"):
+            _permit(school, staff, principal_user, date(2026, 2, 9), time(10, 0), time(10, 1))
+        # الشهرُ التالي رصيدٌ جديد.
+        _permit(school, staff, principal_user, date(2026, 3, 1), time(10, 0), time(12, 0))
 
-    def test_calculate_status_absent_after_9_00(self):
-        """الغائبون: وقتُ الدخول بعد 9:00"""
-        status = StaffAttendanceService.calculate_status(time(9, 5))
-        assert status == "absent"
-
-    def test_record_attendance_present(self, school, staff_user):
-        """تسجيلُ حضورٍ — حالةُ حاضرٍ محسوبة تلقائياً"""
-        today = timezone.localdate()
-        check_in = time(6, 45)
-
-        attendance = StaffAttendanceService.record_attendance(
-            school=school,
-            staff=staff_user,
-            date=today,
-            check_in_time=check_in,
-        )
-
-        assert attendance.status == "present"
-        assert attendance.check_in_time == check_in
-        assert attendance.school == school
-
-    def test_record_attendance_late(self, school, staff_user):
-        """تسجيلُ حضورٍ — حالةُ متأخّرٍ محسوبة تلقائياً"""
-        today = timezone.localdate()
-        check_in = time(8, 30)
-
-        attendance = StaffAttendanceService.record_attendance(
-            school=school,
-            staff=staff_user,
-            date=today,
-            check_in_time=check_in,
-        )
-
-        assert attendance.status == "late"
-
-    def test_record_attendance_absent(self, school, staff_user):
-        """تسجيلُ حضورٍ — حالةُ غائبٍ محسوبة تلقائياً"""
-        today = timezone.localdate()
-        check_in = time(9, 15)
-
-        attendance = StaffAttendanceService.record_attendance(
-            school=school,
-            staff=staff_user,
-            date=today,
-            check_in_time=check_in,
-        )
-
-        assert attendance.status == "absent"
-
-
-@pytest.mark.django_db
-class TestStaffAttendanceModel:
-    """اختباراتُ نموذجِ StaffAttendance"""
-
-    @pytest.fixture
-    def school(self):
-        return School.objects.create(
-            code="TST",
-            name="Test School",
-        )
-
-    @pytest.fixture
-    def staff_user(self, school):
-        user = CustomUser.objects.create_user(
-            username="test_staff",
-            email="staff@test.qa",
-            password="TempPass123!",
-            full_name="موظّفٌ تجريبيّ",
-        )
-        role = Role.objects.get_or_create(name="teacher")[0]
-        Membership.objects.create(
-            user=user,
-            school=school,
-            role=role,
-            joined_at=timezone.now(),
-            is_active=True,
-        )
-        return user
-
-    def test_unique_attendance_per_day(self, school, staff_user):
-        """لا سجلّان للحضورِ في نفسِ اليوم — قيدٌ فريد"""
-        today = timezone.localdate()
-
-        # إنشاءُ السجلِّ الأول
-        StaffAttendance.objects.create(
-            school=school,
-            staff=staff_user,
-            date=today,
-            check_in_time=time(7, 0),
-            status="present",
-        )
-
-        # محاولةُ إنشاءِ السجلِّ الثاني (يجب أن يرفعَ استثناءً)
-        with pytest.raises(IntegrityError):
-            StaffAttendance.objects.create(
-                school=school,
-                staff=staff_user,
-                date=today,
-                check_in_time=time(7, 15),
-                status="present",
+    def test_pending_requests_count_against_the_cap_at_submission(self, school, principal_user):
+        staff = _staff(school, 1)
+        for day in (2, 3, 4):
+            _permit(
+                school,
+                staff,
+                principal_user,
+                date(2026, 2, day),
+                time(10, 0),
+                time(12, 0),
+                approve=None,
+            )
+        with pytest.raises(PolicyError, match="4.2"):
+            _permit(
+                school,
+                staff,
+                principal_user,
+                date(2026, 2, 5),
+                time(10, 0),
+                time(11, 1),
+                approve=None,
             )
 
-    def test_permit_minutes_tracked(self, school, staff_user):
-        """تتبّعُ دقائقِ الاستئذانِ المقبول"""
-        today = timezone.localdate()
-
-        attendance = StaffAttendance.objects.create(
+    def test_approval_rechecks_the_cap(self, school, principal_user):
+        staff = _staff(school, 1)
+        for day in (2, 3, 4):  # 360 معتمدة
+            _permit(school, staff, principal_user, date(2026, 2, day), time(10, 0), time(12, 0))
+        waiting = _permit(
+            school, staff, principal_user, date(2026, 2, 9), time(10, 0), time(11, 0), approve=None
+        )  # 360 + 60 = 420 — يمرّ عند التقديم
+        # إذنٌ اعتُمد من طريقٍ آخر بين التقديم والاعتماد (سباقٌ أو إدخالٌ يدويّ).
+        PermitRequest.objects.create(
             school=school,
-            staff=staff_user,
-            date=today,
-            check_in_time=time(7, 0),
-            permit_minutes=30,  # 30 دقيقةً استئذان
-            status="present",
-        )
-
-        assert attendance.permit_minutes == 30
-
-
-@pytest.mark.django_db
-class TestPermitRequestModel:
-    """اختباراتُ نموذجِ PermitRequest"""
-
-    @pytest.fixture
-    def school(self):
-        return School.objects.create(
-            code="TST",
-            name="Test School",
-        )
-
-    @pytest.fixture
-    def staff_user(self, school):
-        user = CustomUser.objects.create_user(
-            username="permit_test",
-            email="permit@test.qa",
-            password="TempPass123!",
-            full_name="طالبُ إذنٍ",
-        )
-        role = Role.objects.get_or_create(name="teacher")[0]
-        Membership.objects.create(
-            user=user,
-            school=school,
-            role=role,
-            joined_at=timezone.now(),
-            is_active=True,
-        )
-        return user
-
-    def test_permit_request_auto_duration(self, school, staff_user):
-        """حسابُ المدّةِ التلقائيّ — البند 4.4"""
-        today = timezone.localdate()
-
-        permit = PermitRequest.objects.create(
-            school=school,
-            staff=staff_user,
-            permit_type="permit",
-            date=today,
-            start_time=time(9, 0),
-            end_time=time(10, 30),
-            reason="مشروعٌ عائليّ",
-            duration_minutes=0,  # سيُحسب في save()
-        )
-
-        # يجب أن تكونَ المدّةُ 90 دقيقة
-        assert permit.duration_minutes == 90
-
-    def test_permit_request_max_duration_validation(self, school, staff_user):
-        """التحقّقُ من الحدِّ الأقصى — ساعتان — البند 4.4"""
-        today = timezone.localdate()
-
-        permit = PermitRequest(
-            school=school,
-            staff=staff_user,
-            permit_type="permit",
-            date=today,
-            start_time=time(9, 0),
-            end_time=time(11, 31),  # 151 دقيقة > 120
-            reason="مشروعٌ طويل",
-        )
-
-        with pytest.raises(Exception):  # ValidationError
-            permit.full_clean()
-
-    def test_no_two_permits_same_day(self, school, staff_user):
-        """لا إذنان مقبولان في نفسِ اليوم — البند 4.3"""
-        today = timezone.localdate()
-
-        # الإذنُ الأول
-        permit1 = PermitRequest.objects.create(
-            school=school,
-            staff=staff_user,
-            permit_type="permit",
-            date=today,
-            start_time=time(9, 0),
-            end_time=time(10, 0),
-            reason="السبب الأول",
-            status="approved",
-            duration_minutes=60,
-        )
-
-        # محاولةُ الإذنِ الثاني (يجب أن يرفعَ استثناءً)
-        with pytest.raises(IntegrityError):
-            PermitRequest.objects.create(
-                school=school,
-                staff=staff_user,
-                permit_type="permit",
-                date=today,
-                start_time=time(10, 30),
-                end_time=time(11, 0),
-                reason="السبب الثاني",
-                status="approved",
-                duration_minutes=30,
-            )
-
-
-@pytest.mark.django_db
-class TestPermitApprovalService:
-    """اختباراتُ سير عملِ اعتمادِ الأذونات"""
-
-    @pytest.fixture
-    def school(self):
-        return School.objects.create(
-            code="TST",
-            name="Test School",
-        )
-
-    @pytest.fixture
-    def staff_user(self, school):
-        user = CustomUser.objects.create_user(
-            username="staff_user",
-            email="staff@test.qa",
-            password="TempPass123!",
-            full_name="موظّفٌ",
-        )
-        role = Role.objects.get_or_create(name="teacher")[0]
-        Membership.objects.create(
-            user=user,
-            school=school,
-            role=role,
-            joined_at=timezone.now(),
-            is_active=True,
-        )
-        return user
-
-    @pytest.fixture
-    def reviewer_user(self, school):
-        user = CustomUser.objects.create_user(
-            username="reviewer",
-            email="reviewer@test.qa",
-            password="TempPass123!",
-            full_name="مراجعٌ",
-        )
-        role = Role.objects.get_or_create(name="vice_academic")[0]
-        Membership.objects.create(
-            user=user,
-            school=school,
-            role=role,
-            joined_at=timezone.now(),
-            is_active=True,
-        )
-        return user
-
-    def test_approve_permit_within_monthly_limit(self, school, staff_user, reviewer_user):
-        """اعتمادُ إذنٍ ضمنَ السقفِ الشهريّ — 7 ساعات"""
-        today = timezone.localdate()
-
-        permit = PermitRequest.objects.create(
-            school=school,
-            staff=staff_user,
-            permit_type="permit",
-            date=today,
-            start_time=time(9, 0),
-            end_time=time(10, 0),  # 60 دقيقة
-            reason="سبب معقول",
-            status="pending",
-            duration_minutes=60,
-        )
-
-        # اعتمادٌ ناجح
-        approved = StaffAttendanceService.approve_permit(
-            permit_request=permit,
-            reviewer=reviewer_user,
-        )
-
-        assert approved.status == "approved"
-        assert approved.reviewed_by == reviewer_user
-
-    def test_reject_permit_exceeds_monthly_limit(self, school, staff_user, reviewer_user):
-        """رفضُ إذنٍ يتجاوزُ السقفَ الشهريّ"""
-        today = timezone.localdate()
-
-        # إنشاءُ 6 ساعات مقبولة فعلاً
-        for i in range(6):
-            PermitRequest.objects.create(
-                school=school,
-                staff=staff_user,
-                permit_type="permit",
-                date=today - timedelta(days=i),
-                start_time=time(9, 0),
-                end_time=time(10, 0),
-                reason=f"سبب {i}",
-                status="approved",
-                duration_minutes=60,
-            )
-
-        # محاولةُ إضافةِ ساعةٍ أخرى (ستتجاوزُ الـ 7 ساعات)
-        permit_new = PermitRequest.objects.create(
-            school=school,
-            staff=staff_user,
-            permit_type="permit",
-            date=today + timedelta(days=1),
+            staff=staff,
+            permit_type="during_day",
+            date=date(2026, 2, 10),
             start_time=time(10, 0),
-            end_time=time(11, 0),  # ساعةٌ إضافيّة
-            reason="سبب إضافي",
-            status="pending",
+            end_time=time(11, 0),
             duration_minutes=60,
+            reason="x",
+            status="approved",
         )
 
-        with pytest.raises(ValueError):  # السقفُ متجاوز
-            StaffAttendanceService.approve_permit(permit_new, reviewer_user)
+        with pytest.raises(PolicyError, match="4.2"):  # 420 + 60 = 480
+            PermitService.review(waiting, reviewer=principal_user, approve=True)
+        waiting.refresh_from_db()
+        assert waiting.status == "pending"
+
+    def test_one_permit_per_day(self, school, principal_user):
+        staff = _staff(school, 1)
+        _permit(school, staff, principal_user, FEB, time(7, 0), time(7, 30), "late_arrival")
+
+        with pytest.raises(PolicyError, match="4.3"):
+            _permit(
+                school, staff, principal_user, FEB, time(12, 0), time(12, 30), "early_departure"
+            )
+
+    def test_the_database_holds_one_approved_per_day_and_two_hours(self, school, principal_user):
+        staff = _staff(school, 1)
+        first = _permit(school, staff, principal_user, FEB, time(7, 0), time(7, 30))
+        fields = {
+            "school": school,
+            "staff": staff,
+            "permit_type": "during_day",
+            "date": FEB,
+            "start_time": time(10, 0),
+            "end_time": time(10, 30),
+            "duration_minutes": 30,
+            "reason": "x",
+        }
+        with pytest.raises(IntegrityError), transaction.atomic():
+            PermitRequest.objects.create(**fields, status="approved")
+        with pytest.raises(IntegrityError), transaction.atomic():
+            PermitRequest.objects.create(
+                **{**fields, "date": date(2026, 2, 2), "duration_minutes": 121}
+            )
+        assert first.status == "approved"
+
+    def test_nobody_approves_their_own_permit_and_decisions_are_final(self, school, principal_user):
+        manager = _staff(school, 9, role="vice_admin")
+        permit = _permit(school, manager, None, FEB, time(10, 0), time(11, 0), approve=None)
+
+        with pytest.raises(PolicyError, match="4.1"):
+            PermitService.review(permit, reviewer=manager, approve=True)
+
+        PermitService.review(permit, reviewer=principal_user, approve=False, reason="تعارض مع حصة")
+        permit.refresh_from_db()
+        assert (permit.status, permit.rejection_reason) == ("rejected", "تعارض مع حصة")
+        with pytest.raises(PolicyError):
+            PermitService.review(permit, reviewer=principal_user, approve=True)
+        # المرفوضُ لا يحجز اليوم.
+        _permit(school, manager, principal_user, FEB, time(12, 0), time(12, 30))
+
+    def test_malformed_requests_are_refused(self, school):
+        staff = _staff(school, 1)
+        base = {"school": school, "staff": staff, "day": FEB, "reason": "سبب"}
+        with pytest.raises(PolicyError):
+            PermitService.submit(
+                **base, permit_type="vacation", start_time=time(9), end_time=time(10)
+            )
+        with pytest.raises(PolicyError):
+            PermitService.submit(
+                **base, permit_type="during_day", start_time=time(10), end_time=time(9)
+            )
+        with pytest.raises(PolicyError):
+            PermitService.submit(
+                **{**base, "reason": "  "},
+                permit_type="during_day",
+                start_time=time(9),
+                end_time=time(10),
+            )
 
 
-@pytest.mark.django_db
-class TestMonthlyReportService:
-    """اختباراتُ التقريرِ الشهريّ للحضور"""
+# ══════════════════════════════════════════════════════════════════════
+#  التقرير الشهريّ — خمسةُ موظّفين بحسابٍ يدويّ
+# ══════════════════════════════════════════════════════════════════════
 
-    @pytest.fixture
-    def school(self):
-        return School.objects.create(
-            code="TST",
-            name="Test School",
+
+class TestMonthlyReport:
+    def test_five_staff_match_the_hand_computation(self, school, principal_user):
+        a, b, c, d, e = (_staff(school, n) for n in range(1, 6))
+        p = principal_user
+
+        # (أ) ثلاثةُ أيّام حضور، ويومُ تأخّرٍ 7:25 ← 25 دقيقة.
+        _mark(school, a, p, date(2026, 2, 1), "present", time(7, 0))
+        _mark(school, a, p, date(2026, 2, 2), "present", time(6, 50))
+        _mark(school, a, p, date(2026, 2, 3), "present")
+        _mark(school, a, p, date(2026, 2, 4), "late", time(7, 25))
+        # (ب) 8:59 ← 119، و9:00 ← 120 (تأخّرٌ لا غياب)، و9:01 ← غياب.
+        _mark(school, b, p, date(2026, 2, 1), "late", time(8, 59))
+        _mark(school, b, p, date(2026, 2, 2), "late", time(9, 0))
+        _mark(school, b, p, date(2026, 2, 3), "absent", time(9, 1))
+        # (ج) إذنُ تأخيرٍ 7:00–8:30 (90) وحضر 8:15 ← مستأذن؛ وإذنُ خروجٍ 12:00–14:00 (120)
+        #     وحضر 6:55 ← حاضر؛ وطلبٌ معلَّقٌ 60 دقيقة لا يُحسب.
+        _permit(school, c, p, date(2026, 2, 3), time(7, 0), time(8, 30), "late_arrival")
+        _mark(school, c, p, date(2026, 2, 3), "permitted", time(8, 15))
+        _permit(school, c, p, date(2026, 2, 4), time(12, 0), time(14, 0), "early_departure")
+        _mark(school, c, p, date(2026, 2, 4), "present", time(6, 55))
+        _permit(school, c, p, date(2026, 2, 5), time(10, 0), time(11, 0), approve=None)
+        # (د) يوما غياب، وإذنٌ مرفوضٌ 60 دقيقة لا يُحسب.
+        _mark(school, d, p, date(2026, 2, 1), "absent")
+        _mark(school, d, p, date(2026, 2, 2), "absent")
+        _permit(school, d, p, date(2026, 2, 10), time(10, 0), time(11, 0), approve=False)
+        # (هـ) لا رصد؛ إذنٌ معتمدٌ 60 في فبراير يُحسب بلا رصد، وإذنُ يناير 120 لا يُحسب.
+        _permit(school, e, p, date(2026, 1, 29), time(10, 0), time(12, 0))
+        _permit(school, e, p, date(2026, 2, 20), time(10, 0), time(11, 0))
+
+        report = StaffAttendanceService.monthly_report(school, 2026, 2)
+        rows = {r["employee_number"]: r for r in report["rows"]}
+
+        #          حاضر متأخّر غائب مستأذن دقائقُ التأخّر دقائقُ الإذن المتبقّي
+        expected = {
+            "T-0001": (3, 1, 0, 0, 25, 0, 420),
+            "T-0002": (0, 2, 1, 0, 239, 0, 420),
+            "T-0003": (1, 0, 0, 1, 0, 210, 210),
+            "T-0004": (0, 0, 2, 0, 0, 0, 420),
+            "T-0005": (0, 0, 0, 0, 0, 60, 360),
+        }
+        keys = (
+            "present",
+            "late",
+            "absent",
+            "permitted",
+            "late_minutes",
+            "permit_minutes",
+            "permit_remaining",
+        )
+        for number, values in expected.items():
+            assert tuple(rows[number][k] for k in keys) == values, number
+        # والمديرُ من الكادر: صفٌّ سادسٌ أصفار.
+        assert len(report["rows"]) == 6
+        assert report["totals"] == {
+            "present": 4,
+            "late": 3,
+            "absent": 3,
+            "permitted": 1,
+            "late_minutes": 264,
+            "permit_minutes": 270,
+        }
+        assert (report["first"], report["last"]) == (date(2026, 2, 1), date(2026, 2, 28))
+        assert MONTHLY_PERMIT_CAP == 420
+
+    def test_the_workbook_carries_the_employee_number_not_the_personal_one(self, school):
+        staff = _staff(school, 7)
+        report = StaffAttendanceService.monthly_report(school, 2026, 2)
+        ws = StaffAttendanceService.monthly_workbook(report).active
+
+        values = [c for row in ws.iter_rows(values_only=True) for c in row]
+        assert ws.cell(1, 1).value == "الرقم الوظيفي"
+        assert "T-0007" in values
+        assert staff.national_id not in values
+
+    def test_the_daily_board_counts_every_status_and_the_unmarked(self, school, principal_user):
+        a, b = _staff(school, 1), _staff(school, 2)
+        _mark(school, a, principal_user, FEB, "late", time(7, 5))
+
+        board = StaffAttendanceService.daily_board(school, FEB)
+
+        assert board["counts"] == {
+            "present": 0,
+            "late": 1,
+            "absent": 0,
+            "permitted": 0,
+            "unmarked": 2,
+        }
+        assert {row["staff"].pk for row in board["rows"]} == {a.pk, b.pk, principal_user.pk}
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  الشاشات — الحراسةُ والتدقيق
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestScreens:
+    def test_the_board_is_for_staff_affairs_only(
+        self, client_as, school, teacher_user, principal_user
+    ):
+        url = reverse("staff_affairs:attendance_board")
+        assert client_as(teacher_user).get(url).status_code in (302, 403)
+        assert client_as(principal_user).get(url).status_code == 200
+
+    def test_a_click_marks_and_returns_the_row(self, client_as, school, principal_user):
+        staff = _staff(school, 1)
+        client = client_as(principal_user)
+        url = reverse("staff_affairs:attendance_mark")
+
+        ok = client.post(
+            url, {"staff_id": staff.pk, "date": "2026-02-02", "status": "late", "check_in": "07:40"}
+        )
+        refused = client.post(
+            url,
+            {"staff_id": staff.pk, "date": "2026-02-03", "status": "present", "check_in": "09:30"},
         )
 
-    @pytest.fixture
-    def staff_user(self, school):
-        user = CustomUser.objects.create_user(
-            username="report_test",
-            email="report@test.qa",
-            password="TempPass123!",
-            full_name="موظّفٌ للتقرير",
-        )
-        role = Role.objects.get_or_create(name="teacher")[0]
-        Membership.objects.create(
-            user=user,
-            school=school,
-            role=role,
-            joined_at=timezone.now(),
-            is_active=True,
-        )
-        return user
+        assert ok.status_code == 200 and f"sa-att-{staff.pk}" in ok.content.decode()
+        assert StaffAttendance.objects.get(date=date(2026, 2, 2)).late_minutes == 40
+        assert "غائب" in refused.content.decode()
+        assert not StaffAttendance.objects.filter(date=date(2026, 2, 3)).exists()
 
-    def test_monthly_report_structure(self, school, staff_user):
-        """التقريرُ الشهريّ يحتويكن الحقولَ الصحيحة"""
-        today = timezone.localdate()
-        year = today.year
-        month = today.month
+    def test_another_schools_staff_cannot_be_marked(self, client_as, school, principal_user):
+        from tests.conftest import SchoolFactory
 
-        # إنشاءُ سجلّات اختبارية
-        StaffAttendance.objects.create(
-            school=school,
-            staff=staff_user,
-            date=today,
-            check_in_time=time(6, 45),
-            status="present",
+        outsider = _staff(SchoolFactory(), 3)
+        response = client_as(principal_user).post(
+            reverse("staff_affairs:attendance_mark"),
+            {"staff_id": outsider.pk, "date": "2026-02-02", "status": "present"},
+        )
+        assert response.status_code == 404
+
+    def test_the_report_and_its_excel_are_audited(self, client_as, school, principal_user):
+        _staff(school, 1)
+        client = client_as(principal_user)
+
+        page = client.get(reverse("staff_affairs:attendance_report"), {"month": "2026-02"})
+        xlsx = client.get(reverse("staff_affairs:attendance_report_xlsx"), {"month": "2026-02"})
+
+        assert page.status_code == 200 and "T-0001" in page.content.decode()
+        assert xlsx.status_code == 200
+        assert "spreadsheetml" in xlsx["Content-Type"]
+        log = AuditLog.objects.get(action="export")
+        assert log.changes == {
+            "kind": "staff_affairs.attendance_month_xlsx",
+            "rows": 2,
+            "full_national_id": False,
+        }
+
+    def test_a_teacher_requests_for_themself_and_the_manager_approves(
+        self, client_as, school, teacher_user, principal_user
+    ):
+        mine = reverse("staff_affairs:my_permits")
+        teacher = client_as(teacher_user)
+        assert teacher.get(mine).status_code == 200
+        response = teacher.post(
+            mine,
+            {
+                "permit_type": "early_departure",
+                "date": "2026-02-02",
+                "start_time": "12:30",
+                "end_time": "14:00",
+                "reason": "موعد طبي",
+            },
+        )
+        assert response.status_code == 302
+        refused = teacher.post(
+            mine,
+            {
+                "permit_type": "during_day",
+                "date": "2026-02-02",
+                "start_time": "09:00",
+                "end_time": "09:30",
+                "reason": "آخر",
+            },
+        )
+        assert "4.3" in refused.content.decode()
+        assert teacher.get(reverse("staff_affairs:permit_queue")).status_code in (302, 403)
+
+        permit = PermitRequest.objects.get(staff=teacher_user)
+        manager = client_as(principal_user)
+        assert manager.get(reverse("staff_affairs:permit_queue")).status_code == 200
+        manager.post(
+            reverse("staff_affairs:permit_review", args=[permit.pk]), {"decision": "approve"}
         )
 
-        report = StaffAttendanceService.get_monthly_report(
-            school=school,
-            staff=staff_user,
-            year=year,
-            month=month,
+        permit.refresh_from_db()
+        assert (permit.status, permit.reviewed_by, permit.duration_minutes) == (
+            "approved",
+            principal_user,
+            90,
         )
+        assert AuditLog.objects.filter(object_id=str(permit.pk), action="update").exists()
 
-        # التحقّقُ من البنية
-        assert "days" in report
-        assert "summary" in report
-        assert "permit_used" in report
-        assert "permit_remaining" in report
-        assert report["summary"]["present"] >= 1
-        assert report["permit_remaining"] <= 420  # 7 ساعات بالدقائق
+    def test_students_cannot_request_permits(self, client_as, student_user):
+        response = client_as(student_user).get(reverse("staff_affairs:my_permits"))
+        assert response.status_code in (302, 403)
