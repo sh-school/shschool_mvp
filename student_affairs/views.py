@@ -26,7 +26,7 @@ from clinic.models import ClinicVisit, HealthRecord
 from core import brand
 from core.academic_calendar import academic_year_for, academic_year_window
 from core.audit_export import log_export
-from core.capabilities import capability_required
+from core.capabilities import capability_required, has_capability
 from core.domain.attendance import attendance_rate
 from core.domain.tones import ATTENDANCE_SUMMARY, tone_for
 from core.export_utils import (
@@ -59,6 +59,7 @@ from operations.absence_standing import standing_for
 from operations.models import AbsenceAlert, Session, StudentAttendance
 from operations.presence import presence_now
 from operations.tardiness import tardiness_now
+from wings.scope import student_scope_for
 
 from .models import StudentActivity, StudentTransfer
 
@@ -72,18 +73,33 @@ logger = logging.getLogger(__name__)
 # ═════════════════════════════════════════════════════════════════════
 
 
+def _year_in_scope(request, scope) -> str:
+    """العامُ المعروض — `?year=` لغير المقيَّد كما كان، والمقيَّدُ بجناحه على عامه الجاري.
+
+    فالرابطُ لا يوسّع نطاقَ المشرف إلى شُعب عامٍ مضى (`StudentScope.year_for`). ويُقرأ
+    العامُ الجاري بعد `?year=` لا قبله، فلا يزيد على القيادة استعلامٌ حين تمرّره.
+    """
+    requested = request.GET.get("year")
+    if requested and not scope.is_wing_bound:
+        return requested
+    return scope.year_for(requested, scope.year or academic_year_for(request))
+
+
 @login_required
-@capability_required("student_affairs.manage")
+# متابعةُ اليوم — الغائبون والمتأخّرون ومخالفاتُ اليوم — عملُ المشرف الإداريّ اليوميّ،
+# فيفتحها بقدرة المتابعة ويرى فيها طلبةَ جناحه وحدَهم (قرارُ المستخدم 2026-09-14).
+@capability_required("student_affairs.follow_up")
 def student_dashboard(request):
     """لوحة شؤون الطلاب — KPIs عبر Service Layer."""
     from .services import StudentService
 
     school = request.school
     today = timezone.localdate()
-    year = request.GET.get("year") or academic_year_for(request)
+    scope = student_scope_for(request)
+    year = _year_in_scope(request, scope)
 
     # ✅ v5.4: StudentService.get_dashboard_context — جميع queries في service layer
-    ctx = StudentService.get_dashboard_context(school, year, today=today)
+    ctx = StudentService.get_dashboard_context(school, year, today=today, scope=scope)
     att = ctx["today_attendance"]
     total_students = ctx["total_students"]
     absent_today = att["absent"] or 0
@@ -100,7 +116,11 @@ def student_dashboard(request):
             "today": today,
             "year": year,
             "current_school": school,
-            "page_subtitle": _dated_subtitle(getattr(school, "name", ""), year, today),
+            "page_subtitle": _dated_subtitle(
+                getattr(school, "name", ""), year, today, wing_bound=scope.is_wing_bound
+            ),
+            # القالبُ يُخفي عن المقيَّد روابطَ ما لا يفتحه — والحراسةُ على الشاشات.
+            "limited": scope.is_wing_bound,
             "total_students": total_students,
             "absent_today": absent_today,
             "late_today": late_today,
@@ -138,9 +158,13 @@ _LEVEL_BADGE = {1: "status-success", 2: "status-warning", 3: "status-warning"}
 _GRADE_NAMES = dict(ClassGroup.GRADES)
 
 
-def _dated_subtitle(school_name: str, year: str, day) -> str:
-    """«المدرسة · 2026-2027 · التاريخ» — سطرُ الترويسة الوصفيّ."""
-    parts = [school_name or "المدرسة", year, date_format(day, "D، d M Y")]
+def _dated_subtitle(school_name: str, year: str, day, wing_bound: bool = False) -> str:
+    """«المدرسة · 2026-2027 · التاريخ» — سطرُ الترويسة الوصفيّ.
+
+    والمقيَّدُ بجناحه يُقال له ذلك في الترويسة: رقمٌ لجناحٍ يُقرأ رقماً للمدرسة إن سكت.
+    """
+    parts = [school_name or "المدرسة", "طلبة جناحك" if wing_bound else "", year]
+    parts.append(date_format(day, "D، d M Y"))
     return " · ".join(part for part in parts if part)
 
 
@@ -195,19 +219,26 @@ STUDENT_SORTS = {
 # ويردُّه حارسُها — إذنٌ مكتوبٌ في موضعٍ وممنوعٌ في آخر.
 @capability_required("student_affairs.view")
 def student_list(request):
-    """قائمة الطلاب مع بحث وفلتر حسب الصف والشعبة."""
-    school = request.school
-    year = request.GET.get("year") or academic_year_for(request)
+    """قائمة الطلاب مع بحث وفلتر حسب الصف والشعبة.
 
-    # ── الاستعلام الأساسي: طلاب فعّالون في المدرسة ──
-    students = (
+    والمشرفُ الإداريُّ يقرؤها لطلبة جناحه وحدَهم (قرارُ المستخدم 2026-09-14): النطاقُ
+    يُطبَّق على الاستعلام الأساسيّ **قبل** كلّ مرشِّحٍ وفرزٍ وترقيم، فالعددُ والصفحاتُ
+    والبحثُ بالرقم الشخصيّ لا تبلغ طالباً خارجه.
+    """
+    school = request.school
+    scope = student_scope_for(request)
+    year = _year_in_scope(request, scope)
+
+    # ── الاستعلام الأساسي: طلاب فعّالون في المدرسة — أو في الجناح ──
+    students = scope.narrow(
         Membership.objects.filter(
             school=school,
             role__name="student",
             is_active=True,
         )
         .select_related("user", "user__profile")
-        .order_by("user__full_name")
+        .order_by("user__full_name"),
+        "user_id",
     )
 
     # ── الفلاتر ──
@@ -219,24 +250,28 @@ def student_list(request):
     if grade_filter:
         # ✅ subquery مباشر — لا تحميل IDs إلى Python
         grade_enrollment_exists = Exists(
-            StudentEnrollment.objects.filter(
-                class_group__school=school,
-                class_group__academic_year=year,
-                class_group__grade=grade_filter,
-                is_active=True,
-                student_id=OuterRef("user_id"),
+            scope.narrow_classes(
+                StudentEnrollment.objects.filter(
+                    class_group__school=school,
+                    class_group__academic_year=year,
+                    class_group__grade=grade_filter,
+                    is_active=True,
+                    student_id=OuterRef("user_id"),
+                )
             )
         )
         students = students.filter(grade_enrollment_exists)
 
     if section_filter:
         section_enrollment_exists = Exists(
-            StudentEnrollment.objects.filter(
-                class_group__school=school,
-                class_group__academic_year=year,
-                class_group__section=section_filter,
-                is_active=True,
-                student_id=OuterRef("user_id"),
+            scope.narrow_classes(
+                StudentEnrollment.objects.filter(
+                    class_group__school=school,
+                    class_group__academic_year=year,
+                    class_group__section=section_filter,
+                    is_active=True,
+                    student_id=OuterRef("user_id"),
+                )
             )
         )
         students = students.filter(section_enrollment_exists)
@@ -259,7 +294,9 @@ def student_list(request):
     # ويخالف الكشفَ الوزاريَّ في رقمٍ يُقرأ في أوّل الشاشة.
     #
     # فالافتراضُ المقيَّدون، ومن لا قيدَ له يُرى بترشيحٍ صريحٍ لا يضيع.
-    status = request.GET.get("status") or "enrolled"
+    # والمقيَّدُ بجناحه لا يرى إلّا المقيَّدين: طالبٌ بلا قيدٍ نشطٍ لا جناحَ له،
+    # فـ`all` و`unenrolled` لا تفتحان له المدرسة.
+    status = "enrolled" if scope.is_wing_bound else (request.GET.get("status") or "enrolled")
     is_enrolled = Exists(
         StudentEnrollment.objects.filter(
             student_id=OuterRef("user_id"),
@@ -278,10 +315,12 @@ def student_list(request):
     # فتُجلبان بالاستعلام نفسِه ليصحّ الفرزُ بهما على السجلّ كلِّه لا على
     # الصفحة الظاهرة. وكان الفرزُ في المتصفّح على مئتين مقطوعةٍ من سبعمئةٍ
     # وخمسٍ وثلاثين — يُوهم القارئَ أنّه رأى الأوّلَ وهو أوّلُ صفحةٍ واحدة.
-    enrolment = StudentEnrollment.objects.filter(
-        student_id=OuterRef("user_id"),
-        class_group__academic_year=year,
-        is_active=True,
+    enrolment = scope.narrow_classes(
+        StudentEnrollment.objects.filter(
+            student_id=OuterRef("user_id"),
+            class_group__academic_year=year,
+            is_active=True,
+        )
     ).order_by("-class_group__academic_year", "-enrolled_at")
     guardian = ParentStudentLink.objects.filter(
         student_id=OuterRef("user_id"), school=school
@@ -361,21 +400,12 @@ def student_list(request):
         for m in page_obj
     ]
 
-    # ── خيارات الفلتر ──
-    available_grades = sorted(
-        set(
-            ClassGroup.objects.filter(
-                school=school, academic_year=year, is_active=True
-            ).values_list("grade", flat=True)
-        ),
-        key=grade_number,
+    # ── خيارات الفلتر — من شُعب الجناح للمقيَّد ──
+    groups = scope.narrow_classes(
+        ClassGroup.objects.filter(school=school, academic_year=year, is_active=True), "pk"
     )
-    available_sections = (
-        ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
-        .values_list("section", flat=True)
-        .distinct()
-        .order_by("section")
-    )
+    available_grades = sorted(set(groups.values_list("grade", flat=True)), key=grade_number)
+    available_sections = groups.values_list("section", flat=True).distinct().order_by("section")
 
     ctx = {
         "students": student_rows,
@@ -386,9 +416,13 @@ def student_list(request):
         "sort": sort,
         "status": status,
         "statuses": (
-            ("enrolled", "مقيَّدون هذا العام"),
-            ("unenrolled", "بلا قيدٍ نشط"),
-            ("all", "الكلّ"),
+            (("enrolled", "مقيَّدون هذا العام"),)
+            if scope.is_wing_bound
+            else (
+                ("enrolled", "مقيَّدون هذا العام"),
+                ("unenrolled", "بلا قيدٍ نشط"),
+                ("all", "الكلّ"),
+            )
         ),
         "q": q,
         "grade_filter": grade_filter,
@@ -397,6 +431,10 @@ def student_list(request):
         "grades": available_grades,
         "sections": available_sections,
         "year": year,
+        "page_subtitle": f"{year} · طلبة جناحك" if scope.is_wing_bound else year,
+        # القالبُ يُخفي عن المقيَّد روابطَ ما لا يفتحه، وزرَّ «تعديل» — والحراسةُ على الشاشات.
+        "limited": scope.is_wing_bound,
+        "can_edit": _profile_actions(request.user, scope)["can_edit"],
     }
 
     # HTMX: إرجاع الجدول فقط
@@ -742,18 +780,44 @@ def student_deactivate(request, student_id):
 # ═════════════════════════════════════════════════════════════════════
 
 
+def _profile_actions(user, scope) -> dict:
+    """أزرارُ ملفّ الطالب ذواتُ المعرّف — `can_open` لا يقرأ رابطاً بوسائط.
+
+    غيرُ المقيَّد يرى الأزرارَ كما كانت حرفاً؛ والمقيَّدُ بجناحه يُعرض له منها ما
+    يفتحه حارسُه وحدَه. والحراسةُ على الشاشات نفسِها لا هنا.
+    """
+    if not scope.is_wing_bound:
+        return {"can_edit": True, "can_summon": True, "can_see_results": True}
+    return {
+        "can_edit": has_capability(user, "student_affairs.manage"),
+        "can_summon": has_capability(user, "behavior.summon_parent"),
+        "can_see_results": not scope.hides_grades and has_capability(user, "reports.results"),
+    }
+
+
 @login_required
-@capability_required("student_affairs.manage")
+# كلُّ قائمةٍ في شؤون الطلبة تنتهي إلى هذا الملفّ، فالفحصُ عنده هو الحارسُ الحقيقيّ:
+# المشرفُ الإداريُّ يفتحه لطالبٍ من جناحه وحدَه، وغيرُه 404 لا يُميَّز عن غير الموجود.
+@capability_required("student_affairs.follow_up")
 def student_profile(request, student_id):
-    """ملف الطالب الشامل — يجمع بيانات من 7 تطبيقات."""
+    """ملف الطالب الشامل — يجمع بيانات من 7 تطبيقات.
+
+    وللمقيَّد بجناحه (قرارُ المستخدم 2026-09-15) لا تُحسب ولا تُعرض: الدرجاتُ،
+    وفصيلةُ الدم وأسبابُ زيارات العيادة (يرى تاريخَ الزيارة و«أُعيد إلى المنزل»)،
+    والإعاراتُ، والأنشطةُ، والانتقالات.
+    """
     school = request.school
+    scope = student_scope_for(request)
+    # قبل جلب الطالب، وعلى العام الجاري لا على `?year=`.
+    scope.require_student(student_id)
     student = get_object_or_404(
         CustomUser,
         id=student_id,
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year") or academic_year_for(request)
+    year = _year_in_scope(request, scope)
+    limited = scope.is_wing_bound
 
     # ── 1. البيانات الشخصية (core) ──
     profile = getattr(student, "profile", None)
@@ -824,43 +888,55 @@ def student_profile(request, student_id):
     }
 
     # ── 4. العيادة (clinic) — ClinicVisit + HealthRecord مُستورَدان من أعلى الملف ──
-    clinic_visits = ClinicVisit.objects.filter(student=student, school=school).order_by(
-        "-visit_date"
-    )[:5]
-    health_record = HealthRecord.objects.filter(student=student).first()
+    visits = ClinicVisit.objects.filter(student=student, school=school).order_by("-visit_date")
+    if scope.clinic_summary_only:
+        # التاريخُ و«أُعيد إلى المنزل» وحدَهما يبلغان القالب — لا السببُ ولا الحرارة.
+        clinic_visits = visits.values("visit_date", "is_sent_home")[:5]
+        health_record = None
+    else:
+        clinic_visits = visits[:5]
+        health_record = HealthRecord.objects.filter(student=student).first()
 
     # ── 5. الدرجات (assessments) — AnnualSubjectResult مُستورَد من أعلى الملف ──
-    grades = (
-        AnnualSubjectResult.objects.filter(
-            student=student,
-            school=school,
-            academic_year=year,
+    if scope.hides_grades:
+        grades = AnnualSubjectResult.objects.none()
+        grades_summary = {}
+    else:
+        grades = (
+            AnnualSubjectResult.objects.filter(
+                student=student,
+                school=school,
+                academic_year=year,
+            )
+            .select_related("setup__subject", "setup__class_group")
+            .order_by("setup__subject__name_ar")
         )
-        .select_related("setup__subject", "setup__class_group")
-        .order_by("setup__subject__name_ar")
-    )
-    grades_summary = grades.aggregate(
-        total_subjects=Count("id"),
-        passed=Count("id", filter=Q(status="pass")),
-        failed=Count("id", filter=Q(status="fail")),
-    )
+        grades_summary = grades.aggregate(
+            total_subjects=Count("id"),
+            passed=Count("id", filter=Q(status="pass")),
+            failed=Count("id", filter=Q(status="fail")),
+        )
 
-    # ── 6. المكتبة (library) — BookBorrowing مُستورَد من أعلى الملف ──
-    borrowings = (
-        BookBorrowing.objects.filter(user=student)
-        .select_related("book")
-        .order_by("-borrow_date")[:5]
-    )
+    if limited:
+        # الإعاراتُ والأنشطةُ والانتقالاتُ ليست من متابعة المشرف — فلا تُحسب له.
+        borrowings, activities, transfers = [], [], []
+    else:
+        # ── 6. المكتبة (library) — BookBorrowing مُستورَد من أعلى الملف ──
+        borrowings = (
+            BookBorrowing.objects.filter(user=student)
+            .select_related("book")
+            .order_by("-borrow_date")[:5]
+        )
 
-    # ── 7. الأنشطة (student_affairs) ──
-    activities = StudentActivity.objects.filter(student=student, school=school).order_by("-date")[
-        :10
-    ]
+        # ── 7. الأنشطة (student_affairs) ──
+        activities = StudentActivity.objects.filter(student=student, school=school).order_by(
+            "-date"
+        )[:10]
 
-    # ── الانتقالات ──
-    transfers = StudentTransfer.objects.filter(student=student, school=school).order_by(
-        "-created_at"
-    )[:5]
+        # ── الانتقالات ──
+        transfers = StudentTransfer.objects.filter(student=student, school=school).order_by(
+            "-created_at"
+        )[:5]
 
     # ── ما يُرسم: سطرُ الترويسة ولونُ الحضور (90 · 75 — عتبتا القالب) ──
     subtitle_parts = []
@@ -899,6 +975,9 @@ def student_profile(request, student_id):
             "activities": activities,
             "transfers": transfers,
             "year": year,
+            # القالبُ يُخفي ولا يحرس: الأقسامُ المحجوبةُ لم تُحسب أصلاً.
+            "limited": limited,
+            **_profile_actions(request.user, scope),
         },
     )
 
@@ -1618,17 +1697,25 @@ def activity_delete(request, pk):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+# نسخةُ الملفّ نفسِه — فتتقيّد كما يتقيّد: طالبٌ من جناح المشرف وحدَه.
+@capability_required("student_affairs.follow_up")
 def student_profile_pdf(request, student_id):
-    """ملف الطالب الشامل — PDF للطباعة (A4)."""
+    """ملف الطالب الشامل — PDF للطباعة (A4).
+
+    وللمقيَّد بجناحه: لا درجاتٍ ولا أنشطة، والرقمُ الشخصيُّ مستور — فوثيقتُه متابعةٌ
+    لا وثيقةٌ رسميّة، والرقمُ كاملاً لمن يُصدر الوثيقةَ الرسميّة.
+    """
     school = request.school
+    scope = student_scope_for(request)
+    scope.require_student(student_id)
     student = get_object_or_404(
         CustomUser,
         id=student_id,
         memberships__school=school,
         memberships__is_active=True,
     )
-    year = request.GET.get("year") or academic_year_for(request)
+    year = _year_in_scope(request, scope)
+    limited = scope.is_wing_bound
 
     # enrollment
     enrollment = (
@@ -1669,20 +1756,26 @@ def student_profile_pdf(request, student_id):
     )
 
     # درجات — AnnualSubjectResult مُستورَد من أعلى الملف
-    grades = (
-        AnnualSubjectResult.objects.filter(
-            student=student,
-            school=school,
-            academic_year=year,
+    if scope.hides_grades:
+        grades = AnnualSubjectResult.objects.none()
+    else:
+        grades = (
+            AnnualSubjectResult.objects.filter(
+                student=student,
+                school=school,
+                academic_year=year,
+            )
+            .select_related("setup__subject")
+            .order_by("setup__subject__name_ar")
         )
-        .select_related("setup__subject")
-        .order_by("setup__subject__name_ar")
-    )
 
-    # أنشطة
-    activities = StudentActivity.objects.filter(school=school, student=student).order_by("-date")[
-        :10
-    ]
+    # أنشطة — ليست من متابعة المقيَّد بجناحه
+    if limited:
+        activities = StudentActivity.objects.none()
+    else:
+        activities = StudentActivity.objects.filter(school=school, student=student).order_by(
+            "-date"
+        )[:10]
 
     # أولياء الأمور
     parent_links = ParentStudentLink.objects.filter(
@@ -1692,13 +1785,16 @@ def student_profile_pdf(request, student_id):
 
     ctx = get_export_context(request, "ملف الطالب الشامل")
     # ملفُّ طالبٍ واحدٍ وثيقةٌ فرديّة: الرقمُ كاملاً، والتدقيقُ ثمنُه.
+    # والمقيَّدُ بجناحه يأخذه مستوراً، ويقول الأثرُ ذلك.
     log_export(
         request,
         "student_affairs.student_profile_pdf",
         rows=1,
-        full_national_id=True,
+        full_national_id=not limited,
         object_id=student.pk,
-        object_repr=f"ملف الطالب {student.full_name} — {year}",
+        object_repr=(
+            f"ملف الطالب {student.full_name} — {year}" + (" — طلبة الجناح" if limited else "")
+        ),
     )
 
     html_string = render_to_string(
@@ -1715,6 +1811,7 @@ def student_profile_pdf(request, student_id):
             "parent_links": parent_links,
             "today": today,
             "year": year,
+            "limited": limited,
             **ctx,
         },
     )
@@ -1728,7 +1825,8 @@ def student_profile_pdf(request, student_id):
 
 
 @login_required
-@capability_required("student_affairs.manage")
+# مرفقُ عذر التأخّر من عمل المشرف الإداريّ (الدليل 2026 م 3.4.2.2) — لطلبة جناحه وحدَهم.
+@capability_required("student_affairs.follow_up")
 def protected_media(request, path):
     """تقديم ملفات media محمية — يتحقق من المدرسة قبل التقديم عبر X-Accel-Redirect."""
     # F-001-a: Path traversal sanitization
@@ -1737,10 +1835,10 @@ def protected_media(request, path):
 
     school = request.school
 
-    # تحقق أن الملف يخص مدرسة المستخدم
-    attendance = get_object_or_404(
-        StudentAttendance,
-        school=school,
+    # تحقق أن الملف يخص مدرسة المستخدم — وطالباً من جناحه للمقيَّد، وإلّا 404
+    # لا يُميَّز عن ملفٍّ غير موجود.
+    get_object_or_404(
+        student_scope_for(request).narrow(StudentAttendance.objects.filter(school=school)),
         excuse_file=path,
     )
 
