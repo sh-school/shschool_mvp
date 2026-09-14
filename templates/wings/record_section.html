@@ -93,7 +93,7 @@
           <tr class="rec-row" data-student="{{ sid }}">
             <td class="per-grid__no">{{ forloop.counter }}</td>
             <th scope="row" class="per-grid__name">
-              <span class="rec-row__name">{{ row.student.full_name }} <a href="{% url 'wings:student_events' klass.id sid %}" class="rec-row__fix" title="تصحيحُ إدخالٍ خاطئ على هذا الطالب">تصحيح</a></span>
+              <span class="rec-row__name">{{ row.student.full_name }} <a href="{% url 'wings:student_events' klass.id sid %}" class="rec-row__fix" title="تصحيح أو عذرُ إدخالٍ خاطئ على هذا الطالب">تصحيح</a></span>
               {% if row.absent_yesterday or row.days %}
               <span class="rec-row__flags">
                 {% if row.absent_yesterday %}<span class="badge badge--warning">غاب أمس</span>{% endif %}

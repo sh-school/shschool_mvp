@@ -4,7 +4,7 @@
   "description": "تابع أداء ابنك — درجات، حضور، سلوك",
   "start_url": "/parents/",
   "scope": "/parents/",
-  "display": "standalone",
+  "display": "fullscreen",
   "orientation": "portrait",
   "background_color": "{% brand_color 'MAROON' %}",
   "theme_color": "{% brand_color 'MAROON' %}",

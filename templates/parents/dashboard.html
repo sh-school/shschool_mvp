@@ -96,7 +96,8 @@ var deferredPrompt;
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   deferredPrompt = e;
-  if (!window.matchMedia('(display-mode: standalone)').matches) {
+  if (!window.matchMedia('(display-mode: fullscreen)').matches
+      && !window.matchMedia('(display-mode: standalone)').matches) {
     setTimeout(function() {
       var banner = document.getElementById('pwa-banner');
       if (banner) banner.hidden = false;

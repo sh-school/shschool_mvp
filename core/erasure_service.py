@@ -36,7 +36,7 @@ def _lazy_student_fk_models():
     from behavior.models import BehaviorInfraction
     from clinic.models import ClinicVisit, HealthRecord
     from library.models import BookBorrowing
-    from operations.models import AbsenceAlert, StudentAttendance
+    from operations.models import AbsenceAlert, AbsenceExcuse, StudentAttendance
     from student_affairs.models import StudentActivity
 
     _STUDENT_FK_MODELS.extend(
@@ -49,6 +49,7 @@ def _lazy_student_fk_models():
             (BehaviorInfraction, "student", False),
             (StudentAttendance, "student", False),
             (AbsenceAlert, "student", False),
+            (AbsenceExcuse, "student", False),  # عذرُ غياب (يحوي مستنداً)
             (BookBorrowing, "user", False),
             (StudentActivity, "student", False),  # نشاط طلابي (يحوي مرفق PII)
         ]
@@ -65,12 +66,13 @@ def _lazy_file_field_models():
     if _FILE_FIELD_MODELS:
         return _FILE_FIELD_MODELS
 
-    from operations.models import StudentAttendance
+    from operations.models import AbsenceExcuse, StudentAttendance
     from student_affairs.models import StudentActivity
 
     _FILE_FIELD_MODELS.extend(
         [
             (StudentAttendance, "student", "excuse_file"),
+            (AbsenceExcuse, "student", "document"),
             (StudentActivity, "student", "attachment"),
         ]
     )

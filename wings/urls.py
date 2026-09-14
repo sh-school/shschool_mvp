@@ -24,6 +24,12 @@ urlpatterns = [
     ),
     path("record/exit/<uuid:pk>/delete/", views.exit_event_delete, name="exit_event_delete"),
     path(
+        "record/<uuid:class_id>/student/<uuid:student_id>/excuse/",
+        views.excuse_grant,
+        name="excuse_grant",
+    ),
+    path("record/excuse/<uuid:pk>/revoke/", views.excuse_revoke, name="excuse_revoke"),
+    path(
         "record/<uuid:class_id>/register/",
         views_register.section_register_export,
         name="section_register",

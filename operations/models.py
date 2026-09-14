@@ -167,11 +167,16 @@ class StudentAttendance(models.Model):
         ("teacher_out", "نقرةُ المعلّم — خرج بإذنٍ ولم يعد"),
     ]
 
+    #: الأعذارُ المقبولة — القائمةُ المغلقةُ في الدليل التنظيميّ 2026 (م 3.4.1.4، ص29):
+    #: خمسةٌ لا يزيدها اجتهاد، «وكلُّ ما عدا ذلك غيابٌ بدون عذر». و«أخرى» بقيّةٌ من
+    #: قبل القائمة تُقرأ ولا تُختار (`operations/excuses.py`).
     EXCUSE = [
-        ("medical", "طبي"),
-        ("family", "ظروف عائلية"),
-        ("official", "رسمي"),
-        ("other", "أخرى"),
+        ("medical", "مرضٌ بتقريرٍ طبّيّ"),
+        ("bereavement", "وفاةٌ في القرابة الأولى"),
+        ("family", "ظرفٌ عائليٌّ طارئٌ بكتابٍ رسميّ"),
+        ("state_representation", "تمثيلُ الدولة في لقاءٍ خارجيّ"),
+        ("official", "موعدُ محكمةٍ أو هيئةٍ حكوميّة، أو مقابلةٌ للثاني عشر"),
+        ("other", "أخرى (قبل القائمة المغلقة)"),
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
@@ -225,6 +230,16 @@ class StudentAttendance(models.Model):
         null=True, blank=True, verbose_name="دقائقُ التأخّر عن الحصّة"
     )
     excuse_type = models.CharField(max_length=20, choices=EXCUSE, blank=True)
+    #: العذرُ الذي غطّى هذا الغياب — قرارٌ واحدٌ بمستنده يغطّي أيّاماً وحصصاً
+    #: (`AbsenceExcuse`). و`excuse_type` يبقى مكتوباً على الصفّ لأنّ الحسابَ يقرؤه.
+    excuse = models.ForeignKey(
+        "operations.AbsenceExcuse",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rows",
+        verbose_name="العذرُ المقبول",
+    )
     excuse_notes = models.TextField(blank=True)
     excuse_file = models.FileField(
         upload_to=_excuse_upload_path,
@@ -254,6 +269,53 @@ class StudentAttendance(models.Model):
 
     def __str__(self):
         return f"{self.student.full_name} | {self.get_status_display()} | {self.session}"
+
+
+class AbsenceExcuse(models.Model):
+    """عذرٌ مقبولٌ لغياب طالبٍ في مدّة — قرارُ المشرف (أو النائب بعد المهلة) بمستنده.
+
+    الدليلُ التنظيميّ 2026: القائمةُ مغلقةٌ بخمسة (م 3.4.1.4)، والمهلةُ يومان
+    (م 3.4.1.5: «إن لم يردّ وليُّ الأمر خلال يومين حُسب بلا عذر»؛ والتقريرُ الطبّيّ
+    خلال يومين من العودة). فالمشرفُ يقبل في المهلة، ومن بعدها النائبُ الإداريّ بسبب.
+    القرارُ واحدٌ يغطّي كلَّ حصص الغياب في مدّته، ومستندُه واحدٌ لا يُنسخ على الصفوف.
+    """
+
+    KINDS = [k for k in StudentAttendance.EXCUSE if k[0] != "other"]
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="absence_excuses")
+    student = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="absence_excuses"
+    )
+    date_from = models.DateField(verbose_name="من")
+    date_to = models.DateField(verbose_name="إلى")
+    kind = models.CharField(max_length=20, choices=KINDS, verbose_name="نوعُ العذر")
+    notes = models.TextField(blank=True, verbose_name="بيان")
+    document = models.FileField(
+        upload_to=_excuse_upload_path,
+        blank=True,
+        verbose_name="المستند",
+        validators=[FileTypeValidator(allowed_types="excuse", max_size_mb=10)],  # type: ignore[no-untyped-call]
+    )
+    granted_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, related_name="absence_excuses_granted"
+    )
+    granted_at = models.DateTimeField(auto_now_add=True)
+    #: قُبل بعد مهلة اليومين — بصلاحيّة النائب وبسببٍ مكتوب.
+    after_deadline = models.BooleanField(default=False)
+    override_reason = models.TextField(blank=True, verbose_name="سببُ القبول بعد المهلة")
+
+    class Meta:
+        verbose_name = "عذرُ غياب"
+        verbose_name_plural = "أعذارُ الغياب"
+        ordering = ["-date_from"]
+        indexes = [
+            models.Index(fields=["school", "student"]),
+            models.Index(fields=["student", "date_from"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.student.full_name} | {self.get_kind_display()} | {self.date_from}–{self.date_to}"
 
 
 # ─────────────────────────────────────────────

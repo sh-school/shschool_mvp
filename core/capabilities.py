@@ -19,7 +19,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from functools import cache
 
@@ -49,7 +49,14 @@ class Capability:
         return self.grant is not None and bool(self.grant(user))
 
 
-def _cap(key, label, roles, scope="المدرسة", basis=PLATFORM_ASSUMPTION, grant=None):
+def _cap(
+    key: str,
+    label: str,
+    roles: Iterable[str],
+    scope: str = "المدرسة",
+    basis: str = PLATFORM_ASSUMPTION,
+    grant: Callable | None = None,
+) -> Capability:
     return Capability(key, label, frozenset(roles), scope, basis, grant)
 
 
@@ -340,6 +347,15 @@ def registry() -> dict[str, Capability]:
                 "مشرفٌ إداريٌّ أو ملاحظُ طلبةٍ أو عاملُ خدمات، فيرصد بتكليفه لا بدوره"
             ),
             grant=_holds_a_wing,
+        ),
+        _cap(
+            "wings.excuse_after_deadline",
+            "قبولُ عذرِ غيابٍ بعد مهلة اليومين",
+            P.EXCUSE_AFTER_DEADLINE,
+            basis=(
+                "الدليل التنظيميّ 2026 م 3.4.1.5: إن لم يردّ وليُّ الأمر خلال يومين حُسب "
+                "الغيابُ بلا عذر — فما بعد المهلة استثناءٌ يقرّره النائبُ الإداريّ بسبب"
+            ),
         ),
     ]
     out = {}
