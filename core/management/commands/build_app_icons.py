@@ -45,15 +45,15 @@ TARGETS = (
 
 def farthest_visible_point(image: Image.Image) -> float:
     """أبعدُ نقطةٍ مرئيّةٍ عن مركز الصورة، بالبكسل — زوايا البكسل لا مراكزُه."""
-    alpha = image.getchannel("A")
     width, height = image.size
     cx, cy = width / 2, height / 2
-    data = alpha.load()
+    alpha = image.getchannel("A").tobytes()  # بايتٌ لكلّ بكسل، صفّاً بعد صفّ
     farthest = 0.0
     for y in range(height):
         dy = max(abs(y - cy), abs(y + 1 - cy))
+        row = y * width
         for x in range(width):
-            if data[x, y] >= VISIBLE_ALPHA:
+            if alpha[row + x] >= VISIBLE_ALPHA:
                 dx = max(abs(x - cx), abs(x + 1 - cx))
                 farthest = max(farthest, math.hypot(dx, dy))
     return farthest
@@ -72,7 +72,7 @@ def render(emblem: Image.Image, farthest: float, size: int, safe_radius: float) 
 class Command(BaseCommand):
     help = "يولّد أيقوناتِ التطبيق القابلةَ للقصّ وأيقونةَ iOS من الشعار"
 
-    def handle(self, *args, **options):
+    def handle(self, *args: object, **options: object) -> None:
         emblem = Image.open(SOURCE).convert("RGBA")
         farthest = farthest_visible_point(emblem)
         for name, size, safe_radius in TARGETS:
