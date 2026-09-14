@@ -34,23 +34,45 @@
         </select>
       </form>
 
-      <button type="button" id="pages-print-btn" class="btn-primary btn-sm">طباعة</button>
+      <button type="button" id="pages-print-btn" class="btn-primary btn-sm schedule-frame-print">طباعة</button>
       <a href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تنزيل PDF</a>
       <span class="text-sm text-secondary">{{ pages|length }} صفحة</span>
     </div>
   </div>
 
+  {% comment %}
+  الإطارُ بلا `src` في القالب: يُسنده السكربتُ على الحاسوب وحده. فعلى آيفون
+  (التطبيقُ المثبَّت) كان الإطارُ صفحةً بيضاء — عشراتُ صفحاتٍ بعرض A4 في إطارٍ
+  واحد — وعلى أيّ شاشةِ لمسٍ تمريرٌ داخل تمرير. فهناك لا يُحمَّل أصلاً، والورقةُ
+  تُفتح صفحةً كاملة أو ملفَّ PDF.
+  {% endcomment %}
   <iframe id="pages-frame" title="{{ title }}"
-          src="{% url 'schedule_pages_paper' %}?embed=1&amp;{{ selection_query }}"
+          data-src="{% url 'schedule_pages_paper' %}?embed=1&amp;{{ selection_query }}"
           class="schedule-paper-frame"></iframe>
+  <div class="schedule-paper-touch">
+    <p class="text-secondary">الجداول صفحاتٌ بعرض الورقة — تُفتح كاملةً أو ملفَّ PDF.</p>
+    <a href="{% url 'schedule_pages_paper' %}?{{ selection_query }}" target="_blank" rel="noopener" class="btn-primary">فتح الجداول</a>
+    <a href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary">تنزيل PDF</a>
+  </div>
 </div>
 
 <script nonce="{{ request.csp_nonce }}">
-  // الطباعةُ للإطار لا للصفحة: ما يخرج على الورق هو الجداولُ وحدها.
-  document.getElementById('pages-print-btn').addEventListener('click', function () {
+  (function () {
     var frame = document.getElementById('pages-frame');
-    frame.contentWindow.focus();
-    frame.contentWindow.print();
-  });
+    // الشرطُ نفسُه الذي يُخفي الإطارَ في custom.css — لا يُحمَّل ما لا يُرى.
+    var touch = window.matchMedia('(max-width: 640px), (hover: none) and (pointer: coarse)');
+    function load() {
+      if (!touch.matches && !frame.getAttribute('src')) frame.src = frame.dataset.src;
+    }
+    load();
+    if (touch.addEventListener) touch.addEventListener('change', load);
+
+    // الطباعةُ للإطار لا للصفحة: ما يخرج على الورق هو الجداولُ وحدها.
+    document.getElementById('pages-print-btn').addEventListener('click', function () {
+      load();
+      frame.contentWindow.focus();
+      frame.contentWindow.print();
+    });
+  })();
 </script>
 {% endblock %}
