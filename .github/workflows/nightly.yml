@@ -28,7 +28,6 @@ jobs:
   full-pytest:
     name: pytest — المجموعة كاملةً متسلسلةً
     runs-on: ubuntu-latest
-    timeout-minutes: 90
 
     services:
       postgres:

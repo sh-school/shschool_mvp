@@ -31,7 +31,7 @@ pytestmark = pytest.mark.django_db
 
 STUDENT_ID = "99900000538"
 MASKED = "*******0538"
-PASSWORD = "Probe-Passw0rd-Audit!"
+PASSWORD = "Probe-Passw0rd-Audit!"  # pragma: allowlist secret
 
 
 def _exports(kind):
@@ -151,7 +151,10 @@ class TestFailedLoginsAreAudited:
         assert user.national_id[-4:] in trail.object_repr
 
     def test_an_unknown_identifier_is_audited_without_an_account(self, client, school):
-        client.post(reverse("login"), {"identifier": "99900000602", "password": "wrong"})
+        client.post(
+            reverse("login"),
+            {"identifier": "99900000602", "password": "wrong"},  # pragma: allowlist secret
+        )
 
         trail = AuditLog.objects.get(action="login_failed")
         assert trail.user is None
