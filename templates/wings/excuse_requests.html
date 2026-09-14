@@ -1,0 +1,49 @@
+{% extends "base/base.html" %}
+{% load ui icons %}
+{% comment %}أعذارٌ أرسلها المشرفون للنائب الإداريّ بعد مهلة العودة — يقبل أو يرفض بسبب (قرارُ 2026-09-14).{% endcomment %}
+{% block title %}أعذارٌ بانتظار النائب{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/wings/" parent_label="أجنحة المدرسة" current="أعذارٌ بانتظار النائب" %}
+{% endblock %}
+{% block content %}
+<div class="exec-dash">
+  {% page_header "أعذارٌ بانتظار النائب الإداريّ" subtitle="أرسلها المشرفون بعد مضيّ يومين دراسيّين على عودة الطالب" icon="checklist" %}{% endpage_header %}
+
+  {% section_card "بانتظار قرارك" meta=requests|length icon="checklist" empty="لا عذرَ ينتظرك." %}
+    {% if requests %}
+    <div class="table-wrap">
+      <table data-no-sort>
+        <thead><tr><th>الطالب</th><th>المدّة</th><th>العذر</th><th>المستند</th><th>أرسله</th><th>القرار</th></tr></thead>
+        <tbody>
+          {% for x in requests %}
+          <tr>
+            <td>{{ x.student.full_name }}</td>
+            <td>{{ x.date_from|date:"d/m" }}{% if x.date_to != x.date_from %} – {{ x.date_to|date:"d/m" }}{% endif %}</td>
+            <td>{{ x.get_kind_display }}{% if x.notes %} <small>{{ x.notes }}</small>{% endif %}</td>
+            <td>{% if x.document %}<a href="{{ x.document.url }}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-xs">{% icon "document" %} افتح</a>{% else %}—{% endif %}</td>
+            <td><small>{{ x.granted_by.full_name|default:"—" }} · {{ x.granted_at|date:"d/m H:i" }}</small></td>
+            <td>
+              {# نموذجان لا نموذجٌ بزرّين: Enter في خانة سبب الرفض لا يقبل العذر. #}
+              <form method="post" action="{% url 'wings:excuse_request_decide' x.pk %}" class="sa-undo">
+                {% csrf_token %}
+                <input type="hidden" name="decision" value="accept">
+                <input type="text" name="reason" class="form-control form-control-sm" placeholder="سببُ القبول" required aria-label="سببُ قبول عذر {{ x.student.full_name }}">
+                <button type="submit" class="btn-primary btn-xs">{% icon "confirm" %} قبول</button>
+              </form>
+              <form method="post" action="{% url 'wings:excuse_request_decide' x.pk %}" class="sa-undo">
+                {% csrf_token %}
+                <input type="hidden" name="decision" value="reject">
+                <input type="text" name="reason" class="form-control form-control-sm" placeholder="سببُ الرفض" required aria-label="سببُ رفض عذر {{ x.student.full_name }}">
+                <button type="submit" class="btn-secondary btn-xs">رفض</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}

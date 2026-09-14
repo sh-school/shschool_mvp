@@ -10,7 +10,7 @@ from assessments.models import AnnualSubjectResult, SubjectClassSetup
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for_school
-from core.capabilities import capability_required
+from core.capabilities import capability_required, has_capability
 from core.dashboard_presentation import present
 from core.domain.attendance import attendance_rate
 from core.models.academic import Wing, grade_order
@@ -567,6 +567,13 @@ def dashboard(request):
         ctx.update(_get_student_ctx(user, school, today))
     elif user.is_superuser or role in _DIRECTOR_ROLES:
         ctx.update(_get_director_ctx(school, today))
+        if has_capability(user, "wings.excuse_after_deadline"):
+            # أعذارٌ أرسلها المشرفون بعد مهلة العودة — تنتظر النائبَ (قرارُ 2026-09-14).
+            from operations.models import AbsenceExcuse
+
+            ctx["pending_excuses"] = AbsenceExcuse.objects.filter(
+                school=school, status="pending"
+            ).count()
     elif role in _TEACHER_ROLES:
         ctx.update(_get_teacher_ctx(user, school, today, role))
     elif role in _SPECIALIST_SOCIAL_ROLES:

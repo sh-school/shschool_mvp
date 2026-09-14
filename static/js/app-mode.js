@@ -93,9 +93,16 @@
     return el.querySelector('.app-file-label') || el;
   }
 
+  // محتوى الزرّ قبل «جارٍ التجهيز»: عُقدُه نفسُها لا نصُّها. وكان يُحفظ `innerHTML`
+  // في سمةٍ ثمّ يُعاد إسنادُه — نصٌّ من الصفحة يُعاد تفسيرُه HTML (CodeQL،
+  // js/xss-through-dom): اسمُ ملفٍّ أو مادّةٍ فيه وسمٌ يصير وسماً.
+  var IDLE = new WeakMap();
+
   function setState(el, state) {
-    if (!el.hasAttribute('data-app-file-idle')) {
-      el.setAttribute('data-app-file-idle', label(el).innerHTML);
+    if (!IDLE.has(el)) {
+      IDLE.set(el, Array.prototype.map.call(label(el).childNodes, function (node) {
+        return node.cloneNode(true);
+      }));
     }
     if (state === 'busy') {
       el.setAttribute('data-app-file-state', state);
@@ -108,7 +115,9 @@
     } else {
       el.removeAttribute('aria-busy');
       el.removeAttribute('data-app-file-state');
-      label(el).innerHTML = el.getAttribute('data-app-file-idle');
+      var target = label(el);
+      while (target.firstChild) target.removeChild(target.firstChild);
+      IDLE.get(el).forEach(function (node) { target.appendChild(node.cloneNode(true)); });
     }
   }
 

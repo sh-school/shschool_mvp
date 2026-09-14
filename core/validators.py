@@ -73,9 +73,14 @@ ALLOWED_EXTENSIONS_DOCUMENT = {
 ALLOWED_EXTENSIONS_IMAGE = {".jpg", ".jpeg", ".png", ".webp"}
 ALLOWED_EXTENSIONS_LIBRARY = ALLOWED_EXTENSIONS_DOCUMENT | {".epub"}
 
-# F-005: أنواع ملفات الأعذار (PDF + صور)
-ALLOWED_EXCUSE_TYPES = {"application/pdf"} | ALLOWED_IMAGE_TYPES
-ALLOWED_EXTENSIONS_EXCUSE = {".pdf"} | ALLOWED_EXTENSIONS_IMAGE
+# F-005: أنواع ملفات الأعذار (PDF + صور) — ومنها صورُ آيفون (HEIC/HEIF)، فالخادمُ
+# يحوّلها JPEG نظيفاً قبل الحفظ (`core/photo_privacy.py`، قرارُ 2026-09-14).
+HEIF_TYPES = {"image/heic", "image/heif"}
+ALLOWED_EXCUSE_TYPES = {"application/pdf"} | ALLOWED_IMAGE_TYPES | HEIF_TYPES
+ALLOWED_EXTENSIONS_EXCUSE = {".pdf", ".heic", ".heif"} | ALLOWED_EXTENSIONS_IMAGE
+
+#: علاماتُ حاويةِ HEIF بعد `ftyp` — صورُ آيفون وسلاسلُها.
+HEIF_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"mif1", b"msf1"}
 
 
 @deconstructible
@@ -214,6 +219,15 @@ class FileTypeValidator:
         if ext == ".webp" and not (header[:4] == b"RIFF" and header[8:12] == b"WEBP"):
             raise ValidationError(
                 "الملف لا يطابق صيغة WebP.",
+                code="content_mismatch",
+            )
+
+        # HEIC/HEIF: «ftyp» في البايت الرابع، ثمّ علامةُ الحاوية
+        if ext in (".heic", ".heif") and not (
+            header[4:8] == b"ftyp" and header[8:12] in HEIF_BRANDS
+        ):
+            raise ValidationError(
+                "الملف لا يطابق صيغة صور آيفون (HEIC).",
                 code="content_mismatch",
             )
 
