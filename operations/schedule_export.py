@@ -195,29 +195,35 @@ def _grid_workbook(ctx: dict):
 
     from reports.services import ExcelService
 
-    grid = ctx.get("grid") or {}
-    days = ctx.get("days") or []
-    periods = ctx.get("periods") or []
+    week = ctx.get("week") or {"columns": [], "lines": []}
     view_type = ctx.get("view_type")
+    columns_spec = week["columns"]
 
-    num_cols = 1 + len(periods)
+    num_cols = 1 + len(columns_spec)
     wb, ws, styles = _sheet("الجدول", ctx.get("title") or "الجدول الدراسي", ctx, num_cols)
 
-    columns = [("اليوم", 14)] + [(f"الحصة {period['number']}", 26) for period in periods]
+    # بين الحصص الفسحةُ والصلاة كالورقة (operations/schedule_paper.py) — عمودٌ ضيّق.
+    columns = [("اليوم", 14)] + [
+        (f"الحصة {column['number']}", 26) if column["kind"] == "period" else (column["label"], 12)
+        for column in columns_spec
+    ]
     ExcelService._add_header_row(ws, styles, 4, columns)
 
-    for index, (day_num, day_name) in enumerate(days):
+    for index, line in enumerate(week["lines"]):
         row_num = 5 + index
         # اسمُ اليوم في العمود الأوّل — والتوقيتُ في كلّ خانة، كالورقة: جرسُ
         # الخميس يخالف غيرَه، فترويسةُ عمودٍ واحدةٌ تكذب على أحدهما.
-        ws.cell(row=row_num, column=1, value=day_name)
-        for period_index, period in enumerate(periods):
-            cell_slots = (grid.get(day_num) or {}).get(period["number"]) or []
-            ws.cell(
-                row=row_num,
-                column=2 + period_index,
-                value="\n".join(_slot_text(slot, view_type) for slot in cell_slots) or "—",
-            )
+        ws.cell(row=row_num, column=1, value=line["day"])
+        for position, entry in enumerate(line["entries"]):
+            if entry["kind"] == "period":
+                value = "\n".join(_slot_text(slot, view_type) for slot in entry["slots"]) or "—"
+            else:
+                value = "\n".join(
+                    f"{item.label}{f' ({item.band})' if item.band else ''} "
+                    f"{item.start:%H:%M} – {item.end:%H:%M}"
+                    for item in entry["items"]
+                )
+            ws.cell(row=row_num, column=2 + position, value=value)
         ExcelService._style_data_row(ws, styles, row_num, num_cols, index % 2 == 1)
         ws.row_dimensions[row_num].height = 60
 
@@ -228,7 +234,7 @@ def _grid_workbook(ctx: dict):
 
     ws.freeze_panes = "B5"
     ExcelService._apply_protection(ws, num_cols)
-    ExcelService._setup_print(ws, num_cols, len(days), paper="a4", orientation="landscape")
+    ExcelService._setup_print(ws, num_cols, len(week["lines"]), paper="a4", orientation="landscape")
     return wb
 
 
@@ -242,7 +248,7 @@ def _slot_text(slot, view_type: str | None) -> str:
     if view_type != "teacher" and slot.teacher_id:
         parts.append(slot.teacher.full_name)
     if view_type != "class":
-        parts.append(str(slot.class_group))
+        parts.append(slot.class_group.short_label)
     if slot.start_time and slot.end_time:
         parts.append(f"{slot.start_time:%H:%M} – {slot.end_time:%H:%M}")
     return " — ".join(part for part in parts if part)

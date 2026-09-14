@@ -116,80 +116,6 @@
     margin-top: 4px;
   }
 
-  /* ── Schedule Grid Table ── */
-  .schedule-grid {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-    table-layout: fixed;
-  }
-  .schedule-grid th {
-    background: {% brand_color "MAROON" %};
-    color: {% brand_color "ON_FILL" %};
-    padding: 8px 6px;
-    text-align: center;
-    font-weight: 600;
-    font-size: 13px;
-    border: 1px solid {% brand_color "MAROON_DARK" %};
-  }
-  /* العمودُ الأوّل صار اسمَ يومٍ لا رقمَ حصّة، و«الأربعاء» لا تسع اثنين
-     وستّين بكسلاً. */
-  .schedule-grid th:first-child {
-    width: 92px;
-  }
-  .schedule-grid td {
-    padding: 5px 4px;
-    /* توسيطٌ في الاتّجاهين: الخانةُ إطارٌ للحصّة لا عمودَ نصّ. */
-    text-align: center;
-    border: 1px solid {% brand_color "BORDER" %};
-    vertical-align: middle;
-    height: 54px;
-  }
-  .schedule-grid .period-cell {
-    background: {% brand_color "BORDER" %};
-    font-weight: 800;
-    color: {% brand_color "MAROON" %};
-    font-size: 14px;
-    vertical-align: middle;
-    width: 92px;
-  }
-  .schedule-grid tr:nth-child(even) td:not(.period-cell) {
-    background: {% brand_color "SURFACE_ALT" %};
-  }
-
-  /* ── Slot Content ── */
-  .slot-subject {
-    font-weight: 700;
-    color: {% brand_color "MAROON" %};
-    font-size: 11px;
-    line-height: 1.3;
-  }
-  .slot-teacher {
-    font-size: 10px;
-    color: {% brand_color "TEXT_SECONDARY" %};
-    margin-top: 1px;
-  }
-  .slot-class {
-    font-size: 10px;
-    color: {% brand_color "TEXT_MUTED" %};
-    margin-top: 1px;
-  }
-  .slot-empty {
-    color: {% brand_color "TEXT_MUTED" %};
-    font-size: 11px;
-  }
-  /* توقيتُ الحصّة داخل خانتها — فالورقةُ تُقرأ خانةً خانةً لا عموداً عموداً. */
-  .slot-time {
-    font-size: 9px;
-    color: {% brand_color "MAROON" %};
-    direction: ltr;
-    text-align: center;
-    margin-top: 2px;
-    letter-spacing: .02em;
-  }
-  .slot-subject + .slot-subject,
-  .slot-time + .slot-subject { margin-top: 5px; }
-
   /* ── Footer ── */
   .schedule-footer {
     text-align: center;
@@ -200,20 +126,11 @@
     padding-top: 10px;
   }
 
-  /* ── A3 Landscape Adjustments ── */
-  .paper-a3 .schedule-grid { font-size: 11px; }
-  .paper-a3 .schedule-grid td { padding: 4px 3px; height: 48px; }
-  /* على الشاشة الورقةُ بعرض الإطار كلِّه: الخطُّ يكبر مع العرض ولا يتجاوز
-     سقفاً — فجدولُ المدرسة الكامل على 2560px كان خطُّه 11px. والطباعةُ
-     على قياسها المحسوب لا تُمَسّ. */
+  /* على الشاشة الورقةُ بعرض الإطار كلِّه. وشبكةُ المعلّم والشعبة بأبعاد الورق
+     نفسِها (pdf/week_grid_css.html)، فالمعروضُ هو المطبوع. */
   @media screen {
     .schedule-print { padding: 12px 14px; }
-    .schedule-grid, .paper-a3 .schedule-grid { font-size: clamp(11px, 0.6vw, 15px); }
-    .slot-subject { font-size: clamp(11px, 0.6vw, 15px); }
-    .slot-teacher, .slot-class { font-size: clamp(10px, 0.5vw, 13px); }
-    .slot-time { font-size: clamp(9px, 0.45vw, 12px); }
   }
-  .paper-a3 .schedule-grid th { font-size: 12px; padding: 6px 4px; }
 
   /* ── الجدول العام للمعلمين — مصفوفة: سطرٌ لكل معلّم، والأسبوعُ عرضاً ──
      ورقةٌ من ثلاثٍ وسبعين سطراً وستٍّ وثلاثين خانة: كلُّ زخرفةٍ فيها تأكل
@@ -371,43 +288,24 @@
   }
 
   {% if view_type == 'teacher' or view_type == 'class' %}
-  /* جدولُ معلّمٍ أو شعبةٍ: ورقةٌ واحدةٌ مهما كان الحجم — A4 عموديّة أو A3
-     عرضيّة. الشاشةُ تُقاس بالبكسل، والورقُ بالملّيمتر: سبعةُ سطورٍ بارتفاعٍ
-     محسوبٍ من ارتفاع الورقة بعد الرأس والذيل، لا من الشاشة. وكانت الأسطرُ
-     بارتفاع الشاشة والهوامشُ مضاعفةً فيفيض السطرُ الأخير إلى ورقةٍ ثانية. */
-  @page { size: {% if paper == 'a3' %}A3{% else %}A4{% endif %} {{ orient }}; margin: 8mm; }
+  /* جدولُ معلّمٍ أو شعبة: ورقةٌ واحدةٌ بالملّيمتر (operations/schedule_paper.py)،
+     وبين الحصص الفسحةُ والصلاة (pdf/week_grid.html).
+
+     وكانت الورقةُ عموداً مرناً والجدولُ `flex: 1; height: 1px` يأخذ ما بقي بعد
+     الرأس والذيل — يمتدّ في المتصفّح ولا يمتدّ في مولّد PDF (WeasyPrint 70)،
+     فيشغل الجدولُ في الملفّ ثُلثَ الورقة وتحته فراغ (بلاغ 2026-09-14). فالرأسُ
+     والذيلُ الآن ثابتا الارتفاع، وارتفاعُ الصفّ ما بقي مقسوماً على الأيّام. */
+{% include "schedule/pdf/week_grid_css.html" %}
+  @page { size: {% if paper == 'a3' %}A3{% else %}A4{% endif %} {{ orient }}; margin: {{ geo.css.margin }}; }
   @media print {
     html, body { height: auto; }
     .schedule-print { padding: 0; }
-    .schedule-header { margin-bottom: 3mm; }
-    .print-emblem { height: 12mm; margin-bottom: 1mm; }
-    .schedule-header .school-name { font-size: 15pt; margin: 1mm 0; }
-    .schedule-header .title { font-size: 12pt; }
-    .schedule-header .ministry, .schedule-header .year { font-size: 8pt; margin: 0.5mm 0; }
-    .schedule-grid { break-inside: avoid; page-break-inside: avoid; }
-    .schedule-grid tr { break-inside: avoid; page-break-inside: avoid; }
-    .schedule-grid th { padding: 1.5mm 1mm; font-size: 10pt; }
-    /* ارتفاعُ السطر يُشتقّ من ارتفاع الورقة بعد الهامش والرأس والذيل (~56mm)
-       مقسوماً على سبعِ حصص — لا من الشاشة. فالورقةُ الواحدة تسع الجدولَ ولا
-       يفيض سطرُها الأخير إلى ورقةٍ ثانية:
-
-       وكان لكلّ تركيبةِ ورقٍ رقمُها بالملّيمتر، وهو حسابٌ يُخطئ: يكفي أن
-       يكبر خطُّ الترويسة أو يطول اسمُ المدرسة حتّى يفيض السطرُ السابع إلى
-       ورقةٍ ثانية. فالورقةُ الآن عمودٌ مرنٌ يملأ ارتفاعَ الصفحة، والجدولُ
-       يأخذ ما بقي بعد الرأس والذيل مهما كانا — فالسبعةُ تتقاسم المتاحَ ولا
-       تُقاس إليه.
-    */
-    html, body { height: 100%; }
-    .schedule-print { height: 100%; display: flex; flex-direction: column; }
-    .schedule-header, .schedule-footer { flex: 0 0 auto; }
-    /* `height: 1px` مع `flex: 1` تجعل الجدولَ يأخذ المتبقّي لا مقاسَه. */
-    .schedule-grid { flex: 1 1 auto; height: 1px; }
-    .schedule-grid td { height: auto; padding: 1mm; overflow: hidden; }
-    .schedule-grid .period-cell { font-size: 12pt; }
-    .slot-subject { font-size: 9.5pt; line-height: 1.25; }
-    .slot-teacher, .slot-class { font-size: 8pt; }
-    .slot-time { font-size: 7pt; margin-top: 1mm; }
-    .schedule-footer { margin-top: 2mm; padding-top: 1.5mm; font-size: 8pt; }
+    .schedule-header { height: {{ geo.css.header_h }}; margin: 0 0 {{ geo.css.gap }}; overflow: hidden; box-sizing: border-box; }
+    .print-emblem { height: {% if orient == 'landscape' %}11mm{% else %}14mm{% endif %}; margin-bottom: 0.5mm; }
+    .schedule-header .ministry, .schedule-header .year { font-size: 7.5pt; line-height: 3.2mm; margin: 0; }
+    .schedule-header .school-name { font-size: 12pt; line-height: 5.4mm; margin: 0; }
+    .schedule-header .title { font-size: 10pt; line-height: 4.4mm; margin: 0; }
+    .schedule-footer { height: {{ geo.css.footer_h }}; margin-top: {{ geo.css.gap }}; padding-top: 1.2mm; box-sizing: border-box; overflow: hidden; font-size: 6.5pt; line-height: 1.45; }
   }
   {% endif %}
 
@@ -606,7 +504,7 @@
 مولّدُ PDF ترويسةً ثانيةً ولا حجمَ ورقٍ يخالف المختار. و`{# #}` لا تمتدّ
 سطرين في Django — فما امتدّ منها ظهر نصّاً في رأس الورقة.
 {% endcomment %}
-<body data-pdf-own-page class="{% if paper == 'a3' %}paper-a3 {% endif %}sheet-{{ orient }}">
+<body data-pdf-own-page class="sheet-{{ orient }}">
 {% include "components/app_back_bar.html" %}
 
 {# ── Print Controls (hidden in print) ── #}
@@ -779,7 +677,7 @@
     <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
     <div class="school-name">{{ school.name }}</div>
     <h1 class="title">{{ title }}</h1>
-    <div class="year">العام الدراسي {{ year }}</div>
+    <div class="year">العام الدراسي &#8294;{{ year }}&#8297;</div>
   </div>
 
   {% comment %}
@@ -790,48 +688,7 @@
   ولهذا يبقى التوقيتُ داخل الخانة ولا يصعد إلى ترويسة العمود: ترويسةٌ واحدةٌ
   لعمود «الحصة ٣» تكذب على أحد الطابقين أو على الخميس.
   {% endcomment %}
-  <table class="schedule-grid">
-    <thead>
-      <tr>
-        <th>اليوم</th>
-        {% for period in periods %}
-        <th>الحصة {{ period.number }}</th>
-        {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for day_num, day_name in days %}
-      <tr>
-        <td class="period-cell">{{ day_name }}</td>
-        {% for period in periods %}
-        {% with cell=grid|get_item:day_num|get_item:period.number %}
-        <td>
-          {% if cell %}
-          {% comment %}
-            الخانة قائمةٌ دائماً، وحصّتان فيها شعبةٌ انقسم طلابها نصفين في التوقيت
-            نفسه. و`cell_subject` ما يُدرَّس في الخانة كلِّه — يُكتب في جدول المعلّم
-            ليعرف أنّها مشتركة، ويكون اسمَ مادّته وحدَها في الخانة المفردة.
-
-            و`{# … #}` لا يصلح هنا: تعليقُ جانغو سطرٌ واحدٌ لا غير، وما امتدّ
-            سطرين طُبع في الورقة نصّاً كما وقع في 2026-09-07.
-          {% endcomment %}
-          {% for slot in cell %}
-          <div class="slot-subject">{{ slot.cell_subject|default:slot.subject|default:"—" }}</div>
-          {% if view_type != "teacher" %}<div class="slot-teacher">{{ slot.teacher.full_name }}</div>{% endif %}
-          {% if view_type != "class" %}<div class="slot-class">{{ slot.class_group }}</div>{% endif %}
-          {% comment %}عازلا الاتجاه لازمان: `direction: ltr` تكفي المتصفّح ولا يقرؤها مولّدُ PDF، فينقلب التوقيتُ في الملفّ المطبوع وحدَه — «08:45 - 08:00».{% endcomment %}
-          <div class="slot-time">&#8294;{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}&#8297;</div>
-          {% endfor %}
-          {% else %}
-          <div class="slot-empty">—</div>
-          {% endif %}
-        </td>
-        {% endwith %}
-        {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  {% if view_type == "class" %}{% include "schedule/pdf/week_grid.html" with who="teacher" %}{% else %}{% include "schedule/pdf/week_grid.html" with who="class" %}{% endif %}
 
   <div class="schedule-footer">
     وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp;
