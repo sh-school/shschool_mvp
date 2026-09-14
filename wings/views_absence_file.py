@@ -30,6 +30,7 @@ from core.capabilities import capability_required, has_capability
 from core.models import ClassGroup, CustomUser, School, StudentEnrollment
 from core.sorting import arabic_key, normalise_arabic
 
+from .scope import student_scope_for
 from .services import wings_of
 from .views import _day, _own_class, excuse_outcome_message
 
@@ -50,7 +51,16 @@ def _own_student(request: HttpRequest, student_id: object) -> tuple[School, Clas
     if enrollment is None:
         raise Http404("لا شعبةَ لهذا الطالب")
     school, klass = _own_class(request, enrollment.class_group_id)  # type: ignore[no-untyped-call]
+    student_scope_for(request).require_student(enrollment.student_id)
     return school, klass, enrollment.student
+
+
+def _scoped_ids(request: HttpRequest) -> frozenset[object] | list[object]:
+    """طلبةُ النطاق للمقيَّد بجناحه؛ ولغيره لا تضييقَ فوق أجنحته (القيادةُ ترى الخمسة)."""
+    scope = student_scope_for(request)
+    if scope.is_wing_bound:
+        return scope.student_ids()
+    return StudentEnrollment.objects.filter(is_active=True).values_list("student_id", flat=True)  # type: ignore[return-value]
 
 
 def _file_url(student_id: object, day: dt.date | None = None) -> str:
@@ -76,6 +86,8 @@ def student_search(request: HttpRequest) -> HttpResponse:
             )
             .annotate(name_key=arabic_key(F("student__full_name")))  # type: ignore[no-untyped-call]
             .filter(Q(name_key__icontains=shaped) | Q(student__national_id__startswith=query))
+            # من قيدُه الجاري في جناحي — لا من بقي له قيدٌ قديمٌ نشطٌ في شعبةٍ منه.
+            .filter(student_id__in=_scoped_ids(request))
             .select_related("student", "class_group")
             .order_by("student__full_name")[: MAX_RESULTS + 1]
         )

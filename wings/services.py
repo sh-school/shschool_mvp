@@ -417,7 +417,10 @@ def supervisor_watchlist(user: CustomUser, school: School, year: str, day: dt.da
     from operations.absence_policy import breached, next_gate
     from operations.absence_standing import unexcused_days_for_class
     from operations.guardian_contact import awaiting_contact
+    from wings.scope import student_scope
 
+    scope = student_scope(user, school)
+    in_scope = scope.student_ids() if scope.is_wing_bound else None
     contacts: list[WatchRow] = []
     gates: list[WatchRow] = []
     for wing in wings_of(user, school, year):
@@ -428,6 +431,8 @@ def supervisor_watchlist(user: CustomUser, school: School, year: str, day: dt.da
                 continue
             for enrollment in enrolled_of(klass):
                 sid = enrollment.student_id
+                if in_scope is not None and sid not in in_scope:
+                    continue  # قيدُه الجاري في جناحٍ آخر — لا يُنبَّه عنه هنا
                 days = days_of.get(sid, 0)
                 gate = next_gate(klass.grade, days)
                 passed = breached(klass.grade, days)

@@ -30,6 +30,7 @@ from operations.period_register import (
     teacher_taps_of,
 )
 from operations.services import ScheduleService
+from wings.scope import student_scope_for
 
 from .services import (
     bell_tables,
@@ -376,6 +377,8 @@ def student_events(request, class_id, student_id):
     student = get_object_or_404(
         CustomUser, id=student_id, enrollments__class_group=klass, enrollments__is_active=True
     )
+    # وقيدُه الجاري في الجناح: قيدٌ قديمٌ نشطٌ في شعبةٍ من جناحي لا يفتحه لي (wings/scope.py).
+    student_scope_for(request).require_student(student.id)
     today = timezone.localdate()
     focus_day = _day(request.GET.get("date"), today)
     attendance_events = list(
@@ -429,6 +432,8 @@ def excuse_grant(request, class_id, student_id):
     student = get_object_or_404(
         CustomUser, id=student_id, enrollments__class_group=klass, enrollments__is_active=True
     )
+    # وقيدُه الجاري في الجناح: قيدٌ قديمٌ نشطٌ في شعبةٍ من جناحي لا يفتحه لي (wings/scope.py).
+    student_scope_for(request).require_student(student.id)
     back = reverse("wings:student_events", args=[klass.id, student.id])
     date_from = _day(request.POST.get("date_from"))
     date_to = _day(request.POST.get("date_to"), date_from)
@@ -484,6 +489,8 @@ def guardian_contact_log(request, class_id, student_id):
     student = get_object_or_404(
         CustomUser, id=student_id, enrollments__class_group=klass, enrollments__is_active=True
     )
+    # وقيدُه الجاري في الجناح: قيدٌ قديمٌ نشطٌ في شعبةٍ من جناحي لا يفتحه لي (wings/scope.py).
+    student_scope_for(request).require_student(student.id)
     back = reverse("wings:student_events", args=[klass.id, student.id])
     absence_date = _day(request.POST.get("absence_date"))
     if absence_date is None:
@@ -520,10 +527,11 @@ def excuse_revoke(request, pk):
 
     school = request.user.get_school()
     excuse = get_object_or_404(AbsenceExcuse, pk=pk, school=school)
-    active = StudentEnrollment.objects.filter(student=excuse.student, is_active=True).first()
+    active = StudentEnrollment.objects.current_of(excuse.student, school)
     if active is None:
         raise Http404("لا شعبةَ لهذا الطالب")
     _own_class(request, active.class_group_id)
+    student_scope_for(request).require_student(excuse.student_id)
     back = reverse("wings:student_events", args=[active.class_group_id, excuse.student_id])
     try:
         restored = revoke_excuse(
