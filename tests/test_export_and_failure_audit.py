@@ -97,16 +97,59 @@ class TestIndividualDocumentsKeepTheNumberAndLog:
         assert trail.object_id == str(pupil.pk)
         assert STUDENT_ID not in trail.object_repr
 
-    def test_an_excel_register_is_logged_with_its_row_count(
+    def test_the_import_compatible_register_keeps_the_number_and_says_so(
         self, client_as, principal_user, klass, pupil
     ):
-        resp = client_as(principal_user).get(reverse("student_affairs:student_export"))
+        """كشفُ الطلبة الكامل يعود بالاستيراد فيُطابَق على الرقم — كاملٌ بقرارٍ مسمّى."""
+        resp = client_as(principal_user).get(reverse("student_export_excel"))
+
+        assert resp.status_code == 200
+        assert STUDENT_ID in _cells(resp)
+        assert _exports("core.students_xlsx").get().changes["full_national_id"] is True
+
+
+def _cells(resp) -> set[str]:
+    import io
+
+    import openpyxl
+
+    wb = openpyxl.load_workbook(io.BytesIO(resp.content), read_only=True)
+    return {
+        str(cell) for ws in wb.worksheets for row in ws.iter_rows(values_only=True) for cell in row
+    }
+
+
+class TestExcelRegistersMaskTheNumber:
+    """قرار المالك 2026-09-14: Excel لا يعود بالاستيراد يستر الرقمَ — والسجلُّ يقولها."""
+
+    @pytest.mark.parametrize(
+        ("route", "kind"),
+        [
+            ("student_affairs:student_export", "student_affairs.students_xlsx"),
+            ("student_affairs:attendance_export", "student_affairs.attendance_xlsx"),
+            ("student_affairs:behavior_export", "student_affairs.behavior_xlsx"),
+        ],
+    )
+    def test_a_student_affairs_register_is_masked(
+        self, client_as, principal_user, klass, pupil, route, kind
+    ):
+        resp = client_as(principal_user).get(reverse(route))
 
         assert resp.status_code == 200
         assert resp["Content-Type"].startswith("application/vnd.openxmlformats")
-        trail = _exports("student_affairs.students_xlsx").get()
-        assert trail.changes["rows"] == 1
-        assert trail.changes["full_national_id"] is True
+        cells = _cells(resp)
+        assert STUDENT_ID not in cells, f"{kind}: الرقمُ كاملٌ في ورقةٍ جماعيّة"
+        trail = _exports(kind).get()
+        assert trail.changes["full_national_id"] is False
+
+    def test_the_class_results_sheet_is_masked(self, client_as, principal_user, klass, pupil):
+        resp = client_as(principal_user).get(reverse("class_results_excel", args=[klass.pk]))
+
+        assert resp.status_code == 200
+        cells = _cells(resp)
+        assert MASKED in cells and STUDENT_ID not in cells
+        trail = _exports("reports.class_results_xlsx").get()
+        assert trail.changes["rows"] == 1 and trail.changes["full_national_id"] is False
 
 
 class TestJsonAndApiMaskTheNumber:

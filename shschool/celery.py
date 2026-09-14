@@ -4,11 +4,52 @@ shschool/celery.py
 """
 
 import os
+from typing import Any
 
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import setup_logging
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "shschool.settings.development")
+
+
+@setup_logging.connect
+def _log_through_django(**kwargs: Any) -> None:
+    """السجلُّ إعدادُ Django وحدَه — وCelery لا يمسّه.
+
+    كان العاملُ وBeat على Railway يطبعان اللافتةَ ثمّ يصمتان: لا
+    `Task … received` ولا `Scheduler: Sending due task`، رغم أنّ
+    `production.py` يوجّه `celery` إلى stdout بمستوى INFO. والسببُ أنّ
+    Celery — ما لم يجد مستقبِلاً لهذه الإشارة — «يختطف» السجلَّ عند البدء
+    (`worker_hijack_root_logger`): يُفرغ معالِجاتِ الجذر ومعالِجاتِ `celery`
+    نفسِه ثمّ يركّب معالِجَه على الجذر. لكنّ `celery` عندنا `propagate: False`،
+    فبعد الإفراغ يصير مسجِّلاً بلا معالِجٍ ولا صعود: سطورُ INFO تسقط في
+    الفراغ، وWARNING فما فوق يلتقطها معالِجُ بايثون الأخير على stderr — وهذا
+    ما كان يُرى.
+
+    ومستقبِلٌ واحدٌ للإشارة يكفي: وجودُه يُلغي الاختطافَ كلَّه، فيبقى
+    إعدادُ `LOGGING` كما كتبناه — بما فيه فلترُ `pii_masking` على كلّ
+    معالِج، وهو ما لا يحمله معالِجُ Celery لو تُرك يركّبه. و`dictConfig`
+    هنا تكرارٌ آمن: Django طبّقه في `django.setup()` قبل هذه الإشارة، وإعادتُه
+    تضمن الحالَ لو بدّل Celery ترتيبَه يوماً.
+
+    والتطويرُ والاختبارُ لا يعرّفان `LOGGING` (Django يترك الجذرَ بلا معالِج)،
+    فلولا الفرعُ الثاني لصمت عاملُ التطوير بدورِه: يُركَّب على الجذر ما كان
+    Celery سيركّبه — مستواه وصيغتُه من وسائط الإشارة نفسِها.
+    """
+    import logging
+    from logging.config import dictConfig
+
+    from django.conf import settings
+
+    if settings.LOGGING:
+        dictConfig(settings.LOGGING)
+        return
+    logging.basicConfig(
+        level=kwargs.get("loglevel") or logging.INFO,
+        format=kwargs.get("format") or "[%(asctime)s: %(levelname)s/%(processName)s] %(message)s",
+    )
+
 
 app = Celery(
     "shschool",

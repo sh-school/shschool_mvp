@@ -811,27 +811,9 @@ def _render_behavior_pdf(request, template_name, context, filename, *, kind, stu
     return render_pdf(render_to_string(template_name, context), filename)
 
 
-@login_required
-@capability_required("behavior.view")
-def behavior_policy_pdf(request):
-    """PDF: لائحةُ السلوك والانضباط بترويسة المدرسة.
-
-    وثيقةُ مدرسةٍ لا مخالفة، فلا تأخذ `infraction_id`. وكان قالبُها
-    مكتوباً بلا مسارٍ يبلغه — أخواتُها الثلاثُ لكلٍّ مسار، وهي وحدَها
-    بلا واحد. كشفه حارسُ القوالب اليتيمة.
-    """
-    school = request.user.get_school()
-    return _render_behavior_pdf(
-        request,
-        "behavior/pdf/policy_doc.html",
-        {
-            "school": school,
-            "academic_year": academic_year_for(request),
-            "generated_at": _tz.now(),
-        },
-        "behavior_policy.pdf",
-        kind="behavior.policy_pdf",
-    )
+# [PII-08] أسماءُ النماذج الثلاثة تحمل معرّفَ الطالب لا رقمَه الشخصيّ: اسمُ
+# الملفّ يبقى في سجلّ تنزيلات المتصفّح وفي مجلّد التنزيلات وفي سجلّات الوكيل —
+# مواضعُ لا يبلغها سترُ الشاشة ولا تدقيقُ التصدير. والتقريرُ الشامل على هذا من قبل.
 
 
 @login_required
@@ -845,7 +827,7 @@ def infraction_warning_pdf(request, infraction_id):
         request,
         "behavior/pdf/student_warning.html",
         ctx,
-        f"warning_{inf.student.national_id}_{inf.date}.pdf",
+        f"warning_{inf.student_id}_{inf.date}.pdf",
         kind="behavior.warning_pdf",
         student=inf.student,
     )
@@ -862,7 +844,7 @@ def infraction_parent_pdf(request, infraction_id):
         request,
         "behavior/pdf/parent_undertaking.html",
         ctx,
-        f"parent_undertaking_{inf.student.national_id}.pdf",
+        f"parent_undertaking_{inf.student_id}.pdf",
         kind="behavior.parent_undertaking_pdf",
         student=inf.student,
     )
@@ -879,7 +861,7 @@ def infraction_student_pdf(request, infraction_id):
         request,
         "behavior/pdf/student_undertaking.html",
         ctx,
-        f"student_undertaking_{inf.student.national_id}.pdf",
+        f"student_undertaking_{inf.student_id}.pdf",
         kind="behavior.student_undertaking_pdf",
         student=inf.student,
     )
@@ -1099,7 +1081,14 @@ def student_behavior_pdf(request, student_id):
 
 @login_required
 def behavior_policy_pdf(request):
-    """يخدم لائحة السلوك كملف PDF ثابت من static/docs/"""
+    """يخدم لائحة السلوك كملف PDF ثابت من static/docs/.
+
+    كان لهذا الاسم تعريفان في الوحدة: واحدٌ يُصيّر `behavior/pdf/policy_doc.html`
+    بترويسة المدرسة (أُضيف في #189 ليُعطي القالبَ اليتيمَ مساراً)، وهذا. وبايثون
+    يُبقي آخرَ تعريفٍ في الاسم، فكان الأوّلُ ميّتاً منذ كُتب ولا يبلغه مسار —
+    حُذف (2026-09-14). والقالبُ `policy_doc.html` باقٍ بلا مسارٍ حتى يقرّر
+    المالكُ: يُحذف، أو يحلّ محلَّ هذا الملفّ الثابت.
+    """
     import os
 
     pdf_path = os.path.join(settings.BASE_DIR, "static", "docs", "behavior_policy_2025-2026.pdf")

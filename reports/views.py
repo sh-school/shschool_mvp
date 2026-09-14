@@ -608,11 +608,12 @@ def class_results_excel(request, class_id):
 
         raise PermissionDenied("لا تملك صلاحية الوصول إلى تقارير هذا الفصل")
     paper = _get_paper_size(request).lower()
+    # الرقم الشخصيّ: مستور — `ExcelService.class_results_excel` يستره، والسجلُّ يقولها.
     log_export(
         request,
         "reports.class_results_xlsx",
         rows=StudentEnrollment.objects.filter(class_group=class_grp, is_active=True).count(),
-        full_national_id=True,
+        full_national_id=False,
         object_id=class_grp.pk,
         object_repr=f"Excel نتائج {class_grp} — {year}",
     )
@@ -630,11 +631,12 @@ def attendance_excel(request, class_id):
     class_grp = get_object_or_404(ClassGroup, id=class_id, school=school)
     paper = _get_paper_size(request).lower()
     year = request.GET.get("year") or academic_year_for(request)
+    # الرقم الشخصيّ: مستور — `ExcelService.attendance_excel` يستره.
     log_export(
         request,
         "reports.attendance_xlsx",
         rows=StudentEnrollment.objects.filter(class_group=class_grp, is_active=True).count(),
-        full_national_id=True,
+        full_national_id=False,
         object_id=class_grp.pk,
         object_repr=f"Excel حضور {class_grp} — {year}",
     )
@@ -651,10 +653,11 @@ def behavior_excel(request):
     school = request.user.get_school()
     paper = _get_paper_size(request).lower()
     year = request.GET.get("year") or academic_year_for(request)
+    # الرقم الشخصيّ: مستور — `ExcelService.behavior_excel` يستره.
     log_export(
         request,
         "reports.behavior_xlsx",
-        full_national_id=True,
+        full_national_id=False,
         object_repr=f"Excel سلوك — {year}",
     )
     return ExcelService.behavior_excel(school, year, paper=paper)

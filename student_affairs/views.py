@@ -488,12 +488,14 @@ def student_export_excel(request):
         cell.alignment = Alignment(horizontal="center")
         cell.border = thin_border
 
+    # الرقم الشخصيّ: مستور — سجلُّ الطلبة كشفٌ جماعيّ لا يعود بالاستيراد
+    # (قالبُ الاستيراد في `core.views_students`).
     for i, m in enumerate(students, 1):
         enr = enrollment_data.get(m.user_id, {})
         row_data = [
             i,
             m.user.full_name,
-            m.user.national_id,
+            mask_national_id(m.user.national_id),
             enr.get("class_group__grade", "—"),
             enr.get("class_group__section", "—"),
             m.user.phone or "—",
@@ -523,7 +525,7 @@ def student_export_excel(request):
         request,
         "student_affairs.students_xlsx",
         rows=last_data_row - data_start,
-        full_national_id=True,
+        full_national_id=False,
         object_repr=f"سجل الطلاب Excel — {year}",
     )
     filename = generate_export_filename("students", "list", "xlsx")
@@ -1226,10 +1228,16 @@ def attendance_export_excel(request):
         cell.alignment = Alignment(horizontal="center")
         cell.border = thin_border
 
+    # الرقم الشخصيّ: مستور — إحصاءُ غيابٍ كشفٌ جماعيّ.
     absence_count_total = 0
     for i, rec in enumerate(absence_data, 1):
         absence_count_total = i
-        row_data = [i, rec["student__full_name"], rec["student__national_id"], rec["absence_count"]]
+        row_data = [
+            i,
+            rec["student__full_name"],
+            mask_national_id(rec["student__national_id"]),
+            rec["absence_count"],
+        ]
         for col, val in enumerate(row_data, 1):
             cell = ws1.cell(row=s1_data_start + i, column=col, value=val)
             cell.font = cell_font
@@ -1296,7 +1304,7 @@ def attendance_export_excel(request):
         request,
         "student_affairs.attendance_xlsx",
         rows=absence_count_total + today_count,
-        full_national_id=True,
+        full_national_id=False,
         object_repr=f"إحصائيات الغياب Excel — {today:%Y-%m-%d}",
     )
     filename = generate_export_filename("attendance", "stats", "xlsx")
@@ -1915,12 +1923,13 @@ def behavior_export_excel(request):
         cell.alignment = Alignment(horizontal="center")
         cell.border = thin_border
 
+    # الرقم الشخصيّ: مستور — إحصاءُ مخالفاتٍ كشفٌ جماعيّ.
     row_count = 0
     for i, rec in enumerate(infractions, 1):
         row_data = [
             i,
             rec["student__full_name"],
-            rec["student__national_id"],
+            mask_national_id(rec["student__national_id"]),
             rec["count"],
         ]
         for col, val in enumerate(row_data, 1):
@@ -1943,7 +1952,7 @@ def behavior_export_excel(request):
         request,
         "student_affairs.behavior_xlsx",
         rows=row_count,
-        full_national_id=True,
+        full_national_id=False,
         object_repr="إحصائيات السلوك Excel",
     )
     return excel_to_response(wb, generate_export_filename("behavior", "stats", "xlsx"))

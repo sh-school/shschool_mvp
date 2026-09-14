@@ -665,8 +665,10 @@ def export_gradebook(request, setup_id):
         else:
             total, status = "", "—"
 
+        # الرقم الشخصيّ: مستور — سجلُّ درجاتِ فصلٍ كشفٌ جماعيّ لا يعود بالرفع
+        # (رفعُ الدرجات له قالبُه في `staging`).
         row_data = (
-            [row_idx, student.full_name, student.national_id]
+            [row_idx, student.full_name, mask_national_id(student.national_id)]
             + [float(pkg_scores.get(p.package_type) or 0) for p in pkg_list]
             + [total, status]
         )
@@ -694,7 +696,7 @@ def export_gradebook(request, setup_id):
         request,
         "assessments.gradebook_xlsx",
         rows=len(enrollments),
-        full_national_id=True,
+        full_national_id=False,
         object_id=setup.pk,
         object_repr=f"سجل درجات {setup.subject.name_ar} — {setup.class_group} — {semester}",
     )
