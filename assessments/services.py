@@ -17,7 +17,7 @@ from django.db import transaction
 from django.db.models import Avg, Count, Q, QuerySet
 
 from core.academic_calendar import academic_year_for_school
-from core.domain.grades import GRADE_BANDS, band_of
+from core.domain.grades import GRADE_BANDS, band_of, round_half_up
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
 
@@ -300,6 +300,67 @@ class GradeService:
                 student=student, setup=setup, semester=semester, **defaults
             )
         return result
+
+    # ── الدور الثاني (Second Round) ────────────────────────
+
+    @staticmethod
+    def count_failing_subjects(student: CustomUser, setup_class_group) -> int:
+        """عدّ الموادّ الراسبة لطالب معين في فصل معين.
+
+        المرجع: سياسة التقييم 4–11، المادة 12 (الأهلية)
+                «يسمح بدخول الدور الثاني: الراسبون في 3 مواد أو أقل»
+
+        حسابُ: عدد المواد ذات annual_total < 50 في هذا العام.
+        """
+        year = academic_year_for_school()
+        failing = AnnualSubjectResult.objects.filter(
+            student=student,
+            setup__class_group=setup_class_group,
+            academic_year=year,
+            status="fail",
+        ).count()
+        return failing
+
+    @staticmethod
+    def is_second_round_eligible(student: CustomUser, setup_class_group) -> bool:
+        """هل الطالبُ مؤهَّلٌ للدور الثاني؟
+
+        الشروط:
+        - ≤ 3 موادّ راسبة (في الدور الأول)
+        - أو معذورٌ عن بعض الاختبارات
+        """
+        failing = GradeService.count_failing_subjects(student, setup_class_group)
+        return failing <= 3
+
+    @staticmethod
+    def determine_second_round_status(
+        annual_total: Decimal | None,
+        is_excused: bool = False,
+        is_deprived: bool = False,
+    ) -> str:
+        """تصنيفُ حالة الطالب في الدور الثاني.
+
+        المرجع: سياسة التقييم 4–11، المادة 12 و 16
+                و: سياسة الثاني عشر، المادة 8 و 12
+
+        الحالات الخمس:
+        1. ناجح: annual_total ≥ 50
+        2. راسب مؤهَّل لإعادة: 40 ≤ annual_total < 50
+        3. راسب غير مؤهَّل: annual_total < 40
+        4. معذور: يؤخذ الدرجة الفعلية (لو أداء الطالب < 50 يكون راسباً)
+        5. محروم: يُحتسب له النهاية الصغرى فقط إن نجح (50)
+        """
+        if annual_total is None:
+            return "incomplete"
+
+        value = float(annual_total)
+
+        if value >= 50:
+            return "pass"
+        elif 40 <= value < 50:
+            return "fail_eligible_retake"
+        else:
+            return "fail_ineligible"
 
     # ── النتيجة السنوية ─────────────────────────────────────
 

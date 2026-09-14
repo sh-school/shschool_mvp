@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 Score = int | float | Decimal
 
@@ -81,3 +81,28 @@ def letter_of(score: Score | None) -> str:
         if value >= threshold:
             return letter
     return LETTER_FAIL
+
+
+def round_half_up(value: Score | None, precision: int = 0) -> Decimal | None:
+    """تقريبُ الكسور: النصفُ يثبت (ROUND_HALF_UP) — لا banker's rounding.
+
+    المرجع: المادة 8 من سياسة تقييم الطلبة (2015) — نص حرفي:
+    «أقل من نصف تُجبر لأسفل، النصف يثبت، أكثر من نصف تُجبر لأعلى»
+
+    مثال:
+      >>> round_half_up(0.5, 0)
+      Decimal('1')
+      >>> round_half_up(1.49, 0)
+      Decimal('1')
+      >>> round_half_up(1.5, 0)
+      Decimal('2')
+      >>> round_half_up(2.25, 1)
+      Decimal('2.3')
+      >>> round_half_up(None, 0)
+    """
+    if value is None:
+        return None
+
+    d = Decimal(str(value))
+    quantizer = Decimal(10) ** -precision
+    return d.quantize(quantizer, rounding=ROUND_HALF_UP)

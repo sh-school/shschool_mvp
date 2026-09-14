@@ -146,6 +146,25 @@ class AssessmentPackage(models.Model):
         "AW": Decimal("8.33"),  # أعمال مستمرة ف2 → 5 من 60
     }
 
+    # الصف الثاني عشر (القرار 14/2018، المادة 3، تاريخ 2018/06/06):
+    # - P2 فقط في الفصل الأول = 100% من 40 درجة
+    # - P4 فقط في الفصل الثاني = 100% من 60 درجة
+    # - لا P1، لا P3، لا AW منفصلة
+    DEFAULT_WEIGHTS_GRADE12_S1 = {
+        "P1": Decimal("0"),  # غير موجود في الثاني عشر
+        "P2": Decimal("100"),  # كاملُ الفصل الأول = 40 درجة
+        "P3": Decimal("0"),  # غير موجود في الثاني عشر
+        "P4": Decimal("0"),  # غير موجود في الفصل الأول
+        "AW": Decimal("0"),  # لا أعمال منفصلة في الثاني عشر
+    }
+    DEFAULT_WEIGHTS_GRADE12_S2 = {
+        "P1": Decimal("0"),  # غير موجود في الثاني عشر
+        "P2": Decimal("0"),  # غير موجود في الفصل الثاني
+        "P3": Decimal("0"),  # غير موجود في الثاني عشر
+        "P4": Decimal("100"),  # كاملُ الفصل الثاني = 60 درجة
+        "AW": Decimal("0"),  # لا أعمال منفصلة في الثاني عشر
+    }
+
     # درجة الفصل القصوى من المجموع السنوي
     SEMESTER_MAX = {
         "S1": Decimal("40"),
@@ -203,6 +222,30 @@ class AssessmentPackage(models.Model):
     @property
     def class_group(self):
         return self.setup.class_group
+
+    @classmethod
+    def get_default_weight(cls, package_type: str, semester: str, grade: int) -> Decimal:
+        """
+        أحسِب الوزن الافتراضي لباقة معينة حسب الصف والفصل.
+
+        الصف الثاني عشر له بنية مختلفة:
+          - P2 = 100% في S1
+          - P4 = 100% في S2
+          - الباقي = 0
+
+        الصفوف 4–11 تتبع الأوزان القياسية.
+        """
+        if grade == 12:
+            if semester == "S1":
+                return cls.DEFAULT_WEIGHTS_GRADE12_S1.get(package_type, Decimal("0"))
+            elif semester == "S2":
+                return cls.DEFAULT_WEIGHTS_GRADE12_S2.get(package_type, Decimal("0"))
+        else:
+            if semester == "S1":
+                return cls.DEFAULT_WEIGHTS_S1.get(package_type, Decimal("0"))
+            elif semester == "S2":
+                return cls.DEFAULT_WEIGHTS_S2.get(package_type, Decimal("0"))
+        return Decimal("0")
 
 
 # ─────────────────────────────────────────────────────────────
@@ -450,7 +493,11 @@ class AnnualSubjectResult(models.Model):
         ("pass", "ناجح"),
         ("fail", "راسب"),
         ("incomplete", "غير مكتمل"),
-        ("second_round", "دور ثانٍ"),
+        ("second_round", "دور ثانٍ مؤهَّل"),
+        ("fail_eligible_retake", "راسب مؤهَّل لإعادة (40-49)"),
+        ("fail_ineligible", "راسب غير مؤهَّل (>3 موادّ)"),
+        ("excused", "معذور"),
+        ("deprived", "محروم"),
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
