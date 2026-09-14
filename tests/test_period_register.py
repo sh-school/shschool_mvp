@@ -884,6 +884,72 @@ class TestTheScreen:
         row = StudentAttendance.objects.get(session=periods[0], student=kids[2])
         assert row.whereabouts == "clinic"
 
+    def test_confirm_and_move_on_goes_to_the_next_section_awaiting_the_same_period(
+        self, client_as, school, seeded_calendar, year, klass, kids, teacher, supervisor
+    ):
+        """المشرفُ يمرّ على شُعبه في الحصّة نفسِها: بعد التثبيت يُنقل إلى التي تليها
+        ولم تُثبَّت — وتُفتح على الحصّة ذاتِها لا على ما يختاره الخادم."""
+        _periods(school, klass, teacher, 7)
+        second = ClassGroupFactory(
+            school=school, grade="G7", section="2", level_type="prep", academic_year=year
+        )
+        third = ClassGroupFactory(
+            school=school, grade="G7", section="3", level_type="prep", academic_year=year
+        )
+        for i, other in enumerate((second, third)):
+            other.wing = klass.wing
+            other.save(update_fields=["wing"])
+            # معلّمٌ لكلّ شعبة: قيدُ `no_teacher_time_overlap` لا يقبل معلّماً في شعبتين معاً.
+            colleague = UserFactory(full_name=f"معلّم {i}", national_id=f"2930000009{i + 5}")
+            MembershipFactory(
+                user=colleague, school=school, role=RoleFactory(school=school, name="teacher")
+            )
+            _periods(school, other, colleague, 7)
+        # الثانيةُ ثُبّتت حصّتُها الأولى سلفاً — فالنقلُ يتخطّاها إلى الثالثة.
+        (first_of_second,) = Session.objects.filter(
+            class_group=second, date=SUNDAY, start_time=dt.time(7, 10)
+        )
+        _confirm(second, first_of_second, {}, supervisor)
+
+        page = (
+            client_as(supervisor)
+            .get(reverse("wings:record_section", args=[klass.id]) + f"?date={SUNDAY.isoformat()}")
+            .content.decode()
+        )
+        assert f"ثبّت وانتقل إلى {third.short_code}" in page
+
+        response = client_as(supervisor).post(
+            reverse("wings:record_period", args=[klass.id]),
+            {"date": SUNDAY.isoformat(), "start": "07:10", "next": "1"},
+        )
+
+        assert PeriodConfirmation.objects.filter(class_group=klass, date=SUNDAY).exists()
+        assert response.status_code == 302
+        assert response.url == (
+            reverse("wings:record_section", args=[third.id]) + f"?date={SUNDAY.isoformat()}&p=07:10"
+        )
+
+    def test_confirm_and_move_on_returns_to_the_index_when_the_wing_is_done(
+        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        """شعبةٌ وحيدةٌ في الجناح: لا زرَّ انتقالٍ في الصفحة، والطلبُ به يعود إلى الفهرس."""
+        _periods(school, klass, teacher, 7)
+
+        page = (
+            client_as(supervisor)
+            .get(reverse("wings:record_section", args=[klass.id]) + f"?date={SUNDAY.isoformat()}")
+            .content.decode()
+        )
+        assert "ثبّت وانتقل" not in page
+
+        response = client_as(supervisor).post(
+            reverse("wings:record_period", args=[klass.id]),
+            {"date": SUNDAY.isoformat(), "start": "07:10", "next": "1"},
+        )
+
+        assert response.status_code == 302
+        assert response.url == reverse("wings:record_index") + f"?date={SUNDAY.isoformat()}"
+
     def test_a_confirmed_column_keeps_its_confirmation_time(
         self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
