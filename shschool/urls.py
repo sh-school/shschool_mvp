@@ -2,12 +2,12 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.admin.views.decorators import staff_member_required
-from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 from django.urls import include, path
-from django.views.generic import TemplateView
+from django.views.generic import RedirectView
 from django_prometheus.exports import ExportToDjangoView
 
+from core import views_styleguide
 from core.permissions import internal_only
 from core.views_health import health_check, readiness_check, status_check
 from core.views_media import serve_db_file
@@ -66,22 +66,15 @@ urlpatterns = [
         name="prometheus-metrics",
     ),
     path("search/", global_search, name="global_search"),
-    # ✅ v5.1.1: دليل المكونات (Styleguide) — للمطورين فقط
+    # دليلُ الهويّة الواحد — للمطوّرين. و`styleguide/` كان الدليلَ القديم (v5.1.1)
+    # بألوانٍ منسوخةٍ وأصنافٍ بلا تعريف؛ صار تحويلاً دائماً فلا تنكسر إشارةٌ محفوظة.
     path(
         "styleguide/",
-        login_required(TemplateView.as_view(template_name="components/_styleguide.html")),
+        RedirectView.as_view(pattern_name="ui_components", permanent=True),
         name="styleguide",
     ),
-    path(
-        "styleguide/components/",
-        login_required(TemplateView.as_view(template_name="styleguide/components.html")),
-        name="ui_components",
-    ),
-    path(
-        "styleguide/icons/",
-        login_required(TemplateView.as_view(template_name="styleguide/icon_preview.html")),
-        name="icon_preview",
-    ),
+    path("styleguide/components/", views_styleguide.ui_components, name="ui_components"),
+    path("styleguide/icons/", views_styleguide.icon_preview, name="icon_preview"),
     path("sw.js", global_sw, name="global_sw"),
     path("manifest.json", global_manifest, name="global_manifest"),
     path("offline/", offline_global, name="offline_global"),

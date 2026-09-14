@@ -32,9 +32,9 @@
   <table class="exg-grid">
     <thead>
       <tr>
-        <th scope="col" class="exg-corner">اليوم</th>
+        <th scope="col">اليوم</th>
         {% for p in periods %}<th scope="col">{{ p }}</th>{% endfor %}
-        <th scope="col" class="exg-corner">الكل</th>
+        <th scope="col">الكل</th>
       </tr>
     </thead>
     <tbody>
@@ -99,7 +99,7 @@
   <p>اختيارُ مجموعةٍ لا جدولَ واحداً لها — ظلِّل النمطَ المطلوبَ وسيُطبَّق على أعضائها جميعاً.</p>
   <table class="exg-grid" data-exg>
     <thead>
-      <tr><th class="exg-corner">اليوم</th>{% for p in periods %}<th>{{ p }}</th>{% endfor %}<th class="exg-corner">الكل</th></tr>
+      <tr><th>اليوم</th>{% for p in periods %}<th>{{ p }}</th>{% endfor %}<th>الكل</th></tr>
     </thead>
     <tbody>
       {% for val, label in days %}

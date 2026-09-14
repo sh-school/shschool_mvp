@@ -537,16 +537,3 @@ class AnnualSubjectResult(models.Model):
         if t >= 50:
             return "D"
         return "F"
-
-    @property
-    def grade_color_css(self):
-        if self.annual_total is None:
-            return "text-gray-400"
-        t = float(self.annual_total)
-        if t >= 80:
-            return "text-green-700"
-        if t >= 65:
-            return "text-blue-700"
-        if t >= 50:
-            return "text-amber-600"
-        return "text-red-600"

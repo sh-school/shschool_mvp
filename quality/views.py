@@ -708,6 +708,7 @@ def execution_list(request):
     qs, sort, direction = _build_procedure_qs(request, school, year)
     page_obj, per_page = _paginate(request, qs)
     ctx = _list_context(request, school, year, page_obj, per_page, sort, direction)
+    ctx["page_subtitle"] = f"المهام: {page_obj.paginator.count}"
 
     return render(request, "quality/execution_list.html", ctx)
 
@@ -753,6 +754,10 @@ def review_list(request):
     ctx["evidence_request_choices"] = OperationalProcedure.EVIDENCE_REQUEST_STATUS
     ctx["is_reviewer"] = is_reviewer or is_admin
     ctx["member_domain"] = member_domain
+    # سطرُ الترويسة: العددُ، ومجالُ العضو إن كان مقصوراً عليه.
+    ctx["page_subtitle"] = f"الإجراءات: {page_obj.paginator.count}"
+    if member_domain:
+        ctx["page_subtitle"] += f" · مجالك: {member_domain.name}"
 
     return render(request, "quality/review_list.html", ctx)
 

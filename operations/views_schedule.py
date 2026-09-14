@@ -246,6 +246,8 @@ def _schedule_print_selection(request):
         "teachers": teachers,
         "classes": classes,
         "title": title,
+        # عنوانُ الترويسة يُبنى هنا: المسودّةُ تُسمّى في العنوان لا في وسمٍ شرطيّ.
+        "heading": f"{title} — مسودّة" if preview else title,
         "selection_query": urlencode(selection),
     }
 

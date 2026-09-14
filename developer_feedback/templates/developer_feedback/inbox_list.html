@@ -1,48 +1,40 @@
 {% extends "base/base.html" %}
-{% load static i18n %}
+{% load i18n sorting ui %}
+{% comment %}
+صندوقُ المطوّر — كانت الوحدةُ ترسم ترويستَها وبطاقاتِها وجدولَها ومرشِّحَها
+وتقسيمَها بنظامٍ خاصٍّ (`df-*`) لا يتبع مكوّنات المنصّة. فصارت الترويسةُ
+`page_header`، والجدولُ في `section_card` بعدّه في طرف الشريط، والمرشِّحُ
+`filter-bar` كسائر الشاشات، والتقسيمُ `pagination-wrap` بروابطَ تحمل ما
+قبلها من ترشيحٍ (`page_query`). وبقيت شاراتُ الحالة والأولويّة ورقمُ
+التذكرة بصنفها — فهي خاصّةٌ بالوحدة حقّاً.
+{% endcomment %}
 
 {% block title %}{% trans "صندوق المطوّر" %}{% endblock %}
-
-{% block extra_css %}
-{{ block.super }}
-{% endblock %}
-
-{% block page_header %}
-<div class="df-container df-page-header-row">
-  <h1 class="df-page-title">
-    {% include "components/icon.html" with name="inbox" %}
-    {% trans "صندوق المطوّر" %}
-  </h1>
-  <span class="df-badge df-badge-count" aria-label="{% trans 'عدد الرسائل الكلي' %}">
-    {% trans "كل الرسائل" %}: {{ page_obj.paginator.count|default:0 }}
-  </span>
-</div>
-{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/developer-feedback/" parent_label="تواصل مع المطوّر" current="صندوق الوارد" %}
 {% endblock %}
 
 {% block content %}
-<main id="main-content" class="df-container" role="main">
+<div class="exec-dash df-page">
+  {% page_header _("صندوق المطوّر") subtitle=_("كلُّ ما أرسله المنتسبون إلى المطوّر — يُرشَّح بالحالة والنوع والأولويّة") icon="inbox" %}{% endpage_header %}
 
-  {# ── شريط الفلترة ── #}
-  <form method="get" class="df-filter-bar" role="search" aria-label="{% trans 'فلترة الرسائل' %}">
-    <div class="df-form-group df-filter-group">
-      <label for="df-q">{% trans "بحث" %}</label>
+  <form method="get" class="filter-bar" role="search" aria-label="{% trans 'فلترة الرسائل' %}">
+    <div class="filter-field filter-field--grow">
+      <label class="filter-label" for="df-q">{% trans "بحث" %}</label>
       <input
         type="search"
         id="df-q"
         name="q"
         value="{{ current_q|default:'' }}"
-        class="form-control"
+        class="form-control form-control-sm"
         placeholder="{% trans 'العنوان أو الوصف…' %}"
       >
     </div>
 
-    <div class="df-form-group df-filter-group">
-      <label for="df-status">{% trans "الحالة" %}</label>
-      <select name="status" id="df-status" class="form-select">
+    <div class="filter-field">
+      <label class="filter-label" for="df-status">{% trans "الحالة" %}</label>
+      <select name="status" id="df-status" class="form-control form-control-sm">
         <option value="">{% trans "— الكل —" %}</option>
         {% for value, label in status_choices %}
           <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
@@ -50,9 +42,9 @@
       </select>
     </div>
 
-    <div class="df-form-group df-filter-group">
-      <label for="df-type">{% trans "النوع" %}</label>
-      <select name="type" id="df-type" class="form-select">
+    <div class="filter-field">
+      <label class="filter-label" for="df-type">{% trans "النوع" %}</label>
+      <select name="type" id="df-type" class="form-control form-control-sm">
         <option value="">{% trans "— الكل —" %}</option>
         <option value="bug" {% if current_type == "bug" %}selected{% endif %}>{% trans "عطل / مشكلة" %}</option>
         <option value="feature" {% if current_type == "feature" %}selected{% endif %}>{% trans "اقتراح ميزة" %}</option>
@@ -63,9 +55,9 @@
       </select>
     </div>
 
-    <div class="df-form-group df-filter-group">
-      <label for="df-priority">{% trans "الأولوية" %}</label>
-      <select name="priority" id="df-priority" class="form-select">
+    <div class="filter-field">
+      <label class="filter-label" for="df-priority">{% trans "الأولوية" %}</label>
+      <select name="priority" id="df-priority" class="form-control form-control-sm">
         <option value="">{% trans "— الكل —" %}</option>
         <option value="high" {% if current_priority == "high" %}selected{% endif %}>{% trans "عالية" %}</option>
         <option value="normal" {% if current_priority == "normal" %}selected{% endif %}>{% trans "عادية" %}</option>
@@ -73,19 +65,22 @@
       </select>
     </div>
 
-    <div class="df-filter-actions">
-      <button type="submit" class="btn btn-primary">
+    <div class="filter-actions">
+      <button type="submit" class="btn-primary btn-sm">
         {% include "components/icon.html" with name="search" %}
         {% trans "بحث" %}
       </button>
-      <a href="{% url 'developer_feedback:inbox_list' %}" class="df-link-muted">{% trans "إعادة تعيين" %}</a>
+      <a href="{% url 'developer_feedback:inbox_list' %}" class="btn-secondary btn-sm">
+        {% include "components/icon.html" with name="refresh" %}
+        {% trans "إعادة تعيين" %}
+      </a>
     </div>
   </form>
 
-  {# ── جدول الرسائل ── #}
-  {% if messages_list %}
-    <div class="df-table-wrap" role="region" aria-label="{% trans 'جدول رسائل المطوّر' %}">
-      <table class="df-table">
+  {# الصفحةُ خمسٌ وعشرون من الكلّ، والفرزُ لا يُدّعى في المتصفّح على جزءٍ من القائمة. #}
+  {% section_card _("الرسائل") meta=page_obj.paginator.count icon="mail" flush=True empty=_("لا توجد رسائل مطابقة") empty_sub=_("حاول تعديل معايير البحث أو أعد التعيين لعرض كل الرسائل.") %}{% if messages_list %}
+    <div class="table-wrap" role="region" aria-label="{% trans 'جدول رسائل المطوّر' %}">
+      <table data-no-sort>
         <thead>
           <tr>
             <th scope="col">{% trans "رقم التذكرة" %}</th>
@@ -129,31 +124,20 @@
       </table>
     </div>
 
-    {# ── Pagination — نحافظ على الفلاتر ── #}
+    {# روابطُ الصفحات تحمل الترشيحَ والبحثَ كما هما (`page_query`). #}
     {% if is_paginated %}
-      <nav class="df-pagination" role="navigation" aria-label="{% trans 'تصفّح الصفحات' %}">
+      <nav class="pagination-wrap" aria-label="{% trans 'تصفّح الصفحات' %}">
         {% if page_obj.has_previous %}
-          <a href="?page={{ page_obj.previous_page_number }}{% if current_q %}&q={{ current_q|urlencode }}{% endif %}{% if current_status %}&status={{ current_status|urlencode }}{% endif %}{% if current_type %}&type={{ current_type|urlencode }}{% endif %}{% if current_priority %}&priority={{ current_priority|urlencode }}{% endif %}" class="df-page-link">{% trans "السابق" %}</a>
+          <a href="?{% page_query page_obj.previous_page_number %}" class="btn-secondary">{% trans "السابق" %}</a>
         {% endif %}
-        <span class="df-page-info">
-          {% blocktrans with current=page_obj.number total=page_obj.paginator.num_pages %}
-            صفحة {{ current }} من {{ total }}
-          {% endblocktrans %}
+        <span class="pagination-info">
+          {% blocktrans with current=page_obj.number total=page_obj.paginator.num_pages %}صفحة {{ current }} من {{ total }}{% endblocktrans %}
         </span>
         {% if page_obj.has_next %}
-          <a href="?page={{ page_obj.next_page_number }}{% if current_q %}&q={{ current_q|urlencode }}{% endif %}{% if current_status %}&status={{ current_status|urlencode }}{% endif %}{% if current_type %}&type={{ current_type|urlencode }}{% endif %}{% if current_priority %}&priority={{ current_priority|urlencode }}{% endif %}" class="df-page-link">{% trans "التالي" %}</a>
+          <a href="?{% page_query page_obj.next_page_number %}" class="btn-secondary">{% trans "التالي" %}</a>
         {% endif %}
       </nav>
     {% endif %}
-
-  {% else %}
-    <div class="df-empty-state" role="status">
-      <div class="df-empty-icon" aria-hidden="true">
-        {% include "components/icon.html" with name="inbox" %}
-      </div>
-      <h3>{% trans "لا توجد رسائل مطابقة" %}</h3>
-      <p>{% trans "حاول تعديل معايير البحث أو أعد التعيين لعرض كل الرسائل." %}</p>
-    </div>
-  {% endif %}
-</main>
+  {% endif %}{% endsection_card %}
+</div>
 {% endblock %}

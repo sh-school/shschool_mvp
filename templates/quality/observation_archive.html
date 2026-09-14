@@ -20,7 +20,7 @@
   {% section_card "الزيارات المؤرشفة" meta=total icon="inbox" empty="لا زيارات مؤرشَفة." flush=True %}{% if page_obj.object_list %}
     {# الأرشيفُ مقسَّمٌ صفحاتٍ: الفرزُ من الخادم على الأرشيف كلِّه. #}
     <div class="table-wrap">
-    <table class="table table-qatar" data-no-sort>
+    <table class="table" data-no-sort>
       <thead>
         <tr>
           {% sort_th sort "teacher" "المعلّم" %}{% sort_th sort "observer" "الزائر" %}

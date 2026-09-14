@@ -95,6 +95,7 @@ MIDDLEWARE = [
     "csp.middleware.CSPMiddleware",
     # الإلزامُ بتغيير كلمة المرور قبل موافقة وليّ الأمر: من لم يُبدّل كلمتَه لا يوافق بها.
     "core.middleware.ForcePasswordChangeMiddleware",
+    "core.middleware.TwoFactorEnforcementMiddleware",
     "core.middleware.ParentConsentMiddleware",
     # صفحةُ المسجَّل لا تُخزَّن: طزاجةٌ بعد النشر، وخصوصيّةٌ على جهازٍ مشترك
     "core.middleware.PrivateHtmlNoStoreMiddleware",
@@ -177,6 +178,9 @@ else:
 #: تدويرُ كلمة مرور المنتسبين — كلُّ كم يوماً يُجبَر على تغييرها عند الدخول (قرار 2026-09-08: 90).
 #: يسري على أصحاب عضويّةٍ نشطةٍ من الكادر وحدَهم، لا على الطلبة وأولياء الأمور. والصفرُ يعطّله.
 PASSWORD_ROTATION_DAYS = config("PASSWORD_ROTATION_DAYS", default=90, cast=int)
+# قرار 2026-09-14: المصادقةُ الثنائيّة إلزاميّةٌ لكلّ منتسبٍ من الكادر (لا الطلبةَ وأولياءَ
+# الأمور). من لم يفعّلها لا يبلغ صفحةً غيرَ صفحة الإعداد. والرايةُ للطوارئ وحدَها.
+TWO_FACTOR_REQUIRED_FOR_STAFF = config("TWO_FACTOR_REQUIRED_FOR_STAFF", default=True, cast=bool)
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

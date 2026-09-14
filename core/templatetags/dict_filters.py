@@ -55,19 +55,3 @@ def pct(value, total):
     except (TypeError, ValueError, ZeroDivisionError):
         logger.exception("فشل فلتر pct: value=%r, total=%r", value, total)
         return 0
-
-
-@register.filter
-def grade_color_class(value):
-    try:
-        t = float(value)
-        if t >= 80:
-            return "text-green-700"
-        if t >= 65:
-            return "text-blue-700"
-        if t >= 60:
-            return "text-amber-600"
-        return "text-red-600"
-    except (TypeError, ValueError):
-        logger.exception("فشل فلتر grade_color_class: value=%r", value)
-        return "text-gray-400"

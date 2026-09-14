@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}إدارة خط السير{% endblock %}
 
 {% block breadcrumbs %}
@@ -6,16 +7,11 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash" style="max-width:640px;margin:0 auto">
+<div class="exec-dash transport-form-page">
 
-  {# ── Header ── #}
-  <div class="exec-header">
-    <div>
-      <h1>{% include "components/icon.html" with name="bus" %} {% if route %}تعديل{% else %}إضافة{% endif %} خط سير</h1>
-      <p class="exec-date">حافلة {{ bus.bus_number }}</p>
-    </div>
+  {% page_header page_title subtitle=bus_label icon="bus" %}
     <a href="{% url 'transport:bus_detail' bus.id %}" class="btn-secondary btn-sm">← رجوع</a>
-  </div>
+  {% endpage_header %}
 
   {# ── Form ── #}
   <div class="form-card">
@@ -37,7 +33,7 @@
             </option>
             {% endfor %}
           </select>
-          <p class="text-xs mt-1" style="color:var(--text-secondary)">اضغط Ctrl للاختيار المتعدد</p>
+          <p class="form-hint">اضغط Ctrl للاختيار المتعدد</p>
         </div>
       </div>
       <div class="flex gap-3 mt-6">

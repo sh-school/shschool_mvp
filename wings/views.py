@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils import timezone
+from django.utils import formats, timezone
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
@@ -54,6 +54,9 @@ def floors(request):
     panels = floors_overview(school, year, now)
     outside = outside_the_wings(school, year)
     wing_students = sum(panel.student_count for panel in panels)
+    register_count = wing_students + outside.student_count
+    wing_count = sum(len(panel.wings) for panel in panels)
+    section_count = sum(panel.section_count for panel in panels)
     return render(
         request,
         "wings/floors.html",
@@ -62,18 +65,40 @@ def floors(request):
             "tables": bell_tables(school),
             "now": now,
             "year": year,
+            "subtitle": f"طابقان · {wing_count} أجنحة · {section_count} شعبة · {year}",
             "day_label": DAY_LABEL.get(day_type, "عطلة — لا دوام"),
             "is_school_day": bool(day_type),
-            "wing_count": sum(len(panel.wings) for panel in panels),
-            "section_count": sum(panel.section_count for panel in panels),
+            "wing_count": wing_count,
+            "section_count": section_count,
             "student_count": wing_students,
             "outside": outside,
             "perms_can_cover": request.user.is_superuser
             or request.user.get_role() in WingCoverage.ASSIGNER_ROLES,
             # سجلُّ المدرسة كلُّه — والفرقُ بينه وبين طلاب الأجنحة معروضٌ لا مطروح.
-            "register_count": wing_students + outside.student_count,
+            "register_count": register_count,
+            "kpis": _floors_kpis(outside, register_count, bool(day_type), now),
         },
     )
+
+
+def _floors_kpis(outside, register_count, is_school_day, now):
+    """تفاصيلُ شريط الأرقام نصوصاً جاهزة — كانت سلاسلَ شرطيّةً في القالب."""
+    codes = " · ".join(section.short_code for section in outside.sections)
+    students_sub = f"من {register_count} في السجلّ"
+    if outside.student_count:
+        students_sub += f" · و{outside.student_count} في التربية الخاصّة"
+    return {
+        "sections_sub": (
+            f"و{outside.section_count} خارجَها (تربيةٌ خاصّة)"
+            if outside.section_count
+            else "كلُّ شُعب المدرسة"
+        ),
+        "sections_title": f"خارجَ الأجنحة بقرار الإدارة: {codes}" if codes else "",
+        "students_sub": students_sub,
+        # يومُ دوامٍ أخضرُ بساعته، والعطلةُ كهرمانيّةٌ بلا جرس.
+        "day_tone": "green" if is_school_day else "amber",
+        "day_sub": f"الساعة {now:%H:%M}" if is_school_day else "لا جرسَ يرنّ",
+    }
 
 
 def _day(raw, fallback=None):
@@ -104,6 +129,7 @@ def coverage(request):
             "pool": substitute_pool(school, on_date=today),
             "today": today,
             "year": year,
+            "subtitle": f"من يحمل كلَّ جناحٍ اليوم — والإنابةُ عند الغياب · {year}",
         },
     )
 
@@ -265,6 +291,11 @@ def record_section(request, class_id):
         {
             "klass": klass,
             "day": day,
+            # عنوانُ الترويسة وسطرُها يُبنيان هنا: المكوّنُ يأخذ نصّاً لا وسوماً.
+            "heading": f"{klass.get_grade_display()} / {klass.section}",
+            "subtitle": (
+                f"{formats.date_format(day, 'D، d M Y')} · {len(rows)} طالباً · {len(periods)} حصّة"
+            ),
             "periods": [(p, p.status(day, now)) for p in periods],
             "focus": focus,
             "focus_status": focus.status(day, now) if focus else "",

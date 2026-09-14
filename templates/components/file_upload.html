@@ -25,11 +25,11 @@
     id="file-input-{{ field_name|default:'file' }}"
     accept="{{ accept|default:'' }}"
     {% if multiple %}multiple{% endif %}
-    style="display:none"
+    hidden
     aria-label="{{ label|default:'رفع ملف' }}"
   >
 
-  <div class="dropzone-content">
+  <div data-dz-content>
     <div class="dropzone-icon">{% include "components/icon.html" with name="file-text" size="icon-2xl" %}</div>
     <div class="dropzone-label">{{ label|default:"اسحب الملف هنا أو" }}</div>
     <button
@@ -46,15 +46,15 @@
   {# ── معاينة الملف بعد الاختيار ── #}
   <div class="dropzone-preview">
     <div class="dropzone-preview-inner">
-      <span class="preview-icon icon-lg">{% include "components/icon.html" with name="file-text" %}</span>
+      <span class="icon-lg">{% include "components/icon.html" with name="file-text" %}</span>
       <div class="dropzone-preview-meta">
-        <div class="preview-name dropzone-preview-name"></div>
-        <div class="preview-size dropzone-preview-size"></div>
+        <div class="dropzone-preview-name" data-dz-name></div>
+        <div class="dropzone-preview-size" data-dz-size></div>
       </div>
-      <button type="button" class="dropzone-clear btn-secondary btn-xs">✕ إزالة</button>
+      <button type="button" class="btn-secondary btn-xs" data-dz-clear>✕ إزالة</button>
     </div>
-    <div class="preview-image-wrap dropzone-preview-img-wrap">
-      <img class="preview-image" src="" alt="معاينة" width="200" height="150" loading="lazy">
+    <div class="dropzone-preview-img-wrap" data-dz-img-wrap>
+      <img data-dz-img src="" alt="معاينة" width="200" height="150" loading="lazy">
     </div>
   </div>
 
@@ -70,11 +70,11 @@
   if (!zone || !input) return;
 
   var preview = zone.querySelector('.dropzone-preview');
-  var pName   = zone.querySelector('.preview-name');
-  var pSize   = zone.querySelector('.preview-size');
-  var pImg    = zone.querySelector('.preview-image');
-  var pImgW   = zone.querySelector('.preview-image-wrap');
-  var clearBtn = zone.querySelector('.dropzone-clear');
+  var pName   = zone.querySelector('[data-dz-name]');
+  var pSize   = zone.querySelector('[data-dz-size]');
+  var pImg    = zone.querySelector('[data-dz-img]');
+  var pImgW   = zone.querySelector('[data-dz-img-wrap]');
+  var clearBtn = zone.querySelector('[data-dz-clear]');
 
   function formatSize(bytes) {
     return bytes < 1024*1024
@@ -92,7 +92,7 @@
     pName.textContent = file.name;
     pSize.textContent = formatSize(file.size);
     preview.style.display = 'block';
-    zone.querySelector('.dropzone-content').style.display = 'none';
+    zone.querySelector('[data-dz-content]').style.display = 'none';
     if (file.type.startsWith('image/')) {
       var reader = new FileReader();
       reader.onload = function(e) {
@@ -113,7 +113,7 @@
     e.stopPropagation();
     input.value = '';
     preview.style.display = 'none';
-    zone.querySelector('.dropzone-content').style.display = 'block';
+    zone.querySelector('[data-dz-content]').style.display = 'block';
     pImg.src = '';
   });
 

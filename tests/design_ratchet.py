@@ -36,9 +36,10 @@ CSS_DIR = pathlib.Path("static/css")
 #: جذورُ القوالب الحيّة — كما في `test_design_tokens_resolve`.
 TEMPLATE_ROOTS = (pathlib.Path("templates"),)
 
-#: قوالبُ الطباعة والبريد خارجُ النطاق: WeasyPrint والبريدُ لا يقرآن `var()`،
-#: فالرقمُ السداسيُّ والتنسيقُ داخل الوسم فيهما ضرورةٌ لا مخالفة.
-PRINT_RE = re.compile(r"pdf|print|/email/|base_qatar_report|certificate")
+#: كانت قوالبُ الطباعة والبريد خارجَ النطاق بحجّة أنّ WeasyPrint والبريدَ لا يقرآن
+#: `var()`. والحجّةُ لا تُلزم بالسداسيّ ولا بـ`style=`: ألوانُهما من `{% brand_color %}`
+#: وأنماطُهما أصنافٌ في `<style>` الوثيقة أو أبيها — فدخلت الحارسَ يومَ 2026-09-13
+#: بصفرِ مخالفة، ولا قالبَ في المنصّة خارجَه.
 
 _PALETTE = "slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose"
 _UTILITY = "bg|text|border(?:-[trblxyse])?|ring|from|via|to|divide|outline|fill|stroke|placeholder|accent|shadow|decoration"
@@ -75,7 +76,7 @@ METRICS: dict[str, tuple[str, re.Pattern | _InlineStyle]] = {
     "palette_class": (
         "لونٌ من لوحة Tailwind لا من رموز المنصّة (bg-red-50…)",
         re.compile(
-            rf"(?<![\w-])(?:[a-z0-9]+:)*(?:{_UTILITY})-(?:{_PALETTE})-\d{{2,3}}(?:/\d+)?(?![\w-])"
+            rf"(?<![\w-])(?:[a-z0-9]+:)*(?:{_UTILITY})-(?:(?:{_PALETTE})-\d{{2,3}}(?:/\d+)?|white|black)(?![\w-])"
         ),
     ),
     "hex_colour": (
@@ -85,8 +86,10 @@ METRICS: dict[str, tuple[str, re.Pattern | _InlineStyle]] = {
         ),
     ),
     "legacy_header": (
-        "ترويسةٌ قديمة (card-header · dash-chart-title) بدل card-bar",
-        re.compile(r"(?<![\w-])(?:card-header|dash-chart-title)(?![\w-])"),
+        "بنيةٌ مكتوبةٌ باليد (exec-header · card-qatar · card-bar · card-header) بدل مكوّنات ui",
+        re.compile(
+            r"(?<![\w-])(?:card-header|dash-chart-title|exec-header|card-qatar|card-bar)(?![\w-])"
+        ),
     ),
     "hand_kpi": (
         "بطاقةُ رقمٍ مكتوبةٌ باليد (kpi-mini)",
@@ -109,12 +112,91 @@ STYLE_BLOCK_RE = re.compile(
 )
 
 
+#: خطّافُ سلوكٍ لا نمط: صنفٌ تقرؤه JS محدِّداً (`.js-filter-row`) — لا يُعرَّف في CSS
+#: عمداً، فتعريفُه يخلط ما يُرى بما يُفعل، وتغييرُ شكله يكسر سلوكاً لا يُرى.
+HOOK_PREFIX = "js-"
+
+#: قوالبُ لوحة إدارة Django ترث `admin/…` وتُرسم بأنماط Django نفسها (`admin/css/*.css`
+#: في الحزمة) لا بأنماط المنصّة — فهذه الأصنافُ معرَّفةٌ هناك، والحارسُ لا يقرأ حزمَ الطرف الثالث.
+ADMIN_EXTENDS_RE = re.compile(r"""\{%\s*extends\s+["']admin/""")
+ADMIN_CLASSES = frozenset(
+    {"aligned", "button", "cancel-link", "deletelink", "errornote", "module", "submit-row"}
+)
+EXTENDS_RE = re.compile(r"""\{%\s*extends\s+["']([^"']+)["']""")
+
+
+def _template_file(name: str) -> pathlib.Path | None:
+    for root in list(TEMPLATE_ROOTS) + sorted(pathlib.Path(".").glob("*/templates")):
+        if (root / name).is_file():
+            return root / name
+    return None
+
+
+def _local_classes(text: str, seen: frozenset[str] = frozenset()) -> set[str]:
+    """أصنافُ `<style>` القالب وآبائه في سلسلة `{% extends %}`.
+
+    الوثائقُ الرسميّة ترث `reports/base_qatar_report.html` الذي يعرّف `sig-block`
+    و`report-meta` مرّةً واحدة — فالصنفُ في الابن معرَّفٌ حقّاً، وعدُّه «بلا تعريف»
+    كان يدفع إلى نسخ التعريف في كلّ ابن.
+    """
+    names = {
+        re.sub(r"\\(.)", r"\1", m.group(1))
+        for blocks in STYLE_BLOCK_RE.findall(text)
+        for m in CSS_CLASS_RE.finditer("".join(blocks))
+    }
+    parent = EXTENDS_RE.search(text)
+    if parent and parent.group(1) not in seen:
+        path = _template_file(parent.group(1))
+        if path is not None:
+            names |= _local_classes(path.read_text(encoding="utf-8"), seen | {parent.group(1)})
+    return names
+
+
+INCLUDE_RE = re.compile(r"""\{%\s*include\s+["']([^"']+)["']""")
+
+
+def _includers() -> dict[str, list[pathlib.Path]]:
+    """اسمُ القالب ← القوالبُ التي تضمّنه.
+
+    جزءُ الوثيقة (`reports/pdf/_signatures.html`، `wings/pdf/section_sheet.html`)
+    لا يرث أحداً: يُضمَّن في وثيقةٍ أنماطُها في رأسها أو في أبيها — فأصنافُه
+    معرَّفةٌ هناك.
+    """
+    found: dict[str, list[pathlib.Path]] = {}
+    for root in list(TEMPLATE_ROOTS) + sorted(pathlib.Path(".").glob("*/templates")):
+        for path in root.rglob("*.html"):
+            for name in INCLUDE_RE.findall(path.read_text(encoding="utf-8")):
+                found.setdefault(name, []).append(path)
+    return found
+
+
+def _host_classes(
+    name: str, includers: dict[str, list[pathlib.Path]], seen: frozenset[str] = frozenset()
+) -> set[str]:
+    names: set[str] = set()
+    for host in includers.get(name, []):
+        host_name = _template_name(host)
+        if host_name in seen or host_name == name:
+            continue
+        names |= _local_classes(host.read_text(encoding="utf-8"))
+        names |= _host_classes(host_name, includers, seen | {name})
+    return names
+
+
+def _template_name(path: pathlib.Path) -> str:
+    parts = path.as_posix().split("/templates/", 1)
+    return parts[1] if len(parts) == 2 else path.as_posix().removeprefix("templates/")
+
+
 def live_templates():
     roots = list(TEMPLATE_ROOTS) + sorted(pathlib.Path(".").glob("*/templates"))
     for root in roots:
-        for path in sorted(root.rglob("*.html")):
-            if not PRINT_RE.search(path.as_posix().lower()):
-                yield path
+        yield from sorted(root.rglob("*.html"))
+
+
+#: المكوّناتُ نفسُها هي التي ترسم `exec-header` و`card-qatar` و`card-bar` — فالصفحةُ
+#: تكتب `{% page_header %}` و`{% section_card %}` ولا تكتب هذه الأصنافَ بيدها.
+COMPONENTS_DIR = pathlib.Path("templates/components")
 
 
 def measure() -> dict[str, dict[str, int]]:
@@ -123,6 +205,8 @@ def measure() -> dict[str, dict[str, int]]:
     for path in live_templates():
         text = path.read_text(encoding="utf-8")
         for name, (_label, pattern) in METRICS.items():
+            if name == "legacy_header" and path.is_relative_to(COMPONENTS_DIR):
+                continue
             found = len(pattern.findall(text))
             if found:
                 counts[name][path.as_posix()] = found
@@ -143,15 +227,16 @@ def defined_classes() -> set[str]:
 def undefined_classes() -> list[str]:
     """أصنافٌ في القوالب لا يعرّفها أيُّ ملفّ CSS — مرتّبةً بلا تكرار."""
     known = defined_classes()
+    includers = _includers()
     missing = set()
     for path in live_templates():
         text = path.read_text(encoding="utf-8")
-        # صنفٌ يعرّفه القالبُ في `<style>` نفسه معرَّف — قوالبُ التقارير تفعل ذلك.
-        local = {
-            re.sub(r"\\(.)", r"\1", m.group(1))
-            for blocks in STYLE_BLOCK_RE.findall(text)
-            for m in CSS_CLASS_RE.finditer("".join(blocks))
-        }
+        # صنفٌ يعرّفه القالبُ أو أحدُ آبائه في `<style>` معرَّف — قوالبُ التقارير تفعل ذلك.
+        local = _local_classes(text)
+        # وجزءٌ مضمَّنٌ يرى أنماطَ من يضمّنه، ومن يضمّن ذاك (`signatures` ← `section_sheet` ← الوثيقة).
+        local |= _host_classes(_template_name(path), includers)
+        if ADMIN_EXTENDS_RE.search(text):
+            local |= ADMIN_CLASSES
         for attr in CLASS_ATTR_RE.finditer(text):
             raw = attr.group(1)
             # `kpi-{% if %}green{% endif %}` يلصق الوسمَ باسمٍ فالناتجُ لا يُعرف قبل التشغيل؛
@@ -160,6 +245,8 @@ def undefined_classes() -> list[str]:
             value = DYNAMIC_RE.sub("\0", LOGIC_RE.sub("\0" if glued else " ", raw))
             for token in value.split():
                 if "\0" in token or not CLASS_TOKEN_RE.fullmatch(token):
+                    continue
+                if token.startswith(HOOK_PREFIX):
                     continue
                 if token not in known and token not in local:
                     missing.add(token)

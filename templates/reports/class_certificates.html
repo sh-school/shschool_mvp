@@ -15,10 +15,19 @@
 .cert-avg         { font-size: 42px; font-weight: 800; color: {% brand_color "MAROON" %}; text-align: center; line-height: 1; }
 .cert-avg-label   { font-size: 12px; color: {% brand_color "TEXT_MUTED" %}; text-align: center; margin-bottom: 12px; }
 .cert-status      { display: inline-block; padding: 5px 20px; border-radius: 20px; font-size: 14px; font-weight: 700; text-align: center; margin: 8px auto; }
+/* النغمةُ من `reports.views._set_final_status`: خلفيّةٌ فاتحةٌ وإطارٌ ونصٌّ من اللون نفسه. */
+.cert-status.is-success { background: {% brand_color "STATUS_SUCCESS_BG" %}; color: {% brand_color "STATUS_SUCCESS_DARK" %}; border: 1.5px solid {% brand_color "STATUS_SUCCESS_DARK" %}; }
+.cert-status.is-danger  { background: {% brand_color "STATUS_DANGER_BG" %};  color: {% brand_color "STATUS_DANGER" %};  border: 1.5px solid {% brand_color "STATUS_DANGER" %}; }
+.cert-status.is-warning { background: {% brand_color "STATUS_WARNING_BG" %}; color: {% brand_color "STATUS_WARNING" %}; border: 1.5px solid {% brand_color "STATUS_WARNING" %}; }
 .cert-subjects    { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 11px; }
 .cert-subjects th { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; padding: 5px 8px; text-align: center; }
 .cert-subjects td { border: 1px solid {% brand_color "BORDER" %}; padding: 4px 8px; text-align: center; }
 .cert-subjects tr:nth-child(even) td { background: {% brand_color "SURFACE_ALT" %}; }
+/* خاناتُ التوقيع الثلاث: خطٌّ يُوقَّع فوقه، والصفةُ تحته. */
+.cert-sigs        { width: 100%; border-collapse: collapse; margin-top: 24px; }
+.cert-sigs td     { width: 33.33%; padding: 0 16px; border: none; background: transparent; vertical-align: bottom; }
+.cert-sig-line    { border-top: 2px solid {% brand_color "TEXT_SECONDARY" %}; margin: 28px 0 4px; }
+.cert-sig-label   { font-size: 10px; color: {% brand_color "TEXT_SECONDARY" %}; text-align: center; }
 {% endblock %}
 
 {% block report_title_bar %}
@@ -43,12 +52,12 @@
 
       <div class="cert-header">
         <div class="school-name">{{ ctx.school.name }}</div>
-        <div class="text-xs text-slate-500">دولة قطر — وزارة التربية والتعليم والتعليم العالي</div>
+        <div>دولة قطر — وزارة التربية والتعليم والتعليم العالي</div>
       </div>
 
       <div class="cert-title">شهادة نتيجة دراسية</div>
 
-      <div class="cert-body text-right">
+      <div class="cert-body">
         يُشهد بأن الطالب/ة:
         <span class="cert-student">{{ ctx.student.full_name }}</span>
         &nbsp;—&nbsp;
@@ -64,8 +73,8 @@
       <div class="cert-avg">{{ ctx.avg|default:"—" }}</div>
       <div class="cert-avg-label">المعدل السنوي (من 100)</div>
 
-      <div class="text-center mb-2.5">
-        <span class="cert-status" style="background:{{ ctx.status_color }}20;color:{{ ctx.status_color }};border:1.5px solid {{ ctx.status_color }};">
+      <div>
+        <span class="cert-status is-{{ ctx.status_tone }}">
           {{ ctx.final_status }}
         </span>
       </div>
@@ -85,15 +94,15 @@
         <tbody>
           {% for r in ctx.rows %}
           <tr>
-            <td class="text-right font-semibold">{{ r.subject_name }}</td>
+            <td>{{ r.subject_name }}</td>
             <td>{{ r.s1_total|default:"—" }}</td>
             <td>{{ r.s2_total|default:"—" }}</td>
-            <td class="font-bold">{{ r.annual_total|default:"—" }}</td>
+            <td>{{ r.annual_total|default:"—" }}</td>
             <td>{{ r.letter_grade|default:"—" }}</td>
             <td>
-              {% if r.status == "pass" %}<span class="text-green-700 font-bold">ناجح</span>
-              {% elif r.status == "fail" %}<span class="text-red-600 font-bold">راسب</span>
-              {% else %}<span class="text-amber-600">—</span>{% endif %}
+              {% if r.status == "pass" %}ناجح
+              {% elif r.status == "fail" %}راسب
+              {% else %}—{% endif %}
             </td>
           </tr>
           {% endfor %}
@@ -101,31 +110,23 @@
       </table>
       {% endif %}
 
-      {# التوقيعات — table بدل flex #}
-      <div class="mt-6">
-        <table class="w-full border-none">
-          <tr>
-            <td class="text-center px-4 border-none bg-transparent">
-              <div class="border-t-2 border-slate-700 mb-1"></div>
-              <div class="text-xs text-slate-600">ولي الأمر</div>
-            </td>
-            <td class="text-center px-4 border-none bg-transparent">
-              <div class="border-t-2 border-slate-700 mb-1"></div>
-              <div class="text-xs text-slate-600">مدير المدرسة</div>
-            </td>
-            <td class="text-center px-4 border-none bg-transparent">
-              <div class="border-t-2 border-slate-700 mb-1"></div>
-              <div class="text-xs text-slate-600">وكيل شؤون التعليم</div>
-            </td>
-          </tr>
-        </table>
-      </div>
+      {% comment %}
+      التوقيعات — table بدل flex. كانت أصنافَ Tailwind لا يحملها الـPDF،
+      فتلتصق الأسماءُ الثلاثةُ سطراً واحداً بلا خطٍّ يُوقَّع عليه.
+      {% endcomment %}
+      <table class="cert-sigs">
+        <tr>
+          <td><div class="cert-sig-line"></div><div class="cert-sig-label">ولي الأمر</div></td>
+          <td><div class="cert-sig-line"></div><div class="cert-sig-label">مدير المدرسة</div></td>
+          <td><div class="cert-sig-line"></div><div class="cert-sig-label">وكيل شؤون التعليم</div></td>
+        </tr>
+      </table>
 
     </div>
   </div>
 </div>
 {% empty %}
-<p class="text-center text-gray-400">لا توجد بيانات طلاب</p>
+<p>لا توجد بيانات طلاب</p>
 {% endfor %}
 {% endblock %}
 

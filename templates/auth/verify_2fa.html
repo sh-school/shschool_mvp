@@ -12,7 +12,7 @@
     <!-- Header -->
     <div class="text-center mb-8">
       <div class="w-16 h-16 bg-maroon rounded-full flex items-center justify-center mx-auto mb-4">
-        {% include "components/icon.html" with name="lock" class="text-white w-8 h-8" %}
+        {% include "components/icon.html" with name="lock" %}
       </div>
       <h1 class="page-title">التحقق بخطوتين</h1>
       <p class="page-subtitle">افتح تطبيق المصادقة وأدخل رمز التحقق</p>
@@ -23,7 +23,7 @@
 
       {% if messages %}
         {% for msg in messages %}
-        <div class="msg-bar mb-4 {% if msg.tags == 'error' %}bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300{% else %}bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-700 dark:text-green-300{% endif %}">
+        <div class="msg-bar mb-4 {% if msg.tags == 'error' %}msg-error{% else %}msg-success{% endif %}">
           <span>{{ msg }}</span>
         </div>
         {% endfor %}

@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load privacy %}
+{% load privacy ui %}
 {% block title %}تسجيل زيارة جديدة{% endblock %}
 
 {% block breadcrumbs %}
@@ -7,13 +7,11 @@
 {% endblock %}
 
 {% block content %}
-<div class="exec-dash" style="max-width:42rem;margin-inline:auto">
+<div class="exec-dash clinic-form-page">
 
-  {# ── Exec Header ── #}
-  <div class="exec-header">
-    <h1>{% include "components/icon.html" with name="hospital" %} تسجيل زيارة جديدة</h1>
-    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
-  </div>
+  {% page_header "تسجيل زيارة جديدة" icon="hospital" %}
+    <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
+  {% endpage_header %}
 
   <div class="form-card">
     <form method="post" hx-post="{% url 'clinic:record_visit' %}" hx-target="#visit-result" data-validate>
@@ -62,8 +60,8 @@
         </div>
 
         {# ── إرسال للمنزل ── #}
-        <div class="status-badge status-warning flex items-center gap-3 p-3 rounded-lg text-sm w-full" style="white-space:normal">
-          <input type="checkbox" name="is_sent_home" id="sent_home" class="w-4 h-4" style="accent-color:var(--maroon-fg)">
+        <div class="form-note is-warning items-center">
+          <input type="checkbox" name="is_sent_home" id="sent_home" class="clinic-check">
           <label for="sent_home" class="font-medium cursor-pointer m-0">
             {% include "components/icon.html" with name="alert-triangle" %} تم إرسال الطالب إلى المنزل (سيتم إبلاغ ولي الأمر تلقائياً)
           </label>

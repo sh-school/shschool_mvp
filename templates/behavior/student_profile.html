@@ -29,7 +29,7 @@
            placeholder="بحث في المخالفات..." aria-label="بحث في المخالفات" autocomplete="off">
     <ul class="plain-list">
       {% for inf in infractions %}
-        <li class="plain-list__row beh-case filterable-row"
+        <li class="plain-list__row beh-case js-filter-row"
             data-text="{{ inf.description }} {{ inf.violation_category.name_ar|default:'' }} {{ inf.date }} {{ inf.level }}">
           <div class="plain-list__main beh-case__main">
             <span class="beh-badges">
@@ -71,7 +71,7 @@
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   if (typeof window.smartFilter === 'function') {
-    window.smartFilter('infractionsSearch', '.filterable-row', { textAttr: 'data-text' });
+    window.smartFilter('infractionsSearch', '.js-filter-row', { textAttr: 'data-text' });
   }
 });
 </script>

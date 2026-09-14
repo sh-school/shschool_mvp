@@ -146,9 +146,12 @@ body {
 .c-red { color: {% brand_color "STATUS_DANGER_DARK" %} !important; }
 .c-orange { color: {% brand_color "ACCENT_ORANGE_FG" %} !important; }
 .c-maroon { color: {% brand_color "MAROON" %} !important; }
+.c-blue { color: {% brand_color "STATUS_INFO_FG" %} !important; }
+.c-muted { color: {% brand_color "TEXT_MUTED" %} !important; }
 
 /* ══════════ عناوين الأقسام ══════════ */
-.section-head {
+.section-head,
+.doc-body h2:not([class]) {
   font-size: 13px;
   font-weight: 700;
   color: {% brand_color "MAROON" %};
@@ -158,26 +161,47 @@ body {
 }
 
 /* ══════════ الجداول ══════════ */
-.report-table {
+/* الجدولُ بلا صنفٍ في جسم الوثيقة جدولُ بياناتها: يأخذ شكلَ `report-table`
+   من غير أن يكرّر كلُّ تقريرٍ اسمَه. وخانةُ الاسم `th scope="row"` —
+   رأسُ السطر لقارئ الشاشة — تُحاذى إلى البداية بخطٍّ أثقل. */
+.report-table,
+.doc-body > table:not([class]) {
   width: 100%;
   border-collapse: collapse;
   font-size: 11px;
 }
-.report-table th {
+.report-table th,
+.doc-body > table:not([class]) thead th {
   background: {% brand_color "MAROON" %};
   color: {% brand_color "ON_FILL" %};
-  padding: 8px 14px;
   font-weight: 600;
   text-align: center;
   font-size: 10.5px;
 }
-.report-table td {
-  padding: 7px 14px;
+.report-table td,
+.doc-body > table:not([class]) td,
+.doc-body > table:not([class]) tbody th {
   border-bottom: 1px solid {% brand_color "BORDER" %};
   text-align: center;
   color: {% brand_color "TEXT_PRIMARY" %};
 }
-.report-table tr:nth-child(even) td {
+/* جدولُ البيانات قد يحمل عشرين عموداً (موادُّ الفصل) في عرض A4: حشوٌ أضيق،
+   والاسمُ بعرضٍ أدنى يمنع تكسّرَه كلمةً في كلّ سطر. */
+.report-table th { padding: 8px 14px; }
+.report-table td { padding: 7px 14px; }
+.doc-body > table:not([class]) thead th,
+.doc-body > table:not([class]) td,
+.doc-body > table:not([class]) tbody th {
+  padding: 6px;
+}
+.doc-body > table:not([class]) tbody th {
+  text-align: right;
+  font-weight: 600;
+  min-width: 130px;
+}
+.report-table tr:nth-child(even) td,
+.doc-body > table:not([class]) tbody tr:nth-child(even) td,
+.doc-body > table:not([class]) tbody tr:nth-child(even) th {
   background: {% brand_color "SURFACE_ALT" %};
 }
 .cell-name { text-align: right; font-weight: 600; color: {% brand_color "TEXT_PRIMARY" %}; }
@@ -243,7 +267,9 @@ body {
 .sig-line {
   border-top: 1px solid {% brand_color "TEXT_PRIMARY" %};
   width: 55%;
-  margin: 0 auto 5px;
+  /* هامشان صريحان لا `auto`: WeasyPrint في الاتّجاه من اليمين كان يدفع الخطَّ
+     خارج مربّع التوقيع إلى يساره. */
+  margin: 0 22.5% 5px;
 }
 .sig-name {
   font-size: 9.5px;
@@ -287,6 +313,40 @@ body {
   font-weight: 600;
 }
 
+/* ══════════ ختمُ التصدير ══════════ */
+/* من صدّر الوثيقةَ ومتى — يُلحقه التقريرُ الوارث إن مُرِّر `exported_by`. */
+.export-stamp {
+  text-align: center;
+  font-size: 8pt;
+  color: {% brand_color "TEXT_MUTED" %};
+  border-top: 1px solid {% brand_color "BORDER" %};
+  padding-top: 8px;
+  margin-top: 30px;
+}
+.export-stamp p { margin: 2px 0 0; }
+.export-stamp p:first-child { margin: 0; }
+.export-stamp strong { color: {% brand_color "TEXT_PRIMARY" %}; }
+
+/* ══════════ عروضُ الأعمدة ══════════ */
+/* عرضُ عمودٍ في جدول الوثيقة بنسبةٍ من عرضها — يوضع على `th` الترويسة.
+   كان كلُّ تقريرٍ يكتبه `style="width:…"`؛ والنسبُ هنا ما استُعمل منها فقط. */
+.col-w-5 { width: 5%; }
+.col-w-6 { width: 6%; }
+.col-w-7 { width: 7%; }
+.col-w-8 { width: 8%; }
+.col-w-10 { width: 10%; }
+.col-w-12 { width: 12%; }
+.col-w-14 { width: 14%; }
+.col-w-15 { width: 15%; }
+.col-w-16 { width: 16%; }
+.col-w-17 { width: 17%; }
+.col-w-18 { width: 18%; }
+.col-w-20 { width: 20%; }
+.col-w-22 { width: 22%; }
+.col-w-25 { width: 25%; }
+.col-w-33 { width: 33%; }
+.col-w-34 { width: 34%; }
+
 /* ══════════ مساعدات ══════════ */
 .no-break { page-break-inside: avoid; }
 .no-data { text-align: center; color: {% brand_color "TEXT_MUTED" %}; padding: 18px; font-size: 11px; }
@@ -320,10 +380,26 @@ body {
   </div>
   <div class="ornament-hr"></div>
 
-  {% block report_title_bar %}{% endblock %}
-  {% block report_meta %}{% endblock %}
+  {% comment %}
+  الشريطُ والمعلوماتُ والتوقيعاتُ هيكلٌ واحدٌ لكلّ تقرير: يملأ القالبُ الابنُ
+  نصوصَها (`report_title`، خاناتِ `report_meta_cells`، `signature_1..3`) ويبقى
+  الشكلُ هنا. ومن يستبدل الكتلةَ الخارجيّةَ كاملةً يبقى على ما كان.
+  {% endcomment %}
+  {% block report_title_bar %}<div class="report-title-bar">{% block report_title %}{% endblock %}</div>{% endblock %}
+  {% block report_meta %}<table class="report-meta"><tr>{% block report_meta_cells %}{% endblock %}</tr></table>{% endblock %}
 
   <div class="doc-body">
+    {# أرقامُ الوثيقة من العرض: `[{label, value, tone}]` — والنغمةُ اسمٌ من `c-*`. #}
+    {% if report_kpis %}
+    <div class="kpi-strip">
+      {% for k in report_kpis %}
+      <div class="kpi-item">
+        <span class="kpi-num{% if k.tone %} c-{{ k.tone }}{% endif %}">{{ k.value }}</span>
+        <span class="kpi-label">{{ k.label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
     {% block content %}{% endblock %}
     {% block signatures %}{% endblock %}
   </div>

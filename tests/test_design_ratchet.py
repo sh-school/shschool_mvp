@@ -1,6 +1,7 @@
 """[DESIGN] سقّاطةُ الهويّة البصريّة — راجع `tests/design_ratchet.py` للسبب والطريقة."""
 
 import json
+import pathlib
 
 from tests import design_ratchet as ratchet
 
@@ -24,6 +25,23 @@ def test_improvements_are_recorded_so_they_cannot_be_spent_again():
     assert not stale, (
         f"نقصت مخالفاتٌ ولم يُسجَّل نقصُها — أحسنت؛ ثبّته بـ `{UPDATE}` وأودع الملفّ:\n  "
         + "\n  ".join(stale)
+    )
+
+
+def test_the_baseline_is_zero_so_no_violation_can_be_recorded_back():
+    """الصفرُ بلغناه في 2026-09-13 — فالسجلُّ لا يحمل مخالفةً بعدها.
+
+    السقّاطةُ وحدها تمنع الزيادة، لكنّ `--update` يُثبّت أيَّ عددٍ يُكتب: قالبٌ جديدٌ
+    بـ`style=` ثمّ `--update` كان سيمرّ في طلب دمجٍ لا يُقرأ فيه ملفُّ السجلّ. فالسجلُّ
+    صفرٌ بالبناء، والمخالفةُ تُصلَح في القالب لا تُسجَّل.
+    """
+    baseline = _baseline()
+    recorded = {name: files for name, files in baseline["counts"].items() if files}
+    assert not recorded and not baseline["undefined_classes"], (
+        "سجلُّ الهويّة البصريّة لا يقبل مخالفة — أصلحها في القالب بدل تسجيلها:\n  "
+        + json.dumps(recorded, ensure_ascii=False)
+        + "\n  "
+        + ", ".join(baseline["undefined_classes"])
     )
 
 
@@ -83,3 +101,38 @@ class TestTheRatchetItself:
         source = "{% if a %}status-red{% else %}status-green{% endif %}"
         value = ratchet.DYNAMIC_RE.sub("\0", ratchet.LOGIC_RE.sub(" ", source))
         assert value.split() == ["status-red", "status-green"]
+
+    def test_a_class_defined_by_the_parent_template_is_defined(self):
+        """الوثيقةُ ترث `base_qatar_report.html` فتعرف `sig-block` من أبيها."""
+        child = '{% extends "reports/base_qatar_report.html" %}'
+        assert "sig-block" in ratchet._local_classes(child)
+
+    def test_a_self_extending_chain_does_not_loop(self, tmp_path, monkeypatch):
+        (tmp_path / "loop.html").write_text(
+            '{% extends "loop.html" %}<style>.x{}</style>', encoding="utf-8"
+        )
+        monkeypatch.setattr(ratchet, "TEMPLATE_ROOTS", (tmp_path,))
+        assert ratchet._local_classes('{% extends "loop.html" %}') == {"x"}
+
+    def test_admin_classes_count_only_under_the_django_admin(self):
+        assert ratchet.ADMIN_EXTENDS_RE.search('{% extends "admin/base_site.html" %}')
+        assert not ratchet.ADMIN_EXTENDS_RE.search('{% extends "base/base.html" %}')
+
+    def test_an_included_fragment_sees_the_styles_of_the_document_that_includes_it(self):
+        """`wings/pdf/signatures.html` ← `section_sheet.html` ← `register_pdf.html` ← أبوها."""
+        includers = ratchet._includers()
+        assert "sig-block" in ratchet._host_classes("wings/pdf/signatures.html", includers)
+
+    def test_print_and_email_templates_are_inside_the_guard(self):
+        names = {p.as_posix() for p in ratchet.live_templates()}
+        assert "templates/reports/base_qatar_report.html" in names
+        assert any("/email/" in n for n in names)
+
+    def test_hand_written_structure_counts_outside_the_component_library(self):
+        """الصفحةُ تكتب `{% page_header %}`؛ والمكوّنُ وحده يرسم `exec-header` و`card-qatar`."""
+        pattern = ratchet.METRICS["legacy_header"][1]
+        sample = '<div class="exec-header"><section class="card-qatar"><header class="card-bar">'
+        assert len(pattern.findall(sample)) == 3
+        component = pathlib.Path("templates/components/ui/page_header.html")
+        assert component.is_relative_to(ratchet.COMPONENTS_DIR)
+        assert "templates/components/ui/page_header.html" not in ratchet.measure()["legacy_header"]

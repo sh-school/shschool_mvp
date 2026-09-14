@@ -486,11 +486,18 @@ def assignments(request):
     ordered = sorted(groups.values(), key=lambda g: g["order"])
     shown = [g for g in ordered if g["cards"]]
     cards = [c for g in shown for c in g["cards"]]
+    totals = {
+        "teachers": len(cards),
+        "rows": sum(len(c["rows"]) for c in cards),
+        "pending": sum(1 for c in cards if c["status"] == SUBMITTED),
+        "approved": sum(1 for c in cards if c["status"] in FROZEN_STATUSES),
+    }
     return render(
         request,
         "academic_management/assignments.html",
         {
             "page_title": "الإسناد",
+            "page_subtitle": _assignments_subtitle(year, totals),
             "module_name": MODULE_NAME,
             "year": year,
             "groups": shown,
@@ -498,14 +505,19 @@ def assignments(request):
             "selected_dept": selected,
             "registry_empty": not registry_filled,
             "coverage": _coverage(school, year),
-            "totals": {
-                "teachers": len(cards),
-                "rows": sum(len(c["rows"]) for c in cards),
-                "pending": sum(1 for c in cards if c["status"] == SUBMITTED),
-                "approved": sum(1 for c in cards if c["status"] in FROZEN_STATUSES),
-            },
+            "totals": totals,
         },
     )
+
+
+def _assignments_subtitle(year, totals) -> str:
+    """سطرُ الترويسة: العامُ وأعدادُ الشاشة، وما لم يقع لا يُذكر."""
+    parts = [str(year), f"{totals['teachers']} معلّماً", f"{totals['rows']} إسناداً"]
+    if totals["pending"]:
+        parts.append(f"{totals['pending']} بانتظار المراجعة")
+    if totals["approved"]:
+        parts.append(f"{totals['approved']} معتمَداً")
+    return " · ".join(parts) + " — يُحفظ كلُّ تغييرٍ في لحظته"
 
 
 def _coverage(school, year):

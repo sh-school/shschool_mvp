@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 
 {% block title %}تغطية الأجنحة{% endblock %}
 
@@ -9,15 +10,9 @@
 {% block content %}
 <div class="exec-dash">
 
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="waypoints" %} تغطية الأجنحة</h1>
-      <p class="exec-subtitle">من يحمل كلَّ جناحٍ اليوم — والإنابةُ عند الغياب · {{ year }}</p>
-    </div>
-    <div class="exec-meta">
-      <span class="exec-date">{{ today|date:"D، d M Y" }}</span>
-    </div>
-  </div>
+  {% page_header "تغطية الأجنحة" subtitle=subtitle icon="waypoints" %}
+    <span class="exec-date">{{ today|date:"D، d M Y" }}</span>
+  {% endpage_header %}
 
   <p class="bell-note">
     الجناحُ نطاقُ مشرفه: غيابُه يوماً يعني خمسَ شُعبٍ لا يرصد غيابَها أحد، وعذراً لا
@@ -28,13 +23,7 @@
 
   <div class="wing-row">
   {% for row in rows %}
-  <div class="card-qatar">
-    <div class="card-bar">
-      {% include "components/icon.html" with name="building" %}
-      {{ row.wing.name }}
-      <span class="card-bar-sub">{{ row.wing.get_floor_display }}</span>
-    </div>
-
+  {% section_card row.wing.name meta=row.wing.get_floor_display icon="building" %}
     <div class="wing-box">
       <div class="wing-box__head">
         <div>
@@ -142,7 +131,7 @@
         {% endfor %}
       </p>
     {% endif %}
-  </div>
+  {% endsection_card %}
   {% endfor %}
   </div>
 

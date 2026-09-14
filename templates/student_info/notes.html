@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load sorting %}
+{% load sorting ui %}
 
 {% block title %}{{ label }}{% endblock %}
 
@@ -9,17 +9,12 @@
 
 {% block content %}
 <div class="exec-dash">
-  <div class="exec-header">
-    <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="file-pen" %} {{ label }}</h1>
-      <p class="exec-subtitle">{{ page.paginator.count }} ملاحظة — {{ year }}</p>
-    </div>
+  {% page_header label subtitle=year icon="file-pen" %}
     <a href="{% url 'student_info:sections' %}" class="btn-secondary btn-sm">الشُّعب</a>
-  </div>
+  {% endpage_header %}
 
-  <div class="table-wrap">
-    {% if page.object_list %}
-    <div class="table-wrap-scroll">
+  {% section_card "الملاحظات" meta=page.paginator.count icon="file-pen" flush=True empty="لا ملاحظات من هذه الجهة هذا العام" %}{% if page.object_list %}
+    <div class="table-wrap">
       {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على كلّ البيانات لا على الصفحة. #}
       <table data-no-sort>
         <thead>
@@ -34,15 +29,13 @@
         <tbody>
           {% for n in page.object_list %}
           <tr>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ n.occurred_on|date:"d/m/Y" }}</td>
+            <td class="col-center text-xs">{{ n.occurred_on|date:"d/m/Y" }}</td>
             <td>
-              <a href="{% url 'student_info:student_file' n.student_id %}?year={{ year }}" style="color:var(--maroon-fg);text-decoration:none;font-weight:600">
-                {{ n.student.full_name }}
-              </a>
+              <a href="{% url 'student_info:student_file' n.student_id %}?year={{ year }}" class="font-semibold text-maroon hover:underline">{{ n.student.full_name }}</a>
             </td>
-            <td style="font-weight:600">{{ n.title }}</td>
-            <td style="white-space:pre-line">{{ n.body }}</td>
-            <td class="col-center" style="font-size:var(--text-xs)">{{ n.created_by.full_name|default:"—" }}</td>
+            <td class="font-semibold">{{ n.title }}</td>
+            <td class="sinfo-note-body">{{ n.body }}</td>
+            <td class="col-center text-xs">{{ n.created_by.full_name|default:"—" }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -56,9 +49,6 @@
       {% if page.has_next %}<a href="?page={{ page.next_page_number }}" class="btn-secondary btn-xs">التالي</a>{% endif %}
     </div>
     {% endif %}
-    {% else %}
-    {% include "components/empty_state.html" with title="لا ملاحظات من هذه الجهة هذا العام" %}
-    {% endif %}
-  </div>
+  {% endif %}{% endsection_card %}
 </div>
 {% endblock %}

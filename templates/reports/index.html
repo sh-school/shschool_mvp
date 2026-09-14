@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load ui %}
 {% block title %}التقارير والشهادات — {{ school.name|default:"المدرسة" }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -7,13 +8,7 @@
 
 {% block content %}
 
-{# ── Header ── #}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">{% include "components/icon.html" with name="file-text" %} التقارير والشهادات</h1>
-    <p class="page-subtitle">تصدير تقارير PDF جاهزة للطباعة — العام {{ year }}</p>
-  </div>
-  <div class="page-actions">
+{% page_header "التقارير والشهادات" subtitle=page_subtitle icon="file-text" %}
     <details class="report-student-search">
       <summary class="btn-secondary btn-sm cursor-pointer list-none">
         {% include "components/icon.html" with name="user" %} بحث طالب فردي
@@ -26,11 +21,10 @@
                  autocomplete="off">
           <button type="button" id="student-search-btn" class="btn-primary btn-sm">بحث</button>
         </div>
-        <div id="student-results" class="space-y-2 text-sm"></div>
+        <div id="student-results" class="plain-list"></div>
       </div>
     </details>
-  </div>
-</div>
+{% endpage_header %}
 
 {# ── التبويبات ── #}
 <div class="report-tabs">
@@ -112,22 +106,19 @@
 {# ── بطاقات الفصول ── #}
 {% if tab == "behavior" %}
   {# ── السلوك: بطاقة واحدة فقط ── #}
-  <div class="card-qatar p-0 overflow-hidden">
-    <div class="card-bar m-0 rounded-t-lg text-[15px] py-3.5 px-5">
-      {% include "components/icon.html" with name="scale" %} كشف المخالفات السلوكية
-    </div>
-    <div class="flex items-center justify-between p-5">
-      <span class="text-sm text-secondary">تصدير كامل بيانات السلوك للعام {{ year }}</span>
-      <a href="{% url 'behavior_excel' %}?year={{ year }}&paper={{ paper }}" class="btn-success report-export-link">
+  {% section_card "كشف المخالفات السلوكية" icon="scale" %}
+    <div class="plain-list__row">
+      <span class="plain-list__sub">تصدير كامل بيانات السلوك للعام {{ year }}</span>
+      <a href="{% url 'behavior_excel' %}?year={{ year }}&paper={{ paper }}" class="btn-success btn-sm">
         {% include "components/icon.html" with name="download" %} تنزيل Excel
       </a>
     </div>
-  </div>
+  {% endsection_card %}
 
 {% elif classes %}
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
     {% for cls in classes %}
-    <div class="card-qatar p-4">
+    <div class="report-class-card">
       <div class="flex items-start justify-between gap-2 mb-2">
         <div class="min-w-0">
           <span class="text-maroon font-bold text-sm block truncate">
@@ -141,19 +132,19 @@
 
         {% if tab == "results" %}
           <a href="{% url 'report_viewer' %}?r=class_results_pdf&id={{ cls.id }}&year={{ year }}&paper={{ paper }}&tab={{ tab }}"
-             class="btn-secondary btn-sm text-xs no-underline report-export-link">{% include "components/icon.html" with name="file-text" %} PDF</a>
+             class="btn-secondary btn-sm text-xs no-underline">{% include "components/icon.html" with name="file-text" %} PDF</a>
           <a href="{% url 'class_results_excel' cls.id %}?year={{ year }}&paper={{ paper }}"
-             class="btn-secondary btn-sm text-xs no-underline report-export-link">Excel</a>
+             class="btn-secondary btn-sm text-xs no-underline">Excel</a>
 
         {% elif tab == "certificates" %}
           <a href="{% url 'report_viewer' %}?r=class_certificates_pdf&id={{ cls.id }}&year={{ year }}&paper={{ paper }}&tab={{ tab }}"
-             class="btn-secondary btn-sm text-xs no-underline report-export-link">{% include "components/icon.html" with name="file-text" %} PDF</a>
+             class="btn-secondary btn-sm text-xs no-underline">{% include "components/icon.html" with name="file-text" %} PDF</a>
 
         {% elif tab == "attendance" %}
           <a href="{% url 'report_viewer' %}?r=attendance_report_pdf&id={{ cls.id }}&year={{ year }}&paper={{ paper }}&tab={{ tab }}"
-             class="btn-secondary btn-sm text-xs no-underline report-export-link">{% include "components/icon.html" with name="file-text" %} PDF</a>
+             class="btn-secondary btn-sm text-xs no-underline">{% include "components/icon.html" with name="file-text" %} PDF</a>
           <a href="{% url 'attendance_excel' cls.id %}?year={{ year }}&paper={{ paper }}"
-             class="btn-secondary btn-sm text-xs no-underline report-export-link">Excel</a>
+             class="btn-secondary btn-sm text-xs no-underline">Excel</a>
         {% endif %}
 
       </div>
@@ -199,14 +190,14 @@ async function searchStudent() {
     res.replaceChildren(message);
   }
 
-  showStatus('جاري البحث...', 'text-gray-400 text-xs');
+  showStatus('جاري البحث...', 'report-search-status');
 
   try {
     var r = await fetch('/api/students/search/?q=' + encodeURIComponent(q));
     var data = await r.json();
 
     if (!data.results || !data.results.length) {
-      showStatus('لا توجد نتائج', 'text-gray-400 text-xs');
+      showStatus('لا توجد نتائج', 'report-search-status');
       return;
     }
 
@@ -217,14 +208,14 @@ async function searchStudent() {
       if (!studentId) return;
 
       var row = document.createElement('div');
-      row.className = 'flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2 student-search-result';
+      row.className = 'plain-list__row';
 
       var name = document.createElement('span');
-      name.className = 'font-medium text-sm';
+      name.className = 'plain-list__title';
       name.textContent = String(s.full_name || '');
 
       var actions = document.createElement('div');
-      actions.className = 'flex gap-1';
+      actions.className = 'form-actions';
 
       var resultLink = document.createElement('a');
       resultLink.className = 'btn-primary btn-sm';
@@ -245,7 +236,7 @@ async function searchStudent() {
       res.appendChild(row);
     });
   } catch(e) {
-    showStatus('خطأ في البحث', 'text-red-500 text-xs');
+    showStatus('خطأ في البحث', 'report-search-status is-error');
   }
 }
 </script>

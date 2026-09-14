@@ -63,9 +63,9 @@ GUARDED_INSIDE = {
 OPEN_BY_DESIGN = {
     "": "تحويلٌ إلى لوحة التحكّم",
     "status/": "حالةُ الخدمة (القاعدة والذاكرة المؤقّتة) — بلا بياناتِ أشخاص",
-    "styleguide/": "مرجعُ التصميم — مكوّناتٌ بلا بيانات",
-    "styleguide/icons/": "مرجعُ الأيقونات",
-    "styleguide/components/": "مرجعُ مكوّنات الواجهة — أمثلةٌ توضيحيّة بلا بيانات",
+    "styleguide/": "تحويلٌ دائمٌ (301) إلى دليل الهويّة — لا يعرض شيئاً",
+    "styleguide/icons/": "مرجعُ الأيقونات — أسماءُ sprite.html بلا بيانات",
+    "styleguide/components/": "دليلُ الهويّة: المكوّناتُ ولوحةُ الرموز — أمثلةٌ توضيحيّة بلا بيانات",
     "academic/evaluations/": "_stub_view — صفحةٌ قيد الإنشاء بلا بيانات",
     "academic/departments/": "_stub_view — صفحةٌ قيد الإنشاء بلا بيانات",
     "academic/test-analytics/": "_stub_view — صفحةٌ قيد الإنشاء بلا بيانات",

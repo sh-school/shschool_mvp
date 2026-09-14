@@ -37,12 +37,10 @@
           {% endcomment %}
           <td data-label="الطالب">
             <a href="{% url 'student_affairs:student_profile' lnk.student.id %}"
-               class="font-semibold text-maroon hover:underline"
-               style="text-decoration:none;color:var(--maroon-fg)">{{ lnk.student.full_name }}</a>
+               class="font-semibold text-maroon hover:underline">{{ lnk.student.full_name }}</a>
           </td>
           {# آخرُ أربعِ خاناتٍ وما قبلها مستور — والرقمُ كاملاً في ملفّ صاحبه. #}
-          <td data-label="الرقم الشخصيّ" class="col-num text-center"
-              style="font-family:monospace;font-size:var(--text-xs)"
+          <td data-label="الرقم الشخصيّ" class="col-num text-center font-mono text-xs"
               title="الرقم كاملاً في ملفّ الطالب">{{ lnk.student.national_id|mask_id|default:"—" }}</td>
           {# «07/2» كما تكتبه الوزارة — ومن غادر لا صفَّ له فيُقال ذلك #}
           <td data-label="الصف/الشعبة" class="text-center">
@@ -60,16 +58,16 @@
           <td data-label="صلة القرابة" class="text-center">
             <span class="status-badge status-maroon">{{ lnk.get_relationship_display }}</span>
           </td>
-          <td data-label="جوّال ولي الأمر" class="text-center col-num" style="font-size:var(--text-xs)">
+          <td data-label="جوّال ولي الأمر" class="text-center col-num text-xs">
             {% if lnk.parent.phone %}
-              <a href="tel:{{ lnk.parent.phone }}" style="text-decoration:none;color:var(--maroon-fg)">{{ lnk.parent.phone }}</a>
+              <a href="tel:{{ lnk.parent.phone }}" class="text-maroon">{{ lnk.parent.phone }}</a>
             {% else %}—{% endif %}
           </td>
           <td data-label="حذف" class="text-center">
             <form method="post" action="{% url 'remove_parent_link' lnk.id %}"
                   data-confirm="هل أنت متأكد من حذف ربط {{ lnk.parent.full_name }} بـ {{ lnk.student.full_name }}؟">
               {% csrf_token %}
-              <button type="submit" class="btn-danger btn-sm" style="padding:4px 10px;font-size:11px;">
+              <button type="submit" class="btn-danger btn-xs">
                 حذف
               </button>
             </form>

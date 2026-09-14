@@ -465,6 +465,7 @@ def manage_parent_links(request):
         "search": search,
         "rel_filter": rel_filter,
         "year": year,
+        "links_subtitle": f"إدارة ارتباطات ولي الأمر بأبنائه — {year}",
         "RELATIONSHIP": ParentStudentLink.RELATIONSHIP,
     }
 

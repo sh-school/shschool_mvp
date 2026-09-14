@@ -16,7 +16,11 @@
   display: inline-block;
   vertical-align: middle;
 }
-.bar-fill       { height: 10px; border-radius: 4px; display: block; }
+/* العرضُ بكسلٌ لكلّ نقطةٍ مئويّة (الإطارُ 100px) — تمرّره السطرُ في `--bar-w`. */
+.bar-fill       { height: 10px; border-radius: 4px; display: block; width: var(--bar-w); }
+.bar-cell       { vertical-align: middle; }
+.cell-info      { color: {% brand_color "STATUS_INFO" %} !important; }
+.report-note    { font-size: 9px; color: {% brand_color "TEXT_MUTED" %}; border-top: 1px solid {% brand_color "BORDER" %}; padding-top: 6px; }
 .bar-green      { background: {% brand_color "STATUS_SUCCESS" %}; }
 .bar-amber      { background: {% brand_color "STATUS_WARNING" %}; }
 .bar-red        { background: {% brand_color "STATUS_DANGER" %}; }
@@ -93,16 +97,16 @@
       <td class="cell-num">{{ ds.total }}</td>
       <td class="cell-num c-green">{{ ds.completed }}</td>
       <td class="cell-num c-orange">{{ ds.in_progress }}</td>
-      <td class="cell-num" style="color:{% brand_color "STATUS_INFO" %}">{{ ds.pending_review }}</td>
+      <td class="cell-num cell-info">{{ ds.pending_review }}</td>
       <td>
         <span class="pct-text {% if ds.pct >= 70 %}pct-green{% elif ds.pct >= 40 %}pct-amber{% else %}pct-red{% endif %}">
           {{ ds.pct }}%
         </span>
       </td>
-      <td style="vertical-align:middle">
+      <td class="bar-cell">
         <div class="bar-bg">
           <div class="bar-fill {% if ds.pct >= 70 %}bar-green{% elif ds.pct >= 40 %}bar-amber{% else %}bar-red{% endif %}"
-               style="width:{{ ds.pct }}px"></div>
+               style="--bar-w:{{ ds.pct }}px"></div>
         </div>
       </td>
     </tr>
@@ -112,7 +116,7 @@
   </tbody>
 </table>
 
-<p class="mt-20" style="font-size:9px; color:{% brand_color "TEXT_MUTED" %}; border-top:1px solid {% brand_color "BORDER" %}; padding-top:6px;">
+<p class="mt-20 report-note">
   * هذا التقرير تلقائي من نظام SchoolOS — {{ school.name|default:"المدرسة" }}
 </p>
 

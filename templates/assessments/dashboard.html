@@ -70,7 +70,7 @@
   <div id="subjects-container" class="asm-groups">
   {% regroup setups by class_group as grouped %}
   {% for group in grouped %}
-    <div class="subject-group" data-filter-row data-text="{{ group.grouper }}{% for s in group.list %} {{ s.subject.name_ar }} {{ s.teacher.full_name }}{% endfor %}">
+    <div data-filter-row data-text="{{ group.grouper }}{% for s in group.list %} {{ s.subject.name_ar }} {{ s.teacher.full_name }}{% endfor %}">
     {% section_card group.grouper meta=group.list|length icon="book-open" %}
       <div class="ui-entity-grid">
         {% for setup in group.list %}

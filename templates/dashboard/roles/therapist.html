@@ -1,4 +1,4 @@
-{% load ui %}
+{% load ui dict_filters %}
 <div class="exec-dash">
 
   {% page_header "لوحة جلسات العلاج" subtitle=subtitle icon="activity" %}{% endpage_header %}
@@ -21,7 +21,7 @@
               <td class="num">{{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}</td>
               <td data-sort-value="{{ s.class_group.school_order }}">{{ s.class_group }}</td>
               <td>{{ s.subject|default:"جلسة" }}</td>
-              <td><span class="badge-status {{ s.status }}">{{ s.get_status_display }}</span></td>
+              <td><span class="status-badge {{ session_status_badges|get_item:s.status|default:'status-gray' }}">{{ s.get_status_display }}</span></td>
             </tr>
           {% endfor %}
         </tbody>
