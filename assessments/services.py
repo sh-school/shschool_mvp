@@ -41,7 +41,7 @@ from .models import (
 )
 
 if TYPE_CHECKING:
-    from core.models import CustomUser, School
+    from core.models import ClassGroup, CustomUser, School
 
 
 def _package_grade(raw: Decimal) -> Decimal:
@@ -760,7 +760,7 @@ class SecondRoundService:
     EXAM_PACKAGES = ("P1", "P2", "P4")
 
     @staticmethod
-    def roster(class_group, year: str | None = None) -> list[SecondRoundRow]:
+    def roster(class_group: ClassGroup, year: str | None = None) -> list[SecondRoundRow]:
         from operations.absence_policy import breached
         from operations.absence_standing import unexcused_days_for_class
 
