@@ -260,11 +260,17 @@ def attendance_view(request, session_id):
 @capability_required("attendance.mark")
 @require_POST
 def mark_single(request, session_id):
-    """HTMX: تسجيل حضور طالب واحد"""
+    """HTMX: تسجيل حضور طالب واحد
+
+    المقيَّدُ بجناحه لا يرصد إلّا حصّةَ شعبةٍ من شُعب جناحه، وما عداها 404 (قرارُ
+    2026-09-15). والطالبُ من قيد شعبة الحصّة لكلّ من يرصد — لا أيُّ حسابٍ في المنصّة.
+    """
     from core.models import CustomUser
+    from wings.scope import student_scope_for
 
     school = request.user.get_school()
     session = get_object_or_404(Session, id=session_id, school=school)
+    student_scope_for(request).require_class(session.class_group_id)
     student_id = request.POST.get("student_id")
     status = request.POST.get("status", "present")
     excuse_type = request.POST.get("excuse_type", "")
@@ -273,7 +279,12 @@ def mark_single(request, session_id):
     if status not in ("present", "absent", "late", "excused"):
         return HttpResponse("حالة غير صالحة", status=400)
 
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = get_object_or_404(
+        CustomUser,
+        id=student_id,
+        enrollments__class_group=session.class_group,
+        enrollments__is_active=True,
+    )
     # الرصدُ لمشرف الجناح (قرارُ المدير) — والمعلّمُ لا يرصد في شُعب الأجنحة،
     # وما رصده المشرفُ لا يُكتب فوقه إلّا من أهل الرصد.
     if not can_record(request.user, session) or (
@@ -515,10 +526,12 @@ def daily_report(request):
     """غيابُ اليوم — طالبٌ في سطرٍ لأيّ تاريخ، ووسمُ الوزارة لمن غاب الأولى والثانية.
 
     حلّ محلَّ «سجلّات الحضور والغياب» (قرارُ 2026-09-13)، وبقي اسمُ المسار كما هو
-    كي لا ينكسر رابطٌ محفوظ. والمنسّقُ لقسمه كما كان.
+    كي لا ينكسر رابطٌ محفوظ. والمنسّقُ لقسمه كما كان، والمشرفُ لطلبة جناحه بقيدهم
+    الجاري (قرارُ 2026-09-15) — لا بشعبة الحصّة ولا بمعلّمها.
     """
     from core.permissions import get_department_teacher_ids
     from operations.daily_absence import daily_report as build
+    from wings.scope import student_scope_for
 
     school = request.user.get_school()
     try:
@@ -527,12 +540,21 @@ def daily_report(request):
         report_date = timezone.localdate()
     ScheduleService.ensure_sessions_for_date(school, report_date)
 
-    report = build(school, report_date, teacher_ids=get_department_teacher_ids(request.user))
+    scope = student_scope_for(request)
+    report = build(
+        school,
+        report_date,
+        teacher_ids=get_department_teacher_ids(request.user),
+        student_ids=scope.student_ids() if scope.is_wing_bound else None,
+    )
+    subtitle = f"{school.name} · {report_date:%A %d/%m/%Y}"
+    if scope.is_wing_bound:
+        subtitle = f"{subtitle} · طلبةُ جناحك"
     return render(
         request,
         "operations/daily_absence.html",
         {
             "report": report,
-            "subtitle": f"{school.name} · {report_date:%A %d/%m/%Y}",
+            "subtitle": subtitle,
         },
     )

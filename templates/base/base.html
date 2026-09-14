@@ -307,7 +307,26 @@
       {% if request.user|can_open:"wings:floors" %}
       <a href="{% url 'wings:floors' %}" class="nb">{% icon "wings" %} أجنحة المدرسة</a>
       {% endif %}
-      <a href="{% url 'student_info:sections' %}" class="nb">{% icon "student_info" %} مركز معلومات الطلبة</a>{% endif %}
+      {% if request.user|can_open:"student_info:sections" %}
+      <a href="{% url 'student_info:sections' %}" class="nb">{% icon "student_info" %} مركز معلومات الطلبة</a>
+      {% endif %}
+      {# شؤونُ الطلبة لطلبة جناحه (قرارُ 2026-09-15): متابعةٌ ورصدُ تأخّر — لا إضافةَ ولا انتقالاتٍ ولا أنشطة #}
+      {% if request.user|can_open:"student_affairs:dashboard" %}
+      <a href="{% url 'student_affairs:dashboard' %}" class="nb">{% icon "students" %} شؤون طلبة جناحي</a>
+      {% endif %}
+      {% if request.user|can_open:"student_affairs:student_list" %}
+      <a href="{% url 'student_affairs:student_list' %}" class="nb">{% icon "student" %} طلبة جناحي</a>
+      {% endif %}
+      {% if request.user|can_open:"student_affairs:attendance_overview" %}
+      <a href="{% url 'student_affairs:attendance_overview' %}" class="nb">{% icon "stats" %} غياب الجناح</a>
+      {% endif %}
+      {% if request.user|can_open:"student_affairs:tardiness_list" %}
+      <a href="{% url 'student_affairs:tardiness_list' %}" class="nb">{% icon "tardiness" %} التأخر الصباحي</a>
+      {% endif %}
+      {% if request.user|can_open:"student_affairs:behavior_overview" %}
+      <a href="{% url 'student_affairs:behavior_overview' %}" class="nb">{% icon "behavior" %} سلوك طلبة الجناح</a>
+      {% endif %}
+      {% endif %}
       {% if request.user|can_open:"notification_inbox" %}
       <a href="{% url 'notification_inbox' %}" class="nb">{% icon "notifications" %} الإشعارات</a>
       {% endif %}

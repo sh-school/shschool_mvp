@@ -39,12 +39,16 @@ def global_search(request):
         match = Q(student__full_name__icontains=q)
         if request.user.is_superuser or role in STUDENT_AFFAIRS_VIEW:
             match |= Q(student__national_id__icontains=q)
+        # المقيَّدُ بجناحه يجد طلبةَ جناحه وحدَهم — قبل المطابقة والاقتطاع، فلا تملأ
+        # الخاناتِ الستَّ أسماءٌ من غير جناحه (قرارُ 2026-09-15). وغيرُه كما كان.
+        from wings.scope import student_scope_for
+
+        enrollments = student_scope_for(request).narrow(
+            StudentEnrollment.objects.filter(class_group__school=school, is_active=True),
+            "student_id",
+        )
         student_enrollments = (
-            StudentEnrollment.objects.filter(
-                class_group__school=school,
-                is_active=True,
-            )
-            .filter(match)
+            enrollments.filter(match)
             .select_related("student")
             .values("student__id", "student__full_name", "student__national_id")
             .distinct()[:6]

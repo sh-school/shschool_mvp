@@ -184,13 +184,22 @@ def incidents(request, pk):
 @login_required
 @capability_required("exam_control.access")
 def incident_add(request, pk):
-    """تسجيل حادث جديد — محضر رسمي (الأقسام أ–ز من Template_IncidentReport)"""
+    """تسجيل حادث جديد — محضر رسمي (الأقسام أ–ز من Template_IncidentReport)
+
+    المقيَّدُ بجناحه (مشرفُ الجناح) يختار من طلبة جناحه وحدَهم، ومعرّفُ طالبٍ من غير
+    جناحه في النموذج 404 (قرارُ 2026-09-15). وأدوارُ الكنترول الأخرى كما كانت.
+    """
+    from wings.scope import student_scope_for
+
     school = request.user.get_school()
     session = get_object_or_404(ExamSession, pk=pk, school=school)
+    scope = student_scope_for(request)
     if request.method == "POST":
         from core.models import CustomUser
 
         student_id = request.POST.get("student_id") or None
+        if student_id:
+            scope.require_student(student_id)
         student = CustomUser.objects.filter(id=student_id).first() if student_id else None
         room_id = request.POST.get("room_id") or None
         room = session.rooms.filter(id=room_id).first()
@@ -215,8 +224,14 @@ def incident_add(request, pk):
 
     from core.models import StudentEnrollment
 
-    students = StudentEnrollment.objects.filter(
-        class_group__school=school, class_group__academic_year=session.academic_year, is_active=True
+    # القائمةُ المنسدلةُ تُضيَّق قبل عرضها: أسماءُ طلبة جناحٍ آخر ومعرّفاتُهم لا تصل المشرف.
+    students = scope.narrow(
+        StudentEnrollment.objects.filter(
+            class_group__school=school,
+            class_group__academic_year=session.academic_year,
+            is_active=True,
+        ),
+        "student_id",
     ).select_related("student")
     context = {
         "session": session,

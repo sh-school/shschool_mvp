@@ -33,9 +33,18 @@ def student_search_api(request):
     if not q or len(q) < 2:
         return JsonResponse({"results": []})
 
-    student_ids = StudentEnrollment.objects.filter(
-        class_group__school=school, is_active=True
-    ).values_list("student_id", flat=True)
+    # المقيَّدُ بجناحه لا يجد إلّا طلبةَ جناحه — ولمن خرج عنه نتيجةٌ فارغةٌ لا 403
+    # (قرارُ 2026-09-15). وغيرُه كما كان.
+    from wings.scope import student_scope_for
+
+    student_ids = (
+        student_scope_for(request)
+        .narrow(
+            StudentEnrollment.objects.filter(class_group__school=school, is_active=True),
+            "student_id",
+        )
+        .values_list("student_id", flat=True)
+    )
 
     qs = CustomUser.objects.filter(id__in=student_ids).filter(
         Q(full_name__icontains=q) | Q(national_id__icontains=q)

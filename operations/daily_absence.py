@@ -10,7 +10,8 @@
 
 ويشمل كلَّ الشُّعب: ما في الأجنحة (رصدُ المشرف) وما خارجَها كالتربية الخاصّة
 (رصدُ المعلّم) — فالمصدرُ `StudentAttendance` أيّاً كان من كتبه. والمنسّقُ
-يرى قسمَه: معلّمي قسمه وحصصَهم، كما كان.
+يرى قسمَه: معلّمي قسمه وحصصَهم، كما كان. ومشرفُ الجناح يرى طلبةَ جناحه وحدَهم
+(قرارُ 2026-09-15: «المشرفُ لجناحه فقط»).
 """
 
 from __future__ import annotations
@@ -112,10 +113,12 @@ class DailyReport:
         return list(range(1, self.max_periods + 1))
 
 
-def daily_report(school, day: dt.date, *, teacher_ids=None) -> DailyReport:
+def daily_report(school, day: dt.date, *, teacher_ids=None, student_ids=None) -> DailyReport:
     """طلابُ اليوم الذين غابوا أو تأخّروا حصّةً فأكثر — كلٌّ في سطر.
 
     `teacher_ids`: نطاقُ المنسّق (معلّمو قسمه) — `None` للمدرسة كلِّها.
+    `student_ids`: نطاقُ المقيَّد بجناحه — طلبتُه بقيدهم الجاري (`StudentScope.student_ids`)،
+    لا شُعبُ الحصص: الطالبُ المنقولُ إلى جناحٍ آخر يُرى هناك لا حيث كانت حصّتُه. `None` بلا قيد.
     """
     sessions = (
         Session.objects.filter(school=school, date=day)
@@ -144,6 +147,8 @@ def daily_report(school, day: dt.date, *, teacher_ids=None) -> DailyReport:
     )
     if teacher_ids is not None:
         attendance = attendance.filter(session__teacher_id__in=teacher_ids)
+    if student_ids is not None:
+        attendance = attendance.filter(student_id__in=student_ids)
 
     marks: dict = {}
     for row in attendance:
