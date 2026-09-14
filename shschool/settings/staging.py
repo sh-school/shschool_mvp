@@ -94,7 +94,7 @@ CORS_ALLOWED_ORIGINS = [o.strip() for o in _staging_cors if o.strip()]
 
 # ── Axes: more lenient for QA testing ─────────────────────────
 AXES_FAILURE_LIMIT = 20  # QA testers may trigger lockouts frequently
-AXES_COOLOFF_TIME = 0.1  # 6 minutes cooloff instead of 1 hour
+# ومدّةُ القفل من base.py: خمسُ دقائق منذ 2026-09-14 — أقصرُ من الستّ التي كانت هنا.
 
 # ── ALLOWED_HOSTS validation (override production's strict check) ──
 # Production raises ImproperlyConfigured if ALLOWED_HOSTS is empty.
