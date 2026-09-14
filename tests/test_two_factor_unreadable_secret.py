@@ -18,6 +18,13 @@ from core.views_auth import usable_totp_secret
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
 PASSWORD = "Probe-Passw0rd-2FA!"  # pragma: allowlist secret
+
+
+@pytest.fixture(autouse=True)
+def _two_factor_on(settings):
+    settings.TWO_FACTOR_REQUIRED_FOR_STAFF = True
+
+
 #: رمزُ Fernet شكلاً لا يُفكّ بأيّ مفتاح — كما يبدو السرُّ المشفَّرُ بمفتاحٍ آخر.
 FOREIGN_TOKEN = "gAAAAABo" + "x" * 132
 

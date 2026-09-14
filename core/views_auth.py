@@ -6,6 +6,7 @@ from io import BytesIO
 import django.db
 import pyotp
 import qrcode
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
@@ -207,7 +208,13 @@ def login_view(request):
             kind = identifier_kind(user, identifier)
             request.login_identifier_kind = kind
 
-            if user.totp_enabled and requires_two_factor(user):
+            # الرايةُ تجمّد الثنائيّةَ كلَّها لا الإلزامَ وحدَه (قرار 2026-09-14): مطفأةً لا
+            # يُسأل أحدٌ عن رمز — ولو كان مفعِّلاً — ويبقى سرُّه لإعادة التشغيل بلا إعدادٍ جديد.
+            if (
+                user.totp_enabled
+                and requires_two_factor(user)
+                and getattr(settings, "TWO_FACTOR_REQUIRED_FOR_STAFF", True)
+            ):
                 request.session["pending_2fa_user"] = str(user.id)
                 request.session["pending_identifier_kind"] = kind
                 # `authenticate()` يعلّق على المستخدم اسمَ الخلفيّة التي صدّقته، و`login()`
