@@ -865,6 +865,23 @@ class TestPDFViews:
         resp = client.get(f"/behavior/infraction/{behavior_infraction.id}/pdf/student/")
         assert resp.status_code == 200
 
+    @patch("core.pdf_utils.render_pdf")
+    def test_the_three_forms_name_their_file_without_the_number(
+        self, mock_render, client_as, principal_user, school, behavior_infraction
+    ):
+        """[PII-08] اسمُ الملفّ يبقى في سجلّ التنزيلات — فيحمل معرّفَ الطالب لا رقمَه."""
+        from django.http import HttpResponse
+
+        mock_render.return_value = HttpResponse(b"%PDF-1.4", content_type="application/pdf")
+        client = client_as(principal_user)
+        student = behavior_infraction.student
+        for suffix in ("warning", "parent", "student"):
+            resp = client.get(f"/behavior/infraction/{behavior_infraction.id}/pdf/{suffix}/")
+            assert resp.status_code == 200
+            filename = mock_render.call_args.args[1]
+            assert student.national_id not in filename, filename
+            assert str(student.pk) in filename
+
     def test_policy_pdf_missing_file(self, client_as, teacher_user, school):
         """Policy PDF returns 404 when file doesn't exist, or 200 when it does."""
         client = client_as(teacher_user)

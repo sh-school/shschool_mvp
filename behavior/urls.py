@@ -19,7 +19,8 @@ urlpatterns = [
     # Phase 4 — تقارير سلوكية دورية
     path("report/student/<uuid:student_id>/", views.behavior_report, name="behavior_report"),
     path("statistics/", views.behavior_statistics, name="statistics"),
-    # لائحةُ السلوك — وثيقةُ مدرسةٍ لا مخالفة.
+    # لائحةُ السلوك — وثيقةُ مدرسةٍ لا مخالفة (للموظفين وأولياء الأمور). كان المسارُ
+    # مكرَّراً في آخر القائمة بالاسم نفسِه — والأوّلُ وحدَه يُحلّ، فحُذف الثاني.
     path("policy/pdf/", views.behavior_policy_pdf, name="policy_pdf"),
     # ✅ v5: PDF النماذج الثلاثة (Ct.zip × WeasyPrint)
     path(
@@ -57,6 +58,4 @@ urlpatterns = [
         views.student_behavior_pdf,
         name="student_behavior_pdf",
     ),
-    # ✅ v5: لائحة السلوك PDF — للموظفين + أولياء الأمور
-    path("policy/pdf/", views.behavior_policy_pdf, name="policy_pdf"),
 ]

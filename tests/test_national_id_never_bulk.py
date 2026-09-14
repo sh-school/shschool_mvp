@@ -10,8 +10,14 @@
    `national_id` بقيمةٍ من الرقم غيرِ مستورةٍ تسقط.
 3. **المصدِّرون**: كلُّ مسارٍ يولّد PDF أو Excel يستدعي `log_export` — بنفسه أو
    عبر مساعدٍ في وحدته يستدعيه.
+4. **ملفّاتُ Excel** (قرار المالك 2026-09-14): الرقمُ كاملٌ حيث يعود الملفُّ
+   بالاستيراد أو الرفع الوزاريّ فيُطابَق عليه، ومستورٌ في كلّ Excel سواه. وكلُّ
+   دالّةٍ تكتب الرقمَ في ورقةٍ أو تسجّل تصديرَ `xlsx` تحمل تصنيفَها مكتوباً:
+   «الرقم الشخصيّ: مطابقةٌ وزاريّة — كامل» (واسمُها في `EXCEL_FULL_NUMBER`،
+   ورايةُ التدقيق صادقة) أو «الرقم الشخصيّ: مستور» (وكلُّ كتابةٍ للرقم عبر
+   `mask_national_id`، والرايةُ كاذبة).
 
-والقائمةُ المسمّاة تُراجَع كأيّ شيفرة: اسمٌ يُضاف إليها قرارٌ يُسأل عنه.
+والقائمتان المسمّاتان تُراجَعان كأيّ شيفرة: اسمٌ يُضاف إليهما قرارٌ يُسأل عنه.
 """
 
 from __future__ import annotations
@@ -227,3 +233,127 @@ class TestEveryExporterLeavesAnAuditTrail:
     def test_the_sweep_found_the_exporters(self):
         """حارسٌ يمسح صفراً يمرّ دائماً."""
         assert len(EXPORTERS) >= 25
+
+
+# ── ملفّاتُ Excel: كاملٌ حيث يُطابَق عليه، مستورٌ سواه ─────────────────────
+
+FULL_MARK = "الرقم الشخصيّ: مطابقةٌ وزاريّة — كامل"
+MASKED_MARK = "الرقم الشخصيّ: مستور"
+
+#: ملفّاتُ Excel التي تعود بالاستيراد فتُطابَق على الرقم — الكمالُ فيها بقرارٍ مسمّى.
+EXCEL_FULL_NUMBER = frozenset(
+    {
+        # كشفُ الطلبة الكامل: أعمدتُه أعمدةُ قالب الاستيراد، و`students_import` يطابق على الرقم.
+        "core.views_students.student_export_excel",
+        # قالبُ الدرجات: يعود بالرفع و`_validate_student` يطابق صفَّه على الرقم.
+        "staging.views.download_grade_template",
+    }
+)
+
+#: ما يدلّ على أنّ الدالّةَ تبني ورقةَ Excel.
+EXCEL_HINTS = ("openpyxl", "Workbook(", ".cell(", "ExcelService.", "excel_to_response(")
+XLSX_EXPORT = re.compile(r'log_export\(\s*request,\s*"[^"]*xlsx"')
+FULL_FLAG = re.compile(r"full_national_id\s*=\s*True")
+
+
+def _number_references(node):
+    """كلُّ قراءةٍ للرقم في الشجرة: `x.national_id` أو `row["…national_id"]`."""
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Attribute) and sub.attr == "national_id":
+            yield sub
+        elif (
+            isinstance(sub, ast.Subscript)
+            and isinstance(sub.slice, ast.Constant)
+            and isinstance(sub.slice.value, str)
+            and "national_id" in sub.slice.value
+        ):
+            yield sub
+
+
+def _inside_mask(node) -> set[int]:
+    """معرّفاتُ العقد الواقعةِ داخل نداءِ `mask_national_id(...)`."""
+    masked: set[int] = set()
+    for call in ast.walk(node):
+        if not isinstance(call, ast.Call):
+            continue
+        func = call.func
+        name = getattr(func, "id", None) or getattr(func, "attr", None)
+        if name == "mask_national_id":
+            masked.update(id(sub) for sub in ast.walk(call))
+    return masked
+
+
+def _unmasked_references(node) -> list[int]:
+    """أسطرُ قراءاتِ الرقم التي لا يلفّها سترٌ."""
+    masked = _inside_mask(node)
+    return sorted(ref.lineno for ref in _number_references(node) if id(ref) not in masked)
+
+
+def _excel_functions():
+    """«الوحدة.الدالّة» ← (النصّ، العقدة) لكلّ دالّةٍ تكتب الرقمَ في Excel، أو
+    تسجّل تصديرَ xlsx وتدّعي فيه رقماً كاملاً (قالبٌ فارغٌ لا يقرأ الرقمَ لا يُسأل)."""
+    found: dict[str, tuple[str, ast.AST]] = {}
+    for path in _app_python_files():
+        source = path.read_text(encoding="utf-8")
+        if "national_id" not in source or not any(hint in source for hint in EXCEL_HINTS):
+            continue
+        module = ".".join(path.relative_to(BASE_DIR).with_suffix("").parts)
+        for node in ast.walk(ast.parse(source)):
+            if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+                continue
+            body = ast.get_source_segment(source, node) or ""
+            builds_excel = any(hint in body for hint in EXCEL_HINTS)
+            touches_number = any(True for _ in _number_references(node))
+            claims_full = XLSX_EXPORT.search(body) and FULL_FLAG.search(body)
+            if (builds_excel and touches_number) or claims_full:
+                found.setdefault(f"{module}.{node.name}", (body, node))
+    return found
+
+
+EXCEL_FUNCTIONS = _excel_functions()
+
+
+class TestExcelCarriesTheNumberOnlyWhereItIsMatched:
+    @pytest.mark.parametrize("name", sorted(EXCEL_FUNCTIONS))
+    def test_the_function_declares_its_classification(self, name):
+        body, _node = EXCEL_FUNCTIONS[name]
+        marks = (FULL_MARK in body) + (MASKED_MARK in body)
+        assert marks == 1, (
+            f"{name}: تصنيفٌ واحدٌ مكتوبٌ في الدالّة — «{FULL_MARK}» أو «{MASKED_MARK}» "
+            f"(وُجد {marks})"
+        )
+
+    @pytest.mark.parametrize("name", sorted(EXCEL_FUNCTIONS))
+    def test_a_full_number_is_named_and_a_masked_one_is_masked(self, name):
+        body, node = EXCEL_FUNCTIONS[name]
+        if FULL_MARK in body:
+            assert (
+                name in EXCEL_FULL_NUMBER
+            ), f"{name}: مصنَّفٌ كاملاً وليس في EXCEL_FULL_NUMBER — الاستثناءُ يُسمّى لا يُضمَر"
+            if XLSX_EXPORT.search(body):
+                assert FULL_FLAG.search(body), f"{name}: كاملٌ ورايةُ التدقيق لا تقولها"
+            return
+        assert name not in EXCEL_FULL_NUMBER, f"{name}: مسمّى كاملاً ومصنَّفٌ مستوراً"
+        leaks = _unmasked_references(node)
+        assert not leaks, f"{name}: الرقمُ يُقرأ بلا mask_national_id في الأسطر {leaks}"
+        assert not FULL_FLAG.search(body), f"{name}: مستورٌ ورايةُ التدقيق تدّعي الكمال"
+
+    def test_every_named_full_excel_still_exists(self):
+        stale = sorted(EXCEL_FULL_NUMBER - set(EXCEL_FUNCTIONS))
+        assert not stale, f"أسماءٌ في EXCEL_FULL_NUMBER لا دالّةَ لها: {stale}"
+
+    def test_the_sweep_found_the_excel_functions(self):
+        assert len(EXCEL_FUNCTIONS) >= 9, sorted(EXCEL_FUNCTIONS)
+
+    def test_the_scanner_sees_a_planted_leak(self):
+        """ضبطٌ موجب: قراءةٌ خامٌ تُلتقط، ومستورةٌ تمرّ، والاسمُ في `.values()` ليس قراءة."""
+        planted = ast.parse(
+            "def f(ws, rows):\n"
+            '    q = rows.values("student__national_id")\n'
+            "    for st, rec in q:\n"
+            "        ws.cell(1, 1, st.national_id)\n"
+            '        ws.cell(1, 2, rec["student__national_id"])\n'
+            "        ws.cell(1, 3, mask_national_id(st.national_id))\n"
+            '        ws.cell(1, 4, mask_national_id(rec["student__national_id"]))\n'
+        )
+        assert _unmasked_references(planted) == [4, 5]

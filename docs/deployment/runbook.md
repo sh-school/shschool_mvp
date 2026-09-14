@@ -1,6 +1,6 @@
 # SchoolOS Deployment Runbook
 
-> Last updated: 2026-04-06
+> Last updated: 2026-09-14 (القسم 4: التراجعُ الصادق ورمزُ Railway)
 > Production URL: `https://shschoolmvp-production.up.railway.app`
 > Platform: Railway (Hobby plan)
 
@@ -84,10 +84,10 @@ GitHub Actions: deploy-railway.yml
 
 ### Manual deploy (if CI is broken):
 
-```bash
-# Only use in emergencies when CI is down
-curl -X POST "$RAILWAY_DEPLOY_WEBHOOK"
-```
+لا ويب هوك بعد 2026-09-13 (`RAILWAY_DEPLOY_WEBHOOK` أُزيل). Railway ينشر من
+تكامل GitHub بنفسه حين يصل الإيداعُ إلى `main`؛ وإن تعطّل GitHub فمن لوحة
+Railway → الخدمة → Deployments → **Redeploy**، أو بـ`railway up` برمز
+المشروع (القسم 4، الخيار د).
 
 ### Monitoring the deploy:
 
@@ -143,36 +143,112 @@ This checks 5 endpoints:
 
 ## 4. Rollback Procedure
 
-### Option A: GitHub Actions workflow (preferred)
+> محدَّث 2026-09-14. Railway ينشر من تكامل GitHub لحظةَ وصول إيداعٍ إلى `main`
+> — لا من Actions. فالتراجعُ الصادق إمّا أن **يغيّر `main`** وإمّا أن يقع
+> **من داخل Railway** (لوحةً أو CLI برمز). ولا ويب هوك: `RAILWAY_DEPLOY_WEBHOOK`
+> أُزيل من `deploy-railway.yml` لأنّه مصدرُ نشرٍ ثانٍ مخبّأ.
 
-1. Go to **Actions** -> **Rollback -- Railway Emergency Rollback**
-2. Click **Run workflow**
-3. Enter the commit SHA to roll back to (find it with `git log --oneline`)
-4. Enter the reason for rollback
-5. Click **Run workflow**
+### الخيار أ — `rollback.yml`: طلبُ دمجٍ يُعيد شجرةَ main (الافتراضيّ)
 
-The rollback workflow (`rollback.yml`):
-- Validates the target commit exists
-- Checks out that commit
-- Triggers Railway deploy webhook
-- Waits 60s for stabilization
-- Runs post-rollback smoke tests
-- Reports results in the workflow summary
+1. **Actions** → **Rollback — التراجعُ إلى commit سابق** → **Run workflow**
+2. `commit_sha`: ما يُراد أن يخدمه الإنتاج (`git log --oneline main`)
+3. `reason`: سببُ التراجع (يُكتب في طلب الدمج)
+4. اتركه بلا `verify_only`
 
-### Option B: Railway dashboard
+ما يفعله: يتحقّق أنّ الهدفَ سلفٌ لـ`main` وأنّ شجرته تخالف شجرةَ `main`،
+ثمّ يُنشئ إيداعاً جديداً شجرتُه شجرةُ الهدف حرفيّاً (`git commit-tree` — لا
+`git revert` لكلّ إيداعٍ على حدة، فذاك يتعثّر بإيداعات الدمج) على فرع
+`rollback/<sha>-<run>`، ويفتح طلبَ دمجٍ يمرّ على البوّابات كأيّ طلب.
+**التراجعُ لا يقع قبل دمجه.** بعد الدمج ينشر Railway تلقائيّاً، وكناري
+`deploy-railway.yml` يُثبت أنّ إيداعَ الدمج صار حيّاً.
 
-1. Open Railway dashboard -> project -> service
-2. Click **Deployments** tab
-3. Find the last known-good deployment
-4. Click the three-dot menu -> **Redeploy**
+- إن لم تبدأ الفحوصُ على الطلب (طلبٌ يفتحه `GITHUB_TOKEN` لا يُطلق سيرَ عملٍ
+  آخر): `gh pr close <n>` ثمّ `gh pr reopen <n>`.
+- **الهجراتُ لا تُتراجَع**: راجع `git diff <sha>..main -- '*/migrations/*'`
+  قبل الدمج (القسم 5).
 
-### Option C: Git revert (for non-emergency)
+### الخيار ب — لوحة Railway (حين يكون GitHub نفسُه هو العطب)
+
+1. Railway → المشروع → الخدمة `shschool_mvp` → **Deployments**
+2. النشرُ السابق السليم → ⋯ → **Rollback**
+3. وكرّر للعامل `celery-worker` وBeat `celery-beat` إن كان التغييرُ يمسّهما
+4. ثمّ تحقّق: `gh workflow run rollback.yml -f commit_sha=<sha> -f verify_only=true`
+
+### الخيار ج — التحقّق وحدَه
+
+```bash
+gh workflow run rollback.yml -f commit_sha=<sha> -f verify_only=true
+```
+
+يقارن `commit` الذي يخدمه `/health/` بالهدف — 18 محاولة على 12 دقيقة — ويفشل
+بصوتٍ عالٍ إن خالفه.
+
+### الخيار د — تراجعٌ من سطر الأوامر برمز Railway (يحتاج المالك)
+
+CLI Railway **لا يملك أمرَ تراجعٍ إلى نشرٍ سابق بعينه**: `railway redeploy`
+يُعيد بناءَ آخر نشر، و`railway restart` يُعيد تشغيله بلا بناء، والتراجعُ إلى
+نشرٍ أقدم من اللوحة وحدَها (وثائق Railway، «Roll Back a Bad Deploy»). لكنّ
+`railway up` ينشر **شجرةَ العمل الحاليّة** كما هي — فالتراجعُ إلى أيّ SHA
+يصير: `git checkout <sha>` ثمّ `railway up --service <الخدمة> --detach`.
+وذلك يحتاج رمزاً لا يملكه المستودع اليوم (`gh secret list` يوم 2026-09-14:
+لا `RAILWAY_TOKEN` في أسرار المستودع ولا في بيئة `production`).
+
+**إنشاءُ الرمز (بيد المالك — لا يستطيعه وكيلٌ ولا CI):**
+
+1. Railway → المشروع `shschool_mvp` → **Settings** → **Tokens** →
+   **Create Token**. اختر **Project Token** لا Account Token: رمزُ المشروع
+   محصورٌ في بيئةٍ واحدة (`production`) ولا يفعل إلّا ما يخصّ النشر —
+   إن سُرّب لا يمسّ حساب المالك ولا مشاريعَه الأخرى.
+2. انسخ الرمزَ مرّةً واحدة (لا يُعرض ثانية) وضعه في GitHub **بيئةِ**
+   `production` لا في أسرار المستودع العامّة — فلا يبلغه سيرُ عملٍ يعمل على
+   طلب دمجٍ من فرعٍ غريب:
+   ```bash
+   gh secret set RAILWAY_TOKEN --env production
+   ```
+3. تحقّق: `gh secret list --env production` يُظهر `RAILWAY_TOKEN` بلا قيمة.
+4. سجّل في هذا الملفّ تاريخَ الإنشاء واسمَ الرمز في Railway، ودوّره كلَّ
+   90 يوماً كسائر أسرار الكادر (سياسة التدوير).
+
+**ربطُه بـ`rollback.yml` (يُنفَّذ بعد الرمز لا قبله — الـworkflow اليوم كما هو):**
+
+تُضاف وظيفةٌ ثالثة `railway-up` تعمل بـ`environment: production` (فتقرأ السرَّ
+منها) عند مدخلٍ جديد `via_cli=true`:
+
+```yaml
+  railway-up:
+    if: ${{ inputs.via_cli }}
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.commit_sha }}", fetch-depth: 1 }
+      - run: npm i -g @railway/cli
+      - run: railway up --service shschool_mvp --environment production --detach
+      - run: railway up --service celery-worker --environment production --detach
+      - run: railway up --service celery-beat --environment production --detach
+```
+
+ثمّ وظيفةُ `verify` بعدها بالـSHA نفسِه (تُشغَّل بـ`needs: railway-up`) —
+فلا يُطبع PASS إلّا إن خدم `/health/` الهدفَ فعلاً. ويبقى الخيار أ هو
+المسارَ الموثّق في التاريخ: `railway up` ينشر شجرةً **لا تُطابق `main`**،
+فبعد إطفاء الحريق يُفتح طلبُ تراجعٍ (الخيار أ) أو يُصلَح `main` — وإلّا عاد
+النشرُ التالي من GitHub إلى الشيفرة المعطوبة.
+
+**بديلٌ للتحقّق لاحقاً:** واجهةُ GraphQL العامّة لـRailway تحمل تحويلاً
+`deploymentRollback(id)` يُعيد نشراً سابقاً بعينه بلا بناء — وهو ما تفعله
+اللوحة. لم يُختبر هنا؛ إن ثبت مع رمز المشروع فهو أدقّ من `railway up`
+(النشرُ نفسُه لا إعادةُ بنائه).
+
+### Option E: Git revert (for non-emergency)
 
 ```bash
 # Revert the problematic commit
-git revert <bad-commit-sha>
-git push origin main
-# This triggers the normal CI/CD pipeline
+git revert -m 1 <bad-merge-sha>   # -m 1 for a merge commit
+git push origin HEAD:refs/heads/claude/revert-<sha>
+# open a PR — the gates run, main deploys on merge
 ```
 
 ### Rollback decision criteria:
@@ -391,11 +467,22 @@ starting.
 3. If using Redis for caching only, the app should degrade gracefully
    (check `CACHES` setting has a fallback)
 
-### Issue: Rollback workflow fails at "Validate commit SHA"
+### Issue: Rollback workflow fails at "التحقّق من الهدف"
 
-**Cause:** The commit SHA was not found -- it may have been from a squashed
-merge or force-push.
+**Cause:** the SHA is unknown, is not an ancestor of `main` (a branch commit or
+a force-pushed one), or its tree already equals `main`'s tree.
 **Fix:**
-1. Use `git log --all --oneline` to find the correct SHA
-2. Alternatively, use Railway dashboard to redeploy a previous deployment
-   (see Section 4, Option B)
+1. `git log --oneline main` — pick a commit that was on `main`
+2. Or roll back from the Railway dashboard (Section 4, Option ب), then verify
+   with `verify_only=true`
+
+### Issue: Worker/Beat logs show only the banner in `railway logs`
+
+**Cause (fixed 2026-09-14):** Celery hijacked the root logger on start-up and
+emptied the `celery` logger's handlers; with `propagate: False` in
+`production.py` its INFO lines went nowhere. `shschool/celery.py` now
+receives the `setup_logging` signal, which stops the hijack and keeps
+Django's `LOGGING` (with the `pii_masking` filter) in charge.
+**Check:** `railway logs --service celery-worker` should show
+`Task … received` / `succeeded`, and `--service celery-beat` should show
+`Scheduler: Sending due task …`. Guard: `tests/test_celery_logs_reach_stdout.py`.
