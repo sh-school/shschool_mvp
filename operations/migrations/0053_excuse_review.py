@@ -1,4 +1,7 @@
-"""مراجعةُ العذر عند النائب الإداريّ — «بانتظار النائب» بعد مهلة العودة (قرارُ 2026-09-14)."""
+"""مراجعةُ العذر عند النائب الإداريّ — «بانتظار النائب» بعد مهلة العودة (قرارُ 2026-09-14).
+
+والعمودان الجديدان بقيمٍ افتراضيّةٍ في القاعدة نفسها (`db_default`): نسخةٌ أقدم تكتب صفّاً
+بلا ذكرهما في فترة تداخل النشر أو التراجع عنه لا تسقط على NOT NULL."""
 
 import django.db.models.deletion
 from django.conf import settings
@@ -15,7 +18,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="absenceexcuse",
             name="rejection_reason",
-            field=models.TextField(blank=True, verbose_name="سببُ الرفض"),
+            field=models.TextField(blank=True, db_default="", default="", verbose_name="سببُ الرفض"),
         ),
         migrations.AddField(
             model_name="absenceexcuse",
@@ -43,6 +46,7 @@ class Migration(migrations.Migration):
                     ("pending", "بانتظار النائب الإداريّ"),
                     ("rejected", "مرفوض"),
                 ],
+                db_default="accepted",
                 db_index=True,
                 default="accepted",
                 max_length=10,

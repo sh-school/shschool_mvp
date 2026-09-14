@@ -22,6 +22,7 @@ operations/excuses.py — تحويلُ الغياب «بلا عذر» إلى «�
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Iterable
 
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
@@ -77,27 +78,8 @@ def is_school_day(school: School, day: dt.date) -> bool:
     ).exists()
 
 
-def return_day(school: School, student: CustomUser, after: dt.date) -> dt.date | None:
-    """أوّلُ يومٍ حضر فيه الطالبُ بعد `after` — أو لا شيء إن لم يعد بعد."""
-    day: dt.date | None = (
-        StudentAttendance.objects.filter(
-            student=student, school=school, session__date__gt=after, status__in=RETURNED
-        )
-        .order_by("session__date")
-        .values_list("session__date", flat=True)
-        .first()
-    )
-    return day
-
-
-def deadline_of(school: School, student: CustomUser, date_to: dt.date) -> dt.date | None:
-    """آخرُ يومٍ يقبل فيه المشرفُ العذر: ثاني يومٍ دراسيٍّ بعد عودة الطالب.
-
-    ولا مهلةَ لمن لم يعد: يُعيد لا شيء، والعذرُ مقبولٌ عند المشرف حتى يعود ويمضي يوماه.
-    """
-    back = return_day(school, student, date_to)
-    if back is None:
-        return None
+def _grace_after(school: School, back: dt.date) -> dt.date:
+    """ثاني يومٍ دراسيٍّ بعد يوم العودة."""
     day, counted = back, 0
     while counted < GRACE_DAYS:
         day += dt.timedelta(days=1)
@@ -106,11 +88,66 @@ def deadline_of(school: School, student: CustomUser, date_to: dt.date) -> dt.dat
     return day
 
 
+def return_day(school: School, student: CustomUser, absence_day: dt.date) -> dt.date | None:
+    """يومُ عودة الطالب بعد غيابه في `absence_day` — أوّلُ يومٍ حضر فيه حصّةً منذ ذلك اليوم.
+
+    ويُعدّ اليومُ نفسُه إن حضر فيه بعضَ حصصه: جاء المدرسةَ ذلك اليوم فبدأت مهلتُه منه.
+    ولا شيء إن لم يعد بعد.
+    """
+    day: dt.date | None = (
+        StudentAttendance.objects.filter(
+            student=student, school=school, session__date__gte=absence_day, status__in=RETURNED
+        )
+        .order_by("session__date")
+        .values_list("session__date", flat=True)
+        .first()
+    )
+    return day
+
+
+def deadline_of(school: School, student: CustomUser, absence_day: dt.date) -> dt.date | None:
+    """آخرُ يومٍ يقبل فيه المشرفُ عذرَ غياب `absence_day`: ثاني يومٍ دراسيٍّ بعد العودة.
+
+    ولا مهلةَ لمن لم يعد: يُعيد لا شيء، والعذرُ مقبولٌ عند المشرف حتى يعود ويمضي يوماه.
+    """
+    back = return_day(school, student, absence_day)
+    return None if back is None else _grace_after(school, back)
+
+
+def first_late_day(
+    school: School, student: CustomUser, absent_days: Iterable[dt.date], today: dt.date
+) -> tuple[dt.date, dt.date] | None:
+    """أقدمُ يومِ غيابٍ في القائمة انقضت مهلتُه، وآخرُ يومٍ كان فيها — أو لا شيء.
+
+    المهلةُ تُحسب لكلّ يومِ غيابٍ **فعليّ** بعودته هو، لا لتاريخٍ يكتبه المستخدم: مدّةٌ تمتدّ
+    إلى اليوم، أو تجمع غياباً قديماً وغياباً جارياً، لا تُسقط مهلةَ الغياب القديم.
+    """
+    days = sorted(set(absent_days))
+    if not days:
+        return None
+    attended = sorted(
+        set(
+            StudentAttendance.objects.filter(
+                student=student, school=school, session__date__gte=days[0], status__in=RETURNED
+            ).values_list("session__date", flat=True)
+        )
+    )
+    closes: dict[dt.date, dt.date] = {}
+    for day in days:
+        back = next((a for a in attended if a >= day), None)
+        if back is None:
+            return None  # لم يعد بعد هذا اليوم — ولا بعد ما يليه
+        if back not in closes:
+            closes[back] = _grace_after(school, back)
+        if today > closes[back]:
+            return day, closes[back]
+    return None
+
+
 def is_after_deadline(
-    school: School, student: CustomUser, date_to: dt.date, today: dt.date
+    school: School, student: CustomUser, absence_day: dt.date, today: dt.date
 ) -> bool:
-    closed = deadline_of(school, student, date_to)
-    return closed is not None and today > closed
+    return first_late_day(school, student, [absence_day], today) is not None
 
 
 def _audit(
@@ -188,17 +225,20 @@ def grant_excuse(
     if not rows.exists():
         raise ExcuseError("لا غيابَ بلا عذرٍ لهذا الطالب في هذه المدّة.")
 
-    late = is_after_deadline(school, student, date_to, today)
-    forward = late and not may_override
-    if forward and not forward_if_late:
-        closed = deadline_of(school, student, date_to)
+    if _awaiting_vice(student, school, date_from, date_to):
+        raise ExcuseError("عذرٌ لهذه المدّة ينتظر النائبَ الإداريّ — يقرّره من صفحة الأعذار المنتظرة.")
+    overdue = first_late_day(school, student, rows.values_list("session__date", flat=True), today)
+    late = overdue is not None
+    decided = late and may_override and bool(override_reason)
+    forward = late and not decided and forward_if_late
+    if late and not decided and not forward:
+        if may_override:
+            raise ExcuseError("اكتب سببَ القبول بعد المهلة.")
+        assert overdue is not None
         raise ExcuseError(
-            f"انقضت مهلةُ اليومين من عودة الطالب (حتى {closed:%d/%m}) — أرسله للنائب الإداريّ."
+            f"انقضت مهلةُ غياب {overdue[0]:%d/%m} (يومان من عودته، حتى {overdue[1]:%d/%m}) — "
+            "أرسله للنائب الإداريّ."
         )
-    if forward and _awaiting_vice(student, school, date_from, date_to):
-        raise ExcuseError("عذرٌ لهذه المدّة ينتظر النائبَ الإداريّ فعلاً.")
-    if late and not forward and not override_reason:
-        raise ExcuseError("اكتب سببَ القبول بعد المهلة.")
 
     excuse = AbsenceExcuse.objects.create(
         school=school,
@@ -211,7 +251,9 @@ def grant_excuse(
         granted_by=by,
         status="pending" if forward else "accepted",
         after_deadline=late,
-        override_reason=override_reason if late and not forward else "",
+        override_reason=override_reason if decided else "",
+        reviewed_by=by if decided else None,
+        reviewed_at=timezone.now() if decided else None,
     )
     covered = 0 if forward else rows.update(excuse=excuse, excuse_type=kind)
     _audit(
@@ -261,6 +303,7 @@ def approve_excuse(
 ) -> int:
     """النائبُ يقبل عذراً أُرسل إليه — بسبب — فيُكتب على صفوفه. يُعيد عددَ الحصص."""
     reason = (reason or "").strip()
+    excuse = AbsenceExcuse.objects.select_for_update().get(pk=excuse.pk)
     if excuse.status != "pending":
         raise ExcuseError("هذا العذرُ ليس بانتظار النائب.")
     if not reason:
@@ -301,6 +344,7 @@ def reject_excuse(
 ) -> None:
     """النائبُ يرفض عذراً أُرسل إليه — بسبب. يبقى السجلُّ ومستندُه، والغيابُ بلا عذر."""
     reason = (reason or "").strip()
+    excuse = AbsenceExcuse.objects.select_for_update().get(pk=excuse.pk)
     if excuse.status != "pending":
         raise ExcuseError("هذا العذرُ ليس بانتظار النائب.")
     if not reason:
@@ -315,12 +359,27 @@ def reject_excuse(
 
 @transaction.atomic
 def revoke_excuse(
-    excuse: AbsenceExcuse, *, by: CustomUser, reason: str, ip: str | None = None
+    excuse: AbsenceExcuse,
+    *,
+    by: CustomUser,
+    reason: str,
+    may_override: bool = False,
+    ip: str | None = None,
 ) -> int:
-    """يُلغي العذرَ ويُعيد صفوفَه «بلا عذر» — بسببٍ في سجلّ المراجعة. يُعيد عددَ الصفوف."""
+    """يُلغي عذراً أُدخل خطأً (أو يسحب منتظراً) ويُعيد صفوفَه «بلا عذر». يُعيد عددَ الصفوف.
+
+    - **المرفوضُ لا يُحذف**: قرارُ النائب ومستندُه سجلٌّ يبقى، ولا يُمحى ليُرسَل من جديد.
+    - **ما قبله النائبُ لا يُلغيه إلّا من يملك القبولَ بعد المهلة.**
+    - ومستندُ ما يُحذف يُحذف معه — لا يبقى بيانٌ صحّيٌّ بلا سجلٍّ يدلّ عليه.
+    """
     reason = (reason or "").strip()
     if not reason:
         raise ExcuseError("اكتب سببَ الإلغاء.")
+    excuse = AbsenceExcuse.objects.select_for_update().get(pk=excuse.pk)
+    if excuse.status == "rejected":
+        raise ExcuseError("رفضه النائبُ الإداريّ — والقرارُ سجلٌّ لا يُحذف.")
+    if excuse.status == "accepted" and excuse.after_deadline and not may_override:
+        raise ExcuseError("قبله النائبُ الإداريّ بعد المهلة — لا يُلغيه إلّا هو.")
     restored = excuse.rows.update(excuse=None, excuse_type="")
     _audit(
         by,
@@ -329,12 +388,16 @@ def revoke_excuse(
         excuse,
         {
             "reason": reason,
+            "status": excuse.status,
             "kind": excuse.kind,
             "from": excuse.date_from.isoformat(),
             "to": excuse.date_to.isoformat(),
             "rows": restored,
+            "document": bool(excuse.document),
         },
         ip=ip,
     )
+    if excuse.document:
+        excuse.document.delete(save=False)
     excuse.delete()
     return restored

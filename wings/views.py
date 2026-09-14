@@ -525,6 +525,7 @@ def excuse_revoke(request, pk):
             excuse,
             by=request.user,
             reason=request.POST.get("reason", ""),
+            may_override=has_capability(request.user, "wings.excuse_after_deadline"),
             ip=request.META.get("REMOTE_ADDR"),
         )
     except ExcuseError as err:
@@ -604,7 +605,10 @@ def excuse_request_decide(request, pk):
     reason = request.POST.get("reason", "")
     ip = request.META.get("REMOTE_ADDR")
     try:
-        if request.POST.get("decision") == "accept":
+        decision = request.POST.get("decision")
+        if decision not in ("accept", "reject"):
+            raise ExcuseError("اختر قبولاً أو رفضاً.")
+        if decision == "accept":
             covered = approve_excuse(excuse, by=request.user, reason=reason, ip=ip)
             messages.success(request, f"قُبل عذرُ {excuse.student.full_name} وغُطّي {covered} حصّةً.")
         else:

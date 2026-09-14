@@ -247,3 +247,147 @@ class TestThePhoto:
         with Image.open(excuse.document) as stored:
             assert max(stored.size) == MAX_SIDE and not stored.getexif()
         assert excuse.document.size < 1_000_000
+
+
+NEXT_SUNDAY = SUNDAY + dt.timedelta(days=7)
+
+
+class TestTheReviewFindings:
+    """ما كشفته المراجعةُ المستقلّة لـ#282 — كلُّ ثغرةٍ باختبارٍ يمنع عودتها."""
+
+    def test_stretching_the_range_to_today_does_not_escape_the_deadline(
+        self, school, late_absence, supervisor
+    ):
+        """غاب الأحد وعاد الاثنين، واليومُ الخميس: «إلى» اليوم لا تُسقط مهلةَ الأحد."""
+        with pytest.raises(ExcuseError, match="انقضت مهلةُ غياب 13/09"):
+            grant_excuse(
+                student=late_absence,
+                school=school,
+                date_from=SUNDAY,
+                date_to=THURSDAY,
+                kind="medical",
+                document=_report(),
+                by=supervisor,
+                today=THURSDAY,
+            )
+
+    def test_a_current_absence_does_not_carry_an_old_one_past_its_deadline(
+        self, school, seeded_calendar, klass, late_absence, teacher, supervisor
+    ):
+        _absent_day(school, klass, late_absence, teacher, supervisor, day=NEXT_SUNDAY)
+
+        excuse = grant_excuse(
+            student=late_absence,
+            school=school,
+            date_from=SUNDAY,
+            date_to=NEXT_SUNDAY,
+            kind="medical",
+            document=_report(),
+            by=supervisor,
+            today=NEXT_SUNDAY,
+            forward_if_late=True,
+        )
+
+        assert excuse.status == "pending"
+
+    def test_an_accepted_excuse_cannot_overlap_one_waiting_for_the_vice_admin(
+        self, school, late_absence, supervisor, vice_admin
+    ):
+        _forward(school, late_absence, supervisor)
+
+        with pytest.raises(ExcuseError, match="ينتظر النائب"):
+            grant_excuse(
+                student=late_absence,
+                school=school,
+                date_from=SUNDAY,
+                date_to=SUNDAY,
+                kind="medical",
+                document=_report(),
+                by=vice_admin,
+                today=THURSDAY,
+                may_override=True,
+                override_reason="تجاوز",
+            )
+
+    def test_the_vice_admin_without_a_reason_on_the_card_is_queued_not_refused(
+        self, school, late_absence, vice_admin
+    ):
+        excuse = _forward(school, late_absence, vice_admin, may_override=True)
+
+        assert excuse.status == "pending"
+
+    def test_a_rejected_excuse_cannot_be_deleted_to_send_it_again(
+        self, school, late_absence, supervisor, vice_admin
+    ):
+        from operations.excuses import revoke_excuse
+
+        excuse = _forward(school, late_absence, supervisor)
+        reject_excuse(excuse, by=vice_admin, reason="لا يغطّي اليوم")
+
+        with pytest.raises(ExcuseError, match="لا يُحذف"):
+            revoke_excuse(excuse, by=supervisor, reason="أعيده")
+        assert AbsenceExcuse.objects.filter(pk=excuse.pk, status="rejected").exists()
+
+    def test_the_supervisor_cannot_undo_what_the_vice_admin_accepted(
+        self, school, late_absence, supervisor, vice_admin
+    ):
+        from operations.excuses import revoke_excuse
+
+        excuse = _forward(school, late_absence, supervisor)
+        approve_excuse(excuse, by=vice_admin, reason="صحيح")
+
+        with pytest.raises(ExcuseError, match="لا يُلغيه إلّا هو"):
+            revoke_excuse(excuse, by=supervisor, reason="خطأ")
+        assert revoke_excuse(excuse, by=vice_admin, reason="خطأ", may_override=True) == 7
+
+    def test_withdrawing_a_waiting_excuse_deletes_its_document(
+        self, school, late_absence, supervisor
+    ):
+        from operations.excuses import revoke_excuse
+
+        excuse = _forward(school, late_absence, supervisor)
+        storage, name = excuse.document.storage, excuse.document.name
+        assert storage.exists(name)
+
+        revoke_excuse(excuse, by=supervisor, reason="سحبه وليُّ الأمر")
+
+        assert not storage.exists(name)
+        assert not AbsenceExcuse.objects.filter(pk=excuse.pk).exists()
+
+    def test_the_vice_page_accepts_and_rejects_in_separate_forms(
+        self, client_as, school, late_absence, supervisor, vice_admin
+    ):
+        _forward(school, late_absence, supervisor)
+
+        body = client_as(vice_admin).get(reverse("wings:excuse_requests")).content.decode()
+
+        assert body.count('name="decision" value="accept"') == 1
+        assert body.count('name="decision" value="reject"') == 1
+        assert body.count('name="reason"') == 2
+
+    def test_a_photo_without_an_extension_is_still_cleaned(self):
+        cleaned = clean_photo(SimpleUploadedFile("scan", _photo_with_gps()))
+
+        with Image.open(cleaned) as result:
+            assert max(result.size) == MAX_SIDE and not result.getexif()
+
+    def test_a_decompression_bomb_is_refused_before_decoding(self):
+        out = io.BytesIO()
+        Image.new("1", (9000, 9000), 0).save(out, format="PNG")
+        assert len(out.getvalue()) < 1_000_000
+
+        with pytest.raises(ValidationError, match="أكبرُ من أن تُعالَج"):
+            clean_photo(SimpleUploadedFile("big.png", out.getvalue()))
+
+
+class TestTheDocumentLink:
+    def test_the_supervisor_and_the_vice_admin_can_open_the_document(
+        self, client_as, school, seeded_calendar, klass, late_absence, supervisor, vice_admin
+    ):
+        """الرابطُ كان يمرّ على صفحةٍ تبحث في جدول الحضور القديم فيُرجع 404 — حتى للنائب."""
+        excuse = _forward(school, late_absence, supervisor)
+        url = excuse.document.url
+
+        assert url in client_as(vice_admin).get(reverse("wings:excuse_requests")).content.decode()
+        assert client_as(supervisor).get(url).status_code == 200
+        assert client_as(vice_admin).get(url).status_code == 200

@@ -19,7 +19,7 @@
         </select>
       </label>
       <label class="form-label">المستند <small>(صورةٌ من الجوّال أو ملفّ)</small>
-        <input type="file" name="document" class="form-control" accept="image/*,.pdf,.heic,.heif">
+        <input type="file" name="document" class="form-control" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif">
       </label>
       <label class="form-label exc-form__wide">بيان
         <input type="text" name="notes" class="form-control" placeholder="صلةُ القرابة، أو جهةُ الموعد…">
@@ -39,20 +39,22 @@
   {% if excuses %}
   <div class="table-wrap">
     <table data-no-sort>
-      <thead><tr><th>المدّة</th><th>العذر</th><th>المستند</th><th>قَبِله</th><th>إلغاء</th></tr></thead>
+      <thead><tr><th>المدّة</th><th>العذر</th><th>المستند</th><th>من</th><th>إلغاء</th></tr></thead>
       <tbody>
         {% for x in excuses %}
         <tr>
           <td>{{ x.date_from|date:"d/m" }}{% if x.date_to != x.date_from %} – {{ x.date_to|date:"d/m" }}{% endif %}</td>
           <td>{{ x.get_kind_display }}{% if x.notes %} <small>{{ x.notes }}</small>{% endif %}{% if x.status == "pending" %} <span class="status-badge status-warning">بانتظار النائب الإداريّ</span>{% elif x.status == "rejected" %} <span class="status-badge status-danger">مرفوض</span> <small>{{ x.rejection_reason }}</small>{% elif x.after_deadline %} <span class="status-badge status-info">قُبل بعد المهلة</span>{% endif %}</td>
-          <td>{% if x.document %}<a href="{% url 'student_affairs:protected_media' x.document.name %}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-xs">{% icon "document" %} افتح</a>{% else %}—{% endif %}</td>
-          <td><small>{{ x.granted_by.full_name|default:"—" }} · {{ x.granted_at|date:"d/m H:i" }}</small></td>
+          <td>{% if x.document %}<a href="{{ x.document.url }}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-xs">{% icon "document" %} افتح</a>{% else %}—{% endif %}</td>
+          <td><small>{% if x.status == "pending" or x.status == "rejected" or x.reviewed_by %}أرسله{% else %}قبله{% endif %} {{ x.granted_by.full_name|default:"—" }} · {{ x.granted_at|date:"d/m H:i" }}{% if x.reviewed_by %} — قرّره {{ x.reviewed_by.full_name }}{% endif %}</small></td>
           <td>
+            {% if x.status == "pending" or x.status == "accepted" and not x.after_deadline or x.status == "accepted" and may_override %}
             <form method="post" action="{% url 'wings:excuse_revoke' x.pk %}" class="sa-undo" data-confirm="إلغاءُ العذر وإعادةُ حصصه بلا عذر؟">
               {% csrf_token %}
               <input type="text" name="reason" class="form-control form-control-sm" placeholder="السبب" required aria-label="سببُ الإلغاء">
               <button type="submit" class="btn-secondary btn-xs">{% if x.status == "pending" %}سحب{% else %}إلغاء{% endif %}</button>
             </form>
+            {% else %}—{% endif %}
           </td>
         </tr>
         {% endfor %}

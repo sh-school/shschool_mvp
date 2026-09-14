@@ -311,7 +311,12 @@ class AbsenceExcuse(models.Model):
     override_reason = models.TextField(blank=True, verbose_name="سببُ القبول بعد المهلة")
     #: «مقبول» يُكتب على الصفوف؛ «بانتظار النائب» و«مرفوض» لا يمسّانها.
     status = models.CharField(
-        max_length=10, choices=STATUSES, default="accepted", db_index=True, verbose_name="الحالة"
+        max_length=10,
+        choices=STATUSES,
+        default="accepted",
+        db_default="accepted",
+        db_index=True,
+        verbose_name="الحالة",
     )
     reviewed_by = models.ForeignKey(
         CustomUser,
@@ -322,7 +327,9 @@ class AbsenceExcuse(models.Model):
         verbose_name="قرّره النائب",
     )
     reviewed_at = models.DateTimeField(null=True, blank=True)
-    rejection_reason = models.TextField(blank=True, verbose_name="سببُ الرفض")
+    rejection_reason = models.TextField(
+        blank=True, default="", db_default="", verbose_name="سببُ الرفض"
+    )
 
     class Meta:
         verbose_name = "عذرُ غياب"
