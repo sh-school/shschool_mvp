@@ -4,6 +4,7 @@ exam_control/views.py  ·  SchoolOS v5
 """
 
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -218,7 +219,10 @@ def incident_add(request, pk):
             scope.require_student(student_id)
         # الطالبُ من طلبة هذه المدرسة — معرّفُ طالبِ مدرسةٍ أخرى لا يُكتب عليه محضر.
         student = (
-            CustomUser.objects.filter(id=student_id, enrollments__class_group__school=school)
+            CustomUser.objects.filter(
+                Q(memberships__school=school) | Q(enrollments__class_group__school=school),
+                id=student_id,
+            )
             .distinct()
             .first()
             if student_id

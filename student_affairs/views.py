@@ -1845,13 +1845,13 @@ def student_profile_pdf(request, student_id):
     ).select_related("parent")
 
     ctx = get_export_context(request, "ملف الطالب الشامل")
-    # ملفُّ طالبٍ واحدٍ وثيقةٌ فرديّة: الرقمُ كاملاً، والتدقيقُ ثمنُه.
-    # والمقيَّدُ بجناحه يأخذه مستوراً، ويقول الأثرُ ذلك.
+    # ملفُّ طالبٍ واحدٍ وثيقةٌ فرديّة: الرقمُ كاملاً — للمشرف كما للقيادة، فالوثيقةُ المستورةُ
+    # لا تُغني عن صاحبها (test_national_id_masking) — والتدقيقُ ثمنُه.
     log_export(
         request,
         "student_affairs.student_profile_pdf",
         rows=1,
-        full_national_id=not limited,
+        full_national_id=True,
         object_id=student.pk,
         object_repr=(
             f"ملف الطالب {student.full_name} — {year}" + (" — طلبة الجناح" if limited else "")

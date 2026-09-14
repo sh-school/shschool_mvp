@@ -27,7 +27,7 @@
     <th>الاسم الكامل</th>
     <td>{{ student.full_name }}</td>
     <th>الرقم الشخصي</th>
-    <td>{% if limited %}{{ student.national_id|mask_id }}{% else %}{{ student.national_id }}{% endif %}</td>
+    <td>{{ student.national_id }}</td>
   </tr>
   <tr>
     <th>الصف / الشعبة</th>
