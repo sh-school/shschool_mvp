@@ -223,7 +223,7 @@ class StaffAttendance(AuditedModel):
             models.Index(fields=["school", "date", "status"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.staff.full_name} — {self.date} ({self.get_status_display()})"
 
 
@@ -298,12 +298,14 @@ class PermitRequest(AuditedModel):
                 condition=models.Q(status="approved"),
                 name="one_approved_permit_per_day",
             ),
-            models.CheckConstraint(
+            # django-stubs 5.0.2 لا يعرف `condition` (Django 5.1).
+            models.CheckConstraint(  # type: ignore[call-arg]
                 condition=models.Q(end_time__gt=models.F("start_time")),
                 name="permit_end_after_start",
             ),
             # البند 4.4: «الحد الأقصى للإذن ساعتين في المرة الواحدة».
-            models.CheckConstraint(
+            # django-stubs 5.0.2 لا يعرف `condition` (Django 5.1).
+            models.CheckConstraint(  # type: ignore[call-arg]
                 condition=models.Q(duration_minutes__gt=0, duration_minutes__lte=120),
                 name="permit_duration_within_two_hours",
             ),
@@ -313,5 +315,5 @@ class PermitRequest(AuditedModel):
             models.Index(fields=["school", "status"]),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.staff.full_name} — {self.get_permit_type_display()} ({self.date})"

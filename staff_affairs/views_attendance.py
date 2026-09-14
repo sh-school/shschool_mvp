@@ -7,11 +7,13 @@
 from __future__ import annotations
 
 from datetime import date
+from typing import cast
+from uuid import UUID
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
-from django.http import Http404
+from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_date
@@ -20,20 +22,35 @@ from django.views.decorators.http import require_POST
 from core.audit_export import log_export
 from core.capabilities import capability_required
 from core.export_utils import excel_to_response
+from core.middleware import SchoolRequest
+from core.models.school import School
+from core.models.user import CustomUser
 
 from .attendance import PermitService, PolicyError, StaffAttendanceService
 from .forms import AttendanceMarkForm, PermitRequestForm, PermitReviewForm
 from .models import PERMIT_TYPES
 
 
-def _day(raw) -> date:
+def _school(request: HttpRequest) -> School:
+    """مدرسةُ الطلب — والحارسُ فوق كلّ عرضٍ هنا لا يُدخل من لا مدرسةَ له."""
+    school = cast(SchoolRequest, request).school
+    if school is None:
+        raise Http404("لا مدرسةَ لهذا الحساب")
+    return school
+
+
+def _user(request: HttpRequest) -> CustomUser:
+    return cast(CustomUser, request.user)
+
+
+def _day(raw: str | None) -> date:
     """اليومُ من الطلب — واليومُ الحاضرُ لما غاب أو فسد أو جاوز اليوم."""
     today = timezone.localdate()
     parsed = parse_date(raw or "") if raw else None
     return parsed if parsed and parsed <= today else today
 
 
-def _month(raw) -> tuple[int, int]:
+def _month(raw: str | None) -> tuple[int, int]:
     """«YYYY-MM» من حقل الشهر — والشهرُ الحاضرُ لما فسد."""
     try:
         year, month = (int(part) for part in (raw or "").split("-"))
@@ -45,11 +62,11 @@ def _month(raw) -> tuple[int, int]:
 
 
 @login_required
-@capability_required("staff_affairs.manage")
-def attendance_board(request):
+@capability_required("staff_affairs.manage")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
+def attendance_board(request: HttpRequest) -> HttpResponse:
     """رصدُ اليوم: الكادرُ كلُّه، وحالةُ كلٍّ بنقرة."""
     day = _day(request.GET.get("date"))
-    board = StaffAttendanceService.daily_board(request.school, day)
+    board = StaffAttendanceService.daily_board(_school(request), day)
     return render(
         request,
         "staff_affairs/attendance_board.html",
@@ -58,27 +75,27 @@ def attendance_board(request):
 
 
 @login_required
-@capability_required("staff_affairs.manage")
+@capability_required("staff_affairs.manage")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 @require_POST
-def attendance_mark(request):
+def attendance_mark(request: HttpRequest) -> HttpResponse:
     """نقرةُ الرصد (HTMX) — تُعيد سطرَ الموظّف نفسَه، وخطأُ السياسة فيه باسم البند."""
     form = AttendanceMarkForm(request.POST)
     if not form.is_valid():
         raise Http404("رصدٌ ناقص")
     data = form.cleaned_data
     try:
-        row = StaffAttendanceService.board_row(request.school, data["staff_id"], data["date"])
+        row = StaffAttendanceService.board_row(_school(request), data["staff_id"], data["date"])
     except ObjectDoesNotExist as exc:  # موظّفٌ من غير هذه المدرسة لا يُكشف وجودُه
         raise Http404("ليس من كادر هذه المدرسة") from exc
     error = ""
     try:
         row["record"] = StaffAttendanceService.mark(
-            school=request.school,
+            school=_school(request),
             staff=row["staff"],
             day=data["date"],
             status=data["status"],
             check_in=data["check_in"],
-            actor=request.user,
+            actor=_user(request),
             request=request,
         )
     except PolicyError as exc:
@@ -91,11 +108,11 @@ def attendance_mark(request):
 
 
 @login_required
-@capability_required("staff_affairs.manage")
-def attendance_report(request):
+@capability_required("staff_affairs.manage")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
+def attendance_report(request: HttpRequest) -> HttpResponse:
     """تقريرُ الشهر: جدولٌ لكلّ موظّف، وتنزيلُه Excel بالرقم الوظيفيّ."""
     year, month = _month(request.GET.get("month"))
-    report = StaffAttendanceService.monthly_report(request.school, year, month)
+    report = StaffAttendanceService.monthly_report(_school(request), year, month)
     return render(
         request,
         "staff_affairs/attendance_report.html",
@@ -104,11 +121,11 @@ def attendance_report(request):
 
 
 @login_required
-@capability_required("staff_affairs.manage")
-def attendance_report_xlsx(request):
+@capability_required("staff_affairs.manage")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
+def attendance_report_xlsx(request: HttpRequest) -> HttpResponse:
     """Excel التقرير — الرقم الشخصيّ: مستور (لا يُكتب أصلاً؛ الرقمُ الوظيفيّ وحدَه)."""
     year, month = _month(request.GET.get("month"))
-    report = StaffAttendanceService.monthly_report(request.school, year, month)
+    report = StaffAttendanceService.monthly_report(_school(request), year, month)
     workbook = StaffAttendanceService.monthly_workbook(report)
     log_export(
         request,
@@ -116,20 +133,22 @@ def attendance_report_xlsx(request):
         rows=len(report["rows"]),
         object_repr=f"حضور الموظفين {year:04d}-{month:02d}",
     )
-    return excel_to_response(workbook, f"حضور_الموظفين_{year:04d}_{month:02d}.xlsx")
+    return cast(
+        HttpResponse, excel_to_response(workbook, f"حضور_الموظفين_{year:04d}_{month:02d}.xlsx")
+    )
 
 
 @login_required
-@capability_required("staff_affairs.own_permits")
-def my_permits(request):
+@capability_required("staff_affairs.own_permits")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
+def my_permits(request: HttpRequest) -> HttpResponse:
     """طلبُ الموظّف إذناً لنفسه (نموذج 02)، وطلباتُه ورصيدُ شهره."""
     form = PermitRequestForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         data = form.cleaned_data
         try:
             PermitService.submit(
-                school=request.school,
-                staff=request.user,
+                school=_school(request),
+                staff=_user(request),
                 permit_type=data["permit_type"],
                 day=data["date"],
                 start_time=data["start_time"],
@@ -148,39 +167,41 @@ def my_permits(request):
         {
             "form": form,
             "permit_types": PERMIT_TYPES,
-            "balance": PermitService.balance(request.school, request.user, timezone.localdate()),
-            "permits": PermitService.own_permits(request.school, request.user),
+            "balance": PermitService.balance(
+                _school(request), _user(request), timezone.localdate()
+            ),
+            "permits": PermitService.own_permits(_school(request), _user(request)),
         },
     )
 
 
 @login_required
-@capability_required("staff_affairs.manage")
-def permit_queue(request):
+@capability_required("staff_affairs.manage")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
+def permit_queue(request: HttpRequest) -> HttpResponse:
     """الطلباتُ المعلّقة للاعتماد أو الرفض."""
     return render(
         request,
         "staff_affairs/permit_queue.html",
-        {"permits": PermitService.pending(request.school)},
+        {"permits": PermitService.pending(_school(request))},
     )
 
 
 @login_required
-@capability_required("staff_affairs.manage")
+@capability_required("staff_affairs.manage")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 @require_POST
-def permit_review(request, pk):
+def permit_review(request: HttpRequest, pk: UUID) -> HttpResponse:
     """قرارُ طلبٍ واحد — والسياسةُ تُفحص ثانيةً عند الاعتماد."""
     form = PermitReviewForm(request.POST)
     if not form.is_valid():
         raise Http404("قرارٌ ناقص")
     try:
-        permit = PermitService.pending_one(request.school, pk)
+        permit = PermitService.pending_one(_school(request), pk)
     except ObjectDoesNotExist as exc:
         raise Http404("لا طلبَ بهذا المعرّف") from exc
     try:
         PermitService.review(
             permit,
-            reviewer=request.user,
+            reviewer=_user(request),
             approve=form.cleaned_data["decision"] == "approve",
             reason=form.cleaned_data["rejection_reason"],
             request=request,

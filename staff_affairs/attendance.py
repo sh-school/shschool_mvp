@@ -32,17 +32,21 @@
 from __future__ import annotations
 
 import calendar
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime, time
+from typing import Any
 
 from django.db import IntegrityError, transaction
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Q, QuerySet, Sum
+from django.http import HttpRequest
 from django.utils import timezone
 
 from core.models.access import Membership
 from core.models.audit import AuditLog
+from core.models.school import School
 from core.models.user import CustomUser
-from staff_affairs.models import PermitRequest, StaffAttendance
+from staff_affairs.models import PERMIT_TYPES, PermitRequest, StaffAttendance
 
 #: البندان 1.1 و2.1 — بدايةُ الدوام، وما بعدها تأخّر.
 WORK_START = time(7, 0)
@@ -96,9 +100,15 @@ def month_bounds(day: date) -> tuple[date, date]:
     return day.replace(day=1), day.replace(day=last)
 
 
-def _audit(actor, action: str, obj, changes: dict, request=None) -> None:
+def _audit(
+    actor: CustomUser,
+    action: str,
+    obj: StaffAttendance | PermitRequest,
+    changes: dict[str, Any],
+    request: HttpRequest | None = None,
+) -> None:
     """أثرٌ في سجلّ التدقيق بلا اسمٍ ولا رقمٍ شخصيّ — النوعُ والمعرّفُ والتغيير."""
-    AuditLog.log(
+    AuditLog.log(  # type: ignore[no-untyped-call]
         user=actor,
         action=action,
         model_name="other",
@@ -110,7 +120,7 @@ def _audit(actor, action: str, obj, changes: dict, request=None) -> None:
     )
 
 
-def staff_members(school):
+def staff_members(school: School) -> QuerySet[CustomUser]:
     """كادرُ المدرسة النشط — أشخاصٌ لا عضويّات، بلا طلبةٍ ولا أولياء."""
     member_ids = (
         Membership.objects.filter(school=school, is_active=True)
@@ -138,17 +148,24 @@ class PermitBalance:
 
 class PermitService:
     @staticmethod
-    def _month_minutes(school, staff, day: date, statuses, exclude_pk=None) -> int:
+    def _month_minutes(
+        school: School,
+        staff: CustomUser,
+        day: date,
+        statuses: Iterable[str],
+        exclude_pk: Any = None,
+    ) -> int:
         first, last = month_bounds(day)
         qs = PermitRequest.objects.filter(
             school=school, staff=staff, date__range=(first, last), status__in=statuses
         )
         if exclude_pk is not None:
             qs = qs.exclude(pk=exclude_pk)
-        return qs.aggregate(total=Sum("duration_minutes"))["total"] or 0
+        total: int | None = qs.aggregate(total=Sum("duration_minutes"))["total"]
+        return total or 0
 
     @staticmethod
-    def balance(school, staff, day: date) -> PermitBalance:
+    def balance(school: School, staff: CustomUser, day: date) -> PermitBalance:
         """رصيدُ شهر ``day``: المعتمدُ يخصم (4.1)، والمعلَّقُ يُعرض ولا يخصم."""
         first, last = month_bounds(day)
         sums = PermitRequest.objects.filter(
@@ -160,7 +177,15 @@ class PermitService:
         return PermitBalance(MONTHLY_PERMIT_CAP, sums["approved"] or 0, sums["pending"] or 0)
 
     @staticmethod
-    def _check_rules(school, staff, day, duration, *, open_statuses, exclude_pk=None) -> None:
+    def _check_rules(
+        school: School,
+        staff: CustomUser,
+        day: date,
+        duration: int,
+        *,
+        open_statuses: tuple[str, ...],
+        exclude_pk: Any = None,
+    ) -> None:
         if duration > PERMIT_MAX_MINUTES:
             raise PolicyError(f"الإذنُ {duration} دقيقة — الحدُّ ساعتان في المرّة الواحدة (البند 4.4).")
         same_day = PermitRequest.objects.filter(
@@ -180,14 +205,22 @@ class PermitService:
     @staticmethod
     @transaction.atomic
     def submit(
-        *, school, staff, permit_type, day, start_time, end_time, reason, request=None
+        *,
+        school: School,
+        staff: CustomUser,
+        permit_type: str,
+        day: date,
+        start_time: time,
+        end_time: time,
+        reason: str,
+        request: HttpRequest | None = None,
     ) -> PermitRequest:
         """يقدّم الموظّفُ طلبَه لنفسه.
 
         ويُرفض ما لو اعتُمد لخالف السياسة — فالطابورُ لا يحمل طلباً مصيرُه الرفض:
         المعلَّقُ يُحسب مع المعتمد في فحص اليوم (4.3) والشهر (4.2).
         """
-        if permit_type not in dict(PermitRequest._meta.get_field("permit_type").choices):
+        if permit_type not in {key for key, _label in PERMIT_TYPES}:
             raise PolicyError("نوعُ طلبٍ غيرُ معروف.")
         if end_time <= start_time:
             raise PolicyError("«إلى الساعة» يجب أن تكون بعد «من الساعة».")
@@ -216,7 +249,12 @@ class PermitService:
     @staticmethod
     @transaction.atomic
     def review(
-        permit: PermitRequest, *, reviewer, approve: bool, reason: str = "", request=None
+        permit: PermitRequest,
+        *,
+        reviewer: CustomUser,
+        approve: bool,
+        reason: str = "",
+        request: HttpRequest | None = None,
     ) -> PermitRequest:
         """اعتمادٌ أو رفض.
 
@@ -254,13 +292,13 @@ class PermitService:
         return permit
 
     @staticmethod
-    def own_permits(school, staff):
+    def own_permits(school: School, staff: CustomUser) -> QuerySet[PermitRequest]:
         return PermitRequest.objects.filter(school=school, staff=staff).order_by(
             "-date", "-created_at"
         )[:50]
 
     @staticmethod
-    def pending(school):
+    def pending(school: School) -> QuerySet[PermitRequest]:
         return (
             PermitRequest.objects.filter(school=school, status="pending")
             .select_related("staff")
@@ -268,7 +306,7 @@ class PermitService:
         )
 
     @staticmethod
-    def pending_one(school, pk) -> PermitRequest:
+    def pending_one(school: School, pk: Any) -> PermitRequest:
         return PermitRequest.objects.select_related("staff", "school").get(school=school, pk=pk)
 
 
@@ -279,11 +317,11 @@ class PermitService:
 
 class StaffAttendanceService:
     @staticmethod
-    def _approved_permits(school, staff, day):
+    def _approved_permits(school: School, staff: CustomUser, day: date) -> QuerySet[PermitRequest]:
         return PermitRequest.objects.filter(school=school, staff=staff, date=day, status="approved")
 
     @staticmethod
-    def sync_permit_minutes(school, staff, day) -> None:
+    def sync_permit_minutes(school: School, staff: CustomUser, day: date) -> None:
         """دقائقُ الإذن المعتمد في سجلّ اليوم — تُعاد من الأذونات لا تُجمع فوقها."""
         minutes = (
             StaffAttendanceService._approved_permits(school, staff, day).aggregate(
@@ -297,7 +335,16 @@ class StaffAttendanceService:
 
     @staticmethod
     @transaction.atomic
-    def mark(*, school, staff, day, status, actor, check_in=None, request=None):
+    def mark(
+        *,
+        school: School,
+        staff: CustomUser,
+        day: date,
+        status: str,
+        actor: CustomUser,
+        check_in: time | None = None,
+        request: HttpRequest | None = None,
+    ) -> StaffAttendance:
         """رصدُ حالة موظّفٍ في يوم — بنقرة، ووقتُ الحضور شاهدٌ إن كُتب.
 
         إن كُتب الوقتُ صنّفته القواعد، ونقرةٌ تخالف تصنيفَه تُرفض باسم البند — فلا
@@ -322,7 +369,7 @@ class StaffAttendanceService:
                 )
         elif status == "permitted" and not permits:
             raise PolicyError("لا إذنَ معتمدٌ لهذا اليوم (البند 4.1).")
-        values = {
+        values: dict[str, Any] = {
             "status": status,
             "check_in": check_in,
             "late_minutes": late_minutes,
@@ -346,7 +393,7 @@ class StaffAttendanceService:
         return record
 
     @staticmethod
-    def daily_board(school, day) -> dict:
+    def daily_board(school: School, day: date) -> dict[str, Any]:
         """لوحةُ اليوم: كلُّ موظّفٍ بسجلّه إن رُصد، وعددُ كلّ حالة."""
         staff = list(staff_members(school).only("id", "full_name", "employee_number"))
         records = {r.staff_id: r for r in StaffAttendance.objects.filter(school=school, date=day)}
@@ -359,13 +406,13 @@ class StaffAttendanceService:
         return {"rows": rows, "counts": counts}
 
     @staticmethod
-    def board_row(school, staff_id, day) -> dict:
+    def board_row(school: School, staff_id: Any, day: date) -> dict[str, Any]:
         staff = staff_members(school).get(pk=staff_id)
         record = StaffAttendance.objects.filter(school=school, staff=staff, date=day).first()
         return {"staff": staff, "record": record}
 
     @staticmethod
-    def monthly_report(school, year: int, month: int) -> dict:
+    def monthly_report(school: School, year: int, month: int) -> dict[str, Any]:
         """تقريرُ الشهر لكلّ موظّف.
 
         أيّامُ كلّ حالة ودقائقُ التأخّر من سجلّ اليوم، والإذنُ المعتمد من الأذونات
@@ -389,7 +436,7 @@ class StaffAttendanceService:
             .annotate(total=Sum("duration_minutes"))
             .values_list("staff_id", "total")
         )
-        rows = []
+        rows: list[dict[str, Any]] = []
         for person in staff_members(school).only("id", "full_name", "employee_number"):
             counted = attendance.get(person.pk, {})
             used = permits.get(person.pk, 0)
@@ -408,7 +455,7 @@ class StaffAttendanceService:
         return {"first": first, "last": last, "rows": rows, "totals": totals}
 
     @staticmethod
-    def monthly_workbook(report: dict):
+    def monthly_workbook(report: dict[str, Any]) -> Any:
         """ورقةُ Excel للتقرير — بالرقم الوظيفيّ، ولا رقمَ شخصيّاً فيها أصلاً."""
         from openpyxl import Workbook
 
