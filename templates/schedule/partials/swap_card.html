@@ -1,3 +1,4 @@
+{% load icons %}
 {# HTMX partial — بطاقة طلب تبديل واحدة (قابلة لإعادة الاستخدام) #}
 <div class="swap-card" id="swap-{{ swap.pk }}" data-filter-row data-text="{{ swap.teacher_a.full_name }} {{ swap.teacher_b.full_name }}">
   <div class="swap-row">
@@ -32,10 +33,10 @@
     {% for side, label in swap.sides_display %}
     <span class="swap-sign {% if label.signed %}is-signed{% else %}is-waiting{% endif %}">
       {% if label.signed %}
-        {% include "components/icon.html" with name="check-circle" size="icon-sm" %}
+        {% icon "status_success" size="sm" %}
         {{ label.subject }}: {{ label.who }}{% if label.substitute %} <em>(بديلاً)</em>{% endif %}
       {% else %}
-        {% include "components/icon.html" with name="clock" size="icon-sm" %}
+        {% icon "time" size="sm" %}
         {{ label.subject }}: بانتظار {{ label.who }}
       {% endif %}
     </span>

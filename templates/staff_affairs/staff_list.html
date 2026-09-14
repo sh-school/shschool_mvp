@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block title %}سجل الموظفين{% endblock %}
@@ -14,8 +15,8 @@
 <div class="exec-dash">
 
   {% comment %}العددُ في ذيل الجدول وحدَه: يتبدّل مع البحث، وكان يُقال في الترويسة أيضاً فيبقى قديماً بعد أوّل ترشيح.{% endcomment %}
-  {% page_header "سجل الكادر" subtitle="كادرُ المدرسة بكلّ فئاته — والطلابُ وأولياءُ الأمور في «شؤون الطلبة»" icon="list-checks" %}
-    <a href="{% url 'staff_affairs:staff_appoint' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="user" %} تعيين منتسب</a>
+  {% page_header "سجل الكادر" subtitle="كادرُ المدرسة بكلّ فئاته — والطلابُ وأولياءُ الأمور في «شؤون الطلبة»" icon="staff_register" %}
+    <a href="{% url 'staff_affairs:staff_appoint' %}" class="btn-primary btn-sm">{% icon "user_add" %} تعيين منتسب</a>
   {% endpage_header %}
 
   {% url 'staff_affairs:staff_list' as list_url %}
@@ -26,7 +27,7 @@
     {% field "dept" "القسم" type="select" choices=dept_choices value=dept_filter blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#staff-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='role']" %}
     <div class="filter-actions">
       <a href="{{ list_url }}" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="refresh" %} إعادة ضبط
+        {% icon "refresh" %} إعادة ضبط
       </a>
     </div>
   {% endfilter_bar %}

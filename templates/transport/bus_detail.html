@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}تفاصيل الحافلة — {{ bus.bus_number }}{% endblock %}
 
@@ -9,9 +10,9 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header page_title subtitle=bus.driver_name icon="bus" %}
+  {% page_header page_title subtitle=bus.driver_name icon="transport" %}
     {% if bus.gps_link %}
-    <a href="{% url 'transport:tracking_map' bus.id %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="bus" %} تتبع الحافلة</a>
+    <a href="{% url 'transport:tracking_map' bus.id %}" class="btn-primary btn-sm">{% icon "transport" %} تتبع الحافلة</a>
     {% endif %}
     <a href="{% url 'transport:create_route' bus.id %}" class="btn-secondary btn-sm">+ خط سير جديد</a>
     <a href="{% url 'transport:buses_list' %}" class="btn-secondary btn-sm">← رجوع</a>
@@ -27,7 +28,7 @@
 
     {# ── بيانات الحافلة ── #}
     <div>
-      {% section_card "بيانات الحافلة" icon="list-checks" %}
+      {% section_card "بيانات الحافلة" icon="transport" %}
         <form method="post" hx-post="" hx-target="#bus-info" hx-swap="outerHTML">
           {% csrf_token %}
           <div class="form-stack">
@@ -37,7 +38,7 @@
             {% field "capacity" "الطاقة الاستيعابية" type="number" value=bus.capacity %}
             {% field "karwa_id" "رقم كروة" value=bus.karwa_id placeholder="اختياري" %}
             {% field "gps_link" "رابط GPS" value=bus.gps_link placeholder="https://..." %}
-            <button class="btn-primary w-full p-2">{% include "components/icon.html" with name="save" %} حفظ</button>
+            <button class="btn-primary w-full p-2">{% icon "save" %} حفظ</button>
           </div>
         </form>
         {# هدفُ ردّ الحفظ — كان النموذجُ يشير إليه ولا عنصرَ بهذا المعرّف في الصفحة. #}
@@ -48,7 +49,7 @@
     {# ── خطوط السير والطلاب ── #}
     <div class="lg:col-span-2 space-y-4">
 
-      {% section_card "خطوط السير" meta=routes|length icon="waypoints" empty="لا توجد خطوط سير" %}{% if routes %}
+      {% section_card "خطوط السير" meta=routes|length icon="link" empty="لا توجد خطوط سير" %}{% if routes %}
         <ul class="plain-list">
           {% for route in routes %}
           <li class="plain-list__row">
@@ -59,7 +60,7 @@
         </ul>
       {% endif %}{% endsection_card %}
 
-      {% section_card "الطلاب المسجلون" meta=students.count icon="users" empty="لا يوجد طلاب مسجلون" %}{% if students %}
+      {% section_card "الطلاب المسجلون" meta=students.count icon="students" empty="لا يوجد طلاب مسجلون" %}{% if students %}
         <div class="transport-search">
           {% field "q" "بحث عن طالب" id="student-search" hide_label=True placeholder="بحث عن طالب..." %}
         </div>

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}تقرير الحصص البديلة{% endblock %}
 
@@ -9,20 +10,20 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "تقرير الحصص البديلة" subtitle="من غطّى حصصَ الغائبين في الفترة" icon="file-text" %}
-    <a href="{% url 'absence_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="arrow-right" %} قائمة الغيابات</a>
+  {% page_header "تقرير الحصص البديلة" subtitle="من غطّى حصصَ الغائبين في الفترة" icon="attendance_teacher_absence" %}
+    <a href="{% url 'absence_list' %}" class="btn-secondary btn-sm">{% icon "back" %} قائمة الغيابات</a>
   {% endpage_header %}
 
   {% filter_bar "فترةُ التقرير" %}
     {% field "from" "من" type="date" value=date_from|date:'Y-m-d' %}
     {% field "to" "إلى" type="date" value=date_to|date:'Y-m-d' %}
     <div class="filter-actions">
-      <button type="submit" class="btn-secondary btn-sm">{% include "components/icon.html" with name="refresh" %} تحديث</button>
+      <button type="submit" class="btn-secondary btn-sm">{% icon "refresh" %} تحديث</button>
     </div>
   {% endfilter_bar %}
 
   {% if summary %}
-  {% section_card "حصص كلّ معلمٍ بديل" meta=summary|length icon="users" flush=True %}
+  {% section_card "حصص كلّ معلمٍ بديل" meta=summary|length icon="substitution" flush=True %}
     <div class="table-wrap">
       <table>
         <thead><tr><th scope="col">المعلم البديل</th><th scope="col" class="num" data-sort="num">الحصص</th></tr></thead>
@@ -36,7 +37,7 @@
   {% endsection_card %}
   {% endif %}
 
-  {% section_card "الحصص البديلة" meta=assignments|length icon="clipboard" empty="لا توجد حصص بديلة في هذه الفترة" flush=True %}{% if assignments %}
+  {% section_card "الحصص البديلة" meta=assignments|length icon="attendance_teacher_absence" empty="لا توجد حصص بديلة في هذه الفترة" flush=True %}{% if assignments %}
     <div class="table-wrap">
       <table>
         <thead>

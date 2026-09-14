@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}سجل تغييرات الصلاحيات{% endblock %}
 
@@ -9,7 +10,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "سجل تغييرات الصلاحيات" subtitle="آخر 200 تغيير في الأدوار والصلاحيات — سجلٌّ غير قابل للتعديل أو الحذف (Immutable Audit Trail)" icon="lock" %}{% endpage_header %}
+  {% page_header "سجل تغييرات الصلاحيات" subtitle="آخر 200 تغيير في الأدوار والصلاحيات — سجلٌّ غير قابل للتعديل أو الحذف (Immutable Audit Trail)" icon="security" %}{% endpage_header %}
 
   {% url 'permission_audit_log' as log_url %}
   {% filter_bar "ترشيحُ سجلّ الصلاحيات" id="audit-filter-form" hx_get=log_url hx_target="#audit-table-wrap" hx_trigger="change from:select, change from:input[type=date]" hx_push_url="true" hx_indicator="#audit-loading" %}
@@ -18,13 +19,13 @@
     {% field "date_from" "من تاريخ" id="date_from" type="date" value=date_from %}
     {% field "date_to" "إلى تاريخ" id="date_to" type="date" value=date_to %}
     <div class="filter-actions">
-      <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="filter" %} تصفية</button>
+      <button type="submit" class="btn-primary btn-sm">{% icon "filter" %} تصفية</button>
       <a href="{{ log_url }}" class="btn-secondary btn-sm">إعادة تعيين</a>
-      <span id="audit-loading" class="htmx-indicator audit-loading" aria-live="polite">{% include "components/icon.html" with name="loader" %} جارٍ التحديث...</span>
+      <span id="audit-loading" class="htmx-indicator audit-loading" aria-live="polite">{% icon "loading" %} جارٍ التحديث...</span>
     </div>
   {% endfilter_bar %}
 
-  {% section_card "السجلات" meta=total_count icon="clipboard" flush=True %}
+  {% section_card "السجلات" meta=total_count icon="document" flush=True %}
     <ul class="chip-row audit-legend" aria-label="مفتاح الألوان">
       <li class="status-badge status-success">تعيين دور</li>
       <li class="status-badge status-danger">إزالة دور</li>

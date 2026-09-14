@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block title %}سجل الطلاب{% endblock %}
@@ -11,11 +12,11 @@
 <div class="exec-dash sa-page">
 
   {# ── Header ── #}
-  {% page_header "سجل الطلاب" subtitle=year icon="list-checks" %}
-    <a href="{% url 'student_affairs:student_add' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} إضافة طالب</a>
-    <a href="/core/students/import-export/" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} استيراد Excel</a>
-    <a href="{% url 'student_affairs:student_export' %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
-    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+  {% page_header "سجل الطلاب" subtitle=year icon="student_info" %}
+    <a href="{% url 'student_affairs:student_add' %}" class="btn-primary btn-sm">{% icon "student_add" %} إضافة طالب</a>
+    <a href="/core/students/import-export/" class="btn-secondary btn-sm">{% icon "export_excel" %} استيراد Excel</a>
+    <a href="{% url 'student_affairs:student_export' %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
+    <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
   {# ── فلتر + بحث ── #}
@@ -29,7 +30,7 @@
     {% field "parent_status" "ولي الأمر" type="select" choices="linked=مرتبط|unlinked=غير مرتبط" value=parent_status blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='status'],[name='grade'],[name='section']" %}
     <div class="filter-actions">
       <a href="{{ list_url }}" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="refresh" %} إعادة ضبط
+        {% icon "refresh" %} إعادة ضبط
       </a>
       <span id="search-spinner" class="htmx-indicator sa-spinner">جارٍ البحث...</span>
     </div>

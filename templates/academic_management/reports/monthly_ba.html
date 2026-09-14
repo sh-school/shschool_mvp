@@ -1,4 +1,5 @@
 {% extends "academic_management/reports/_base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block filters %}
@@ -17,7 +18,7 @@
   {% field "scope" "المستوى" type="select" choices="section=شعبة|student=طالب" value=data.scope %}
   {% field "class_group_id" "الشعبة" type="select" choices=data.classes value=data.filters.class_group_id blank="— اختر —" %}
   <div class="filter-actions">
-    <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="search" %} عرض</button>
+    <button type="submit" class="btn-primary btn-sm">{% icon "search" %} عرض</button>
     <a href="{{ reset_url }}" class="btn-secondary btn-sm">مسح</a>
   </div>
 {% endfilter_bar %}
@@ -31,7 +32,7 @@
     {% kpi "المخالفات" data.total_infractions tone="red" %}
   {% endkpi_strip %}
 
-  {% section_card "تفاصيل الطلاب" icon="users" empty="لا توجد بيانات للفترة المحددة" empty_sub="اختر شعبةً أو طالباً وتأكّد من الشهر" flush=True %}{% if data.rows %}
+  {% section_card "تفاصيل الطلاب" icon="students" empty="لا توجد بيانات للفترة المحددة" empty_sub="اختر شعبةً أو طالباً وتأكّد من الشهر" flush=True %}{% if data.rows %}
     <div class="table-wrap">
       <table aria-label="جدول التقرير الشهري">
         <thead>

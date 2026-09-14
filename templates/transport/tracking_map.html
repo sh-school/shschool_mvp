@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}تتبع الحافلة — {{ bus.bus_number }}{% endblock %}
 
@@ -9,34 +10,34 @@
 {% block content %}
 <div class="space-y-6">
 
-  {% page_header page_title subtitle="معلومات التتبع والموقع" icon="bus" %}
+  {% page_header page_title subtitle="معلومات التتبع والموقع" icon="transport" %}
     <a href="{% url 'transport:bus_detail' bus.id %}" class="btn-secondary btn-sm">← رجوع</a>
   {% endpage_header %}
 
   {% if has_karwa or has_gps %}
   <div class="ui-grid-2">
     {% if has_karwa %}
-    {% section_card "رقم كروة" icon="file-text" %}
+    {% section_card "رقم كروة" icon="document" %}
       <p class="text-lg font-bold text-status-info mt-1">{{ bus.karwa_id }}</p>
       <a href="https://www.karwa.com.qa" target="_blank"
          class="link-maroon mt-2 inline-block text-sm no-underline">→ فتح بوابة كروة</a>
     {% endsection_card %}
     {% endif %}
     {% if has_gps %}
-    {% section_card "تتبع GPS" icon="target" %}
+    {% section_card "تتبع GPS" icon="kpi" %}
       <a href="{{ bus.gps_link }}" target="_blank" class="btn-success mt-2 inline-block">
-        {% include "components/icon.html" with name="bus" %} فتح الخريطة
+        {% icon "location" %} فتح الخريطة
       </a>
     {% endsection_card %}
     {% endif %}
   </div>
 
-  {% section_card "الخريطة الحيّة" icon="map" empty="التكامل الكامل مع كروة يتطلب API رسمي" empty_sub="استخدم الروابط أعلاه للوصول للتتبع المباشر" %}{% endsection_card %}
+  {% section_card "الخريطة الحيّة" icon="transport" empty="التكامل الكامل مع كروة يتطلب API رسمي" empty_sub="استخدم الروابط أعلاه للوصول للتتبع المباشر" %}{% endsection_card %}
 
   {% else %}
   {% url 'transport:bus_detail' bus.id as bus_detail_url %}
-  {% section_card "الخريطة الحيّة" icon="map" %}
-    {% include "components/empty_state.html" with icon="bus" title="لم يتم إعداد بيانات التتبع لهذه الحافلة" subtitle="أضف رقم كروة أو رابط GPS من صفحة بيانات الحافلة" action_url=bus_detail_url action_label="بيانات الحافلة" compact=True %}
+  {% section_card "الخريطة الحيّة" icon="transport" %}
+    {% include "components/empty_state.html" with icon="transport" title="لم يتم إعداد بيانات التتبع لهذه الحافلة" subtitle="أضف رقم كروة أو رابط GPS من صفحة بيانات الحافلة" action_url=bus_detail_url action_label="بيانات الحافلة" compact=True %}
   {% endsection_card %}
   {% endif %}
 

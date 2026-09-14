@@ -137,7 +137,7 @@ class TestPageHeaderAndEmptyState:
 
     def test_empty_state_uses_the_shared_component(self):
         html = render('{% empty_state "لا نتائج" sub="جرّب غيرها" icon="search" %}')
-        assert "empty-state-v2" in html and "#icon-search" in html
+        assert "empty-state-v2" in html and "sprite.svg#i-search" in html
 
 
 class TestField:

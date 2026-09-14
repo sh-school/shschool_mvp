@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% comment %}
 حصّةُ المعلّم في شُعب الأجنحة — لا رصدَ غيابٍ فيها (الرصدُ لمشرف الجناح، قرارُ المدير).
@@ -15,9 +16,9 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header page_title subtitle=session_label icon="list-checks" %}
-    {% if recorded %}<span class="status-badge status-success">{% include "components/icon.html" with name="check" %} رصدها المشرف</span>
-    {% else %}<span class="status-badge status-warning">{% include "components/icon.html" with name="clock" %} لم يُرصد بعد</span>{% endif %}
+  {% page_header page_title subtitle=session_label icon="checklist" %}
+    {% if recorded %}<span class="status-badge status-success">{% icon "confirm" %} رصدها المشرف</span>
+    {% else %}<span class="status-badge status-warning">{% icon "time" %} لم يُرصد بعد</span>{% endif %}
   {% endpage_header %}
 
   {% kpi_strip label="الحصّة الآن" %}
@@ -30,12 +31,12 @@
 
   {% if can_tap_late %}
   <p class="form-note">
-    {% include "components/icon.html" with name="info" %}
+    {% icon "status_info" %}
     <span>الرصدُ لمشرف الجناح. ولك نقرتان تسجّلان الوقتَ من فورهما: <b>دخل الآن</b> لمن دخل متأخّراً، و<b>خرج بإذن</b> ثمّ <b>عاد</b> لمن غادر الفصل.</span>
   </p>
   {% endif %}
 
-  {% section_card "الطلاب" meta=students_data|length icon="users" flush=True empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}
+  {% section_card "الطلاب" meta=students_data|length icon="students" flush=True empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}
   <ul class="plain-list tch-list">
     {% for item in students_data %}
     <li class="plain-list__row" data-state="{{ item.status }}">

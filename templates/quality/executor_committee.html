@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load static ui %}
 
 {% block title %}لجنة منفذي الخطة التشغيلية — {{ current_school.name|default:"المدرسة" }}{% endblock %}
@@ -10,8 +11,8 @@
 {% block content %}
 <div class="qcom">
 
-  {% page_header "لجنة منفذي الخطة التشغيلية" subtitle=year icon="settings" %}
-    <button type="button" class="btn-primary btn-sm" data-call="toggleForm" aria-controls="add-form">{% include "components/icon.html" with name="plus" %} إضافة عضو</button>
+  {% page_header "لجنة منفذي الخطة التشغيلية" subtitle=year icon="plan_committee" %}
+    <button type="button" class="btn-primary btn-sm" data-call="toggleForm" aria-controls="add-form">{% icon "add" %} إضافة عضو</button>
     <a href="{% url 'quality_committee' %}?year={{ year }}" class="btn-secondary btn-sm">لجنة المراجعة الذاتية</a>
     <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
   {% endpage_header %}
@@ -25,7 +26,7 @@
   {% endkpi_strip %}
 
   <div id="add-form" class="qcom-add">
-  {% section_card "إضافة عضو للجنة المنفذين" icon="user-plus" %}
+  {% section_card "إضافة عضو للجنة المنفذين" icon="user_add" %}
     <form method="post" action="{% url 'add_executor_member' %}">
       {% csrf_token %}
       <input type="hidden" name="year" value="{{ year }}">
@@ -66,26 +67,26 @@
       </div>
 
       <div class="form-actions qcom-add__actions">
-        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} إضافة للجنة</button>
+        <button type="submit" class="btn-primary btn-sm">{% icon "add" %} إضافة للجنة</button>
       </div>
     </form>
   {% endsection_card %}
   </div>
 
   {% if unmapped_norms %}
-  {% section_card "منفذون لم يُربطوا بمستخدم" meta=unmapped_norms|length icon="alert-triangle" %}
+  {% section_card "منفذون لم يُربطوا بمستخدم" meta=unmapped_norms|length icon="status_warning" %}
     <ul class="chip-row" aria-label="المسميات غير المربوطة">
       {% for norm in unmapped_norms %}
         <li class="chip-stat"><span class="chip-stat__value">{{ norm }}</span></li>
       {% endfor %}
     </ul>
     <div class="form-actions qcom-add__actions">
-      <a href="{% url 'executor_mapping' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="waypoints" %} ربط المنفذين</a>
+      <a href="{% url 'executor_mapping' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "link" %} ربط المنفذين</a>
     </div>
   {% endsection_card %}
   {% endif %}
 
-  {% section_card "أعضاء اللجنة وتقارير الإنجاز" meta=member_stats|length icon="bar-chart" empty="لا يوجد أعضاء في اللجنة التنفيذية بعد" empty_sub="ابدأ بزرّ «إضافة عضو» في رأس الصفحة" flush=True %}{% if member_stats %}
+  {% section_card "أعضاء اللجنة وتقارير الإنجاز" meta=member_stats|length icon="plan_committee" empty="لا يوجد أعضاء في اللجنة التنفيذية بعد" empty_sub="ابدأ بزرّ «إضافة عضو» في رأس الصفحة" flush=True %}{% if member_stats %}
     <div class="table-wrap">
       <table>
         <thead>

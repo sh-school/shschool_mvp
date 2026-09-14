@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}تعيين البدلاء — {{ absence.teacher.full_name }}{% endblock %}
 
@@ -9,8 +10,8 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "تعيين البدلاء" subtitle=subtitle icon="users" %}
-    <a href="{% url 'absence_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="arrow-right" %} قائمة الغيابات</a>
+  {% page_header "تعيين البدلاء" subtitle=subtitle icon="attendance_teacher_absence" %}
+    <a href="{% url 'absence_list' %}" class="btn-secondary btn-sm">{% icon "back" %} قائمة الغيابات</a>
   {% endpage_header %}
 
   {% kpi_strip label="الغياب" %}
@@ -19,7 +20,7 @@
     {% kpi "المغطّاة" covered_count sub=covered_label tone=covered_tone title="حصصٌ عُيِّن لها بديل من حصص المعلم في هذا اليوم" %}
   {% endkpi_strip %}
 
-  {% section_card "حصص اليوم" meta=slots_data|length icon="clock" empty="لا توجد حصص لهذا المعلم في هذا اليوم" %}{% if slots_data %}
+  {% section_card "حصص اليوم" meta=slots_data|length icon="periods_today" empty="لا توجد حصص لهذا المعلم في هذا اليوم" %}{% if slots_data %}
     <div class="ui-entity-grid">
       {% for item in slots_data %}
         {% include "substitute/partials/slot_card.html" %}

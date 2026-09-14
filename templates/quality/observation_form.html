@@ -9,7 +9,7 @@
 {% block content %}
 <div class="qobs qobs--wide">
 
-  {% page_header form_title icon="clipboard-check" %}
+  {% page_header form_title icon="observation" %}
     <a href="{% if mode == 'edit' %}{% url 'observation_detail' obs.id %}{% else %}{% url 'observation_list' %}{% endif %}"
        class="btn-secondary btn-sm">← رجوع</a>
   {% endpage_header %}
@@ -18,7 +18,7 @@
         action="{% if mode == 'edit' %}{% url 'observation_edit' obs.id %}{% elif is_peer %}{% url 'observation_peer_create' %}{% elif is_self %}{% url 'observation_self_create' %}{% else %}{% url 'observation_create' %}{% endif %}">
     {% csrf_token %}
 
-    {% section_card "المعلومات الأساسيّة" icon="info" %}
+    {% section_card "المعلومات الأساسيّة" icon="status_info" %}
       <div class="qobs-fields">
         {% if is_self %}
         <p class="qobs-fields__self"><b>المعلّم:</b> أنت <span class="pr-muted">(تقييم ذاتي لأدائك)</span></p>
@@ -74,7 +74,7 @@
     {% endsection_card %}
 
     {% for domain_label, items in grouped_criteria %}
-    {% section_card domain_label meta=items|length icon="list-checks" flush=True %}
+    {% section_card domain_label meta=items|length icon="checklist" flush=True %}
       {# استمارةُ الإشراف: ترتيبُ معايير الأداء معتمَدٌ رسميّاً فلا يُعاد ترتيبُه. #}
       <div class="table-wrap">
       <table class="table qobs-rating-table" data-no-sort>
@@ -105,7 +105,7 @@
     {% endsection_card %}
     {% endfor %}
 
-    {% section_card "ملاحظات وتوصيات عامّة" icon="file-text" %}
+    {% section_card "ملاحظات وتوصيات عامّة" icon="document" %}
       <textarea name="general_notes" rows="3" class="form-control" aria-label="ملاحظات وتوصيات عامّة">{{ obs.general_notes|default:'' }}</textarea>
     {% endsection_card %}
 

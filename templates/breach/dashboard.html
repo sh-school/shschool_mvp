@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}إدارة خرق البيانات{% endblock %}
 
@@ -9,8 +10,8 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "تقارير خرق البيانات" subtitle="PDPPL م.11 — إشعار NCSA خلال 72 ساعة" icon="flag" %}
-    <a href="{% url 'breach:create' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} تسجيل خرق</a>
+  {% page_header "تقارير خرق البيانات" subtitle="PDPPL م.11 — إشعار NCSA خلال 72 ساعة" icon="notifications" %}
+    <a href="{% url 'breach:create' %}" class="btn-primary btn-sm">{% icon "add" %} تسجيل خرق</a>
   {% endpage_header %}
 
   {% kpi_strip label="أرقام الخروقات" %}
@@ -20,7 +21,7 @@
     {% kpi "محلول" stats.resolved tone="teal" %}
   {% endkpi_strip %}
 
-  {% section_card "سجلّ التقارير" icon="list-checks" flush=True empty="لا توجد تقارير خرق مسجلة" %}{% if reports %}
+  {% section_card "سجلّ التقارير" icon="reports" flush=True empty="لا توجد تقارير خرق مسجلة" %}{% if reports %}
     <div class="table-wrap">
       <table>
         <thead>

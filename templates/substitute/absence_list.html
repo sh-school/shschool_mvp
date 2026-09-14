@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}غيابات المعلمين{% endblock %}
 
@@ -9,9 +10,9 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "غيابات المعلمين" subtitle="غيابُ اليوم ومن يحلّ محلَّه — والبدلاءُ يُقترحون من الحصص الحرّة" icon="ban" %}
-    <a href="{% url 'register_absence' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} تسجيل غياب</a>
-    <a href="{% url 'substitute_report' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} تقرير البدلاء</a>
+  {% page_header "غيابات المعلمين" subtitle="غيابُ اليوم ومن يحلّ محلَّه — والبدلاءُ يُقترحون من الحصص الحرّة" icon="attendance_teacher_absence" %}
+    <a href="{% url 'register_absence' %}" class="btn-primary btn-sm">{% icon "edit_record" %} تسجيل غياب</a>
+    <a href="{% url 'substitute_report' %}" class="btn-secondary btn-sm">{% icon "attendance_teacher_absence" %} تقرير البدلاء</a>
   {% endpage_header %}
 
   {% filter_bar "ترشيحُ الغيابات" %}
@@ -22,11 +23,11 @@
       <input type="text" id="absence-search" class="form-control" placeholder="ابحث باسم المعلم..." autocomplete="off">
     </div>
     <div class="filter-actions">
-      <button type="submit" class="btn-secondary btn-sm">{% include "components/icon.html" with name="search" %} عرض</button>
+      <button type="submit" class="btn-secondary btn-sm">{% icon "search" %} عرض</button>
     </div>
   {% endfilter_bar %}
 
-  {% section_card "الغيابات" meta=absences|length icon="users" empty="لا توجد غيابات" empty_sub="لا توجد غيابات مسجّلة في هذا التاريخ" %}{% if absences %}
+  {% section_card "الغيابات" meta=absences|length icon="attendance_teacher_absence" empty="لا توجد غيابات" empty_sub="لا توجد غيابات مسجّلة في هذا التاريخ" %}{% if absences %}
     {# الاسمُ في `data-text` على غلافٍ لكلّ بطاقة: `smartFilter` يُخفي الغلافَ كلَّه. #}
     <div class="ui-entity-grid" id="absence-cards">
       {% for absence in absences %}

@@ -24,7 +24,7 @@
       {% entity_status tone="warning" %}الحصّة 7 · حتّى 13:30{% endentity_status %}
     {% endentity_card %}
 
-    {% empty_state "لا توجد نتائج" sub="جرّب بحثاً آخر" icon="inbox" %}
+    {% empty_state "لا توجد نتائج" sub="جرّب بحثاً آخر" icon="empty" %}
 
     {% filter_bar "ترشيحُ سجلّ الطلاب" %}
       {% field "q" "بحث" value=q grow=True hx_get=url hx_trigger="input changed delay:400ms" %}
@@ -234,7 +234,7 @@ def _strip_known_lines(content: str) -> str:
 
 
 @register.simple_tag
-def empty_state(title="لا توجد بيانات", sub="", icon="inbox", compact=True):
+def empty_state(title="لا توجد بيانات", sub="", icon="empty", compact=True):
     return mark_safe(
         render_to_string(
             "components/empty_state.html",

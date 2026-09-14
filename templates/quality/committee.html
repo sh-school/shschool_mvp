@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load privacy static ui %}
 
 {% block title %}لجنة المراجعة الذاتية — {{ current_school.name|default:"المدرسة" }}{% endblock %}
@@ -10,15 +11,15 @@
 {% block content %}
 <div class="qcom">
 
-  {% page_header committee_label subtitle=year icon="clipboard-check" %}
-    <button type="button" class="btn-primary btn-sm" data-call="toggleForm" aria-controls="add-form">{% include "components/icon.html" with name="plus" %} إضافة عضو</button>
+  {% page_header committee_label subtitle=year icon="observation" %}
+    <button type="button" class="btn-primary btn-sm" data-call="toggleForm" aria-controls="add-form">{% icon "add" %} إضافة عضو</button>
     <a href="{% url 'executor_committee' %}?year={{ year }}" class="btn-secondary btn-sm">لجنة المنفذين</a>
     <a href="{% url 'review_list' %}" class="btn-secondary btn-sm">المراجعة الذاتية</a>
     <a href="{% url 'execution_list' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
   {% endpage_header %}
 
   <div id="add-form" class="qcom-add">
-  {% section_card "إضافة عضو جديد للجنة" icon="user-plus" %}
+  {% section_card "إضافة عضو جديد للجنة" icon="user_add" %}
     <form method="post" action="{% url 'add_committee_member' %}">
       {% csrf_token %}
       <input type="hidden" name="year" value="{{ year }}">
@@ -58,13 +59,13 @@
       </div>
 
       <div class="form-actions qcom-add__actions">
-        <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} إضافة للجنة</button>
+        <button type="submit" class="btn-primary btn-sm">{% icon "add" %} إضافة للجنة</button>
       </div>
     </form>
   {% endsection_card %}
   </div>
 
-  {% section_card "الأعضاء الحاليون" meta=members|length icon="users" empty="لا يوجد أعضاء في اللجنة حتى الآن" empty_sub="ابدأ بزرّ «إضافة عضو» في رأس الصفحة" flush=True %}{% if member_review_stats %}
+  {% section_card "الأعضاء الحاليون" meta=members|length icon="staff" empty="لا يوجد أعضاء في اللجنة حتى الآن" empty_sub="ابدأ بزرّ «إضافة عضو» في رأس الصفحة" flush=True %}{% if member_review_stats %}
     <div class="table-wrap">
       <table>
         <thead>
@@ -93,14 +94,14 @@
             <td class="num">{% if ms.pending_in_domain %}<span class="status-badge status-warning">{{ ms.pending_in_domain }}</span>{% else %}0{% endif %}</td>
             <td class="num">
               {% if ms.member.domain %}
-                <a href="{% url 'review_list' %}?field={{ ms.member.domain.id }}" class="btn-primary btn-sm">{% include "components/icon.html" with name="gavel" %} مراجعة</a>
+                <a href="{% url 'review_list' %}?field={{ ms.member.domain.id }}" class="btn-primary btn-sm">{% icon "behavior_committee" %} مراجعة</a>
               {% else %}—{% endif %}
             </td>
             <td class="num">
               <form method="post" action="{% url 'remove_committee_member' ms.member.id %}" class="form-inline"
                     data-confirm="حذف {{ ms.member.job_title }}؟">
                 {% csrf_token %}
-                <button type="submit" class="btn-danger btn-sm">{% include "components/icon.html" with name="trash" %} حذف</button>
+                <button type="submit" class="btn-danger btn-sm">{% icon "delete" %} حذف</button>
               </form>
             </td>
           </tr>
@@ -111,7 +112,7 @@
   {% endif %}{% endsection_card %}
 
   {% if domains %}
-  {% section_card "تغطية المجالات" meta=domains|length icon="layers" %}
+  {% section_card "تغطية المجالات" meta=domains|length icon="wings" %}
     <div class="ui-entity-grid">
       {% for domain in domains %}
       {% entity_card domain.name count=domain.pct_label tone=domain.coverage_tone %}

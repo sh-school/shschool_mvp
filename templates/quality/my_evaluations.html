@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}تقييماتي{% endblock %}
 
@@ -9,10 +10,10 @@
 {% block content %}
 <div class="qeval qeval--narrow">
 
-  {% page_header "تقييمات الأداء الخاصة بي" icon="list-checks" %}{% endpage_header %}
+  {% page_header "تقييمات الأداء الخاصة بي" icon="staff_evaluation" %}{% endpage_header %}
 
   {% for ev in evals %}
-  {% section_card ev.card_title meta=ev.evaluator.full_name icon="clipboard-check" %}
+  {% section_card ev.card_title meta=ev.evaluator.full_name icon="observation" %}
     <p class="qeval-total">
       <span>{{ ev.get_rating_display|default:"—" }}</span>
       <b class="grade-total is-{{ ev.score_tone }}">{{ ev.total_score }}</b>
@@ -27,11 +28,11 @@
       <div class="form-actions"><button type="submit" class="btn-primary btn-sm">إقرار باستلام التقييم</button></div>
     </form>
     {% elif ev.acknowledged_at %}
-    <p class="qeval-ack">{% include "components/icon.html" with name="check" %} تم الإقرار بالاستلام {{ ev.acknowledged_at|date:"Y-m-d" }}</p>
+    <p class="qeval-ack">{% icon "confirm" %} تم الإقرار بالاستلام {{ ev.acknowledged_at|date:"Y-m-d" }}</p>
     {% endif %}
   {% endsection_card %}
   {% empty %}
-  {% empty_state "لا توجد تقييمات بعد" icon="list-checks" %}
+  {% empty_state "لا توجد تقييمات بعد" icon="staff_evaluation" %}
   {% endfor %}
 
 </div>

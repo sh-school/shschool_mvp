@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load static ui %}
 {% block title %}الإشعارات{% endblock %}
 
@@ -9,18 +10,18 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "لوحة الإشعارات" subtitle=subtitle icon="bell" %}
+  {% page_header "لوحة الإشعارات" subtitle=subtitle icon="notifications" %}
     <form method="post" action="{% url 'send_absence_alerts' %}">
       {% csrf_token %}
-      <button type="submit" class="btn-primary btn-sm" {% if not pending_absence %}disabled{% endif %}>{% include "components/icon.html" with name="calendar" %} إرسال تنبيهات الغياب</button>
+      <button type="submit" class="btn-primary btn-sm" {% if not pending_absence %}disabled{% endif %}>{% icon "absence" %} إرسال تنبيهات الغياب</button>
     </form>
     <form method="post" action="{% url 'send_fail_alerts' %}">
       {% csrf_token %}
       <input type="hidden" name="year" value="{{ year }}">
-      <button type="submit" class="btn-secondary btn-sm" {% if not failing_students %}disabled{% endif %}>{% include "components/icon.html" with name="alert-triangle" %} إرسال إشعارات الرسوب</button>
+      <button type="submit" class="btn-secondary btn-sm" {% if not failing_students %}disabled{% endif %}>{% icon "failing_students" %} إرسال إشعارات الرسوب</button>
     </form>
-    <a href="{% url 'notification_inbox' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="mail" %} صندوق الإشعارات</a>
-    <a href="{% url 'notification_preferences' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="settings" %} التفضيلات</a>
+    <a href="{% url 'notification_inbox' %}" class="btn-secondary btn-sm">{% icon "notifications" %} صندوق الإشعارات</a>
+    <a href="{% url 'notification_preferences' %}" class="btn-secondary btn-sm">{% icon "settings" %} التفضيلات</a>
   {% endpage_header %}
 
   {% kpi_strip label="أرقام الإشعارات" %}
@@ -32,19 +33,19 @@
   {% endkpi_strip %}
 
   <div class="ui-grid-2">
-    {% section_card "حركة الإرسال" meta="آخر 14 يوماً" icon="bar-chart" %}
+    {% section_card "حركة الإرسال" meta="آخر 14 يوماً" icon="stats" %}
       <div class="dash-chart-wrap">
         <canvas id="chartNotifTrend" role="img" aria-label="رسم بياني: الإشعارات الناجحة والفاشلة آخر 14 يوماً"></canvas>
       </div>
     {% endsection_card %}
-    {% section_card "التوزيع حسب القناة" icon="pie-chart" %}
+    {% section_card "التوزيع حسب القناة" icon="stats" %}
       <div class="dash-chart-wrap">
         <canvas id="chartChannels" role="img" aria-label="رسم بياني: الإشعارات حسب القناة"></canvas>
       </div>
     {% endsection_card %}
   </div>
 
-  {% section_card "سجل الإشعارات الأخيرة" meta=logs_page.paginator.count icon="clipboard" empty="لا توجد إشعارات مُرسَلة بعد" flush=True %}{% if logs %}
+  {% section_card "سجل الإشعارات الأخيرة" meta=logs_page.paginator.count icon="notifications" empty="لا توجد إشعارات مُرسَلة بعد" flush=True %}{% if logs %}
     <div class="notif-log-search">
       <input type="text" id="notif-log-search" class="form-control form-control-sm" placeholder="بحث بالطالب أو المستلم أو النوع..." aria-label="بحث في السجلّ">
     </div>
@@ -55,7 +56,7 @@
   <form method="post" action="{% url 'save_notif_settings' %}" class="notif-settings">
     {% csrf_token %}
     <div class="ui-grid-2">
-      {% section_card "إعدادات البريد الإلكتروني" icon="mail" %}
+      {% section_card "إعدادات البريد الإلكتروني" icon="settings" %}
         <label class="ui-switch">
           <span class="ui-switch__label">تفعيل البريد الإلكتروني</span>
           <input type="checkbox" role="switch" class="ui-switch__input" name="email_enabled" {% if cfg.email_enabled %}checked{% endif %}>
@@ -95,7 +96,7 @@
         </div>
       {% endsection_card %}
 
-      {% section_card "إعدادات SMS (Twilio)" icon="phone" %}
+      {% section_card "إعدادات SMS (Twilio)" icon="settings" %}
         <label class="ui-switch">
           <span class="ui-switch__label">تفعيل SMS</span>
           <input type="checkbox" role="switch" class="ui-switch__input" name="sms_enabled" {% if cfg.sms_enabled %}checked{% endif %}>
@@ -117,7 +118,7 @@
       {% endsection_card %}
     </div>
     <div class="form-actions">
-      <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="save" %} حفظ الإعدادات</button>
+      <button type="submit" class="btn-primary btn-sm">{% icon "save" %} حفظ الإعدادات</button>
     </div>
   </form>
 

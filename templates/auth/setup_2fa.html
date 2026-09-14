@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% block title %}إعداد المصادقة الثنائية{% endblock %}
 
 {% block breadcrumbs %}
@@ -10,7 +11,7 @@
 
   <div class="page-header">
     <div>
-      <h1 class="page-title">{% include "components/icon.html" with name="lock" %} إعداد المصادقة الثنائية (2FA)</h1>
+      <h1 class="page-title">{% icon "two_factor" %} إعداد المصادقة الثنائية (2FA)</h1>
       <p class="page-subtitle">حماية إضافية لحسابك — مطلوبة للحسابات الإدارية</p>
     </div>
   </div>
@@ -27,7 +28,7 @@
   <!-- 2FA مفعّل بالفعل -->
   <div class="msg-success rounded-2xl p-6 mb-6 flex items-start gap-4">
     <div class="tfa-status-badge w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
-      {% include "components/icon.html" with name="check" %}
+      {% icon "confirm" %}
     </div>
     <div>
       <p class="font-semibold text-status-success">المصادقة الثنائية مفعّلة</p>

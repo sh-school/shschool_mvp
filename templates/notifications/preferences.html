@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block title %}تفضيلات الإشعارات{% endblock %}
@@ -10,14 +11,14 @@
 {% block content %}
 <div class="exec-dash notif-pref-container">
 
-  {% page_header "تفضيلات الإشعارات" subtitle="تحكّم بأي قناة تريد استقبال الإشعارات عبرها" icon="bell" %}
-    <a href="{% url 'notification_inbox' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="arrow-right" %} صندوق الإشعارات</a>
+  {% page_header "تفضيلات الإشعارات" subtitle="تحكّم بأي قناة تريد استقبال الإشعارات عبرها" icon="settings" %}
+    <a href="{% url 'notification_inbox' %}" class="btn-secondary btn-sm">{% icon "back" %} صندوق الإشعارات</a>
   {% endpage_header %}
 
   <form method="post" class="notif-pref-form">
     {% csrf_token %}
 
-    {% section_card "قنوات الإشعارات" icon="bell" %}
+    {% section_card "قنوات الإشعارات" icon="notifications" %}
       <ul class="plain-list">
         <li class="plain-list__row">
           <label class="ui-switch">
@@ -57,7 +58,7 @@
       </ul>
     {% endsection_card %}
 
-    {% section_card "ساعات الهدوء" icon="clock" %}
+    {% section_card "ساعات الهدوء" icon="time" %}
       <div class="notif-time-row">
         <div class="form-group">
           <label class="form-label" for="quiet-start">من</label>
@@ -72,7 +73,7 @@
     {% endsection_card %}
 
     <div class="form-actions">
-      <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="save" %} حفظ التفضيلات</button>
+      <button type="submit" class="btn-primary btn-sm">{% icon "save" %} حفظ التفضيلات</button>
     </div>
   </form>
 

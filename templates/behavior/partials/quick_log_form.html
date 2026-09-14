@@ -1,3 +1,4 @@
+{% load icons %}
 {% comment %}
  نموذج تسجيل المخالفة السريعة — SchoolOS v5.1
  يُستخدم داخل مكوّن modal.html
@@ -44,7 +45,7 @@
    <label class="beh-level-pick__option{% if val == 4 %} is-severe{% endif %}" title="{{ label }}">
     <input type="radio" name="level" value="{{ val }}" class="sr-only" {% if val == 1 %}checked{% endif %} required>
     <span class="beh-level-pick__box">
-     {% if val == 3 %}{% include "components/icon.html" with name="alert-critical" %}{% elif val == 4 %}{% include "components/icon.html" with name="ban" %}{% else %}{% include "components/icon.html" with name="alert-triangle" %}{% endif %}
+     {% if val == 3 %}{% icon "status_critical" %}{% elif val == 4 %}{% icon "status_blocked" %}{% else %}{% icon "status_warning" %}{% endif %}
      <span>{{ val }}</span>
     </span>
    </label>
@@ -69,7 +70,7 @@
  <div class="form-actions">
   <button type="button" class="btn-secondary" data-modal-close="quick-log">إلغاء</button>
   <button type="submit" class="btn-primary">
-   <span class="htmx-indicator">{% include "components/icon.html" with name="loader" %}</span>
+   <span class="htmx-indicator">{% icon "loading" %}</span>
    تسجيل المخالفة
   </button>
  </div>

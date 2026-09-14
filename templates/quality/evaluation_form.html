@@ -9,12 +9,12 @@
 {% block content %}
 <div class="qeval qeval--narrow">
 
-  {% page_header "تقييم أداء الموظف" subtitle=form_subtitle icon="list-checks" %}{% endpage_header %}
+  {% page_header "تقييم أداء الموظف" subtitle=form_subtitle icon="staff_evaluation" %}{% endpage_header %}
 
   <form method="post" class="qobs-form-stack">
     {% csrf_token %}
 
-    {% section_card "محاور التقييم" meta=axes_meta icon="bar-chart" %}
+    {% section_card "محاور التقييم" meta=axes_meta icon="quality" %}
       <ul class="plain-list">
         {% for field_name, label, max_val, value in axis_rows %}
         <li class="qeval-axis">
@@ -40,7 +40,7 @@
     {% endsection_card %}
 
     {% if scores %}
-    {% section_card "تقييمات المقيّمين المتعددين" meta=scores|length icon="users" %}
+    {% section_card "تقييمات المقيّمين المتعددين" meta=scores|length icon="assessments" %}
       <ul class="plain-list">
         {% for score in scores %}
         <li class="plain-list__row">
@@ -55,7 +55,7 @@
     {% endsection_card %}
     {% endif %}
 
-    {% section_card "الملاحظات" icon="file-text" %}
+    {% section_card "الملاحظات" icon="document" %}
       <div class="qeval-notes">
         <label for="ev-strengths">نقاط القوة</label>
         <textarea name="strengths" id="ev-strengths" rows="3" class="form-control">{{ obj.strengths }}</textarea>
