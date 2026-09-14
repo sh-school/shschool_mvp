@@ -29,13 +29,8 @@
   {% section_card "مراجعة الطلب" icon="list-checks" %}
     <form method="post" action="{% url 'staff_affairs:leave_review' leave.pk %}">{% csrf_token %}
       <div class="form-row">
-        <div class="form-group"><label class="form-label">القرار</label>
-          <select name="action" class="form-control" required>
-            <option value="approved">موافقة</option>
-            <option value="rejected">رفض</option>
-          </select></div>
-        <div class="form-group"><label class="form-label">سبب الرفض <span class="text-xs text-muted">(مطلوب عند الرفض)</span></label>
-          <input type="text" name="rejection_reason" class="form-control" placeholder="سبب الرفض..."></div>
+        {% field "action" "القرار" type="select" choices="approved=موافقة|rejected=رفض" required=True %}
+        {% field "rejection_reason" "سبب الرفض" placeholder="سبب الرفض..." help="مطلوب عند الرفض" %}
       </div>
       <div class="form-actions">
         <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check-circle" %} تنفيذ القرار</button>

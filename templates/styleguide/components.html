@@ -272,6 +272,47 @@
     </ul>
   {% endsection_card %}
 
+  {# ══ 12 ══ #}
+  {% section_card "12 · الحقلُ وشريطُ الترشيح" meta="field · filter_bar" icon="search" %}
+    <div class="sg-stack">
+      <p class="sg-label">filter_bar — نموذجُ GET بدور بحثٍ واسمٍ معلَن، وحقولُه field</p>
+      {% filter_bar "مثالُ شريط الترشيح" %}
+        {% field "q" "بحث" type="search" placeholder="اسمٌ أو رقم…" grow=True autocomplete="off" %}
+        {% field "grade" "الصفّ" type="select" choices=sg_grades blank="— الكل —" %}
+        {% field "from" "من تاريخ" type="date" %}
+        <div class="filter-actions">
+          <button type="button" class="btn-primary btn-sm">ترشيح</button>
+          <a href="#" class="btn-secondary btn-sm">مسح</a>
+        </div>
+      {% endfilter_bar %}
+      <pre class="sg-code" dir="ltr">{% templatetag openblock %} filter_bar "ترشيحُ سجلّ الطلاب" {% templatetag closeblock %}
+  {% templatetag openblock %} field "q" "بحث" value=q grow=True hx_get=url hx_trigger="input changed delay:400ms" hx_target="#rows" {% templatetag closeblock %}
+  {% templatetag openblock %} field "grade" "الصفّ" type="select" choices=grades value=grade blank="— الكل —" data_autosubmit=True {% templatetag closeblock %}
+{% templatetag openblock %} endfilter_bar {% templatetag closeblock %}</pre>
+
+      <p class="sg-label">field في نموذجٍ كامل — الأنواعُ والمساعدةُ والخطأ</p>
+      <div class="ui-grid-2">
+        {% field "sg_name" "الاسم الكامل" required=True help="كما في البطاقة الشخصيّة" autocomplete="name" %}
+        {% field "sg_phone" "الجوّال" type="tel" inputmode="tel" placeholder="+974XXXXXXXX" error="رقمٌ غيرُ صالح" value="12" %}
+        {% field "sg_type" "النوع" type="select" choices=sg_types value="b" %}
+        {% field "sg_notes" "ملاحظات" type="textarea" rows=2 placeholder="اختياريّ" %}
+        {% field "sg_notify" "إشعارُ وليّ الأمر" type="checkbox" checked=True %}
+      </div>
+      <pre class="sg-code" dir="ltr">{% templatetag openblock %} field "phone" "الجوّال" type="tel" inputmode="tel" value=form.phone.value error=form.phone.errors.0 {% templatetag closeblock %}
+{% templatetag openblock %} field "notes" "ملاحظات" type="textarea" rows=3 value=notes help="…" {% templatetag closeblock %}
+{% templatetag openblock %} field "notify" "إشعارُ وليّ الأمر" type="checkbox" checked=obj.notify {% templatetag closeblock %}</pre>
+    </div>
+    <ul class="sg-rules">
+      <li>الاسمُ البرمجيُّ <code>name</code> والقيمُ كما هي — الوسمُ يملك <code>id</code> و<code>label[for]</code> لا البيانات. و<code>id</code> يُمرَّر صريحاً حين يتكرّر الاسمُ في الصفحة.</li>
+      <li>الأنواع: text · search · number · date · time · datetime-local · month · email · tel · url · password · file · select · textarea · checkbox — وغيرُها خطأ.</li>
+      <li><code>choices</code> لـselect وحدَه: أزواجُ (قيمة، نصّ) أو قيمٌ مفردة أو قاموس، أو نصٌّ لخياراتٍ حرفيّة <code>"linked=مرتبط|unlinked=غير مرتبط"</code>؛ و<code>blank</code> نصُّ الخيار الفارغ الأوّل.</li>
+      <li>السماتُ الأخرى تمرّ بالشرطة السفليّة: <code>hx_get</code> · <code>hx_trigger</code> · <code>hx_target</code> · <code>hx_include</code> · <code>data_autosubmit=True</code> · <code>min</code> · <code>max</code> · <code>step</code> · <code>maxlength</code> · <code>accept</code>.</li>
+      <li><code>help</code> و<code>error</code> يُربطان بالحقل بـ<code>aria-describedby</code>؛ والخطأُ <code>role="alert"</code> و<code>aria-invalid</code>. و<code>hide_label=True</code> يخفي التسميةَ عن العين لا عن القارئ.</li>
+      <li><code>filter_bar</code> يرسم <code>&lt;form method="get" role="search" aria-label&gt;</code>؛ و<code>live=True</code> لترشيحٍ في المتصفّح وحدَه (<code>smartFilter</code>) فيُرسم <code>&lt;div role="search"&gt;</code> بلا إرسال. وشريطٌ بلا حقلٍ خطأ.</li>
+      <li>حارسُ <code>tests/a11y_ratchet.py</code> يعدّ الحقولَ بلا اسمٍ والتسمياتِ بلا <code>for</code> — وما رُحِّل إلى <code>field</code> صفرٌ لا يعود.</li>
+    </ul>
+  {% endsection_card %}
+
   {# ══ 11 ══ #}
   {% section_card "11 · مكوّناتٌ تُضمَّن" meta="include" icon="layers" %}
     <div class="ui-grid-2">

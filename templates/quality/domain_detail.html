@@ -19,34 +19,28 @@
     {% kpi "الإنجاز" pct_label tone=pct_tone title="نسبة الإجراءات المكتملة في المجال" %}
   {% endkpi_strip %}
 
-  <form method="get" class="filter-bar qdom-filters">
-    <div class="filter-field">
-      <label class="filter-label" for="qdom-status">الحالة</label>
-      <select name="status" id="qdom-status">
-        <option value="">— الكل —</option>
-        {% for val, label in STATUS_CHOICES %}
-        <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-field">
-      <label class="filter-label" for="qdom-executor">المنفذ</label>
-      <select name="executor" id="qdom-executor">
+  {% filter_bar "ترشيحُ إجراءات المجال" css="qdom-filters" %}
+    {% field "status" "الحالة" type="select" choices=STATUS_CHOICES value=status_filter blank="— الكل —" %}
+    {# المنفّذون قواميسُ `values()` لا أزواجٌ ولا كائنات — فالقائمةُ يدويّةٌ مسمّاة. #}
+    <div class="ui-field">
+      <label for="qdom-executor" class="ui-field__label">المنفذ</label>
+      <select name="executor" id="qdom-executor" class="form-control">
         <option value="">— الكل —</option>
         {% for ex in executors %}
         <option value="{{ ex.executor_norm }}" {% if executor_filter == ex.executor_norm %}selected{% endif %}>{{ ex.executor_norm }}</option>
         {% endfor %}
       </select>
     </div>
-    <div class="filter-field filter-field--grow">
-      <label class="filter-label" for="qdom-search">بحث نص</label>
-      <input type="text" id="qdom-search" placeholder="ابحث في الإجراءات...">
+    {# بحثٌ في المتصفّح وحده (`smartFilter`) بلا اسمٍ يُرسَل — فلا يُعطى اسماً. #}
+    <div class="ui-field ui-field--grow">
+      <label for="qdom-search" class="ui-field__label">بحث نص</label>
+      <input type="text" id="qdom-search" class="form-control" placeholder="ابحث في الإجراءات...">
     </div>
     <div class="filter-actions">
       <button type="submit" class="btn-primary btn-sm">فلترة</button>
       <a href="{% url 'domain_detail' domain.id %}" class="btn-secondary btn-sm">إعادة ضبط</a>
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {% for target in targets %}
   {% section_card target.text|truncatechars:120 meta=target.number icon="target" flush=True %}

@@ -17,12 +17,9 @@
 {% endkpi_strip %}
 
 {% section_card "توزيع الحصص والعدالة" icon="users" flush=True empty="لا معلّمين في النطاق" %}{% if teacher_data %}
-  <div class="filter-bar load-search">
-    <input type="text"
-           id="teacher-search"
-           class="form-control form-control-sm"
-           placeholder="بحث باسم المعلم...">
-  </div>
+  {% filter_bar "بحثٌ في المعلّمين" live=True css="load-search" %}
+    {% field "q" "بحث باسم المعلم" type="search" id="teacher-search" hide_label=True grow=True placeholder="بحث باسم المعلم..." autocomplete="off" %}
+  {% endfilter_bar %}
   <div class="table-wrap-scroll load-scroll">
   <table>
     <thead>

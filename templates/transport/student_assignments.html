@@ -18,9 +18,9 @@
     {% kpi "مسندون" assigned_students.count tone="green" %}
   {% endkpi_strip %}
 
-  <div class="filter-bar">
-    <input type="text" id="student-search" class="form-control" placeholder="بحث باسم الطالب..." autocomplete="off">
-  </div>
+  {% filter_bar "بحثٌ في الطلاب" live=True %}
+    {% field "q" "بحث باسم الطالب" id="student-search" hide_label=True grow=True placeholder="بحث باسم الطالب..." autocomplete="off" %}
+  {% endfilter_bar %}
 
   <div class="ui-grid-2">
     {% section_card "طلاب غير مسندين" meta=unassigned_students.count icon="x-circle" empty="جميع الطلاب مسندون" %}{% if unassigned_students %}

@@ -15,7 +15,13 @@ def ui_components(request):
     return render(
         request,
         "styleguide/components.html",
-        {"swatch_groups": colour_token_groups(), "icon_count": len(sprite_icons())},
+        {
+            "swatch_groups": colour_token_groups(),
+            "icon_count": len(sprite_icons()),
+            # خياراتُ أمثلة القسم 12 (field · filter_bar) — توضيحيّةٌ لا من قاعدة البيانات.
+            "sg_grades": [("7", "السابع"), ("8", "الثامن"), ("9", "التاسع")],
+            "sg_types": [("a", "نشاطٌ ثقافيّ"), ("b", "نشاطٌ رياضيّ"), ("c", "نشاطٌ علميّ")],
+        },
     )
 
 

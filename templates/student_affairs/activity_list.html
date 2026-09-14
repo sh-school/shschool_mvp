@@ -16,29 +16,13 @@
   {% endpage_header %}
 
   {# فلتر #}
-  <form method="get" class="filter-bar">
-    <div class="filter-field">
-      <label class="filter-label">النوع</label>
-      <select name="type" class="form-control form-control-sm" data-autosubmit>
-        <option value="">— الكل —</option>
-        {% for val, label in type_choices %}
-        <option value="{{ val }}" {% if type_filter == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-field">
-      <label class="filter-label">النطاق</label>
-      <select name="scope" class="form-control form-control-sm" data-autosubmit>
-        <option value="">— الكل —</option>
-        {% for val, label in scope_choices %}
-        <option value="{{ val }}" {% if scope_filter == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
+  {% filter_bar "ترشيحُ الأنشطة" %}
+    {% field "type" "النوع" type="select" choices=type_choices value=type_filter blank="— الكل —" data_autosubmit=True %}
+    {% field "scope" "النطاق" type="select" choices=scope_choices value=scope_filter blank="— الكل —" data_autosubmit=True %}
     <div class="filter-actions">
       <a href="{% url 'student_affairs:activity_list' %}" class="btn-secondary btn-xs">إعادة ضبط</a>
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {# الجدول #}
   <div class="table-wrap">

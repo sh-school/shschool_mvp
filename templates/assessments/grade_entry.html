@@ -20,10 +20,9 @@
   {% endkpi_strip %}
   </div>
 
-  <div class="filter-bar">
-    <input type="text" id="gradeSearch" class="form-control form-control-sm"
-           placeholder="بحث باسم الطالب..." autocomplete="off" aria-label="بحث باسم الطالب">
-  </div>
+  {% filter_bar "بحثٌ في الطلاب" live=True %}
+    {% field "q" "بحث باسم الطالب" id="gradeSearch" hide_label=True grow=True placeholder="بحث باسم الطالب..." autocomplete="off" %}
+  {% endfilter_bar %}
 
   {% section_card "درجات الطلاب" meta=students_data|length icon="users" flush=True empty="لا طلابَ مسجّلين في هذا الفصل" %}{% if students_data %}
     <p class="scroll-x-hint">← مرّر يميناً لرؤية كل الأعمدة</p>

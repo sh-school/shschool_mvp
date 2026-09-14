@@ -14,29 +14,13 @@
   {% endpage_header %}
 
   {# المرشِّحات: الصفّ والمسار #}
-  <form method="get" class="filter-bar">
-    <div class="filter-field">
-      <label class="filter-label">الصفّ</label>
-      <select name="grade" class="form-control form-control-sm" data-autosubmit>
-        <option value="">— كل الصفوف —</option>
-        {% for val, label in grades %}
-        <option value="{{ val }}" {% if grade == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-field">
-      <label class="filter-label">المسار</label>
-      <select name="track" class="form-control form-control-sm" data-autosubmit>
-        <option value="">— كل المسارات —</option>
-        {% for val, label in tracks %}
-        <option value="{{ val }}" {% if track == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
+  {% filter_bar "ترشيحُ المستويات بالصفّ والمسار" %}
+    {% field "grade" "الصفّ" type="select" choices=grades value=grade blank="— كل الصفوف —" data_autosubmit=True %}
+    {% field "track" "المسار" type="select" choices=tracks value=track blank="— كل المسارات —" data_autosubmit=True %}
     <div class="filter-actions">
       <a href="{% url 'student_info:levels' %}" class="btn-secondary btn-xs">إعادة ضبط</a>
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {% if data.total %}
   {# الإجمال: لكلّ شريحةٍ عددُ نتائجها بلونها وحدِّها #}

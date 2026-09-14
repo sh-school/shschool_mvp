@@ -18,57 +18,18 @@
     <a href="{% url 'staff_affairs:staff_appoint' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="user" %} تعيين منتسب</a>
   {% endpage_header %}
 
-  <form method="get" class="filter-bar">
-    <div class="filter-field filter-field--grow">
-      <label class="filter-label">بحث</label>
-      <input type="text" name="q" value="{{ q }}" placeholder="بحثٌ في كلّ الأعمدة: اسم أو رقم أو مسمّى أو قسم أو سكن..."
-             class="form-control form-control-sm"
-             hx-get="{% url 'staff_affairs:staff_list' %}"
-             hx-trigger="input changed delay:400ms, search"
-             hx-target="#staff-table-container" hx-swap="outerHTML"
-             hx-include="[name='role'],[name='dept']" autocomplete="off">
-    </div>
-    <div class="filter-field">
-      <label class="filter-label">الحالة</label>
-      <select name="status" class="form-control form-control-sm"
-              hx-get="{% url 'staff_affairs:staff_list' %}" hx-trigger="change"
-              hx-target="#staff-table-container" hx-swap="outerHTML"
-              hx-include="[name='q'],[name='role'],[name='dept']">
-        {% for val, label in statuses %}
-        <option value="{{ val }}" {% if status == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-field">
-      <label class="filter-label">الدور</label>
-      <select name="role" class="form-control form-control-sm"
-              hx-get="{% url 'staff_affairs:staff_list' %}" hx-trigger="change"
-              hx-target="#staff-table-container" hx-swap="outerHTML"
-              hx-include="[name='q'],[name='dept']">
-        <option value="">— الكل —</option>
-        {% for val, label in roles %}
-        <option value="{{ val }}" {% if role_filter == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-field">
-      <label class="filter-label">القسم</label>
-      <select name="dept" class="form-control form-control-sm"
-              hx-get="{% url 'staff_affairs:staff_list' %}" hx-trigger="change"
-              hx-target="#staff-table-container" hx-swap="outerHTML"
-              hx-include="[name='q'],[name='role']">
-        <option value="">— الكل —</option>
-        {% for d in departments %}
-        <option value="{{ d.id }}" {% if dept_filter == d.id|slugify %}selected{% endif %}>{{ d.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
+  {% url 'staff_affairs:staff_list' as list_url %}
+  {% filter_bar "ترشيحُ سجلّ الكادر" %}
+    {% field "q" "بحث" value=q grow=True placeholder="بحثٌ في كلّ الأعمدة: اسم أو رقم أو مسمّى أو قسم أو سكن..." autocomplete="off" hx_get=list_url hx_trigger="input changed delay:400ms, search" hx_target="#staff-table-container" hx_swap="outerHTML" hx_include="[name='role'],[name='dept']" %}
+    {% field "status" "الحالة" type="select" choices=statuses value=status hx_get=list_url hx_trigger="change" hx_target="#staff-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='role'],[name='dept']" %}
+    {% field "role" "الدور" type="select" choices=roles value=role_filter blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#staff-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='dept']" %}
+    {% field "dept" "القسم" type="select" choices=dept_choices value=dept_filter blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#staff-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='role']" %}
     <div class="filter-actions">
-      <a href="{% url 'staff_affairs:staff_list' %}" class="btn-secondary btn-sm">
+      <a href="{{ list_url }}" class="btn-secondary btn-sm">
         {% include "components/icon.html" with name="refresh" %} إعادة ضبط
       </a>
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {# الغلافُ ومعرّفُه في الجزئيّة نفسِها — فهي تستبدل نفسَها ولا تمحو هدفَها. #}
   {% include "staff_affairs/_staff_table.html" %}

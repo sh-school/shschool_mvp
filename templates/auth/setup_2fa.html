@@ -72,12 +72,16 @@
     <h2 class="font-semibold text-[var(--text-primary)] mb-3">الخطوة 2 — أدخل رمز التحقق</h2>
     <form method="post">
       {% csrf_token %}
-      <div class="mb-4">
+      {# حقلُ الرمز باليد: أصنافُ العرض على الحقل نفسِه، وتسميتُه للقارئ وحدَه — العنوانُ فوقه يقولها للعين #}
+      <div class="ui-field mb-4">
+        <label for="f-code" class="ui-field__label sr-only">رمز التحقق المكوّن من 6 أرقام</label>
         <input type="text"
+               id="f-code"
                name="code"
                maxlength="6"
                inputmode="numeric"
                pattern="[0-9]{6}"
+               autocomplete="one-time-code"
                autofocus
                placeholder="أدخل الرمز المكوّن من 6 أرقام"
                class="form-control text-center text-xl font-mono tracking-widest">

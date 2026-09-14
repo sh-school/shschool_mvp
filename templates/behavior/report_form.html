@@ -62,7 +62,7 @@
               {% endfor %}
             </div>
           </div>
-          <select name="student_id" required id="studentSelect" hidden>
+          <select name="student_id" required id="studentSelect" hidden aria-label="الطالب">
             <option value="">— اختر الطالب —</option>
             {% for s in students %}
             <option value="{{ s.id }}">{{ s.full_name }}</option>

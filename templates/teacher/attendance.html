@@ -26,10 +26,8 @@
 </div>
 
 {# ── البحث والإجراءات ── #}
-<div class="filter-bar att-toolbar">
-  <input type="text" id="search-input" placeholder="بحث عن طالب..."
-         class="form-control form-control-sm att-toolbar__search"
-         aria-label="بحث عن طالب" autocomplete="off" />
+{% filter_bar "البحث والإجراءات" live=True css="att-toolbar" %}
+  {% field "q" "بحث عن طالب" id="search-input" hide_label=True css="att-toolbar__search" placeholder="بحث عن طالب..." autocomplete="off" %}
 
   <form method="post" action="{% url 'mark_all_present' session.id %}"
         hx-post="{% url 'mark_all_present' session.id %}"
@@ -51,7 +49,7 @@
   {% else %}
   <span class="att-toolbar__end status-badge status-gray">{% include "components/icon.html" with name="check" %} الحصة منتهية</span>
   {% endif %}
-</div>
+{% endfilter_bar %}
 
 {# ── قائمة الطلاب — `#students-list` يستبدله «الكل حاضر» بنفسه ── #}
 {% section_card "الطلاب" meta=students_data|length icon="users" flush=True empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}

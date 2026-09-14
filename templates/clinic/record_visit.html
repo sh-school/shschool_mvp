@@ -16,12 +16,12 @@
   <div class="form-card">
     <form method="post" hx-post="{% url 'clinic:record_visit' %}" hx-target="#visit-result" data-validate>
       {% csrf_token %}
-      <div class="space-y-4">
+      <div class="form-stack">
 
-        {# ── الطالب ── #}
-        <div class="form-group">
-          <label class="form-label">الطالب <span class="required">*</span></label>
-          <select name="student_id" required class="form-control">
+        {# ── الطالب — تسميةُ الخيار مركّبةٌ بمرشِّح الستر، فالقائمةُ تبقى باليد بتسميةٍ مربوطة ── #}
+        <div class="ui-field">
+          <label for="f-student_id" class="ui-field__label">الطالب <span class="req-star" aria-hidden="true">*</span></label>
+          <select id="f-student_id" name="student_id" required class="form-control">
             <option value="">— اختر الطالب —</option>
             {% for student in students %}
             <option value="{{ student.id }}" {% if student_id == student.id|stringformat:"s" %}selected{% endif %}>
@@ -32,31 +32,15 @@
         </div>
 
         {# ── السبب ── #}
-        <div class="form-group">
-          <label class="form-label">سبب الزيارة <span class="required">*</span></label>
-          <input type="text" name="reason" required placeholder="مثال: صداع، غثيان، إصابة..."
-                 class="form-control">
-        </div>
+        {% field "reason" "سبب الزيارة" required=True placeholder="مثال: صداع، غثيان، إصابة..." %}
 
         {# ── الأعراض ── #}
-        <div class="form-group">
-          <label class="form-label">الأعراض التفصيلية</label>
-          <textarea name="symptoms" rows="2" placeholder="تفاصيل الأعراض..."
-                    class="form-control resize-none"></textarea>
-        </div>
+        {% field "symptoms" "الأعراض التفصيلية" type="textarea" rows=2 placeholder="تفاصيل الأعراض..." %}
 
         {# ── درجة الحرارة والعلاج ── #}
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 form-group">
-          <div>
-            <label class="form-label">درجة الحرارة (°م)</label>
-            <input type="number" name="temperature" step="0.1" min="35" max="42" placeholder="37.0"
-                   class="form-control">
-          </div>
-          <div>
-            <label class="form-label">الإجراء المتخذ</label>
-            <input type="text" name="treatment" placeholder="مثال: مسكن ألم، راحة..."
-                   class="form-control">
-          </div>
+        <div class="ui-grid-2">
+          {% field "temperature" "درجة الحرارة (°م)" type="number" step="0.1" min=35 max=42 placeholder="37.0" %}
+          {% field "treatment" "الإجراء المتخذ" placeholder="مثال: مسكن ألم، راحة..." %}
         </div>
 
         {# ── إرسال للمنزل ── #}

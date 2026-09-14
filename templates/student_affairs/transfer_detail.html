@@ -41,9 +41,10 @@
     <form method="post" action="{% url 'student_affairs:transfer_review' transfer.pk %}">
       {% csrf_token %}
       <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">القرار</label>
-          <select name="action" class="form-control" required>
+        {# القرار: خياراتُه مشروطةٌ بحالة الطلب — لا تُعبَّر بـchoices، فالقائمةُ باليد بتسميتها #}
+        <div class="ui-field">
+          <label for="f-action" class="ui-field__label">القرار</label>
+          <select id="f-action" name="action" class="form-control" required>
             {% if transfer.status == "pending" %}
             <option value="approved">موافقة</option>
             <option value="rejected">رفض</option>
@@ -54,10 +55,11 @@
             <option value="cancelled">إلغاء</option>
           </select>
         </div>
-        <div class="form-group">
-          <label class="form-label">ملاحظات {% if transfer.status == "pending" %}<span class="text-xs text-muted">(مطلوبة عند الرفض)</span>{% endif %}</label>
-          <input type="text" name="notes" class="form-control" placeholder="ملاحظات المراجعة...">
-        </div>
+        {% if transfer.status == "pending" %}
+        {% field "notes" "ملاحظات" placeholder="ملاحظات المراجعة..." help="مطلوبة عند الرفض" %}
+        {% else %}
+        {% field "notes" "ملاحظات" placeholder="ملاحظات المراجعة..." %}
+        {% endif %}
       </div>
       <div class="form-actions">
         <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check-circle" %} تنفيذ القرار</button>

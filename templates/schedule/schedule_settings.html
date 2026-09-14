@@ -27,8 +27,9 @@
       {% csrf_token %}
       <input type="hidden" name="year" value="{{ year }}">
 
-      <div class="form-group mb-0">
-        <label class="form-label text-xs" for="exemption-teacher">المعلم/المنسق</label>
+      {# خيارُ المجموعة قبل الأشخاص لا يُعبَّر بـ`choices` — فالقائمةُ يدويّةٌ مسمّاة، ومعرّفُها تقرؤه الشبكةُ بـHTMX. #}
+      <div class="ui-field">
+        <label for="exemption-teacher" class="ui-field__label">المعلم/المنسق</label>
         <select name="teacher" id="exemption-teacher" class="form-control" required>
           <option value="">— اختر —</option>
           {# مجموعةٌ لا شخص: اجتماعُ المنسّقين تفريغٌ واحدٌ لهم جميعاً. #}
@@ -60,26 +61,16 @@
       </div>
       <input type="hidden" name="slots" id="exemption-slots" value="">
 
-      <div class="form-group mb-0 sm:col-span-2">
-        <label class="form-label text-xs">السبب</label>
-        <input type="text" name="reason" class="form-control" placeholder="مثال: دورة تدريبية خارج المدرسة" required>
-      </div>
+      {% field "reason" "السبب" placeholder="مثال: دورة تدريبية خارج المدرسة" required=True css="sm:col-span-2" %}
 
       {% comment %}
       جهةُ القرار: تفريغُ يومٍ كاملٍ يُخرج المعلّمَ من الجدول يوماً في الأسبوع
       كلّه، فيُسأل عن مصدره كما تُسأل خطّةُ النصاب.
+
+      و«لتوليد الجدول» أداةُ تشكيلٍ لا قرارُ جهة: المولّدُ يحترمها، والبديلُ
+      والتبديلُ يجوزان فيها.
       {% endcomment %}
-      <div class="form-group mb-0">
-        <label class="form-label text-xs">جهة القرار</label>
-        <select name="source" class="form-control">
-          <option value="ministry">قرار الوزارة</option>
-          <option value="school" selected>قرار إدارة المدرسة</option>
-          <option value="department">قرار القسم الأكاديمي</option>
-          {# أداةُ تشكيلٍ لا قرارُ جهة: المولّدُ يحترمها، والبديلُ والتبديلُ يجوزان فيها. #}
-          <option value="generation">لتوليد الجدول — يجوز فيها البديل والتبديل</option>
-          <option value="other">أخرى</option>
-        </select>
-      </div>
+      {% field "source" "جهة القرار" type="select" choices="ministry=قرار الوزارة|school=قرار إدارة المدرسة|department=قرار القسم الأكاديمي|generation=لتوليد الجدول — يجوز فيها البديل والتبديل|other=أخرى" value="school" %}
 
       <div class="form-group mb-0 flex items-end">
         <button type="submit" class="btn-primary w-full">{% include "components/icon.html" with name="plus" %} إضافة تفريغ</button>

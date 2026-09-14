@@ -110,7 +110,8 @@
             </label>
             <div id="evidence-note-section" class="{% if task.evidence_request_status != 'requested' %}hidden{% endif %}">
               <div class="q-modal-field mt-3">
-                <textarea name="evidence_request_note" rows="2"
+                <label for="evidence-request-note" class="sr-only">المطلوب من المنفذ</label>
+                <textarea name="evidence_request_note" id="evidence-request-note" rows="2"
                           placeholder="اكتب ما هو المطلوب من المنفذ...">{{ task.evidence_request_note }}</textarea>
               </div>
             </div>
@@ -119,8 +120,8 @@
           {# Grid: التقييم النوعي + القرار النهائي #}
           <div class="q-modal-form-grid cols-2 mt-3">
             <div class="q-modal-field">
-              <label>التقييم النوعي</label>
-              <select name="quality_rating">
+              <label for="review-quality-rating">التقييم النوعي</label>
+              <select name="quality_rating" id="review-quality-rating">
                 {% for val, label in quality_rating_choices %}
                 <option value="{{ val }}" {% if task.quality_rating == val %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
@@ -128,8 +129,8 @@
             </div>
 
             <div class="q-modal-field">
-              <label>القرار النهائي</label>
-              <select name="status">
+              <label for="review-status">القرار النهائي</label>
+              <select name="status" id="review-status">
                 {% for val, label in status_choices %}
                 <option value="{{ val }}" {% if task.status == val %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
@@ -139,8 +140,8 @@
 
           {# ملاحظات اللجنة #}
           <div class="q-modal-field full-width mt-3">
-            <label>ملاحظات اللجنة</label>
-            <textarea name="review_note" rows="3"
+            <label for="review-note">ملاحظات اللجنة</label>
+            <textarea name="review_note" id="review-note" rows="3"
                       placeholder="ملاحظات أو توصيات اللجنة...">{{ task.review_note }}</textarea>
           </div>
         </div>

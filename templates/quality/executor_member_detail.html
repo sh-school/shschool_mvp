@@ -20,33 +20,17 @@
     {% kpi "الإنجاز" pct_label tone=pct_tone %}
   {% endkpi_strip %}
 
-  <form method="get" class="filter-bar qexec-filters">
+  {% filter_bar "ترشيحُ إجراءات المنفّذ" css="qexec-filters" %}
     <input type="hidden" name="year" value="{{ year }}">
-    <div class="filter-field">
-      <label class="filter-label" for="qexec-status">الحالة</label>
-      <select name="status" id="qexec-status">
-        <option value="">كل الحالات</option>
-        {% for val, label in STATUS_CHOICES %}
-          <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-field">
-      <label class="filter-label" for="qexec-domain">المجال</label>
-      <select name="domain" id="qexec-domain">
-        <option value="">كل المجالات</option>
-        {% for d in domains %}
-          <option value="{{ d.id }}" {% if domain_filter == d.id|stringformat:"s" %}selected{% endif %}>{{ d.name }}</option>
-        {% endfor %}
-      </select>
-    </div>
+    {% field "status" "الحالة" type="select" choices=STATUS_CHOICES value=status_filter blank="كل الحالات" %}
+    {% field "domain" "المجال" type="select" choices=domains value=domain_filter blank="كل المجالات" %}
     <div class="filter-actions">
       <button type="submit" class="btn-primary btn-sm">تصفية</button>
       {% if status_filter or domain_filter %}
       <a href="?year={{ year }}" class="btn-secondary btn-sm">إزالة الفلتر</a>
       {% endif %}
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {% section_card "الإجراءات" meta=procedures|length icon="clipboard-check" empty="لا توجد إجراءات تطابق معايير الفلتر" flush=True %}{% if procedures %}
     <div class="table-wrap">

@@ -17,14 +17,12 @@
     </nav>
   {% endpage_header %}
 
-  <div class="filter-bar">
-    <input type="text" id="searchInput" class="form-control"
-           placeholder="بحث باسم الطالب..." autocomplete="off" aria-label="بحث باسم الطالب">
-    <select id="gradeFilter" class="form-control" aria-label="الصف">
-      <option value="">كل الصفوف</option>
-    </select>
+  {% filter_bar "ترشيحُ الطلاب الراسبين" live=True %}
+    {% field "q" "بحث باسم الطالب" id="searchInput" hide_label=True grow=True placeholder="بحث باسم الطالب..." autocomplete="off" %}
+    {# خياراتُ الصفوف تُبنى في المتصفّح من البطاقات — فالقائمةُ هنا فارغةٌ عمداً #}
+    {% field "grade" "الصف" type="select" id="gradeFilter" choices="" blank="كل الصفوف" hide_label=True %}
     <span id="filterCount" class="text-muted hidden" aria-live="polite"></span>
-  </div>
+  {% endfilter_bar %}
 
   {% if by_student %}
   <div id="studentCards" class="ui-entity-grid">

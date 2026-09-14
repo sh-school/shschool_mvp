@@ -13,19 +13,13 @@
     <a href="{% url 'absence_list' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="arrow-right" %} قائمة الغيابات</a>
   {% endpage_header %}
 
-  <form method="get" class="filter-bar">
-    <div class="filter-field">
-      <label class="filter-label" for="report-from">من</label>
-      <input type="date" id="report-from" name="from" value="{{ date_from|date:'Y-m-d' }}" class="form-control form-control-sm">
-    </div>
-    <div class="filter-field">
-      <label class="filter-label" for="report-to">إلى</label>
-      <input type="date" id="report-to" name="to" value="{{ date_to|date:'Y-m-d' }}" class="form-control form-control-sm">
-    </div>
+  {% filter_bar "فترةُ التقرير" %}
+    {% field "from" "من" type="date" value=date_from|date:'Y-m-d' %}
+    {% field "to" "إلى" type="date" value=date_to|date:'Y-m-d' %}
     <div class="filter-actions">
       <button type="submit" class="btn-secondary btn-sm">{% include "components/icon.html" with name="refresh" %} تحديث</button>
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {% if summary %}
   {% section_card "حصص كلّ معلمٍ بديل" meta=summary|length icon="users" flush=True %}

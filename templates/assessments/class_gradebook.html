@@ -30,10 +30,9 @@
     {% kpi "المتوسط" summary.avg|default:"—" sub="من 100" tone="orange" title="متوسّط المجموع السنويّ" %}
   {% endkpi_strip %}
 
-  <div class="filter-bar">
-    <input type="text" id="gradebook-search" class="form-control"
-           placeholder="ابحث باسم الطالب..." autocomplete="off" aria-label="ابحث باسم الطالب">
-  </div>
+  {% filter_bar "بحثٌ في كشف الدرجات" live=True %}
+    {% field "q" "ابحث باسم الطالب" id="gradebook-search" hide_label=True grow=True placeholder="ابحث باسم الطالب..." autocomplete="off" %}
+  {% endfilter_bar %}
 
   {% section_card "درجات الطلاب" meta=rows|length icon="users" flush=True empty="لا يوجد طلاب في هذا الفصل" %}{% if rows %}
     <div class="table-wrap table-wrap-scroll">
