@@ -244,3 +244,100 @@ class TestTheFileScreen:
         )
 
         assert reverse("wings:absence_file", args=[kids[0].id]) in body
+
+
+class TestTheReviewFindings:
+    """ما كشفته المراجعةُ المستقلّة لـ#284 — كلُّ ثغرةٍ باختبارٍ يمنع عودتها."""
+
+    def test_a_run_is_late_when_any_of_its_days_is_late_like_the_service_says(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        """الأحد: حضر حصّتين (يومُ غياب، وعودتُه اليومَ نفسَه — المهلةُ الثلاثاء). الاثنين غائب.
+        والخميسَ آخرُ السلسلة لم يتأخّر، لكنّ الأحدَ تأخّر — فالسلسلةُ متأخّرة كما تحكم الخدمة."""
+        from tests.test_period_register import _confirm, _periods
+
+        sessions = _periods(school, klass, teacher, 7, day=SUNDAY)
+        for i, session in enumerate(sessions):
+            _confirm(
+                klass, session, {kids[0]: "present" if i < 2 else "absent"}, supervisor, day=SUNDAY
+            )
+        _absent_day(school, klass, kids[0], teacher, supervisor, day=MONDAY)
+        _back(school, klass, teacher, supervisor, SUNDAY + dt.timedelta(days=2))
+
+        days = {d.date: d for d in absence_days(kids[0], school, YEAR_START, THURSDAY)}
+
+        assert (days[MONDAY].run_from, days[MONDAY].run_to) == (SUNDAY, MONDAY)
+        assert days[MONDAY].late and days[SUNDAY].late
+        assert days[MONDAY].deadline == SUNDAY + dt.timedelta(days=2)
+
+    def test_a_partly_absent_day_is_listed_so_the_call_can_be_logged(
+        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        from tests.test_period_register import _confirm, _periods
+
+        for i, session in enumerate(_periods(school, klass, teacher, 7, day=SUNDAY)):
+            _confirm(klass, session, {kids[0]: "absent"} if i == 6 else {}, supervisor, day=SUNDAY)
+
+        days = absence_days(kids[0], school, YEAR_START, MONDAY)
+        body = (
+            client_as(supervisor)
+            .get(reverse("wings:absence_file", args=[kids[0].id]))
+            .content.decode()
+        )
+
+        assert [(d.date, d.verdict, d.may_call, d.may_excuse) for d in days] == [
+            (SUNDAY, "partial", True, True)
+        ]
+        assert "غيابٌ جزئيّ" in body and 'value="2026-09-13"' in body
+
+    def test_an_incomplete_day_without_an_absence_is_not_an_absence_day(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        from tests.test_period_register import _confirm, _periods
+
+        sessions = _periods(school, klass, teacher, 7, day=SUNDAY)
+        for session in sessions[:2]:
+            _confirm(klass, session, {}, supervisor, day=SUNDAY)
+
+        assert absence_days(kids[0], school, YEAR_START, SUNDAY) == []
+
+    def test_no_answer_keeps_the_call_button_for_another_try(
+        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        _absent_day(school, klass, kids[0], teacher, supervisor)
+        log_contact(
+            student=kids[0], school=school, absence_date=SUNDAY, outcome="no_answer", by=supervisor
+        )
+
+        body = (
+            client_as(supervisor)
+            .get(reverse("wings:absence_file", args=[kids[0].id]))
+            .content.decode()
+        )
+
+        assert "اتّصلتُ مرّةً أخرى" in body
+
+    def test_last_years_active_enrollment_does_not_lock_the_supervisor_out(
+        self, client_as, school, seeded_calendar, klass, kids, supervisor
+    ):
+        old = ClassGroupFactory(
+            school=school, grade="G6", section="1", level_type="prep", academic_year="2025-2026"
+        )
+        StudentEnrollmentFactory(student=kids[0], class_group=old, enrolled_at=dt.date(2025, 9, 1))
+
+        for _ in range(3):
+            response = client_as(supervisor).get(reverse("wings:absence_file", args=[kids[0].id]))
+            assert response.status_code == 200
+
+    def test_a_failed_excuse_redirects_to_the_top_where_the_message_is(
+        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        _absent_day(school, klass, kids[0], teacher, supervisor)
+
+        response = client_as(supervisor).post(
+            reverse("wings:absence_file_excuse", args=[kids[0].id]),
+            {"date_from": SUNDAY.isoformat(), "date_to": SUNDAY.isoformat(), "kind": "medical"},
+        )
+
+        assert response.status_code == 302 and "#" not in response.url
+        assert not AbsenceExcuse.objects.exists()

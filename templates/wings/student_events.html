@@ -11,6 +11,7 @@
 {% block content %}
 <div class="exec-dash">
   {% page_header student.full_name subtitle=klass icon="checklist" %}
+    <a href="{% url 'wings:absence_file' student.id %}" class="btn-primary btn-sm">{% icon "absence" %} ملفُّ الغياب</a>
     <a href="{% url 'wings:record_section' klass.id %}" class="btn-secondary btn-sm">إلى الكشف</a>
   {% endpage_header %}
 

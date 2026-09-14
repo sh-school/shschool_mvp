@@ -39,12 +39,14 @@ MAX_RESULTS = 20
 
 
 def _own_student(request: HttpRequest, student_id: object) -> tuple[School, ClassGroup, CustomUser]:
-    """طالبٌ مسجَّلٌ في شعبةٍ من أجنحتي — وإلّا 404 (المشرفُ لجناحه فقط)."""
-    enrollment = (
-        StudentEnrollment.objects.filter(student_id=student_id, is_active=True)
-        .select_related("student", "class_group")
-        .first()
-    )
+    """طالبٌ **قيدُه الجاري** في شعبةٍ من أجنحتي — وإلّا 404 (المشرفُ لجناحه فقط).
+
+    القيدُ الجاري أحدثُ قيود الطالب النشطة (`current_of`): مئاتُ الطلبة يحملون قيدَ العام
+    الماضي بجانب قيد هذا العام، و`.first()` بلا ترتيبٍ يختار أحدَهما عشوائيّاً — فيُردّ مشرفُ
+    الطالب اليوم، أو يُفتح الملفُّ لمشرف جناحه القديم.
+    """
+    school = request.user.get_school()  # type: ignore[union-attr]
+    enrollment = StudentEnrollment.objects.current_of(student_id, school)
     if enrollment is None:
         raise Http404("لا شعبةَ لهذا الطالب")
     school, klass = _own_class(request, enrollment.class_group_id)  # type: ignore[no-untyped-call]
@@ -149,7 +151,7 @@ def absence_file_excuse(request: HttpRequest, student_id: object) -> HttpRespons
         )
     except (ExcuseError, ValidationError) as err:
         messages.error(request, " ".join(getattr(err, "messages", None) or [str(err)]))
-        return redirect(_file_url(student.id, date_to))
+        return redirect(_file_url(student.id))
     excuse_outcome_message(request, excuse)  # type: ignore[no-untyped-call]
     return redirect(_file_url(student.id, date_to))
 
@@ -176,7 +178,7 @@ def absence_file_contact(request: HttpRequest, student_id: object) -> HttpRespon
         )
     except ContactError as err:
         messages.error(request, str(err))
-        return redirect(_file_url(student.id, absence_date))
+        return redirect(_file_url(student.id))
     messages.success(
         request,
         f"سُجّل الإخطارُ عن غياب {absence_date:%d/%m}: {contact.get_outcome_display()}.",

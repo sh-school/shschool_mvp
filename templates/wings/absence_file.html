@@ -33,7 +33,7 @@
       <li class="af-day" id="day-{{ day.date|date:'Y-m-d' }}">
         <div class="af-day__head">
           <span class="af-day__date">{{ day.date|date:"l j/n" }}</span>
-          <span class="status-badge {% if day.verdict == 'absent_unexcused' %}status-danger{% elif day.verdict == 'absent_excused' %}status-success{% else %}status-warning{% endif %}">{{ day.label }}</span>
+          <span class="status-badge {% if day.verdict == 'absent_unexcused' %}status-danger{% elif day.verdict == 'absent_excused' %}status-success{% elif day.verdict == 'partial' %}status-info{% else %}status-warning{% endif %}">{{ day.label }}</span>
           <span class="af-day__meta">{{ day.absent_periods }} من {{ day.scheduled_periods }} حصص</span>
           {% if day.excuse %}<span class="status-badge status-info">{{ day.excuse.get_kind_display }}</span>{% endif %}
           {% if day.waiting %}<span class="status-badge status-warning">العذرُ بانتظار النائب الإداريّ</span>{% endif %}
@@ -42,9 +42,9 @@
         </div>
 
         <div class="af-day__actions">
-          {% if not day.contact %}
+          {% if day.may_call %}
           <details class="af-act">
-            <summary class="btn-secondary btn-sm">{% icon "call_parent" %} اتّصلتُ</summary>
+            <summary class="btn-secondary btn-sm">{% icon "call_parent" %} {% if day.contact %}اتّصلتُ مرّةً أخرى{% else %}اتّصلتُ{% endif %}</summary>
             <form method="post" action="{% url 'wings:absence_file_contact' student.id %}" class="af-act__form">
               {% csrf_token %}
               <input type="hidden" name="absence_date" value="{{ day.date|date:'Y-m-d' }}">
@@ -67,8 +67,8 @@
               <input type="hidden" name="date_to" value="{{ day.run_to|date:'Y-m-d' }}">
               {% if day.spans_days %}<p class="af-act__say">يشمل أيّامَ الغياب المتّصلة: {{ day.run_from|date:"j/n" }} – {{ day.run_to|date:"j/n" }}</p>{% endif %}
               {% if day.late and not may_override %}<p class="af-act__say">مضى يومان دراسيّان على عودته (حتى {{ day.deadline|date:"j/n" }})، فيُرسَل العذرُ إلى النائب الإداريّ.</p>{% endif %}
-              <label class="form-label">المستند <small>(صورةٌ من الجوّال أو ملفّ — إلّا الوفاة)</small>
-                <input type="file" name="document" class="form-control" accept="image/*,.pdf,.heic,.heif">
+              <label class="form-label">المستند <small>(صورةٌ من الجوّال أو ملفّ — يلزم إلّا للوفاة)</small>
+                <input type="file" name="document" class="form-control" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif">
               </label>
               <label class="form-label">بيان <small>(للوفاة: صلةُ القرابة)</small>
                 <input type="text" name="notes" class="form-control" maxlength="200">
@@ -81,7 +81,7 @@
               <p class="af-act__say">اضغط نوعَ العذر فيُحفظ:</p>
               <div class="af-choices">
                 {% for key, label, doc in excuse_kinds %}
-                <button type="submit" name="kind" value="{{ key }}" class="btn-secondary btn-sm">{{ label }}</button>
+                <button type="submit" name="kind" value="{{ key }}" class="btn-secondary btn-sm af-kind">{{ label }}<small>{% if doc %}يلزم {{ doc }}{% else %}بلا مستند — اكتب صلةَ القرابة{% endif %}</small></button>
                 {% endfor %}
               </div>
             </form>
