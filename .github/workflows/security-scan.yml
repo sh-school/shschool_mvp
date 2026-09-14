@@ -1,4 +1,11 @@
-name: Security Scan — OWASP + SAST + CVEs
+name: Security Scan — SAST + CVEs
+
+# لا ZAP هنا (قرارُ 2026-09-14). كانت وظيفةُ «OWASP ZAP — DAST Baseline» تعمل
+# أسبوعيّاً بـ`continue-on-error: true` على `STAGING_URL` — سرٌّ لا وجودَ له —
+# فتسقط إلى `https://staging.schoolos.qa` الذي لا يخدم شيئاً، بملفِّ قواعد
+# `.zap/rules.tsv` غيرِ موجودٍ في المستودع. أي فحصٌ لا هدفَ له ولا قواعدَ ولا
+# حكم، يُطبع كلَّ أحدٍ ولا يقرؤه أحد. وحين تُوجد بيئةُ اختبارٍ حقيقيّة يُعاد
+# بفشلٍ حقيقيّ على القواعد الحرجة — لا قبل ذلك.
 
 on:
   push:
@@ -22,34 +29,7 @@ permissions:
 
 jobs:
   # ══════════════════════════════════════════════════════
-  #  1. OWASP ZAP Baseline Scan (DAST)
-  # ══════════════════════════════════════════════════════
-  zap-scan:
-    name: OWASP ZAP — DAST Baseline
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: OWASP ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.14.0
-        with:
-          target: ${{ secrets.STAGING_URL || 'https://staging.schoolos.qa' }}
-          rules_file_name: ".zap/rules.tsv"
-          cmd_options: "-a -j"
-          allow_issue_writing: false
-        continue-on-error: true
-
-      - name: Upload ZAP Report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: zap-baseline-report
-          path: report_html.html
-          retention-days: 30
-
-  # ══════════════════════════════════════════════════════
-  #  2. pip-audit — PyPI advisory database
+  #  1. pip-audit — PyPI advisory database
   # ══════════════════════════════════════════════════════
   pip-audit-pypi:
     name: pip-audit — PyPI advisories
@@ -88,7 +68,7 @@ jobs:
           retention-days: 30
 
   # ══════════════════════════════════════════════════════
-  #  3. Bandit — Python SAST
+  #  2. Bandit — Python SAST
   # ══════════════════════════════════════════════════════
   bandit:
     name: Bandit — SAST Scan
@@ -112,14 +92,17 @@ jobs:
             --confidence-level high \
             -f json -o bandit-report.json
 
-      - name: Bandit full report (all severities)
+      - name: Bandit full report (all severities — تقريرٌ لا حكم)
         if: always()
+        # `--exit-zero` صريحٌ بدل `|| true`: التقريرُ الكامل معلوماتيّ، والحكمُ في
+        # الخطوة السابقة (HIGH/HIGH). والفرقُ أنّ انهيارَ bandit نفسِه يبقى فشلاً.
         run: |
           bandit -r . \
             -x .venv,migrations,tests,manage.py,scripts \
             --severity-level low \
             --confidence-level low \
-            -f html -o bandit-full-report.html || true
+            --exit-zero \
+            -f html -o bandit-full-report.html
 
       - name: Upload Bandit Reports
         uses: actions/upload-artifact@v4
@@ -132,7 +115,7 @@ jobs:
           retention-days: 30
 
   # ══════════════════════════════════════════════════════
-  #  4. pip-audit — OSV advisory database
+  #  3. pip-audit — OSV advisory database
   # ══════════════════════════════════════════════════════
   #
   # مصدرُ بياناتٍ ثانٍ لا أداةٌ ثانية. `pip-audit` يقرأ افتراضياً قاعدة
@@ -185,7 +168,7 @@ jobs:
           retention-days: 30
 
   # ══════════════════════════════════════════════════════
-  #  5. Django Deployment Check
+  #  4. Django Deployment Check
   # ══════════════════════════════════════════════════════
   django-check:
     name: Django — Deployment Security Check

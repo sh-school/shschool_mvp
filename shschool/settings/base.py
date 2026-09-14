@@ -640,7 +640,7 @@ PUSH_WORST_CASE_BUDGET_SECONDS = (
 )
 
 
-def _validate_push_budget():
+def _validate_push_budget() -> None:
     """يرفض الإقلاع إن اختلّت سلسلة الحدود.
 
     الترتيب الواجب:

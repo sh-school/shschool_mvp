@@ -73,60 +73,69 @@ indent-style             = "space"
 skip-magic-trailing-comma = false
 
 # ── pytest ────────────────────────────────────────────
+# ملفُّ الضبط الوحيد. كان `pytest.ini` يُبطل هذا القسمَ كلَّه بصمت (pytest يقرأ
+# أوّلَ ملفٍّ يجده ويتجاهل الباقي)، فكانت هنا أعلامُ تغطيةٍ وعتبةٌ لا تُقرأ قطّ،
+# وهناك أنماطُ جمعٍ أخرى — وقسمان يتناقضان لا يُصلحان بمزيدٍ من التعليقات بل بحذف
+# أحدهما (2026-09-14). وحارسُ `tests/test_ci_gates_are_honest.py` يرفض عودتَه.
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "shschool.settings.testing"
-python_files     = ["test_*.py", "*_test.py"]
+# `tests.py` مقصود: `student_affairs/tests.py` لا مجلّدَ `tests/` له، وكان خارجَ
+# الجمع مرّتين (انظر `tests/test_suite_collection.py`).
+python_files     = ["test_*.py", "tests.py"]
 python_classes   = ["Test*"]
 python_functions = ["test_*"]
-# ✅ v5.2: استثناء loadtest (Locust) و e2e من الاختبارات الافتراضية
-testpaths = ["tests"]
-# ✅ v5.4: pytest يطابق norecursedirs بأسماء المجلدات فقط (ليس المسار الكامل)
-norecursedirs = ["loadtest", "node_modules", ".venv", "staticfiles", ".claude", "e2e"]
-# ✅ v5.4: تثبيت scope دورة الحياة لتجنّب تحذير pytest-asyncio المتكرر
+# لا `testpaths`: الجمعُ من الجذر كي تُجمع `developer_feedback/tests/` و`student_affairs/tests.py`.
+# و`norecursedirs` يُبطل افتراضاتِ pytest (`.*`, `build`, `dist`…) فتُعاد هنا صراحةً.
+norecursedirs = [
+    ".*", "*.egg", "build", "dist", "node_modules", "venv", ".venv", "staticfiles",
+    "_archive", "AAdocs", "backups", "data", "loadtest", "e2e",
+]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
 markers = [
     "slow: اختبارات بطيئة",
     "integration: اختبارات تكامل",
-    "e2e: اختبارات شاملة",
+    "e2e: اختبارات شاملة (تحتاج playwright)",
     "asyncio: اختبارات غير متزامنة",
 ]
-addopts = [
-    "--tb=short",
-    "--no-header",
-    "-q",
-    "--cov=.",
-    "--cov-report=term-missing",
-    "--cov-report=xml:coverage.xml",
-    "--cov-report=html:htmlcov",
-    # أرضية حالية (التغطية الفعلية ≈63%)؛ تُرفَع تدريجياً نحو 85%
-    "--cov-fail-under=60",
-    "--cov-omit=*/migrations/*,*/tests/*,manage.py,*/settings/*,*/.venv/*,*/venv/*",
-]
+# لا `--cov` هنا: التغطيةُ تُطلب صراحةً في البوّابة (`--cov=. --cov-report=xml`)،
+# والعتبةُ في `[tool.coverage.report].fail_under` أدناه — pytest-cov يقرؤها من هناك.
+# ولا `-v`: ثلاثةُ آلافِ سطرٍ لا يقرؤها أحد.
+addopts = ["--tb=short", "--strict-markers"]
 
 # ── Coverage ──────────────────────────────────────────
+# كان `.coveragerc` يُبطل هذا القسمَ (coverage يقرؤه أوّلاً)، فدُمج فيه وحُذف.
+# القائمةُ هي قائمتُه — وهي ما قِيست به النسبةُ الفعليّة (≈75% في 2026-09).
 [tool.coverage.run]
 source = ["."]
 omit   = [
     "*/migrations/*",
+    "*/management/commands/*",
     "*/tests/*",
     "manage.py",
-    "*/settings/*",
-    "*/.venv/*",
-    "*/venv/*",
-    "conftest.py",
+    "setup_fonts.py",
+    "shschool/settings/development.py",
+    "shschool/settings/production.py",
+    "shschool/wsgi.py",
+    "shschool/asgi.py",
+    ".venv/*",
+    ".claude/*",
 ]
 
 [tool.coverage.report]
-fail_under = 60
+# عتبةُ التغطية — الرقمُ الوحيد في المستودع. كانت ثلاثاً: 70 في البوّابة و60 في
+# nightly و85 في عنوانه، والملخّصُ يطبع PASS عند 60 والبوّابةُ تفشل عند 70.
+# البوّابةُ وnightly والتقريرُ الأسبوعيّ يقرؤونها من هنا، ولا يُسمح برقمٍ ثانٍ
+# (`tests/test_ci_gates_are_honest.py`).
+fail_under = 70
 show_missing = true
 skip_covered  = false
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
+    "if __name__ == .__main__",
     "raise NotImplementedError",
     "if TYPE_CHECKING:",
-    "pass",
 ]
 
 # ── Bandit ────────────────────────────────────────────
@@ -164,8 +173,20 @@ disallow_untyped_calls  = false
 check_untyped_defs      = false
 
 # ✅ v5.3: تخفيف على views (Django CBV signatures معقدة)
+# كان النمطُ `*.views_*` وmypy يرفضه («Patterns must be fully-qualified module
+# names») فيتجاهله بتحذيرٍ لم يقرأه أحد — `*` تكون مقطعاً كاملاً لا جزءَ اسم.
+# فالوحداتُ تُسمّى بأسمائها (2026-09-14).
 [[tool.mypy.overrides]]
-module = ["*.views", "*.views_*", "*.admin"]
+module = [
+    "*.views", "*.admin",
+    "api.views_erasure",
+    "core.views_audit", "core.views_auth", "core.views_dashboard", "core.views_health",
+    "core.views_media", "core.views_pwa", "core.views_search", "core.views_students",
+    "core.views_styleguide",
+    "operations.views_attendance", "operations.views_schedule", "operations.views_swap",
+    "quality.views_committee", "quality.views_executor", "quality.views_reports",
+    "wings.views_register",
+]
 disallow_untyped_defs   = false
 disallow_untyped_calls  = false
 

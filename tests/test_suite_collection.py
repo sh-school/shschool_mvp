@@ -12,25 +12,29 @@
 وما لا يُجمع لا يُخفق. فكان ثلاثة عشر اختباراً ميّتاً بـ`TypeError` — ثمانيةٌ
 منها أمنية (XSS، تنقية الرموز، منع الطالب، CSRF، عزل الرسائل) — تُحسب
 «أخطاءً» لا «إخفاقات»، والمجموعة تقول `2255 passed` ولا أحد يسأل.
+
+والضبطُ منذ 2026-09-14 في `pyproject.toml` وحدَه: كان `pytest.ini` يُبطله
+بصمت، فحُذف (انظر `tests/test_ci_gates_are_honest.py`).
 """
 
 import pathlib
 import re
+import tomllib
 
 import yaml
 
 #: المجلّدات التي لا تُجمع أصلاً (norecursedirs الافتراضية أو مسارات خارجية).
-SKIP = ("/.venv/", "/node_modules/", "/.claude/", "/.mypy_cache/", "/build/", "/dist/")
+SKIP = ("/.venv/", "/.local/", "/node_modules/", "/.claude/", "/.mypy_cache/", "/build/", "/dist/")
 
-CONFIG = pathlib.Path("pytest.ini")
+CONFIG = pathlib.Path("pyproject.toml")
 WORKFLOWS = pathlib.Path(".github/workflows")
 
 
 def _patterns():
-    for line in CONFIG.read_text(encoding="utf-8").splitlines():
-        if line.strip().startswith("python_files"):
-            return line.split("=", 1)[1].split()
-    raise AssertionError("لا `python_files` في pytest.ini")
+    section = tomllib.loads(CONFIG.read_text(encoding="utf-8"))["tool"]["pytest"]["ini_options"]
+    patterns = section.get("python_files")
+    assert patterns, "لا `python_files` في [tool.pytest.ini_options]"
+    return patterns
 
 
 def _test_files():
