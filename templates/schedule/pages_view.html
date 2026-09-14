@@ -35,7 +35,7 @@
       </form>
 
       <button type="button" id="pages-print-btn" class="btn-primary btn-sm schedule-frame-print">طباعة</button>
-      <a href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تنزيل PDF</a>
+      <a data-app-file href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm schedule-frame-print">تنزيل PDF</a>
       <span class="text-sm text-secondary">{{ pages|length }} صفحة</span>
     </div>
   </div>
@@ -52,7 +52,7 @@
   <div class="schedule-paper-touch">
     <p class="text-secondary">الجداول صفحاتٌ بعرض الورقة — تُفتح كاملةً أو ملفَّ PDF.</p>
     <a href="{% url 'schedule_pages_paper' %}?{{ selection_query }}" target="_blank" rel="noopener" class="btn-primary">فتح الجداول</a>
-    <a href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary">تنزيل PDF</a>
+    <a data-app-file href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary">تنزيل PDF</a>
   </div>
 </div>
 

@@ -59,14 +59,14 @@
           <b class="plain-list__title">تصدير الطلاب</b>
           <span class="plain-list__sub" title="الرقم الشخصي — الاسم — الصف — الشعبة — الجوال — البريد الإلكتروني · رأس احترافي + فلاتر + RTL + طباعة A4">كشف Excel: الرقم الشخصي، الاسم، الصف، الشعبة، الجوال، البريد</span>
         </span>
-        <a href="{% url 'student_export_excel' %}" class="btn-primary btn-sm" aria-label="تصدير كل الطلاب إلى Excel">{% icon "export_excel" %} تصدير Excel</a>
+        <a data-app-file href="{% url 'student_export_excel' %}" class="btn-primary btn-sm" aria-label="تصدير كل الطلاب إلى Excel">{% icon "export_excel" %} تصدير Excel</a>
       </li>
       <li class="plain-list__row">
         <span class="plain-list__main">
           <b class="plain-list__title">قالب الاستيراد</b>
           <span class="plain-list__sub">أعمدة الطالب ووليّ الأمر، وتعليماتٌ في الصف الأول، وصفوفٌ نموذجيّة</span>
         </span>
-        <a href="{% url 'student_import_template' %}" class="btn-secondary btn-sm" aria-label="تحميل قالب Excel للاستيراد">{% icon "download" %} تحميل القالب</a>
+        <a data-app-file href="{% url 'student_import_template' %}" class="btn-secondary btn-sm" aria-label="تحميل قالب Excel للاستيراد">{% icon "download" %} تحميل القالب</a>
       </li>
       <li class="plain-list__row">
         <span class="plain-list__main">

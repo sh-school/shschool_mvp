@@ -148,7 +148,7 @@
           <span class="plain-list__sub">{{ ev.uploaded_by.full_name|default:"—" }} · {{ ev.created_at|date:"Y/m/d" }}</span>
         </span>
         {% if ev.file %}
-        <a href="{{ ev.file.url }}" target="_blank" rel="noopener" class="btn-secondary btn-sm">تحميل</a>
+        <a data-app-file href="{{ ev.file.url }}" target="_blank" rel="noopener" class="btn-secondary btn-sm">تحميل</a>
         {% endif %}
       </li>
       {% endfor %}

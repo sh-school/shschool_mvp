@@ -15,8 +15,8 @@
     <a href="{% url 'wings:record_index' %}" class="btn-primary btn-sm">{% icon "attendance_register" %} رصد الغياب</a>
     {# «غياب اليوم» مقيَّدٌ بطلبة الجناح للمقيَّد به (operations.daily_absence) — فرابطُه للجميع. #}
     <a href="{% url 'daily_report' %}" class="btn-secondary btn-sm">{% icon "absence" %} غياب اليوم</a>
-    <a href="{% url 'student_affairs:attendance_export' %}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
-    <a href="{% url 'student_affairs:attendance_pdf' %}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>
+    <a data-app-file href="{% url 'student_affairs:attendance_export' %}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
+    <a data-app-file href="{% url 'student_affairs:attendance_pdf' %}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>
     <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 

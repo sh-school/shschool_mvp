@@ -11,7 +11,7 @@
 <div class="pr-page">
 
   {% page_header "تقرير التقدم الكلي" subtitle=report_subtitle icon="trend" %}
-    <a href="{% url 'quality_report_pdf' %}?year={{ year }}" class="btn-primary btn-sm">{% icon "export_pdf" %} تصدير PDF</a>
+    <a data-app-file href="{% url 'quality_report_pdf' %}?year={{ year }}" class="btn-primary btn-sm">{% icon "export_pdf" %} تصدير PDF</a>
     <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
   {% endpage_header %}
 

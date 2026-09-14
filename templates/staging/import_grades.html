@@ -47,7 +47,7 @@
             <td>
               <div class="import-actions">
                 {% if openpyxl_ok %}
-                <a href="{% url 'download_grade_template' a.id %}" class="btn-secondary btn-xs">{% icon "export_excel" %} قالب Excel</a>
+                <a data-app-file href="{% url 'download_grade_template' a.id %}" class="btn-secondary btn-xs">{% icon "export_excel" %} قالب Excel</a>
                 {% else %}
                 <span class="btn-secondary btn-xs" aria-disabled="true">{% icon "export_excel" %} قالب Excel</span>
                 {% endif %}

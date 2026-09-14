@@ -20,7 +20,7 @@
   {% page_header "سجل الطلاب" subtitle=page_subtitle icon="student_info" %}
     {% if not limited or request.user|can_open:'student_affairs:student_add' %}<a href="{% url 'student_affairs:student_add' %}" class="btn-primary btn-sm">{% icon "student_add" %} إضافة طالب</a>{% endif %}
     {% if not limited or request.user|can_open:'student_import_export' %}<a href="/core/students/import-export/" class="btn-secondary btn-sm">{% icon "export_excel" %} استيراد Excel</a>{% endif %}
-    {% if not limited or request.user|can_open:'student_affairs:student_export' %}<a href="{% url 'student_affairs:student_export' %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>{% endif %}
+    {% if not limited or request.user|can_open:'student_affairs:student_export' %}<a data-app-file href="{% url 'student_affairs:student_export' %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>{% endif %}
     <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 

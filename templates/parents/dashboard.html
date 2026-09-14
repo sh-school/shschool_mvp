@@ -67,7 +67,7 @@
       <a href="{% url 'parent_all_attendance' %}" class="btn-secondary btn-sm">{% icon "attendance_register" %} كل الحضور</a>
       <a href="{% url 'notification_inbox' %}" class="btn-secondary btn-sm">{% icon "notifications" %} الإشعارات</a>
       <a href="{% url 'parent_consent' %}" class="btn-secondary btn-sm">{% icon "settings" %} إعدادات الخصوصية</a>
-      <a href="{% url 'behavior:policy_pdf' %}" target="_blank" rel="noopener" class="btn-secondary btn-sm">{% icon "print" %} لائحة السلوك</a>
+      <a data-app-file href="{% url 'behavior:policy_pdf' %}" target="_blank" rel="noopener" class="btn-secondary btn-sm">{% icon "print" %} لائحة السلوك</a>
     </nav>
   {% endsection_card %}
   {% endif %}

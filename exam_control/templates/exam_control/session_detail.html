@@ -10,7 +10,7 @@
 <div class="exec-dash">
 
   {% page_header session.name subtitle=session.get_status_display icon="clipboard-check" %}
-    <a href="{% url 'exam_control:session_report_pdf' session.pk %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="file-text" %} تقرير PDF</a>
+    <a data-app-file href="{% url 'exam_control:session_report_pdf' session.pk %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="file-text" %} تقرير PDF</a>
     <a href="{% url 'exam_control:dashboard' %}" class="btn-ghost btn-sm">كلُّ الدورات</a>
   {% endpage_header %}
 
