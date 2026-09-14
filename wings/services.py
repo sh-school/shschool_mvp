@@ -374,7 +374,7 @@ def sections_to_record(wing, day, now=None) -> list[SectionToRecord]:
     return rows
 
 
-def next_section_awaiting(klass, day, start) -> ClassGroup | None:
+def next_section_awaiting(klass: ClassGroup, day: dt.date, start: dt.time) -> ClassGroup | None:
     """الشعبةُ التالية في جناح `klass` التي لم تُثبَّت حصّتُها الواقعةُ في `start` بعد.
 
     المشرفُ يمرّ على شُعبه الخمس في الحصّة نفسِها، فبعد تثبيت واحدةٍ يُنقل إلى
@@ -383,12 +383,11 @@ def next_section_awaiting(klass, day, start) -> ClassGroup | None:
     """
     from operations.models import PeriodConfirmation, Session
 
-    if klass.wing_id is None:
+    wing = klass.wing
+    if wing is None:
         return None
-    ordered = list(
-        klass.wing.class_groups.filter(is_active=True)
-        .exclude(pk=klass.pk)
-        .order_by("grade", "section")
+    ordered: list[ClassGroup] = list(
+        wing.class_groups.filter(is_active=True).exclude(pk=klass.pk).order_by("grade", "section")
     )
     after = [c for c in ordered if (c.grade, c.section) > (klass.grade, klass.section)]
     before = [c for c in ordered if (c.grade, c.section) <= (klass.grade, klass.section)]
