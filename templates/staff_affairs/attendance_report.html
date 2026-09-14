@@ -1,0 +1,63 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}تقرير حضور الموظفين{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/staff-affairs/attendance/" parent_label="رصد الحضور" current="تقرير الشهر" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "تقرير حضور الموظفين الشهري" subtitle="يحسب ولا يخصم: الخصمُ (البند 5) قرارٌ إداريّ على هذا التقرير" icon="reports" %}
+    <a href="{% url 'staff_affairs:attendance_report_xlsx' %}?month={{ month_value }}" class="btn-primary btn-sm">{% icon "export_excel" %} تنزيل Excel</a>
+  {% endpage_header %}
+
+  {% filter_bar "اختيار شهر التقرير" %}
+    {% field "month" "الشهر" type="month" value=month_value data_autosubmit=True %}
+  {% endfilter_bar %}
+
+  {% kpi_strip label="مجاميع الشهر" %}
+    {% kpi "أيام حضور" totals.present tone="green" %}
+    {% kpi "أيام تأخّر" totals.late tone="amber" %}
+    {% kpi "أيام غياب" totals.absent tone="red" %}
+    {% kpi "أيام استئذان" totals.permitted tone="sky" %}
+    {% kpi "دقائق التأخّر" totals.late_minutes tone="orange" %}
+    {% kpi "دقائق الإذن" totals.permit_minutes title="الإذن المعتمد — السقف 420 دقيقة لكل موظف" tone="teal" %}
+  {% endkpi_strip %}
+
+  {% section_card "الكادر" meta=first|date:"F Y" icon="staff" flush=True empty="لا كادرَ نشطاً في هذه المدرسة" %}{% if rows %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-center">الرقم الوظيفي</th>
+            <th>الاسم</th>
+            <th class="num">حاضر</th>
+            <th class="num">متأخّر</th>
+            <th class="num">غائب</th>
+            <th class="num">مستأذن</th>
+            <th class="num">دقائق التأخّر</th>
+            <th class="num">دقائق الإذن</th>
+            <th class="num">المتبقّي من السقف</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td class="col-center" dir="ltr">{{ r.employee_number|default:"—" }}</td>
+            <td><strong>{{ r.full_name }}</strong></td>
+            <td class="num">{{ r.present }}</td>
+            <td class="num">{{ r.late }}</td>
+            <td class="num">{{ r.absent }}</td>
+            <td class="num">{{ r.permitted }}</td>
+            <td class="num">{{ r.late_minutes }}</td>
+            <td class="num">{{ r.permit_minutes }}</td>
+            <td class="num">{{ r.permit_remaining }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+</div>
+{% endblock %}

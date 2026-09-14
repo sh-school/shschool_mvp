@@ -1,0 +1,64 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}أذوناتي{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="أذوناتي" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "أذوناتي" subtitle="تأخير · استئذان · خروج مبكر — سبع ساعات في الشهر، وساعتان للمرّة، ومرّةٌ في اليوم (البنود 4.2 – 4.4)" icon="leave" %}{% endpage_header %}
+
+  {% kpi_strip label="رصيد أذونات هذا الشهر" %}
+    {% kpi "المعتمد هذا الشهر" balance.approved sub="دقيقة" tone="teal" %}
+    {% kpi "قيد الاعتماد" balance.pending sub="دقيقة — لا يُخصم قبل الاعتماد" tone="amber" %}
+    {% kpi "المتبقّي" balance.remaining sub="من 420 دقيقة" tone="green" %}
+  {% endkpi_strip %}
+
+  {% section_card "طلب إذن جديد" icon="edit_record" %}
+    <form method="post">{% csrf_token %}
+      {% if form.non_field_errors %}<p class="form-note is-warning sa-errors" role="alert">{% icon "status_warning" %} {{ form.non_field_errors|join:" · " }}</p>{% endif %}
+      <div class="form-row">
+        {% field "permit_type" "نوع الطلب" type="select" choices=permit_types value=form.data.permit_type required=True error=form.permit_type.errors.0 %}
+        {% field "date" "التاريخ" type="date" value=form.data.date required=True error=form.date.errors.0 %}
+        {% field "start_time" "من الساعة" type="time" value=form.data.start_time required=True error=form.start_time.errors.0 %}
+        {% field "end_time" "إلى الساعة" type="time" value=form.data.end_time required=True error=form.end_time.errors.0 %}
+        {% field "reason" "سبب الطلب" type="textarea" rows=2 value=form.data.reason required=True maxlength=500 error=form.reason.errors.0 css="sa-span-2" %}
+      </div>
+      <div class="form-actions sa-form-footer">
+        <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} تقديم الطلب</button>
+      </div>
+    </form>
+  {% endsection_card %}
+
+  {% section_card "طلباتي" meta=permits|length icon="checklist" flush=True empty="لم تقدّم طلبَ إذنٍ بعد" %}{% if permits %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-center">التاريخ</th>
+            <th>النوع</th>
+            <th class="col-center">من – إلى</th>
+            <th class="num">الدقائق</th>
+            <th class="col-center">الحالة</th>
+            <th>ملاحظة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in permits %}
+          <tr>
+            <td class="col-center">{{ p.date|date:"d/m/Y" }}</td>
+            <td>{{ p.get_permit_type_display }}</td>
+            <td class="col-center" dir="ltr">{{ p.start_time|time:"H:i" }} – {{ p.end_time|time:"H:i" }}</td>
+            <td class="num">{{ p.duration_minutes }}</td>
+            <td class="col-center"><span class="status-badge {% if p.status == 'approved' %}status-success{% elif p.status == 'rejected' %}status-danger{% elif p.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ p.get_status_display }}</span></td>
+            <td class="text-xs">{{ p.rejection_reason|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+</div>
+{% endblock %}

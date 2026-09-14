@@ -1,0 +1,37 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}رصد حضور الموظفين{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/staff-affairs/" parent_label="شؤون الموظفين" current="رصد الحضور" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "رصد حضور الموظفين" subtitle="بعد 7:00 متأخّر، وبعد 9:00 غائب ما لم يكن إذنٌ معتمد — سياسة الحضور ت/د 2027/01، البندان 2.1 و2.4" icon="attendance_register" %}
+    <a href="{% url 'staff_affairs:attendance_report' %}" class="btn-secondary btn-sm">{% icon "reports" %} تقرير الشهر</a>
+    <a href="{% url 'staff_affairs:permit_queue' %}" class="btn-secondary btn-sm">{% icon "checklist" %} طلبات الأذونات</a>
+  {% endpage_header %}
+
+  {% filter_bar "اختيار يوم الرصد" %}
+    {% field "date" "اليوم" type="date" value=day|date:"Y-m-d" max=today|date:"Y-m-d" data_autosubmit=True %}
+    <div class="filter-actions">
+      <a href="{% url 'staff_affairs:attendance_board' %}" class="btn-secondary btn-xs">اليوم</a>
+    </div>
+  {% endfilter_bar %}
+
+  {% kpi_strip label="أرقام رصد اليوم" %}
+    {% kpi "حاضر" counts.present tone="green" %}
+    {% kpi "متأخّر" counts.late tone="amber" %}
+    {% kpi "غائب" counts.absent tone="red" %}
+    {% kpi "مستأذن" counts.permitted tone="sky" %}
+    {% kpi "لم يُرصد" counts.unmarked tone="maroon" %}
+  {% endkpi_strip %}
+
+  {% section_card "الكادر" meta=day|date:"l d/m/Y" icon="staff" flush=True empty="لا كادرَ نشطاً في هذه المدرسة" %}{% if rows %}
+    <div class="att-list">
+      {% for row in rows %}{% include "staff_affairs/partials/attendance_row.html" with staff=row.staff record=row.record %}{% endfor %}
+    </div>
+  {% endif %}{% endsection_card %}
+</div>
+{% endblock %}

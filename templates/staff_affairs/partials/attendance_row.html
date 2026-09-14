@@ -1,0 +1,34 @@
+{% load ui %}
+{% comment %}
+سطرُ موظّفٍ في رصد اليوم — يُستبدل بنفسه (`outerHTML`) بعد كلّ نقرة.
+وقتُ الحضور شاهدٌ اختياريّ يُرسَل مع النقرة: إن كُتب صنّفته الخدمةُ بالبندين 2.1
+و2.4، ونقرةٌ تخالفه تعود هنا برسالةٍ تسمّي البند.
+{% endcomment %}
+{% with sid=staff.pk|stringformat:"s" %}{% with tid="sa-in-"|add:sid %}
+<div id="sa-att-{{ staff.pk }}" class="att-row" data-state="{{ record.status|default:'unmarked' }}">
+
+  <div class="att-row__info">
+    <div class="att-row__name">{{ staff.full_name }}</div>
+    <div class="att-row__nid" dir="ltr" title="الرقم الوظيفي">{{ staff.employee_number|default:"—" }}</div>
+    {% if error %}<p class="field-error" role="alert">{{ error }}</p>{% endif %}
+  </div>
+
+  <span class="status-badge {% if record.status == 'present' %}status-success{% elif record.status == 'late' %}status-warning{% elif record.status == 'absent' %}status-danger{% elif record.status == 'permitted' %}status-info{% else %}status-gray{% endif %}">
+    {% if record %}{{ record.get_status_display }}{% if record.late_minutes %} · {{ record.late_minutes }} د{% endif %}{% if record.permit_minutes %} · إذن {{ record.permit_minutes }} د{% endif %}{% else %}لم يُرصد{% endif %}
+  </span>
+
+  {% field "check_in" "وقت الحضور" type="time" value=record.check_in|time:"H:i" id=tid hide_label=True %}
+
+  <div class="att-row__actions" role="group" aria-label="حالة {{ staff.full_name }}">
+    {% url 'staff_affairs:attendance_mark' as mark_url %}
+    <button type="button" hx-post="{{ mark_url }}" hx-vals='{"staff_id": "{{ staff.pk }}", "date": "{{ day|date:"Y-m-d" }}", "status": "present"}' hx-include="#{{ tid }}" hx-target="#sa-att-{{ staff.pk }}" hx-swap="outerHTML"
+      class="att-btn is-present{% if record.status == 'present' %} is-current{% endif %}" aria-pressed="{% if record.status == 'present' %}true{% else %}false{% endif %}">حاضر</button>
+    <button type="button" hx-post="{{ mark_url }}" hx-vals='{"staff_id": "{{ staff.pk }}", "date": "{{ day|date:"Y-m-d" }}", "status": "late"}' hx-include="#{{ tid }}" hx-target="#sa-att-{{ staff.pk }}" hx-swap="outerHTML"
+      class="att-btn is-late{% if record.status == 'late' %} is-current{% endif %}" aria-pressed="{% if record.status == 'late' %}true{% else %}false{% endif %}">متأخّر</button>
+    <button type="button" hx-post="{{ mark_url }}" hx-vals='{"staff_id": "{{ staff.pk }}", "date": "{{ day|date:"Y-m-d" }}", "status": "absent"}' hx-include="#{{ tid }}" hx-target="#sa-att-{{ staff.pk }}" hx-swap="outerHTML"
+      class="att-btn is-absent{% if record.status == 'absent' %} is-current{% endif %}" aria-pressed="{% if record.status == 'absent' %}true{% else %}false{% endif %}">غائب</button>
+    <button type="button" hx-post="{{ mark_url }}" hx-vals='{"staff_id": "{{ staff.pk }}", "date": "{{ day|date:"Y-m-d" }}", "status": "permitted"}' hx-include="#{{ tid }}" hx-target="#sa-att-{{ staff.pk }}" hx-swap="outerHTML"
+      class="att-btn is-excused{% if record.status == 'permitted' %} is-current{% endif %}" aria-pressed="{% if record.status == 'permitted' %}true{% else %}false{% endif %}">مستأذن</button>
+  </div>
+</div>
+{% endwith %}{% endwith %}

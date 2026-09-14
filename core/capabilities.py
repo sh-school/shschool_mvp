@@ -110,6 +110,13 @@ def registry() -> dict[str, Capability]:
         # ── شؤون الموظّفين والتدقيق ─────────────────────────────────
         _cap("staff_affairs.manage", "إدارةُ شؤون الموظّفين", P.STAFF_AFFAIRS_MANAGE),
         _cap(
+            "staff_affairs.own_permits",
+            "طلبُ إذنٍ قصيرٍ للموظّف نفسه",
+            P.ALL_STAFF_ROLES,
+            scope="طلباتُ المستخدم نفسِه ورصيدُه",
+            basis="07_forms_catalog.md جدول 1 بند 02 — يقدّمه الموظّف ويوقّعه",
+        ),
+        _cap(
             "audit.permissions_log",
             "سجلُّ تغييرات الصلاحيّات",
             {"principal", "vice_admin", "vice_academic"},

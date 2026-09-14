@@ -1,0 +1,60 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}طلبات الأذونات{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/staff-affairs/attendance/" parent_label="رصد الحضور" current="طلبات الأذونات" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "طلبات الأذونات المعلّقة" subtitle="لا يُعتدّ بالإذن إلا بعد اعتماده، والسقفُ يُفحص ثانيةً عند الاعتماد (البندان 4.1 و4.2)" icon="checklist" %}
+    <a href="{% url 'staff_affairs:attendance_board' %}" class="btn-secondary btn-sm">{% icon "attendance_register" %} رصد الحضور</a>
+  {% endpage_header %}
+
+  {% section_card "بانتظار القرار" meta=permits|length icon="leave" flush=True empty="لا طلباتِ أذوناتٍ معلّقة" %}{% if permits %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>الموظف</th>
+            <th class="col-center">الرقم الوظيفي</th>
+            <th>النوع</th>
+            <th class="col-center">التاريخ</th>
+            <th class="col-center">من – إلى</th>
+            <th class="num">الدقائق</th>
+            <th>السبب</th>
+            <th class="col-actions">القرار</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in permits %}
+          {% with sid=p.pk|stringformat:"s" %}{% with rid="sa-rej-"|add:sid %}
+          <tr>
+            <td><strong>{{ p.staff.full_name }}</strong></td>
+            <td class="col-center" dir="ltr">{{ p.staff.employee_number|default:"—" }}</td>
+            <td>{{ p.get_permit_type_display }}</td>
+            <td class="col-center">{{ p.date|date:"d/m/Y" }}</td>
+            <td class="col-center" dir="ltr">{{ p.start_time|time:"H:i" }} – {{ p.end_time|time:"H:i" }}</td>
+            <td class="num">{{ p.duration_minutes }}</td>
+            <td class="text-xs">{{ p.reason }}</td>
+            <td class="col-actions">
+              <form method="post" action="{% url 'staff_affairs:permit_review' p.pk %}">{% csrf_token %}
+                <input type="hidden" name="decision" value="approve">
+                <button type="submit" class="btn-primary btn-xs">{% icon "confirm" %} اعتماد</button>
+              </form>
+              <form method="post" action="{% url 'staff_affairs:permit_review' p.pk %}">{% csrf_token %}
+                <input type="hidden" name="decision" value="reject">
+                {% field "rejection_reason" "سبب الرفض" id=rid hide_label=True placeholder="سبب الرفض" maxlength=300 %}
+                <button type="submit" class="btn-secondary btn-xs">{% icon "close" %} رفض</button>
+              </form>
+            </td>
+          </tr>
+          {% endwith %}{% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+</div>
+{% endblock %}

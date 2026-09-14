@@ -2,7 +2,7 @@
 
 from django import forms
 
-from .models import LEAVE_TYPES
+from .models import LEAVE_TYPES, PERMIT_TYPES, STAFF_ATTENDANCE_STATUS
 
 
 class LeaveRequestForm(forms.Form):
@@ -162,3 +162,28 @@ class StaffEmploymentForm(forms.Form):
         ]
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
+
+
+class PermitRequestForm(forms.Form):
+    """نموذج 02: طلب تأخير / استئذان / خروج مبكر — للموظّف نفسه.
+
+    الشكلُ وحدَه هنا؛ حدودُ السياسة (4.2 و4.3 و4.4) في ``PermitService.submit``.
+    """
+
+    permit_type = forms.ChoiceField(choices=PERMIT_TYPES, label="نوع الطلب")
+    date = forms.DateField(label="التاريخ")
+    start_time = forms.TimeField(label="من الساعة")
+    end_time = forms.TimeField(label="إلى الساعة")
+    reason = forms.CharField(max_length=500, label="سبب الطلب")
+
+
+class PermitReviewForm(forms.Form):
+    decision = forms.ChoiceField(choices=[("approve", "اعتماد"), ("reject", "رفض")])
+    rejection_reason = forms.CharField(max_length=300, required=False)
+
+
+class AttendanceMarkForm(forms.Form):
+    staff_id = forms.UUIDField()
+    date = forms.DateField()
+    status = forms.ChoiceField(choices=STAFF_ATTENDANCE_STATUS)
+    check_in = forms.TimeField(required=False)
