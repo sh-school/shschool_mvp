@@ -24,6 +24,7 @@ from assessments.models import (
 )
 from core import brand
 from core.academic_calendar import academic_year_for_school
+from core.domain.attendance import attendance_rate
 from core.export_utils import add_excel_title_rows, brand_cell, excel_table_styles, xl_font
 from core.models import StudentEnrollment
 from core.privacy import mask_national_id
@@ -227,7 +228,7 @@ class ReportDataService:
             late = counts["late"]
             excused = counts["excused"]
             present = total - absent - late - excused
-            pct = round(present / total * 100) if total else 0
+            pct = attendance_rate(present, total)
 
             student_rows.append(
                 {

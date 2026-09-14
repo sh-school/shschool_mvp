@@ -24,6 +24,7 @@ from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school, default_academic_year
+from core.domain.tones import tone_for
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,17 @@ PERIOD_CHOICES = [
     ("S1", "الفصل الأول"),
     ("S2", "الفصل الثاني"),
 ]
+
+#: تقديرُ مؤشّر السلوك (من 100) في ملفّ الطالب: (الوصف، اللون).
+NET_SCORE_RATING = (
+    (90, ("ممتاز", "green")),
+    (75, ("جيد جداً", "blue")),
+    (60, ("جيد", "amber")),
+    (None, ("يحتاج تطوير", "red")),
+)
+
+#: لونُ حالة الملفّ السلوكيّ: 80 فأكثر أخضر، و60 فأكثر أصفر، ودونها أحمر.
+NET_SCORE_STATUS = ((80, "green"), (60, "yellow"), (None, "red"))
 
 
 class BehaviorPermissions:
@@ -133,15 +145,8 @@ class BehaviorService:
             + by_level.get(4, 0) * 25
         )
         net_score = max(0, 100 - min(30, severity))
-
-        if net_score >= 90:
-            rating, rating_color = "ممتاز", "green"
-        elif net_score >= 75:
-            rating, rating_color = "جيد جداً", "blue"
-        elif net_score >= 60:
-            rating, rating_color = "جيد", "amber"
-        else:
-            rating, rating_color = "يحتاج تطوير", "red"
+        # المؤشّرُ رقمٌ دائماً (لا `None`)، فالحكمُ الافتراضيُّ هو أدنى السُّلَّم.
+        rating, rating_color = tone_for(net_score, NET_SCORE_RATING, empty=NET_SCORE_RATING[-1][1])
 
         return {
             "total_count": total_count,
@@ -190,11 +195,7 @@ class BehaviorService:
         )
 
         score = BehaviorService.get_student_score(student)
-        status_color = (
-            "green"
-            if score["net_score"] >= 80
-            else ("yellow" if score["net_score"] >= 60 else "red")
-        )
+        status_color = tone_for(score["net_score"], NET_SCORE_STATUS)
 
         by_level: dict = {1: 0, 2: 0, 3: 0, 4: 0}
         for inf in infractions:

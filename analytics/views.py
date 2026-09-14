@@ -19,6 +19,8 @@ from assessments.models import StudentSubjectResult
 from core import brand
 from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required
+from core.domain.attendance import attendance_rate
+from core.domain.grades import GRADE_BANDS, band_of
 from core.models import (
     BehaviorInfraction,
     BookBorrowing,
@@ -62,7 +64,7 @@ def analytics_dashboard(request):
     att_today = StudentAttendance.objects.filter(session__in=sessions_today)
     present_today = att_today.filter(status="present").count()
     total_att = att_today.count()
-    att_pct_today = round(present_today / total_att * 100) if total_att else 0
+    att_pct_today = attendance_rate(present_today, total_att)
 
     # العيادة
     clinic_visits_today = ClinicVisit.objects.filter(school=school, visit_date__date=today).count()
@@ -189,7 +191,7 @@ def api_attendance_trend(request):
     for row in qs:
         d = row["session__date"]
         labels.append(d.strftime("%d/%m"))
-        pct = round(row["present"] / row["total"] * 100) if row["total"] else 0
+        pct = attendance_rate(row["present"], row["total"])
         present_data.append(pct)
         absent_data.append(100 - pct)
 
@@ -231,23 +233,11 @@ def api_grades_distribution(request):
         setup__school=school, setup__academic_year=year
     ).values_list("total", flat=True)
 
-    buckets = {"90-100": 0, "80-89": 0, "70-79": 0, "60-69": 0, "50-59": 0, "أقل من 50": 0}
+    buckets = {band.label: 0 for band in GRADE_BANDS}
     for g in grades:
-        if g is None:
-            continue
-        g = float(g)
-        if g >= 90:
-            buckets["90-100"] += 1
-        elif g >= 80:
-            buckets["80-89"] += 1
-        elif g >= 70:
-            buckets["70-79"] += 1
-        elif g >= 60:
-            buckets["60-69"] += 1
-        elif g >= 50:
-            buckets["50-59"] += 1
-        else:
-            buckets["أقل من 50"] += 1
+        band = band_of(g)
+        if band is not None:
+            buckets[band.label] += 1
 
     colors = [
         brand.STATUS_SUCCESS,

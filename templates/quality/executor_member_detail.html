@@ -53,7 +53,7 @@
             <td><a href="{% url 'procedure_detail' proc.id %}" class="qexec-proc-link">{{ proc.text|truncatechars:80 }}</a></td>
             <td class="num pr-muted">{{ proc.date_range }}</td>
             <td class="num"><span class="status-badge status-{{ proc.status_tone }}">{{ proc.get_status_display }}</span></td>
-            <td class="num">{{ proc.evidences.count }}</td>
+            <td class="num">{{ proc.evidence_count }}</td>
           </tr>
           {% endfor %}
         </tbody>

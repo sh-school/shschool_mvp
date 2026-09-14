@@ -54,7 +54,7 @@ def role_label(name: str) -> str:
 @capability_required("staff_affairs.manage")
 def staff_dashboard(request):
     """لوحة شؤون الموظفين — KPIs + روابط سريعة."""
-    school = request.user.get_school()
+    school = request.school
     today = timezone.localdate()
     year = request.GET.get("year") or academic_year_for(request)
 
@@ -172,7 +172,7 @@ def staff_list(request):
     بلا تصفّح — فمن بحث عن الحادي والمئتين لم يجده ولم يُقل له لماذا. صار
     الاستثناءُ ترشيحاً يُبدَّل، والاقتطاعُ تصفّحاً يُرى.
     """
-    school = request.user.get_school()
+    school = request.school
 
     q = request.GET.get("q", "").strip()
     role_filter = request.GET.get("role", "")
@@ -362,7 +362,7 @@ def staff_appoint(request):
     كان التعيينُ لا يتمّ إلّا من لوحة Django أو من سطر الأوامر، فشؤونُ
     الموظفين تُدير كادراً لا تستطيع أن تضيف إليه أحداً.
     """
-    school = request.user.get_school()
+    school = request.school
     form = StaffAppointmentForm(request.POST or None, school=school)
 
     if request.method == "POST" and form.is_valid():
@@ -411,7 +411,7 @@ def staff_appoint(request):
 @require_POST
 def staff_depart(request, user_id):
     """يسجّل مغادرةَ منتسبٍ — تاريخاً وسبباً ومرجعاً، ولا يمحو تاريخَه."""
-    school = request.user.get_school()
+    school = request.school
     user = get_object_or_404(CustomUser, id=user_id)
     # صفةُ وليّ الأمر لا تُمسّ: مغادرةُ الكادر لا تُخرج ابنَه من المدرسة.
     rows = list(
@@ -460,7 +460,7 @@ def staff_depart(request, user_id):
 @require_POST
 def staff_reinstate(request, user_id):
     """يُلغي مغادرةً سُجّلت بالخطأ ويُعيد المنتسبَ إلى الكادر."""
-    school = request.user.get_school()
+    school = request.school
     user = _member_or_404(user_id, school)
     rows = list(
         Membership.objects.filter(user=user, school=school, is_active=False).exclude(
@@ -500,7 +500,7 @@ def _as_errors(exc) -> dict:
 @capability_required("staff_affairs.manage")
 def staff_profile(request, user_id):
     """ملف الموظف الشامل — بيانات + غياب + تقييم + إجازات + رخصة."""
-    school = request.user.get_school()
+    school = request.school
     # المغادرُ له ملفٌّ يُفتح: من سُجّلت مغادرتُه بالخطأ لا يُصحَّح إلّا من هنا.
     user = _member_or_404(user_id, school)
     year = request.GET.get("year") or academic_year_for(request)
@@ -579,7 +579,7 @@ def staff_profile(request, user_id):
 @require_POST
 def staff_profile_save(request, user_id, section):
     """يحفظ قسماً من الملفّ — ويكتب في سجلّ المراجعة من غيّر وماذا ومتى."""
-    school = request.user.get_school()
+    school = request.school
     user = _member_or_404(user_id, school)
 
     if section == "person":
@@ -652,7 +652,7 @@ def _flash_errors(request, exc):
 @capability_required("staff_affairs.manage")
 def leave_list(request):
     """قائمة طلبات الإجازات مع فلتر."""
-    school = request.user.get_school()
+    school = request.school
     leaves = (
         LeaveRequest.objects.filter(school=school).select_related("staff").order_by("-created_at")
     )
@@ -683,7 +683,7 @@ def leave_list(request):
 @capability_required("staff_affairs.manage")
 def leave_request_create(request):
     """تقديم طلب إجازة جديد."""
-    school = request.user.get_school()
+    school = request.school
     from .forms import LeaveRequestForm
 
     if request.method == "POST":
@@ -730,7 +730,7 @@ def leave_request_create(request):
 @capability_required("staff_affairs.manage")
 def leave_detail(request, pk):
     """تفاصيل طلب إجازة."""
-    school = request.user.get_school()
+    school = request.school
     leave = get_object_or_404(LeaveRequest, pk=pk, school=school)
     return render(request, "staff_affairs/leave_detail.html", {"leave": leave})
 
@@ -740,7 +740,7 @@ def leave_detail(request, pk):
 @require_POST
 def leave_review(request, pk):
     """مراجعة طلب إجازة — موافقة أو رفض."""
-    school = request.user.get_school()
+    school = request.school
     leave = get_object_or_404(LeaveRequest, pk=pk, school=school)
 
     from .forms import LeaveReviewForm
@@ -774,7 +774,7 @@ def leave_review(request, pk):
 @capability_required("staff_affairs.manage")
 def licensing_overview(request):
     """نظرة شاملة على الرخص المهنية — منتهية / تنتهي قريباً / سارية."""
-    school = request.user.get_school()
+    school = request.school
     today = timezone.localdate()
 
     # ✅ v5.4: StaffService.get_license_overview — DB filters بدل Python list comprehensions

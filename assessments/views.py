@@ -7,7 +7,7 @@ from django.contrib import messages
 logger = logging.getLogger(__name__)
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, Prefetch, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -16,6 +16,7 @@ from django.views.decorators.http import require_POST
 from core import brand
 from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.capabilities import capability_required
+from core.domain.tones import GRADE_CELL, tone_for
 from core.export_utils import excel_table_styles, xl_font
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_order
@@ -38,28 +39,19 @@ from .services import GradeService
 
 
 def _grade_tone(total, out_of=100) -> str:
-    """لونُ درجةٍ بنسبتها من قصواها — العتباتُ التي كانت في القالب: 80 · 65 · 50.
+    """لونُ درجةٍ بنسبتها من قصواها — سُلَّمُ خانة الدرجة الواحد: 80 · 65 · 50.
 
     كان مجموعُ الفصل (من 40 أو 60) يُلوَّن بعتبات المئة نفسها، فيظهر أحمرَ
     ولو كان كاملاً. فالنسبةُ أوّلاً ثمّ العتبة.
     """
     if total is None or not out_of:
         return "muted"
-    pct = float(total) / float(out_of) * 100
-    if pct >= 80:
-        return "success"
-    if pct >= 65:
-        return "info"
-    if pct >= 50:
-        return "warning"
-    return "danger"
+    return tone_for(float(total) / float(out_of) * 100, GRADE_CELL)
 
 
 def _half_tone(score, out_of) -> str:
     """نصفُ القصوى فأكثر أخضر، ودونه أحمر — عتبةُ الباقة والفصل في القالب القديم."""
-    if score is None:
-        return "muted"
-    return "success" if float(score) >= float(out_of) * 0.5 else "danger"
+    return tone_for(score, ((float(out_of) * 0.5, "success"), (None, "danger")))
 
 
 #: شارةُ حالة التقييم — ما كان سلسلةَ `{% if %}` في القالب. وما لم يُذكر «مسودّة» تحذيراً.
@@ -84,7 +76,7 @@ ANNUAL_STATUS_BADGE = {
 @capability_required("assessments.view_results")
 def assessments_dashboard(request):
     """لوحة تحكم التقييمات — نتائج الفصول والمواد حسب دور المستخدم."""
-    school = request.user.get_school()
+    school = request.school
     semester = request.GET.get("semester", "S1")
     year = request.GET.get("year") or academic_year_for(request)
 
@@ -93,6 +85,7 @@ def assessments_dashboard(request):
         setups = (
             SubjectClassSetup.objects.filter(school=school, academic_year=year, is_active=True)
             .select_related("subject", "class_group", "teacher")
+            .annotate(packages_count=Count("packages"))
             .order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
         )
 
@@ -117,6 +110,7 @@ def assessments_dashboard(request):
                 school=school, teacher=request.user, academic_year=year, is_active=True
             )
             .select_related("subject", "class_group", "teacher")
+            .annotate(packages_count=Count("packages"))
             .order_by(grade_order("class_group__grade"), "class_group__section")
         )
         total_results = passed = failed = 0
@@ -151,7 +145,7 @@ def assessments_dashboard(request):
 @capability_required("assessments.view_results")
 def api_assessment_charts(request):
     """بيانات الرسوم البيانية للتقييمات"""
-    school = request.user.get_school()
+    school = request.school
     year = academic_year_for(request)
 
     # ✅ v5.4: GradeService.get_chart_data — business logic في service layer
@@ -166,7 +160,7 @@ def api_assessment_charts(request):
 @capability_required("assessments.enter_grades")
 def setup_detail(request, setup_id):
     """تفاصيل إعداد مادة — الباقات الأربع"""
-    school = request.user.get_school()
+    school = request.school
     setup = get_object_or_404(SubjectClassSetup, id=setup_id, school=school)
 
     # التحقق من الصلاحية
@@ -175,10 +169,14 @@ def setup_detail(request, setup_id):
 
     semester = request.GET.get("semester", "S1")
 
-    # الباقات الأربع لهذا الفصل الدراسي
+    # الباقات الأربع لهذا الفصل الدراسي — والدرجاتُ تُعدّ في الاستعلام لا تُجلب
+    # صفوفاً لتُعدّ في القالب (`assessment.grades.count` كان يحمّلها كلَّها).
+    assessments_with_counts = Prefetch(
+        "assessments", queryset=Assessment.objects.annotate(grades_count=Count("grades"))
+    )
     packages = (
         AssessmentPackage.objects.filter(setup=setup, semester=semester)
-        .prefetch_related("assessments__grades")
+        .prefetch_related(assessments_with_counts)
         .order_by("package_type")
     )
 
@@ -206,7 +204,7 @@ def setup_detail(request, setup_id):
             )
         packages = (
             AssessmentPackage.objects.filter(setup=setup, semester=semester)
-            .prefetch_related("assessments")
+            .prefetch_related(assessments_with_counts)
             .order_by("package_type")
         )
 
@@ -240,7 +238,7 @@ def setup_detail(request, setup_id):
 @require_POST
 def create_assessment(request, package_id):
     """إنشاء تقييم جديد في باقة"""
-    school = request.user.get_school()
+    school = request.school
     package = get_object_or_404(AssessmentPackage, id=package_id, school=school)
 
     if not request.user.is_admin() and package.setup.teacher != request.user:
@@ -279,7 +277,7 @@ def create_assessment(request, package_id):
 @capability_required("assessments.enter_grades")
 def grade_entry(request, assessment_id):
     """صفحة إدخال درجات — تعرض كل طلاب الفصل"""
-    school = request.user.get_school()
+    school = request.school
     assessment = get_object_or_404(Assessment, id=assessment_id, school=school)
 
     if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
@@ -334,7 +332,7 @@ def grade_entry(request, assessment_id):
 @require_POST
 def save_single_grade(request, assessment_id):
     """HTMX: حفظ درجة طالب واحد"""
-    school = request.user.get_school()
+    school = request.school
     assessment = get_object_or_404(Assessment, id=assessment_id, school=school)
 
     if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
@@ -385,7 +383,7 @@ def save_single_grade(request, assessment_id):
 @require_POST
 def save_all_grades(request, assessment_id):
     """حفظ كل الدرجات دفعة واحدة من form"""
-    school = request.user.get_school()
+    school = request.school
     assessment = get_object_or_404(Assessment, id=assessment_id, school=school)
 
     if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
@@ -442,7 +440,7 @@ def save_all_grades(request, assessment_id):
 @capability_required("assessments.view_results")
 def class_gradebook(request, setup_id):
     """كشف الدرجات الكامل للفصل في مادة — يدعم عرض فصل أو السنوي"""
-    school = request.user.get_school()
+    school = request.school
     setup = get_object_or_404(SubjectClassSetup, id=setup_id, school=school)
 
     if not request.user.is_admin() and setup.teacher != request.user:
@@ -562,7 +560,7 @@ def export_gradebook(request, setup_id):
     from openpyxl.styles import Alignment
     from openpyxl.utils import get_column_letter
 
-    school = request.user.get_school()
+    school = request.school
     setup = get_object_or_404(SubjectClassSetup, id=setup_id, school=school)
 
     if not request.user.is_admin() and setup.teacher != request.user:
@@ -720,7 +718,7 @@ def export_gradebook(request, setup_id):
 @require_POST
 def recalculate_class(request, setup_id):
     """إعادة حساب درجات كل طلاب الفصل — Admin أو المعلم المسؤول فقط"""
-    school = request.user.get_school()
+    school = request.school
     setup = get_object_or_404(SubjectClassSetup, id=setup_id, school=school)
 
     if not request.user.is_admin() and setup.teacher != request.user:
@@ -737,7 +735,7 @@ def recalculate_class(request, setup_id):
 @capability_required("assessments.view_results")
 def student_report(request, student_id):
     """كشف درجات سنوي للطالب في كل مواده"""
-    school = request.user.get_school()
+    school = request.school
     student = get_object_or_404(
         CustomUser,
         id=student_id,
@@ -798,7 +796,7 @@ def failing_students(request):
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
-    school = request.user.get_school()
+    school = request.school
     semester = request.GET.get("semester", "S1")
     year = request.GET.get("year") or academic_year_for(request)
 
@@ -851,7 +849,7 @@ def setup_subject(request):
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
-    school = request.user.get_school()
+    school = request.school
 
     if request.method == "POST":
         subject_id = request.POST.get("subject")

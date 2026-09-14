@@ -15,6 +15,7 @@ from core.academic_calendar import (
     academic_year_for_school,
     academic_year_window,
 )
+from core.domain.attendance import attendance_rate
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
 from operations.departments import (
@@ -260,7 +261,7 @@ class AttendanceService:
         absent = att.filter(status="absent").count()
         late = att.filter(status="late").count()
         excused = att.filter(status="excused").count()
-        pct = round(present / total * 100) if total else 0
+        pct = attendance_rate(present, total)
         return {
             "total": total,
             "present": present,

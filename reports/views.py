@@ -20,6 +20,7 @@ from assessments.models import SubjectClassSetup
 from core.academic_calendar import academic_year_for
 from core.audit_export import log_export
 from core.capabilities import capability_required
+from core.domain.tones import tone_for
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_number
 from core.pdf_utils import render_pdf
@@ -143,17 +144,25 @@ _ANNUAL_STATUS = {
 }
 
 
+#: لونُ المجموع السنويّ في التقارير: 90 ممتاز، 75 جيّد، 50 نجاح، ودونها رسوب.
+ANNUAL_TOTAL_TONES = ((90, "green"), (75, "blue"), (50, "orange"), (None, "red"))
+
+#: صنفُ مجموع المادّة في كشف النتائج السنويّ (`grade-*`): 90 · 75 · 60 — لا 50.
+ANNUAL_GRADE_CLASSES = ((90, "a"), (75, "b"), (60, "c"), (None, "f"))
+
+#: نسبةُ الحضور في تقرير الحضور: (الوصف، اللون) — 95 ممتاز، 80 مقبول، ودونها منخفض.
+ATTENDANCE_REPORT_LABELS = (
+    (95, ("ممتاز", "green")),
+    (80, ("مقبول", "orange")),
+    (None, ("منخفض", "red")),
+)
+
+
 def _grade_tone(total) -> str:
-    """لونُ المجموع السنويّ — عتباتُ القالب القديم: 90 ممتاز، 75 جيّد، 50 نجاح."""
+    """لونُ المجموع السنويّ — ولا مجموعَ (أو صفر) رماديّ."""
     if not total:
         return "muted"
-    if total >= 90:
-        return "green"
-    if total >= 75:
-        return "blue"
-    if total >= 50:
-        return "orange"
-    return "red"
+    return tone_for(total, ANNUAL_TOTAL_TONES)
 
 
 def _class_results_presentation(ctx: dict) -> None:
@@ -212,13 +221,7 @@ def _annual_grade(total) -> str:
     """
     if not total:
         return "na"
-    if total >= 90:
-        return "a"
-    if total >= 75:
-        return "b"
-    if total >= 60:
-        return "c"
-    return "f"
+    return tone_for(total, ANNUAL_GRADE_CLASSES)
 
 
 def _annual_result_presentation(ctx: dict) -> None:
@@ -235,13 +238,9 @@ def _attendance_presentation(ctx: dict) -> None:
         {"label": "إجمالي الطلاب", "value": len(ctx["student_rows"]), "tone": "maroon"}
     ]
     for row in ctx["student_rows"]:
-        pct = row["attendance_pct"]
-        if pct >= 95:
-            row["attendance_label"], row["attendance_tone"] = "ممتاز", "green"
-        elif pct >= 80:
-            row["attendance_label"], row["attendance_tone"] = "مقبول", "orange"
-        else:
-            row["attendance_label"], row["attendance_tone"] = "منخفض", "red"
+        row["attendance_label"], row["attendance_tone"] = tone_for(
+            row["attendance_pct"], ATTENDANCE_REPORT_LABELS, empty=("—", "muted")
+        )
         row["absent_tone"] = "red" if row["absent"] > 10 else ""
 
 
