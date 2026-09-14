@@ -15,7 +15,7 @@
     <tr>
       <th class="wg-day">اليوم</th>
       {% for column in week.columns %}
-      {% if column.kind == "period" %}<th class="wg-period">الحصة {{ column.number }}</th>{% else %}<th class="wg-break">{{ column.label }}</th>{% endif %}
+      {% if column.kind == "period" %}<th>الحصة {{ column.number }}</th>{% else %}<th class="wg-break">{{ column.label }}</th>{% endif %}
       {% endfor %}
     </tr>
   </thead>
@@ -25,7 +25,7 @@
       <td class="wg-day">{{ line.day }}</td>
       {% for entry in line.entries %}
       {% if entry.kind == "period" %}
-      <td class="wg-cell"><div class="wg-fit">
+      <td{% if entry.multi %} class="wg-multi"{% endif %}><div class="wg-fit">
         {% for slot in entry.slots %}
         {% comment %}الخانةُ المشتركةُ تُكتب بما فيها كلِّه: «التكنولوجيا / الفنون البصرية».{% endcomment %}
         <div class="slot-subject">{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }}</div>

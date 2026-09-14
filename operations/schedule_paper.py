@@ -24,9 +24,13 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from operations.bells import REGULAR, THURSDAY, Bell, bells_for
 from operations.models import ScheduleSlot
+
+if TYPE_CHECKING:
+    from core.models import School
 
 #: عددُ الحصص في اليوم وعددُ أيّام الدراسة — شكلُ `days` في `ScheduleService`.
 PERIODS = 7
@@ -48,9 +52,21 @@ def day_type_of(day_of_week: int) -> str:
     return THURSDAY if day_of_week == 4 else REGULAR
 
 
-def bell_tables(school) -> dict[str, dict[str, Bell]]:
+def bell_tables(school: School) -> dict[str, dict[str, Bell]]:
     """أجراسُ المدرسة ليومَي الأسبوع — استعلامان للطلب كلِّه لا لكلّ صفحة."""
     return {REGULAR: bells_for(school, REGULAR), THURSDAY: bells_for(school, THURSDAY)}
+
+
+def band_label(bell: Bell) -> str:
+    """اسمُ الجرس في خانة الاستراحة: «الأرضيّ» و«التاسع» و«الثانويّ».
+
+    لا أوّلُ كلمةٍ من اسم النطاق وحدها (`Bell.band_short`): اسمُ الأرضيّ «الطابق
+    الأرضيّ (7، 8، …)» فأوّلُ كلمته «الطابق» — والأوّلُ طابقٌ أيضاً، فلا تميّز.
+    """
+    words = (bell.band_name or "").split()
+    if len(words) > 1 and words[0] == "الطابق":
+        return words[1]
+    return bell.band_short
 
 
 def breaks_after(bell: Bell) -> list[tuple[int, BreakItem]]:
@@ -67,27 +83,36 @@ def breaks_after(bell: Bell) -> list[tuple[int, BreakItem]]:
         placed.append(
             (
                 after,
-                BreakItem(label=slot.label, start=slot.start, end=slot.end, band=bell.band_short),
+                BreakItem(label=slot.label, start=slot.start, end=slot.end, band=band_label(bell)),
             )
         )
     return placed
 
 
 def _day_breaks(bands: list[str], table: dict[str, Bell]) -> list[tuple[int, BreakItem]]:
-    """استراحاتُ يومٍ من أجراسه: المتطابقُ اسماً ووقتاً يُكتب مرّة، واسمُ الجرس
-    يبقى حيث تتكرّر الاستراحةُ نفسُها بوقتين."""
-    seen: dict[tuple, tuple[int, BreakItem]] = {}
+    """استراحاتُ يومٍ من أجراسه: المتطابقُ اسماً ووقتاً يُكتب مرّةً بأسماء أجراسه
+    كلِّها («التاسع · الثانويّ»)، واسمُ الجرس يبقى حيث تتكرّر الاستراحةُ نفسُها بوقتين."""
+    seen: dict[tuple, tuple[int, list[str]]] = {}
     for code in [code for code in table if code in bands]:  # بترتيب الأجراس
         for after, item in breaks_after(table[code]):
-            seen.setdefault((item.label, item.start, item.end), (after, item))
-    items = sorted(seen.values(), key=lambda pair: (pair[1].start, pair[0]))
-    labels = [item.label for _, item in items]
+            key = (item.label, item.start, item.end)
+            if key not in seen:
+                seen[key] = (after, [])
+            if item.band not in seen[key][1]:
+                seen[key][1].append(item.band)
+    ordered = sorted(seen.items(), key=lambda pair: (pair[0][1], pair[1][0]))
+    labels = [label for (label, _start, _end), _ in ordered]
     return [
         (
             after,
-            item if labels.count(item.label) > 1 else BreakItem(item.label, item.start, item.end),
+            BreakItem(
+                label,
+                start,
+                end,
+                " · ".join(band_names) if labels.count(label) > 1 else "",
+            ),
         )
-        for after, item in items
+        for (label, start, end), (after, band_names) in ordered
     ]
 
 
@@ -124,13 +149,15 @@ def week_layout(
                 }
             )
 
-    names = [name for _num, name in ScheduleSlot.DAYS]
+    day_names = [name for _num, name in ScheduleSlot.DAYS]
     lines = []
     for d, cells in enumerate(days[:DAYS]):
         entries = []
         for column in columns:
             if column["kind"] == "period":
-                entries.append({"kind": "period", "slots": cells[column["number"] - 1]})
+                slots = cells[column["number"] - 1]
+                # الخانةُ المشتركةُ (حصّتان متوازيتان) بخطٍّ أصغر: كانت تُقصّ توقيتَ ثانيتهما.
+                entries.append({"kind": "period", "slots": slots, "multi": len(slots) > 1})
             else:
                 entries.append(
                     {
@@ -138,7 +165,7 @@ def week_layout(
                         "items": [item for after, item in per_day[d] if after == column["after"]],
                     }
                 )
-        lines.append({"day": names[d], "entries": entries})
+        lines.append({"day": day_names[d], "entries": entries})
     return {"columns": columns, "lines": lines, "break_count": len(positions)}
 
 
@@ -241,6 +268,8 @@ class PaperGeometry:
             "meta_pt": pt(7.5),
             "time_pt": pt(7),
             "break_pt": pt(7.5),
+            "multi_subject_pt": pt(7.5),
+            "multi_pt": pt(6.5),
         }
 
 

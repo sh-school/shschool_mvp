@@ -127,7 +127,7 @@
   }
 
   /* على الشاشة الورقةُ بعرض الإطار كلِّه. وشبكةُ المعلّم والشعبة بأبعاد الورق
-     نفسِها (partials/week_grid_css.html)، فالمعروضُ هو المطبوع. */
+     نفسِها (pdf/week_grid_css.html)، فالمعروضُ هو المطبوع. */
   @media screen {
     .schedule-print { padding: 12px 14px; }
   }
@@ -289,13 +289,13 @@
 
   {% if view_type == 'teacher' or view_type == 'class' %}
   /* جدولُ معلّمٍ أو شعبة: ورقةٌ واحدةٌ بالملّيمتر (operations/schedule_paper.py)،
-     وبين الحصص الفسحةُ والصلاة (partials/week_grid.html).
+     وبين الحصص الفسحةُ والصلاة (pdf/week_grid.html).
 
      وكانت الورقةُ عموداً مرناً والجدولُ `flex: 1; height: 1px` يأخذ ما بقي بعد
      الرأس والذيل — يمتدّ في المتصفّح ولا يمتدّ في مولّد PDF (WeasyPrint 70)،
      فيشغل الجدولُ في الملفّ ثُلثَ الورقة وتحته فراغ (بلاغ 2026-09-14). فالرأسُ
      والذيلُ الآن ثابتا الارتفاع، وارتفاعُ الصفّ ما بقي مقسوماً على الأيّام. */
-{% include "schedule/partials/week_grid_css.html" %}
+{% include "schedule/pdf/week_grid_css.html" %}
   @page { size: {% if paper == 'a3' %}A3{% else %}A4{% endif %} {{ orient }}; margin: {{ geo.css.margin }}; }
   @media print {
     html, body { height: auto; }
@@ -504,7 +504,7 @@
 مولّدُ PDF ترويسةً ثانيةً ولا حجمَ ورقٍ يخالف المختار. و`{# #}` لا تمتدّ
 سطرين في Django — فما امتدّ منها ظهر نصّاً في رأس الورقة.
 {% endcomment %}
-<body data-pdf-own-page class="{% if paper == 'a3' %}paper-a3 {% endif %}sheet-{{ orient }}">
+<body data-pdf-own-page class="sheet-{{ orient }}">
 {% include "components/app_back_bar.html" %}
 
 {# ── Print Controls (hidden in print) ── #}
@@ -688,7 +688,7 @@
   ولهذا يبقى التوقيتُ داخل الخانة ولا يصعد إلى ترويسة العمود: ترويسةٌ واحدةٌ
   لعمود «الحصة ٣» تكذب على أحد الطابقين أو على الخميس.
   {% endcomment %}
-  {% if view_type == "class" %}{% include "schedule/partials/week_grid.html" with who="teacher" %}{% else %}{% include "schedule/partials/week_grid.html" with who="class" %}{% endif %}
+  {% if view_type == "class" %}{% include "schedule/pdf/week_grid.html" with who="teacher" %}{% else %}{% include "schedule/pdf/week_grid.html" with who="class" %}{% endif %}
 
   <div class="schedule-footer">
     وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp;

@@ -100,6 +100,22 @@ def test_a_teacher_in_two_bells_sees_both_bells_named(school, bands):
         (dt.time(9, 35), True),
         (dt.time(10, 25), True),
     ], "فسحتان بوقتين، ولكلٍّ اسمُ جرسه"
+    assert [f.band for f in fasahat] == ["الأرضيّ", "الثانويّ"], "لا «الطابق» اسماً لجرس"
+
+
+@pytest.mark.django_db
+def test_a_break_shared_by_two_bells_names_both(school, bands):
+    """التاسعُ والثانويُّ فسحتُهما واحدةٌ من الأحد إلى الأربعاء: تُكتب مرّةً باسميهما."""
+    week = week_layout(_empty_days(), [["ground", "ninth", "secondary"]] * 5, bell_tables(school))
+    sunday = week["lines"][0]["entries"]
+    upper = [
+        item
+        for entry in sunday
+        if entry["kind"] == "break"
+        for item in entry["items"]
+        if item.label == "الفسحة" and item.start == dt.time(10, 25)
+    ]
+    assert len(upper) == 1 and upper[0].band == "التاسع · الثانويّ"
 
 
 @pytest.mark.django_db

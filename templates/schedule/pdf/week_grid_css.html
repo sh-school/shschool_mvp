@@ -1,5 +1,5 @@
 {% load brand_tags %}{% comment %}
-أنماطُ `partials/week_grid.html` — تُدرج داخل `<style>` الورقة. والأبعادُ كلُّها من
+أنماطُ `pdf/week_grid.html` — تُدرج داخل `<style>` الورقة. والأبعادُ كلُّها من
 `geo.css` (operations/schedule_paper.py): صفٌّ بارتفاعٍ صريحٍ بالملّيمتر يحترمه
 مولّدُ PDF، ومحتوىً لا يطيل صفَّه (`wg-fit`) — فالجدولُ يملأ الورقة ولا يفيض عنها.
 {% endcomment %}
@@ -39,3 +39,8 @@
   .week-grid .break-label { font-size: {{ geo.css.break_pt }}; font-weight: 700; color: {% brand_color "TEXT_SECONDARY" %}; line-height: 1.15; }
   .week-grid .break-band { font-weight: 400; color: {% brand_color "TEXT_MUTED" %}; }
   .week-grid .wg-break .slot-time + .break-label { margin-top: 0.8mm; }
+  /* الخانةُ المشتركةُ (حصّتان متوازيتان) أصغرُ خطّاً: ستّةُ أسطرٍ في صفٍّ واحد — كان
+     سطرُ توقيت ثانيتهما يُقصّ في ورقة الشعبة على A4 أفقيّ (مراجعة 2026-09-15). */
+  .week-grid td.wg-multi .slot-subject { font-size: {{ geo.css.multi_subject_pt }}; line-height: 1.1; }
+  .week-grid td.wg-multi .slot-meta, .week-grid td.wg-multi .slot-time { font-size: {{ geo.css.multi_pt }}; line-height: 1.1; }
+  .week-grid td.wg-multi .slot-time + .slot-subject { margin-top: 0.4mm; padding-top: 0.4mm; }

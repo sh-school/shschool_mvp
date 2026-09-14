@@ -78,10 +78,16 @@
     margin-bottom: {{ geo.css.gap }};
     font-size: 9pt;
   }
+  /* السطرُ لا يلتفّ (ارتفاعُه محسوب)، فالعنصرُ الطويلُ يُختصر بنقاطٍ ولا يركب جارَه —
+     والمنسّقُ أوّلُ ما يُختصر: اسمُ المعلّم والنصابُ ألزمُ لقارئ الورقة. */
+  .who > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+  .who > span.who-dept { flex-shrink: 1; }
+  .who > span.who-head { flex-shrink: 1; }
+  {% if orient == 'portrait' %}.who { font-size: 7.5pt; gap: 5px; padding: 0 6px; }{% endif %}
   .who b { color: {% brand_color "MAROON" %}; }
   .who .specialty { color: {% brand_color "MAROON_DARK" %}; font-weight: 500; }
 
-{% include "schedule/partials/week_grid_css.html" %}
+{% include "schedule/pdf/week_grid_css.html" %}
 
   /* ذيلُ كلّ صفحة: الوزارةُ والمدرسةُ وتاريخُ الطباعة ووقتُها، ورؤيةُ الوزارة (قرار 2026-09-06). */
   .page-footer {
@@ -134,13 +140,13 @@
   {% else %}
   <div class="who">
     <span>المعلّم: <b>{{ row.teacher.full_name }}</b>{% if row.department.specialty %} <span class="specialty">({{ row.department.specialty }})</span>{% endif %}</span>
-    <span>القسم: <b>{{ row.department.name }}</b></span>
-    {% if row.department.head %}<span>المنسّق: {{ row.department.head }}</span>{% endif %}
+    <span class="who-dept">القسم: <b>{{ row.department.name }}</b></span>
+    {% if row.department.head %}<span class="who-head">المنسّق: {{ row.department.head }}</span>{% endif %}
     <span>النصاب الأسبوعي: <b>{{ row.total }}</b> حصة</span>
   </div>
   {% endif %}
 
-  {% if kind == 'classes' %}{% include "schedule/partials/week_grid.html" with week=row.week who="teacher" %}{% else %}{% include "schedule/partials/week_grid.html" with week=row.week who="class" %}{% endif %}
+  {% if kind == 'classes' %}{% include "schedule/pdf/week_grid.html" with week=row.week who="teacher" %}{% else %}{% include "schedule/pdf/week_grid.html" with week=row.week who="class" %}{% endif %}
 
   <div class="page-footer">
     وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp; {{ school.name }} &nbsp;|&nbsp;
