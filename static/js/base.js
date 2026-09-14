@@ -257,8 +257,11 @@ function _pwaRemember(key) {
   try { localStorage.setItem(key, '1'); } catch (e) { /* لا تخزين */ }
 }
 
+// المثبَّتُ يفتح بشاشةٍ كاملة (`fullscreen`)، وما لا يدعمها يرجع إلى `standalone`،
+// وSafari على iOS لا يعرف إلّا `navigator.standalone` — فالثلاثةُ كلُّها «مثبَّت».
 function _pwaSettled() {
-  var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+  var standalone = (window.matchMedia && (window.matchMedia('(display-mode: fullscreen)').matches
+      || window.matchMedia('(display-mode: standalone)').matches))
     || window.navigator.standalone === true;
   try {
     return standalone || !!localStorage.getItem('pwaDismissed') || !!localStorage.getItem('pwaInstalled');
