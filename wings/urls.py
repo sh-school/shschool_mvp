@@ -29,6 +29,12 @@ urlpatterns = [
         name="excuse_grant",
     ),
     path("record/excuse/<uuid:pk>/revoke/", views.excuse_revoke, name="excuse_revoke"),
+    path("excuses/requests/", views.excuse_requests, name="excuse_requests"),
+    path(
+        "excuses/requests/<uuid:pk>/decide/",
+        views.excuse_request_decide,
+        name="excuse_request_decide",
+    ),
     path(
         "record/<uuid:class_id>/student/<uuid:student_id>/contact/",
         views.guardian_contact_log,

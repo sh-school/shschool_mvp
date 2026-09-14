@@ -1,8 +1,8 @@
-"""إخطارُ وليّ الأمر بضغطةٍ من المشرف — ومهلةُ العذر تبدأ منه (قرارُ 2026-09-13).
+"""إخطارُ وليّ الأمر بضغطةٍ من المشرف — والإخطارُ سجلٌّ لا يحرّك مهلةَ العذر (قرارُ 2026-09-14).
 
 - «اتّصلتُ بوليّ الأمر» يُسجَّل بنتيجته (ردّ / لم يردّ / سيُحضر عذراً) عن يومِ غيابٍ بعينه.
 - الكشفُ يُعلّم من غاب أمس ولم يُخطَر أهلُه، ويُسقط العلامةَ بعد الإخطار — ولو «لم يردّ».
-- مهلةُ العذر يومان دراسيّان من الإخطار لا من الغياب — ومن لم يُخطَر أهلُه فمن الغياب.
+- والإخطارُ لا يحرّك مهلةَ العذر: تُعدّ من عودة الطالب (قرارُ 2026-09-14).
 """
 
 import datetime as dt
@@ -10,7 +10,7 @@ import datetime as dt
 import pytest
 from django.urls import reverse
 
-from operations.excuses import ExcuseError, deadline_of, grant_excuse
+from operations.excuses import deadline_of, grant_excuse
 from operations.guardian_contact import ContactError, awaiting_contact, log_contact
 from operations.models import GuardianContact
 from tests.test_period_register import (  # noqa: F401 — التجهيزاتُ نفسُها
@@ -29,7 +29,6 @@ from tests.test_period_register import (  # noqa: F401 — التجهيزاتُ 
 pytestmark = pytest.mark.django_db
 
 MONDAY = SUNDAY + dt.timedelta(days=1)
-TUESDAY = SUNDAY + dt.timedelta(days=2)
 
 
 def _absent_sunday(school, klass, kid, teacher, supervisor):
@@ -115,13 +114,16 @@ class TestTheRegisterFlagsWhoWasNotNotified:
         assert reverse("wings:student_events", args=[klass.id, kids[0].id]) in body
 
 
-class TestTheDeadlineStartsAtTheNotification:
-    def test_two_school_days_from_the_call_not_from_the_absence(
+class TestTheCallDoesNotMoveTheDeadline:
+    def test_the_deadline_runs_from_the_return_whatever_the_call(
         self, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
-        """غاب الأحد، وأُخطر أهلُه الثلاثاء: المهلةُ حتى الخميس لا الثلاثاء."""
+        """غاب الأحد وعاد الاثنين، وأُخطر أهلُه الأربعاء: المهلةُ حتى الأربعاء نفسِه."""
         _absent_sunday(school, klass, kids[0], teacher, supervisor)
-        assert deadline_of(school, SUNDAY, student=kids[0]) == TUESDAY
+        for session in _periods(school, klass, teacher, 4, day=MONDAY):
+            _confirm(klass, session, {}, supervisor, day=MONDAY)
+        wednesday = SUNDAY + dt.timedelta(days=3)
+        before = deadline_of(school, kids[0], SUNDAY)
 
         log_contact(
             student=kids[0],
@@ -129,53 +131,11 @@ class TestTheDeadlineStartsAtTheNotification:
             absence_date=SUNDAY,
             outcome="will_excuse",
             by=supervisor,
-            now=at(9, 0, day=TUESDAY),
+            now=at(9, 0, day=wednesday),
         )
 
-        assert deadline_of(school, SUNDAY, student=kids[0]) == SUNDAY + dt.timedelta(days=4)
-
-    def test_the_supervisor_may_still_accept_inside_the_extended_window(
-        self, school, seeded_calendar, klass, kids, teacher, supervisor
-    ):
-        _absent_sunday(school, klass, kids[0], teacher, supervisor)
-        log_contact(
-            student=kids[0],
-            school=school,
-            absence_date=SUNDAY,
-            outcome="will_excuse",
-            by=supervisor,
-            now=at(9, 0, day=TUESDAY),
-        )
-        thursday = SUNDAY + dt.timedelta(days=4)
-
-        excuse = grant_excuse(
-            student=kids[0],
-            school=school,
-            date_from=SUNDAY,
-            date_to=SUNDAY,
-            kind="bereavement",
-            notes="الأب",
-            by=supervisor,
-            today=thursday,
-        )
-        assert not excuse.after_deadline
-
-    def test_without_a_call_the_window_still_runs_from_the_absence(
-        self, school, seeded_calendar, klass, kids, teacher, supervisor
-    ):
-        _absent_sunday(school, klass, kids[0], teacher, supervisor)
-
-        with pytest.raises(ExcuseError, match="انقضت"):
-            grant_excuse(
-                student=kids[0],
-                school=school,
-                date_from=SUNDAY,
-                date_to=SUNDAY,
-                kind="bereavement",
-                notes="الأب",
-                by=supervisor,
-                today=SUNDAY + dt.timedelta(days=3),
-            )
+        assert before == wednesday
+        assert deadline_of(school, kids[0], SUNDAY) == wednesday
 
 
 class TestTheScreen:

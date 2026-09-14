@@ -107,7 +107,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `operations_classexit` | الخروجُ من الفصل وعودتُه |
 | `operations_absencealert` | تنبيهاتُ عتبات الغياب |
 | `operations_absenceexcuse` | أعذارُ الغياب المقدَّمة للمشرف — جزءٌ من سجلّ الحضور |
-| `operations_guardiancontact` | إخطاراتُ أولياء الأمور بالغياب ونتيجتُها — جزءٌ من سجلّ الحضور، ومنها تُعدّ مهلةُ العذر (م 3.4.1.5) |
+| `operations_guardiancontact` | إخطاراتُ أولياء الأمور بالغياب ونتيجتُها — جزءٌ من سجلّ الحضور (م 3.4.1.5) |
 | `core_behaviorinfraction` | المخالفاتُ السلوكيّة |
 | `core_behaviorpointrecovery` | استعادةُ النقاط |
 | `core_healthrecord` | الملفُّ الصحّيّ (مشفَّر) |
