@@ -1,267 +1,155 @@
+"""[LAYERING] سقّاطةُ الطبقات — راجع `tests/layering_ratchet.py` للسبب والطريقة.
+
+كانت الدوالُّ هنا تأخذ `update=False` وتُرجع `False` عند المخالفة: pytest لا يعدّ
+القيمةَ المُرجعة سقوطاً، فكانت «4 passed» والحارسُ نفسُه يطبع `FAIL` لثلاثة عروض.
+فالحكمُ الآن `assert`، والقياسُ والمقارنةُ في وحدةٍ لا يجمعها pytest.
 """
-حارسُ الطبقات — فرض الفصل بين Domain Logic والعروض
-════════════════════════════════════════════════════
-
-القاعدة الأولى: لا view يزيد على 60 سطر
-القاعدة الثانية: لا استدعاءُ ORM يزيد على 5 لكل view
-القاعدة الثالثة: core لا يستورد من وحدات نازلة
-القاعدة الرابعة: لا get_school() في العروض — استخدم request.school
-
-الحارسُ يسجّل الأعداد الحاليّة (baseline) ولا يسمح بالزيادة.
-"""
-
-from __future__ import annotations
 
 import json
-import pathlib
-import re
-import sys
 
-# ═════════════════════════════════════════════════════════════════════════
-# Baseline
-# ═════════════════════════════════════════════════════════════════════════
+from tests import layering_ratchet as ratchet
 
-BASELINE_FILE = pathlib.Path("tests/layering_baseline.json")
-
-DEFAULT_BASELINE = {
-    "view_line_counts": {},
-    "view_orm_calls": {},
-    "core_downstream_imports": [],
-    "get_school_calls_by_view": {},
-}
+UPDATE = "python -m tests.layering_ratchet --update"
 
 
-def load_baseline() -> dict:
-    if BASELINE_FILE.exists():
-        return json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
-    return DEFAULT_BASELINE.copy()
+def _baseline():
+    return json.loads(ratchet.BASELINE.read_text(encoding="utf-8"))
 
 
-def save_baseline(data: dict):
-    BASELINE_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+def _worse_and_stale():
+    return ratchet.compare(_baseline(), ratchet.snapshot())
 
 
-# ═════════════════════════════════════════════════════════════════════════
-# Analysis
-# ═════════════════════════════════════════════════════════════════════════
-
-VIEW_DEF_RE = re.compile(r"^def\s+(\w+)\s*\(request[^)]*\):", re.MULTILINE)
-ORM_PATTERN = re.compile(
-    r"\.objects\s*\.|\.filter\s*\(|\.annotate\s*\(|\.aggregate\s*\(|"
-    r"(?:^|\W)select_related\s*\(|(?:^|\W)prefetch_related\s*\(|Q\s*\("
-)
-GET_SCHOOL_RE = re.compile(r"\bget_school\s*\(")
+def test_no_view_file_or_core_module_grows_past_its_record():
+    worse, _stale = _worse_and_stale()
+    assert not worse, (
+        "زادت مخالفاتُ الطبقات — انقل القراءةَ إلى `selectors.py` والكتابةَ إلى `services.py`، "
+        "واقرأ `request.school`، ولا تستورد نازلاً في core:\n  " + "\n  ".join(worse)
+    )
 
 
-def analyze_views_in_file(file_path: pathlib.Path) -> dict[str, dict]:
-    """تحليلُ ملفّ views."""
-    content = file_path.read_text(encoding="utf-8")
-    lines = content.split("\n")
-    results: dict[str, dict] = {}
+def test_improvements_are_recorded_so_they_cannot_be_spent_again():
+    _worse, stale = _worse_and_stale()
+    assert not stale, (
+        f"نقصت مخالفاتٌ ولم يُثبَّت نقصُها — أحسنت؛ ثبّته بـ `{UPDATE}` وأودع السجلّ:\n  "
+        + "\n  ".join(stale)
+    )
 
-    for match in VIEW_DEF_RE.finditer(content):
-        view_name = match.group(1)
-        # match.start() points to the start of 'def', which is the line we want
-        def_line_num = content[:match.start()].count("\n")
 
-        # Find end of function (next line that's not indented and not blank)
-        end_line_num = def_line_num + 1
-        for i in range(def_line_num + 1, len(lines)):
-            stripped = lines[i].lstrip()
-            if stripped and not lines[i].startswith((" ", "\t")):
-                # This is a non-indented, non-empty line => end of function
-                end_line_num = i
-                break
+def test_baseline_records_only_what_is_over_the_caps():
+    """سطرٌ تحت السقف في السجلّ رخصةٌ لعرضٍ أن يكبر إليه دون أن يُرى."""
+    baseline = _baseline()
+    for key, metrics in baseline["views"].items():
+        assert metrics.get("lines", ratchet.MAX_LINES + 1) > ratchet.MAX_LINES, key
+        assert metrics.get("orm", ratchet.MAX_ORM + 1) > ratchet.MAX_ORM, key
+    assert all(v > 0 for v in baseline["get_school"].values())
+
+
+class TestTheRatchetItself:
+    """الحارسُ يحرس ما يقول إنّه يحرسه — لا يمرّ صامتاً على ما وُضع له."""
+
+    EMPTY: dict = {"views": {}, "get_school": {}, "core_imports": {}}
+
+    def _state(self, **kw):
+        return {**self.EMPTY, **kw}
+
+    # ── القياس ──
+
+    def test_a_long_view_is_measured_from_def_without_decorators(self):
+        body = "\n".join(f"    x{i} = {i}" for i in range(ratchet.MAX_LINES))
+        source = f"@login_required\n@require_GET\ndef long_view(request):\n{body}\n"
+        over, _ = ratchet.measure_views(source, "app/views.py")
+        assert over == {"app/views.py::long_view": {"lines": ratchet.MAX_LINES + 1}}
+
+    def test_orm_calls_are_counted_in_code_not_in_comments_or_strings(self):
+        source = (
+            "def v(request):\n"
+            "    # Student.objects.filter(a).filter(b)\n"
+            '    """.filter( .annotate( Q("""\n'
+            "    qs = Student.objects.filter(a=1).select_related('x').prefetch_related('y')\n"
+            "    qs = qs.annotate(n=Count('id')).filter(Q(b=1) | models.Q(c=2))\n"
+            "    return qs.aggregate(s=Sum('n'))\n"
+        )
+        over, _ = ratchet.measure_views(source, "a/views.py")
+        # objects, filter, select_related, prefetch_related, annotate, filter, Q, Q, aggregate
+        assert over == {"a/views.py::v": {"orm": 9}}
+
+    def test_class_based_view_methods_and_multiline_signatures_are_views(self):
+        calls = ratchet.MAX_ORM + 1
+        in_function = "\n".join("    X.objects.all()" for _ in range(calls))
+        in_method = "\n".join("        X.objects.all()" for _ in range(calls))
+        source = (
+            f"def multi(\n    request,\n    pk,\n):\n{in_function}\n\n"
+            f"class Page(View):\n    def get(self, request, *a):\n{in_method}\n\n"
+            f"def helper(user):\n{in_function}\n"
+        )
+        over, _ = ratchet.measure_views(source, "a/views.py")
+        assert set(over) == {"a/views.py::multi", "a/views.py::Page.get"}
+
+    def test_get_school_is_counted_across_the_whole_view_file(self):
+        """نقلُه إلى دالّةٍ مساعدةٍ بلا `request` لا يُخفيه."""
+        source = (
+            "def _school(user):\n    return user.get_school()\n"
+            "def v(request):\n    return request.user.get_school()\n"
+        )
+        _, calls = ratchet.measure_views(source, "a/views.py")
+        assert calls == 2
+
+    def test_lazy_imports_in_core_count_as_downstream(self):
+        source = (
+            "from core.models import School\n"
+            "import analytics.services\n"
+            "def f():\n    from behavior.models import X\n    from behavior import y\n"
+        )
+        found = ratchet.measure_core_imports(source, frozenset({"analytics", "behavior"}))
+        assert found == {"analytics": 1, "behavior": 2}
+
+    def test_every_app_but_core_is_downstream(self):
+        apps = ratchet.downstream_apps()
+        assert {"student_affairs", "analytics", "wings", "api"} <= apps
+        assert not apps & {"core", "shschool", "tests"}
+
+    # ── المقارنة ──
+
+    def test_a_new_view_over_the_cap_is_worse(self):
+        after = self._state(views={"a/views.py::v": {"lines": 61}})
+        worse, stale = ratchet.compare(self.EMPTY, after)
+        assert len(worse) == 1 and not stale
+
+    def test_a_recorded_view_that_grows_is_worse(self):
+        before = self._state(views={"a/views.py::v": {"lines": 84, "orm": 9}})
+        after = self._state(views={"a/views.py::v": {"lines": 91, "orm": 9}})
+        worse, stale = ratchet.compare(before, after)
+        assert len(worse) == 1 and not stale
+
+    def test_a_migrated_view_is_stale_until_recorded(self):
+        before = self._state(views={"a/views.py::v": {"lines": 200, "orm": 25}})
+        worse, stale = ratchet.compare(before, self.EMPTY)
+        assert not worse and len(stale) == 2
+
+    def test_a_new_get_school_is_worse(self):
+        before = self._state(get_school={"a/views.py": 3})
+        after = self._state(get_school={"a/views.py": 4, "b/views.py": 1})
+        worse, _ = ratchet.compare(before, after)
+        assert len(worse) == 2
+
+    def test_a_new_downstream_import_in_core_is_worse(self):
+        before = self._state(core_imports={"core/x.py": {"behavior": 1}})
+        after = self._state(core_imports={"core/x.py": {"behavior": 1, "quality": 1}})
+        worse, _ = ratchet.compare(before, after)
+        assert worse == ["core/x.py: 0 → 1 استيراداً من `quality` في النواة"]
+
+    def test_update_refuses_to_record_an_increase(self):
+        before = self._state(get_school={"a/views.py": 1})
+        after = self._state(get_school={"a/views.py": 2})
+        try:
+            ratchet.ratchet_down(before, after)
+        except ValueError as exc:
+            assert "a/views.py" in str(exc)
         else:
-            # Reached end of file
-            end_line_num = len(lines)
+            raise AssertionError("--update سجّل زيادة")
 
-        # Get function lines (including the def line)
-        func_lines = lines[def_line_num:end_line_num]
-
-        # Remove trailing blank lines
-        while func_lines and not func_lines[-1].strip():
-            func_lines.pop()
-
-        func_text = "\n".join(func_lines)
-
-        # Count
-        line_count = len(func_lines)
-        orm_count = len(ORM_PATTERN.findall(func_text))
-        get_school_count = len(GET_SCHOOL_RE.findall(func_text))
-
-        results[view_name] = {
-            "lines": line_count,
-            "orm_calls": orm_count,
-            "get_school_calls": get_school_count,
-            "file": file_path.name,
-        }
-
-    return results
-
-
-def analyze_core_imports() -> list[str]:
-    """استخراجُ مستوردات core من الوحدات النازلة."""
-    core_files = list(pathlib.Path("core").rglob("*.py"))
-    imports = set()
-
-    downstream = {
-        "analytics", "assessments", "behavior", "clinic", "exam_control",
-        "library", "operations", "parents", "quality", "reports",
-        "staff_affairs", "student_affairs", "transport", "wings", "notifications",
-    }
-
-    for file_path in core_files:
-        if "__pycache__" in file_path.parts:
-            continue
-        content = file_path.read_text(encoding="utf-8")
-        for line in content.split("\n"):
-            stripped = line.strip()
-            if stripped.startswith(("from ", "import ")):
-                for app in downstream:
-                    if re.match(rf"(?:from\s+{re.escape(app)}|import\s+{re.escape(app)})", stripped):
-                        imports.add(app)
-
-    return sorted(imports)
-
-
-# ═════════════════════════════════════════════════════════════════════════
-# Tests
-# ═════════════════════════════════════════════════════════════════════════
-
-def test_view_line_count(update: bool = False):
-    """Rule 1: Each view <= 60 lines."""
-    baseline = load_baseline()
-    view_files = pathlib.Path(".").glob("*/views*.py")
-    current = {}
-    errors = []
-
-    for file_path in sorted(view_files):
-        if "tests" in file_path.parts or "__pycache__" in file_path.parts:
-            continue
-        views = analyze_views_in_file(file_path)
-        for view_name, data in views.items():
-            qualified_name = f"{file_path.parent.name}.{view_name}"
-            current[qualified_name] = data["lines"]
-            registered = baseline.get("view_line_counts", {}).get(qualified_name)
-
-            if registered is not None and data["lines"] > registered:
-                errors.append(f"{qualified_name}: {data['lines']} lines (was {registered})")
-
-    if update:
-        baseline["view_line_counts"] = current
-        save_baseline(baseline)
-        print(f"[SAVED] {len(current)} view line counts")
-    elif errors:
-        for err in errors:
-            print(f"FAIL: {err}")
-        return False
-
-    return True
-
-
-def test_orm_call_count(update: bool = False):
-    """Rule 2: Each view <= 5 ORM calls."""
-    baseline = load_baseline()
-    view_files = pathlib.Path(".").glob("*/views*.py")
-    current = {}
-    errors = []
-
-    for file_path in sorted(view_files):
-        if "tests" in file_path.parts or "__pycache__" in file_path.parts:
-            continue
-        views = analyze_views_in_file(file_path)
-        for view_name, data in views.items():
-            qualified_name = f"{file_path.parent.name}.{view_name}"
-            current[qualified_name] = data["orm_calls"]
-            registered = baseline.get("view_orm_calls", {}).get(qualified_name)
-
-            if registered is not None and data["orm_calls"] > registered:
-                errors.append(f"{qualified_name}: {data['orm_calls']} ORM calls (was {registered})")
-
-    if update:
-        baseline["view_orm_calls"] = current
-        save_baseline(baseline)
-        print(f"[SAVED] {len(current)} view ORM call counts")
-    elif errors:
-        for err in errors:
-            print(f"FAIL: {err}")
-        return False
-
-    return True
-
-
-def test_core_no_downstream_imports(update: bool = False):
-    """Rule 3: core doesn't import downstream modules."""
-    baseline = load_baseline()
-    current = analyze_core_imports()
-    registered = baseline.get("core_downstream_imports", [])
-    errors = []
-
-    for app in current:
-        if app not in registered:
-            errors.append(f"New import from {app} in core (forbidden)")
-
-    if update:
-        baseline["core_downstream_imports"] = current
-        save_baseline(baseline)
-        print(f"[SAVED] {len(current)} downstream imports in core")
-    elif errors:
-        for err in errors:
-            print(f"FAIL: {err}")
-        return False
-
-    return True
-
-
-def test_get_school_calls(update: bool = False):
-    """Rule 4: No get_school() in views — use request.school."""
-    baseline = load_baseline()
-    view_files = pathlib.Path(".").glob("*/views*.py")
-    current = {}
-    errors = []
-
-    for file_path in sorted(view_files):
-        if "tests" in file_path.parts or "__pycache__" in file_path.parts:
-            continue
-        views = analyze_views_in_file(file_path)
-        for view_name, data in views.items():
-            qualified_name = f"{file_path.parent.name}.{view_name}"
-            current[qualified_name] = data["get_school_calls"]
-            registered = baseline.get("get_school_calls_by_view", {}).get(qualified_name)
-
-            if registered is not None and data["get_school_calls"] > registered:
-                errors.append(f"{qualified_name}: {data['get_school_calls']} get_school() calls (was {registered})")
-
-    if update:
-        baseline["get_school_calls_by_view"] = current
-        save_baseline(baseline)
-        print(f"[SAVED] {len(current)} view get_school() call counts")
-    elif errors:
-        for err in errors:
-            print(f"FAIL: {err}")
-        return False
-
-    return True
-
-
-def run_tests(update: bool = False):
-    """Run all layering tests."""
-    results = [
-        test_view_line_count(update),
-        test_orm_call_count(update),
-        test_core_no_downstream_imports(update),
-        test_get_school_calls(update),
-    ]
-    return all(results)
-
-
-if __name__ == "__main__":
-    update = "--update-baseline" in sys.argv or "--update" in sys.argv
-    success = run_tests(update)
-    if success:
-        print("[SUCCESS] All layering tests passed")
-        sys.exit(0)
-    else:
-        print("[FAILED] Layering violations detected")
-        sys.exit(1)
+    def test_update_records_a_decrease(self):
+        before = self._state(get_school={"a/views.py": 3})
+        after = self._state(get_school={"a/views.py": 1})
+        assert ratchet.ratchet_down(before, after) == after
