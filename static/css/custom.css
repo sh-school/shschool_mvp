@@ -48,6 +48,9 @@
    مكتوب، فالسُّمكُ رمزٌ يُضبط هنا — والانعكاسُ لما يدلّ على اتّجاه. */
 .icon-hg { stroke-width: var(--icon-stroke, 1.5); }
 html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
+/* حلقةُ الشارة بلون ما خلفها — وإلّا ظهرت دائرةٌ بيضاءُ على الشريط العنّابيّ */
+.site-nav { --icon-cutout: var(--nav-bg); }
+.sd-menu a:hover { --icon-cutout: var(--maroon-bg); }
 .icon-sm  { width: 16px; height: 16px; }
 .icon-lg  { width: 24px; height: 24px; }
 .icon-xl  { width: 32px; height: 32px; }
