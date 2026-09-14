@@ -91,3 +91,31 @@ def test_fullscreen_counts_as_installed(source):
 def test_global_manifest_is_valid_json(client_as, school, teacher_user):
     response = client_as(teacher_user).get("/manifest.json")
     assert json.loads(response.content)["display"] == "fullscreen"
+
+
+def test_the_app_is_named_from_the_school_record(client_as, school, teacher_user):
+    """الاسمُ من سجلّ المدرسة لا نصٌّ مُثبَّت (قرار 2026-09-14) — والمنصّةُ متعدّدةُ المدارس.
+
+    وعلامةُ تنصيصٍ في الاسم لا تكسر JSON.
+    """
+    school.name = 'مدرسة "التجربة" الثانوية'
+    school.city = "الوكرة"
+    school.save(update_fields=["name", "city"])
+
+    manifest = json.loads(client_as(teacher_user).get("/manifest.json").content)
+
+    assert manifest["name"] == school.name
+    assert manifest["short_name"] == school.city
+    assert school.name in manifest["description"]
+
+
+@pytest.mark.parametrize(
+    "template",
+    [
+        "templates/pwa/manifest_global.json",
+        "templates/base/base.html",
+        "templates/parents/dashboard.html",
+    ],
+)
+def test_no_school_name_is_frozen_in_the_app_identity(template):
+    assert "الشحانية" not in _read(template)
