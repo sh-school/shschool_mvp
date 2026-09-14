@@ -427,7 +427,7 @@ def _supervisor_record_ctx(user, school, today):
     """
     from operations.bells import day_type_for
     from operations.services import ScheduleService
-    from wings.services import record_panels
+    from wings.services import record_panels, supervisor_watchlist
 
     year = academic_year_for_school(school)
     if day_type_for(today):
@@ -437,6 +437,8 @@ def _supervisor_record_ctx(user, school, today):
         "record_panels": record_panels(user, school, year, today),
         "day": today,
         "is_school_day": bool(day_type_for(today)),
+        # ما ينتظره اليوم: إخطارُ أولياء الأمور، ومن عند العتبات (لوحتُه v1).
+        **supervisor_watchlist(user, school, year, today),
     }
 
 
