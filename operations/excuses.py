@@ -30,6 +30,7 @@ from django.utils import timezone
 
 from core.models import AuditLog, CustomUser, School
 from core.validators import FileTypeValidator
+from operations.bells import day_type_for
 from operations.models import AbsenceExcuse, StudentAttendance
 
 #: القائمةُ المغلقة — بترتيب النصّ.
@@ -43,7 +44,8 @@ NEEDS_DOCUMENT = {
     "official": "إثباتُ الموعد",
 }
 
-#: مهلةُ الردّ: يومان (م 3.4.1.5)، تُعدّ من آخر يومِ غياب.
+#: مهلةُ الردّ: يومان **دراسيّان** (م 3.4.1.5، وقرارُ 2026-09-14: دراسيّاً لا تقويميّاً)،
+#: تُعدّ من آخر يومِ غياب — فالجمعةُ والسبتُ والإجازاتُ لا تُحسب على وليّ الأمر.
 GRACE_DAYS = 2
 
 
@@ -57,12 +59,33 @@ def kinds() -> list[tuple[str, str, str]]:
     return [(k, labels[k], NEEDS_DOCUMENT.get(k, "")) for k in CLOSED_LIST]
 
 
-def deadline_of(date_to: dt.date) -> dt.date:
-    return date_to + dt.timedelta(days=GRACE_DAYS)
+def is_school_day(school: School, day: dt.date) -> bool:
+    """يومٌ يدرس فيه الطلبة: أحدٌ إلى خميس، وليس في إجازةٍ من تقويم الوزارة."""
+    from core.models import CalendarEvent
+
+    if not day_type_for(day):
+        return False
+    return not CalendarEvent.objects.filter(
+        academic_year__school=school,
+        event_type="break",
+        audience__in=("both", "students"),
+        start_date__lte=day,
+        end_date__gte=day,
+    ).exists()
 
 
-def is_after_deadline(date_to: dt.date, today: dt.date) -> bool:
-    return today > deadline_of(date_to)
+def deadline_of(school: School, date_to: dt.date) -> dt.date:
+    """آخرُ يومٍ يُقبل فيه العذرُ عند المشرف: ثاني يومٍ دراسيٍّ بعد آخر يومِ غياب."""
+    day, counted = date_to, 0
+    while counted < GRACE_DAYS:
+        day += dt.timedelta(days=1)
+        if is_school_day(school, day):
+            counted += 1
+    return day
+
+
+def is_after_deadline(school: School, date_to: dt.date, today: dt.date) -> bool:
+    return today > deadline_of(school, date_to)
 
 
 def _audit(
@@ -134,10 +157,11 @@ def grant_excuse(
     if not rows.exists():
         raise ExcuseError("لا غيابَ بلا عذرٍ لهذا الطالب في هذه المدّة.")
 
-    late = is_after_deadline(date_to, today)
+    late = is_after_deadline(school, date_to, today)
     if late and not may_override:
         raise ExcuseError(
-            f"انقضت مهلةُ اليومين (حتى {deadline_of(date_to):%d/%m}) — يقبله النائبُ الإداريّ بسبب."
+            f"انقضت مهلةُ اليومين الدراسيّين (حتى {deadline_of(school, date_to):%d/%m}) — "
+            "يقبله النائبُ الإداريّ بسبب."
         )
     if late and not override_reason:
         raise ExcuseError("اكتب سببَ القبول بعد المهلة.")
