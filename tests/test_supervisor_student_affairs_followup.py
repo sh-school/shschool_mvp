@@ -247,14 +247,15 @@ class TestAttendanceIsTheWing:
         assert client_as(world["supervisor"]).get(url).context["year"] == world["year"]
         assert client_as(principal_user).get(url).context["year"] == "2020-2021"
 
-    def test_the_whole_school_daily_report_is_not_offered_to_the_supervisor(self, client_as, world):
+    def test_the_daily_report_is_offered_because_it_is_scoped_to_his_wing(self, client_as, world):
+        """«غياب اليوم» صار مقيَّداً بطلبة جناحه (tests/test_supervisor_cross_scope.py) — فرابطُه له."""
         body = (
             client_as(world["supervisor"])
             .get(reverse("student_affairs:attendance_overview"))
             .content.decode()
         )
 
-        assert reverse("daily_report") not in body
+        assert reverse("daily_report") in body
 
     def test_the_excel_carries_only_the_wing_and_says_so(self, client_as, world, absences):
         response = client_as(world["supervisor"]).get(reverse("student_affairs:attendance_export"))
