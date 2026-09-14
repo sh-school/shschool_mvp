@@ -13,11 +13,11 @@
   الحذف ناعمٌ دائماً: الزيارة وتقييماتها تبقى للتدقيق. وهذه الصفحة هي ما يجعل
   وعد رسالة الحذف — «محفوظة في الأرشيف ويمكن استرجاعها» — قابلاً للتحقّق.
   {% endcomment %}
-  {% page_header "أرشيف الزيارات الصفية" subtitle="الزيارات المحذوفة محفوظة هنا بتقييماتها كاملةً، ويستعيدها من يملك حذفها" icon="inbox" %}
+  {% page_header "أرشيف الزيارات الصفية" subtitle="الزيارات المحذوفة محفوظة هنا بتقييماتها كاملةً، ويستعيدها من يملك حذفها" icon="observation" %}
     <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">← الزيارات</a>
   {% endpage_header %}
 
-  {% section_card "الزيارات المؤرشفة" meta=total icon="inbox" empty="لا زيارات مؤرشَفة." flush=True %}{% if page_obj.object_list %}
+  {% section_card "الزيارات المؤرشفة" meta=total icon="observation" empty="لا زيارات مؤرشَفة." flush=True %}{% if page_obj.object_list %}
     {# الأرشيفُ مقسَّمٌ صفحاتٍ: الفرزُ من الخادم على الأرشيف كلِّه. #}
     <div class="table-wrap">
     <table class="table" data-no-sort>

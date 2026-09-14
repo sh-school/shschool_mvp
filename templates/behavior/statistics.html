@@ -9,7 +9,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "إحصاءات السلوك المدرسي" subtitle=subtitle icon="bar-chart" %}{% endpage_header %}
+  {% page_header "إحصاءات السلوك المدرسي" subtitle=subtitle icon="behavior" %}{% endpage_header %}
 
   {% kpi_strip label="أرقام العام الدراسي" %}
     {% kpi "إجمالي المخالفات" total tone="maroon" %}
@@ -20,7 +20,7 @@
   {% endkpi_strip %}
 
   <div class="ui-grid-2">
-    {% section_card "أكثر الطلاب مخالفة" meta="أعلى 10" icon="users" empty="لا مخالفاتٍ هذا العام" %}{% if top_students %}
+    {% section_card "أكثر الطلاب مخالفة" meta="أعلى 10" icon="stats" empty="لا مخالفاتٍ هذا العام" %}{% if top_students %}
       <input type="search" id="topStudentsSearch" class="form-control form-control-sm beh-search"
              placeholder="بحث بالاسم..." autocomplete="off" aria-label="بحث بالاسم">
       <ul class="plain-list is-scroll">
@@ -33,7 +33,7 @@
       </ul>
     {% endif %}{% endsection_card %}
 
-    {% section_card "التوزيع الشهري" icon="calendar" empty="لا مخالفاتٍ هذا العام" %}{% if monthly_rows %}
+    {% section_card "التوزيع الشهري" icon="trend" empty="لا مخالفاتٍ هذا العام" %}{% if monthly_rows %}
       <ul class="plain-list is-scroll">
         {% for m in monthly_rows %}
           <li class="plain-list__row">

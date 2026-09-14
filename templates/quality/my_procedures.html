@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}إجراءاتي{% endblock %}
 
@@ -9,7 +10,7 @@
 {% block content %}
 <div class="qmy">
 
-  {% page_header "إجراءاتي في الخطة التشغيلية" subtitle=year icon="clipboard-check" %}
+  {% page_header "إجراءاتي في الخطة التشغيلية" subtitle=year icon="my_actions" %}
     <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">← العودة</a>
   {% endpage_header %}
 
@@ -32,9 +33,9 @@
     </div>
   {% endfilter_bar %}
 
-  {% section_card "الإجراءات" meta=procedures|length icon="list-checks" empty="لا توجد إجراءات مرتبطة بحسابك" %}{% if not mapping_exists %}
+  {% section_card "الإجراءات" meta=procedures|length icon="checklist" empty="لا توجد إجراءات مرتبطة بحسابك" %}{% if not mapping_exists %}
     <p class="form-note is-warning">
-      {% include "components/icon.html" with name="alert-triangle" %}
+      {% icon "status_warning" %}
       <span><b>حسابك غير مربوط بالخطة التشغيلية.</b> تواصل مع مدير المدرسة ليربطه بمسمّاك الوظيفيّ من صفحة «ربط المنفذين بالموظفين».</span>
     </p>
   {% elif procedures %}
@@ -45,9 +46,9 @@
           <span class="plain-list__sub"><span dir="ltr">{{ proc.number }}</span> · {{ proc.indicator.target.domain.name }}</span>
           <span class="plain-list__title">{{ proc.text|truncatechars:100 }}</span>
           <span class="plain-list__sub">
-            {% include "components/icon.html" with name="calendar" %} {{ proc.date_range }}
+            {% icon "date" %} {{ proc.date_range }}
             {% if proc.deadline %}
-            · <span class="{% if proc.deadline_overdue %}qmy-item__deadline{% endif %}"{% if proc.deadline_overdue %} title="تجاوز الموعد ولم يكتمل"{% endif %}>{% include "components/icon.html" with name="clock" %} {{ proc.deadline|date:"Y/m/d" }}</span>
+            · <span class="{% if proc.deadline_overdue %}qmy-item__deadline{% endif %}"{% if proc.deadline_overdue %} title="تجاوز الموعد ولم يكتمل"{% endif %}>{% icon "time" %} {{ proc.deadline|date:"Y/m/d" }}</span>
             {% endif %}
           </span>
         </a>

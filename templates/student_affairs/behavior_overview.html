@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load static ui %}
 
 {% block title %}ملخص سلوك الطلاب — شؤون الطلاب{% endblock %}
@@ -10,14 +11,14 @@
 {% block content %}
 <div class="exec-dash sa-page">
 
-  {% page_header "ملخص سلوك الطلاب" subtitle=today|date:"F Y" icon="scale" %}
-    <a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} تسجيل مخالفة</a>
-    <a href="{% url 'behavior:dashboard' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} لوحة السلوك</a>
-    <a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="users" %} فريق السلوك</a>
-    <a href="{% url 'behavior:policy_pdf' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="lock" %} لائحة السلوك PDF</a>
-    <a href="{% url 'student_affairs:behavior_export' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
-    <a href="{% url 'student_affairs:behavior_pdf' %}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="file-pen" %} تصدير PDF</a>
-    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+  {% page_header "ملخص سلوك الطلاب" subtitle=today|date:"F Y" icon="behavior" %}
+    <a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">{% icon "edit_record" %} تسجيل مخالفة</a>
+    <a href="{% url 'behavior:dashboard' %}" class="btn-secondary btn-sm">{% icon "behavior" %} لوحة السلوك</a>
+    <a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">{% icon "behavior_team" %} فريق السلوك</a>
+    <a href="{% url 'behavior:policy_pdf' %}" class="btn-secondary btn-sm">{% icon "export_pdf" %} لائحة السلوك PDF</a>
+    <a href="{% url 'student_affairs:behavior_export' %}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
+    <a href="{% url 'student_affairs:behavior_pdf' %}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>
+    <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
   {% kpi_strip label="أرقام السلوك هذا العام" %}
@@ -27,7 +28,7 @@
     {% kpi "غير محلولة" unresolved tone=unresolved_tone %}
   {% endkpi_strip %}
 
-  {% section_card "توزيع المخالفات حسب الدرجة" meta="هذا العام" icon="list-checks" %}
+  {% section_card "توزيع المخالفات حسب الدرجة" meta="هذا العام" icon="stats" %}
     <ul class="chip-row" aria-label="المخالفات حسب الدرجة">
       {% for label, count in degree_rows %}
         <li class="chip-stat"><span class="chip-stat__key">{{ label }}</span><b class="chip-stat__value">{{ count }}</b></li>
@@ -36,13 +37,13 @@
   {% endsection_card %}
 
   <div class="ui-grid-2">
-    {% section_card "اتجاه المخالفات الشهري" meta="آخر 6 أشهر" icon="bar-chart" %}
+    {% section_card "اتجاه المخالفات الشهري" meta="آخر 6 أشهر" icon="trend" %}
       <div class="dash-chart-wrap">
         <canvas id="infractions-chart" role="img" aria-label="رسم بياني: عدد المخالفات في كل شهر من آخر ستة أشهر"></canvas>
       </div>
     {% endsection_card %}
 
-    {% section_card "أكثر الطلاب مخالفات" meta="هذا العام" icon="alert-triangle" empty="لا مخالفات مسجّلة هذا العام" %}{% if worst_students %}
+    {% section_card "أكثر الطلاب مخالفات" meta="هذا العام" icon="stats" empty="لا مخالفات مسجّلة هذا العام" %}{% if worst_students %}
       <ol class="plain-list is-scroll">
         {% for s in worst_students %}
           <li class="plain-list__row">

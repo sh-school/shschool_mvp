@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% comment %}
 تعيينُ منتسبٍ جديد — نموذجٌ واحدٌ يُنشئ الحسابَ والعضويّةَ ومرجعَ القرار.
@@ -12,7 +13,7 @@
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header "تعيين منتسب" subtitle="التعيينُ قرارٌ — يُسجَّل بتاريخه ومرجعه" icon="user" %}{% endpage_header %}
+  {% page_header "تعيين منتسب" subtitle="التعيينُ قرارٌ — يُسجَّل بتاريخه ومرجعه" icon="user_add" %}{% endpage_header %}
 
   <form method="post" class="sa-panel ap-form" data-confirm="تأكيدُ تعيين المنتسب؟">
     {% csrf_token %}
@@ -39,7 +40,7 @@
     </p>
 
     <div class="ap-actions">
-      <button type="submit" class="btn-primary">{% include "components/icon.html" with name="check" %} تعيين</button>
+      <button type="submit" class="btn-primary">{% icon "confirm" %} تعيين</button>
       <a href="{% url 'staff_affairs:staff_list' %}" class="btn-secondary">إلغاء</a>
     </div>
   </form>

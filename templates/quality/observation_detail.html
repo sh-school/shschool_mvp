@@ -10,7 +10,7 @@
 <div class="qobs qobs--narrow">
 
   {# الإجراءاتُ بحسب الحالة والصلاحيّة في رأس الصفحة — كانت شريطاً تحت الجداول. #}
-  {% page_header page_title icon="clipboard-check" %}
+  {% page_header page_title icon="observation" %}
     {% if can_submit %}
     <form method="post" action="{% url 'observation_submit' obs.id %}" class="form-inline" data-confirm="إرسال الملاحظة للمعلّم وإشعاره؟">
       {% csrf_token %}<button type="submit" class="btn-primary btn-sm">إرسال للمعلّم</button>
@@ -31,7 +31,7 @@
     <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">← القائمة</a>
   {% endpage_header %}
 
-  {% section_card "بيانات الزيارة" icon="info" %}
+  {% section_card "بيانات الزيارة" icon="status_info" %}
     <dl class="qobs-facts">
       <div><dt>الحالة</dt><dd><span class="badge badge--{{ obs.status_tone }}">{{ obs.get_status_display }}</span></dd></div>
       <div><dt>النسبة الإجماليّة</dt><dd>{% if obs.score_percent != None %}<b class="grade-total is-{{ obs.score_tone }}">{{ score_label }}</b>{% else %}—{% endif %}</dd></div>
@@ -46,7 +46,7 @@
   {% endsection_card %}
 
   {% for domain_label, rows in grouped %}
-  {% section_card domain_label meta=rows|length icon="list-checks" flush=True %}
+  {% section_card domain_label meta=rows|length icon="checklist" flush=True %}
     {# ترتيبُ المعايير كما في الاستمارة المعتمَدة — لا يُفرَز. #}
     <div class="table-wrap">
     <table class="table" data-no-sort>
@@ -66,13 +66,13 @@
   {% endfor %}
 
   {% if obs.general_notes %}
-  {% section_card "ملاحظات وتوصيات عامّة" icon="file-text" %}
+  {% section_card "ملاحظات وتوصيات عامّة" icon="document" %}
     <p class="qobs-notes">{{ obs.general_notes|linebreaksbr }}</p>
   {% endsection_card %}
   {% endif %}
 
   {% if can_ack %}
-  {% section_card "الإقرار بالاطّلاع" icon="check-circle" %}
+  {% section_card "الإقرار بالاطّلاع" icon="status_success" %}
     <form method="post" action="{% url 'observation_acknowledge' obs.id %}" class="qobs-form-stack">
       {% csrf_token %}
       <textarea name="teacher_comment" rows="2" class="form-control" placeholder="تعليق (اختياري)" aria-label="تعليق المعلّم"></textarea>
@@ -82,7 +82,7 @@
   {% endif %}
 
   {% if obs.status == "acknowledged" %}
-  {% section_card "إقرار المعلّم" meta=obs.teacher_acknowledged_at|date:"Y-m-d H:i" icon="check-circle" %}
+  {% section_card "إقرار المعلّم" meta=obs.teacher_acknowledged_at|date:"Y-m-d H:i" icon="status_success" %}
     <p class="qobs-notes">{% if obs.teacher_comment %}<b>تعليقه:</b> {{ obs.teacher_comment }}{% else %}أقرّ المعلّم بالاطّلاع دون تعليق.{% endif %}</p>
 
     {# إعادة الفتح + الحذف المُعلَّل (قيادة) #}
@@ -110,7 +110,7 @@
   {% endif %}
 
   {% if obs.status == "submitted" and can_delete %}
-  {% section_card "حذف ملاحظة مُرسَلة" icon="trash" %}
+  {% section_card "حذف ملاحظة مُرسَلة" icon="delete" %}
     <form method="post" action="{% url 'observation_delete' obs.id %}" class="qobs-lead__form"
           data-confirm="حذف ملاحظة مُرسَلة؟ ستُحفظ في الأرشيف.">
       {% csrf_token %}

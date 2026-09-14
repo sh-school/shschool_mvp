@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load static ui %}
 {% block title %}إعدادات الجدول والتفريغات — {{ year }}{% endblock %}
 
@@ -11,12 +12,12 @@
 
 <div class="exec-dash">
 
-{% page_header "إعدادات الجدول والتفريغات" subtitle=year icon="settings-2" %}
-  <a href="{% url 'smart_schedule' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="arrow-right" %} الجدولة الذكية</a>
+{% page_header "إعدادات الجدول والتفريغات" subtitle=year icon="settings" %}
+  <a href="{% url 'smart_schedule' %}" class="btn-secondary btn-sm">{% icon "generate" %} الجدولة الذكية</a>
 {% endpage_header %}
 
 {# ══ القسم 1: تفريغات المعلمين ══ #}
-{% section_card "تفريغات المعلمين والمنسقين" meta=exemptions|length icon="user-minus" %}
+{% section_card "تفريغات المعلمين والمنسقين" meta=exemptions|length icon="exemptions" %}
     <p class="form-note settings-note">
       تفريغ معلم أو منسق من حصة محددة أو يوم كامل (لمهام خارجية أو إدارية).
       النظام يتجنب جدولة حصص للمعلم في الأوقات المفرّغة.
@@ -73,7 +74,7 @@
       {% field "source" "جهة القرار" type="select" choices="ministry=قرار الوزارة|school=قرار إدارة المدرسة|department=قرار القسم الأكاديمي|generation=لتوليد الجدول — يجوز فيها البديل والتبديل|other=أخرى" value="school" %}
 
       <div class="form-group mb-0 flex items-end">
-        <button type="submit" class="btn-primary w-full">{% include "components/icon.html" with name="plus" %} إضافة تفريغ</button>
+        <button type="submit" class="btn-primary w-full">{% icon "add" %} إضافة تفريغ</button>
       </div>
     </form>
 
@@ -90,7 +91,7 @@
         {% csrf_token %}
         <input type="hidden" name="year" value="{{ year }}">
         <button type="submit" class="btn-danger btn-sm" data-bulk-action disabled>
-          {% include "components/icon.html" with name="trash-2" size="icon-sm" %}
+          {% icon "delete" size="sm" %}
           إلغاء المحدَّد (<span data-bulk-count>0</span>)
         </button>
       </form>
@@ -134,7 +135,7 @@
             <td>
               <form method="post" action="{% url 'remove_exemption' ex.id %}" data-confirm="إلغاء تفريغ {{ ex.teacher.full_name }}؟">
                 {% csrf_token %}
-                <button type="submit" class="btn-ghost text-xs text-danger" aria-label="إلغاء التفريغ">{% include "components/icon.html" with name="trash-2" size="icon-sm" %} إلغاء</button>
+                <button type="submit" class="btn-ghost text-xs text-danger" aria-label="إلغاء التفريغ">{% icon "delete" size="sm" %} إلغاء</button>
               </form>
             </td>
           </tr>
@@ -144,7 +145,7 @@
       </div>
     </div>
     {% else %}
-    {% empty_state "لا توجد تفريغات حالياً" sub="يُضاف التفريغُ من الشبكة أعلاه" icon="user-minus" %}
+    {% empty_state "لا توجد تفريغات حالياً" sub="يُضاف التفريغُ من الشبكة أعلاه" icon="user_remove" %}
     {% endif %}
 {% endsection_card %}
 
@@ -164,7 +165,7 @@
 {% endcomment %}
 
 {# ══ القسم 3: تفضيلات المعلمين (للمراجعة) ══ #}
-{% section_card "تفضيلات المعلمين المسجلة" meta=teacher_prefs|length icon="users" empty="لم يسجّل أيُّ معلّمٍ تفضيلاته بعد" %}{% if teacher_prefs %}
+{% section_card "تفضيلات المعلمين المسجلة" meta=teacher_prefs|length icon="settings" empty="لم يسجّل أيُّ معلّمٍ تفضيلاته بعد" %}{% if teacher_prefs %}
     <div data-bulk>
       <form method="post" action="{% url 'remove_preferences' %}" id="bulk-prefs"
             class="settings-bulk"
@@ -172,7 +173,7 @@
         {% csrf_token %}
         <input type="hidden" name="year" value="{{ year }}">
         <button type="submit" class="btn-danger btn-sm" data-bulk-action disabled>
-          {% include "components/icon.html" with name="trash-2" size="icon-sm" %}
+          {% icon "delete" size="sm" %}
           حذف المحدَّد (<span data-bulk-count>0</span>)
         </button>
       </form>

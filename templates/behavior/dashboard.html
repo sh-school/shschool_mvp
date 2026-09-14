@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load static ui %}
 {% block title %}لوحة السلوك{% endblock %}
 
@@ -9,12 +10,12 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "لوحة السلوك" subtitle=today_label icon="scale" %}
-    {% if can_report %}<a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} تسجيل مخالفة</a>{% endif %}
-    {% if is_committee %}<a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="scale" %} لجنة الضبط</a>{% endif %}
-    {% if can_stats %}<a href="{% url 'behavior:statistics' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} الإحصائيات</a>{% endif %}
-    {% if can_summon %}<a href="{% url 'behavior:summon_parent' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="mail" %} استدعاء ولي أمر</a>{% endif %}
-    <a href="{% url 'behavior:policy_pdf' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="file-text" %} لائحة السلوك (PDF)</a>
+  {% page_header "لوحة السلوك" subtitle=today_label icon="behavior" %}
+    {% if can_report %}<a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">{% icon "add" %} تسجيل مخالفة</a>{% endif %}
+    {% if is_committee %}<a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">{% icon "behavior_committee" %} لجنة الضبط</a>{% endif %}
+    {% if can_stats %}<a href="{% url 'behavior:statistics' %}" class="btn-secondary btn-sm">{% icon "stats" %} الإحصائيات</a>{% endif %}
+    {% if can_summon %}<a href="{% url 'behavior:summon_parent' %}" class="btn-secondary btn-sm">{% icon "call_parent" %} استدعاء ولي أمر</a>{% endif %}
+    <a href="{% url 'behavior:policy_pdf' %}" class="btn-secondary btn-sm">{% icon "export_pdf" %} لائحة السلوك (PDF)</a>
   {% endpage_header %}
 
   {# نظامُ النقاط ملغى — الأرقامُ عددُ مخالفات. #}
@@ -30,13 +31,13 @@
   {% endkpi_strip %}
 
   <div class="ui-grid-2">
-    {% section_card "الاتجاه الشهري" meta="آخر 6 أشهر" icon="activity" empty="لا مخالفاتٍ في آخر 6 أشهر" %}{% if monthly_trend %}
+    {% section_card "الاتجاه الشهري" meta="آخر 6 أشهر" icon="trend" empty="لا مخالفاتٍ في آخر 6 أشهر" %}{% if monthly_trend %}
       <div class="dash-chart-wrap">
         <canvas id="chartBehaviorTrend" role="img" aria-label="رسم بياني: المخالفات شهرياً آخر 6 أشهر"></canvas>
       </div>
     {% endif %}{% endsection_card %}
 
-    {% section_card "توزيع المخالفات حسب الدرجة" meta="العام الدراسي" icon="bar-chart" empty="لا مخالفاتٍ هذا العام" %}{% if level_dist %}
+    {% section_card "توزيع المخالفات حسب الدرجة" meta="العام الدراسي" icon="stats" empty="لا مخالفاتٍ هذا العام" %}{% if level_dist %}
       <div class="dash-chart-wrap">
         <canvas id="chartLevelDist" role="img" aria-label="رسم بياني: توزيع المخالفات حسب الدرجة"></canvas>
       </div>
@@ -44,7 +45,7 @@
   </div>
 
   <div class="ui-grid-2">
-    {% section_card "أكثر المخالفات شيوعاً" meta="العام الدراسي" icon="list-checks" empty="لا مخالفاتٍ هذا العام" %}{% if top_violations %}
+    {% section_card "أكثر المخالفات شيوعاً" meta="العام الدراسي" icon="stats" empty="لا مخالفاتٍ هذا العام" %}{% if top_violations %}
       <ul class="plain-list">
         {% for v in top_violations %}
           <li class="plain-list__row">
@@ -55,7 +56,7 @@
       </ul>
     {% endif %}{% endsection_card %}
 
-    {% section_card "المخالفات الجسيمة المعلّقة" icon="alert-triangle" empty="لا مخالفاتٍ جسيمةً بلا قرار" empty_sub="تظهر هنا مخالفاتُ الدرجة 3 و4 حتى تبتّ فيها اللجنة" %}{% if critical_unresolved %}
+    {% section_card "المخالفات الجسيمة المعلّقة" icon="behavior_violation" empty="لا مخالفاتٍ جسيمةً بلا قرار" empty_sub="تظهر هنا مخالفاتُ الدرجة 3 و4 حتى تبتّ فيها اللجنة" %}{% if critical_unresolved %}
       <ul class="plain-list is-scroll">
         {% for inf in critical_unresolved %}
           <li class="plain-list__row">

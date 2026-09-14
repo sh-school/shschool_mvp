@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load static ui %}
 {% block title %}بوابة ولي الأمر — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
@@ -20,24 +21,24 @@
 
 {# ── شريطُ تثبيت التطبيق — يظهر بعد ثلاث ثوانٍ إن عرض المتصفّحُ التثبيت ── #}
 <div id="pwa-banner" class="pwa-banner" hidden>
-  <span class="pwa-banner__icon">{% include "components/icon.html" with name="download" %}</span>
+  <span class="pwa-banner__icon">{% icon "download" %}</span>
   <div class="pwa-banner__text">
     <p class="pwa-banner__title">ثبّت تطبيق المدرسة</p>
     <p class="pwa-subtitle">وصول سريع بدون متصفح</p>
   </div>
   <button type="button" data-call="installPWA" class="btn-secondary btn-sm">تثبيت</button>
-  <button type="button" data-hide="#pwa-banner" class="pwa-close-btn" aria-label="إغلاق">{% include "components/icon.html" with name="x-circle" %}</button>
+  <button type="button" data-hide="#pwa-banner" class="pwa-close-btn" aria-label="إغلاق">{% icon "status_error" %}</button>
 </div>
 
 <div class="exec-dash">
 
-  {% page_header "بوابة ولي الأمر" subtitle=school.name icon="waypoints" %}
+  {% page_header "بوابة ولي الأمر" subtitle=school.name icon="link" %}
     <span id="online-indicator" class="status-dot status-dot-online" title="متصل" role="status" aria-label="متصل"></span>
     <span class="exec-date">{{ year }}</span>
   {% endpage_header %}
 
   {% for child in children %}
-    {% section_card child.student.full_name meta=child.enrollment.class_group.short_code icon="user" %}
+    {% section_card child.student.full_name meta=child.enrollment.class_group.short_code icon="profile" %}
       <div class="parent-child">
         {% if child.kpis %}
         {% kpi_strip label="أرقام الابن" %}
@@ -46,27 +47,27 @@
         {% endif %}
         <nav class="parent-child__actions" aria-label="تفاصيل الابن">
           {% if child.link.can_view_grades %}
-            <a href="{% url 'parent_student_grades' child.student.id %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} الدرجات</a>
+            <a href="{% url 'parent_student_grades' child.student.id %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "grades" %} الدرجات</a>
           {% endif %}
           {% if child.link.can_view_attendance %}
-            <a href="{% url 'parent_student_attendance' child.student.id %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="calendar" %} الحضور</a>
+            <a href="{% url 'parent_student_attendance' child.student.id %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "attendance_register" %} الحضور</a>
           {% endif %}
-          <a href="{% url 'parent_behavior' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="shield" %} السلوك</a>
+          <a href="{% url 'parent_behavior' %}" class="btn-secondary btn-sm">{% icon "behavior" %} السلوك</a>
         </nav>
       </div>
     {% endsection_card %}
   {% empty %}
-    {% section_card "أبنائي" icon="users" empty="لم يُربط حسابك بأيّ طالبٍ بعد" empty_sub="تواصل مع إدارة المدرسة لربط حسابك بأبنائك" %}{% endsection_card %}
+    {% section_card "أبنائي" icon="children" empty="لم يُربط حسابك بأيّ طالبٍ بعد" empty_sub="تواصل مع إدارة المدرسة لربط حسابك بأبنائك" %}{% endsection_card %}
   {% endfor %}
 
   {% if children %}
-  {% section_card "روابط عامّة" icon="layers" %}
+  {% section_card "روابط عامّة" icon="wings" %}
     <nav class="parent-child__actions" aria-label="روابط عامّة">
-      <a href="{% url 'parent_all_grades' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} كل الدرجات</a>
-      <a href="{% url 'parent_all_attendance' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="calendar" %} كل الحضور</a>
-      <a href="{% url 'notification_inbox' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bell" %} الإشعارات</a>
-      <a href="{% url 'parent_consent' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="lock" %} إعدادات الخصوصية</a>
-      <a href="{% url 'behavior:policy_pdf' %}" target="_blank" rel="noopener" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} لائحة السلوك</a>
+      <a href="{% url 'parent_all_grades' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "grades" %} كل الدرجات</a>
+      <a href="{% url 'parent_all_attendance' %}" class="btn-secondary btn-sm">{% icon "attendance_register" %} كل الحضور</a>
+      <a href="{% url 'notification_inbox' %}" class="btn-secondary btn-sm">{% icon "notifications" %} الإشعارات</a>
+      <a href="{% url 'parent_consent' %}" class="btn-secondary btn-sm">{% icon "settings" %} إعدادات الخصوصية</a>
+      <a href="{% url 'behavior:policy_pdf' %}" target="_blank" rel="noopener" class="btn-secondary btn-sm">{% icon "print" %} لائحة السلوك</a>
     </nav>
   {% endsection_card %}
   {% endif %}

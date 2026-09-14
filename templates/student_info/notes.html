@@ -9,11 +9,11 @@
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header label subtitle=year icon="file-pen" %}
+  {% page_header label subtitle=year icon="edit_record" %}
     <a href="{% url 'student_info:sections' %}" class="btn-secondary btn-sm">الشُّعب</a>
   {% endpage_header %}
 
-  {% section_card "الملاحظات" meta=page.paginator.count icon="file-pen" flush=True empty="لا ملاحظات من هذه الجهة هذا العام" %}{% if page.object_list %}
+  {% section_card "الملاحظات" meta=page.paginator.count icon="edit_record" flush=True empty="لا ملاحظات من هذه الجهة هذا العام" %}{% if page.object_list %}
     <div class="table-wrap">
       {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على كلّ البيانات لا على الصفحة. #}
       <table data-no-sort>

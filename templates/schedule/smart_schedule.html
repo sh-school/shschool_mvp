@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load schedule_filters ui %}
 
 {% block title %}الجدولة الذكية — {{ year }}{% endblock %}
@@ -10,11 +11,11 @@
 {% block content %}
 <div class="exec-dash">
 
-{% page_header "الجدولة الذكية" subtitle=page_subtitle icon="bot" %}
-  <a href="{% url 'academic_management:assignments' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="book-open" %} الإسناد</a>
-  <a href="{% url 'schedule_settings' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="settings-2" %} الإعدادات</a>
-  <a href="{% url 'schedule_quality_lab' %}?year={{ year }}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="activity" %} مختبر الجودة</a>
-  <a href="{% url 'weekly_schedule' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="calendar" %} الجدول الحالي</a>
+{% page_header "الجدولة الذكية" subtitle=page_subtitle icon="generate" %}
+  <a href="{% url 'academic_management:assignments' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "workload" %} الإسناد</a>
+  <a href="{% url 'schedule_settings' %}" class="btn-secondary btn-sm">{% icon "settings" %} الإعدادات</a>
+  <a href="{% url 'schedule_quality_lab' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "quality" %} مختبر الجودة</a>
+  <a href="{% url 'weekly_schedule' %}" class="btn-secondary btn-sm">{% icon "schedule" %} الجدول الحالي</a>
 {% endpage_header %}
 
 {% comment %}
@@ -34,11 +35,11 @@
 {% endkpi_strip %}
 
 {# ══ فحصُ الجدوى: يعدّ ولا يبحث — فما عجز هنا لا يجده بحثٌ مهما طال ══ #}
-{% section_card "فحصُ الجدوى قبل التوليد" meta=feasibility_verdict icon="list-checks" %}
+{% section_card "فحصُ الجدوى قبل التوليد" meta=feasibility_verdict icon="checklist" %}
   <div class="smart-notes">
     {% if feasibility.blocking %}
     <p class="form-note is-warning">
-      {% include "components/icon.html" with name="alert-triangle" %}
+      {% icon "status_warning" %}
       <span><strong>{{ feasibility.minimum_unplaceable }} حصّةً على الأقلّ لن تجد موضعاً مهما طال البحث.</strong>
       والعلاجُ في التوزيعات لا في المولّد: راجع ما دونه ثمّ أعد الفحص.</span>
     </p>
@@ -50,7 +51,7 @@
     {% endif %}
     {% if constraint_overrides %}
     <p class="form-note is-warning">
-      {% include "components/icon.html" with name="alert-triangle" %}
+      {% icon "status_warning" %}
       <span>قيودٌ خُولف فيها افتراضُ الشيفرة هذا العام:
       {% for code, title in constraint_overrides %}<strong>{{ code }} · {{ title }}</strong>{% if not forloop.last %}، {% endif %}{% endfor %}.
       وأثرُ الرتبة لا يكشفه عدٌّ — فوَلِّد وقِس بالمختبر قبل الاعتماد.</span>
@@ -107,7 +108,7 @@
 
 {# ── زر التوليد ── #}
 {% if assignments_count %}
-{% section_card "توليد الجدول التلقائي" icon="bot" %}
+{% section_card "توليد الجدول التلقائي" icon="generate" %}
   {% comment %}
   التوليدُ يستغرق دقائقَ لا ثوانيَ — قِيس في هذه المدرسة بين ٤٢ و٢٧٩ ثانية.
   فلا يُترك المستخدمُ أمام صفحةٍ جامدةٍ يظنّ الزرَّ لم يعمل: الحالةُ معروضةٌ
@@ -137,17 +138,17 @@
   </div>
 {% endsection_card %}
 {% else %}
-{% section_card "توليد الجدول التلقائي" icon="bot" %}
-  {% empty_state "لا توجد توزيعات مواد" sub="لا يمكن التوليد قبل تسجيل توزيعات المواد على الشُّعب: أيّ معلّم يدرّس أيّ مادّة لأيّ شعبة وكم حصّة." icon="list-checks" %}
+{% section_card "توليد الجدول التلقائي" icon="generate" %}
+  {% empty_state "لا توجد توزيعات مواد" sub="لا يمكن التوليد قبل تسجيل توزيعات المواد على الشُّعب: أيّ معلّم يدرّس أيّ مادّة لأيّ شعبة وكم حصّة." icon="stats" %}
   <div class="smart-empty-action">
-    <a href="{% url 'academic_management:assignments' %}?year={{ year }}" class="btn-primary btn-sm">{% include "components/icon.html" with name="book-open" %} شاشة توزيعات المواد</a>
+    <a href="{% url 'academic_management:assignments' %}?year={{ year }}" class="btn-primary btn-sm">{% icon "academic" %} شاشة توزيعات المواد</a>
   </div>
 {% endsection_card %}
 {% endif %}
 
 {# ── سجل التوليد السابق ── #}
 {% if generations %}
-{% section_card "سجل التوليد" meta=generations|length icon="bar-chart" flush=True %}
+{% section_card "سجل التوليد" meta=generations|length icon="stats" flush=True %}
   <div class="table-wrap">
     <table>
       <thead>
@@ -228,7 +229,7 @@
 الواحدُ لا يقول لماذا. والأفضلُ من الأساس أخضر والأسوأُ أحمر.
 {% endcomment %}
 {% if lab_matrix %}
-{% section_card "مؤشرات التوليد" meta=baseline.label|default:"لا أساسَ معتمَد" icon="activity" flush=True %}
+{% section_card "مؤشرات التوليد" meta=baseline.label|default:"لا أساسَ معتمَد" icon="kpi" flush=True %}
   <div class="table-wrap">
     <table class="lab-table">
       <thead>

@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}طلب حصة تعويضية{% endblock %}
 
@@ -8,9 +9,9 @@
 
 {% block content %}
 <div class="exec-dash form-page">
-  {% page_header "طلب حصة تعويضية" icon="list-checks" %}{% endpage_header %}
-  {% section_card "بيانات الطلب" icon="file-pen" %}
-    <p class="form-note is-warning schedule-form-note">{% include "components/icon.html" with name="alert-triangle" %} الحد الأقصى للتعويض: أسبوع واحد من تاريخ الغياب</p>
+  {% page_header "طلب حصة تعويضية" icon="compensation" %}{% endpage_header %}
+  {% section_card "بيانات الطلب" icon="edit_record" %}
+    <p class="form-note is-warning schedule-form-note">{% icon "status_warning" %} الحد الأقصى للتعويض: أسبوع واحد من تاريخ الغياب</p>
 
     <form method="post">
       {% csrf_token %}

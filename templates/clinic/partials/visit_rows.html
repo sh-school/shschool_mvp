@@ -1,9 +1,10 @@
+{% load icons %}
 {% comment %}
   Partial: صفوف جدول الزيارات — SchoolOS v5.1
   يُعاد هذا القالب في طلبات HTMX (البحث الحي والترشيح)
   Target: #visits-container
 {% endcomment %}{% load ui %}
-{% section_card "الزيارات" meta=visits|length icon="clipboard" flush=True empty="لا توجد زيارات" empty_sub="لا توجد زيارات مطابقة للمعايير المحددة" %}{% if visits %}
+{% section_card "الزيارات" meta=visits|length icon="clinic_visit" flush=True empty="لا توجد زيارات" empty_sub="لا توجد زيارات مطابقة للمعايير المحددة" %}{% if visits %}
   <div class="table-wrap">
     <table>
       <thead>
@@ -33,10 +34,10 @@
           <td>
             <div class="flex flex-wrap gap-1">
               {% if v.is_sent_home %}
-                <span class="status-badge status-warning">{% include "components/icon.html" with name="home" %} منزل</span>
+                <span class="status-badge status-warning">{% icon "dashboard" %} منزل</span>
               {% endif %}
               {% if v.parent_notified %}
-                <span class="status-badge status-success">{% include "components/icon.html" with name="phone" %} أُبلغ</span>
+                <span class="status-badge status-success">{% icon "call_parent" %} أُبلغ</span>
               {% endif %}
               {% if not v.is_sent_home and not v.parent_notified %}
                 <span class="text-muted">—</span>

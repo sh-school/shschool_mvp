@@ -9,7 +9,7 @@
 {% block content %}
 <div class="qobs">
 
-  {% page_header "الزيارات الصفية" icon="clipboard-check" %}
+  {% page_header "الزيارات الصفية" icon="observation" %}
     {% if can_create %}<a href="{% url 'observation_create' %}" class="btn-primary btn-sm">+ زيارة إشرافية جديدة</a>{% endif %}
     {% if can_self %}<a href="{% url 'observation_self_create' %}" class="btn-secondary btn-sm">+ تقييم ذاتي جديد</a>{% endif %}
     {% if can_peer %}<a href="{% url 'observation_peer_create' %}" class="btn-secondary btn-sm">+ زيارة زميل</a>{% endif %}
@@ -34,7 +34,7 @@
     </div>
   {% endfilter_bar %}
 
-  {% section_card "الزيارات" meta=page_obj.paginator.count icon="list-checks" empty="لا توجد زيارات مطابقة." flush=True %}{% if rows %}
+  {% section_card "الزيارات" meta=page_obj.paginator.count icon="observation" empty="لا توجد زيارات مطابقة." flush=True %}{% if rows %}
     {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على كلّ الزيارات لا على الصفحة. #}
     {# في غلافٍ يُمرَّر: ثمانيةُ أعمدةٍ وأزرارٌ لا تُلفّ كانت تدفع الصفحةَ كلَّها 394px في الهاتف. #}
     <div class="table-wrap">

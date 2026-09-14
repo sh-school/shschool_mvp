@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load privacy ui %}
 
 {% block title %}{% if mode == "add" %}إضافة طالب{% else %}تعديل طالب{% endif %}{% endblock %}
@@ -12,9 +13,9 @@
 
   {# ── Header ── #}
   {% if mode == "add" %}
-  {% page_header "إضافة طالب جديد" subtitle=year icon="file-pen" %}{% endpage_header %}
+  {% page_header "إضافة طالب جديد" subtitle=year icon="student_add" %}{% endpage_header %}
   {% else %}
-  {% page_header "تعديل بيانات الطالب" subtitle=student.full_name icon="file-pen" %}{% endpage_header %}
+  {% page_header "تعديل بيانات الطالب" subtitle=student.full_name icon="student_add" %}{% endpage_header %}
   {% endif %}
 
   {# ── النموذج ── #}
@@ -61,9 +62,9 @@
         <a href="{% url 'student_affairs:student_list' %}" class="btn-secondary btn-sm">إلغاء</a>
         <button type="submit" class="btn-primary btn-sm">
           {% if mode == "add" %}
-            {% include "components/icon.html" with name="check-circle" %} إضافة الطالب
+            {% icon "status_success" %} إضافة الطالب
           {% else %}
-            {% include "components/icon.html" with name="check-circle" %} حفظ التعديلات
+            {% icon "status_success" %} حفظ التعديلات
           {% endif %}
         </button>
       </div>

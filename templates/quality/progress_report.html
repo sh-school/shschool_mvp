@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}تقرير التقدم — الخطة التشغيلية{% endblock %}
 
@@ -9,8 +10,8 @@
 {% block content %}
 <div class="pr-page">
 
-  {% page_header "تقرير التقدم الكلي" subtitle=report_subtitle icon="activity" %}
-    <a href="{% url 'quality_report_pdf' %}?year={{ year }}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-text" %} تصدير PDF</a>
+  {% page_header "تقرير التقدم الكلي" subtitle=report_subtitle icon="trend" %}
+    <a href="{% url 'quality_report_pdf' %}?year={{ year }}" class="btn-primary btn-sm">{% icon "export_pdf" %} تصدير PDF</a>
     <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">الخطة التشغيلية</a>
   {% endpage_header %}
 
@@ -23,7 +24,7 @@
     {% kpi "متأخرة" overdue_count tone="red" %}
   {% endkpi_strip %}
 
-  {% section_card "التقدم حسب المجال" meta=domain_stats|length icon="layers" empty="لا مجالاتٍ في الخطة لهذا العام" %}{% if domain_stats %}
+  {% section_card "التقدم حسب المجال" meta=domain_stats|length icon="trend" empty="لا مجالاتٍ في الخطة لهذا العام" %}{% if domain_stats %}
     <div class="pr-domains" id="pr-domains">
       {% for ds in domain_stats %}
       <div class="pr-dom" data-pct="{{ ds.pct }}" data-done="{{ ds.completed }}" data-total="{{ ds.total }}">
@@ -45,7 +46,7 @@
     </div>
   {% endif %}{% endsection_card %}
 
-  {% section_card "أداء المنفذين" meta="أول 20" icon="users" empty="لا منفّذين بإجراءاتٍ لهذا العام" %}{% if executor_stats %}
+  {% section_card "أداء المنفذين" meta="أول 20" icon="plan_committee" empty="لا منفّذين بإجراءاتٍ لهذا العام" %}{% if executor_stats %}
     <div class="pr-executors" id="pr-executors">
       {% for ex in executor_stats %}
       <div class="pr-exec" data-pct="{{ ex.pct }}">
@@ -68,7 +69,7 @@
   {% endif %}{% endsection_card %}
 
   {% if overdue_procedures %}
-  {% section_card "الإجراءات المتأخرة" meta=overdue_count icon="alert-triangle" flush=True %}
+  {% section_card "الإجراءات المتأخرة" meta=overdue_count icon="quality" flush=True %}
     <div class="table-wrap">
       {# تقريرٌ للطباعة: لا فرزَ على الورق. #}
       <table data-no-sort>
@@ -100,7 +101,7 @@
   {% endif %}
 
   {% if evidence_requests %}
-  {% section_card "طلبات الدليل المعلقة" meta=evidence_requests|length icon="paperclip" flush=True %}
+  {% section_card "طلبات الدليل المعلقة" meta=evidence_requests|length icon="document" flush=True %}
     <div class="table-wrap">
       {# تقريرٌ للطباعة: لا فرزَ على الورق. #}
       <table data-no-sort>

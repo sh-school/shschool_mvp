@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load privacy ui %}
 
 {% block title %}ملف الطالب — {{ student.full_name }}{% endblock %}
@@ -10,14 +11,14 @@
 {% block content %}
 <div class="exec-dash sa-page">
 
-  {% page_header student.full_name subtitle=profile_subtitle icon="user" %}
-    <a href="{% url 'student_affairs:student_edit' student.id %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} تعديل البيانات</a>
-    <a href="{% url 'behavior:student_profile' student.id %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="scale" %} الملف السلوكي</a>
-    <a href="{% url 'behavior:summon_parent_student' student.id %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="mail" %} استدعاء ولي الأمر</a>
-    <a href="{% url 'behavior:report_infraction' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="alert-triangle" %} تسجيل مخالفة</a>
-    <a href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} كشف الدرجات</a>
-    <a href="{% url 'student_affairs:student_profile_pdf' student.id %}" class="btn-secondary btn-sm" target="_blank">{% include "components/icon.html" with name="printer" %} تصدير PDF</a>
-    <button data-action="print" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة</button>
+  {% page_header student.full_name subtitle=profile_subtitle icon="profile" %}
+    <a href="{% url 'student_affairs:student_edit' student.id %}" class="btn-primary btn-sm">{% icon "edit_record" %} تعديل البيانات</a>
+    <a href="{% url 'behavior:student_profile' student.id %}" class="btn-secondary btn-sm">{% icon "behavior" %} الملف السلوكي</a>
+    <a href="{% url 'behavior:summon_parent_student' student.id %}" class="btn-secondary btn-sm">{% icon "call_parent" %} استدعاء ولي الأمر</a>
+    <a href="{% url 'behavior:report_infraction' %}" class="btn-secondary btn-sm">{% icon "behavior_violation" %} تسجيل مخالفة</a>
+    <a href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">{% icon "grades" %} كشف الدرجات</a>
+    <a href="{% url 'student_affairs:student_profile_pdf' student.id %}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>
+    <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
   {% kpi_strip label="ملخص الطالب" %}
@@ -30,20 +31,20 @@
   {# ════════════ التبويبات ════════════ #}
   <div class="sa-panel sa-tabs">
     <div class="sa-tabs__list" role="tablist">
-      <button class="tab-btn active" data-tab="personal" role="tab" aria-selected="true">{% include "components/icon.html" with name="user" %} البيانات الشخصية</button>
-      <button class="tab-btn" data-tab="attendance" role="tab" aria-selected="false">{% include "components/icon.html" with name="calendar" %} الحضور</button>
-      <button class="tab-btn" data-tab="behavior" role="tab" aria-selected="false">{% include "components/icon.html" with name="scale" %} السلوك</button>
-      <button class="tab-btn" data-tab="grades" role="tab" aria-selected="false">{% include "components/icon.html" with name="bar-chart" %} الدرجات</button>
-      <button class="tab-btn" data-tab="clinic" role="tab" aria-selected="false">{% include "components/icon.html" with name="hospital" %} العيادة</button>
-      <button class="tab-btn" data-tab="activities" role="tab" aria-selected="false">{% include "components/icon.html" with name="activity" %} الأنشطة</button>
-      {% if transfers %}<button class="tab-btn" data-tab="transfers" role="tab" aria-selected="false">{% include "components/icon.html" with name="refresh" %} الانتقالات</button>{% endif %}
+      <button class="tab-btn active" data-tab="personal" role="tab" aria-selected="true">{% icon "profile" %} البيانات الشخصية</button>
+      <button class="tab-btn" data-tab="attendance" role="tab" aria-selected="false">{% icon "attendance_register" %} الحضور</button>
+      <button class="tab-btn" data-tab="behavior" role="tab" aria-selected="false">{% icon "behavior" %} السلوك</button>
+      <button class="tab-btn" data-tab="grades" role="tab" aria-selected="false">{% icon "grades" %} الدرجات</button>
+      <button class="tab-btn" data-tab="clinic" role="tab" aria-selected="false">{% icon "clinic" %} العيادة</button>
+      <button class="tab-btn" data-tab="activities" role="tab" aria-selected="false">{% icon "activities" %} الأنشطة</button>
+      {% if transfers %}<button class="tab-btn" data-tab="transfers" role="tab" aria-selected="false">{% icon "refresh" %} الانتقالات</button>{% endif %}
     </div>
   </div>
 
   {# ── البيانات الشخصية + ولي الأمر ── #}
   <div id="tab-personal" class="tab-content active">
     <div class="ui-grid-2">
-      {% section_card "البيانات الشخصية" icon="user" %}
+      {% section_card "البيانات الشخصية" icon="profile" %}
         <dl class="detail-dl">
           <dt>الاسم</dt><dd>{{ student.full_name }}</dd>
           <dt>الرقم الشخصي</dt><dd dir="ltr">{{ student.national_id|mask_id }}</dd>
@@ -62,7 +63,7 @@
         </dl>
       {% endsection_card %}
 
-      {% section_card "أولياء الأمور" meta=parent_links|length icon="waypoints" empty="لا وليّ أمرٍ مرتبط" %}{% if parent_links %}
+      {% section_card "أولياء الأمور" meta=parent_links|length icon="parents" empty="لا وليّ أمرٍ مرتبط" %}{% if parent_links %}
         <ul class="plain-list">
           {% for link in parent_links %}
             <li class="plain-list__row">
@@ -77,7 +78,7 @@
 
   {# ── الحضور ── #}
   <div id="tab-attendance" class="tab-content">
-    {% section_card "الحضور" meta=year icon="calendar" %}
+    {% section_card "الحضور" meta=year icon="attendance_register" %}
       <dl class="detail-dl">
         <dt>حاضر</dt><dd class="attend-high">{{ attendance.present }}</dd>
         <dt>غائب</dt><dd class="attend-low">{{ attendance.absent }}</dd>
@@ -91,7 +92,7 @@
       عرضٌ محض: لا حجبَ ولا إشعار — والحرمان قرارٌ بشريّ.
     {% endcomment %}
     {% if absence_standing.gates %}
-    {% section_card "عتبات الغياب — سياسة تقييم الطلبة" icon="scale" %}
+    {% section_card "عتبات الغياب — سياسة تقييم الطلبة" icon="absence" %}
       <dl class="detail-dl">
         <dt>أيام غياب بلا عذر</dt><dd><strong>{{ absence_standing.unexcused_days }}</strong> يوماً</dd>
         <dt>أيام بعذر</dt><dd>{{ absence_standing.excused_days }}</dd>
@@ -137,7 +138,7 @@
       والدقائقُ بالمادّة لأنّها ما يُقارَن لاحقاً بالتحصيل.
     {% endcomment %}
     {% if tardiness.year %}
-    {% section_card "التأخّر عن الحصص" icon="clock" %}
+    {% section_card "التأخّر عن الحصص" icon="tardiness" %}
       <dl class="detail-dl">
         {% if tardiness.semester %}
         <dt>هذا الفصل</dt><dd><strong>{{ tardiness.semester.count }}</strong> مرّة · {{ tardiness.semester.minutes }} دقيقة</dd>
@@ -165,7 +166,7 @@
       محسوبةٌ من السجلّات المؤرَّخة لا مخزَّنة، وهي ما يُقارَن بالتحصيل (قرارُ 2026-09-13).
     {% endcomment %}
     {% if presence.year and presence.year.by_subject %}
-    {% section_card "دقائقُ الحضور الفعليّ بالمادّة" icon="clock" meta=presence.year.total.present_pct|stringformat:"s%%" %}
+    {% section_card "دقائقُ الحضور الفعليّ بالمادّة" icon="academic" meta=presence.year.total.present_pct|stringformat:"s%%" %}
       <div class="table-wrap">
         <table data-no-sort>
           <thead><tr><th>المادّة</th><th class="num">حصص</th><th class="num">دقائق الجدول</th><th class="num">غياب</th><th class="num">تأخّر</th><th class="num">خروج بإذن</th><th class="num">هروب</th><th class="num">حضر (د)</th><th class="num">%</th></tr></thead>
@@ -199,7 +200,7 @@
   {# ── السلوك ── #}
   <div id="tab-behavior" class="tab-content">
     <div class="ui-grid-2">
-      {% section_card "السلوك" icon="scale" %}
+      {% section_card "السلوك" icon="behavior" %}
         <dl class="detail-dl">
           <dt>إجمالي المخالفات</dt><dd><strong>{{ behavior.total }}</strong></dd>
           <dt>د1 (بسيطة)</dt><dd>{{ behavior.by_level.1 }}</dd>
@@ -209,7 +210,7 @@
         </dl>
       {% endsection_card %}
 
-      {% section_card "آخر المخالفات" icon="alert-triangle" empty="لا مخالفات مسجّلة" %}{% if behavior.recent %}
+      {% section_card "آخر المخالفات" icon="behavior_violation" empty="لا مخالفات مسجّلة" %}{% if behavior.recent %}
         <ul class="plain-list">
           {% for inf in behavior.recent %}
             <li class="plain-list__row"><span>{{ inf.description|truncatechars:50 }}</span><span class="plain-list__sub">{{ inf.date|date:"d/m" }}</span></li>
@@ -221,7 +222,7 @@
 
   {# ── الدرجات ── #}
   <div id="tab-grades" class="tab-content">
-    {% section_card "الدرجات" meta=year icon="bar-chart" empty="لا توجد نتائج لهذا العام" flush=True %}{% if grades %}
+    {% section_card "الدرجات" meta=year icon="grades" empty="لا توجد نتائج لهذا العام" flush=True %}{% if grades %}
       <div class="table-wrap">
         <table>
           <thead>
@@ -259,7 +260,7 @@
 
   {# ── العيادة ── #}
   <div id="tab-clinic" class="tab-content">
-    {% section_card "العيادة" icon="hospital" empty="لا زيارات عيادة" %}{% if health_record.blood_type or clinic_visits %}
+    {% section_card "العيادة" icon="clinic" empty="لا زيارات عيادة" %}{% if health_record.blood_type or clinic_visits %}
       {% if health_record.blood_type %}
       <dl class="detail-dl">
         <dt>فصيلة الدم</dt><dd><strong>{{ health_record.blood_type }}</strong></dd>
@@ -280,7 +281,7 @@
 
   {# ── الأنشطة والإنجازات ── #}
   <div id="tab-activities" class="tab-content">
-    {% section_card "الأنشطة والإنجازات" icon="activity" empty="لا أنشطة مسجّلة" %}{% if activities %}
+    {% section_card "الأنشطة والإنجازات" icon="activities" empty="لا أنشطة مسجّلة" %}{% if activities %}
       <ul class="plain-list">
         {% for act in activities %}
           <li class="plain-list__row">
