@@ -11,10 +11,13 @@
 يغيّر شيئاً، وعكسُه يعيد العتباتِ القديمة.
 """
 
+from collections.abc import Callable
+from typing import Any
+
 from django.db import migrations, models
 
 
-def _five_levels(total):
+def _five_levels(total: int) -> str:
     if total >= 90:
         return "excellent"
     if total > 75:
@@ -26,7 +29,7 @@ def _five_levels(total):
     return "weak"
 
 
-def _four_levels(total):
+def _four_levels(total: int) -> str:
     if total >= 90:
         return "excellent"
     if total >= 75:
@@ -36,8 +39,8 @@ def _four_levels(total):
     return "needs_dev"
 
 
-def _recompute(rule):
-    def run(apps, schema_editor):
+def _recompute(rule: Callable[[int], str]) -> Callable[[Any, Any], None]:
+    def run(apps: Any, schema_editor: Any) -> None:
         EmployeeEvaluation = apps.get_model("quality", "EmployeeEvaluation")
         for ev in EmployeeEvaluation.objects.exclude(rating="").only("pk", "total_score", "rating"):
             new = rule(ev.total_score)

@@ -19,7 +19,7 @@ quality/appraisal_seed.py
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from django.db import transaction
@@ -84,7 +84,7 @@ def _diff(template: RoleEvaluationTemplate, form: AppraisalForm) -> list[str]:
 
 
 def _saved_outside_template(
-    school: School, year: str, templates: dict[str, RoleEvaluationTemplate]
+    school: School, year: str, templates: Mapping[str, RoleEvaluationTemplate]
 ) -> dict[str, int]:
     """الدورُ ← عددُ التقييمات المحفوظة لأصحابه في العام وليست على قالبه القائم."""
     roles = dict(

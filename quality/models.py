@@ -12,7 +12,7 @@ quality/models.py
 """
 
 import uuid
-from datetime import timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 from fractions import Fraction
 from functools import cached_property
@@ -841,7 +841,7 @@ class EmployeeEvaluation(models.Model):
         )
         self.rating = self.rating_for(self.total_score)
 
-    def calculate_weighted_total(self):
+    def calculate_weighted_total(self) -> None:
         """
         إصلاح #5 — حساب المجموع المرجح من EvaluationScore (متعدد المقيّمين).
         إذا وُجدت تقييمات فردية، يُحسب المتوسط المرجح.
@@ -906,7 +906,7 @@ class EmployeeEvaluation(models.Model):
             return True
         return self.scores.exists()
 
-    def grievance_deadline(self):
+    def grievance_deadline(self) -> date | None:
         """آخرُ يومٍ للتظلّم: خمسة عشر يوماً من تاريخ العلم (المادة 20)."""
         if self.acknowledged_at is None:
             return None
@@ -915,7 +915,7 @@ class EmployeeEvaluation(models.Model):
             "APPRAISAL_GRIEVANCE_WINDOW_DAYS", APPRAISAL_GRIEVANCE_WINDOW_DAYS
         )
 
-    def is_final(self, today=None) -> bool:
+    def is_final(self, today: date | None = None) -> bool:
         """
         «لا يُعتبر التقرير نهائياً إلا بعد انقضاء ميعاد التظلم أو البت فيه» (المادة 20).
         والبتُّ: إخطارٌ بقرار اللجنة، أو مضيُّ ثلاثين يوماً من التظلّم بلا إخطار («بمثابة
@@ -931,8 +931,8 @@ class EmployeeEvaluation(models.Model):
             decision_by = self.grievance_submitted_on + _grievance_days(
                 "APPRAISAL_GRIEVANCE_DECISION_DAYS", APPRAISAL_GRIEVANCE_DECISION_DAYS
             )
-            return today > decision_by
-        return today > deadline
+            return bool(today > decision_by)
+        return bool(today > deadline)
 
     def acknowledge(self):
         self.status = "acknowledged"
@@ -1003,7 +1003,7 @@ class EvaluationScore(models.Model):
     def __str__(self):
         return f"{self.evaluator.full_name} → {self.evaluation.employee.full_name} ({self.weight}%)"
 
-    def calculate_total(self):
+    def calculate_total(self) -> None:
         """حساب مجموع المحاور"""
         if self.custom_axes:
             self.total_score = sum(self.custom_axes.values())
@@ -1048,7 +1048,7 @@ class EvaluationCycle(models.Model):
     def __str__(self):
         return f"{self.school.code} | {self.get_period_display()} | {self.academic_year}"
 
-    def article_16_window(self):
+    def article_16_window(self) -> tuple[date, date] | None:
         """
         «ويعتمده مدير المدرسة خلال النصف الأول من شهر يونيو من كل عام أكاديمي» (المادة 16،
         02_staff_affairs.md:200) — 1–15 يونيو من العام الذي ينتهي به العامُ الأكاديميّ،
@@ -1060,8 +1060,6 @@ class EvaluationCycle(models.Model):
             end_year = int(str(self.academic_year).split("-")[1])
         except (IndexError, ValueError):
             return None
-        from datetime import date
-
         return date(end_year, 6, 1), date(end_year, 6, 15)
 
     @property

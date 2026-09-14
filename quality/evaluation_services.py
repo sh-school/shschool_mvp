@@ -80,7 +80,9 @@ class EvaluationRejectedError(ValueError):
 def is_academic_year(value: str) -> bool:
     """«2026-2027» — عامان متتاليان. غيرُه يُكتب تحت عامٍ لا تقرؤه شاشةٌ ولا يُفحص فيه جزاء."""
     match = _ACADEMIC_YEAR.match(value or "")
-    return bool(match) and int(match.group(2)) == int(match.group(1)) + 1
+    if match is None:
+        return False
+    return int(match.group(2)) == int(match.group(1)) + 1
 
 
 @dataclass(frozen=True)
@@ -314,7 +316,7 @@ def approve_evaluation(*, evaluation: EmployeeEvaluation, approver: CustomUser) 
     لمدير المدرسة وحده، لتقريرٍ مُقدَّم، وتُعاد فيه قيودُ المواد 17–19 — فالوقائعُ قد
     تتغيّر بين التقديم والاعتماد.
     """
-    if approver.get_role() != "principal":
+    if approver.role != "principal":
         raise EvaluationRejectedError("الاعتمادُ لمدير المدرسة وحده — المادة 16.")
     locked = EmployeeEvaluation.objects.select_for_update().get(pk=evaluation.pk)
     if locked.status != "submitted":
