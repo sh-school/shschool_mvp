@@ -109,6 +109,13 @@ SCALE_TOKENS = {
 }
 
 
+#: أحبارُ ألوان العلامة — نصُّ اللون على السطح، مقيسُ التباين في
+#: `tests/test_contrast_ratios.py`. تبقى وإن خلا منها قارئ: `--skyline-fg`
+#: فقد قارئَيه حين حُذف `btn-preview` و`kpi-value--primary` الميّتان، والعائلةُ
+#: (`--maroon-fg`، `--accent-*-fg`) لا تُكسر حرفاً حرفاً.
+PALETTE_INKS = {"skyline-fg"}
+
+
 #: جذورٌ لا تقرأ رموزَ الواجهة: وثائقُ وسجلّاتٌ وإعداداتُ خوادم.
 NOT_CODE_ROOTS = {"docs", "logs", "grafana", "nginx"}
 
@@ -148,7 +155,7 @@ def test_no_token_is_defined_that_nothing_reads():
     for source in _consumer_sources():
         text = source.read_text(encoding="utf-8", errors="ignore")
         words |= {word.lstrip("-") for word in re.findall(r"[a-zA-Z0-9_-]+", text)}
-    idle = sorted(defined - read_in_css - words - SCALE_TOKENS)
+    idle = sorted(defined - read_in_css - words - SCALE_TOKENS - PALETTE_INKS)
     assert not idle, "رموزٌ معرَّفةٌ لا يقرؤها شيء — احذفها أو استعملها:\n  " + "\n  ".join(
         "--" + name for name in idle
     )
