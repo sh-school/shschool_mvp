@@ -5,10 +5,16 @@ core/middleware.py
 """
 
 import logging
+from collections.abc import Callable
+from typing import TYPE_CHECKING, cast
 
-from django.http import HttpResponse, HttpResponseForbidden, JsonResponse
+from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
+from django.http.response import HttpResponseBase
 from django.shortcuts import redirect
 from django.urls import reverse
+
+if TYPE_CHECKING:
+    from core.models import School
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +110,32 @@ class SchoolPermissionMiddleware:
                     )
                 break
 
+        return self.get_response(request)
+
+
+# ── مدرسةُ الطلب — تُحسب مرّةً وتُقرأ `request.school` ─────────────────
+class SchoolRequest(HttpRequest):
+    """طلبٌ يحمل مدرسةَ صاحبه — للأنواع فقط؛ لا يُنشأ."""
+
+    school: "School | None"
+
+
+class SchoolContextMiddleware:
+    """يضع `request.school` = مدرسةَ المستخدم الحاكمة، مرّةً لكلّ طلب.
+
+    كان كلُّ عرضٍ يبدأ بـ`request.user.get_school()` — 248 موضعاً — وكلُّها
+    تقرأ العضويّةَ الحاكمة نفسَها. فالقيمةُ تُحسب هنا بعد حارس المسارات
+    (الذي حمّل العضويّةَ سلفاً فلا استعلامَ يُضاف) وتُقرأ اسماً واحداً.
+    وغيرُ المسجَّل، ومن لا عضويّةَ له، مدرستُه `None` — كما كانت `get_school()`.
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponseBase]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponseBase:
+        user = getattr(request, "user", None)
+        school = user.get_school() if user is not None and user.is_authenticated else None
+        cast(SchoolRequest, request).school = school
         return self.get_response(request)
 
 

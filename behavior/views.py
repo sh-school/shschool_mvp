@@ -66,6 +66,7 @@ def _behavior_report_redirect(
 from behavior.forms import InfractionForm
 from behavior.models import ViolationCategory
 from core.capabilities import capability_required
+from core.domain.tones import SHARE_KPI, tone_for
 from core.models import BehaviorInfraction, CustomUser
 
 
@@ -171,7 +172,7 @@ def behavior_dashboard(request):
     if role in ("parent", "student"):
         return HttpResponseForbidden("ليس لديك صلاحية الوصول إلى هذه الصفحة.")
 
-    school = request.user.get_school()
+    school = request.school
     if not school:
         messages.error(request, "لم يتم العثور على مدرسة مرتبطة بحسابك.")
         return redirect("dashboard")
@@ -270,7 +271,7 @@ def report_infraction(request):
         messages.error(request, "ليس لديك صلاحية تسجيل المخالفات.")
         return redirect("behavior:dashboard")
 
-    school = request.user.get_school()
+    school = request.school
 
     # فئات المخالفات النشطة — 40 مخالفة رسمية حسب لائحة الشحانية
     # الفلتر code__regex يستبعد ABCD القديمة حتى لو بقيت is_active=True
@@ -416,7 +417,7 @@ def quick_log(request):
 
         return HttpResponse("ليس لديك صلاحية", status=403)
 
-    school = request.user.get_school()
+    school = request.school
 
     if request.method == "POST":
         student_id = request.POST.get("student_id", "").strip()
@@ -518,7 +519,7 @@ def _quick_log_context(user, school, preselected_student_id=""):
 @capability_required("behavior.view")
 def student_behavior_profile(request, student_id):
     """الملف السلوكي للطالب — جميع مخالفاته ونقاطه المخصومة والمستعادة."""
-    school = request.user.get_school()
+    school = request.school
     student = get_object_or_404(
         CustomUser,
         id=student_id,
@@ -545,7 +546,7 @@ def committee_dashboard(request):
     """لوحة لجنة الضبط السلوكي — المخالفات الجسيمة من الدرجة 3 و4."""
     if not BehaviorPermissions.is_committee(request.user):
         return HttpResponseForbidden("ليس لديك صلاحية الوصول إلى هذه الصفحة.")
-    school = request.user.get_school()
+    school = request.school
     context = BehaviorService.get_committee_data(school)
     # القضايا المفتوحة حمراءُ متى وُجدت واحدة، وخضراءُ حين تُحلّ كلُّها.
     context["open_tone"] = "red" if context["stats"]["open_count"] else "green"
@@ -560,7 +561,7 @@ def committee_decision(request, infraction_id):
         messages.error(request, "غير مسموح.")
         return redirect("behavior:committee")
 
-    school = request.user.get_school()
+    school = request.school
     infraction = get_object_or_404(
         BehaviorInfraction, id=infraction_id, level__in=[3, 4], school=school
     )
@@ -597,7 +598,7 @@ def behavior_report(request, student_id):
     if not BehaviorPermissions.can_report(request.user) and not request.user.is_superuser:
         return HttpResponseForbidden("ليس لديك صلاحية.")
 
-    school = request.user.get_school()
+    school = request.school
     student = get_object_or_404(
         CustomUser,
         id=student_id,
@@ -672,7 +673,7 @@ _STATS_ALLOWED_ROLES = BEHAVIOR_COMMITTEE | BEHAVIOR_VIEW_ALL | BEHAVIOR_STATS_T
 def behavior_statistics(request):
     """التقرير الإحصائي السلوكي — القيادة/اللجنة ترى الكل، المعلم/المنسق يرى طلابه فقط."""
     role = request.user.get_role()
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
     # المعلم/المنسق/معلم ESE → إحصائيات مقيّدة بطلابهم فقط
@@ -713,7 +714,7 @@ def _statistics_presentation(stats: dict) -> dict:
         "subtitle": f"{stats.get('year')} · QNSA المعيار 2{scope}",
         "severe_count": by_level.get(3, 0) + by_level.get(4, 0),
         "resolved_label": f"{pct}%",
-        "resolved_tone": "green" if pct >= 80 else ("amber" if pct >= 50 else "red"),
+        "resolved_tone": tone_for(pct, SHARE_KPI),
         "monthly_rows": [
             {**row, "share": round(row["count"] * 100 / peak) if peak else 0} for row in monthly
         ],
@@ -727,7 +728,7 @@ def escalate_infraction(request, infraction_id):
     """تصعيد المخالفة إلى الخطوة التالية."""
     if not BehaviorPermissions.is_committee(request.user):
         return HttpResponseForbidden("غير مسموح.")
-    school = request.user.get_school()
+    school = request.school
     infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, school=school)
     if request.method == "POST":
         notes = request.POST.get("notes", "").strip()
@@ -751,7 +752,7 @@ def security_referral(request, infraction_id):
     """تسجيل إحالة أمنية لمخالفة من الدرجة الرابعة."""
     if not BehaviorPermissions.is_committee(request.user):
         return HttpResponseForbidden("غير مسموح.")
-    school = request.user.get_school()
+    school = request.school
     infraction = get_object_or_404(BehaviorInfraction, id=infraction_id, level=4, school=school)
 
     if request.method == "POST":
@@ -811,41 +812,23 @@ def _render_behavior_pdf(request, template_name, context, filename, *, kind, stu
     return render_pdf(render_to_string(template_name, context), filename)
 
 
-@login_required
-@capability_required("behavior.view")
-def behavior_policy_pdf(request):
-    """PDF: لائحةُ السلوك والانضباط بترويسة المدرسة.
-
-    وثيقةُ مدرسةٍ لا مخالفة، فلا تأخذ `infraction_id`. وكان قالبُها
-    مكتوباً بلا مسارٍ يبلغه — أخواتُها الثلاثُ لكلٍّ مسار، وهي وحدَها
-    بلا واحد. كشفه حارسُ القوالب اليتيمة.
-    """
-    school = request.user.get_school()
-    return _render_behavior_pdf(
-        request,
-        "behavior/pdf/policy_doc.html",
-        {
-            "school": school,
-            "academic_year": academic_year_for(request),
-            "generated_at": _tz.now(),
-        },
-        "behavior_policy.pdf",
-        kind="behavior.policy_pdf",
-    )
+# [PII-08] أسماءُ النماذج الثلاثة تحمل معرّفَ الطالب لا رقمَه الشخصيّ: اسمُ
+# الملفّ يبقى في سجلّ تنزيلات المتصفّح وفي مجلّد التنزيلات وفي سجلّات الوكيل —
+# مواضعُ لا يبلغها سترُ الشاشة ولا تدقيقُ التصدير. والتقريرُ الشامل على هذا من قبل.
 
 
 @login_required
 @capability_required("behavior.manage")
 def infraction_warning_pdf(request, infraction_id):
     """PDF: نموذج تحذير للطالب بسبب مخالفة سلوكية."""
-    inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
+    inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
     return _render_behavior_pdf(
         request,
         "behavior/pdf/student_warning.html",
         ctx,
-        f"warning_{inf.student.national_id}_{inf.date}.pdf",
+        f"warning_{inf.student_id}_{inf.date}.pdf",
         kind="behavior.warning_pdf",
         student=inf.student,
     )
@@ -855,14 +838,14 @@ def infraction_warning_pdf(request, infraction_id):
 @capability_required("behavior.manage")
 def infraction_parent_pdf(request, infraction_id):
     """PDF: تعهد ولي الأمر المتعلق بمخالفة سلوكية."""
-    inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
+    inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
     return _render_behavior_pdf(
         request,
         "behavior/pdf/parent_undertaking.html",
         ctx,
-        f"parent_undertaking_{inf.student.national_id}.pdf",
+        f"parent_undertaking_{inf.student_id}.pdf",
         kind="behavior.parent_undertaking_pdf",
         student=inf.student,
     )
@@ -872,14 +855,14 @@ def infraction_parent_pdf(request, infraction_id):
 @capability_required("behavior.manage")
 def infraction_student_pdf(request, infraction_id):
     """PDF: تعهد الطالب المتعلق بمخالفة سلوكية."""
-    inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.user.get_school())
+    inf = get_object_or_404(BehaviorInfraction, id=infraction_id, school=request.school)
     ctx = BehaviorService.get_infraction_context(inf)
     ctx["received_by"] = request.user.full_name
     return _render_behavior_pdf(
         request,
         "behavior/pdf/student_undertaking.html",
         ctx,
-        f"student_undertaking_{inf.student.national_id}.pdf",
+        f"student_undertaking_{inf.student_id}.pdf",
         kind="behavior.student_undertaking_pdf",
         student=inf.student,
     )
@@ -889,7 +872,7 @@ def infraction_student_pdf(request, infraction_id):
 @capability_required("behavior.summon_parent")
 def summon_parent(request, student_id=None):
     """استدعاء ولي أمر طالب — إرسال إشعار رسمي (إداري فقط)."""
-    school = request.user.get_school()
+    school = request.school
     if not school:
         return HttpResponseForbidden("لم يتم تعيينك في مدرسة")
 
@@ -1013,9 +996,7 @@ def summon_parent(request, student_id=None):
         student_context = {
             "behavior_score": behavior_score,
             # العتباتُ التي كانت في القالب: 80 فأكثر أخضر، 50 فأكثر كهرمانيّ.
-            "behavior_score_tone": (
-                "green" if behavior_score >= 80 else ("amber" if behavior_score >= 50 else "red")
-            ),
+            "behavior_score_tone": tone_for(behavior_score, SHARE_KPI),
             "active_infractions": active_infractions,
             "active_infractions_tone": "red" if active_infractions else "green",
             "parents_info": parents_info,
@@ -1046,7 +1027,7 @@ def summon_parent(request, student_id=None):
 @capability_required("behavior.view")
 def student_behavior_pdf(request, student_id):
     """تقرير سلوكي للطالب — A4 للطباعة (WeasyPrint)"""
-    school = request.user.get_school()
+    school = request.school
     student = get_object_or_404(
         CustomUser,
         id=student_id,
@@ -1099,7 +1080,14 @@ def student_behavior_pdf(request, student_id):
 
 @login_required
 def behavior_policy_pdf(request):
-    """يخدم لائحة السلوك كملف PDF ثابت من static/docs/"""
+    """يخدم لائحة السلوك كملف PDF ثابت من static/docs/.
+
+    كان لهذا الاسم تعريفان في الوحدة: واحدٌ يُصيّر `behavior/pdf/policy_doc.html`
+    بترويسة المدرسة (أُضيف في #189 ليُعطي القالبَ اليتيمَ مساراً)، وهذا. وبايثون
+    يُبقي آخرَ تعريفٍ في الاسم، فكان الأوّلُ ميّتاً منذ كُتب ولا يبلغه مسار —
+    حُذف (2026-09-14). والقالبُ `policy_doc.html` حُذف معه (كان يتيماً — لا مسارَ يصله؛ الملفُّ الثابت هو المعتمَد) حتى يقرّر
+    المالكُ: يُحذف، أو يحلّ محلَّ هذا الملفّ الثابت.
+    """
     import os
 
     pdf_path = os.path.join(settings.BASE_DIR, "static", "docs", "behavior_policy_2025-2026.pdf")

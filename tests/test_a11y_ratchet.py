@@ -29,14 +29,21 @@ def test_improvements_are_recorded_so_they_cannot_be_spent_again():
     )
 
 
-def test_migrated_templates_are_at_zero_and_stay_there():
-    """ما رُحِّل إلى `field` يوم 2026-09-14 صفرٌ في السجلّ — ولا يُسجَّل له عددٌ بعدها."""
+def test_the_baseline_is_zero_so_no_violation_can_be_recorded_back():
+    """الصفرُ بلغناه في 2026-09-14 في المقاييس الخمسة — فالسجلُّ لا يحمل مخالفةً بعدها.
+
+    السقّاطةُ وحدها تمنع الزيادة، لكنّ `--update` يُثبّت أيَّ عددٍ يُكتب: قالبٌ جديدٌ
+    بجدولٍ بلا غلاف ثمّ `--update` كان سيمرّ في طلب دمجٍ لا يُقرأ فيه ملفُّ السجلّ.
+    فالسجلُّ صفرٌ بالبناء، والمخالفةُ تُصلَح في القالب — `{% field %}` و`{% page_header %}`
+    و`{% empty %}` وغلافٌ يمرِّر — لا تُسجَّل.
+    """
     baseline = _baseline()["counts"]
-    for name in ("unnamed_field", "label_without_for"):
-        assert not baseline.get(name), (
-            f"{name}: السجلُّ لا يقبل حقلاً بلا اسمٍ بعد الترحيل — استعمل `{{% field %}}` بدل تسجيله:\n  "
-            + json.dumps(baseline.get(name), ensure_ascii=False)
-        )
+    assert set(baseline) == set(ratchet.METRICS), "السجلُّ يذكر المقاييسَ الخمسةَ كلَّها"
+    recorded = {name: files for name, files in baseline.items() if files}
+    assert not recorded, (
+        "سجلُّ الوصوليّة لا يقبل مخالفة — أصلحها في القالب بدل تسجيلها:\n  "
+        + json.dumps(recorded, ensure_ascii=False)
+    )
 
 
 class TestTheRatchetItself:
@@ -131,17 +138,81 @@ class TestTheRatchetItself:
         assert (
             ratchet.tables_without_wrap(path, '<div class="table-wrap"><table></table></div>') == 0
         )
-        assert (
-            ratchet.tables_without_wrap(
-                path, '<div class="quality-table-wrap"><table></table></div>'
-            )
-            == 0
-        )
         assert ratchet.tables_without_wrap(path, '<div class="card"><table></table></div>') == 1
         assert (
             ratchet.tables_without_wrap(pathlib.Path("templates/x/pdf/doc.html"), "<table></table>")
             == 0
         )
+
+    def test_the_wrapper_is_known_by_its_css_not_its_name(self):
+        """`quality-table-wrap` يقصّ (`overflow: hidden`) و`quality-table-scroll` يمرِّر — CSS يقول."""
+        path = pathlib.Path("templates/x/list.html")
+        known = ratchet.scroll_classes()
+        assert {
+            "table-wrap-scroll",
+            "per-grid-wrap",
+            "asg-guard-scroll",
+            "quality-table-scroll",
+        } <= known
+        assert "quality-table-wrap" not in known
+        assert (
+            ratchet.tables_without_wrap(
+                path, '<div class="quality-table-scroll"><table></table></div>'
+            )
+            == 0
+        )
+        assert (
+            ratchet.tables_without_wrap(
+                path, '<div class="quality-table-wrap"><table></table></div>'
+            )
+            == 1
+        )
+
+    def test_scrolling_classes_are_read_from_the_last_compound_of_a_scrolling_rule(self):
+        css = """
+        /* .commented { overflow: auto } */
+        .card .grid-scroll { overflow-x: auto; }
+        @media (max-width: 640px) { .mobile-only { overflow: scroll } }
+        .clips { overflow: hidden; }
+        .wrap:has(> .inner) { overflow-x: auto; }
+        a, .also-scrolls { overflow-y: auto; overflow: auto }
+        """
+        assert ratchet._scrolling_classes(css) == {
+            "grid-scroll",
+            "mobile-only",
+            "wrap",
+            "also-scrolls",
+        }
+
+    def test_the_wrapper_must_be_the_direct_parent_not_the_page_shell(self):
+        """`exec-dash` يمرِّر لوحةَ الهاتف كلَّها — ولا يُغني الجدولَ عن غلافه."""
+        path = pathlib.Path("templates/x/list.html")
+        assert "exec-dash" in ratchet.scroll_classes()
+        assert (
+            ratchet.tables_without_wrap(
+                path, '<div class="exec-dash"><section><table></table></section></div>'
+            )
+            == 1
+        )
+        assert (
+            ratchet.tables_without_wrap(
+                path, '<div class="exec-dash"><div class="table-wrap"><table></table></div></div>'
+            )
+            == 0
+        )
+
+    def test_a_template_may_declare_its_own_scrolling_wrapper_in_style(self):
+        path = pathlib.Path("templates/x/list.html")
+        text = '<style>.mine { overflow-x: auto }</style><div class="mine"><table></table></div>'
+        assert ratchet.tables_without_wrap(path, text) == 0
+
+    def test_a_document_that_owns_its_page_is_paper(self):
+        """`data-pdf-own-page` وأساسُ الطباعة نفسُه خارج مقياس الغلاف — الجدولُ على قدر الورقة."""
+        text = "<html><body data-pdf-own-page><table></table></body></html>"
+        assert ratchet.tables_without_wrap(pathlib.Path("templates/x/sheet.html"), text) == 0
+        base = pathlib.Path("templates/reports/base_qatar_report.html")
+        assert ratchet._is_print(base, base.read_text(encoding="utf-8"))
+        assert not ratchet._is_print(pathlib.Path("templates/x/list.html"), "<table></table>")
 
     def test_a_loop_without_empty_is_counted_only_at_the_top_level(self):
         assert (
@@ -162,6 +233,65 @@ class TestTheRatchetItself:
             ratchet.loops_without_empty('{% for r in rows %}x{% endfor %}{% empty_state "لا" %}')
             == 0
         )
+
+    def test_choices_and_inline_chips_are_not_lists_but_delegated_rows_are(self):
+        radios = '{% for v, l in levels %}<label><input type="radio" name="l"> {{ l }}</label>{% endfor %}'
+        assert ratchet.loops_without_empty(radios) == 0
+        chips = '{% for s in sides %}<span class="chip">{% include "components/icon.html" %} {{ s }}</span>{% endfor %}'
+        assert ratchet.loops_without_empty(chips) == 0
+        heads = "<tr>{% for p in periods %}<th>{{ p }}</th>{% endfor %}</tr>"
+        assert ratchet.loops_without_empty(heads) == 0
+        rows = '{% for s in students %}{% include "x/row.html" with s=s only %}{% endfor %}'
+        assert ratchet.loops_without_empty(rows) == 1
+        cards = '{% for s in students %}<a class="chip">{{ s }}</a>{% endfor %}'
+        assert ratchet.loops_without_empty(cards) == 1
+
+    def test_components_and_paper_partials_are_outside_the_empty_state_metric(self):
+        includers = ratchet._includers()
+        assert not ratchet._is_partial(
+            pathlib.Path("templates/components/skeleton.html"),
+            "{% for i in x %}<div>{% endfor %}",
+            includers,
+        )
+        assert not ratchet._is_partial(
+            pathlib.Path("templates/wings/pdf/section_sheet.html"),
+            "{% for r in rows %}<tr>{% endfor %}",
+            includers,
+        )
+        assert ratchet._is_partial(
+            pathlib.Path("templates/wings/partials/record_panel.html"),
+            "{% for r in rows %}<tr>{% endfor %}",
+            includers,
+        )
+
+    def test_a_manufactured_table_and_list_and_page_defect_fail_the_ratchet(
+        self, tmp_path, monkeypatch
+    ):
+        """عطبٌ مصنوع لكلٍّ من المقاييس الثلاثة الباقية — يسقط، ثمّ يُصلَح بالطريق المحروس فيمرّ."""
+        monkeypatch.setattr(ratchet, "TEMPLATE_ROOTS", (tmp_path,))
+        monkeypatch.setattr(design_ratchet, "TEMPLATE_ROOTS", (tmp_path,))
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "bare.html").write_text("{% block content %}{% endblock %}", "utf-8")
+        page = tmp_path / "list.html"
+        page.write_text('{% extends "bare.html" %}<div class="card"><table></table></div>', "utf-8")
+        partial = tmp_path / "partials" / "rows.html"
+        partial.parent.mkdir()
+        partial.write_text("{% for r in rows %}<tr><td>{{ r }}</td></tr>{% endfor %}", "utf-8")
+        worse, _ = ratchet.compare({"counts": {}}, ratchet.snapshot())
+        assert any("list.html" in line and "بلا <h1>" in line for line in worse)
+        assert any("list.html" in line and "غلافِ تمرير" in line for line in worse)
+        assert any("rows.html" in line and "حالةِ فراغ" in line for line in worse)
+        page.write_text(
+            '{% extends "bare.html" %}{% page_header "x" %}{% endpage_header %}'
+            '<div class="table-wrap"><table></table></div>',
+            "utf-8",
+        )
+        partial.write_text(
+            '{% for r in rows %}<tr><td>{{ r }}</td></tr>{% empty %}<tr><td>{% empty_state "لا" %}</td></tr>{% endfor %}',
+            "utf-8",
+        )
+        worse, _ = ratchet.compare({"counts": {}}, ratchet.snapshot())
+        assert worse == []
 
     def test_a_manufactured_defect_in_a_new_template_fails_the_ratchet(self, tmp_path, monkeypatch):
         """عطبٌ مصنوع: قالبٌ جديدٌ بحقلٍ بلا اسم — يسقط، ثمّ يُصلَح بـ`field` فيمرّ."""

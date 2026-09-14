@@ -81,6 +81,9 @@ const WEB_VARIABLES = [
 const WORKER_VARIABLES = [
   ...SHARED_VARIABLES,
   "FERNET_OLD_KEYS",
+  // مهمّةُ الاحتفاظ بالبيانات (`core.enforce_data_retention`) تعمل في العامل لا في الويب،
+  // فالمدّةُ تُقرأ هنا — وإلّا سرى افتراضُ الإعدادات (730) مهما ضُبط على الويب.
+  "PDPPL_DATA_RETENTION_DAYS",
   "SENTRY_PERFORMANCE_ENABLED",
 ] as const;
 

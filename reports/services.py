@@ -24,8 +24,10 @@ from assessments.models import (
 )
 from core import brand
 from core.academic_calendar import academic_year_for_school
+from core.domain.attendance import attendance_rate
 from core.export_utils import add_excel_title_rows, brand_cell, excel_table_styles, xl_font
 from core.models import StudentEnrollment
+from core.privacy import mask_national_id
 from operations.models import StudentAttendance
 
 if TYPE_CHECKING:
@@ -226,7 +228,7 @@ class ReportDataService:
             late = counts["late"]
             excused = counts["excused"]
             present = total - absent - late - excused
-            pct = round(present / total * 100) if total else 0
+            pct = attendance_rate(present, total)
 
             student_rows.append(
                 {
@@ -1172,6 +1174,9 @@ class ExcelService:
         - تلوين أحمر للدرجات < 50
         - تلوين الحالة (ناجح/راسب)
         - فلاتر تلقائية + تجميد الرأس + حماية الورقة
+
+        الرقم الشخصيّ: مستور — كشفُ فصلٍ كامل كشفٌ جماعيّ لا يطابق عليه
+        استيرادٌ ولا رفعٌ وزاريّ (`core/privacy.py`).
         """
         year = year or academic_year_for_school(school)
 
@@ -1218,7 +1223,7 @@ class ExcelService:
 
             ws.cell(row=row_num, column=1, value=rank)
             ws.cell(row=row_num, column=2, value=st.full_name)
-            ws.cell(row=row_num, column=3, value=st.national_id or "")
+            ws.cell(row=row_num, column=3, value=mask_national_id(st.national_id))
 
             for col_off, subj in enumerate(subjects, start=4):
                 ann = row["grades"].get(subj.name_ar)
@@ -1267,6 +1272,8 @@ class ExcelService:
         - أحمر للغياب > 10 حصة
         - أحمر/أخضر لنسبة الحضور
         - فلاتر تلقائية + تجميد الرأس + حماية الورقة
+
+        الرقم الشخصيّ: مستور — تقريرُ فصلٍ كشفٌ جماعيّ.
         """
         year = year or academic_year_for_school(school)
 
@@ -1306,7 +1313,7 @@ class ExcelService:
 
             ws.cell(row=row_num, column=1, value=idx)
             ws.cell(row=row_num, column=2, value=st.full_name)
-            ws.cell(row=row_num, column=3, value=st.national_id or "")
+            ws.cell(row=row_num, column=3, value=mask_national_id(st.national_id))
             ws.cell(row=row_num, column=4, value=row["total_sessions"])
             ws.cell(row=row_num, column=5, value=row["present"])
 
@@ -1345,6 +1352,8 @@ class ExcelService:
         - رأس 4 صفوف احترافي + شعار
         - تلوين درجة المخالفة (1→4 ألوان متصاعدة)
         - فلاتر تلقائية + تجميد الرأس + حماية الورقة
+
+        الرقم الشخصيّ: مستور — مخالفاتُ المدرسة كلِّها كشفٌ جماعيّ.
         """
         year = year or academic_year_for_school(school)
 
@@ -1394,7 +1403,7 @@ class ExcelService:
 
             ws.cell(row=row_num, column=1, value=idx)
             ws.cell(row=row_num, column=2, value=inf.student.full_name)
-            ws.cell(row=row_num, column=3, value=inf.student.national_id or "")
+            ws.cell(row=row_num, column=3, value=mask_national_id(inf.student.national_id))
             ws.cell(row=row_num, column=4, value=inf.date.strftime("%Y/%m/%d") if inf.date else "")
 
             level_cell = ws.cell(

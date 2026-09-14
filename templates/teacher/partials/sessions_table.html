@@ -1,4 +1,4 @@
-{% load icons %}
+{% load ui icons %}
 {% comment %}جدولُ حصص اليوم في «جدول حصصي» — `sessions` و`next_session` و`is_recorder` من العرض.{% endcomment %}
 <div class="table-wrap-scroll sessions-scroll">
 <table class="sessions-table">
@@ -56,6 +56,8 @@
         {% endif %}
       </td>
     </tr>
+    {% empty %}
+    <tr><td colspan="{% if is_leadership %}6{% else %}5{% endif %}">{% empty_state "لا حصصَ في هذا اليوم" icon="schedule" %}</td></tr>
     {% endfor %}
   </tbody>
 </table>

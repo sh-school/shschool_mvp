@@ -3,6 +3,8 @@ from decimal import Decimal, InvalidOperation
 
 from django import template
 
+from core.domain.attendance import percent
+
 register = template.Library()
 
 logger = logging.getLogger(__name__)
@@ -50,8 +52,7 @@ def sub(value, arg):
 @register.filter
 def pct(value, total):
     try:
-        v, t = float(value), float(total)
-        return round(v / t * 100) if t else 0
+        return percent(float(value), float(total))
     except (TypeError, ValueError, ZeroDivisionError):
         logger.exception("فشل فلتر pct: value=%r, total=%r", value, total)
         return 0

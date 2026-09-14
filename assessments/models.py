@@ -25,6 +25,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from core.academic_calendar import default_academic_year
+from core.domain.grades import letter_of
 from core.models import ClassGroup, CustomUser, School
 from operations.models import Subject
 
@@ -517,23 +518,4 @@ class AnnualSubjectResult(models.Model):
 
     @property
     def letter_grade(self):
-        if self.annual_total is None:
-            return "—"
-        t = float(self.annual_total)
-        if t >= 95:
-            return "A+"
-        if t >= 90:
-            return "A"
-        if t >= 85:
-            return "B+"
-        if t >= 80:
-            return "B"
-        if t >= 75:
-            return "C+"
-        if t >= 70:
-            return "C"
-        if t >= 65:
-            return "D+"
-        if t >= 50:
-            return "D"
-        return "F"
+        return letter_of(self.annual_total)

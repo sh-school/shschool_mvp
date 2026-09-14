@@ -11,12 +11,12 @@
 
 <div class="exec-dash">
 
-{% page_header "إعدادات الجدول والتفريغات" subtitle=year icon="settings-2" %}
+{% page_header "إعدادات الجدول والتفريغات" subtitle=year icon="settings" %}
   <a href="{% url 'smart_schedule' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="arrow-right" %} الجدولة الذكية</a>
 {% endpage_header %}
 
 {# ══ القسم 1: تفريغات المعلمين ══ #}
-{% section_card "تفريغات المعلمين والمنسقين" meta=exemptions|length icon="user-minus" %}
+{% section_card "تفريغات المعلمين والمنسقين" meta=exemptions|length icon="exemptions" %}
     <p class="form-note settings-note">
       تفريغ معلم أو منسق من حصة محددة أو يوم كامل (لمهام خارجية أو إدارية).
       النظام يتجنب جدولة حصص للمعلم في الأوقات المفرّغة.
@@ -57,7 +57,8 @@
            hx-trigger="change from:#exemption-teacher"
            hx-include="#exemption-teacher"
            hx-swap="innerHTML">
-        <p class="exg-hint">اختر معلّماً أو مجموعةً لتظهر شبكةُ أسبوعه.</p>
+        {# الحالةُ نفسُها التي تُعيدها الجزئيّةُ بلا اختيار — فلا يتبدّل الشكلُ عند أوّل تحميل. #}
+        {% empty_state "اختر معلّماً أو مجموعة" sub="تظهر شبكةُ أسبوعه هنا بعد الاختيار" icon="schedule" %}
       </div>
       <input type="hidden" name="slots" id="exemption-slots" value="">
 
@@ -144,7 +145,7 @@
       </div>
     </div>
     {% else %}
-    {% empty_state "لا توجد تفريغات حالياً" sub="يُضاف التفريغُ من الشبكة أعلاه" icon="user-minus" %}
+    {% empty_state "لا توجد تفريغات حالياً" sub="يُضاف التفريغُ من الشبكة أعلاه" icon="exemptions" %}
     {% endif %}
 {% endsection_card %}
 
@@ -164,7 +165,7 @@
 {% endcomment %}
 
 {# ══ القسم 3: تفضيلات المعلمين (للمراجعة) ══ #}
-{% section_card "تفضيلات المعلمين المسجلة" meta=teacher_prefs|length icon="users" empty="لم يسجّل أيُّ معلّمٍ تفضيلاته بعد" %}{% if teacher_prefs %}
+{% section_card "تفضيلات المعلمين المسجلة" meta=teacher_prefs|length icon="staff" empty="لم يسجّل أيُّ معلّمٍ تفضيلاته بعد" %}{% if teacher_prefs %}
     <div data-bulk>
       <form method="post" action="{% url 'remove_preferences' %}" id="bulk-prefs"
             class="settings-bulk"

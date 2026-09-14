@@ -12,6 +12,7 @@ from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required
 from core.dashboard_presentation import present
+from core.domain.attendance import attendance_rate
 from core.models.academic import Wing, grade_order
 from library.models import BookBorrowing
 from operations.models import (
@@ -45,7 +46,7 @@ def _get_student_ctx(user, school, today):
     absent = att["absent"]
     late = att["late"]
     total = present + absent + late
-    att_pct = round(present / total * 100) if total else 100
+    att_pct = attendance_rate(present, total, empty=100)
 
     # حصص اليوم عبر فصل الطالب
     enrollment = StudentEnrollment.objects.current_of(user)
@@ -101,7 +102,7 @@ def _get_director_ctx(school, today):
     present = att["present"]
     absent = att["absent"]
     total_att = present + absent + att["late"]
-    att_pct = round(present / total_att * 100) if total_att else 0
+    att_pct = attendance_rate(present, total_att)
 
     # حضور الأمس للمقارنة — aggregate واحد
     att_y = StudentAttendance.objects.filter(school=school, session__date=yesterday).aggregate(
@@ -112,7 +113,7 @@ def _get_director_ctx(school, today):
     present_y = att_y["present_y"]
     absent_y = att_y["absent_y"]
     total_y = present_y + absent_y + att_y["late_y"]
-    att_pct_y = round(present_y / total_y * 100) if total_y else None
+    att_pct_y = attendance_rate(present_y, total_y, empty=None)
     att_delta = att_pct - att_pct_y if att_pct_y is not None else None
     absent_delta = absent - absent_y if total_y else None
 

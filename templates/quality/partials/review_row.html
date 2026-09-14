@@ -77,11 +77,10 @@
       {% else %}
         <span class="q-badge q-badge-neutral">{{ ev.title|default:"دليل" }}</span>
       {% endif %}
+    {% empty %}
+      {# لا دليلَ ولا موضعَ دليل — شرطة. وكان شرطاً بعد الحلقة يستعلم `evidences.all` ثانيةً. #}
+      {% if not task.evidence_source_file %}<span class="cell-empty">—</span>{% endif %}
     {% endfor %}
-
-    {% if not task.evidence_source_file and not task.evidences.all %}
-      <span class="cell-empty">—</span>
-    {% endif %}
   </td>
 
   {# 13 — ملاحظات التنفيذ #}

@@ -23,6 +23,7 @@ from django.views.decorators.http import require_POST
 
 from behavior.models import BehaviorInfraction
 from core.capabilities import capability_required
+from core.domain.tones import ATTENDANCE_KPI, AVERAGE_KPI, tone_for
 from core.models import (
     ConsentRecord,
     CustomUser,
@@ -211,7 +212,7 @@ def parent_all_grades(request):
                 "enrollment": enrollment,
                 # العتباتُ التي كانت ألوانَ القالب: 80 فأعلى أخضر، و60 فأعلى كهرمانيّ.
                 "avg_label": f"{data.get('avg')}%",
-                "avg_tone": "green" if avg >= 80 else "amber" if avg >= 60 else "red",
+                "avg_tone": tone_for(avg, AVERAGE_KPI),
                 "failed_tone": "red" if data.get("failed") else "green",
                 **data,
             }
@@ -266,7 +267,7 @@ def parent_all_attendance(request):
                 "enrollment": enrollment,
                 "alerts": alerts,
                 "att_label": f"{pct}%",
-                "att_tone": "green" if pct >= 90 else "amber" if pct >= 75 else "red",
+                "att_tone": tone_for(pct, ATTENDANCE_KPI),
                 **data,
             }
         )
@@ -299,20 +300,29 @@ def parent_behavior(request):
         parent=request.user, school=school, can_view_behavior=True
     ).select_related("student")
 
-    # نظام النقاط ملغى — نعرض عدد المخالفات فقط
+    # نظام النقاط ملغى — نعرض عدد المخالفات فقط.
+    # كان لكلّ ابنٍ ثلاثةُ استعلامات (القائمة، والعدُّ، وغيرُ المحلول)؛ صار
+    # استعلامٌ واحدٌ لمخالفات الأبناء كلِّهم يُوزَّع في الذاكرة — فالأبناءُ قلّة.
+    by_student: dict = {}
+    for infraction in (
+        BehaviorInfraction.objects.filter(
+            school=school, student_id__in=[link.student_id for link in links]
+        )
+        .select_related("violation_category")
+        .order_by("-date")
+    ):
+        by_student.setdefault(infraction.student_id, []).append(infraction)
+
     children_behavior = []
     for link in links:
-        infractions = (
-            BehaviorInfraction.objects.filter(school=school, student=link.student)
-            .select_related("violation_category")
-            .order_by("-date")
-        )
+        infractions = by_student.get(link.student_id, [])
+        unresolved = sum(1 for inf in infractions if not inf.is_resolved)
         children_behavior.append(
             {
                 "student": link.student,
                 "infractions": infractions[:10],
-                "total_infractions": infractions.count(),
-                "unresolved": (unresolved := infractions.filter(is_resolved=False).count()),
+                "total_infractions": len(infractions),
+                "unresolved": unresolved,
                 "unresolved_tone": "amber" if unresolved else "green",
             }
         )

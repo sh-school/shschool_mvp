@@ -28,6 +28,8 @@ from assessments.models import (
     SubjectClassSetup,
 )
 from core.academic_calendar import academic_year_for_school
+from core.domain.attendance import attendance_rate
+from core.domain.grades import GRADE_BANDS
 from core.models import ClassGroup
 from operations.models import Session, StudentAttendance
 
@@ -54,7 +56,7 @@ class AnalyticsService:
 
         results: list = []
         for row in qs:
-            pct = round(row["present"] / row["total"] * 100) if row["total"] else 0
+            pct = attendance_rate(row["present"], row["total"])
             results.append(
                 {
                     "date": row["session__date"],
@@ -76,15 +78,16 @@ class AnalyticsService:
             annual_total__isnull=False,
         )
 
-        ranges = {
-            "90-100": results.filter(annual_total__gte=90).count(),
-            "80-89": results.filter(annual_total__gte=80, annual_total__lt=90).count(),
-            "70-79": results.filter(annual_total__gte=70, annual_total__lt=80).count(),
-            "60-69": results.filter(annual_total__gte=60, annual_total__lt=70).count(),
-            "50-59": results.filter(annual_total__gte=50, annual_total__lt=60).count(),
-            "< 50": results.filter(annual_total__lt=50).count(),
-        }
-        return ranges
+        # استعلامٌ واحدٌ بعدّادٍ لكلّ شريحة — كان ستّةَ `COUNT` بعتباتٍ مكتوبةٍ هنا.
+        counters: dict[str, Count] = {}
+        upper: int | None = None
+        for band in GRADE_BANDS:
+            window = Q(annual_total__gte=band.low) if band.low else Q()
+            if upper is not None:
+                window &= Q(annual_total__lt=upper)
+            counters[band.label] = Count("id", filter=window)
+            upper = band.low
+        return dict(results.aggregate(**counters))
 
     # ── مقارنة الفصول ───────────────────────────────────────
     @staticmethod
@@ -281,7 +284,7 @@ class KPIService:
             "label": "نسبة حضور الطلبة",
             "unit": "%",
             "frequency": "أسبوعي",
-            "value": round(present / total_att * 100, 1) if total_att else 0,
+            "value": attendance_rate(present, total_att, digits=1),
             "target": 95,
             "warning": 90,
             "direction": "higher_better",

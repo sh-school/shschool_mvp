@@ -56,7 +56,10 @@
   .school-name { display: none !important; }
   .report-header { display: none !important; }
   .header h1 { display: none !important; }
-  /* Keep form-title / date-line from child .header divs */
+  /* Keep form-title / date-line from child .header divs.
+     و`.form-title` في الأبناء عنصرُ عنوانٍ من المستوى الأوّل (2026-09-14): هذه
+     القاعدةُ (0,2,0) تغلب `.header h1` (0,1,1) فيبقى ظاهراً، وحجمُه ووزنُه وهوامشُه
+     من `.form-title` أدناه لا من افتراضات المتصفّح — فالورقةُ كما كانت. */
   .header .form-title { display: block !important; }
   .header .date-line  { display: block !important; }
 

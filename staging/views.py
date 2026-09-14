@@ -191,7 +191,8 @@ def download_grade_template(request, assessment_id):
 
     from core.audit_export import log_export
 
-    # القالبُ يحمل الرقمَ كاملاً لأنّ الاستيراد يطابق عليه — فيُدقَّق إخراجُه.
+    # الرقم الشخصيّ: مطابقةٌ وزاريّة — كامل. القالبُ يعود بالرفع و`_validate_student`
+    # يطابق صفَّه على الرقم — فرقمٌ مستورٌ لا يجد صاحبَه، وثمنُ الكمال تدقيقٌ برايته.
     log_export(
         request,
         "staging.grade_template_xlsx",

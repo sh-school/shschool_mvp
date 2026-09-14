@@ -21,7 +21,6 @@ PARTIAL = pathlib.Path("templates/components/ministry_vision.html")
 STANDALONE_DOCS = [
     "templates/quality/observation_pdf.html",
     "templates/schedule/print_schedule.html",
-    "templates/behavior/pdf/policy_doc.html",
     "templates/behavior/pdf/base_form.html",
     "templates/reports/base_qatar_report.html",
 ]
