@@ -110,7 +110,7 @@ def sections(request):
     scope = student_scope_for(request)
     year = _year(request, scope)
     groups = services.sections_with_counts(
-        visible_class_groups(request.user, school, year, scope=scope)
+        visible_class_groups(request.user, school, year, scope=scope), scope=scope
     )
     return render(
         request,

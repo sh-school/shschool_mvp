@@ -661,8 +661,13 @@ class StudentEnrollmentQuerySet(models.QuerySet):
     """
 
     def newest_first(self) -> "StudentEnrollmentQuerySet":
-        """الأحدثُ عاماً أوّلاً — واسمُ العام «2026-2027» يُفرَز نصّاً كما يُقرأ."""
-        return self.order_by("-class_group__academic_year", "-enrolled_at")
+        """الأحدثُ عاماً أوّلاً — واسمُ العام «2026-2027» يُفرَز نصّاً كما يُقرأ.
+
+        و`-id` يكسر التساوي: قيدان نشطان بتاريخ القيد نفسه (استيرادٌ مصحَّحٌ في اليوم نفسه)
+        كانا يُرجعان ما تُرجعه القاعدةُ أوّلاً — فتحكم شاشةٌ بجناحٍ وأخرى بجناحٍ غيره. والترتيبُ
+        نفسُه في `wings/scope.py`، فالطالبُ في جناحٍ واحدٍ في كلّ شاشة.
+        """
+        return self.order_by("-class_group__academic_year", "-enrolled_at", "-id")
 
 
 class StudentEnrollmentManager(models.Manager.from_queryset(StudentEnrollmentQuerySet)):

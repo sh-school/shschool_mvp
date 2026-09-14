@@ -71,10 +71,17 @@ def band_for(total):
 # ── الشُّعب ومدخلُ المركز ─────────────────────────────────────────────
 
 
-def sections_with_counts(class_groups):
-    """الشُّعبُ ومعها عددُ طلاب كلٍّ منها — استعلامٌ واحدٌ لا استعلامٌ لكلّ شعبة."""
+def sections_with_counts(class_groups, scope=None):
+    """الشُّعبُ ومعها عددُ طلاب كلٍّ منها — استعلامٌ واحدٌ لا استعلامٌ لكلّ شعبة.
+
+    والمقيَّدُ بجناحه يُعدّ له من قيدُه الجاري في الجناح وحدَه: طالبٌ انتقل إلى جناحٍ آخر
+    وبقي قيدُه القديم نشطاً لا يُحسب في بطاقة شعبته القديمة ثمّ تخلو قائمتُها منه.
+    """
+    active = Q(enrollments__is_active=True)
+    if scope is not None and scope.is_wing_bound:
+        active &= Q(enrollments__student_id__in=scope.student_ids())
     return class_groups.annotate(
-        student_count=Count("enrollments", filter=Q(enrollments__is_active=True), distinct=True)
+        student_count=Count("enrollments", filter=active, distinct=True)
     ).select_related("supervisor")
 
 
@@ -233,6 +240,7 @@ def current_class_group(student, year):
             student=student, is_active=True, class_group__academic_year=year
         )
         .select_related("class_group")
+        .newest_first()
         .first()
     )
     return enrollment.class_group if enrollment else None
