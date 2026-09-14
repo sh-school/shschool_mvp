@@ -39,6 +39,16 @@ def test_outside_click_reads_the_path_at_click_time():
     assert "sd-menu" in closer  # الفرعيّةُ العائمةُ بجانب اللوحة من «الداخل»
 
 
+def test_closing_the_drawer_leaves_the_user_menu_alone():
+    """مستمعُ «خارج اللوحة» يعمل بعد مستمع التفويض: لو أغلق القوائمَ كلَّها لأغلق
+    قائمةَ المستخدم (#btn-user خارج اللوحة) لحظةَ فتحها — فلا خروجَ ولا تبديلَ دور."""
+    start = BASE_JS.index("document.addEventListener('click', function(e) {\n  // المسارُ كما كان")
+    closer = BASE_JS[start : BASE_JS.index("\n});", start)]
+    code = "\n".join(line.split("//")[0] for line in closer.splitlines())
+    assert "sdCloseAll" not in code
+    assert ".sd-menu.sd-drawer.open" in code
+
+
 def test_submenu_floats_beside_the_drawer_not_over_it():
     assert "(max-width: 640px)" in BASE_JS  # نقطةُ التحوّل نفسُها في CSS
     drawer = CSS[CSS.index(".nb-bar.nb-split") :]

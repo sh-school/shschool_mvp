@@ -122,6 +122,9 @@ function sdInDrawer(btn) {
 
 function sdPlace(m, btn) {
   var bar = btn.closest('.nb-bar');
+  // زرٌّ في لوحةٍ مغلقةٍ على عرض الجوال (دار الجهازُ والقائمةُ مفتوحة): لا موضعَ له —
+  // اللوحةُ غيرُ معروضة فأعلاها صفر، والقائمةُ كانت تلتصق فوق الترويسة.
+  if (sdInDrawer(btn) && !bar.classList.contains('open')) { sdCloseAll(); return; }
   var drawer = sdInDrawer(btn);
   m.classList.toggle('sd-drawer', drawer);
   if (bar) bar.classList.toggle('nb-split', drawer);
@@ -151,6 +154,7 @@ window.sd = function(id, btn) {
   var isOpen = m.classList.contains('open');
   sdCloseAll();
   if (!isOpen) {
+    if (sdInDrawer(btn) && !btn.closest('.nb-bar').classList.contains('open')) return;
     sdPlace(m, btn);
     m.classList.add('open'); btn.classList.add('on'); btn.setAttribute('aria-expanded', 'true');
   }
@@ -298,9 +302,11 @@ document.addEventListener('click', function(e) {
   if (!inside) {
     var bar = document.querySelector('.nb-bar');
     var btn = document.getElementById('mob-menu-btn');
-    if (bar) bar.classList.remove('open');
+    if (bar) bar.classList.remove('open', 'nb-split');
     if (btn) btn.setAttribute('aria-expanded', 'false');
-    sdCloseAll();
+    // قوائمُ اللوحة وحدَها تُغلق معها. لا `sdCloseAll()`: هذا المستمعُ يعمل بعد مستمع
+    // التفويض، فكان يُغلق قائمةَ المستخدم (#btn-user خارج اللوحة) لحظةَ فتحها.
+    document.querySelectorAll('.sd-menu.sd-drawer.open').forEach(function(x) { x.classList.remove('open', 'sd-drawer'); });
   }
 });
 

@@ -1,4 +1,4 @@
-{% load brand_tags static %}
+{% load brand_tags static %}{% if not for_pdf %}
 {% comment %}
 شريطُ «رجوع إلى المنصّة» — للأوراق المستقلّة التي لا تمتدّ من base.html.
 
@@ -10,13 +10,17 @@
 مولّدَ PDF (يحترم `hidden`). والرابطُ إلى الرئيسيّة يعمل بلا سكربت؛ والسكربتُ
 يُرجع خطوةً إلى الصفحة التي فُتحت منها الورقة إن كانت من المنصّة.
 
+ولا `:not()` في أنماطه: مولّدُ PDF الاحتياطيّ (xhtml2pdf) لا يحلّله فيسقط الملفُّ كلُّه.
+ولا يُكتب أصلاً في مسار PDF (`for_pdf`) — ولا في قالبٍ لا يُعرض صفحةً قطّ.
+
 والورقةُ بعرض A4 بلا `meta viewport`، فالجوالُ يصغّرها لتتّسع — ويصغر معها كلُّ
 ما فيها. فالشريطُ ثابتٌ على عرض الشاشة (`position: fixed`) لا على عرض الورقة،
 والسكربتُ يكبّره (`zoom`) بقدر التصغير فيبقى زرّاً يُلمس. والغلافُ يحجز ارتفاعَه
 فلا يغطّي رأسَ الورقة الأولى.
 {% endcomment %}
 <style>
-  .app-back-bar-space:not([hidden]) { display: block; block-size: 60px; }
+  .app-back-bar-space { display: block; block-size: 60px; }
+  .app-back-bar-space[hidden] { display: none; }
   .app-back-bar {
     position: fixed;
     inset-block-start: 0;
@@ -53,3 +57,4 @@
   </nav>
 </div>
 <script src="{% static 'js/app-mode.js' %}" defer></script>
+{% endif %}

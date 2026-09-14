@@ -116,7 +116,7 @@
   {% section_card "كشف المخالفات السلوكية" icon="behavior_violation" %}
     <div class="plain-list__row">
       <span class="plain-list__sub">تصدير كامل بيانات السلوك للعام {{ year }}</span>
-      <a href="{% url 'behavior_excel' %}?year={{ year }}&paper={{ paper }}" class="btn-success btn-sm">
+      <a data-app-file href="{% url 'behavior_excel' %}?year={{ year }}&paper={{ paper }}" class="btn-success btn-sm">
         {% icon "export_excel" %} تنزيل Excel
       </a>
     </div>
@@ -140,7 +140,7 @@
         {% if tab == "results" %}
           <a href="{% url 'report_viewer' %}?r=class_results_pdf&id={{ cls.id }}&year={{ year }}&paper={{ paper }}&tab={{ tab }}"
              class="btn-secondary btn-sm text-xs no-underline">{% icon "export_pdf" %} PDF</a>
-          <a href="{% url 'class_results_excel' cls.id %}?year={{ year }}&paper={{ paper }}"
+          <a data-app-file href="{% url 'class_results_excel' cls.id %}?year={{ year }}&paper={{ paper }}"
              class="btn-secondary btn-sm text-xs no-underline">Excel</a>
 
         {% elif tab == "certificates" %}
@@ -150,7 +150,7 @@
         {% elif tab == "attendance" %}
           <a href="{% url 'report_viewer' %}?r=attendance_report_pdf&id={{ cls.id }}&year={{ year }}&paper={{ paper }}&tab={{ tab }}"
              class="btn-secondary btn-sm text-xs no-underline">{% icon "export_pdf" %} PDF</a>
-          <a href="{% url 'attendance_excel' cls.id %}?year={{ year }}&paper={{ paper }}"
+          <a data-app-file href="{% url 'attendance_excel' cls.id %}?year={{ year }}&paper={{ paper }}"
              class="btn-secondary btn-sm text-xs no-underline">Excel</a>
         {% endif %}
 
@@ -238,6 +238,9 @@ async function searchStudent() {
         '/reports/student/' + studentId + '/certificate/?year=' +
         encodeURIComponent(year) + '&paper=' + encodeURIComponent(paper);
 
+      // ملفّا PDF: في التطبيق المثبَّت إلى قائمة المشاركة لا مكانَ المنصّة (js/app-mode.js).
+      resultLink.setAttribute('data-app-file', '');
+      certificateLink.setAttribute('data-app-file', '');
       actions.append(resultLink, certificateLink);
       row.append(name, actions);
       res.appendChild(row);
