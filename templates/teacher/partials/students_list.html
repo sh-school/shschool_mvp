@@ -1,6 +1,9 @@
+{% load ui %}
 <div id="students-list" class="att-list">
   {% for item in students_data %}
   {% include "teacher/partials/student_row.html" with student=item.student attendance=item.attendance status=item.status tone=item.tone session=session only %}
+  {% empty %}
+  {% empty_state "لا طلابَ في هذه الشعبة" icon="students" %}
   {% endfor %}
 </div>
 <script nonce="{{ request.csp_nonce }}">document.body.dispatchEvent(new Event('refresh'));</script>

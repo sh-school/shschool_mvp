@@ -29,7 +29,8 @@ class SchoolScopedMixin:
                 ...
 
     يدعم حالتين:
-      1. request.school موجود (إذا أُضيف بواسطة middleware مستقبلاً)
+      1. request.school موجود (يضعه `SchoolContextMiddleware`؛ و`None` لمن لا مدرسةَ له
+         فيُعامَل كالحالة 2 ويُمنع)
       2. fallback: يستخدم user.get_school() مع التحقق من staff.school_id
     """
 
@@ -38,7 +39,7 @@ class SchoolScopedMixin:
         if request.user.is_authenticated and request.user.is_superuser:
             return super().dispatch(request, *args, **kwargs)
 
-        if hasattr(request, "school") and request.user.is_authenticated:
+        if getattr(request, "school", None) is not None and request.user.is_authenticated:
             # الحالة 1: middleware يضع request.school
             user_school = request.user.get_school()
             if user_school and user_school.pk != request.school.pk:

@@ -27,6 +27,8 @@ from core import brand
 from core.academic_calendar import academic_year_for, academic_year_window
 from core.audit_export import log_export
 from core.capabilities import capability_required
+from core.domain.attendance import attendance_rate
+from core.domain.tones import ATTENDANCE_SUMMARY, tone_for
 from core.export_utils import (
     add_excel_footer,
     add_excel_header,
@@ -76,7 +78,7 @@ def student_dashboard(request):
     """لوحة شؤون الطلاب — KPIs عبر Service Layer."""
     from .services import StudentService
 
-    school = request.user.get_school()
+    school = request.school
     today = timezone.localdate()
     year = request.GET.get("year") or academic_year_for(request)
 
@@ -154,13 +156,17 @@ def _grade_share(rows, total: int) -> list[dict]:
     ]
 
 
-def _share_tone(pct, green: int = 90, amber: int = 75) -> tuple[str, str]:
-    """(لونُ البطاقة، صنفُ الشارة) لنسبة حضور — العتباتُ التي كانت في القوالب: 90 · 75."""
-    if pct >= green:
-        return "green", "status-success"
-    if pct >= amber:
-        return "orange", "status-warning"
-    return "red", "status-danger"
+def _share_tone(pct) -> tuple[str, str]:
+    """(لونُ البطاقة، صنفُ الشارة) لنسبة حضور — سُلَّمُ الحضور الواحد: 90 · 75."""
+    return tone_for(pct, ATTENDANCE_SUMMARY, empty=("muted", "status-gray"))
+
+
+#: نسبةُ المخالفين في بطاقة الرقم: 25% فأكثر أحمر، و10% فأكثر برتقاليّ، ودونها أخضر.
+INFRACTION_SHARE_KPI = ((25, "red"), (10, "orange"), (None, "green"))
+#: مخالفاتُ اليوم: خمسٌ فأكثر أحمر، وواحدةٌ برتقاليّ، ولا شيءَ أخضر.
+TODAY_INFRACTIONS_KPI = ((5, "red"), (1, "orange"), (None, "green"))
+#: غيرُ المحلولة: عشرٌ فأكثر أحمر، وواحدةٌ برتقاليّ، ولا شيءَ أخضر.
+UNRESOLVED_KPI = ((10, "red"), (1, "orange"), (None, "green"))
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -190,7 +196,7 @@ STUDENT_SORTS = {
 @capability_required("student_affairs.view")
 def student_list(request):
     """قائمة الطلاب مع بحث وفلتر حسب الصف والشعبة."""
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
     # ── الاستعلام الأساسي: طلاب فعّالون في المدرسة ──
@@ -419,7 +425,7 @@ def student_export_excel(request):
     import openpyxl
     from openpyxl.styles import Alignment
 
-    school = request.user.get_school()
+    school = request.school
     year = academic_year_for(request)
     q = request.GET.get("q", "").strip()
     grade_filter = request.GET.get("grade", "")
@@ -488,12 +494,14 @@ def student_export_excel(request):
         cell.alignment = Alignment(horizontal="center")
         cell.border = thin_border
 
+    # الرقم الشخصيّ: مستور — سجلُّ الطلبة كشفٌ جماعيّ لا يعود بالاستيراد
+    # (قالبُ الاستيراد في `core.views_students`).
     for i, m in enumerate(students, 1):
         enr = enrollment_data.get(m.user_id, {})
         row_data = [
             i,
             m.user.full_name,
-            m.user.national_id,
+            mask_national_id(m.user.national_id),
             enr.get("class_group__grade", "—"),
             enr.get("class_group__section", "—"),
             m.user.phone or "—",
@@ -523,7 +531,7 @@ def student_export_excel(request):
         request,
         "student_affairs.students_xlsx",
         rows=last_data_row - data_start,
-        full_national_id=True,
+        full_national_id=False,
         object_repr=f"سجل الطلاب Excel — {year}",
     )
     filename = generate_export_filename("students", "list", "xlsx")
@@ -546,7 +554,7 @@ def student_add(request):
     from .forms import StudentAddForm
     from .services import StudentService
 
-    school = request.user.get_school()
+    school = request.school
     year = academic_year_for(request)
 
     if request.method == "POST":
@@ -625,7 +633,7 @@ def student_add(request):
 @capability_required("student_affairs.manage")
 def student_edit(request, student_id):
     """تعديل بيانات طالب موجود."""
-    school = request.user.get_school()
+    school = request.school
     student = get_object_or_404(
         CustomUser,
         id=student_id,
@@ -711,7 +719,7 @@ def student_deactivate(request, student_id):
     """
     from .services import StudentService
 
-    school = request.user.get_school()
+    school = request.school
     student = get_object_or_404(
         CustomUser,
         id=student_id,
@@ -738,7 +746,7 @@ def student_deactivate(request, student_id):
 @capability_required("student_affairs.manage")
 def student_profile(request, student_id):
     """ملف الطالب الشامل — يجمع بيانات من 7 تطبيقات."""
-    school = request.user.get_school()
+    school = request.school
     student = get_object_or_404(
         CustomUser,
         id=student_id,
@@ -904,7 +912,7 @@ def student_profile(request, student_id):
 @capability_required("student_affairs.manage")
 def transfer_list(request):
     """قائمة الانتقالات مع فلتر حسب الحالة والاتجاه."""
-    school = request.user.get_school()
+    school = request.school
     transfers = (
         StudentTransfer.objects.filter(school=school)
         .select_related("student")
@@ -935,7 +943,7 @@ def transfer_list(request):
 @capability_required("student_affairs.manage")
 def transfer_create(request):
     """تسجيل طلب انتقال جديد."""
-    school = request.user.get_school()
+    school = request.school
 
     from .forms import TransferForm
 
@@ -987,7 +995,7 @@ def transfer_create(request):
 @capability_required("student_affairs.manage")
 def transfer_detail(request, pk):
     """تفاصيل طلب انتقال."""
-    school = request.user.get_school()
+    school = request.school
     transfer = get_object_or_404(StudentTransfer, pk=pk, school=school)
     return render(
         request,
@@ -1004,7 +1012,7 @@ def transfer_detail(request, pk):
 @require_POST
 def transfer_review(request, pk):
     """مراجعة طلب انتقال — موافقة / رفض / إتمام."""
-    school = request.user.get_school()
+    school = request.school
     transfer = get_object_or_404(StudentTransfer, pk=pk, school=school)
 
     from .forms import TransferReviewForm
@@ -1048,26 +1056,27 @@ def transfer_review(request, pk):
 @capability_required("student_affairs.manage")
 def attendance_overview(request):
     """إحصائيات الحضور والغياب — شاملة مع Trends."""
-    school = request.user.get_school()
+    school = request.school
     today = timezone.localdate()
     year = request.GET.get("year") or academic_year_for(request)
     grade_filter = request.GET.get("grade", "")
 
-    # ── إحصائيات اليوم ──
-    today_qs = StudentAttendance.objects.filter(school=school, session__date=today)
-    total_today = today_qs.count()
-    present = today_qs.filter(status="present").count()
-    absent = today_qs.filter(status="absent").count()
-    late = today_qs.filter(status="late").count()
-    excused = today_qs.filter(status="excused").count()
-    pct = round(present * 100 / total_today) if total_today else 0
+    # ── إحصائيات اليوم — استعلامٌ واحدٌ بدل خمسة ──
+    today_counts = StudentAttendance.objects.filter(school=school, session__date=today).aggregate(
+        total=Count("id"),
+        present=Count("id", filter=Q(status="present")),
+        absent=Count("id", filter=Q(status="absent")),
+        late=Count("id", filter=Q(status="late")),
+        excused=Count("id", filter=Q(status="excused")),
+    )
+    pct = attendance_rate(today_counts["present"], today_counts["total"])
 
     summary = {
-        "present": present,
-        "absent": absent,
-        "late": late,
-        "excused": excused,
-        "total": total_today,
+        "present": today_counts["present"],
+        "absent": today_counts["absent"],
+        "late": today_counts["late"],
+        "excused": today_counts["excused"],
+        "total": today_counts["total"],
         "pct": pct,
     }
 
@@ -1097,19 +1106,29 @@ def attendance_overview(request):
         .order_by(grade_order("session__class_group__grade"))
     )
 
-    # ── بيانات Chart (آخر 14 يوم) ──
+    # ── بيانات Chart (آخر 14 يوم) — استعلامٌ واحدٌ مجمَّعٌ باليوم بدل 42 ──
+    chart_start = today - timedelta(days=13)
+    by_day = {
+        row["session__date"]: row
+        for row in StudentAttendance.objects.filter(
+            school=school, session__date__gte=chart_start, session__date__lte=today
+        )
+        .values("session__date")
+        .annotate(
+            total=Count("id"),
+            present=Count("id", filter=Q(status="present")),
+            absent=Count("id", filter=Q(status="absent")),
+        )
+    }
     chart_labels = []
     chart_present = []
     chart_absent = []
     for i in range(13, -1, -1):
         d = today - timedelta(days=i)
-        day_qs = StudentAttendance.objects.filter(school=school, session__date=d)
-        total_d = day_qs.count()
-        pres = day_qs.filter(status="present").count()
-        abs_d = day_qs.filter(status="absent").count()
+        day = by_day.get(d, {"total": 0, "present": 0, "absent": 0})
         chart_labels.append(d.strftime("%m/%d"))
-        chart_present.append(round(pres * 100 / total_d) if total_d else 0)
-        chart_absent.append(round(abs_d * 100 / total_d) if total_d else 0)
+        chart_present.append(attendance_rate(day["present"], day["total"]))
+        chart_absent.append(attendance_rate(day["absent"], day["total"]))
 
     # ── تنبيهات الغياب المتكرر — AbsenceAlert مُستورَد من أعلى الملف ──
     alerts = (
@@ -1125,7 +1144,7 @@ def attendance_overview(request):
     pct_tone, _badge = _share_tone(pct)
     class_rows = []
     for row in class_breakdown:
-        row_pct = round(row["present_count"] * 100 / row["total"]) if row["total"] else 0
+        row_pct = attendance_rate(row["present_count"], row["total"])
         class_rows.append(
             {
                 **row,
@@ -1178,7 +1197,7 @@ def attendance_export_excel(request):
     import openpyxl
     from openpyxl.styles import Alignment
 
-    school = request.user.get_school()
+    school = request.school
     today = timezone.localdate()
     thirty_ago = today - timedelta(days=30)
 
@@ -1226,10 +1245,16 @@ def attendance_export_excel(request):
         cell.alignment = Alignment(horizontal="center")
         cell.border = thin_border
 
+    # الرقم الشخصيّ: مستور — إحصاءُ غيابٍ كشفٌ جماعيّ.
     absence_count_total = 0
     for i, rec in enumerate(absence_data, 1):
         absence_count_total = i
-        row_data = [i, rec["student__full_name"], rec["student__national_id"], rec["absence_count"]]
+        row_data = [
+            i,
+            rec["student__full_name"],
+            mask_national_id(rec["student__national_id"]),
+            rec["absence_count"],
+        ]
         for col, val in enumerate(row_data, 1):
             cell = ws1.cell(row=s1_data_start + i, column=col, value=val)
             cell.font = cell_font
@@ -1296,7 +1321,7 @@ def attendance_export_excel(request):
         request,
         "student_affairs.attendance_xlsx",
         rows=absence_count_total + today_count,
-        full_national_id=True,
+        full_national_id=False,
         object_repr=f"إحصائيات الغياب Excel — {today:%Y-%m-%d}",
     )
     filename = generate_export_filename("attendance", "stats", "xlsx")
@@ -1317,7 +1342,7 @@ def _behaviour_window(school, today):
 @capability_required("student_affairs.manage")
 def behavior_overview(request):
     """ملخص سلوك الطلاب — إحصائيات شاملة."""
-    school = request.user.get_school()
+    school = request.school
     today = timezone.localdate()
     grade_filter = request.GET.get("grade", "")
 
@@ -1390,10 +1415,10 @@ def behavior_overview(request):
 
     # ── ألوانُ البطاقات بعتباتها التي كانت في القالب ──
     # نسبةُ المخالفين: دون 10% أخضر، ودون 25% برتقاليّ — وبها يُلوَّن الإجماليّ أيضاً.
-    pct_tone = "green" if infraction_pct < 10 else "orange" if infraction_pct < 25 else "red"
+    pct_tone = tone_for(infraction_pct, INFRACTION_SHARE_KPI)
     # مخالفاتُ اليوم: صفرٌ أخضر، ودون 5 برتقاليّ. وغيرُ المحلولة: صفرٌ أخضر، ودون 10 برتقاليّ.
-    today_tone = "green" if not today_infractions else "orange" if today_infractions < 5 else "red"
-    unresolved_tone = "green" if not unresolved else "orange" if unresolved < 10 else "red"
+    today_tone = tone_for(today_infractions, TODAY_INFRACTIONS_KPI)
+    unresolved_tone = tone_for(unresolved, UNRESOLVED_KPI)
     degree_rows = [
         (label, degree_map.get(degree, {}).get("count", 0))
         for degree, label in (
@@ -1440,7 +1465,7 @@ def behavior_overview(request):
 @capability_required("student_affairs.activities")
 def activity_list(request):
     """قائمة الأنشطة والإنجازات مع فلتر."""
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     activities = (
         StudentActivity.objects.filter(school=school, academic_year=year)
@@ -1473,7 +1498,7 @@ def activity_list(request):
 @capability_required("student_affairs.activities")
 def activity_add(request):
     """تسجيل نشاط أو إنجاز جديد."""
-    school = request.user.get_school()
+    school = request.school
 
     from .forms import ActivityForm
 
@@ -1526,7 +1551,7 @@ def activity_add(request):
 @capability_required("student_affairs.activities")
 def activity_edit(request, pk):
     """تعديل نشاط."""
-    school = request.user.get_school()
+    school = request.school
     activity = get_object_or_404(StudentActivity, pk=pk, school=school)
 
     from .forms import ActivityForm
@@ -1579,7 +1604,7 @@ def activity_edit(request, pk):
 @require_POST
 def activity_delete(request, pk):
     """حذف نشاط."""
-    school = request.user.get_school()
+    school = request.school
     activity = get_object_or_404(StudentActivity, pk=pk, school=school)
     title = activity.title
     activity.delete()
@@ -1596,7 +1621,7 @@ def activity_delete(request, pk):
 @capability_required("student_affairs.manage")
 def student_profile_pdf(request, student_id):
     """ملف الطالب الشامل — PDF للطباعة (A4)."""
-    school = request.user.get_school()
+    school = request.school
     student = get_object_or_404(
         CustomUser,
         id=student_id,
@@ -1710,7 +1735,7 @@ def protected_media(request, path):
     if ".." in path or path.startswith("/"):
         raise Http404
 
-    school = request.user.get_school()
+    school = request.school
 
     # تحقق أن الملف يخص مدرسة المستخدم
     attendance = get_object_or_404(
@@ -1737,7 +1762,7 @@ def protected_media(request, path):
 @capability_required("student_affairs.manage")
 def tardiness_list(request):
     """قائمة الطلاب المتأخرين — مفلترة حسب التاريخ والصف."""
-    school = request.user.get_school()
+    school = request.school
 
     date_str = request.GET.get("date")
     if date_str:
@@ -1884,7 +1909,7 @@ def behavior_export_excel(request):
     import openpyxl
     from openpyxl.styles import Alignment
 
-    school = request.user.get_school()
+    school = request.school
     ctx = get_export_context(request, "تقرير السلوك الطلابي")
 
     # بيانات
@@ -1915,12 +1940,13 @@ def behavior_export_excel(request):
         cell.alignment = Alignment(horizontal="center")
         cell.border = thin_border
 
+    # الرقم الشخصيّ: مستور — إحصاءُ مخالفاتٍ كشفٌ جماعيّ.
     row_count = 0
     for i, rec in enumerate(infractions, 1):
         row_data = [
             i,
             rec["student__full_name"],
-            rec["student__national_id"],
+            mask_national_id(rec["student__national_id"]),
             rec["count"],
         ]
         for col, val in enumerate(row_data, 1):
@@ -1943,7 +1969,7 @@ def behavior_export_excel(request):
         request,
         "student_affairs.behavior_xlsx",
         rows=row_count,
-        full_national_id=True,
+        full_national_id=False,
         object_repr="إحصائيات السلوك Excel",
     )
     return excel_to_response(wb, generate_export_filename("behavior", "stats", "xlsx"))
@@ -1956,7 +1982,7 @@ def tardiness_export_excel(request):
     import openpyxl
     from openpyxl.styles import Alignment
 
-    school = request.user.get_school()
+    school = request.school
 
     date_str = request.GET.get("date")
     if date_str:
@@ -2079,7 +2105,7 @@ def activities_export_excel(request):
     import openpyxl
     from openpyxl.styles import Alignment
 
-    school = request.user.get_school()
+    school = request.school
     ctx = get_export_context(request, "تقرير الأنشطة والإنجازات")
 
     type_map = dict(StudentActivity.TYPE_CHOICES)
@@ -2153,7 +2179,7 @@ def activities_export_excel(request):
 @capability_required("student_affairs.manage")
 def attendance_overview_pdf(request):
     """تصدير إحصائيات الحضور والغياب — PDF."""
-    school = request.user.get_school()
+    school = request.school
     today = timezone.localdate()
 
     # ── إحصائيات اليوم ──
@@ -2163,7 +2189,7 @@ def attendance_overview_pdf(request):
     absent = today_qs.filter(status="absent").count()
     late = today_qs.filter(status="late").count()
     excused = today_qs.filter(status="excused").count()
-    pct = round(present * 100 / total_today) if total_today else 0
+    pct = attendance_rate(present, total_today)
 
     summary = {
         "present": present,
@@ -2217,7 +2243,7 @@ def attendance_overview_pdf(request):
 @capability_required("student_affairs.manage")
 def behavior_overview_pdf(request):
     """تصدير ملخص السلوك — PDF."""
-    school = request.user.get_school()
+    school = request.school
     today = timezone.localdate()
 
     # ── مخالفات العام الدراسي ──
@@ -2295,7 +2321,7 @@ def behavior_overview_pdf(request):
 @capability_required("student_affairs.manage")
 def tardiness_pdf(request):
     """تصدير قائمة المتأخرين — PDF."""
-    school = request.user.get_school()
+    school = request.school
 
     date_str = request.GET.get("date")
     if date_str:
@@ -2398,7 +2424,7 @@ def tardiness_search_students(request):
     from django.http import JsonResponse
 
     q = request.GET.get("q", "").strip()
-    school = request.user.get_school()
+    school = request.school
     today = timezone.localdate()
 
     if len(q) < 2:
@@ -2443,7 +2469,7 @@ def tardiness_search_students(request):
 @require_POST
 def tardiness_record(request):
     """POST — تسجيل تأخير صباحي لطالب."""
-    school = request.user.get_school()
+    school = request.school
     today = timezone.localdate()
     now = timezone.localtime()
 
@@ -2555,7 +2581,7 @@ def tardiness_record(request):
 @require_POST
 def tardiness_delete(request, pk):
     """حذف سجل تأخير (إعادته لحاضر)."""
-    school = request.user.get_school()
+    school = request.school
     rec = get_object_or_404(StudentAttendance, pk=pk, school=school, status="late")
     rec.status = "present"
     rec.tardiness_minutes = None

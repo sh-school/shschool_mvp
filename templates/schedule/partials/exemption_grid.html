@@ -1,4 +1,4 @@
-{% load icons %}
+{% load ui icons %}
 {% comment %}
 شبكةُ التفريغ — أسبوعُ معلّمٍ خانةً خانة.
 
@@ -30,6 +30,7 @@
   {% endcomment %}
   <p class="exg-live" data-exg-live hidden></p>
 
+  <div class="exg-scroll">
   <table class="exg-grid">
     <thead>
       <tr>
@@ -66,6 +67,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 
   <p class="exg-legend">
     <span class="exg-key is-exempt"></span> مفرَّغة الآن
@@ -98,6 +100,7 @@
 {% elif group %}
 <div class="exg exg-empty">
   <p>اختيارُ مجموعةٍ لا جدولَ واحداً لها — ظلِّل النمطَ المطلوبَ وسيُطبَّق على أعضائها جميعاً.</p>
+  <div class="exg-scroll">
   <table class="exg-grid" data-exg>
     <thead>
       <tr><th>اليوم</th>{% for p in periods %}<th>{{ p }}</th>{% endfor %}<th>الكل</th></tr>
@@ -114,8 +117,10 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
 </div>
 
 {% else %}
-<p class="exg-hint">اختر معلّماً أو مجموعةً لتظهر شبكةُ أسبوعه.</p>
+{# لا معلّمَ ولا مجموعةً بعد — حالةُ الفراغ الموحّدة لا سطرُ تلميحٍ باليد. #}
+{% empty_state "اختر معلّماً أو مجموعة" sub="تظهر شبكةُ أسبوعه هنا بعد الاختيار" icon="schedule" %}
 {% endif %}

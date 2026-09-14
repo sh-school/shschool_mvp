@@ -76,7 +76,7 @@
         {% for setup in group.list %}
           {% url 'setup_detail' setup.id as detail_url %}
           {% entity_card setup.subject.name_ar who=setup.teacher.full_name href=detail_url|add:"?semester="|add:semester %}
-            {% entity_chips %}<span class="chip">{{ setup.packages.count }} باقة</span><a class="chip" href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}">كشف الدرجات</a>{% endentity_chips %}
+            {% entity_chips %}<span class="chip">{{ setup.packages_count }} باقة</span><a class="chip" href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}">كشف الدرجات</a>{% endentity_chips %}
           {% endentity_card %}
         {% endfor %}
       </div>

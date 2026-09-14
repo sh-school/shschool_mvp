@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+from core.domain.tones import tone_for
+
 #: شارةُ حالة الإجراء — لاحقةُ `status-badge status-…`.
 PROCEDURE_STATUS_TONE = {
     "Completed": "success",
@@ -83,11 +85,7 @@ def responsibility_tone(responsibility: str) -> str:
 
 def bar_tone(pct: int | float, green_at: int = 70, amber_at: int = 40) -> str:
     """لونُ شريط تقدّمٍ صغير: أخضر/كهرمانيّ/أحمر — بعتبات القالب الذي جاء منه."""
-    if pct >= green_at:
-        return "green"
-    if pct >= amber_at:
-        return "amber"
-    return "red"
+    return tone_for(pct, ((green_at, "green"), (amber_at, "amber"), (None, "red")))
 
 
 # ── الزيارات الصفّيّة ─────────────────────────────────────────────────────
@@ -99,15 +97,13 @@ OBSERVATION_KIND_TONE = {"self": "accent", "peer": "success", "supervision": "in
 OBSERVATION_STATUS_TONE = {"acknowledged": "success", "submitted": "warning", "draft": "neutral"}
 
 
-def observation_score_tone(score) -> str:
-    """لونُ النسبة الإجماليّة — العتبةُ كما كانت في القالب: 75 فأكثر، ثمّ 50 فأكثر."""
-    if score is None:
-        return "muted"
-    if score >= 75:
-        return "success"
-    if score >= 50:
-        return "warning"
-    return "danger"
+#: لونُ النسبة الإجماليّة للزيارة: 75 فأكثر نجاح، و50 فأكثر تحذير، ودونها خطر.
+OBSERVATION_SCORE_TONES = ((75, "success"), (50, "warning"), (None, "danger"))
+
+
+def observation_score_tone(score: int | float | None) -> str:
+    """لونُ النسبة الإجماليّة — وما لم يُحسب رماديّ."""
+    return tone_for(score, OBSERVATION_SCORE_TONES)
 
 
 def decorate_observation(obs) -> None:

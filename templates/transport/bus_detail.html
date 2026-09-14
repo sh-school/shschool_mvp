@@ -20,7 +20,7 @@
 
   {% kpi_strip label="أرقام الحافلة" %}
     {% kpi "الطاقة الاستيعابية" bus.capacity tone="blue" %}
-    {% kpi "طلاب مسجلون" students.count tone="green" %}
+    {% kpi "طلاب مسجلون" student_count tone="green" %}
     {% kpi "نسبة الإشغال" occupancy_label %}
   {% endkpi_strip %}
 
@@ -53,14 +53,14 @@
         <ul class="plain-list">
           {% for route in routes %}
           <li class="plain-list__row">
-            <span class="plain-list__main"><b class="plain-list__title">{{ route.area_name }}</b><span class="plain-list__sub">{{ route.students.count }} طالب</span></span>
+            <span class="plain-list__main"><b class="plain-list__title">{{ route.area_name }}</b><span class="plain-list__sub">{{ route.students_count }} طالب</span></span>
             <a href="{% url 'transport:edit_route' bus.id route.id %}" class="link-maroon">تعديل</a>
           </li>
           {% endfor %}
         </ul>
       {% endif %}{% endsection_card %}
 
-      {% section_card "الطلاب المسجلون" meta=students.count icon="students" empty="لا يوجد طلاب مسجلون" %}{% if students %}
+      {% section_card "الطلاب المسجلون" meta=student_count icon="students" empty="لا يوجد طلاب مسجلون" %}{% if students %}
         <div class="transport-search">
           {% field "q" "بحث عن طالب" id="student-search" hide_label=True placeholder="بحث عن طالب..." %}
         </div>

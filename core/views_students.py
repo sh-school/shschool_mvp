@@ -536,6 +536,11 @@ def student_export_excel(request):
     """
     GET → تنزيل ملف Excel بكل بيانات الطلاب في المدرسة.
     الأعمدة: الرقم الشخصي | الاسم | الصف | الشعبة | الجوال | البريد
+
+    الرقم الشخصيّ: مطابقةٌ وزاريّة — كامل. أعمدتُه أعمدةُ قالب الاستيراد
+    نفسُها (`EXPORT_COLUMNS` رأسُ `TEMPLATE_COLUMNS`)، و`students_import` يطابق
+    الصفَّ على الرقم (`_upsert_user`) — فرقمٌ مستورٌ يقطع الدورةَ. والثمنُ
+    تدقيقٌ برايةِ «رقمٌ كامل» (قرار المالك 2026-09-14).
     """
 
     from core.models import Membership, Role, StudentEnrollment

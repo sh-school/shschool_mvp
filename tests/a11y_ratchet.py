@@ -14,7 +14,9 @@
 * **نقص** → يسقط كذلك حتّى يُسجَّل العددُ الجديد، فلا يُنفَق التحسّنُ مرّتين.
 * قالبٌ جديدٌ عددُه صفر — يُكتب نظيفاً من أوّله.
 
-وتسجيلُ الأعداد بعد تحسينٍ مقصود:
+والصفرُ بلغناه في 2026-09-14 في المقاييس الخمسة كلِّها — فالسجلُّ صفرٌ بالبناء
+(`test_a11y_ratchet.py`): `--update` لا يُثبّت مخالفةً جديدة، والمخالفةُ تُصلَح في
+القالب لا تُسجَّل. والأمرُ يبقى لمن يُعيد كتابةَ السجلّ الفارغ:
 
     python -m tests.a11y_ratchet --update
 
@@ -27,10 +29,25 @@
   تسميةً ولا يُربط بشيء.
 * `page_without_h1` — صفحةٌ (تمتدّ من أساسٍ في المستودع أو وثيقةٌ كاملة) لا
   `<h1>` فيها ولا في آبائها ولا `{% page_header %}`.
-* `table_without_wrap` — `<table>` في صفحة شاشةٍ بلا سَلَفٍ يمرّرها أفقيّاً
-  (`table-wrap`)؛ فالجدولُ العريضُ في الهاتف يُقصّ لا يُمرَّر.
-* `partial_without_empty_state` — جزئيّةٌ تُضمَّن وتدور على قائمةٍ بلا
+* `table_without_wrap` — `<table>` في صفحة شاشةٍ أبوه المباشرُ لا يمرّره أفقيّاً؛
+  فالجدولُ العريضُ في الهاتف يُقصّ لا يُمرَّر. والغلافُ أبٌ مباشرٌ لا سَلَفٌ
+  بعيد: غلافُ الصفحة كلِّها (`exec-dash` يمرِّر لوحةَ الهاتف) لا يُغني الجدولَ
+  عن غلافه. ويُعرف الغلافُ من CSS لا من اسمه: `table-wrap` القياسيُّ، وكلُّ
+  صنفٍ يعلن `overflow(-x): auto` أو `scroll` في `static/css/` أو في `<style>`
+  القالب نفسه (`table-wrap-scroll`، `per-grid-wrap`، `asg-guard-scroll`…).
+  فالشبكةُ الخاصّةُ التي يُفسدها حشوُ `table-wrap` لخلاياها تأخذ غلافاً باسمها
+  يُمرِّر — ولا تُحشر في غلافٍ لا يناسبها. ووثائقُ الورق خارجَ المقياس: ما تحت
+  `/pdf/` و`/email/`، وأساساتُ الطباعة نفسُها وأبناؤها، وكلُّ وثيقةٍ تتولّى
+  صفحتَها (`data-pdf-own-page`) — فالجدولُ فيها على قدر الورقة لا الشاشة.
+* `partial_without_empty_state` — جزئيّةٌ تُضمَّن وتدور على قائمةِ صفوفٍ بلا
   `{% empty %}` ولا حالةِ فراغ: الجدولُ يُبدَّل بـHTMX فيبقى فراغٌ لا يقول شيئاً.
+  والقائمةُ ما تُخرج صفوفاً (`<tr>`، `<li>`، `<div>`، `<a>`، أو حلقةٌ جسمُها
+  `{% include %}` وحدَه لجزئيّة صفّ): أمّا ما يدور
+  على `<option>` أو أزرارِ اختيار (`radio`/`checkbox`) فقائمةُ خياراتٍ لا بيانات،
+  وما يُخرج نصّاً ورقاقاتٍ في سطرٍ (`<span>`، `<th>`) فسطرٌ لا قائمة — فراغُه
+  سطرٌ لا فراغُ صفحة. ومكتبةُ المكوّنات (`templates/components/`) لبناتٌ
+  يقرّر مُضمِّنُها فراغَها (هيكلُ التحميل يدور على عددٍ ثابت، والترقيمُ على
+  أرقام الصفحات)، ووثائقُ الورق لا تُبدَّل بـHTMX — فكلاهما خارجَه.
 
 المسحُ نصّيٌّ على مصدر القالب لا على HTML مرسوم — فما يرسمه وسمٌ (`field`،
 `page_header`) لا يُعدّ، وهذا مقصود: الوسمُ هو الطريقُ المحروس.
@@ -38,6 +55,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import pathlib
 import re
@@ -45,10 +63,19 @@ import sys
 from collections import Counter
 from html.parser import HTMLParser
 
-from tests.design_ratchet import EXTENDS_RE, _includers, _template_file, _template_name
+from tests.design_ratchet import (
+    COMPONENTS_DIR,
+    CSS_CLASS_RE,
+    EXTENDS_RE,
+    STYLE_BLOCK_RE,
+    _includers,
+    _template_file,
+    _template_name,
+)
 
 BASELINE = pathlib.Path("tests/a11y_ratchet_baseline.json")
 TEMPLATE_ROOTS = (pathlib.Path("templates"),)
+CSS_DIR = pathlib.Path("static/css")
 
 METRICS: dict[str, str] = {
     "unnamed_field": "حقلٌ بلا اسمٍ يُقرأ (label[for] / aria-label / التفاف)",
@@ -65,13 +92,16 @@ TAG_RE = re.compile(r"\{%.*?%\}|\{\{.*?\}\}", re.S)
 #: أنواعٌ لا تسميةَ لها بطبيعتها: المخفيُّ لا يُرى، والزرُّ اسمُه نصُّه أو `value`.
 UNLABELLED_TYPES = frozenset({"hidden", "submit", "button", "reset", "image"})
 NAMING_ATTRS = ("aria-label", "aria-labelledby", "title")
-#: أسلافٌ تجعل الجدولَ يُمرَّر أفقيّاً بدل أن يُقصّ.
-SCROLL_CLASSES = ("table-wrap", "overflow-x-auto", "overflow-auto")
+#: الغلافُ القياسيُّ للجدول — وما عداه يُشتقّ من CSS (`scroll_classes`).
+SCROLL_CLASSES = frozenset({"table-wrap"})
 #: وثائقُ الطباعة والبريد لا تُمرَّر ولا تُقرأ في متصفّح المستخدم — الجدولُ فيها على قدر الورقة.
 PRINT_PATH_PARTS = ("/pdf/", "/email/")
 PRINT_BASES = frozenset(
     {"reports/base_qatar_report.html", "behavior/pdf/base_form.html", "email/_base.html"}
 )
+#: الوثيقةُ التي تتولّى صفحتَها — ورقَها وهوامشَها وترويستَها (`core/pdf_utils.py`) — ورقٌ
+#: تحاكيه الشاشةُ على قياسه، والجدولُ فيها يملأ الورقةَ لا الإطار.
+OWN_PAGE_RE = re.compile(r"data-pdf-own-page")
 
 
 def _attr(attrs: str, name: str) -> str | None:
@@ -210,24 +240,67 @@ def page_without_h1(path: pathlib.Path, text: str) -> int:
 # ── 4 · جدولٌ بلا غلافِ تمرير ────────────────────────────────────────────────
 
 
+CSS_COMMENT_RE = re.compile(r"/\*.*?\*/", re.S)
+#: أصغرُ كتلةٍ في CSS: محدِّدٌ ثمّ تصريحاتٌ بلا أقواسٍ داخلها — فكتلةُ `@media` تُقرأ من داخلها.
+CSS_RULE_RE = re.compile(r"([^{}]+)\{([^{}]*)\}", re.S)
+SCROLLS_RE = re.compile(r"(?<![\w-])overflow(?:-x)?\s*:\s*(?:auto|scroll)\b")
+#: `:has(> .x)` و`:not(.y)` تذكر أصنافاً غيرَ العنصر الموصوف — تُطرح قبل قراءة آخر مركَّب.
+PSEUDO_FN_RE = re.compile(r":[\w-]+\([^()]*\)")
+COMPOUND_SPLIT_RE = re.compile(r"[\s>+~]+")
+
+
+def _scrolling_classes(css: str) -> set[str]:
+    """أصنافُ آخرِ مركَّبٍ في كلّ محدِّدٍ تعلن كتلتُه تمريراً أفقيّاً (`overflow(-x): auto|scroll`).
+
+    آخرُ المركَّب هو العنصرُ الموصوف: في `.card .grid-scroll { overflow-x: auto }` الغلافُ
+    `grid-scroll` لا `card`. و`overflow: hidden` لا يُحسب — هو القصُّ الذي يُحرَس منه.
+    """
+    names: set[str] = set()
+    for selectors, body in CSS_RULE_RE.findall(CSS_COMMENT_RE.sub("", css)):
+        if not SCROLLS_RE.search(body):
+            continue
+        for selector in selectors.split(","):
+            compounds = COMPOUND_SPLIT_RE.split(PSEUDO_FN_RE.sub("", selector).strip())
+            names.update(
+                re.sub(r"\\(.)", r"\1", m.group(1)) for m in CSS_CLASS_RE.finditer(compounds[-1])
+            )
+    return names
+
+
+@functools.lru_cache(maxsize=4)
+def _sheet_scroll_classes(css_dir: pathlib.Path) -> frozenset[str]:
+    names: set[str] = set()
+    for sheet in sorted(css_dir.glob("*.css")):
+        # مصدرُ Tailwind قبل البناء يذكر الأصنافَ ولا يعرّفها.
+        if sheet.name.endswith("_input.css"):
+            continue
+        names |= _scrolling_classes(sheet.read_text(encoding="utf-8"))
+    return frozenset(names)
+
+
+def scroll_classes(text: str = "") -> frozenset[str]:
+    """ما يُمرِّر أفقيّاً: الغلافُ القياسيّ، وما تعلنه أوراقُ الأنماط، وما يعلنه `<style>` القالب."""
+    local = "".join("".join(blocks) for blocks in STYLE_BLOCK_RE.findall(text))
+    return SCROLL_CLASSES | _sheet_scroll_classes(CSS_DIR.resolve()) | _scrolling_classes(local)
+
+
 class _TableScan(HTMLParser):
-    """يعدّ `<table>` التي لا سلفَ لها من أصناف التمرير — بمكدّس وسومٍ بسيط."""
+    """يعدّ `<table>` التي أبوها المباشرُ ليس من أصناف التمرير — بمكدّس وسومٍ بسيط."""
 
     VOID = frozenset({"input", "img", "br", "hr", "meta", "link", "source", "col", "wbr"})
 
-    def __init__(self):
+    def __init__(self, scrolling: frozenset[str]):
         super().__init__(convert_charrefs=False)
+        self.scrolling = scrolling
         self.stack: list[tuple[str, str]] = []
         self.unwrapped = 0
 
     def handle_starttag(self, tag, attrs):
         classes = dict(attrs).get("class") or ""
-        if tag == "table" and not any(
-            any(c == s or c.endswith("-" + s) for s in SCROLL_CLASSES)
-            for _t, cls in self.stack
-            for c in cls.split()
-        ):
-            self.unwrapped += 1
+        if tag == "table":
+            parent = self.stack[-1][1].split() if self.stack else []
+            if not any(c in self.scrolling for c in parent):
+                self.unwrapped += 1
         if tag not in self.VOID:
             self.stack.append((tag, classes))
 
@@ -239,17 +312,18 @@ class _TableScan(HTMLParser):
 
 
 def _is_print(path: pathlib.Path, text: str) -> bool:
+    """وثيقةُ ورقٍ: تحت `/pdf/` أو `/email/`، أو أساسُ طباعةٍ أو ابنُه، أو تتولّى صفحتَها."""
     posix = path.as_posix()
-    if any(part in posix for part in PRINT_PATH_PARTS):
+    if any(part in posix for part in PRINT_PATH_PARTS) or OWN_PAGE_RE.search(text):
         return True
-    return bool(set(_chain_names(text)) & PRINT_BASES)
+    return bool(({_template_name(path)} | set(_chain_names(text))) & PRINT_BASES)
 
 
 def tables_without_wrap(path: pathlib.Path, text: str) -> int:
     text = _clean(text)
     if _is_print(path, text):
         return 0
-    scan = _TableScan()
+    scan = _TableScan(scroll_classes(text))
     scan.feed(TAG_RE.sub(" ", text))
     return scan.unwrapped
 
@@ -258,17 +332,30 @@ def tables_without_wrap(path: pathlib.Path, text: str) -> int:
 
 LOOP_TOKEN_RE = re.compile(r"\{%\s*(for|empty|endfor)\b(.*?)%\}", re.S)
 EMPTY_STATE_RE = re.compile(r"empty_state|empty-state|section_card|\{%\s*empty\s*%\}")
+#: قائمةُ خياراتٍ لا بيانات: `<option>` وأزرارُ الاختيار — فراغُها حقلٌ بلا خيارات لا صفحةٌ بلا صفوف.
+CHOICE_RE = re.compile(r"<option\b|type=[\"'](?:radio|checkbox)[\"']", re.I)
+#: صفٌّ في قائمة: ما يفتح كتلةً أو صفّاً أو بندَ قائمة أو بطاقةً — لا `<span>` و`<th>` في سطر.
+ROW_RE = re.compile(
+    r"<(?:tr|li|div|section|article|p|a|button|form|label|table|ul|ol|dl|details|nav|"
+    r"header|footer|figure|blockquote|pre|h[1-6])\b",
+    re.I,
+)
+#: وحلقةٌ جسمُها تضمينٌ واحدٌ لا غير تُفوّض الصفَّ إلى جزئيّته (`student_row.html`) — قائمةٌ كذلك.
+#: أمّا تضمينُ أيقونةٍ بين رقاقاتٍ فليس صفّاً.
+LONE_INCLUDE_RE = re.compile(r"^\s*\{%\s*include\b[^%]*%\}\s*$")
 
 
 def _is_partial(path: pathlib.Path, text: str, includers: dict[str, list[pathlib.Path]]) -> bool:
     if EXTENDS_RE.search(text) or DOCUMENT_RE.search(text):
+        return False
+    if _is_print(path, text) or path.is_relative_to(COMPONENTS_DIR):
         return False
     name = _template_name(path)
     return name in includers or path.name.startswith("_") or "/partials/" in path.as_posix()
 
 
 def loops_without_empty(text: str) -> int:
-    """حلقاتُ المستوى الأوّل بلا `{% empty %}` — وما يدور على `<option>` قائمةُ خياراتٍ لا بيانات."""
+    """حلقاتُ المستوى الأوّل التي تُخرج صفوفاً بلا `{% empty %}` — لا الخياراتُ ولا سطرُ الرقاقات."""
     text = _clean(text)
     if EMPTY_STATE_RE.search(text):
         return 0
@@ -286,7 +373,8 @@ def loops_without_empty(text: str) -> int:
         elif kind == "endfor":
             if depth == 1 and top is not None:
                 body = text[top["start"] : m.start()]
-                if not top["empty"] and "<option" not in body:
+                rows = ROW_RE.search(body) or LONE_INCLUDE_RE.match(body)
+                if not top["empty"] and rows and not CHOICE_RE.search(body):
                     count += 1
                 top = None
             depth = max(0, depth - 1)

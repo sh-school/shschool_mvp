@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.validators import RegexValidator
 from django.db import models
@@ -6,6 +8,9 @@ from django.utils import timezone
 from ..managers import CustomUserManager
 from ._crypto import decrypt_field, encrypt_field, hmac_field
 from .school import _uuid
+
+if TYPE_CHECKING:
+    from .access import Membership
 
 _national_id_validator = RegexValidator(
     regex=r"^\d{5,20}$",
@@ -194,19 +199,41 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         cached = self.__dict__.get("_active_membership")
         if cached is not None:
             return cached
-        result = (
-            self.memberships.filter(is_active=True)
-            .select_related("school", "role")
-            .order_by(role_rank(), "joined_at", "id")
-            .first()
-        )
+        memberships = self.active_memberships
+        result = memberships[0] if memberships else None
         if result is not None:
             self.__dict__["_active_membership"] = result
         return result
 
+    @property
+    def active_memberships(self) -> "list[Membership]":
+        """العضويّاتُ النشطة كلُّها بترتيب الحكم — استعلامٌ واحدٌ يُحفظ على الكائن.
+
+        كانت `active_membership` تجلب الأولى وحدَها (`LIMIT 1`)، ثمّ يسأل قالبُ
+        الأساس `memberships.count` في كلّ صفحةٍ ليُظهر «تبديل الدور». والعضويّاتُ
+        قلّةٌ (واحدةٌ إلى ثلاث)، فجلبُها معاً يكلّف ما كان يكلّفه جلبُ الأولى،
+        ويُغني عن عدٍّ في كلّ صفحة.
+        """
+        cached: list[Membership] | None = self.__dict__.get("_active_memberships")
+        if cached is not None:
+            return cached
+        result: list[Membership] = list(
+            self.memberships.filter(is_active=True)
+            .select_related("school", "role")
+            .order_by(role_rank(), "joined_at", "id")
+        )
+        self.__dict__["_active_memberships"] = result
+        return result
+
+    @property
+    def has_multiple_roles(self) -> bool:
+        """أله أكثرُ من عضويّةٍ نشطة — فيُعرض له «تبديل الدور»."""
+        return len(self.active_memberships) > 1
+
     def invalidate_active_membership(self):
         """يُبطل cache العضوية — استخدمه بعد إنشاء أو تعديل Membership"""
         self.__dict__.pop("_active_membership", None)
+        self.__dict__.pop("_active_memberships", None)
 
     def get_active_membership(self):
         return self.active_membership
@@ -326,7 +353,7 @@ class Profile(models.Model):
         return f"Profile: {self.user.full_name}"
 
 
-def role_rank():
+def role_rank() -> models.Case:
     """رتبةُ الدور عند تعدّد العضويّات: الكادرُ صفر، ووليُّ الأمر واحد، والطالبُ اثنان.
 
     تُستعمل في كلّ استعلامٍ يختار «العضويّةَ الحاكمة» لشخصٍ له أكثرُ من صفة.

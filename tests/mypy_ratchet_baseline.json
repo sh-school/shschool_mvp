@@ -75,7 +75,7 @@
   "core/models/permission_audit.py": 4,
   "core/models/school.py": 2,
   "core/models/stored_file.py": 1,
-  "core/models/user.py": 34,
+  "core/models/user.py": 32,
   "core/module_registry.py": 1,
   "core/navigation.py": 6,
   "core/pdf_utils.py": 22,
@@ -153,5 +153,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 17
  },
- "total": 1876
+ "total": 1874
 }

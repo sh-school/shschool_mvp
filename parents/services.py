@@ -14,6 +14,8 @@ from django.utils import timezone
 
 from assessments.models import AnnualSubjectResult, StudentSubjectResult
 from core.academic_calendar import academic_year_for_school
+from core.domain.attendance import attendance_rate
+from core.domain.tones import ATTENDANCE_KPI, GRADE_CELL, tone_for
 from core.models import ParentStudentLink, StudentEnrollment
 from operations.models import StudentAttendance
 
@@ -199,7 +201,7 @@ class ParentService:
             "present": present,
             "absent": absent,
             "late": late,
-            "att_pct": round(present / total * 100) if total else 0,
+            "att_pct": attendance_rate(present, total),
             "since": since,
         }
 
@@ -272,9 +274,7 @@ class ParentService:
             att = att_stats.get(sid, {})
             att_total = att.get("total", 0)
             att_present = att.get("present", 0)
-            child_data["attendance_pct"] = (
-                round(att_present * 100 / att_total) if att_total else None
-            )
+            child_data["attendance_pct"] = attendance_rate(att_present, att_total, empty=None)
             child_data["week_attendance"] = week_att_map.get(sid, [])
             child_data["kpis"] = _child_kpis(child_data)
 
@@ -301,15 +301,7 @@ def _child_kpis(child: dict) -> list[dict]:
                 "label": "الحضور",
                 "value": "—" if pct is None else f"{pct}%",
                 "sub": "30 يوماً",
-                "tone": (
-                    "blue"
-                    if pct is None
-                    else "green"
-                    if pct >= 90
-                    else "amber"
-                    if pct >= 75
-                    else "red"
-                ),
+                "tone": tone_for(pct, ATTENDANCE_KPI, empty="blue"),
                 "title": "نسبةُ الحصص الحاضرة في آخر 30 يوماً",
             }
         )
@@ -319,7 +311,7 @@ def _child_kpis(child: dict) -> list[dict]:
                 "label": "الغياب",
                 "value": absent,
                 "sub": f"و{late} تأخّر" if late else "",
-                "tone": "red" if absent >= 5 else "amber" if absent else "green",
+                "tone": tone_for(absent, ABSENCE_DAYS_KPI),
                 "title": "أيّامُ الغياب في آخر 30 يوماً",
             }
         )
@@ -336,6 +328,9 @@ def _child_kpis(child: dict) -> list[dict]:
         )
     return kpis
 
+
+#: أيّامُ الغياب في بطاقة الابن: خمسةٌ فأكثر أحمر، ويومٌ واحدٌ كهرمانيّ، ولا شيءَ أخضر.
+ABSENCE_DAYS_KPI = ((5, "red"), (1, "amber"), (None, "green"))
 
 #: أيّامُ الدراسة بترتيب الأسبوع القطريّ: الأحد (6 في بايثون) إلى الخميس (3).
 SCHOOL_WEEKDAYS = (6, 0, 1, 2, 3)
@@ -386,16 +381,5 @@ def attendance_weeks(by_date: dict, since, today) -> list[list[dict]]:
 
 
 def _grade_tone(total) -> str:
-    """لونُ المجموع السنويّ — العتباتُ التي كانت في القالب: 80 · 65 · 50."""
-    if total is None:
-        return "muted"
-    total = float(total)
-    return (
-        "success"
-        if total >= 80
-        else "info"
-        if total >= 65
-        else "warning"
-        if total >= 50
-        else "danger"
-    )
+    """لونُ المجموع السنويّ — سُلَّمُ خانة الدرجة الواحد: 80 · 65 · 50."""
+    return tone_for(total, GRADE_CELL)

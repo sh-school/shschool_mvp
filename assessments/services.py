@@ -17,6 +17,7 @@ from django.db import transaction
 from django.db.models import Avg, Count, Q, QuerySet
 
 from core.academic_calendar import academic_year_for_school
+from core.domain.grades import GRADE_BANDS, band_of
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
 
@@ -608,23 +609,12 @@ class GradeService:
             school=school, academic_year=year
         ).values_list("annual_total", flat=True)
 
-        bands = [0] * 6  # <50, 50-59, 60-69, 70-79, 80-89, 90-100
+        # من الأدنى إلى الأعلى: <50, 50-59, 60-69, 70-79, 80-89, 90-100 — رتبةُ الشريحة.
+        bands = [0] * len(GRADE_BANDS)
         for r in results_values:
-            if r is None:
-                continue
-            t = float(r)
-            if t >= 90:
-                bands[5] += 1
-            elif t >= 80:
-                bands[4] += 1
-            elif t >= 70:
-                bands[3] += 1
-            elif t >= 60:
-                bands[2] += 1
-            elif t >= 50:
-                bands[1] += 1
-            else:
-                bands[0] += 1
+            band = band_of(r)
+            if band is not None:
+                bands[band.rank] += 1
 
         # ── Class comparison — 2 queries ──
         classes = list(

@@ -54,6 +54,9 @@
       {% else %}
         <span class="q-badge q-badge-neutral">{{ ev.title|default:"دليل" }}</span>
       {% endif %}
+    {% empty %}
+      {# لا دليلَ ولا موضعَ دليل — شرطةٌ كما في صفّ المراجعة، لا خانةٌ صامتة. #}
+      {% if not task.evidence_source_file %}<span class="cell-empty">—</span>{% endif %}
     {% endfor %}
 
     {% if task.evidence_request_status == 'requested' and task.status != 'Completed' %}

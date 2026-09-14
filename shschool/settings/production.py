@@ -241,8 +241,16 @@ LOGGING = {
             "formatter": "security",
             "filters": ["pii_masking"],  # ✅ v5.3: إخفاء PII
         },
+        # stdout صراحةً: افتراضُ `StreamHandler` هو stderr، وRailway يعدّ كلَّ سطرٍ
+        # على stderr خطأً في عارضه فتصير سطورُ `Task … succeeded` حمراء. ولا مستوى
+        # على المعالِج عمداً: المستوى قرارُ كلّ مسجِّلٍ أدناه.
+        #
+        # وسجلّاتُ Celery (العامل وBeat) تصل هذا المعالِجَ لأنّ `shschool/celery.py`
+        # يستقبل إشارةَ `setup_logging` فيمنع Celery من إفراغ معالِجات `celery`
+        # عند البدء — وهو ما كان يُسكت العاملَ بعد لافتته.
         "console": {
             "class": "logging.StreamHandler",
+            "stream": "ext://sys.stdout",
             "filters": ["pii_masking"],  # ✅ v5.3: إخفاء PII
         },
     },
