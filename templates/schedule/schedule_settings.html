@@ -57,7 +57,8 @@
            hx-trigger="change from:#exemption-teacher"
            hx-include="#exemption-teacher"
            hx-swap="innerHTML">
-        <p class="exg-hint">اختر معلّماً أو مجموعةً لتظهر شبكةُ أسبوعه.</p>
+        {# الحالةُ نفسُها التي تُعيدها الجزئيّةُ بلا اختيار — فلا يتبدّل الشكلُ عند أوّل تحميل. #}
+        {% empty_state "اختر معلّماً أو مجموعة" sub="تظهر شبكةُ أسبوعه هنا بعد الاختيار" icon="calendar" %}
       </div>
       <input type="hidden" name="slots" id="exemption-slots" value="">
 

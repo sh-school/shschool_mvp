@@ -28,11 +28,11 @@
     {% for c in band_kpis %}{% kpi c.label c.value sub=c.sub tone=c.tone %}{% endfor %}
   {% endkpi_strip %}
 
-  {% section_card "المستوى حسب الصفّ" meta=data.by_grade|length icon="list-checks" flush=True empty="لا بيانات" %}
+  {% section_card "المستوى حسب الصفّ" meta=data.by_grade|length icon="list-checks" flush=True %}
     {% include "student_info/_band_table.html" with rows=data.by_grade bands=bands head="الصفّ" %}
   {% endsection_card %}
 
-  {% section_card "المستوى حسب المادّة" meta=data.by_subject|length icon="book-open" flush=True empty="لا بيانات" %}
+  {% section_card "المستوى حسب المادّة" meta=data.by_subject|length icon="book-open" flush=True %}
     {% include "student_info/_band_table.html" with rows=data.by_subject bands=bands head="المادّة" %}
   {% endsection_card %}
   {% else %}

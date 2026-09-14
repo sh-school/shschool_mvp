@@ -309,7 +309,7 @@
       <li>السماتُ الأخرى تمرّ بالشرطة السفليّة: <code>hx_get</code> · <code>hx_trigger</code> · <code>hx_target</code> · <code>hx_include</code> · <code>data_autosubmit=True</code> · <code>min</code> · <code>max</code> · <code>step</code> · <code>maxlength</code> · <code>accept</code>.</li>
       <li><code>help</code> و<code>error</code> يُربطان بالحقل بـ<code>aria-describedby</code>؛ والخطأُ <code>role="alert"</code> و<code>aria-invalid</code>. و<code>hide_label=True</code> يخفي التسميةَ عن العين لا عن القارئ.</li>
       <li><code>filter_bar</code> يرسم <code>&lt;form method="get" role="search" aria-label&gt;</code>؛ و<code>live=True</code> لترشيحٍ في المتصفّح وحدَه (<code>smartFilter</code>) فيُرسم <code>&lt;div role="search"&gt;</code> بلا إرسال. وشريطٌ بلا حقلٍ خطأ.</li>
-      <li>حارسُ <code>tests/a11y_ratchet.py</code> يعدّ الحقولَ بلا اسمٍ والتسمياتِ بلا <code>for</code> — وما رُحِّل إلى <code>field</code> صفرٌ لا يعود.</li>
+      <li>حارسُ <code>tests/a11y_ratchet.py</code> يعدّ الحقولَ بلا اسمٍ والتسمياتِ بلا <code>for</code>، والصفحةَ بلا <code>h1</code> (<code>page_header</code> يعطيها)، والجدولَ الذي أبوه لا يمرِّره أفقيّاً (<code>table-wrap</code> أو صنفٌ يعلن <code>overflow-x: auto</code> في CSS)، والجزئيّةَ التي تدور على صفوفٍ بلا <code>{% templatetag openblock %} empty {% templatetag closeblock %}</code> فيه <code>empty_state</code> — وسجلُّه صفرٌ بالبناء منذ 2026-09-14: لا يقبل مخالفةً تُسجَّل.</li>
     </ul>
   {% endsection_card %}
 
