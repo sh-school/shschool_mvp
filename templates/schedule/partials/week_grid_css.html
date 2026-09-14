@@ -1,0 +1,41 @@
+{% load brand_tags %}{% comment %}
+أنماطُ `partials/week_grid.html` — تُدرج داخل `<style>` الورقة. والأبعادُ كلُّها من
+`geo.css` (operations/schedule_paper.py): صفٌّ بارتفاعٍ صريحٍ بالملّيمتر يحترمه
+مولّدُ PDF، ومحتوىً لا يطيل صفَّه (`wg-fit`) — فالجدولُ يملأ الورقة ولا يفيض عنها.
+{% endcomment %}
+  .week-grid { width: 100%; border-collapse: collapse; table-layout: fixed; break-inside: avoid; page-break-inside: avoid; }
+  .week-grid th, .week-grid td {
+    border: 1px solid {% brand_color "BORDER_STRONG" %};
+    text-align: center;
+    vertical-align: middle;
+    padding: 0.6mm 0.8mm;
+    overflow: hidden;
+  }
+  .week-grid thead tr { height: {{ geo.css.thead_h }}; }
+  .week-grid thead th {
+    background: {% brand_color "MAROON" %};
+    color: {% brand_color "ON_FILL" %};
+    font-size: {{ geo.css.head_pt }};
+    font-weight: 700;
+    padding: 0 0.5mm;
+  }
+  .week-grid th.wg-day { width: {{ geo.css.day_col_w }}; }
+  .week-grid th.wg-break { width: {{ geo.css.break_col_w }}; font-size: {{ geo.css.break_pt }}; line-height: 1.1; }
+  .week-grid tbody tr { height: {{ geo.css.row_h }}; }
+  .week-grid td.wg-day {
+    background: {% brand_color "MAROON_BG" %};
+    color: {% brand_color "MAROON" %};
+    font-weight: 700;
+    font-size: {{ geo.css.day_pt }};
+  }
+  .week-grid .wg-fit { max-height: {{ geo.css.cell_h }}; overflow: hidden; }
+  .week-grid td.wg-break { background: {% brand_color "SURFACE_ALT" %}; padding: 0.4mm 0.3mm; }
+  .week-grid td.wg-break.is-empty { background: {% brand_color "BORDER" %}; }
+  .week-grid .slot-subject { font-size: {{ geo.css.subject_pt }}; font-weight: 700; color: {% brand_color "MAROON" %}; line-height: 1.2; }
+  .week-grid .slot-meta { font-size: {{ geo.css.meta_pt }}; color: {% brand_color "TEXT_SECONDARY" %}; line-height: 1.2; }
+  .week-grid .slot-time { font-size: {{ geo.css.time_pt }}; color: {% brand_color "TEXT_MUTED" %}; line-height: 1.2; direction: ltr; unicode-bidi: embed; }
+  .week-grid .slot-empty { color: {% brand_color "TEXT_MUTED" %}; }
+  .week-grid .slot-time + .slot-subject { margin-top: 0.8mm; padding-top: 0.8mm; border-top: 1px dashed {% brand_color "BORDER_STRONG" %}; }
+  .week-grid .break-label { font-size: {{ geo.css.break_pt }}; font-weight: 700; color: {% brand_color "TEXT_SECONDARY" %}; line-height: 1.15; }
+  .week-grid .break-band { font-weight: 400; color: {% brand_color "TEXT_MUTED" %}; }
+  .week-grid .wg-break .slot-time + .break-label { margin-top: 0.8mm; }

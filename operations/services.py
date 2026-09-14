@@ -531,9 +531,24 @@ class ScheduleService:
             rows = [r for r in rows if str(r["teacher"].id) == str(teacher_id)]
         elif department:
             rows = [r for r in rows if r["department"]["code"] == department]
+        from operations.schedule_paper import bell_tables, teacher_bands_by_day, week_layout
+
+        tables, band_codes = bell_tables(school), ScheduleService._band_codes(school)
         for row in rows:
             row["by_day"] = ScheduleService._by_day(row["days"])
+            # الفسحةُ والصلاةُ بين الحصص — من أجراس شُعب المعلّم في كلّ يوم،
+            # والجرسان كاملان لمن يدرّس في طابقين (قرار 2026-09-14).
+            row["week"] = week_layout(
+                row["days"], teacher_bands_by_day(row["days"], band_codes), tables
+            )
         return rows
+
+    @staticmethod
+    def _band_codes(school: School) -> dict:
+        """معرّفُ الجرس → رمزُه: الحصّةُ تحمل `time_band_id` شعبتها، والأجراسُ برموزها."""
+        from core.models.academic import TimeBand
+
+        return dict(TimeBand.objects.filter(school=school).values_list("id", "code"))
 
     @staticmethod
     def department_options(school: School, academic_year: str | None = None) -> list[dict]:
@@ -572,8 +587,14 @@ class ScheduleService:
                 row["days"][slot.day_of_week][slot.period_number - 1].append(slot)
                 row["total"] += 1
         pages = list(rows.values())
+        from operations.schedule_paper import bell_tables, week_layout
+
+        tables, band_codes = bell_tables(school), ScheduleService._band_codes(school)
         for row in pages:
             row["by_day"] = ScheduleService._by_day(row["days"])
+            band = band_codes.get(row["class_group"].time_band_id)
+            # جرسُ الشعبة واحدٌ كلَّ الأسبوع، وموضعُ استراحته يتبدّل يومَ الخميس.
+            row["week"] = week_layout(row["days"], [[band] if band else []] * 5, tables)
         return pages
 
     @staticmethod

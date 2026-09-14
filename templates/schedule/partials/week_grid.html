@@ -1,0 +1,51 @@
+{% comment %}
+شبكةُ الأسبوع لورقة المعلّم أو الشعبة — قالبٌ واحدٌ لورقة الصفحات والجدول المطبوع.
+
+السطرُ يومٌ والعمودُ حصّة (قرار 2026-09-08)، وبين الحصص أعمدةُ الفسحة والصلاة
+(قرار 2026-09-14) من `operations.schedule_paper.week_layout`. والتوقيتُ في الخانة
+لا في ترويسة العمود: الخميسُ وطابقا المدرسة يختلف جرسُهم، فترويسةٌ واحدةٌ تكذب
+على أحدهم (docs/time_bands.md). وخانةُ الاستراحة الفارغة يومٌ لا استراحةَ عند
+موضعها — تبقى مظلّلةً ولا تُدمج بغيرها: لا rowspan ولا colspan، فمولّدُ PDF
+الاحتياطيّ يعكس خلايا كلّ سطرٍ ويُفسد ما امتدّ.
+
+`who`: «class» تكتب الشعبةَ في الخانة (ورقةُ المعلّم)، و«teacher» المعلّمَ (ورقةُ الشعبة).
+{% endcomment %}
+<table class="week-grid">
+  <thead>
+    <tr>
+      <th class="wg-day">اليوم</th>
+      {% for column in week.columns %}
+      {% if column.kind == "period" %}<th class="wg-period">الحصة {{ column.number }}</th>{% else %}<th class="wg-break">{{ column.label }}</th>{% endif %}
+      {% endfor %}
+    </tr>
+  </thead>
+  <tbody>
+    {% for line in week.lines %}
+    <tr>
+      <td class="wg-day">{{ line.day }}</td>
+      {% for entry in line.entries %}
+      {% if entry.kind == "period" %}
+      <td class="wg-cell"><div class="wg-fit">
+        {% for slot in entry.slots %}
+        {% comment %}الخانةُ المشتركةُ تُكتب بما فيها كلِّه: «التكنولوجيا / الفنون البصرية».{% endcomment %}
+        <div class="slot-subject">{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }}</div>
+        <div class="slot-meta">{% if who == "teacher" %}{{ slot.teacher.full_name }}{% else %}{{ slot.class_group.short_label }}{% endif %}</div>
+        {% comment %}عازلا الاتّجاه لازمان: مولّدُ PDF لا يقرأ `direction`، فينقلب التوقيتُ «08:45 – 08:00».{% endcomment %}
+        {% if slot.start_time %}<div class="slot-time">&#8294;{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}&#8297;</div>{% endif %}
+        {% empty %}
+        <span class="slot-empty">—</span>
+        {% endfor %}
+      </div></td>
+      {% else %}
+      <td class="wg-break{% if not entry.items %} is-empty{% endif %}"><div class="wg-fit">
+        {% for item in entry.items %}
+        <div class="break-label">{{ item.label }}{% if item.band %}<br><span class="break-band">{{ item.band }}</span>{% endif %}</div>
+        <div class="slot-time">&#8294;{{ item.start|time:"H:i" }}&#8297;<br>&#8294;{{ item.end|time:"H:i" }}&#8297;</div>
+        {% endfor %}
+      </div></td>
+      {% endif %}
+      {% endfor %}
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

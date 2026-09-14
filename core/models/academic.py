@@ -630,6 +630,24 @@ class ClassGroup(models.Model):
         return f"{grade}.{section}"
 
     @property
+    def short_label(self) -> str:
+        """اسمُ الشعبة في خانة الجدول الأسبوعيّ: «11/2» و«7/1» و«7/ESE».
+
+        بلا صفرٍ في رقم الصفّ ولا مسارٍ ولا عام (قرار 2026-09-14): الخانةُ
+        عرضُها ثلاثةُ سنتيمترات، و«الصف الحادي عشر / 2 — تكنولوجي (2026-2027)»
+        كان يلتفّ فيها ثلاثةَ أسطرٍ ويدفع التوقيتَ خارجها. والمسارُ لا يلزم
+        للتمييز: الصفُّ والشعبةُ فريدان في العام (`unique_class_per_year`).
+        و`__str__` يبقى كما هو — قوائمُ الإدارة تحتاج العام.
+        """
+        return f"{self.grade.removeprefix('G')}/{self.section.rsplit('/', 1)[-1]}"
+
+    @property
+    def label_with_track(self) -> str:
+        """«11/2 — تكنولوجي»: ترويسةُ ورقة الشعبة، حيث يتّسع المكانُ للمسار."""
+        track = f" — {self.get_track_display()}" if self.track else ""
+        return f"{self.short_label}{track}"
+
+    @property
     def school_order(self) -> int:
         """مفتاحُ الترتيب المدرسيّ عدداً: 7/1 → 701 و12/4 → 1204.
 
