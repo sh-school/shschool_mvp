@@ -6,12 +6,16 @@
 كلُّه في طلب دمجٍ واحدٍ لا يُراجَع — فالحارسُ هنا، كسقّاطة الهويّة البصريّة،
 لا يطلب الصفرَ دفعةً واحدة بل يمنع الزيادة ويُثبّت كلَّ نقص:
 
-1. **العرض** (دالّةٌ في `*/views*.py` أوّلُ وسائطها `request`، أو تابعٌ في صنفٍ
-   ثاني وسائطه `request`): سقفُه 60 سطراً (من سطر `def` إلى آخره، بلا المزيِّنات)
-   و5 استدعاءاتِ ORM مباشرة (`.objects`، `.filter(`، `.annotate(`،
-   `.aggregate(`، `select_related(`، `prefetch_related(`، `Q(`).
+1. **كلُّ دالّةٍ في ملفّ عروض** (`*/views*.py`) — العرضُ نفسُه ومساعدُه وتوابعُ
+   أصنافه: سقفُها 60 سطراً (من سطر `def` إلى آخره، بلا المزيِّنات) و5 استدعاءاتِ
+   ORM مباشرة (`.objects`، `.filter(`، `.annotate(`، `.aggregate(`،
+   `select_related(`، `prefetch_related(`، `Q(`). وكان العدُّ على ما أوّلُ وسائطه
+   `request` وحدَه، فنقلُ الاستعلام إلى `_get_director_ctx(school, today)` في
+   الملفّ نفسِه — ستٌّ وأربعون استدعاءً — كان يُخفيه عن الحارس.
 2. **`core` لا يستورد وحدةً نازلة** — ولا استيراداً كسولاً داخل دالّة: الكسلُ
-   يؤخّر الخطأ الدائريّ ولا يُزيل الاقتران.
+   يؤخّر الخطأ الدائريّ ولا يُزيل الاقتران. والعدُّ لكلّ وحدةٍ نازلة على النواة
+   كلِّها لا لكلّ ملفّ: الاعتمادُ اعتمادُ الحزمة، ونقلُ قراءةٍ من عرضٍ في النواة
+   إلى قارئٍ في النواة لا يزيده ولا ينقصه.
 3. **`get_school()` في ملفّات العروض** — `request.school` يضعه
    `SchoolContextMiddleware` مرّةً لكلّ طلب.
 
@@ -95,20 +99,14 @@ def _get_school_calls(node: ast.AST) -> int:
     return count
 
 
-def _is_view(func: FunctionNode, method: bool) -> bool:
-    args = func.args.posonlyargs + func.args.args
-    position = 1 if method else 0
-    return len(args) > position and args[position].arg == "request"
-
-
 def _views(tree: ast.Module) -> Iterator[tuple[str, FunctionNode]]:
-    """(الاسم، العقدة) لكلّ عرضٍ في الوحدة — دالّةً في رأسها أو تابعاً في صنف."""
+    """(الاسم، العقدة) لكلّ دالّةٍ في رأس ملفّ العروض ولكلّ تابعٍ في أصنافه."""
     for node in tree.body:
-        if isinstance(node, FUNCTION_NODES) and _is_view(node, method=False):
+        if isinstance(node, FUNCTION_NODES):
             yield node.name, node
         elif isinstance(node, ast.ClassDef):
             for item in node.body:
-                if isinstance(item, FUNCTION_NODES) and _is_view(item, method=True):
+                if isinstance(item, FUNCTION_NODES):
                     yield f"{node.name}.{item.name}", item
 
 
@@ -160,15 +158,24 @@ def snapshot(root: pathlib.Path = ROOT) -> dict:
             get_school[rel] = calls
 
     downstream = downstream_apps(root)
-    core_imports: dict[str, dict[str, int]] = {}
+    core_imports: Counter[str] = Counter()
+    sites: dict[str, list[str]] = {}
     for path in sorted((root / "core").rglob("*.py")):
         if "__pycache__" in path.parts:
             continue
-        found = measure_core_imports(path.read_text(encoding="utf-8"), downstream)
-        if found:
-            core_imports[path.relative_to(root).as_posix()] = found
+        for app, count in measure_core_imports(
+            path.read_text(encoding="utf-8"), downstream
+        ).items():
+            core_imports[app] += count
+            sites.setdefault(app, []).append(path.relative_to(root).as_posix())
 
-    return {"views": views, "get_school": get_school, "core_imports": core_imports}
+    return {
+        "views": views,
+        "get_school": get_school,
+        "core_imports": dict(sorted(core_imports.items())),
+        # للقارئ لا للمقارنة: أين تقع الاستيراداتُ المعدودة أعلاه.
+        "core_import_sites": sites,
+    }
 
 
 # ─── المقارنة ──────────────────────────────────────────────────────────────
@@ -187,9 +194,9 @@ def _flatten(data: dict) -> dict[tuple[str, str], tuple[int, str]]:
             flat[(key, metric)] = (value, LABELS[metric])
     for path, value in data.get("get_school", {}).items():
         flat[(path, "get_school")] = (value, "استدعاءَ get_school() — استعمل request.school")
-    for path, apps in data.get("core_imports", {}).items():
-        for app, value in apps.items():
-            flat[(path, f"import:{app}")] = (value, f"استيراداً من `{app}` في النواة")
+    for app, value in data.get("core_imports", {}).items():
+        where = "، ".join(data.get("core_import_sites", {}).get(app, []))
+        flat[(f"core → {app}", "import")] = (value, f"جملةَ استيرادٍ في النواة ({where})")
     return flat
 
 
@@ -223,10 +230,10 @@ def totals(data: dict) -> dict[str, int]:
         "views_over_orm": sum(1 for m in views.values() if "orm" in m),
         "views_over_any_cap": len(views),
         "get_school_in_view_files": sum(data["get_school"].values()),
-        "core_files_importing_downstream": len(data["core_imports"]),
-        "core_downstream_import_statements": sum(
-            sum(a.values()) for a in data["core_imports"].values()
+        "core_files_importing_downstream": len(
+            {site for files in data["core_import_sites"].values() for site in files}
         ),
+        "core_downstream_import_statements": sum(data["core_imports"].values()),
     }
 
 

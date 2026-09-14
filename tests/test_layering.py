@@ -48,7 +48,7 @@ def test_baseline_records_only_what_is_over_the_caps():
 class TestTheRatchetItself:
     """الحارسُ يحرس ما يقول إنّه يحرسه — لا يمرّ صامتاً على ما وُضع له."""
 
-    EMPTY: dict = {"views": {}, "get_school": {}, "core_imports": {}}
+    EMPTY: dict = {"views": {}, "get_school": {}, "core_imports": {}, "core_import_sites": {}}
 
     def _state(self, **kw):
         return {**self.EMPTY, **kw}
@@ -74,6 +74,14 @@ class TestTheRatchetItself:
         # objects, filter, select_related, prefetch_related, annotate, filter, Q, Q, aggregate
         assert over == {"a/views.py::v": {"orm": 9}}
 
+    def test_a_helper_without_request_is_measured_too(self):
+        """نقلُ الاستعلام إلى مساعدٍ في ملفّ العروض نفسِه لا يُخفيه."""
+        orm = "\n".join("    X.objects.all()" for _ in range(ratchet.MAX_ORM + 1))
+        over, _ = ratchet.measure_views(
+            f"def _get_director_ctx(school, today):\n{orm}\n", "c/views.py"
+        )
+        assert over == {"c/views.py::_get_director_ctx": {"orm": ratchet.MAX_ORM + 1}}
+
     def test_class_based_view_methods_and_multiline_signatures_are_views(self):
         calls = ratchet.MAX_ORM + 1
         in_function = "\n".join("    X.objects.all()" for _ in range(calls))
@@ -84,7 +92,7 @@ class TestTheRatchetItself:
             f"def helper(user):\n{in_function}\n"
         )
         over, _ = ratchet.measure_views(source, "a/views.py")
-        assert set(over) == {"a/views.py::multi", "a/views.py::Page.get"}
+        assert set(over) == {"a/views.py::multi", "a/views.py::Page.get", "a/views.py::helper"}
 
     def test_get_school_is_counted_across_the_whole_view_file(self):
         """نقلُه إلى دالّةٍ مساعدةٍ بلا `request` لا يُخفيه."""
@@ -134,10 +142,23 @@ class TestTheRatchetItself:
         assert len(worse) == 2
 
     def test_a_new_downstream_import_in_core_is_worse(self):
-        before = self._state(core_imports={"core/x.py": {"behavior": 1}})
-        after = self._state(core_imports={"core/x.py": {"behavior": 1, "quality": 1}})
+        before = self._state(core_imports={"behavior": 1})
+        after = self._state(
+            core_imports={"behavior": 1, "quality": 1}, core_import_sites={"quality": ["core/x.py"]}
+        )
         worse, _ = ratchet.compare(before, after)
-        assert worse == ["core/x.py: 0 → 1 استيراداً من `quality` في النواة"]
+        assert worse == ["core → quality: 0 → 1 جملةَ استيرادٍ في النواة (core/x.py)"]
+
+    def test_moving_an_import_between_core_modules_is_neutral(self):
+        before = self._state(
+            core_imports={"behavior": 2},
+            core_import_sites={"behavior": ["core/views_dashboard.py"]},
+        )
+        after = self._state(
+            core_imports={"behavior": 2},
+            core_import_sites={"behavior": ["core/dashboard_selectors.py"]},
+        )
+        assert ratchet.compare(before, after) == ([], [])
 
     def test_update_refuses_to_record_an_increase(self):
         before = self._state(get_school={"a/views.py": 1})
