@@ -400,8 +400,13 @@ def _get_admin_ops_ctx(user, school, today, role):
     ).count()
     pending_comp = CompensatorySession.objects.filter(school=school, status="pending").count()
 
+    # تنبيهاتُ الغياب لطلبة جناح المشرف وحدَهم (قرارُ 2026-09-15) — والإداريُّ والسكرتيرُ
+    # غيرُ مقيَّدين، فلا يتغيّر ما يريانه ولا يُنفَّذ لهما استعلامٌ زائد.
+    from wings.scope import student_scope
+
     recent_alerts = (
-        AbsenceAlert.objects.filter(school=school, status="pending")
+        student_scope(user, school)
+        .narrow(AbsenceAlert.objects.filter(school=school, status="pending"), "student_id")
         .select_related("student")
         .order_by("-created_at")[:5]
     )

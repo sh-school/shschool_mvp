@@ -173,7 +173,16 @@ class ExamControlService:
 
         Returns:
             ExamIncident: سجل الحادثة المنشأ
+
+        Raises:
+            Http404: المُبلِّغُ مقيَّدٌ بجناحه والطالبُ من غير جناحه (قرارُ 2026-09-15) —
+                حارسٌ ثانٍ خلف الشاشة، فلا تُنشأ حادثةٌ ولا مخالفةُ غشٍّ على طالبٍ خارج نطاقه.
         """
+        if student is not None:
+            from wings.scope import student_scope
+
+            student_scope(reported_by, school).require_student(student.pk)
+
         incident = ExamIncident.objects.create(
             session=session,
             room=room,

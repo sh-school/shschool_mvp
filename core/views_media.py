@@ -5,6 +5,10 @@ core/views_media.py
 لكل ملف نُحدِّد السجلّ المالك ومدرسته، ونتحقّق أن المستخدم من نفس المدرسة وله الدور
 المناسب (أو أنه مالك السجلّ). يمنع IDOR/BOLA عبر تعداد/تخمين أسماء الملفات.
 SVG/HTML لا يُعرَض inline (دفاع XSS مخزّن).
+
+وملفّاتُ الطلبة (عذرُ التأخّر، ومستندُ عذر الغياب، ومرفقُ النشاط) تمرّ بعد الدور على نطاق
+الجناح: المقيَّدُ بجناحه لا يفتح ملفَّ طالبٍ من غير جناحه، ولو كان دورُه يفتح النوعَ نفسَه
+(قرارُ 2026-09-15: «المشرفُ لجناحه فقط»). والنطاقُ واحدٌ في `wings/scope.py`.
 """
 
 import mimetypes
@@ -22,7 +26,10 @@ _NEVER_INLINE = {"image/svg+xml", "text/html", "application/xhtml+xml", "text/xm
 
 
 def _resolve_file_access(name):
-    """يُعيد (school_id, owner_user_id, allowed_roles) للملف، أو None إن لم يُعرَف مالكه."""
+    """يُعيد (school_id, owner_user_id, allowed_roles, student_owned) للملف، أو None إن لم يُعرَف مالكه.
+
+    `student_owned`: الملفُّ ملفُّ طالبٍ (`owner_user_id` هو الطالب)، فيُسأل عنه نطاقُ الجناح.
+    """
     # استيراد كسول لتفادي الدورات
     from core.models import School
     from core.permissions import (
@@ -30,6 +37,7 @@ def _resolve_file_access(name):
         LIBRARY_VIEW,
         QUALITY_VIEW,
         STUDENT_AFFAIRS_VIEW,
+        STUDENT_FOLLOW_UP,
         WING_DAY_RECORD,
     )
     from library.models import LibraryBook
@@ -42,31 +50,36 @@ def _resolve_file_access(name):
     leave_roles = {"principal", "vice_admin"}
 
     resolvers = (
+        # عذرُ التأخّر الصباحيّ: رصدُه من عمل المشرف (الدليل 2026 م 3.4.2.2) — لجناحه.
         (
             StudentAttendance,
             "excuse_file",
-            lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW),
+            lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW | STUDENT_FOLLOW_UP, True),
         ),
         # مستندُ عذر الغياب: من يرصد في الأجنحة ومن يرى شؤونَ الطلبة — والطالبُ صاحبُه.
         (
             AbsenceExcuse,
             "document",
-            lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW | WING_DAY_RECORD),
+            lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW | WING_DAY_RECORD, True),
         ),
-        (LeaveRequest, "attachment", lambda o: (o.school_id, o.staff_id, leave_roles)),
+        (LeaveRequest, "attachment", lambda o: (o.school_id, o.staff_id, leave_roles, False)),
         (
             ProcedureEvidence,
             "file",
-            lambda o: (o.procedure.school_id, o.uploaded_by_id, QUALITY_VIEW),
+            lambda o: (o.procedure.school_id, o.uploaded_by_id, QUALITY_VIEW, False),
         ),
         (
             StudentActivity,
             "attachment",
-            lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW),
+            lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW, True),
         ),
-        (LibraryBook, "digital_file", lambda o: (o.school_id, None, LIBRARY_VIEW | LIBRARY_FULL)),
+        (
+            LibraryBook,
+            "digital_file",
+            lambda o: (o.school_id, None, LIBRARY_VIEW | LIBRARY_FULL, False),
+        ),
         # الشعار: أي مستخدم مُصادَق من نفس المدرسة (allowed_roles=None)
-        (School, "logo", lambda o: (o.id, None, None)),
+        (School, "logo", lambda o: (o.id, None, None, False)),
     )
     for model, field, extract in resolvers:
         obj = model.objects.filter(**{field: name}).first()
@@ -77,7 +90,7 @@ def _resolve_file_access(name):
 
 def _authorize(request, access):
     """fail-closed: يرفع Http404 إن لم يُسمَح؛ يُعيد None إن سُمِح؛ أو ردّ تحويل للدخول."""
-    school_id, owner_user_id, allowed_roles = access
+    school_id, owner_user_id, allowed_roles, student_owned = access
 
     user = request.user
     if not user.is_authenticated:
@@ -92,6 +105,12 @@ def _authorize(request, access):
     role_ok = allowed_roles is None or user.get_role() in expand_roles(set(allowed_roles))
     if not (is_owner or role_ok):
         raise Http404  # ليس المالك ولا له الدور المناسب
+    if student_owned and not is_owner:
+        # ملفُّ طالبٍ خارج الجناح: الدورُ يفتح النوعَ، والنطاقُ يحصره في طلبة جناحه.
+        # وغيرُ المقيَّد لا يُنفَّذ له استعلامٌ هنا.
+        from wings.scope import student_scope
+
+        student_scope(user, user_school).require_student(owner_user_id)
     return None
 
 
