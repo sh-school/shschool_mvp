@@ -65,18 +65,49 @@ def _behavior_report_redirect(
 
 from behavior.forms import InfractionForm
 from behavior.models import ViolationCategory
-from core.capabilities import capability_required
+from core.capabilities import capability_required, has_capability
 from core.domain.tones import SHARE_KPI, tone_for
 from core.models import BehaviorInfraction, CustomUser
+from wings.scope import student_scope_for
+
+# ── نطاقُ الطلبة ─────────────────────────────────────────────
+# المشرفُ الإداريُّ لجناحه (قرارا 2026-09-14/15): يرى طلبةَ شُعب أجنحته ومخالفاتِهم أيّاً كان
+# راصدُها، ويرصد عليهم، ولا يبلغ غيرَهم — فمعرّفُ طالبٍ خارج جناحه في الرابط أو الاستعلام
+# أو النموذج يعود 404 لا صفحةَ منع، إذ وجودُه في جناحٍ آخر ليس شأنَه. والسؤالُ يُسأل مرّةً
+# للطلب في `student_scope_for`؛ وغيرُ المقيَّد لا يُنفَّذ له استعلامٌ واحدٌ زائد، وتبقى قاعدتُه
+# كما كانت: القيادةُ للمدرسة، والمعلّمُ والمنسّقُ لطلبة جدولهما.
 
 
-def _get_scoped_students(user, school):
+def _visible_student_ids(request):
+    """طلبةُ صاحب الطلب — `None` للمدرسة كلِّها، ومجموعةٌ للمقيَّد بجدولٍ أو جناح."""
+    return get_teacher_student_ids(request.user, scope=student_scope_for(request))
+
+
+def _require_in_wing(request, student_id):
+    """404 لطالبٍ خارج جناح المقيَّد — ولا شيءَ لغيره (قاعدتُه في موضعها لم تتغيّر)."""
+    if student_id:
+        student_scope_for(request).require_student(student_id)
+
+
+def _deny_unreachable(request, student_id, message):
+    """المقيَّدُ بجناحه: 404 خارجَه. وغيرُه على «طلابُك فقط» بصفحة المنع كما كان."""
+    scope = student_scope_for(request)
+    if scope.is_wing_bound:
+        scope.require_student(student_id)
+        return None
+    if not teacher_can_access_student(request.user, student_id):
+        return forbidden_page(request, message)
+    return None
+
+
+def _get_scoped_students(request, school):
     """
     يُعيد QuerySet طلاب مرئيّ حسب دور المستخدم:
     - القيادة/الأخصائيون → كل طلاب المدرسة
+    - المشرف الإداري → طلبة جناحه
     - المعلم/المنسق → طلاب فصوله فقط
     """
-    student_ids = get_teacher_student_ids(user)
+    student_ids = _visible_student_ids(request)
     if student_ids is None:
         # admin/leadership — all students
         return (
@@ -177,8 +208,8 @@ def behavior_dashboard(request):
         messages.error(request, "لم يتم العثور على مدرسة مرتبطة بحسابك.")
         return redirect("dashboard")
 
-    # المعلم/المنسق يرى سلوك طلابه فقط
-    student_ids = get_teacher_student_ids(request.user)
+    # المعلم/المنسق يرى سلوك طلابه فقط، والمشرفُ سلوكَ طلبة جناحه — قبل كلّ عدٍّ ورسم
+    student_ids = _visible_student_ids(request)
     context = BehaviorService.get_dashboard_stats(school, student_ids=student_ids)
     context["can_report"] = BehaviorPermissions.can_report(request.user)
     context["is_committee"] = BehaviorPermissions.is_committee(request.user)
@@ -281,6 +312,8 @@ def report_infraction(request):
     violations_by_degree = {str(d): list(all_violations.filter(degree=d)) for d in range(1, 5)}
 
     if request.method == "POST":
+        # معرّفُ الطالب يُسأل عنه قبل صحّة النموذج: طالبٌ خارج الجناح 404 مهما كان باقيه.
+        _require_in_wing(request, request.POST.get("student_id", "").strip())
         form = InfractionForm(request.POST)
         if not form.is_valid():
             for field, errs in form.errors.items():
@@ -364,7 +397,7 @@ def report_infraction(request):
                     return redirect("behavior:committee")
                 return redirect("behavior:student_profile", student_id=student.id)
 
-    students = _get_scoped_students(request.user, school)
+    students = _get_scoped_students(request, school)
     return render(
         request,
         "behavior/report_form.html",
@@ -421,6 +454,7 @@ def quick_log(request):
 
     if request.method == "POST":
         student_id = request.POST.get("student_id", "").strip()
+        _require_in_wing(request, student_id)
         violation_cat_id = request.POST.get("violation_category", "").strip()
         description = request.POST.get("description", "").strip()
         action = request.POST.get("action_taken", "").strip()
@@ -455,7 +489,7 @@ def quick_log(request):
                 render(
                     request,
                     "behavior/partials/quick_log_form.html",
-                    _quick_log_context(request.user, school, student_id),
+                    _quick_log_context(request, school, student_id),
                 ),
                 msg=" | ".join(errors),
                 msg_type="danger",
@@ -494,16 +528,17 @@ def quick_log(request):
 
     # GET — نموذج فارغ
     student_id_hint = request.GET.get("student_id", "")
+    _require_in_wing(request, student_id_hint)
     return render(
         request,
         "behavior/partials/quick_log_form.html",
-        _quick_log_context(request.user, school, student_id_hint),
+        _quick_log_context(request, school, student_id_hint),
     )
 
 
-def _quick_log_context(user, school, preselected_student_id=""):
-    """Context مشترك لنموذج التسجيل السريع — يُظهر طلاب المعلم فقط."""
-    students = _get_scoped_students(user, school)
+def _quick_log_context(request, school, preselected_student_id=""):
+    """Context مشترك لنموذج التسجيل السريع — يُظهر طلاب المعلم فقط، وطلبةَ جناح المشرف."""
+    students = _get_scoped_students(request, school)
     return {
         "students": students,
         "levels": BehaviorInfraction.LEVELS,
@@ -527,15 +562,20 @@ def student_behavior_profile(request, student_id):
         memberships__is_active=True,
     )
 
-    # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──
-    if not teacher_can_access_student(request.user, student.id):
-        return forbidden_page(request, "هذا الطالب ليس من طلابك — لا يمكنك عرض ملفه السلوكي.")
+    # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط، والمشرفُ طلبةَ جناحه ──
+    denied = _deny_unreachable(
+        request, student.id, "هذا الطالب ليس من طلابك — لا يمكنك عرض ملفه السلوكي."
+    )
+    if denied:
+        return denied
 
     context = BehaviorService.get_student_profile(student)
     context["student"] = student
     context["can_report"] = BehaviorPermissions.can_report(request.user)
     context["is_committee"] = BehaviorPermissions.is_committee(request.user)
     context["can_summon"] = BehaviorPermissions.can_summon(request.user)
+    # نماذجُ الإنذار والتعهّد لإدارة المخالفات — رابطٌ لا يُفتح لصاحبه لا يُعرض له.
+    context["can_print_forms"] = has_capability(request.user, "behavior.manage")
     return render(request, "behavior/student_profile.html", context)
 
 
@@ -591,6 +631,13 @@ def committee_decision(request, infraction_id):
 
 
 # ── تقرير سلوكي دوري ─────────────────────────────────────────
+def _report_year(request):
+    """عامُ التقرير: `?year=` لغير المقيَّد كما كان، والمقيَّدُ على العام الجاري دائماً —
+    فجناحُه يُحسب على العام الجاري، ولا يوسّع عامٌ مضى نطاقَه."""
+    requested = request.GET.get("year")
+    return student_scope_for(request).year_for(requested, "") or academic_year_for(request)
+
+
 @login_required
 @capability_required("behavior.record")
 def behavior_report(request, student_id):
@@ -606,10 +653,11 @@ def behavior_report(request, student_id):
         memberships__is_active=True,
     )
 
-    # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط ──
-    if not teacher_can_access_student(request.user, student.id):
-        return forbidden_page(request, "هذا الطالب ليس من طلابك.")
-    year = request.GET.get("year") or academic_year_for(request)
+    # ── تقييد الوصول: المعلم/المنسق يرى طلابه فقط، والمشرفُ طلبةَ جناحه ──
+    denied = _deny_unreachable(request, student.id, "هذا الطالب ليس من طلابك.")
+    if denied:
+        return denied
+    year = _report_year(request)
     period = request.GET.get("period", "full")
 
     report = BehaviorService.get_student_report_data(student, school, period, year)
@@ -910,6 +958,7 @@ def summon_parent(request, student_id=None):
             messages.error(request, "يجب اختيار الطالب وكتابة السبب")
             return redirect("behavior:summon_parent")
 
+        _require_in_wing(request, sid)
         student = get_object_or_404(CustomUser, pk=sid)
 
         from notifications.hub import NotificationHub
@@ -964,11 +1013,12 @@ def summon_parent(request, student_id=None):
         return redirect("behavior:summon_parent")
 
     # GET — نموذج الاستدعاء (طلاب المعلم/المنسق فقط)
-    students = _get_scoped_students(request.user, school)
+    students = _get_scoped_students(request, school)
 
     selected_student = None
     student_context = {}
     if student_id:
+        _require_in_wing(request, student_id)
         selected_student = CustomUser.objects.filter(pk=student_id).first()
     if selected_student:
         # معلومات سياقية عن الطالب
@@ -1035,11 +1085,14 @@ def student_behavior_pdf(request, student_id):
         memberships__is_active=True,
     )
 
-    # تقييد الوصول: المعلم/المنسق يرى طلابه فقط
-    if not teacher_can_access_student(request.user, student.id):
-        return forbidden_page(request, "هذا الطالب ليس من طلابك — لا يمكنك طباعة تقريره السلوكي.")
+    # تقييد الوصول: المعلم/المنسق يرى طلابه فقط، والمشرفُ طلبةَ جناحه
+    denied = _deny_unreachable(
+        request, student.id, "هذا الطالب ليس من طلابك — لا يمكنك طباعة تقريره السلوكي."
+    )
+    if denied:
+        return denied
 
-    year = request.GET.get("year") or academic_year_for(request)
+    year = _report_year(request)
     period = request.GET.get("period", "full")
 
     report = BehaviorService.get_student_report_data(student, school, period, year)
