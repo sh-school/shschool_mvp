@@ -74,6 +74,8 @@ const WEB_VARIABLES = [
   "STATIC_ROOT",
   "STATIC_URL",
   "TIME_ZONE",
+  // بابُ طوارئ الثنائيّة (قرار 2026-09-14: مجمَّدة مؤقّتاً) — لولا ذكرُه هنا لحذفه `apply` التالي فعاد الإلزامُ فجأة.
+  "TWO_FACTOR_REQUIRED_FOR_STAFF",
 ] as const;
 
 const WORKER_VARIABLES = [
