@@ -438,6 +438,20 @@ WING_DAY_RECORD = frozenset(
 #: قبولُ عذرِ غيابٍ بعد مهلة اليومين (الدليل 2026 م 3.4.1.5) — النائبُ الإداريّ لا المشرف.
 EXCUSE_AFTER_DEADLINE = frozenset({"vice_admin", "principal", "platform_developer"})
 
+#: من يُحصر في طلبة جناحه متى بلغ شاشةَ طلبة (قرارا 2026-09-14/15: «المشرفُ لجناحه فقط»).
+#: تُقارَن بالدور **الخامّ** ولا تمرّ على `expand_roles`: النائبُ الإداريّ يرث المشرفَ في
+#: `ROLE_INHERITS`، ولو وُسِّعت لقُيِّد النائبُ بجناحٍ لا يحمله. وتطابق
+#: `WingCoverage.SUBSTITUTE_ROLES` — فالبديلُ المكلَّف يُقيَّد بجناحه إن مُنح شاشةَ طلبةٍ يوماً.
+#: والنطاقُ نفسُه في `wings/scope.py`.
+WING_BOUND_ROLES = frozenset({"admin_supervisor", "services_worker", "student_observer"})
+
+#: متابعةُ حضور الطلبة وتأخّرهم وسلوكهم في شؤون الطلبة: القيادةُ للمدرسة، والمشرفُ لجناحه.
+#: الدليلُ 2026: الغيابُ اليوميّ وإخطارُ وليّ الأمر، والتأخّرُ الصباحيُّ من أوّل مرّة (م 3.4.2.2).
+STUDENT_FOLLOW_UP = STUDENT_AFFAIRS_MANAGE | frozenset({"admin_supervisor"})
+
+#: قائمةُ الطلبة في شؤون الطلبة: من يرى السجلَّ اليوم، والمشرفُ لجناحه.
+STUDENT_REGISTER_READ = STUDENT_AFFAIRS_VIEW | frozenset({"admin_supervisor"})
+
 
 # ══════════════════════════════════════════════════════════════════════
 # 2. ROLE GROUPS — مجموعات جاهزة للاستخدام في الديكوريتور
