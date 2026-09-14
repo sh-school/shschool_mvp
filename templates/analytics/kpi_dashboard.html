@@ -23,7 +23,7 @@
       <option value="A4" selected>A4</option>
       <option value="A3">A3</option>
     </select>
-    <a id="kpiPdfLink" href="{% url 'kpi_monthly_pdf' %}?year={{ year }}&paper=A4" class="btn-secondary btn-sm">
+    <a data-app-file id="kpiPdfLink" href="{% url 'kpi_monthly_pdf' %}?year={{ year }}&paper=A4" class="btn-secondary btn-sm">
       {% icon "export_pdf" %} تقرير PDF
     </a>
   {% endpage_header %}

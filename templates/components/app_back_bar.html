@@ -1,0 +1,55 @@
+{% load brand_tags static %}
+{% comment %}
+شريطُ «رجوع إلى المنصّة» — للأوراق المستقلّة التي لا تمتدّ من base.html.
+
+في التطبيق المثبَّت على الجوال لا شريطَ متصفّح، فالورقةُ المفتوحة صفحةً كاملة
+(الجداول، الكشوف، النماذج) كانت طريقاً مسدوداً: لا يُخرج منها إلّا بإغلاق التطبيق.
+
+يولد مخفيّاً (`hidden`) ويُظهره js/app-mode.js في التطبيق وحدَه وخارجَ أيّ إطار —
+فلا يراه المتصفّحُ العاديّ ولا الورقةُ المضمَّنةُ في المنصّة، ولا يُطبع، ولا يبلغ
+مولّدَ PDF (يحترم `hidden`). والرابطُ إلى الرئيسيّة يعمل بلا سكربت؛ والسكربتُ
+يُرجع خطوةً إلى الصفحة التي فُتحت منها الورقة إن كانت من المنصّة.
+
+والورقةُ بعرض A4 بلا `meta viewport`، فالجوالُ يصغّرها لتتّسع — ويصغر معها كلُّ
+ما فيها. فالشريطُ ثابتٌ على عرض الشاشة (`position: fixed`) لا على عرض الورقة،
+والسكربتُ يكبّره (`zoom`) بقدر التصغير فيبقى زرّاً يُلمس. والغلافُ يحجز ارتفاعَه
+فلا يغطّي رأسَ الورقة الأولى.
+{% endcomment %}
+<style>
+  .app-back-bar-space:not([hidden]) { display: block; block-size: 60px; }
+  .app-back-bar {
+    position: fixed;
+    inset-block-start: 0;
+    inset-inline: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    min-block-size: 60px;
+    padding: env(safe-area-inset-top, 0px) 12px 0;
+    background: {% brand_color "MAROON" %};
+    font-family: "Tajawal", system-ui, sans-serif;
+    direction: rtl;
+  }
+  .app-back-bar a {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-block-size: 44px;
+    padding-inline: 14px;
+    border-radius: 10px;
+    color: {% brand_color "ON_FILL" %};
+    font-size: 16px;
+    font-weight: 700;
+    white-space: nowrap;
+    text-decoration: none;
+  }
+  .app-back-bar a:active { background: {% brand_color "MAROON_DARK" %}; }
+  @media print { .app-back-bar-space { display: none !important; } }
+</style>
+<div class="app-back-bar-space" data-app-back-bar hidden>
+  <nav class="app-back-bar" aria-label="العودة إلى المنصّة">
+    <a href="{% url 'dashboard' %}" data-app-back><span aria-hidden="true">→</span> رجوع إلى المنصّة</a>
+  </nav>
+</div>
+<script src="{% static 'js/app-mode.js' %}" defer></script>

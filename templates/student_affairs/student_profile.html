@@ -16,8 +16,8 @@
     <a href="{% url 'behavior:student_profile' student.id %}" class="btn-secondary btn-sm">{% icon "behavior" %} الملف السلوكي</a>
     <a href="{% url 'behavior:summon_parent_student' student.id %}" class="btn-secondary btn-sm">{% icon "call_parent" %} استدعاء ولي الأمر</a>
     <a href="{% url 'behavior:report_infraction' %}" class="btn-secondary btn-sm">{% icon "behavior_violation" %} تسجيل مخالفة</a>
-    <a href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">{% icon "grades" %} كشف الدرجات</a>
-    <a href="{% url 'student_affairs:student_profile_pdf' student.id %}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>
+    <a data-app-file href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">{% icon "grades" %} كشف الدرجات</a>
+    <a data-app-file href="{% url 'student_affairs:student_profile_pdf' student.id %}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>
     <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 

@@ -572,6 +572,12 @@ body {
   line-height: 1;
   flex-shrink: 0;
 }
+/* الأيقونتان في الزرّ دائماً، والحالُ في aria-expanded — لا يُبدَّل محتوى الزرّ عند النقر. */
+.nav-hamburger-open,
+.nav-hamburger-close { display: inline-flex; }
+.nav-hamburger-close,
+.nav-hamburger[aria-expanded="true"] .nav-hamburger-open { display: none; }
+.nav-hamburger[aria-expanded="true"] .nav-hamburger-close { display: inline-flex; }
 
 /* مساحة مرنة لدفع عناصر اليمين */
 .nav-spacer { flex: 1; }
@@ -2103,6 +2109,22 @@ body { padding-bottom: 72px; }
 }
 .nb-bar .nb:hover, .nb-bar .nb:active { background: var(--maroon-bg); color: var(--maroon-fg); }
 .nb-bar .chv { display: none; }
+
+/* لوحةُ الجوال والقائمةُ الفرعيّة معاً: اللوحةُ تنكمش إلى يمين الشاشة، والفرعيّةُ
+   عائمةٌ على يسارها — لا فوقها (base.js: `sdPlace`). وفوق 641px لا شيءَ من هذا. */
+@media (max-width: 640px) {
+  .nb-bar.nb-split { inset-inline-end: auto; inline-size: 50%; }
+  .sd-menu.sd-drawer {
+    left: 6px;
+    inline-size: calc(50% - 12px);
+    min-width: 0;
+    max-height: calc(100vh - 140px); /* فوق شريط التنقّل السفليّ لا تحته */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sd-menu.sd-drawer a { white-space: normal; padding-inline: 12px; }
+  .sd-menu.sd-drawer .sd-label { padding-inline: 12px; }
+}
 
 @media (min-width: 641px) {
   #mob-menu-btn { display: none; }
