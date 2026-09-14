@@ -22,6 +22,7 @@
 `#D4A843`. فالنسخُ ممنوعٌ: كلُّ لونٍ هناك نافذةٌ على رمزٍ عبر `var()`.
 """
 
+import os
 import pathlib
 import re
 
@@ -88,6 +89,68 @@ def test_the_templates_use_no_token_the_platform_never_defines():
     assert not offenders, "رموزٌ لا وجودَ لها، والتصريحُ معها يسقط صامتاً:\n" + "\n".join(
         f"  {path}: " + ", ".join("--" + name for name in names)
         for path, names in sorted(offenders.items())
+    )
+
+
+#: درجاتُ السلالم الأساسيّة — تبقى وإن لم تُستعمل بعد، فالسلّمُ الناقص درجةً
+#: يُلجئ أوّلَ من يحتاجها إلى كتابة `40px` بيده. وتحويلُ مقاساتِ البكسل إلى
+#: رموزٍ سيأخذ منها.
+SCALE_TOKENS = {
+    "sp-10",
+    "sp-12",
+    "sp-16",
+    "dur-fast",
+    "dur-slow",
+    "ease-default",
+    "transition-slow",
+    "lh-tight",
+    "z-sticky",
+    "shadow-modal",
+}
+
+
+#: جذورٌ لا تقرأ رموزَ الواجهة: وثائقُ وسجلّاتٌ وإعداداتُ خوادم.
+NOT_CODE_ROOTS = {"docs", "logs", "grafana", "nginx"}
+
+
+def _consumer_sources():
+    """ما يقرأ الرموز: القوالبُ والسكربتاتُ وبايثون وإعدادُ تايلويند.
+
+    وتُطلب الرموزُ فيها باسمها المجرّد أحياناً — `chartColor('chart-2')`،
+    وقائمةُ ألوان الأقسام في `core/brand.py` — فالاسمُ وحدَه استعمال.
+    """
+    for directory, subdirs, files in os.walk("."):
+        parts = pathlib.Path(directory).parts
+        if parts and (
+            parts[0] in SKIP_ROOTS | NOT_CODE_ROOTS
+            or parts[0].startswith(".")
+            or {"vendor", "migrations", "__pycache__"} & set(parts)
+        ):
+            subdirs[:] = []
+            continue
+        for name in files:
+            if name.endswith((".html", ".js", ".py")) and not name.endswith(".min.js"):
+                yield pathlib.Path(directory, name)
+
+
+def test_no_token_is_defined_that_nothing_reads():
+    """رمزٌ لا يقرؤه شيءٌ دَينٌ صامت.
+
+    كان في `custom.css` خمسون رمزاً كهذه، أكثرُها بقايا مكوّناتٍ رحلت إلى
+    مكوّنات الواجهة (`--caution-*`، `--paper-*`، `--status-*-mark`)، ولكلٍّ
+    منها نظيرٌ ليليّ. فمن يبحث عن لون «التنبيه» يجد رمزين ولا يدري أيّهما
+    الحيّ، ومن يغيّر الميّتَ لا يرى أثراً فيظنّ الخللَ في غيره.
+    """
+    css = COMMENT_RE.sub("", CSS.read_text(encoding="utf-8"))
+    defined = _defined_in(css)
+    read_in_css = set(re.findall(r"var\(\s*--([a-zA-Z0-9_-]+)", css))
+    words = set()
+    for source in _consumer_sources():
+        text = source.read_text(encoding="utf-8", errors="ignore")
+        words |= {word.lstrip("-") for word in re.findall(r"[a-zA-Z0-9_-]+", text)}
+    idle = sorted(defined - read_in_css - words - SCALE_TOKENS)
+    assert not idle, "رموزٌ معرَّفةٌ لا يقرؤها شيء — احذفها أو استعملها:\n  " + "\n  ".join(
+        "--" + name for name in idle
     )
 
 
