@@ -1,32 +1,34 @@
 """حضورُ الموظّفين والأذوناتُ القصيرة — القواعدُ والخدمة.
 
-المرجع الوحيد: ``AAdocs/ministry_data/2026_2027/06_attendance_performance_review.md``
-§1 «سياسة وضوابط الحضور والانصراف» (ت/د: 2027/01 بتاريخ 2026-08-23، مدرسة
-الشحانية)، و``07_forms_catalog.md`` جدول 1 بند 02 (نموذج طلب تأخير / استئذان /
-خروج مبكر). وأرقامُ البنود أدناه أرقامُ الوثيقة نفسِها.
+المصادر (``AAdocs/ministry_data/2026_2027/``)، والأرقامُ بعد النقطتين أرقامُ الأسطر:
+
+* ``06_attendance_performance_review.md`` §1 «سياسة وضوابط الحضور والانصراف»
+  (ت/د: 2027/01 بتاريخ 2026-08-23، مدرسة الشحانية). وأرقامُ البنود أرقامُ الوثيقة.
+* ``07_forms_catalog.md:13`` و``07b_forms_catalog_thirdpass.md:13`` — نموذج 02
+  (طلب تأخير / استئذان / خروج مبكر) ومراحلُ اعتماده.
+* ``03_job_descriptions_rbac.md:101`` و``rbac_permissions_matrix.md:55`` — السكرتيرُ
+  «متابعة الحضور والانصراف للموظفين» بصلاحية كتابة على ATTENDANCE.
+* ``rbac_roles.json`` — «reports_to» لكلّ مسمّى: من المسؤولُ المباشر.
 
 الفلسفة: **يحسب ولا ينفّذ آليّاً** — تُصنَّف الحالةُ وتُعدّ الدقائق، ولا خصمَ ولا
-جزاءَ يُطلقه النظام؛ الخصمُ (البند 5) قرارٌ إداريٌّ على التقرير الشهريّ.
+جزاءَ يُطلقه النظام؛ الخصمُ (البند 5، 06:67-69) قرارٌ إداريٌّ على التقرير الشهريّ.
 
 قراءةُ الحدود من النصّ حرفاً:
 
-* البند 2.1 «يعتبر الموظف متأخراً إذا حضر **بعد** الساعة 7:00 صباحاً» ← 7:00
-  بالضبط حاضر، و7:01 متأخّر.
-* البند 2.4 «يعتبر الموظف غائباً إذا حضر **بعد** الساعة التاسعة صباحاً دون إذن
-  أو عذر مقبول» ← 9:00 بالضبط متأخّرٌ لا غائب، و9:01 غائب؛ والإذنُ المعتمد يرفع
-  الغياب.
-* البند 4.2 (ومثله 3.4) «الحد الأقصى للأذونات بواقع (7) ساعات في الشهر» ← 420
-  دقيقةً في الشهر الميلاديّ، والسبعُ كاملةً جائزة.
-* البند 4.3 (ومثله 3.5) «لا يجوز الإذن أكثر من مرة واحدة في اليوم الواحد».
-* البند 4.4 (ومثله 3.6) «الحد الأقصى للإذن ساعتين في المرة الواحدة» ← 120 دقيقة
-  جائزة، و121 مرفوضة.
-* البند 4.1 «لا يجوز الاعتداد بالإذن إلا بعد اعتماده من الرئيس المباشر» ← الرصيدُ
-  يُخصم بالاعتماد لا بالتقديم.
-
-انحرافٌ مؤقّتٌ ينتظر قرارَ المالك: البند 4.1 ونموذج 02 يجعلان الاعتمادَ للرئيس
-المباشر ثمّ النائب ثمّ السكرتارية ثمّ الإدارة. والمنصّةُ لا تعرف «الرئيسَ المباشر»
-لكلّ موظّف، فالاعتمادُ هنا لحاملي قدرة ``staff_affairs.manage`` في خطوةٍ واحدة،
-ولا يعتمد أحدٌ إذنَه هو — افتراضُ المنصّة، لا قرارٌ مسجَّل.
+* البند 2.1 (06:31) «يعتبر الموظف متأخراً إذا حضر **بعد** الساعة 7:00 صباحاً» ←
+  7:00 بالضبط حاضر، و7:01 متأخّر.
+* البند 2.4 (06:34) «يعتبر الموظف غائباً إذا حضر **بعد** الساعة التاسعة صباحاً دون
+  إذن أو عذر مقبول» ← 9:00 بالضبط متأخّرٌ لا غائب، و9:01 غائب؛ والإذنُ يرفع الغياب.
+* البند 4.2 (06:57، ومثله 3.4 في 06:45) «الحد الأقصى للأذونات بواقع (7) ساعات في
+  الشهر» ← 420 دقيقةً في الشهر الميلاديّ، والسبعُ كاملةً جائزة.
+* البند 4.3 (06:58، ومثله 3.5 في 06:46) «لا يجوز الإذن أكثر من مرة واحدة في اليوم».
+* البند 4.4 (06:59، ومثله 3.6 في 06:47) «الحد الأقصى للإذن ساعتين في المرة الواحدة»
+  ← 120 دقيقة جائزة، و121 مرفوضة.
+* البند 4.1 (06:56) «لا يجوز الاعتداد بالإذن إلا بعد اعتماده من الرئيس المباشر»،
+  ونموذج 02 (07:13): «المسؤول المباشر ← النائب المسؤول ← السكرتارية (تسجّل رصيد
+  الساعات) ← الإدارة … ولا يخرج الموظف فعلياً إلا بعد اعتماد مدير المدرسة» ← ثلاثُ
+  مراحل (المسؤولُ المباشرُ هو النائبُ نفسُه في rbac_roles.json)، والرصيدُ يُخصم
+  باعتماد المدير لا بالتقديم.
 """
 
 from __future__ import annotations
@@ -120,6 +122,11 @@ def _audit(
     )
 
 
+def _role_of(user: CustomUser) -> str:
+    """الدورُ الحاكمُ للمستخدم — ما يفحصه الحارسُ نفسُه."""
+    return str(user.get_role())  # type: ignore[no-untyped-call]
+
+
 def staff_members(school: School) -> QuerySet[CustomUser]:
     """كادرُ المدرسة النشط — أشخاصٌ لا عضويّات، بلا طلبةٍ ولا أولياء."""
     member_ids = (
@@ -144,6 +151,48 @@ class PermitBalance:
     @property
     def remaining(self) -> int:
         return max(0, self.cap - self.approved)
+
+
+#: المسؤولُ المباشر لكلّ دورٍ في المنصّة — من «reports_to» في rbac_roles.json، ورقمُ
+#: السطر سطرُ «title» المسمّى هناك. والمسمّياتُ الوزاريّةُ التي لا دورَ لها في المنصّة
+#: («منسق الدعم الإضافي» :154، «منسق شؤون الطالب» :173) لا تظهر هنا.
+LINE_MANAGER: dict[str, str] = {
+    "vice_admin": "principal",  # :21 نائب المدير للشؤون الإدارية وشؤون الطالب
+    "vice_academic": "principal",  # :28 نائب المدير للشؤون الأكاديمية
+    "secretary": "principal",  # :36 سكرتير مدرسة
+    "social_worker": "vice_admin",  # :43 أخصائي اجتماعي
+    "psychologist": "vice_admin",  # :50 أخصائي نفسي
+    "storekeeper": "vice_admin",  # :58 أمين مخزن
+    "services_worker": "vice_admin",  # :65 عامل خدمات
+    "lab_technician": "vice_academic",  # :72 محضر مختبر
+    "support_companion": "vice_admin",  # :79 مرافق الدعم
+    "it_technician": "vice_admin",  # :86 مسؤول تقنية معلومات
+    "librarian": "vice_academic",  # :97 مسؤول مركز مصادر التعلم
+    "admin_supervisor": "vice_admin",  # :105 مشرف اداري
+    "canteen_supervisor": "vice_admin",  # :112 مشرف مقصف
+    "ese_teacher": "vice_academic",  # :119 معلم دعم تعليمي إضافي
+    "teacher": "vice_academic",  # :126 معلم
+    "student_observer": "vice_admin",  # :133 ملاحظ طلبة
+    "nurse": "vice_admin",  # :140 ممرض
+    "messenger": "vice_admin",  # :147 مندوب
+    "e_projects_coordinator": "vice_academic",  # :161 منسق المشاريع الالكترونية
+    "coordinator": "vice_academic",  # :181 منسق مادة
+    "receptionist": "vice_admin",  # :188 موظف استقبال
+}
+
+#: من يعمل في كلّ مرحلةٍ بعد الأولى — والأولى بحسب صاحب الطلب (``LINE_MANAGER``).
+STAGE_ROLE = {"secretary": "secretary", "principal": "principal"}
+
+
+def line_manager_role(role: str) -> str:
+    """دورُ المسؤول المباشر لصاحب الدور — وما صمت عنه المصدرُ يُرفض باسمه."""
+    try:
+        return LINE_MANAGER[role]
+    except KeyError:
+        raise PolicyError(
+            f"لا مسؤولَ مباشرٌ لدور «{role}» في بطاقات الوصف الوظيفيّ (rbac_roles.json) — "
+            "يُحدَّد قبل أن يُقدَّم الإذن."
+        ) from None
 
 
 class PermitService:
@@ -226,6 +275,7 @@ class PermitService:
             raise PolicyError("«إلى الساعة» يجب أن تكون بعد «من الساعة».")
         if not reason.strip():
             raise PolicyError("سببُ الطلب مطلوب (نموذج 02).")
+        supervisor_role = line_manager_role(_role_of(staff))
         CustomUser.objects.select_for_update().filter(pk=staff.pk).first()
         duration = minutes_between(start_time, end_time)
         PermitService._check_rules(
@@ -240,6 +290,7 @@ class PermitService:
             end_time=end_time,
             duration_minutes=duration,
             reason=reason.strip()[:500],
+            supervisor_role=supervisor_role,
             created_by=staff,
             updated_by=staff,
         )
@@ -247,27 +298,48 @@ class PermitService:
         return permit
 
     @staticmethod
+    def required_role(permit: PermitRequest) -> str:
+        """دورُ من يعمل في مرحلة الطلب الآن."""
+        if permit.stage == "supervisor":
+            return permit.supervisor_role
+        return STAGE_ROLE.get(permit.stage, "")
+
+    @staticmethod
     @transaction.atomic
-    def review(
+    def act(
         permit: PermitRequest,
         *,
-        reviewer: CustomUser,
+        actor: CustomUser,
         approve: bool,
         reason: str = "",
         request: HttpRequest | None = None,
     ) -> PermitRequest:
-        """اعتمادٌ أو رفض.
+        """مرحلةٌ واحدةٌ من نموذج 02 — تحت قفل صفّ الموظّف فلا تتسابق مرحلتان.
 
-        الاعتمادُ يُعيد فحصَ البندين 4.3 و4.2 على المعتمَد وحده تحت قفل صفّ الموظّف،
-        فاعتمادان متزامنان لا يتجاوزان السقف؛ والقيدُ في القاعدة يحسم ما فات القفل.
+        * المسؤولُ المباشر: موافق/غير موافق.
+        * السكرتارية: تسجّل رصيدَ الساعات (المتبقّي قبل الطلب) واسمَها ووقتَها
+          (07b:13)، ولا قرارَ لها في المصدر — فإن جاوز الطلبُ السقفَ (4.2) سُجّل
+          رفضاً باسم البند لا بتقديرها.
+        * مديرُ المدرسة: الاعتمادُ النهائيّ (07:13)، ويُعاد فحصُ 4.3 و4.2 على المعتمَد،
+          وبه وحدَه يُخصم الرصيد (4.1).
         """
         CustomUser.objects.select_for_update().filter(pk=permit.staff_id).first()
         permit.refresh_from_db()
         if permit.status != "pending":
             raise PolicyError(f"الطلبُ «{permit.get_status_display()}» — لا يُراجَع ثانيةً.")
-        if reviewer.pk == permit.staff_id:
-            raise PolicyError("لا يعتمد أحدٌ إذنَه (البند 4.1: الاعتمادُ من الرئيس المباشر).")
-        if approve:
+        if actor.pk == permit.staff_id:
+            raise PolicyError("لا يعمل أحدٌ في طلبه هو (البند 4.1: الاعتمادُ من غيره).")
+        if _role_of(actor) != PermitService.required_role(permit):
+            raise PolicyError(f"الطلبُ بانتظار «{permit.get_stage_display()}» لا دورك.")
+        stage, now = permit.stage, timezone.now()
+        if stage == "secretary":
+            approve, reason = PermitService._record_balance(permit, actor, now)
+        if not approve:
+            permit.status, permit.rejected_stage, permit.stage = "rejected", stage, "closed"
+            permit.rejection_reason = reason.strip()[:300]
+        elif stage == "supervisor":
+            permit.supervisor_by, permit.supervisor_at, permit.stage = actor, now, "secretary"
+        elif stage == "principal":
             PermitService._check_rules(
                 permit.school,
                 permit.staff,
@@ -276,20 +348,34 @@ class PermitService:
                 open_statuses=("approved",),
                 exclude_pk=permit.pk,
             )
-        permit.status = "approved" if approve else "rejected"
-        permit.reviewed_by = reviewer
-        permit.reviewed_at = timezone.now()
-        permit.rejection_reason = "" if approve else reason.strip()[:300]
-        permit.updated_by = reviewer
+            permit.status, permit.stage = "approved", "closed"
+            permit.reviewed_by, permit.reviewed_at = actor, now
+        permit.updated_by = actor
         try:
             with transaction.atomic():
                 permit.save()
         except IntegrityError as exc:
             raise PolicyError("لا يجوز الإذنُ أكثرَ من مرّةٍ في اليوم الواحد (البند 4.3).") from exc
-        _audit(reviewer, "update", permit, {"status": ["pending", permit.status]}, request)
-        if approve:
+        _audit(actor, "update", permit, {"stage": stage, "status": permit.status}, request)
+        if permit.status == "approved":
             StaffAttendanceService.sync_permit_minutes(permit.school, permit.staff, permit.date)
         return permit
+
+    @staticmethod
+    def _record_balance(
+        permit: PermitRequest, actor: CustomUser, now: datetime
+    ) -> tuple[bool, str]:
+        """مربّعُ السكرتارية: الرصيدُ المتبقّي قبل الطلب، ثمّ المرحلةُ التالية أو الرفضُ بالبند."""
+        used = PermitService._month_minutes(
+            permit.school, permit.staff, permit.date, ("approved",), permit.pk
+        )
+        remaining = max(0, MONTHLY_PERMIT_CAP - used)
+        permit.recorded_balance_minutes = remaining
+        permit.secretary_by, permit.secretary_at = actor, now
+        if permit.duration_minutes > remaining:
+            return False, f"يتجاوز سقفَ الأذونات الشهريّ (البند 4.2): المتبقّي {remaining} دقيقة."
+        permit.stage = "principal"
+        return True, ""
 
     @staticmethod
     def own_permits(school: School, staff: CustomUser) -> QuerySet[PermitRequest]:
@@ -298,9 +384,14 @@ class PermitService:
         )[:50]
 
     @staticmethod
-    def pending(school: School) -> QuerySet[PermitRequest]:
+    def awaiting(school: School, user: CustomUser) -> QuerySet[PermitRequest]:
+        """الطلباتُ المعلّقةُ في مرحلة دور هذا المستخدم — لا طلبُه هو."""
+        role = _role_of(user)
+        stages = [stage for stage, stage_role in STAGE_ROLE.items() if stage_role == role]
+        in_my_stage = Q(stage="supervisor", supervisor_role=role) | Q(stage__in=stages)
         return (
-            PermitRequest.objects.filter(school=school, status="pending")
+            PermitRequest.objects.filter(in_my_stage, school=school, status="pending")
+            .exclude(staff=user)
             .select_related("staff")
             .order_by("date", "created_at")
         )

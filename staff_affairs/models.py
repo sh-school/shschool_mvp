@@ -240,6 +240,17 @@ PERMIT_STATUS = [
     ("cancelled", "ملغى"),
 ]
 
+#: مراحلُ نموذج 02 بترتيبها — 07_forms_catalog.md:13 و07b_forms_catalog_thirdpass.md:13:
+#: «المسؤول المباشر ← النائب المسؤول ← السكرتارية (تسجّل رصيد الساعات) ← الإدارة».
+#: والمسؤولُ المباشرُ في المصدر هو النائبُ نفسُه لكلّ مسمّى (rbac_roles.json «reports_to»)،
+#: فالمربّعان الأوّلان توقيعٌ واحد.
+PERMIT_STAGES = [
+    ("supervisor", "المسؤول المباشر"),
+    ("secretary", "السكرتارية"),
+    ("principal", "مدير المدرسة"),
+    ("closed", "مغلق"),
+]
+
 
 class PermitRequest(AuditedModel):
     """طلبُ إذنٍ قصير: تأخيرٌ صباحيّ أو استئذانٌ أثناء الدوام أو خروجٌ مبكر (نموذج 02).
@@ -252,7 +263,11 @@ class PermitRequest(AuditedModel):
     ``LeaveRequest`` كان سيجعل نصفَ حقوله فارغاً في كلّ صفّ، ويخلط رصيدين
     بوحدتين مختلفتين في جدولٍ واحد.
 
-    والرصيدُ لا يُخزَّن: يُجمع من الأذونات المعتمدة في الشهر (``PermitService``).
+    والمراحلُ مراحلُ النموذج (``PERMIT_STAGES``): توقيعُ المسؤول المباشر، ثمّ
+    السكرتاريةُ تسجّل رصيدَ الساعات واسمَها ووقتَ تسجيلها (07b:13)، ثمّ اعتمادُ
+    مدير المدرسة — «ولا يخرج الموظف فعلياً إلا بعد اعتماد مدير المدرسة» (07:13).
+    والرصيدُ لا يُخزَّن حيّاً: يُجمع من الأذونات المعتمدة في الشهر (``PermitService``)،
+    وما تسجّله السكرتاريةُ لقطةٌ لما رأته يومَ سجّلت.
     """
 
     school = models.ForeignKey(
@@ -276,6 +291,33 @@ class PermitRequest(AuditedModel):
     status = models.CharField(
         max_length=10, choices=PERMIT_STATUS, default="pending", verbose_name="الحالة"
     )
+    stage = models.CharField(
+        max_length=10, choices=PERMIT_STAGES, default="supervisor", verbose_name="المرحلة"
+    )
+    #: دورُ المسؤول المباشر يومَ التقديم — لقطةٌ لا تتبدّل بتبدّل دور الموظّف بعده.
+    supervisor_role = models.CharField(max_length=30, verbose_name="دور المسؤول المباشر")
+    supervisor_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="supervised_permit_requests",
+        verbose_name="المسؤول المباشر",
+    )
+    supervisor_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت موافقة المسؤول")
+    secretary_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="recorded_permit_requests",
+        verbose_name="موظف السكرتارية",
+    )
+    secretary_at = models.DateTimeField(null=True, blank=True, verbose_name="توقيت تسجيل الرصيد")
+    #: «رصيد الساعات» في مربّع السكرتارية (07b:13): المتبقّي من السقف الشهريّ قبل هذا الطلب.
+    recorded_balance_minutes = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="رصيد الساعات المسجّل (دقائق)"
+    )
     reviewed_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
@@ -286,13 +328,17 @@ class PermitRequest(AuditedModel):
     )
     reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ المراجعة")
     rejection_reason = models.CharField(max_length=300, blank=True, verbose_name="سبب الرفض")
+    rejected_stage = models.CharField(
+        max_length=10, choices=PERMIT_STAGES, blank=True, verbose_name="مرحلة الرفض"
+    )
 
     class Meta:
         ordering = ["-date", "-created_at"]
         verbose_name = "طلب إذن"
         verbose_name_plural = "طلبات الأذونات"
         constraints = [
-            # البند 4.3: «لا يجوز الإذن أكثر من مرة واحدة في اليوم الواحد».
+            # البند 4.3 (06_attendance_performance_review.md:58):
+            # «لا يجوز الإذن أكثر من مرة واحدة في اليوم الواحد».
             models.UniqueConstraint(
                 fields=["school", "staff", "date"],
                 condition=models.Q(status="approved"),
@@ -303,7 +349,8 @@ class PermitRequest(AuditedModel):
                 condition=models.Q(end_time__gt=models.F("start_time")),
                 name="permit_end_after_start",
             ),
-            # البند 4.4: «الحد الأقصى للإذن ساعتين في المرة الواحدة».
+            # البند 4.4 (06_attendance_performance_review.md:59):
+            # «يكون الحد الأقصى للإذن ساعتين في المرة الواحدة».
             # django-stubs 5.0.2 لا يعرف `condition` (Django 5.1).
             models.CheckConstraint(  # type: ignore[call-arg]
                 condition=models.Q(duration_minutes__gt=0, duration_minutes__lte=120),
@@ -312,7 +359,7 @@ class PermitRequest(AuditedModel):
         ]
         indexes = [
             models.Index(fields=["school", "staff", "date"]),
-            models.Index(fields=["school", "status"]),
+            models.Index(fields=["school", "status", "stage"]),
         ]
 
     def __str__(self) -> str:

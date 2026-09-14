@@ -42,6 +42,7 @@
             <th class="col-center">من – إلى</th>
             <th class="num">الدقائق</th>
             <th class="col-center">الحالة</th>
+            <th class="col-center">المرحلة</th>
             <th>ملاحظة</th>
           </tr>
         </thead>
@@ -53,6 +54,7 @@
             <td class="col-center" dir="ltr">{{ p.start_time|time:"H:i" }} – {{ p.end_time|time:"H:i" }}</td>
             <td class="num">{{ p.duration_minutes }}</td>
             <td class="col-center"><span class="status-badge {% if p.status == 'approved' %}status-success{% elif p.status == 'rejected' %}status-danger{% elif p.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ p.get_status_display }}</span></td>
+            <td class="col-center text-xs">{{ p.get_stage_display }}</td>
             <td class="text-xs">{{ p.rejection_reason|default:"—" }}</td>
           </tr>
           {% endfor %}

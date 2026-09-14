@@ -303,6 +303,8 @@
       {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% icon "dashboard" %} الرئيسية</a>
       {% endif %}
+      {% if role == "secretary" %}<a href="{% url 'staff_affairs:attendance_board' %}" class="nb">{% icon "attendance_register" %} حضور الموظفين</a>
+      <a href="{% url 'staff_affairs:permit_queue' %}" class="nb">{% icon "tardiness" %} طلبات الأذونات</a>{% endif %}
       {% if role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="nb">{% icon "attendance_register" %} رصد الغياب</a>
       {% if request.user|can_open:"wings:floors" %}
       <a href="{% url 'wings:floors' %}" class="nb">{% icon "wings" %} أجنحة المدرسة</a>
@@ -514,7 +516,11 @@
   {% endif %}
   {% if request.user|can_open:"staff_affairs:attendance_board" %}
   <a href="{% url 'staff_affairs:attendance_board' %}">{% icon "attendance_register" %} رصد حضور الموظفين</a>
+  {% endif %}
+  {% if request.user|can_open:"staff_affairs:attendance_report" %}
   <a href="{% url 'staff_affairs:attendance_report' %}">{% icon "reports" %} تقرير الحضور الشهري</a>
+  {% endif %}
+  {% if request.user|can_open:"staff_affairs:permit_queue" %}
   <a href="{% url 'staff_affairs:permit_queue' %}">{% icon "tardiness" %} طلبات الأذونات</a>
   {% endif %}
   <hr>

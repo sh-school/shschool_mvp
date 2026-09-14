@@ -114,7 +114,35 @@ def registry() -> dict[str, Capability]:
             "طلبُ إذنٍ قصيرٍ للموظّف نفسه",
             P.ALL_STAFF_ROLES,
             scope="طلباتُ المستخدم نفسِه ورصيدُه",
-            basis="07_forms_catalog.md جدول 1 بند 02 — يقدّمه الموظّف ويوقّعه",
+            basis="07_forms_catalog.md:13 (نموذج 02) — يقدّمه الموظّف ويوقّعه",
+        ),
+        _cap(
+            "staff_affairs.attendance_record",
+            "رصدُ حضور الموظّفين اليوميّ",
+            {"principal", "secretary"},
+            basis=(
+                "03_job_descriptions_rbac.md:101 السكرتير «متابعة الحضور والانصراف للموظفين»؛ "
+                "rbac_permissions_matrix.md:55 كتابة ATTENDANCE؛ والمديرُ مالكُ الوحدات (:45)"
+            ),
+        ),
+        _cap(
+            "staff_affairs.attendance_report",
+            "تقريرُ حضور الموظّفين الشهريّ",
+            {"principal", "vice_admin", "vice_academic", "secretary"},
+            basis=(
+                "من يرصد (03:101) ومن يقيّم: بندُ «الالتزام بسياسة الحضور والانصراف» في "
+                "استمارات التقييم (06b_attendance_performance_thirdpass.md:178، 06:250)"
+            ),
+        ),
+        _cap(
+            "staff_affairs.permits_review",
+            "مراحلُ اعتماد الأذونات القصيرة",
+            {"principal", "vice_admin", "vice_academic", "secretary"},
+            scope="الطلباتُ في مرحلة دور المستخدم وحدَها",
+            basis=(
+                "07_forms_catalog.md:13 و07b_forms_catalog_thirdpass.md:13 — المسؤول المباشر "
+                "(rbac_roles.json reports_to) ← السكرتارية ← مدير المدرسة"
+            ),
         ),
         _cap(
             "audit.permissions_log",

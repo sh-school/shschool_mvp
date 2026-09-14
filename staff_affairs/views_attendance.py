@@ -62,7 +62,7 @@ def _month(raw: str | None) -> tuple[int, int]:
 
 
 @login_required
-@capability_required("staff_affairs.manage")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
+@capability_required("staff_affairs.attendance_record")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 def attendance_board(request: HttpRequest) -> HttpResponse:
     """رصدُ اليوم: الكادرُ كلُّه، وحالةُ كلٍّ بنقرة."""
     day = _day(request.GET.get("date"))
@@ -75,7 +75,7 @@ def attendance_board(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@capability_required("staff_affairs.manage")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
+@capability_required("staff_affairs.attendance_record")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 @require_POST
 def attendance_mark(request: HttpRequest) -> HttpResponse:
     """نقرةُ الرصد (HTMX) — تُعيد سطرَ الموظّف نفسَه، وخطأُ السياسة فيه باسم البند."""
@@ -108,7 +108,7 @@ def attendance_mark(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@capability_required("staff_affairs.manage")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
+@capability_required("staff_affairs.attendance_report")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 def attendance_report(request: HttpRequest) -> HttpResponse:
     """تقريرُ الشهر: جدولٌ لكلّ موظّف، وتنزيلُه Excel بالرقم الوظيفيّ."""
     year, month = _month(request.GET.get("month"))
@@ -121,7 +121,7 @@ def attendance_report(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@capability_required("staff_affairs.manage")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
+@capability_required("staff_affairs.attendance_report")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 def attendance_report_xlsx(request: HttpRequest) -> HttpResponse:
     """Excel التقرير — الرقم الشخصيّ: مستور (لا يُكتب أصلاً؛ الرقمُ الوظيفيّ وحدَه)."""
     year, month = _month(request.GET.get("month"))
@@ -176,21 +176,21 @@ def my_permits(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
-@capability_required("staff_affairs.manage")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
+@capability_required("staff_affairs.permits_review")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 def permit_queue(request: HttpRequest) -> HttpResponse:
-    """الطلباتُ المعلّقة للاعتماد أو الرفض."""
+    """الطلباتُ التي تنتظر مرحلةَ دور المستخدم في نموذج 02."""
     return render(
         request,
         "staff_affairs/permit_queue.html",
-        {"permits": PermitService.pending(_school(request))},
+        {"permits": PermitService.awaiting(_school(request), _user(request))},
     )
 
 
 @login_required
-@capability_required("staff_affairs.manage")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
+@capability_required("staff_affairs.permits_review")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 @require_POST
 def permit_review(request: HttpRequest, pk: UUID) -> HttpResponse:
-    """قرارُ طلبٍ واحد — والسياسةُ تُفحص ثانيةً عند الاعتماد."""
+    """مرحلةُ طلبٍ واحد — والخدمةُ تفحص أنّها مرحلةُ دور المستخدم."""
     form = PermitReviewForm(request.POST)
     if not form.is_valid():
         raise Http404("قرارٌ ناقص")
@@ -199,9 +199,9 @@ def permit_review(request: HttpRequest, pk: UUID) -> HttpResponse:
     except ObjectDoesNotExist as exc:
         raise Http404("لا طلبَ بهذا المعرّف") from exc
     try:
-        PermitService.review(
+        PermitService.act(
             permit,
-            reviewer=_user(request),
+            actor=_user(request),
             approve=form.cleaned_data["decision"] == "approve",
             reason=form.cleaned_data["rejection_reason"],
             request=request,
@@ -209,5 +209,7 @@ def permit_review(request: HttpRequest, pk: UUID) -> HttpResponse:
     except PolicyError as exc:
         messages.error(request, str(exc))
     else:
-        messages.success(request, f"الطلب: {permit.get_status_display()}.")
+        messages.success(
+            request, f"سُجّل: {permit.get_stage_display()} — {permit.get_status_display()}."
+        )
     return redirect("staff_affairs:permit_queue")
