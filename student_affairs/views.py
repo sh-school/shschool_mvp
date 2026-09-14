@@ -828,7 +828,7 @@ def attendance_export_excel(request):
     ctx = get_export_context(request, "تقرير الحضور والغياب")
     wb = openpyxl.Workbook()
 
-    # ── الغيابُ المتكرّر — والرقمُ الشخصيّ مستور: إحصاءُ غيابٍ كشفٌ جماعيّ ──
+    # ── الغيابُ المتكرّر ── الرقم الشخصيّ: مستور — إحصاءُ غيابٍ كشفٌ جماعيّ.
     absences = selectors.absence_ranking(
         school, today - timedelta(days=30), "student__full_name", "student__national_id"
     )
