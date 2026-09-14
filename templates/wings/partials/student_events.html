@@ -10,7 +10,7 @@
             <tr>
               <td>{{ e.session.date|date:"d/m" }}</td>
               <td>{{ e.session.start_time|time:"H:i" }} · {{ e.session.subject.name_ar|default:"—" }}</td>
-              <td>{% if e.status == "absent" %}<span class="status-badge status-danger">غائب</span>{% if e.whereabouts %} <small>{{ e.get_whereabouts_display }}</small>{% endif %}{% if e.excuse_type %} <small>بعذر</small>{% endif %}{% elif e.status == "late" %}<span class="status-badge status-warning">متأخّر {{ e.late_minutes|default:"—" }} د</span>{% else %}<span class="status-badge status-info">{{ e.get_status_display }}</span>{% endif %}</td>
+              <td>{% if e.status == "absent" %}<span class="status-badge status-danger">غائب</span>{% if e.whereabouts %} <small>{{ e.get_whereabouts_display }}</small>{% endif %}{% if e.excuse_type %} <small>بعذر: {{ e.get_excuse_type_display }}</small>{% endif %}{% elif e.status == "late" %}<span class="status-badge status-warning">متأخّر {{ e.late_minutes|default:"—" }} د</span>{% else %}<span class="status-badge status-info">{{ e.get_status_display }}</span>{% endif %}</td>
               <td><small>{{ e.get_source_display }}</small></td>
               {% if can_delete_events %}
               <td>

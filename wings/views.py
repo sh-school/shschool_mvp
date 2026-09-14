@@ -12,7 +12,7 @@ from django.utils import formats, timezone
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
-from core.capabilities import capability_required
+from core.capabilities import capability_required, has_capability
 from core.models import ClassGroup, CustomUser, Wing, WingCoverage
 from operations.absence_policy import next_gate
 from operations.absence_standing import unexcused_days_for_class
@@ -363,12 +363,15 @@ def student_events(request, class_id, student_id):
     الحذفُ بسبب، ويُسجَّل في سجلّ المراجعة، ويُعاد حكمُ الكشف على يومه فتزول مخالفةُ
     التأخّر أو الهروب التي بُنيت عليه. والخانةُ تعود «لم تُرصد» لا «حاضراً».
     """
-    from operations.models import ClassExit
+    from operations.excuses import GRACE_DAYS, kinds
+    from operations.models import AbsenceExcuse, ClassExit
 
     school, klass = _own_class(request, class_id)
     student = get_object_or_404(
         CustomUser, id=student_id, enrollments__class_group=klass, enrollments__is_active=True
     )
+    today = timezone.localdate()
+    focus_day = _day(request.GET.get("date"), today)
     attendance_events = list(
         StudentAttendance.objects.filter(student=student, school=school)
         .exclude(status="present")
@@ -389,8 +392,88 @@ def student_events(request, class_id, student_id):
             "attendance_events": attendance_events,
             "exit_events": exit_events,
             "can_delete_events": True,
+            # تحويلُ الغياب إلى «بعذرٍ مقبول» (قرارُ 2026-09-13) — القائمةُ المغلقة.
+            "excuses": AbsenceExcuse.objects.filter(student=student, school=school)
+            .select_related("granted_by")
+            .order_by("-date_from")[:20],
+            "excuse_kinds": kinds(),
+            "excuse_day": focus_day,
+            "grace_days": GRACE_DAYS,
+            "may_override": has_capability(request.user, "wings.excuse_after_deadline"),
         },
     )
+
+
+@login_required
+@capability_required("wings.record_day")
+@require_POST
+def excuse_grant(request, class_id, student_id):
+    """قبولُ عذرِ غيابٍ لطالبٍ من شُعب جناحي — في المهلة، أو بعدها بقدرة النائب."""
+    from operations.excuses import ExcuseError, grant_excuse
+
+    school, klass = _own_class(request, class_id)
+    student = get_object_or_404(
+        CustomUser, id=student_id, enrollments__class_group=klass, enrollments__is_active=True
+    )
+    back = reverse("wings:student_events", args=[klass.id, student.id])
+    date_from = _day(request.POST.get("date_from"))
+    date_to = _day(request.POST.get("date_to"), date_from)
+    if date_from is None:
+        messages.error(request, "اختر تاريخَ الغياب.")
+        return redirect(back)
+    try:
+        excuse = grant_excuse(
+            student=student,
+            school=school,
+            date_from=date_from,
+            date_to=date_to,
+            kind=request.POST.get("kind", ""),
+            notes=request.POST.get("notes", ""),
+            document=request.FILES.get("document"),
+            by=request.user,
+            may_override=has_capability(request.user, "wings.excuse_after_deadline"),
+            override_reason=request.POST.get("override_reason", ""),
+            ip=request.META.get("REMOTE_ADDR"),
+        )
+    except (ExcuseError, ValidationError) as err:
+        messages.error(request, " ".join(getattr(err, "messages", None) or [str(err)]))
+        return redirect(back)
+    messages.success(
+        request,
+        f"قُبل العذرُ ({excuse.get_kind_display()}) وغُطّي {excuse.rows.count()} حصّةً"
+        + (" — بعد المهلة." if excuse.after_deadline else "."),
+    )
+    return redirect(back)
+
+
+@login_required
+@capability_required("wings.record_day")
+@require_POST
+def excuse_revoke(request, pk):
+    """إلغاءُ عذرٍ بسبب — تعود حصصُه «بلا عذر»."""
+    from core.models import StudentEnrollment
+    from operations.excuses import ExcuseError, revoke_excuse
+    from operations.models import AbsenceExcuse
+
+    school = request.user.get_school()
+    excuse = get_object_or_404(AbsenceExcuse, pk=pk, school=school)
+    active = StudentEnrollment.objects.filter(student=excuse.student, is_active=True).first()
+    if active is None:
+        raise Http404("لا شعبةَ لهذا الطالب")
+    _own_class(request, active.class_group_id)
+    back = reverse("wings:student_events", args=[active.class_group_id, excuse.student_id])
+    try:
+        restored = revoke_excuse(
+            excuse,
+            by=request.user,
+            reason=request.POST.get("reason", ""),
+            ip=request.META.get("REMOTE_ADDR"),
+        )
+    except ExcuseError as err:
+        messages.error(request, str(err))
+        return redirect(back)
+    messages.success(request, f"أُلغي العذرُ وعادت {restored} حصّةً بلا عذر — وسُجّل في المراجعة.")
+    return redirect(back)
 
 
 @login_required
