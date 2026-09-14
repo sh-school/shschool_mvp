@@ -47,7 +47,7 @@ from core.models.school import School
 from core.models.user import CustomUser
 from core.sorting import blank_as_null, normalise_arabic
 from library.models import BookBorrowing
-from operations.models import AbsenceAlert, Session, StudentAttendance
+from operations.models import Session, StudentAttendance
 
 from .models import StudentActivity, StudentTransfer
 
@@ -355,17 +355,6 @@ def student_profile_pdf_records(
 # ─── الحضور والغياب ────────────────────────────────────────────────────────
 
 
-def attendance_counts_on(school: School, day: date) -> dict[str, int]:
-    """(حاضر، غائب، متأخّر، معذور، الكلّ) ليومٍ — استعلامٌ واحدٌ بدل خمسة."""
-    return StudentAttendance.objects.filter(school=school, session__date=day).aggregate(
-        total=Count("id"),
-        present=Count("id", filter=Q(status="present")),
-        absent=Count("id", filter=Q(status="absent")),
-        late=Count("id", filter=Q(status="late")),
-        excused=Count("id", filter=Q(status="excused")),
-    )
-
-
 def absence_ranking(school: School, since: date, *fields: str) -> QuerySet:
     """الغائبون منذ `since` مرتّبين بعدد غيابهم — الحقولُ المطلوبةُ وحدها."""
     ranking: QuerySet = (
@@ -421,15 +410,6 @@ def daily_attendance_trend(school: School, today: date, days: int = 14) -> Daily
         trend.present.append(attendance_rate(row["present"], row["total"]))
         trend.absent.append(attendance_rate(row["absent"], row["total"]))
     return trend
-
-
-def pending_absence_alerts(school: School, limit: int = 10) -> QuerySet[AbsenceAlert]:
-    alerts: QuerySet[AbsenceAlert] = (
-        AbsenceAlert.objects.filter(school=school, status="pending")
-        .select_related("student")
-        .order_by("-absence_count")[:limit]
-    )
-    return alerts
 
 
 def attendance_on_by_class(school: School, day: date) -> QuerySet[StudentAttendance]:

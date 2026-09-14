@@ -48,6 +48,7 @@ from core.sorting import apply_sort
 from operations.absence_standing import standing_for
 from operations.models import StudentAttendance
 from operations.presence import presence_now
+from operations.selectors import attendance_status_counts, pending_absence_alerts
 from operations.tardiness import tardiness_now
 
 from . import selectors
@@ -770,7 +771,7 @@ def attendance_overview(request):
     """إحصائيات الحضور والغياب — شاملة مع Trends."""
     school = request.school
     today = timezone.localdate()
-    summary = _attendance_summary(selectors.attendance_counts_on(school, today))
+    summary = _attendance_summary(attendance_status_counts(school, session__date=today))
     ranking = selectors.absence_ranking(
         school, today - timedelta(days=30), "student__id", "student__full_name"
     )[:20]
@@ -797,7 +798,7 @@ def attendance_overview(request):
             "chart_labels_json": json.dumps(trend.labels),
             "chart_present_json": json.dumps(trend.present),
             "chart_absent_json": json.dumps(trend.absent),
-            "alerts": selectors.pending_absence_alerts(school),
+            "alerts": pending_absence_alerts(school),
             "grades": ClassGroup.GRADES,
             "grade_filter": request.GET.get("grade", ""),
         },
@@ -1383,7 +1384,7 @@ def attendance_overview_pdf(request):
     html = render_to_string(
         "student_affairs/attendance_overview_pdf.html",
         {
-            "summary": _attendance_summary(selectors.attendance_counts_on(school, today)),
+            "summary": _attendance_summary(attendance_status_counts(school, session__date=today)),
             "today": today,
             "worst_students": worst_students,
             "pdf_header": get_pdf_header_html(ctx),

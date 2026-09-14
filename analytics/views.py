@@ -23,19 +23,14 @@ from core.domain.attendance import attendance_rate
 from core.domain.grades import GRADE_BANDS, band_of
 from core.models import (
     BehaviorInfraction,
-    BookBorrowing,
     ClinicVisit,
-    HealthRecord,
-    LibraryBook,
-    Membership,
-    SchoolBus,
-    StudentEnrollment,
 )
 from core.models.academic import grade_order
 from core.pdf_utils import render_pdf
-from operations.models import Session, StudentAttendance
-from quality.models import OperationalDomain, OperationalProcedure
+from operations.models import StudentAttendance
+from quality.models import OperationalDomain
 
+from . import selectors
 from .services import KPIService
 
 
@@ -45,82 +40,11 @@ from .services import KPIService
 @cache_page(300)
 @vary_on_cookie
 def analytics_dashboard(request):
-    """لوحة الإحصاءات المتقدمة للمدير"""
-    school = request.user.get_school()
+    """لوحة الإحصاءات المتقدمة للمدير — المؤشّراتُ من `selectors.school_overview_kpis`."""
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     today = timezone.now().date()
-
-    # ── KPIs الأساسية ─────────────────────────────────────────
-    total_students = StudentEnrollment.objects.filter(
-        class_group__school=school, class_group__academic_year=year, is_active=True
-    ).count()
-
-    total_teachers = Membership.objects.filter(
-        school=school, is_active=True, role__name__in=["teacher", "coordinator"]
-    ).count()
-
-    # الحضور
-    sessions_today = Session.objects.filter(school=school, date=today)
-    att_today = StudentAttendance.objects.filter(session__in=sessions_today)
-    present_today = att_today.filter(status="present").count()
-    total_att = att_today.count()
-    att_pct_today = attendance_rate(present_today, total_att)
-
-    # العيادة
-    clinic_visits_today = ClinicVisit.objects.filter(school=school, visit_date__date=today).count()
-    chronic_cases = (
-        HealthRecord.objects.filter(student__memberships__school=school)
-        .exclude(chronic_diseases="")
-        .distinct()
-        .count()
-    )
-
-    # السلوك
-    behavior_infractions_month = BehaviorInfraction.objects.filter(
-        school=school, date__month=today.month, date__year=today.year
-    ).count()
-    critical_infractions = BehaviorInfraction.objects.filter(
-        school=school, level__in=[3, 4], is_resolved=False
-    ).count()
-
-    # النقل
-    total_buses = SchoolBus.objects.filter(school=school).count()
-    students_on_bus = (
-        StudentEnrollment.objects.filter(student__bus_routes__bus__school=school, is_active=True)
-        .distinct()
-        .count()
-    )
-
-    # المكتبة
-    total_books = LibraryBook.objects.filter(school=school).count()
-    active_loans = BookBorrowing.objects.filter(book__school=school, status="BORROWED").count()
-    overdue_books = BookBorrowing.objects.filter(book__school=school, status="OVERDUE").count()
-
-    # الخطة التشغيلية
-    total_procs = OperationalProcedure.objects.filter(school=school, academic_year=year).count()
-    completed_procs = OperationalProcedure.objects.filter(
-        school=school, academic_year=year, status="Completed"
-    ).count()
-    plan_pct = round(completed_procs / total_procs * 100) if total_procs else 0
-
-    kpis = {
-        "total_students": total_students,
-        "total_teachers": total_teachers,
-        "att_pct_today": att_pct_today,
-        "present_today": present_today,
-        "clinic_today": clinic_visits_today,
-        "chronic_cases": chronic_cases,
-        "behavior_month": behavior_infractions_month,
-        "critical_issues": critical_infractions,
-        "total_buses": total_buses,
-        "bus_students": students_on_bus,
-        "library_books": total_books,
-        "active_loans": active_loans,
-        "overdue_books": overdue_books,
-        "plan_pct": plan_pct,
-        "completed_procs": completed_procs,
-        "total_procs": total_procs,
-    }
+    kpis = selectors.school_overview_kpis(school, year, today)
 
     return render(
         request,
@@ -170,7 +94,7 @@ def _dashboard_presentation(kpis: dict, school) -> dict:
 @cache_page(300)
 @vary_on_cookie
 def api_attendance_trend(request):
-    school = request.user.get_school()
+    school = request.school
     days = int(request.GET.get("days", 30))
     since = timezone.now().date() - timedelta(days=days)
 
@@ -226,7 +150,7 @@ def api_attendance_trend(request):
 @cache_page(300)
 @vary_on_cookie
 def api_grades_distribution(request):
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
     grades = StudentSubjectResult.objects.filter(
@@ -269,7 +193,7 @@ def api_grades_distribution(request):
 @cache_page(300)
 @vary_on_cookie
 def api_class_comparison(request):
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
     classes = (
@@ -307,7 +231,7 @@ def api_class_comparison(request):
 @cache_page(300)
 @vary_on_cookie
 def api_subject_comparison(request):
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
     subjects = (
@@ -357,7 +281,7 @@ def api_subject_comparison(request):
 @cache_page(300)
 @vary_on_cookie
 def api_plan_progress(request):
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
     domains = OperationalDomain.objects.filter(school=school, academic_year=year).order_by("order")
@@ -398,7 +322,7 @@ def api_plan_progress(request):
 @cache_page(300)
 @vary_on_cookie
 def api_behavior_trend(request):
-    school = request.user.get_school()
+    school = request.school
     today = timezone.now().date()
     since = today.replace(day=1) - timedelta(days=150)
 
@@ -465,7 +389,7 @@ def api_behavior_trend(request):
 @cache_page(300)
 @vary_on_cookie
 def api_failing_by_class(request):
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
     qs = (
@@ -500,7 +424,7 @@ def api_failing_by_class(request):
 @cache_page(300)
 @vary_on_cookie
 def api_clinic_stats(request):
-    school = request.user.get_school()
+    school = request.school
     since = timezone.now().date() - timedelta(days=30)
 
     qs = (
@@ -547,7 +471,7 @@ def api_clinic_stats(request):
 @capability_required("analytics.school")
 def kpi_dashboard(request):
     """لوحة KPIs العشرة — للمدير فقط"""
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     return render(
         request,
@@ -566,7 +490,7 @@ def kpi_dashboard(request):
 @vary_on_cookie
 def api_kpis_all(request):
     """JSON: 10 KPIs — يُعيد بيانات KPIService.compute()"""
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     data = KPIService.compute(school, year)
 
@@ -589,7 +513,7 @@ def api_kpis_all(request):
 @capability_required("analytics.school")
 def kpi_monthly_pdf(request):
     """PDF: تقرير KPIs الشهري"""
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     preview = request.GET.get("preview") == "1"
     paper = request.GET.get("paper", "A4")

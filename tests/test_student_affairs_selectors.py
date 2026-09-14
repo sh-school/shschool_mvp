@@ -16,7 +16,7 @@ from django.utils import timezone
 from behavior.models import BehaviorInfraction, ViolationCategory
 from core.models import ParentStudentLink, StudentEnrollment
 from core.models.audit import AuditLog
-from operations.models import AbsenceAlert, Session, StudentAttendance, Subject
+from operations.models import Session, StudentAttendance, Subject
 from student_affairs import selectors
 from student_affairs.models import StudentActivity, StudentTransfer
 from student_affairs.services import TardinessService
@@ -268,18 +268,6 @@ def _attendance_day(world, day, statuses):
         _mark(world, session, student, status)
 
 
-def test_attendance_counts_on_a_day(world):
-    _attendance_day(world, world.today, ["present", "absent", "late", "excused"])
-    _attendance_day(world, world.today - timedelta(days=1), ["absent"])
-    assert selectors.attendance_counts_on(world.school, world.today) == {
-        "total": 4,
-        "present": 1,
-        "absent": 1,
-        "late": 1,
-        "excused": 1,
-    }
-
-
 def test_absence_ranking_since_a_date(world):
     for offset in (0, 1, 40):
         _attendance_day(
@@ -311,19 +299,6 @@ def test_daily_trend_fills_missing_days_with_zero(world):
     assert len(trend.labels) == 3
     assert trend.present == [0, 0, 75]
     assert trend.absent == [0, 0, 25]
-
-
-def test_pending_absence_alerts_are_highest_first(world):
-    for count, status in ((4, "pending"), (9, "pending"), (20, "resolved")):
-        AbsenceAlert.objects.create(
-            school=world.school,
-            student=world.students[0],
-            absence_count=count,
-            period_start=world.today,
-            period_end=world.today,
-            status=status,
-        )
-    assert [a.absence_count for a in selectors.pending_absence_alerts(world.school)] == [9, 4]
 
 
 def test_attendance_on_by_class_orders_grade_then_name(world):

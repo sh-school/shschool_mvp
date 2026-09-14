@@ -4,25 +4,25 @@
    "core/capabilities.py"
   ],
   "assessments": [
+   "core/dashboard_selectors.py",
    "core/erasure_service.py",
-   "core/management/commands/full_seed.py",
-   "core/views_dashboard.py"
+   "core/management/commands/full_seed.py"
   ],
   "behavior": [
+   "core/dashboard_selectors.py",
    "core/erasure_service.py",
-   "core/models/__init__.py",
-   "core/views_dashboard.py"
+   "core/models/__init__.py"
   ],
   "clinic": [
+   "core/dashboard_selectors.py",
    "core/erasure_service.py",
    "core/management/commands/rotate_fernet_key.py",
-   "core/models/__init__.py",
-   "core/views_dashboard.py"
+   "core/models/__init__.py"
   ],
   "library": [
+   "core/dashboard_selectors.py",
    "core/erasure_service.py",
    "core/models/__init__.py",
-   "core/views_dashboard.py",
    "core/views_media.py"
   ],
   "notifications": [
@@ -87,7 +87,6 @@
  },
  "get_school": {
   "academic_management/views.py": 1,
-  "analytics/views.py": 12,
   "api/views.py": 4,
   "api/views_erasure.py": 2,
   "breach/views.py": 5,
@@ -109,10 +108,6 @@
   "wings/views_register.py": 2
  },
  "views": {
-  "analytics/views.py::analytics_dashboard": {
-   "lines": 89,
-   "orm": 31
-  },
   "api/views.py::BorrowingListView.get_queryset": {
    "orm": 7
   },
@@ -175,31 +170,6 @@
   },
   "core/views_auth.py::verify_2fa": {
    "lines": 71
-  },
-  "core/views_dashboard.py::_get_activities_ctx": {
-   "orm": 8
-  },
-  "core/views_dashboard.py::_get_admin_ops_ctx": {
-   "orm": 9
-  },
-  "core/views_dashboard.py::_get_director_ctx": {
-   "lines": 113,
-   "orm": 46
-  },
-  "core/views_dashboard.py::_get_service_ctx": {
-   "orm": 12
-  },
-  "core/views_dashboard.py::_get_specialist_social_ctx": {
-   "orm": 13
-  },
-  "core/views_dashboard.py::_get_student_ctx": {
-   "orm": 15
-  },
-  "core/views_dashboard.py::_get_teacher_ctx": {
-   "orm": 14
-  },
-  "core/views_dashboard.py::_get_therapist_ctx": {
-   "orm": 7
   },
   "core/views_health.py::status_check": {
    "lines": 77

@@ -1,27 +1,28 @@
 import datetime
 
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
-from assessments.models import AnnualSubjectResult, SubjectClassSetup
-from behavior.models import BehaviorInfraction
-from clinic.models import ClinicVisit
+from core import dashboard_selectors
 from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required
 from core.dashboard_presentation import present
-from core.domain.attendance import attendance_rate
-from core.models.academic import Wing, grade_order
-from library.models import BookBorrowing
-from operations.models import (
-    AbsenceAlert,
-    CompensatorySession,
-    Session,
-    StudentAttendance,
-    TeacherAbsence,
-    TeacherSwap,
+from core.domain.attendance import attendance_rate, percent
+from core.models.academic import Wing
+from core.models.school import School
+from operations.selectors import (
+    attendance_status_counts,
+    chronic_absentee_count,
+    class_sessions_on,
+    pending_absence_alerts,
+    pending_compensatory_count,
+    session_status_counts,
+    swap_count,
+    teacher_absence_count,
+    teacher_sessions_between,
+    teacher_sessions_on,
 )
 from transport.models import BusRoute, SchoolBus
 
@@ -35,208 +36,103 @@ def _get_student_ctx(user, school, today):
     from core.models import StudentEnrollment
 
     year = academic_year_for_school(school)
-
-    # حضور الطالب (aggregate واحد)
-    att = StudentAttendance.objects.filter(school=school, student=user).aggregate(
-        present=Count("id", filter=Q(status="present")),
-        absent=Count("id", filter=Q(status="absent")),
-        late=Count("id", filter=Q(status="late")),
-    )
-    present = att["present"]
-    absent = att["absent"]
-    late = att["late"]
-    total = present + absent + late
-    att_pct = attendance_rate(present, total, empty=100)
-
-    # حصص اليوم عبر فصل الطالب
+    att = attendance_status_counts(school, student=user)
+    present, absent, late = att["present"], att["absent"], att["late"]
     enrollment = StudentEnrollment.objects.current_of(user)
-    student_sessions = []
-    if enrollment and enrollment.class_group:
-        student_sessions = (
-            Session.objects.filter(school=school, class_group=enrollment.class_group, date=today)
-            .select_related("subject", "teacher")
-            .order_by("start_time")
-        )
-
-    # نتائج سنوية (aggregate واحد بدل 3 queries)
-    results_stats = AnnualSubjectResult.objects.filter(
-        student=user, school=school, academic_year=year
-    ).aggregate(
-        total=Count("id"),
-        passed=Count("id", filter=Q(status="pass")),
-        failed=Count("id", filter=Q(status="fail")),
-    )
+    has_class = bool(enrollment and enrollment.class_group)
+    results = dashboard_selectors.annual_result_counts(school, year, student=user)
 
     return {
         "view_type": "student",
-        "student_att_pct": att_pct,
+        "student_att_pct": attendance_rate(present, present + absent + late, empty=100),
         "student_present": present,
         "student_absent": absent,
         "student_late": late,
-        "student_sessions": student_sessions,
+        # حصصُ اليوم عبر فصل الطالب.
+        "student_sessions": class_sessions_on(school, enrollment.class_group, today)
+        if has_class
+        else [],
         "class_group": enrollment.class_group if enrollment else None,
-        "student_subjects_total": results_stats["total"],
-        "student_passed": results_stats["passed"],
-        "student_failed": results_stats["failed"],
+        "student_subjects_total": results["total"],
+        "student_passed": results["passed"],
+        "student_failed": results["failed"],
     }
+
+
+#: طلباتُ التبديل التي تنتظر الإدارةَ أو المنسّق — وما ينتظر المعلّمَ الثاني ليس منها.
+_DIRECTOR_SWAP_STATUSES = ("accepted_b", "pending_coordinator", "pending_vp")
+
+
+def _attendance_day(school: School, day: datetime.date) -> tuple[dict[str, int], int]:
+    """(عدّادُ الحضور، مقامُه) ليومٍ — المقامُ الحاضرُ والغائبُ والمتأخّرُ دون المعذور."""
+    att = attendance_status_counts(school, session__date=day)
+    return att, att["present"] + att["absent"] + att["late"]
 
 
 def _get_director_ctx(school, today):
     """بيانات لوحة تحكم الإدارة: حصص + حضور + تقييمات + سلوك + عيادة + مكتبة + عمليات."""
     year = academic_year_for_school(school)
-    yesterday = today - datetime.timedelta(days=1)
-
-    # حصص اليوم — aggregate واحد
-    session_stats = Session.objects.filter(school=school, date=today).aggregate(
-        total=Count("id"),
-        completed=Count("id", filter=Q(status="completed")),
-        in_progress=Count("id", filter=Q(status="in_progress")),
-    )
-
-    # حضور اليوم — aggregate واحد
-    att = StudentAttendance.objects.filter(school=school, session__date=today).aggregate(
-        present=Count("id", filter=Q(status="present")),
-        absent=Count("id", filter=Q(status="absent")),
-        late=Count("id", filter=Q(status="late")),
-    )
-    present = att["present"]
-    absent = att["absent"]
-    total_att = present + absent + att["late"]
-    att_pct = attendance_rate(present, total_att)
-
-    # حضور الأمس للمقارنة — aggregate واحد
-    att_y = StudentAttendance.objects.filter(school=school, session__date=yesterday).aggregate(
-        present_y=Count("id", filter=Q(status="present")),
-        absent_y=Count("id", filter=Q(status="absent")),
-        late_y=Count("id", filter=Q(status="late")),
-    )
-    present_y = att_y["present_y"]
-    absent_y = att_y["absent_y"]
-    total_y = present_y + absent_y + att_y["late_y"]
-    att_pct_y = attendance_rate(present_y, total_y, empty=None)
-    att_delta = att_pct - att_pct_y if att_pct_y is not None else None
-    absent_delta = absent - absent_y if total_y else None
-
-    alerts = (
-        AbsenceAlert.objects.filter(school=school, status="pending")
-        .select_related("student")
-        .order_by("-created_at")[:5]
-    )
-
-    # إحصائيات التقييمات — aggregate واحد
-    annual = AnnualSubjectResult.objects.filter(school=school, academic_year=year).aggregate(
-        total=Count("id"),
-        passed=Count("id", filter=Q(status="pass")),
-        failed=Count("id", filter=Q(status="fail")),
-    )
-    total_annual = annual["total"]
-    passed_annual = annual["passed"]
-    failed_annual = annual["failed"]
-    pass_pct = round(passed_annual / total_annual * 100) if total_annual else 0
-    failing_count = (
-        AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
-        .values("student")
-        .distinct()
-        .count()
-    )
-    incomplete_setups = (
-        SubjectClassSetup.objects.filter(school=school, academic_year=year, is_active=True)
-        .exclude(packages__isnull=False)
-        .count()
-    )
-
-    # سلوك — aggregate واحد
-    behavior = BehaviorInfraction.objects.filter(school=school).aggregate(
-        monthly=Count("id", filter=Q(date__month=today.month, date__year=today.year)),
-        critical=Count("id", filter=Q(level__gte=3)),
-    )
-
-    # عيادة — aggregate واحد
-    clinic = ClinicVisit.objects.filter(school=school, visit_date__date=today).aggregate(
-        total=Count("id"),
-        sent_home=Count("id", filter=Q(is_sent_home=True)),
-    )
-
-    library_overdue = BookBorrowing.objects.filter(book__school=school, status="OVERDUE").count()
-
-    pending_swaps = TeacherSwap.objects.filter(
-        school=school, status__in=["accepted_b", "pending_coordinator", "pending_vp"]
-    ).count()
-    pending_comp = CompensatorySession.objects.filter(school=school, status="pending").count()
-    absent_teachers_today = TeacherAbsence.objects.filter(school=school, date=today).count()
+    sessions = session_status_counts(school, today)
+    att, total_att = _attendance_day(school, today)
+    att_y, total_y = _attendance_day(school, today - datetime.timedelta(days=1))
+    att_pct = attendance_rate(att["present"], total_att)
+    att_pct_y = attendance_rate(att_y["present"], total_y, empty=None)
+    annual = dashboard_selectors.annual_result_counts(school, year)
 
     return {
         "view_type": "director",
-        "sessions_today": session_stats["total"],
-        "completed": session_stats["completed"],
-        "in_progress": session_stats["in_progress"],
-        "present": present,
-        "absent": absent,
+        "sessions_today": sessions["total"],
+        "completed": sessions["completed"],
+        "in_progress": sessions["in_progress"],
+        "present": att["present"],
+        "absent": att["absent"],
         "late": att["late"],
         "attendance_pct": att_pct,
-        "att_delta": att_delta,
-        "absent_delta": absent_delta,
+        # الفرقُ عن الأمس — ولا فرقَ حين لا رصدَ أمس.
+        "att_delta": att_pct - att_pct_y if att_pct_y is not None else None,
+        "absent_delta": att["absent"] - att_y["absent"] if total_y else None,
         "total_students": total_att,
-        "alerts": alerts,
-        "total_annual": total_annual,
-        "passed_annual": passed_annual,
-        "failed_annual": failed_annual,
-        "pass_pct": pass_pct,
-        "failing_count": failing_count,
+        "alerts": pending_absence_alerts(school, order="-created_at", limit=5),
+        "total_annual": annual["total"],
+        "passed_annual": annual["passed"],
+        "failed_annual": annual["failed"],
+        "pass_pct": percent(annual["passed"], annual["total"]),
+        "failing_count": dashboard_selectors.failing_student_count(school, year),
         "year": year,
-        "incomplete_setups": incomplete_setups,
-        "behavior_monthly": behavior["monthly"],
-        "behavior_critical": behavior["critical"],
-        "clinic_today": clinic["total"],
-        "clinic_sent_home": clinic["sent_home"],
-        "library_overdue": library_overdue,
-        "pending_swaps": pending_swaps,
-        "pending_comp": pending_comp,
-        "absent_teachers_today": absent_teachers_today,
+        "incomplete_setups": dashboard_selectors.incomplete_setup_count(school, year),
+        **dashboard_selectors.behaviour_month_and_critical(school, today),
+        **dashboard_selectors.clinic_counts_on(school, today),
+        "library_overdue": dashboard_selectors.loan_count(school, status="OVERDUE"),
+        "pending_swaps": swap_count(school, *_DIRECTOR_SWAP_STATUSES),
+        "pending_comp": pending_compensatory_count(school),
+        "absent_teachers_today": teacher_absence_count(school, today),
     }
+
+
+def _next_scheduled(sessions):
+    """أوّلُ حصّةٍ مجدولةٍ لم يحن وقتُها بعد — أو `None`."""
+    now = timezone.now().time()
+    return next((s for s in sessions if s.start_time >= now and s.status == "scheduled"), None)
 
 
 def _get_teacher_ctx(user, school, today, role):
     """بيانات لوحة تحكم المعلم والمنسق: حصص اليوم + الإعدادات + طلبات التبديل."""
-    year = academic_year_for_school(school)
-
-    sessions = (
-        Session.objects.filter(school=school, teacher=user, date=today)
-        .select_related("class_group", "subject")
-        .order_by("start_time")
-    )
-    now = timezone.now().time()
-    next_session = next(
-        (s for s in sessions if s.start_time >= now and s.status == "scheduled"), None
-    )
-    my_setups = (
-        SubjectClassSetup.objects.filter(
-            school=school, teacher=user, academic_year=year, is_active=True
-        )
-        .select_related("subject", "class_group")
-        .order_by(grade_order("class_group__grade"), "subject__name_ar")
-    )
-    my_pending_swaps = TeacherSwap.objects.filter(
-        school=school, teacher_b=user, status="pending_b"
-    ).count()
-
+    sessions = teacher_sessions_on(school, user, today)
     ctx = {
         "view_type": "teacher",
         "sessions": sessions,
-        "next_session": next_session,
-        "my_setups": my_setups,
-        "my_pending_swaps": my_pending_swaps,
+        "next_session": _next_scheduled(sessions),
+        "my_setups": dashboard_selectors.teacher_setups(
+            school, user, academic_year_for_school(school)
+        ),
+        "my_pending_swaps": swap_count(school, "pending_b", teacher_b=user),
     }
 
     if role == "coordinator":
         ctx["view_type"] = "coordinator"
-        ctx["coord_pending_swaps"] = TeacherSwap.objects.filter(
-            school=school, status__in=["accepted_b", "pending_coordinator"]
-        ).count()
-        ctx["coord_pending_comp"] = CompensatorySession.objects.filter(
-            school=school, status="pending"
-        ).count()
-        ctx["coord_absent_today"] = TeacherAbsence.objects.filter(school=school, date=today).count()
+        ctx["coord_pending_swaps"] = swap_count(school, "accepted_b", "pending_coordinator")
+        ctx["coord_pending_comp"] = pending_compensatory_count(school)
+        ctx["coord_absent_today"] = teacher_absence_count(school, today)
 
     return ctx
 
@@ -251,54 +147,18 @@ def _get_specialist_social_ctx(user, school, today):
     سياق الأخصائيين الاجتماعيين والنفسيين والمرشدين الأكاديميين.
     يُركّز على: الغياب المتكرر + مخالفات السلوك + حالات الطلاب.
     """
-
     year = academic_year_for_school(school)
-
-    # طلاب الغياب المتكرر (أكثر من 3 أيام هذا الشهر)
     month_start = today.replace(day=1)
-    chronic_absent = (
-        StudentAttendance.objects.filter(
-            school=school,
-            status="absent",
-            session__date__gte=month_start,
-        )
-        .values("student_id")
-        .annotate(absent_count=Count("id"))
-        .filter(absent_count__gte=3)
-        .count()
-    )
-
-    # آخر 5 تنبيهات غياب
-    recent_alerts = (
-        AbsenceAlert.objects.filter(school=school, status="pending")
-        .select_related("student")
-        .order_by("-created_at")[:5]
-    )
-
-    # مخالفات سلوكية هذا الشهر
-    behavior_monthly = BehaviorInfraction.objects.filter(
-        school=school,
-        date__gte=month_start,
-    ).count()
-
-    # مخالفات خطرة (مستوى 3+)
-    behavior_critical = BehaviorInfraction.objects.filter(school=school, level__gte=3).count()
-
-    # نتائج الطلاب — راسبون
-    failing_students = (
-        AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
-        .values("student")
-        .distinct()
-        .count()
-    )
 
     return {
         "view_type": "specialist_social",
-        "chronic_absent": chronic_absent,
-        "recent_alerts": recent_alerts,
-        "behavior_monthly": behavior_monthly,
-        "behavior_critical": behavior_critical,
-        "failing_students": failing_students,
+        # طلابُ الغياب المتكرّر: ثلاثُ مرّاتٍ فأكثر هذا الشهر.
+        "chronic_absent": chronic_absentee_count(school, month_start, min_days=3),
+        "recent_alerts": pending_absence_alerts(school, order="-created_at", limit=5),
+        "behavior_monthly": dashboard_selectors.infractions_since_count(school, month_start),
+        # مخالفاتٌ خطرة: المستوى الثالث فأعلى.
+        "behavior_critical": dashboard_selectors.critical_infraction_count(school),
+        "failing_students": dashboard_selectors.failing_student_count(school, year),
         "year": year,
     }
 
@@ -308,27 +168,13 @@ def _get_therapist_ctx(user, school, today):
     سياق المعالجين: أخصائي النطق + أخصائي العلاج الوظائفي.
     يُركّز على: جلسات اليوم + الطلاب المحالين + إحصائيات الأسبوع.
     """
-    sessions_today = (
-        Session.objects.filter(school=school, teacher=user, date=today)
-        .select_related("class_group", "subject")
-        .order_by("start_time")
-    )
-    now = timezone.now().time()
-    next_session = next(
-        (s for s in sessions_today if s.start_time >= now and s.status == "scheduled"),
-        None,
-    )
+    sessions_today = teacher_sessions_on(school, user, today)
     total_today = sessions_today.count()
     completed_today = sessions_today.filter(status="completed").count()
 
     # إحصائيات الأسبوع — مفيدة لمتابعة التقدم
     week_start = today - datetime.timedelta(days=today.weekday())
-    week_sessions = Session.objects.filter(
-        school=school,
-        teacher=user,
-        date__gte=week_start,
-        date__lte=today,
-    )
+    week_sessions = teacher_sessions_between(school, user, week_start, today)
     week_total = week_sessions.count()
     week_completed = week_sessions.filter(status="completed").count()
 
@@ -338,7 +184,7 @@ def _get_therapist_ctx(user, school, today):
     return {
         "view_type": "therapist",
         "sessions_today": sessions_today,
-        "next_session": next_session,
+        "next_session": _next_scheduled(sessions_today),
         "total_sessions_today": total_today,
         "completed_sessions_today": completed_today,
         "week_total": week_total,
@@ -357,18 +203,6 @@ def _get_activities_ctx(user, school, today):
     month_start = today.replace(day=1)
     year = academic_year_for_school(school)
 
-    behavior_monthly = BehaviorInfraction.objects.filter(
-        school=school,
-        date__gte=month_start,
-    ).count()
-
-    # حصص اليوم لمنسق الأنشطة (إذا كانت مُعيَّنة)
-    sessions_today = (
-        Session.objects.filter(school=school, teacher=user, date=today)
-        .select_related("class_group", "subject")
-        .order_by("start_time")
-    )
-
     # أنشطة هذا العام الدراسي
     activities_year = StudentActivity.objects.filter(
         school=school,
@@ -380,8 +214,9 @@ def _get_activities_ctx(user, school, today):
 
     return {
         "view_type": "activities",
-        "sessions_today": sessions_today,
-        "behavior_monthly": behavior_monthly,
+        # حصص اليوم لمنسق الأنشطة (إذا كانت مُعيَّنة)
+        "sessions_today": teacher_sessions_on(school, user, today),
+        "behavior_monthly": dashboard_selectors.infractions_since_count(school, month_start),
         "activities_total": activities_total,
         "activities_this_month": activities_this_month,
         "students_participating": students_participating,
@@ -393,26 +228,13 @@ def _get_admin_ops_ctx(user, school, today, role):
     سياق الإداريين: admin + admin_supervisor + secretary + receptionist.
     يُركّز على: المهام الإدارية + الإشعارات + حضور الموظفين.
     """
-    absent_teachers = TeacherAbsence.objects.filter(school=school, date=today).count()
-
-    pending_swaps = TeacherSwap.objects.filter(
-        school=school, status__in=["pending_b", "accepted_b", "pending_coordinator"]
-    ).count()
-    pending_comp = CompensatorySession.objects.filter(school=school, status="pending").count()
-
-    recent_alerts = (
-        AbsenceAlert.objects.filter(school=school, status="pending")
-        .select_related("student")
-        .order_by("-created_at")[:5]
-    )
-
     ctx = {
         "view_type": "admin_ops",
         "admin_role": role,
-        "absent_teachers_today": absent_teachers,
-        "pending_swaps": pending_swaps,
-        "pending_comp": pending_comp,
-        "recent_alerts": recent_alerts,
+        "absent_teachers_today": teacher_absence_count(school, today),
+        "pending_swaps": swap_count(school, "pending_b", "accepted_b", "pending_coordinator"),
+        "pending_comp": pending_compensatory_count(school),
+        "recent_alerts": pending_absence_alerts(school, order="-created_at", limit=5),
     }
     if role == "admin_supervisor":
         ctx.update(_supervisor_record_ctx(user, school, today))
@@ -471,40 +293,13 @@ def _get_service_ctx(user, school, today, role):
     ctx = {"view_type": "service", "service_role": role}
 
     if role == "nurse":
-        clinic = ClinicVisit.objects.filter(school=school, visit_date__date=today).aggregate(
-            total=Count("id"),
-            sent_home=Count("id", filter=Q(is_sent_home=True)),
-        )
-        ctx["clinic_today"] = clinic["total"]
-        ctx["clinic_sent_home"] = clinic["sent_home"]
-
+        ctx.update(dashboard_selectors.clinic_counts_on(school, today))
     elif role == "librarian":
-        ctx["library_overdue"] = BookBorrowing.objects.filter(
-            book__school=school, status="OVERDUE"
-        ).count()
-        ctx["library_today"] = BookBorrowing.objects.filter(
-            book__school=school,
-            borrow_date=today,
-        ).count()
-
+        ctx["library_overdue"] = dashboard_selectors.loan_count(school, status="OVERDUE")
+        ctx["library_today"] = dashboard_selectors.loan_count(school, borrow_date=today)
     elif role == "it_technician":
-        from core.models.user import CustomUser
-
-        ctx["active_users"] = (
-            CustomUser.objects.filter(
-                is_active=True,
-                memberships__school=school,
-            )
-            .distinct()
-            .count()
-        )
-        ctx["total_users"] = (
-            CustomUser.objects.filter(
-                memberships__school=school,
-            )
-            .distinct()
-            .count()
-        )
+        ctx["active_users"] = dashboard_selectors.school_user_count(school, active_only=True)
+        ctx["total_users"] = dashboard_selectors.school_user_count(school, active_only=False)
 
     return ctx
 
