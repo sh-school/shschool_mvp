@@ -123,50 +123,16 @@
 تحته، وحالةُ القيد في الترويسة. فصارت في شريطٍ واحدٍ بحقولٍ معنونةٍ كسائر
 شاشات المنصّة — والقارئُ يرى ما رشّحه به مجتمعاً.
 {% endcomment %}
-<div class="filter-bar mb-4" id="links-filters">
-  <div class="filter-field filter-field--grow">
-    <label class="filter-label" for="links-search">بحث</label>
-    <input type="text" name="q" id="links-search" value="{{ search }}"
-           placeholder="اسمُ الطالب أو وليّ الأمر أو الرقم أو الجوّال أو الصف..."
-           class="form-control form-control-sm"
-           hx-get="{{ request.path }}"
-           hx-trigger="input changed delay:300ms, search"
-           hx-target="#links-container" hx-swap="innerHTML"
-           hx-include="#rel-filter,#link-status"
-           hx-push-url="false" autocomplete="off">
-  </div>
-
-  <div class="filter-field">
-    <label class="filter-label" for="link-status">حالة القيد</label>
-    <select name="status" id="link-status" class="form-control form-control-sm"
-            hx-get="{{ request.path }}" hx-trigger="change"
-            hx-target="#links-container" hx-swap="innerHTML"
-            hx-include="#links-search,#rel-filter" hx-push-url="false">
-      {% for val, label in statuses %}
-      <option value="{{ val }}" {% if status == val %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <div class="filter-field">
-    <label class="filter-label" for="rel-filter">صلة القرابة</label>
-    <select name="rel" id="rel-filter" class="form-control form-control-sm"
-            hx-get="{{ request.path }}" hx-trigger="change"
-            hx-target="#links-container" hx-swap="innerHTML"
-            hx-include="#links-search,#link-status" hx-push-url="false">
-      <option value="">كل الصلات</option>
-      {% for val, label in RELATIONSHIP %}
-      <option value="{{ val }}" {% if rel_filter == val %}selected{% endif %}>{{ label }}</option>
-      {% endfor %}
-    </select>
-  </div>
-
+{% filter_bar "ترشيحُ روابط أولياء الأمور" live=True id="links-filters" css="mb-4" %}
+  {% field "q" "بحث" id="links-search" value=search grow=True placeholder="اسمُ الطالب أو وليّ الأمر أو الرقم أو الجوّال أو الصف..." autocomplete="off" hx_get=request.path hx_trigger="input changed delay:300ms, search" hx_target="#links-container" hx_swap="innerHTML" hx_include="#rel-filter,#link-status" hx_push_url="false" %}
+  {% field "status" "حالة القيد" id="link-status" type="select" choices=statuses value=status hx_get=request.path hx_trigger="change" hx_target="#links-container" hx_swap="innerHTML" hx_include="#links-search,#rel-filter" hx_push_url="false" %}
+  {% field "rel" "صلة القرابة" id="rel-filter" type="select" choices=RELATIONSHIP value=rel_filter blank="كل الصلات" hx_get=request.path hx_trigger="change" hx_target="#links-container" hx_swap="innerHTML" hx_include="#links-search,#link-status" hx_push_url="false" %}
   <div class="filter-actions">
     <a href="{% url 'manage_parent_links' %}" class="btn-secondary btn-sm">
       {% include "components/icon.html" with name="refresh" %} إعادة ضبط
     </a>
   </div>
-</div>
+{% endfilter_bar %}
 
 {# ── الجدول (يُحدَّث بـ HTMX) ── #}
 <div id="links-container">

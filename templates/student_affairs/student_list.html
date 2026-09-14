@@ -19,91 +19,21 @@
   {% endpage_header %}
 
   {# ── فلتر + بحث ── #}
-  <form method="get" class="filter-bar">
-
-    {# بحث نصي #}
-    <div class="filter-field filter-field--grow">
-      <label class="filter-label">بحث</label>
-      <input type="text" name="q" value="{{ q }}"
-             placeholder="بحثٌ في كلّ الأعمدة: اسم أو رقم أو جوال أو صف أو شعبة..."
-             class="form-control form-control-sm"
-             hx-get="{% url 'student_affairs:student_list' %}"
-             hx-trigger="input changed delay:400ms, search"
-             hx-target="#student-table-container"
-             hx-swap="outerHTML"
-             hx-include="[name='status'],[name='grade'],[name='section'],[name='parent_status']"
-             hx-indicator="#search-spinner"
-             autocomplete="off">
-    </div>
-
+  {% url 'student_affairs:student_list' as list_url %}
+  {% filter_bar "ترشيحُ سجلّ الطلاب" %}
+    {% field "q" "بحث" value=q grow=True placeholder="بحثٌ في كلّ الأعمدة: اسم أو رقم أو جوال أو صف أو شعبة..." autocomplete="off" hx_get=list_url hx_trigger="input changed delay:400ms, search" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='status'],[name='grade'],[name='section'],[name='parent_status']" hx_indicator="#search-spinner" %}
     {# حالةُ القيد — والافتراضُ المقيَّدون، ومن أُغلق قيدُه يُرى بترشيحٍ صريح #}
-    <div class="filter-field">
-      <label class="filter-label">حالة القيد</label>
-      <select name="status" class="form-control form-control-sm"
-              hx-get="{% url 'student_affairs:student_list' %}" hx-trigger="change"
-              hx-target="#student-table-container" hx-swap="outerHTML"
-              hx-include="[name='q'],[name='grade'],[name='section'],[name='parent_status']">
-        {% for val, label in statuses %}
-        <option value="{{ val }}" {% if status == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    {# فلتر الصف #}
-    <div class="filter-field">
-      <label class="filter-label">الصف</label>
-      <select name="grade" class="form-control form-control-sm"
-              hx-get="{% url 'student_affairs:student_list' %}"
-              hx-trigger="change"
-              hx-target="#student-table-container"
-              hx-swap="outerHTML"
-              hx-include="[name='q'],[name='status'],[name='section'],[name='parent_status']">
-        <option value="">— الكل —</option>
-        {% for g in grades %}
-        <option value="{{ g }}" {% if grade_filter == g %}selected{% endif %}>{{ g }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    {# فلتر الشعبة #}
-    <div class="filter-field">
-      <label class="filter-label">الشعبة</label>
-      <select name="section" class="form-control form-control-sm"
-              hx-get="{% url 'student_affairs:student_list' %}"
-              hx-trigger="change"
-              hx-target="#student-table-container"
-              hx-swap="outerHTML"
-              hx-include="[name='q'],[name='status'],[name='grade'],[name='parent_status']">
-        <option value="">— الكل —</option>
-        {% for sec in sections %}
-        <option value="{{ sec }}" {% if section_filter == sec %}selected{% endif %}>{{ sec }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    {# فلتر ولي الأمر #}
-    <div class="filter-field">
-      <label class="filter-label">ولي الأمر</label>
-      <select name="parent_status" class="form-control form-control-sm"
-              hx-get="{% url 'student_affairs:student_list' %}"
-              hx-trigger="change"
-              hx-target="#student-table-container"
-              hx-swap="outerHTML"
-              hx-include="[name='q'],[name='status'],[name='grade'],[name='section']">
-        <option value="">— الكل —</option>
-        <option value="linked" {% if parent_status == "linked" %}selected{% endif %}>مرتبط</option>
-        <option value="unlinked" {% if parent_status == "unlinked" %}selected{% endif %}>غير مرتبط</option>
-      </select>
-    </div>
-
-    {# إجراءات الفلتر #}
+    {% field "status" "حالة القيد" type="select" choices=statuses value=status hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='grade'],[name='section'],[name='parent_status']" %}
+    {% field "grade" "الصف" type="select" choices=grades value=grade_filter blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='status'],[name='section'],[name='parent_status']" %}
+    {% field "section" "الشعبة" type="select" choices=sections value=section_filter blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='status'],[name='grade'],[name='parent_status']" %}
+    {% field "parent_status" "ولي الأمر" type="select" choices="linked=مرتبط|unlinked=غير مرتبط" value=parent_status blank="— الكل —" hx_get=list_url hx_trigger="change" hx_target="#student-table-container" hx_swap="outerHTML" hx_include="[name='q'],[name='status'],[name='grade'],[name='section']" %}
     <div class="filter-actions">
-      <a href="{% url 'student_affairs:student_list' %}" class="btn-secondary btn-sm">
+      <a href="{{ list_url }}" class="btn-secondary btn-sm">
         {% include "components/icon.html" with name="refresh" %} إعادة ضبط
       </a>
       <span id="search-spinner" class="htmx-indicator sa-spinner">جارٍ البحث...</span>
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {# ── جدول الطلاب — وغلافُه ومعرّفُه في الجزئيّة، فهي تستبدل نفسَها ── #}
   {% include "student_affairs/_student_table.html" %}

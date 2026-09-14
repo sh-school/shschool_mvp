@@ -16,56 +16,23 @@
     <a href="{% url 'observation_archive' %}" class="btn-secondary btn-sm">الأرشيف</a>
   {% endpage_header %}
 
-  <form method="get" class="filter-bar qobs-filters">
-    <label class="filter-field"><span class="filter-label">الحالة</span>
-      <select name="status" class="form-control">
-        <option value="">الكل</option>
-        {% for v,l in status_choices %}
-        <option value="{{ v }}" {% if f.status == v %}selected{% endif %}>{{ l }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label class="filter-field"><span class="filter-label">النوع</span>
-      <select name="kind" class="form-control">
-        <option value="">الكل</option>
-        {% for v,l in kind_choices %}
-        <option value="{{ v }}" {% if f.kind == v %}selected{% endif %}>{{ l }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    <label class="filter-field"><span class="filter-label">المعلّم</span>
-      <select name="teacher" class="form-control">
-        <option value="">الكل</option>
-        {% for t in teachers %}
-        <option value="{{ t.id }}" {% if f.teacher == t.id|stringformat:'s' %}selected{% endif %}>{{ t.full_name }}</option>
-        {% endfor %}
-      </select>
-    </label>
+  {# المعلّمون والزوّار مستخدمون: `str()` اسمُهم الكامل، فالوسمُ يرسمهم كما كان. #}
+  {% filter_bar "ترشيحُ الزيارات الصفّيّة" css="qobs-filters" %}
+    {% field "status" "الحالة" type="select" choices=status_choices value=f.status blank="الكل" %}
+    {% field "kind" "النوع" type="select" choices=kind_choices value=f.kind blank="الكل" %}
+    {% field "teacher" "المعلّم" type="select" choices=teachers value=f.teacher blank="الكل" %}
     {% if is_leadership %}
-    <label class="filter-field"><span class="filter-label">الزائر</span>
-      <select name="observer" class="form-control">
-        <option value="">الكل</option>
-        {% for o in observers %}
-        <option value="{{ o.id }}" {% if f.observer == o.id|stringformat:'s' %}selected{% endif %}>{{ o.full_name }}</option>
-        {% endfor %}
-      </select>
-    </label>
+    {% field "observer" "الزائر" type="select" choices=observers value=f.observer blank="الكل" %}
     {% endif %}
-    <label class="filter-field"><span class="filter-label">من تاريخ</span><input type="date" name="date_from" class="form-control" value="{{ f.date_from }}"></label>
-    <label class="filter-field"><span class="filter-label">إلى تاريخ</span><input type="date" name="date_to" class="form-control" value="{{ f.date_to }}"></label>
-    <label class="filter-field"><span class="filter-label">بحث</span><input type="search" name="q" class="form-control" placeholder="موضوع أو اسم معلّم" value="{{ f.q }}"></label>
-    <label class="filter-field"><span class="filter-label">الترتيب</span>
-      <select name="sort" class="form-control">
-        {% for v,l in sort_choices %}
-        <option value="{{ v }}" {% if f.sort == v %}selected{% endif %}>{{ l }}</option>
-        {% endfor %}
-      </select>
-    </label>
+    {% field "date_from" "من تاريخ" type="date" value=f.date_from %}
+    {% field "date_to" "إلى تاريخ" type="date" value=f.date_to %}
+    {% field "q" "بحث" type="search" value=f.q placeholder="موضوع أو اسم معلّم" %}
+    {% field "sort" "الترتيب" type="select" choices=sort_choices value=f.sort %}
     <div class="filter-actions">
       <button type="submit" class="btn-primary btn-sm">تصفية</button>
       <a href="{% url 'observation_list' %}" class="btn-secondary btn-sm">مسح</a>
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {% section_card "الزيارات" meta=page_obj.paginator.count icon="list-checks" empty="لا توجد زيارات مطابقة." flush=True %}{% if rows %}
     {# القائمةُ مقسَّمةٌ صفحاتٍ: الفرزُ من الخادم على كلّ الزيارات لا على الصفحة. #}

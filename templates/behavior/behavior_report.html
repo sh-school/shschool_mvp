@@ -28,19 +28,13 @@
   {% endkpi_strip %}
 
   {% if infractions %}
-  <div class="filter-bar" id="infraction-filters">
-    <input type="search" id="filter-description" placeholder="بحث في الوصف..." aria-label="بحث في الوصف" class="form-control form-control-sm filter-field--grow">
-    <input type="date" id="filter-date-from" title="من تاريخ" aria-label="من تاريخ" class="form-control form-control-sm">
-    <input type="date" id="filter-date-to" title="إلى تاريخ" aria-label="إلى تاريخ" class="form-control form-control-sm">
-    <select id="filter-level" class="form-control form-control-sm" aria-label="الدرجة">
-      <option value="">كل الدرجات</option>
-      <option value="1">درجة 1</option>
-      <option value="2">درجة 2</option>
-      <option value="3">درجة 3</option>
-      <option value="4">درجة 4</option>
-    </select>
+  {% filter_bar "ترشيحُ المخالفات" id="infraction-filters" live=True %}
+    {% field "q" "بحث في الوصف" type="search" id="filter-description" hide_label=True grow=True placeholder="بحث في الوصف..." %}
+    {% field "date_from" "من تاريخ" type="date" id="filter-date-from" hide_label=True title="من تاريخ" %}
+    {% field "date_to" "إلى تاريخ" type="date" id="filter-date-to" hide_label=True title="إلى تاريخ" %}
+    {% field "level" "الدرجة" type="select" id="filter-level" choices="1=درجة 1|2=درجة 2|3=درجة 3|4=درجة 4" blank="كل الدرجات" hide_label=True %}
     <button type="button" id="btn-reset-filters" class="btn-ghost btn-sm" title="إعادة تعيين">مسح</button>
-  </div>
+  {% endfilter_bar %}
   {% endif %}
 
   {% section_card "تفاصيل المخالفات" icon="list-checks" empty="لا توجد مخالفات في هذه الفترة" %}{% if infractions %}

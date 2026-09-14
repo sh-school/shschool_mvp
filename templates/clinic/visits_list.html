@@ -15,72 +15,24 @@
   {% endpage_header %}
 
   {# ── فلاتر HTMX (تاريخ + بحث نصي) ── #}
-  <div class="filter-bar">
-    <div class="flex flex-wrap gap-3 items-end">
-
-      {# فلتر التاريخ #}
-      <div class="flex flex-col gap-1">
-        <label class="form-label mb-0">التاريخ</label>
-        <input
-          type="date"
-          name="date"
-          id="date-filter"
-          value="{{ date_filter|default:'' }}"
-          class="form-control"
-          hx-get="{{ request.path }}"
-          hx-trigger="change"
-          hx-target="#visits-container"
-          hx-swap="innerHTML"
-          hx-include="[name='student']"
-          hx-indicator="#visits-skeleton"
-          hx-push-url="false"
-        >
-      </div>
-
-      {# بحث بالاسم #}
-      <div class="flex flex-col gap-1 flex-1 min-w-[200px]">
-        <label class="form-label mb-0">اسم الطالب</label>
-        <div class="relative">
-          <input
-            type="text"
-            name="student"
-            id="student-filter"
-            value="{{ student_filter|default:'' }}"
-            placeholder="ابحث باسم الطالب..."
-            class="form-control clinic-search-input"
-            hx-get="{{ request.path }}"
-            hx-trigger="input changed delay:400ms, search"
-            hx-target="#visits-container"
-            hx-swap="innerHTML"
-            hx-include="[name='date']"
-            hx-indicator="#visits-skeleton"
-            hx-push-url="false"
-          >
-          <span class="absolute left-2 top-1/2 -translate-y-1/2 text-sm pointer-events-none text-secondary">{% include "components/icon.html" with name="search" %}</span>
-          <span class="htmx-indicator absolute left-8 top-1/2 -translate-y-1/2">
-            <svg class="animate-spin h-4 w-4 text-maroon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"></path>
-            </svg>
-          </span>
-        </div>
-      </div>
-
-      {# مسح الفلاتر #}
-      {% if date_filter or student_filter %}
+  {% filter_bar "ترشيحُ الزيارات" live=True %}
+    {% field "date" "التاريخ" type="date" id="date-filter" value=date_filter|default:'' hx_get=request.path hx_trigger="change" hx_target="#visits-container" hx_swap="innerHTML" hx_include="[name='student']" hx_indicator="#visits-skeleton" hx_push_url="false" %}
+    {% field "student" "اسم الطالب" id="student-filter" grow=True value=student_filter|default:'' placeholder="ابحث باسم الطالب..." hx_get=request.path hx_trigger="input changed delay:400ms, search" hx_target="#visits-container" hx_swap="innerHTML" hx_include="[name='date']" hx_indicator="#visits-skeleton" hx_push_url="false" %}
+    {# مسح الفلاتر #}
+    {% if date_filter or student_filter %}
+    <div class="filter-actions">
       <a
         href="{% url 'clinic:visits_list' %}"
-        class="btn-secondary btn-sm self-end no-underline"
+        class="btn-secondary btn-sm no-underline"
         hx-get="{{ request.path }}"
         hx-target="#visits-container"
         hx-swap="innerHTML"
         hx-push-url="true"
         hx-on:click="document.getElementById('date-filter').value=''; document.getElementById('student-filter').value='';"
       >{% include "components/icon.html" with name="x-circle" %} مسح</a>
-      {% endif %}
-
     </div>
-  </div>
+    {% endif %}
+  {% endfilter_bar %}
 
   {# ── Skeleton Loading ── #}
   <div id="visits-skeleton" class="htmx-indicator">

@@ -14,9 +14,9 @@
   {% endpage_header %}
 
   {% if buses %}
-  <div class="filter-bar">
-    <input type="text" id="bus-search" class="form-control" placeholder="بحث برقم الحافلة أو اسم السائق..." autocomplete="off" value="{{ search|default:'' }}">
-  </div>
+  {% filter_bar "بحثٌ في الحافلات" live=True %}
+    {% field "search" "بحث" type="search" id="bus-search" hide_label=True grow=True placeholder="بحث برقم الحافلة أو اسم السائق..." autocomplete="off" value=search|default:"" %}
+  {% endfilter_bar %}
 
   {# كلُّ حافلةٍ بطاقةُ كيان: الرقمُ والسائقُ والمقاعد — ثمّ الجوّالُ ورقمُ كروة. #}
   <div class="ui-entity-grid" id="buses-grid">

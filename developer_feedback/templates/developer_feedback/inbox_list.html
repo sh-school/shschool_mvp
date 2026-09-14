@@ -19,32 +19,14 @@
 <div class="exec-dash df-page">
   {% page_header _("صندوق المطوّر") subtitle=_("كلُّ ما أرسله المنتسبون إلى المطوّر — يُرشَّح بالحالة والنوع والأولويّة") icon="inbox" %}{% endpage_header %}
 
-  <form method="get" class="filter-bar" role="search" aria-label="{% trans 'فلترة الرسائل' %}">
-    <div class="filter-field filter-field--grow">
-      <label class="filter-label" for="df-q">{% trans "بحث" %}</label>
-      <input
-        type="search"
-        id="df-q"
-        name="q"
-        value="{{ current_q|default:'' }}"
-        class="form-control form-control-sm"
-        placeholder="{% trans 'العنوان أو الوصف…' %}"
-      >
-    </div>
+  {% filter_bar _("فلترة الرسائل") %}
+    {% field "q" _("بحث") type="search" id="df-q" value=current_q grow=True placeholder=_("العنوان أو الوصف…") %}
+    {% field "status" _("الحالة") type="select" id="df-status" choices=status_choices value=current_status blank=_("— الكل —") %}
 
-    <div class="filter-field">
-      <label class="filter-label" for="df-status">{% trans "الحالة" %}</label>
-      <select name="status" id="df-status" class="form-control form-control-sm">
-        <option value="">{% trans "— الكل —" %}</option>
-        {% for value, label in status_choices %}
-          <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-
-    <div class="filter-field">
-      <label class="filter-label" for="df-type">{% trans "النوع" %}</label>
-      <select name="type" id="df-type" class="form-control form-control-sm">
+    {# النوع والأولويّة: خياراتٌ حرفيّةٌ مترجَمةٌ بـ{% trans %} لا تُعبَّر بـchoices — القائمتان باليد بتسميتَيهما #}
+    <div class="ui-field">
+      <label class="ui-field__label" for="df-type">{% trans "النوع" %}</label>
+      <select name="type" id="df-type" class="form-control">
         <option value="">{% trans "— الكل —" %}</option>
         <option value="bug" {% if current_type == "bug" %}selected{% endif %}>{% trans "عطل / مشكلة" %}</option>
         <option value="feature" {% if current_type == "feature" %}selected{% endif %}>{% trans "اقتراح ميزة" %}</option>
@@ -55,9 +37,9 @@
       </select>
     </div>
 
-    <div class="filter-field">
-      <label class="filter-label" for="df-priority">{% trans "الأولوية" %}</label>
-      <select name="priority" id="df-priority" class="form-control form-control-sm">
+    <div class="ui-field">
+      <label class="ui-field__label" for="df-priority">{% trans "الأولوية" %}</label>
+      <select name="priority" id="df-priority" class="form-control">
         <option value="">{% trans "— الكل —" %}</option>
         <option value="high" {% if current_priority == "high" %}selected{% endif %}>{% trans "عالية" %}</option>
         <option value="normal" {% if current_priority == "normal" %}selected{% endif %}>{% trans "عادية" %}</option>
@@ -75,7 +57,7 @@
         {% trans "إعادة تعيين" %}
       </a>
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {# الصفحةُ خمسٌ وعشرون من الكلّ، والفرزُ لا يُدّعى في المتصفّح على جزءٍ من القائمة. #}
   {% section_card _("الرسائل") meta=page_obj.paginator.count icon="mail" flush=True empty=_("لا توجد رسائل مطابقة") empty_sub=_("حاول تعديل معايير البحث أو أعد التعيين لعرض كل الرسائل.") %}{% if messages_list %}

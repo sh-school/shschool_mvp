@@ -14,19 +14,17 @@
     <a href="{% url 'substitute_report' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="bar-chart" %} تقرير البدلاء</a>
   {% endpage_header %}
 
-  <form method="get" class="filter-bar">
-    <div class="filter-field">
-      <label class="filter-label" for="absence-date">التاريخ</label>
-      <input type="date" id="absence-date" name="date" value="{{ abs_date|date:'Y-m-d' }}" class="form-control form-control-sm">
-    </div>
-    <div class="filter-field filter-field--grow">
-      <label class="filter-label" for="absence-search">بحث بالاسم</label>
-      <input type="text" id="absence-search" class="form-control form-control-sm" placeholder="ابحث باسم المعلم..." autocomplete="off">
+  {% filter_bar "ترشيحُ الغيابات" %}
+    {% field "date" "التاريخ" type="date" value=abs_date|date:'Y-m-d' %}
+    {# بحثٌ في المتصفّح وحده (`smartFilter`) بلا اسمٍ يُرسَل — فلا يُعطى اسماً. #}
+    <div class="ui-field ui-field--grow">
+      <label for="absence-search" class="ui-field__label">بحث بالاسم</label>
+      <input type="text" id="absence-search" class="form-control" placeholder="ابحث باسم المعلم..." autocomplete="off">
     </div>
     <div class="filter-actions">
       <button type="submit" class="btn-secondary btn-sm">{% include "components/icon.html" with name="search" %} عرض</button>
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {% section_card "الغيابات" meta=absences|length icon="users" empty="لا توجد غيابات" empty_sub="لا توجد غيابات مسجّلة في هذا التاريخ" %}{% if absences %}
     {# الاسمُ في `data-text` على غلافٍ لكلّ بطاقة: `smartFilter` يُخفي الغلافَ كلَّه. #}

@@ -15,29 +15,13 @@
   {% endpage_header %}
 
   {# فلتر #}
-  <form method="get" class="filter-bar">
-    <div class="filter-field">
-      <label class="filter-label">الحالة</label>
-      <select name="status" class="form-control form-control-sm" data-autosubmit>
-        <option value="">— الكل —</option>
-        {% for val, label in status_choices %}
-        <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="filter-field">
-      <label class="filter-label">الاتجاه</label>
-      <select name="direction" class="form-control form-control-sm" data-autosubmit>
-        <option value="">— الكل —</option>
-        {% for val, label in direction_choices %}
-        <option value="{{ val }}" {% if direction_filter == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-    </div>
+  {% filter_bar "ترشيحُ الانتقالات" %}
+    {% field "status" "الحالة" type="select" choices=status_choices value=status_filter blank="— الكل —" data_autosubmit=True %}
+    {% field "direction" "الاتجاه" type="select" choices=direction_choices value=direction_filter blank="— الكل —" data_autosubmit=True %}
     <div class="filter-actions">
       <a href="{% url 'student_affairs:transfer_list' %}" class="btn-secondary btn-xs">إعادة ضبط</a>
     </div>
-  </form>
+  {% endfilter_bar %}
 
   {# الجدول #}
   <div class="table-wrap">

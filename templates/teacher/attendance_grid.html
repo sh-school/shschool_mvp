@@ -27,7 +27,7 @@
 </div>
 
 {# ── أزرار الإجراءات العامة ── #}
-<div class="filter-bar att-toolbar">
+{% filter_bar "إجراءات الحضور" live=True css="att-toolbar" %}
   <form method="post" action="{% url 'mark_all_present' session.id %}"
         hx-post="{% url 'mark_all_present' session.id %}"
         hx-target="#grid-container"
@@ -49,7 +49,7 @@
   {% else %}
   <span class="att-toolbar__end status-badge status-gray">{% include "components/icon.html" with name="check" %} الحصة منتهية</span>
   {% endif %}
-</div>
+{% endfilter_bar %}
 
 {# ── شبكة الطلاب — `#grid-container` يستبدله «الكل حاضر» بنفسه ── #}
 {% section_card "الطلاب" meta=students_data|length icon="users" empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}

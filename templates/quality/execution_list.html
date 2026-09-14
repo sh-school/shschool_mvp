@@ -21,8 +21,8 @@
             <input type="hidden" name="{{ key }}" value="{{ val }}">
           {% endif %}
         {% endfor %}
-        <label>عرض:</label>
-        <select name="per_page" data-autosubmit>
+        <label for="per-page">عرض:</label>
+        <select id="per-page" name="per_page" data-autosubmit>
           <option value="25" {% if current_per_page == 25 %}selected{% endif %}>25</option>
           <option value="50" {% if current_per_page == 50 %}selected{% endif %}>50</option>
           <option value="100" {% if current_per_page == 100 %}selected{% endif %}>100</option>
@@ -36,101 +36,24 @@
   {% endpage_header %}
 
   {# ══ Filters ═════════════════════════════════════════════ #}
-  <div class="quality-filters">
-    <div class="quality-filters-header">
-      {% include "components/icon.html" with name="filter" %} أدوات التصفية
+  {% url 'execution_list' as list_url %}
+  {% filter_bar "أدوات التصفية" id="filters-form" %}
+    <input type="hidden" name="sort" value="{{ current_sort }}">
+    <input type="hidden" name="dir" value="{{ current_dir }}">
+    {% field "field" "المجال" type="select" choices=fields value=request.GET.field blank="الكل" %}
+    {% field "target_no" "رقم الهدف" value=request.GET.target_no placeholder="مثال: 1" %}
+    {% field "proced_no" "رقم الإجراء" value=request.GET.proced_no placeholder="مثال: 3" %}
+    {% field "indicator_no" "المؤشر" value=request.GET.indicator_no placeholder="بحث..." %}
+    {% field "executor" "المنفذ" value=request.GET.executor placeholder="بحث..." %}
+    {% field "timing" "الشهر" type="select" choices=timings value=request.GET.timing blank="الكل" %}
+    {% field "status" "التنفيذ" type="select" choices=status_choices value=request.GET.status blank="الكل" %}
+    {% field "follow_up" "المتابعة" type="select" choices=follow_up_choices value=request.GET.follow_up blank="الكل" %}
+    {% field "evidence_req" "الدليل" type="select" choices="1=مطلوب" value=request.GET.evidence_req blank="الكل" %}
+    <div class="filter-actions">
+      <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="search" %} بحث</button>
+      <a href="{{ list_url }}" class="btn-secondary btn-sm">مسح</a>
     </div>
-    <form method="GET" id="filters-form" class="quality-filters-body">
-      <input type="hidden" name="sort" value="{{ current_sort }}">
-      <input type="hidden" name="dir" value="{{ current_dir }}">
-
-      <div class="quality-filters-grid">
-        {# 1 — المجال #}
-        <div class="quality-filter-field">
-          <label>المجال</label>
-          <select name="field">
-            <option value="">الكل</option>
-            {% for f in fields %}
-              <option value="{{ f.id }}" {% if request.GET.field == f.id|stringformat:"s" %}selected{% endif %}>{{ f.name }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        {# 2 — رقم الهدف #}
-        <div class="quality-filter-field">
-          <label>رقم الهدف</label>
-          <input type="text" name="target_no" value="{{ request.GET.target_no }}" placeholder="مثال: 1">
-        </div>
-
-        {# 3 — رقم الإجراء #}
-        <div class="quality-filter-field">
-          <label>رقم الإجراء</label>
-          <input type="text" name="proced_no" value="{{ request.GET.proced_no }}" placeholder="مثال: 3">
-        </div>
-
-        {# 4 — المؤشر #}
-        <div class="quality-filter-field">
-          <label>المؤشر</label>
-          <input type="text" name="indicator_no" value="{{ request.GET.indicator_no }}" placeholder="بحث...">
-        </div>
-
-        {# 5 — المنفذ #}
-        <div class="quality-filter-field">
-          <label>المنفذ</label>
-          <input type="text" name="executor" value="{{ request.GET.executor }}" placeholder="بحث...">
-        </div>
-
-        {# 6 — الشهر #}
-        <div class="quality-filter-field">
-          <label>الشهر</label>
-          <select name="timing">
-            <option value="">الكل</option>
-            {% for t in timings %}
-              <option value="{{ t }}" {% if request.GET.timing == t %}selected{% endif %}>{{ t }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        {# 7 — التنفيذ #}
-        <div class="quality-filter-field">
-          <label>التنفيذ</label>
-          <select name="status">
-            <option value="">الكل</option>
-            {% for val, label in status_choices %}
-              <option value="{{ val }}" {% if request.GET.status == val %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        {# 8 — المتابعة #}
-        <div class="quality-filter-field">
-          <label>المتابعة</label>
-          <select name="follow_up">
-            <option value="">الكل</option>
-            {% for val in follow_up_choices %}
-              <option value="{{ val }}" {% if request.GET.follow_up == val %}selected{% endif %}>{{ val }}</option>
-            {% endfor %}
-          </select>
-        </div>
-
-        {# 9 — الدليل #}
-        <div class="quality-filter-field">
-          <label>الدليل</label>
-          <select name="evidence_req">
-            <option value="">الكل</option>
-            <option value="1" {% if request.GET.evidence_req == "1" %}selected{% endif %}>مطلوب</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="quality-filters-actions">
-        <button type="submit" class="quality-btn-search">
-          {% include "components/icon.html" with name="search" %} بحث
-        </button>
-        <a href="{% url 'execution_list' %}" class="quality-btn-clear">مسح</a>
-      </div>
-    </form>
-  </div>
+  {% endfilter_bar %}
 
   {# ══ Pagination (Top) ════════════════════════════════════ #}
   {% if page_obj.has_other_pages %}

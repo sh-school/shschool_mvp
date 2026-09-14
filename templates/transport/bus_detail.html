@@ -30,31 +30,15 @@
       {% section_card "بيانات الحافلة" icon="list-checks" %}
         <form method="post" hx-post="" hx-target="#bus-info" hx-swap="outerHTML">
           {% csrf_token %}
-          <div class="form-group">
-            <label class="form-label">رقم الحافلة</label>
-            <input name="bus_number" value="{{ bus.bus_number }}" class="form-control">
+          <div class="form-stack">
+            {% field "bus_number" "رقم الحافلة" value=bus.bus_number %}
+            {% field "driver_name" "اسم السائق" value=bus.driver_name %}
+            {% field "driver_phone" "جوال السائق" value=bus.driver_phone %}
+            {% field "capacity" "الطاقة الاستيعابية" type="number" value=bus.capacity %}
+            {% field "karwa_id" "رقم كروة" value=bus.karwa_id placeholder="اختياري" %}
+            {% field "gps_link" "رابط GPS" value=bus.gps_link placeholder="https://..." %}
+            <button class="btn-primary w-full p-2">{% include "components/icon.html" with name="save" %} حفظ</button>
           </div>
-          <div class="form-group">
-            <label class="form-label">اسم السائق</label>
-            <input name="driver_name" value="{{ bus.driver_name }}" class="form-control">
-          </div>
-          <div class="form-group">
-            <label class="form-label">جوال السائق</label>
-            <input name="driver_phone" value="{{ bus.driver_phone }}" class="form-control">
-          </div>
-          <div class="form-group">
-            <label class="form-label">الطاقة الاستيعابية</label>
-            <input name="capacity" type="number" value="{{ bus.capacity }}" class="form-control">
-          </div>
-          <div class="form-group">
-            <label class="form-label">رقم كروة</label>
-            <input name="karwa_id" value="{{ bus.karwa_id }}" class="form-control" placeholder="اختياري">
-          </div>
-          <div class="form-group">
-            <label class="form-label">رابط GPS</label>
-            <input name="gps_link" value="{{ bus.gps_link }}" class="form-control" placeholder="https://...">
-          </div>
-          <button class="btn-primary w-full p-2">{% include "components/icon.html" with name="save" %} حفظ</button>
         </form>
         {# هدفُ ردّ الحفظ — كان النموذجُ يشير إليه ولا عنصرَ بهذا المعرّف في الصفحة. #}
         <div id="bus-info" aria-live="polite"></div>
@@ -77,10 +61,7 @@
 
       {% section_card "الطلاب المسجلون" meta=students.count icon="users" empty="لا يوجد طلاب مسجلون" %}{% if students %}
         <div class="transport-search">
-          <input type="text"
-                 id="student-search"
-                 class="form-control"
-                 placeholder="بحث عن طالب...">
+          {% field "q" "بحث عن طالب" id="student-search" hide_label=True placeholder="بحث عن طالب..." %}
         </div>
         <ul class="plain-list is-scroll" id="bus-students">
           {% for st in students %}

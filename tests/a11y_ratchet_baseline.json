@@ -1,0 +1,45 @@
+{
+ "counts": {
+  "label_without_for": {},
+  "page_without_h1": {
+   "templates/behavior/pdf/parent_undertaking.html": 1,
+   "templates/behavior/pdf/student_undertaking.html": 1,
+   "templates/behavior/pdf/student_warning.html": 1
+  },
+  "partial_without_empty_state": {
+   "exam_control/templates/exam_control/_schedule_table.html": 1,
+   "templates/behavior/partials/quick_log_form.html": 1,
+   "templates/components/pagination.html": 1,
+   "templates/components/skeleton.html": 4,
+   "templates/notifications/partials/log_panel.html": 1,
+   "templates/parents/_attendance_calendar.html": 1,
+   "templates/quality/partials/execution_row.html": 1,
+   "templates/quality/partials/review_row.html": 1,
+   "templates/schedule/partials/exemption_grid.html": 4,
+   "templates/schedule/partials/swap_card.html": 1,
+   "templates/student_info/_band_table.html": 2,
+   "templates/teacher/partials/grid_container.html": 1,
+   "templates/teacher/partials/sessions_table.html": 1,
+   "templates/teacher/partials/students_list.html": 1,
+   "templates/wings/partials/record_panel.html": 1,
+   "templates/wings/pdf/section_sheet.html": 6,
+   "templates/wings/pdf/signatures.html": 1,
+   "templates/wings/pdf/wing_summary.html": 2
+  },
+  "table_without_wrap": {
+   "templates/academic_management/assignments.html": 1,
+   "templates/quality/observation_pdf.html": 2,
+   "templates/reports/base_qatar_report.html": 1,
+   "templates/schedule/partials/exemption_grid.html": 2,
+   "templates/schedule/partials/free_slots_grid.html": 1,
+   "templates/schedule/print_pages.html": 1,
+   "templates/schedule/print_schedule.html": 2,
+   "templates/schedule/teacher_load.html": 1,
+   "templates/staff_affairs/_staff_table.html": 1,
+   "templates/student_affairs/_student_table.html": 1,
+   "templates/teacher/partials/sessions_table.html": 1,
+   "templates/wings/record_section.html": 1
+  },
+  "unnamed_field": {}
+ }
+}

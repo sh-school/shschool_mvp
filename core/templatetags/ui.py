@@ -26,6 +26,11 @@
 
     {% empty_state "لا توجد نتائج" sub="جرّب بحثاً آخر" icon="inbox" %}
 
+    {% filter_bar "ترشيحُ سجلّ الطلاب" %}
+      {% field "q" "بحث" value=q grow=True hx_get=url hx_trigger="input changed delay:400ms" %}
+      {% field "grade" "الصفّ" type="select" choices=grades value=grade blank="— الكل —" data_autosubmit=True %}
+    {% endfilter_bar %}
+
 والقواعدُ السبع التي تحرسها (صفحة «دستور بطاقات SchoolOS»):
 1. بطاقةُ الرقم سطرٌ واحد، وستٌّ على الأكثر في الشريط.
 2. الرقمُ يُقال مرّة — والتفصيلُ لا يكرّر الاسم.
@@ -35,8 +40,13 @@
 6. العرضُ على قدر المحتوى.
 7. حالةٌ فارغةٌ واحدة، ولونٌ من رموز المنصّة وحدها.
 
-والخطأُ في الاستعمال (سابعُ بطاقة، لونٌ لا رمزَ له، بطاقةُ كيانٍ بسطرٍ رابع)
-`TemplateSyntaxError` لا رسمٌ صامت: يظهر في أوّل اختبارٍ يعرض الصفحة.
+وقاعدةٌ ثامنة للحقول (مراجعة الوصوليّة 2026-09-14، `tests/a11y_ratchet.py`):
+8. لكلّ حقلٍ اسمٌ يقرؤه قارئُ الشاشة — `<label for>` يحمله الوسمُ `field` من
+   `name`، فلا حقلَ بلا تسميةٍ ولا تسميةَ بلا `for`.
+
+والخطأُ في الاستعمال (سابعُ بطاقة، لونٌ لا رمزَ له، بطاقةُ كيانٍ بسطرٍ رابع،
+حقلٌ بلا تسمية) `TemplateSyntaxError` لا رسمٌ صامت: يظهر في أوّل اختبارٍ يعرض
+الصفحة.
 """
 
 from __future__ import annotations
@@ -266,4 +276,192 @@ def action_tile(title, desc="", icon="", href="", primary=False):
             "components/ui/action_tile.html",
             {"title": title, "desc": desc, "icon": icon, "href": href, "primary": primary},
         )
+    )
+
+
+# ── 7. الحقلُ وشريطُ الترشيح ──────────────────────────────────────────────
+
+#: أنواعُ الحقل — والنوعُ الذي ليس هنا خطأٌ لا `<input type="…">` يخمّنه المتصفّح.
+FIELD_TYPES = (
+    "text",
+    "search",
+    "number",
+    "date",
+    "time",
+    "datetime-local",
+    "month",
+    "email",
+    "tel",
+    "url",
+    "password",
+    "file",
+    "select",
+    "textarea",
+    "checkbox",
+)
+
+_ATTR_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*$")
+_ID_RE = re.compile(r"[^A-Za-z0-9_-]+")
+
+
+def _extra_attrs(tag: str, attrs: dict) -> str:
+    """سماتٌ تُمرَّر كما هي: `hx_get="…"` ← `hx-get="…"`، و`data_autosubmit=True` ← `data-autosubmit`.
+
+    الشرطةُ السفليّة شرطةٌ في HTML لأنّ وسمَ القالب لا يقبل `hx-get=` اسماً.
+    و`False`/`None`/`""` تُسقط السمةَ، فيصلح `required=obj.required` بلا شرط.
+    """
+    out = []
+    for key, value in attrs.items():
+        name = key.replace("_", "-")
+        if not _ATTR_NAME_RE.match(name):
+            raise template.TemplateSyntaxError(f"{tag}: سمةٌ لا تصلح اسماً: {key!r}")
+        if value is None or value is False or value == "":
+            continue
+        if value is True:
+            out.append(format_html(" {}", name))
+        else:
+            out.append(format_html(' {}="{}"', name, value))
+    return mark_safe("".join(out))
+
+
+def _options(choices, value, multiple: bool) -> list[tuple]:
+    """`[(value, label)]` أو `[value]` أو `{value: label}` ← `[(value, label, selected)]`.
+
+    وخياراتٌ حرفيّةٌ في القالب نصٌّ: `"linked=مرتبط|unlinked=غير مرتبط"` — فالقالبُ
+    لا يكتب قائمةً، والعرضُ لا يُشغَل بثلاثة خياراتٍ ثابتة.
+    """
+    if isinstance(choices, str):
+        choices = [
+            tuple(part.split("=", 1)) if "=" in part else part
+            for part in choices.split("|")
+            if part != ""
+        ]
+    if hasattr(choices, "items"):
+        choices = choices.items()
+    if multiple:
+        chosen = {str(v) for v in (value or ())}
+    else:
+        chosen = {str(value)} if value is not None else set()
+    options = []
+    for choice in choices:
+        if isinstance(choice, tuple | list) and len(choice) == 2:
+            v, label = choice
+        elif hasattr(choice, "pk"):
+            # كائنُ نموذج (قسمٌ، مجالٌ…): مفتاحُه القيمةُ واسمُه النصّ.
+            v, label = choice.pk, getattr(choice, "name", None) or str(choice)
+        else:
+            v = label = choice
+        options.append((v, label, str(v) in chosen))
+    return options
+
+
+@register.simple_tag
+def field(
+    name,
+    label,
+    type="text",
+    value=None,
+    choices=None,
+    blank=None,
+    required=False,
+    help="",
+    error="",
+    placeholder="",
+    autocomplete="",
+    inputmode="",
+    id="",
+    css="",
+    grow=False,
+    hide_label=False,
+    rows=3,
+    checked=False,
+    disabled=False,
+    readonly=False,
+    multiple=False,
+    **attrs,
+):
+    """حقلُ نموذجٍ بتسميته: `<label for>` + `<input id name>` من اسمٍ واحد.
+
+    `name` والقيمُ تُرسَل كما هي — الوسمُ يملك الشكلَ والاسمَ البرمجيَّ لا
+    البيانات. `id` يُشتقّ من `name` (`f-<name>`) ويُمرَّر صريحاً حين يتكرّر
+    الاسمُ في الصفحة. `choices` لـ`select` وحدَه: أزواجُ (قيمة، نصّ) أو قيمٌ
+    مفردة أو قاموس، و`blank` نصُّ الخيار الفارغ الأوّل إن وُجد. `help` و`error`
+    يُربطان بالحقل بـ`aria-describedby`، والخطأُ يعلن نفسَه. و`hide_label`
+    يُبقي التسميةَ للقارئ ويخفيها عن العين (بحثٌ في ترويسة).
+
+    وما بعد ذلك يمرّ سماتٍ: `hx_get` و`hx_trigger` و`data_autosubmit=True`
+    و`min` و`max` و`step` و`maxlength` و`accept` و`size`…
+    """
+    _require(name, "field", "الاسم البرمجيّ name")
+    _require(label, f"field «{name}»", "التسمية label")
+    if type not in FIELD_TYPES:
+        raise template.TemplateSyntaxError(
+            f"field «{name}»: نوعٌ {type!r} غيرُ معروف — المتاح: {', '.join(FIELD_TYPES)}"
+        )
+    if type == "select" and choices is None:
+        raise template.TemplateSyntaxError(f"field «{name}»: select بلا choices")
+    if type != "select" and choices is not None:
+        raise template.TemplateSyntaxError(f"field «{name}»: choices لغير select")
+    field_id = id or f"f-{_ID_RE.sub('-', str(name)).strip('-')}"
+    described = [f"{field_id}-help" if help else "", f"{field_id}-error" if error else ""]
+    common = {
+        "placeholder": placeholder,
+        "required": bool(required),
+        "autocomplete": autocomplete,
+        "inputmode": inputmode,
+        "disabled": bool(disabled),
+        "readonly": bool(readonly),
+        "multiple": bool(multiple),
+        "aria-describedby": " ".join(d for d in described if d),
+        "aria-invalid": "true" if error else "",
+        **attrs,
+    }
+    return mark_safe(
+        render_to_string(
+            "components/ui/field.html",
+            {
+                "name": name,
+                "label": label,
+                "type": type,
+                "value": value,
+                "options": _options(choices, value, multiple) if type == "select" else (),
+                "blank": blank,
+                "required": bool(required),
+                "help": help,
+                "error": error,
+                "id": field_id,
+                "css": css,
+                "grow": grow,
+                "hide_label": hide_label,
+                "rows": rows,
+                "checked": bool(checked),
+                "common": _extra_attrs(f"field «{name}»", common),
+            },
+        )
+    )
+
+
+@register.simple_block_tag
+def filter_bar(content, label, action="", id="", css="", live=False, **attrs):
+    """شريطُ الترشيح: `<form method="get" role="search" aria-label>` يحمل حقولَ `field`.
+
+    كان سبعةً وثلاثين شريطاً مكتوباً باليد، نصفُها `<div>` بلا نموذجٍ ونصفُها
+    نموذجٌ بلا اسمٍ يُعلن. و`live=True` لترشيحٍ يُطبَّق في المتصفّح وحدَه
+    (`smartFilter`) فلا نموذجَ يُرسَل: يُرسم `<div role="search">` بالاسم
+    نفسِه — والضغطُ على Enter لا يُعيد تحميلَ الصفحة.
+    """
+    _require(label, "filter_bar", "الاسم المعلَن label")
+    if not re.search(r"<(?:input|select|textarea)\b", content):
+        raise template.TemplateSyntaxError(f"filter_bar «{label}»: شريطٌ بلا حقل — احذفه")
+    tag = "div" if live else "form"
+    return format_html(
+        '<{tag}{method} class="filter-bar{css}" role="search" aria-label="{label}"{id}{action}{attrs}>{content}</{tag}>',
+        tag=tag,
+        method="" if live else mark_safe(' method="get"'),
+        css=format_html(" {}", css) if css else "",
+        label=label,
+        id=format_html(' id="{}"', id) if id else "",
+        action=format_html(' action="{}"', action) if action and not live else "",
+        attrs=_extra_attrs(f"filter_bar «{label}»", attrs),
+        content=content,
     )

@@ -14,23 +14,19 @@
       {% if form.non_field_errors %}<p class="form-note is-warning sa-errors" role="alert">{% include "components/icon.html" with name="alert-triangle" %} {{ form.non_field_errors|join:" · " }}</p>{% endif %}
 
       <div class="form-row">
-        <div class="form-group sa-span-2">
-          <label class="form-label">الموظف <span class="req-star">*</span></label>
-          <select name="staff_id" class="form-control" required>
+        {# الموظّف: قيمتُه معرّفُ المستخدم ونصُّه اسمُه الكامل — خياراتٌ مركّبةٌ لا تُعبَّر بـchoices، فالقائمةُ باليد بتسميتها #}
+        <div class="ui-field sa-span-2">
+          <label for="f-staff_id" class="ui-field__label">الموظف <span class="req-star" aria-hidden="true">*</span></label>
+          <select id="f-staff_id" name="staff_id" class="form-control" required>
             <option value="">— اختر الموظف —</option>
             {% for m in staff_members %}<option value="{{ m.user_id }}">{{ m.user.full_name }}</option>{% endfor %}
           </select>
         </div>
-        <div class="form-group">
-          <label class="form-label">نوع الإجازة <span class="req-star">*</span></label>
-          <select name="leave_type" class="form-control" required>
-            {% for val, label in form.fields.leave_type.choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
-          </select>
-        </div>
-        <div class="form-group"><label class="form-label">مرفق</label><input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"></div>
-        <div class="form-group"><label class="form-label">من <span class="req-star">*</span></label><input type="date" name="start_date" class="form-control" required></div>
-        <div class="form-group"><label class="form-label">إلى <span class="req-star">*</span></label><input type="date" name="end_date" class="form-control" required></div>
-        <div class="form-group sa-span-2"><label class="form-label">السبب <span class="req-star">*</span></label><textarea name="reason" rows="3" class="form-control" required placeholder="سبب الإجازة..."></textarea></div>
+        {% field "leave_type" "نوع الإجازة" type="select" choices=form.fields.leave_type.choices required=True %}
+        {% field "attachment" "مرفق" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" %}
+        {% field "start_date" "من" type="date" required=True %}
+        {% field "end_date" "إلى" type="date" required=True %}
+        {% field "reason" "السبب" type="textarea" rows=3 required=True placeholder="سبب الإجازة..." css="sa-span-2" %}
       </div>
 
       <div class="form-actions sa-form-footer">

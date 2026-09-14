@@ -66,7 +66,7 @@
         <td>
           <form hx-post="{% url 'academic_management:assignment_update_periods' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
             {% csrf_token %}
-            <input type="number" name="weekly_periods" min="1" max="35" value="{{ row.weekly_periods }}" {% if not card.writable %}disabled{% endif %}>
+            <input type="number" name="weekly_periods" min="1" max="35" value="{{ row.weekly_periods }}" {% if not card.writable %}disabled{% endif %} aria-label="الحصص الأسبوعيّة — {{ row.subject.name_ar }} في {{ row.class_group }}">
             {% if row.periods_override_reason %}<span class="asg-hint" title="{{ row.periods_override_reason }}">(خلافُ الخطّة)</span>{% endif %}
           </form>
         </td>
@@ -215,7 +215,7 @@
   {% if card.can_submit or card.can_review or card.can_return or card.can_approve or card.can_revise %}
   <div class="asg-flow">
     {% if card.can_review or card.can_return %}
-    <input type="text" name="comment" class="asg-comment" placeholder="ملاحظةُ المراجعة (اختياريّة)">
+    <input type="text" name="comment" class="asg-comment" placeholder="ملاحظةُ المراجعة (اختياريّة)" aria-label="ملاحظةُ المراجعة">
     {% endif %}
     {% if card.can_submit %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="submit" label="رفعٌ للمراجعة" variant="primary" %}{% endif %}
     {% if card.can_review %}{% include "academic_management/partials/assignment_flow_button.html" with card=card action="review" label="روجعت" variant="primary" %}{% endif %}

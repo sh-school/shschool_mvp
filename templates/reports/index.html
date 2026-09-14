@@ -17,6 +17,7 @@
         <div class="flex gap-2 mb-2">
           <input type="text" id="student-search-input"
                  placeholder="ابحث باسم الطالب أو الرقم الشخصي..."
+                 aria-label="ابحث باسم الطالب أو الرقم الشخصي"
                  class="form-control flex-1"
                  autocomplete="off">
           <button type="button" id="student-search-btn" class="btn-primary btn-sm">بحث</button>
@@ -50,36 +51,38 @@
 
 {# ── الفلاتر ── #}
 {% if tab != "behavior" %}
-<div class="filter-bar mb-4">
-  <select name="level" class="form-control w-auto min-w-[140px] m-0"
-          data-call-change="applyFilter" data-filter="level">
-    <option value="">كل المراحل</option>
-    {% for val, label in LEVELS %}
-    <option value="{{ val }}" {% if level_filter == val %}selected{% endif %}>{{ label }}</option>
-    {% endfor %}
-  </select>
+{# المرحلةُ والصفُّ يُطبَّقان في المتصفّح (`applyFilter`) لا بنموذج — فالشريطُ حيّ، والورقُ وحدَه نموذجٌ صغيرٌ يُرسَل #}
+{% filter_bar "ترشيحُ الفصول" css="mb-4" live=True %}
+  {% field "level" "المرحلة" type="select" choices=LEVELS value=level_filter blank="كل المراحل" hide_label=True data_call_change="applyFilter" data_filter="level" %}
 
-  <select name="grade" class="form-control w-auto min-w-[150px] m-0"
-          data-call-change="applyFilter" data-filter="grade">
-    <option value="">كل الصفوف</option>
-    {% for val, label in GRADES %}
-      {% if val in available_grades %}
-      <option value="{{ val }}" {% if grade_filter == val %}selected{% endif %}>{{ label }}</option>
-      {% endif %}
-    {% endfor %}
-  </select>
+  {# الصفوفُ المتاحةُ وحدَها تُعرض — شرطٌ بين الخيارات لا تعبّر عنه choices #}
+  <div class="ui-field">
+    <label for="f-grade" class="ui-field__label sr-only">الصف</label>
+    <select id="f-grade" name="grade" class="form-control"
+            data-call-change="applyFilter" data-filter="grade">
+      <option value="">كل الصفوف</option>
+      {% for val, label in GRADES %}
+        {% if val in available_grades %}
+        <option value="{{ val }}" {% if grade_filter == val %}selected{% endif %}>{{ label }}</option>
+        {% endif %}
+      {% endfor %}
+    </select>
+  </div>
 
   <form method="get" class="m-0">
     <input type="hidden" name="tab" value="{{ tab }}">
     <input type="hidden" name="year" value="{{ year }}">
     <input type="hidden" name="level" value="{{ level_filter }}">
     <input type="hidden" name="grade" value="{{ grade_filter }}">
-    <select name="paper"
-            class="form-control w-auto min-w-[100px] m-0"
-            data-autosubmit>
-      <option value="A4" {% if paper == "A4" %}selected{% endif %}>A4</option>
-      <option value="A3" {% if paper == "A3" %}selected{% endif %}>A3</option>
-    </select>
+    <div class="ui-field">
+      <label for="f-paper" class="ui-field__label sr-only">حجم الورق</label>
+      <select id="f-paper" name="paper"
+              class="form-control"
+              data-autosubmit>
+        <option value="A4" {% if paper == "A4" %}selected{% endif %}>A4</option>
+        <option value="A3" {% if paper == "A3" %}selected{% endif %}>A3</option>
+      </select>
+    </div>
   </form>
 
   {% if grade_filter or level_filter %}
@@ -87,20 +90,23 @@
   {% endif %}
 
   <span class="pagination-info">{{ classes|length }} فصل</span>
-</div>
+{% endfilter_bar %}
 {% else %}
-<div class="filter-bar mb-4">
+{% filter_bar "حجمُ الورق" css="mb-4" live=True %}
   <form method="get" class="m-0">
     <input type="hidden" name="tab" value="{{ tab }}">
     <input type="hidden" name="year" value="{{ year }}">
-    <select name="paper"
-            class="form-control w-auto min-w-[100px] m-0"
-            data-autosubmit>
-      <option value="A4" {% if paper == "A4" %}selected{% endif %}>A4</option>
-      <option value="A3" {% if paper == "A3" %}selected{% endif %}>A3</option>
-    </select>
+    <div class="ui-field">
+      <label for="f-paper" class="ui-field__label sr-only">حجم الورق</label>
+      <select id="f-paper" name="paper"
+              class="form-control"
+              data-autosubmit>
+        <option value="A4" {% if paper == "A4" %}selected{% endif %}>A4</option>
+        <option value="A3" {% if paper == "A3" %}selected{% endif %}>A3</option>
+      </select>
+    </div>
   </form>
-</div>
+{% endfilter_bar %}
 {% endif %}
 
 {# ── بطاقات الفصول ── #}

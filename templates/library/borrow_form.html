@@ -16,10 +16,11 @@
   <div class="form-card">
     <form method="post">
       {% csrf_token %}
-      <div class="space-y-4">
-        <div>
-          <label class="form-label">الكتاب <span class="required">*</span></label>
-          <input type="text" id="book-filter" class="form-control mb-2" placeholder="ابحث عن كتاب..." autocomplete="off">
+      <div class="form-stack">
+        {# حقلُ الترشيح بلا اسمٍ عمداً — ترشيحٌ في المتصفّح لا يُرسَل — فيُسمّى بـaria-label ولا يُرحَّل؛ والقائمةُ خياراتُها مركّبةٌ بشرط، فتبقى باليد بتسميةٍ مربوطة #}
+        <div class="ui-field">
+          <label for="book-select" class="ui-field__label">الكتاب <span class="req-star" aria-hidden="true">*</span></label>
+          <input type="text" id="book-filter" class="form-control" placeholder="ابحث عن كتاب..." autocomplete="off" aria-label="ابحث عن كتاب">
           <select name="book_id" id="book-select" required class="form-control" size="6">
             <option value="">— اختر الكتاب —</option>
             {% for book in books %}
@@ -29,9 +30,9 @@
             {% endfor %}
           </select>
         </div>
-        <div>
-          <label class="form-label">المستعير <span class="required">*</span></label>
-          <input type="text" id="user-filter" class="form-control mb-2" placeholder="ابحث عن طالب أو موظف..." autocomplete="off">
+        <div class="ui-field">
+          <label for="user-select" class="ui-field__label">المستعير <span class="req-star" aria-hidden="true">*</span></label>
+          <input type="text" id="user-filter" class="form-control" placeholder="ابحث عن طالب أو موظف..." autocomplete="off" aria-label="ابحث عن طالب أو موظف">
           <select name="user_id" id="user-select" required class="form-control" size="6">
             <option value="">— اختر الطالب أو الموظف —</option>
             {% for u in borrowers %}
@@ -39,10 +40,7 @@
             {% endfor %}
           </select>
         </div>
-        <div>
-          <label class="form-label">تاريخ الإرجاع المتوقع <span class="required">*</span></label>
-          <input type="date" name="due_date" required class="form-control">
-        </div>
+        {% field "due_date" "تاريخ الإرجاع المتوقع" type="date" required=True %}
       </div>
       <div class="flex gap-3 mt-6">
         <button type="submit" class="btn-primary flex-1">
@@ -58,7 +56,7 @@
 {% block extra_js %}
 <script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
-  /* فلتر خيارات <select> — يخفي الخيارات غير المطابقة */
+  /* فلتر خيارات القائمة — يخفي الخيارات غير المطابقة */
   function filterSelect(inputId, selectId){
     var input = document.getElementById(inputId);
     var select = document.getElementById(selectId);
