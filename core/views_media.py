@@ -25,9 +25,15 @@ def _resolve_file_access(name):
     """يُعيد (school_id, owner_user_id, allowed_roles) للملف، أو None إن لم يُعرَف مالكه."""
     # استيراد كسول لتفادي الدورات
     from core.models import School
-    from core.permissions import LIBRARY_FULL, LIBRARY_VIEW, QUALITY_VIEW, STUDENT_AFFAIRS_VIEW
+    from core.permissions import (
+        LIBRARY_FULL,
+        LIBRARY_VIEW,
+        QUALITY_VIEW,
+        STUDENT_AFFAIRS_VIEW,
+        WING_DAY_RECORD,
+    )
     from library.models import LibraryBook
-    from operations.models import StudentAttendance
+    from operations.models import AbsenceExcuse, StudentAttendance
     from quality.models import ProcedureEvidence
     from staff_affairs.models import LeaveRequest
     from student_affairs.models import StudentActivity
@@ -40,6 +46,12 @@ def _resolve_file_access(name):
             StudentAttendance,
             "excuse_file",
             lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW),
+        ),
+        # مستندُ عذر الغياب: من يرصد في الأجنحة ومن يرى شؤونَ الطلبة — والطالبُ صاحبُه.
+        (
+            AbsenceExcuse,
+            "document",
+            lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW | WING_DAY_RECORD),
         ),
         (LeaveRequest, "attachment", lambda o: (o.school_id, o.staff_id, leave_roles)),
         (

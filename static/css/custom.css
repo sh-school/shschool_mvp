@@ -6987,6 +6987,13 @@ html.dark {
 .rec-row__fix { font-size: 10px; color: var(--text-muted); opacity: .6; text-decoration: none; margin-inline-start: 4px; }
 .rec-row:hover .rec-row__fix, .rec-row__fix:focus-visible { opacity: 1; color: var(--maroon-fg); }
 .sa-undo .form-control { width: 140px; min-height: 30px; padding-block: 2px; font-size: var(--text-xs); }
+
+/* عذرُ الغياب — نموذجٌ قصيرٌ في بطاقة (wings/partials/excuse_card.html) */
+.exc-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); }
+.exc-form__grid .form-label { display: flex; flex-direction: column; gap: var(--sp-1); margin: 0; }
+.exc-form__wide { grid-column: 1 / -1; }
+.exc-form__actions { margin-block-start: var(--sp-3); display: flex; justify-content: flex-end; }
+@media (max-width: 640px) { .exc-form__grid { grid-template-columns: 1fr; } }
 .tch-no { display: inline-block; min-width: 1.6em; color: var(--text-muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .tch-state, .tch-exit { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .tch-exit-menu { position: relative; }

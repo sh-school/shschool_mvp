@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 {% load ui %}
-{% block title %}تصحيح — {{ student.full_name }}{% endblock %}
+{% block title %}تصحيح وعذر — {{ student.full_name }}{% endblock %}
 
 {% block breadcrumbs %}
 {% url 'wings:record_section' klass.id as section_url %}
@@ -17,6 +17,8 @@
     {% include "components/icon.html" with name="info" %}
     <span>رُصد شيءٌ على هذا الطالب بالخطأ؟ احذفه هنا بسبب. الحذفُ لا يمحو الأصل: يُسجَّل في سجلّ المراجعة، وتزول معه المخالفةُ التي بُنيت عليه، وتعود الخانةُ «لم تُرصد». ولتصحيحِ حصّةٍ كاملةٍ أعِد تثبيتَها من الكشف.</span>
   </p>
+
+  {% include "wings/partials/excuse_card.html" %}
 
   {% if attendance_events or exit_events %}
     {% include "wings/partials/student_events.html" %}
