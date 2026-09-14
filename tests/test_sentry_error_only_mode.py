@@ -25,7 +25,7 @@ DSN = "https://public@o0.ingest.sentry.io/0"
 
 EMAIL = "parent@example.invalid"
 PHONE = "+97466000000"
-QID = "28760000001"
+QID = "99900000001"
 
 
 # ═══════════════════════════════════════════════════════════════════

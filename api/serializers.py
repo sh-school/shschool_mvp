@@ -73,6 +73,11 @@ class UserBriefSerializer(serializers.ModelSerializer):
         if not privileged:
             data.pop("national_id", None)
             data.pop("phone", None)
+        elif "national_id" in data:
+            # تمثيلُ القوائم كشفٌ جماعيّ حتى للقيادة: يميّز ولا يعرّف (core/privacy.py).
+            from core.privacy import mask_national_id
+
+            data["national_id"] = mask_national_id(data["national_id"])
         return data
 
 

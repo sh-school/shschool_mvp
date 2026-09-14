@@ -1,6 +1,7 @@
 {% extends "reports/base_qatar_report.html" %}
-{% load brand_tags %}
+{% load brand_tags privacy %}
 {# شهادات الفصل — شهادة لكل طالب على صفحة منفصلة #}
+{# ملفٌّ واحدٌ لفصلٍ كامل كشفٌ جماعيّ: الرقمُ مستور، والشهادةُ الفرديّةُ (certificate.html) تحمله كاملاً #}
 
 {% block extra_styles %}
 .cert-page        { page-break-after: always; padding: 20px 0; }
@@ -61,7 +62,7 @@
         يُشهد بأن الطالب/ة:
         <span class="cert-student">{{ ctx.student.full_name }}</span>
         &nbsp;—&nbsp;
-        الرقم الشخصي: <strong>{{ ctx.student.national_id|default:"—" }}</strong>
+        الرقم الشخصي: <strong dir="ltr">{{ ctx.student.national_id|mask_id|default:"—" }}</strong>
         <br>
         المنتسب/ة إلى: <strong>{{ class_group }}</strong>
         &nbsp;&nbsp;|&nbsp;&nbsp;

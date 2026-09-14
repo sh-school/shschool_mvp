@@ -25,6 +25,7 @@ from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit, HealthRecord
 from core import brand
 from core.academic_calendar import academic_year_for, academic_year_window
+from core.audit_export import log_export
 from core.capabilities import capability_required
 from core.export_utils import (
     add_excel_footer,
@@ -518,6 +519,13 @@ def student_export_excel(request):
     last_data_row = data_start + students.count()
     add_excel_footer(ws, ctx, last_data_row, num_cols)
 
+    log_export(
+        request,
+        "student_affairs.students_xlsx",
+        rows=last_data_row - data_start,
+        full_national_id=True,
+        object_repr=f"سجل الطلاب Excel — {year}",
+    )
     filename = generate_export_filename("students", "list", "xlsx")
     return excel_to_response(wb, filename)
 
@@ -1284,6 +1292,13 @@ def attendance_export_excel(request):
 
     add_excel_footer(ws2, ctx, s2_data_start + today_count, s2_num_cols)
 
+    log_export(
+        request,
+        "student_affairs.attendance_xlsx",
+        rows=absence_count_total + today_count,
+        full_national_id=True,
+        object_repr=f"إحصائيات الغياب Excel — {today:%Y-%m-%d}",
+    )
     filename = generate_export_filename("attendance", "stats", "xlsx")
     return excel_to_response(wb, filename)
 
@@ -1651,6 +1666,15 @@ def student_profile_pdf(request, student_id):
     ).select_related("parent")
 
     ctx = get_export_context(request, "ملف الطالب الشامل")
+    # ملفُّ طالبٍ واحدٍ وثيقةٌ فرديّة: الرقمُ كاملاً، والتدقيقُ ثمنُه.
+    log_export(
+        request,
+        "student_affairs.student_profile_pdf",
+        rows=1,
+        full_national_id=True,
+        object_id=student.pk,
+        object_repr=f"ملف الطالب {student.full_name} — {year}",
+    )
 
     html_string = render_to_string(
         "student_affairs/student_profile_pdf.html",
@@ -1915,6 +1939,13 @@ def behavior_export_excel(request):
         ws.column_dimensions[chr(64 + col_idx)].width = min(max_len + 4, 40)
 
     add_excel_footer(ws, ctx, data_start + row_count, num_cols)
+    log_export(
+        request,
+        "student_affairs.behavior_xlsx",
+        rows=row_count,
+        full_national_id=True,
+        object_repr="إحصائيات السلوك Excel",
+    )
     return excel_to_response(wb, generate_export_filename("behavior", "stats", "xlsx"))
 
 
@@ -2032,6 +2063,12 @@ def tardiness_export_excel(request):
         ws.column_dimensions[col_letter].width = min(max_len + 4, 40)
 
     add_excel_footer(ws, ctx, data_start + row_count, num_cols)
+    log_export(
+        request,
+        "student_affairs.tardiness_xlsx",
+        rows=row_count,
+        object_repr=f"المتأخّرون Excel — {selected_date:%Y-%m-%d}",
+    )
     return excel_to_response(wb, generate_export_filename("tardiness", "daily", "xlsx"))
 
 
@@ -2098,6 +2135,12 @@ def activities_export_excel(request):
         ws.column_dimensions[chr(64 + col_idx)].width = min(max_len + 4, 40)
 
     add_excel_footer(ws, ctx, data_start + row_count, num_cols)
+    log_export(
+        request,
+        "student_affairs.activities_xlsx",
+        rows=row_count,
+        object_repr="الأنشطة والإنجازات Excel",
+    )
     return excel_to_response(wb, generate_export_filename("activities", "list", "xlsx"))
 
 
@@ -2160,6 +2203,12 @@ def attendance_overview_pdf(request):
         },
     )
 
+    log_export(
+        request,
+        "student_affairs.attendance_overview_pdf",
+        rows=len(worst_students),
+        object_repr=f"تقرير الحضور والغياب — {today:%Y-%m-%d}",
+    )
     filename = generate_export_filename("attendance", "overview", "pdf")
     return render_pdf(html, filename, paper_size="A4")
 
@@ -2232,6 +2281,12 @@ def behavior_overview_pdf(request):
         },
     )
 
+    log_export(
+        request,
+        "student_affairs.behavior_overview_pdf",
+        rows=len(worst_students),
+        object_repr=f"تقرير السلوك — {today:%Y-%m-%d}",
+    )
     filename = generate_export_filename("behavior", "overview", "pdf")
     return render_pdf(html, filename, paper_size="A4")
 
@@ -2321,6 +2376,12 @@ def tardiness_pdf(request):
         },
     )
 
+    log_export(
+        request,
+        "student_affairs.tardiness_pdf",
+        rows=total_late,
+        object_repr=f"المتأخّرون — {selected_date:%Y-%m-%d}",
+    )
     filename = generate_export_filename("tardiness", "list", "pdf")
     return render_pdf(html, filename, paper_size="A4")
 
@@ -2368,7 +2429,8 @@ def tardiness_search_students(request):
             {
                 "id": str(s["id"]),
                 "name": s["full_name"],
-                "nid": s["national_id"] or "",
+                # ردُّ بحثٍ يضمّ خمسةَ عشرَ طالباً كشفٌ جماعيّ — يميّز ولا يعرّف.
+                "nid": mask_national_id(s["national_id"]),
                 "already_late": s["id"] in already_late_ids,
             }
         )

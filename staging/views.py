@@ -189,6 +189,17 @@ def download_grade_template(request, assessment_id):
     ws.protection.sheet = False  # يظل قابلاً للتعديل على C:E
     ws.row_dimensions[6].height = 20
 
+    from core.audit_export import log_export
+
+    # القالبُ يحمل الرقمَ كاملاً لأنّ الاستيراد يطابق عليه — فيُدقَّق إخراجُه.
+    log_export(
+        request,
+        "staging.grade_template_xlsx",
+        rows=len(enrollments),
+        full_national_id=True,
+        object_id=assessment.pk,
+        object_repr=f"قالب درجات {assessment.title} — {assessment.class_group}",
+    )
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)

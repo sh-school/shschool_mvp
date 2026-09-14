@@ -634,6 +634,15 @@ def student_export_excel(request):
     ws.oddFooter.center.text = "&P / &N"
     ws.oddFooter.right.text = "&D"
 
+    from core.audit_export import log_export
+
+    log_export(
+        request,
+        "core.students_xlsx",
+        rows=num_data_rows,
+        full_national_id=True,
+        object_repr=f"كشف الطلاب الكامل Excel — {year}",
+    )
     filename = f"طلاب_{school.name}_{year}_{today_str.replace('/', '-')}.xlsx"
     return _wb_to_response(wb, filename)
 
@@ -730,4 +739,8 @@ def student_import_template(request):
     ws.page_margins.top = 0.4
     ws.page_margins.bottom = 0.4
 
+    from core.audit_export import log_export
+
+    # قالبٌ فارغٌ بأمثلةٍ مصطنعة — لا بياناتٍ فيه، ويُدقَّق كأيّ ملفٍّ يخرج.
+    log_export(request, "core.students_import_template_xlsx", rows=0)
     return _wb_to_response(wb, "قالب_استيراد_الطلاب.xlsx")

@@ -150,14 +150,14 @@ class TestTheColumnsAreTheOnesUsed:
         assert ">mother<" not in body
 
     def test_no_national_id_is_bared(self, client_as, school, admin, year):
-        student = _student(school, "الطالب", "31473600538", year=year)
-        _link(school, _parent(school, "الوليّ", "28576002649"), student)
+        student = _student(school, "الطالب", "99900000538", year=year)
+        _link(school, _parent(school, "الوليّ", "99900002649"), student)
 
         body = _body(client_as, admin)
 
         assert "*******0538" in body
-        assert "31473600538" not in body
-        assert "28576002649" not in body
+        assert "99900000538" not in body
+        assert "99900002649" not in body
 
     def test_each_cell_holds_one_value(self, client_as, school, admin, year):
         """كان هذا الجدولُ وحدَه في المنصّة يحشر الاسمَ والرقمَ في خليّةٍ

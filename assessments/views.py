@@ -688,6 +688,16 @@ def export_gradebook(request, setup_id):
     ws.freeze_panes = "A3"
 
     # ── إرسال الملف ────────────────────────────────────────
+    from core.audit_export import log_export
+
+    log_export(
+        request,
+        "assessments.gradebook_xlsx",
+        rows=len(enrollments),
+        full_national_id=True,
+        object_id=setup.pk,
+        object_repr=f"سجل درجات {setup.subject.name_ar} — {setup.class_group} — {semester}",
+    )
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)

@@ -729,9 +729,18 @@ def observation_pdf(request, obs_id):
     والاستثناء `sameorigin` لهذه الاستجابة وحدها لا تخفيفٌ عامّ: الصفحة
     المُضمِّنة من الأصل نفسه، وكلّ ما عداها يبقى على `DENY`.
     """
+    from core.audit_export import log_export
+
     obs, allowed = _get_observation(request, obs_id)
     if not allowed:
         return render(request, "403.html", status=403)
+    log_export(
+        request,
+        "quality.observation_pdf",
+        rows=1,
+        object_id=obs.pk,
+        object_repr=f"إشراف صفّي — {obs.teacher.full_name} — {obs.observation_date}",
+    )
     html = render_to_string("quality/observation_pdf.html", _pdf_context(obs))
     return render_pdf(html, f"observation_{obs.teacher.full_name}_{obs.observation_date}.pdf")
 

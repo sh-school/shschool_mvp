@@ -435,12 +435,14 @@ else:
 VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").replace("\\n", "\n")
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").replace("\\n", "\n")
 VAPID_PUBLIC_KEY_B64 = os.environ.get("VAPID_PUBLIC_KEY_B64", "")
-VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "admin@shahaniya.edu.qa")
+VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "")
 
 # ✅ DPO — مسؤول حماية البيانات (PDPPL م.17)
-DPO_NAME = os.environ.get("DPO_NAME", "سفيان احمد محمد مسيف")
-DPO_EMAIL = os.environ.get("DPO_EMAIL", "s.mesyef0904@education.qa")
-DPO_PHONE = os.environ.get("DPO_PHONE", "55296286")
+# بياناتُ التواصل من البيئة وحدَها، والافتراضُ فارغ: المستودعُ عامّ، واسمُ شخصٍ
+# وبريدُه وجوّالُه ليست إعداداتٍ تُودَع (انظر `.env.example`).
+DPO_NAME = os.environ.get("DPO_NAME", "")
+DPO_EMAIL = os.environ.get("DPO_EMAIL", "")
+DPO_PHONE = os.environ.get("DPO_PHONE", "")
 
 # ══════════════════════════════════════════════════════════════════════
 # ✅ v5.4: django-axes — حماية من هجمات القوة الغاشمة (Brute Force)

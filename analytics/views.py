@@ -613,6 +613,10 @@ def kpi_monthly_pdf(request):
     ]
     ctx = {**data, "plan_domains": plan_domains, "red_kpis": red_kpis, "paper_size": paper}
 
+    from core.audit_export import log_export
+
+    log_export(request, "analytics.kpi_monthly_pdf", object_repr=f"KPIs — {data['month_label']}")
+
     if preview:
         return render(request, "analytics/kpi_monthly_report.html", ctx)
 

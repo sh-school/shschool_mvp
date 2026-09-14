@@ -234,9 +234,17 @@ def incident_pdf(request, pk):
     """توليد PDF لمحضر الحادثة (الأقسام أ–ز)"""
     from django.template.loader import render_to_string
 
+    from core.audit_export import log_export
     from core.pdf_utils import render_pdf
 
     incident = get_object_or_404(ExamIncident, pk=pk, session__school=request.user.get_school())
+    log_export(
+        request,
+        "exam_control.incident_pdf",
+        rows=1,
+        object_id=incident.pk,
+        object_repr=f"محضر حادثة {incident.pk}",
+    )
     html_str = render_to_string(
         "exam_control/pdf/incident_report.html",
         {
@@ -278,10 +286,18 @@ def session_report_pdf(request, pk):
     """تقرير PDF شامل للدورة (ملخص + حوادث + رصد)"""
     from django.template.loader import render_to_string
 
+    from core.audit_export import log_export
     from core.pdf_utils import render_pdf
 
     school = request.user.get_school()
     session = get_object_or_404(ExamSession, pk=pk, school=school)
+    log_export(
+        request,
+        "exam_control.session_report_pdf",
+        rows=session.incidents.count(),
+        object_id=session.pk,
+        object_repr=f"تقرير دورة {session}",
+    )
     html_str = render_to_string(
         "exam_control/pdf/session_report.html",
         {
