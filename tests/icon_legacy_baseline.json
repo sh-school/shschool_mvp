@@ -81,5 +81,6 @@
  "transport/dashboard.html": 6,
  "transport/student_assignments.html": 3,
  "wings/floors.html": 6,
+ "wings/partials/excuse_card.html": 3,
  "wings/record_section.html": 7
 }
