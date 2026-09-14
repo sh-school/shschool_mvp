@@ -19,8 +19,8 @@
         <option value="landscape">أفقي</option>
         <option value="portrait">عمودي — صفحةٌ واحدة</option>
       </select>
-      <button type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</button>
-      <button type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير PDF</button>
+      <button data-app-file type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</button>
+      <button data-app-file type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير PDF</button>
       <button type="submit" name="print" value="1" formtarget="_blank" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
     </form>
     {% endif %}
@@ -93,11 +93,11 @@
           <tr class="rec-row" data-student="{{ sid }}">
             <td class="per-grid__no">{{ forloop.counter }}</td>
             <th scope="row" class="per-grid__name">
-              <span class="rec-row__name">{{ row.student.full_name }} <a href="{% url 'wings:student_events' klass.id sid %}" class="rec-row__fix" title="تصحيح أو عذرُ إدخالٍ خاطئ على هذا الطالب">تصحيح</a></span>
+              <span class="rec-row__name"><a href="{% url 'wings:absence_file' sid %}" class="rec-row__file" title="ملفُّ غيابه يوماً بيوم">{{ row.student.full_name }}</a> <a href="{% url 'wings:student_events' klass.id sid %}" class="rec-row__fix" title="تصحيح أو عذرُ إدخالٍ خاطئ على هذا الطالب">تصحيح</a></span>
               {% if row.absent_yesterday or row.days %}
               <span class="rec-row__flags">
                 {% if row.absent_yesterday %}<span class="badge badge--warning">غاب أمس</span>{% endif %}
-                {% if row.needs_contact %}<a href="{% url 'wings:student_events' klass.id sid %}" class="badge badge--danger" title="أخطِر وليَّ الأمر عن غياب {{ row.needs_contact|date:'d/m' }}">لم يُخطَر وليُّ الأمر</a>{% endif %}
+                {% if row.needs_contact %}<a href="{% url 'wings:absence_file' sid %}#day-{{ row.needs_contact|date:'Y-m-d' }}" class="badge badge--danger" title="أخطِر وليَّ الأمر عن غياب {{ row.needs_contact|date:'d/m' }}">لم يُخطَر وليُّ الأمر</a>{% endif %}
                 {% if row.days %}<span class="badge badge--neutral">{{ row.days }} يوم بلا عذر{% if row.gate %} · الحرمانُ بعد {{ row.gate.max_days }}{% endif %}</span>{% endif %}
               </span>
               {% endif %}

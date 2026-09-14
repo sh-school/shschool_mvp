@@ -22,7 +22,7 @@
       إرسال نسخة
     </button>
     {% endif %}
-    <a href="{% url 'observation_pdf' obs.id %}" download class="btn-secondary btn-sm">تحميل</a>
+    <a data-app-file href="{% url 'observation_pdf' obs.id %}" download class="btn-secondary btn-sm">تحميل</a>
     {% comment %}
     الرجوع إلى القائمة لا إلى التفصيل: من يفتح الاستمارة يكون قد فرغ منها،
     ووجهتُه التالية زيارةٌ أخرى — لا الصفحة التي جاء منها.

@@ -15,7 +15,7 @@
   {% page_header "سجل الطلاب" subtitle=year icon="student_info" %}
     <a href="{% url 'student_affairs:student_add' %}" class="btn-primary btn-sm">{% icon "student_add" %} إضافة طالب</a>
     <a href="/core/students/import-export/" class="btn-secondary btn-sm">{% icon "export_excel" %} استيراد Excel</a>
-    <a href="{% url 'student_affairs:student_export' %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
+    <a data-app-file href="{% url 'student_affairs:student_export' %}?q={{ q|urlencode }}&grade={{ grade_filter }}&section={{ section_filter }}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
     <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 

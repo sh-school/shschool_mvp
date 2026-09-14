@@ -607,6 +607,7 @@
 سطرين في Django — فما امتدّ منها ظهر نصّاً في رأس الورقة.
 {% endcomment %}
 <body data-pdf-own-page class="{% if paper == 'a3' %}paper-a3 {% endif %}sheet-{{ orient }}">
+{% include "components/app_back_bar.html" %}
 
 {# ── Print Controls (hidden in print) ── #}
 {# داخل صفحة العرض في المنصّة تُخفى الأدوات: أدواتُ الصفحة الحاضنة تكفي. #}
@@ -665,8 +666,8 @@
 
   <button data-action="print">طباعة</button>
   {# التصديرُ يقصد الورقة المعروضة نفسها — الاختيارُ محمولٌ في `selection_query`. #}
-  <a class="btn-export" href="{% url 'schedule_export_pdf' %}?{{ selection_query }}">تصدير PDF</a>
-  <a class="btn-export" href="{% url 'schedule_export_excel' %}?{{ selection_query }}">تصدير Excel</a>
+  <a data-app-file class="btn-export" href="{% url 'schedule_export_pdf' %}?{{ selection_query }}">تصدير PDF</a>
+  <a data-app-file class="btn-export" href="{% url 'schedule_export_excel' %}?{{ selection_query }}">تصدير Excel</a>
   {# صفحةٌ لكلّ معلّم مرتّبةً بالأقسام — ورقةُ المنسّق. زرّان باسم المطلوب لا رابطٌ عامّ. #}
   {% if may_browse %}
   <a class="btn-export" href="{% url 'schedule_pages' %}?kind=teachers&amp;year={{ year }}">جداول المعلّمين</a>

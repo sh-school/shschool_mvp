@@ -118,7 +118,7 @@
             <div class="info-label">الأدلة المرفوعة سابقا:</div>
             <div class="flex flex-wrap gap-2 mt-1">
               {% for ev in task.evidences.all %}
-              <a href="{{ ev.file.url }}" target="_blank" class="q-evidence-link">
+              <a data-app-file href="{{ ev.file.url }}" target="_blank" class="q-evidence-link">
                 {% icon "attach" %} {{ ev.title }}
               </a>
               {% endfor %}

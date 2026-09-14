@@ -13,7 +13,7 @@
   {% page_header student.full_name subtitle=student.national_id|mask_id icon="behavior" %}
     {% if can_report %}<a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">{% icon "add" %} مخالفة جديدة</a>{% endif %}
     {% if can_summon %}<a href="{% url 'behavior:summon_parent_student' student.pk %}" class="btn-secondary btn-sm">{% icon "call_parent" %} استدعاء ولي أمر</a>{% endif %}
-    <a href="{% url 'behavior:student_behavior_pdf' student.pk %}" target="_blank" class="btn-secondary btn-sm" title="طباعة التقرير السلوكي الشامل للطالب A4">{% icon "print" %} طباعة التقرير الكامل</a>
+    <a data-app-file href="{% url 'behavior:student_behavior_pdf' student.pk %}" target="_blank" class="btn-secondary btn-sm" title="طباعة التقرير السلوكي الشامل للطالب A4">{% icon "print" %} طباعة التقرير الكامل</a>
   {% endpage_header %}
 
   {# نظامُ النقاط ملغى — الأرقامُ عددُ المخالفات. #}
@@ -56,9 +56,9 @@
             {% if is_committee and inf.level == 4 and not inf.security_agency %}
             <a href="{% url 'behavior:security_referral' inf.id %}" class="btn-danger btn-xs">{% icon "security" %} إحالة أمنية</a>
             {% endif %}
-            <a href="{% url 'behavior:warning_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% icon "print" %} إنذار</a>
-            <a href="{% url 'behavior:parent_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% icon "print" %} تعهد ولي</a>
-            <a href="{% url 'behavior:student_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% icon "print" %} تعهد طالب</a>
+            <a data-app-file href="{% url 'behavior:warning_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% icon "print" %} إنذار</a>
+            <a data-app-file href="{% url 'behavior:parent_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% icon "print" %} تعهد ولي</a>
+            <a data-app-file href="{% url 'behavior:student_pdf' inf.id %}" target="_blank" class="btn-secondary btn-xs" title="طباعة PDF">{% icon "print" %} تعهد طالب</a>
           </div>
         </li>
       {% endfor %}

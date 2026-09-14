@@ -67,8 +67,8 @@
 
       <button type="button" id="schedule-print-btn" class="btn-primary btn-sm">طباعة</button>
       {# التصديرُ للورقة المعروضة نفسها: الاختيارُ محمولٌ في `selection_query`. #}
-      <a href="{% url 'schedule_export_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
-      <a href="{% url 'schedule_export_excel' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير Excel</a>
+      <a data-app-file href="{% url 'schedule_export_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
+      <a data-app-file href="{% url 'schedule_export_excel' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير Excel</a>
     </div>
   </div>
 

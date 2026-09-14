@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_register
+from . import views, views_absence_file, views_register
 
 app_name = "wings"
 
@@ -29,6 +29,28 @@ urlpatterns = [
         name="excuse_grant",
     ),
     path("record/excuse/<uuid:pk>/revoke/", views.excuse_revoke, name="excuse_revoke"),
+    path("students/find/", views_absence_file.student_search, name="student_search"),
+    path(
+        "students/<uuid:student_id>/absences/",
+        views_absence_file.absence_file,
+        name="absence_file",
+    ),
+    path(
+        "students/<uuid:student_id>/absences/excuse/",
+        views_absence_file.absence_file_excuse,
+        name="absence_file_excuse",
+    ),
+    path(
+        "students/<uuid:student_id>/absences/contact/",
+        views_absence_file.absence_file_contact,
+        name="absence_file_contact",
+    ),
+    path("excuses/requests/", views.excuse_requests, name="excuse_requests"),
+    path(
+        "excuses/requests/<uuid:pk>/decide/",
+        views.excuse_request_decide,
+        name="excuse_request_decide",
+    ),
     path(
         "record/<uuid:class_id>/student/<uuid:student_id>/contact/",
         views.guardian_contact_log,
