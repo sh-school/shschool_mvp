@@ -4,11 +4,11 @@ operations/guardian_contact.py — إخطارُ وليّ الأمر بغياب �
 الدليلُ التنظيميّ 2026 (م 3.4.1.5، ص30): تُخطر إدارةُ المدرسة وليَّ الأمر بالغياب
 **في اليوم نفسِه** هاتفيّاً ونصّيّاً، «فإن لم يردّ خلال يومين حُسب الغيابُ بلا
 عذر». وقرارُ 2026-09-13: المشرفُ يسجّل «اتّصلتُ بوليّ الأمر» بضغطةٍ مع نتيجة
-الاتّصال (ردّ / لم يردّ / سيُحضر عذراً)، **ومهلةُ اليومين تبدأ من الإخطار**.
+الاتّصال (ردّ / لم يردّ / سيُحضر عذراً). وقرارُ 2026-09-14: مهلةُ العذر تُعدّ من عودة
+الطالب لا من الإخطار — فالإخطارُ سجلٌّ لا يحرّك المهلة.
 
 فالسجلُّ هنا حقيقةٌ تُكتب لا تُحذف: من اتّصل، ومتى، وعن أيّ يومِ غياب، وبمَ
-أجاب وليُّ الأمر. ومنه يُعرف في الكشف من غاب أمس ولم يُخطَر أهلُه بعد، ومنه
-تُعدّ مهلةُ العذر (`operations/excuses.py`).
+أجاب وليُّ الأمر. ومنه يُعرف في الكشف من غاب أمس ولم يُخطَر أهلُه بعد.
 """
 
 from __future__ import annotations
@@ -59,24 +59,6 @@ def contacts_of(student: CustomUser, school: School, limit: int = 20) -> list[Gu
         .select_related("contacted_by")
         .order_by("-contacted_at")[:limit]
     )
-
-
-def last_notified_on(
-    student: CustomUser, school: School, date_from: dt.date, date_to: dt.date
-) -> dt.date | None:
-    """يومُ آخر إخطارٍ عن غيابٍ في هذه المدّة — أو لا شيء إن لم يُخطَر أحد."""
-    latest = (
-        GuardianContact.objects.filter(
-            student=student,
-            school=school,
-            absence_date__gte=date_from,
-            absence_date__lte=date_to,
-        )
-        .order_by("-contacted_at")
-        .values_list("contacted_at", flat=True)
-        .first()
-    )
-    return timezone.localtime(latest).date() if latest else None
 
 
 def awaiting_contact(class_group: ClassGroup, day: dt.date) -> dict:

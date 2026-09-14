@@ -8,6 +8,10 @@
     <a href="{% url 'daily_report' %}" class="btn-primary btn-sm">{% icon "absence" %} غياب اليوم</a>
   {% endpage_header %}
 
+  {% if pending_excuses %}
+    <div class="wing-warn">{% icon "status_warning" %} {{ pending_excuses }} عذرٌ أرسله المشرفون بعد المهلة ينتظر قرارك. <a href="{% url 'wings:excuse_requests' %}" class="btn-primary btn-sm">افتح الأعذار</a></div>
+  {% endif %}
+
   {% kpi_strip label="الحضور اليوم" %}
     {% kpi "نسبة الحضور" attendance_label sub=att_delta_label tone="green" %}
     {% kpi "الحاضرون" present tone="teal" %}

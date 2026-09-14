@@ -1,5 +1,5 @@
 {% load ui icons %}
-{% comment %}قبولُ عذرِ غيابٍ من القائمة المغلقة (الدليل 2026 م 3.4.1.4) في مهلة يومين (م 3.4.1.5) — يحتاج: klass, student, excuse_kinds, excuse_day, grace_days, may_override, excuses.{% endcomment %}
+{% comment %}قبولُ عذرِ غيابٍ من القائمة المغلقة (الدليل 2026 م 3.4.1.4) في مهلة يومين دراسيّين من عودة الطالب، وبعدها يُرسَل للنائب (قرارُ 2026-09-14) — يحتاج: klass, student, excuse_kinds, excuse_day, grace_days, may_override, excuses.{% endcomment %}
 {% section_card "عذرٌ للغياب — من القائمة المغلقة" icon="checklist" meta=excuses|length %}
   <form method="post" action="{% url 'wings:excuse_grant' klass.id student.id %}" enctype="multipart/form-data">
     {% csrf_token %}
@@ -18,14 +18,14 @@
           {% endfor %}
         </select>
       </label>
-      <label class="form-label">المستند
-        <input type="file" name="document" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp">
+      <label class="form-label">المستند <small>(صورةٌ من الجوّال أو ملفّ)</small>
+        <input type="file" name="document" class="form-control" accept="image/*,.pdf,.heic,.heif">
       </label>
       <label class="form-label exc-form__wide">بيان
         <input type="text" name="notes" class="form-control" placeholder="صلةُ القرابة، أو جهةُ الموعد…">
       </label>
       {% if may_override %}
-      <label class="form-label exc-form__wide">سببُ القبول بعد المهلة <small>(إن مضى على آخر يومِ غيابٍ أكثرُ من يومين دراسيّين)</small>
+      <label class="form-label exc-form__wide">سببُ القبول بعد المهلة <small>(إن مضى يومان دراسيّان على عودة الطالب)</small>
         <input type="text" name="override_reason" class="form-control">
       </label>
       {% endif %}
@@ -34,7 +34,7 @@
       <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} اقبل العذر</button>
     </div>
   </form>
-  <p class="bell-note">يغطّي العذرُ كلَّ حصص الغياب بلا عذرٍ في المدّة، ويُسقط أيّامَها من عدّ الحرمان. المشرفُ يقبله خلال يومين دراسيّين من إخطار وليّ الأمر (أو من آخر يومِ غيابٍ إن لم يُخطَر)، ومن بعدها النائبُ الإداريّ بسبب. وما ليس في القائمة «غيابٌ بدون عذر».</p>
+  <p class="bell-note">يغطّي العذرُ كلَّ حصص الغياب بلا عذرٍ في المدّة، ويُسقط أيّامَها من عدّ الحرمان. المشرفُ يقبله حتى يمضي يومان دراسيّان على عودة الطالب، ومن بعدها يُرسَل إلى النائب الإداريّ بالضغطة نفسها. والصورةُ تُصغَّر وتُمحى بياناتُها المخفيّة. وما ليس في القائمة «غيابٌ بدون عذر».</p>
 
   {% if excuses %}
   <div class="table-wrap">
@@ -44,14 +44,14 @@
         {% for x in excuses %}
         <tr>
           <td>{{ x.date_from|date:"d/m" }}{% if x.date_to != x.date_from %} – {{ x.date_to|date:"d/m" }}{% endif %}</td>
-          <td>{{ x.get_kind_display }}{% if x.notes %} <small>{{ x.notes }}</small>{% endif %}{% if x.after_deadline %} <span class="status-badge status-warning">بعد المهلة</span>{% endif %}</td>
+          <td>{{ x.get_kind_display }}{% if x.notes %} <small>{{ x.notes }}</small>{% endif %}{% if x.status == "pending" %} <span class="status-badge status-warning">بانتظار النائب الإداريّ</span>{% elif x.status == "rejected" %} <span class="status-badge status-danger">مرفوض</span> <small>{{ x.rejection_reason }}</small>{% elif x.after_deadline %} <span class="status-badge status-info">قُبل بعد المهلة</span>{% endif %}</td>
           <td>{% if x.document %}<a href="{% url 'student_affairs:protected_media' x.document.name %}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-xs">{% icon "document" %} افتح</a>{% else %}—{% endif %}</td>
           <td><small>{{ x.granted_by.full_name|default:"—" }} · {{ x.granted_at|date:"d/m H:i" }}</small></td>
           <td>
             <form method="post" action="{% url 'wings:excuse_revoke' x.pk %}" class="sa-undo" data-confirm="إلغاءُ العذر وإعادةُ حصصه بلا عذر؟">
               {% csrf_token %}
               <input type="text" name="reason" class="form-control form-control-sm" placeholder="السبب" required aria-label="سببُ الإلغاء">
-              <button type="submit" class="btn-secondary btn-xs">إلغاء</button>
+              <button type="submit" class="btn-secondary btn-xs">{% if x.status == "pending" %}سحب{% else %}إلغاء{% endif %}</button>
             </form>
           </td>
         </tr>

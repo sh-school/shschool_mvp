@@ -2,7 +2,7 @@
 
 - القائمةُ مغلقةٌ بخمسة (الدليل 2026 م 3.4.1.4) — «أخرى» لا تُقبل.
 - المستندُ شرطٌ حيث اشترطه النصّ (طبّيّ، كتابٌ رسميّ…)، والوفاةُ ببيان القرابة.
-- المهلةُ يومان من آخر يومِ غياب (م 3.4.1.5): المشرفُ في المهلة، والنائبُ بعدها بسبب.
+- المهلةُ يومان دراسيّان من عودة الطالب (قرارُ 2026-09-14): المشرفُ فيها، وبعدها يُرسَل للنائب.
 - العذرُ يغطّي كلَّ حصص المدّة ويُسقط اليومَ من عدّ الحرمان؛ وإلغاؤه يُعيدها — وكلاهما في سجلّ المراجعة.
 """
 
@@ -49,6 +49,12 @@ def _absent_day(school, klass, kid, teacher, supervisor, day=SUNDAY, count=7):
 
 def _report():
     return SimpleUploadedFile("report.pdf", b"%PDF-1.4 fake", content_type="application/pdf")
+
+
+def _back(school, klass, teacher, supervisor, day, count=4):
+    """يومٌ عاد فيه الطالبُ — حصصٌ مثبَّتةٌ والجميعُ حاضر."""
+    for session in _periods(school, klass, teacher, count, day=day):
+        _confirm(klass, session, {}, supervisor, day=day)
 
 
 class TestGranting:
@@ -159,27 +165,90 @@ class TestGranting:
 
 
 class TestTheDeadline:
-    def test_the_two_days_are_school_days_not_calendar_days(self, school, seeded_calendar):
-        """قرارُ 2026-09-14: يومان دراسيّان — الخميسُ تليه الجمعةُ والسبتُ فلا يُعدّان."""
-        from operations.excuses import deadline_of, is_after_deadline
+    """قرارُ 2026-09-14: يومان دراسيّان بعد يوم عودة الطالب — لا من الغياب ولا من الإخطار."""
 
-        thursday = dt.date(2026, 9, 17)
-        assert deadline_of(school, thursday) == dt.date(2026, 9, 21), "الأحدُ الأوّل والاثنينُ الثاني"
-        assert not is_after_deadline(school, thursday, dt.date(2026, 9, 21))
-        assert is_after_deadline(school, thursday, dt.date(2026, 9, 22))
-
-    def test_a_ministry_break_does_not_count_against_the_guardian(self, school, seeded_calendar):
-        """إجازةُ منتصف الفصل (25–29 أكتوبر 2026) تقفز فوقها المهلة."""
+    def test_there_is_no_deadline_until_the_student_returns(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
         from operations.excuses import deadline_of
 
-        assert deadline_of(school, dt.date(2026, 10, 22)) == dt.date(2026, 11, 2)
+        _absent_day(school, klass, kids[0], teacher, supervisor)
 
-    def test_after_two_days_the_supervisor_is_refused(
+        assert deadline_of(school, kids[0], SUNDAY) is None
+        excuse = grant_excuse(
+            student=kids[0],
+            school=school,
+            date_from=SUNDAY,
+            date_to=SUNDAY,
+            kind="bereavement",
+            notes="الأب",
+            by=supervisor,
+            today=SUNDAY + dt.timedelta(days=10),
+        )
+        assert excuse.status == "accepted" and not excuse.after_deadline
+
+    def test_the_two_days_are_school_days_after_the_return(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        """غاب الأربعاء وعاد الخميس: الجمعةُ والسبتُ لا يُعدّان — المهلةُ حتى الاثنين."""
+        from operations.excuses import deadline_of, is_after_deadline
+
+        wednesday, thursday = dt.date(2026, 9, 16), dt.date(2026, 9, 17)
+        _absent_day(school, klass, kids[0], teacher, supervisor, day=wednesday)
+        _back(school, klass, teacher, supervisor, thursday)
+
+        assert deadline_of(school, kids[0], wednesday) == dt.date(2026, 9, 21)
+        assert not is_after_deadline(school, kids[0], wednesday, dt.date(2026, 9, 21))
+        assert is_after_deadline(school, kids[0], wednesday, dt.date(2026, 9, 22))
+
+    def test_a_ministry_break_does_not_count_against_the_guardian(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        """عاد الخميسَ 22 أكتوبر، وإجازةُ منتصف الفصل (25–29) تقفز فوقها المهلة."""
+        from operations.excuses import deadline_of
+
+        _absent_day(school, klass, kids[0], teacher, supervisor, day=dt.date(2026, 10, 21))
+        _back(school, klass, teacher, supervisor, dt.date(2026, 10, 22))
+
+        assert deadline_of(school, kids[0], dt.date(2026, 10, 21)) == dt.date(2026, 11, 2)
+
+    def test_a_week_away_after_surgery_is_excused_after_the_return(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        """مثالُ المستخدم: عمليّةٌ وغيابُ أسبوع، والإخطارُ في أوّل يوم، والعذرُ بعد العودة."""
+        from operations.guardian_contact import log_contact
+
+        week = [SUNDAY + dt.timedelta(days=i) for i in range(5)]
+        for day in week:
+            _absent_day(school, klass, kids[0], teacher, supervisor, day=day)
+        log_contact(
+            student=kids[0], school=school, absence_date=SUNDAY, outcome="answered", by=supervisor
+        )
+        back_on = SUNDAY + dt.timedelta(days=7)
+        _back(school, klass, teacher, supervisor, back_on)
+
+        excuse = grant_excuse(
+            student=kids[0],
+            school=school,
+            date_from=week[0],
+            date_to=week[-1],
+            kind="medical",
+            document=_report(),
+            by=supervisor,
+            today=back_on + dt.timedelta(days=2),
+        )
+
+        assert excuse.status == "accepted" and not excuse.after_deadline
+        assert excuse.rows.count() == 35
+        assert standing_for(kids[0], school, grade="G7", on=back_on).unexcused_days == 0
+
+    def test_after_two_days_the_supervisor_is_told_to_send_it_to_the_vice_admin(
         self, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
         _absent_day(school, klass, kids[0], teacher, supervisor)
+        _back(school, klass, teacher, supervisor, MONDAY)
 
-        with pytest.raises(ExcuseError, match="انقضت مهلةُ اليومين"):
+        with pytest.raises(ExcuseError, match="أرسله للنائب"):
             grant_excuse(
                 student=kids[0],
                 school=school,
@@ -188,13 +257,14 @@ class TestTheDeadline:
                 kind="medical",
                 document=_report(),
                 by=supervisor,
-                today=SUNDAY + dt.timedelta(days=3),
+                today=SUNDAY + dt.timedelta(days=4),
             )
 
     def test_the_vice_admin_accepts_after_the_deadline_with_a_written_reason(
         self, school, seeded_calendar, klass, kids, teacher, supervisor, vice_admin
     ):
         _absent_day(school, klass, kids[0], teacher, supervisor)
+        _back(school, klass, teacher, supervisor, MONDAY)
         common = {
             "student": kids[0],
             "school": school,
@@ -203,7 +273,7 @@ class TestTheDeadline:
             "kind": "medical",
             "document": _report(),
             "by": vice_admin,
-            "today": SUNDAY + dt.timedelta(days=3),
+            "today": SUNDAY + dt.timedelta(days=4),
             "may_override": True,
         }
 
@@ -211,13 +281,14 @@ class TestTheDeadline:
             grant_excuse(**common)
 
         excuse = grant_excuse(override_reason="التقريرُ وصل متأخّراً من المستشفى", **common)
-        assert excuse.after_deadline and excuse.override_reason
+        assert excuse.after_deadline and excuse.override_reason and excuse.status == "accepted"
         assert standing_for(kids[0], school, grade="G7", on=SUNDAY).unexcused_days == 0
 
-    def test_the_second_day_is_still_inside_the_window(
+    def test_the_second_day_after_the_return_is_still_inside_the_window(
         self, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
         _absent_day(school, klass, kids[0], teacher, supervisor)
+        _back(school, klass, teacher, supervisor, MONDAY)
 
         excuse = grant_excuse(
             student=kids[0],
@@ -227,7 +298,7 @@ class TestTheDeadline:
             kind="bereavement",
             notes="الأخ",
             by=supervisor,
-            today=SUNDAY + dt.timedelta(days=2),
+            today=SUNDAY + dt.timedelta(days=3),
         )
 
         assert not excuse.after_deadline

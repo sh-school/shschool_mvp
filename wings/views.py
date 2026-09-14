@@ -418,7 +418,11 @@ def student_events(request, class_id, student_id):
 @capability_required("wings.record_day")
 @require_POST
 def excuse_grant(request, class_id, student_id):
-    """قبولُ عذرِ غيابٍ لطالبٍ من شُعب جناحي — في المهلة، أو بعدها بقدرة النائب."""
+    """قبولُ عذرِ غيابٍ لطالبٍ من شُعب جناحي — في المهلة، وبعدها يُرسَل للنائب.
+
+    لا يُطلب من المشرف أن يعرف أين المهلة: إن انقضت أُرسل عذرُه «بانتظار النائب»
+    تلقائيّاً بالضغطة نفسها، ولا يُعيد رفعَ المستند (قرارُ 2026-09-14: أقلُّ النقرات).
+    """
     from operations.excuses import ExcuseError, grant_excuse
 
     school, klass = _own_class(request, class_id)
@@ -443,10 +447,18 @@ def excuse_grant(request, class_id, student_id):
             by=request.user,
             may_override=has_capability(request.user, "wings.excuse_after_deadline"),
             override_reason=request.POST.get("override_reason", ""),
+            forward_if_late=True,
             ip=request.META.get("REMOTE_ADDR"),
         )
     except (ExcuseError, ValidationError) as err:
         messages.error(request, " ".join(getattr(err, "messages", None) or [str(err)]))
+        return redirect(back)
+    if excuse.status == "pending":
+        messages.warning(
+            request,
+            f"مضى يومان على عودة الطالب، فأُرسل العذرُ ({excuse.get_kind_display()}) "
+            "إلى النائب الإداريّ — والغيابُ بلا عذرٍ حتى يقبله.",
+        )
         return redirect(back)
     messages.success(
         request,
@@ -487,8 +499,7 @@ def guardian_contact_log(request, class_id, student_id):
         return redirect(back)
     messages.success(
         request,
-        f"سُجّل الإخطارُ عن غياب {absence_date:%d/%m}: {contact.get_outcome_display()} — "
-        "ومهلةُ العذر تُعدّ من اليوم.",
+        f"سُجّل الإخطارُ عن غياب {absence_date:%d/%m}: {contact.get_outcome_display()}.",
     )
     return redirect(back)
 
@@ -564,3 +575,41 @@ def exit_event_delete(request, pk):
     delete_exit_event(request, exit_, reason)
     messages.success(request, "حُذف الخروجُ وسُجّل التراجعُ في سجلّ المراجعة.")
     return redirect(back)
+
+
+@login_required
+@capability_required("wings.excuse_after_deadline")
+def excuse_requests(request):
+    """الأعذارُ المرسلةُ للنائب الإداريّ بعد مهلة العودة — يقبل أو يرفض، وكلاهما بسبب."""
+    from operations.excuses import pending_for_vice
+
+    school = request.user.get_school()
+    return render(
+        request,
+        "wings/excuse_requests.html",
+        {"requests": pending_for_vice(school)},
+    )
+
+
+@login_required
+@capability_required("wings.excuse_after_deadline")
+@require_POST
+def excuse_request_decide(request, pk):
+    """قرارُ النائب في عذرٍ أُرسل إليه: «قبول» يكتبه على الحصص، و«رفض» يُبقي الغياب."""
+    from operations.excuses import ExcuseError, approve_excuse, reject_excuse
+    from operations.models import AbsenceExcuse
+
+    school = request.user.get_school()
+    excuse = get_object_or_404(AbsenceExcuse, pk=pk, school=school)
+    reason = request.POST.get("reason", "")
+    ip = request.META.get("REMOTE_ADDR")
+    try:
+        if request.POST.get("decision") == "accept":
+            covered = approve_excuse(excuse, by=request.user, reason=reason, ip=ip)
+            messages.success(request, f"قُبل عذرُ {excuse.student.full_name} وغُطّي {covered} حصّةً.")
+        else:
+            reject_excuse(excuse, by=request.user, reason=reason, ip=ip)
+            messages.success(request, f"رُفض عذرُ {excuse.student.full_name}.")
+    except ExcuseError as err:
+        messages.error(request, str(err))
+    return redirect("wings:excuse_requests")

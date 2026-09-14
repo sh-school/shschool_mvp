@@ -272,15 +272,20 @@ class StudentAttendance(models.Model):
 
 
 class AbsenceExcuse(models.Model):
-    """عذرٌ مقبولٌ لغياب طالبٍ في مدّة — قرارُ المشرف (أو النائب بعد المهلة) بمستنده.
+    """عذرٌ لغياب طالبٍ في مدّة — قرارُ المشرف في المهلة، أو طلبٌ ينتظر النائبَ بعدها.
 
-    الدليلُ التنظيميّ 2026: القائمةُ مغلقةٌ بخمسة (م 3.4.1.4)، والمهلةُ يومان
-    (م 3.4.1.5: «إن لم يردّ وليُّ الأمر خلال يومين حُسب بلا عذر»؛ والتقريرُ الطبّيّ
-    خلال يومين من العودة). فالمشرفُ يقبل في المهلة، ومن بعدها النائبُ الإداريّ بسبب.
+    الدليلُ التنظيميّ 2026: القائمةُ مغلقةٌ بخمسة (م 3.4.1.4)، والتقريرُ الطبّيّ خلال
+    يومين من العودة. وقرارُ 2026-09-14: المهلةُ يومان دراسيّان **من عودة الطالب**،
+    وبعدها «أرسل للنائب» — فيُحفظ العذرُ «بانتظار النائب» ولا يمسّ الصفوفَ حتى يقبله.
     القرارُ واحدٌ يغطّي كلَّ حصص الغياب في مدّته، ومستندُه واحدٌ لا يُنسخ على الصفوف.
     """
 
     KINDS = [k for k in StudentAttendance.EXCUSE if k[0] != "other"]
+    STATUSES = [
+        ("accepted", "مقبول"),
+        ("pending", "بانتظار النائب الإداريّ"),
+        ("rejected", "مرفوض"),
+    ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="absence_excuses")
@@ -304,6 +309,20 @@ class AbsenceExcuse(models.Model):
     #: قُبل بعد مهلة اليومين — بصلاحيّة النائب وبسببٍ مكتوب.
     after_deadline = models.BooleanField(default=False)
     override_reason = models.TextField(blank=True, verbose_name="سببُ القبول بعد المهلة")
+    #: «مقبول» يُكتب على الصفوف؛ «بانتظار النائب» و«مرفوض» لا يمسّانها.
+    status = models.CharField(
+        max_length=10, choices=STATUSES, default="accepted", db_index=True, verbose_name="الحالة"
+    )
+    reviewed_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="absence_excuses_reviewed",
+        verbose_name="قرّره النائب",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True, verbose_name="سببُ الرفض")
 
     class Meta:
         verbose_name = "عذرُ غياب"

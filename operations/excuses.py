@@ -1,5 +1,5 @@
 """
-operations/excuses.py — تحويلُ الغياب «بلا عذر» إلى «بعذرٍ مقبول» (قرارُ 2026-09-13).
+operations/excuses.py — تحويلُ الغياب «بلا عذر» إلى «بعذرٍ مقبول».
 
 الدليلُ التنظيميّ 2026:
 
@@ -7,17 +7,16 @@ operations/excuses.py — تحويلُ الغياب «بلا عذر» إلى «�
   (خلال يومين من العودة)، ووفاةٌ في القرابة الأولى، وظرفٌ عائليٌّ طارئٌ بكتابٍ
   رسميّ، وتمثيلُ الدولة في لقاءٍ خارجيّ، ومواعيدُ المحاكم والهيئات (ومقابلاتُ
   الثاني عشر). «وكلُّ ما عدا ذلك غيابٌ بدون عذر».
-- **م 3.4.1.5 (ص30)**: تُخطر المدرسةُ وليَّ الأمر في اليوم نفسِه، «فإن لم يردّ خلال
-  **يومين** حُسب الغيابُ بلا عذر».
 
-فالقاعدةُ هنا: **المشرفُ** يقبل العذرَ في مهلة يومين من آخر يومِ غياب، و**النائبُ
-الإداريّ** وحدَه يقبله بعدها بسببٍ مكتوب (قدرةُ `wings.excuse_after_deadline`).
-والمستندُ شرطٌ حيث اشترطه النصّ، وعذرُ الوفاة ببيان القرابة.
+وقرارُ 2026-09-14: **المهلةُ يومان دراسيّان من عودة الطالب** لا من الإخطار — طالبٌ أُجريت
+له عمليّةٌ فغاب أسبوعاً يُخطَر أهلُه في أوّل يوم، ويأتي العذرُ بعد عودته. فالمشرفُ يقبل
+العذرَ ما دام الطالبُ لم يعد أو لم يمضِ يوما عودته، ومن بعدها **يرسله للنائب الإداريّ**
+فيُحفظ «بانتظار النائب» حتى يقبله بسببٍ أو يرفضه بسبب (قدرةُ `wings.excuse_after_deadline`).
 
 القرارُ واحدٌ (`AbsenceExcuse`) يغطّي كلَّ حصص الغياب بلا عذرٍ في مدّته، ويُكتب
 نوعُه على كلّ صفٍّ لأنّ `absence_standing` يقرأ `excuse_type` — فيُسقط العذرُ
-اليومَ من عدّ الحرمان (س12 = نعم). وإلغاؤه يُعيد الصفوفَ «بلا عذر»، وكلاهما في
-سجلّ المراجعة.
+اليومَ من عدّ الحرمان. والصورةُ تُحفظ JPEG مصغّراً بلا بياناتٍ مخفيّة
+(`core/photo_privacy.py`). وكلُّ قبولٍ ورفضٍ وإلغاءٍ في سجلّ المراجعة.
 """
 
 from __future__ import annotations
@@ -29,6 +28,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from core.models import AuditLog, CustomUser, School
+from core.photo_privacy import clean_photo
 from core.validators import FileTypeValidator
 from operations.bells import day_type_for
 from operations.models import AbsenceExcuse, StudentAttendance
@@ -44,9 +44,12 @@ NEEDS_DOCUMENT = {
     "official": "إثباتُ الموعد",
 }
 
-#: مهلةُ الردّ: يومان **دراسيّان** (م 3.4.1.5، وقرارُ 2026-09-14: دراسيّاً لا تقويميّاً)،
-#: تُعدّ من آخر يومِ غياب — فالجمعةُ والسبتُ والإجازاتُ لا تُحسب على وليّ الأمر.
+#: المهلةُ يومان **دراسيّان** بعد يوم عودة الطالب (قرارا 2026-09-14) — فالجمعةُ والسبتُ
+#: وإجازاتُ تقويم الوزارة لا تُحسب على وليّ الأمر.
 GRACE_DAYS = 2
+
+#: ما يُعدّ عودةً: أوّلُ حصّةٍ حضرها بعد الغياب، ولو متأخّراً.
+RETURNED = ("present", "late")
 
 
 class ExcuseError(ValueError):
@@ -74,28 +77,28 @@ def is_school_day(school: School, day: dt.date) -> bool:
     ).exists()
 
 
-def deadline_of(
-    school: School,
-    date_to: dt.date,
-    *,
-    student: CustomUser | None = None,
-    date_from: dt.date | None = None,
-) -> dt.date:
-    """آخرُ يومٍ يُقبل فيه العذرُ عند المشرف: ثاني يومٍ دراسيٍّ بعد **الإخطار**.
+def return_day(school: School, student: CustomUser, after: dt.date) -> dt.date | None:
+    """أوّلُ يومٍ حضر فيه الطالبُ بعد `after` — أو لا شيء إن لم يعد بعد."""
+    day: dt.date | None = (
+        StudentAttendance.objects.filter(
+            student=student, school=school, session__date__gt=after, status__in=RETURNED
+        )
+        .order_by("session__date")
+        .values_list("session__date", flat=True)
+        .first()
+    )
+    return day
 
-    الإخطارُ يومُ آخر اتّصالٍ بوليّ الأمر عن غيابٍ في المدّة (قرارُ 2026-09-13:
-    «مهلةُ اليومين تبدأ من الإخطار»)، ولا يسبق آخرَ يومِ غياب. ومن لم يُخطَر أهلُه
-    تُعدّ مهلتُه من آخر يومِ غياب — فلا يُحاسَب وليُّ الأمر على ما لم يعلم به أشدَّ
-    ممّن أُخطر.
+
+def deadline_of(school: School, student: CustomUser, date_to: dt.date) -> dt.date | None:
+    """آخرُ يومٍ يقبل فيه المشرفُ العذر: ثاني يومٍ دراسيٍّ بعد عودة الطالب.
+
+    ولا مهلةَ لمن لم يعد: يُعيد لا شيء، والعذرُ مقبولٌ عند المشرف حتى يعود ويمضي يوماه.
     """
-    base = date_to
-    if student is not None:
-        from operations.guardian_contact import last_notified_on
-
-        notified = last_notified_on(student, school, date_from or date_to, date_to)
-        if notified is not None and notified > base:
-            base = notified
-    day, counted = base, 0
+    back = return_day(school, student, date_to)
+    if back is None:
+        return None
+    day, counted = back, 0
     while counted < GRACE_DAYS:
         day += dt.timedelta(days=1)
         if is_school_day(school, day):
@@ -104,14 +107,10 @@ def deadline_of(
 
 
 def is_after_deadline(
-    school: School,
-    date_to: dt.date,
-    today: dt.date,
-    *,
-    student: CustomUser | None = None,
-    date_from: dt.date | None = None,
+    school: School, student: CustomUser, date_to: dt.date, today: dt.date
 ) -> bool:
-    return today > deadline_of(school, date_to, student=student, date_from=date_from)
+    closed = deadline_of(school, student, date_to)
+    return closed is not None and today > closed
 
 
 def _audit(
@@ -149,9 +148,13 @@ def grant_excuse(
     today: dt.date | None = None,
     may_override: bool = False,
     override_reason: str = "",
+    forward_if_late: bool = False,
     ip: str | None = None,
 ) -> AbsenceExcuse:
     """يقبل عذراً من القائمة المغلقة لغياب `student` بين التاريخين — ويكتبه على صفوفه.
+
+    وبعد المهلة: من يملك القبولَ بعدها (`may_override`) يقبله بسبب، ومن لا يملكه يُحفظ
+    عذرُه «بانتظار النائب» إن طلب ذلك (`forward_if_late`) — ولا يمسّ الصفوف.
 
     يرفع `ExcuseError` برسالةٍ للمستخدم إن خالف القائمةَ أو المستندَ أو المهلةَ أو
     لم يجد غياباً بلا عذرٍ في المدّة.
@@ -171,6 +174,8 @@ def grant_excuse(
     if document:
         # النوعُ والحجمُ كما على حقل النموذج — `create` لا يشغّل المدقّقات وحدَه.
         FileTypeValidator(allowed_types="excuse", max_size_mb=10)(document)  # type: ignore[no-untyped-call]
+        # والصورةُ تُحفظ JPEG مصغّراً بلا إحداثيّاتٍ ولا تاريخٍ ولا جهاز.
+        document = clean_photo(document)  # type: ignore[assignment]
 
     rows = StudentAttendance.objects.filter(
         student=student,
@@ -183,13 +188,16 @@ def grant_excuse(
     if not rows.exists():
         raise ExcuseError("لا غيابَ بلا عذرٍ لهذا الطالب في هذه المدّة.")
 
-    late = is_after_deadline(school, date_to, today, student=student, date_from=date_from)
-    if late and not may_override:
-        closed = deadline_of(school, date_to, student=student, date_from=date_from)
+    late = is_after_deadline(school, student, date_to, today)
+    forward = late and not may_override
+    if forward and not forward_if_late:
+        closed = deadline_of(school, student, date_to)
         raise ExcuseError(
-            f"انقضت مهلةُ اليومين الدراسيّين (حتى {closed:%d/%m}) — يقبله النائبُ الإداريّ بسبب."
+            f"انقضت مهلةُ اليومين من عودة الطالب (حتى {closed:%d/%m}) — أرسله للنائب الإداريّ."
         )
-    if late and not override_reason:
+    if forward and _awaiting_vice(student, school, date_from, date_to):
+        raise ExcuseError("عذرٌ لهذه المدّة ينتظر النائبَ الإداريّ فعلاً.")
+    if late and not forward and not override_reason:
         raise ExcuseError("اكتب سببَ القبول بعد المهلة.")
 
     excuse = AbsenceExcuse.objects.create(
@@ -201,10 +209,11 @@ def grant_excuse(
         notes=notes,
         document=document,
         granted_by=by,
+        status="pending" if forward else "accepted",
         after_deadline=late,
-        override_reason=override_reason if late else "",
+        override_reason=override_reason if late and not forward else "",
     )
-    covered = rows.update(excuse=excuse, excuse_type=kind)
+    covered = 0 if forward else rows.update(excuse=excuse, excuse_type=kind)
     _audit(
         by,
         school,
@@ -212,16 +221,96 @@ def grant_excuse(
         excuse,
         {
             "kind": kind,
+            "status": excuse.status,
             "from": date_from.isoformat(),
             "to": date_to.isoformat(),
             "rows": covered,
             "after_deadline": late,
-            "override_reason": override_reason if late else "",
+            "override_reason": excuse.override_reason,
             "document": bool(document),
         },
         ip=ip,
     )
     return excuse
+
+
+def _awaiting_vice(
+    student: CustomUser, school: School, date_from: dt.date, date_to: dt.date
+) -> bool:
+    return AbsenceExcuse.objects.filter(
+        student=student,
+        school=school,
+        status="pending",
+        date_from__lte=date_to,
+        date_to__gte=date_from,
+    ).exists()
+
+
+def pending_for_vice(school: School) -> list[AbsenceExcuse]:
+    """الأعذارُ المرسلةُ للنائب الإداريّ — الأقدمُ أوّلاً."""
+    return list(
+        AbsenceExcuse.objects.filter(school=school, status="pending")
+        .select_related("student", "granted_by")
+        .order_by("granted_at")
+    )
+
+
+@transaction.atomic
+def approve_excuse(
+    excuse: AbsenceExcuse, *, by: CustomUser, reason: str, ip: str | None = None
+) -> int:
+    """النائبُ يقبل عذراً أُرسل إليه — بسبب — فيُكتب على صفوفه. يُعيد عددَ الحصص."""
+    reason = (reason or "").strip()
+    if excuse.status != "pending":
+        raise ExcuseError("هذا العذرُ ليس بانتظار النائب.")
+    if not reason:
+        raise ExcuseError("اكتب سببَ القبول بعد المهلة.")
+    rows = StudentAttendance.objects.filter(
+        student=excuse.student,
+        school=excuse.school,
+        status="absent",
+        excuse_type="",
+        session__date__gte=excuse.date_from,
+        session__date__lte=excuse.date_to,
+    )
+    if not rows.exists():
+        raise ExcuseError("لم يبقَ غيابٌ بلا عذرٍ في مدّة هذا العذر — ارفضه.")
+    covered = rows.update(excuse=excuse, excuse_type=excuse.kind)
+    excuse.status = "accepted"
+    excuse.after_deadline = True
+    excuse.override_reason = reason
+    excuse.reviewed_by = by
+    excuse.reviewed_at = timezone.now()
+    excuse.save(
+        update_fields=["status", "after_deadline", "override_reason", "reviewed_by", "reviewed_at"]
+    )
+    _audit(
+        by,
+        excuse.school,
+        "update",
+        excuse,
+        {"decision": "accepted", "reason": reason, "rows": covered},
+        ip=ip,
+    )
+    return covered
+
+
+@transaction.atomic
+def reject_excuse(
+    excuse: AbsenceExcuse, *, by: CustomUser, reason: str, ip: str | None = None
+) -> None:
+    """النائبُ يرفض عذراً أُرسل إليه — بسبب. يبقى السجلُّ ومستندُه، والغيابُ بلا عذر."""
+    reason = (reason or "").strip()
+    if excuse.status != "pending":
+        raise ExcuseError("هذا العذرُ ليس بانتظار النائب.")
+    if not reason:
+        raise ExcuseError("اكتب سببَ الرفض.")
+    excuse.status = "rejected"
+    excuse.rejection_reason = reason
+    excuse.reviewed_by = by
+    excuse.reviewed_at = timezone.now()
+    excuse.save(update_fields=["status", "rejection_reason", "reviewed_by", "reviewed_at"])
+    _audit(by, excuse.school, "update", excuse, {"decision": "rejected", "reason": reason}, ip=ip)
 
 
 @transaction.atomic
