@@ -21,7 +21,10 @@ from core.academic_calendar import academic_year_for_school
 from core.domain.grades import (
     GRADE_BANDS,
     SEMESTER_MAX,
+    FirstRoundDecision,
+    SubjectOutcome,
     band_of,
+    classify_first_round,
     jabr_fraction,
     package_weights,
 )
@@ -727,6 +730,98 @@ class GradeService:
                 "fail_rates": subj_fail_rates,
             },
         }
+
+
+# ─────────────────────────────────────────────────────────────
+# الدورُ الثاني (البند 2.2) — القواعدُ في core.domain.grades، وهنا جمعُ المدخلات
+# ─────────────────────────────────────────────────────────────
+
+
+@dataclass
+class SecondRoundRow:
+    student: CustomUser
+    decision: FirstRoundDecision
+
+
+class SecondRoundService:
+    """يصنّف طلبةَ شعبةٍ بعد الدور الأول بـ`classify_first_round` (م12/13/16/29).
+
+    المدخلاتُ من القاعدة: المجموعُ السنويّ لكلّ مادّةٍ نشطة، وغيابُ اختبارَي نهاية
+    الفصل (P2 وP4) بعذرٍ أو بلا عذر، وأيّامُ الغياب بلا عذر (`absence_standing`).
+    والحرمانُ هنا **تجاوزُ عتبة نهاية الفصل الثاني** بحسب `absence_policy` — وقرارُه
+    الرسميّ لفريق إدارة سلوك الطلبة، فالشاشةُ تعرضه ولا تُصدره. ولا يُقرأ بعدُ
+    حرمانُ العذر الطبيّ المزوَّر ومخالفاتِ التنمّر الحمراء الثلاث
+    (`08_conduct_policy_2026.md:173-174`)، ولا «ملغي» (م45 مكرر) من محاضر
+    `exam_control.ExamIncident` — فالمحضرُ لا يميّز الفعلَ الذي يُلغي كلَّ الموادّ.
+    """
+
+    #: باقاتُ الاختبارات التي يُحكم بالغياب عنها: منتصفُ الفصل الأول ونهايتُه
+    #: (م22: «اختبارات الفصل الدراسي الأول بكامله») ونهايةُ الفصل الثاني (م13/م27).
+    EXAM_PACKAGES = ("P1", "P2", "P4")
+
+    @staticmethod
+    def roster(class_group, year: str | None = None) -> list[SecondRoundRow]:
+        from operations.absence_policy import breached
+        from operations.absence_standing import unexcused_days_for_class
+
+        school = class_group.school
+        year = year or academic_year_for_school(school)
+        grade = grade_number(class_group.grade)
+        setups = list(
+            SubjectClassSetup.objects.filter(
+                class_group=class_group, academic_year=year, is_active=True
+            ).select_related("subject")
+        )
+        students = [
+            e.student
+            for e in StudentEnrollment.objects.filter(class_group=class_group, is_active=True)
+            .select_related("student")
+            .order_by("student__full_name")
+        ]
+        totals = {
+            (r.student_id, r.setup_id): (r.annual_total if r.status != "incomplete" else None)
+            for r in AnnualSubjectResult.objects.filter(setup__in=setups, academic_year=year)
+        }
+        excused: set = set()
+        absent: dict = {}  # (طالب، إعداد) ← باقاتٌ غاب عنها بلا عذر
+        for sid, setup_id, ptype, is_absent, is_excused in StudentAssessmentGrade.objects.filter(
+            assessment__package__setup__in=setups,
+            assessment__package__package_type__in=SecondRoundService.EXAM_PACKAGES,
+        ).values_list(
+            "student_id",
+            "assessment__package__setup_id",
+            "assessment__package__package_type",
+            "is_absent",
+            "is_excused",
+        ):
+            if is_excused and ptype in ("P2", "P4"):
+                excused.add((sid, setup_id))
+            elif is_absent and not is_excused:
+                absent.setdefault((sid, setup_id), set()).add(ptype)
+        # الفصلُ الأول «بكامله»: منتصفُه ونهايتُه — وللثاني عشر اختبارُ نهايته وحده.
+        s1_exams = {"P2"} if grade == 12 else {"P1", "P2"}
+        days = unexcused_days_for_class(class_group, school)
+
+        rows = []
+        for student in students:
+            outcomes = [
+                SubjectOutcome(
+                    subject=setup.subject.name_ar,
+                    annual_total=jabr_fraction(totals.get((student.id, setup.id))),
+                    excused_final_absence=(student.id, setup.id) in excused,
+                    unexcused_final_absence="P4" in absent.get((student.id, setup.id), ()),
+                    unexcused_first_semester_absence=s1_exams
+                    <= absent.get((student.id, setup.id), set()),
+                )
+                for setup in setups
+            ]
+            gates = breached(class_group.grade, days.get(student.id, 0))
+            # م29 (الصفّ الأخير): حرمانُ الدور الأول كاملاً = عتبةُ نهاية الفصل الثاني.
+            # والثاني عشر م19: عتبةُ نهاية الفصل الأول تحرم أيضاً وتُحيل إلى الدور الثاني.
+            finals = ("s1_final", "s2_final") if grade == 12 else ("s2_final",)
+            deprived = any(g.key in finals for g in gates)
+            rows.append(SecondRoundRow(student, classify_first_round(outcomes, grade, deprived)))
+        return rows
 
 
 # ─────────────────────────────────────────────────────────────

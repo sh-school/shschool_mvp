@@ -33,7 +33,7 @@ from .models import (
     StudentSubjectResult,
     SubjectClassSetup,
 )
-from .services import GradeService
+from .services import GradeService, SecondRoundService
 
 # ── ألوانُ العرض — الحكمُ هنا مرّةً لا شرطاً في القالب ─────────
 
@@ -66,6 +66,17 @@ ANNUAL_STATUS_BADGE = {
     "pass": "status-success",
     "fail": "status-danger",
     "second_round": "status-maroon",
+}
+
+
+#: شارةُ صنف الدور الثاني — `core.domain.grades.SECOND_ROUND_LABELS`.
+SECOND_ROUND_BADGE = {
+    "passed": "status-success",
+    "failed_eligible": "status-maroon",
+    "failed_ineligible": "status-danger",
+    "excused": "status-info",
+    "deprived": "status-warning",
+    "incomplete": "status-gray",
 }
 
 
@@ -873,5 +884,36 @@ def setup_subject(request):
             "subjects": subjects,
             "classes": classes,
             "teachers": teachers,
+        },
+    )
+
+
+@login_required
+@capability_required("assessments.second_round")
+def second_round(request):
+    """المؤهَّلون للدور الثاني في شعبة — م12/13/16/29 (والثاني عشر م8/9/12/19)."""
+    school = request.school
+    year = request.GET.get("year") or academic_year_for(request)
+    classes = list(
+        ClassGroup.objects.filter(
+            school=school, academic_year=year, is_active=True
+        ).in_school_order()
+    )
+    wanted = request.GET.get("class_group", "")
+    chosen = next((c for c in classes if str(c.id) == wanted), classes[0] if classes else None)
+    rows = SecondRoundService.roster(chosen, year) if chosen else []
+    sitting = [r for r in rows if r.decision.sits_second_round]
+    others = [r for r in rows if not r.decision.sits_second_round]
+    return render(
+        request,
+        "assessments/second_round.html",
+        {
+            "classes": [(str(c.id), str(c)) for c in classes],
+            "chosen": chosen,
+            "year": year,
+            "sitting": sitting,
+            "others": others,
+            "badges": SECOND_ROUND_BADGE,
+            "subtitle": f"{chosen} · {year}" if chosen else year,
         },
     )

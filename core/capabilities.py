@@ -144,6 +144,11 @@ def registry() -> dict[str, Capability]:
         ),
         _cap("assessments.oversee", "إعدادُ الموادّ ومتابعةُ المتعثّرين", leadership),
         _cap(
+            "assessments.second_round",
+            "كشفُ المؤهَّلين للدور الثاني",
+            {"principal", "vice_academic", "coordinator"},
+        ),
+        _cap(
             "grades.import",
             "استيرادُ الدرجات من ملفّ",
             {

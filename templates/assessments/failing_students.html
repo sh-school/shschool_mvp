@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load privacy ui %}
+{% load privacy ui navigation %}
 {% block title %}الطلاب الراسبون{% endblock %}
 
 {% block breadcrumbs %}
@@ -15,6 +15,7 @@
         <a href="?semester={{ val }}&year={{ year }}" class="period-switch__item{% if semester == val %} is-current{% endif %}"{% if semester == val %} aria-current="page"{% endif %}>{{ label }}</a>
       {% endfor %}
     </nav>
+    {% if request.user|can_open:"second_round" %}<a href="{% url 'second_round' %}?year={{ year }}" class="btn-secondary btn-sm">المؤهَّلون للدور الثاني</a>{% endif %}
   {% endpage_header %}
 
   {% filter_bar "ترشيحُ الطلاب الراسبين" live=True %}

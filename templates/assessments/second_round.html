@@ -1,0 +1,81 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui dict_filters %}
+{% block title %}الدور الثاني{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/assessments/" parent_label="التقييمات" current="الدور الثاني" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "المؤهَّلون للدور الثاني" subtitle=subtitle icon="failing_students" %}{% endpage_header %}
+
+  {% filter_bar "اختيارُ الشعبة" %}
+    {% field "class_group" "الشعبة" type="select" choices=classes value=chosen.id|stringformat:"s" %}
+    <input type="hidden" name="year" value="{{ year }}">
+    <div class="filter-actions">
+      <button type="submit" class="btn-primary btn-sm">{% icon "search" %} عرض</button>
+    </div>
+  {% endfilter_bar %}
+
+  {% if not chosen %}
+    {% empty_state "لا شُعبَ في هذا العام" sub="أنشئ الشُّعبَ أوّلاً ثمّ عُد إلى هذه الشاشة" icon="students" %}
+  {% else %}
+
+  {% section_card "يدخلون الدور الثاني" meta=sitting|length icon="failing_students" flush=True empty="لا أحدَ في هذه الشعبة يدخل الدور الثاني" empty_sub="راسبٌ في ثلاث موادّ فأقلّ، أو معذور، أو محروم — سياسة التقييم م12 وم29" %}{% if sitting %}
+    <div class="table-wrap">
+      <table aria-label="طلبةُ الدور الثاني">
+        <thead>
+          <tr>
+            <th scope="col">الطالب</th>
+            <th scope="col">الصنف</th>
+            <th scope="col">موادُّ الدور الثاني</th>
+            <th scope="col">الموضع</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in sitting %}
+          <tr>
+            <td><a href="{% url 'student_report' row.student.id %}?year={{ year }}" class="link-maroon">{{ row.student.full_name }}</a></td>
+            <td><span class="status-badge {{ badges|get_item:row.decision.category }}">{{ row.decision.label }}</span></td>
+            <td>{{ row.decision.retake|join:"، " }}</td>
+            <td>{{ row.decision.article }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
+  {% section_card "بقيّةُ الشعبة" meta=others|length icon="students" flush=True empty="لا طلبةَ آخرين" %}{% if others %}
+    <div class="table-wrap">
+      <table aria-label="بقيّةُ طلبة الشعبة">
+        <thead>
+          <tr>
+            <th scope="col">الطالب</th>
+            <th scope="col">الصنف</th>
+            <th scope="col">الموادُّ الراسبة</th>
+            <th scope="col">الموضع</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in others %}
+          <tr>
+            <td>{{ row.student.full_name }}</td>
+            <td><span class="status-badge {{ badges|get_item:row.decision.category }}">{{ row.decision.label }}</span></td>
+            <td>{{ row.decision.failed|join:"، "|default:"—" }}</td>
+            <td>{{ row.decision.article|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+
+  <p class="text-muted">الحرمانُ هنا تجاوزُ عتبة غياب نهاية الفصل الثاني في سجلّ الحضور، وقرارُه الرسميُّ لفريق إدارة سلوك الطلبة.</p>
+  {% endif %}
+
+</div>
+{% endblock %}
