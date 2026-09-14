@@ -18,7 +18,7 @@
   "core/audit_export.py": 2,
   "core/auth_identity.py": 6,
   "core/backends.py": 1,
-  "core/capabilities.py": 76,
+  "core/capabilities.py": 13,
   "core/celery_tasks.py": 15,
   "core/context_processors.py": 4,
   "core/dashboard_presentation.py": 3,
@@ -156,5 +156,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 17
  },
- "total": 1941
+ "total": 1878
 }
