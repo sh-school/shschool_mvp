@@ -21,6 +21,9 @@ coverage.xml
 .venv
 venv
 env
+# `pip install` داخل حاوية جلسة يكتب في /app/.local — وهي شجرةُ العمل المربوطة —
+# فكانت تلك الحزمُ تُنسخ إلى الصورة بـ`COPY . .` وتُخفي ما تثبّته INSTALL_DEV أو لا تثبّته.
+.local
 
 # ── archives / docs / ops (غير لازمة لصورة التطبيق) ──
 _archive
