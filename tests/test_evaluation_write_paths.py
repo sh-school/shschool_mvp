@@ -270,3 +270,99 @@ def test_approval_rechecks_the_article_restrictions(
         approve_evaluation(evaluation=evaluation, approver=principal_user)
     evaluation.refresh_from_db()
     assert evaluation.status == "submitted"
+
+
+# ── النهائيّة والتظلّم — المادة 20 (02_staff_affairs.md:211) ────────────
+
+
+def _acknowledged(school, employee, evaluator, known_on):
+    from datetime import datetime, time
+
+    from django.utils import timezone
+
+    evaluation = EmployeeEvaluation.objects.create(
+        school=school,
+        employee=employee,
+        evaluator=evaluator,
+        academic_year=YEAR,
+        period="S2",
+        status="acknowledged",
+    )
+    evaluation.acknowledged_at = timezone.make_aware(datetime.combine(known_on, time(10)))
+    return evaluation
+
+
+@pytest.mark.django_db
+def test_report_is_final_only_after_the_grievance_window(school, principal_user, teacher_user):
+    """«خلال خمسة عشر يوماً من تاريخ علمه … ولا يُعتبر التقرير نهائياً إلا بعد انقضاء ميعاد التظلم»."""
+    from datetime import date
+
+    evaluation = _acknowledged(school, teacher_user, principal_user, date(2027, 6, 20))
+    assert evaluation.grievance_deadline() == date(2027, 7, 5)
+    assert evaluation.is_final(today=date(2027, 7, 5)) is False
+    assert evaluation.is_final(today=date(2027, 7, 6)) is True
+
+
+@pytest.mark.django_db
+def test_grievance_suspends_finality_until_decided_or_thirty_days_lapse(
+    school, principal_user, teacher_user
+):
+    """«تبت اللجنة … خلال ثلاثين يوماً … ويعتبر مضي المدة دون إخطار … بمثابة قرار بالرفض»."""
+    from datetime import date
+
+    evaluation = _acknowledged(school, teacher_user, principal_user, date(2027, 6, 20))
+    evaluation.grievance_submitted_on = date(2027, 6, 25)
+    assert evaluation.is_final(today=date(2027, 7, 25)) is False
+    assert evaluation.is_final(today=date(2027, 7, 26)) is True
+    evaluation.grievance_decided_on = date(2027, 7, 1)
+    assert evaluation.is_final(today=date(2027, 7, 2)) is True
+
+
+@pytest.mark.django_db
+def test_unacknowledged_report_is_never_final(school, principal_user, teacher_user):
+    from datetime import date
+
+    evaluation = EmployeeEvaluation.objects.create(
+        school=school,
+        employee=teacher_user,
+        evaluator=principal_user,
+        academic_year=YEAR,
+        period="S2",
+    )
+    assert evaluation.is_final(today=date(2030, 1, 1)) is False
+
+
+@pytest.mark.django_db
+def test_working_day_grievance_windows_are_not_guessed(
+    settings, school, principal_user, teacher_user
+):
+    from datetime import date
+
+    from django.core.exceptions import ImproperlyConfigured
+
+    settings.APPRAISAL_GRIEVANCE_DAY_KIND = "working"
+    evaluation = _acknowledged(school, teacher_user, principal_user, date(2027, 6, 20))
+    with pytest.raises(ImproperlyConfigured):
+        evaluation.grievance_deadline()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("period", "deadline", "outside"),
+    [
+        ("S2", (2027, 6, 15), False),
+        ("S2", (2027, 6, 1), False),
+        ("S2", (2027, 6, 16), True),
+        ("S1", (2027, 1, 20), False),
+    ],
+)
+def test_s2_cycle_deadline_is_flagged_outside_first_half_of_june(school, period, deadline, outside):
+    """المادة 16: «ويعتمده مدير المدرسة خلال النصف الأول من شهر يونيو» (02_staff_affairs.md:200)."""
+    from datetime import date
+
+    from quality.models import EvaluationCycle
+
+    cycle = EvaluationCycle(
+        school=school, academic_year=YEAR, period=period, deadline=date(*deadline)
+    )
+    assert cycle.deadline_outside_article_16 is outside

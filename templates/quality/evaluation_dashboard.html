@@ -28,7 +28,7 @@
       <li class="plain-list__row">
         <span class="plain-list__main">
           <b class="plain-list__title">{{ cs.cycle.get_period_display }}</b>
-          <span class="plain-list__sub">الموعد النهائي: {{ cs.cycle.deadline }}</span>
+          <span class="plain-list__sub">الموعد النهائي: {{ cs.cycle.deadline }}{% if cs.cycle.deadline_outside_article_16 %} · خارج النصف الأوّل من يونيو (المادة 16){% endif %}</span>
         </span>
         <span class="qeval-cycle__bar progress-qatar" aria-hidden="true"><span class="progress-qatar-fill pf-{{ cs.tone }}" style="--progress-w:{{ cs.completion_rate }}%"></span></span>
         <span class="status-badge status-{{ cs.tone }}">{{ cs.completion_rate }}% مكتمل</span>

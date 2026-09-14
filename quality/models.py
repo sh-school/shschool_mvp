@@ -18,6 +18,8 @@ from fractions import Fraction
 from functools import cached_property
 from typing import Any
 
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -85,6 +87,26 @@ _EVALUABLE_ROLES = frozenset(
         "activities_coordinator",
     ]
 )
+
+# ── التظلّم من تقرير تقييم الأداء — المادة 20 (02_staff_affairs.md:211) ──
+# «يُعلَن الموظف بنسخة من تقرير تقييم الأداء، ويجوز له أن يتظلم منه إلى لجنة موظفي
+# المدارس خلال خمسة عشر يوماً من تاريخ علمه، وتبت اللجنة في التظلم خلال ثلاثين يوماً
+# من تاريخ تقديمه، ويعتبر مضي المدة دون إخطار الموظف بتعديل التقرير بمثابة قرار بالرفض
+# … ولا يُعتبر التقرير نهائياً إلا بعد انقضاء ميعاد التظلم أو البت فيه».
+# والنصُّ لا يقول أهي أيّامٌ تقويميّةٌ أم أيّامُ عمل — فالمهلتان ونوعُ الأيّام إعدادات.
+APPRAISAL_GRIEVANCE_WINDOW_DAYS = 15
+APPRAISAL_GRIEVANCE_DECISION_DAYS = 30
+
+
+def _grievance_days(name: str, default: int) -> timedelta:
+    kind = getattr(settings, "APPRAISAL_GRIEVANCE_DAY_KIND", "calendar")
+    if kind != "calendar":
+        # أيّامُ العمل تحتاج تقويمَ العطل الرسميّة؛ ولا يُخمَّن — المصدرُ صامتٌ عن النوع.
+        raise ImproperlyConfigured(
+            "APPRAISAL_GRIEVANCE_DAY_KIND: المدعومُ «calendar» وحده حتى يُقرَّر نوعُ الأيّام"
+        )
+    return timedelta(days=int(getattr(settings, name, default)))
+
 
 # الأوزان الافتراضية للمحاور الأربعة (كل محور من 25)
 _DEFAULT_AXES = [
@@ -754,7 +776,14 @@ class EmployeeEvaluation(models.Model):
     improvements = models.TextField(blank=True, verbose_name="مجالات التطوير")
     goals_next = models.TextField(blank=True, verbose_name="أهداف الفترة القادمة")
     employee_comment = models.TextField(blank=True, verbose_name="تعليق الموظف")
+    #: «تاريخ علمه» (المادة 20) — ومنه تبدأ مهلةُ التظلّم.
     acknowledged_at = models.DateTimeField(null=True, blank=True)
+    grievance_submitted_on = models.DateField(
+        null=True, blank=True, verbose_name="تاريخ تقديم التظلّم إلى لجنة موظفي المدارس"
+    )
+    grievance_decided_on = models.DateField(
+        null=True, blank=True, verbose_name="تاريخ إخطار الموظّف بقرار اللجنة"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -877,6 +906,34 @@ class EmployeeEvaluation(models.Model):
             return True
         return self.scores.exists()
 
+    def grievance_deadline(self):
+        """آخرُ يومٍ للتظلّم: خمسة عشر يوماً من تاريخ العلم (المادة 20)."""
+        if self.acknowledged_at is None:
+            return None
+        known_on = timezone.localtime(self.acknowledged_at).date()
+        return known_on + _grievance_days(
+            "APPRAISAL_GRIEVANCE_WINDOW_DAYS", APPRAISAL_GRIEVANCE_WINDOW_DAYS
+        )
+
+    def is_final(self, today=None) -> bool:
+        """
+        «لا يُعتبر التقرير نهائياً إلا بعد انقضاء ميعاد التظلم أو البت فيه» (المادة 20).
+        والبتُّ: إخطارٌ بقرار اللجنة، أو مضيُّ ثلاثين يوماً من التظلّم بلا إخطار («بمثابة
+        قرار بالرفض»). ولا تُبنى على المستوى آثارُه (الحافز م21، الترقية م22) قبل ذلك.
+        """
+        deadline = self.grievance_deadline()
+        if self.status != "acknowledged" or deadline is None:
+            return False
+        today = today or timezone.localdate()
+        if self.grievance_decided_on is not None:
+            return True
+        if self.grievance_submitted_on is not None:
+            decision_by = self.grievance_submitted_on + _grievance_days(
+                "APPRAISAL_GRIEVANCE_DECISION_DAYS", APPRAISAL_GRIEVANCE_DECISION_DAYS
+            )
+            return today > decision_by
+        return today > deadline
+
     def acknowledge(self):
         self.status = "acknowledged"
         self.acknowledged_at = timezone.now()
@@ -990,6 +1047,28 @@ class EvaluationCycle(models.Model):
 
     def __str__(self):
         return f"{self.school.code} | {self.get_period_display()} | {self.academic_year}"
+
+    def article_16_window(self):
+        """
+        «ويعتمده مدير المدرسة خلال النصف الأول من شهر يونيو من كل عام أكاديمي» (المادة 16،
+        02_staff_affairs.md:200) — 1–15 يونيو من العام الذي ينتهي به العامُ الأكاديميّ،
+        للتقرير السنويّ (S2) وحده. وتحويلُ النصّ إلى تاريخين تطبيقٌ على التقويم.
+        """
+        if self.period != EmployeeEvaluation.MINISTRY_PERIOD:
+            return None
+        try:
+            end_year = int(str(self.academic_year).split("-")[1])
+        except (IndexError, ValueError):
+            return None
+        from datetime import date
+
+        return date(end_year, 6, 1), date(end_year, 6, 15)
+
+    @property
+    def deadline_outside_article_16(self) -> bool:
+        """تنبيهٌ لا منع: موعدُ دورة S2 خارج النصف الأوّل من يونيو."""
+        window = self.article_16_window()
+        return bool(window) and not (window[0] <= self.deadline <= window[1])
 
     # إصلاح #4: cached_property لتجنب 2×N queries
     @cached_property
