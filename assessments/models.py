@@ -533,7 +533,7 @@ class AnnualSubjectResult(models.Model):
     pass_grade = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal("50"), verbose_name="درجة النجاح"
     )
-    status = models.CharField(max_length=12, choices=STATUS, default="incomplete", db_index=True)
+    status = models.CharField(max_length=25, choices=STATUS, default="incomplete", db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

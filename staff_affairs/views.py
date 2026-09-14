@@ -802,3 +802,142 @@ def licensing_overview(request):
             "no_license_tone": "orange" if counts["no_license"] else "green",
         },
     )
+
+
+# ═════════════════════════════════════════════════════════════════════
+# الموجة 3G — 1.1 و 1.3: حضورُ الموظّفين والاستئذان
+# ═════════════════════════════════════════════════════════════════════
+# المرجعُ: وثيقةُ ت/د 2027/01 من مدرسة الشحانية
+# البند 1.1: الدوام من 7:00 إلى 14:00
+# البند 2.4: غائبٌ إن حضر بعد 9:00
+# البند 4.2: سقفُ استئذان 7 ساعات/شهر
+
+
+from datetime import time
+from django.http import JsonResponse
+from staff_affairs.models import StaffAttendance, PermitRequest
+from staff_affairs.services import StaffAttendanceService
+
+
+@login_required
+@capability_required("staff_affairs.manage")
+def attendance_daily_monitor(request):
+    """لوحةُ رصدِ الحضورِ اليوميّ — HTMX بلا تحديثِ صفحة."""
+    school = request.school
+    today = timezone.localdate()
+
+    staff_records = (
+        Membership.objects.filter(school=school, is_active=True)
+        .exclude(role__name__in=["student", "parent"])
+        .select_related("user", "role")
+        .order_by("user__full_name")
+    )
+
+    attendance_list = []
+    for m in staff_records:
+        user = m.user
+        attendance = StaffAttendance.objects.filter(
+            school=school, staff=user, date=today
+        ).first()
+
+        attendance_list.append({
+            "user_id": user.id,
+            "full_name": user.full_name,
+            "status": attendance.get_status_display() if attendance else "بلا رصد",
+            "check_in_time": attendance.check_in_time if attendance else None,
+        })
+
+    context = {"school": school, "today": today, "attendance_list": attendance_list}
+
+    if request.headers.get("HX-Request"):
+        return render(request, "staff_affairs/_attendance_table.html", context)
+    return render(request, "staff_affairs/attendance_daily_monitor.html", context)
+
+
+@login_required
+@require_POST
+@capability_required("staff_affairs.manage")
+def update_attendance_status(request):
+    """تحديثُ الحضورِ بـ HTMX."""
+    school = request.school
+    user_id = request.POST.get("user_id")
+    check_in_str = request.POST.get("check_in_time")
+
+    user = get_object_or_404(CustomUser, id=user_id)
+    today = timezone.localdate()
+
+    try:
+        check_in_time = None
+        if check_in_str:
+            h, m = map(int, check_in_str.split(":"))
+            check_in_time = time(h, m)
+
+        attendance = StaffAttendanceService.record_attendance(
+            school=school,
+            staff=user,
+            date=today,
+            check_in_time=check_in_time,
+        )
+
+        return JsonResponse({
+            "success": True,
+            "status": attendance.get_status_display(),
+        })
+    except Exception as e:
+        return JsonResponse({"success": False, "error": str(e)}, status=400)
+
+
+@login_required
+@capability_required("staff_affairs.manage")
+def attendance_monthly_report(request):
+    """تقريرٌ شهريّ للحضورِ."""
+    school = request.school
+    today = timezone.localdate()
+    year = int(request.GET.get("year", today.year))
+    month = int(request.GET.get("month", today.month))
+
+    staff_members = (
+        Membership.objects.filter(school=school, is_active=True)
+        .exclude(role__name__in=["student", "parent"])
+        .select_related("user")
+    )
+
+    report_rows = []
+    for m in staff_members:
+        report = StaffAttendanceService.get_monthly_report(
+            school=school,
+            staff=m.user,
+            year=year,
+            month=month,
+        )
+
+        report_rows.append({
+            "full_name": m.user.full_name,
+            "present": report["summary"]["present"],
+            "late": report["summary"]["late"],
+            "absent": report["summary"]["absent"],
+            "permit_hours": f"{report['permit_used'] / 60:.1f}س",
+        })
+
+    if request.GET.get("export") == "excel":
+        import openpyxl
+        from django.http import HttpResponse
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.append(["الاسمُ", "حاضر", "متأخّر", "غائب", "استئذان"])
+        for row in report_rows:
+            ws.append([row["full_name"], row["present"], row["late"], row["absent"], row["permit_hours"]])
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = f"attachment; filename=attendance_{year}_{month:02d}.xlsx"
+        wb.save(response)
+        return response
+
+    return render(
+        request,
+        "staff_affairs/attendance_monthly_report.html",
+        {"school": school, "year": year, "month": month, "report_rows": report_rows},
+    )
