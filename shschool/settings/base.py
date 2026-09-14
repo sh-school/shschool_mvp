@@ -451,7 +451,12 @@ DPO_PHONE = os.environ.get("DPO_PHONE", "")
 # بعد كم يوماً يُحذف ما انقضى غرضُه من آثار التشغيل (السياسةُ جدولاً جدولاً في
 # docs/privacy/data_retention.md، والمُنفِّذ core/retention.py). كان المتغيّرُ
 # معلَناً في .railway/railway.ts ولا يقرؤه أحد. والصفرُ يعطّل الحذفَ كلَّه.
-PDPPL_DATA_RETENTION_DAYS = int(os.environ.get("PDPPL_DATA_RETENTION_DAYS", "730"))
+#
+# نصٌّ خامٌ لا `int()` هنا: الإعداداتُ تُقرأ عند إقلاع كلّ عمليّة، فخطأٌ مطبعيٌّ
+# في البيئة كان يُسقط المنصّةَ كلَّها لا الحذفَ وحده — وقد وقع يومَ 2026-09-14:
+# القيمةُ على Railway `730)` فسقطت مرحلةُ الإصدار مرّتين. والتحليلُ في
+# `core.retention.retention_days()`: ما لا يُفهم رقماً يعطّل الحذفَ ويُسجَّل خطأً.
+PDPPL_DATA_RETENTION_DAYS = os.environ.get("PDPPL_DATA_RETENTION_DAYS", "730").strip()
 
 # ══════════════════════════════════════════════════════════════════════
 # ✅ v5.4: django-axes — حماية من هجمات القوة الغاشمة (Brute Force)
