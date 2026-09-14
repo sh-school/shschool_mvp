@@ -67,7 +67,8 @@ _ARABIC_TEXT = (
 
 @lru_cache(maxsize=1)
 def library() -> dict:
-    return json.loads(SOURCE.read_text(encoding="utf-8"))
+    data: dict = json.loads(SOURCE.read_text(encoding="utf-8"))
+    return data
 
 
 def _hi(name: str) -> str:

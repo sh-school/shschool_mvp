@@ -27,11 +27,9 @@
   "core/export_utils.py": 11,
   "core/fields.py": 4,
   "core/htmx_utils.py": 4,
-  "core/icon_sprite.py": 1,
   "core/logging_filters.py": 15,
   "core/management/commands/audit_year_data.py": 10,
   "core/management/commands/backfill_job_titles.py": 2,
-  "core/management/commands/build_icon_sprite.py": 2,
   "core/management/commands/close_stale_enrollments.py": 16,
   "core/management/commands/complete_staff_record.py": 7,
   "core/management/commands/correct_identity_from_register.py": 19,
@@ -91,7 +89,6 @@
   "core/sorting.py": 5,
   "core/styleguide.py": 1,
   "core/templatetags/dict_filters.py": 5,
-  "core/templatetags/icons.py": 1,
   "core/templatetags/labels.py": 1,
   "core/templatetags/navigation.py": 1,
   "core/templatetags/privacy.py": 1,
@@ -156,5 +153,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 17
  },
- "total": 1943
+ "total": 1939
 }
