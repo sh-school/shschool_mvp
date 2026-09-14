@@ -277,9 +277,7 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --shadow-modal-box:    var(--shadow-md);
   --shadow-q-modal:      0 25px 50px rgba(0,0,0,.25);
   --shadow-login-card:   0 20px 60px rgba(0,0,0,.10), 0 4px 16px rgba(0,0,0,.06);
-  --shadow-raised:       0 4px 12px rgba(0,0,0,.08);   /* بطاقةٌ مرفوعةٌ عند المرور */
   --shadow-dropdown:     0 8px 24px rgba(0,0,0,.12);
-  --shadow-kpi-mini:     0 1px 4px rgba(0,0,0,.06);
   --overlay-scrim:       rgba(0,0,0,.45);
   --cmd-scrim:           rgba(0,0,0,.5);
   --q-modal-scrim:       rgba(0,0,0,.6);
@@ -310,8 +308,6 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
 
   /* الأزرار */
   --btn-secondary-hover-bg: #fce8ee;
-  --btn-preview-hover-bg:   #eef6fa;
-  --btn-preview-hover-fg:   var(--skyline-fg);
   --gold-deep:              #c9952e;
   --status-success-solid-hover: #047857;
 
@@ -321,7 +317,6 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --status-info-border-soft:    #bfdbfe;
   --status-neutral-bg:          #f8fafc;
   --status-neutral-fg:          #475569;
-  --badge-urgent-bg:            #fee2e2;
   --status-warning-bright: #f59e0b;
   --status-danger-deep:    #b91c1c;
   --status-warning-deep:   #b45309;
@@ -340,14 +335,8 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --caution:               #ca8a04;
 
   /* بطاقاتُ المؤشّرات والجودة */
-  --kpi-tint-blue:         #dbeafe;
-  --kpi-tint-red:          #fef2f2;
-  --kpi-tint-red-deep:     #fecaca;
-  --kpi-tint-orange:       #fff7ed;
-  --kpi-tint-orange-deep:  #fed7aa;
   --plan-row-pending:      rgba(251,191,36,.7);
   --plan-row-completed:    rgba(34,197,94,.6);
-  --plan-row-returned:     rgba(239,68,68,.6);
   --q-badge-warning-bg:    color-mix(in srgb, var(--caution) 15%, transparent);
   --q-badge-warning-fg:    var(--caution);
   --q-badge-neutral-bg:    rgba(107,114,128,.12);
@@ -781,15 +770,6 @@ h1.text-2xl {
 }
 
 /* ── شارات الحالة ────────────────────────────────────────────── */
-.badge-maroon {
-  background: var(--maroon-bg);
-  color: var(--maroon-fg);
-  border: 1px solid var(--maroon-border);
-  padding: 2px 10px;
-  border-radius: 20px;
-  font-size: var(--text-xs);
-  font-weight: 700;
-}
 
 /* ── بطاقات ─────────────────────────────────────────────────── */
 .card-qatar {
@@ -1280,11 +1260,6 @@ tr.active {
   color: var(--text-secondary);
   font-weight: 500;
 }
-.kpi-sub {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  margin-top: 6px;
-}
 
 /* ── شريط فلترة ── */
 .filter-bar {
@@ -1518,10 +1493,6 @@ html.dark .staff-name { color: var(--gold); }
 .status-maroon  { background: var(--maroon-bg); color: var(--maroon-fg); border: 1px solid var(--maroon-border); }
 
 /* ── ألوان الدرجات والحضور (تستبدل inline hex) ── */
-.grade-excellent { color: var(--status-success-fg); }   /* ≥90 */
-.grade-good      { color: var(--status-info-fg); }   /* ≥75 */
-.grade-pass      { color: var(--status-warning-fg); }   /* ≥60 */
-.grade-fail      { color: var(--status-danger-fg); }   /* <60 */
 .grade-na        { color: var(--text-muted); }   /* لا توجد درجة */
 .attend-high     { color: var(--status-success-fg); }   /* ≥95% */
 .attend-medium   { color: var(--status-warning-fg); }   /* ≥80% */
@@ -1554,7 +1525,6 @@ html.dark .free-slots-td { border-color: var(--border); }
 .form-label .required,
 .req-star { color: var(--status-danger-fg); margin-inline-end: 3px; }
 .form-control,
-.form-input,
 .form-select {
   /* صريحٌ لا موروث: `*{box-sizing:inherit}` سلسلةٌ تنكسر عند أيّ عنصرٍ في
      الطريق، وقد انكسرت — فكان الحقلُ `content-box` عرضُه 100% وحشوُه 24
@@ -1573,14 +1543,12 @@ html.dark .free-slots-td { border-color: var(--border); }
   transition: border-color .12s, box-shadow .12s, background .12s;
 }
 .form-control:focus,
-.form-input:focus,
 .form-select:focus {
   border-color: var(--maroon);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--maroon) 10%, transparent);
   background: var(--surface);
 }
-.form-control::placeholder,
-.form-input::placeholder { color: var(--placeholder); }
+.form-control::placeholder { color: var(--placeholder); }
 .form-hint {
   font-size: 11.5px;
   color: var(--text-muted);
@@ -1603,22 +1571,6 @@ html.dark .free-slots-td { border-color: var(--border); }
 }
 
 /* ── Form Section Grouping (MTG-2026-004-STR) ── */
-.form-section {
-  padding-top: var(--sp-4);
-  margin-top: var(--sp-4);
-  border-top: 1px solid var(--border);
-}
-.form-section:first-child {
-  padding-top: 0;
-  margin-top: 0;
-  border-top: none;
-}
-.form-section-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--maroon-fg);
-  margin-bottom: var(--sp-4);
-}
 .form-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -1628,43 +1580,8 @@ html.dark .free-slots-td { border-color: var(--border); }
   .form-row { grid-template-columns: 1fr; }
 }
 
-/* Multi-step progress */
-.form-steps {
-  display: flex;
-  gap: 4px;
-  margin-bottom: var(--sp-5);
-  counter-reset: step;
-}
-.form-step {
-  flex: 1;
-  text-align: center;
-  padding: var(--sp-2) var(--sp-3);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  color: var(--text-muted);
-  background: var(--surface-alt);
-  border-radius: var(--radius-md);
-  counter-increment: step;
-}
-.form-step::before {
-  content: counter(step);
-  display: block;
-  font-size: var(--text-base);
-  font-weight: 800;
-  margin-bottom: 2px;
-}
-.form-step.active {
-  background: var(--maroon);
-  color: var(--on-fill);
-}
-.form-step.done {
-  background: var(--status-success-bg);
-  color: var(--status-success-fg);
-}
-
 /* Validation states */
 .form-group.has-error .form-control,
-.form-group.has-error .form-input,
 .form-group.has-error .form-select {
   border-color: var(--status-danger);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-danger) 10%, transparent);
@@ -1676,11 +1593,6 @@ html.dark .free-slots-td { border-color: var(--border); }
   display: flex;
   align-items: center;
   gap: 4px;
-}
-.form-success-hint {
-  font-size: 11px;
-  color: var(--status-success-fg);
-  margin-top: 4px;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1825,7 +1737,7 @@ textarea:focus-visible {
     --shadow-sm: 0 1px 3px rgba(0,0,0,.2);
     --focus-ring: 0 0 0 4px color-mix(in srgb, var(--maroon) 40%, transparent);
   }
-  .kpi-mini, .card-qatar, .table-wrap, .filter-bar {
+  .card-qatar, .table-wrap, .filter-bar {
     border-width: 2px;
   }
 }
@@ -1999,7 +1911,6 @@ textarea:focus-visible {
 }
 .modal-box.modal-sm { max-width: 380px; }
 .modal-box.modal-md { max-width: 520px; }
-.modal-box.modal-lg { max-width: 720px; }
 .modal-header {
   display: flex;
   align-items: center;
@@ -2071,7 +1982,7 @@ textarea:focus-visible {
 .mobile-bottom-nav { display: block; }
 body { padding-bottom: 72px; }
 .btn-primary, .btn-secondary, .btn-danger { min-height: 44px; }
-.form-control, .form-input, .form-select { min-height: 44px; font-size: var(--text-base); }  /* منع zoom على iOS */
+.form-control, .form-select { min-height: 44px; font-size: var(--text-base); }  /* منع zoom على iOS */
 
 /* ── الترويسةُ في الهاتف: لا تدفع الصفحةَ أفقيّاً ──────────────
    كان اسمُ المدرسة في `.nav-logo-text` بـ`nowrap` عرضُه 296px، واسمُ
@@ -2093,12 +2004,11 @@ body { padding-bottom: 72px; }
   .mobile-bottom-nav { display: none; }
   body { padding-bottom: 0; }
   .btn-primary, .btn-secondary, .btn-danger { min-height: auto; }
-  .form-control, .form-input, .form-select { min-height: auto; font-size: inherit; }
+  .form-control, .form-select { min-height: auto; font-size: inherit; }
   .nav-user-name { display: revert; }
 }
 
 /* ── Priority Badge ────────────────────────────────────────── */
-.badge-urgent  { background: var(--badge-urgent-bg); color: var(--status-danger-dark); }
 .badge-high    { background: var(--status-warning-badge-bg); color: var(--status-warning-fg); }
 .badge-medium  { background: var(--status-info-bg); color: var(--status-info-dark); }
 .badge-low     { background: var(--surface-alt); color: var(--text-secondary); }
@@ -2374,43 +2284,6 @@ body { padding-bottom: 72px; }
 .cmd-item-sub { font-size: var(--text-xs); color: var(--text-muted); }
 .cmd-empty { text-align: center; padding: 24px; color: var(--text-muted); font-size: var(--text-sm); }
 
-/* ── KPI Delta (trend indicator) ──────────────────────────── */
-.kpi-delta {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: var(--text-xs);
-  font-weight: 600;
-  margin-top: 4px;
-  padding: 2px 8px;
-  border-radius: 12px;
-}
-.kpi-delta.up   { color: var(--status-success-dark); background: var(--status-success-bg); }
-
-.kpi-delta.flat { color: var(--text-muted); background: var(--surface-alt); }
-
-/* ── PDF Preview Button ───────────────────────────────────── */
-.btn-preview {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border: 1px solid var(--sea);
-  color: var(--sea);
-  background: transparent;
-  border-radius: var(--radius-md);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: none;
-  font-family: inherit;
-  transition: background var(--transition-fast), color var(--transition-fast);
-}
-.btn-preview:hover {
-  background: var(--btn-preview-hover-bg);
-  color: var(--btn-preview-hover-fg);
-}
-
 /* ── Dropzone ── */
 .dropzone-wrap {
   border: 2px dashed var(--border-strong);
@@ -2588,7 +2461,6 @@ html[dir="rtl"] .search-wrap .htmx-indicator { left: 12px; right: auto; }
 /* Row status — مؤشر جانبي خفيف بدون خلفية مشتتة */
 .plans-table .row-pending   { box-shadow: inset -3px 0 0 var(--plan-row-pending); }
 .plans-table .row-completed { box-shadow: inset -3px 0 0 var(--plan-row-completed); }
-.plans-table .row-returned  { box-shadow: inset -3px 0 0 var(--plan-row-returned); }
 .plans-table .row-cancelled { opacity: 0.55; }
 
 /* Table wrapper */
@@ -3107,9 +2979,6 @@ html[dir="rtl"] .search-wrap .htmx-indicator { left: 12px; right: auto; }
 
 /* Domain coverage cards */
 
-/* generic utility for any dynamic bar using --progress-w */
-.w-dynamic { width: var(--progress-w, 0%); }
-
 /* ── 13. Dashboard utility classes ──────────────────────────── */
 
 /* btn-sm: للأزرار/الروابط الصغيرة في صفحة اللوحة */
@@ -3118,51 +2987,13 @@ html[dir="rtl"] .search-wrap .htmx-indicator { left: 12px; right: auto; }
 .text-sm { font-size: var(--text-sm); }
 a.btn-primary, a.btn-secondary { text-decoration: none; }
 
-/* KPI card color variants */
-.kpi-card--blue   { background: linear-gradient(135deg,var(--role-executor-bg),var(--kpi-tint-blue)); }
-.kpi-card--red    { background: linear-gradient(135deg,var(--kpi-tint-red),var(--kpi-tint-red-deep)); }
-.kpi-card--orange { background: linear-gradient(135deg,var(--kpi-tint-orange),var(--kpi-tint-orange-deep)); }
-
-/* KPI value color variants */
-.kpi-value--primary { color: var(--skyline-fg); }
-.kpi-value--success { color: var(--status-success-fg); }
-.kpi-value--warning { color: var(--status-warning-fg); }
-.kpi-value--blue    { color: var(--status-info-strong); }
-.kpi-value--danger  { color: var(--status-danger-fg); }
-.kpi-value--orange  { color: var(--accent-orange-fg); }
-
-/* حلقة التقدم الدائرية */
-.kpi-ring-wrap  {
-  position: relative;
-  width: 72px;
-  height: 72px;
-  margin: 0 auto 6px;
-}
-.kpi-ring-svg   { width: 72px; height: 72px; transform: rotate(-90deg); }
-.kpi-ring-label {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--text-sm);
-  font-weight: 800;
-  color: var(--text-primary);
-}
-.kpi-card--ring { text-align: center; }
-
-/* status badge inline */
-.status-badge--inline { flex-shrink: 0; margin-inline-end: 12px; }
-
 /* ── 14. Committee & table helpers ──────────────────────────── */
 
 /* خلايا الجدول */
 .cell-domain        { font-size: var(--text-xs); color: var(--text-muted); }
-.cell-count         { font-weight: 700; }
 .cell-count-success { font-weight: 700; color: var(--status-success-fg); }
 .cell-count-amber   { color: var(--status-warning-fg); }
 .cell-progress      { min-width: 120px; }
-.cell-zero          { color: var(--ink-empty); font-size: var(--text-xs); }
 
 /* صف غير مربوط */
 .row-unmapped { opacity: 0.6; }
@@ -3294,11 +3125,6 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
    صنفاً، فكانت العلامةُ ترث لونَ ما حولها: سوداءَ على الأخضر الداكن نهاراً. */
 .tfa-status-badge { background-color: var(--status-success-dark); color: var(--on-fill); }
 html.dark .tfa-status-badge { background-color: var(--status-success); }
-.badge-role {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 10px; border-radius: 20px; font-size: var(--text-xs); font-weight: 700;
-  background: var(--maroon-bg); color: var(--maroon-fg); border: 1px solid var(--maroon-border);
-}
 
 /* ── 16. Responsive — Mobile-First ───────────────────────────── */
 .quality-page { width: 100%; padding: 0.5rem; }
@@ -3338,18 +3164,7 @@ html.dark .tfa-status-badge { background-color: var(--status-success); }
 }
 
 /* ── Dashboard KPI Colors ────────────────────── */
-.kpi-color-green   { color: var(--status-success-dark); }
-.kpi-color-teal    { color: var(--accent-teal); }
-.kpi-color-red     { color: var(--status-danger-fg); }
-.kpi-color-amber   { color: var(--status-warning-fg); }
-.kpi-color-maroon  { color: var(--maroon-fg); }
-html.dark .kpi-color-green  { color: var(--status-success-fg); }
-html.dark .kpi-color-teal   { color: var(--accent-teal-fg); }
-html.dark .kpi-color-red    { color: var(--status-danger-fg); }
-html.dark .kpi-color-amber  { color: var(--status-warning-fg); }
-html.dark .kpi-color-maroon { color: var(--maroon-fg); }
 html.dark .kpi-label        { color: var(--text-secondary); }
-html.dark .kpi-link         { color: var(--maroon-fg); }
 
 /* ── Dashboard Misc ──────────────────────────── */
 
@@ -3362,14 +3177,6 @@ html.dark .kpi-link         { color: var(--maroon-fg); }
 }
 
 /* ── Progress bar conditional colors ─────────── */
-
-.kpi-link {
-  color: var(--maroon-fg);
-  font-weight: 600;
-  font-size: 11.5px;
-  text-decoration: none;
-}
-.kpi-link:hover { text-decoration: underline; }
 
 /* ── Command Palette hidden state ────────────── */
 .cmd-hidden { display: none; }
@@ -3489,16 +3296,6 @@ html.dark .kpi-link         { color: var(--maroon-fg); }
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 8px;
 }
-.kpi-mini {
-  background: var(--surface);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  border-right: 4px solid var(--kc, var(--maroon));
-  box-shadow: var(--shadow-kpi-mini);
-  text-decoration: none;
-  transition: box-shadow .15s;
-}
-.kpi-mini:hover { box-shadow: 0 4px 12px color-mix(in srgb, var(--shadow-ink) 10%, transparent); }
 /* لونان لا لون: `--kc` يملأ الشريطَ الجانبيّ و`--kc-fg` يُقرأ رقماً.
    كان الرقمُ يأخذ لونَ الشريط، فيُكتب العنّابيُّ على سطحٍ داكنٍ بنسبة 1.56. */
 .kpi-maroon { --kc: var(--maroon);          --kc-fg: var(--maroon-fg); }
@@ -3510,10 +3307,6 @@ html.dark .kpi-link         { color: var(--maroon-fg); }
 .kpi-orange { --kc: var(--accent-orange);   --kc-fg: var(--accent-orange-fg); }
 .kpi-purple { --kc: var(--accent-purple);   --kc-fg: var(--accent-purple-fg); }
 .kpi-sky    { --kc: var(--accent-sky);      --kc-fg: var(--accent-sky-fg); }
-.kpi-mini-label { font-size: var(--text-xs); color: var(--text-muted); margin-bottom: 3px; }
-.kpi-mini-value { font-size: var(--text-2xl); font-weight: 700; color: var(--kc-fg, var(--maroon-fg)); line-height: 1.2; }
-.kpi-mini-sub { font-size: .65rem; color: var(--text-muted); margin-top: 2px; }
-.kpi-mini-alert { font-size: .65rem; color: var(--status-danger-fg); font-weight: 600; }
 
 /* ══════════════════════════════════════════════════════════════
    Q-KPI — نظام البطاقات الموحد (الدستور البصري MTG-2026-001)
@@ -3578,14 +3371,8 @@ html.dark .kpi-link         { color: var(--maroon-fg); }
 }
 
 /* ── Dark mode: dashboards ── */
-html.dark .kpi-mini { background: var(--surface); }
 
 html.dark .alert-strip { background: color-mix(in srgb, var(--status-danger) 10%, transparent); border-color: var(--border); }
-
-/* ── prefers-reduced-motion ── */
-@media (prefers-reduced-motion: reduce) {
-  .kpi-mini { transition: none !important; }
-}
 
 .report-header {
   display: flex;
@@ -3680,9 +3467,7 @@ html.dark {
   --shadow-modal-box:    0 20px 60px rgba(0,0,0,.6);
   --shadow-q-modal:      0 20px 60px rgba(0,0,0,.6);
   --shadow-login-card:   0 20px 60px rgba(0,0,0,.4);
-  --shadow-raised:       0 4px 12px rgba(0,0,0,.3);
   --shadow-dropdown:     0 8px 24px rgba(0,0,0,.4);
-  --shadow-kpi-mini:     0 1px 3px rgba(0,0,0,.2);
   --overlay-scrim:       rgba(0,0,0,.65);
   --cmd-scrim:           rgba(0,0,0,.7);
   --q-modal-scrim:       rgba(0,0,0,.65);
@@ -3710,8 +3495,6 @@ html.dark {
   --dropzone-preview-bg: #1f2937;
 
   --btn-secondary-hover-bg: var(--maroon-bg);
-  --btn-preview-hover-bg:   #0c2d3e;
-  --btn-preview-hover-fg:   #7cc4d8;
   --gold-deep:              #c9952e;
   --status-success-solid-hover: #047857;
 
@@ -3720,7 +3503,6 @@ html.dark {
   --status-info-border-soft:    var(--status-info-border);
   --status-neutral-bg:          var(--surface);
   --status-neutral-fg:          var(--text-muted);
-  --badge-urgent-bg:            var(--status-danger-bg);
   --status-warning-bright: #f59e0b;
   --status-danger-deep:    #b91c1c;
   --status-warning-deep:   #b45309;
@@ -3737,14 +3519,8 @@ html.dark {
   --maroon-link:           #f9a8d4;
   --caution:               #ca8a04;
 
-  --kpi-tint-blue:         #dbeafe;
-  --kpi-tint-red:          #fef2f2;
-  --kpi-tint-red-deep:     #fecaca;
-  --kpi-tint-orange:       #fff7ed;
-  --kpi-tint-orange-deep:  #fed7aa;
   --plan-row-pending:      rgba(251,191,36,.7);
   --plan-row-completed:    rgba(34,197,94,.6);
-  --plan-row-returned:     rgba(239,68,68,.6);
   --q-badge-warning-bg:    color-mix(in srgb, var(--caution) 20%, transparent);
   --q-badge-warning-fg:    var(--status-warning-fg);
   --q-badge-neutral-bg:    rgba(148,163,184,.15);
@@ -3846,12 +3622,6 @@ html.dark .action-card { color: var(--text-primary); }
 html.dark .action-card-icon { background: var(--maroon-bg); }
 html.dark .action-card-body .action-desc { color: var(--text-muted); }
 
-/* ── 8. KPI Cards ───────────────────────────────────────────────── */
-html.dark .kpi-mini {
-  background: var(--surface);
-  border-color: var(--border);
-}
-
 /* ── 9. Tables ──────────────────────────────────────────────────── */
 html.dark .table-wrap {
   background: var(--surface);
@@ -3885,7 +3655,6 @@ html.dark tr.active {
 
 /* ── 10. Forms & Inputs ─────────────────────────────────────────── */
 html.dark .form-control,
-html.dark .form-input,
 html.dark .form-select,
 html.dark .filter-bar select,
 html.dark .filter-bar input {
@@ -3894,7 +3663,6 @@ html.dark .filter-bar input {
   color: var(--text-primary);
 }
 html.dark .form-control:focus,
-html.dark .form-input:focus,
 html.dark .form-select:focus {
   background: var(--surface);
 }
@@ -3979,9 +3747,6 @@ html.dark .msg-warning { border-color: var(--border); }
 html.dark .msg-info    { background: var(--status-info-bg); border-color: var(--border); }
 
 /* dark: grade colors */
-html.dark .grade-excellent { color: var(--status-success-fg); }
-html.dark .grade-pass      { color: var(--status-warning-fg); }
-html.dark .grade-fail      { color: var(--status-danger-fg); }
 html.dark .grade-na        { color: var(--text-muted); }
 
 /* ── 13. Status Badges ──────────────────────────────────────────── */
@@ -3989,17 +3754,10 @@ html.dark .status-success { background: var(--status-success-bg); color: var(--s
 html.dark .status-danger  { background: var(--status-danger-bg); color: var(--status-danger-fg); border-color: var(--status-danger-dark); }
 html.dark .status-info    { background: var(--status-info-bg); color: var(--status-info-fg); }
 html.dark .status-maroon  { background: var(--maroon-bg); color: var(--maroon-fg); border-color: var(--maroon-border); }
-html.dark .badge-role      { background: var(--maroon-bg); color: var(--maroon-fg); border-color: var(--maroon-border); }
 
 /* Priority badges */
-html.dark .badge-urgent  { color: var(--status-danger-fg); }
 html.dark .badge-medium  { background: var(--status-info-bg); color: var(--status-info-fg); }
 html.dark .badge-low     { background: var(--surface); color: var(--text-muted); }
-
-/* ── 14. KPI Delta ──────────────────────────────────────────────── */
-html.dark .kpi-delta.up   { color: var(--status-success-fg); background: var(--status-success-bg); }
-
-html.dark .kpi-delta.flat { color: var(--text-muted); background: var(--surface); }
 
 /* ── 15. Toast Notifications ────────────────────────────────────── */
 html.dark .toast {
@@ -4037,8 +3795,6 @@ html.dark .btn-secondary {
   color: var(--maroon-fg);
   border-color: var(--maroon-border);
 }
-html.dark .btn-preview { border-color: var(--sea); color: var(--sea); }
-html.dark .btn-preview:hover { background: var(--btn-preview-hover-bg); color: var(--btn-preview-hover-fg); }
 
 /* ── 21. Scrollbar ──────────────────────────────────────────────── */
 html.dark ::-webkit-scrollbar-thumb { background: var(--border-strong); }
@@ -4093,10 +3849,6 @@ html.dark .mini-progress-pct { color: var(--text-secondary); }
 
 /* ── 28. Report Dropdown ────────────────────────────────────────── */
 html.dark .report-student-dropdown {
-  background: var(--surface);
-  border-color: var(--border);
-}
-html.dark .student-search-result {
   background: var(--surface);
   border-color: var(--border);
 }
@@ -4278,17 +4030,6 @@ html.dark .dash-chart-wrap, html.dark .chart-loading {
 
 /* ── 35d. Buttons — الأزرار الثانوية ─────────────────────────── */
 /* `button[class*="outline"]` لم يطابق عنصراً واحداً في المنصّة — أُزيل. */
-html.dark .btn-outline,
-html.dark .btn-light,
-html.dark a.btn-light {
-  background: var(--surface);
-  border-color: var(--border-strong);
-  color: var(--text-primary);
-}
-html.dark .btn-outline:hover,
-html.dark .btn-light:hover {
-  background: var(--border);
-}
 
 /* ── 35e. Cards — بطاقات بخلفية بيضاء ────────────────────────── */
 /* `[class*="card"]` كان يلتقط `card-header-title` و`stat-card-value` و
@@ -4298,12 +4039,6 @@ html.dark .btn-light:hover {
 html.dark .card, html.dark .card-qatar, html.dark .form-card {
   background: var(--surface);
   border-color: var(--border);
-  color: var(--text-primary);
-}
-
-/* ── 35f. Badges & Tags ──────────────────────────────────────── */
-html.dark .badge-light {
-  background: var(--border);
   color: var(--text-primary);
 }
 
@@ -4349,11 +4084,6 @@ html.dark .border, html.dark .border-t {
   border-color: var(--border);
 }
 html.dark hr { border-color: var(--border); }
-
-/* ── 35n. Shadows — تخفيف الظلال في الداكن ───────────────────── */
-html.dark .shadow {
-  box-shadow: var(--shadow-raised);
-}
 
 /* ── 35p. Analytics charts white area fix ──────────────────────
    `.chart-card` نُزع من هنا: هو بطاقةٌ يحكمها 35e. وكان يستقرّ على سطح
@@ -4464,7 +4194,7 @@ html.dark .per-grid thead th.per-col.is-focus { background: var(--maroon); color
   nav, footer, .no-print, .pwa-banner, .mobile-bottom-nav, #cmd-palette, #toast-container, .filter-bar, .skip-nav,
   #htmx-loading-bar, .msgs-wrap,
   .site-header .theme-toggle, .site-header .nav-bell, .site-header .nav-user-btn,
-  .btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .btn-success, .btn-warning, .btn-outline { display: none !important; }
+  .btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .btn-success, .btn-warning { display: none !important; }
 
   body {
     background: var(--paper) !important;
@@ -4525,19 +4255,11 @@ html.dark .per-grid thead th.per-col.is-focus { background: var(--maroon); color
 .text-status-success { color: var(--status-success-fg); }
 .text-status-warning { color: var(--status-warning-fg); }
 .text-status-info    { color: var(--status-info); }
-.text-status-muted   { color: var(--text-muted); }
-.text-status-maroon  { color: var(--maroon-link); }
-.text-status-danger-dark { color: var(--status-danger-fg); }
 
 html.dark .text-status-danger  { color: var(--status-danger-fg); }
 html.dark .text-status-success { color: var(--status-success-fg); }
 html.dark .text-status-warning { color: var(--status-warning-fg); }
 html.dark .text-status-info    { color: var(--status-info-fg); }
-html.dark .text-status-muted   { color: var(--text-muted); }
-html.dark .text-status-danger-dark { color: var(--status-danger-fg); }
-
-.text-status-warning-dark { color: var(--status-warning-fg); }
-html.dark .text-status-warning-dark { color: var(--status-warning-fg); }
 
 /* ── Radio Pill (radio-button label wrapper) ────────────────────── */
 .radio-pill {
@@ -4553,15 +4275,6 @@ html.dark .radio-pill {
 /* ── Status Background Cards (light tint + border) ───────────────── */
 
 .bg-status-warning-light { background: var(--status-warning-tint-deep); border-color: var(--status-warning-border-soft); }
-
-/* ── KPI Value Sizes ─────────────────────────────────────────────── */
-.kpi-value-danger  { color: var(--status-danger-fg); font-weight: 700; }
-.kpi-value-success { color: var(--status-success-fg); font-weight: 700; }
-.kpi-value-warning { color: var(--status-warning-fg); font-weight: 700; }
-
-html.dark .kpi-value-danger  { color: var(--status-danger-fg); }
-html.dark .kpi-value-success { color: var(--status-success-fg); }
-html.dark .kpi-value-warning { color: var(--status-warning-fg); }
 
 /* ── Link Accent (for inline links with specific colors) ─────────── */
 .link-maroon { color: var(--maroon-link); font-weight: 600; }
@@ -4613,8 +4326,6 @@ html.dark .kpi-value-warning { color: var(--status-warning-fg); }
 }
 
 /* ── Extra Utility Classes ───────────────────────────────────────── */
-.text-status-success-dark { color: var(--status-success-fg); }
-html.dark .text-status-success-dark { color: var(--status-success-fg); }
 
 .text-primary   { color: var(--text-primary); }
 .text-secondary { color: var(--text-secondary); }
@@ -5000,15 +4711,18 @@ th[aria-sort="descending"] .th-sort-label {
   .asg-count { font-size: 12px; color: var(--text-muted); }
   .asg-chip-alert { background: var(--status-danger-bg); color: var(--status-danger-fg); border-color: var(--status-danger-border); }
   .asg-table-wrap { overflow-x: auto; max-width: 100%; }
-  .asg-card.asg-APPROVED, .asg-card.asg-LOCKED { border-inline-start: 4px solid var(--status-success-dark); }
-  .asg-card.asg-SUBMITTED { border-inline-start: 4px solid var(--status-warning-deep); }
-  .asg-card.asg-REVIEWED { border-inline-start: 4px solid var(--status-info-strong); }
+  /* الحالةُ تُركَّب في `assignment_teacher.html` من قيمة الخطّة كما هي (`approved`)،
+     وكانت هذه القواعدُ بالحروف الكبيرة (`asg-APPROVED`) — والصنفُ حسّاسٌ لحالة الحرف،
+     فما رأى أحدٌ شريطَ الحالة ولا لونَ رقاقتها قطّ. */
+  .asg-card.asg-approved, .asg-card.asg-locked { border-inline-start: 4px solid var(--status-success-dark); }
+  .asg-card.asg-submitted { border-inline-start: 4px solid var(--status-warning-deep); }
+  .asg-card.asg-reviewed { border-inline-start: 4px solid var(--status-info-strong); }
   .asg-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .asg-name { font-weight: 800; font-size: 15px; }
   .asg-chip { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-secondary); background: var(--surface-alt); }
-  .asg-chip-SUBMITTED { background: var(--status-warning-bg); color: var(--status-warning-fg); border-color: var(--asg-warning-border); }
-  .asg-chip-REVIEWED { background: var(--status-info-bg); color: var(--status-info-fg); border-color: var(--status-info-border); }
-  .asg-chip-APPROVED, .asg-chip-LOCKED { background: var(--status-success-bg); color: var(--status-success-fg); border-color: var(--asg-success-border); }
+  .asg-chip-submitted { background: var(--status-warning-bg); color: var(--status-warning-fg); border-color: var(--asg-warning-border); }
+  .asg-chip-reviewed { background: var(--status-info-bg); color: var(--status-info-fg); border-color: var(--status-info-border); }
+  .asg-chip-approved, .asg-chip-locked { background: var(--status-success-bg); color: var(--status-success-fg); border-color: var(--asg-success-border); }
   .asg-load { font-size: 12.5px; color: var(--text-secondary); margin-inline-start: auto; }
   .asg-load.over { color: var(--status-danger-fg); font-weight: 700; }
   .asg-load.exact { color: var(--status-success-fg); font-weight: 700; }
@@ -5096,11 +4810,6 @@ th[aria-sort="descending"] .th-sort-label {
 }
 .chart-error { color: var(--status-danger-fg); }
 .chart-loading.hidden, .chart-error.hidden { display: none; }
-
-/* ── prefers-reduced-motion ── */
-@media (prefers-reduced-motion: reduce) {
-  .kpi-mini { transition: none !important; }
-}
 
 /* ── templates/analytics/kpi_dashboard.html ── */
 /* ══ KPI Dashboard — MTG-2026-002-REV Layout ══ */
@@ -5491,7 +5200,6 @@ html.dark .kpi-unavail-icon { background: var(--surface-alt); }
   padding: 18px 20px;
   min-inline-size: 0;
 }
-.obs-pdf-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .obs-send-box { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 14px; }
 .obs-send-box__title { margin: 0 0 8px; }
 .obs-send-box__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
@@ -6030,7 +5738,6 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
 .form-group textarea { min-height: 60px; resize: vertical; }
 .btn-submit { background: var(--maroon); color: var(--on-fill); padding: 10px 28px; border: none; border-radius: var(--radius-md); font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; }
 .btn-submit:hover { opacity: .9; }
-.slot-option { padding: 6px 8px; font-size: .8rem; }
 .hint { font-size: .72rem; color: var(--text-muted); margin-top: 2px; }
 #swap-options-container { margin-top: 12px; min-height: 40px; }
 
@@ -6044,8 +5751,6 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
 .swap-side-info { font-size: .78rem; color: var(--text-muted); line-height: var(--lh-normal); }
 .swap-side-info strong { color: var(--text-secondary); }
 .swap-arrow-col { font-size: 1.6rem; color: var(--maroon-fg); font-weight: 900; }
-.swap-reason { background: var(--status-warning-bg); border: 1px solid var(--status-warning-border); border-radius: var(--radius-md); padding: 10px 14px; font-size: .8rem; color: var(--status-warning-fg); margin-bottom: 16px; }
-.swap-reason strong { display: block; margin-bottom: 2px; }
 .respond-actions { display: flex; gap: 10px; margin-top: 20px; }
 .respond-actions form { flex: 1; }
 .btn-respond { width: 100%; padding: 10px; border: none; border-radius: var(--radius-md); font-size: .85rem; font-weight: 700; font-family: inherit; cursor: pointer; transition: opacity .2s; }
@@ -7347,8 +7052,6 @@ html.dark .wing-panel__bar { background: var(--maroon-dark); }
 .rec-chip__meta { font-size: var(--text-xs); color: var(--text-muted); }
 
 /* ── قائمةُ الطلاب ── */
-
-.rec-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
 .rec-row {
   display: flex;
   align-items: center;
@@ -7367,7 +7070,6 @@ html.dark .wing-panel__bar { background: var(--maroon-dark); }
   background: var(--status-warning-bg);
   border-color: var(--status-warning-border, var(--status-warning));
 }
-.rec-row__no { font-size: var(--text-xs); color: var(--text-muted); min-width: 22px; text-align: center; }
 .rec-row__name { flex: 1; font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); min-inline-size: 0; }
 .rec-row__pick { display: flex; gap: 3px; flex-shrink: 0; }
 
@@ -8380,8 +8082,6 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
    في قوالب templates/clinic/ — فلا تتبع الوضعَ الداكن ولا تتغيّر من موضع. */
 .clinic-form-page { max-inline-size: 42rem; margin-inline: auto; inline-size: 100%; }
 .clinic-check { inline-size: 1rem; block-size: 1rem; flex-shrink: 0; accent-color: var(--maroon-fg); }
-.filter-bar .clinic-search-input { padding-inline-start: 2rem; }
-.filter-bar .clinic-visit-search { max-inline-size: 300px; }
 /* سجلُّ زيارات الطالب: زيارةٌ لكلّ بند، والقائمةُ تتمرّر داخل بطاقتها. */
 .clinic-visits { list-style: none; margin: 0; padding: 0; max-block-size: 600px; overflow-y: auto; }
 .clinic-visit { padding: var(--sp-4) var(--sp-5); border-block-end: 1px solid var(--border); }
