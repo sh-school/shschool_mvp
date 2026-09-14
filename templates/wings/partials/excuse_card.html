@@ -45,7 +45,7 @@
         <tr>
           <td>{{ x.date_from|date:"d/m" }}{% if x.date_to != x.date_from %} – {{ x.date_to|date:"d/m" }}{% endif %}</td>
           <td>{{ x.get_kind_display }}{% if x.notes %} <small>{{ x.notes }}</small>{% endif %}{% if x.status == "pending" %} <span class="status-badge status-warning">بانتظار النائب الإداريّ</span>{% elif x.status == "rejected" %} <span class="status-badge status-danger">مرفوض</span> <small>{{ x.rejection_reason }}</small>{% elif x.after_deadline %} <span class="status-badge status-info">قُبل بعد المهلة</span>{% endif %}</td>
-          <td>{% if x.document %}<a href="{{ x.document.url }}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-xs">{% icon "document" %} افتح</a>{% else %}—{% endif %}</td>
+          <td>{% if x.document %}<a data-app-file href="{{ x.document.url }}" target="_blank" rel="noopener noreferrer" class="btn-secondary btn-xs">{% icon "document" %} افتح</a>{% else %}—{% endif %}</td>
           <td><small>{% if x.status == "pending" or x.status == "rejected" or x.reviewed_by %}أرسله{% else %}قبله{% endif %} {{ x.granted_by.full_name|default:"—" }} · {{ x.granted_at|date:"d/m H:i" }}{% if x.reviewed_by %} — قرّره {{ x.reviewed_by.full_name }}{% endif %}</small></td>
           <td>
             {% if x.status == "pending" or x.status == "accepted" and not x.after_deadline or x.status == "accepted" and may_override %}

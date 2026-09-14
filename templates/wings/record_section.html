@@ -19,8 +19,8 @@
         <option value="landscape">أفقي</option>
         <option value="portrait">عمودي — صفحةٌ واحدة</option>
       </select>
-      <button type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</button>
-      <button type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير PDF</button>
+      <button data-app-file type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</button>
+      <button data-app-file type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير PDF</button>
       <button type="submit" name="print" value="1" formtarget="_blank" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
     </form>
     {% endif %}

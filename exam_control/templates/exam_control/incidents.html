@@ -27,7 +27,7 @@
               <td>{{ i.get_severity_display }}</td>
               <td><span class="status-badge {% if i.status == 'open' %}status-warning{% elif i.status == 'referred' %}status-info{% else %}status-success{% endif %}">{{ i.get_status_display }}</span></td>
               <td class="num">{{ i.incident_time|date:"d/m H:i" }}</td>
-              <td><a href="{% url 'exam_control:incident_pdf' i.pk %}" class="btn-ghost btn-sm" target="_blank" rel="noopener">PDF</a></td>
+              <td><a data-app-file href="{% url 'exam_control:incident_pdf' i.pk %}" class="btn-ghost btn-sm" target="_blank" rel="noopener">PDF</a></td>
             </tr>
           {% endfor %}
         </tbody>

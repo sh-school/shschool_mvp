@@ -15,7 +15,7 @@
     {% if is_committee %}<a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">{% icon "behavior_committee" %} لجنة الضبط</a>{% endif %}
     {% if can_stats %}<a href="{% url 'behavior:statistics' %}" class="btn-secondary btn-sm">{% icon "stats" %} الإحصائيات</a>{% endif %}
     {% if can_summon %}<a href="{% url 'behavior:summon_parent' %}" class="btn-secondary btn-sm">{% icon "call_parent" %} استدعاء ولي أمر</a>{% endif %}
-    <a href="{% url 'behavior:policy_pdf' %}" class="btn-secondary btn-sm">{% icon "export_pdf" %} لائحة السلوك (PDF)</a>
+    <a data-app-file href="{% url 'behavior:policy_pdf' %}" class="btn-secondary btn-sm">{% icon "export_pdf" %} لائحة السلوك (PDF)</a>
   {% endpage_header %}
 
   {# نظامُ النقاط ملغى — الأرقامُ عددُ مخالفات. #}

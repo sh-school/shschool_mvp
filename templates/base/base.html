@@ -129,7 +129,7 @@
 
     {# ── Hamburger (mobile) ── #}
     <button id="mob-menu-btn" class="nav-hamburger"
-            aria-label="القائمة" aria-expanded="false">{% icon "menu" %}</button>
+            aria-label="القائمة" aria-expanded="false"><span class="nav-hamburger-open">{% icon "menu" %}</span><span class="nav-hamburger-close">{% icon "close" %}</span></button>
 
     {# ── Role-based nav ── #}
     <div class="nb-bar">
@@ -899,6 +899,8 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
 <script src="{% static 'js/actions.js' %}" defer></script>
 <script src="{% static 'js/base.js' %}" defer></script>
 <script src="{% static 'js/app.js' %}" defer></script>
+{# التطبيقُ المثبَّت بلا شريطِ متصفّح: الملفّاتُ إلى قائمة المشاركة، و«اللسانُ الجديد» في النافذة نفسها #}
+<script src="{% static 'js/app-mode.js' %}" defer></script>
 
 {% block extra_js %}{% endblock %}
 

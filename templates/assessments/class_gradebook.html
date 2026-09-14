@@ -17,7 +17,7 @@
       {% endfor %}
       <a href="?semester=annual" class="period-switch__item{% if show_annual %} is-current{% endif %}"{% if show_annual %} aria-current="page"{% endif %}>السنوي (100)</a>
     </nav>
-    <a href="{% url 'export_gradebook' setup.id %}{% if not show_annual %}?semester={{ semester }}{% endif %}" class="btn-primary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
+    <a data-app-file href="{% url 'export_gradebook' setup.id %}{% if not show_annual %}?semester={{ semester }}{% endif %}" class="btn-primary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
     <form method="post" action="{% url 'recalculate_class' setup.id %}" data-confirm="إعادة حساب جميع الدرجات؟">
       {% csrf_token %}
       <button type="submit" class="btn-secondary btn-sm">{% icon "refresh" %} إعادة الحساب</button>

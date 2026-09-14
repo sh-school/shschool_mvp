@@ -110,13 +110,54 @@ function sdPos(m, btn) {
   m.style.left = left + 'px';
 }
 
+// لوحةُ الجوال (حتى 640px، كما في custom.css): القائمةُ الفرعيّةُ كانت تُثبَّت أعلى
+// الشاشة فوق اللوحة فتُخفي القائمةَ الرئيسيّة كلَّها (بلاغ 2026-09-14 بلقطة).
+// والقرار: تبقى عائمة، لكن اللوحةُ تنكمش إلى يمين الشاشة والفرعيّةُ على يسارها
+// (`nb-split` و`sd-drawer`) — فتُرى القائمتان معاً.
+var SD_DRAWER = '(max-width: 640px)';
+
+function sdInDrawer(btn) {
+  return !!(btn.closest('.nb-bar') && window.matchMedia(SD_DRAWER).matches);
+}
+
+function sdPlace(m, btn) {
+  var bar = btn.closest('.nb-bar');
+  // زرٌّ في لوحةٍ مغلقةٍ على عرض الجوال (دار الجهازُ والقائمةُ مفتوحة): لا موضعَ له —
+  // اللوحةُ غيرُ معروضة فأعلاها صفر، والقائمةُ كانت تلتصق فوق الترويسة.
+  if (sdInDrawer(btn) && !bar.classList.contains('open')) { sdCloseAll(); return; }
+  var drawer = sdInDrawer(btn);
+  m.classList.toggle('sd-drawer', drawer);
+  if (bar) bar.classList.toggle('nb-split', drawer);
+  if (drawer) {
+    var top = Math.round(bar.getBoundingClientRect().top);
+    m.style.top = top + 'px';
+    m.style.left = '';
+    // تنتهي فوق شريط التنقّل السفليّ لا تحته.
+    var dock = document.querySelector('.mobile-bottom-nav');
+    var bottom = dock ? dock.getBoundingClientRect().top : window.innerHeight;
+    m.style.maxHeight = Math.max(160, Math.round(bottom - top - 8)) + 'px';
+  } else {
+    m.style.maxHeight = '';
+    sdPos(m, btn);
+  }
+}
+
+function sdCloseAll() {
+  document.querySelectorAll('.sd-menu.open').forEach(function(x) { x.classList.remove('open', 'sd-drawer'); });
+  document.querySelectorAll('.nb.on').forEach(function(x) { x.classList.remove('on'); x.setAttribute('aria-expanded', 'false'); });
+  document.querySelectorAll('.nb-bar.nb-split').forEach(function(x) { x.classList.remove('nb-split'); });
+}
+
 window.sd = function(id, btn) {
   var m = document.getElementById(id);
   if (!m) return;
   var isOpen = m.classList.contains('open');
-  document.querySelectorAll('.sd-menu.open').forEach(function(x) { x.classList.remove('open'); });
-  document.querySelectorAll('.nb.on').forEach(function(x) { x.classList.remove('on'); x.setAttribute('aria-expanded', 'false'); });
-  if (!isOpen) { sdPos(m, btn); m.classList.add('open'); btn.classList.add('on'); btn.setAttribute('aria-expanded', 'true'); }
+  sdCloseAll();
+  if (!isOpen) {
+    if (sdInDrawer(btn) && !btn.closest('.nb-bar').classList.contains('open')) return;
+    sdPlace(m, btn);
+    m.classList.add('open'); btn.classList.add('on'); btn.setAttribute('aria-expanded', 'true');
+  }
 };
 
 /* ── Event delegation: all interactive buttons ── */
@@ -135,16 +176,13 @@ document.addEventListener('click', function(e) {
   if (pwaInstall && typeof installPWA === 'function') { installPWA(); return; }
   var pwaDismiss = e.target.closest('[data-action="dismiss-pwa"]');
   if (pwaDismiss && typeof dismissBanner === 'function') { dismissBanner(); return; }
-  if (!e.target.closest('.sd-menu') && !e.target.closest('[data-sd]')) {
-    document.querySelectorAll('.sd-menu.open').forEach(function(x) { x.classList.remove('open'); });
-    document.querySelectorAll('.nb.on').forEach(function(x) { x.classList.remove('on'); x.setAttribute('aria-expanded', 'false'); });
-  }
+  if (!e.target.closest('.sd-menu') && !e.target.closest('[data-sd]')) sdCloseAll();
 });
 
 window.addEventListener('resize', function() {
   document.querySelectorAll('.sd-menu.open').forEach(function(m) {
     var btn = document.getElementById('btn-' + m.id.replace('m-', ''));
-    if (btn) sdPos(m, btn);
+    if (btn) sdPlace(m, btn);
   });
 });
 
@@ -224,21 +262,51 @@ window.addEventListener('resize', function() {
 
 
 /* ── Hamburger mobile menu ────────────────────────────────── */
+// الأيقونتان في الزرّ معاً، والظاهرةُ منهما بـ`aria-expanded` في CSS. وكان الزرُّ
+// يُبدَّل نصُّه (`textContent = '✕'`) فتُنزع أيقونةُ SVG التي لُمست — وهي
+// `e.target` — من الصفحة، فيسأل مستمعُ «النقر خارج القائمة» بعده عنها فلا يجد
+// لها زرّاً ويُغلق ما فُتح للتوّ: قائمةٌ لا تُفتح إلّا بضغطتين (بلاغ 2026-09-14).
 window.toggleMobMenu = function() {
   var bar = document.querySelector('.nb-bar');
   var btn = document.getElementById('mob-menu-btn');
   if (!bar || !btn) return;
   var isOpen = bar.classList.toggle('open');
   btn.setAttribute('aria-expanded', String(isOpen));
-  btn.textContent = isOpen ? '✕' : '☰';
+  if (isOpen) mobMenuTop(bar);
+  else sdCloseAll();
 };
 
+// اللوحةُ تبدأ تحت صفّ زرّها لا تحت الترويسة وحدها: كانت `top: 54px` ثابتة،
+// والزرُّ في صفٍّ ثانٍ تحت الترويسة، فتُغطّيه اللوحةُ ولا يُغلَق منها (بلاغ 2026-09-14).
+function mobMenuTop(bar) {
+  var row = document.getElementById('mob-menu-btn').closest('.site-nav');
+  if (!row) return;
+  var top = Math.max(0, Math.round(row.getBoundingClientRect().bottom));
+  bar.style.top = top + 'px';
+  bar.style.maxHeight = 'calc(100vh - ' + top + 'px)';
+}
+
+window.addEventListener('resize', function() {
+  var bar = document.querySelector('.nb-bar.open');
+  if (bar) mobMenuTop(bar);
+});
+
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('.nb-bar') && !e.target.closest('#mob-menu-btn')) {
+  // المسارُ كما كان لحظةَ النقر — لا شجرةُ الصفحة بعد أن غيّرها مستمعٌ قبله.
+  // والقائمةُ الفرعيّةُ العائمةُ بجانب اللوحة من «الداخل» وإن لم تكن في شجرتها.
+  var path = e.composedPath ? e.composedPath() : [e.target];
+  var inside = path.some(function(node) {
+    return node.id === 'mob-menu-btn' ||
+      (node.classList && (node.classList.contains('nb-bar') || node.classList.contains('sd-menu')));
+  });
+  if (!inside) {
     var bar = document.querySelector('.nb-bar');
     var btn = document.getElementById('mob-menu-btn');
-    if (bar) bar.classList.remove('open');
-    if (btn) { btn.textContent = '☰'; btn.setAttribute('aria-expanded', 'false'); }
+    if (bar) bar.classList.remove('open', 'nb-split');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+    // قوائمُ اللوحة وحدَها تُغلق معها. لا `sdCloseAll()`: هذا المستمعُ يعمل بعد مستمع
+    // التفويض، فكان يُغلق قائمةَ المستخدم (#btn-user خارج اللوحة) لحظةَ فتحها.
+    document.querySelectorAll('.sd-menu.sd-drawer.open').forEach(function(x) { x.classList.remove('open', 'sd-drawer'); });
   }
 });
 

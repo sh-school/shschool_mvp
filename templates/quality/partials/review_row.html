@@ -71,7 +71,7 @@
 
     {% for ev in task.evidences.all %}
       {% if ev.file %}
-        <a href="{{ ev.file.url }}" target="_blank" class="q-evidence-link">
+        <a data-app-file href="{{ ev.file.url }}" target="_blank" class="q-evidence-link">
           {% icon "download" %} {{ ev.title|default:"دليل" }}
         </a>
       {% else %}
