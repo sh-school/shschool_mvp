@@ -20,6 +20,8 @@
   {% endpage_header %}
 
   {# ── التحصيل ومستواه: المتوسّطُ بلون شريحته، ثمّ نتيجةُ كلّ مادّة ── #}
+  {# لا يُعرض للمشرف الإداريّ (قرار 2026-09-15)، ولا يُحسب له في الشاشة أصلاً. #}
+  {% if shows_grades %}
   {% if average %}
   {% kpi_strip label="متوسّط التحصيل" %}
     {% kpi "المتوسّط السنوي" average.value sub=average.band_label tone=average.kpi_tone title="متوسّط المجموع السنوي في موادّ الطالب — من 100" %}
@@ -52,8 +54,9 @@
       </table>
     </div>
   {% endif %}{% endsection_card %}
+  {% endif %}
 
-  {# ── ملاحظات الجهات الخمس ── #}
+  {# ── ملاحظات الجهات — ما يقرؤه صاحبُ الطلب منها ── #}
   {% for g in note_groups %}
     {% section_card g.label meta=g.notes|length icon="edit_record" flush=True empty="لا ملاحظات من هذه الجهة" %}{% if g.notes %}
       <div class="table-wrap">
