@@ -143,8 +143,14 @@ def measure_core_imports(source: str, downstream: frozenset[str]) -> dict[str, i
 
 
 def view_files(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
+    """ملفّاتُ العروض في تطبيقات المشروع — حزمٌ في الجذر، لا مجلّداتٌ مخفيّةٌ ولا نسخٌ مؤقّتة."""
     files = set(root.glob("*/views*.py")) | set(root.glob("*/views/*.py"))
-    return sorted(p for p in files if p.relative_to(root).parts[0] not in {"shschool", "tests"})
+    return sorted(
+        p
+        for p in files
+        if (root / p.relative_to(root).parts[0] / "__init__.py").is_file()
+        and p.relative_to(root).parts[0] not in {"shschool", "tests"}
+    )
 
 
 def snapshot(root: pathlib.Path = ROOT) -> dict:

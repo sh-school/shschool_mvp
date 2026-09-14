@@ -112,6 +112,15 @@ class TestTheRatchetItself:
         found = ratchet.measure_core_imports(source, frozenset({"analytics", "behavior"}))
         assert found == {"analytics": 1, "behavior": 2}
 
+    def test_only_app_packages_are_scanned(self, tmp_path):
+        """نسخةٌ مؤقّتةٌ في مجلّدٍ مخفيّ (`.local/views_x.py`) ليست ملفَّ عروض."""
+        for folder, package in (("app", True), (".local", False)):
+            (tmp_path / folder).mkdir()
+            (tmp_path / folder / "views.py").write_text("", encoding="utf-8")
+            if package:
+                (tmp_path / folder / "__init__.py").write_text("", encoding="utf-8")
+        assert [p.parent.name for p in ratchet.view_files(tmp_path)] == ["app"]
+
     def test_every_app_but_core_is_downstream(self):
         apps = ratchet.downstream_apps()
         assert {"student_affairs", "analytics", "wings", "api"} <= apps
