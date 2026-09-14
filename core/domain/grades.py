@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 
 Score = int | float | Decimal
 
@@ -83,26 +83,59 @@ def letter_of(score: Score | None) -> str:
     return LETTER_FAIL
 
 
-def round_half_up(value: Score | None, precision: int = 0) -> Decimal | None:
-    """تقريبُ الكسور: النصفُ يثبت (ROUND_HALF_UP) — لا banker's rounding.
+# ─────────────────────────────────────────────────────────────
+# بنيةُ الباقات — ما يوجد منها لكلّ صفٍّ وفصل، وبأيّ وزن
+# ─────────────────────────────────────────────────────────────
+#
+# المرجع: قرار وزير التعليم والتعليم العالي رقم (14) لسنة 2018، صادر
+# 2018/06/06 (1439/09/21هـ)، نافذ من 2018/2019، المادّة 3 (صفحتا القرار 4–5):
+#
+#   «ثانياً: الصفوف (الرابع … الحادي عشر)»
+#       الفصل الأول:  15 منتصف الفصل · 5 أعمال الفصل · 20 نهاية الفصل  = 40
+#       الفصل الثاني: 15 منتصف الفصل · 5 أعمال الفصل · 40 نهاية الفصل  = 60
+#
+#   «ثالثاً: الصف الثاني عشر — يقيم طلبة الصف الثاني عشر على النحو التالي:
+#       الفصل الدراسي الأول: (40 درجة) من الدرجة المخصصة للمادة في الفصل
+#       الدراسي الأول لاختبار نهاية الفصل، ويجرى بأسئلة موحدة على مستوى جميع
+#       المدارس …  الفصل الدراسي الثاني: (60 درجة) … لاختبار نهاية الفصل …»
+#
+# فالثاني عشر لا منتصفَ فصلٍ له ولا أعمالَ فصل — لا P1 ولا P3 ولا AW.
+# وغيابُها بنيويّ: ليست في الجدول أصلاً (`None` لا صفر)، فلا تُنشأ باقةٌ
+# بوزن صفر تظهر عموداً فارغاً في الرصد والكشف. والنسبةُ 40/60 نفسُها لا
+# تتغيّر (خطّة الإصلاح، «تصحيحٌ جوهري» 2026-09-10).
+#
+# والوزنُ نسبةٌ من درجة الفصل لا من المئة: 15 من 40 = 37.50٪.
 
-    المرجع: المادة 8 من سياسة تقييم الطلبة (2015) — نص حرفي:
-    «أقل من نصف تُجبر لأسفل، النصف يثبت، أكثر من نصف تُجبر لأعلى»
+SEMESTER_MAX: dict[str, Decimal] = {"S1": Decimal("40"), "S2": Decimal("60")}
 
-    مثال:
-      >>> round_half_up(0.5, 0)
-      Decimal('1')
-      >>> round_half_up(1.49, 0)
-      Decimal('1')
-      >>> round_half_up(1.5, 0)
-      Decimal('2')
-      >>> round_half_up(2.25, 1)
-      Decimal('2.3')
-      >>> round_half_up(None, 0)
+PACKAGE_WEIGHTS_STANDARD: dict[str, dict[str, Decimal]] = {
+    "S1": {"P1": Decimal("37.50"), "P2": Decimal("50.00"), "AW": Decimal("12.50")},
+    "S2": {"P3": Decimal("25.00"), "P4": Decimal("66.67"), "AW": Decimal("8.33")},
+}
+
+PACKAGE_WEIGHTS_GRADE12: dict[str, dict[str, Decimal]] = {
+    "S1": {"P2": Decimal("100")},  # اختبارُ نهاية الفصل الأول = الأربعون كلُّها
+    "S2": {"P4": Decimal("100")},  # اختبارُ نهاية الفصل الثاني = الستّون كلُّها
+}
+
+#: الصفُّ الذي له بنيةٌ مستقلّة.
+FINAL_GRADE = 12
+
+
+def package_weights(grade: int, semester: str) -> dict[str, Decimal]:
+    """الباقاتُ الموجودة لصفٍّ وفصل وأوزانُها — وما ليس فيها غيرُ موجود.
+
+    >>> sorted(package_weights(12, "S1")), sorted(package_weights(10, "S1"))
+    (['P2'], ['AW', 'P1', 'P2'])
     """
-    if value is None:
-        return None
+    table = PACKAGE_WEIGHTS_GRADE12 if grade == FINAL_GRADE else PACKAGE_WEIGHTS_STANDARD
+    return dict(table.get(semester, {}))
 
-    d = Decimal(str(value))
-    quantizer = Decimal(10) ** -precision
-    return d.quantize(quantizer, rounding=ROUND_HALF_UP)
+
+def package_weight(grade: int, semester: str, package_type: str) -> Decimal | None:
+    """وزنُ باقةٍ واحدة، و`None` لباقةٍ لا وجودَ لها في هذا الصفّ والفصل.
+
+    >>> package_weight(12, "S1", "P1") is None, package_weight(12, "S2", "P4")
+    (True, Decimal('100'))
+    """
+    return package_weights(grade, semester).get(package_type)

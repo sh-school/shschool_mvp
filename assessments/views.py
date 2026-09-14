@@ -180,33 +180,10 @@ def setup_detail(request, setup_id):
         .order_by("package_type")
     )
 
-    # إنشاء الباقات إن لم تكن موجودة
+    # إنشاء الباقات إن لم تكن موجودة — وبنيتُها بحسب الصفّ (الثاني عشر: P2/P4 فقط)
     if not packages.exists():
-        semester_max = AssessmentPackage.SEMESTER_MAX.get(semester, Decimal("40"))
-        weights = (
-            AssessmentPackage.DEFAULT_WEIGHTS_S1
-            if semester == "S1"
-            else AssessmentPackage.DEFAULT_WEIGHTS_S2
-        )
-        for ptype, weight in weights.items():
-            if weight == Decimal("0"):
-                continue  # تخطي الباقات ذات الوزن صفر
-            AssessmentPackage.objects.get_or_create(
-                setup=setup,
-                package_type=ptype,
-                semester=semester,
-                defaults={
-                    "school": school,
-                    "weight": weight,
-                    "semester_max_grade": semester_max,
-                    "is_active": True,
-                },
-            )
-        packages = (
-            AssessmentPackage.objects.filter(setup=setup, semester=semester)
-            .prefetch_related(assessments_with_counts)
-            .order_by("package_type")
-        )
+        GradeService.ensure_packages(setup, semester)
+        packages = packages.all()
 
     # نتائج الفصل لهذه المادة
     summary = GradeService.get_class_results_summary(setup)

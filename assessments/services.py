@@ -10,6 +10,7 @@ assessments/services.py
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING
 
@@ -17,9 +18,14 @@ from django.db import transaction
 from django.db.models import Avg, Count, Q, QuerySet
 
 from core.academic_calendar import academic_year_for_school
-from core.domain.grades import GRADE_BANDS, band_of, round_half_up
-from core.models import StudentEnrollment
-from core.models.academic import grade_order
+from core.domain.grades import (
+    GRADE_BANDS,
+    SEMESTER_MAX,
+    band_of,
+    package_weights,
+)
+from core.models import AuditLog, StudentEnrollment
+from core.models.academic import grade_number, grade_order
 
 from .models import (
     AnnualSubjectResult,
@@ -35,6 +41,33 @@ if TYPE_CHECKING:
 
 
 class GradeService:
+    # ── إنشاء باقات الفصل ───────────────────────────────────
+
+    @staticmethod
+    @transaction.atomic
+    def ensure_packages(setup: SubjectClassSetup, semester: str) -> list[AssessmentPackage]:
+        """ينشئ باقاتِ الفصل الناقصة بأوزانها الافتراضيّة، ولا يمسّ القائمة.
+
+        ما يُنشأ يأتي من `package_weights` وحدَه: شعبةُ الثاني عشر تنال P2 في
+        الفصل الأول وP4 في الثاني لا غير (القرار 14/2018، المادّة 3 «ثالثاً»،
+        2018/06/06) — فلا P1/P3/AW بوزن صفر. متكرّرُ الاستدعاء بلا أثرٍ زائد.
+        """
+        grade = grade_number(setup.class_group.grade)
+        semester_max = SEMESTER_MAX.get(semester, Decimal("40"))
+        for ptype, weight in package_weights(grade, semester).items():
+            AssessmentPackage.objects.get_or_create(
+                setup=setup,
+                package_type=ptype,
+                semester=semester,
+                defaults={
+                    "school": setup.school,
+                    "weight": weight,
+                    "semester_max_grade": semester_max,
+                    "is_active": True,
+                },
+            )
+        return list(AssessmentPackage.objects.filter(setup=setup, semester=semester))
+
     # ── حفظ درجة طالب ──────────────────────────────────────
 
     @staticmethod
@@ -300,67 +333,6 @@ class GradeService:
                 student=student, setup=setup, semester=semester, **defaults
             )
         return result
-
-    # ── الدور الثاني (Second Round) ────────────────────────
-
-    @staticmethod
-    def count_failing_subjects(student: CustomUser, setup_class_group) -> int:
-        """عدّ الموادّ الراسبة لطالب معين في فصل معين.
-
-        المرجع: سياسة التقييم 4–11، المادة 12 (الأهلية)
-                «يسمح بدخول الدور الثاني: الراسبون في 3 مواد أو أقل»
-
-        حسابُ: عدد المواد ذات annual_total < 50 في هذا العام.
-        """
-        year = academic_year_for_school()
-        failing = AnnualSubjectResult.objects.filter(
-            student=student,
-            setup__class_group=setup_class_group,
-            academic_year=year,
-            status="fail",
-        ).count()
-        return failing
-
-    @staticmethod
-    def is_second_round_eligible(student: CustomUser, setup_class_group) -> bool:
-        """هل الطالبُ مؤهَّلٌ للدور الثاني؟
-
-        الشروط:
-        - ≤ 3 موادّ راسبة (في الدور الأول)
-        - أو معذورٌ عن بعض الاختبارات
-        """
-        failing = GradeService.count_failing_subjects(student, setup_class_group)
-        return failing <= 3
-
-    @staticmethod
-    def determine_second_round_status(
-        annual_total: Decimal | None,
-        is_excused: bool = False,
-        is_deprived: bool = False,
-    ) -> str:
-        """تصنيفُ حالة الطالب في الدور الثاني.
-
-        المرجع: سياسة التقييم 4–11، المادة 12 و 16
-                و: سياسة الثاني عشر، المادة 8 و 12
-
-        الحالات الخمس:
-        1. ناجح: annual_total ≥ 50
-        2. راسب مؤهَّل لإعادة: 40 ≤ annual_total < 50
-        3. راسب غير مؤهَّل: annual_total < 40
-        4. معذور: يؤخذ الدرجة الفعلية (لو أداء الطالب < 50 يكون راسباً)
-        5. محروم: يُحتسب له النهاية الصغرى فقط إن نجح (50)
-        """
-        if annual_total is None:
-            return "incomplete"
-
-        value = float(annual_total)
-
-        if value >= 50:
-            return "pass"
-        elif 40 <= value < 50:
-            return "fail_eligible_retake"
-        else:
-            return "fail_ineligible"
 
     # ── النتيجة السنوية ─────────────────────────────────────
 
@@ -740,3 +712,129 @@ class GradeService:
                 "fail_rates": subj_fail_rates,
             },
         }
+
+
+# ─────────────────────────────────────────────────────────────
+# ترحيلُ باقات الثاني عشر القائمة إلى بنيتها (البند 0.1)
+# ─────────────────────────────────────────────────────────────
+
+
+@dataclass
+class Grade12SetupPlan:
+    """ما سيتغيّر في إعداد مادّةٍ واحدٍ من الثاني عشر."""
+
+    setup: SubjectClassSetup
+    #: باقاتٌ لا وجودَ لها في بنية الثاني عشر (P1/P3/AW) — تُحذف إن كانت فارغة.
+    extra: list[AssessmentPackage] = field(default_factory=list)
+    #: P2/P4 بوزنٍ أو قصوى غيرِ بنيتها — (الباقة، الوزنُ الصحيح).
+    reweight: list[tuple[AssessmentPackage, Decimal]] = field(default_factory=list)
+    #: تقييماتٌ ودرجاتٌ مرصودة على الباقات الزائدة — إن وُجدت فلا يُمسّ الإعداد.
+    blocking_assessments: int = 0
+    blocking_grades: int = 0
+
+    @property
+    def changes(self) -> bool:
+        return bool(self.extra or self.reweight)
+
+    @property
+    def blocked(self) -> bool:
+        return self.blocking_assessments > 0
+
+
+class Grade12PackageFix:
+    """يطابق باقاتِ شعب الثاني عشر القائمة بجدول `package_weights(12, …)`.
+
+    لماذا أمرُ إدارةٍ لا هجرةُ بيانات: الهجرةُ تجري آليّاً عند النشر، والعملُ هنا
+    **يجب أن يتوقّف** إن وُجدت درجاتٌ مرصودة على P1/P3/AW — حذفُها قرارُ مالكٍ لا
+    آلة. والأمرُ يعرض العددَ أوّلاً (`--dry-run` افتراضاً)، ويُطبَّق صراحةً
+    (`--apply`)، ويُتراجَع عنه (`--revert`)، ويُكتب في سجلّ المراجعة.
+    """
+
+    @staticmethod
+    def setups() -> QuerySet:
+        return SubjectClassSetup.objects.filter(class_group__grade="G12").select_related(
+            "class_group", "subject", "school"
+        )
+
+    @staticmethod
+    def plan() -> list[Grade12SetupPlan]:
+        plans = []
+        packages = AssessmentPackage.objects.filter(setup__in=Grade12PackageFix.setups()).annotate(
+            n_assessments=Count("assessments", distinct=True),
+            n_grades=Count("assessments__grades", distinct=True),
+        )
+        by_setup: dict = {}
+        for pkg in packages:
+            by_setup.setdefault(pkg.setup_id, []).append(pkg)
+        for setup in Grade12PackageFix.setups():
+            plan = Grade12SetupPlan(setup=setup)
+            for pkg in by_setup.get(setup.id, []):
+                weight = package_weights(12, pkg.semester).get(pkg.package_type)
+                if weight is None:
+                    plan.extra.append(pkg)
+                    plan.blocking_assessments += pkg.n_assessments
+                    plan.blocking_grades += pkg.n_grades
+                elif pkg.weight != weight or pkg.semester_max_grade != SEMESTER_MAX[pkg.semester]:
+                    plan.reweight.append((pkg, weight))
+            plans.append(plan)
+        return plans
+
+    @staticmethod
+    @transaction.atomic
+    def apply(plan: Grade12SetupPlan) -> None:
+        """يطبّق خطّةَ إعدادٍ غيرِ محجوب ويعيد حسابَ نتائجه."""
+        if plan.blocked:
+            raise ValueError(f"إعدادٌ محجوب بدرجاتٍ مرصودة: {plan.setup.id}")
+        deleted = [(p.semester, p.package_type, str(p.weight)) for p in plan.extra]
+        AssessmentPackage.objects.filter(id__in=[p.id for p in plan.extra]).delete()
+        for pkg, weight in plan.reweight:
+            pkg.weight = weight
+            pkg.semester_max_grade = SEMESTER_MAX[pkg.semester]
+            pkg.save(update_fields=["weight", "semester_max_grade"])
+        GradeService.recalculate_full_class(plan.setup)
+        AuditLog.objects.create(
+            school=plan.setup.school,
+            action="update",
+            model_name="other",
+            object_id=str(plan.setup.id),
+            object_repr=f"باقات الثاني عشر (0.1): {plan.setup}"[:300],
+            changes={
+                "deleted": deleted,
+                "reweighted": [(p.semester, p.package_type, str(w)) for p, w in plan.reweight],
+            },
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def revert(setup: SubjectClassSetup) -> list[str]:
+        """يعيد إعدادَ الثاني عشر إلى البنية العامّة (P1/P2/AW · P3/P4/AW) — للتراجع."""
+        touched = []
+        for sem in ("S1", "S2"):
+            for ptype, weight in package_weights(11, sem).items():
+                pkg, created = AssessmentPackage.objects.get_or_create(
+                    setup=setup,
+                    package_type=ptype,
+                    semester=sem,
+                    defaults={
+                        "school": setup.school,
+                        "weight": weight,
+                        "semester_max_grade": SEMESTER_MAX[sem],
+                    },
+                )
+                if not created and pkg.weight != weight:
+                    pkg.weight = weight
+                    pkg.save(update_fields=["weight"])
+                    touched.append(f"{sem}/{ptype}→{weight}")
+                elif created:
+                    touched.append(f"+{sem}/{ptype}")
+        if touched:
+            GradeService.recalculate_full_class(setup)
+            AuditLog.objects.create(
+                school=setup.school,
+                action="update",
+                model_name="other",
+                object_id=str(setup.id),
+                object_repr=f"تراجعُ باقات الثاني عشر (0.1): {setup}"[:300],
+                changes={"reverted": touched},
+            )
+        return touched

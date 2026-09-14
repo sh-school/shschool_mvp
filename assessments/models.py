@@ -16,6 +16,9 @@ assessments/models.py
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 المجموع السنوي = 15+20+5 (ف1) + 15+40+5 (ف2) = 100
 درجة النجاح السنوية = 50 من 100
+
+الصف الثاني عشر (القرار 14/2018، المادّة 3 «ثالثاً»، 2018/06/06): P2 وحدَها
+في الفصل الأول (40) وP4 وحدَها في الثاني (60) — لا P1 ولا P3 ولا AW.
 """
 
 import uuid
@@ -25,7 +28,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from core.academic_calendar import default_academic_year
-from core.domain.grades import letter_of
+from core.domain.grades import SEMESTER_MAX, letter_of, package_weight
 from core.models import ClassGroup, CustomUser, School
 from operations.models import Subject
 
@@ -115,61 +118,11 @@ class AssessmentPackage(models.Model):
         ("S2", "الفصل الثاني (60 درجة)"),
     ]
 
-    # ─── الأوزان الصحيحة حسب مواصفات وزارة التعليم القطرية ───
-    #
-    # النسب هي أوزان داخل الفصل (تجمع إلى 100%)، محسوبة من:
-    #   نقاط الباقة من المجموع الكلي (100) ÷ درجة الفصل القصوى × 100
-    #
-    # الفصل الأول (semester_max=40):
-    #   P1 منتصف الفصل الأول = 15% من 100 → 37.50% من 40 → 15 درجة
-    #   P2 نهاية الفصل الأول  = 20% من 100 → 50.00% من 40 → 20 درجة
-    #   AW أعمال مستمرة ف1   =  5% من 100 → 12.50% من 40 →  5 درجات
-    #   المجموع = 100% من 40 = 40 درجة ✓
-    #
-    # الفصل الثاني (semester_max=60):
-    #   P3 منتصف الفصل الثاني = 15% من 100 → 25.00%  من 60 → 15 درجة
-    #   P4 نهاية الفصل الثاني = 40% من 100 → 66.67%  من 60 → 40 درجة
-    #   AW أعمال مستمرة ف2   =  5% من 100 →  8.33%  من 60 →  5 درجات
-    #   المجموع = 100% من 60 = 60 درجة ✓
-    DEFAULT_WEIGHTS_S1 = {
-        "P1": Decimal("37.50"),  # منتصف الفصل الأول → 15 من 40
-        "P2": Decimal("50.00"),  # نهاية الفصل الأول → 20 من 40
-        "P3": Decimal("0"),  # غير مستخدم في الفصل الأول
-        "P4": Decimal("0"),  # غير مستخدم في الفصل الأول
-        "AW": Decimal("12.50"),  # أعمال مستمرة ف1 → 5 من 40
-    }
-    DEFAULT_WEIGHTS_S2 = {
-        "P1": Decimal("0"),  # غير مستخدم في الفصل الثاني
-        "P2": Decimal("0"),  # غير مستخدم في الفصل الثاني
-        "P3": Decimal("25.00"),  # منتصف الفصل الثاني → 15 من 60
-        "P4": Decimal("66.67"),  # نهاية الفصل الثاني → 40 من 60
-        "AW": Decimal("8.33"),  # أعمال مستمرة ف2 → 5 من 60
-    }
-
-    # الصف الثاني عشر (القرار 14/2018، المادة 3، تاريخ 2018/06/06):
-    # - P2 فقط في الفصل الأول = 100% من 40 درجة
-    # - P4 فقط في الفصل الثاني = 100% من 60 درجة
-    # - لا P1، لا P3، لا AW منفصلة
-    DEFAULT_WEIGHTS_GRADE12_S1 = {
-        "P1": Decimal("0"),  # غير موجود في الثاني عشر
-        "P2": Decimal("100"),  # كاملُ الفصل الأول = 40 درجة
-        "P3": Decimal("0"),  # غير موجود في الثاني عشر
-        "P4": Decimal("0"),  # غير موجود في الفصل الأول
-        "AW": Decimal("0"),  # لا أعمال منفصلة في الثاني عشر
-    }
-    DEFAULT_WEIGHTS_GRADE12_S2 = {
-        "P1": Decimal("0"),  # غير موجود في الثاني عشر
-        "P2": Decimal("0"),  # غير موجود في الفصل الثاني
-        "P3": Decimal("0"),  # غير موجود في الثاني عشر
-        "P4": Decimal("100"),  # كاملُ الفصل الثاني = 60 درجة
-        "AW": Decimal("0"),  # لا أعمال منفصلة في الثاني عشر
-    }
+    # ─── الأوزانُ الافتراضيّة وبنيةُ الثاني عشر: `core.domain.grades` ───
+    # (`package_weights`) — جدولٌ واحد، والنموذجُ لا يكرّره.
 
     # درجة الفصل القصوى من المجموع السنوي
-    SEMESTER_MAX = {
-        "S1": Decimal("40"),
-        "S2": Decimal("60"),
-    }
+    SEMESTER_MAX = SEMESTER_MAX
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     setup = models.ForeignKey(SubjectClassSetup, on_delete=models.CASCADE, related_name="packages")
@@ -223,29 +176,14 @@ class AssessmentPackage(models.Model):
     def class_group(self):
         return self.setup.class_group
 
-    @classmethod
-    def get_default_weight(cls, package_type: str, semester: str, grade: int) -> Decimal:
-        """
-        أحسِب الوزن الافتراضي لباقة معينة حسب الصف والفصل.
+    @staticmethod
+    def get_default_weight(package_type: str, semester: str, grade: int) -> Decimal | None:
+        """وزنُ الباقة الافتراضيّ لصفٍّ رقميٍّ وفصل — و`None` لباقةٍ لا وجودَ لها.
 
-        الصف الثاني عشر له بنية مختلفة:
-          - P2 = 100% في S1
-          - P4 = 100% في S2
-          - الباقي = 0
-
-        الصفوف 4–11 تتبع الأوزان القياسية.
+        الجدولُ في `core.domain.grades` (القرار 14/2018، المادّة 3): الثاني عشر
+        لا P1/P3/AW له أصلاً، فلا يُعاد صفرٌ يُنشئ باقةً فارغة.
         """
-        if grade == 12:
-            if semester == "S1":
-                return cls.DEFAULT_WEIGHTS_GRADE12_S1.get(package_type, Decimal("0"))
-            elif semester == "S2":
-                return cls.DEFAULT_WEIGHTS_GRADE12_S2.get(package_type, Decimal("0"))
-        else:
-            if semester == "S1":
-                return cls.DEFAULT_WEIGHTS_S1.get(package_type, Decimal("0"))
-            elif semester == "S2":
-                return cls.DEFAULT_WEIGHTS_S2.get(package_type, Decimal("0"))
-        return Decimal("0")
+        return package_weight(grade, semester, package_type)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -493,11 +431,7 @@ class AnnualSubjectResult(models.Model):
         ("pass", "ناجح"),
         ("fail", "راسب"),
         ("incomplete", "غير مكتمل"),
-        ("second_round", "دور ثانٍ مؤهَّل"),
-        ("fail_eligible_retake", "راسب مؤهَّل لإعادة (40-49)"),
-        ("fail_ineligible", "راسب غير مؤهَّل (>3 موادّ)"),
-        ("excused", "معذور"),
-        ("deprived", "محروم"),
+        ("second_round", "دور ثانٍ"),
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
@@ -533,7 +467,7 @@ class AnnualSubjectResult(models.Model):
     pass_grade = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal("50"), verbose_name="درجة النجاح"
     )
-    status = models.CharField(max_length=25, choices=STATUS, default="incomplete", db_index=True)
+    status = models.CharField(max_length=12, choices=STATUS, default="incomplete", db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
