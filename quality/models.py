@@ -839,7 +839,13 @@ class EmployeeEvaluation(models.Model):
         # أو عندما تتضمن update_fields أحد حقول المحاور
         update_fields = kwargs.get("update_fields")
         if update_fields is None or self._AXIS_FIELDS & set(update_fields):
-            self.calculate_total()
+            # تقييمٌ على قالب دورٍ درجاتُه في `EvaluationScore.custom_axes` لا في حقول المحاور
+            # الأربعة (وهي أصفار) — فحسابُه منها يصفّره. كان حفظُه من لوحة الإدارة لتغيير
+            # الحالة يجعل المعتمَدَ 0 و«يحتاج تطوير».
+            if self.has_template_scores():
+                self.calculate_weighted_total()
+            else:
+                self.calculate_total()
             # إضافة total_score و rating لقائمة update_fields إذا كانت محددة
             if update_fields is not None:
                 update_fields = list(update_fields)
@@ -848,6 +854,23 @@ class EmployeeEvaluation(models.Model):
                         update_fields.append(f)
                 kwargs["update_fields"] = update_fields
         super().save(*args, **kwargs)
+
+    def has_template_scores(self) -> bool:
+        """أمحفوظٌ على قالب دورٍ بدرجات مقيِّمين؟ (فمجموعُه من `scores` لا من حقول المحاور)."""
+        return not self._state.adding and self.template_id is not None and self.scores.exists()
+
+    def has_saved_content(self) -> bool:
+        """
+        أعليه ما يُفقَد لو رُبط بقالبٍ آخر؟ درجاتٌ في المحاور الافتراضيّة أو عند مقيِّم،
+        أو حالةٌ تجاوزت المسودّة.
+        """
+        if self._state.adding:
+            return False
+        if self.status != "draft" or self.total_score:
+            return True
+        if any(getattr(self, f) for f in self._AXIS_FIELDS):
+            return True
+        return self.scores.exists()
 
     def acknowledge(self):
         self.status = "acknowledged"
@@ -932,6 +955,11 @@ class EvaluationScore(models.Model):
 
     def save(self, *args, **kwargs):
         self.calculate_total()
+        # `update_or_create` يحفظ بـ`update_fields` الحقولَ التي مرّرها وحدها (Django ≥4.2)،
+        # فكان المجموعُ يُحسب ولا يُكتب، ويبقى قديماً فيُفسد المجموعَ المرجَّح.
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "total_score" not in update_fields:
+            kwargs["update_fields"] = [*update_fields, "total_score"]
         super().save(*args, **kwargs)
 
 

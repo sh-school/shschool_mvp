@@ -71,13 +71,21 @@
 
     <div class="form-actions">
       <a href="{% url 'evaluation_dashboard' %}" class="btn-secondary">إلغاء</a>
-      {% if obj.status != 'acknowledged' %}
+      {% if is_editable %}
       <button type="submit" name="action" value="draft" class="btn-secondary">حفظ مسودة</button>
       {# كان الوسمُ بلا «>» فابتلع نصَّه سماتٍ ورُسم الزرُّ فارغاً. #}
       <button type="submit" name="action" value="submitted" class="btn-primary">تقديم التقييم</button>
       {% endif %}
     </div>
   </form>
+
+  {% if can_approve %}
+  {# المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمده مدير المدرسة». #}
+  <form method="post" action="{% url 'approve_evaluation' obj.id %}" class="form-actions">
+    {% csrf_token %}
+    <button type="submit" class="btn-primary">اعتماد التقرير</button>
+  </form>
+  {% endif %}
 
 </div>
 {% endblock %}

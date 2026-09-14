@@ -10,15 +10,24 @@ Phase 6 — واجهات تقييم الموظفين
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Avg, Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, default_academic_year
 from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser, Membership
 
-from .evaluation_services import EvaluationRejectedError, axis_values, save_evaluation
+from .evaluation_services import (
+    EvaluationRejectedError,
+    axis_values,
+    is_academic_year,
+    save_evaluation,
+)
+from .evaluation_services import approve_evaluation as approve_evaluation_service
 from .models import (
     _EVALUABLE_ROLES,
     EmployeeEvaluation,
@@ -188,6 +197,22 @@ def _save_evaluation(request, obj, axes):
     )
 
 
+def _axes_for_evaluation(school, employee, year, existing):
+    """
+    محاورُ النموذج. تقييمٌ عليه ما يُفقَد (درجاتٌ أو حالةٌ فوق المسودّة) يُعرض على المحاور
+    التي حُفظ بها: قالبُه إن كان مربوطاً، وإلّا الافتراضيّةُ الأربعة — ولا يُنقل إلى قالب
+    دوره الحاليّ. كان مجرّدُ فتحه بعد بذر القوالب (أو بعد تغيّر دور الموظّف) يربطه بالقالب
+    الجديد ويعرض محاوره صفراً، ثمّ يمحو الحفظُ التالي درجاتِه من المجموع.
+    """
+    if existing is not None and existing.has_saved_content():
+        if existing.template is not None and existing.template.axes.exists():
+            return [(a.key, a.label, a.weight) for a in existing.template.axes.all()], (
+                existing.template
+            )
+        return _DEFAULT_AXES, None
+    return _get_axes_for_employee(school, employee, year)
+
+
 @login_required
 @capability_required("quality.evaluations")
 def create_evaluation(request, employee_id):
@@ -199,29 +224,48 @@ def create_evaluation(request, employee_id):
     employee = get_object_or_404(CustomUser, id=employee_id)
     year = request.GET.get("year") or _default_year(request)
     period = request.GET.get("period", EmployeeEvaluation.MINISTRY_PERIOD)
+    # العامُ يُمرَّر إلى فحص وقائع المواد 17–19 وإلى القالب — فعامٌ بصيغةٍ أخرى
+    # («2026/2027») كان يُفلت من الفحص ويُكتب تحت عامٍ لا تقرؤه اللوحة.
+    if not is_academic_year(year) or period not in dict(EmployeeEvaluation.PERIODS):
+        return HttpResponse("العامُ أو الفترةُ غيرُ صالحين", status=400)
 
     if not Membership.objects.filter(school=school, user=employee, is_active=True).exists():
         return HttpResponse("الموظف ليس في مدرستك", status=403)
+    # «وتتولى لجنة شؤون المدارس تقييم أداء مديري المدارس سنوياً» (02_staff_affairs.md:199)
+    # — فلا تقييمَ للمدير من داخل المدرسة، وليس بين الاستمارات السبع استمارتُه.
+    if _get_employee_role(school, employee) == "principal":
+        return HttpResponse(
+            "تقييمُ مدير المدرسة للجنة شؤون المدارس لا للمدرسة — المادة 16 (02_staff_affairs.md:199)",
+            status=403,
+        )
 
-    # الحصول على محاور التقييم حسب دور الموظف
-    axes, template = _get_axes_for_employee(school, employee, year)
-
-    obj, _ = EmployeeEvaluation.objects.get_or_create(
-        school=school,
-        employee=employee,
-        academic_year=year,
-        period=period,
-        defaults={"evaluator": request.user, "template": template},
+    existing = (
+        EmployeeEvaluation.objects.filter(
+            school=school, employee=employee, academic_year=year, period=period
+        )
+        .select_related("template")
+        .first()
     )
-
-    # تحديث القالب إذا لم يكن مربوطاً
-    if template and not obj.template:
-        obj.template = template
-        obj.save(update_fields=["template"])
+    axes, template = _axes_for_evaluation(school, employee, year, existing)
 
     if request.method == "POST":
         try:
-            _save_evaluation(request, obj, axes)
+            # الإنشاءُ وربطُ القالب والحفظُ معاملةٌ واحدة: الطلبُ المرفوض لا يترك مسودّةً.
+            with transaction.atomic():
+                obj = existing or EmployeeEvaluation(
+                    school=school,
+                    employee=employee,
+                    academic_year=year,
+                    period=period,
+                    evaluator=request.user,
+                )
+                if obj.template_id != (template.pk if template else None):
+                    obj.template = template
+                    if not obj._state.adding:
+                        obj.save(update_fields=["template"])
+                if obj._state.adding:
+                    obj.save()
+                _save_evaluation(request, obj, axes)
         except EvaluationRejectedError as exc:
             messages.error(request, str(exc))
             return redirect(request.get_full_path())
@@ -231,12 +275,17 @@ def create_evaluation(request, employee_id):
             messages.info(request, "تم حفظ المسودة.")
         return redirect("evaluation_dashboard")
 
+    # الـGET لا يكتب شيئاً: تقييمٌ لم يُحفظ بعدُ يُعرض من نسخةٍ غير محفوظة.
+    obj = existing or EmployeeEvaluation(
+        school=school, employee=employee, academic_year=year, period=period, template=template
+    )
+
     # تقييمات المقيّمين المتعددين (إن وُجدت)
-    scores = obj.scores.select_related("evaluator").all()
+    scores = list(obj.scores.select_related("evaluator").all()) if existing else []
 
     # قيمةُ كلّ محور — كانت سلسلةَ `{% if %}` بأربعة فروعٍ مكرّرةً مرّتين في القالب.
     # ومحورُ قالب الدور لا حقلَ له في النموذج: قيمتُه من درجات هذا المقيِّم.
-    values = axis_values(obj, request.user, axes)
+    values = axis_values(obj, request.user, axes) if existing else {k: 0 for k, _l, _m in axes}
     axis_rows = [(key, label, weight, values[key]) for key, label, weight in axes]
     role_name = _get_employee_role(school, employee)
     subtitle_parts = [employee.full_name, role_name, obj.get_period_display(), year]
@@ -259,7 +308,39 @@ def create_evaluation(request, employee_id):
             "template": template,
             "scores": scores,
             "role_display": role_name,
+            "is_editable": obj.status in ("draft", "submitted"),
+            "can_approve": bool(existing)
+            and obj.status == "submitted"
+            and request.user.get_role() == "principal",
         },
+    )
+
+
+@login_required
+@capability_required("quality.evaluations")
+@require_POST
+def approve_evaluation(request, eval_id):
+    """اعتمادُ مدير المدرسة للتقرير المُقدَّم — المادة 16 («ويعتمده مدير المدرسة»)."""
+    school = request.user.get_school()
+    obj = get_object_or_404(EmployeeEvaluation, id=eval_id, school=school)
+    try:
+        approve_evaluation_service(evaluation=obj, approver=request.user)
+    except EvaluationRejectedError as exc:
+        messages.error(request, str(exc))
+    else:
+        AuditLog.log(
+            user=request.user,
+            action="update",
+            model_name="other",
+            object_id=obj.pk,
+            object_repr=str(obj),
+            request=request,
+            changes={"status": "approved"},
+        )
+        messages.success(request, f"اعتُمد تقييم {obj.employee.full_name}.")
+    return redirect(
+        reverse("create_evaluation", kwargs={"employee_id": obj.employee_id})
+        + f"?year={obj.academic_year}&period={obj.period}"
     )
 
 

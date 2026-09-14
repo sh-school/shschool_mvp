@@ -37,6 +37,7 @@ quality/evaluation_services.py
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from fractions import Fraction
@@ -68,8 +69,18 @@ _EXCELLENT_OR_VERY_GOOD = frozenset({"excellent", "very_good"})
 _ALL_BUT_WEAK = frozenset({"excellent", "very_good", "good", "acceptable"})
 
 
+_ACADEMIC_YEAR = re.compile(r"^(\d{4})-(\d{4})$")
+_LOCKED_STATUSES = frozenset({"approved", "acknowledged"})
+
+
 class EvaluationRejectedError(ValueError):
     """تقييمٌ لا يُحفظ — الرسالةُ تُعرض للمقيِّم كما هي."""
+
+
+def is_academic_year(value: str) -> bool:
+    """«2026-2027» — عامان متتاليان. غيرُه يُكتب تحت عامٍ لا تقرؤه شاشةٌ ولا يُفحص فيه جزاء."""
+    match = _ACADEMIC_YEAR.match(value or "")
+    return bool(match) and int(match.group(2)) == int(match.group(1)) + 1
 
 
 @dataclass(frozen=True)
@@ -230,6 +241,8 @@ def save_evaluation(
     status = data.get("action", "draft")
     if status not in _EVALUATOR_STATUSES:
         raise EvaluationRejectedError("حالةُ التقييم مسودّةٌ أو مُقدَّمٌ فقط")
+    if evaluation.status in _LOCKED_STATUSES:
+        raise EvaluationRejectedError("التقريرُ معتمَد — لا تُعدَّل درجاتُه بعد اعتماد المدير.")
     scores = parse_axis_scores(axes, data)
 
     if _uses_default_axes(axes):
@@ -291,6 +304,25 @@ def _enforce_rating_restrictions(evaluation: EmployeeEvaluation) -> None:
             raise EvaluationRejectedError(
                 f"لا يجوز مستوى «{evaluation.get_rating_display()}»: {restriction.reason}."
             )
+
+
+@transaction.atomic
+def approve_evaluation(*, evaluation: EmployeeEvaluation, approver: CustomUser) -> None:
+    """
+    اعتمادُ التقرير: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمده مدير المدرسة»
+    (المادة 16، `02_staff_affairs.md:200`؛ القرار 32/2019 صفحة الملفّ 10). فالاعتمادُ
+    لمدير المدرسة وحده، لتقريرٍ مُقدَّم، وتُعاد فيه قيودُ المواد 17–19 — فالوقائعُ قد
+    تتغيّر بين التقديم والاعتماد.
+    """
+    if approver.get_role() != "principal":
+        raise EvaluationRejectedError("الاعتمادُ لمدير المدرسة وحده — المادة 16.")
+    locked = EmployeeEvaluation.objects.select_for_update().get(pk=evaluation.pk)
+    if locked.status != "submitted":
+        raise EvaluationRejectedError("لا يُعتمد إلّا تقريرٌ مُقدَّم.")
+    _enforce_rating_restrictions(locked)
+    locked.status = "approved"
+    locked.save(update_fields=["status", "updated_at"])
+    evaluation.status = locked.status
 
 
 def axis_values(

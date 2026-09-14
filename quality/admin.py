@@ -232,8 +232,11 @@ class RoleEvaluationTemplateAdmin(admin.ModelAdmin):
 
 
 class EvaluationScoreInline(admin.TabularInline):
+    """للقراءة: درجاتُ المقيِّمين تُكتب من شاشة التقييم وحدها (`save_evaluation`)."""
+
     model = EvaluationScore
     extra = 0
+    can_delete = False
     fields = (
         "evaluator",
         "weight",
@@ -241,13 +244,25 @@ class EvaluationScoreInline(admin.TabularInline):
         "axis_commitment",
         "axis_teamwork",
         "axis_development",
+        "custom_axes",
         "total_score",
     )
-    readonly_fields = ("total_score",)
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(EmployeeEvaluation)
 class EmployeeEvaluationAdmin(admin.ModelAdmin):
+    """
+    للقراءة في الدرجات والمستوى والحالة. كانت اللوحةُ تكتب التقييمَ دون `save_evaluation`:
+    تتجاوز قيودَ المواد 17–19، وكان `save()` يعيد حسابَ مجموع تقييمات القالب الوزاريّ من
+    المحاور الافتراضيّة الصفريّة فيصفّرها — وهي كانت السبيلَ الوحيد إلى «مُعتمد». فالكتابةُ
+    من شاشة التقييم، والاعتمادُ للمدير من زرّه هناك (`approve_evaluation`)؛ ويبقى هنا
+    تصحيحُ النصوص وحدها.
+    """
+
     list_display = (
         "employee",
         "evaluator",
@@ -259,8 +274,32 @@ class EmployeeEvaluationAdmin(admin.ModelAdmin):
     )
     list_filter = ("school", "academic_year", "period", "status", "rating")
     search_fields = ("employee__full_name", "evaluator__full_name")
-    readonly_fields = ("total_score", "rating")
+    readonly_fields = (
+        "school",
+        "employee",
+        "evaluator",
+        "template",
+        "academic_year",
+        "period",
+        "status",
+        "axis_professional",
+        "axis_commitment",
+        "axis_teamwork",
+        "axis_development",
+        "total_score",
+        "rating",
+        "acknowledged_at",
+    )
     inlines = [EvaluationScoreInline]
+
+    def has_add_permission(self, request):
+        return False
+
+    def save_model(self, request, obj, form, change):
+        # الحقولُ القابلةُ للتحرير نصوصٌ وحدها، فتُكتب وحدها: لا يُعاد حسابُ المجموع.
+        changed = [f for f in form.changed_data if f not in self.readonly_fields]
+        if changed:
+            obj.save(update_fields=[*changed, "updated_at"])
 
 
 @admin.register(EvaluationCycle)

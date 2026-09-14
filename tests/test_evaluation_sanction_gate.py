@@ -257,9 +257,9 @@ def test_view_rejects_excellent_for_sanctioned_teacher(
 
     assert response.status_code == 302
     assert response.url == url  # يعود إلى النموذج لا إلى اللوحة
+    # والرفضُ لا يترك سجلّاً: الإنشاءُ والحفظُ في معاملةٍ واحدة.
+    assert not EmployeeEvaluation.objects.filter(school=school, employee=teacher_user).exists()
     assert not EvaluationScore.objects.exists()
-    evaluation = EmployeeEvaluation.objects.filter(school=school, employee=teacher_user).first()
-    assert evaluation is None or (evaluation.total_score, evaluation.status) == (0, "draft")
 
 
 @pytest.mark.django_db
