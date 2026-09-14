@@ -165,15 +165,9 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --chart-5: #2E7D9A;   /* الأزرق — عُمِّق: #4194B3 كان 3.44 */
   --chart-6: #6B7280;   /* الرمادي (أخرى) */
 
-  --chart-1-light: #FDF2F5;
 
   /* ══ Role Colors — ألوان وظيفية للأدوار (MTG-2026-003-TEC) ══ */
-  --role-reviewer: #5b21b6;
-  --role-reviewer-bg: #f5f3ff;
-  --role-reviewer-border: #c4b5fd;
-  --role-executor: #1e40af;
   --role-executor-bg: #eff6ff;
-  --role-executor-border: #93c5fd;
 
   /* ══ ألوانُ الوثائق المطبوعة — لا تُرسم على الشاشة، فلا تنقلب ليلاً ══
      تصلها قوالبُ الـPDF والطباعة بـ`{% brand_color %}` من مرآتها في `core/brand.py`. */
@@ -286,8 +280,6 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --shadow-raised:       0 4px 12px rgba(0,0,0,.08);   /* بطاقةٌ مرفوعةٌ عند المرور */
   --shadow-dropdown:     0 8px 24px rgba(0,0,0,.12);
   --shadow-kpi-mini:     0 1px 4px rgba(0,0,0,.06);
-  --shadow-q-kpi:        var(--shadow-sm);
-  --shadow-q-kpi-hover:  var(--shadow-md);
   --overlay-scrim:       rgba(0,0,0,.45);
   --cmd-scrim:           rgba(0,0,0,.5);
   --q-modal-scrim:       rgba(0,0,0,.6);
@@ -306,29 +298,20 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --scrollbar-track:     #f1f5f9;
   --scrollbar-thumb-hover: var(--maroon-light);
   --placeholder:         #b3bac5;
-  --hover-tint:          #e5e7eb;
   --table-stripe:        var(--surface-alt);
 
   /* أسطحٌ وحقول */
   --surface-sunken:      var(--surface);
-  --surface-dim:         #f1f5f9;
-  --surface-alt-veil:    color-mix(in srgb, var(--surface-alt) 80%, transparent);
   --field-border:        #d1d5db;   /* حدُّ حقلٍ لا تبدّله قاعدةُ الحقول الليليّة */
   --ink-empty:           #d1d5db;   /* «—» خانةٌ فارغة */
-  --pending-tint:        rgba(120,120,120,.07);
   --skeleton-base:       #f0f0f0;
   --skeleton-shine:      #e0e0e0;
-  --stroke-muted:        var(--border);
   --dropzone-preview-bg: var(--surface);
-  --member-name-ink:     #111827;
-  --stat-card-value-ink: var(--maroon-fg);
 
   /* الأزرار */
   --btn-secondary-hover-bg: #fce8ee;
   --btn-preview-hover-bg:   #eef6fa;
   --btn-preview-hover-fg:   var(--skyline-fg);
-  --bulk-bar-bg:            #1e293b;
-  --bulk-danger:            #f87171;
   --gold-deep:              #c9952e;
   --status-success-solid-hover: #047857;
 
@@ -336,51 +319,25 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --status-success-border-soft: #bbf7d0;
   --status-warning-border-soft: #fde68a;
   --status-info-border-soft:    #bfdbfe;
-  --maroon-border-soft:         #fbcfe8;
   --status-neutral-bg:          #f8fafc;
   --status-neutral-fg:          #475569;
   --badge-urgent-bg:            #fee2e2;
-  --status-success-bright: #22c55e;
   --status-warning-bright: #f59e0b;
-  --status-danger-bright:  #ef4444;
-  --status-info-bright:    #3b82f6;
   --status-danger-deep:    #b91c1c;
   --status-warning-deep:   #b45309;
   --status-info-strong:    #1d4ed8;
-  --status-success-mark:   var(--status-success);
-  --status-warning-mark:   var(--status-warning);
-  --status-info-mark:      var(--status-info);
-  --status-success-fill:   var(--status-success-dark);
-  --status-warning-fill:   var(--status-warning-dark);
-  --status-success-tint-strong: #bbf7d0;
   --status-danger-tint:    var(--status-danger-bg);
-  --status-danger-tint-2:  var(--status-danger-bg);
   --status-warning-tint:        var(--status-warning-bg);
   --status-warning-tint-strong: var(--status-warning-bg);
   --status-warning-tint-deep:   var(--status-warning-bg);
   --status-warning-badge-bg:    var(--status-warning-bg);
-  --status-info-tint-deep:      var(--role-executor-bg);
   --status-warning-fg-vivid: var(--status-warning-fg);
   --status-info-fg-vivid:    var(--status-info-fg);
-  --warning-light-bg:      #fff7ed;
-  --alert-info-bg:         var(--status-info-bg);
-  --alert-strip-warn-bg:   var(--status-warning-bg);
   --free-slot-bg:          #D1FAE5;
   --free-slot-fg:          #065F46;
   --maroon-link:           var(--maroon-fg);
   /* «تنبيهٌ خفيف» الذهبيّ الداكن ومشتقّاتُه */
   --caution:               #ca8a04;
-  --caution-border:        #fde68a;
-  --caution-fg:            var(--status-warning-fg);
-  --caution-fg-vivid:      #eab308;
-  --caution-tint:          var(--status-warning-bg);
-  --accent-orange-fg-vivid: var(--accent-orange-fg);
-  --accent-orange-tint:    var(--status-warning-bg);
-  --accent-orange-border:  #fed7aa;
-  --accent-purple-tint:        #faf5ff;
-  --accent-purple-tint-strong: #e9d5ff;
-  --accent-purple-border:      #e9d5ff;
-  --accent-indigo-tint:    var(--status-info-bg);
 
   /* بطاقاتُ المؤشّرات والجودة */
   --kpi-tint-blue:         #dbeafe;
@@ -394,9 +351,6 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --q-badge-warning-bg:    color-mix(in srgb, var(--caution) 15%, transparent);
   --q-badge-warning-fg:    var(--caution);
   --q-badge-neutral-bg:    rgba(107,114,128,.12);
-  --q-badge-maroon-fg:     var(--maroon-fg);
-  --report-card-head-start: var(--maroon);
-  --report-card-head-end:   #6b1029;
   --asg-warning-border:    #fde68a;
   --asg-success-border:    #bbf7d0;
 
@@ -412,11 +366,7 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   /* الورقة — تقريرٌ يُطبع أبيضَ في الوضعين عمداً */
   --paper:                 #fff;
   --paper-ink:             #000;
-  --paper-ink-muted:       #555;
-  --paper-ink-faint:       #888;
   --paper-rule:            #ccc;
-  --paper-grid:            #d1d5db;
-  --paper-signature:       #999;
 
   /* ملاحظاتُ المطوّر (developer_feedback) */
   --df-ink:                #333;
@@ -3777,8 +3727,6 @@ html.dark {
   --shadow-raised:       0 4px 12px rgba(0,0,0,.3);
   --shadow-dropdown:     0 8px 24px rgba(0,0,0,.4);
   --shadow-kpi-mini:     0 1px 3px rgba(0,0,0,.2);
-  --shadow-q-kpi:        0 1px 3px rgba(0,0,0,.2);
-  --shadow-q-kpi-hover:  0 4px 12px rgba(0,0,0,.3);
   --overlay-scrim:       rgba(0,0,0,.65);
   --cmd-scrim:           rgba(0,0,0,.7);
   --q-modal-scrim:       rgba(0,0,0,.65);
@@ -3796,77 +3744,42 @@ html.dark {
   --scrollbar-track:     var(--surface-alt);
   --scrollbar-thumb-hover: #64748b;
   --placeholder:         var(--text-muted);
-  --hover-tint:          #283548;
   --table-stripe:        #1a1f35;
 
   --surface-sunken:      var(--surface-alt);
-  --surface-dim:         var(--border);
-  --surface-alt-veil:    rgba(22,32,50,.8);
   --field-border:        #d1d5db;
   --ink-empty:           #d1d5db;
-  --pending-tint:        rgba(120,120,120,.07);
   --skeleton-base:       var(--surface);
   --skeleton-shine:      var(--border);
-  --stroke-muted:        var(--border-strong);
   --dropzone-preview-bg: #1f2937;
-  --member-name-ink:     #111827;
-  --stat-card-value-ink: #e8b4c3;
 
   --btn-secondary-hover-bg: var(--maroon-bg);
   --btn-preview-hover-bg:   #0c2d3e;
   --btn-preview-hover-fg:   #7cc4d8;
-  --bulk-bar-bg:            var(--surface-alt);
-  --bulk-danger:            #f87171;
   --gold-deep:              #c9952e;
   --status-success-solid-hover: #047857;
 
   --status-success-border-soft: var(--status-success-border);
   --status-warning-border-soft: var(--status-warning-border);
   --status-info-border-soft:    var(--status-info-border);
-  --maroon-border-soft:         var(--maroon-fg);
   --status-neutral-bg:          var(--surface);
   --status-neutral-fg:          var(--text-muted);
   --badge-urgent-bg:            var(--status-danger-bg);
-  --status-success-bright: #22c55e;
   --status-warning-bright: #f59e0b;
-  --status-danger-bright:  #ef4444;
-  --status-info-bright:    #3b82f6;
   --status-danger-deep:    #b91c1c;
   --status-warning-deep:   #b45309;
   --status-info-strong:    #1d4ed8;
-  --status-success-mark:   var(--status-success-bright);
-  --status-warning-mark:   var(--status-warning-bright);
-  --status-info-mark:      var(--status-info-bright);
-  --status-success-fill:   #15803d;
-  --status-warning-fill:   var(--status-warning-deep);
-  --status-success-tint-strong: #064e3b;
   --status-danger-tint:    #1a0a0a;
-  --status-danger-tint-2:  #1f0c0c;
   --status-warning-tint:        #1c1305;
   --status-warning-tint-strong: #422006;
   --status-warning-tint-deep:   #451a03;
   --status-warning-badge-bg:    #351c05;
-  --status-info-tint-deep:      #172554;
   --status-warning-fg-vivid: var(--status-warning-bright);
   --status-info-fg-vivid:    #60a5fa;
-  --warning-light-bg:      #451a03;
-  --alert-info-bg:         #0c2d48;
-  --alert-strip-warn-bg:   color-mix(in srgb, var(--status-warning-bright) 12%, transparent);
   --free-slot-bg:          var(--status-success-bg);
   --free-slot-fg:          var(--status-success-fg);
   --maroon-link:           #f9a8d4;
   --caution:               #ca8a04;
-  --caution-border:        #854d0e;
-  --caution-fg:            #fde047;
-  --caution-fg-vivid:      #facc15;
-  --caution-tint:          #1c1805;
-  --accent-orange-fg-vivid: #fb923c;
-  --accent-orange-tint:    #1c0f05;
-  --accent-orange-border:  #9a3412;
-  --accent-purple-tint:        #1a0c2e;
-  --accent-purple-tint-strong: #2e1065;
-  --accent-purple-border:      #581c87;
-  --accent-indigo-tint:    #0c0c35;
 
   --kpi-tint-blue:         #dbeafe;
   --kpi-tint-red:          #fef2f2;
@@ -3879,9 +3792,6 @@ html.dark {
   --q-badge-warning-bg:    color-mix(in srgb, var(--caution) 20%, transparent);
   --q-badge-warning-fg:    var(--status-warning-fg);
   --q-badge-neutral-bg:    rgba(148,163,184,.15);
-  --q-badge-maroon-fg:     #e8b4c8;
-  --report-card-head-start: var(--maroon-bg);
-  --report-card-head-end:   var(--maroon-bg);
   --asg-warning-border:    #fde68a;
   --asg-success-border:    #bbf7d0;
 
@@ -3895,11 +3805,7 @@ html.dark {
 
   --paper:                 #fff;
   --paper-ink:             #000;
-  --paper-ink-muted:       #555;
-  --paper-ink-faint:       #888;
   --paper-rule:            #ccc;
-  --paper-grid:            #d1d5db;
-  --paper-signature:       #999;
 
   --df-ink:                var(--text-primary);
   --df-ink-strong:         var(--text-primary);
@@ -4168,19 +4074,6 @@ html.dark .site-footer-version { color: var(--text-muted); }
 html.dark .site-footer-brand { color: var(--text-muted); }
 html.dark .site-footer-brand-label { color: var(--text-muted); }
 html.dark .site-footer-brand-name { color: var(--text-primary); }
-
-/* ── 18. Pagination ─────────────────────────────────────────────── */
-html.dark .pagination a,
-html.dark .pagination span {
-  background: var(--surface);
-  border-color: var(--border);
-  color: var(--text-secondary);
-}
-html.dark .pagination a:hover {
-  background: var(--maroon-bg);
-  border-color: var(--maroon-border);
-  color: var(--maroon-fg);
-}
 
 /* ── 19. Buttons ────────────────────────────────────────────────── */
 html.dark .btn-secondary {
@@ -4464,6 +4357,11 @@ html.dark .pagination span {
   background: var(--surface);
   border-color: var(--border-strong);
   color: var(--text-secondary);
+}
+html.dark .pagination a:hover {
+  background: var(--maroon-bg);
+  border-color: var(--maroon-border);
+  color: var(--maroon-fg);
 }
 html.dark .pagination .active,
 html.dark .pagination .current {
