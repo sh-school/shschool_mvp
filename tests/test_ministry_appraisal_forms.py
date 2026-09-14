@@ -53,11 +53,6 @@ SUMMARY_WEIGHTS = {
     "2.9": [10, 22, 24, 14, 10, 20],
 }
 
-#: §2.4 سطر 209: «المجال 2 وزنه 25% لكن مجموع مؤشراته الفرعية = 26؛ المجال 4 وزنه 15%
-#: لكن مجموعه = 17؛ المجال 5 وزنه 10% لكن مجموعه = 8؛ المجال 6 وزنه 10% لكن مجموعه = 9».
-TEACHER_INDICATOR_SUMS = [15, 26, 10, 17, 8, 9, 15]
-
-
 def _reference_section(section: str) -> list[str]:
     lines = REFERENCE.read_text(encoding="utf-8").split("\n")
     start = next(i for i, line in enumerate(lines) if line.startswith(f"### {section} "))
@@ -123,18 +118,19 @@ def test_weights_sum_to_100_and_match_summary(section):
     assert form.total_weight == 100
 
 
-@pytest.mark.parametrize("section", ["2.5", "2.6", "2.7", "2.8", "2.9"])
-def test_indicators_sum_to_domain_weight_where_reference_says_consistent(section):
-    """«متّسقة داخلياً تماماً: كل مجموع فرعي يطابق وزن مجاله» — في هذه الخمس."""
+@pytest.mark.parametrize("section", ["2.4", "2.5", "2.6", "2.7", "2.8", "2.9"])
+def test_indicators_sum_to_domain_weight(section):
+    """مجموعُ مؤشّرات كلّ مجالٍ = وزنُه، في الاستمارات السّت ذوات المؤشّرات (2.3 مسطّحةٌ بلا مؤشّرات).
+
+    واستمارةُ المعلّم منها: كان المرجعُ يحمل خمسَ درجاتٍ منسوخةً خطأً (2.5=4، 4.2=4،
+    5.4=1، 5.5=1، 6.2=2) ويسمّي ما نتج عنها «تعارضاً مطبوعاً في نموذج الوزارة»، وكان
+    اختبارٌ هنا يُلزم بحفظه. والمطبوعُ 3 و2 و2 و2 و3 — «استمارة تقييم المعلم والدليل
+    التفسيري.pdf» ص1–2، ومجموعُ بنود كلّ مؤشّرٍ في الدليل ص3–6 يساوي درجتَه — فصُحّح
+    المرجعُ نفسُه (06_attendance_performance_review.md §2.4، 2026-09-15) وصار كلُّ مجالٍ
+    يطابق وزنه.
+    """
     for axis in FORMS[section].axes:
         assert sum(i.score for i in axis.indicators) == axis.weight, axis.label
-
-
-def test_teacher_form_keeps_the_ministry_inconsistency():
-    """§2.4: التعارضُ مطبوعٌ في نموذج الوزارة — يُنقل كما هو ولا «يُصحَّح»."""
-    teacher = FORMS["2.4"]
-    assert [sum(i.score for i in a.indicators) for a in teacher.axes] == TEACHER_INDICATOR_SUMS
-    assert sum(i.score for a in teacher.axes for i in a.indicators) == 100
 
 
 @pytest.mark.parametrize("section", sorted(SUMMARY_WEIGHTS))
