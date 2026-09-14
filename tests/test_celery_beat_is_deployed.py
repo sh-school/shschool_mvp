@@ -37,3 +37,15 @@ def test_every_scheduled_task_exists_and_the_schedule_is_not_empty():
     assert len(schedule) >= 5
     missing = [name for name, entry in schedule.items() if entry["task"] not in app.tasks]
     assert not missing, f"مهامٌّ مجدولةٌ لا وجودَ لها: {missing}"
+
+
+def test_data_retention_is_scheduled_weekly_at_dawn():
+    """سياسةُ الاحتفاظ (PDPPL م.7 و10) تُنفَّذ أسبوعيّاً فجراً — لا وعدٌ في وثيقة."""
+    app.loader.import_default_modules()
+    entries = [
+        e for e in app.conf.beat_schedule.values() if e["task"] == "core.enforce_data_retention"
+    ]
+    assert len(entries) == 1, "مهمّةُ الاحتفاظ بالبيانات ليست في الجدول — أو فيه مرّتين"
+    when = entries[0]["schedule"]
+    assert len(when.day_of_week) == 1, "أسبوعيّاً: يومٌ واحدٌ في الأسبوع"
+    assert max(when.hour) <= 5, "فجراً: قبل بداية الدوام"

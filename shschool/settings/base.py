@@ -445,6 +445,12 @@ DPO_NAME = os.environ.get("DPO_NAME", "")
 DPO_EMAIL = os.environ.get("DPO_EMAIL", "")
 DPO_PHONE = os.environ.get("DPO_PHONE", "")
 
+# ── الاحتفاظُ بالبيانات (PDPPL م.7 و10) ───────────────────────────────
+# بعد كم يوماً يُحذف ما انقضى غرضُه من آثار التشغيل (السياسةُ جدولاً جدولاً في
+# docs/privacy/data_retention.md، والمُنفِّذ core/retention.py). كان المتغيّرُ
+# معلَناً في .railway/railway.ts ولا يقرؤه أحد. والصفرُ يعطّل الحذفَ كلَّه.
+PDPPL_DATA_RETENTION_DAYS = int(os.environ.get("PDPPL_DATA_RETENTION_DAYS", "730"))
+
 # ══════════════════════════════════════════════════════════════════════
 # ✅ v5.4: django-axes — حماية من هجمات القوة الغاشمة (Brute Force)
 # ══════════════════════════════════════════════════════════════════════
