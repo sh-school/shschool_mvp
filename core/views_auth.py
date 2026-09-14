@@ -57,6 +57,32 @@ def requires_two_factor(user) -> bool:
     return bool(user.is_superuser or user.is_staff_member())
 
 
+def usable_totp_secret(user) -> str | None:
+    """سرُّ TOTP مفكوكاً وصالحاً — أو None إن كان غيرَ مقروء.
+
+    `decrypt_field` تُعيد القيمةَ كما هي حين يفشل الفكُّ (مفتاحٌ آخر، أو نسخةُ
+    قاعدةٍ من بيئةٍ أخرى)، فكان الرمزُ يُبنى من النصّ المشفَّر نفسِه: QR لا
+    يطابقه رمزٌ أبداً، والتحقّقُ يسقط 500 على «Non-base32». هنا يُفحص الفكُّ
+    والصيغةُ معاً، والقرارُ لمن يستدعي.
+    """
+    import base64
+    import binascii
+
+    from core.models import decrypt_field
+
+    stored = user.totp_secret or ""
+    if not stored:
+        return None
+    raw = decrypt_field(stored)
+    if not raw or raw == stored and stored.startswith("gAAAA"):
+        return None
+    try:
+        base64.b32decode(raw.upper() + "=" * (-len(raw) % 8), casefold=True)
+    except (binascii.Error, ValueError):
+        return None
+    return raw
+
+
 #: خلفيّةُ التصديق الأصليّة — تُستعمل إن ضاعت من الجلسة (جلسةٌ سابقةٌ للنشر).
 PRIMARY_AUTH_BACKEND = "core.backends.HMACAuthBackend"
 
@@ -199,9 +225,16 @@ def verify_2fa(request):
 
     if request.method == "POST":
         code = request.POST.get("code", "").strip().replace(" ", "")
-        from core.models import decrypt_field as _dfd
-
-        _s = _dfd(user.totp_secret) or user.totp_secret
+        _s = usable_totp_secret(user)
+        if _s is None:
+            # سرٌّ لا يُقرأ بمفتاح هذه البيئة: لا رمزَ يطابقه، فلا يُترك المستخدمُ يحاول.
+            logger.error("TOTP secret unreadable for user %s — needs reset_2fa", user.pk)
+            messages.error(
+                request,
+                "تعذّر قراءة سرّ المصادقة الثنائية لحسابك. اطلب من الإدارة إعادة ضبطها "
+                "(الأمر: reset_2fa) ثم أعد الإعداد.",
+            )
+            return render(request, "auth/verify_2fa.html", {"user": user})
         totp = pyotp.TOTP(_s)
 
         # ── VULN-001 Fix: TOTP Replay Protection (CWE-294) ──────────
@@ -242,16 +275,21 @@ def setup_2fa(request):
         messages.info(request, "المصادقة الثنائية للكادر — لا للطلبة وأولياء الأمور.")
         return redirect("dashboard")
 
-    if not user.totp_secret:
-        raw_secret = pyotp.random_base32()
+    raw_secret = usable_totp_secret(user)
+    if raw_secret is None:
+        # لا سرَّ، أو سرٌّ لا يُقرأ بمفتاح هذه البيئة — يُولَّد من جديد. ومن كان مفعِّلاً
+        # بسرٍّ غيرِ مقروءٍ فقد صار محبوساً أصلاً: يُعاد إعدادُه لا انتظارُ رمزٍ لن يأتي.
         from core.models import encrypt_field
 
+        if user.totp_secret:
+            logger.warning("TOTP secret unreadable for user %s — regenerated at setup", user.pk)
+            if user.totp_enabled:
+                messages.warning(request, "تعذّر قراءة سرّ المصادقة السابق — أُعيد الإعداد من جديد.")
+        raw_secret = pyotp.random_base32()
         user.totp_secret = encrypt_field(raw_secret) or raw_secret
-        user.save(update_fields=["totp_secret"])
+        user.totp_enabled = False
+        user.save(update_fields=["totp_secret", "totp_enabled"])
 
-    from core.models import decrypt_field as _df
-
-    raw_secret = _df(user.totp_secret) or user.totp_secret
     totp = pyotp.TOTP(raw_secret)
     otp_uri = totp.provisioning_uri(name=user.national_id, issuer_name="SchoolOS")
 
@@ -264,7 +302,7 @@ def setup_2fa(request):
     qr_b64 = base64.b64encode(buf.getvalue()).decode()
 
     if request.method == "POST":
-        code = request.POST.get("code", "").strip()
+        code = request.POST.get("code", "").strip().replace(" ", "")
         if totp.verify(code, valid_window=1):
             user.totp_enabled = True
             user.save(update_fields=["totp_enabled"])
@@ -273,16 +311,12 @@ def setup_2fa(request):
         else:
             messages.error(request, "رمز التحقق غير صحيح.")
 
-    from core.models import decrypt_field
-
     return render(
         request,
         "auth/setup_2fa.html",
         {
             "qr_b64": qr_b64,
-            "secret": (decrypt_field(user.totp_secret) or user.totp_secret)
-            if user.totp_secret
-            else "",
+            "secret": raw_secret,
             "totp_enabled": user.totp_enabled,
         },
     )
@@ -295,10 +329,8 @@ def disable_2fa(request):
     if request.method == "POST":
         code = request.POST.get("code", "").strip()
         user = request.user
-        if user.totp_secret:
-            from core.models import decrypt_field
-
-            _raw = decrypt_field(user.totp_secret) or user.totp_secret
+        _raw = usable_totp_secret(user)
+        if _raw:
             totp = pyotp.TOTP(_raw)
             if totp.verify(code, valid_window=1):
                 user.totp_enabled = False
