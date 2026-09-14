@@ -41,6 +41,7 @@ class TestStaffAttendanceService:
             email="teacher@test.qa",
             password="TempPass123!",
             full_name="معلّمٌ تجريبيّ",
+            national_id="123456789012",
         )
         # ربطُه بالمدرسة
         role = Role.objects.get_or_create(name="teacher")[0]
