@@ -26,9 +26,14 @@ from core.middleware import SchoolRequest
 from core.models.school import School
 from core.models.user import CustomUser
 
-from .attendance import PermitService, PolicyError, StaffAttendanceService
+from .attendance import (
+    PermitService,
+    PolicyError,
+    StaffAttendanceService,
+    can_submit_permits,
+)
 from .forms import AttendanceMarkForm, PermitRequestForm, PermitReviewForm
-from .models import PERMIT_TYPES
+from .models import ABSENCE_TYPES, PERMIT_TYPES
 
 
 def _school(request: HttpRequest) -> School:
@@ -70,7 +75,7 @@ def attendance_board(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "staff_affairs/attendance_board.html",
-        {"day": day, "today": timezone.localdate(), **board},
+        {"day": day, "today": timezone.localdate(), "absence_types": ABSENCE_TYPES, **board},
     )
 
 
@@ -95,6 +100,9 @@ def attendance_mark(request: HttpRequest) -> HttpResponse:
             day=data["date"],
             status=data["status"],
             check_in=data["check_in"],
+            check_out=data["check_out"],
+            absence_type=data["absence_type"],
+            accepted_excuse=data["accepted_excuse"],
             actor=_user(request),
             request=request,
         )
@@ -103,16 +111,18 @@ def attendance_mark(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "staff_affairs/partials/attendance_row.html",
-        {**row, "day": data["date"], "error": error},
+        {**row, "day": data["date"], "error": error, "absence_types": ABSENCE_TYPES},
     )
 
 
 @login_required
 @capability_required("staff_affairs.attendance_report")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 def attendance_report(request: HttpRequest) -> HttpResponse:
-    """تقريرُ الشهر: جدولٌ لكلّ موظّف، وتنزيلُه Excel بالرقم الوظيفيّ."""
+    """تقريرُ الشهر: جدولٌ لكلّ موظّفٍ في نطاق القارئ، وتنزيلُه Excel بالرقم الوظيفيّ."""
     year, month = _month(request.GET.get("month"))
-    report = StaffAttendanceService.monthly_report(_school(request), year, month)
+    report = StaffAttendanceService.monthly_report(
+        _school(request), year, month, viewer=_user(request)
+    )
     return render(
         request,
         "staff_affairs/attendance_report.html",
@@ -125,7 +135,9 @@ def attendance_report(request: HttpRequest) -> HttpResponse:
 def attendance_report_xlsx(request: HttpRequest) -> HttpResponse:
     """Excel التقرير — الرقم الشخصيّ: مستور (لا يُكتب أصلاً؛ الرقمُ الوظيفيّ وحدَه)."""
     year, month = _month(request.GET.get("month"))
-    report = StaffAttendanceService.monthly_report(_school(request), year, month)
+    report = StaffAttendanceService.monthly_report(
+        _school(request), year, month, viewer=_user(request)
+    )
     workbook = StaffAttendanceService.monthly_workbook(report)
     log_export(
         request,
@@ -143,7 +155,8 @@ def attendance_report_xlsx(request: HttpRequest) -> HttpResponse:
 def my_permits(request: HttpRequest) -> HttpResponse:
     """طلبُ الموظّف إذناً لنفسه (نموذج 02)، وطلباتُه ورصيدُ شهره."""
     form = PermitRequestForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
+    can_submit = can_submit_permits(_user(request))
+    if request.method == "POST" and can_submit and form.is_valid():
         data = form.cleaned_data
         try:
             PermitService.submit(
@@ -166,6 +179,7 @@ def my_permits(request: HttpRequest) -> HttpResponse:
         "staff_affairs/my_permits.html",
         {
             "form": form,
+            "can_submit": can_submit,
             "permit_types": PERMIT_TYPES,
             "balance": PermitService.balance(
                 _school(request), _user(request), timezone.localdate()
@@ -173,6 +187,24 @@ def my_permits(request: HttpRequest) -> HttpResponse:
             "permits": PermitService.own_permits(_school(request), _user(request)),
         },
     )
+
+
+@login_required
+@capability_required("staff_affairs.own_permits")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
+@require_POST
+def permit_cancel(request: HttpRequest, pk: UUID) -> HttpResponse:
+    """سحبُ صاحب الطلب طلبَه المعلَّق — والخدمةُ تفحص أنّه صاحبُه."""
+    try:
+        permit = PermitService.pending_one(_school(request), pk)
+    except ObjectDoesNotExist as exc:
+        raise Http404("لا طلبَ بهذا المعرّف") from exc
+    try:
+        PermitService.cancel(permit, actor=_user(request), request=request)
+    except PolicyError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(request, "سُحب الطلب — وأُفرج عن يومه ودقائقه.")
+    return redirect("staff_affairs:my_permits")
 
 
 @login_required

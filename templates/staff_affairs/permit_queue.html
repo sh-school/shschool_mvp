@@ -1,15 +1,21 @@
 {% extends "base/base.html" %}
 {% load icons %}
 {% load ui %}
+{% load navigation %}
 {% block title %}طلبات الأذونات{% endblock %}
 {% block breadcrumbs %}
-{% include "components/breadcrumbs.html" with parent_url="/staff-affairs/attendance/" parent_label="رصد الحضور" current="طلبات الأذونات" %}
+{% if request.user|can_open:"staff_affairs:attendance_board" %}
+{% url 'staff_affairs:attendance_board' as board_url %}{% include "components/breadcrumbs.html" with parent_url=board_url parent_label="رصد الحضور" current="طلبات الأذونات" %}
+{% else %}
+{% include "components/breadcrumbs.html" with current="طلبات الأذونات" %}
+{% endif %}
 {% endblock %}
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header "طلبات الأذونات" subtitle="نموذج 02: المسؤول المباشر ← السكرتارية (رصيد الساعات) ← مدير المدرسة — ولا يُعتدّ بالإذن إلا بعد اعتماده (البند 4.1)" icon="checklist" %}
-    <a href="{% url 'staff_affairs:attendance_board' %}" class="btn-secondary btn-sm">{% icon "attendance_register" %} رصد الحضور</a>
+  {% page_header "طلبات الأذونات" subtitle="نموذج 02: المسؤول المباشر ← السكرتارية (رصيد الساعات) ← مدير المدرسة، وينوب عنه النائب الإداري يوم غيابه — ولا يُعتدّ بالإذن إلا بعد اعتماده (البند 4.1)" icon="checklist" %}
+    {% if request.user|can_open:"staff_affairs:attendance_board" %}<a href="{% url 'staff_affairs:attendance_board' %}" class="btn-secondary btn-sm">{% icon "attendance_register" %} رصد الحضور</a>{% endif %}
+    {% if request.user|can_open:"staff_affairs:attendance_report" %}<a href="{% url 'staff_affairs:attendance_report' %}" class="btn-secondary btn-sm">{% icon "reports" %} تقرير الشهر</a>{% endif %}
   {% endpage_header %}
 
   {% section_card "بانتظار مرحلتك" meta=permits|length icon="leave" flush=True empty="لا طلباتِ أذوناتٍ تنتظر مرحلتك" %}{% if permits %}

@@ -113,7 +113,7 @@ def registry() -> dict[str, Capability]:
             "staff_affairs.own_permits",
             "طلبُ إذنٍ قصيرٍ للموظّف نفسه",
             P.ALL_STAFF_ROLES,
-            scope="طلباتُ المستخدم نفسِه ورصيدُه",
+            scope="طلباتُ المستخدم نفسِه ورصيدُه — والمديرُ يرى ولا يقدّم (البند 4.1)",
             basis="07_forms_catalog.md:13 (نموذج 02) — يقدّمه الموظّف ويوقّعه",
         ),
         _cap(
@@ -129,19 +129,27 @@ def registry() -> dict[str, Capability]:
             "staff_affairs.attendance_report",
             "تقريرُ حضور الموظّفين الشهريّ",
             {"principal", "vice_admin", "vice_academic", "secretary"},
+            scope="المديرُ والسكرتيرُ للمدرسة؛ والنائبُ لمن يتبعه في «reports_to» وحدَهم",
             basis=(
-                "من يرصد (03:101) ومن يقيّم: بندُ «الالتزام بسياسة الحضور والانصراف» في "
-                "استمارات التقييم (06b_attendance_performance_thirdpass.md:178، 06:250)"
+                "السكرتير «متابعة الحضور والانصراف للموظفين» (03_job_descriptions_rbac.md:101)؛ "
+                "والمديرُ رأسُ الهيكل (rbac_permissions_matrix.md:45)؛ والنائبُ الإداريّ "
+                "«متابعة وتقييم أداء من يندرج تحت مسؤولياته» (:48) والأكاديميّ «تقييم "
+                "المنسقين والمعلمين» (:50)"
             ),
         ),
         _cap(
             "staff_affairs.permits_review",
             "مراحلُ اعتماد الأذونات القصيرة",
             {"principal", "vice_admin", "vice_academic", "secretary"},
-            scope="الطلباتُ في مرحلة دور المستخدم وحدَها",
+            scope=(
+                "الطلباتُ في مرحلة دور المستخدم وحدَها؛ ونائبُ الشؤون الإدارية في مرحلة المدير "
+                "يومَ يُرصد المديرُ غائباً"
+            ),
             basis=(
                 "07_forms_catalog.md:13 و07b_forms_catalog_thirdpass.md:13 — المسؤول المباشر "
-                "(rbac_roles.json reports_to) ← السكرتارية ← مدير المدرسة"
+                "(rbac_roles.json reports_to) ← السكرتارية ← مدير المدرسة؛ والإنابةُ «عن المدير "
+                "في مهامه في حال غيابه» (03_job_descriptions_rbac.md:401، "
+                "rbac_permissions_matrix.md:46)"
             ),
         ),
         _cap(

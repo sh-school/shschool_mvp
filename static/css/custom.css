@@ -6658,6 +6658,20 @@ html.dark {
 .att-row__nid { font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; text-align: end; }
 .att-row__actions { display: flex; align-items: center; gap: 4px; }
 
+/* سطرُ رصد الموظّف: اسمٌ وشارةٌ ووقتان وأربعةُ أزرار — يلتفّ فلا يُضغط الاسمُ إلى صفر. */
+.att-row--staff { flex-wrap: wrap; row-gap: var(--sp-2); }
+.att-row--staff .att-row__info { flex: 1 1 180px; }
+.att-row__times { display: flex; gap: var(--sp-2); }
+.att-row__more { flex-basis: 100%; font-size: var(--text-xs); color: var(--text-muted); }
+.att-row__more > summary { cursor: pointer; inline-size: fit-content; }
+.att-row__more-fields { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-block-start: var(--sp-2); }
+@media (max-width: 640px) {
+  .att-row--staff .att-row__info { flex-basis: 100%; }
+  .att-row--staff .att-row__times { flex: 1 1 100%; }
+  .att-row--staff .att-row__times .ui-field { flex: 1 1 0; }
+  .att-row--staff .att-row__actions { flex: 1 1 100%; justify-content: space-between; }
+}
+
 .att-btn {
   padding: 6px 10px;
   border: 0;

@@ -181,6 +181,19 @@ STAFF_ATTENDANCE_STATUS = [
     ("permitted", "مستأذن"),
 ]
 
+#: أنواعُ يوم الغياب كما في سجلّ الغياب المدرسيّ نفسِه — «07-نماذج المدرسة/08) سجل
+#: الغياب.xlsx»، قائمةُ التحقّق في خلايا الأيّام (E3:X122) وأعمدةُ «الإحصائية الشهرية».
+#: والغيابُ بلا نوعٍ غيابٌ لم يُغطَّ بعد — «يجب على الموظف تغطية أيام غيابه قبل يوم (15)
+#: من الشهر وإلا يتم تنفيذ الخصم» (البند 5.3، 06:69).
+ABSENCE_TYPES = [
+    ("casual", "عارضة"),
+    ("unpaid", "بدون راتب"),
+    ("sick", "مرضية"),
+    ("official_mission", "مهمة رسمية"),
+    ("experience_exchange", "تبادل خبرات"),
+    ("external_training", "تدريب خارجي"),
+]
+
 
 class StaffAttendance(AuditedModel):
     """سجلُّ حضور موظّفٍ في يوم — «يحسب ولا ينفّذ آليّاً».
@@ -208,6 +221,18 @@ class StaffAttendance(AuditedModel):
     check_out = models.TimeField(null=True, blank=True, verbose_name="وقت الانصراف")
     late_minutes = models.PositiveSmallIntegerField(default=0, verbose_name="دقائق التأخّر")
     permit_minutes = models.PositiveSmallIntegerField(default=0, verbose_name="دقائق الإذن المعتمد")
+    #: البند 1.1: الدوامُ «ينتهي في تمام الثانية ظهراً» — ما بين الانصراف و14:00 بلا إذن.
+    early_leave_minutes = models.PositiveSmallIntegerField(
+        default=0, verbose_name="دقائق الانصراف المبكر بلا إذن"
+    )
+    #: نوعُ يوم الغياب (سجلّ الغياب المدرسيّ)، والفارغُ غيابٌ لم يُغطَّ (5.3).
+    absence_type = models.CharField(
+        max_length=20, choices=ABSENCE_TYPES, blank=True, verbose_name="نوع الغياب"
+    )
+    #: البند 2.4 «دون إذن أو عذر مقبول» — العذرُ الذي قُبل فعُدّ الحضورُ بعد 9:00 تأخّراً.
+    accepted_excuse = models.CharField(
+        max_length=300, blank=True, verbose_name="العذر المقبول (البند 2.4)"
+    )
     notes = models.CharField(max_length=300, blank=True, verbose_name="ملاحظات")
 
     class Meta:

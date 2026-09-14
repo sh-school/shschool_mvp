@@ -803,7 +803,7 @@
   <a href="#" id="theme-toggle-menu" data-click="#theme-toggle">
     <span id="theme-menu-icon"><span data-theme-icon="dark">{% icon "theme_dark" %}</span><span data-theme-icon="light" hidden>{% icon "theme_light" %}</span></span> <span id="theme-menu-text">الوضع الليلي</span>
   </a>
-  {% if request.user|can_open:"staff_affairs:my_permits" %}
+  {% if request.user|can_open:"staff_affairs:my_permits" and role != "principal" %}
   <a href="{% url 'staff_affairs:my_permits' %}">{% icon "leave" %} أذوناتي</a>
   {% endif %}
   {% if request.user|can_open:"change_password" %}

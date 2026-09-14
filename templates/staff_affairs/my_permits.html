@@ -17,6 +17,10 @@
   {% endkpi_strip %}
 
   {% section_card "طلب إذن جديد" icon="edit_record" %}
+    {% if not can_submit %}
+    <p class="form-note">{% icon "status_info" %} إذنُ مدير المدرسة لا يُعتدّ به إلّا باعتماد رئيسه المباشر (البند 4.1)، ولا رئيسَ له داخل المدرسة — فلا يُقدَّم هنا.</p>
+    {% else %}
+    <p class="form-note">التأخير الصباحي يبدأ 7:00، والخروج المبكر ينتهي 14:00، والاستئذان بينهما (البندان 1.1 و2.1).</p>
     <form method="post">{% csrf_token %}
       {% if form.non_field_errors %}<p class="form-note is-warning sa-errors" role="alert">{% icon "status_warning" %} {{ form.non_field_errors|join:" · " }}</p>{% endif %}
       <div class="form-row">
@@ -30,6 +34,7 @@
         <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} تقديم الطلب</button>
       </div>
     </form>
+    {% endif %}
   {% endsection_card %}
 
   {% section_card "طلباتي" meta=permits|length icon="checklist" flush=True empty="لم تقدّم طلبَ إذنٍ بعد" %}{% if permits %}
@@ -44,6 +49,7 @@
             <th class="col-center">الحالة</th>
             <th class="col-center">المرحلة</th>
             <th>ملاحظة</th>
+            <th class="col-actions">إجراء</th>
           </tr>
         </thead>
         <tbody>
@@ -56,6 +62,11 @@
             <td class="col-center"><span class="status-badge {% if p.status == 'approved' %}status-success{% elif p.status == 'rejected' %}status-danger{% elif p.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ p.get_status_display }}</span></td>
             <td class="col-center text-xs">{{ p.get_stage_display }}</td>
             <td class="text-xs">{{ p.rejection_reason|default:"—" }}</td>
+            <td class="col-actions">{% if p.status == "pending" %}
+              <form method="post" action="{% url 'staff_affairs:permit_cancel' p.pk %}">{% csrf_token %}
+                <button type="submit" class="btn-secondary btn-xs">{% icon "close" %} سحب الطلب</button>
+              </form>
+            {% else %}—{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>

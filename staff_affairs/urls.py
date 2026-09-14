@@ -34,6 +34,7 @@ urlpatterns = [
         name="attendance_report_xlsx",
     ),
     path("permits/mine/", views_attendance.my_permits, name="my_permits"),
+    path("permits/<uuid:pk>/cancel/", views_attendance.permit_cancel, name="permit_cancel"),
     path("permits/review/", views_attendance.permit_queue, name="permit_queue"),
     path("permits/<uuid:pk>/review/", views_attendance.permit_review, name="permit_review"),
     # ── الرخص المهنية ──

@@ -2,7 +2,7 @@
 
 from django import forms
 
-from .models import LEAVE_TYPES, PERMIT_TYPES, STAFF_ATTENDANCE_STATUS
+from .models import ABSENCE_TYPES, LEAVE_TYPES, PERMIT_TYPES, STAFF_ATTENDANCE_STATUS
 
 
 class LeaveRequestForm(forms.Form):
@@ -187,3 +187,6 @@ class AttendanceMarkForm(forms.Form):
     date = forms.DateField()
     status = forms.ChoiceField(choices=STAFF_ATTENDANCE_STATUS)
     check_in = forms.TimeField(required=False)
+    check_out = forms.TimeField(required=False)
+    absence_type = forms.ChoiceField(choices=[("", ""), *ABSENCE_TYPES], required=False)
+    accepted_excuse = forms.CharField(max_length=300, required=False)
