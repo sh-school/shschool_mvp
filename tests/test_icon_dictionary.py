@@ -22,7 +22,15 @@ import pytest
 from django.template import Context, Template, TemplateSyntaxError
 
 from core import icon_sprite
-from core.icons import BADGES, GROUPS, ICONS, MAX_LOCAL, VIOLATION_DEGREES, symbol_id
+from core.icons import (
+    BADGES,
+    DETAILED_AT,
+    GROUPS,
+    ICONS,
+    MAX_LOCAL,
+    VIOLATION_DEGREES,
+    symbol_id,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -44,9 +52,11 @@ def test_the_sprite_is_generated_not_edited():
 
 def test_every_meaning_has_exactly_one_symbol_and_no_symbol_is_orphaned():
     ids = re.findall(r'<symbol id="([^"]+)"', icon_sprite.SPRITE.read_text(encoding="utf-8"))
-    expected = {symbol_id(k) for k in ICONS} | {
-        symbol_id("behavior_violation", d) for d in VIOLATION_DEGREES
-    }
+    expected = (
+        {symbol_id(k) for k in ICONS}
+        | {symbol_id("behavior_violation", d) for d in VIOLATION_DEGREES}
+        | {symbol_id(k, size=sizes[0]) for k, sizes in DETAILED_AT.items()}
+    )
     assert len(ids) == len(set(ids)), "معرّفٌ مكرّر في الورقة"
     assert set(ids) == expected
 
@@ -154,6 +164,26 @@ def test_violation_degree_selects_its_own_symbol():
     assert "#i-violation-degree-3" in _render('{% icon "behavior_violation" degree=3 %}')
 
 
+def test_the_wing_is_a_plain_star_in_menus_and_detailed_when_large():
+    assert '#i-wings"' in _render('{% icon "wings" %}')
+    assert "#i-wings-lg" in _render('{% icon "wings" size="2xl" %}')
+
+
+def test_components_draw_a_meaning_with_the_new_sprite():
+    html = _render('{% icon_named "library" size="2xl" %}')
+    assert "icons/sprite.svg#i-library" in html and "icon-2xl" in html
+
+
+def test_components_still_draw_a_legacy_name_during_the_migration():
+    """الملفّاتُ الساخنة تُرحَّل في دفعةٍ لاحقة — والسقّاطةُ تمنع أن يزيد القديم."""
+    assert '<use href="#icon-bar-chart"/>' in _render('{% icon_named "bar-chart" %}')
+
+
+def test_components_refuse_a_name_from_neither_sprite():
+    with pytest.raises(TemplateSyntaxError):
+        _render('{% icon_named "📚" %}')
+
+
 @pytest.mark.parametrize(
     "src",
     [
@@ -201,6 +231,55 @@ def test_the_theme_toggle_carries_both_glyphs_from_the_dictionary():
     assert "#icon-sun" not in js and "#icon-moon" not in js
 
 
+LEGACY_BASELINE = ROOT / "tests" / "icon_legacy_baseline.json"
+_LEGACY_INCLUDE = re.compile(r"components/icon\.html")
+_LEGACY_USE = re.compile(r'<use href="#icon-')
+_COMPONENT_ICON = re.compile(
+    r"(?:\{%\s*(?:page_header|section_card|empty_state|action_tile)\b"
+    r'|components/(?:ui/)?(?:empty_state|action_tile|page_header|section_card)\.html")'
+    r'[^%]*?\bicon="([\w-]+)"'
+)
+_LEGACY_EXEMPT = {"components/sprite.html", "components/icon.html", "styleguide/icon_preview.html"}
+
+
+def legacy_counts() -> dict[str, int]:
+    """استعمالاتُ الورقة القديمة في كلّ قالب: استدعاءٌ، ومعاملُ مكوّنٍ باسمٍ قديم، و`<use>` مكتوب."""
+    counts = {}
+    for path in sorted(TEMPLATES.rglob("*.html")):
+        rel = path.relative_to(TEMPLATES).as_posix()
+        if rel in _LEGACY_EXEMPT:
+            continue
+        text = path.read_text(encoding="utf-8")
+        n = len(_LEGACY_INCLUDE.findall(text)) + len(_LEGACY_USE.findall(text))
+        n += sum(1 for name in _COMPONENT_ICON.findall(text) if name not in ICONS)
+        if n:
+            counts[rel] = n
+    return counts
+
+
+def test_legacy_icons_only_shrink():
+    """سقّاطة: القديمُ لا يزيد في ملفّ، ولا يدخل ملفّاً خلا منه.
+
+    والنقصانُ لا يُلزم تحديثَ السجلّ — جلستان تُرحّلان معاً لا تتصادمان عليه.
+    ولتسجيل الأعداد بعد ترحيل: ``python -m tests.test_icon_dictionary``.
+    """
+    baseline = json.loads(LEGACY_BASELINE.read_text(encoding="utf-8"))
+    grown = {
+        f: (baseline.get(f, 0), n) for f, n in legacy_counts().items() if n > baseline.get(f, 0)
+    }
+    assert not grown, f"أيقوناتٌ قديمةٌ زادت (المسجَّل، الآن) — استعمل {{% icon %}}: {grown}"
+
+
 def test_the_new_icon_classes_are_styled():
     css = (ROOT / "static" / "css" / "custom.css").read_text(encoding="utf-8")
     assert ".icon-hg" in css and ".icon-mirror" in css
+
+
+if __name__ == "__main__":
+    counts = legacy_counts()
+    LEGACY_BASELINE.write_text(
+        json.dumps(counts, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    print(f"سُجّل {sum(counts.values())} استعمالاً قديماً في {len(counts)} قالباً")

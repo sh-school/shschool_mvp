@@ -1,7 +1,8 @@
 {% comment %}ترويسةُ الصفحة — تُرسم من الوسم `{% page_header %}` في core/templatetags/ui.py.{% endcomment %}
+{% load icons %}
 <div class="exec-header ui-page-header">
   <div class="ui-page-header__text">
-    <h1 class="exec-title">{% if icon %}{% include "components/icon.html" with name=icon %} {% endif %}{{ title }}</h1>
+    <h1 class="exec-title">{% if icon %}{% icon_named icon %} {% endif %}{{ title }}</h1>
     {% if subtitle %}<p class="exec-subtitle">{{ subtitle }}</p>{% endif %}
   </div>
   {% if actions.strip %}<div class="exec-meta">{{ actions }}</div>{% endif %}

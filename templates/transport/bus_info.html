@@ -1,3 +1,4 @@
+{% load icons %}
 <div id="bus-info" class="form-note transport-done" aria-live="polite">
-  {% include "components/icon.html" with name="check-circle" %} تم حفظ بيانات الحافلة {{ bus.bus_number }}
+  {% icon "status_success" %} تم حفظ بيانات الحافلة {{ bus.bus_number }}
 </div>

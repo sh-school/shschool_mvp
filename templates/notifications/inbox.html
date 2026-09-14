@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load static ui %}
 {% block title %}الإشعارات — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
@@ -10,8 +11,8 @@
 {% csrf_token %}
 <div class="exec-dash notif-inbox">
 
-  {% page_header "صندوق الإشعارات" icon="bell" %}
-    <span class="notif-shortcuts" tabindex="0" title="اختصارات: j/k للتنقل · m للتحديد كمقروء · Enter لفتح الرابط" aria-label="اختصارات لوحة المفاتيح: j و k للتنقل، m للتحديد كمقروء، Enter لفتح الرابط">{% include "components/icon.html" with name="lightbulb" %} الاختصارات</span>
+  {% page_header "صندوق الإشعارات" icon="notifications" %}
+    <span class="notif-shortcuts" tabindex="0" title="اختصارات: j/k للتنقل · m للتحديد كمقروء · Enter لفتح الرابط" aria-label="اختصارات لوحة المفاتيح: j و k للتنقل، m للتحديد كمقروء، Enter لفتح الرابط">{% icon "tip" %} الاختصارات</span>
     {% if unread_count %}
     <button
       hx-post="{% url 'mark_all_read' %}"
@@ -19,10 +20,10 @@
       hx-swap="innerHTML"
       hx-include="[name=csrfmiddlewaretoken]"
       class="btn-primary btn-sm">
-      {% include "components/icon.html" with name="check-circle" %} تحديد الكل كمقروء
+      {% icon "status_success" %} تحديد الكل كمقروء
     </button>
     {% endif %}
-    <a href="{% url 'notification_preferences' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="settings" %} التفضيلات</a>
+    <a href="{% url 'notification_preferences' %}" class="btn-secondary btn-sm">{% icon "settings" %} التفضيلات</a>
   {% endpage_header %}
 
   {# الغلافُ يعطي سكربتَ الشارة موضعَ عدد غير المقروء (أوّلُ بطاقة). #}
@@ -46,7 +47,7 @@
 
   {# العاجلُ غيرُ المقروء مثبَّتٌ أعلى الصندوق ومطروحٌ من القائمة تحته (العرض). #}
   {% if urgent_notifications %}
-  {% section_card "إشعارات عاجلة" meta=urgent_notifications|length icon="alert-triangle" %}
+  {% section_card "إشعارات عاجلة" meta=urgent_notifications|length icon="status_critical" %}
     <div class="notif-list" id="urgent-section">
       {% for notif in urgent_notifications %}
         {% include "notifications/partials/notif_item.html" with notif=notif %}
@@ -59,15 +60,15 @@
   `#notif-list` يبقى في الصفحة دائماً — زرُّ «تحديد الكل كمقروء» يستهدفه —
   فالحالةُ الفارغةُ داخله لا بدلَه.
   {% endcomment %}
-  {% section_card "الإشعارات" icon="bell" %}
+  {% section_card "الإشعارات" icon="notifications" %}
     <div id="notif-list" class="notif-list">
       {% for notif in other_notifications %}
       {% include "notifications/partials/notif_item.html" with notif=notif %}
       {% empty %}
         {% if urgent_notifications %}
-          {% empty_state "لا إشعاراتَ غيرُ العاجلة" icon="bell" %}
+          {% empty_state "لا إشعاراتَ غيرُ العاجلة" icon="notifications" %}
         {% else %}
-          {% empty_state "لا توجد إشعارات" sub="ستظهر هنا إشعارات المدرسة والتنبيهات الهامة" icon="bell" %}
+          {% empty_state "لا توجد إشعارات" sub="ستظهر هنا إشعارات المدرسة والتنبيهات الهامة" icon="notifications" %}
         {% endif %}
       {% endfor %}
     </div>

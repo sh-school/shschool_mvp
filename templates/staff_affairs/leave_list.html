@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}طلبات الإجازات{% endblock %}
 {% block breadcrumbs %}
@@ -7,8 +8,8 @@
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header "طلبات الإجازات" icon="calendar" %}
-    <a href="{% url 'staff_affairs:leave_request' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} طلب إجازة جديد</a>
+  {% page_header "طلبات الإجازات" icon="leave" %}
+    <a href="{% url 'staff_affairs:leave_request' %}" class="btn-primary btn-sm">{% icon "edit_record" %} طلب إجازة جديد</a>
   {% endpage_header %}
 
   {% filter_bar "ترشيحُ طلبات الإجازات" %}
@@ -19,7 +20,7 @@
     </div>
   {% endfilter_bar %}
 
-  {% section_card "الطلبات" icon="list-checks" flush=True empty="لا طلباتِ إجازاتٍ مطابقة" %}{% if leaves %}
+  {% section_card "الطلبات" icon="checklist" flush=True empty="لا طلباتِ إجازاتٍ مطابقة" %}{% if leaves %}
     <div class="table-wrap">
       <table>
         <thead>

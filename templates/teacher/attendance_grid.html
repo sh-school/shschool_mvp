@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 {% block title %}تسجيل حضور (شبكة) — {{ session.class_group }}{% endblock %}
 
@@ -10,11 +11,11 @@
 {% csrf_token %}
 <div class="exec-dash">
 
-{% page_header page_title subtitle=session_label icon="list-checks" %}
-  <a href="{% url 'teacher_schedule' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="arrow-right" %} الجدول</a>
+{% page_header page_title subtitle=session_label icon="checklist" %}
+  <a href="{% url 'teacher_schedule' %}" class="btn-secondary btn-sm">{% icon "back" %} الجدول</a>
   <nav class="period-switch" aria-label="طريقة العرض">
-    <a href="?view=list" class="period-switch__item">{% include "components/icon.html" with name="list-checks" %} قائمة</a>
-    <span class="period-switch__item is-current" aria-current="page">{% include "components/icon.html" with name="bar-chart" %} شبكة</span>
+    <a href="?view=list" class="period-switch__item">{% icon "checklist" %} قائمة</a>
+    <span class="period-switch__item is-current" aria-current="page">{% icon "stats" %} شبكة</span>
   </nav>
 {% endpage_header %}
 
@@ -35,7 +36,7 @@
     {% csrf_token %}
     <input type="hidden" name="view" value="grid">
     <button type="submit" class="btn-success btn-sm">
-      {% include "components/icon.html" with name="check" %} الكل حاضر
+      {% icon "all_present" %} الكل حاضر
     </button>
   </form>
 
@@ -43,16 +44,16 @@
   <form method="post" action="{% url 'complete_session' session.id %}" class="att-toolbar__end">
     {% csrf_token %}
     <button type="submit" class="btn-primary btn-sm">
-      إنهاء الحصة {% include "components/icon.html" with name="check" %}
+      إنهاء الحصة {% icon "confirm" %}
     </button>
   </form>
   {% else %}
-  <span class="att-toolbar__end status-badge status-gray">{% include "components/icon.html" with name="check" %} الحصة منتهية</span>
+  <span class="att-toolbar__end status-badge status-gray">{% icon "confirm" %} الحصة منتهية</span>
   {% endif %}
 {% endfilter_bar %}
 
 {# ── شبكة الطلاب — `#grid-container` يستبدله «الكل حاضر» بنفسه ── #}
-{% section_card "الطلاب" meta=students_data|length icon="users" empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}
+{% section_card "الطلاب" meta=students_data|length icon="students" empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}
   <div id="grid-container" class="att-grid">
     {% for item in students_data %}
     {% include "teacher/partials/grid_cell.html" with student=item.student attendance=item.attendance status=item.status tone=item.tone session=session only %}

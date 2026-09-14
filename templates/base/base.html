@@ -39,7 +39,7 @@
 
   {# ── Favicon & PWA ── #}
   <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/favicon.png' %}">
-  <link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}">
   {% if user.is_authenticated %}
   <link rel="manifest" href="{% url 'global_manifest' %}">
   {% comment %}

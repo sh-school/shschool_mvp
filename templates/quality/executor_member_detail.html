@@ -9,7 +9,7 @@
 {% block content %}
 <div class="qexec">
 
-  {% page_header member.display_name subtitle=member_subtitle icon="user" %}
+  {% page_header member.display_name subtitle=member_subtitle icon="profile" %}
     <a href="{% url 'executor_committee' %}?year={{ year }}" class="btn-secondary btn-sm">← لجنة المنفذين</a>
   {% endpage_header %}
 
@@ -32,7 +32,7 @@
     </div>
   {% endfilter_bar %}
 
-  {% section_card "الإجراءات" meta=procedures|length icon="clipboard-check" empty="لا توجد إجراءات تطابق معايير الفلتر" flush=True %}{% if procedures %}
+  {% section_card "الإجراءات" meta=procedures|length icon="observation" empty="لا توجد إجراءات تطابق معايير الفلتر" flush=True %}{% if procedures %}
     <div class="table-wrap">
       <table>
         <thead>

@@ -25,5 +25,5 @@
 {% endif %}
 
 {% else %}
-{% include "components/empty_state.html" with icon="book-open" title="لا توجد نتائج" subtitle=query|yesno:"لا توجد كتب مطابقة للبحث,لا توجد كتب مسجلة في النظام" %}
+{% include "components/empty_state.html" with icon="library" title="لا توجد نتائج" subtitle=query|yesno:"لا توجد كتب مطابقة للبحث,لا توجد كتب مسجلة في النظام" %}
 {% endif %}

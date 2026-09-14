@@ -1,3 +1,4 @@
+{% load icons %}
 {# ── حصص اليوم — partial مشترك بين المعلم والمنسق ── #}
 {% if sessions %}
 <div class="divide-y">
@@ -18,7 +19,7 @@
     </div>
     <div class="flex items-center gap-2">
       {% if s == next_session %}
-        <span class="status-badge next-session-badge">{% include "components/icon.html" with name="clock" %} التالية</span>
+        <span class="status-badge next-session-badge">{% icon "time" %} التالية</span>
       {% endif %}
       {% if s.status == 'completed' %}
         <span class="status-badge status-success">{{ s.get_status_display }}</span>
@@ -37,7 +38,7 @@
 </div>
 {% else %}
 <div class="empty-state">
-  <span class="empty-icon">{% include "components/icon.html" with name="calendar" size="icon-2xl" %}</span>
+  <span class="empty-icon">{% icon "date" size="2xl" %}</span>
   <p class="empty-title">لا توجد حصص اليوم</p>
   <p class="empty-sub">يوم راحة أو عطلة رسمية</p>
   <a href="/teacher/schedule/" class="btn-primary btn-sm mt-3 no-underline inline-block">عرض الجدول</a>

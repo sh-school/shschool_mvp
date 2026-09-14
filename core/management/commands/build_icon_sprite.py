@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 
 from core import icon_sprite
 from core.icons import ICONS
@@ -34,13 +34,15 @@ def _library_names() -> set[str]:
 class Command(BaseCommand):
     help = "يولّد static/icons/sprite.svg من core/icons.py"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--check", action="store_true", help="تحقّقٌ بلا كتابة")
         parser.add_argument(
             "--refresh", metavar="ICONS_JSON", help="إعادةُ اقتطاع المصدر من ملفّ الحزمة الكامل"
         )
 
-    def handle(self, *args, check=False, refresh=None, **options):
+    def handle(
+        self, *args: object, check: bool = False, refresh: str | None = None, **options: object
+    ) -> None:
         if refresh:
             self._refresh(Path(refresh))
 

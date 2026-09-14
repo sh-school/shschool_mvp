@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load static ui %}
 {% block title %}استيراد / تصدير الطلاب{% endblock %}
 
@@ -9,7 +10,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "استيراد / تصدير الطلاب" subtitle=subtitle icon="users" %}{% endpage_header %}
+  {% page_header "استيراد / تصدير الطلاب" subtitle=subtitle icon="import" %}{% endpage_header %}
 
   {% kpi_strip label="الطلاب" %}
     {% kpi "الطلاب المسجّلون" total_students %}
@@ -19,7 +20,7 @@
   {% if import_result %}
   <div id="import-result" role="alert" aria-live="polite">
     {% if import_result.success %}
-    {% section_card "اكتمل الاستيراد بنجاح" icon="check-circle" %}
+    {% section_card "اكتمل الاستيراد بنجاح" icon="status_success" %}
       {% kpi_strip label="نتيجة الاستيراد" %}
         {% kpi "إجمالي الصفوف" import_result.total_rows %}
         {% kpi "طلاب جدد" import_result.students_created tone="green" %}
@@ -38,8 +39,8 @@
       {% endif %}
     {% endsection_card %}
     {% else %}
-    {% section_card "فشل الاستيراد" icon="x-circle" %}
-      <p class="form-note is-warning">{% include "components/icon.html" with name="alert-triangle" %}<span>يُرجى مراجعة الملف والمحاولة مجدداً.</span></p>
+    {% section_card "فشل الاستيراد" icon="status_error" %}
+      <p class="form-note is-warning">{% icon "status_warning" %}<span>يُرجى مراجعة الملف والمحاولة مجدداً.</span></p>
       {% if import_result.errors %}
       <ul class="plain-list import-errors" aria-label="الأخطاء">
         {% for err in import_result.errors %}<li class="plain-list__row">{{ err }}</li>{% endfor %}
@@ -51,21 +52,21 @@
   {% endif %}
 
   {# ── الملفّات الثلاثة: ما يحويه كلٌّ منها وزرُّه ── #}
-  {% section_card "الملفّات" icon="file-spreadsheet" %}
+  {% section_card "الملفّات" icon="messages" %}
     <ul class="plain-list">
       <li class="plain-list__row">
         <span class="plain-list__main">
           <b class="plain-list__title">تصدير الطلاب</b>
           <span class="plain-list__sub" title="الرقم الشخصي — الاسم — الصف — الشعبة — الجوال — البريد الإلكتروني · رأس احترافي + فلاتر + RTL + طباعة A4">كشف Excel: الرقم الشخصي، الاسم، الصف، الشعبة، الجوال، البريد</span>
         </span>
-        <a href="{% url 'student_export_excel' %}" class="btn-primary btn-sm" aria-label="تصدير كل الطلاب إلى Excel">{% include "components/icon.html" with name="download" %} تصدير Excel</a>
+        <a href="{% url 'student_export_excel' %}" class="btn-primary btn-sm" aria-label="تصدير كل الطلاب إلى Excel">{% icon "export_excel" %} تصدير Excel</a>
       </li>
       <li class="plain-list__row">
         <span class="plain-list__main">
           <b class="plain-list__title">قالب الاستيراد</b>
           <span class="plain-list__sub">أعمدة الطالب ووليّ الأمر، وتعليماتٌ في الصف الأول، وصفوفٌ نموذجيّة</span>
         </span>
-        <a href="{% url 'student_import_template' %}" class="btn-secondary btn-sm" aria-label="تحميل قالب Excel للاستيراد">{% include "components/icon.html" with name="arrow-down-to-line" %} تحميل القالب</a>
+        <a href="{% url 'student_import_template' %}" class="btn-secondary btn-sm" aria-label="تحميل قالب Excel للاستيراد">{% icon "download" %} تحميل القالب</a>
       </li>
       <li class="plain-list__row">
         <span class="plain-list__main">
@@ -73,7 +74,7 @@
           <span class="plain-list__sub">ينشئ حسابات الطلاب وأولياء الأمور ويربط الطالب بفصله تلقائيّاً</span>
         </span>
         <button type="button" data-call="toggleImportForm" class="btn-secondary btn-sm" aria-expanded="false" aria-controls="import-form-area" id="btn-show-import">
-          {% include "components/icon.html" with name="arrow-up-from-line" %} رفع ملف الاستيراد
+          {% icon "import" %} رفع ملف الاستيراد
         </button>
       </li>
     </ul>
@@ -81,13 +82,13 @@
 
   {# ── منطقة الاستيراد المخفية ── #}
   <div id="import-form-area" role="region" aria-label="نموذج استيراد الطلاب" hidden>
-    {% section_card "رفع ملف Excel للاستيراد" icon="arrow-up-from-line" %}
+    {% section_card "رفع ملف Excel للاستيراد" icon="export_excel" %}
       {% if import_error %}
-      <p class="form-note is-warning" role="alert">{% include "components/icon.html" with name="alert-circle" %}<span>{{ import_error }}</span></p>
+      <p class="form-note is-warning" role="alert">{% icon "status_error" %}<span>{{ import_error }}</span></p>
       {% endif %}
 
       <div class="form-note is-warning import-rules">
-        {% include "components/icon.html" with name="alert-triangle" %}
+        {% icon "status_warning" %}
         <ul>
           <li>استخدم القالب الرسمي فقط — أعمدة بترتيب ثابت، والبياناتُ ابتداءً من الصف الثالث</li>
           <li>أعمدة إلزامية: الرقم الشخصي + الاسم الكامل</li>
@@ -101,7 +102,7 @@
         {% csrf_token %}
 
         <div class="import-drop" id="drop-zone" role="group" aria-label="منطقة رفع ملف Excel">
-          {% include "components/icon.html" with name="file-spreadsheet" size="icon-2xl" %}
+          {% icon "export_excel" size="2xl" %}
           <p class="import-drop__title">اسحب ملف Excel هنا أو انقر للاختيار</p>
           <p class="form-hint">يُقبل: .xlsx أو .xls — الحجم الأقصى: 5 ميغا</p>
           <label for="student-file-input" class="sr-only">اختر ملف Excel</label>
@@ -110,7 +111,7 @@
         </div>
 
         <div id="file-preview" class="import-file" hidden>
-          {% include "components/icon.html" with name="file-spreadsheet" %}
+          {% icon "export_excel" %}
           <span id="file-name-display" class="import-file__name"></span>
           <span id="file-size-display" class="import-file__size"></span>
         </div>
@@ -118,12 +119,12 @@
         <div class="form-actions">
           <button type="button" data-call="toggleImportForm" class="btn-secondary btn-sm">إلغاء</button>
           <button type="submit" id="btn-import-submit" disabled class="btn-primary btn-sm" aria-disabled="true" title="سيتم إنشاء الحسابات وتسجيل الطلاب في فصولهم تلقائياً">
-            {% include "components/icon.html" with name="arrow-up-from-line" %} بدء الاستيراد
+            {% icon "import" %} بدء الاستيراد
           </button>
         </div>
 
         <div id="import-progress" class="import-progress" hidden>
-          <span class="import-progress__label">{% include "components/icon.html" with name="loader" %} جارٍ معالجة الملف…</span>
+          <span class="import-progress__label">{% icon "loading" %} جارٍ معالجة الملف…</span>
           <div class="import-progress__track" role="progressbar" aria-label="تقدم الاستيراد"><div class="import-progress__bar"></div></div>
         </div>
       </form>

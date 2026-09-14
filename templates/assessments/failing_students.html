@@ -9,7 +9,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "الطلاب الراسبون" subtitle=subtitle icon="alert-triangle" %}
+  {% page_header "الطلاب الراسبون" subtitle=subtitle icon="failing_students" %}
     <nav class="period-switch" aria-label="الفصل الدراسي">
       {% for val, label in SEMESTERS %}
         <a href="?semester={{ val }}&year={{ year }}" class="period-switch__item{% if semester == val %} is-current{% endif %}"{% if semester == val %} aria-current="page"{% endif %}>{{ label }}</a>
@@ -36,7 +36,7 @@
     {% endfor %}
   </div>
   {% else %}
-    {% empty_state "لا يوجد طلاب راسبون" sub="لا نتائجَ سنويّةً راسبةً في هذا العام" icon="check-circle" %}
+    {% empty_state "لا يوجد طلاب راسبون" sub="لا نتائجَ سنويّةً راسبةً في هذا العام" icon="status_success" %}
   {% endif %}
   <div id="noResults" class="hidden">
     {% empty_state "لا توجد نتائج مطابقة للبحث" icon="search" %}

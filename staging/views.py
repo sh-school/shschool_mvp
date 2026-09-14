@@ -432,15 +432,15 @@ def _result_presentation(dry_run: bool, imported: int, errors: list) -> dict:
     لم يُخطئ صفّ، وكهرمانيٌّ إن أُدخل بعضُه، وأحمرُ إن لم يُدخل شيء.
     """
     if dry_run and errors:
-        title, icon, tone = f"معاينة — يوجد {len(errors)} خطأ", "eye", "amber"
+        title, icon, tone = f"معاينة — يوجد {len(errors)} خطأ", "view", "amber"
     elif dry_run:
-        title, icon, tone = "معاينة — الملف جاهز للاستيراد", "eye", "blue"
+        title, icon, tone = "معاينة — الملف جاهز للاستيراد", "view", "blue"
     elif imported > 0 and not errors:
-        title, icon, tone = "اكتمل الاستيراد بنجاح", "check-circle", "green"
+        title, icon, tone = "اكتمل الاستيراد بنجاح", "status_success", "green"
     elif imported > 0:
-        title, icon, tone = "اكتمل الاستيراد مع تحذيرات", "alert-triangle", "amber"
+        title, icon, tone = "اكتمل الاستيراد مع تحذيرات", "status_warning", "amber"
     else:
-        title, icon, tone = "فشل الاستيراد", "x-circle", "red"
+        title, icon, tone = "فشل الاستيراد", "status_error", "red"
     return {
         "result_title": title,
         "result_icon": icon,

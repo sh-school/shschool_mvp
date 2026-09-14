@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block title %}ملفّ {{ student.full_name }}{% endblock %}
@@ -9,9 +10,9 @@
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header student.full_name subtitle=subtitle icon="users" %}
+  {% page_header student.full_name subtitle=subtitle icon="students" %}
     {% if can_write %}
-    <a href="{% url 'student_info:note_create' student.id %}?year={{ year }}" class="btn-primary btn-sm">{% include "components/icon.html" with name="file-pen" %} إضافة ملاحظة</a>
+    <a href="{% url 'student_info:note_create' student.id %}?year={{ year }}" class="btn-primary btn-sm">{% icon "edit_record" %} إضافة ملاحظة</a>
     {% endif %}
     {% if class_group %}
     <a href="{% url 'student_info:section_students' class_group.id %}?year={{ year }}" class="btn-secondary btn-sm">رجوع للشعبة</a>
@@ -25,7 +26,7 @@
   {% endkpi_strip %}
   {% endif %}
 
-  {% section_card "التحصيل ومستواه" meta=results|length icon="bar-chart" flush=True empty="لم تُرصد نتائج سنوية لهذا الطالب بعد" %}{% if results %}
+  {% section_card "التحصيل ومستواه" meta=results|length icon="grades" flush=True empty="لم تُرصد نتائج سنوية لهذا الطالب بعد" %}{% if results %}
     <div class="table-wrap">
       <table>
         <thead>
@@ -54,7 +55,7 @@
 
   {# ── ملاحظات الجهات الخمس ── #}
   {% for g in note_groups %}
-    {% section_card g.label meta=g.notes|length icon="file-pen" flush=True empty="لا ملاحظات من هذه الجهة" %}{% if g.notes %}
+    {% section_card g.label meta=g.notes|length icon="edit_record" flush=True empty="لا ملاحظات من هذه الجهة" %}{% if g.notes %}
       <div class="table-wrap">
         <table>
           <thead>
@@ -81,7 +82,7 @@
   {% endfor %}
 
   {# ── الأنشطة ── #}
-  {% section_card "الأنشطة" meta=activities|length icon="activity" flush=True empty="لا أنشطة مسجّلة لهذا الطالب هذا العام" %}{% if activities %}
+  {% section_card "الأنشطة" meta=activities|length icon="activities" flush=True empty="لا أنشطة مسجّلة لهذا الطالب هذا العام" %}{% if activities %}
     <div class="table-wrap">
       <table>
         <thead>

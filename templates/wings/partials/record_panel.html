@@ -1,9 +1,9 @@
-{% load ui %}
+{% load ui icons %}
 {% comment %}لوحُ رصد جناحٍ واحد — يقرؤه فهرسُ الرصد ولوحةُ المشرف الرئيسيّة.
 شريطُه يحمل أزرارَ التصدير، فهو لوحُ جناحٍ (`wing-panel`) لا `section_card`.{% endcomment %}
   <div class="wing-panel">
     <div class="wing-panel__bar">
-      {% include "components/icon.html" with name="building" %}
+      {% icon "school_building" %}
       {{ panel.wing.name }}
       <span class="wing-panel__sub">
         {% if panel.done == panel.total %}
@@ -18,9 +18,9 @@
           <option value="landscape">أفقي</option>
           <option value="portrait">عمودي</option>
         </select>
-        <button type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% include "components/icon.html" with name="download" %} Excel</button>
-        <button type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% include "components/icon.html" with name="file-pen" %} PDF</button>
-        <button type="submit" name="print" value="1" formtarget="_blank" class="btn-secondary btn-sm">{% include "components/icon.html" with name="printer" %} طباعة كشف الجناح</button>
+        <button type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% icon "export_excel" %} Excel</button>
+        <button type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% icon "export_pdf" %} PDF</button>
+        <button type="submit" name="print" value="1" formtarget="_blank" class="btn-secondary btn-sm">{% icon "print" %} طباعة كشف الجناح</button>
       </form>
     </div>
 

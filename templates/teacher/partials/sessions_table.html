@@ -1,4 +1,4 @@
-{% load ui %}
+{% load ui icons %}
 {% comment %}جدولُ حصص اليوم في «جدول حصصي» — `sessions` و`next_session` و`is_recorder` من العرض.{% endcomment %}
 <div class="table-wrap-scroll sessions-scroll">
 <table class="sessions-table">
@@ -27,7 +27,7 @@
         <div class="sessions-table__subject">{{ session.subject.name_ar|default:"—" }}</div>
         {% if session.original_teacher_id %}
         <div class="swap-note">
-          {% include "components/icon.html" with name="refresh" size="icon-sm" %}
+          {% icon "refresh" size="sm" %}
           مبدَّلة — كانت لـ{{ session.original_teacher.full_name }}
         </div>
         {% endif %}

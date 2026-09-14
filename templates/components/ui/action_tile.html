@@ -1,6 +1,7 @@
 {% comment %}بلاطةُ انتقال — تُرسم من الوسم `{% action_tile %}` في core/templatetags/ui.py.{% endcomment %}
+{% load icons %}
 <a href="{{ href }}" class="action-card{% if primary %} action-primary{% endif %}">
-  {% if icon %}<span class="action-card-icon" aria-hidden="true">{% include "components/icon.html" with name=icon %}</span>{% endif %}
+  {% if icon %}<span class="action-card-icon" aria-hidden="true">{% icon_named icon %}</span>{% endif %}
   <span class="action-card-body">
     <span class="action-title">{{ title }}</span>
     {% if desc %}<span class="action-desc">{{ desc }}</span>{% endif %}

@@ -14,7 +14,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "غياب اليوم" subtitle=subtitle icon="calendar" %}
+  {% page_header "غياب اليوم" subtitle=subtitle icon="absence" %}
     <form method="get" class="rec-datebar">
       <input type="date" name="date" value="{{ report.day|date:'Y-m-d' }}" class="form-control" aria-label="التاريخ">
       <button type="submit" class="btn-secondary btn-sm">اعرض</button>
@@ -33,7 +33,7 @@
   {% endif %}
 
   {% if report.ministry_rows %}
-  {% section_card "للرفع في نظام الوزارة — غابوا الحصّتين الأولى والثانية" meta=report.ministry_rows|length icon="alert-triangle" %}
+  {% section_card "للرفع في نظام الوزارة — غابوا الحصّتين الأولى والثانية" meta=report.ministry_rows|length icon="status_warning" %}
     <p class="bell-note">يرفعها مشرفُ الجناح في نظام الوزارة خارجَ المنصّة، بعذرٍ أو بدونه بحسب حال الطالب.</p>
     <div class="table-wrap">
       <table data-no-sort>
@@ -52,7 +52,7 @@
   {% endsection_card %}
   {% endif %}
 
-  {% section_card "الغائبون والمتأخّرون — كلُّ طالبٍ في سطر" meta=report.rows|length icon="list-checks" %}
+  {% section_card "الغائبون والمتأخّرون — كلُّ طالبٍ في سطر" meta=report.rows|length icon="absence" %}
     {% if report.rows %}
     <div class="table-wrap">
       <table class="dab" data-no-sort>

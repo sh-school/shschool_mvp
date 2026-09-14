@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load privacy ui %}
 {% block title %}السجل الصحي — {{ student.full_name }}{% endblock %}
 
@@ -11,7 +12,7 @@
 
   {# ── ترويسةُ الصفحة: الطالبُ ورقمُه المستور في السطر الوصفيّ ── #}
   {% with masked=student.national_id|mask_id %}
-  {% page_header "السجل الصحي" subtitle=student.full_name|add:" · "|add:masked icon="hospital" %}
+  {% page_header "السجل الصحي" subtitle=student.full_name|add:" · "|add:masked icon="clinic" %}
     <a href="{% url 'clinic:record_visit_student' student.id %}" class="btn-primary btn-sm no-underline">+ تسجيل زيارة جديدة</a>
     <a href="{% url 'clinic:dashboard' %}" class="btn-secondary btn-sm no-underline">← رجوع</a>
   {% endpage_header %}
@@ -21,7 +22,7 @@
 
     {# ── البيانات الصحية ── #}
     <div class="lg:col-span-1">
-      {% section_card "البيانات الصحية" icon="list-checks" %}
+      {% section_card "البيانات الصحية" icon="clinic" %}
         <form method="post" action="">
           {% csrf_token %}
           <div class="form-stack">
@@ -33,7 +34,7 @@
             {% field "emergency_contact_phone" "هاتف الطوارئ" type="tel" inputmode="tel" value=health_record.emergency_contact_phone placeholder="+974XXXXXXXX" %}
           </div>
           <button type="submit" class="btn-danger mt-4 w-full py-2 text-sm font-bold">
-            {% include "components/icon.html" with name="save" %} حفظ السجل الصحي
+            {% icon "save" %} حفظ السجل الصحي
           </button>
         </form>
 
@@ -45,7 +46,7 @@
 
     {# ── سجل الزيارات ── #}
     <div class="lg:col-span-2">
-      {% section_card "سجل الزيارات" meta=visits|length icon="calendar" empty="لا توجد زيارات مسجلة لهذا الطالب" %}{% if visits %}
+      {% section_card "سجل الزيارات" meta=visits|length icon="observation" empty="لا توجد زيارات مسجلة لهذا الطالب" %}{% if visits %}
         {% filter_bar "بحثٌ في الزيارات" live=True %}
           {% field "visit_q" "بحث في الزيارات" type="search" id="visit-search" hide_label=True grow=True placeholder="بحث في الزيارات..." autocomplete="off" %}
         {% endfilter_bar %}
@@ -59,7 +60,7 @@
               <span class="status-badge status-warning">أُرسل للمنزل</span>
               {% endif %}
               {% if visit.parent_notified %}
-              <span class="status-badge status-success">{% include "components/icon.html" with name="check" %} أُبلغ ولي الأمر</span>
+              <span class="status-badge status-success">{% icon "confirm" %} أُبلغ ولي الأمر</span>
               {% endif %}
               {% if visit.temperature %}
               <span class="clinic-temp{% if visit.is_feverish %} is-fever{% endif %}">{{ visit.temperature }}°</span>

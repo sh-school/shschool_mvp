@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui %}
 
 {% block title %}تغطية الأجنحة{% endblock %}
@@ -10,7 +11,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "تغطية الأجنحة" subtitle=subtitle icon="waypoints" %}
+  {% page_header "تغطية الأجنحة" subtitle=subtitle icon="wing_coverage" %}
     <span class="exec-date">{{ today|date:"D، d M Y" }}</span>
   {% endpage_header %}
 
@@ -23,7 +24,7 @@
 
   <div class="wing-row">
   {% for row in rows %}
-  {% section_card row.wing.name meta=row.wing.get_floor_display icon="building" %}
+  {% section_card row.wing.name meta=row.wing.get_floor_display icon="school_building" %}
     <div class="wing-box">
       <div class="wing-box__head">
         <div>
@@ -50,7 +51,7 @@
         {% if row.coverage.note %}<div class="wing-box__count">{{ row.coverage.note }}</div>{% endif %}
         {% if row.coverage.end_date %}
           <div class="wing-now">
-            {% include "components/icon.html" with name="calendar" %}
+            {% icon "date" %}
             <span>
               {% if row.coverage.end_date == today %}
                 تنتهي <b>اليوم</b> — ويعود الأصيلُ غداً
@@ -78,7 +79,7 @@
                    value="{{ row.coverage.end_date|default_if_none:today|date:'Y-m-d' }}" class="form-control">
           </label>
           <button type="submit" class="btn-secondary btn-sm">
-            {% include "components/icon.html" with name="check" %}
+            {% icon "confirm" %}
             {% if row.coverage.end_date %}عدّلِ التاريخ{% else %}أنهِ التغطية{% endif %}
           </button>
         </form>
@@ -118,7 +119,7 @@
             <input type="text" name="note" class="form-control" maxlength="200">
           </label>
           <button type="submit" class="btn-primary btn-sm">
-            {% include "components/icon.html" with name="user-plus" %} عيّن بديلاً
+            {% icon "user_add" %} عيّن بديلاً
           </button>
         </form>
       {% endif %}

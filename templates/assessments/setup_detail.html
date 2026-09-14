@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load ui dict_filters %}
 {% block title %}{{ setup.subject.name_ar }} — {{ setup.class_group }}{% endblock %}
 
@@ -9,13 +10,13 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header setup.subject.name_ar subtitle=subtitle icon="book-open" %}
+  {% page_header setup.subject.name_ar subtitle=subtitle icon="library" %}
     <nav class="period-switch" aria-label="الفصل الدراسي">
       {% for val, label in SEMESTERS %}
         <a href="?semester={{ val }}" class="period-switch__item{% if semester == val %} is-current{% endif %}"{% if semester == val %} aria-current="page"{% endif %}>{{ label }}</a>
       {% endfor %}
     </nav>
-    <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}" class="btn-primary btn-sm">{% include "components/icon.html" with name="bar-chart" %} كشف الدرجات</a>
+    <a href="{% url 'class_gradebook' setup.id %}?semester={{ semester }}" class="btn-primary btn-sm">{% icon "grades" %} كشف الدرجات</a>
   {% endpage_header %}
 
   {% kpi_strip label="أرقام المادة" %}
@@ -27,7 +28,7 @@
 
   <div class="ui-grid-2">
     {% for pkg in packages %}
-    {% section_card pkg.get_package_type_display meta=pkg.assessments.count icon="layers" %}
+    {% section_card pkg.get_package_type_display meta=pkg.assessments.count icon="wings" %}
       <ul class="chip-row" aria-label="وزن الباقة">
         <li class="chip-stat"><span class="chip-stat__key">الرمز</span><b class="chip-stat__value">{{ pkg.package_type }}</b></li>
         <li class="chip-stat"><span class="chip-stat__key">الوزن</span><b class="chip-stat__value">{{ pkg.weight|floatformat:"-2" }}%</b></li>
@@ -51,12 +52,12 @@
         {% endfor %}
       </ul>
       {% else %}
-        {% empty_state "لا توجد تقييمات بعد" sub="أضف أوّلَ تقييمٍ في هذه الباقة" icon="inbox" %}
+        {% empty_state "لا توجد تقييمات بعد" sub="أضف أوّلَ تقييمٍ في هذه الباقة" icon="assessments" %}
       {% endif %}
       {% endwith %}
 
       <div class="asm-new">
-        <button type="button" class="btn-ghost btn-sm" data-toggle-class="#form-{{ pkg.id }}|hidden">{% include "components/icon.html" with name="plus" %} إضافة تقييم</button>
+        <button type="button" class="btn-ghost btn-sm" data-toggle-class="#form-{{ pkg.id }}|hidden">{% icon "add" %} إضافة تقييم</button>
         <form id="form-{{ pkg.id }}" method="post" action="{% url 'create_assessment' pkg.id %}" class="asm-new__form hidden">
           {% csrf_token %}
           <div class="asm-new__fields">

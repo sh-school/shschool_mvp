@@ -9,7 +9,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "إحصائيات النقل المدرسي" icon="bar-chart" %}
+  {% page_header "إحصائيات النقل المدرسي" icon="transport" %}
     <a href="{% url 'transport:dashboard' %}" class="btn-secondary btn-sm">← رجوع</a>
   {% endpage_header %}
 
@@ -20,7 +20,7 @@
     {% kpi "نسبة الإشغال" utilization_label tone="orange" %}
   {% endkpi_strip %}
 
-  {% section_card "تفاصيل الحافلات" icon="bus" flush=True empty="لا توجد حافلات مسجلة" %}{% if buses %}
+  {% section_card "تفاصيل الحافلات" icon="transport" flush=True empty="لا توجد حافلات مسجلة" %}{% if buses %}
     <div class="transport-search">
       {% field "q" "بحث برقم الحافلة أو اسم السائق" id="bus-search" hide_label=True placeholder="بحث برقم الحافلة أو اسم السائق..." %}
     </div>

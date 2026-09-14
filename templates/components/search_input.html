@@ -1,3 +1,4 @@
+{% load icons %}
 {% comment %}
   مكوّن البحث الحي (HTMX) — SchoolOS v5.1
   ══════════════════════════════════════════
@@ -18,7 +19,7 @@
     indicator   — id لـ loading indicator
 {% endcomment %}
 <div class="search-wrap">
-  <span class="search-icon" aria-hidden="true">{% include "components/icon.html" with name="search" %}</span>
+  <span class="search-icon" aria-hidden="true">{% icon "search" %}</span>
   <input
     type="search"
     name="{{ name|default:'q' }}"
@@ -40,5 +41,5 @@
     {% if indicator %}id="{{ indicator }}"{% endif %}
     class="htmx-indicator"
     aria-hidden="true"
-  >{% include "components/icon.html" with name="clock" %}</span>
+  >{% icon "time" %}</span>
 </div>

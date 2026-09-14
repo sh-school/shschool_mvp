@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load icons %}
 {% load privacy ui %}
 {% block title %}{% if is_dry_run %}معاينة الاستيراد{% else %}نتيجة الاستيراد{% endif %}{% endblock %}
 
@@ -11,9 +12,9 @@
 
   {% page_header result_title subtitle=assessment.title icon=result_icon %}
     {% if not is_dry_run %}
-    <a href="{% url 'grade_entry' assessment.id %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="list-checks" %} عرض كشف الدرجات</a>
+    <a href="{% url 'grade_entry' assessment.id %}" class="btn-primary btn-sm">{% icon "grades" %} عرض كشف الدرجات</a>
     {% endif %}
-    <a href="{% url 'import_grades_select' %}" class="{% if is_dry_run %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">{% include "components/icon.html" with name="arrow-up-from-line" %} {% if is_dry_run %}ارفع الملف للاستيراد الفعلي{% else %}رجوع للاستيراد{% endif %}</a>
+    <a href="{% url 'import_grades_select' %}" class="{% if is_dry_run %}btn-primary{% else %}btn-secondary{% endif %} btn-sm">{% icon "upload" %} {% if is_dry_run %}ارفع الملف للاستيراد الفعلي{% else %}رجوع للاستيراد{% endif %}</a>
   {% endpage_header %}
 
   {% kpi_strip label="نتيجة الملف" %}
@@ -26,10 +27,10 @@
     {% kpi "سجلات بها خطأ" log.failed_rows tone=failed_tone %}
   {% endkpi_strip %}
 
-  {% section_card "الملف والتقييم" meta=log.file_name icon="file-spreadsheet" %}
+  {% section_card "الملف والتقييم" meta=log.file_name icon="export_excel" %}
     {% if is_dry_run %}
     <p class="form-note is-warning" role="note">
-      {% include "components/icon.html" with name="eye" %}
+      {% icon "view" %}
       <span>وضع المعاينة — لم يُحفظ أيُّ درجة. راجع الأخطاء، ثمّ ارفع الملف مجدداً واختر <strong>استيراد</strong> للحفظ الفعلي.</span>
     </p>
     {% endif %}
@@ -40,17 +41,17 @@
   {% endsection_card %}
 
   {% if errors %}
-  {% section_card "الأخطاء" meta=errors|length icon="x-circle" %}
+  {% section_card "الأخطاء" meta=errors|length icon="status_error" %}
     <ul class="plain-list is-scroll">
       {% for err in errors %}
-      <li class="plain-list__row import-error">{% include "components/icon.html" with name="x" %}<span class="plain-list__main">{{ err }}</span></li>
+      <li class="plain-list__row import-error">{% icon "close" %}<span class="plain-list__main">{{ err }}</span></li>
       {% endfor %}
     </ul>
   {% endsection_card %}
   {% endif %}
 
   {% if is_dry_run and preview_rows %}
-  {% section_card "الصفوف التي ستُستورد" meta=preview_rows|length icon="check-circle" flush=True %}
+  {% section_card "الصفوف التي ستُستورد" meta=preview_rows|length icon="status_success" flush=True %}
     <div class="table-wrap">
       <table>
         <thead>

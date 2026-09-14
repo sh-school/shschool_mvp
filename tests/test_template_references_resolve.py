@@ -50,15 +50,20 @@ def test_every_requested_icon_exists_in_the_sprite(path, name):
 
 @pytest.mark.parametrize("path,name", list(_calls(EMPTY_STATE_ICON)), ids=lambda v: str(v))
 def test_the_empty_state_icon_is_a_sprite_name_not_a_glyph(path, name):
-    """المكوّنُ يرسم أيقونةً الآن — فما يُمرَّر إليه اسمٌ لا رمزٌ ولا emoji."""
-    assert name in _sprite_names(), f"{path}: «{name}» ليس اسمَ أيقونةٍ — وكان يُطبَع بحروفه مكانَ الرسم"
+    """المكوّنُ يرسم أيقونةً الآن — فما يُمرَّر إليه معنًى في القاموس أو اسمٌ في
+    الورقة القديمة (حتّى يكتمل الترحيل)، لا رمزٌ ولا emoji."""
+    from core.icons import ICONS
+
+    assert (
+        name in ICONS or name in _sprite_names()
+    ), f"{path}: «{name}» ليس اسمَ أيقونةٍ — وكان يُطبَع بحروفه مكانَ الرسم"
 
 
 def test_the_empty_state_renders_an_icon_element_not_bare_text():
     """الحارسُ الحقيقيّ: لو عاد المكوّنُ إلى الطباعة الخام لمرّ ما فوقه صامتاً."""
     body = (TEMPLATES / "components" / "empty_state.html").read_text(encoding="utf-8")
 
-    assert "components/icon.html" in body
+    assert "{% icon_named icon" in body
     assert "{{ icon }}" not in body, "طباعةُ الاسم خاماً هي العطبُ نفسُه"
 
 

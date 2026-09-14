@@ -9,14 +9,14 @@
 {% block content %}
 <div class="exec-dash">
 
-{% page_header "تقرير أعباء المعلمين" subtitle=year icon="activity" %}{% endpage_header %}
+{% page_header "تقرير أعباء المعلمين" subtitle=year icon="workload" %}{% endpage_header %}
 
 {% kpi_strip label="أرقام الأعباء" %}
   {% kpi "المعلمون" total_teachers %}
   {% kpi "متوسط الحصص" avg_label sub="في الأسبوع" tone="green" %}
 {% endkpi_strip %}
 
-{% section_card "توزيع الحصص والعدالة" icon="users" flush=True empty="لا معلّمين في النطاق" %}{% if teacher_data %}
+{% section_card "توزيع الحصص والعدالة" icon="workload" flush=True empty="لا معلّمين في النطاق" %}{% if teacher_data %}
   {% filter_bar "بحثٌ في المعلّمين" live=True css="load-search" %}
     {% field "q" "بحث باسم المعلم" type="search" id="teacher-search" hide_label=True grow=True placeholder="بحث باسم المعلم..." autocomplete="off" %}
   {% endfilter_bar %}

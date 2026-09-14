@@ -1,4 +1,4 @@
-{% load ui %}
+{% load ui icons %}
 {% comment %}
 شبكةُ التفريغ — أسبوعُ معلّمٍ خانةً خانة.
 
@@ -91,7 +91,7 @@
     <input type="hidden" name="year" value="{{ year }}">
     <span data-exg-drop-fields></span>
     <button type="submit" class="btn-secondary text-xs" data-exg-drop hidden>
-      {% include "components/icon.html" with name="trash-2" size="icon-sm" %}
+      {% icon "delete" size="sm" %}
       إلغاءُ التفريغ عن <b data-exg-drop-count>0</b> خانة
     </button>
   </form>

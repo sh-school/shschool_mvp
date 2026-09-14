@@ -1,3 +1,4 @@
+{% load icons %}
 {# Modal: تقييم الأداء والمراجعة الذاتية — يُحمَّل عبر HTMX في #modal-container #}
 
 <div class="q-modal-overlay" data-close-on-backdrop
@@ -7,14 +8,14 @@
     {# ═══ Header ═══ #}
     <div class="q-modal-header">
       <div class="header-content">
-        <div class="header-icon">{% include "components/icon.html" with name="gavel" %}</div>
+        <div class="header-icon">{% icon "self_review" %}</div>
         <div>
           <h3>تقييم الأداء والمراجعة الذاتية</h3>
           <p class="sub">رقم الإجراء: <span dir="ltr">{{ task.number }}</span></p>
         </div>
       </div>
       <button class="close-btn" data-close-modal="closest:.q-modal-overlay" aria-label="إغلاق">
-        {% include "components/icon.html" with name="x" %}
+        {% icon "close" %}
       </button>
     </div>
 
@@ -23,7 +24,7 @@
 
       {# Section 1: بيانات الإجراء والمؤشر (read-only) #}
       <div class="q-modal-info">
-        <div class="section-title">{% include "components/icon.html" with name="info" %} بيانات الإجراء والمؤشر</div>
+        <div class="section-title">{% icon "status_info" %} بيانات الإجراء والمؤشر</div>
         <div class="info-grid">
           <div>
             <div class="info-label">الإجراء</div>
@@ -46,7 +47,7 @@
 
       {# Section 2: بيانات التنفيذ والأدلة (read-only) #}
       <div class="q-modal-info">
-        <div class="section-title">{% include "components/icon.html" with name="clipboard-check" %} بيانات التنفيذ والأدلة</div>
+        <div class="section-title">{% icon "document" %} بيانات التنفيذ والأدلة</div>
         <div class="info-grid">
           {# حالة المتابعة #}
           <div>
@@ -73,7 +74,7 @@
             <div class="flex flex-wrap gap-2">
               {% for ev in task.evidences.all %}
               <a href="{{ ev.file.url }}" target="_blank" class="q-evidence-link">
-                {% include "components/icon.html" with name="download" %} {{ ev.title|truncatechars:25 }}
+                {% icon "download" %} {{ ev.title|truncatechars:25 }}
               </a>
               {% endfor %}
             </div>
@@ -96,7 +97,7 @@
         <input type="hidden" name="next" value="{{ request.META.HTTP_REFERER }}">
 
         <div class="q-modal-decision">
-          <div class="section-title">{% include "components/icon.html" with name="stamp" %} قرار اللجنة</div>
+          <div class="section-title">{% icon "behavior_committee" %} قرار اللجنة</div>
 
           {# طلب أدلة إضافية (checkbox + toggling textarea) #}
           <div class="q-evidence-request">
@@ -105,7 +106,7 @@
               <input type="checkbox" id="req-evidence-cb"
                      {% if task.evidence_request_status == 'requested' %}checked{% endif %}
 >
-              {% include "components/icon.html" with name="file-warning" %}
+              {% icon "quality" %}
               طلب أدلة إضافية من المنفذ
             </label>
             <div id="evidence-note-section" class="{% if task.evidence_request_status != 'requested' %}hidden{% endif %}">
@@ -150,7 +151,7 @@
         <div class="q-modal-footer">
           <button type="button" class="btn-cancel" data-close-modal="closest:.q-modal-overlay">إلغاء</button>
           <button type="submit" class="btn-save">
-            {% include "components/icon.html" with name="check-double" %} حفظ واعتماد
+            {% icon "all_present" %} حفظ واعتماد
           </button>
         </div>
       </form>

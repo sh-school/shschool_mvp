@@ -1,3 +1,4 @@
+{% load icons %}
 {% comment %}
   مكوّن رفع الملفات (Drag & Drop) — SchoolOS v5.1
   ═══════════════════════════════════════════════════
@@ -30,7 +31,7 @@
   >
 
   <div data-dz-content>
-    <div class="dropzone-icon">{% include "components/icon.html" with name="file-text" size="icon-2xl" %}</div>
+    <div class="dropzone-icon">{% icon "document" size="2xl" %}</div>
     <div class="dropzone-label">{{ label|default:"اسحب الملف هنا أو" }}</div>
     <button
       type="button"
@@ -46,7 +47,7 @@
   {# ── معاينة الملف بعد الاختيار ── #}
   <div class="dropzone-preview">
     <div class="dropzone-preview-inner">
-      <span class="icon-lg">{% include "components/icon.html" with name="file-text" %}</span>
+      <span class="icon-lg">{% icon "document" %}</span>
       <div class="dropzone-preview-meta">
         <div class="dropzone-preview-name" data-dz-name></div>
         <div class="dropzone-preview-size" data-dz-size></div>

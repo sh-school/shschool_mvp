@@ -85,7 +85,7 @@
   <div class="table-empty sa-register__foot">{{ total }} منتسباً — صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</div>
   {% include "components/pagination.html" with page_obj=page_obj target="#staff-table-container" swap="outerHTML" %}
   {% else %}
-  {% empty_state "لا منتسبين مطابقين" sub="جرّب بحثاً آخر أو غيّر الترشيح" icon="users" %}
+  {% empty_state "لا منتسبين مطابقين" sub="جرّب بحثاً آخر أو غيّر الترشيح" icon="staff" %}
   {% endif %}
 </div>
 </div>
