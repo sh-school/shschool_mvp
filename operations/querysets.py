@@ -8,6 +8,8 @@ from __future__ import annotations
 from django.db.models import Count, Q, QuerySet
 from django.utils import timezone
 
+from core.domain.attendance import attendance_rate
+
 
 class SessionQuerySet(QuerySet):
     """QuerySet لـ Session (الحصص الدراسية)."""
@@ -120,7 +122,7 @@ class AttendanceQuerySet(QuerySet):
             "total": total,
             "present": present,
             "absent": total - present,
-            "rate": round((present / total * 100), 1) if total else 0,
+            "rate": attendance_rate(present, total, digits=1),
         }
 
 

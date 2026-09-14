@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
@@ -97,15 +97,17 @@ def bus_detail(request, bus_id):
 
         return redirect("transport:bus_detail", bus_id=bus_id)
 
-    # الطلاب المسجلين
-    routes = bus.routes.all()
+    # الطلاب المسجلين — وعددُ ركّاب كلّ خطٍّ يُعدّ في الاستعلام لا لكلّ خطٍّ في القالب.
+    routes = bus.routes.annotate(students_count=Count("students"))
     students = CustomUser.objects.filter(bus_routes__bus=bus).distinct()
+    student_count = students.count()
 
-    occupancy_rate = (students.count() / bus.capacity * 100) if bus.capacity > 0 else 0
+    occupancy_rate = (student_count / bus.capacity * 100) if bus.capacity > 0 else 0
     context = {
         "bus": bus,
         "routes": routes,
         "students": students,
+        "student_count": student_count,
         "occupancy_rate": occupancy_rate,
         "occupancy_label": f"{occupancy_rate:.0f}%",
         "page_title": f"حافلة {bus.bus_number}",

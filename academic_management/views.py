@@ -12,6 +12,7 @@ from django.template.loader import render_to_string
 from django.utils import timezone
 
 from core.capabilities import capability_required
+from core.domain.tones import tone_for
 from core.pdf_utils import render_pdf
 from reports.services import AcademicReportsExcel, AcademicReportsService
 
@@ -121,15 +122,13 @@ def _range_label(low, high) -> str:
     return f"{low:g}–{high:g}"
 
 
+#: لونُ التقييم المدمج: 75 فأكثر نجاح، و50 فأكثر تحذير، ودونها خطر.
+COMBINED_SCORE_TONES = ((75, "is-success"), (50, "is-warning"), (None, "is-danger"))
+
+
 def _combined_tone(score) -> str:
-    """لونُ التقييم المدمج — العتباتُ التي كانت في القالب: 75 فأكثر، ثمّ 50."""
-    if score is None:
-        return "is-muted"
-    if score >= 75:
-        return "is-success"
-    if score >= 50:
-        return "is-warning"
-    return "is-danger"
+    """لونُ التقييم المدمج — وغيرُ المحسوب رماديّ."""
+    return tone_for(score, COMBINED_SCORE_TONES, empty="is-muted")
 
 
 def _present_quiz(data: dict) -> None:

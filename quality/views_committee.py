@@ -6,6 +6,7 @@ from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -303,7 +304,8 @@ def executor_member_detail(request, member_id):
 
     stats = QualityService._calc_stats(qs)
 
-    procedures = list(qs)
+    # عددُ الأدلّة يُعدّ في الاستعلام — كان `proc.evidences.count` استعلاماً لكلّ صفّ.
+    procedures = list(qs.annotate(evidence_count=Count("evidences")))
     for proc in procedures:
         proc.status_tone = procedure_status_tone(proc.status)
     subtitle = " · ".join(p for p in (member.job_title, member.responsibility) if p)

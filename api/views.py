@@ -43,6 +43,7 @@ from assessments.models import AnnualSubjectResult
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for
+from core.domain.attendance import attendance_rate
 from core.models import (
     ClassGroup,
     CustomUser,
@@ -298,7 +299,7 @@ def student_attendance(request, student_id):
             "present": present,
             "absent": absent,
             "late": late,
-            "att_pct": round(present / total * 100) if total else 0,
+            "att_pct": attendance_rate(present, total),
             "records": AttendanceSerializer(att, many=True).data,
         }
     )

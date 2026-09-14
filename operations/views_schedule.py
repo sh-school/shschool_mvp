@@ -21,6 +21,7 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.audit_export import log_export
 from core.capabilities import capability_required
+from core.domain.tones import tone_for
 from core.models import CustomUser, Membership
 from core.models.academic import grade_order
 from core.models.access import EXEMPTABLE_ROLES
@@ -151,7 +152,7 @@ def _schedule_print_selection(request):
     """ما يُطبع ولمن — يشترك فيه الورقُ وصفحةُ العرض التي تحتضنه."""
     from core.models import ClassGroup
 
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     # الورقةُ المعلّقة في المدرسة هي «الجدول العام للمعلمين»: المعلّمون
     # سطوراً والأسبوعُ عرضاً. وكان الافتراضُ `school` — خمسُ خاناتٍ تحشر
@@ -393,6 +394,9 @@ def schedule_print_view(request):
 _ABSENCE_TONES = {"covered": ("green", "success"), "uncovered": ("red", "danger")}
 _ABSENCE_TONE_DEFAULT = ("amber", "warning")
 
+#: لونُ درجة التوليد المنسوبة إلى الأساس: 98 فأعلى نجاح، و90 فأعلى تنبيه، ودونها خطر.
+LAB_RELATIVE_TONES = ((98, "success"), (90, "warning"), (None, "danger"))
+
 #: حالُ التعيين: قبِل أخضر، ورفض أحمر، ومُعيَّنٌ لم يُجِب بعدُ أزرق.
 _ASSIGNMENT_TONES = {"confirmed": "success", "declined": "danger"}
 
@@ -442,7 +446,7 @@ def teacher_absence_list(request):
     """قائمة غيابات المعلمين — للمدير والمنسق"""
     from core.permissions import get_department_teacher_ids
 
-    school = request.user.get_school()
+    school = request.school
     selected = request.GET.get("date", timezone.now().date().isoformat())
     try:
         abs_date = date.fromisoformat(selected)
@@ -472,7 +476,7 @@ def register_teacher_absence(request):
     """تسجيل غياب معلم — للمدير والمنسق"""
     from core.permissions import get_department_teacher_ids
 
-    school = request.user.get_school()
+    school = request.school
 
     if request.method == "POST":
         teacher = get_object_or_404(
@@ -520,7 +524,7 @@ def absence_detail(request, absence_id):
     """تفاصيل الغياب + تعيين البدلاء"""
     from core.permissions import get_department_teacher_ids
 
-    school = request.user.get_school()
+    school = request.school
     absence = get_object_or_404(TeacherAbsence, id=absence_id, school=school)
 
     dept_ids = get_department_teacher_ids(request.user)
@@ -575,7 +579,7 @@ def assign_substitute(request, absence_id, slot_id):
     """HTMX: تعيين بديل لحصة"""
     from core.permissions import get_department_teacher_ids
 
-    school = request.user.get_school()
+    school = request.school
     absence = get_object_or_404(TeacherAbsence, id=absence_id, school=school)
     slot = get_object_or_404(ScheduleSlot, id=slot_id, school=school)
 
@@ -612,7 +616,7 @@ def substitute_report(request):
     """تقرير الحصص البديلة"""
     from core.permissions import get_department_teacher_ids
 
-    school = request.user.get_school()
+    school = request.school
     today = timezone.now().date()
     date_from = date.fromisoformat(request.GET.get("from", (today - timedelta(days=7)).isoformat()))
     date_to = date.fromisoformat(request.GET.get("to", today.isoformat()))
@@ -709,7 +713,7 @@ def schedule_quality_lab(request):
         section_scores,
     )
 
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     generations = list(
         ScheduleGeneration.objects.filter(school=school, academic_year=year)
@@ -805,7 +809,7 @@ def schedule_quality_lab(request):
 @capability_required("schedule.admin")
 def smart_schedule_view(request):
     """صفحة إدارة الجدولة الذكية"""
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
     assignments = (
@@ -912,16 +916,7 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
       توليدٍ جدولُه، فلا يُقارَن توليدٌ بتوليدٍ إلّا بفتح اثنين والتنقّل بينهما.
     """
     for g in generations:
-        relative = g.lab_relative
-        g.lab_tone = (
-            ""
-            if relative is None
-            else "success"
-            if relative >= 98
-            else "warning"
-            if relative >= 90
-            else "danger"
-        )
+        g.lab_tone = tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
     measured = [g for g in generations if g.lab_rows]
     rows: dict[str, dict] = {}
     for column, g in enumerate(measured):
@@ -974,7 +969,7 @@ def smart_generate(request):
     والصفُّ يُنشأ هنا قبل الإرسال لا في العامل: هو ما يراه المستخدمُ حالةً،
     وهو ما يمنع توليداً ثانياً فوق جارٍ.
     """
-    school = request.user.get_school()
+    school = request.school
     year = request.POST.get("year") or academic_year_for(request)
 
     # حارسُ التزامن — توليدان متوازيان يتنازعان جدولاً واحداً، وآخرُهما يفوز
@@ -1028,7 +1023,7 @@ def smart_generate_status(request):
     وحدُّ ما تُرجعه مقصود: حالةٌ ونصٌّ مختصر. فصفحةٌ تُعيد تحميلَ نفسها كلَّ
     ثلاثِ ثوانٍ على مئاتِ الصفوف تُثقل الخادمَ لتقول «ما زال يعمل».
     """
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
     # ما تقادم لا يُقال عنه «جارٍ» — وإلّا استطلعت الصفحةُ إلى الأبد.
@@ -1069,7 +1064,7 @@ def teacher_load_report(request):
     """تقرير أحمال المعلمين"""
     from core.permissions import get_department_teacher_ids
 
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
     dept_ids = get_department_teacher_ids(request.user)
@@ -1140,7 +1135,7 @@ def _mark_teacher_loads(data: dict) -> None:
 @capability_required("schedule.preferences")
 def teacher_preferences(request):
     """صفحة تفضيلات المعلم للجدولة الذكية"""
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     pref, _created = TeacherPreference.objects.get_or_create(
         teacher=request.user,
@@ -1238,7 +1233,7 @@ def teacher_preferences(request):
 @require_POST
 def approve_schedule(request, generation_id):
     """اعتماد الجدول المولّد"""
-    school = request.user.get_school()
+    school = request.school
     gen = get_object_or_404(ScheduleGeneration, id=generation_id, school=school)
 
     if gen.status != "draft":
@@ -1273,7 +1268,7 @@ def _one_of(raw, allowed, fallback):
 @capability_required("schedule.settings")
 def schedule_settings(request):
     """إعدادات الجدول الذكي — تفريغات المعلمين + حصص مزدوجة"""
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
     # التفريغاتُ كلُّها في جدولٍ واحد: كان قسمان — «تفريغات» و«قيودٌ شخصيّةٌ
@@ -1327,7 +1322,7 @@ def exemption_grid(request):
 
     from .forms import TeacherExemptionForm
 
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     raw = (request.GET.get("teacher") or "").strip()
 
@@ -1375,7 +1370,7 @@ def add_exemption(request):
 
     from .forms import TeacherExemptionForm
 
-    school = request.user.get_school()
+    school = request.school
     year = request.POST.get("year") or academic_year_for(request)
 
     form = TeacherExemptionForm(request.POST, school=school)
@@ -1475,7 +1470,7 @@ def add_exemption(request):
 @require_POST
 def remove_exemption(request, exemption_id):
     """إلغاء تفريغ"""
-    school = request.user.get_school()
+    school = request.school
     exemption = get_object_or_404(TeacherExemption, id=exemption_id, school=school)
     exemption.is_active = False
     exemption.save(update_fields=["is_active"])
@@ -1499,7 +1494,7 @@ def remove_exemptions(request):
     خادمٍ لا رسالةً، ومدرسةُ المُدخِلِ قيدٌ لا تجميل — فلا يُلغي أحدٌ
     تفريغَ مدرسةٍ غيرِ مدرسته ولو حزر معرِّفَه.
     """
-    school = request.user.get_school()
+    school = request.school
     year = request.POST.get("year") or None
 
     ids = []
@@ -1534,7 +1529,7 @@ def remove_preferences(request):
     فصفٌّ مطفأٌ باقٍ يمنع صاحبَه أن يسجّل تفضيلاً جديداً. وما يضيع يعيده
     صاحبُه من شاشته.
     """
-    school = request.user.get_school()
+    school = request.school
 
     ids = []
     for raw in request.POST.getlist("preference_id"):
@@ -1569,7 +1564,7 @@ def save_subject_scheduling(request):
     تحسبها القسمةُ في HC6 لا قراراً يُتَّخذ، ومادّةُ ستِّ حصصٍ تأخذ يوماً
     بحصّتين — لا استحالةَ فيها حتّى تُقال.
     """
-    school = request.user.get_school()
+    school = request.school
     doubled = set(request.POST.getlist("double"))
     changed = []
     for subject in Subject.objects.filter(school=school):
@@ -1594,7 +1589,7 @@ def save_subject_scheduling(request):
 
 def _pages_payload(request) -> dict:
     """ما يُطبع: معلّمون (كلُّهم أو قسمٌ أو واحدٌ) أو شُعب — والاتّجاهُ من الرابط."""
-    school = request.user.get_school()
+    school = request.school
     year = request.GET.get("year") or academic_year_for_school(school)
     kind = "classes" if request.GET.get("kind") == "classes" else "teachers"
     dept = request.GET.get("dept") or "all"

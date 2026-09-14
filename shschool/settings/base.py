@@ -89,6 +89,8 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "core.middleware.SchoolPermissionMiddleware",
+    # `request.school` — مدرسةُ المستخدم تُحسب مرّةً بعد حارس المسارات (الذي حمّل العضويّة)
+    "core.middleware.SchoolContextMiddleware",
     "core.middleware.CurrentUserMiddleware",
     "core.middleware.SentryScopeMiddleware",  # ✅ v5.5: Sentry context (school_id + role)
     "operations.middleware.SessionAutoGenerateMiddleware",  # ✅ توليد الحصص تلقائياً — بدون Celery

@@ -41,7 +41,7 @@
           <li class="plain-list__row">
             <span class="plain-list__main">
               <b class="plain-list__title">{{ assessment.title }}</b>
-              <span class="plain-list__sub">{{ assessment.get_assessment_type_display }}{% if assessment.date %} · {{ assessment.date }}{% endif %} · {{ assessment.grades.count }}/{{ student_count }} مُدخَل</span>
+              <span class="plain-list__sub">{{ assessment.get_assessment_type_display }}{% if assessment.date %} · {{ assessment.date }}{% endif %} · {{ assessment.grades_count }}/{{ student_count }} مُدخَل</span>
             </span>
             <span class="asm-row-actions">
               <span class="status-badge {{ status_tones|get_item:assessment.status|default:'status-warning' }}">{{ assessment.get_status_display }}</span>
