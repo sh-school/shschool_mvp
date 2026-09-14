@@ -305,68 +305,11 @@
   "staging/views.py::upload_grade_file": {
    "lines": 120
   },
-  "student_affairs/views.py::activities_export_excel": {
-   "lines": 68
-  },
-  "student_affairs/views.py::attendance_export_excel": {
-   "lines": 134,
-   "orm": 6
-  },
-  "student_affairs/views.py::attendance_overview": {
-   "lines": 134,
-   "orm": 24
-  },
-  "student_affairs/views.py::attendance_overview_pdf": {
-   "orm": 9
-  },
-  "student_affairs/views.py::behavior_export_excel": {
-   "lines": 69
-  },
-  "student_affairs/views.py::behavior_overview": {
-   "lines": 114,
-   "orm": 10
-  },
-  "student_affairs/views.py::behavior_overview_pdf": {
-   "lines": 74,
-   "orm": 7
-  },
   "student_affairs/views.py::student_add": {
    "lines": 82
   },
   "student_affairs/views.py::student_edit": {
    "lines": 76
-  },
-  "student_affairs/views.py::student_export_excel": {
-   "lines": 116,
-   "orm": 10
-  },
-  "student_affairs/views.py::student_list": {
-   "lines": 210,
-   "orm": 35
-  },
-  "student_affairs/views.py::student_profile": {
-   "lines": 157,
-   "orm": 33
-  },
-  "student_affairs/views.py::student_profile_pdf": {
-   "lines": 101,
-   "orm": 20
-  },
-  "student_affairs/views.py::tardiness_export_excel": {
-   "lines": 119,
-   "orm": 6
-  },
-  "student_affairs/views.py::tardiness_list": {
-   "lines": 135,
-   "orm": 14
-  },
-  "student_affairs/views.py::tardiness_pdf": {
-   "lines": 91,
-   "orm": 10
-  },
-  "student_affairs/views.py::tardiness_record": {
-   "lines": 107,
-   "orm": 6
   },
   "transport/views.py::buses_list": {
    "orm": 6

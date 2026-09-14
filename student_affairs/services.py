@@ -2,9 +2,15 @@
 student_affairs/services.py — Business Logic لشؤون الطلاب
 
 ثلاث طبقات خدمة:
-    StudentService     — إحصائيات لوحة التحكم + ملف الطالب + إنشاء/تعطيل
-    AttendanceService  — تقارير الحضور والغياب والتأخر
+    StudentService     — إحصائيات لوحة التحكم + إنشاء/تعديل/تعطيل
+    TardinessService   — تسجيل التأخّر الصباحيّ
     TransferService    — إدارة انتقالات الطلاب (وارد/صادر)
+
+والقراءاتُ التي تعرضها الصفحات في `selectors.py`. وكانت هنا ثلاثُ قراءاتٍ لا
+يستدعيها أحد — `get_student_profile_data` و`AttendanceService.get_attendance_overview`
+و`get_tardiness_report` — بنوافذ وحقولٍ غير التي تعرضها الصفحات،
+نسخٌ متباعدةٌ تُضلّل من يبحث عن
+الاستعلام الحيّ. فحُذفت يومَ نُقلت القراءاتُ الحيّةُ إلى `selectors.py` (2026-09-14).
 
 القواعد:
     - كل method يُعيد dict أو QuerySet — ليس HttpResponse
@@ -14,7 +20,6 @@ student_affairs/services.py — Business Logic لشؤون الطلاب
 """
 
 import logging
-from datetime import timedelta
 
 from django.db import transaction
 from django.db.models import Count, Q
@@ -40,12 +45,6 @@ def _get_attendance_model():
     return StudentAttendance
 
 
-def _get_absence_alert_model():
-    from operations.models import AbsenceAlert
-
-    return AbsenceAlert
-
-
 def _get_session_model():
     from operations.models import Session
 
@@ -62,18 +61,6 @@ def _get_clinic_model():
     from clinic.models import ClinicVisit
 
     return ClinicVisit
-
-
-def _get_grades_model():
-    from assessments.models import StudentSubjectResult
-
-    return StudentSubjectResult
-
-
-def _get_library_model():
-    from library.models import BookBorrowing
-
-    return BookBorrowing
 
 
 def _get_activity_model():
@@ -392,138 +379,6 @@ class StudentService:
 
     # ── ملف الطالب الشامل ──────────────────────────────────────────
 
-    @staticmethod
-    def get_student_profile_data(student_id, school, year: str) -> dict:
-        """
-        بيانات ملف الطالب الشامل — من 7 تطبيقات مع prefetch_related.
-
-        Args:
-            student_id: UUID أو PK للطالب
-            school: كائن المدرسة
-            year: العام الدراسي
-
-        Returns:
-            dict يحتوي: student, enrollment, attendance_records,
-                        behavior_data, grades, clinic, library,
-                        activities, transfers, parent_links
-
-        Raises:
-            CustomUser.DoesNotExist: إذا لم يُوجد الطالب
-        """
-        StudentAttendance = _get_attendance_model()
-        BehaviorInfraction = _get_behavior_model()
-        ClinicVisit = _get_clinic_model()
-        StudentSubjectResult = _get_grades_model()
-        BookBorrowing = _get_library_model()
-        StudentActivity = _get_activity_model()
-        StudentTransfer = _get_transfer_model()
-
-        student = (
-            CustomUser.objects.select_related("profile")
-            .prefetch_related(
-                "enrollments__class_group",
-                "parent_links__parent",
-            )
-            .get(pk=student_id)
-        )
-
-        # التسجيل الحالي
-        enrollment = (
-            StudentEnrollment.objects.filter(
-                student=student,
-                class_group__school=school,
-                class_group__academic_year=year,
-                is_active=True,
-            )
-            .select_related("class_group")
-            .first()
-        )
-
-        # سجلات الحضور (آخر 30 يوم)
-        thirty_days_ago = timezone.now().date() - timedelta(days=30)
-        attendance_records = (
-            StudentAttendance.objects.filter(
-                student=student,
-                school=school,
-                session__date__gte=thirty_days_ago,
-            )
-            .select_related("session", "session__class_group")
-            .order_by("-session__date")
-        )
-
-        # المخالفات السلوكية لهذا العام
-        behavior_data = (
-            BehaviorInfraction.objects.filter(
-                student=student,
-                school=school,
-                date__gte=_academic_year_start(year),
-            )
-            .select_related("violation_category", "reported_by")
-            .order_by("-date")
-        )
-
-        # الدرجات
-        grades = (
-            StudentSubjectResult.objects.filter(
-                student=student,
-                school=school,
-            )
-            .select_related("setup__subject", "setup__class_group")
-            .order_by("semester", "setup__subject__name")
-        )
-
-        # زيارات العيادة
-        clinic = (
-            ClinicVisit.objects.filter(
-                student=student,
-                school=school,
-            )
-            .select_related("nurse")
-            .order_by("-visit_date")[:20]
-        )
-
-        # المكتبة — إعارات نشطة
-        library = (
-            BookBorrowing.objects.filter(
-                user=student,
-                book__school=school,
-            )
-            .select_related("book")
-            .order_by("-borrow_date")[:20]
-        )
-
-        # الأنشطة
-        activities = StudentActivity.objects.filter(
-            student=student,
-            school=school,
-            academic_year=year,
-        ).order_by("-date")
-
-        # الانتقالات
-        transfers = StudentTransfer.objects.filter(
-            student=student,
-            school=school,
-        ).order_by("-transfer_date")
-
-        # ربط أولياء الأمور
-        parent_links = ParentStudentLink.objects.filter(
-            student=student,
-            school=school,
-        ).select_related("parent")
-
-        return {
-            "student": student,
-            "enrollment": enrollment,
-            "attendance_records": attendance_records,
-            "behavior_data": behavior_data,
-            "grades": grades,
-            "clinic": list(clinic),
-            "library": list(library),
-            "activities": activities,
-            "transfers": transfers,
-            "parent_links": parent_links,
-        }
-
     # ── إنشاء طالب جديد ───────────────────────────────────────────
 
     @staticmethod
@@ -727,196 +582,68 @@ class StudentService:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 2. AttendanceService — تقارير الحضور والغياب
+# 2. TardinessService — تسجيل التأخّر الصباحيّ
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class AttendanceService:
-    """خدمات تقارير الحضور والغياب والتأخر."""
+class TardinessService:
+    """تسجيلُ التأخّر الصباحيّ — كتابةٌ ذرّيّةٌ بسجلّ تدقيقها."""
 
     @staticmethod
-    def get_attendance_overview(
+    @transaction.atomic
+    def record_morning_tardiness(
+        *,
         school,
-        year: str,
-        date=None,
-        grade: str = None,
-        section: str = None,
-    ) -> dict:
+        student,
+        minutes: int | None,
+        excuse_file,
+        marked_by,
+        now,
+        ip_address: str | None = None,
+    ):
+        """يسجّل تأخّرَ الطالب في حصّة التأخّر يومَ `now` ويُرجع سجلَّ حضوره.
+
+        الحصّةُ أوّلُ حصّةٍ لشعبته اليوم، وإلّا أوّلُ حصّةٍ في المدرسة
+        (`selectors.tardiness_session`). ولا حصّةَ اليوم → `None` بلا كتابة.
+        وسجلٌّ قائمٌ للطالب في الحصّة نفسِها يُحدَّث ولا يُكرَّر، والتدقيقُ
+        (PDPPL) في المعاملة نفسِها: لا تأخّرَ يُكتب بلا أثره في السجلّ.
         """
-        إحصائيات شاملة للحضور والغياب.
+        from core.models.audit import AuditLog
 
-        Args:
-            school: كائن المدرسة
-            year: العام الدراسي
-            date: تاريخ محدد (افتراضي: اليوم)
-            grade: رمز الصف للفلترة (مثال: "G10")
-            section: الشعبة للفلترة (مثال: "أ")
+        from .selectors import tardiness_session
 
-        Returns:
-            dict يحتوي: summary, worst_students, class_breakdown,
-                        alerts, trend_data
-        """
-        StudentAttendance = _get_attendance_model()
-        AbsenceAlert = _get_absence_alert_model()
+        session = tardiness_session(school, student, now.date())
+        if session is None:
+            return None
 
-        today = date or timezone.now().date()
-
-        # ── بناء الفلتر الأساسي ──
-        base_filter = Q(school=school, session__date=today)
-        if grade:
-            base_filter &= Q(session__class_group__grade=grade)
-        if section:
-            base_filter &= Q(session__class_group__section=section)
-
-        # ── 1. ملخص اليوم ──
-        summary = StudentAttendance.objects.filter(base_filter).aggregate(
-            present=Count("id", filter=Q(status="present")),
-            absent=Count("id", filter=Q(status="absent")),
-            late=Count("id", filter=Q(status="late")),
-            excused=Count("id", filter=Q(status="excused")),
-            total=Count("id"),
+        fields = {
+            "status": "late",
+            "tardiness_minutes": minutes,
+            "excuse_notes": f"إذن تأخير {minutes} دقيقة" if minutes else "",
+            "tardiness_recorded_at": now,
+            "marked_by": marked_by,
+        }
+        attendance, created = _get_attendance_model().objects.get_or_create(
+            session=session, student=student, school=school, defaults=fields
         )
-        total = summary["total"] or 1  # تجنّب القسمة على صفر
-        summary["pct"] = round((summary["present"] / total) * 100, 1)
+        if not created:
+            for name, value in fields.items():
+                setattr(attendance, name, value)
+            attendance.save(update_fields=[*fields, "updated_at"])
+        if excuse_file:
+            attendance.excuse_file = excuse_file
+            attendance.save(update_fields=["excuse_file"])
 
-        # ── 2. أكثر 20 طالب غياباً هذا العام ──
-        year_filter = Q(
+        AuditLog.objects.create(
+            user=marked_by,
             school=school,
-            status="absent",
-            session__class_group__academic_year=year,
+            action="create",
+            model_name="other",
+            object_id=str(attendance.pk),
+            object_repr=f"تسجيل تأخير {student.full_name}",
+            ip_address=ip_address,
         )
-        if grade:
-            year_filter &= Q(session__class_group__grade=grade)
-        if section:
-            year_filter &= Q(session__class_group__section=section)
-
-        worst_students = (
-            StudentAttendance.objects.filter(year_filter)
-            .values("student__id", "student__full_name")
-            .annotate(absence_count=Count("id"))
-            .order_by("-absence_count")[:20]
-        )
-
-        # ── 3. توزيع حسب الصف ──
-        class_breakdown = (
-            StudentAttendance.objects.filter(
-                school=school,
-                session__date=today,
-                session__class_group__academic_year=year,
-            )
-            .values("session__class_group__grade", "session__class_group__section")
-            .annotate(
-                present=Count("id", filter=Q(status="present")),
-                absent=Count("id", filter=Q(status="absent")),
-                late=Count("id", filter=Q(status="late")),
-                excused=Count("id", filter=Q(status="excused")),
-                total=Count("id"),
-            )
-            .order_by(grade_order("session__class_group__grade"), "session__class_group__section")
-        )
-
-        # ── 4. تنبيهات الغياب المتكرر (قيد المراجعة) ──
-        alerts_filter = Q(school=school, status="pending")
-        alerts = (
-            AbsenceAlert.objects.filter(alerts_filter)
-            .select_related("student")
-            .order_by("-absence_count")[:30]
-        )
-
-        # ── 5. بيانات الاتجاه — آخر 30 يوم ──
-        thirty_days_ago = today - timedelta(days=30)
-        trend_data = (
-            StudentAttendance.objects.filter(
-                school=school,
-                session__date__gte=thirty_days_ago,
-                session__date__lte=today,
-            )
-            .values("session__date")
-            .annotate(
-                present=Count("id", filter=Q(status="present")),
-                absent=Count("id", filter=Q(status="absent")),
-                total=Count("id"),
-            )
-            .order_by("session__date")
-        )
-
-        return {
-            "summary": summary,
-            "worst_students": list(worst_students),
-            "class_breakdown": list(class_breakdown),
-            "alerts": alerts,
-            "trend_data": list(trend_data),
-        }
-
-    @staticmethod
-    def get_tardiness_report(
-        school,
-        date=None,
-        grade: str = None,
-        section: str = None,
-    ) -> dict:
-        """
-        تقرير التأخر الصباحي.
-
-        Args:
-            school: كائن المدرسة
-            date: تاريخ محدد (افتراضي: اليوم)
-            grade: رمز الصف للفلترة
-            section: الشعبة للفلترة
-
-        Returns:
-            dict يحتوي: late_records, total_late, class_breakdown, kpis
-        """
-        StudentAttendance = _get_attendance_model()
-
-        today = date or timezone.now().date()
-
-        # ── بناء الفلتر ──
-        base_filter = Q(school=school, session__date=today, status="late")
-        if grade:
-            base_filter &= Q(session__class_group__grade=grade)
-        if section:
-            base_filter &= Q(session__class_group__section=section)
-
-        # ── سجلات التأخر ──
-        late_records = (
-            StudentAttendance.objects.filter(base_filter)
-            .select_related(
-                "student",
-                "session__class_group",
-                "marked_by",
-            )
-            .order_by("session__start_time")
-        )
-
-        total_late = late_records.count()
-
-        # ── توزيع حسب الصف ──
-        class_breakdown = (
-            StudentAttendance.objects.filter(base_filter)
-            .values("session__class_group__grade", "session__class_group__section")
-            .annotate(count=Count("id"))
-            .order_by(grade_order("session__class_group__grade"))
-        )
-
-        # ── مؤشرات KPI ──
-        total_today = StudentAttendance.objects.filter(
-            school=school,
-            session__date=today,
-        ).count()
-
-        kpis = {
-            "total_late": total_late,
-            "total_students_today": total_today,
-            "late_pct": round((total_late / max(total_today, 1)) * 100, 1),
-        }
-
-        return {
-            "late_records": late_records,
-            "total_late": total_late,
-            "class_breakdown": list(class_breakdown),
-            "kpis": kpis,
-        }
+        return attendance
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1071,24 +798,3 @@ class TransferService:
             action,
             reviewer.full_name,
         )
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# دوال مساعدة خاصة
-# ═══════════════════════════════════════════════════════════════════════
-
-
-def _academic_year_start(year: str):
-    """
-    يحوّل العام الدراسي (مثال: "2025-2026") إلى تاريخ بداية تقريبي.
-
-    يُستخدم كفلتر بدلاً من مقارنة نصية — بداية العام الدراسي في سبتمبر.
-    """
-    try:
-        start_year = int(year.split("-")[0])
-        from datetime import date
-
-        return date(start_year, 9, 1)
-    except (ValueError, IndexError):
-        # fallback: بداية العام الميلادي
-        return timezone.now().date().replace(month=1, day=1)

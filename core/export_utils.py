@@ -4,8 +4,9 @@ core/export_utils.py — أدوات تصدير موحّدة لكل المنصة
 """
 
 import uuid
+from collections.abc import Callable, Iterable, Sequence
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from django.conf import settings
 from django.utils import timezone
@@ -230,6 +231,59 @@ def add_excel_footer(ws, context: dict, row: int, num_cols: int):
     cell.alignment = Alignment(horizontal="center")
 
     return row
+
+
+def write_excel_table(
+    ws: Any,
+    context: dict,
+    headers: Sequence[str],
+    rows: Iterable[Sequence[object]],
+    *,
+    fill_for: Callable[[int, Sequence[object]], object | None] | None = None,
+) -> int:
+    """جدولٌ كاملٌ في ورقة Excel — ويُرجع عددَ صفوف البيانات.
+
+    الترويسةُ الموحّدة، فصفُّ العناوين العنّابيّ، فالصفوفُ بتناوب حشوها، فعرضُ
+    كلِّ عمودٍ بأطول ما فيه (بسقف 40)، فالتذييل. كانت تصديراتُ شؤون الطلبة
+    السبعةُ تكتب هذه الخطواتِ بأيديها، نسخةً في كلّ عرض — وهي نصفُ طول العرض.
+
+    `fill_for(رقمُ الصفّ، قيمُه)` يُرجع حشواً لصفٍّ بعينه (الغائبُ بخلفيّة الخطر)،
+    أو `None` فيأخذ الصفُّ الزوجيُّ حشوَ التناوب.
+    """
+    from openpyxl.styles import Alignment
+    from openpyxl.utils import get_column_letter
+
+    table = excel_table_styles()
+    num_cols = len(headers)
+    data_start = add_excel_header(ws, context, num_cols)
+    for col, title in enumerate(headers, 1):
+        cell = ws.cell(row=data_start, column=col, value=title)
+        cell.fill = table.header_fill
+        cell.font = table.header_font
+        cell.alignment = Alignment(horizontal="center")
+        cell.border = table.border
+
+    count = 0
+    for count, values in enumerate(rows, 1):
+        special = fill_for(count, values) if fill_for else None
+        for col, value in enumerate(values, 1):
+            cell = ws.cell(row=data_start + count, column=col, value=value)
+            cell.font = table.cell_font
+            cell.border = table.border
+            if special is not None:
+                cell.fill = special
+            elif count % 2 == 0:
+                cell.fill = table.alt_fill
+
+    for col in range(1, num_cols + 1):
+        longest = max(
+            len(str(ws.cell(row=row, column=col).value or ""))
+            for row in range(data_start, data_start + count + 1)
+        )
+        ws.column_dimensions[get_column_letter(col)].width = min(longest + 4, 40)
+
+    add_excel_footer(ws, context, data_start + count, num_cols)
+    return count
 
 
 def get_pdf_header_html(context: dict) -> str:
