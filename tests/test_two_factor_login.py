@@ -30,6 +30,12 @@ def _login(client, user):
     return client.post(reverse("login"), {"identifier": user.national_id, "password": PASSWORD})
 
 
+@pytest.fixture(autouse=True)
+def _two_factor_on(settings):
+    """الرايةُ مطفأةٌ في إعدادات الاختبار (تجميدٌ كامل) — فتُشعَل هنا ليُختبر المسارُ نفسُه."""
+    settings.TWO_FACTOR_REQUIRED_FOR_STAFF = True
+
+
 @pytest.mark.django_db
 class TestVerificationLogsTheLeaderIn:
     def test_login_then_the_right_code_opens_a_session(self, client, school):
@@ -103,10 +109,6 @@ class TestEveryStaffMemberMustSetItUp:
     الإلزامُ مُطفأٌ في إعدادات الاختبار (كما axes) فيُشعَل هنا وحدَه.
     """
 
-    @pytest.fixture(autouse=True)
-    def _enforced(self, settings):
-        settings.TWO_FACTOR_REQUIRED_FOR_STAFF = True
-
     def test_a_teacher_without_totp_reaches_only_the_setup_page(self, client, school):
         user = _staff(school)
         client.force_login(user)
@@ -154,3 +156,17 @@ class TestEveryStaffMemberMustSetItUp:
         client.force_login(_staff(school))
 
         assert client.get(reverse("dashboard")).status_code == 200
+
+    def test_the_freeze_flag_skips_the_code_even_for_an_enrolled_user(
+        self, client, school, settings
+    ):
+        """قرارُ 2026-09-14: التجميدُ كاملٌ — المفعِّلُ يدخل بكلمة المرور وحدَها ويبقى سرُّه."""
+        settings.TWO_FACTOR_REQUIRED_FOR_STAFF = False
+        user, _secret = _leader_with_totp(school)
+
+        resp = _login(client, user)
+
+        assert resp.status_code == 302 and not resp["Location"].endswith(reverse("verify_2fa"))
+        assert client.session.get("_auth_user_id") == str(user.pk)
+        user.refresh_from_db()
+        assert user.totp_enabled and user.totp_secret, "التجميدُ لا يمسّ السرَّ ولا التفعيل"

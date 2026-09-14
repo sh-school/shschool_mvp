@@ -182,6 +182,11 @@ def _with_totp(school):
 
 
 class TestFailedCodesCountAndAreAudited:
+    @pytest.fixture(autouse=True)
+    def _two_factor_on(self, settings):
+        """الرايةُ مطفأةٌ في إعدادات الاختبار (تجميدٌ كامل) — تُشعَل هنا ليُسأل عن الرمز."""
+        settings.TWO_FACTOR_REQUIRED_FOR_STAFF = True
+
     def test_a_wrong_code_counts_against_the_account(self, client, school):
         user, _secret = _with_totp(school)
         client.post(reverse("login"), {"identifier": user.national_id, "password": PASSWORD})
