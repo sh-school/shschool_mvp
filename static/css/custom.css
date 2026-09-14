@@ -6630,6 +6630,34 @@ html.dark {
 .exc-form__wide { grid-column: 1 / -1; }
 .exc-form__actions { margin-block-start: var(--sp-3); display: flex; justify-content: flex-end; }
 @media (max-width: 640px) { .exc-form__grid { grid-template-columns: 1fr; } }
+
+/* ملفُّ غياب الطالب يوماً بيوم (wings/absence_file.html) — للجوّال أوّلاً: السطرُ يلتفّ،
+   والأزرارُ بارتفاع لمسةٍ (44 نقطة)، والنموذجُ يفتح تحت سطره بعرضه كلّه. */
+.af-search { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.af-search .form-control { flex: 1 1 220px; min-inline-size: 0; }
+.af-result { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-2); inline-size: 100%; color: inherit; text-decoration: none; }
+.af-result:hover .plain-list__title, .af-result:focus-visible .plain-list__title { text-decoration: underline; }
+.af-days { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.af-day { display: flex; flex-direction: column; gap: var(--sp-2); padding-block: var(--sp-3); border-block-end: 1px solid var(--border); scroll-margin-block-start: var(--sp-6); }
+.af-day:last-child { border-block-end: 0; }
+.af-day:target { background: var(--surface-alt); }
+.af-day__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
+.af-day__date { font-weight: 600; font-variant-numeric: tabular-nums; min-inline-size: 7.5em; }
+.af-day__meta { display: inline-flex; align-items: center; gap: 4px; color: var(--text-muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.af-day__actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--sp-2); }
+.af-day__actions:empty { display: none; }
+.af-act > summary { list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-block-size: 44px; }
+.af-act > summary::-webkit-details-marker { display: none; }
+.af-act[open] { flex-basis: 100%; }
+.af-act__form { display: flex; flex-direction: column; gap: var(--sp-2); margin-block-start: var(--sp-2); padding: var(--sp-3); background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-md); }
+.af-act__form .form-label { display: flex; flex-direction: column; gap: var(--sp-1); margin: 0; }
+.af-act__say { margin: 0; font-size: var(--text-sm); color: var(--text-secondary); }
+.af-choices { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.af-choices > button { min-block-size: 44px; }
+.af-kind { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: start; }
+.af-kind small { font-size: var(--text-xs); color: var(--text-muted); font-weight: 400; }
+.rec-row__file { color: inherit; text-decoration: none; }
+.rec-row__file:hover, .rec-row__file:focus-visible { text-decoration: underline; }
 .tch-no { display: inline-block; min-width: 1.6em; color: var(--text-muted); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
 .tch-state, .tch-exit { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .tch-exit-menu { position: relative; }

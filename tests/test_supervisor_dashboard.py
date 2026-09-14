@@ -82,7 +82,7 @@ class TestTheDashboard:
 
         assert "ينتظرون إخطارَ وليّ الأمر" in body
         assert "عند عتبات الغياب بلا عذر" in body
-        assert reverse("wings:student_events", args=[klass.id, kids[0].id]) in body
+        assert reverse("wings:absence_file", args=[kids[0].id]) in body
 
     def test_a_quiet_wing_shows_neither_list(
         self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor

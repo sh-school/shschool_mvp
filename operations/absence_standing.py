@@ -51,6 +51,7 @@ operations/absence_standing.py — موقف الطالب من عتبات الغ�
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 from operations.absence_policy import (
     MIN_PERIODS_FOR_PRESENCE,
@@ -167,6 +168,16 @@ def _judge(day) -> str:
     if attended + unrecorded >= need:
         return "incomplete"
     return "absent_unexcused" if day["unexcused"] else "absent_excused"
+
+
+def day_verdicts(student: Any, school: Any, start: Any, end: Any) -> dict[Any, Any]:
+    """حكمُ كلّ يومٍ في المدّة وخاناتُه: `{date: (verdict, slots)}` — الحكمُ نفسُه الذي يُعدّ.
+
+    يقرؤه ملفُّ غياب الطالب (`operations/absence_file.py`) ليعرض الأيّامَ كما يحسبها
+    عدُّ الحرمان تماماً، لا بحسابٍ ثانٍ يفترق عنه.
+    """
+    days = _day_map(student, school, start, end)
+    return {date: (_judge(day), day) for date, day in days.items()}
 
 
 def standing_for(student, school, grade=None, on=None, ese: bool = False) -> Standing:

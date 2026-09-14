@@ -1,0 +1,7 @@
+{% load icons %}
+{% comment %}بحثٌ عن طالبٍ في أجنحتي بالاسم أو الرقم الشخصيّ — نتيجةٌ واحدةٌ تفتح ملفَّ غيابه مباشرةً (قرارُ 2026-09-14). يقبل: query.{% endcomment %}
+<form method="get" action="{% url 'wings:student_search' %}" role="search" class="af-search">
+  <input type="search" name="q" value="{{ query|default:'' }}" class="form-control" minlength="2" required
+         placeholder="اسمُ الطالب أو رقمُه الشخصيّ" aria-label="ابحث عن طالبٍ في جناحي" autocomplete="off" enterkeyhint="search">
+  <button type="submit" class="btn-primary btn-sm">{% icon "search" %} ابحث</button>
+</form>

@@ -453,19 +453,24 @@ def excuse_grant(request, class_id, student_id):
     except (ExcuseError, ValidationError) as err:
         messages.error(request, " ".join(getattr(err, "messages", None) or [str(err)]))
         return redirect(back)
+    excuse_outcome_message(request, excuse)
+    return redirect(back)
+
+
+def excuse_outcome_message(request, excuse) -> None:
+    """رسالةُ ما جرى للعذر — مقبولٌ، أو أُرسل للنائب. واحدةٌ لكلّ شاشةٍ تقبل العذر."""
     if excuse.status == "pending":
         messages.warning(
             request,
             f"مضى يومان على عودة الطالب، فأُرسل العذرُ ({excuse.get_kind_display()}) "
             "إلى النائب الإداريّ — والغيابُ بلا عذرٍ حتى يقبله.",
         )
-        return redirect(back)
+        return
     messages.success(
         request,
         f"قُبل العذرُ ({excuse.get_kind_display()}) وغُطّي {excuse.rows.count()} حصّةً"
         + (" — بعد المهلة." if excuse.after_deadline else "."),
     )
-    return redirect(back)
 
 
 @login_required

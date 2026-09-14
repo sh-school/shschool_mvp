@@ -18,6 +18,8 @@
     </form>
   {% endpage_header %}
 
+  {% include "wings/partials/student_search_form.html" %}
+
   {% if not day_type %}
     <div class="wing-warn">
       {% icon "status_warning" %}
