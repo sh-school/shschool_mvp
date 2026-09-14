@@ -640,6 +640,23 @@ document.addEventListener('click', function(e) {
   });
 })();
 
+/* ── الورقُ نهاريٌّ دائماً ──
+   قواعدُ الوضع الداكن لا تعرف الطباعة: من طبع صفحةً وهو في الليل خرجت بطاقاتٌ
+   كحليّةٌ بنصٍّ فاتحٍ (#f1f5f9) — حبرٌ يُهدَر إن طُبعت الخلفيّات، وبياضٌ على
+   بياضٍ إن لم تُطبع. فيُنزع الصنفُ قبل الطباعة ويعود بعدها، ولا يُمسّ
+   التفضيلُ المحفوظ. وهو خارجَ دالّة الزرّ عمداً: صفحةٌ بلا زرٍّ تُطبع كذلك. */
+(function () {
+  var root = document.documentElement;
+  var wasDark = false;
+  window.addEventListener('beforeprint', function () {
+    wasDark = root.classList.contains('dark');
+    root.classList.remove('dark');
+  });
+  window.addEventListener('afterprint', function () {
+    if (wasDark) root.classList.add('dark');
+  });
+})();
+
 /* ══════════════════════════════════════════════════════════════
    الفرزُ الجدوليّ — Sortable table columns
    ══════════════════════════════════════════════════════════════

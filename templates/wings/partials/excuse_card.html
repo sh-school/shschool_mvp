@@ -25,7 +25,7 @@
         <input type="text" name="notes" class="form-control" placeholder="صلةُ القرابة، أو جهةُ الموعد…">
       </label>
       {% if may_override %}
-      <label class="form-label exc-form__wide">سببُ القبول بعد المهلة <small>(إن مضى على آخر يومِ غيابٍ أكثرُ من {{ grace_days }} يومين)</small>
+      <label class="form-label exc-form__wide">سببُ القبول بعد المهلة <small>(إن مضى على آخر يومِ غيابٍ أكثرُ من يومين دراسيّين)</small>
         <input type="text" name="override_reason" class="form-control">
       </label>
       {% endif %}
@@ -34,7 +34,7 @@
       <button type="submit" class="btn-primary btn-sm">{% include "components/icon.html" with name="check" %} اقبل العذر</button>
     </div>
   </form>
-  <p class="bell-note">يغطّي العذرُ كلَّ حصص الغياب بلا عذرٍ في المدّة، ويُسقط أيّامَها من عدّ الحرمان. المشرفُ يقبله خلال {{ grace_days }} يومين من آخر يومِ غياب، ومن بعدها النائبُ الإداريّ بسبب. وما ليس في القائمة «غيابٌ بدون عذر».</p>
+  <p class="bell-note">يغطّي العذرُ كلَّ حصص الغياب بلا عذرٍ في المدّة، ويُسقط أيّامَها من عدّ الحرمان. المشرفُ يقبله خلال يومين دراسيّين من آخر يومِ غياب، ومن بعدها النائبُ الإداريّ بسبب. وما ليس في القائمة «غيابٌ بدون عذر».</p>
 
   {% if excuses %}
   <div class="table-wrap">
