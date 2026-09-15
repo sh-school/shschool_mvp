@@ -6,12 +6,17 @@
 كلُّه في طلب دمجٍ واحدٍ لا يُراجَع — فالحارسُ هنا، كسقّاطة الهويّة البصريّة،
 لا يطلب الصفرَ دفعةً واحدة بل يمنع الزيادة ويُثبّت كلَّ نقص:
 
-1. **كلُّ دالّةٍ في ملفّ عروض** (`*/views*.py`) — العرضُ نفسُه ومساعدُه وتوابعُ
-   أصنافه: سقفُها 60 سطراً (من سطر `def` إلى آخره، بلا المزيِّنات) و5 استدعاءاتِ
-   ORM مباشرة (`.objects`، `.filter(`، `.annotate(`، `.aggregate(`،
-   `select_related(`، `prefetch_related(`، `Q(`). وكان العدُّ على ما أوّلُ وسائطه
-   `request` وحدَه، فنقلُ الاستعلام إلى `_get_director_ctx(school, today)` في
-   الملفّ نفسِه — ستٌّ وأربعون استدعاءً — كان يُخفيه عن الحارس.
+1. **كلُّ دالّةٍ في ملفّ عروض** (`views.py`، `views_*.py`، `*_views.py`، `views/*.py`) —
+   العرضُ نفسُه ومساعدُه وتوابعُ أصنافه: سقفُها 60 سطراً (من سطر `def` إلى آخره، بلا
+   المزيِّنات) و5 استدعاءاتِ ORM مباشرة. والمعدودُ: الوصولُ إلى `.objects`؛ وتوابعُ لا
+   يملكها غيرُ QuerySet أينما وقعت، ولو على مديرٍ مرتبط (`ORM_METHODS`: `.filter(`،
+   `.exclude(`، `.order_by(`، `.values_list(`، `.all(`…)؛ و`get_object_or_404(` و`Q(`
+   وأسماؤه المستعارة؛ وتوابعُ يشاركها القاموسُ والطلب (`AMBIGUOUS_METHODS`: `.get(`،
+   `.update(`، `.create(`، `.save(`، `.count(`…) حين يكون مستقبِلُها من ORM — سلسلةً
+   فيها ما سبق، أو اسماً أُسند منها في الدالّة. وكان العدُّ على ما أوّلُ وسائطه `request`
+   وحدَه، فنقلُ الاستعلام إلى `_get_director_ctx(school, today)` في الملفّ نفسِه — ستٌّ
+   وأربعون استدعاءً — كان يُخفيه عن الحارس. وكان المعدودُ خمسةَ توابعِ قراءةٍ وحدها،
+   فعرضٌ يكتب في ثلاثة جداول بـ`get_object_or_404` و`.save()` و`.update(` يُعدّ أربعةً.
 2. **`core` لا يستورد وحدةً نازلة** — ولا استيراداً كسولاً داخل دالّة: الكسلُ
    يؤخّر الخطأ الدائريّ ولا يُزيل الاقتران. والعدُّ لكلّ وحدةٍ نازلة على النواة
    كلِّها لا لكلّ ملفّ: الاعتمادُ اعتمادُ الحزمة، ونقلُ قراءةٍ من عرضٍ في النواة
@@ -53,8 +58,56 @@ BASELINE = ROOT / "tests" / "layering_baseline.json"
 MAX_LINES = 60
 MAX_ORM = 5
 
-#: توابعُ QuerySet المعدودة — ومعها الوصولُ إلى `.objects` وبناءُ `Q(`.
-ORM_METHODS = frozenset({"filter", "annotate", "aggregate", "select_related", "prefetch_related"})
+#: توابعُ لا يملكها غيرُ QuerySet والمدير — تُعدّ أينما وقعت، ولو على مديرٍ مرتبط
+#: (`student.enrollments.exclude(`) لا يُعرف نوعُه من الشجرة.
+ORM_METHODS = frozenset(
+    {
+        "all",
+        "annotate",
+        "aggregate",
+        "bulk_create",
+        "bulk_update",
+        "defer",
+        "distinct",
+        "exclude",
+        "filter",
+        "get_or_create",
+        "in_bulk",
+        "only",
+        "order_by",
+        "prefetch_related",
+        "select_for_update",
+        "select_related",
+        "update_or_create",
+        "values_list",
+    }
+)
+
+#: توابعُ يشترك فيها ORM والقاموسُ والقائمةُ والطلب (`request.GET.get(`، `ctx.update(`):
+#: تُعدّ حين يكون مستقبِلُها من ORM — سلسلةً فيها استدعاءٌ معدود، أو اسماً أُسند منها.
+AMBIGUOUS_METHODS = frozenset(
+    {
+        "count",
+        "create",
+        "delete",
+        "earliest",
+        "exists",
+        "first",
+        "get",
+        "iterator",
+        "last",
+        "latest",
+        "save",
+        "update",
+        "values",
+    }
+)
+
+#: دوالُّ تقرأ القاعدةَ بلا مستقبِل.
+ORM_FUNCTIONS = frozenset({"get_object_or_404", "get_list_or_404", "Q"})
+
+#: ما يُرجع قاموساً أو عدداً لا سجلّاً: الاسمُ المُسنَد منه ليس من ORM.
+SCALAR_RESULTS = frozenset({"aggregate", "count", "exists"})
 
 #: ما ليس وحدةً نازلة: النواةُ نفسُها، وإعداداتُ المشروع، والاختبارات.
 NOT_DOWNSTREAM = frozenset({"core", "shschool", "tests"})
@@ -73,18 +126,107 @@ def downstream_apps(root: pathlib.Path = ROOT) -> frozenset[str]:
 # ─── القياس ────────────────────────────────────────────────────────────────
 
 
-def _orm_calls(node: ast.AST) -> int:
-    count = 0
-    for sub in ast.walk(node):
-        if isinstance(sub, ast.Attribute) and sub.attr == "objects":
-            count += 1
-        elif isinstance(sub, ast.Call):
-            func = sub.func
-            if isinstance(func, ast.Attribute) and func.attr in ORM_METHODS | {"Q"}:
-                count += 1
-            elif isinstance(func, ast.Name) and func.id == "Q":
-                count += 1
-    return count
+def _q_aliases(tree: ast.Module) -> frozenset[str]:
+    """`from django.db.models import Q as W` — فـ`W(` بناءُ `Q(` باسمٍ آخر."""
+    return frozenset(
+        alias.asname
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+        if alias.name in ORM_FUNCTIONS and alias.asname
+    )
+
+
+def _called_name(func: ast.expr) -> str | None:
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return None
+
+
+class _OrmCounter:
+    """يعدّ استدعاءاتِ ORM في دالّة، ويتتبّع الأسماءَ المُسنَدة منها داخلها.
+
+    `m = Student.objects` ثمّ `m.get(`، و`t = get_object_or_404(...)` ثمّ `t.save()`:
+    المستقبِلُ اسمٌ لا يُعرف نوعُه من الشجرة، لكنّ إسنادَه في الدالّة نفسِها يُعرف.
+    """
+
+    def __init__(self, node: ast.AST, functions: frozenset[str]) -> None:
+        self.node = node
+        self.functions = functions
+        self.tainted: set[str] = set()
+        # نقطةٌ ثابتة: `qs = X.objects…` ثمّ `row = qs.first()` ثمّ `row.save()`.
+        while True:
+            before = len(self.tainted)
+            self._collect_bindings()
+            if len(self.tainted) == before:
+                break
+
+    def is_orm_call(self, call: ast.Call) -> bool:
+        func = call.func
+        name = _called_name(func)
+        if isinstance(func, ast.Name):
+            return name in self.functions
+        if not isinstance(func, ast.Attribute):
+            return False
+        if name in ORM_METHODS or name in self.functions:
+            return True
+        return name in AMBIGUOUS_METHODS and self.from_orm(func.value)
+
+    def from_orm(self, expr: ast.AST) -> bool:
+        """هل جاء هذا التعبيرُ من ORM — على عموده لا في وسائطه.
+
+        العمودُ ما يُستدعى عليه التابع: `X.objects.filter(...)[:5]` ← `X.objects` ← `X`.
+        فيه `.objects`، أو استدعاءٌ معدود، أو اسمٌ مُسنَدٌ من ORM. و`{"rows": qs}` ليس منه:
+        قاموسُ السياق يحمل QuerySet لكنّ `ctx.update(` ليس استعلاماً.
+        """
+        node: ast.AST = expr
+        while True:
+            if isinstance(node, ast.Name):
+                return node.id in self.tainted
+            if isinstance(node, ast.Attribute):
+                if node.attr == "objects":
+                    return True
+                node = node.value
+            elif isinstance(node, ast.Call):
+                if self.is_orm_call(node):
+                    return True
+                node = node.func
+                if isinstance(node, ast.Attribute):
+                    node = node.value
+                else:
+                    return False
+            elif isinstance(node, ast.Subscript):
+                node = node.value
+            else:
+                return False
+
+    def _collect_bindings(self) -> None:
+        for sub in ast.walk(self.node):
+            if isinstance(sub, ast.Assign | ast.AnnAssign) and sub.value is not None:
+                targets = sub.targets if isinstance(sub, ast.Assign) else [sub.target]
+                value = sub.value
+                if isinstance(value, ast.Call) and _called_name(value.func) in SCALAR_RESULTS:
+                    continue
+                if self.from_orm(value):
+                    self.tainted.update(t.id for t in targets if isinstance(t, ast.Name))
+            elif isinstance(sub, ast.For | ast.AsyncFor) and isinstance(sub.target, ast.Name):
+                if self.from_orm(sub.iter):
+                    self.tainted.add(sub.target.id)
+
+    def count(self) -> int:
+        total = 0
+        for sub in ast.walk(self.node):
+            if isinstance(sub, ast.Attribute) and sub.attr == "objects":
+                total += 1
+            elif isinstance(sub, ast.Call) and self.is_orm_call(sub):
+                total += 1
+        return total
+
+
+def _orm_calls(node: ast.AST, functions: frozenset[str] = ORM_FUNCTIONS) -> int:
+    return _OrmCounter(node, functions).count()
 
 
 def _get_school_calls(node: ast.AST) -> int:
@@ -113,10 +255,11 @@ def _views(tree: ast.Module) -> Iterator[tuple[str, FunctionNode]]:
 def measure_views(source: str, path: str) -> tuple[dict[str, dict[str, int]], int]:
     """(ما فوق السقف من عروض الملفّ، عددُ `get_school()` فيه كلِّه)."""
     tree = ast.parse(source)
+    functions = ORM_FUNCTIONS | _q_aliases(tree)
     over: dict[str, dict[str, int]] = {}
     for name, node in _views(tree):
         lines = (node.end_lineno or node.lineno) - node.lineno + 1
-        orm = _orm_calls(node)
+        orm = _orm_calls(node, functions)
         excess = {}
         if lines > MAX_LINES:
             excess["lines"] = lines
@@ -143,8 +286,18 @@ def measure_core_imports(source: str, downstream: frozenset[str]) -> dict[str, i
 
 
 def view_files(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
-    """ملفّاتُ العروض في تطبيقات المشروع — حزمٌ في الجذر، لا مجلّداتٌ مخفيّةٌ ولا نسخٌ مؤقّتة."""
-    files = set(root.glob("*/views*.py")) | set(root.glob("*/views/*.py"))
+    """ملفّاتُ العروض في تطبيقات المشروع — حزمٌ في الجذر، لا مجلّداتٌ مخفيّةٌ ولا نسخٌ مؤقّتة.
+
+    والاسمُ `views.py` أو `views_*.py` أو `*_views.py` أو ما في حزمة `views/`: كان النمطُ
+    `views*.py` وحدَه، فخرجت منه `api_views.py` و`assignment_views.py` و`evaluation_views.py`
+    و`observation_views.py` — تسعةُ عروضٍ فوق السقف وأحدَ عشرَ `get_school()` لا يراها أحد.
+    """
+    files = (
+        set(root.glob("*/views.py"))
+        | set(root.glob("*/views_*.py"))
+        | set(root.glob("*/*_views.py"))
+        | set(root.glob("*/views/*.py"))
+    )
     return sorted(
         p
         for p in files

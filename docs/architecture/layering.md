@@ -7,7 +7,8 @@
 ## ما يجوز في العرض
 
 - قراءةُ الطلب: `request.GET`، `request.POST`، `request.FILES`، `request.school`.
-- الحراسة: المزيِّنات، و`get_object_or_404` على نموذجٍ أو QuerySet من selector.
+- الحراسة: المزيِّنات، و`get_object_or_404` على نموذجٍ أو QuerySet من selector (ويُعدّ
+  استدعاءَ ORM كغيره).
 - تركيبُ السياق: أسماءُ مفاتيح القالب، ونصوصُ البطاقات وألوانُها (`tone_for`، `_share_tone`).
 - استدعاءُ selector أو service أو دالّةِ مجال — ثمّ `render` أو `redirect` أو ملفّ.
 
@@ -45,9 +46,21 @@
 
 `tests/layering_ratchet.py` يعدّ بشجرة `ast` (التعليقُ والنصُّ لا يُعدّان) ثلاثةَ أشياء:
 
-1. **كلُّ دالّةٍ في `*/views*.py`** — العرضُ ومساعدُه وتوابعُ أصنافه: الأسطرُ من `def`
-   إلى آخرها، واستدعاءاتُ ORM (`.objects`، `.filter(`، `.annotate(`، `.aggregate(`،
-   `select_related(`، `prefetch_related(`، `Q(`). ما فوق السقف وحده يُسجَّل.
+1. **كلُّ دالّةٍ في ملفّ عروض** — `views.py` و`views_*.py` و`*_views.py` و`views/*.py`؛
+   العرضُ ومساعدُه وتوابعُ أصنافه: الأسطرُ من `def` إلى آخرها، واستدعاءاتُ ORM. والمعدود:
+   - الوصولُ إلى `.objects`؛
+   - توابعُ QuerySet التي لا يملكها غيرُه، أينما وقعت ولو على مديرٍ مرتبط
+     (`student.enrollments.exclude(`): `filter` `exclude` `annotate` `aggregate` `all`
+     `order_by` `values_list` `distinct` `only` `defer` `select_related` `prefetch_related`
+     `select_for_update` `get_or_create` `update_or_create` `bulk_create` `bulk_update` `in_bulk`؛
+   - `get_object_or_404(` و`get_list_or_404(` و`Q(` — وأسماءُ `Q` المستعارة (`import Q as W`)؛
+   - توابعُ يشاركها القاموسُ والطلب — `get` `update` `create` `save` `delete` `values`
+     `count` `exists` `first` `last` `earliest` `latest` `iterator` — حين يكون مستقبِلُها
+     من ORM: سلسلةً فيها ما سبق، أو اسماً أُسند منها في الدالّة (`m = X.objects` ثمّ
+     `m.get(`؛ `t = get_object_or_404(…)` ثمّ `t.save()`). و`request.GET.get(` و`ctx.update(`
+     وقاموسُ `aggregate(` لا تُعدّ.
+
+   ما فوق السقف وحده يُسجَّل.
 2. **`get_school()` في ملفّات العروض** — كلُّها لا ما في العروض وحدها.
 3. **استيرادُ `core` لوحدةٍ نازلة** — ولو كسولاً داخل دالّة — معدوداً لكلّ تطبيقٍ على
    النواة كلِّها.
@@ -69,6 +82,8 @@ python -m tests.layering_ratchet --rebaseline # حين يتغيّر تعريفُ
 | بعد شؤون الطلبة | 67 | 38 | 49 | 146 | 61 / 14 |
 | تعريف 2 (كلُّ دالّة) — الشيفرةُ نفسُها | 79 | 40 | 60 | 146 | 61 / 14 |
 | بعد لوحة التحكم والإحصاءات و`request.school` | 70 | 38 | 51 | 77 | 61 / 15 |
+| دمج main حتّى #284 (`wings` تحت الحارس) | 70 | 38 | 51 | 77 | 61 / 15 |
+| تعريف 3 (`*_views.py`، والكتابةُ والمستعار) — الشيفرةُ نفسُها | 120 | 42 | 106 | 88 | 61 / 15 |
 
 - **شؤون الطلبة**: 17 عرضاً فوق السقف → 2. رُحِّل خمسةَ عشرَ (الاثنا عشرَ الأثقلُ وثلاثةٌ
   تشاركها قراءاتِها)، وبقي `student_add` و`student_edit` فوق الأسطر وحدها (82 و76) —
@@ -85,7 +100,10 @@ python -m tests.layering_ratchet --rebaseline # حين يتغيّر تعريفُ
 
 - `quality/views.py` — 12 `get_school()` (يملكه وكيلُ الامتثال H).
 - `staff_affairs/views.py` — `staff_list` و`staff_profile` فوق السقف لم تُرحَّلا (يعدّله وكيلُ الامتثال G).
-- 70 دالّةً فوق السقف في بقيّة التطبيقات، و77 `get_school()`؛ والسجلُّ يسمّيها.
+- 120 دالّةً فوق السقف في بقيّة التطبيقات، و88 `get_school()`؛ والسجلُّ يسمّيها. والتعريفُ
+  الثالث أدخل أربعةَ ملفّات (`academic_management/assignment_views.py`،
+  `operations/api_views.py`، `quality/evaluation_views.py`، `quality/observation_views.py`:
+  أحدَ عشرَ `get_school()`) وعروضَ الكتابة كـ`student_affairs/views.py::transfer_review` (8).
 - الاستيرادُ النازلُ في core (61 جملة): لوحةُ التحكم تقرأ من التطبيقات بطبيعتها؛
   وإخراجُه يحتاج سجلَّ مزوّدين يُملأ من `apps.ready()` — لم يُبدأ.
 - `behavior/views.py::_behaviour_year_window` تكرارٌ لـ`student_affairs.selectors.behaviour_window`.

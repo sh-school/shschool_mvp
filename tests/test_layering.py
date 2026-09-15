@@ -76,7 +76,7 @@ class TestTheRatchetItself:
 
     def test_a_helper_without_request_is_measured_too(self):
         """نقلُ الاستعلام إلى مساعدٍ في ملفّ العروض نفسِه لا يُخفيه."""
-        orm = "\n".join("    X.objects.all()" for _ in range(ratchet.MAX_ORM + 1))
+        orm = "\n".join("    X.objects.filter" for _ in range(ratchet.MAX_ORM + 1))
         over, _ = ratchet.measure_views(
             f"def _get_director_ctx(school, today):\n{orm}\n", "c/views.py"
         )
@@ -125,6 +125,77 @@ class TestTheRatchetItself:
         apps = ratchet.downstream_apps()
         assert {"student_affairs", "analytics", "wings", "api"} <= apps
         assert not apps & {"core", "shschool", "tests"}
+
+    def test_writes_shortcuts_and_related_managers_count_as_orm(self):
+        """الكتابةُ في العرض لا تمرّ تحت السقف لأنّها لا تبدأ بـ`.filter(`."""
+        source = (
+            "def transfer_review(request, pk):\n"
+            "    transfer = get_object_or_404(StudentTransfer, pk=pk)\n"
+            "    rows = transfer.student.enrollments.exclude(x=1).order_by('y').values_list('id')\n"
+            "    transfer.save()\n"
+            "    Membership.objects.filter(a=1).update(is_active=False)\n"
+            "    return rows\n"
+        )
+        over, _ = ratchet.measure_views(source, "a/views.py")
+        # get_object_or_404, exclude, order_by, values_list, save, objects, filter, update
+        assert over == {"a/views.py::transfer_review": {"orm": 8}}
+
+    def test_aliases_of_a_manager_or_of_q_do_not_hide_calls(self):
+        source = (
+            "from django.db.models import Q as W\n"
+            "def v(request):\n"
+            "    m = Student.objects\n"
+            "    a = m.get(pk=1)\n"
+            "    b = m.create(name='x')\n"
+            "    m.count()\n"
+            "    return W(a=1) | W(b=2)\n"
+        )
+        over, _ = ratchet.measure_views(source, "a/views.py")
+        # objects, get, create, count, W, W
+        assert over == {"a/views.py::v": {"orm": 6}}
+
+    def test_dict_list_and_request_methods_are_not_orm(self):
+        """`.get(` و`.update(` و`.values(` تُعدّ على ما جاء من ORM وحده."""
+        source = (
+            "def v(request):\n"
+            "    ctx = {}\n"
+            "    ctx.update(a=1)\n"
+            "    q = request.GET.get('q')\n"
+            "    request.session.get('x')\n"
+            "    items = [1, 2]\n"
+            "    items.count(1)\n"
+            "    data = Student.objects.aggregate(n=Count('id'))\n"
+            "    data.get('n')\n"
+            "    data.values()\n"
+            "    data.update(m=1)\n"
+            "    return ctx.values()\n"
+        )
+        over, _ = ratchet.measure_views(source, "a/views.py")
+        assert over == {}  # objects و aggregate — اثنان
+
+    def test_files_named_something_views_are_view_files(self, tmp_path):
+        """`api_views.py` و`assignment_views.py` ملفّاتُ عروض كـ`views_swap.py`."""
+        app = tmp_path / "app"
+        (app / "views").mkdir(parents=True)
+        for name in ("__init__.py", "views.py", "views_swap.py", "api_views.py", "reviews.py"):
+            (app / name).write_text("", encoding="utf-8")
+        (app / "views" / "pages.py").write_text("", encoding="utf-8")
+        found = sorted(p.relative_to(tmp_path).as_posix() for p in ratchet.view_files(tmp_path))
+        assert found == [
+            "app/api_views.py",
+            "app/views.py",
+            "app/views/pages.py",
+            "app/views_swap.py",
+        ]
+
+    def test_the_projects_suffixed_view_files_are_scanned(self):
+        found = {p.relative_to(ratchet.ROOT).as_posix() for p in ratchet.view_files()}
+        assert {
+            "academic_management/assignment_views.py",
+            "operations/api_views.py",
+            "quality/evaluation_views.py",
+            "quality/observation_views.py",
+        } <= found
 
     # ── المقارنة ──
 
