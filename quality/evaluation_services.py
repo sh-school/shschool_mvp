@@ -40,15 +40,19 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from datetime import date
 from fractions import Fraction
 from typing import TYPE_CHECKING
 
 from django.db import transaction
+from django.utils import timezone
+
+from core.models import Membership
 
 from .models import EmployeeEvaluation, EvaluationScore
 
 if TYPE_CHECKING:
-    from core.models import CustomUser
+    from core.models import CustomUser, School
 
 #: (مفتاح المحور، اسمه، درجته القصوى) — كما يبنيها `_get_axes_for_employee`.
 AxisSpec = tuple[str, str, int]
@@ -75,6 +79,23 @@ _LOCKED_STATUSES = frozenset({"approved", "acknowledged"})
 
 class EvaluationRejectedError(ValueError):
     """تقييمٌ لا يُحفظ — الرسالةُ تُعرض للمقيِّم كما هي."""
+
+
+#: «وتتولى لجنة شؤون المدارس تقييم أداء مديري المدارس سنوياً» — المادة 16،
+#: «02- النظام الوظيفي لموظفي المدارس.pdf» صفحة الملفّ 10 (02_staff_affairs.md:199).
+PRINCIPAL_NOT_EVALUATED = (
+    "تقييمُ مدير المدرسة للجنة شؤون المدارس لا للمدرسة — المادة 16 (02_staff_affairs.md:199)"
+)
+
+
+def is_school_principal(school: School, user: CustomUser) -> bool:
+    """
+    ألَه عضويّةٌ نشطةٌ بدور المدير في هذه المدرسة — أيّاً كانت عضويّاتُه الأخرى. كان الفحصُ
+    على `.first()` بلا ترتيب، فمديرٌ له عضويّةُ معلّمٍ أو وليّ أمرٍ يفلت منه.
+    """
+    return Membership.objects.filter(
+        school=school, user=user, is_active=True, role__name="principal"
+    ).exists()
 
 
 def is_academic_year(value: str) -> bool:
@@ -243,8 +264,27 @@ def save_evaluation(
     status = data.get("action", "draft")
     if status not in _EVALUATOR_STATUSES:
         raise EvaluationRejectedError("حالةُ التقييم مسودّةٌ أو مُقدَّمٌ فقط")
+    if not evaluation._state.adding:
+        # القفلُ قبل كلّ قراءة: الحالةُ ودرجاتُ المقيِّمين الآخرين تُقرأ بعد أن يُمسك الصفّ،
+        # فلا يكتب حفظٌ بنسخةٍ قُرئت قبل الاعتماد فوقه، ولا يحسب مقيِّمان من درجةٍ قديمة.
+        EmployeeEvaluation.objects.select_for_update().filter(pk=evaluation.pk).exists()
+        evaluation.refresh_from_db()
     if evaluation.status in _LOCKED_STATUSES:
         raise EvaluationRejectedError("التقريرُ معتمَد — لا تُعدَّل درجاتُه بعد اعتماد المدير.")
+    if is_school_principal(evaluation.school, evaluation.employee):
+        raise EvaluationRejectedError(PRINCIPAL_NOT_EVALUATED)
+    # المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمده مدير المدرسة» — واضعٌ واحد.
+    # كان كلُّ من يضغط حفظاً (المديرُ يفتح التقرير ليعتمده) يصير مقيِّماً ثانياً بدرجاتٍ
+    # صفريّة ووزن 100، فينقسم المجموع ويُستبدل الواضع.
+    if evaluation.has_saved_content() and evaluation.evaluator_id != evaluator.pk:
+        raise EvaluationRejectedError(
+            f"وضعُ هذا التقرير لواضعه ({evaluation.evaluator.full_name}) — المادة 16."
+        )
+    if evaluation.period == EmployeeEvaluation.MINISTRY_PERIOD and _uses_default_axes(axes):
+        raise EvaluationRejectedError(
+            "التقريرُ السنويّ يوضع على استمارة الوزارة لدور الموظّف، ولا استمارةَ له هنا — "
+            "المادة 16: «وفقاً للنماذج المعتمدة من الوزير» (02_staff_affairs.md:199)."
+        )
     scores = parse_axis_scores(axes, data)
 
     if _uses_default_axes(axes):
@@ -253,7 +293,7 @@ def save_evaluation(
         evaluation.calculate_total()
     else:
         exact = _weighted_total(evaluation, evaluator, sum(scores.values()))
-        evaluation.total_score = round(exact)
+        evaluation.total_score = EmployeeEvaluation.total_for(exact)
         evaluation.rating = EmployeeEvaluation.rating_for(exact)
 
     _enforce_rating_restrictions(evaluation)
@@ -321,16 +361,50 @@ def approve_evaluation(*, evaluation: EmployeeEvaluation, approver: CustomUser) 
     locked = EmployeeEvaluation.objects.select_for_update().get(pk=evaluation.pk)
     if locked.status != "submitted":
         raise EvaluationRejectedError("لا يُعتمد إلّا تقريرٌ مُقدَّم.")
+    if locked.employee_id == approver.pk or is_school_principal(locked.school, locked.employee):
+        raise EvaluationRejectedError(PRINCIPAL_NOT_EVALUATED)
+    if locked.period == EmployeeEvaluation.MINISTRY_PERIOD and locked.template_id is None:
+        raise EvaluationRejectedError(
+            "لا يُعتمد تقريرٌ سنويٌّ على غير استمارة الوزارة — المادة 16: «وفقاً للنماذج "
+            "المعتمدة من الوزير» (02_staff_affairs.md:199)."
+        )
     _enforce_rating_restrictions(locked)
     locked.status = "approved"
     locked.save(update_fields=["status", "updated_at"])
     evaluation.status = locked.status
 
 
+@transaction.atomic
+def record_receipt_on_refusal(
+    *, evaluation: EmployeeEvaluation, recorder: CustomUser, received_on: date
+) -> None:
+    """
+    «تاريخ استلام الموظف (يرجى تدوين التاريخ في حالة رفض الموظف التوقيع)» — «استمارة تقييم
+    المعلم والدليل التفسيري.pdf» ص2. يدوّنه مدير المدرسة الموقِّعُ على الاستمارة، فيكون
+    «تاريخ علمه» الذي تبدأ منه مهلةُ التظلّم (المادة 20). وكان الإقرارُ وحدَه يبدأها، فرفضُ
+    الموظّف الإقرارَ يُبقي التقريرَ غيرَ نهائيٍّ أبداً.
+    """
+    if recorder.role != "principal":
+        raise EvaluationRejectedError("تدوينُ تاريخ الاستلام لمدير المدرسة — موقِّعِ الاستمارة.")
+    locked = EmployeeEvaluation.objects.select_for_update().get(pk=evaluation.pk)
+    if locked.status != "approved" or locked.acknowledged_at is not None:
+        raise EvaluationRejectedError("يُدوَّن تاريخُ الاستلام لتقريرٍ معتمَدٍ لم يُقرّ به الموظّف.")
+    if locked.received_on is not None:
+        raise EvaluationRejectedError("تاريخُ الاستلام مدوَّنٌ من قبل.")
+    if received_on > timezone.localdate():
+        raise EvaluationRejectedError("تاريخُ الاستلام لا يكون في المستقبل.")
+    locked.received_on = received_on
+    locked.save(update_fields=["received_on", "updated_at"])
+    evaluation.received_on = received_on
+
+
 def axis_values(
     evaluation: EmployeeEvaluation, evaluator: CustomUser, axes: Sequence[AxisSpec]
 ) -> dict[str, int]:
-    """قيمُ المحاور المعروضة في النموذج: من الحقول، أو من درجات هذا المقيِّم في القالب."""
+    """
+    قيمُ المحاور المعروضة في النموذج: من الحقول، أو من درجات `evaluator` في القالب. والعرضُ
+    يمرّر واضعَ التقرير لا فاتحَه — كان المديرُ يرى محاورَ تقريرٍ مُقدَّمٍ أصفاراً.
+    """
     if _uses_default_axes(axes):
         return {key: getattr(evaluation, key) or 0 for key, _l, _m in axes}
     own = evaluation.scores.filter(evaluator=evaluator).first() if evaluation.pk else None

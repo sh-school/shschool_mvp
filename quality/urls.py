@@ -93,6 +93,11 @@ urlpatterns = [
         name="approve_evaluation",
     ),
     path(
+        "evaluations/receipt/<uuid:eval_id>/",
+        evaluation_views.record_evaluation_receipt,
+        name="record_evaluation_receipt",
+    ),
+    path(
         "evaluations/acknowledge/<uuid:eval_id>/",
         evaluation_views.acknowledge_evaluation,
         name="acknowledge_evaluation",

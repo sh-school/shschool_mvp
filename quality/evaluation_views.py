@@ -8,6 +8,8 @@ Phase 6 — واجهات تقييم الموظفين
 إصلاح: ربط RoleEvaluationTemplate + EvaluationScore + قائمة الموظفين
 """
 
+from datetime import date
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
@@ -20,11 +22,16 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for, default_academic_year
 from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser, Membership
+from core.models.user import role_rank
 
+from .appraisal_forms import forms_by_role
 from .evaluation_services import (
+    PRINCIPAL_NOT_EVALUATED,
     EvaluationRejectedError,
     axis_values,
     is_academic_year,
+    is_school_principal,
+    record_receipt_on_refusal,
     save_evaluation,
 )
 from .evaluation_services import approve_evaluation as approve_evaluation_service
@@ -60,10 +67,14 @@ def _require_evaluator(request):
 
 
 def _get_employee_role(school, employee):
-    """الحصول على دور الموظف في المدرسة"""
+    """
+    الدورُ الحاكمُ للموظّف في المدرسة، بترتيب `CustomUser.active_memberships` نفسِه. كان
+    `.first()` بلا ترتيب، فصاحبُ العضويّتين يُقيَّم على استمارة أيٍّ منهما اتّفق.
+    """
     membership = (
         Membership.objects.filter(school=school, user=employee, is_active=True)
         .select_related("role")
+        .order_by(role_rank(), "joined_at", "id")
         .first()
     )
     return membership.role.name if membership else None
@@ -157,8 +168,15 @@ def evaluation_dashboard(request):
         status__in=["submitted", "approved", "acknowledged"],
     ).aggregate(avg=Avg("total_score"))["avg"]
 
+    # مستوياتُ المادة 16 للتقارير السنويّة التي وُضعت فعلاً: لا المسودّات (وكان GET القديم
+    # يُنشئها فارغةً عند فتح النموذج) ولا متابعة S1 الداخليّة — فلا يُعدّ الموظّفُ مرّتين.
     rating_dist = (
-        EmployeeEvaluation.objects.filter(school=school, academic_year=year)
+        EmployeeEvaluation.objects.filter(
+            school=school,
+            academic_year=year,
+            period=EmployeeEvaluation.MINISTRY_PERIOD,
+            status__in=["submitted", "approved", "acknowledged"],
+        )
         .values("rating")
         .annotate(count=Count("id"))
     )
@@ -233,11 +251,8 @@ def create_evaluation(request, employee_id):
         return HttpResponse("الموظف ليس في مدرستك", status=403)
     # «وتتولى لجنة شؤون المدارس تقييم أداء مديري المدارس سنوياً» (02_staff_affairs.md:199)
     # — فلا تقييمَ للمدير من داخل المدرسة، وليس بين الاستمارات السبع استمارتُه.
-    if _get_employee_role(school, employee) == "principal":
-        return HttpResponse(
-            "تقييمُ مدير المدرسة للجنة شؤون المدارس لا للمدرسة — المادة 16 (02_staff_affairs.md:199)",
-            status=403,
-        )
+    if is_school_principal(school, employee):
+        return HttpResponse(PRINCIPAL_NOT_EVALUATED, status=403)
 
     existing = (
         EmployeeEvaluation.objects.filter(
@@ -247,6 +262,21 @@ def create_evaluation(request, employee_id):
         .first()
     )
     axes, template = _axes_for_evaluation(school, employee, year, existing)
+    has_content = existing is not None and existing.has_saved_content()
+
+    # التقريرُ السنويّ «وفقاً للنماذج المعتمدة من الوزير» (المادة 16، 02_staff_affairs.md:199).
+    # فدورٌ لا استمارةَ له لا يُولَّد له تقريرٌ على المحاور الأربعة الافتراضيّة (وليست في أيّ
+    # استمارة) حتى يُحسم أمرُه (ADR-0002 §6.4، §6.6 بند 12). ويبقى المحفوظُ قبل ذلك معروضاً.
+    if period == EmployeeEvaluation.MINISTRY_PERIOD and template is None and not has_content:
+        role_name = _get_employee_role(school, employee)
+        if role_name in forms_by_role():
+            reason = "لم تُبذر استمارتُه لهذا العام — seed_quality_templates --apply"
+        else:
+            reason = "المصدرُ الوزاريّ لا يسمّي استمارةً لدوره — القرارُ للمالك (ADR-0002 §6.6)"
+        return HttpResponse(
+            f"لا يُفتح التقريرُ السنويّ لـ{employee.full_name} ({role_name}): {reason}.",
+            status=409,
+        )
 
     if request.method == "POST":
         try:
@@ -285,7 +315,8 @@ def create_evaluation(request, employee_id):
 
     # قيمةُ كلّ محور — كانت سلسلةَ `{% if %}` بأربعة فروعٍ مكرّرةً مرّتين في القالب.
     # ومحورُ قالب الدور لا حقلَ له في النموذج: قيمتُه من درجات هذا المقيِّم.
-    values = axis_values(obj, request.user, axes) if existing else {k: 0 for k, _l, _m in axes}
+    # قيمُ الواضع لا الفاتح: المديرُ الذي يفتح التقريرَ ليعتمده كان يرى محاورَه أصفاراً.
+    values = axis_values(obj, obj.evaluator, axes) if existing else {k: 0 for k, _l, _m in axes}
     axis_rows = [(key, label, weight, values[key]) for key, label, weight in axes]
     role_name = _get_employee_role(school, employee)
     subtitle_parts = [employee.full_name, role_name, obj.get_period_display(), year]
@@ -308,9 +339,17 @@ def create_evaluation(request, employee_id):
             "template": template,
             "scores": scores,
             "role_display": role_name,
-            "is_editable": obj.status in ("draft", "submitted"),
+            # المادة 16: واضعٌ واحد — فغيرُه يرى التقريرَ ولا يحفظ عليه.
+            "is_editable": obj.status in ("draft", "submitted")
+            and (not has_content or obj.evaluator_id == request.user.pk)
+            and not (period == EmployeeEvaluation.MINISTRY_PERIOD and template is None),
             "can_approve": bool(existing)
             and obj.status == "submitted"
+            and request.user.get_role() == "principal",
+            "can_record_receipt": bool(existing)
+            and obj.status == "approved"
+            and obj.acknowledged_at is None
+            and obj.received_on is None
             and request.user.get_role() == "principal",
         },
     )
@@ -345,6 +384,40 @@ def approve_evaluation(request, eval_id):
 
 
 @login_required
+@capability_required("quality.evaluations")
+@require_POST
+def record_evaluation_receipt(request, eval_id):
+    """
+    المديرُ يدوّن تاريخ استلام الموظّف حين يرفض التوقيع — «استمارة تقييم المعلم والدليل
+    التفسيري.pdf» ص2: «يرجى تدوين التاريخ في حالة رفض الموظف التوقيع».
+    """
+    school = request.user.get_school()
+    obj = get_object_or_404(EmployeeEvaluation, id=eval_id, school=school)
+    try:
+        received_on = date.fromisoformat(request.POST.get("received_on", ""))
+        record_receipt_on_refusal(evaluation=obj, recorder=request.user, received_on=received_on)
+    except EvaluationRejectedError as exc:
+        messages.error(request, str(exc))
+    except ValueError:
+        messages.error(request, "تاريخُ الاستلام غيرُ صالح.")
+    else:
+        AuditLog.log(
+            user=request.user,
+            action="update",
+            model_name="other",
+            object_id=obj.pk,
+            object_repr=str(obj),
+            request=request,
+            changes={"received_on": received_on.isoformat()},
+        )
+        messages.success(request, "دُوِّن تاريخُ استلام الموظّف.")
+    return redirect(
+        reverse("create_evaluation", kwargs={"employee_id": obj.employee_id})
+        + f"?year={obj.academic_year}&period={obj.period}"
+    )
+
+
+@login_required
 def acknowledge_evaluation(request, eval_id):
     """الموظف يُقرّ باستلام تقييمه"""
     school = request.user.get_school()
@@ -362,8 +435,13 @@ def acknowledge_evaluation(request, eval_id):
 def my_evaluations(request):
     """الموظف يرى تقييماته"""
     school = request.user.get_school()
+    # «يعلن الموظف بنسخه من تقرير تقييم الأداء بمجرد اعتماده» (ملاحظةُ الاستمارات الخمس،
+    # 06_attendance_performance_review.md:97؛ والمادة 20). فالمسودّةُ والمُقدَّم لا يُعرضان —
+    # وكانت مسودّاتُ الصفر تظهر للموظّف «ضعيف (أقل من 50)».
     evals = list(
-        EmployeeEvaluation.objects.filter(employee=request.user, school=school)
+        EmployeeEvaluation.objects.filter(
+            employee=request.user, school=school, status__in=["approved", "acknowledged"]
+        )
         .select_related("evaluator", "template")
         .order_by("-created_at")
     )

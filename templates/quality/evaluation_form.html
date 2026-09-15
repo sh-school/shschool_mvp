@@ -87,5 +87,15 @@
   </form>
   {% endif %}
 
+  {% if can_record_receipt %}
+  {# «تاريخ استلام الموظف (يرجى تدوين التاريخ في حالة رفض الموظف التوقيع)» — استمارة المعلم ص2. #}
+  <form method="post" action="{% url 'record_evaluation_receipt' obj.id %}" class="form-actions">
+    {% csrf_token %}
+    <label for="ev-received-on">تاريخ استلام الموظف (عند رفضه التوقيع)</label>
+    <input type="date" name="received_on" id="ev-received-on" class="form-control" required>
+    <button type="submit" class="btn-secondary">تدوين تاريخ الاستلام</button>
+  </form>
+  {% endif %}
+
 </div>
 {% endblock %}
