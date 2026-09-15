@@ -9,7 +9,7 @@ from core import dashboard_selectors
 from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required, has_capability
 from core.dashboard_presentation import present
-from core.domain.attendance import attendance_rate, percent
+from core.domain.attendance import attendance_rate
 from core.models.academic import Wing
 from core.models.school import School
 from operations.selectors import (
@@ -97,7 +97,8 @@ def _get_director_ctx(school, today):
         "total_annual": annual["total"],
         "passed_annual": annual["passed"],
         "failed_annual": annual["failed"],
-        "pass_pct": percent(annual["passed"], annual["total"]),
+        # بصيغة العرض قبل الترحيل — `percent` تُقرّب الأنصافَ غيرَها (23 من 40: 57 لا 58).
+        "pass_pct": (round(annual["passed"] / annual["total"] * 100) if annual["total"] else 0),
         "failing_count": dashboard_selectors.failing_student_count(school, year),
         "year": year,
         "incomplete_setups": dashboard_selectors.incomplete_setup_count(school, year),

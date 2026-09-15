@@ -285,7 +285,10 @@ def student_profile_records(student: CustomUser, school: School, year: str) -> d
         excused=Count("id", filter=Q(status="excused")),
         total=Count("id"),
     )
-    attendance["pct"] = attendance_rate(attendance["present"], attendance["total"], digits=1)
+    # بصيغة العرض قبل الترحيل — `attendance_rate` تُقرّب الأنصافَ غيرَها (23 من 80: 28.7 لا 28.8).
+    attendance["pct"] = (
+        round(attendance["present"] / attendance["total"] * 100, 1) if attendance["total"] else 0
+    )
 
     infractions = student_infractions(student, school)
     by_level = infractions.aggregate(

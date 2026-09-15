@@ -2,7 +2,7 @@
 
 كانت في `analytics_dashboard` نفسِه: تسعةٌ وثمانون سطراً بواحدٍ وثلاثين استدعاءَ ORM
 بين `request` و`render`. فالعرضُ الآن يقرأ الطلبَ ويعرض، والعدُّ هنا يُختبر بلا
-طلب (`tests/test_analytics_selectors.py`). والنسبُ من `core.domain.attendance`.
+طلب (`tests/test_analytics_selectors.py`). ونسبةُ الحضور من `core.domain.attendance`.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from django.db.models import Count, Q
 
 from behavior.models import BehaviorInfraction
 from clinic.models import ClinicVisit, HealthRecord
-from core.domain.attendance import attendance_rate, percent
+from core.domain.attendance import attendance_rate
 from core.models.academic import StudentEnrollment
 from core.models.access import Membership
 from core.models.school import School
@@ -67,7 +67,10 @@ def school_overview_kpis(school: School, year: str, today: date) -> dict[str, in
         "library_books": LibraryBook.objects.filter(school=school).count(),
         "active_loans": loans["active"],
         "overdue_books": loans["overdue"],
-        "plan_pct": percent(procedures["completed"], procedures["total"]),
+        # بصيغة العرض قبل الترحيل — `percent` تُقرّب الأنصافَ غيرَها (109 من 200: 55 لا 54).
+        "plan_pct": (
+            round(procedures["completed"] / procedures["total"] * 100) if procedures["total"] else 0
+        ),
         "completed_procs": procedures["completed"],
         "total_procs": procedures["total"],
     }
