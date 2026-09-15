@@ -11,6 +11,7 @@ quality/models.py
 - #7: توسيع _EVALUABLE_ROLES لتشمل كل الأدوار الوظيفية
 """
 
+import math
 import uuid
 from datetime import date, timedelta
 from decimal import Decimal
@@ -88,11 +89,14 @@ _EVALUABLE_ROLES = frozenset(
     ]
 )
 
-# ── التظلّم من تقرير تقييم الأداء — المادة 20 (02_staff_affairs.md:211) ──
-# «يُعلَن الموظف بنسخة من تقرير تقييم الأداء، ويجوز له أن يتظلم منه إلى لجنة موظفي
-# المدارس خلال خمسة عشر يوماً من تاريخ علمه، وتبت اللجنة في التظلم خلال ثلاثين يوماً
-# من تاريخ تقديمه، ويعتبر مضي المدة دون إخطار الموظف بتعديل التقرير بمثابة قرار بالرفض
-# … ولا يُعتبر التقرير نهائياً إلا بعد انقضاء ميعاد التظلم أو البت فيه».
+# ── التظلّم من تقرير تقييم الأداء — المادة 20 ─────────────────────────────
+# «02- النظام الوظيفي لموظفي المدارس.pdf» صفحتا الملفّ 12–13 (المطبوعتان 26–27)، ونقلُها
+# في 02_staff_affairs.md:211 — بنصّها كاملاً من الصورة:
+# «يُعلن الموظف بنسخة من تقرير تقييم الأداء، ويجوز للموظف أن يتظلم منه إلى لجنة موظفي
+# المدارس، خلال خمسة عشر يوماً من تاريخ علمه، وتبت اللجنة في التظلم خلال ثلاثين يوماً من
+# تاريخ تقديمه، ويعتبر انقضاء الميعاد المذكور دون إخطار الموظف بتعديل التقرير بمثابة قرار
+# بالرفض، ويكون قرار اللجنة في التظلم نهائياً بعد اعتماده من الوزير، ولا يعتبر التقرير
+# نهائياً إلا بعد انقضاء ميعاد التظلم منه أو البت فيه».
 # والنصُّ لا يقول أهي أيّامٌ تقويميّةٌ أم أيّامُ عمل — فالمهلتان ونوعُ الأيّام إعدادات.
 APPRAISAL_GRIEVANCE_WINDOW_DAYS = 15
 APPRAISAL_GRIEVANCE_DECISION_DAYS = 30
@@ -744,9 +748,11 @@ class EmployeeEvaluation(models.Model):
         related_name="evaluations_given",
         verbose_name="المقيِّم الرئيسي",
     )
+    # RESTRICT لا SET_NULL: فكُّ الربط بحذف القالب كان يُسقط درجاتِ `custom_axes` من المجموع
+    # (فيُحسب من المحاور الافتراضيّة الصفريّة). ويبقى حذفُ المدرسة كلِّها متتالياً.
     template = models.ForeignKey(
         RoleEvaluationTemplate,
-        on_delete=models.SET_NULL,
+        on_delete=models.RESTRICT,
         null=True,
         blank=True,
         related_name="evaluations",
@@ -783,6 +789,15 @@ class EmployeeEvaluation(models.Model):
     )
     grievance_decided_on = models.DateField(
         null=True, blank=True, verbose_name="تاريخ إخطار الموظّف بقرار اللجنة"
+    )
+    #: «ويكون قرار اللجنة في التظلم نهائياً بعد اعتماده من الوزير» (المادة 20، صفحة الملفّ 13).
+    grievance_decision_approved_on = models.DateField(
+        null=True, blank=True, verbose_name="تاريخ اعتماد الوزير لقرار اللجنة في التظلّم"
+    )
+    #: «تاريخ استلام الموظف (يرجى تدوين التاريخ في حالة رفض الموظف التوقيع)» — «استمارة
+    #: تقييم المعلم والدليل التفسيري.pdf» ص2. يدوّنه المدير فيكون «تاريخ علمه» (المادة 20).
+    received_on = models.DateField(
+        null=True, blank=True, verbose_name="تاريخ استلام الموظف (عند رفضه التوقيع)"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -831,6 +846,22 @@ class EmployeeEvaluation(models.Model):
             return "acceptable"
         return "weak"
 
+    @classmethod
+    def total_for(cls, exact: int | Fraction) -> int:
+        """
+        المجموعُ المخزَّن للعرض: أقربُ عددٍ صحيحٍ **داخل نطاق مستواه المطبوع** (مفتاحُ
+        الاستمارات 100–90 / 89–76 / 75–66 / 65–50 / 0–49، 06 §2.2).
+
+        المستوى من الكسر (المادة 16، `rating_for`)، ومفتاحُ الاستمارة أعدادٌ صحيحة. فالتقريبُ
+        العاديّ كان يعرض 89.5 «90» بجوار «جيد جداً (89–76)»، و75.3 «75» بجوار «جيد جداً».
+        فإن عبر التقريبُ حدَّ المستوى أُخذ الجزءُ الصحيحُ في جهة المستوى. اختيارٌ هندسيّ.
+        """
+        rounded = round(exact)
+        level = cls.rating_for(exact)
+        if cls.rating_for(rounded) == level:
+            return int(rounded)
+        return math.floor(exact) if rounded > exact else math.ceil(exact)
+
     def calculate_total(self) -> None:
         """حساب المجموع من المحاور الأربعة الافتراضية + التقدير"""
         self.total_score = (
@@ -860,7 +891,7 @@ class EmployeeEvaluation(models.Model):
 
         if total_weight > 0:
             exact = Fraction(weighted_sum, total_weight)
-            self.total_score = round(exact)
+            self.total_score = self.total_for(exact)
         else:
             self.calculate_total()
             return
@@ -906,27 +937,43 @@ class EmployeeEvaluation(models.Model):
             return True
         return self.scores.exists()
 
+    def known_on(self) -> date | None:
+        """
+        «تاريخ علمه» (المادة 20): إقرارُ الموظّف بالاستلام، أو تاريخُ الاستلام الذي يدوّنه
+        المدير حين يرفض الموظّف التوقيع (استمارة المعلم ص2).
+        """
+        if self.acknowledged_at is not None:
+            return timezone.localtime(self.acknowledged_at).date()
+        return self.received_on
+
     def grievance_deadline(self) -> date | None:
         """آخرُ يومٍ للتظلّم: خمسة عشر يوماً من تاريخ العلم (المادة 20)."""
-        if self.acknowledged_at is None:
+        known_on = self.known_on()
+        if known_on is None:
             return None
-        known_on = timezone.localtime(self.acknowledged_at).date()
         return known_on + _grievance_days(
             "APPRAISAL_GRIEVANCE_WINDOW_DAYS", APPRAISAL_GRIEVANCE_WINDOW_DAYS
         )
 
     def is_final(self, today: date | None = None) -> bool:
         """
-        «لا يُعتبر التقرير نهائياً إلا بعد انقضاء ميعاد التظلم أو البت فيه» (المادة 20).
-        والبتُّ: إخطارٌ بقرار اللجنة، أو مضيُّ ثلاثين يوماً من التظلّم بلا إخطار («بمثابة
-        قرار بالرفض»). ولا تُبنى على المستوى آثارُه (الحافز م21، الترقية م22) قبل ذلك.
+        «ولا يعتبر التقرير نهائياً إلا بعد انقضاء ميعاد التظلم منه أو البت فيه» (المادة 20).
+
+        - بلا تظلّم: بانقضاء الخمسة عشر يوماً من تاريخ العلم.
+        - قرارُ اللجنة: «نهائياً بعد اعتماده من الوزير» — فلا يكفي إخطارُ الموظّف به.
+        - مضيُّ ثلاثين يوماً من التظلّم «دون إخطار الموظف بتعديل التقرير»: «بمثابة قرار
+          بالرفض». وأيحتاج هذا الرفضُ الحكميُّ اعتمادَ الوزير؟ النصُّ صامت (ADR-0002 §6.6
+          بند 13)؛ فيُعدّ بتّاً كما كان.
+        ولا تُبنى على المستوى آثارُه (الحافز م21، الترقية م22) قبل ذلك.
         """
         deadline = self.grievance_deadline()
-        if self.status != "acknowledged" or deadline is None:
+        if self.status not in ("approved", "acknowledged") or deadline is None:
             return False
         today = today or timezone.localdate()
-        if self.grievance_decided_on is not None:
+        if self.grievance_decision_approved_on is not None:
             return True
+        if self.grievance_decided_on is not None:
+            return False
         if self.grievance_submitted_on is not None:
             decision_by = self.grievance_submitted_on + _grievance_days(
                 "APPRAISAL_GRIEVANCE_DECISION_DAYS", APPRAISAL_GRIEVANCE_DECISION_DAYS

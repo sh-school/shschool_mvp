@@ -217,10 +217,29 @@ class ExecutorMappingAdmin(admin.ModelAdmin):
 # ── Phase 6: تقييم الموظفين (New Models) ──────────────────────────
 
 
+def _template_has_evaluations(template) -> bool:
+    """قالبٌ عليه تقييماتٌ مقفل — كما يقفله `appraisal_seed.apply_plan`."""
+    return template is not None and template.pk is not None and template.evaluations.exists()
+
+
 class EvaluationAxisInline(admin.TabularInline):
+    """
+    محاورُ قالبٍ عليه تقييماتٌ للقراءة: درجاتُ المقيِّمين في `custom_axes` مفاتيحُها هذه
+    المحاور، فتغييرُ مفتاحٍ أو وزنٍ أو حذفُه يُبقي مفاتيحَ قديمةً تُجمع في المجموع.
+    """
+
     model = EvaluationAxis
     extra = 1
     fields = ("key", "label", "weight", "order")
+
+    def has_add_permission(self, request, obj=None):
+        return not _template_has_evaluations(obj) and super().has_add_permission(request, obj)
+
+    def has_change_permission(self, request, obj=None):
+        return not _template_has_evaluations(obj) and super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return not _template_has_evaluations(obj) and super().has_delete_permission(request, obj)
 
 
 @admin.register(RoleEvaluationTemplate)
@@ -229,6 +248,11 @@ class RoleEvaluationTemplateAdmin(admin.ModelAdmin):
     list_filter = ("school", "academic_year", "is_active")
     search_fields = ("role_name",)
     inlines = [EvaluationAxisInline]
+
+    def has_delete_permission(self, request, obj=None):
+        # حذفُه كان يُفرغ `EmployeeEvaluation.template` فيُحسب المجموعُ من المحاور الافتراضيّة
+        # الصفريّة. والنموذجُ يمنعه أيضاً (`on_delete=RESTRICT`).
+        return not _template_has_evaluations(obj) and super().has_delete_permission(request, obj)
 
 
 class EvaluationScoreInline(admin.TabularInline):
@@ -289,6 +313,8 @@ class EmployeeEvaluationAdmin(admin.ModelAdmin):
         "total_score",
         "rating",
         "acknowledged_at",
+        # يدوّنه المديرُ من شاشة التقييم (`record_receipt_on_refusal`) بسجلّ تدقيق.
+        "received_on",
     )
     inlines = [EvaluationScoreInline]
 
