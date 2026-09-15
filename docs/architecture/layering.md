@@ -57,12 +57,26 @@
    - توابعُ يشاركها القاموسُ والطلب — `get` `update` `create` `save` `delete` `values`
      `count` `exists` `first` `last` `earliest` `latest` `iterator` — حين يكون مستقبِلُها
      من ORM: سلسلةً فيها ما سبق، أو اسماً أُسند منها في الدالّة (`m = X.objects` ثمّ
-     `m.get(`؛ `t = get_object_or_404(…)` ثمّ `t.save()`). و`request.GET.get(` و`ctx.update(`
-     وقاموسُ `aggregate(` لا تُعدّ.
+     `m.get(`؛ `t = get_object_or_404(…)` ثمّ `t.save()`؛ `obj, created = …get_or_create()`؛
+     حلقةٌ ومُولِّدٌ و`:=`)، أو بناءَ نموذجٍ مستورَدٍ من `models` (`cover = WingCoverage(…)`
+     ثمّ `cover.save()`)، أو `request.user`، أو `form.save()` من مصنّفٍ مستورَدٍ من `forms`
+     (و`commit=False` لا تُعدّ). و`request.GET.get(` و`ctx.update(` وقاموسُ `aggregate(` لا تُعدّ؛
+   - المديرُ المرتبطُ على نسخةٍ لا يُعرف نوعُها: `photo_set.`، وما لا نظيرَ له في القاموس على
+     صفةِ نسخة (`student.enrollments.first()`، `.create(`، `.exists()`)، وما لا يقبله القاموسُ
+     بوسائطه (`.get(pk=1)`، `.count()`، `.values("a")`) — إلّا ما جذرُه `request` أو `os` أو
+     `settings`… وما مرّ بقاموسٍ معروف (`cleaned_data`، `GET`، `session`، `kwargs`…).
+
+   **والعرضُ يُحمَّل استعلاماتِ مساعديه**: كلَّ دالّةٍ يبلغها في ملفّات العروض — في ملفّه
+   أو مستورَدةً من ملفّ عروضٍ آخر — مرّةً واحدة. فتقسيمُ عرضٍ بخمسةٍ وعشرين استدعاءً على
+   `_part1…_part5` لا يُنقصه؛ ونقلُها إلى `selectors.py` هو ما يُنقصه.
 
    ما فوق السقف وحده يُسجَّل.
-2. **`get_school()` في ملفّات العروض** — كلُّها لا ما في العروض وحدها.
-3. **استيرادُ `core` لوحدةٍ نازلة** — ولو كسولاً داخل دالّة — معدوداً لكلّ تطبيقٍ على
+2. **`get_school()` في ملفّات العروض** — كلُّها لا ما في العروض وحدها: كلُّ إشارةٍ إليه
+   (مستدعاةً، ومستعارةً `g = user.get_school`، و`getattr(user, "get_school")`)، وكلُّ
+   استدعاءٍ لغلافٍ يُرجعه — `_get_school(request)` في الملفّ، أو `school_of(request)`
+   مستورَداً من وحدةٍ في المشروع.
+3. **استيرادُ `core` لوحدةٍ نازلة** — ولو كسولاً داخل دالّة، ولو بنصّ (`__import__("x")`،
+   `import_module`، `import_string`، `apps.get_model("app", …)`) — معدوداً لكلّ تطبيقٍ على
    النواة كلِّها.
 
 والسجلُّ `tests/layering_baseline.json`: **زاد** → يسقط `tests/test_layering.py`؛
@@ -70,9 +84,21 @@
 
 ```bash
 python -m tests.layering_ratchet             # الفحص
-python -m tests.layering_ratchet --update     # تثبيتُ ما نقص — يرفض أيَّ زيادة
+python -m tests.layering_ratchet --update     # تثبيتُ ما نقص — وما زاد يبقى على قيمته ويُسمّى
+python -m tests.layering_ratchet --accept "<الموضع>" --reason "<لماذا>"  # زيادةٌ كُتبت بلا الحارس
 python -m tests.layering_ratchet --rebaseline # حين يتغيّر تعريفُ العدّ نفسُه — يُراجَع سطراً سطراً
 ```
+
+### الفروعُ التي أساسُها قبل الحارس
+
+فرعٌ بدأ قبل `tests/test_layering.py` يمرّ في CI وحدَه، ويسقط بعد دمجه مع ما فيه الحارس:
+زاد عرضاً مسجَّلاً (يُسقط الفحصَ الأوّل)، أو رحّل عرضاً (يُسقط الثاني حتى يُثبَّت). والمخرج:
+
+1. `--update` يُثبّت كلَّ نقص ولو زاد بندٌ آخر — كان يرفض السجلَّ كلَّه فيحبس النقصَ وراء الزيادة.
+2. ما زاد: يُرحَّل، أو يُقبل **باسمه** بـ`--accept` وسببٍ لا يقلّ عن عشرين حرفاً. يُرفع البندُ
+   وحدَه، ويُكتب في `accepted` الموضعُ والمقياسُ والقيمتان والسبب، فيراه المراجعُ في طلب الدمج.
+   و`--accept` يرفض ما لم يزد. أمّا `--rebaseline` فلتغيّر تعريف العدّ وحدَه: يُعيد القياسَ كلَّه
+   فتذوب الزيادةُ بين مئةِ بند.
 
 ## الأرقام
 
@@ -84,6 +110,7 @@ python -m tests.layering_ratchet --rebaseline # حين يتغيّر تعريفُ
 | بعد لوحة التحكم والإحصاءات و`request.school` | 70 | 38 | 51 | 77 | 61 / 15 |
 | دمج main حتّى #284 (`wings` تحت الحارس) | 70 | 38 | 51 | 77 | 61 / 15 |
 | تعريف 3 (`*_views.py`، والكتابةُ والمستعار) — الشيفرةُ نفسُها | 120 | 42 | 106 | 88 | 61 / 15 |
+| تعريف 4 (المديرُ المرتبطُ ونسخُ النماذج، ومساعدو العرض، وأغلفةُ `get_school`، والاستيرادُ بنصّ) — الشيفرةُ نفسُها | 162 | 42 | 154 | 105 | 62 / 16 |
 
 - **شؤون الطلبة**: 17 عرضاً فوق السقف → 2. رُحِّل خمسةَ عشرَ (الاثنا عشرَ الأثقلُ وثلاثةٌ
   تشاركها قراءاتِها)، وبقي `student_add` و`student_edit` فوق الأسطر وحدها (82 و76) —
@@ -100,7 +127,11 @@ python -m tests.layering_ratchet --rebaseline # حين يتغيّر تعريفُ
 
 - `quality/views.py` — 12 `get_school()` (يملكه وكيلُ الامتثال H).
 - `staff_affairs/views.py` — `staff_list` و`staff_profile` فوق السقف لم تُرحَّلا (يعدّله وكيلُ الامتثال G).
-- 120 دالّةً فوق السقف في بقيّة التطبيقات، و88 `get_school()`؛ والسجلُّ يسمّيها. والتعريفُ
+- 162 دالّةً فوق السقف في بقيّة التطبيقات، و105 `get_school()`؛ والسجلُّ يسمّيها. والتعريفُ
+  الرابع حمّل العروضَ استعلاماتِ مساعديها (`academic_management/assignment_views.py` كلُّه
+  يمرّ بـ`_render_card` — 26 استدعاءً)، وعدّ غلافَي `_get_school` في
+  `academic_management/views.py` (1 → 6) و`_school` في `api/views.py` (4 → 16)، و`__import__`
+  في `core/querysets.py` (`core → operations` 16 → 17). والتعريفُ
   الثالث أدخل أربعةَ ملفّات (`academic_management/assignment_views.py`،
   `operations/api_views.py`، `quality/evaluation_views.py`، `quality/observation_views.py`:
   أحدَ عشرَ `get_school()`) وعروضَ الكتابة كـ`student_affairs/views.py::transfer_review` (8).

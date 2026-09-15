@@ -8,21 +8,29 @@
 
 1. **كلُّ دالّةٍ في ملفّ عروض** (`views.py`، `views_*.py`، `*_views.py`، `views/*.py`) —
    العرضُ نفسُه ومساعدُه وتوابعُ أصنافه: سقفُها 60 سطراً (من سطر `def` إلى آخره، بلا
-   المزيِّنات) و5 استدعاءاتِ ORM مباشرة. والمعدودُ: الوصولُ إلى `.objects`؛ وتوابعُ لا
-   يملكها غيرُ QuerySet أينما وقعت، ولو على مديرٍ مرتبط (`ORM_METHODS`: `.filter(`،
-   `.exclude(`، `.order_by(`، `.values_list(`، `.all(`…)؛ و`get_object_or_404(` و`Q(`
-   وأسماؤه المستعارة؛ وتوابعُ يشاركها القاموسُ والطلب (`AMBIGUOUS_METHODS`: `.get(`،
-   `.update(`، `.create(`، `.save(`، `.count(`…) حين يكون مستقبِلُها من ORM — سلسلةً
-   فيها ما سبق، أو اسماً أُسند منها في الدالّة. وكان العدُّ على ما أوّلُ وسائطه `request`
-   وحدَه، فنقلُ الاستعلام إلى `_get_director_ctx(school, today)` في الملفّ نفسِه — ستٌّ
-   وأربعون استدعاءً — كان يُخفيه عن الحارس. وكان المعدودُ خمسةَ توابعِ قراءةٍ وحدها،
-   فعرضٌ يكتب في ثلاثة جداول بـ`get_object_or_404` و`.save()` و`.update(` يُعدّ أربعةً.
-2. **`core` لا يستورد وحدةً نازلة** — ولا استيراداً كسولاً داخل دالّة: الكسلُ
-   يؤخّر الخطأ الدائريّ ولا يُزيل الاقتران. والعدُّ لكلّ وحدةٍ نازلة على النواة
+   المزيِّنات) و5 استدعاءاتِ ORM. والمعدودُ: الوصولُ إلى `.objects`؛ وتوابعُ لا يملكها
+   غيرُ QuerySet أينما وقعت (`ORM_METHODS`: `.filter(`، `.exclude(`، `.all(`…)؛
+   و`get_object_or_404(` و`Q(` وأسماؤه المستعارة؛ وتوابعُ يشاركها القاموسُ والطلب
+   (`AMBIGUOUS_METHODS`: `.get(`، `.update(`، `.create(`، `.save(`، `.count(`…) حين يكون
+   مستقبِلُها من ORM — سلسلةً فيها ما سبق، أو اسماً أُسند منها في الدالّة (ولو بتفكيك
+   `obj, created =`، أو في حلقةٍ أو مُولِّد، أو بـ`:=`)، أو بناءَ نموذجٍ مستورَد
+   (`Cover(...)`)، أو `request.user`، أو `form.save()` من مصنّفٍ مستورَد — أو حين يكون
+   مديراً مرتبطاً على نسخةٍ لا يُعرف نوعُها: `photo_set.`، أو تابعاً لا نظيرَ له في
+   القاموس على صفةِ نسخة (`student.enrollments.first()`)، أو بوسائطَ لا يقبلها القاموس
+   (`.get(pk=1)`، `.count()`، `.values("a")`).
+   **والعرضُ يُحمَّل استعلاماتِ مساعديه**: كلَّ دالّةٍ يبلغها من ملفّات العروض — في ملفّه
+   أو مستورَدةً — مرّةً واحدة. وكان العدُّ على ما أوّلُ وسائطه `request` وحدَه، فنقلُ
+   الاستعلام إلى `_get_director_ctx(school, today)` في الملفّ نفسِه كان يُخفيه؛ ثمّ صار
+   لكلّ دالّةٍ وحدَها، فتقسيمُه على `_part1…_part5` بخمسةٍ لكلٍّ منها كان يُخفيه كذلك.
+2. **`core` لا يستورد وحدةً نازلة** — ولا استيراداً كسولاً داخل دالّة، ولا بنصٍّ
+   (`__import__("x")`، `import_module`، `import_string`، `apps.get_model("app", …)`):
+   الكسلُ يؤخّر الخطأ الدائريّ ولا يُزيل الاقتران. والعدُّ لكلّ وحدةٍ نازلة على النواة
    كلِّها لا لكلّ ملفّ: الاعتمادُ اعتمادُ الحزمة، ونقلُ قراءةٍ من عرضٍ في النواة
    إلى قارئٍ في النواة لا يزيده ولا ينقصه.
 3. **`get_school()` في ملفّات العروض** — `request.school` يضعه
-   `SchoolContextMiddleware` مرّةً لكلّ طلب.
+   `SchoolContextMiddleware` مرّةً لكلّ طلب. والمعدودُ كلُّ إشارةٍ إليه (مستدعاةً،
+   أو مستعارةً `g = user.get_school`، أو `getattr(user, "get_school")`)، وكلُّ استدعاءٍ
+   لغلافٍ يُرجعه — في الملفّ (`_get_school(request)`) أو مستورَداً من المشروع.
 
 وقواعدُ السجلّ (`tests/layering_baseline.json`):
 
@@ -34,9 +42,15 @@
 والعدُّ بشجرة `ast` لا بالتعابير النمطيّة: التعليقُ والنصُّ لا يُعدّان، ونهايةُ
 الدالّة لا تُخمَّن بالمسافة البادئة، والنتيجةُ واحدةٌ على 3.11 محلّيّاً و3.12 في CI.
 
-تثبيتُ النقص (لا يقبل زيادةً — يرفض ويُسمّيها):
+تثبيتُ النقص — ويبقى ما زاد على قيمته المسجَّلة ويُسمّى، فلا يحبس نقصاً وراءه:
 
     python -m tests.layering_ratchet --update
+
+وقبولُ زيادةٍ كُتبت بلا الحارس — فرعٌ أساسُه قبله، أو main دُمج فيه — بندٌ بندٌ باسمه
+وسببه، ويُكتب في `accepted` فيراه المراجع:
+
+    python -m tests.layering_ratchet --accept "assessments/views.py::class_gradebook" \\
+        --reason "فرعٌ أساسُه قبل الحارس زاد ثمانيةَ أسطر؛ ترحيلُه في طلبٍ يليه"
 
 وإعادةُ القياس من الصفر حين يتغيّر **تعريفُ** العدّ نفسُه — قرارٌ يُراجَع سطراً سطراً:
 
@@ -45,6 +59,7 @@
 
 from __future__ import annotations
 
+import argparse
 import ast
 import json
 import pathlib
@@ -115,6 +130,60 @@ NOT_DOWNSTREAM = frozenset({"core", "shschool", "tests"})
 FunctionNode = ast.FunctionDef | ast.AsyncFunctionDef
 FUNCTION_NODES = (ast.FunctionDef, ast.AsyncFunctionDef)
 
+#: جذورٌ لا يقع تحتها مديرٌ مرتبط: `os.path.exists(`، `request.session.delete(`، `cache.delete(`.
+#: و`request.user` يُستثنى من `request` — نسخةُ نموذج.
+NOT_ORM_ROOTS = frozenset(
+    {
+        "cache",
+        "date",
+        "datetime",
+        "json",
+        "math",
+        "messages",
+        "os",
+        "pathlib",
+        "re",
+        "request",
+        "settings",
+        "shutil",
+        "sys",
+        "timezone",
+    }
+)
+
+#: صفاتٌ هي قواميسُ في Django لا مديرون: `form.cleaned_data.get(`، `self.kwargs.get(`.
+DICT_LIKE_ATTRS = frozenset(
+    {
+        "COOKIES",
+        "FILES",
+        "GET",
+        "META",
+        "POST",
+        "attrs",
+        "cleaned_data",
+        "data",
+        "environ",
+        "errors",
+        "extra",
+        "fields",
+        "headers",
+        "initial",
+        "kwargs",
+        "message_dict",
+        "query_params",
+        "session",
+    }
+)
+
+#: من `AMBIGUOUS_METHODS` ما لا يملكه قاموسٌ ولا قائمةٌ ولا نصّ: على صفةِ نسخةٍ
+#: (`student.enrollments.first()`) هو مديرٌ مرتبطٌ وإن لم يُعرف نوعُ `student`.
+NOT_BUILTIN_METHODS = frozenset(
+    {"create", "delete", "earliest", "exists", "first", "iterator", "last", "latest", "save"}
+)
+
+#: وحداتٌ اسمُها فيه `models` وليست نماذج: `Count` و`F` و`Lower`.
+NOT_MODEL_MODULES = ("django.db.models",)
+
 
 def downstream_apps(root: pathlib.Path = ROOT) -> frozenset[str]:
     """كلُّ حزمةٍ في الجذر غيرُ النواة — تُكتشف ولا تُسرد، فالتطبيقُ الجديدُ نازلٌ من يومه."""
@@ -137,6 +206,19 @@ def _q_aliases(tree: ast.Module) -> frozenset[str]:
     )
 
 
+def _imported_classes(tree: ast.Module, segment: str) -> frozenset[str]:
+    """أسماءُ ما استُورد من وحدةٍ فيها المقطع (`core.models`، `.models`، `.forms`)."""
+    names = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        module = node.module or ""
+        if segment not in module.split(".") or module.startswith(NOT_MODEL_MODULES):
+            continue
+        names.update(alias.asname or alias.name for alias in node.names)
+    return frozenset(names)
+
+
 def _called_name(func: ast.expr) -> str | None:
     if isinstance(func, ast.Name):
         return func.id
@@ -145,23 +227,116 @@ def _called_name(func: ast.expr) -> str | None:
     return None
 
 
+def _chain(expr: ast.AST) -> tuple[str | None, list[str]]:
+    """(جذرُ السلسلة، صفاتُها) — `a.b.c` ← ("a", ["b", "c"])؛ والجذرُ `None` إن لم يكن اسماً."""
+    attrs: list[str] = []
+    node = expr
+    while True:
+        if isinstance(node, ast.Attribute):
+            attrs.append(node.attr)
+            node = node.value
+        elif isinstance(node, ast.Subscript):
+            node = node.value
+        elif isinstance(node, ast.Call):
+            node = node.func
+        else:
+            break
+    root = node.id if isinstance(node, ast.Name) else None
+    return root, attrs[::-1]
+
+
+def _is_request_user(expr: ast.AST) -> bool:
+    """`request.user` و`self.request.user` — نسخةُ نموذجٍ لا قاموس."""
+    if not (isinstance(expr, ast.Attribute) and expr.attr == "user"):
+        return False
+    value = expr.value
+    return (isinstance(value, ast.Name) and value.id == "request") or (
+        isinstance(value, ast.Attribute) and value.attr == "request"
+    )
+
+
+def _target_names(target: ast.AST) -> list[str]:
+    """`x` و`x, created` و`(a, (b, c))` — كلُّ اسمٍ في هدف الإسناد."""
+    if isinstance(target, ast.Name):
+        return [target.id]
+    if isinstance(target, ast.Tuple | ast.List):
+        return [name for elt in target.elts for name in _target_names(elt)]
+    if isinstance(target, ast.Starred):
+        return _target_names(target.value)
+    return []
+
+
 class _OrmCounter:
     """يعدّ استدعاءاتِ ORM في دالّة، ويتتبّع الأسماءَ المُسنَدة منها داخلها.
 
-    `m = Student.objects` ثمّ `m.get(`، و`t = get_object_or_404(...)` ثمّ `t.save()`:
+    `m = Student.objects` ثمّ `m.get(`، و`t = get_object_or_404(...)` ثمّ `t.save()`،
+    و`o = Cover(...)` ثمّ `o.save()`، و`o, created = X.objects.get_or_create()`:
     المستقبِلُ اسمٌ لا يُعرف نوعُه من الشجرة، لكنّ إسنادَه في الدالّة نفسِها يُعرف.
     """
 
-    def __init__(self, node: ast.AST, functions: frozenset[str]) -> None:
+    def __init__(
+        self,
+        node: ast.AST,
+        functions: frozenset[str],
+        models: frozenset[str] = frozenset(),
+        forms: frozenset[str] = frozenset(),
+    ) -> None:
         self.node = node
         self.functions = functions
+        self.models = models
+        self.forms = forms
         self.tainted: set[str] = set()
+        self.form_names: set[str] = set()
         # نقطةٌ ثابتة: `qs = X.objects…` ثمّ `row = qs.first()` ثمّ `row.save()`.
         while True:
-            before = len(self.tainted)
+            before = len(self.tainted) + len(self.form_names)
             self._collect_bindings()
-            if len(self.tainted) == before:
+            if len(self.tainted) + len(self.form_names) == before:
                 break
+
+    # ── ما يُعدّ ──
+
+    def _is_form_save(self, call: ast.Call) -> bool:
+        func = call.func
+        return (
+            isinstance(func, ast.Attribute)
+            and func.attr == "save"
+            and isinstance(func.value, ast.Name)
+            and func.value.id in self.form_names
+        )
+
+    def _writes(self, call: ast.Call) -> bool:
+        """`form.save()` تكتب، و`form.save(commit=False)` تبني نسخةً ولا تكتب."""
+        return not any(
+            kw.arg == "commit" and isinstance(kw.value, ast.Constant) and kw.value.value is False
+            for kw in call.keywords
+        )
+
+    def _related_manager(self, call: ast.Call, name: str) -> bool:
+        """مديرٌ مرتبطٌ على نسخةٍ لا يُعرف نوعُها: تشهد له الصفةُ أو شكلُ الوسائط.
+
+        `photo_set.` اسمُ Django الافتراضيّ؛ و`.get(pk=1)` بلا وسيطٍ موضعيّ ليست
+        `dict.get`؛ و`.count()` بلا وسيطٍ ليست `list.count`؛ و`.values('a')` بوسيطٍ
+        ليست `dict.values`؛ وما لا نظيرَ له في القاموس (`create` `first` `exists`…)
+        على صفةِ نسخة. ويُستثنى ما جذرُه طلبٌ أو وحدةٌ معروفة وما مرّ بقاموس.
+        """
+        func = call.func
+        if not isinstance(func, ast.Attribute) or not isinstance(func.value, ast.Attribute):
+            return False
+        root, attrs = _chain(func.value)
+        if root is None or root in NOT_ORM_ROOTS or DICT_LIKE_ATTRS & set(attrs):
+            return False
+        if attrs[-1].endswith("_set"):
+            return True
+        if name in NOT_BUILTIN_METHODS:
+            return True
+        if name == "get":
+            return not call.args and bool(call.keywords)
+        if name == "count":
+            return not call.args and not call.keywords
+        if name == "values":
+            return bool(call.args)
+        return False
 
     def is_orm_call(self, call: ast.Call) -> bool:
         func = call.func
@@ -172,25 +347,40 @@ class _OrmCounter:
             return False
         if name in ORM_METHODS or name in self.functions:
             return True
-        return name in AMBIGUOUS_METHODS and self.from_orm(func.value)
+        if name not in AMBIGUOUS_METHODS:
+            return False
+        if self._is_form_save(call):
+            return self._writes(call)
+        return self.from_orm(func.value) or self._related_manager(call, name)
 
     def from_orm(self, expr: ast.AST) -> bool:
         """هل جاء هذا التعبيرُ من ORM — على عموده لا في وسائطه.
 
         العمودُ ما يُستدعى عليه التابع: `X.objects.filter(...)[:5]` ← `X.objects` ← `X`.
-        فيه `.objects`، أو استدعاءٌ معدود، أو اسمٌ مُسنَدٌ من ORM. و`{"rows": qs}` ليس منه:
+        فيه `.objects`، أو استدعاءٌ معدود، أو اسمٌ مُسنَدٌ من ORM، أو بناءُ نموذجٍ
+        مستورَد (`Cover(...)`)، أو `request.user`. و`{"rows": qs}` ليس منه:
         قاموسُ السياق يحمل QuerySet لكنّ `ctx.update(` ليس استعلاماً.
         """
         node: ast.AST = expr
         while True:
+            if _is_request_user(node):
+                return True
             if isinstance(node, ast.Name):
                 return node.id in self.tainted
             if isinstance(node, ast.Attribute):
                 if node.attr == "objects":
                     return True
+                if node.attr in DICT_LIKE_ATTRS:
+                    return False
+                node = node.value
+            elif isinstance(node, ast.NamedExpr):
                 node = node.value
             elif isinstance(node, ast.Call):
                 if self.is_orm_call(node):
+                    return True
+                if isinstance(node.func, ast.Name) and node.func.id in self.models:
+                    return True
+                if self._is_form_save(node):
                     return True
                 node = node.func
                 if isinstance(node, ast.Attribute):
@@ -202,18 +392,36 @@ class _OrmCounter:
             else:
                 return False
 
+    # ── الإسنادُ داخل الدالّة ──
+
+    def _bind(self, targets: list[ast.AST], value: ast.AST) -> None:
+        if isinstance(value, ast.Call) and _called_name(value.func) in SCALAR_RESULTS:
+            return
+        names = [name for target in targets for name in _target_names(target)]
+        if (
+            isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Name)
+            and value.func.id in self.forms
+        ):
+            self.form_names.update(names)
+        elif self.from_orm(value):
+            self.tainted.update(names)
+
     def _collect_bindings(self) -> None:
         for sub in ast.walk(self.node):
-            if isinstance(sub, ast.Assign | ast.AnnAssign) and sub.value is not None:
-                targets = sub.targets if isinstance(sub, ast.Assign) else [sub.target]
-                value = sub.value
-                if isinstance(value, ast.Call) and _called_name(value.func) in SCALAR_RESULTS:
-                    continue
-                if self.from_orm(value):
-                    self.tainted.update(t.id for t in targets if isinstance(t, ast.Name))
-            elif isinstance(sub, ast.For | ast.AsyncFor) and isinstance(sub.target, ast.Name):
+            if isinstance(sub, ast.Assign):
+                self._bind(sub.targets, sub.value)
+            elif isinstance(sub, ast.AnnAssign) and sub.value is not None:
+                self._bind([sub.target], sub.value)
+            elif isinstance(sub, ast.NamedExpr):
+                self._bind([sub.target], sub.value)
+            elif isinstance(sub, ast.For | ast.AsyncFor | ast.comprehension):
                 if self.from_orm(sub.iter):
-                    self.tainted.add(sub.target.id)
+                    self.tainted.update(_target_names(sub.target))
+            elif isinstance(sub, ast.With | ast.AsyncWith):
+                for item in sub.items:
+                    if item.optional_vars is not None:
+                        self._bind([item.optional_vars], item.context_expr)
 
     def count(self) -> int:
         total = 0
@@ -225,20 +433,252 @@ class _OrmCounter:
         return total
 
 
-def _orm_calls(node: ast.AST, functions: frozenset[str] = ORM_FUNCTIONS) -> int:
-    return _OrmCounter(node, functions).count()
+# ─── الوحدةُ ومساعدوها ─────────────────────────────────────────────────────
 
 
-def _get_school_calls(node: ast.AST) -> int:
-    count = 0
-    for sub in ast.walk(node):
-        if isinstance(sub, ast.Call):
-            func = sub.func
-            if (isinstance(func, ast.Attribute) and func.attr == "get_school") or (
-                isinstance(func, ast.Name) and func.id == "get_school"
+def _is_get_school_ref(node: ast.AST) -> bool:
+    """`x.get_school` (مستدعاةً أو مستعارة)، و`get_school(`، و`getattr(x, "get_school")`."""
+    if isinstance(node, ast.Attribute) and node.attr == "get_school":
+        return True
+    if isinstance(node, ast.Name) and node.id == "get_school" and isinstance(node.ctx, ast.Load):
+        return True
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "getattr"
+        and len(node.args) >= 2
+        and isinstance(node.args[1], ast.Constant)
+        and node.args[1].value == "get_school"
+    )
+
+
+class _Module:
+    """ملفٌّ مقروء: دوالُّه وتوابعُ أصنافه، وأسماءُ ما استورده من وحدات المشروع."""
+
+    def __init__(self, source: str, path: str, index: _Index | None = None) -> None:
+        self.path = path
+        self.index = index
+        self.tree = ast.parse(source)
+        self.functions = ORM_FUNCTIONS | _q_aliases(self.tree)
+        self.models = _imported_classes(self.tree, "models")
+        self.forms = _imported_classes(self.tree, "forms")
+        # الاسمُ المؤهَّل ← العقدة: `view` و`Page.get`.
+        self.defs: dict[str, FunctionNode] = {}
+        self.owner: dict[str, str | None] = {}
+        for node in self.tree.body:
+            if isinstance(node, FUNCTION_NODES):
+                self.defs[node.name] = node
+                self.owner[node.name] = None
+            elif isinstance(node, ast.ClassDef):
+                for item in node.body:
+                    if isinstance(item, FUNCTION_NODES):
+                        qual = f"{node.name}.{item.name}"
+                        self.defs[qual] = item
+                        self.owner[qual] = node.name
+        # الاسمُ المحلّيّ ← (الوحدة المنقوطة، الاسمُ فيها أو None للوحدة نفسِها).
+        self.imports: dict[str, tuple[str, str | None]] = {}
+        for node in self.tree.body:
+            if isinstance(node, ast.ImportFrom):
+                module = self._absolute(node)
+                if module is None:
+                    continue
+                for alias in node.names:
+                    self.imports[alias.asname or alias.name] = (module, alias.name)
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.asname:
+                        self.imports[alias.asname] = (alias.name, None)
+        self._own_orm: dict[str, int] = {}
+        self._wrappers: frozenset[str] | None = None
+
+    def _absolute(self, node: ast.ImportFrom) -> str | None:
+        if node.level == 0:
+            return node.module
+        package = pathlib.PurePosixPath(self.path).parts[:-1]
+        if node.level > 1:
+            package = package[: len(package) - (node.level - 1)]
+        return ".".join([*package, *([node.module] if node.module else [])])
+
+    # ── من يُستدعى ──
+
+    def callees(self, qual: str) -> Iterator[tuple[_Module, str]]:
+        """دوالُّ المشروع التي تستدعيها هذه الدالّة: في الملفّ نفسِه أو مستورَدةً منه."""
+        cls = self.owner[qual]
+        for sub in ast.walk(self.defs[qual]):
+            if not isinstance(sub, ast.Call):
+                continue
+            target = self._resolve(sub.func, cls)
+            if target is not None:
+                yield target
+
+    def _resolve(self, func: ast.expr, cls: str | None) -> tuple[_Module, str] | None:
+        if isinstance(func, ast.Name):
+            if func.id in self.defs and self.owner[func.id] is None:
+                return self, func.id
+            if func.id in self.imports and self.index is not None:
+                module, name = self.imports[func.id]
+                if name is not None:
+                    return self.index.function(module, name)
+            return None
+        if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+            base = func.value.id
+            if base in {"self", "cls"} and cls is not None:
+                qual = f"{cls}.{func.attr}"
+                return (self, qual) if qual in self.defs else None
+            if base in self.imports and self.index is not None:
+                module, name = self.imports[base]
+                dotted = module if name is None else f"{module}.{name}"
+                return self.index.function(dotted, func.attr)
+        return None
+
+    # ── ORM ──
+
+    def own_orm(self, qual: str) -> int:
+        if qual not in self._own_orm:
+            self._own_orm[qual] = _OrmCounter(
+                self.defs[qual], self.functions, self.models, self.forms
+            ).count()
+        return self._own_orm[qual]
+
+    def orm_with_helpers(self, qual: str) -> int:
+        """ما في الدالّة وما في كلِّ مساعدٍ تبلغه من ملفّات العروض — كلٌّ مرّةً واحدة.
+
+        السقفُ لكلّ دالّةٍ وحدَها كان يُقسم: عرضٌ بخمسةٍ وعشرين استدعاءً يصير خمسَ
+        دوالٍّ `_part1…_part5` بخمسةٍ لكلٍّ منها، والاستعلاماتُ كلُّها في ملفّ العروض.
+        و`selectors.py` و`services.py` ليسا ملفَّي عروض — فالنقلُ إليهما وحدَه يُنقص.
+        """
+        seen: set[tuple[str, str]] = set()
+        total = 0
+        stack: list[tuple[_Module, str]] = [(self, qual)]
+        while stack:
+            module, name = stack.pop()
+            if (module.path, name) in seen:
+                continue
+            seen.add((module.path, name))
+            total += module.own_orm(name)
+            stack.extend(
+                (callee, callee_name)
+                for callee, callee_name in module.callees(name)
+                if _is_view_path(callee.path)
+            )
+        return total
+
+    # ── get_school ──
+
+    def wrappers(self) -> frozenset[str]:
+        """دوالُّ تُرجع `get_school()` — بنفسها، أو باسمٍ أُسند منه، أو بغلافٍ آخر."""
+        if self._wrappers is not None:
+            return self._wrappers
+        self._wrappers = frozenset()
+        found: set[str] = set()
+        while True:
+            before = len(found)
+            for qual, node in self.defs.items():
+                if qual not in found and self._returns_school(qual, node, found):
+                    found.add(qual)
+            self._wrappers = frozenset(found)
+            if len(found) == before:
+                return self._wrappers
+
+    def _yields_school(self, expr: ast.AST | None, cls: str | None, names: set[str]) -> bool:
+        if expr is None:
+            return False
+        if isinstance(expr, ast.IfExp):
+            return self._yields_school(expr.body, cls, names) or self._yields_school(
+                expr.orelse, cls, names
+            )
+        if isinstance(expr, ast.BoolOp):
+            return any(self._yields_school(v, cls, names) for v in expr.values)
+        if isinstance(expr, ast.Name):
+            return expr.id in names
+        if isinstance(expr, ast.Call):
+            if _is_get_school_ref(expr) or _is_get_school_ref(expr.func):
+                return True
+            if isinstance(expr.func, ast.Name) and expr.func.id in names:
+                return True
+            if isinstance(expr.func, ast.Call) and _is_get_school_ref(expr.func):
+                return True
+            return self.is_wrapper_call(expr, cls)
+        return _is_get_school_ref(expr)
+
+    def _returns_school(self, qual: str, node: FunctionNode, found: set[str]) -> bool:
+        cls = self.owner[qual]
+        names: set[str] = set()
+        for _ in range(3):  # `s = user.get_school()` ثمّ `school = s` ثمّ `return school`
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.Assign) and self._yields_school(sub.value, cls, names):
+                    names.update(n for t in sub.targets for n in _target_names(t))
+        return any(
+            isinstance(sub, ast.Return) and self._yields_school(sub.value, cls, names)
+            for sub in ast.walk(node)
+        )
+
+    def is_wrapper_call(self, call: ast.Call, cls: str | None) -> bool:
+        target = self._resolve(call.func, cls)
+        if target is None:
+            return False
+        module, name = target
+        if module is self:
+            # أثناء البحث عن الأغلفة: ما وُجد حتّى الآن.
+            return name in (self._wrappers or frozenset())
+        return name in module.wrappers()
+
+    def get_school_calls(self) -> int:
+        """كلُّ إشارةٍ إلى `get_school` في الملفّ، وكلُّ استدعاءٍ لغلافٍ عليه."""
+        self.wrappers()  # تُحسب كاملةً قبل العدّ: `is_wrapper_call` يقرأ ما وُجد منها
+        total = 0
+        owners = {
+            id(sub): self.owner[qual] for qual, node in self.defs.items() for sub in ast.walk(node)
+        }
+        for sub in ast.walk(self.tree):
+            if _is_get_school_ref(sub):
+                total += 1
+            elif (
+                isinstance(sub, ast.Call)
+                and not _is_get_school_ref(sub.func)
+                and self.is_wrapper_call(sub, owners.get(id(sub)))
             ):
-                count += 1
-    return count
+                total += 1
+        return total
+
+
+def _is_view_path(path: str) -> bool:
+    parts = pathlib.PurePosixPath(path).parts
+    name = parts[-1]
+    return (
+        name == "views.py"
+        or (name.startswith("views_") and name.endswith(".py"))
+        or name.endswith("_views.py")
+        or (len(parts) >= 2 and parts[-2] == "views" and name.endswith(".py"))
+    )
+
+
+class _Index:
+    """وحداتُ المشروع مقروءةً مرّةً واحدة — ليُتبَع المساعدُ المستورَدُ إلى ملفّه."""
+
+    def __init__(self, root: pathlib.Path) -> None:
+        self.root = root
+        self.modules: dict[str, _Module | None] = {}
+
+    def module(self, dotted: str) -> _Module | None:
+        if dotted not in self.modules:
+            self.modules[dotted] = None
+            base = self.root.joinpath(*dotted.split("."))
+            for candidate in (base.with_suffix(".py"), base / "__init__.py"):
+                if (
+                    candidate.is_file()
+                    and (self.root / dotted.split(".")[0] / "__init__.py").is_file()
+                ):
+                    rel = candidate.relative_to(self.root).as_posix()
+                    self.modules[dotted] = _Module(candidate.read_text(encoding="utf-8"), rel, self)
+                    break
+        return self.modules[dotted]
+
+    def function(self, dotted: str, name: str) -> tuple[_Module, str] | None:
+        module = self.module(dotted)
+        if module is not None and name in module.defs and module.owner[name] is None:
+            return module, name
+        return None
 
 
 def _views(tree: ast.Module) -> Iterator[tuple[str, FunctionNode]]:
@@ -252,14 +692,17 @@ def _views(tree: ast.Module) -> Iterator[tuple[str, FunctionNode]]:
                     yield f"{node.name}.{item.name}", item
 
 
-def measure_views(source: str, path: str) -> tuple[dict[str, dict[str, int]], int]:
+def measure_views(
+    source: str, path: str, index: _Index | None = None
+) -> tuple[dict[str, dict[str, int]], int]:
     """(ما فوق السقف من عروض الملفّ، عددُ `get_school()` فيه كلِّه)."""
-    tree = ast.parse(source)
-    functions = ORM_FUNCTIONS | _q_aliases(tree)
+    module = _Module(source, path, index)
+    if index is not None:
+        index.modules.setdefault(_dotted(path), module)
     over: dict[str, dict[str, int]] = {}
-    for name, node in _views(tree):
+    for name, node in _views(module.tree):
         lines = (node.end_lineno or node.lineno) - node.lineno + 1
-        orm = _orm_calls(node, functions)
+        orm = module.orm_with_helpers(name)
         excess = {}
         if lines > MAX_LINES:
             excess["lines"] = lines
@@ -267,17 +710,47 @@ def measure_views(source: str, path: str) -> tuple[dict[str, dict[str, int]], in
             excess["orm"] = orm
         if excess:
             over[f"{path}::{name}"] = excess
-    return over, _get_school_calls(tree)
+    return over, module.get_school_calls()
+
+
+def _dotted(path: str) -> str:
+    parts = list(pathlib.PurePosixPath(path).with_suffix("").parts)
+    if parts[-1] == "__init__":
+        parts.pop()
+    return ".".join(parts)
+
+
+#: استيرادٌ بنصٍّ لا بجملة: `__import__("x")`، `import_module("x")`، `import_string("x.y")`.
+DYNAMIC_IMPORTS = frozenset({"__import__", "import_module", "import_string"})
+
+
+def _dynamic_import(node: ast.Call) -> str | None:
+    """الوحدةُ التي يستوردها استدعاءٌ بنصٍّ ثابت — أو `None`.
+
+    `apps.get_model("clinic", "Visit")` و`apps.get_model("clinic.Visit")` اقترانٌ
+    بالتطبيق كالاستيراد: النموذجُ يُطلب باسمه، والتطبيقُ لازمٌ للنواة.
+    """
+    name = _called_name(node.func)
+    first = node.args[0] if node.args else None
+    if not (isinstance(first, ast.Constant) and isinstance(first.value, str)):
+        return None
+    if name in DYNAMIC_IMPORTS:
+        return first.value
+    if name == "get_model":
+        return first.value.split(".", 1)[0]
+    return None
 
 
 def measure_core_imports(source: str, downstream: frozenset[str]) -> dict[str, int]:
-    """وحدةٌ نازلة ← عددُ جُمل الاستيراد منها — في أيّ عمقٍ من الملفّ."""
+    """وحدةٌ نازلة ← عددُ جُمل الاستيراد منها — في أيّ عمقٍ من الملفّ، ولو بنصّ."""
     found: Counter[str] = Counter()
     for node in ast.walk(ast.parse(source)):
         if isinstance(node, ast.Import):
             names = [alias.name for alias in node.names]
         elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
             names = [node.module]
+        elif isinstance(node, ast.Call) and (module := _dynamic_import(node)):
+            names = [module]
         else:
             continue
         for top in {name.split(".", 1)[0] for name in names} & downstream:
@@ -309,9 +782,10 @@ def view_files(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
 def snapshot(root: pathlib.Path = ROOT) -> dict:
     views: dict[str, dict[str, int]] = {}
     get_school: dict[str, int] = {}
+    index = _Index(root)
     for path in view_files(root):
         rel = path.relative_to(root).as_posix()
-        over, calls = measure_views(path.read_text(encoding="utf-8"), rel)
+        over, calls = measure_views(path.read_text(encoding="utf-8"), rel, index)
         views.update(over)
         if calls:
             get_school[rel] = calls
@@ -374,12 +848,82 @@ def compare(baseline: dict, current: dict) -> tuple[list[str], list[str]]:
     return worse, stale
 
 
-def ratchet_down(baseline: dict, current: dict) -> dict:
-    """السجلُّ الجديدُ إن لم يزد شيء — وإلّا `ValueError` بما زاد، فالزيادةُ لا تُسجَّل."""
+def ratchet_down(baseline: dict, current: dict) -> tuple[dict, list[str]]:
+    """(السجلُّ بكلّ نقصٍ مُثبَّتاً، وما زاد ولم يُسجَّل).
+
+    كان يرفض السجلَّ كلَّه إن زاد بندٌ واحد: فرعٌ دُمج فيه عملُ فرعٍ آخرَ — نقصٌ هنا
+    وزيادةٌ هناك — لا يستطيع تثبيتَ النقص حتى يُصلح الزيادة، فلا مخرجَ غيرُ
+    `--rebaseline` الذي يُخفي الزيادةَ مع النقص. فالنقصُ يُثبَّت، والزيادةُ تبقى
+    على قيمتها المسجَّلة فتُسقط الحارسَ حتى تُصلَح أو تُقبَل باسمها (`accept`).
+    """
     worse, _stale = compare(baseline, current)
-    if worse:
-        raise ValueError("\n".join(worse))
-    return current
+    views: dict[str, dict[str, int]] = {}
+    for key in set(baseline["views"]) | set(current["views"]):
+        was, is_ = baseline["views"].get(key, {}), current["views"].get(key, {})
+        metrics = {m: min(was.get(m, 0), is_.get(m, 0)) for m in set(was) | set(is_)}
+        if kept := {m: v for m, v in sorted(metrics.items()) if v > 0}:
+            views[key] = kept
+
+    def lower(section: str) -> dict[str, int]:
+        was, is_ = baseline[section], current[section]
+        pairs = ((k, min(was.get(k, 0), is_.get(k, 0))) for k in set(was) | set(is_))
+        return {k: v for k, v in sorted(pairs) if v > 0}
+
+    core_imports = lower("core_imports")
+    recorded = {
+        "views": dict(sorted(views.items())),
+        "get_school": lower("get_school"),
+        "core_imports": core_imports,
+        "core_import_sites": {
+            app: current["core_import_sites"].get(app) or baseline["core_import_sites"][app]
+            for app in core_imports
+        },
+    }
+    if baseline.get("accepted"):
+        recorded["accepted"] = baseline["accepted"]
+    return recorded, worse
+
+
+#: أقصرُ سببٍ يُقبل به تجاوز: جملةٌ تُقرأ لا «ok».
+MIN_REASON = 20
+
+
+def accept(baseline: dict, current: dict, where: str, reason: str) -> dict:
+    """يرفع بنداً زاد إلى قيمته الجارية، ويكتب في `accepted` الموضعَ والقيمتين والسبب.
+
+    للشيفرة التي كُتبت بلا الحارس: فرعٌ أساسُه قبله، أو main دُمج فيه. كلُّ بندٍ
+    باسمه وسببه، والفرقُ في السجلّ يُراجَع في طلب الدمج — لا `--rebaseline` يُعيد
+    القياسَ كلَّه فيذوب البندُ بين مئة. ويرفض ما لم يزد، والسببَ القصير، ولا يلمس
+    بنداً غيرَه.
+    """
+    if len(reason.strip()) < MIN_REASON:
+        raise ValueError(f"اذكر سببَ القبول في {MIN_REASON} حرفاً على الأقلّ — لماذا لا يُصلَح الآن.")
+    before, now = _flatten(baseline), _flatten(current)
+    grew = sorted(
+        (metric, before.get((where, metric), (0, ""))[0], value)
+        for (key, metric), (value, _label) in now.items()
+        if key == where and value > before.get((key, metric), (0, ""))[0]
+    )
+    if not grew:
+        raise ValueError(f"«{where}» لم يزد — لا شيءَ يُقبل. انسخ الموضعَ كما يطبعه الفحص قبل «:».")
+    recorded = json.loads(json.dumps(baseline))
+    for metric, _was, value in grew:
+        if metric in LABELS:
+            recorded["views"].setdefault(where, {})[metric] = value
+        elif metric == "get_school":
+            recorded["get_school"][where] = value
+        else:
+            app = where.removeprefix("core → ")
+            recorded["core_imports"][app] = value
+            recorded["core_import_sites"][app] = current["core_import_sites"][app]
+    recorded["accepted"] = [
+        *baseline.get("accepted", []),
+        *(
+            {"where": where, "metric": metric, "from": was, "to": value, "reason": reason.strip()}
+            for metric, was, value in grew
+        ),
+    ]
+    return recorded
 
 
 def totals(data: dict) -> dict[str, int]:
@@ -408,15 +952,32 @@ def _write(data: dict) -> None:
 
 
 def main(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(prog="python -m tests.layering_ratchet")
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument("--update", action="store_true")
+    mode.add_argument("--rebaseline", action="store_true")
+    mode.add_argument("--accept", metavar="WHERE")
+    parser.add_argument("--reason", default="")
+    args = parser.parse_args(argv)
+
     current = snapshot()
-    if "--rebaseline" in argv:
-        _write(current)
-    elif "--update" in argv:
+    if args.rebaseline:
+        accepted = _read().get("accepted") if BASELINE.is_file() else None
+        _write({**current, **({"accepted": accepted} if accepted else {})})
+    elif args.accept:
         try:
-            _write(ratchet_down(_read(), current))
+            _write(accept(_read(), current, args.accept, args.reason))
         except ValueError as exc:
+            print(exc)
+            return 1
+    elif args.update:
+        recorded, worse = ratchet_down(_read(), current)
+        _write(recorded)
+        if worse:
             print(
-                "لا يُثبَّت سجلٌّ فيه زيادة — أصلحها بدل تسجيلها:\n  " + str(exc).replace("\n", "\n  ")
+                "ثُبِّت النقص، ولا يُثبَّت ما زاد — أصلحه، أو اقبله باسمه إن كُتب بلا الحارس:\n"
+                '  python -m tests.layering_ratchet --accept "<الموضع>" --reason "<لماذا>"\n  '
+                + "\n  ".join(worse)
             )
             return 1
     else:

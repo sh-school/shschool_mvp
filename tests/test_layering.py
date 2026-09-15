@@ -45,6 +45,14 @@ def test_baseline_records_only_what_is_over_the_caps():
     assert all(v > 0 for v in baseline["get_school"].values())
 
 
+def test_every_accepted_increase_says_why():
+    """القبولُ بندٌ باسمه وسببه — لا سطرٌ بلا تعليل يُمرَّر في طلب دمج."""
+    for item in _baseline().get("accepted", []):
+        assert set(item) == {"where", "metric", "from", "to", "reason"}, item
+        assert item["to"] > item["from"], item
+        assert len(item["reason"].strip()) >= ratchet.MIN_REASON, item
+
+
 class TestTheRatchetItself:
     """الحارسُ يحرس ما يقول إنّه يحرسه — لا يمرّ صامتاً على ما وُضع له."""
 
@@ -154,6 +162,155 @@ class TestTheRatchetItself:
         # objects, get, create, count, W, W
         assert over == {"a/views.py::v": {"orm": 6}}
 
+    def test_related_managers_and_instance_writes_count_as_orm(self):
+        """التعريفُ الرابع: مديرٌ مرتبطٌ على مستقبِلٍ مجهول، وحفظُ نسخةٍ مُنشأة، وتفكيكُ الصفّ."""
+        source = (
+            "from core.models import Cover\n"
+            "from .forms import NoteForm\n"
+            "def v(request, s):\n"
+            "    s.enrollments.create(a=1)\n"
+            "    s.enrollments.get(pk=1)\n"
+            "    s.enrollments.count()\n"
+            "    s.enrollments.exists()\n"
+            "    s.enrollments.first()\n"
+            "    s.notes.values('a')\n"
+            "    s.photo_set.update(c=3)\n"
+            "    o = Cover(a=1)\n"
+            "    o.save()\n"
+            "    Cover(a=2).save()\n"
+            "    x, created = Cover.objects.get_or_create(a=3)\n"
+            "    x.save()\n"
+            "    x.delete()\n"
+            "    [r.save() for r in Cover.objects.all()]\n"
+            "    if (w := Cover.objects.first()):\n"
+            "        w.save()\n"
+            "    request.user.save()\n"
+            "    form = NoteForm(request.POST)\n"
+            "    note = form.save(commit=False)\n"
+            "    note.save()\n"
+            "    return None\n"
+        )
+        over, _ = ratchet.measure_views(source, "a/views.py")
+        # create get count exists first values update (7) · o.save · Cover().save (9)
+        # objects get_or_create x.save x.delete (13) · save objects all (16)
+        # objects first w.save (19) · request.user.save (20) · note.save (21) — لا commit=False
+        assert over == {"a/views.py::v": {"orm": 21}}
+
+    def test_form_file_and_dict_like_calls_are_not_orm(self):
+        """ما يشبه المديرَ المرتبط ولا يقرأ القاعدة: قاموسُ المصنّف والطلب، والمسار، والمصنَّف."""
+        lines = [
+            "form.cleaned_data.get('x')",
+            "request.GET.get('q')",
+            "request.session.delete('k')",
+            "request.resolver_match.kwargs.get('pk')",
+            "os.path.exists(path)",
+            "wb.save(path)",
+            "err.message_dict.values()",
+            "name.count('a')",
+        ]
+        # ستُّ نسخٍ من كلٍّ منها: لو عُدّ واحدٌ لتجاوز السقف.
+        body = "".join(f"    {line}\n" for line in lines * (ratchet.MAX_ORM + 1))
+        source = f"def v(request, wb, path, err, name):\n    form = NoteForm(request.POST)\n{body}"
+        over, _ = ratchet.measure_views(source, "a/views.py")
+        assert over == {}
+
+    def test_splitting_queries_over_same_file_helpers_does_not_hide_them(self):
+        """التعريفُ الرابع: العرضُ يُحمَّل استعلاماتِ مساعديه في الملفّ نفسِه، ولو تسلسلت."""
+        two = "    X.objects.filter()\n"  # اثنان: objects وfilter
+        source = (
+            f"def _a():\n{two}{two}"
+            f"def _b():\n{two}    _c()\n"
+            f"def _c():\n{two}"
+            f"def view(request):\n    _a()\n    _b()\n    _a()\n{two}"
+            "class Page(View):\n"
+            f"    def _part(self):\n    {two}    {two}"
+            "    def get(self, request):\n        self._part()\n        return _a()\n"
+        )
+        over, _ = ratchet.measure_views(source, "a/views.py")
+        # view: نفسُه 2 + _a 4 + _b 2 + _c 2 = 10 — و_a مرّةً: شيفرةٌ لا تنفيذ
+        # Page.get: _part 4 + _a 4 = 8؛ و_b: 2 + 2 = 4 تحت السقف
+        assert over == {"a/views.py::view": {"orm": 10}, "a/views.py::Page.get": {"orm": 8}}
+
+    def test_helpers_in_selectors_are_not_charged_to_the_view(self, tmp_path):
+        """النقلُ إلى `selectors.py` هو الترحيل — لا يُحمَّل؛ والنقلُ إلى ملفّ عروضٍ آخر يُحمَّل."""
+        app = tmp_path / "app"
+        app.mkdir()
+        body = "".join("    X.objects.filter()\n" for _ in range(3))
+        for name, text in (
+            ("__init__.py", ""),
+            ("selectors.py", f"def rows():\n{body}"),
+            ("views_common.py", f"def _rows():\n{body}"),
+            (
+                "views.py",
+                "from .selectors import rows\nfrom .views_common import _rows\n"
+                "def a(request):\n    return rows()\n"
+                "def b(request):\n    return _rows()\n",
+            ),
+        ):
+            (app / name).write_text(text, encoding="utf-8")
+        assert ratchet.snapshot(tmp_path)["views"] == {
+            "app/views.py::b": {"orm": 6},
+            "app/views_common.py::_rows": {"orm": 6},
+        }
+
+    def test_get_school_wrappers_count_at_every_call_site(self):
+        """غلافٌ في الملفّ يُعدّ حيث يُستدعى، ومثلُه الاسمُ المستعارُ وgetattr."""
+        source = (
+            "def _get_school(request):\n"
+            "    if hasattr(request.user, 'get_school'):\n"
+            "        return request.user.get_school()\n"
+            "    return None\n"
+            "def _school(request):\n    return _get_school(request)\n"
+            "def v1(request):\n    school = _get_school(request)\n"
+            "def v2(request):\n    return _school(request)\n"
+            "def v3(request):\n    return getattr(request.user, 'get_school')()\n"
+            "def v4(request):\n    g = request.user.get_school\n    return g()\n"
+            "def not_a_wrapper(user):\n    school = user.get_school()\n    return 2026\n"
+            "def v5(request):\n    return not_a_wrapper(request.user)\n"
+            "class Page(View):\n"
+            "    def _school(self):\n        return self.request.user.get_school()\n"
+            "    def get(self, request):\n        return self._school()\n"
+        )
+        _, calls = ratchet.measure_views(source, "a/views.py")
+        # الغلافُ 1، واستدعاؤه في _school وv1 (3)، و_school في v2 (4)، وgetattr (5)،
+        # والمستعار (6)، وnot_a_wrapper نفسُه لا مَن يستدعيه (7)، وتابعُ الصنف ومستدعيه (9)
+        assert calls == 9
+
+    def test_get_school_wrappers_imported_from_the_app_count_too(self, tmp_path):
+        app = tmp_path / "app"
+        app.mkdir()
+        (app / "__init__.py").write_text("", encoding="utf-8")
+        (app / "utils.py").write_text(
+            "def school_of(request):\n    return request.user.get_school()\n"
+            "def year_of(request):\n    return 2026\n",
+            encoding="utf-8",
+        )
+        (app / "views.py").write_text(
+            "from .utils import school_of, year_of\n"
+            "import app.utils as u\n"
+            "def a(request):\n    return school_of(request)\n"
+            "def b(request):\n    return u.school_of(request), year_of(request)\n",
+            encoding="utf-8",
+        )
+        assert ratchet.snapshot(tmp_path)["get_school"] == {"app/views.py": 2}
+
+    def test_dynamic_imports_in_core_count_as_downstream(self):
+        source = (
+            "import importlib\n"
+            "from django.apps import apps\n"
+            "def f():\n"
+            "    __import__('operations.models', fromlist=['X'])\n"
+            "    importlib.import_module('behavior.models')\n"
+            "    apps.get_model('clinic', 'Visit')\n"
+            "    apps.get_model('clinic.Visit')\n"
+            "    import_string('behavior.services.x')\n"
+            "    apps.get_model('core', 'School')\n"
+        )
+        found = ratchet.measure_core_imports(
+            source, frozenset({"operations", "behavior", "clinic"})
+        )
+        assert found == {"behavior": 2, "clinic": 2, "operations": 1}
+
     def test_dict_list_and_request_methods_are_not_orm(self):
         """`.get(` و`.update(` و`.values(` تُعدّ على ما جاء من ORM وحده."""
         source = (
@@ -240,17 +397,59 @@ class TestTheRatchetItself:
         )
         assert ratchet.compare(before, after) == ([], [])
 
-    def test_update_refuses_to_record_an_increase(self):
-        before = self._state(get_school={"a/views.py": 1})
-        after = self._state(get_school={"a/views.py": 2})
-        try:
-            ratchet.ratchet_down(before, after)
-        except ValueError as exc:
-            assert "a/views.py" in str(exc)
-        else:
-            raise AssertionError("--update سجّل زيادة")
+    def test_update_records_decreases_and_keeps_increases_at_their_record(self):
+        """فرعٌ فيه نقصٌ وزيادةٌ معاً: يُثبَّت النقص، وتبقى الزيادةُ على قيمتها فتُسقط."""
+        before = self._state(
+            views={"a/views.py::v": {"lines": 110, "orm": 17}, "a/views.py::w": {"lines": 73}},
+            get_school={"a/views.py": 3, "b/views.py": 1},
+        )
+        after = self._state(
+            views={"a/views.py::v": {"lines": 118, "orm": 12}, "a/views.py::n": {"lines": 65}},
+            get_school={"a/views.py": 1, "b/views.py": 2},
+        )
+        recorded, worse = ratchet.ratchet_down(before, after)
+        assert recorded["views"] == {"a/views.py::v": {"lines": 110, "orm": 12}}
+        assert recorded["get_school"] == {"a/views.py": 1, "b/views.py": 1}
+        assert len(worse) == 3  # v أسطراً، والعرضُ الجديد n، وget_school في b
+        worse_again, stale = ratchet.compare(recorded, after)
+        assert worse_again == worse and not stale
 
-    def test_update_records_a_decrease(self):
-        before = self._state(get_school={"a/views.py": 3})
-        after = self._state(get_school={"a/views.py": 1})
-        assert ratchet.ratchet_down(before, after) == after
+    def test_accept_raises_one_named_item_and_writes_why(self):
+        before = self._state(views={"a/views.py::v": {"lines": 110}}, get_school={"a/views.py": 4})
+        after = self._state(
+            views={"a/views.py::v": {"lines": 118}, "a/views.py::n": {"lines": 65}},
+            get_school={"a/views.py": 6},
+        )
+        reason = "فرعٌ أساسُه قبل الحارس زاد ثمانيةَ أسطر"
+        recorded = ratchet.accept(before, after, "a/views.py::v", reason)
+        assert recorded["views"] == {"a/views.py::v": {"lines": 118}}
+        assert recorded["get_school"] == {"a/views.py": 4}  # لم يُقبل — لم يُسمَّ
+        assert recorded["accepted"] == [
+            {"where": "a/views.py::v", "metric": "lines", "from": 110, "to": 118, "reason": reason}
+        ]
+        worse, _ = ratchet.compare(recorded, after)
+        assert len(worse) == 2  # n وget_school ما زالا يُسقطان
+
+    def test_accept_refuses_a_short_reason_and_what_did_not_grow(self):
+        before = self._state(views={"a/views.py::v": {"lines": 110}})
+        after = self._state(views={"a/views.py::v": {"lines": 118}})
+        for where, reason in (
+            ("a/views.py::v", "ok"),
+            ("a/views.py::other", "سببٌ طويلٌ بما يكفي لأن يُقرأ"),
+        ):
+            try:
+                ratchet.accept(before, after, where, reason)
+            except ValueError:
+                continue
+            raise AssertionError(f"قُبل {where} بسبب «{reason}»")
+
+    def test_accept_of_a_core_import_records_its_sites(self):
+        before = self._state(core_imports={"wings": 1}, core_import_sites={"wings": ["core/a.py"]})
+        after = self._state(
+            core_imports={"wings": 5}, core_import_sites={"wings": ["core/a.py", "core/b.py"]}
+        )
+        recorded = ratchet.accept(
+            before, after, "core → wings", "نطاقُ الجناح في النواة من main #285"
+        )
+        assert recorded["core_imports"] == {"wings": 5}
+        assert recorded["core_import_sites"] == {"wings": ["core/a.py", "core/b.py"]}
