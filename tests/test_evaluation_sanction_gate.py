@@ -61,6 +61,27 @@ def _default_post(total_each, action="submitted"):
     return data
 
 
+def _teacher_axes(school):
+    """
+    محاورُ استمارة المعلم مبذورةً. التقريرُ السنويّ (S2) لا يُحفظ على المحاور الافتراضيّة
+    (جولة الإصلاح 1: «وفقاً للنماذج المعتمدة من الوزير»، 02_staff_affairs.md:199).
+    """
+    _seed_teacher_template(school)
+    return [(a.key, a.label, a.weight) for a in forms_by_role()["teacher"].axes]
+
+
+def _form_post(axes, total, action="submitted"):
+    """درجاتُ المحاور مجموعُها `total` — تُنقص من المحاور بالترتيب."""
+    missing = 100 - total
+    data = {}
+    for key, _label, weight in axes:
+        cut = min(missing, weight)
+        data[key] = str(weight - cut)
+        missing -= cut
+    data["action"] = action
+    return data
+
+
 # ── القاعدة: عتباتُ المواد بلا قاعدة بيانات ──────────────────────────────
 
 
@@ -114,25 +135,26 @@ def test_hook_returns_nothing_until_the_registers_exist(teacher_user):
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    ("facts", "each", "article"),
+    ("facts", "total", "article"),
     [
-        (AppraisalYearFacts(longest_sanction_days=6, sanction_days_total=6), 24, "المادة 17"),
-        (AppraisalYearFacts(longest_sanction_days=11, sanction_days_total=11), 20, "المادة 18"),
-        (AppraisalYearFacts(unexcused_absence_days=11), 20, "المادة 18"),
-        (AppraisalYearFacts(license_expired_not_renewed=True), 13, "المادة 19"),
+        (AppraisalYearFacts(longest_sanction_days=6, sanction_days_total=6), 96, "المادة 17"),
+        (AppraisalYearFacts(longest_sanction_days=11, sanction_days_total=11), 80, "المادة 18"),
+        (AppraisalYearFacts(unexcused_absence_days=11), 80, "المادة 18"),
+        (AppraisalYearFacts(license_expired_not_renewed=True), 52, "المادة 19"),
     ],
 )
 def test_barred_rating_is_rejected_before_any_write(
-    monkeypatch, school, principal_user, teacher_user, facts, each, article
+    monkeypatch, school, principal_user, teacher_user, facts, total, article
 ):
     _inject(monkeypatch, facts)
+    axes = _teacher_axes(school)
     evaluation = _evaluation(school, teacher_user, principal_user)
     with pytest.raises(EvaluationRejectedError, match=article):
         save_evaluation(
             evaluation=evaluation,
             evaluator=principal_user,
-            axes=_DEFAULT_AXES,
-            data=_default_post(each),
+            axes=axes,
+            data=_form_post(axes, total),
         )
     evaluation.refresh_from_db()
     assert (evaluation.total_score, evaluation.status, evaluation.axis_professional) == (
@@ -146,9 +168,10 @@ def test_barred_rating_is_rejected_before_any_write(
 def test_article_17_leaves_very_good_open(monkeypatch, school, principal_user, teacher_user):
     """جزاءُ ستّة أيام يحجب «ممتاز» وحده — فالثمانون «جيد جداً» تُحفظ."""
     _inject(monkeypatch, AppraisalYearFacts(longest_sanction_days=6, sanction_days_total=6))
+    axes = _teacher_axes(school)
     evaluation = _evaluation(school, teacher_user, principal_user)
     save_evaluation(
-        evaluation=evaluation, evaluator=principal_user, axes=_DEFAULT_AXES, data=_default_post(20)
+        evaluation=evaluation, evaluator=principal_user, axes=axes, data=_form_post(axes, 80)
     )
     evaluation.refresh_from_db()
     assert (evaluation.total_score, evaluation.rating) == (80, "very_good")
@@ -157,9 +180,10 @@ def test_article_17_leaves_very_good_open(monkeypatch, school, principal_user, t
 @pytest.mark.django_db
 def test_article_18_leaves_good_open(monkeypatch, school, principal_user, teacher_user):
     _inject(monkeypatch, AppraisalYearFacts(harsher_sanction=True))
+    axes = _teacher_axes(school)
     evaluation = _evaluation(school, teacher_user, principal_user)
     save_evaluation(
-        evaluation=evaluation, evaluator=principal_user, axes=_DEFAULT_AXES, data=_default_post(17)
+        evaluation=evaluation, evaluator=principal_user, axes=axes, data=_form_post(axes, 68)
     )
     evaluation.refresh_from_db()
     assert (evaluation.total_score, evaluation.rating) == (68, "good")
@@ -181,9 +205,10 @@ def test_internal_s1_follow_up_is_not_a_ministry_report(
 
 @pytest.mark.django_db
 def test_without_facts_excellent_is_saved(school, principal_user, teacher_user):
+    axes = _teacher_axes(school)
     evaluation = _evaluation(school, teacher_user, principal_user)
     save_evaluation(
-        evaluation=evaluation, evaluator=principal_user, axes=_DEFAULT_AXES, data=_default_post(24)
+        evaluation=evaluation, evaluator=principal_user, axes=axes, data=_form_post(axes, 96)
     )
     evaluation.refresh_from_db()
     assert (evaluation.total_score, evaluation.rating, evaluation.status) == (
@@ -197,21 +222,23 @@ def test_without_facts_excellent_is_saved(school, principal_user, teacher_user):
 @pytest.mark.parametrize(
     ("override", "message"),
     [
-        ({"axis_professional": "26"}, "بين 0 و25"),
-        ({"axis_commitment": "x"}, "عددٌ صحيح"),
-        ({"action": "approved"}, "حالةُ"),
+        (lambda key, weight: {key: str(weight + 1)}, "بين 0 و{weight}"),
+        (lambda key, weight: {key: "x"}, "عددٌ صحيح"),
+        (lambda key, weight: {"action": "approved"}, "حالةُ"),
     ],
 )
 def test_invalid_input_is_rejected_before_any_write(
     school, principal_user, teacher_user, override, message
 ):
+    axes = _teacher_axes(school)
+    key, _label, weight = axes[0]
     evaluation = _evaluation(school, teacher_user, principal_user)
-    with pytest.raises(EvaluationRejectedError, match=message):
+    with pytest.raises(EvaluationRejectedError, match=message.format(weight=weight)):
         save_evaluation(
             evaluation=evaluation,
             evaluator=principal_user,
-            axes=_DEFAULT_AXES,
-            data={**_default_post(10), **override},
+            axes=axes,
+            data={**_form_post(axes, 40), **override(key, weight)},
         )
 
 

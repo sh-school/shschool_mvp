@@ -159,13 +159,15 @@ def test_resaving_and_a_second_evaluator_use_fresh_totals(
     score.refresh_from_db()
     assert score.total_score == 100  # كان يبقى على المجموع الأوّل
 
+    evaluation = EmployeeEvaluation.objects.get(school=school, employee=teacher_user)
+    assert (evaluation.total_score, evaluation.rating) == (100, "excellent")
+
+    # ولا يصير غيرُ الواضع مقيِّماً ثانياً من الشاشة (المادة 16: «يضع الرئيس المباشر») —
+    # جولة الإصلاح 1؛ والمجموعُ المرجَّح على مقيِّمين يُحرس في النموذج (test_quality_models).
     vice = _vice_academic(school)
     client.force_login(vice)
     client.post(_url(teacher_user), _post(form, _full, action="draft"))
-    evaluation = EmployeeEvaluation.objects.get(school=school, employee=teacher_user)
-    assert EvaluationScore.objects.get(evaluator=vice).total_score == 100
-    # (100×100 + 100×100) / 200 — لا (المجموع القديم×100 + 100×100) / 200.
-    assert (evaluation.total_score, evaluation.rating) == (100, "excellent")
+    assert not EvaluationScore.objects.filter(evaluator=vice).exists()
 
 
 # ── العرض: الإنشاء والعام والمدير ─────────────────────────────────────
@@ -315,7 +317,10 @@ def test_grievance_suspends_finality_until_decided_or_thirty_days_lapse(
     assert evaluation.is_final(today=date(2027, 7, 25)) is False
     assert evaluation.is_final(today=date(2027, 7, 26)) is True
     evaluation.grievance_decided_on = date(2027, 7, 1)
-    assert evaluation.is_final(today=date(2027, 7, 2)) is True
+    # «ويكون قرار اللجنة في التظلم نهائياً بعد اعتماده من الوزير» (صفحة الملفّ 13).
+    assert evaluation.is_final(today=date(2027, 7, 2)) is False
+    evaluation.grievance_decision_approved_on = date(2027, 7, 8)
+    assert evaluation.is_final(today=date(2027, 7, 8)) is True
 
 
 @pytest.mark.django_db
