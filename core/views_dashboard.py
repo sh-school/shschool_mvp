@@ -18,6 +18,7 @@ from operations.selectors import (
     class_sessions_on,
     pending_absence_alerts,
     pending_compensatory_count,
+    pending_excuse_count,
     session_status_counts,
     swap_count,
     teacher_absence_count,
@@ -364,11 +365,7 @@ def dashboard(request):
         ctx.update(_get_director_ctx(school, today))
         if has_capability(user, "wings.excuse_after_deadline"):
             # أعذارٌ أرسلها المشرفون بعد مهلة العودة — تنتظر النائبَ (قرارُ 2026-09-14).
-            from operations.models import AbsenceExcuse
-
-            ctx["pending_excuses"] = AbsenceExcuse.objects.filter(
-                school=school, status="pending"
-            ).count()
+            ctx["pending_excuses"] = pending_excuse_count(school)
     elif role in _TEACHER_ROLES:
         ctx.update(_get_teacher_ctx(user, school, today, role))
     elif role in _SPECIALIST_SOCIAL_ROLES:

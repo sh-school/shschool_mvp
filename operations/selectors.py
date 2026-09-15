@@ -18,6 +18,7 @@ from core.models.user import CustomUser
 
 from .models import (
     AbsenceAlert,
+    AbsenceExcuse,
     CompensatorySession,
     Session,
     StudentAttendance,
@@ -67,6 +68,12 @@ def teacher_sessions_on(school: School, teacher: CustomUser, day: date) -> Query
 def swap_count(school: School, *statuses: str, **filters: Any) -> int:
     """طلباتُ تبديل الحصص في المدرسة بإحدى الحالات المذكورة."""
     count: int = TeacherSwap.objects.filter(school=school, status__in=statuses, **filters).count()
+    return count
+
+
+def pending_excuse_count(school: School) -> int:
+    """أعذارٌ أرسلها المشرفون بعد مهلة العودة — تنتظر النائبَ الإداريّ (قرارُ 2026-09-14)."""
+    count: int = AbsenceExcuse.objects.filter(school=school, status="pending").count()
     return count
 
 

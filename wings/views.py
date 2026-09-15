@@ -589,7 +589,7 @@ def excuse_requests(request):
     """الأعذارُ المرسلةُ للنائب الإداريّ بعد مهلة العودة — يقبل أو يرفض، وكلاهما بسبب."""
     from operations.excuses import pending_for_vice
 
-    school = request.user.get_school()
+    school = request.school
     return render(
         request,
         "wings/excuse_requests.html",
@@ -605,7 +605,7 @@ def excuse_request_decide(request, pk):
     from operations.excuses import ExcuseError, approve_excuse, reject_excuse
     from operations.models import AbsenceExcuse
 
-    school = request.user.get_school()
+    school = request.school
     excuse = get_object_or_404(AbsenceExcuse, pk=pk, school=school)
     reason = request.POST.get("reason", "")
     ip = request.META.get("REMOTE_ADDR")

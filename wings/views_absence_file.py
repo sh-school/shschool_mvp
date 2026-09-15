@@ -14,11 +14,11 @@ wings/views_absence_file.py — البحثُ عن طالبٍ في جناحي، �
 from __future__ import annotations
 
 import datetime as dt
+from typing import cast
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
-from django.db.models import F, Q
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -27,9 +27,10 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.capabilities import capability_required, has_capability
+from core.middleware import SchoolRequest
 from core.models import ClassGroup, CustomUser, School, StudentEnrollment
-from core.sorting import arabic_key, normalise_arabic
 
+from .selectors import students_in_wings_matching
 from .services import wings_of
 from .views import _day, _own_class, excuse_outcome_message
 
@@ -45,7 +46,7 @@ def _own_student(request: HttpRequest, student_id: object) -> tuple[School, Clas
     الماضي بجانب قيد هذا العام، و`.first()` بلا ترتيبٍ يختار أحدَهما عشوائيّاً — فيُردّ مشرفُ
     الطالب اليوم، أو يُفتح الملفُّ لمشرف جناحه القديم.
     """
-    school = request.user.get_school()  # type: ignore[union-attr]
+    school = cast(SchoolRequest, request).school
     enrollment = StudentEnrollment.objects.current_of(student_id, school)
     if enrollment is None:
         raise Http404("لا شعبةَ لهذا الطالب")
@@ -62,23 +63,12 @@ def _file_url(student_id: object, day: dt.date | None = None) -> str:
 @capability_required("wings.record_day")
 def student_search(request: HttpRequest) -> HttpResponse:
     """طلابُ أجنحتي بالاسم أو الرقم الشخصيّ — ونتيجةٌ واحدةٌ تفتح الملفَّ مباشرةً."""
-    school = request.user.get_school()
+    school = cast(SchoolRequest, request).school
     query = (request.GET.get("q") or "").strip()
     results = []
     if len(query) >= MIN_QUERY:
         wings = wings_of(request.user, school, academic_year_for_school(school))
-        shaped = normalise_arabic(query)
-        results = list(
-            StudentEnrollment.objects.filter(
-                is_active=True,
-                class_group__school=school,
-                class_group__wing__in=wings,
-            )
-            .annotate(name_key=arabic_key(F("student__full_name")))  # type: ignore[no-untyped-call]
-            .filter(Q(name_key__icontains=shaped) | Q(student__national_id__startswith=query))
-            .select_related("student", "class_group")
-            .order_by("student__full_name")[: MAX_RESULTS + 1]
-        )
+        results = students_in_wings_matching(school, wings, query, MAX_RESULTS + 1)
         if len(results) == 1:
             return redirect(_file_url(results[0].student_id))
     return render(
