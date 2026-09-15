@@ -37,6 +37,16 @@ urlpatterns = [
     path("permits/<uuid:pk>/cancel/", views_attendance.permit_cancel, name="permit_cancel"),
     path("permits/review/", views_attendance.permit_queue, name="permit_queue"),
     path("permits/<uuid:pk>/review/", views_attendance.permit_review, name="permit_review"),
+    path(
+        "permits/exceptions/<uuid:pk>/review/",
+        views_attendance.exception_review,
+        name="exception_review",
+    ),
+    path(
+        "permits/delegation/",
+        views_attendance.principal_delegation,
+        name="principal_delegation",
+    ),
     # ── الرخص المهنية ──
     path("licensing/", views.licensing_overview, name="licensing"),
 ]

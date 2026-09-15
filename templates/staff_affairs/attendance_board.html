@@ -35,7 +35,7 @@
 
   {% section_card "الكادر" meta=day|date:"l d/m/Y" icon="staff" flush=True empty="لا كادرَ نشطاً في هذه المدرسة" %}{% if rows %}
     <div class="att-list">
-      {% for row in rows %}{% include "staff_affairs/partials/attendance_row.html" with staff=row.staff record=row.record %}{% endfor %}
+      {% for row in rows %}{% include "staff_affairs/partials/attendance_row.html" with staff=row.staff record=row.record values=row.values %}{% endfor %}
     </div>
   {% endif %}{% endsection_card %}
 </div>

@@ -5,6 +5,7 @@
 ووقتُ الانصراف يُعدّ به ما قبل 14:00 (1.1)؛ ونقرةٌ تخالف التصنيفَ تعود هنا برسالةٍ
 تسمّي البند. وتحت «غياب مغطّى / عذر مقبول»: نوعُ يوم الغياب من سجلّ الغياب، والعذرُ
 الذي يجعل الحضورَ بعد 9:00 تأخّراً (2.4).
+`values` ما في الحقول: من السجلّ المحفوظ، أو ممّا أُرسل إن رُفضت النقرة — فلا يُمحى ما كُتب.
 {% endcomment %}
 {% with sid=staff.pk|stringformat:"s" %}{% with tid="sa-in-"|add:sid oid="sa-out-"|add:sid aid="sa-abs-"|add:sid eid="sa-exc-"|add:sid %}
 <div id="sa-att-{{ staff.pk }}" class="att-row att-row--staff" data-state="{{ record.status|default:'unmarked' }}">
@@ -20,8 +21,8 @@
   </span>
 
   <div class="att-row__times">
-    {% field "check_in" "وقت الحضور" type="time" value=record.check_in|time:"H:i" id=tid hide_label=True title="وقت الحضور" %}
-    {% field "check_out" "وقت الانصراف" type="time" value=record.check_out|time:"H:i" id=oid hide_label=True title="وقت الانصراف" %}
+    {% field "check_in" "وقت الحضور" type="time" value=values.check_in id=tid hide_label=True title="وقت الحضور" %}
+    {% field "check_out" "وقت الانصراف" type="time" value=values.check_out id=oid hide_label=True title="وقت الانصراف" %}
   </div>
 
   <div class="att-row__actions" role="group" aria-label="حالة {{ staff.full_name }}">
@@ -36,11 +37,11 @@
       class="att-btn is-excused{% if record.status == 'permitted' %} is-current{% endif %}" aria-pressed="{% if record.status == 'permitted' %}true{% else %}false{% endif %}">مستأذن</button>
   </div>
 
-  <details class="att-row__more"{% if record.absence_type or record.accepted_excuse %} open{% endif %}>
+  <details class="att-row__more"{% if values.absence_type or values.accepted_excuse %} open{% endif %}>
     <summary>غياب مغطّى / عذر مقبول</summary>
     <div class="att-row__more-fields">
-      {% field "absence_type" "نوع الغياب (سجل الغياب)" type="select" choices=absence_types blank="— غير مغطّى —" value=record.absence_type id=aid %}
-      {% field "accepted_excuse" "العذر المقبول لمن حضر بعد 9:00 (البند 2.4)" value=record.accepted_excuse id=eid maxlength=300 grow=True %}
+      {% field "absence_type" "نوع الغياب (سجل الغياب)" type="select" choices=absence_types blank="— غير مغطّى —" value=values.absence_type id=aid %}
+      {% field "accepted_excuse" "العذر المقبول لمن حضر بعد 9:00 (البند 2.4)" value=values.accepted_excuse id=eid maxlength=300 grow=True %}
     </div>
   </details>
 </div>

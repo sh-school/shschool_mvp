@@ -267,12 +267,16 @@ PERMIT_STATUS = [
 
 #: مراحلُ نموذج 02 بترتيبها — 07_forms_catalog.md:13 و07b_forms_catalog_thirdpass.md:13:
 #: «المسؤول المباشر ← النائب المسؤول ← السكرتارية (تسجّل رصيد الساعات) ← الإدارة».
-#: والمسؤولُ المباشرُ في المصدر هو النائبُ نفسُه لكلّ مسمّى (rbac_roles.json «reports_to»)،
-#: فالمربّعان الأوّلان توقيعٌ واحد.
+#: وفي أصل PDF (07-نماذج المدرسة/02، ص1) تحت «استخدام المسؤول المباشر والنائب المسؤول»
+#: عمودان منفصلان لكلٍّ منهما موافق/غير موافق والاسم والتوقيع — فهما مرحلتان. ومن لا
+#: مسؤولَ مباشراً له غيرَ نائبه يبدأ طلبُه بمربّع النائب (``direct_manager``).
+#: و«external» لإذن المدير نفسِه: يعتمده رئيسُه خارج المدرسة، وتُثبته السكرتارية بمرجعه.
 PERMIT_STAGES = [
     ("supervisor", "المسؤول المباشر"),
+    ("deputy", "النائب المسؤول"),
     ("secretary", "السكرتارية"),
     ("principal", "مدير المدرسة"),
+    ("external", "اعتماد رئيس المدير"),
     ("closed", "مغلق"),
 ]
 
@@ -319,8 +323,18 @@ class PermitRequest(AuditedModel):
     stage = models.CharField(
         max_length=10, choices=PERMIT_STAGES, default="supervisor", verbose_name="المرحلة"
     )
-    #: دورُ المسؤول المباشر يومَ التقديم — لقطةٌ لا تتبدّل بتبدّل دور الموظّف بعده.
-    supervisor_role = models.CharField(max_length=30, verbose_name="دور المسؤول المباشر")
+    #: المسؤولُ المباشرُ يومَ التقديم حين يكون غيرَ النائب (منسّقُ قسم المعلّم) — لقطة.
+    line_manager = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="line_managed_permit_requests",
+        verbose_name="المسؤول المباشر المسمّى",
+    )
+    #: دورُ «النائب المسؤول» يومَ التقديم (rbac_roles.json «reports_to») — لقطةٌ لا تتبدّل
+    #: بتبدّل دور الموظّف بعده. والفارغُ طلبُ مدير المدرسة نفسِه.
+    deputy_role = models.CharField(max_length=30, blank=True, verbose_name="دور النائب المسؤول")
     supervisor_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
@@ -330,6 +344,15 @@ class PermitRequest(AuditedModel):
         verbose_name="المسؤول المباشر",
     )
     supervisor_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت موافقة المسؤول")
+    deputy_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deputy_permit_requests",
+        verbose_name="النائب المسؤول",
+    )
+    deputy_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت موافقة النائب")
     secretary_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
@@ -356,6 +379,15 @@ class PermitRequest(AuditedModel):
     rejected_stage = models.CharField(
         max_length=10, choices=PERMIT_STAGES, blank=True, verbose_name="مرحلة الرفض"
     )
+    #: مرجعُ قرار رئيس المدير في إذن المدير نفسِه (بريدٌ أو كتابٌ وتاريخُه).
+    external_reference = models.CharField(
+        max_length=300, blank=True, verbose_name="مرجع اعتماد رئيس المدير"
+    )
+
+    @property
+    def is_principals_own(self) -> bool:
+        """طلبُ مدير المدرسة نفسِه — لا نائبَ مسؤولاً فوقه (``deputy_role`` فارغ)."""
+        return not self.deputy_role
 
     class Meta:
         ordering = ["-date", "-created_at"]
@@ -389,3 +421,113 @@ class PermitRequest(AuditedModel):
 
     def __str__(self) -> str:
         return f"{self.staff.full_name} — {self.get_permit_type_display()} ({self.date})"
+
+
+#: نموذج 03 (07_forms_catalog.md:14، وأصلُه «07-نماذج المدرسة/03) نموذج طلب.pdf» ص1):
+#: «يجب ارفاق مع طلب استثناء الخروج المبكر أو التأخير الصباحي ما يثبت حاجة الموظف لذلك».
+EXCEPTION_TYPES = [
+    ("late_arrival", "تأخير صباحي"),
+    ("early_departure", "خروج مبكر"),
+]
+
+EXCEPTION_STATUS = [
+    ("pending", "قيد الانتظار"),
+    ("approved", "معتمد"),
+    ("rejected", "مرفوض"),
+]
+
+
+class AttendanceException(AuditedModel):
+    """استثناءٌ من ساعة الحضور أو الانصراف لأيّامٍ متتالية — نموذج 03 بقرار المدير.
+
+    **لماذا لا يُحمل على ``PermitRequest``:** الإذنُ يومٌ واحدٌ بساعتين أقصاه ومرّةٌ في
+    اليوم وسبعُ ساعاتٍ في الشهر (4.2–4.4)، ويمرّ بأربعة مربّعات. والاستثناءُ مدّةٌ من
+    الأيّام بساعةٍ ثابتة، يقرّره المديرُ وحدَه («استخدام مدير المدرسة») على ما يثبت الحاجة،
+    ولا تحدّه قيودُ الأذونات. فجمعُهما كان سيُسقط القيود أو يفرضها على ما لا تنطبق عليه.
+    """
+
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="staff_attendance_exceptions",
+        verbose_name="المدرسة",
+    )
+    staff = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="attendance_exceptions",
+        verbose_name="الموظف",
+    )
+    exception_type = models.CharField(
+        max_length=20, choices=EXCEPTION_TYPES, verbose_name="نوع الاستثناء"
+    )
+    start_date = models.DateField(verbose_name="من تاريخ")
+    end_date = models.DateField(verbose_name="إلى تاريخ")
+    #: التأخيرُ: الحضورُ حتّى هذه الساعة؛ والخروجُ المبكر: الانصرافُ من هذه الساعة.
+    boundary_time = models.TimeField(verbose_name="الساعة")
+    content = models.CharField(max_length=1000, verbose_name="محتوى الطلب")
+    #: «ما يثبت حاجة الموظف» — وصفُ المرفق، والأصلُ لدى الإدارة.
+    evidence = models.CharField(max_length=300, verbose_name="ما يثبت الحاجة")
+    status = models.CharField(
+        max_length=10, choices=EXCEPTION_STATUS, default="pending", verbose_name="الحالة"
+    )
+    feedback = models.CharField(max_length=500, blank=True, verbose_name="التغذية الراجعة")
+    reviewed_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reviewed_attendance_exceptions",
+        verbose_name="قرّره",
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ التغذية الراجعة")
+
+    class Meta:
+        ordering = ["-start_date", "-created_at"]
+        verbose_name = "استثناء حضور (نموذج 03)"
+        verbose_name_plural = "استثناءات الحضور (نموذج 03)"
+        constraints = [
+            models.CheckConstraint(  # type: ignore[call-arg]
+                condition=models.Q(end_date__gte=models.F("start_date")),
+                name="attendance_exception_dates_ordered",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["school", "staff", "status", "start_date"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.staff.full_name} — {self.get_exception_type_display()} ({self.start_date})"
+
+
+class PrincipalDelegation(AuditedModel):
+    """إنابةُ نائب الشؤون الإدارية عن المدير ليومٍ — بقرار المدير نفسه.
+
+    03_job_descriptions_rbac.md:401 «الإنابة عن المدير في مهامه في حال غيابه». ويُكتب
+    القرارُ هنا بيد المدير، فلا تنتقل صلاحيةُ الاعتماد النهائيّ بغير علمه.
+    """
+
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="principal_delegations",
+        verbose_name="المدرسة",
+    )
+    date = models.DateField(verbose_name="اليوم")
+    delegate = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="principal_delegations",
+        verbose_name="النائب المُناب",
+    )
+
+    class Meta:
+        ordering = ["-date"]
+        verbose_name = "إنابة عن المدير"
+        verbose_name_plural = "الإنابات عن المدير"
+        constraints = [
+            models.UniqueConstraint(fields=["school", "date"], name="one_delegation_per_day"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.date} — {self.delegate.full_name}"

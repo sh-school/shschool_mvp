@@ -26,7 +26,8 @@ from __future__ import annotations
 
 import json
 import re
-from datetime import date, time
+from contextlib import contextmanager
+from datetime import date, datetime, time
 from pathlib import Path
 
 import pytest
@@ -50,6 +51,37 @@ from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 pytestmark = pytest.mark.django_db
 
 FEB = date(2026, 2, 1)
+
+#: «الآن» في الخدمة أثناء الاختبارات — منتصفُ فبراير، فأيّامُ الرصد قبله وشهرُه مفتوح.
+DEFAULT_NOW = datetime(2026, 2, 15, 12, 0)
+_CLOCK = {"now": DEFAULT_NOW}
+
+
+@pytest.fixture(autouse=True)
+def _service_clock(monkeypatch):
+    """ساعةُ الخدمة مضبوطة: الإذنُ يُحكم بتاريخه من «الآن» (حاشية نموذج 02، البند 5.1)."""
+    from django.utils import timezone
+
+    import staff_affairs.attendance as attendance_module
+
+    _CLOCK["now"] = DEFAULT_NOW
+    monkeypatch.setattr(
+        attendance_module,
+        "_now",
+        lambda: timezone.localtime(timezone.make_aware(_CLOCK["now"])),
+        raising=False,
+    )
+
+
+@contextmanager
+def _at(moment):
+    """لحظةٌ بعينها للتقديم والاعتماد — ثمّ تعود الساعة."""
+    before = _CLOCK["now"]
+    _CLOCK["now"] = moment
+    try:
+        yield
+    finally:
+        _CLOCK["now"] = before
 
 
 def _staff(school, n, role="teacher"):
@@ -75,24 +107,32 @@ def _actor(school, role):
 def _through(permit, approve=True, reason="غير مناسب"):
     """يمرّ الطلبُ بمراحل نموذج 02 كلِّها — أو يُرفض في مرحلته الأولى."""
     while permit.status == "pending":
-        actor = _actor(permit.school, PermitService.required_role(permit))
+        # مدرسةُ الاختبار تُكمَل بصاحب المربّع الطبيعيّ إن غاب — فلا يُختبر هنا الارتفاعُ.
+        natural = {"secretary": "secretary", "external": "secretary", "principal": "principal"}
+        if permit.stage != "supervisor":
+            _actor(permit.school, natural.get(permit.stage, permit.deputy_role or "principal"))
+        actor = PermitService.eligible_actors(permit)[0]
+        if permit.stage == "external" and approve:
+            reason = "بريد رئيس المدير"
         PermitService.act(permit, actor=actor, approve=approve, reason=reason)
         permit.refresh_from_db()
     return permit
 
 
 def _permit(school, staff, day, start, end, kind="during_day", approve=True):
-    permit = PermitService.submit(
-        school=school,
-        staff=staff,
-        permit_type=kind,
-        day=day,
-        start_time=start,
-        end_time=end,
-        reason="ظرف عائلي",
-    )
-    if approve is not None:
-        _through(permit, approve=approve)
+    """طلبٌ يُقدَّم صباحَ يومه قبل وقته (حاشية نموذج 02) — ويمرّ بمراحله إن طُلب."""
+    with _at(datetime.combine(day, time(6, 0))):
+        permit = PermitService.submit(
+            school=school,
+            staff=staff,
+            permit_type=kind,
+            day=day,
+            start_time=start,
+            end_time=end,
+            reason="ظرف عائلي",
+        )
+        if approve is not None:
+            _through(permit, approve=approve)
     return permit
 
 
@@ -125,10 +165,10 @@ class TestClassifyArrival:
 
     def test_an_approved_late_arrival_permit_covers_its_window_only(self):
         # 2.4 «دون إذن»: الإذنُ (7:00–9:00 أقصاه، 4.4) يغطّي من حضر في نافذته، ومن
-        # جاوزها قبل التاسعة تُعدّ دقائقُه من نهايته، ومن حضر بعد التاسعة غائب.
+        # جاوزها تُعدّ دقائقُه من نهايته — ولو بعد التاسعة، فله إذن.
         assert classify_arrival(time(8, 40), covered_until=time(9, 0)) == ("permitted", 0)
         assert classify_arrival(time(8, 40), covered_until=time(8, 30)) == ("late", 10)
-        assert classify_arrival(time(9, 1), covered_until=time(9, 0)) == ("absent", 0)
+        assert classify_arrival(time(9, 1), covered_until=time(9, 0)) == ("late", 1)
         # 2.4 «أو عذر مقبول»: العذرُ يجعل الحضورَ بعد التاسعة تأخّراً بدقائقه.
         assert classify_arrival(time(9, 30), covered_until=time(9, 0), excused=True) == ("late", 30)
 
@@ -287,7 +327,7 @@ class TestPermits:
             reason="x",
             status="approved",
             stage="closed",
-            supervisor_role="vice_academic",
+            deputy_role="vice_academic",
         )
 
     def test_the_secretary_records_the_balance_and_an_overflow_is_refused_by_name(self, school):
@@ -352,7 +392,7 @@ class TestPermits:
     def test_nobody_acts_on_their_own_permit_and_decisions_are_final(self, school, principal_user):
         manager = _staff(school, 9, role="vice_admin")
         permit = _permit(school, manager, FEB, time(10, 0), time(11, 0), approve=None)
-        assert permit.supervisor_role == "principal"  # rbac_roles.json:21-23
+        assert permit.deputy_role == "principal"  # rbac_roles.json:21-23
 
         with pytest.raises(PolicyError, match="4.1"):
             PermitService.act(permit, actor=manager, approve=True)
@@ -361,7 +401,7 @@ class TestPermits:
         permit.refresh_from_db()
         assert (permit.status, permit.rejected_stage, permit.rejection_reason) == (
             "rejected",
-            "supervisor",
+            "deputy",
             "تعارض مع حصة",
         )
         with pytest.raises(PolicyError):
@@ -374,7 +414,7 @@ class TestPermits:
         vice_academic, vice_admin = _actor(school, "vice_academic"), _actor(school, "vice_admin")
         secretary, principal = _actor(school, "secretary"), _actor(school, "principal")
         permit = _permit(school, teacher, FEB, time(12, 0), time(13, 30), approve=None)
-        assert (permit.stage, permit.supervisor_role) == ("supervisor", "vice_academic")
+        assert (permit.stage, permit.deputy_role) == ("deputy", "vice_academic")
 
         for outsider in (vice_admin, secretary, principal):  # ليست مرحلتَهم
             with pytest.raises(PolicyError, match="بانتظار"):
@@ -382,7 +422,7 @@ class TestPermits:
 
         PermitService.act(permit, actor=vice_academic, approve=True)
         permit.refresh_from_db()
-        assert (permit.stage, permit.supervisor_by) == ("secretary", vice_academic)
+        assert (permit.stage, permit.deputy_by) == ("secretary", vice_academic)
         with pytest.raises(PolicyError, match="بانتظار"):
             PermitService.act(permit, actor=principal, approve=True)
 
@@ -409,7 +449,7 @@ class TestPermits:
         ]
         assert stages == [
             ("create", None),
-            ("update", "supervisor"),
+            ("update", "deputy"),
             ("update", "secretary"),
             ("update", "principal"),
         ]
@@ -433,7 +473,7 @@ class TestPermits:
         accountant = _staff(school, 1, role="accountant")
 
         permit = _permit(school, accountant, FEB, time(10, 0), time(11, 0), approve=None)
-        assert permit.supervisor_role == "principal"
+        assert permit.deputy_role == "principal"
 
     def test_the_line_manager_table_is_the_source_reports_to(self):
         source = json.loads(
@@ -663,6 +703,11 @@ class TestScreens:
     def test_a_teacher_requests_for_themself_and_the_three_stages_act_from_their_queue(
         self, client_as, school, teacher_user, principal_user
     ):
+        with _at(datetime(2026, 2, 1, 6, 0)):  # قبل الخروج (حاشية نموذج 02)
+            self._request_and_approve(client_as, school, teacher_user, principal_user)
+
+    @staticmethod
+    def _request_and_approve(client_as, school, teacher_user, principal_user):
         mine = reverse("staff_affairs:my_permits")
         teacher = client_as(teacher_user)
         assert teacher.get(mine).status_code == 200
@@ -736,17 +781,17 @@ class TestRoundOneFixes:
             object_id=str(record.pk), changes__status=["late", "permitted"]
         ).exists()
 
-    # ── (2، 10) الإذنُ يغطّي نافذتَه لا ما بعدها ─────────────────────────
-    def test_a_short_late_permit_does_not_lift_an_absence_after_nine(self):
-        # 2.4 «بعد الساعة التاسعة … دون إذن»: إذنٌ إلى 7:15 لا يغطّي حضوراً في 12:30.
-        assert classify_arrival(time(12, 30), covered_until=time(7, 15)) == ("absent", 0)
+    # ── (2، 10) الإذنُ يغطّي نافذتَه، وما بعدها تأخّرٌ يُعدّ من نهايته ─────────
+    def test_a_short_late_permit_counts_the_minutes_after_its_end(self):
+        # وجولةُ الإصلاح 2: «دون إذن» في 2.4 — فمن له إذنٌ متأخّرٌ بدقائقه لا غائب.
+        assert classify_arrival(time(12, 30), covered_until=time(7, 15)) == ("late", 315)
         assert classify_arrival(time(8, 0), covered_until=time(7, 15)) == ("late", 45)
 
-    def test_a_marked_absence_after_a_short_permit_is_accepted(self, school, principal_user):
+    def test_a_marked_arrival_after_a_short_permit_is_lateness(self, school, principal_user):
         staff = _staff(school, 1)
         _permit(school, staff, FEB, time(7, 0), time(7, 15), "late_arrival")
-        record = _mark(school, staff, principal_user, FEB, "absent", time(12, 30))
-        assert record.status == "absent"
+        record = _mark(school, staff, principal_user, FEB, "late", time(12, 30))
+        assert (record.status, record.late_minutes) == ("late", 315)
 
     # ── (3) وقتُ الإذن مقيَّدٌ بنوعه وبساعات الدوام (1.1) ────────────────
     @pytest.mark.parametrize(
@@ -849,16 +894,11 @@ class TestRoundOneFixes:
     ):
         advisor = _staff(school, 1, role="academic_advisor")
         permit = _permit(school, advisor, FEB, time(10, 0), time(11, 0), approve=None)
-        assert permit.supervisor_role == "principal"
+        assert permit.deputy_role == "principal"
 
-        with pytest.raises(PolicyError) as refused:
-            _permit(school, principal_user, FEB, time(10, 0), time(11, 0), approve=None)
-        assert "principal" not in str(refused.value)
-        assert "4.1" in str(refused.value)
-
-    # ── (8) الإنابةُ عن المدير في غيابه ──────────────────────────────────
+    # ── (8) الإنابةُ عن المدير في غيابه — بقراره (جولة 2) ─────────────────
     def test_the_admin_deputy_acts_for_an_absent_principal(self, school, principal_user):
-        from django.utils import timezone
+        from staff_affairs.attendance import DelegationService
 
         teacher = _staff(school, 1)
         vice_admin, secretary = _actor(school, "vice_admin"), _actor(school, "secretary")
@@ -866,10 +906,10 @@ class TestRoundOneFixes:
         PermitService.act(permit, actor=_actor(school, "vice_academic"), approve=True)
         PermitService.act(permit, actor=secretary, approve=True)
 
-        with pytest.raises(PolicyError, match="بانتظار"):  # المديرُ لم يُرصد غائباً
+        with pytest.raises(PolicyError, match="بانتظار"):  # لم يُنبه المدير
             PermitService.act(permit, actor=vice_admin, approve=True)
 
-        _mark(school, principal_user, secretary, timezone.localdate(), "absent")
+        DelegationService.grant(school=school, principal=principal_user, delegate=vice_admin)
         assert permit in set(PermitService.awaiting(school, vice_admin))
         PermitService.act(permit, actor=vice_admin, approve=True)
 
@@ -903,7 +943,7 @@ class TestRoundOneFixes:
         permit = _permit(school, secretary, FEB, time(10, 0), time(11, 0), approve=None)
         PermitService.act(permit, actor=principal_user, approve=True)
         permit.refresh_from_db()
-        assert PermitService.required_role(permit) == "principal"
+        assert _eligible(permit) == {principal_user.pk}
         assert permit in set(PermitService.awaiting(school, principal_user))
 
         _through(permit)
@@ -970,11 +1010,10 @@ class TestRoundOneFixes:
                 for href in _hrefs(page):
                     assert client.get(href).status_code != 403, (role, name, href)
 
-    def test_the_principal_is_not_offered_a_form_that_always_refuses(
-        self, client_as, school, principal_user
-    ):
+    def test_the_principal_is_offered_his_own_permits_link(self, client_as, school, principal_user):
+        # جولة 2: سجلُّ الاستئذانات المدرسيّ يتتبّع أذوناتِ المدير (07) سجل الاستئذانات، B3:C3).
         page = client_as(principal_user).get(reverse("staff_affairs:attendance_board"))
-        assert reverse("staff_affairs:my_permits") not in page.content.decode()
+        assert reverse("staff_affairs:my_permits") in page.content.decode()
 
     # ── (19) سطرُ الرصد يلتفّ على الجوال ─────────────────────────────────
     def test_the_staff_row_wraps_on_narrow_screens(self, client_as, school, principal_user):
@@ -984,3 +1023,374 @@ class TestRoundOneFixes:
         css = Path("static/css/custom.css").read_text(encoding="utf-8")
         rule = re.search(r"\.att-row--staff\s*\{([^}]*)\}", css)
         assert rule and "flex-wrap: wrap" in rule.group(1)
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  جولةُ الإصلاح 2 — عيوبُ المراجعة العدائيّة الثانية، كلٌّ باختبارٍ سقط قبل إصلاحه
+# ══════════════════════════════════════════════════════════════════════
+
+
+def _department(school, head, *members, code="math"):
+    """قسمٌ أكاديميٌّ منسّقُه ``head`` وأعضاؤه ``members`` (عضويّاتُهم التدريسيّة)."""
+    from core.models.department import Department
+
+    dept = Department.objects.create(school=school, name=f"قسم {code}", code=code, head=head)
+    Membership.objects.filter(school=school, user__in=[head, *members]).update(department_obj=dept)
+    return dept
+
+
+def _eligible(permit):
+    return {user.pk for user in PermitService.eligible_actors(permit)}
+
+
+class TestRoundTwoFixes:
+    # ── (1) البند 2.4 «دون إذن»: من له إذنُ تأخيرٍ معتمدٌ وحضر بعد التاسعة متأخّرٌ لا غائب ──
+    def test_an_approved_late_permit_turns_an_after_nine_arrival_into_lateness(self):
+        assert classify_arrival(time(9, 5), covered_until=time(9, 0)) == ("late", 5)
+        assert classify_arrival(time(12, 30), covered_until=time(7, 15)) == ("late", 315)
+        assert classify_arrival(time(9, 5)) == ("absent", 0)  # بلا إذنٍ ولا عذر: غائب
+
+    def test_the_board_records_lateness_from_the_permit_end(self, school, principal_user):
+        staff = _staff(school, 1)
+        _permit(school, staff, FEB, time(7, 0), time(9, 0), "late_arrival")
+
+        with pytest.raises(PolicyError, match="متأخّر"):
+            _mark(school, staff, principal_user, FEB, "absent", time(9, 5))
+        record = _mark(school, staff, principal_user, FEB, "late", time(9, 5))
+
+        assert (record.status, record.late_minutes) == ("late", 5)
+        rows = StaffAttendanceService.monthly_report(school, 2026, 2)["rows"]
+        mine = next(r for r in rows if r["employee_number"] == "T-0001")
+        assert (mine["absent"], mine["absent_uncovered"], mine["late_minutes"]) == (0, 0, 5)
+
+    # ── (2) نموذج 02: مربّعا «المسؤول المباشر» و«النائب المسؤول» منفصلان ──────────
+    def test_a_teachers_request_passes_the_subject_coordinator_then_the_deputy(self, school):
+        coordinator = _staff(school, 20, role="coordinator")
+        teacher = _staff(school, 1)
+        _department(school, coordinator, teacher)
+        vice_academic = _actor(school, "vice_academic")
+
+        permit = _permit(school, teacher, FEB, time(10, 0), time(11, 0), approve=None)
+
+        assert (permit.stage, permit.line_manager, permit.deputy_role) == (
+            "supervisor",
+            coordinator,
+            "vice_academic",
+        )
+        with pytest.raises(PolicyError, match="بانتظار"):
+            PermitService.act(permit, actor=vice_academic, approve=True)
+        assert permit not in set(PermitService.awaiting(school, vice_academic))
+        assert permit in set(PermitService.awaiting(school, coordinator))
+
+        PermitService.act(permit, actor=coordinator, approve=True)
+        permit.refresh_from_db()
+        assert (permit.stage, permit.supervisor_by) == ("deputy", coordinator)
+        with pytest.raises(PolicyError, match="بانتظار"):
+            PermitService.act(permit, actor=coordinator, approve=True)
+
+        PermitService.act(permit, actor=vice_academic, approve=True)
+        permit.refresh_from_db()
+        assert (permit.stage, permit.deputy_by) == ("secretary", vice_academic)
+        _through(permit)
+        assert permit.status == "approved"
+
+    def test_without_a_coordinator_the_deputy_signs_the_first_box(self, school):
+        teacher = _staff(school, 1)
+        permit = _permit(school, teacher, FEB, time(10, 0), time(11, 0), approve=None)
+        assert (permit.stage, permit.line_manager) == ("deputy", None)
+
+    def test_the_coordinator_opens_the_queue(self, client_as, school):
+        coordinator = _staff(school, 20, role="coordinator")
+        teacher = _staff(school, 1)
+        _department(school, coordinator, teacher)
+        _permit(school, teacher, FEB, time(10, 0), time(11, 0), approve=None)
+
+        page = client_as(coordinator).get(reverse("staff_affairs:permit_queue"))
+
+        assert page.status_code == 200
+        assert "T-0001" in page.content.decode()
+
+    # ── (3) سجلُّ الاستئذانات المدرسيّ يتتبّع أذوناتِ المدير ─────────────────────────
+    def test_the_principals_permit_is_recorded_and_approved_from_outside(
+        self, school, principal_user
+    ):
+        secretary = _actor(school, "secretary")
+        permit = _permit(school, principal_user, FEB, time(10, 0), time(11, 0), approve=None)
+        assert permit.stage == "secretary"
+
+        with pytest.raises(PolicyError, match="4.1"):
+            PermitService.act(permit, actor=principal_user, approve=True)
+        PermitService.act(permit, actor=secretary, approve=True)
+        permit.refresh_from_db()
+        assert (permit.stage, permit.recorded_balance_minutes) == ("external", 420)
+        with pytest.raises(PolicyError, match="مرجع"):
+            PermitService.act(permit, actor=secretary, approve=True, reason=" ")
+
+        PermitService.act(permit, actor=secretary, approve=True, reason="بريد الإدارة 2026-02-01")
+        permit.refresh_from_db()
+        assert (permit.status, permit.external_reference) == ("approved", "بريد الإدارة 2026-02-01")
+        assert PermitService.balance(school, principal_user, FEB).approved == 60
+
+    def test_the_principal_is_offered_the_permit_form(self, client_as, school, principal_user):
+        page = client_as(principal_user).get(reverse("staff_affairs:my_permits"))
+        assert 'name="permit_type"' in page.content.decode()
+
+    # ── (4) نموذج 03: استثناءُ الخروج المبكر أو التأخير الصباحي بإذن المدير ─────────
+    def test_an_exception_from_the_principal_covers_the_days_and_spares_the_cap(
+        self, school, principal_user
+    ):
+        from staff_affairs.attendance import ExceptionService
+
+        staff = _staff(school, 1)
+        request = ExceptionService.submit(
+            school=school,
+            staff=staff,
+            exception_type="early_departure",
+            start_date=date(2026, 2, 1),
+            end_date=date(2026, 2, 28),
+            boundary=time(13, 15),
+            content="مرافقة ابني لجلسات العلاج",
+            evidence="تقرير طبي مرفق بالأصل لدى الإدارة",
+        )
+        with pytest.raises(PolicyError):
+            ExceptionService.decide(request, actor=_actor(school, "vice_admin"), approve=True)
+        ExceptionService.decide(request, actor=principal_user, approve=True, feedback="موافق")
+
+        leaving = [
+            StaffAttendanceService.mark(
+                school=school,
+                staff=staff,
+                day=date(2026, 2, day),
+                status="present",
+                actor=principal_user,
+                check_in=time(6, 50),
+                check_out=out,
+            ).early_leave_minutes
+            for day, out in ((2, time(13, 15)), (3, time(13, 0)))
+        ]
+        assert leaving == [0, 15]
+        assert PermitService.balance(school, staff, FEB).approved == 0
+
+    def test_a_late_exception_moves_the_counted_start(self, school, principal_user):
+        from staff_affairs.attendance import ExceptionService
+
+        staff = _staff(school, 1)
+        request = ExceptionService.submit(
+            school=school,
+            staff=staff,
+            exception_type="late_arrival",
+            start_date=FEB,
+            end_date=date(2026, 2, 10),
+            boundary=time(7, 30),
+            content="توصيل الأبناء",
+            evidence="كتاب مدرسة الأبناء",
+        )
+        ExceptionService.decide(request, actor=principal_user, approve=True)
+
+        on_time = _mark(school, staff, principal_user, date(2026, 2, 2), "permitted", time(7, 20))
+        late = _mark(school, staff, principal_user, date(2026, 2, 3), "late", time(7, 40))
+        assert (on_time.late_minutes, late.late_minutes) == (0, 10)
+
+    def test_approving_an_exception_reclassifies_marked_days(self, school, principal_user):
+        from staff_affairs.attendance import ExceptionService
+
+        staff = _staff(school, 1)
+        record = _mark(school, staff, principal_user, date(2026, 2, 2), "late", time(7, 20))
+        request = ExceptionService.submit(
+            school=school,
+            staff=staff,
+            exception_type="late_arrival",
+            start_date=FEB,
+            end_date=date(2026, 2, 10),
+            boundary=time(7, 30),
+            content="توصيل الأبناء",
+            evidence="كتاب مدرسة الأبناء",
+        )
+        ExceptionService.decide(request, actor=principal_user, approve=True)
+
+        record.refresh_from_db()
+        assert (record.status, record.late_minutes) == ("permitted", 0)
+
+    def test_an_exception_needs_its_evidence(self, school):
+        from staff_affairs.attendance import ExceptionService
+
+        with pytest.raises(PolicyError, match="يثبت"):
+            ExceptionService.submit(
+                school=school,
+                staff=_staff(school, 1),
+                exception_type="early_departure",
+                start_date=FEB,
+                end_date=FEB,
+                boundary=time(13, 0),
+                content="ظرف",
+                evidence="",
+            )
+
+    # ── (5) حاشيةُ نموذج 02: «عدم الخروج إلا بعد اعتماده» ────────────────────────────
+    @pytest.mark.parametrize(
+        ("kind", "day", "start", "end"),
+        [
+            ("early_departure", date(2026, 2, 14), time(12, 0), time(14, 0)),  # أمس
+            ("early_departure", date(2026, 2, 15), time(11, 0), time(14, 0)),  # بدأ قبل الآن
+            ("during_day", date(2026, 2, 1), time(10, 0), time(11, 0)),
+        ],
+    )
+    def test_leaving_permits_are_not_accepted_after_their_time(self, school, kind, day, start, end):
+        with pytest.raises(PolicyError, match="اعتماده"):
+            PermitService.submit(
+                school=school,
+                staff=_staff(school, 1),
+                permit_type=kind,
+                day=day,
+                start_time=start,
+                end_time=end,
+                reason="سبب",
+            )
+
+    def test_a_late_arrival_may_follow_the_morning_and_a_leave_may_precede_it(self, school):
+        staff, other = _staff(school, 1), _staff(school, 2)
+        base = {"school": school, "reason": "سبب"}
+        PermitService.submit(
+            **base,
+            staff=staff,
+            permit_type="late_arrival",
+            day=date(2026, 2, 14),
+            start_time=time(7, 0),
+            end_time=time(8, 0),
+        )
+        PermitService.submit(
+            **base,
+            staff=other,
+            permit_type="early_departure",
+            day=date(2026, 2, 15),
+            start_time=time(13, 0),
+            end_time=time(14, 0),
+        )
+
+    # ── (6) يومُ الغياب لا يحمل دقائقَ انصرافٍ مبكر ────────────────────────────────
+    def test_an_absent_day_carries_no_early_leave_minutes(self, school, principal_user):
+        staff = _staff(school, 1)
+        record = StaffAttendanceService.mark(
+            school=school,
+            staff=staff,
+            day=FEB,
+            status="absent",
+            actor=principal_user,
+            check_in=time(9, 30),
+            check_out=time(13, 0),
+        )
+        assert (record.status, record.early_leave_minutes) == ("absent", 0)
+        row = next(
+            r
+            for r in StaffAttendanceService.monthly_report(school, 2026, 2)["rows"]
+            if r["employee_number"] == "T-0001"
+        )
+        assert (row["absent"], row["early_leave_minutes"]) == (1, 0)
+
+    # ── (7) لا إذنَ لشهرٍ مضى تقريرُه (البند 5.1) ────────────────────────────────────
+    def test_a_late_permit_for_a_closed_month_is_refused(self, school, principal_user):
+        staff = _staff(school, 1)
+        record = _mark(school, staff, principal_user, date(2026, 1, 20), "late", time(8, 30))
+
+        with pytest.raises(PolicyError, match="5.1"):
+            PermitService.submit(
+                school=school,
+                staff=staff,
+                permit_type="late_arrival",
+                day=date(2026, 1, 20),
+                start_time=time(7, 0),
+                end_time=time(8, 30),
+                reason="سبب",
+            )
+        record.refresh_from_db()
+        assert (record.status, record.late_minutes) == ("late", 90)
+
+    def test_an_approval_that_crosses_into_the_next_month_does_not_rewrite_it(
+        self, school, principal_user
+    ):
+        staff = _staff(school, 1)
+        record = _mark(school, staff, principal_user, date(2026, 1, 30), "late", time(8, 30))
+        permit = _permit(
+            school, staff, date(2026, 1, 30), time(7, 0), time(8, 30), "late_arrival", approve=None
+        )
+        with _at(datetime(2026, 1, 30, 9, 0)):
+            for role in ("vice_academic", "secretary"):
+                PermitService.act(permit, actor=_actor(school, role), approve=True)
+
+        with pytest.raises(PolicyError, match="5.1"):  # الساعةُ الآن 15 فبراير
+            PermitService.act(permit, actor=principal_user, approve=True)
+        record.refresh_from_db()
+        assert (record.status, record.late_minutes) == ("late", 90)
+
+    # ── (8) لا يعلق طلبٌ في مرحلةٍ شغر دورُها أو غاب صاحبُه ───────────────────────────
+    def test_a_vacant_deputy_passes_to_the_principal(self, school, principal_user):
+        teacher = _staff(school, 1)  # لا نائبَ أكاديميّاً في المدرسة
+        permit = _permit(school, teacher, FEB, time(10, 0), time(11, 0), approve=None)
+
+        assert permit in set(PermitService.awaiting(school, principal_user))
+        PermitService.act(permit, actor=principal_user, approve=True)
+        permit.refresh_from_db()
+        assert permit.stage == "secretary"
+
+    def test_an_absent_deputy_passes_to_the_principal(self, school, principal_user):
+        teacher, vice_academic = _staff(school, 1), _actor(school, "vice_academic")
+        _mark(school, vice_academic, principal_user, DEFAULT_NOW.date(), "absent")
+        permit = _permit(school, teacher, FEB, time(10, 0), time(11, 0), approve=None)
+
+        assert principal_user.pk in _eligible(permit)
+        PermitService.act(permit, actor=principal_user, approve=True)
+
+    def test_no_secretary_passes_the_balance_to_the_principal(self, school, principal_user):
+        worker = _staff(school, 1, role="services_worker")
+        vice_admin = _actor(school, "vice_admin")
+        permit = _permit(school, worker, FEB, time(10, 0), time(11, 0), approve=None)
+        PermitService.act(permit, actor=vice_admin, approve=True)
+
+        permit.refresh_from_db()
+        PermitService.act(permit, actor=principal_user, approve=True)
+        permit.refresh_from_db()
+        assert (permit.stage, permit.secretary_by) == ("principal", principal_user)
+
+    # ── (9) الإنابةُ بقرار المدير لا بنقرة «غائب» من السكرتير ─────────────────────────
+    def test_marking_the_principal_absent_does_not_hand_over_the_final_approval(
+        self, school, principal_user
+    ):
+        from staff_affairs.attendance import DelegationService
+
+        teacher = _staff(school, 1)
+        vice_admin, secretary = _actor(school, "vice_admin"), _actor(school, "secretary")
+        permit = _permit(school, teacher, FEB, time(10, 0), time(11, 0), approve=None)
+        for role in ("vice_academic", "secretary"):
+            PermitService.act(permit, actor=_actor(school, role), approve=True)
+        _mark(school, principal_user, secretary, DEFAULT_NOW.date(), "absent")
+
+        with pytest.raises(PolicyError, match="بانتظار"):
+            PermitService.act(permit, actor=vice_admin, approve=True)
+        with pytest.raises(PolicyError):
+            DelegationService.grant(school=school, principal=vice_admin, delegate=vice_admin)
+
+        DelegationService.grant(school=school, principal=principal_user, delegate=vice_admin)
+        assert permit in set(PermitService.awaiting(school, vice_admin))
+        PermitService.act(permit, actor=vice_admin, approve=True)
+        permit.refresh_from_db()
+        assert (permit.status, permit.reviewed_by) == ("approved", vice_admin)
+        assert AuditLog.objects.filter(
+            object_id=str(permit.pk), changes__on_behalf_of="principal"
+        ).exists()
+
+    # ── (10) رسالةُ الخطأ لا تمسح ما كُتب ──────────────────────────────────────────
+    def test_a_refused_click_keeps_what_was_typed(self, client_as, school, principal_user):
+        staff = _staff(school, 1)
+        response = client_as(principal_user).post(
+            reverse("staff_affairs:attendance_mark"),
+            {
+                "staff_id": staff.pk,
+                "date": "2026-02-03",
+                "status": "late",
+                "check_in": "09:30",
+                "check_out": "13:10",
+            },
+        )
+        html = response.content.decode()
+        assert 'role="alert"' in html
+        assert 'value="09:30"' in html and 'value="13:10"' in html

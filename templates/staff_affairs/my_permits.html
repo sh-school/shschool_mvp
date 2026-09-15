@@ -18,9 +18,9 @@
 
   {% section_card "طلب إذن جديد" icon="edit_record" %}
     {% if not can_submit %}
-    <p class="form-note">{% icon "status_info" %} إذنُ مدير المدرسة لا يُعتدّ به إلّا باعتماد رئيسه المباشر (البند 4.1)، ولا رئيسَ له داخل المدرسة — فلا يُقدَّم هنا.</p>
+    <p class="form-note">{% icon "status_info" %} نموذج 02 للموظّفين.</p>
     {% else %}
-    <p class="form-note">التأخير الصباحي يبدأ 7:00، والخروج المبكر ينتهي 14:00، والاستئذان بينهما (البندان 1.1 و2.1).</p>
+    <p class="form-note">التأخير الصباحي يبدأ 7:00، والخروج المبكر ينتهي 14:00، والاستئذان بينهما (البندان 1.1 و2.1). والخروج والاستئذان يُطلبان قبل وقتهما، فلا خروجَ إلّا بعد الاعتماد (حاشية نموذج 02).</p>
     <form method="post">{% csrf_token %}
       {% if form.non_field_errors %}<p class="form-note is-warning sa-errors" role="alert">{% icon "status_warning" %} {{ form.non_field_errors|join:" · " }}</p>{% endif %}
       <div class="form-row">
@@ -36,6 +36,56 @@
     </form>
     {% endif %}
   {% endsection_card %}
+
+  {% if can_request_exception %}
+  {% section_card "طلب استثناء من مدير المدرسة (نموذج 03)" icon="edit_record" %}
+    <p class="form-note">لتأخيرٍ صباحيٍّ أو خروجٍ مبكرٍ متكرّرٍ لأيّامٍ متتالية — «يجب ارفاق ما يثبت حاجة الموظف لذلك»، ويقرّره المدير. ولا يُخصم من سقف الأذونات الشهريّ.</p>
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="form" value="exception">
+      {% if exception_form.non_field_errors %}<p class="form-note is-warning sa-errors" role="alert">{% icon "status_warning" %} {{ exception_form.non_field_errors|join:" · " }}</p>{% endif %}
+      <div class="form-row">
+        {% field "exception_type" "نوع الاستثناء" type="select" choices=exception_types value=exception_form.data.exception_type required=True id="f-exc-type" error=exception_form.exception_type.errors.0 %}
+        {% field "start_date" "من تاريخ" type="date" value=exception_form.data.start_date required=True id="f-exc-from" error=exception_form.start_date.errors.0 %}
+        {% field "end_date" "إلى تاريخ" type="date" value=exception_form.data.end_date required=True id="f-exc-to" error=exception_form.end_date.errors.0 %}
+        {% field "boundary_time" "الساعة (حضورٌ حتّاها أو انصرافٌ منها)" type="time" value=exception_form.data.boundary_time required=True id="f-exc-time" error=exception_form.boundary_time.errors.0 %}
+        {% field "content" "محتوى الطلب" type="textarea" rows=2 value=exception_form.data.content required=True maxlength=1000 id="f-exc-content" error=exception_form.content.errors.0 css="sa-span-2" %}
+        {% field "evidence" "ما يثبت الحاجة (المرفق)" value=exception_form.data.evidence required=True maxlength=300 id="f-exc-evidence" css="sa-span-2" %}
+      </div>
+      <div class="form-actions sa-form-footer">
+        <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} تقديم الطلب إلى المدير</button>
+      </div>
+    </form>
+  {% endsection_card %}
+  {% endif %}
+
+  {% if exceptions %}
+  {% section_card "استثناءاتي (نموذج 03)" meta=exceptions|length icon="checklist" flush=True %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>النوع</th>
+            <th class="col-center">من – إلى</th>
+            <th class="col-center">الساعة</th>
+            <th class="col-center">الحالة</th>
+            <th>التغذية الراجعة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in exceptions %}
+          <tr>
+            <td>{{ e.get_exception_type_display }}</td>
+            <td class="col-center">{{ e.start_date|date:"d/m/Y" }} – {{ e.end_date|date:"d/m/Y" }}</td>
+            <td class="col-center" dir="ltr">{{ e.boundary_time|time:"H:i" }}</td>
+            <td class="col-center"><span class="status-badge {% if e.status == 'approved' %}status-success{% elif e.status == 'rejected' %}status-danger{% else %}status-warning{% endif %}">{{ e.get_status_display }}</span></td>
+            <td class="text-xs">{{ e.feedback|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endsection_card %}
+  {% endif %}
 
   {% section_card "طلباتي" meta=permits|length icon="checklist" flush=True empty="لم تقدّم طلبَ إذنٍ بعد" %}{% if permits %}
     <div class="table-wrap">

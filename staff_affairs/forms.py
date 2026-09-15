@@ -2,7 +2,13 @@
 
 from django import forms
 
-from .models import ABSENCE_TYPES, LEAVE_TYPES, PERMIT_TYPES, STAFF_ATTENDANCE_STATUS
+from .models import (
+    ABSENCE_TYPES,
+    EXCEPTION_TYPES,
+    LEAVE_TYPES,
+    PERMIT_TYPES,
+    STAFF_ATTENDANCE_STATUS,
+)
 
 
 class LeaveRequestForm(forms.Form):
@@ -175,6 +181,32 @@ class PermitRequestForm(forms.Form):
     start_time = forms.TimeField(label="من الساعة")
     end_time = forms.TimeField(label="إلى الساعة")
     reason = forms.CharField(max_length=500, label="سبب الطلب")
+
+
+class ExceptionRequestForm(forms.Form):
+    """نموذج 03: طلبُ استثناء التأخير الصباحيّ أو الخروج المبكر — إلى مدير المدرسة.
+
+    الشكلُ وحدَه هنا؛ الحدودُ (ساعاتُ الدوام، والمرفقُ، وشهرٌ لم ينقضِ) في
+    ``ExceptionService.submit``.
+    """
+
+    exception_type = forms.ChoiceField(choices=EXCEPTION_TYPES, label="نوع الاستثناء")
+    start_date = forms.DateField(label="من تاريخ")
+    end_date = forms.DateField(label="إلى تاريخ")
+    boundary_time = forms.TimeField(label="الساعة")
+    content = forms.CharField(max_length=1000, label="محتوى الطلب")
+    evidence = forms.CharField(max_length=300, required=False, label="ما يثبت الحاجة")
+
+
+class ExceptionDecisionForm(forms.Form):
+    decision = forms.ChoiceField(choices=[("approve", "موافق"), ("reject", "غير موافق")])
+    feedback = forms.CharField(max_length=500, required=False)
+
+
+class DelegationForm(forms.Form):
+    """إنابةُ النائب الإداريّ اليوم أو رفعُها — ``delegate`` فارغٌ للرفع."""
+
+    delegate = forms.UUIDField(required=False)
 
 
 class PermitReviewForm(forms.Form):
