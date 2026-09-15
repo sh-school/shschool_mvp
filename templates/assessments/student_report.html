@@ -37,7 +37,7 @@
             <td>{{ result.subject.name_ar }}</td>
             <td class="num">{% if row.s1_tone %}<span class="grade-total is-{{ row.s1_tone }}">{{ result.s1_total }}</span>{% else %}<span class="grade-total is-muted">—</span>{% endif %}</td>
             <td class="num">{% if row.s2_tone %}<span class="grade-total is-{{ row.s2_tone }}">{{ result.s2_total }}</span>{% else %}<span class="grade-total is-muted">—</span>{% endif %}</td>
-            <td class="num">{% if result.annual_total is not None %}<span class="grade-total is-{{ row.tone }}">{{ result.annual_total }}</span>{% else %}<span class="grade-total is-muted">—</span>{% endif %}</td>
+            <td class="num">{% if result.annual_total is not None %}<span class="grade-total is-{{ row.tone }}">{{ result.annual_total }}</span>{% else %}<span class="grade-total is-muted">{{ result.total_display }}</span>{% endif %}</td>
             <td class="num"><b>{{ result.letter_grade }}</b></td>
             <td class="num"><span class="status-badge {{ status_tones|get_item:result.status|default:'status-warning' }}">{{ result.get_status_display }}</span></td>
           </tr>

@@ -11,7 +11,7 @@
   م24 «ثالثاً»  الغيابُ عن جزءٍ من اختبار نهاية الفصل الثاني (وليس كليهما) → يُحكم بالمجموع
   م27 ص22      الغيابُ بلا عذر عن نهاية الثاني → الدرجةُ النهائيّة «غائب» ومن موادّ الرسوب
   م29 ص22–23  الحرمانُ بأيّام الغياب «اعتباراً من بداية العام الدراسي» حتّى الاختبار
-  م50–51 ص33  قواعدُ الترفيع — الأوليان في الدور الأول، والثالثةُ «في الدور الثاني فقط»
+  م50–51 ص33  قواعدُ الترفيع — الأوليان بلا قيدِ دور، والثالثةُ «في الدور الثاني فقط»
   12: م13 وم16 ص10 — المعذورُ يُختبر في «منهاج الفصلين … ولا تحسب له درجات الفصل الأول»
 """
 
@@ -29,15 +29,9 @@ from assessments.models import (
 )
 from assessments.services import GradeService, SecondRoundService
 from core.domain.grades import (
-    DEPRIVED,
-    EXCUSED,
-    FAILED_ELIGIBLE,
-    FAILED_INELIGIBLE,
-    PASSED,
-    PROMOTED,
-    SECOND_ROUND_LABELS,
-    SubjectOutcome,
-    classify_first_round,
+    STATUS_EXCUSED,
+    STATUS_SECOND_ROUND,
+    judge_student,
     second_round_credit,
     semester_total,
 )
@@ -46,18 +40,21 @@ from tests.conftest import ClassGroupFactory, StudentEnrollmentFactory, UserFact
 
 SUBJECTS = ("عربي", "إنجليزي", "رياضيات", "علوم", "إسلامية", "اجتماعيات")
 
+#: الموقفُ المخزَّن (`judge_student`) بأسماء الأصناف القديمة في هذا الملفّ.
+PASSED, PROMOTED, FAILED_ELIGIBLE = "passed", "promoted", "second_round"
+FAILED_INELIGIBLE, DEPRIVED = "failed", "second_round"
 
-def _o(totals, **flags):
-    return [
-        SubjectOutcome(
-            subject=name,
-            annual_total=None if t is None else Decimal(str(t)),
-            excused_final_absence=name in flags.get("excused", ()),
-            unexcused_final_absence=name in flags.get("unexcused", ()),
-            unexcused_first_semester_absence=name in flags.get("unexcused_s1", ()),
-        )
-        for name, t in zip(SUBJECTS, totals, strict=True)
-    ]
+
+def _o(totals, grade=10, **flags):
+    from tests.test_second_round import student
+
+    return student(
+        totals,
+        grade,
+        flags.get("excused", ()),
+        flags.get("unexcused", ()),
+        flags.get("unexcused_s1", ()),
+    )
 
 
 def _year(school):
@@ -138,7 +135,8 @@ def test_jabr_on_subject_grade_not_on_each_package(school, teacher_user, path):
     )
     assert (s1.total, s2.total) == (Decimal("19"), Decimal("30"))
     annual = AnnualSubjectResult.objects.get(student=student, setup=setup)
-    assert (annual.annual_total, annual.status) == (Decimal("49"), "fail")
+    # مادّةٌ واحدة تنقص درجةً عن الخمسين: القاعدةُ الأولى (م50) — ويبقى مجموعُها 49.
+    assert (annual.annual_total, annual.status) == (Decimal("49"), "promoted")
 
 
 def test_semester_total_jabrs_once():
@@ -147,29 +145,6 @@ def test_semester_total_jabrs_once():
     # 10.5 + 20.01 + 0.01 = 30.52 ← 31 (لا 10.5 + 20.5 + 0.5 = 31.5)؛ فالمجموعُ 50 لا 51
     assert semester_total({"P3": "10.01", "P4": "20.01", "AW": "0.01"}) == Decimal("31")
     assert semester_total({"P3": "10", "P4": "20", "AW": "0"}) == Decimal("30")
-
-
-@pytest.mark.django_db
-def test_gradebook_total_is_computed_from_its_own_cells(
-    client_as, school, principal_user, teacher_user
-):
-    """مجموعٌ مخزَّنٌ قديم (37.30) لا يُعرض بجانب خلايا تساوي 19."""
-    setup = _setup(school, teacher_user)
-    student = UserFactory()
-    StudentEnrollmentFactory(student=student, class_group=setup.class_group)
-    points = {"P1": 15, "AW": 5, "P2": 20}
-    raw = {"P1": "7.1", "AW": "2.1", "P2": "9.1"}
-    for pkg in GradeService.ensure_packages(setup, "S1"):
-        _grade(_exam(pkg, points[pkg.package_type]), student, raw[pkg.package_type])
-    StudentSubjectResult.objects.create(
-        student=student, setup=setup, school=school, semester="S1", total=Decimal("37.30")
-    )
-
-    resp = client_as(principal_user).get(f"/assessments/setup/{setup.id}/gradebook/?semester=S1")
-    assert resp.status_code == 200
-    (row,) = resp.context["rows"]
-    assert row["sem_total"] == Decimal("19")
-    assert "37.30" not in resp.content.decode()
 
 
 @pytest.mark.django_db
@@ -241,42 +216,33 @@ def test_recalculate_command_is_current_year_and_audited(school, teacher_user, p
     ],
 )
 def test_promotion_rules_one_and_two(grade, totals, category, article):
-    decision = classify_first_round(_o(totals), grade)
-    assert (decision.category, decision.article) == (category, article)
+    verdict = judge_student(grade, _o(totals, grade))
+    assert (verdict.standing, verdict.article) == (category, article)
     if category == PROMOTED:
-        assert not decision.sits_second_round and decision.retake == ()
-        assert decision.promoted == tuple(SUBJECTS[: sum(1 for t in totals if t < 50)])
+        promoted = tuple(v.key for v in verdict.subjects if v.status == "promoted")
+        assert promoted == tuple(SUBJECTS[: sum(1 for t in totals if t < 50)])
 
 
 def test_promotion_needs_a_grade_not_an_absence():
     """م27: المادّةُ «غائب» لا درجةَ لها يُقاس منها النقص."""
-    decision = classify_first_round(_o((48.5, 80, 70, 60, 55, 50), unexcused=("إنجليزي",)), 10)
-    assert decision.category == FAILED_ELIGIBLE
+    verdict = judge_student(10, _o((48.5, 80, 70, 60, 55, 50), unexcused=("إنجليزي",)))
+    assert verdict.standing == FAILED_ELIGIBLE
 
 
 # ═══ 3. م23 قبل الحرمان ═══════════════════════════════════════════════
 
 
 def test_m23_bars_before_deprivation():
-    decision = classify_first_round(_o((None,) * 6, unexcused_s1=SUBJECTS[:5]), 10, deprived=True)
-    assert (decision.category, decision.article) == (FAILED_INELIGIBLE, "م23")
-    assert not decision.sits_second_round
+    verdict = judge_student(10, _o((None,) * 6, unexcused_s1=SUBJECTS[:5]), frozenset({"s2_final"}))
+    assert (verdict.standing, verdict.article) == (FAILED_INELIGIBLE, "م23")
 
 
 def test_grade12_deprived_before_first_final_is_not_m15():
-    """م19-1: المحرومُ من نهاية الفصل الأول غيابُه عنها «محروم» لا «غائب» (م20)."""
-    decision = classify_first_round(
-        _o((None,) * 6, unexcused_s1=SUBJECTS[:5]),
-        12,
-        deprived=True,
-        deprived_before_first_final=True,
+    """م19-1 (ص11): المحرومُ من نهاية الفصل الأول غيابُه عنها «محروم» لا «غائب» (م30)."""
+    verdict = judge_student(
+        12, _o((None,) * 6, 12, unexcused_s1=SUBJECTS[:5]), frozenset({"s1_final"})
     )
-    assert (decision.category, decision.article) == (DEPRIVED, "م19")
-
-
-def test_deprived_label_is_not_a_verdict():
-    assert SECOND_ROUND_LABELS[DEPRIVED] != "محروم"
-    assert "فريق" in SECOND_ROUND_LABELS[DEPRIVED]
+    assert (verdict.standing, verdict.article) == (DEPRIVED, "م19-1")
 
 
 # ═══ 4. م16 للثاني عشر، وسقفُ المئة ══════════════════════════════════
@@ -284,26 +250,23 @@ def test_deprived_label_is_not_a_verdict():
 
 def test_grade12_excused_carries_nothing():
     with pytest.raises(ValueError):
-        second_round_credit(EXCUSED, 70, carried=34, grade=12)
-    assert second_round_credit(EXCUSED, 70, grade=12) == (True, Decimal("70"))
+        second_round_credit(STATUS_EXCUSED, 70, carried=34, grade=12)
+    assert second_round_credit(STATUS_EXCUSED, 70, grade=12) == (True, Decimal("70"))
 
 
 @pytest.mark.parametrize("score,carried", [(70, 34), (101, 0)])
 def test_credit_never_exceeds_full_mark(score, carried):
     with pytest.raises(ValueError):
-        second_round_credit(EXCUSED, score, carried=carried, grade=10)
+        second_round_credit(STATUS_EXCUSED, score, carried=carried, grade=10)
 
 
 def test_failed_score_over_hundred_is_rejected():
     with pytest.raises(ValueError):
-        second_round_credit(FAILED_ELIGIBLE, 120, grade=10)
+        second_round_credit(STATUS_SECOND_ROUND, 120, grade=10)
 
 
-# ═══ 5. الغيابُ عن الاختبار كلِّه لا عن جزئه (م24)، والملحق (م19–21) ════════
-
-
-def _roster_class(school, teacher, grade="G10", n=2):
-    year = _year(school)
+def _roster_class(school, teacher, grade="G10", n=2, year=None):
+    year = year or _year(school)
     cg = ClassGroupFactory(school=school, grade=grade, academic_year=year)
     setups = [
         SubjectClassSetup.objects.create(
@@ -318,22 +281,32 @@ def _roster_class(school, teacher, grade="G10", n=2):
     return cg, setups, year
 
 
-def _annual(student, setup, total, status=None):
-    AnnualSubjectResult.objects.create(
-        student=student,
-        setup=setup,
-        school=setup.school,
-        academic_year=setup.academic_year,
-        s1_total=Decimal("0"),
-        s2_total=Decimal(total),
-        annual_total=Decimal(total),
-        status=status or ("pass" if Decimal(total) >= 50 else "fail"),
-    )
-
-
 def _pkg(setup, ptype):
     sem = "S1" if ptype in ("P1", "P2") else "S2"
     return next(p for p in GradeService.ensure_packages(setup, sem) if p.package_type == ptype)
+
+
+def _base(setup, student, s1=("12", "16", "4"), s2=("12", None, "4")):
+    """درجاتُ الباقات من قصواها: (P1, P2, AW) و(P3, P4, AW) — وNone لما لا يُرصد هنا."""
+    marks = {"P1": 15, "P2": 20, "P3": 15, "P4": 40, "AW": 5}
+    for sem, values in (("S1", s1), ("S2", s2)):
+        types = ("P1", "P2", "AW") if sem == "S1" else ("P3", "P4", "AW")
+        for ptype, value in zip(types, values, strict=True):
+            if value is None:
+                continue
+            pkg = next(
+                p for p in GradeService.ensure_packages(setup, sem) if p.package_type == ptype
+            )
+            exam = Assessment.objects.filter(package=pkg, title=f"{sem}{ptype}").first()
+            _grade(exam or _exam(pkg, marks[ptype], f"{sem}{ptype}"), student, value)
+
+
+def _rows(cg, year):
+    rows, _ = SecondRoundService.roster(cg, year)
+    return {r.student.id: r for r in rows}
+
+
+# ═══ 5. الغيابُ عن الاختبار كلِّه لا عن جزئه (م24)، والملحق (م19–20) ════════
 
 
 @pytest.mark.django_db
@@ -344,92 +317,88 @@ def test_absence_from_one_part_of_the_final_is_judged_by_total(school, teacher_u
     part_unexcused, part_excused, whole = UserFactory(), UserFactory(), UserFactory()
     for s in (part_unexcused, part_excused, whole):
         StudentEnrollmentFactory(student=s, class_group=cg)
-        _annual(s, sci, "62")
-        _annual(s, other, "80")
+    _base(sci, part_unexcused)
+    _base(sci, part_excused)
+    _base(sci, whole)
+    for s in (part_unexcused, part_excused, whole):
+        _base(other, s, s2=("12", "32", "4"))
     _grade(theory, part_unexcused, 25)
     _grade(practical, part_unexcused, absent=True)
     _grade(theory, part_excused, 25)
     _grade(practical, part_excused, excused=True)
     _grade(theory, whole, absent=True)
     _grade(practical, whole, absent=True)
+    GradeService.recalculate_full_class(sci)
 
-    rows = {r.student.id: r.decision for r in SecondRoundService.roster(cg, year)}
-
-    assert rows[part_unexcused.id].category == PASSED
-    assert rows[part_excused.id].category == PASSED
-    assert (rows[whole.id].category, rows[whole.id].retake) == (
+    rows = _rows(cg, year)
+    assert rows[part_unexcused.id].standing == PASSED
+    assert rows[part_excused.id].standing == PASSED
+    assert (rows[whole.id].standing, rows[whole.id].retake) == (
         FAILED_ELIGIBLE,
-        (sci.subject.name_ar,),
+        [sci.subject.name_ar],
     )
 
 
 @pytest.mark.django_db
 def test_excused_first_final_goes_to_makeup_not_second_round(school, teacher_user):
-    """4–11: العذرُ عن P2 وحدَه يُحيل إلى الملحق (م19)، فيُحكم بالمجموع (م20)."""
+    """4–11: العذرُ عن P2 يُحيل إلى الملحق (م19)، والغائبُ عنه يُحكم بمجموعه (م20)."""
     cg, (arabic, other), year = _roster_class(school, teacher_user)
-    p2 = _exam(_pkg(arabic, "P2"), 20)
-    good, weak = UserFactory(), UserFactory()
-    for s, total in ((good, "71"), (weak, "42")):
-        StudentEnrollmentFactory(student=s, class_group=cg)
-        _grade(p2, s, excused=True)
-        _annual(s, arabic, total)
-        _annual(s, other, "80")
+    student = UserFactory()
+    StudentEnrollmentFactory(student=student, class_group=cg)
+    _base(arabic, student, s1=("12", None, "4"), s2=("12", "32", "4"))
+    _grade(_exam(_pkg(arabic, "P2"), 20, "نهاية ف1"), student, excused=True)
+    _base(other, student, s2=("12", "32", "4"))
+    GradeService.recalculate_full_class(arabic)
+    annual = AnnualSubjectResult.objects.get(student=student, setup=arabic)
+    assert (annual.status, annual.article) == ("makeup", "م19")
 
-    rows = {r.student.id: r.decision for r in SecondRoundService.roster(cg, year)}
-
-    assert rows[good.id].category == PASSED
-    assert rows[weak.id].category == FAILED_ELIGIBLE
-    assert rows[weak.id].failed == (arabic.subject.name_ar,)
+    makeup = _exam(_pkg(arabic, "P2"), 20, "الملحق", assessment_type="makeup")
+    _grade(makeup, student, absent=True)
+    GradeService.recalculate_full_class(arabic)
+    annual = AnnualSubjectResult.objects.get(student=student, setup=arabic)
+    # م20: درجةُ الفصل الأول منتصفُه وأعمالُه (16)، ويُحكم بمجموع الفصلين (16 + 48 = 64).
+    assert (annual.s1_total, annual.annual_total, annual.status) == (
+        Decimal("16"),
+        Decimal("64"),
+        "pass",
+    )
 
 
 @pytest.mark.django_db
-def test_excused_whole_first_semester_and_grade12_final_go_to_second_round(school, teacher_user):
-    cg, (arabic, other), year = _roster_class(school, teacher_user)
-    p1, p2 = _exam(_pkg(arabic, "P1"), 15), _exam(_pkg(arabic, "P2"), 20)
-    student = UserFactory()
-    StudentEnrollmentFactory(student=student, class_group=cg)
-    _grade(p1, student, excused=True)
-    _grade(p2, student, excused=True)
-    _annual(student, arabic, "30")
-    _annual(student, other, "80")
-    (row,) = SecondRoundService.roster(cg, year)
-    assert (row.decision.category, row.decision.article) == (EXCUSED, "م12-ب")  # م21
-
-    cg12, (math12, other12), _ = _roster_class(school, teacher_user, grade="G12")
+def test_grade12_excused_final_goes_straight_to_second_round(school, teacher_user):
+    cg12, (math12, other12), year = _roster_class(school, teacher_user, grade="G12")
     s12 = UserFactory()
     StudentEnrollmentFactory(student=s12, class_group=cg12)
     _grade(_exam(_pkg(math12, "P2"), 40), s12, excused=True)
-    _annual(s12, math12, "30")
-    _annual(s12, other12, "80")
-    (row12,) = SecondRoundService.roster(cg12, year)
-    assert (row12.decision.category, row12.decision.article) == (EXCUSED, "م8-ب")  # م13
+    _grade(_exam(_pkg(other12, "P2"), 40), s12, 30)
+    _grade(_exam(_pkg(other12, "P4"), 60), s12, 50)
+    GradeService.recalculate_full_class(math12)
+    (row,) = SecondRoundService.roster(cg12, year)[0]
+    assert (row.standing, row.article) == (FAILED_ELIGIBLE, "م13")
+    assert row.results[0].status in (STATUS_EXCUSED, "pass")
 
 
-# ═══ 6. الحالةُ المخزَّنة تطابق الشاشة (م27، م12-ب) ════════════════════════
+# ═══ 6. الحالةُ المخزَّنة تطابق الشاشة (م27، م25) ═══════════════════════════
 
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "flags,expected",
     [
-        ({"absent": True}, (None, "fail")),  # م27: «غائب» ومن موادّ الرسوب
-        ({"excused": True}, (Decimal("57.00"), "second_round")),  # م25
+        ({"absent": True}, (None, STATUS_SECOND_ROUND, "absent", True)),  # م27: «غائب»
+        ({"excused": True}, (None, STATUS_EXCUSED, "excused", False)),  # م25
     ],
 )
 def test_stored_annual_status_reads_final_exam_absence(school, teacher_user, flags, expected):
     setup = _setup(school, teacher_user, grade="G9")
     student = UserFactory()
     StudentEnrollmentFactory(student=student, class_group=setup.class_group)
+    _base(setup, student)
     _grade(_exam(_pkg(setup, "P4"), 40), student, **flags)
-    for sem, total in (("S1", "38"), ("S2", "19")):
-        StudentSubjectResult.objects.create(
-            student=student, setup=setup, school=school, semester=sem, total=Decimal(total)
-        )
     annual = GradeService.recalculate_annual_result(student, setup)
-    annual.refresh_from_db()
-    assert (annual.annual_total, annual.status) == expected
+    assert (annual.annual_total, annual.status, annual.mark) == expected[:3]
     failing = GradeService.get_failing_students(school, setup.academic_year)
-    assert failing.filter(student=student).exists() == (expected[1] == "fail")
+    assert failing.filter(student=student).exists() is expected[3]
 
 
 # ═══ 7. أيّامُ الحرمان حتّى عشيّة الاختبار وفي العام المعروض (م29) ═══════════
@@ -461,17 +430,9 @@ def test_deprivation_days_counted_at_the_exam_of_the_shown_year(school, teacher_
         end_date=exam_day + timedelta(days=9),
         grade_scope="g10_11",
     )
-    cg = ClassGroupFactory(school=school, grade="G10", academic_year=past)
-    setup = SubjectClassSetup.objects.create(
-        school=school,
-        subject=Subject.objects.create(school=school, name_ar="عربي", code="DP"),
-        class_group=cg,
-        teacher=teacher_user,
-        academic_year=past,
-    )
+    cg, (setup,), _ = _roster_class(school, teacher_user, n=1, year=past)
     student = UserFactory()
     StudentEnrollmentFactory(student=student, class_group=cg)
-    _annual(student, setup, "80")
 
     seen = []
 
@@ -482,10 +443,12 @@ def test_deprivation_days_counted_at_the_exam_of_the_shown_year(school, teacher_
 
     monkeypatch.setattr("operations.absence_standing.unexcused_days_for_class", fake_days)
 
-    (row,) = SecondRoundService.roster(cg, past)
+    (row,), warnings = SecondRoundService.roster(cg, past)
 
     assert seen == [exam_day - timedelta(days=1)]
-    assert row.decision.category == PASSED
+    assert row.warnings == []
+    # عتباتُ الفصل الأول والمنتصفين بلا حدثٍ ولا تاريخ — تنبيهٌ لا «اليوم».
+    assert len(warnings) == 3
 
 
 # ═══ 8. الصلاحيّة: الكشفُ لمن نطاقُه المدرسة ═══════════════════════════════

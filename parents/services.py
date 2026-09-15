@@ -15,6 +15,7 @@ from django.utils import timezone
 from assessments.models import AnnualSubjectResult, StudentSubjectResult
 from core.academic_calendar import academic_year_for_school
 from core.domain.attendance import attendance_rate
+from core.domain.grades import FAILING_STATUSES, PASSING_STATUSES, PENDING_STATUSES
 from core.domain.tones import ATTENDANCE_KPI, GRADE_CELL, tone_for
 from core.models import ParentStudentLink, StudentEnrollment
 from operations.models import StudentAttendance
@@ -60,9 +61,9 @@ class ParentService:
             .values("student_id")
             .annotate(
                 total_subj=Count("id"),
-                passed=Count("id", filter=Q(status="pass")),
-                failed=Count("id", filter=Q(status="fail")),
-                incomplete=Count("id", filter=Q(status="incomplete")),
+                passed=Count("id", filter=Q(status__in=PASSING_STATUSES)),
+                failed=Count("id", filter=Q(status__in=FAILING_STATUSES)),
+                incomplete=Count("id", filter=Q(status__in=PENDING_STATUSES)),
             )
         )
         annual_map = {row["student_id"]: row for row in annual_counts}
@@ -143,15 +144,17 @@ class ParentService:
             for ann in annual
         ]
 
-        grades = [float(r.annual_total) for r in annual if r.annual_total]
+        # المتوسّطُ من الأرقام: «غائب» (م27) و«محروم» (م30) كلمةٌ لا رقمَ لها.
+        grades = [float(r.annual_total) for r in annual if r.annual_total is not None]
         avg = round(sum(grades) / len(grades), 1) if grades else None
 
         return {
             "annual_results": annual,
             "rows": rows,
             "total": annual.count(),
-            "passed": annual.filter(status="pass").count(),
-            "failed": annual.filter(status="fail").count(),
+            "passed": annual.filter(status__in=PASSING_STATUSES).count(),
+            "failed": annual.filter(status__in=FAILING_STATUSES).count(),
+            "standing": annual.standing(),
             "avg": avg,
         }
 

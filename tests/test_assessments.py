@@ -402,7 +402,8 @@ class TestGradeService:
 
         annual = AnnualSubjectResult.objects.get(student=student_user, setup=setup)
         assert annual.annual_total < Decimal("50")
-        assert annual.status == "fail"
+        # مادّةٌ واحدة راسبة: تُعاد في الدور الثاني (م12-أ) — ومن موادّ الرسوب.
+        assert annual.status == "second_round" and annual.is_failed
 
     def test_annual_result_incomplete(
         self, setup, s1_package, assessment_in_p1, student_user, enrolled_student

@@ -28,7 +28,20 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from core.academic_calendar import default_academic_year
-from core.domain.grades import SEMESTER_MAX, letter_of, package_weight
+from core.domain.grades import (
+    GATE_CHOICES,
+    MARK_CHOICES,
+    MARK_LABELS,
+    RESULT_STATUS_CHOICES,
+    SEMESTER_MAX,
+    STANDING_CHOICES,
+    STANDING_LABELS,
+    STANDING_TONES,
+    STATUS_TONES,
+    letter_of,
+    package_weight,
+    status_bucket,
+)
 from core.models import ClassGroup, CustomUser, School
 from operations.models import Subject
 
@@ -207,7 +220,11 @@ class Assessment(models.Model):
         ("oral", "شفهي"),
         ("practical", "عملي"),
         ("participation", "مشاركة صفية"),
+        # اختبارُ الملحق للفصل الأول (4–11، م18–م20 ص20) — يُرصد في باقة P2 لمن عُذر
+        # عن اختبارات الفصل الأول، ولا يدخل في درجة الباقة لغيره.
+        ("makeup", "اختبار ملحق"),
     ]
+    MAKEUP = "makeup"
     STATUS = [
         ("draft", "مسودة"),
         ("published", "منشور"),
@@ -427,12 +444,9 @@ class AnnualSubjectResult(models.Model):
 
     objects = AnnualResultQuerySet.as_manager()
 
-    STATUS = [
-        ("pass", "ناجح"),
-        ("fail", "راسب"),
-        ("incomplete", "غير مكتمل"),
-        ("second_round", "دور ثانٍ"),
-    ]
+    #: الحالةُ والموقفُ من الحكم الواحد `core.domain.grades.judge_student` — تُخزَّن هنا
+    #: ويقرؤها كلُّ مستهلك، ولا يحكم أحدٌ بحكمٍ موازٍ.
+    STATUS = list(RESULT_STATUS_CHOICES)
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="annual_results")
@@ -468,6 +482,24 @@ class AnnualSubjectResult(models.Model):
         max_digits=5, decimal_places=2, default=Decimal("50"), verbose_name="درجة النجاح"
     )
     status = models.CharField(max_length=12, choices=STATUS, default="incomplete", db_index=True)
+    #: موقفُ الطالب في موادّه كلِّها — واحدٌ في كلّ صفوفه (القواعدُ العابرة: م13، م23، م29، م50).
+    standing = models.CharField(
+        max_length=12, choices=STANDING_CHOICES, default="incomplete", db_index=True
+    )
+    #: الكلمةُ مكانَ المجموع (م30): غائب/معذور/محروم.
+    mark = models.CharField(max_length=10, choices=MARK_CHOICES, blank=True, default="")
+    #: موضعُ الحكم من السياسة («م27»، «م50 القاعدة الثالثة» …).
+    article = models.CharField(max_length=40, blank=True, default="")
+    # ── مدخلاتُ الدور الثاني — وقائعُ تُرصد لا تُحسب، وإعادةُ الحساب لا تمسّها ──
+    second_round_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+        verbose_name="درجة الدور الثاني",
+    )
+    second_round_absent = models.BooleanField(default=False, verbose_name="غائب في الدور الثاني")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -500,3 +532,78 @@ class AnnualSubjectResult(models.Model):
     @property
     def letter_grade(self):
         return letter_of(self.annual_total)
+
+    @property
+    def bucket(self) -> str:
+        """«passed» أو «failed» أو «pending» — `core.domain.grades.status_bucket`."""
+        return status_bucket(self.status)
+
+    @property
+    def is_passed(self) -> bool:
+        return self.bucket == "passed"
+
+    @property
+    def is_failed(self) -> bool:
+        return self.bucket == "failed"
+
+    @property
+    def status_tone(self) -> str:
+        return STATUS_TONES.get(self.status, "gray")
+
+    @property
+    def standing_label(self) -> str:
+        return STANDING_LABELS.get(self.standing, "")
+
+    @property
+    def standing_tone(self) -> str:
+        return STANDING_TONES.get(self.standing, "warning")
+
+    @property
+    def total_display(self) -> str:
+        """المجموعُ للعرض — أو كلمتُه (م30)، أو «—»."""
+        if self.annual_total is not None:
+            return str(self.annual_total)
+        return MARK_LABELS.get(self.mark, "—")
+
+
+class ExamDeprivation(models.Model):
+    """قرارُ فريق إدارة سلوك الطلبة في أهليّة طالبٍ لاختبار — لا عدّادُ أيّام.
+
+    الدليل التنظيمي لسياسة إدارة سلوك الطلبة 2026، 3.4.1.2 (`08_conduct_policy_2026.md`
+    :107–137): «اجتماع فريق إدارة سلوك الطلبة ← قرار عدم أهلية دخول اختبار»، و«يجتمع
+    الفريق … قبل اختبارات نهاية الفصل الدراسي الأول … لدراسة حالة كل طالب واتخاذ القرار
+    المناسب». فبلوغُ العتبة في سجلّ الحضور تنبيهٌ، والحكمُ (`judge_student`) لا يقرأ إلّا
+    قراراً مسجَّلاً هنا: `deprived=True` حرمان، و`False` قرارٌ بعدم الحرمان (قُبل العذر).
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="exam_deprivations")
+    student = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="exam_deprivations"
+    )
+    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    gate = models.CharField(max_length=12, choices=GATE_CHOICES, verbose_name="الاختبار")
+    deprived = models.BooleanField(default=True, verbose_name="محروم")
+    decided_on = models.DateField(verbose_name="تاريخ القرار")
+    decided_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="سجّله",
+    )
+    note = models.CharField(max_length=300, blank=True, verbose_name="ملاحظة")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "قرار أهليّة اختبار"
+        verbose_name_plural = "قرارات أهليّة الاختبارات"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "academic_year", "gate"], name="unique_exam_deprivation"
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.student.full_name} | {self.get_gate_display()} | {self.academic_year}"

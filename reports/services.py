@@ -25,6 +25,14 @@ from assessments.models import (
 from core import brand
 from core.academic_calendar import academic_year_for_school
 from core.domain.attendance import attendance_rate
+from core.domain.grades import (
+    FAILING_STANDINGS,
+    FAILING_STATUSES,
+    PASSING_STANDINGS,
+    PASSING_STATUSES,
+    STANDING_INCOMPLETE,
+    STANDING_LABELS,
+)
 from core.export_utils import add_excel_title_rows, brand_cell, excel_table_styles, xl_font
 from core.models import StudentEnrollment
 from core.privacy import mask_national_id
@@ -82,9 +90,10 @@ class ReportDataService:
         ]
 
         total = annual.count()
-        passed = annual.filter(status="pass").count()
-        failed = annual.filter(status="fail").count()
-        grades = [float(r.annual_total) for r in annual if r.annual_total]
+        passed = annual.filter(status__in=PASSING_STATUSES).count()
+        failed = annual.filter(status__in=FAILING_STATUSES).count()
+        # المتوسّطُ من الأرقام وحدَها: «غائب» (م27) و«محروم» (م30) كلمةٌ لا رقمَ لها.
+        grades = [float(r.annual_total) for r in annual if r.annual_total is not None]
         avg = round(sum(grades) / len(grades), 2) if grades else None
 
         enrollment = StudentEnrollment.objects.current_of(student)
@@ -102,6 +111,7 @@ class ReportDataService:
             "total": total,
             "passed": passed,
             "failed": failed,
+            "standing": annual.standing(),
             "avg": avg,
             "absent_total": absent_total,
             "late_total": late_total,
@@ -148,24 +158,26 @@ class ReportDataService:
             row: dict = {"student": enr.student, "grades": {}}
             grades: list = []
             passed = failed = 0
+            standing = STANDING_INCOMPLETE
             for setup in setups:
                 annual = annual_map.get((enr.student_id, setup.id))
                 row["grades"][setup.subject.name_ar] = annual
                 if annual:
-                    if annual.annual_total:
+                    standing = annual.standing
+                    if annual.annual_total is not None:
                         grades.append(float(annual.annual_total))
-                    if annual.status == "pass":
+                    if annual.is_passed:
                         passed += 1
-                    elif annual.status == "fail":
+                    elif annual.is_failed:
                         failed += 1
 
             avg = round(sum(grades) / len(grades), 2) if grades else None
             row["avg"] = avg
             row["passed"] = passed
             row["failed"] = failed
-            row["status"] = (
-                "ناجح" if failed == 0 and passed > 0 else ("راسب" if failed > 0 else "—")
-            )
+            # موقفُ الطالب المخزَّن (`judge_student`) — لا عدٌّ موازٍ للموادّ.
+            row["standing"] = standing
+            row["status"] = STANDING_LABELS[standing]
             student_rows.append(row)
 
         # ترتيب حسب المتوسط
@@ -174,8 +186,8 @@ class ReportDataService:
             row["rank"] = i
             row["grades_list"] = [row["grades"].get(s.name_ar) for s in subjects]
 
-        total_passed = sum(1 for r in student_rows if r["failed"] == 0 and r["passed"] > 0)
-        total_failed = sum(1 for r in student_rows if r["failed"] > 0)
+        total_passed = sum(1 for r in student_rows if r["standing"] in PASSING_STANDINGS)
+        total_failed = sum(1 for r in student_rows if r["standing"] in FAILING_STANDINGS)
 
         return {
             "class_group": class_group,
@@ -1227,11 +1239,13 @@ class ExcelService:
 
             for col_off, subj in enumerate(subjects, start=4):
                 ann = row["grades"].get(subj.name_ar)
-                grade = float(ann.annual_total) if ann and ann.annual_total else None
+                grade = float(ann.annual_total) if ann and ann.annual_total is not None else None
                 cell = ws.cell(
-                    row=row_num, column=col_off, value=grade if grade is not None else "—"
+                    row=row_num,
+                    column=col_off,
+                    value=grade if grade is not None else (ann.total_display if ann else "—"),
                 )
-                if grade is not None and grade < 50:
+                if ann is not None and ann.is_failed:
                     cell.font = xl_font(brand.STATUS_DANGER_FG, bold=True)
 
             ws.cell(
@@ -1241,9 +1255,9 @@ class ExcelService:
             )
 
             status_cell = ws.cell(row=row_num, column=5 + len(subjects), value=row["status"])
-            if row["status"] == "ناجح":
+            if row["standing"] in PASSING_STANDINGS:
                 status_cell.font = xl_font(brand.STATUS_SUCCESS_FG, bold=True)
-            elif row["status"] == "راسب":
+            elif row["standing"] in FAILING_STANDINGS:
                 status_cell.font = xl_font(brand.STATUS_DANGER_FG, bold=True)
 
             ws.cell(row=row_num, column=6 + len(subjects), value=rank)

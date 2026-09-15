@@ -559,7 +559,8 @@ class Command(BaseCommand):
             StudentAssessmentGrade,
             SubjectClassSetup,
         )
-        from assessments.services import GradeService
+        from assessments.services import GradeService, PackageStructureError
+        from core.academic_calendar import academic_year_for_school
         from core.models import CustomUser, StudentEnrollment
 
         teachers = list(
@@ -592,8 +593,15 @@ class Command(BaseCommand):
                 setups_done += 1
 
                 # البنيةُ من `package_weights` وحدَه (القرار 14/2018 م3): الثاني عشر P2/P4 فقط.
+                # و`align_packages` لا `ensure_packages`: بذرٌ فوق قاعدةٍ بُذرت بالجدول القديم
+                # كان يُضيف P2 وAW فوق P1/P4 القائمة (162.5٪) — فيُطابَق أو يُتوقَّف.
                 for semester in ("S1", "S2"):
-                    for pkg in GradeService.ensure_packages(setup, semester):
+                    try:
+                        aligned = GradeService.align_packages(setup, semester)
+                    except PackageStructureError as exc:
+                        self.stdout.write(f"⚠️  {exc}")
+                        continue
+                    for pkg in aligned:
                         ptype = pkg.package_type
 
                         if pkg.assessments.exists():
@@ -650,11 +658,9 @@ class Command(BaseCommand):
                         # حساب النتائج
                         # يتم حساب النتائج بعد حفظ كل الدرجات
 
-                # حساب نتائج الفصلين والسنوي لكل طالب
-                for enr in StudentEnrollment.objects.filter(class_group=cg, is_active=True):
-                    for sem in ("S1", "S2"):
-                        GradeService.recalculate_semester_result(enr.student, setup, sem)
-                    GradeService.recalculate_annual_result(enr.student, setup)
+                # الحكمُ على طلبة الشعبة في موادّها كلِّها — مرّةً بعد رصد درجاتها
+                if YEAR == academic_year_for_school(school):
+                    GradeService.recalculate_full_class(setup)
 
         self.stdout.write(f"✅ الدرجات: {setups_done} إعداد | {grades_done} درجة")
 

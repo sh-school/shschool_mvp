@@ -4,6 +4,7 @@ from .models import (
     AnnualSubjectResult,
     Assessment,
     AssessmentPackage,
+    ExamDeprivation,
     StudentAssessmentGrade,
     StudentSubjectResult,
     SubjectClassSetup,
@@ -134,9 +135,11 @@ class AnnualSubjectResultAdmin(admin.ModelAdmin):
         "s2_total",
         "annual_total",
         "status",
+        "standing",
+        "article",
         "letter_grade",
     )
-    list_filter = ("status", "school", "academic_year")
+    list_filter = ("status", "standing", "school", "academic_year")
     list_select_related = ("student", "setup__subject", "setup__class_group", "school")
     search_fields = ("student__full_name", "student__national_id")
     autocomplete_fields = ("student", "setup")
@@ -153,3 +156,14 @@ class AnnualSubjectResultAdmin(admin.ModelAdmin):
     get_subject.short_description = "المادة"
     get_class.short_description = "الفصل"
     letter_grade.short_description = "التقدير"
+
+
+@admin.register(ExamDeprivation)
+class ExamDeprivationAdmin(admin.ModelAdmin):
+    """قراراتُ فريق إدارة سلوك الطلبة — الحكمُ (`judge_student`) يقرؤها بعد إعادة الحساب."""
+
+    list_display = ("student", "gate", "deprived", "academic_year", "decided_on", "decided_by")
+    list_filter = ("gate", "deprived", "school", "academic_year")
+    list_select_related = ("student", "decided_by", "school")
+    search_fields = ("student__full_name",)
+    autocomplete_fields = ("student",)

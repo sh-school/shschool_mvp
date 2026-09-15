@@ -69,7 +69,7 @@
             {% else %}
               <td class="num">{{ row.annual_result.s1_total|default:"—" }}</td>
               <td class="num">{{ row.annual_result.s2_total|default:"—" }}</td>
-              <td class="num">{% if row.annual_result and row.annual_result.annual_total is not None %}<span class="grade-total is-{{ row.annual_tone }}">{{ row.annual_result.annual_total }}</span>{% else %}<span class="grade-total is-muted">—</span>{% endif %}</td>
+              <td class="num">{% if row.annual_result and row.annual_result.annual_total is not None %}<span class="grade-total is-{{ row.annual_tone }}">{{ row.annual_result.annual_total }}</span>{% else %}<span class="grade-total is-muted">{{ row.annual_result.total_display|default:"—" }}</span>{% endif %}</td>
               <td class="num"><b>{{ row.annual_result.letter_grade|default:"—" }}</b></td>
               <td class="num">{% if row.annual_result %}<span class="status-badge {{ status_tones|get_item:row.annual_result.status|default:'status-warning' }}">{{ row.annual_result.get_status_display }}</span>{% else %}<span class="grade-total is-muted">—</span>{% endif %}</td>
             {% endif %}

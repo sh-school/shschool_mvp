@@ -24,13 +24,17 @@
     {% empty_state "لا شُعبَ في هذا العام" sub="أنشئ الشُّعبَ أوّلاً ثمّ عُد إلى هذه الشاشة" icon="students" %}
   {% else %}
 
-  {% section_card "يدخلون الدور الثاني" meta=sitting|length icon="failing_students" flush=True empty="لا أحدَ في هذه الشعبة يدخل الدور الثاني" empty_sub="راسبٌ في ثلاث موادّ فأقلّ لم تُرفّعه قاعدة، أو معذور، أو بلغ عتبةَ الحرمان — سياسة التقييم م12 وم29 وم50" %}{% if sitting %}
+  {% if class_warnings %}
+  {% for w in class_warnings %}<p class="text-muted" role="status">{% icon "status_warning" %} {{ w }}</p>{% endfor %}
+  {% endif %}
+
+  {% section_card "يدخلون الدور الثاني" meta=sitting|length icon="failing_students" flush=True empty="لا أحدَ في هذه الشعبة يدخل الدور الثاني" empty_sub="راسبٌ في ثلاث موادّ فأقلّ لم تُرفّعه قاعدة، أو معذور، أو محرومٌ بقرار فريق السلوك — سياسة التقييم م12 وم29 وم50" %}{% if sitting %}
     <div class="table-wrap">
       <table aria-label="طلبةُ الدور الثاني">
         <thead>
           <tr>
             <th scope="col">الطالب</th>
-            <th scope="col">الصنف</th>
+            <th scope="col">الموقف</th>
             <th scope="col">موادُّ الدور الثاني</th>
             <th scope="col">الموضع</th>
           </tr>
@@ -39,9 +43,9 @@
           {% for row in sitting %}
           <tr>
             <td><a href="{% url 'student_report' row.student.id %}?year={{ year }}" class="link-maroon">{{ row.student.full_name }}</a></td>
-            <td><span class="status-badge {{ badges|get_item:row.decision.category }}">{{ row.decision.label }}</span></td>
-            <td>{{ row.decision.retake|join:"، " }}</td>
-            <td>{{ row.decision.article }}</td>
+            <td><span class="status-badge {{ badges|get_item:row.standing }}">{{ row.label }}</span></td>
+            <td>{{ row.retake|join:"، " }}</td>
+            <td>{{ row.article|default:"—" }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -55,7 +59,7 @@
         <thead>
           <tr>
             <th scope="col">الطالب</th>
-            <th scope="col">الصنف</th>
+            <th scope="col">الموقف</th>
             <th scope="col">الموادُّ الراسبة</th>
             <th scope="col">الموضع</th>
           </tr>
@@ -64,9 +68,9 @@
           {% for row in others %}
           <tr>
             <td>{{ row.student.full_name }}</td>
-            <td><span class="status-badge {{ badges|get_item:row.decision.category }}">{{ row.decision.label }}</span></td>
-            <td>{% if row.decision.promoted %}{{ row.decision.promoted|join:"، " }} — رُفِّع فيها{% else %}{{ row.decision.failed|join:"، "|default:"—" }}{% endif %}</td>
-            <td>{{ row.decision.article|default:"—" }}</td>
+            <td><span class="status-badge {{ badges|get_item:row.standing }}">{{ row.label }}</span>{% for w in row.warnings %}<br><small class="text-muted">{{ w }}</small>{% endfor %}</td>
+            <td>{% if row.promoted %}{{ row.promoted|join:"، " }} — رُفِّع فيها{% else %}{{ row.failed|join:"، "|default:"—" }}{% endif %}</td>
+            <td>{{ row.results.0.article|default:"—" }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -74,7 +78,7 @@
     </div>
   {% endif %}{% endsection_card %}
 
-  <p class="text-muted">«بلغ عتبةَ الحرمان»: أيّامُ الغياب بلا عذرٍ حتّى عشيّة اختبار نهاية الفصل تجاوزت عتبتَه في سجلّ الحضور. وقرارُ عدم الأهليّة لفريق إدارة سلوك الطلبة، والشاشةُ لا تُصدره.</p>
+  <p class="text-muted">الموقفُ والموادُّ من النتيجة المخزَّنة — الحكمُ نفسُه الذي تقرؤه قائمةُ الراسبين والكشفُ والشهادة. و«محروم» قرارٌ مسجَّلٌ لفريق إدارة سلوك الطلبة؛ أمّا تجاوزُ العتبة في سجلّ الحضور بلا قرارٍ فتنبيهٌ تحت اسم الطالب لا حكم.</p>
   {% endif %}
 
 </div>

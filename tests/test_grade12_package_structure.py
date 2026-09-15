@@ -137,7 +137,8 @@ def test_grade12_annual_total_is_p2_plus_p4(school, teacher_user):
     assert results.count() == 20
     for r in results:
         assert r.annual_total == expected[r.student_id], r.student_id
-        assert r.status == ("pass" if r.annual_total >= 50 else "fail")
+        # مادّةٌ واحدة دون الخمسين: دورٌ ثانٍ (م8-أ)، ولا قواعدَ ترفيعٍ للثاني عشر.
+        assert r.status == ("pass" if r.annual_total >= 50 else "second_round")
 
 
 @pytest.mark.django_db

@@ -16,7 +16,13 @@ from django.views.decorators.http import require_POST
 from core import brand
 from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.capabilities import capability_required
-from core.domain.grades import SEMESTER_MAX, package_score, semester_total
+from core.domain.grades import (
+    FAILING_STATUSES,
+    PASSING_STATUSES,
+    SEMESTER_MAX,
+    STANDING_TONES,
+    STATUS_TONES,
+)
 from core.domain.tones import GRADE_CELL, tone_for
 from core.export_utils import excel_table_styles, xl_font
 from core.models import ClassGroup, CustomUser, StudentEnrollment
@@ -34,7 +40,7 @@ from .models import (
     StudentSubjectResult,
     SubjectClassSetup,
 )
-from .services import GradeService, SecondRoundService
+from .services import ClosedYearError, GradeService, SecondRoundService, is_open_year
 
 # ── ألوانُ العرض — الحكمُ هنا مرّةً لا شرطاً في القالب ─────────
 
@@ -62,23 +68,19 @@ ASSESSMENT_STATUS_BADGE = {
     "closed": "status-gray",
 }
 
-#: شارةُ النتيجة السنويّة — والدورُ الثاني عنّابيّ، وما سواها تحذير.
-ANNUAL_STATUS_BADGE = {
-    "pass": "status-success",
-    "fail": "status-danger",
-    "second_round": "status-maroon",
-}
+#: شارةُ النتيجة السنويّة — من نغمات الحكم الواحد (`core.domain.grades.STATUS_TONES`).
+ANNUAL_STATUS_BADGE = {status: f"status-{tone}" for status, tone in STATUS_TONES.items()}
 
+#: شارةُ موقف الطالب في الدور الثاني — `core.domain.grades.STANDING_TONES`.
+STANDING_BADGE = {standing: f"status-{tone}" for standing, tone in STANDING_TONES.items()}
 
-#: شارةُ صنف الدور الثاني — `core.domain.grades.SECOND_ROUND_LABELS`.
-SECOND_ROUND_BADGE = {
-    "passed": "status-success",
-    "promoted": "status-success",
-    "failed_eligible": "status-maroon",
-    "failed_ineligible": "status-danger",
-    "excused": "status-info",
-    "deprived": "status-warning",
-    "incomplete": "status-gray",
+#: خانةُ درجة كلّ باقةٍ في `StudentSubjectResult`.
+SCORE_FIELDS = {
+    "P1": "p1_score",
+    "P2": "p2_score",
+    "P3": "p3_score",
+    "P4": "p4_score",
+    "AW": "p_aw_score",
 }
 
 
@@ -109,8 +111,8 @@ def assessments_dashboard(request):
         annual_stats = AnnualSubjectResult.objects.filter(
             school=school, academic_year=year
         ).aggregate(
-            passed=Count("id", filter=Q(status="pass")),
-            failed=Count("id", filter=Q(status="fail")),
+            passed=Count("id", filter=Q(status__in=PASSING_STATUSES)),
+            failed=Count("id", filter=Q(status__in=FAILING_STATUSES)),
         )
         passed = annual_stats["passed"]
         failed = annual_stats["failed"]
@@ -344,15 +346,18 @@ def save_single_grade(request, assessment_id):
                 logger.warning("فشل تحويل الدرجة إلى Decimal: %r — %s", raw, e)
                 return HttpResponse("درجة غير صالحة", status=400)
 
-    grade_obj, _ = GradeService.save_grade(
-        assessment=assessment,
-        student=student,
-        grade=grade,
-        is_absent=is_absent,
-        is_excused=is_excused,
-        notes=notes,
-        entered_by=request.user,
-    )
+    try:
+        grade_obj, _ = GradeService.save_grade(
+            assessment=assessment,
+            student=student,
+            grade=grade,
+            is_absent=is_absent,
+            is_excused=is_excused,
+            notes=notes,
+            entered_by=request.user,
+        )
+    except ClosedYearError as e:
+        return HttpResponse(str(e), status=403)
 
     stats = GradeService.get_assessment_stats(assessment)
 
@@ -378,6 +383,11 @@ def save_all_grades(request, assessment_id):
 
     if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
         return HttpResponse("غير مسموح", status=403)
+
+    # نتائجُ عامٍ مُغلق مجمَّدة — لا يُكتب عليها «حفظ الكلّ» كما لا يُعاد حسابُها بالزرّ.
+    if not is_open_year(assessment.package.setup):
+        messages.error(request, "لا تُعدَّل درجاتُ عامٍ دراسيٍّ غيرِ الجاري.")
+        return redirect("grade_entry", assessment_id=assessment_id)
 
     enrollments = StudentEnrollment.objects.filter(
         class_group=assessment.class_group, is_active=True
@@ -473,12 +483,9 @@ def class_gradebook(request, setup_id):
         )
     }
 
-    # ── Batch-fetch package scores to avoid N+1 queries ──
+    # الخلايا والمجموعُ من المخزَّن — ما كتبه الحكمُ الواحد وتقرؤه الشهادةُ والكشف. فلا
+    # حسابَ حيّاً يخالفهما قبل إعادة الحساب، ولا عامَ مغلقاً يُعرض بقاعدةٍ أحدث.
     pkg_list = list(packages)
-    if not show_annual and pkg_list:
-        raw_scores = GradeService.calc_package_scores_batch(student_ids, pkg_list, raw=True)
-    else:
-        raw_scores = {}
 
     # الباقاتُ ذاتُ الوزن وحدَها أعمدة — كان القالبُ يرشّحها في حلقتين.
     weighted_packages = [pkg for pkg in pkg_list if pkg.weight > 0]
@@ -490,24 +497,18 @@ def class_gradebook(request, setup_id):
         pkg_scores = {}
         cells = []
 
-        live_total = None
+        semester_result = sem_results_map.get(student.id)
+        annual_result = annual_results_map.get(student.id)
         if not show_annual:
-            raws = {p.package_type: raw_scores.get((student.id, p.package_type)) for p in pkg_list}
-            pkg_scores = {k: None if v is None else package_score(k, v) for k, v in raws.items()}
-            # المجموعُ من الدرجات نفسِها التي تُعرض خلاياها (م8: جبرُ المجموع) — لا
-            # المخزَّنُ الذي قد يسبق آخرَ إعادة حساب فلا تساوي الخلايا مجموعَها.
-            live_total = semester_total(raws)
+            pkg_scores = {
+                p.package_type: getattr(semester_result, SCORE_FIELDS[p.package_type], None)
+                for p in pkg_list
+            }
             for pkg in weighted_packages:
                 score = pkg_scores.get(pkg.package_type)
                 # نصفُ درجة الباقة فأكثر أخضر — العتبةُ التي كانت في القالب.
                 cells.append({"score": score, "tone": _half_tone(score, pkg.effective_max_grade)})
-
-        semester_result = sem_results_map.get(student.id)
-        annual_result = annual_results_map.get(student.id)
-        if show_annual:
-            sem_total = semester_result.total if semester_result else None
-        else:
-            sem_total = live_total
+        sem_total = semester_result.total if semester_result else None
         sem_out_of = semester_result.semester_max if semester_result else semester_max
         rows.append(
             {
@@ -526,7 +527,7 @@ def class_gradebook(request, setup_id):
             }
         )
 
-    summary = GradeService.get_class_results_summary(setup)
+    summary = GradeService.get_class_results_summary(setup, setup.academic_year)
 
     return render(
         request,
@@ -638,7 +639,6 @@ def export_gradebook(request, setup_id):
             student_id__in=student_ids, setup=setup, semester=semester
         )
     }
-    raw_scores = GradeService.calc_package_scores_batch(student_ids, pkg_list, raw=True)
 
     # ── البيانات ────────────────────────────────────────────
     for row_idx, enr in enumerate(enrollments, start=1):
@@ -646,18 +646,19 @@ def export_gradebook(request, setup_id):
         excel_row = row_idx + 2
         fill = ALT_FILL if row_idx % 2 == 0 else None
 
-        raws = {p.package_type: raw_scores.get((student.id, p.package_type)) for p in pkg_list}
-        pkg_scores = {k: None if v is None else package_score(k, v) for k, v in raws.items()}
-
-        # المجموعُ من خلايا الصفّ نفسِه — كما في سجلّ الدرجات.
-        live_total = semester_total(raws)
+        # المخزَّنُ كما في سجلّ الدرجات والكشف — لا حسابَ حيّاً (ولا عامَ مغلقاً بقاعدةٍ أحدث).
         sem_result = sem_results_map.get(student.id)
+        pkg_scores = {
+            p.package_type: getattr(sem_result, SCORE_FIELDS[p.package_type], None)
+            for p in pkg_list
+        }
         out_of = (
             sem_result.semester_max if sem_result else SEMESTER_MAX.get(semester, Decimal("40"))
         )
-        if live_total is not None:
-            total = float(live_total)
-            status = "ناجح ✓" if live_total >= out_of * Decimal("0.5") else "راسب ✗"
+        stored_total = sem_result.total if sem_result else None
+        if stored_total is not None:
+            total = float(stored_total)
+            status = "ناجح ✓" if stored_total >= out_of * Decimal("0.5") else "راسب ✗"
         else:
             total, status = "", "—"
 
@@ -723,7 +724,7 @@ def recalculate_class(request, setup_id):
         return HttpResponse("غير مسموح", status=403)
 
     # نتائجُ عامٍ مُغلق لا يُعاد حسابُها من زرّ — تتغيّر بها نتيجةٌ معتمدةٌ بلا قرار.
-    if setup.academic_year != academic_year_for_school(school):
+    if not is_open_year(setup):
         messages.error(request, "لا يُعاد حسابُ نتائج عامٍ دراسيٍّ غيرِ الجاري.")
         return redirect("class_gradebook", setup_id=setup_id)
 
@@ -754,8 +755,8 @@ def student_report(request, student_id):
     results = GradeService.get_student_annual_report(student, school, year)
     stats = results.aggregate(
         total_subjects=Count("id"),
-        passed=Count("id", filter=Q(status="pass")),
-        failed=Count("id", filter=Q(status="fail")),
+        passed=Count("id", filter=Q(status__in=PASSING_STATUSES)),
+        failed=Count("id", filter=Q(status__in=FAILING_STATUSES)),
     )
     total_subjects = stats["total_subjects"]
     passed = stats["passed"]
@@ -916,9 +917,9 @@ def second_round(request):
     )
     wanted = request.GET.get("class_group", "")
     chosen = next((c for c in classes if str(c.id) == wanted), classes[0] if classes else None)
-    rows = SecondRoundService.roster(chosen, year) if chosen else []
-    sitting = [r for r in rows if r.decision.sits_second_round]
-    others = [r for r in rows if not r.decision.sits_second_round]
+    rows, class_warnings = SecondRoundService.roster(chosen, year) if chosen else ([], [])
+    sitting = [r for r in rows if r.sits_second_round]
+    others = [r for r in rows if not r.sits_second_round]
     return render(
         request,
         "assessments/second_round.html",
@@ -928,7 +929,8 @@ def second_round(request):
             "year": year,
             "sitting": sitting,
             "others": others,
-            "badges": SECOND_ROUND_BADGE,
+            "badges": STANDING_BADGE,
+            "class_warnings": class_warnings,
             "subtitle": f"{chosen} · {year}" if chosen else year,
         },
     )

@@ -20,6 +20,14 @@ from assessments.models import SubjectClassSetup
 from core.academic_calendar import academic_year_for
 from core.audit_export import log_export
 from core.capabilities import capability_required
+from core.domain.grades import (
+    RESULT_STATUS_LABELS,
+    STANDING_INCOMPLETE,
+    STANDING_LABELS,
+    STANDING_TONES,
+    STATUS_INCOMPLETE,
+    STATUS_TONES,
+)
 from core.domain.tones import tone_for
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_number
@@ -121,26 +129,30 @@ def _set_final_status(ctx: dict) -> None:
     كان يضع لوناً سداسيّاً (`status_color`) يُكتب في `style=` الشهادة — وأحدُها
     أخضرُ لا رمزَ له في الهويّة. والنغمةُ اسمٌ تقرؤه الشهادةُ صنفاً
     (`cert-status is-success`) يأخذ ألوانَه من `brand_color`.
+
+    والموقفُ من الحكم المخزَّن (`AnnualSubjectResult.standing`) — «ناجح بالترفيع» تُوضَّح في
+    الشهادة (م50 ص33: «ويوضح في الشهادة أنه قد تم ترفيع الطالب»)، و«دور ثانٍ» لمعذورٍ أو
+    محرومٍ أو راسبٍ مؤهَّل، لا «ناجح» لأنّ لا مادّةَ «fail» عنده.
     """
-    if ctx["failed"] == 0 and ctx["passed"] > 0:
-        ctx.update(final_status="ناجح", status_tone="success")
-    elif ctx["failed"] > 0:
-        ctx.update(final_status="راسب", status_tone="danger")
-    else:
-        ctx.update(final_status="غير مكتمل", status_tone="warning")
+    standing = ctx.get("standing", STANDING_INCOMPLETE)
+    tone = STANDING_TONES.get(standing, "warning")
+    ctx.update(
+        final_status=STANDING_LABELS.get(standing, "غير مكتمل"),
+        status_tone=tone if tone in ("success", "danger") else "warning",
+    )
 
 
 # ── عرضُ الوثائق المطبوعة: الألوانُ تُحسم هنا لا في القالب ─────────────
 # النغماتُ أسماءُ أصناف `c-*` في `reports/base_qatar_report.html`.
 
-#: حالةُ الطالب النصّيّة في كشف الفصل ← نغمتُها.
-_RESULT_TEXT_TONE = {"ناجح": "green", "راسب": "red"}
-
-#: حالةُ النتيجة السنويّة ← (الاسم، النغمة).
-_ANNUAL_STATUS = {
-    "pass": ("ناجح", "green"),
-    "fail": ("راسب", "red"),
-    "second_round": ("دور ثانٍ", "orange"),
+#: نغمةُ الحكم الواحد (`core.domain.grades`) ← صنفُ `c-*` في الوثائق المطبوعة.
+_REPORT_TONE = {
+    "success": "green",
+    "danger": "red",
+    "maroon": "maroon",
+    "info": "blue",
+    "warning": "orange",
+    "gray": "muted",
 }
 
 
@@ -179,10 +191,10 @@ def _class_results_presentation(ctx: dict) -> None:
         },
     ]
     for row in ctx["student_rows"]:
-        row["status_tone"] = _RESULT_TEXT_TONE.get(row["status"], "orange")
+        row["status_tone"] = _REPORT_TONE[STANDING_TONES.get(row["standing"], "warning")]
         row["grade_cells"] = [
             {
-                "value": ann.annual_total if ann and ann.annual_total else None,
+                "value": ann.total_display if ann else None,
                 "tone": _grade_tone(ann.annual_total if ann else None),
             }
             for ann in row["grades_list"]
@@ -207,9 +219,9 @@ def _subject_rows_presentation(rows: list[dict]) -> None:
     for row in rows:
         annual = row["annual"]
         row["total_tone"] = _grade_tone(annual.annual_total if annual else None)
-        row["status_label"], row["status_tone"] = _ANNUAL_STATUS.get(
-            annual.status if annual else "", ("غير مكتمل", "orange")
-        )
+        status = annual.status if annual else STATUS_INCOMPLETE
+        row["status_label"] = RESULT_STATUS_LABELS.get(status, "غير مكتمل")
+        row["status_tone"] = _REPORT_TONE[STATUS_TONES.get(status, "warning")]
 
 
 def _annual_grade(total) -> str:

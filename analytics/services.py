@@ -29,7 +29,7 @@ from assessments.models import (
 )
 from core.academic_calendar import academic_year_for_school
 from core.domain.attendance import attendance_rate
-from core.domain.grades import GRADE_BANDS
+from core.domain.grades import FAILING_STATUSES, GRADE_BANDS, PASSING_STATUSES
 from core.models import ClassGroup
 from operations.models import Session, StudentAttendance
 
@@ -108,7 +108,8 @@ class AnalyticsService:
             ),
             passed=Count(
                 "enrollments__student__annual_results",
-                filter=result_filter & Q(enrollments__student__annual_results__status="pass"),
+                filter=result_filter
+                & Q(enrollments__student__annual_results__status__in=PASSING_STATUSES),
             ),
         )
 
@@ -140,7 +141,9 @@ class AnalyticsService:
                     "annualresults__annual_total",
                     filter=Q(annualresults__annual_total__isnull=False),
                 ),
-                pass_count=Count("annualresults", filter=Q(annualresults__status="pass")),
+                pass_count=Count(
+                    "annualresults", filter=Q(annualresults__status__in=PASSING_STATUSES)
+                ),
                 total_count=Count("annualresults"),
             )
         )
@@ -177,7 +180,7 @@ class AnalyticsService:
                     enrollments__is_active=True,
                     enrollments__student__annual_results__school=school,
                     enrollments__student__annual_results__academic_year=year,
-                    enrollments__student__annual_results__status="fail",
+                    enrollments__student__annual_results__status__in=FAILING_STATUSES,
                 ),
                 distinct=True,
             ),

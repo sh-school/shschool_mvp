@@ -32,7 +32,12 @@ def _lazy_student_fk_models():
     if _STUDENT_FK_MODELS:
         return _STUDENT_FK_MODELS
 
-    from assessments.models import AnnualSubjectResult, StudentAssessmentGrade, StudentSubjectResult
+    from assessments.models import (
+        AnnualSubjectResult,
+        ExamDeprivation,
+        StudentAssessmentGrade,
+        StudentSubjectResult,
+    )
     from behavior.models import BehaviorInfraction
     from clinic.models import ClinicVisit, HealthRecord
     from library.models import BookBorrowing
@@ -46,6 +51,7 @@ def _lazy_student_fk_models():
             (StudentAssessmentGrade, "student", False),
             (StudentSubjectResult, "student", False),
             (AnnualSubjectResult, "student", False),
+            (ExamDeprivation, "student", False),  # قرارُ حرمانٍ من اختبار
             (BehaviorInfraction, "student", False),
             (StudentAttendance, "student", False),
             (AbsenceAlert, "student", False),

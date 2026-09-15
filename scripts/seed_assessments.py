@@ -23,7 +23,8 @@ from assessments.models import (
     StudentAssessmentGrade,
     SubjectClassSetup,
 )
-from assessments.services import GradeService
+from assessments.services import GradeService, PackageStructureError
+from core.academic_calendar import academic_year_for_school
 from core.models import ClassGroup, CustomUser, School, StudentEnrollment
 from operations.models import Subject
 
@@ -154,7 +155,11 @@ def run():
                 # الباقات بحسب الصفّ — الثاني عشر P2/P4 فقط
                 for sem in ("S1", "S2"):
                     before = AssessmentPackage.objects.filter(setup=setup, semester=sem).count()
-                    after = len(GradeService.ensure_packages(setup, sem))
+                    try:
+                        after = len(GradeService.align_packages(setup, sem))
+                    except PackageStructureError as exc:
+                        print(f"  ⚠️  {exc}")
+                        continue
                     packages_n += after - before
 
         print(f"  ✅ إعدادات: {setups_n} | باقات: {packages_n}")
@@ -228,14 +233,12 @@ def run():
                             asmnt.status = "graded"
                             asmnt.save(update_fields=["status"])
 
-                    # حساب نتيجة الفصل
-                    for enr in students:
-                        GradeService.recalculate_semester_result(enr.student, setup, sem)
-
-                # حساب النتيجة السنوية
-                for enr in students:
-                    GradeService.recalculate_annual_result(enr.student, setup)
-                    results_n += 1
+                # الحكمُ على الطلبة في موادّ الشعبة كلِّها — مرّةً بعد رصد الفصلين، وللعام
+                # الجاري وحدَه (الأعوامُ المغلقة مجمَّدة).
+                if year == academic_year_for_school(school):
+                    results_n += GradeService.recalculate_students(
+                        cg, year, [enr.student for enr in students], setup
+                    )
 
         print(f"  ✅ الدرجات: {grades_n} | النتائج السنوية: {results_n}")
 

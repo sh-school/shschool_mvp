@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from django.db.models import Avg, Count, Q, QuerySet
 
+from core.domain.grades import FAILING_STATUSES, PASSING_STATUSES, STANDING_INCOMPLETE
+
 
 class SubjectResultQuerySet(QuerySet):
     """QuerySet لـ StudentSubjectResult."""
@@ -70,10 +72,15 @@ class AnnualResultQuerySet(QuerySet):
         return self.filter(setup__academic_year=academic_year)
 
     def failed(self) -> AnnualResultQuerySet:
-        return self.filter(status="fail")
+        return self.filter(status__in=FAILING_STATUSES)
 
     def passed(self) -> AnnualResultQuerySet:
-        return self.filter(status="pass")
+        return self.filter(status__in=PASSING_STATUSES)
+
+    def standing(self) -> str:
+        """موقفُ الطالب المخزَّن — واحدٌ في صفوفه كلِّها، و«غير مكتمل» بلا صفوف."""
+        value = self.values_list("standing", flat=True).first()
+        return value or STANDING_INCOMPLETE
 
     def by_grade(self, grade: str) -> AnnualResultQuerySet:
         """فلترة حسب التقدير: A+, A, B+, ..., F — يعتمد على annual_total"""
@@ -117,8 +124,8 @@ class AnnualResultQuerySet(QuerySet):
             .year(academic_year)
             .values("setup__subject__name_ar")
             .annotate(
-                fail_count=Count("id", filter=Q(status="fail")),
-                pass_count=Count("id", filter=Q(status="pass")),
+                fail_count=Count("id", filter=Q(status__in=FAILING_STATUSES)),
+                pass_count=Count("id", filter=Q(status__in=PASSING_STATUSES)),
                 avg_score=Avg("annual_total"),
             )
             .order_by("-fail_count")

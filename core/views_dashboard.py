@@ -13,6 +13,7 @@ from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required
 from core.dashboard_presentation import present
 from core.domain.attendance import attendance_rate
+from core.domain.grades import FAILING_STATUSES, PASSING_STATUSES
 from core.models.academic import Wing, grade_order
 from library.models import BookBorrowing
 from operations.models import (
@@ -63,8 +64,8 @@ def _get_student_ctx(user, school, today):
         student=user, school=school, academic_year=year
     ).aggregate(
         total=Count("id"),
-        passed=Count("id", filter=Q(status="pass")),
-        failed=Count("id", filter=Q(status="fail")),
+        passed=Count("id", filter=Q(status__in=PASSING_STATUSES)),
+        failed=Count("id", filter=Q(status__in=FAILING_STATUSES)),
     )
 
     return {
@@ -126,15 +127,17 @@ def _get_director_ctx(school, today):
     # إحصائيات التقييمات — aggregate واحد
     annual = AnnualSubjectResult.objects.filter(school=school, academic_year=year).aggregate(
         total=Count("id"),
-        passed=Count("id", filter=Q(status="pass")),
-        failed=Count("id", filter=Q(status="fail")),
+        passed=Count("id", filter=Q(status__in=PASSING_STATUSES)),
+        failed=Count("id", filter=Q(status__in=FAILING_STATUSES)),
     )
     total_annual = annual["total"]
     passed_annual = annual["passed"]
     failed_annual = annual["failed"]
     pass_pct = round(passed_annual / total_annual * 100) if total_annual else 0
     failing_count = (
-        AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
+        AnnualSubjectResult.objects.filter(
+            school=school, academic_year=year, status__in=FAILING_STATUSES
+        )
         .values("student")
         .distinct()
         .count()
@@ -286,7 +289,9 @@ def _get_specialist_social_ctx(user, school, today):
 
     # نتائج الطلاب — راسبون
     failing_students = (
-        AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
+        AnnualSubjectResult.objects.filter(
+            school=school, academic_year=year, status__in=FAILING_STATUSES
+        )
         .values("student")
         .distinct()
         .count()

@@ -345,10 +345,11 @@ class NotificationService:
         """إرسال إشعارات الرسوب لكل الطلاب الراسبين"""
         year = year or academic_year_for_school(school)
         from assessments.models import AnnualSubjectResult
+        from core.domain.grades import FAILING_STATUSES
 
         # الطلاب الراسبون في مادة أو أكثر
         fail_results = AnnualSubjectResult.objects.filter(
-            school=school, academic_year=year, status="fail"
+            school=school, academic_year=year, status__in=FAILING_STATUSES
         ).select_related("student", "setup__subject")
 
         # تجميع المواد الراسب فيها لكل طالب
@@ -399,6 +400,7 @@ class NotificationService:
         from django.utils import timezone
 
         from assessments.models import AnnualSubjectResult
+        from core.domain.grades import FAILING_STATUSES
         from operations.models import AbsenceAlert
 
         today = timezone.now().date()
@@ -441,7 +443,9 @@ class NotificationService:
         )
 
         failing_students = (
-            AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
+            AnnualSubjectResult.objects.filter(
+                school=school, academic_year=year, status__in=FAILING_STATUSES
+            )
             .values("student")
             .distinct()
             .count()

@@ -13,22 +13,38 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from fractions import Fraction
+from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
 from django.db.models import Avg, Count, Q, QuerySet
+from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
 from core.domain.grades import (
+    ABSENT,
+    EXCUSED_MARK,
+    FAILING_STATUSES,
     GRADE_BANDS,
+    PASSING_STATUSES,
+    PENDING_STATUSES,
+    PRESENT,
     SEMESTER_MAX,
-    FirstRoundDecision,
-    SubjectOutcome,
+    SITTING_STATUSES,
+    STANDING_INCOMPLETE,
+    STANDING_LABELS,
+    STANDING_SECOND_ROUND,
+    STANDING_TONES,
+    STATUS_PROMOTED,
+    ExamFacts,
+    MakeupFacts,
+    SecondRoundFacts,
+    SubjectFacts,
     band_of,
-    classify_first_round,
+    exact_package_weight,
+    judge_student,
     package_score,
     package_weights,
-    semester_total,
 )
 from core.models import AuditLog, StudentEnrollment
 from core.models.academic import grade_number, grade_order
@@ -37,6 +53,7 @@ from .models import (
     AnnualSubjectResult,
     Assessment,
     AssessmentPackage,
+    ExamDeprivation,
     StudentAssessmentGrade,
     StudentSubjectResult,
     SubjectClassSetup,
@@ -49,105 +66,117 @@ if TYPE_CHECKING:
 #: حالاتُ التقييم التي تُحسب — ما سواها مسودّة.
 COUNTED_STATUSES = ("published", "graded", "closed")
 
-#: اختباراتُ الغياب المحكوم به، وفصلُ كلٍّ منها: منتصفُ الأول ونهايتُه، ونهايةُ الثاني.
-EXAM_PACKAGES = {"P1": "S1", "P2": "S1", "P4": "S2"}
 
-ABSENT = "absent"
-EXCUSED_ABSENCE = "excused"
+class ClosedYearError(Exception):
+    """كتابةٌ على درجات عامٍ دراسيٍّ غيرِ الجاري أو إعادةُ حساب نتائجه."""
 
 
-def exam_absences(setup_ids, student_ids=None) -> dict:
-    """{(طالب، إعداد): {باقة: "absent" | "excused"}} — الغيابُ عن الاختبار **كلِّه**.
+def is_open_year(setup: SubjectClassSetup) -> bool:
+    return setup.academic_year == academic_year_for_school(setup.school)
 
-    الطالبُ غائبٌ عن اختبارٍ إن غاب عن **كلّ** تقييماته المحسوبة في باقته. فمن غاب
-    عن جزءٍ وحضر آخر لم يغب عن الاختبار: م24 «ثالثاً» (ص21) — «الطالب المتغيب عن
-    أي من الجزء العملي أو النظري (وليس كلاهما) في اختبار نهاية الفصل الدراسي
-    الثاني - سواء أكان الغياب بعذر مقبول أم بدون عذر- تجمع الدرجات … فإن أدى ذلك
-    إلى حصوله على النهاية الصغرى للمادة اعتبر ناجحا»؛ و«ثانياً» لنهاية الأول:
-    «فتحسب درجة الطالب على الجزء الذي حضره فقط». فالجزءُ الغائبُ صفرٌ في المجموع
-    (`calc_package_score`) والحكمُ بالمجموع. وم22: الفصلُ الأول «بكامله (منتصف
-    الفصل ونهايته)».
 
-    ويُعدّ الغيابُ كلُّه «معذوراً» إن كان في أجزائه عذرٌ — حالٌ لا يسمّيها النصّ،
-    والعذرُ يُحيل إلى ملحقٍ أو دورٍ ثانٍ يُختبر فيه لا إلى رسوب.
+def ensure_open_year(setup: SubjectClassSetup) -> None:
+    """الأعوامُ المغلقة مجمَّدة — لا درجةَ تُكتب ولا نتيجةَ يُعاد حسابُها من أيّ مسار.
+
+    على قاعدة «لا حصّةَ نشطةٌ خارجَ العام الجاري»: ما خرج من العام الجاري اعتُمد
+    وطُبع، فتعديلُه رفضٌ صريح لا إعادةُ حسابٍ صامتة بقاعدةٍ أحدث.
     """
-    counts: dict = {}
-    by_package = Q()
-    for ptype, sem in EXAM_PACKAGES.items():
-        by_package |= Q(package__package_type=ptype, package__semester=sem)
-    for setup_id, ptype, n in (
-        Assessment.objects.filter(
-            by_package,
-            package__setup_id__in=setup_ids,
-            package__is_active=True,
-            status__in=COUNTED_STATUSES,
+    if not is_open_year(setup):
+        raise ClosedYearError(
+            f"العامُ الدراسيّ {setup.academic_year} مغلق — لا تُعدَّل درجاتُه ولا نتائجُه."
         )
-        .values("package__setup_id", "package__package_type")
-        .annotate(n=Count("id"))
-        .values_list("package__setup_id", "package__package_type", "n")
-    ):
-        counts[(setup_id, ptype)] = n
-    if not counts:
-        return {}
-
-    grades = StudentAssessmentGrade.objects.filter(
-        Q(is_absent=True) | Q(is_excused=True),
-        assessment__package__setup_id__in=setup_ids,
-        assessment__package__is_active=True,
-        assessment__status__in=COUNTED_STATUSES,
-    )
-    if student_ids is not None:
-        grades = grades.filter(student_id__in=student_ids)
-    tally: dict = {}
-    for sid, setup_id, ptype, sem, is_excused in grades.values_list(
-        "student_id",
-        "assessment__package__setup_id",
-        "assessment__package__package_type",
-        "assessment__package__semester",
-        "is_excused",
-    ):
-        if EXAM_PACKAGES.get(ptype) != sem:
-            continue
-        t = tally.setdefault((sid, setup_id, ptype), [0, 0])
-        t[0] += 1
-        t[1] += bool(is_excused)
-
-    result: dict = {}
-    for (sid, setup_id, ptype), (absent, excused) in tally.items():
-        if absent == counts.get((setup_id, ptype)):
-            result.setdefault((sid, setup_id), {})[ptype] = EXCUSED_ABSENCE if excused else ABSENT
-    return result
 
 
-@dataclass(frozen=True)
-class AbsenceFlags:
-    excused: bool = False
-    unexcused_final: bool = False
-    unexcused_first_semester: bool = False
+MakeupKey = tuple[Any, Any]
 
 
-def subject_absence_flags(statuses: dict, grade: int) -> AbsenceFlags:
-    """أثرُ غياب الاختبارات على مادّة — بحسب سياسة الصفّ.
+def package_facts(
+    packages: list[AssessmentPackage], student_ids: list[Any]
+) -> tuple[dict[tuple[Any, Any], ExamFacts], dict[MakeupKey, MakeupFacts]]:
+    """وقائعُ الباقات لكلّ (طالب، باقة)، والملحقُ لكلّ (طالب، إعداد) — باستعلامين.
 
-    4–11:  نهايةُ الثاني بلا عذر → رسوب (م27). الفصلُ الأول بكامله بلا عذر → رسوب
-           (م22). والعذرُ يُحيل إلى الدور الثاني عن نهاية الثاني (م25–26) أو عن الفصل
-           الأول بكامله (م21). أمّا العذرُ عن نهاية الأول وحدَها فيسبقه الملحق (م19)،
-           ومن غاب عنه «تكون درجته في الفصل الأول هي الدرجة التي حصل عليها في اختبار
-           منتصف الفصل الأول وأعمال الفصل الأول» ويُحكم بمجموعه (م20 ص20) — فلا عذرَ
-           يُعلَّم له، والدرجةُ الغائبةُ صفر.
-    الثاني عشر: نهايةُ الثاني بلا عذر → رسوب (م17)؛ نهايةُ الأول بلا عذر → رسوب (م14)؛
-           والعذرُ عن نهاية أيّ فصلٍ يُحيل إلى الدور الثاني مباشرة (م13-ت، م16 ص10).
+    درجةُ الباقة كسرٌ دقيق: أداءُ الطالب في تقييماتها موزوناً بـ`weight_in_package`،
+    مضروباً في وزن الباقة الدقيق (`exact_package_weight`: 2/3 لا 66.67) وقصوى الفصل.
+    والغائبُ عن تقييمٍ جزءٌ صفرٌ فيها، وحصّتُه تُعدّ بعذرٍ أو بغيره — والحكمُ بها في
+    `judge_student`. وتقييمُ الملحق (`Assessment.MAKEUP`) لا يدخل درجةَ باقته.
     """
-    p1, p2, p4 = statuses.get("P1"), statuses.get("P2"), statuses.get("P4")
-    if grade == 12:
-        excused = EXCUSED_ABSENCE in (p2, p4)
-        unexcused_s1 = p2 == ABSENT
-    else:
-        excused = p4 == EXCUSED_ABSENCE or (p1 == p2 == EXCUSED_ABSENCE)
-        unexcused_s1 = p1 == p2 == ABSENT
-    return AbsenceFlags(
-        excused=excused, unexcused_final=p4 == ABSENT, unexcused_first_semester=unexcused_s1
+    if not packages or not student_ids:
+        return {}, {}
+    pkg_by_id = {p.id: p for p in packages}
+    rows = list(
+        Assessment.objects.filter(
+            package_id__in=pkg_by_id, status__in=COUNTED_STATUSES
+        ).values_list("id", "package_id", "max_grade", "weight_in_package", "assessment_type")
     )
+    if not rows:
+        return {}, {}
+    index: dict[tuple[Any, Any], tuple[Decimal | None, bool, bool]] = {}
+    for sid, aid, raw_grade, was_absent, was_excused in StudentAssessmentGrade.objects.filter(
+        assessment_id__in=[r[0] for r in rows], student_id__in=student_ids
+    ).values_list("student_id", "assessment_id", "grade", "is_absent", "is_excused"):
+        index[(sid, aid)] = (raw_grade, bool(was_absent or was_excused), bool(was_excused))
+
+    regular: dict[Any, list[tuple[Any, Fraction, Fraction]]] = {}
+    makeups: dict[Any, list[tuple[Any, Fraction, Fraction]]] = {}
+    for aid, pkg_id, row_max, row_weight, atype in rows:
+        item = (aid, Fraction(row_max), Fraction(row_weight))
+        if atype == Assessment.MAKEUP:
+            makeups.setdefault(pkg_by_id[pkg_id].setup_id, []).append(item)
+        else:
+            regular.setdefault(pkg_id, []).append(item)
+
+    exams: dict[tuple[Any, Any], ExamFacts] = {}
+    for pkg_id, items in regular.items():
+        pkg = pkg_by_id[pkg_id]
+        total_w = sum((w for _, _, w in items), Fraction(0))
+        exact_weight = exact_package_weight(
+            grade_number(pkg.setup.class_group.grade), pkg.semester, pkg.package_type, pkg.weight
+        )
+        if not total_w or not exact_weight:
+            continue
+        out_of = exact_weight * Fraction(pkg.semester_max_grade) / 100
+        for sid in student_ids:
+            pct, excused, absent, seen = Fraction(0), Fraction(0), Fraction(0), False
+            for aid, item_max, w in items:
+                entry = index.get((sid, aid))
+                if entry is None:
+                    continue
+                seen = True
+                value, is_absent, is_excused = entry
+                share = w / total_w
+                if is_absent:
+                    if is_excused:
+                        excused += share
+                    else:
+                        absent += share
+                elif value is not None and item_max:
+                    pct += Fraction(value) / item_max * share
+            if seen:
+                exams[(sid, pkg_id)] = ExamFacts(pct * out_of, out_of, excused, absent)
+
+    makeup_facts: dict[MakeupKey, MakeupFacts] = {}
+    for setup_id, items in makeups.items():
+        for sid in student_ids:
+            taken = [
+                (index[(sid, aid)], max_grade, w)
+                for aid, max_grade, w in items
+                if (sid, aid) in index
+                and (index[(sid, aid)][1] or index[(sid, aid)][0] is not None)
+            ]
+            if not taken:
+                continue
+            sat = [(e, mx, w) for e, mx, w in taken if not e[1]]
+            if not sat:
+                excused_any = any(e[2] for e, _, _ in taken)
+                makeup_facts[(sid, setup_id)] = MakeupFacts(EXCUSED_MARK if excused_any else ABSENT)
+                continue
+            all_w = sum((w for _, _, w in taken), Fraction(0))
+            earned = sum(
+                (Fraction(e[0]) / mx * w for e, mx, w in sat if e[0] is not None and mx),
+                Fraction(0),
+            )
+            makeup_facts[(sid, setup_id)] = MakeupFacts(PRESENT, earned / all_w if all_w else None)
+    return exams, makeup_facts
 
 
 class GradeService:
@@ -178,6 +207,45 @@ class GradeService:
             )
         return list(AssessmentPackage.objects.filter(setup=setup, semester=semester))
 
+    @staticmethod
+    @transaction.atomic
+    def align_packages(setup: SubjectClassSetup, semester: str) -> list[AssessmentPackage]:
+        """للبذر: يطابق باقاتِ الفصل بجدول `package_weights` — أو يتوقّف.
+
+        `ensure_packages` يُكمل ولا يمسّ القائم (قد تكون أوزانُه قرارَ مدرسة). والبذرُ على
+        قاعدةٍ بُذرت بالجدول القديم (P1 وP4 بخمسين في الفصل الأول) كان يُضيف فوقها
+        فيبلغ مجموعُ الأوزان 162.5٪. فهنا: إن لم تُرصد في الفصل درجةٌ حُذف الزائدُ وأُعيد
+        الوزنُ إلى الجدول؛ وإن رُصدت فلا يُمسّ شيء ويُرفع `PackageStructureError`.
+        """
+        grade = grade_number(setup.class_group.grade)
+        table = package_weights(grade, semester)
+        semester_max = SEMESTER_MAX.get(semester, Decimal("40"))
+        existing = list(
+            AssessmentPackage.objects.select_for_update().filter(setup=setup, semester=semester)
+        )
+        wrong = [
+            p
+            for p in existing
+            if table.get(p.package_type) != p.weight or p.semester_max_grade != semester_max
+        ]
+        if wrong:
+            graded = StudentAssessmentGrade.objects.filter(
+                assessment__package__in=existing
+            ).exists()
+            if graded:
+                raise PackageStructureError(
+                    f"{setup} ({semester}): بنيةُ باقاتٍ تخالف الجدول وعليها درجات — "
+                    "لا تُمسّ آليّاً (fix_grade12_packages للثاني عشر، أو full_seed --reset)."
+                )
+            for p in wrong:
+                if p.package_type in table:
+                    p.weight = table[p.package_type]
+                    p.semester_max_grade = semester_max
+                    p.save(update_fields=["weight", "semester_max_grade"])
+                else:
+                    p.delete()
+        return GradeService.ensure_packages(setup, semester)
+
     # ── حفظ درجة طالب ──────────────────────────────────────
 
     @staticmethod
@@ -191,20 +259,19 @@ class GradeService:
         notes: str = "",
         entered_by: CustomUser | None = None,
         recalc: bool = True,
-    ) -> tuple:
+    ) -> tuple[StudentAssessmentGrade, bool]:
         """
-        حفظ درجة طالب، ثم:
-        1. إعادة حساب نتيجة الفصل
-        2. إعادة حساب النتيجة السنوية
+        حفظ درجة طالب، ثم إعادةُ الحكم على الطالب في موادّه (`recalculate_students`).
 
-        Uses select_for_update() to prevent race conditions when two
-        teachers attempt to record the same student's grade simultaneously.
+        يرفض عاماً مغلقاً (`ClosedYearError`) قبل أيّ كتابة. ويقفل صفَّ الدرجة
+        (`select_for_update`) فلا يتسابق معلّمان على درجة الطالب نفسها.
         """
+        setup = assessment.package.setup
+        ensure_open_year(setup)
         if grade is not None:
             grade = Decimal(str(grade))
             grade = max(Decimal("0"), min(grade, assessment.max_grade))
 
-        # Lock existing row (if any) to prevent concurrent writes
         existing = (
             StudentAssessmentGrade.objects.select_for_update()
             .filter(assessment=assessment, student=student)
@@ -233,346 +300,274 @@ class GradeService:
             )
             created = True
 
-        setup = assessment.package.setup
-        semester = assessment.package.semester
-
         # [PERF-02] عند الحفظ الجماعي نُمرِّر recalc=False ونعيد الحساب دفعةً واحدة بعد الحلقة
         if recalc:
-            # 1. نتيجة الفصل
-            GradeService.recalculate_semester_result(student, setup, semester)
-            # 2. النتيجة السنوية
-            GradeService.recalculate_annual_result(student, setup)
+            GradeService.recalculate_students(
+                setup.class_group, setup.academic_year, [student], setup
+            )
 
         return obj, created
 
-    # ── حساب درجات الباقات دفعة واحدة (Batch) ──────────────
+    # ── درجات الباقات للعرض ────────────────────────────────
 
     @staticmethod
     def calc_package_scores_batch(
-        student_ids: list,
+        student_ids: list[Any],
         packages: list[AssessmentPackage],
         raw: bool = False,
-    ) -> dict:
+    ) -> dict[tuple[Any, str], Any]:
+        """{(طالب، نوع الباقة): درجة} — `raw=True` الكسرُ الدقيق، وإلّا درجةُ العرض.
+
+        درجةُ العرض `package_score`: منتصفُ الفصل مجبور (م8) وغيرُه إلى 0.01. والمجموعُ
+        والحكمُ لا يُبنيان من هذه — بل من `judge_student` عبر `recalculate_students`.
         """
-        يحسب درجات كل الطلاب في كل الباقات بـ استعلام واحد بدل N×M.
-
-        Returns: {(student_id, package_type): Decimal | None}
-        `raw=True` يُعيد الدرجةَ الخامَ التي يُبنى منها مجموعُ الفصل (`semester_total`)،
-        وإلّا فدرجةَ العرض (`package_score`: منتصفُ الفصل مجبور وحدَه — م8).
-        """
-        if not student_ids or not packages:
-            return {}
-
-        # 1. جمع كل التقييمات المنشورة لكل الباقات
-        pkg_assessments: dict[str, list] = {}  # package_type → [Assessment]
-        all_assessment_ids = []
+        exams, _ = package_facts(list(packages), list(student_ids))
+        results: dict[tuple[Any, str], Any] = {}
         for pkg in packages:
-            assessments = list(pkg.assessments.filter(status__in=["published", "graded", "closed"]))
-            pkg_assessments[pkg.package_type] = assessments
-            all_assessment_ids.extend(a.id for a in assessments)
-
-        if not all_assessment_ids:
-            return {}
-
-        # 2. استعلام واحد لكل الدرجات
-        all_grades = StudentAssessmentGrade.objects.filter(
-            assessment_id__in=all_assessment_ids,
-            student_id__in=student_ids,
-        ).values_list("student_id", "assessment_id", "grade", "is_absent")
-
-        # index: (student_id, assessment_id) → (grade, is_absent)
-        grades_index: dict = {}
-        for sid, aid, grade, is_abs in all_grades:
-            grades_index[(sid, aid)] = (grade, is_abs)
-
-        # 3. حساب الدرجة لكل طالب × باقة
-        results: dict = {}
-        for pkg in packages:
-            assessments = pkg_assessments.get(pkg.package_type, [])
-            if not assessments or pkg.weight == 0:
-                for sid in student_ids:
-                    results[(sid, pkg.package_type)] = Decimal("0") if pkg.weight == 0 else None
-                continue
-
-            total_weight = sum(float(a.weight_in_package) for a in assessments)
-            if total_weight == 0:
-                for sid in student_ids:
-                    results[(sid, pkg.package_type)] = None
-                continue
-
             for sid in student_ids:
-                weighted_pct = Decimal("0")
-                has_grade = False
-
-                for asmnt in assessments:
-                    entry = grades_index.get((sid, asmnt.id))
-                    if entry is None:
-                        continue
-
-                    grade, is_abs = entry
-                    has_grade = True
-                    if is_abs or grade is None:
-                        pct = Decimal("0")
-                    else:
-                        pct = Decimal(str(grade)) / asmnt.max_grade * Decimal("100")
-
-                    w = Decimal(str(asmnt.weight_in_package)) / Decimal(str(total_weight))
-                    weighted_pct += pct * w
-
-                if not has_grade:
+                facts = exams.get((sid, pkg.id))
+                if pkg.weight == 0:
+                    results[(sid, pkg.package_type)] = Decimal("0")
+                elif facts is None or facts.score is None:
                     results[(sid, pkg.package_type)] = None
                 else:
-                    actual = weighted_pct * pkg.weight * pkg.semester_max_grade / Decimal("10000")
                     results[(sid, pkg.package_type)] = (
-                        actual if raw else package_score(pkg.package_type, actual)
+                        facts.score if raw else package_score(pkg.package_type, facts.score)
                     )
-
         return results
-
-    # ── حساب درجة الباقة الواحدة ───────────────────────────
 
     @staticmethod
     def calc_package_score(
         student: CustomUser, package: AssessmentPackage, raw: bool = False
-    ) -> Decimal | None:
-        """
-        يحسب درجة الطالب الفعلية في الباقة من مجموع الفصل.
+    ) -> Any:
+        """درجةُ الطالب في باقةٍ واحدة — `calc_package_scores_batch` لطالبٍ وباقة."""
+        return GradeService.calc_package_scores_batch([student.id], [package], raw=raw).get(
+            (student.id, package.package_type)
+        )
 
-        المعادلة:
-          أداء_الطالب_في_الباقة (0–100%) × وزن_الباقة_من_الفصل% × درجة_الفصل_القصوى / 100
-
-        مثال — الباقة P4 في الفصل الثاني:
-          weight = 50%, semester_max = 60
-          → درجة قصوى للباقة = 50% × 60 = 30 درجة
-          → لو الطالب حصل 80% في تقييمات الباقة:
-          → درجته = 80% × 30 = 24 من 30
-        """
-        if package.weight == 0:
-            return Decimal("0")
-
-        assessments = package.assessments.filter(status__in=["published", "graded", "closed"])
-        if not assessments.exists():
-            return None
-
-        total_weight = sum(float(a.weight_in_package) for a in assessments)
-        if total_weight == 0:
-            return None
-
-        # ── Batch-fetch student grades to avoid N+1 queries ──
-        assessment_ids = [a.id for a in assessments]
-        grades_map = {
-            g.assessment_id: g
-            for g in StudentAssessmentGrade.objects.filter(
-                assessment_id__in=assessment_ids, student=student
-            )
-        }
-
-        # حساب أداء الطالب % في هذه الباقة
-        weighted_pct = Decimal("0")
-        has_grade = False
-
-        for asmnt in assessments:
-            g = grades_map.get(asmnt.id)
-            if g is None:
-                continue
-
-            has_grade = True
-            if g.is_absent or g.grade is None:
-                pct = Decimal("0")
-            else:
-                pct = g.grade / asmnt.max_grade * Decimal("100")
-
-            w = Decimal(str(asmnt.weight_in_package)) / Decimal(str(total_weight))
-            weighted_pct += pct * w
-
-        if not has_grade:
-            return None
-
-        # تحويل إلى الدرجة الفعلية من مجموع الفصل
-        # = أداء% × وزن_الباقة% × درجة_الفصل_القصوى / 100 / 100
-        actual_score = weighted_pct * package.weight * package.semester_max_grade / Decimal("10000")
-        return actual_score if raw else package_score(package.package_type, actual_score)
-
-    # ── نتيجة الفصل ────────────────────────────────────────
+    # ── الحكمُ الواحد وتخزينُه ─────────────────────────────
 
     @staticmethod
     @transaction.atomic
+    def recalculate_students(
+        class_group: ClassGroup,
+        year: str,
+        students: list[CustomUser],
+        include: SubjectClassSetup | None = None,
+    ) -> int:
+        """يحكم على طلبةٍ في موادّ شعبتهم كلِّها بـ`judge_student` ويخزّن الحكم.
+
+        الحكمُ عابرٌ للموادّ (م13، م23، م29، م50) فلا يُحسب لمادّةٍ وحدَها: تُقرأ وقائعُ
+        الطالب في كلّ إعدادات الشعبة النشطة (باستعلاماتٍ ثابتة العدد)، ويُكتب لكلّ إعدادٍ
+        مجموعا الفصلين (`StudentSubjectResult`) والحالةُ والمجموعُ والكلمةُ والموضعُ
+        والموقف (`AnnualSubjectResult`) — دفعةً واحدة تحت القفل. ومدخلاتُ الدور الثاني
+        (`second_round_score`/`second_round_absent`) تُقرأ ولا تُكتب.
+        """
+        if not students:
+            return 0
+        setup_filter = Q(class_group=class_group, academic_year=year, is_active=True)
+        if include is not None:
+            setup_filter |= Q(id=include.id)
+        setups = list(
+            SubjectClassSetup.objects.filter(setup_filter).select_related("school", "class_group")
+        )
+        if not setups:
+            return 0
+        for setup in setups:
+            ensure_open_year(setup)
+        school = setups[0].school
+        grade = grade_number(class_group.grade)
+        sids = [s.id for s in students]
+
+        packages = list(
+            AssessmentPackage.objects.filter(setup__in=setups, is_active=True).select_related(
+                "setup__class_group"
+            )
+        )
+        exams, makeups = package_facts(packages, sids)
+        by_setup_sem: dict[tuple[Any, str], list[AssessmentPackage]] = {}
+        for pkg in packages:
+            by_setup_sem.setdefault((pkg.setup_id, pkg.semester), []).append(pkg)
+
+        annual_rows = {
+            (r.student_id, r.setup_id): r
+            for r in AnnualSubjectResult.objects.select_for_update().filter(
+                setup__in=setups, student_id__in=sids, academic_year=year
+            )
+        }
+        sem_rows = {
+            (r.student_id, r.setup_id, r.semester): r
+            for r in StudentSubjectResult.objects.select_for_update().filter(
+                setup__in=setups, student_id__in=sids
+            )
+        }
+        gates: dict[Any, set[str]] = {}
+        for sid, gate in ExamDeprivation.objects.filter(
+            student_id__in=sids, academic_year=year, school=school, deprived=True
+        ).values_list("student_id", "gate"):
+            gates.setdefault(sid, set()).add(gate)
+
+        now = timezone.now()
+        sem_update: list[StudentSubjectResult] = []
+        sem_create: list[StudentSubjectResult] = []
+        annual_update: list[AnnualSubjectResult] = []
+        annual_create: list[AnnualSubjectResult] = []
+        for student in students:
+            sid = student.id
+            subjects = []
+            for setup in setups:
+                sems = {
+                    sem: {
+                        p.package_type: exams[(sid, p.id)]
+                        for p in by_setup_sem.get((setup.id, sem), [])
+                        if (sid, p.id) in exams
+                    }
+                    for sem in ("S1", "S2")
+                }
+                row = annual_rows.get((sid, setup.id))
+                second = None
+                if row is not None and (
+                    row.second_round_absent or row.second_round_score is not None
+                ):
+                    second = SecondRoundFacts(
+                        None
+                        if row.second_round_score is None
+                        else Fraction(row.second_round_score),
+                        row.second_round_absent,
+                    )
+                subjects.append(
+                    SubjectFacts(
+                        str(setup.id), sems["S1"], sems["S2"], makeups.get((sid, setup.id)), second
+                    )
+                )
+            verdict = judge_student(grade, subjects, frozenset(gates.get(sid, ())))
+            verdicts = verdict.by_key()
+
+            for setup in setups:
+                v = verdicts[str(setup.id)]
+                for sem, total in (("S1", v.s1_total), ("S2", v.s2_total)):
+                    pkgs = by_setup_sem.get((setup.id, sem), [])
+                    scores: dict[str, Decimal] = {}
+                    for p in pkgs:
+                        raw_score = exams[(sid, p.id)].score if (sid, p.id) in exams else None
+                        if raw_score is not None:
+                            scores[p.package_type] = package_score(p.package_type, raw_score)
+                    semester_max = next(
+                        (p.semester_max_grade for p in pkgs if (sid, p.id) in exams),
+                        SEMESTER_MAX.get(sem, Decimal("40")),
+                    )
+                    values: dict[str, Any] = {
+                        "school_id": setup.school_id,
+                        "p1_score": scores.get("P1"),
+                        "p2_score": scores.get("P2"),
+                        "p3_score": scores.get("P3"),
+                        "p4_score": scores.get("P4"),
+                        "p_aw_score": scores.get("AW"),
+                        "total": total,
+                        "semester_max": semester_max,
+                        "updated_at": now,
+                    }
+                    existing = sem_rows.get((sid, setup.id, sem))
+                    if existing is None:
+                        sem_create.append(
+                            StudentSubjectResult(
+                                student=student, setup=setup, semester=sem, **values
+                            )
+                        )
+                    else:
+                        for attr, val in values.items():
+                            setattr(existing, attr, val)
+                        sem_update.append(existing)
+
+                annual_values: dict[str, Any] = {
+                    "school_id": setup.school_id,
+                    "s1_total": v.s1_total,
+                    "s2_total": v.s2_total,
+                    "annual_total": v.annual_total,
+                    "status": v.status,
+                    "standing": verdict.standing,
+                    "mark": v.mark,
+                    "article": v.article[:40],
+                    "updated_at": now,
+                }
+                existing_annual = annual_rows.get((sid, setup.id))
+                if existing_annual is None:
+                    annual_create.append(
+                        AnnualSubjectResult(
+                            student=student, setup=setup, academic_year=year, **annual_values
+                        )
+                    )
+                else:
+                    for attr, val in annual_values.items():
+                        setattr(existing_annual, attr, val)
+                    annual_update.append(existing_annual)
+
+        sem_fields = [
+            "school_id",
+            "p1_score",
+            "p2_score",
+            "p3_score",
+            "p4_score",
+            "p_aw_score",
+            "total",
+            "semester_max",
+            "updated_at",
+        ]
+        annual_fields = [
+            "school_id",
+            "s1_total",
+            "s2_total",
+            "annual_total",
+            "status",
+            "standing",
+            "mark",
+            "article",
+            "updated_at",
+        ]
+        StudentSubjectResult.objects.bulk_update(sem_update, sem_fields, batch_size=500)
+        StudentSubjectResult.objects.bulk_create(sem_create, batch_size=500)
+        AnnualSubjectResult.objects.bulk_update(annual_update, annual_fields, batch_size=500)
+        AnnualSubjectResult.objects.bulk_create(annual_create, batch_size=500)
+        return len(students)
+
+    @staticmethod
     def recalculate_semester_result(
         student: CustomUser,
         setup: SubjectClassSetup,
         semester: str,
     ) -> StudentSubjectResult:
-        """
-        يحسب ويخزن مجموع درجات الطالب في مادة للفصل المحدد.
-        الناتج: total ∈ [0, semester_max] (40 أو 60)
-        """
-        packages = AssessmentPackage.objects.filter(setup=setup, semester=semester, is_active=True)
-
-        packages = list(packages)
-        raws = {
-            pkg.package_type: GradeService.calc_package_score(student, pkg, raw=True)
-            for pkg in packages
-        }
-        return GradeService._write_semester_result(student, setup, semester, packages, raws)
-
-    # ── النتيجة السنوية ─────────────────────────────────────
+        """نتيجةُ فصلٍ لطالبٍ في مادّة — بعد الحكم عليه في موادّه كلِّها."""
+        GradeService.recalculate_students(setup.class_group, setup.academic_year, [student], setup)
+        return StudentSubjectResult.objects.get(student=student, setup=setup, semester=semester)
 
     @staticmethod
-    @transaction.atomic
     def recalculate_annual_result(
-        student: CustomUser, setup: SubjectClassSetup, absences: dict | None = None
+        student: CustomUser, setup: SubjectClassSetup
     ) -> AnnualSubjectResult:
+        """النتيجةُ السنويّة لطالبٍ في مادّة — بعد الحكم عليه في موادّه كلِّها.
+
+        الحالةُ والمجموعُ والكلمةُ والموضعُ من `judge_student` لا من هنا: غائبٌ بلا عذرٍ عن
+        نهاية الثاني «غائب» (م27)، والمعذورُ ينتظر ملحقَه (م18–م19) أو دورَه (م21، م25، م26)،
+        والمحرومُ بقرارٍ مسجَّل (م29، م30)، والمُرفَّعُ بقاعدة (م50).
         """
-        يجمع نتائج الفصلين ويحسب المجموع السنوي من 100، ويحكم بالحالة.
-
-        المعادلة: annual_total = s1_total + s2_total — وكلاهما مجبورٌ عند كتابته (م8)،
-        فلا يُجبر المجموعُ ثانيةً: جبرُه كان يُنصف مجموعاً قديماً خُزّن قبل الجبر
-        كلّما أُعيد حسابُ طالبٍ واحد، فتختلط في الشعبة قاعدتان.
-
-        والحالةُ تقرأ الغيابَ عن الاختبارات (`exam_absences`) كما تقرؤه شاشةُ الدور
-        الثاني، فلا يتناقضان:
-          «fail» والمجموعُ «غائب» (None) — الغائبُ بلا عذر عن نهاية الفصل الثاني:
-              «تكون الدرجة النهائية للمادة (مجموع الفصلين) "غائب" أي لا يحتسب له
-              درجات الفصل الأول، وتحسب المادة ضمن مواد الرسوب» (4–11 م27 ص22؛
-              والثاني عشر م17 ص11).
-          «fail» — الغائبُ بلا عذر عن الفصل الأول بكامله: «وتحسب ضمن مواد الرسوب»
-              (م22 ص21؛ والثاني عشر م14 ص10).
-          «second_round» — المعذورُ المُحال إلى الدور الثاني (م12-ب؛ `excused_final_absence`).
-        """
-        year = setup.academic_year
-
-        try:
-            s1_total = StudentSubjectResult.objects.get(
-                student=student, setup=setup, semester="S1"
-            ).total
-        except StudentSubjectResult.DoesNotExist:
-            s1_total = None
-
-        try:
-            s2_total = StudentSubjectResult.objects.get(
-                student=student, setup=setup, semester="S2"
-            ).total
-        except StudentSubjectResult.DoesNotExist:
-            s2_total = None
-
-        if absences is None:
-            absences = exam_absences([setup.id], [student.id])
-        flags = subject_absence_flags(
-            absences.get((student.id, setup.id), {}), grade_number(setup.class_group.grade)
-        )
-
-        if s1_total is None and s2_total is None:
-            annual_total = None
-            status = "incomplete"
-        else:
-            annual_total = (s1_total or Decimal("0")) + (s2_total or Decimal("0"))
-            if s1_total is None or s2_total is None:
-                status = "incomplete"
-            elif annual_total >= Decimal("50"):
-                status = "pass"
-            else:
-                status = "fail"
-
-        if flags.unexcused_final:
-            annual_total, status = None, "fail"
-        elif flags.unexcused_first_semester:
-            status = "fail"
-        elif flags.excused:
-            status = "second_round"
-
-        # Lock existing row to prevent concurrent recalculation races
-        existing = (
-            AnnualSubjectResult.objects.select_for_update()
-            .filter(student=student, setup=setup, academic_year=year)
-            .first()
-        )
-        defaults = {
-            "school": setup.school,
-            "s1_total": s1_total,
-            "s2_total": s2_total,
-            "annual_total": annual_total,
-            "status": status,
-        }
-        if existing:
-            for attr, val in defaults.items():
-                setattr(existing, attr, val)
-            existing.save()
-            annual = existing
-        else:
-            annual = AnnualSubjectResult.objects.create(
-                student=student, setup=setup, academic_year=year, **defaults
-            )
-        return annual
-
-    @staticmethod
-    @transaction.atomic
-    def _write_semester_result(student, setup, semester, packages, scores):
-        """[PERF-01] يكتب StudentSubjectResult من قاموس درجات الباقات **الخام**.
-        المسارُ الوحيد للكتابة — يمرّ به المفرد (calc_package_score) والدُّفعي
-        (calc_package_scores_batch) فلا تفترق نتائجهما. والمجموعُ `semester_total`:
-        جبرٌ واحدٌ لمجموع الفصل بعد جبر منتصفه (م8)، لا جبرٌ لكلّ باقة."""
-        semester_max = AssessmentPackage.SEMESTER_MAX.get(semester, Decimal("40"))
-        raws = {pkg.package_type: scores.get(pkg.package_type) for pkg in packages}
-        for pkg in packages:
-            if raws[pkg.package_type] is not None:
-                semester_max = pkg.semester_max_grade
-        total = semester_total(raws)
-        scores = {k: (None if v is None else package_score(k, v)) for k, v in raws.items()}
-
-        existing = (
-            StudentSubjectResult.objects.select_for_update()
-            .filter(student=student, setup=setup, semester=semester)
-            .first()
-        )
-        defaults = {
-            "school": setup.school,
-            "p1_score": scores.get("P1"),
-            "p2_score": scores.get("P2"),
-            "p3_score": scores.get("P3"),
-            "p4_score": scores.get("P4"),
-            "p_aw_score": scores.get("AW"),
-            "total": total,
-            "semester_max": semester_max,
-        }
-        if existing:
-            for attr, val in defaults.items():
-                setattr(existing, attr, val)
-            existing.save()
-            return existing
-        return StudentSubjectResult.objects.create(
-            student=student, setup=setup, semester=semester, **defaults
+        GradeService.recalculate_students(setup.class_group, setup.academic_year, [student], setup)
+        return AnnualSubjectResult.objects.get(
+            student=student, setup=setup, academic_year=setup.academic_year
         )
 
     @staticmethod
     def recalculate_full_class(setup: SubjectClassSetup) -> int:
-        """إعادة حساب كامل — كل طلاب الفصل، كلا الفصلين، والسنوي.
-        [PERF-01] يستخدم calc_package_scores_batch (استعلام واحد للدرجات لكل فصل) بدل
-        الحساب لكل طالب × باقة — نفس النتائج بعدد استعلامات ثابت مهما زاد عدد الطلاب."""
-        enrollments = list(
-            StudentEnrollment.objects.filter(
+        """إعادةُ الحكم على كلّ طلبة الشعبة — في موادّها كلِّها لأنّ الحكمَ عابرٌ للموادّ."""
+        ensure_open_year(setup)
+        students = [
+            e.student
+            for e in StudentEnrollment.objects.filter(
                 class_group=setup.class_group, is_active=True
             ).select_related("student")
+        ]
+        return GradeService.recalculate_students(
+            setup.class_group, setup.academic_year, students, setup
         )
-        students = [e.student for e in enrollments]
-        student_ids = [s.id for s in students]
-        if not student_ids:
-            return 0
-
-        for sem in ("S1", "S2"):
-            packages = list(
-                AssessmentPackage.objects.filter(setup=setup, semester=sem, is_active=True)
-            )
-            batch = GradeService.calc_package_scores_batch(student_ids, packages, raw=True)
-            for student in students:
-                scores = {
-                    pkg.package_type: batch.get((student.id, pkg.package_type)) for pkg in packages
-                }
-                GradeService._write_semester_result(student, setup, sem, packages, scores)
-
-        absences = exam_absences([setup.id], student_ids)
-        for student in students:
-            GradeService.recalculate_annual_result(student, setup, absences=absences)
-        return len(students)
 
     # ── إحصائيات ───────────────────────────────────────────
 
@@ -654,9 +649,9 @@ class GradeService:
         year = year or academic_year_for_school(setup.school)
         stats = AnnualSubjectResult.objects.filter(setup=setup, academic_year=year).aggregate(
             total=Count("id"),
-            passed=Count("id", filter=Q(status="pass")),
-            failed=Count("id", filter=Q(status="fail")),
-            incomplete=Count("id", filter=Q(status="incomplete")),
+            passed=Count("id", filter=Q(status__in=PASSING_STATUSES)),
+            failed=Count("id", filter=Q(status__in=FAILING_STATUSES)),
+            incomplete=Count("id", filter=Q(status__in=PENDING_STATUSES)),
             avg=Avg("annual_total"),
         )
         total = stats["total"]
@@ -688,10 +683,12 @@ class GradeService:
 
     @staticmethod
     def get_failing_students(school: School, year: str | None = None) -> QuerySet:
-        """الطلاب الراسبون سنوياً"""
+        """الموادُّ الراسبة سنوياً — `FAILING_STATUSES`: الراسبُ نهائيّاً ومن يُعيدها في الدور الثاني."""
         year = year or academic_year_for_school(school)
         return (
-            AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
+            AnnualSubjectResult.objects.filter(
+                school=school, academic_year=year, status__in=FAILING_STATUSES
+            )
             .select_related("student", "setup__subject", "setup__class_group")
             .order_by(grade_order("setup__class_group__grade"), "student__full_name")
         )
@@ -787,7 +784,7 @@ class GradeService:
             .values("setup__subject__name_ar")
             .annotate(
                 avg=Avg("annual_total"),
-                fail_count=Count("id", filter=Q(status="fail")),
+                fail_count=Count("id", filter=Q(status__in=FAILING_STATUSES)),
                 total=Count("id"),
             )
             .order_by("-avg")[:10]
@@ -816,53 +813,92 @@ class GradeService:
 
 
 # ─────────────────────────────────────────────────────────────
-# الدورُ الثاني (البند 2.2) — القواعدُ في core.domain.grades، وهنا جمعُ المدخلات
+# الدورُ الثاني (البند 2.2) — الشاشةُ تقرأ الحكمَ المخزَّن ولا تحكم
 # ─────────────────────────────────────────────────────────────
 
 
 @dataclass
 class SecondRoundRow:
     student: CustomUser
-    decision: FirstRoundDecision
+    standing: str
+    article: str
+    results: list[AnnualSubjectResult]
+    #: تنبيهاتٌ لا أحكام: عتبةُ حرمانٍ بُلغت ولا قرارَ مسجَّلاً للفريق.
+    warnings: list[str] = field(default_factory=list)
+
+    @property
+    def label(self) -> str:
+        return STANDING_LABELS.get(self.standing, "")
+
+    @property
+    def tone(self) -> str:
+        return STANDING_TONES.get(self.standing, "warning")
+
+    @property
+    def sits_second_round(self) -> bool:
+        return self.standing == STANDING_SECOND_ROUND
+
+    def _names(self, statuses: tuple[str, ...]) -> list[str]:
+        return [r.setup.subject.name_ar for r in self.results if r.status in statuses]
+
+    @property
+    def retake(self) -> list[str]:
+        return self._names(SITTING_STATUSES)
+
+    @property
+    def failed(self) -> list[str]:
+        return self._names(FAILING_STATUSES)
+
+    @property
+    def promoted(self) -> list[str]:
+        return self._names((STATUS_PROMOTED,))
 
 
 class SecondRoundService:
-    """يصنّف طلبةَ شعبةٍ بعد الدور الأول بـ`classify_first_round` (م12/13/16/29/50).
+    """طلبةُ شعبةٍ بعد الدور الأول — **من الحكم المخزَّن** (`AnnualSubjectResult`).
 
-    المدخلاتُ من القاعدة: المجموعُ السنويّ لكلّ مادّةٍ نشطة، والغيابُ عن الاختبارات
-    كلِّها لا عن جزءٍ منها (`exam_absences`)، وأيّامُ الغياب بلا عذر (`absence_standing`).
+    الحكمُ واحدٌ يُحسب في `judge_student` ويُكتب عند كلّ إعادة حساب؛ فالشاشةُ وقائمةُ
+    الراسبين والكشفُ والشهادةُ ولوحةُ المدير تقرأ الشيءَ نفسَه ولا تتناقض.
 
-    والحرمانُ هنا **تجاوزُ عتبة الاختبار في يومه**: «إذا تجاوزت مدة الغياب … اعتباراً
-    من بداية العام الدراسي» (م29 ص22–23؛ والثاني عشر م19 ص11)، و«تُطبَّق أحكام
-    السياسة قبل كل اختبار على حدة» (`08_conduct_policy_2026.md:162`). فالأيّامُ تُعدّ
-    في العام المعروض حتّى عشيّة اختبار نهاية الفصل (`exam_eve`) لا حتّى اليوم. وقرارُه
-    الرسميّ لفريق إدارة سلوك الطلبة، فالشاشةُ تعرض بلوغَ العتبة ولا تُصدره. ولا يُقرأ
-    بعدُ حرمانُ العذر الطبيّ المزوَّر ومخالفاتِ التنمّر الحمراء الثلاث
-    (`08_conduct_policy_2026.md:173-174`)، ولا «ملغي» (م45 مكرر) من محاضر
-    `exam_control.ExamIncident` — فالمحضرُ لا يميّز الفعلَ الذي يُلغي كلَّ الموادّ.
+    وما تضيفه الشاشةُ تنبيهاتٌ لا أحكام: من تجاوز عتبةَ حرمانٍ في سجلّ الحضور حتّى عشيّة
+    اختبارها (م29؛ «تُطبَّق أحكام السياسة قبل كل اختبار على حدة» —
+    `08_conduct_policy_2026.md:162`) ولم يُسجَّل لفريق السلوك قرارٌ فيه (`ExamDeprivation`)،
+    والعشيّةُ التي لا تُعرف: «غير محدَّد — يحتاج تاريخ الاختبار».
     """
 
-    @staticmethod
-    def exam_eve(class_group: ClassGroup, year: str, semester: str, setups=()) -> date | None:
-        """عشيّةُ اختبار نهاية الفصل لصفّ الشعبة في العام المعروض — آخرُ يومٍ يُعدّ غيابُه.
+    #: الباقةُ التي هي اختبارُ كلّ عتبة، وفصلُها ونوعُ حدثها في التقويم.
+    GATE_EXAMS: dict[str, tuple[str, str, str]] = {
+        "s1_midterm": ("P1", "S1", "midterm_exam"),
+        "s1_final": ("P2", "S1", "final_exam"),
+        "s2_midterm": ("P3", "S2", "midterm_exam"),
+        "s2_final": ("P4", "S2", "final_exam"),
+    }
 
-        من تقويم الوزارة (`CalendarEvent` «final_exam» بنطاق الصفّ)، ثمّ من أوّل تاريخٍ
-        لاختبار نهاية الفصل في موادّ الشعبة، ثمّ نهايةُ العام أو اليوم أيُّهما أسبق.
+    @staticmethod
+    def exam_eve(
+        class_group: ClassGroup,
+        year: str,
+        gate: str,
+        setups: list[SubjectClassSetup] | tuple[SubjectClassSetup, ...] = (),
+    ) -> date | None:
+        """عشيّةُ اختبار العتبة لصفّ الشعبة في العام المعروض — أو `None` إن لم تُعرف.
+
+        من تقويم الوزارة (`CalendarEvent` بنوع الاختبار ونطاق الصفّ)، ثمّ من أوّل تاريخٍ
+        لتقييمات باقته في موادّ الشعبة. ولا ارتدادَ إلى «اليوم»: عشيّةٌ مجهولةٌ تُعدّ فيها
+        أيّامُ فصلٍ آخر على عتبةِ هذا، فيُوسم الطالبُ قبل أن يبلغها. (تصحيح 2026-09-15.)
         """
         from datetime import timedelta
-
-        from django.utils import timezone
 
         from core.academic_calendar import _scope_for
         from core.models import AcademicYear, CalendarEvent
 
-        school = class_group.school
-        year_obj = AcademicYear.objects.filter(school=school, name=year).first()
+        ptype, semester, event_type = SecondRoundService.GATE_EXAMS[gate]
+        year_obj = AcademicYear.objects.filter(school=class_group.school, name=year).first()
         if year_obj is not None:
             event = (
                 CalendarEvent.objects.filter(
                     academic_year=year_obj,
-                    event_type="final_exam",
+                    event_type=event_type,
                     semester__code=semester,
                     grade_scope__in=("all", _scope_for(class_group.grade)),
                 )
@@ -871,7 +907,6 @@ class SecondRoundService:
             )
             if event is not None:
                 return event.start_date - timedelta(days=1)
-        ptype = "P2" if semester == "S1" else "P4"
         first_exam = (
             Assessment.objects.filter(
                 package__setup__in=setups,
@@ -879,24 +914,25 @@ class SecondRoundService:
                 package__semester=semester,
                 date__isnull=False,
             )
+            .exclude(assessment_type=Assessment.MAKEUP)
             .order_by("date")
             .values_list("date", flat=True)
             .first()
         )
         if first_exam is not None:
             return first_exam - timedelta(days=1)
-        if year_obj is None:
-            return None
-        return min(year_obj.end_date, timezone.localdate())
+        return None
 
     @staticmethod
-    def roster(class_group: ClassGroup, year: str | None = None) -> list[SecondRoundRow]:
-        from operations.absence_policy import breached
+    def roster(
+        class_group: ClassGroup, year: str | None = None
+    ) -> tuple[list[SecondRoundRow], list[str]]:
+        """(صفوفُ الطلبة من الحكم المخزَّن، تنبيهاتُ الشعبة)."""
+        from operations.absence_policy import gates_for
         from operations.absence_standing import unexcused_days_for_class
 
         school = class_group.school
         year = year or academic_year_for_school(school)
-        grade = grade_number(class_group.grade)
         setups = list(
             SubjectClassSetup.objects.filter(
                 class_group=class_group, academic_year=year, is_active=True
@@ -908,57 +944,54 @@ class SecondRoundService:
             .select_related("student")
             .order_by("student__full_name")
         ]
-        totals = {
-            (r.student_id, r.setup_id): (r.annual_total if r.status != "incomplete" else None)
-            for r in AnnualSubjectResult.objects.filter(setup__in=setups, academic_year=year)
-        }
-        absences = exam_absences([s.id for s in setups])
+        results: dict[Any, list[AnnualSubjectResult]] = {}
+        for r in (
+            AnnualSubjectResult.objects.filter(setup__in=setups, academic_year=year)
+            .select_related("setup__subject")
+            .order_by("setup__subject__name_ar")
+        ):
+            results.setdefault(r.student_id, []).append(r)
 
-        # م29 (الصفّ الأخير): حرمانُ الدور الأول = عتبةُ نهاية الفصل الثاني عند اختباره.
-        # والثاني عشر م19-1: عتبةُ نهاية الفصل الأول عند اختباره تحرم أيضاً.
-        finals = ("s1_final", "s2_final") if grade == 12 else ("s2_final",)
-        days_at = {}
-        for key in finals:
-            eve = SecondRoundService.exam_eve(
-                class_group, year, "S1" if key == "s1_final" else "S2", setups
-            )
-            days_at[key] = unexcused_days_for_class(class_group, school, on=eve) if eve else {}
+        decided: set[tuple[Any, str]] = set(
+            ExamDeprivation.objects.filter(
+                school=school, academic_year=year, student__in=students
+            ).values_list("student_id", "gate")
+        )
+        class_warnings: list[str] = []
+        breaches: dict[Any, list[str]] = {}
+        for gate in gates_for(class_group.grade):
+            eve = SecondRoundService.exam_eve(class_group, year, gate.key, setups)
+            if eve is None:
+                class_warnings.append(f"{gate.label}: غير محدَّد — يحتاج تاريخ الاختبار")
+                continue
+            days = unexcused_days_for_class(class_group, school, on=eve)
+            for student in students:
+                if (
+                    days.get(student.id, 0) > gate.max_days
+                    and (student.id, gate.key) not in decided
+                ):
+                    breaches.setdefault(student.id, []).append(
+                        f"تجاوز عتبةَ {gate.label} ({days[student.id]} يوماً) — لم يُسجَّل قرارُ فريق السلوك"
+                    )
 
         rows = []
         for student in students:
-            outcomes = []
-            for setup in setups:
-                flags = subject_absence_flags(absences.get((student.id, setup.id), {}), grade)
-                outcomes.append(
-                    SubjectOutcome(
-                        subject=setup.subject.name_ar,
-                        annual_total=totals.get((student.id, setup.id)),
-                        excused_final_absence=flags.excused,
-                        unexcused_final_absence=flags.unexcused_final,
-                        unexcused_first_semester_absence=flags.unexcused_first_semester,
-                    )
-                )
-            hit = {
-                key
-                for key in finals
-                if any(
-                    g.key == key
-                    for g in breached(class_group.grade, days_at[key].get(student.id, 0))
-                )
-            }
-            decision = classify_first_round(
-                outcomes,
-                grade,
-                deprived=bool(hit),
-                deprived_before_first_final="s1_final" in hit,
+            own = results.get(student.id, [])
+            standing = own[0].standing if own else STANDING_INCOMPLETE
+            article = next((r.article for r in own if r.status in SITTING_STATUSES), "")
+            rows.append(
+                SecondRoundRow(student, standing, article, own, breaches.get(student.id, []))
             )
-            rows.append(SecondRoundRow(student, decision))
-        return rows
+        return rows, class_warnings
 
 
 # ─────────────────────────────────────────────────────────────
 # ترحيلُ باقات الثاني عشر القائمة إلى بنيتها (البند 0.1)
 # ─────────────────────────────────────────────────────────────
+
+
+class PackageStructureError(Exception):
+    """بنيةُ باقاتٍ تخالف الجدول وعليها درجات — لا تُطابَق آليّاً."""
 
 
 class Grade12BlockedError(Exception):
@@ -1023,7 +1056,7 @@ class Grade12PackageFix:
         return out
 
     @staticmethod
-    def _plan_for(setup: SubjectClassSetup, packages) -> Grade12SetupPlan:
+    def _plan_for(setup: SubjectClassSetup, packages: list[AssessmentPackage]) -> Grade12SetupPlan:
         plan = Grade12SetupPlan(setup=setup)
         for pkg in packages:
             weight = package_weights(12, pkg.semester).get(pkg.package_type)
@@ -1040,7 +1073,7 @@ class Grade12PackageFix:
         return plan
 
     @staticmethod
-    def plan(setups=None) -> list[Grade12SetupPlan]:
+    def plan(setups: list[SubjectClassSetup] | None = None) -> list[Grade12SetupPlan]:
         setups = Grade12PackageFix.setups() if setups is None else setups
         by_setup: dict = {}
         for pkg in AssessmentPackage.objects.filter(setup__in=setups):

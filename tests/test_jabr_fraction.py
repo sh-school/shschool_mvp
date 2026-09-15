@@ -22,7 +22,6 @@ from decimal import Decimal
 import pytest
 
 from assessments.models import (
-    AnnualSubjectResult,
     Assessment,
     AssessmentPackage,
     StudentAssessmentGrade,
@@ -119,20 +118,30 @@ def test_semester_total_is_jabred_single_and_batch(school, teacher_user, pct, ex
 
 
 @pytest.mark.django_db
-def test_annual_total_is_the_sum_of_jabred_semesters_not_rejabred(school, teacher_user):
-    """`recalculate_annual_result` يجمع مجموعَي الفصلين المجبورَين عند كتابتهما ولا يجبر
-    ثانيةً: جبرُ المجموع كان يُنصف مجموعاً قديماً (49.6 ← 50) كلّما أُعيد حسابُ طالبٍ
-    واحد، فتختلط في الشعبة قاعدتان. وتوحيدُ القديم بأمر `recalculate_grade_results`."""
-    setup, _, _ = _package(school, teacher_user, "G10", "S1", "P2", "50")
+def test_annual_total_is_the_sum_of_jabred_semesters(school, teacher_user):
+    """المجموعُ السنويّ = مجموعا الفصلين المجبوران (م8 «نهايته»): 20.1 ← 20.5، و29.5 تثبت.
+
+    والحكمُ يُبنى من الدرجات لا من مجموعٍ مخزَّن — فلا تختلط في الشعبة قاعدتان."""
+    setup, p2, e2 = _package(school, teacher_user, "G12", "S1", "P2", "100")
+    (p4,) = GradeService.ensure_packages(setup, "S2")
+    e4 = Assessment.objects.create(
+        package=p4, school=school, title="نهاية ف2", max_grade=Decimal("60"), status="published"
+    )
     student = UserFactory()
     StudentEnrollmentFactory(student=student, class_group=setup.class_group)
-    for sem, total in (("S1", "20.1"), ("S2", "29.5")):
-        StudentSubjectResult.objects.create(
-            student=student, setup=setup, school=school, semester=sem, total=Decimal(total)
-        )
+    StudentAssessmentGrade.objects.create(
+        assessment=e2, student=student, school=school, grade=Decimal("50.25")
+    )
+    StudentAssessmentGrade.objects.create(
+        assessment=e4, student=student, school=school, grade=Decimal("29.5")
+    )
     annual = GradeService.recalculate_annual_result(student, setup)
-    assert AnnualSubjectResult.objects.get(pk=annual.pk).annual_total == Decimal("49.60")
-    assert annual.status == "fail"
+    assert (annual.s1_total, annual.s2_total, annual.annual_total) == (
+        Decimal("20.5"),
+        Decimal("29.5"),
+        Decimal("50"),
+    )
+    assert annual.status == "pass"
 
 
 @pytest.mark.django_db

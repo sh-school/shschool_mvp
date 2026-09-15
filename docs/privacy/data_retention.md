@@ -99,6 +99,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `assessments_studentassessmentgrade` | درجاتُ التقييمات |
 | `assessments_studentsubjectresult` | نتائجُ الفصول |
 | `assessments_annualsubjectresult` | النتائجُ السنويّة |
+| `assessments_examdeprivation` | قراراتُ فريق السلوك في أهليّة الطالب لاختبار (الحرمان) |
 | `core_studentenrollment` | القيدُ في الشعب |
 | `core_parentstudentlink` | ربطُ وليّ الأمر بالطالب وصلاحيّاتُه |
 | `operations_studentattendance` | الحضورُ بالحصّة |

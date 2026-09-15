@@ -33,13 +33,13 @@
         </thead>
         <tbody>
           {% for row in rows %}
-            <tr{% if row.annual.status == "fail" %} class="is-danger"{% endif %}>
+            <tr{% if row.annual.is_failed %} class="is-danger"{% endif %}>
               <td>{{ row.subject }}</td>
               <td class="num">{% if row.s1 and row.s1.total is not None %}{{ row.s1.total }}{% else %}—{% endif %}</td>
               <td class="num">{% if row.s2 and row.s2.total is not None %}{{ row.s2.total }}{% else %}—{% endif %}</td>
-              <td class="num"><span class="grade-total is-{{ row.tone }}">{% if row.annual.annual_total is not None %}{{ row.annual.annual_total }}{% else %}لم تكتمل{% endif %}</span></td>
+              <td class="num"><span class="grade-total is-{{ row.tone }}">{% if row.annual.annual_total is not None %}{{ row.annual.annual_total }}{% elif row.annual.mark %}{{ row.annual.total_display }}{% else %}لم تكتمل{% endif %}</span></td>
               <td class="num"><span class="grade-total is-{{ row.tone }}">{{ row.annual.letter_grade|default:"—" }}</span></td>
-              <td>{% if row.annual.status == "pass" %}<span class="status-badge status-success">ناجح</span>{% elif row.annual.status == "fail" %}<span class="status-badge status-danger">راسب</span>{% else %}<span class="status-badge status-gray">جارٍ</span>{% endif %}</td>
+              <td><span class="status-badge status-{{ row.annual.status_tone }}">{{ row.annual.get_status_display }}</span></td>
             </tr>
           {% endfor %}
         </tbody>
