@@ -151,7 +151,7 @@ def test_a_broker_failure_after_commit_is_contained_not_compensated(caplog):
             side_effect=RuntimeError("broker down"),
         ),
         patch("behavior.services.BehaviorService.notify_parents") as direct,
-        caplog.at_level(logging.ERROR, logger="behavior.views"),
+        caplog.at_level(logging.ERROR, logger="behavior.notify"),
     ):
         infraction = _record_infraction(school, student, reporter)
 
@@ -625,7 +625,7 @@ def test_the_type_kombu_actually_raises_is_caught(caplog):
             side_effect=OperationalError("broker unreachable"),
         ),
         patch("behavior.services.BehaviorService.notify_parents") as direct,
-        caplog.at_level(logging.ERROR, logger="behavior.views"),
+        caplog.at_level(logging.ERROR, logger="behavior.notify"),
     ):
         infraction = _record_infraction(school, student, reporter)
 

@@ -21,6 +21,7 @@ NotificationHub — الموجّه المركزي لكل الإشعارات
 """
 
 import logging
+from typing import Any
 
 from django.conf import settings
 from django.db import transaction
@@ -62,6 +63,9 @@ DEFAULT_CHANNELS = {
     "behavior_l3": ["in_app", "push", "whatsapp", "email", "sms"],
     "behavior_l4": ["in_app", "push", "whatsapp", "email", "sms"],
     "behavior_risk": ["in_app"],
+    # ملخّصُ مخالفات الرصد اليوميّ لوليّ الأمر (قرارُ المالك 2026-09-16): رسالةٌ كلَّ
+    # يومٍ دراسيٍّ فيه مخالفة — فلا SMS لرسالةٍ متكرّرة.
+    "behavior_digest": ["in_app", "push", "whatsapp", "email"],
     "absence": ["in_app", "push", "whatsapp", "email"],
     "grade": ["in_app", "push", "email"],
     "fail": ["in_app", "push", "whatsapp", "email", "sms"],
@@ -83,6 +87,7 @@ DEFAULT_PRIORITY = {
     "behavior_l2": "medium",
     "behavior_l3": "high",
     "behavior_l4": "urgent",
+    "behavior_digest": "medium",
     "absence": "medium",
     "class_exit": "high",
     "grade": "low",
@@ -110,19 +115,19 @@ class NotificationHub:
 
     @staticmethod
     def dispatch(
-        event_type,
-        school,
-        recipients,
-        title,
-        body="",
-        context=None,
-        priority=None,
-        related_url="",
-        related_object_id="",
-        sent_by=None,
-        email_html_template=None,
-        email_text_template=None,
-    ):
+        event_type: str,
+        school: Any,
+        recipients: Any,
+        title: str,
+        body: str = "",
+        context: dict[str, Any] | None = None,
+        priority: str | None = None,
+        related_url: str = "",
+        related_object_id: Any = "",
+        sent_by: Any = None,
+        email_html_template: str | None = None,
+        email_text_template: str | None = None,
+    ) -> dict[str, Any]:
         """
         إرسال إشعار لقائمة مستلمين عبر كل القنوات المناسبة.
 
@@ -353,6 +358,7 @@ _CONSENT_DATA_TYPE = {
     "behavior_l3": "behavior",
     "behavior_l4": "behavior",
     "behavior_risk": "behavior",
+    "behavior_digest": "behavior",
     "parent_summon": "behavior",
     "sent_home": "behavior",
     "absence": "attendance",
@@ -478,7 +484,7 @@ def _create_dispatch(
     return dispatch
 
 
-def _filter_consent(recipients, event_type, school, student):
+def _filter_consent(recipients: list[Any], event_type: str, school: Any, student: Any) -> list[Any]:
     """يستبعد أولياء الأمور الذين سحبوا موافقتهم (is_given=False) على نوع
     البيانات المرتبط بالحدث — تطبيقاً لـ PDPPL (قانون قطر 13/2016).
     عدم وجود سجل ⇒ مسموح (الافتراضي). 'all' يغطّي كل الأنواع."""
@@ -537,6 +543,7 @@ def _map_event_type(hub_event):
         "behavior_l3": "behavior",
         "behavior_l4": "behavior",
         "behavior_risk": "behavior",
+        "behavior_digest": "behavior",
         "absence": "absence",
         "class_exit": "general",
         "grade": "grade",

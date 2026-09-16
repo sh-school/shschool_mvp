@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import BehaviorInfraction, ViolationCategory
+from .models import AutoInfractionNotice, BehaviorInfraction, ViolationCategory
 
 
 @admin.register(ViolationCategory)
@@ -117,3 +117,21 @@ class BehaviorInfractionAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+
+@admin.register(AutoInfractionNotice)
+class AutoInfractionNoticeAdmin(admin.ModelAdmin):
+    """للقراءة وحدَها: العلامةُ أثرُ إرسالٍ وقع — تعديلُها أو حذفُها يُعيد الرسالةَ أو يُخفيها."""
+
+    list_display = ["student", "date", "auto_rule", "start_time", "kind", "recipients", "sent_at"]
+    list_filter = ["kind", "auto_rule", "date"]
+    date_hierarchy = "date"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

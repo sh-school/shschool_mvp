@@ -572,16 +572,22 @@ class BehaviorService:
         حسب درجة المخالفة وتفضيلات كل ولي أمر.
         """
         try:
+            from django.urls import reverse
+
             from notifications.hub import NotificationHub
 
             event_type = f"behavior_l{infraction.level}"  # behavior_l1 … behavior_l4
+            # يومُ الحصّة إن عُرفت: مخالفةُ الرصد قد تُكتب اليومَ عن حصّةٍ مضت (تصحيح)،
+            # و`date` يومُ الكتابة لا يومُ الواقعة.
+            session = infraction.session if infraction.session_id else None
+            when = session.date if session is not None else infraction.date
             title = (
                 f"⚠️ مخالفة سلوكية — {infraction.student.full_name} "
                 f"({LEVEL_DISPLAY.get(infraction.level, '')})"
             )
             body = (
                 f"{LEVEL_DESC.get(infraction.level, '')}\n"
-                f"التاريخ: {infraction.date.strftime('%Y/%m/%d') if infraction.date else ''}"
+                f"التاريخ: {when.strftime('%Y/%m/%d') if when else ''}"
             )
 
             NotificationHub.dispatch_to_parents(
@@ -597,9 +603,7 @@ class BehaviorService:
                     # ما يطلبه قالبُ البريد المنسَّق — أسماءٌ مقروءةٌ لا كائنات،
                     # فالسياقُ يعبر Celery مُسلسَلاً.
                     "student_name": infraction.student.full_name,
-                    "infraction_date": (
-                        infraction.date.strftime("%Y/%m/%d") if infraction.date else ""
-                    ),
+                    "infraction_date": when.strftime("%Y/%m/%d") if when else "",
                     "level_display": LEVEL_DISPLAY.get(infraction.level, ""),
                     "level_description": LEVEL_DESC.get(infraction.level, ""),
                     "description": infraction.description or "",
@@ -613,7 +617,9 @@ class BehaviorService:
                 email_html_template="notifications/email/behavior_html.html",
                 email_text_template="notifications/email/behavior_text.txt",
                 related_object_id=infraction.pk,
-                related_url=f"/behavior/student/{infraction.student.pk}/",
+                # المستلمون أولياءُ أمورٍ وحدَهم (`dispatch_to_parents`)، وصفحةُ الطالب
+                # في `/behavior/student/` للكادر لا تُفتح لهم — فيصلون إلى بوابتهم.
+                related_url=reverse("parent_behavior"),
                 sent_by=reporter,
             )
         except Exception as e:

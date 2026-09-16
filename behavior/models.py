@@ -518,3 +518,74 @@ class BehaviorPointRecovery(models.Model):
 
     def __str__(self):
         return f"Recovery: {self.infraction.student.full_name} (+{self.points_restored})"
+
+
+# ─────────────────────────────────────────────────────────────────
+# AutoInfractionNotice — ما بُلِّغ به وليُّ الأمر من مخالفات الرصد
+# ─────────────────────────────────────────────────────────────────
+class AutoInfractionNotice(models.Model):
+    """علامةُ «أُرسل»: صفٌّ لكلّ مخالفةٍ آليّةٍ بلغ خبرُها وليَّ الأمر.
+
+    مخالفاتُ الرصد تبلغ الأسرةَ بطريقين (قرارُ المالك 2026-09-16): الهروبُ من
+    المدرسة فوراً، والتأخّرُ والهروبُ من الحصّة في ملخّصٍ يوميٍّ واحد. وكلاهما
+    يمرّ بـCelery، والمهمّةُ قد تعمل مرّتين (`acks_late`) أو مرّتين معاً — فلا
+    يُعرف «أُرسل أم لا» من ذاكرة العامل ولا من إشعار الجرس (وليُّ الأمر قد يُطفئه).
+
+    **والمفتاحُ ليس المخالفةَ نفسَها** بل ما يصفها: الطالبُ ويومُ الحصّة والقاعدةُ
+    وبدءُ الحصّة. فالتصحيحُ يحذف المخالفةَ حذفاً ثمّ قد يُعيدها كما كانت بمعرّفٍ
+    جديد — وهي في عين الأسرة المخالفةُ نفسُها، فلا تُبلَّغ بها ثانية.
+
+    والصفُّ يُكتب في المعاملة التي يُطلب فيها الإرسال: إن تراجعت تراجع معها،
+    فتُعيد المحاولةُ التاليةُ الإرسالَ؛ وإن التزمت فالقيدُ الفريدُ يمنع ثانيةً —
+    ولو تزامن تشغيلان.
+    """
+
+    id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
+    school = models.ForeignKey(
+        "core.School", on_delete=models.CASCADE, related_name="auto_infraction_notices"
+    )
+    student = models.ForeignKey(
+        "core.CustomUser", on_delete=models.CASCADE, related_name="auto_infraction_notices"
+    )
+    #: يومُ الحصّة — لا يومُ كتابة المخالفة: تصحيحُ حصّةٍ مضت يُكتب اليوم عن يومها.
+    date = models.DateField(verbose_name="يومُ الحصّة")
+    auto_rule = models.CharField(
+        max_length=16, choices=BehaviorInfraction.AUTO_RULES, verbose_name="القاعدة"
+    )
+    start_time = models.TimeField(verbose_name="بدءُ الحصّة")
+    #: للتتبّع وحدَه — قد تُحذف المخالفةُ بتصحيحٍ ويبقى أنّ خبرَها أُرسل.
+    infraction = models.ForeignKey(
+        BehaviorInfraction,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="notices",
+    )
+    #: الرسالةُ التي حملته — صفوفُ الملخّص الواحد تشترك فيه، وهو معرّفُ الإشعار.
+    message_id = models.UUIDField(default=_uuid, db_index=True)
+    #: `immediate` للهروب من المدرسة، `digest` للملخّص، `supplement` لإضافةٍ إليه.
+    KINDS = [
+        ("immediate", "فوريّ"),
+        ("digest", "الملخّص اليوميّ"),
+        ("supplement", "إضافةٌ إلى الملخّص"),
+    ]
+    kind = models.CharField(max_length=10, choices=KINDS)
+    #: عددُ من وصلته الرسالةُ بعد صلاحيّة الرؤية والموافقة — صفرٌ: لا أحد. وفارغٌ
+    #: للفوريّ: يمرّ بمسار المخالفة اليدويّة في العامل، فعددُه لا يُعرف هنا.
+    recipients = models.PositiveSmallIntegerField(null=True, blank=True)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "إبلاغٌ بمخالفة رصد"
+        verbose_name_plural = "الإبلاغُ بمخالفات الرصد"
+        ordering = ["-date", "student", "start_time"]
+        indexes = [models.Index(fields=["school", "date"], name="auto_notice_school_date")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "date", "auto_rule", "start_time"],
+                name="unique_auto_infraction_notice",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.student_id} {self.date} {self.auto_rule} {self.start_time:%H:%M}"

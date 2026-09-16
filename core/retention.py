@@ -179,6 +179,17 @@ def _dead_push_subscriptions(now: datetime, cutoff: datetime) -> QuerySet[Any]:
     )
 
 
+# ── السلوك ────────────────────────────────────────────────────────────
+
+
+def _auto_infraction_notices(now: datetime, cutoff: datetime) -> QuerySet[Any]:
+    """علامةُ «أُبلغت الأسرة» — لا يُرجع إليها إلّا مسحُ الأيّام الخمسة الأخيرة."""
+    from behavior.models import AutoInfractionNotice
+
+    qs: QuerySet[Any] = AutoInfractionNotice.objects.filter(sent_at__lt=cutoff)
+    return qs
+
+
 # ── الاستيراد ─────────────────────────────────────────────────────────
 
 
@@ -243,6 +254,12 @@ RULES: tuple[Rule, ...] = (
         "notifications_pushsubscription",
         "اشتراكاتُ Push ميّتة",
         _dead_push_subscriptions,
+    ),
+    Rule(
+        "behavior.auto_notices",
+        "behavior_autoinfractionnotice",
+        "علاماتُ إبلاغ الأسرة بمخالفات الرصد",
+        _auto_infraction_notices,
     ),
     Rule("staging.import_logs", "staging_importlog", "سجلّاتُ الاستيراد", _import_logs),
 )

@@ -1244,6 +1244,7 @@ def _hub_to_notif_type(event_type):
         "behavior_l2": "custom",
         "behavior_l3": "custom",
         "behavior_l4": "custom",
+        "behavior_digest": "custom",
         "absence": "absence_alert",
         "grade": "grade_report",
         "fail": "fail_alert",

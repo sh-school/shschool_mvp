@@ -308,8 +308,8 @@ def parent_behavior(request):
         BehaviorInfraction.objects.filter(
             school=school, student_id__in=[link.student_id for link in links]
         )
-        .select_related("violation_category")
-        .order_by("-date")
+        .select_related("violation_category", "session")
+        .order_by("-date", "-created_at")
     ):
         by_student.setdefault(infraction.student_id, []).append(infraction)
 
