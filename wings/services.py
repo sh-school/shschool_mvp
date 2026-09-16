@@ -27,8 +27,9 @@ from core.models import (
 )
 from core.models.academic import FLOORS, bands_of
 from operations.absence_policy import Gate
-from operations.bells import REGULAR, THURSDAY, Bell, Position, bells_for, day_type_for
+from operations.bells import REGULAR, THURSDAY, Bell, Position, bells_for
 from operations.day_attendance import enrolled_of
+from operations.school_days import SchoolDay, school_day
 
 
 @dataclass(frozen=True)
@@ -189,8 +190,14 @@ def outside_the_wings(school, year: str) -> Outside:
     )
 
 
-def floors_overview(school, year: str, when: dt.datetime) -> list[FloorPanel]:
-    """الطابقان بأجنحتهما — بأربعة استعلاماتٍ مهما كثرت الأجنحة."""
+def floors_overview(
+    school, year: str, when: dt.datetime, today: SchoolDay | None = None
+) -> list[FloorPanel]:
+    """الطابقان بأجنحتهما — بأربعة استعلاماتٍ مهما كثرت الأجنحة.
+
+    و`today` يومُ `when` من التقويم إن قرأه المستدعي — وإلّا قُرئ هنا باستعلامٍ خامس.
+    فالجرسُ لا يرنّ يومَ إجازة: ثلاثاؤها كان يُظهر «الحصّةَ الثالثة» في كلّ جناح.
+    """
     wings = list(
         Wing.objects.filter(school=school, academic_year=year, is_active=True)
         .select_related("supervisor")
@@ -214,7 +221,8 @@ def floors_overview(school, year: str, when: dt.datetime) -> list[FloorPanel]:
         .values_list("class_group__wing_id")
         .annotate(total=Count("id"))
     )
-    day_type = day_type_for(when.date())
+    today = today or school_day(school, when.date())
+    day_type = today.bell_day_type
     table = bells_for(school, day_type) if day_type else {}
     moment = when.time()
 
