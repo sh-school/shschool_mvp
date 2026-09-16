@@ -3387,9 +3387,10 @@ html.dark .kpi-label        { color: var(--text-secondary); }
 
 /* ── Mobile: dashboards ── */
 @media (max-width: 1024px) {
-  /* قصُّ الفائض الأفقيّ لا صندوقُ تمرير: `overflow: auto` كان يجعل الحاويةَ مرجعَ الالتصاق
-     فلا يلتصق شريطُ «ثبّت الحصّة» بأسفل شاشة الجوّال. و`clip` لا يُنشئ صندوقَ تمرير. */
-  .exec-dash { height: auto; overflow-x: clip; overflow-y: visible; }
+  .exec-dash { height: auto; overflow: auto; }
+  /* كشفُ الشعبة: جدولُه في غلافِ تمريرٍ خاصّ (.per-grid-wrap)، والحاويةُ لا تكون صندوقَ
+     تمرير — وإلّا صارت مرجعَ الالتصاق فلا يلتصق شريطُ «ثبّت الحصّة» بأسفل شاشة الجوّال. */
+  .exec-dash:has(> .rec-form) { overflow: visible; }
   .kpi-strip { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 
   .dash-chart-wrap { min-height: 180px; }
@@ -4821,9 +4822,7 @@ th[aria-sort="descending"] .th-sort-label {
 
 /* ── Mobile fallback ── */
 @media (max-width: 1024px) {
-  /* قصُّ الفائض الأفقيّ لا صندوقُ تمرير: `overflow: auto` كان يجعل الحاويةَ مرجعَ الالتصاق
-     فلا يلتصق شريطُ «ثبّت الحصّة» بأسفل شاشة الجوّال. و`clip` لا يُنشئ صندوقَ تمرير. */
-  .exec-dash { height: auto; overflow-x: clip; overflow-y: visible; }
+  .exec-dash { height: auto; overflow: auto; }
   .kpi-strip { grid-template-columns: repeat(4, 1fr); }
 
 }

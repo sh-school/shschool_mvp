@@ -29,7 +29,7 @@
         </div>
         {# نموذجان لا نموذجٌ بزرّين: Enter في خانة سبب الرفض لا يقبل العذر. #}
         <div class="xr-decide">
-          <form method="post" action="{% url 'wings:excuse_request_decide' x.pk %}" class="xr-form xr-form--accept">
+          <form method="post" action="{% url 'wings:excuse_request_decide' x.pk %}" class="xr-form">
             {% csrf_token %}
             <input type="hidden" name="decision" value="accept">
             <label class="form-label">سببُ القبول
