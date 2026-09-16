@@ -311,7 +311,7 @@ def record_section(request, class_id):
             # عنوانُ الترويسة وسطرُها يُبنيان هنا: المكوّنُ يأخذ نصّاً لا وسوماً.
             "heading": f"{klass.get_grade_display()} / {klass.section}",
             "subtitle": (
-                f"{formats.date_format(day, 'D، d M Y')} · {len(rows)} طالباً · {len(periods)} حصّة"
+                f"{formats.date_format(day, 'D، d M Y')} · {len(rows)} طالباً · الحصص: {len(periods)}"
             ),
             "periods": [(p, p.status(day, now)) for p in periods],
             "focus": focus,
@@ -390,7 +390,17 @@ def student_events(request, class_id, student_id):
     # وقيدُه الجاري في الجناح: قيدٌ قديمٌ نشطٌ في شعبةٍ من جناحي لا يفتحه لي (wings/scope.py).
     student_scope_for(request).require_student(student.id)
     today = timezone.localdate()
-    focus_day = _day(request.GET.get("date"), today)
+    # اليومُ المقصود: ما في الرابط، وإلّا آخرُ يومِ غيابٍ بلا عذر — لا اليوم: كان الفراغُ
+    # يُملأ بتاريخ اليوم فيُكتب العذرُ والإخطارُ على يومٍ لم يغب فيه.
+    last_absent = (
+        StudentAttendance.objects.filter(
+            student=student, school=school, status="absent", excuse_type=""
+        )
+        .order_by("-session__date")
+        .values_list("session__date", flat=True)
+        .first()
+    )
+    focus_day = _day(request.GET.get("date"), last_absent or today)
     attendance_events = list(
         StudentAttendance.objects.filter(student=student, school=school)
         .exclude(status="present")
@@ -421,6 +431,7 @@ def student_events(request, class_id, student_id):
             "contacts": contacts_of(student, school),
             "contact_outcomes": GuardianContact.OUTCOMES,
             "contact_day": _awaiting(klass, today).get(student.id) or focus_day,
+            "events_count": len(attendance_events) + len(exit_events),
             "grace_days": GRACE_DAYS,
             "may_override": has_capability(request.user, "wings.excuse_after_deadline"),
         },
@@ -483,9 +494,15 @@ def excuse_outcome_message(request, excuse) -> None:
         return
     messages.success(
         request,
-        f"قُبل العذرُ ({excuse.get_kind_display()}) وغُطّي {excuse.rows.count()} حصّةً"
+        f"قُبل العذرُ ({excuse.get_kind_display()}) وغُطّي {covered_periods(excuse)} حصّةً"
         + (" — بعد المهلة." if excuse.after_deadline else "."),
     )
+
+
+def covered_periods(excuse) -> int:
+    """حصصُ العذر كما يعدّها ملفُّ الغياب: خانةٌ زمنيّةٌ في يومها، لا سجلُّ حصّة —
+    زوجُ الاختيار حصّتان في خانةٍ واحدة، والطالبُ يغيب عنهما مرّةً واحدة."""
+    return excuse.rows.values("session__date", "session__start_time").distinct().count()
 
 
 @login_required
@@ -632,8 +649,11 @@ def excuse_request_decide(request, pk):
         if decision not in ("accept", "reject"):
             raise ExcuseError("اختر قبولاً أو رفضاً.")
         if decision == "accept":
-            covered = approve_excuse(excuse, by=request.user, reason=reason, ip=ip)
-            messages.success(request, f"قُبل عذرُ {excuse.student.full_name} وغُطّي {covered} حصّةً.")
+            approve_excuse(excuse, by=request.user, reason=reason, ip=ip)
+            messages.success(
+                request,
+                f"قُبل عذرُ {excuse.student.full_name} وغُطّي {covered_periods(excuse)} حصّةً.",
+            )
         else:
             reject_excuse(excuse, by=request.user, reason=reason, ip=ip)
             messages.success(request, f"رُفض عذرُ {excuse.student.full_name}.")

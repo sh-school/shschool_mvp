@@ -81,6 +81,12 @@ def _get_student_ctx(user, school, today):
     }
 
 
+_DIRECTOR_TITLES = {
+    "vice_admin": "لوحة النائب الإداريّ",
+    "vice_academic": "لوحة النائب الأكاديميّ",
+}
+
+
 def _get_director_ctx(school, today):
     """بيانات لوحة تحكم الإدارة: حصص + حضور + تقييمات + سلوك + عيادة + مكتبة + عمليات."""
     year = academic_year_for_school(school)
@@ -577,6 +583,8 @@ def dashboard(request):
         ctx.update(_get_student_ctx(user, school, today))
     elif user.is_superuser or role in _DIRECTOR_ROLES:
         ctx.update(_get_director_ctx(school, today))
+        # العنوانُ باسم صاحب اللوحة: النائبُ كان يرى «لوحة تحكم المدير».
+        ctx["dashboard_title"] = _DIRECTOR_TITLES.get(role, "لوحة تحكم المدير")
         if has_capability(user, "wings.excuse_after_deadline"):
             # أعذارٌ أرسلها المشرفون بعد مهلة العودة — تنتظر النائبَ (قرارُ 2026-09-14).
             from operations.models import AbsenceExcuse

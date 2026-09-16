@@ -1,5 +1,5 @@
 {% load icons %}
-{% load ui %}
+{% load ui navigation %}
 <div class="exec-dash">
 
   {% page_header "اللوحة الإدارية" subtitle=subtitle icon="workload" %}
@@ -37,10 +37,11 @@
   {% endsection_card %}
   {% endif %}
 
+  {# لا بلاطةَ تُعرض لمن لا تُفتح له: كانت «شؤون الموظفين» تظهر لمشرف الجناح وتردّه 403 #}
   <nav class="ui-actions" aria-label="إجراءات سريعة">
-    {% url 'staff_affairs:dashboard' as u %}{% action_tile "شؤون الموظفين" desc="الحضورُ والغيابُ والإجازات" icon="staff" href=u primary=True %}
-    {% url 'student_affairs:student_list' as u %}{% action_tile "شؤون الطلاب" desc="بياناتُ الطلاب وملفّاتُهم" icon="students" href=u %}
-    {% url 'weekly_schedule' as u %}{% action_tile "الجدول الدراسي" desc="الحصصُ والمعلّمون" icon="schedule" href=u %}
+    {% if request.user|can_open:"staff_affairs:dashboard" %}{% url 'staff_affairs:dashboard' as u %}{% action_tile "شؤون الموظفين" desc="الحضورُ والغيابُ والإجازات" icon="staff" href=u primary=True %}{% endif %}
+    {% if request.user|can_open:"student_affairs:student_list" %}{% url 'student_affairs:student_list' as u %}{% if admin_role == "admin_supervisor" %}{% action_tile "طلبة جناحي" desc="سجلُّهم وملفّاتُهم وغيابُهم" icon="students" href=u primary=True %}{% else %}{% action_tile "شؤون الطلاب" desc="بياناتُ الطلاب وملفّاتُهم" icon="students" href=u %}{% endif %}{% endif %}
+    {% if request.user|can_open:"weekly_schedule" %}{% url 'weekly_schedule' as u %}{% action_tile "الجدول الدراسي" desc="الحصصُ والمعلّمون" icon="schedule" href=u %}{% endif %}
   </nav>
 
 </div>

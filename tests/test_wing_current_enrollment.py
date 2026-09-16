@@ -66,7 +66,7 @@ class TestTheOldWingLetsGo:
             .content.decode()
         )
 
-        assert "لا طالبَ بهذا الاسم في أجنحتك" in body
+        assert "لا طالبَ بهذا الاسم أو الرقم في جناحك" in body
 
     def test_his_correction_page_and_file_are_404(
         self, seeded_calendar, client_as, supervisor, kids, moved

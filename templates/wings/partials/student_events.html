@@ -1,7 +1,7 @@
 {% load ui %}
 {% comment %}سجلُّ أحداث الطالب (غياب/تأخّر/خروج) بحذفٍ مُسبَّب — يُدرج في صفحة التصحيح. يحتاج: attendance_events, exit_events, can_delete_events.{% endcomment %}
     {% if attendance_events or exit_events %}
-    {% section_card "سجلُّ الأحداث — غيابٌ وتأخّرٌ وخروج" icon="absence" meta=attendance_events|length|add:exit_events|length %}
+    {% section_card "سجلُّ الأحداث — غيابٌ وتأخّرٌ وخروج" icon="absence" meta=events_count %}
       <div class="table-wrap">
         <table data-no-sort>
           <thead><tr><th>التاريخ</th><th>الحصّة</th><th>الحدث</th><th>المصدر</th>{% if can_delete_events %}<th>تصحيح</th>{% endif %}</tr></thead>
