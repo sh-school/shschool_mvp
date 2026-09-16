@@ -39,7 +39,7 @@ DAYS = 5
 
 @dataclass(frozen=True)
 class BreakItem:
-    """استراحةٌ في خانة: اسمُها ووقتُها، واسمُ جرسها حين يلتبس."""
+    """استراحةٌ في خانة: اسمُها ووقتُها واسمُ جرسها."""
 
     label: str
     start: dt.time
@@ -57,16 +57,19 @@ def bell_tables(school: School) -> dict[str, dict[str, Bell]]:
     return {REGULAR: bells_for(school, REGULAR), THURSDAY: bells_for(school, THURSDAY)}
 
 
-def band_label(bell: Bell) -> str:
-    """اسمُ الجرس في خانة الاستراحة: «الأرضيّ» و«التاسع» و«الثانويّ».
+#: اسمُ الجرس في خانة الاستراحة. «التاسع» وحدها تضلّل: تاسع 1·2 في الأرضيّ
+#: (بلاغ المستخدم 2026-09-16)، و«الطابق» أوّلُ كلمةٍ من اسم الأرضيّ لا تميّزه.
+#: والرقمان معزولان (U+2066…U+2069): مولّدُ PDF يقلبهما «4-3» بلا عازل.
+BAND_LABELS = {
+    "ground": "الأرضيّ",
+    "ninth": "تاسع \u20663-4\u2069",
+    "secondary": "الثانويّ",
+}
 
-    لا أوّلُ كلمةٍ من اسم النطاق وحدها (`Bell.band_short`): اسمُ الأرضيّ «الطابق
-    الأرضيّ (7، 8، …)» فأوّلُ كلمته «الطابق» — والأوّلُ طابقٌ أيضاً، فلا تميّز.
-    """
-    words = (bell.band_name or "").split()
-    if len(words) > 1 and words[0] == "الطابق":
-        return words[1]
-    return bell.band_short
+
+def band_label(bell: Bell) -> str:
+    """اسمُ الجرس في خانة الاستراحة: «الأرضيّ» و«تاسع 3-4» و«الثانويّ»."""
+    return BAND_LABELS.get(bell.band_code) or bell.band_short
 
 
 def breaks_after(bell: Bell) -> list[tuple[int, BreakItem]]:
@@ -91,7 +94,8 @@ def breaks_after(bell: Bell) -> list[tuple[int, BreakItem]]:
 
 def _day_breaks(bands: list[str], table: dict[str, Bell]) -> list[tuple[int, BreakItem]]:
     """استراحاتُ يومٍ من أجراسه: المتطابقُ اسماً ووقتاً يُكتب مرّةً بأسماء أجراسه
-    كلِّها («التاسع · الثانويّ»)، واسمُ الجرس يبقى حيث تتكرّر الاستراحةُ نفسُها بوقتين."""
+    كلِّها («تاسع 3-4 · الثانويّ»). واسمُ الجرس مكتوبٌ دائماً: فسحةٌ بلا جرسٍ
+    تُقرأ فسحةَ الجميع، ووقتُها لا يصدق إلّا لجرسها."""
     seen: dict[tuple, tuple[int, list[str]]] = {}
     for code in [code for code in table if code in bands]:  # بترتيب الأجراس
         for after, item in breaks_after(table[code]):
@@ -101,17 +105,8 @@ def _day_breaks(bands: list[str], table: dict[str, Bell]) -> list[tuple[int, Bre
             if item.band not in seen[key][1]:
                 seen[key][1].append(item.band)
     ordered = sorted(seen.items(), key=lambda pair: (pair[0][1], pair[1][0]))
-    labels = [label for (label, _start, _end), _ in ordered]
     return [
-        (
-            after,
-            BreakItem(
-                label,
-                start,
-                end,
-                " · ".join(band_names) if labels.count(label) > 1 else "",
-            ),
-        )
+        (after, BreakItem(label, start, end, " · ".join(band_names)))
         for (label, start, end), (after, band_names) in ordered
     ]
 

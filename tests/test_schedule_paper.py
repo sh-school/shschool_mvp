@@ -14,6 +14,7 @@ from core.models import ClassGroup, TimeBand
 from operations.bells import REGULAR, THURSDAY
 from operations.models import ScheduleSlot, Subject
 from operations.schedule_paper import (
+    BAND_LABELS,
     bell_tables,
     breaks_after,
     grid_to_days,
@@ -101,6 +102,7 @@ def test_a_teacher_in_two_bells_sees_both_bells_named(school, bands):
         (dt.time(10, 25), True),
     ], "فسحتان بوقتين، ولكلٍّ اسمُ جرسه"
     assert [f.band for f in fasahat] == ["الأرضيّ", "الثانويّ"], "لا «الطابق» اسماً لجرس"
+    assert BAND_LABELS["ninth"].startswith("تاسع ") and "3-4" in BAND_LABELS["ninth"]
 
 
 @pytest.mark.django_db
@@ -115,7 +117,21 @@ def test_a_break_shared_by_two_bells_names_both(school, bands):
         for item in entry["items"]
         if item.label == "الفسحة" and item.start == dt.time(10, 25)
     ]
-    assert len(upper) == 1 and upper[0].band == "التاسع · الثانويّ"
+    assert len(upper) == 1 and upper[0].band == f"{BAND_LABELS['ninth']} · الثانويّ"
+
+
+@pytest.mark.django_db
+def test_a_single_bell_break_still_names_its_bell(school, bands):
+    """بلاغ 2026-09-16: «الفسحة» وحدها تضلّل — معلّمُ الثانويّ يرى «الثانويّ» تحتها."""
+    for code in ("secondary", "ninth", "ground"):
+        week = week_layout(_empty_days(), [[code]] * 5, bell_tables(school))
+        items = [
+            item
+            for entry in week["lines"][0]["entries"]
+            if entry["kind"] == "break"
+            for item in entry["items"]
+        ]
+        assert items and all(item.band == BAND_LABELS[code] for item in items), code
 
 
 @pytest.mark.django_db
