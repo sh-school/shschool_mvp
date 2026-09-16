@@ -175,6 +175,7 @@
   "transport": 3,
   "wings": 5
  },
+ "definition": 4,
  "get_school": {
   "academic_management/assignment_views.py": 1,
   "academic_management/views.py": 6,

@@ -7,6 +7,8 @@
 
 import json
 
+import pytest
+
 from tests import layering_ratchet as ratchet
 
 UPDATE = "python -m tests.layering_ratchet --update"
@@ -453,3 +455,64 @@ class TestTheRatchetItself:
         )
         assert recorded["core_imports"] == {"wings": 5}
         assert recorded["core_import_sites"] == {"wings": ["core/a.py", "core/b.py"]}
+
+    # ── إعادةُ القياس ──
+
+    def _tree(self, tmp_path, name, *, definition, exit_code=0, view_orm=6, accepted=None):
+        """نسخةٌ مصدَّرةٌ من إيداع: حارسُه القديم (بديلٌ يخرج برمزه) وسجلُّه وعرضٌ واحد."""
+        tree = tmp_path / name
+        (tree / "tests").mkdir(parents=True)
+        (tree / "app").mkdir()
+        (tree / "tests" / "__init__.py").write_text("", encoding="utf-8")
+        (tree / "tests" / "layering_ratchet.py").write_text(
+            f"import sys\nprint('زاد: app/views.py::v')\nsys.exit({exit_code})\n", encoding="utf-8"
+        )
+        baseline = {**self.EMPTY, "definition": definition}
+        if accepted:
+            baseline["accepted"] = accepted
+        (tree / "tests" / "layering_baseline.json").write_text(
+            json.dumps(baseline, ensure_ascii=False), encoding="utf-8"
+        )
+        (tree / "app" / "__init__.py").write_text("", encoding="utf-8")
+        body = "".join("    X.objects\n" for _ in range(view_orm))
+        (tree / "app" / "views.py").write_text(f"def v(request):\n{body}", encoding="utf-8")
+        return tree
+
+    def test_the_baseline_was_measured_by_this_definition(self):
+        """السجلُّ يحمل رقمَ التعريف الذي قاسه — فلا يُعاد القياسُ إلّا حين يتغيّر."""
+        assert (
+            _baseline().get("definition") == ratchet.DEFINITION
+        ), "تغيّر تعريفُ العدّ ولم يُعَد القياس: python -m tests.layering_ratchet --rebaseline"
+
+    def test_rebaseline_refuses_when_the_definition_did_not_change(self, tmp_path):
+        tree = self._tree(tmp_path, "head", definition=ratchet.DEFINITION)
+        with pytest.raises(ValueError, match="--update"):
+            ratchet.rebaseline_tree(tree)
+
+    def test_rebaseline_refuses_a_commit_that_fails_its_own_guard(self, tmp_path):
+        """زيادةٌ أُودعت قبل إعادة القياس تُسقط الإيداعَ بحارسه القديم — فلا تذوب في التعريف."""
+        tree = self._tree(tmp_path, "head", definition=ratchet.DEFINITION - 1, exit_code=1)
+        with pytest.raises(ValueError, match="app/views.py::v"):
+            ratchet.rebaseline_tree(tree)
+
+    def test_rebaseline_measures_the_commit_so_uncommitted_growth_still_fails(self, tmp_path):
+        """القياسُ الجديدُ للإيداع لا للشجرة: ما زاد في العمل الجاري يبقى زيادةً تُسمّى."""
+        accepted = [{"where": "x", "metric": "orm", "from": 1, "to": 2, "reason": "r" * 20}]
+        head = self._tree(tmp_path, "head", definition=ratchet.DEFINITION - 1, accepted=accepted)
+        recorded, report = ratchet.rebaseline_tree(head)
+        assert recorded == {
+            **ratchet.snapshot(head),
+            "definition": ratchet.DEFINITION,
+            "accepted": accepted,
+        }
+        assert report == ["رفعه التعريف: app/views.py::v: 0 → 6 استدعاءَ ORM (السقف 5)"]
+        work = self._tree(tmp_path, "work", definition=ratchet.DEFINITION - 1, view_orm=9)
+        worse, _ = ratchet.compare(recorded, ratchet.snapshot(work))
+        assert worse == ["app/views.py::v: 6 → 9 استدعاءَ ORM (السقف 5)"]
+
+    def test_update_and_accept_keep_the_definition(self):
+        before = {**self._state(views={"a/views.py::v": {"lines": 90}}), "definition": 7}
+        after = self._state(views={"a/views.py::v": {"lines": 95}})
+        assert ratchet.ratchet_down(before, after)[0]["definition"] == 7
+        reason = "فرعٌ أساسُه قبل الحارس زاد خمسةَ أسطر"
+        assert ratchet.accept(before, after, "a/views.py::v", reason)["definition"] == 7

@@ -52,18 +52,28 @@
     python -m tests.layering_ratchet --accept "assessments/views.py::class_gradebook" \\
         --reason "فرعٌ أساسُه قبل الحارس زاد ثمانيةَ أسطر؛ ترحيلُه في طلبٍ يليه"
 
-وإعادةُ القياس من الصفر حين يتغيّر **تعريفُ** العدّ نفسُه — قرارٌ يُراجَع سطراً سطراً:
+وإعادةُ القياس حين يتغيّر **تعريفُ** العدّ نفسُه (`DEFINITION`) — تُقاس الشيفرةُ
+المودَعة (`HEAD`) لا الشجرة، بعد أن تمرّ بحارسها القديم، ويُطبع كلُّ بندٍ غيّره التعريف:
 
-    python -m tests.layering_ratchet --rebaseline
+    python -m tests.layering_ratchet --rebaseline [--ref HEAD]
+
+فما زاد في العمل الجاري فوق الإيداع يبقى زيادةً تُسقط، وما أُودع زائداً قبلها يُسقط
+الإيداعَ بحارسه القديم فتُرفض إعادةُ القياس — لا يذوب بندٌ في «تغيّر التعريف».
+وتُشغَّل على المضيف: `git` ليس في الحاوية.
 """
 
 from __future__ import annotations
 
 import argparse
 import ast
+import io
 import json
+import os
 import pathlib
+import subprocess
 import sys
+import tarfile
+import tempfile
 from collections import Counter
 from collections.abc import Iterator
 
@@ -72,6 +82,10 @@ BASELINE = ROOT / "tests" / "layering_baseline.json"
 
 MAX_LINES = 60
 MAX_ORM = 5
+
+#: رقمُ تعريف العدّ، ويُكتب في السجلّ. يُرفع مع كلّ تغييرٍ في ما يُعدّ أو في مَن يُحمَّل
+#: على العرض، ثمّ `--rebaseline` — وهو وحده ما يُجيز إعادةَ القياس.
+DEFINITION = 4
 
 #: توابعُ لا يملكها غيرُ QuerySet والمدير — تُعدّ أينما وقعت، ولو على مديرٍ مرتبط
 #: (`student.enrollments.exclude(`) لا يُعرف نوعُه من الشجرة.
@@ -881,6 +895,8 @@ def ratchet_down(baseline: dict, current: dict) -> tuple[dict, list[str]]:
     }
     if baseline.get("accepted"):
         recorded["accepted"] = baseline["accepted"]
+    if "definition" in baseline:
+        recorded["definition"] = baseline["definition"]
     return recorded, worse
 
 
@@ -940,6 +956,54 @@ def totals(data: dict) -> dict[str, int]:
     }
 
 
+def rebaseline_tree(tree: pathlib.Path) -> tuple[dict, list[str]]:
+    """(السجلُّ مقيساً بهذا التعريف على نسخةٍ مودَعة، وكلُّ بندٍ غيّره التعريف).
+
+    كان `--rebaseline` يقيس الشجرةَ الجارية ويكتبها بلا قيد: عرضٌ زاد في التغيير نفسِه
+    يدخل السجلَّ بقيمته الجديدة بين مئة سطرٍ غيّرها التعريف، ولا يُذكر في `accepted`.
+    فالآن: (1) لا يُعاد القياس إلّا إن اختلف رقمُ التعريف عن المسجَّل؛ (2) النسخةُ
+    المودَعة تمرّ بحارسها هي وسجلِّها هي أوّلاً — فما أُودع زائداً يُرفض هنا؛ (3) يُقاس
+    الإيداعُ لا الشجرة — فما زاد في العمل الجاري يبقى زيادةً بعد إعادة القياس.
+    """
+    old: dict = json.loads((tree / "tests" / "layering_baseline.json").read_text(encoding="utf-8"))
+    if old.get("definition") == DEFINITION:
+        raise ValueError(
+            f"التعريف {DEFINITION} هو المسجَّل — لا إعادةَ قياس. ثبّت النقصَ بـ--update، "
+            "أو اقبل الزيادةَ باسمها بـ--accept؛ وإن غيّرتَ ما يُعدّ فارفع DEFINITION."
+        )
+    proc = subprocess.run(
+        [sys.executable, "-m", "tests.layering_ratchet"],
+        cwd=tree,
+        capture_output=True,
+        encoding="utf-8",
+        errors="replace",
+        env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise ValueError(
+            "الإيداعُ لا يمرّ بحارسه هو — أصلحه أو اقبل زيادتَه باسمها قبل إعادة القياس:\n"
+            + proc.stdout
+            + proc.stderr
+        )
+    recorded = {**snapshot(tree), "definition": DEFINITION}
+    if old.get("accepted"):
+        recorded["accepted"] = old["accepted"]
+    raised, lowered = compare(old, recorded)
+    report = [f"رفعه التعريف: {line}" for line in raised]
+    report += [f"أنقصه التعريف: {line}" for line in lowered]
+    return recorded, report
+
+
+def export_ref(ref: str, dest: pathlib.Path, root: pathlib.Path = ROOT) -> None:
+    """نسخةُ `ref` كما أُودعت، في `dest` — بلا ما في الشجرة من عملٍ جارٍ."""
+    archive = subprocess.run(
+        ["git", "-C", str(root), "archive", "--format=tar", ref], capture_output=True, check=True
+    ).stdout
+    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+        tar.extractall(dest, filter="data")
+
+
 def _read() -> dict:
     data: dict = json.loads(BASELINE.read_text(encoding="utf-8"))
     return data
@@ -958,12 +1022,27 @@ def main(argv: list[str]) -> int:
     mode.add_argument("--rebaseline", action="store_true")
     mode.add_argument("--accept", metavar="WHERE")
     parser.add_argument("--reason", default="")
+    parser.add_argument("--ref", default="HEAD", help="الإيداعُ الذي يُعاد قياسُه")
     args = parser.parse_args(argv)
 
     current = snapshot()
     if args.rebaseline:
-        accepted = _read().get("accepted") if BASELINE.is_file() else None
-        _write({**current, **({"accepted": accepted} if accepted else {})})
+        with tempfile.TemporaryDirectory() as tmp:
+            export_ref(args.ref, pathlib.Path(tmp))
+            try:
+                recorded, report = rebaseline_tree(pathlib.Path(tmp))
+            except ValueError as exc:
+                print(exc)
+                return 1
+        _write(recorded)
+        print("\n".join(report) or "لم يغيّر التعريفُ بنداً.")
+        worse, stale = compare(recorded, current)
+        for line in worse:
+            print(f"زاد فوق الإيداع: {line}")
+        for line in stale:
+            print(f"نقص فوق الإيداع ولم يُثبَّت: {line}")
+        if worse or stale:
+            return 1
     elif args.accept:
         try:
             _write(accept(_read(), current, args.accept, args.reason))
