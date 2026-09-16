@@ -225,30 +225,45 @@ def _template_has_evaluations(template) -> bool:
 
 class EvaluationAxisInline(admin.TabularInline):
     """
-    محاورُ قالبٍ عليه تقييماتٌ للقراءة: درجاتُ المقيِّمين في `custom_axes` مفاتيحُها هذه
-    المحاور، فتغييرُ مفتاحٍ أو وزنٍ أو حذفُه يُبقي مفاتيحَ قديمةً تُجمع في المجموع.
+    للقراءة: المحاورُ منسوخةٌ من الاستمارة الوزاريّة بأمر البذر وحده (`appraisal_seed`)، وهو
+    الذي يصحّح ما انحرف ويُقفل قالباً عليه تقييمات. وكانت اللوحةُ تغيّر وزناً أو مفتاحاً في
+    قالبٍ بلا تقييمات، فتُعتمد تقاريرُ على غير أوزان الاستمارة (المادة 15،
+    02_staff_affairs.md:199: «وفقاً للنماذج المعتمدة من الوزير»).
     """
 
     model = EvaluationAxis
-    extra = 1
+    extra = 0
     fields = ("key", "label", "weight", "order")
+    readonly_fields = fields
 
     def has_add_permission(self, request, obj=None):
-        return not _template_has_evaluations(obj) and super().has_add_permission(request, obj)
+        return False
 
     def has_change_permission(self, request, obj=None):
-        return not _template_has_evaluations(obj) and super().has_change_permission(request, obj)
+        return False
 
     def has_delete_permission(self, request, obj=None):
-        return not _template_has_evaluations(obj) and super().has_delete_permission(request, obj)
+        return False
 
 
 @admin.register(RoleEvaluationTemplate)
 class RoleEvaluationTemplateAdmin(admin.ModelAdmin):
+    """
+    للقراءة: القالبُ استمارةُ دورٍ منسوخةٌ بأمر البذر (`seed_quality_templates --apply`). كانت
+    اللوحةُ تضيف قالباً لدورٍ لا استمارةَ له (ADR-0002 §6.6 بند 12)، وتنقل قالباً عليه تقييماتٌ
+    إلى دورٍ أو عامٍ آخر. ويبقى حذفُ قالبٍ لا تقييماتَ عليه.
+    """
+
     list_display = ("role_name", "school", "academic_year", "is_active", "total_weight")
     list_filter = ("school", "academic_year", "is_active")
     search_fields = ("role_name",)
     inlines = [EvaluationAxisInline]
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
     def has_delete_permission(self, request, obj=None):
         # حذفُه كان يُفرغ `EmployeeEvaluation.template` فيُحسب المجموعُ من المحاور الافتراضيّة

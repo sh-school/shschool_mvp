@@ -1,4 +1,5 @@
-"""[LEGAL] عيوبُ المراجعة العدائيّة لموجة تقييم الأداء (جولة الإصلاح 3، الدفعة الثالثة، 2026-09-16).
+"""[LEGAL] عيوبُ المراجعة العدائيّة لموجة تقييم الأداء (جولة الإصلاح 3، الدفعة الثالثة، 2026-09-16؛
+وجولة الإصلاح 4، 2026-09-17: القالبُ لا يُحسب استمارةً إلّا إن طابقها، واللوحةُ لا تكتبه).
 
 كلُّ اختبارٍ هنا سقط على الفرع قبل إصلاحه. والمراجع:
 
@@ -16,15 +17,24 @@ from datetime import timedelta
 
 import pytest
 from django.apps import apps as django_apps
+from django.contrib import admin as django_admin
+from django.test import RequestFactory
 
-from quality.evaluation_services import save_evaluation
-from quality.models import EmployeeEvaluation, EvaluationScore, RoleEvaluationTemplate
+from quality.evaluation_services import EvaluationRejectedError, approve_evaluation, save_evaluation
+from quality.models import (
+    EmployeeEvaluation,
+    EvaluationAxis,
+    EvaluationScore,
+    RoleEvaluationTemplate,
+)
+from tests.conftest import UserFactory
 from tests.test_evaluation_review_round1 import (
     YEAR,
     _migration_0018_forward,
     _post_total,
     _seed,
     _staff,
+    _url,
     _weighted_evaluation,
 )
 from tests.test_evaluation_review_round3 import _FOREIGN_KEYS
@@ -147,3 +157,91 @@ def test_migration_0018_reverse_does_not_overwrite_a_row_changed_since(
     _migration_0018_backward()(django_apps, None)
     weighted.refresh_from_db()
     assert (weighted.total_score, weighted.rating) == (70, "good")
+
+
+# ── 4. القالبُ لا يُحسب «استمارةً» إلّا إن طابق استمارةَ دوره في الملفّ الوزاريّ ─────────
+
+
+def _superuser_request():
+    request = RequestFactory().get("/admin/")
+    request.user = UserFactory(is_staff=True, is_superuser=True)
+    return request
+
+
+@pytest.mark.django_db
+def test_admin_writes_no_template_or_axis(school):
+    """
+    القوالبُ منسوخةٌ من الاستمارات السبع (`quality/ministry_appraisal_forms.json`) بأمر البذر
+    وحده. فاللوحةُ كانت تضيف قالباً لدورٍ لا استمارةَ له، وتغيّر وزنَ محورٍ أو دورَ قالبٍ عليه
+    تقييمات — فيُعتمد تقريرٌ سنويٌّ على غير «النماذج المعتمدة من الوزير» (المادة 15،
+    02_staff_affairs.md:199).
+    """
+    _seed(school)
+    template = RoleEvaluationTemplate.objects.get(
+        school=school, role_name="teacher", academic_year=YEAR
+    )
+    request = _superuser_request()
+    template_admin = django_admin.site._registry[RoleEvaluationTemplate]
+    assert template_admin.has_add_permission(request) is False
+    assert template_admin.has_change_permission(request, template) is False
+    inline = template_admin.get_inline_instances(request, template)[0]
+    assert inline.has_add_permission(request, template) is False
+    assert inline.has_change_permission(request, template) is False
+    assert inline.has_delete_permission(request, template) is False
+
+
+@pytest.mark.django_db
+def test_a_template_for_a_role_without_a_form_opens_no_annual_report(
+    client, school, principal_user
+):
+    """
+    ADR-0002 §6.6 بند 12: لا خانةَ للمنسّق في رأس أيٍّ من الاستمارات السبع. فقالبٌ له (من
+    اللوحة أو من قاعدةٍ قديمة) لا يفتح تقريراً سنويّاً، ولا تُعدّ درجاتُه درجاتِ استمارة.
+    """
+    _seed(school)
+    coordinator = _staff(school, "coordinator")
+    template = RoleEvaluationTemplate.objects.create(
+        school=school, role_name="coordinator", academic_year=YEAR
+    )
+    EvaluationAxis.objects.create(template=template, key="all", label="الأداء", weight=100)
+    client.force_login(principal_user)
+    assert client.get(_url(coordinator)).status_code == 409
+
+    vice = _staff(school, "vice_academic")
+    evaluation = EmployeeEvaluation.objects.create(
+        school=school, employee=coordinator, evaluator=vice, academic_year=YEAR,
+        period="S2", template=template, status="submitted",
+    )  # fmt: skip
+    EvaluationScore.objects.create(evaluation=evaluation, evaluator=vice, custom_axes={"all": 95})
+    assert evaluation.has_form_scores() is False
+    with pytest.raises(EvaluationRejectedError, match="استمارة"):
+        approve_evaluation(evaluation=evaluation, approver=principal_user)
+
+
+@pytest.mark.django_db
+def test_a_seeded_template_with_a_changed_weight_is_not_the_form(
+    client, school, principal_user, teacher_user
+):
+    """
+    وزنُ محورٍ غُيِّر بعد البذر (قبل أن يُربط به تقييم) ليس وزنَ الاستمارة المطبوعة
+    («استمارة تقييم المعلم والدليل التفسيري.pdf»، المنقولة في
+    06_attendance_performance_review.md §2.3): فلا تقريرَ يُفتح عليه ولا يُعتمد.
+    """
+    form = _seed(school)
+    template = RoleEvaluationTemplate.objects.get(
+        school=school, role_name="teacher", academic_year=YEAR
+    )
+    first = template.axes.order_by("order").first()
+    EvaluationAxis.objects.filter(pk=first.pk).update(weight=first.weight + 5)
+    client.force_login(principal_user)
+    assert client.get(_url(teacher_user)).status_code == 409
+
+    vice = _staff(school, "vice_academic")
+    evaluation = EmployeeEvaluation.objects.create(
+        school=school, employee=teacher_user, evaluator=vice, academic_year=YEAR,
+        period="S2", template=template, status="submitted",
+    )  # fmt: skip
+    EvaluationScore.objects.create(
+        evaluation=evaluation, evaluator=vice, custom_axes={a.key: a.weight for a in form.axes}
+    )
+    assert evaluation.has_form_scores() is False

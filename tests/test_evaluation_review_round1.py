@@ -81,6 +81,11 @@ def _post_total(form, total, action="submitted"):
     return data
 
 
+def _form_scores(form, total):
+    """`_post_total` أرقاماً — كما يخزّنها `save_evaluation` في `custom_axes`."""
+    return {k: int(v) for k, v in _post_total(form, total).items() if k != "action"}
+
+
 def _placed_by_vice(client, school, teacher_user, total=92):
     form = _seed(school)
     vice = _staff(school, "vice_academic", "النائب الأكاديمي")
@@ -355,12 +360,14 @@ def _migration_0018_forward():
 
 
 def _weighted_evaluation(school, employee, evaluator, totals):
-    """تقييمٌ على قالبٍ بمقيِّمين درجاتُهم `totals` (وزنُ كلٍّ 100)."""
-    template = RoleEvaluationTemplate.objects.create(
+    """
+    تقييمٌ على قالب المعلّم المبذور بمقيِّمين درجاتُهم `totals` (وزنُ كلٍّ 100). والقالبُ استمارةُ
+    الدور بعينها — وإلّا لم تكن درجاتِ الاستمارة (`has_form_scores`، `matches_ministry_form`).
+    """
+    form = _seed(school)
+    template = RoleEvaluationTemplate.objects.get(
         school=school, role_name="teacher", academic_year=YEAR
     )
-    # محورٌ واحدٌ مفتاحُه مفتاحُ الدرجات — وإلّا لم تكن درجاتِ الاستمارة (`has_form_scores`).
-    EvaluationAxis.objects.create(template=template, key="all", label="الكلّ", weight=100)
     evaluation = EmployeeEvaluation.objects.create(
         school=school, employee=employee, evaluator=evaluator, template=template,
         academic_year=YEAR, period="S2", status="submitted",
@@ -369,7 +376,7 @@ def _weighted_evaluation(school, employee, evaluator, totals):
         EvaluationScore.objects.create(
             evaluation=evaluation,
             evaluator=evaluator if n == 0 else UserFactory(),
-            custom_axes={"all": total},
+            custom_axes=_form_scores(form, total),
         )
     return evaluation
 

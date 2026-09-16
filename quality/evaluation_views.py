@@ -84,8 +84,9 @@ def _get_employee_role(school, employee):
 def _get_axes_for_employee(school, employee, year):
     """
     الحصول على محاور التقييم حسب دور الموظف.
-    إذا وُجد قالب مخصص → محاور القالب.
-    وإلا → المحاور الأربعة الافتراضية.
+    إذا وُجد قالبٌ هو استمارةُ دوره (`matches_ministry_form`) → محاور القالب.
+    وإلا → المحاور الأربعة الافتراضية — فلا يُفتح عليها تقريرٌ سنويّ (المادة 15،
+    02_staff_affairs.md:199: «وفقاً للنماذج المعتمدة من الوزير»).
     """
     role_name = _get_employee_role(school, employee)
     if role_name:
@@ -96,7 +97,7 @@ def _get_axes_for_employee(school, employee, year):
             .prefetch_related("axes")
             .first()
         )
-        if template and template.axes.exists():
+        if template and template.matches_ministry_form():
             return (
                 [(a.key, a.label, a.weight) for a in template.axes.all()],
                 template,
@@ -133,11 +134,14 @@ def _get_evaluable_staff(school, year, viewer=None):
         ).select_related("evaluator")
     }
 
-    seeded_roles = set(
-        RoleEvaluationTemplate.objects.filter(
-            school=school, academic_year=year, is_active=True, axes__isnull=False
-        ).values_list("role_name", flat=True)
-    )
+    # «مبذور» = قالبٌ هو استمارةُ دوره، كما يقرؤه `_get_axes_for_employee`.
+    seeded_roles = {
+        t.role_name
+        for t in RoleEvaluationTemplate.objects.filter(
+            school=school, academic_year=year, is_active=True
+        ).prefetch_related("axes")
+        if t.matches_ministry_form()
+    }
 
     staff_list = []
     for m in memberships:

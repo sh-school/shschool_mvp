@@ -682,6 +682,21 @@ class RoleEvaluationTemplate(models.Model):
     def total_weight(self):
         return sum(a.weight for a in self.axes.all())
 
+    def matches_ministry_form(self) -> bool:
+        """
+        أهو استمارةُ دوره كما طُبعت؟ الدورُ في `forms_by_role()`، ومحاورُه بمفاتيحها وأوزانها
+        محاورُ تلك الاستمارة لا غير (`quality/ministry_appraisal_forms.json`، المنسوخ من
+        06_attendance_performance_review.md §2.3–2.9). فالتقريرُ السنويّ «وفقاً للنماذج المعتمدة
+        من الوزير» (المادة 15، 02_staff_affairs.md:199)، وقالبٌ لدورٍ بلا استمارة أو بوزنٍ
+        غُيِّر بعد البذر ليس منها. (يقرأ `.all()` ليكفيه `prefetch_related("axes")`.)
+        """
+        form = forms_by_role().get(self.role_name)
+        if form is None:
+            return False
+        printed = {(axis.key, axis.weight) for axis in form.axes}
+        stored = [(axis.key, axis.weight) for axis in self.axes.all()]
+        return len(stored) == len(printed) and set(stored) == printed
+
 
 class EvaluationAxis(models.Model):
     """
@@ -957,13 +972,14 @@ class EmployeeEvaluation(models.Model):
 
     def has_form_scores(self) -> bool:
         """
-        أدرجاتُه درجاتُ استمارة قالبه؟ مربوطٌ بقالبٍ له محاور، وعنده صفُّ درجاتٍ واحدٌ على الأقلّ،
+        أدرجاتُه درجاتُ استمارة قالبه؟ مربوطٌ بقالبٍ هو استمارةُ دوره (`matches_ministry_form`:
+        كان يكفي أيُّ قالبٍ له محاور، ولوحةُ الإدارة كانت تكتبه)، وعنده صفُّ درجاتٍ واحدٌ على الأقلّ،
         ومفاتيحُ كلِّ صفٍّ هي مفاتيحُ محاور القالب بعينها. كان يكفي وجودُ `EvaluationScore`، فصفٌّ
         أُدخلت درجاتُه من لوحة الإدارة بمفاتيحَ أخرى يُجمع ويُعتمد تقريراً سنويّاً.
         (يقرأ `.all()` ليكفيه `prefetch_related("scores", "template__axes")`.)
         """
         template = None if self._state.adding or self.template_id is None else self.template
-        if template is None:
+        if template is None or not template.matches_ministry_form():
             return False
         keys = {axis.key for axis in template.axes.all()}
         rows = [score.custom_axes or {} for score in self.scores.all()]
