@@ -533,6 +533,10 @@ class PrincipalDelegation(AuditedModel):
     بطاقةُ نائب المدير للشؤون الإدارية وشؤون الطلاب، آخرُ بنودها: «الإنابة عن المدير في
     مهامه في حال غيابه» (م-24). فالإنابةُ تقوم بغياب المدير المرصود وحدَه، وهذا السجلُّ
     أثرٌ للتدقيق يكتبه المديرُ حاضراً، لا شرطٌ لقيامها.
+
+    والأثرُ لا يُمحى (م-20 وم-25): رفعُ الإنابة يكتب ``revoked_at`` و``revoked_by`` ولا
+    يحذف الصفّ، والإنابةُ لنائبٍ آخرَ في اليوم نفسِه ترفع الأولى وتكتب صفّاً جديداً —
+    فيبقى من أُنيب ومتى رُفع، وتشير إليه قراراتُ الإنابة (``delegation_record``).
     """
 
     school = models.ForeignKey(
@@ -548,13 +552,27 @@ class PrincipalDelegation(AuditedModel):
         related_name="principal_delegations",
         verbose_name="النائب المُناب",
     )
+    revoked_at = models.DateTimeField(null=True, blank=True, verbose_name="رُفعت في")
+    revoked_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="revoked_principal_delegations",
+        verbose_name="رفعها",
+    )
 
     class Meta:
-        ordering = ["-date"]
+        ordering = ["-date", "-created_at"]
         verbose_name = "إنابة عن المدير"
         verbose_name_plural = "الإنابات عن المدير"
         constraints = [
-            models.UniqueConstraint(fields=["school", "date"], name="one_delegation_per_day"),
+            # إنابةٌ قائمةٌ واحدةٌ لليوم، والمرفوعاتُ قبلها باقيةٌ أثراً (م-25).
+            models.UniqueConstraint(
+                fields=["school", "date"],
+                condition=models.Q(revoked_at__isnull=True),
+                name="one_active_delegation_per_day",
+            ),
         ]
 
     def __str__(self) -> str:

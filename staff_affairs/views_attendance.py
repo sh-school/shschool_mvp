@@ -64,24 +64,31 @@ def _day(raw: str | None) -> date:
     return parsed if parsed and parsed <= today else today
 
 
-def _row_values(record: StaffAttendance | None) -> dict[str, str]:
-    """ما يُعرض في حقول سطر الرصد من السجلّ المحفوظ."""
+def _row_values(record: StaffAttendance | None, can_excuse: bool) -> dict[str, str]:
+    """ما يُعرض في حقول سطر الرصد من السجلّ المحفوظ.
+
+    ونصُّ العذر المقبول لجهة قبوله وحدَها (م-7): قد يحمل بيانةً صحّيّة (PDPPL م.16)،
+    فلا يصل قالبَ من يرصد الوقت أصلاً.
+    """
     if record is None:
         return dict.fromkeys(("check_in", "check_out", "absence_type", "accepted_excuse"), "")
     return {
         "check_in": f"{record.check_in:%H:%M}" if record.check_in else "",
         "check_out": f"{record.check_out:%H:%M}" if record.check_out else "",
         "absence_type": record.absence_type,
-        "accepted_excuse": record.accepted_excuse,
+        "accepted_excuse": record.accepted_excuse if can_excuse else "",
     }
 
 
-def _posted_values(post: Any) -> dict[str, str]:
+def _posted_values(post: Any, can_excuse: bool) -> dict[str, str]:
     """ما كتبه المستخدمُ في السطر كما أُرسل — يعود مع رسالة الرفض فلا يُكتب ثانية."""
-    return {
+    values = {
         key: str(post.get(key, ""))[:300]
         for key in ("check_in", "check_out", "absence_type", "accepted_excuse")
     }
+    if not can_excuse:
+        values["accepted_excuse"] = ""
+    return values
 
 
 def _month(raw: str | None) -> tuple[int, int]:
@@ -105,11 +112,12 @@ def attendance_board(request: HttpRequest) -> HttpResponse:
     """
     day = _day(request.GET.get("date"))
     can_record = StaffAttendanceService.can_record(_school(request), _user(request))
+    can_excuse = StaffAttendanceService.can_decide_excuse(_school(request), _user(request))
     board: dict[str, Any] = {"rows": [], "counts": {}}
     if can_record:
         board = StaffAttendanceService.daily_board(_school(request), day)
         for row in board["rows"]:
-            row["values"] = _row_values(row["record"])
+            row["values"] = _row_values(row["record"], can_excuse)
     return render(
         request,
         "staff_affairs/attendance_board.html",
@@ -118,6 +126,7 @@ def attendance_board(request: HttpRequest) -> HttpResponse:
             "today": timezone.localdate(),
             "absence_types": ABSENCE_TYPES,
             "can_record": can_record,
+            "can_excuse": can_excuse,
             **board,
         },
     )
@@ -148,13 +157,21 @@ def attendance_mark(request: HttpRequest) -> HttpResponse:
             check_in=data["check_in"],
             check_out=data["check_out"],
             absence_type=data["absence_type"],
-            accepted_excuse=data["accepted_excuse"],
+            # الحقلُ لا يُعرض إلّا لجهة القبول؛ وغيابُه «لم يُمسّ العذر» لا «رُفع» (م-7).
+            accepted_excuse=(
+                data["accepted_excuse"] if "accepted_excuse" in request.POST else None
+            ),
             actor=_user(request),
             request=request,
         )
     except PolicyError as exc:
         error = str(exc)
-    values = _posted_values(request.POST) if error else _row_values(row["record"])
+    can_excuse = StaffAttendanceService.can_decide_excuse(_school(request), _user(request))
+    values = (
+        _posted_values(request.POST, can_excuse)
+        if error
+        else _row_values(row["record"], can_excuse)
+    )
     return render(
         request,
         "staff_affairs/partials/attendance_row.html",
@@ -164,6 +181,7 @@ def attendance_mark(request: HttpRequest) -> HttpResponse:
             "day": data["date"],
             "error": error,
             "absence_types": ABSENCE_TYPES,
+            "can_excuse": can_excuse,
         },
     )
 

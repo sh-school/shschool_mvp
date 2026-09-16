@@ -4,7 +4,8 @@
 وقتُ الحضور شاهدُ «حاضر» و«متأخّر» و«مستأذن» (البندان 2.1 و5.2) ويُرسَل مع النقرة،
 ووقتُ الانصراف يُعدّ به ما قبل 14:00 (1.1)؛ ونقرةٌ تخالف التصنيفَ تعود هنا برسالةٍ
 تسمّي البند. وتحت «غياب مغطّى / عذر مقبول»: نوعُ يوم الغياب من سجلّ الغياب، والعذرُ
-الذي يجعل الحضورَ بعد 9:00 تأخّراً (2.4).
+الذي يجعل الحضورَ بعد 9:00 تأخّراً (2.4) — وحقلُه ونصُّه لمن يقبله وحدَه (can_excuse:
+المدير أو من ينوب عنه، م-7)، فالنصُّ قد يحمل بيانةً صحّيّة؛ ولغيره أنّ عذراً قُبل فقط.
 `values` ما في الحقول: من السجلّ المحفوظ، أو ممّا أُرسل إن رُفضت النقرة — فلا يُمحى ما كُتب.
 {% endcomment %}
 {% with sid=staff.pk|stringformat:"s" %}{% with tid="sa-in-"|add:sid oid="sa-out-"|add:sid aid="sa-abs-"|add:sid eid="sa-exc-"|add:sid %}
@@ -27,21 +28,25 @@
 
   <div class="att-row__actions" role="group" aria-label="حالة {{ staff.full_name }}">
     {% url 'staff_affairs:attendance_mark' as mark_url %}
-    <button type="button" hx-post="{{ mark_url }}" hx-vals='{"staff_id": "{{ staff.pk }}", "date": "{{ day|date:"Y-m-d" }}", "status": "present"}' hx-include="#{{ tid }}, #{{ oid }}, #{{ aid }}, #{{ eid }}" hx-target="#sa-att-{{ staff.pk }}" hx-swap="outerHTML"
+    <button type="button" hx-post="{{ mark_url }}" hx-vals='{"staff_id": "{{ staff.pk }}", "date": "{{ day|date:"Y-m-d" }}", "status": "present"}' hx-include="#{{ tid }}, #{{ oid }}, #{{ aid }}{% if can_excuse %}, #{{ eid }}{% endif %}" hx-target="#sa-att-{{ staff.pk }}" hx-swap="outerHTML"
       class="att-btn is-present{% if record.status == 'present' %} is-current{% endif %}" aria-pressed="{% if record.status == 'present' %}true{% else %}false{% endif %}">حاضر</button>
-    <button type="button" hx-post="{{ mark_url }}" hx-vals='{"staff_id": "{{ staff.pk }}", "date": "{{ day|date:"Y-m-d" }}", "status": "late"}' hx-include="#{{ tid }}, #{{ oid }}, #{{ aid }}, #{{ eid }}" hx-target="#sa-att-{{ staff.pk }}" hx-swap="outerHTML"
+    <button type="button" hx-post="{{ mark_url }}" hx-vals='{"staff_id": "{{ staff.pk }}", "date": "{{ day|date:"Y-m-d" }}", "status": "late"}' hx-include="#{{ tid }}, #{{ oid }}, #{{ aid }}{% if can_excuse %}, #{{ eid }}{% endif %}" hx-target="#sa-att-{{ staff.pk }}" hx-swap="outerHTML"
       class="att-btn is-late{% if record.status == 'late' %} is-current{% endif %}" aria-pressed="{% if record.status == 'late' %}true{% else %}false{% endif %}">متأخّر</button>
-    <button type="button" hx-post="{{ mark_url }}" hx-vals='{"staff_id": "{{ staff.pk }}", "date": "{{ day|date:"Y-m-d" }}", "status": "absent"}' hx-include="#{{ tid }}, #{{ oid }}, #{{ aid }}, #{{ eid }}" hx-target="#sa-att-{{ staff.pk }}" hx-swap="outerHTML"
+    <button type="button" hx-post="{{ mark_url }}" hx-vals='{"staff_id": "{{ staff.pk }}", "date": "{{ day|date:"Y-m-d" }}", "status": "absent"}' hx-include="#{{ tid }}, #{{ oid }}, #{{ aid }}{% if can_excuse %}, #{{ eid }}{% endif %}" hx-target="#sa-att-{{ staff.pk }}" hx-swap="outerHTML"
       class="att-btn is-absent{% if record.status == 'absent' %} is-current{% endif %}" aria-pressed="{% if record.status == 'absent' %}true{% else %}false{% endif %}">غائب</button>
-    <button type="button" hx-post="{{ mark_url }}" hx-vals='{"staff_id": "{{ staff.pk }}", "date": "{{ day|date:"Y-m-d" }}", "status": "permitted"}' hx-include="#{{ tid }}, #{{ oid }}, #{{ aid }}, #{{ eid }}" hx-target="#sa-att-{{ staff.pk }}" hx-swap="outerHTML"
+    <button type="button" hx-post="{{ mark_url }}" hx-vals='{"staff_id": "{{ staff.pk }}", "date": "{{ day|date:"Y-m-d" }}", "status": "permitted"}' hx-include="#{{ tid }}, #{{ oid }}, #{{ aid }}{% if can_excuse %}, #{{ eid }}{% endif %}" hx-target="#sa-att-{{ staff.pk }}" hx-swap="outerHTML"
       class="att-btn is-excused{% if record.status == 'permitted' %} is-current{% endif %}" aria-pressed="{% if record.status == 'permitted' %}true{% else %}false{% endif %}">مستأذن</button>
   </div>
 
-  <details class="att-row__more"{% if values.absence_type or values.accepted_excuse %} open{% endif %}>
+  <details class="att-row__more"{% if values.absence_type or record.accepted_excuse %} open{% endif %}>
     <summary>غياب مغطّى / عذر مقبول</summary>
     <div class="att-row__more-fields">
       {% field "absence_type" "نوع الغياب (سجل الغياب)" type="select" choices=absence_types blank="— غير مغطّى —" value=values.absence_type id=aid %}
+      {% if can_excuse %}
       {% field "accepted_excuse" "العذر المقبول لمن حضر بعد 9:00 — يقبله المدير أو من ينوب عنه (البند 2.4)" value=values.accepted_excuse id=eid maxlength=300 grow=True %}
+      {% elif record.accepted_excuse %}
+      <p class="form-note">قُبل عذرٌ لهذا اليوم — نصُّه للمدير ومن ينوب عنه (البند 2.4)، وتغييرُ وقت الحضور يحتاج منهما قبولاً جديداً.</p>
+      {% endif %}
     </div>
   </details>
 </div>

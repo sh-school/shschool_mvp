@@ -274,7 +274,7 @@ class _StageDay:
         self.today = now.date()
         self._holders: dict[str, set[Any]] = {}
         self._absent: set[Any] | None = None
-        self._delegates: set[Any] | None = None
+        self._delegates: dict[Any, Any] | None = None
 
     def holders(self, role: str) -> set[Any]:
         if role not in self._holders:
@@ -294,28 +294,42 @@ class _StageDay:
             )
         return self._absent
 
-    def delegates(self) -> set[Any]:
-        """من أنابه المديرُ بقرارٍ صريحٍ لهذا اليوم — ويبقى مقبولاً مع الإنابة التلقائيّة (م-25)."""
+    def _explicit(self) -> dict[Any, Any]:
+        """الإنابةُ الصريحةُ القائمةُ اليوم: {النائب: معرّفُ سجلّها} — والمرفوعةُ لا تُعدّ."""
         if self._delegates is None:
-            named = set(
-                PrincipalDelegation.objects.filter(school=self.school, date=self.today).values_list(
-                    "delegate_id", flat=True
-                )
-            )
-            self._delegates = named & self.holders(PRINCIPAL_DELEGATE)
+            deputies = self.holders(PRINCIPAL_DELEGATE)
+            self._delegates = {
+                delegate: pk
+                for pk, delegate in PrincipalDelegation.objects.filter(
+                    school=self.school, date=self.today, revoked_at__isnull=True
+                ).values_list("pk", "delegate_id")
+                if delegate in deputies
+            }
         return self._delegates
 
-    def delegation_basis(self) -> dict[str, Any]:
+    def delegates(self) -> set[Any]:
+        """من أنابه المديرُ بقرارٍ صريحٍ لهذا اليوم — ويبقى مقبولاً مع الإنابة التلقائيّة (م-25)."""
+        return set(self._explicit())
+
+    def delegation_basis(self, actor: CustomUser) -> dict[str, Any]:
         """علّةُ قيام الإنابة الآن — تُكتب مع كلّ قرارٍ بالإنابة في التدقيق (م-25).
 
-        وحين تقوم بغياب المدير المرصود يُكتب سجلُّ الغياب ومن رصده، فيرتبط القرارُ بالرصد
-        الذي أقامه: رصدُ الغياب بيانٌ يكتبه غيرُ المدير، فلا يبقى أثرُه منفصلاً عمّا تلاه.
+        م-25: «كلّ قرارٍ بالإنابة يُوسم «بالإنابة» مع اسم النائب» — فيُكتب معرّفُ النائب
+        (لا اسمُه: التدقيقُ هنا بلا أسماء) مع علّة الإنابة. وحين تقوم بإنابةٍ صريحة يُكتب
+        معرّفُ سجلّها، وهو لا يُحذف برفعها (``DelegationService.revoke``). وحين تقوم بغياب
+        المدير المرصود يُكتب سجلُّ الغياب ومن رصده، فيرتبط القرارُ بالرصد الذي أقامه.
         """
+        return {**self._basis(actor), "delegate": str(actor.pk)}
+
+    def _basis(self, actor: CustomUser) -> dict[str, Any]:
         principals = self.holders(PRINCIPAL)
         if not principals:
             return {"delegation_basis": "vacant"}  # م-26
         if principals - self.absent():
-            return {"delegation_basis": "explicit"}
+            return {
+                "delegation_basis": "explicit",
+                "delegation_record": _plain(self._explicit().get(actor.pk)),
+            }
         records = StaffAttendance.objects.filter(
             school=self.school, date=self.today, staff_id__in=principals, status="absent"
         ).values_list("pk", "updated_by_id")
@@ -781,7 +795,7 @@ class PermitService:
             if _role_of(actor) == PRINCIPAL_DELEGATE and actor.pk in PermitService._principal_side(
                 stage_day, permit.staff_id
             ):
-                changes.update(stage_day.delegation_basis())
+                changes.update(stage_day.delegation_basis(actor))
         # النائبُ الإداريّ يوقّع مربّعَ مسؤوله ثمّ يعتمد بالإنابة (م-21 وم-24): المواصفةُ
         # لا تمنعه، فيُقبل ويُكتب في التدقيق أنّ التوقيعين من يدٍ واحدة.
         if (
@@ -960,7 +974,9 @@ class DelegationService:
     @staticmethod
     def today_for(school: School) -> PrincipalDelegation | None:
         return (
-            PrincipalDelegation.objects.filter(school=school, date=_now().date())
+            PrincipalDelegation.objects.filter(
+                school=school, date=_now().date(), revoked_at__isnull=True
+            )
             .select_related("delegate")
             .first()
         )
@@ -989,24 +1005,49 @@ class DelegationService:
             raise PolicyError("الإنابةُ لنائب المدير للشؤون الإدارية وحدَه (م-24).")
         if day < _now().date():
             raise PolicyError("لا إنابةَ ليومٍ مضى.")
-        delegation, created = PrincipalDelegation.objects.update_or_create(
-            school=school,
-            date=day,
-            defaults={"delegate": delegate, "updated_by": principal},
-            create_defaults={
-                "delegate": delegate,
-                "created_by": principal,
-                "updated_by": principal,
-            },
+        current = DelegationService._active(school, day)
+        if current is not None and current.delegate_id == delegate.pk:
+            return current  # الإنابةُ نفسُها قائمة — لا سجلَّ ثانياً
+        if current is not None:
+            DelegationService._lift(current, principal, request)
+        try:
+            with transaction.atomic():
+                delegation = PrincipalDelegation.objects.create(
+                    school=school,
+                    date=day,
+                    delegate=delegate,
+                    created_by=principal,
+                    updated_by=principal,
+                )
+        except IntegrityError as exc:  # إنابةٌ أخرى كُتبت في اللحظة نفسِها
+            raise PolicyError("كُتبت إنابةٌ لهذا اليوم للتوّ — أعد تحميل الطابور.") from exc
+        _audit(principal, "create", delegation, {"delegate": str(delegate.pk)}, request)
+        return delegation
+
+    @staticmethod
+    def _active(school: School, day: date) -> PrincipalDelegation | None:
+        """الإنابةُ القائمةُ ليومٍ، تحت قفل صفّها — فلا يتسابق رفعٌ وإنابة."""
+        return (
+            PrincipalDelegation.objects.select_for_update()
+            .filter(school=school, date=day, revoked_at__isnull=True)
+            .first()
         )
+
+    @staticmethod
+    def _lift(
+        delegation: PrincipalDelegation, principal: CustomUser, request: HttpRequest | None
+    ) -> None:
+        """رفعُ إنابةٍ بلا حذف (م-20 وم-25): يبقى من أُنيب، ويُكتب من رفعها ومتى."""
+        delegation.revoked_at, delegation.revoked_by = _now(), principal
+        delegation.updated_by = principal
+        delegation.save(update_fields=["revoked_at", "revoked_by", "updated_by", "updated_at"])
         _audit(
             principal,
-            "create" if created else "update",
+            "update",
             delegation,
-            {"delegate": "vice_admin"},
+            {"delegate": str(delegation.delegate_id), "revoked": True},
             request,
         )
-        return delegation
 
     @staticmethod
     @transaction.atomic
@@ -1015,11 +1056,9 @@ class DelegationService:
     ) -> None:
         if principal.pk not in _active_role_holders(school, PRINCIPAL):
             raise PolicyError("لا يرفع الإنابةَ إلّا المديرُ نفسُه.")
-        delegation = DelegationService.today_for(school)
-        if delegation is None:
-            return
-        _audit(principal, "delete", delegation, {"delegate": "vice_admin"}, request)
-        delegation.delete()
+        delegation = DelegationService._active(school, _now().date())
+        if delegation is not None:
+            DelegationService._lift(delegation, principal, request)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -1158,7 +1197,7 @@ class ExceptionService:
         changes: dict[str, Any] = {"status": exception.status}
         if on_behalf:
             changes["on_behalf_of"] = PRINCIPAL
-            changes.update(stage_day.delegation_basis())
+            changes.update(stage_day.delegation_basis(actor))
         _audit(actor, "update", exception, changes, request)
         if approve:
             # م-32: عند الاعتماد تُعاد مطابقةُ أيّامه. وم-35: التغطيةُ بعد المهلة لا تُمنع —
@@ -1418,6 +1457,15 @@ class StaffAttendanceService:
         return user.pk in PermitService._principal_side(_StageDay(school, _now()), None)
 
     @staticmethod
+    def can_decide_excuse(school: School, user: CustomUser) -> bool:
+        """أيقبل هذا المستخدمُ العذرَ ويرفعه الآن؟ — المديرُ أو من ينوب عنه (م-7 وم-24).
+
+        ولهم وحدَهم يُعرض حقلُ العذر ونصُّه في لوحة الرصد؛ والخدمةُ تفحص ذلك ثانيةً
+        لكلّ موظّف (``mark``).
+        """
+        return user.pk in PermitService._principal_side(_StageDay(school, _now()), None)
+
+    @staticmethod
     @transaction.atomic
     def mark(
         *,
@@ -1429,7 +1477,7 @@ class StaffAttendanceService:
         check_in: time | None = None,
         check_out: time | None = None,
         absence_type: str = "",
-        accepted_excuse: str = "",
+        accepted_excuse: str | None = "",
         request: HttpRequest | None = None,
     ) -> StaffAttendance:
         """رصدُ حالة موظّفٍ في يوم — بنقرة، ووقتُ الحضور شاهدُها.
@@ -1438,7 +1486,9 @@ class StaffAttendanceService:
         * الحاضرُ والمتأخّرُ والمستأذنُ بوقت حضورهم، فبه تُحسب دقائقُ التأخّر (م-3 وم-6)،
           ونقرةٌ تخالف تصنيفَه تُرفض باسم البند. والغائبُ بلا وقتٍ جائز.
         * ``accepted_excuse`` (م-7) لا يقبله إلّا المديرُ أو من ينوب عنه، ويُكتب لمن حضر
-          بعد 9:00 بلا تغطيةٍ سارية، فيُعدّ متأخّراً بدقائقه لا غائباً.
+          بعد 9:00 بلا تغطيةٍ سارية، فيُعدّ متأخّراً بدقائقه لا غائباً. و``None`` «لم يُعرض
+          الحقل»: يبقى العذرُ المحفوظ كما هو — فالراصدُ لا يرى نصَّه (قد يحمل بيانةً صحّيّة،
+          PDPPL م.16) ويكتب الوقتَ في سطرٍ قُبل عذرُه دون أن يُعدّ ذلك رفعاً له.
         * ``absence_type`` نوعُ يوم الغياب من سجلّ الغياب المدرسيّ (إجازةٌ أو مهمّة)،
           والفارغُ غيابٌ لم يُغطَّ بعد (م-35).
         * ``check_out`` وقتُ الانصراف، وما بينه وبين 14:00 بلا إذنٍ يُعدّ (م-1) — إلّا في
@@ -1461,7 +1511,6 @@ class StaffAttendanceService:
         if not staff_members(school).filter(pk=staff.pk).exists():
             raise PolicyError("ليس من كادر هذه المدرسة.")
         absence_type = absence_type or ""
-        excuse = accepted_excuse.strip()[:300]
         if absence_type and absence_type not in ABSENCE_TYPE_KEYS:
             raise PolicyError("نوعُ غيابٍ غيرُ معروف (سجلّ الغياب).")
         if absence_type and status != "absent":
@@ -1473,6 +1522,17 @@ class StaffAttendanceService:
             )
         if check_out is not None and (check_in is None or check_out <= check_in):
             raise PolicyError("وقتُ الانصراف يُكتب بعد وقت الحضور.")
+        if day == now.date():
+            # ما لم يقع لا يُرصد: الغيابُ بحضورٍ بعد 9:00 (م-4) لا يُعرف قبل أن يمضي وقتُه،
+            # فلا يتجاوز حارسَ التاسعة ولا يُقيم إنابةً مبكرةً (م-25)؛ والانصرافُ قبل وقوعه
+            # يمحو دقائقَ الخروج المبكر (م-8). والمقارنةُ بالدقيقة (م-2).
+            moment = _minute(now.time())
+            for label, value in (("الحضور", check_in), ("الانصراف", check_out)):
+                if value is not None and _minute(value) > moment:
+                    raise PolicyError(
+                        f"وقتُ {label} {value:%H:%M} لم يأتِ بعد — لا يُرصد اليومَ إلّا ما وقع "
+                        "(م-4 وم-8)."
+                    )
         if (
             status == "absent"
             and check_in is None
@@ -1486,6 +1546,10 @@ class StaffAttendanceService:
             )
         CustomUser.objects.select_for_update().filter(pk=staff.pk).first()
         record = StaffAttendanceService._locked_record(school, staff, day)
+        if accepted_excuse is None:
+            excuse = record.accepted_excuse if record is not None else ""
+        else:
+            excuse = accepted_excuse.strip()[:300]
         derived = StaffAttendanceService._derive(
             StaffAttendanceService._cover(school, staff, day), check_in, check_out, bool(excuse)
         )
@@ -1512,7 +1576,9 @@ class StaffAttendanceService:
         withdrawing = record is not None and bool(record.accepted_excuse) and not excuse
         deciding = accepting or withdrawing
         stage_day = _StageDay(school, now)
-        basis = stage_day.delegation_basis() if deciding and _role_of(actor) != PRINCIPAL else {}
+        basis = (
+            stage_day.delegation_basis(actor) if deciding and _role_of(actor) != PRINCIPAL else {}
+        )
         if deciding and actor.pk not in PermitService._principal_side(stage_day, staff.pk):
             raise PolicyError(
                 "العذرُ المقبول (البند 2.4) يقبله ويرفعه مديرُ المدرسة أو من ينوب عنه (م-7 "

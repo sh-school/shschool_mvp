@@ -22,7 +22,7 @@
   {% endfilter_bar %}
 
   {% kpi_strip label="مجاميع الشهر" %}
-    {% with permitted=totals.permitted|stringformat:"s" %}{% kpi "أيام حضور" totals.present sub="مستأذن: "|add:permitted title="أيام الحضور، ومنها أيام الاستئذان في الحاشية" tone="green" %}{% endwith %}
+    {% with permitted=totals.permitted|stringformat:"s" %}{% kpi "أيام حضور" totals.present sub="وأيام استئذان: "|add:permitted title="أيام «حاضر» وحدها، وأيام «مستأذن» منفصلة في الحاشية لا تدخل الرقم — كعمودَي الجدول" tone="green" %}{% endwith %}
     {% kpi "أيام تأخّر" totals.late tone="amber" %}
     {% with uncovered=totals.absent_uncovered|stringformat:"s" %}{% kpi "أيام غياب" totals.absent sub="غير مغطّاة: "|add:uncovered title="الغياب بلا نوعٍ من سجلّ الغياب ولا عذرٍ مقبول" tone="red" %}{% endwith %}
     {% with limit=deadline|date:"d/m" %}{% kpi "غُطّي بعد المهلة" totals.covered_late sub="المهلة: "|add:limit title="أيام غيابٍ غُطّيت بعد يوم 14 من الشهر التالي — تُوسم ولا تُمنع (البند 5.3)" tone="purple" %}{% endwith %}

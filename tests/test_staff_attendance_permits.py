@@ -2689,3 +2689,219 @@ class TestRoundFive:
                 "FOR UPDATE" in q["sql"] and "staff_affairs_permitrequest" in q["sql"]
                 for q in captured.captured_queries
             )
+
+
+class TestRoundSix:
+    # ── م-25 وم-20: الإنابةُ الصريحةُ أثرٌ لا يُمحى، ويسمّي النائبَ بعينه ─────────
+    def test_revoking_a_delegation_keeps_its_record_and_names_the_delegate(
+        self, school, principal_user
+    ):
+        """م-25: «السجلّ الصريح أثرٌ للتدقيق»، و«كلّ قرارٍ بالإنابة يُوسم «بالإنابة» مع اسم
+        النائب»؛ وم-20: «لا يُحذف أيّ طلبٍ ولا قرار». وبطاقة 1034 (م-24): «الإنابة عن المدير
+        في مهامه في حال غيابه»."""
+        from staff_affairs.attendance import DelegationService
+        from staff_affairs.models import PrincipalDelegation
+
+        teacher, vice_admin = _staff(school, 1), _actor(school, "vice_admin")
+        permit = _permit(school, teacher, FEB, time(7, 0), time(8, 0), "late_arrival", None)
+        for actor in (_actor(school, "secretary"), _actor(school, "vice_academic")):
+            PermitService.act(permit, actor=actor, approve=True)
+            permit.refresh_from_db()
+        delegation = DelegationService.grant(
+            school=school, principal=principal_user, delegate=vice_admin
+        )
+        PermitService.act(permit, actor=vice_admin, approve=True)
+        decision = AuditLog.objects.get(
+            object_id=str(permit.pk), changes__delegation_basis="explicit"
+        )
+        assert decision.changes["delegation_record"] == str(delegation.pk)
+        assert decision.changes["delegate"] == str(vice_admin.pk)
+
+        DelegationService.revoke(school=school, principal=principal_user)
+
+        kept = PrincipalDelegation.objects.get(pk=delegation.pk)
+        assert (kept.delegate, kept.revoked_by) == (vice_admin, principal_user)
+        assert kept.revoked_at is not None
+        trail = AuditLog.objects.filter(object_id=str(delegation.pk)).order_by("timestamp")
+        assert [entry.changes.get("delegate") for entry in trail] == [str(vice_admin.pk)] * 2
+        assert trail.last().changes.get("revoked") is True
+        assert DelegationService.today_for(school) is None
+        other = _permit(
+            school, _staff(school, 2), FEB, time(7, 0), time(8, 0), "late_arrival", None
+        )
+        for actor in (_actor(school, "secretary"), _actor(school, "vice_academic")):
+            PermitService.act(other, actor=actor, approve=True)
+            other.refresh_from_db()
+        assert vice_admin.pk not in _eligible(other)
+
+    def test_changing_the_delegate_keeps_the_first_one_on_record(self, school, principal_user):
+        """م-25: الإنابةُ لنائبٍ ثمّ لآخر في اليوم نفسِه — يبقى الأوّلُ مرفوعاً باسمه."""
+        from staff_affairs.attendance import DelegationService
+        from staff_affairs.models import PrincipalDelegation
+
+        first = _actor(school, "vice_admin")
+        second = _staff(school, 905, role="vice_admin")
+        one = DelegationService.grant(school=school, principal=principal_user, delegate=first)
+        again = DelegationService.grant(school=school, principal=principal_user, delegate=first)
+        assert again.pk == one.pk  # إعادةُ الإنابة نفسِها لا تكتب سجلّاً ثانياً
+        two = DelegationService.grant(school=school, principal=principal_user, delegate=second)
+
+        rows = {
+            row.pk: row
+            for row in PrincipalDelegation.objects.filter(school=school, date=DEFAULT_NOW.date())
+        }
+        assert set(rows) == {one.pk, two.pk}
+        assert (rows[one.pk].delegate, rows[one.pk].revoked_by) == (first, principal_user)
+        assert (rows[two.pk].delegate, rows[two.pk].revoked_at) == (second, None)
+        assert DelegationService.today_for(school).pk == two.pk
+        named = {
+            entry.changes.get("delegate")
+            for entry in AuditLog.objects.filter(object_id__in=[str(one.pk), str(two.pk)])
+        }
+        assert named == {str(first.pk), str(second.pk)}
+        with pytest.raises(IntegrityError), transaction.atomic():
+            PrincipalDelegation.objects.create(
+                school=school, date=DEFAULT_NOW.date(), delegate=first
+            )
+
+    # ── م-4 وم-8 وم-25: لا يُرصد اليومَ وقتٌ لم يأتِ بعد ─────────────────────
+    def test_today_a_time_that_has_not_come_yet_is_refused(self, school, principal_user):
+        """م-4 ([س] 2.4 «إذا حضر بعد الساعة التاسعة»): الغيابُ بحضورٍ بعد 9:00 لا يُعرف
+        قبل أن يقع — فلا يُرصد في الثامنة حضورٌ في 9:30، ولا تقوم به إنابةٌ (م-25). وم-8
+        ([س] 1.1): لا يُكتب في العاشرة انصرافٌ في 14:00."""
+        from notifications.models import InAppNotification
+
+        secretary, staff = _actor(school, "secretary"), _staff(school, 1)
+        today = DEFAULT_NOW.date()
+        with _at(datetime.combine(today, time(8, 0))):
+            with pytest.raises(PolicyError, match="لم يأتِ"):
+                _mark(school, principal_user, secretary, today, "absent", time(9, 30))
+            assert not StaffAttendance.objects.filter(staff=principal_user).exists()
+            assert not InAppNotification.objects.filter(user=principal_user).exists()
+            # الدقيقةُ نفسُها جائزة (م-2)
+            assert _mark(school, staff, secretary, today, "late", time(8, 0)).late_minutes == 60
+        with _at(datetime.combine(today, time(10, 0))):
+            with pytest.raises(PolicyError, match="لم يأتِ"):
+                StaffAttendanceService.mark(
+                    school=school,
+                    staff=staff,
+                    day=today,
+                    status="late",
+                    actor=secretary,
+                    check_in=time(8, 0),
+                    check_out=time(14, 0),
+                )
+        # ويومٌ مضى يُرصد بأوقاته كلّها
+        record = StaffAttendanceService.mark(
+            school=school,
+            staff=staff,
+            day=FEB,
+            status="present",
+            actor=secretary,
+            check_in=time(7, 0),
+            check_out=time(14, 0),
+        )
+        assert record.early_leave_minutes == 0
+
+    # ── م-36: بطاقةُ «أيام حضور» على قدر الجدول ────────────────────────────
+    def test_the_attendance_card_does_not_claim_to_include_permitted_days(
+        self, client_as, school, principal_user
+    ):
+        """م-36 ([س] 5.1 و5.2): التقريرُ سندُ الإشعار بالخصم — فبطاقتُه تعدّ ما يعدّه
+        الجدول: «حاضر» وحدَه، و«مستأذن» منفصلاً."""
+        staff = _staff(school, 1)
+        for n, status in enumerate(["present"] * 3 + ["permitted"] * 2, start=2):
+            StaffAttendance.objects.create(
+                school=school, staff=staff, date=date(2026, 2, n), status=status
+            )
+        page = (
+            client_as(principal_user)
+            .get(reverse("staff_affairs:attendance_report"), {"month": "2026-02"})
+            .content.decode()
+        )
+        card = re.search(
+            r'<div class="ui-kpi[^>]*><span class="ui-kpi__label">أيام حضور</span>.*?</div>',
+            page,
+            re.S,
+        )
+        assert card, "بطاقةُ أيّام الحضور"
+        text = card.group(0)
+        assert "ومنها" not in text
+        assert '<span class="ui-kpi__value">3</span>' in text
+        sub = re.search(r'ui-kpi__sub">([^<]*)<', text)
+        assert sub and sub.group(1).endswith("2")
+        assert "منفصل" in text
+
+    # ── م-7: نصُّ العذر لجهة القبول وحدَها، والراصدُ يكتب الوقت ────────────────
+    def test_the_recorder_neither_sees_nor_is_offered_the_excuse_text(
+        self, client_as, school, principal_user
+    ):
+        """م-7: «جهة القبول: المدير، أو من ينوب عنه وفق م-24» — فحقلُ العذر لها، ونصُّه قد
+        يحمل بيانةً صحّيّة (PDPPL م.16) فلا يُعرض لمن يرصد الوقت. ويبقى للراصد أن يكتب
+        الانصراف في سطرٍ قُبل عذرُه (م-8) دون أن يُعدّ ذلك رفعاً للعذر."""
+        staff, secretary = _staff(school, 1), _actor(school, "secretary")
+        secret = "مراجعة طبية اصطناعية"
+        StaffAttendanceService.mark(
+            school=school,
+            staff=staff,
+            day=FEB,
+            status="late",
+            actor=principal_user,
+            check_in=time(9, 30),
+            accepted_excuse=secret,
+        )
+        board = reverse("staff_affairs:attendance_board")
+        as_secretary = client_as(secretary).get(board, {"date": "2026-02-01"}).content.decode()
+        assert secret not in as_secretary
+        assert 'name="accepted_excuse"' not in as_secretary
+        assert "بعذر" in as_secretary
+
+        clicked = client_as(secretary).post(
+            reverse("staff_affairs:attendance_mark"),
+            {
+                "staff_id": staff.pk,
+                "date": "2026-02-01",
+                "status": "late",
+                "check_in": "09:30",
+                "check_out": "13:00",
+            },
+        )
+        body = clicked.content.decode()
+        assert 'role="alert"' not in body and secret not in body
+        record = StaffAttendance.objects.get(staff=staff, date=FEB)
+        assert (record.accepted_excuse, record.early_leave_minutes, record.status) == (
+            secret,
+            60,
+            "late",
+        )
+        # ومن أرسل الحقلَ فارغاً عمداً — لا من الواجهة — فهو رفعٌ يُردّ عليه باسم م-7.
+        crafted = client_as(secretary).post(
+            reverse("staff_affairs:attendance_mark"),
+            {
+                "staff_id": staff.pk,
+                "date": "2026-02-01",
+                "status": "absent",
+                "check_in": "09:30",
+                "accepted_excuse": "",
+            },
+        )
+        assert "ينوب" in crafted.content.decode()
+        assert secret not in crafted.content.decode()
+
+        as_principal = client_as(principal_user).get(board, {"date": "2026-02-01"}).content.decode()
+        assert secret in as_principal and 'name="accepted_excuse"' in as_principal
+
+    def test_the_retention_register_names_the_sensitive_free_text(self):
+        """م-7 وم-12: العذرُ المقبول وسببُ الإذن نصّان حرّان قد يحملان بيانةً صحّيّة، وم-25:
+        الإنابةُ المرفوعةُ تبقى."""
+        register = Path("docs/privacy/data_retention.md").read_text(encoding="utf-8")
+        rows = {
+            line.split("|")[1].strip(" `"): line
+            for line in register.splitlines()
+            if line.startswith("| `staff_affairs_")
+        }
+        assert "PDPPL" in rows["staff_affairs_staffattendance"]
+        assert "من ينوب عنه" in rows["staff_affairs_staffattendance"]
+        assert "سبب" in rows["staff_affairs_permitrequest"]
+        assert "PDPPL" in rows["staff_affairs_permitrequest"]
+        assert "رُفعت" in rows["staff_affairs_principaldelegation"]
