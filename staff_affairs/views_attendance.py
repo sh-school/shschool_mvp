@@ -327,6 +327,12 @@ def permit_queue(request: HttpRequest) -> HttpResponse:
             "exceptions": ExceptionService.awaiting(school, user),
             "is_principal": is_principal,
             "delegation": DelegationService.today_for(school) if is_principal else None,
+            "standing_absence": (
+                DelegationService.standing_absence(school, user) if is_principal else None
+            ),
+            "disputed_absence": (
+                DelegationService.disputed_absence(school, user) if is_principal else None
+            ),
             "delegates": DelegationService.candidates(school) if is_principal else (),
         },
     )
@@ -371,8 +377,14 @@ def principal_delegation(request: HttpRequest) -> HttpResponse:
     try:
         delegate_id = form.cleaned_data["delegate"]
         if delegate_id is None:
-            DelegationService.revoke(school=school, principal=user, request=request)
-            messages.success(request, "رُفعت الإنابةُ لليوم.")
+            if DelegationService.revoke(school=school, principal=user, request=request):
+                messages.success(
+                    request,
+                    "رُفعت الإنابةُ لليوم، وسُجّل اعتراضُك على رصد غيابك — فلا تقوم به "
+                    "الإنابة (م-25) حتى تصحّحه السكرتارية أو تُعيد رصدَه.",
+                )
+            else:
+                messages.success(request, "رُفعت الإنابةُ لليوم.")
         else:
             delegate = DelegationService.candidates(school).filter(pk=delegate_id).first()
             if delegate is None:

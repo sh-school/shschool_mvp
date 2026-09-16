@@ -2905,3 +2905,129 @@ class TestRoundSix:
         assert "سبب" in rows["staff_affairs_permitrequest"]
         assert "PDPPL" in rows["staff_affairs_permitrequest"]
         assert "رُفعت" in rows["staff_affairs_principaldelegation"]
+
+
+class TestRoundSeven:
+    # ── م-4 وم-5 وم-6: كلُّ نافذةٍ معتمدةٍ تغطّي لحظةَ الحضور، أيّاً كان نوعُها ──────
+    @pytest.mark.parametrize(
+        ("windows", "check_in", "excused", "expected"),
+        [
+            # م-5 «الحضور داخل النافذة: مستأذن» — ولو جاوز التاسعة (م-4 «إلّا … أن يغطّي
+            # إذنٌ معتمد لحظةَ حضوره»)؛ وما قبل بدء النافذة غيرُ مأذونٍ فيُعدّ (حجّة م-6).
+            ([(time(7, 30), time(9, 30))], time(9, 20), False, ("permitted", 30)),
+            ([(time(7, 15), time(8, 0))], time(7, 50), False, ("permitted", 15)),
+            # م-6 «من اللحظة الأبعد بين 07:00 ونهاية آخر تغطيةٍ معتمدة حتى وقت الحضور».
+            ([(time(7, 30), time(8, 0))], time(8, 40), False, ("late", 40)),
+            # م-5 «بعد نهاية النافذة وبعد 09:00: غائب، ما لم يوجد عذرٌ مقبول» — وم-7.
+            ([(time(7, 30), time(9, 30))], time(9, 40), False, ("absent", 0)),
+            ([(time(7, 30), time(9, 30))], time(10, 0), True, ("late", 30)),
+            # نافذةٌ لم تبدأ لا تغطّي شيئاً، والتي تبدأ لحظةَ الحضور لم تُستعمل.
+            ([(time(10, 0), time(11, 0))], time(8, 0), False, ("late", 60)),
+            ([(time(9, 0), time(10, 0))], time(9, 0), False, ("late", 120)),
+        ],
+    )
+    def test_any_approved_window_covers_the_arrival(self, windows, check_in, excused, expected):
+        """م-5: «الإذن يغطّي نافذته المعتمدة وحدها … الحضور داخل النافذة: «مستأذن»» — بلا
+        تفريقٍ بين الأنواع؛ والسياسة 2.4: «غائبا إذا حضر بعد الساعة التاسعة صباحاً دون إذن»."""
+        assert classify_arrival(check_in, excused=excused, windows=windows) == expected
+
+    def test_arriving_inside_an_approved_during_day_permit_is_not_absence(
+        self, school, principal_user
+    ):
+        """م-4 وم-5 (السياسة 2.4 و4.1، ونموذج 02 «أثناء الدوام»): استئذانٌ معتمدٌ 07:30–09:30
+        وحضورٌ 09:20 — «مستأذن» لا غائب، ولا يُعدّ من دقائقه المأذونة شيءٌ تأخّراً (م-6)."""
+        staff = _staff(school, 1)
+        _permit(school, staff, FEB, time(7, 30), time(9, 30))
+        with pytest.raises(PolicyError, match="مستأذن"):
+            _mark(school, staff, principal_user, FEB, "absent", time(9, 20))
+        record = _mark(school, staff, principal_user, FEB, "permitted", time(9, 20))
+        assert (record.status, record.late_minutes, record.permit_minutes) == (
+            "permitted",
+            30,
+            120,
+        )
+
+    def test_approving_a_during_day_permit_does_not_count_its_minutes_twice(
+        self, school, principal_user
+    ):
+        """م-6: «ألّا تُخصم الدقائق المأذونة مرّتين» — إذنٌ 07:15–08:00 وحضورٌ 07:50 رُصد قبل
+        اعتماده متأخّراً 50 دقيقة، فإذا اعتُمد صار مستأذناً بربع ساعةٍ غير مأذونة (م-32:
+        «وعند اعتماده تُعاد مطابقة أيّامه»)."""
+        staff = _staff(school, 1)
+        permit = _permit(school, staff, FEB, time(7, 15), time(8, 0), approve=None)
+        record = _mark(school, staff, principal_user, FEB, "late", time(7, 50))
+        assert (record.status, record.late_minutes) == ("late", 50)
+
+        _through(permit)
+
+        record.refresh_from_db()
+        assert (record.status, record.late_minutes, record.permit_minutes) == (
+            "permitted",
+            15,
+            45,
+        )
+
+    # ── م-24 وم-25: من ينوب لا يرصد المدير، والمديرُ يرفع غياباً رُصد عليه ─────────
+    def test_the_delegate_does_not_mark_the_principal(self, school, principal_user):
+        """م-25: الإنابةُ تقوم «متى ثبت غياب المدير في رصد اليوم» — فلا يُثبته من تقوم له
+        الإنابةُ بذلك الرصد نفسِه؛ ويرصد سجلَّ المدير السكرتير."""
+        from staff_affairs.attendance import DelegationService
+
+        vice_admin, secretary = _actor(school, "vice_admin"), _actor(school, "secretary")
+        DelegationService.grant(school=school, principal=principal_user, delegate=vice_admin)
+        assert StaffAttendanceService.can_record(school, vice_admin)
+        with pytest.raises(PolicyError, match="السكرتير"):
+            _mark(school, principal_user, vice_admin, DEFAULT_NOW.date(), "absent")
+        assert not StaffAttendance.objects.filter(staff=principal_user).exists()
+
+        _mark(school, principal_user, secretary, DEFAULT_NOW.date(), "absent")
+        with pytest.raises(PolicyError, match="السكرتير"):
+            _mark(school, principal_user, vice_admin, DEFAULT_NOW.date(), "late", time(8, 0))
+        # وبقيّةُ الكادر يرصدهم بالإنابة كما كان (م-24 «في مهامه»).
+        assert _mark(school, _staff(school, 1), vice_admin, FEB, "present", time(7, 0))
+
+    def test_lifting_the_delegation_sets_aside_an_absence_marked_on_the_principal(
+        self, client_as, school, principal_user
+    ):
+        """م-25: الإنابةُ التلقائيّة تقوم «متى ثبت غياب المدير في رصد اليوم»؛ والمديرُ الذي
+        يعمل في المنصّة ويرفع الإنابةَ يعترض على ذلك الرصد، فلا يبقى غيابُه ثابتاً حتى
+        يُعيد السكرتيرُ رصدَه — والسجلُّ يبقى كما رُصد (م-20: لا يُحذف شيء)."""
+        from notifications.models import InAppNotification
+
+        vice_admin, secretary = _actor(school, "vice_admin"), _actor(school, "secretary")
+        today = DEFAULT_NOW.date()
+        absence = _mark(school, principal_user, secretary, today, "absent")
+        assert StaffAttendanceService.can_decide_excuse(school, vice_admin)
+        queue = reverse("staff_affairs:permit_queue")
+        assert "رُصدتَ اليوم غائباً" in client_as(principal_user).get(queue).content.decode()
+
+        response = client_as(principal_user).post(
+            reverse("staff_affairs:principal_delegation"), {}, follow=True
+        )
+        assert "اعتراضُك" in response.content.decode()
+
+        absence.refresh_from_db()
+        assert absence.status == "absent" and absence.absence_disputed_at is not None
+        assert not StaffAttendanceService.can_decide_excuse(school, vice_admin)
+        assert not StaffAttendanceService.can_record(school, vice_admin)
+        trail = AuditLog.objects.get(object_id=str(absence.pk), changes__absence_disputed=True)
+        assert trail.user == principal_user
+        assert InAppNotification.objects.filter(
+            user=secretary, related_object_id=str(absence.pk)
+        ).exists()
+        assert "اعترضتَ" in client_as(principal_user).get(queue).content.decode()
+
+        # فإن أعاد السكرتيرُ رصدَه — ولو بالحال نفسِه — ثبت الغيابُ ثانيةً، وقامت الإنابة.
+        _mark(school, principal_user, secretary, today, "absent")
+        assert (
+            InAppNotification.objects.filter(
+                user=principal_user, related_object_id=str(absence.pk)
+            ).count()
+            == 2
+        )
+        absence.refresh_from_db()
+        assert absence.absence_disputed_at is None
+        assert StaffAttendanceService.can_decide_excuse(school, vice_admin)
+        assert AuditLog.objects.filter(
+            object_id=str(absence.pk), user=secretary, changes__has_key="absence_disputed_at"
+        ).exists()

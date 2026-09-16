@@ -251,6 +251,12 @@ class StaffAttendance(AuditedModel):
     #: رفع التصنيف). والمهلةُ «قبل يوم (15) من الشهر» (البند 5.3) — وما بعدها يُوسم في
     #: التقرير ولا يُمنع.
     covered_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت تغطية الغياب")
+    #: م-25: الإنابةُ تقوم «متى ثبت غياب المدير في رصد اليوم» — وهذا وقتُ اعتراض المدير
+    #: على غيابٍ رُصد عليه (برفعه الإنابة وهو يعمل). المعترَضُ عليه لا يُقيم إنابةً حتى
+    #: يُعاد رصدُه، ويبقى السجلُّ كما رُصد (م-20).
+    absence_disputed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="اعتراض المدير على رصد غيابه"
+    )
     notes = models.CharField(max_length=300, blank=True, verbose_name="ملاحظات")
 
     class Meta:

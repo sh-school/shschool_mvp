@@ -117,21 +117,38 @@ def _minute(moment: time) -> time:
 
 
 def classify_arrival(
-    check_in: time, covered_until: time | None = None, excused: bool = False
+    check_in: time,
+    covered_until: time | None = None,
+    excused: bool = False,
+    windows: Iterable[tuple[time, time]] = (),
 ) -> tuple[str, int]:
     """(الحالة، دقائقُ التأخّر) لوقت حضورٍ — م-3 وم-4 وم-5 وم-6.
 
-    ``covered_until`` نهايةُ ما يغطّي الصباح معتمَداً: إذنُ تأخيرٍ من نموذج 02 (نافذتُه
-    من 7:00، م-13) أو استثناءُ نموذج 03. والتغطيةُ تغطّي نافذتَها وحدَها لا اليومَ كلَّه
-    (م-5): من حضر فيها «مستأذن»، ومن جاوزها حتّى التاسعة «متأخّر» بدقائقه من نهايتها
-    (م-6)، ومن جاوزها وجاوز التاسعة «غائب» إلّا أن يُقبل عذرُه (``excused``، م-7).
+    ``windows`` نوافذُ اليوم المعتمدة كلُّها (م-5 لا تفرّق بين الأنواع): أذوناتُ نموذج 02
+    الثلاثة واستثناءاتُ نموذج 03 (م-32)؛ و``covered_until`` اختصارٌ لنافذةٍ من 7:00.
+
+    * من حضر داخل نافذةٍ بدأت قبل حضوره «مستأذن» (م-5) — ولو بعد التاسعة، فهي «إذنٌ
+      يغطّي لحظةَ حضوره» (م-4).
+    * ومن جاوز النوافذَ حتّى التاسعة «متأخّر»، ودقائقُه من اللحظة الأبعد بين 07:00 ونهاية
+      آخر تغطيةٍ انتهت قبل حضوره (م-6)؛ ومن جاوزها وجاوز التاسعة «غائب» إلّا أن يُقبل
+      عذرُه (``excused``، م-7).
+    * والمستأذنُ بنافذةٍ بدأت بعد 07:00 تُعدّ عليه الدقائقُ غيرُ المأذونة قبل بدئها — من
+      تلك اللحظة نفسِها إلى بدء النافذة — فلا تُخصم المأذونةُ مرّتين (حجّة م-6) ولا تُسقط
+      نافذةٌ متأخّرةٌ ما قبلها. وهذا الامتدادُ قراءةٌ لحجّة م-6 (المصدر صامت، س-5).
     """
     check_in = _minute(check_in)
     if check_in <= WORK_START:
         return "present", 0
-    if covered_until is not None and check_in <= _minute(covered_until):
-        return "permitted", 0
-    counted_from = max(WORK_START, covered_until or WORK_START)
+    spans = [(_minute(start), _minute(end)) for start, end in windows]
+    if covered_until is not None:
+        spans.append((WORK_START, _minute(covered_until)))
+    counted_from = WORK_START
+    for start, end in sorted(spans):
+        if start >= check_in:
+            break
+        if check_in <= end:
+            return "permitted", minutes_between(counted_from, start)
+        counted_from = max(counted_from, end)
     if check_in <= ABSENT_AFTER or excused:
         return "late", minutes_between(counted_from, check_in)
     return "absent", 0
@@ -261,6 +278,13 @@ def _active_role_holders(school: School, role: str) -> set[Any]:
     )
 
 
+def _established_absences(school: School, day: date) -> QuerySet[StaffAttendance]:
+    """غيابُ اليوم الثابت (م-25): المرصودُ غائباً بلا اعتراضٍ قائمٍ من صاحبه."""
+    return StaffAttendance.objects.filter(
+        school=school, date=day, status="absent", absence_disputed_at__isnull=True
+    )
+
+
 class _StageDay:
     """من يحضر مراحلَ الاعتماد في مدرسةٍ في لحظةٍ — يُقرأ مرّةً لكلّ طابور أو قرار.
 
@@ -284,13 +308,12 @@ class _StageDay:
     def absent(self) -> set[Any]:
         """المرصودون غائبين اليوم — وفيهم من في إجازة (يومُ غيابٍ بنوعه من سجلّ الغياب).
 
-        منه تقوم الإنابةُ عن المدير (م-25) ويُرفع مربّعٌ غاب صاحبُه (م-28).
+        منه تقوم الإنابةُ عن المدير (م-25) ويُرفع مربّعٌ غاب صاحبُه (م-28). والغيابُ الذي
+        اعترض عليه المديرُ (``DelegationService.revoke``) لم يثبت، فلا يُعدّ حتى يُعاد رصدُه.
         """
         if self._absent is None:
             self._absent = set(
-                StaffAttendance.objects.filter(
-                    school=self.school, date=self.today, status="absent"
-                ).values_list("staff_id", flat=True)
+                _established_absences(self.school, self.today).values_list("staff_id", flat=True)
             )
         return self._absent
 
@@ -330,9 +353,11 @@ class _StageDay:
                 "delegation_basis": "explicit",
                 "delegation_record": _plain(self._explicit().get(actor.pk)),
             }
-        records = StaffAttendance.objects.filter(
-            school=self.school, date=self.today, staff_id__in=principals, status="absent"
-        ).values_list("pk", "updated_by_id")
+        records = (
+            _established_absences(self.school, self.today)
+            .filter(staff_id__in=principals)
+            .values_list("pk", "updated_by_id")
+        )
         return {
             "delegation_basis": "principal_absent",
             "absence_records": [_plain(pk) for pk, _by in records],
@@ -1053,12 +1078,70 @@ class DelegationService:
     @transaction.atomic
     def revoke(
         *, school: School, principal: CustomUser, request: HttpRequest | None = None
-    ) -> None:
+    ) -> bool:
+        """رفعُ الإنابة اليوم، الصريحةِ والتلقائيّة — ويُرجع: أَسُجّل اعتراضٌ على غيابه؟
+
+        الإنابةُ التلقائيّة تقوم «متى ثبت غياب المدير في رصد اليوم» (م-25). والمديرُ الذي
+        يرفعها وهو يعمل في المنصّة يعترض على ذلك الرصد، فلا يثبت الغيابُ حتى يُعيد السكرتيرُ
+        رصدَه — وإلّا بقي النائبُ يعتمد بالإنابة بعد رفعها، والمديرُ لا يرصد نفسَه. والسجلُّ
+        يبقى كما رُصد (م-20)، ويُخطَر السكرتيرُ ليصحّحه أو يُعيد إثباته.
+        """
         if principal.pk not in _active_role_holders(school, PRINCIPAL):
             raise PolicyError("لا يرفع الإنابةَ إلّا المديرُ نفسُه.")
-        delegation = DelegationService._active(school, _now().date())
+        today = _now().date()
+        delegation = DelegationService._active(school, today)
         if delegation is not None:
             DelegationService._lift(delegation, principal, request)
+        return DelegationService._dispute_absence(school, principal, today, request)
+
+    @staticmethod
+    def standing_absence(school: School, principal: CustomUser) -> StaffAttendance | None:
+        """غيابُ المدير الثابتُ اليوم — ما تقوم به الإنابةُ التلقائيّة ويرفعه اعتراضُه."""
+        return _established_absences(school, _now().date()).filter(staff=principal).first()
+
+    @staticmethod
+    def disputed_absence(school: School, principal: CustomUser) -> StaffAttendance | None:
+        """غيابُ المدير اليومَ الذي اعترض عليه ولم يُعَد رصدُه بعد."""
+        return StaffAttendance.objects.filter(
+            school=school,
+            date=_now().date(),
+            staff=principal,
+            status="absent",
+            absence_disputed_at__isnull=False,
+        ).first()
+
+    @staticmethod
+    def _dispute_absence(
+        school: School, principal: CustomUser, day: date, request: HttpRequest | None
+    ) -> bool:
+        """اعتراضُ المدير على غيابٍ رُصد عليه اليوم — تحت قفل صفّه، قفلِ ``mark`` نفسِه."""
+        CustomUser.objects.select_for_update().filter(pk=principal.pk).first()
+        record = (
+            _established_absences(school, day).select_for_update().filter(staff=principal).first()
+        )
+        if record is None:
+            return False
+        record.absence_disputed_at = _now()
+        record.save(update_fields=["absence_disputed_at", "updated_at"])
+        _audit(principal, "update", record, {"absence_disputed": True}, request)
+        from notifications.models import InAppNotification
+
+        InAppNotification.objects.bulk_create(
+            InAppNotification(
+                user_id=secretary,
+                school=school,
+                title="اعترض المديرُ على رصد غيابه اليوم",
+                body=(
+                    f"رفع المديرُ الإنابةَ يوم {day:%Y-%m-%d} معترضاً على رصده غائباً، فلم تعد "
+                    "الإنابةُ قائمةً بذلك الرصد (م-25). صحّح سجلَّه أو أعد رصدَه."
+                ),
+                event_type="general",
+                related_object_id=str(record.pk),
+                related_url="/staff-affairs/attendance/",
+            )
+            for secretary in _active_role_holders(school, "secretary")
+        )
+        return True
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -1270,10 +1353,20 @@ class _DayCover:
     permits: list[PermitRequest]
     exceptions: list[AttendanceException]
 
-    def late_until(self) -> time | None:
-        ends = [p.end_time for p in self.permits if p.permit_type == "late_arrival"]
-        ends += [e.boundary_time for e in self.exceptions if e.exception_type == "late_arrival"]
-        return max(ends) if ends else None
+    def arrival_windows(self) -> list[tuple[time, time]]:
+        """م-5 وم-32: كلُّ نافذةٍ معتمدةٍ في اليوم تغطّي لحظةَ الحضور إن وقع فيها.
+
+        الإذنُ بنوعيه الآخرَين كالتأخير (م-5 «ولا تفرّق» بينها)، والاستثناءُ نافذةٌ من
+        07:00 إلى ساعة حدّه (تأخيرٌ) أو منها إلى 14:00 (خروجٌ مبكر).
+        """
+        windows = [(p.start_time, p.end_time) for p in self.permits]
+        windows += [
+            (WORK_START, e.boundary_time)
+            if e.exception_type == "late_arrival"
+            else (e.boundary_time, WORK_END)
+            for e in self.exceptions
+        ]
+        return windows
 
     def leave_windows(self) -> list[tuple[time, time]]:
         windows = [
@@ -1307,7 +1400,7 @@ class StaffAttendanceService:
         ويومُ الغياب لا دقائقَ انصرافٍ مبكرٍ فيه (م-9): اليومُ كلُّه يُعدّ غياباً في
         التقرير، فلا يُعدّ نقصُ آخره مرّةً ثانية.
         """
-        until = cover.late_until()
+        windows = cover.arrival_windows()
         derived: dict[str, Any] = {
             "status": None,
             "late_minutes": 0,
@@ -1316,8 +1409,12 @@ class StaffAttendanceService:
             "excuse_used": False,
         }
         if check_in is not None:
-            derived["status"], derived["late_minutes"] = classify_arrival(check_in, until, excused)
-            derived["excuse_used"] = excused and classify_arrival(check_in, until)[0] == "absent"
+            derived["status"], derived["late_minutes"] = classify_arrival(
+                check_in, excused=excused, windows=windows
+            )
+            derived["excuse_used"] = (
+                excused and classify_arrival(check_in, windows=windows)[0] == "absent"
+            )
         if check_out is not None and derived["status"] != "absent":
             derived["early_leave_minutes"] = early_leave_minutes(check_out, cover.leave_windows())
         return derived
@@ -1430,6 +1527,7 @@ class StaffAttendanceService:
             # م-7: العذرُ وقابلُه ووقتُ قبوله قيدٌ لا تمحوه إعادةُ الحساب — تغطيةٌ اعتُمدت بعده
             # تُسكنه (لا يُحتسب ما دامت تكفي) ولا تُسقطه، فإن زالت عاد يعمل بقبوله الأوّل.
             **StaffAttendanceService._excuse_values(record, record.accepted_excuse, None, None),
+            "absence_disputed_at": record.absence_disputed_at if status == "absent" else None,
         }
         values["covered_at"] = StaffAttendanceService._covered_at(
             record, values, record.check_in, _now()
@@ -1510,6 +1608,11 @@ class StaffAttendanceService:
             )
         if not staff_members(school).filter(pk=staff.pk).exists():
             raise PolicyError("ليس من كادر هذه المدرسة.")
+        if _role_of(actor) not in RECORDERS and staff.pk in _active_role_holders(school, PRINCIPAL):
+            raise PolicyError(
+                "سجلُّ المدير يرصده السكرتير لا من ينوب عنه — فالإنابةُ تقوم «متى ثبت غياب "
+                "المدير في رصد اليوم» (م-25)، فلا يُثبتها رصدٌ بيد من تقوم له."
+            )
         absence_type = absence_type or ""
         if absence_type and absence_type not in ABSENCE_TYPE_KEYS:
             raise PolicyError("نوعُ غيابٍ غيرُ معروف (سجلّ الغياب).")
@@ -1596,6 +1699,9 @@ class StaffAttendanceService:
             **StaffAttendanceService._excuse_values(
                 record, excuse, actor if accepting else None, now
             ),
+            # م-25: رصدُ السكرتير بعد اعتراض المدير — ولو بالحال نفسِه — إثباتٌ جديدٌ للحال
+            # (والمديرُ لا يرصد نفسَه، فلا يُكتب هنا اعتراض).
+            "absence_disputed_at": None,
         }
         if record is None:
             values["covered_at"] = StaffAttendanceService._covered_at(
@@ -1627,7 +1733,9 @@ class StaffAttendanceService:
             setattr(record, key, value)
         record.updated_by = actor
         record.save()
-        changes.update(StaffAttendanceService._delegation_trigger(school, record, before["status"]))
+        # والغيابُ المعترَضُ عليه لم يكن ثابتاً — فإعادةُ رصده تُقيم الإنابةَ ويُخطَر المدير.
+        was = None if before["absence_disputed_at"] else before["status"]
+        changes.update(StaffAttendanceService._delegation_trigger(school, record, was))
         if withdrawing:
             changes["excuse_withdrawn"] = True
         changes.update(basis)
@@ -1659,7 +1767,8 @@ class StaffAttendanceService:
             title="رُصدتَ غائباً اليوم — فقامت الإنابة",
             body=(
                 f"رُصد غيابُك يوم {record.date:%Y-%m-%d}، فصار نائبُ الشؤون الإدارية يعتمد "
-                "بالإنابة عنك (م-25). إن كان الرصدُ خطأً فاطلب تصحيحَه من السكرتارية."
+                "بالإنابة عنك (م-25). إن كان الرصدُ خطأً فارفع الإنابةَ من «طلبات الأذونات» "
+                "معترضاً عليه، واطلب تصحيحَه من السكرتارية."
             ),
             event_type="general",
             related_object_id=str(record.pk),

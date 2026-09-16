@@ -20,6 +20,14 @@
 
   {% if is_principal %}
   {% section_card "الإنابة عنك اليوم" icon="staff" %}
+    {% if standing_absence %}
+    <p class="form-note">{% icon "status_warning" %} رُصدتَ اليوم غائباً{% if standing_absence.absence_type %} ({{ standing_absence.get_absence_type_display }}){% endif %}، فالنائب الإداري يعتمد بالإنابة عنك. فإن كنت حاضراً فارفع الإنابة معترضاً على الرصد، وتصحيحُه للسكرتارية.</p>
+    <form method="post" action="{% url 'staff_affairs:principal_delegation' %}">{% csrf_token %}
+      <button type="submit" class="btn-secondary btn-sm">{% icon "close" %} رفع الإنابة والاعتراض على الرصد</button>
+    </form>
+    {% elif disputed_absence %}
+    <p class="form-note">{% icon "status_info" %} اعترضتَ اليوم على رصدك غائباً، فلا تقوم به الإنابة حتى تصحّحه السكرتارية أو تُعيد رصدَه.</p>
+    {% endif %}
     {% if delegation %}
     <p class="form-note">{% icon "status_info" %} أُنيب {{ delegation.delegate.full_name }} اليوم في الاعتماد النهائيّ لطلبات الأذونات («الإنابة عن المدير في مهامه في حال غيابه»).</p>
     <form method="post" action="{% url 'staff_affairs:principal_delegation' %}">{% csrf_token %}
