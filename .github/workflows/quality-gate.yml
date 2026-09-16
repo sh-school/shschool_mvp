@@ -22,18 +22,13 @@ jobs:
   #  1. pytest + عتبةُ التغطية (الرقمُ في pyproject.toml وحدَه)
   # ══════════════════════════════════════════════════════
   #
-  # مصفوفةٌ على إصدارَين — مؤقّتة. 3.12 هو ما تُفحص عليه البوّاباتُ ويعمل عليه
-  # الإنتاج (`Dockerfile: python:3.12-slim`). و3.11 كان الإنتاجَ حتى هذا التحويل،
-  # فبقي حارساً لطريق الرجوع: لو تعثّر 3.12 على Railway رُدَّ سطرُ Dockerfile
-  # وحده والشيفرةُ ما زالت تعمل على 3.11. تُحذف خانةُ 3.11 بعد أسبوعٍ مستقرٍّ
-  # على الإنتاج (المرحلة الثانية)، والوظيفتان متوازيتان فلا تُطيلان الزمن.
+  # إصدارٌ واحد: 3.12 — ما تُفحص عليه البوّاباتُ ويعمل عليه الإنتاج
+  # (`Dockerfile: python:3.12-slim`). كانت هنا مصفوفةٌ مع 3.11 حين كان الإنتاجُ
+  # عليه (#259)، ثمّ حارساً لطريق الرجوع بعد التحويل (#278)؛ واستقرّ الإنتاجُ على
+  # 3.12 منذ 2026-09-14 فسقطت الخانة. إصدارٌ جديد = سطرٌ هنا + Dockerfile + pyproject.
   test-coverage:
-    name: pytest (py${{ matrix.python-version }}) — تغطية
+    name: pytest — تغطية
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.12", "3.11"]
 
     services:
       postgres:
@@ -69,7 +64,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
           cache: pip
 
       - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
@@ -117,7 +112,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-report-py${{ matrix.python-version }}
+          name: coverage-report
           path: |
             test-results.xml
             coverage.xml
@@ -128,7 +123,7 @@ jobs:
         if: always()
         # الحالةُ تُحسب بالعتبة نفسِها التي حكمت — تُقرأ من pyproject لا تُكتب هنا.
         run: |
-          echo "## نتائج التغطية — Quality Gate (py${{ matrix.python-version }})" >> $GITHUB_STEP_SUMMARY
+          echo "## نتائج التغطية — Quality Gate" >> $GITHUB_STEP_SUMMARY
           echo "| المقياس | القيمة |" >> $GITHUB_STEP_SUMMARY
           echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
           python3 -c "
@@ -338,7 +333,7 @@ jobs:
           echo "## بوابة الجودة — Quality Gate" >> $GITHUB_STEP_SUMMARY
           echo "| الفحص | النتيجة |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|---------|" >> $GITHUB_STEP_SUMMARY
-          echo "| pytest + التغطية (py3.12 + py3.11، العتبة في pyproject) | ${{ needs.test-coverage.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| pytest + التغطية (py3.12، العتبة في pyproject) | ${{ needs.test-coverage.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Ruff lint + format | ${{ needs.ruff.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| mypy — سقّاطة الأنواع | ${{ needs.mypy.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Radon CC ≤ 30 | ${{ needs.complexity.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
