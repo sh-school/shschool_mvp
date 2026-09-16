@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 {% load icons %}
-{% load ui %}
+{% load ui privacy %}
 {% comment %}نتائجُ البحث عن طالبٍ في أجنحتي — والنتيجةُ الواحدةُ لا تصل هنا: تفتح الملفَّ مباشرةً.{% endcomment %}
 
 {% block title %}بحثٌ عن طالب{% endblock %}
@@ -18,14 +18,14 @@
   {% if too_short %}
     <p class="form-note">{% icon "status_info" %} <span>اكتب حرفين على الأقلّ من الاسم.</span></p>
   {% elif query %}
-    {% section_card "النتائج" meta=results|length icon="students" empty="لا طالبَ بهذا الاسم في أجنحتك" empty_sub="جرّب جزءاً آخر من الاسم، أو الرقمَ الشخصيّ." %}
+    {% section_card "النتائج" meta=results|length icon="students" empty="لا طالبَ بهذا الاسم أو الرقم في جناحك" empty_sub="جرّب جزءاً آخر من الاسم، أو أوّلَ الرقم الشخصيّ. وطالبُ جناحٍ آخر لا يظهر هنا." %}
       {% if results %}
       <ul class="plain-list">
         {% for enrollment in results %}
         <li class="plain-list__row">
           <a href="{% url 'wings:absence_file' enrollment.student_id %}" class="af-result">
             <span class="plain-list__title">{{ enrollment.student.full_name }}</span>
-            <span class="af-day__meta">{{ enrollment.class_group.short_code }}</span>
+            <span class="af-day__meta"><span dir="ltr">{{ enrollment.student.national_id|mask_id }}</span> · {{ enrollment.class_group.short_code }}</span>
           </a>
         </li>
         {% endfor %}
