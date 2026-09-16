@@ -6,7 +6,7 @@
     {% for row in awaiting_contact %}
     <li class="plain-list__row">
       <span class="plain-list__title">{{ row.student.full_name }} <small>{{ row.class_group.short_code }}</small></span>
-      <a href="{% url 'wings:absence_file' row.student.id %}#day-{{ row.needs_contact|date:'Y-m-d' }}" class="btn-secondary btn-xs">{% icon "call_parent" %} اتّصلتُ</a>
+      <a href="{% url 'wings:absence_file' row.student.id %}?call={{ row.needs_contact|date:'Y-m-d' }}#day-{{ row.needs_contact|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "call_parent" %} أخطِر</a>
     </li>
     {% endfor %}
   </ul>

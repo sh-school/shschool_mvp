@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.formats import date_format
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school
@@ -547,7 +548,7 @@ def daily_report(request):
         teacher_ids=get_department_teacher_ids(request.user),
         student_ids=scope.student_ids() if scope.is_wing_bound else None,
     )
-    subtitle = f"{school.name} · {report_date:%A %d/%m/%Y}"
+    subtitle = f"{school.name} · {date_format(report_date, 'l d/m/Y')}"
     if scope.is_wing_bound:
         subtitle = f"{subtitle} · طلبةُ جناحك"
     return render(

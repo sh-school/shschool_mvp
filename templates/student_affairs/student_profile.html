@@ -21,6 +21,7 @@
     {% if can_edit %}<a href="{% url 'student_affairs:student_edit' student.id %}" class="btn-primary btn-sm">{% icon "edit_record" %} تعديل البيانات</a>{% endif %}
     <a href="{% url 'behavior:student_profile' student.id %}" class="btn-secondary btn-sm">{% icon "behavior" %} الملف السلوكي</a>
     {% if can_summon %}<a href="{% url 'behavior:summon_parent_student' student.id %}" class="btn-secondary btn-sm">{% icon "call_parent" %} استدعاء ولي الأمر</a>{% endif %}
+    {% if request.user|can_open:'wings:student_search' %}<a href="{% url 'wings:absence_file' student.id %}" class="btn-secondary btn-sm">{% icon "absence" %} ملفُّ الغياب</a>{% endif %}
     {% if not limited or request.user|can_open:'behavior:report_infraction' %}<a href="{% url 'behavior:report_infraction' %}" class="btn-secondary btn-sm">{% icon "behavior_violation" %} تسجيل مخالفة</a>{% endif %}
     {% if can_see_results %}<a data-app-file href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">{% icon "grades" %} كشف الدرجات</a>{% endif %}
     <a data-app-file href="{% url 'student_affairs:student_profile_pdf' student.id %}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>
@@ -55,7 +56,7 @@
           <dt>الاسم</dt><dd>{{ student.full_name }}</dd>
           <dt>الرقم الشخصي</dt><dd dir="ltr">{{ student.national_id|mask_id }}</dd>
           {% if enrollment %}
-          <dt>الصف / الشعبة</dt><dd>{{ enrollment.class_group.grade }} / {{ enrollment.class_group.section }}</dd>
+          <dt>الصف / الشعبة</dt><dd>{{ enrollment.class_group.get_grade_display }} — الشعبة {{ enrollment.class_group.section }}</dd>
           {% endif %}
           {% if profile and profile.birth_date %}
           <dt>تاريخ الميلاد</dt><dd>{{ profile.birth_date|date:"d/m/Y" }}</dd>
