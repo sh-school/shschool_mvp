@@ -153,6 +153,7 @@ class TestConfirmingAPeriod:
         parent,
         django_capture_on_commit_callbacks,
     ):
+        hidden = _parent_of(school, kids[0], can_view_behavior=False)
         with django_capture_on_commit_callbacks(execute=True):
             _day(
                 school,
@@ -168,6 +169,8 @@ class TestConfirmingAPeriod:
         assert got.related_url == reverse("parent_behavior")
         assert kids[0].full_name in got.title
         assert "2026/09/13" in got.body
+        # حجبت المدرسةُ السلوكَ عنه — فلا يبلغه الرصدُ من باب الإشعار.
+        assert not InAppNotification.objects.filter(user=hidden).exists()
         notice = AutoInfractionNotice.objects.get()
         assert (notice.kind, notice.auto_rule, notice.date) == (
             "immediate",
@@ -209,6 +212,41 @@ class TestConfirmingAPeriod:
         assert manual.call_args.kwargs["infraction_id"] == str(first.pk)
         assert manual.call_args.kwargs["school_id"] == str(school.id)
 
+    def test_a_failed_publish_frees_the_marker_for_the_next_recreation(
+        self,
+        school,
+        klass,
+        kids,
+        teacher,
+        supervisor,
+        parent,
+        django_capture_on_commit_callbacks,
+    ):
+        kid = kids[0]
+        with patch(
+            "notifications.tasks.notify_behavior_task.delay", side_effect=OSError("الوسيط")
+        ) as manual:
+            with django_capture_on_commit_callbacks(execute=True):
+                sessions = _day(
+                    school,
+                    klass,
+                    teacher,
+                    supervisor,
+                    [{kid: "present"}, {kid: "absent"}, {kid: "absent"}],
+                )
+            assert manual.call_count == 1
+            assert not AutoInfractionNotice.objects.exists()
+
+            manual.side_effect = None
+            with django_capture_on_commit_callbacks(execute=True):
+                _confirm(klass, sessions[2], {kid: "present"}, supervisor)
+                _confirm(klass, sessions[2], {kid: "absent"}, supervisor)
+
+        assert manual.call_count == 2
+        again = BehaviorInfraction.objects.get(auto_rule="school_escape")
+        assert manual.call_args.kwargs["infraction_id"] == str(again.pk)
+        assert AutoInfractionNotice.objects.get().kind == "immediate"
+
 
 # ══════════════════════════════════════════════════════════════════
 #  الملخّص
@@ -245,7 +283,11 @@ class TestTheDigest:
             (3, "3 مخالفاتٍ آليّة"),
             (10, "10 مخالفاتٍ آليّة"),
             (11, "11 مخالفةً آليّة"),
-            (104, "104 مخالفةً آليّة"),
+            (99, "99 مخالفةً آليّة"),
+            (100, "100 مخالفةٍ آليّة"),
+            (102, "102 مخالفةٍ آليّة"),
+            (104, "104 مخالفاتٍ آليّة"),
+            (111, "111 مخالفةً آليّة"),
         ],
     )
     def test_the_count_agrees_with_its_noun(self, count, phrase):
@@ -378,6 +420,73 @@ class TestOnceOnly:
         assert send_day(school, SUNDAY, today=SUNDAY) == 1
         assert _digests(parent).count() == 1
 
+    def test_a_failure_the_hub_swallows_still_rolls_the_marker_back(
+        self, school, klass, kids, teacher, supervisor, parent
+    ):
+        # الـHub يحتوي فشلَ كلِّ مستلمٍ ويعود طبيعيّاً — فلا يكفي أن يُفحص الرفع.
+        _tardy_and_class_escape(school, klass, teacher, supervisor, kids[0])
+
+        with patch("notifications.hub._prepare_recipient", side_effect=RuntimeError("تفضيلات")):
+            assert send_day(school, SUNDAY, today=SUNDAY) == 0
+        assert not AutoInfractionNotice.objects.exists()
+        assert not _digests(parent).exists()
+
+        assert send_day(school, SUNDAY, today=SUNDAY) == 1
+        assert _digests(parent).count() == 1
+
+    def test_a_partial_failure_keeps_the_message_for_who_got_it(
+        self, school, klass, kids, teacher, supervisor, parent
+    ):
+        other = _parent_of(school, kids[0])
+        _tardy_and_class_escape(school, klass, teacher, supervisor, kids[0])
+
+        from notifications import hub
+
+        real = hub._prepare_recipient
+
+        def failing_for_other(user, prepared, results):
+            if user.pk == other.pk:
+                raise ValueError("تفضيلات")
+            return real(user, prepared, results)
+
+        with patch.object(hub, "_prepare_recipient", side_effect=failing_for_other):
+            assert send_day(school, SUNDAY, today=SUNDAY) == 1
+
+        assert _digests(parent).count() == 1
+        assert not _digests(other).exists()
+        assert set(AutoInfractionNotice.objects.values_list("recipients", flat=True)) == {1}
+        # إعادتُها للجميع تكرّرها على من استلم.
+        assert send_day(school, SUNDAY, today=SUNDAY) == 0
+        assert _digests(parent).count() == 1
+
+    def test_a_concurrent_run_that_marked_first_wins(
+        self, school, klass, kids, teacher, supervisor, parent
+    ):
+        """تشغيلان حسبا المعلَّقَ معاً — والقيدُ الفريدُ وحده يمنع الثاني."""
+        sessions = _day(school, klass, teacher, supervisor, [{kids[0]: LATE}, {}, {}])
+
+        from behavior import digest
+
+        real = digest._parents_of
+
+        def the_other_worker_commits_first(student, in_school):
+            AutoInfractionNotice.objects.create(
+                school=in_school,
+                student=student,
+                date=SUNDAY,
+                auto_rule="period_tardy",
+                start_time=sessions[0].start_time,
+                kind="digest",
+                recipients=1,
+            )
+            return real(student, in_school)
+
+        with patch.object(digest, "_parents_of", side_effect=the_other_worker_commits_first):
+            assert send_day(school, SUNDAY, today=SUNDAY) == 0
+
+        assert not _digests(parent).exists()
+        assert AutoInfractionNotice.objects.count() == 1
+
 
 # ══════════════════════════════════════════════════════════════════
 #  من يستلم
@@ -401,12 +510,21 @@ class TestRecipients:
         assert not InAppNotification.objects.filter(user__in=[hidden, withdrawn]).exists()
         assert set(AutoInfractionNotice.objects.values_list("recipients", flat=True)) == {1}
 
-    def test_nobody_to_tell_still_marks_the_day(self, school, klass, kids, teacher, supervisor):
+    def test_nobody_to_tell_leaves_the_day_open_for_a_parent_linked_later(
+        self, school, klass, kids, teacher, supervisor
+    ):
         _tardy_and_class_escape(school, klass, teacher, supervisor, kids[0])
 
         assert send_day(school, SUNDAY, today=SUNDAY) == 0
-        assert set(AutoInfractionNotice.objects.values_list("recipients", flat=True)) == {0}
+        assert not AutoInfractionNotice.objects.exists()
         assert not InAppNotification.objects.filter(title__contains="ملخّص سلوك").exists()
+
+        # رُبط غداً — فيستلم ملخّصَ اليوم كاملاً، لا «إضافةً» إلى ما لم يره.
+        late_parent = _parent_of(school, kids[0])
+        assert send_day(school, SUNDAY, today=MONDAY) == 1
+        got = _digests(late_parent).get()
+        assert got.title == f"ملخّص سلوك يوم 13/9 — {kids[0].full_name}"
+        assert got.body.startswith("رُصدت لابنكم مخالفتان آليّتان")
 
     def test_the_parent_portal_lists_automatic_infractions_on_their_day(
         self, client, school, klass, kids, teacher, supervisor, parent
@@ -425,6 +543,33 @@ class TestRecipients:
         row = response.context["children_behavior"][0]
         assert [i.auto_rule for i in row["infractions"]] == ["period_tardy"]
         assert "10/09" in response.content.decode()
+
+    def test_the_portal_orders_by_session_day_and_shows_the_recent_days_in_full(
+        self, client, school, klass, kids, teacher, supervisor, parent
+    ):
+        from django.utils import timezone
+
+        parent.consent_given_at = timezone.now()
+        parent.save(update_fields=["consent_given_at"])
+        wednesday = THURSDAY - dt.timedelta(days=1)
+        # اثنتا عشرة مخالفة في ثلاثة أيّام، والخميسُ والأربعاءُ كُتبا يومَ الأحد.
+        four_late = [{kids[0]: LATE}] * 4
+        for day in (wednesday, THURSDAY):
+            _day(school, klass, teacher, supervisor, four_late, day=day, count=4)
+        BehaviorInfraction.objects.update(date=SUNDAY)
+        _day(school, klass, teacher, supervisor, four_late, day=SUNDAY, count=4)
+        assert BehaviorInfraction.objects.count() == 12
+
+        client.force_login(parent)
+        with patch.object(timezone, "localdate", return_value=MONDAY):
+            response = client.get(reverse("parent_behavior"))
+
+        rows = response.context["children_behavior"][0]["infractions"]
+        assert len(rows) == 12
+        days = [inf.shown_day for inf in rows]
+        assert days == [SUNDAY] * 4 + [THURSDAY] * 4 + [wednesday] * 4
+        starts = [inf.session.start_time for inf in rows[:4]]
+        assert starts == sorted(starts, reverse=True)
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -540,6 +685,58 @@ class TestTheScheduledTask:
         send_auto_infraction_digest(day=SUNDAY.isoformat())
 
         assert _digests(parent).get().title == f"ملخّص سلوك يوم 10/9 — {kids[0].full_name}"
+
+    def test_what_the_register_wrote_before_launch_is_never_sent(
+        self, school, klass, kids, teacher, supervisor, parent
+    ):
+        """الهجرةُ 0018 خطُّ الإطلاق — أوّلُ تشغيلٍ لا يحمل أسبوعاً مضى."""
+        import importlib
+
+        from django.apps import apps
+
+        kid, runner = kids[0], kids[1]
+        _day(school, klass, teacher, supervisor, [{kid: LATE}], day=THURSDAY)
+        # الأحد: تأخّرٌ وهروبٌ من حصّة للأوّل، وهروبٌ من المدرسة للثاني.
+        sessions = _day(
+            school,
+            klass,
+            teacher,
+            supervisor,
+            [
+                {kid: LATE, runner: "present"},
+                {kid: "absent", runner: "absent"},
+                {kid: "present", runner: "absent"},
+            ],
+        )
+        # السابقُ للإطلاق لم يمرّ بالإبلاغ الفوريّ — علامتُه تأتي من الهجرة وحدها.
+        AutoInfractionNotice.objects.all().delete()
+
+        baseline = importlib.import_module("behavior.migrations.0018_auto_notice_baseline")
+        baseline.mark_existing(apps, None)
+        baseline.mark_existing(apps, None)  # يُعاد بلا أثر
+
+        assert set(AutoInfractionNotice.objects.values_list("kind", "recipients")) == {
+            ("baseline", None)
+        }
+        assert AutoInfractionNotice.objects.count() == 4
+        assert send_auto_infraction_digest(day=SUNDAY.isoformat()) == {
+            "sent": 0,
+            "failed_schools": 0,
+        }
+        assert not InAppNotification.objects.filter(title__contains="ملخّص سلوك").exists()
+
+        # وما جدّ بعد الإطلاق عن يومٍ سبقه يُرسَل ملخّصاً — لا «إضافةً» إلى ما لم يُرسَل.
+        _confirm(klass, sessions[2], {kid: LATE, runner: "absent"}, supervisor)
+        assert send_auto_infraction_digest(day=MONDAY.isoformat())["sent"] == 1
+        got = _digests(parent).get()
+        assert got.title == f"ملخّص سلوك يوم 13/9 — {kid.full_name}"
+        assert got.body.startswith("رُصدت لابنكم مخالفةٌ آليّةٌ واحدة")
+
+    def test_the_backfill_command_refuses_a_malformed_school(self):
+        from django.core.management import CommandError, call_command
+
+        with pytest.raises(CommandError):
+            call_command("send_behavior_digest", "--school", "abc")
 
     def test_it_is_scheduled_at_three_on_school_days(self):
         from shschool.celery import app

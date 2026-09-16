@@ -563,15 +563,18 @@ class AutoInfractionNotice(models.Model):
     )
     #: الرسالةُ التي حملته — صفوفُ الملخّص الواحد تشترك فيه، وهو معرّفُ الإشعار.
     message_id = models.UUIDField(default=_uuid, db_index=True)
-    #: `immediate` للهروب من المدرسة، `digest` للملخّص، `supplement` لإضافةٍ إليه.
+    #: `immediate` للهروب من المدرسة، `digest` للملخّص، `supplement` لإضافةٍ إليه،
+    #: و`baseline` لما سبق الإطلاق (الهجرة 0018) — لم يُرسَل ولن يُرسَل.
     KINDS = [
         ("immediate", "فوريّ"),
         ("digest", "الملخّص اليوميّ"),
         ("supplement", "إضافةٌ إلى الملخّص"),
+        ("baseline", "سابقٌ للإطلاق — لم يُرسَل"),
     ]
     kind = models.CharField(max_length=10, choices=KINDS)
-    #: عددُ من وصلته الرسالةُ بعد صلاحيّة الرؤية والموافقة — صفرٌ: لا أحد. وفارغٌ
-    #: للفوريّ: يمرّ بمسار المخالفة اليدويّة في العامل، فعددُه لا يُعرف هنا.
+    #: عددُ من وصلته الرسالةُ بعد صلاحيّة الرؤية والموافقة (لا علامةَ ملخّصٍ بلا
+    #: مستلم). وفارغٌ للفوريّ — يمرّ بمسار المخالفة اليدويّة في العامل فعددُه لا
+    #: يُعرف هنا — وللأساس، إذ لم يُرسَل شيء.
     recipients = models.PositiveSmallIntegerField(null=True, blank=True)
     sent_at = models.DateTimeField(auto_now_add=True)
 

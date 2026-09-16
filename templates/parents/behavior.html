@@ -27,7 +27,7 @@
               <tbody>
                 {% for inf in child.infractions %}
                   <tr>
-                    <td class="num">{{ inf.session.date|default:inf.date|date:"d/m" }}</td>
+                    <td class="num">{{ inf.shown_day|date:"d/m" }}</td>
                     <td>{% if inf.violation_category %}<span class="status-badge {% if inf.violation_category.category == 'A' %}status-warning{% else %}status-danger{% endif %}">{{ inf.violation_category.code }}</span>{% else %}—{% endif %}</td>
                     <td>{{ inf.description|truncatewords:10 }}</td>
                     <td>{% if inf.is_resolved %}<span class="status-badge status-success">محلولة</span>{% else %}<span class="status-badge status-warning">قائمة</span>{% endif %}</td>

@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import uuid
 from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError, CommandParser
@@ -34,5 +35,13 @@ class Command(BaseCommand):
                 raise CommandError("التاريخ بصيغة YYYY-MM-DD") from exc
         else:
             days = school_days_back(today)
-        result = send_for_schools(days, today=today, school_id=options["school"])
+        school_id = None
+        if options["school"]:
+            # يُفحص هنا: معرّفٌ مشوَّهٌ يُسقطه `UUIDField` بـ`ValidationError` خارجَ
+            # احتواء المدرسة، فيخرج أثراً خاماً بدل رسالة.
+            try:
+                school_id = str(uuid.UUID(options["school"]))
+            except ValueError as exc:
+                raise CommandError("معرّف المدرسة UUID") from exc
+        result = send_for_schools(days, today=today, school_id=school_id)
         self.stdout.write(f"أُرسل {result['sent']} ملخّصاً، وتعثّرت {result['failed_schools']} مدرسة.")

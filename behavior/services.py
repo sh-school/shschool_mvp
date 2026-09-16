@@ -621,6 +621,9 @@ class BehaviorService:
                 # في `/behavior/student/` للكادر لا تُفتح لهم — فيصلون إلى بوابتهم.
                 related_url=reverse("parent_behavior"),
                 sent_by=reporter,
+                # مخالفةُ الرصد (الهروبُ من المدرسة) لمن يرى السلوكَ في بوابته وحدَه —
+                # كملخّص الرصد. ولم تكن تبلغ وليّاً قبل القرار، فلا تفتح له ما حُجب عنه.
+                behavior_viewers_only=bool(infraction.auto_rule),
             )
         except Exception as e:
             logger.error(

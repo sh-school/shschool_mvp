@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def notify_behavior_after_commit(
     infraction: BehaviorInfraction, school: School, reporter: CustomUser
-) -> None:
+) -> bool:
     """[B4-PRE3] إشعار وليّ الأمر بمخالفة — بعد أن تُصبح المخالفة نهائية.
 
     هذان المساران يُطابران المهمّة مباشرةً لا عبر `NotificationHub`، فلا يشملهما
@@ -31,6 +31,9 @@ def notify_behavior_after_commit(
     الالتزام، فلا يبلغه `except` خارجه أصلاً. وما يحرسه اليوم هو الاحتواء
     والرصد في موضع الوقوع — لا ارتداد متزامن: الإشعار لا يُعاد تنفيذه من
     الويب، والفشل يُسجَّل ولا يُعوَّض.
+
+    ويُرجع هل قبل الوسيطُ المهمّة: الشاشتان تتجاهلانه، والإبلاغُ الفوريُّ من الرصد
+    (`behavior/digest.py`) يمحو به علامتَه كي لا تحجب إرسالاً قادماً.
     """
     try:
         # [B4-7A.3] `OperationalError` هو ما يرفعه Kombu فعلاً عند سقوط الوسيط،
@@ -46,6 +49,7 @@ def notify_behavior_after_commit(
             reporter_id=str(reporter.id),
             school_id=str(school.id),
         )
+        return True
     except (ImportError, OSError, RuntimeError, OperationalError):
         # [B4-7A.3] لا ارتداد متزامن — الفشل يُرصد ولا يُعوَّض هنا.
         #
@@ -67,3 +71,4 @@ def notify_behavior_after_commit(
             infraction.pk,
             exc_info=True,
         )
+        return False

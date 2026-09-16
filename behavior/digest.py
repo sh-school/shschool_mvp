@@ -31,6 +31,9 @@
   ملخّصُه، فيحملها التشغيلُ التالي وحدَها بعنوانٍ يسمّي يومَها.
 - **ويُمسح آخرُ خمسة أيّامٍ دراسيّة** في كلّ تشغيل: شاشةُ الأجنحة تقبل تصحيحَ أيّ
   يومٍ مضى، وخدمةُ Beat قد تغيب يوماً.
+- **وما سبق الإطلاقَ لا يُرسَل**: الهجرةُ `0018` تُعلّم كلَّ مخالفةٍ آليّةٍ قائمةٍ
+  بعلامة `baseline` — وإلّا حمل أوّلُ تشغيلٍ بعد النشر خمسَ رسائلَ لكلّ طالبٍ عن
+  أسبوعٍ مضى. النافذةُ لتدارك تشغيلٍ فائتٍ وتصحيحٍ متأخّر، لا لاستدراك الماضي.
 
 ## من يستلم
 
@@ -84,13 +87,22 @@ Item = tuple[BehaviorInfraction, dt.time]
 
 
 def count_phrase(count: int) -> str:
-    """العددُ ومعدودُه بإعراب العربيّة: واحدةٌ، مثنًّى، جمعٌ للعشرة فما دونها، ومفردٌ منصوبٌ فوقها."""
+    """العددُ ومعدودُه بإعراب العربيّة.
+
+    واحدةٌ ومثنًّى بلفظهما، والجمعُ المجرورُ لِما بين الثلاثة والعشرة، والمفردُ المنصوبُ
+    لِما بين أحدَ عشرَ وتسعةٍ وتسعين. وما جاوز المئة يتبع رقمَيه الأخيرين — «104
+    مخالفاتٍ»، «111 مخالفةً» — والمئاتُ المفردةُ ومعها واحدٌ أو اثنان تُضاف إلى مفردٍ
+    مجرور: «100 مخالفةٍ».
+    """
     if count == 1:
         return "مخالفةٌ آليّةٌ واحدة"
     if count == 2:
         return "مخالفتان آليّتان"
-    if 3 <= count <= 10:
+    tail = count % 100
+    if 3 <= tail <= 10:
         return f"{count} مخالفاتٍ آليّة"
+    if count >= 100 and tail in (0, 1, 2):
+        return f"{count} مخالفةٍ آليّة"
     return f"{count} مخالفةً آليّة"
 
 
@@ -131,7 +143,7 @@ def notify_immediately(infraction: BehaviorInfraction, school: School, by: Custo
         return False
     try:
         with transaction.atomic():
-            AutoInfractionNotice.objects.create(
+            notice = AutoInfractionNotice.objects.create(
                 school=school,
                 student=infraction.student,
                 date=session.date,
@@ -145,10 +157,27 @@ def notify_immediately(infraction: BehaviorInfraction, school: School, by: Custo
 
     # المسارُ اليدويُّ بعينه: الطبرُ بعد الالتزام، واحتواءُ فشل الوسيط داخله.
     transaction.on_commit(
-        lambda: notify_behavior_after_commit(infraction, school, by),
+        lambda: _publish_immediate(infraction, school, by, notice.pk),
         robust=True,
     )
     return True
+
+
+def _publish_immediate(
+    infraction: BehaviorInfraction, school: School, by: CustomUser, notice_id: Any
+) -> None:
+    """يطبر الإشعار — وإن سقط الوسيطُ محا العلامةَ كي لا تحجب إرسالاً قادماً.
+
+    العلامةُ التزمت مع الرصد، والطبرُ بعده. فلو بقيت بعد طبرٍ فاشل لكان تصحيحٌ
+    يحذف الهروبَ ثمّ يُعيده يصطدم بها فلا يُرسَل شيءٌ أبداً عن مخالفةٍ من الدرجة
+    الثالثة. ومحوُها يُعيد الحالَ إلى «لم يُبلَّغ».
+
+    وما يسقط بعد أن قبله الوسيط — داخل العامل (`notify_parents` يحتوي أخطاءه) —
+    لا يُرى من هنا: ذاك «مرّةٌ على الأكثر» كمسار المخالفة اليدويّة نفسِه، وأثرُه في
+    السجلّ وSentry.
+    """
+    if not notify_behavior_after_commit(infraction, school, by):
+        AutoInfractionNotice.objects.filter(pk=notice_id).delete()
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -171,12 +200,17 @@ def school_days_back(today: dt.date, count: int = CATCH_UP_SCHOOL_DAYS) -> list[
 
 def _pending_on(school: School, day: dt.date) -> tuple[dict[Any, list[Item]], set[Any]]:
     """(ما لم يُبلَّغ به بعدُ لكلّ طالب، ومن أُرسل له ملخّصُ هذا اليوم من قبل)."""
-    sent = set(
-        AutoInfractionNotice.objects.filter(
-            school=school, date=day, auto_rule__in=DIGEST_RULES
-        ).values_list("student_id", "auto_rule", "start_time")
+    notices = AutoInfractionNotice.objects.filter(
+        school=school, date=day, auto_rule__in=DIGEST_RULES
     )
-    digested = {student_id for student_id, _, _ in sent}
+    sent = set(notices.values_list("student_id", "auto_rule", "start_time"))
+    # «أُرسل ملخّصُه» تعني رسالةً خرجت فعلاً — لا علامةَ الأساس (ما سبق الإطلاق،
+    # `0018`) فتلك لم تبلغ أحداً، والإضافةُ إلى ملخّصٍ لم يصل تُربك القارئ.
+    digested = set(
+        notices.filter(kind__in=("digest", "supplement"), recipients__gt=0).values_list(
+            "student_id", flat=True
+        )
+    )
 
     pending: dict[Any, list[Item]] = {}
     seen: set[Key] = set()
@@ -215,6 +249,10 @@ def _parents_of(student: CustomUser, school: School) -> list[CustomUser]:
     return kept
 
 
+class DigestDeliveryError(RuntimeError):
+    """لم يصل الملخّصُ أحداً — يُرفع داخل المعاملة لتتراجع علاماتُه."""
+
+
 def _send_one(
     school: School,
     day: dt.date,
@@ -228,6 +266,16 @@ def _send_one(
     العلاماتُ أوّلاً في نقطة حفظٍ داخليّة: إن سبقنا تشغيلٌ متزامنٌ إليها أسقطها
     القيدُ الفريد فتُترك الرسالةُ له. وإن فشل الإرسالُ بعدها تراجعت معه، فيُعيدها
     التشغيلُ التالي.
+
+    **ولا علامةَ بلا مستلم**: طالبٌ لا وليَّ له يرى سلوكَه اليوم يُعاد النظرُ فيه في
+    كلّ تشغيلٍ ما دام يومُه في النافذة — فوليٌّ يُربط غداً، أو موافقةٌ تُعاد، يستلم
+    الملخّصَ كاملاً لا «إضافةً» إلى ملخّصٍ لم يره.
+
+    **والـHub يحتوي فشلَ كلِّ مستلمٍ ولا يرفعه**، فيُقرأ `failed` من نتيجته: إن سقط
+    المستلمون جميعاً رُفع الخطأ داخل المعاملة فتراجعت العلاماتُ وإشعاراتُ المنصّة معاً
+    (والقنواتُ الخارجيّة لا تخرج — مسجَّلةٌ بعد الالتزام). وإن سقط بعضُهم بقيت
+    الرسالةُ لمن وصلته، وعُدّ في العلامة من وصلته وحدَه: إعادتُها للجميع تُكرّرها
+    على من استلم، وحبسُها عنهم خمسةَ أيّامٍ بسبب غيرهم أسوأ.
     """
     from notifications.hub import NotificationHub
 
@@ -235,6 +283,8 @@ def _send_one(
     message_id = uuid.uuid4()
     with transaction.atomic():
         recipients = _parents_of(student, school)
+        if not recipients:
+            return False
         try:
             with transaction.atomic():
                 AutoInfractionNotice.objects.bulk_create(
@@ -261,9 +311,7 @@ def _send_one(
                 day,
             )
             return False
-        if not recipients:
-            return False
-        NotificationHub.dispatch(
+        result = NotificationHub.dispatch(
             event_type=EVENT,
             school=school,
             recipients=recipients,
@@ -273,6 +321,20 @@ def _send_one(
             related_object_id=str(message_id),
             sent_by=None,
         )
+        failed = int(result.get("failed", 0))
+        if failed >= len(recipients):
+            raise DigestDeliveryError(f"all {failed} recipients failed")
+        if failed:
+            AutoInfractionNotice.objects.filter(message_id=message_id).update(
+                recipients=len(recipients) - failed
+            )
+            logger.error(
+                "auto digest partly failed school_id=%s student_id=%s day=%s failed=%s",
+                school.pk,
+                student.pk,
+                day,
+                failed,
+            )
     return True
 
 
@@ -313,7 +375,7 @@ def send_for_schools(
 
     days = list(days)
     schools = School.objects.filter(is_active=True)
-    if school_id:
+    if school_id is not None:
         schools = schools.filter(id=school_id)
     sent = failed = 0
     for school in schools.iterator(chunk_size=100):
