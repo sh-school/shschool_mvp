@@ -2383,8 +2383,11 @@ class TestRoundFour:
         record = StaffAttendance.objects.get(staff=staff, date=FEB)
         assert (record.check_in, record.late_minutes) == (time(9, 10), 130)
 
+        # ولا يمحو الراصدُ العذرَ ليمرّ الوقتُ الجديد — رفعُه لجهة القبول (جولة 5).
         without = {**base, "status": "absent", "accepted_excuse": ""}
-        record = StaffAttendanceService.mark(**without, actor=secretary, check_in=time(13, 30))
+        with pytest.raises(PolicyError, match="ينوب"):
+            StaffAttendanceService.mark(**without, actor=secretary, check_in=time(13, 30))
+        record = StaffAttendanceService.mark(**without, actor=principal_user, check_in=time(13, 30))
         assert (record.status, record.excuse_accepted_by) == ("absent", None)
         record = StaffAttendanceService.mark(**base, actor=principal_user, check_in=time(13, 30))
         assert (record.status, record.late_minutes) == ("late", 390)
@@ -2561,3 +2564,128 @@ class TestExcuseSurvivesReconcile:
         )
         with pytest.raises(PolicyError):
             StaffAttendanceService.mark(**base, status="absent", actor=secretary)
+
+
+class TestRoundFive:
+    # ── م-7: رفعُ العذر المقبول قرارٌ في العذر — لجهة القبول وحدَها ────────────
+    @pytest.mark.parametrize("check_in", [time(9, 30), None])
+    def test_a_recorder_cannot_withdraw_an_excuse_the_principal_accepted(
+        self, school, principal_user, check_in
+    ):
+        """م-7: «جهة القبول: المدير، أو من ينوب عنه وفق م-24» — فمحوُ العذر الذي قبِله
+        نقضٌ لقراره، لا يملكه من يرصد الوقت. ولا يُفقد قيدُه (درجات الثقة: «ولا تُفقد
+        بيانات»)، وإلّا صار اليومُ غياباً يُخصم (البند 5.3)."""
+        staff, secretary = _staff(school, 1), _actor(school, "secretary")
+        accepted = StaffAttendanceService.mark(
+            school=school,
+            staff=staff,
+            day=FEB,
+            status="late",
+            actor=principal_user,
+            check_in=time(9, 30),
+            accepted_excuse="مراجعة مستشفى",
+        )
+        with pytest.raises(PolicyError, match="ينوب"):
+            StaffAttendanceService.mark(
+                school=school,
+                staff=staff,
+                day=FEB,
+                status="absent",
+                actor=secretary,
+                check_in=check_in,
+                accepted_excuse="",
+            )
+        record = StaffAttendance.objects.get(staff=staff, date=FEB)
+        assert (record.status, record.late_minutes, record.accepted_excuse) == (
+            "late",
+            150,
+            "مراجعة مستشفى",
+        )
+        assert (record.excuse_accepted_by, record.excuse_accepted_at) == (
+            principal_user,
+            accepted.excuse_accepted_at,
+        )
+
+    def test_the_principal_side_withdraws_an_excuse_and_the_trail_names_both(
+        self, school, principal_user
+    ):
+        """م-7 وم-24 وم-25: المديرُ — أو نائبُه الإداريّ في غيابه — يرفع العذر، ويبقى في
+        التدقيق من قبِله ومتى ومن رفعه، وبالإنابة يُوسم."""
+        staff, vice_admin = _staff(school, 1), _actor(school, "vice_admin")
+        base = {"school": school, "staff": staff, "day": FEB, "check_in": time(9, 30)}
+        StaffAttendanceService.mark(
+            **base, status="late", actor=principal_user, accepted_excuse="تعطّل السيارة"
+        )
+        record = StaffAttendanceService.mark(**base, status="absent", actor=principal_user)
+        assert (record.status, record.accepted_excuse, record.excuse_accepted_by) == (
+            "absent",
+            "",
+            None,
+        )
+        trail = AuditLog.objects.get(object_id=str(record.pk), changes__excuse_withdrawn=True)
+        assert trail.user == principal_user
+        assert trail.changes["excuse_accepted_by_id"][0] == str(principal_user.pk)
+        assert trail.changes["accepted_excuse"] == [True, False]
+
+        other = _staff(school, 2)
+        StaffAttendanceService.mark(
+            **{**base, "staff": other},
+            status="late",
+            actor=principal_user,
+            accepted_excuse="مراجعة",
+        )
+        with pytest.raises(PolicyError, match="ينوب"):
+            StaffAttendanceService.mark(
+                **{**base, "staff": other}, status="absent", actor=vice_admin
+            )
+        _mark(school, principal_user, _actor(school, "secretary"), DEFAULT_NOW.date(), "absent")
+        record = StaffAttendanceService.mark(
+            **{**base, "staff": other}, status="absent", actor=vice_admin
+        )
+        assert record.status == "absent"
+        assert AuditLog.objects.filter(
+            object_id=str(record.pk),
+            changes__excuse_withdrawn=True,
+            changes__delegation_basis="principal_absent",
+        ).exists()
+
+    # ── م-18ب وم-17: الكنسُ لا يكتب «منتهٍ» فوق اعتمادٍ سبقه ────────────────
+    def test_the_sweep_does_not_expire_a_permit_approved_meanwhile(
+        self, school, principal_user, monkeypatch
+    ):
+        """م-18ب: الإغلاقُ الآليّ لما «بقي معلَّقاً حتى بدأت نافذته» وحدَه — فالمعتمدُ قبل
+        بدئها يبقى معتمداً، ومحسوباً من الرصيد (م-17) ومن الإذن الواحد (م-14)."""
+        staff = _staff(school, 1)
+        day = date(2026, 2, 15)
+        permit = _permit(school, staff, day, time(10, 0), time(11, 0), approve=None)
+        real = PermitService._expire
+
+        def _approved_meanwhile(stale, request=None):
+            # قرأ الكنسُ الطلبَ معلَّقاً، ثمّ التزم اعتمادُ المدير قبل أن يكتب.
+            PermitRequest.objects.filter(pk=stale.pk).update(status="approved", stage="closed")
+            return real(stale, request)
+
+        monkeypatch.setattr(PermitService, "_expire", staticmethod(_approved_meanwhile))
+        with _at(datetime(2026, 2, 15, 10, 0)):
+            assert PermitService.expire_due(school) == 0
+        permit.refresh_from_db()
+        assert (permit.status, permit.stage) == ("approved", "closed")
+        assert not AuditLog.objects.filter(
+            object_id=str(permit.pk), changes__cause="not_approved_before_start"
+        ).exists()
+        assert PermitService.balance(school, staff, day).approved == 60
+
+    def test_a_decision_locks_the_permit_row_itself(self, school):
+        """م-18ب: القرارُ يقفل صفَّ الطلب — فكنسٌ لا يأخذ قفلَ الموظّف ينتظره ثمّ يجده مقرَّراً."""
+        staff = _staff(school, 1)
+        permit = _permit(school, staff, date(2026, 2, 15), time(10, 0), time(11, 0), approve=None)
+        with _at(datetime(2026, 2, 15, 6, 0)):
+            with CaptureQueriesContext(connection) as queries:
+                PermitService.act(permit, actor=_actor(school, "secretary"), approve=True)
+            with CaptureQueriesContext(connection) as cancelled:
+                PermitService.cancel(permit, actor=staff)
+        for captured in (queries, cancelled):
+            assert any(
+                "FOR UPDATE" in q["sql"] and "staff_affairs_permitrequest" in q["sql"]
+                for q in captured.captured_queries
+            )

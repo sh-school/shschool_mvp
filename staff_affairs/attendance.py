@@ -469,6 +469,16 @@ class PermitService:
     # ── م-18ب: ما لم يُعتمد قبل وقت بدئه ينتهي ───────────────────────────
 
     @staticmethod
+    def _lock(permit: PermitRequest) -> None:
+        """يقفل صفَّ الطلب نفسَه ويقرؤه من جديد — وراء قفل صفّ الموظّف.
+
+        قفلُ الموظّف يرتّب القرارات فيما بينها، لكنّ الكنسَ (``expire_due``) يمرّ على طلبات
+        المدرسة كلِّها بلا قفل موظّف؛ فبقفل الصفّ ينتظر أحدُهما الآخر، ويجد الثاني الحالةَ
+        التي التزمها الأوّل (م-18ب).
+        """
+        permit.refresh_from_db(from_queryset=PermitRequest.objects.select_for_update())
+
+    @staticmethod
     def _overdue(permit: PermitRequest, now: datetime) -> bool:
         return permit.permit_type in LEAVING_PERMIT_TYPES and (permit.date, permit.start_time) <= (
             now.date(),
@@ -476,11 +486,21 @@ class PermitService:
         )
 
     @staticmethod
-    def _expire(permit: PermitRequest, request: HttpRequest | None = None) -> PermitRequest:
-        """م-18ب: طلبُ خروجٍ أو استئذانٍ مضى وقتُ بدئه ولم يُعتمد — «منتهٍ» بلا أثرٍ في الرصيد."""
+    def _expire(permit: PermitRequest, request: HttpRequest | None = None) -> bool:
+        """م-18ب: طلبُ خروجٍ أو استئذانٍ مضى وقتُ بدئه ولم يُعتمد — «منتهٍ» بلا أثرٍ في الرصيد.
+
+        الكتابةُ مشروطةٌ بأنّه ما زال معلَّقاً في القاعدة لا في النسخة المقروءة: فالكنسُ
+        (``expire_due``) يقرأ بلا قفل، وقد يلتزم بين قراءته وكتابته اعتمادٌ قُرّر قبل بدء
+        النافذة — فلا يُكتب «منتهٍ» فوقه (م-17 وم-14). ويُرجع هل أُغلق الطلبُ فعلاً.
+        """
         stage = permit.stage
+        closed = PermitRequest.objects.filter(pk=permit.pk, status="pending").update(
+            status="expired", stage="closed", updated_at=timezone.now()
+        )
+        if not closed:
+            permit.refresh_from_db()
+            return False
         permit.status, permit.stage = "expired", "closed"
-        permit.save(update_fields=["status", "stage", "updated_at"])
         _audit(
             None,
             "update",
@@ -488,7 +508,7 @@ class PermitService:
             {"stage": stage, "status": "expired", "cause": "not_approved_before_start"},
             request,
         )
-        return permit
+        return True
 
     @staticmethod
     def expire_due(
@@ -510,8 +530,7 @@ class PermitService:
             qs = qs.filter(staff=staff)
         expired = 0
         for permit in qs.select_related("school"):
-            PermitService._expire(permit, request)
-            expired += 1
+            expired += PermitService._expire(permit, request)
         return expired
 
     @staticmethod
@@ -692,12 +711,13 @@ class PermitService:
         * إذنُ المدير نفسِه: اعتمادٌ من خارج المدرسة تُثبته السكرتاريةُ بمرجعه (م-23).
         """
         CustomUser.objects.select_for_update().filter(pk=permit.staff_id).first()
-        permit.refresh_from_db()
+        PermitService._lock(permit)
         if permit.status != "pending":
             raise PolicyError(f"الطلبُ «{permit.get_status_display()}» — لا يُراجَع ثانيةً.")
         now = _now()
         if PermitService._overdue(permit, now):
-            return PermitService._expire(permit, request)
+            PermitService._expire(permit, request)
+            return permit
         if actor.pk == permit.staff_id:
             raise PolicyError("لا يعمل أحدٌ في طلبه هو (البند 4.1: الاعتمادُ من غيره).")
         stage_day = _StageDay(permit.school, now)
@@ -824,7 +844,7 @@ class PermitService:
         التدقيق — لا يُحذف طلبٌ ولا قرار.
         """
         CustomUser.objects.select_for_update().filter(pk=permit.staff_id).first()
-        permit.refresh_from_db()
+        PermitService._lock(permit)
         if actor.pk != permit.staff_id:
             raise PolicyError("لا يلغي الطلبَ إلّا صاحبُه.")
         now = _now()
@@ -837,7 +857,8 @@ class PermitService:
         elif was != "pending":
             raise PolicyError(f"الطلبُ «{permit.get_status_display()}» — لا يُلغى.")
         elif PermitService._overdue(permit, now):
-            return PermitService._expire(permit, request)
+            PermitService._expire(permit, request)
+            return permit
         stage = permit.stage
         permit.status, permit.stage, permit.updated_by = "cancelled", "closed", actor
         permit.save(update_fields=["status", "stage", "updated_by", "updated_at"])
@@ -1485,13 +1506,17 @@ class StaffAttendanceService:
         # قيدٌ لا يُفقد) — وإنّما يُردّ قبولٌ جديدٌ لا حاجةَ إليه.
         if accepting and not derived["excuse_used"]:
             raise PolicyError("العذرُ المقبول يُكتب لمن حضر بعد 9:00 بلا إذنٍ يغطّيه وحدَه (البند 2.4).")
+        # ورفعُ عذرٍ مقبولٍ نقضٌ لقرار القبول — فهو لجهة القبول نفسِها (م-7)، لا لمن يرصد
+        # الوقت: وإلّا صار اليومُ بمحوه غياباً يُخصم (البند 5.3) بيد من لا يملك القرار.
+        withdrawing = record is not None and bool(record.accepted_excuse) and not excuse
+        deciding = accepting or withdrawing
         stage_day = _StageDay(school, now)
-        basis = stage_day.delegation_basis() if accepting and _role_of(actor) != PRINCIPAL else {}
-        if accepting and actor.pk not in PermitService._principal_side(stage_day, staff.pk):
+        basis = stage_day.delegation_basis() if deciding and _role_of(actor) != PRINCIPAL else {}
+        if deciding and actor.pk not in PermitService._principal_side(stage_day, staff.pk):
             raise PolicyError(
-                "العذرُ المقبول (البند 2.4) يقبله مديرُ المدرسة أو من ينوب عنه (م-7 وم-24) — "
-                "ومن رصد الحضورَ يكتب الوقتَ لا العذر؛ وتغييرُ وقت حضورٍ قُبل عذرُه يحتاج "
-                "قبولاً جديداً، أو امحُ العذر."
+                "العذرُ المقبول (البند 2.4) يقبله ويرفعه مديرُ المدرسة أو من ينوب عنه (م-7 "
+                "وم-24) — ومن رصد الحضورَ يكتب الوقتَ لا العذر؛ وتغييرُ وقت حضورٍ قُبل عذرُه "
+                "يحتاج منهما قبولاً جديداً أو رفعاً للعذر."
             )
         values: dict[str, Any] = {
             "status": status,
@@ -1536,6 +1561,8 @@ class StaffAttendanceService:
         record.updated_by = actor
         record.save()
         changes.update(StaffAttendanceService._delegation_trigger(school, record, before["status"]))
+        if withdrawing:
+            changes["excuse_withdrawn"] = True
         changes.update(basis)
         _audit(actor, "update", record, changes, request)
         return record
