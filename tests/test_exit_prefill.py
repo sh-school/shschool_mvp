@@ -174,18 +174,80 @@ class TestTheRegisterIsPrefilled:
 
         assert len(outs) == 3
 
-    def test_the_supervisors_own_cell_wins_and_the_exit_is_a_badge(
+    def test_an_exit_after_the_supervisors_present_reopens_the_cell_absent(
+        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        """«حاضر» كُتب قبل الخروج لا يعلم به — فيُفتح غائباً بإذن برقم الخروج."""
+        (period,) = _periods(school, klass, teacher, 1)
+        _confirm(klass, period, {kids[0]: "present"}, supervisor, now=at(7, 15))
+        exit_ = leave(period, kids[0], "clinic", by=teacher, now=at(7, 20))
+
+        body = _page(client_as, supervisor, klass)
+
+        sid = kids[0].id
+        assert (_checked(body, sid), _selected(body, sid)) == ("absent", "clinic")
+        assert "خرج 07:20 · العيادة" in body
+        assert f'name="o-{sid}" value="{exit_.pk}"' in body
+        assert f'data-student="{sid}" data-prefill="out"' in body
+
+    def test_a_manual_absence_keeps_its_place_and_the_exit_is_a_badge(
         self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
         (period,) = _periods(school, klass, teacher, 1)
-        _confirm(klass, period, {kids[0]: "present"}, supervisor, now=at(7, 15))
+        _confirm(
+            klass,
+            period,
+            {kids[0]: {"status": "absent", "whereabouts": "activity"}},
+            supervisor,
+            now=at(7, 15),
+        )
         leave(period, kids[0], "clinic", by=teacher, now=at(7, 20))
 
         body = _page(client_as, supervisor, klass)
 
-        assert _checked(body, kids[0].id) == "present"
+        sid = kids[0].id
+        assert (_checked(body, sid), _selected(body, sid)) == ("absent", "activity")
         assert "خرج 07:20 · العيادة" in body
-        assert f'name="o-{kids[0].id}"' not in body, "لم يُعرض غياباً فلا يُحسب مرئيّاً"
+        assert f'name="o-{sid}"' not in body
+        assert f'data-student="{sid}" data-prefill=""' in body
+
+    def test_a_confirmed_derived_absence_is_shielded_from_the_bulk_button(
+        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        """إعادةُ فتح حصّةٍ مثبّتة: الغيابُ المشتقُّ من الخروج يبقى «out» فلا يمحوه «الكلُّ حاضر»."""
+        (period,) = _periods(school, klass, teacher, 1)
+        exit_ = leave(period, kids[0], "clinic", by=teacher, now=at(7, 20))
+        _confirm(klass, period, {}, supervisor, now=at(7, 25))
+        assert _row(period, kids[0]).exit_id == exit_.pk
+
+        body = _page(client_as, supervisor, klass)
+
+        sid = kids[0].id
+        assert f'data-student="{sid}" data-prefill="out"' in body
+        assert f'name="o-{sid}" value="{exit_.pk}"' in body
+        assert _checked(body, sid) == "absent"
+
+    def test_the_supervisor_who_saw_a_later_exit_may_keep_his_present(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        (period,) = _periods(school, klass, teacher, 1)
+        _confirm(klass, period, {kids[0]: "present"}, supervisor, now=at(7, 15))
+        exit_ = leave(period, kids[0], "clinic", by=teacher, now=at(7, 20))
+        pick = prefill_of(klass, SUNDAY, _period(klass, period), at(8, 0)).of(kids[0].id)
+        assert pick.seen_exit == str(exit_.pk)
+
+        _confirm(
+            klass,
+            period,
+            {kids[0]: {"status": "present", "exit": pick.seen_exit}},
+            supervisor,
+            now=at(8, 0),
+        )
+        flipped = finalize_exits_for_day(school, SUNDAY, now=at(8, 5))
+
+        row = _row(period, kids[0])
+        assert (row.status, row.exit_id, flipped) == ("present", exit_.pk, 0)
+        assert not _trail().exists(), "اختيارُه وهو يرى الخروجَ لا يُبدَّل"
 
     def test_a_late_tap_yields_to_an_unreturned_exit(
         self, school, seeded_calendar, klass, kids, teacher, supervisor
@@ -223,6 +285,34 @@ class TestTheRegisterIsPrefilled:
         assert len({before, with_exit, with_tap}) == 3
         assert with_tap == key(), "البصمةُ ثابتةٌ ما لم يتغيّر شيء"
 
+    def test_the_bell_changes_the_fingerprint_of_a_restroom_trip(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        """الخروجُ نفسُه والنقراتُ نفسُها — لكنّ الخانةَ صارت «غائباً»، فالمسوّدةُ القديمةُ تسقط."""
+        (session,) = _periods(school, klass, teacher, 1)
+        leave(session, kids[0], "restroom", by=teacher, now=at(7, 40))
+        period = _period(klass, session)
+
+        during = prefill_of(klass, SUNDAY, period, at(7, 50)).fingerprint
+        again = prefill_of(klass, SUNDAY, period, at(7, 52)).fingerprint
+        after = prefill_of(klass, SUNDAY, period, at(7, 57)).fingerprint
+
+        assert during == again
+        assert during != after
+
+    def test_the_beats_flip_changes_the_fingerprint(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        (session,) = _periods(school, klass, teacher, 1)
+        _confirm(klass, session, {}, supervisor, now=at(7, 15))
+        leave(session, kids[0], "restroom", by=teacher, now=at(7, 40))
+        before = prefill_of(klass, SUNDAY, _period(klass, session), at(7, 50)).fingerprint
+
+        finalize_exits_for_day(school, SUNDAY, now=at(8, 0))
+
+        after = prefill_of(klass, SUNDAY, _period(klass, session), at(8, 1)).fingerprint
+        assert before != after
+
     def test_the_bulk_button_is_told_which_rows_to_skip(
         self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
@@ -248,7 +338,30 @@ class TestTheRegisterIsPrefilled:
         body = _page(client_as, supervisor, klass, p="08:10")
 
         assert "خرج 07:20 · العيادة بإذن المعلّم ولم يعد" in body
+        assert "بإذن المعلّم بإذن المعلّم" not in body
         assert _checked(body, kids[0].id) == "present", "الحصّةُ المفتوحة غيرُ حصّة الخروج"
+
+    def test_the_track_note_reads_once_for_every_kind_of_exit(self):
+        from operations.class_exit import Away
+        from operations.period_register import away_note, track_note
+
+        end = at(7, 55)
+        legacy = Away(exit=None, whereabouts="clinic")
+        restroom = Away(
+            exit=None,
+            whereabouts="out_permit",
+            destination="restroom",
+            left_at=at(7, 20),
+            still_open=True,
+        )
+
+        assert away_note(legacy, at(8, 0), end) == "خرج"
+        assert track_note(legacy, at(8, 0), end) == "خرج بإذن المعلّم ولم يعد"
+        assert track_note(restroom, at(7, 30), end) == "في دورة المياه منذ 07:20 بإذن المعلّم"
+        assert track_note(restroom, at(8, 0), end) == (
+            "خرج 07:20 · دورة المياه بإذن المعلّم ولم يعد"
+        )
+        assert track_note(None, at(8, 0), end) == ""
 
     def test_the_notification_opens_the_exits_period(
         self, school, seeded_calendar, klass, kids, teacher, supervisor
@@ -469,7 +582,7 @@ class TestThePeriodEnds:
         leave(twin, kids[0], "clinic", by=other_teacher, now=at(10, 20))
 
         body = _page(client_as, supervisor, klass, p="10:10")
-        assert _checked(body, kids[0].id) == "present", "رصدُ المشرف يغلب — والخروجُ شارة"
+        assert _checked(body, kids[0].id) == "absent", "«حاضر» قبل الخروج لا يعلم به"
         assert "خرج 10:20 · العيادة" in body
 
         assert finalize_exits_for_day(school, SUNDAY, now=at(11, 0)) == 1
@@ -500,6 +613,78 @@ class TestThePeriodEnds:
                 "absent",
                 exit_.pk,
             )
+
+    def test_a_finished_day_costs_the_beat_one_query(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor, django_assert_num_queries
+    ):
+        periods = _periods(school, klass, teacher, 2)
+        _confirm(klass, periods[0], {}, supervisor, now=at(7, 15))
+        leave(periods[0], kids[0], "admin", by=teacher, now=at(7, 20))
+        leave(periods[1], kids[1], "clinic", by=teacher, now=at(8, 20))
+        assert finalize_exits_for_day(school, SUNDAY, now=at(9, 0)) == 1
+
+        with django_assert_num_queries(1):
+            assert finalize_exits_for_day(school, SUNDAY, now=at(9, 5)) == 0
+
+    def test_a_failed_flip_still_closes_the_exit_and_is_retried(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor, monkeypatch
+    ):
+        from operations import exit_reflection
+
+        (period,) = _periods(school, klass, teacher, 1)
+        _confirm(klass, period, {}, supervisor, now=at(7, 15))
+        exit_ = leave(period, kids[0], "admin", by=teacher, now=at(7, 20))
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("عطبٌ مصطنع")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(exit_reflection, "refresh_counts", boom)
+            assert finalize_exits_for_day(school, SUNDAY, now=at(8, 0)) == 0
+        exit_.refresh_from_db()
+        assert exit_.returned_at == at(7, 55), "الإغلاقُ لا يسقط مع القلب"
+        assert _row(period, kids[0]).status == "present"
+
+        assert finalize_exits_for_day(school, SUNDAY, now=at(8, 5)) == 1
+        assert _row(period, kids[0]).status == "absent"
+
+    def test_a_flip_without_the_confirmer_signs_escapes_with_the_teacher(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor, monkeypatch
+    ):
+        from operations import exit_reflection
+
+        (period,) = _periods(school, klass, teacher, 1)
+        _confirm(klass, period, {}, supervisor, now=at(7, 15))
+        PeriodConfirmation.objects.update(confirmed_by=None)
+        leave(period, kids[0], "admin", by=teacher, now=at(7, 20))
+        signed = []
+        monkeypatch.setattr(
+            exit_reflection, "sync_escapes", lambda klass, day, by: signed.append(by) or 0
+        )
+
+        assert finalize_exits_for_day(school, SUNDAY, now=at(8, 0)) == 1
+
+        assert signed == [teacher]
+
+    def test_no_reporter_at_all_skips_the_escape_check_but_keeps_the_flip(
+        self, school, seeded_calendar, klass, kids, teacher, supervisor, monkeypatch
+    ):
+        from operations import exit_reflection
+
+        (period,) = _periods(school, klass, teacher, 1)
+        _confirm(klass, period, {}, supervisor, now=at(7, 15))
+        PeriodConfirmation.objects.update(confirmed_by=None)
+        exit_ = leave(period, kids[0], "admin", by=teacher, now=at(7, 20))
+        ClassExit.objects.filter(pk=exit_.pk).update(allowed_by=None)
+        signed = []
+        monkeypatch.setattr(
+            exit_reflection, "sync_escapes", lambda klass, day, by: signed.append(by) or 0
+        )
+
+        assert finalize_exits_for_day(school, SUNDAY, now=at(8, 0)) == 1
+
+        assert signed == []
+        assert _row(period, kids[0]).status == "absent"
 
     def test_the_beat_task_runs_school_by_school(
         self, school, seeded_calendar, klass, kids, teacher, supervisor, monkeypatch
@@ -610,6 +795,39 @@ class TestTheStudentComesBack:
         assert (row.status, row.whereabouts, row.exit_id) == ("present", "", None)
         assert not ClassExit.objects.exists()
         assert _trail().filter(user=teacher).exists()
+
+    def test_deleting_the_exit_from_the_file_reverts_a_derived_absence(
+        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        (period,) = _periods(school, klass, teacher, 1)
+        exit_ = leave(period, kids[0], "clinic", by=teacher, now=at(7, 20))
+        _confirm(klass, period, {}, supervisor, now=at(7, 25))
+        assert _row(period, kids[0]).status == "absent"
+
+        client_as(supervisor).post(
+            reverse("wings:exit_event_delete", args=[exit_.pk]), {"reason": "طالبٌ آخر"}
+        )
+
+        row = _row(period, kids[0])
+        assert (row.status, row.whereabouts, row.exit_id) == ("present", "", None)
+        assert not ClassExit.objects.exists()
+        log = _trail().get()
+        assert log.user == supervisor and "طالبٌ آخر" in log.changes["why"]
+        assert PeriodConfirmation.objects.get().absent_count == 0
+
+    def test_deleting_an_exit_leaves_a_manual_absence(
+        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
+    ):
+        (period,) = _periods(school, klass, teacher, 1)
+        exit_ = leave(period, kids[0], "clinic", by=teacher, now=at(7, 20))
+        _confirm(klass, period, {kids[0]: "absent"}, supervisor, now=at(7, 25))
+
+        client_as(supervisor).post(
+            reverse("wings:exit_event_delete", args=[exit_.pk]), {"reason": "خطأ"}
+        )
+
+        assert _row(period, kids[0]).status == "absent"
+        assert not _trail().exists()
 
     def test_a_return_between_render_and_post_is_not_saved_absent(
         self, school, seeded_calendar, klass, kids, teacher, supervisor

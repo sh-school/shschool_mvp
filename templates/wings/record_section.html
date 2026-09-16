@@ -138,8 +138,8 @@
               </td>
               {% else %}
               <td class="per-cell is-{{ cell.status|default:'none' }}"
-                  title="{% if cell.status == 'absent' %}غائب{% elif cell.status == 'late' %}متأخّر{% if cell.late_minutes %} {{ cell.late_minutes }} دقيقة{% endif %}{% elif cell.status == 'present' %}حاضر{% else %}لم تُرصد{% endif %}{% if cell.whereabouts %} · {{ cell.where_label }}{% endif %}{% if gone %} · {{ gone }} بإذن المعلّم ولم يعد{% endif %}">
-                <span class="per-mark">{% if cell.status == "absent" %}غ{% elif cell.status == "late" %}م{% elif cell.status == "present" %}ح{% else %}·{% endif %}</span>{% if gone %}<sup aria-hidden="true">خ</sup><span class="sr-only">{{ gone }} بإذن المعلّم</span>{% endif %}
+                  title="{% if cell.status == 'absent' %}غائب{% elif cell.status == 'late' %}متأخّر{% if cell.late_minutes %} {{ cell.late_minutes }} دقيقة{% endif %}{% elif cell.status == 'present' %}حاضر{% else %}لم تُرصد{% endif %}{% if cell.whereabouts %} · {{ cell.where_label }}{% endif %}{% if gone %} · {{ gone }}{% endif %}">
+                <span class="per-mark">{% if cell.status == "absent" %}غ{% elif cell.status == "late" %}م{% elif cell.status == "present" %}ح{% else %}·{% endif %}</span>{% if gone %}<sup aria-hidden="true">خ</sup><span class="sr-only">{{ gone }}</span>{% endif %}
               </td>
               {% endif %}
             {% endfor %}

@@ -113,7 +113,13 @@ def delete_attendance_event(request, row: StudentAttendance, reason: str) -> Non
 
 @transaction.atomic
 def delete_exit_event(request, exit_: ClassExit, reason: str) -> None:
-    """حذفُ خروجٍ من ملف الطالب بسبب."""
+    """حذفُ خروجٍ من ملف الطالب بسبب — والغيابُ المشتقُّ منه يرجع حاضراً معه.
+
+    الحذفُ يمحو رقمَ الخروج من سطر الحضور (`SET_NULL`)، فلو بقي الغيابُ لصار كغيابٍ قاله
+    المشرفُ بنفسه: لا عودةَ تُرجعه ولا أثرَ يدلّ عليه. فيُحسم قبل الحذف كما في الإلغاء.
+    """
+    from operations.exit_reflection import revert_derived_absence
+
     _audit(
         request,
         action="delete",
@@ -127,4 +133,5 @@ def delete_exit_event(request, exit_: ClassExit, reason: str) -> None:
             "reason": reason,
         },
     )
+    revert_derived_absence(exit_, by=request.user, why=f"حُذف الخروجُ من ملف الطالب — {reason}")
     exit_.delete()

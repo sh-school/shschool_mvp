@@ -253,6 +253,10 @@ class StudentAttendance(models.Model):
     #: بنهاية الحصّة. وبه يُعرف أنّ الغيابَ مشتقٌّ من الخروج: فيُرجَع حاضراً إن عاد
     #: الطالبُ قبل الجرس، ولا يُقلب ثانيةً ما حسمه المشرفُ وهو يرى الخروج. وفارغٌ =
     #: رصدٌ لم يرَ خروجاً — غيابٌ قاله المشرفُ بنفسه لا يُمسّ.
+    #:
+    #: بلا فهرسٍ كامل (أكثرُ السطور فارغة)، وبفهرسٍ جزئيٍّ على غير الفارغ في `Meta`: حذفُ
+    #: خروجٍ (إلغاءُ المعلّم) يُفرغ هذا العمودَ ويفحصه قيدُ المفتاح — وبلا فهرسٍ يمسحان
+    #: أكبرَ جداول التشغيل كلَّه في كلّ نقرة.
     exit = models.ForeignKey(
         "operations.ClassExit",
         on_delete=models.SET_NULL,
@@ -280,6 +284,11 @@ class StudentAttendance(models.Model):
             models.Index(fields=["school", "session"]),
             models.Index(fields=["student", "status"]),
             models.Index(fields=["student", "status", "marked_at"]),
+            models.Index(
+                fields=["exit"],
+                name="attendance_exit_accounted",
+                condition=models.Q(exit__isnull=False),
+            ),
         ]
 
     def __str__(self):

@@ -22,6 +22,7 @@ import logging
 from typing import Any
 
 from django.db import transaction
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from core.models import AuditLog
@@ -93,20 +94,48 @@ def refresh_counts(class_group: Any, day: dt.date, period: Period) -> None:
     )
 
 
-@transaction.atomic
+def reporter_for(period: Period | None, *fallbacks: Any) -> Any:
+    """من يُوقَّع باسمه ما تُنشئه إعادةُ الحكم آليّاً — `create_infraction` لا يقبل فراغاً.
+
+    من ثبّت الحصّة، ثمّ من جاء بعده بالترتيب (المعلّمُ الذي أذن أو نقر). وقد يفرغ الكلُّ
+    (حُذفت الحسابات): فيُرجع `None`، ويترك المستدعي إعادةَ الحكم بتحذيرٍ في السجلّ.
+    """
+    first = period.confirmation.confirmed_by if period and period.confirmation else None
+    return next((user for user in (first, *fallbacks) if user is not None), None)
+
+
+def resync_escapes(class_group: Any, day: dt.date, reporter: Any) -> None:
+    """حكمُ الهروب على اليوم بعد تبديلٍ آليّ — ولا يُسقط التبديلَ إن لم يوجد راصد."""
+    if reporter is None:
+        logger.warning(
+            "exit_reflection: لا راصدَ يُوقَّع به حكمُ الهروب — تُرك [class=%s day=%s]",
+            class_group.pk,
+            day,
+        )
+        return
+    sync_escapes(class_group, day, reporter)
+
+
 def reflect_period_exits(class_group: Any, day: dt.date, period: Period, now: dt.datetime) -> int:
-    """نهايةُ حصّةٍ واحدة: يُغلق خروجَها المفتوح، ويقلب الحاضرَ الذي لم يحسبه — ويُرجع عددَ ما قُلب."""
+    """نهايةُ حصّةٍ واحدة: يُغلق خروجَها المفتوح، ويقلب الحاضرَ الذي لم يحسبه — ويُرجع عددَ ما قُلب.
+
+    الإغلاقُ في معاملته قبل القلب: عطبٌ في القلب لا يُبقي الخروجَ مفتوحاً فيُعاد كلَّ دورة.
+    """
     if now < period_end(day, period):
         return 0
     for session in period.sessions:
         close_unreturned(session, now=now)
     if period.confirmation is None:
         return 0
+    return _flip_unaccounted(class_group, day, period, now)
 
+
+@transaction.atomic
+def _flip_unaccounted(class_group: Any, day: dt.date, period: Period, now: dt.datetime) -> int:
     latest: dict = {}
     for exit_ in (
         ClassExit.objects.filter(session__in=period.sessions)
-        .select_related("session", "student")
+        .select_related("session", "student", "allowed_by")
         .order_by("left_at")
     ):
         if is_unreturned(exit_):
@@ -157,8 +186,10 @@ def reflect_period_exits(class_group: Any, day: dt.date, period: Period, now: dt
         flipped.append(exit_.student)
 
     if flipped:
-        # المخالفةُ الآليّةُ تحتاج راصداً: من ثبّت الحصّة — النظامُ لا يوقّع مخالفة.
-        sync_escapes(class_group, day, period.confirmation.confirmed_by)
+        # المخالفةُ الآليّةُ تحتاج راصداً: من ثبّت الحصّة، وإلّا المعلّمُ الذي أذن.
+        resync_escapes(
+            class_group, day, reporter_for(period, *(e.allowed_by for e in latest.values()))
+        )
         refresh_counts(class_group, day, period)
         _warn_of_gates(class_group.school, flipped, day)
     return len(flipped)
@@ -171,15 +202,22 @@ def finalize_exits_for_day(school: Any, day: dt.date, now: dt.datetime | None = 
     معاملتها، فعطبُ واحدةٍ لا يُسقط غيرَها.
     """
     now = now or timezone.now()
+    # ما بقي عمله وحدَه، باستعلامٍ واحد: خروجٌ مفتوح، أو خروجٌ أُغلق وفي حصّته خانةٌ
+    # حاضرةٌ لا تحسبه. وما أُنهي في دورةٍ سابقةٍ لا يُعاد كلَّ خمس دقائق.
+    pending = StudentAttendance.objects.filter(
+        session=OuterRef("session"),
+        student=OuterRef("student"),
+        source=SOURCE,
+        status__in=ATTENDED,
+    ).exclude(exit=OuterRef("pk"))
     slots: dict = {}
     for exit_ in (
         ClassExit.objects.filter(school=school, session__date=day)
         .exclude(session__status="cancelled")
+        .filter(Q(returned_at__isnull=True) | Exists(pending))
         .select_related("session", "session__class_group")
     ):
-        if session_end(exit_.session) > now:
-            continue
-        if exit_.returned_at is not None and not is_unreturned(exit_):
+        if session_end(exit_.session) > now or not is_unreturned(exit_):
             continue
         group = exit_.session.class_group
         slots.setdefault(group.pk, (group, set()))[1].add(exit_.session.start_time)
@@ -232,8 +270,7 @@ def revert_derived_absence(exit_: ClassExit, by: Any = None, why: str = "") -> i
     period = next(
         (p for p in periods_of(klass, session.date) if p.start == session.start_time), None
     )
-    reporter = period.confirmation.confirmed_by if period and period.confirmation else None
-    sync_escapes(klass, session.date, reporter or by)
+    resync_escapes(klass, session.date, reporter_for(period, by, exit_.allowed_by))
     if period is not None:
         refresh_counts(klass, session.date, period)
     return len(rows)

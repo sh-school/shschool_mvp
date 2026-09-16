@@ -33,6 +33,9 @@
   «بإذن المعلّم». والنموذجُ يحمل رقمَ الخروج الذي رآه المشرف (`o-<طالب>`)، فيُحفظ
   على السطر (`StudentAttendance.exit`) أيّاً كان ما اختاره — قبِل الغيابَ أو بدّله.
 - **دورةُ المياه والحصّةُ جارية**: «حاضر» بشارة «في دورة المياه منذ …».
+- **خروجٌ بعد رصد المشرف**: خانتُه «حاضر» أو «متأخّر» لم تحسبه — فتُفتح «غائباً بإذن»
+  كأنّها لم تُرصد، ويبقى للمشرف أن يُبقيه حاضراً وهو يراه (فيُحفظ رقمُ الخروج). وغيابٌ
+  قاله المشرفُ بنفسه يبقى، والخروجُ شارة.
 - **ما بعد التثبيت**: خروجٌ لم يره المشرفُ ولم يعد صاحبُه حتى الجرس يُقلب غياباً
   بإذن في الحصّة المثبّتة (`exit_reflection`) بسجلّ مراجعة، والعودةُ قبل الجرس تُرجع
   الغيابَ المشتقَّ منه حاضراً.
@@ -239,29 +242,57 @@ PRESENT = Pick()
 
 
 def away_note(away: Away | None, now: dt.datetime, end: dt.datetime) -> str:
-    """نصُّ شارة الخروج: «خرج 07:20 · العيادة» أو «في دورة المياه منذ 07:20»."""
+    """نصُّ شارة الخروج: «خرج 07:20 · العيادة» أو «في دورة المياه منذ 07:20».
+
+    والسطرُ القديمُ بمصدر `teacher_out` لا لحظةَ له ولا وجهة: «خرج» وحدَها — و«بإذن
+    المعلّم» يضيفها موضعُ العرض، فلا تتكرّر.
+    """
     if away is None:
         return ""
     if away.left_at is None:
-        return "خرج بإذن المعلّم"
+        return "خرج"
     moment = f"{timezone.localtime(away.left_at):%H:%M}"
     if not away.counts_as_absent(now, end):
         return f"في {away.destination_label} منذ {moment}"
     return f"خرج {moment} · {away.destination_label}"
 
 
+def track_note(away: Away | None, now: dt.datetime, end: dt.datetime) -> str:
+    """جملةُ الخروج في عمودٍ غيرِ المفتوح — تُعرض عنواناً للخانة ونصّاً لقارئ الشاشة.
+
+    «خرج 07:20 · العيادة بإذن المعلّم ولم يعد»، و«في دورة المياه منذ 07:20 بإذن المعلّم»
+    ما دامت الحصّةُ جارية (لم يُحكم بعد أنّه لم يعد).
+    """
+    note = away_note(away, now, end)
+    if away is None:
+        return ""
+    if away.counts_as_absent(now, end):
+        return f"{note} بإذن المعلّم ولم يعد"
+    return f"{note} بإذن المعلّم"
+
+
 def pick_for(
     cell: Cell | None, tap: int | None, away: Away | None, now: dt.datetime, end: dt.datetime
 ) -> Pick:
-    """الأولويّة: ما رصده المشرف ← خروجٌ لم يعد صاحبُه ← نقرةُ التأخّر ← حاضر."""
+    """الأولويّة: ما رصده المشرف ← خروجٌ لم يعد صاحبُه ← نقرةُ التأخّر ← حاضر.
+
+    و«ما رصده المشرف» رصدٌ **رأى** الخروجَ أو لم يُبقِ الطالبَ حاضراً: خانةٌ حاضرةٌ أو
+    متأخّرةٌ كُتبت قبل الخروج لا تعلم به، فتُفتح كما تُفتح خانةٌ لم تُرصد — «غائب بإذن»
+    برقم الخروج. فإن أبقاه المشرفُ حاضراً بعدها حُفظ أنّه رآه، ولا يُقلب عند الجرس.
+    """
     note = away_note(away, now, end)
     exit_id = str(away.exit.pk) if away is not None and away.exit is not None else ""
+    out_where = away.whereabouts if away is not None and away.counts_as_absent(now, end) else None
+    derived = bool(exit_id) and out_where is not None
     if cell is not None:
-        # الخروجُ الذي حسبه رصدُه يبقى محسوباً إن أعاد التثبيت؛ وغيرُه يُعرض شارةً فقط.
-        seen = exit_id if exit_id and str(cell.exit_id) == exit_id else ""
-        return Pick(cell.status, cell.whereabouts, "", None, seen, note)
-    if away is not None and away.counts_as_absent(now, end):
-        return Pick("absent", away.whereabouts, "out", None, exit_id, note)
+        accounts = bool(exit_id) and str(cell.exit_id) == exit_id
+        if derived and not accounts and cell.status in ATTENDED:
+            return Pick("absent", out_where or "", "out", None, exit_id, note)
+        # غيابٌ حسب هذا الخروجَ مشتقٌّ منه: علامتُه «out» فلا يمحوه «الكلُّ حاضر».
+        marker = "out" if accounts and derived and cell.status == "absent" else ""
+        return Pick(cell.status, cell.whereabouts, marker, None, exit_id if accounts else "", note)
+    if out_where is not None:
+        return Pick("absent", out_where, "out", None, exit_id, note)
     marker = "in_wing" if away is not None else ""
     if tap is not None:
         return Pick("late", "", "late", tap, "", note)
@@ -271,8 +302,8 @@ def pick_for(
 @dataclass(frozen=True)
 class Prefill:
     picks: dict
-    #: بصمةُ ما جاء من المعلّم في الحصّة (أرقامُ الخروج والنقرات) — تدخل مفتاحَ مسوّدة
-    #: المتصفّح، فمسوّدةٌ كُتبت قبل نقرةٍ جديدةٍ لا تُعيد «حاضراً» فوقها.
+    #: بصمةُ الخانات كما تُفتح (الحالُ والمكانُ والعلامةُ ورقمُ الخروج) — تدخل مفتاحَ
+    #: مسوّدة المتصفّح، فمسوّدةٌ كُتبت قبل تبدّل الملء لا تُعيد «حاضراً» فوقه.
     fingerprint: str
 
     def of(self, student_id: Any) -> Pick:
@@ -312,15 +343,12 @@ def prefill_of(
         )
         if pick != PRESENT:
             picks[sid] = pick
-    tap_ids = StudentAttendance.objects.filter(
-        session__in=period.sessions, source=TEACHER_LATE
-    ).values_list("id", flat=True)
-    exit_ids = [
-        str(slots[period.start].exit.pk)
-        for slots in outs.values()
-        if period.start in slots and slots[period.start].exit is not None
-    ]
-    seed = ",".join(sorted(exit_ids) + sorted(str(pk) for pk in tap_ids))
+    # البصمةُ من الخانات كما تُعرض لا من أرقام الخروج: خروجُ دورة المياه يبقى رقمُه
+    # حين يرنّ الجرس ويتبدّل عرضُه من «حاضر» إلى «غائب بإذن» — فتتبدّل البصمةُ معه.
+    seed = "|".join(
+        f"{sid}:{pick.status}:{pick.whereabouts}:{pick.marker}:{pick.tap}:{pick.seen_exit}"
+        for sid, pick in sorted(picks.items(), key=lambda item: str(item[0]))
+    )
     return Prefill(picks, hashlib.sha256(seed.encode()).hexdigest()[:12] if seed else "0")
 
 
@@ -502,7 +530,7 @@ def confirm_period(
                 period.sessions[0],
                 before={"status": status, "whereabouts": where},
                 after={"status": "absent", "whereabouts": away.whereabouts},
-                why="خرج بإذن المعلّم ولم يعد حتى نهاية الحصّة — لم يُعرض في الكشف المُرسَل",
+                why="خرج بإذن المعلّم ولم يعد حتى نهاية الحصّة — ولم يُعرض غياباً في الكشف المُرسَل",
                 exit_=away.exit,
             )
             status, where, exit_ = "absent", away.whereabouts, away.exit

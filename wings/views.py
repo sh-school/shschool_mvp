@@ -22,7 +22,6 @@ from operations.guardian_contact import awaiting_contact
 from operations.models import StudentAttendance
 from operations.period_register import (
     absent_yesterday,
-    away_note,
     cells_of,
     confirm_period,
     focus_period,
@@ -31,6 +30,7 @@ from operations.period_register import (
     prefill_of,
     teacher_outs_of,
     teacher_taps_of,
+    track_note,
 )
 from operations.services import ScheduleService
 from wings.scope import student_scope_for
@@ -290,7 +290,7 @@ def record_section(request, class_id):
                 "student": enrollment.student,
                 # وفي الأعمدة الأخرى شارةُ من خرج ولم يعد — تُفتح حصّتُه برأس عمودها.
                 "track": [
-                    (p, own.get(p.start), away_note(gone.get(p.start), now, ends[p.start]))
+                    (p, own.get(p.start), track_note(gone.get(p.start), now, ends[p.start]))
                     for p in periods
                 ],
                 "cell": own.get(focus.start) if focus else None,
@@ -320,7 +320,7 @@ def record_section(request, class_id):
             "measured_now": bool(focus and focus.in_window(day, now)),
             "rows": rows,
             "whereabouts": [w for w in StudentAttendance.WHEREABOUTS if w[0] != "gate"],
-            # بصمةُ ما جاء من المعلّم في المفتاح: نقرةٌ جديدةٌ تُسقط المسوّدةَ القديمة.
+            # بصمةُ الخانات كما تُفتح في المفتاح: ملءٌ تبدّل يُسقط المسوّدةَ القديمة.
             "draft_key": (
                 f"rec:{klass.id}:{day.isoformat()}:{focus.key if focus else ''}"
                 f":{prefill.fingerprint if prefill else ''}"
