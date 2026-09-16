@@ -103,11 +103,16 @@ def s2_package_p4(db, school, setup):
 
 
 @pytest.fixture
-def aw_packages(db, school, setup):
+def aw_packages(db, school, setup, student_user):
     """أعمالُ الفصلين (AW) — جزءٌ من بنية القرار 14/2018 م3؛ مادّةٌ بلا باقةٍ منها «غير مكتمل»
-    منذ جولة 6 (2026-09-16)، فالنتيجةُ الكاملة تحتاجها ولو بلا تقييم."""
-    return [
-        AssessmentPackage.objects.create(
+    منذ جولة 6، وباقةٌ منها بلا رصدٍ «غير مكتمل» منذ جولة 7 (2026-09-17) — فتُرصد صفراً،
+    فلا تتغيّر مجاميعُ الاختبارات."""
+    packages = []
+    for sem, weight, semester_max in (
+        ("S1", Decimal("12.50"), Decimal("40")),
+        ("S2", Decimal("8.33"), Decimal("60")),
+    ):
+        pkg = AssessmentPackage.objects.create(
             setup=setup,
             school=school,
             package_type="AW",
@@ -115,11 +120,19 @@ def aw_packages(db, school, setup):
             weight=weight,
             semester_max_grade=semester_max,
         )
-        for sem, weight, semester_max in (
-            ("S1", Decimal("12.50"), Decimal("40")),
-            ("S2", Decimal("8.33"), Decimal("60")),
+        exam = Assessment.objects.create(
+            package=pkg,
+            school=school,
+            title=f"أعمال {sem}",
+            max_grade=Decimal("5"),
+            weight_in_package=Decimal("100"),
+            status="published",
         )
-    ]
+        StudentAssessmentGrade.objects.create(
+            assessment=exam, student=student_user, school=school, grade=Decimal("0")
+        )
+        packages.append(pkg)
+    return packages
 
 
 @pytest.fixture

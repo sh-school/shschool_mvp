@@ -43,6 +43,7 @@ from core.domain.grades import (
     STATUS_TONES,
     VERDICT_RULESET,
     default_has_pass_mark,
+    exempt_on_certificate,
     letter_of,
     package_weight,
     status_bucket,
@@ -369,6 +370,16 @@ class StudentAssessmentGrade(models.Model):
 # ─────────────────────────────────────────────────────────────
 
 
+#: خانةُ درجة كلّ باقةٍ في `StudentSubjectResult`.
+PACKAGE_SCORE_FIELDS: dict[str, str] = {
+    "P1": "p1_score",
+    "P2": "p2_score",
+    "P3": "p3_score",
+    "P4": "p4_score",
+    "AW": "p_aw_score",
+}
+
+
 class StudentSubjectResult(models.Model):
     """
     درجة الطالب في مادة لفصل واحد — مخزونة من حساب الباقات.
@@ -415,6 +426,10 @@ class StudentSubjectResult(models.Model):
         max_digits=5, decimal_places=2, default=Decimal("40"), verbose_name="الدرجة القصوى للفصل"
     )
     updated_at = models.DateTimeField(auto_now=True)
+
+    def score_of(self, package_type: str) -> Decimal | None:
+        """درجةُ الباقة المخزَّنة — `None` لما لم يُرصد أو ليس في البنية."""
+        return getattr(self, PACKAGE_SCORE_FIELDS[package_type], None)
 
     class Meta:
         verbose_name = "نتيجة فصل"
@@ -603,10 +618,13 @@ class AnnualSubjectResult(models.Model):
 
     @property
     def on_certificate(self) -> bool:
-        """يظهر في الشهادة — ما ليست له نهايةٌ صغرى يظهر بدرجته وحدَها (ملحقُ 4–11 ص59–62:
-        «تظهر الدرجة في شهادة نهاية العام»)، وبلا درجةٍ لا يظهر (الفنية «لاترصد و لاتظهر
-        بالشهادة»، والبدنية للثاني عشر «لا تظهر بالشهادة وليس لها اختبار»)."""
-        return self.has_pass_mark or self.annual_total is not None
+        """يظهر في الشهادة — كلُّ ما له نهايةٌ صغرى، وما ليست له بعمود «وضعها بالشهادة» في
+        الملحقين (`exempt_on_certificate`): الإثرائيّةُ في 4–11 تظهر، والفنيةُ في السابع–التاسع
+        وكلُّ ما في الثاني عشر لا يظهر — رُصدت له درجةٌ أم لم تُرصد."""
+        if self.has_pass_mark:
+            return True
+        setup = self.setup
+        return exempt_on_certificate(grade_number(setup.class_group.grade), setup.subject.name_ar)
 
     @property
     def total_display(self) -> str:

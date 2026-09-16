@@ -32,9 +32,11 @@ from core.domain.grades import (
     PASSING_STATUSES,
     STANDING_INCOMPLETE,
     STANDING_LABELS,
+    semester_columns,
 )
 from core.export_utils import add_excel_title_rows, brand_cell, excel_table_styles, xl_font
 from core.models import StudentEnrollment
+from core.models.academic import grade_number
 from core.privacy import mask_national_id
 from operations.models import StudentAttendance
 
@@ -47,6 +49,19 @@ logger = logging.getLogger(__name__)
 # ══════════════════════════════════════════════════════════════════════
 # ReportDataService — تجميع البيانات
 # ══════════════════════════════════════════════════════════════════════
+
+
+def _package_cells(result: StudentSubjectResult | None, grade: int, semester: str) -> list[dict]:
+    """خلايا الفصل في الكشف بأعمدة القرار 14/2018 م3 — `exists` خطأٌ لعمودٍ ليس في بنية الصفّ."""
+    return [
+        {
+            "label": label,
+            "short": short,
+            "exists": ptype is not None,
+            "score": None if (ptype is None or result is None) else result.score_of(ptype),
+        }
+        for label, short, ptype in semester_columns(grade, semester)
+    ]
 
 
 class ReportDataService:
@@ -62,7 +77,7 @@ class ReportDataService:
         year = year or academic_year_for_school(school)
         annual = (
             AnnualSubjectResult.objects.filter(student=student, school=school, academic_year=year)
-            .select_related("setup__subject")
+            .select_related("setup__subject", "setup__class_group")
             .order_by("setup__subject__name_ar")
         )
 
@@ -79,15 +94,20 @@ class ReportDataService:
             )
         }
 
-        rows = [
-            {
-                "subject": ann.setup.subject.name_ar,
-                "s1": s1_map.get(ann.setup_id),
-                "s2": s2_map.get(ann.setup_id),
-                "annual": ann,
-            }
-            for ann in annual
-        ]
+        rows = []
+        for ann in annual:
+            grade = grade_number(ann.setup.class_group.grade)
+            s1, s2 = s1_map.get(ann.setup_id), s2_map.get(ann.setup_id)
+            rows.append(
+                {
+                    "subject": ann.setup.subject.name_ar,
+                    "s1": s1,
+                    "s2": s2,
+                    "s1_cells": _package_cells(s1, grade, "S1"),
+                    "s2_cells": _package_cells(s2, grade, "S2"),
+                    "annual": ann,
+                }
+            )
 
         total = annual.counted().count()
         passed = annual.filter(status__in=PASSING_STATUSES).count()

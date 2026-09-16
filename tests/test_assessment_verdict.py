@@ -312,10 +312,11 @@ def test_rule_one_applies_to_the_second_round_too():
     from core.domain.grades import ExamFacts, SecondRoundFacts, SubjectFacts, judge_student
 
     def subject(key, s1, s2, second=None):
+        mid, aw = ExamFacts(Fraction(0), Fraction(15)), ExamFacts(Fraction(0), Fraction(5))
         return SubjectFacts(
             key,
-            {"P2": ExamFacts(Fraction(s1), Fraction(20))},
-            {"P4": ExamFacts(Fraction(s2), Fraction(40))},
+            {"P1": mid, "AW": aw, "P2": ExamFacts(Fraction(s1), Fraction(20))},
+            {"P3": mid, "AW": aw, "P4": ExamFacts(Fraction(s2), Fraction(40))},
             second_round=None if second is None else SecondRoundFacts(Fraction(second)),
         )
 

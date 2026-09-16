@@ -34,6 +34,7 @@ from operations.models import Subject
 
 from .forms import CreateAssessmentForm
 from .models import (
+    PACKAGE_SCORE_FIELDS,
     AnnualSubjectResult,
     Assessment,
     AssessmentPackage,
@@ -76,13 +77,7 @@ ANNUAL_STATUS_BADGE = {status: f"status-{tone}" for status, tone in STATUS_TONES
 STANDING_BADGE = {standing: f"status-{tone}" for standing, tone in STANDING_TONES.items()}
 
 #: خانةُ درجة كلّ باقةٍ في `StudentSubjectResult`.
-SCORE_FIELDS = {
-    "P1": "p1_score",
-    "P2": "p2_score",
-    "P3": "p3_score",
-    "P4": "p4_score",
-    "AW": "p_aw_score",
-}
+SCORE_FIELDS = PACKAGE_SCORE_FIELDS
 
 
 # ── لوحة تحكم التقييمات ────────────────────────────────────
@@ -729,13 +724,7 @@ def recalculate_class(request, setup_id):
         messages.error(request, "لا يُعاد حسابُ نتائج عامٍ دراسيٍّ غيرِ الجاري.")
         return redirect("class_gradebook", setup_id=setup_id)
 
-    if not GradeService.recalculate_full_class(setup, actor=request.user):
-        messages.warning(
-            request,
-            "نتائجُ العام مكتوبةٌ بقواعد حكمٍ أقدم — لا يُعاد حسابُ شعبةٍ وحدَها حتّى يُعاد "
-            "الحكمُ على المدرسة كلِّها (recalculate_grade_results).",
-        )
-        return redirect("class_gradebook", setup_id=setup_id)
+    GradeService.recalculate_full_class(setup, actor=request.user)
     messages.success(
         request, f"تم إعادة حساب درجات {setup.class_group} في {setup.subject.name_ar} بنجاح."
     )

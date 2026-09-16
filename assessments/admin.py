@@ -212,17 +212,7 @@ class AnnualSubjectResultAdmin(admin.ModelAdmin):
 
         if not is_open_year(obj.setup):
             raise PermissionDenied("العامُ الدراسيّ مغلق — لا يُرصد فيه دورٌ ثانٍ.")
-        super().save_model(request, obj, form, change)
-        done = GradeService.recalculate_students(
-            obj.setup.class_group,
-            obj.academic_year,
-            [obj.student],
-            obj.setup,
-            actor=request.user,
-            trigger=f"second_round_entry:{obj.pk}",
-        )
-        if not done:
-            messages.warning(request, DEFERRED_MESSAGE)
+        GradeService.record_second_round(obj, request.user)
 
     def get_subject(self, obj):
         return obj.setup.subject.name_ar
@@ -236,12 +226,6 @@ class AnnualSubjectResultAdmin(admin.ModelAdmin):
     get_subject.short_description = "المادة"
     get_class.short_description = "الفصل"
     letter_grade.short_description = "التقدير"
-
-
-DEFERRED_MESSAGE = (
-    "حُفظ — ونتائجُ الشعبة مكتوبةٌ بقواعد حكمٍ أقدم، فلا يُعاد الحكمُ جزئيّاً حتّى يُشغَّل "
-    "recalculate_grade_results --apply."
-)
 
 
 class _OpenYearDecisionForm(forms.ModelForm):
@@ -277,8 +261,7 @@ class _ExamDecisionAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         from .services import ExamDecisionService
 
-        if not ExamDecisionService.save(obj, request.user):
-            messages.warning(request, DEFERRED_MESSAGE)
+        ExamDecisionService.save(obj, request.user)
 
     def delete_model(self, request, obj):
         from .services import ClosedYearError, ExamDecisionService

@@ -42,7 +42,7 @@
         <tbody>
           {% for row in sitting %}
           <tr>
-            <td><a href="{% url 'student_report' row.student.id %}?year={{ year }}" class="link-maroon">{{ row.student.full_name }}</a>{% for n in row.reviews %}<br><small class="text-muted">{% icon "status_warning" %} {{ n }}</small>{% endfor %}</td>
+            <td><a href="{% url 'student_report' row.student.id %}?year={{ year }}" class="link-maroon">{{ row.student.full_name }}</a>{% for w in row.warnings %}<br><small class="text-muted">{% icon "status_warning" %} {{ w }}</small>{% endfor %}{% for n in row.reviews %}<br><small class="text-muted">{% icon "status_warning" %} {{ n }}</small>{% endfor %}</td>
             <td><span class="status-badge {{ badges|get_item:row.standing }}">{{ row.label }}</span></td>
             <td>{{ row.retake|join:"، " }}</td>
             <td>{{ row.article|default:"—" }}</td>
@@ -67,8 +67,8 @@
         <tbody>
           {% for row in others %}
           <tr>
-            <td>{{ row.student.full_name }}{% for n in row.reviews %}<br><small class="text-muted">{% icon "status_warning" %} {{ n }}</small>{% endfor %}</td>
-            <td><span class="status-badge {{ badges|get_item:row.standing }}">{{ row.label }}</span>{% for w in row.warnings %}<br><small class="text-muted">{{ w }}</small>{% endfor %}</td>
+            <td>{{ row.student.full_name }}{% for w in row.warnings %}<br><small class="text-muted">{% icon "status_warning" %} {{ w }}</small>{% endfor %}{% for n in row.reviews %}<br><small class="text-muted">{% icon "status_warning" %} {{ n }}</small>{% endfor %}</td>
+            <td><span class="status-badge {{ badges|get_item:row.standing }}">{{ row.label }}</span></td>
             <td>{% if row.promoted %}{{ row.promoted|join:"، " }} — رُفِّع فيها{% else %}{{ row.failed|join:"، "|default:"—" }}{% endif %}</td>
             <td>{{ row.results.0.article|default:"—" }}</td>
           </tr>

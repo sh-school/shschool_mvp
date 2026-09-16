@@ -296,13 +296,14 @@
       <th scope="col" rowspan="2" class="col-w-6">التقدير</th>
       <th scope="col" rowspan="2" class="col-w-8">النتيجة</th>
     </tr>
+    {# الأعمدةُ بترتيب القرار 14/2018 م3: منتصفُ الفصل، أعمالُه، نهايتُه (`semester_columns`) #}
     <tr class="header-sub">
-      <th scope="col" class="col-w-8">أعمال<br>مستمرة</th>
       <th scope="col" class="col-w-8">منتصف<br>الفصل</th>
+      <th scope="col" class="col-w-8">أعمال<br>الفصل</th>
       <th scope="col" class="col-w-7">نهاية<br>الفصل</th>
-      <th scope="col" class="col-w-8">أعمال<br>مستمرة</th>
       <th scope="col" class="col-w-8">منتصف<br>الفصل</th>
-      <th scope="col" class="col-w-8">نهاية<br>العام</th>
+      <th scope="col" class="col-w-8">أعمال<br>الفصل</th>
+      <th scope="col" class="col-w-8">نهاية<br>الفصل</th>
     </tr>
   </thead>
   <tbody>
@@ -311,47 +312,13 @@
       {# اسم المادة #}
       <td class="subject-name">{{ row.subject }}</td>
 
-      {# ─── الفصل الأول: أعمال مستمرة (P1) ─── #}
-      <td class="pkg-scores">
-        {% if row.s1 and row.s1.p1_score is not None %}
-          {{ row.s1.p1_score }}
-        {% else %}—{% endif %}
-      </td>
-
-      {# الفصل الأول: اختبار منتصف الفصل (P3) #}
-      <td class="pkg-scores">
-        {% if row.s1 and row.s1.p3_score is not None %}
-          {{ row.s1.p3_score }}
-        {% else %}—{% endif %}
-      </td>
-
-      {# الفصل الأول: اختبار نهاية الفصل (P4) → إجمالي ف1 #}
-      <td class="bold-grade">
-        {% if row.s1 and row.s1.p4_score is not None %}
-          {{ row.s1.p4_score }}
-        {% else %}—{% endif %}
-      </td>
-
-      {# ─── الفصل الثاني: أعمال مستمرة (P1) ─── #}
-      <td class="pkg-scores">
-        {% if row.s2 and row.s2.p1_score is not None %}
-          {{ row.s2.p1_score }}
-        {% else %}—{% endif %}
-      </td>
-
-      {# الفصل الثاني: اختبار منتصف الفصل (P3) #}
-      <td class="pkg-scores">
-        {% if row.s2 and row.s2.p3_score is not None %}
-          {{ row.s2.p3_score }}
-        {% else %}—{% endif %}
-      </td>
-
-      {# الفصل الثاني: اختبار نهاية العام (P4) #}
-      <td class="pkg-scores">
-        {% if row.s2 and row.s2.p4_score is not None %}
-          {{ row.s2.p4_score }}
-        {% else %}—{% endif %}
-      </td>
+      {# خلايا الفصلين: الفصل الأول P1·AW·P2، والثاني P3·AW·P4، والثاني عشر نهايةٌ وحدَها #}
+      {% for cell in row.s1_cells %}
+      <td class="pkg-scores">{% if not cell.exists %}×{% elif cell.score is not None %}{{ cell.score }}{% else %}—{% endif %}</td>
+      {% endfor %}
+      {% for cell in row.s2_cells %}
+      <td class="pkg-scores">{% if not cell.exists %}×{% elif cell.score is not None %}{{ cell.score }}{% else %}—{% endif %}</td>
+      {% endfor %}
 
       {# المجموع السنوي #}
       <td class="bold-grade grade-{{ row.annual_grade }}">
@@ -399,6 +366,7 @@
     {% endif %}
   </tbody>
 </table>
+<p class="pkg-scores">× ليست في بنية الصفّ (قرار 14/2018 م3) · — لم تُرصد</p>
 
 {# ── قسم القرار ── #}
 <div class="decision-section">

@@ -57,7 +57,15 @@ def facts(name, total, grade, excused=False, unexcused=False, unexcused_s1=False
         s2 = {}
     else:
         s2 = {"P4": ExamFacts(Fraction(Decimal(str(total))), Fraction(40))}
+    if grade != 12:
+        # بقيّةُ بنية القرار 14/2018 م3 مرصودةٌ صفراً — باقةٌ غيرُ مرصودة «غير مكتمل» (جولة 7).
+        s1 = {"P1": ExamFacts(Fraction(0), Fraction(15)), "AW": ZERO_AW, **s1}
+        if s2:
+            s2 = {"P3": ExamFacts(Fraction(0), Fraction(15)), "AW": ZERO_AW, **s2}
     return SubjectFacts(name, s1, s2)
+
+
+ZERO_AW = ExamFacts(Fraction(0), Fraction(5))
 
 
 def student(totals, grade, excused=(), unexcused=(), unexcused_s1=()):
@@ -276,12 +284,16 @@ def _setup_class(school, teacher, n_subjects=4):
 
 
 def _grades(setup, student, p4=None, p4_absent=False, p4_excused=False, s1=Decimal("0")):
-    """الفصلُ الأول P2 (من 20) والثاني P4 (من 40) — بقية الباقات بلا تقييم."""
+    """الفصلُ الأول P2 (من 20) والثاني P4 (من 40) — وبقيّةُ البنية مرصودةٌ صفراً (جولة 7)."""
     from assessments.models import Assessment, StudentAssessmentGrade
     from assessments.services import GradeService
 
     for sem, ptype, value, absent, excused in (
+        ("S1", "P1", 0, False, False),
+        ("S1", "AW", 0, False, False),
         ("S1", "P2", s1, False, False),
+        ("S2", "P3", 0, False, False),
+        ("S2", "AW", 0, False, False),
         ("S2", "P4", p4, p4_absent, p4_excused),
     ):
         pkg = next(p for p in GradeService.ensure_packages(setup, sem) if p.package_type == ptype)

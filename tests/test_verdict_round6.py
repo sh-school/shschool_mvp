@@ -350,10 +350,13 @@ def test_voided_first_semester_is_not_stored():
     assert {v.s1_total for v in kept.subjects} == {Decimal("32")}
 
 
-# ═══ 6 — لا إعادةَ حسابٍ جزئيّة لنتائج كُتبت بقواعد أقدم ═════════════════════════
+# ═══ 6 — نتائجُ كُتبت بقواعد أقدم: تُحدَّث الشعبةُ كلُّها مع أوّل حساب، لا جزئيّاً ═══════════
+# (جولة 7: كانت تُرجأ بصمتٍ حتّى يُشغَّل الأمر، فيُحفظ الرصدُ ولا يظهر أثرُه.)
 
 
-def test_results_written_by_older_rules_wait_for_the_command(school, teacher_user, principal_user):
+def test_results_written_by_older_rules_are_restamped_class_wide(
+    school, teacher_user, principal_user
+):
     from django.core.management import call_command
 
     from core.models import AuditLog
@@ -369,11 +372,16 @@ def test_results_written_by_older_rules_wait_for_the_command(school, teacher_use
     AnnualSubjectResult.objects.filter(setup=other).update(annual_total=Decimal("79.40"), ruleset=0)
 
     GradeService.save_grade(exams[("S1", "AW")], a, Decimal("5"), entered_by=teacher_user)
-    assert _annual(a, other).annual_total == Decimal("79.40")  # لم يُعَد حسابُه وحدَه
-    assert _annual(a, setup).annual_total == _annual(b, setup).annual_total == Decimal("80")
-    assert GradeService.recalculate_full_class(setup, actor=teacher_user) == 0
-    assert _annual(b, other).annual_total == Decimal("79.40")
+    # الرصدُ ظاهرُ الأثر، والشعبةُ كلُّها بالإصدار الجاري — لا طالبان متساويان بقاعدتين.
+    assert _annual(a, setup).annual_total == Decimal("81")
+    assert _annual(a, other).annual_total == _annual(b, other).annual_total == Decimal("80")
+    assert set(AnnualSubjectResult.objects.values_list("ruleset", flat=True)) == {1}
+    log = AuditLog.objects.filter(changes__op="verdict_recalculated").latest("timestamp")
+    assert log.user == teacher_user and log.changes["trigger"].endswith(":restamp")
+    changed = {(r["student"], r["setup"]) for r in log.changes["rows"] if r["row"] == "annual"}
+    assert (str(b.id), str(other.id)) in changed  # قبل/بعد للزميل أيضاً
 
+    out = StringIO()
     call_command(
         "recalculate_grade_results",
         "--apply",
@@ -381,14 +389,10 @@ def test_results_written_by_older_rules_wait_for_the_command(school, teacher_use
         principal_user.national_id,
         "--school",
         school.code,
-        stdout=StringIO(),
+        stdout=out,
     )
     assert _annual(a, setup).annual_total == Decimal("81")
-    assert _annual(a, other).annual_total == _annual(b, other).annual_total == Decimal("80")
-    assert set(AnnualSubjectResult.objects.values_list("ruleset", flat=True)) == {1}
     assert GradeService.recalculate_full_class(setup, actor=teacher_user) == 2
-    log = AuditLog.objects.filter(changes__op="verdict_recalculated").first()
-    assert log is None or log.changes["trigger"]
 
 
 def test_a_departed_students_old_row_does_not_hold_the_class(school, teacher_user):
@@ -404,6 +408,7 @@ def test_a_departed_students_old_row_does_not_hold_the_class(school, teacher_use
     AnnualSubjectResult.objects.filter(student=gone).update(ruleset=0)
     assert not GradeService.is_deferred(cg, cg.academic_year)
     assert GradeService.recalculate_full_class(setup) == 1
+    assert _annual(gone, setup).ruleset == 0  # لا يمسّه الحكمُ على الشعبة
 
 
 def test_command_stamps_unchanged_old_rows(school, teacher_user, principal_user):

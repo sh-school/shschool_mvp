@@ -13,6 +13,7 @@ from collections import OrderedDict, defaultdict
 from django.db.models import Avg, Count, Q
 
 from assessments.models import AnnualSubjectResult
+from core.domain.grades import STATUS_NO_PASS_MARK
 from core.models.academic import ClassGroup, StudentEnrollment, grade_number
 from student_affairs.models import StudentActivity
 from student_info.models import NOTE_CATEGORIES, StudentNote
@@ -96,8 +97,10 @@ def achievement_overview(school, year, grade="", track=""):
     يُرجع ثلاثة أشياء: إجماليَّ التوزيع، وتوزيعاً لكلّ صفّ، وتوزيعاً لكلّ
     مادّة — فالسؤالُ «أين نقف؟» لا يُجاب بعددٍ واحد.
     """
+    # ما ليست له نهايةٌ صغرى (م11، م50؛ الملحقان) لا يُعدّ «دون مستوى النجاح» — `counted()`.
     results = (
         AnnualSubjectResult.objects.filter(school=school, academic_year=year)
+        .counted()
         .exclude(annual_total__isnull=True)
         .select_related("setup__subject", "setup__class_group")
     )
@@ -170,7 +173,8 @@ def student_results(student, year):
         .select_related("setup__subject")
         .order_by("setup__subject__name_ar")
     ):
-        band = band_for(r.annual_total)
+        # مادّةٌ لا نجاحَ فيها ولا رسوب لا شريحةَ لها — «دون مستوى النجاح» لا يُقال فيها.
+        band = None if r.status == STATUS_NO_PASS_MARK else band_for(r.annual_total)
         rows.append(
             {
                 "subject": r.setup.subject.name_ar,
@@ -187,8 +191,10 @@ def student_results(student, year):
 
 def student_average(student, year):
     """متوسّطُ الطالب السنويّ وشريحتُه — أو `None` إن لم تُرصد نتيجةٌ بعد."""
+    # المتوسّطُ بتعريف البوّابة والكشف: الموادُّ التي لها نهايةٌ صغرى وحدَها (`counted()`).
     avg = (
         AnnualSubjectResult.objects.filter(student=student, academic_year=year)
+        .counted()
         .exclude(annual_total__isnull=True)
         .aggregate(v=Avg("annual_total"))["v"]
     )

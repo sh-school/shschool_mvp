@@ -34,10 +34,11 @@ def _subject(key, s1, s2, second=None, excused_final=False):
         if excused_final
         else ExamFacts(Fraction(s2), Fraction(40))
     )
+    zero_mid, zero_aw = ExamFacts(Fraction(0), Fraction(15)), ExamFacts(Fraction(0), Fraction(5))
     return SubjectFacts(
         key,
-        {"P2": ExamFacts(Fraction(s1), Fraction(20))},
-        {"P4": p4},
+        {"P1": zero_mid, "AW": zero_aw, "P2": ExamFacts(Fraction(s1), Fraction(20))},
+        {"P3": zero_mid, "AW": zero_aw, "P4": p4},
         second_round=None if second is None else SecondRoundFacts(Fraction(second)),
     )
 

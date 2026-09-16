@@ -1158,47 +1158,27 @@ class TestAPIViewsCoverage:
         enrolled_student,
     ):
         """Cover the average calculation branch"""
-        # Create S2 packages and assessments for annual result
-        s2p1 = AssessmentPackage.objects.create(
-            setup=setup,
-            school=school,
-            package_type="P1",
-            semester="S2",
-            weight=Decimal("17"),
-            semester_max_grade=Decimal("60"),
-        )
-        s2p4 = AssessmentPackage.objects.create(
-            setup=setup,
-            school=school,
-            package_type="P4",
-            semester="S2",
-            weight=Decimal("50"),
-            semester_max_grade=Decimal("60"),
-        )
-        a_s2_1 = Assessment.objects.create(
-            package=s2p1,
-            school=school,
-            title="عمل 2",
-            max_grade=Decimal("20"),
-            weight_in_package=Decimal("100"),
-            status="published",
-        )
-        a_s2_4 = Assessment.objects.create(
-            package=s2p4,
-            school=school,
-            title="اختبار نهائي",
-            max_grade=Decimal("60"),
-            weight_in_package=Decimal("100"),
-            status="published",
-        )
-        GradeService.save_grade(
-            assessment=assessment_in_p1, student=student_user, grade=Decimal("16")
-        )
-        GradeService.save_grade(
-            assessment=assessment_in_p4, student=student_user, grade=Decimal("32")
-        )
-        GradeService.save_grade(assessment=a_s2_1, student=student_user, grade=Decimal("16"))
-        GradeService.save_grade(assessment=a_s2_4, student=student_user, grade=Decimal("48"))
+        from core.domain.grades import package_out_of
+        from core.models.academic import grade_number
+
+        # بنيةُ القرار 14/2018 م3 كاملةً (الفصل الأول P1·AW·P2، والثاني P3·AW·P4) — البنيةُ
+        # القديمة (P1 وP4 في الفصلين) «غير مكتمل» بلا مجموع، فلا متوسّط. (جولة 7.)
+        AssessmentPackage.objects.filter(setup=setup).delete()
+        grade = grade_number(setup.class_group.grade)
+        for sem in ("S1", "S2"):
+            for pkg in GradeService.ensure_packages(setup, sem):
+                out_of = package_out_of(grade, sem, pkg.package_type)
+                exam = Assessment.objects.create(
+                    package=pkg,
+                    school=school,
+                    title=f"{sem}-{pkg.package_type}",
+                    max_grade=Decimal(int(out_of)),
+                    weight_in_package=Decimal("100"),
+                    status="published",
+                )
+                GradeService.save_grade(
+                    assessment=exam, student=student_user, grade=Decimal(int(out_of)) * 8 / 10
+                )
 
         resp = api_as_principal.get(f"/api/v1/students/{student_user.id}/grades/?year=2025-2026")
         assert resp.status_code == 200

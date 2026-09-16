@@ -39,19 +39,16 @@
     {% for row in rows %}
     <tr>
       <th scope="row">{{ row.subject }}</th>
+      {# الباقاتُ بأعمدة القرار 14/2018 م3 (`semester_columns`) — لا P1–P3 ثابتة #}
       <td class="pkg">
         {% if row.s1 %}
-          {% if row.s1.p1_score is not None %}ب١:{{ row.s1.p1_score }} {% endif %}
-          {% if row.s1.p2_score is not None %}ب٢:{{ row.s1.p2_score }} {% endif %}
-          {% if row.s1.p3_score is not None %}ب٣:{{ row.s1.p3_score }}{% endif %}
+          {% for cell in row.s1_cells %}{% if cell.exists and cell.score is not None %}{{ cell.short }}:{{ cell.score }} {% endif %}{% endfor %}
         {% else %}—{% endif %}
       </td>
       <td><b>{% if row.s1 and row.s1.total %}{{ row.s1.total }}/{{ row.s1.semester_max }}{% else %}—{% endif %}</b></td>
       <td class="pkg">
         {% if row.s2 %}
-          {% if row.s2.p1_score is not None %}ب١:{{ row.s2.p1_score }} {% endif %}
-          {% if row.s2.p2_score is not None %}ب٢:{{ row.s2.p2_score }} {% endif %}
-          {% if row.s2.p3_score is not None %}ب٣:{{ row.s2.p3_score }}{% endif %}
+          {% for cell in row.s2_cells %}{% if cell.exists and cell.score is not None %}{{ cell.short }}:{{ cell.score }} {% endif %}{% endfor %}
         {% else %}—{% endif %}
       </td>
       <td><b>{% if row.s2 and row.s2.total %}{{ row.s2.total }}/{{ row.s2.semester_max }}{% else %}—{% endif %}</b></td>
