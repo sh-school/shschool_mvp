@@ -1,11 +1,13 @@
 """خروجُ الطالب بإذن المعلّم، ودقائقُ الحضور بالمادّة، والتراجعُ عن الخطأ (قرارات 2026-09-13).
 
 - المعلّم ينقر «خرج بإذن» ثمّ «عاد»: لحظتان من النقرة، بلا إدخال.
-- من لم يعد حتى نهاية الحصّة: عند تثبيت المشرف يُكتب «غائب · بإذن» فلا يُحسب هارباً.
+- من لم يعد حتى نهاية الحصّة: يُعرض للمشرف «غائب · بإذن» ويُحفظ كذلك فلا يُحسب هارباً.
 - دقائقُ الحضور بالمادّة = الجدول − الغياب − التأخّر − الخروج، محسوبةً من السجلّات.
 - التراجع: المعلّم عن نقرته ما لم يثبّت المشرف؛ وأهلُ الرصد يحذفون حدثاً بسبب — وكلُّ تراجعٍ
   في سجلّ المراجعة، ويزول ما بُني عليه آليّاً.
 """
+
+import re
 
 import pytest
 from django.urls import reverse
@@ -72,25 +74,32 @@ class TestTheTeacherLetsAStudentOut:
         exit_ = ClassExit.objects.get()
         assert exit_.returned_at is not None and exit_.minutes_away() == 35
 
-    def test_close_unreturned_never_overwrites_the_supervisor(
+    def test_close_unreturned_closes_at_the_bell_and_writes_no_attendance(
         self, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
+        """كان يكتب سطرَ `teacher_out` ويُغلق الخروجَ قبل الجرس إن ثُبّتت الحصّةُ في بدئها —
+        فيسقط «عاد» من يد المعلّم. صار لا يُغلق قبل النهاية، ولا يكتب في سجلّ الحضور."""
         (period,) = _periods(school, klass, teacher, 1)
         _confirm(klass, period, {kids[0]: "present"}, supervisor, now=at(7, 30))
-        leave(period, kids[0], "clinic", by=teacher, now=at(7, 40))
+        exit_ = leave(period, kids[0], "clinic", by=teacher, now=at(7, 40))
 
-        close_unreturned(period)
+        assert close_unreturned(period, now=at(7, 50)) == 0
+        exit_.refresh_from_db()
+        assert exit_.returned_at is None
 
+        assert close_unreturned(period, now=at(7, 55)) == 1
+        exit_.refresh_from_db()
+        assert exit_.returned_at == at(7, 55)
         row = StudentAttendance.objects.get(session=period, student=kids[0])
         assert (row.status, row.source) == ("present", "supervisor")
+        assert not StudentAttendance.objects.filter(source="teacher_out").exists()
 
     def test_the_supervisor_sees_the_unreturned_prefilled_absent_with_leave(
         self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
     ):
+        """قبل أيّ تثبيت: الخانةُ «غائب» مختارةٌ والعيادةُ مكانُه — من الخروج نفسِه لا من سطرٍ مؤقّت."""
         (period,) = _periods(school, klass, teacher, 1)
         leave(period, kids[0], "clinic", by=teacher, now=at(7, 20))
-        # المهلةُ مضت — التثبيتُ هو ما يُغلق؛ الصفحةُ تعرض ما كُتب بمصدر المعلّم.
-        close_unreturned(period)
 
         body = (
             client_as(supervisor)
@@ -98,7 +107,12 @@ class TestTheTeacherLetsAStudentOut:
             .content.decode()
         )
 
-        assert "بإذن" in body
+        sid = kids[0].id
+        assert re.search(rf'name="s-{sid}" value="absent" checked', body)
+        assert not re.search(rf'name="s-{sid}" value="present" checked', body)
+        select = re.search(rf'<select name="w-{sid}".*?</select>', body, re.S).group(0)
+        assert re.search(r'<option value="clinic" selected>', select)
+        assert not StudentAttendance.objects.exists(), "العرضُ لا يكتب"
 
     def test_the_endpoints_belong_to_the_sessions_teacher(
         self, client_as, school, seeded_calendar, klass, kids, teacher, other_teacher, supervisor

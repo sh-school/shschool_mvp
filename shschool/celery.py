@@ -90,6 +90,12 @@ app.conf.beat_schedule = {
         "task": "behavior.weekly_risk_check",
         "schedule": crontab(hour=6, minute=0, day_of_week="0"),  # 0=الأحد (قطر)
     },
+    # نهايةُ الحصص: من خرج بإذن المعلّم ولم يعد حتى الجرس يُكتب غائباً بإذن فيما ثبّته
+    # المشرف، ويُغلق خروجُه (قرارُ 2026-09-16). كلَّ خمس دقائق، الأحد–الخميس في الدوام.
+    "finalize-period-exits": {
+        "task": "operations.finalize_period_exits",
+        "schedule": crontab(minute="*/5", hour="6-15", day_of_week="0-4"),
+    },
     # الاحتفاظُ بالبيانات (PDPPL م.7 و10) — أسبوعيّاً فجرَ الجمعة، والمدرسةُ نائمة.
     # السياسةُ في docs/privacy/data_retention.md، والصفرُ في الإعداد يعطّلها.
     "enforce-data-retention-weekly": {

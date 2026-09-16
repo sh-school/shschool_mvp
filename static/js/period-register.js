@@ -4,6 +4,9 @@
  * كلُّ ضغطةٍ تُحفظ في `localStorage` بمفتاح الشعبة واليوم والحصّة، فانقطاعُ
  * الشبكة في الممرّ أو رنينُ الهاتف لا يمحو ما رُصد. وتُمسح المسوّدةُ عند
  * الإرسال. والتخزينُ قد يُمنع (نافذةٌ خاصّة) — فكلُّ قراءةٍ وكتابةٍ في try.
+ *
+ * والمفتاحُ يحمل بصمةَ ما جاء من المعلّم (خروجٌ ونقرات): نقرةٌ جديدةٌ بعد المسوّدة
+ * تُبدّل المفتاح، فلا تُعيد مسوّدةٌ قديمةٌ «حاضراً» فوق خانةٍ مُلئت بعدها.
  */
 (function () {
   'use strict';
@@ -88,11 +91,15 @@
   document.querySelectorAll('[data-bulk]').forEach(function (button) {
     button.addEventListener('click', function () {
       var value = button.getAttribute('data-bulk');
+      // «الكلُّ حاضر» لا يمحو من خرج بإذن المعلّم ولم يعد: خانتُه تُبدَّل وحدَها.
+      var keep = value === 'present' ? 'tr[data-prefill="out"]' : null;
       form.querySelectorAll('input[type=radio][value="' + value + '"]').forEach(function (radio) {
+        if (keep && radio.closest(keep)) return;
         radio.checked = true;
+        // «الكلُّ حاضر» و«غيابُ الكلّ» لا متأخّرَ بعدهما — فلا لحظةَ نقرةٍ تبقى.
+        var tap = form.querySelector('[name="t-' + radio.name.slice(2) + '"]');
+        if (tap) tap.value = '';
       });
-      // «الكلُّ حاضر» و«غيابُ الكلّ» لا متأخّرَ بعدهما — فلا لحظةَ نقرةٍ تبقى.
-      form.querySelectorAll('input[type=hidden][name^="t-"]').forEach(function (tap) { tap.value = ''; });
       write(snapshot());
       count();
     });

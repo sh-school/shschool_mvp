@@ -247,6 +247,21 @@ class StudentAttendance(models.Model):
         verbose_name="ملف إذن ولي الأمر",
         validators=[FileTypeValidator(allowed_types="excuse", max_size_mb=10)],
     )
+    #: الخروجُ بإذن المعلّم الذي **يحسبه** هذا الرصد (قرارُ 2026-09-16) — أثرُ المصدر.
+    #:
+    #: يُكتب حين رأى المشرفُ الخروجَ في كشفه فثبّته غائباً أو بدّله، أو حين أنهاه النظامُ
+    #: بنهاية الحصّة. وبه يُعرف أنّ الغيابَ مشتقٌّ من الخروج: فيُرجَع حاضراً إن عاد
+    #: الطالبُ قبل الجرس، ولا يُقلب ثانيةً ما حسمه المشرفُ وهو يرى الخروج. وفارغٌ =
+    #: رصدٌ لم يرَ خروجاً — غيابٌ قاله المشرفُ بنفسه لا يُمسّ.
+    exit = models.ForeignKey(
+        "operations.ClassExit",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_index=False,
+        related_name="accounted_attendances",
+        verbose_name="الخروجُ المحسوب",
+    )
     marked_by = models.ForeignKey(
         CustomUser, on_delete=models.SET_NULL, null=True, related_name="marked_attendances"
     )

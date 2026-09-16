@@ -90,41 +90,43 @@
         <tbody>
           {% for row in rows %}
           {% with sid=row.student.id %}
-          <tr class="rec-row" data-student="{{ sid }}">
+          <tr class="rec-row" data-student="{{ sid }}" data-prefill="{{ row.pick.marker }}">
             <td class="per-grid__no">{{ forloop.counter }}</td>
             <th scope="row" class="per-grid__name">
               <span class="rec-row__name"><a href="{% url 'wings:absence_file' sid %}" class="rec-row__file" title="ملفُّ غيابه يوماً بيوم">{{ row.student.full_name }}</a> <a href="{% url 'wings:student_events' klass.id sid %}" class="rec-row__fix" title="تصحيح أو عذرُ إدخالٍ خاطئ على هذا الطالب">تصحيح</a></span>
-              {% if row.absent_yesterday or row.days %}
+              {% if row.absent_yesterday or row.days or row.pick.away_note %}
               <span class="rec-row__flags">
+                {% if row.pick.away_note %}<span class="badge badge--info" title="بإذن المعلّم">{{ row.pick.away_note }}</span>{% endif %}
                 {% if row.absent_yesterday %}<span class="badge badge--warning">غاب أمس</span>{% endif %}
                 {% if row.needs_contact %}<a href="{% url 'wings:absence_file' sid %}?call={{ row.needs_contact|date:'Y-m-d' }}#day-{{ row.needs_contact|date:'Y-m-d' }}" class="badge badge--danger" title="أخطِر وليَّ الأمر عن غياب {{ row.needs_contact|date:'d/m' }}">لم يُخطَر وليُّ الأمر</a>{% endif %}
                 {% if row.days %}<span class="badge badge--neutral">{{ row.days }} يوم بلا عذر{% if row.gate %} · الحرمانُ بعد {{ row.gate.max_days }}{% endif %}</span>{% endif %}
               </span>
               {% endif %}
             </th>
-            {% for period, cell in row.track %}
+            {% for period, cell, gone in row.track %}
               {% if period.start == focus.start %}
               <td class="per-cell is-focus">
                 <span class="rec-row__pick" role="radiogroup" aria-label="حال {{ row.student.full_name }}">
                   <label class="rec-pick rec-pick--present">
-                    <input type="radio" name="s-{{ sid }}" value="present" {% if not cell and row.tap is None and row.out is None or cell.status == "present" %}checked{% endif %}>
+                    <input type="radio" name="s-{{ sid }}" value="present" {% if row.pick.status == "present" %}checked{% endif %}>
                     <span>حاضر</span>
                   </label>
                   <label class="rec-pick rec-pick--absent">
-                    <input type="radio" name="s-{{ sid }}" value="absent" {% if cell.status == "absent" or not cell and row.out is not None %}checked{% endif %}>
-                    <span>غائب{% if not cell and row.out is not None %} <small title="خرج بإذن المعلّم ولم يعد">بإذن</small>{% endif %}</span>
+                    <input type="radio" name="s-{{ sid }}" value="absent" {% if row.pick.status == "absent" %}checked{% endif %}>
+                    <span>غائب{% if row.pick.marker == "out" %} <small title="{{ row.pick.away_note }} — لم يعد">بإذن المعلّم</small>{% endif %}</span>
                   </label>
                   <label class="rec-pick rec-pick--late">
-                    <input type="radio" name="s-{{ sid }}" value="late" {% if cell.status == "late" or not cell and row.tap is not None %}checked{% endif %} data-tap="t-{{ sid }}">
-                    <span>متأخّر{% if not cell and row.tap is not None %} <small title="نقرةُ المعلّم">{{ row.tap }} د</small>{% endif %}</span>
+                    <input type="radio" name="s-{{ sid }}" value="late" {% if row.pick.status == "late" %}checked{% endif %} data-tap="t-{{ sid }}">
+                    <span>متأخّر{% if row.pick.marker == "late" %} <small title="نقرةُ المعلّم">{{ row.pick.tap }} د</small>{% endif %}</span>
                   </label>
                 </span>
                 <input type="hidden" name="t-{{ sid }}" value="">
+                {% if row.pick.seen_exit %}<input type="hidden" name="o-{{ sid }}" value="{{ row.pick.seen_exit }}">{% endif %}
                 <span class="rec-row__more">
                   <select name="w-{{ sid }}" class="form-select per-where" aria-label="أين الطالب">
                     <option value="">في فصله</option>
                     {% for value, label in whereabouts %}
-                      <option value="{{ value }}" {% if cell.whereabouts == value or not cell and row.out == value %}selected{% endif %}>{{ label }}</option>
+                      <option value="{{ value }}" {% if row.pick.whereabouts == value %}selected{% endif %}>{{ label }}</option>
                     {% endfor %}
                   </select>
                   {% if not measured_now %}
@@ -136,8 +138,8 @@
               </td>
               {% else %}
               <td class="per-cell is-{{ cell.status|default:'none' }}"
-                  title="{% if cell.status == 'absent' %}غائب{% elif cell.status == 'late' %}متأخّر{% if cell.late_minutes %} {{ cell.late_minutes }} دقيقة{% endif %}{% elif cell.status == 'present' %}حاضر{% else %}لم تُرصد{% endif %}{% if cell.whereabouts %} · {{ cell.where_label }}{% endif %}">
-                <span class="per-mark">{% if cell.status == "absent" %}غ{% elif cell.status == "late" %}م{% elif cell.status == "present" %}ح{% else %}·{% endif %}</span>
+                  title="{% if cell.status == 'absent' %}غائب{% elif cell.status == 'late' %}متأخّر{% if cell.late_minutes %} {{ cell.late_minutes }} دقيقة{% endif %}{% elif cell.status == 'present' %}حاضر{% else %}لم تُرصد{% endif %}{% if cell.whereabouts %} · {{ cell.where_label }}{% endif %}{% if gone %} · {{ gone }} بإذن المعلّم ولم يعد{% endif %}">
+                <span class="per-mark">{% if cell.status == "absent" %}غ{% elif cell.status == "late" %}م{% elif cell.status == "present" %}ح{% else %}·{% endif %}</span>{% if gone %}<sup aria-hidden="true">خ</sup><span class="sr-only">{{ gone }} بإذن المعلّم</span>{% endif %}
               </td>
               {% endif %}
             {% endfor %}
