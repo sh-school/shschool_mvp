@@ -989,20 +989,63 @@ class EmployeeEvaluation(models.Model):
         لوحة الإدارة، فالفحصُ على النموذج لا على الشاشة.
         """
         super().clean()
+        errors = self._grievance_order_errors()
         deadline = self.grievance_deadline()
         if (
-            self.grievance_submitted_on is not None
+            "grievance_submitted_on" not in errors
+            and self.grievance_submitted_on is not None
             and deadline is not None
             and self.grievance_submitted_on > deadline
         ):
-            raise ValidationError(
-                {
-                    "grievance_submitted_on": (
-                        f"ميعادُ التظلّم انقضى في {deadline} — «خلال خمسة عشر يوماً من "
-                        "تاريخ علمه» (المادة 20)."
-                    )
-                }
+            errors["grievance_submitted_on"] = (
+                f"ميعادُ التظلّم انقضى في {deadline} — «خلال خمسة عشر يوماً من "
+                "تاريخ علمه» (المادة 20)."
             )
+        if errors:
+            raise ValidationError(errors)
+
+    def _grievance_order_errors(self) -> dict[str, str]:
+        """
+        تسلسلُ المادة 20 (صفحتا الملفّ 12–13): «يُعلن الموظف بنسخة من تقرير تقييم الأداء،
+        ويجوز للموظف أن يتظلم منه ... خلال خمسة عشر يوماً من تاريخ علمه، وتبت اللجنة في
+        التظلم خلال ثلاثين يوماً من تاريخ تقديمه ... ويكون قرار اللجنة في التظلم نهائياً بعد
+        اعتماده من الوزير». فالتظلّمُ بعد العلم بتقريرٍ معتمَد، والقرارُ واعتمادُه بعد التظلّم،
+        ولا تاريخَ منها في الغد. وأيُّ الاثنين أسبق — إخطارُ الموظّف بالقرار أم اعتمادُ الوزير
+        له — لا يقوله النصّ، فلا يُفرض بينهما ترتيب.
+        """
+        errors: dict[str, str] = {}
+        today = timezone.localdate()
+        submitted = self.grievance_submitted_on
+        known_on = self.known_on() if self.status in ("approved", "acknowledged") else None
+        dates = {
+            "grievance_submitted_on": submitted,
+            "grievance_decided_on": self.grievance_decided_on,
+            "grievance_decision_approved_on": self.grievance_decision_approved_on,
+        }
+        for field, value in dates.items():
+            if value is None:
+                continue
+            if value > today:
+                errors[field] = "تاريخٌ لم يأتِ بعد."
+            elif known_on is None:
+                errors[field] = (
+                    "لا تظلّمَ قبل أن يُعلَم الموظّفُ بتقريرٍ معتمَد — «يُعلن الموظف بنسخة من "
+                    "تقرير تقييم الأداء، ويجوز للموظف أن يتظلم منه» (المادة 20)."
+                )
+            elif field == "grievance_submitted_on":
+                if value < known_on:
+                    errors[field] = (
+                        f"قبل تاريخ علمه ({known_on}) — «خلال خمسة عشر يوماً من تاريخ علمه» "
+                        "(المادة 20)."
+                    )
+            elif submitted is None:
+                errors[field] = "لا قرارَ للجنة ولا اعتمادَ له بلا تظلّمٍ مقدَّم (المادة 20)."
+            elif value < submitted:
+                errors[field] = (
+                    f"قبل تقديم التظلّم ({submitted}) — «وتبت اللجنة في التظلم خلال ثلاثين "
+                    "يوماً من تاريخ تقديمه» (المادة 20)."
+                )
+        return errors
 
     def known_on(self) -> date | None:
         """
@@ -1049,16 +1092,20 @@ class EmployeeEvaluation(models.Model):
         # يعيد فتح تقريرٍ نهائيٍّ بلا حدّ.
         if self.grievance_submitted_on is not None and self.grievance_submitted_on > deadline:
             return True
-        if self.grievance_decision_approved_on is not None:
+        # بلا تظلّمٍ مقدَّم لا قرارَ للجنة ولا اعتمادَ له: الحقلان وحدهما (تدوينٌ خاطئٌ من لوحة
+        # الإدارة) لا يُنهيان مهلةَ الموظّف ولا يعلّقانها — ولا اعتمادَ قبل التظلّم أو بعد اليوم.
+        submitted = self.grievance_submitted_on
+        if submitted is None:
+            return bool(today > deadline)
+        approved_on = self.grievance_decision_approved_on
+        if approved_on is not None and submitted <= approved_on <= today:
             return True
         if self.grievance_decided_on is not None:
             return False
-        if self.grievance_submitted_on is not None:
-            decision_by = self.grievance_submitted_on + _grievance_days(
-                "APPRAISAL_GRIEVANCE_DECISION_DAYS", APPRAISAL_GRIEVANCE_DECISION_DAYS
-            )
-            return bool(today > decision_by)
-        return bool(today > deadline)
+        decision_by = submitted + _grievance_days(
+            "APPRAISAL_GRIEVANCE_DECISION_DAYS", APPRAISAL_GRIEVANCE_DECISION_DAYS
+        )
+        return bool(today > decision_by)
 
     def acknowledge(self):
         """
