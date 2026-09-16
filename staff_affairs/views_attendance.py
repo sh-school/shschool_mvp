@@ -196,7 +196,9 @@ def my_permits(request: HttpRequest) -> HttpResponse:
     form = PermitRequestForm(
         request.POST if request.method == "POST" and not is_exception else None
     )
-    exception_form = ExceptionRequestForm(request.POST if is_exception else None)
+    exception_form = ExceptionRequestForm(
+        request.POST if is_exception else None, request.FILES if is_exception else None
+    )
     can_submit = can_submit_permits(_user(request))
     can_request_exception = can_submit and not DelegationService.is_principal(
         _school(request), _user(request)
@@ -213,6 +215,7 @@ def my_permits(request: HttpRequest) -> HttpResponse:
                 boundary=data["boundary_time"],
                 content=data["content"],
                 evidence=data["evidence"],
+                evidence_file=data["evidence_file"],
                 request=request,
             )
         except PolicyError as exc:
@@ -249,10 +252,12 @@ def my_permits(request: HttpRequest) -> HttpResponse:
             "permit_types": PERMIT_TYPES,
             "exception_types": EXCEPTION_TYPES,
             "exceptions": ExceptionService.own(_school(request), _user(request)),
+            # ``own_permits`` يكنس ما انتهى وقتُه (م-18ب) قبل أن يُحسب الرصيد، ويعلّم ما
+            # يُلغى من المعتمد قبل بدء نافذته (م-20).
+            "permits": PermitService.own_permits(_school(request), _user(request)),
             "balance": PermitService.balance(
                 _school(request), _user(request), timezone.localdate()
             ),
-            "permits": PermitService.own_permits(_school(request), _user(request)),
         },
     )
 
@@ -261,7 +266,7 @@ def my_permits(request: HttpRequest) -> HttpResponse:
 @capability_required("staff_affairs.own_permits")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 @require_POST
 def permit_cancel(request: HttpRequest, pk: UUID) -> HttpResponse:
-    """سحبُ صاحب الطلب طلبَه المعلَّق — والخدمةُ تفحص أنّه صاحبُه."""
+    """إلغاءُ صاحب الطلب طلبَه المعلَّق أو إذنَه المعتمدَ قبل نافذته (م-20) — والخدمةُ تفحص."""
     try:
         permit = PermitService.pending_one(_school(request), pk)
     except ObjectDoesNotExist as exc:
@@ -271,7 +276,7 @@ def permit_cancel(request: HttpRequest, pk: UUID) -> HttpResponse:
     except PolicyError as exc:
         messages.error(request, str(exc))
     else:
-        messages.success(request, "سُحب الطلب — وأُفرج عن يومه ودقائقه.")
+        messages.success(request, "أُلغي الطلب — وأُفرج عن يومه ودقائقه (م-20).")
     return redirect("staff_affairs:my_permits")
 
 
@@ -298,7 +303,7 @@ def permit_queue(request: HttpRequest) -> HttpResponse:
 @capability_required("staff_affairs.permits_review")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 @require_POST
 def exception_review(request: HttpRequest, pk: UUID) -> HttpResponse:
-    """«استخدام مدير المدرسة» في نموذج 03 — والخدمةُ تفحص أنّه المدير."""
+    """«استخدام مدير المدرسة» في نموذج 03 — والخدمةُ تفحص أنّه المدير أو من ينوب عنه (م-30)."""
     form = ExceptionDecisionForm(request.POST)
     if not form.is_valid():
         raise Http404("قرارٌ ناقص")
@@ -338,7 +343,10 @@ def principal_delegation(request: HttpRequest) -> HttpResponse:
         else:
             delegate = DelegationService.candidates(school).filter(pk=delegate_id).first()
             if delegate is None:
-                raise PolicyError("الإنابةُ لنائب المدير للشؤون الإدارية (03:401).")
+                raise PolicyError(
+                    "الإنابةُ لنائب المدير للشؤون الإدارية وشؤون الطلاب وحدَه (م-24: بطاقتُه "
+                    "«الإنابة عن المدير في مهامه في حال غيابه»)."
+                )
             DelegationService.grant(
                 school=school, principal=user, delegate=delegate, request=request
             )

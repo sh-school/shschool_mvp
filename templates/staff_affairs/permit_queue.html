@@ -13,7 +13,7 @@
 
 {% block content %}
 <div class="exec-dash">
-  {% page_header "طلبات الأذونات" subtitle="نموذج 02: المسؤول المباشر ← النائب المسؤول ← السكرتارية (رصيد الساعات) ← مدير المدرسة، وينوب عنه النائب الإداري بإنابته — ولا يُعتدّ بالإذن إلا بعد اعتماده (البند 4.1)" icon="checklist" %}
+  {% page_header "طلبات الأذونات" subtitle="نموذج 02 بترتيب الورقة: السكرتارية (رصيد الساعات) ← المسؤول المباشر والنائب المسؤول ← مدير المدرسة، وينوب عنه النائب الإداري في غيابه — ولا يُعتدّ بالإذن إلا بعد اعتماده وإخطار الموظّف" icon="checklist" %}
     {% if request.user|can_open:"staff_affairs:attendance_board" %}<a href="{% url 'staff_affairs:attendance_board' %}" class="btn-secondary btn-sm">{% icon "attendance_register" %} رصد الحضور</a>{% endif %}
     {% if request.user|can_open:"staff_affairs:attendance_report" %}<a href="{% url 'staff_affairs:attendance_report' %}" class="btn-secondary btn-sm">{% icon "reports" %} تقرير الشهر</a>{% endif %}
   {% endpage_header %}
@@ -26,7 +26,7 @@
       <button type="submit" class="btn-secondary btn-sm">{% icon "close" %} رفع الإنابة</button>
     </form>
     {% elif delegates %}
-    <p class="form-note">لا تنتقل صلاحيةُ الاعتماد النهائيّ إلى النائب الإداري إلّا بإنابتك — لا برصدك غائباً.</p>
+    <p class="form-note">ينوب عنك النائب الإداري متى رُصدتَ اليوم غائباً أو في إجازة — «الإنابة عن المدير في مهامه في حال غيابه». وهذه إنابةٌ صريحةٌ تكتبها لليوم وأنت حاضر، أثراً للتدقيق.</p>
     {% for d in delegates %}
     <form method="post" action="{% url 'staff_affairs:principal_delegation' %}">{% csrf_token %}
       <input type="hidden" name="delegate" value="{{ d.pk }}">
@@ -37,7 +37,9 @@
     <p class="form-note">لا نائبَ للشؤون الإدارية نشطاً في المدرسة.</p>
     {% endif %}
   {% endsection_card %}
+  {% endif %}
 
+  {% if is_principal or exceptions %}
   {% section_card "طلبات الاستثناء (نموذج 03)" meta=exceptions|length icon="leave" flush=True empty="لا طلباتِ استثناءٍ تنتظر قرارك" %}{% if exceptions %}
     <div class="table-wrap">
       <table>
@@ -49,7 +51,7 @@
             <th class="col-center">من – إلى</th>
             <th class="col-center">الساعة</th>
             <th>محتوى الطلب</th>
-            <th>ما يثبت الحاجة</th>
+            <th>المرفق</th>
             <th class="col-actions">استخدام مدير المدرسة</th>
           </tr>
         </thead>
@@ -63,10 +65,10 @@
             <td class="col-center">{{ e.start_date|date:"d/m/Y" }} – {{ e.end_date|date:"d/m/Y" }}</td>
             <td class="col-center" dir="ltr">{{ e.boundary_time|time:"H:i" }}</td>
             <td class="text-xs">{{ e.content }}</td>
-            <td class="text-xs">{{ e.evidence }}</td>
+            <td class="text-xs">{% if e.evidence_file %}<a href="{{ e.evidence_file.url }}" target="_blank" rel="noopener">{% icon "attach" %} فتح المرفق</a>{% endif %}{% if e.evidence %} {{ e.evidence }}{% endif %}</td>
             <td class="col-actions">
               <form method="post" action="{% url 'staff_affairs:exception_review' e.pk %}">{% csrf_token %}
-                {% field "feedback" "التغذية الراجعة" id=fid hide_label=True placeholder="التغذية الراجعة" maxlength=500 %}
+                {% field "feedback" "التغذية الراجعة" id=fid hide_label=True placeholder="التغذية الراجعة (لازمة)" maxlength=500 required=True %}
                 <button type="submit" name="decision" value="approve" class="btn-primary btn-xs">{% icon "confirm" %} موافق</button>
                 <button type="submit" name="decision" value="reject" class="btn-secondary btn-xs">{% icon "close" %} غير موافق</button>
               </form>
@@ -113,10 +115,11 @@
               <form method="post" action="{% url 'staff_affairs:permit_review' p.pk %}">{% csrf_token %}
                 <input type="hidden" name="decision" value="approve">
                 <button type="submit" class="btn-primary btn-xs">{% icon "calculate" %} تسجيل رصيد الساعات</button>
+                <p class="text-xs">مربّع السكرتارية: إثباتُ الرصيد والاسم والتوقيت — لا قرارَ فيه (م-19).</p>
               </form>
               {% elif p.stage == "external" %}
               <form method="post" action="{% url 'staff_affairs:permit_review' p.pk %}">{% csrf_token %}
-                {% field "rejection_reason" "مرجع قرار رئيس المدير" id=rid hide_label=True placeholder="مرجع القرار (بريد/كتاب وتاريخه)" maxlength=300 %}
+                {% field "rejection_reason" "مرجع القرار الوارد من خارج المدرسة" id=rid hide_label=True placeholder="مرجع القرار (بريد/كتاب وتاريخه)" maxlength=300 required=True %}
                 <button type="submit" name="decision" value="approve" class="btn-primary btn-xs">{% icon "confirm" %} معتمد</button>
                 <button type="submit" name="decision" value="reject" class="btn-secondary btn-xs">{% icon "close" %} غير معتمد</button>
               </form>
@@ -127,7 +130,7 @@
               </form>
               <form method="post" action="{% url 'staff_affairs:permit_review' p.pk %}">{% csrf_token %}
                 <input type="hidden" name="decision" value="reject">
-                {% field "rejection_reason" "سبب الرفض" id=rid hide_label=True placeholder="سبب الرفض" maxlength=300 %}
+                {% if p.stage == "principal" %}{% field "rejection_reason" "سبب الرفض" id=rid hide_label=True placeholder="سبب الرفض (لازم)" maxlength=300 required=True %}{% else %}{% field "rejection_reason" "سبب عدم الموافقة" id=rid hide_label=True placeholder="السبب (اختياري)" maxlength=300 %}{% endif %}
                 <button type="submit" class="btn-secondary btn-xs">{% icon "close" %} غير موافق</button>
               </form>
               {% endif %}

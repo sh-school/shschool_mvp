@@ -184,7 +184,8 @@ STAFF_ATTENDANCE_STATUS = [
 #: أنواعُ يوم الغياب كما في سجلّ الغياب المدرسيّ نفسِه — «07-نماذج المدرسة/08) سجل
 #: الغياب.xlsx»، قائمةُ التحقّق في خلايا الأيّام (E3:X122) وأعمدةُ «الإحصائية الشهرية».
 #: والغيابُ بلا نوعٍ غيابٌ لم يُغطَّ بعد — «يجب على الموظف تغطية أيام غيابه قبل يوم (15)
-#: من الشهر وإلا يتم تنفيذ الخصم» (البند 5.3، 06:69).
+#: من الشهر وإلا يتم تنفيذ الخصم» (البند 5.3)؛ والتغطيةُ بعد المهلة تُسجَّل وتُوسم
+#: ولا تُمنع (م-35).
 ABSENCE_TYPES = [
     ("casual", "عارضة"),
     ("unpaid", "بدون راتب"),
@@ -229,10 +230,27 @@ class StaffAttendance(AuditedModel):
     absence_type = models.CharField(
         max_length=20, choices=ABSENCE_TYPES, blank=True, verbose_name="نوع الغياب"
     )
-    #: البند 2.4 «دون إذن أو عذر مقبول» — العذرُ الذي قُبل فعُدّ الحضورُ بعد 9:00 تأخّراً.
+    #: البند 2.4 «دون إذن أو عذر مقبول» — العذرُ الذي قُبل فعُدّ الحضورُ بعد 9:00 تأخّراً،
+    #: ولا يقبله إلّا المديرُ أو من ينوب عنه (م-7). ونصُّه هنا وحدَه لا في سجلّ التدقيق.
     accepted_excuse = models.CharField(
         max_length=300, blank=True, verbose_name="العذر المقبول (البند 2.4)"
     )
+    #: م-7: «ويُسجَّل مع العذر سببُه ومن قبله ووقتُ القبول».
+    excuse_accepted_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="accepted_staff_excuses",
+        verbose_name="قبِل العذر",
+    )
+    excuse_accepted_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت قبول العذر")
+    #: م-25: قبولٌ بيد نائب الشؤون الإدارية بالإنابة عن المدير — يُوسم.
+    excuse_on_behalf = models.BooleanField(default=False, verbose_name="قُبل العذر بالإنابة")
+    #: م-35: وقتُ أوّلِ تغطيةٍ لغياب هذا اليوم (نوعٌ من سجلّ الغياب، أو عذرٌ أو استثناءٌ
+    #: رفع التصنيف). والمهلةُ «قبل يوم (15) من الشهر» (البند 5.3) — وما بعدها يُوسم في
+    #: التقرير ولا يُمنع.
+    covered_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت تغطية الغياب")
     notes = models.CharField(max_length=300, blank=True, verbose_name="ملاحظات")
 
     class Meta:
@@ -263,20 +281,24 @@ PERMIT_STATUS = [
     ("approved", "معتمد"),
     ("rejected", "مرفوض"),
     ("cancelled", "ملغى"),
+    # م-18ب: استئذانٌ أو خروجٌ مبكرٌ مضى وقتُ بدئه ولم يُعتمد — «لا يعتبر الطلب معتمداً
+    # الا باعتماد مدير المدرسة» (حاشية نموذج 02)، فلا يُعتمد بعد وقته ولا يبقى معلّقاً.
+    ("expired", "منتهٍ"),
 ]
 
-#: مراحلُ نموذج 02 بترتيبها — 07_forms_catalog.md:13 و07b_forms_catalog_thirdpass.md:13:
-#: «المسؤول المباشر ← النائب المسؤول ← السكرتارية (تسجّل رصيد الساعات) ← الإدارة».
-#: وفي أصل PDF (07-نماذج المدرسة/02، ص1) تحت «استخدام المسؤول المباشر والنائب المسؤول»
-#: عمودان منفصلان لكلٍّ منهما موافق/غير موافق والاسم والتوقيع — فهما مرحلتان. ومن لا
-#: مسؤولَ مباشراً له غيرَ نائبه يبدأ طلبُه بمربّع النائب (``direct_manager``).
-#: و«external» لإذن المدير نفسِه: يعتمده رئيسُه خارج المدرسة، وتُثبته السكرتارية بمرجعه.
+#: مراحلُ نموذج 02 بترتيب مربّعات الورقة نفسِها (م-19 من
+#: ``docs/compliance/staff_attendance_spec.md``، و[ن02] ص1): بيانات الموظّف، ثمّ
+#: «استخدام السكرتارية» (رصيد الساعات، الاسم، توقيت تقديم)، ثمّ «استخدام المسؤول
+#: المباشر والنائب المسؤول» في عمودين، ثمّ «استخدام الإدارة» و«مدير المدرسة». وما كان
+#: في كتالوج النماذج (مباشر ← نائب ← سكرتارية ← إدارة) ترتيبُ نموذج 01 نُسخ خطأً (ز-1).
+#: والعمودان خطوةٌ واحدةٌ بتوقيعٍ واحد لأنّ صاحبَهما واحد (م-19، م-21) — فلا مرحلةَ
+#: «deputy» مستقلّة (ز-8). و«principal» هي «استخدام الإدارة» ومربّعُ المدير معاً (س-2).
+#: و«external» لإذن المدير نفسِه: قرارٌ من خارج المدرسة تُثبته السكرتارية بمرجعه (م-23).
 PERMIT_STAGES = [
-    ("supervisor", "المسؤول المباشر"),
-    ("deputy", "النائب المسؤول"),
     ("secretary", "السكرتارية"),
+    ("supervisor", "المسؤول المباشر والنائب المسؤول"),
     ("principal", "مدير المدرسة"),
-    ("external", "اعتماد رئيس المدير"),
+    ("external", "اعتماد خارجي"),
     ("closed", "مغلق"),
 ]
 
@@ -292,9 +314,10 @@ class PermitRequest(AuditedModel):
     ``LeaveRequest`` كان سيجعل نصفَ حقوله فارغاً في كلّ صفّ، ويخلط رصيدين
     بوحدتين مختلفتين في جدولٍ واحد.
 
-    والمراحلُ مراحلُ النموذج (``PERMIT_STAGES``): توقيعُ المسؤول المباشر، ثمّ
-    السكرتاريةُ تسجّل رصيدَ الساعات واسمَها ووقتَ تسجيلها (07b:13)، ثمّ اعتمادُ
-    مدير المدرسة — «ولا يخرج الموظف فعلياً إلا بعد اعتماد مدير المدرسة» (07:13).
+    والمراحلُ مراحلُ الورقة (``PERMIT_STAGES``، م-19): السكرتاريةُ تُثبت رصيدَ
+    الساعات واسمَها وتوقيتَها بلا قرار، ثمّ عمودا «المسؤول المباشر والنائب المسؤول»،
+    ثمّ الاعتمادُ النهائيّ من المدير أو من ينوب عنه — «لا يعتبر الطلب معتمداً الا
+    باعتماد مدير المدرسة وتوقيعه عليه» (حاشية نموذج 02).
     والرصيدُ لا يُخزَّن حيّاً: يُجمع من الأذونات المعتمدة في الشهر (``PermitService``)،
     وما تسجّله السكرتاريةُ لقطةٌ لما رأته يومَ سجّلت.
     """
@@ -321,18 +344,9 @@ class PermitRequest(AuditedModel):
         max_length=10, choices=PERMIT_STATUS, default="pending", verbose_name="الحالة"
     )
     stage = models.CharField(
-        max_length=10, choices=PERMIT_STAGES, default="supervisor", verbose_name="المرحلة"
+        max_length=10, choices=PERMIT_STAGES, default="secretary", verbose_name="المرحلة"
     )
-    #: المسؤولُ المباشرُ يومَ التقديم حين يكون غيرَ النائب (منسّقُ قسم المعلّم) — لقطة.
-    line_manager = models.ForeignKey(
-        CustomUser,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="line_managed_permit_requests",
-        verbose_name="المسؤول المباشر المسمّى",
-    )
-    #: دورُ «النائب المسؤول» يومَ التقديم (rbac_roles.json «reports_to») — لقطةٌ لا تتبدّل
+    #: دورُ «المسؤول المباشر والنائب المسؤول» يومَ التقديم (م-21) — لقطةٌ لا تتبدّل
     #: بتبدّل دور الموظّف بعده. والفارغُ طلبُ مدير المدرسة نفسِه.
     deputy_role = models.CharField(max_length=30, blank=True, verbose_name="دور النائب المسؤول")
     supervisor_by = models.ForeignKey(
@@ -383,6 +397,11 @@ class PermitRequest(AuditedModel):
     external_reference = models.CharField(
         max_length=300, blank=True, verbose_name="مرجع اعتماد رئيس المدير"
     )
+    #: م-19: «وإخطاره من قبل السكرتارية بالموافقة» — وقتُ الإخطار، وبه يجوز الخروج.
+    notified_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت إخطار الموظف")
+    #: م-25: قرارُ مربّع المدير (اعتماداً أو رفضاً) بيد نائب الشؤون الإدارية بالإنابة —
+    #: يُوسم، واسمُ النائب في ``reviewed_by``.
+    decided_on_behalf = models.BooleanField(default=False, verbose_name="قُرّر بالإنابة")
 
     @property
     def is_principals_own(self) -> bool:
@@ -394,8 +413,7 @@ class PermitRequest(AuditedModel):
         verbose_name = "طلب إذن"
         verbose_name_plural = "طلبات الأذونات"
         constraints = [
-            # البند 4.3 (06_attendance_performance_review.md:58):
-            # «لا يجوز الإذن أكثر من مرة واحدة في اليوم الواحد».
+            # م-14 (السياسة 3.5 و4.3): «لا يجوز الاذن أكثر من مرة واحدة في اليوم الواحد».
             models.UniqueConstraint(
                 fields=["school", "staff", "date"],
                 condition=models.Q(status="approved"),
@@ -406,8 +424,7 @@ class PermitRequest(AuditedModel):
                 condition=models.Q(end_time__gt=models.F("start_time")),
                 name="permit_end_after_start",
             ),
-            # البند 4.4 (06_attendance_performance_review.md:59):
-            # «يكون الحد الأقصى للإذن ساعتين في المرة الواحدة».
+            # م-13 (السياسة 3.6 و4.4): «يكون الحد الاقصى للإذن ساعتين في المرة الواحدة».
             # django-stubs 5.0.2 لا يعرف `condition` (Django 5.1).
             models.CheckConstraint(  # type: ignore[call-arg]
                 condition=models.Q(duration_minutes__gt=0, duration_minutes__lte=120),
@@ -423,8 +440,8 @@ class PermitRequest(AuditedModel):
         return f"{self.staff.full_name} — {self.get_permit_type_display()} ({self.date})"
 
 
-#: نموذج 03 (07_forms_catalog.md:14، وأصلُه «07-نماذج المدرسة/03) نموذج طلب.pdf» ص1):
-#: «يجب ارفاق مع طلب استثناء الخروج المبكر أو التأخير الصباحي ما يثبت حاجة الموظف لذلك».
+#: نموذج 03 «نموذج طلب» ([ن03] ص1، م-29 وم-31): «يجب ارفاق مع طلب استثناء الخروج المبكر
+#: أو التأخير الصباحي ما يثبت حاجة الموظف لذلك».
 EXCEPTION_TYPES = [
     ("late_arrival", "تأخير صباحي"),
     ("early_departure", "خروج مبكر"),
@@ -438,7 +455,7 @@ EXCEPTION_STATUS = [
 
 
 class AttendanceException(AuditedModel):
-    """استثناءٌ من ساعة الحضور أو الانصراف لأيّامٍ متتالية — نموذج 03 بقرار المدير.
+    """استثناءٌ من ساعة الحضور أو الانصراف لمدّةٍ من الأيّام — نموذج 03 بقرار المدير (م-30).
 
     **لماذا لا يُحمل على ``PermitRequest``:** الإذنُ يومٌ واحدٌ بساعتين أقصاه ومرّةٌ في
     اليوم وسبعُ ساعاتٍ في الشهر (4.2–4.4)، ويمرّ بأربعة مربّعات. والاستثناءُ مدّةٌ من
@@ -466,8 +483,16 @@ class AttendanceException(AuditedModel):
     #: التأخيرُ: الحضورُ حتّى هذه الساعة؛ والخروجُ المبكر: الانصرافُ من هذه الساعة.
     boundary_time = models.TimeField(verbose_name="الساعة")
     content = models.CharField(max_length=1000, verbose_name="محتوى الطلب")
-    #: «ما يثبت حاجة الموظف» — وصفُ المرفق، والأصلُ لدى الإدارة.
-    evidence = models.CharField(max_length=300, verbose_name="ما يثبت الحاجة")
+    #: وصفٌ اختياريٌّ للمرفق — والمرفقُ نفسُه في ``evidence_file``.
+    evidence = models.CharField(max_length=300, blank=True, verbose_name="وصف المرفق")
+    #: م-31: «ما يثبت حاجة الموظف» — ملفٌّ إلزاميٌّ في الخدمة، ويُخدَم لصاحبه وللمدير
+    #: ونائبه وحدَهم (``core/views_media.py``)، فقد يكون تقريراً طبيّاً.
+    evidence_file = models.FileField(
+        upload_to="attendance_exceptions/%Y/%m/",
+        blank=True,
+        null=True,
+        verbose_name="المرفق (ما يثبت الحاجة)",
+    )
     status = models.CharField(
         max_length=10, choices=EXCEPTION_STATUS, default="pending", verbose_name="الحالة"
     )
@@ -481,6 +506,8 @@ class AttendanceException(AuditedModel):
         verbose_name="قرّره",
     )
     reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ التغذية الراجعة")
+    #: م-25 وم-30: قرارٌ بيد نائب الشؤون الإدارية بالإنابة عن المدير — يُوسم.
+    decided_on_behalf = models.BooleanField(default=False, verbose_name="قُرّر بالإنابة")
 
     class Meta:
         ordering = ["-start_date", "-created_at"]
@@ -501,10 +528,11 @@ class AttendanceException(AuditedModel):
 
 
 class PrincipalDelegation(AuditedModel):
-    """إنابةُ نائب الشؤون الإدارية عن المدير ليومٍ — بقرار المدير نفسه.
+    """إنابةٌ صريحةٌ لنائب الشؤون الإدارية عن المدير ليومٍ — بيد المدير نفسه (م-25).
 
-    03_job_descriptions_rbac.md:401 «الإنابة عن المدير في مهامه في حال غيابه». ويُكتب
-    القرارُ هنا بيد المدير، فلا تنتقل صلاحيةُ الاعتماد النهائيّ بغير علمه.
+    بطاقةُ نائب المدير للشؤون الإدارية وشؤون الطلاب، آخرُ بنودها: «الإنابة عن المدير في
+    مهامه في حال غيابه» (م-24). فالإنابةُ تقوم بغياب المدير المرصود وحدَه، وهذا السجلُّ
+    أثرٌ للتدقيق يكتبه المديرُ حاضراً، لا شرطٌ لقيامها.
     """
 
     school = models.ForeignKey(

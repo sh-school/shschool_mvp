@@ -35,7 +35,7 @@ def _resolve_file_access(name):
     from library.models import LibraryBook
     from operations.models import AbsenceExcuse, StudentAttendance
     from quality.models import ProcedureEvidence
-    from staff_affairs.models import LeaveRequest
+    from staff_affairs.models import AttendanceException, LeaveRequest
     from student_affairs.models import StudentActivity
 
     # مرفقات الإجازات قد تحوي تقارير طبية حسّاسة → قيادة المدرسة فقط (عدا المالك)
@@ -54,6 +54,8 @@ def _resolve_file_access(name):
             lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW | WING_DAY_RECORD),
         ),
         (LeaveRequest, "attachment", lambda o: (o.school_id, o.staff_id, leave_roles)),
+        # مرفقُ نموذج 03 (م-31) مثلُه: قد يكون تقريراً طبيّاً — لصاحبه ولمن يقرّره (م-30).
+        (AttendanceException, "evidence_file", lambda o: (o.school_id, o.staff_id, leave_roles)),
         (
             ProcedureEvidence,
             "file",

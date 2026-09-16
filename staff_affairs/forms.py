@@ -186,8 +186,7 @@ class PermitRequestForm(forms.Form):
 class ExceptionRequestForm(forms.Form):
     """نموذج 03: طلبُ استثناء التأخير الصباحيّ أو الخروج المبكر — إلى مدير المدرسة.
 
-    الشكلُ وحدَه هنا؛ الحدودُ (ساعاتُ الدوام، والمرفقُ، وشهرٌ لم ينقضِ) في
-    ``ExceptionService.submit``.
+    الشكلُ وحدَه هنا؛ الحدودُ (ساعاتُ الدوام، والمرفقُ) في ``ExceptionService.submit``.
     """
 
     exception_type = forms.ChoiceField(choices=EXCEPTION_TYPES, label="نوع الاستثناء")
@@ -195,7 +194,9 @@ class ExceptionRequestForm(forms.Form):
     end_date = forms.DateField(label="إلى تاريخ")
     boundary_time = forms.TimeField(label="الساعة")
     content = forms.CharField(max_length=1000, label="محتوى الطلب")
-    evidence = forms.CharField(max_length=300, required=False, label="ما يثبت الحاجة")
+    #: م-31: المرفقُ إلزاميّ — والخدمةُ تفحصه (النوع والحجم) وترفض غيابَه باسم النموذج.
+    evidence_file = forms.FileField(required=False, label="المرفق (ما يثبت الحاجة)")
+    evidence = forms.CharField(max_length=300, required=False, label="وصف المرفق")
 
 
 class ExceptionDecisionForm(forms.Form):

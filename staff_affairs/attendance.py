@@ -1,48 +1,27 @@
 """حضورُ الموظّفين والأذوناتُ القصيرة — القواعدُ والخدمة.
 
-المصادر (``AAdocs/ministry_data/2026_2027/``)، والأرقامُ بعد النقطتين أرقامُ الأسطر،
-والحكمُ لأصل PDF (``data/2026-2027/05-السياسات الداخلية/01-2027 سياسة وضوابط الحضور
-والانصراف.pdf``) إن خالفه الاستخراج:
+المرجعُ الحاكمُ لكلّ قاعدةٍ هنا: ``docs/compliance/staff_attendance_spec.md`` (م-1 … م-36)،
+وأرقامُ «م» في التعليقات أرقامُ بنوده، وأسماءُ الرموز فيه لا أرقامُ الأسطر (ز-8).
+ووراءه الأصولُ نفسُها:
 
-* ``06_attendance_performance_review.md`` §1 «سياسة وضوابط الحضور والانصراف»
-  (ت/د: 2027/01 بتاريخ 2026-08-23، سياسةٌ داخليّةٌ للمدرسة). وأرقامُ البنود أرقامُ الوثيقة.
-* ``07_forms_catalog.md:13`` و``07b_forms_catalog_thirdpass.md:13`` وأصلُ النموذج
-  (``data/2026-2027/07-نماذج المدرسة/02) نموذج طلب تأخير - استئذان - خروج مبكر.pdf``،
-  ص1) — نموذج 02 ومربّعاتُه: «المسؤول المباشر» و«النائب المسؤول» عمودان منفصلان،
-  ثمّ «استخدام السكرتارية» (رصيد الساعات، الاسم، التوقيت)، ثمّ «استخدام الإدارة».
-* ``07_forms_catalog.md:14`` وأصلُه (``07-نماذج المدرسة/03) نموذج طلب.pdf``، ص1) —
-  نموذج 03 الموجَّه إلى مدير المدرسة: «يجب ارفاق مع طلب استثناء الخروج المبكر أو
-  التأخير الصباحي ما يثبت حاجة الموظف لذلك»، و«استخدام مدير المدرسة: التغذية الراجعة».
-* ``03_job_descriptions_rbac.md:101-102`` و``rbac_permissions_matrix.md:55`` — السكرتيرُ
-  «متابعة الحضور والانصراف للموظفين» و«توثيق إجازات الموظفين» بصلاحية كتابة.
-* ``rbac_roles.json`` — «reports_to» لكلّ مسمّى: من النائبُ المسؤول.
-* ``data/2026-2027/07-نماذج المدرسة/08) سجل الغياب.xlsx`` — أنواعُ أيّام الغياب
-  (قائمةُ التحقّق في خلايا الأيّام E3:X122)، و``07) سجل الاستئذانات.xlsx`` — سجلٌّ
-  تحفظه المدرسة لكلّ منتسبٍ وأوّلُ صفوفه مديرُ المدرسة (B3:C3، ورقة «تأخير - يناير»).
+* «السياسة»: ``data/2026-2027/05-السياسات الداخلية/01-2027 سياسة وضوابط الحضور
+  والانصراف.pdf`` (ت/د 01/2027 بتاريخ 2026-08-23، صفحتان) — بنودُها 1.1 و2.1 و2.4
+  و3.4–3.7 و4.1–4.6 و5.1–5.3.
+* «ن02»: ``data/2026-2027/07-نماذج المدرسة/02) نموذج طلب تأخير - استئذان - خروج
+  مبكر.pdf`` ص1 — مربّعاتُه بترتيب الورقة: بيانات الموظّف، ثمّ «استخدام السكرتارية»
+  (رصيد الساعات، الاسم، توقيت تقديم)، ثمّ «استخدام المسؤول المباشر والنائب المسؤول»
+  عمودين، ثمّ «استخدام الإدارة»، ثمّ «مدير المدرسة». وحاشيتُه بنصّها في ``_check_timing``.
+* «ن03»: ``07-نماذج المدرسة/03) نموذج طلب.pdf`` ص1 — خطابٌ حرٌّ إلى مدير المدرسة،
+  «يجب ارفاق مع طلب استثناء الخروج المبكر أو التأخير الصباحي ما يثبت حاجة الموظف
+  لذلك»، و«استخدام مدير المدرسة: التغذية الراجعة … تاريخ التغذية الراجعة».
+* «البطاقات»: ``02- شؤون الموظفين/05- الوصف الوظيفي/*.pdf`` — «المسؤول المباشر» في
+  ترويسة كلّ بطاقة، ومنه جدولُ م-21 (``LINE_MANAGER``). وبطاقةُ نائب الشؤون الإدارية
+  وحدَها فيها «الإنابة عن المدير في مهامه في حال غيابه» (م-24).
+* ``AAdocs/ministry_data/2026_2027/rbac_roles.json`` — «reports_to» لكلّ مسمّى، ويوافق
+  جدولَ البطاقات.
 
 الفلسفة: **يحسب ولا ينفّذ آليّاً** — تُصنَّف الحالةُ وتُعدّ الدقائق، ولا خصمَ ولا
-جزاءَ يُطلقه النظام؛ الخصمُ (البند 5، 06:67-69) قرارٌ إداريٌّ على التقرير الشهريّ.
-
-قراءةُ الحدود من النصّ حرفاً:
-
-* البند 1.1 (06:25، PDF ص1) «يبدأ الدوام الرسمي … من الساعة السابعة صباحاً وينتهي في
-  تمام الثانية ظهراً» ← كلُّ نافذةِ إذنٍ بين 7:00 و14:00، والانصرافُ قبل 14:00 نقصٌ يُعدّ.
-* البند 2.1 (06:31) «يعتبر الموظف متأخراً إذا حضر **بعد** الساعة 7:00 صباحاً» ←
-  7:00 بالضبط حاضر، و7:01 متأخّر؛ فإذنُ التأخير يبدأ من 7:00.
-* البند 2.4 (06:34) «يعتبر الموظف غائباً إذا حضر **بعد** الساعة التاسعة صباحاً دون
-  إذن أو عذر مقبول» ← 9:00 بالضبط متأخّرٌ لا غائب، و9:01 غائب — إلّا أن يكون له إذنُ
-  تأخيرٍ معتمدٌ لليوم («دون إذن») أو يُقبل عذرُه، فيُعدّ متأخّراً بدقائقه بعد إذنه.
-* البند 4.2 (06:57، ومثله 3.4 في 06:45) «الحد الأقصى للأذونات بواقع (7) ساعات في
-  الشهر» ← 420 دقيقةً في الشهر الميلاديّ، والسبعُ كاملةً جائزة.
-* البند 4.3 (06:58، ومثله 3.5 في 06:46) «لا يجوز الإذن أكثر من مرة واحدة في اليوم».
-* البند 4.4 (06:59، ومثله 3.6 في 06:47) «الحد الأقصى للإذن ساعتين في المرة الواحدة»
-  ← 120 دقيقة جائزة، و121 مرفوضة.
-* البند 4.1 (06:56) «لا يجوز الاعتداد بالإذن إلا بعد اعتماده من الرئيس المباشر»،
-  وحاشيةُ نموذج 02 «يتعين على الموظف عدم الخروج إلا بعد اعتماده وإخطاره من قبل
-  السكرتارية» و«لا يعتبر الطلب معتمداً الا باعتماد مدير المدرسة وتوقيعه عليه» ←
-  الرصيدُ يُخصم بالاعتماد الأخير، والخروجُ والاستئذانُ يُطلبان قبل وقتهما.
-* البند 5.1 (06:67) «الخصم … بعد إشعار الموظف … بداية كل شهر، بتقرير أيام الغياب عن
-  الشهر السابق» ← شهرٌ مضى أُشعر بتقريره، فلا يُفتح بإذنٍ يُقدَّم أو يُعتمد بعده.
+جزاءَ يُطلقه النظام؛ الخصمُ (البند 5) قرارٌ إداريٌّ على التقرير الشهريّ.
 """
 
 from __future__ import annotations
@@ -50,8 +29,9 @@ from __future__ import annotations
 import calendar
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from typing import Any
+from uuid import UUID
 
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q, QuerySet, Sum
@@ -72,37 +52,40 @@ from staff_affairs.models import (
     StaffAttendance,
 )
 
-#: البندان 1.1 و2.1 — بدايةُ الدوام، وما بعدها تأخّر.
+#: م-1 (السياسة 1.1) — بدايةُ الدوام، وما بعدها تأخّر (م-3).
 WORK_START = time(7, 0)
-#: البند 1.1 — «وينتهي في تمام الثانية ظهراً».
+#: م-1 (السياسة 1.1) — «وينتهي في تمام الثانية ظهراً».
 WORK_END = time(14, 0)
-#: البند 2.4 — ما بعدها غيابٌ ما لم يكن إذنٌ أو عذرٌ مقبول.
+#: م-4 (السياسة 2.4) — ما بعدها غيابٌ بلا تغطيةٍ سارية ولا عذرٍ مقبول.
 ABSENT_AFTER = time(9, 0)
-#: البند 4.2 — سبعُ ساعاتٍ في الشهر.
+#: م-15 (السياسة 3.4 و4.2) — سبعُ ساعاتٍ في الشهر.
 MONTHLY_PERMIT_CAP = 7 * 60
-#: البند 4.4 — ساعتان للمرّة.
+#: م-13 (السياسة 3.6 و4.4) — ساعتان للمرّة، و120 مقبولة.
 PERMIT_MAX_MINUTES = 2 * 60
+#: م-35 (السياسة 5.3) — «تغطية أيام غيابه قبل يوم (15) من الشهر»: المهلةُ تنتهي بنهاية
+#: اليوم الرابع عشر من الشهر التالي، وما بعدها يُسجَّل ويُوسم لا يُمنع.
+COVERAGE_DEADLINE_DAY = 14
+
+#: أيّامُ الدوام الأسبوعيّ: الأحد–الخميس، كما في الجدول المدرسيّ نفسِه (خمسةُ أيّامٍ
+#: بأسمائها في مولّد الجدول) — ومنها تُعدّ أيّامُ الاستثناء في التقرير (م-33).
+SCHOOL_WEEKDAYS = frozenset({6, 0, 1, 2, 3})  # ``date.weekday()``: الأحد 6 … الخميس 3
 
 STATUSES = ("present", "late", "absent", "permitted")
 STATUS_LABELS = {"present": "حاضر", "late": "متأخّر", "absent": "غائب", "permitted": "مستأذن"}
-#: حالاتُ من حضر — لا تُرصد إلّا بوقت حضوره، فبه تُحسب دقائقُ التأخّر (2.1 و5.2).
+#: حالاتُ من حضر — لا تُرصد إلّا بوقت حضوره، فبه تُحسب دقائقُ التأخّر (م-3 وم-6).
 ARRIVAL_STATUSES = ("present", "late", "permitted")
 ABSENCE_TYPE_KEYS = tuple(key for key, _label in ABSENCE_TYPES)
 NON_STAFF_ROLES = ("student", "parent")
+#: م-18ب — نوعان يُقدَّمان قبل وقت بدئهما، وما لم يُعتمد قبله يصير «منتهياً».
+LEAVING_PERMIT_TYPES = ("during_day", "early_departure")
 
-#: rbac_roles.json:18 — مديرُ المدرسة «رأس الهيكل الذي يتبعه كل الأدوار أدناه مباشرة أو
-#: عبر نائبيه»، ولا «reports_to» له داخل المدرسة.
+#: rbac_roles.json، «مدير المدرسة»: «reports_to» فارغ — لا مسؤولَ له داخل المدرسة (م-23).
 PRINCIPAL = "principal"
-#: 03_job_descriptions_rbac.md:401 و rbac_permissions_matrix.md:46 — نائبُ الشؤون الإدارية:
-#: «الإنابة عن المدير في مهامه في حال غيابه».
+#: م-24 — بطاقةُ نائب المدير للشؤون الإدارية وشؤون الطلاب (1034) وحدَها فيها «الإنابة عن
+#: المدير في مهامه في حال غيابه»؛ وبطاقةُ النائب الأكاديميّ (1033) بلا بندِ إنابة.
 PRINCIPAL_DELEGATE = "vice_admin"
-#: من يقرأ تقريرَ الحضور للمدرسة كلّها: المديرُ رأسُ الهيكل (rbac_permissions_matrix.md:45)
-#: والسكرتيرُ متابعُ الحضور (03:101). والنائبُ لمن يقيّمهم وحدَهم (:48 و:50).
+#: من يقرأ تقريرَ الحضور للمدرسة كلّها (خارج المواصفة — قرارُ صلاحيّات).
 REPORT_WHOLE_SCHOOL = frozenset({PRINCIPAL, "secretary"})
-#: من مسؤولُه المباشرُ منسّقُ قسمه، ثمّ النائبُ المسؤول: المعلّمُ يُبلغ «منسّق المادة» ومعه
-#: النائبَ الأكاديميّ (البند 2.3، 06:33)، ومنسّقُ المادة «يشارك … في تقييم أداء معلمي قسمه»
-#: (03:374)، ومنسّقُ الدعم الإضافي «الإشراف وتقييم أداء فريق معلمي الدعم الإضافي» (03:325).
-DEPARTMENT_LED_ROLES = ("teacher", "ese_teacher")
 
 
 def _now() -> datetime:
@@ -125,46 +108,43 @@ def minutes_between(start: time, end: time) -> int:
     return max(0, int(delta.total_seconds() // 60))
 
 
+def _minute(moment: time) -> time:
+    """م-2: المقارنةُ بالدقيقة الكاملة — تُهمل الثواني، فـ07:00:59 سابعةٌ تماماً."""
+    return moment.replace(second=0, microsecond=0)
+
+
 def classify_arrival(
     check_in: time, covered_until: time | None = None, excused: bool = False
 ) -> tuple[str, int]:
-    """(الحالة، دقائقُ التأخّر) لوقت حضورٍ — البنود 2.1 و2.4 و4.1.
+    """(الحالة، دقائقُ التأخّر) لوقت حضورٍ — م-3 وم-4 وم-5 وم-6.
 
-    ``covered_until`` نهايةُ إذنِ «تأخيرٍ صباحيّ» معتمدٍ لليوم (نموذج 02 أو استثناءُ نموذج
-    03)، ونافذتُه تبدأ من 7:00. من حضر حتّى نهايته مستأذن، ومن جاوزها تُحسب دقائقُه من
-    نهاية إذنه — وإن حضر بعد التاسعة، فالغيابُ في 2.4 لمن حضر بعدها «دون إذن أو عذر
-    مقبول»، وهذا له إذن. ومن لا إذنَ له وحضر بعد التاسعة غائب، إلّا أن يُقبل عذرُه
-    (``excused``) فيُعدّ متأخّراً بدقائقه كاملةً.
+    ``covered_until`` نهايةُ ما يغطّي الصباح معتمَداً: إذنُ تأخيرٍ من نموذج 02 (نافذتُه
+    من 7:00، م-13) أو استثناءُ نموذج 03. والتغطيةُ تغطّي نافذتَها وحدَها لا اليومَ كلَّه
+    (م-5): من حضر فيها «مستأذن»، ومن جاوزها حتّى التاسعة «متأخّر» بدقائقه من نهايتها
+    (م-6)، ومن جاوزها وجاوز التاسعة «غائب» إلّا أن يُقبل عذرُه (``excused``، م-7).
     """
+    check_in = _minute(check_in)
     if check_in <= WORK_START:
         return "present", 0
-    if covered_until is not None and check_in <= covered_until:
+    if covered_until is not None and check_in <= _minute(covered_until):
         return "permitted", 0
     counted_from = max(WORK_START, covered_until or WORK_START)
-    if check_in <= ABSENT_AFTER or covered_until is not None or excused:
+    if check_in <= ABSENT_AFTER or excused:
         return "late", minutes_between(counted_from, check_in)
     return "absent", 0
 
 
 def early_leave_minutes(check_out: time, windows: Iterable[tuple[time, time]] = ()) -> int:
-    """دقائقُ ما بين الانصراف ونهاية الدوام (1.1) التي لا يغطّيها إذنٌ معتمد.
+    """م-8: دقائقُ الخروج المبكر — من الانصراف إلى أقرب اللحظتين: 14:00 أو بدءِ التغطية.
 
     ``windows`` نوافذُ اليوم المعتمدة (خروجٌ مبكر أو استئذانٌ من نموذج 02، أو استثناءُ
-    خروجٍ من نموذج 03) — وقد تتداخل نافذةُ استثناءٍ ونافذةُ إذن، فتُطرح اتّحادُها مرّة.
+    خروجٍ من نموذج 03). وبالتناظر مع م-6: لا تُحسب إلّا نافذةٌ لم تنقضِ قبل الانصراف،
+    ومن انصرف داخل نافذته فلا دقائقَ عليه. والحسابُ اختيارٌ هندسيٌّ مؤقّت (المصدر صامت).
     """
-    gap = minutes_between(check_out, WORK_END)
-    spans = sorted(
-        (max(start, check_out), min(end, WORK_END))
-        for start, end in windows
-        if min(end, WORK_END) > max(start, check_out)
-    )
-    covered, reach = 0, check_out
-    for start, end in spans:
-        start = max(start, reach)
-        if end > start:
-            covered += minutes_between(start, end)
-            reach = end
-    return max(0, gap - covered)
+    check_out = _minute(check_out)
+    ahead = [_minute(start) for start, end in windows if _minute(end) > check_out]
+    bound = min([WORK_END, *ahead])
+    return minutes_between(check_out, bound)
 
 
 def month_bounds(day: date) -> tuple[date, date]:
@@ -172,30 +152,56 @@ def month_bounds(day: date) -> tuple[date, date]:
     return day.replace(day=1), day.replace(day=last)
 
 
-def _check_open_month(day: date, now: datetime) -> None:
-    """البند 5.1 (06:67): الخصمُ بإشعارٍ «بداية كل شهر، بتقرير أيام الغياب عن الشهر السابق».
+def coverage_deadline(day: date) -> date:
+    """م-35: آخرُ يومٍ تُقبل فيه تغطيةُ غياب ``day`` بلا وسم — الرابعَ عشرَ من الشهر التالي."""
+    first, last = month_bounds(day)
+    return (last + timedelta(days=1)).replace(day=COVERAGE_DEADLINE_DAY)
 
-    فشهرٌ انقضى أُشعر الموظّفُ بتقريره، ولا يُعاد تصنيفُ أيّامه بإذنٍ يُقدَّم أو يُعتمد
-    بعد انقضائه.
+
+def _check_submission_window(day: date, now: datetime) -> None:
+    """م-18أ: تاريخُ إذن التأخير الصباحيّ — الشهرُ الجاري، أو السابقُ ما لم يتجاوز اليومُ 14.
+
+    فالبند 5.1 يُشعر بتقرير الشهر السابق «بداية كل شهر»، و5.3 يمهل التغطية «قبل يوم
+    (15) من الشهر» — فما قبل ذلك كلَّه باب التسوية، وما بعده أُغلق تقريرُه.
     """
-    if day < now.date().replace(day=1):
-        raise PolicyError(
-            f"شهرُ {day:%Y-%m} انقضى وأُشعر بتقريره بداية الشهر التالي (البند 5.1) — "
-            "فلا إذنَ يُقدَّم له أو يُعتمد الآن."
-        )
+    first_of_month = now.date().replace(day=1)
+    if day >= first_of_month:
+        return
+    if now.day <= COVERAGE_DEADLINE_DAY and day >= (first_of_month - timedelta(days=1)).replace(
+        day=1
+    ):
+        return
+    raise PolicyError(
+        f"شهرُ {day:%Y-%m} أُغلق: التقريرُ يُشعَر به بداية الشهر التالي (البند 5.1) "
+        f"والتغطيةُ قبل يوم 15 منه (البند 5.3) — فلا إذنَ يُقدَّم له الآن."
+    )
 
 
 def _plain(value: Any) -> Any:
     """قيمةٌ تُكتب في سجلّ التدقيق (JSON): الوقتُ «HH:MM» والتاريخُ «YYYY-MM-DD»."""
     if isinstance(value, time):
         return f"{value:%H:%M}"
+    if isinstance(value, datetime):  # قبل ``date``: فـdatetime صنفٌ منه
+        return f"{value:%Y-%m-%d %H:%M}"
     if isinstance(value, date):
         return f"{value:%Y-%m-%d}"
+    if isinstance(value, UUID):
+        return str(value)
     return value
 
 
+#: حقولٌ لا يُكتب نصُّها في سجلّ التدقيق الثابت: العذرُ المقبول قد يحمل بيانةً صحّيّةً
+#: (فئةٌ خاصّة — PDPPL م.16)، وسجلُّ التدقيق «يُحفظ كلُّه» ولا يُحذف (م.19). فيُسجَّل أنّ
+#: عذراً قُبل ومن قبِله، ونصُّه في سجلّ اليوم وحدَه حيث يُمحى بمحوه.
+_REDACTED_FIELDS = ("accepted_excuse",)
+
+
+def _audited(key: str, value: Any) -> Any:
+    return bool(value) if key in _REDACTED_FIELDS else _plain(value)
+
+
 def _audit(
-    actor: CustomUser,
+    actor: CustomUser | None,
     action: str,
     obj: StaffAttendance | PermitRequest | AttendanceException | PrincipalDelegation,
     changes: dict[str, Any],
@@ -239,30 +245,30 @@ def _active_role_holders(school: School, role: str) -> set[Any]:
 
 
 class _StageDay:
-    """من يحضر مراحلَ الاعتماد في مدرسةٍ في يوم — يُقرأ مرّةً لكلّ طابور أو قرار.
+    """من يحضر مراحلَ الاعتماد في مدرسةٍ في لحظةٍ — يُقرأ مرّةً لكلّ طابور أو قرار.
 
-    ثلاثةُ أسئلة: من يحمل الدورَ نشطاً، ومن رُصد غائباً اليوم، ومن أنابه المديرُ اليوم.
+    أسئلتُه ثلاثة: من يحمل الدورَ نشطاً، ومن رُصد غائباً اليوم (غائباً أو في إجازة —
+    م-25 وم-28)، ومن أنابه المديرُ بقرارٍ صريح. ونافذةُ إذنٍ أو استثناءٍ ليست غياباً
+    مرصوداً، فلا تُقيم إنابةً (م-25).
     """
 
-    def __init__(self, school: School, today: date) -> None:
-        self.school, self.today = school, today
+    def __init__(self, school: School, now: datetime) -> None:
+        self.school, self.now = school, now
+        self.today = now.date()
         self._holders: dict[str, set[Any]] = {}
         self._absent: set[Any] | None = None
         self._delegates: set[Any] | None = None
-        self._staff: set[Any] | None = None
 
     def holders(self, role: str) -> set[Any]:
         if role not in self._holders:
             self._holders[role] = _active_role_holders(self.school, role)
         return self._holders[role]
 
-    def staff(self) -> set[Any]:
-        if self._staff is None:
-            self._staff = set(staff_members(self.school).values_list("pk", flat=True))
-        return self._staff
-
     def absent(self) -> set[Any]:
-        """المرصودون غائبين اليوم — للمراحل التي يُعرف صاحبُها بدوره."""
+        """المرصودون غائبين اليوم — وفيهم من في إجازة (يومُ غيابٍ بنوعه من سجلّ الغياب).
+
+        منه تقوم الإنابةُ عن المدير (م-25) ويُرفع مربّعٌ غاب صاحبُه (م-28).
+        """
         if self._absent is None:
             self._absent = set(
                 StaffAttendance.objects.filter(
@@ -272,7 +278,7 @@ class _StageDay:
         return self._absent
 
     def delegates(self) -> set[Any]:
-        """من أنابه المديرُ بنفسه لهذا اليوم (``DelegationService``) — ولا إنابةَ بغير قراره."""
+        """من أنابه المديرُ بقرارٍ صريحٍ لهذا اليوم — ويبقى مقبولاً مع الإنابة التلقائيّة (م-25)."""
         if self._delegates is None:
             named = set(
                 PrincipalDelegation.objects.filter(school=self.school, date=self.today).values_list(
@@ -284,7 +290,7 @@ class _StageDay:
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  الأذونات (1.3) — نموذج 02
+#  الأذونات — نموذج 02
 # ══════════════════════════════════════════════════════════════════════
 
 
@@ -299,10 +305,10 @@ class PermitBalance:
         return max(0, self.cap - self.approved)
 
 
-#: النائبُ المسؤول لكلّ دورٍ في المنصّة — من «reports_to» في rbac_roles.json، ورقمُ
-#: السطر سطرُ «title» المسمّى هناك. والمسمّياتُ الوزاريّةُ التي لا دورَ لها في المنصّة
-#: («منسق الدعم الإضافي» :154، «منسق شؤون الطالب» :173) لا تظهر هنا. وما لا بطاقةَ
-#: لمسمّاه (مرشدٌ أكاديميّ، محاسب، …) يرفع إلى المدير — ``deputy_role_for``.
+#: م-21 — «المسؤول المباشر» في ترويسة كلّ بطاقةِ وصفٍ وظيفيّ، ويوافقه «reports_to» في
+#: rbac_roles.json (ورقمُ السطر سطرُ «title» هناك). والمسؤولُ المباشرُ هو النائبُ
+#: المسؤولُ نفسُه في كلّ الفئات، فيوقّع المربّعين بتوقيعٍ واحد (م-19). وما لا بطاقةَ
+#: لمسمّاه يرفع إلى المدير (م-22، ``deputy_role_for``).
 LINE_MANAGER: dict[str, str] = {
     "vice_admin": "principal",  # :21 نائب المدير للشؤون الإدارية وشؤون الطالب
     "vice_academic": "principal",  # :28 نائب المدير للشؤون الأكاديمية
@@ -329,62 +335,30 @@ LINE_MANAGER: dict[str, str] = {
 
 
 def can_submit_permits(user: CustomUser) -> bool:
-    """أيُقدَّم إذنُ هذا المستخدم في المنصّة؟ — كلُّ الكادر، والمديرُ منهم.
+    """أيُقدَّم إذنُ هذا المستخدم في المنصّة؟ — كلُّ الكادر، والمديرُ منهم (م-23).
 
     سجلُّ الاستئذانات المدرسيّ (``07-نماذج المدرسة/07) سجل الاستئذانات.xlsx``، ورقة
-    «تأخير - يناير») أوّلُ صفوفه مديرُ المدرسة (C3 «مدير مدرسة»، E3 «نوع الاذن»، E4
-    «مدة الاذن»، Z4 مجموعُ الشهر) — فالمدرسةُ تتتبّع أذوناتِه في سقفها.
+    «تأخير - يناير») أوّلُ صفوفه مديرُ المدرسة (B3:C3) — فالمدرسةُ تتتبّع أذوناتِه.
     """
     return _role_of(user) not in NON_STAFF_ROLES
 
 
 def deputy_role_for(role: str) -> str:
-    """دورُ «النائب المسؤول» لصاحب الدور — والمديرُ نفسُه لا نائبَ فوقه (فارغ).
+    """م-21 وم-22: دورُ «المسؤول المباشر والنائب المسؤول» — والمديرُ لا مسؤولَ فوقه (فارغ).
 
-    من «reports_to» حيث وُجدت بطاقتُه. وما لا بطاقةَ لمسمّاه — وسجلُّ الاستئذانات
-    المدرسيّ (07-نماذج المدرسة/07) عمود المسمّى) يتتبّع أذوناتِ المرشد الأكاديميّ
-    والمحاسب وأخصائيّ الأنشطة وغيرهم — فمسؤولُه مديرُ المدرسة: «رأس الهيكل الذي
-    يتبعه كل الأدوار» (rbac_roles.json:18).
+    وما لا بطاقةَ لمسمّاه — وسجلُّ الاستئذانات المدرسيّ يتتبّع أذوناتِ المرشد الأكاديميّ
+    والمحاسب وغيرهم — فمسؤولُه مديرُ المدرسة، ولا يُرفض طلبُه.
     """
     if role == PRINCIPAL:
         return ""
     return LINE_MANAGER.get(role, PRINCIPAL)
 
 
-def direct_manager(school: School, staff: CustomUser) -> CustomUser | None:
-    """«المسؤول المباشر» في نموذج 02 حين يكون غيرَ النائب: منسّقُ قسم المعلّم.
-
-    ``DEPARTMENT_LED_ROLES`` وحدَها، ومنسّقُ القسم رأسُه (``Department.head``) نشطاً في
-    المدرسة وغيرَ صاحب الطلب. ولمن سواهم فالمسؤولُ المباشرُ هو النائبُ المسؤولُ نفسُه —
-    فيوقّع المربّعين معاً.
-    """
-    heads = (
-        Membership.objects.filter(
-            school=school,
-            user=staff,
-            is_active=True,
-            role__name__in=DEPARTMENT_LED_ROLES,
-            department_obj__is_active=True,
-            department_obj__head__isnull=False,
-        )
-        .exclude(department_obj__head=staff)
-        .order_by("department_obj__sort_order", "department_obj__name")
-        .values_list("department_obj__head_id", flat=True)
-    )
-    active = staff_members(school)
-    for head_id in heads:
-        head = active.filter(pk=head_id).first()
-        if head is not None:
-            return head
-    return None
-
-
 def _check_window(permit_type: str, start: time, end: time) -> None:
-    """نافذةُ الإذن داخلَ الدوام (1.1) وعلى قدر نوعه.
+    """م-1 وم-12 وم-13: نافذةُ الإذن داخلَ الدوام وعلى قدر نوعه.
 
-    التأخيرُ الصباحيّ يبدأ من 7:00 لأنّ التأخّرَ يُعدّ من بعدها (2.1)، والخروجُ المبكر
-    ينتهي بنهاية الدوام 14:00 (1.1)، والاستئذانُ أثناء الدوام بينهما — فإذنٌ لا يبدأ
-    من أوّل التأخّر لا يغطّيه، وإذنٌ بعد الدوام لا يستهلك من سقف الشهر بلا معنى.
+    التأخيرُ الصباحيّ يبدأ من 7:00 لأنّ التأخّرَ يُعدّ من بعدها (م-3)، والخروجُ المبكر
+    ينتهي بنهاية الدوام 14:00، والاستئذانُ أثناء الدوام بينهما.
     """
     if start < WORK_START or end > WORK_END:
         raise PolicyError("نافذةُ الإذن خارجَ الدوام الرسميّ 7:00–14:00 (البند 1.1).")
@@ -405,21 +379,23 @@ def _check_window(permit_type: str, start: time, end: time) -> None:
 
 
 def _check_timing(permit_type: str, day: date, start: time, now: datetime) -> None:
-    """متى يُقدَّم الطلب.
+    """م-18أ وم-18ب وم-11: متى يُقدَّم الطلب.
 
-    * شهرُه لم ينقضِ (البند 5.1، ``_check_open_month``).
-    * الخروجُ المبكر والاستئذانُ قبل بدء نافذتهما: حاشيةُ نموذج 02 «يتعين على الموظف عدم
-      الخروج إلا بعد اعتماده وإخطاره من قبل السكرتارية بالموافقة» (أصل PDF ص1، ومثله
-      07_forms_catalog.md:13 «ولا يخرج الموظف فعلياً إلا بعد اعتماد مدير المدرسة») —
-      فطلبٌ بعد الخروج طلبٌ بعد وقوعه.
-    * والتأخيرُ الصباحيّ قد يُطلب بعد الصباح نفسِه: يُبلَّغ المسؤولُ لحظتَها بالبريد
-      (البند 2.2، 06:32) ثمّ يُرفع الإذن (4.5، 06:60).
+    حاشيةُ ن02 بنصّها (أصل PDF ص1، وdocx النموذج): «في حال تقديم الطلب فإنه يتعين على
+    الموظف عدم الخروج إلا بعد اعتماده وإخطاره من قبل السكرتارية بالموافقة على طلب
+    الاجازة.» و«لا يعتبر الطلب معتمداً الا باعتماد مدير المدرسة وتوقيعه عليه.» —
+    فالخروجُ والاستئذانُ يُطلبان قبل وقت بدئهما.
+
+    والتأخيرُ الصباحيّ يُطلب قبل وقوعه أو بعده (م-18أ): يُبلَّغ المسؤولُ لحظتَها بالبريد
+    (البند 2.2) ثمّ يُرفع الإذن (4.5) — وتُقبل المنصّةُ طلبَ الغد في أيّ ساعة (م-11).
     """
-    _check_open_month(day, now)
-    if permit_type != "late_arrival" and (day, start) < (now.date(), now.time()):
+    if permit_type == "late_arrival":
+        _check_submission_window(day, now)
+        return
+    if (day, _minute(start)) <= (now.date(), _minute(now.time())):
         raise PolicyError(
-            "الخروجُ والاستئذانُ يُطلبان قبل وقتهما — «يتعين على الموظف عدم الخروج إلا بعد "
-            "اعتماده وإخطاره من قبل السكرتارية» (حاشية نموذج 02)."
+            "الخروجُ والاستئذانُ يُطلبان قبل وقت بدئهما — «يتعين على الموظف عدم الخروج "
+            "إلا بعد اعتماده وإخطاره من قبل السكرتارية بالموافقة» (حاشية نموذج 02)."
         )
 
 
@@ -443,7 +419,7 @@ class PermitService:
 
     @staticmethod
     def balance(school: School, staff: CustomUser, day: date) -> PermitBalance:
-        """رصيدُ شهر ``day``: المعتمدُ يخصم (4.1)، والمعلَّقُ يُعرض ولا يخصم."""
+        """م-15: رصيدُ شهر ``day`` — المعتمدُ يخصم، والمعلَّقُ يُعرض ولا يخصم (م-17)."""
         first, last = month_bounds(day)
         sums = PermitRequest.objects.filter(
             school=school, staff=staff, date__range=(first, last)
@@ -452,6 +428,54 @@ class PermitService:
             pending=Sum("duration_minutes", filter=Q(status="pending")),
         )
         return PermitBalance(MONTHLY_PERMIT_CAP, sums["approved"] or 0, sums["pending"] or 0)
+
+    # ── م-18ب: ما لم يُعتمد قبل وقت بدئه ينتهي ───────────────────────────
+
+    @staticmethod
+    def _overdue(permit: PermitRequest, now: datetime) -> bool:
+        return permit.permit_type in LEAVING_PERMIT_TYPES and (permit.date, permit.start_time) <= (
+            now.date(),
+            now.time(),
+        )
+
+    @staticmethod
+    def _expire(permit: PermitRequest, request: HttpRequest | None = None) -> PermitRequest:
+        """م-18ب: طلبُ خروجٍ أو استئذانٍ مضى وقتُ بدئه ولم يُعتمد — «منتهٍ» بلا أثرٍ في الرصيد."""
+        stage = permit.stage
+        permit.status, permit.stage = "expired", "closed"
+        permit.save(update_fields=["status", "stage", "updated_at"])
+        _audit(
+            None,
+            "update",
+            permit,
+            {"stage": stage, "status": "expired", "cause": "not_approved_before_start"},
+            request,
+        )
+        return permit
+
+    @staticmethod
+    def expire_due(
+        school: School,
+        now: datetime | None = None,
+        staff: CustomUser | None = None,
+        request: HttpRequest | None = None,
+    ) -> int:
+        """كنسُ ما انتهى وقتُه من الطلبات المعلّقة — يُستدعى قبل كلّ قراءةٍ أو قرار.
+
+        لا مهمّةَ مجدولةٌ تحمله: الحالةُ تُحسب عند أوّل مَسٍّ للطلب، فلا يبقى في طابورٍ
+        ولا يُعتمد بعد وقته (م-18ب)، ولا يحجز يومَه (م-14) ولا دقائقَه (م-15).
+        """
+        now = now or _now()
+        qs = PermitRequest.objects.filter(
+            school=school, status="pending", permit_type__in=LEAVING_PERMIT_TYPES
+        ).filter(Q(date__lt=now.date()) | Q(date=now.date(), start_time__lte=now.time()))
+        if staff is not None:
+            qs = qs.filter(staff=staff)
+        expired = 0
+        for permit in qs.select_related("school"):
+            PermitService._expire(permit, request)
+            expired += 1
+        return expired
 
     @staticmethod
     def _check_rules(
@@ -492,12 +516,10 @@ class PermitService:
         reason: str,
         request: HttpRequest | None = None,
     ) -> PermitRequest:
-        """يقدّم الموظّفُ طلبَه لنفسه.
+        """يقدّم الموظّفُ طلبَه لنفسه — وأوّلُ مربّعاته «استخدام السكرتارية» (م-19).
 
         ويُرفض ما لو اعتُمد لخالف السياسة — فالطابورُ لا يحمل طلباً مصيرُه الرفض:
-        المعلَّقُ يُحسب مع المعتمد في فحص اليوم (4.3) والشهر (4.2). والمرحلةُ الأولى
-        مربّعُ «المسؤول المباشر» إن كان للموظّف منسّقُ قسم، وإلّا «النائب المسؤول»؛
-        وطلبُ المدير يبدأ بالسكرتارية، فلا مسؤولَ فوقه في المدرسة.
+        المعلَّقُ يُحسب مع المعتمد في فحص اليوم (م-14) والشهر (م-15).
         """
         if permit_type not in {key for key, _label in PERMIT_TYPES}:
             raise PolicyError("نوعُ طلبٍ غيرُ معروف.")
@@ -508,19 +530,15 @@ class PermitService:
         role = _role_of(staff)
         if role in NON_STAFF_ROLES:
             raise PolicyError("نموذج 02 للموظّفين.")
+        now = _now()
         _check_window(permit_type, start_time, end_time)
-        _check_timing(permit_type, day, start_time, _now())
+        _check_timing(permit_type, day, start_time, now)
         CustomUser.objects.select_for_update().filter(pk=staff.pk).first()
+        PermitService.expire_due(school, now, staff, request)
         duration = minutes_between(start_time, end_time)
         PermitService._check_rules(
             school, staff, day, duration, open_statuses=("pending", "approved")
         )
-        deputy_role = deputy_role_for(role)
-        line_manager = direct_manager(school, staff) if deputy_role else None
-        if not deputy_role:
-            stage = "secretary"
-        else:
-            stage = "supervisor" if line_manager is not None else "deputy"
         permit = PermitRequest.objects.create(
             school=school,
             staff=staff,
@@ -530,9 +548,8 @@ class PermitService:
             end_time=end_time,
             duration_minutes=duration,
             reason=reason.strip()[:500],
-            stage=stage,
-            deputy_role=deputy_role,
-            line_manager=line_manager,
+            stage="secretary",
+            deputy_role=deputy_role_for(role),
             created_by=staff,
             updated_by=staff,
         )
@@ -543,14 +560,20 @@ class PermitService:
 
     @staticmethod
     def _principal_side(day: _StageDay, applicant: Any) -> set[Any]:
-        """من يوقّع بصفة المدير: المديرُ نفسُه ومن أنابه اليوم بقراره.
+        """م-24 وم-25 وم-26 وم-27: من يعمل بصفة المدير الآن.
 
-        والإنابةُ «عن المدير في مهامه في حال غيابه» (03:401) قرارُه هو
-        (``DelegationService``)، لا نقرةُ «غائب» في سجلٍّ يرصده غيرُه. فإن شغر منصبُه
-        (لا مديرَ نشطاً) فالغيابُ ثابتٌ بلا قرار، وينوب نائبُ الشؤون الإدارية.
+        المديرُ نفسُه أوّلاً، ومعه نائبُ الشؤون الإدارية (1034) وحدَه إذا قامت الإنابة:
+        شغرَ المنصبُ (م-26)، أو رُصد المديرُ اليومَ غائباً أو في إجازة (م-25). ونافذةُ
+        إذنه ليست غياباً مرصوداً. والإنابةُ الصريحةُ (``DelegationService``) مقبولةٌ ولو
+        كان حاضراً. والنائبُ المرصودُ غائباً لا ينوب — فإن غابا معاً بقي الطلبُ معلّقاً،
+        ولا يرتفع إلى النائب الأكاديميّ (م-27).
         """
         principals = day.holders(PRINCIPAL)
-        side = (principals | day.delegates()) if principals else day.holders(PRINCIPAL_DELEGATE)
+        deputies = day.holders(PRINCIPAL_DELEGATE) - day.absent()
+        if not (principals - day.absent()):
+            side = principals | deputies
+        else:
+            side = principals | (day.delegates() - day.absent())
         return side - {applicant}
 
     @staticmethod
@@ -562,50 +585,49 @@ class PermitService:
     def _eligible(permit: PermitRequest, day: _StageDay) -> tuple[set[Any], str]:
         """(من يعمل الآن، الدورُ الذي تُنسب إليه المرحلة).
 
-        لا يعلق طلبٌ بلا من يوقّعه: مربّعٌ شغر صاحبُه أو غاب اليومَ يرتفع إلى من فوقه —
-        المسؤولُ المباشرُ إلى النائب المسؤول، والنائبُ والسكرتارية إلى المدير، فالمديرُ
-        «رأس الهيكل الذي يتبعه كل الأدوار مباشرة أو عبر نائبيه» (rbac_roles.json:18).
+        م-28: لا يعلق طلبٌ بلا من يوقّعه — مربّعٌ شغر صاحبُه أو غاب اليومَ يُؤدّى من جهة
+        المدير (المدير أو نائبُه وفق م-24)، ويُوسم «بالنيابة» في التدقيق (``on_behalf_of``).
+        وهذا اجتهادٌ لا نصّ: المصدرُ صامتٌ في التصعيد، والأصلُ في الشغور الندبُ بقرار
+        المدير (المادّة 43 من النظام الوظيفيّ)، وهذه القاعدةُ تُكمله ولا تحلّ محلّه.
+
+        ومن مسؤولُه المباشرُ المديرُ (م-21 وم-22) لا يمرّ بمربّع «supervisor» أصلاً:
+        خطوتُه مدمجةٌ في مربّع المدير (م-19، الخطوة 3؛ ``_record_balance``).
         """
         applicant = permit.staff_id
-        if permit.stage == "supervisor":
-            manager = permit.line_manager_id
-            if manager in day.staff() and manager not in day.absent() and manager != applicant:
-                return {manager}, "line_manager"
-            return PermitService._deputy_side(permit, day)
-        if permit.stage == "deputy":
-            return PermitService._deputy_side(permit, day)
-        if permit.stage in ("secretary", "external"):
+        if permit.stage == "secretary":
             secretaries = PermitService._available(day, "secretary", applicant)
             if secretaries:
                 return secretaries, "secretary"
             if permit.is_principals_own:
-                return day.holders(PRINCIPAL_DELEGATE) - {applicant}, "secretary"
+                # طلبُ المدير نفسِه: لا يُثبت رصيدَه بيده (م-23).
+                return day.holders(PRINCIPAL_DELEGATE) - day.absent() - {applicant}, "secretary"
             return PermitService._principal_side(day, applicant), "secretary"
+        if permit.stage == "supervisor":
+            role = permit.deputy_role
+            if role == PRINCIPAL or not role:
+                return PermitService._principal_side(day, applicant), PRINCIPAL
+            deputies = PermitService._available(day, role, applicant)
+            if deputies:
+                return deputies, role
+            return PermitService._principal_side(day, applicant), role
+        if permit.stage == "external":
+            secretaries = PermitService._available(day, "secretary", applicant)
+            if secretaries:
+                return secretaries, "secretary"
+            return day.holders(PRINCIPAL_DELEGATE) - day.absent() - {applicant}, "secretary"
         if permit.stage == "principal":
             return PermitService._principal_side(day, applicant), PRINCIPAL
         return set(), ""
 
     @staticmethod
-    def _deputy_side(permit: PermitRequest, day: _StageDay) -> tuple[set[Any], str]:
-        role = permit.deputy_role
-        if role == PRINCIPAL:
-            return PermitService._principal_side(day, permit.staff_id), PRINCIPAL
-        deputies = PermitService._available(day, role, permit.staff_id)
-        if deputies:
-            return deputies, role
-        return PermitService._principal_side(day, permit.staff_id), role
-
-    @staticmethod
     def eligible_actors(permit: PermitRequest) -> list[CustomUser]:
         """من يعمل في مرحلة الطلب الآن — أشخاصاً."""
-        ids, _role = PermitService._eligible(permit, _StageDay(permit.school, _now().date()))
+        ids, _role = PermitService._eligible(permit, _StageDay(permit.school, _now()))
         return list(CustomUser.objects.filter(pk__in=ids).order_by("full_name"))
 
     @staticmethod
-    def _natural(permit: PermitRequest, actor: CustomUser, stage_role: str) -> bool:
-        """أيعمل بصفته هو؟ — وإلّا فبالنيابة، ويُكتب ذلك في التدقيق."""
-        if stage_role == "line_manager":
-            return actor.pk == permit.line_manager_id
+    def _natural(actor: CustomUser, stage_role: str) -> bool:
+        """أيعمل بصفته هو؟ — وإلّا فبالنيابة أو بالرفع، ويُكتب ذلك في التدقيق (م-25 وم-28)."""
         return _role_of(actor) == stage_role
 
     @staticmethod
@@ -620,45 +642,60 @@ class PermitService:
     ) -> PermitRequest:
         """مربّعٌ واحدٌ من نموذج 02 — تحت قفل صفّ الموظّف فلا تتسابق مرحلتان.
 
-        * المسؤولُ المباشر ثمّ النائبُ المسؤول: موافق/غير موافق، كلٌّ في عموده.
-        * السكرتارية: تسجّل رصيدَ الساعات (المتبقّي قبل الطلب) واسمَها ووقتَها
-          (07b:13)، ولا قرارَ لها في المصدر — فإن جاوز الطلبُ السقفَ (4.2) سُجّل
-          رفضاً باسم البند لا بتقديرها.
-        * «استخدام الإدارة» — مديرُ المدرسة: الاعتمادُ النهائيّ، ويُعاد فحصُ 4.3 و4.2
-          و5.1 على المعتمَد، وبه وحدَه يُخصم الرصيد (4.1). وينوب عنه من أنابه.
-        * إذنُ المدير نفسِه: اعتمادُه من رئيسه خارج المدرسة، والمصدرُ لا يسمّيه؛
-          فالسكرتاريةُ التي تحفظ سجلَّ الاستئذانات تُثبت قرارَه بمرجعه (``external``).
+        الترتيبُ ترتيبُ الورقة (م-19):
 
-        وبعد الاعتماد يُعاد تصنيفُ سجلّ حضور اليوم إن رُصد قبله.
+        * الخطوة 2 «استخدام السكرتارية»: تُثبت رصيدَ الساعات المتبقّي قبل هذا الطلب
+          واسمَها ووقتَها. لا قرارَ لها ولا خصم — فلا تَرفض.
+        * الخطوة 3 «استخدام المسؤول المباشر والنائب المسؤول»: عمودان يوقّعهما النائبُ
+          المختصّ بتوقيعٍ واحدٍ لأنّه صاحبُهما معاً (م-21). و«غير موافق» تُنهي الطلبَ
+          مرفوضاً، والسببُ اختياريّ. ومن مسؤولُه المديرُ تُدمج خطوتُه في الخطوة 4.
+        * الخطوة 4 «استخدام الإدارة» و«مدير المدرسة» مرحلةٌ واحدة (س-2): الاعتمادُ
+          النهائيّ، وبه وحدَه يدخل الإذنُ في الرصيد (م-17)، ويصدر إخطارُ الموظّف (الخطوة
+          5). و«سبب الرفض» إلزاميٌّ هنا وحدَه — فهو في مربّع الإدارة من الورقة.
+        * إذنُ المدير نفسِه: اعتمادٌ من خارج المدرسة تُثبته السكرتاريةُ بمرجعه (م-23).
         """
         CustomUser.objects.select_for_update().filter(pk=permit.staff_id).first()
         permit.refresh_from_db()
         if permit.status != "pending":
             raise PolicyError(f"الطلبُ «{permit.get_status_display()}» — لا يُراجَع ثانيةً.")
+        now = _now()
+        if PermitService._overdue(permit, now):
+            return PermitService._expire(permit, request)
         if actor.pk == permit.staff_id:
             raise PolicyError("لا يعمل أحدٌ في طلبه هو (البند 4.1: الاعتمادُ من غيره).")
-        now = _now()
-        eligible, stage_role = PermitService._eligible(permit, _StageDay(permit.school, now.date()))
+        eligible, stage_role = PermitService._eligible(permit, _StageDay(permit.school, now))
         if actor.pk not in eligible:
             raise PolicyError(f"الطلبُ بانتظار «{permit.get_stage_display()}» لا دورك.")
-        on_behalf = "" if PermitService._natural(permit, actor, stage_role) else stage_role
+        on_behalf = "" if PermitService._natural(actor, stage_role) else stage_role
         stage = permit.stage
-        if stage == "external" and not reason.strip():
-            raise PolicyError(
-                "قرارُ رئيس المدير يُثبَت بمرجعه (بريدٌ أو كتابٌ وتاريخُه) — "
-                "فالسكرتاريةُ تُوثّق ولا تقرّر (03:102)."
-            )
         if stage == "secretary":
-            approve, reason = PermitService._record_balance(permit, actor, now)
-        if not approve:
+            if not approve:
+                raise PolicyError(
+                    "السكرتاريةُ تُثبت رصيدَ الساعات ولا تقرّر في الطلب (مربّع «استخدام "
+                    "السكرتارية» في نموذج 02) — والرفضُ في مربّع الإدارة."
+                )
+            PermitService._record_balance(permit, actor, now)
+        elif stage == "external" and not reason.strip():
+            raise PolicyError(
+                "القرارُ الوارد من خارج المدرسة يُثبَت بمرجعه (بريدٌ أو كتابٌ وتاريخُه) — "
+                "فالسكرتاريةُ تُوثّق ولا تقرّر (م-23)."
+            )
+        elif not approve:
+            if stage == "principal" and not reason.strip():
+                raise PolicyError(
+                    "سببُ الرفض مطلوبٌ في مربّع الإدارة (نموذج 02: «موافق، غير موافق، "
+                    "سبب الرفض») — م-19، الخطوة 4."
+                )
+            PermitService._sign(permit, stage, actor, now)
             permit.status, permit.rejected_stage, permit.stage = "rejected", stage, "closed"
             permit.rejection_reason = reason.strip()[:300]
+            if stage == "external":
+                permit.external_reference = permit.rejection_reason
+            permit.decided_on_behalf = bool(on_behalf) and stage == "principal"
         elif stage == "supervisor":
-            permit.supervisor_by, permit.supervisor_at, permit.stage = actor, now, "deputy"
-        elif stage == "deputy":
-            permit.deputy_by, permit.deputy_at, permit.stage = actor, now, "secretary"
+            PermitService._sign(permit, stage, actor, now)
+            permit.stage = "principal"
         elif stage in ("principal", "external"):
-            _check_open_month(permit.date, now)
             PermitService._check_rules(
                 permit.school,
                 permit.staff,
@@ -667,8 +704,10 @@ class PermitService:
                 open_statuses=("approved",),
                 exclude_pk=permit.pk,
             )
+            PermitService._sign(permit, stage, actor, now)
             permit.status, permit.stage = "approved", "closed"
-            permit.reviewed_by, permit.reviewed_at = actor, now
+            permit.decided_on_behalf = bool(on_behalf) and stage == "principal"
+            permit.notified_at = now
             if stage == "external":
                 permit.external_reference = reason.strip()[:300]
         permit.updated_by = actor
@@ -680,65 +719,154 @@ class PermitService:
         changes: dict[str, Any] = {"stage": stage, "status": permit.status}
         if on_behalf:
             changes["on_behalf_of"] = on_behalf
+        # النائبُ الإداريّ يوقّع مربّعَ مسؤوله ثمّ يعتمد بالإنابة (م-21 وم-24): المواصفةُ
+        # لا تمنعه، فيُقبل ويُكتب في التدقيق أنّ التوقيعين من يدٍ واحدة.
+        if (
+            permit.status == "approved"
+            and permit.deputy_role != PRINCIPAL
+            and permit.reviewed_by_id == permit.deputy_by_id
+        ):
+            changes["same_signer"] = True
         _audit(actor, "update", permit, changes, request)
         if permit.status == "approved":
+            PermitService._notify(permit)
             StaffAttendanceService.reconcile(
                 permit.school, permit.staff, permit.date, actor=actor, request=request
             )
         return permit
 
     @staticmethod
+    def _sign(permit: PermitRequest, stage: str, actor: CustomUser, now: datetime) -> None:
+        """م-19: الاسمُ ووقتُ القرار في المربّع الذي قرّر فيه — موافقاً أو غيرَ موافق.
+
+        عمودا «المسؤول المباشر والنائب المسؤول» بتوقيعٍ واحد (الخطوة 3). ومن مسؤولُه
+        المديرُ يملأ توقيعُ المدير المربّعين كذلك، فالخطوةُ مدمجةٌ ولا تتكرّر.
+        """
+        if stage == "supervisor" or (stage == "principal" and permit.deputy_role == PRINCIPAL):
+            permit.supervisor_by, permit.supervisor_at = actor, now
+            permit.deputy_by, permit.deputy_at = actor, now
+        if stage in ("principal", "external"):
+            permit.reviewed_by, permit.reviewed_at = actor, now
+
+    @staticmethod
+    def _notify(permit: PermitRequest) -> None:
+        """م-19: إخطارُ الموظّف باسم السكرتارية عند الاعتماد النهائيّ — بلا مرحلةٍ تُعلِّق.
+
+        حاشيةُ ن02: «يتعين على الموظف عدم الخروج إلا بعد اعتماده وإخطاره من قبل
+        السكرتارية بالموافقة» — فالإخطارُ لازمٌ للخروج، ووقتُه في ``notified_at``.
+        """
+        from notifications.models import InAppNotification
+
+        InAppNotification.objects.create(
+            user=permit.staff,
+            school=permit.school,
+            title="السكرتارية: اعتُمد طلبُ الإذن",
+            body=(
+                f"{permit.get_permit_type_display()} يوم {permit.date:%Y-%m-%d} "
+                f"من {permit.start_time:%H:%M} إلى {permit.end_time:%H:%M} — "
+                "اعتمده مدير المدرسة، ولا خروجَ قبل هذا الإخطار (حاشية نموذج 02)."
+            ),
+            event_type="general",
+            related_object_id=str(permit.pk),
+            related_url="/staff-affairs/permits/mine/",
+        )
+
+    @staticmethod
     @transaction.atomic
     def cancel(
         permit: PermitRequest, *, actor: CustomUser, request: HttpRequest | None = None
     ) -> PermitRequest:
-        """يسحب صاحبُ الطلب طلبَه ما دام معلَّقاً — فيُفرج عن يومه (4.3) ودقائقه (4.2)."""
+        """م-20: يلغي صاحبُ الطلب طلبَه المعلَّق، أو إذنَه المعتمدَ قبل بدء نافذته.
+
+        فيُفرج عن يومه (م-14) ويُستردّ رصيدُه (م-10)، ويبقى الصفُّ بحالة «ملغى» وقيدُه في
+        التدقيق — لا يُحذف طلبٌ ولا قرار.
+        """
         CustomUser.objects.select_for_update().filter(pk=permit.staff_id).first()
         permit.refresh_from_db()
         if actor.pk != permit.staff_id:
-            raise PolicyError("لا يسحب الطلبَ إلّا صاحبُه.")
-        if permit.status != "pending":
-            raise PolicyError(f"الطلبُ «{permit.get_status_display()}» — لا يُسحب.")
+            raise PolicyError("لا يلغي الطلبَ إلّا صاحبُه.")
+        now = _now()
+        was = permit.status
+        if was == "approved":
+            if (permit.date, permit.start_time) <= (now.date(), _minute(now.time())):
+                raise PolicyError(
+                    "الإذنُ المعتمد يُلغى قبل بدء نافذته وحدَه — وما بدأ يبقى محسوباً (م-20)."
+                )
+        elif was != "pending":
+            raise PolicyError(f"الطلبُ «{permit.get_status_display()}» — لا يُلغى.")
+        elif PermitService._overdue(permit, now):
+            return PermitService._expire(permit, request)
         stage = permit.stage
         permit.status, permit.stage, permit.updated_by = "cancelled", "closed", actor
         permit.save(update_fields=["status", "stage", "updated_by", "updated_at"])
-        _audit(actor, "update", permit, {"stage": stage, "status": "cancelled"}, request)
+        _audit(
+            actor,
+            "update",
+            permit,
+            {"stage": stage, "status": "cancelled", "was": was},
+            request,
+        )
+        if was == "approved":
+            StaffAttendanceService.reconcile(
+                permit.school,
+                permit.staff,
+                permit.date,
+                actor=actor,
+                request=request,
+                cause="permit_cancelled",
+            )
         return permit
 
     @staticmethod
-    def _record_balance(
-        permit: PermitRequest, actor: CustomUser, now: datetime
-    ) -> tuple[bool, str]:
-        """مربّعُ السكرتارية: الرصيدُ المتبقّي قبل الطلب، ثمّ المرحلةُ التالية أو الرفضُ بالبند."""
+    def _record_balance(permit: PermitRequest, actor: CustomUser, now: datetime) -> None:
+        """مربّعُ السكرتارية (م-19): الرصيدُ المتبقّي قبل هذا الطلب، والاسمُ والتوقيت.
+
+        لقطةٌ لما رأته يومَ سجّلت، لا عدّادٌ ولا خصم — والخصمُ لا يكون إلّا بالاعتماد
+        النهائيّ (م-17)، وفحصُ السقف (م-15) هناك.
+        """
         used = PermitService._month_minutes(
             permit.school, permit.staff, permit.date, ("approved",), permit.pk
         )
-        remaining = max(0, MONTHLY_PERMIT_CAP - used)
-        permit.recorded_balance_minutes = remaining
+        permit.recorded_balance_minutes = max(0, MONTHLY_PERMIT_CAP - used)
         permit.secretary_by, permit.secretary_at = actor, now
-        if permit.duration_minutes > remaining:
-            return False, f"يتجاوز سقفَ الأذونات الشهريّ (البند 4.2): المتبقّي {remaining} دقيقة."
-        permit.stage = "external" if permit.is_principals_own else "principal"
-        return True, ""
+        if permit.is_principals_own:
+            permit.stage = "external"  # م-23
+        elif permit.deputy_role == PRINCIPAL:
+            permit.stage = "principal"  # م-19 (3): خطوةُ المسؤول مدمجةٌ في مربّع المدير
+        else:
+            permit.stage = "supervisor"
 
     @staticmethod
-    def own_permits(school: School, staff: CustomUser) -> QuerySet[PermitRequest]:
-        return PermitRequest.objects.filter(school=school, staff=staff).order_by(
-            "-date", "-created_at"
-        )[:50]
+    def own_permits(school: School, staff: CustomUser) -> list[PermitRequest]:
+        """طلباتُ الموظّف — بعد كنس ما انتهى وقتُه (م-18ب)، وكلٌّ معلَّمٌ بما يُلغى (م-20)."""
+        now = _now()
+        PermitService.expire_due(school, now, staff=staff)
+        permits = list(
+            PermitRequest.objects.filter(school=school, staff=staff).order_by(
+                "-date", "-created_at"
+            )[:50]
+        )
+        started = (now.date(), _minute(now.time()))
+        for permit in permits:
+            permit.cancellable = permit.status == "pending" or (  # type: ignore[attr-defined]
+                permit.status == "approved" and (permit.date, permit.start_time) > started
+            )
+        return permits
 
     @staticmethod
     def awaiting(school: School, user: CustomUser) -> list[PermitRequest]:
         """الطلباتُ المعلّقةُ في مرحلةٍ يعمل فيها هذا المستخدم الآن — لا طلبُه هو.
 
         يُحكم على كلّ طلبٍ بـ``_eligible`` نفسِها التي تحكم القرار، فلا يعرض الطابورُ ما
-        يردّه الاعتماد، ولا يُخفي ما يقبله. والمعلَّقُ في مدرسةٍ عشراتٌ لا آلاف.
+        يردّه الاعتماد، ولا يُخفي ما يقبله. وما مضى وقتُ بدئه يُكنس قبلها (م-18ب).
         """
-        day = _StageDay(school, _now().date())
+        now = _now()
+        PermitService.expire_due(school, now)
+        day = _StageDay(school, now)
         pending = (
             PermitRequest.objects.filter(school=school, status="pending")
             .exclude(staff=user)
-            .select_related("staff", "line_manager")
+            .select_related("staff")
             .order_by("date", "created_at")
         )
         return [p for p in pending if user.pk in PermitService._eligible(p, day)[0]]
@@ -749,16 +877,16 @@ class PermitService:
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  الإنابةُ عن المدير — بقراره
+#  الإنابةُ الصريحة عن المدير — م-25
 # ══════════════════════════════════════════════════════════════════════
 
 
 class DelegationService:
-    """«الإنابة عن المدير في مهامه في حال غيابه» (03_job_descriptions_rbac.md:401).
+    """إنابةٌ صريحةٌ يكتبها المديرُ ليومٍ — وتبقى مقبولةً مع الإنابة التلقائيّة (م-25).
 
-    يُنيب المديرُ نائبَ الشؤون الإدارية ليومٍ بنفسه — فلا تنتقل صلاحيةُ الاعتماد النهائيّ
-    برصدٍ يكتبه غيرُه، ولا ينفرد بها اثنان دونه. وأصلُ نموذج 02: «لا يعتبر الطلب
-    معتمداً الا باعتماد مدير المدرسة وتوقيعه عليه» — فالتوقيعُ عنه بإذنه.
+    البطاقةُ (1034) تجعل الإنابةَ بحكم الوظيفة «في حال غيابه» ولا تشترط قراراً، فغيابُه
+    المرصودُ في رصد اليوم يكفي (``_principal_side``). والسجلُّ الصريحُ أثرٌ للتدقيق لا
+    شرطٌ لقيام الإنابة؛ وهذه الشاشةُ لمن أراد أن يُنيب وهو حاضر، أو أن يُعلنها قبل غيابه.
     """
 
     @staticmethod
@@ -789,9 +917,12 @@ class DelegationService:
     ) -> PrincipalDelegation:
         day = day or _now().date()
         if principal.pk not in _active_role_holders(school, PRINCIPAL):
-            raise PolicyError("لا يُنيب عن المدير إلّا المديرُ نفسُه (03:401).")
+            raise PolicyError(
+                "السجلُّ الصريحُ للإنابة يكتبه مديرُ المدرسة (م-25)؛ والإنابةُ في غيابه قائمةٌ "
+                "بنصّ بطاقة نائب الشؤون الإدارية: «الإنابة عن المدير في مهامه في حال غيابه»."
+            )
         if delegate.pk not in _active_role_holders(school, PRINCIPAL_DELEGATE):
-            raise PolicyError("الإنابةُ لنائب المدير للشؤون الإدارية (03:401).")
+            raise PolicyError("الإنابةُ لنائب المدير للشؤون الإدارية وحدَه (م-24).")
         if day < _now().date():
             raise PolicyError("لا إنابةَ ليومٍ مضى.")
         delegation, created = PrincipalDelegation.objects.update_or_create(
@@ -828,18 +959,37 @@ class DelegationService:
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  استثناءُ التأخير الصباحيّ أو الخروج المبكر — نموذج 03
+#  استثناءُ التأخير الصباحيّ أو الخروج المبكر — نموذج 03 (م-29 وم-31)
 # ══════════════════════════════════════════════════════════════════════
 
 
 class ExceptionService:
-    """نموذج 03 «نموذج طلب» الموجَّه إلى مدير المدرسة (07_forms_catalog.md:14، أصلُه ص1).
+    """نموذج 03 «نموذج طلب» (م-29): خطابٌ حرٌّ موجَّهٌ إلى مدير المدرسة، يقرّره هو أو من
+    ينوب عنه (م-30 وم-24) في مرحلةٍ واحدة.
 
-    استثناءٌ لأيّامٍ متتالية: تأخيرٌ صباحيٌّ إلى ساعةٍ، أو خروجٌ مبكرٌ من ساعة. يُرفق به
-    «ما يثبت حاجة الموظف لذلك»، ويدوّن المديرُ «التغذية الراجعة» وتاريخَها. وليس إذناً
-    من نموذج 02: فلا يدخل سقفَ السبع ساعات (4.2) ولا حدَّ المرّة (4.4) ولا «مرّةً في اليوم»
-    (4.3) — تلك قيودُ الأذونات، وهذا قرارُ المدير نفسه باستثناءٍ موثَّق.
+    ونطاقُ هذه الموجة (م-31) طلبُ «استثناء التأخير الصباحيّ أو الخروج المبكر» وحدَه:
+    النوع، ومن تاريخ إلى تاريخ، وساعةُ الحدّ، والمرفقُ الإلزاميّ — «يجب ارفاق مع طلب
+    استثناء الخروج المبكر أو التأخير الصباحي ما يثبت حاجة الموظف لذلك». ولا يُشترط
+    التكرار. والطلباتُ الحرّةُ الأخرى في النموذج فجوةٌ معروفة. وليس إذناً من نموذج 02:
+    فلا يدخل سقفَ السبع ساعات (م-33) ولا حدَّ الساعتين ولا «مرّةً في اليوم».
     """
+
+    #: المرفقُ صورةٌ أو PDF — وقد يكون تقريراً طبيّاً، فلا يُقبل ما يُنفَّذ في المتصفّح.
+    EVIDENCE_EXTENSIONS = (".pdf", ".png", ".jpg", ".jpeg")
+    EVIDENCE_MAX_BYTES = 5 * 1024 * 1024
+
+    @staticmethod
+    def _check_evidence(evidence_file: Any) -> None:
+        if not evidence_file:
+            raise PolicyError(
+                "«يجب ارفاق مع طلب استثناء الخروج المبكر أو التأخير الصباحي ما يثبت حاجة "
+                "الموظف لذلك» (نموذج 03، م-31) — أرفق الملفّ."
+            )
+        name = str(getattr(evidence_file, "name", "")).lower()
+        if not name.endswith(ExceptionService.EVIDENCE_EXTENSIONS):
+            raise PolicyError("المرفقُ ملفُّ PDF أو صورة (PNG/JPG).")
+        if (getattr(evidence_file, "size", 0) or 0) > ExceptionService.EVIDENCE_MAX_BYTES:
+            raise PolicyError("المرفقُ أكبرُ من 5 ميغابايت.")
 
     @staticmethod
     @transaction.atomic
@@ -852,28 +1002,24 @@ class ExceptionService:
         end_date: date,
         boundary: time,
         content: str,
-        evidence: str,
+        evidence_file: Any,
+        evidence: str = "",
         request: HttpRequest | None = None,
     ) -> AttendanceException:
         role = _role_of(staff)
         if role == PRINCIPAL:
-            raise PolicyError("نموذج 03 موجَّهٌ إلى مدير المدرسة نفسِه — فلا يقدّمه.")
+            raise PolicyError("نموذج 03 موجَّهٌ إلى مدير المدرسة نفسِه — فلا يقدّمه (م-34).")
         if role in NON_STAFF_ROLES:
             raise PolicyError("نموذج 03 للموظّفين.")
         if exception_type not in {key for key, _label in EXCEPTION_TYPES}:
-            raise PolicyError("الاستثناءُ للتأخير الصباحيّ أو الخروج المبكر (نموذج 03).")
+            raise PolicyError("الاستثناءُ للتأخير الصباحيّ أو الخروج المبكر (نموذج 03، م-31).")
         if not WORK_START < boundary < WORK_END:
             raise PolicyError("ساعةُ الاستثناء داخلَ الدوام الرسميّ 7:00–14:00 (البند 1.1).")
         if end_date < start_date:
             raise PolicyError("«إلى تاريخ» يجب ألّا تسبق «من تاريخ».")
-        _check_open_month(start_date, _now())
         if not content.strip():
-            raise PolicyError("محتوى الطلب مطلوب (نموذج 03).")
-        if not evidence.strip():
-            raise PolicyError(
-                "«يجب ارفاق مع طلب استثناء الخروج المبكر أو التأخير الصباحي ما يثبت حاجة "
-                "الموظف لذلك» (نموذج 03)."
-            )
+            raise PolicyError("محتوى الطلب مطلوب («استخدام الموظف»، نموذج 03).")
+        ExceptionService._check_evidence(evidence_file)
         exception = AttendanceException.objects.create(
             school=school,
             staff=staff,
@@ -883,11 +1029,17 @@ class ExceptionService:
             boundary_time=boundary,
             content=content.strip()[:1000],
             evidence=evidence.strip()[:300],
+            evidence_file=evidence_file,
             created_by=staff,
             updated_by=staff,
         )
-        _audit(staff, "create", exception, {"type": exception_type}, request)
+        _audit(staff, "create", exception, {"type": exception_type, "evidence": True}, request)
         return exception
+
+    @staticmethod
+    def _deciders(school: School, applicant: Any) -> set[Any]:
+        """م-30 وم-24 وم-25: المديرُ، ونائبُ الشؤون الإدارية حين تقوم الإنابة."""
+        return PermitService._principal_side(_StageDay(school, _now()), applicant)
 
     @staticmethod
     @transaction.atomic
@@ -899,27 +1051,42 @@ class ExceptionService:
         feedback: str = "",
         request: HttpRequest | None = None,
     ) -> AttendanceException:
-        """«استخدام مدير المدرسة» — المديرُ وحدَه، والتغذيةُ الراجعة لازمةٌ للرفض."""
+        """«استخدام مدير المدرسة» (م-30): المديرُ أو من ينوب عنه، والتغذيةُ الراجعة لازمة.
+
+        وحالةُ «معتمد / مرفوض» المرافقةُ للتغذية اختيارٌ هندسيٌّ مؤقّت. والقرارُ بالإنابة
+        يُوسم (``decided_on_behalf``) مع اسم النائب في ``reviewed_by`` (م-25).
+        """
         exception.refresh_from_db()
         if exception.status != "pending":
             raise PolicyError(f"الطلبُ «{exception.get_status_display()}» — لا يُراجَع ثانيةً.")
         if actor.pk == exception.staff_id:
             raise PolicyError("لا يعمل أحدٌ في طلبه هو.")
-        if actor.pk not in _active_role_holders(exception.school, PRINCIPAL):
-            raise PolicyError("نموذج 03 يقرّره مديرُ المدرسة («استخدام مدير المدرسة»).")
-        if not approve and not feedback.strip():
-            raise PolicyError("التغذيةُ الراجعة مطلوبةٌ مع الرفض (نموذج 03).")
+        if actor.pk not in ExceptionService._deciders(exception.school, exception.staff_id):
+            raise PolicyError(
+                "نموذج 03 يقرّره مديرُ المدرسة («استخدام مدير المدرسة»)، أو نائبُ الشؤون "
+                "الإدارية في غيابه (م-30 وم-24)."
+            )
+        if not feedback.strip():
+            raise PolicyError("التغذيةُ الراجعة مطلوبةٌ مع القرار (نموذج 03، م-30).")
         now = _now()
+        on_behalf = _role_of(actor) != PRINCIPAL
         exception.status = "approved" if approve else "rejected"
         exception.feedback = feedback.strip()[:500]
         exception.reviewed_by, exception.reviewed_at, exception.updated_by = actor, now, actor
+        exception.decided_on_behalf = on_behalf
         exception.save()
-        _audit(actor, "update", exception, {"status": exception.status}, request)
+        changes: dict[str, Any] = {"status": exception.status}
+        if on_behalf:
+            changes["on_behalf_of"] = PRINCIPAL
+        _audit(actor, "update", exception, changes, request)
         if approve:
-            first_open = max(exception.start_date, now.date().replace(day=1))
+            # م-32: عند الاعتماد تُعاد مطابقةُ أيّامه. وم-35: التغطيةُ بعد المهلة لا تُمنع —
+            # تُعاد أيّامُ المدّة كلُّها وتُوسم في التقرير.
             last = min(exception.end_date, now.date())
             days = StaffAttendance.objects.filter(
-                school=exception.school, staff_id=exception.staff_id, date__range=(first_open, last)
+                school=exception.school,
+                staff_id=exception.staff_id,
+                date__range=(exception.start_date, last),
             ).values_list("date", flat=True)
             for day in days:
                 StaffAttendanceService.reconcile(
@@ -939,15 +1106,18 @@ class ExceptionService:
         )[:20]
 
     @staticmethod
-    def awaiting(school: School, user: CustomUser) -> QuerySet[AttendanceException]:
-        if user.pk not in _active_role_holders(school, PRINCIPAL):
-            return AttendanceException.objects.none()
-        return (
+    def awaiting(school: School, user: CustomUser) -> list[AttendanceException]:
+        """طلباتُ نموذج 03 المعلّقة لمن يقرّرها الآن — المديرُ أو نائبُه في غيابه (م-30)."""
+        deciders = _StageDay(school, _now())
+        pending = (
             AttendanceException.objects.filter(school=school, status="pending")
             .exclude(staff=user)
             .select_related("staff")
             .order_by("start_date", "created_at")
         )
+        return [
+            e for e in pending if user.pk in PermitService._principal_side(deciders, e.staff_id)
+        ]
 
     @staticmethod
     def pending_one(school: School, pk: Any) -> AttendanceException:
@@ -969,7 +1139,7 @@ class ExceptionService:
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  الحضور (1.1)
+#  الحضور — م-1 … م-7
 # ══════════════════════════════════════════════════════════════════════
 
 
@@ -1014,8 +1184,8 @@ class StaffAttendanceService:
     ) -> dict[str, Any]:
         """ما يُحسب من الأوقات وما يغطّي اليوم: التصنيفُ والدقائق.
 
-        ويومُ الغياب لا دقائقَ انصرافٍ مبكرٍ فيه: اليومُ كلُّه يُعدّ غياباً في التقرير
-        (البند 5.1)، فلا يُعدّ نقصُ آخره مرّةً ثانية.
+        ويومُ الغياب لا دقائقَ انصرافٍ مبكرٍ فيه (م-9): اليومُ كلُّه يُعدّ غياباً في
+        التقرير، فلا يُعدّ نقصُ آخره مرّةً ثانية.
         """
         until = cover.late_until()
         derived: dict[str, Any] = {
@@ -1033,11 +1203,76 @@ class StaffAttendanceService:
         return derived
 
     @staticmethod
+    def _covered_at(
+        record: StaffAttendance,
+        values: dict[str, Any],
+        check_in: time | None,
+        now: datetime,
+    ) -> datetime | None:
+        """م-35: متى غُطّي غيابُ هذا اليوم — ووقتُه هو ما يُقاس على المهلة في التقرير.
+
+        «غيابٌ مغطّى» يومٌ كان الحضورُ فيه غياباً بذاته (لم يحضر، أو حضر بعد التاسعة بلا
+        تغطية): غُطّي بنوعٍ من سجلّ الغياب (إجازةٌ أو مهمّة)، أو بعذرٍ مقبول أو استثناءٍ
+        رفع التصنيف. والوقتُ الأوّلُ يبقى — فلا يُمحى قيدٌ بقيدٍ لاحق.
+        """
+        bare = classify_arrival(check_in)[0] if check_in is not None else "absent"
+        if bare != "absent":
+            return None
+        covered = values["status"] != "absent" or bool(values["absence_type"])
+        if not covered:
+            return None
+        return record.covered_at or now
+
+    @staticmethod
+    def _locked_record(school: School, staff: CustomUser, day: date) -> StaffAttendance | None:
+        """سجلُّ اليوم مقفولاً للكتابة — مدخلٌ واحدٌ للقراءة قبل الكتابة في الخدمة كلِّها."""
+        return (
+            StaffAttendance.objects.select_for_update()
+            .filter(school=school, staff=staff, date=day)
+            .first()
+        )
+
+    @staticmethod
     def _changes(before: dict[str, Any], after: dict[str, Any]) -> dict[str, Any]:
         return {
-            key: [_plain(before[key]), _plain(value)]
+            key: [_audited(key, before[key]), _audited(key, value)]
             for key, value in after.items()
             if before[key] != value
+        }
+
+    @staticmethod
+    def _excuse_values(
+        record: StaffAttendance | None,
+        excuse: str,
+        actor: CustomUser | None,
+        now: datetime | None,
+    ) -> dict[str, Any]:
+        """م-7: العذرُ ومن قبله ووقتُ القبول — قبولٌ جديدٌ بيد ``actor``، أو يبقى ما كان.
+
+        ``actor`` فارغٌ حين لا قبولَ جديدَ (إعادةُ الحساب): يبقى القابلُ الأوّل ما بقي
+        العذرُ نفسُه، ويُمحى القيدُ معه متى سقط العذر.
+        """
+        if not excuse:
+            return {
+                "accepted_excuse": "",
+                "excuse_accepted_by_id": None,
+                "excuse_accepted_at": None,
+                "excuse_on_behalf": False,
+            }
+        if actor is None or (record is not None and record.accepted_excuse == excuse):
+            if record is None:
+                raise PolicyError("عذرٌ بلا من يقبله (م-7).")
+            return {
+                "accepted_excuse": excuse,
+                "excuse_accepted_by_id": record.excuse_accepted_by_id,
+                "excuse_accepted_at": record.excuse_accepted_at,
+                "excuse_on_behalf": record.excuse_on_behalf,
+            }
+        return {
+            "accepted_excuse": excuse,
+            "excuse_accepted_by_id": actor.pk,
+            "excuse_accepted_at": now,
+            "excuse_on_behalf": _role_of(actor) != PRINCIPAL,
         }
 
     @staticmethod
@@ -1057,11 +1292,7 @@ class StaffAttendanceService:
         8:30 صار مستأذناً بلا دقائق تأخّر — لا متأخّراً ومستأذناً معاً. ومن لم يُكتب له
         وقتُ حضور (غائبٌ لم يحضر) تبقى حالتُه، وتتبدّل دقائقُ إذنه وحدَها.
         """
-        record = (
-            StaffAttendance.objects.select_for_update()
-            .filter(school=school, staff=staff, date=day)
-            .first()
-        )
+        record = StaffAttendanceService._locked_record(school, staff, day)
         if record is None:
             return None
         cover = StaffAttendanceService._cover(school, staff, day)
@@ -1075,8 +1306,13 @@ class StaffAttendanceService:
             "permit_minutes": derived["permit_minutes"],
             "early_leave_minutes": derived["early_leave_minutes"] if status != "absent" else 0,
             "absence_type": record.absence_type if status == "absent" else "",
-            "accepted_excuse": record.accepted_excuse if derived["excuse_used"] else "",
+            **StaffAttendanceService._excuse_values(
+                record, record.accepted_excuse if derived["excuse_used"] else "", None, None
+            ),
         }
+        values["covered_at"] = StaffAttendanceService._covered_at(
+            record, values, record.check_in, _now()
+        )
         before = {key: getattr(record, key) for key in values}
         changes = StaffAttendanceService._changes(before, values)
         if not changes:
@@ -1106,21 +1342,22 @@ class StaffAttendanceService:
         """رصدُ حالة موظّفٍ في يوم — بنقرة، ووقتُ الحضور شاهدُها.
 
         * لا يرصد أحدٌ نفسَه: السجلُّ سندُ الخصم (البند 5).
-        * الحاضرُ والمتأخّرُ والمستأذنُ بوقت حضورهم، فبه تُحسب دقائقُ التأخّر (2.1 و5.2)،
+        * الحاضرُ والمتأخّرُ والمستأذنُ بوقت حضورهم، فبه تُحسب دقائقُ التأخّر (م-3 وم-6)،
           ونقرةٌ تخالف تصنيفَه تُرفض باسم البند. والغائبُ بلا وقتٍ جائز.
-        * ``accepted_excuse`` (2.4 «أو عذر مقبول») يُكتب لمن حضر بعد 9:00 بلا إذنٍ يغطّيه،
-          فيُعدّ متأخّراً بدقائقه لا غائباً.
+        * ``accepted_excuse`` (م-7) لا يقبله إلّا المديرُ أو من ينوب عنه، ويُكتب لمن حضر
+          بعد 9:00 بلا تغطيةٍ سارية، فيُعدّ متأخّراً بدقائقه لا غائباً.
         * ``absence_type`` نوعُ يوم الغياب من سجلّ الغياب المدرسيّ (إجازةٌ أو مهمّة)،
-          والفارغُ غيابٌ لم يُغطَّ بعد (5.3).
-        * ``check_out`` وقتُ الانصراف، وما بينه وبين 14:00 بلا إذنٍ يُعدّ (1.1) — إلّا في
-          يوم الغياب.
+          والفارغُ غيابٌ لم يُغطَّ بعد (م-35).
+        * ``check_out`` وقتُ الانصراف، وما بينه وبين 14:00 بلا إذنٍ يُعدّ (م-1) — إلّا في
+          يوم الغياب (م-9).
 
-        وتكرارُ الرصد نفسِه لا يغيّر شيئاً ولا يترك أثراً ثانياً، والتعديلُ يُدقَّق بكلّ
-        ما تغيّر وقيمتِه قبل.
+        والكتابةُ تحت قفل صفّ الموظّف — القفلِ نفسِه الذي يأخذه ``PermitService.act`` —
+        فلا يكتب رصدٌ فوق ما أعادت ``reconcile`` حسابَه، ولا يتسابق راصدان.
         """
+        now = _now()
         if status not in STATUSES:
             raise PolicyError("حالةٌ غيرُ معروفة.")
-        if day > _now().date():
+        if day > now.date():
             raise PolicyError("لا رصدَ ليومٍ لم يأتِ بعد.")
         if actor.pk == staff.pk:
             raise PolicyError("لا يرصد أحدٌ حضورَ نفسه — السجلُّ سندُ الخصم (البند 5).")
@@ -1139,6 +1376,8 @@ class StaffAttendanceService:
             )
         if check_out is not None and (check_in is None or check_out <= check_in):
             raise PolicyError("وقتُ الانصراف يُكتب بعد وقت الحضور.")
+        CustomUser.objects.select_for_update().filter(pk=staff.pk).first()
+        record = StaffAttendanceService._locked_record(school, staff, day)
         derived = StaffAttendanceService._derive(
             StaffAttendanceService._cover(school, staff, day), check_in, check_out, bool(excuse)
         )
@@ -1149,6 +1388,14 @@ class StaffAttendanceService:
             )
         if excuse and not derived["excuse_used"]:
             raise PolicyError("العذرُ المقبول يُكتب لمن حضر بعد 9:00 بلا إذنٍ يغطّيه وحدَه (البند 2.4).")
+        accepting = bool(excuse) and (record is None or record.accepted_excuse != excuse)
+        if accepting and actor.pk not in PermitService._principal_side(
+            _StageDay(school, now), staff.pk
+        ):
+            raise PolicyError(
+                "العذرُ المقبول (البند 2.4) يقبله مديرُ المدرسة أو من ينوب عنه (م-7 وم-24) — "
+                "ومن رصد الحضورَ يكتب الوقتَ لا العذر."
+            )
         values: dict[str, Any] = {
             "status": status,
             "check_in": check_in,
@@ -1157,16 +1404,30 @@ class StaffAttendanceService:
             "permit_minutes": derived["permit_minutes"],
             "early_leave_minutes": derived["early_leave_minutes"],
             "absence_type": absence_type,
-            "accepted_excuse": excuse,
+            **StaffAttendanceService._excuse_values(
+                record, excuse, actor if accepting else None, now
+            ),
         }
-        record = StaffAttendance.objects.filter(school=school, staff=staff, date=day).first()
         if record is None:
-            record = StaffAttendance.objects.create(
-                school=school, staff=staff, date=day, created_by=actor, updated_by=actor, **values
+            values["covered_at"] = StaffAttendanceService._covered_at(
+                StaffAttendance(), values, check_in, now
             )
-            created = {key: _plain(value) for key, value in values.items() if value}
+            try:
+                with transaction.atomic():
+                    record = StaffAttendance.objects.create(
+                        school=school,
+                        staff=staff,
+                        date=day,
+                        created_by=actor,
+                        updated_by=actor,
+                        **values,
+                    )
+            except IntegrityError as exc:  # راصدٌ آخرُ سبقنا في اللحظة نفسِها
+                raise PolicyError("رُصد هذا اليومُ للتوّ من جهةٍ أخرى — أعد تحميل اللوحة.") from exc
+            created = {key: _audited(key, value) for key, value in values.items() if value}
             _audit(actor, "create", record, {"status": status, **created}, request)
             return record
+        values["covered_at"] = StaffAttendanceService._covered_at(record, values, check_in, now)
         before = {key: getattr(record, key) for key in values}
         changes = StaffAttendanceService._changes(before, values)
         if not changes:
@@ -1203,9 +1464,7 @@ class StaffAttendanceService:
     ) -> list[CustomUser]:
         """من يدخل تقريرَ الشهر: الكادرُ النشط، ومن له سجلٌّ أو إذنٌ معتمدٌ فيه وإن غادر.
 
-        والنائبان يريان من يتبعهما وحدَهم: نائبُ الشؤون الإدارية «متابعة وتقييم أداء
-        من يندرج تحت مسؤولياته» (rbac_permissions_matrix.md:48)، والأكاديميّ «تقييم
-        المنسقين والمعلمين» (:50) — والتبعيّةُ من «reports_to» (``LINE_MANAGER``).
+        والنائبان يريان من يتبعهما وحدَهم — والتبعيّةُ من جدول م-21 (``LINE_MANAGER``).
         """
         marked = StaffAttendance.objects.filter(school=school, date__range=(first, last)).values(
             "staff_id"
@@ -1239,13 +1498,17 @@ class StaffAttendanceService:
     def monthly_report(
         school: School, year: int, month: int, viewer: CustomUser | None = None
     ) -> dict[str, Any]:
-        """تقريرُ الشهر لكلّ موظّفٍ في نطاق ``viewer`` (بلا ``viewer``: المدرسةُ كلُّها).
+        """م-36: تقريرُ الشهر لكلّ موظّفٍ في نطاق ``viewer`` (بلا ``viewer``: المدرسةُ كلُّها).
 
-        أيّامُ كلّ حالة ودقائقُ التأخّر والانصراف المبكر من سجلّ اليوم، وأيّامُ الغياب
-        بأنواعها وغيرُ المغطّى منها (5.3)، والإذنُ المعتمد من الأذونات نفسِها (فإذنٌ في
-        يومٍ لم يُرصد يُحسب)، والمتبقّي من السقف الشهريّ (4.2).
+        أيّامُ كلّ حالة ودقائقُ التأخّر (م-36) والانصراف المبكر من سجلّ اليوم، وأيّامُ
+        الغياب بأنواعها وغيرُ المغطّى منها، وما غُطّي بعد مهلة يوم 14 موسوماً (م-35)،
+        والإذنُ المعتمد من الأذونات نفسِها (فإذنٌ في يومٍ لم يُرصد يُحسب، م-10)،
+        والمتبقّي من السقف الشهريّ (م-15)، وأيّامُ استثناء نموذج 03 المعتمد في الشهر
+        مستقلّةً عن الأذونات ولا تمسّ السقف (م-33).
         """
         first, last = month_bounds(date(year, month, 1))
+        deadline = coverage_deadline(first)
+        after_deadline = timezone.make_aware(datetime.combine(deadline + timedelta(days=1), time()))
         attendance = {
             row["staff_id"]: row
             for row in StaffAttendance.objects.filter(school=school, date__range=(first, last))
@@ -1257,6 +1520,7 @@ class StaffAttendanceService:
                     for key in ABSENCE_TYPE_KEYS
                 },
                 absent_uncovered=Count("id", filter=Q(status="absent", absence_type="")),
+                covered_late=Count("id", filter=Q(covered_at__gte=after_deadline)),
                 late_total=Sum("late_minutes"),
                 # يومُ الغياب يُعدّ غياباً وحدَه (``_derive``) — والشرطُ هنا حارسٌ ثانٍ.
                 early_total=Sum("early_leave_minutes", filter=~Q(status="absent")),
@@ -1270,6 +1534,15 @@ class StaffAttendanceService:
             .annotate(total=Sum("duration_minutes"))
             .values_list("staff_id", "total")
         )
+        exception_days: dict[Any, set[date]] = {}
+        for staff_id, start, end in AttendanceException.objects.filter(
+            school=school, status="approved", start_date__lte=last, end_date__gte=first
+        ).values_list("staff_id", "start_date", "end_date"):
+            day, stop = max(start, first), min(end, last)
+            while day <= stop:
+                if day.weekday() in SCHOOL_WEEKDAYS:
+                    exception_days.setdefault(staff_id, set()).add(day)
+                day += timedelta(days=1)
         rows: list[dict[str, Any]] = []
         for person in StaffAttendanceService._report_people(school, first, last, viewer):
             counted = attendance.get(person.pk, {})
@@ -1280,6 +1553,7 @@ class StaffAttendanceService:
                     "full_name": person.full_name,
                     **{key: counted.get(key, 0) for key in STATUSES},
                     "absent_uncovered": counted.get("absent_uncovered", 0),
+                    "covered_late": counted.get("covered_late", 0),
                     **{
                         f"absence_{key}": counted.get(f"absence_{key}", 0)
                         for key in ABSENCE_TYPE_KEYS
@@ -1288,17 +1562,26 @@ class StaffAttendanceService:
                     "early_leave_minutes": counted.get("early_total") or 0,
                     "permit_minutes": used,
                     "permit_remaining": max(0, MONTHLY_PERMIT_CAP - used),
+                    "exception_days": len(exception_days.get(person.pk, ())),
                 }
             )
         keys = (
             *STATUSES,
             "absent_uncovered",
+            "covered_late",
+            "exception_days",
             "late_minutes",
             "early_leave_minutes",
             "permit_minutes",
         )
         totals = {key: sum(r[key] for r in rows) for key in keys}
-        return {"first": first, "last": last, "rows": rows, "totals": totals}
+        return {
+            "first": first,
+            "last": last,
+            "deadline": deadline,
+            "rows": rows,
+            "totals": totals,
+        }
 
     @staticmethod
     def monthly_workbook(report: dict[str, Any]) -> Any:
@@ -1315,11 +1598,13 @@ class StaffAttendanceService:
                 "الاسم",
                 *(STATUS_LABELS[key] for key in STATUSES),
                 "غياب غير مغطّى",
+                f"غياب غُطّي بعد المهلة ({report['deadline']:%d/%m})",
                 *(f"غياب: {label}" for _key, label in ABSENCE_TYPES),
                 "دقائق التأخّر",
                 "دقائق الانصراف المبكر بلا إذن",
                 "دقائق الإذن المعتمد",
                 "المتبقّي من سقف الأذونات",
+                "أيام الاستثناء (نموذج 03)",
             ]
         )
         for r in report["rows"]:
@@ -1329,11 +1614,13 @@ class StaffAttendanceService:
                     r["full_name"],
                     *(r[key] for key in STATUSES),
                     r["absent_uncovered"],
+                    r["covered_late"],
                     *(r[f"absence_{key}"] for key in ABSENCE_TYPE_KEYS),
                     r["late_minutes"],
                     r["early_leave_minutes"],
                     r["permit_minutes"],
                     r["permit_remaining"],
+                    r["exception_days"],
                 ]
             )
         return wb

@@ -24,7 +24,7 @@
   {% kpi_strip label="مجاميع الشهر" %}
     {% kpi "أيام حضور" totals.present tone="green" %}
     {% kpi "أيام تأخّر" totals.late tone="amber" %}
-    {% kpi "أيام غياب" totals.absent sub=totals.absent_uncovered|stringformat:"s"|add:" غير مغطّاة" title="الغياب بلا نوعٍ من سجلّ الغياب — يُغطّى قبل يوم 15 (البند 5.3)" tone="red" %}
+    {% with uncovered=totals.absent_uncovered|stringformat:"s" late_cover=totals.covered_late|stringformat:"s" %}{% kpi "أيام غياب" totals.absent sub=uncovered|add:" غير مغطّاة · "|add:late_cover|add:" بعد المهلة" title="الغياب بلا نوعٍ من سجلّ الغياب يُغطّى قبل يوم 15 من الشهر التالي، وما غُطّي بعده يُوسم ولا يُمنع (البند 5.3)" tone="red" %}{% endwith %}
     {% kpi "أيام استئذان" totals.permitted tone="sky" %}
     {% with early=totals.early_leave_minutes|stringformat:"s" %}{% kpi "دقائق التأخّر" totals.late_minutes sub="انصراف مبكر: "|add:early title="الانصراف قبل 14:00 بلا إذن (البند 1.1)" tone="orange" %}{% endwith %}
     {% kpi "دقائق الإذن" totals.permit_minutes title="الإذن المعتمد — السقف 420 دقيقة لكل موظف" tone="teal" %}
@@ -41,11 +41,13 @@
             <th class="num">متأخّر</th>
             <th class="num">غائب</th>
             <th class="num">منه غير مغطّى</th>
+            <th class="num" title="غُطّي بعد نهاية {{ deadline|date:"d/m/Y" }} (البند 5.3)">غُطّي بعد المهلة</th>
             <th class="num">مستأذن</th>
             <th class="num">دقائق التأخّر</th>
             <th class="num">دقائق الانصراف المبكر</th>
             <th class="num">دقائق الإذن</th>
             <th class="num">المتبقّي من السقف</th>
+            <th class="num" title="استثناء نموذج 03 المعتمد — مستقلٌّ عن الأذونات ولا يُحتسب من سقف 420 دقيقة">أيام الاستثناء</th>
           </tr>
         </thead>
         <tbody>
@@ -57,11 +59,13 @@
             <td class="num">{{ r.late }}</td>
             <td class="num">{{ r.absent }}</td>
             <td class="num">{{ r.absent_uncovered }}</td>
+            <td class="num">{{ r.covered_late }}</td>
             <td class="num">{{ r.permitted }}</td>
             <td class="num">{{ r.late_minutes }}</td>
             <td class="num">{{ r.early_leave_minutes }}</td>
             <td class="num">{{ r.permit_minutes }}</td>
             <td class="num">{{ r.permit_remaining }}</td>
+            <td class="num">{{ r.exception_days }}</td>
           </tr>
           {% endfor %}
         </tbody>
