@@ -18,6 +18,7 @@
 
 import re
 
+from django.conf import settings
 from django.urls import URLPattern, URLResolver, get_resolver
 
 from core.middleware import EXEMPT
@@ -74,12 +75,15 @@ OPEN_BY_DESIGN = {
     "academic/class-performance/": "_stub_view — صفحةٌ قيد الإنشاء بلا بيانات",
     "academic/underperformance/": "_stub_view — صفحةٌ قيد الإنشاء بلا بيانات",
     "api/v1/library/books/": "فهرسُ الكتب — لا بياناتِ أشخاص",
-    "api/v1/auth/token/": "إصدارُ رمز JWT — بابُ الدخول نفسُه",
-    "api/v1/auth/token/refresh/": "تجديدُ رمز JWT",
     "api/v1/schema/": "مخطّطُ الـAPI — والوسيطُ يفرض الدخولَ على /api/",
     "api/v1/docs/": "توثيقُ الـAPI",
     "api/v1/redoc/": "توثيقُ الـAPI",
 }
+
+if settings.API_JWT_ENABLED:
+    # بابُ الدخول نفسُه — لا يُفتح إلّا بالراية (test_api_jwt_disabled.py).
+    OPEN_BY_DESIGN["api/v1/auth/token/"] = "إصدارُ رمز JWT — بابُ الدخول نفسُه"
+    OPEN_BY_DESIGN["api/v1/auth/token/refresh/"] = "تجديدُ رمز JWT"
 
 
 def _walk(patterns, prefix=""):
