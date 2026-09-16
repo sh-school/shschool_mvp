@@ -1,0 +1,172 @@
+"""يومُ الإجازة ليس يومَ دوام — ولو وقع ثلاثاءً.
+
+كانت لوحةُ مشرف الجناح وفهرسُ الرصد وشاشةُ الطوابق تسأل الأسبوعَ وحدَه
+(`bells.day_type_for`)، ومهلةُ العذر تسأل تقويمَ الوزارة. فإجازةٌ رسميّةٌ يومَ ثلاثاء
+عُرضت يومَ دوامٍ بشُعبها كلِّها «لم تُرصد»، وجرسُها يرنّ في شاشة الطوابق.
+والسؤالُ الآن واحدٌ في `operations.school_days`، ومهلةُ العذر تسأله هو أيضاً.
+"""
+
+import datetime as dt
+
+import pytest
+from django.urls import reverse
+from django.utils import timezone
+
+from core.models import AcademicYear, CalendarEvent, WingCoverage
+from operations.absence_file import _SchoolDays
+from operations.excuses import _grace_after
+from operations.school_days import WEEKEND, is_school_day, school_day
+from tests.conftest import MembershipFactory, RoleFactory, UserFactory
+from tests.test_period_register import (  # noqa: F401 — التجهيزاتُ نفسُها
+    SUNDAY,
+    _periods,
+    kids,
+    klass,
+    supervisor,
+    teacher,
+    year,
+)
+from tests.test_wings_screen import built, leader  # noqa: F401
+from wings.services import floors_overview
+
+pytestmark = pytest.mark.django_db
+
+MONDAY = SUNDAY + dt.timedelta(days=1)
+TUESDAY = SUNDAY + dt.timedelta(days=2)
+WEDNESDAY = SUNDAY + dt.timedelta(days=3)
+THURSDAY = SUNDAY + dt.timedelta(days=4)
+FRIDAY = SUNDAY + dt.timedelta(days=5)
+HOLIDAY = "إجازةٌ رسميّةٌ للاختبار"
+
+
+@pytest.fixture(autouse=True)
+def on_tuesday(monkeypatch):
+    """الساعةُ 9:45 من الثلاثاء بتوقيت المدرسة — قبل أيّ تجهيزٍ يسأل عن العام."""
+    frozen = timezone.make_aware(dt.datetime.combine(TUESDAY, dt.time(9, 45)))
+    monkeypatch.setattr("django.utils.timezone.now", lambda: frozen)
+
+
+def _break(school, name=HOLIDAY, audience="both", day=TUESDAY):
+    academic_year = AcademicYear.objects.get(school=school, start_date__lte=day, end_date__gte=day)
+    return CalendarEvent.objects.create(
+        academic_year=academic_year,
+        event_type="break",
+        name=name,
+        start_date=day,
+        end_date=day,
+        audience=audience,
+    )
+
+
+@pytest.fixture
+def holiday(school, seeded_calendar):
+    return _break(school)
+
+
+class TestTheDay:
+    def test_a_tuesday_holiday_is_not_a_school_day(self, school, holiday):
+        day = school_day(school, TUESDAY)
+
+        assert day.day_type == "regular", "الأسبوعُ وحدَه يراه يومَ دوام"
+        assert not day.is_open
+        assert day.holiday == HOLIDAY
+        assert day.closed_reason == HOLIDAY
+        assert day.bell_day_type == ""
+        assert not is_school_day(school, TUESDAY)
+
+    def test_the_days_around_it_stay_open(self, school, holiday):
+        assert school_day(school, MONDAY).is_open
+        assert is_school_day(school, WEDNESDAY)
+
+    def test_a_staff_only_break_keeps_the_students_in_class(self, school, seeded_calendar):
+        _break(school, name="إجازةُ الموظفين", audience="staff")
+
+        assert school_day(school, TUESDAY).is_open
+        assert is_school_day(school, TUESDAY)
+
+    def test_the_weekend_is_closed_without_a_holiday(self, school, seeded_calendar):
+        day = school_day(school, FRIDAY)
+
+        assert not day.is_open
+        assert day.holiday == ""
+        assert day.closed_reason == WEEKEND
+
+    def test_the_excuse_grace_and_the_absence_file_skip_the_same_holiday(self, school, holiday):
+        """مهلةُ العذر يومان دراسيّان بعد العودة: عودةُ الإثنين تُغلق الخميسَ لا الأربعاء."""
+        assert _grace_after(school, MONDAY) == THURSDAY
+        assert _SchoolDays(school, SUNDAY, FRIDAY).grace_after(MONDAY) == THURSDAY
+
+
+class TestTheSupervisorScreens:
+    def test_the_supervisors_home_page_names_the_holiday_and_lists_no_section(
+        self, client_as, school, holiday, klass, kids, teacher, supervisor
+    ):
+        # حصصُ الثلاثاء موجودة — تُولَّد للأسبوع كلِّه دفعةً واحدة.
+        _periods(school, klass, teacher, 7, day=TUESDAY)
+
+        body = client_as(supervisor).get(reverse("dashboard")).content.decode()
+
+        assert f"اليوم — {HOLIDAY}: لا دوامَ فيه، فلا رصد." in body
+        assert reverse("wings:record_section", args=[klass.id]) not in body
+        assert 'class="per-dot' not in body
+        assert "لا جناحَ مُسنَدٌ إليك" not in body
+
+    def test_the_record_index_names_the_holiday_on_its_date_only(
+        self, client_as, school, holiday, klass, kids, teacher, supervisor
+    ):
+        _periods(school, klass, teacher, 7, day=WEDNESDAY)
+        client = client_as(supervisor)
+        index = reverse("wings:record_index")
+        section = reverse("wings:record_section", args=[klass.id])
+
+        closed = client.get(f"{index}?date={TUESDAY.isoformat()}").content.decode()
+        opened = client.get(f"{index}?date={WEDNESDAY.isoformat()}").content.decode()
+
+        assert HOLIDAY in closed
+        assert section not in closed
+        assert HOLIDAY not in opened
+        assert section in opened
+        assert opened.count('class="per-dot') == 7
+
+    def test_the_substitutes_home_page_names_the_holiday(
+        self, client_as, school, holiday, klass, supervisor
+    ):
+        substitute = UserFactory(full_name="ملاحظ الطلبة", national_id="29300000093")
+        MembershipFactory(
+            user=substitute,
+            school=school,
+            role=RoleFactory(school=school, name="student_observer"),
+        )
+        WingCoverage.objects.create(
+            wing=klass.wing, substitute=substitute, assigned_by=supervisor, start_date=TUESDAY
+        )
+
+        body = client_as(substitute).get(reverse("dashboard")).content.decode()
+
+        assert "رصد الغياب — جناحي اليوم" in body
+        assert HOLIDAY in body
+        assert reverse("wings:record_section", args=[klass.id]) not in body
+
+
+class TestTheFloors:
+    def test_no_bell_rings_on_the_holiday(self, school, year, built, holiday):
+        panels = floors_overview(school, year, timezone.localtime())
+
+        assert all(panel.bells == [] for panel in panels)
+        assert all(card.positions == [] for panel in panels for card in panel.wings)
+
+    def test_the_bells_ring_the_day_after(self, school, year, built, holiday):
+        after = timezone.make_aware(dt.datetime.combine(WEDNESDAY, dt.time(9, 45)))
+
+        panels = floors_overview(school, year, after)
+
+        assert any(card.positions for panel in panels for card in panel.wings)
+
+    def test_the_page_names_the_holiday_and_shows_no_clock(
+        self, client_as, school, built, leader, holiday
+    ):
+        body = client_as(leader).get(reverse("wings:floors")).content.decode()
+
+        assert HOLIDAY in body
+        assert "لا جرسَ يرنّ" in body
+        assert "الساعة 09:45" not in body
