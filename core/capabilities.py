@@ -81,7 +81,26 @@ def registry() -> dict[str, Capability]:
         _cap("dashboard.open", "فتحُ لوحة التحكّم", P.ALL_STAFF_ROLES | {"student", "parent"}),
         # ── شؤون الطلبة ─────────────────────────────────────────────
         _cap("student_affairs.manage", "إدارةُ سجلّات الطلبة", P.STUDENT_AFFAIRS_MANAGE),
-        _cap("student_affairs.view", "الاطّلاعُ على سجلّات الطلبة", P.STUDENT_AFFAIRS_VIEW),
+        _cap(
+            "student_affairs.view",
+            "الاطّلاعُ على سجلّات الطلبة",
+            P.STUDENT_REGISTER_READ,
+            scope="المدرسة؛ المشرفُ الإداريُّ لشُعب جناحه (wings/scope.py)",
+        ),
+        _cap(
+            "student_affairs.follow_up",
+            "متابعةُ حضور الطلبة وتأخّرهم وسلوكهم",
+            P.STUDENT_FOLLOW_UP,
+            scope="المدرسةُ للقيادة؛ المشرفُ الإداريُّ لشُعب جناحه (wings/scope.py)",
+            basis="الدليل التنظيميّ 2026: متابعةُ الغياب اليوميّ والتأخّر الصباحيّ؛ وقرارُ المستخدم 2026-09-14: المشرفُ لجناحه فقط",
+        ),
+        _cap(
+            "student_affairs.tardiness",
+            "رصدُ التأخّر الصباحيّ وإلغاؤه",
+            P.STUDENT_FOLLOW_UP,
+            scope="المدرسةُ للقيادة؛ المشرفُ الإداريُّ لشُعب جناحه (wings/scope.py)",
+            basis="الدليل التنظيميّ 2026 م 3.4.2.2: التأخّرُ الصباحيُّ على المشرف الإداريّ من أوّل مرّة",
+        ),
         _cap("student_affairs.deactivate", "إيقافُ قيد طالب", P.STUDENT_DEACTIVATE),
         _cap(
             "student_affairs.activities",
@@ -98,7 +117,7 @@ def registry() -> dict[str, Capability]:
             "student_info.read",
             "مركزُ معلومات الطالب",
             STUDENT_INFO_ROLES,
-            scope="المدرسة للقيادة والجهات؛ المعلّمُ لطلبة شُعبه",
+            scope="المدرسة للقيادة والجهات؛ المعلّمُ لطلبة شُعبه؛ المشرفُ الإداريُّ لشُعب جناحه",
             basis="قرارُ المستخدم: القراءةُ لكلّ من يُدرّس الطالب",
         ),
         _cap(

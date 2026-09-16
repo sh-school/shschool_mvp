@@ -30,6 +30,7 @@ from core.capabilities import capability_required, has_capability
 from core.middleware import SchoolRequest
 from core.models import ClassGroup, CustomUser, School, StudentEnrollment
 
+from .scope import student_scope_for
 from .selectors import students_in_wings_matching
 from .services import wings_of
 from .views import _day, _own_class, excuse_outcome_message
@@ -51,6 +52,7 @@ def _own_student(request: HttpRequest, student_id: object) -> tuple[School, Clas
     if enrollment is None:
         raise Http404("لا شعبةَ لهذا الطالب")
     school, klass = _own_class(request, enrollment.class_group_id)  # type: ignore[no-untyped-call]
+    student_scope_for(request).require_student(enrollment.student_id)
     return school, klass, enrollment.student
 
 
@@ -68,7 +70,9 @@ def student_search(request: HttpRequest) -> HttpResponse:
     results = []
     if len(query) >= MIN_QUERY:
         wings = wings_of(request.user, school, academic_year_for_school(school))
-        results = students_in_wings_matching(school, wings, query, MAX_RESULTS + 1)
+        results = students_in_wings_matching(
+            school, wings, query, MAX_RESULTS + 1, student_scope_for(request)
+        )
         if len(results) == 1:
             return redirect(_file_url(results[0].student_id))
     return render(

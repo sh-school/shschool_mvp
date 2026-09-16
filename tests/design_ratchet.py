@@ -139,11 +139,14 @@ def _local_classes(text: str, seen: frozenset[str] = frozenset()) -> set[str]:
     و`report-meta` مرّةً واحدة — فالصنفُ في الابن معرَّفٌ حقّاً، وعدُّه «بلا تعريف»
     كان يدفع إلى نسخ التعريف في كلّ ابن.
     """
-    names = {
-        re.sub(r"\\(.)", r"\1", m.group(1))
-        for blocks in STYLE_BLOCK_RE.findall(text)
-        for m in CSS_CLASS_RE.finditer("".join(blocks))
-    }
+    css = "".join("".join(blocks) for blocks in STYLE_BLOCK_RE.findall(text))
+    # وأنماطٌ مُدرجةٌ داخل `<style>` (`{% include "schedule/pdf/week_grid_css.html" %}`):
+    # ملفُّها CSSٌ خامٌّ بلا وسم، فيُقرأ كلُّه — شبكةٌ واحدةٌ لورقتين لا تُنسخ أنماطُها.
+    for included in INCLUDE_RE.findall(css):
+        path = _template_file(included)
+        if path is not None:
+            css += path.read_text(encoding="utf-8")
+    names = {re.sub(r"\\(.)", r"\1", m.group(1)) for m in CSS_CLASS_RE.finditer(css)}
     parent = EXTENDS_RE.search(text)
     if parent and parent.group(1) not in seen:
         path = _template_file(parent.group(1))

@@ -1,4 +1,90 @@
 {
+ "accepted": [
+  {
+   "from": 69,
+   "metric": "lines",
+   "reason": "main (#285) أضاف حراسةَ نطاق الجناح (_require_in_wing/_deny_unreachable) إلى عرضٍ مسجَّلٍ فوق السقف قبل الحارس؛ ترحيلُه في موجةٍ تالية",
+   "to": 70,
+   "where": "behavior/views.py::behavior_report"
+  },
+  {
+   "from": 96,
+   "metric": "lines",
+   "reason": "main (#285) أضاف حراسةَ نطاق الجناح (_require_in_wing/_deny_unreachable) إلى عرضٍ مسجَّلٍ فوق السقف قبل الحارس؛ ترحيلُه في موجةٍ تالية",
+   "to": 98,
+   "where": "behavior/views.py::quick_log"
+  },
+  {
+   "from": 110,
+   "metric": "lines",
+   "reason": "main (#285) أضاف حراسةَ نطاق الجناح (_require_in_wing/_deny_unreachable) إلى عرضٍ مسجَّلٍ فوق السقف قبل الحارس؛ ترحيلُه في موجةٍ تالية",
+   "to": 112,
+   "where": "behavior/views.py::report_infraction"
+  },
+  {
+   "from": 151,
+   "metric": "lines",
+   "reason": "main (#285) أضاف حراسةَ نطاق الجناح (_require_in_wing/_deny_unreachable) إلى عرضٍ مسجَّلٍ فوق السقف قبل الحارس؛ ترحيلُه في موجةٍ تالية",
+   "to": 153,
+   "where": "behavior/views.py::summon_parent"
+  },
+  {
+   "from": 1,
+   "metric": "import",
+   "reason": "main (#285/#287) جعل النواةَ تسأل wings.scope عن نطاق الجناح (الصلاحيّات والبحث والوسائط واللوحة)؛ نقلُ StudentScope إلى النواة قرارٌ معماريّ منفصل",
+   "to": 5,
+   "where": "core → wings"
+  },
+  {
+   "from": 0,
+   "metric": "lines",
+   "reason": "main (#285) أضاف student_owned إلى مُحلِّل الوسائط فبلغ 61 سطراً وكُتب بلا الحارس؛ تقسيمه في موجةٍ تالية",
+   "to": 61,
+   "where": "core/views_media.py::_resolve_file_access"
+  },
+  {
+   "from": 109,
+   "metric": "lines",
+   "reason": "main (#285) ضيّق البحثَ العامّ بنطاق الجناح في عرضٍ مسجَّلٍ فوق السقف قبل الحارس؛ ترحيلُه في موجةٍ تالية",
+   "to": 113,
+   "where": "core/views_search.py::global_search"
+  },
+  {
+   "from": 0,
+   "metric": "lines",
+   "reason": "main (#285) ضيّق شاشاتِ الكنترول بنطاق الجناح وكُتب بلا الحارس؛ نقلُ قراءاتها إلى exam_control/selectors.py في موجةٍ تالية",
+   "to": 70,
+   "where": "exam_control/views.py::incident_add"
+  },
+  {
+   "from": 10,
+   "metric": "orm",
+   "reason": "main (#285) ضيّق شاشاتِ الكنترول بنطاق الجناح وكُتب بلا الحارس؛ نقلُ قراءاتها إلى exam_control/selectors.py في موجةٍ تالية",
+   "to": 13,
+   "where": "exam_control/views.py::incident_add"
+  },
+  {
+   "from": 0,
+   "metric": "orm",
+   "reason": "main (#285) ضيّق شاشاتِ الكنترول بنطاق الجناح وكُتب بلا الحارس؛ نقلُ قراءاتها إلى exam_control/selectors.py في موجةٍ تالية",
+   "to": 6,
+   "where": "exam_control/views.py::incident_pdf"
+  },
+  {
+   "from": 0,
+   "metric": "orm",
+   "reason": "main (#285) ضيّق شاشاتِ الكنترول بنطاق الجناح وكُتب بلا الحارس؛ نقلُ قراءاتها إلى exam_control/selectors.py في موجةٍ تالية",
+   "to": 6,
+   "where": "exam_control/views.py::incidents"
+  },
+  {
+   "from": 10,
+   "metric": "orm",
+   "reason": "main (#285) ضيّق شاشاتِ الكنترول بنطاق الجناح وكُتب بلا الحارس؛ نقلُ قراءاتها إلى exam_control/selectors.py في موجةٍ تالية",
+   "to": 13,
+   "where": "exam_control/views.py::session_report_pdf"
+  }
+ ],
  "core_import_sites": {
   "academic_management": [
    "core/capabilities.py"
@@ -67,7 +153,10 @@
    "core/views_dashboard.py"
   ],
   "wings": [
-   "core/views_dashboard.py"
+   "core/permissions.py",
+   "core/views_dashboard.py",
+   "core/views_media.py",
+   "core/views_search.py"
   ]
  },
  "core_imports": {
@@ -84,7 +173,7 @@
   "student_affairs": 5,
   "student_info": 1,
   "transport": 3,
-  "wings": 1
+  "wings": 5
  },
  "get_school": {
   "academic_management/assignment_views.py": 1,
@@ -235,18 +324,18 @@
    "orm": 19
   },
   "behavior/views.py::behavior_report": {
-   "lines": 69
+   "lines": 70
   },
   "behavior/views.py::quick_log": {
-   "lines": 96,
+   "lines": 98,
    "orm": 13
   },
   "behavior/views.py::report_infraction": {
-   "lines": 110,
+   "lines": 112,
    "orm": 14
   },
   "behavior/views.py::summon_parent": {
-   "lines": 151,
+   "lines": 153,
    "orm": 17
   },
   "breach/views.py::dashboard": {
@@ -287,11 +376,14 @@
   "core/views_health.py::status_check": {
    "lines": 77
   },
+  "core/views_media.py::_resolve_file_access": {
+   "lines": 61
+  },
   "core/views_media.py::serve_db_file": {
    "orm": 6
   },
   "core/views_search.py::global_search": {
-   "lines": 109,
+   "lines": 113,
    "orm": 19
   },
   "core/views_students.py::_process_import": {
@@ -315,13 +407,20 @@
    "orm": 6
   },
   "exam_control/views.py::incident_add": {
-   "orm": 10
+   "lines": 70,
+   "orm": 13
+  },
+  "exam_control/views.py::incident_pdf": {
+   "orm": 6
+  },
+  "exam_control/views.py::incidents": {
+   "orm": 6
   },
   "exam_control/views.py::session_detail": {
    "orm": 10
   },
   "exam_control/views.py::session_report_pdf": {
-   "orm": 10
+   "orm": 13
   },
   "exam_control/views.py::supervisors": {
    "orm": 12

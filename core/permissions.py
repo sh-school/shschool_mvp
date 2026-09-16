@@ -15,6 +15,7 @@ core/permissions.py
 
 import logging
 from functools import wraps
+from typing import Any
 
 from django.http import HttpResponseForbidden, JsonResponse
 from django.shortcuts import redirect, render
@@ -438,6 +439,20 @@ WING_DAY_RECORD = frozenset(
 #: قبولُ عذرِ غيابٍ بعد مهلة اليومين (الدليل 2026 م 3.4.1.5) — النائبُ الإداريّ لا المشرف.
 EXCUSE_AFTER_DEADLINE = frozenset({"vice_admin", "principal", "platform_developer"})
 
+#: من يُحصر في طلبة جناحه متى بلغ شاشةَ طلبة (قرارا 2026-09-14/15: «المشرفُ لجناحه فقط»).
+#: تُقارَن بالدور **الخامّ** ولا تمرّ على `expand_roles`: النائبُ الإداريّ يرث المشرفَ في
+#: `ROLE_INHERITS`، ولو وُسِّعت لقُيِّد النائبُ بجناحٍ لا يحمله. وتطابق
+#: `WingCoverage.SUBSTITUTE_ROLES` — فالبديلُ المكلَّف يُقيَّد بجناحه إن مُنح شاشةَ طلبةٍ يوماً.
+#: والنطاقُ نفسُه في `wings/scope.py`.
+WING_BOUND_ROLES = frozenset({"admin_supervisor", "services_worker", "student_observer"})
+
+#: متابعةُ حضور الطلبة وتأخّرهم وسلوكهم في شؤون الطلبة: القيادةُ للمدرسة، والمشرفُ لجناحه.
+#: الدليلُ 2026: الغيابُ اليوميّ وإخطارُ وليّ الأمر، والتأخّرُ الصباحيُّ من أوّل مرّة (م 3.4.2.2).
+STUDENT_FOLLOW_UP = STUDENT_AFFAIRS_MANAGE | frozenset({"admin_supervisor"})
+
+#: قائمةُ الطلبة في شؤون الطلبة: من يرى السجلَّ اليوم، والمشرفُ لجناحه.
+STUDENT_REGISTER_READ = STUDENT_AFFAIRS_VIEW | frozenset({"admin_supervisor"})
+
 
 # ══════════════════════════════════════════════════════════════════════
 # 2. ROLE GROUPS — مجموعات جاهزة للاستخدام في الديكوريتور
@@ -766,15 +781,19 @@ def can_view_student_data(user, student=None):
     )
 
 
-def get_teacher_student_ids(user):
+def get_teacher_student_ids(user, scope=None):
     """
     يُعيد قائمة IDs الطلاب المرئيّين حسب دور المستخدم:
 
     - superuser / القيادة / الأخصائيون → None (كل الطلاب)
+    - المشرف الإداري → طلبةُ شُعب أجنحته بقيدهم الجاري (قرارا 2026-09-14/15)
     - المنسق → طلاب كل معلمي قسمه + طلاب فصوله الشخصية + حصص الإشغال
     - المعلم → طلاب فصوله فقط + حصص الإشغال (اليوم)
 
     يعتمد على ScheduleSlot (الجدول الأسبوعي) — أكثر ثباتاً من Sessions اليومية.
+
+    `scope`: نطاقُ الطلب من `wings.scope.student_scope_for(request)` إن كان بيد الشاشة —
+    فلا يُعاد حسابُ أجنحة المشرف مرّتين في طلبٍ واحد. ولا يُقرأ لغير المشرف.
 
     Usage:
         student_ids = get_teacher_student_ids(request.user)
@@ -793,6 +812,15 @@ def get_teacher_student_ids(user):
 
     role = user.get_role()
 
+    # المشرفُ الإداريُّ لجناحه لا للمدرسة: كان هنا في «كلّ الطلاب»، فرأى في لوحة السلوك
+    # وملفّه وتقريره ونموذج المخالفة طلبةَ المدرسة كلَّها. والسؤالُ «مَن طلبةُ جناحه؟» جوابُه
+    # واحدٌ في المنصّة — `wings/scope.py` بقيد الطالب الجاري — فلا يُعاد هنا.
+    # والدورُ الخامّ لا الموسَّع: النائبُ الإداريّ يرث المشرفَ فلا يُقيَّد. وبديلُ الجناح
+    # (ملاحظُ الطلبة وعاملُ الخدمات) لا يمرّ بهذا الفرع: لم يكن يرى المدرسةَ ليُضيَّق عليه،
+    # وقرارُ 2026-09-15 ألّا تتّسع له متابعةُ الطلبة — فيبقى على جدوله كما كان.
+    if role == "admin_supervisor":
+        return _wing_student_ids(user, scope)
+
     # القيادة والأخصائيون يرون كل الطلاب
     ALL_STUDENTS_ROLES = {
         "principal",
@@ -801,7 +829,6 @@ def get_teacher_student_ids(user):
         "social_worker",
         "psychologist",
         "academic_advisor",
-        "admin_supervisor",
         "nurse",
         # v7 — الأدوار الجديدة التي تحتاج رؤية كل الطلاب:
         "speech_therapist",
@@ -868,6 +895,20 @@ def get_teacher_student_ids(user):
             is_active=True,
         ).values_list("student_id", flat=True)
     )
+
+
+def _wing_student_ids(user: Any, scope: Any = None) -> set[Any]:
+    """طلبةُ أجنحة المشرف من النطاق المركزيّ — ومشرفٌ بلا مدرسةٍ لا يرى أحداً."""
+    from wings.scope import student_scope
+
+    if scope is None:
+        school = user.get_school()
+        if school is None:
+            return set()
+        scope = student_scope(user, school)
+    if not scope.is_wing_bound:
+        return set()  # لا يقع للمشرف — ولو وقع فالفشلُ مغلقٌ لا المدرسةُ كلُّها
+    return set(scope.student_ids())
 
 
 def teacher_can_access_student(user, student_id):

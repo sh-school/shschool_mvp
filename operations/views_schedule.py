@@ -40,6 +40,13 @@ from .models import (
     TeacherExemption,
     TeacherPreference,
 )
+from .schedule_paper import (
+    bell_tables,
+    grid_to_days,
+    paper_geometry,
+    teacher_bands_by_day,
+    week_layout,
+)
 from .services import ScheduleService, SubstituteService
 
 logger = logging.getLogger(__name__)
@@ -215,7 +222,7 @@ def _schedule_print_selection(request):
     elif target_teacher:
         title = f"جدول المعلم: {target_teacher.full_name}"
     elif target_class:
-        title = f"جدول الفصل: {target_class}"
+        title = f"جدول الفصل: {target_class.label_with_track}"
 
     # الاختيارُ نفسه سؤالاً في الرابط: الإطارُ وزرّا التصدير ثلاثةُ روابطَ
     # تقصد الورقة الواحدة، فبناؤها ثلاثَ مرّاتٍ في القوالب يجعل اختلافها
@@ -265,7 +272,7 @@ def _schedule_print_payload(request) -> dict:
 
     # الجدولُ العام يكشف جداول المعلّمين جميعاً، ومن لا يتصفّح غيره صُرف
     # إلى جدوله في اختيار الطباعة.
-    grid, matrix, matrix_totals = {}, [], None
+    grid, matrix, matrix_totals, week, geometry = {}, [], None, None, None
     if ctx["view_type"] == "all_teachers":
         matrix = ScheduleService.get_teachers_matrix(school, year, generation=ctx["preview"])
         matrix_totals = ScheduleService.matrix_totals(matrix, school, year)
@@ -273,6 +280,17 @@ def _schedule_print_payload(request) -> dict:
         grid = ScheduleService.get_weekly_schedule(
             school, ctx["target_teacher"], ctx["target_class"], year, generation=ctx["preview"]
         )
+        # الفسحةُ والصلاةُ بين الحصص، والورقةُ بالملّيمتر — كورقة الصفحات سواءً.
+        days = grid_to_days(grid)
+        band_codes = ScheduleService._band_codes(school)
+        target_class = ctx["target_class"]
+        if target_class is not None:
+            band = band_codes.get(target_class.time_band_id)
+            bands = [[band] if band else []] * 5
+        else:
+            bands = teacher_bands_by_day(days, band_codes)
+        week = week_layout(days, bands, bell_tables(school))
+        geometry = paper_geometry(ctx["paper"], ctx["orient"], with_who=False)
 
     # أسماءُ الأيّام من `ScheduleSlot.DAYS` — مصدرٌ واحدٌ يقرؤه المولّدُ والورقة.
     DAYS = list(ScheduleSlot.DAYS)
@@ -287,6 +305,8 @@ def _schedule_print_payload(request) -> dict:
     return {
         **ctx,
         "grid": grid,
+        "week": week,
+        "geo": geometry,
         "matrix": matrix,
         "matrix_totals": matrix_totals,
         "days": DAYS,
@@ -1641,6 +1661,8 @@ def _pages_payload(request) -> dict:
         "orient": orient,
         # السطرُ يومٌ والعمودُ حصّة، واسمُ اليوم مقرونٌ بخاناته في `by_day`.
         "period_numbers": ScheduleSlot.PERIODS,
+        # الورقةُ بالملّيمتر: الجدولُ يملأ ما بقي بعد الترويسة والذيل (قرار 2026-09-14).
+        "geo": paper_geometry(paper, orient, with_who=True),
         "selection_query": urlencode(selection),
         "embed": request.GET.get("embed") == "1",
     }
@@ -1674,4 +1696,10 @@ def schedule_pages_pdf(request):
     ctx["for_pdf"] = True
     html = render_to_string("schedule/print_pages.html", ctx, request=request)
     log_export(request, "schedule.pages_pdf", object_repr=_export_filename(ctx, "pdf"))
-    return render_pdf(html, _export_filename(ctx, "pdf"), paper_size="A4", as_attachment=True)
+    # الحجمُ المختار لا A4 ثابتاً: WeasyPrint يقرأ @page الورقة، أمّا المسارُ الاحتياطيّ فيقرأ هذا.
+    return render_pdf(
+        html,
+        _export_filename(ctx, "pdf"),
+        paper_size="A3" if ctx["paper"] == "a3" else "A4",
+        as_attachment=True,
+    )

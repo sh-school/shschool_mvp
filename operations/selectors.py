@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.db.models import Count, Q, QuerySet
 
@@ -26,14 +26,23 @@ from .models import (
     TeacherSwap,
 )
 
+if TYPE_CHECKING:
+    from wings.scope import StudentScope
 
-def attendance_status_counts(school: School, **filters: Any) -> dict[str, int]:
+
+def attendance_status_counts(
+    school: School, *, scope: StudentScope | None = None, **filters: Any
+) -> dict[str, int]:
     """(حاضر، غائب، متأخّر، معذور، الكلّ) لسجلّات حضور المدرسة المرشَّحة — استعلامٌ واحد.
 
     والكلُّ كلُّ المرصود بحالاته الأربع؛ ومن يريد الحاضرَ من «حاضر + غائب + متأخّر»
-    وحدها (لوحةُ التحكم) يجمعها بنفسه — فالمقامان مختلفان عمداً.
+    وحدها (لوحةُ التحكم) يجمعها بنفسه — فالمقامان مختلفان عمداً. والنطاقُ (`wings/scope.py`)
+    يضيّق السجلّاتِ بطلبة جناح المقيَّد قبل العدّ.
     """
-    counts: dict[str, int] = StudentAttendance.objects.filter(school=school, **filters).aggregate(
+    records = StudentAttendance.objects.filter(school=school, **filters)
+    if scope is not None:
+        records = scope.narrow(records)
+    counts: dict[str, int] = records.aggregate(
         total=Count("id"),
         present=Count("id", filter=Q(status="present")),
         absent=Count("id", filter=Q(status="absent")),
@@ -44,14 +53,20 @@ def attendance_status_counts(school: School, **filters: Any) -> dict[str, int]:
 
 
 def pending_absence_alerts(
-    school: School, *, order: str = "-absence_count", limit: int = 10
+    school: School,
+    *,
+    order: str = "-absence_count",
+    limit: int = 10,
+    scope: StudentScope | None = None,
 ) -> QuerySet[AbsenceAlert]:
-    """تنبيهاتُ الغياب المعلّقة — الأكثرُ غياباً أوّلاً افتراضاً، أو الأحدثُ (`-created_at`)."""
-    alerts: QuerySet[AbsenceAlert] = (
-        AbsenceAlert.objects.filter(school=school, status="pending")
-        .select_related("student")
-        .order_by(order)[:limit]
-    )
+    """تنبيهاتُ الغياب المعلّقة — الأكثرُ غياباً أوّلاً افتراضاً، أو الأحدثُ (`-created_at`).
+
+    والنطاقُ قبل الاقتطاع: عشرةُ جناحِ المشرف، لا عشرةُ المدرسةِ ثمّ يُصفّى.
+    """
+    pending = AbsenceAlert.objects.filter(school=school, status="pending")
+    if scope is not None:
+        pending = scope.narrow(pending, "student_id")
+    alerts: QuerySet[AbsenceAlert] = pending.select_related("student").order_by(order)[:limit]
     return alerts
 
 

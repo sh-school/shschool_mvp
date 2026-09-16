@@ -230,13 +230,19 @@ def _get_admin_ops_ctx(user, school, today, role):
     سياق الإداريين: admin + admin_supervisor + secretary + receptionist.
     يُركّز على: المهام الإدارية + الإشعارات + حضور الموظفين.
     """
+    # تنبيهاتُ الغياب لطلبة جناح المشرف وحدَهم (قرارُ 2026-09-15) — والإداريُّ والسكرتيرُ
+    # غيرُ مقيَّدين، فلا يتغيّر ما يريانه ولا يُنفَّذ لهما استعلامٌ زائد.
+    from wings.scope import student_scope
+
     ctx = {
         "view_type": "admin_ops",
         "admin_role": role,
         "absent_teachers_today": teacher_absence_count(school, today),
         "pending_swaps": swap_count(school, "pending_b", "accepted_b", "pending_coordinator"),
         "pending_comp": pending_compensatory_count(school),
-        "recent_alerts": pending_absence_alerts(school, order="-created_at", limit=5),
+        "recent_alerts": pending_absence_alerts(
+            school, order="-created_at", limit=5, scope=student_scope(user, school)
+        ),
     }
     if role == "admin_supervisor":
         ctx.update(_supervisor_record_ctx(user, school, today))

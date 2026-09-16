@@ -1,4 +1,8 @@
 {% extends "reports/base_qatar_report.html" %}
+{% load privacy %}
+{% comment %}
+  للمقيَّد بجناحه (`limited`): الرقمُ الشخصيُّ مستور، ولا درجاتٍ ولا أنشطة — والشاشةُ لا تحسبهما له.
+{% endcomment %}
 
 {% block report_title_bar %}
 <div class="report-title-bar">{{ title|default:"ملف الطالب الشامل" }} — {{ student.full_name }}</div>
@@ -95,7 +99,7 @@
 {% endif %}
 
 <!-- الدرجات -->
-{% if grades %}
+{% if grades and not limited %}
 <div class="section-head mt-16">الدرجات الحالية</div>
 <table class="report-table">
   <thead>
@@ -122,7 +126,7 @@
 {% endif %}
 
 <!-- الأنشطة -->
-{% if activities %}
+{% if activities and not limited %}
 <div class="section-head mt-16">الأنشطة والإنجازات</div>
 <table class="report-table">
   <thead>

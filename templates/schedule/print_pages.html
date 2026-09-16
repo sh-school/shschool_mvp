@@ -22,9 +22,9 @@
 <style>
   @page {
     size: {% if paper == 'a3' %}A3{% else %}A4{% endif %} {{ orient }};
-    margin: 8mm 9mm 11mm;
+    margin: {{ geo.css.margin }};
     @bottom-center {
-      content: "{{ school.name }} — {{ year }} — " counter(page) " / " counter(pages);
+      content: "{{ school.name }} — \002066{{ year }}\002069 — " counter(page) " / " counter(pages);
       font-family: "Tajawal", sans-serif;
       font-size: 8pt;
       color: {% brand_color "TEXT_MUTED" %};
@@ -39,98 +39,83 @@
     color: {% brand_color "TEXT_PRIMARY" %};
   }
 
-  /* الشاشةُ تحاكي الورقة: عرضُها عرضُ A4 بالاتّجاه المختار. */
+  /* الورقةُ بالملّيمتر على الشاشة وفي الورق سواءً (operations/schedule_paper.py):
+     الشاشةُ حشوُها هوامشُ الصفحة، فالمحتوى بعرض الورقة وارتفاعُ الصفّ نفسُه.
+
+     وكانت الطباعةُ عموداً مرناً والجدولُ `flex: 1; height: 1px` — يمتدّ في
+     المتصفّح ولا يمتدّ في مولّد PDF (WeasyPrint)، فيشغل الجدولُ في الملفّ ثُلثَ
+     الورقة وتحته فراغ (بلاغ 2026-09-14). فالأشرطةُ الآن ثابتةُ الارتفاع وما بقي
+     للصفوف الخمسة. */
   .sheet {
     background: {% brand_color "SURFACE" %};
-    width: {% if paper == 'a3' %}{% if orient == 'landscape' %}400mm{% else %}277mm{% endif %}{% else %}{% if orient == 'landscape' %}277mm{% else %}190mm{% endif %}{% endif %};
+    width: {{ geo.css.content_w }};
     margin: 12px auto;
-    padding: 8mm;
+    padding: {{ geo.css.margin }};
     box-shadow: 0 2px 10px rgba(0,0,0,.08);
   }
 
-  .page-header { text-align: center; margin-bottom: 4mm; }
-  .print-emblem { height: {% if orient == 'landscape' %}12mm{% else %}16mm{% endif %}; margin-bottom: 1mm; }
-  .ministry { font-size: 10px; color: {% brand_color "TEXT_MUTED" %}; }
-  .school-name { font-size: 16px; font-weight: 700; color: {% brand_color "MAROON" %}; margin: 1px 0; }
-  .doc-title { font-size: 13px; color: {% brand_color "TEXT_SECONDARY" %}; }
-  .year { font-size: 10px; color: {% brand_color "TEXT_MUTED" %}; }
+  .page-header { text-align: center; height: {{ geo.css.header_h }}; margin-bottom: {{ geo.css.gap }}; overflow: hidden; box-sizing: border-box; }
+  .print-emblem { height: {% if orient == 'landscape' %}11mm{% else %}14mm{% endif %}; margin-bottom: 0.5mm; }
+  .ministry { font-size: 7.5pt; line-height: 3.2mm; color: {% brand_color "TEXT_MUTED" %}; }
+  .school-name { font-size: 12pt; line-height: 5.4mm; font-weight: 700; color: {% brand_color "MAROON" %}; }
+  .doc-title { font-size: 9.75pt; line-height: 4.2mm; color: {% brand_color "TEXT_SECONDARY" %}; }
+  .year { font-size: 7.5pt; line-height: 3.2mm; color: {% brand_color "TEXT_MUTED" %}; }
 
   .who {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+    overflow: hidden;
+    box-sizing: border-box;
+    height: {{ geo.css.who_h }};
     border: 1px solid {% brand_color "BORDER_STRONG" %};
     background: {% brand_color "MAROON_BG" %};
     border-radius: 6px;
-    padding: 5px 10px;
-    margin-bottom: 3mm;
-    font-size: 12px;
+    padding: 0 10px;
+    margin-bottom: {{ geo.css.gap }};
+    font-size: 9pt;
   }
+  /* السطرُ لا يلتفّ (ارتفاعُه محسوب)، فالعنصرُ الطويلُ يُختصر بنقاطٍ ولا يركب جارَه —
+     والمنسّقُ أوّلُ ما يُختصر: اسمُ المعلّم والنصابُ ألزمُ لقارئ الورقة. */
+  .who > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; }
+  .who > span.who-dept { flex-shrink: 1; }
+  .who > span.who-head { flex-shrink: 1; }
+  {% if orient == 'portrait' %}.who { font-size: 7.5pt; gap: 5px; padding: 0 6px; }{% endif %}
   .who b { color: {% brand_color "MAROON" %}; }
   .who .specialty { color: {% brand_color "MAROON_DARK" %}; font-weight: 500; }
 
-  table.grid { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  table.grid th, table.grid td {
-    border: 1px solid {% brand_color "BORDER_STRONG" %};
-    text-align: center;
-    vertical-align: middle;
-    padding: 2px 3px;
-  }
-  table.grid thead th { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; font-size: 12px; padding: 5px 3px; }
-  /* العمودُ الأوّل صار اسمَ يومٍ لا رقمَ حصّة. */
-  table.grid td.period-cell {
-    background: {% brand_color "MAROON_BG" %};
-    font-weight: 700;
-    color: {% brand_color "MAROON" %};
-    width: 11%;
-    font-size: 12px;
-  }
-  /* خمسةُ سطورٍ تملأ الورقة ولا تفيض عنها — وكانت سبعةً قبل قلبِ الجدول. */
-  {# ارتفاعُ السطر من ارتفاع الورقة مقسوماً على خمسة: A4 عرضيّة 22mm وعموديّة 36mm، وA3 ضعفُها تقريباً. #}
-  table.grid td { height: {% if paper == 'a3' %}{% if orient == 'landscape' %}36mm{% else %}56mm{% endif %}{% else %}{% if orient == 'landscape' %}22mm{% else %}36mm{% endif %}{% endif %}; }
-  .slot-subject { font-weight: 700; color: {% brand_color "MAROON" %}; font-size: 11px; line-height: 1.25; }
-  .slot-meta { font-size: 10px; color: {% brand_color "TEXT_MUTED" %}; margin-top: 1px; }
-  /* التوقيتُ من اليسار: أرقامٌ في سياقٍ عربيٍّ تنقلب — والعازلان في النصّ لأنّ مولّد PDF لا يقرأ direction. */
-  .slot-time { font-size: 9px; color: {% brand_color "TEXT_MUTED" %}; margin-top: 1px; direction: ltr; unicode-bidi: embed; }
-  .slot-subject + .slot-subject { margin-top: 3px; padding-top: 3px; border-top: 1px dashed {% brand_color "BORDER_STRONG" %}; }
-  .slot-empty { color: {% brand_color "TEXT_MUTED" %}; }
+{% include "schedule/pdf/week_grid_css.html" %}
 
   /* ذيلُ كلّ صفحة: الوزارةُ والمدرسةُ وتاريخُ الطباعة ووقتُها، ورؤيةُ الوزارة (قرار 2026-09-06). */
   .page-footer {
-    margin-top: 3mm;
-    padding-top: 1.5mm;
+    height: {{ geo.css.footer_h }};
+    margin-top: {{ geo.css.gap }};
+    padding-top: 1.2mm;
+    box-sizing: border-box;
+    overflow: hidden;
     border-top: 1px solid {% brand_color "BORDER" %};
-    font-size: 8.5px;
+    font-size: 6.5pt;
     color: {% brand_color "TEXT_MUTED" %};
     text-align: center;
-    line-height: 1.5;
+    line-height: 1.45;
   }
   .page-footer .stamp { direction: ltr; unicode-bidi: embed; }
   .empty-note { text-align: center; color: {% brand_color "TEXT_MUTED" %}; padding: 20mm 0; font-size: 13px; }
 
   @media print {
     body { background: {% brand_color "SURFACE" %}; }
-    html, body { height: 100%; }
-    /* الورقةُ عمودٌ مرنٌ يملأ ارتفاع الصفحة، والجدولُ يأخذ ما بقي بعد الرأس
-       والترويسة — فلا يُقاس ارتفاعُ السطر بالملّيمتر ولا يفيض سابعُها إلى
-       ورقةٍ ثانية إن كبر خطُّ الترويسة أو طال اسمُ المدرسة. */
     .sheet {
       width: auto;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
       margin: 0;
       padding: 0;
       box-shadow: none;
       page-break-after: always;
       break-after: page;
     }
-    .page-header, .who { flex: 0 0 auto; }
-    table.grid { flex: 1 1 auto; height: 1px; }
-    table.grid td { height: auto; }
     .sheet:last-child { page-break-after: auto; break-after: auto; }
-    table.grid { break-inside: avoid; page-break-inside: avoid; }
   }
 </style>
 <body data-pdf-own-page>
@@ -143,51 +128,25 @@
     <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
     <div class="school-name">{{ school.name }}</div>
     <div class="doc-title">{% if kind == 'classes' %}الجدول الأسبوعي للشعبة{% else %}الجدول الأسبوعي للمعلّم{% endif %}</div>
-    <div class="year">العام الدراسي {{ year }}</div>
+    {% comment %}العامُ بين عازلَي اتّجاه: «2026-2027» في سطرٍ عربيٍّ كان يُقرأ «2027-2026».{% endcomment %}
+    <div class="year">العام الدراسي &#8294;{{ year }}&#8297;</div>
   </div>
 
   {% if kind == 'classes' %}
   <div class="who">
-    <span>الشعبة: <b>{{ row.class_group }}</b></span>
+    <span>الشعبة: <b>{{ row.class_group.label_with_track }}</b></span>
     <span>عدد الحصص: <b>{{ row.total }}</b></span>
   </div>
   {% else %}
   <div class="who">
     <span>المعلّم: <b>{{ row.teacher.full_name }}</b>{% if row.department.specialty %} <span class="specialty">({{ row.department.specialty }})</span>{% endif %}</span>
-    <span>القسم: <b>{{ row.department.name }}</b></span>
-    {% if row.department.head %}<span>المنسّق: {{ row.department.head }}</span>{% endif %}
+    <span class="who-dept">القسم: <b>{{ row.department.name }}</b></span>
+    {% if row.department.head %}<span class="who-head">المنسّق: {{ row.department.head }}</span>{% endif %}
     <span>النصاب الأسبوعي: <b>{{ row.total }}</b> حصة</span>
   </div>
   {% endif %}
 
-  <table class="grid">
-    <thead>
-      <tr>
-        <th>اليوم</th>
-        {% for number in period_numbers %}<th>الحصة {{ number }}</th>{% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {# السطرُ يومٌ والعمودُ حصّة — انظر `ScheduleService._by_day`. #}
-      {% for line in row.by_day %}
-      <tr>
-        <td class="period-cell">{{ line.day }}</td>
-        {% for cell in line.cells %}
-        <td>
-          {% for slot in cell %}
-          {# الخانةُ المشتركةُ تُكتب بما فيها كلِّه: «التكنولوجيا / الفنون البصرية». #}
-          <div class="slot-subject">{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }}</div>
-          <div class="slot-meta">{% if kind == 'classes' %}{{ slot.teacher.full_name }}{% else %}{{ slot.class_group }}{% endif %}</div>
-          {% if slot.start_time %}<div class="slot-time">&#8294;{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}&#8297;</div>{% endif %}
-          {% empty %}
-          <span class="slot-empty">—</span>
-          {% endfor %}
-        </td>
-        {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  {% if kind == 'classes' %}{% include "schedule/pdf/week_grid.html" with week=row.week who="teacher" %}{% else %}{% include "schedule/pdf/week_grid.html" with week=row.week who="class" %}{% endif %}
 
   <div class="page-footer">
     وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp; {{ school.name }} &nbsp;|&nbsp;

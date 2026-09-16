@@ -27,7 +27,7 @@ from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
 from core.labels import class_label
-from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment, grade_order
+from core.models.academic import ClassGroup, StudentEnrollment, grade_order
 from core.models.access import Membership, Role
 from core.models.user import CustomUser, Profile
 
@@ -75,6 +75,15 @@ def _get_transfer_model():
     return StudentTransfer
 
 
+def _narrow(scope, qs, student_path: str = "student_id"):
+    """يضيّق الاستعلامَ بنطاق صاحب الطلب إن مُرِّر — وبلا نطاقٍ يعود كما هو.
+
+    الخدمةُ تُنادى من غير طلبٍ أيضاً، فالنطاقُ اختياريّ؛ والتضييقُ نفسُه في
+    `wings/scope.py` وحدَه، لا يُعاد حسابُه هنا.
+    """
+    return qs if scope is None else scope.narrow(qs, student_path)
+
+
 # ═══════════════════════════════════════════════════════════════════════
 # 1. StudentService — إحصائيات + ملف الطالب + CRUD
 # ═══════════════════════════════════════════════════════════════════════
@@ -84,42 +93,55 @@ class StudentService:
     """خدمات شؤون الطلاب: لوحة تحكم، ملف شامل، إنشاء وتعطيل."""
 
     # ── لوحة التحكم ────────────────────────────────────────────────
+    #
+    # كلُّ ما تعرضه اللوحةُ يمرّ على نطاق صاحبها (`wings/scope.py`) قبل العدّ:
+    # المشرفُ الإداريُّ يرى طلبةَ جناحه وحدَهم (قرارُ المستخدم 2026-09-14)،
+    # والقيادةُ نطاقُها `None` فيبقى استعلامُها حرفاً كما كان.
+    #
+    # وكانت الخدمةُ تحسب أحدَ عشرَ مفتاحاً لا تعرضها الشاشة — مخالفاتُ الشهر وزياراتُ
+    # العيادة والانتقالاتُ والأنشطةُ وأولياءُ الأمور والتأخّرُ الأسبوعيّ — منذ أزالها
+    # المديرُ من اللوحة. فحُذفت: استعلاماتٌ تُنفَّذ بلا قارئ، وبياناتُ مدرسةٍ كاملةٌ
+    # تنتظر أن يعيدها قالبٌ يوماً إلى مشرفٍ لا يحقّ له إلّا جناحُه.
 
     @staticmethod
-    def get_dashboard_stats(school, year: str) -> dict:
-        """
-        إحصائيات لوحة شؤون الطلاب — يجمع KPIs من عدة تطبيقات.
-
-        Args:
-            school: كائن المدرسة
-            year: العام الدراسي (مثال: "2025-2026")
-
-        Returns:
-            dict يحتوي: total_students, today_attendance, behavior_month,
-                        clinic_visits, pending_transfers, activities_count,
-                        grade_distribution, parent_link_count
-        """
-        today = timezone.now().date()
-        month_start = today.replace(day=1)
-
-        StudentAttendance = _get_attendance_model()
-        BehaviorInfraction = _get_behavior_model()
-        ClinicVisit = _get_clinic_model()
-        StudentTransfer = _get_transfer_model()
-        StudentActivity = _get_activity_model()
-
-        # الطلاب المسجلون النشطون
-        active_enrollments = StudentEnrollment.objects.filter(
+    def _active_enrollments(school, year: str, scope=None):
+        """قيودُ العام النشطة — والمقيَّدُ بجناحه: قيودُ طلبته في شُعب جناحه."""
+        enrollments = StudentEnrollment.objects.filter(
             class_group__school=school,
             class_group__academic_year=year,
             is_active=True,
         )
+        if scope is None:
+            return enrollments
+        # الطالبُ بقيده الجاري، والقيدُ في شعبةٍ من شُعب الجناح — فقيدٌ نشطٌ قديمٌ
+        # في جناحٍ آخر لا يُعدّ في هذا الجناح مرّةً ثانية.
+        return scope.narrow_classes(scope.narrow(enrollments, "student_id"), "class_group")
+
+    @staticmethod
+    def get_dashboard_stats(school, year: str, scope=None, today=None) -> dict:
+        """
+        إحصائيات لوحة شؤون الطلاب — العددُ الكلّيّ وحضورُ اليوم وتوزيعُ الصفوف.
+
+        Args:
+            school: كائن المدرسة
+            year: العام الدراسي (مثال: "2025-2026")
+            scope: نطاقُ صاحب الطلب (`wings.scope.StudentScope`) — `None` للمدرسة كلّها
+            today: يومُ اللوحة — تمرّره `get_dashboard_context` فيكون يومَ قوائمها نفسَه
+
+        Returns:
+            dict يحتوي: total_students, today_attendance, grade_distribution
+        """
+        # كان `timezone.now().date()` — يومَ UTC. وقوائمُ الغائبين تُحسب بيوم الشاشة المحلّيّ،
+        # فبين منتصف الليل والثالثة بتوقيت الدوحة يقول الرقمُ «صفر غائب» فوق قائمةٍ بأسمائهم.
+        today = today or timezone.localdate()
+        StudentAttendance = _get_attendance_model()
+
+        active_enrollments = StudentService._active_enrollments(school, year, scope)
         total_students = active_enrollments.count()
 
         # حضور اليوم
-        today_attendance = StudentAttendance.objects.filter(
-            school=school,
-            session__date=today,
+        today_attendance = _narrow(
+            scope, StudentAttendance.objects.filter(school=school, session__date=today)
         ).aggregate(
             present=Count("id", filter=Q(status="present")),
             absent=Count("id", filter=Q(status="absent")),
@@ -128,35 +150,6 @@ class StudentService:
             total=Count("id"),
         )
 
-        # مخالفات سلوكية هذا الشهر
-        behavior_month = BehaviorInfraction.objects.filter(
-            school=school,
-            date__gte=month_start,
-            date__lte=today,
-        ).aggregate(
-            total=Count("id"),
-            unresolved=Count("id", filter=Q(is_resolved=False)),
-        )
-
-        # زيارات العيادة هذا الشهر
-        clinic_visits = ClinicVisit.objects.filter(
-            school=school,
-            visit_date__date__gte=month_start,
-        ).count()
-
-        # انتقالات قيد الانتظار
-        pending_transfers = StudentTransfer.objects.filter(
-            school=school,
-            academic_year=year,
-            status="pending",
-        ).count()
-
-        # أنشطة هذا العام
-        activities_count = StudentActivity.objects.filter(
-            school=school,
-            academic_year=year,
-        ).count()
-
         # توزيع الطلاب حسب الصف
         grade_distribution = (
             active_enrollments.values("class_group__grade")
@@ -164,104 +157,34 @@ class StudentService:
             .order_by(grade_order("class_group__grade"))
         )
 
-        # عدد أولياء الأمور المرتبطين
-        parent_link_count = ParentStudentLink.objects.filter(
-            school=school,
-        ).count()
-
         return {
             "total_students": total_students,
             "today_attendance": today_attendance,
-            "behavior_month": behavior_month,
-            "clinic_visits": clinic_visits,
-            "pending_transfers": pending_transfers,
-            "activities_count": activities_count,
             "grade_distribution": list(grade_distribution),
-            "parent_link_count": parent_link_count,
         }
 
     @staticmethod
-    def get_dashboard_context(school, year: str, today=None) -> dict:
+    def get_dashboard_context(school, year: str, today=None, scope=None) -> dict:
         """
-        السياق الكامل للوحة شؤون الطلاب — يجمع get_dashboard_stats + queries الإضافية.
-
-        ✅ v5.4: يُحوّل 6 raw queries المتبقية في student_dashboard إلى service layer.
+        السياق الكامل للوحة شؤون الطلاب — get_dashboard_stats وقوائمُ اليوم ونسبُه.
 
         Args:
             school: كائن المدرسة
             year: العام الدراسي
             today: تاريخ اليوم (افتراضي: اليوم الفعلي)
+            scope: نطاقُ صاحب الطلب — كلُّ استعلامٍ معروضٍ يمرّ عليه قبل العدّ
 
         Returns:
             dict يحتوي: جميع بيانات get_dashboard_stats +
-                        clinic_today, recent_infractions, recent_transfers,
-                        no_parent_count, weekly_tardiness, recent_activities
+                        stage_map, qatari_pct, absent_pct, late_pct,
+                        today_behavior_count, absent_list, late_list, today_infraction_list
         """
-        from datetime import timedelta
-
-        from django.db.models import Exists, OuterRef
-
-        from core.models import ParentStudentLink
-
         today = today or timezone.now().date()
 
         BehaviorInfraction = _get_behavior_model()
-        ClinicVisit = _get_clinic_model()
         StudentAttendance = _get_attendance_model()
-        StudentTransfer = _get_transfer_model()
-        StudentActivity = _get_activity_model()
 
-        stats = StudentService.get_dashboard_stats(school, year)
-
-        clinic_today = ClinicVisit.objects.filter(
-            school=school,
-            visit_date__date=today,
-        ).count()
-
-        recent_infractions = list(
-            BehaviorInfraction.objects.filter(school=school)
-            .select_related("student", "violation_category")
-            .order_by("-date")[:5]
-        )
-
-        recent_transfers = list(
-            StudentTransfer.objects.filter(school=school)
-            .select_related("student")
-            .order_by("-created_at")[:5]
-        )
-
-        # طلاب بدون ولي أمر — Exists subquery بدل Python set arithmetic
-        no_parent_count = (
-            StudentEnrollment.objects.filter(
-                class_group__school=school,
-                class_group__academic_year=year,
-                is_active=True,
-            )
-            .annotate(
-                has_parent=Exists(
-                    ParentStudentLink.objects.filter(
-                        school=school,
-                        student_id=OuterRef("student_id"),
-                    )
-                )
-            )
-            .filter(has_parent=False)
-            .count()
-        )
-
-        week_start = today - timedelta(days=today.weekday())
-        weekly_tardiness = StudentAttendance.objects.filter(
-            school=school,
-            status="late",
-            session__date__gte=week_start,
-            session__date__lte=today,
-        ).count()
-
-        recent_activities = list(
-            StudentActivity.objects.filter(school=school, academic_year=year)
-            .select_related("student")
-            .order_by("-date")[:5]
-        )
+        stats = StudentService.get_dashboard_stats(school, year, scope=scope, today=today)
 
         # ── إحصائيات لوحة شؤون الطلاب (SOS-20260420-9A91) ─────────────
         # الجزء الأول: إحصائيات يومية ( 6 عناصر — طلب المدير )
@@ -269,13 +192,9 @@ class StudentService:
         from django.db.models import Case, IntegerField, When
 
         # توزيع الطلاب حسب المرحلة الدراسية (إعدادي 7-9 / ثانوي 10-12 فقط — لا ابتدائي)
-        active_enrollments = stats.get(
-            "_active_enrollments_qs"
-        ) or StudentEnrollment.objects.filter(
-            class_group__school=school,
-            class_group__academic_year=year,
-            is_active=True,
-        )
+        # وكان يُقرأ `stats.get(...) or` — وQuerySet فارغٌ كاذبٌ في بايثون، فيرتدّ مشرفٌ
+        # بلا طلبةٍ إلى قيود المدرسة كلِّها. فالقيودُ تُبنى هنا بالنطاق نفسِه.
+        active_enrollments = StudentService._active_enrollments(school, year, scope)
         stage_qs = (
             active_enrollments.annotate(
                 stage=Case(
@@ -293,11 +212,15 @@ class StudentService:
 
         # نسبة القطريين — سجل القيد الرسمي يستخدم "قطر" (اسم الدولة) لا "قطري"
         total_students = stats.get("total_students", 0)
-        qatari_count = Membership.objects.filter(
-            school=school,
-            role__name="student",
-            is_active=True,
-            user__nationality__in=["قطر", "قطري"],
+        qatari_count = _narrow(
+            scope,
+            Membership.objects.filter(
+                school=school,
+                role__name="student",
+                is_active=True,
+                user__nationality__in=["قطر", "قطري"],
+            ),
+            "user_id",
         ).count()
         qatari_pct = round(qatari_count * 100 / total_students) if total_students else 0
 
@@ -309,15 +232,20 @@ class StudentService:
         late_pct = round(late_today_n * 100 / total_students) if total_students else 0
 
         # مخالفات اليوم
-        today_behavior_count = BehaviorInfraction.objects.filter(
-            school=school,
-            date=today,
-        ).count()
+        today_infractions = _narrow(
+            scope, BehaviorInfraction.objects.filter(school=school, date=today)
+        )
+        today_behavior_count = today_infractions.count()
 
         # قائمتا الغائبين/المتأخرين: dedupe بالطالب + dicts بمفاتيح نظيفة للعرض
         def _dedupe_attendance_list(status: str):
             rows = (
-                StudentAttendance.objects.filter(school=school, session__date=today, status=status)
+                _narrow(
+                    scope,
+                    StudentAttendance.objects.filter(
+                        school=school, session__date=today, status=status
+                    ),
+                )
                 .select_related("student", "session__class_group")
                 .values(
                     "student_id",
@@ -353,20 +281,13 @@ class StudentService:
 
         # قائمة المخالفين اليوم
         today_infraction_list = list(
-            BehaviorInfraction.objects.filter(school=school, date=today)
-            .select_related("student", "violation_category")
-            .order_by("student__full_name")[:100]
+            today_infractions.select_related("student", "violation_category").order_by(
+                "student__full_name"
+            )[:100]
         )
 
         return {
             **stats,
-            "clinic_today": clinic_today,
-            "recent_infractions": recent_infractions,
-            "recent_transfers": recent_transfers,
-            "no_parent_count": no_parent_count,
-            "weekly_tardiness": weekly_tardiness,
-            "recent_activities": recent_activities,
-            # Req3 additions
             "stage_map": stage_map,
             "qatari_pct": qatari_pct,
             "absent_pct": absent_pct,
@@ -600,6 +521,8 @@ class TardinessService:
         marked_by,
         now,
         ip_address: str | None = None,
+        scope=None,
+        audit_suffix: str = "",
     ):
         """يسجّل تأخّرَ الطالب في حصّة التأخّر يومَ `now` ويُرجع سجلَّ حضوره.
 
@@ -607,12 +530,16 @@ class TardinessService:
         (`selectors.tardiness_session`). ولا حصّةَ اليوم → `None` بلا كتابة.
         وسجلٌّ قائمٌ للطالب في الحصّة نفسِها يُحدَّث ولا يُكرَّر، والتدقيقُ
         (PDPPL) في المعاملة نفسِها: لا تأخّرَ يُكتب بلا أثره في السجلّ.
+
+        والمقيَّدُ بجناحه (`scope`): الحصّةُ من شُعب جناحه وحدها بلا رجوعٍ إلى المدرسة،
+        والسجلُّ الجديدُ يُوسَم رصدَ مشرفٍ عند البوّابة (الدليل 2026 م 3.4.2.2) — والمصدرُ
+        يفصله عن نقرة المعلّم في الإحصاء. و`audit_suffix` اسمُ الجناح في سطر التدقيق.
         """
         from core.models.audit import AuditLog
 
         from .selectors import tardiness_session
 
-        session = tardiness_session(school, student, now.date())
+        session = tardiness_session(school, student, now.date(), scope)
         if session is None:
             return None
 
@@ -623,8 +550,11 @@ class TardinessService:
             "tardiness_recorded_at": now,
             "marked_by": marked_by,
         }
+        defaults = dict(fields)
+        if scope is not None and scope.is_wing_bound:
+            defaults.update(source="supervisor", whereabouts="gate")
         attendance, created = _get_attendance_model().objects.get_or_create(
-            session=session, student=student, school=school, defaults=fields
+            session=session, student=student, school=school, defaults=defaults
         )
         if not created:
             for name, value in fields.items():
@@ -640,7 +570,7 @@ class TardinessService:
             action="create",
             model_name="other",
             object_id=str(attendance.pk),
-            object_repr=f"تسجيل تأخير {student.full_name}",
+            object_repr=f"تسجيل تأخير {student.full_name}{audit_suffix}",
             ip_address=ip_address,
         )
         return attendance

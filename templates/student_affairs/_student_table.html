@@ -68,9 +68,11 @@
             <a href="{% url 'student_affairs:student_profile' s.id %}" class="btn-secondary btn-xs" title="الملف الشامل">
               {% icon "student_info" %}
             </a>
+            {% if can_edit %}
             <a href="{% url 'student_affairs:student_edit' s.id %}" class="btn-secondary btn-xs" title="تعديل">
               {% icon "edit_record" %}
             </a>
+            {% endif %}
           </div>
         </td>
       </tr>

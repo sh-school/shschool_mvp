@@ -145,12 +145,12 @@
   "staff_affairs/models.py": 4,
   "staging/models.py": 1,
   "student_affairs/models.py": 2,
-  "student_affairs/services.py": 38,
+  "student_affairs/services.py": 35,
   "student_info/access.py": 8,
   "student_info/models.py": 2,
   "transport/models.py": 3,
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1850
+ "total": 1847
 }

@@ -4,6 +4,8 @@ exam_control/views.py  ·  SchoolOS v5
 """
 
 from django.contrib.auth.decorators import login_required
+from django.db.models import Q
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -175,23 +177,59 @@ def incidents(request, pk):
     """قائمة حوادث الاختبار"""
     school = request.school
     session = get_object_or_404(ExamSession, pk=pk, school=school)
-    qs = session.incidents.select_related("student", "room", "reported_by").order_by(
-        "-incident_time"
+    qs = _incidents_in_scope(
+        request,
+        session.incidents.select_related("student", "room", "reported_by").order_by(
+            "-incident_time"
+        ),
     )
     return render(request, "exam_control/incidents.html", {"session": session, "incidents": qs})
+
+
+def _incidents_in_scope(request, qs):
+    """حوادثُ يراها المستخدم: المقيَّدُ بجناحه يرى ما لا طالبَ فيه وما كان عن طلبة جناحه."""
+    from django.db.models import Q
+
+    from wings.scope import student_scope_for
+
+    scope = student_scope_for(request)
+    if not scope.is_wing_bound:
+        return qs
+    return qs.filter(Q(student__isnull=True) | Q(student_id__in=scope.student_ids()))
 
 
 @login_required
 @capability_required("exam_control.access")
 def incident_add(request, pk):
-    """تسجيل حادث جديد — محضر رسمي (الأقسام أ–ز من Template_IncidentReport)"""
+    """تسجيل حادث جديد — محضر رسمي (الأقسام أ–ز من Template_IncidentReport)
+
+    المقيَّدُ بجناحه (مشرفُ الجناح) يختار من طلبة جناحه وحدَهم، ومعرّفُ طالبٍ من غير
+    جناحه في النموذج 404 (قرارُ 2026-09-15). وأدوارُ الكنترول الأخرى كما كانت.
+    """
+    from wings.scope import student_scope_for
+
     school = request.school
     session = get_object_or_404(ExamSession, pk=pk, school=school)
+    scope = student_scope_for(request)
     if request.method == "POST":
         from core.models import CustomUser
 
         student_id = request.POST.get("student_id") or None
-        student = CustomUser.objects.filter(id=student_id).first() if student_id else None
+        if student_id:
+            scope.require_student(student_id)
+        # الطالبُ من طلبة هذه المدرسة — معرّفُ طالبِ مدرسةٍ أخرى لا يُكتب عليه محضر.
+        student = (
+            CustomUser.objects.filter(
+                Q(memberships__school=school) | Q(enrollments__class_group__school=school),
+                id=student_id,
+            )
+            .distinct()
+            .first()
+            if student_id
+            else None
+        )
+        if student_id and student is None:
+            raise Http404("الطالب ليس من هذه المدرسة")
         room_id = request.POST.get("room_id") or None
         room = session.rooms.filter(id=room_id).first()
 
@@ -215,8 +253,14 @@ def incident_add(request, pk):
 
     from core.models import StudentEnrollment
 
-    students = StudentEnrollment.objects.filter(
-        class_group__school=school, class_group__academic_year=session.academic_year, is_active=True
+    # القائمةُ المنسدلةُ تُضيَّق قبل عرضها: أسماءُ طلبة جناحٍ آخر ومعرّفاتُهم لا تصل المشرف.
+    students = scope.narrow(
+        StudentEnrollment.objects.filter(
+            class_group__school=school,
+            class_group__academic_year=session.academic_year,
+            is_active=True,
+        ),
+        "student_id",
     ).select_related("student")
     context = {
         "session": session,
@@ -237,7 +281,10 @@ def incident_pdf(request, pk):
     from core.audit_export import log_export
     from core.pdf_utils import render_pdf
 
-    incident = get_object_or_404(ExamIncident, pk=pk, session__school=request.school)
+    incident = get_object_or_404(
+        _incidents_in_scope(request, ExamIncident.objects.filter(session__school=request.school)),
+        pk=pk,
+    )
     log_export(
         request,
         "exam_control.incident_pdf",
@@ -291,10 +338,11 @@ def session_report_pdf(request, pk):
 
     school = request.school
     session = get_object_or_404(ExamSession, pk=pk, school=school)
+    incidents = _incidents_in_scope(request, session.incidents.all())
     log_export(
         request,
         "exam_control.session_report_pdf",
-        rows=session.incidents.count(),
+        rows=incidents.count(),
         object_id=session.pk,
         object_repr=f"تقرير دورة {session}",
     )
@@ -304,9 +352,7 @@ def session_report_pdf(request, pk):
             "session": session,
             "supervisors": session.supervisors.select_related("staff", "room"),
             "schedules": session.schedules.select_related("room").order_by("exam_date"),
-            "incidents": session.incidents.select_related("student", "room").order_by(
-                "incident_time"
-            ),
+            "incidents": incidents.select_related("student", "room").order_by("incident_time"),
             "sheets": ExamGradeSheet.objects.filter(schedule__session=session).select_related(
                 "schedule"
             ),

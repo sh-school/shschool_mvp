@@ -4,11 +4,17 @@
 المدخلُ الشُّعبُ ثمّ الطالب، كما طلبت المدرسة: تفتح الشعبةَ فترى طلابها،
 وتفتح الطالبَ فترى ملفّه كاملاً. والقوائمُ السبعُ في القائمة الرئيسيّة تفتح
 كلٌّ منها شاشتَها مباشرةً لمن أراد النظرَ عرضاً لا طولاً.
+
+والمشرفُ الإداريُّ لجناحه وحدَه (قرارا 2026-09-14/15): كلُّ شاشةٍ تأخذ
+`student_scope_for(request)`، وكلُّ معرّفِ شعبةٍ أو طالبٍ في الرابط يمرّ على
+`require_class` / `require_student` فيعود 404 لما خرج عن جناحه. ولا يرى من ملفّ
+طالبِ جناحه الدرجاتِ ولا ملاحظاتِ الأخصائيَّين، ولا تُفتح له المستوياتُ ولا الأنشطة.
 """
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import urlencode
@@ -22,11 +28,13 @@ from core.sorting import apply_sort
 from student_info import services
 from student_info.access import (
     can_read_student,
+    sees_whole_school,
     visible_class_groups,
     writable_categories,
 )
 from student_info.forms import StudentNoteForm
 from student_info.models import NOTE_CATEGORIES, SENSITIVE_CATEGORIES, StudentNote
+from wings.scope import SPECIALIST_CATEGORIES, student_scope_for
 
 CATEGORY_LABELS = dict(NOTE_CATEGORIES)
 
@@ -48,9 +56,31 @@ ACTIVITY_SORTS = {
 }
 
 
-def _no_access(request):
-    messages.error(request, "هذا الطالب خارج نطاقك — لا تُعرض ملفّاتُ من لا تُدرّسهم.")
+def _no_access(request, message="هذا الطالب خارج نطاقك — لا تُعرض ملفّاتُ من لا تُدرّسهم."):
+    """خارجُ النطاق: المقيَّدُ بجناحه 404 — وجودُ الطالب في جناحٍ غيره ليس شأنَه —
+    والمعلّمُ يُعاد إلى الشُّعب برسالةٍ كما كان."""
+    if student_scope_for(request).is_wing_bound:
+        raise Http404("خارج نطاق جناحك")
+    messages.error(request, message)
     return redirect("student_info:sections")
+
+
+def _year(request, scope):
+    """العامُ المعروض: `?year=` لغير المقيَّد كما كان، والعامُ الجاري للمقيَّد بجناحه.
+
+    ولا يُحسب العامُ الجاري لمن طلب عاماً بعينه وهو غيرُ مقيَّد — فلا استعلامَ زائدٌ
+    على القيادة والمعلّمين.
+    """
+    requested = request.GET.get("year")
+    if requested and not scope.is_wing_bound:
+        return requested
+    return scope.year_for(requested, scope.year or academic_year_for(request))
+
+
+def _refuse_wing_bound(request):
+    """شاشةٌ ليست من مهامّ المشرف الإداريّ: 404 له، ولغيره كما كانت."""
+    if student_scope_for(request).is_wing_bound:
+        raise Http404("ليست من شاشات جناحك")
 
 
 def _audit_sensitive_read(request, student, categories):
@@ -75,10 +105,13 @@ def _audit_sensitive_read(request, student, categories):
 @login_required
 @capability_required("student_info.read")
 def sections(request):
-    """الشُّعبُ — مدخلُ المركز."""
+    """الشُّعبُ — مدخلُ المركز. والمشرفُ الإداريُّ: شُعبُ أجنحته وحدها."""
     school = request.user.get_school()
-    year = request.GET.get("year") or academic_year_for(request)
-    groups = services.sections_with_counts(visible_class_groups(request.user, school, year))
+    scope = student_scope_for(request)
+    year = _year(request, scope)
+    groups = services.sections_with_counts(
+        visible_class_groups(request.user, school, year, scope=scope), scope=scope
+    )
     return render(
         request,
         "student_info/sections.html",
@@ -88,6 +121,7 @@ def sections(request):
             "subtitle": f"اختر شعبةً ثمّ طالباً — {year}",
             "year": year,
             "school": school,
+            "wing_bound": scope.is_wing_bound,
         },
     )
 
@@ -108,11 +142,13 @@ def _section_card(group, year):
 def section_students(request, class_id):
     """طلابُ شعبةٍ واحدة."""
     school = request.user.get_school()
-    year = request.GET.get("year") or academic_year_for(request)
+    scope = student_scope_for(request)
+    scope.require_class(class_id)
+    year = _year(request, scope)
     group = get_object_or_404(ClassGroup, id=class_id, school=school)
-    if group.id not in {g.id for g in visible_class_groups(request.user, school, year)}:
-        messages.error(request, "هذه الشعبة خارج نطاقك.")
-        return redirect("student_info:sections")
+    visible = visible_class_groups(request.user, school, year, scope=scope)
+    if group.id not in {g.id for g in visible}:
+        return _no_access(request, "هذه الشعبة خارج نطاقك.")
     return render(
         request,
         "student_info/section_students.html",
@@ -120,7 +156,9 @@ def section_students(request, class_id):
             "group": group,
             "title": f"{group.get_grade_display()} — الشعبة {group.section}",
             "subtitle": " · ".join(filter(None, [group.get_track_display(), str(year)])),
-            "enrollments": services.students_of_section(group),
+            # الطالبُ بقيده الجاري: قيدٌ قديمٌ نشطٌ في هذه الشعبة لا يُظهر للمشرف
+            # طالباً صار في جناحٍ آخر.
+            "enrollments": scope.narrow(services.students_of_section(group), "student_id"),
             "year": year,
         },
     )
@@ -129,17 +167,24 @@ def section_students(request, class_id):
 @login_required
 @capability_required("student_info.read")
 def student_file(request, student_id):
-    """ملفُّ الطالب الجامع: تحصيلُه، وملاحظاتُ الجهات الخمس، وأنشطتُه."""
+    """ملفُّ الطالب الجامع: تحصيلُه، وملاحظاتُ الجهات الخمس، وأنشطتُه.
+
+    والمقيَّدُ بجناحه لا يُحسب له التحصيلُ ولا تُجلب له ملاحظاتُ الأخصائيَّين أصلاً.
+    """
     school = request.user.get_school()
-    year = request.GET.get("year") or academic_year_for(request)
+    scope = student_scope_for(request)
+    scope.require_student(student_id)
+    year = _year(request, scope)
     student = get_object_or_404(CustomUser, id=student_id, memberships__school=school)
 
-    if not can_read_student(request.user, student, school, year):
+    if not can_read_student(request.user, student, school, year, scope=scope):
         return _no_access(request)
 
-    grouped = services.notes_by_category(student, year)
+    hidden = SPECIALIST_CATEGORIES if scope.hides_specialist_notes else ()
+    grouped = services.notes_by_category(student, year, hidden=hidden)
     _audit_sensitive_read(request, student, [c for c, notes in grouped.items() if notes])
     class_group = services.current_class_group(student, year)
+    shows_grades = not scope.hides_grades
 
     return render(
         request,
@@ -149,11 +194,13 @@ def student_file(request, student_id):
             "year": year,
             "class_group": class_group,
             "subtitle": _file_subtitle(class_group, year),
-            "results": services.student_results(student, year),
-            "average": services.student_average(student, year),
+            "shows_grades": shows_grades,
+            "results": services.student_results(student, year) if shows_grades else [],
+            "average": services.student_average(student, year) if shows_grades else None,
             "note_groups": [
                 {"key": key, "label": CATEGORY_LABELS[key], "notes": grouped[key]}
                 for key, _ in NOTE_CATEGORIES
+                if key in grouped
             ],
             "activities": services.student_activities(student, year),
             "can_write": writable_categories(request.user),
@@ -175,7 +222,11 @@ def _file_subtitle(class_group, year):
 @login_required
 @capability_required("student_info.read")
 def levels(request):
-    """شرائحُ التحصيل: الإجمالُ، ولكلّ صفٍّ، ولكلّ مادّة — بمرشِّح الصفّ والمسار."""
+    """شرائحُ التحصيل: الإجمالُ، ولكلّ صفٍّ، ولكلّ مادّة — بمرشِّح الصفّ والمسار.
+
+    والتحصيلُ ليس من مهامّ المشرف الإداريّ في الدليل، فهي مغلقةٌ عليه (404).
+    """
+    _refuse_wing_bound(request)
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
     grade = request.GET.get("grade", "")
@@ -205,19 +256,29 @@ def levels(request):
 @login_required
 @capability_required("student_info.read")
 def notes(request, category):
-    """قائمةُ ملاحظاتِ جهةٍ واحدة — مقصورةً على الطلاب الذين يراهم صاحبُ الطلب."""
+    """قائمةُ ملاحظاتِ جهةٍ واحدة — مقصورةً على الطلاب الذين يراهم صاحبُ الطلب.
+
+    والمقيَّدُ بجناحه: طلبةُ جناحه بقيدهم الجاري، ولا تُفتح له خانتا الأخصائيَّين (404).
+    """
     if category not in CATEGORY_LABELS:
         messages.error(request, "جهةٌ غير معروفة.")
         return redirect("student_info:sections")
 
+    scope = student_scope_for(request)
+    if scope.hides_specialist_notes and category in SPECIALIST_CATEGORIES:
+        raise Http404("ليست من خانات جناحك")
+
     school = request.user.get_school()
-    year = request.GET.get("year") or academic_year_for(request)
+    year = _year(request, scope)
     qs = StudentNote.objects.filter(
         school=school, category=category, academic_year=year
     ).select_related("student", "created_by")
 
+    # التضييقُ قبل الفرز والعدّ والتقسيم: `paginator.count` وأثرُ التدقيق بعده.
+    if scope.is_wing_bound:
+        qs = scope.narrow(qs, "student_id")
     # الاستعلامُ عن الشُّعب المرئيّة لا يُدفع ثمنُه إلّا لمن يحتاجه
-    if not _sees_whole_school(request.user):
+    elif not sees_whole_school(request.user):
         qs = qs.filter(
             student__enrollments__is_active=True,
             student__enrollments__class_group_id__in={
@@ -252,22 +313,22 @@ def notes(request, category):
     )
 
 
-def _sees_whole_school(user):
-    from student_info.access import SCHOOL_WIDE_READERS
-
-    return user.is_superuser or user.get_role() in SCHOOL_WIDE_READERS
-
-
 @login_required
 @capability_required("student_info.read")
 @require_http_methods(["GET", "POST"])
 def note_create(request, student_id):
-    """كتابةُ ملاحظةٍ على طالب — في خانةِ جهتِه وحدها."""
+    """كتابةُ ملاحظةٍ على طالب — في خانةِ جهتِه وحدها.
+
+    والمقيَّدُ بجناحه: على طلبة جناحه وحدهم (404 لغيرهم في GET وPOST)، وفي العام الجاري
+    مهما جاء في `?year=`.
+    """
     school = request.user.get_school()
-    year = request.GET.get("year") or academic_year_for(request)
+    scope = student_scope_for(request)
+    scope.require_student(student_id)
+    year = _year(request, scope)
     student = get_object_or_404(CustomUser, id=student_id, memberships__school=school)
 
-    if not can_read_student(request.user, student, school, year):
+    if not can_read_student(request.user, student, school, year, scope=scope):
         return _no_access(request)
     if not writable_categories(request.user):
         messages.error(request, "لا خانةَ تكتب فيها.")
@@ -298,15 +359,19 @@ def note_create(request, student_id):
 @login_required
 @capability_required("student_info.read")
 def activities(request):
-    """أنشطةُ الطلاب — من `StudentActivity` القائم، لا نموذجٍ ثانٍ يوازيه."""
+    """أنشطةُ الطلاب — من `StudentActivity` القائم، لا نموذجٍ ثانٍ يوازيه.
+
+    والأنشطةُ ليست من مهامّ المشرف الإداريّ، فهي مغلقةٌ عليه (404).
+    """
     from student_affairs.models import StudentActivity
 
+    _refuse_wing_bound(request)
     school = request.user.get_school()
     year = request.GET.get("year") or academic_year_for(request)
     qs = StudentActivity.objects.filter(school=school, academic_year=year).select_related(
         "student", "recorded_by"
     )
-    if not _sees_whole_school(request.user):
+    if not sees_whole_school(request.user):
         visible_ids = {g.id for g in visible_class_groups(request.user, school, year)}
         qs = qs.filter(
             student__enrollments__is_active=True,
