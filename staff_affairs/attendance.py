@@ -476,7 +476,8 @@ class PermitService:
         المدرسة كلِّها بلا قفل موظّف؛ فبقفل الصفّ ينتظر أحدُهما الآخر، ويجد الثاني الحالةَ
         التي التزمها الأوّل (م-18ب).
         """
-        permit.refresh_from_db(from_queryset=PermitRequest.objects.select_for_update())
+        PermitRequest.objects.select_for_update().filter(pk=permit.pk).first()
+        permit.refresh_from_db()
 
     @staticmethod
     def _overdue(permit: PermitRequest, now: datetime) -> bool:
