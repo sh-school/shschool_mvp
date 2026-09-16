@@ -2,7 +2,7 @@ from decimal import Decimal
 from typing import Any
 
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
 
 from .models import (
@@ -10,6 +10,7 @@ from .models import (
     Assessment,
     AssessmentPackage,
     ExamDeprivation,
+    ExamMisconduct,
     StudentAssessmentGrade,
     StudentSubjectResult,
     SubjectClassSetup,
@@ -18,7 +19,14 @@ from .models import (
 
 @admin.register(SubjectClassSetup)
 class SubjectClassSetupAdmin(admin.ModelAdmin):
-    list_display = ("subject", "class_group", "teacher", "academic_year", "is_active")
+    list_display = (
+        "subject",
+        "class_group",
+        "teacher",
+        "academic_year",
+        "is_active",
+        "has_pass_mark",
+    )
     list_filter = ("school", "academic_year", "is_active")
     list_select_related = ("subject", "class_group", "teacher", "school")
     search_fields = ("subject__name_ar", "teacher__full_name", "class_group__section")
@@ -205,9 +213,16 @@ class AnnualSubjectResultAdmin(admin.ModelAdmin):
         if not is_open_year(obj.setup):
             raise PermissionDenied("العامُ الدراسيّ مغلق — لا يُرصد فيه دورٌ ثانٍ.")
         super().save_model(request, obj, form, change)
-        GradeService.recalculate_students(
-            obj.setup.class_group, obj.academic_year, [obj.student], obj.setup, actor=request.user
+        done = GradeService.recalculate_students(
+            obj.setup.class_group,
+            obj.academic_year,
+            [obj.student],
+            obj.setup,
+            actor=request.user,
+            trigger=f"second_round_entry:{obj.pk}",
         )
+        if not done:
+            messages.warning(request, DEFERRED_MESSAGE)
 
     def get_subject(self, obj):
         return obj.setup.subject.name_ar
@@ -223,12 +238,83 @@ class AnnualSubjectResultAdmin(admin.ModelAdmin):
     letter_grade.short_description = "التقدير"
 
 
-@admin.register(ExamDeprivation)
-class ExamDeprivationAdmin(admin.ModelAdmin):
-    """قراراتُ فريق إدارة سلوك الطلبة — الحكمُ (`judge_student`) يقرؤها بعد إعادة الحساب."""
+DEFERRED_MESSAGE = (
+    "حُفظ — ونتائجُ الشعبة مكتوبةٌ بقواعد حكمٍ أقدم، فلا يُعاد الحكمُ جزئيّاً حتّى يُشغَّل "
+    "recalculate_grade_results --apply."
+)
 
-    list_display = ("student", "gate", "deprived", "academic_year", "decided_on", "decided_by")
-    list_filter = ("gate", "deprived", "school", "academic_year")
+
+class _OpenYearDecisionForm(forms.ModelForm):
+    """القرارُ لعامٍ جارٍ وحدَه — الأعوامُ المغلقة مجمَّدة."""
+
+    def clean(self):
+        from .services import ClosedYearError, ExamDecisionService
+
+        data = super().clean()
+        school, year = data.get("school"), data.get("academic_year")
+        years = {(school, year)}
+        if self.instance.pk and self.instance.school_id:
+            years.add((self.instance.school, self.instance.academic_year))
+        for sch, yr in years:
+            if sch is not None and yr:
+                try:
+                    ExamDecisionService.ensure_open(sch, yr)
+                except ClosedYearError as e:
+                    raise forms.ValidationError(str(e)) from e
+        return data
+
+
+class _ExamDecisionAdmin(admin.ModelAdmin):
+    """الكتابةُ والحذفُ عبر `ExamDecisionService`: سجلُّ المراجعة بقيمتيه، والفاعلُ في
+    `decided_by` (لا يُحرَّر باليد)، ثمّ إعادةُ الحكم على الطالب."""
+
+    form = _OpenYearDecisionForm
+    readonly_fields = ("decided_by", "created_at")
     list_select_related = ("student", "decided_by", "school")
     search_fields = ("student__full_name",)
     autocomplete_fields = ("student",)
+
+    def save_model(self, request, obj, form, change):
+        from .services import ExamDecisionService
+
+        if not ExamDecisionService.save(obj, request.user):
+            messages.warning(request, DEFERRED_MESSAGE)
+
+    def delete_model(self, request, obj):
+        from .services import ClosedYearError, ExamDecisionService
+
+        try:
+            ExamDecisionService.delete(obj, request.user)
+        except ClosedYearError as e:
+            messages.error(request, str(e))
+
+    def delete_queryset(self, request, queryset):
+        for obj in queryset:
+            self.delete_model(request, obj)
+
+
+@admin.register(ExamDeprivation)
+class ExamDeprivationAdmin(_ExamDecisionAdmin):
+    """قراراتُ فريق إدارة سلوك الطلبة — الحكمُ (`judge_student`) يقرؤها عند الحفظ."""
+
+    list_display = ("student", "gate", "deprived", "academic_year", "decided_on", "decided_by")
+    list_filter = ("gate", "deprived", "school", "academic_year")
+
+
+@admin.register(ExamMisconduct)
+class ExamMisconductAdmin(_ExamDecisionAdmin):
+    """وقائعُ لجان الاختبار بمحضر (م47؛ 12: م35) — «غش» في مادّة، و«ملغي» في كلّ الموادّ."""
+
+    list_display = (
+        "student",
+        "kind",
+        "setup",
+        "exam",
+        "basis",
+        "academic_year",
+        "decided_on",
+        "decided_by",
+    )
+    list_filter = ("kind", "exam", "basis", "school", "academic_year")
+    list_select_related = ("student", "decided_by", "school", "setup__subject")
+    raw_id_fields = ("setup",)

@@ -17,6 +17,9 @@
   الدور الثاني، ودرجاتُ الباقات ومجموعُ كلّ فصل (`ANNUAL_AUDIT_FIELDS`، `SEMESTER_AUDIT_FIELDS`)
   — فصفٌّ لم يتغيّر فيه إلّا تنبيهٌ يُكتب.
 - **العامُ الجاري وحدَه**: الأعوامُ المغلقة مجمَّدة.
+- **إصدارُ القواعد** (`AnnualSubjectResult.ruleset`): ما كُتب بقواعد أقدم لا يُعاد حسابُه جزئيّاً
+  (حفظُ درجة، زرّ، قرار) حتّى يُطبَّق هذا الأمر على المدرسة؛ فيُكتب كلُّ صفٍّ بالإصدار الجاري
+  ولو لم يتغيّر فيه حقل.
 """
 
 from __future__ import annotations
@@ -48,7 +51,7 @@ def _plans(school: School, year: str) -> list[VerdictPlan]:
                 class_group=class_group, is_active=True
             ).select_related("student")
         ]
-        plans.append(GradeService.plan_students(class_group, year, enrolled))
+        plans.append(GradeService.plan_students(class_group, year, enrolled, restamp=True))
     return plans
 
 
@@ -80,8 +83,9 @@ class Command(BaseCommand):
                 plans = _plans(school, year)
                 students = sum(p.students for p in plans)
                 changes = [c for p in plans for c in p.changes]
-                self._report(school, year, students, changes)
-                if not options["apply"] or not changes:
+                stale = sum(p.stale for p in plans)
+                self._report(school, year, students, changes, stale)
+                if not options["apply"] or not (changes or stale):
                     continue
                 log = AuditLog.objects.create(
                     school=school,
@@ -94,6 +98,7 @@ class Command(BaseCommand):
                         "op": OP,
                         "academic_year": year,
                         "students": students,
+                        "stale": stale,
                         "changed": len(changes),
                         "rows": changes,
                     },
@@ -105,10 +110,16 @@ class Command(BaseCommand):
             self.stdout.write("عرضٌ فقط — أعِد بـ--apply --actor للتطبيق.")
 
     def _report(
-        self, school: School, year: str, students: int, changes: list[dict[str, Any]]
+        self,
+        school: School,
+        year: str,
+        students: int,
+        changes: list[dict[str, Any]],
+        stale: int = 0,
     ) -> None:
         self.stdout.write(
             f"{school.code} · {year}: {students} طالباً · يتغيّر {len(changes)} صفّاً من الحكم"
+            f" · {stale} صفّاً بقواعد أقدم"
         )
         for row in changes:
             old, new = row["before"] or {}, row["after"] or {}

@@ -28,7 +28,7 @@ from core.academic_calendar import academic_year_for, academic_year_window
 from core.audit_export import log_export
 from core.capabilities import capability_required
 from core.domain.attendance import attendance_rate
-from core.domain.grades import FAILING_STATUSES, PASSING_STATUSES
+from core.domain.grades import FAILING_STATUSES, PASSING_STATUSES, RESULT_STATUSES
 from core.domain.tones import ATTENDANCE_SUMMARY, tone_for
 from core.export_utils import (
     add_excel_footer,
@@ -841,7 +841,7 @@ def student_profile(request, student_id):
         .order_by("setup__subject__name_ar")
     )
     grades_summary = grades.aggregate(
-        total_subjects=Count("id"),
+        total_subjects=Count("id", filter=Q(status__in=RESULT_STATUSES)),
         # «ناجح/راسب» بالتعريف الواحد (`core.domain.grades`) — المُرفَّعُ ناجح، والدورُ الثاني راسب.
         passed=Count("id", filter=Q(status__in=PASSING_STATUSES)),
         failed=Count("id", filter=Q(status__in=FAILING_STATUSES)),

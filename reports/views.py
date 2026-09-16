@@ -369,6 +369,11 @@ def class_results_pdf(request, class_id):
     )
 
 
+def _certificate_rows(ctx: dict) -> None:
+    """الشهادةُ بلا ما لا يظهر فيها — `AnnualSubjectResult.on_certificate` (ملحقا السياستين)."""
+    ctx["rows"] = [r for r in ctx["rows"] if r["annual"] is None or r["annual"].on_certificate]
+
+
 @login_required
 @capability_required("reports.school")
 @xframe_options_sameorigin
@@ -393,6 +398,7 @@ def class_certificates_pdf(request, class_id):
     for enr in enrollments:
         ctx = ReportDataService.get_student_report(enr.student, school, year)
         _set_final_status(ctx)
+        _certificate_rows(ctx)
         _subject_rows_presentation(ctx["rows"])
         students_ctx.append(ctx)
 
@@ -576,6 +582,7 @@ def student_certificate_pdf(request, student_id):
 
     ctx = ReportDataService.get_student_report(student, school, year)
     _set_final_status(ctx)
+    _certificate_rows(ctx)
     _subject_rows_presentation(ctx["rows"])
     ctx["paper_size"] = paper
     log_export(

@@ -19,6 +19,7 @@ from core.capabilities import capability_required
 from core.domain.grades import (
     FAILING_STATUSES,
     PASSING_STATUSES,
+    RESULT_STATUSES,
     SEMESTER_MAX,
     STANDING_TONES,
     STATUS_TONES,
@@ -728,7 +729,13 @@ def recalculate_class(request, setup_id):
         messages.error(request, "لا يُعاد حسابُ نتائج عامٍ دراسيٍّ غيرِ الجاري.")
         return redirect("class_gradebook", setup_id=setup_id)
 
-    GradeService.recalculate_full_class(setup, actor=request.user)
+    if not GradeService.recalculate_full_class(setup, actor=request.user):
+        messages.warning(
+            request,
+            "نتائجُ العام مكتوبةٌ بقواعد حكمٍ أقدم — لا يُعاد حسابُ شعبةٍ وحدَها حتّى يُعاد "
+            "الحكمُ على المدرسة كلِّها (recalculate_grade_results).",
+        )
+        return redirect("class_gradebook", setup_id=setup_id)
     messages.success(
         request, f"تم إعادة حساب درجات {setup.class_group} في {setup.subject.name_ar} بنجاح."
     )
@@ -754,7 +761,7 @@ def student_report(request, student_id):
 
     results = GradeService.get_student_annual_report(student, school, year)
     stats = results.aggregate(
-        total_subjects=Count("id"),
+        total_subjects=Count("id", filter=Q(status__in=RESULT_STATUSES)),
         passed=Count("id", filter=Q(status__in=PASSING_STATUSES)),
         failed=Count("id", filter=Q(status__in=FAILING_STATUSES)),
     )

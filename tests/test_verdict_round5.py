@@ -112,20 +112,26 @@ def test_cancelled_citation_is_the_decision_text():
 
 
 def test_grade12_package_outside_the_structure_is_not_summed():
+    """جولة 6: ولا يُحكم بما بقي — «غير مكتمل» حتّى تُصحَّح البنية (كان 46 ← دورٌ ثانٍ)."""
     subject = SubjectFacts(
         "x",
         {"P2": ExamFacts(F(16), F(40)), "P1": ExamFacts(F(10), F(10))},
         {"P4": ExamFacts(F(30), F(60)), "AW": ExamFacts(F(5), F(5))},
     )
-    (v,) = judge_student(12, [subject]).subjects
-    assert (v.s1_total, v.s2_total, v.annual_total) == (Decimal("16"), Decimal("30"), Decimal("46"))
+    verdict = judge_student(12, [subject])
+    (v,) = verdict.subjects
+    assert (verdict.standing, v.status) == ("incomplete", "incomplete")
+    assert (v.s1_total, v.s2_total, v.annual_total) == (None, None, None)
     assert "P1" in v.review and "AW" in v.review
 
 
 def test_standard_package_outside_the_structure_is_not_summed():
+    """جولة 6: باقةٌ خارج البنية مرصودة ← لا حكمَ في المادّة (كان 52 ← 32 محسوماً)."""
     s1 = {**_s1(), "P4": ExamFacts(F(20), F(20))}
-    v = judge_student(10, [SubjectFacts("x", s1, _full_s2())] + _others()).by_key()["x"]
-    assert v.s1_total == Decimal("32")
+    verdict = judge_student(10, [SubjectFacts("x", s1, _full_s2())] + _others())
+    v = verdict.by_key()["x"]
+    assert (verdict.standing, v.status, v.s1_total) == ("incomplete", "incomplete", None)
+    assert "S1/P4" in v.review
 
 
 def test_stored_weight_does_not_override_the_decision(school, teacher_user):
@@ -145,7 +151,8 @@ def test_stored_weight_does_not_override_the_decision(school, teacher_user):
 
 
 def test_grade12_blocked_setup_counts_the_final_at_the_decision_weight(school, teacher_user):
-    """P1 (وزن 25) عليه تقييم، وP2 بوزنٍ قديم (50): 100% في P1 و40% في P2 ← 16 من 40 لا 18."""
+    """P1 (وزن 25) عليه تقييم، وP2 بوزنٍ قديم (50): درجةُ P2 من القرار (16 من 40 لا 18)، والمادّةُ
+    «غير مكتمل» ما دامت باقةٌ خارج البنية مرصودة (جولة 6)."""
     cg, (setup,) = _class(school, teacher_user, grade="G12", n=1, code="Z")
     exams = _exams(setup)
     student = _student(cg)
@@ -167,10 +174,15 @@ def test_grade12_blocked_setup_counts_the_final_at_the_decision_weight(school, t
     _mark(exams[("S2", "P4")], student, 60)
     GradeService.recalculate_full_class(setup)
     s1 = StudentSubjectResult.objects.get(student=student, setup=setup, semester="S1")
-    assert s1.total == Decimal("16")
+    assert s1.p2_score == Decimal("16")
     assert s1.p1_score is None  # باقةٌ خارج البنية: لا «0» ولا درجة
+    assert s1.total is None
     annual = _annual(student, setup)
-    assert annual.annual_total == Decimal("76")
+    assert (annual.status, annual.standing, annual.annual_total) == (
+        "incomplete",
+        "incomplete",
+        None,
+    )
     assert "P1" in annual.review
 
 

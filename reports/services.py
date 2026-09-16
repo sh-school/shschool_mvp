@@ -89,11 +89,14 @@ class ReportDataService:
             for ann in annual
         ]
 
-        total = annual.count()
+        total = annual.counted().count()
         passed = annual.filter(status__in=PASSING_STATUSES).count()
         failed = annual.filter(status__in=FAILING_STATUSES).count()
-        # المتوسّطُ من الأرقام وحدَها: «غائب» (م27) و«محروم» (م30) كلمةٌ لا رقمَ لها.
-        grades = [float(r.annual_total) for r in annual if r.annual_total is not None]
+        # المتوسّطُ من الأرقام وحدَها: «غائب» (م27) و«محروم» (م30) كلمةٌ لا رقمَ لها، وما ليست
+        # له نهايةٌ صغرى (م11، الملحق) خارج العدّ.
+        grades = [
+            float(r.annual_total) for r in annual if r.annual_total is not None and r.has_pass_mark
+        ]
         avg = round(sum(grades) / len(grades), 2) if grades else None
 
         enrollment = StudentEnrollment.objects.current_of(student)
@@ -164,7 +167,7 @@ class ReportDataService:
                 row["grades"][setup.subject.name_ar] = annual
                 if annual:
                     standing = annual.standing
-                    if annual.annual_total is not None:
+                    if annual.annual_total is not None and annual.has_pass_mark:
                         grades.append(float(annual.annual_total))
                     if annual.is_passed:
                         passed += 1

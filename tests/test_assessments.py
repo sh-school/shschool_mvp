@@ -103,6 +103,26 @@ def s2_package_p4(db, school, setup):
 
 
 @pytest.fixture
+def aw_packages(db, school, setup):
+    """أعمالُ الفصلين (AW) — جزءٌ من بنية القرار 14/2018 م3؛ مادّةٌ بلا باقةٍ منها «غير مكتمل»
+    منذ جولة 6 (2026-09-16)، فالنتيجةُ الكاملة تحتاجها ولو بلا تقييم."""
+    return [
+        AssessmentPackage.objects.create(
+            setup=setup,
+            school=school,
+            package_type="AW",
+            semester=sem,
+            weight=weight,
+            semester_max_grade=semester_max,
+        )
+        for sem, weight, semester_max in (
+            ("S1", Decimal("12.50"), Decimal("40")),
+            ("S2", Decimal("8.33"), Decimal("60")),
+        )
+    ]
+
+
+@pytest.fixture
 def assessment_in_p1(db, school, s1_package):
     """تقييم داخل الباقة الأولى"""
     return Assessment.objects.create(
@@ -280,8 +300,11 @@ class TestGradeService:
         assessment_in_p4,
         student_user,
         enrolled_student,
+        aw_packages,
     ):
         """حساب نتيجة الفصل الأول الكاملة"""
+        # الفصلُ الثاني بلا باقاتٍ بعد: لا تنبيهَ بنيةٍ فيه (أعمالُه وحدَها بنيةٌ ناقصة).
+        aw_packages[1].delete()
         # P1: 15/20 = 75% → 75% × 15 = 11.25
         GradeService.save_grade(
             assessment=assessment_in_p1, student=student_user, grade=Decimal("15")
@@ -305,6 +328,7 @@ class TestGradeService:
         student_user,
         school,
         enrolled_student,
+        aw_packages,
     ):
         """النتيجة السنوية — طالب ناجح"""
         # الفصل الأول
@@ -364,6 +388,7 @@ class TestGradeService:
         student_user,
         school,
         enrolled_student,
+        aw_packages,
     ):
         """النتيجة السنوية — طالب راسب"""
         a1 = Assessment.objects.create(

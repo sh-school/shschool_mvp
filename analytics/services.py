@@ -29,7 +29,7 @@ from assessments.models import (
 )
 from core.academic_calendar import academic_year_for_school
 from core.domain.attendance import attendance_rate
-from core.domain.grades import FAILING_STATUSES, GRADE_BANDS, PASSING_STATUSES
+from core.domain.grades import FAILING_STATUSES, GRADE_BANDS, PASSING_STATUSES, RESULT_STATUSES
 from core.models import ClassGroup
 from operations.models import Session, StudentAttendance
 
@@ -76,6 +76,7 @@ class AnalyticsService:
             school=school,
             academic_year=year,
             annual_total__isnull=False,
+            status__in=RESULT_STATUSES,
         )
 
         # استعلامٌ واحدٌ بعدّادٍ لكلّ شريحة — كان ستّةَ `COUNT` بعتباتٍ مكتوبةٍ هنا.
@@ -98,6 +99,7 @@ class AnalyticsService:
             enrollments__is_active=True,
             enrollments__student__annual_results__school=school,
             enrollments__student__annual_results__academic_year=year,
+            enrollments__student__annual_results__status__in=RESULT_STATUSES,
         )
         classes = ClassGroup.objects.filter(
             school=school, academic_year=year, is_active=True

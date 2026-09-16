@@ -35,6 +35,7 @@ def _lazy_student_fk_models():
     from assessments.models import (
         AnnualSubjectResult,
         ExamDeprivation,
+        ExamMisconduct,
         StudentAssessmentGrade,
         StudentSubjectResult,
     )
@@ -52,6 +53,7 @@ def _lazy_student_fk_models():
             (StudentSubjectResult, "student", False),
             (AnnualSubjectResult, "student", False),
             (ExamDeprivation, "student", False),  # قرارُ حرمانٍ من اختبار
+            (ExamMisconduct, "student", False),  # واقعةُ غشٍّ أو إلغاءٍ في لجان الاختبار
             (BehaviorInfraction, "student", False),
             (StudentAttendance, "student", False),
             (AbsenceAlert, "student", False),

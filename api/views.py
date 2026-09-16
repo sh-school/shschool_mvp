@@ -221,13 +221,15 @@ def student_grades(request, student_id):
     ).select_related("setup__subject")  # تجنب N+1 عند الوصول لاسم المادة
     semester_map = {(r.student_id, r.setup_id, r.semester): r for r in semester_results}
 
-    grades = [float(a.annual_total) for a in annual if a.annual_total is not None]
+    grades = [
+        float(a.annual_total) for a in annual if a.annual_total is not None and a.has_pass_mark
+    ]
     average = round(sum(grades) / len(grades), 2) if grades else None
 
     data = {
         "student": student,
         "year": year,
-        "total_subjects": annual.count(),
+        "total_subjects": annual.counted().count(),
         "passed": annual.filter(status__in=PASSING_STATUSES).count(),
         "failed": annual.filter(status__in=FAILING_STATUSES).count(),
         "average": average,

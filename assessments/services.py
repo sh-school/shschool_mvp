@@ -29,6 +29,7 @@ from core.domain.grades import (
     PASSING_STATUSES,
     PENDING_STATUSES,
     PRESENT,
+    RESULT_STATUSES,
     SEMESTER_MAX,
     SITTING_STATUSES,
     STANDING_INCOMPLETE,
@@ -36,6 +37,7 @@ from core.domain.grades import (
     STANDING_SECOND_ROUND,
     STANDING_TONES,
     STATUS_PROMOTED,
+    VERDICT_RULESET,
     ExamFacts,
     MakeupFacts,
     SecondRoundFacts,
@@ -54,6 +56,7 @@ from .models import (
     Assessment,
     AssessmentPackage,
     ExamDeprivation,
+    ExamMisconduct,
     StudentAssessmentGrade,
     StudentSubjectResult,
     SubjectClassSetup,
@@ -219,6 +222,10 @@ class VerdictPlan:
 
     `changes` صفٌّ لكلّ (طالب، إعداد، «annual»|«S1»|«S2») تغيّر فيه حقلٌ من حقول
     المقارنة: `{"student", "setup", "row", "before", "after"}` — `before` لا شيء لصفٍّ جديد.
+
+    `deferred`: نتائجُ الشعبة في العام مكتوبةٌ بقواعد أقدم (`ruleset` < `VERDICT_RULESET`)،
+    فلا يُكتب شيءٌ جزئيّاً حتّى يُعاد الحكمُ عليها كلِّها بالأمر. و`stale` عددُ الصفوف القديمة
+    في الخطّة — تُكتب بالإصدار الجاري ولو لم يتغيّر فيها حقل. و`trigger` ما أطلق الحساب.
     """
 
     school: School | None
@@ -226,6 +233,9 @@ class VerdictPlan:
     changes: list[dict[str, Any]] = field(default_factory=list)
     sem_rows: list[tuple[Any, bool]] = field(default_factory=list)
     annual_rows: list[tuple[Any, bool]] = field(default_factory=list)
+    deferred: bool = False
+    stale: int = 0
+    trigger: str = ""
 
     def stage(
         self,
@@ -241,6 +251,8 @@ class VerdictPlan:
         before = None
         if existing is not None:
             before = {f: _audit_value(getattr(existing, f)) for f in fields}
+            if annual and getattr(existing, "ruleset", VERDICT_RULESET) != VERDICT_RULESET:
+                self.stale += 1
         if before != after:
             self.changes.append(
                 {
@@ -262,6 +274,8 @@ class VerdictPlan:
 
     def write(self, actor: CustomUser | None = None, audit: bool = True) -> None:
         """يكتب السجلَّ أوّلاً (إن تغيّر شيء) ثمّ النتائج — في معاملةٍ واحدة."""
+        if self.deferred:
+            return
         with transaction.atomic():
             if audit and self.changes:
                 AuditLog.objects.create(
@@ -273,12 +287,13 @@ class VerdictPlan:
                     object_repr="إعادةُ الحكم على نتائج الطلبة",
                     changes={
                         "op": VERDICT_AUDIT_OP,
+                        "trigger": self.trigger,
                         "changed": len(self.changes),
                         "rows": self.changes,
                     },
                 )
             sem_fields = ["school_id", *SEMESTER_AUDIT_FIELDS, "updated_at"]
-            annual_fields = ["school_id", *ANNUAL_AUDIT_FIELDS, "updated_at"]
+            annual_fields = ["school_id", *ANNUAL_AUDIT_FIELDS, "ruleset", "updated_at"]
             StudentSubjectResult.objects.bulk_update(
                 [r for r, c in self.sem_rows if not c], sem_fields, batch_size=500
             )
@@ -291,6 +306,28 @@ class VerdictPlan:
             AnnualSubjectResult.objects.bulk_create(
                 [r for r, c in self.annual_rows if c], batch_size=500
             )
+
+
+def _structure_note(
+    grade: int,
+    setup: SubjectClassSetup,
+    by_setup_sem: dict[tuple[Any, str], list[AssessmentPackage]],
+) -> str:
+    """باقاتٌ من بنية القرار 14/2018 م3 غائبةٌ عن فصلٍ له باقات — نصُّ التنبيه، أو "".
+
+    قاعدةٌ بُذرت بالجدول القديم (الفصل الأول P1 وP4 بلا P2) كان يُجمع فيها الموجودُ ويُحسم
+    بالناقص ضدّ الطالب؛ فالمادّةُ «غير مكتمل» حتّى تُصحَّح بنيتُها.
+    """
+    missing = []
+    for sem in ("S1", "S2"):
+        present = {p.package_type for p in by_setup_sem.get((setup.id, sem), [])}
+        if present:
+            missing += [f"{sem}/{k}" for k in package_weights(grade, sem) if k not in present]
+    if not missing:
+        return ""
+    return "بنيةُ الباقات ناقصةٌ عن القرار 14/2018 م3 — لا يُحكم في المادّة حتّى تُصحَّح: " + (
+        "، ".join(missing)
+    )
 
 
 class GradeService:
@@ -417,7 +454,12 @@ class GradeService:
         # [PERF-02] عند الحفظ الجماعي نُمرِّر recalc=False ونعيد الحساب دفعةً واحدة بعد الحلقة
         if recalc:
             GradeService.recalculate_students(
-                setup.class_group, setup.academic_year, [student], setup, actor=entered_by
+                setup.class_group,
+                setup.academic_year,
+                [student],
+                setup,
+                actor=entered_by,
+                trigger=f"save_grade:{assessment.pk}",
             )
 
         return obj, created
@@ -469,16 +511,38 @@ class GradeService:
         students: list[CustomUser],
         include: SubjectClassSetup | None = None,
         actor: CustomUser | None = None,
+        trigger: str = "",
     ) -> int:
         """يحكم على طلبةٍ في موادّ شعبتهم كلِّها ويخزّن الحكم — ويسجّل ما تغيّر قبل كتابته.
 
         `plan_students` ثمّ `VerdictPlan.write`: كلُّ مسارٍ يعيد الحساب (حفظُ درجة، حفظُ الكلّ،
-        الزرّ، ترحيلُ الثاني عشر) يكتب في `AuditLog` قائمةَ ما تغيّر بقيمتيه قبل/بعد وفاعلَه،
-        ولا سجلَّ لإعادة حسابٍ لم تغيّر شيئاً.
+        الزرّ، قرارُ فريق السلوك، ترحيلُ الثاني عشر) يكتب في `AuditLog` قائمةَ ما تغيّر بقيمتيه
+        قبل/بعد وفاعلَه وما أطلقه (`trigger`)، ولا سجلَّ لإعادة حسابٍ لم تغيّر شيئاً.
+
+        ويُرجع عددَ من حُكم عليهم — وصفراً إن أُرجئ (نتائجُ الشعبة بقواعد أقدم، `is_deferred`).
         """
         plan = GradeService.plan_students(class_group, year, students, include)
+        plan.trigger = trigger
         plan.write(actor=actor)
-        return plan.students
+        return 0 if plan.deferred else plan.students
+
+    @staticmethod
+    def is_deferred(class_group: ClassGroup, year: str) -> bool:
+        """نتائجُ الشعبة في العام مكتوبةٌ بقواعد حكمٍ أقدم — تنتظر `recalculate_grade_results`.
+
+        إلى أن يُشغَّل الأمرُ لا يُعاد حسابُ أحدٍ فيها جزئيّاً: حفظُ درجةٍ واحدةٍ كان يكتب نتيجةَ
+        طالبٍ بالقواعد الجديدة وزميلُه صاحبُ الدرجات نفسِها باقٍ على القديمة. والنطاقُ ما يُعيد
+        الأمرُ حسابَه بعينه (طلبةُ الشعبة المقيَّدون في إعداداتها النشطة) — فلا يعلق الإرجاءُ بصفٍّ
+        لطالبٍ غادر لا يمسّه الأمر.
+        """
+        return AnnualSubjectResult.objects.filter(
+            academic_year=year,
+            ruleset__lt=VERDICT_RULESET,
+            setup__class_group=class_group,
+            setup__is_active=True,
+            student__enrollments__class_group=class_group,
+            student__enrollments__is_active=True,
+        ).exists()
 
     @staticmethod
     def plan_students(
@@ -486,13 +550,18 @@ class GradeService:
         year: str,
         students: list[CustomUser],
         include: SubjectClassSetup | None = None,
+        restamp: bool = False,
     ) -> VerdictPlan:
         """الحكمُ على طلبةٍ في موادّ شعبتهم كلِّها بـ`judge_student` — محسوباً لا مكتوباً.
 
         الحكمُ عابرٌ للموادّ (م13، م23، م29، م50) فلا يُحسب لمادّةٍ وحدَها: تُقرأ وقائعُ
         الطالب في كلّ إعدادات الشعبة النشطة (باستعلاماتٍ ثابتة العدد) تحت القفل — فيُستدعى
         داخل معاملة. ومدخلاتُ الدور الثاني (`second_round_score`/`second_round_absent`)
-        تُقرأ ولا تُكتب.
+        تُقرأ ولا تُكتب، وكذلك قراراتُ الحرمان (`ExamDeprivation`) ووقائعُ الانضباط
+        (`ExamMisconduct`: الغشُّ لمادّةٍ واختبار، والإلغاءُ لكلّ الموادّ).
+
+        `restamp=True` للأمر وحدَه: يحسب ولو كانت نتائجُ المدرسة بقواعد أقدم (فيُحدّثها)؛
+        وغيرُه يُرجئ (`VerdictPlan.deferred`).
         """
         plan = VerdictPlan(school=None, students=len(students))
         if not students:
@@ -501,7 +570,9 @@ class GradeService:
         if include is not None:
             setup_filter |= Q(id=include.id)
         setups = list(
-            SubjectClassSetup.objects.filter(setup_filter).select_related("school", "class_group")
+            SubjectClassSetup.objects.filter(setup_filter).select_related(
+                "school", "class_group", "subject"
+            )
         )
         if not setups:
             plan.students = 0
@@ -510,6 +581,9 @@ class GradeService:
             ensure_open_year(setup)
         school = setups[0].school
         plan.school = school
+        if not restamp and GradeService.is_deferred(class_group, year):
+            plan.deferred = True
+            return plan
         grade = grade_number(class_group.grade)
         sids = [s.id for s in students]
 
@@ -522,6 +596,7 @@ class GradeService:
         by_setup_sem: dict[tuple[Any, str], list[AssessmentPackage]] = {}
         for pkg in packages:
             by_setup_sem.setdefault((pkg.setup_id, pkg.semester), []).append(pkg)
+        structure = {setup.id: _structure_note(grade, setup, by_setup_sem) for setup in setups}
 
         annual_rows = {
             (r.student_id, r.setup_id): r
@@ -540,6 +615,15 @@ class GradeService:
             student_id__in=sids, academic_year=year, school=school, deprived=True
         ).values_list("student_id", "gate"):
             gates.setdefault(sid, set()).add(gate)
+        cheats: dict[tuple[Any, Any], set[str]] = {}
+        cancelled: dict[Any, str] = {}
+        for sid, kind, setup_id, exam, basis in ExamMisconduct.objects.filter(
+            student_id__in=sids, academic_year=year, school=school
+        ).values_list("student_id", "kind", "setup_id", "exam", "basis"):
+            if kind == ExamMisconduct.KIND_CANCELLED:
+                cancelled[sid] = basis
+            else:
+                cheats.setdefault((sid, setup_id), set()).add(exam)
 
         now = timezone.now()
         for student in students:
@@ -567,10 +651,19 @@ class GradeService:
                     )
                 subjects.append(
                     SubjectFacts(
-                        str(setup.id), sems["S1"], sems["S2"], makeups.get((sid, setup.id)), second
+                        str(setup.id),
+                        sems["S1"],
+                        sems["S2"],
+                        makeups.get((sid, setup.id)),
+                        second,
+                        has_pass_mark=setup.counts_pass_mark,
+                        cheated=frozenset(cheats.get((sid, setup.id), ())),
+                        structure=structure[setup.id],
                     )
                 )
-            verdict = judge_student(grade, subjects, frozenset(gates.get(sid, ())))
+            verdict = judge_student(
+                grade, subjects, frozenset(gates.get(sid, ())), cancelled.get(sid, "")
+            )
             verdicts = verdict.by_key()
 
             for setup in setups:
@@ -611,6 +704,7 @@ class GradeService:
                         "article": v.article[:40],
                         "review": v.review[:300],
                         "second_round_max": v.second_round_max,
+                        "ruleset": VERDICT_RULESET,
                     },
                     (str(sid), str(setup.id), "annual"),
                     now,
@@ -653,7 +747,12 @@ class GradeService:
             ).select_related("student")
         ]
         return GradeService.recalculate_students(
-            setup.class_group, setup.academic_year, students, setup, actor=actor
+            setup.class_group,
+            setup.academic_year,
+            students,
+            setup,
+            actor=actor,
+            trigger=f"recalculate_full_class:{setup.pk}",
         )
 
     # ── إحصائيات ───────────────────────────────────────────
@@ -734,12 +833,13 @@ class GradeService:
     def get_class_results_summary(setup: SubjectClassSetup, year: str | None = None) -> dict:
         """ملخص النتائج السنوية للفصل في مادة — استعلام واحد"""
         year = year or academic_year_for_school(setup.school)
+        counted = Q(status__in=RESULT_STATUSES)
         stats = AnnualSubjectResult.objects.filter(setup=setup, academic_year=year).aggregate(
-            total=Count("id"),
+            total=Count("id", filter=counted),
             passed=Count("id", filter=Q(status__in=PASSING_STATUSES)),
             failed=Count("id", filter=Q(status__in=FAILING_STATUSES)),
             incomplete=Count("id", filter=Q(status__in=PENDING_STATUSES)),
-            avg=Avg("annual_total"),
+            avg=Avg("annual_total", filter=counted),
         )
         total = stats["total"]
         passed = stats["passed"]
@@ -867,7 +967,9 @@ class GradeService:
 
         # ── Subject comparison — setup__subject بدل subject مباشرةً ──
         subj_data = (
-            AnnualSubjectResult.objects.filter(school=school, academic_year=year)
+            AnnualSubjectResult.objects.filter(
+                school=school, academic_year=year, status__in=RESULT_STATUSES
+            )
             .values("setup__subject__name_ar")
             .annotate(
                 avg=Avg("annual_total"),
@@ -1050,6 +1152,11 @@ class SecondRoundService:
             ).values_list("student_id", "gate")
         )
         class_warnings: list[str] = []
+        if GradeService.is_deferred(class_group, year):
+            class_warnings.append(
+                "نتائجُ الشعبة مكتوبةٌ بقواعد حكمٍ أقدم — لا تُعتمد حتّى يُشغَّل "
+                "recalculate_grade_results --apply"
+            )
         breaches: dict[Any, list[str]] = {}
         for gate in gates_for(class_group.grade):
             eve = SecondRoundService.exam_eve(class_group, year, gate.key, setups)
@@ -1075,6 +1182,152 @@ class SecondRoundService:
                 SecondRoundRow(student, standing, article, own, breaches.get(student.id, []))
             )
         return rows, class_warnings
+
+
+# ─────────────────────────────────────────────────────────────
+# قراراتُ الأهليّة ووقائعُ الانضباط — كتابتُها مسارٌ واحد
+# ─────────────────────────────────────────────────────────────
+
+DECISION_AUDIT_OP = "exam_decision"
+
+
+class ExamDecisionService:
+    """كتابةُ قرارات فريق السلوك (`ExamDeprivation`) ووقائع لجان الاختبار (`ExamMisconduct`).
+
+    القرارُ يحدّد أهليّةَ الطالب للاختبار والدور الثاني، فكلُّ كتابةٍ أو حذفٍ هنا، في معاملةٍ
+    واحدة: يُرفض العامُ المغلق؛ ويُملأ `decided_by` بالفاعل لا بيدٍ حرّة؛ ويُكتب في `AuditLog`
+    القيمُ قبل/بعد والفاعل؛ ثمّ يُعاد الحكمُ على الطالب (والطالبِ السابق إن تبدّل) في شعبته —
+    فلا يبقى الحكمُ المخزَّن على ما قبل القرار وتنبيهُ العتبة قد سقط.
+    """
+
+    FIELDS: dict[type, tuple[str, ...]] = {
+        ExamDeprivation: (
+            "student_id",
+            "academic_year",
+            "gate",
+            "deprived",
+            "decided_on",
+            "decided_by_id",
+            "note",
+        ),
+        ExamMisconduct: (
+            "student_id",
+            "academic_year",
+            "kind",
+            "setup_id",
+            "exam",
+            "basis",
+            "report_ref",
+            "decided_on",
+            "decided_by_id",
+            "note",
+        ),
+    }
+
+    @staticmethod
+    def _snapshot(obj: ExamDeprivation | ExamMisconduct) -> dict[str, str]:
+        return {f: _audit_value(getattr(obj, f)) for f in ExamDecisionService.FIELDS[type(obj)]}
+
+    @staticmethod
+    def ensure_open(school: School, year: str) -> None:
+        if year != academic_year_for_school(school):
+            raise ClosedYearError(f"العامُ الدراسيّ {year} مغلق — لا تُسجَّل فيه قرارات.")
+
+    @staticmethod
+    def _log(
+        obj: ExamDeprivation | ExamMisconduct,
+        actor: CustomUser | None,
+        action: str,
+        before: dict[str, str] | None,
+        after: dict[str, str] | None,
+    ) -> None:
+        AuditLog.objects.create(
+            school=obj.school,
+            user=actor,
+            action=action,
+            model_name="other",
+            object_id=str(obj.pk),
+            object_repr=str(obj)[:300],
+            changes={
+                "op": DECISION_AUDIT_OP,
+                "model": type(obj).__name__,
+                "before": before,
+                "after": after,
+            },
+        )
+
+    @staticmethod
+    def _rejudge(
+        obj: ExamDeprivation | ExamMisconduct,
+        student_ids: set[Any],
+        actor: CustomUser | None,
+        trigger: str,
+    ) -> bool:
+        """يُعيد الحكمَ على الطلبة في شعبتهم للعام — `False` إن أُرجئ (قواعدُ أقدم)."""
+        applied = True
+        for sid in student_ids:
+            enrollment = (
+                StudentEnrollment.objects.filter(
+                    student_id=sid,
+                    is_active=True,
+                    class_group__school=obj.school,
+                    class_group__academic_year=obj.academic_year,
+                )
+                .select_related("class_group", "student")
+                .newest_first()
+                .first()
+            )
+            if enrollment is None:
+                continue
+            done = GradeService.recalculate_students(
+                enrollment.class_group,
+                obj.academic_year,
+                [enrollment.student],
+                actor=actor,
+                trigger=trigger,
+            )
+            applied = applied and bool(done)
+        return applied
+
+    @staticmethod
+    @transaction.atomic
+    def save(obj: ExamDeprivation | ExamMisconduct, actor: CustomUser) -> bool:
+        """يحفظ القرار ويسجّله ويعيد الحكم — `False` إن أُرجئ الحكم (`is_deferred`)."""
+        model = type(obj)
+        ExamDecisionService.ensure_open(obj.school, obj.academic_year)
+        old = model.objects.select_for_update().filter(pk=obj.pk).first()
+        before = None
+        students = {obj.student_id}
+        if old is not None:
+            ExamDecisionService.ensure_open(old.school, old.academic_year)
+            before = ExamDecisionService._snapshot(old)
+            students.add(old.student_id)
+        obj.decided_by = actor
+        obj.clean()
+        obj.save()
+        ExamDecisionService._log(
+            obj,
+            actor,
+            "create" if old is None else "update",
+            before,
+            ExamDecisionService._snapshot(obj),
+        )
+        return ExamDecisionService._rejudge(
+            obj, students, actor, f"{DECISION_AUDIT_OP}:{model.__name__}:{obj.pk}"
+        )
+
+    @staticmethod
+    @transaction.atomic
+    def delete(obj: ExamDeprivation | ExamMisconduct, actor: CustomUser) -> bool:
+        ExamDecisionService.ensure_open(obj.school, obj.academic_year)
+        before = ExamDecisionService._snapshot(obj)
+        pk, students = obj.pk, {obj.student_id}
+        ExamDecisionService._log(obj, actor, "delete", before, None)
+        obj.delete()
+        obj.pk = pk
+        return ExamDecisionService._rejudge(
+            obj, students, actor, f"{DECISION_AUDIT_OP}:{type(obj).__name__}:{pk}"
+        )
 
 
 # ─────────────────────────────────────────────────────────────
