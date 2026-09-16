@@ -118,7 +118,7 @@ def sections(request):
         {
             "groups": groups,
             "cards": [_section_card(g, year) for g in groups],
-            "subtitle": f"اختر شعبةً ثمّ طالباً — {year}",
+            "subtitle": f"اختر شعبةً ثمّ طالباً — {_ltr(year)}",
             "year": year,
             "school": school,
             "wing_bound": scope.is_wing_bound,
@@ -155,7 +155,7 @@ def section_students(request, class_id):
         {
             "group": group,
             "title": f"{group.get_grade_display()} — الشعبة {group.section}",
-            "subtitle": " · ".join(filter(None, [group.get_track_display(), str(year)])),
+            "subtitle": " · ".join(filter(None, [group.get_track_display(), _ltr(year)])),
             # الطالبُ بقيده الجاري: قيدٌ قديمٌ نشطٌ في هذه الشعبة لا يُظهر للمشرف
             # طالباً صار في جناحٍ آخر.
             "enrollments": scope.narrow(services.students_of_section(group), "student_id"),
@@ -211,9 +211,14 @@ def student_file(request, student_id):
 def _file_subtitle(class_group, year):
     """«الصفّ — الشعبة · المسار · العام» — ومن لا شعبةَ له هذا العام: العامُ وحده."""
     if not class_group:
-        return str(year)
+        return _ltr(year)
     head = f"{class_group.get_grade_display()} — الشعبة {class_group.section}"
-    return " · ".join(filter(None, [head, class_group.get_track_display(), str(year)]))
+    return " · ".join(filter(None, [head, class_group.get_track_display(), _ltr(year)]))
+
+
+def _ltr(year) -> str:
+    """«2026-2027» داخل سطرٍ عربيّ يُقرأ «2027-2026» — فيُعزل اتّجاهُه."""
+    return f"\u2066{year}\u2069"
 
 
 # ── المستويات التعليمية وربطها بالتحصيل ──────────────────────────────
@@ -244,7 +249,7 @@ def levels(request):
             "tracks": tracks,
             "bands": services.ACHIEVEMENT_BANDS,
             "band_kpis": services.band_kpis(data["overall"]),
-            "subtitle": f"{data['total']} نتيجةً مرصودة — {year}",
+            "subtitle": f"{data['total']} نتيجةً مرصودة — {_ltr(year)}",
             "data": data,
         },
     )

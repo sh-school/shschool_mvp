@@ -945,7 +945,8 @@ def student_profile(request, student_id):
             class_label(enrollment.class_group.grade, enrollment.class_group.section)
         )
     if student.national_id:
-        subtitle_parts.append(f"****{mask_national_id(student.national_id)[-4:]}")
+        # معزولُ الاتّجاه: «****0289» داخل سطرٍ عربيّ كان يُقرأ «0289****».
+        subtitle_parts.append(f"\u2066****{mask_national_id(student.national_id)[-4:]}\u2069")
     if profile and profile.gender:
         subtitle_parts.append("ذكر" if profile.gender == "M" else "أنثى")
 
@@ -1185,7 +1186,8 @@ def attendance_overview(request):
         late=Count("id", filter=Q(status="late")),
         excused=Count("id", filter=Q(status="excused")),
     )
-    pct = attendance_rate(today_counts["present"], today_counts["total"])
+    # قبل أيّ رصدٍ لا نسبة: «0%» بالأحمر كانت توحي بغياب الجميع.
+    pct = attendance_rate(today_counts["present"], today_counts["total"], empty=None)
 
     summary = {
         "present": today_counts["present"],
@@ -1246,8 +1248,10 @@ def attendance_overview(request):
     chart_absent = []
     for i in range(13, -1, -1):
         d = today - timedelta(days=i)
-        day = by_day.get(d, {"total": 0, "present": 0, "absent": 0})
-        chart_labels.append(d.strftime("%m/%d"))
+        day = by_day.get(d)
+        if not day or not day["total"]:
+            continue  # يومٌ بلا رصد (عطلةٌ أو لم يُرصد) لا يُرسم حضوراً صفريّاً
+        chart_labels.append(f"{d.day}/{d.month}")
         chart_present.append(attendance_rate(day["present"], day["total"]))
         chart_absent.append(attendance_rate(day["absent"], day["total"]))
 
@@ -1262,7 +1266,8 @@ def attendance_overview(request):
     grades = ClassGroup.GRADES
 
     # ── ما يُرسم: الألوانُ بعتباتها هنا لا شروطاً في القالب ──
-    pct_tone, _badge = _share_tone(pct)
+    # بلا رصدٍ لا لونَ حكم: «muted» ليس من ألوان بطاقة الرقم، فالسماويُّ المحايد.
+    pct_tone = _share_tone(pct)[0] if pct is not None else "sky"
     class_rows = []
     for row in class_breakdown:
         row_pct = attendance_rate(row["present_count"], row["total"])
@@ -1301,7 +1306,7 @@ def attendance_overview(request):
                 _followup_wing_label(scope),
             ),
             "wing_bound": scope.is_wing_bound,
-            "pct_label": f"{pct}%",
+            "pct_label": f"{pct}%" if pct is not None else "—",
             "pct_tone": pct_tone,
             "worst_students": worst_students,
             "class_breakdown": class_rows,
@@ -1539,7 +1544,7 @@ def behavior_overview(request):
             date__gte=month_start,
             date__lt=next_month,
         ).count()
-        chart_labels.append(month_start.strftime("%b"))
+        chart_labels.append(date_format(month_start, "F"))
         chart_data.append(count)
 
     # ── مخالفات اليوم ──

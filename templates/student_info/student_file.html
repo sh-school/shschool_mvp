@@ -1,6 +1,6 @@
 {% extends "base/base.html" %}
 {% load icons %}
-{% load ui %}
+{% load ui navigation %}
 
 {% block title %}ملفّ {{ student.full_name }}{% endblock %}
 
@@ -16,6 +16,7 @@
     {% endif %}
     {% if class_group %}
     <a href="{% url 'student_info:section_students' class_group.id %}?year={{ year }}" class="btn-secondary btn-sm">رجوع للشعبة</a>
+    {% if request.user|can_open:'wings:student_search' %}<a href="{% url 'wings:absence_file' student.id %}" class="btn-secondary btn-sm">{% icon "absence" %} ملفُّ الغياب</a>{% endif %}
     {% endif %}
   {% endpage_header %}
 

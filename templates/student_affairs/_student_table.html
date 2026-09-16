@@ -14,9 +14,10 @@
 {% endcomment %}
 
 <div class="sa-panel sa-flush" id="student-table-container">
-<div class="table-wrap-scroll">
   {% if students %}
-  <table>
+  {# العددُ والصفحاتُ خارج صندوق التمرير: كانا داخله فلا يُريان إلّا بتمريره. #}
+  <div class="table-wrap-scroll">
+  <table class="sa-students">
     <thead>
       <tr>
         {% sort_th sort "name" "الاسم" target="#student-table-container" %}
@@ -79,10 +80,10 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   <div class="table-empty sa-table-count">{{ total }} طالباً — صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</div>
   {% include "components/pagination.html" with page_obj=page_obj target="#student-table-container" swap="outerHTML" %}
   {% else %}
   {% empty_state "لا يوجد طلاب مطابقون للبحث" icon="search" %}
   {% endif %}
-</div>
 </div>

@@ -41,6 +41,12 @@ def log_contact(
         raise ContactError("نتيجةُ الاتّصال: ردّ، أو لم يردّ، أو سيُحضر عذراً.")
     if channel not in dict(GuardianContact.CHANNELS):
         channel = "phone"
+    # الإخطارُ عن غيابٍ مرصود: صفحةُ التصحيح كانت تملأ التاريخَ باليوم، فتسجّل ضغطةٌ
+    # واحدةٌ «ردّ» ليومٍ حضره الطالب — والسجلُّ لا يُحذف.
+    if not StudentAttendance.objects.filter(
+        student=student, school=school, session__date=absence_date, status="absent"
+    ).exists():
+        raise ContactError(f"لا غيابَ مرصوداً لهذا الطالب يومَ {absence_date:%d/%m}.")
     return GuardianContact.objects.create(
         school=school,
         student=student,

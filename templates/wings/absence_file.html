@@ -22,9 +22,22 @@
     {% kpi "أيّامٌ بلا عذر" standing.unexcused_days tone="red" %}
     {% kpi "أيّامٌ بعذر" standing.excused_days tone="teal" %}
     {% if standing.upcoming %}
-      {% kpi "العتبةُ القادمة" standing.upcoming.max_days sub=standing.upcoming.label tone="maroon" %}
+      {% kpi "يُحرم إن تجاوز" standing.upcoming.max_days sub=standing.upcoming.label tone="maroon" title=standing.upcoming.label %}
     {% endif %}
   {% endkpi_strip %}
+
+  {% if guardians %}
+  <ul class="af-guardians" aria-label="أولياءُ الأمر">
+    {% for g in guardians %}
+    <li class="af-guardian">
+      <span class="af-guardian__who">{% icon "parents" %} {{ g.name }} <small>{{ g.relation }}</small></span>
+      {% if g.phone %}<a href="tel:{{ g.phone }}" class="btn-secondary btn-sm af-tel" dir="ltr">{% icon "call_parent" %} {{ g.phone }}</a>{% else %}<span class="af-day__meta">لا هاتفَ مسجَّل</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="form-note">{% icon "status_warning" %} <span>لا وليَّ أمرٍ مربوطٌ بهذا الطالب — راجع شؤونَ الطلبة.</span></p>
+  {% endif %}
 
   {% section_card "أيّامُ الغياب" meta=days|length icon="absence" empty="لا غيابَ على هذا الطالب هذا العام" %}
     {% if days %}
@@ -37,17 +50,18 @@
           <span class="af-day__meta">{{ day.absent_periods }} من {{ day.scheduled_periods }} حصص</span>
           {% if day.excuse %}<span class="status-badge status-info">{{ day.excuse.get_kind_display }}</span>{% endif %}
           {% if day.waiting %}<span class="status-badge status-warning">العذرُ بانتظار النائب الإداريّ</span>{% endif %}
-          {% if day.rejected and not day.excuse and not day.waiting %}<span class="status-badge status-danger">رُفض العذر</span>{% endif %}
+          {% if day.rejected and not day.excuse and not day.waiting %}<span class="status-badge status-danger">رُفض العذر</span>{% if day.rejected.rejection_reason %}<span class="af-day__meta">السبب: {{ day.rejected.rejection_reason }}</span>{% endif %}{% endif %}
           {% if day.contact %}<span class="af-day__meta">{% icon "call_parent" %} {{ day.contact.get_outcome_display }}</span>{% endif %}
         </div>
 
         <div class="af-day__actions">
           {% if day.may_call %}
-          <details class="af-act">
+          <details class="af-act"{% if call_day == day.date %} open{% endif %}>
             <summary class="btn-secondary btn-sm">{% icon "call_parent" %} {% if day.contact %}اتّصلتُ مرّةً أخرى{% else %}اتّصلتُ{% endif %}</summary>
             <form method="post" action="{% url 'wings:absence_file_contact' student.id %}" class="af-act__form">
               {% csrf_token %}
               <input type="hidden" name="absence_date" value="{{ day.date|date:'Y-m-d' }}">
+              {% for g in guardians %}{% if g.phone %}<a href="tel:{{ g.phone }}" class="btn-secondary btn-sm af-tel" dir="ltr">{% icon "call_parent" %} {{ g.phone }}</a>{% endif %}{% endfor %}
               <p class="af-act__say">بمَ أجاب وليُّ الأمر؟</p>
               <div class="af-choices">
                 {% for key, label in contact_outcomes %}
@@ -67,7 +81,7 @@
               <input type="hidden" name="date_to" value="{{ day.run_to|date:'Y-m-d' }}">
               {% if day.spans_days %}<p class="af-act__say">يشمل أيّامَ الغياب المتّصلة: {{ day.run_from|date:"j/n" }} – {{ day.run_to|date:"j/n" }}</p>{% endif %}
               {% if day.late and not may_override %}<p class="af-act__say">مضى يومان دراسيّان على عودته (حتى {{ day.deadline|date:"j/n" }})، فيُرسَل العذرُ إلى النائب الإداريّ.</p>{% endif %}
-              <label class="form-label">المستند <small>(صورةٌ من الجوّال أو ملفّ — يلزم إلّا للوفاة)</small>
+              <label class="form-label">المستند <small>صورةٌ من الجوّال أو ملفّ — يلزم لكلّ عذرٍ إلّا الوفاة</small>
                 <input type="file" name="document" class="form-control" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif">
               </label>
               <label class="form-label">بيان <small>(للوفاة: صلةُ القرابة)</small>
@@ -78,7 +92,7 @@
                 <input type="text" name="override_reason" class="form-control" required>
               </label>
               {% endif %}
-              <p class="af-act__say">اضغط نوعَ العذر فيُحفظ:</p>
+              <p class="af-act__say">{% if day.late and not may_override %}اضغط نوعَ العذر فيُرسَل إلى النائب:{% else %}اضغط نوعَ العذر فيُقبل:{% endif %}</p>
               <div class="af-choices">
                 {% for key, label, doc in excuse_kinds %}
                 <button type="submit" name="kind" value="{{ key }}" class="btn-secondary btn-sm af-kind">{{ label }}<small>{% if doc %}يلزم {{ doc }}{% else %}بلا مستند — اكتب صلةَ القرابة{% endif %}</small></button>
