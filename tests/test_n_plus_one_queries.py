@@ -11,6 +11,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import time, timedelta
 from decimal import Decimal
 
@@ -175,9 +176,15 @@ def test_attendance_overview_chart_is_one_query(client, school, principal_user, 
     }
     present = response.context["chart_present_json"]
     absent = response.context["chart_absent_json"]
-    # آخرُ عنصرٍ اليوم (75/25)، وقبلَه بثلاثة أيّامٍ 25/25، وبينهما أصفار.
-    assert present.endswith("0, 25, 0, 0, 75]"), present
-    assert absent.endswith("0, 25, 0, 0, 25]"), absent
+    # يومان فيهما رصدٌ وحدهما: قبل ثلاثة أيّامٍ 25/25، واليوم 75/25. الأيّامُ بينهما
+    # بلا رصد فلا تُرسم أصفاراً (جولةُ المشرف 2026-09-16).
+    assert json.loads(present) == [25, 75], present
+    assert json.loads(absent) == [25, 25], absent
+    earlier = today - timedelta(days=3)
+    assert json.loads(response.context["chart_labels_json"]) == [
+        f"{earlier.day}/{earlier.month}",
+        f"{today.day}/{today.month}",
+    ]
 
 
 # ══════════════════════════════════════════════════════════════════════

@@ -16,15 +16,17 @@
   </button>
   <span class="bc-sep" aria-hidden="true">/</span>
   {% endif %}
+  {% if not home %}
   <a href="/dashboard/">الرئيسية</a>
-  {% if parent2_url %}
   <span class="bc-sep" aria-hidden="true">/</span>
+  {% endif %}
+  {% if parent2_url %}
   <a href="{{ parent2_url }}">{{ parent2_label }}</a>
+  <span class="bc-sep" aria-hidden="true">/</span>
   {% endif %}
   {% if parent_url %}
-  <span class="bc-sep" aria-hidden="true">/</span>
   <a href="{{ parent_url }}">{{ parent_label }}</a>
-  {% endif %}
   <span class="bc-sep" aria-hidden="true">/</span>
+  {% endif %}
   <span class="bc-current" aria-current="page">{{ current }}</span>
 </nav>

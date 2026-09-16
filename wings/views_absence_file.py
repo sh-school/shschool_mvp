@@ -27,7 +27,7 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.capabilities import capability_required, has_capability
-from core.models import ClassGroup, CustomUser, School, StudentEnrollment
+from core.models import ClassGroup, CustomUser, ParentStudentLink, School, StudentEnrollment
 from core.sorting import arabic_key, normalise_arabic
 
 from .scope import student_scope_for
@@ -117,6 +117,17 @@ def absence_file(request: HttpRequest, student_id: object) -> HttpResponse:
     school, klass, student = _own_student(request, student_id)
     today = timezone.localdate()
     window = academic_year_window(school, today)  # type: ignore[no-untyped-call]
+    # مَن يُتّصل به وبأيّ رقم: الأساسيُّ أوّلاً — كانت «اتّصلتُ» تُعرض بلا اسمٍ ولا هاتف.
+    guardians = [
+        {
+            "name": link.parent.full_name,
+            "relation": link.get_relationship_display(),
+            "phone": (link.parent.phone or "").strip(),
+        }
+        for link in ParentStudentLink.objects.filter(student=student, school=school)
+        .select_related("parent")
+        .order_by("-is_primary", "created_at")[:3]
+    ]
     start = window[0] if window else today.replace(month=9, day=1)
     return render(
         request,
@@ -127,6 +138,9 @@ def absence_file(request: HttpRequest, student_id: object) -> HttpResponse:
             "days": absence_days(student, school, start, today),
             "standing": standing_for(student, school, grade=klass.grade, on=today),
             "excuse_kinds": kinds(),
+            "guardians": guardians,
+            # «أخطِر» في اللوحة والكشف يفتح لوحةَ الاتّصال على يومها مباشرةً.
+            "call_day": _day(request.GET.get("call")),  # type: ignore[no-untyped-call]
             "contact_outcomes": GuardianContact.OUTCOMES,
             "may_override": has_capability(request.user, "wings.excuse_after_deadline"),
         },
@@ -193,6 +207,6 @@ def absence_file_contact(request: HttpRequest, student_id: object) -> HttpRespon
         return redirect(_file_url(student.id))
     messages.success(
         request,
-        f"سُجّل الإخطارُ عن غياب {absence_date:%d/%m}: {contact.get_outcome_display()}.",
+        f"سُجّل الإخطارُ عن غياب {absence_date.day}/{absence_date.month}: {contact.get_outcome_display()}.",
     )
     return redirect(_file_url(student.id, absence_date))

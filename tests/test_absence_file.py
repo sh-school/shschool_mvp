@@ -154,7 +154,7 @@ class TestTheSearch:
             .content.decode()
         )
 
-        assert "لا طالبَ بهذا الاسم في أجنحتك" in body
+        assert "لا طالبَ بهذا الاسم أو الرقم في جناحك" in body
 
     def test_the_supervisors_dashboard_carries_the_search(
         self, client_as, school, seeded_calendar, klass, supervisor
