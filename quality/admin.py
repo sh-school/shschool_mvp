@@ -10,6 +10,7 @@ from .models import (
     EmployeeEvaluation,
     EvaluationAxis,
     EvaluationCycle,
+    EvaluationLevelBackup,
     EvaluationScore,
     ExecutorMapping,
     OperationalDomain,
@@ -328,6 +329,30 @@ class EmployeeEvaluationAdmin(admin.ModelAdmin):
         changed = [f for f in form.changed_data if f not in self.readonly_fields]
         if changed:
             obj.save(update_fields=[*changed, "updated_at"])
+
+
+@admin.register(EvaluationLevelBackup)
+class EvaluationLevelBackupAdmin(admin.ModelAdmin):
+    """سجلُّ ما غيّرته الهجرة 0018 — للقراءة: لا إضافةَ ولا تعديلَ ولا حذف."""
+
+    list_display = (
+        "evaluation",
+        "old_total_score",
+        "old_rating",
+        "new_total_score",
+        "new_rating",
+        "created_at",
+    )
+    list_select_related = ("evaluation__employee",)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(EvaluationCycle)

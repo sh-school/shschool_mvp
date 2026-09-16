@@ -919,6 +919,17 @@ class EmployeeEvaluation(models.Model):
         if self.period == self.MINISTRY_PERIOD and not self.has_form_scores():
             self.rating = ""
 
+    def settle_level_after_scores(self) -> None:
+        """
+        بعد أن تُكتب درجاتُ مقيِّمٍ في `EvaluationScore`: المستوى على الصفوف كما هي الآن. والحفظُ
+        بـ`update_fields` بلا حقول المحاور لا يمرّ بـ`_drop_level_off_form` في `save()`، فمن
+        كتب الدرجاتَ يستدعي هذا قبل الحفظ. ويُسقط ما جُلب مسبقاً من `scores` لأنّه قبل الكتابة.
+        """
+        prefetched = getattr(self, "_prefetched_objects_cache", None)
+        if prefetched:
+            prefetched.pop("scores", None)
+        self._drop_level_off_form()
+
     def save(self, *args: Any, **kwargs: Any) -> None:
         # إصلاح #3: حساب المجموع فقط عندما لا يكون update_fields محدداً
         # أو عندما تتضمن update_fields أحد حقول المحاور
@@ -1101,11 +1112,15 @@ class EmployeeEvaluation(models.Model):
         approved_on = self.grievance_decision_approved_on
         if approved_on is not None and submitted <= approved_on <= today:
             return True
-        if self.grievance_decided_on is not None:
-            return False
         decision_by = submitted + _grievance_days(
             "APPRAISAL_GRIEVANCE_DECISION_DAYS", APPRAISAL_GRIEVANCE_DECISION_DAYS
         )
+        # إخطارٌ في الميعاد قرارُ لجنةٍ ينتظر اعتمادَ الوزير. أمّا بعده فالرفضُ الحكميُّ قد وقع
+        # («ويعتبر انقضاء الميعاد المذكور دون إخطار الموظف بتعديل التقرير بمثابة قرار بالرفض»،
+        # صفحة الملفّ 13) — وكان تدوينُ إخطارٍ متأخّرٍ يعيد فتحَ تقريرٍ نهائيٍّ بلا حدّ.
+        decided_on = self.grievance_decided_on
+        if decided_on is not None and decided_on <= decision_by:
+            return False
         return bool(today > decision_by)
 
     def acknowledge(self):
@@ -1202,6 +1217,34 @@ class EvaluationScore(models.Model):
         if update_fields is not None and "total_score" not in update_fields:
             kwargs["update_fields"] = [*update_fields, "total_score"]
         super().save(*args, **kwargs)
+
+
+class EvaluationLevelBackup(models.Model):
+    """
+    ما كان عليه مجموعُ التقرير ومستواه قبل أن تعيد الهجرة 0018 حسابَهما: عتباتُ المادة 16
+    (صفحتا الملفّ 10–11)، والتقريرُ السنويّ خارج الاستمارة بلا مستوى (المادة 15، صفحة الملفّ 10).
+    تغييرُ الهجرة صامت — تقريرٌ أقرّ به الموظّف يفقد مستواه — فهذا سجلُّه، ومنه يسترجع العكسُ
+    ما محاه. للقراءة وحدها.
+    """
+
+    evaluation = models.OneToOneField(
+        EmployeeEvaluation, on_delete=models.CASCADE, related_name="+", verbose_name="التقييم"
+    )
+    old_total_score = models.PositiveSmallIntegerField(verbose_name="المجموع قبل الهجرة")
+    old_rating = models.CharField(max_length=15, blank=True, verbose_name="المستوى قبل الهجرة")
+    new_total_score = models.PositiveSmallIntegerField(verbose_name="المجموع بعد الهجرة")
+    new_rating = models.CharField(max_length=15, blank=True, verbose_name="المستوى بعد الهجرة")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "مستوى تقييمٍ قبل الهجرة 0018"
+        verbose_name_plural = "مستويات التقييم قبل الهجرة 0018"
+
+    def __str__(self) -> str:
+        return (
+            f"#{self.evaluation_id}: {self.old_total_score}/{self.old_rating or '—'}"
+            f" ← {self.new_total_score}/{self.new_rating or '—'}"
+        )
 
 
 class EvaluationCycle(models.Model):

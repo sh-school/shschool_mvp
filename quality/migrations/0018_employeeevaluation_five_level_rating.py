@@ -16,14 +16,16 @@
   - تقريرٌ سنويٌّ (S2) ليس على الاستمارة — بلا قالب، أو بلا درجاتِ مقيِّم، أو بمفاتيحَ غيرِ
     مفاتيح محاور قالبه (`EmployeeEvaluation.has_form_scores`): `rating` فارغ. فمستوياتُ المادة 16
     مستوياتُ التقرير الموضوع «وفقاً للنماذج المعتمدة من الوزير» (المادة 15، صفحة الملفّ 10).
-وتكرارُه لا يغيّر شيئاً، وعكسُه يعيد العتباتِ القديمة من `total_score`.
+وكلُّ صفٍّ يغيّره يُسجَّل قبلُ في `EvaluationLevelBackup` (المجموعُ والمستوى قبله وبعده).
+وتكرارُه لا يغيّر شيئاً. وعكسُه يسترجع المسجَّلَ لكلّ صفٍّ لم يتغيّر منذ التقدّم، ويصنّف غيرَه
+بالعتبات القديمة من `total_score`، ثمّ يحذف السجلّ.
 """
 
 import math
-from collections.abc import Callable
 from fractions import Fraction
 from typing import Any
 
+import django.db.models.deletion
 from django.db import migrations, models
 
 _AXES = ("axis_professional", "axis_commitment", "axis_teamwork", "axis_development")
@@ -103,6 +105,7 @@ def forward(apps: Any, schema_editor: Any) -> None:
     EmployeeEvaluation = apps.get_model("quality", "EmployeeEvaluation")
     EvaluationScore = apps.get_model("quality", "EvaluationScore")
     EvaluationAxis = apps.get_model("quality", "EvaluationAxis")
+    EvaluationLevelBackup = apps.get_model("quality", "EvaluationLevelBackup")
     for ev in EmployeeEvaluation.objects.all().iterator():
         total = ev.total_score
         if _is_blank(ev, EvaluationScore):
@@ -115,19 +118,72 @@ def forward(apps: Any, schema_editor: Any) -> None:
             if _off_form(ev, EvaluationScore, EvaluationAxis):
                 rating = ""
         if (total, rating) != (ev.total_score, ev.rating):
+            # يُسجَّل ما كان قبل أن يُكتب فوقه (`EvaluationLevelBackup`): فالعكسُ يسترجعه، ولا
+            # يفقد تقريرٌ مُقَرٌّ به مستواه بلا أثر. وفي تكرار التقدّم يبقى «قبل» أوّلَ ما سُجّل.
+            backup, created = EvaluationLevelBackup.objects.get_or_create(
+                evaluation_id=ev.pk,
+                defaults={
+                    "old_total_score": ev.total_score,
+                    "old_rating": ev.rating,
+                    "new_total_score": total,
+                    "new_rating": rating,
+                },
+            )
+            if not created:
+                backup.new_total_score, backup.new_rating = total, rating
+                backup.save(update_fields=["new_total_score", "new_rating"])
             EmployeeEvaluation.objects.filter(pk=ev.pk).update(total_score=total, rating=rating)
 
 
-def _recompute(rule: Callable[[int], str]) -> Callable[[Any, Any], None]:
-    def run(apps: Any, schema_editor: Any) -> None:
-        EmployeeEvaluation = apps.get_model("quality", "EmployeeEvaluation")
-        for ev in EmployeeEvaluation.objects.exclude(rating="").only("pk", "total_score", "rating"):
-            new = rule(ev.total_score)
-            if new != ev.rating:
-                EmployeeEvaluation.objects.filter(pk=ev.pk).update(rating=new)
+def backward(apps: Any, schema_editor: Any) -> None:
+    """
+    ما غيّره التقدّمُ يعود كما سُجِّل — ما لم يتغيّر الصفُّ بعده، فيُصنَّف بالعتبات القديمة
+    كغيره. والمستوى الفارغُ يبقى فارغاً: لا يُخترع مستوىً لمسودّةٍ أو لتقريرٍ لم يكن له.
+    """
+    EmployeeEvaluation = apps.get_model("quality", "EmployeeEvaluation")
+    EvaluationLevelBackup = apps.get_model("quality", "EvaluationLevelBackup")
+    restored: set[int] = set()
+    for backup in EvaluationLevelBackup.objects.all().iterator():
+        if EmployeeEvaluation.objects.filter(
+            pk=backup.evaluation_id,
+            total_score=backup.new_total_score,
+            rating=backup.new_rating,
+        ).update(total_score=backup.old_total_score, rating=backup.old_rating):
+            restored.add(backup.evaluation_id)
+    EvaluationLevelBackup.objects.all().delete()
+    rows = EmployeeEvaluation.objects.exclude(rating="").exclude(pk__in=restored)
+    for ev in rows.only("pk", "total_score", "rating").iterator():
+        new = _four_levels(ev.total_score)
+        if new != ev.rating:
+            EmployeeEvaluation.objects.filter(pk=ev.pk).update(rating=new)
 
-    return run
 
+# ── عزلُ السجلّ: مجموعُ كلّ موظّفٍ ومستواه قبل الهجرة وبعدها بياناتُ أداءٍ شخصيّة ──────────
+# لا `school_id` فيه، فمدرستُه مدرسةُ تقريره — كسياسة `quality_evaluationscore`
+# (`0015_rls_parent_derived`)، ومسجَّلٌ في `core/tenancy.py::PARENT_DERIVED`.
+BACKUP = "quality_evaluationlevelbackup"
+CURRENT = "public.app_rls_school()"
+BACKUP_PREDICATE = f"""
+EXISTS (
+    SELECT 1
+    FROM public.quality_employeeevaluation AS evaluation
+    WHERE evaluation.id = {BACKUP}.evaluation_id
+      AND evaluation.school_id = {CURRENT}
+)
+"""  # noqa: S608 — ثوابتُ أسماءِ جداول، لا مدخلاتٌ من مستخدم
+BACKUP_RLS = f"""
+ALTER TABLE public.{BACKUP} ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS school_isolation ON public.{BACKUP};
+
+CREATE POLICY school_isolation ON public.{BACKUP}
+    USING ({BACKUP_PREDICATE})
+    WITH CHECK ({BACKUP_PREDICATE});
+"""
+BACKUP_RLS_REVERSE = f"""
+DROP POLICY IF EXISTS school_isolation ON public.{BACKUP};
+ALTER TABLE public.{BACKUP} DISABLE ROW LEVEL SECURITY;
+"""
 
 PERIODS = [
     ("S1", "متابعة منتصف العام (داخليّة، غير وزاريّة)"),
@@ -138,6 +194,7 @@ PERIODS = [
 class Migration(migrations.Migration):
     dependencies = [
         ("quality", "0017_alter_classroomobservation_kind"),
+        ("core", "0037_rls_tenant_identity_from_db_role"),
     ]
 
     operations = [
@@ -166,5 +223,47 @@ class Migration(migrations.Migration):
             name="period",
             field=models.CharField(choices=PERIODS, max_length=2),
         ),
-        migrations.RunPython(forward, _recompute(_four_levels)),
+        migrations.CreateModel(
+            name="EvaluationLevelBackup",
+            fields=[
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "old_total_score",
+                    models.PositiveSmallIntegerField(verbose_name="المجموع قبل الهجرة"),
+                ),
+                (
+                    "old_rating",
+                    models.CharField(blank=True, max_length=15, verbose_name="المستوى قبل الهجرة"),
+                ),
+                (
+                    "new_total_score",
+                    models.PositiveSmallIntegerField(verbose_name="المجموع بعد الهجرة"),
+                ),
+                (
+                    "new_rating",
+                    models.CharField(blank=True, max_length=15, verbose_name="المستوى بعد الهجرة"),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "evaluation",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="+",
+                        to="quality.employeeevaluation",
+                        verbose_name="التقييم",
+                    ),
+                ),
+            ],
+            options={
+                "verbose_name": "مستوى تقييمٍ قبل الهجرة 0018",
+                "verbose_name_plural": "مستويات التقييم قبل الهجرة 0018",
+            },
+        ),
+        migrations.RunSQL(sql=BACKUP_RLS, reverse_sql=BACKUP_RLS_REVERSE),
+        migrations.RunPython(forward, backward),
     ]

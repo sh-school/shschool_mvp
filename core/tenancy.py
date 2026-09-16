@@ -61,6 +61,7 @@ PARENT_DERIVED = {
     # quality
     "quality_evaluationaxis": "template -> quality_roleevaluationtemplate.school_id",
     "quality_evaluationscore": "evaluation -> quality_employeeevaluation.school_id",
+    "quality_evaluationlevelbackup": "evaluation -> quality_employeeevaluation.school_id",
     "quality_observationscore": (
         "observation -> quality_classroomobservation.school_id (+ criterion consistency)"
     ),

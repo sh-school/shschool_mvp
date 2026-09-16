@@ -36,7 +36,7 @@ from quality.evaluation_services import (
     save_evaluation,
 )
 from quality.evaluation_views import _DEFAULT_AXES
-from quality.models import EmployeeEvaluation, EvaluationScore
+from quality.models import EmployeeEvaluation, EvaluationScore, RoleEvaluationTemplate
 
 YEAR = "2026-2027"
 NONE: frozenset[str] = frozenset()
@@ -50,9 +50,19 @@ def _inject(monkeypatch, facts):
 
 
 def _evaluation(school, employee, evaluator, period="S2"):
+    """
+    كما يربطه العرضُ قبل الحفظ (`create_evaluation`): التقريرُ السنويّ على قالب دوره إن بُذر.
+    وبلا الربط لا تكون درجاتُه درجاتِ استمارة (`has_form_scores`) فلا مستوى له.
+    """
+    template = None
+    if period == EmployeeEvaluation.MINISTRY_PERIOD:
+        template = RoleEvaluationTemplate.objects.filter(
+            school=school, role_name="teacher", academic_year=YEAR
+        ).first()
     return EmployeeEvaluation.objects.create(
-        school=school, employee=employee, evaluator=evaluator, academic_year=YEAR, period=period
-    )
+        school=school, employee=employee, evaluator=evaluator, academic_year=YEAR,
+        period=period, template=template,
+    )  # fmt: skip
 
 
 def _default_post(total_each, action="submitted"):
@@ -162,6 +172,7 @@ def test_barred_rating_is_rejected_before_any_write(
         "draft",
         0,
     )
+    assert not EvaluationScore.objects.filter(evaluation=evaluation).exists()
 
 
 @pytest.mark.django_db

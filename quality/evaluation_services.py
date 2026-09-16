@@ -310,6 +310,13 @@ def save_evaluation(
         exact = _weighted_total(evaluation, evaluator, sum(scores.values()))
         evaluation.total_score = EmployeeEvaluation.total_for(exact)
         evaluation.rating = EmployeeEvaluation.rating_for(exact)
+        # الدرجاتُ تُكتب قبل الحكم على المستوى: صفُّ مقيِّمٍ آخر بمفاتيحَ غيرِ مفاتيح الاستمارة
+        # يُبقي التقريرَ السنويَّ بلا اسمِ مستوى (`_drop_level_off_form`، ومستنده المادة 15
+        # في 02_staff_affairs.md:199). وإن رُفض الحفظُ بعدها فالمعاملةُ ترجع كلُّها.
+        EvaluationScore.objects.update_or_create(
+            evaluation=evaluation, evaluator=evaluator, defaults={"custom_axes": scores}
+        )
+        evaluation.settle_level_after_scores()
 
     _enforce_rating_restrictions(evaluation)
 
@@ -323,9 +330,6 @@ def save_evaluation(
         evaluation.save()
         return evaluation
 
-    EvaluationScore.objects.update_or_create(
-        evaluation=evaluation, evaluator=evaluator, defaults={"custom_axes": scores}
-    )
     # `update_fields` بلا حقول المحاور الافتراضيّة: فلا يُعيد `save()` الحسابَ منها
     # فيمحو المجموعَ المرجَّح.
     evaluation.save(
