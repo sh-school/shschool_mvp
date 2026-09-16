@@ -69,7 +69,7 @@
         {% for s in worst_students %}
           <li class="plain-list__row">
             <a href="{% url 'student_affairs:student_profile' s.student__id %}" class="plain-list__title sa-link">{{ s.student__full_name }}</a>
-            <span class="status-badge {{ s.badge }}">{{ s.absence_count }} حصّة</span>
+            <span class="status-badge {{ s.badge }}">{{ s.absence_count }} يوم</span>
           </li>
         {% endfor %}
       </ol>
