@@ -951,9 +951,10 @@ class EmployeeEvaluation(models.Model):
         أُدخلت درجاتُه من لوحة الإدارة بمفاتيحَ أخرى يُجمع ويُعتمد تقريراً سنويّاً.
         (يقرأ `.all()` ليكفيه `prefetch_related("scores", "template__axes")`.)
         """
-        if self._state.adding or self.template_id is None:
+        template = None if self._state.adding or self.template_id is None else self.template
+        if template is None:
             return False
-        keys = {axis.key for axis in self.template.axes.all()}
+        keys = {axis.key for axis in template.axes.all()}
         rows = [score.custom_axes or {} for score in self.scores.all()]
         return bool(keys) and bool(rows) and all(set(row) == keys for row in rows)
 
