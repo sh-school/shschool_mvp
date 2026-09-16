@@ -18,6 +18,7 @@
     {% if request.user|can_open:"staff_affairs:permit_queue" %}<a href="{% url 'staff_affairs:permit_queue' %}" class="btn-secondary btn-sm">{% icon "checklist" %} طلبات الأذونات</a>{% endif %}
   {% endpage_header %}
 
+  {% if can_record %}
   {% filter_bar "اختيار يوم الرصد" %}
     {% field "date" "اليوم" type="date" value=day|date:"Y-m-d" max=today|date:"Y-m-d" data_autosubmit=True %}
     <div class="filter-actions">
@@ -38,5 +39,10 @@
       {% for row in rows %}{% include "staff_affairs/partials/attendance_row.html" with staff=row.staff record=row.record values=row.values %}{% endfor %}
     </div>
   {% endif %}{% endsection_card %}
+  {% else %}
+  {% section_card "الرصد بالإنابة" icon="staff" %}
+    <p>يُفتح رصدُ الحضور وقبولُ العذر لنائب الشؤون الإدارية حين ينوب عن المدير: غيابُه المرصودُ اليوم، أو إنابتُه الصريحة، أو شغورُ المنصب (م-24 وم-25). والمديرُ حاضرٌ الآن، فالرصدُ للسكرتارية والمدير.</p>
+  {% endsection_card %}
+  {% endif %}
 </div>
 {% endblock %}

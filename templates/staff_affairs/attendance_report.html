@@ -22,10 +22,10 @@
   {% endfilter_bar %}
 
   {% kpi_strip label="مجاميع الشهر" %}
-    {% kpi "أيام حضور" totals.present tone="green" %}
+    {% with permitted=totals.permitted|stringformat:"s" %}{% kpi "أيام حضور" totals.present sub="مستأذن: "|add:permitted title="أيام الحضور، ومنها أيام الاستئذان في الحاشية" tone="green" %}{% endwith %}
     {% kpi "أيام تأخّر" totals.late tone="amber" %}
-    {% with uncovered=totals.absent_uncovered|stringformat:"s" late_cover=totals.covered_late|stringformat:"s" %}{% kpi "أيام غياب" totals.absent sub=uncovered|add:" غير مغطّاة · "|add:late_cover|add:" بعد المهلة" title="الغياب بلا نوعٍ من سجلّ الغياب يُغطّى قبل يوم 15 من الشهر التالي، وما غُطّي بعده يُوسم ولا يُمنع (البند 5.3)" tone="red" %}{% endwith %}
-    {% kpi "أيام استئذان" totals.permitted tone="sky" %}
+    {% with uncovered=totals.absent_uncovered|stringformat:"s" %}{% kpi "أيام غياب" totals.absent sub="غير مغطّاة: "|add:uncovered title="الغياب بلا نوعٍ من سجلّ الغياب ولا عذرٍ مقبول" tone="red" %}{% endwith %}
+    {% with limit=deadline|date:"d/m" %}{% kpi "غُطّي بعد المهلة" totals.covered_late sub="المهلة: "|add:limit title="أيام غيابٍ غُطّيت بعد يوم 14 من الشهر التالي — تُوسم ولا تُمنع (البند 5.3)" tone="purple" %}{% endwith %}
     {% with early=totals.early_leave_minutes|stringformat:"s" %}{% kpi "دقائق التأخّر" totals.late_minutes sub="انصراف مبكر: "|add:early title="الانصراف قبل 14:00 بلا إذن (البند 1.1)" tone="orange" %}{% endwith %}
     {% kpi "دقائق الإذن" totals.permit_minutes title="الإذن المعتمد — السقف 420 دقيقة لكل موظف" tone="teal" %}
   {% endkpi_strip %}

@@ -125,10 +125,16 @@ def registry() -> dict[str, Capability]:
         _cap(
             "staff_affairs.attendance_record",
             "رصدُ حضور الموظّفين اليوميّ",
-            {"principal", "secretary"},
+            {"principal", "secretary", "vice_admin"},
+            scope=(
+                "السكرتيرُ والمديرُ دائماً؛ ونائبُ الشؤون الإدارية حين ينوب عن المدير وحدَه "
+                "(وإلّا تُفتح له الشاشةُ بلا كادرٍ ويُردّ رصدُه)"
+            ),
             basis=(
                 "03_job_descriptions_rbac.md:101 السكرتير «متابعة الحضور والانصراف للموظفين»؛ "
-                "rbac_permissions_matrix.md:55 كتابة ATTENDANCE؛ والمديرُ مالكُ الوحدات (:45)"
+                "rbac_permissions_matrix.md:55 كتابة ATTENDANCE؛ والمديرُ مالكُ الوحدات (:45)؛ "
+                "وبطاقةُ نائب الشؤون الإدارية «الإنابة عن المدير في مهامه في حال غيابه»، ومنها "
+                "قبولُ العذر (م-7 وم-24 من docs/compliance/staff_attendance_spec.md)"
             ),
         ),
         _cap(

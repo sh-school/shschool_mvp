@@ -5,6 +5,46 @@ import uuid
 from django.conf import settings
 from django.db import migrations, models
 
+#: هجرةٌ حُذف ملفُّها من الفرع (644e2880) وقد طُبّقت في قواعد جلساتٍ شقيقة: أنشأت
+#: الجدولين نفسيهما بمخطّطٍ آخر (مفتاح BigAutoField) ولم تصل إلى main ولا إلى الإنتاج.
+ORPHAN_MIGRATION = "0003_wave3g_staff_attendance_permits"
+ORPHAN_TABLES = ("staff_affairs_permitrequest", "staff_affairs_staffattendance")
+
+
+def clear_orphan(connection, name=ORPHAN_MIGRATION, tables=ORPHAN_TABLES):
+    """يُزيل أثرَ الهجرة اليتيمة قبل إنشاء الجدولين — وإلّا سقط migrate بـ«already exists».
+
+    لا يفعل شيئاً ما لم يُسجَّل اسمُها في ``django_migrations``. ولا يحذف جدولاً فيه
+    صفّ: يتوقّف ويسمّي العلاج (نسخُ القاعدة من جديد بـ``scripts/session-db.sh``)، فلا
+    تُفقد بياناتٌ بصمت.
+    """
+    quote = connection.ops.quote_name
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT 1 FROM django_migrations WHERE app = %s AND name = %s",
+            ["staff_affairs", name],
+        )
+        if cursor.fetchone() is None:
+            return
+        present = [t for t in tables if t in connection.introspection.table_names(cursor)]
+        for table in present:
+            cursor.execute(f"SELECT EXISTS (SELECT 1 FROM {quote(table)})")
+            if cursor.fetchone()[0]:
+                raise RuntimeError(
+                    f"الهجرةُ اليتيمة staff_affairs.{name} تركت {table} وفيه بيانات — لا يُحذف "
+                    "آليّاً. انسخ قاعدةَ الجلسة من جديد: bash scripts/session-db.sh"
+                )
+        for table in present:
+            cursor.execute(f"DROP TABLE {quote(table)} CASCADE")
+        cursor.execute(
+            "DELETE FROM django_migrations WHERE app = %s AND name = %s",
+            ["staff_affairs", name],
+        )
+
+
+def _clear_orphan(apps, schema_editor):
+    clear_orphan(schema_editor.connection)
+
 
 class Migration(migrations.Migration):
 
@@ -15,6 +55,7 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.RunPython(_clear_orphan, migrations.RunPython.noop),
         migrations.CreateModel(
             name='PermitRequest',
             fields=[

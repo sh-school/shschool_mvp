@@ -226,7 +226,8 @@ class TestClassifyArrival:
         assert classify_arrival(check_in) == expected
 
     def test_seconds_are_dropped_to_the_whole_minute(self):
-        """م-3: المقارنةُ بالدقيقة — 07:00:59 سابعةٌ تماماً، و09:00:59 تاسعةٌ تماماً."""
+        """م-2 (صامت، اختيارٌ هندسيّ): المقارنةُ بالدقيقة — 07:00:59 سابعةٌ تماماً، و09:00:59
+        تاسعةٌ تماماً؛ وحدّا م-3 وم-4 من السياسة 2.1 و2.4."""
         assert classify_arrival(time(7, 0, 59)) == ("present", 0)
         assert classify_arrival(time(7, 1, 0)) == ("late", 1)
         assert classify_arrival(time(9, 0, 59)) == ("late", 120)
@@ -396,7 +397,7 @@ class TestPermits:
         _permit(school, staff, date(2026, 3, 1), time(10, 0), time(12, 0))
 
     def test_pending_requests_count_against_the_cap_at_submission(self, school, principal_user):
-        """م-15: عند التقديم يُحسب المعتمدُ ومعه قيدُ الإجراء."""
+        """م-16 وم-15 (السياسة 4.2): عند التقديم يُحسب المعتمدُ ومعه قيدُ الإجراء."""
         staff = _staff(school, 1)
         for day in (2, 3, 4):
             _permit(school, staff, date(2026, 2, day), time(7, 0), time(9, 0), "late_arrival", None)
@@ -439,7 +440,7 @@ class TestPermits:
         assert PermitService.balance(school, staff, FEB).approved == 360  # لا خصمَ بعد
 
     def test_the_principal_rechecks_the_cap_before_approving(self, school):
-        """م-15: عند الاعتماد النهائيّ يُعاد الفحصُ على المعتمَد وحدَه."""
+        """م-16 وم-15 (السياسة 4.2): عند الاعتماد النهائيّ يُعاد الفحصُ على المعتمَد وحدَه."""
         staff = _staff(school, 1)
         for day in (2, 3, 4):
             _permit(school, staff, date(2026, 2, day), time(10, 0), time(12, 0))
@@ -801,7 +802,8 @@ class TestScreens:
             "teacher": (teacher_user, False, False),
             "principal": (principal_user, True, True),
             "secretary": (_actor(school, "secretary"), True, True),
-            "vice_admin": (_actor(school, "vice_admin"), False, True),
+            # تُفتح له الشاشةُ بلا كادرٍ حتّى تقوم الإنابة (م-24؛ جولة 4، TestRoundFour).
+            "vice_admin": (_actor(school, "vice_admin"), True, True),
             "vice_academic": (_actor(school, "vice_academic"), False, True),
         }
         for role, (user, can_record, can_read) in expected.items():
@@ -1195,6 +1197,7 @@ class TestEarlierRounds:
         assert (on_time.late_minutes, late.late_minutes) == (0, 10)
 
     def test_approving_an_exception_reclassifies_marked_days(self, school, principal_user):
+        """م-32 ([س] 2.4 «عذر مقبول» قياساً): عند اعتماد الاستثناء تُعاد مطابقةُ أيّامه."""
         staff = _staff(school, 1)
         record = _mark(school, staff, principal_user, date(2026, 2, 2), "late", time(7, 20))
         _exception(
@@ -1547,6 +1550,7 @@ class TestSpecRules:
         assert PermitService.balance(school, principal_user, FEB).approved == 60
 
     def test_the_principal_does_not_file_form_03_for_himself(self, school, principal_user):
+        """م-34 ([ن03]: خطابٌ «إلى مدير المدرسة»): لا يقدّمه المديرُ لنفسه."""
         from staff_affairs.attendance import ExceptionService
 
         with pytest.raises(PolicyError, match="نموذج 03"):
@@ -1593,6 +1597,7 @@ class TestSpecRules:
         ).exists()
 
     def test_with_no_active_principal_the_admin_deputy_signs(self, school, principal_user):
+        """م-26 (قياساً على بطاقة 1034 «في حال غيابه»): الشغورُ كالغياب."""
         teacher = _staff(school, 1)
         vice_admin = _actor(school, "vice_admin")
         permit = _permit(school, teacher, FEB, time(7, 0), time(8, 0), "late_arrival", None)
@@ -1890,23 +1895,24 @@ class TestSpecAlignment:
         ("check_out", "windows", "expected"),
         [
             (time(11, 0), [], 180),  # بلا تغطية: حتّى 14:00 (السياسة 1.1)
-            (time(9, 30), [(time(10, 0), time(11, 0))], 30),  # حتّى بدء الاستئذان
+            (time(9, 30), [(time(10, 0), time(11, 0))], 210),  # م-5: الاستئذانُ يغطّي ساعتَه وحدَها
             (time(11, 0), [(time(13, 0), time(14, 0))], 120),  # حتّى بدء الخروج المبكر
             (time(12, 30), [(time(12, 0), time(14, 0))], 0),  # انصرف داخل نافذته
             (time(12, 0), [(time(10, 0), time(11, 0))], 120),  # نافذةٌ انقضت قبل انصرافه
         ],
     )
-    def test_early_leave_runs_to_the_nearer_of_two_and_the_cover_start(
-        self, check_out, windows, expected
-    ):
-        """م-8 (السياسة 1.1 «وينتهي في تمام الثانية ظهراً» وعنوان البند 4): من الانصراف إلى
-        أقرب اللحظتين بين 14:00 وبدء التغطية المعتمدة، بالتناظر مع م-6."""
+    def test_early_leave_counts_what_no_window_covers_until_two(self, check_out, windows, expected):
+        """م-8 وم-5 (السياسة 1.1 «وينتهي في تمام الثانية ظهراً» وعنوان البند 4): التغطيةُ
+        الممتدّة إلى 14:00 تحدّ العدَّ عند بدئها (نصّ م-8)، والنافذةُ في وسط الدوام تغطّي
+        دقائقَها وحدَها (م-5)."""
         from staff_affairs.attendance import early_leave_minutes
 
         assert early_leave_minutes(check_out, windows) == expected
 
-    def test_a_departure_before_a_day_permit_counts_to_its_start(self, school, principal_user):
-        """م-8 على الرصد: استئذانٌ 10:00–11:00 معتمد وانصرافٌ 9:30 ← 30 دقيقة."""
+    def test_a_departure_before_a_day_permit_counts_all_but_its_window(
+        self, school, principal_user
+    ):
+        """م-8 وم-5 على الرصد: استئذانٌ 10:00–11:00 معتمد وانصرافٌ 9:30 ← 270 − 60 = 210."""
         staff = _staff(school, 1)
         _approved_window(school, staff, FEB, time(10, 0), time(11, 0))
         record = StaffAttendanceService.mark(
@@ -1918,7 +1924,7 @@ class TestSpecAlignment:
             check_in=time(6, 50),
             check_out=time(9, 30),
         )
-        assert record.early_leave_minutes == 30
+        assert record.early_leave_minutes == 210
 
     # ── م-9: يومُ الغياب بلا دقائق تأخّرٍ ولا خروجٍ مبكر ─────────────────────
     def test_an_absent_day_carries_neither_late_nor_early_minutes(self, school, principal_user):
@@ -2265,3 +2271,218 @@ class TestSpecAlignment:
         assert "إنابة كاملة *(تفسير المستخرِج" in matrix  # ز-7
         cards = (base / "03_job_descriptions_rbac.md").read_text(encoding="utf-8")
         assert "صلاحية إنابة صريحة عن مدير المدرسة** في حال غيابه *(تفسير المستخرِج" in cards
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  جولةُ الإصلاح 4 — عيوبُ المراجعة، كلٌّ باختبارٍ يسقط قبل الإصلاح
+# ══════════════════════════════════════════════════════════════════════
+
+#: نوعُ يوم غيابٍ من سجلّ الغياب («عارضة»).
+ABSENCE_KEY = "casual"
+
+
+class TestRoundFour:
+    # ── م-7 وم-24: النائبُ الإداريّ يقبل العذرَ من الشاشة حين ينوب ─────────────
+    def test_the_admin_deputy_accepts_an_excuse_from_the_board_when_standing_in(
+        self, client_as, school, principal_user
+    ):
+        """م-24 (بطاقة 1034: «الإنابة عن المدير في مهامه في حال غيابه») تشمل قبولَ العذر
+        في م-7 — فالشاشةُ تُفتح له حين تقوم الإنابة، وتُغلق دونه والمديرُ حاضر."""
+        staff, vice_admin = _staff(school, 1), _actor(school, "vice_admin")
+        client = client_as(vice_admin)
+        url = reverse("staff_affairs:attendance_mark")
+        post = {
+            "staff_id": staff.pk,
+            "date": "2026-02-15",
+            "status": "late",
+            "check_in": "09:30",
+            "accepted_excuse": "تعطّل السيارة",
+        }
+
+        board = client.get(reverse("staff_affairs:attendance_board"), {"date": "2026-02-15"})
+        assert board.status_code == 200 and f"sa-att-{staff.pk}" not in board.content.decode()
+        assert client.post(url, post).status_code == 403
+        with pytest.raises(PolicyError, match="م-24"):
+            _mark(school, _staff(school, 2), vice_admin, FEB, "absent")
+
+        _mark(school, principal_user, _actor(school, "secretary"), DEFAULT_NOW.date(), "absent")
+        board = client.get(reverse("staff_affairs:attendance_board"), {"date": "2026-02-15"})
+        assert f"sa-att-{staff.pk}" in board.content.decode()
+        assert client.post(url, post).status_code == 200
+        record = StaffAttendance.objects.get(staff=staff, date=DEFAULT_NOW.date())
+        assert (record.status, record.late_minutes) == ("late", 150)
+        assert (record.excuse_accepted_by, record.excuse_on_behalf) == (vice_admin, True)
+        assert AuditLog.objects.filter(
+            object_id=str(record.pk), changes__delegation_basis="principal_absent"
+        ).exists()
+
+    # ── م-8 وم-5: لا يُسقط استئذانٌ بعد الانصراف بقيّةَ اليوم ─────────────────
+    @pytest.mark.parametrize(
+        ("check_out", "windows", "expected"),
+        [
+            (time(10, 5), [(time(10, 0), time(11, 0))], 180),  # 11:00–14:00 بلا إذن
+            (time(9, 30), [(time(9, 31), time(9, 32))], 269),  # إذنُ دقيقةٍ يغطّي دقيقة
+            (time(11, 0), [(time(12, 0), time(14, 0)), (time(13, 0), time(14, 0))], 60),
+            (time(14, 0), [], 0),
+        ],
+    )
+    def test_a_window_covers_its_own_minutes_only(self, check_out, windows, expected):
+        """م-5: «الإذن يغطّي نافذته المعتمدة وحدها، ولا يلحق اليوم كلّه» — وم-8 بتناظر م-6."""
+        from staff_affairs.attendance import early_leave_minutes
+
+        assert early_leave_minutes(check_out, windows) == expected
+
+    # ── م-30: قرارُ نموذج 03 لا يكتب فوق قرارٍ سبقه ────────────────────────
+    def test_a_form_03_decision_does_not_overwrite_a_simultaneous_one(
+        self, school, principal_user, monkeypatch
+    ):
+        """م-30 وم-24: المديرُ ونائبُه في غيابه يريان الطلبَ معاً — فالقرارُ الثاني يُردّ."""
+        from staff_affairs.attendance import ExceptionService
+        from staff_affairs.models import AttendanceException
+
+        staff = _staff(school, 1)
+        request = _exception(
+            school, staff, principal_user, "late_arrival", FEB, FEB, time(7, 30), approve=None
+        )
+        real = ExceptionService._deciders
+
+        def _approved_meanwhile(school_, applicant):
+            AttendanceException.objects.filter(pk=request.pk).update(
+                status="approved", feedback="سبقه قرار"
+            )
+            return real(school_, applicant)
+
+        monkeypatch.setattr(ExceptionService, "_deciders", staticmethod(_approved_meanwhile))
+        with CaptureQueriesContext(connection) as queries:
+            with pytest.raises(PolicyError, match="للتوّ"):
+                ExceptionService.decide(request, actor=principal_user, approve=False, feedback="لا")
+        request.refresh_from_db()
+        # الكتابةُ المحاكاةُ في المعاملة نفسِها فتُطوى معها — والمهمّ أنّ «مرفوض» لم يُكتب.
+        assert request.status != "rejected"
+        assert any(
+            "FOR UPDATE" in q["sql"] and "staff_affairs_attendanceexception" in q["sql"]
+            for q in queries.captured_queries
+        )
+
+    # ── م-7: قبولُ العذر لا يُنقل إلى وقتٍ آخر ─────────────────────────────
+    def test_a_recorder_cannot_move_an_accepted_excuse_to_another_time(
+        self, school, principal_user
+    ):
+        """م-7: جهةُ القبول المديرُ أو من ينوب عنه — وقبولُه لحضور 09:10 لا يمتدّ إلى 13:30."""
+        staff, secretary = _staff(school, 1), _actor(school, "secretary")
+        base = {
+            "school": school,
+            "staff": staff,
+            "day": FEB,
+            "status": "late",
+            "accepted_excuse": "تعطّل السيارة",
+        }
+        StaffAttendanceService.mark(**base, actor=principal_user, check_in=time(9, 10))
+        with pytest.raises(PolicyError, match="قبولاً جديداً"):
+            StaffAttendanceService.mark(**base, actor=secretary, check_in=time(13, 30))
+        record = StaffAttendance.objects.get(staff=staff, date=FEB)
+        assert (record.check_in, record.late_minutes) == (time(9, 10), 130)
+
+        without = {**base, "status": "absent", "accepted_excuse": ""}
+        record = StaffAttendanceService.mark(**without, actor=secretary, check_in=time(13, 30))
+        assert (record.status, record.excuse_accepted_by) == ("absent", None)
+        record = StaffAttendanceService.mark(**base, actor=principal_user, check_in=time(13, 30))
+        assert (record.status, record.late_minutes) == ("late", 390)
+        assert record.excuse_accepted_by == principal_user
+
+    # ── م-25 وم-4: رصدُ المدير غائباً يُقيم الإنابة — فيُقيَّد ويُكشف ────────────
+    def test_absence_is_not_marked_for_today_before_nine_without_its_type(
+        self, school, principal_user
+    ):
+        """م-4 (السياسة 2.4 «إذا حضر بعد الساعة التاسعة»): قبل التاسعة لا غيابَ ثابتاً
+        لليوم — إلّا بنوعه من سجلّ الغياب — فلا تقوم به إنابةٌ مبكّرة (م-25)."""
+        secretary, vice_admin = _actor(school, "secretary"), _actor(school, "vice_admin")
+        with _at(datetime(2026, 2, 15, 8, 30)):
+            with pytest.raises(PolicyError, match="التاسعة"):
+                _mark(school, principal_user, secretary, date(2026, 2, 15), "absent")
+            assert not StaffAttendanceService.can_record(school, vice_admin)
+            on_leave = StaffAttendanceService.mark(
+                school=school,
+                staff=principal_user,
+                day=date(2026, 2, 15),
+                status="absent",
+                actor=secretary,
+                absence_type=ABSENCE_KEY,
+            )
+            assert on_leave.absence_type == ABSENCE_KEY
+            _mark(school, _staff(school, 1), secretary, date(2026, 2, 14), "absent")  # يومٌ مضى
+
+    def test_marking_the_principal_absent_tells_him_and_links_the_decisions(
+        self, school, principal_user
+    ):
+        """م-25: الإنابةُ تقوم برصد غيابه — فيُخطَر فوراً، ويحمل كلُّ قرارٍ بالإنابة سجلَّ
+        الغياب ومن رصده، فلا ينفصل القرارُ عن البيان الذي أقامه."""
+        from notifications.models import InAppNotification
+
+        teacher = _staff(school, 1)
+        vice_admin, secretary = _actor(school, "vice_admin"), _actor(school, "secretary")
+        permit = _permit(school, teacher, FEB, time(7, 0), time(8, 0), "late_arrival", None)
+        for actor in (secretary, _actor(school, "vice_academic")):
+            PermitService.act(permit, actor=actor, approve=True)
+            permit.refresh_from_db()
+
+        absence = _mark(school, principal_user, secretary, DEFAULT_NOW.date(), "absent")
+        assert InAppNotification.objects.filter(
+            user=principal_user, related_object_id=str(absence.pk)
+        ).exists()
+        assert AuditLog.objects.filter(
+            object_id=str(absence.pk), changes__delegation_trigger=True
+        ).exists()
+
+        PermitService.act(permit, actor=vice_admin, approve=True)
+        entry = AuditLog.objects.get(object_id=str(permit.pk), changes__on_behalf_of="principal")
+        assert entry.changes["delegation_basis"] == "principal_absent"
+        assert entry.changes["absence_records"] == [str(absence.pk)]
+        assert entry.changes["absence_marked_by"] == [str(secretary.pk)]
+
+    # ── م-35 وم-36: بطاقاتُ التقرير لا تُقصّ ──────────────────────────────
+    def test_each_report_card_carries_one_short_figure(self, client_as, school, principal_user):
+        """م-35 وم-36: «غُطّي بعد المهلة» رقمٌ في بطاقته — لا ذيلٌ يُقصّ بنقاط في حاشية."""
+        _staff(school, 1)
+        html = (
+            client_as(principal_user)
+            .get(reverse("staff_affairs:attendance_report"), {"month": "2026-02"})
+            .content.decode()
+        )
+        subs = re.findall(r'class="ui-kpi__sub">([^<]*)<', html)
+        labels = re.findall(r'class="ui-kpi__label">([^<]*)<', html)
+        assert "غُطّي بعد المهلة" in labels
+        assert subs and all("·" not in sub and len(sub) <= 20 for sub in subs), subs
+
+    # ── الهجرة: أثرُ 0003_wave3g المحذوفة في قواعد الجلسات الشقيقة ─────────────
+    def test_the_orphan_wave3g_migration_is_cleared_before_the_tables_are_built(self):
+        """قواعدُ جلساتٍ طُبّقت فيها 0003_wave3g (644e2880) تسقط بـ«already exists» — فتُزال
+        جداولُها الفارغة وسجلُّها، ويتوقّف الحذفُ متى وُجدت بيانات."""
+        import importlib
+
+        module = importlib.import_module(
+            "staff_affairs.migrations.0003_staff_attendance_and_permits"
+        )
+        probe, name = "zz_orphan_probe", "0000_orphan_probe"
+        with connection.cursor() as cursor:
+            cursor.execute(f"CREATE TABLE {probe} (id integer)")
+            cursor.execute(
+                "INSERT INTO django_migrations (app, name, applied) VALUES (%s, %s, now())",
+                ["staff_affairs", name],
+            )
+            cursor.execute(f"INSERT INTO {probe} VALUES (1)")
+        with pytest.raises(RuntimeError, match="session-db"):
+            module.clear_orphan(connection, name, (probe,))
+        with connection.cursor() as cursor:
+            assert probe in connection.introspection.table_names(cursor)
+            cursor.execute(f"DELETE FROM {probe}")
+
+        module.clear_orphan(connection, name, (probe,))
+        with connection.cursor() as cursor:
+            assert probe not in connection.introspection.table_names(cursor)
+            cursor.execute(
+                "SELECT count(*) FROM django_migrations WHERE app = %s AND name = %s",
+                ["staff_affairs", name],
+            )
+            assert cursor.fetchone()[0] == 0
+        module.clear_orphan(connection, name, (probe,))  # بلا سجلٍّ: لا شيء

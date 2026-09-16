@@ -12,7 +12,7 @@ from uuid import UUID
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, PermissionDenied
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -98,15 +98,28 @@ def _month(raw: str | None) -> tuple[int, int]:
 @login_required
 @capability_required("staff_affairs.attendance_record")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 def attendance_board(request: HttpRequest) -> HttpResponse:
-    """رصدُ اليوم: الكادرُ كلُّه، وحالةُ كلٍّ بنقرة."""
+    """رصدُ اليوم: الكادرُ كلُّه، وحالةُ كلٍّ بنقرة.
+
+    ونائبُ الشؤون الإدارية يصل إليها دائماً، ولا يرى الكادرَ ولا يرصد إلّا حين ينوب عن
+    المدير (م-24) — وإلّا فرسالةٌ تقول متى تُفتح له.
+    """
     day = _day(request.GET.get("date"))
-    board = StaffAttendanceService.daily_board(_school(request), day)
-    for row in board["rows"]:
-        row["values"] = _row_values(row["record"])
+    can_record = StaffAttendanceService.can_record(_school(request), _user(request))
+    board: dict[str, Any] = {"rows": [], "counts": {}}
+    if can_record:
+        board = StaffAttendanceService.daily_board(_school(request), day)
+        for row in board["rows"]:
+            row["values"] = _row_values(row["record"])
     return render(
         request,
         "staff_affairs/attendance_board.html",
-        {"day": day, "today": timezone.localdate(), "absence_types": ABSENCE_TYPES, **board},
+        {
+            "day": day,
+            "today": timezone.localdate(),
+            "absence_types": ABSENCE_TYPES,
+            "can_record": can_record,
+            **board,
+        },
     )
 
 
@@ -119,6 +132,8 @@ def attendance_mark(request: HttpRequest) -> HttpResponse:
     if not form.is_valid():
         raise Http404("رصدٌ ناقص")
     data = form.cleaned_data
+    if not StaffAttendanceService.can_record(_school(request), _user(request)):
+        raise PermissionDenied("الرصدُ لنائب الشؤون الإدارية حين ينوب عن المدير وحدَه (م-24)")
     try:
         row = StaffAttendanceService.board_row(_school(request), data["staff_id"], data["date"])
     except ObjectDoesNotExist as exc:  # موظّفٌ من غير هذه المدرسة لا يُكشف وجودُه
