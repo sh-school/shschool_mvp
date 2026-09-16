@@ -3,18 +3,27 @@
    والأصلُ غيرُ المبصوم لا يُخدَم من الذاكرة أوّلاً: عنوانُه ثابتٌ ومحتواه
    يتغيّر، فيبقى القديمُ إلى الأبد ولا يُقرأ `Cache-Control` أصلاً — عاملُ
    الخدمة أمام الشبكة والترويسات. انظر `templates/pwa/sw_global.js`. */
-const CACHE_NAME = 'schoolos-parents-v2';
+/* v3: رفعُ الاسم يمحو في `activate` ما خزّنته v2 من صفحاتٍ شخصيّة. */
+const CACHE_NAME = 'schoolos-parents-v3';
 const OFFLINE_URL = '/parents/offline/';
 
-/* لا يُخزَّن مسبقاً إلّا ما لا يشيخ — والأصولُ في التطوير غيرُ مبصومة. */
+/* لا يُخزَّن مسبقاً إلّا ما لا يشيخ — والأصولُ في التطوير غيرُ مبصومة.
+   و`/parents/` نفسُها ليست هنا: هي لوحةُ أبناء المستخدم، لا صفحةٌ عامّة. */
 const CACHE_ASSETS = [
-  '/parents/',
   '/parents/offline/',
 ];
 
 /* بصمةُ المحتوى: `name.<hex8+>.ext` — ما يكتبه manifest storage. */
 const FINGERPRINTED = /\.[0-9a-f]{8,}\.[a-z0-9]+$/i;
 const isFingerprinted = (url) => FINGERPRINTED.test(url.split('?')[0].split('#')[0]);
+
+/* ما يخرج بـ`no-store` لا يدخل الذاكرة: درجاتُ الابن وحضورُه وسلوكُه صفحاتٌ
+   شخصيّة (`PrivateHtmlNoStoreMiddleware`)، وعاملُ الخدمة يجلس أمام الترويسة
+   فلا يحترمها المتصفّحُ عنه. والبوّابةُ صارت تُفتح للكادر الذي هو وليُّ أمر
+   (2026-09-16) — وأجهزتُه كثيراً ما تكون مشتركةً في غرفة المعلّمين، فتبقى
+   الصفحةُ بعد الخروج ويخدمها العاملُ لمن يليه إن انقطعت الشبكة. */
+const isStorable = (res) =>
+  !!res && res.ok && !/no-store/i.test(res.headers.get('Cache-Control') || '');
 
 /* ── Install: cache core assets ── */
 self.addEventListener('install', event => {
@@ -58,8 +67,10 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       fetch(event.request)
         .then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          if (isStorable(response)) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+          }
           return response;
         })
         .catch(async () => {
@@ -76,7 +87,7 @@ self.addEventListener('fetch', event => {
   if (isFingerprinted(event.request.url)) {
     event.respondWith(
       caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
-        if (res && res.ok) {
+        if (isStorable(res)) {
           const clone = res.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
@@ -88,7 +99,7 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     fetch(event.request)
       .then(res => {
-        if (res && res.ok) {
+        if (isStorable(res)) {
           const clone = res.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }

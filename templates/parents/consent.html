@@ -44,6 +44,11 @@
         <a href="{% if request.user.is_staff_member %}{% url 'dashboard' %}{% else %}{% url 'parent_dashboard' %}{% endif %}" class="btn-ghost">إلغاء</a>
         <button type="submit" class="btn-primary">{% icon "confirm" %} حفظ الإعدادات</button>
       </div>
+    {% elif request.user.is_staff_member %}
+      {# كادرٌ عضويّتُه وليُّ أمرٍ بلا ابنٍ مربوطٍ بعد: لا شيءَ يوافق عليه، فلا يُحبس هنا. #}
+      <div class="form-actions">
+        <a href="{% url 'dashboard' %}" class="btn-ghost">العودة إلى عملي</a>
+      </div>
     {% endif %}
   </form>
 

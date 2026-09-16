@@ -155,7 +155,10 @@ def test_teacher_parent_opening_the_portal_meets_the_consent_page(teacher_parent
     assert page.status_code == 200
     body = page.content.decode()
     assert kid.full_name in body
-    assert 'type="submit"' in body
+    # زرُّ النموذج نفسُه ومفتاحُ الابن — لا `type="submit"` العامّ، فزرُّ الخروج في
+    # القالب الأساسيّ يحمله في كلّ صفحة.
+    assert f'name="consent_{kid.id}_grades"' in body
+    assert "حفظ الإعدادات" in body
     # «إلغاء» يعيده إلى عمله لا إلى البوّابة التي تردّه هنا.
     assert f'href="{reverse("dashboard")}" class="btn-ghost"' in body
 
@@ -164,6 +167,25 @@ def test_pure_parent_consent_cancel_still_points_to_the_portal(pure_parent):
     body = _client(pure_parent).get(CONSENT_URL).content.decode()
 
     assert f'href="{reverse("parent_dashboard")}" class="btn-ghost"' in body
+
+
+def test_staff_parent_without_a_linked_child_can_leave_the_consent_page(school):
+    """عضويّةُ وليّ أمرٍ بلا ربط: لا شيءَ يوافق عليه — فلا يُحبس في صفحةٍ بلا مخرج."""
+    lonely = _member(school, "teacher", "parent")
+
+    body = _client(lonely).get(CONSENT_URL).content.decode()
+
+    assert "حفظ الإعدادات" not in body
+    assert f'href="{reverse("dashboard")}" class="btn-ghost"' in body
+
+
+def test_pure_parent_without_a_linked_child_page_is_unchanged(school):
+    lonely = _member(school, "parent")
+
+    body = _client(lonely).get(CONSENT_URL).content.decode()
+
+    assert "حفظ الإعدادات" not in body
+    assert 'class="btn-ghost"' not in body
 
 
 def test_after_consent_the_teacher_sees_only_their_own_child(school, teacher_parent, kid):
@@ -299,6 +321,49 @@ def test_my_portal_link_is_absent_for_a_plain_teacher(teacher_user):
     body = _client(teacher_user).get("/dashboard/").content.decode()
 
     assert 'id="nav-my-portal"' not in body
+    assert 'id="mnav-my-portal"' not in body
+
+
+@pytest.mark.parametrize("role_name", ["principal", "vice_admin"])
+def test_my_portal_link_is_absent_for_leadership_without_a_parent_membership(school, role_name):
+    """القيادةُ تفتح البوّابةَ بدورها — فالعضويّةُ وحدَها ما يُخفي الرابطَ عنها.
+
+    ولولاها لظهرت «بوابتي» للمدير، ونقرُها ٤٠٣ «لأولياء الأمور فقط».
+    """
+    leader = _member(school, role_name)
+
+    body = _client(leader).get("/dashboard/").content.decode()
+
+    assert 'id="nav-my-portal"' not in body
+    assert 'id="mnav-my-portal"' not in body
+    assert "بوابتي" not in body
+
+
+def test_my_portal_link_shows_in_the_mobile_nav_for_a_leader_who_is_a_parent(vice_admin_parent):
+    body = _client(vice_admin_parent).get("/dashboard/").content.decode()
+
+    assert 'id="nav-my-portal"' in body
+    assert 'id="mnav-my-portal"' in body
+
+
+def _mobile_portal_anchor(body):
+    start = body.index('id="mnav-my-portal"')
+    return body[start : body.index(">", start)]
+
+
+def test_mobile_portal_is_not_lit_on_the_links_admin_screen(principal_parent):
+    body = _client(principal_parent).get("/parents/admin/links/").content.decode()
+
+    assert "active" not in _mobile_portal_anchor(body)
+
+
+def test_mobile_portal_is_lit_inside_the_portal(teacher_parent):
+    teacher_parent.consent_given_at = timezone.now()
+    teacher_parent.save(update_fields=["consent_given_at"])
+
+    body = _client(teacher_parent).get("/parents/").content.decode()
+
+    assert "active" in _mobile_portal_anchor(body)
 
 
 # ── السياسةُ نفسُها ─────────────────────────────────────────────────

@@ -998,7 +998,8 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
     </a>
     {% endif %}
     {% elif request.user.has_parent_membership and request.user|can_open:"parent_dashboard" %}
-    <a href="{% url 'parent_dashboard' %}" class="mobile-nav-item {% if 'parents' in request.path %}active{% endif %}">
+    {# لا تُضاء على `/parents/admin/`: تلك شاشةُ ربطٍ للإدارة، لا بوّابتُه هو. #}
+    <a href="{% url 'parent_dashboard' %}" id="mnav-my-portal" class="mobile-nav-item {% if request.path|slice:':9' == '/parents/' and '/parents/admin/' not in request.path %}active{% endif %}">
       <span class="mobile-nav-icon">{% icon "children" %}</span><span>بوابتي</span>
     </a>
     {% endif %}
