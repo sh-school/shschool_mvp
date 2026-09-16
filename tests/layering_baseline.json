@@ -175,7 +175,7 @@
   "transport": 3,
   "wings": 5
  },
- "definition": 4,
+ "definition": 5,
  "get_school": {
   "academic_management/assignment_views.py": 1,
   "academic_management/views.py": 6,
@@ -204,97 +204,121 @@
  },
  "views": {
   "academic_management/assignment_views.py::_card": {
-   "orm": 21
+   "orm": 42
   },
   "academic_management/assignment_views.py::_card_rows": {
    "orm": 10
+  },
+  "academic_management/assignment_views.py::_coverage": {
+   "orm": 8
   },
   "academic_management/assignment_views.py::_department_key": {
    "orm": 11
   },
   "academic_management/assignment_views.py::_guard": {
-   "orm": 11
+   "orm": 15
   },
   "academic_management/assignment_views.py::_locked_card": {
-   "orm": 26
+   "orm": 47
   },
   "academic_management/assignment_views.py::_render_card": {
-   "orm": 26
+   "orm": 47
   },
   "academic_management/assignment_views.py::_rows_by_teacher": {
    "orm": 8
   },
   "academic_management/assignment_views.py::_stale_card_html": {
-   "orm": 24
+   "orm": 45
   },
   "academic_management/assignment_views.py::add_row": {
    "lines": 85,
-   "orm": 44
+   "orm": 109
   },
   "academic_management/assignment_views.py::assignments": {
    "lines": 69,
-   "orm": 46
+   "orm": 79
   },
   "academic_management/assignment_views.py::cancel_transfer": {
-   "orm": 38
+   "orm": 63
   },
   "academic_management/assignment_views.py::move": {
-   "orm": 38
+   "orm": 69
   },
   "academic_management/assignment_views.py::remove_row": {
-   "orm": 38
+   "orm": 68
   },
   "academic_management/assignment_views.py::set_department": {
-   "orm": 43
+   "orm": 68
   },
   "academic_management/assignment_views.py::set_load": {
-   "orm": 38
+   "orm": 69
   },
   "academic_management/assignment_views.py::set_parallel": {
-   "orm": 46
+   "orm": 71
   },
   "academic_management/assignment_views.py::subject_options": {
-   "orm": 15
+   "orm": 22
   },
   "academic_management/assignment_views.py::toggle_double": {
-   "orm": 39
+   "orm": 64
   },
   "academic_management/assignment_views.py::toggle_preparation": {
-   "orm": 42
+   "orm": 77
   },
   "academic_management/assignment_views.py::update_periods": {
-   "orm": 38
+   "orm": 96
   },
   "analytics/views.py::api_attendance_trend": {
    "orm": 6
   },
+  "analytics/views.py::api_class_comparison": {
+   "orm": 9
+  },
   "analytics/views.py::api_clinic_stats": {
    "orm": 6
   },
+  "analytics/views.py::api_failing_by_class": {
+   "orm": 9
+  },
+  "analytics/views.py::api_grades_distribution": {
+   "orm": 7
+  },
+  "analytics/views.py::api_plan_progress": {
+   "orm": 7
+  },
   "analytics/views.py::api_subject_comparison": {
-   "orm": 6
+   "orm": 10
+  },
+  "analytics/views.py::kpi_monthly_pdf": {
+   "orm": 11
   },
   "api/views.py::BorrowingListView.get_queryset": {
    "orm": 8
+  },
+  "api/views.py::StudentListView.get_queryset": {
+   "orm": 8
+  },
+  "api/views.py::class_list": {
+   "orm": 9
   },
   "api/views.py::notification_list": {
    "orm": 9
   },
   "api/views.py::parent_child_grades": {
-   "orm": 7
+   "orm": 11
   },
   "api/views.py::student_attendance": {
-   "orm": 15
+   "orm": 19
   },
   "api/views.py::student_grades": {
-   "orm": 16
+   "orm": 20
   },
   "api/views_erasure.py::create_erasure_request": {
    "orm": 9
   },
   "assessments/views.py::assessments_dashboard": {
    "lines": 65,
-   "orm": 18
+   "orm": 22
   },
   "assessments/views.py::class_gradebook": {
    "lines": 110,
@@ -312,32 +336,51 @@
    "orm": 17
   },
   "assessments/views.py::setup_subject": {
+   "orm": 21
+  },
+  "assessments/views.py::student_report": {
+   "orm": 21
+  },
+  "behavior/views.py::_deny_unreachable": {
    "orm": 17
   },
   "behavior/views.py::_get_scoped_students": {
-   "orm": 7
+   "orm": 24
   },
   "behavior/views.py::_quick_log_context": {
-   "orm": 10
+   "orm": 27
+  },
+  "behavior/views.py::_visible_student_ids": {
+   "orm": 17
   },
   "behavior/views.py::behavior_dashboard": {
    "lines": 77,
-   "orm": 19
+   "orm": 36
   },
   "behavior/views.py::behavior_report": {
-   "lines": 70
+   "lines": 70,
+   "orm": 18
+  },
+  "behavior/views.py::behavior_statistics": {
+   "orm": 17
   },
   "behavior/views.py::quick_log": {
    "lines": 98,
-   "orm": 13
+   "orm": 30
   },
   "behavior/views.py::report_infraction": {
    "lines": 112,
-   "orm": 14
+   "orm": 31
+  },
+  "behavior/views.py::student_behavior_pdf": {
+   "orm": 22
+  },
+  "behavior/views.py::student_behavior_profile": {
+   "orm": 18
   },
   "behavior/views.py::summon_parent": {
    "lines": 153,
-   "orm": 17
+   "orm": 34
   },
   "breach/views.py::dashboard": {
    "orm": 7
@@ -356,23 +399,23 @@
   },
   "core/views_auth.py::login_view": {
    "lines": 91,
-   "orm": 13
+   "orm": 22
   },
   "core/views_auth.py::verify_2fa": {
    "lines": 71,
    "orm": 12
   },
   "core/views_dashboard.py::_get_activities_ctx": {
-   "orm": 8
+   "orm": 12
   },
   "core/views_dashboard.py::_get_therapist_ctx": {
-   "orm": 6
+   "orm": 9
   },
   "core/views_dashboard.py::_get_transport_ctx": {
    "orm": 6
   },
   "core/views_dashboard.py::dashboard": {
-   "orm": 21
+   "orm": 28
   },
   "core/views_health.py::status_check": {
    "lines": 77
@@ -387,22 +430,31 @@
    "lines": 113,
    "orm": 19
   },
+  "core/views_students.py::_enroll_student_in_class": {
+   "orm": 9
+  },
   "core/views_students.py::_process_import": {
    "lines": 108,
-   "orm": 17
+   "orm": 21
   },
   "core/views_students.py::student_export_excel": {
    "lines": 118,
-   "orm": 10
+   "orm": 14
   },
   "core/views_students.py::student_import_export": {
-   "orm": 23
+   "orm": 27
   },
   "core/views_students.py::student_import_template": {
    "lines": 95
   },
   "developer_feedback/views.py::DeveloperInboxListView.get_queryset": {
    "orm": 9
+  },
+  "exam_control/views.py::_present_session": {
+   "orm": 6
+  },
+  "exam_control/views.py::dashboard": {
+   "orm": 6
   },
   "exam_control/views.py::grade_sheets": {
    "orm": 6
@@ -421,7 +473,7 @@
    "orm": 10
   },
   "exam_control/views.py::session_report_pdf": {
-   "orm": 13
+   "orm": 17
   },
   "exam_control/views.py::supervisors": {
    "orm": 12
@@ -431,6 +483,9 @@
   },
   "library/views.py::borrow_book": {
    "orm": 11
+  },
+  "notifications/views.py::notifications_dashboard": {
+   "orm": 10
   },
   "operations/api_views.py::student_search_api": {
    "orm": 8
@@ -444,77 +499,81 @@
   },
   "operations/views_attendance.py::schedule": {
    "lines": 122,
-   "orm": 29
+   "orm": 33
   },
   "operations/views_schedule.py::_browse_lists": {
-   "orm": 8
+   "orm": 12
   },
   "operations/views_schedule.py::_pages_payload": {
-   "orm": 11
+   "orm": 15
   },
   "operations/views_schedule.py::_reap_stale_generations": {
    "orm": 6
   },
   "operations/views_schedule.py::_schedule_print_payload": {
-   "orm": 12
+   "orm": 20
   },
   "operations/views_schedule.py::_schedule_print_selection": {
    "lines": 104,
-   "orm": 12
+   "orm": 16
   },
   "operations/views_schedule.py::absence_detail": {
    "orm": 7
   },
   "operations/views_schedule.py::add_exemption": {
-   "lines": 104
+   "lines": 104,
+   "orm": 7
+  },
+  "operations/views_schedule.py::exemption_grid": {
+   "orm": 7
   },
   "operations/views_schedule.py::register_teacher_absence": {
    "orm": 11
   },
   "operations/views_schedule.py::schedule_export_excel": {
-   "orm": 12
+   "orm": 20
   },
   "operations/views_schedule.py::schedule_export_pdf": {
-   "orm": 12
+   "orm": 20
   },
   "operations/views_schedule.py::schedule_pages": {
-   "orm": 11
+   "orm": 15
   },
   "operations/views_schedule.py::schedule_pages_paper": {
-   "orm": 11
+   "orm": 15
   },
   "operations/views_schedule.py::schedule_pages_pdf": {
-   "orm": 11
+   "orm": 15
   },
   "operations/views_schedule.py::schedule_print": {
-   "orm": 12
+   "orm": 20
   },
   "operations/views_schedule.py::schedule_quality_lab": {
    "lines": 107,
-   "orm": 6
+   "orm": 10
   },
   "operations/views_schedule.py::schedule_settings": {
-   "orm": 16
+   "orm": 20
   },
   "operations/views_schedule.py::smart_generate": {
-   "orm": 9
+   "orm": 13
   },
   "operations/views_schedule.py::smart_generate_status": {
-   "orm": 10
+   "orm": 14
   },
   "operations/views_schedule.py::smart_schedule_view": {
    "lines": 97,
-   "orm": 20
+   "orm": 24
   },
   "operations/views_schedule.py::teacher_load_report": {
-   "orm": 9
+   "orm": 13
   },
   "operations/views_schedule.py::teacher_preferences": {
    "lines": 90,
-   "orm": 9
+   "orm": 13
   },
   "operations/views_schedule.py::weekly_schedule": {
-   "orm": 12
+   "orm": 16
   },
   "operations/views_swap.py::compensatory_list": {
    "orm": 9
@@ -541,16 +600,22 @@
   },
   "parents/views.py::manage_parent_links": {
    "lines": 145,
-   "orm": 47
+   "orm": 52
   },
   "parents/views.py::parent_all_attendance": {
    "orm": 7
+  },
+  "parents/views.py::parent_all_grades": {
+   "orm": 8
   },
   "parents/views.py::parent_behavior": {
    "orm": 7
   },
   "parents/views.py::student_attendance": {
-   "orm": 8
+   "orm": 12
+  },
+  "parents/views.py::student_grades": {
+   "orm": 9
   },
   "quality/evaluation_views.py::_get_axes_for_employee": {
    "orm": 10
@@ -560,100 +625,142 @@
   },
   "quality/evaluation_views.py::create_evaluation": {
    "lines": 66,
-   "orm": 19
+   "orm": 23
   },
   "quality/evaluation_views.py::evaluation_dashboard": {
-   "orm": 20
+   "orm": 24
   },
   "quality/observation_views.py::_form_context": {
-   "orm": 9
+   "orm": 13
   },
   "quality/observation_views.py::_form_lists": {
-   "orm": 9
+   "orm": 13
   },
   "quality/observation_views.py::observation_create": {
-   "orm": 15
+   "orm": 19
   },
   "quality/observation_views.py::observation_edit": {
-   "orm": 17
+   "orm": 21
   },
   "quality/observation_views.py::observation_list": {
    "lines": 71,
-   "orm": 17
+   "orm": 18
+  },
+  "quality/observation_views.py::observation_pdf": {
+   "orm": 12
   },
   "quality/observation_views.py::observation_peer_create": {
-   "orm": 14
+   "orm": 18
   },
   "quality/observation_views.py::observation_self_create": {
-   "orm": 11
+   "orm": 15
   },
   "quality/views.py::_build_procedure_qs": {
    "lines": 61,
    "orm": 15
   },
+  "quality/views.py::_can_review_procedure": {
+   "orm": 8
+  },
+  "quality/views.py::_can_view_procedure": {
+   "orm": 8
+  },
+  "quality/views.py::_get_reviewer_domain": {
+   "orm": 8
+  },
+  "quality/views.py::_is_review_member": {
+   "orm": 7
+  },
   "quality/views.py::_list_context": {
    "orm": 14
   },
   "quality/views.py::approve_procedure": {
-   "orm": 8
+   "orm": 12
   },
   "quality/views.py::domain_detail": {
-   "orm": 9
+   "orm": 13
   },
   "quality/views.py::execution_list": {
-   "orm": 29
+   "orm": 33
   },
   "quality/views.py::my_procedures": {
-   "orm": 10
+   "orm": 14
   },
   "quality/views.py::plan_dashboard": {
    "lines": 108,
-   "orm": 29
+   "orm": 43
   },
   "quality/views.py::procedure_detail": {
-   "orm": 16
+   "orm": 20
   },
   "quality/views.py::review_evaluate_modal": {
-   "orm": 8
+   "orm": 12
   },
   "quality/views.py::review_list": {
-   "orm": 37
+   "orm": 41
   },
   "quality/views.py::toggle_evidence_request": {
-   "orm": 8
+   "orm": 12
+  },
+  "quality/views.py::update_procedure_status": {
+   "orm": 7
   },
   "quality/views_committee.py::add_committee_member": {
-   "orm": 8
+   "orm": 12
   },
   "quality/views_committee.py::executor_committee": {
-   "orm": 9
+   "orm": 13
   },
   "quality/views_committee.py::executor_member_detail": {
-   "orm": 6
+   "orm": 10
   },
   "quality/views_committee.py::quality_committee": {
    "lines": 111,
-   "orm": 30
+   "orm": 34
   },
   "quality/views_executor.py::apply_all_mappings": {
-   "orm": 6
+   "orm": 10
   },
   "quality/views_executor.py::executor_mapping": {
    "lines": 65,
-   "orm": 16
+   "orm": 20
   },
   "quality/views_executor.py::save_executor_mapping": {
-   "orm": 8
+   "orm": 12
   },
   "quality/views_reports.py::progress_report": {
    "lines": 79,
-   "orm": 16
+   "orm": 20
+  },
+  "quality/views_reports.py::progress_report_pdf": {
+   "orm": 8
+  },
+  "reports/views.py::attendance_excel": {
+   "orm": 8
+  },
+  "reports/views.py::attendance_report_pdf": {
+   "orm": 9
+  },
+  "reports/views.py::class_certificates_pdf": {
+   "orm": 13
   },
   "reports/views.py::class_results_excel": {
-   "orm": 7
+   "orm": 11
+  },
+  "reports/views.py::class_results_pdf": {
+   "orm": 12
   },
   "reports/views.py::reports_index": {
-   "orm": 14
+   "orm": 18
+  },
+  "reports/views.py::student_annual_result_pdf": {
+   "orm": 12
+  },
+  "reports/views.py::student_certificate_pdf": {
+   "orm": 12
+  },
+  "reports/views.py::student_result_pdf": {
+   "orm": 12
   },
   "staff_affairs/views.py::attendance_daily_monitor": {
    "orm": 8
@@ -664,56 +771,100 @@
   "staff_affairs/views.py::leave_request_create": {
    "orm": 8
   },
+  "staff_affairs/views.py::staff_appoint": {
+   "orm": 12
+  },
+  "staff_affairs/views.py::staff_depart": {
+   "orm": 7
+  },
   "staff_affairs/views.py::staff_list": {
    "lines": 184,
-   "orm": 43
+   "orm": 44
   },
   "staff_affairs/views.py::staff_profile": {
    "lines": 74,
-   "orm": 8
+   "orm": 16
   },
   "staff_affairs/views.py::staff_profile_save": {
    "orm": 9
   },
   "staff_affairs/views.py::staff_reinstate": {
-   "orm": 6
+   "orm": 10
   },
   "staging/views.py::download_grade_template": {
    "lines": 105
   },
   "staging/views.py::import_grades_select": {
-   "orm": 11
+   "orm": 15
   },
   "staging/views.py::upload_grade_file": {
    "lines": 120,
    "orm": 11
   },
+  "student_affairs/views.py::activities_export_excel": {
+   "orm": 8
+  },
   "student_affairs/views.py::activity_add": {
-   "orm": 7
+   "orm": 11
   },
   "student_affairs/views.py::activity_edit": {
    "orm": 6
   },
   "student_affairs/views.py::activity_list": {
-   "orm": 6
+   "orm": 10
+  },
+  "student_affairs/views.py::attendance_overview_pdf": {
+   "orm": 8
+  },
+  "student_affairs/views.py::behavior_overview_pdf": {
+   "orm": 8
   },
   "student_affairs/views.py::student_add": {
-   "lines": 82
+   "lines": 82,
+   "orm": 7
   },
   "student_affairs/views.py::student_edit": {
-   "lines": 76
+   "lines": 76,
+   "orm": 9
+  },
+  "student_affairs/views.py::student_profile": {
+   "orm": 31
+  },
+  "student_affairs/views.py::student_profile_pdf": {
+   "orm": 9
+  },
+  "student_affairs/views.py::tardiness_pdf": {
+   "orm": 8
   },
   "student_affairs/views.py::tardiness_search_students": {
    "orm": 7
   },
   "student_affairs/views.py::transfer_create": {
-   "orm": 7
+   "orm": 11
   },
   "student_affairs/views.py::transfer_list": {
    "orm": 6
   },
   "student_affairs/views.py::transfer_review": {
    "orm": 8
+  },
+  "student_info/views.py::activities": {
+   "orm": 17
+  },
+  "student_info/views.py::note_create": {
+   "orm": 13
+  },
+  "student_info/views.py::notes": {
+   "orm": 17
+  },
+  "student_info/views.py::section_students": {
+   "orm": 12
+  },
+  "student_info/views.py::sections": {
+   "orm": 11
+  },
+  "student_info/views.py::student_file": {
+   "orm": 21
   },
   "transport/views.py::bus_detail": {
    "orm": 7
@@ -727,11 +878,54 @@
   "transport/views.py::student_assignments": {
    "orm": 7
   },
+  "wings/views.py::attendance_event_delete": {
+   "orm": 8
+  },
+  "wings/views.py::coverage_assign": {
+   "orm": 9
+  },
+  "wings/views.py::excuse_grant": {
+   "orm": 7
+  },
+  "wings/views.py::excuse_revoke": {
+   "orm": 7
+  },
+  "wings/views.py::exit_event_delete": {
+   "orm": 8
+  },
+  "wings/views.py::guardian_contact_log": {
+   "orm": 6
+  },
+  "wings/views.py::record_period": {
+   "orm": 38
+  },
   "wings/views.py::record_section": {
-   "lines": 67
+   "lines": 67,
+   "orm": 55
   },
   "wings/views.py::student_events": {
-   "orm": 15
+   "orm": 19
+  },
+  "wings/views_absence_file.py::_own_student": {
+   "orm": 6
+  },
+  "wings/views_absence_file.py::absence_file": {
+   "orm": 6
+  },
+  "wings/views_absence_file.py::absence_file_contact": {
+   "orm": 6
+  },
+  "wings/views_absence_file.py::absence_file_excuse": {
+   "orm": 7
+  },
+  "wings/views_register.py::_respond": {
+   "orm": 8
+  },
+  "wings/views_register.py::section_register_export": {
+   "orm": 29
+  },
+  "wings/views_register.py::wing_register_export": {
+   "orm": 30
   }
  }
 }

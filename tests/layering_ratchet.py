@@ -17,11 +17,16 @@
    (`Cover(...)`)، أو `request.user`، أو `form.save()` من مصنّفٍ مستورَد — أو حين يكون
    مديراً مرتبطاً على نسخةٍ لا يُعرف نوعُها: `photo_set.`، أو تابعاً لا نظيرَ له في
    القاموس على صفةِ نسخة (`student.enrollments.first()`)، أو بوسائطَ لا يقبلها القاموس
-   (`.get(pk=1)`، `.count()`، `.values("a")`).
-   **والعرضُ يُحمَّل استعلاماتِ مساعديه**: كلَّ دالّةٍ يبلغها من ملفّات العروض — في ملفّه
-   أو مستورَدةً — مرّةً واحدة. وكان العدُّ على ما أوّلُ وسائطه `request` وحدَه، فنقلُ
-   الاستعلام إلى `_get_director_ctx(school, today)` في الملفّ نفسِه كان يُخفيه؛ ثمّ صار
-   لكلّ دالّةٍ وحدَها، فتقسيمُه على `_part1…_part5` بخمسةٍ لكلٍّ منها كان يُخفيه كذلك.
+   (`.get(pk=1)`، `.count()`، `.values("a")`)، أو اسماً أُسند من دالّةٍ في المشروع تُرجع
+   QuerySet (`qs = rows(school)` ثمّ `qs.count()`): بناءُ الاستعلام في `selectors.py`
+   وتقييمُه في العرض استعلامٌ في العرض.
+   **والعرضُ يُحمَّل استعلاماتِ مساعديه**: كلَّ دالّةٍ يبلغها — مستدعاةً أو بمرجعها
+   (`for f in (_a, _b)`، `map(_a, …)`، `key=_a`، `partial(_a)`، قاموسُ توزيعٍ في رأس الملفّ) —
+   في ملفّه أو مستورَدةً من أيّ وحدةٍ غيرِ طبقتَي القراءة والكتابة (`selectors`
+   و`services`: ملفّاً أو حزمةً أو `*_selectors.py`)، مرّةً واحدة. وكان العدُّ على ما أوّلُ
+   وسائطه `request` وحدَه، فنقلُ الاستعلام إلى `_get_director_ctx(school, today)` كان
+   يُخفيه؛ ثمّ لكلّ دالّةٍ وحدَها، فتقسيمُه على `_part1…_part5` كان يُخفيه؛ ثمّ على ملفّات
+   العروض وحدَها، فنقلُه إلى `helpers.py` كان يُخفيه.
 2. **`core` لا يستورد وحدةً نازلة** — ولا استيراداً كسولاً داخل دالّة، ولا بنصٍّ
    (`__import__("x")`، `import_module`، `import_string`، `apps.get_model("app", …)`):
    الكسلُ يؤخّر الخطأ الدائريّ ولا يُزيل الاقتران. والعدُّ لكلّ وحدةٍ نازلة على النواة
@@ -75,7 +80,7 @@ import sys
 import tarfile
 import tempfile
 from collections import Counter
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "tests" / "layering_baseline.json"
@@ -85,7 +90,7 @@ MAX_ORM = 5
 
 #: رقمُ تعريف العدّ، ويُكتب في السجلّ. يُرفع مع كلّ تغييرٍ في ما يُعدّ أو في مَن يُحمَّل
 #: على العرض، ثمّ `--rebaseline` — وهو وحده ما يُجيز إعادةَ القياس.
-DEFINITION = 4
+DEFINITION = 5
 
 #: توابعُ لا يملكها غيرُ QuerySet والمدير — تُعدّ أينما وقعت، ولو على مديرٍ مرتبط
 #: (`student.enrollments.exclude(`) لا يُعرف نوعُه من الشجرة.
@@ -269,6 +274,19 @@ def _is_request_user(expr: ast.AST) -> bool:
     )
 
 
+def _own_nodes(nodes: list[ast.stmt]) -> Iterator[ast.AST]:
+    """عُقدُ الجسم بلا ما في دالّةٍ أو صنفٍ متداخل — `return` الداخليّةُ ليست لها."""
+    stack: list[ast.AST] = list(nodes)
+    while stack:
+        node = stack.pop()
+        yield node
+        stack.extend(
+            child
+            for child in ast.iter_child_nodes(node)
+            if not isinstance(child, FUNCTION_NODES + (ast.Lambda, ast.ClassDef))
+        )
+
+
 def _target_names(target: ast.AST) -> list[str]:
     """`x` و`x, created` و`(a, (b, c))` — كلُّ اسمٍ في هدف الإسناد."""
     if isinstance(target, ast.Name):
@@ -294,11 +312,13 @@ class _OrmCounter:
         functions: frozenset[str],
         models: frozenset[str] = frozenset(),
         forms: frozenset[str] = frozenset(),
+        returns_orm: Callable[[ast.Call], bool] | None = None,
     ) -> None:
         self.node = node
         self.functions = functions
         self.models = models
         self.forms = forms
+        self.returns_orm = returns_orm
         self.tainted: set[str] = set()
         self.form_names: set[str] = set()
         # نقطةٌ ثابتة: `qs = X.objects…` ثمّ `row = qs.first()` ثمّ `row.save()`.
@@ -396,6 +416,8 @@ class _OrmCounter:
                     return True
                 if self._is_form_save(node):
                     return True
+                if self.returns_orm is not None and self.returns_orm(node):
+                    return True
                 node = node.func
                 if isinstance(node, ast.Attribute):
                     node = node.value
@@ -405,6 +427,18 @@ class _OrmCounter:
                 node = node.value
             else:
                 return False
+
+    def yields_orm(self, expr: ast.AST | None) -> bool:
+        """هل يُرجع هذا التعبيرُ QuerySet أو نسخةً — لا قاموسَ `aggregate` ولا عددَ `count`."""
+        if expr is None:
+            return False
+        if isinstance(expr, ast.IfExp):
+            return self.yields_orm(expr.body) or self.yields_orm(expr.orelse)
+        if isinstance(expr, ast.BoolOp):
+            return any(self.yields_orm(v) for v in expr.values)
+        if isinstance(expr, ast.Call) and _called_name(expr.func) in SCALAR_RESULTS:
+            return False
+        return self.from_orm(expr)
 
     # ── الإسنادُ داخل الدالّة ──
 
@@ -502,7 +536,19 @@ class _Module:
                 for alias in node.names:
                     if alias.asname:
                         self.imports[alias.asname] = (alias.name, None)
+        # الاسمُ في رأس الملفّ ← قيمتُه: `HANDLERS = {"a": _a}` مرجعٌ إلى `_a`.
+        self.globals: dict[str, ast.expr] = {}
+        for node in self.tree.body:
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    for name in _target_names(target):
+                        self.globals[name] = node.value
+            elif isinstance(node, ast.AnnAssign) and node.value is not None:
+                for name in _target_names(node.target):
+                    self.globals[name] = node.value
         self._own_orm: dict[str, int] = {}
+        self._counters: dict[str, _OrmCounter] = {}
+        self._returns_orm: dict[str, bool] = {}
         self._wrappers: frozenset[str] | None = None
 
     def _absolute(self, node: ast.ImportFrom) -> str | None:
@@ -516,14 +562,33 @@ class _Module:
     # ── من يُستدعى ──
 
     def callees(self, qual: str) -> Iterator[tuple[_Module, str]]:
-        """دوالُّ المشروع التي تستدعيها هذه الدالّة: في الملفّ نفسِه أو مستورَدةً منه."""
+        """دوالُّ المشروع التي تبلغها هذه الدالّة — مستدعاةً أو بمرجعها — في الملفّ أو مستورَدة.
+
+        كان المعدودُ `ast.Call` وحده، فـ`for f in (_a, _b): f()` و`map(_a, …)` و`key=_a`
+        و`partial(_a)` وقاموسُ توزيعٍ في رأس الملفّ تُخفي المساعد. والمزيِّناتُ ليست من
+        جسم العرض (ولا تُعدّ في أسطره).
+        """
         cls = self.owner[qual]
-        for sub in ast.walk(self.defs[qual]):
-            if not isinstance(sub, ast.Call):
-                continue
-            target = self._resolve(sub.func, cls)
-            if target is not None:
-                yield target
+        node = self.defs[qual]
+        pending: list[ast.AST] = [*node.body, *node.args.defaults]
+        pending.extend(d for d in node.args.kw_defaults if d is not None)
+        seen_globals: set[str] = set()
+        while pending:
+            for sub in ast.walk(pending.pop()):
+                if not isinstance(sub, ast.Name | ast.Attribute):
+                    continue
+                if not isinstance(sub.ctx, ast.Load):
+                    continue
+                target = self._resolve(sub, cls)
+                if target is not None:
+                    yield target
+                elif (
+                    isinstance(sub, ast.Name)
+                    and sub.id in self.globals
+                    and sub.id not in seen_globals
+                ):
+                    seen_globals.add(sub.id)
+                    pending.append(self.globals[sub.id])
 
     def _resolve(self, func: ast.expr, cls: str | None) -> tuple[_Module, str] | None:
         if isinstance(func, ast.Name):
@@ -547,19 +612,46 @@ class _Module:
 
     # ── ORM ──
 
+    def _counter(self, qual: str) -> _OrmCounter:
+        if qual not in self._counters:
+            cls = self.owner[qual]
+            self._counters[qual] = _OrmCounter(
+                self.defs[qual],
+                self.functions,
+                self.models,
+                self.forms,
+                returns_orm=lambda call: self.call_returns_orm(call, cls),
+            )
+        return self._counters[qual]
+
     def own_orm(self, qual: str) -> int:
         if qual not in self._own_orm:
-            self._own_orm[qual] = _OrmCounter(
-                self.defs[qual], self.functions, self.models, self.forms
-            ).count()
+            self._own_orm[qual] = self._counter(qual).count()
         return self._own_orm[qual]
 
+    def returns_orm(self, qual: str) -> bool:
+        """هل تُرجع الدالّةُ QuerySet أو نسخة — فما يُسند منها في المستدعي من ORM."""
+        if qual not in self._returns_orm:
+            # الدورانُ (`a` تُرجع `b()` و`b` تُرجع `a()`) لا يُثبت شيئاً.
+            self._returns_orm[qual] = False
+            counter = self._counter(qual)
+            self._returns_orm[qual] = any(
+                isinstance(sub, ast.Return) and counter.yields_orm(sub.value)
+                for sub in _own_nodes(self.defs[qual].body)
+            )
+        return self._returns_orm[qual]
+
+    def call_returns_orm(self, call: ast.Call, cls: str | None) -> bool:
+        target = self._resolve(call.func, cls)
+        return target is not None and target[0].returns_orm(target[1])
+
     def orm_with_helpers(self, qual: str) -> int:
-        """ما في الدالّة وما في كلِّ مساعدٍ تبلغه من ملفّات العروض — كلٌّ مرّةً واحدة.
+        """ما في الدالّة وما في كلِّ مساعدٍ تبلغه خارج طبقتَي القراءة والكتابة — كلٌّ مرّةً.
 
         السقفُ لكلّ دالّةٍ وحدَها كان يُقسم: عرضٌ بخمسةٍ وعشرين استدعاءً يصير خمسَ
-        دوالٍّ `_part1…_part5` بخمسةٍ لكلٍّ منها، والاستعلاماتُ كلُّها في ملفّ العروض.
-        و`selectors.py` و`services.py` ليسا ملفَّي عروض — فالنقلُ إليهما وحدَه يُنقص.
+        دوالٍّ `_part1…_part5` بخمسةٍ لكلٍّ منها. ثمّ كان المحمَّلُ ما في ملفّات العروض
+        وحدَها، فالنقلُ إلى `helpers.py` أو `tables.py` كان يُنقص. فالنقلُ إلى `selectors`
+        و`services` وحدَه يُنقص — ولا يُتبَع ما وراءهما.
         """
         seen: set[tuple[str, str]] = set()
         total = 0
@@ -573,7 +665,7 @@ class _Module:
             stack.extend(
                 (callee, callee_name)
                 for callee, callee_name in module.callees(name)
-                if _is_view_path(callee.path)
+                if not _is_layer_path(callee.path)
             )
         return total
 
@@ -656,14 +748,18 @@ class _Module:
         return total
 
 
-def _is_view_path(path: str) -> bool:
-    parts = pathlib.PurePosixPath(path).parts
-    name = parts[-1]
+#: طبقتا القراءة والكتابة: ما يُنقل إليهما لا يُحمَّل على العرض.
+LAYER_NAMES = frozenset({"selectors", "services"})
+
+
+def _is_layer_path(path: str) -> bool:
+    """`selectors.py`، `dashboard_selectors.py`، `services/x.py`، `selectors/__init__.py`."""
+    parts = pathlib.PurePosixPath(path).with_suffix("").parts
+    stem = parts[-1]
     return (
-        name == "views.py"
-        or (name.startswith("views_") and name.endswith(".py"))
-        or name.endswith("_views.py")
-        or (len(parts) >= 2 and parts[-2] == "views" and name.endswith(".py"))
+        stem in LAYER_NAMES
+        or any(stem.endswith(f"_{name}") for name in LAYER_NAMES)
+        or bool(LAYER_NAMES & set(parts[:-1]))
     )
 
 
@@ -1011,7 +1107,9 @@ def _read() -> dict:
 
 def _write(data: dict) -> None:
     BASELINE.write_text(
-        json.dumps(data, ensure_ascii=False, indent=1, sort_keys=True) + "\n", encoding="utf-8"
+        json.dumps(data, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
     )
 
 

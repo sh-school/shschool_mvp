@@ -356,6 +356,101 @@ class TestTheRatchetItself:
             "quality/observation_views.py",
         } <= found
 
+    def test_querysets_returned_by_a_helper_are_counted_where_they_are_evaluated(self, tmp_path):
+        """التعريفُ الخامس: `qs = rows()` من قارئٍ يُرجع QuerySet — عدُّه وقراءتُه وكتابتُه في العرض تُعدّ.
+
+        نُقل بناءُ الاستعلام إلى `selectors.py` وبقي في `_get_therapist_ctx` العدُّ عليه
+        (`sessions_today.count()`)، فنقص العدّادُ ولم ينقص عددُ الاستعلامات.
+        """
+        app = tmp_path / "app"
+        app.mkdir()
+        (app / "__init__.py").write_text("", encoding="utf-8")
+        (app / "selectors.py").write_text(
+            "def rows(school):\n    return X.objects.filter(school=school)\n"
+            "def summary(school):\n    return {'n': 1}\n"
+            "def total(school):\n    return X.objects.filter(school=school).count()\n"
+            "def maybe(school):\n    return rows(school) if school else None\n",
+            encoding="utf-8",
+        )
+        dict_calls = "".join(
+            "    d.get('n')\n    d.update(m=1)\n    d.values()\n" for _ in range(6)
+        )
+        (app / "views.py").write_text(
+            "from .selectors import rows, summary, total, maybe\n"
+            "def v(request):\n"
+            "    qs = rows(request.school)\n"
+            "    qs.count()\n    qs.first()\n    qs.get(pk=1)\n    qs.exists()\n"
+            "    qs.update(a=1)\n    qs.delete()\n    qs.last()\n"
+            "    return qs\n"
+            "def w(request):\n"
+            "    d = summary(request.school)\n"
+            "    n = total(request.school)\n"
+            f"{dict_calls}"
+            "    return n\n"
+            "def u(request):\n"
+            "    maybe(request.school).values('a')\n"
+            "    for row in rows(request.school):\n        row.save()\n"
+            "    q = _base()\n    q.count()\n    q.values('b')\n"
+            "    return q.exists()\n"
+            "def _base():\n    return X.objects.all()\n",
+            encoding="utf-8",
+        )
+        assert ratchet.snapshot(tmp_path)["views"] == {
+            # سبعةُ تقييماتٍ لـ qs — والقارئُ نفسُه في selectors لا يُحمَّل
+            "app/views.py::v": {"orm": 7},
+            # values · save · _base (objects all) · count · values · exists
+            "app/views.py::u": {"orm": 7},
+        }
+
+    def test_helpers_passed_by_reference_are_charged_to_the_view(self):
+        """التعريفُ الخامس: المساعدُ يُبلغ بمرجعه — حلقةٌ، `map`، `key=`، `partial`، قاموسُ توزيع."""
+        two = "    X.objects.filter()\n"
+        source = (
+            f"def _a():\n{two}{two}"
+            f"def _b():\n{two}{two}"
+            f"def _c():\n{two}{two}"
+            "HANDLERS = {'a': _a, 'b': _b}\n"
+            "def v1(request):\n    for f in (_a, _b):\n        f()\n"
+            "def v2(request):\n    return list(map(_a, [])) + sorted([], key=_b)\n"
+            "def v3(request, k):\n    return HANDLERS[k]()\n"
+            "def v4(request):\n    return functools.partial(_c)(), _a\n"
+            "@_c\ndef v5(request):\n    return None\n"
+        )
+        over, _ = ratchet.measure_views(source, "a/views.py")
+        # كلُّ مساعدٍ أربعة، وكلُّ عرضٍ يبلغ اثنين منها = 8؛ والمزيِّنُ ليس من جسم العرض
+        assert over == {f"a/views.py::v{i}": {"orm": 8} for i in (1, 2, 3, 4)}
+
+    def test_only_selectors_and_services_relieve_the_view(self, tmp_path):
+        """التعريفُ الخامس: كلُّ وحدةٍ غيرِ طبقةِ القراءة والكتابة تُحمَّل — لا ملفّاتُ العروض وحدَها."""
+        app = tmp_path / "app"
+        (app / "selectors").mkdir(parents=True)
+        body = "".join("    X.objects.filter()\n" for _ in range(3))
+        for name, text in (
+            ("__init__.py", ""),
+            ("helpers.py", f"def rows():\n{body}"),
+            ("tables.py", f"def rows():\n{body}"),
+            ("services.py", f"def rows():\n{body}"),
+            ("dashboard_selectors.py", f"def rows():\n{body}"),
+            ("selectors/__init__.py", ""),
+            ("selectors/students.py", f"def rows():\n{body}"),
+            (
+                "views.py",
+                "from . import helpers\n"
+                "from .tables import rows as table_rows\n"
+                "from . import services\n"
+                "from .dashboard_selectors import rows as dash_rows\n"
+                "from .selectors.students import rows as student_rows\n"
+                "def a(request):\n    return helpers.rows()\n"
+                "def b(request):\n    return table_rows()\n"
+                "def c(request):\n    return services.rows(), dash_rows(), student_rows()\n",
+            ),
+        ):
+            (app / name).write_text(text, encoding="utf-8")
+        assert ratchet.snapshot(tmp_path)["views"] == {
+            "app/views.py::a": {"orm": 6},
+            "app/views.py::b": {"orm": 6},
+        }
+
     # ── المقارنة ──
 
     def test_a_new_view_over_the_cap_is_worse(self):
