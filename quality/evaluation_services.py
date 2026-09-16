@@ -81,10 +81,10 @@ class EvaluationRejectedError(ValueError):
     """تقييمٌ لا يُحفظ — الرسالةُ تُعرض للمقيِّم كما هي."""
 
 
-#: «وتتولى لجنة شؤون المدارس تقييم أداء مديري المدارس سنوياً» — المادة 16،
+#: «وتتولى لجنة شؤون المدارس، تقييم أداء مديري المدارس سنوياً» — المادة 15،
 #: «02- النظام الوظيفي لموظفي المدارس.pdf» صفحة الملفّ 10 (02_staff_affairs.md:199).
 PRINCIPAL_NOT_EVALUATED = (
-    "تقييمُ مدير المدرسة للجنة شؤون المدارس لا للمدرسة — المادة 16 (02_staff_affairs.md:199)"
+    "تقييمُ مدير المدرسة للجنة شؤون المدارس لا للمدرسة — المادة 15 (02_staff_affairs.md:199)"
 )
 
 
@@ -273,7 +273,7 @@ def save_evaluation(
         raise EvaluationRejectedError("التقريرُ معتمَد — لا تُعدَّل درجاتُه بعد اعتماد المدير.")
     if is_school_principal(evaluation.school, evaluation.employee):
         raise EvaluationRejectedError(PRINCIPAL_NOT_EVALUATED)
-    # المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمده مدير المدرسة» — واضعٌ واحد.
+    # المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمد من مدير المدرسة» — واضعٌ واحد.
     # كان كلُّ من يضغط حفظاً (المديرُ يفتح التقرير ليعتمده) يصير مقيِّماً ثانياً بدرجاتٍ
     # صفريّة ووزن 100، فينقسم المجموع ويُستبدل الواضع.
     if evaluation.has_saved_content() and evaluation.evaluator_id != evaluator.pk:
@@ -283,7 +283,7 @@ def save_evaluation(
     if evaluation.period == EmployeeEvaluation.MINISTRY_PERIOD and _uses_default_axes(axes):
         raise EvaluationRejectedError(
             "التقريرُ السنويّ يوضع على استمارة الوزارة لدور الموظّف، ولا استمارةَ له هنا — "
-            "المادة 16: «وفقاً للنماذج المعتمدة من الوزير» (02_staff_affairs.md:199)."
+            "المادة 15: «وفقاً للنماذج المعتمدة من الوزير» (02_staff_affairs.md:199)."
         )
     scores = parse_axis_scores(axes, data)
 
@@ -351,7 +351,7 @@ def _enforce_rating_restrictions(evaluation: EmployeeEvaluation) -> None:
 @transaction.atomic
 def approve_evaluation(*, evaluation: EmployeeEvaluation, approver: CustomUser) -> None:
     """
-    اعتمادُ التقرير: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمده مدير المدرسة»
+    اعتمادُ التقرير: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمد من مدير المدرسة»
     (المادة 16، `02_staff_affairs.md:200`؛ القرار 32/2019 صفحة الملفّ 10). فالاعتمادُ
     لمدير المدرسة وحده، لتقريرٍ مُقدَّم، وتُعاد فيه قيودُ المواد 17–19 — فالوقائعُ قد
     تتغيّر بين التقديم والاعتماد.
@@ -363,15 +363,22 @@ def approve_evaluation(*, evaluation: EmployeeEvaluation, approver: CustomUser) 
         raise EvaluationRejectedError("لا يُعتمد إلّا تقريرٌ مُقدَّم.")
     if locked.employee_id == approver.pk or is_school_principal(locked.school, locked.employee):
         raise EvaluationRejectedError(PRINCIPAL_NOT_EVALUATED)
-    if locked.period == EmployeeEvaluation.MINISTRY_PERIOD and locked.template_id is None:
+    # العبرةُ بموضع الدرجات: صفٌّ مربوطٌ بقالبٍ ودرجاتُه في المحاور الأربعة (ربطُ الـGET
+    # القديم) مجموعُه من غير الاستمارة، فلا يُعتمد كما لا يُعتمد غيرُ المربوط.
+    if locked.period == EmployeeEvaluation.MINISTRY_PERIOD and (
+        locked.template_id is None or locked.has_default_axis_scores()
+    ):
         raise EvaluationRejectedError(
-            "لا يُعتمد تقريرٌ سنويٌّ على غير استمارة الوزارة — المادة 16: «وفقاً للنماذج "
+            "لا يُعتمد تقريرٌ سنويٌّ على غير استمارة الوزارة — المادة 15: «وفقاً للنماذج "
             "المعتمدة من الوزير» (02_staff_affairs.md:199)."
         )
     _enforce_rating_restrictions(locked)
     locked.status = "approved"
-    locked.save(update_fields=["status", "updated_at"])
+    # لحظةُ الاعتماد تُخزَّن: منها يُعلم الموظّفُ، فلا يسبقها تاريخُ الاستلام (المادة 20).
+    locked.approved_at = timezone.now()
+    locked.save(update_fields=["status", "approved_at", "updated_at"])
     evaluation.status = locked.status
+    evaluation.approved_at = locked.approved_at
 
 
 @transaction.atomic
@@ -393,6 +400,14 @@ def record_receipt_on_refusal(
         raise EvaluationRejectedError("تاريخُ الاستلام مدوَّنٌ من قبل.")
     if received_on > timezone.localdate():
         raise EvaluationRejectedError("تاريخُ الاستلام لا يكون في المستقبل.")
+    # ولا يسبق الاعتماد: «يُعلن الموظف بنسخة من تقرير تقييم الأداء» بعد اعتماده، والمهلةُ
+    # «من تاريخ علمه» (المادة 20). فتاريخٌ قبله كان يجعل التقريرَ نهائيّاً فورَ تدوينه
+    # ويحرم الموظّفَ الخمسةَ عشرَ يوماً. وصفوفُ ما قبل الحقل: حدُّها لحظةُ إنشاء التقرير.
+    approved_on = timezone.localtime(locked.approved_at or locked.created_at).date()
+    if received_on < approved_on:
+        raise EvaluationRejectedError(
+            f"تاريخُ الاستلام لا يسبق اعتماد التقرير ({approved_on}) — المادة 20."
+        )
     locked.received_on = received_on
     locked.save(update_fields=["received_on", "updated_at"])
     evaluation.received_on = received_on

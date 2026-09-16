@@ -313,7 +313,9 @@ class EmployeeEvaluationAdmin(admin.ModelAdmin):
         "total_score",
         "rating",
         "acknowledged_at",
-        # يدوّنه المديرُ من شاشة التقييم (`record_receipt_on_refusal`) بسجلّ تدقيق.
+        # يُكتبان من الشاشة بسجلّ تدقيق: الاعتمادُ (`approve_evaluation`) وتاريخُ الاستلام
+        # عند رفض التوقيع (`record_receipt_on_refusal`).
+        "approved_at",
         "received_on",
     )
     inlines = [EvaluationScoreInline]

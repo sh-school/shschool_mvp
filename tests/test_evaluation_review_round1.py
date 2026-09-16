@@ -3,7 +3,7 @@
 كلُّ اختبارٍ هنا سقط على الفرع قبل إصلاحه. والمراجع:
 
   - «02- النظام الوظيفي لموظفي المدارس.pdf» (قرار مجلس الوزراء 32/2019، ممسوحٌ؛ قُرئ من
-    الصورة): المادة 16 صفحة الملفّ 10 (المطبوعة 24)، والمادة 20 صفحتا الملفّ 12–13
+    الصورة): المادتان 15 و16 صفحة الملفّ 10 (المطبوعة 24)، والمادة 20 صفحتا الملفّ 12–13
     (المطبوعتان 26–27)، ونقلُهما في `02_staff_affairs.md:199-211`.
   - «استمارة تقييم المعلم والدليل التفسيري.pdf» ص2: «تاريخ استلام الموظف (يرجى تدوين
     التاريخ في حالة رفض الموظف التوقيع)».
@@ -137,6 +137,10 @@ def test_receipt_date_recorded_on_refusal_starts_the_grievance_window(
         academic_year=YEAR,
         period="S2",
         status="approved",
+    )
+    # لحظةُ اعتماد المدير: تاريخُ الاستلام لا يسبقها (المادة 20، جولة الإصلاح 2).
+    EmployeeEvaluation.objects.filter(pk=evaluation.pk).update(
+        approved_at=timezone.make_aware(datetime.combine(date(2026, 6, 18), time(9)))
     )
     client.force_login(principal_user)
     response = client.post(
@@ -319,7 +323,7 @@ def _principal_with_an_older_teacher_membership(school):
 
 @pytest.mark.django_db
 def test_a_principal_with_a_second_membership_is_still_not_evaluated(client, school):
-    """«وتتولى لجنة شؤون المدارس تقييم أداء مديري المدارس سنوياً» — 02_staff_affairs.md:199."""
+    """المادة 15: «وتتولى لجنة شؤون المدارس، تقييم أداء مديري المدارس سنوياً» (02:199)."""
     principal = _principal_with_an_older_teacher_membership(school)
     _seed(school)
     client.force_login(_staff(school, "vice_academic"))
@@ -438,7 +442,7 @@ def test_blank_and_internal_rows_are_not_counted_or_shown_as_weak(
 def test_principal_sees_the_placers_scores_and_cannot_split_the_total(
     client, school, principal_user, teacher_user
 ):
-    """المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمده مدير المدرسة» — واضعٌ واحد."""
+    """المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمد من مدير المدرسة» — واضعٌ واحد."""
     form, vice, evaluation = _placed_by_vice(client, school, teacher_user)
     placed = EvaluationScore.objects.get(evaluation=evaluation, evaluator=vice).custom_axes
 

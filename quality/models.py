@@ -20,7 +20,7 @@ from functools import cached_property
 from typing import Any
 
 from django.conf import settings
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -784,6 +784,9 @@ class EmployeeEvaluation(models.Model):
     employee_comment = models.TextField(blank=True, verbose_name="تعليق الموظف")
     #: «تاريخ علمه» (المادة 20) — ومنه تبدأ مهلةُ التظلّم.
     acknowledged_at = models.DateTimeField(null=True, blank=True)
+    #: لحظةُ اعتماد المدير («ويعتمد من مدير المدرسة» — المادة 16). ولا يُعلم الموظّفُ
+    #: بتقريرٍ قبل اعتماده، فهي الحدُّ الأدنى لتاريخ الاستلام المدوَّن (المادة 20).
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ اعتماد المدير")
     grievance_submitted_on = models.DateField(
         null=True, blank=True, verbose_name="تاريخ تقديم التظلّم إلى لجنة موظفي المدارس"
     )
@@ -924,6 +927,18 @@ class EmployeeEvaluation(models.Model):
         """أمحفوظٌ على قالب دورٍ بدرجات مقيِّمين؟ (فمجموعُه من `scores` لا من حقول المحاور)."""
         return not self._state.adding and self.template_id is not None and self.scores.exists()
 
+    def has_default_axis_scores(self) -> bool:
+        """
+        أدرجاتُه في المحاور الافتراضيّة الأربعة (لا عند مقيِّم) ولو كان مربوطاً بقالب؟
+
+        صفوفٌ قديمةٌ حُفظت على المحاور الأربعة ثمّ ربطها الـGET القديم بقالب دورها: درجاتُها
+        في الحقول، ولا `EvaluationScore` لها. فالنظرُ إلى `template_id` وحدَه كان يعرضها
+        أصفاراً على محاور الاستمارة ويصفّرها عند أوّل حفظ.
+        """
+        if self._state.adding:
+            return False
+        return any(getattr(self, f) for f in self._AXIS_FIELDS) and not self.scores.exists()
+
     def has_saved_content(self) -> bool:
         """
         أعليه ما يُفقَد لو رُبط بقالبٍ آخر؟ درجاتٌ في المحاور الافتراضيّة أو عند مقيِّم،
@@ -937,14 +952,43 @@ class EmployeeEvaluation(models.Model):
             return True
         return self.scores.exists()
 
+    def clean(self) -> None:
+        """
+        تظلّمٌ لا يُقبل تدوينُه بعد فوات ميعاده: «ويجوز للموظف أن يتظلم منه ... خلال خمسة
+        عشر يوماً من تاريخ علمه» (المادة 20، صفحة الملفّ 12). وحقولُ التظلّم تُحرَّر من
+        لوحة الإدارة، فالفحصُ على النموذج لا على الشاشة.
+        """
+        super().clean()
+        deadline = self.grievance_deadline()
+        if (
+            self.grievance_submitted_on is not None
+            and deadline is not None
+            and self.grievance_submitted_on > deadline
+        ):
+            raise ValidationError(
+                {
+                    "grievance_submitted_on": (
+                        f"ميعادُ التظلّم انقضى في {deadline} — «خلال خمسة عشر يوماً من "
+                        "تاريخ علمه» (المادة 20)."
+                    )
+                }
+            )
+
     def known_on(self) -> date | None:
         """
         «تاريخ علمه» (المادة 20): إقرارُ الموظّف بالاستلام، أو تاريخُ الاستلام الذي يدوّنه
         المدير حين يرفض الموظّف التوقيع (استمارة المعلم ص2).
+
+        وإن اجتمعا فالأسبقُ منهما: العلمُ واقعةٌ لا تتكرّر، فإقرارٌ يُوقَّع بعد شهرين من
+        تاريخ الاستلام المدوَّن كان يؤخّر المهلةَ ويعيد فتح تظلّمٍ انقضى ميعادُه.
         """
-        if self.acknowledged_at is not None:
-            return timezone.localtime(self.acknowledged_at).date()
-        return self.received_on
+        dates = [d for d in (self._acknowledged_on(), self.received_on) if d is not None]
+        return min(dates) if dates else None
+
+    def _acknowledged_on(self) -> date | None:
+        if self.acknowledged_at is None:
+            return None
+        return timezone.localtime(self.acknowledged_at).date()
 
     def grievance_deadline(self) -> date | None:
         """آخرُ يومٍ للتظلّم: خمسة عشر يوماً من تاريخ العلم (المادة 20)."""
@@ -970,6 +1014,11 @@ class EmployeeEvaluation(models.Model):
         if self.status not in ("approved", "acknowledged") or deadline is None:
             return False
         today = today or timezone.localdate()
+        # تظلّمٌ قُدّم بعد انقضاء الخمسة عشر يوماً لا يقبله النصّ («خلال خمسة عشر يوماً من
+        # تاريخ علمه»)، فلا يُسقط نهائيّةً ثبتت بانقضاء الميعاد. وكان تدوينُه من لوحة الإدارة
+        # يعيد فتح تقريرٍ نهائيٍّ بلا حدّ.
+        if self.grievance_submitted_on is not None and self.grievance_submitted_on > deadline:
+            return True
         if self.grievance_decision_approved_on is not None:
             return True
         if self.grievance_decided_on is not None:
@@ -1097,7 +1146,7 @@ class EvaluationCycle(models.Model):
 
     def article_16_window(self) -> tuple[date, date] | None:
         """
-        «ويعتمده مدير المدرسة خلال النصف الأول من شهر يونيو من كل عام أكاديمي» (المادة 16،
+        «ويعتمد من مدير المدرسة خلال النصف الأول من شهر يونيو من كل عام أكاديمي» (المادة 16،
         02_staff_affairs.md:200) — 1–15 يونيو من العام الذي ينتهي به العامُ الأكاديميّ،
         للتقرير السنويّ (S2) وحده. وتحويلُ النصّ إلى تاريخين تطبيقٌ على التقويم.
         """

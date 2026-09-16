@@ -221,9 +221,17 @@ def _axes_for_evaluation(school, employee, year, existing):
     التي حُفظ بها: قالبُه إن كان مربوطاً، وإلّا الافتراضيّةُ الأربعة — ولا يُنقل إلى قالب
     دوره الحاليّ. كان مجرّدُ فتحه بعد بذر القوالب (أو بعد تغيّر دور الموظّف) يربطه بالقالب
     الجديد ويعرض محاوره صفراً، ثمّ يمحو الحفظُ التالي درجاتِه من المجموع.
+
+    والعبرةُ بموضع الدرجات لا بالربط: صفٌّ ربطه الـGET القديمُ بقالبٍ ودرجاتُه في المحاور
+    الأربعة (بلا `EvaluationScore`) يُعرض عليها هي، ويُفكّ ربطُه عند الحفظ — فالتقريرُ
+    السنويّ عليها يُرفض حينئذٍ بدل أن يُعتمد بمجموعٍ من غير الاستمارة.
     """
     if existing is not None and existing.has_saved_content():
-        if existing.template is not None and existing.template.axes.exists():
+        if (
+            existing.template is not None
+            and existing.template.axes.exists()
+            and not existing.has_default_axis_scores()
+        ):
             return [(a.key, a.label, a.weight) for a in existing.template.axes.all()], (
                 existing.template
             )
@@ -249,7 +257,7 @@ def create_evaluation(request, employee_id):
 
     if not Membership.objects.filter(school=school, user=employee, is_active=True).exists():
         return HttpResponse("الموظف ليس في مدرستك", status=403)
-    # «وتتولى لجنة شؤون المدارس تقييم أداء مديري المدارس سنوياً» (02_staff_affairs.md:199)
+    # «وتتولى لجنة شؤون المدارس، تقييم أداء مديري المدارس سنوياً» (02_staff_affairs.md:199)
     # — فلا تقييمَ للمدير من داخل المدرسة، وليس بين الاستمارات السبع استمارتُه.
     if is_school_principal(school, employee):
         return HttpResponse(PRINCIPAL_NOT_EVALUATED, status=403)
@@ -264,7 +272,7 @@ def create_evaluation(request, employee_id):
     axes, template = _axes_for_evaluation(school, employee, year, existing)
     has_content = existing is not None and existing.has_saved_content()
 
-    # التقريرُ السنويّ «وفقاً للنماذج المعتمدة من الوزير» (المادة 16، 02_staff_affairs.md:199).
+    # التقريرُ السنويّ «وفقاً للنماذج المعتمدة من الوزير» (المادة 15، 02_staff_affairs.md:199).
     # فدورٌ لا استمارةَ له لا يُولَّد له تقريرٌ على المحاور الأربعة الافتراضيّة (وليست في أيّ
     # استمارة) حتى يُحسم أمرُه (ADR-0002 §6.4، §6.6 بند 12). ويبقى المحفوظُ قبل ذلك معروضاً.
     if period == EmployeeEvaluation.MINISTRY_PERIOD and template is None and not has_content:
@@ -359,7 +367,7 @@ def create_evaluation(request, employee_id):
 @capability_required("quality.evaluations")
 @require_POST
 def approve_evaluation(request, eval_id):
-    """اعتمادُ مدير المدرسة للتقرير المُقدَّم — المادة 16 («ويعتمده مدير المدرسة»)."""
+    """اعتمادُ مدير المدرسة للتقرير المُقدَّم — المادة 16 («ويعتمد من مدير المدرسة»)."""
     school = request.user.get_school()
     obj = get_object_or_404(EmployeeEvaluation, id=eval_id, school=school)
     try:

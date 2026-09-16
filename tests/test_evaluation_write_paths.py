@@ -207,7 +207,7 @@ def test_malformed_year_or_period_is_refused(
 
 @pytest.mark.django_db
 def test_principal_is_not_evaluated_by_the_school(client, school, principal_user):
-    """«وتتولى لجنة شؤون المدارس تقييم أداء مديري المدارس سنوياً» — 02_staff_affairs.md:199."""
+    """المادة 15: «وتتولى لجنة شؤون المدارس، تقييم أداء مديري المدارس سنوياً» (02:199)."""
     vice = _vice_academic(school)
     client.force_login(vice)
     assert client.get(_url(principal_user)).status_code == 403
@@ -362,7 +362,7 @@ def test_working_day_grievance_windows_are_not_guessed(
     ],
 )
 def test_s2_cycle_deadline_is_flagged_outside_first_half_of_june(school, period, deadline, outside):
-    """المادة 16: «ويعتمده مدير المدرسة خلال النصف الأول من شهر يونيو» (02_staff_affairs.md:200)."""
+    """المادة 16: «ويعتمد من مدير المدرسة خلال النصف الأول من شهر يونيو» (02_staff_affairs.md:200)."""
     from datetime import date
 
     from quality.models import EvaluationCycle

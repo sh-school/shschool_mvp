@@ -80,7 +80,7 @@
   </form>
 
   {% if can_approve %}
-  {# المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمده مدير المدرسة». #}
+  {# المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمد من مدير المدرسة». #}
   <form method="post" action="{% url 'approve_evaluation' obj.id %}" class="form-actions">
     {% csrf_token %}
     <button type="submit" class="btn-primary">اعتماد التقرير</button>
