@@ -202,3 +202,26 @@ def test_s2_cycle_completes_when_every_role_with_a_form_is_reported(
     link = reverse("create_evaluation", kwargs={"employee_id": nurse.pk})
     assert f"{link}?period=S1" in page
     assert f"{link}?period=S2" not in page
+
+
+def _adr_owner_item(number: int) -> str:
+    adr = (ROOT / "docs" / "adr" / "0002-unified-staff-appraisal.md").read_text(encoding="utf-8")
+    section = adr.split("### 6.6", 1)[1]
+    start = section.index(f"\n{number}. **")
+    end = section.index(f"\n{number + 1}. **", start)
+    return " ".join(section[start:end].split())
+
+
+def test_article_19_exempts_no_one_the_licence_policy_obliges_to_renew():
+    """
+    «05- سياسة الرخص المهنية للمعلمين و قادة المدارس.pdf» ص22 بند 4: من تقدّم لمستوىً أعلى ولم
+    يُمنحه «لن يفقدوا رخصهم ... ويتعين عليهم تجديد رخصهم بنفس المستوى في نهاية السنة الخامسة» —
+    إلزامٌ بالتجديد لا إعفاءٌ منه. وص23 بند 1 (نائبٌ تقدّم ولم يستوفِ «لن يفقد» رخصته) صامتٌ عن
+    أثره في التقييم، فهو سؤالٌ للمالك لا مُقرَّر.
+    """
+    source = inspect.getsource(AppraisalYearFacts)
+    assert "ولا يُعدّ هنا" not in source
+    assert "ص22 بند 4 «لن يفقدوا رخصهم ... ويتعين عليهم" in source
+    item = _adr_owner_item(4)
+    assert "ولا يُعدّ من نصّت" not in item
+    assert "ص23 بند 1" in item.split("ويبقى للمالك", 1)[1]
