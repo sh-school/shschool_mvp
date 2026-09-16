@@ -342,7 +342,7 @@ class TestTheScreen:
         page_url = reverse("wings:student_events", args=[klass.id, kids[0].id])
 
         page = client.get(page_url).content.decode()
-        assert "اقبل العذر" in page
+        assert "احفظ العذر" in page
         assert "سببُ القبول بعد المهلة" not in page, "المشرفُ لا يرى حقلَ ما بعد المهلة"
         assert 'value="other"' not in page, "«أخرى» ليست في القائمة"
 

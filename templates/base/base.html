@@ -304,27 +304,13 @@
       <a href="{% url 'dashboard' %}" class="nb">{% icon "dashboard" %} الرئيسية</a>
       {% endif %}
       {% if role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="nb">{% icon "attendance_register" %} رصد الغياب</a>
-      {% if request.user|can_open:"wings:floors" %}
-      <a href="{% url 'wings:floors' %}" class="nb">{% icon "wings" %} أجنحة المدرسة</a>
-      {% endif %}
+      {# طلبةُ جناحه في قائمةٍ منسدلةٍ واحدة (m-wing-students أدناه): خمسةُ روابطَ مستقلّةٍ كانت تلفّ الشريطَ سطرين على الحاسوب #}
+      <button class="nb" id="btn-wing-students" data-sd="m-wing-students" aria-expanded="false" aria-controls="m-wing-students">{% icon "students" %} طلبة جناحي <span class="chv">▼</span></button>
       {% if request.user|can_open:"student_info:sections" %}
       <a href="{% url 'student_info:sections' %}" class="nb">{% icon "student_info" %} مركز معلومات الطلبة</a>
       {% endif %}
-      {# شؤونُ الطلبة لطلبة جناحه (قرارُ 2026-09-15): متابعةٌ ورصدُ تأخّر — لا إضافةَ ولا انتقالاتٍ ولا أنشطة #}
-      {% if request.user|can_open:"student_affairs:dashboard" %}
-      <a href="{% url 'student_affairs:dashboard' %}" class="nb">{% icon "students" %} شؤون طلبة جناحي</a>
-      {% endif %}
-      {% if request.user|can_open:"student_affairs:student_list" %}
-      <a href="{% url 'student_affairs:student_list' %}" class="nb">{% icon "student" %} طلبة جناحي</a>
-      {% endif %}
-      {% if request.user|can_open:"student_affairs:attendance_overview" %}
-      <a href="{% url 'student_affairs:attendance_overview' %}" class="nb">{% icon "stats" %} غياب الجناح</a>
-      {% endif %}
-      {% if request.user|can_open:"student_affairs:tardiness_list" %}
-      <a href="{% url 'student_affairs:tardiness_list' %}" class="nb">{% icon "tardiness" %} التأخر الصباحي</a>
-      {% endif %}
-      {% if request.user|can_open:"student_affairs:behavior_overview" %}
-      <a href="{% url 'student_affairs:behavior_overview' %}" class="nb">{% icon "behavior" %} سلوك طلبة الجناح</a>
+      {% if request.user|can_open:"wings:floors" %}
+      <a href="{% url 'wings:floors' %}" class="nb">{% icon "wings" %} أجنحة المدرسة</a>
       {% endif %}
       {% endif %}
       {% if request.user|can_open:"notification_inbox" %}
@@ -707,6 +693,44 @@
 {% endif %}
 
 {# ── Coordinator Schedule Dropdown ── #}
+{% if role == "admin_supervisor" %}
+{# المشرفُ الإداريّ: طلبةُ جناحه وحدَهم (قرارا 2026-09-14/15) — متابعةٌ ورصدٌ، لا إضافةَ ولا انتقالاتٍ ولا أنشطة #}
+<div class="sd-menu" id="m-wing-students" role="menu" aria-label="طلبة جناحي">
+  <div class="sd-label">طلبة جناحي</div>
+  {% if request.user|can_open:"wings:student_search" %}
+  <a href="{% url 'wings:student_search' %}">{% icon "search" %} بحثٌ عن طالب وملفُّ غيابه</a>
+  {% endif %}
+  {% if request.user|can_open:"student_affairs:dashboard" %}
+  <a href="{% url 'student_affairs:dashboard' %}">{% icon "students" %} لوحة شؤون طلبة الجناح</a>
+  {% endif %}
+  {% if request.user|can_open:"student_affairs:student_list" %}
+  <a href="{% url 'student_affairs:student_list' %}">{% icon "student_info" %} سجلّ طلبة الجناح</a>
+  {% endif %}
+  <hr>
+  <div class="sd-label">الغياب والتأخّر</div>
+  {% if request.user|can_open:"daily_report" %}
+  <a href="{% url 'daily_report' %}">{% icon "absence" %} غياب اليوم</a>
+  {% endif %}
+  {% if request.user|can_open:"student_affairs:attendance_overview" %}
+  <a href="{% url 'student_affairs:attendance_overview' %}">{% icon "stats" %} إحصائيات غياب الجناح</a>
+  {% endif %}
+  {% if request.user|can_open:"student_affairs:tardiness_list" %}
+  <a href="{% url 'student_affairs:tardiness_list' %}">{% icon "tardiness" %} التأخر الصباحي</a>
+  {% endif %}
+  <hr>
+  <div class="sd-label">السلوك</div>
+  {% if request.user|can_open:"behavior:report_infraction" %}
+  <a href="{% url 'behavior:report_infraction' %}">{% icon "behavior_violation" %} تسجيل مخالفة</a>
+  {% endif %}
+  {% if request.user|can_open:"behavior:dashboard" %}
+  <a href="{% url 'behavior:dashboard' %}">{% icon "behavior" %} لوحة سلوك الجناح</a>
+  {% endif %}
+  {% if request.user|can_open:"student_affairs:behavior_overview" %}
+  <a href="{% url 'student_affairs:behavior_overview' %}">{% icon "reports" %} ملخص سلوك طلبة الجناح</a>
+  {% endif %}
+</div>
+{% endif %}
+
 {% if role == "coordinator" %}
 <div class="sd-menu" id="m-coord-schedule" role="menu" aria-label="جدول المنسق">
   <div class="sd-label">جدولي</div>
