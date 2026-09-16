@@ -11,9 +11,9 @@
 
   {% page_header "تقييم أداء الموظفين" subtitle="النظام الوظيفي لموظفي المدارس (قرار 32/2019) · المواد 15–21" icon="staff_evaluation" %}{% endpage_header %}
 
-  {% if avg_score %}
+  {% if avg_score is not None %}
   {% kpi_strip label="أرقام التقييم" %}
-    {% kpi "متوسط الدرجات" avg_score title="متوسط التقييمات المقدَّمة والمعتمدة والمستلمة" %}
+    {% kpi "متوسط الدرجات" avg_score title="متوسط التقارير السنوية على استمارة الوزارة: المقدَّمة والمعتمدة والمستلمة" %}
     {% kpi "ممتاز" rating_dist.excellent|default:0 tone="green" %}
     {% kpi "جيد جداً" rating_dist.very_good|default:0 tone="blue" %}
     {% kpi "جيد" rating_dist.good|default:0 tone="amber" %}

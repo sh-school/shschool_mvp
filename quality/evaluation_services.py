@@ -430,11 +430,22 @@ def record_receipt_on_refusal(
     evaluation.received_on = received_on
 
 
-def annual_rating_distribution(school: School, academic_year: str) -> dict[str, int]:
+@dataclass(frozen=True)
+class AnnualRatingSummary:
+    """أرقامُ شريط اللوحة — كلُّها على مجموعةٍ واحدة من التقارير السنويّة."""
+
+    #: متوسّطُ `total_score` لتلك التقارير، أو None إن لم يكن منها شيء.
+    average: float | None
+    #: عددُها بكلّ مستوىً من مستويات المادة 16.
+    levels: dict[str, int]
+
+
+def annual_rating_summary(school: School, academic_year: str) -> AnnualRatingSummary:
     """
-    عددُ التقارير السنويّة الموضوعة فعلاً بكلّ مستوىً من مستويات المادة 16: لا المسودّات، ولا
-    متابعة S1 الداخليّة، ولا صفَّ S2 ليس على الاستمارة (`has_form_scores`) — فذاك لا مستوى
-    وزاريَّ له (المادة 15: «وفقاً للنماذج المعتمدة من الوزير»).
+    التقاريرُ السنويّة الموضوعة فعلاً: لا المسودّات، ولا متابعة S1 الداخليّة، ولا صفَّ S2 ليس
+    على الاستمارة (`has_form_scores`) — فذاك لا مستوى وزاريَّ له (المادة 15: «وفقاً للنماذج
+    المعتمدة من الوزير»، 02_staff_affairs.md:199). والمتوسّطُ على المجموعة نفسها التي يُعدّ
+    توزيعُها بجواره: كان يخلط S1 بـS2 فيعدّ الموظّفَ مرّتين ويخالف التوزيع.
     """
     rows = (
         EmployeeEvaluation.objects.filter(
@@ -448,7 +459,9 @@ def annual_rating_distribution(school: School, academic_year: str) -> dict[str, 
         .select_related("template")
         .prefetch_related("scores", "template__axes")
     )
-    return dict(Counter(row.rating for row in rows if row.has_form_scores()))
+    counted = [row for row in rows if row.has_form_scores()]
+    average = round(sum(row.total_score for row in counted) / len(counted), 1) if counted else None
+    return AnnualRatingSummary(average=average, levels=dict(Counter(row.rating for row in counted)))
 
 
 def axis_values(

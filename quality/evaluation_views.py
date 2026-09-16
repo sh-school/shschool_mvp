@@ -13,7 +13,6 @@ from datetime import date
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Avg
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -29,7 +28,7 @@ from .evaluation_services import (
     PRINCIPAL_NOT_EVALUATED,
     SELF_EVALUATION,
     EvaluationRejectedError,
-    annual_rating_distribution,
+    annual_rating_summary,
     axis_values,
     is_academic_year,
     is_school_principal,
@@ -186,11 +185,7 @@ def evaluation_dashboard(request):
         ev.status_tone = evaluation_status_tone(ev.status)
         ev.score_tone = evaluation_rating_tone(ev.rating)
 
-    avg = EmployeeEvaluation.objects.filter(
-        school=school,
-        academic_year=year,
-        status__in=["submitted", "approved", "acknowledged"],
-    ).aggregate(avg=Avg("total_score"))["avg"]
+    annual = annual_rating_summary(school, year)
 
     staff_list = _get_evaluable_staff(school, year, viewer=request.user)
     for row in staff_list:
@@ -203,8 +198,8 @@ def evaluation_dashboard(request):
         {
             "cycle_stats": cycle_stats,
             "recent_evals": recent_evals,
-            "avg_score": round(avg, 1) if avg else None,
-            "rating_dist": annual_rating_distribution(school, year),
+            "avg_score": annual.average,
+            "rating_dist": annual.levels,
             "staff_list": staff_list,
             "year": year,
             "school": school,
