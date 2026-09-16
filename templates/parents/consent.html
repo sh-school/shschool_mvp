@@ -40,7 +40,8 @@
         سحبُ الموافقة على نوعٍ من البيانات يحجب عنك متابعةَ ابنك في ذلك المجال.
       </p>
       <div class="form-actions">
-        <a href="{% url 'parent_dashboard' %}" class="btn-ghost">إلغاء</a>
+        {# الكادرُ الذي هو وليُّ أمرٍ يعود إلى عمله؛ فبوّابتُه تردّه إلى هنا ما لم يوافق. #}
+        <a href="{% if request.user.is_staff_member %}{% url 'dashboard' %}{% else %}{% url 'parent_dashboard' %}{% endif %}" class="btn-ghost">إلغاء</a>
         <button type="submit" class="btn-primary">{% icon "confirm" %} حفظ الإعدادات</button>
       </div>
     {% endif %}

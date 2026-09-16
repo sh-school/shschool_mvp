@@ -9,7 +9,11 @@ from rest_framework.permissions import BasePermission
 
 from core.models import ParentStudentLink
 from core.models.access import ALL_STAFF_ROLES, LEADERSHIP
+from core.parent_consent import needs_parent_consent
 from core.permissions import expand_roles
+
+#: نصُّ الرفض نفسُه الذي يردّ به وسيطُ الموافقة.
+CONSENT_REQUIRED_MESSAGE = "يجب الموافقة على سياسة البيانات أولاً"
 
 
 class IsSchoolAdmin(BasePermission):
@@ -86,6 +90,14 @@ class IsParentOrAdmin(BasePermission):
 
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
+            return False
+
+        # الموافقةُ قبل تجاوز المدير: مديرٌ هو وليُّ أمرٍ يقرأ هنا أبناءه هو، فلا يمرّ
+        # قبل أن يوافق. وهذا الحارسُ وحدَه يرى طلبَ الرمز (JWT) الذي لا يراه الوسيط.
+        # و`message`/`code` على النسخة: DRF ينشئ الصلاحيّةَ لكلّ طلبٍ ويقرؤهما عند الرفض.
+        if needs_parent_consent(request.user):
+            self.message = CONSENT_REQUIRED_MESSAGE
+            self.code = "consent_required"
             return False
 
         # المدير والسوبر يوزر لا يحتاجان فحص ملكية

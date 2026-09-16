@@ -628,7 +628,9 @@ def consent_view(request):
     if not request.user.has_role("parent") and not request.user.is_superuser:
         return HttpResponse("هذه الصفحة لأولياء الأمور فقط.", status=403)
 
-    school = request.user.get_school()
+    # مدرسةُ عضويّة وليّ الأمر كما تقرؤها البوّابة — لا مدرسةُ الدور الحاكم، فالكادرُ
+    # الذي هو وليُّ أمرٍ قد تكون عضويّتُه الحاكمةُ في غيرها فلا يرى أبناءه هنا.
+    school = _get_parent_school(request) or request.user.get_school()
     links = ParentStudentLink.objects.filter(parent=request.user, school=school).select_related(
         "student"
     )

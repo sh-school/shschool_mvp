@@ -77,7 +77,6 @@
   "core/models/stored_file.py": 1,
   "core/models/user.py": 32,
   "core/module_registry.py": 1,
-  "core/navigation.py": 6,
   "core/pdf_utils.py": 22,
   "core/permissions.py": 54,
   "core/querysets.py": 19,
@@ -153,5 +152,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1867
+ "total": 1861
 }
