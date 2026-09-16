@@ -13,6 +13,9 @@
   - غيرُه: من `total_score` (العددُ الصحيح هو المجموعُ نفسُه).
   - مسودّةٌ فارغة (لا درجةَ ولا مقيِّم — ما كان GET القديم يُنشئه عند فتح النموذج):
     `rating` فارغ، لا «ضعيف». المستوى اسمٌ وزاريٌّ تترتّب عليه آثارُ المادتين 21 و22.
+  - تقريرٌ سنويٌّ (S2) ليس على الاستمارة — بلا قالب، أو بلا درجاتِ مقيِّم، أو بمفاتيحَ غيرِ
+    مفاتيح محاور قالبه (`EmployeeEvaluation.has_form_scores`): `rating` فارغ. فمستوياتُ المادة 16
+    مستوياتُ التقرير الموضوع «وفقاً للنماذج المعتمدة من الوزير» (المادة 15، صفحة الملفّ 10).
 وتكرارُه لا يغيّر شيئاً، وعكسُه يعيد العتباتِ القديمة من `total_score`.
 """
 
@@ -78,9 +81,28 @@ def _is_blank(evaluation: Any, score_model: Any) -> bool:
     )
 
 
+def _off_form(evaluation: Any, score_model: Any, axis_model: Any) -> bool:
+    """تقريرٌ سنويٌّ ليس على الاستمارة — كما `EmployeeEvaluation.has_form_scores` معكوساً."""
+    if evaluation.period != "S2":
+        return False
+    if evaluation.template_id is None:
+        return True
+    keys = set(
+        axis_model.objects.filter(template_id=evaluation.template_id).values_list("key", flat=True)
+    )
+    rows = [
+        set(custom or {})
+        for custom in score_model.objects.filter(evaluation_id=evaluation.pk).values_list(
+            "custom_axes", flat=True
+        )
+    ]
+    return not (keys and rows and all(row == keys for row in rows))
+
+
 def forward(apps: Any, schema_editor: Any) -> None:
     EmployeeEvaluation = apps.get_model("quality", "EmployeeEvaluation")
     EvaluationScore = apps.get_model("quality", "EvaluationScore")
+    EvaluationAxis = apps.get_model("quality", "EvaluationAxis")
     for ev in EmployeeEvaluation.objects.all().iterator():
         total = ev.total_score
         if _is_blank(ev, EvaluationScore):
@@ -90,6 +112,8 @@ def forward(apps: Any, schema_editor: Any) -> None:
             if exact is not None:
                 total = _shown(exact)
             rating = _five_levels(exact if exact is not None else total)
+            if _off_form(ev, EvaluationScore, EvaluationAxis):
+                rating = ""
         if (total, rating) != (ev.total_score, ev.rating):
             EmployeeEvaluation.objects.filter(pk=ev.pk).update(total_score=total, rating=rating)
 

@@ -38,6 +38,7 @@ quality/evaluation_services.py
 from __future__ import annotations
 
 import re
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -381,9 +382,9 @@ def approve_evaluation(*, evaluation: EmployeeEvaluation, approver: CustomUser) 
     # فصفٌّ مربوطٌ بقالبٍ بلا درجةٍ عند أحد — درجاتُه في المحاور الأربعة (ربطُ الـGET القديم)،
     # أو صفرٌ رُميت درجاتُه في المسار القديم — مجموعُه من غير الاستمارة، فلا يُعتمد كما لا
     # يُعتمد غيرُ المربوط؛ وكان الصفرُ يُعتمد «ضعيفاً».
-    if locked.period == EmployeeEvaluation.MINISTRY_PERIOD and (
-        locked.template_id is None or not locked.scores.exists()
-    ):
+    # ومفاتيحُها مفاتيحُ محاور القالب بعينها (`has_form_scores`): صفٌّ أُدخلت درجاتُه من لوحة
+    # الإدارة بمفاتيحَ أخرى كان يُعتمد بمجموعٍ لا صلةَ له بالاستمارة.
+    if locked.period == EmployeeEvaluation.MINISTRY_PERIOD and not locked.has_form_scores():
         raise EvaluationRejectedError(
             "لا يُعتمد تقريرٌ سنويٌّ على غير استمارة الوزارة — المادة 15: «وفقاً للنماذج "
             "المعتمدة من الوزير» (02_staff_affairs.md:199)."
@@ -427,6 +428,27 @@ def record_receipt_on_refusal(
     locked.received_on = received_on
     locked.save(update_fields=["received_on", "updated_at"])
     evaluation.received_on = received_on
+
+
+def annual_rating_distribution(school: School, academic_year: str) -> dict[str, int]:
+    """
+    عددُ التقارير السنويّة الموضوعة فعلاً بكلّ مستوىً من مستويات المادة 16: لا المسودّات، ولا
+    متابعة S1 الداخليّة، ولا صفَّ S2 ليس على الاستمارة (`has_form_scores`) — فذاك لا مستوى
+    وزاريَّ له (المادة 15: «وفقاً للنماذج المعتمدة من الوزير»).
+    """
+    rows = (
+        EmployeeEvaluation.objects.filter(
+            school=school,
+            academic_year=academic_year,
+            period=EmployeeEvaluation.MINISTRY_PERIOD,
+            status__in=["submitted", "approved", "acknowledged"],
+            template__isnull=False,
+        )
+        .exclude(rating="")
+        .select_related("template")
+        .prefetch_related("scores", "template__axes")
+    )
+    return dict(Counter(row.rating for row in rows if row.has_form_scores()))
 
 
 def axis_values(

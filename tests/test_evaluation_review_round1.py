@@ -359,6 +359,8 @@ def _weighted_evaluation(school, employee, evaluator, totals):
     template = RoleEvaluationTemplate.objects.create(
         school=school, role_name="teacher", academic_year=YEAR
     )
+    # محورٌ واحدٌ مفتاحُه مفتاحُ الدرجات — وإلّا لم تكن درجاتِ الاستمارة (`has_form_scores`).
+    EvaluationAxis.objects.create(template=template, key="all", label="الكلّ", weight=100)
     evaluation = EmployeeEvaluation.objects.create(
         school=school, employee=employee, evaluator=evaluator, template=template,
         academic_year=YEAR, period="S2", status="submitted",
@@ -430,7 +432,9 @@ def test_blank_and_internal_rows_are_not_counted_or_shown_as_weak(
     )
     client.force_login(principal_user)
     dist = client.get(reverse("evaluation_dashboard") + f"?year={YEAR}").context["rating_dist"]
-    assert dist.get("weak") == 1
+    # صفُّ S2 المعتمَدُ على المحاور الأربعة ليس على الاستمارة، فلا مستوى وزاريَّ له ولا يُعدّ
+    # (جولة الإصلاح 3، test_annual_rows_off_the_form_get_no_article_16_level).
+    assert dist == {}
 
     client.force_login(teacher_user)
     assert client.get(reverse("my_evaluations")).context["evals"] == []

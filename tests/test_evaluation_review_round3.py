@@ -21,6 +21,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import pytest
+from django.apps import apps as django_apps
 from django.urls import reverse
 from django.utils import timezone
 
@@ -38,7 +39,14 @@ from quality.models import (
     EvaluationScore,
     RoleEvaluationTemplate,
 )
-from tests.test_evaluation_review_round1 import YEAR, _post_total, _seed, _staff, _url
+from tests.test_evaluation_review_round1 import (
+    YEAR,
+    _migration_0018_forward,
+    _post_total,
+    _seed,
+    _staff,
+    _url,
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -225,3 +233,87 @@ def test_article_19_exempts_no_one_the_licence_policy_obliges_to_renew():
     item = _adr_owner_item(4)
     assert "ولا يُعدّ من نصّت" not in item
     assert "ص23 بند 1" in item.split("ويبقى للمالك", 1)[1]
+
+
+# ── 7. درجةُ الاستمارة: مفاتيحُ محاورها، لا وجودُ `EvaluationScore` ─────────────────
+
+#: مفاتيحُ صفٍّ أُدخل من لوحة الإدارة قبل الموجة — ليست محاورَ أيّ استمارة.
+_FOREIGN_KEYS = {"professional": 25, "commitment": 25, "teamwork": 20, "development": 20}
+
+
+def _submitted_on_foreign_keys(school, employee, custom_axes=None):
+    _seed(school)
+    template = RoleEvaluationTemplate.objects.get(
+        school=school, role_name="teacher", academic_year=YEAR
+    )
+    vice = _staff(school, "vice_academic")
+    evaluation = EmployeeEvaluation.objects.create(
+        school=school, employee=employee, evaluator=vice, academic_year=YEAR,
+        period="S2", template=template, status="submitted",
+    )  # fmt: skip
+    EvaluationScore.objects.create(
+        evaluation=evaluation,
+        evaluator=vice,
+        custom_axes=_FOREIGN_KEYS if custom_axes is None else custom_axes,
+    )
+    return evaluation
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("custom_axes", [_FOREIGN_KEYS, {}], ids=["foreign-keys", "empty"])
+def test_annual_report_scored_on_keys_outside_the_form_is_not_approved(
+    school, principal_user, teacher_user, custom_axes
+):
+    """
+    المادة 15: «وفقاً للنماذج المعتمدة من الوزير» — المجموعُ من محاور الاستمارة وحدها.
+    و`{}` صفُّ لوحة الإدارة القديمة بالمحاور الأربعة الافتراضيّة (custom_axes فارغ).
+    """
+    evaluation = _submitted_on_foreign_keys(school, teacher_user, custom_axes)
+    with pytest.raises(EvaluationRejectedError, match="استمارة"):
+        approve_evaluation(evaluation=evaluation, approver=principal_user)
+    evaluation.refresh_from_db()
+    assert evaluation.status == "submitted"
+    assert evaluation.rating == ""  # 90 من غير الاستمارة ليس «ممتاز» المادة 16
+
+
+# ── 8. تقريرٌ سنويٌّ ليس على الاستمارة لا يحمل اسمَ مستوى المادة 16 ──────────────────
+
+
+@pytest.mark.django_db
+def test_annual_rows_off_the_form_get_no_article_16_level(
+    client, school, principal_user, teacher_user
+):
+    """
+    المادة 16 تسمّي مستوياتِ التقرير الذي يوضع «وفقاً للنماذج المعتمدة من الوزير» (المادة 15)؛
+    والمستوى تترتّب عليه آثارُ المادتين 21 و22. فصفُّ S2 على المحاور الأربعة (قبل الموجة) أو على
+    مفاتيحَ غريبة لا يأخذ اسمَه في الهجرة 0018 ولا في الحفظ، ولا يُعدّ في توزيع اللوحة. والمتابعةُ
+    الداخليّة S1 تبقى على السُّلَّم الواحد (ADR-0002 §6.3).
+    """
+    foreign = _submitted_on_foreign_keys(school, teacher_user)
+    other = _staff(school, "it_technician")
+    common = {"school": school, "evaluator": principal_user, "academic_year": YEAR}
+    legacy = EmployeeEvaluation.objects.create(
+        employee=other, period="S2", status="approved", axis_professional=20,
+        axis_commitment=20, axis_teamwork=11, axis_development=11, **common,
+    )  # fmt: skip
+    internal = EmployeeEvaluation.objects.create(
+        employee=other, period="S1", status="approved", axis_professional=20,
+        axis_commitment=20, axis_teamwork=11, axis_development=11, **common,
+    )  # fmt: skip
+    assert (legacy.total_score, legacy.rating) == (62, "")
+    for row in (foreign, legacy):
+        EmployeeEvaluation.objects.filter(pk=row.pk).update(rating="good")
+
+    _migration_0018_forward()(django_apps, None)
+    for row in (foreign, legacy, internal):
+        row.refresh_from_db()
+    assert (foreign.rating, legacy.rating, internal.rating) == ("", "", "acceptable")
+
+    legacy.save()  # حفظٌ عامّ (لوحةُ الإدارة) لا يعيد إليه المستوى
+    legacy.refresh_from_db()
+    assert legacy.rating == ""
+
+    EmployeeEvaluation.objects.filter(pk=legacy.pk).update(rating="acceptable")
+    client.force_login(principal_user)
+    dist = client.get(reverse("evaluation_dashboard") + f"?year={YEAR}").context["rating_dist"]
+    assert sum(dist.values()) == 0

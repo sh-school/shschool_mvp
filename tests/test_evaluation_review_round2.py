@@ -170,7 +170,7 @@ def test_legacy_row_bound_to_a_template_keeps_its_default_axis_scores(
 @pytest.mark.django_db
 def test_receipt_date_cannot_precede_the_approval(school, principal_user, teacher_user):
     """المادة 20: المهلةُ «من تاريخ علمه» بالتقرير — ولا يُعلم بتقريرٍ قبل اعتماده."""
-    _seed(school)
+    form = _seed(school)
     template = RoleEvaluationTemplate.objects.get(
         school=school, role_name="teacher", academic_year=YEAR
     )
@@ -179,8 +179,12 @@ def test_receipt_date_cannot_precede_the_approval(school, principal_user, teache
         school=school, employee=teacher_user, evaluator=vice, academic_year=YEAR, period="S2",
         template=template, status="submitted",
     )  # fmt: skip
+    # درجاتٌ على مفاتيح محاور الاستمارة — وإلّا رُفض الاعتماد (جولة الإصلاح 3).
     EvaluationScore.objects.create(
-        evaluation=evaluation, evaluator=vice, weight=100, custom_axes={"x": 80}
+        evaluation=evaluation,
+        evaluator=vice,
+        weight=100,
+        custom_axes={axis.key: axis.weight for axis in form.axes},
     )
     approve_evaluation(evaluation=evaluation, approver=principal_user)
     evaluation.refresh_from_db()

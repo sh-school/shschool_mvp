@@ -879,6 +879,7 @@ class EmployeeEvaluation(models.Model):
             + self.axis_development
         )
         self.rating = self.rating_for(self.total_score)
+        self._drop_level_off_form()
 
     def calculate_weighted_total(self) -> None:
         """
@@ -906,6 +907,17 @@ class EmployeeEvaluation(models.Model):
 
         # التصنيفُ على المجموع غير المقرَّب — انظر `rating_for` (المادة 16).
         self.rating = self.rating_for(exact)
+        self._drop_level_off_form()
+
+    def _drop_level_off_form(self) -> None:
+        """
+        التقريرُ السنويّ يوضع «وفقاً للنماذج المعتمدة من الوزير» (المادة 15، صفحة الملفّ 10،
+        02_staff_affairs.md:199)، ومستوياتُ المادة 16 مستوياتُه — تترتّب عليها آثارُ المادتين
+        21 و22. فصفُّ S2 ليس على الاستمارة (المحاورُ الأربعة قبل الموجة، أو مفاتيحُ غريبة)
+        لا يأخذ اسمَ مستوىً منها. والمتابعةُ الداخليّة S1 على السُّلَّم الواحد (ADR-0002 §6.3).
+        """
+        if self.period == self.MINISTRY_PERIOD and not self.has_form_scores():
+            self.rating = ""
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         # إصلاح #3: حساب المجموع فقط عندما لا يكون update_fields محدداً
@@ -931,6 +943,19 @@ class EmployeeEvaluation(models.Model):
     def has_template_scores(self) -> bool:
         """أمحفوظٌ على قالب دورٍ بدرجات مقيِّمين؟ (فمجموعُه من `scores` لا من حقول المحاور)."""
         return not self._state.adding and self.template_id is not None and self.scores.exists()
+
+    def has_form_scores(self) -> bool:
+        """
+        أدرجاتُه درجاتُ استمارة قالبه؟ مربوطٌ بقالبٍ له محاور، وعنده صفُّ درجاتٍ واحدٌ على الأقلّ،
+        ومفاتيحُ كلِّ صفٍّ هي مفاتيحُ محاور القالب بعينها. كان يكفي وجودُ `EvaluationScore`، فصفٌّ
+        أُدخلت درجاتُه من لوحة الإدارة بمفاتيحَ أخرى يُجمع ويُعتمد تقريراً سنويّاً.
+        (يقرأ `.all()` ليكفيه `prefetch_related("scores", "template__axes")`.)
+        """
+        if self._state.adding or self.template_id is None:
+            return False
+        keys = {axis.key for axis in self.template.axes.all()}
+        rows = [score.custom_axes or {} for score in self.scores.all()]
+        return bool(keys) and bool(rows) and all(set(row) == keys for row in rows)
 
     def has_default_axis_scores(self) -> bool:
         """
