@@ -11,7 +11,7 @@ from django.urls import reverse
 from django.utils import formats, timezone
 from django.views.decorators.http import require_POST
 
-from core.academic_calendar import academic_year_for_school
+from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.capabilities import capability_required, has_capability
 from core.models import ClassGroup, CustomUser, Wing, WingCoverage
 from operations.absence_policy import next_gate
@@ -110,6 +110,11 @@ def _day(raw, fallback=None):
         return dt.date.fromisoformat(raw)
     except (TypeError, ValueError):
         return fallback
+
+
+def _september_first(today):
+    """بدايةُ العام حين لا تقويمَ مبذوراً: سبتمبرُ هذه السنة، أو الماضية قبل سبتمبر."""
+    return dt.date(today.year if today.month >= 9 else today.year - 1, 9, 1)
 
 
 @login_required
@@ -382,10 +387,20 @@ def student_events(request, class_id, student_id):
     today = timezone.localdate()
     # اليومُ المقصود: ما في الرابط، وإلّا آخرُ يومِ غيابٍ بلا عذر — لا اليوم: كان الفراغُ
     # يُملأ بتاريخ اليوم فيُكتب العذرُ والإخطارُ على يومٍ لم يغب فيه.
+    # وفي هذا العام وحده وحتى اليوم: غيابُ يونيو الماضي كان يملأ الخانتين، فيُرسَل عذرُ
+    # اليوم ومستندُه إلى النائب عن يومٍ من عامٍ مضى.
+    window = academic_year_window(school, today)
+    year_start = window[0] if window else _september_first(today)
     last_absent = (
         StudentAttendance.objects.filter(
-            student=student, school=school, status="absent", excuse_type=""
+            student=student,
+            school=school,
+            status="absent",
+            excuse_type="",
+            session__date__gte=year_start,
+            session__date__lte=today,
         )
+        .exclude(session__status="cancelled")
         .order_by("-session__date")
         .values_list("session__date", flat=True)
         .first()
