@@ -12,6 +12,12 @@
         "support_companion": "مرافق دعم",
         "messenger": "مندوب"
       },
+      "assigned_roles": {
+        "bus_supervisor": {
+          "category": "ملاحظ طلبة",
+          "evidence": "«الدليل التنظيمي لسياسة إدارة سلوك الطلبة 2026.pdf» صفحة الملفّ 105: «ملاحظ الحافلة»؛ و«05- الوصف الوظيفي/ملاحظ طلبة.pdf» ص1: مهامُّه تبدأ بمرافقة الطلاب في الباصات والإشراف على صعودهم ونزولهم"
+        }
+      },
       "unmapped_categories": [],
       "axes": [
         {
@@ -144,6 +150,7 @@
       "roles": {
         "teacher": "المعلم"
       },
+      "assigned_roles": {},
       "unmapped_categories": [],
       "axes": [
         {
@@ -239,6 +246,7 @@
       "roles": {
         "vice_admin": "نائب المدير للشؤون الإدارية وشؤون الطلاب"
       },
+      "assigned_roles": {},
       "unmapped_categories": [
         "نائب المدير لشؤون الروضة"
       ],
@@ -312,6 +320,7 @@
       "roles": {
         "vice_academic": "النائب الأكاديمي"
       },
+      "assigned_roles": {},
       "unmapped_categories": [],
       "axes": [
         {
@@ -381,6 +390,12 @@
         "storekeeper": "أمين مخزن",
         "canteen_supervisor": "مشرف مقصف",
         "admin_supervisor": "مشرف إداري"
+      },
+      "assigned_roles": {
+        "transport_officer": {
+          "category": "مشرف إداري",
+          "evidence": "«الدليل التنظيمي لسياسة إدارة سلوك الطلبة 2026.pdf» صفحة الملفّ 105: «المشرف الإداري (مسؤول الحافلات)»؛ و«05- الوصف الوظيفي/مشرف اداري.pdf» ص1: «الأشراف على أمن وسلامة الطلبة مستخدمي الحافلات المدرسية» و«الباصات» فيما يُكلَّف به"
+        }
       },
       "unmapped_categories": [
         "مسؤول الإرشاد والتوجيه",
@@ -462,6 +477,7 @@
         "receptionist": "موظف استقبال",
         "it_technician": "فني تقنية معلومات"
       },
+      "assigned_roles": {},
       "unmapped_categories": [],
       "axes": [
         {
@@ -553,6 +569,7 @@
         "librarian": "مسؤول مركز مصادر التعلم",
         "activities_coordinator": "اخصائي أنشطة مدرسية"
       },
+      "assigned_roles": {},
       "unmapped_categories": [
         "مهندس مختبرات العلوم والتكنولوجيا"
       ],

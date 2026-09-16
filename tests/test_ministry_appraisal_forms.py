@@ -147,7 +147,8 @@ def test_every_mapped_role_exists_is_evaluable_and_unique():
     mapping = forms_by_role()  # يرفع ValueError إن تكرّر دور
     assert set(mapping) <= known
     assert set(mapping) <= _EVALUABLE_ROLES, set(mapping) - _EVALUABLE_ROLES
-    assert len(mapping) == 23
+    # 23 خانةً مسمّاةً في الرؤوس + تكليفان موثَّقان (bus_supervisor، transport_officer).
+    assert len(mapping) == 25
 
 
 def test_librarian_and_activities_specialist_are_named_by_admin_form_3():
@@ -175,8 +176,6 @@ def test_librarian_and_activities_specialist_are_named_by_admin_form_3():
         "nurse",
         "speech_therapist",
         "occupational_therapist",
-        "bus_supervisor",
-        "transport_officer",
         "admin",
         "specialist",
     ],
@@ -221,11 +220,11 @@ def test_dry_run_writes_nothing(school):
 def test_apply_is_idempotent(school):
     _seed(school, "--apply")
     first = _counts(school)
-    # 23 دوراً؛ ومحاورُها: 4×20 + 7 + 6 + 5 + 5×6 + 4×8 + 7×6 = 202
-    assert first == (23, 202)
+    # 25 دوراً (23 خانة + تكليفان)؛ ومحاورُها: 5×20 + 7 + 6 + 5 + 6×6 + 4×8 + 7×6 = 228
+    assert first == (25, 228)
     output = _seed(school, "--apply")
     assert _counts(school) == first
-    assert "'created': 0, 'updated': 0, 'same': 23" in output
+    assert "'created': 0, 'updated': 0, 'same': 25" in output
 
 
 @pytest.mark.django_db

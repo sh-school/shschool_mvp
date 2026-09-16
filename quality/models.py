@@ -28,6 +28,8 @@ from django.utils import timezone
 from core.academic_calendar import academic_year_for_school, default_academic_year
 from core.models import CustomUser, Membership, School
 
+from .appraisal_forms import forms_by_role
+
 
 def _uuid():
     return uuid.uuid4()
@@ -61,6 +63,9 @@ _EVALUABLE_ROLES = frozenset(
         "nurse",
         "librarian",
         "bus_supervisor",
+        # مسؤولُ النقل: تكليفٌ على «مشرف إداري» (الإداريّة 1) — «المشرف الإداري (مسؤول
+        # الحافلات)» في «الدليل التنظيمي لسياسة إدارة سلوك الطلبة 2026.pdf» صفحة الملفّ 105.
+        "transport_officer",
         "admin_supervisor",
         "admin",
         "secretary",
@@ -1031,9 +1036,14 @@ class EmployeeEvaluation(models.Model):
         return bool(today > deadline)
 
     def acknowledge(self):
+        """
+        إقرارُ الموظّف بالاستلام ومعه تعليقُه (`employee_comment`، يضعه العرضُ قبل النداء).
+        كان التعليقُ خارج `update_fields` فيضيع صامتاً — وهو أوّلُ ما يُبنى عليه التظلّم
+        («ويجوز للموظف أن يتظلم منه»، المادة 20، صفحة الملفّ 12).
+        """
         self.status = "acknowledged"
         self.acknowledged_at = timezone.now()
-        self.save(update_fields=["status", "acknowledged_at"])
+        self.save(update_fields=["status", "acknowledged_at", "employee_comment", "updated_at"])
 
     def recalculate_from_scores(self):
         """أعد حساب المجموع من تقييمات المقيّمين المتعددين"""
@@ -1167,16 +1177,31 @@ class EvaluationCycle(models.Model):
     # إصلاح #4: cached_property لتجنب 2×N queries
     @cached_property
     def completion_rate(self):
-        total_staff = Membership.objects.filter(
+        """
+        نسبةُ من وُضع تقريرُه من الموظّفين الذين يُفتح لهم تقريرُ الفترة.
+
+        والتقريرُ السنويّ (S2) لا يُفتح إلّا لدورٍ له استمارةٌ وزاريّة («وفقاً للنماذج المعتمدة
+        من الوزير» — المادة 15، 02_staff_affairs.md:199)؛ والأدوارُ التي لم يسمِّ المصدرُ
+        استمارتَها معلّقةٌ للمالك (ADR-0002 §6.6 بند 12). فكانت تدخل المقام ولا سبيلَ إلى
+        تقريرها، فلا تبلغ الدورةُ 100% أبداً. والبسطُ من المقام نفسه — لا يُعدّ تقريرٌ لمن
+        ليس فيه.
+        """
+        roles = set(_EVALUABLE_ROLES)
+        if self.period == EmployeeEvaluation.MINISTRY_PERIOD:
+            roles &= set(forms_by_role())
+        staff_ids = Membership.objects.filter(
             school=self.school,
             is_active=True,
-            role__name__in=_EVALUABLE_ROLES,
-        ).count()
+            role__name__in=roles,
+        ).values("user_id")
+        # بلا ترتيبٍ افتراضيّ: حقولُ الترتيب تدخل DISTINCT فيُعدّ الموظّفُ مرّتين.
+        total_staff = staff_ids.order_by().distinct().count()
         evaluated = EmployeeEvaluation.objects.filter(
             school=self.school,
             academic_year=self.academic_year,
             period=self.period,
             status__in=["submitted", "approved", "acknowledged"],
+            employee_id__in=staff_ids,
         ).count()
         return round(evaluated / total_staff * 100) if total_staff else 0
 

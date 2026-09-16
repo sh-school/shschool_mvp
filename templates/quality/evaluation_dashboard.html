@@ -62,15 +62,22 @@
             <td>{{ s.user.full_name }}</td>
             <td class="pr-muted">{{ s.role_display }}</td>
             <td class="num">
-              {% if s.s1 %}
+              {# المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف» — لا يُقيِّم أحدٌ نفسَه. #}
+              {% if s.is_self %}
+                <span class="pr-muted">—</span>
+              {% elif s.s1 %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S1&year={{ year }}" class="status-badge status-{{ s.s1_tone }}">{{ s.s1.total_score }} · {{ s.s1.get_status_display }}</a>
               {% else %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S1&year={{ year }}" class="btn-primary btn-sm">تقييم</a>
               {% endif %}
             </td>
             <td class="num">
-              {% if s.s2 %}
+              {% if s.is_self %}
+                <span class="pr-muted">—</span>
+              {% elif s.s2 %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S2&year={{ year }}" class="status-badge status-{{ s.s2_tone }}">{{ s.s2.total_score }} · {{ s.s2.get_status_display }}</a>
+              {% elif s.s2_blocked %}
+                <span class="pr-muted">{{ s.s2_blocked }}</span>
               {% else %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S2&year={{ year }}" class="btn-primary btn-sm">تقييم</a>
               {% endif %}

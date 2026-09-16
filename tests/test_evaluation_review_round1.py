@@ -180,7 +180,8 @@ def test_only_the_principal_records_the_receipt_and_not_in_the_future(
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("role_name", ["nurse", "coordinator", "ese_teacher", "bus_supervisor"])
+# bus_supervisor خرج منها: تكليفٌ على «ملاحظ طلبة» (جولة الإصلاح 3، test_evaluation_review_round3).
+@pytest.mark.parametrize("role_name", ["nurse", "coordinator", "ese_teacher", "admin"])
 def test_silent_roles_get_no_annual_report_on_invented_axes(
     client, school, principal_user, role_name
 ):

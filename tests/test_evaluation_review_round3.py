@@ -1,0 +1,204 @@
+"""[LEGAL] عيوبُ المراجعة العدائيّة لموجة تقييم الأداء (جولة الإصلاح 3، 2026-09-16).
+
+كلُّ اختبارٍ هنا سقط على الفرع قبل إصلاحه. والمراجع مقروءةٌ من صورة الصفحة:
+
+  - «02- النظام الوظيفي لموظفي المدارس.pdf» (قرار مجلس الوزراء 32/2019): المادة 16 صفحة
+    الملفّ 10 (المطبوعة 24) — «يضع الرئيس المباشر تقييم أداء الموظف ويعتمد من مدير
+    المدرسة»؛ والمادتان 19 و20 صفحة الملفّ 12 (المطبوعة 26) — «أو لم يقم بتجديدها، بمستوى
+    ضعيف»، و«يُعلن الموظف بنسخة من تقرير تقييم الأداء، ويجوز للموظف أن يتظلم منه».
+  - «الدليل التنظيمي لسياسة إدارة سلوك الطلبة 2026.pdf» صفحة الملفّ 105 (المطبوعة 96):
+    «ملاحظ الحافلة» و«المشرف الإداري (مسؤول الحافلات)».
+  - «02- شؤون الموظفين/05- الوصف الوظيفي/ملاحظ طلبة.pdf» ص1 (مهامُّه تبدأ بمرافقة الطلاب في
+    الباصات)، و«مشرف اداري.pdf» ص1 («الأشراف على أمن وسلامة الطلبة مستخدمي الحافلات
+    المدرسية»، و«الباصات» فيما يُكلَّف به).
+  - «05- سياسة الرخص المهنية للمعلمين و قادة المدارس.pdf» ص22–23.
+"""
+
+from __future__ import annotations
+
+import inspect
+from datetime import timedelta
+from pathlib import Path
+
+import pytest
+from django.urls import reverse
+from django.utils import timezone
+
+from quality.appraisal_forms import forms_by_role, load_forms
+from quality.evaluation_services import (
+    AppraisalYearFacts,
+    EvaluationRejectedError,
+    approve_evaluation,
+    save_evaluation,
+)
+from quality.evaluation_views import _DEFAULT_AXES
+from quality.models import (
+    EmployeeEvaluation,
+    EvaluationCycle,
+    EvaluationScore,
+    RoleEvaluationTemplate,
+)
+from tests.test_evaluation_review_round1 import YEAR, _post_total, _seed, _staff, _url
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+# ── 1. إقرارُ الموظّف يحفظ تعليقه ─────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_acknowledgement_keeps_the_employee_comment(client, school, principal_user, teacher_user):
+    """المادة 20: «يُعلن الموظف بنسخة ... ويجوز للموظف أن يتظلم منه» — وتعليقُه يُحفظ."""
+    evaluation = EmployeeEvaluation.objects.create(
+        school=school, employee=teacher_user, evaluator=principal_user,
+        academic_year=YEAR, period="S2", status="approved",
+    )  # fmt: skip
+    client.force_login(teacher_user)
+    client.post(
+        reverse("acknowledge_evaluation", kwargs={"eval_id": evaluation.pk}),
+        {"comment": "أعترض على درجة المجال الثاني"},
+    )
+    evaluation.refresh_from_db()
+    assert evaluation.status == "acknowledged"
+    assert evaluation.employee_comment == "أعترض على درجة المجال الثاني"
+
+
+# ── 2. لا يضع الموظّفُ تقريرَه عن نفسه ────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_evaluator_cannot_place_their_own_report(client, school):
+    """المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف» — وليس الموظّفُ رئيسَ نفسه."""
+    _seed(school)
+    form = forms_by_role()["vice_academic"]
+    vice = _staff(school, "vice_academic")
+    client.force_login(vice)
+    assert client.get(_url(vice)).status_code == 403
+    assert client.post(_url(vice), _post_total(form, 100)).status_code == 403
+    assert client.get(_url(vice, "S1")).status_code == 403
+    assert not EmployeeEvaluation.objects.filter(employee=vice).exists()
+
+    evaluation = EmployeeEvaluation(
+        school=school, employee=vice, evaluator=vice, academic_year=YEAR, period="S1"
+    )
+    data = {key: "25" for key, _label, _max in _DEFAULT_AXES} | {"action": "submitted"}
+    with pytest.raises(EvaluationRejectedError, match="المادة 16"):
+        save_evaluation(evaluation=evaluation, evaluator=vice, axes=_DEFAULT_AXES, data=data)
+    assert not EmployeeEvaluation.objects.filter(employee=vice).exists()
+
+
+# ── 3. تقريرٌ سنويٌّ مربوطٌ بقالبٍ بلا درجاتِ واضعٍ لا يُعتمد ─────────────────────
+
+
+@pytest.mark.django_db
+def test_template_bound_annual_report_without_placed_scores_is_not_approved(
+    school, principal_user, teacher_user
+):
+    """صفٌّ كتبه المسارُ القديم: قالبٌ مربوط، ومحاورُ صفر، ولا `EvaluationScore` — مجموعُه 0."""
+    _seed(school)
+    template = RoleEvaluationTemplate.objects.get(
+        school=school, role_name="teacher", academic_year=YEAR
+    )
+    evaluation = EmployeeEvaluation.objects.create(
+        school=school, employee=teacher_user, evaluator=_staff(school, "vice_academic"),
+        academic_year=YEAR, period="S2", template=template, status="submitted",
+    )  # fmt: skip
+    assert evaluation.total_score == 0
+    assert not EvaluationScore.objects.filter(evaluation=evaluation).exists()
+    with pytest.raises(EvaluationRejectedError, match="استمارة"):
+        approve_evaluation(evaluation=evaluation, approver=principal_user)
+    evaluation.refresh_from_db()
+    assert evaluation.status == "submitted"
+
+
+# ── 4. مشرفُ الحافلة ومسؤولُ النقل: تكليفٌ على مسمّىً تثبته الوثائق ────────────
+
+
+@pytest.mark.parametrize(
+    ("role_name", "section", "category"),
+    [
+        # دليل السلوك ص105: «ملاحظ الحافلة»؛ وبطاقةُ «ملاحظ طلبة» مهامُّها الباصات.
+        ("bus_supervisor", "2.3", "ملاحظ طلبة"),
+        # دليل السلوك ص105: «المشرف الإداري (مسؤول الحافلات)»؛ وبطاقةُ «مشرف اداري» تذكر
+        # الحافلات والباصات.
+        ("transport_officer", "2.7", "مشرف إداري"),
+    ],
+)
+def test_transport_roles_are_appraised_on_the_documented_category(role_name, section, category):
+    form = forms_by_role()[role_name]
+    assert form.section == section
+    assert dict(form.assignments)[role_name] == category
+
+
+def test_every_form_assignment_names_a_header_category():
+    """التكليفُ على خانةٍ مطبوعةٍ في رأس الاستمارة نفسها (منسوخةٍ حرفيّاً في `roles`)."""
+    assignments = [(f, c) for f in load_forms() for _role, c in f.assignments]
+    assert assignments
+    for form, category in assignments:
+        assert category in dict(form.roles).values(), (form.code, category)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("role_name", ["bus_supervisor", "transport_officer"])
+def test_transport_roles_get_an_annual_report(client, school, role_name):
+    _seed(school)
+    employee = _staff(school, role_name)
+    client.force_login(_staff(school, "vice_admin"))
+    assert client.get(_url(employee)).status_code == 200
+    form = forms_by_role()[role_name]
+    assert client.post(_url(employee), _post_total(form, 80)).status_code == 302
+    evaluation = EmployeeEvaluation.objects.get(employee=employee, period="S2")
+    assert (evaluation.total_score, evaluation.template.role_name) == (80, role_name)
+
+
+# ── 5. المادة 19 كما نصُّها: «أو لم يقم بتجديدها» ────────────────────────────────
+
+
+def test_article_19_flag_is_defined_by_the_text_not_by_an_application():
+    source = inspect.getsource(AppraisalYearFacts)
+    adr = (ROOT / "docs" / "adr" / "0002-unified-staff-appraisal.md").read_text(encoding="utf-8")
+    assert "لم يقم بتجديدها" in source
+    for text in (source, adr):
+        assert "لم يتقدّم لتجديدها" not in text
+
+
+# ── 6. نسبةُ إنجاز S2 وزرُّ التقييم لأدوارٍ بلا استمارة ─────────────────────────
+
+
+@pytest.mark.django_db
+def test_s2_cycle_completes_when_every_role_with_a_form_is_reported(
+    client, school, principal_user, teacher_user
+):
+    """
+    الأدوارُ بلا استمارةٍ لا يُفتح لها S2 حتى يقرّر المالك (ADR-0002 §6.6 بند 12)، فلا تدخل
+    مقامَ النسبة ولا يُعرض لها زرٌّ يُفضي إلى 409.
+    """
+    form = _seed(school)
+    nurse = _staff(school, "nurse", "الممرّض")
+    vice_academic = _staff(school, "vice_academic", "النائب الأكاديمي")
+    vice_admin = _staff(school, "vice_admin", "النائب الإداري")
+    client.force_login(vice_academic)
+    assert client.post(_url(teacher_user), _post_total(form, 80)).status_code == 302
+    assert (
+        client.post(_url(vice_admin), _post_total(forms_by_role()["vice_admin"], 80)).status_code
+        == 302
+    )
+    client.force_login(vice_admin)
+    vice_form = forms_by_role()["vice_academic"]
+    assert client.post(_url(vice_academic), _post_total(vice_form, 80)).status_code == 302
+    assert EmployeeEvaluation.objects.filter(period="S2", status="submitted").count() == 3
+
+    cycle = EvaluationCycle.objects.create(
+        school=school,
+        academic_year=YEAR,
+        period="S2",
+        deadline=timezone.localdate() + timedelta(days=30),
+    )
+    assert cycle.completion_rate == 100
+
+    client.force_login(principal_user)
+    page = client.get(reverse("evaluation_dashboard") + f"?year={YEAR}").content.decode()
+    page = page.replace("&amp;", "&")
+    link = reverse("create_evaluation", kwargs={"employee_id": nurse.pk})
+    assert f"{link}?period=S1" in page
+    assert f"{link}?period=S2" not in page

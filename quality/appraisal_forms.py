@@ -12,6 +12,11 @@ quality/appraisal_forms.py
 وكلُّ استمارةٍ تذكر الأدوارَ التي تنطبق عليها بمفتاح `Role.name` وبنصِّ خانتها في
 رأس الاستمارة حرفيّاً؛ وما في الرأس ولا دورَ له في المنصّة يُحفظ في
 `unmapped_categories` ليُرى لا ليُخمَّن.
+
+ودورٌ لا خانةَ له باسمه وتُثبت الوثائقُ أنّه تكليفٌ على خانةٍ مطبوعة يُذكر في
+`assigned_roles` بالخانة وبدليله، لا في `roles` — فخاناتُ الرأس تبقى منسوخةً كما هي،
+ولا يُكرَّر نصُّها. مثالُه مشرفُ الحافلة: «ملاحظ الحافلة» في «الدليل التنظيمي لسياسة
+إدارة سلوك الطلبة 2026.pdf» صفحة الملفّ 105، وبطاقةُ «ملاحظ طلبة» مهامُّها الباصات.
 """
 
 from __future__ import annotations
@@ -51,12 +56,14 @@ class AppraisalForm:
     title: str
     source_file: str
     roles: tuple[tuple[str, str], ...]
+    #: (الدور، الخانةُ المطبوعة التي كُلِّف عليها) — والدليلُ في ملفّ البيانات.
+    assignments: tuple[tuple[str, str], ...]
     unmapped_categories: tuple[str, ...]
     axes: tuple[Axis, ...]
 
     @property
     def role_names(self) -> tuple[str, ...]:
-        return tuple(name for name, _text in self.roles)
+        return tuple(name for name, _text in (*self.roles, *self.assignments))
 
     @property
     def total_weight(self) -> int:
@@ -70,6 +77,9 @@ def _parse(raw: dict[str, Any]) -> AppraisalForm:
         title=raw["title"],
         source_file=raw["source_file"],
         roles=tuple(raw["roles"].items()),
+        assignments=tuple(
+            (name, assigned["category"]) for name, assigned in raw["assigned_roles"].items()
+        ),
         unmapped_categories=tuple(raw["unmapped_categories"]),
         axes=tuple(
             Axis(

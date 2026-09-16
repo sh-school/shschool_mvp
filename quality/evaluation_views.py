@@ -27,6 +27,7 @@ from core.models.user import role_rank
 from .appraisal_forms import forms_by_role
 from .evaluation_services import (
     PRINCIPAL_NOT_EVALUATED,
+    SELF_EVALUATION,
     EvaluationRejectedError,
     axis_values,
     is_academic_year,
@@ -103,7 +104,20 @@ def _get_axes_for_employee(school, employee, year):
     return _DEFAULT_AXES, None
 
 
-def _get_evaluable_staff(school, year):
+def _s2_blocked_reason(role_name, seeded_roles):
+    """
+    لماذا لا يُفتح التقريرُ السنويّ لهذا الدور — أو "" إن كان يُفتح. هو ما يردّ به
+    `create_evaluation` 409، فيُعرض في الصفّ نصّاً بدل زرٍّ يُفضي إلى صفحةٍ خامّة.
+    """
+    if role_name in seeded_roles:
+        return ""
+    if role_name in forms_by_role():
+        return "الاستمارة غير مبذورة لهذا العام"
+    # المادة 15: «وفقاً للنماذج المعتمدة من الوزير» — ولا استمارةَ مسمّاةً للدور (ADR-0002 §6.6).
+    return "لا استمارة وزاريّة للدور — معلّقٌ للمالك"
+
+
+def _get_evaluable_staff(school, year, viewer=None):
     """قائمة الموظفين القابلين للتقييم مع حالة التقييم"""
     memberships = (
         Membership.objects.filter(school=school, is_active=True, role__name__in=_EVALUABLE_ROLES)
@@ -119,6 +133,12 @@ def _get_evaluable_staff(school, year):
         ).select_related("evaluator")
     }
 
+    seeded_roles = set(
+        RoleEvaluationTemplate.objects.filter(
+            school=school, academic_year=year, is_active=True, axes__isnull=False
+        ).values_list("role_name", flat=True)
+    )
+
     staff_list = []
     for m in memberships:
         s1_eval = existing_evals.get((m.user_id, "S1"))
@@ -130,6 +150,9 @@ def _get_evaluable_staff(school, year):
                 "role_display": m.role.get_name_display(),
                 "s1": s1_eval,
                 "s2": s2_eval,
+                # المادة 16: «يضع الرئيس المباشر» — فلا زرَّ لتقييم المقيِّم نفسه.
+                "is_self": viewer is not None and m.user_id == viewer.pk,
+                "s2_blocked": _s2_blocked_reason(m.role.name, seeded_roles),
             }
         )
     return staff_list
@@ -181,7 +204,7 @@ def evaluation_dashboard(request):
         .annotate(count=Count("id"))
     )
 
-    staff_list = _get_evaluable_staff(school, year)
+    staff_list = _get_evaluable_staff(school, year, viewer=request.user)
     for row in staff_list:
         row["s1_tone"] = evaluation_status_tone(row["s1"].status) if row["s1"] else ""
         row["s2_tone"] = evaluation_status_tone(row["s2"].status) if row["s2"] else ""
@@ -261,6 +284,8 @@ def create_evaluation(request, employee_id):
     # — فلا تقييمَ للمدير من داخل المدرسة، وليس بين الاستمارات السبع استمارتُه.
     if is_school_principal(school, employee):
         return HttpResponse(PRINCIPAL_NOT_EVALUATED, status=403)
+    if employee.pk == request.user.pk:
+        return HttpResponse(SELF_EVALUATION, status=403)
 
     existing = (
         EmployeeEvaluation.objects.filter(
