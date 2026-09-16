@@ -2486,3 +2486,78 @@ class TestRoundFour:
             )
             assert cursor.fetchone()[0] == 0
         module.clear_orphan(connection, name, (probe,))  # بلا سجلٍّ: لا شيء
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  جولة الإصلاح 4 (ب) — قيدُ العذر لا تمحوه إعادةُ الحساب
+# ══════════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.django_db
+class TestExcuseSurvivesReconcile:
+    def test_an_approved_exception_keeps_the_accepted_excuse_on_record(
+        self, school, principal_user
+    ):
+        """م-7 ([س] 2.4 «عذر مقبول»): «ويُسجَّل مع العذر سببُه ومن قبله ووقتُ القبول» — ومبدأ
+        الاختيارات الهندسيّة «ولا تُفقد بيانات». استثناءُ نموذج 03 (م-32) يُعتمد بعد القبول
+        فيُعيد التصنيفَ «مستأذن»، والعذرُ يبقى بقابله ووقته، ساكناً لا يُحتسب."""
+        staff = _staff(school, 1)
+        record = StaffAttendanceService.mark(
+            school=school,
+            staff=staff,
+            day=FEB,
+            status="late",
+            actor=principal_user,
+            check_in=time(9, 30),
+            accepted_excuse="مراجعة مستشفى",
+        )
+        accepted_at = record.excuse_accepted_at
+        assert (record.status, record.late_minutes) == ("late", 150)
+
+        _exception(school, staff, principal_user, "late_arrival", FEB, FEB, time(10, 0))
+        record.refresh_from_db()
+        assert (record.status, record.late_minutes) == ("permitted", 0)
+        assert record.accepted_excuse == "مراجعة مستشفى"
+        assert (record.excuse_accepted_by, record.excuse_accepted_at) == (
+            principal_user,
+            accepted_at,
+        )
+        assert record.excuse_on_behalf is False
+
+        # والسكرتيرُ يعيد كتابةَ السطر بالعذر الساكن نفسِه (اللوحةُ تملؤه) — فلا يُرفض ولا يُمحى.
+        secretary = _actor(school, "secretary")
+        record = StaffAttendanceService.mark(
+            school=school,
+            staff=staff,
+            day=FEB,
+            status="permitted",
+            actor=secretary,
+            check_in=time(9, 30),
+            check_out=time(14, 0),
+            accepted_excuse="مراجعة مستشفى",
+        )
+        assert (record.status, record.excuse_accepted_by) == ("permitted", principal_user)
+        # وعذرٌ جديدٌ لا حاجةَ إليه يبقى مرفوضاً ولو من المدير.
+        with pytest.raises(PolicyError, match="بلا إذنٍ يغطّيه"):
+            StaffAttendanceService.mark(
+                school=school,
+                staff=staff,
+                day=FEB,
+                status="permitted",
+                actor=principal_user,
+                check_in=time(9, 30),
+                accepted_excuse="عذرٌ آخر",
+            )
+
+    def test_a_kept_excuse_does_not_ride_on_an_absence_without_arrival(
+        self, school, principal_user
+    ):
+        """م-7 ([س] 2.4): العذرُ يجعل «الحضورَ» بعد 9:00 تأخّراً — فلا يُحمل على يومٍ مُحي وقتُ
+        حضوره فصار غياباً بلا وقت."""
+        staff, secretary = _staff(school, 1), _actor(school, "secretary")
+        base = {"school": school, "staff": staff, "day": FEB, "accepted_excuse": "تعطّل السيارة"}
+        StaffAttendanceService.mark(
+            **base, status="late", actor=principal_user, check_in=time(9, 30)
+        )
+        with pytest.raises(PolicyError):
+            StaffAttendanceService.mark(**base, status="absent", actor=secretary)

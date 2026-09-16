@@ -1308,8 +1308,9 @@ class StaffAttendanceService:
     ) -> dict[str, Any]:
         """م-7: العذرُ ومن قبله ووقتُ القبول — قبولٌ جديدٌ بيد ``actor``، أو يبقى ما كان.
 
-        ``actor`` فارغٌ حين لا قبولَ جديدَ (إعادةُ الحساب): يبقى القابلُ الأوّل ما بقي
-        العذرُ نفسُه، ويُمحى القيدُ معه متى سقط العذر.
+        ``actor`` فارغٌ حين لا قبولَ جديدَ (إعادةُ الحساب، أو إعادةُ الرصد بالعذر نفسِه):
+        يبقى القابلُ الأوّل ووقتُه ما بقي العذرُ نفسُه. ولا يُمحى القيدُ إلّا بمحو العذر صراحةً
+        في الرصد — لا بتغطيةٍ أسكنته.
         """
         if not excuse:
             return {
@@ -1365,9 +1366,9 @@ class StaffAttendanceService:
             "permit_minutes": derived["permit_minutes"],
             "early_leave_minutes": derived["early_leave_minutes"] if status != "absent" else 0,
             "absence_type": record.absence_type if status == "absent" else "",
-            **StaffAttendanceService._excuse_values(
-                record, record.accepted_excuse if derived["excuse_used"] else "", None, None
-            ),
+            # م-7: العذرُ وقابلُه ووقتُ قبوله قيدٌ لا تمحوه إعادةُ الحساب — تغطيةٌ اعتُمدت بعده
+            # تُسكنه (لا يُحتسب ما دامت تكفي) ولا تُسقطه، فإن زالت عاد يعمل بقبوله الأوّل.
+            **StaffAttendanceService._excuse_values(record, record.accepted_excuse, None, None),
         }
         values["covered_at"] = StaffAttendanceService._covered_at(
             record, values, record.check_in, _now()
@@ -1471,16 +1472,19 @@ class StaffAttendanceService:
                 f"الحضورُ {check_in:%H:%M} يعني «{STATUS_LABELS[derived['status']]}» "
                 "(البندان 2.1 و2.4) — لا يُرصد غيرُه."
             )
-        if excuse and not derived["excuse_used"]:
-            raise PolicyError("العذرُ المقبول يُكتب لمن حضر بعد 9:00 بلا إذنٍ يغطّيه وحدَه (البند 2.4).")
         # القبولُ لعذرٍ عند وقتٍ بعينه: عذرٌ جديد، أو العذرُ نفسُه عند وقت حضورٍ آخر — فلا
         # ينقل الراصدُ قبولَ المدير إلى وقتٍ لم يُعرض عليه (م-7).
         accepting = bool(excuse) and (
             record is None
             or record.accepted_excuse != excuse
             or record.check_in is None
-            or _minute(record.check_in) != _minute(check_in or record.check_in)
+            or check_in is None
+            or _minute(record.check_in) != _minute(check_in)
         )
+        # والعذرُ المقبولُ من قبلُ عند الوقت نفسِه يبقى وإن أسكنته تغطيةٌ اعتُمدت بعده (م-7:
+        # قيدٌ لا يُفقد) — وإنّما يُردّ قبولٌ جديدٌ لا حاجةَ إليه.
+        if accepting and not derived["excuse_used"]:
+            raise PolicyError("العذرُ المقبول يُكتب لمن حضر بعد 9:00 بلا إذنٍ يغطّيه وحدَه (البند 2.4).")
         stage_day = _StageDay(school, now)
         basis = stage_day.delegation_basis() if accepting and _role_of(actor) != PRINCIPAL else {}
         if accepting and actor.pk not in PermitService._principal_side(stage_day, staff.pk):
