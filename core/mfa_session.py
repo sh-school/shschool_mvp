@@ -13,11 +13,14 @@
 وعند إشعالها تُغلق مرّةً واحدةً جلساتُ المفعِّلين المفتوحةُ قبلها — وهو المقصود.
 """
 
+from collections.abc import Callable
+from typing import Any
 from urllib.parse import urlencode
 
 from django.conf import settings
 from django.contrib.auth import logout
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http.response import HttpResponseBase
 from django.shortcuts import redirect
 from django.urls import reverse
 
@@ -36,26 +39,26 @@ EXEMPT_PREFIXES = (
 )
 
 
-def mark_verified(request) -> None:
+def mark_verified(request: HttpRequest) -> None:
     """تُستدعى بعد رمزٍ صحيحٍ وحدَه، وبعد ``login()`` (الذي قد يبدّل الجلسة)."""
     request.session[MFA_SESSION_KEY] = True
 
 
-def needs_second_factor(user) -> bool:
+def needs_second_factor(user: Any) -> bool:
     if not getattr(settings, "TWO_FACTOR_REQUIRED_FOR_STAFF", True):
         return False
     if not (getattr(user, "is_authenticated", False) and getattr(user, "totp_enabled", False)):
         return False
     from core.views_auth import requires_two_factor
 
-    return requires_two_factor(user)
+    return bool(requires_two_factor(user))
 
 
 class MfaSessionMiddleware:
-    def __init__(self, get_response):
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponseBase]) -> None:
         self.get_response = get_response
 
-    def __call__(self, request):
+    def __call__(self, request: HttpRequest) -> HttpResponseBase:
         user = getattr(request, "user", None)
         if (
             user is not None
@@ -67,7 +70,7 @@ class MfaSessionMiddleware:
         return self.get_response(request)
 
     @staticmethod
-    def _reject(request):
+    def _reject(request: HttpRequest) -> HttpResponseBase:
         logout(request)
         if request.path.startswith("/api/") or (
             request.headers.get("X-Requested-With") == "XMLHttpRequest"
@@ -83,7 +86,7 @@ class MfaSessionMiddleware:
         return redirect(target)
 
 
-def admin_login_redirect(request):
+def admin_login_redirect(request: HttpRequest) -> HttpResponseBase:
     """دخولُ لوحة الإدارة من الباب الواحد — نموذجُ Django لا يعرف الرمز ولا القفل."""
     next_url = request.GET.get("next") or reverse("admin:index")
     return redirect(f"{reverse('login')}?{urlencode({'next': next_url})}")
