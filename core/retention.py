@@ -249,11 +249,20 @@ RULES: tuple[Rule, ...] = (
 
 
 def retention_days() -> int:
-    """المدّةُ من الإعدادات — والصفرُ (أو ما دونه) تعطيل."""
+    """المدّةُ من الإعدادات — والصفرُ (أو ما دونه) تعطيل.
+
+    والإعدادُ نصٌّ خامٌ من البيئة (انظر `shschool/settings/base.py`)، فما لا يُفهم
+    رقماً صحيحاً يعطّل الحذفَ **ويُسجَّل خطأً**: الغلطُ في مدّة حذفٍ لا يُخمَّن
+    بافتراض، والصمتُ عنه يُخفي أنّ السياسةَ لا تعمل.
+    """
     raw = getattr(settings, "PDPPL_DATA_RETENTION_DAYS", 0)
     try:
-        days = int(raw or 0)
+        days = int(str(raw).strip() or 0)
     except (TypeError, ValueError):
+        logger.error(
+            "data_retention: PDPPL_DATA_RETENTION_DAYS=%r ليست عدداً صحيحاً — الحذفُ معطَّل حتى تُصحَّح",
+            raw,
+        )
         return 0
     return max(days, 0)
 
