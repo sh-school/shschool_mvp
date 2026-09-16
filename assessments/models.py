@@ -490,6 +490,8 @@ class AnnualSubjectResult(models.Model):
     mark = models.CharField(max_length=10, choices=MARK_CHOICES, blank=True, default="")
     #: موضعُ الحكم من السياسة («م27»، «م50 القاعدة الثالثة» …).
     article = models.CharField(max_length=40, blank=True, default="")
+    #: تنبيهٌ للمراجعة لا حكم (م50-الأولى «في أية مادة») — من `SubjectVerdict.review`.
+    review = models.CharField(max_length=300, blank=True, default="")
     # ── مدخلاتُ الدور الثاني — وقائعُ تُرصد لا تُحسب، وإعادةُ الحساب لا تمسّها ──
     second_round_score = models.DecimalField(
         max_digits=5,

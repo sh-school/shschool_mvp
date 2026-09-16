@@ -552,6 +552,8 @@ class SubjectVerdict:
     article: str
     #: قصوى اختبار الدور الثاني لهذه المادّة (م14، م25، م26)، و`None` لمن لا يدخله.
     second_round_max: Decimal | None = None
+    #: تنبيهٌ للمراجعة لا حكم — قاعدةٌ ينالها الطالبُ بقراءةٍ لا يحسمها النصّ (م50-الأولى).
+    review: str = ""
 
     @property
     def label(self) -> str:
@@ -814,14 +816,51 @@ def second_round_credit(
 def _promotion_rule(gaps: list[Fraction]) -> str:
     """القاعدةُ الأولى أو الثانية (م50) لنقصٍ عن النهاية الصغرى — أو "".
 
-    قراءتان تُعلَنان: الأولى لراسبٍ في مادّةٍ واحدة (الثانيةُ تسمّي «مادتين» والثالثةُ
-    «مادة وحيدة»، والتدرّجُ 2 ثمّ 4)، و«أربع درجات» حدٌّ أعلى.
+    «يُرفَّع الطالب» ترفيعٌ للطالب إلى صفٍّ أعلى، فلا يُحكم به وفي غير المادّة رسوبٌ باقٍ:
+    الأولى هنا لمن لا رسوبَ له سواها، و«أربع درجات» حدٌّ أعلى. لكنّ نصَّ الأولى «في أية
+    مادة» لا «مادة وحيدة» (كالثالثة) — فمن نالها بالقراءة الأخرى يُحمل له تنبيهٌ
+    للمراجعة (`_rule_one_reviews`) ولا يُطوى.
     """
     if len(gaps) == 1 and gaps[0] <= PROMOTION_RULE_1_GAP:
         return "م50 القاعدة الأولى"
     if len(gaps) == 2 and all(g <= PROMOTION_RULE_2_GAP for g in gaps):
         return "م50 القاعدة الثانية"
     return ""
+
+
+def _rule_one_note(stage: str, gap: Fraction) -> str:
+    return (
+        f"م50 القاعدة الأولى «في أية مادة»: ينقصه {_to_decimal(_jabr_exact(gap))} في {stage}"
+        " — والنصُّ لا يشترط ألّا يرسب في غيرها؛ يُعرض على مراجعة النتائج"
+    )
+
+
+def _rule_one_reviews(
+    grade: int, v: StudentVerdict, first_gaps: Mapping[str, Fraction]
+) -> StudentVerdict:
+    """تنبيهُ القاعدة الأولى على كلّ مادّةٍ نقصُها درجتان فأقلّ لم تُرفّع الطالب.
+
+    الأصل م50 ص33: «يُرفّع الطالب الراسب في أية مادة … إذا كانت الدرجات التي يحتاجها
+    للنجاح لا تزيد عن درجتين». الحكمُ المخزَّن على القراءة الأضيق (`_promotion_rule`)،
+    والتنبيهُ يحفظ القراءةَ الأخرى لمن رسب في غيرها أو عُذر فيه. ولا تنبيهَ في الثاني
+    عشر (لا قواعدَ ترفيعٍ في سياسته) ولا لناجحٍ أو مُرفَّع.
+    """
+    if grade == FINAL_GRADE or v.standing in PASSING_STANDINGS:
+        return v
+    credit = _art("credit", grade)
+    subs = []
+    for s in v.subjects:
+        notes = []
+        if s.status in FAILING_STATUSES:
+            g1 = first_gaps.get(s.key)
+            if g1 is not None and 0 < g1 <= PROMOTION_RULE_1_GAP:
+                notes.append(_rule_one_note("الدور الأول", g1))
+            if s.status == STATUS_FAIL and s.article == credit and s.annual_total is not None:
+                g2 = _PASS - _exact(s.annual_total)
+                if 0 < g2 <= PROMOTION_RULE_1_GAP:
+                    notes.append(_rule_one_note("الدور الثاني", g2))
+        subs.append(replace(s, review="؛ ".join(notes)))
+    return replace(v, subjects=tuple(subs))
 
 
 def judge_student(
@@ -859,6 +898,10 @@ def judge_student(
         k for k, r in r1.items() if r.state == _MAKEUP or (r.state == _SCORED and k not in complete)
     ]
     failed = absent_s1 + absent_final + low
+    first_gaps = {k: _PASS - (r1[k].total or 0) for k in low}
+
+    def done(v: StudentVerdict) -> StudentVerdict:
+        return _rule_one_reviews(grade, v, first_gaps)
 
     def verdict(
         k: str,
@@ -919,14 +962,20 @@ def judge_student(
     if g12 and GATE_S1_FINAL in gates:
         return all_deprived(FINAL_GRADE_S1_DEPRIVED_ARTICLE)
     if len(absent_s1) > MAX_FAILED_FOR_SECOND_ROUND:
-        return StudentVerdict(STANDING_FAILED, _art("barred_s1", grade), tuple(own(k) for k in r1))
+        return done(
+            StudentVerdict(STANDING_FAILED, _art("barred_s1", grade), tuple(own(k) for k in r1))
+        )
     if GATE_S2_FINAL in gates:
         return all_deprived(_art("deprived_first_round", grade))
     if len(absent_final) > MAX_FAILED_FOR_SECOND_ROUND:
-        return StudentVerdict(STANDING_FAILED, _art("barred", grade), tuple(own(k) for k in r1))
+        return done(
+            StudentVerdict(STANDING_FAILED, _art("barred", grade), tuple(own(k) for k in r1))
+        )
     if len(failed) > MAX_FAILED_FOR_SECOND_ROUND:
-        return StudentVerdict(
-            STANDING_FAILED, _art("eligible", grade, "-أ"), tuple(own(k) for k in r1)
+        return done(
+            StudentVerdict(
+                STANDING_FAILED, _art("eligible", grade, "-أ"), tuple(own(k) for k in r1)
+            )
         )
     if pending:
         return StudentVerdict(STANDING_INCOMPLETE, "", tuple(own(k) for k in r1))
@@ -958,7 +1007,7 @@ def judge_student(
         else:
             subs_list.append(verdict(k, STATUS_PASS))
     first = StudentVerdict(STANDING_SECOND_ROUND, art, tuple(subs_list))
-    return _second_round(grade, first, facts, r1)
+    return done(_second_round(grade, first, facts, r1))
 
 
 def _second_round(

@@ -42,7 +42,7 @@
         <tbody>
           {% for row in sitting %}
           <tr>
-            <td><a href="{% url 'student_report' row.student.id %}?year={{ year }}" class="link-maroon">{{ row.student.full_name }}</a></td>
+            <td><a href="{% url 'student_report' row.student.id %}?year={{ year }}" class="link-maroon">{{ row.student.full_name }}</a>{% for n in row.reviews %}<br><small class="text-muted">{% icon "status_warning" %} {{ n }}</small>{% endfor %}</td>
             <td><span class="status-badge {{ badges|get_item:row.standing }}">{{ row.label }}</span></td>
             <td>{{ row.retake|join:"، " }}</td>
             <td>{{ row.article|default:"—" }}</td>
@@ -67,7 +67,7 @@
         <tbody>
           {% for row in others %}
           <tr>
-            <td>{{ row.student.full_name }}</td>
+            <td>{{ row.student.full_name }}{% for n in row.reviews %}<br><small class="text-muted">{% icon "status_warning" %} {{ n }}</small>{% endfor %}</td>
             <td><span class="status-badge {{ badges|get_item:row.standing }}">{{ row.label }}</span>{% for w in row.warnings %}<br><small class="text-muted">{{ w }}</small>{% endfor %}</td>
             <td>{% if row.promoted %}{{ row.promoted|join:"، " }} — رُفِّع فيها{% else %}{{ row.failed|join:"، "|default:"—" }}{% endif %}</td>
             <td>{{ row.results.0.article|default:"—" }}</td>
@@ -78,7 +78,7 @@
     </div>
   {% endif %}{% endsection_card %}
 
-  <p class="text-muted">الموقفُ والموادُّ من النتيجة المخزَّنة — الحكمُ نفسُه الذي تقرؤه قائمةُ الراسبين والكشفُ والشهادة. و«محروم» قرارٌ مسجَّلٌ لفريق إدارة سلوك الطلبة؛ أمّا تجاوزُ العتبة في سجلّ الحضور بلا قرارٍ فتنبيهٌ تحت اسم الطالب لا حكم.</p>
+  <p class="text-muted">الموقفُ والموادُّ من النتيجة المخزَّنة — الحكمُ نفسُه الذي تقرؤه قائمةُ الراسبين والكشفُ والشهادة. و«محروم» قرارٌ مسجَّلٌ لفريق إدارة سلوك الطلبة؛ أمّا تجاوزُ العتبة في سجلّ الحضور بلا قرارٍ فتنبيهٌ تحت اسم الطالب لا حكم. وكذلك تنبيهُ «م50 القاعدة الأولى»: نصُّها «في أية مادة»، فمن نقصُه درجتان فأقلّ ورسب في غيرها يُعرض أمرُه على مراجعة النتائج.</p>
   {% endif %}
 
 </div>

@@ -488,6 +488,7 @@ class GradeService:
                     "standing": verdict.standing,
                     "mark": v.mark,
                     "article": v.article[:40],
+                    "review": v.review[:300],
                     "updated_at": now,
                 }
                 existing_annual = annual_rows.get((sid, setup.id))
@@ -522,6 +523,7 @@ class GradeService:
             "standing",
             "mark",
             "article",
+            "review",
             "updated_at",
         ]
         StudentSubjectResult.objects.bulk_update(sem_update, sem_fields, batch_size=500)
@@ -852,6 +854,11 @@ class SecondRoundRow:
     @property
     def promoted(self) -> list[str]:
         return self._names((STATUS_PROMOTED,))
+
+    @property
+    def reviews(self) -> list[str]:
+        """تنبيهاتُ المراجعة المخزَّنة (م50-الأولى) — «المادّة: التنبيه»."""
+        return [f"{r.setup.subject.name_ar}: {r.review}" for r in self.results if r.review]
 
 
 class SecondRoundService:
