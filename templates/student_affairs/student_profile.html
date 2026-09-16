@@ -239,15 +239,9 @@
               <td>{{ g.setup.subject.name_ar }}</td>
               <td class="num">{{ g.s1_total|default:"—" }}</td>
               <td class="num">{{ g.s2_total|default:"—" }}</td>
-              <td class="num"><span class="grade-total">{{ g.annual_total|default:"—" }}</span></td>
+              <td class="num"><span class="grade-total">{{ g.total_display }}</span></td>
               <td class="col-center">
-                {% if g.status == "pass" %}
-                <span class="status-badge status-success">ناجح</span>
-                {% elif g.status == "fail" %}
-                <span class="status-badge status-danger">راسب</span>
-                {% else %}
-                <span class="status-badge status-gray">—</span>
-                {% endif %}
+                <span class="status-badge status-{{ g.status_tone }}">{{ g.get_status_display }}</span>
               </td>
             </tr>
             {% endfor %}

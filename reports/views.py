@@ -393,6 +393,7 @@ def class_certificates_pdf(request, class_id):
     for enr in enrollments:
         ctx = ReportDataService.get_student_report(enr.student, school, year)
         _set_final_status(ctx)
+        _subject_rows_presentation(ctx["rows"])
         students_ctx.append(ctx)
 
     page_ctx = {

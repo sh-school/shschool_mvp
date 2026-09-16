@@ -28,6 +28,7 @@ from core.academic_calendar import academic_year_for, academic_year_window
 from core.audit_export import log_export
 from core.capabilities import capability_required
 from core.domain.attendance import attendance_rate
+from core.domain.grades import FAILING_STATUSES, PASSING_STATUSES
 from core.domain.tones import ATTENDANCE_SUMMARY, tone_for
 from core.export_utils import (
     add_excel_footer,
@@ -841,8 +842,9 @@ def student_profile(request, student_id):
     )
     grades_summary = grades.aggregate(
         total_subjects=Count("id"),
-        passed=Count("id", filter=Q(status="pass")),
-        failed=Count("id", filter=Q(status="fail")),
+        # «ناجح/راسب» بالتعريف الواحد (`core.domain.grades`) — المُرفَّعُ ناجح، والدورُ الثاني راسب.
+        passed=Count("id", filter=Q(status__in=PASSING_STATUSES)),
+        failed=Count("id", filter=Q(status__in=FAILING_STATUSES)),
     )
 
     # ── 6. المكتبة (library) — BookBorrowing مُستورَد من أعلى الملف ──

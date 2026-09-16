@@ -113,8 +113,8 @@
       <td class="cell-name">{{ g.setup.subject.name }}</td>
       <td>{{ g.s1_total|default:"—" }}</td>
       <td>{{ g.s2_total|default:"—" }}</td>
-      <td class="cell-num">{{ g.annual_total|default:"—" }}</td>
-      <td>{% if g.status == "pass" %}<span class="badge-pass">ناجح</span>{% elif g.status == "fail" %}<span class="badge-fail">راسب</span>{% else %}{{ g.get_status_display|default:"—" }}{% endif %}</td>
+      <td class="cell-num">{{ g.total_display }}</td>
+      <td>{% if g.is_passed %}<span class="badge-pass">{{ g.get_status_display }}</span>{% elif g.is_failed %}<span class="badge-fail">{{ g.get_status_display }}</span>{% else %}{{ g.get_status_display|default:"—" }}{% endif %}</td>
     </tr>
     {% endfor %}
   </tbody>

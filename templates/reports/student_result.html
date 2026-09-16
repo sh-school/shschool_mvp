@@ -55,7 +55,7 @@
         {% else %}—{% endif %}
       </td>
       <td><b>{% if row.s2 and row.s2.total %}{{ row.s2.total }}/{{ row.s2.semester_max }}{% else %}—{% endif %}</b></td>
-      <td><b class="c-{{ row.total_tone }}">{% if row.annual.annual_total %}{{ row.annual.annual_total }}{% else %}—{% endif %}</b></td>
+      <td><b class="c-{{ row.total_tone }}">{% if row.annual %}{{ row.annual.total_display }}{% else %}—{% endif %}</b></td>
       <td><b>{{ row.annual.letter_grade|default:"—" }}</b></td>
       <td><b class="c-{{ row.status_tone }}">{{ row.status_label }}</b></td>
     </tr>

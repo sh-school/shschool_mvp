@@ -355,9 +355,8 @@
 
       {# المجموع السنوي #}
       <td class="bold-grade grade-{{ row.annual_grade }}">
-        {% if row.annual and row.annual.annual_total %}
-          {{ row.annual.annual_total }}
-        {% else %}—{% endif %}
+        {# المجموعُ أو كلمتُه (م30: «معذور»/«محروم»؛ قرار 30/2018: «ملغي») — من الحكم المخزَّن #}
+        {% if row.annual %}{{ row.annual.total_display }}{% else %}—{% endif %}
       </td>
 
       {# التقدير الحرفي #}
@@ -368,11 +367,8 @@
       {# النتيجة #}
       <td>
         {% if row.annual %}
-          {% if row.annual.status == "pass" %}<span class="badge-pass">ناجح</span>
-          {% elif row.annual.status == "fail" %}<span class="badge-fail">راسب</span>
-          {% elif row.annual.status == "second_round" %}<span class="badge-warn">دور ثانٍ</span>
-          {% else %}<span class="badge-warn">غير مكتمل</span>
-          {% endif %}
+          {# اسمُ الحالة المخزَّنة ولونُ حيّزها (`status_bucket`) — «مُرفَّع» تُوضَّح (م50 ص33) #}
+          <span class="{% if row.annual.is_passed %}badge-pass{% elif row.annual.is_failed %}badge-fail{% else %}badge-warn{% endif %}">{{ row.annual.get_status_display }}</span>
         {% else %}—{% endif %}
       </td>
     </tr>

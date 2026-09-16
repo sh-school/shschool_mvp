@@ -95,16 +95,14 @@
         <tbody>
           {% for r in ctx.rows %}
           <tr>
-            <td>{{ r.subject_name }}</td>
-            <td>{{ r.s1_total|default:"—" }}</td>
-            <td>{{ r.s2_total|default:"—" }}</td>
-            <td>{{ r.annual_total|default:"—" }}</td>
-            <td>{{ r.letter_grade|default:"—" }}</td>
-            <td>
-              {% if r.status == "pass" %}ناجح
-              {% elif r.status == "fail" %}راسب
-              {% else %}—{% endif %}
-            </td>
+            {# سطورُ `ReportDataService.get_student_report` (subject/annual) — كانت تقرأ مفاتيحَ لا وجودَ لها
+               (subject_name، status) فتطبع اسماً فارغاً و«—»؛ والحالةُ من الحكم المخزَّن (`_subject_rows_presentation`). #}
+            <td>{{ r.subject }}</td>
+            <td>{{ r.annual.s1_total|default:"—" }}</td>
+            <td>{{ r.annual.s2_total|default:"—" }}</td>
+            <td>{% if r.annual %}{{ r.annual.total_display }}{% else %}—{% endif %}</td>
+            <td>{{ r.annual.letter_grade|default:"—" }}</td>
+            <td><b class="c-{{ r.status_tone }}">{{ r.status_label }}</b></td>
           </tr>
           {% endfor %}
         </tbody>

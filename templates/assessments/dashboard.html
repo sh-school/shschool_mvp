@@ -55,7 +55,7 @@
         {% for r in failing_list %}
           <li class="plain-list__row">
             <span class="plain-list__main"><a class="plain-list__title" href="{% url 'student_report' r.student.id %}?year={{ year }}">{{ r.student.full_name }}</a><span class="plain-list__sub">{{ r.setup.subject.name_ar }} · {{ r.setup.class_group }}</span></span>
-            <span class="status-badge status-danger">{{ r.annual_total|default:"—" }}</span>
+            <span class="status-badge status-{{ r.status_tone }}">{{ r.total_display }}</span>
           </li>
         {% endfor %}
       </ul>
