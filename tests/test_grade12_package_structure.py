@@ -13,7 +13,9 @@
 `remediation_plan.md` «تصحيحٌ جوهري».
 
 والصفوفُ الأخرى (في مدرستنا 7–11) على «ثانياً» من المادّة نفسها (صفحتا 4–5):
-15 منتصف · 5 أعمال · 20 نهاية = 40، ثمّ 15 · 5 · 40 = 60 — ولا يمسّها الفرع.
+15 منتصف · 5 أعمال · 20 نهاية = 40، ثمّ 15 · 5 · 40 = 60 — والبنيةُ والأوزانُ لا يمسّها
+الفرع، **لكنّ مجاميعَها تتغيّر** بجبر الكسور (م8، البند 2.4): 18.30 صارت 19
+(`test_grades_7_to_11_fractional_totals_change_by_article_8`). (تصحيح 2026-09-16.)
 """
 
 from decimal import Decimal
@@ -143,7 +145,11 @@ def test_grade12_annual_total_is_p2_plus_p4(school, teacher_user):
 
 @pytest.mark.django_db
 def test_grades_7_to_11_regression_20_students(school, teacher_user):
-    """انحدار: 20 طالباً في 7–11 — البنيةُ والأوزانُ والمجاميعُ كما قبل الفرع."""
+    """انحدار: 20 طالباً في 7–11 — البنيةُ والأوزان كما قبل الفرع.
+
+    نسبُه مضاعفاتُ عشرة، فمجاميعُه مضاعفاتُ نصفٍ لا يغيّرها الجبر — فهو لا يرى الجبر؛
+    وأثرُ الجبر في الاختبار الكسريّ أدناه.
+    """
     expected = {}
     setups = []
     for grade in ("G7", "G8", "G9", "G10", "G11"):
@@ -174,3 +180,107 @@ def test_grades_7_to_11_regression_20_students(school, teacher_user):
     assert results.count() == 20
     for r in results:
         assert r.annual_total == expected[(r.setup_id, r.student_id)]
+
+
+# ── انحدارُ 7–11 بدرجاتٍ كسريّة: الفرعُ **يغيّر** مجاميعَهم بجبر المادّة 8 ─────────
+#
+# الاختبارُ أعلاه نسبُه مضاعفاتُ عشرة، فكلُّ مجموعٍ فيه مضاعفُ نصف ولا يرى الجبر. وهنا
+# «القبلُ» هو معادلةُ الإيداع 7aaa42da بعينها (درجةُ الباقة = النسبة × الوزن × قصوى
+# الفصل ÷ 10000 مقرّبةً إلى 0.01 نصفاً لأعلى، والفصلُ جمعُها، ولا جبر)، و«البعدُ» نصُّ
+# م8 ص9: «يجبر ما دون النصف إلى النصف، يثبت النصف، يجبر ما زاد على النصف إلى واحد
+# صحيح» — على المنتصف (P1/P3) ثمّ على مجموع الفصل، بالأوزان كسوراً دقيقة (P4 = 2/3).
+
+
+def _jabr(x):
+    import math
+    from fractions import Fraction
+
+    return Fraction(math.ceil(Fraction(x) * 2), 2)
+
+
+def _dec(x):
+    return Decimal(x.numerator) / Decimal(x.denominator)
+
+
+def _before(pct):
+    """معادلةُ 7aaa42da — `calc_package_score` ثمّ الجمع."""
+    from decimal import ROUND_HALF_UP
+
+    total = Decimal(0)
+    for (sem, pt), p in pct.items():
+        semester_max = Decimal(40) if sem == "S1" else Decimal(60)
+        score = p * WEIGHTS_BEFORE[sem][pt] * semester_max / Decimal(10000)
+        total += score.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return total
+
+
+def _after(pct):
+    """(الأول، الثاني) بنصّ م8 — مستقلٌّ عن شيفرة الفرع."""
+    from fractions import Fraction
+
+    f = {k: Fraction(v) / 100 for k, v in pct.items()}
+    s1 = _jabr(_jabr(f[("S1", "P1")] * 15) + f[("S1", "AW")] * 5 + f[("S1", "P2")] * 20)
+    s2 = _jabr(_jabr(f[("S2", "P3")] * 15) + f[("S2", "AW")] * 5 + f[("S2", "P4")] * 40)
+    return _dec(s1), _dec(s2)
+
+
+#: المثالُ المثبَّت: 81% و42% و20.25% في الأول ← 12.15 + 2.10 + 4.05 = 18.30 قبلُ،
+#: و12.5 (منتصفٌ مجبور) + 2.1 + 4.05 = 18.65 ← 19 بعدُ؛ والثاني 34 في الحالين.
+PINNED = {
+    ("S1", "P1"): Decimal("81"),
+    ("S1", "AW"): Decimal("42"),
+    ("S1", "P2"): Decimal("20.25"),
+    ("S2", "P3"): Decimal("80"),
+    ("S2", "AW"): Decimal("40"),
+    ("S2", "P4"): Decimal("50"),
+}
+
+
+def test_pinned_example_formulas():
+    assert _before(PINNED) == Decimal("52.30")
+    assert _after(PINNED) == (Decimal("19"), Decimal("34"))
+
+
+@pytest.mark.django_db
+def test_grades_7_to_11_fractional_totals_change_by_article_8(school, teacher_user):
+    """20 طالباً في 7–11 بنسبٍ كسريّة: المخزَّنُ = م8، ويختلف عن «القبل» حيث يلزم."""
+    cases = {}
+    for gi, grade in enumerate(("G7", "G8", "G9", "G10", "G11")):
+        setup = _setup(school, grade, teacher_user)
+        exams = {}
+        for sem in ("S1", "S2"):
+            for p in GradeService.ensure_packages(setup, sem):
+                exams[(sem, p.package_type)] = _exam(p)
+        for k in range(4):
+            student = UserFactory()
+            StudentEnrollmentFactory(student=student, class_group=setup.class_group)
+            if gi == 0 and k == 0:
+                pct = PINNED
+            else:
+                pct = {
+                    key: Decimal((n * 373 + gi * 97 + k * 211) % 1000) / 10
+                    for n, key in enumerate(exams)
+                }
+            for key, exam in exams.items():
+                StudentAssessmentGrade.objects.create(
+                    assessment=exam, student=student, school=school, grade=pct[key]
+                )
+            cases[(setup.id, student.id)] = (setup, pct)
+
+    for setup in {s for s, _ in cases.values()}:
+        GradeService.recalculate_full_class(setup)
+
+    changed = 0
+    results = AnnualSubjectResult.objects.filter(setup__in={s for s, _ in cases.values()})
+    assert results.count() == 20
+    for r in results:
+        _, pct = cases[(r.setup_id, r.student_id)]
+        s1, s2 = _after(pct)
+        assert (r.s1_total, r.s2_total, r.annual_total) == (s1, s2, s1 + s2), pct
+        # الجبرُ لا يُنزل أبداً؛ و«القبل» يزيد على الدقيق بتقريب ستّ باقاتٍ لا غير.
+        assert r.annual_total >= _before(pct) - Decimal("0.05")
+        changed += r.annual_total != _before(pct)
+        if pct is PINNED:
+            assert (_before(pct), r.annual_total) == (Decimal("52.30"), Decimal("53"))
+    # الفرعُ يغيّر مجاميعَ 4–11 ذواتِ الكسور — لا «لا تغيير».
+    assert changed >= 15, changed
