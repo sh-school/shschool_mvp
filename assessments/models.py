@@ -502,6 +502,15 @@ class AnnualSubjectResult(models.Model):
         verbose_name="درجة الدور الثاني",
     )
     second_round_absent = models.BooleanField(default=False, verbose_name="غائب في الدور الثاني")
+    #: قصوى اختبار الدور الثاني لهذه المادّة — من الحكم (م14، م25، م26؛ 12: م13، م16) لا مُدخَل:
+    #: المعذورُ عن نهاية الثاني وحدَها يُختبر في منهاجها من درجتها (40)، وغيرُه من مئة.
+    second_round_max = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="قصوى اختبار الدور الثاني",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

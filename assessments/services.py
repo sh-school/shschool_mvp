@@ -41,8 +41,8 @@ from core.domain.grades import (
     SecondRoundFacts,
     SubjectFacts,
     band_of,
-    exact_package_weight,
     judge_student,
+    package_out_of,
     package_score,
     package_weights,
 )
@@ -96,7 +96,9 @@ def package_facts(
     """وقائعُ الباقات لكلّ (طالب، باقة)، والملحقُ لكلّ (طالب، إعداد) — باستعلامين.
 
     درجةُ الباقة كسرٌ دقيق: أداءُ الطالب في تقييماتها موزوناً بـ`weight_in_package`،
-    مضروباً في وزن الباقة الدقيق (`exact_package_weight`: 2/3 لا 66.67) وقصوى الفصل.
+    مضروباً في درجة الباقة من القرار (`package_out_of`: 15، 20، 40 …) — لا في الوزن المخزَّن
+    (قرار 14/2018 م5: التوزيعُ للقطاع لا للمدرسة). وباقةٌ خارج البنية تُعطى `out_of=0` فيراها
+    الحكمُ ولا يجمعها، ودرجتُها `None` (لا «0» في السجلّ).
     والغائبُ عن تقييمٍ جزءٌ صفرٌ فيها، وحصّتُه تُعدّ بعذرٍ أو بغيره — والحكمُ بها في
     `judge_student`. وتقييمُ الملحق (`Assessment.MAKEUP`) لا يدخل درجةَ باقته.
     """
@@ -129,12 +131,11 @@ def package_facts(
     for pkg_id, items in regular.items():
         pkg = pkg_by_id[pkg_id]
         total_w = sum((w for _, _, w in items), Fraction(0))
-        exact_weight = exact_package_weight(
-            grade_number(pkg.setup.class_group.grade), pkg.semester, pkg.package_type, pkg.weight
-        )
-        if not total_w or not exact_weight:
+        if not total_w:
             continue
-        out_of = exact_weight * Fraction(pkg.semester_max_grade) / 100
+        out_of = package_out_of(
+            grade_number(pkg.setup.class_group.grade), pkg.semester, pkg.package_type
+        ) or Fraction(0)
         for sid in student_ids:
             pct, excused, absent, seen = Fraction(0), Fraction(0), Fraction(0), False
             for aid, item_max, w in items:
@@ -152,7 +153,8 @@ def package_facts(
                 elif value is not None and item_max:
                     pct += Fraction(value) / item_max * share
             if seen:
-                exams[(sid, pkg_id)] = ExamFacts(pct * out_of, out_of, excused, absent)
+                score = pct * out_of if out_of else None
+                exams[(sid, pkg_id)] = ExamFacts(score, out_of, excused, absent)
 
     makeup_facts: dict[MakeupKey, MakeupFacts] = {}
     for setup_id, items in makeups.items():
@@ -177,6 +179,118 @@ def package_facts(
             )
             makeup_facts[(sid, setup_id)] = MakeupFacts(PRESENT, earned / all_w if all_w else None)
     return exams, makeup_facts
+
+
+#: ما يُقارن قبل/بعد في كلّ صفّ — الحكمُ كلُّه لا الحالةُ وحدَها.
+ANNUAL_AUDIT_FIELDS: tuple[str, ...] = (
+    "status",
+    "standing",
+    "annual_total",
+    "s1_total",
+    "s2_total",
+    "mark",
+    "article",
+    "review",
+    "second_round_max",
+)
+SEMESTER_AUDIT_FIELDS: tuple[str, ...] = (
+    "p1_score",
+    "p2_score",
+    "p3_score",
+    "p4_score",
+    "p_aw_score",
+    "total",
+    "semester_max",
+)
+VERDICT_AUDIT_OP = "verdict_recalculated"
+
+
+def _audit_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, Decimal):
+        return str(value.quantize(Decimal("0.01")))
+    return str(value)
+
+
+@dataclass
+class VerdictPlan:
+    """حكمٌ محسوبٌ لم يُكتب: الصفوفُ المعدَّلة والجديدة، وما تغيّر فيها بقيمتيه.
+
+    `changes` صفٌّ لكلّ (طالب، إعداد، «annual»|«S1»|«S2») تغيّر فيه حقلٌ من حقول
+    المقارنة: `{"student", "setup", "row", "before", "after"}` — `before` لا شيء لصفٍّ جديد.
+    """
+
+    school: School | None
+    students: int
+    changes: list[dict[str, Any]] = field(default_factory=list)
+    sem_rows: list[tuple[Any, bool]] = field(default_factory=list)
+    annual_rows: list[tuple[Any, bool]] = field(default_factory=list)
+
+    def stage(
+        self,
+        existing: StudentSubjectResult | AnnualSubjectResult | None,
+        blank: StudentSubjectResult | AnnualSubjectResult,
+        values: dict[str, Any],
+        ident: tuple[str, str, str],
+        now: Any,
+    ) -> None:
+        annual = isinstance(blank, AnnualSubjectResult)
+        fields = ANNUAL_AUDIT_FIELDS if annual else SEMESTER_AUDIT_FIELDS
+        after = {f: _audit_value(values[f]) for f in fields}
+        before = None
+        if existing is not None:
+            before = {f: _audit_value(getattr(existing, f)) for f in fields}
+        if before != after:
+            self.changes.append(
+                {
+                    "student": ident[0],
+                    "setup": ident[1],
+                    "row": ident[2],
+                    "before": before,
+                    "after": after,
+                }
+            )
+        target = existing if existing is not None else blank
+        for attr, val in {**values, "updated_at": now}.items():
+            setattr(target, attr, val)
+        created = existing is None
+        if annual:
+            self.annual_rows.append((target, created))
+        else:
+            self.sem_rows.append((target, created))
+
+    def write(self, actor: CustomUser | None = None, audit: bool = True) -> None:
+        """يكتب السجلَّ أوّلاً (إن تغيّر شيء) ثمّ النتائج — في معاملةٍ واحدة."""
+        with transaction.atomic():
+            if audit and self.changes:
+                AuditLog.objects.create(
+                    school=self.school,
+                    user=actor,
+                    action="update",
+                    model_name="other",
+                    object_id=str(self.school.pk) if self.school else "",
+                    object_repr="إعادةُ الحكم على نتائج الطلبة",
+                    changes={
+                        "op": VERDICT_AUDIT_OP,
+                        "changed": len(self.changes),
+                        "rows": self.changes,
+                    },
+                )
+            sem_fields = ["school_id", *SEMESTER_AUDIT_FIELDS, "updated_at"]
+            annual_fields = ["school_id", *ANNUAL_AUDIT_FIELDS, "updated_at"]
+            StudentSubjectResult.objects.bulk_update(
+                [r for r, c in self.sem_rows if not c], sem_fields, batch_size=500
+            )
+            StudentSubjectResult.objects.bulk_create(
+                [r for r, c in self.sem_rows if c], batch_size=500
+            )
+            AnnualSubjectResult.objects.bulk_update(
+                [r for r, c in self.annual_rows if not c], annual_fields, batch_size=500
+            )
+            AnnualSubjectResult.objects.bulk_create(
+                [r for r, c in self.annual_rows if c], batch_size=500
+            )
 
 
 class GradeService:
@@ -303,7 +417,7 @@ class GradeService:
         # [PERF-02] عند الحفظ الجماعي نُمرِّر recalc=False ونعيد الحساب دفعةً واحدة بعد الحلقة
         if recalc:
             GradeService.recalculate_students(
-                setup.class_group, setup.academic_year, [student], setup
+                setup.class_group, setup.academic_year, [student], setup, actor=entered_by
             )
 
         return obj, created
@@ -354,17 +468,35 @@ class GradeService:
         year: str,
         students: list[CustomUser],
         include: SubjectClassSetup | None = None,
+        actor: CustomUser | None = None,
     ) -> int:
-        """يحكم على طلبةٍ في موادّ شعبتهم كلِّها بـ`judge_student` ويخزّن الحكم.
+        """يحكم على طلبةٍ في موادّ شعبتهم كلِّها ويخزّن الحكم — ويسجّل ما تغيّر قبل كتابته.
+
+        `plan_students` ثمّ `VerdictPlan.write`: كلُّ مسارٍ يعيد الحساب (حفظُ درجة، حفظُ الكلّ،
+        الزرّ، ترحيلُ الثاني عشر) يكتب في `AuditLog` قائمةَ ما تغيّر بقيمتيه قبل/بعد وفاعلَه،
+        ولا سجلَّ لإعادة حسابٍ لم تغيّر شيئاً.
+        """
+        plan = GradeService.plan_students(class_group, year, students, include)
+        plan.write(actor=actor)
+        return plan.students
+
+    @staticmethod
+    def plan_students(
+        class_group: ClassGroup,
+        year: str,
+        students: list[CustomUser],
+        include: SubjectClassSetup | None = None,
+    ) -> VerdictPlan:
+        """الحكمُ على طلبةٍ في موادّ شعبتهم كلِّها بـ`judge_student` — محسوباً لا مكتوباً.
 
         الحكمُ عابرٌ للموادّ (م13، م23، م29، م50) فلا يُحسب لمادّةٍ وحدَها: تُقرأ وقائعُ
-        الطالب في كلّ إعدادات الشعبة النشطة (باستعلاماتٍ ثابتة العدد)، ويُكتب لكلّ إعدادٍ
-        مجموعا الفصلين (`StudentSubjectResult`) والحالةُ والمجموعُ والكلمةُ والموضعُ
-        والموقف (`AnnualSubjectResult`) — دفعةً واحدة تحت القفل. ومدخلاتُ الدور الثاني
-        (`second_round_score`/`second_round_absent`) تُقرأ ولا تُكتب.
+        الطالب في كلّ إعدادات الشعبة النشطة (باستعلاماتٍ ثابتة العدد) تحت القفل — فيُستدعى
+        داخل معاملة. ومدخلاتُ الدور الثاني (`second_round_score`/`second_round_absent`)
+        تُقرأ ولا تُكتب.
         """
+        plan = VerdictPlan(school=None, students=len(students))
         if not students:
-            return 0
+            return plan
         setup_filter = Q(class_group=class_group, academic_year=year, is_active=True)
         if include is not None:
             setup_filter |= Q(id=include.id)
@@ -372,10 +504,12 @@ class GradeService:
             SubjectClassSetup.objects.filter(setup_filter).select_related("school", "class_group")
         )
         if not setups:
-            return 0
+            plan.students = 0
+            return plan
         for setup in setups:
             ensure_open_year(setup)
         school = setups[0].school
+        plan.school = school
         grade = grade_number(class_group.grade)
         sids = [s.id for s in students]
 
@@ -408,10 +542,6 @@ class GradeService:
             gates.setdefault(sid, set()).add(gate)
 
         now = timezone.now()
-        sem_update: list[StudentSubjectResult] = []
-        sem_create: list[StudentSubjectResult] = []
-        annual_update: list[AnnualSubjectResult] = []
-        annual_create: list[AnnualSubjectResult] = []
         for student in students:
             sid = student.id
             subjects = []
@@ -446,91 +576,46 @@ class GradeService:
             for setup in setups:
                 v = verdicts[str(setup.id)]
                 for sem, total in (("S1", v.s1_total), ("S2", v.s2_total)):
-                    pkgs = by_setup_sem.get((setup.id, sem), [])
                     scores: dict[str, Decimal] = {}
-                    for p in pkgs:
+                    for p in by_setup_sem.get((setup.id, sem), []):
                         raw_score = exams[(sid, p.id)].score if (sid, p.id) in exams else None
                         if raw_score is not None:
                             scores[p.package_type] = package_score(p.package_type, raw_score)
-                    semester_max = next(
-                        (p.semester_max_grade for p in pkgs if (sid, p.id) in exams),
-                        SEMESTER_MAX.get(sem, Decimal("40")),
+                    plan.stage(
+                        sem_rows.get((sid, setup.id, sem)),
+                        StudentSubjectResult(student=student, setup=setup, semester=sem),
+                        {
+                            "school_id": setup.school_id,
+                            "p1_score": scores.get("P1"),
+                            "p2_score": scores.get("P2"),
+                            "p3_score": scores.get("P3"),
+                            "p4_score": scores.get("P4"),
+                            "p_aw_score": scores.get("AW"),
+                            "total": total,
+                            "semester_max": SEMESTER_MAX.get(sem, Decimal("40")),
+                        },
+                        (str(sid), str(setup.id), sem),
+                        now,
                     )
-                    values: dict[str, Any] = {
+                plan.stage(
+                    annual_rows.get((sid, setup.id)),
+                    AnnualSubjectResult(student=student, setup=setup, academic_year=year),
+                    {
                         "school_id": setup.school_id,
-                        "p1_score": scores.get("P1"),
-                        "p2_score": scores.get("P2"),
-                        "p3_score": scores.get("P3"),
-                        "p4_score": scores.get("P4"),
-                        "p_aw_score": scores.get("AW"),
-                        "total": total,
-                        "semester_max": semester_max,
-                        "updated_at": now,
-                    }
-                    existing = sem_rows.get((sid, setup.id, sem))
-                    if existing is None:
-                        sem_create.append(
-                            StudentSubjectResult(
-                                student=student, setup=setup, semester=sem, **values
-                            )
-                        )
-                    else:
-                        for attr, val in values.items():
-                            setattr(existing, attr, val)
-                        sem_update.append(existing)
-
-                annual_values: dict[str, Any] = {
-                    "school_id": setup.school_id,
-                    "s1_total": v.s1_total,
-                    "s2_total": v.s2_total,
-                    "annual_total": v.annual_total,
-                    "status": v.status,
-                    "standing": verdict.standing,
-                    "mark": v.mark,
-                    "article": v.article[:40],
-                    "review": v.review[:300],
-                    "updated_at": now,
-                }
-                existing_annual = annual_rows.get((sid, setup.id))
-                if existing_annual is None:
-                    annual_create.append(
-                        AnnualSubjectResult(
-                            student=student, setup=setup, academic_year=year, **annual_values
-                        )
-                    )
-                else:
-                    for attr, val in annual_values.items():
-                        setattr(existing_annual, attr, val)
-                    annual_update.append(existing_annual)
-
-        sem_fields = [
-            "school_id",
-            "p1_score",
-            "p2_score",
-            "p3_score",
-            "p4_score",
-            "p_aw_score",
-            "total",
-            "semester_max",
-            "updated_at",
-        ]
-        annual_fields = [
-            "school_id",
-            "s1_total",
-            "s2_total",
-            "annual_total",
-            "status",
-            "standing",
-            "mark",
-            "article",
-            "review",
-            "updated_at",
-        ]
-        StudentSubjectResult.objects.bulk_update(sem_update, sem_fields, batch_size=500)
-        StudentSubjectResult.objects.bulk_create(sem_create, batch_size=500)
-        AnnualSubjectResult.objects.bulk_update(annual_update, annual_fields, batch_size=500)
-        AnnualSubjectResult.objects.bulk_create(annual_create, batch_size=500)
-        return len(students)
+                        "s1_total": v.s1_total,
+                        "s2_total": v.s2_total,
+                        "annual_total": v.annual_total,
+                        "status": v.status,
+                        "standing": verdict.standing,
+                        "mark": v.mark,
+                        "article": v.article[:40],
+                        "review": v.review[:300],
+                        "second_round_max": v.second_round_max,
+                    },
+                    (str(sid), str(setup.id), "annual"),
+                    now,
+                )
+        return plan
 
     @staticmethod
     def recalculate_semester_result(
@@ -558,7 +643,7 @@ class GradeService:
         )
 
     @staticmethod
-    def recalculate_full_class(setup: SubjectClassSetup) -> int:
+    def recalculate_full_class(setup: SubjectClassSetup, actor: CustomUser | None = None) -> int:
         """إعادةُ الحكم على كلّ طلبة الشعبة — في موادّها كلِّها لأنّ الحكمَ عابرٌ للموادّ."""
         ensure_open_year(setup)
         students = [
@@ -568,7 +653,7 @@ class GradeService:
             ).select_related("student")
         ]
         return GradeService.recalculate_students(
-            setup.class_group, setup.academic_year, students, setup
+            setup.class_group, setup.academic_year, students, setup, actor=actor
         )
 
     # ── إحصائيات ───────────────────────────────────────────
@@ -1125,7 +1210,7 @@ class Grade12PackageFix:
             pkg.weight = weight
             pkg.semester_max_grade = SEMESTER_MAX[pkg.semester]
             pkg.save(update_fields=["weight", "semester_max_grade"])
-        students = GradeService.recalculate_full_class(setup)
+        students = GradeService.recalculate_full_class(setup, actor=actor)
         AuditLog.objects.create(
             school=setup.school,
             user=actor,
@@ -1199,7 +1284,7 @@ class Grade12PackageFix:
                 semester_max_grade=Decimal(r["old_semester_max_grade"]),
             )
             touched.append(f"{r['semester']}/{r['package_type']}→{r['old_weight']}")
-        students = GradeService.recalculate_full_class(setup)
+        students = GradeService.recalculate_full_class(setup, actor=actor)
         AuditLog.objects.create(
             school=setup.school,
             user=actor,

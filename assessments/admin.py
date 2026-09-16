@@ -1,4 +1,9 @@
+from decimal import Decimal
+from typing import Any
+
+from django import forms
 from django.contrib import admin
+from django.core.exceptions import PermissionDenied
 
 from .models import (
     AnnualSubjectResult,
@@ -124,8 +129,52 @@ class StudentSubjectResultAdmin(admin.ModelAdmin):
     get_class.short_description = "الفصل"
 
 
+class AnnualSubjectResultForm(forms.ModelForm):
+    """رصدُ الدور الثاني وحدَه — والحكمُ يُقرأ ولا يُحرَّر (يُعاد حسابُه من `judge_student`).
+
+    الدرجةُ لا تتجاوز قصوى اختبار المادّة المخزَّنةَ مع الحكم (`second_round_max`): المعذورُ
+    عن نهاية الفصل الثاني وحدَها يُختبر في منهاجها من 40 (م25 ص22)، وغيرُه من مئة (م14).
+    """
+
+    class Meta:
+        model = AnnualSubjectResult
+        fields = ("second_round_score", "second_round_absent")
+
+    def clean(self) -> dict[str, Any]:
+        data: dict[str, Any] = super().clean() or {}
+        score = data.get("second_round_score")
+        limit = self.instance.second_round_max or Decimal("100")
+        if score is not None and score > limit:
+            self.add_error(
+                "second_round_score",
+                f"قصوى اختبار الدور الثاني في هذه المادّة {limit} "
+                f"({self.instance.article or 'م14'}) — لا {score}.",
+            )
+        if score is not None and data.get("second_round_absent"):
+            self.add_error("second_round_absent", "درجةٌ مرصودة وغيابٌ معاً.")
+        return data
+
+
 @admin.register(AnnualSubjectResult)
 class AnnualSubjectResultAdmin(admin.ModelAdmin):
+    form = AnnualSubjectResultForm
+    fields = (
+        "student",
+        "setup",
+        "academic_year",
+        "s1_total",
+        "s2_total",
+        "annual_total",
+        "status",
+        "standing",
+        "mark",
+        "article",
+        "review",
+        "second_round_max",
+        "second_round_score",
+        "second_round_absent",
+    )
+    readonly_fields = fields[:12]
     list_display = (
         "student",
         "get_subject",
@@ -137,12 +186,28 @@ class AnnualSubjectResultAdmin(admin.ModelAdmin):
         "status",
         "standing",
         "article",
+        "second_round_max",
+        "second_round_score",
         "letter_grade",
     )
     list_filter = ("status", "standing", "school", "academic_year")
     list_select_related = ("student", "setup__subject", "setup__class_group", "school")
     search_fields = ("student__full_name", "student__national_id")
-    autocomplete_fields = ("student", "setup")
+
+    def has_add_permission(self, request):
+        # النتيجةُ يكتبها الحكمُ (`GradeService.recalculate_students`) لا اليد.
+        return False
+
+    def save_model(self, request, obj, form, change):
+        """الرصدُ ثمّ الحكم: يُعاد الحكمُ على الطالب في موادّه (مسجَّلاً بفاعله) — للعام الجاري."""
+        from .services import GradeService, is_open_year
+
+        if not is_open_year(obj.setup):
+            raise PermissionDenied("العامُ الدراسيّ مغلق — لا يُرصد فيه دورٌ ثانٍ.")
+        super().save_model(request, obj, form, change)
+        GradeService.recalculate_students(
+            obj.setup.class_group, obj.academic_year, [obj.student], obj.setup, actor=request.user
+        )
 
     def get_subject(self, obj):
         return obj.setup.subject.name_ar

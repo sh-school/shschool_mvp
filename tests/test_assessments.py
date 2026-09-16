@@ -51,24 +51,25 @@ def setup(db, school, subject, class_group, teacher_user):
 
 @pytest.fixture
 def s1_package(db, school, setup):
-    """باقة الأعمال المستمرة — الفصل الأول (وزن 50% من 40)"""
+    """منتصف الفصل الأول (P1) — 15 من 40 بالقرار 14/2018 م3 (ص4)."""
     return AssessmentPackage.objects.create(
         setup=setup,
         school=school,
         package_type="P1",
         semester="S1",
-        weight=Decimal("50"),
+        weight=Decimal("37.50"),
         semester_max_grade=Decimal("40"),
     )
 
 
 @pytest.fixture
 def s1_exam_package(db, school, setup):
-    """باقة اختبار نهاية الفصل الأول (وزن 50% من 40)"""
+    """نهاية الفصل الأول (P2) — 20 من 40. (كانت «P4» في الفصل الأول بوزنٍ 50: بنيةٌ ليست في
+    القرار، ولا تُجمع منذ 2026-09-16 — م5 تجعل توزيعَ الدرجات للقطاع لا للمدرسة.)"""
     return AssessmentPackage.objects.create(
         setup=setup,
         school=school,
-        package_type="P4",
+        package_type="P2",
         semester="S1",
         weight=Decimal("50"),
         semester_max_grade=Decimal("40"),
@@ -77,26 +78,26 @@ def s1_exam_package(db, school, setup):
 
 @pytest.fixture
 def s2_package_p1(db, school, setup):
-    """أعمال مستمرة — الفصل الثاني (وزن 17% من 60)"""
+    """منتصف الفصل الثاني (P3) — 15 من 60."""
     return AssessmentPackage.objects.create(
         setup=setup,
         school=school,
-        package_type="P1",
+        package_type="P3",
         semester="S2",
-        weight=Decimal("17"),
+        weight=Decimal("25"),
         semester_max_grade=Decimal("60"),
     )
 
 
 @pytest.fixture
 def s2_package_p4(db, school, setup):
-    """اختبار نهائي — الفصل الثاني (وزن 50% من 60)"""
+    """نهاية الفصل الثاني (P4) — 40 من 60."""
     return AssessmentPackage.objects.create(
         setup=setup,
         school=school,
         package_type="P4",
         semester="S2",
-        weight=Decimal("50"),
+        weight=Decimal("66.67"),
         semester_max_grade=Decimal("60"),
     )
 
@@ -143,8 +144,12 @@ class TestAssessmentModels:
         assert s2_package_p4.semester_max_grade == Decimal("60")
 
     def test_package_weight_s1(self, s1_package, s1_exam_package):
-        """الفصل الأول: P1=50% + P4=50% = 100%"""
-        assert s1_package.weight + s1_exam_package.weight == Decimal("100")
+        """الفصل الأول بالقرار 14/2018 م3: P1=15 وP2=20 وAW=5 من 40 — مجموعُ الأوزان 100%."""
+        from core.domain.grades import package_weights
+
+        table = package_weights(7, "S1")
+        assert (s1_package.weight, s1_exam_package.weight) == (table["P1"], table["P2"])
+        assert sum(table.values()) == Decimal("100")
 
     def test_assessment_max_grade_constraint(self, assessment_in_p1):
         assert assessment_in_p1.max_grade == Decimal("20")
@@ -237,8 +242,8 @@ class TestGradeService:
             grade=assessment_in_p1.max_grade,
         )
         score = GradeService.calc_package_score(student_user, s1_package)
-        # 100% × 50% × 40 / 100 = 20
-        assert score == Decimal("20.00")
+        # 100% × 15 (درجةُ P1 من القرار)
+        assert score == Decimal("15.00")
 
     def test_calc_package_score_half_marks(self, s1_package, assessment_in_p1, student_user):
         """طالب أخذ نصف الدرجة"""
@@ -248,8 +253,8 @@ class TestGradeService:
             grade=Decimal("10"),  # 10 من 20 = 50%
         )
         score = GradeService.calc_package_score(student_user, s1_package)
-        # 50% × 50% × 40 / 100 = 10
-        assert score == Decimal("10.00")
+        # 50% × 15 = 7.5 (يثبت النصف — م8)
+        assert score == Decimal("7.50")
 
     def test_calc_package_score_zero(self, s1_package, assessment_in_p1, student_user):
         """طالب أخذ صفر"""
@@ -277,18 +282,18 @@ class TestGradeService:
         enrolled_student,
     ):
         """حساب نتيجة الفصل الأول الكاملة"""
-        # P1: 15/20 = 75% → 75% × 50% × 40 / 100 = 15
+        # P1: 15/20 = 75% → 75% × 15 = 11.25
         GradeService.save_grade(
             assessment=assessment_in_p1, student=student_user, grade=Decimal("15")
         )
-        # P4: 30/40 = 75% → 75% × 50% × 40 / 100 = 15
+        # P2: 30/40 = 75% → 75% × 20 = 15
         GradeService.save_grade(
             assessment=assessment_in_p4, student=student_user, grade=Decimal("30")
         )
 
         result = StudentSubjectResult.objects.get(student=student_user, setup=setup, semester="S1")
-        # المجموع = 15 + 15 = 30 من 40
-        assert result.total == Decimal("30.00")
+        # المجموع = 26.25 → يُجبر إلى 26.5 من 40 (م8: ما دون النصف إلى النصف)
+        assert result.total == Decimal("26.50")
 
     def test_annual_result_pass(
         self,
@@ -343,10 +348,10 @@ class TestGradeService:
         GradeService.save_grade(assessment=a4_s2, student=student_user, grade=Decimal("48"))  # 80%
 
         annual = AnnualSubjectResult.objects.get(student=student_user, setup=setup)
-        # S1: 80%×50%×40/100 + 80%×50%×40/100 = 16 + 16 = 32
-        # S2: 80%×17%×60/100 + 80%×50%×60/100 = 8.16 + 24 = 32.16
-        # Total ≈ 64.16 → pass
-        assert annual.annual_total > Decimal("50")
+        # S1: 80%×15 + 80%×20 = 12 + 16 = 28
+        # S2: 80%×15 + 80%×40 = 12 + 32 = 44
+        # Total = 72 → pass
+        assert annual.annual_total == Decimal("72")
         assert annual.status == "pass"
 
     def test_annual_result_fail(

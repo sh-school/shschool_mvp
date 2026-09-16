@@ -243,9 +243,10 @@ def run():
         print(f"  ✅ الدرجات: {grades_n} | النتائج السنوية: {results_n}")
 
     from assessments.models import AnnualSubjectResult
+    from core.domain.grades import FAILING_STATUSES, PASSING_STATUSES
 
-    passed = AnnualSubjectResult.objects.filter(school=school, status="pass").count()
-    failed = AnnualSubjectResult.objects.filter(school=school, status="fail").count()
+    passed = AnnualSubjectResult.objects.filter(school=school, status__in=PASSING_STATUSES).count()
+    failed = AnnualSubjectResult.objects.filter(school=school, status__in=FAILING_STATUSES).count()
     incomp = AnnualSubjectResult.objects.filter(school=school, status="incomplete").count()
 
     print("\n" + "═" * 55)

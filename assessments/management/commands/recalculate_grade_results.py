@@ -2,15 +2,20 @@
 إعادةُ الحكم على نتائج العام الجاري بالحكم الواحد (`judge_student`) — عرضاً ثمّ صراحةً.
 
 لماذا: تغيّر الحكمُ (الجبرُ على الكسر الدقيق، وأحكامُ الغياب م17–م27، والملحق، والحرمانُ
-بقرار، والترفيعُ م50)، والنتيجةُ المخزَّنة لا تتغيّر إلّا حين تُحفظ درجةٌ أو يُضغط زرّ.
+بقرار، والترفيعُ م50، و«ملغي»، والبنيةُ من القرار 14/2018)، والنتيجةُ المخزَّنة لا تتغيّر
+إلّا حين تُحفظ درجةٌ أو يُضغط زرّ.
 
     python manage.py recalculate_grade_results                                # عرضٌ: من يتغيّر وكيف
     python manage.py recalculate_grade_results --apply --actor <الرقم الشخصي>
 
-- **العرضُ افتراض**: يُحسب داخل معاملةٍ تُلغى، ويُطبع كلُّ من يتغيّر حكمُه بقيمتيه.
-- **لكلّ مدرسةٍ معاملةٌ واحدة**: تُكتب قائمةُ التغييرات (قبل/بعد) في `AuditLog` **أوّلاً**،
-  ثمّ تُعاد كتابةُ النتائج؛ فإن سقط إعدادٌ في منتصفها أُلغيت المدرسةُ كلُّها وسجلُّها معها —
-  لا مدرسةَ على قاعدتين، ولا تغييرَ بلا أثر.
+- **العرضُ افتراض**: يُحسب الحكمُ (`GradeService.plan_students`) ولا يُكتب شيء، ويُطبع كلُّ
+  من يتغيّر حكمُه بقيمتيه.
+- **لكلّ مدرسةٍ معاملةٌ واحدة**: تُحسب خططُ شُعبها كلِّها، ثمّ تُكتب قائمةُ التغييرات (قبل/بعد)
+  في `AuditLog` **أوّلاً**، ثمّ تُكتب النتائج؛ فإن سقطت كتابةٌ في منتصفها أُلغيت المدرسةُ
+  كلُّها وسجلُّها معها — لا مدرسةَ على قاعدتين، ولا تغييرَ بلا أثر.
+- **المقارنةُ بالحكم كلِّه**: الحالةُ والموقفُ والمجاميعُ والكلمةُ والموضعُ والتنبيهُ وقصوى
+  الدور الثاني، ودرجاتُ الباقات ومجموعُ كلّ فصل (`ANNUAL_AUDIT_FIELDS`، `SEMESTER_AUDIT_FIELDS`)
+  — فصفٌّ لم يتغيّر فيه إلّا تنبيهٌ يُكتب.
 - **العامُ الجاري وحدَه**: الأعوامُ المغلقة مجمَّدة.
 """
 
@@ -21,40 +26,21 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
-from assessments.models import AnnualSubjectResult, SubjectClassSetup
-from assessments.services import GradeService
+from assessments.models import SubjectClassSetup
+from assessments.services import GradeService, VerdictPlan
 from core.academic_calendar import academic_year_for_school
 from core.models import AuditLog, ClassGroup, CustomUser, School, StudentEnrollment
-
-#: ما يُقارن قبل/بعد — الحكمُ كلُّه لا الحالةُ وحدَها.
-FIELDS = ("status", "standing", "annual_total", "s1_total", "s2_total", "mark")
 
 OP = "recalculate_grade_results"
 
 
-class _RollbackError(Exception):
-    pass
-
-
-def _snapshot(school: School, year: str) -> dict[tuple[str, str], dict[str, str]]:
-    rows = AnnualSubjectResult.objects.filter(school=school, academic_year=year).values_list(
-        "student_id", "setup_id", *FIELDS
-    )
-    return {
-        (str(r[0]), str(r[1])): {
-            f: ("" if v is None else str(v)) for f, v in zip(FIELDS, r[2:], strict=False)
-        }
-        for r in rows
-    }
-
-
-def _recalculate(school: School, year: str) -> int:
+def _plans(school: School, year: str) -> list[VerdictPlan]:
     classes = ClassGroup.objects.filter(
         id__in=SubjectClassSetup.objects.filter(school=school, academic_year=year).values(
             "class_group_id"
         )
     )
-    students = 0
+    plans = []
     for class_group in classes:
         enrolled = [
             e.student
@@ -62,19 +48,8 @@ def _recalculate(school: School, year: str) -> int:
                 class_group=class_group, is_active=True
             ).select_related("student")
         ]
-        students += GradeService.recalculate_students(class_group, year, enrolled)
-    return students
-
-
-def _diff(
-    before: dict[tuple[str, str], dict[str, str]], after: dict[tuple[str, str], dict[str, str]]
-) -> list[dict[str, Any]]:
-    changes = []
-    for key in sorted(set(before) | set(after)):
-        old, new = before.get(key), after.get(key)
-        if old != new:
-            changes.append({"student": key[0], "setup": key[1], "before": old, "after": new})
-    return changes
+        plans.append(GradeService.plan_students(class_group, year, enrolled))
+    return plans
 
 
 class Command(BaseCommand):
@@ -101,26 +76,13 @@ class Command(BaseCommand):
 
         for school in schools:
             year = academic_year_for_school(school)
-            before = _snapshot(school, year)
-            # العرضُ أوّلاً — في كلّ حال: الحسابُ داخل معاملةٍ تُلغى، فتُعرف القائمةُ قبل الكتابة.
-            planned: list[dict[str, Any]] = []
-            try:
-                with transaction.atomic():
-                    students = _recalculate(school, year)
-                    planned = _diff(before, _snapshot(school, year))
-                    raise _RollbackError
-            except _RollbackError:
-                pass
-            self._report(school, year, students, planned)
-            if not options["apply"] or not planned:
-                continue
             with transaction.atomic():
-                # داخل معاملة المدرسة: يُعاد الحسابُ في نقطة حفظٍ تُلغى فتُعرف القائمة، ثمّ يُكتب
-                # السجلُّ بها، ثمّ النتائج — وإن خالف المكتوبُ المسجَّلَ أُلغي كلُّ شيء.
-                savepoint = transaction.savepoint()
-                _recalculate(school, year)
-                planned = _diff(before, _snapshot(school, year))
-                transaction.savepoint_rollback(savepoint)
+                plans = _plans(school, year)
+                students = sum(p.students for p in plans)
+                changes = [c for p in plans for c in p.changes]
+                self._report(school, year, students, changes)
+                if not options["apply"] or not changes:
+                    continue
                 log = AuditLog.objects.create(
                     school=school,
                     user=actor,
@@ -132,32 +94,29 @@ class Command(BaseCommand):
                         "op": OP,
                         "academic_year": year,
                         "students": students,
-                        "changed": len(planned),
-                        "rows": planned,
+                        "changed": len(changes),
+                        "rows": changes,
                     },
                 )
-                _recalculate(school, year)
-                done = _diff(before, _snapshot(school, year))
-                if done != planned:
-                    # سجلُّ التدقيق لا يُعدَّل — فإن خالف المكتوبُ ما سُجِّل أُلغيت المدرسةُ كلُّها.
-                    raise CommandError(
-                        f"{school.code}: تغيّرت النتائجُ بين التسجيل والكتابة — أُلغي التطبيق، أعِد التشغيل."
-                    )
+                for plan in plans:
+                    plan.write(actor=actor, audit=False)
             self.stdout.write(self.style.SUCCESS(f"  طُبّق · سجلّ المراجعة {log.pk}"))
         if not options["apply"]:
             self.stdout.write("عرضٌ فقط — أعِد بـ--apply --actor للتطبيق.")
 
     def _report(
-        self, school: School, year: str, students: int, planned: list[dict[str, Any]]
+        self, school: School, year: str, students: int, changes: list[dict[str, Any]]
     ) -> None:
         self.stdout.write(
-            f"{school.code} · {year}: {students} طالباً · يتغيّر حكمُ {len(planned)} نتيجة"
+            f"{school.code} · {year}: {students} طالباً · يتغيّر {len(changes)} صفّاً من الحكم"
         )
-        for row in planned:
+        for row in changes:
             old, new = row["before"] or {}, row["after"] or {}
             parts = [
                 f"{f}: {old.get(f, '∅') or '—'} → {new.get(f, '∅') or '—'}"
-                for f in FIELDS
+                for f in new
                 if old.get(f) != new.get(f)
             ]
-            self.stdout.write(f"  {row['student']} · {row['setup']} · " + " · ".join(parts))
+            self.stdout.write(
+                f"  {row['student']} · {row['setup']} · {row['row']} · " + " · ".join(parts)
+            )

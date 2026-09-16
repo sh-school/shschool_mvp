@@ -504,20 +504,21 @@ def test_command_audits_before_and_after_of_every_changed_total(
 def test_command_is_one_transaction_per_school(school, teacher_user, principal_user, monkeypatch):
     from django.core.management import call_command
 
+    from assessments.services import VerdictPlan
     from core.models import AuditLog
 
     _, setup_a, student_a = _stale(school, teacher_user)
     _, setup_b, student_b = _stale(school, teacher_user)
-    real = GradeService.recalculate_students
+    real = VerdictPlan.write
     calls = {"n": 0}
 
-    def flaky(class_group, year, students, include=None):
+    def flaky(self, actor=None, audit=True):
         calls["n"] += 1
-        if calls["n"] == 4:  # الثانيةُ في التطبيق — بعد العرض (2) والأولى (3)
+        if calls["n"] == 2:  # الشعبةُ الثانية — بعد السجلّ والأولى
             raise RuntimeError("انقطاع")
-        return real(class_group, year, students, include)
+        return real(self, actor=actor, audit=audit)
 
-    monkeypatch.setattr(GradeService, "recalculate_students", staticmethod(flaky))
+    monkeypatch.setattr(VerdictPlan, "write", flaky)
     with pytest.raises(RuntimeError):
         call_command(
             "recalculate_grade_results",

@@ -423,7 +423,7 @@ def save_all_grades(request, assessment_id):
         saved += 1
 
     # [PERF-02] إعادة حساب الفصل كاملاً مرة واحدة (batch) بدل مرة لكل طالب
-    GradeService.recalculate_full_class(assessment.package.setup)
+    GradeService.recalculate_full_class(assessment.package.setup, actor=request.user)
 
     # تحديث حالة التقييم
     assessment.status = "graded"
@@ -728,7 +728,7 @@ def recalculate_class(request, setup_id):
         messages.error(request, "لا يُعاد حسابُ نتائج عامٍ دراسيٍّ غيرِ الجاري.")
         return redirect("class_gradebook", setup_id=setup_id)
 
-    GradeService.recalculate_full_class(setup)
+    GradeService.recalculate_full_class(setup, actor=request.user)
     messages.success(
         request, f"تم إعادة حساب درجات {setup.class_group} في {setup.subject.name_ar} بنجاح."
     )

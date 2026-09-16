@@ -156,31 +156,28 @@ def package_weight(grade: int, semester: str, package_type: str) -> Decimal | No
     return package_weights(grade, semester).get(package_type)
 
 
-def exact_package_weight(
-    grade: int, semester: str, package_type: str, stored: Decimal | None = None
-) -> Fraction | None:
-    """وزنُ الباقة نسبةً صحيحة من مئة: 2/3×100 لا 66.67.
+def exact_package_weight(grade: int, semester: str, package_type: str) -> Fraction | None:
+    """وزنُ الباقة نسبةً صحيحة من مئة بدرجات القرار: 2/3×100 لا 66.67 — و`None` لما ليس فيه.
 
-    إن كان الوزنُ المخزَّن تقريبَ الجدول إلى 0.01 فالدقيقُ هو الجدول؛ وإن غيّرته
-    المدرسةُ فوزنُها كما كُتب — لا يُستبدل به الجدول.
+    الأوزانُ من القرار 14/2018 م3 (ص4–5) لا من المخزَّن: وم5 (ص6) تجعل «توزيع درجات أعمال
+    الفصل، وتوزيع درجات المواد» لقطاع شؤون التقييم لا للمدرسة (`04b_academic_deep_part1.md:2186-2188`).
+    فالوزنُ المخزَّن للعرض، والحسابُ لا يقرؤه. (تصحيح 2026-09-16: كان يُعيد وزنَ المدرسة.)
 
-    >>> exact_package_weight(10, "S2", "P4", Decimal("66.67"))
+    >>> exact_package_weight(10, "S2", "P4")
     Fraction(200, 3)
-    >>> exact_package_weight(10, "S2", "P4", Decimal("60"))
-    Fraction(60, 1)
+    >>> exact_package_weight(12, "S1", "P1") is None
+    True
     """
     table = PACKAGE_MARKS_GRADE12 if grade == FINAL_GRADE else PACKAGE_MARKS_STANDARD
     marks = table.get(semester, {}).get(package_type)
-    exact = None if marks is None else Fraction(marks * 100) / SEMESTER_MAX_EXACT[semester]
-    if stored is None:
-        return exact
-    if exact is not None:
-        rounded = (Decimal(exact.numerator) / Decimal(exact.denominator)).quantize(
-            Decimal("0.01"), rounding=ROUND_HALF_UP
-        )
-        if rounded == stored:
-            return exact
-    return Fraction(stored)
+    return None if marks is None else Fraction(marks * 100) / SEMESTER_MAX_EXACT[semester]
+
+
+def package_out_of(grade: int, semester: str, package_type: str) -> Fraction | None:
+    """درجةُ الباقة من الفصل بنصّ القرار (15، 20، 40 …) — و`None` لباقةٍ خارج البنية."""
+    table = PACKAGE_MARKS_GRADE12 if grade == FINAL_GRADE else PACKAGE_MARKS_STANDARD
+    marks = table.get(semester, {}).get(package_type)
+    return None if marks is None else Fraction(marks)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -352,7 +349,16 @@ def semester_total(raw_scores: Mapping[str, Score | Fraction | str | None]) -> D
 #            — «(تلغى درجات الطالب في الفصل الأول) ويسمح له بدخول اختبار الدور الثاني».
 #   ولا قواعدَ ترفيعٍ ولا ملحقَ في سياسة الثاني عشر.
 #
-#  «ملغي» — م45 مكرر (قرار 30/2018): «ولا يحق له دخول اختبارات الدور الثاني».
+#  «ملغي» — قرار 30/2018 (صادر 2018/11/26)، ص1 م1 «المادة (45/ مكرر)» لـ4–11، وص2 م2
+#            «المادة (33/ مكرر)» للثاني عشر، ومكرّر 1 منهما (ص2، ص3) بالنصّ نفسه:
+#            «يُلغى اختبار الطالب في جميع المواد، ويُعتبر راسباً في صفه، ويُرصد له كلمة
+#            (ملغي)، ويُحرم من الدراسة في العام الدراسي ذاته». فالكلمةُ في كلّ مادّة لا مجموعٌ
+#            ولا «ناجح»، والموقفُ راسب — والحرمانُ من الدراسة يسدّ الدورَ الثاني. أمّا «ولا يحق
+#            له دخول اختبارات الدور الثاني» فنصُّ الدليل التعريفيّ ص30 لحالاتٍ أخرى
+#            (`04b_academic_deep_part1.md:1975`)، لا القرار. (تصحيح نسبةٍ 2026-09-16.)
+#
+#  البنية — قرار 14/2018 م3 (ص4–5) وم5 (ص6): درجاتُ الباقات من القرار، وما ليس فيه لا يُجمع
+#            (تنبيهٌ في `review`). (تصحيح 2026-09-16: كانت «أوزانُ المدرسة» تُجمع كما هي.)
 #
 # والحرمانُ **قرارٌ** لفريق إدارة سلوك الطلبة (`08_conduct_policy_2026.md:107-137`)
 # لا عدّادُ أيّام: الحكمُ يقرأ القرارَ المسجَّل (`deprived_gates`)، وبلوغُ العتبة بلا
@@ -374,11 +380,14 @@ PRESENT = "present"
 ABSENT = "absent"
 EXCUSED_MARK = "excused"
 DEPRIVED_MARK = "deprived"
+#: قرار 30/2018 م1–م2: «ويُرصد له كلمة (ملغي)».
+CANCELLED_MARK = "cancelled"
 
 MARK_CHOICES: tuple[tuple[str, str], ...] = (
     (ABSENT, "غائب"),
     (EXCUSED_MARK, "معذور"),
     (DEPRIVED_MARK, "محروم"),
+    (CANCELLED_MARK, "ملغي"),
 )
 MARK_LABELS = dict(MARK_CHOICES)
 
@@ -391,11 +400,13 @@ STATUS_EXCUSED = "excused"
 STATUS_DEPRIVED = "deprived"
 STATUS_MAKEUP = "makeup"
 STATUS_INCOMPLETE = "incomplete"
+STATUS_CANCELLED = "cancelled"
 
 RESULT_STATUS_CHOICES: tuple[tuple[str, str], ...] = (
     (STATUS_PASS, "ناجح"),
     (STATUS_PROMOTED, "مُرفَّع"),
     (STATUS_FAIL, "راسب"),
+    (STATUS_CANCELLED, "ملغي"),
     (STATUS_SECOND_ROUND, "راسب — دور ثانٍ"),
     (STATUS_EXCUSED, "معذور — دور ثانٍ"),
     (STATUS_DEPRIVED, "محروم — دور ثانٍ"),
@@ -406,7 +417,8 @@ RESULT_STATUS_LABELS = dict(RESULT_STATUS_CHOICES)
 
 #: **التعريفُ الواحد** لـ«ناجح/راسب/معلَّق» — كلُّ مستهلكٍ يعدّ بهذه لا بنصٍّ حرفيّ.
 PASSING_STATUSES: tuple[str, ...] = (STATUS_PASS, STATUS_PROMOTED)
-FAILING_STATUSES: tuple[str, ...] = (STATUS_FAIL, STATUS_SECOND_ROUND)
+#: «ملغي» راسب: «ويُعتبر راسباً في صفه» (قرار 30/2018 م1).
+FAILING_STATUSES: tuple[str, ...] = (STATUS_FAIL, STATUS_SECOND_ROUND, STATUS_CANCELLED)
 PENDING_STATUSES: tuple[str, ...] = (
     STATUS_EXCUSED,
     STATUS_DEPRIVED,
@@ -437,6 +449,7 @@ STATUS_TONES: dict[str, str] = {
     STATUS_PASS: "success",
     STATUS_PROMOTED: "success",
     STATUS_FAIL: "danger",
+    STATUS_CANCELLED: "danger",
     STATUS_SECOND_ROUND: "maroon",
     STATUS_EXCUSED: "info",
     STATUS_DEPRIVED: "warning",
@@ -646,13 +659,24 @@ def _mark(exam: ExamFacts | None, deprived: bool = False) -> str:
     return PRESENT if exam is None else exam.mark
 
 
-def _others(ex: Mapping[str, ExamFacts], known: frozenset[str]) -> list[Fraction | None]:
-    """باقاتٌ خارج بنية الجدول (أوزانٌ قرّرتها مدرسة) — تُجمع كما هي بلا حكم غياب."""
-    return [e.score for k, e in ex.items() if k not in known]
+def _outside(grade: int, f: SubjectFacts) -> list[str]:
+    """باقاتٌ رُصد فيها ولا وجودَ لها في بنية القرار 14/2018 م3 — لا تُجمع (م5: التوزيعُ للقطاع).
+
+    كانت تُجمع «أوزانَ مدرسة» (حتّى 2026-09-15)؛ فإعدادُ ثاني عشر محجوبٌ عن الترحيل بتقييمٍ
+    على P1 كان يُحتسب له منتصفٌ لا وجودَ له في نظامه.
+    """
+    return [
+        f"{sem}/{k}"
+        for sem, ex in (("S1", f.s1), ("S2", f.s2))
+        for k in ex
+        if k not in package_weights(grade, sem)
+    ]
 
 
-_S1_KNOWN = frozenset({"P1", "P2", "AW"})
-_S2_KNOWN = frozenset({"P3", "P4", "AW"})
+def _final_pct(p2: ExamFacts, makeup: MakeupFacts) -> Fraction:
+    """نسبةُ نهاية الفصل الأول بعد الملحق (م24 «أولاً-2»): ما حضره منها مع ما عُوِّض بالملحق."""
+    made_up = (makeup.pct or Fraction(0)) * p2.excused_share * p2.out_of
+    return ((p2.score or Fraction(0)) + made_up) / p2.out_of
 
 
 def _borrowed(final: ExamFacts | None, part: Fraction) -> Fraction:
@@ -691,9 +715,21 @@ def _first_semester_standard(
             # م20 («سواء أكان الغياب بعذر أم بدون عذر»): درجةُ الفصل ما حضره.
             return _Round1(_SCORED, s1=_jabr_exact(aw_s or Fraction(0)), article="م20")
         base = [mid, aw_s, p2.score]
-        if makeup.mark == PRESENT and makeup.pct is not None:
-            total = _sum([*base, makeup.pct * p2_excused * p2.out_of])
-            return _Round1(_SCORED, s1=_jabr_or_none(total), article="م19")
+        if makeup.mark == PRESENT and makeup.pct is not None and p2.out_of:
+            final = _final_pct(p2, makeup)
+            if m1 == EXCUSED_MARK:
+                # م17: المعذورُ عن المنتصف كلِّه — الفصلُ كلُّه من النهاية، ونهايتُه بملحقها.
+                return _Round1(
+                    _SCORED, s1=_jabr_exact(final * SEMESTER_MAX_EXACT["S1"]), article="م17"
+                )
+            # م24 «أولاً-1»: الجزءُ المعذورُ من المنتصف بنسبة النهاية — ونهايتُه بملحقها (م19).
+            lent = Fraction(0)
+            if p1 is not None and not dep_mid:
+                lent = final * p1.excused_share * p1.out_of
+            made = _sum([mid, aw_s, final * p2.out_of])
+            return _Round1(
+                _SCORED, s1=None if made is None else _jabr_exact(made + lent), article="م19"
+            )
         return _Round1(_SCORED, s1=_jabr_or_none(_sum(base)), article="م20")
 
     if m1 == EXCUSED_MARK:
@@ -704,7 +740,7 @@ def _first_semester_standard(
         from_final = None if pct is None else _jabr_exact(pct * SEMESTER_MAX_EXACT["S1"])
         return _Round1(_SCORED, s1=from_final, article="م17")
 
-    total = _sum([mid, aw_s, _score(p2, dep_fin), *_others(ex, _S1_KNOWN)])
+    total = _sum([mid, aw_s, _score(p2, dep_fin)])
     if total is None:
         return _Round1(_SCORED)
     borrowed = Fraction(0)
@@ -739,7 +775,7 @@ def _second_semester_standard(
         pct = None if p4 is None else p4.attended_pct
         s2 = None if pct is None else _jabr_exact(pct * SEMESTER_MAX_EXACT["S2"])
         return _Round1(_SCORED, s1=s1, s2=s2, article="م17")
-    total = _sum([mid, aw_s, _score(p4), *_others(ex, _S2_KNOWN)])
+    total = _sum([mid, aw_s, _score(p4)])
     borrowed = Fraction(0)
     if p3 is not None and not dep_mid:
         borrowed = _borrowed(p4, p3.excused_share * p3.out_of)
@@ -766,19 +802,26 @@ def _round1_final_grade(f: SubjectFacts) -> _Round1:
         return _Round1(_EXCUSED, article="م13", retake_max=Fraction(100))
     if m2 == ABSENT:
         return _Round1(_ABSENT_S1, article="م14")
-    s1 = _jabr_or_none(_sum([_score(p2), *_others(f.s1, frozenset({"P2"}))]))
+    # م3 «ثالثاً»: درجةُ الفصل كلُّها لاختبار نهايته — لا غيرُه.
+    s1 = _jabr_or_none(_score(p2))
     m4 = _mark(p4)
     if m4 == EXCUSED_MARK:
         # م16: «ولا تحسب له درجات الفصل الأول» — دورُه من مئة.
         return _Round1(_EXCUSED, s1=s1, article="م16", retake_max=Fraction(100))
     if m4 == ABSENT:
         return _Round1(_ABSENT_FINAL, s1=s1, article="م17")
-    s2 = _jabr_or_none(_sum([_score(p4), *_others(f.s2, frozenset({"P4"}))]))
+    s2 = _jabr_or_none(_score(p4))
     return _Round1(_SCORED, s1=s1, s2=s2)
 
 
 def _dec(value: Fraction | None) -> Decimal | None:
     return None if value is None else _to_decimal(value)
+
+
+def _to_plain(value: Fraction) -> str:
+    """كسرٌ للعرض في تنبيه: 80 أو 80.25."""
+    d = (Decimal(value.numerator) / Decimal(value.denominator)).quantize(_CENT)
+    return format(d.normalize(), "f")
 
 
 def second_round_credit(
@@ -859,11 +902,38 @@ def _rule_one_reviews(
                 g2 = _PASS - _exact(s.annual_total)
                 if 0 < g2 <= PROMOTION_RULE_1_GAP:
                     notes.append(_rule_one_note("الدور الثاني", g2))
-        subs.append(replace(s, review="؛ ".join(notes)))
+        subs.append(_add_review(s, "؛ ".join(notes)) if notes else s)
     return replace(v, subjects=tuple(subs))
 
 
+def _add_review(v: SubjectVerdict, note: str) -> SubjectVerdict:
+    return replace(v, review="؛ ".join(n for n in (v.review, note) if n))
+
+
 def judge_student(
+    grade: int,
+    subjects: list[SubjectFacts] | tuple[SubjectFacts, ...],
+    deprived_gates: frozenset[str] = frozenset(),
+    cancelled: bool = False,
+) -> StudentVerdict:
+    """الحكمُ الواحد — `_judge` ثمّ تنبيهُ الباقات الخارجة عن بنية القرار (لا تُجمع)."""
+    verdict = _judge(grade, subjects, deprived_gates, cancelled)
+    outside = {f.key: _outside(grade, f) for f in subjects}
+    if not any(outside.values()):
+        return verdict
+    subs = tuple(
+        _add_review(
+            v,
+            "باقةٌ خارج بنية القرار 14/2018 م3 لا تُحسب: " + "، ".join(outside[v.key]),
+        )
+        if outside.get(v.key)
+        else v
+        for v in verdict.subjects
+    )
+    return replace(verdict, subjects=subs)
+
+
+def _judge(
     grade: int,
     subjects: list[SubjectFacts] | tuple[SubjectFacts, ...],
     deprived_gates: frozenset[str] = frozenset(),
@@ -957,8 +1027,17 @@ def judge_student(
         return _second_round(grade, StudentVerdict(STANDING_SECOND_ROUND, article, subs), facts, r1)
 
     if cancelled:
+        # قرار 30/2018 م1–م2: «يُلغى اختبار الطالب في جميع المواد، ويُعتبر راسباً في صفه،
+        # ويُرصد له كلمة (ملغي)» — لا مجموعَ في مادّة، ولا دورَ ثانياً.
         art = _art("cancelled", grade)
-        return StudentVerdict(STANDING_FAILED, art, tuple(replace(own(k), article=art) for k in r1))
+        return StudentVerdict(
+            STANDING_FAILED,
+            art,
+            tuple(
+                SubjectVerdict(k, STATUS_CANCELLED, None, None, None, CANCELLED_MARK, art)
+                for k in r1
+            ),
+        )
     if g12 and GATE_S1_FINAL in gates:
         return all_deprived(FINAL_GRADE_S1_DEPRIVED_ARTICLE)
     if len(absent_s1) > MAX_FAILED_FOR_SECOND_ROUND:
@@ -1042,6 +1121,17 @@ def _second_round(
         carried = r1[v.key].carried if v.status == STATUS_EXCUSED else Fraction(0)
         if v.status == STATUS_DEPRIVED:
             carried = Fraction(0)
+        limit = FULL_MARK if v.second_round_max is None else v.second_round_max
+        if sr.score > _exact(limit) or sr.score < 0:
+            # رصدٌ خاطئ (فوق قصوى اختبار الدور الثاني: م25 منهاجُ الفصل الثاني وحدَه) — لا يُحكم
+            # به ولا يُسقط إعادةَ الحساب؛ يبقى حكمُ الدور الأول ويُعرض الخطأ للتصحيح.
+            decided[v.key] = _add_review(
+                v,
+                f"درجةُ الدور الثاني المرصودة {_to_plain(sr.score)} خارج قصوى اختبارها "
+                f"{_to_plain(_exact(limit))} ({v.article}) — تُصحَّح ثمّ يُعاد الحساب",
+            )
+            undecided = True
+            continue
         passed, value = second_round_credit(v.status, sr.score, carried, grade=grade)
         values[v.key] = _jabr_exact(sr.score + carried)
         decided[v.key] = replace(
