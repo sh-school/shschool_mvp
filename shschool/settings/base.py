@@ -306,12 +306,15 @@ CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# بابُ JWT مغلقٌ ما لم يُفتح صراحةً. كان مفتوحاً «للتطبيق المحمول المستقبليّ»
+# ولم يُصدَر منه رمزٌ واحد (فحصُ الإنتاج 2026-09-16)، وهو يتجاوز ما يحمي
+# دخولَ الجلسة: لا ثنائيّة، ولا axes، ولا حدَّ للمحاولات. فلا مساراتِ رموز
+# ولا مُصادِقَ رموز حتى يُبنى التطبيقُ ويُحرَس الباب (P1-1).
+API_JWT_ENABLED = config("API_JWT_ENABLED", default=False, cast=bool)
+
 _AUTH_CLASSES = ["rest_framework.authentication.SessionAuthentication"]
-try:
-    __import__("rest_framework_simplejwt")
+if API_JWT_ENABLED:
     _AUTH_CLASSES.append("rest_framework_simplejwt.authentication.JWTAuthentication")
-except ImportError:
-    pass
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": _AUTH_CLASSES,
