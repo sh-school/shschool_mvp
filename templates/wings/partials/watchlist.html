@@ -2,27 +2,35 @@
 {% comment %}ما ينتظر المشرفَ اليوم — إخطارُ أولياء الأمور ومن عند العتبات (لوحةُ المشرف v1). يحتاج: awaiting_contact, at_gates.{% endcomment %}
 {% if awaiting_contact %}
 {% section_card "ينتظرون إخطارَ وليّ الأمر — غابوا أمس" meta=awaiting_contact|length icon="call_parent" %}
-  <ul class="plain-list">
-    {% for row in awaiting_contact %}
-    <li class="plain-list__row">
-      <span class="plain-list__title">{{ row.student.full_name }} <small>{{ row.class_group.short_code }}</small></span>
-      <a href="{% url 'wings:absence_file' row.student.id %}?call={{ row.needs_contact|date:'Y-m-d' }}#day-{{ row.needs_contact|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "call_parent" %} أخطِر</a>
-    </li>
+  <div class="auto-grid">
+    {% for col in awaiting_contact_cols %}
+    <ul class="plain-list">
+      {% for row in col %}
+      <li class="plain-list__row">
+        <span class="plain-list__title">{{ row.student.full_name }} <small>{{ row.class_group.short_code }}</small></span>
+        <a href="{% url 'wings:absence_file' row.student.id %}?call={{ row.needs_contact|date:'Y-m-d' }}#day-{{ row.needs_contact|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "call_parent" %} أخطِر</a>
+      </li>
+      {% endfor %}
+    </ul>
     {% endfor %}
-  </ul>
+  </div>
   <p class="bell-note">الإخطارُ في اليوم نفسِه هاتفيّاً ونصّيّاً (م 3.4.1.5).</p>
 {% endsection_card %}
 {% endif %}
 {% if at_gates %}
 {% section_card "عند عتبات الغياب بلا عذر" meta=at_gates|length icon="status_warning" %}
-  <ul class="plain-list">
-    {% for row in at_gates %}
-    <li class="plain-list__row">
-      <span class="plain-list__title">{{ row.student.full_name }} <small>{{ row.class_group.short_code }}</small></span>
-      <span class="status-badge {% if row.passed %}status-danger{% else %}status-warning{% endif %}">{{ row.days }} يوم · {{ row.says }}</span>
-      <a href="{% url 'wings:absence_file' row.student.id %}" class="btn-secondary btn-xs">ملفُّ الغياب</a>
-    </li>
+  <div class="auto-grid">
+    {% for col in at_gates_cols %}
+    <ul class="plain-list">
+      {% for row in col %}
+      <li class="plain-list__row">
+        <span class="plain-list__title">{{ row.student.full_name }} <small>{{ row.class_group.short_code }}</small></span>
+        <span class="status-badge {% if row.passed %}status-danger{% else %}status-warning{% endif %}">{{ row.days }} يوم · {{ row.says }}</span>
+        <a href="{% url 'wings:absence_file' row.student.id %}" class="btn-secondary btn-xs">ملفُّ الغياب</a>
+      </li>
+      {% endfor %}
+    </ul>
     {% endfor %}
-  </ul>
+  </div>
 {% endsection_card %}
 {% endif %}

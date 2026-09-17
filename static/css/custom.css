@@ -5877,13 +5877,18 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
   .sa-field--grow { flex: 1 1 240px; }
 
 /* ── templates/staff_affairs/dashboard.html و licensing.html ── */
-  /* ثلاثُ قوائمَ متجاورةٍ حيث يتّسع — كانت في شبكة عمودين فتبقى الثالثةُ وحيدة. */
-  .sa-grid-3 {
+  /* شبكةُ أعمدةٍ تتجاور بقدر ما تتّسع النافذة (300px أدنى عرضٍ لكلّ عمود)
+     وتنفكّ تلقائياً حيث تضيق — ثلاثةٌ في licensing.html، أربعةٌ في لوحة
+     شؤون الموظفين، وأيُّ عددٍ آخر يحتاجه قالبٌ مقبل بلا كلاسٍ جديد. */
+  .auto-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
     gap: var(--sp-2);
     align-items: stretch;
   }
+  /* عمودٌ بعرض 300px أضيقُ من عرض الصفحة — سطرُ قائمةٍ فيه (اسمٌ + شارةٌ + زر)
+     يُكدَّس بلا التفافٍ، فيُؤذَن للعناصر أن تنزل سطراً إن ضاق بها المكان. */
+  .auto-grid .plain-list__row { flex-wrap: wrap; }
   .sa-link { color: var(--maroon-fg); text-decoration: none; }
   .sa-link:hover { text-decoration: underline; }
 
@@ -7920,8 +7925,10 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
    `auto-fit` بحدٍّ أدنى: ثلاثٌ في سطرٍ حيث يتّسع، واثنتان على الهاتف. */
 .ui-actions {
   display: grid;
-  /* 300px: أربعٌ في سطرٍ على الشاشة العريضة — فثمانٍ سطران كاملان لا خمسٌ وثلاث. */
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  /* 160px: بلاطةٌ أيقونتُها وعنوانُها القصير — لا محتوى جدولٍ يحتاج 300px.
+     ثمانيةُ أقسامٍ (لوحةُ المدير) تسع سطراً واحداً على شاشة لابتوبٍ عاديّة
+     بدل خمسٍ وثلاث. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   gap: var(--sp-2);
 }
 @media (max-width: 640px) { .ui-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

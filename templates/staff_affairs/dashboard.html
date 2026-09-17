@@ -36,24 +36,28 @@
   {% endkpi_strip %}
 
   {% section_card "توزيع الموظفين حسب الدور" meta=role_distribution|length icon="stats" flush=True empty="لا أدوارَ مسجّلة" %}{% if role_distribution %}
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>الدور</th><th class="num">العدد</th><th>النسبة</th></tr></thead>
-        <tbody>
-          {% for r in role_distribution %}
-          <tr>
-            <td>{{ r.role_display }}</td>
-            <td class="num">{{ r.count }}</td>
-            <td>
-              <div class="mini-progress-wrap">
-                <div class="mini-progress-track"><div class="mini-progress-fill maroon" style="--progress-w:{{ r.share }}%"></div></div>
-                <span class="mini-progress-pct">{{ r.share }}%</span>
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="auto-grid">
+      {% for col in role_distribution_cols %}
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>الدور</th><th class="num">العدد</th><th>النسبة</th></tr></thead>
+          <tbody>
+            {% for r in col %}
+            <tr>
+              <td>{{ r.role_display }}</td>
+              <td class="num">{{ r.count }}</td>
+              <td>
+                <div class="mini-progress-wrap">
+                  <div class="mini-progress-track"><div class="mini-progress-fill maroon" style="--progress-w:{{ r.share }}%"></div></div>
+                  <span class="mini-progress-pct">{{ r.share }}%</span>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endfor %}
     </div>
   {% endif %}{% endsection_card %}
 
