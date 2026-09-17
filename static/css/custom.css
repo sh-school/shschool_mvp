@@ -5508,11 +5508,15 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
    والشعبة يدويّاً عن ظهر قلب (templates/quality/partials/teacher_schedule_row.html)
    هامشٌ سالبٌ هنا سابقاً سحب الصفَّ فوق حقل المعلّم فتداخلا — لا سالب. */
 .qobs-schedule-row { margin-top: var(--sp-3); }
-.qobs-schedule-pills { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+/* شبكةٌ لا صفٌّ مرن: عمودان على الشاشة الضيّقة وثلاثةٌ فأكثر على الواسعة —
+   معلّمٌ بحصصٍ كثيرة (تعويضٌ وتبديلٌ وإشغالُ احتياط) لا يمتدّ صفّاً طويلاً
+   ينزل بالتمرير، بل يرتفع أعمدةً. */
+.qobs-schedule-pills { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--sp-2); }
 .qobs-schedule-pill {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 2px;
   padding: 6px 12px;
   border: 1px solid var(--border-strong);
