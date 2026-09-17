@@ -1,7 +1,13 @@
 #!/bin/bash
 # Railway Release Phase — يُنفّذ قبل بدء الخادم
 # يجري migrations + collectstatic + createsuperuser (أول مرة فقط)
-
+#
+# [P4-1، مؤقّت] خطواتُه الآن مكرَّرةٌ في scripts/railway-predeploy.sh
+# (preDeployCommand في .railway/railway.ts) — لكنّ الأخيرة لا تعمل إلّا بعد
+# أن يُشغَّل `railway config apply` يدويّاً على المشروع. فبقيت هنا حتى يُؤكَّد
+# ذلك على نشرٍ حقيقيّ (سجلُّ preDeploy ظاهرٌ في Railway)، ثمّ تُحذف من هنا في
+# طلب دمجٍ لاحق — توسيعٌ ثمّ تقليص، لا خطوةٌ واحدة تخاطر بانقطاع الثابت لو
+# صادف أن يُدمج هذا قبل الـapply. التكرارُ آمنٌ: كلُّ خطوةٍ هنا idempotent.
 set -e
 
 echo "🚀 SchoolOS Railway Release Phase Starting..."
