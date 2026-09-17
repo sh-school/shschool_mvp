@@ -127,6 +127,7 @@ SOFT_CONSTRAINTS = (
     _soft("double_bonus", "مكافأةُ الحصّة المزدوجة", -5),
     _soft("high_weekly_adjacent", "تلاصقُ مادّةٍ عاليةِ النصاب", 7),
     _soft("extra_edge_period", "طرفٌ زائدٌ للمعلّم (أولى أو سابعة)", 12),
+    _soft("first_period_floor", "حصّةٌ أولى تحت الحدّ الأدنى (اثنتان)", -9),
     _soft("free_day", "يومُ التفريغ الذي طلبه المعلّم", 14),
 )
 
