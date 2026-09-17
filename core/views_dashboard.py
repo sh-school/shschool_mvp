@@ -328,7 +328,11 @@ def _get_therapist_ctx(user, school, today):
     completed_today = sessions_today.filter(status="completed").count()
 
     # إحصائيات الأسبوع — مفيدة لمتابعة التقدم
-    week_start = today - datetime.timedelta(days=today.weekday())
+    # الأسبوعُ المدرسيّ يبدأ الأحد لا الاثنين: weekday() تُرقّم الاثنين صفراً،
+    # فحساب «أوّل الأسبوع» بها مباشرةً كان يرجع لاثنين الأسبوع السابق. أضيفت
+    # فروةُ يومٍ واحد (Sun=6 → 0) قبل القسمة، فصار الأحدُ نفسُه بدايةَ أسبوعه.
+    days_since_sunday = (today.weekday() + 1) % 7
+    week_start = today - datetime.timedelta(days=days_since_sunday)
     week_sessions = Session.objects.filter(
         school=school,
         teacher=user,

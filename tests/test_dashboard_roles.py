@@ -80,3 +80,58 @@ def test_every_role_dashboard_is_drawn_with_the_shared_components(
     assert "kpi-mini" not in body
     for undefined in ("exec-kpi-card", "quick-action-grid", "kpi-info"):
         assert undefined not in body
+
+
+@pytest.mark.django_db
+class TestTherapistWeekStats:
+    """أسبوعُ لوحة المعالج (`_get_therapist_ctx`) يبدأ الأحد لا الاثنين.
+
+    كان `today.weekday()` (Mon=0) يُستعمل مباشرةً بداية أسبوعٍ، فيُقصي الأحدَ
+    والاثنينَ من أسبوعهما الصحيح — يظهر واضحاً حين يكون اليوم الثلاثاء: حصّةُ
+    الأحد قبله بيومين كانت تُحسب من الأسبوع السابق، لا هذا الأسبوع.
+    """
+
+    def _teacher_with_session(self, school, session_date):
+        from core.models import ClassGroup
+        from operations.models import Session, Subject
+
+        teacher = UserFactory(full_name="معالجٌ")
+        MembershipFactory(
+            user=teacher, school=school, role=RoleFactory(school=school, name="speech_therapist")
+        )
+        cg = ClassGroup.objects.create(school=school, grade="G8", section="1")
+        subject = Subject.objects.create(school=school, name_ar="علاج النطق")
+        Session.objects.create(
+            school=school,
+            teacher=teacher,
+            class_group=cg,
+            subject=subject,
+            date=session_date,
+            start_time=dt.time(8, 0),
+            end_time=dt.time(8, 45),
+            status="completed",
+        )
+        return teacher
+
+    def test_sundays_session_counts_in_the_week_of_the_following_tuesday(self, school):
+        from core.views_dashboard import _get_therapist_ctx
+
+        sunday = dt.date(2026, 9, 13)
+        tuesday = dt.date(2026, 9, 15)
+        teacher = self._teacher_with_session(school, sunday)
+
+        ctx = _get_therapist_ctx(teacher, school, tuesday)
+
+        assert ctx["week_total"] == 1
+        assert ctx["week_completed"] == 1
+
+    def test_a_session_from_last_school_week_is_excluded(self, school):
+        from core.views_dashboard import _get_therapist_ctx
+
+        last_thursday = dt.date(2026, 9, 10)
+        tuesday = dt.date(2026, 9, 15)
+        teacher = self._teacher_with_session(school, last_thursday)
+
+        ctx = _get_therapist_ctx(teacher, school, tuesday)
+
+        assert ctx["week_total"] == 0
