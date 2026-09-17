@@ -16,7 +16,7 @@ from datetime import date, time
 import pytest
 from django.urls import reverse
 
-from operations.models import ScheduleSlot, SubstituteAssignment, Subject, TeacherAbsence
+from operations.models import ScheduleSlot, Subject, SubstituteAssignment, TeacherAbsence
 from operations.services import SubstituteService
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
@@ -77,7 +77,9 @@ class TestSubstitutesAreViewOnlyForTheSupervisor:
     def test_the_register_button_hides_for_him_and_shows_for_the_principal(
         self, client_as, admin_supervisor_user, principal_user
     ):
-        supervisor_body = client_as(admin_supervisor_user).get("/teacher/absences/").content.decode()
+        supervisor_body = (
+            client_as(admin_supervisor_user).get("/teacher/absences/").content.decode()
+        )
         principal_body = client_as(principal_user).get("/teacher/absences/").content.decode()
 
         assert "تسجيل غياب" not in supervisor_body
@@ -97,7 +99,9 @@ class TestSubstitutesAreViewOnlyForTheSupervisor:
         self, client_as, admin_supervisor_user, principal_user, absence, schedule_slot
     ):
         supervisor_body = (
-            client_as(admin_supervisor_user).get(f"/teacher/absences/{absence.id}/").content.decode()
+            client_as(admin_supervisor_user)
+            .get(f"/teacher/absences/{absence.id}/")
+            .content.decode()
         )
         principal_body = (
             client_as(principal_user).get(f"/teacher/absences/{absence.id}/").content.decode()
