@@ -5508,7 +5508,7 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
    feedback_maroon_header_white_text)، فتُكتب هنا وحدَها: `thead th` لا
    `th` عامّةً كي لا تُصيب th المجال في tbody. */
 .qobs-rating-table--unified thead tr[data-plain-head] { background: var(--surface); }
-.qobs-rating-table--unified thead tr[data-plain-head] th { color: var(--maroon); font-weight: 700; }
+.qobs-rating-table--unified thead tr[data-plain-head] th { color: var(--maroon-fg); font-weight: 700; }
 /* نصُّ المعيار هو المحتوى الرئيسيُّ المقروء في كلّ صفّ — بارزٌ بولدٍ وحجمٍ
    أكبر خطوةً واحدة، وبأقوى لونٍ نصّيٍّ متاح (لا رماديّ) في الوضعين معاً. */
 .qobs-criterion-text { font-weight: 700; font-size: var(--text-base); color: var(--text-primary); }

@@ -123,7 +123,10 @@ def test_the_maroon_header_keeps_its_white_text_over_the_dark_override():
     order = _declared_order(_css())
     for n, (sel, decls, ctx) in enumerate(iter_rules(_css())):
         flat = " ".join(sel.split())
-        if "data-plain-head" in flat and decls.get("color"):
+        # مطابقةٌ حرفيّةٌ للقاعدة العامّة وحدَها — لا كلّ قاعدةٍ تذكر
+        # `data-plain-head` بالصدفة (كترويسةٍ تستثني نفسَها بلونٍ آخر
+        # عمداً، كـ`qobs-rating-table--unified`)، فتلك لا تُنازع هذه.
+        if "thead tr:not([data-plain-head])" in flat and decls.get("color"):
             white_layer, white_i = _layer_of(ctx), n
         elif flat.startswith("html.dark table thead th") and decls.get("color"):
             dark_layer, dark_i = _layer_of(ctx), n
