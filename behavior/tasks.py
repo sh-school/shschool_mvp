@@ -122,3 +122,28 @@ def weekly_risk_check(self, school_id=None):
             exc,
         )
         raise self.retry(exc=exc)
+
+
+@shared_task(name="behavior.send_auto_infraction_digest")
+def send_auto_infraction_digest(day: str | None = None, school_id: str | None = None) -> dict:
+    """ملخّصُ مخالفات الرصد لأولياء الأمور — 15:00 من الأحد إلى الخميس.
+
+    يمسح آخرَ خمسة أيّامٍ دراسيّةٍ حتى `day` (اليومُ افتراضاً): ما لم يُرسَل منها
+    يُرسَل، وما أُرسل لا يُعاد (`behavior/digest.py`). ولا إعادةَ محاولةٍ هنا:
+    الفشلُ محصورٌ في طالبه أو مدرسته ويُرصد، والتشغيلُ التالي يحمل ما فات —
+    فإعادةُ المهمّة كلِّها لا تضيف شيئاً.
+    """
+    import datetime as dt
+
+    from django.utils import timezone
+
+    from behavior.digest import school_days_back, send_for_schools
+
+    today = dt.date.fromisoformat(day) if day else timezone.localdate()
+    result = send_for_schools(school_days_back(today), today=today, school_id=school_id)
+    logger.info(
+        "send_auto_infraction_digest: sent=%d failed_schools=%d",
+        result["sent"],
+        result["failed_schools"],
+    )
+    return result

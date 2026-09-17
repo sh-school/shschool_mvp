@@ -23,6 +23,9 @@
 - **التصحيحُ يُصحّح**: إن عُدّلت الحالةُ فزال سببُ مخالفةٍ أنشأها الرصدُ أُزيلت، ولا
   يُمسّ ما كتبه أحدٌ بيده.
 - **«أين الطالب» للغائب وحدَه**: الحاضرُ والمتأخّرُ في فصلهما — فلا «حاضر · في العيادة».
+- **والأسرةُ** (قرارُ 2026-09-16): الهروبُ من المدرسة يبلغها فوراً بعد الالتزام،
+  والتأخّرُ والهروبُ من الحصّة في ملخّصٍ يوميٍّ واحدٍ الساعة 15:00 — انظر
+  `behavior/digest.py`.
 
 ## ما يأتي المشرفَ جاهزاً من المعلّم (`prefill_of`)
 
@@ -656,6 +659,7 @@ def _sync_rule(school, student, rule, wanted_starts, periods_by_start, by, *, sc
     ويُرجع عددَ ما أُنشئ.
     """
     from behavior.conduct_2026 import BY_CODE
+    from behavior.digest import IMMEDIATE_RULES, notify_immediately
     from behavior.models import BehaviorInfraction, ViolationCategory
     from behavior.services import BehaviorService
 
@@ -676,7 +680,7 @@ def _sync_rule(school, student, rule, wanted_starts, periods_by_start, by, *, sc
     made = 0
     for start in sorted(set(wanted_starts) - set(existing)):
         period = periods_by_start[start]
-        BehaviorService.create_infraction(
+        infraction = BehaviorService.create_infraction(
             school=school,
             student=student,
             reporter=by,
@@ -686,6 +690,11 @@ def _sync_rule(school, student, rule, wanted_starts, periods_by_start, by, *, sc
             session=period.sessions[0],
             auto_rule=rule,
         )
+        if rule in IMMEDIATE_RULES:
+            # الهروبُ من المدرسة يبلغ الأسرةَ بعد التزام الرصد، لا في ملخّص العصر.
+            # والتأخّرُ والهروبُ من الحصّة لا يُرسَلان من هنا: ملخّصُهما اليوميّ
+            # (`behavior.digest`) يقرأ الحالةَ النهائيّةَ بعد التصحيحات.
+            notify_immediately(infraction, school, by)
         made += 1
     return made
 

@@ -316,6 +316,35 @@ class TestBellAndPush:
         }
 
 
+class TestAutoInfractionNotices:
+    def test_old_family_notice_markers_go(self, retention, school, student_user):
+        import datetime as dt
+
+        from behavior.models import AutoInfractionNotice
+
+        def notice(day):
+            return AutoInfractionNotice.objects.create(
+                school=school,
+                student=student_user,
+                date=day,
+                auto_rule="period_tardy",
+                start_time=dt.time(7, 10),
+                kind="digest",
+                recipients=1,
+            )
+
+        _backdate(notice(dt.date(2026, 1, 4)), OLD, "sent_at")
+        fresh = _backdate(notice(dt.date(2026, 1, 5)), FRESH, "sent_at")
+
+        assert _run(dry_run=True).counts["behavior.auto_notices"] == 1
+        assert AutoInfractionNotice.objects.count() == 2
+
+        report = _run()
+
+        assert report.counts["behavior.auto_notices"] == 1
+        assert AutoInfractionNotice.objects.get().pk == fresh.pk
+
+
 class TestImportLogs:
     def test_old_import_logs_go(self, retention, school):
         from staging.models import ImportLog

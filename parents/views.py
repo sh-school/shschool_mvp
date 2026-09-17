@@ -6,6 +6,7 @@ parents/views.py — thin views (Phase 4)
 import json
 import logging
 import re
+from datetime import timedelta
 
 from django.conf import settings
 
@@ -16,6 +17,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import CharField, Exists, F, Func, OuterRef, Q, Subquery, Value
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -308,19 +310,26 @@ def parent_behavior(request):
         BehaviorInfraction.objects.filter(
             school=school, student_id__in=[link.student_id for link in links]
         )
-        .select_related("violation_category")
-        .order_by("-date")
+        .select_related("violation_category", "session")
+        # يومُ الحصّة لا يومُ الكتابة: تصحيحٌ اليومَ عن حصّةٍ مضت يُكتب اليوم، فلو رُتّب
+        # بـ`date` لعلا الأيّامَ الأحدث وهو أقدمُ منها في العرض.
+        .annotate(shown_day=Coalesce("session__date", "date"))
+        .order_by("-shown_day", F("session__start_time").desc(nulls_last=True), "-created_at")
     ):
         by_student.setdefault(infraction.student_id, []).append(infraction)
 
+    recent_from = timezone.localdate() - timedelta(days=14)
     children_behavior = []
     for link in links:
         infractions = by_student.get(link.student_id, [])
         unresolved = sum(1 for inf in infractions if not inf.is_resolved)
+        # عشرةٌ على الأقلّ، وكلُّ ما في الأسبوعين الأخيرين وإن زاد: ملخّصُ الرصد يقول
+        # «التفاصيل في البوابة» عن أيّامٍ خمسةٍ مضت، والرصدُ يكتب صفوفاً عدّةً في اليوم.
+        recent = sum(1 for inf in infractions if inf.shown_day >= recent_from)
         children_behavior.append(
             {
                 "student": link.student,
-                "infractions": infractions[:10],
+                "infractions": infractions[: max(10, recent)],
                 "total_infractions": len(infractions),
                 "unresolved": unresolved,
                 "unresolved_tone": "amber" if unresolved else "green",
