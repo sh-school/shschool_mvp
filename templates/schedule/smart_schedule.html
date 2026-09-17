@@ -16,6 +16,14 @@
   <a href="{% url 'schedule_settings' %}" class="btn-secondary btn-sm">{% icon "settings" %} الإعدادات</a>
   <a href="{% url 'schedule_quality_lab' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "quality" %} مختبر الجودة</a>
   <a href="{% url 'weekly_schedule' %}" class="btn-secondary btn-sm">{% icon "schedule" %} الجدول الحالي</a>
+  {% if assignments_count and not pending_generation %}
+  <form method="post" action="{% url 'smart_generate' %}" class="gen-inline-form"
+        data-confirm="بدء توليد مسودّة جدول جديدة؟ الجدول القائم يبقى كما هو حتى تعتمدها.">
+    {% csrf_token %}
+    <input type="hidden" name="year" value="{{ year }}">
+    <button type="submit" class="btn-primary btn-sm">{% icon "generate" %} بدء التوليد</button>
+  </form>
+  {% endif %}
 {% endpage_header %}
 
 {% comment %}
@@ -59,100 +67,65 @@
     {% endif %}
   </div>
 
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>الفحص</th>
-          <th class="text-center">الحكم</th>
-          <th>ما وجده</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for f in feasibility.findings %}
-        <tr>
-          <td class="font-semibold">{{ f.title }}</td>
-          <td class="text-center">
-            {% if f.status == "fail" %}
-            <span class="status-badge status-danger">عجزٌ يقينيّ</span>
-            {% elif f.status == "warn" %}
-            <span class="status-badge status-warning">تنبيه</span>
-            {% else %}
-            <span class="status-badge status-success">سليم</span>
-            {% endif %}
-          </td>
-          <td>
-            {{ f.summary }}
-            {% if f.rows %}
-            <details class="feas-details">
-              <summary>التفصيل ({{ f.rows|length }})</summary>
-              <ul class="feas-list">
-                {% for r in f.rows %}
-                <li>
-                  <b>{{ r.name }}</b> —
-                  مطلوب {{ r.demand }}، ويسعه {{ r.capacity }}
-                  {% if r.gap %}<span class="text-status-danger">(عجز {{ r.gap }})</span>{% endif %}
-                  {% if r.note %}<span class="text-muted">· {{ r.note }}</span>{% endif %}
-                </li>
-                {% endfor %}
-              </ul>
-            </details>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="feas-chips">
+    {% for f in feasibility.findings %}
+    <span class="feas-chip"{% if f.status != "fail" and f.status != "warn" %} title="{{ f.summary }}"{% endif %}>
+      {% if f.status == "fail" %}
+      <span class="status-badge status-danger">عجزٌ يقينيّ</span>
+      {% elif f.status == "warn" %}
+      <span class="status-badge status-warning">تنبيه</span>
+      {% else %}
+      <span class="status-badge status-success">سليم</span>
+      {% endif %}
+      <b>{{ f.title }}</b>
+      {% if f.status == "fail" or f.status == "warn" %}<span class="feas-chip__note">{{ f.summary }}</span>{% endif %}
+      {% if f.rows %}
+      <details class="feas-details">
+        <summary>التفصيل ({{ f.rows|length }})</summary>
+        <ul class="feas-list">
+          {% for r in f.rows %}
+          <li>
+            <b>{{ r.name }}</b> —
+            مطلوب {{ r.demand }}، ويسعه {{ r.capacity }}
+            {% if r.gap %}<span class="text-status-danger">(عجز {{ r.gap }})</span>{% endif %}
+            {% if r.note %}<span class="text-muted">· {{ r.note }}</span>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </details>
+      {% endif %}
+    </span>
+    {% endfor %}
   </div>
 {% endsection_card %}
 
-{# ── زر التوليد ── #}
+{# ── زر التوليد + سجلّه: بطاقةٌ واحدة — لوحةُ التحكّم أعلاها، والسجلُّ أسفلها ── #}
 {% if assignments_count %}
-{% section_card "توليد الجدول التلقائي" icon="generate" %}
+{% section_card "توليد الجدول التلقائي" icon="generate" flush=True %}
   {% comment %}
   التوليدُ يستغرق دقائقَ لا ثوانيَ — قِيس في هذه المدرسة بين ٤٢ و٢٧٩ ثانية.
   فلا يُترك المستخدمُ أمام صفحةٍ جامدةٍ يظنّ الزرَّ لم يعمل: الحالةُ معروضةٌ
-  وتُسأل كلَّ ثلاثِ ثوانٍ، والزرُّ محجوبٌ ما دام هناك توليدٌ جارٍ.
+  وتُسأل كلَّ ثلاثِ ثوانٍ. والزرُّ نفسُه في ترويسة الصفحة — بجانب «الجدول الحالي» —
+  ويختفي ما دام هناك توليدٌ جارٍ.
   {% endcomment %}
-  <div id="gen-running" class="gen-running" {% if not pending_generation %}hidden{% endif %}>
-    <p class="gen-running__label" id="gen-running-label" aria-live="polite">
-      {% if pending_generation %}{{ pending_generation.get_status_display }} — قد يستغرق عدّة دقائق…{% else %}جارٍ التوليد…{% endif %}
-    </p>
-    <p class="gen-running__sub">
-      تُحدَّث الحالةُ تلقائيّاً، ويصلك إشعارٌ عند الانتهاء. يمكنك مغادرةُ الصفحة.
-    </p>
+  {% if pending_generation %}
+  <div class="gen-panel">
+    <div id="gen-running" class="gen-running">
+      <p class="gen-running__label" id="gen-running-label" aria-live="polite">
+        {{ pending_generation.get_status_display }} — قد يستغرق عدّة دقائق…
+      </p>
+      <p class="gen-running__sub">
+        تُحدَّث الحالةُ تلقائيّاً، ويصلك إشعارٌ عند الانتهاء. يمكنك مغادرةُ الصفحة.
+      </p>
+    </div>
   </div>
+  {% endif %}
 
-  <div id="gen-idle" class="gen-idle" {% if pending_generation %}hidden{% endif %}>
-    <p class="form-note">
-      <span>يولّد النظام <strong>مسودّة</strong> جدول أسبوعي كامل بناءً على توزيعات المواد.
-      الجدول القائم لا يتغيّر حتى تعتمد المسودّة من سجلّ التوليد أدناه — وعندها تحلّ محلّه ويُشعَر المعلّمون.
-      <strong>التوليد يجري في الخلفية وقد يستغرق عدّة دقائق.</strong></span>
-    </p>
-    <form method="post" action="{% url 'smart_generate' %}"
-          data-confirm="بدء توليد مسودّة جدول جديدة؟ الجدول القائم يبقى كما هو حتى تعتمدها.">
-      {% csrf_token %}
-      <input type="hidden" name="year" value="{{ year }}">
-      <button type="submit" class="btn-primary">بدء التوليد</button>
-    </form>
-  </div>
-{% endsection_card %}
-{% else %}
-{% section_card "توليد الجدول التلقائي" icon="generate" %}
-  {% empty_state "لا توجد توزيعات مواد" sub="لا يمكن التوليد قبل تسجيل توزيعات المواد على الشُّعب: أيّ معلّم يدرّس أيّ مادّة لأيّ شعبة وكم حصّة." icon="stats" %}
-  <div class="smart-empty-action">
-    <a href="{% url 'academic_management:assignments' %}?year={{ year }}" class="btn-primary btn-sm">{% icon "academic" %} شاشة توزيعات المواد</a>
-  </div>
-{% endsection_card %}
-{% endif %}
-
-{# ── سجل التوليد السابق ── #}
-{% if generations %}
-{% section_card "سجل التوليد" meta=generations|length icon="stats" flush=True %}
+  {% if generations %}
   <div class="table-wrap">
-    <table>
+    <table class="gen-log-table">
       <thead>
-        <tr>
+        <tr data-plain-head>
           <th scope="col">التاريخ</th>
           <th scope="col" class="text-center">الحالة</th>
           <th scope="col" class="num" title="منسوبةً إلى الأساس المعتمَد">الجودة</th>
@@ -221,6 +194,14 @@
       </tbody>
     </table>
   </div>
+  {% endif %}
+{% endsection_card %}
+{% else %}
+{% section_card "توليد الجدول التلقائي" icon="generate" %}
+  {% empty_state "لا توجد توزيعات مواد" sub="لا يمكن التوليد قبل تسجيل توزيعات المواد على الشُّعب: أيّ معلّم يدرّس أيّ مادّة لأيّ شعبة وكم حصّة." icon="stats" %}
+  <div class="smart-empty-action">
+    <a href="{% url 'academic_management:assignments' %}?year={{ year }}" class="btn-primary btn-sm">{% icon "academic" %} شاشة توزيعات المواد</a>
+  </div>
 {% endsection_card %}
 {% endif %}
 
@@ -230,31 +211,35 @@
 {% endcomment %}
 {% if lab_matrix %}
 {% section_card "مؤشرات التوليد" meta=baseline.label|default:"لا أساسَ معتمَد" icon="kpi" flush=True %}
-  <div class="table-wrap">
-    <table class="lab-table">
-      <thead>
-        <tr>
-          <th scope="col">المؤشر</th>
-          {% if baseline %}<th scope="col" class="num">الأساس</th>{% endif %}
-          {% for g in lab_columns %}
-          <th scope="col" class="num"><a href="{% url 'schedule_quality_lab' %}?year={{ year }}&amp;schedule={{ g.id }}" title="في المختبر">{{ g.generated_at|date:"d/m H:i" }}</a></th>
+  <div class="auto-grid">
+    {% for col in lab_matrix_cols %}
+    <div class="table-wrap">
+      <table class="lab-table">
+        <thead>
+          <tr>
+            <th scope="col">المؤشر</th>
+            {% if baseline %}<th scope="col" class="num">الأساس</th>{% endif %}
+            {% for g in lab_columns %}
+            <th scope="col" class="num"><a href="{% url 'schedule_quality_lab' %}?year={{ year }}&amp;schedule={{ g.id }}" title="في المختبر">{{ g.generated_at|date:"d/m H:i" }}</a></th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in col %}
+          <tr>
+            <td>{{ row.label }} <span class="text-muted">({{ row.unit }})</span></td>
+            {% if baseline %}<td class="num" dir="ltr">{{ row.baseline|default_if_none:"—" }}</td>{% endif %}
+            {% for cell in row.cells %}
+            <td class="num lab-cell{% if cell.verdict %} is-{{ cell.verdict }}{% endif %}" dir="ltr">
+              {% if cell %}{{ cell.value|default_if_none:"—" }}{% if baseline and cell.delta is not None %} <small>({{ cell.delta }}{% if cell.verdict == 'better' %} ▲{% elif cell.verdict == 'worse' %} ▼{% endif %})</small>{% endif %}{% else %}—{% endif %}
+            </td>
+            {% endfor %}
+          </tr>
           {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-        {% for row in lab_matrix %}
-        <tr>
-          <td>{{ row.label }} <span class="text-muted">({{ row.unit }})</span></td>
-          {% if baseline %}<td class="num" dir="ltr">{{ row.baseline|default_if_none:"—" }}</td>{% endif %}
-          {% for cell in row.cells %}
-          <td class="num lab-cell{% if cell.verdict %} is-{{ cell.verdict }}{% endif %}" dir="ltr">
-            {% if cell %}{{ cell.value|default_if_none:"—" }}{% if baseline and cell.delta is not None %} <small>({{ cell.delta }}{% if cell.verdict == 'better' %} ▲{% elif cell.verdict == 'worse' %} ▼{% endif %})</small>{% endif %}{% else %}—{% endif %}
-          </td>
-          {% endfor %}
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
+    {% endfor %}
   </div>
 {% endsection_card %}
 {% endif %}

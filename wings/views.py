@@ -24,9 +24,12 @@ from operations.period_register import (
     cells_of,
     confirm_period,
     focus_period,
+    period_end,
     periods_of,
+    prefill_of,
     teacher_outs_of,
     teacher_taps_of,
+    track_note,
 )
 from operations.school_days import SchoolDay, school_day
 from operations.services import ScheduleService
@@ -282,6 +285,11 @@ def record_section(request, class_id):
     following = next_section_awaiting(klass, day, focus.start) if focus else None
     taps = teacher_taps_of(klass, day)
     outs = teacher_outs_of(klass, day)
+    # ما يأتي جاهزاً من المعلّم يُحسب في الخدمة؛ والقالبُ يعرض `row.pick` ولا يحكم.
+    prefill = (
+        prefill_of(klass, day, focus, now, cells=cells, taps=taps, outs=outs) if focus else None
+    )
+    ends = {p.start: period_end(day, p) for p in periods}
     yesterday = absent_yesterday(klass, day)
     unexcused = unexcused_days_for_class(klass, school, day)
 
@@ -291,15 +299,18 @@ def record_section(request, class_id):
         days = unexcused.get(sid, 0)
         gate = next_gate(klass.grade, days)
         own = cells.get(sid, {})
+        gone = outs.get(sid, {})
         rows.append(
             {
                 "student": enrollment.student,
-                "track": [(p, own.get(p.start)) for p in periods],
+                # وفي الأعمدة الأخرى شارةُ من خرج ولم يعد — تُفتح حصّتُه برأس عمودها.
+                "track": [
+                    (p, own.get(p.start), track_note(gone.get(p.start), now, ends[p.start]))
+                    for p in periods
+                ],
                 "cell": own.get(focus.start) if focus else None,
-                # نقرةُ المعلّم «دخل متأخّراً» قبل التثبيت: تُملأ الخانةُ «متأخّراً» بدقائقه.
-                "tap": taps.get(sid, {}).get(focus.start) if focus else None,
-                # خرج بإذن المعلّم ولم يعد: تُملأ الخانةُ «غائباً» ومكانُه.
-                "out": outs.get(sid, {}).get(focus.start) if focus else None,
+                # حاضر/غائب/متأخّر ومكانُه كما يُفتح — ومعه علامةُ المعلّم وشارتُه.
+                "pick": prefill.of(sid) if prefill else None,
                 "absent_yesterday": sid in yesterday,
                 # غاب أمس ولم يُخطَر وليُّ أمره بعد — الإخطارُ في اليوم نفسِه (م 3.4.1.5).
                 "needs_contact": awaiting.get(sid),
@@ -314,7 +325,7 @@ def record_section(request, class_id):
             "klass": klass,
             "day": day,
             # عنوانُ الترويسة وسطرُها يُبنيان هنا: المكوّنُ يأخذ نصّاً لا وسوماً.
-            "heading": f"{klass.get_grade_display()} / {klass.section}",
+            "heading": klass.short_label,
             "subtitle": (
                 f"{formats.date_format(day, 'D، d M Y')} · {len(rows)} طالباً · الحصص: {len(periods)}"
             ),
@@ -324,7 +335,11 @@ def record_section(request, class_id):
             "measured_now": bool(focus and focus.in_window(day, now)),
             "rows": rows,
             "whereabouts": [w for w in StudentAttendance.WHEREABOUTS if w[0] != "gate"],
-            "draft_key": f"rec:{klass.id}:{day.isoformat()}:{focus.key if focus else ''}",
+            # بصمةُ الخانات كما تُفتح في المفتاح: ملءٌ تبدّل يُسقط المسوّدةَ القديمة.
+            "draft_key": (
+                f"rec:{klass.id}:{day.isoformat()}:{focus.key if focus else ''}"
+                f":{prefill.fingerprint if prefill else ''}"
+            ),
             # «ثبّت وانتقل»: الشعبةُ التي تنتظر الحصّةَ نفسَها بعد هذه — إن بقيت.
             "following": following,
         },
@@ -348,6 +363,7 @@ def record_period(request, class_id):
             ("w-", "whereabouts"),
             ("m-", "late_minutes"),
             ("t-", "tapped_at"),
+            ("o-", "exit"),
         ):
             if key.startswith(prefix):
                 marks.setdefault(key.removeprefix(prefix), {})[field] = value

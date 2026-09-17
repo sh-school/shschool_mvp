@@ -24,6 +24,7 @@ urlpatterns = [
     path("attendance/", views.attendance_overview, name="attendance_overview"),
     path("attendance/export/", views.attendance_export_excel, name="attendance_export"),
     path("attendance/pdf/", views.attendance_overview_pdf, name="attendance_pdf"),
+    path("movements/", views.student_movements, name="student_movements"),
     path("behavior/", views.behavior_overview, name="behavior_overview"),
     path("behavior/pdf/", views.behavior_overview_pdf, name="behavior_pdf"),
     # ── الأنشطة والإنجازات ──

@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 {% load icons %}
 {% load ui %}
-{% block title %}تسجيل حضور — {{ session.class_group }}{% endblock %}
+{% block title %}تسجيل حضور — {{ session.class_group.short_label }}{% endblock %}
 
 {% block breadcrumbs %}
 {% url 'teacher_schedule' as schedule_url %}

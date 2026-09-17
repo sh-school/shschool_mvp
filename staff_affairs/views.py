@@ -15,6 +15,7 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required
+from core.dashboard_presentation import chunk_for_grid
 from core.models.access import DEPARTMENT_ROLES, Membership
 from core.models.department import Department
 from core.models.user import CustomUser
@@ -73,6 +74,8 @@ def staff_dashboard(request):
         }
         for r in stats.pop("role_distribution_raw", [])
     ]
+    # أربعةُ أعمدةٍ جنباً إلى جنب بدل قائمةٍ طويلةٍ واحدة — يقلّص ارتفاعَ البطاقة.
+    role_distribution_cols = chunk_for_grid(role_distribution, 4)
 
     return render(
         request,
@@ -81,6 +84,7 @@ def staff_dashboard(request):
             "today": today,
             "year": year,
             "role_distribution": role_distribution,
+            "role_distribution_cols": role_distribution_cols,
             **stats,
             **_dashboard_presentation(stats, school, today),
         },
