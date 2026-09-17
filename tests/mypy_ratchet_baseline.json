@@ -4,7 +4,7 @@
   "academic_management/workload_workflow.py": 59,
   "assessments/models.py": 20,
   "assessments/querysets.py": 15,
-  "assessments/services.py": 8,
+  "assessments/services.py": 11,
   "behavior/conduct_2026.py": 75,
   "behavior/constants.py": 1,
   "behavior/models.py": 20,
@@ -143,7 +143,7 @@
   "shschool/settings/production.py": 4,
   "shschool/settings/staging.py": 4,
   "shschool/urls.py": 1,
-  "staff_affairs/models.py": 4,
+  "staff_affairs/models.py": 8,
   "staging/models.py": 1,
   "student_affairs/models.py": 2,
   "student_affairs/services.py": 56,
@@ -153,5 +153,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 17
  },
- "total": 1874
+ "total": 1881
 }
