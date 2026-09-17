@@ -172,7 +172,7 @@ def schedule(request, pk):
 
 
 @login_required
-@capability_required("exam_control.access")
+@capability_required("exam_control.report_incident")
 def incidents(request, pk):
     """قائمة حوادث الاختبار"""
     school = request.user.get_school()
@@ -199,7 +199,7 @@ def _incidents_in_scope(request, qs):
 
 
 @login_required
-@capability_required("exam_control.access")
+@capability_required("exam_control.report_incident")
 def incident_add(request, pk):
     """تسجيل حادث جديد — محضر رسمي (الأقسام أ–ز من Template_IncidentReport)
 
@@ -273,7 +273,7 @@ def incident_add(request, pk):
 
 
 @login_required
-@capability_required("exam_control.access")
+@capability_required("exam_control.report_incident")
 def incident_pdf(request, pk):
     """توليد PDF لمحضر الحادثة (الأقسام أ–ز)"""
     from django.template.loader import render_to_string

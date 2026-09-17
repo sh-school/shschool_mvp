@@ -236,6 +236,12 @@ def registry() -> dict[str, Capability]:
             P.EXAM_CONTROL_ACCESS,
             basis="افتراضُ المنصّة — والنصُّ الوزاريُّ يجعله لجنةً موقوتة (الدراسة، ملحق د)",
         ),
+        _cap(
+            "exam_control.report_incident",
+            "تسجيلُ حادثةِ اختبارٍ ومراجعتُها",
+            P.EXAM_CONTROL_REPORT_INCIDENT,
+            basis="قرارُ 2026-09-15 (النطاق) وقرارُ المستخدم 2026-09-17 (لا شيءَ آخر من الكنترول)",
+        ),
         # ── الحضور والجدول ──────────────────────────────────────────
         _cap(
             "attendance.mark",

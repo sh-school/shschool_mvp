@@ -421,10 +421,16 @@ SCHEDULE_BROWSE = frozenset(
 #: نظامُ الكنترول. (والمصدرُ الوزاريُّ يجعل الكنترولَ لجنةً بعضويّةٍ موقوتة لا
 #: قائمةَ أدوار — `docs/rbac_role_authority_study_2026-09.md` ملحق د؛ والنقلُ لا يحسم ذلك.)
 #: مشرفُ الجناح ليس فيه بشيء (قرارُ المستخدم 2026-09-17) — أُخرج من الأعضاء
-#: بعد أن كان معهم بالنقل الأصليّ.
+#: بعد أن كان معهم بالنقل الأصليّ. ولا يشمل هذا محضرَ حادثة الاختبار: تلك
+#: مسؤوليّةٌ ميدانيّةٌ لمشرف الجناح وحده — انظر `EXAM_CONTROL_REPORT_INCIDENT`.
 EXAM_CONTROL_ACCESS = frozenset(
     {"principal", "vice_academic", "vice_admin", "coordinator", "admin"}
 )
+#: تسجيلُ حادثةِ اختبارٍ ومراجعتُها — محضرٌ يكتبه من يراقب الطلبةَ فعلاً أثناء
+#: الاختبار. مشرفُ الجناح يكتب على طلبة جناحه وحدَهم (`_incidents_in_scope`،
+#: قرارُ 2026-09-15)، ولا يفتح شيئاً آخر من الكنترول (قرارُ 2026-09-17) — فهي
+#: قدرةٌ ضيّقةٌ عن `EXAM_CONTROL_ACCESS` لا مرادفةٌ لها.
+EXAM_CONTROL_REPORT_INCIDENT = EXAM_CONTROL_ACCESS | {"admin_supervisor"}
 #: شؤونُ الموظّفين — نظيرةُ `STUDENT_AFFAIRS_MANAGE`.
 STAFF_AFFAIRS_MANAGE = frozenset({"principal", "vice_admin", "vice_academic", "platform_developer"})
 #: بوّابةُ وليّ الأمر، ومن يدخلها من الإدارة.
