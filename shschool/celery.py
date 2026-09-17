@@ -90,6 +90,13 @@ app.conf.beat_schedule = {
         "task": "behavior.weekly_risk_check",
         "schedule": crontab(hour=6, minute=0, day_of_week="0"),  # 0=الأحد (قطر)
     },
+    # ملخّصُ مخالفات الرصد لأولياء الأمور — العصرَ من الأحد إلى الخميس (قرارُ 2026-09-16).
+    # آخرُ جرسٍ ينتهي 13:30 والتثبيتُ المتأخّرُ بعده (والهروبُ من المدرسة لا يُحسم إلّا به)،
+    # فساعةٌ ونصفٌ للمشرفين قبل أن يُقرأ اليوم. وما يُصحَّح بعدها يُرسَل إضافةً غداً.
+    "behavior-auto-infraction-digest": {
+        "task": "behavior.send_auto_infraction_digest",
+        "schedule": crontab(hour=15, minute=0, day_of_week="0-4"),  # 0=الأحد … 4=الخميس
+    },
     # الاحتفاظُ بالبيانات (PDPPL م.7 و10) — أسبوعيّاً فجرَ الجمعة، والمدرسةُ نائمة.
     # السياسةُ في docs/privacy/data_retention.md، والصفرُ في الإعداد يعطّلها.
     "enforce-data-retention-weekly": {
