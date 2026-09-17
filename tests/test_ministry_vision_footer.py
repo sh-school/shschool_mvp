@@ -90,6 +90,29 @@ def test_the_platform_footer_carries_the_vision(client, principal_user):
 
 
 @pytest.mark.django_db
+def test_the_field_is_actually_editable_from_the_admin_panel(client, school):
+    """«تُحرَّر من لوحة الإدارة بلا نشر كود» ادّعاءٌ — وكاد يكذب: الحقلُ كان
+    مضافاً إلى النموذج ولم يُضَف إلى `SchoolAdmin.fieldsets`، فـModelAdmin
+    لا يعرض من الحقول إلّا ما ذُكر صراحةً فيها — فيختفي من الشاشة رغم وجوده
+    في القاعدة، ولا طريقة لتحريره سوى القذيفة. هذا الاختبار يفتح شاشة
+    التعديل نفسَها ويتحقّق من وجود الحقل، لا من مصدر القالب."""
+    from core.models import CustomUser
+
+    admin_user = CustomUser.objects.create(
+        national_id="90000000099",
+        full_name="مدير النظام",
+        is_superuser=True,
+        is_staff=True,
+        must_change_password=False,
+    )
+    client.force_login(admin_user)
+
+    html = client.get(f"/admin/core/school/{school.pk}/change/").content.decode()
+
+    assert 'name="vision"' in html, "الحقل غائبٌ عن شاشة تعديل المدرسة في لوحة الإدارة"
+
+
+@pytest.mark.django_db
 def test_the_platform_footer_reflects_a_customised_vision(client, principal_user):
     """تحرير الحقل من لوحة الإدارة ينعكس على الفوتر بلا نشر كود."""
     school = principal_user.get_school()
