@@ -30,7 +30,7 @@ from core.models import CustomUser, School
 from operations.absence_standing import day_verdicts
 from operations.excuses import GRACE_DAYS, RETURNED
 from operations.models import AbsenceExcuse, GuardianContact, StudentAttendance
-from operations.school_days import SchoolDays
+from operations.school_days import SchoolDays, student_grade
 
 VERDICT_LABELS = {
     "absent_unexcused": "غائبٌ بلا عذر",
@@ -81,14 +81,10 @@ class AbsenceDay:
 
 
 class _SchoolDays(SchoolDays):
-    """أيّامُ الدراسة في نافذة الملفّ — ومعها مهلةُ العذر."""
+    """أيّامُ الدراسة في نافذة الملفّ — بمهلة العذر الافتراضيّة (`excuses.GRACE_DAYS`)."""
 
     def grace_after(self, back: dt.date) -> dt.date:
-        """ثاني يومٍ دراسيٍّ بعد يوم العودة — كـ`excuses._grace_after` بلا استعلامٍ لكلّ يوم."""
-        day = back
-        for _ in range(GRACE_DAYS):
-            day = self.step(day, +1)
-        return day
+        return super().grace_after(back, GRACE_DAYS)
 
 
 def _runs(unexcused: set[dt.date], days: _SchoolDays) -> dict[dt.date, tuple[dt.date, dt.date]]:
@@ -157,7 +153,10 @@ def absence_days(
         )
 
     # والإجازاتُ إلى ما بعد اليوم: مهلةٌ تُغلق بعد اليوم قد تقفز فوق إجازةٍ قادمة.
-    school_days = _SchoolDays(school, start, today + dt.timedelta(days=60))
+    # وصفُّ الطالب يضيّق الإجازاتِ إلى نطاقه — إجازةُ الثاني عشر وحده لا تمسّ مهلةَ سابع.
+    school_days = _SchoolDays(
+        school, start, today + dt.timedelta(days=60), student_grade(student, school)
+    )
     # يومٌ عذرُه بانتظار النائب يقطع السلسلة: لا يُعاد إرسالُه، ولا يُحبط زرَّ ما حوله.
     unexcused = {
         d

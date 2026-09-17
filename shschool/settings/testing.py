@@ -113,3 +113,14 @@ TWO_FACTOR_REQUIRED_FOR_STAFF = False
 # ميزانيةُ توليد الجدول في الاختبارات: ثوانٍ لا دقيقة — فاختبارُ «حصّةٍ مستحيلة»
 # كان يبحث دقيقتين كاملتين قبل أن يُقرّ بالعجز.
 SCHEDULE_TIME_BUDGET_SECONDS = 4
+
+# ── مدقّق الهجرات — بوّابة migration-linter وحدها تستدعيه (P4-1) ──
+# لا نموذجَ له ولا هجرة: تسجيلٌ يُتيح أمرَ `lintmigrations` فقط. والحزمةُ في
+# requirements-dev.txt وحده (لا تدخل صورةَ الإنتاج)، فوظيفة pytest العاديّة
+# (التي لا تثبّتها) لا تُكسَر — التسجيلُ مشروطٌ بوجودها فعلاً.
+try:
+    import django_migration_linter  # noqa: F401
+
+    INSTALLED_APPS = [*INSTALLED_APPS, "django_migration_linter"]
+except ImportError:
+    pass

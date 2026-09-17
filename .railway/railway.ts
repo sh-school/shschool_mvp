@@ -97,6 +97,9 @@ export default defineRailway(() => {
   const web = service("shschool_mvp", {
     source: github(REPO),
     build: DOCKER_BUILD,
+    // preDeploy يُنفَّذ مرّةً واحدةً قبل أن تستقبل أيّ نسخةٍ الحركة: الهجراتُ
+    // والبذرُ والثابتُ وتوفيرُ دور RLS. start بعده لكلّ نسخةٍ: حارسٌ ثمّ daphne (P4-1).
+    preDeploy: "bash scripts/railway-predeploy.sh",
     start: "bash scripts/railway-release.sh",
     healthcheck: "/health/",
     healthcheckTimeout: 100,
