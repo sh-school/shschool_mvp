@@ -258,9 +258,13 @@ jobs:
           esac
 
       - name: تثبيت المتطلبات + المدقّق
+        # مجموعةُ pytest نفسُها التي في وظيفة test-coverage: tests/conftest.py
+        # (يُحمَّل تلقائيّاً مع أيّ اختبارٍ تحته) يستورد factory، وpyproject.toml
+        # يضبط asyncio_mode — فتُثبَّت الحزمُ كلُّها لا factory-boy وحدَه.
         run: |
           pip install -r requirements.txt
-          pip install django-migration-linter==5.2.0 pytest pytest-django
+          pip install django-migration-linter==5.2.0 \
+            pytest pytest-django pytest-cov pytest-asyncio factory-boy
 
       - name: التحقّق من أنّ الآلة نفسَها تُسقط عموداً محذوفاً
         # لا تشغيلَ هنا لهجرةٍ حقيقيّة — اختبارٌ حتميّ على المحلّل نفسِه
