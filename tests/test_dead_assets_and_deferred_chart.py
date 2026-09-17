@@ -71,7 +71,9 @@ def test_every_chart_js_load_and_its_init_script_are_both_deferred():
         for vendor_attrs, init_attrs in _CHART_SCRIPT.findall(text):
             checked += 1
             assert "defer" in vendor_attrs, f"{path}: سكربت chart.umd.min.js بلا defer"
-            assert "defer" in init_attrs, f"{path}: سكربتُ تهيئة الرسم بلا defer — يسبق تحميل المكتبة"
+            assert (
+                "defer" in init_attrs
+            ), f"{path}: سكربتُ تهيئة الرسم بلا defer — يسبق تحميل المكتبة"
 
     assert checked == 12, f"كان المتوقَّع 12 صفحةً تحمّل Chart.js، وُجد {checked}"
 
@@ -82,6 +84,6 @@ def test_base_html_no_longer_includes_the_legacy_icon_sprite():
     assert 'include "components/sprite.html"' not in base_html
 
     preview = (TEMPLATES / "styleguide" / "icon_preview.html").read_text(encoding="utf-8")
-    assert 'include "components/sprite.html"' in preview, (
-        "صفحةُ دليل الأيقونات تعرض الرموز القديمة — يجب أن تحمل الورقةَ بنفسها"
-    )
+    assert (
+        'include "components/sprite.html"' in preview
+    ), "صفحةُ دليل الأيقونات تعرض الرموز القديمة — يجب أن تحمل الورقةَ بنفسها"

@@ -56,6 +56,6 @@ class TestStudentExportNeutralizesRealFiles:
         names = [row[1].value for row in ws.iter_rows() if len(row) > 1]
         matches = [v for v in names if isinstance(v, str) and "cmd|" in v]
         assert matches, "الاسم الخبيث يجب أن يظهر في الملفّ — مُحيَّداً لا محذوفاً"
-        assert all(v.startswith("'") for v in matches), (
-            "خليّةٌ تبدأ بـ= بلا اقتباسٍ سابق تُنفَّذ صيغةً عند فتح الملفّ في Excel"
-        )
+        assert all(
+            v.startswith("'") for v in matches
+        ), "خليّةٌ تبدأ بـ= بلا اقتباسٍ سابق تُنفَّذ صيغةً عند فتح الملفّ في Excel"
