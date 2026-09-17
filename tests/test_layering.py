@@ -605,6 +605,56 @@ class TestTheRatchetItself:
         worse, _ = ratchet.compare(recorded, ratchet.snapshot(work))
         assert worse == ["app/views.py::v: 6 → 9 استدعاءَ ORM (السقف 5)"]
 
+    def _git_repo_with_two_commits(self, tmp_path):
+        """مستودعٌ صغيرٌ فيه إيداعان — القديم قبل تعديلٍ، والرأسُ بعده."""
+        import subprocess
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        run = lambda *args: subprocess.run(  # noqa: E731
+            ["git", *args], cwd=repo, capture_output=True, encoding="utf-8", check=True
+        )
+        run("init", "-q")
+        run("config", "user.email", "t@example.com")
+        run("config", "user.name", "t")
+        (repo / "a.txt").write_text("old", encoding="utf-8")
+        run("add", "a.txt")
+        run("commit", "-q", "-m", "old")
+        old_sha = run("rev-parse", "HEAD").stdout.strip()
+        (repo / "a.txt").write_text("new", encoding="utf-8")
+        run("add", "a.txt")
+        run("commit", "-q", "-m", "new")
+        head_sha = run("rev-parse", "HEAD").stdout.strip()
+        return repo, old_sha, head_sha
+
+    def test_rebaseline_refuses_a_ref_other_than_head(self, tmp_path, monkeypatch, capsys):
+        """`--ref` غيرُ الرأس يُرفض قبل أيّ تصديرٍ أو قياس — لا يذوب فرقٌ بينهما في السجلّ."""
+        repo, old_sha, head_sha = self._git_repo_with_two_commits(tmp_path)
+        monkeypatch.setattr(ratchet, "ROOT", repo)
+        rc = ratchet.main(["--rebaseline", "--ref", old_sha])
+        assert rc == 1
+        out = capsys.readouterr().out
+        assert "--ref يجب أن يكون HEAD" in out
+        assert head_sha[:8] in out
+        assert old_sha[:8] in out
+
+    def test_rebaseline_accepts_head_itself(self, tmp_path, monkeypatch):
+        """`--ref HEAD` (الافتراضيّ) والرأسُ بمعرّفه الكامل كلاهما يجتازان فحصَ التطابق مع الرأس.
+
+        نُصادر `export_ref` بدالّةٍ تُثير علامةً فور استدعائها، فنُثبت بلوغَه — أي اجتيازَ
+        الفحص — دون الحاجة إلى تصديرٍ حقيقيّ أو ملفّ سجلٍّ في المستودع الوهميّ.
+        """
+        repo, _old_sha, head_sha = self._git_repo_with_two_commits(tmp_path)
+        monkeypatch.setattr(ratchet, "ROOT", repo)
+        monkeypatch.setattr(
+            ratchet,
+            "export_ref",
+            lambda ref, dest: (_ for _ in ()).throw(RuntimeError("passed-the-ref-check")),
+        )
+        for ref in ("HEAD", head_sha):
+            with pytest.raises(RuntimeError, match="passed-the-ref-check"):
+                ratchet.main(["--rebaseline", "--ref", ref])
+
     def test_update_and_accept_keep_the_definition(self):
         before = {**self._state(views={"a/views.py::v": {"lines": 90}}), "definition": 7}
         after = self._state(views={"a/views.py::v": {"lines": 95}})

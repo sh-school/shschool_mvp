@@ -1125,6 +1125,25 @@ def main(argv: list[str]) -> int:
 
     current = snapshot()
     if args.rebaseline:
+        head_sha = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+            capture_output=True,
+            encoding="utf-8",
+            check=True,
+        ).stdout.strip()
+        ref_sha = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", args.ref],
+            capture_output=True,
+            encoding="utf-8",
+            check=True,
+        ).stdout.strip()
+        if ref_sha != head_sha:
+            print(
+                f"--ref يجب أن يكون HEAD ({head_sha[:8]})، لا {args.ref} ({ref_sha[:8]}). "
+                "إعادةُ القياس على إيداعٍ غيرِ الرأس تذيب زيادةً حقيقيّةً بين الاثنين — "
+                "افحص الرأسَ نفسه، أو انتقل إليه أوّلاً."
+            )
+            return 1
         with tempfile.TemporaryDirectory() as tmp:
             export_ref(args.ref, pathlib.Path(tmp))
             try:
