@@ -248,7 +248,8 @@ class TestThePageRenders:
         client = client_as(leader)
         client.get(reverse("wings:floors"))  # يُسخّن الجلسةَ والصلاحيّات
 
-        with django_assert_max_num_queries(25):
+        # 26 لا 25: `school_day` صار يسأل بدءَ دوام الطلبة أيضاً (operations.school_days).
+        with django_assert_max_num_queries(26):
             client.get(reverse("wings:floors"))
 
 
