@@ -392,12 +392,34 @@ jobs:
           esac
 
   # ══════════════════════════════════════════════════════
+  #  نافذة النشر — الدمجُ إلى main نشرٌ فوريّ (حادثة 2026-09-17)
+  # ══════════════════════════════════════════════════════
+  #  هنا لا في سير عملٍ مستقلّ: «ملخص بوابة الجودة» هو الفحصُ الإلزاميّ في طابور
+  #  الدمج، فالحارسُ خارجه لا يمنع شيئاً. القواعدُ في scripts/deploy_window.py.
+  deploy-window:
+    name: نافذة النشر — لا دمج وقت الدوام
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: الأحد–الخميس 07:00–14:00 بتوقيت قطر ممنوع إلّا «نشر-عاجل»
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          HEAD_REF: ${{ github.event.merge_group.head_ref }}
+          REPO: ${{ github.repository }}
+        run: python3 scripts/deploy_window.py
+
+  # ══════════════════════════════════════════════════════
   #  ملخص بوابة الجودة
   # ══════════════════════════════════════════════════════
   gate-summary:
     name: ملخص بوابة الجودة
     runs-on: ubuntu-latest
-    needs: [test-coverage, ruff, mypy, migration-linter, complexity, secrets-scan]
+    needs: [test-coverage, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window]
     if: always()
     steps:
       - name: نتيجة بوابة الجودة
@@ -411,6 +433,7 @@ jobs:
           echo "| مدقّق الهجرات — Expand/Contract | ${{ needs.migration-linter.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Radon CC ≤ 30 | ${{ needs.complexity.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| detect-secrets | ${{ needs.secrets-scan.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| نافذة النشر (لا دمج وقت الدوام) | ${{ needs.deploy-window.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: فشل إذا فشل أي فحص
         if: >-
@@ -419,7 +442,8 @@ jobs:
           needs.mypy.result != 'success' ||
           needs.migration-linter.result != 'success' ||
           needs.complexity.result != 'success' ||
-          needs.secrets-scan.result != 'success'
+          needs.secrets-scan.result != 'success' ||
+          needs.deploy-window.result != 'success'
         run: |
           echo "::error::Quality Gate FAILED — one or more checks did not pass"
           exit 1
