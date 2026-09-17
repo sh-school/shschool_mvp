@@ -15,7 +15,7 @@ from django.utils import timezone
 from core.models import AcademicYear, CalendarEvent, WingCoverage
 from operations.absence_file import _SchoolDays
 from operations.excuses import _grace_after
-from operations.school_days import WEEKEND, is_school_day, school_day
+from operations.school_days import NOT_YET_OPEN, WEEKEND, SchoolDays, is_school_day, school_day
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 from tests.test_period_register import (  # noqa: F401 — التجهيزاتُ نفسُها
     SUNDAY,
@@ -170,3 +170,51 @@ class TestTheFloors:
         assert HOLIDAY in body
         assert "لا جرسَ يرنّ" in body
         assert "الساعة 09:45" not in body
+
+
+class TestBeforeStudentsStart:
+    """أسبوعُ الدور الثاني وبدء دوام الموظفين — قبل `students_start` فلا دوامَ طلبةٍ فيهما.
+
+    تقويمُ 2026-2027 المبذور: `staff_start` و`second_round` في 2026-08-23،
+    و`students_start` في 2026-08-30 — أحدٌ يفتح الأسبوع."""
+
+    SECOND_ROUND_TUESDAY = dt.date(2026, 8, 25)
+    STUDENTS_START = dt.date(2026, 8, 30)
+
+    def test_the_second_round_week_is_not_a_school_day(self, school, seeded_calendar):
+        day = school_day(school, self.SECOND_ROUND_TUESDAY)
+
+        assert day.day_type == "regular", "الأسبوعُ وحدَه يراه يومَ دوام"
+        assert not day.is_open
+        assert day.holiday == NOT_YET_OPEN
+        assert day.closed_reason == NOT_YET_OPEN
+        assert day.bell_day_type == ""
+        assert not is_school_day(school, self.SECOND_ROUND_TUESDAY)
+
+    def test_students_start_day_is_open(self, school, seeded_calendar):
+        assert school_day(school, self.STUDENTS_START).is_open
+        assert is_school_day(school, self.STUDENTS_START)
+
+    def test_the_school_days_window_agrees(self, school, seeded_calendar):
+        days = SchoolDays(school, dt.date(2026, 8, 23), dt.date(2026, 9, 3))
+
+        assert self.SECOND_ROUND_TUESDAY not in days
+        assert self.STUDENTS_START in days
+
+    def test_a_holiday_reason_wins_over_not_yet_open(self, school, seeded_calendar):
+        """لو وقعت إجازةٌ في الأسبوع نفسه فاسمُها هو السبب — لا «لم يبدأ الدوام»."""
+        academic_year = AcademicYear.objects.get(
+            school=school,
+            start_date__lte=self.SECOND_ROUND_TUESDAY,
+            end_date__gte=self.SECOND_ROUND_TUESDAY,
+        )
+        CalendarEvent.objects.create(
+            academic_year=academic_year,
+            event_type="break",
+            name=HOLIDAY,
+            start_date=self.SECOND_ROUND_TUESDAY,
+            end_date=self.SECOND_ROUND_TUESDAY,
+            audience="both",
+        )
+
+        assert school_day(school, self.SECOND_ROUND_TUESDAY).holiday == HOLIDAY
