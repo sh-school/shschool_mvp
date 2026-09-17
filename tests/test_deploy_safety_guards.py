@@ -128,7 +128,7 @@ def test_merge_queue_outside_hours_passes(window):
 
 
 def test_queue_ref_yields_pr_number(window):
-    ref = "refs/heads/gh-readonly-queue/main/pr-313-07309c96abc"
+    ref = "refs/heads/gh-readonly-queue/main/pr-313-" + "0" * 40
     assert window.queued_pr_number(ref) == 313
     assert window.queued_pr_number("") is None
 
