@@ -27,7 +27,14 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.capabilities import capability_required, has_capability
-from core.models import ClassGroup, CustomUser, ParentStudentLink, School, StudentEnrollment
+from core.models import (
+    AuditLog,
+    ClassGroup,
+    CustomUser,
+    ParentStudentLink,
+    School,
+    StudentEnrollment,
+)
 from core.sorting import arabic_key, normalise_arabic
 
 from .scope import student_scope_for
@@ -61,6 +68,31 @@ def _scoped_ids(request: HttpRequest) -> frozenset[object] | list[object]:
     if scope.is_wing_bound:
         return scope.student_ids()
     return StudentEnrollment.objects.filter(is_active=True).values_list("student_id", flat=True)  # type: ignore[return-value]
+
+
+def _audit_guardian_phones(
+    request: HttpRequest, school: School, student: CustomUser, guardians: list[dict[str, str]]
+) -> None:
+    """أثرٌ لكلّ عرضٍ لهواتف أولياء الأمر (PDPPL): من رآها، ولأيّ طالب، وكم رقماً.
+
+    الملفُّ يفتحه كلُّ من يحمل الجناح، والبديلُ قد يكون ملاحظَ طلبةٍ أو عاملَ خدمات
+    (`WingCoverage.SUBSTITUTE_ROLES`) — فلا يبقى الاطّلاعُ على أرقام الأهل بلا أثر.
+    ولا يُكتب في السجلّ رقمٌ ولا اسمُ وليّ أمر: العددُ والدورُ وحدهما.
+    """
+    phones = sum(1 for g in guardians if g["phone"])
+    if not phones:
+        return
+    user = request.user
+    AuditLog.log(
+        user=user,
+        action="view",
+        model_name="ParentStudentLink",
+        object_id=student.id,
+        object_repr=f"هواتف أولياء أمر {student.full_name}",
+        changes={"phones": phones, "role": user.get_role()},  # type: ignore[union-attr]
+        school=school,
+        request=request,
+    )
 
 
 def _file_url(student_id: object, day: dt.date | None = None) -> str:
@@ -118,6 +150,8 @@ def absence_file(request: HttpRequest, student_id: object) -> HttpResponse:
     today = timezone.localdate()
     window = academic_year_window(school, today)  # type: ignore[no-untyped-call]
     # مَن يُتّصل به وبأيّ رقم: الأساسيُّ أوّلاً — كانت «اتّصلتُ» تُعرض بلا اسمٍ ولا هاتف.
+    # ويراه كلُّ من يرصد الجناح، والبديلُ منهم (قرارُ 2026-09-16، docs/privacy/guardian_phones.md)،
+    # وكلُّ عرضٍ للأرقام يترك أثراً في سجلّ التدقيق.
     guardians = [
         {
             "name": link.parent.full_name,
@@ -128,6 +162,7 @@ def absence_file(request: HttpRequest, student_id: object) -> HttpResponse:
         .select_related("parent")
         .order_by("-is_primary", "created_at")[:3]
     ]
+    _audit_guardian_phones(request, school, student, guardians)
     start = window[0] if window else today.replace(month=9, day=1)
     return render(
         request,

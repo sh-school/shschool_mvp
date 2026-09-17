@@ -20,21 +20,18 @@
 
   {% include "wings/partials/student_search_form.html" %}
 
-  {% if not day_type %}
-    <div class="wing-warn">
-      {% icon "status_warning" %}
-      {{ day|date:"D، d M Y" }} — لا دوامَ فيه، فلا رصد.
-    </div>
+  {% if not school_day.is_open %}
+    {% include "wings/partials/day_off.html" with dated=True %}
+  {% else %}
+    {% for panel in panels %}
+    {% include "wings/partials/record_panel.html" %}
+    {% empty %}
+      <div class="wing-warn">
+        {% icon "status_warning" %}
+        لا جناحَ مُسنَدٌ إليك اليوم — راجع «تغطية الأجنحة».
+      </div>
+    {% endfor %}
   {% endif %}
-
-  {% for panel in panels %}
-  {% include "wings/partials/record_panel.html" %}
-  {% empty %}
-    <div class="wing-warn">
-      {% icon "status_warning" %}
-      لا جناحَ مُسنَدٌ إليك اليوم — راجع «تغطية الأجنحة».
-    </div>
-  {% endfor %}
 
   <p class="bell-note">
     تُرصد كلُّ حصّةٍ بدخول الفصل، والحصّةُ التي لم تُثبَّت حتى خمس دقائق بعد نهايتها

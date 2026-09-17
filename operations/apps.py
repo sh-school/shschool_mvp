@@ -7,6 +7,7 @@ class OperationsConfig(AppConfig):
     verbose_name = "العمليات"
 
     def ready(self):
+        import operations.signals  # noqa: F401
         from core.module_registry import register_module
 
         register_module(

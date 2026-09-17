@@ -31,8 +31,8 @@ from django.utils import timezone
 from core.models import AuditLog, CustomUser, School
 from core.photo_privacy import clean_photo
 from core.validators import FileTypeValidator
-from operations.bells import day_type_for
 from operations.models import AbsenceExcuse, StudentAttendance
+from operations.school_days import is_school_day
 
 #: القائمةُ المغلقة — بترتيب النصّ.
 CLOSED_LIST = ("medical", "bereavement", "family", "state_representation", "official")
@@ -61,21 +61,6 @@ def kinds() -> list[tuple[str, str, str]]:
     """(المفتاح، الاسم، المستندُ المطلوب أو فارغ) — لبناء القائمة في الشاشة."""
     labels = dict(StudentAttendance.EXCUSE)
     return [(k, labels[k], NEEDS_DOCUMENT.get(k, "")) for k in CLOSED_LIST]
-
-
-def is_school_day(school: School, day: dt.date) -> bool:
-    """يومٌ يدرس فيه الطلبة: أحدٌ إلى خميس، وليس في إجازةٍ من تقويم الوزارة."""
-    from core.models import CalendarEvent
-
-    if not day_type_for(day):
-        return False
-    return not CalendarEvent.objects.filter(
-        academic_year__school=school,
-        event_type="break",
-        audience__in=("both", "students"),
-        start_date__lte=day,
-        end_date__gte=day,
-    ).exists()
 
 
 def _grace_after(school: School, back: dt.date) -> dt.date:
