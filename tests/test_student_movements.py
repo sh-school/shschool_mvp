@@ -143,6 +143,31 @@ def test_destination_filter_narrows_the_list(client, school, principal_user, tea
     assert "طالب دورة المياه" not in html
 
 
+def test_the_four_destination_cards_render_including_a_zero_one(
+    client, school, principal_user, teacher_user, wing_a
+):
+    """طلب المدير (تذكرة رقم 10): بطاقةٌ لكلّ وجهة — عيادة، إدارة، دورة
+    مياه، وخروج من المدرسة (ثابتةٌ صفراً عمداً، غير مُسجَّلة بعد).
+
+    ويوم فيه خروجٌ للعيادة وحدها يجب ألّا يُسقط الاستمارةَ حين تُبنى بطاقةُ
+    وجهةٍ لا خروج لها ذلك اليوم (`destination_counts.get(code, 0)`) — هذا
+    بالضبط ما كسر الشاشةَ (`TemplateSyntaxError: kpi «...»: الرقم مطلوب`)
+    حين كان التجميع يُخرج صفوفاً أحاديّة العنصر لا يبنيها `dict()` بقيمة."""
+    klass_a, _ = wing_a
+    student = UserFactory(full_name="طالب العيادة الوحيد", national_id="29400000051")
+    _exit_in(school, klass_a, teacher_user, student, destination="clinic", hour=8)
+    client.force_login(principal_user)
+
+    resp = client.get(reverse("student_affairs:student_movements"), {"date": DAY.isoformat()})
+    html = resp.content.decode()
+
+    assert resp.status_code == 200
+    assert "مراجعة العيادة" in html
+    assert "مراجعة الإدارة" in html
+    assert "دورة المياه" in html
+    assert "الخروج من المدرسة" in html
+
+
 def test_open_status_filter_shows_only_those_who_have_not_returned(
     client, school, principal_user, teacher_user, wing_a
 ):

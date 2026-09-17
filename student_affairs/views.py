@@ -1189,9 +1189,21 @@ def student_movements(request):
     scope = _followup_scope(request)
     selected_date = _tardiness_day(request)
 
-    exits_qs = scope.narrow(
-        ClassExit.objects.filter(school=school, session__date=selected_date)
-    ).select_related("student", "session__class_group", "session__subject", "allowed_by")
+    base_qs = scope.narrow(ClassExit.objects.filter(school=school, session__date=selected_date))
+    # بطاقةٌ لكل وجهةٍ — تعُدّ كلَّ حركات اليوم بصرف النظر عن مرشِّح الوجهة
+    # المطبَّق على الجدول أسفلها، فتبقى ثابتةً تصلح للتنقّل بينها.
+    # `.values_list("destination", "n")` بعد التجميع — لا `.values_list("destination")`
+    # وحدَه، فتلك تُخرج صفوفاً أحاديّة العنصر لا يبنيها `dict()` بمفتاحٍ وقيمة.
+    destination_counts = dict(
+        base_qs.values("destination")
+        .annotate(n=Count("id"))
+        .order_by()
+        .values_list("destination", "n")
+    )
+
+    exits_qs = base_qs.select_related(
+        "student", "session__class_group", "session__subject", "allowed_by"
+    )
 
     destination = request.GET.get("destination", "")
     if destination:
@@ -1211,6 +1223,7 @@ def student_movements(request):
     for e in exits:
         e.class_text = class_label(e.session.class_group.grade, e.session.class_group.section)
 
+    day_qs = f"date={selected_date.isoformat()}"
     return render(
         request,
         "student_affairs/student_movements.html",
@@ -1225,6 +1238,16 @@ def student_movements(request):
             "open_count": sum(1 for e in exits if e.returned_at is None),
             "total_count": len(exits),
             "wing_label": _followup_wing_label(scope),
+            # بطاقةٌ لكل وجهة (طلب المدير، SOS-20260915-9077): أربعٌ لا ثلاث —
+            # الرابعة «الخروج من المدرسة» ثابتةٌ صفراً عمداً؛ نمطٌ مختلفٌ
+            # (انصرافٌ كاملٌ بحضور وليّ الأمر) لا تُسجّله `ClassExit` بعد،
+            # وبطاقتُها هنا مكانٌ محجوزٌ لا بياناتٌ ناقصة.
+            "clinic_count": destination_counts.get("clinic", 0),
+            "admin_count": destination_counts.get("admin", 0),
+            "restroom_count": destination_counts.get("restroom", 0),
+            "clinic_href": f"?{day_qs}&destination=clinic",
+            "admin_href": f"?{day_qs}&destination=admin",
+            "restroom_href": f"?{day_qs}&destination=restroom",
         },
     )
 
