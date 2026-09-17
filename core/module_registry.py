@@ -23,7 +23,9 @@ Usage:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,10 @@ class ModuleInfo:
     sidebar_roles: frozenset  # الأدوار التي ترى الوحدة في القائمة الجانبية
     sort_order: int  # ترتيب العرض
     parent: str  # وحدة أب (للـ sub-modules)
+    #: منحٌ لا يقرؤه الدورُ الحاكم: ``grant(user) -> bool``. لوحدةٍ يدخلها المستخدمُ
+    #: بصفةٍ أخرى له غيرِ دوره الحاكم — كالمعلّم الذي هو وليُّ أمرٍ في ``/parents/``.
+    #: وحارسُ كلّ واجهةٍ تحتها يبقى يفحص بنفسه؛ المنحُ يفتح البوّابةَ لا الشاشات.
+    grant: Callable[[Any], bool] | None = None
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -63,6 +69,7 @@ def register_module(
     sidebar_roles: set | frozenset | None = None,
     sort_order: int = 50,
     parent: str = "",
+    grant: Callable[[Any], bool] | None = None,
 ) -> None:
     """
     يُسجّل وحدة جديدة في السجل المركزي.
@@ -85,6 +92,8 @@ def register_module(
         ترتيب العرض في القائمة الجانبية.
     parent : str
         اسم الوحدة الأب (للوحدات الفرعية مثل quality/evaluations).
+    grant : callable | None
+        منحٌ يُدخل البوّابةَ من ليس دورُه الحاكمُ في ``allowed_roles``.
     """
     if name in _MODULES:
         logger.debug("Module '%s' already registered — skipping", name)
@@ -102,6 +111,7 @@ def register_module(
         sidebar_roles=sidebar,
         sort_order=sort_order,
         parent=parent,
+        grant=grant,
     )
     logger.debug("Module registered: %s (%s)", name, url_prefix)
 
@@ -128,6 +138,22 @@ def get_protected_paths() -> dict[str, list[str]]:
     for mod in sorted(_MODULES.values(), key=lambda m: -len(m.url_prefix)):
         paths[mod.url_prefix] = sorted(mod.allowed_roles)
     return paths
+
+
+def get_protected_grants() -> dict[str, Callable[[Any], bool]]:
+    """منحُ كلّ بوّابةٍ لها منح — ``{url_prefix: grant}``؛ ويقرؤه الوسيطُ والقائمة."""
+    return {m.url_prefix: m.grant for m in _MODULES.values() if m.grant is not None}
+
+
+def gate_admits(user: Any, prefix: str, allowed_roles: Any) -> bool:
+    """أتُدخل بوّابةُ ``prefix`` هذا المستخدم؟ — بدوره الحاكم أو بمنح الوحدة.
+
+    والمنحُ يُسأل فقط حين يردّه الدور، فلا يكلّف أحداً شيئاً في الطريق الغالب.
+    """
+    if user.get_role() in allowed_roles:
+        return True
+    grant = get_protected_grants().get(prefix)
+    return grant is not None and bool(grant(user))
 
 
 def get_accessible_modules_from_registry(user) -> list[dict]:

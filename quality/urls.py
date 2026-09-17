@@ -11,6 +11,11 @@ urlpatterns = [
     path("observations/", observation_views.observation_list, name="observation_list"),
     path("observations/new/", observation_views.observation_create, name="observation_create"),
     path(
+        "observations/teacher-schedule/",
+        observation_views.observation_teacher_schedule,
+        name="observation_teacher_schedule",
+    ),
+    path(
         "observations/archive/",
         observation_views.observation_archive,
         name="observation_archive",

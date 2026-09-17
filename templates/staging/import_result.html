@@ -36,7 +36,7 @@
     {% endif %}
     <ul class="chip-row import-meta" aria-label="التقييم">
       <li class="chip-stat"><span class="chip-stat__key">المادة</span><b class="chip-stat__value">{{ assessment.package.setup.subject.name_ar }}</b></li>
-      <li class="chip-stat"><span class="chip-stat__key">الفصل</span><b class="chip-stat__value">{{ assessment.class_group }}</b></li>
+      <li class="chip-stat"><span class="chip-stat__key">الفصل</span><b class="chip-stat__value">{{ assessment.class_group.short_label }}</b></li>
     </ul>
   {% endsection_card %}
 

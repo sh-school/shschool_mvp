@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 {% load icons %}
 {% load ui dict_filters %}
-{% block title %}{{ setup.subject.name_ar }} — {{ setup.class_group }}{% endblock %}
+{% block title %}{{ setup.subject.name_ar }} — {{ setup.class_group.short_label }}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/assessments/" parent_label="التقييمات" current="تفاصيل الإعداد" %}

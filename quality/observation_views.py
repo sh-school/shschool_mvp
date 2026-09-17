@@ -174,6 +174,7 @@ def _form_context(school, *, obs=None, scores_map=None, is_self=False, is_peer=F
     ctx.update(
         {
             "grouped_criteria": grouped,
+            "total_criteria": sum(len(items) for _, items in grouped),
             "rating_choices": RATING_CHOICES,
             "follow_up_modes": FOLLOW_UP_MODE,
             "follow_up_scopes": FOLLOW_UP_SCOPE,
@@ -181,6 +182,11 @@ def _form_context(school, *, obs=None, scores_map=None, is_self=False, is_peer=F
             "obs": obs,
             "is_self": is_self or bool(obs and obs.kind == "self"),
             "is_peer": is_peer or bool(obs and obs.kind == "peer"),
+            # تعديلُ زيارةٍ محفوظة يفتح ومعه صفُّ جدول تاريخها من أوّل تحميل —
+            # لا ينتظر تغيير المعلّم أو التاريخ ليعرضه.
+            "schedule_row": _teacher_schedule_context(
+                school, obs.teacher_id if obs else None, obs.observation_date if obs else None
+            ),
         }
     )
     ctx.update(_form_labels(ctx["mode"], ctx["is_self"], ctx["is_peer"], obs))
@@ -285,6 +291,61 @@ def _groups_with_scores(obs):
         (label, [(c, scores.get(str(c.id))) for c in items])
         for label, items in _grouped_criteria(obs.school)
     ]
+
+
+# ══════════════════════════ جدول المعلّم عند إنشاء الزيارة ═══════════
+def _teacher_schedule_context(school, teacher_id, raw_date) -> dict:
+    """SOS-20260915: صفٌّ واحد من حصص المعلّم في التاريخ المختار — يُختار
+    منه بنقرة بدل إدخال المادّة والشعبة يدويّاً عن ظهر قلب. المصدر Session
+    نفسه الذي يقرأه جدولُ المعلّم اليوميّ (`operations.views_attendance.schedule`)
+    لا نسخةٌ ثانية قد تختلف عنه.
+
+    مصدرٌ واحد لاستعلام الجدول: تستدعيه هذه الدالّة عند فتح الاستمارة
+    للتعديل (تعرِض حصص تاريخ الزيارة المحفوظ من أوّل تحميل) وview الـHTMX
+    عند تغيير المعلّم أو التاريخ (`observation_teacher_schedule` أدناه).
+    """
+    import datetime as dt
+
+    from operations.models import Session
+    from operations.services import ScheduleService
+
+    teacher_id = teacher_id or ""
+    raw_date = raw_date or ""
+    periods: list[dict] = []
+    error = ""
+    if teacher_id and raw_date:
+        try:
+            selected_date = (
+                raw_date if isinstance(raw_date, dt.date) else dt.date.fromisoformat(raw_date)
+            )
+        except ValueError:
+            selected_date = None
+        if selected_date is None:
+            error = "تاريخٌ غير صالح."
+        else:
+            ScheduleService.ensure_sessions_for_date(school, selected_date)
+            sessions = (
+                Session.objects.filter(school=school, teacher_id=teacher_id, date=selected_date)
+                .exclude(status="cancelled")
+                .select_related("subject", "class_group")
+                .order_by("start_time")
+            )
+            periods = [{"number": i, "session": s} for i, s in enumerate(sessions, start=1)]
+    return {"periods": periods, "error": error, "has_query": bool(teacher_id and raw_date)}
+
+
+@login_required
+def observation_teacher_schedule(request):
+    """HTMX partial: `?teacher=<id>&observation_date=YYYY-MM-DD` — بلا
+    أحدهما لا يُستعلَم. والاسمُ `observation_date` لا `date` عمداً: هو اسمُ
+    حقل التاريخ نفسه في الاستمارة (`name="observation_date"`)، و`hx-include`
+    يُرسل الحقولَ بأسمائها كما هي — فسمّيةٌ مختلفة هنا كانت تصل الخادمَ فارغةً
+    دائماً مهما اختار المستخدم (SOS-20260915، بلاغ «لم تُحلّ حتى الآن»)."""
+    school = request.user.get_school()
+    ctx = _teacher_schedule_context(
+        school, request.GET.get("teacher"), request.GET.get("observation_date")
+    )
+    return render(request, "quality/partials/teacher_schedule_row.html", ctx)
 
 
 # ══════════════════════════ إنشاء / تعديل ════════════════════════════

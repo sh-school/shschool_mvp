@@ -74,7 +74,7 @@ def _hard(code, title, break_at=NEVER, tunable=True, relaxes_in_place=False, not
     )
 
 
-def _soft(code, title, weight, note=""):
+def _soft(code: str, title: str, weight: float, note: str = "") -> ConstraintSpec:
     return ConstraintSpec(code, title, SOFT, weight=weight, note=note)
 
 
@@ -127,6 +127,7 @@ SOFT_CONSTRAINTS = (
     _soft("double_bonus", "مكافأةُ الحصّة المزدوجة", -5),
     _soft("high_weekly_adjacent", "تلاصقُ مادّةٍ عاليةِ النصاب", 7),
     _soft("extra_edge_period", "طرفٌ زائدٌ للمعلّم (أولى أو سابعة)", 12),
+    _soft("first_period_floor", "حصّةٌ أولى تحت الحدّ الأدنى (اثنتان)", -9),
     _soft("free_day", "يومُ التفريغ الذي طلبه المعلّم", 14),
 )
 

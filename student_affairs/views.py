@@ -57,7 +57,7 @@ from core.privacy import mask_national_id
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 from library.models import BookBorrowing
 from operations.absence_standing import standing_for
-from operations.models import AbsenceAlert, Session, StudentAttendance
+from operations.models import AbsenceAlert, ClassExit, Session, StudentAttendance
 from operations.presence import presence_now
 from operations.tardiness import tardiness_now
 from wings.scope import student_scope_for
@@ -654,7 +654,7 @@ def student_add(request):
                 messages.success(
                     request,
                     f"تم إضافة الطالب {user.full_name} في "
-                    f"{class_group.grade}/{class_group.section} بنجاح.",
+                    f"{class_label(class_group.grade, class_group.section)} بنجاح.",
                 )
                 return redirect("student_affairs:student_profile", student_id=user.id)
 
@@ -1174,6 +1174,86 @@ def _followup_wing_label(scope) -> str:
 
 def _with_wing(text: str, wing: str) -> str:
     return f"{text} — {wing}" if wing else text
+
+
+@login_required
+@capability_required("student_affairs.follow_up")
+def student_movements(request):
+    """تحركاتُ الطلبة خارج الفصل في تاريخٍ بعينه — عيادةٌ وإدارةٌ ودورةُ
+    مياهٍ وأخرى. تُقرأ من `ClassExit` نفسها التي يكتبها زرّ «خرج بإذن» في
+    كشف الحصّة (`operations.class_exit`) — لا نسخةٌ ثانية من البيانات.
+
+    طلبُ سلطان الهاجرى (SOS-20260915-9077): شاشةٌ كشاشة الغياب لتحركات
+    الطلبة. و«الخروج من المدرسة» (انصرافٌ كاملٌ بحضور وليّ الأمر، الدليل
+    2026 §3.4.3) نمطٌ مختلفٌ لا تُسجّله `ClassExit` — يبقى خارج هذه الشاشة.
+    """
+    school = request.school
+    scope = _followup_scope(request)
+    selected_date = _tardiness_day(request)
+
+    base_qs = scope.narrow(ClassExit.objects.filter(school=school, session__date=selected_date))
+    # بطاقةٌ لكل وجهةٍ — تعُدّ كلَّ حركات اليوم بصرف النظر عن مرشِّح الوجهة
+    # المطبَّق على الجدول أسفلها، فتبقى ثابتةً تصلح للتنقّل بينها.
+    # `.values_list("destination", "n")` بعد التجميع — لا `.values_list("destination")`
+    # وحدَه، فتلك تُخرج صفوفاً أحاديّة العنصر لا يبنيها `dict()` بمفتاحٍ وقيمة.
+    destination_counts = dict(
+        base_qs.values("destination")
+        .annotate(n=Count("id"))
+        .order_by()
+        .values_list("destination", "n")
+    )
+
+    exits_qs = base_qs.select_related(
+        "student", "session__class_group", "session__subject", "allowed_by"
+    )
+
+    destination = request.GET.get("destination", "")
+    if destination:
+        exits_qs = exits_qs.filter(destination=destination)
+
+    status = request.GET.get("status", "")
+    if status == "open":
+        exits_qs = exits_qs.filter(returned_at__isnull=True)
+    elif status == "closed":
+        exits_qs = exits_qs.exclude(returned_at__isnull=True)
+
+    grade_filter = request.GET.get("grade", "")
+    if grade_filter:
+        exits_qs = exits_qs.filter(session__class_group__grade=grade_filter)
+
+    exits = list(exits_qs.order_by("-left_at"))
+    for e in exits:
+        e.class_text = class_label(e.session.class_group.grade, e.session.class_group.section)
+
+    day_qs = f"date={selected_date.isoformat()}"
+    return render(
+        request,
+        "student_affairs/student_movements.html",
+        {
+            "exits": exits,
+            "selected_date": selected_date,
+            "destinations": ClassExit.DESTINATIONS,
+            "destination": destination,
+            "status": status,
+            "grade_filter": grade_filter,
+            "grades": ClassGroup.GRADES,
+            "open_count": sum(1 for e in exits if e.returned_at is None),
+            "total_count": len(exits),
+            "wing_label": _followup_wing_label(scope),
+            # بطاقةُ `action_tile` نفسُها المستعملة في الأقسام السريعة —
+            # حدٌّ وظلٌّ وأيقونة، لا رقمٌ عارٍ (طلب المدير، SOS-20260915-9077،
+            # توضيحه 2026-09-17: "ليست بطاقات كل منها" على النسخة الأولى).
+            # الرابعة «الخروج مبكراً من المدرسة» ثابتةٌ عمداً بلا رابط فعليّ:
+            # نمطٌ مختلفٌ (انصرافٌ كاملٌ بحضور وليّ الأمر) لا تُسجّله
+            # `ClassExit` بعد — بطاقتُها هنا مكانٌ محجوزٌ لا بياناتٌ ناقصة.
+            "clinic_desc": f"اليوم: {destination_counts.get('clinic', 0)}",
+            "admin_desc": f"اليوم: {destination_counts.get('admin', 0)}",
+            "restroom_desc": f"اليوم: {destination_counts.get('restroom', 0)}",
+            "clinic_href": f"?{day_qs}&destination=clinic",
+            "admin_href": f"?{day_qs}&destination=admin",
+            "restroom_href": f"?{day_qs}&destination=restroom",
+        },
+    )
 
 
 @login_required

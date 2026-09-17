@@ -61,12 +61,12 @@
       {% for row in card.rows %}
       <tr>
         <td>{{ row.level_label }}</td>
-        <td>{{ row.class_group }}</td>
+        <td>{{ row.class_group.short_label }}</td>
         <td>{{ row.subject.name_ar }}</td>
         <td>
           <form hx-post="{% url 'academic_management:assignment_update_periods' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
             {% csrf_token %}
-            <input type="number" name="weekly_periods" min="1" max="35" value="{{ row.weekly_periods }}" {% if not card.writable %}disabled{% endif %} aria-label="الحصص الأسبوعيّة — {{ row.subject.name_ar }} في {{ row.class_group }}">
+            <input type="number" name="weekly_periods" min="1" max="35" value="{{ row.weekly_periods }}" {% if not card.writable %}disabled{% endif %} aria-label="الحصص الأسبوعيّة — {{ row.subject.name_ar }} في {{ row.class_group.short_label }}">
             {% if row.periods_override_reason %}<span class="asg-hint" title="{{ row.periods_override_reason }}">(خلافُ الخطّة)</span>{% endif %}
           </form>
         </td>
@@ -91,7 +91,7 @@
             {% csrf_token %}
             <input type="checkbox" name="double" value="1" {% if row.double_effective %}checked{% endif %} {% if not card.writable %}disabled{% endif %}
                    title="{% if not card.writable %}الخطّةُ مقفلة — افتح إصداراً جديداً للتعديل{% else %}حصّتان متلاصقتان لا تقطعهما فسحةٌ ولا صلاة{% endif %}"
-                   aria-label="حصّة مزدوجة — {{ row.subject.name_ar }} في {{ row.class_group }}">
+                   aria-label="حصّة مزدوجة — {{ row.subject.name_ar }} في {{ row.class_group.short_label }}">
           </form>
         </td>
         {% comment %}
@@ -104,7 +104,7 @@
           <form hx-post="{% url 'academic_management:assignment_set_parallel' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
             {% csrf_token %}
             <select name="partner" {% if not card.writable %}disabled{% endif %}
-                    aria-label="متوازية مع — {{ row.subject.name_ar }} في {{ row.class_group }}"
+                    aria-label="متوازية مع — {{ row.subject.name_ar }} في {{ row.class_group.short_label }}"
                     title="{% if not card.writable %}الخطّةُ مقفلة — افتح إصداراً جديداً للتعديل{% else %}{% if row.parallel_orphan %}موسومةٌ وحدَها — اختر شريكتَها أو فُكَّ الربط{% else %}تُدرَّس في التوقيت نفسه مع…{% endif %}{% endif %}">
               <option value="">— لا توازي —</option>
               {% for opt in row.parallel_options %}
@@ -116,7 +116,7 @@
         </td>
         <td>
           {% if card.writable %}
-          <form hx-post="{% url 'academic_management:assignment_remove_row' row.id %}" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" hx-confirm="حذفُ {{ row.subject.name_ar }} من {{ row.class_group }}؟" class="asg-inline">
+          <form hx-post="{% url 'academic_management:assignment_remove_row' row.id %}" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" hx-confirm="حذفُ {{ row.subject.name_ar }} من {{ row.class_group.short_label }}؟" class="asg-inline">
             {% csrf_token %}
             <button type="submit" class="asg-x" title="حذف">✕</button>
           </form>
@@ -164,7 +164,7 @@
   {% if card.transfer %}
   <div class="asg-confirm" role="alert">
     <p>
-      <b>{{ card.transfer.subject.name_ar }}</b> في <b>{{ card.transfer.class_group }}</b>
+      <b>{{ card.transfer.subject.name_ar }}</b> في <b>{{ card.transfer.class_group.short_label }}</b>
       مُسنَدةٌ إلى <b>{{ card.transfer.holder.full_name|default:"معلّمٍ آخر" }}</b>.
       وإسنادُها إلى <b>{{ card.teacher.full_name }}</b> يُسقطها عنه.
       {% if card.transfer.holder_approved %}

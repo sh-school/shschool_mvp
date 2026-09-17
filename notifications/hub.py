@@ -21,6 +21,7 @@ NotificationHub — الموجّه المركزي لكل الإشعارات
 """
 
 import logging
+from typing import Any
 
 import redis
 from django.conf import settings
@@ -63,6 +64,9 @@ DEFAULT_CHANNELS = {
     "behavior_l3": ["in_app", "push", "whatsapp", "email", "sms"],
     "behavior_l4": ["in_app", "push", "whatsapp", "email", "sms"],
     "behavior_risk": ["in_app"],
+    # ملخّصُ مخالفات الرصد اليوميّ لوليّ الأمر (قرارُ المالك 2026-09-16): رسالةٌ كلَّ
+    # يومٍ دراسيٍّ فيه مخالفة — فلا SMS لرسالةٍ متكرّرة.
+    "behavior_digest": ["in_app", "push", "whatsapp", "email"],
     "absence": ["in_app", "push", "whatsapp", "email"],
     "grade": ["in_app", "push", "email"],
     "fail": ["in_app", "push", "whatsapp", "email", "sms"],
@@ -84,6 +88,7 @@ DEFAULT_PRIORITY = {
     "behavior_l2": "medium",
     "behavior_l3": "high",
     "behavior_l4": "urgent",
+    "behavior_digest": "medium",
     "absence": "medium",
     "class_exit": "high",
     "grade": "low",
@@ -111,19 +116,19 @@ class NotificationHub:
 
     @staticmethod
     def dispatch(
-        event_type,
-        school,
-        recipients,
-        title,
-        body="",
-        context=None,
-        priority=None,
-        related_url="",
-        related_object_id="",
-        sent_by=None,
-        email_html_template=None,
-        email_text_template=None,
-    ):
+        event_type: str,
+        school: Any,
+        recipients: Any,
+        title: str,
+        body: str = "",
+        context: dict[str, Any] | None = None,
+        priority: str | None = None,
+        related_url: str = "",
+        related_object_id: Any = "",
+        sent_by: Any = None,
+        email_html_template: str | None = None,
+        email_text_template: str | None = None,
+    ) -> dict[str, Any]:
         """
         إرسال إشعار لقائمة مستلمين عبر كل القنوات المناسبة.
 
@@ -145,7 +150,7 @@ class NotificationHub:
                 الـHTML. وبدونه يُستعمل `body` نفسُه.
 
         Returns:
-            dict: {"in_app": count, "queued": {"email": n, "sms": n, ...}}
+            dict: {"in_app": count, "queued": {"email": n, "sms": n, ...}, "failed": n}
         """
         if context is None:
             context = {}
@@ -157,7 +162,9 @@ class NotificationHub:
         inapp_event = _map_event_type(event_type)
         default_channels = DEFAULT_CHANNELS.get(event_type, ["in_app", "email"])
 
-        results = {"in_app": 0, "queued": {}}
+        # `failed`: مستلمون سقط تحضيرُهم فابتلعه الاحتواءُ أدناه. من يكتب علامةَ «أُرسل»
+        # في معاملة النداء (`behavior/digest.py`) يحتاجه ليعرف أنّ شيئاً لم يخرج.
+        results: dict[str, Any] = {"in_app": 0, "queued": {}, "failed": 0}
 
         if not recipients:
             # لا مستلم ⇒ لا واقعة. إشعارٌ لا يخصّ أحداً ليس حدثاً يُسجَّل.
@@ -232,6 +239,7 @@ class NotificationHub:
                     if external_channels:
                         _register(user, external_channels, None)
                 except (OSError, RuntimeError, ValueError, KeyError) as e:
+                    results["failed"] += 1
                     # [B4-7O] `{user}` يستدعي `__str__` فيُسرّب الاسم الكامل.
                     # والمُعرِّف يكفي للتتبّع، ونوعُ الاستثناء يكفي للتصنيف —
                     # وتفصيلُه يبقى في التتبّع لا في نصّ الرسالة.
@@ -262,6 +270,7 @@ class NotificationHub:
                         if external_channels:
                             intents.append((user, external_channels))
                     except (OSError, RuntimeError, ValueError, KeyError) as e:
+                        results["failed"] += 1
                         # [B4-7O] كما أعلاه — مُعرِّفٌ ونوع، لا اسمٌ ولا نصّ خطأ.
                         logger.error(
                             "hub dispatch failed recipient_id=%s error=%s",
@@ -323,13 +332,22 @@ class NotificationHub:
         )
 
     @staticmethod
-    def dispatch_to_parents(event_type, school, student, title, body="", **kwargs):
-        """إرسال لأولياء أمور طالب محدد"""
+    def dispatch_to_parents(
+        event_type, school, student, title, body="", *, behavior_viewers_only=False, **kwargs
+    ):
+        """إرسال لأولياء أمور طالب محدد.
+
+        `behavior_viewers_only`: لمن رُبط بـ`can_view_behavior` وحدَه — كما تعرض بوابتُه.
+        تطلبه مخالفاتُ الرصد (قرار 2026-09-16) فلا تبلغ وليّاً حجبت المدرسةُ عنه السلوك.
+        والمخالفةُ اليدويّة على حالها حتى يُقرَّر فيها (المالك ومسؤولُ حماية البيانات).
+        """
         from core.models import ParentStudentLink
 
         links = ParentStudentLink.objects.filter(student=student, school=school).select_related(
             "parent"
         )
+        if behavior_viewers_only:
+            links = links.filter(can_view_behavior=True)
         recipients = [link.parent for link in links]
 
         # ── PDPPL: استبعاد ولي أمر سحب موافقته على نوع بيانات هذا الحدث ──
@@ -354,6 +372,7 @@ _CONSENT_DATA_TYPE = {
     "behavior_l3": "behavior",
     "behavior_l4": "behavior",
     "behavior_risk": "behavior",
+    "behavior_digest": "behavior",
     "parent_summon": "behavior",
     "sent_home": "behavior",
     "absence": "attendance",
@@ -479,7 +498,7 @@ def _create_dispatch(
     return dispatch
 
 
-def _filter_consent(recipients, event_type, school, student):
+def _filter_consent(recipients: list[Any], event_type: str, school: Any, student: Any) -> list[Any]:
     """يستبعد أولياء الأمور الذين سحبوا موافقتهم (is_given=False) على نوع
     البيانات المرتبط بالحدث — تطبيقاً لـ PDPPL (قانون قطر 13/2016).
     عدم وجود سجل ⇒ مسموح (الافتراضي). 'all' يغطّي كل الأنواع."""
@@ -538,6 +557,7 @@ def _map_event_type(hub_event):
         "behavior_l3": "behavior",
         "behavior_l4": "behavior",
         "behavior_risk": "behavior",
+        "behavior_digest": "behavior",
         "absence": "absence",
         "class_exit": "general",
         "grade": "grade",

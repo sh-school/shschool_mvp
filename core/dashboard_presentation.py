@@ -36,6 +36,19 @@ def _pending(count, tone: str = "amber") -> str:
     return tone if count else "green"
 
 
+def chunk_for_grid(items: list, columns: int) -> list[list]:
+    """يقسم قائمةً طويلةً إلى أعمدةٍ متجاورة — تُعرض داخل `.auto-grid` في القالب.
+
+    بطاقةٌ فيها قائمةٌ قصيرةُ السطر (اسمٌ ورقم) وصفوفُها عشرات كانت تُرسم
+    عموداً واحداً طويلاً بعرض الصفحة كاملها وباقي عرضها فارغ. التقسيمُ
+    متتابعٌ لا تبادليّ: أوّلُ عمودٍ يحمل رأسَ القائمة ثم يليه العمود الثاني.
+    """
+    if not items:
+        return []
+    size = -(-len(items) // columns) or 1  # ceil division
+    return [items[i : i + size] for i in range(0, len(items), size)]
+
+
 def present(ctx: dict) -> dict:
     """المفاتيحُ التي يقرؤها قالبُ الدور — تُضاف فوق سياق العرض."""
     kind = ctx.get("view_type")
