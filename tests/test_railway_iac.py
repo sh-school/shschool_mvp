@@ -75,3 +75,17 @@ def test_iac_never_carries_variable_values(iac):
     assert "preserve()" in iac
     # لا سطرَ يُسند قيمةً إلى اسمِ متغيّرٍ بيئيّ.
     assert not re.search(r'[A-Z][A-Z0-9_]{3,}:\s*"[^"]+"', iac.replace('builder: "DOCKERFILE"', ""))
+
+
+def test_every_service_can_read_rotated_ciphertext(iac):
+    """المفتاحُ الجاري والقديمُ معاً لكلّ خدمة — وإلّا كسر التدويرُ القراءةَ على بعضها (P1-5)."""
+    shared = re.search(r"const SHARED_VARIABLES = \[(.*?)\] as const;", iac, re.DOTALL).group(1)
+    assert '"FERNET_KEY"' in shared and '"FERNET_OLD_KEYS"' in shared
+
+    for block_name in ("WEB_VARIABLES", "WORKER_VARIABLES"):
+        block = re.search(rf"const {block_name} = \[(.*?)\] as const;", iac, re.DOTALL).group(1)
+        assert "...SHARED_VARIABLES" in block, block_name
+    for name in ("shschool_mvp", "celery-worker", "celery-beat"):
+        assert re.search(
+            r"variables: keep\((SHARED|WEB|WORKER)_VARIABLES\)", _service_block(iac, name)
+        )

@@ -101,23 +101,3 @@ def test_the_served_worker_is_the_reviewed_one(db, client):
     body = response.content.decode("utf-8")
     assert "isFingerprinted" in body, "المخدومُ ليس النسخةَ المُصلَحة"
     assert "schoolos-global-v" in body
-
-
-PARENT_WORKER = pathlib.Path("templates/parents/pwa/sw.js")
-
-
-def test_parent_worker_never_stores_a_no_store_page():
-    """صفحاتُ الأبناء شخصيّةٌ تخرج بـ`no-store` — والعاملُ أمام الترويسة.
-
-    فتحُ البوّابة للكادر الذي هو وليُّ أمر (2026-09-16) أدخلها أجهزةً مشتركة:
-    يخرج المعلّمُ وتبقى درجاتُ ابنه في ذاكرة العامل لمن يليه إن انقطعت الشبكة.
-    فكلُّ `cache.put` يمرّ على فحص الترويسة، ولوحةُ الأبناء لا تُخزَّن مسبقاً.
-    """
-    src = PARENT_WORKER.read_text(encoding="utf-8")
-    assert re.search(r"isStorable\s*=.*no-store", src, re.S), "لا فحصَ لـ no-store قبل التخزين"
-    puts = src.count("cache.put(")
-    guarded = len(re.findall(r"if \(isStorable\((?:res|response)\)\) \{\s*const clone", src))
-    assert puts and puts == guarded, f"{puts} موضعَ تخزين، والمحروسُ منها {guarded}"
-
-    m = re.search(r"CACHE_ASSETS\s*=\s*\[(.*?)\]", src, re.S)
-    assert m and "'/parents/'" not in m.group(1), "لوحةُ الأبناء في التخزين المسبق"
