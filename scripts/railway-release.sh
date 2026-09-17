@@ -6,11 +6,9 @@ set -e
 
 echo "🚀 SchoolOS Railway Release Phase Starting..."
 echo "=============================================="
-
-# 1. Migrations
-echo ""
-echo "📦 Running database migrations..."
-python manage.py migrate --noinput
+# الهجراتُ صارت في scripts/railway-migrate.sh (preDeployCommand، P4-1): تُطبَّق
+# قبل هذا السكربت، على النسخة القديمة، فيتوقّف النشرُ عند فشلها بدل أن تدخل
+# النسخةُ الجديدةُ حلقةَ إعادة تشغيل.
 
 # 1b. Seed classroom-observation criteria (idempotent — يزرع كل المدارس)
 echo ""

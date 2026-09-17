@@ -60,7 +60,10 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
 
     steps:
+      # عمقٌ كامل: حارسُ الهجرات (أدناه) يقارن بمرجعٍ سابق، ولا يجده checkout الضحل.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -91,6 +94,34 @@ jobs:
       # كانتا في ci.yml وحده، وهو الملفُّ الذي أُزيل لأنّ بقيّته تكرارٌ لهذه البوّابة.
       - name: التحقق من عدم وجود migrations غير مطبّقة
         run: python manage.py makemigrations --check --noinput
+
+      # حارسُ الهجرات (P4-1): يفحص الهجراتِ المضافةَ في هذا الفرع/الدمج وحدَها —
+      # لا تاريخَ المشروع كلَّه، فبعض عمليّات إعادة التسمية القديمة (unique_together)
+      # تحتاج انتراعاً من قاعدةٍ في حالتها التاريخيّة، ولا معنى لفحصها من جديد.
+      # سلسلةُ التوسيع ثمّ التقليص (CLAUDE.md): عمودٌ يُضاف في إصدار، يتوقّف
+      # استعمالُه في تالٍ، ويُحذف في ثالث — لا حذفَ وإضافةَ استعمالٍ في نشرةٍ واحدة.
+      - name: تحديد مرجع المقارنة لحارس الهجرات
+        id: migration-base
+        run: |
+          case "${{ github.event_name }}" in
+            pull_request) BASE="${{ github.event.pull_request.base.sha }}" ;;
+            merge_group)  BASE="${{ github.event.merge_group.base_sha }}" ;;
+            *)
+              BEFORE="${{ github.event.before }}"
+              if [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+                BASE="$BEFORE"
+              else
+                BASE=""
+              fi
+              ;;
+          esac
+          echo "sha=$BASE" >> "$GITHUB_OUTPUT"
+
+      - name: حارسُ الهجرات — عمودٌ مستعمَلٌ يُحذف يسقط هنا (django-migration-linter)
+        if: steps.migration-base.outputs.sha != ''
+        run: |
+          pip install django-migration-linter==6.0.0
+          python manage.py lintmigrations --git-commit-id "${{ steps.migration-base.outputs.sha }}" --ignore-sqlmigrate-errors
 
       - name: فحص إعدادات Django
         run: python manage.py check --fail-level WARNING

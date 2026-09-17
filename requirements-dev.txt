@@ -19,6 +19,9 @@ black==26.3.1
 isort==5.13.2
 ruff==0.4.4
 
+# حارس الهجرات (P4-1): `python manage.py lintmigrations --git-commit-id main`
+django-migration-linter==6.0.0
+
 # Type checking
 mypy==1.10.0
 django-stubs==5.0.2

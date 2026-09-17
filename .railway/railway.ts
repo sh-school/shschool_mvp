@@ -98,6 +98,10 @@ export default defineRailway(() => {
     source: github(REPO),
     build: DOCKER_BUILD,
     start: "bash scripts/railway-release.sh",
+    // الهجراتُ وحدَها، قبل أن تُبنى النسخةُ الجديدة (P4-1): تفشل هي فيتوقّف
+    // النشرُ والقديمةُ لا تزال تخدم، بدل أن تدخل النسخةُ الجديدةُ حلقةَ
+    // إعادة تشغيلٍ بعد أن استبدلت القديمةَ فعلاً. انظر scripts/railway-migrate.sh.
+    preDeployCommand: "bash scripts/railway-migrate.sh",
     healthcheck: "/health/",
     healthcheckTimeout: 100,
     deploy: RESTART_ON_FAILURE,

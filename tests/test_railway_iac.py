@@ -49,6 +49,27 @@ def test_web_service_is_declared_as_deployed(iac):
     assert "source: github(REPO)" in web
 
 
+def test_web_service_runs_migrations_before_the_new_release_is_built(iac):
+    """P4-1: هجرةٌ فاشلة توقف النشر بدل أن تدخل النسخةَ الجديدة حلقةَ إعادة تشغيل."""
+    web = _service_block(iac, "shschool_mvp")
+    assert 'preDeployCommand: "bash scripts/railway-migrate.sh"' in web
+
+
+def test_migrate_script_only_migrates():
+    migrate_script = (ROOT / "scripts" / "railway-migrate.sh").read_text(encoding="utf-8")
+    assert "manage.py migrate --noinput" in migrate_script
+    # لا شيءَ آخر يعمل هنا — لا collectstatic ولا بذرٌ ولا تشغيلُ خادم: النسخةُ
+    # القديمة توقّفت لتوّها إن فشلت هذه الهجرة، فأيّ عملٍ إضافيّ فشله يخفي فشلَها.
+    for other in ("collectstatic", "daphne", "createsuperuser"):
+        assert other not in migrate_script
+
+
+def test_release_script_no_longer_migrates():
+    # الهجراتُ صارت في preDeployCommand — تكرارُها هنا يشغّلها مرّتين لكلّ نشرة.
+    release_script = (ROOT / "scripts" / "railway-release.sh").read_text(encoding="utf-8")
+    assert "manage.py migrate" not in release_script
+
+
 def test_worker_service_has_no_http_healthcheck(iac):
     worker = _service_block(iac, "celery-worker")
     assert 'start: "bash scripts/railway-worker.sh"' in worker
