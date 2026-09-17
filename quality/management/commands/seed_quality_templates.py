@@ -2,15 +2,14 @@
 بذر قوالب التقييم الوزارية السبعة — الاستمارات الرسمية من 06_attendance_performance_review.md
 الإصدار: 2026-09-14
 """
-import sys
-from decimal import Decimal
 
 from django.core.management.base import BaseCommand, CommandError
+from django.db import transaction
+from django.db.models import Q
 
-from core.models import CustomUser, School, Role
 from core.academic_calendar import default_academic_year
-from quality.models import RoleEvaluationTemplate, EvaluationAxis
-
+from core.models import School
+from quality.models import EmployeeEvaluation, EvaluationAxis, RoleEvaluationTemplate
 
 # === البيانات الوزارية المستخرجة حرفياً من المرجع ===
 
@@ -445,6 +444,19 @@ ROLE_TO_TEMPLATE = {
 }
 
 
+def _locked_evaluations(template):
+    """
+    إصلاح ب.2 (مراجعة عدائيّة): التقييماتُ المرتبطة بهذا القالب والتي عليها
+    درجاتٌ محفوظة (EvaluationScore) أو حالتها تجاوزت المسودّة — لا يجوز تعديلُ
+    وزن/تسمية محاور قالبها من تحتها، فذلك يُفسد مجموعاً مُعتمَداً أو مُقدَّماً.
+    """
+    return (
+        EmployeeEvaluation.objects.filter(template=template)
+        .filter(Q(status__in=["submitted", "approved", "acknowledged"]) | Q(scores__isnull=False))
+        .distinct()
+    )
+
+
 class Command(BaseCommand):
     help = """
     بذر قوالب التقييم الوزارية السبعة من المرجع 06_attendance_performance_review.md
@@ -471,9 +483,7 @@ class Command(BaseCommand):
         apply_changes = options.get("apply")
 
         if not dry_run and not apply_changes:
-            self.stdout.write(
-                self.style.ERROR("استخدم --dry-run أو --apply")
-            )
+            self.stdout.write(self.style.ERROR("استخدم --dry-run أو --apply"))
             return
 
         try:
@@ -500,72 +510,96 @@ class Command(BaseCommand):
         self.stdout.write("")
 
         for template_key, template_data in TEMPLATES.items():
-            self.stdout.write(
-                self.style.SUCCESS(f"قالب: {template_data['label']}")
-            )
+            self.stdout.write(self.style.SUCCESS(f"قالب: {template_data['label']}"))
             self.stdout.write(f"  المصدر: {template_data['source']}")
             self.stdout.write(f"  المحاور: {len(template_data['axes'])}")
 
             # حساب مجموع الأوزان
             total_weight = sum(a["weight"] for a in template_data["axes"])
             if total_weight == 100:
-                self.stdout.write(
-                    self.style.SUCCESS(f"  ✓ مجموع الأوزان: {total_weight}")
-                )
+                self.stdout.write(self.style.SUCCESS(f"  ✓ مجموع الأوزان: {total_weight}"))
             else:
                 self.stdout.write(
-                    self.style.ERROR(
-                        f"  ✗ مجموع الأوزان: {total_weight} (يجب أن يكون 100)"
-                    )
+                    self.style.ERROR(f"  ✗ مجموع الأوزان: {total_weight} (يجب أن يكون 100)")
                 )
 
             for axis in template_data["axes"]:
                 self.stdout.write(f"    - {axis['label']} ({axis['weight']}%)")
+
+            # إصلاح ب.2: عدد التقييمات القائمة المتأثّرة لهذا الدور — لو
+            # كان القالبُ موجوداً فعلاً وعليه تقييماتٌ مقفلة، فلن يُعدَّل.
+            existing = RoleEvaluationTemplate.objects.filter(
+                school=school, role_name=template_key, academic_year=academic_year
+            ).first()
+            if existing:
+                locked_count = _locked_evaluations(existing).count()
+                if locked_count:
+                    self.stdout.write(
+                        self.style.WARNING(
+                            f"  ⚠ {locked_count} تقييماً قائماً مقفلاً على هذا القالب — لن تُعدَّل محاوره"
+                        )
+                    )
             self.stdout.write("")
 
     def _apply(self, school, academic_year):
         """تطبيق البذر"""
         created_count = 0
         updated_count = 0
+        skipped_locked = 0
 
         for template_key, template_data in TEMPLATES.items():
-            template, created = RoleEvaluationTemplate.objects.get_or_create(
-                school=school,
-                role_name=template_key,
-                academic_year=academic_year,
-                defaults={"is_active": True},
-            )
-
-            if created:
-                created_count += 1
-                self.stdout.write(
-                    self.style.SUCCESS(f"✓ أنشئ: {template_data['label']}")
-                )
-            else:
-                updated_count += 1
-                self.stdout.write(
-                    self.style.WARNING(f"⟳ موجود: {template_data['label']}")
+            with transaction.atomic():
+                template, created = (
+                    RoleEvaluationTemplate.objects.select_for_update().get_or_create(
+                        school=school,
+                        role_name=template_key,
+                        academic_year=academic_year,
+                        defaults={"is_active": True},
+                    )
                 )
 
-            # إضافة المحاور
-            for axis_data in template_data["axes"]:
-                axis, axis_created = EvaluationAxis.objects.get_or_create(
-                    template=template,
-                    key=axis_data["key"],
-                    defaults={
-                        "label": axis_data["label"],
-                        "weight": axis_data["weight"],
-                        "order": axis_data["order"],
-                    },
-                )
-                if not axis_created and (
-                    axis.label != axis_data["label"]
-                    or axis.weight != axis_data["weight"]
-                ):
-                    axis.label = axis_data["label"]
-                    axis.weight = axis_data["weight"]
-                    axis.order = axis_data["order"]
-                    axis.save()
+                if created:
+                    created_count += 1
+                    self.stdout.write(self.style.SUCCESS(f"✓ أنشئ: {template_data['label']}"))
+                else:
+                    updated_count += 1
+                    self.stdout.write(self.style.WARNING(f"⟳ موجود: {template_data['label']}"))
+
+                # إصلاح ب.2: يُعاد فحصُ القفل هنا داخل معاملة الكتابة نفسها
+                # (لا خارجها كما في --dry-run) لتفادي فتحةٍ بين الفحص والكتابة.
+                locked_count = _locked_evaluations(template).count() if not created else 0
+
+                # إضافة المحاور
+                for axis_data in template_data["axes"]:
+                    axis, axis_created = EvaluationAxis.objects.get_or_create(
+                        template=template,
+                        key=axis_data["key"],
+                        defaults={
+                            "label": axis_data["label"],
+                            "weight": axis_data["weight"],
+                            "order": axis_data["order"],
+                        },
+                    )
+                    if not axis_created and (
+                        axis.label != axis_data["label"] or axis.weight != axis_data["weight"]
+                    ):
+                        if locked_count:
+                            skipped_locked += 1
+                            self.stdout.write(
+                                self.style.ERROR(
+                                    f"  ⚠ تخطّي تعديل «{axis.label}» — {locked_count} تقييماً"
+                                    " قائماً مقفلاً على هذا القالب"
+                                )
+                            )
+                            continue
+                        axis.label = axis_data["label"]
+                        axis.weight = axis_data["weight"]
+                        axis.order = axis_data["order"]
+                        axis.save()
 
         self.stdout.write(self.style.SUCCESS(f"✓ تم إنشاء: {created_count} قالب"))
         self.stdout.write(self.style.WARNING(f"⟳ تم تحديث: {updated_count} قالب"))
+        if skipped_locked:
+            self.stdout.write(
+                self.style.ERROR(f"⚠ تخطّي {skipped_locked} محوراً بسبب تقييماتٍ مقفلة عليها")
+            )
