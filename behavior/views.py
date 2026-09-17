@@ -1068,7 +1068,7 @@ def student_behavior_pdf(request, student_id):
         "student": student,
         "school": school,
         "class_name": str(cg) if cg else None,
-        "student_grade": cg.get_grade_display() if cg else None,
+        "student_grade": cg.grade.removeprefix("G") if cg else None,
         "student_section": cg.section if cg else None,
         "academic_year": year,
         "generated_at": _tz.now(),

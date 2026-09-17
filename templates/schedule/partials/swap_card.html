@@ -15,10 +15,10 @@
   ينقضي بانتهاء الأبعد منهما — والجدولُ يعود من نفسه.
   {% endcomment %}
   <div class="swap-info swap-info--slots">
-    <strong>حصة أ:</strong> {{ swap.slot_a.subject|default:"—" }} ({{ swap.slot_a.class_group }}) — {{ swap.slot_a.get_day_of_week_display }} ح{{ swap.slot_a.period_number }}
+    <strong>حصة أ:</strong> {{ swap.slot_a.subject|default:"—" }} ({{ swap.slot_a.class_group.short_label }}) — {{ swap.slot_a.get_day_of_week_display }} ح{{ swap.slot_a.period_number }}
     · {{ swap.swap_date_a|date:"d/m" }}
     &nbsp;|&nbsp;
-    <strong>حصة ب:</strong> {{ swap.slot_b.subject|default:"—" }} ({{ swap.slot_b.class_group }}) — {{ swap.slot_b.get_day_of_week_display }} ح{{ swap.slot_b.period_number }}
+    <strong>حصة ب:</strong> {{ swap.slot_b.subject|default:"—" }} ({{ swap.slot_b.class_group.short_label }}) — {{ swap.slot_b.get_day_of_week_display }} ح{{ swap.slot_b.period_number }}
     · {{ swap.swap_date_b|date:"d/m" }}
     &nbsp;|&nbsp;
     {{ swap.created_at|date:"Y/m/d H:i" }}

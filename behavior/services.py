@@ -548,7 +548,7 @@ class BehaviorService:
             "infraction": infraction,
             "school": school,
             "class_name": class_name,
-            "student_grade": cg.get_grade_display() if cg else None,
+            "student_grade": cg.grade.removeprefix("G") if cg else None,
             "student_section": cg.section if cg else None,
             "infraction_count": infraction_count,
             "academic_year": academic_year_for_school(school),

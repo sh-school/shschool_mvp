@@ -359,7 +359,7 @@ def class_results_pdf(request, class_id):
     html = render_to_string("reports/class_results.html", ctx, request=request)
     return render_pdf(
         html,
-        f"نتائج_{class_grp.get_grade_display()}_{class_grp.section}_{year}.pdf",
+        f"نتائج_{class_grp.grade.removeprefix('G')}_{class_grp.section}_{year}.pdf",
         paper_size=paper,
         as_attachment=_wants_download(request),
     )
@@ -413,7 +413,7 @@ def class_certificates_pdf(request, class_id):
     html = render_to_string("reports/class_certificates.html", page_ctx, request=request)
     return render_pdf(
         html,
-        f"شهادات_{class_grp.get_grade_display()}_{class_grp.section}_{year}.pdf",
+        f"شهادات_{class_grp.grade.removeprefix('G')}_{class_grp.section}_{year}.pdf",
         paper_size=paper,
         as_attachment=_wants_download(request),
     )
@@ -449,7 +449,7 @@ def attendance_report_pdf(request, class_id):
     html = render_to_string("reports/attendance_report.html", ctx, request=request)
     return render_pdf(
         html,
-        f"غياب_{class_grp.get_grade_display()}_{class_grp.section}_{year}.pdf",
+        f"غياب_{class_grp.grade.removeprefix('G')}_{class_grp.section}_{year}.pdf",
         paper_size=paper,
         as_attachment=_wants_download(request),
     )

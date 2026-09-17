@@ -41,7 +41,7 @@
       </span>
     </div>
     <div class="comp-info">
-      <strong>الحصة الأصلية:</strong> {{ comp.original_slot.subject|default:"—" }} ({{ comp.original_slot.class_group }}) — {{ comp.original_slot.get_day_of_week_display }} ح{{ comp.original_slot.period_number }}
+      <strong>الحصة الأصلية:</strong> {{ comp.original_slot.subject|default:"—" }} ({{ comp.original_slot.class_group.short_label }}) — {{ comp.original_slot.get_day_of_week_display }} ح{{ comp.original_slot.period_number }}
       &nbsp;|&nbsp;
       <strong>التعويض:</strong> {{ comp.compensatory_date|date:"Y/m/d" }} ح{{ comp.compensatory_period }}
       &nbsp;|&nbsp;

@@ -154,7 +154,7 @@ def section_students(request, class_id):
         "student_info/section_students.html",
         {
             "group": group,
-            "title": f"{group.get_grade_display()} — الشعبة {group.section}",
+            "title": group.short_label,
             "subtitle": " · ".join(filter(None, [group.get_track_display(), _ltr(year)])),
             # الطالبُ بقيده الجاري: قيدٌ قديمٌ نشطٌ في هذه الشعبة لا يُظهر للمشرف
             # طالباً صار في جناحٍ آخر.
@@ -212,7 +212,7 @@ def _file_subtitle(class_group, year):
     """«الصفّ — الشعبة · المسار · العام» — ومن لا شعبةَ له هذا العام: العامُ وحده."""
     if not class_group:
         return _ltr(year)
-    head = f"{class_group.get_grade_display()} — الشعبة {class_group.section}"
+    head = class_group.short_label
     return " · ".join(filter(None, [head, class_group.get_track_display(), _ltr(year)]))
 
 

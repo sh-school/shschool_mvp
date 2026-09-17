@@ -241,7 +241,7 @@
     <td class="val">{{ student.national_id|default:"—" }}</td>
     {% if enrollment %}
     <td class="lbl">الفصل الدراسي</td>
-    <td class="val">{{ enrollment.class_group }}</td>
+    <td class="val">{{ enrollment.class_group.short_label }}</td>
     {% endif %}
   </tr>
   <tr>

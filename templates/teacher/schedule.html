@@ -56,7 +56,7 @@
     <select id="f-class" name="class" class="form-control" data-autosubmit>
       <option value="">— كل الفصول —</option>
       {% for cg in filter_classes %}
-      <option value="{{ cg.id }}" {% if class_filter == cg.id|slugify %}selected{% endif %}>{{ cg.grade }}/{{ cg.section }}</option>
+      <option value="{{ cg.id }}" {% if class_filter == cg.id|slugify %}selected{% endif %}>{{ cg.short_label }}</option>
       {% endfor %}
     </select>
   </div>
@@ -79,7 +79,7 @@
   <div class="plain-list__row next-session">
     <span class="plain-list__main">
       <b class="plain-list__title">{{ next_session.subject.name_ar|default:"حصة" }}</b>
-      <span class="plain-list__sub">{{ next_session.class_group }}</span>
+      <span class="plain-list__sub">{{ next_session.class_group.short_label }}</span>
     </span>
     <a href="{% url 'attendance' next_session.id %}" class="btn-primary btn-sm">
       {% if is_recorder or not next_session.class_group.wing_id %}ابدأ الحضور ←{% else %}عرض الحضور ←{% endif %}

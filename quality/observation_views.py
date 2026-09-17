@@ -174,6 +174,7 @@ def _form_context(school, *, obs=None, scores_map=None, is_self=False, is_peer=F
     ctx.update(
         {
             "grouped_criteria": grouped,
+            "total_criteria": sum(len(items) for _, items in grouped),
             "rating_choices": RATING_CHOICES,
             "follow_up_modes": FOLLOW_UP_MODE,
             "follow_up_scopes": FOLLOW_UP_SCOPE,
