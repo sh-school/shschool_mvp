@@ -70,8 +70,16 @@ def report_viewer(request):
 
 
 def _has_parent_access(request, student, school) -> bool:
-    """يتحقق من أن المستخدم الحالي هو ولي أمر مرتبط بالطالب في هذه المدرسة."""
+    """يتحقق من أن المستخدم الحالي هو ولي أمر مرتبط بالطالب في هذه المدرسة — وقد وافق.
+
+    فالوصولُ بسبب الربط معالجةٌ لبيانات الابن لصالح وليّ الأمر، أيّاً كان المسار.
+    والنائبُ الذي هو وليُّ أمرٍ يبلغ هذه التقارير بدوره، فلا يمرّ بالربط قبل الموافقة.
+    """
     from core.models import ParentStudentLink
+    from core.parent_consent import needs_parent_consent
+
+    if needs_parent_consent(request.user):
+        return False
 
     return ParentStudentLink.objects.filter(
         parent=request.user, student=student, school=school
