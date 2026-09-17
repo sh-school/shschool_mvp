@@ -29,6 +29,7 @@ from core.audit_export import log_export
 from core.capabilities import capability_required, has_capability
 from core.domain.attendance import attendance_rate
 from core.domain.tones import ATTENDANCE_SUMMARY, tone_for
+from core.excel_safety import neutralize_formula_value
 from core.export_utils import (
     add_excel_footer,
     add_excel_header,
@@ -554,6 +555,7 @@ def student_export_excel(request):
             m.user.phone or "—",
             m.user.email or "—",
         ]
+        row_data = [neutralize_formula_value(v) for v in row_data]
         for col, val in enumerate(row_data, 1):
             cell = ws.cell(row=data_start + i, column=col, value=val)
             cell.font = cell_font
@@ -2233,6 +2235,7 @@ def behavior_export_excel(request):
             mask_national_id(rec["student__national_id"]),
             rec["count"],
         ]
+        row_data = [neutralize_formula_value(v) for v in row_data]
         for col, val in enumerate(row_data, 1):
             cell = ws.cell(row=data_start + i, column=col, value=val)
             cell.font = cell_font

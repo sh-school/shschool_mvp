@@ -25,6 +25,7 @@ Middleware يضمن وجود حصص الأسبوع الحالي لكل مدرس�
 import logging
 from datetime import date
 
+import redis
 from django.core.cache import cache
 from django.utils import timezone
 
@@ -90,7 +91,7 @@ class SessionAutoGenerateMiddleware:
             if cache.get(cache_key):
                 _DONE_TODAY[school.id] = today
                 return  # أنجزه عاملٌ آخر — لا شيء للفعل
-        except (OSError, ConnectionError):
+        except (OSError, ConnectionError, redis.exceptions.RedisError):
             pass  # Redis غائب — ذاكرةُ العمليّة أعلاه تكفي لمنع التكرار
 
         # ── التوليد الفعلي ──
@@ -108,7 +109,7 @@ class SessionAutoGenerateMiddleware:
             # ويُخبَر العمّالُ الآخرون عبر الـcache لأربع ساعات
             try:
                 cache.set(cache_key, True, timeout=14400)
-            except (OSError, ConnectionError):
+            except (OSError, ConnectionError, redis.exceptions.RedisError):
                 pass
 
             if count > 0:

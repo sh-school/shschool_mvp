@@ -23,6 +23,7 @@ NotificationHub — الموجّه المركزي لكل الإشعارات
 import logging
 from typing import Any
 
+import redis
 from django.conf import settings
 from django.db import transaction
 from kombu.exceptions import OperationalError
@@ -912,6 +913,6 @@ def _push_websocket(user, notif):
                 "url": notif.related_url or "",
             },
         )
-    except (ImportError, OSError, RuntimeError, AttributeError) as exc:
+    except (ImportError, OSError, RuntimeError, AttributeError, redis.exceptions.RedisError) as exc:
         # لا نُوقف hub.dispatch() أبداً بسبب WebSocket
         logger.warning(f"WS push failed (non-critical): {exc}")
