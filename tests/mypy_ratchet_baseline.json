@@ -79,7 +79,7 @@
   "core/module_registry.py": 1,
   "core/navigation.py": 6,
   "core/pdf_utils.py": 22,
-  "core/permissions.py": 54,
+  "core/permissions.py": 52,
   "core/querysets.py": 19,
   "core/request_utils.py": 2,
   "core/rls.py": 2,
@@ -142,7 +142,6 @@
   "shschool/settings/development.py": 2,
   "shschool/settings/production.py": 4,
   "shschool/settings/staging.py": 4,
-  "shschool/urls.py": 1,
   "staff_affairs/models.py": 4,
   "staging/models.py": 1,
   "student_affairs/models.py": 2,
@@ -153,5 +152,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1867
+ "total": 1864
 }
