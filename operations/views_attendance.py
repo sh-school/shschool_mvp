@@ -407,7 +407,7 @@ def mark_return(request, session_id):
     if denied:
         return denied
     student = _enrolled_student(request, session)
-    come_back(session, student)
+    come_back(session, student, by=request.user)
     return _exit_cell(request, session, student)
 
 

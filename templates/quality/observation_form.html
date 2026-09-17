@@ -24,7 +24,16 @@
         <p class="qobs-fields__self"><b>المعلّم:</b> أنت <span class="pr-muted">(تقييم ذاتي لأدائك)</span></p>
         {% else %}
         <label>{% if is_peer %}الزميل الذي أزوره *{% else %}المعلّم *{% endif %}
-          <select name="teacher" required class="form-control">
+          {% comment %}
+          `load` إلى جانب `change`: متصفّحاتٌ تُعيد قيمة `<select>` من
+          تاريخ الصفحة عند تحديثها أو العودة إليها بلا حدث `change` —
+          فيبقى المعلّم ظاهراً مختاراً وصفُّ الجدول عالقاً على رسالة
+          «اختر المعلّم والتاريخ». `load` يطلب الجدولَ مرّةً فور التحميل
+          بالقيمة الحاضرة أيّاً كانت، فارغةً أو مُستعادة.
+          {% endcomment %}
+          <select name="teacher" id="qobs-teacher" required class="form-control"
+            hx-get="{% url 'observation_teacher_schedule' %}" hx-trigger="change, load"
+            hx-target="#teacher-schedule-row" hx-include="#qobs-date">
             <option value="">— اختر —</option>
             {% for t in teachers %}
             <option value="{{ t.id }}" {% if obs and obs.teacher_id == t.id %}selected{% endif %}>{{ t.full_name }}</option>
@@ -32,8 +41,22 @@
           </select>
         </label>
         {% endif %}
+        <label>التاريخ <input type="date" name="observation_date" id="qobs-date" required class="form-control"
+          value="{% if obs %}{{ obs.observation_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}"
+          {% if not is_self %}hx-get="{% url 'observation_teacher_schedule' %}" hx-trigger="change"
+          hx-target="#teacher-schedule-row" hx-include="#qobs-teacher"{% endif %}></label>
+      </div>
+      {% if not is_self %}
+      {% comment %}
+      جدولُ المعلّم لهذا التاريخ — سطرٌ واحد يُختار منه بنقرة بدل إدخال
+      المادّة والشعبة يدويّاً. مُعبَّأٌ عند التعديل بحصص تاريخ الزيارة
+      نفسه من أوّل تحميل (schedule_row من _form_context).
+      {% endcomment %}
+      {% include "quality/partials/teacher_schedule_row.html" with periods=schedule_row.periods error=schedule_row.error has_query=schedule_row.has_query %}
+      {% endif %}
+      <div class="qobs-fields">
         <label>المادّة
-          <select name="subject" class="form-control">
+          <select name="subject" id="qobs-subject" class="form-control">
             <option value="">—</option>
             {% for s in subjects %}
             <option value="{{ s.id }}" {% if obs and obs.subject_id == s.id %}selected{% endif %}>{{ s.name_ar }}</option>
@@ -41,16 +64,14 @@
           </select>
         </label>
         <label>الصّف
-          <select name="class_group" class="form-control">
+          <select name="class_group" id="qobs-class-group" class="form-control">
             <option value="">—</option>
             {% for c in class_groups %}
             <option value="{{ c.id }}" {% if obs and obs.class_group_id == c.id %}selected{% endif %}>{{ c }}</option>
             {% endfor %}
           </select>
         </label>
-        <label>التاريخ <input type="date" name="observation_date" required class="form-control"
-          value="{% if obs %}{{ obs.observation_date|date:'Y-m-d' }}{% endif %}"></label>
-        <label>الحصة <input type="number" name="period" min="1" max="8" class="form-control"
+        <label>الحصة <input type="number" name="period" id="qobs-period" min="1" max="8" class="form-control"
           value="{{ obs.period|default_if_none:'' }}"></label>
         <label>الموضوع <input type="text" name="topic" class="form-control" value="{{ obs.topic|default:'' }}"></label>
         <label>نوع المتابعة
@@ -121,4 +142,23 @@
   </form>
 
 </div>
+{% if not is_self %}
+<script nonce="{{ request.csp_nonce }}">
+  // SOS-20260915: نقرةُ حصّةٍ في صفّ جدول المعلّم تملأ المادّة والشعبة
+  // ورقم الحصّة — بدل إدخالها يدويّاً عن ظهر قلب. تفويضٌ من `document`
+  // لا `onclick` في القالب (CSP `nonce` يُلغي `'unsafe-inline'` للسمات
+  // كما للسكربتات، ولا ينفعه nonce لأنه سمةٌ لا وسم)، وهذا أيضاً يعمل
+  // بعد كل استبدال HTMX لصفّ الجدول بلا إعادة ربط.
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.qobs-schedule-pill');
+    if (!btn) return;
+    document.getElementById('qobs-subject').value = btn.dataset.subject || '';
+    document.getElementById('qobs-class-group').value = btn.dataset.classGroup || '';
+    document.getElementById('qobs-period').value = btn.dataset.period || '';
+    document.querySelectorAll('.qobs-schedule-pill').forEach(function (el) {
+      el.classList.toggle('is-active', el === btn);
+    });
+  });
+</script>
+{% endif %}
 {% endblock %}
