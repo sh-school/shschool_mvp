@@ -428,6 +428,13 @@
       <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% icon "maintenance" %} الإدارة <span class="chv">▼</span></button>
 
     {% endif %}
+    {% comment %}
+    الكادرُ الذي هو وليُّ أمرٍ أيضاً (قرارُ 2026-09-16): بابُه إلى أبنائه — والموافقةُ
+    تُطلب منه هناك لا في عمله. والعضويّةُ من المحفوظ على الكائن، فلا استعلامَ لكلّ صفحة.
+    {% endcomment %}
+    {% if role != "parent" and request.user.has_parent_membership and request.user|can_open:"parent_dashboard" %}
+      <a href="{% url 'parent_dashboard' %}" class="nb" id="nav-my-portal">{% icon "children" %} بوابتي</a>
+    {% endif %}
     </div>
 
   </div>
@@ -917,8 +924,8 @@
     SchoolOS v{{ platform_version }} &ensp;·&ensp; &copy; {% now "Y" %}
   </p>
   <p class="site-footer-vision">{% include "components/ministry_vision.html" %}</p>
-  {# Azkia brand attribution — شعار + اسم الشركة في نفس السطر #}
-  <div class="site-footer-brand" aria-label="Azkia brand attribution">
+  {# Azkia brand attribution + توقيع المطوّر سفيان مسيف — كلاهما في نفس السطر #}
+  <div class="site-footer-brand" aria-label="Azkia and Sufyan Mesyef brand attribution">
     <span class="site-footer-brand-label">طُوِّر بواسطة</span>
     <img
       src="{% static 'brand/azkia-logo.svg' %}"
@@ -929,6 +936,17 @@
       loading="lazy"
     />
     <span class="site-footer-brand-name">أذكياء للبرمجيات</span>
+    <span class="site-footer-brand-sep" aria-hidden="true"></span>
+    <span class="site-footer-brand-logo-chip">
+      <img
+        src="{% static 'brand/sufyan-logo.png' %}"
+        alt="شعار سفيان مسيف"
+        class="site-footer-brand-logo site-footer-brand-logo--sufyan"
+        width="57"
+        height="28"
+        loading="lazy"
+      />
+    </span>
   </div>
 </footer>
 
@@ -990,6 +1008,11 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
       <span class="mobile-nav-icon">{% icon "children" %}</span><span>أبنائي</span>
     </a>
     {% endif %}
+    {% elif request.user.has_parent_membership and request.user|can_open:"parent_dashboard" %}
+    {# لا تُضاء على `/parents/admin/`: تلك شاشةُ ربطٍ للإدارة، لا بوّابتُه هو. #}
+    <a href="{% url 'parent_dashboard' %}" id="mnav-my-portal" class="mobile-nav-item {% if request.path|slice:':9' == '/parents/' and '/parents/admin/' not in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">{% icon "children" %}</span><span>بوابتي</span>
+    </a>
     {% endif %}
     {% if role == 'student' %}
     {% if request.user|can_open:"reports_index" %}
