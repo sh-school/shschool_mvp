@@ -73,7 +73,9 @@ GitHub Actions: deploy-railway.yml
   v
   ├── Job 3: deploy (Railway webhook POST)
   |       -> Railway builds Docker image
-  |       -> Railway runs scripts/railway-release.sh
+  |       -> Railway runs scripts/railway-predeploy.sh (preDeployCommand: migrate,
+  |          collectstatic, RLS role — once, before any instance takes traffic) [P4-1]
+  |       -> Railway runs scripts/railway-release.sh (start: per-instance daphne)
   |       -> Railway health check on /health/
   |       -> 60s stabilization wait
   v
@@ -371,8 +373,8 @@ railway run python manage.py migrate students 0005
 
 1. **Verify collectstatic ran during deploy:**
    ```bash
-   # Check railway-release.sh includes collectstatic
-   cat scripts/railway-release.sh
+   # collectstatic runs once in preDeployCommand (P4-1), not per-instance start
+   cat scripts/railway-predeploy.sh
    ```
 2. **Check STATIC_URL and STATIC_ROOT** in production settings
 3. **Verify whitenoise is in MIDDLEWARE** (should be second, after
@@ -433,7 +435,7 @@ ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
 
 **Cause:** `collectstatic` did not run, or whitenoise is misconfigured.
 **Fix:**
-1. Ensure `scripts/railway-release.sh` runs `python manage.py collectstatic --noinput`
+1. Ensure `scripts/railway-predeploy.sh` runs `python manage.py collectstatic --noinput`
 2. Ensure `whitenoise.middleware.WhiteNoiseMiddleware` is in MIDDLEWARE
 3. Run manually: `railway run python manage.py collectstatic --noinput`
 

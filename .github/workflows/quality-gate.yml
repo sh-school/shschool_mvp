@@ -206,6 +206,78 @@ jobs:
         run: python -m tests.mypy_ratchet
 
   # ══════════════════════════════════════════════════════
+  #  3b. migration-linter — لا هجرةَ هدّامةً بلا توسيعٍ ثمّ تقليص (P4-1)
+  # ══════════════════════════════════════════════════════
+  #
+  # django-migration-linter يولّد SQL كلّ هجرةٍ جديدةٍ (منذ فرع الأساس) بـ
+  # sqlmigrate ويفحصها: DROP COLUMN/TABLE وRENAME وNOT NULL بلا افتراضٍ كلُّها
+  # أخطاءٌ تُسقط الوظيفة. لا يُطبّق شيئاً على القاعدة (sqlmigrate لا يُنفّذ).
+  # حادثة 2026-09-11 (حذفُ عمودٍ بهجرةٍ أسقط ثماني صفحاتٍ) من هذا النوع تماماً.
+  migration-linter:
+    name: مدقّق الهجرات — Expand/Contract
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB:       test_db
+          POSTGRES_USER:     test_user
+          POSTGRES_PASSWORD: test_pass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+      SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
+      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
+      EXCEL_PROTECTION_PASSWORD: ci-testing-only
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # التاريخُ كاملاً: `--git-commit-id` يقارن بفرع الأساس، وهو أسلافُ
+          # رأس الفرع أصلاً (طلبُ الدمج/طابورُ الدمج) — لا حاجةَ لجلبٍ إضافيّ.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: تحديد الأساس للمقارنة
+        run: |
+          case "${{ github.event_name }}" in
+            pull_request) echo "BASE_SHA=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_ENV" ;;
+            merge_group)  echo "BASE_SHA=${{ github.event.merge_group.base_sha }}" >> "$GITHUB_ENV" ;;
+            *)            echo "BASE_SHA=$(git rev-parse HEAD~1)" >> "$GITHUB_ENV" ;;
+          esac
+
+      - name: تثبيت المتطلبات + المدقّق
+        # مجموعةُ pytest نفسُها التي في وظيفة test-coverage: tests/conftest.py
+        # (يُحمَّل تلقائيّاً مع أيّ اختبارٍ تحته) يستورد factory، وpyproject.toml
+        # يضبط asyncio_mode — فتُثبَّت الحزمُ كلُّها لا factory-boy وحدَه.
+        run: |
+          pip install -r requirements.txt
+          pip install django-migration-linter==5.2.0 \
+            pytest pytest-django pytest-cov pytest-asyncio factory-boy
+
+      - name: التحقّق من أنّ الآلة نفسَها تُسقط عموداً محذوفاً
+        # لا تشغيلَ هنا لهجرةٍ حقيقيّة — اختبارٌ حتميّ على المحلّل نفسِه
+        # (tests/test_migration_linter_wiring.py)، فلا نثق بأنّ الوظيفة تعمل، نتحقّق.
+        run: python -m pytest tests/test_migration_linter_wiring.py -q
+
+      - name: تطبيق الهجرات (الحالةُ التي تُقاس عليها هجراتُ الفرع الجديدة)
+        run: python manage.py migrate --noinput
+
+      - name: فحص هجرات الفرع منذ ${{ env.BASE_SHA }}
+        run: python manage.py lintmigrations --git-commit-id "$BASE_SHA"
+
+  # ══════════════════════════════════════════════════════
   #  4. Radon — تعقيد حلقي (CC 11-30 = تحذير، CC >= 31 = فشل)
   # ══════════════════════════════════════════════════════
   complexity:
@@ -325,7 +397,7 @@ jobs:
   gate-summary:
     name: ملخص بوابة الجودة
     runs-on: ubuntu-latest
-    needs: [test-coverage, ruff, mypy, complexity, secrets-scan]
+    needs: [test-coverage, ruff, mypy, migration-linter, complexity, secrets-scan]
     if: always()
     steps:
       - name: نتيجة بوابة الجودة
@@ -336,6 +408,7 @@ jobs:
           echo "| pytest + التغطية (py3.12، العتبة في pyproject) | ${{ needs.test-coverage.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Ruff lint + format | ${{ needs.ruff.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| mypy — سقّاطة الأنواع | ${{ needs.mypy.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| مدقّق الهجرات — Expand/Contract | ${{ needs.migration-linter.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Radon CC ≤ 30 | ${{ needs.complexity.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| detect-secrets | ${{ needs.secrets-scan.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
 
@@ -344,6 +417,7 @@ jobs:
           needs.test-coverage.result != 'success' ||
           needs.ruff.result != 'success' ||
           needs.mypy.result != 'success' ||
+          needs.migration-linter.result != 'success' ||
           needs.complexity.result != 'success' ||
           needs.secrets-scan.result != 'success'
         run: |
