@@ -252,6 +252,11 @@ def registry() -> dict[str, Capability]:
         ),
         _cap("operations.reports", "تقاريرُ الجدول والحضور", P.OPERATIONS_REPORTS),
         _cap(
+            "operations.substitutes_manage",
+            "تسجيلُ غياب معلّمٍ وتعيينُ بديله",
+            P.OPERATIONS_SUBSTITUTES_MANAGE,
+        ),
+        _cap(
             "schedule.day",
             "جدولُ اليوم",
             {

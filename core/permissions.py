@@ -381,13 +381,21 @@ BEHAVIOR_SUMMON = frozenset(
 # الصلاحيّةُ ولا يُعرف أين. وكان منها المكرَّر: `_REPORT_ROLES` بنصّه في الجدول
 # والحضور، و`_QUALITY_ALL` بنصّه في الجودة وتقاريرها.
 #
-# `EXAM_CONTROL_ACCESS` و`OPERATIONS_REPORTS` متطابقتا الأعضاء اليومَ ولم تُدمجا:
-# معناهما مختلف، وقد يفترقان. والنقلُ لم يغيّر عضواً — يحرسه
-# `tests/test_permission_groups_are_central.py`.
+# `EXAM_CONTROL_ACCESS` و`OPERATIONS_REPORTS` متطابقتا الأعضاء حتّى افترقتا
+# 2026-09-17 (قرارُ المستخدم): مشرفُ الجناح يقرأ تقاريرَ البدلاء ولا يفتح
+# الكنترول إطلاقاً، فصار له وحدَه بين الاثنتين. والنقلُ الأصليُّ لم يغيّر
+# عضواً — يحرسه `tests/test_permission_groups_are_central.py`.
 
-#: تقاريرُ الجدول والحضور.
+#: تقاريرُ الجدول والحضور — عرضٌ فقط. من يُعيّن بديلاً أو يسجّل غياب معلّمٍ
+#: فـ`OPERATIONS_SUBSTITUTES_MANAGE` أدناه.
 OPERATIONS_REPORTS = frozenset(
     {"principal", "vice_academic", "vice_admin", "coordinator", "admin_supervisor", "admin"}
+)
+#: تسجيلُ غياب معلّمٍ وتعيينُ بديله — فعلٌ لا تقرير. مشرفُ الجناح يرى
+#: `OPERATIONS_REPORTS` أعلاه ولا يكتب هنا (قرارُ المستخدم 2026-09-17:
+#: «البدلاء مشاهدة فقط»).
+OPERATIONS_SUBSTITUTES_MANAGE = frozenset(
+    {"principal", "vice_academic", "vice_admin", "coordinator", "admin"}
 )
 #: إعدادُ الجدول الإداريّ.
 SCHEDULE_ADMIN = frozenset({"principal", "vice_academic", "admin"})
@@ -412,8 +420,10 @@ SCHEDULE_BROWSE = frozenset(
 )
 #: نظامُ الكنترول. (والمصدرُ الوزاريُّ يجعل الكنترولَ لجنةً بعضويّةٍ موقوتة لا
 #: قائمةَ أدوار — `docs/rbac_role_authority_study_2026-09.md` ملحق د؛ والنقلُ لا يحسم ذلك.)
+#: مشرفُ الجناح ليس فيه بشيء (قرارُ المستخدم 2026-09-17) — أُخرج من الأعضاء
+#: بعد أن كان معهم بالنقل الأصليّ.
 EXAM_CONTROL_ACCESS = frozenset(
-    {"principal", "vice_academic", "vice_admin", "coordinator", "admin_supervisor", "admin"}
+    {"principal", "vice_academic", "vice_admin", "coordinator", "admin"}
 )
 #: شؤونُ الموظّفين — نظيرةُ `STUDENT_AFFAIRS_MANAGE`.
 STAFF_AFFAIRS_MANAGE = frozenset({"principal", "vice_admin", "vice_academic", "platform_developer"})
