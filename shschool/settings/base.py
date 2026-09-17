@@ -722,6 +722,13 @@ SCHEDULE_TIME_BUDGET_SECONDS = int(os.environ.get("SCHEDULE_TIME_BUDGET_SECONDS"
 # لا تُصدَّق (0)؛ Railway يُلحق قفزةً واحدة (الإنتاج 1). راجع core/request_utils.py.
 TRUSTED_PROXY_HOPS = int(os.environ.get("TRUSTED_PROXY_HOPS", "0"))
 
+# والحدُّ على باب الدخول وقفلُ axes يعدّان بهذا العنوان نفسه (P1-2). كانا يقرآن
+# REMOTE_ADDR، وهو على Railway عنوانُ الوكيل الداخليّ: كلُّ ما سجّله axes على
+# الإنتاج عناوينُ داخليّة (فحص 2026-09-16). فكان «عشرُ محاولاتٍ في الدقيقة لكلّ
+# عنوان» عشراً للمدرسة كلّها، ومخطئٌ واحدٌ يحبس الجميع.
+RATELIMIT_IP_META_KEY = "core.request_utils.get_client_ip"
+AXES_CLIENT_IP_CALLABLE = "core.request_utils.get_client_ip"
+
 # ── كم نسخةً سابقةً من الجدول تُبقى ────────────────────────────────────
 # كلُّ اعتمادٍ يُؤرشف الجدولَ السابق كاملاً — 870 صفّاً مطفأً — ولا يحذفه، فبلغت
 # النسخُ المؤرشفة خمساً في يومٍ واحد (2026-09-05). قرارُ المدرسة يومَها: **جدولٌ
