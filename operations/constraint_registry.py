@@ -74,7 +74,7 @@ def _hard(code, title, break_at=NEVER, tunable=True, relaxes_in_place=False, not
     )
 
 
-def _soft(code, title, weight, note=""):
+def _soft(code: str, title: str, weight: float, note: str = "") -> ConstraintSpec:
     return ConstraintSpec(code, title, SOFT, weight=weight, note=note)
 
 
