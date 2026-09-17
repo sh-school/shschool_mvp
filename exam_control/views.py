@@ -10,7 +10,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for
-from core.capabilities import capability_required
+from core.capabilities import capability_required, has_capability
 from core.permissions import EXAM_CONTROL_ACCESS
 
 from .models import (
@@ -183,7 +183,17 @@ def incidents(request, pk):
             "-incident_time"
         ),
     )
-    return render(request, "exam_control/incidents.html", {"session": session, "incidents": qs})
+    return render(
+        request,
+        "exam_control/incidents.html",
+        {
+            "session": session,
+            "incidents": qs,
+            # مشرفُ الجناح يملك `report_incident` لا `access` — فرابطُ الرجوع إلى
+            # الدورة (وبوّابةُ الكنترول في مسار التصفّح) يُخفَيان عنه، لا 403.
+            "can_access_session": has_capability(request.user, "exam_control.access"),
+        },
+    )
 
 
 def _incidents_in_scope(request, qs):
@@ -268,6 +278,7 @@ def incident_add(request, pk):
         "incident_types": ExamIncident.TYPES,
         "severity_choices": ExamIncident.SEVERITY,
         "students": students,
+        "can_access_session": has_capability(request.user, "exam_control.access"),
     }
     return render(request, "exam_control/incident_form.html", context)
 
