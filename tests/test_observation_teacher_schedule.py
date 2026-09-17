@@ -1,0 +1,124 @@
+"""[QUALITY] SOS-20260915: صفُّ جدول المعلّم عند إنشاء الزيارة الصفّية.
+
+طلب سلطان الهاجرى في بلاغه: عند اختيار المعلّم والتاريخ يظهر جدولُ ذلك
+اليوم، وتُختار الحصّةُ منه بنقرة — لا تُكتب المادّة والشعبة عن ظهر قلب.
+والمصدر Session نفسه الذي يقرأه جدولُ المعلّم اليوميّ — لا نسخةٌ ثانية.
+"""
+
+import datetime as dt
+
+import pytest
+from django.urls import reverse
+
+from operations.models import Session, Subject
+
+pytestmark = pytest.mark.django_db
+
+DAY = dt.date(2026, 9, 20)  # أحد — يوم دراسة
+
+
+@pytest.fixture
+def subject(school):
+    return Subject.objects.create(school=school, name_ar="الرياضيات", code="MATH")
+
+
+@pytest.fixture
+def a_session(school, class_group, teacher_user, subject):
+    return Session.objects.create(
+        school=school,
+        class_group=class_group,
+        teacher=teacher_user,
+        subject=subject,
+        date=DAY,
+        start_time=dt.time(7, 10),
+        end_time=dt.time(7, 55),
+        status="scheduled",
+    )
+
+
+def test_no_query_asks_to_choose(client, coordinator_user):
+    client.force_login(coordinator_user)
+
+    html = client.get(reverse("observation_teacher_schedule")).content.decode()
+
+    assert "اختر المعلّم والتاريخ" in html
+
+
+def test_a_session_becomes_a_clickable_period(client, coordinator_user, teacher_user, a_session):
+    client.force_login(coordinator_user)
+
+    html = client.get(
+        reverse("observation_teacher_schedule"),
+        {"teacher": teacher_user.id, "observation_date": DAY.isoformat()},
+    ).content.decode()
+
+    assert 'data-period="1"' in html
+    assert f'data-class-group="{a_session.class_group_id}"' in html
+    assert f'data-subject="{a_session.subject_id}"' in html
+    assert "الرياضيات" in html
+
+
+def test_no_sessions_falls_back_to_manual_entry(client, coordinator_user, teacher_user):
+    client.force_login(coordinator_user)
+
+    html = client.get(
+        reverse("observation_teacher_schedule"),
+        {"teacher": teacher_user.id, "observation_date": DAY.isoformat()},
+    ).content.decode()
+
+    assert "أدخل المادّة والشعبة والحصّة يدويّاً" in html
+
+
+def test_an_invalid_date_is_reported_not_500(client, coordinator_user, teacher_user):
+    client.force_login(coordinator_user)
+
+    resp = client.get(
+        reverse("observation_teacher_schedule"),
+        {"teacher": teacher_user.id, "observation_date": "ليس-تاريخاً"},
+    )
+
+    assert resp.status_code == 200
+    assert "تاريخٌ غير صالح" in resp.content.decode()
+
+
+def test_the_hx_include_selector_matches_the_forms_date_field_name():
+    """SOS-20260915 (بلاغ «لم تُحلّ حتى الآن»، 2026-09-17): كان الطلبُ يقرأ
+    `?date=` بينما حقلُ التاريخ في الاستمارة اسمُه `observation_date`
+    (`name="observation_date"` — اسمُ حقل النموذج الذي يُحفظ في القاعدة،
+    لا يُغيَّر لأجل هذه الميزة)، و`hx-include` يرسل الحقولَ بأسمائها كما
+    هي — فيصل الخادمَ تاريخاً فارغاً دائماً مهما اختار المستخدم، وصفُّ
+    الجدول يبقى عالقاً على «اختر المعلّم والتاريخ» مهما فعل المستخدم.
+
+    هذا الاختبار يقرأ مصدر القالب مباشرةً فيضمن أن الاسم الذي يقرؤه
+    `observation_teacher_schedule` (`request.GET.get("observation_date")`)
+    هو نفسُه اسمُ حقل `<input>` الفعليّ — لا نسخةً قد تختلف صامتاً.
+    """
+    import pathlib
+
+    source = pathlib.Path("templates/quality/observation_form.html").read_text(encoding="utf-8")
+
+    assert 'name="observation_date" id="qobs-date"' in source
+    assert 'request.GET.get("observation_date")' in pathlib.Path(
+        "quality/observation_views.py"
+    ).read_text(encoding="utf-8")
+
+
+def test_editing_a_saved_visit_shows_its_own_day_from_first_load(
+    client, school, coordinator_user, teacher_user, a_session
+):
+    """فتحُ التعديل لا ينتظر تغيير المعلّم أو التاريخ ليعرض صفّ الجدول —
+    schedule_row في `_form_context` يُعبَّأ من بيانات الزيارة المحفوظة."""
+    from quality.observation_models import ClassroomObservation
+
+    obs = ClassroomObservation.objects.create(
+        school=school,
+        teacher=teacher_user,
+        observer=coordinator_user,
+        created_by=coordinator_user,
+        observation_date=DAY,
+    )
+    client.force_login(coordinator_user)
+
+    html = client.get(reverse("observation_edit", args=[obs.id])).content.decode()
+
+    assert f'data-class-group="{a_session.class_group_id}"' in html

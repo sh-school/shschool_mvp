@@ -860,7 +860,7 @@ div#header h1 a {
 /* رؤية الوزارة — تحت سطر الإصدار، بلون الهوية لا برماديّ الإصدار */
 .site-footer-vision {
   text-align: center;
-  font-size: 11.5px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--maroon-fg);
   margin: 6px 0 0;
@@ -5457,7 +5457,12 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
    وكلُّ مجالٍ من المعايير `section_card`، والإجراءاتُ في رأس الصفحة. */
 .qobs { display: flex; flex-direction: column; gap: var(--sp-3); }
 .qobs--narrow { max-width: 1000px; margin-inline: auto; inline-size: 100%; }
-.qobs--wide { max-width: 1100px; margin-inline: auto; inline-size: 100%; }
+/* 1100px كانت تُضيّع العرض على الشاشات الواسعة — الاستمارةُ الوحيدة
+   المستعمِلة لها (observation_form.html) صفٌّ واحدٌ من الحقول لا جدولٌ
+   بنصٍّ طويل يحتاج سطراً قصيراً؛ فمعها لم يبقَ سببٌ لضيقها كسائر
+   `.exec-dash` بلا حدّ عرض. 1400px تفسح المجالَ لأعمدةٍ أكثر في شبكة
+   الحقول وصفّ حصص المعلّم بلا أن تمتدّ استمارةً معياريّةً على الشاشة كلّها. */
+.qobs--wide { max-width: 1400px; margin-inline: auto; inline-size: 100%; }
 
 .qobs-filters {
   display: grid;
@@ -5498,6 +5503,32 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
 }
 .qobs-fields label { display: flex; flex-direction: column; gap: 4px; font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary); }
 .qobs-fields__self { margin: 0; align-self: end; font-size: var(--text-sm); }
+
+/* SOS-20260915: صفُّ جدول المعلّم — يُختار منه اليوم بدل إدخال المادّة
+   والشعبة يدويّاً عن ظهر قلب (templates/quality/partials/teacher_schedule_row.html)
+   هامشٌ سالبٌ هنا سابقاً سحب الصفَّ فوق حقل المعلّم فتداخلا — لا سالب. */
+.qobs-schedule-row { margin-top: var(--sp-3); }
+/* شبكةٌ لا صفٌّ مرن: عمودان على الشاشة الضيّقة وثلاثةٌ فأكثر على الواسعة —
+   معلّمٌ بحصصٍ كثيرة (تعويضٌ وتبديلٌ وإشغالُ احتياط) لا يمتدّ صفّاً طويلاً
+   ينزل بالتمرير، بل يرتفع أعمدةً. */
+.qobs-schedule-pills { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--sp-2); }
+.qobs-schedule-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.qobs-schedule-pill:hover { border-color: var(--maroon-border); }
+.qobs-schedule-pill.is-active { border-color: var(--maroon); background: var(--maroon-bg); color: var(--maroon-fg); }
+.qobs-schedule-pill small { color: var(--text-muted); font-size: var(--text-xs); }
 
 .qobs-lead { display: grid; gap: var(--sp-2); margin-top: var(--sp-3); padding-top: var(--sp-3); border-block-start: 1px dashed var(--border-strong); }
 .qobs-lead__form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
