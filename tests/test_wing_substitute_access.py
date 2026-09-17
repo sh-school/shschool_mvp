@@ -23,6 +23,14 @@ from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture(autouse=True)
+def on_a_school_day(monkeypatch):
+    """الأربعاءُ صباحاً: يومَ الجمعة لا تُعرض الشُّعب (لا دوام)، فاختبارٌ على الساعة
+    الحقيقيّة يسقط آخرَ الأسبوع وحدَه."""
+    frozen = timezone.make_aware(dt.datetime(2026, 9, 16, 9, 0))
+    monkeypatch.setattr("django.utils.timezone.now", lambda: frozen)
+
+
 def _staff(school, name, role, national_id):
     user = UserFactory(full_name=name, national_id=national_id)
     MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name=role))

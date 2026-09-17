@@ -85,6 +85,15 @@ def _year_in_scope(request, scope) -> str:
     return scope.year_for(requested, scope.year or academic_year_for(request))
 
 
+def _absent_days():
+    """أيّامُ الغياب لا سجلّاتُ الحصص — الحرمانُ يُحسب بالأيّام.
+
+    كان «أكثرُ الطلاب غياباً» (الشاشة وPDF وExcel، وعناوينُها «أيّام الغياب») يعدّ
+    سجلّاتِ الحصص، فيصير يومٌ ونصفٌ من الغياب «عشرةً» حمراء.
+    """
+    return Count("session__date", distinct=True)
+
+
 @login_required
 # متابعةُ اليوم — الغائبون والمتأخّرون ومخالفاتُ اليوم — عملُ المشرف الإداريّ اليوميّ،
 # فيفتحها بقدرة المتابعة ويرى فيها طلبةَ جناحه وحدَهم (قرارُ المستخدم 2026-09-14).
@@ -1210,7 +1219,7 @@ def attendance_overview(request):
             )
         )
         .values("student__id", "student__full_name")
-        .annotate(absence_count=Count("id"))
+        .annotate(absence_count=_absent_days())
         .order_by("-absence_count")[:20]
     )
 
@@ -1346,7 +1355,7 @@ def attendance_export_excel(request):
             )
         )
         .values("student__full_name", "student__national_id")
-        .annotate(absence_count=Count("id"))
+        .annotate(absence_count=_absent_days())
         .order_by("-absence_count")
     )
 
@@ -2389,7 +2398,7 @@ def attendance_overview_pdf(request):
             )
         )
         .values("student__id", "student__full_name")
-        .annotate(absence_count=Count("id"))
+        .annotate(absence_count=_absent_days())
         .order_by("-absence_count")[:20]
     )
 

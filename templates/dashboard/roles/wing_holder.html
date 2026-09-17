@@ -9,13 +9,14 @@
 
   {% include "wings/partials/student_search_form.html" %}
 
-  {% if not is_school_day %}
-    <div class="wing-warn">{% icon "status_warning" %} لا دوامَ اليوم — فلا رصد.</div>
+  {% if not school_day.is_open %}
+    {% include "wings/partials/day_off.html" %}
+  {% else %}
+    {% for panel in record_panels %}
+      {% include "wings/partials/record_panel.html" %}
+    {% empty %}
+      <div class="wing-warn">{% icon "status_warning" %} لا جناحَ مُسنَدٌ إليك اليوم — راجع النائبَ الإداريّ.</div>
+    {% endfor %}
   {% endif %}
-  {% for panel in record_panels %}
-    {% include "wings/partials/record_panel.html" %}
-  {% empty %}
-    <div class="wing-warn">{% icon "status_warning" %} لا جناحَ مُسنَدٌ إليك اليوم — راجع النائبَ الإداريّ.</div>
-  {% endfor %}
 
 </div>

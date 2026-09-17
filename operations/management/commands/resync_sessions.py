@@ -3,7 +3,8 @@
     python manage.py resync_sessions --from 2026-08-30 --to 2026-09-03 [--dry-run]
 
 لكلّ يوم: تُحذف الجلساتُ التي لا تطابق حصّةً نشطةً (المعلّم، الشعبة، الوقت)
-إن كانت `scheduled` وبلا حضور، وتُنشأ الناقصة. ما له حضورٌ يُبقى ويُعَدّ في `kept`.
+إن لم يمسّها أحد، وتُنشأ الناقصة. ما مُسَّ يُبقى ويُعَدّ في `kept`.
+ويومُ إجازة الطلبة في التقويم لا حصّةَ نشطةً فيه، فجلساتُه تُعامَل كذلك.
 `--dry-run` يعرض ما سيحدث ولا يكتب شيئاً.
 """
 
@@ -13,11 +14,12 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from core.models import School
+from operations.school_days import SchoolDays
 from operations.services import ScheduleService
 
 
 class Command(BaseCommand):
-    help = "مصالحة الجلسات مع الجدول النشط لمدى تواريخ (حذف غير المطابق بلا حضور + إنشاء الناقص)"
+    help = "مصالحة الجلسات مع الجدول النشط وتقويم الإجازات لمدى تواريخ (حذف غير المطابق الذي لم يُمسّ + إنشاء الناقص)"
 
     def add_arguments(self, parser):
         parser.add_argument("--from", dest="start", required=True, help="YYYY-MM-DD")
@@ -35,10 +37,11 @@ class Command(BaseCommand):
         totals = {"deleted": 0, "created": 0, "kept": 0}
         for school in School.objects.all():
             self.stdout.write(f"== {school.name}")
+            school_days = SchoolDays(school, start, end)
             d = start
             while d <= end:
                 with transaction.atomic():
-                    r = ScheduleService.resync_sessions_for_date(school, d)
+                    r = ScheduleService.resync_sessions_for_date(school, d, school_days=school_days)
                     self.stdout.write(
                         f"  {d}: deleted={r['deleted']} created={r['created']} kept={r['kept']}"
                     )
