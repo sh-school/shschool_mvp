@@ -93,6 +93,11 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --shadow-sm:      0 1px 3px rgba(0,0,0,.08);
   --shadow-md:      0 4px 16px rgba(0,0,0,.10);
 
+  /* رقعةُ شعار سفيان مسيف في الفوتر — بيضاءُ ثابتةٌ في الوضعين لأنّ ألوانه
+     المائيّة الفاتحة ونصّه الكحليّ يختفيان على خلفيّة الفوتر الداكنة. */
+  --footer-brand-chip-bg:   #ffffff;
+  --footer-brand-chip-ring: none;
+
   /* Animation Tokens */
   --transition-fast:   100ms ease;
   --transition-base:   150ms ease;
@@ -817,14 +822,6 @@ h1.text-2xl {
 .progress-qatar-fill.pf-success { background: var(--status-success); }
 .progress-qatar-fill.pf-warning { background: var(--status-warning); }
 .progress-qatar-fill.pf-danger  { background: var(--status-danger);  }
-/* bar-fill — نفس النمط للتقارير */
-.bar-fill {
-  height: 100%;
-  width: var(--progress-w, 0%);
-  background: linear-gradient(90deg, var(--maroon-dark), var(--maroon-light));
-  border-radius: var(--radius-sm);
-  transition: width .4s ease;
-}
 
 /* ── Django Admin — تعريب اللون الرئيسي ───────────────────── */
 /* Django Admin header — مطلوب لتجاوز admin CSS */
@@ -893,6 +890,27 @@ div#header h1 a {
   width: auto;
   vertical-align: middle;
   flex-shrink: 0;
+}
+.site-footer-brand-logo--sufyan {
+  height: 20px;
+}
+.site-footer-brand-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+/* شعار سفيان مسيف بألوان مائيّة فاتحة — رقعةٌ بيضاء ثابتة تُبقيه واضحاً في الوضعين */
+.site-footer-brand-logo-chip {
+  display: inline-flex;
+  align-items: center;
+  background: var(--footer-brand-chip-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  line-height: 0;
+  flex-shrink: 0;
+  box-shadow: var(--footer-brand-chip-ring);
 }
 .site-footer-brand-name {
   font-size: var(--text-xs);
@@ -3029,12 +3047,10 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .mini-progress-wrap  { display: flex; align-items: center; gap: 0.5rem; }
 .mini-progress-track { flex: 1; height: 6px; background: var(--surface-alt); border-radius: 99px; overflow: hidden; }
 .mini-progress-fill  { height: 100%; width: var(--progress-w, 0%); border-radius: 99px; }
-.mini-progress-fill.green { background: var(--status-success); }
-.mini-progress-fill.amber { background: var(--status-warning); }
-.mini-progress-fill.red   { background: var(--status-danger); }
-.bar-fill.pf-success { background: var(--status-success); }
-.bar-fill.pf-warning { background: var(--status-warning); }
-.bar-fill.pf-danger  { background: var(--status-danger);  }
+.mini-progress-fill.green  { background: var(--status-success); }
+.mini-progress-fill.amber  { background: var(--status-warning); }
+.mini-progress-fill.red    { background: var(--status-danger); }
+.mini-progress-fill.maroon { background: var(--maroon); }
 .mini-progress-pct   { font-size: 0.72rem; font-weight: 700; min-width: 2rem; text-align: left; }
 
 /* نجمة الحقل المطلوب */
@@ -3486,6 +3502,9 @@ html.dark {
 
   --focus-ring:     0 0 0 3px rgba(184, 41, 78, .35);
 
+  --footer-brand-chip-bg:   #ffffff;
+  --footer-brand-chip-ring: 0 0 0 1px rgba(255, 255, 255, 0.08);
+
   /* ══ رموزُ الأدوار ليلاً — نظيرةُ الكتلة في `:root` ══ */
   --shadow-ink:          #000;
   --shadow-nav:          0 2px 8px rgba(0,0,0,.4);
@@ -3818,6 +3837,9 @@ html.dark .site-footer-version { color: var(--text-muted); }
 html.dark .site-footer-brand { color: var(--text-muted); }
 html.dark .site-footer-brand-label { color: var(--text-muted); }
 html.dark .site-footer-brand-name { color: var(--text-primary); }
+html.dark .site-footer-brand-logo-chip {
+  border-color: transparent;
+}
 
 /* ── 19. Buttons ────────────────────────────────────────────────── */
 html.dark .btn-secondary {
@@ -5876,17 +5898,18 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
   .sa-field--grow { flex: 1 1 240px; }
 
 /* ── templates/staff_affairs/dashboard.html و licensing.html ── */
-  /* نسبةُ الدور: شريطٌ بعرض نصيبه ورقمُه إلى جانبه، بلا أرقامٍ ثابتةٍ في الوسم. */
-  .sa-share { display: flex; align-items: center; gap: var(--sp-2); min-inline-size: 120px; }
-  .sa-share__bar { flex: 1; height: 6px; }
-  .sa-share__pct { font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; min-inline-size: 3ch; }
-  /* ثلاثُ قوائمَ متجاورةٍ حيث يتّسع — كانت في شبكة عمودين فتبقى الثالثةُ وحيدة. */
-  .sa-grid-3 {
+  /* شبكةُ أعمدةٍ تتجاور بقدر ما تتّسع النافذة (300px أدنى عرضٍ لكلّ عمود)
+     وتنفكّ تلقائياً حيث تضيق — ثلاثةٌ في licensing.html، أربعةٌ في لوحة
+     شؤون الموظفين، وأيُّ عددٍ آخر يحتاجه قالبٌ مقبل بلا كلاسٍ جديد. */
+  .auto-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
     gap: var(--sp-2);
     align-items: stretch;
   }
+  /* عمودٌ بعرض 300px أضيقُ من عرض الصفحة — سطرُ قائمةٍ فيه (اسمٌ + شارةٌ + زر)
+     يُكدَّس بلا التفافٍ، فيُؤذَن للعناصر أن تنزل سطراً إن ضاق بها المكان. */
+  .auto-grid .plain-list__row { flex-wrap: wrap; }
   .sa-link { color: var(--maroon-fg); text-decoration: none; }
   .sa-link:hover { text-decoration: underline; }
 
@@ -5944,10 +5967,6 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
 .sa-small { font-size: var(--text-xs); }
 .sa-spinner { font-size: var(--text-xs); color: var(--text-muted); }
 .sa-table-count { padding: var(--sp-2); }
-
-/* نصيبُ الصفّ من الطلاب — شريطٌ عنّابيّ ونسبتُه بجانبه. */
-.sa-share { background: var(--maroon); }
-.sa-share-pct { min-inline-size: 3ch; font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 
 /* شريطُ التبويبات في ملفّ الطالب. */
 .sa-tabs { padding: 0; overflow: hidden; }
@@ -7927,8 +7946,10 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
    `auto-fit` بحدٍّ أدنى: ثلاثٌ في سطرٍ حيث يتّسع، واثنتان على الهاتف. */
 .ui-actions {
   display: grid;
-  /* 300px: أربعٌ في سطرٍ على الشاشة العريضة — فثمانٍ سطران كاملان لا خمسٌ وثلاث. */
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  /* 160px: بلاطةٌ أيقونتُها وعنوانُها القصير — لا محتوى جدولٍ يحتاج 300px.
+     ثمانيةُ أقسامٍ (لوحةُ المدير) تسع سطراً واحداً على شاشة لابتوبٍ عاديّة
+     بدل خمسٍ وثلاث. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   gap: var(--sp-2);
 }
 @media (max-width: 640px) { .ui-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

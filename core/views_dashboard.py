@@ -440,12 +440,14 @@ def _supervisor_record_ctx(user, school, today):
     كان الرابطُ في القائمة وحدَها، ولوحتُه التي يفتحها أوّلَ الدخول لا تذكر
     الرصدَ أصلاً: عملُه اليوميُّ الرئيسيُّ غائبٌ عن صفحته الرئيسيّة.
     """
+    from core.dashboard_presentation import chunk_for_grid
     from operations.school_days import school_day
     from operations.services import ScheduleService
     from wings.services import record_panels, supervisor_watchlist
 
     year = academic_year_for_school(school)
     day = school_day(school, today)
+    watchlist = supervisor_watchlist(user, school, year, today)
     ctx = {
         "record_panels": [],
         "day": today,
@@ -453,7 +455,10 @@ def _supervisor_record_ctx(user, school, today):
         # يومَ دوامٍ وكلُّ شُعبه «لم تُرصد».
         "school_day": day,
         # ما ينتظره اليوم: إخطارُ أولياء الأمور، ومن عند العتبات (لوحتُه v1).
-        **supervisor_watchlist(user, school, year, today),
+        **watchlist,
+        # يومٌ سيّئُ الحضور يطيل القائمة عموداً واحداً — عمودان يقلّصان الطول.
+        "awaiting_contact_cols": chunk_for_grid(watchlist["awaiting_contact"], 2),
+        "at_gates_cols": chunk_for_grid(watchlist["at_gates"], 2),
     }
     if day.is_open:
         # الحصصُ تُولَّد إن لم تكن — وإلّا بدت الشُّعبُ «بلا حصص» صباحاً.

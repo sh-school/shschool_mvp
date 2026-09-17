@@ -23,6 +23,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from functools import cache
 
+from core.parent_consent import holds_parent_membership
 from core.permissions import expand_roles, role_required
 
 #: الأساسُ حين لا نصَّ ولا قرار — القدرةُ كما في الشيفرة، تنتظر المراجعة.
@@ -347,7 +348,17 @@ def registry() -> dict[str, Capability]:
         _cap("observation.self", "التقييمُ الذاتيّ", P.OBSERVATION_SELF_CREATE),
         _cap("observation.peer", "تبادلُ الزيارات", P.OBSERVATION_PEER_CREATE),
         # ── وليّ الأمر ──────────────────────────────────────────────
-        _cap("parents.portal", "بوّابةُ وليّ الأمر", P.PARENT_PORTAL, scope="أبناؤه وحدَهم"),
+        _cap(
+            "parents.portal",
+            "بوّابةُ وليّ الأمر",
+            P.PARENT_PORTAL,
+            scope="أبناؤه وحدَهم",
+            basis=(
+                "قرارُ المالك 2026-09-16: الكادرُ الذي له عضويّةُ وليّ أمرٍ يدخل بوّابتَه "
+                "ليرى أبناءه وحدَهم، بعد الموافقة على سياسة البيانات"
+            ),
+            grant=holds_parent_membership,
+        ),
         _cap("parents.admin", "إدارةُ ربط أولياء الأمور", P.PARENT_PORTAL_ADMIN),
         # ── الأجنحة ─────────────────────────────────────────────────
         _cap(

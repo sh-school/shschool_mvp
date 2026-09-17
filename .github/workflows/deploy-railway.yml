@@ -217,11 +217,18 @@ jobs:
               if [ -z "$COMMIT" ]; then
                 echo "  ↳ /health/ بلا حقل commit — لا يُثبت شيئاً، تُعاد المحاولة"
               elif [ "$COMMIT" = "$EXPECTED" ]; then
-                echo "canary_passed=true" >> $GITHUB_OUTPUT
-                echo "deployed_version=$VERSION" >> $GITHUB_OUTPUT
-                echo "✅ Canary PASSED — commit $COMMIT (version $VERSION) حيّ وسليم"
-                cat /tmp/canary_health.txt
-                PASSED=true; break
+                # /health/ لا يرسم قالباً. حادثة 2026-09-17: أخضرُ ساعتين وكلُّ
+                # صفحةٍ 500 — فصفحةٌ حقيقيّةٌ تُرسم بالقوالب والثابت شرطٌ ثانٍ.
+                LOGIN_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                  --max-time 15 "$PROD_URL/auth/login/" 2>/dev/null || echo "000")
+                if [ "$LOGIN_CODE" = "200" ]; then
+                  echo "canary_passed=true" >> $GITHUB_OUTPUT
+                  echo "deployed_version=$VERSION" >> $GITHUB_OUTPUT
+                  echo "✅ Canary PASSED — commit $COMMIT (version $VERSION) حيّ، وصفحةُ الدخول 200"
+                  cat /tmp/canary_health.txt
+                  PASSED=true; break
+                fi
+                echo "  ↳ commit $COMMIT حيّ لكنّ /auth/login/ أرجعت HTTP $LOGIN_CODE"
               else
                 echo "  ↳ النسخة القديمة ($COMMIT) ما زالت تخدم — بانتظار $EXPECTED"
               fi
@@ -232,7 +239,7 @@ jobs:
 
           if [ "$PASSED" != "true" ]; then
             echo "canary_passed=false" >> $GITHUB_OUTPUT
-            echo "::error::❌ CANARY FAILED — commit $EXPECTED لا يخدم (آخر HTTP=$HTTP_CODE, served=$COMMIT). نشر Railway فشل غالباً؛ الإنتاج ما زال على النسخة السابقة."
+            echo "::error::❌ CANARY FAILED — commit $EXPECTED لا يخدم سليماً (آخر /health/=$HTTP_CODE, served=$COMMIT, /auth/login/=${LOGIN_CODE:-لم تُطلب}). إن كان served=$EXPECTED فالنسخةُ الجديدة حيّةٌ ومعطوبة — تراجَع الآن."
             cat /tmp/canary_health.txt 2>/dev/null || true
           fi
 
@@ -425,6 +432,24 @@ jobs:
             cat /tmp/health_response.txt 2>/dev/null || true
           fi
 
+      - name: "Smoke test: /auth/login/ تُرسم (HTTP 200)"
+        id: login_check
+        run: |
+          PROD_URL="${{ env.PRODUCTION_URL }}"
+          if [ -z "$PROD_URL" ]; then
+            echo "login_ok=skip" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 15 "$PROD_URL/auth/login/" 2>/dev/null || echo "000")
+          echo "/auth/login/ → HTTP $HTTP_CODE"
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "login_ok=true" >> $GITHUB_OUTPUT
+          else
+            echo "login_ok=false" >> $GITHUB_OUTPUT
+            echo "::error::صفحة الدخول أرجعت HTTP $HTTP_CODE — المنصّة غير قابلة للاستعمال"
+          fi
+
       - name: "Smoke test: / returns HTML"
         id: html_check
         run: |
@@ -461,6 +486,13 @@ jobs:
 
           HEALTH="${{ steps.health_check.outputs.health_ok }}"
           HTML="${{ steps.html_check.outputs.html_ok }}"
+          LOGIN="${{ steps.login_check.outputs.login_ok }}"
+
+          case "$LOGIN" in
+            true)  echo "| /auth/login/ renders | PASS |" >> $GITHUB_STEP_SUMMARY ;;
+            skip)  echo "| /auth/login/ renders | SKIPPED (no PRODUCTION_URL) |" >> $GITHUB_STEP_SUMMARY ;;
+            *)     echo "| /auth/login/ renders | FAIL |" >> $GITHUB_STEP_SUMMARY ;;
+          esac
 
           case "$HEALTH" in
             true)  echo "| /health/ endpoint | PASS |" >> $GITHUB_STEP_SUMMARY ;;
@@ -477,8 +509,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Commit: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
 
-          # Fail the job if health check failed
-          if [ "$HEALTH" = "false" ]; then
+          if [ "$HEALTH" = "false" ] || [ "$LOGIN" = "false" ]; then
             echo "::warning::DEPLOYMENT MAY BE UNHEALTHY — /health/ check failed. Investigate immediately."
             echo "::error::Smoke test failed for commit ${{ github.sha }}"
             exit 1
