@@ -1,17 +1,22 @@
 #!/bin/bash
 # Railway Start Command — يُنفَّذ لكلّ نسخةٍ (replica) عند إقلاعها.
 #
-# الهجراتُ والبذرُ وتجميعُ الثابتِ وتوفيرُ دور RLS كانت هنا أيضاً، مكرَّرةً مع
-# scripts/railway-predeploy.sh (preDeployCommand) كشبكة أمانٍ مؤقّتة حتى يُؤكَّد
-# عملُ preDeploy على نشرٍ حقيقيّ (P4-1). تأكَّد ذلك 2026-09-17: سجلّ Railway
-# (تبويب «Pre-Deploy» في لوحة النشر — لا تُظهره أداة السطر `railway logs`
-# الافتراضيّة) يطبع «✅ Pre-Deploy Phase Complete» ثمّ «Stopping Container» /
-# «Starting Container» قبل أن يبدأ هذا الملفّ. فحُذف التكرارُ من هنا — تقليصٌ
-# بعد التوسيع.
+# حادثة 2026-09-17: نُقل تجميعُ الثابت من هنا إلى preDeploy وحدَه (#311)
+# بذريعة أنّه «مكرَّرٌ» مع الهجرات والبذر — لكنّه ليس كذلك. الهجراتُ والبذرُ
+# يكتبان في القاعدة المشتركة، فمرّةٌ واحدةٌ في preDeploy تكفي كلَّ نسخة.
+# أمّا `collectstatic` فيكتب في القرص المحلّيّ للحاوية (`STATIC_ROOT`)، وحاويةُ
+# preDeploy حاويةٌ عابرةٌ منفصلةٌ عن حاويات النسخ الفعليّة التي يشغّلها Railway
+# بعده — فما كُتب هناك لا يصل هنا. فسقطت المنصّةُ كاملةً: كلُّ صفحةٍ 500، حتى
+# صفحةَ الخطأ نفسَها لأنّ قالبها أيضاً يستدعي {% static %} لخطّ Tajawal، فرفع
+# `ValueError: Missing staticfiles manifest entry` قبل أن يُرسَم أيُّ ردّ.
+# فعاد `collectstatic` إلى هنا — لكلّ نسخةٍ، في حاويتها هي التي تخدم الحركة.
 set -e
 
-echo "🎯 SchoolOS Start Phase — RLS guard + daphne"
+echo "🎯 SchoolOS Start Phase — static + RLS guard + daphne"
 echo "=============================================="
+
+echo "📁 Collecting static files (نسخةٌ محليّةٌ لهذه الحاوية)..."
+python manage.py collectstatic --noinput --clear
 
 # ── حارسُ fail-closed: عزل المدارس (RLS) إلزاميّ في الإنتاج ──
 # preDeploy وفّر الدورَ بالفعل؛ هذا الفحصُ دفاعٌ ثانٍ إن اختلف الإعدادُ بين
