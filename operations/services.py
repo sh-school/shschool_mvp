@@ -95,6 +95,11 @@ class AttendanceService:
                     marked_by=marked_by,
                 )
             )
+        if not records:
+            # شعبةٌ بلا طالبٍ نشطٍ — غالباً جلسةٌ يتيمة من عامٍ منقضٍ لم تُنظَّف
+            # بعد. رفعُ الحالة إلى "in_progress" هنا كان يُبقي أثراً بلا حضورٍ
+            # يحميه `ScheduleService._untouched` من التنظيف الآليّ إلى الأبد.
+            return 0
         StudentAttendance.objects.bulk_create(records, ignore_conflicts=True)
         session.status = "in_progress"
         session.save(update_fields=["status"])

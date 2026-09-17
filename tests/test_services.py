@@ -203,6 +203,17 @@ class TestAttendanceService:
 
         assert StudentAttendance.objects.filter(session=session, status="present").count() >= 1
 
+    def test_bulk_mark_all_present_with_no_active_students_does_not_touch_the_session(
+        self, school, teacher_user, session
+    ):
+        """جلسةٌ لشعبةٍ بلا طالبٍ نشط (شعبةٌ يتيمة من عامٍ منقضٍ مثلاً) لا تنقلب
+        إلى in_progress بلا حضور — وإلّا حماها ذلك من تنظيف `_untouched` للأبد."""
+        count = AttendanceService.bulk_mark_all_present(session, marked_by=teacher_user)
+
+        assert count == 0
+        session.refresh_from_db()
+        assert session.status == "scheduled"
+
     def test_complete_session(self, school, session):
         AttendanceService.complete_session(session)
         from operations.models import Session
