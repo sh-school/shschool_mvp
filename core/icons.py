@@ -143,6 +143,7 @@ ICONS: dict[str, Icon] = {
     "clinic_visit": Icon("زيارة الطالب للعيادة", "school", "cmp:student+clinic"),
     "exemptions": Icon("تفريغات المعلّمين", "school", "hi:calendar-block-01"),
     "sent_home": Icon("استئذان وإرسال للمنزل", "school", "cmp:student+leave"),
+    "restroom": Icon("دورة المياه", "school", "hi:toilet-01"),
     "substitution": Icon("تعيين بديل", "school", "cmp:teacher+swap"),
     "arabic_subject": Icon("اللغة العربيّة", "school", "local:dad-letter"),
     "certificates": Icon("الشهادات", "school", "hi:certificate-01"),
