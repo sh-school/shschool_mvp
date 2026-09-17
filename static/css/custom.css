@@ -85,8 +85,12 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --border:         #e5e7eb;
   --border-strong:  #d1d5db;
   --surface:        #ffffff;
-  --surface-alt:    #f9fafb;
-  --page-bg:        #eef1f5;   /* سلفر فاتح — خلفية الصفحة النهارية */
+  /* درجةٌ أعمق قليلاً بصبغةٍ كحليّةٍ خفيفة — تطابق فصيلةَ الليليّ (slate)
+     نفسَها، لا رماديّاً محايداً. الفرقُ كان ضعيفاً جدّاً عن `--surface`
+     (١٪ فقط) فبَدت الصفحةُ نهاراً أبيضَ مسطّحاً بلا عمقٍ يفصل البطاقةَ عن
+     أرضيّتها، بخلاف الليليّ حيث الفرقُ بين `#1e293b` و`#0f172a` واضحٌ للعين. */
+  --surface-alt:    #f2f5fa;
+  --page-bg:        #e6ebf3;   /* كحليٌّ فاتحٌ — خلفية الصفحة النهارية */
 
   --radius:         10px;
   --radius-lg:      14px;
@@ -801,7 +805,6 @@ h1.text-2xl {
 .card-qatar:hover {
   box-shadow: var(--shadow-md);
   border-color: var(--maroon-border);
-  transform: translateY(-1px);
 }
 
 /* ── شريط التقدم بلون الهوية ─────────────────────────────────── */
@@ -1267,7 +1270,6 @@ tr.active {
 .kpi-card:hover {
   box-shadow: var(--shadow-md);
   border-color: var(--maroon-border);
-  transform: translateY(-2px);
 }
 .kpi-card::before {
   content: '';
@@ -1702,7 +1704,6 @@ tfoot td {
 .action-card:hover {
   box-shadow: var(--shadow-md);
   border-color: var(--maroon-border);
-  transform: translateY(-1px);
 }
 .action-card.action-primary {
   background: var(--maroon);
@@ -3269,7 +3270,6 @@ html.dark .kpi-label        { color: var(--text-secondary); }
 .report-class-card:hover {
   box-shadow: var(--shadow-md);
   border-color: var(--maroon-border);
-  transform: translateY(-1px);
 }
 
 /* ── Student search dropdown ─────────────────── */
@@ -4906,7 +4906,7 @@ th[aria-sort="descending"] .th-sort-label {
   transition: box-shadow .2s, transform .2s;
 }
 .kpi-donut-card:hover {
-  box-shadow: var(--shadow-md); transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
 }
 .kpi-donut-ring {
   position: relative; width: 58px; height: 58px;
@@ -5456,13 +5456,12 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
    صفحةٍ ثمانيةُ تنسيقاتٍ إلى تسعةَ عشرَ داخل الوسم. صارت الترويسةُ `page_header`،
    وكلُّ مجالٍ من المعايير `section_card`، والإجراءاتُ في رأس الصفحة. */
 .qobs { display: flex; flex-direction: column; gap: var(--sp-3); }
-.qobs--narrow { max-width: 1000px; margin-inline: auto; inline-size: 100%; }
-/* 1100px كانت تُضيّع العرض على الشاشات الواسعة — الاستمارةُ الوحيدة
-   المستعمِلة لها (observation_form.html) صفٌّ واحدٌ من الحقول لا جدولٌ
-   بنصٍّ طويل يحتاج سطراً قصيراً؛ فمعها لم يبقَ سببٌ لضيقها كسائر
-   `.exec-dash` بلا حدّ عرض. 1400px تفسح المجالَ لأعمدةٍ أكثر في شبكة
-   الحقول وصفّ حصص المعلّم بلا أن تمتدّ استمارةً معياريّةً على الشاشة كلّها. */
-.qobs--wide { max-width: 1400px; margin-inline: auto; inline-size: 100%; }
+/* `qobs--wide`/`qobs--narrow` (max-width + توسيط) أُعيد تجريبُهما مرّتين
+   (1100px ثمّ 1400px) قبل أن يتّضح أنّ observation_form.html ليس صفَّ
+   حقولٍ وحده: جداولُ المعايير أسفله (معيار + خمس خانات تقييم + توصية)
+   محتوًى عريضٌ كسائر جداول المنصّة، وأيُّ سقفٍ يضيّقها بلا سبب — فبقيت
+   `#main-content{max-width:none}` وحدها، كبقية الصفحات، بلا استثناءٍ هنا.
+   لا تُعِد فتحَ هذا الملفّ لإضافتهما (راجع CLAUDE.md). */
 
 .qobs-filters {
   display: grid;
@@ -5493,6 +5492,26 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
 .qobs-col-criterion { inline-size: 40%; }
 .qobs-col-rec { inline-size: 20%; }
 .qobs-rating-table .qobs-col-criterion { inline-size: 34%; }
+/* عمودُ المجال في الجدول الموحَّد — خليّةٌ واحدةٌ بـ`rowspan` لكلّ مجالٍ لا
+   تتكرّر في كل صفّ، وخطٌّ أسمك يفصل بداية كلّ مجالٍ جديدٍ عن سابقه. */
+.qobs-col-domain {
+  inline-size: 10%;
+  background: var(--surface-alt);
+  font-weight: 700;
+  text-align: center;
+  vertical-align: middle;
+}
+.qobs-domain-count { display: block; font-size: var(--text-xs); font-weight: 600; color: var(--text-muted); }
+.qobs-rating-table--unified .qobs-domain-start > * { border-top: 2px solid var(--border-strong); }
+/* ترويسةٌ بخلفيّةٍ بيضاء لا عنّابيّة — `data-plain-head` في القالب يُخرجها
+   من قاعدة «كلّ ترويسةٍ عنّابيّةٍ نصُّها أبيض» العامّة (راجع
+   feedback_maroon_header_white_text)، فتُكتب هنا وحدَها: `thead th` لا
+   `th` عامّةً كي لا تُصيب th المجال في tbody. */
+.qobs-rating-table--unified thead tr[data-plain-head] { background: var(--surface); }
+.qobs-rating-table--unified thead tr[data-plain-head] th { color: var(--maroon); font-weight: 700; }
+/* نصُّ المعيار هو المحتوى الرئيسيُّ المقروء في كلّ صفّ — بارزٌ بولدٍ وحجمٍ
+   أكبر خطوةً واحدة، وبأقوى لونٍ نصّيٍّ متاح (لا رماديّ) في الوضعين معاً. */
+.qobs-criterion-text { font-weight: 700; font-size: var(--text-base); color: var(--text-primary); }
 /* سطرٌ واحدٌ ظاهرٌ، و`Enter` يفتح سطراً جديداً كما في أيّ `textarea` — لا
    إرسالَ عرَضيّاً للاستمارة كما كان يقع في `<input type="text">`. */
 .qobs-rec { min-height: 34px; resize: vertical; line-height: 1.5; }
@@ -5610,7 +5629,6 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
   .schedule-pages-card:hover {
     box-shadow: var(--shadow-md);
     border-color: var(--maroon-border);
-    transform: translateY(-1px);
   }
   html.dark .schedule-pages-card { color: var(--text-primary); }
   .schedule-paper-frame {
@@ -5880,7 +5898,7 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
   min-inline-size: 0;
   transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
 }
-.sa-panel:hover { box-shadow: var(--shadow-md); border-color: var(--maroon-border); transform: translateY(-1px); }
+.sa-panel:hover { box-shadow: var(--shadow-md); border-color: var(--maroon-border); }
 
 /* ── templates/staff_affairs/staff_appoint.html ── */
   /* النموذجُ عنصرٌ في شبكةٍ عموديّة، و`max-width` وحدَه يُلصقه ببداية السطر —
@@ -6631,7 +6649,7 @@ form:has(#parent-mode-existing:checked) .mode-pane--new { display: none; }
   min-inline-size: 0;
   transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
 }
-.links-add:hover { box-shadow: var(--shadow-md); border-color: var(--maroon-border); transform: translateY(-1px); }
+.links-add:hover { box-shadow: var(--shadow-md); border-color: var(--maroon-border); }
 .links-add__bar {
   display: flex; align-items: center; gap: 10px;
   background: var(--maroon);
@@ -6884,7 +6902,6 @@ html.dark {
 .wing-panel:hover {
   box-shadow: var(--shadow-md);
   border-color: var(--maroon-border);
-  transform: translateY(-1px);
 }
 .wing-panel__bar {
   display: flex; align-items: center; gap: 10px;
