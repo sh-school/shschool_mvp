@@ -10,6 +10,7 @@ urlpatterns = [
     # ── سجل الطلاب ──
     path("list/", views.student_list, name="student_list"),
     path("export/", views.student_export_excel, name="student_export"),
+    path("list/pdf/", views.student_list_pdf, name="student_list_pdf"),
     path("add/", views.student_add, name="student_add"),
     path("profile/<uuid:student_id>/", views.student_profile, name="student_profile"),
     path("profile/<uuid:student_id>/pdf/", views.student_profile_pdf, name="student_profile_pdf"),
