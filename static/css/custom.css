@@ -93,6 +93,11 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --shadow-sm:      0 1px 3px rgba(0,0,0,.08);
   --shadow-md:      0 4px 16px rgba(0,0,0,.10);
 
+  /* رقعةُ شعار سفيان مسيف في الفوتر — بيضاءُ ثابتةٌ في الوضعين لأنّ ألوانه
+     المائيّة الفاتحة ونصّه الكحليّ يختفيان على خلفيّة الفوتر الداكنة. */
+  --footer-brand-chip-bg:   #ffffff;
+  --footer-brand-chip-ring: none;
+
   /* Animation Tokens */
   --transition-fast:   100ms ease;
   --transition-base:   150ms ease;
@@ -907,12 +912,13 @@ div#header h1 a {
 .site-footer-brand-logo-chip {
   display: inline-flex;
   align-items: center;
-  background: #ffffff;
+  background: var(--footer-brand-chip-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 3px 6px;
   line-height: 0;
   flex-shrink: 0;
+  box-shadow: var(--footer-brand-chip-ring);
 }
 .site-footer-brand-name {
   font-size: var(--text-xs);
@@ -3506,6 +3512,9 @@ html.dark {
 
   --focus-ring:     0 0 0 3px rgba(184, 41, 78, .35);
 
+  --footer-brand-chip-bg:   #ffffff;
+  --footer-brand-chip-ring: 0 0 0 1px rgba(255, 255, 255, 0.08);
+
   /* ══ رموزُ الأدوار ليلاً — نظيرةُ الكتلة في `:root` ══ */
   --shadow-ink:          #000;
   --shadow-nav:          0 2px 8px rgba(0,0,0,.4);
@@ -3840,7 +3849,6 @@ html.dark .site-footer-brand-label { color: var(--text-muted); }
 html.dark .site-footer-brand-name { color: var(--text-primary); }
 html.dark .site-footer-brand-logo-chip {
   border-color: transparent;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 /* ── 19. Buttons ────────────────────────────────────────────────── */
