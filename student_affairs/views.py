@@ -56,7 +56,7 @@ from core.privacy import mask_national_id
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 from library.models import BookBorrowing
 from operations.absence_standing import standing_for
-from operations.models import AbsenceAlert, Session, StudentAttendance
+from operations.models import AbsenceAlert, ClassExit, Session, StudentAttendance
 from operations.presence import presence_now
 from operations.tardiness import tardiness_now
 from wings.scope import student_scope_for
@@ -1172,6 +1172,61 @@ def _followup_wing_label(scope) -> str:
 
 def _with_wing(text: str, wing: str) -> str:
     return f"{text} — {wing}" if wing else text
+
+
+@login_required
+@capability_required("student_affairs.follow_up")
+def student_movements(request):
+    """تحركاتُ الطلبة خارج الفصل في تاريخٍ بعينه — عيادةٌ وإدارةٌ ودورةُ
+    مياهٍ وأخرى. تُقرأ من `ClassExit` نفسها التي يكتبها زرّ «خرج بإذن» في
+    كشف الحصّة (`operations.class_exit`) — لا نسخةٌ ثانية من البيانات.
+
+    طلبُ سلطان الهاجرى (SOS-20260915-9077): شاشةٌ كشاشة الغياب لتحركات
+    الطلبة. و«الخروج من المدرسة» (انصرافٌ كاملٌ بحضور وليّ الأمر، الدليل
+    2026 §3.4.3) نمطٌ مختلفٌ لا تُسجّله `ClassExit` — يبقى خارج هذه الشاشة.
+    """
+    school = request.school
+    scope = _followup_scope(request)
+    selected_date = _tardiness_day(request)
+
+    exits_qs = scope.narrow(
+        ClassExit.objects.filter(school=school, session__date=selected_date)
+    ).select_related("student", "session__class_group", "session__subject", "allowed_by")
+
+    destination = request.GET.get("destination", "")
+    if destination:
+        exits_qs = exits_qs.filter(destination=destination)
+
+    status = request.GET.get("status", "")
+    if status == "open":
+        exits_qs = exits_qs.filter(returned_at__isnull=True)
+    elif status == "closed":
+        exits_qs = exits_qs.exclude(returned_at__isnull=True)
+
+    grade_filter = request.GET.get("grade", "")
+    if grade_filter:
+        exits_qs = exits_qs.filter(session__class_group__grade=grade_filter)
+
+    exits = list(exits_qs.order_by("-left_at"))
+    for e in exits:
+        e.class_text = class_label(e.session.class_group.grade, e.session.class_group.section)
+
+    return render(
+        request,
+        "student_affairs/student_movements.html",
+        {
+            "exits": exits,
+            "selected_date": selected_date,
+            "destinations": ClassExit.DESTINATIONS,
+            "destination": destination,
+            "status": status,
+            "grade_filter": grade_filter,
+            "grades": ClassGroup.GRADES,
+            "open_count": sum(1 for e in exits if e.returned_at is None),
+            "total_count": len(exits),
+            "wing_label": _followup_wing_label(scope),
+        },
+    )
 
 
 @login_required

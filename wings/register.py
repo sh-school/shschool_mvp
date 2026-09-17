@@ -214,7 +214,7 @@ def footer_lines(school) -> tuple[str, str]:
         parts.append(school.email)
     if getattr(school, "city", ""):
         parts.append(f"{school.city}، قطر")
-    vision = render_to_string("components/ministry_vision.html").strip()
+    vision = render_to_string("components/ministry_vision.html", {"school": school}).strip()
     year = timezone.localdate().year
     return (
         " · ".join(p for p in parts if p),
