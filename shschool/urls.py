@@ -8,6 +8,7 @@ from django.views.generic import RedirectView
 from django_prometheus.exports import ExportToDjangoView
 
 from core import views_styleguide
+from core.mfa_session import admin_login_redirect
 from core.permissions import internal_only
 from core.views_health import health_check, readiness_check, status_check
 from core.views_media import serve_db_file
@@ -23,6 +24,8 @@ urlpatterns = [
     path("", lambda r: redirect("dashboard/")),
     # خدمة الملفات المُخزَّنة في قاعدة البيانات (DatabaseStorage) — محمية بتسجيل الدخول
     path("dbmedia/<path:name>", serve_db_file, name="serve_db_file"),
+    # قبل admin.site.urls: نموذجُ دخول Django يتخطّى الرمزَ وقفلَ المحاولات (P1-4)
+    path("admin/login/", admin_login_redirect, name="admin_login_redirect"),
     path("admin/", admin.site.urls),
     path("auth/", include("core.urls.auth")),
     path("dashboard/", include("core.urls.dashboard")),
