@@ -652,7 +652,7 @@ def student_add(request):
                 messages.success(
                     request,
                     f"تم إضافة الطالب {user.full_name} في "
-                    f"{class_group.grade}/{class_group.section} بنجاح.",
+                    f"{class_label(class_group.grade, class_group.section)} بنجاح.",
                 )
                 return redirect("student_affairs:student_profile", student_id=user.id)
 

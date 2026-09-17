@@ -40,7 +40,7 @@
           {% for a in assessments %}
           <tr id="row-{{ a.id }}">
             <td><b>{{ a.package.setup.subject.name_ar }}</b></td>
-            <td>{{ a.class_group }}</td>
+            <td>{{ a.class_group.short_label }}</td>
             <td>{{ a.title }}</td>
             <td class="num">{{ a.max_grade }}</td>
             <td class="num"><span class="status-badge {{ a.badge_class }}">{{ a.badge_label }}</span></td>

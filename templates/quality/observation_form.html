@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="qobs qobs--wide">
+<div class="qobs">
 
   {% page_header form_title icon="observation" %}
     <a href="{% if mode == 'edit' %}{% url 'observation_detail' obs.id %}{% else %}{% url 'observation_list' %}{% endif %}"
@@ -44,7 +44,7 @@
           <select name="class_group" class="form-control">
             <option value="">—</option>
             {% for c in class_groups %}
-            <option value="{{ c.id }}" {% if obs and obs.class_group_id == c.id %}selected{% endif %}>{{ c }}</option>
+            <option value="{{ c.id }}" {% if obs and obs.class_group_id == c.id %}selected{% endif %}>{{ c.short_label }}</option>
             {% endfor %}
           </select>
         </label>
@@ -95,8 +95,7 @@
                 {% if sc and sc.rating == v %}checked{% endif %}>
             </td>
             {% endfor %}
-            <td><input type="text" name="rec_{{ c.id }}" class="form-control form-control-sm" aria-label="التوصية"
-              value="{% if sc %}{{ sc.recommendation }}{% endif %}"></td>
+            <td><textarea name="rec_{{ c.id }}" class="form-control form-control-sm qobs-rec" rows="1" aria-label="التوصية">{% if sc %}{{ sc.recommendation }}{% endif %}</textarea></td>
           </tr>
           {% endfor %}
         </tbody>

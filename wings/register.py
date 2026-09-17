@@ -140,9 +140,7 @@ class SectionRegister:
 
     @property
     def title(self) -> str:
-        return (
-            f"كشف حضور الحصص — {self.class_group.get_grade_display()} / {self.class_group.section}"
-        )
+        return f"كشف حضور الحصص — {self.class_group.short_label}"
 
     @property
     def confirmed_count(self) -> int:
