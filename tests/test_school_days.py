@@ -15,8 +15,14 @@ from django.utils import timezone
 from core.models import AcademicYear, CalendarEvent, WingCoverage
 from operations.absence_file import _SchoolDays
 from operations.excuses import _grace_after
-from operations.school_days import WEEKEND, is_school_day, school_day
-from tests.conftest import MembershipFactory, RoleFactory, UserFactory
+from operations.school_days import NOT_STARTED, WEEKEND, is_school_day, school_day, student_grade
+from tests.conftest import (
+    ClassGroupFactory,
+    MembershipFactory,
+    RoleFactory,
+    StudentEnrollmentFactory,
+    UserFactory,
+)
 from tests.test_period_register import (  # noqa: F401 — التجهيزاتُ نفسُها
     SUNDAY,
     _periods,
@@ -46,7 +52,7 @@ def on_tuesday(monkeypatch):
     monkeypatch.setattr("django.utils.timezone.now", lambda: frozen)
 
 
-def _break(school, name=HOLIDAY, audience="both", day=TUESDAY):
+def _break(school, name=HOLIDAY, audience="both", day=TUESDAY, grade_scope="all"):
     academic_year = AcademicYear.objects.get(school=school, start_date__lte=day, end_date__gte=day)
     return CalendarEvent.objects.create(
         academic_year=academic_year,
@@ -55,6 +61,7 @@ def _break(school, name=HOLIDAY, audience="both", day=TUESDAY):
         start_date=day,
         end_date=day,
         audience=audience,
+        grade_scope=grade_scope,
     )
 
 
@@ -170,3 +177,89 @@ class TestTheFloors:
         assert HOLIDAY in body
         assert "لا جرسَ يرنّ" in body
         assert "الساعة 09:45" not in body
+
+
+class TestTheTermHasNotStartedYet:
+    """الأسبوعُ بين دوام الموظفين ودوام الطلبة عامٌ لم يبدأ للطلبة، لا إجازة — ولا حدثَ
+    `break` يحمله. فمصدرُه حدثُ `students_start` نفسُه من التقويم المبذور."""
+
+    #: ثلاثاءٌ قبل بدء دوام الطلبة 2026-2027 (2026-08-30 بالتقويم المبذور).
+    PREP_DAY = dt.date(2026, 8, 25)
+    TERM_START = dt.date(2026, 8, 30)
+
+    def test_the_week_before_students_start_is_closed(self, school, seeded_calendar):
+        day = school_day(school, self.PREP_DAY)
+
+        assert day.day_type == "regular", "الأسبوعُ وحدَه يراه يومَ دوام"
+        assert not day.is_open
+        assert day.holiday == NOT_STARTED
+        assert not is_school_day(school, self.PREP_DAY)
+
+    def test_the_day_students_start_is_open(self, school, seeded_calendar):
+        assert school_day(school, self.TERM_START).is_open
+        assert is_school_day(school, self.TERM_START)
+
+    def test_a_school_with_no_calendar_yet_is_unaffected(self, school):
+        """بلا تقويمٍ مبذور: لا عامَ يُحدّ اليوم، فلا يُغلق بحجّة دوامٍ لم يبدأ."""
+        day = school_day(school, self.PREP_DAY)
+
+        assert day.day_type == "regular"
+        assert day.is_open
+
+
+class TestTheGradeScopeNarrowsTheBreak:
+    """إجازةٌ نطاقُها صفٌّ بعينه لا تُغلق يومَ طالبٍ في صفٍّ آخر. ولوحةُ الجناح — بلا صفٍّ
+    واحد تسندها — تبقى تُغلق بأيّ نطاق، كما كانت."""
+
+    def test_a_twelfth_grade_break_closes_only_for_that_grade(self, school, seeded_calendar):
+        _break(school, name="اختبارُ قبولٍ — الثاني عشر", grade_scope="g12")
+
+        assert not school_day(school, TUESDAY, grade="G12").is_open
+        assert school_day(school, TUESDAY, grade="G7").is_open
+        assert not is_school_day(school, TUESDAY, grade="G12")
+        assert is_school_day(school, TUESDAY, grade="G7")
+
+    def test_the_wing_dashboard_still_closes_for_any_scope(self, school, seeded_calendar):
+        """جناحٌ فيه تاسعٌ وعاشر معاً — فإجازةُ صفٍّ واحدٍ منهما تُغلقه، لا تُقسّمه."""
+        _break(school, name="اختبارُ قبولٍ — الثاني عشر", grade_scope="g12")
+
+        assert not school_day(school, TUESDAY).is_open
+
+
+class TestStudentGradeResolvesTheEnrollment:
+    def test_an_enrolled_student_carries_his_class_grade(self, school, year):
+        klass = ClassGroupFactory(school=school, grade="G9", section="1", academic_year=year)
+        student = UserFactory(full_name="طالبٌ في التاسع")
+        StudentEnrollmentFactory(student=student, class_group=klass)
+
+        assert student_grade(student, school) == "G9"
+
+    def test_an_unenrolled_user_has_no_grade(self, school):
+        stranger = UserFactory(full_name="بلا قيد")
+
+        assert student_grade(stranger, school) is None
+
+
+class TestTheExcuseDeadlineRespectsTheGradeScope:
+    """مهلةُ العذر يومان دراسيّان — وإجازةُ صفٍّ واحدٍ لا تمدّها لطالبٍ في صفٍّ آخر."""
+
+    def test_a_twelfth_grade_break_extends_the_deadline_only_for_that_grade(
+        self, school, seeded_calendar, year
+    ):
+        _break(school, name="اختبارُ قبولٍ — الثاني عشر", grade_scope="g12", day=WEDNESDAY)
+
+        g12 = ClassGroupFactory(school=school, grade="G12", section="1", academic_year=year)
+        g7 = ClassGroupFactory(school=school, grade="G7", section="1", academic_year=year)
+        senior = UserFactory(full_name="طالبٌ في الثاني عشر")
+        junior = UserFactory(full_name="طالبٌ في السابع")
+        StudentEnrollmentFactory(student=senior, class_group=g12)
+        StudentEnrollmentFactory(student=junior, class_group=g7)
+
+        # الاثنينُ يومُ العودة: الثلاثاءُ دراسيٌّ للاثنين، والأربعاءُ — إجازةُ الثاني عشر
+        # وحده — دراسيٌّ للسابع فقط. فمهلةُ السابع تُغلق الأربعاءَ ومهلةُ الثاني عشر
+        # تتخطّاه إلى الخميس.
+        senior_grade = student_grade(senior, school)
+        junior_grade = student_grade(junior, school)
+
+        assert _grace_after(school, MONDAY, junior_grade) == WEDNESDAY
+        assert _grace_after(school, MONDAY, senior_grade) == THURSDAY
