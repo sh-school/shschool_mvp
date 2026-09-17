@@ -7,6 +7,7 @@ operations/tasks.py
     1. فحص انتهاء الرخص المهنية (يومياً — تنبيه قبل 60 يوماً)
     2. توليد الجدول الأسبوعيّ الذكيّ — بطلب المستخدم لا بجدولٍ زمنيّ
     3. حارسُ العام الدراسيّ — إطفاءُ جداول وإسنادات الأعوام الماضية (يومياً)
+    4. نهايةُ الحصص — أثرُ «خرج بإذن» فيما ثبّته المشرف (كلَّ خمس دقائق في الدوام)
 
 ملاحظة:
     توليدُ حصص اليوم ليس مهمّةَ Celery: يتكفّل به SessionAutoGenerateMiddleware
@@ -83,6 +84,37 @@ def revoke_expired_temp_permissions():
         "revoked": total_count,
         "checked_at": str(now),
     }
+
+
+# ═════════════════════════════════════════════════════════════════════
+# نهايةُ الحصص — من خرج بإذن المعلّم ولم يعد حتى الجرس (قرارُ 2026-09-16)
+# ═════════════════════════════════════════════════════════════════════
+
+
+@shared_task(name="operations.finalize_period_exits")
+def finalize_period_exits_task():
+    """يُغلق خروجَ الحصص المنتهية اليومَ ويقلب الحاضرَ الذي لم يعد غياباً بإذن.
+
+    كلُّ مدرسةٍ في نطاقها وحدَها، وعطبُ واحدةٍ يُسجَّل ولا يُسقط غيرَها. وثابتةُ التكرار:
+    الدورةُ الثانية لا تجد ما تفعله.
+    """
+    from django.utils import timezone
+
+    from core.models import School
+    from operations.exit_reflection import finalize_exits_for_day
+
+    now = timezone.now()
+    day = timezone.localdate(now)
+    flipped = 0
+    failed = 0
+    for school in School.objects.filter(is_active=True).iterator(chunk_size=100):
+        try:
+            with school_rls_scope(school.id):
+                flipped += finalize_exits_for_day(school, day, now)
+        except Exception:  # noqa: BLE001 — مدرسةٌ معطوبةٌ لا تُسقط غيرَها
+            failed += 1
+            logger.exception("finalize_period_exits: تعذّر في المدرسة %s", school.pk)
+    return {"flipped": flipped, "failed_schools": failed, "checked_at": str(now)}
 
 
 # ═════════════════════════════════════════════════════════════════════
