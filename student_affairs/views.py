@@ -1238,13 +1238,15 @@ def student_movements(request):
             "open_count": sum(1 for e in exits if e.returned_at is None),
             "total_count": len(exits),
             "wing_label": _followup_wing_label(scope),
-            # بطاقةٌ لكل وجهة (طلب المدير، SOS-20260915-9077): أربعٌ لا ثلاث —
-            # الرابعة «الخروج من المدرسة» ثابتةٌ صفراً عمداً؛ نمطٌ مختلفٌ
-            # (انصرافٌ كاملٌ بحضور وليّ الأمر) لا تُسجّله `ClassExit` بعد،
-            # وبطاقتُها هنا مكانٌ محجوزٌ لا بياناتٌ ناقصة.
-            "clinic_count": destination_counts.get("clinic", 0),
-            "admin_count": destination_counts.get("admin", 0),
-            "restroom_count": destination_counts.get("restroom", 0),
+            # بطاقةُ `action_tile` نفسُها المستعملة في الأقسام السريعة —
+            # حدٌّ وظلٌّ وأيقونة، لا رقمٌ عارٍ (طلب المدير، SOS-20260915-9077،
+            # توضيحه 2026-09-17: "ليست بطاقات كل منها" على النسخة الأولى).
+            # الرابعة «الخروج مبكراً من المدرسة» ثابتةٌ عمداً بلا رابط فعليّ:
+            # نمطٌ مختلفٌ (انصرافٌ كاملٌ بحضور وليّ الأمر) لا تُسجّله
+            # `ClassExit` بعد — بطاقتُها هنا مكانٌ محجوزٌ لا بياناتٌ ناقصة.
+            "clinic_desc": f"اليوم: {destination_counts.get('clinic', 0)}",
+            "admin_desc": f"اليوم: {destination_counts.get('admin', 0)}",
+            "restroom_desc": f"اليوم: {destination_counts.get('restroom', 0)}",
             "clinic_href": f"?{day_qs}&destination=clinic",
             "admin_href": f"?{day_qs}&destination=admin",
             "restroom_href": f"?{day_qs}&destination=restroom",
