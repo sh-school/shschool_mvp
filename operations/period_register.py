@@ -447,6 +447,99 @@ def _clean_minutes(raw) -> int | None:
     return value if 0 <= value <= 240 else None
 
 
+def _resolved_mark(
+    mark: dict,
+    away: Away | None,
+    seen: Any,
+    now: dt.datetime,
+    end: dt.datetime,
+    by: Any,
+    school: Any,
+    student: Any,
+    session0: Any,
+) -> tuple[str, Any, Any]:
+    """يحسم حالةَ الطالب ومكانه وخروجَه: من الكشف، أو من خروجٍ لم يذكره، أو تصحيحٌ
+    آليٌّ حين يزول سببُ ما عُرض (عاد) أو يُكشف ما لم يُعرَض (لم ينتبه المشرفُ للخروج).
+
+    مستخرَجةٌ من `confirm_period` وحدها لتبقى دون سقف التعقيد (Radon CC ≤ 30).
+    """
+    from operations.class_exit import WHEREABOUTS_OF, session_end
+    from operations.exit_reflection import audit_cell_change, exit_overrides
+
+    status = str(mark["status"]) if mark.get("status") in STATES else "present"
+    where = mark.get("whereabouts") if mark.get("whereabouts") in WHEREABOUTS else ""
+    exit_ = None
+    if away is not None and "status" not in mark and away.counts_as_absent(now, end):
+        # خرج ولم يعد ولم يقل المشرفُ فيه شيئاً: «غائبٌ بإذن» بمكانه لا «حاضر».
+        status, where, exit_ = "absent", (where or away.whereabouts), away.exit
+    elif seen is not None:
+        # رأى المشرفُ الخروجَ في خانته: ما اختاره — غائباً أو غيرَه — يحسبه.
+        exit_ = seen
+    if status != "absent":
+        where = ""
+    if (
+        exit_ is not None
+        and status == "absent"
+        and not (exit_.returned_at is None or exit_.returned_at >= session_end(exit_.session))
+        and where == WHEREABOUTS_OF.get(exit_.destination)
+    ):
+        # عاد بين عرض الكشف وإرساله: الغيابُ المعروضُ كان من خروجه، وقد زال سببُه.
+        audit_cell_change(
+            by,
+            school,
+            student,
+            session0,
+            before={"status": status, "whereabouts": where},
+            after={"status": "present", "whereabouts": ""},
+            why="عاد قبل نهاية الحصّة — قبل تثبيت الغياب المعروض",
+            exit_=exit_,
+        )
+        status, where = "present", ""
+    if (
+        now >= end
+        and exit_ is None
+        and away is not None
+        and away.exit is not None
+        and exit_overrides(status, None, away.exit)
+    ):
+        # الحصّةُ انتهت وفي الكشف «حاضر» لم يرَ صاحبُه الخروج: لا حضورَ كاذب.
+        audit_cell_change(
+            by,
+            school,
+            student,
+            session0,
+            before={"status": status, "whereabouts": where},
+            after={"status": "absent", "whereabouts": away.whereabouts},
+            why="خرج بإذن المعلّم ولم يعد حتى نهاية الحصّة — ولم يُعرض غياباً في الكشف المُرسَل",
+            exit_=away.exit,
+        )
+        status, where, exit_ = "absent", away.whereabouts, away.exit
+    return status, where, exit_
+
+
+def _resolved_late_minutes(
+    mark: dict,
+    before: Cell | None,
+    tap: int | None,
+    day: dt.date,
+    period: Period,
+    measured_now: bool,
+    now: dt.datetime,
+) -> int | None:
+    """دقائقُ التأخّر: من النقرة، أو تثبيتٍ سابقٍ لم يُنقر ثانيةً، أو لحظة التثبيت."""
+    tapped = _tapped(mark.get("tapped_at"), day, period, now)
+    if not measured_now:
+        return _clean_minutes(mark.get("late_minutes"))
+    if tapped is None and before and before.status == "late" and before.late_minutes is not None:
+        # متأخّرٌ من تثبيتٍ سابقٍ لم يُنقر ثانيةً: دقائقُه باقية — التثبيتُ الثاني
+        # بعد عشر دقائق لا يزيده عشراً.
+        return before.late_minutes
+    if tapped is None and tap is not None:
+        # نقرةُ المعلّم قبل وصول المشرف: لحظةُ الدخول عندها لا عند التثبيت.
+        return tap
+    return minutes_after_start(period.sessions[0], timezone.localtime(tapped or now))
+
+
 @transaction.atomic
 def confirm_period(
     class_group, day: dt.date, start: dt.time, marks: dict, by, now: dt.datetime | None = None
@@ -457,8 +550,7 @@ def confirm_period(
     — ومن لم يُذكر حاضر (إلّا من خرج ولم يعد). و`tapped_at` لحظةُ النقرة على «متأخّر»
     بثواني يونكس، و`exit` رقمُ الخروج الذي عُرض للمشرف في خانة الطالب.
     """
-    from operations.class_exit import WHEREABOUTS_OF, close_unreturned, session_end
-    from operations.exit_reflection import audit_cell_change, exit_overrides
+    from operations.class_exit import close_unreturned
     from operations.models import ClassExit
 
     now = now or timezone.now()
@@ -485,80 +577,20 @@ def confirm_period(
     for enrollment in enrolled_of(class_group):
         student = enrollment.student
         mark = marks.get(str(student.id)) or marks.get(student.id) or {}
-        status = str(mark["status"]) if mark.get("status") in STATES else "present"
-        where = mark.get("whereabouts") if mark.get("whereabouts") in WHEREABOUTS else ""
         away = outs.get(student.id, {}).get(period.start)
         seen = shown.get(str(mark.get("exit") or ""))
         if seen is not None and seen.student_id != student.id:
             seen = None
-        exit_ = None
-        if away is not None and "status" not in mark and away.counts_as_absent(now, end):
-            # خرج ولم يعد ولم يقل المشرفُ فيه شيئاً: «غائبٌ بإذن» بمكانه لا «حاضر».
-            status, where, exit_ = "absent", (where or away.whereabouts), away.exit
-        elif seen is not None:
-            # رأى المشرفُ الخروجَ في خانته: ما اختاره — غائباً أو غيرَه — يحسبه.
-            exit_ = seen
-        if status != "absent":
-            where = ""
-        if (
-            exit_ is not None
-            and status == "absent"
-            and not (exit_.returned_at is None or exit_.returned_at >= session_end(exit_.session))
-            and where == WHEREABOUTS_OF.get(exit_.destination)
-        ):
-            # عاد بين عرض الكشف وإرساله: الغيابُ المعروضُ كان من خروجه، وقد زال سببُه.
-            audit_cell_change(
-                by,
-                class_group.school,
-                student,
-                period.sessions[0],
-                before={"status": status, "whereabouts": where},
-                after={"status": "present", "whereabouts": ""},
-                why="عاد قبل نهاية الحصّة — قبل تثبيت الغياب المعروض",
-                exit_=exit_,
-            )
-            status, where = "present", ""
-        if (
-            now >= end
-            and exit_ is None
-            and away is not None
-            and away.exit is not None
-            and exit_overrides(status, None, away.exit)
-        ):
-            # الحصّةُ انتهت وفي الكشف «حاضر» لم يرَ صاحبُه الخروج: لا حضورَ كاذب.
-            audit_cell_change(
-                by,
-                class_group.school,
-                student,
-                period.sessions[0],
-                before={"status": status, "whereabouts": where},
-                after={"status": "absent", "whereabouts": away.whereabouts},
-                why="خرج بإذن المعلّم ولم يعد حتى نهاية الحصّة — ولم يُعرض غياباً في الكشف المُرسَل",
-                exit_=away.exit,
-            )
-            status, where, exit_ = "absent", away.whereabouts, away.exit
+        status, where, exit_ = _resolved_mark(
+            mark, away, seen, now, end, by, class_group.school, student, period.sessions[0]
+        )
         if status == "absent":
             absentees.append(student)
         minutes = None
         if status == "late":
-            tapped = _tapped(mark.get("tapped_at"), day, period, now)
             before = earlier.get(student.id, {}).get(period.start)
-            if not measured_now:
-                minutes = _clean_minutes(mark.get("late_minutes"))
-            elif (
-                tapped is None
-                and before
-                and before.status == "late"
-                and before.late_minutes is not None
-            ):
-                # متأخّرٌ من تثبيتٍ سابقٍ لم يُنقر ثانيةً: دقائقُه باقية — التثبيتُ الثاني
-                # بعد عشر دقائق لا يزيده عشراً.
-                minutes = before.late_minutes
-            elif tapped is None and taps.get(student.id, {}).get(period.start) is not None:
-                # نقرةُ المعلّم قبل وصول المشرف: لحظةُ الدخول عندها لا عند التثبيت.
-                minutes = taps[student.id][period.start]
-            else:
-                minutes = minutes_after_start(period.sessions[0], timezone.localtime(tapped or now))
+            tap = taps.get(student.id, {}).get(period.start)
+            minutes = _resolved_late_minutes(mark, before, tap, day, period, measured_now, now)
         tally[status] += 1
 
         for session in period.sessions:
