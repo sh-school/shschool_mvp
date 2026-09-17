@@ -937,6 +937,128 @@ class TestEvaluationScore:
                 axis_development=15,
             )
 
+    def test_resave_with_partial_update_fields_does_not_leave_total_stale(self, school):
+        """
+        إصلاح ب.3: حفظٌ جزئيٌّ (update_fields لا يشمل total_score) بعد تعديل
+        محورٍ يجب أن يكتب المجموعَ الجديد إلى القاعدة لا القديم.
+        """
+        admin = make_admin(school)
+        teacher = make_teacher(school)
+        ev = make_evaluation(school, teacher, admin)
+        score = EvaluationScore.objects.create(
+            evaluation=ev,
+            evaluator=admin,
+            weight=100,
+            axis_professional=20,
+            axis_commitment=20,
+            axis_teamwork=20,
+            axis_development=20,
+        )
+        assert score.total_score == 80
+
+        score.axis_professional = 25
+        # update_fields متعمَّدٌ بلا "total_score" — يحاكي حفظاً جزئياً من واجهة
+        score.save(update_fields=["axis_professional"])
+
+        reloaded = EvaluationScore.objects.get(pk=score.pk)
+        assert reloaded.total_score == 85  # لا يبقى 80 القديم في القاعدة
+
+    def test_second_evaluator_resave_updates_weighted_total(self, school):
+        """
+        إصلاح ب.3: بعد إضافة مقيِّمٍ ثانٍ وإعادة حفظ الأول جزئياً، يبقى المجموع
+        المرجَّح على التقييم الأب صحيحاً عند إعادة الحساب.
+        """
+        admin = make_admin(school)
+        vice = make_teacher(school, suffix="نائب٢")
+        teacher = make_teacher(school)
+        ev = make_evaluation(school, teacher, admin)
+
+        s1 = EvaluationScore.objects.create(
+            evaluation=ev,
+            evaluator=admin,
+            weight=60,
+            axis_professional=24,
+            axis_commitment=23,
+            axis_teamwork=22,
+            axis_development=21,
+        )  # 90
+        EvaluationScore.objects.create(
+            evaluation=ev,
+            evaluator=vice,
+            weight=40,
+            axis_professional=18,
+            axis_commitment=17,
+            axis_teamwork=18,
+            axis_development=17,
+        )  # 70
+
+        # المقيِّم الأول يعدّل درجةً واحدة بحفظٍ جزئي
+        s1.axis_professional = 25
+        s1.save(update_fields=["axis_professional"])  # 91 بدل 90
+
+        ev.recalculate_from_scores()
+        ev.refresh_from_db()
+        # (91*60 + 70*40) / 100 = (5460+2800)/100 = 82.6 → 83 بالتقريب
+        assert ev.total_score == 83
+
+    def test_classification_uses_unrounded_average_89_5_stays_very_good(self, school):
+        """
+        إصلاح (أ — التقريب): المادة 16 تصوغ الحدود متّصلةً (أعلى من 75% إلى
+        أقل من 90%)، فـ89.5 (round → 90) يجب أن يبقى "جيد جداً" لا "ممتاز"،
+        بينما total_score المعروض يُقرَّب إلى 90 كالمعتاد.
+        """
+        admin = make_admin(school)
+        vice = make_teacher(school, suffix="ر1")
+        teacher = make_teacher(school)
+        ev = make_evaluation(school, teacher, admin)
+        EvaluationScore.objects.create(
+            evaluation=ev, evaluator=admin, weight=50, custom_axes={"a": 89}
+        )
+        EvaluationScore.objects.create(
+            evaluation=ev, evaluator=vice, weight=50, custom_axes={"a": 90}
+        )
+        ev.recalculate_from_scores()
+        ev.refresh_from_db()
+        assert ev.total_score == 90  # round(89.5) — للعرض فقط
+        assert ev.rating == "very_good"  # التصنيف على 89.5 غير المقرَّب
+
+    def test_classification_uses_unrounded_average_75_3_is_very_good(self, school):
+        admin = make_admin(school)
+        vice = make_teacher(school, suffix="ر2")
+        teacher = make_teacher(school)
+        ev = make_evaluation(school, teacher, admin)
+        EvaluationScore.objects.create(
+            evaluation=ev, evaluator=admin, weight=10, custom_axes={"a": 78}
+        )
+        EvaluationScore.objects.create(
+            evaluation=ev, evaluator=vice, weight=90, custom_axes={"a": 75}
+        )
+        ev.recalculate_from_scores()
+        ev.refresh_from_db()
+        assert ev.total_score == 75  # round(75.3)
+        assert ev.rating == "very_good"  # 75.3 >= 75
+
+    def test_classification_uses_unrounded_average_49_5_is_needs_dev(self, school):
+        """
+        49.5 دون حدّ "جيد" (60) في السلّم الحالي بمعزل عن التقريب — يبقى
+        "يحتاج تطوير". السلّمُ الخماسيُّ الكامل للمادة 16 (90/75/65/50) خارجُ
+        نطاق هذا الإصلاح ويحتاج تصميماً منفصلاً لاحقاً.
+        """
+        admin = make_admin(school)
+        vice = make_teacher(school, suffix="ر3")
+        teacher = make_teacher(school)
+        ev = make_evaluation(school, teacher, admin)
+        EvaluationScore.objects.create(
+            evaluation=ev, evaluator=admin, weight=50, custom_axes={"a": 49}
+        )
+        EvaluationScore.objects.create(
+            evaluation=ev, evaluator=vice, weight=50, custom_axes={"a": 50}
+        )
+        ev.recalculate_from_scores()
+        ev.refresh_from_db()
+        assert ev.total_score == 50  # round(49.5)（half-to-even）
+        assert ev.rating == "needs_dev"
+
 
 # ══════════════════════════════════════════════
 #  9. RoleEvaluationTemplate — إصلاح #6

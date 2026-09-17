@@ -656,6 +656,11 @@ class EvaluationAxis(models.Model):
 
 
 class EmployeeEvaluation(models.Model):
+    # الاستمارات الوزارية السبع كلّها سنوية (المادة 16: "خلال النصف الأول من
+    # شهر يونيو من كل عام أكاديمي")، ولا تذكر فترة نصف سنوية. S1 متابعةٌ
+    # داخليةٌ غير وزارية لأغراض الإدارة المدرسية (لا تُحذف ولا تُغيَّر
+    # بياناتها)، والتقريرُ الوزاريّ الرسميّ السنويّ هو S2 وحده.
+    # التفصيل: docs/adr/0002-unified-staff-appraisal.md §E
     PERIODS = [
         ("S1", "نهاية الفصل الأول"),
         ("S2", "نهاية العام الدراسي"),
@@ -778,17 +783,23 @@ class EmployeeEvaluation(models.Model):
             weighted_sum += score.total_score * score.weight
             total_weight += score.weight
 
-        if total_weight > 0:
-            self.total_score = round(weighted_sum / total_weight)
-        else:
+        if total_weight <= 0:
             self.calculate_total()
             return
 
-        if self.total_score >= _SCORE_EXCELLENT:
+        # إصلاح (أ — التقريب): المادة 16 تصوغ حدود المستويات متّصلةً
+        # ("أعلى من 75% إلى أقل من 90%"...)، فالتصنيفُ يجب أن يقع على
+        # المجموع المرجَّح غير المقرَّب (raw_average) لا على total_score
+        # بعد تقريبه — وإلا صُنِّف 89.5 "ممتاز" (round(89.5)=90) رغم أنه
+        # فعلياً دون التسعين. total_score المخزَّن للعرض يبقى صحيحاً مقرَّباً.
+        raw_average = weighted_sum / total_weight
+        self.total_score = round(raw_average)
+
+        if raw_average >= _SCORE_EXCELLENT:
             self.rating = "excellent"
-        elif self.total_score >= _SCORE_VERY_GOOD:
+        elif raw_average >= _SCORE_VERY_GOOD:
             self.rating = "very_good"
-        elif self.total_score >= _SCORE_GOOD:
+        elif raw_average >= _SCORE_GOOD:
             self.rating = "good"
         else:
             self.rating = "needs_dev"
@@ -890,7 +901,17 @@ class EvaluationScore(models.Model):
             )
 
     def save(self, *args, **kwargs):
+        # إصلاح ب.3 (مراجعة عدائيّة): كان total_score يُعاد حسابه في الذاكرة
+        # دوماً، لكن حفظاً جزئياً بـ update_fields لا يتضمّن "total_score"
+        # (مثل update_fields=["weight"] أو ["note"]) كان يكتب العمودَ القديم
+        # إلى القاعدة فيبقى المجموع المرجَّح فاسداً حتى إعادة قراءة كاملة.
         self.calculate_total()
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            update_fields = list(update_fields)
+            if "total_score" not in update_fields:
+                update_fields.append("total_score")
+            kwargs["update_fields"] = update_fields
         super().save(*args, **kwargs)
 
 
