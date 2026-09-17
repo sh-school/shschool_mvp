@@ -54,7 +54,8 @@ def test_migrations_run_once_before_traffic_switches(iac):
 
     كانت داخل start، فمع أكثر من نسخةٍ كانت ستُشغَّل مرّةً لكلّ نسخة — سباقٌ على
     DDL. أُكِّد عملُ preDeploy على نشرٍ حقيقيّ 2026-09-17 («Pre-Deploy Phase
-    Complete» في سجلّ Railway قبل أن تبدأ الحاويةُ start) فحُذف التكرارُ من هناك.
+    Complete» في سجلّ Railway قبل أن تبدأ الحاويةُ start) فحُذف التكرارُ من هناك —
+    إلّا الثابت: انظر test_static_files_collected_in_every_serving_container.
     """
     web = _service_block(iac, "shschool_mvp")
     assert 'preDeploy: "bash scripts/railway-predeploy.sh"' in web
@@ -67,8 +68,15 @@ def test_migrations_run_once_before_traffic_switches(iac):
     assert (
         "manage.py migrate" not in release
     ), "الهجراتُ في start تُشغَّل لكلّ نسخة — يجب أن تبقى في preDeploy وحده"
-    assert "manage.py collectstatic" not in release
     assert "provision_rls_role" not in release
+
+
+def test_static_files_collected_in_every_serving_container():
+    """حادثة 2026-09-17: حاويةُ preDeploy لا تشارك قرصَها مع النسخ، فجمعُ الثابت
+    هناك وحدَه أسقط كلَّ صفحةٍ بـ«Missing staticfiles manifest entry»."""
+    release = (ROOT / "scripts" / "railway-release.sh").read_text(encoding="utf-8")
+    assert "manage.py collectstatic" in release, "الثابتُ يُجمع في حاوية كلّ نسخةٍ تخدم الحركة"
+    assert release.index("manage.py collectstatic") < release.index("daphne -b")
 
 
 def test_worker_service_has_no_http_healthcheck(iac):
