@@ -245,7 +245,7 @@ class TestTheFooter:
         body = client_as(supervisor).get(_wing_url(klass.wing.code)).content.decode()
 
         assert body.count('class="sheet-footer"') == 2, "ملخّصُ الجناح وكشفُ الشعبة"
-        assert "الريادة في توفير فرص تعلم" in body
+        assert "متعلم ريادي لتنمية مستدامة" in body
 
     def test_every_excel_sheet_ends_with_the_footer_inside_its_print_area(
         self, client_as, school, klass, kids, teacher, supervisor
