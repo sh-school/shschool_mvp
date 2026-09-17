@@ -494,7 +494,7 @@ body {
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.13);
+  box-shadow: var(--shadow-menu);
   z-index: var(--z-nav-menu);   /* تعلو الشريطَ ولوحةَ الجوّال — انظر تعريفَ الرمز */
   padding: 6px 0;
   color-scheme: light;
