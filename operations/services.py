@@ -4,7 +4,7 @@ import logging
 from collections import Counter
 from datetime import date
 from itertools import groupby
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.db import models, transaction
 from django.db.models import Count, QuerySet
@@ -39,6 +39,7 @@ from operations.models import (
     TeacherSwap,
     TimeSlotConfig,
 )
+from operations.school_days import SchoolDays
 
 logger = logging.getLogger(__name__)
 
@@ -928,7 +929,8 @@ class ScheduleService:
         """
         تأكد من وجود حصص لأسبوع التاريخ المطلوب — ولّدها إن لم تكن موجودة.
 
-        - تولّد الأسبوع كامل (أحد → خميس) دفعة واحدة
+        - تولّد أيّامَ الدراسة من الأسبوع (أحد → خميس) دفعة واحدة، وتتخطّى
+          إجازاتِ الطلبة في تقويم الوزارة (`operations.school_days`)
         - تستخدم bulk_create(ignore_conflicts=True) للأداء
         - idempotent: آمنة للاستدعاء المتكرر بدون تكرار
         - لا تعتمد على Celery — تعمل عند الطلب
@@ -960,6 +962,14 @@ class ScheduleService:
 
         if not missing_days:
             return 0  # الأسبوع كامل — لا شيء للفعل
+
+        # ── يومُ إجازةِ الطلبة ليس يومَ حصص ──
+        # كانت الإجازةُ الرسميّةُ يومَ ثلاثاء تُولَّد لها حصصُ الجدول كلُّها ما دام
+        # أحدٌ فتح شاشةً في أسبوعها، فتظهر للمعلّم وفي كشف الحصص حصصاً تنتظر الرصد.
+        # والتقويمُ يُقرأ بعد الفحص السريع لا قبله: يومُ الإجازة لا يصير «موجوداً»،
+        # فأسبوعُه وحدَه يدفع استعلاماً ثانياً — واحداً للأسبوع كلّه.
+        school_days = SchoolDays(school, week_sun, week_thu)
+        missing_days = [d for d in missing_days if d in school_days]
 
         # ── جلب ScheduleSlots لكل الأيام الناقصة ──
         missing_qatar_days = []
@@ -1018,45 +1028,82 @@ class ScheduleService:
         return count
 
     @staticmethod
+    def _untouched(sessions: QuerySet[Session]) -> QuerySet[Session]:
+        """ما لم يمسّه أحدٌ من الجلسات — وحدَه يُحذف حين لا يبقى له مكان.
+
+        مجدولةٌ بلا حضور، ولا خروجٍ منها ولا مخالفةٍ فيها، ولم يُبدَّل معلّمُها ولم
+        تُنشأ تعويضاً. فحذفُ الجلسة يمحو معها سجلَّ الخروج، ويقطع المخالفةَ عن
+        مادّتها، ويترك التعويضَ المعتمَدَ بلا حصّة.
+        """
+        return sessions.filter(
+            status="scheduled",
+            attendances__isnull=True,
+            class_exits__isnull=True,
+            infractions__isnull=True,
+            original_teacher__isnull=True,
+            compensatory_source__isnull=True,
+        )
+
+    @staticmethod
     @transaction.atomic
     def resync_sessions_for_date(
         school: School,
         target_date: date,
         academic_year: str | None = None,
+        school_days: SchoolDays | None = None,
     ) -> dict[str, int]:
         """مصالحةُ جلسات يومٍ مع الجدول النشط — بعد اعتماد جدولٍ جديد.
 
         `ensure_sessions_for_date` تملأ الفراغ ولا تصحّح: يومٌ فيه جلساتٌ من
         جدولٍ سابق (أو عامٍ سابق) يبقى كما هو. هنا:
           - تُحذف الجلساتُ التي لا تطابق حصّةً نشطة (المعلّم، الشعبة، الوقت)
-            **بشرط** أنّها `scheduled` وبلا سجلّ حضور — ما مُسَّ يُبقى ويُعَدّ.
+            **بشرط** ألّا يكون أحدٌ قد مسّها (`_untouched`) — وما مُسَّ يُبقى ويُعَدّ.
           - تُنشأ الجلساتُ الناقصة من الحصص النشطة بمجموعة الاختيار.
+          - ويومُ إجازة الطلبة لا حصّةَ نشطةً فيه: لا يُنشأ فيه شيء، وجلساتُه كلُّها
+            لا تطابق.
+
+        `school_days` لمن يصالح أيّاماً متتالية: نافذةٌ تشمل اليوم، تُقرأ إجازاتُها
+        مرّةً للأيّام كلّها.
         Returns: {"deleted", "created", "kept"}.
         """
-        from django.db.models import Count
-
-        academic_year = academic_year or academic_year_for_school(school)
         qatar_day = ScheduleService._PY_TO_QATAR.get(target_date.weekday())
         if qatar_day is None:
             return {"deleted": 0, "created": 0, "kept": 0}
+        if school_days is None:
+            school_days = SchoolDays(school, target_date, target_date)
 
-        slots = ScheduleSlot.objects.filter(
-            school=school, academic_year=academic_year, day_of_week=qatar_day, is_active=True
-        ).select_related("teacher", "class_group", "subject")
-        wanted = {(s.teacher_id, s.class_group_id, s.start_time): s for s in slots}
+        wanted: dict[tuple[Any, ...], ScheduleSlot] = {}
+        if target_date in school_days:
+            academic_year = academic_year or academic_year_for_school(school)
+            slots = ScheduleSlot.objects.filter(
+                school=school, academic_year=academic_year, day_of_week=qatar_day, is_active=True
+            ).select_related("teacher", "class_group", "subject")
+            wanted = {(s.teacher_id, s.class_group_id, s.start_time): s for s in slots}
 
         existing = list(
-            Session.objects.filter(school=school, date=target_date).annotate(
-                att=Count("attendances")
+            Session.objects.filter(school=school, date=target_date).only(
+                "teacher_id", "class_group_id", "start_time"
             )
         )
         have = {(s.teacher_id, s.class_group_id, s.start_time) for s in existing}
         stale = [
-            s for s in existing if (s.teacher_id, s.class_group_id, s.start_time) not in wanted
+            s.id for s in existing if (s.teacher_id, s.class_group_id, s.start_time) not in wanted
         ]
-        deletable = [s.id for s in stale if s.status == "scheduled" and s.att == 0]
+        deletable = (
+            list(
+                ScheduleService._untouched(Session.objects.filter(id__in=stale)).values_list(
+                    "id", flat=True
+                )
+            )
+            if stale
+            else []
+        )
         kept = len(stale) - len(deletable)
-        deleted = Session.objects.filter(id__in=deletable).delete()[0] if deletable else 0
+        deleted = (
+            Session.objects.filter(id__in=deletable).delete()[1].get(Session._meta.label, 0)
+            if deletable
+            else 0
+        )
 
         to_create = [
             Session(
@@ -1176,14 +1223,55 @@ class ScheduleService:
 
         from django.utils import timezone
 
-        week_sun, _ = ScheduleService._get_week_bounds(timezone.localdate())
+        week_sun, week_thu = ScheduleService._get_week_bounds(timezone.localdate())
+        school_days = SchoolDays(school, week_sun, week_thu)
         totals = {"deleted": 0, "created": 0, "kept": 0}
         for i in range(5):
             r = ScheduleService.resync_sessions_for_date(
-                school, week_sun + timedelta(days=i), academic_year
+                school, week_sun + timedelta(days=i), academic_year, school_days
             )
             for k in totals:
                 totals[k] += r[k]
+        return totals
+
+    @staticmethod
+    def clear_holiday_sessions(school: School, start: date, end: date) -> dict[str, int]:
+        """جلساتُ أيّام إجازة الطلبة في [start, end]: يُحذف ما لم يُمسّ، ويُعَدّ الباقي.
+
+        تُستدعى حين تُحفظ إجازةٌ في التقويم: الإجازةُ الطارئةُ تُعلَن بعد أن وُلّد
+        أسبوعُها، والتوليدُ لا يمحو ما أنشأ. وهي مصالحةُ تلك الأيّام بجدولها الفارغ،
+        فالحكمُ حكمُ `resync_sessions_for_date` لا حكمٌ ثانٍ. وأيّامُ الدراسة في المدى
+        لا تُمَسّ — فإجازةُ الموظفين وحدَهم تمرّ بلا أثر.
+
+        والإجازةُ المستقبليّةُ لا جلساتَ لها في الغالب: استعلامٌ واحدٌ يكفيها.
+        Returns: {"deleted", "kept"}.
+        """
+        from datetime import timedelta
+
+        totals = {"deleted": 0, "kept": 0}
+        if not Session.objects.filter(school=school, date__range=(start, end)).exists():
+            return totals
+
+        school_days = SchoolDays(school, start, end)
+        day = start
+        with transaction.atomic():
+            while day <= end:
+                if day.weekday() in ScheduleService._PY_TO_QATAR and day not in school_days:
+                    r = ScheduleService.resync_sessions_for_date(
+                        school, day, school_days=school_days
+                    )
+                    for k in totals:
+                        totals[k] += r[k]
+                day += timedelta(days=1)
+        if totals["deleted"] or totals["kept"]:
+            logger.info(
+                "clear_holiday_sessions %s %s → %s: deleted=%d kept=%d",
+                school.name,
+                start,
+                end,
+                totals["deleted"],
+                totals["kept"],
+            )
         return totals
 
     @staticmethod

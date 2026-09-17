@@ -98,6 +98,8 @@ MIDDLEWARE = [
     # الإلزامُ بتغيير كلمة المرور قبل موافقة وليّ الأمر: من لم يُبدّل كلمتَه لا يوافق بها.
     "core.middleware.ForcePasswordChangeMiddleware",
     "core.middleware.TwoFactorEnforcementMiddleware",
+    # المفعِّلُ لا تُقبل جلستُه بلا رمزٍ أُدخل فيها — يسدّ ما يفتح جلسةً بكلمة المرور وحدَها
+    "core.mfa_session.MfaSessionMiddleware",
     "core.middleware.ParentConsentMiddleware",
     # صفحةُ المسجَّل لا تُخزَّن: طزاجةٌ بعد النشر، وخصوصيّةٌ على جهازٍ مشترك
     "core.middleware.PrivateHtmlNoStoreMiddleware",
@@ -306,12 +308,15 @@ CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# بابُ JWT مغلقٌ ما لم يُفتح صراحةً. كان مفتوحاً «للتطبيق المحمول المستقبليّ»
+# ولم يُصدَر منه رمزٌ واحد (فحصُ الإنتاج 2026-09-16)، وهو يتجاوز ما يحمي
+# دخولَ الجلسة: لا ثنائيّة، ولا axes، ولا حدَّ للمحاولات. فلا مساراتِ رموز
+# ولا مُصادِقَ رموز حتى يُبنى التطبيقُ ويُحرَس الباب (P1-1).
+API_JWT_ENABLED = config("API_JWT_ENABLED", default=False, cast=bool)
+
 _AUTH_CLASSES = ["rest_framework.authentication.SessionAuthentication"]
-try:
-    __import__("rest_framework_simplejwt")
+if API_JWT_ENABLED:
     _AUTH_CLASSES.append("rest_framework_simplejwt.authentication.JWTAuthentication")
-except ImportError:
-    pass
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": _AUTH_CLASSES,
@@ -718,6 +723,13 @@ SCHEDULE_TIME_BUDGET_SECONDS = int(os.environ.get("SCHEDULE_TIME_BUDGET_SECONDS"
 # كم قفزةً موثوقةً تُلحقها البنيةُ بآخر X-Forwarded-For. محلّياً لا وكيلَ فالترويسة
 # لا تُصدَّق (0)؛ Railway يُلحق قفزةً واحدة (الإنتاج 1). راجع core/request_utils.py.
 TRUSTED_PROXY_HOPS = int(os.environ.get("TRUSTED_PROXY_HOPS", "0"))
+
+# والحدُّ على باب الدخول وقفلُ axes يعدّان بهذا العنوان نفسه (P1-2). كانا يقرآن
+# REMOTE_ADDR، وهو على Railway عنوانُ الوكيل الداخليّ: كلُّ ما سجّله axes على
+# الإنتاج عناوينُ داخليّة (فحص 2026-09-16). فكان «عشرُ محاولاتٍ في الدقيقة لكلّ
+# عنوان» عشراً للمدرسة كلّها، ومخطئٌ واحدٌ يحبس الجميع.
+RATELIMIT_IP_META_KEY = "core.request_utils.get_client_ip"
+AXES_CLIENT_IP_CALLABLE = "core.request_utils.get_client_ip"
 
 # ── كم نسخةً سابقةً من الجدول تُبقى ────────────────────────────────────
 # كلُّ اعتمادٍ يُؤرشف الجدولَ السابق كاملاً — 870 صفّاً مطفأً — ولا يحذفه، فبلغت

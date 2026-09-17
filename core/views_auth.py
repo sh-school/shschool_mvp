@@ -19,6 +19,7 @@ from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
 from core.auth_identity import identifier_kind, lockout_key, resolve_user
+from core.mfa_session import mark_verified
 from core.models import AuditLog, CustomUser
 from core.models.access import TIER_5_BENEFICIARIES
 from core.privacy import mask_national_id
@@ -329,6 +330,7 @@ def verify_2fa(request):
             # أي أنّ كلَّ من فعّل المصادقةَ الثنائيّة لم يعد يستطيع الدخول.
             backend = request.session.pop("pending_2fa_backend", "") or PRIMARY_AUTH_BACKEND
             login(request, user, backend=backend)
+            mark_verified(request)
             _enforce_rotation(user)
             if user.must_change_password:
                 return redirect("force_change_password")
@@ -400,6 +402,8 @@ def setup_2fa(request):
         if totp.verify(code, valid_window=1):
             user.totp_enabled = True
             user.save(update_fields=["totp_enabled"])
+            # أثبت الرمزَ الآن — وإلّا أغلق MfaSessionMiddleware جلستَه لحظةَ التفعيل.
+            mark_verified(request)
             messages.success(request, "✅ تم تفعيل المصادقة الثنائية بنجاح!")
             return redirect("dashboard")
         else:
@@ -533,7 +537,15 @@ def change_password(request):
 
 @require_POST
 def logout_view(request):
-    """تسجيل الخروج الآمن — مسح الجلسة والتوجيه لصفحة الدخول"""
+    """تسجيل الخروج الآمن — مسح الجلسة والتوجيه لصفحة الدخول.
+
+    و`Clear-Site-Data: "cache"` يمحو ذاكرةَ المتصفّح لهذا الموقع: ما حُفظ من
+    صفحاتٍ شخصيّة قبل `no-store` لا يبقى على جهازٍ مشترك بعد الخروج (P1-3).
+    ولا `"storage"`: تمحو تفضيلاتِ المستخدم وتُلغي عاملَ الخدمة العامّ، والصفحاتُ
+    لم تعد تُحفظ في ذاكرة العامل أصلاً.
+    """
     logout(request)
     request.session.flush()
-    return redirect("login")
+    response = redirect("login")
+    response["Clear-Site-Data"] = '"cache"'
+    return response
