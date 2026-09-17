@@ -533,7 +533,15 @@ def change_password(request):
 
 @require_POST
 def logout_view(request):
-    """تسجيل الخروج الآمن — مسح الجلسة والتوجيه لصفحة الدخول"""
+    """تسجيل الخروج الآمن — مسح الجلسة والتوجيه لصفحة الدخول.
+
+    و`Clear-Site-Data: "cache"` يمحو ذاكرةَ المتصفّح لهذا الموقع: ما حُفظ من
+    صفحاتٍ شخصيّة قبل `no-store` لا يبقى على جهازٍ مشترك بعد الخروج (P1-3).
+    ولا `"storage"`: تمحو تفضيلاتِ المستخدم وتُلغي عاملَ الخدمة العامّ، والصفحاتُ
+    لم تعد تُحفظ في ذاكرة العامل أصلاً.
+    """
     logout(request)
     request.session.flush()
-    return redirect("login")
+    response = redirect("login")
+    response["Clear-Site-Data"] = '"cache"'
+    return response
