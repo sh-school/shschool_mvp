@@ -61,6 +61,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `notifications_notificationdispatch` | `created_at < cutoff` ولا تسليمَ ولا نيّة | الواقعةُ التي لم يبقَ منها شيء. |
 | `notifications_inappnotification` | `created_at < cutoff` | إشعارُ الجرس — يذكر طالباً أو مخالفةً، ولا وظيفةَ له بعد عامين قُرئ أو لم يُقرأ. |
 | `notifications_pushsubscription` | `is_active = false` وآخرُ استعمالٍ (أو الإنشاءُ) `< cutoff` | اشتراكٌ مطفأ: نقطةُ نهايةٍ ومفاتيحُ متصفّحٍ لم يعد أحدٌ يستقبل بها. |
+| `behavior_autoinfractionnotice` | `sent_at < cutoff` | علامةُ «أُبلغت الأسرةُ بمخالفة الرصد» — تمنع تكرارَ الرسالة، ولا يُرجع إليها إلّا مسحُ آخر خمسة أيّامٍ دراسيّة. والمخالفةُ نفسُها باقيةٌ في `core_behaviorinfraction`. |
 | `staging_importlog` | `started_at < cutoff` | `error_log` يحمل الصفوفَ المرفوضةَ كما وردت في الإكسل — أسماءً وأرقاماً. |
 
 **ترتيبُ التنفيذ** جزءٌ من الصواب: سجلّاتُ التسليم والرسائلُ الفاشلة قبل التسليمات، والتسليماتُ

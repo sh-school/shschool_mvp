@@ -418,8 +418,22 @@ def test_all_notify_behavior_call_sites_propagate_school_id():
 
     والعدد مثبَّت لا مفتوح: `>= 1` كان سيُخفي موضعاً جديداً يُضاف بلا
     `school_id` ما دام واحدٌ قديم يحمله.
+
+    وانتقل المساعدُ إلى `behavior/notify.py` (2026-09-16) حين استدعاه كشفُ الحصص
+    أيضاً — فالموضعُ الواحدُ هناك، ولا طبرَ خامَ بقي في الشاشات.
     """
-    path = ROOT / "behavior" / "views.py"
+    for path in (ROOT / "behavior" / "views.py", ROOT / "behavior" / "digest.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        assert not [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Attribute)
+            and node.attr == "delay"
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "notify_behavior_task"
+        ], path
+
+    path = ROOT / "behavior" / "notify.py"
     tree = ast.parse(path.read_text(encoding="utf-8"))
 
     calls = []
