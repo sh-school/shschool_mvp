@@ -145,15 +145,20 @@
 {% if not is_self %}
 <script nonce="{{ request.csp_nonce }}">
   // SOS-20260915: نقرةُ حصّةٍ في صفّ جدول المعلّم تملأ المادّة والشعبة
-  // ورقم الحصّة — بدل إدخالها يدويّاً عن ظهر قلب.
-  function qobsPickPeriod(btn) {
+  // ورقم الحصّة — بدل إدخالها يدويّاً عن ظهر قلب. تفويضٌ من `document`
+  // لا `onclick` في القالب (CSP `nonce` يُلغي `'unsafe-inline'` للسمات
+  // كما للسكربتات، ولا ينفعه nonce لأنه سمةٌ لا وسم)، وهذا أيضاً يعمل
+  // بعد كل استبدال HTMX لصفّ الجدول بلا إعادة ربط.
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.qobs-schedule-pill');
+    if (!btn) return;
     document.getElementById('qobs-subject').value = btn.dataset.subject || '';
     document.getElementById('qobs-class-group').value = btn.dataset.classGroup || '';
     document.getElementById('qobs-period').value = btn.dataset.period || '';
     document.querySelectorAll('.qobs-schedule-pill').forEach(function (el) {
       el.classList.toggle('is-active', el === btn);
     });
-  }
+  });
 </script>
 {% endif %}
 {% endblock %}

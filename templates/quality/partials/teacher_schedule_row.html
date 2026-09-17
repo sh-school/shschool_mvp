@@ -1,8 +1,14 @@
 {% comment %}
 SOS-20260915: صفُّ جدول المعلّم لتاريخٍ بعينه — يستبدله HTMX عند تغيير
 المعلّم أو التاريخ في استمارة الزيارة الصفّية. نقرةُ حصّةٍ تملأ المادّة
-والشعبة ورقم الحصّة في النموذج (`qobsPickPeriod` في observation_form.html)
-— بلا نسخِ بياناتٍ من الجدول باليد ولا خطأِ تطابق.
+والشعبة ورقم الحصّة في النموذج — بلا نسخِ بياناتٍ من الجدول باليد ولا
+خطأِ تطابق.
+
+لا `onclick` هنا: سياسة CSP (`nonce` في `script-src`) تُلغي `'unsafe-inline'`
+للسكربتات كلّها بما فيها سمات `onclick`، ولا ينفعها nonce لأنها سمات لا
+وسوم (`tests/test_csp_policy.py`). فالنقرُ مفوَّضٌ من `document` في
+observation_form.html على صنف `.qobs-schedule-pill` نفسِه — يعمل بعد كل
+استبدال HTMX للصفّ بلا إعادة ربط.
 
 يحتاج: periods [(number, session)]، error، has_query.
 {% endcomment %}
@@ -11,20 +17,19 @@ SOS-20260915: صفُّ جدول المعلّم لتاريخٍ بعينه — ي�
     <p class="pr-muted">اختر المعلّم والتاريخ لعرض جدول ذلك اليوم.</p>
   {% elif error %}
     <p class="status-badge status-danger">{{ error }}</p>
-  {% elif periods %}
+  {% else %}
     <div class="qobs-schedule-pills">
       {% for p in periods %}
       <button type="button" class="qobs-schedule-pill"
         data-subject="{{ p.session.subject_id|default:'' }}"
         data-class-group="{{ p.session.class_group_id }}"
-        data-period="{{ p.number }}"
-        onclick="qobsPickPeriod(this)">
+        data-period="{{ p.number }}">
         <span>ح{{ p.number }} · {{ p.session.subject.name_ar|default:"—" }} · {{ p.session.class_group }}</span>
         <small>{{ p.session.start_time|time:"H:i" }}</small>
       </button>
+      {% empty %}
+      <p class="pr-muted">لا حصص لهذا المعلّم في هذا التاريخ — أدخل المادّة والشعبة والحصّة يدويّاً.</p>
       {% endfor %}
     </div>
-  {% else %}
-    <p class="pr-muted">لا حصص لهذا المعلّم في هذا التاريخ — أدخل المادّة والشعبة والحصّة يدويّاً.</p>
   {% endif %}
 </div>
