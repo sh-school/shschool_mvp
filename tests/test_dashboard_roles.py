@@ -10,7 +10,7 @@ import datetime as dt
 
 import pytest
 
-from core.dashboard_presentation import _delta, present
+from core.dashboard_presentation import _delta, chunk_for_grid, present
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
 
@@ -20,6 +20,23 @@ class TestDeltaLabels:
         assert _delta(-2) == "↓ 2 عن أمس"
         assert _delta(0) == "= كأمس"
         assert _delta(None) == ""
+
+
+class TestChunkForGrid:
+    def test_splits_sequentially_not_round_robin(self):
+        assert chunk_for_grid(list(range(1, 8)), 3) == [[1, 2, 3], [4, 5, 6], [7]]
+
+    def test_exact_multiple_gives_equal_columns(self):
+        assert chunk_for_grid(list(range(1, 9)), 4) == [[1, 2], [3, 4], [5, 6], [7, 8]]
+
+    def test_fewer_items_than_columns_gives_fewer_columns_not_empty_ones(self):
+        assert chunk_for_grid([1, 2], 4) == [[1], [2]]
+
+    def test_empty_list(self):
+        assert chunk_for_grid([], 4) == []
+
+    def test_single_column_is_the_whole_list(self):
+        assert chunk_for_grid([1, 2, 3], 1) == [[1, 2, 3]]
 
 
 class TestDirectorPresentation:
