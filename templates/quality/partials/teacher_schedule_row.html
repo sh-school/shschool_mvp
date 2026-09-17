@@ -24,7 +24,7 @@ observation_form.html على صنف `.qobs-schedule-pill` نفسِه — يعم�
         data-subject="{{ p.session.subject_id|default:'' }}"
         data-class-group="{{ p.session.class_group_id }}"
         data-period="{{ p.number }}">
-        <span>ح{{ p.number }} · {{ p.session.subject.name_ar|default:"—" }} · {{ p.session.class_group }}</span>
+        <span>ح{{ p.number }} · {{ p.session.subject.name_ar|default:"—" }} · {{ p.session.class_group.short_label }}</span>
         <small>{{ p.session.start_time|time:"H:i" }}</small>
       </button>
       {% empty %}

@@ -54,7 +54,7 @@
       <ul class="plain-list is-scroll">
         {% for r in failing_list %}
           <li class="plain-list__row">
-            <span class="plain-list__main"><a class="plain-list__title" href="{% url 'student_report' r.student.id %}?year={{ year }}">{{ r.student.full_name }}</a><span class="plain-list__sub">{{ r.setup.subject.name_ar }} · {{ r.setup.class_group }}</span></span>
+            <span class="plain-list__main"><a class="plain-list__title" href="{% url 'student_report' r.student.id %}?year={{ year }}">{{ r.student.full_name }}</a><span class="plain-list__sub">{{ r.setup.subject.name_ar }} · {{ r.setup.class_group.short_label }}</span></span>
             <span class="status-badge status-danger">{{ r.annual_total|default:"—" }}</span>
           </li>
         {% endfor %}

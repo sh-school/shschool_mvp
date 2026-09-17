@@ -22,7 +22,7 @@
     بعيد، والسطرُ تحت المادّة يقول لمن كانت.
     {% endcomment %}
     <tr class="{% if session.original_teacher_id %}is-swapped{% elif next_session and session.id == next_session.id %}is-next{% endif %}"
-        data-filter-row data-text="{{ session.subject.name_ar|default:'' }} {{ session.teacher.full_name|default:'' }} {{ session.class_group }}">
+        data-filter-row data-text="{{ session.subject.name_ar|default:'' }} {{ session.teacher.full_name|default:'' }} {{ session.class_group.short_label }}">
       <td>
         <div class="sessions-table__subject">{{ session.subject.name_ar|default:"—" }}</div>
         {% if session.original_teacher_id %}
@@ -33,7 +33,7 @@
         {% endif %}
       </td>
       {% if is_leadership %}<td class="text-sm">{{ session.teacher.full_name }}</td>{% endif %}
-      <td class="text-sm" data-sort-value="{{ session.class_group.school_order }}">{{ session.class_group }}</td>
+      <td class="text-sm" data-sort-value="{{ session.class_group.school_order }}">{{ session.class_group.short_label }}</td>
       <td class="text-sm sessions-table__time" dir="ltr">
         {{ session.start_time|time:"H:i" }} - {{ session.end_time|time:"H:i" }}
       </td>

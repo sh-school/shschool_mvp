@@ -325,7 +325,7 @@ def record_section(request, class_id):
             "klass": klass,
             "day": day,
             # عنوانُ الترويسة وسطرُها يُبنيان هنا: المكوّنُ يأخذ نصّاً لا وسوماً.
-            "heading": f"{klass.get_grade_display()} / {klass.section}",
+            "heading": klass.short_label,
             "subtitle": (
                 f"{formats.date_format(day, 'D، d M Y')} · {len(rows)} طالباً · الحصص: {len(periods)}"
             ),

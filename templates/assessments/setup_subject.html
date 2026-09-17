@@ -27,11 +27,11 @@
         <label class="form-label" for="asm-class">الفصل الدراسي <span class="required">*</span></label>
         <select id="asm-class" name="class_group" required class="form-control">
           <option value="">اختر الفصل</option>
-          {% regroup classes by get_grade_display as grade_groups %}
+          {% regroup classes by grade as grade_groups %}
           {% for grade_group in grade_groups %}
-          <optgroup label="{{ grade_group.grouper }}">
+          <optgroup label="{{ grade_group.grouper|slice:'1:' }}">
             {% for c in grade_group.list %}
-            <option value="{{ c.id }}">{{ c }}</option>
+            <option value="{{ c.id }}">{{ c.short_label }}</option>
             {% endfor %}
           </optgroup>
           {% endfor %}

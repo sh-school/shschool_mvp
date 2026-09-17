@@ -32,7 +32,7 @@
           <select name="original_slot" id="comp-original-slot" class="form-control" required>
             <option value="">— اختر حصة —</option>
             {% for slot in my_slots %}
-            <option value="{{ slot.pk }}">{{ slot.get_day_of_week_display }} — ح{{ slot.period_number }} — {{ slot.subject|default:"مادة" }} ({{ slot.class_group }})</option>
+            <option value="{{ slot.pk }}">{{ slot.get_day_of_week_display }} — ح{{ slot.period_number }} — {{ slot.subject|default:"مادة" }} ({{ slot.class_group.short_label }})</option>
             {% endfor %}
           </select>
         </div>

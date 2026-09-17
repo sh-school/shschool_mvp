@@ -6,7 +6,7 @@
     <option value="">— اختر —</option>
     {% for opt in options %}
     <option value="{{ opt.slot.pk }}">
-      {{ opt.teacher.full_name }} — {{ opt.slot.get_day_of_week_display }} ح{{ opt.slot.period_number }} — {{ opt.slot.subject|default:"مادة" }} ({{ opt.slot.class_group }})
+      {{ opt.teacher.full_name }} — {{ opt.slot.get_day_of_week_display }} ح{{ opt.slot.period_number }} — {{ opt.slot.subject|default:"مادة" }} ({{ opt.slot.class_group.short_label }})
       {% if opt.same_subject %}[نفس المادة]{% endif %}
     </option>
     {% endfor %}

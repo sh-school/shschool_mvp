@@ -42,7 +42,7 @@
           {% for row in report.ministry_rows %}
           <tr>
             <td>{{ row.student.full_name }}</td>
-            <td>{{ row.class_group }}</td>
+            <td>{{ row.class_group.short_label }}</td>
             <td><span class="status-badge {% if row.ministry_flag == 'excused' %}status-info{% else %}status-danger{% endif %}">{{ row.ministry_label }}</span></td>
           </tr>
           {% endfor %}
@@ -70,7 +70,7 @@
           {% for row in report.rows %}
           <tr>
             <td>{{ row.student.full_name }}</td>
-            <td>{{ row.class_group }}</td>
+            <td>{{ row.class_group.short_label }}</td>
             {% for slot in row.slots %}<td class="num dab-{{ slot.status|default:'none' }}{% if slot.excused %} dab-excused{% endif %}">{{ slot.letter }}</td>{% endfor %}
             {% for _ in row.padding %}<td></td>{% endfor %}
             <td class="num">{{ row.absent_periods }}</td>

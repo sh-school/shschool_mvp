@@ -129,9 +129,8 @@
       <div class="flex items-start justify-between gap-2 mb-2">
         <div class="min-w-0">
           <span class="text-maroon font-bold text-sm block truncate">
-            {{ cls.get_grade_display }}
+            {{ cls.short_label }}
           </span>
-          <p class="text-xs text-secondary m-0 mt-1">الشعبة {{ cls.section }}</p>
         </div>
         <span class="status-badge status-info flex-shrink-0 text-xs">{{ cls.students_count|default:"—" }} طالب</span>
       </div>
