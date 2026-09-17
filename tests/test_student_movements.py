@@ -147,7 +147,7 @@ def test_the_four_destination_cards_render_including_a_zero_one(
     client, school, principal_user, teacher_user, wing_a
 ):
     """طلب المدير (تذكرة رقم 10): بطاقةٌ لكلّ وجهة — عيادة، إدارة، دورة
-    مياه، وخروج من المدرسة (ثابتةٌ صفراً عمداً، غير مُسجَّلة بعد).
+    مياه، وخروجٌ مبكرٌ من المدرسة (غيرُ مُسجَّلٍ بعد).
 
     ويوم فيه خروجٌ للعيادة وحدها يجب ألّا يُسقط الاستمارةَ حين تُبنى بطاقةُ
     وجهةٍ لا خروج لها ذلك اليوم (`destination_counts.get(code, 0)`) — هذا
@@ -165,7 +165,8 @@ def test_the_four_destination_cards_render_including_a_zero_one(
     assert "مراجعة العيادة" in html
     assert "مراجعة الإدارة" in html
     assert "دورة المياه" in html
-    assert "الخروج من المدرسة" in html
+    assert "الخروج مبكراً من المدرسة" in html
+    assert 'class="action-card' in html, "البطاقاتُ الأربع بلاطاتٌ حقيقيّة — لا أرقامٌ عارية"
 
 
 def test_open_status_filter_shows_only_those_who_have_not_returned(
