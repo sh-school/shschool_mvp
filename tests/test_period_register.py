@@ -831,8 +831,11 @@ class TestTheScreen:
         assert reverse("wings:record_index") in body
 
     def test_the_supervisors_home_page_shows_his_sections_to_record(
-        self, client_as, school, klass, kids, teacher, supervisor
+        self, client_as, school, klass, kids, teacher, supervisor, monkeypatch
     ):
+        # يومُ دوام: يومَ الجمعة لا تُعرض الشُّعب، فالساعةُ الحقيقيّة تُسقطه آخرَ الأسبوع.
+        monkeypatch.setattr("django.utils.timezone.now", lambda: at(9, 0))
+
         body = client_as(supervisor).get(reverse("dashboard")).content.decode()
 
         assert klass.short_code in body

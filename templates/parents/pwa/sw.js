@@ -2,15 +2,23 @@
 
    والأصلُ غيرُ المبصوم لا يُخدَم من الذاكرة أوّلاً: عنوانُه ثابتٌ ومحتواه
    يتغيّر، فيبقى القديمُ إلى الأبد ولا يُقرأ `Cache-Control` أصلاً — عاملُ
-   الخدمة أمام الشبكة والترويسات. انظر `templates/pwa/sw_global.js`. */
-const CACHE_NAME = 'schoolos-parents-v2';
+   الخدمة أمام الشبكة والترويسات. انظر `templates/pwa/sw_global.js`.
+
+   ولا تُخزَّن صفحةٌ شخصيّة (P1-3). كانت كلُّ صفحةٍ تحت /parents/ تُحفظ بعد
+   كلّ فتح — درجاتُ الابن وغيابُه وسلوكُه — وتبقى على الجهاز بعد الخروج،
+   وتُعرض لمن يفتحه بلا شبكة، ولو كان جهازاً مشتركاً في البيت. وكانت تُحفظ
+   بلا نظرٍ في حالة الردّ ولا في `no-store` الذي يضعه الخادمُ لكلّ صفحةِ
+   مسجَّل. فالصفحاتُ الآن من الشبكة وحدَها، وعند الانقطاع صفحةُ «غير متصل»؛
+   ولا يُحفظ إلّا الثابتُ تحت /static/. ورفعُ الإصدار يمحو v2 وما فيها. */
+const CACHE_NAME = 'schoolos-parents-v3';
 const OFFLINE_URL = '/parents/offline/';
 
-/* لا يُخزَّن مسبقاً إلّا ما لا يشيخ — والأصولُ في التطوير غيرُ مبصومة. */
-const CACHE_ASSETS = [
-  '/parents/',
-  '/parents/offline/',
-];
+/* لا يُخزَّن مسبقاً إلّا صفحةُ الانقطاع — لا بياناتِ فيها. */
+const CACHE_ASSETS = [OFFLINE_URL];
+
+const isStatic = (url) => url.origin === self.location.origin && url.pathname.startsWith('/static/');
+const cacheable = (res) =>
+  res && res.ok && !/no-store|private/i.test(res.headers.get('Cache-Control') || '');
 
 /* بصمةُ المحتوى: `name.<hex8+>.ext` — ما يكتبه manifest storage. */
 const FINGERPRINTED = /\.[0-9a-f]{8,}\.[a-z0-9]+$/i;
@@ -53,30 +61,23 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Parents pages — network-first with cache fallback
-  if (url.pathname.startsWith('/parents/')) {
+  // التنقّلُ بين الصفحات: من الشبكة وحدَها، وعند الانقطاع صفحةُ «غير متصل».
+  if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then(response => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
-          return response;
-        })
-        .catch(async () => {
-          const cached = await caches.match(event.request);
-          if (cached) return cached;
-          return caches.match(OFFLINE_URL);
-        })
+      fetch(event.request).catch(() => caches.match(OFFLINE_URL))
     );
     return;
   }
+
+  // ما ليس ثابتاً (أجزاءُ HTMX، ملفّاتُ /dbmedia/، …) لا يمسّه العامل.
+  if (!isStatic(url)) return;
 
   // الأصولُ الثابتة: المبصومُ من الذاكرة أوّلاً، وغيرُه من الشبكة أوّلاً
   // مع سقوطٍ إلى الذاكرة عند الانقطاع — فتبقى فائدةُ العمل دون شبكة.
   if (isFingerprinted(event.request.url)) {
     event.respondWith(
       caches.match(event.request).then(cached => cached || fetch(event.request).then(res => {
-        if (res && res.ok) {
+        if (cacheable(res)) {
           const clone = res.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
@@ -88,7 +89,7 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     fetch(event.request)
       .then(res => {
-        if (res && res.ok) {
+        if (cacheable(res)) {
           const clone = res.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
         }
@@ -110,9 +111,10 @@ self.addEventListener('push', event => {
     lang:    'ar',
     vibrate: [200, 100, 200],
     data:    { url: data.url || '/parents/' },
+    // بلا أيقوناتٍ للأزرار: check.png وclose.png لم يوجدا قطّ.
     actions: [
-      { action: 'open',    title: 'فتح',  icon: '/static/icons/check.png' },
-      { action: 'dismiss', title: 'إغلاق', icon: '/static/icons/close.png' },
+      { action: 'open',    title: 'فتح' },
+      { action: 'dismiss', title: 'إغلاق' },
     ],
   };
   event.waitUntil(self.registration.showNotification(title, options));

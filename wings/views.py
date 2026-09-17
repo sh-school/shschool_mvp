@@ -11,12 +11,11 @@ from django.urls import reverse
 from django.utils import formats, timezone
 from django.views.decorators.http import require_POST
 
-from core.academic_calendar import academic_year_for_school
+from core.academic_calendar import academic_year_for_school, academic_year_window
 from core.capabilities import capability_required, has_capability
 from core.models import ClassGroup, CustomUser, Wing, WingCoverage
 from operations.absence_policy import next_gate
 from operations.absence_standing import unexcused_days_for_class
-from operations.bells import day_type_for
 from operations.day_attendance import enrolled_of
 from operations.guardian_contact import awaiting_contact
 from operations.models import StudentAttendance
@@ -32,6 +31,7 @@ from operations.period_register import (
     teacher_taps_of,
     track_note,
 )
+from operations.school_days import SchoolDay, school_day
 from operations.services import ScheduleService
 from wings.scope import student_scope_for
 
@@ -55,9 +55,9 @@ def floors(request):
     school = request.user.get_school()
     now = timezone.localtime()
     year = academic_year_for_school(school)
-    day_type = day_type_for(now.date())
+    today = school_day(school, now.date())
 
-    panels = floors_overview(school, year, now)
+    panels = floors_overview(school, year, now, today=today)
     outside = outside_the_wings(school, year)
     wing_students = sum(panel.student_count for panel in panels)
     register_count = wing_students + outside.student_count
@@ -72,8 +72,8 @@ def floors(request):
             "now": now,
             "year": year,
             "subtitle": f"طابقان · {wing_count} أجنحة · {section_count} شعبة · {year}",
-            "day_label": DAY_LABEL.get(day_type, "عطلة — لا دوام"),
-            "is_school_day": bool(day_type),
+            "day_label": _day_label(today),
+            "is_school_day": today.is_open,
             "wing_count": wing_count,
             "section_count": section_count,
             "student_count": wing_students,
@@ -82,9 +82,16 @@ def floors(request):
             or request.user.get_role() in WingCoverage.ASSIGNER_ROLES,
             # سجلُّ المدرسة كلُّه — والفرقُ بينه وبين طلاب الأجنحة معروضٌ لا مطروح.
             "register_count": register_count,
-            "kpis": _floors_kpis(outside, register_count, bool(day_type), now),
+            "kpis": _floors_kpis(outside, register_count, today.is_open, now),
         },
     )
+
+
+def _day_label(today: SchoolDay) -> str:
+    """نوعُ اليوم بأجراسه — والإجازةُ باسمها من التقويم، لا «الأحد – الأربعاء» يومَ ثلاثاءٍ مغلق."""
+    if today.is_open:
+        return DAY_LABEL[today.day_type]
+    return today.holiday or "عطلة — لا دوام"
 
 
 def _floors_kpis(outside, register_count, is_school_day, now):
@@ -113,6 +120,11 @@ def _day(raw, fallback=None):
         return dt.date.fromisoformat(raw)
     except (TypeError, ValueError):
         return fallback
+
+
+def _september_first(today):
+    """بدايةُ العام حين لا تقويمَ مبذوراً: سبتمبرُ هذه السنة، أو الماضية قبل سبتمبر."""
+    return dt.date(today.year if today.month >= 9 else today.year - 1, 9, 1)
 
 
 @login_required
@@ -208,13 +220,16 @@ def record_index(request):
     school = request.user.get_school()
     year = academic_year_for_school(school)
     day = _day(request.GET.get("date"), timezone.localdate())
+    opened = school_day(school, day)
 
-    # الحصصُ تُولَّد إن لم تكن — فشعبةٌ بلا حصصٍ لا تُرصد.
-    ScheduleService.ensure_sessions_for_date(school, day)
-
-    # العدُّ في الخدمة لا في القالب: `add` في جانغو لا تطرح، فحسابُ
-    # «المتبقّية» هناك كان يُخرج صفراً دائماً.
-    panels = record_panels(request.user, school, year, day)
+    panels = []
+    if opened.is_open:
+        # الحصصُ تُولَّد إن لم تكن — فشعبةٌ بلا حصصٍ لا تُرصد. ويومُ الإجازة لا يُعرض،
+        # وإلّا ظهرت شُعبُه كلُّها «لم تُرصد» تحت «فلا رصد».
+        ScheduleService.ensure_sessions_for_date(school, day)
+        # العدُّ في الخدمة لا في القالب: `add` في جانغو لا تطرح، فحسابُ
+        # «المتبقّية» هناك كان يُخرج صفراً دائماً.
+        panels = record_panels(request.user, school, year, day)
     return render(
         request,
         "wings/record_index.html",
@@ -222,7 +237,7 @@ def record_index(request):
             "panels": panels,
             "day": day,
             "today": timezone.localdate(),
-            "day_type": day_type_for(day),
+            "school_day": opened,
         },
     )
 
@@ -398,10 +413,20 @@ def student_events(request, class_id, student_id):
     today = timezone.localdate()
     # اليومُ المقصود: ما في الرابط، وإلّا آخرُ يومِ غيابٍ بلا عذر — لا اليوم: كان الفراغُ
     # يُملأ بتاريخ اليوم فيُكتب العذرُ والإخطارُ على يومٍ لم يغب فيه.
+    # وفي هذا العام وحده وحتى اليوم: غيابُ يونيو الماضي كان يملأ الخانتين، فيُرسَل عذرُ
+    # اليوم ومستندُه إلى النائب عن يومٍ من عامٍ مضى.
+    window = academic_year_window(school, today)
+    year_start = window[0] if window else _september_first(today)
     last_absent = (
         StudentAttendance.objects.filter(
-            student=student, school=school, status="absent", excuse_type=""
+            student=student,
+            school=school,
+            status="absent",
+            excuse_type="",
+            session__date__gte=year_start,
+            session__date__lte=today,
         )
+        .exclude(session__status="cancelled")
         .order_by("-session__date")
         .values_list("session__date", flat=True)
         .first()

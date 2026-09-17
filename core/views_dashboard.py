@@ -328,7 +328,11 @@ def _get_therapist_ctx(user, school, today):
     completed_today = sessions_today.filter(status="completed").count()
 
     # إحصائيات الأسبوع — مفيدة لمتابعة التقدم
-    week_start = today - datetime.timedelta(days=today.weekday())
+    # الأسبوعُ المدرسيّ يبدأ الأحد لا الاثنين: weekday() تُرقّم الاثنين صفراً،
+    # فحساب «أوّل الأسبوع» بها مباشرةً كان يرجع لاثنين الأسبوع السابق. أضيفت
+    # فروةُ يومٍ واحد (Sun=6 → 0) قبل القسمة، فصار الأحدُ نفسُه بدايةَ أسبوعه.
+    days_since_sunday = (today.weekday() + 1) % 7
+    week_start = today - datetime.timedelta(days=days_since_sunday)
     week_sessions = Session.objects.filter(
         school=school,
         teacher=user,
@@ -436,21 +440,26 @@ def _supervisor_record_ctx(user, school, today):
     كان الرابطُ في القائمة وحدَها، ولوحتُه التي يفتحها أوّلَ الدخول لا تذكر
     الرصدَ أصلاً: عملُه اليوميُّ الرئيسيُّ غائبٌ عن صفحته الرئيسيّة.
     """
-    from operations.bells import day_type_for
+    from operations.school_days import school_day
     from operations.services import ScheduleService
     from wings.services import record_panels, supervisor_watchlist
 
     year = academic_year_for_school(school)
-    if day_type_for(today):
-        # الحصصُ تُولَّد إن لم تكن — وإلّا بدت الشُّعبُ «بلا حصص» صباحاً.
-        ScheduleService.ensure_sessions_for_date(school, today)
-    return {
-        "record_panels": record_panels(user, school, year, today),
+    day = school_day(school, today)
+    ctx = {
+        "record_panels": [],
         "day": today,
-        "is_school_day": bool(day_type_for(today)),
+        # والإجازةُ من تقويم الوزارة لا من الأسبوع وحدَه: ثلاثاءُ الإجازة كان يُعرض
+        # يومَ دوامٍ وكلُّ شُعبه «لم تُرصد».
+        "school_day": day,
         # ما ينتظره اليوم: إخطارُ أولياء الأمور، ومن عند العتبات (لوحتُه v1).
         **supervisor_watchlist(user, school, year, today),
     }
+    if day.is_open:
+        # الحصصُ تُولَّد إن لم تكن — وإلّا بدت الشُّعبُ «بلا حصص» صباحاً.
+        ScheduleService.ensure_sessions_for_date(school, today)
+        ctx["record_panels"] = record_panels(user, school, year, today)
+    return ctx
 
 
 def _get_transport_ctx(user, school, today):

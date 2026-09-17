@@ -1,14 +1,17 @@
 """
 tests/test_querysets_services.py
 اختبارات شاملة لـ:
-  - operations/querysets.py : SessionQuerySet, AttendanceQuerySet, AbsenceAlertQuerySet
   - quality/querysets.py    : ProcedureQuerySet, DomainQuerySet
   - notifications/querysets.py : InAppNotificationQuerySet, NotificationLogQuerySet
   - quality/services.py    : QualityService
   - quality/employee_evaluation.py : EmployeeEvaluation, EvaluationCycle
+
+(كانت تشمل أيضاً operations/querysets.py: SessionQuerySet وAttendanceQuerySet
+وAbsenceAlertQuerySet — حُذفت مع الوحدة نفسها؛ لم تكن مربوطةً بأيّ نموذج ولا
+يستعملها أحدٌ غير هذا الملفّ.)
 """
 
-from datetime import date, time, timedelta
+from datetime import date, timedelta
 
 import pytest
 from django.utils import timezone
@@ -17,17 +20,6 @@ from notifications.models import InAppNotification, NotificationLog
 from notifications.querysets import (
     InAppNotificationQuerySet,
     NotificationLogQuerySet,
-)
-from operations.models import (
-    AbsenceAlert,
-    Session,
-    StudentAttendance,
-    Subject,
-)
-from operations.querysets import (
-    AbsenceAlertQuerySet,
-    AttendanceQuerySet,
-    SessionQuerySet,
 )
 from quality.models import (
     EmployeeEvaluation,
@@ -41,47 +33,11 @@ from quality.models import (
 )
 from quality.querysets import DomainQuerySet, ProcedureQuerySet
 from quality.services import QualityService
-from tests.conftest import (
-    ClassGroupFactory,
-    SchoolFactory,
-    UserFactory,
-)
+from tests.conftest import SchoolFactory, UserFactory
 
 # ══════════════════════════════════════════════════════════════
 # Helpers
 # ══════════════════════════════════════════════════════════════
-
-
-def _make_session(
-    school,
-    teacher,
-    class_group,
-    subject=None,
-    session_date=None,
-    status="scheduled",
-    start="08:00",
-    end="08:45",
-):
-    return Session.objects.create(
-        school=school,
-        teacher=teacher,
-        class_group=class_group,
-        subject=subject,
-        date=session_date or timezone.now().date(),
-        start_time=time.fromisoformat(start),
-        end_time=time.fromisoformat(end),
-        status=status,
-    )
-
-
-def _make_attendance(session, student, school, status="present", excuse_type=""):
-    return StudentAttendance.objects.create(
-        session=session,
-        student=student,
-        school=school,
-        status=status,
-        excuse_type=excuse_type,
-    )
 
 
 _proc_seq = 0
@@ -125,421 +81,7 @@ def _make_quality_hierarchy(school, domain_name="مجال 1"):
 
 
 # ══════════════════════════════════════════════════════════════
-#  1. SessionQuerySet
-# ══════════════════════════════════════════════════════════════
-
-
-@pytest.mark.django_db
-class TestSessionQuerySet:
-    @pytest.fixture(autouse=True)
-    def setup(self, school, teacher_user):
-        self.school = school
-        self.teacher = teacher_user
-        self.cg = ClassGroupFactory(school=school)
-        self.subject = Subject.objects.create(
-            school=school,
-            name_ar="رياضيات",
-            code="MATH",
-        )
-        self.qs = SessionQuerySet(model=Session, using="default").filter(
-            school=school,
-        )
-
-    def test_today(self):
-        today_session = _make_session(
-            self.school,
-            self.teacher,
-            self.cg,
-            session_date=timezone.now().date(),
-            status="scheduled",
-        )
-        _make_session(
-            self.school,
-            self.teacher,
-            self.cg,
-            session_date=timezone.now().date() - timedelta(days=5),
-            status="completed",
-            start="09:00",
-            end="09:45",
-        )
-        result = self.qs.today()
-        assert today_session in result
-        assert result.count() == 1
-
-    def test_this_week(self):
-        today = timezone.now().date()
-        start_of_week = today - timedelta(days=today.weekday())
-        session_in_week = _make_session(
-            self.school,
-            self.teacher,
-            self.cg,
-            session_date=start_of_week,
-            status="scheduled",
-        )
-        session_outside = _make_session(
-            self.school,
-            self.teacher,
-            self.cg,
-            session_date=start_of_week - timedelta(days=7),
-            status="completed",
-            start="10:00",
-            end="10:45",
-        )
-        result = self.qs.this_week()
-        assert session_in_week in result
-        assert session_outside not in result
-
-    def test_date_range(self):
-        d1 = date(2025, 9, 1)
-        d2 = date(2025, 9, 30)
-        s1 = _make_session(
-            self.school,
-            self.teacher,
-            self.cg,
-            session_date=date(2025, 9, 15),
-            start="08:00",
-        )
-        s2 = _make_session(
-            self.school,
-            self.teacher,
-            self.cg,
-            session_date=date(2025, 10, 5),
-            start="09:00",
-        )
-        result = self.qs.date_range(d1, d2)
-        assert s1 in result
-        assert s2 not in result
-
-    def test_for_teacher(self):
-        other_teacher = UserFactory(full_name="معلم آخر")
-        s1 = _make_session(
-            self.school,
-            self.teacher,
-            self.cg,
-            session_date=date(2025, 11, 1),
-            start="08:00",
-        )
-        cg2 = ClassGroupFactory(school=self.school)
-        s2 = _make_session(
-            self.school,
-            other_teacher,
-            cg2,
-            session_date=date(2025, 11, 1),
-            start="08:00",
-        )
-        result = self.qs.for_teacher(self.teacher)
-        assert s1 in result
-        assert s2 not in result
-
-    def test_for_class(self):
-        cg2 = ClassGroupFactory(school=self.school)
-        s1 = _make_session(
-            self.school,
-            self.teacher,
-            self.cg,
-            session_date=date(2025, 11, 2),
-            start="08:00",
-        )
-        other_teacher = UserFactory(full_name="م2")
-        s2 = _make_session(
-            self.school,
-            other_teacher,
-            cg2,
-            session_date=date(2025, 11, 2),
-            start="08:00",
-        )
-        result = self.qs.for_class(self.cg)
-        assert s1 in result
-        assert s2 not in result
-
-    def test_for_subject(self):
-        s1 = _make_session(
-            self.school,
-            self.teacher,
-            self.cg,
-            subject=self.subject,
-            session_date=date(2025, 11, 3),
-            start="08:00",
-        )
-        assert s1 in self.qs.for_subject(self.subject)
-
-    def test_status_filters(self):
-        s_sched = _make_session(
-            self.school,
-            self.teacher,
-            self.cg,
-            session_date=date(2025, 11, 4),
-            status="scheduled",
-            start="08:00",
-        )
-        t2 = UserFactory(full_name="م3")
-        s_comp = _make_session(
-            self.school,
-            t2,
-            self.cg,
-            session_date=date(2025, 11, 4),
-            status="completed",
-            start="09:00",
-        )
-        t3 = UserFactory(full_name="م4")
-        s_cancel = _make_session(
-            self.school,
-            t3,
-            self.cg,
-            session_date=date(2025, 11, 4),
-            status="cancelled",
-            start="10:00",
-        )
-        t4 = UserFactory(full_name="م5")
-        s_ip = _make_session(
-            self.school,
-            t4,
-            self.cg,
-            session_date=date(2025, 11, 4),
-            status="in_progress",
-            start="11:00",
-        )
-
-        assert s_sched in self.qs.scheduled()
-        assert s_comp in self.qs.completed()
-        assert s_cancel in self.qs.cancelled()
-        assert s_ip in self.qs.in_progress()
-
-    def test_with_details(self):
-        _make_session(
-            self.school,
-            self.teacher,
-            self.cg,
-            subject=self.subject,
-            session_date=date(2025, 11, 5),
-            start="08:00",
-        )
-        # Should not raise; just test that select_related/prefetch works
-        result = self.qs.with_details()
-        assert result.count() >= 1
-
-    def test_attendance_summary(self):
-        session = _make_session(
-            self.school,
-            self.teacher,
-            self.cg,
-            session_date=date(2025, 11, 6),
-            start="08:00",
-        )
-        s1 = UserFactory(full_name="طالب أ")
-        s2 = UserFactory(full_name="طالب ب")
-        s3 = UserFactory(full_name="طالب ج")
-        _make_attendance(session, s1, self.school, status="present")
-        _make_attendance(session, s2, self.school, status="absent")
-        _make_attendance(session, s3, self.school, status="late")
-
-        annotated = self.qs.filter(pk=session.pk).attendance_summary().first()
-        assert annotated.present_count == 1
-        assert annotated.absent_count == 1
-        assert annotated.late_count == 1
-
-
-# ══════════════════════════════════════════════════════════════
-#  2. AttendanceQuerySet
-# ══════════════════════════════════════════════════════════════
-
-
-@pytest.mark.django_db
-class TestAttendanceQuerySet:
-    @pytest.fixture(autouse=True)
-    def setup(self, school, teacher_user, student_user):
-        self.school = school
-        self.teacher = teacher_user
-        self.student = student_user
-        self.cg = ClassGroupFactory(school=school)
-        self.qs = AttendanceQuerySet(
-            model=StudentAttendance,
-            using="default",
-        ).filter(school=school)
-
-    def _session(self, dt, start="08:00"):
-        return _make_session(
-            self.school,
-            self.teacher,
-            self.cg,
-            session_date=dt,
-            start=start,
-        )
-
-    def test_for_student(self):
-        session = self._session(date(2025, 12, 1))
-        att = _make_attendance(session, self.student, self.school)
-        other = UserFactory(full_name="طالب آخر")
-        att2 = _make_attendance(session, other, self.school)
-        result = self.qs.for_student(self.student)
-        assert att in result
-        assert att2 not in result
-
-    def test_for_class(self):
-        session = self._session(date(2025, 12, 2))
-        att = _make_attendance(session, self.student, self.school)
-        result = self.qs.for_class(self.cg)
-        assert att in result
-
-    def test_for_session(self):
-        session = self._session(date(2025, 12, 3))
-        att = _make_attendance(session, self.student, self.school)
-        result = self.qs.for_session(session)
-        assert att in result
-
-    def test_status_filters(self):
-        s1 = self._session(date(2025, 12, 4), start="08:00")
-        s2 = self._session(date(2025, 12, 4), start="09:00")
-        s3 = self._session(date(2025, 12, 4), start="10:00")
-        s4 = self._session(date(2025, 12, 4), start="11:00")
-
-        u1 = UserFactory(full_name="ط1")
-        u2 = UserFactory(full_name="ط2")
-        u3 = UserFactory(full_name="ط3")
-        u4 = UserFactory(full_name="ط4")
-
-        a_present = _make_attendance(s1, u1, self.school, status="present")
-        a_absent = _make_attendance(s2, u2, self.school, status="absent")
-        a_late = _make_attendance(s3, u3, self.school, status="late")
-        a_excused = _make_attendance(s4, u4, self.school, status="excused")
-
-        assert a_present in self.qs.present()
-        assert a_absent in self.qs.absent()
-        assert a_late in self.qs.late()
-        assert a_excused in self.qs.excused()
-
-    def test_unexcused(self):
-        session = self._session(date(2025, 12, 5))
-        att = _make_attendance(
-            session,
-            self.student,
-            self.school,
-            status="absent",
-            excuse_type="",
-        )
-        result = self.qs.unexcused()
-        assert att in result
-
-    def test_unexcused_excludes_excused_absent(self):
-        session = self._session(date(2025, 12, 6))
-        att = _make_attendance(
-            session,
-            self.student,
-            self.school,
-            status="absent",
-            excuse_type="medical",
-        )
-        result = self.qs.unexcused()
-        assert att not in result
-
-    def test_date_range(self):
-        s1 = self._session(date(2025, 12, 10))
-        att = _make_attendance(s1, self.student, self.school)
-        result = self.qs.date_range(date(2025, 12, 1), date(2025, 12, 15))
-        assert att in result
-        result2 = self.qs.date_range(date(2026, 1, 1), date(2026, 1, 31))
-        assert att not in result2
-
-    def test_last_days(self):
-        today = timezone.now().date()
-        recent_session = self._session(today, start="08:00")
-        att = _make_attendance(recent_session, self.student, self.school)
-        result = self.qs.last_days(7)
-        assert att in result
-
-    def test_with_details(self):
-        session = self._session(date(2025, 12, 11))
-        _make_attendance(session, self.student, self.school)
-        result = self.qs.with_details()
-        assert result.count() >= 1
-
-    def test_absence_streak(self):
-        s1 = self._session(date(2025, 12, 15), start="08:00")
-        s2 = self._session(date(2025, 12, 16), start="08:00")
-        s3 = self._session(date(2025, 12, 17), start="08:00")
-        for s in [s1, s2, s3]:
-            _make_attendance(s, self.student, self.school, status="absent")
-        result = self.qs.absence_streak(self.student, min_days=3)
-        assert result.count() == 3
-
-    def test_rate_for_student(self):
-        s1 = self._session(date(2025, 12, 20), start="08:00")
-        s2 = self._session(date(2025, 12, 21), start="08:00")
-        s3 = self._session(date(2025, 12, 22), start="08:00")
-        s4 = self._session(date(2025, 12, 23), start="08:00")
-        _make_attendance(s1, self.student, self.school, status="present")
-        _make_attendance(s2, self.student, self.school, status="present")
-        _make_attendance(s3, self.student, self.school, status="present")
-        _make_attendance(s4, self.student, self.school, status="absent")
-        rate = self.qs.rate_for_student(self.student)
-        assert rate["total"] == 4
-        assert rate["present"] == 3
-        assert rate["absent"] == 1
-        assert rate["rate"] == 75.0
-
-    def test_rate_for_student_empty(self):
-        other = UserFactory(full_name="طالب جديد")
-        rate = self.qs.rate_for_student(other)
-        assert rate["total"] == 0
-        assert rate["rate"] == 0
-
-
-# ══════════════════════════════════════════════════════════════
-#  3. AbsenceAlertQuerySet
-# ══════════════════════════════════════════════════════════════
-
-
-@pytest.mark.django_db
-class TestAbsenceAlertQuerySet:
-    @pytest.fixture(autouse=True)
-    def setup(self, school, student_user):
-        self.school = school
-        self.student = student_user
-        self.qs = AbsenceAlertQuerySet(
-            model=AbsenceAlert,
-            using="default",
-        ).filter(school=school)
-
-    def _alert(self, status="pending"):
-        return AbsenceAlert.objects.create(
-            school=self.school,
-            student=self.student,
-            absence_count=5,
-            period_start=date(2025, 12, 1),
-            period_end=date(2025, 12, 15),
-            status=status,
-        )
-
-    def test_pending(self):
-        # AbsenceAlertQuerySet.pending() filters notified=False
-        # The AbsenceAlert model has 'status' not 'notified'; this queryset
-        # will return alerts where notified=False which doesn't exist as a field.
-        # We test it doesn't crash. It may return all or none depending on DB behavior.
-        self._alert(status="pending")
-        # Just verify no crash
-        list(self.qs.pending())
-
-    def test_notified(self):
-        self._alert(status="notified")
-        list(self.qs.notified())
-
-    def test_for_student(self):
-        alert = self._alert()
-        other = UserFactory(full_name="طالب ب")
-        alert2 = AbsenceAlert.objects.create(
-            school=self.school,
-            student=other,
-            absence_count=3,
-            period_start=date(2025, 12, 1),
-            period_end=date(2025, 12, 10),
-        )
-        result = self.qs.for_student(self.student)
-        assert alert in result
-        assert alert2 not in result
-
-
-# ══════════════════════════════════════════════════════════════
-#  4. ProcedureQuerySet
+#  1. ProcedureQuerySet
 # ══════════════════════════════════════════════════════════════
 
 
@@ -696,7 +238,7 @@ class TestProcedureQuerySet:
 
 
 # ══════════════════════════════════════════════════════════════
-#  5. DomainQuerySet
+#  2. DomainQuerySet
 # ══════════════════════════════════════════════════════════════
 
 
@@ -745,7 +287,7 @@ class TestDomainQuerySet:
 
 
 # ══════════════════════════════════════════════════════════════
-#  6. InAppNotificationQuerySet
+#  3. InAppNotificationQuerySet
 # ══════════════════════════════════════════════════════════════
 
 
@@ -842,7 +384,7 @@ class TestInAppNotificationQuerySet:
 
 
 # ══════════════════════════════════════════════════════════════
-#  7. NotificationLogQuerySet
+#  4. NotificationLogQuerySet
 # ══════════════════════════════════════════════════════════════
 
 
@@ -912,7 +454,7 @@ class TestNotificationLogQuerySet:
 
 
 # ══════════════════════════════════════════════════════════════
-#  8. QualityService
+#  5. QualityService
 # ══════════════════════════════════════════════════════════════
 
 
@@ -1102,7 +644,7 @@ class TestQualityService:
 
 
 # ══════════════════════════════════════════════════════════════
-#  9. EmployeeEvaluation & EvaluationCycle
+#  6. EmployeeEvaluation & EvaluationCycle
 # ══════════════════════════════════════════════════════════════
 
 

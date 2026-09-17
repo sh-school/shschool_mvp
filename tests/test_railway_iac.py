@@ -49,6 +49,26 @@ def test_web_service_is_declared_as_deployed(iac):
     assert "source: github(REPO)" in web
 
 
+def test_migrations_run_once_before_traffic_switches(iac):
+    """الهجراتُ في preDeployCommand — تعمل قبل أن تستقبل أيّ نسخةٍ الحركة (P4-1).
+
+    وتبقى مكرَّرةً في start مؤقّتاً (idempotent) حتى يُؤكَّد عملُ preDeploy فعلاً
+    بعد `railway config apply` اليدويّ — فلا يخاطر دمجُ هذا وحدَه بنشرٍ بلا
+    collectstatic لو سبق التعديلُ الـapply. تُحذف من start في طلبٍ لاحق.
+    """
+    web = _service_block(iac, "shschool_mvp")
+    assert 'preDeploy: "bash scripts/railway-predeploy.sh"' in web
+
+    predeploy = (ROOT / "scripts" / "railway-predeploy.sh").read_text(encoding="utf-8")
+    release = (ROOT / "scripts" / "railway-release.sh").read_text(encoding="utf-8")
+    assert "manage.py migrate" in predeploy
+    assert "manage.py collectstatic" in predeploy
+    assert "provision_rls_role" in predeploy
+    # release.sh نفسُه لا يُمَسّ الآن (انظر تعليق «مؤقّت» في رأسه) — الشرطُ الوحيد
+    # هنا أنّ الملفَّين موجودان ومتّسقان، لا أنّ أحدهما فرّغ الآخر.
+    assert release.strip()
+
+
 def test_worker_service_has_no_http_healthcheck(iac):
     worker = _service_block(iac, "celery-worker")
     assert 'start: "bash scripts/railway-worker.sh"' in worker
@@ -75,3 +95,17 @@ def test_iac_never_carries_variable_values(iac):
     assert "preserve()" in iac
     # لا سطرَ يُسند قيمةً إلى اسمِ متغيّرٍ بيئيّ.
     assert not re.search(r'[A-Z][A-Z0-9_]{3,}:\s*"[^"]+"', iac.replace('builder: "DOCKERFILE"', ""))
+
+
+def test_every_service_can_read_rotated_ciphertext(iac):
+    """المفتاحُ الجاري والقديمُ معاً لكلّ خدمة — وإلّا كسر التدويرُ القراءةَ على بعضها (P1-5)."""
+    shared = re.search(r"const SHARED_VARIABLES = \[(.*?)\] as const;", iac, re.DOTALL).group(1)
+    assert '"FERNET_KEY"' in shared and '"FERNET_OLD_KEYS"' in shared
+
+    for block_name in ("WEB_VARIABLES", "WORKER_VARIABLES"):
+        block = re.search(rf"const {block_name} = \[(.*?)\] as const;", iac, re.DOTALL).group(1)
+        assert "...SHARED_VARIABLES" in block, block_name
+    for name in ("shschool_mvp", "celery-worker", "celery-beat"):
+        assert re.search(
+            r"variables: keep\((SHARED|WEB|WORKER)_VARIABLES\)", _service_block(iac, name)
+        )

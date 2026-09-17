@@ -6,17 +6,17 @@ SchoolOS REST API v1 — نقاط النهاية
 /api/v1/schema/          OpenAPI schema (YAML/JSON)
 /api/v1/docs/            Swagger UI
 /api/v1/redoc/           ReDoc
-/api/v1/auth/token/      JWT Login
-/api/v1/auth/token/refresh/ JWT Refresh
+/api/v1/auth/token/      JWT Login   — بـAPI_JWT_ENABLED وحدَه
+/api/v1/auth/token/refresh/ JWT Refresh — بـAPI_JWT_ENABLED وحدَه
 """
 
+from django.conf import settings
 from django.urls import path
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from . import views, views_erasure
 
@@ -27,9 +27,6 @@ urlpatterns = [
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="api_v1:schema"), name="swagger-ui"),
     path("redoc/", SpectacularRedocView.as_view(url_name="api_v1:schema"), name="redoc"),
-    # ── JWT Auth (للتطبيق المحمول المستقبلي) ─────────────────────
-    path("auth/token/", TokenObtainPairView.as_view(), name="token_obtain"),
-    path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     # ── Me ────────────────────────────────────────────────────────
     path("me/", views.me_view, name="me"),
     # ── Students ─────────────────────────────────────────────────
@@ -101,3 +98,11 @@ urlpatterns = [
         name="erasure-reject",
     ),
 ]
+
+if settings.API_JWT_ENABLED:
+    from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+
+    urlpatterns += [
+        path("auth/token/", TokenObtainPairView.as_view(), name="token_obtain"),
+        path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    ]
