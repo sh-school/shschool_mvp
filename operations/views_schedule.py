@@ -21,6 +21,7 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.audit_export import log_export
 from core.capabilities import capability_required
+from core.dashboard_presentation import chunk_for_grid
 from core.domain.tones import tone_for
 from core.models import CustomUser, Membership
 from core.models.academic import grade_order
@@ -934,6 +935,8 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
     * مؤشّراتُ المختبر مصفوفةٌ واحدة: صفٌّ لكلّ مؤشّر، وعمودٌ للأساس ثمّ عمودٌ
       لكلّ توليد. كانت جدولاً داخل `details` داخل صفٍّ من سجلّ التوليد، لكلّ
       توليدٍ جدولُه، فلا يُقارَن توليدٌ بتوليدٍ إلّا بفتح اثنين والتنقّل بينهما.
+    * وصفوفُها لا تُقصّ (اثنان وعشرون مؤشّراً فأكثر) ومحتوى الصفّ ضيّق — فتُقسَّم
+      ثلاثة أعمدةٍ متجاورة (معيار تخطيط الصفحات) بدل عمودٍ واحدٍ يطيل الصفحة.
     """
     for g in generations:
         g.lab_tone = tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
@@ -962,6 +965,7 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
         ),
         "lab_columns": measured,
         "lab_matrix": list(rows.values()),
+        "lab_matrix_cols": chunk_for_grid(list(rows.values()), 3),
     }
 
 

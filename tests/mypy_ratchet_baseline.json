@@ -119,7 +119,7 @@
   "operations/absence_standing.py": 12,
   "operations/bells.py": 12,
   "operations/class_exit.py": 5,
-  "operations/constraint_registry.py": 33,
+  "operations/constraint_registry.py": 20,
   "operations/day_attendance.py": 4,
   "operations/departments.py": 11,
   "operations/models.py": 54,
@@ -152,5 +152,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1848
+ "total": 1835
 }

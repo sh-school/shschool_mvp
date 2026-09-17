@@ -5814,17 +5814,31 @@ html.dark .pr-exec__user { color: var(--maroon-fg); }
   .lab-table td.lab-cell.is-worse { color: var(--status-danger-fg); }
   .lab-table td.lab-cell small { font-size: var(--text-xs); opacity: .85; }
   .smart-notes { display: grid; gap: var(--sp-2); margin-block-end: var(--sp-3); }
-  .feas-details { margin-block-start: var(--sp-2); }
+  /* فحصُ الجدوى: أربعةُ أسطرٍ صارت رقاقاتٍ تلتفّ سطرين لا جدولاً بخمسة صفوف —
+     التفصيلُ يبقى بـ`title` صامتاً حين الحكمُ سليم، ويظهر حين يستحقّ الانتباه. */
+  .feas-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); }
+  .feas-chip { display: inline-flex; align-items: center; gap: var(--sp-1); font-size: var(--text-sm); }
+  .feas-chip__note { color: var(--text-muted); font-size: var(--text-xs); }
+  .feas-details { margin-block-start: var(--sp-2); flex-basis: 100%; }
   .feas-details > summary { cursor: pointer; font-size: var(--text-xs); color: var(--text-muted); }
   .feas-list { margin: var(--sp-2) 0 0; padding-inline-start: 1.4em; list-style: disc; display: grid; gap: 2px; font-size: var(--text-xs); }
   /* التوليدُ الجاري: حدٌّ بلون المعلومة لا تنسيقٌ في الوسم. */
   .gen-running { margin-block-end: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--status-info); border-radius: var(--radius-md); background: var(--surface-alt); }
   .gen-running__label { margin: 0; font-size: var(--text-sm); font-weight: 600; color: var(--status-info-fg); }
   .gen-running__sub { margin: 4px 0 0; font-size: var(--text-xs); color: var(--text-muted); }
-  .gen-idle { display: grid; gap: var(--sp-3); justify-items: start; }
   .gen-error { margin-block-start: 4px; max-width: 32ch; white-space: normal; font-size: var(--text-xs); color: var(--status-danger-fg); }
   .gen-inline-form { display: inline; }
   .smart-empty-action { display: flex; justify-content: center; padding-block-end: var(--sp-3); }
+  /* «توليد الجدول التلقائي» و«سجلّ التوليد» بطاقةٌ واحدةٌ الآن — لوحةُ التحكّم
+     تحتاج حشوَ البطاقة الذي أسقطه `is-flush` عن الجدول أسفلها. */
+  .ui-section.is-flush > .ui-section__body > .gen-panel { padding: var(--sp-4); border-block-end: 1px solid var(--border); }
+  /* سجلّ التوليد: استثناءٌ صريحٌ من ترويسة الجدول العنّابيّة (`data-plain-head`
+     في القالب) — بيضاء بنصٍّ عنّابيّ بطلب المستخدم، لا الأبيضَ الافتراضيّ
+     المعكوس. والدارك مود يُبقي الخلفيةَ داكنة (لا بيضاء خلفيةً هناك). */
+  .gen-log-table thead tr { background: var(--on-fill); color: var(--maroon); }
+  .gen-log-table thead th { color: var(--maroon); }
+  html.dark .gen-log-table thead tr { background: var(--surface); color: var(--maroon-fg); }
+  html.dark .gen-log-table thead th { color: var(--maroon-fg); }
 
 /* ── templates/schedule/swap_list.html ── */
 .swap-page { max-width: 1100px; margin: 0 auto; padding: 16px; }
