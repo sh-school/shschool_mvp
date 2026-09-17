@@ -92,6 +92,13 @@
         <span class="qeval-recent__end">
           <b class="grade-total is-{{ ev.score_tone }}">{{ ev.total_score }}</b>
           <span class="status-badge status-{{ ev.status_tone }}">{{ ev.get_status_display }}</span>
+          {% if ev.status == "submitted" and request.user.is_admin %}
+          {# إصلاح ب.1: مسارُ الاعتماد الوحيد — لا تعديل status من لوحة الإدارة #}
+          <form method="post" action="{% url 'approve_evaluation' ev.id %}" class="qeval-recent__approve">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-primary">اعتماد</button>
+          </form>
+          {% endif %}
         </span>
       </li>
       {% endfor %}

@@ -248,6 +248,20 @@ class EvaluationScoreInline(admin.TabularInline):
 
 @admin.register(EmployeeEvaluation)
 class EmployeeEvaluationAdmin(admin.ModelAdmin):
+    """
+    إصلاح ب.1 (مراجعة عدائيّة): كان الحفظُ هنا يتجاوز `save_evaluation` ويعيد
+    حساب المجموع من المحاور الأربعة الافتراضية (`calculate_total`)، فيصفّر
+    تقييماتٍ محفوظةً على قالبٍ وزاريٍّ (مجموعها في `EvaluationScore` لا في
+    axis_* الافتراضية) بمجرّد تعديل الحالة أو أيّ حقلٍ آخر من هنا.
+
+    الدرجاتُ والحالةُ للقراءة فقط في هذه الشاشة — التعديلُ الفعليُّ للدرجات
+    يمرّ حصراً بشاشة التقييم (`evaluation_views.create_evaluation` عبر
+    `_save_evaluation`)، ومسارُ الاعتماد للمدير هو زرّ «اعتماد» في نفس الشاشة
+    (`evaluation_views.approve_evaluation`) لا تغييرُ `status` من هنا. وبعد أيّ
+    حفظٍ من الإدارة (لحقول أخرى كالملاحظات) يُعاد حساب المجموع من `EvaluationScore`
+    وحدها فلا يُرمى إلى صفر المحاور الافتراضية.
+    """
+
     list_display = (
         "employee",
         "evaluator",
@@ -259,8 +273,23 @@ class EmployeeEvaluationAdmin(admin.ModelAdmin):
     )
     list_filter = ("school", "academic_year", "period", "status", "rating")
     search_fields = ("employee__full_name", "evaluator__full_name")
-    readonly_fields = ("total_score", "rating")
+    readonly_fields = (
+        "total_score",
+        "rating",
+        "status",
+        "axis_professional",
+        "axis_commitment",
+        "axis_teamwork",
+        "axis_development",
+    )
     inlines = [EvaluationScoreInline]
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        # لا يُعتمَد على calculate_total() (المحاور الافتراضية) الذي نفّذه
+        # .save() أعلاه دون قصد؛ يُعاد الحساب من EvaluationScore إن وُجدت،
+        # وإلّا يبقى سلوكه الافتراضي كما كان.
+        obj.recalculate_from_scores()
 
 
 @admin.register(EvaluationCycle)

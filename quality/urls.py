@@ -92,6 +92,11 @@ urlpatterns = [
         evaluation_views.acknowledge_evaluation,
         name="acknowledge_evaluation",
     ),
+    path(
+        "evaluations/approve/<uuid:eval_id>/",
+        evaluation_views.approve_evaluation,
+        name="approve_evaluation",
+    ),
     path("evaluations/mine/", evaluation_views.my_evaluations, name="my_evaluations"),
     # ── الخطة التشغيلية ──────────────────────────────────────
     path("", views.plan_dashboard, name="quality_dashboard"),

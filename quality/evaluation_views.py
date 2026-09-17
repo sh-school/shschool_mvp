@@ -6,6 +6,8 @@ Phase 6 — واجهات تقييم الموظفين
 إصلاح: ربط RoleEvaluationTemplate + EvaluationScore + قائمة الموظفين
 """
 
+import re
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count
@@ -28,6 +30,21 @@ from .presentation import evaluation_rating_tone, evaluation_status_tone
 #: يُقرأ وقت الطلب لا وقت الاستيراد — ثابتُ الوحدة يتجمّد عند إقلاع العملية.
 def _default_year(request=None):
     return academic_year_for(request) if request is not None else default_academic_year()
+
+
+_YEAR_RE = re.compile(r"^\d{4}-\d{4}$")
+
+
+def _year_from_request(request):
+    """
+    إصلاح ب.5 (منخفض): "year" من querystring يصل بلا تحقّق من صيغته —
+    فقيمةٌ عشوائيةٌ (أو محاولة حقن) كانت تُمرَّر مباشرةً إلى فلاتر ORM.
+    ترفض أي صيغةٍ لا تطابق "AAAA-AAAA" وتعود إلى العام الافتراضي.
+    """
+    year = request.GET.get("year")
+    if year and _YEAR_RE.match(year):
+        return year
+    return _default_year(request)
 
 
 # المحاور الافتراضية (تُستخدم عندما لا يوجد قالب مخصص)
@@ -120,7 +137,7 @@ def evaluation_dashboard(request):
         return HttpResponse("غير مسموح — للمدير ونائبيه فقط", status=403)
 
     school = request.user.get_school()
-    year = request.GET.get("year") or _default_year(request)
+    year = _year_from_request(request)
 
     cycles = EvaluationCycle.objects.filter(school=school, academic_year=year)
     cycle_stats = []
@@ -205,7 +222,7 @@ def create_evaluation(request, employee_id):
 
     school = request.user.get_school()
     employee = get_object_or_404(CustomUser, id=employee_id)
-    year = request.GET.get("year") or _default_year(request)
+    year = _year_from_request(request)
     period = request.GET.get("period", "S1")
 
     if not Membership.objects.filter(school=school, user=employee, is_active=True).exists():
@@ -222,10 +239,30 @@ def create_evaluation(request, employee_id):
         defaults={"evaluator": request.user, "template": template},
     )
 
-    # تحديث القالب إذا لم يكن مربوطاً
-    if template and not obj.template:
+    # إصلاح ب.2 (مراجعة عدائيّة): كان مجرّدُ فتح تقييمٍ قائم (حتى المعتمَد)
+    # بعد بذر قالبٍ جديد أو تغيّر دور الموظّف يربطه بالقالب الجديد فوراً،
+    # فتُعرض محاوره صفراً (getattr على مفاتيح القالب الجديد لا وجود لها في
+    # الدرجات المحفوظة). لا يُربط تقييمٌ له درجاتٌ محفوظة أو حالته غير
+    # "مسودّة" بقالبٍ آخر تلقائياً — يبقى معروضاً على محاوره التي حُفظ بها.
+    has_saved_axis_scores = any(
+        getattr(obj, f, 0)
+        for f in ("axis_professional", "axis_commitment", "axis_teamwork", "axis_development")
+    )
+    is_untouched_draft = (
+        obj.status == "draft" and not has_saved_axis_scores and not obj.scores.exists()
+    )
+    if template and not obj.template and is_untouched_draft:
         obj.template = template
         obj.save(update_fields=["template"])
+    elif obj.template:
+        # تقييمٌ مربوطٌ بقالبٍ من قبل (وليس القالب المكتشَف الآن حديثاً) —
+        # اعرض محاوره هو، لا محاور قالبٍ آخر قد يكون اكتُشف لدوره الحالي.
+        axes = [(a.key, a.label, a.weight) for a in obj.template.axes.all()]
+        template = obj.template
+    elif has_saved_axis_scores or obj.scores.exists():
+        # تقييمٌ قديمٌ بلا قالب لكنه محفوظٌ فعلياً على المحاور الافتراضية —
+        # اعرضه عليها لا على قالبٍ جديد لا صلة لدرجاته به.
+        axes, template = _DEFAULT_AXES, None
 
     if request.method == "POST":
         _save_evaluation(request, obj, axes)
@@ -264,6 +301,38 @@ def create_evaluation(request, employee_id):
             "role_display": role_name,
         },
     )
+
+
+@login_required
+@capability_required("quality.evaluations")
+def approve_evaluation(request, eval_id):
+    """
+    إصلاح ب.1 — مسار الاعتماد الوحيد للتقييم، عوضاً عن تعديل `status` من
+    شاشة الإدارة (التي كانت تعيد حساب المجموع من المحاور الافتراضية فتصفّر
+    درجات القالب الوزاري). المديرُ وحده يعتمد (المادة 16: "يعتمد من مدير
+    المدرسة")، والمجموعُ يُعاد حسابه من `EvaluationScore` لا من الأصفار.
+    """
+    school = request.user.get_school()
+    obj = get_object_or_404(EmployeeEvaluation, id=eval_id, school=school)
+    if not request.user.is_admin():
+        return HttpResponse("الاعتمادُ لمدير المدرسة فقط (المادة 16)", status=403)
+    if obj.status not in ("draft", "submitted"):
+        return HttpResponse("لا يمكن اعتماد تقييمٍ بهذه الحالة", status=400)
+    if request.method == "POST":
+        obj.recalculate_from_scores()
+        obj.status = "approved"
+        obj.save(update_fields=["status"])
+        AuditLog.log(
+            user=request.user,
+            action="update",
+            model_name="other",
+            object_id=obj.pk,
+            object_repr=str(obj),
+            request=request,
+            changes={"status": "approved", "total_score": obj.total_score},
+        )
+        messages.success(request, f"تم اعتماد تقييم {obj.employee.full_name}.")
+    return redirect("evaluation_dashboard")
 
 
 @login_required
