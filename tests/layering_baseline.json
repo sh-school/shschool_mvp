@@ -1,4 +1,34 @@
 {
+ "accepted": [
+  {
+   "from": 70,
+   "metric": "lines",
+   "reason": "زاد سطراً في #305 (6b71a30f) قبل وصول الحارس إلى main؛ يُرحَّل إلى selectors ضمن البند 25",
+   "to": 71,
+   "where": "exam_control/views.py::incident_add"
+  },
+  {
+   "from": 0,
+   "metric": "lines",
+   "reason": "أُضيف في #324 (48d9ec55) قبل وصول الحارس إلى main؛ استعلامُ السجلّ يُنقل إلى selectors ضمن البند 25",
+   "to": 67,
+   "where": "student_affairs/views.py::_student_register_queryset"
+  },
+  {
+   "from": 0,
+   "metric": "orm",
+   "reason": "أُضيف في #324 (48d9ec55) قبل وصول الحارس إلى main؛ استعلامُ السجلّ يُنقل إلى selectors ضمن البند 25",
+   "to": 20,
+   "where": "student_affairs/views.py::_student_register_queryset"
+  },
+  {
+   "from": 0,
+   "metric": "orm",
+   "reason": "زادت استدعاءاتُه في #324 (48d9ec55) قبل وصول الحارس إلى main؛ يُنقل مع _student_register_queryset ضمن البند 25",
+   "to": 24,
+   "where": "student_affairs/views.py::student_list_pdf"
+  }
+ ],
  "core_import_sites": {
   "academic_management": [
    "core/capabilities.py"
@@ -406,7 +436,7 @@
    "orm": 6
   },
   "exam_control/views.py::incident_add": {
-   "lines": 70,
+   "lines": 71,
    "orm": 13
   },
   "exam_control/views.py::incident_pdf": {
@@ -747,6 +777,10 @@
   "student_affairs/views.py::_late_this_year": {
    "orm": 8
   },
+  "student_affairs/views.py::_student_register_queryset": {
+   "lines": 67,
+   "orm": 20
+  },
   "student_affairs/views.py::activities_export_excel": {
    "lines": 68,
    "orm": 8
@@ -796,12 +830,15 @@
    "orm": 9
   },
   "student_affairs/views.py::student_export_excel": {
-   "lines": 117,
+   "lines": 73,
    "orm": 20
   },
   "student_affairs/views.py::student_list": {
    "lines": 224,
    "orm": 51
+  },
+  "student_affairs/views.py::student_list_pdf": {
+   "orm": 24
   },
   "student_affairs/views.py::student_movements": {
    "lines": 76,
