@@ -7,7 +7,7 @@
 
 # 3.12 = ما تُفحص عليه البوّابات (ruff/mypy/pytest). كان 3.11 هنا وحدَه منذ
 # 2026-04 فتُفحص الشيفرةُ على إصدارٍ وتعمل على غيره.
-FROM python:3.12-slim-bookworm
+FROM python:3.14-slim-bookworm
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
