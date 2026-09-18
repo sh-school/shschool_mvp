@@ -1,3 +1,4 @@
+import sys
 from typing import Any
 
 from decouple import config
@@ -15,6 +16,23 @@ DEBUG = False
 # تُعزى بسهولةٍ إلى هذا. `CONN_HEALTH_CHECKS` يبقى (يفحص قبل الاستعمال لا
 # بعده)، والتكلفةُ فتحُ اتّصالٍ جديدٍ لكلّ طلب — مقبولةٌ أمام صمتِ عطلٍ عشوائيّ.
 DATABASES["default"]["CONN_MAX_AGE"] = 0
+
+# ── statement_timeout: يخدم daphne وحدَه، لا migrate ولا Celery ────────
+# استعلامٌ معلّقٌ واحد — بلا مهلة — كان يستطيع الاستحواذ على اتّصالٍ إلى
+# الأبد تحت CONN_MAX_AGE=0 (اتصالٌ جديدٌ لكلّ طلبٍ، فلا سقفَ زمنيّاً طبيعيّاً
+# يطويه). لكنّ `settings.py` يُحمَّل بالإعدادات نفسها لثلاث عمليّاتٍ مختلفة
+# (daphne، `manage.py migrate`/`backfill_*`، عامل Celery) — ومهلةٌ عامّةٌ
+# تُخاطر بقطع هجرةٍ تُعبّئ بياناتٍ لجدولٍ ضخم، أو مهمّةَ Celery طويلة (توليد
+# الجدول موثَّقٌ بحدّه الخاصّ 900 ثانية). فالمهلة هنا تُفرَض بفحص `sys.argv[0]`
+# — daphne فقط — لا بإعدادٍ عامّ يصيب العمليّات الثلاث معاً.
+if sys.argv and "daphne" in sys.argv[0]:
+    _statement_timeout_ms = config("DB_STATEMENT_TIMEOUT_MS", default=30000, cast=int)
+    if _statement_timeout_ms > 0:
+        _db_options = DATABASES["default"].setdefault("OPTIONS", {})
+        _existing_options = _db_options.get("options", "")
+        _db_options["options"] = (
+            f"{_existing_options} -c statement_timeout={_statement_timeout_ms}"
+        ).strip()
 
 # ✅ v5.1.1: IPs المسموحة للوصول إلى /metrics (Prometheus)
 METRICS_ALLOWED_IPS = config("METRICS_ALLOWED_IPS", default="127.0.0.1,::1,10.0.0.1").split(",")
