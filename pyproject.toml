@@ -88,7 +88,7 @@ python_functions = ["test_*"]
 # و`norecursedirs` يُبطل افتراضاتِ pytest (`.*`, `build`, `dist`…) فتُعاد هنا صراحةً.
 norecursedirs = [
     ".*", "*.egg", "build", "dist", "node_modules", "venv", ".venv", "staticfiles",
-    "_archive", "AAdocs", "backups", "data", "loadtest", "e2e",
+    "_archive", "AAdocs", "backups", "data", "loadtest",
 ]
 asyncio_mode = "strict"
 asyncio_default_fixture_loop_scope = "function"
