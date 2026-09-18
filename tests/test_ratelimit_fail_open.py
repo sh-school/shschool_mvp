@@ -90,3 +90,44 @@ def test_login_survives_a_broken_cache_end_to_end(client, monkeypatch):
     resp = client.post("/auth/login/", WRONG)
 
     assert resp.status_code != 500
+
+
+class TestTheFailOpenAlertIsMonitored:
+    """كان السقوطُ الفعليّ يُسجَّل بـ`warning` فقط — وSentry (production.py)
+    لا يرفع إلى حدثٍ إلّا عند `event_level="ERROR"` فما فوق، فلا يصل تنبيهٌ
+    فعليّ لأحد حين يُفتح الباب. `_report_fail_open` يرفع أوّل سقوطٍ إلى
+    `error` (تنبيهٌ حقيقيّ)، ويُهدّئ ما بعده خلال نافذة التهدئة إلى
+    `warning` وحده — لئلّا يُغرق Sentry بحادثةٍ واحدة مستمرّة.
+    """
+
+    @override_settings(RATELIMIT_ENABLE=True)
+    def test_the_first_failure_is_logged_as_an_error(self, monkeypatch, caplog):
+        import core.ratelimit_safe as rl
+
+        monkeypatch.setattr(rl, "_last_alert_at", 0.0)
+        _break_cache(monkeypatch)
+        decorated = _safe_ratelimit(key="ip", rate="1/m", block=True)(_view)
+        request = RequestFactory().post("/x/")
+
+        with caplog.at_level("WARNING", logger="core.ratelimit_safe"):
+            decorated(request)
+
+        assert len(caplog.records) == 1
+        assert caplog.records[0].levelname == "ERROR"
+        assert "failed open" in caplog.records[0].message
+
+    @override_settings(RATELIMIT_ENABLE=True)
+    def test_a_second_failure_within_the_cooloff_is_only_a_warning(self, monkeypatch, caplog):
+        import core.ratelimit_safe as rl
+
+        monkeypatch.setattr(rl, "_last_alert_at", 0.0)
+        _break_cache(monkeypatch)
+        decorated = _safe_ratelimit(key="ip", rate="1/m", block=True)(_view)
+        request = RequestFactory().post("/x/")
+
+        with caplog.at_level("WARNING", logger="core.ratelimit_safe"):
+            decorated(request)  # الأولى: error
+            decorated(request)  # الثانية خلال نفس النافذة: warning مهدَّأ
+
+        levels = [r.levelname for r in caplog.records]
+        assert levels == ["ERROR", "WARNING"]

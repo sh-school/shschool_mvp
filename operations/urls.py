@@ -30,6 +30,11 @@ urlpatterns = [
     path(
         "weekly-schedule/export/excel/", views.schedule_export_excel, name="schedule_export_excel"
     ),
+    path(
+        "weekly-schedule/export/status/<uuid:job_id>/",
+        views.export_job_status,
+        name="export_job_status",
+    ),
     # -- المرحلة 2: نظام البديل --
     path("absences/", views.teacher_absence_list, name="absence_list"),
     path("absences/register/", views.register_teacher_absence, name="register_absence"),

@@ -16,6 +16,24 @@ DEBUG = False
 # بعده)، والتكلفةُ فتحُ اتّصالٍ جديدٍ لكلّ طلب — مقبولةٌ أمام صمتِ عطلٍ عشوائيّ.
 DATABASES["default"]["CONN_MAX_AGE"] = 0
 
+# ── statement_timeout: علمٌ صريح من البيئة، لا استنتاجٌ من العملية ─────
+# استعلامٌ معلّقٌ واحد — بلا مهلة — كان يستطيع الاستحواذ على اتّصالٍ إلى
+# الأبد تحت CONN_MAX_AGE=0 (اتصالٌ جديدٌ لكلّ طلبٍ، فلا سقفَ زمنيّاً طبيعيّاً
+# يطويه). لكنّ `settings.py` يُحمَّل بالإعدادات نفسها لثلاث عمليّاتٍ مختلفة
+# (daphne، `manage.py migrate`/`backfill_*`، عامل Celery) — ومهلةٌ عامّةٌ
+# تُخاطر بقطع هجرةٍ تُعبّئ بياناتٍ لجدولٍ ضخم، أو مهمّةَ Celery طويلة (توليد
+# الجدول موثَّقٌ بحدّه الخاصّ 900 ثانية). فالافتراضُ معطَّلٌ (0)، ويُفعَّل
+# فقط بضبط `DB_STATEMENT_TIMEOUT_MS` صراحةً على خدمة الويب في Railway —
+# لا بفحص `sys.argv`/اسم العملية (اكتشافٌ ضمنيّ يكسر بصمت، ممنوعٌ هنا
+# ومُختبَرٌ صراحةً في test_sentry_error_only_mode.py).
+_statement_timeout_ms = config("DB_STATEMENT_TIMEOUT_MS", default=0, cast=int)
+if _statement_timeout_ms > 0:
+    _db_options = DATABASES["default"].setdefault("OPTIONS", {})
+    _existing_options = _db_options.get("options", "")
+    _db_options["options"] = (
+        f"{_existing_options} -c statement_timeout={_statement_timeout_ms}"
+    ).strip()
+
 # ✅ v5.1.1: IPs المسموحة للوصول إلى /metrics (Prometheus)
 METRICS_ALLOWED_IPS = config("METRICS_ALLOWED_IPS", default="127.0.0.1,::1,10.0.0.1").split(",")
 # Railway يكتب X-Forwarded-For «العميل، قفزةُ الحافّة» — قفزةٌ واحدةٌ موثوقة.

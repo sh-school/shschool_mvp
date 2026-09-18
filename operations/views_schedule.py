@@ -26,9 +26,6 @@ from core.domain.tones import tone_for
 from core.models import CustomUser, Membership
 from core.models.academic import grade_order
 from core.models.access import EXEMPTABLE_ROLES
-from core.permissions import (
-    SCHEDULE_BROWSE,
-)
 
 from .models import (
     ScheduleBaseline,
@@ -41,13 +38,12 @@ from .models import (
     TeacherExemption,
     TeacherPreference,
 )
-from .schedule_paper import (
-    bell_tables,
-    grid_to_days,
-    paper_geometry,
-    teacher_bands_by_day,
-    week_layout,
-)
+from .schedule_paper import paper_geometry
+from .schedule_selectors import DEFAULT_ORIENTATION, ORIENTATIONS, PAPERS
+from .schedule_selectors import browse_lists as _browse_lists
+from .schedule_selectors import export_filename as _export_filename
+from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
+from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
 from .services import ScheduleService, SubstituteService
 
 logger = logging.getLogger(__name__)
@@ -56,12 +52,6 @@ logger = logging.getLogger(__name__)
 #: للمهمّة (خمس عشرة دقيقة) بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد
 #: ينتظر عاملاً، بل يحجب الزرَّ عمّن يريد إعادةَ المحاولة.
 _GENERATION_STALE_AFTER = timedelta(minutes=20)
-
-
-#: أحجامُ الورق واتّجاهاتُه — تُقرأ من الرابط ولا تُخمَّن من نوع العرض.
-_ORIENTATIONS = ("landscape", "portrait")
-_PAPERS = ("a4", "a3")
-DEFAULT_ORIENTATION = "landscape"
 
 
 def _reap_stale_generations(school, year):
@@ -140,126 +130,13 @@ def weekly_schedule(request):
     return render(request, "schedule/print_view.html", ctx)
 
 
-def _browse_lists(school):
-    """معلّمو المدرسة وشُعبُها لقائمة الجداول — لمن يتصفّح غيره."""
-    from core.models import ClassGroup
-
-    teacher_ids = Membership.objects.filter(
-        school=school,
-        is_active=True,
-        role__name__in=("teacher", "coordinator", "e_projects_coordinator"),
-    ).values_list("user_id", flat=True)
-    teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
-    classes = ClassGroup.objects.filter(
-        school=school, academic_year=academic_year_for_school(school), is_active=True
-    ).in_school_order()
-    return teachers, classes
-
-
 def _schedule_print_selection(request):
-    """ما يُطبع ولمن — يشترك فيه الورقُ وصفحةُ العرض التي تحتضنه."""
-    from core.models import ClassGroup
+    """ما يُطبع ولمن — يشترك فيه الورقُ وصفحةُ العرض التي تحتضنه.
 
-    school = request.school
-    year = request.GET.get("year") or academic_year_for(request)
-    # الورقةُ المعلّقة في المدرسة هي «الجدول العام للمعلمين»: المعلّمون
-    # سطوراً والأسبوعُ عرضاً. وكان الافتراضُ `school` — خمسُ خاناتٍ تحشر
-    # فيها ألفُ حصّةٍ فلا تُقرأ ولا تُطبع.
-    # ثلاثةُ عروض: الجدولُ العامّ، ومعلّمٌ، وشعبة. وكان رابعٌ «جدول المدرسة
-    # الكامل» — خمسُ خاناتٍ تُحشر فيها ألفُ حصّة — فأُزيل (قرار 2026-09-06)،
-    # ورابطٌ قديمٌ يطلبه يُصرف إلى الجدول العامّ.
-    view_type = request.GET.get("view", "all_teachers")
-    if view_type not in ("all_teachers", "teacher", "class"):
-        view_type = "all_teachers"
-    paper = request.GET.get("paper") or ("a3" if view_type == "all_teachers" else "a4")
-    if paper not in _PAPERS:
-        paper = "a4"
-    # الاتّجاهُ اختيارُ الطابع لا نتيجةُ حجم الورق. وافتراضُه ما كان قبل أن
-    # يصير خياراً: الجدولُ العامّ والورقةُ الكبيرةُ عرضاً، وغيرُهما طولاً —
-    # فلا يتبدّل مطبوعُ أحدٍ من تحته يومَ أُضيف الخيار.
-    orient = request.GET.get("orient")
-    if orient not in _ORIENTATIONS:
-        # الجدولُ المفرد صار سطراً لكلّ يومٍ وعموداً لكلّ حصّة (قرار 2026-09-08):
-        # سبعةُ أعمدةٍ على A4 عموديّ أربعةٌ وعشرون ملّيمتراً للعمود، تُلَفّ فيها
-        # «التربية الإسلامية» فوق اسم الشعبة فوق التوقيت. وعلى الأفقيّ ستّةٌ
-        # وثلاثون — فصار الأفقيُّ افتراضَ الجميع، واختيارُ الطابع فوقه.
-        orient = DEFAULT_ORIENTATION
-    teacher_id = request.GET.get("teacher")
-    class_id = request.GET.get("class")
-
-    target_teacher = None
-    target_class = None
-
-    # المعلّم يطبع جدوله هو. وكان الاختيار يُقرأ من الرابط بلا نظرٍ إلى
-    # طالبه، و`get_object_or_404(CustomUser, id=…)` بلا قيد مدرسة — أي
-    # جدولُ معلّمٍ في مدرسةٍ أخرى.
-    may_browse = request.user.is_admin() or request.user.get_role() in SCHEDULE_BROWSE
-
-    if not may_browse:
-        view_type = "teacher"
-        target_teacher = request.user
-    elif view_type == "teacher" and teacher_id:
-        # ومن غادر يبقى جدولُ عامه منسوباً إليه — فالبحثُ في كلّ من كان منها.
-        target_teacher = get_object_or_404(CustomUser.objects.ever_in_school(school), id=teacher_id)
-    elif view_type == "class" and class_id:
-        target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
-
-    # قائمتا الاختيار لمن يتصفّح غيره وحده: عرضُهما على المعلّم يُظهر
-    # أسماء زملائه وشُعب المدرسة في أداةٍ لا تعمل له أصلاً.
-    teachers, classes = _browse_lists(school) if may_browse else ([], [])
-
-    # معاينةُ مسودّةِ توليدٍ قبل اعتمادها — لمن يتصفّح الجداول وحدَه، فالمسودّةُ
-    # ليست جدولَ أحدٍ بعد. ومن يعتمد جدولاً لم يرَه يعتمد رقماً لا جدولاً.
-    preview = None
-    generation_id = request.GET.get("generation")
-    if generation_id and may_browse:
-        preview = get_object_or_404(
-            ScheduleGeneration, id=generation_id, school=school, academic_year=year
-        )
-
-    title = "الجدول الدراسي العام"
-    if view_type == "all_teachers":
-        title = "الجدول العام للمعلمين"
-    elif target_teacher:
-        title = f"جدول المعلم: {target_teacher.full_name}"
-    elif target_class:
-        title = f"جدول الفصل: {target_class.label_with_track}"
-
-    # الاختيارُ نفسه سؤالاً في الرابط: الإطارُ وزرّا التصدير ثلاثةُ روابطَ
-    # تقصد الورقة الواحدة، فبناؤها ثلاثَ مرّاتٍ في القوالب يجعل اختلافها
-    # مسألةَ وقت — يُنسى معاملٌ في أحدها فيُصدَّر جدولُ غير المعروض.
-    selection = {"view": view_type, "paper": paper, "orient": orient, "year": year}
-    if preview:
-        selection["generation"] = str(preview.id)
-
-    picker_current = "matrix"
-    if target_teacher:
-        picker_current = f"teacher:{target_teacher.id}"
-    elif target_class:
-        picker_current = f"class:{target_class.id}"
-    if target_teacher:
-        selection["teacher"] = str(target_teacher.id)
-    if target_class:
-        selection["class"] = str(target_class.id)
-
-    return {
-        "school": school,
-        "year": year,
-        "view_type": view_type,
-        "paper": paper,
-        "orient": orient,
-        "target_teacher": target_teacher,
-        "target_class": target_class,
-        "preview": preview,
-        "may_browse": may_browse,
-        "picker_current": picker_current,
-        "teachers": teachers,
-        "classes": classes,
-        "title": title,
-        # عنوانُ الترويسة يُبنى هنا: المسودّةُ تُسمّى في العنوان لا في وسمٍ شرطيّ.
-        "heading": f"{title} — مسودّة" if preview else title,
-        "selection_query": urlencode(selection),
-    }
+    الجوهرُ في `operations/schedule_selectors.py` (طبقةُ قراءةٍ لا عرض) —
+    البند 5: عاملُ Celery الخلفيّ يستدعيه أيضاً بلا `request` حقيقيّ.
+    """
+    return _schedule_print_selection_core(request.school, request.user, request.GET)
 
 
 def _schedule_print_payload(request) -> dict:
@@ -267,55 +144,9 @@ def _schedule_print_payload(request) -> dict:
 
     ثلاثةُ مخارجَ تقرأ هذه الورقة — صفحةٌ في المتصفّح، وPDF، وExcel — فبناؤها
     في موضعٍ واحد يمنع أن يختلف المطبوعُ عن المعروض بعد تعديلٍ في أحدهما.
+    الجوهرُ في `operations/schedule_selectors.py` للسبب نفسه أعلاه.
     """
-    ctx = _schedule_print_selection(request)
-    school, year = ctx["school"], ctx["year"]
-
-    # الجدولُ العام يكشف جداول المعلّمين جميعاً، ومن لا يتصفّح غيره صُرف
-    # إلى جدوله في اختيار الطباعة.
-    grid, matrix, matrix_totals, week, geometry = {}, [], None, None, None
-    if ctx["view_type"] == "all_teachers":
-        matrix = ScheduleService.get_teachers_matrix(school, year, generation=ctx["preview"])
-        matrix_totals = ScheduleService.matrix_totals(matrix, school, year)
-    else:
-        grid = ScheduleService.get_weekly_schedule(
-            school, ctx["target_teacher"], ctx["target_class"], year, generation=ctx["preview"]
-        )
-        # الفسحةُ والصلاةُ بين الحصص، والورقةُ بالملّيمتر — كورقة الصفحات سواءً.
-        days = grid_to_days(grid)
-        band_codes = ScheduleService._band_codes(school)
-        target_class = ctx["target_class"]
-        if target_class is not None:
-            band = band_codes.get(target_class.time_band_id)
-            bands = [[band] if band else []] * 5
-        else:
-            bands = teacher_bands_by_day(days, band_codes)
-        week = week_layout(days, bands, bell_tables(school))
-        geometry = paper_geometry(ctx["paper"], ctx["orient"], with_who=False)
-
-    # أسماءُ الأيّام من `ScheduleSlot.DAYS` — مصدرٌ واحدٌ يقرؤه المولّدُ والورقة.
-    DAYS = list(ScheduleSlot.DAYS)
-    # الورقة المطبوعة تحمل توقيت كل حصة تحت رقمها، كما في جدول المدرسة —
-    # وكانت الخلايا بلا توقيتٍ أصلاً.
-    times = ScheduleService.period_times(school, year)
-    PERIODS = [
-        {"number": n, "start": times.get(n, (None, None))[0], "end": times.get(n, (None, None))[1]}
-        for n in ScheduleSlot.PERIODS
-    ]
-
-    return {
-        **ctx,
-        "grid": grid,
-        "week": week,
-        "geo": geometry,
-        "matrix": matrix,
-        "matrix_totals": matrix_totals,
-        "days": DAYS,
-        "periods": PERIODS,
-        "period_numbers": range(1, 8),
-        # داخل الإطار: الورقةُ وحدها، وأدواتُها في الصفحة الحاضنة.
-        "embed": request.GET.get("embed") == "1",
-    }
+    return _schedule_print_payload_core(request.school, request.user, request.GET)
 
 
 # `X_FRAME_OPTIONS = "DENY"` عامٌّ على المشروع، فيمنع عرض الورقة داخل إطار
@@ -328,70 +159,64 @@ def schedule_print(request):
     return render(request, "schedule/print_schedule.html", _schedule_print_payload(request))
 
 
-def _export_filename(ctx: dict, extension: str) -> str:
-    """اسمُ الملفّ: عنوانُ الورقة وسنتُها.
-
-    و`get_valid_filename` يُسقط ما لا يقبله اسمُ ملفٍّ ولا ترويسةُ HTTP —
-    والعربيّةُ تبقى فيه حروفاً، فالاسمُ يُقرأ بعد التنزيل.
-    """
-    from django.utils.text import get_valid_filename
-
-    stem = f"{ctx.get('title') or 'الجدول'} {ctx.get('year') or ''}".strip()
-    return f"{get_valid_filename(stem)}.{extension}"
-
-
 @login_required
 @capability_required("schedule.print")
 def schedule_export_pdf(request):
-    """الورقةُ نفسها ملفَّ PDF — قالبٌ واحدٌ للشاشة والورق والملفّ.
+    """يُنشئ صفَّ تصديرٍ خلفيّاً ويُرجع فوراً — لا توليدَ PDF متزامناً.
 
-    والأدواتُ تُخفى بـ`embed`: أزرارُ الطباعة والتصدير لا محلّ لها في ملفٍّ
-    يُرسَل أو يُؤرشَف.
+    WeasyPrint بطيءٌ بما يكفي ليُخالف معيار المشروع (>300ms → Background
+    Job، راجع `operations/tasks.py::render_schedule_export_task`). صفحةُ
+    المتابعة تتحدَّث تلقائياً وتُنزّل الناتجَ حين يجهز.
     """
-    from django.template.loader import render_to_string
+    from core.models import ExportJob
+    from operations.tasks import render_schedule_export_task
 
-    from core.pdf_utils import render_pdf
-
-    ctx = _schedule_print_payload(request)
-    ctx["embed"] = True
-    # الشعارُ بمسارٍ نسبيٍّ من جذر المشروع: مولّدُ PDF يقرأ من القرص لا من
-    # الويب، فرابطُ `/static/…` المطلق يقع خارج جذره ويخرج الشعارُ نصّاً.
-    ctx["for_pdf"] = True
-    html = render_to_string("schedule/print_schedule.html", ctx, request=request)
-    log_export(request, "schedule.pdf", object_repr=_export_filename(ctx, "pdf"))
-    return render_pdf(
-        html,
-        _export_filename(ctx, "pdf"),
-        paper_size="A3" if ctx.get("paper") == "a3" else "A4",
-        as_attachment=True,
+    query = request.GET.urlencode()
+    log_export(request, "schedule.pdf", object_repr=f"schedule.pdf?{query}")
+    job = ExportJob.objects.create(
+        school=request.school,
+        requested_by=request.user,
+        kind="schedule.pdf",
+        query_string=query,
     )
+    render_schedule_export_task.delay(str(job.id), "pdf")
+    return redirect("export_job_status", job_id=job.id)
 
 
 @login_required
 @capability_required("schedule.print")
 def schedule_export_excel(request):
-    """الورقةُ نفسها مصنَّفَ Excel — بالشكل نفسه لا ببياناتٍ خام."""
-    from io import BytesIO
+    """صفُّ تصديرٍ خلفيّ أيضاً — الشرحُ في `schedule_export_pdf`."""
+    from core.models import ExportJob
+    from operations.tasks import render_schedule_export_task
+
+    query = request.GET.urlencode()
+    log_export(request, "schedule.xlsx", object_repr=f"schedule.xlsx?{query}")
+    job = ExportJob.objects.create(
+        school=request.school,
+        requested_by=request.user,
+        kind="schedule.xlsx",
+        query_string=query,
+    )
+    render_schedule_export_task.delay(str(job.id), "xlsx")
+    return redirect("export_job_status", job_id=job.id)
+
+
+@login_required
+def export_job_status(request, job_id):
+    """متابعة/تنزيل صفّ تصديرٍ خلفيّ — تتحدَّث تلقائياً حتى يجهز الناتج."""
     from urllib.parse import quote
 
-    from operations.schedule_export import schedule_workbook
+    from core.models import ExportJob
 
-    ctx = _schedule_print_payload(request)
-    buffer = BytesIO()
-    schedule_workbook(ctx).save(buffer)
-
-    filename = _export_filename(ctx, "xlsx")
-    log_export(request, "schedule.xlsx", object_repr=filename)
-    response = HttpResponse(
-        buffer.getvalue(),
-        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-    # اسمٌ لاتينيٌّ للقديم و`filename*` مُرمَّزٌ للحديث: ترويسةٌ عربيّةٌ كاملةً
-    # يُرمّزها Django بـRFC 2047 فلا يفهمها متصفّح، ويضيع طلبُ التنزيل.
-    response["Content-Disposition"] = (
-        f"attachment; filename=schedule.xlsx; filename*=UTF-8''{quote(filename)}"
-    )
-    return response
+    job = get_object_or_404(ExportJob, id=job_id, school=request.school, requested_by=request.user)
+    if job.status == "done":
+        response = HttpResponse(bytes(job.content), content_type=job.content_type)
+        response["Content-Disposition"] = (
+            f"attachment; filename=export; filename*=UTF-8''{quote(job.filename)}"
+        )
+        return response
+    return render(request, "operations/export_job_status.html", {"job": job})
 
 
 @login_required
@@ -1629,10 +1454,10 @@ def _pages_payload(request) -> dict:
     dept = request.GET.get("dept") or "all"
     teacher_id = request.GET.get("teacher") or ""
     orient = request.GET.get("orient") or DEFAULT_ORIENTATION
-    if orient not in _ORIENTATIONS:
+    if orient not in ORIENTATIONS:
         orient = DEFAULT_ORIENTATION
     paper = request.GET.get("paper") or "a4"
-    if paper not in _PAPERS:
+    if paper not in PAPERS:
         paper = "a4"
 
     departments = ScheduleService.department_options(school, year)

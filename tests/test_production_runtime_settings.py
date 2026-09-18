@@ -42,6 +42,7 @@ print("CELERY_PROPAGATES=" + str(settings.CELERY_TASK_EAGER_PROPAGATES))
 print("CELERY_BROKER=" + str(getattr(settings, "CELERY_BROKER_URL", "")))
 print("CORS=" + "|".join(settings.CORS_ALLOWED_ORIGINS))
 print("CONN_MAX_AGE=" + str(settings.DATABASES["default"]["CONN_MAX_AGE"]))
+print("DB_OPTIONS=" + str(settings.DATABASES["default"].get("OPTIONS", {})))
 """
 
     return subprocess.run(
@@ -225,3 +226,35 @@ def test_the_environment_variable_cannot_override_it():
 
     assert result.returncode == 0, result.stderr
     assert _values(result)["CONN_MAX_AGE"] == "0"
+
+
+# ══════════════════════════════════════════════════════════════════
+#  statement_timeout — علمٌ صريح من البيئة، لا استنتاجٌ من العملية (البند 6)
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_statement_timeout_is_disabled_by_default():
+    """معطَّلٌ افتراضياً — يُفعَّل فقط بضبط الراية صراحةً على خدمة الويب في Railway.
+
+    لا فحص `sys.argv`/اسم العملية هنا: `test_sentry_error_only_mode.py` يفحص
+    `production.py` بشجرة AST ويُسقط أيّ استخدامٍ لـ`sys.argv` فيه — اكتشافٌ
+    ضمنيّ للعملية يكسر بصمت.
+    """
+    result = _load_production_settings()
+
+    assert result.returncode == 0, result.stderr
+    assert _values(result)["DB_OPTIONS"] == "{}"
+
+
+def test_statement_timeout_is_configurable():
+    result = _load_production_settings(DB_STATEMENT_TIMEOUT_MS="5000")
+
+    assert result.returncode == 0, result.stderr
+    assert "statement_timeout=5000" in _values(result)["DB_OPTIONS"]
+
+
+def test_a_zero_timeout_keeps_it_disabled():
+    result = _load_production_settings(DB_STATEMENT_TIMEOUT_MS="0")
+
+    assert result.returncode == 0, result.stderr
+    assert _values(result)["DB_OPTIONS"] == "{}"

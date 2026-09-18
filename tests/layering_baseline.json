@@ -498,21 +498,11 @@
    "lines": 122,
    "orm": 33
   },
-  "operations/views_schedule.py::_browse_lists": {
-   "orm": 12
-  },
   "operations/views_schedule.py::_pages_payload": {
-   "orm": 15
+   "orm": 7
   },
   "operations/views_schedule.py::_reap_stale_generations": {
    "orm": 6
-  },
-  "operations/views_schedule.py::_schedule_print_payload": {
-   "orm": 20
-  },
-  "operations/views_schedule.py::_schedule_print_selection": {
-   "lines": 104,
-   "orm": 16
   },
   "operations/views_schedule.py::absence_detail": {
    "orm": 7
@@ -527,23 +517,14 @@
   "operations/views_schedule.py::register_teacher_absence": {
    "orm": 11
   },
-  "operations/views_schedule.py::schedule_export_excel": {
-   "orm": 20
-  },
-  "operations/views_schedule.py::schedule_export_pdf": {
-   "orm": 20
-  },
   "operations/views_schedule.py::schedule_pages": {
-   "orm": 15
+   "orm": 7
   },
   "operations/views_schedule.py::schedule_pages_paper": {
-   "orm": 15
+   "orm": 7
   },
   "operations/views_schedule.py::schedule_pages_pdf": {
-   "orm": 15
-  },
-  "operations/views_schedule.py::schedule_print": {
-   "orm": 20
+   "orm": 7
   },
   "operations/views_schedule.py::schedule_quality_lab": {
    "lines": 107,
@@ -569,9 +550,6 @@
    "lines": 90,
    "orm": 13
   },
-  "operations/views_schedule.py::weekly_schedule": {
-   "orm": 16
-  },
   "operations/views_swap.py::compensatory_list": {
    "orm": 9
   },
@@ -589,7 +567,7 @@
    "orm": 8
   },
   "parents/views.py::add_parent_link": {
-   "orm": 12
+   "orm": 11
   },
   "parents/views.py::consent_view": {
    "lines": 64,
