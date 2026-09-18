@@ -13,6 +13,13 @@ updates:
     groups:
       python-patch-minor:
         update-types: ["patch", "minor"]
+    ignore:
+      # django-celery-beat يفرض cron-descriptor<2.0.0 حتى في أحدث إصداره
+      # (2.9.0، تحقّقتُ عبر PyPI 2026-09-18) — ليس تعارضاً عابراً يُنتظر
+      # حلّه، بل سقفٌ ثابت. بلا هذا الاستثناء يسقط كلّ تجميعةٍ شهريّةٍ
+      # تضمّه (كما وقع فعلاً في PR #348).
+      - dependency-name: "cron-descriptor"
+        versions: [">=2.0.0"]
 
   # جافاسكربت — package-lock.json (أدواتُ بناءٍ عابرة مثل tailwindcss/postcss،
   # لا أثر runtime مباشر — راجع معالجة ثغرات 2026-06-21).
