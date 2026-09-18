@@ -10,8 +10,16 @@ import datetime as dt
 
 import pytest
 
+from core.academic_calendar import academic_year_for_school
 from core.dashboard_presentation import _delta, chunk_for_grid, present
-from tests.conftest import MembershipFactory, RoleFactory, UserFactory
+from operations.models import AbsenceAlert
+from tests.conftest import (
+    ClassGroupFactory,
+    MembershipFactory,
+    RoleFactory,
+    StudentEnrollmentFactory,
+    UserFactory,
+)
 
 
 class TestDeltaLabels:
@@ -97,6 +105,34 @@ def test_every_role_dashboard_is_drawn_with_the_shared_components(
     assert "kpi-mini" not in body
     for undefined in ("exec-kpi-card", "quick-action-grid", "kpi-info"):
         assert undefined not in body
+
+
+@pytest.mark.django_db
+def test_the_director_dashboard_shows_class_and_days_on_absence_alerts(
+    client_as, school, principal_user
+):
+    """السكرول الرأسيّ كان يدفع الرسمين البيانيّين خارج الشاشة (ملاحظة
+    المدير 2026-09-18): البطاقةُ انضمّت عموداً ثالثاً بجانبهما بدل قسمٍ
+    مستقلٍّ فوقهما، والصفُّ/الشعبةُ صار جزءاً من السطر — لا الاسم وحده."""
+    year = academic_year_for_school(school)
+    klass = ClassGroupFactory(school=school, academic_year=year)
+    student = UserFactory(full_name="طالبٌ متكرّر الغياب")
+    StudentEnrollmentFactory(student=student, class_group=klass)
+    AbsenceAlert.objects.create(
+        school=school,
+        student=student,
+        absence_count=7,
+        period_start=dt.date(2026, 9, 1),
+        period_end=dt.date(2026, 9, 10),
+        status="pending",
+    )
+
+    html = client_as(principal_user).get("/dashboard/").content.decode()
+
+    assert "طالبٌ متكرّر الغياب" in html
+    assert klass.short_label in html
+    assert "7 أيّام" in html
+    assert 'class="plain-list is-scroll"' in html
 
 
 @pytest.mark.django_db

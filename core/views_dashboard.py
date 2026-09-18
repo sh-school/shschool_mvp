@@ -23,6 +23,7 @@ from operations.models import (
     TeacherAbsence,
     TeacherSwap,
 )
+from student_info.services import current_class_group
 from transport.models import BusRoute, SchoolBus
 
 # ─────────────────────────────────────────────────────────────────────
@@ -128,6 +129,9 @@ def _get_director_ctx(school, today):
         .select_related("student")
         .order_by("-created_at")[:5]
     )
+    for alert in alerts:
+        cg = current_class_group(alert.student, year)
+        alert.class_text = cg.short_label if cg else "—"
 
     # إحصائيات التقييمات — aggregate واحد
     annual = AnnualSubjectResult.objects.filter(school=school, academic_year=year).aggregate(
