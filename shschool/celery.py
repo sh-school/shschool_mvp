@@ -109,6 +109,12 @@ app.conf.beat_schedule = {
         "task": "core.enforce_data_retention",
         "schedule": crontab(hour=3, minute=30, day_of_week="5"),  # 5=الجمعة
     },
+    # نبضةُ حياة العامل كلَّ خمس دقائق (P4-9): غيابُها في Sentry Crons هو
+    # الإنذار — لا فشلُها. `monitor_beat_tasks=True` يفحصها تلقائيّاً.
+    "worker-heartbeat": {
+        "task": "core.worker_heartbeat",
+        "schedule": crontab(minute="*/5"),
+    },
 }
 
 app.conf.update(timezone="Asia/Qatar")

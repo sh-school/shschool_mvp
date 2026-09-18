@@ -507,15 +507,28 @@ body {
   z-index: calc(var(--z-navbar) + 1);
   border-bottom: 1px solid var(--maroon-dark);
 }
+/* هامشٌ يطابق `#main-content` (قرار 2026-09-11) — لا سقف 1280px القديم
+   الذي كان يُبقي الشعارَ واسمَ المستخدم بعيدَين عن حافّة الصفحة الفعليّة
+   بينما المحتوى تحتهما يمتدّ إلى الحافّة بهامشٍ صغيرٍ فقط. `max-width` و
+   `margin` من `.nav-inner` العامّة (يشاركها شريطُ القوائم تحته) يُبطَلان
+   هنا صراحةً — تركُهما ضمنيّاً لا يكفي، إذ يبقيان نافذين لأنّ القاعدةَ
+   العامّة لا تتعارض معهما فتُطبَّق كما هي رغم هذا السياق الأخصّ. */
 .site-header .nav-inner {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 16px;
+  max-width: none;
+  margin: 0;
+  padding-inline: clamp(12px, 1.4vw, 28px);
   display: flex;
   align-items: center;
   height: 48px;
   gap: 8px;
 }
+/* `.nav-logo` و`.nb` لهما حشوةٌ ذاتيّةٌ (منطقةُ لمسٍ مريحة) تضيف فوق حشوة
+   `.nav-inner` نفسِها — فيبعد الشعارُ عن الحافّة أكثر من محتوى الصفحة تحته
+   رغم تساوي حشوة الحاوية. تُصفَّر هنا حشوةُ الطرف الخارجيّ وحده (الطرفُ
+   الملاصق لحافّة الشاشة)، فتبقى حشوةُ `.nav-inner` هي الفاصلَ الوحيد —
+   مطابقةً لحافّة المحتوى تماماً. */
+.site-header .nav-logo { padding-inline-start: 0; }
+.site-header .nav-user-btn { padding-inline-end: 0; }
 
 /* ══════════════════════════════════════════════════════════
    شريط التنقل — القوائم (السطر الثاني)
@@ -8036,7 +8049,9 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   gap: var(--sp-2);
 }
 @media (max-width: 640px) { .ui-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.ui-actions .action-card { padding: 14px 16px; min-inline-size: 0; }
+/* ارتفاعٌ أقلّ بـ10% من البلاطة العامّة (18px→) — صفٌّ واحدٌ من الأزرار
+   لا يحتاج حشوتها الكاملة، وتقليصُه يُسقط سكرولاً رأسياً في لوحة المدير. */
+.ui-actions .action-card { padding: 10px 16px; min-inline-size: 0; }
 
 /* ── 12. نموذجٌ بجوار قائمته: الإضافةُ ثُلثٌ والجدولُ ثلثان ──
    ومن الحدّ الأدنى ينفكّان عموداً: النموذجُ فوق ما يضيف إليه. */

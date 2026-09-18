@@ -414,6 +414,28 @@ jobs:
         run: python3 scripts/deploy_window.py
 
   # ══════════════════════════════════════════════════════
+  #  تحذيرٌ لا حظر — لا يدخل «ملخص بوابة الجودة» ولا يُسقط شيئاً. سواط
+  #  2026-09-17: ثلاثةُ طلباتٍ مفتوحةٍ عدّلت base.html في آنٍ واحد بلا علم
+  #  أصحابها ببعضهم؛ وقبلها طلبان نفّذا البندَ نفسَه خلال 28 دقيقة. القواعدُ
+  #  في scripts/pr_file_collision.py.
+  pr-file-collision:
+    name: تعارضُ ملفّاتٍ بين الطلبات المفتوحة — تحذير
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: مقارنةُ ملفّات هذا الطلب بالطلبات المفتوحة الأخرى
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 scripts/pr_file_collision.py
+
+  # ══════════════════════════════════════════════════════
   #  ملخص بوابة الجودة
   # ══════════════════════════════════════════════════════
   gate-summary:

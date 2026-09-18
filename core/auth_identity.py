@@ -6,6 +6,11 @@
 صريحاً، ويُقرأ من خلف الكتف. فصار الكادرُ يدخل برقمه الوظيفيّ: معرّفٌ إداريٌّ
 لا يكشف هويّةً مدنيّة.
 
+وكانت نافذةٌ مزدوجةٌ تقبل الرقمين معاً لأصحاب الرقم الوظيفيّ ريثما يعتاد
+الكادرُ المعرّفَ الجديد. قرارُ المالك 2026-09-18 (ق-10) قطعها فوراً بلا قياس:
+من له `employee_number` لا يدخل برقمه الشخصيّ بعد اليوم — يُعامَل كأيّ معرّفٍ
+مجهول. الطلبةُ وأولياءُ الأمور بلا رقمٍ وظيفيّ يدخلون برقمهم الشخصيّ كما هم.
+
 و`USERNAME_FIELD` لا يُبدَّل — حقلٌ واحدٌ للنموذج كلِّه، و1435 حساب طالبٍ ووليِّ
 أمرٍ لا رقمَ وظيفيَّ لهم. فيبقى الحقلُ كما هو، ويتغيّر **ما يقبله البابُ وما
 يُقفل عليه**.
@@ -78,16 +83,18 @@ def _lookup(raw: str):
     if hashed and hashed != raw:
         user = CustomUser.objects.filter(national_id_hmac=hashed).first()
         if user is not None:
-            return user
+            return None if user.employee_number else user
 
-    return CustomUser.objects.filter(national_id=raw).first()
+    user = CustomUser.objects.filter(national_id=raw).first()
+    return None if user and user.employee_number else user
 
 
 def identifier_kind(user, identifier: str) -> str:
-    """أيَّ معرّفٍ استعمل هذا الداخل — لتُقاس نهايةُ النافذة المزدوجة بالعدّ.
+    """أيَّ معرّفٍ استعمل هذا الداخل — للسجلّ التدقيقيّ.
 
-    فالقطعُ يقع حين يبلغ استعمالُ الرقم الشخصيّ من أصحاب الأرقام الوظيفيّة
-    صفراً، لا في تاريخٍ يُختار على الورق.
+    لا تراه اليوم يُرجع `national_id` لصاحب رقمٍ وظيفيّ: `_lookup` يرفضه قبل
+    أن يصل مستخدَمٌ إلى هنا (ق-10، 2026-09-18)، فالحالة الوحيدة الباقية هي
+    الطالب/وليُّ الأمر بلا رقمٍ وظيفيّ.
     """
     raw = (identifier or "").strip()
     if user is None or not raw:
