@@ -28,7 +28,7 @@ djangorestframework-stubs==3.15.0
 locust==2.32.6
 
 # Mutation testing (quality.yml الأسبوعيّ + make test-mutmut)
-mutmut==2.5.1
+mutmut==3.8.0
 
 # تنظيف تاريخ git (أداةُ مالكٍ، لا تدخل صورةَ الإنتاج)
 git-filter-repo==2.47.0
