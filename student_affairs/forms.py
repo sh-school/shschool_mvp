@@ -8,6 +8,7 @@ import re
 from django import forms
 
 from core.models.academic import ClassGroup
+from core.validators import FileTypeValidator
 
 from .models import StudentActivity, StudentTransfer
 
@@ -181,4 +182,8 @@ class ActivityForm(forms.Form):
         widget=forms.DateInput(attrs={"type": "date"}),
         label="التاريخ",
     )
-    attachment = forms.FileField(required=False, label="مرفق")
+    attachment = forms.FileField(
+        required=False,
+        label="مرفق",
+        validators=[FileTypeValidator(allowed_types="document", max_size_mb=10)],
+    )

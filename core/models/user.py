@@ -230,6 +230,16 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         """أله أكثرُ من عضويّةٍ نشطة — فيُعرض له «تبديل الدور»."""
         return len(self.active_memberships) > 1
 
+    @property
+    def has_parent_membership(self) -> bool:
+        """أله عضويّةُ وليّ أمرٍ نشطة — أيّاً كان دورُه الحاكم؟
+
+        تُقرأ من ``active_memberships`` المحفوظة، فلا تكلّف استعلاماً في كلّ صفحة
+        كما يكلّف ``has_role("parent")``. ويقرؤها رابطُ «بوابتي» في قائمة الكادر
+        وبوّابةُ الموافقة (``core/parent_consent.py``).
+        """
+        return any(m.role.name == "parent" for m in self.active_memberships)
+
     def invalidate_active_membership(self):
         """يُبطل cache العضوية — استخدمه بعد إنشاء أو تعديل Membership"""
         self.__dict__.pop("_active_membership", None)

@@ -46,11 +46,12 @@ MOVED = {
         "admin",
     },
     "EXAM_CONTROL_ACCESS": {
+        # مشرفُ الجناح خرج 2026-09-17 (قرارُ المستخدم: «الكنترول لا ليس له
+        # شيء فيه») — كان بينهم بالنقل الأصليّ، وهذا تغييرٌ متعمَّد لا مفاجئ.
         "principal",
         "vice_academic",
         "vice_admin",
         "coordinator",
-        "admin_supervisor",
         "admin",
     },
     "STAFF_AFFAIRS_MANAGE": {"principal", "vice_admin", "vice_academic", "platform_developer"},

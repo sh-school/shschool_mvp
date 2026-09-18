@@ -1,7 +1,7 @@
 """
 core/views_health.py
 ━━━━━━━━━━━━━━━━━━━
-GET /health/ — فحص صحة كامل (DB + Redis)
+GET /health/ — فحص صحة كامل (DB + Redis + بيان الملفات الثابتة)
 GET /ready/  — Readiness Probe خفيف (DB فقط — لـ load balancer و Kubernetes)
 GET /status/ — معلومات تشغيلية مفصّلة (DB + Redis + migrations + uptime + version)
 
@@ -17,6 +17,7 @@ import os
 import time
 
 from django.conf import settings
+from django.contrib.staticfiles.storage import staticfiles_storage
 from django.db import connection
 from django.http import JsonResponse
 from django.utils import timezone
@@ -28,6 +29,10 @@ _SERVER_START_TIME = time.monotonic()
 _SERVER_START_TIMESTAMP = timezone.now()
 
 logger = logging.getLogger(__name__)
+
+# ملفٌّ يستدعيه كلُّ قالبٍ أساسيّ. حادثة 2026-09-17: غاب بيانُ الثابت عن الحاويات
+# فسقطت كلُّ صفحةٍ و/health/ أخضر — فحوّل Railway الحركةَ إلى نسخةٍ ميتة.
+STATIC_PROBE = "fonts/Tajawal-Regular.woff2"
 
 
 @require_GET
@@ -55,6 +60,14 @@ def health_check(request):
     except Exception as e:  # noqa: BLE001 — broad catch intentional: health check must report any failure
         checks["cache"] = f"error: {type(e).__name__}"
         logger.error("health_check: Cache فشل: %s", e, exc_info=True)
+
+    # ── فحص بيان الملفات الثابتة (ManifestStaticFilesStorage يرفع إن غاب) ──
+    try:
+        staticfiles_storage.url(STATIC_PROBE)
+        checks["static"] = "ok"
+    except Exception as e:  # noqa: BLE001 — broad catch intentional: health check must report any failure
+        checks["static"] = f"error: {type(e).__name__}"
+        logger.error("health_check: الثابت غير مجموع: %s", e, exc_info=True)
 
     # ── الحالة الإجمالية ────────────────────────────────────────
     all_ok = all(v == "ok" for v in checks.values())

@@ -186,7 +186,7 @@ td {
   {% else %}
     {# تذييل المدرسة صورةٌ ترفعها هي، وفيها رؤيتها. ومن لم يرفعها يُذيَّل باسمه ورؤية الوزارة. #}
     <div class="plain-foot">
-      {{ obs.school.name }} — {% include "components/ministry_vision.html" %}
+      {{ obs.school.name }} — {% include "components/ministry_vision.html" with school=obs.school %}
     </div>
   {% endif %}
 </div>
@@ -261,7 +261,7 @@ td {
         {% for value, label in ratings %}
           <td class="rate">{% if row.score and row.score.rating == value %}✓{% endif %}</td>
         {% endfor %}
-        <td class="rec">{% if row.score %}{{ row.score.recommendation }}{% endif %}</td>
+        <td class="rec">{% if row.score %}{{ row.score.recommendation|linebreaksbr }}{% endif %}</td>
       </tr>
     {% endfor %}
   {% endfor %}

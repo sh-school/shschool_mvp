@@ -77,8 +77,8 @@ STATUS_WARNING_DARK = "#92400e"
 
 #: أسطحُ النهار وحدودُه وأخواتُ العنّابيّ.
 SURFACE = "#ffffff"
-SURFACE_ALT = "#f9fafb"
-PAGE_BG = "#eef1f5"
+SURFACE_ALT = "#f2f5fa"
+PAGE_BG = "#e6ebf3"
 BORDER_STRONG = "#d1d5db"
 MAROON_DARK = "#6b0f2a"
 MAROON_BORDER = "#e8b4c3"

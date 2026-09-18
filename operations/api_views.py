@@ -10,11 +10,11 @@ operations/api_views.py
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q
 from django.http import JsonResponse
-from django_ratelimit.decorators import ratelimit
 
 from core.capabilities import capability_required
 from core.models import CustomUser, StudentEnrollment
 from core.privacy import mask_national_id
+from core.ratelimit_safe import ratelimit
 
 
 @login_required

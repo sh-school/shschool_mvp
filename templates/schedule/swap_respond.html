@@ -20,7 +20,7 @@
           <div class="swap-side-teacher">{{ swap.teacher_a.full_name }}</div>
           <div class="swap-side-info">
             <strong>{{ swap.slot_a.subject|default:"—" }}</strong><br>
-            {{ swap.slot_a.class_group }}<br>
+            {{ swap.slot_a.class_group.short_label }}<br>
             {{ swap.slot_a.get_day_of_week_display }} &mdash; ح{{ swap.slot_a.period_number }}
           </div>
         </div>
@@ -32,7 +32,7 @@
           <div class="swap-side-teacher">{{ swap.teacher_b.full_name }}</div>
           <div class="swap-side-info">
             <strong>{{ swap.slot_b.subject|default:"—" }}</strong><br>
-            {{ swap.slot_b.class_group }}<br>
+            {{ swap.slot_b.class_group.short_label }}<br>
             {{ swap.slot_b.get_day_of_week_display }} &mdash; ح{{ swap.slot_b.period_number }}
           </div>
         </div>

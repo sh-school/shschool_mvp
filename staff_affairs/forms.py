@@ -2,6 +2,8 @@
 
 from django import forms
 
+from core.validators import FileTypeValidator
+
 from .models import LEAVE_TYPES
 
 
@@ -23,7 +25,11 @@ class LeaveRequestForm(forms.Form):
         max_length=1000,
         label="السبب",
     )
-    attachment = forms.FileField(required=False, label="مرفق")
+    attachment = forms.FileField(
+        required=False,
+        label="مرفق",
+        validators=[FileTypeValidator(allowed_types="document", max_size_mb=10)],
+    )
 
     def clean(self):
         cleaned = super().clean()

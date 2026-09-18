@@ -117,7 +117,7 @@ class AnalyticsService:
             pct = round(cls.passed / cls.total * 100) if cls.total else 0
             data.append(
                 {
-                    "class_name": f"{cls.get_grade_display()} / {cls.section}",
+                    "class_name": cls.short_label,
                     "pass_pct": pct,
                     "total": cls.total,
                     "passed": cls.passed,
@@ -187,7 +187,7 @@ class AnalyticsService:
         for cls in classes:
             data.append(
                 {
-                    "class_name": f"{cls.get_grade_display()} / {cls.section}",
+                    "class_name": cls.short_label,
                     "fail_count": cls.fail_count,
                     "total": cls.total,
                 }

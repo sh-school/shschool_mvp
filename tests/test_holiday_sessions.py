@@ -129,8 +129,8 @@ class TestEnsureSkipsStudentHolidays:
     ):
         _break(year, SUNDAY, THURSDAY, name="إجازة منتصف الفصل الأول")
 
-        # الجلساتُ القائمة، ثمّ إجازاتُ الأسبوع — ولا حاجةَ بعدهما إلى الحصص.
-        with django_assert_num_queries(2):
+        # الجلساتُ القائمة، ثمّ إجازاتُ الأسبوع وبدءُ دوامها — ولا حاجةَ بعدهما إلى الحصص.
+        with django_assert_num_queries(3):
             created = ScheduleService.ensure_sessions_for_date(school, TUESDAY, academic_year=YEAR)
 
         assert created == 0
@@ -142,8 +142,8 @@ class TestEnsureSkipsStudentHolidays:
         _break(year, TUESDAY)
         ScheduleService.ensure_sessions_for_date(school, SUNDAY, academic_year=YEAR)
 
-        # يومُ الإجازة لا يصير «موجوداً»، فالأسبوعُ يسأل التقويمَ مرّةً — لا يوماً يوماً.
-        with django_assert_num_queries(2):
+        # يومُ الإجازة لا يصير «موجوداً»، فالأسبوعُ يسأل التقويمَ مرّتين (إجازاتٌ وبدءُ دوام) — لا يوماً يوماً.
+        with django_assert_num_queries(3):
             again = ScheduleService.ensure_sessions_for_date(school, SUNDAY, academic_year=YEAR)
 
         assert again == 0
@@ -355,7 +355,7 @@ class TestResyncOnAHoliday:
         assert result == {"deleted": 1, "created": 0, "kept": 1}
         assert list(Session.objects.filter(date=TUESDAY)) == [touched]
 
-    def test_approving_a_schedule_reads_the_calendar_once_for_the_week(
+    def test_approving_a_schedule_reads_the_calendar_twice_for_the_week(
         self, school, year, timetable, monkeypatch, django_assert_max_num_queries
     ):
         from django.utils import timezone
@@ -367,8 +367,9 @@ class TestResyncOnAHoliday:
         with django_assert_max_num_queries(30) as captured:
             result = ScheduleService.resync_current_week(school, YEAR)
 
+        # إجازاتُ الأسبوع مرّةً، وبدءُ دوامها مرّةً — لا يوماً يوماً.
         calendar_reads = [q for q in captured.captured_queries if "core_calendarevent" in q["sql"]]
-        assert len(calendar_reads) == 1
+        assert len(calendar_reads) == 2
         assert result == {"deleted": 1, "created": 0, "kept": 0}
         assert _dates(school) == [d for d in WEEK if d != TUESDAY]
 

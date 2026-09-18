@@ -6,7 +6,7 @@
   <a href="/teacher/attendance/{{ s.id }}/"
      class="flex items-center justify-between px-5 py-4 hover:bg-[var(--surface-alt)] transition no-underline text-inherit
        {% if s == next_session %}bg-status-warning-light{% endif %}"
-     aria-label="حصة {{ s.subject.name_ar }} — {{ s.class_group }} — {{ s.start_time|time:'H:i' }}">
+     aria-label="حصة {{ s.subject.name_ar }} — {{ s.class_group.short_label }} — {{ s.start_time|time:'H:i' }}">
     <div class="flex items-center gap-4">
       <div class="text-center session-time">
         <div class="text-sm font-bold text-[var(--text-primary)]">{{ s.start_time|time:"H:i" }}</div>
@@ -14,7 +14,7 @@
       </div>
       <div>
         <div class="font-semibold text-[var(--text-primary)] text-sm">{{ s.subject.name_ar }}</div>
-        <div class="text-xs text-[var(--text-muted)] mt-0.5">{{ s.class_group }}</div>
+        <div class="text-xs text-[var(--text-muted)] mt-0.5">{{ s.class_group.short_label }}</div>
       </div>
     </div>
     <div class="flex items-center gap-2">
