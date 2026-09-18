@@ -230,62 +230,33 @@ def api_recent_notifications(request):
 @login_required
 def notification_inbox(request):
     """صفحة صندوق الإشعارات"""
-    from django.db.models import Count
-
-    from .inbox_presentation import group_by_day, group_by_type, inbox_query
+    from .inbox_presentation import (
+        event_type_chips,
+        group_by_day,
+        group_by_type,
+        inbox_query,
+        role_event_types,
+    )
+    from .selectors import inbox_notifications, inbox_type_counts, inbox_unread_count
 
     event_filter = request.GET.get("type", "")
     unread_only = request.GET.get("unread") == "1"
     # «حسب النوع» تجميعٌ لا ترشيح: الصندوقُ كلُّه، كلُّ نوعٍ مجموعتُه.
     group_mode = "type" if request.GET.get("group") == "type" else "day"
-    mine = InAppNotification.objects.filter(user=request.user)
-    qs = mine
-    if event_filter:
-        qs = qs.filter(event_type=event_filter)
-    if unread_only:
-        qs = qs.filter(is_read=False)
 
-    notifications = list(qs.order_by("-created_at")[:100])
+    notifications = inbox_notifications(request.user, event_filter, unread_only)
     # العاجلُ غيرُ المقروء يُثبَّت أعلى الصندوق **ويُطرح من القائمة تحته**.
     # كان القالبُ يعرضه في الموضعين، ويفتح قسمَه بـ`forloop.first` للقائمة كلّها —
     # فلا يُفتح إلّا إن كان أوّلُ إشعارٍ عاجلاً، ويتكرّر `id` العنصر في الصفحة.
     urgent = [n for n in notifications if n.priority == "urgent" and not n.is_read]
     rest = [n for n in notifications if not (n.priority == "urgent" and not n.is_read)]
-    unread_count = InAppNotification.objects.unread_count(request.user)
+    unread_count = inbox_unread_count(request.user)
 
-    # فلترة أنواع الإشعارات حسب الدور
-    PARENT_TYPES = {
-        "behavior",
-        "absence",
-        "grade",
-        "fail",
-        "clinic",
-        "sent_home",
-        "meeting",
-        "parent_summon",
-        "general",
-    }
-    STUDENT_TYPES = {"grade", "fail", "behavior", "absence", "clinic", "general"}
     role = getattr(request.user, "get_role", lambda: "")()
-    if role == "parent":
-        role_types = [t for t in InAppNotification.EVENT_TYPES if t[0] in PARENT_TYPES]
-    elif role == "student":
-        role_types = [t for t in InAppNotification.EVENT_TYPES if t[0] in STUDENT_TYPES]
-    else:
-        role_types = InAppNotification.EVENT_TYPES
-
-    # رقاقةُ نوعٍ لا إشعارَ منه ترشيحٌ يُفضي إلى صفحةٍ فارغة — كانت سبعَ عشرةَ
-    # رقاقةً للإداريّ أكثرُها كذلك. فالظاهرُ ما في الصندوق منه شيءٌ، وعددُه معه،
-    # والمختارُ يبقى ظاهراً وإن فرغ ليُلغى.
-    type_counts = dict(
-        mine.order_by().values("event_type").annotate(c=Count("id")).values_list("event_type", "c")
-    )
+    role_types = role_event_types(role, InAppNotification.EVENT_TYPES)
+    type_counts = inbox_type_counts(request.user)
     state = {"type": event_filter, "unread": unread_only, "group": group_mode}
-    event_types = [
-        (code, label, type_counts.get(code, 0), inbox_query(**{**state, "type": code}))
-        for code, label in role_types
-        if type_counts.get(code) or code == event_filter
-    ]
+    event_types = event_type_chips(role_types, type_counts, event_filter, state)
     if group_mode == "type":
         groups = group_by_type(rest, dict(InAppNotification.EVENT_TYPES))
     else:

@@ -96,3 +96,36 @@ def inbox_query(type: str = "", unread: bool = False, group: str = "day") -> str
         if v and not (k == "group" and v == "day")
     }
     return "?" + urlencode(params) if params else ""
+
+
+def role_event_types(role: str, all_types) -> list[tuple[str, str]]:
+    """أنواعُ الإشعارات المتاحةُ لهذا الدور — تصفيةٌ على قائمةٍ جاهزة، لا استعلام."""
+    parent_types = {
+        "behavior",
+        "absence",
+        "grade",
+        "fail",
+        "clinic",
+        "sent_home",
+        "meeting",
+        "parent_summon",
+        "general",
+    }
+    student_types = {"grade", "fail", "behavior", "absence", "clinic", "general"}
+    if role == "parent":
+        return [t for t in all_types if t[0] in parent_types]
+    if role == "student":
+        return [t for t in all_types if t[0] in student_types]
+    return list(all_types)
+
+
+def event_type_chips(role_types, type_counts: dict, event_filter: str, state: dict) -> list[tuple]:
+    """رقاقةُ نوعٍ لا إشعارَ منه ترشيحٌ يُفضي إلى صفحةٍ فارغة — كانت سبعَ عشرةَ رقاقةً
+    للإداريّ أكثرُها كذلك. فالظاهرُ ما في الصندوق منه شيءٌ، وعددُه معه، والمختارُ يبقى
+    ظاهراً وإن فرغ ليُلغى.
+    """
+    return [
+        (code, label, type_counts.get(code, 0), inbox_query(**{**state, "type": code}))
+        for code, label in role_types
+        if type_counts.get(code) or code == event_filter
+    ]
