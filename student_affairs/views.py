@@ -466,22 +466,20 @@ def student_table_partial(request):
 # ═════════════════════════════════════════════════════════════════════
 
 
-@login_required
-@capability_required("student_affairs.manage")
-def student_export_excel(request):
-    """تصدير قائمة الطلاب إلى Excel — مع هيدر وفوتر احترافي."""
-    import openpyxl
-    from openpyxl.styles import Alignment
+def _student_register_queryset(request):
+    """الاستعلامُ المشترَك بين تصديرَي سجل الطلاب — Excel وPDF.
 
+    نفس فلترة student_list، بما فيها الإصلاحُ الذي أخذته الشاشةُ في #191 ولم
+    يكن قد بلغ أيَّ تصدير: المقيَّدُ أوّلاً، ومن لا قيدَ له هذا العامَ يخرج
+    بترشيحٍ صريحٍ (`status=unenrolled` أو `all`) لا بعدٍّ يُساوي به العضويّةَ
+    بالقيد.
+    """
     school = request.school
     year = academic_year_for(request)
     q = request.GET.get("q", "").strip()
     grade_filter = request.GET.get("grade", "")
     section_filter = request.GET.get("section", "")
 
-    ctx = get_export_context(request, "سجل الطلاب")
-
-    # نفس فلترة student_list
     students = (
         Membership.objects.filter(
             school=school,
@@ -496,6 +494,20 @@ def student_export_excel(request):
         students = students.filter(
             Q(user__full_name__icontains=q) | Q(user__national_id__icontains=q)
         )
+
+    status = request.GET.get("status") or "enrolled"
+    is_enrolled = Exists(
+        StudentEnrollment.objects.filter(
+            student_id=OuterRef("user_id"),
+            class_group__school=school,
+            class_group__academic_year=year,
+            is_active=True,
+        )
+    )
+    if status == "enrolled":
+        students = students.filter(is_enrolled)
+    elif status == "unenrolled":
+        students = students.exclude(is_enrolled)
 
     enrollment_data = {}
     for enr in StudentEnrollment.objects.filter(
@@ -519,6 +531,19 @@ def student_export_excel(request):
             if data.get("class_group__section") == section_filter
         ]
         students = students.filter(user_id__in=enrolled_ids)
+
+    return students, enrollment_data, year
+
+
+@login_required
+@capability_required("student_affairs.manage")
+def student_export_excel(request):
+    """تصدير قائمة الطلاب إلى Excel — مع هيدر وفوتر احترافي."""
+    import openpyxl
+    from openpyxl.styles import Alignment
+
+    ctx = get_export_context(request, "سجل الطلاب")
+    students, enrollment_data, year = _student_register_queryset(request)
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -585,6 +610,53 @@ def student_export_excel(request):
     )
     filename = generate_export_filename("students", "list", "xlsx")
     return excel_to_response(wb, filename)
+
+
+@login_required
+@capability_required("student_affairs.manage")
+def student_list_pdf(request):
+    """تصدير قائمة الطلاب إلى PDF — بنفس فلترة student_export_excel."""
+    ctx = get_export_context(request, "سجل الطلاب")
+    students, enrollment_data, year = _student_register_queryset(request)
+
+    rows = []
+    for i, m in enumerate(students, 1):
+        enr = enrollment_data.get(m.user_id, {})
+        rows.append(
+            {
+                "num": i,
+                "full_name": m.user.full_name,
+                "national_id": m.user.national_id,
+                "grade": enr.get("class_group__grade", "—"),
+                "section": enr.get("class_group__section", "—"),
+                "phone": m.user.phone or "—",
+                "email": m.user.email or "—",
+            }
+        )
+
+    pdf_header = get_pdf_header_html(ctx)
+    pdf_footer = get_pdf_footer_html(ctx)
+
+    html = render_to_string(
+        "student_affairs/student_list_pdf.html",
+        {
+            "rows": rows,
+            "total_students": len(rows),
+            "pdf_header": pdf_header,
+            "pdf_footer": pdf_footer,
+            **ctx,
+        },
+    )
+
+    log_export(
+        request,
+        "student_affairs.students_pdf",
+        rows=len(rows),
+        full_national_id=False,
+        object_repr=f"سجل الطلاب PDF — {year}",
+    )
+    filename = generate_export_filename("students", "list", "pdf")
+    return render_pdf(html, filename, paper_size="A4")
 
 
 # ═════════════════════════════════════════════════════════════════════

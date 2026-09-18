@@ -3,11 +3,13 @@
 حصّةُ المعلم الغائب في ثلاثة أسطر: الحصّة · البديل · الحالة. تُضمَّن في
 `absence_detail.html` وتعود وحدَها من `assign_substitute` (HTMX يبدّل
 `#slot-<id>` كلَّه) — فالشكلُ واحدٌ قبل التعيين وبعده. والألوانُ والنصوصُ
-من `_slot_presentation` في operations/views_schedule.py.
+من `_slot_presentation` في operations/views_schedule.py. ونموذجُ التعيين
+خلف `can_assign` (`operations.substitutes_manage`) — مشرفُ الجناح يفتح
+الصفحةَ ويرى فراغاً بلا نموذج، لا خطأ صلاحيّة.
 {% endcomment %}
 <div id="slot-{{ item.slot.id }}" class="slot-cell">
   {% entity_card item.title who=item.who count=item.time_label tone=item.tone %}
-    {% entity_chips %}{% if item.assignment %}<span class="chip"{% if item.assignment.notes %} title="{{ item.assignment.notes }}"{% endif %}>{{ item.assignment.substitute.full_name }}</span>{% else %}<form class="slot-assign" hx-post="{% url 'assign_substitute' absence.id item.slot.id %}" hx-target="#slot-{{ item.slot.id }}" hx-swap="outerHTML">{% csrf_token %}<select name="substitute" required class="form-select form-control-sm" aria-label="البديل"><option value="">— اختر المعلم —</option>{% for t in item.available %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}</select><input type="text" name="notes" placeholder="ملاحظة (اختياري)" aria-label="ملاحظة" class="form-control form-control-sm"><button type="submit" class="btn-primary btn-sm">تعيين</button></form>{% endif %}{% endentity_chips %}
+    {% entity_chips %}{% if item.assignment %}<span class="chip"{% if item.assignment.notes %} title="{{ item.assignment.notes }}"{% endif %}>{{ item.assignment.substitute.full_name }}</span>{% elif can_assign %}<form class="slot-assign" hx-post="{% url 'assign_substitute' absence.id item.slot.id %}" hx-target="#slot-{{ item.slot.id }}" hx-swap="outerHTML">{% csrf_token %}<select name="substitute" required class="form-select form-control-sm" aria-label="البديل"><option value="">— اختر المعلم —</option>{% for t in item.available %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}</select><input type="text" name="notes" placeholder="ملاحظة (اختياري)" aria-label="ملاحظة" class="form-control form-control-sm"><button type="submit" class="btn-primary btn-sm">تعيين</button></form>{% else %}<span class="chip badge--neutral">لم يُعيَّن بديل</span>{% endif %}{% endentity_chips %}
     {% entity_status tone=item.status_tone %}{% if item.assignment %}{% icon "status_success" %}{% else %}{% icon "status_warning" %}{% endif %} {{ item.status_label }}{% endentity_status %}
   {% endentity_card %}
 </div>
