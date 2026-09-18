@@ -41,25 +41,39 @@
   {% endsection_card %}
   {% endif %}
 
-  {% if alerts %}
-  {% section_card "تنبيهات الغياب المتكرّر" meta=alerts|length icon="absence" %}
-    <ul class="plain-list">
-      {% for alert in alerts %}
-        <li class="plain-list__row">
-          <span class="plain-list__title">{{ alert.student.full_name }}</span>
-          <span class="status-badge status-danger">{{ alert.absence_count }} أيّام</span>
-        </li>
-      {% endfor %}
-    </ul>
-  {% endsection_card %}
-  {% endif %}
-
   <div class="ui-grid-2">
     {% section_card "اتجاه الحضور" meta="آخر 7 أيّام" icon="trend" %}
       <div class="dash-chart-wrap"><canvas id="miniAttendance" role="img" aria-label="رسم بياني: نسبة الحضور آخر 7 أيام"></canvas></div>
     {% endsection_card %}
     {% section_card "توزيع الدرجات السنويّة" icon="stats" %}
       <div class="dash-chart-wrap"><canvas id="miniGrades" role="img" aria-label="رسم بياني: توزيع الدرجات السنوية"></canvas></div>
+    {% endsection_card %}
+    {% comment %}
+    كانت هذه البطاقةُ قسماً مستقلّاً بقائمةٍ رأسيّةٍ (اسمٌ + شارةٌ في كلّ
+    سطر) — فترتفع مع تراكم "نبض الأقسام" و"العام الدراسي" فوقها حتى تدفع
+    الرسمين البيانيّين وشريطَ الأقسام السريعة خارج الشاشة، رغم أنّ عددها
+    محدودٌ بـ`[:5]` أصلاً. انضمّت هنا عموداً ثالثاً بجانب الرسمين (الشبكةُ
+    `auto-fit` أصلاً، لا تحتاج تعديلاً لتقبل عموداً ثالثاً)، و`.is-scroll`
+    تُسقّف ارتفاعها بارتفاع الرسمين بجانبها ولو زاد عددُ التنبيهات الحقيقيّ
+    مستقبلاً عن الخمسة المعروضة. وهي دائمةٌ لا مشروطةٌ بوجود تنبيهات — تختفي
+    البطاقةُ الثالثةُ فتضطرب الشبكةُ (عمودان فقط) كلّما خلا يومٌ من التنبيهات،
+    فتبقى ظاهرةً دوماً بحالةٍ فارغةٍ موحّدة (`section_card` نفسُها ترسمها
+    حين يكون محتواها فارغاً — `{% if alerts %}` هنا لا حول القسم كلِّه).
+    {% endcomment %}
+    {% section_card "تنبيهات الغياب المتكرّر" meta=alerts|length icon="absence" empty="لا تنبيهات معلّقة" %}
+      {% if alerts %}
+      <ul class="plain-list is-scroll">
+        {% for alert in alerts %}
+          <li class="plain-list__row">
+            <span class="plain-list__main">
+              <span class="plain-list__title">{{ alert.student.full_name }}</span>
+              <span class="plain-list__sub">{{ alert.class_text }}</span>
+            </span>
+            <span class="status-badge status-danger">{{ alert.absence_count }} أيّام</span>
+          </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
     {% endsection_card %}
   </div>
 
