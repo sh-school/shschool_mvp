@@ -41,3 +41,8 @@ detect-secrets==1.5.0
 # مدقّق الهجرات — يُسقط أيّ هجرةٍ جديدة تحذف عموداً/جدولاً أو تُسمّي من جديد
 # (تفرضه بوّابة migration-linter، P4-1). لا يدخل requirements.txt: أداةُ CI لا الإنتاج.
 django-migration-linter==6.0.0
+
+# اختبارات المتصفّح (tests/e2e/ + بوّابة axe-core الحيّة، P2-1) — playwright
+# نفسُه في requirements.txt، لكنّ إضافة pytest عليه أداةُ اختبارٍ لا إنتاج.
+pytest-playwright==0.9.0
+axe-playwright-python==0.1.8
