@@ -40,4 +40,4 @@ detect-secrets==1.5.0
 
 # مدقّق الهجرات — يُسقط أيّ هجرةٍ جديدة تحذف عموداً/جدولاً أو تُسمّي من جديد
 # (تفرضه بوّابة migration-linter، P4-1). لا يدخل requirements.txt: أداةُ CI لا الإنتاج.
-django-migration-linter==5.2.0
+django-migration-linter==6.0.0
