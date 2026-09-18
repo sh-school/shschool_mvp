@@ -244,6 +244,28 @@ def test_the_governing_membership_prefers_staff_over_parent(school, subjects):
     assert teacher.department_obj.code == "math", "والقسمُ يُقرأ من العضويّة التي تحمله"
 
 
+def test_department_obj_is_read_once_per_instance(school, subjects):
+    """معالجُ السياق والصلاحيّاتُ يقرآن `department_obj` لنفس المستخدم في الطلب
+    نفسه — والقراءةُ الثانية على الكائن نفسه لا تستعلم من جديد (البند 9)."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    teacher = a_teacher(school, "معلّم الرياضيات")
+    assign(school, teacher, subjects["MAT"], periods=12)
+    seed(apply=True)
+    teacher.invalidate_active_membership()
+
+    assert teacher.department_obj is not None  # إحماء — يملأ الذاكرة على الكائن
+    with CaptureQueriesContext(connection) as ctx:
+        assert teacher.department_obj is not None
+    assert not ctx.captured_queries, ctx.captured_queries
+
+    teacher.invalidate_active_membership()
+    with CaptureQueriesContext(connection) as ctx:
+        assert teacher.department_obj is not None
+    assert ctx.captured_queries, "بعد الإبطال يجب أن يستعلم من جديد"
+
+
 # ══════════════════════════════════════════════════════════════════════
 #  سجلٌّ سابقٌ في القاعدة — يُتبنّى ولا يُنشأ فوقه
 # ══════════════════════════════════════════════════════════════════════
