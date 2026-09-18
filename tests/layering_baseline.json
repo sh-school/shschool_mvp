@@ -27,6 +27,27 @@
    "reason": "زادت استدعاءاتُه في #324 (48d9ec55) قبل وصول الحارس إلى main؛ يُنقل مع _student_register_queryset ضمن البند 25",
    "to": 24,
    "where": "student_affairs/views.py::student_list_pdf"
+  },
+  {
+   "from": 113,
+   "metric": "lines",
+   "reason": "زاد في #328 (f4828437) قبل وصول الحارس إلى main؛ يُنقل إلى dashboard/ ضمن البند 20",
+   "to": 124,
+   "where": "core/views_dashboard.py::_get_director_ctx"
+  },
+  {
+   "from": 60,
+   "metric": "orm",
+   "reason": "زاد في #328 (f4828437) قبل وصول الحارس إلى main؛ يُنقل إلى dashboard/ ضمن البند 20",
+   "to": 61,
+   "where": "core/views_dashboard.py::_get_director_ctx"
+  },
+  {
+   "from": 187,
+   "metric": "orm",
+   "reason": "زاد استدعاءً في #328 (f4828437) قبل وصول الحارس إلى main؛ يُنقل إلى dashboard/ ضمن البند 20",
+   "to": 188,
+   "where": "core/views_dashboard.py::dashboard"
   }
  ],
  "core_import_sites": {
@@ -369,8 +390,8 @@
    "orm": 17
   },
   "core/views_dashboard.py::_get_director_ctx": {
-   "lines": 113,
-   "orm": 60
+   "lines": 124,
+   "orm": 61
   },
   "core/views_dashboard.py::_get_service_ctx": {
    "orm": 18
@@ -391,7 +412,7 @@
    "orm": 6
   },
   "core/views_dashboard.py::dashboard": {
-   "orm": 187
+   "orm": 188
   },
   "core/views_health.py::status_check": {
    "lines": 77
