@@ -835,7 +835,7 @@ class SubjectClassAssignment(AuditedModel):
         ObservedAssignment ≠ ApprovedAssignment
 
     ولذلك يرث `AuditedModel`: أنشأه ومتى، وعدّله ومتى. و`updated_at` منه هو
-    الطابعُ الذي يحرس التزامنَ في `assignment_service` — فآخرُ من يضغط «حفظ»
+    الطابعُ الذي يحرس التزامنَ في `assignment_services` — فآخرُ من يضغط «حفظ»
     ليس أحقَّ بالحقيقة من زميلٍ سبقه.
     """
 

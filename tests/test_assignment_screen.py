@@ -9,7 +9,7 @@
     المعتمَدُ لا يُكتب فوقه   يُفتح بإصدارٍ جديد
 
 وأخطرُ ما يُحرَس أنّ الشاشةَ **لا تكتب بيدها**: كلُّ صفٍّ يمرّ بـ
-`assignment_service`، فتبقى الفحوصُ والتدقيقُ واحدةً مهما تعدّدت الأبواب.
+`assignment_services`، فتبقى الفحوصُ والتدقيقُ واحدةً مهما تعدّدت الأبواب.
 """
 
 import pytest
@@ -655,7 +655,7 @@ def test_the_service_refuses_an_unconfirmed_transfer(
     client, school, departments, maths_teacher, science_teacher, vice, seventh, subjects, plan_rows
 ):
     """الحارسُ في الخدمة لا في الشاشة — فلا يمرّ نقلٌ من بابٍ آخر."""
-    from academic_management import assignment_service as svc
+    from academic_management import assignment_services as svc
 
     login(client, vice, school)
     add(client, science_teacher, seventh, subjects["MAT"])

@@ -178,70 +178,39 @@
   "wings/views_register.py": 2
  },
  "views": {
-  "academic_management/assignment_views.py::_card": {
-   "orm": 42
-  },
-  "academic_management/assignment_views.py::_card_rows": {
-   "orm": 10
-  },
-  "academic_management/assignment_views.py::_coverage": {
-   "orm": 8
-  },
-  "academic_management/assignment_views.py::_department_key": {
-   "orm": 11
-  },
-  "academic_management/assignment_views.py::_guard": {
-   "orm": 15
-  },
-  "academic_management/assignment_views.py::_locked_card": {
-   "orm": 47
-  },
-  "academic_management/assignment_views.py::_render_card": {
-   "orm": 47
-  },
-  "academic_management/assignment_views.py::_rows_by_teacher": {
-   "orm": 8
-  },
-  "academic_management/assignment_views.py::_stale_card_html": {
-   "orm": 45
-  },
   "academic_management/assignment_views.py::add_row": {
    "lines": 85,
-   "orm": 109
-  },
-  "academic_management/assignment_views.py::assignments": {
-   "lines": 69,
-   "orm": 79
+   "orm": 16
   },
   "academic_management/assignment_views.py::cancel_transfer": {
-   "orm": 63
+   "orm": 10
   },
   "academic_management/assignment_views.py::move": {
-   "orm": 69
+   "orm": 26
   },
   "academic_management/assignment_views.py::remove_row": {
-   "orm": 68
+   "orm": 10
   },
   "academic_management/assignment_views.py::set_department": {
-   "orm": 68
+   "orm": 15
   },
   "academic_management/assignment_views.py::set_load": {
-   "orm": 69
+   "orm": 16
   },
   "academic_management/assignment_views.py::set_parallel": {
-   "orm": 71
+   "orm": 18
   },
   "academic_management/assignment_views.py::subject_options": {
-   "orm": 22
+   "orm": 8
   },
   "academic_management/assignment_views.py::toggle_double": {
-   "orm": 64
+   "orm": 11
   },
   "academic_management/assignment_views.py::toggle_preparation": {
-   "orm": 77
+   "orm": 14
   },
   "academic_management/assignment_views.py::update_periods": {
-   "orm": 96
+   "orm": 10
   },
   "analytics/views.py::analytics_dashboard": {
    "lines": 89,

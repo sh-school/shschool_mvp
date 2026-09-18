@@ -381,7 +381,7 @@ class Command(BaseCommand):
     # ── العرضُ والكتابة ──────────────────────────────────────────
 
     def _report(self, rows, problems, notes, scopes, live_scopes):
-        from academic_management.curriculum_service import expected_total
+        from academic_management.curriculum_services import expected_total
 
         self.stdout.write(self.style.MIGRATE_HEADING("\nالخطّة الدراسيّة المقترَحة"))
         by_scope = {}
