@@ -113,7 +113,7 @@ requests==2.33.0
 rlPyCairo==0.4.0
 rpds-py==2026.6.3
 sentry-sdk[django]>=2.8.0
-service-identity==24.2.0
+service-identity==26.1.0
 six==1.17.0
 sqlparse==0.6.0
 svglib==1.6.0
