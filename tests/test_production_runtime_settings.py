@@ -41,6 +41,7 @@ print("CELERY_EAGER=" + str(settings.CELERY_TASK_ALWAYS_EAGER))
 print("CELERY_PROPAGATES=" + str(settings.CELERY_TASK_EAGER_PROPAGATES))
 print("CELERY_BROKER=" + str(getattr(settings, "CELERY_BROKER_URL", "")))
 print("CORS=" + "|".join(settings.CORS_ALLOWED_ORIGINS))
+print("CONN_MAX_AGE=" + str(settings.DATABASES["default"]["CONN_MAX_AGE"]))
 """
 
     return subprocess.run(
@@ -203,3 +204,24 @@ def test_the_development_default_is_untouched():
     base = pathlib.Path("shschool/settings/base.py").read_text(encoding="utf-8")
 
     assert 'default="http://localhost:3000,http://localhost:8000"' in base
+
+
+# ══════════════════════════════════════════════════════════════════
+#  اتّصالُ القاعدة تحت ASGI — بلا استمرار (P4-9)
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_connections_are_not_kept_alive_under_asgi():
+    """daphne يخدم على مسبح خيوطٍ واحد؛ اتّصالٌ مستمرٌّ قد يعود لخيطٍ غير الذي فتحه."""
+    result = _load_production_settings()
+
+    assert result.returncode == 0, result.stderr
+    assert _values(result)["CONN_MAX_AGE"] == "0"
+
+
+def test_the_environment_variable_cannot_override_it():
+    """`DB_CONN_MAX_AGE` قرارٌ معماريٌّ لهذا الخادم — لا رايةٌ تُضبط بالخطأ."""
+    result = _load_production_settings(DB_CONN_MAX_AGE="600")
+
+    assert result.returncode == 0, result.stderr
+    assert _values(result)["CONN_MAX_AGE"] == "0"

@@ -14,10 +14,12 @@ core/permissions.py
 """
 
 import logging
+from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import HttpRequest, HttpResponseForbidden, JsonResponse
+from django.http.response import HttpResponseBase
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
@@ -1053,11 +1055,13 @@ def get_accessible_modules(user):
 # ══════════════════════════════════════════════════════════════════════
 
 
-def internal_only(view_func):
+def internal_only(
+    view_func: Callable[..., HttpResponseBase],
+) -> Callable[..., HttpResponseBase]:
     """يسمح فقط بالوصول من عناوين IP الداخلية — لحماية /metrics و endpoints حساسة."""
 
     @wraps(view_func)
-    def wrapper(request, *args, **kwargs):
+    def wrapper(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponseBase:
         from django.conf import settings as _s
 
         from core.request_utils import get_client_ip

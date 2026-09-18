@@ -20,7 +20,9 @@ urlpatterns = [
     # ✅ v5.4: Readiness Probe خفيف (DB فقط) — load balancer + rolling deployments
     path("ready/", readiness_check, name="readiness_check"),
     # ✅ v5.4: Full status endpoint — DB + Redis + migrations + uptime + version
-    path("status/", status_check, name="status_check"),
+    # داخليٌّ فقط (P4-9): تفاصيلُ الاتّصال وزمنُ الاستجابة لفريق العمليّات لا
+    # لأيّ زائر — internal_only تحرسه كما تحرس /metrics.
+    path("status/", internal_only(status_check), name="status_check"),
     path("", lambda r: redirect("dashboard/")),
     # خدمة الملفات المُخزَّنة في قاعدة البيانات (DatabaseStorage) — محمية بتسجيل الدخول
     path("dbmedia/<path:name>", serve_db_file, name="serve_db_file"),
