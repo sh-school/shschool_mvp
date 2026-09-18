@@ -41,7 +41,7 @@ jobs:
             --desc
 
       - name: رفع تقرير pip-audit
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pip-audit-report
@@ -200,7 +200,7 @@ jobs:
             -q
 
       - name: رفع تقرير HTML
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: weekly-coverage-html
           path: htmlcov/
