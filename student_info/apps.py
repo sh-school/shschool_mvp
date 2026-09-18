@@ -16,7 +16,6 @@ class StudentInfoConfig(AppConfig):
             name="student_info",
             label="مركز معلومات الطلبة",
             url_prefix="/student-info/",
-            icon="bi-person-vcard",
             allowed_roles=set(MODULE_ROLES),
             sidebar_roles=set(MODULE_ROLES),
             sort_order=25,

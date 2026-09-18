@@ -244,6 +244,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         """يُبطل cache العضوية — استخدمه بعد إنشاء أو تعديل Membership"""
         self.__dict__.pop("_active_membership", None)
         self.__dict__.pop("_active_memberships", None)
+        self.__dict__.pop("_department_obj", None)
 
     def get_active_membership(self):
         return self.active_membership
@@ -296,14 +297,21 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         """قسمُ المستخدم — من عضويّةٍ تحمل قسماً، لا من أوّل عضويّةٍ تُصادَف.
 
         فالقسمُ يخصّ عضويّةَ التدريس، وصاحبُ عضويّتين قد تُقرأ منه الأخرى.
+        تُقرأ من مُعالج السياق في كلّ طلب، وقد تُقرأ ثانيةً في الصلاحيّات أو
+        القالب لنفس المستخدم — فتُحفظ على الكائن كـ`active_membership`.
         """
+        cached = self.__dict__.get("_department_obj", "__unset__")
+        if cached != "__unset__":
+            return cached
         membership = (
             self.memberships.filter(is_active=True, department_obj__isnull=False)
             .select_related("department_obj")
             .order_by("department_obj__sort_order")
             .first()
         )
-        return membership.department_obj if membership else None
+        result = membership.department_obj if membership else None
+        self.__dict__["_department_obj"] = result
+        return result
 
     def get_department(self):
         return self.department

@@ -71,17 +71,15 @@ MOVED = {
 }
 
 #: ما يبقى محلّيّاً عمداً — باسمه وسببه.
+#:
+#: مجموعاتُ أدوار اللوحة (DIRECTOR_ROLES وأخواتها) لم تعد هنا: انتقلت مع
+#: البند 10 (سواط الباك اند 2026-09-18) من core/views_dashboard.py إلى
+#: core/dashboard_selectors.py — طبقةُ قراءةٍ لا ملفّ واجهات، فخرجت من
+#: نطاق هذا الحارس أصلاً (`_view_files()` لا يفحص إلا `views*.py`)، لا أنها
+#: احتاجت استثناءً جديداً باسمٍ آخر.
 LOCAL_BY_DESIGN = {
     # سياسةُ أمانٍ للدخول لا صلاحيّةُ وصول: من يُلزَم بالتحقّق الثنائيّ.
     ("core/views_auth.py", "ROLES_REQUIRING_2FA"),
-    # تختار اللوحةُ بها أيَّ تخطيطٍ تعرض، ولا تفتح شيئاً ولا تمنعه.
-    ("core/views_dashboard.py", "_DIRECTOR_ROLES"),
-    ("core/views_dashboard.py", "_TEACHER_ROLES"),
-    ("core/views_dashboard.py", "_SPECIALIST_SOCIAL_ROLES"),
-    ("core/views_dashboard.py", "_THERAPIST_ROLES"),
-    ("core/views_dashboard.py", "_ADMIN_OPS_ROLES"),
-    ("core/views_dashboard.py", "_SERVICE_ROLES"),
-    ("core/views_dashboard.py", "_TRANSPORT_ROLES"),
 }
 
 _ROLE_NAMES = {name for name, _ in Role.ROLES}

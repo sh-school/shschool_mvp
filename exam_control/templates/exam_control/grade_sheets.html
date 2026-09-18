@@ -9,11 +9,11 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "أوراق الرصد والتصحيح" subtitle=session.name icon="clipboard" %}
+  {% page_header "أوراق الرصد والتصحيح" subtitle=session.name icon="grade_sheets" %}
     <a href="{% url 'exam_control:session_detail' session.pk %}" class="btn-ghost btn-sm">رجوع إلى الدورة</a>
   {% endpage_header %}
 
-  {% section_card "الأوراق" meta=sheets|length icon="clipboard" flush=True empty="لا أوراقَ رصد" %}{% if sheets %}
+  {% section_card "الأوراق" meta=sheets|length icon="grade_sheets" flush=True empty="لا أوراقَ رصد" %}{% if sheets %}
     <div class="table-wrap">
       <table>
         <thead><tr><th scope="col">المادة</th><th scope="col">التاريخ</th><th scope="col" class="num">الأوراق</th><th scope="col">الحالة</th><th scope="col">تحديث</th></tr></thead>

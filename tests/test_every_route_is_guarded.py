@@ -58,6 +58,9 @@ GUARDED_INSIDE = {
     "api/v1/notifications/<uuid:notif_id>/read/": "get_object_or_404(..., user=request.user)",
     "api/v1/notifications/mark-all-read/": "filter(user=request.user)",
     "api/v1/notification-preferences/": "تفضيلاتُ المستخدم نفسِه",
+    "teacher/weekly-schedule/export/status/<uuid:job_id>/": (
+        "get_object_or_404(..., school=request.school, requested_by=request.user)"
+    ),
 }
 
 #: مفتوحٌ لكلّ مسجَّلٍ بقصد — المسارُ ← لماذا لا يكشف بياناتِ غيره.

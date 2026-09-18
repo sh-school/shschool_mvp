@@ -22,6 +22,7 @@
   "core/celery_tasks.py": 15,
   "core/context_processors.py": 4,
   "core/dashboard_presentation.py": 3,
+  "core/dashboard_selectors.py": 15,
   "core/db_storage.py": 12,
   "core/erasure_service.py": 18,
   "core/export_utils.py": 11,
@@ -84,9 +85,8 @@
   "core/rls.py": 2,
   "core/secrets_manager.py": 11,
   "core/sentry_config.py": 23,
-  "core/signals.py": 47,
+  "core/signals.py": 44,
   "core/sorting.py": 5,
-  "core/styleguide.py": 1,
   "core/templatetags/dict_filters.py": 5,
   "core/templatetags/labels.py": 1,
   "core/templatetags/navigation.py": 1,
@@ -97,7 +97,6 @@
   "core/tenancy.py": 5,
   "core/validators.py": 7,
   "core/views_auth.py": 17,
-  "core/views_dashboard.py": 2,
   "core/views_media.py": 1,
   "core/views_students.py": 8,
   "developer_feedback/models.py": 2,
@@ -151,5 +150,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1832
+ "total": 1841
 }

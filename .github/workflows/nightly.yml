@@ -59,9 +59,9 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -95,7 +95,7 @@ jobs:
             --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
 
       - name: رفع نتائج الاختبارات
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nightly-test-results
@@ -129,7 +129,7 @@ jobs:
       # التي في `deploy-railway.yml` (ليست PR، من github-actions[bot]، بالبادئة).
       - name: "الفشل: فتحُ قضيّةٍ أو التعليقُ على المفتوحة"
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prefix = '🌙 NIGHTLY FAILED';
@@ -169,7 +169,7 @@ jobs:
 
       - name: "النجاح: إغلاقُ قضايا الفشل المفتوحة"
         if: success()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prefix = '🌙 NIGHTLY FAILED';

@@ -549,6 +549,17 @@ def _parent_from_identity(request, school, national_id, full_name, phone, email=
     return parent
 
 
+def _member_of_school(school, user_id, **extra_filters):
+    """مستخدمٌ ضمن مدرسةٍ محدّدة — يمنع IDOR بتمرير معرِّفٍ من مدرسةٍ أخرى."""
+    return get_object_or_404(
+        CustomUser,
+        id=user_id,
+        memberships__school=school,
+        memberships__is_active=True,
+        **extra_filters,
+    )
+
+
 @login_required
 @capability_required("parents.admin")
 def add_parent_link(request):
@@ -577,10 +588,10 @@ def add_parent_link(request):
     if not student_id:
         messages.error(request, "اختر الطالبَ المراد ربطُه.")
         return redirect("manage_parent_links")
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = _member_of_school(school, student_id)
 
     if parent_id:
-        parent = get_object_or_404(CustomUser, id=parent_id)
+        parent = _member_of_school(school, parent_id, memberships__role__name="parent")
     else:
         parent = _parent_from_identity(request, school, national_id, full_name, phone, email)
         if parent is None:

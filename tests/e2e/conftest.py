@@ -78,7 +78,7 @@ def login(page, live_server):
 
     def _login(user, password="TestPass123!"):
         page.goto(f"{live_server.url}/auth/login/")
-        page.fill('input[name="national_id"]', user.national_id)
+        page.fill('input[name="identifier"]', user.national_id)
         page.fill('input[name="password"]', password)
         page.click('button[type="submit"]')
         page.wait_for_url("**/dashboard/**", timeout=10000)

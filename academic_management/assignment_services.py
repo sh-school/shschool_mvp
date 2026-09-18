@@ -37,7 +37,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from academic_management import curriculum_service as curriculum
+from academic_management import curriculum_services as curriculum
 from academic_management import load as loads
 from academic_management.models import CoursePreparation, WorkloadGovernance
 

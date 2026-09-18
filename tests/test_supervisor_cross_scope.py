@@ -555,9 +555,9 @@ class TestRecentAlerts:
             )
 
     def _alerted(self, user, school, role):
-        from core.views_dashboard import _get_admin_ops_ctx
+        from core.dashboard_selectors import get_admin_ops_ctx
 
-        ctx = _get_admin_ops_ctx(user, school, SUNDAY, role)
+        ctx = get_admin_ops_ctx(user, school, SUNDAY, role)
         return {a.student for a in ctx["recent_alerts"]}
 
     def test_the_supervisor_sees_his_wing_alerts(self, school, supervisor, alerts, mine):

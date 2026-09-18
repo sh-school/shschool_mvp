@@ -4,9 +4,6 @@
 تُنسخ مع `collectstatic` بلا مرجعٍ واحد يستعملها. وكان `chart.umd.min.js` يُحمَّل
 متزامناً في 12 صفحة يليه سكربتٌ يستعمله فوراً — فحُذف الأصلان معاً، وأُجِّل
 الاثنان بـ`defer` لا أحدُهما وحده (وإلّا سقط `Chart is not defined`).
-
-وحارسُ الورقة القديمة (`components/sprite.html`) يمنع عودتها إلى `base.html`
-بعد أن تأكّد صفرُ استعمالٍ قديمٍ خارج صفحة الدليل التي تحملها بنفسها الآن.
 """
 
 import re
@@ -76,14 +73,3 @@ def test_every_chart_js_load_and_its_init_script_are_both_deferred():
             ), f"{path}: سكربتُ تهيئة الرسم بلا defer — يسبق تحميل المكتبة"
 
     assert checked == 12, f"كان المتوقَّع 12 صفحةً تحمّل Chart.js، وُجد {checked}"
-
-
-def test_base_html_no_longer_includes_the_legacy_icon_sprite():
-    """الرقعةُ القديمة (30KB) كانت تُضمَّن في كلّ صفحة — صفحةُ دليلها وحدَها تحملها الآن."""
-    base_html = (TEMPLATES / "base" / "base.html").read_text(encoding="utf-8")
-    assert 'include "components/sprite.html"' not in base_html
-
-    preview = (TEMPLATES / "styleguide" / "icon_preview.html").read_text(encoding="utf-8")
-    assert (
-        'include "components/sprite.html"' in preview
-    ), "صفحةُ دليل الأيقونات تعرض الرموز القديمة — يجب أن تحمل الورقةَ بنفسها"

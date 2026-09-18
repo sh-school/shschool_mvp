@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import functools
 import logging
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -27,6 +28,25 @@ from django_ratelimit.decorators import ratelimit as _ratelimit
 logger = logging.getLogger(__name__)
 
 _ViewFn = Callable[..., HttpResponse]
+
+# سقوطُ Redis كان يُسجَّل بـ`warning` فقط — وSentry (production.py) يرفع
+# LoggingIntegration إلى الأحداث عند `event_level="ERROR"` فما دونه، فلا
+# يصل تنبيهٌ فعليّ لأحد حين يُفتح الباب فعلاً. لكن كلَّ طلبٍ يُخفق فيه Redis
+# أثناء انقطاعٍ فعليّ يمرّ من هنا، فرفعُ المستوى وحده يُغرق Sentry بحادثةٍ
+# واحدة مستمرّة — فتهدئةٌ محليّةٌ (بلا Redis، فهو المُنهار أصلاً) تحدّ التنبيه
+# الحقيقيّ إلى مرّةٍ كلَّ 5 دقائق لكلّ عامل، والباقي يبقى في السجلّ فقط.
+_ALERT_COOLOFF_SECONDS = 300
+_last_alert_at = 0.0
+
+
+def _report_fail_open(exc: Exception) -> None:
+    global _last_alert_at
+    now = time.monotonic()
+    if now - _last_alert_at >= _ALERT_COOLOFF_SECONDS:
+        _last_alert_at = now
+        logger.error("ratelimit check failed open — redis unreachable: %s", exc)
+    else:
+        logger.warning("ratelimit check failed open — redis unreachable (throttled): %s", exc)
 
 
 def ratelimit(*args: Any, **kwargs: Any) -> Callable[[_ViewFn], _ViewFn]:
@@ -40,7 +60,7 @@ def ratelimit(*args: Any, **kwargs: Any) -> Callable[[_ViewFn], _ViewFn]:
             try:
                 return limited_fn(request, *a, **kw)
             except (OSError, ConnectionError, redis.exceptions.RedisError) as exc:
-                logger.warning("ratelimit check failed open — redis unreachable: %s", exc)
+                _report_fail_open(exc)
                 return fn(request, *a, **kw)
 
         return _fail_open

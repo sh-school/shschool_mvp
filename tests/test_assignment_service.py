@@ -15,7 +15,7 @@
 import pytest
 from django.core.exceptions import ValidationError
 
-from academic_management import assignment_service as svc
+from academic_management import assignment_services as svc
 from academic_management import load as loads
 from academic_management.models import (
     APPROVED,

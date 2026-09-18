@@ -13,7 +13,6 @@ class ExamControlConfig(AppConfig):
             name="exam_control",
             label="كنترول الاختبارات",
             url_prefix="/exam-control/",
-            icon="bi-file-earmark-lock",
             allowed_roles={
                 "principal",
                 "vice_academic",

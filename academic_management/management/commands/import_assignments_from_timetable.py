@@ -30,7 +30,7 @@ from collections import Counter, defaultdict
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from academic_management import assignment_service as svc
+from academic_management import assignment_services as svc
 from core.academic_calendar import academic_year_for_school
 from core.models import ClassGroup, CustomUser, Membership, School
 from operations.models import Subject, SubjectClassAssignment

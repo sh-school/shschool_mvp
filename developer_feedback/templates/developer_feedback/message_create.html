@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static i18n ui %}
+{% load static i18n icons ui %}
 {% comment %}
 استمارةُ الرسالة — ثلاثُ بطاقاتٍ من `section_card`: الرسالةُ، والسياقُ التقنيُّ
 الذي سيُرسَل معها، والموافقةُ. والتنبيهُ التمهيديُّ الذي كان بطاقةً بارزةً
@@ -16,9 +16,9 @@
 
 {% block content %}
 <div class="exec-dash df-page">
-  {% page_header _("أرسل ملاحظتك إلى المطوّر") subtitle=_("رسالتك تساعد على تحسين المنصّة — كلما كان الوصف أدق، كان الحل أسرع") icon="mail" %}
+  {% page_header _("أرسل ملاحظتك إلى المطوّر") subtitle=_("رسالتك تساعد على تحسين المنصّة — كلما كان الوصف أدق، كان الحل أسرع") icon="messages" %}
     <a href="{% url 'developer_feedback:my_messages' %}" class="btn-secondary btn-sm">
-      {% include "components/icon.html" with name="list-checks" %}
+      {% icon "checklist" %}
       {% trans "رسائلي السابقة" %}
     </a>
   {% endpage_header %}
@@ -31,9 +31,9 @@
       <div class="df-errorlist" role="alert">{{ form.non_field_errors }}</div>
     {% endif %}
 
-    {% section_card _("الرسالة") icon="pen-square" %}
+    {% section_card _("الرسالة") icon="edit_record" %}
       <p class="form-note is-warning">
-        {% include "components/icon.html" with name="alert-triangle" %}
+        {% icon "status_warning" %}
         {% trans "اكتب العنوان والوصف بوضوح. لا ترفق أي بيانات شخصية لطلاب." %}
       </p>
 
@@ -106,9 +106,9 @@
     {% endsection_card %}
 
     {# ── معاينة السياق التقني الذي سيُرسَل ── #}
-    {% section_card _("معلومات تقنية ستُرسَل مع رسالتك") meta=_("لا تحوي بياناتك الشخصية") icon="info" %}
+    {% section_card _("معلومات تقنية ستُرسَل مع رسالتك") meta=_("لا تحوي بياناتك الشخصية") icon="status_info" %}
       <p class="form-note">
-        {% include "components/icon.html" with name="info" %}
+        {% icon "status_info" %}
         {% trans "هذه المعلومات تساعد المطوّر على تشخيص المشكلة بسرعة. لا تُرسل أي tokens ولا بيانات حساسة." %}
       </p>
       <dl class="df-context-preview" data-df-context-preview>
@@ -120,7 +120,7 @@
     {% endsection_card %}
 
     {# ── Consent Checkbox ── #}
-    {% section_card _("الموافقة") icon="check-circle" %}
+    {% section_card _("الموافقة") icon="status_success" %}
       <div class="df-form-group">
         <label for="{{ form.consent_privacy.id_for_label }}" class="df-checkbox-label">
           <input
@@ -147,7 +147,7 @@
     <div class="form-actions">
       <a href="{% url 'dashboard' %}" class="btn-secondary">{% trans "إلغاء" %}</a>
       <button type="submit" class="btn-primary">
-        {% include "components/icon.html" with name="mail" %}
+        {% icon "messages" %}
         {% trans "إرسال" %}
       </button>
     </div>
