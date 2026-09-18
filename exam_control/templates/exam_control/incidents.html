@@ -3,7 +3,11 @@
 {% block title %}حوادث الاختبار{% endblock %}
 
 {% block breadcrumbs %}
+{% if can_access_session %}
 {% include "components/breadcrumbs.html" with parent_url="/exam-control/" parent_label="كنترول الاختبارات" current="حوادث الاختبار" %}
+{% else %}
+{% include "components/breadcrumbs.html" with current="حوادث الاختبار" %}
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -11,7 +15,7 @@
 
   {% page_header "حوادث الاختبار" subtitle=session.name icon="alert-triangle" %}
     <a href="{% url 'exam_control:incident_add' session.pk %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} تسجيل حادث</a>
-    <a href="{% url 'exam_control:session_detail' session.pk %}" class="btn-ghost btn-sm">رجوع إلى الدورة</a>
+    {% if can_access_session %}<a href="{% url 'exam_control:session_detail' session.pk %}" class="btn-ghost btn-sm">رجوع إلى الدورة</a>{% endif %}
   {% endpage_header %}
 
   {% section_card "الحوادث" meta=incidents|length icon="alert-triangle" flush=True empty="لا حوادثَ مسجّلة" empty_sub="تظهر هنا محاضرُ الحوادث حين تُسجَّل" %}{% if incidents %}
