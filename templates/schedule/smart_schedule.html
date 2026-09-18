@@ -110,14 +110,19 @@
   {% endcomment %}
   {% if pending_generation %}
   <div class="gen-panel">
-    <div id="gen-running" class="gen-running">
-      <p class="gen-running__label" id="gen-running-label" aria-live="polite">
-        {{ pending_generation.get_status_display }} — قد يستغرق عدّة دقائق…
-      </p>
+    {% comment %}قابلٌ للطيّ — التوليدُ قد يستغرق دقائق، ومن لا يحتاج قراءةَ
+    حالته سطراً سطراً يطويه؛ الاستطلاعُ يواصل عمله خلفَ الطيّ فتظهر النتيجةُ
+    فورَ فتحه أو انتهاء التوليد (الصفحةُ تُعاد تحميلُها تلقائيّاً حينها).{% endcomment %}
+    <details id="gen-running" class="gen-running" open>
+      <summary class="gen-running__summary">
+        <span class="gen-running__label" id="gen-running-label" aria-live="polite">
+          {{ pending_generation.get_status_display }} — قد يستغرق عدّة دقائق…
+        </span>
+      </summary>
       <p class="gen-running__sub">
         تُحدَّث الحالةُ تلقائيّاً، ويصلك إشعارٌ عند الانتهاء. يمكنك مغادرةُ الصفحة.
       </p>
-    </div>
+    </details>
   </div>
   {% endif %}
 
@@ -210,7 +215,10 @@
 الواحدُ لا يقول لماذا. والأفضلُ من الأساس أخضر والأسوأُ أحمر.
 {% endcomment %}
 {% if lab_matrix %}
-{% section_card "مؤشرات التوليد" meta=baseline.label|default:"لا أساسَ معتمَد" icon="kpi" flush=True %}
+{% comment %}قابلٌ للطيّ بالضغط على عنوانه (قرارُ 2026-09-18): جدولٌ بعمود لكلّ
+توليدٍ يطول بطول السجلّ، فيُطوى عمّن لا يقارن الآن — عبر `foldable=True` في
+الوسم نفسِه، لا ببناء الشريط يدويّاً.{% endcomment %}
+{% section_card "مؤشرات التوليد" meta=baseline.label|default:"لا أساسَ معتمَد" icon="kpi" flush=True foldable=True %}
   <div class="auto-grid">
     {% for col in lab_matrix_cols %}
     <div class="table-wrap">

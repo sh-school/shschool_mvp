@@ -536,16 +536,18 @@ def test_the_guard_names_the_place_of_the_shortfall(
     assert "العلوم" in body, "والمادّةُ الناقصةُ تُسمّى"
 
 
-def test_the_department_counts_show_before_any_filter_is_chosen(
+def test_the_department_counts_show_for_every_department_at_once(
     client, school, departments, maths_teacher, science_teacher, vice
 ):
-    """عددُ معلّمي كلّ قسمٍ ظاهرٌ في القائمة دائماً — لا بعد اختياره وحدَه."""
+    """عددُ معلّمي كلّ قسمٍ ظاهرٌ في رأس بطاقته — كلُّ الأقسام معاً، لا قائمةٍ
+    مُختارةٍ واحدة (حُذفت قائمةُ الترشيح المنسدلة 2026-09-18: الطيّ والبحثُ
+    الحيّ يكفيان تضييقَ النظر بلا إخفاء بقيّة الأقسام من الصفحة أصلاً)."""
     login(client, vice, school)
 
-    body = page(client, dept=f"reg:{departments['MAT'].id}").content.decode()
+    body = page(client).content.decode()
 
-    assert "الرياضيات (1)" in body
-    assert "العلوم (1)" in body, "وقسمٌ لم يُختَر يبقى رقمُه ظاهراً"
+    assert "الرياضيات" in body and "العلوم" in body
+    assert body.count("1 معلّماً") >= 2, "قسمان بمعلّمٍ واحدٍ لكلٍّ، وكلاهما ظاهرٌ معاً"
 
 
 # ══════════════════════════════════════════════════════════════════════

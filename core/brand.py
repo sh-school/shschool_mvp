@@ -34,6 +34,16 @@ ACCENT_ORANGE = "#ea580c"
 #: `--accent-purple`
 ACCENT_PURPLE = "#7c3aed"
 
+#: `--accent-sky` — نقطةُ تفريغ «قرار الوزارة» في الجدول العام المطبوع.
+ACCENT_SKY = "#0284c7"
+
+#: `--accent-rose` — نقطةُ تفريغ «قرار إدارة المدرسة».
+ACCENT_ROSE = "#e11d48"
+
+#: `--accent-green` — نقطةُ تفريغ «قرار القسم الأكاديميّ». عمداً غيرُ
+#: `STATUS_SUCCESS` رغم قرب اللون: تصنيفٌ لا حكمُ نجاح.
+ACCENT_GREEN = "#059669"
+
 #: `--text-muted` — قيمتُه النهاريّة. الرماديُّ الفاتحُ تحت نصٍّ أبيضَ نسبتُه 3.40.
 TEXT_MUTED = "#5f6775"
 
@@ -151,6 +161,9 @@ TOKEN_OF = {
     "STATUS_INFO": "status-info",
     "ACCENT_ORANGE": "accent-orange",
     "ACCENT_PURPLE": "accent-purple",
+    "ACCENT_SKY": "accent-sky",
+    "ACCENT_ROSE": "accent-rose",
+    "ACCENT_GREEN": "accent-green",
     "TEXT_MUTED": "text-muted",
     "ON_FILL": "on-fill",
     "MAROON_BG": "maroon-bg",

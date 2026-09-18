@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
 {% load static %}
+{% load icons %}
 {% load ui %}
 {% comment %}
 شاشةُ «الإسناد» الواحدة (قرار 2026-09-06): لكلّ معلّمٍ بطاقة — نصابُه وما يدرّسه
@@ -16,17 +17,13 @@
 <div class="exec-dash">
   {% page_header page_title subtitle=page_subtitle icon="checklist" %}
     <div class="asg-tools">
-    <button type="button" class="btn-secondary btn-sm" data-asg-fold="open">فتحُ الكلّ</button>
-    <button type="button" class="btn-secondary btn-sm" data-asg-fold="close">طيُّ الكلّ</button>
-    <form method="get" class="exec-meta">
-      <input type="hidden" name="year" value="{{ year }}">
-      <select name="dept" class="form-select" data-autosubmit title="القسم" aria-label="القسم">
-        <option value="">كلُّ الأقسام</option>
-        {% for d in departments %}
-        <option value="{{ d.key }}" {% if selected_dept == d.key %}selected{% endif %}>{{ d.name }} ({{ d.count }})</option>
-        {% endfor %}
-      </select>
-    </form>
+    <div class="search-wrap asg-search">
+      <span class="search-icon" aria-hidden="true">{% icon "search" %}</span>
+      <input type="search" id="asg-teacher-search" class="form-control" autocomplete="off"
+             placeholder="ابحث باسم المعلّم…" aria-label="ابحث باسم المعلّم">
+    </div>
+    <button type="button" class="btn-secondary btn-sm" data-asg-fold-toggle="dept" aria-pressed="false">فتحُ الأقسام</button>
+    <button type="button" class="btn-secondary btn-sm" data-asg-fold-toggle="all" aria-pressed="false">فتحُ الكلّ</button>
     </div>
   {% endpage_header %}
 
@@ -82,19 +79,35 @@
   <p class="asg-hint">لا أقسامَ مسجَّلةً في هذه المدرسة — فالتجميعُ مشتقٌّ من حصص كلّ معلّم. ومتى سُجّلت الأقسامُ صارت هي المصدر.</p>
   {% endif %}
 
-  {% for department in groups %}
-    <h2 class="asg-dept">{{ department.name }} <small>— {{ department.cards|length }} معلّماً</small></h2>
-    <div class="asg-grid">
-    {% for card in department.cards %}
-      {% include "academic_management/partials/assignment_teacher.html" %}
+  {% if not groups %}
+    {% include "components/empty_state.html" with title="لا معلّمين في هذا النطاق" %}
+  {% else %}
+  {% comment %}أربعةَ عشرَ قسماً بعرض الصفحة كلٍّ كانت تُطيل التمرير — عمودان
+  متتابعان لا متبادلان (قرارُ تخطيط الصفحات في CLAUDE.md): القسمُ الأوّل حتى
+  السابع في العمود الأوّل، والثامن حتى الرابع عشر في الثاني.{% endcomment %}
+  <div class="auto-grid asg-dept-cols">
+  {% for column in dept_cols %}
+    <div class="asg-dept-col">
+    {% for department in column %}
+      <details class="asg-dept-fold">
+        <summary class="asg-dept-summary">
+          <h2 class="asg-dept">{{ department.name }} <small>— {{ department.cards|length }} معلّماً</small></h2>
+        </summary>
+        <div class="asg-grid">
+        {% for card in department.cards %}
+          {% include "academic_management/partials/assignment_teacher.html" %}
+        {% endfor %}
+        </div>
+      </details>
     {% endfor %}
     </div>
-  {% empty %}
-    {% include "components/empty_state.html" with title="لا معلّمين في هذا النطاق" %}
   {% endfor %}
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/assignment-fold.js' %}" defer></script>
+<script src="{% static 'js/assignment-search.js' %}" defer></script>
 {% endblock %}

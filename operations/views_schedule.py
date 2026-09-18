@@ -23,7 +23,7 @@ from core.audit_export import log_export
 from core.capabilities import capability_required, has_capability
 from core.dashboard_presentation import chunk_for_grid
 from core.domain.tones import tone_for
-from core.models import CustomUser, Membership
+from core.models import CustomUser, Department, Membership
 from core.models.academic import grade_order
 from core.models.access import EXEMPTABLE_ROLES
 from core.permissions import (
@@ -42,10 +42,12 @@ from .models import (
     TeacherPreference,
 )
 from .schedule_paper import (
+    annotate_teacher_exemptions,
     bell_tables,
     grid_to_days,
     paper_geometry,
     teacher_bands_by_day,
+    teacher_exemption_map,
     week_layout,
 )
 from .services import ScheduleService, SubstituteService
@@ -279,9 +281,11 @@ def _schedule_print_payload(request) -> dict:
     # الجدولُ العام يكشف جداول المعلّمين جميعاً، ومن لا يتصفّح غيره صُرف
     # إلى جدوله في اختيار الطباعة.
     grid, matrix, matrix_totals, week, geometry = {}, [], None, None, None
+    has_colored_exemptions = False
     if ctx["view_type"] == "all_teachers":
         matrix = ScheduleService.get_teachers_matrix(school, year, generation=ctx["preview"])
         matrix_totals = ScheduleService.matrix_totals(matrix, school, year)
+        has_colored_exemptions = any(row.get("exempt_map") for row in matrix)
     else:
         grid = ScheduleService.get_weekly_schedule(
             school, ctx["target_teacher"], ctx["target_class"], year, generation=ctx["preview"]
@@ -296,6 +300,12 @@ def _schedule_print_payload(request) -> dict:
         else:
             bands = teacher_bands_by_day(days, band_codes)
         week = week_layout(days, bands, bell_tables(school))
+        # تلوينُ خانات التفريغ بمصدره — للمعلّم وحدَه، فالشعبةُ لا تفريغَ لها.
+        if ctx["target_teacher"] is not None:
+            exemption_map = teacher_exemption_map(school, ctx["target_teacher"], year)
+            if exemption_map:
+                annotate_teacher_exemptions(week, exemption_map)
+                has_colored_exemptions = True
         geometry = paper_geometry(ctx["paper"], ctx["orient"], with_who=False)
 
     # أسماءُ الأيّام من `ScheduleSlot.DAYS` — مصدرٌ واحدٌ يقرؤه المولّدُ والورقة.
@@ -315,6 +325,7 @@ def _schedule_print_payload(request) -> dict:
         "geo": geometry,
         "matrix": matrix,
         "matrix_totals": matrix_totals,
+        "has_colored_exemptions": has_colored_exemptions,
         "days": DAYS,
         "periods": PERIODS,
         "period_numbers": range(1, 8),
@@ -1332,6 +1343,10 @@ def schedule_settings(request):
     ).values_list("user_id", flat=True)
     teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
 
+    #: تفريغُ قسمٍ كاملٍ لاجتماعه الأسبوعيّ (قرارُ 2026-09-18) — خيارٌ في نفس
+    #: قائمة الاختيار، فتفريغُ الاجتماع طلبٌ واحدٌ لا نصابَ قسمٍ يُفرَّغ عضواً عضواً.
+    departments = Department.objects.filter(school=school, is_active=True)
+
     return render(
         request,
         "schedule/schedule_settings.html",
@@ -1340,6 +1355,7 @@ def schedule_settings(request):
             "subjects": subjects,
             "teacher_prefs": teacher_prefs,
             "teachers": teachers,
+            "departments": departments,
             "days": ScheduleSlot.DAYS,
             "periods": ScheduleSlot.PERIODS,
             "year": year,
@@ -1365,11 +1381,28 @@ def exemption_grid(request):
     year = request.GET.get("year") or academic_year_for(request)
     raw = (request.GET.get("teacher") or "").strip()
 
-    # المجموعةُ («كلّ المنسّقين») لا جدولَ واحداً لها، فشبكتُها مجرّدة. وهي
-    # اسمٌ معلومٌ لا معرّف — فمن أرسل معرّفَ معلّمٍ ليس من المدرسة لا يُعامَل
-    # معاملةَ المجموعة: كان يسقط إلى الشبكة المجرّدة فيرى باباً يُوهمه بأنّ
-    # اختيارَه صالح، والنموذجُ يردّه بعد التظليل لا قبله.
-    group = raw if raw in TeacherExemptionForm.GROUPS else ""
+    # المجموعةُ («كلّ المنسّقين» أو قسمٌ كاملٌ) لا جدولَ واحداً لها، فشبكتُها
+    # مجرّدة. وهي اسمٌ معلومٌ لا معرّف — فمن أرسل معرّفَ معلّمٍ ليس من المدرسة
+    # لا يُعامَل معاملةَ المجموعة: كان يسقط إلى الشبكة المجرّدة فيرى باباً
+    # يُوهمه بأنّ اختيارَه صالح، والنموذجُ يردّه بعد التظليل لا قبله.
+    group = ""
+    group_label = ""
+    if raw in TeacherExemptionForm.GROUPS:
+        group = raw
+        group_label = "منسّقو المواد"
+    elif raw.startswith(TeacherExemptionForm.DEPT_PREFIX):
+        try:
+            dept_id = uuid.UUID(raw[len(TeacherExemptionForm.DEPT_PREFIX) :])
+        except ValueError:
+            dept_id = None
+        department = (
+            Department.objects.filter(pk=dept_id, school=school, is_active=True).first()
+            if dept_id
+            else None
+        )
+        if department is not None:
+            group = raw
+            group_label = department.name
 
     teacher = None
     if raw and not group:
@@ -1388,6 +1421,7 @@ def exemption_grid(request):
             "grid": grid,
             "teacher": teacher,
             "group": group,
+            "group_label": group_label,
             "days": DAYS,
             "periods": PERIODS,
             "year": year,
@@ -1412,7 +1446,7 @@ def add_exemption(request):
     school = request.school
     year = request.POST.get("year") or academic_year_for(request)
 
-    form = TeacherExemptionForm(request.POST, school=school)
+    form = TeacherExemptionForm(request.POST, school=school, year=year)
     if not form.is_valid():
         for field, errors in form.errors.items():
             label = form.fields[field].label if field in form.fields else ""
@@ -1690,7 +1724,8 @@ def _pages_payload(request) -> dict:
 @login_required
 @capability_required("schedule.browse")
 def schedule_pages(request):
-    """الصفحةُ داخل المنصّة — هيدرٌ وفوترٌ وأدوات، والورقةُ في إطارٍ يُطبع وحده."""
+    """الصفحةُ داخل المنصّة — عرضٌ عاديٌّ مستقلٌّ عن الطباعة (قرارُ 2026-09-18)،
+    والطباعةُ والتنزيلُ من ورقتهما الحقيقيّة عبر إطارٍ مخفيّ."""
     return render(request, "schedule/pages_view.html", _pages_payload(request))
 
 

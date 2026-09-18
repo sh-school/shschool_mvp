@@ -25,7 +25,7 @@
       <td class="wg-day">{{ line.day }}</td>
       {% for entry in line.entries %}
       {% if entry.kind == "period" %}
-      <td{% if entry.multi %} class="wg-multi"{% endif %}><div class="wg-fit">
+      <td{% if entry.multi %} class="wg-multi"{% elif entry.exemption_class %} class="{{ entry.exemption_class }}" title="{{ entry.exemption_label }}"{% endif %}><div class="wg-fit">
         {% for slot in entry.slots %}
         {% comment %}الخانةُ المشتركةُ تُكتب بما فيها كلِّه: «التكنولوجيا / الفنون البصرية».{% endcomment %}
         <div class="slot-subject">{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }}</div>
@@ -33,7 +33,12 @@
         {% comment %}عازلا الاتّجاه لازمان: مولّدُ PDF لا يقرأ `direction`، فينقلب التوقيتُ «08:45 – 08:00».{% endcomment %}
         {% if slot.start_time %}<div class="slot-time">&#8294;{{ slot.start_time|time:"H:i" }} – {{ slot.end_time|time:"H:i" }}&#8297;</div>{% endif %}
         {% empty %}
+        {% if entry.exemption_reason %}
+        {# سببُ التفريغ نفسُه لا اسمُ جهته — الجهةُ تقولها الألوانُ وشريطُ التفسير أسفل الجدول، وهي في title الخليّة عند الحاجة. #}
+        <span class="slot-empty slot-exempt">{{ entry.exemption_reason }}</span>
+        {% else %}
         <span class="slot-empty">—</span>
+        {% endif %}
         {% endfor %}
       </div></td>
       {% else %}

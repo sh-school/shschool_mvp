@@ -1,5 +1,5 @@
 {% load brand_tags %}
-{% load static dict_filters %}
+{% load static dict_filters schedule_filters %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -209,7 +209,30 @@
   }
   /* عرضُ الخانة نقص من 2.328% إلى 2.214% ليُفسح لعمود القسم: تسعةُ
      ملّيمتراتٍ تسعُ «11/2» في ثمانية — والورقةُ لم تزدد عرضاً ولا سطراً. */
-  .schedule-matrix .m-cell { width: 2.214%; direction: ltr; }
+  .schedule-matrix .m-cell { width: 2.214%; direction: ltr; position: relative; }
+  {% comment %}
+  نقطةُ تفريغٍ صغيرةٌ في زاوية الخليّة الفارغة (قرارُ 2026-09-18) — القراراتُ
+  الثلاثةُ الملوَّنة وحدها (`operations.schedule_paper.EXEMPTION_COLORS`).
+  صنفٌ لا `:has()` (مولّدُ PDF لا يضمنه، انظر تعليق `.m-name.m-name-tagged`
+  أعلاه)، ولونُها من `core.brand` لا `var()` — القاعدةُ نفسُها في هذا الملفّ.
+  {% endcomment %}
+  .m-exempt-dot {
+    position: absolute; top: 0; left: 0;
+    inline-size: 6.5px; block-size: 6.5px; line-height: 6.5px;
+    font-size: 5px; font-weight: 700; text-align: center;
+    color: {% brand_color "ON_FILL" %};
+    border-radius: 0 0 2px 0;
+  }
+  .m-exempt-dot.exempt-ministry,   .matrix-legend__swatch.exempt-ministry   { background: {% brand_color "ACCENT_SKY" %}; }
+  .m-exempt-dot.exempt-school,     .matrix-legend__swatch.exempt-school     { background: {% brand_color "ACCENT_ROSE" %}; }
+  .m-exempt-dot.exempt-department, .matrix-legend__swatch.exempt-department { background: {% brand_color "ACCENT_GREEN" %}; }
+  .matrix-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 9px; color: {% brand_color "TEXT_PRIMARY" %}; margin-top: 4px; }
+  .matrix-legend__item { display: inline-flex; align-items: center; gap: 4px; }
+  .matrix-legend__swatch {
+    display: inline-block; inline-size: 9px; block-size: 9px; line-height: 9px;
+    font-size: 6px; font-weight: 700; text-align: center;
+    color: {% brand_color "ON_FILL" %}; border-radius: 2px;
+  }
   .schedule-matrix .m-total { width: 3.5%; font-weight: 700; }
   /* حدُّ اليوم أغلظُ من حدِّ الحصّة — وإلّا ضاعت الأيامُ في خمسٍ وثلاثين
      خانةً متشابهة. والجهةُ هنا ماديّةٌ (يمين) لا منطقيّة: خانةُ الحصّة
@@ -622,7 +645,7 @@
           {# رقمُ العمود في الأسبوع كلِّه (0–34) — اليومُ سبعُ حصص. #}
           {% widthratio forloop.parentloop.counter0 1 7 as day_offset %}
           <td class="m-cell{% if forloop.first %} m-day-start{% endif %}" data-col="{{ day_offset|add:forloop.counter0 }}"{% if cell %} data-c="{% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}" data-s="{% for slot in cell %}{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }} — {{ slot.class_group.short_label }}{% if not forloop.last %} · {% endif %}{% endfor %}"{% endif %}>
-            {% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}
+            {% if cell %}{% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}{% else %}{% exempt_dot row.exempt_map forloop.parentloop.counter0 forloop.counter0|add:1 %}{% endif %}
           </td>
           {% endfor %}
         {% endfor %}
@@ -656,6 +679,14 @@
   </table>
   </div>
 
+  {% if has_colored_exemptions %}
+  {# نقاطُ التفريغ الملوَّنة أعلاه — تفسيرُها هنا، أسفل الجدول لا فوقه. #}
+  <div class="matrix-legend">
+    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-ministry">و</span> قرارُ الوزارة</span>
+    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-school">إ</span> قرارُ إدارة المدرسة</span>
+    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-department">ق</span> قرارُ القسم الأكاديميّ</span>
+  </div>
+  {% endif %}
   <div class="matrix-foot">
     <span>
       المعلّمون: {{ matrix|length }} &nbsp;·&nbsp; الشُّعب: {{ matrix_totals.sections }}

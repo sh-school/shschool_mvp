@@ -79,6 +79,7 @@ def _form(school, teacher_id):
             "source": "school",
         },
         school=school,
+        year=YEAR,
     )
 
 
@@ -213,6 +214,53 @@ def test_all_coordinators_as_one_choice(school, teacher):
     assert "3 مكرَّرٌ" in response.content.decode()
 
 
+def test_a_whole_department_as_one_choice(school, teacher):
+    """قسمٌ في القائمة باسمه ومنسّقه — واجتماعُه تفريغٌ واحدٌ لكلّ معلّميه لا لمنسّقه وحدَه."""
+    from core.models import Department
+
+    coordinator = UserFactory(full_name="منسّق الرياضيات")
+    department = Department.objects.create(
+        school=school, name="الرياضيات", code="math", head=coordinator
+    )
+    MembershipFactory(
+        user=coordinator,
+        school=school,
+        role=RoleFactory(school=school, name="coordinator"),
+        department_obj=department,
+    )
+    members = [UserFactory(full_name=f"معلّم القسم {i}") for i in range(3)]
+    for user in members:
+        MembershipFactory(
+            user=user,
+            school=school,
+            role=RoleFactory(school=school, name="teacher"),
+            department_obj=department,
+        )
+
+    client = _principal(school)
+    _post(client, teacher=f"dept:{department.id}", day_of_week=[0])
+
+    assert (
+        TeacherExemption.objects.filter(day_of_week=0, period_number=1).count() == 4
+    ), "المنسّقُ وثلاثةُ معلّمين — أربعةٌ لا واحداً"
+    assert not TeacherExemption.objects.filter(teacher=teacher).exists(), "المعلّمُ خارج القسم لا يُفرَّغ"
+
+
+def test_a_department_from_another_school_is_refused(school, teacher):
+    """معرّفُ قسمٍ صحيحٌ لكنّه من مدرسةٍ أخرى — يُرفض كسائر التلاعب بالمعرّفات."""
+    from tests.conftest import SchoolFactory
+
+    from core.models import Department
+
+    other_school = SchoolFactory()
+    other_department = Department.objects.create(school=other_school, name="قسمٌ آخر", code="x")
+
+    response = _post(_principal(school), teacher=f"dept:{other_department.id}", day_of_week=[0])
+
+    assert not TeacherExemption.objects.filter(day_of_week=0).exists()
+    assert "القسمُ المختار ليس من مدرستك" in response.content.decode()
+
+
 def test_the_screen_offers_the_group_and_the_days_and_no_reference(school):
     from django.urls import reverse
 
@@ -228,6 +276,24 @@ def test_the_screen_offers_the_group_and_the_days_and_no_reference(school):
     assert 'type="checkbox" name="period_number"' not in body
     assert 'id="exemption-grid"' in body
     assert "source_reference" not in body and "مرجع القرار" not in body
+
+
+def test_the_screen_lists_departments_as_choices(school):
+    """كلُّ قسمٍ خيارٌ في القائمة باسمه — لا معرّفَه المجرّد."""
+    from django.urls import reverse
+
+    from core.models import Department
+
+    department = Department.objects.create(school=school, name="العلوم", code="sci")
+
+    body = (
+        _principal(school)
+        .get(reverse("schedule_settings") + f"?year={YEAR}", HTTP_HOST="localhost")
+        .content.decode()
+    )
+
+    assert f'value="dept:{department.id}"' in body
+    assert "العلوم" in body
 
 
 # ── الحذفُ الجماعيّ: مربّعٌ لكلّ سطرٍ وزرٌّ واحد ──────────────────────

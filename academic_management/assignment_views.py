@@ -39,6 +39,7 @@ from academic_management.models import (
     TeacherWorkloadPlan,
 )
 from core.academic_calendar import academic_year_for
+from core.dashboard_presentation import chunk_for_grid
 from core.models import ClassGroup, CustomUser, Department, Membership
 from core.models.academic import grade_order
 from core.models.access import DEPARTMENT_ROLES
@@ -501,6 +502,7 @@ def assignments(request):
             "module_name": MODULE_NAME,
             "year": year,
             "groups": shown,
+            "dept_cols": chunk_for_grid(shown, 2),
             "departments": ordered,
             "selected_dept": selected,
             "registry_empty": not registry_filled,

@@ -24,6 +24,7 @@ from operations.departments import (
     registered_departments,
     school_department_codes,
 )
+from operations.schedule_paper import colored_exemptions_by_teacher
 from operations.models import (
     AbsenceAlert,
     CompensatorySession,
@@ -474,6 +475,10 @@ class ScheduleService:
         # ومن أُلحق إدارياً بقسمٍ غيرِ تخصّصه يُذكر تخصّصُه بجانب اسمه، وإلّا
         # قُرئ من أهل القسم الذي أُلحق به. والرموزُ تُجلب مرّةً لا لكلّ معلّم.
         codes = school_department_codes(school)
+        # نقطةُ لونٍ صغيرةٌ لا خلفيّةَ خليّة — السطرُ مُلوَّنٌ بقسمه أصلاً، فلا
+        # تُضاف خلفيّةٌ ثانيةٌ تتصادم معها (قرارُ 2026-09-18). واستعلامٌ واحدٌ
+        # للمدرسة كلِّها لا واحدٌ لكلّ معلّم.
+        exemptions = colored_exemptions_by_teacher(school, academic_year)
         for teacher_id, row in rows.items():
             lessons = row.pop("lessons")
             registered = registry.get(str(teacher_id))
@@ -481,6 +486,7 @@ class ScheduleService:
             row["specialty"] = attached_specialty(
                 registered["code"] if registered else "", lessons, codes
             )
+            row["exempt_map"] = exemptions.get(teacher_id, {})
 
         # الاسمُ في المفتاح لأنّ `sort_order` قد يتساوى بين قسمين، فلولاه
         # تشابكت صفوفُ القسمين وانكسر عمودُ القسم الممتدّ.
@@ -537,7 +543,12 @@ class ScheduleService:
             rows = [r for r in rows if str(r["teacher"].id) == str(teacher_id)]
         elif department:
             rows = [r for r in rows if r["department"]["code"] == department]
-        from operations.schedule_paper import bell_tables, teacher_bands_by_day, week_layout
+        from operations.schedule_paper import (
+            annotate_teacher_exemptions,
+            bell_tables,
+            teacher_bands_by_day,
+            week_layout,
+        )
 
         tables, band_codes = bell_tables(school), ScheduleService._band_codes(school)
         for row in rows:
@@ -547,6 +558,9 @@ class ScheduleService:
             row["week"] = week_layout(
                 row["days"], teacher_bands_by_day(row["days"], band_codes), tables
             )
+            # `exempt_map` محسوبٌ أصلاً في `get_teachers_matrix` — لا استعلامَ ثانٍ.
+            if row.get("exempt_map"):
+                annotate_teacher_exemptions(row["week"], row["exempt_map"])
         return rows
 
     @staticmethod

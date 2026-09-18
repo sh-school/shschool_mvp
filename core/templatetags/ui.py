@@ -139,12 +139,24 @@ def kpi_strip(content, label="أرقام الصفحة"):
 
 @register.simple_block_tag
 def section_card(
-    content, title, meta="", icon="", empty="لا توجد بيانات", empty_sub="", flush=False
+    content,
+    title,
+    meta="",
+    icon="",
+    empty="لا توجد بيانات",
+    empty_sub="",
+    flush=False,
+    foldable=False,
 ):
     """قسمٌ بترويسةٍ عنّابيّة — والعددُ أو الفترةُ في طرفها لا في سطرٍ تحتها.
 
     والمحتوى الفارغ (حلقةٌ بلا عناصر) يُرسم حالةً فارغةً موحّدة، فلا تحتاج الصفحةُ
     `{% empty %}` تكتب فيه جملتَها الخاصّة. و`flush` يُلغي الحشوَ لجدولٍ يملأ البطاقة.
+
+    و`foldable` يجعل الشريطَ نفسَه مفتاحَ طيٍّ — مطويّاً افتراضاً — لبطاقةٍ
+    يطول محتواها بطول سجلٍّ (قرارُ 2026-09-18). القسّمةُ نفسُها لا مكوّنٌ آخر:
+    فمن كتب `card-qatar`/`card-bar` بيده خارج هذا الملفّ رفضته السقّاطةُ
+    (`tests/design_ratchet.py`، `legacy_header`).
     """
     _require(title, "section_card", "العنوان")
     body = content if content.strip() else None
@@ -159,6 +171,7 @@ def section_card(
                 "empty": empty,
                 "empty_sub": empty_sub,
                 "flush": flush,
+                "foldable": foldable,
             },
         )
     )
