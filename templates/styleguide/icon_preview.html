@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load ui %}
+{% load icons ui %}
 
 {% block title %}أيقوناتُ المنصّة{% endblock %}
 
@@ -9,38 +9,40 @@
 {% endblock %}
 
 {% block content %}
-{# الورقةُ القديمة (Lucide) — هذه الصفحةُ وحدَها تعرضها، فلا تحتاج تضميناً عامّاً في base.html #}
-{% include "components/sprite.html" %}
 <div class="exec-dash">
 
-  {% page_header "أيقوناتُ المنصّة" subtitle="Lucide · شبكة 24×24 · خطٌّ 2px · رخصة MIT — كلُّ ما في components/sprite.html" icon="star" %}
-    <a href="{% url 'ui_components' %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="layers" %} دليلُ الهويّة</a>
+  {% page_header "أيقوناتُ المنصّة" subtitle="Hugeicons Free · قاموسٌ دلاليٌّ — المعنى يختار الرسم، لا العكس (core/icons.py)" icon="view" %}
+    <a href="{% url 'ui_components' %}" class="btn-secondary btn-sm">{% icon "back" %} دليلُ الهويّة</a>
   {% endpage_header %}
 
-  {% section_card "المقاسات" meta="icon · icon-sm · icon-lg · icon-xl · icon-2xl" icon="sliders-horizontal" %}
+  {% section_card "المقاسات" meta="icon · icon-sm · icon-lg · icon-xl · icon-2xl" icon="settings" %}
     <div class="sg-sizes">
-      <div class="sg-size">{% include "components/icon.html" with name="book-open" size="icon-sm" %}<code class="sg-icon__name" dir="ltr">icon-sm · 16</code></div>
-      <div class="sg-size">{% include "components/icon.html" with name="book-open" %}<code class="sg-icon__name" dir="ltr">icon · 20</code></div>
-      <div class="sg-size">{% include "components/icon.html" with name="book-open" size="icon-lg" %}<code class="sg-icon__name" dir="ltr">icon-lg · 24</code></div>
-      <div class="sg-size">{% include "components/icon.html" with name="book-open" size="icon-xl" %}<code class="sg-icon__name" dir="ltr">icon-xl · 32</code></div>
-      <div class="sg-size">{% include "components/icon.html" with name="book-open" size="icon-2xl" %}<code class="sg-icon__name" dir="ltr">icon-2xl · 48</code></div>
+      <div class="sg-size">{% icon "reports" size="sm" %}<code class="sg-icon__name" dir="ltr">icon-sm · 16</code></div>
+      <div class="sg-size">{% icon "reports" %}<code class="sg-icon__name" dir="ltr">icon · 20</code></div>
+      <div class="sg-size">{% icon "reports" size="lg" %}<code class="sg-icon__name" dir="ltr">icon-lg · 24</code></div>
+      <div class="sg-size">{% icon "reports" size="xl" %}<code class="sg-icon__name" dir="ltr">icon-xl · 32</code></div>
+      <div class="sg-size">{% icon "reports" size="2xl" %}<code class="sg-icon__name" dir="ltr">icon-2xl · 48</code></div>
     </div>
-    <pre class="sg-code" dir="ltr">{% templatetag openblock %} include "components/icon.html" with name="book-open" size="icon-lg" {% templatetag closeblock %}</pre>
+    <pre class="sg-code" dir="ltr">{% templatetag openblock %} load icons {% templatetag closeblock %}
+{% templatetag openblock %} icon "reports" size="lg" {% templatetag closeblock %}</pre>
   {% endsection_card %}
 
-  {% section_card "كلُّ الأيقونات" meta=icons|length icon="layers" empty="لا أيقونات في الملفّ" %}{% if icons %}
-    <ul class="sg-icons">
-      {% for name in icons %}
-        <li class="sg-icon" title="{{ name }}">
-          {% include "components/icon.html" with name=name size="icon-lg" %}
-          <code class="sg-icon__name" dir="ltr">{{ name }}</code>
-        </li>
-      {% endfor %}
-    </ul>
+  {% section_card "كلُّ الأيقونات" meta=icon_count icon="folder" empty="لا أيقوناتٍ في القاموس" %}{% if icon_groups %}
+    {% for group in icon_groups %}
+      <p class="sg-label">{{ group.label }} <code dir="ltr">({{ group.icons|length }})</code></p>
+      <ul class="sg-icons">
+        {% for entry in group.icons %}
+          <li class="sg-icon" title="{{ entry.label }}">
+            {% icon entry.key size="lg" %}
+            <code class="sg-icon__name" dir="ltr">{{ entry.key }}</code>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endfor %}
     <ul class="sg-rules">
-      <li>الاسمُ المكتوب تحت الأيقونة هو ما يُمرَّر في <code>name=</code> — واسمٌ ليس هنا لا يرسم شيئاً.</li>
+      <li>الاسمُ المكتوب تحت الأيقونة هو المعنى المُمرَّر إلى <code>{% templatetag openblock %} icon "..." {% templatetag closeblock %}</code> — لا اسمَ رسمٍ ولا شكلَه.</li>
       <li>الأيقونةُ ترث لونَ النصّ (<code>currentColor</code>)؛ ولونُها الدلاليُّ صنفٌ: <code>icon-maroon · icon-success · icon-danger · icon-warning · icon-info · icon-muted</code>.</li>
-      <li>لا emoji في الواجهة: الأيقوناتُ من هذا الملفّ وحدَه.</li>
+      <li>لا إيموجي ولا اسمَ رسمٍ خامٍّ في الواجهة: الأيقوناتُ من هذا القاموس وحدَه — `core/icons.py`.</li>
     </ul>
   {% endif %}{% endsection_card %}
 

@@ -9,12 +9,12 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "تشكيل الكنترول" subtitle=session.name icon="users" %}
+  {% page_header "تشكيل الكنترول" subtitle=session.name icon="supervisors" %}
     <a href="{% url 'exam_control:session_detail' session.pk %}" class="btn-ghost btn-sm">رجوع إلى الدورة</a>
   {% endpage_header %}
 
   <div class="ui-split">
-    {% section_card "إضافة مشرف" icon="plus" %}
+    {% section_card "إضافة مشرف" icon="add" %}
       <form method="post" class="form-stack">{% csrf_token %}
         <div class="form-group"><label class="form-label" for="sv-staff">الموظف</label>
           <select id="sv-staff" name="staff_id" class="form-control" required><option value="">— اختر —</option>{% for m in staff_list %}<option value="{{ m.user.pk }}">{{ m.user.full_name }}</option>{% endfor %}</select></div>
@@ -26,7 +26,7 @@
       </form>
     {% endsection_card %}
 
-    {% section_card "المشرفون" meta=supervisors|length icon="users" flush=True empty="لا مشرفين بعد" %}{% if supervisors %}
+    {% section_card "المشرفون" meta=supervisors|length icon="supervisors" flush=True empty="لا مشرفين بعد" %}{% if supervisors %}
       <div class="table-wrap">
         <table>
           <thead><tr><th scope="col">الاسم</th><th scope="col">الدور</th><th scope="col">القاعة</th></tr></thead>

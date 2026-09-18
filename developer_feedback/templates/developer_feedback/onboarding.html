@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static i18n ui %}
+{% load static i18n icons ui %}
 {% comment %}
 الإعدادُ القانونيّ قبل أوّل استعمال — الشرحُ التمهيديّ في `section_card`،
 وقسما الاستمارة (الموافقاتُ ثمّ الاختبار) بطاقتان منه، والأزرارُ `form-actions`.
@@ -14,10 +14,10 @@
 
 {% block content %}
 <div class="exec-dash df-page">
-  {% page_header _("الإعداد القانوني — أرسل إلى المطوّر") subtitle=_("قبل استخدام الميزة لأول مرة — 3 دقائق فقط") icon="shield" %}{% endpage_header %}
+  {% page_header _("الإعداد القانوني — أرسل إلى المطوّر") subtitle=_("قبل استخدام الميزة لأول مرة — 3 دقائق فقط") icon="policy" %}{% endpage_header %}
 
   {# ── المقدمة (3 دقائق) ── #}
-  {% section_card _("ما قبل الإرسال — اقرأ بعناية") icon="info" %}
+  {% section_card _("ما قبل الإرسال — اقرأ بعناية") icon="status_info" %}
     <div class="df-intro-block">
       <h3>{% trans "ما هي هذه الميزة؟" %}</h3>
       <p>{% trans "قناة مباشرة تتيح لك إرسال ملاحظاتك (أعطال، اقتراحات، أسئلة، شكاوى) إلى فريق تطوير المنصّة — داخل النظام ودون الحاجة إلى بريد خارجي." %}</p>
@@ -54,7 +54,7 @@
     {% endif %}
 
     {# قسم 1: الموافقات القانونية #}
-    {% section_card _("القسم 1 — الموافقات القانونية") icon="check-circle" %}
+    {% section_card _("القسم 1 — الموافقات القانونية") icon="status_success" %}
       {% for field in consent_form %}
         <div class="df-form-group">
           {% if field.field.widget.input_type == "checkbox" %}
@@ -90,7 +90,7 @@
     {% endsection_card %}
 
     {# قسم 2: الاختبار (3 أسئلة) #}
-    {% section_card _("القسم 2 — اختبار فهم قصير") meta=_("3 أسئلة") icon="list-checks" %}
+    {% section_card _("القسم 2 — اختبار فهم قصير") meta=_("3 أسئلة") icon="checklist" %}
       {% for field in quiz_form %}
         <div class="df-form-group df-quiz-question">
           <div class="df-quiz-label" id="label-{{ field.id_for_label }}">
@@ -117,7 +117,7 @@
     <div class="form-actions">
       <a href="{% url 'dashboard' %}" class="btn-secondary">{% trans "إلغاء" %}</a>
       <button type="submit" class="btn-primary">
-        {% include "components/icon.html" with name="check-circle" %}
+        {% icon "status_success" %}
         {% trans "أؤكد وأكمل الاختبار" %}
       </button>
     </div>

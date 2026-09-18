@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load ui %}
+{% load icons ui %}
 {% block title %}كنترول الاختبارات{% endblock %}
 
 {% block breadcrumbs %}
@@ -9,11 +9,11 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "كنترول الاختبارات" subtitle="دوراتُ الاختبار والمحاضرُ والكنترول" icon="clipboard-check" %}
-    <a href="{% url 'exam_control:session_create' %}" class="btn-primary btn-sm">{% include "components/icon.html" with name="plus" %} دورة جديدة</a>
+  {% page_header "كنترول الاختبارات" subtitle="دوراتُ الاختبار والمحاضرُ والكنترول" icon="exam_control" %}
+    <a href="{% url 'exam_control:session_create' %}" class="btn-primary btn-sm">{% icon "add" %} دورة جديدة</a>
   {% endpage_header %}
 
-  {% section_card "دورات الاختبار" meta=sessions|length icon="clipboard-check" empty="لا دوراتِ اختبارٍ بعد" empty_sub="أنشئ أوّلَ دورةٍ لبدء إدارة الكنترول" %}{% if sessions %}
+  {% section_card "دورات الاختبار" meta=sessions|length icon="exam_control" empty="لا دوراتِ اختبارٍ بعد" empty_sub="أنشئ أوّلَ دورةٍ لبدء إدارة الكنترول" %}{% if sessions %}
     <div class="ui-entity-grid">
       {% for s in sessions %}
         {% url 'exam_control:session_detail' s.pk as u %}

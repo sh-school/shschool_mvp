@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load static i18n ui %}
+{% load static i18n icons ui %}
 {% comment %}
 تعديلُ رسالةٍ سبق إرسالُها — رقمُ التذكرة في طرف الترويسة بصنفه (`dir="ltr"`
 يحفظ ترتيبَ حروفه داخل سطرٍ عربيّ)، وملاحظةُ عدد التعديلات السابقة `form-note`
@@ -14,7 +14,7 @@
 
 {% block content %}
 <div class="exec-dash df-page">
-  {% page_header _("تعديل رسالة") subtitle=_("سيُخطَر المطوّر بالتعديل، وستُحفظ القيم السابقة في سجل التعديلات.") icon="pen-square" %}
+  {% page_header _("تعديل رسالة") subtitle=_("سيُخطَر المطوّر بالتعديل، وستُحفظ القيم السابقة في سجل التعديلات.") icon="edit_record" %}
     <code class="df-ticket-inline" dir="ltr">{{ object.ticket_number }}</code>
   {% endpage_header %}
 
@@ -26,9 +26,9 @@
       <div class="df-errorlist" role="alert">{{ form.non_field_errors }}</div>
     {% endif %}
 
-    {% section_card _("الرسالة") icon="pen-square" %}
+    {% section_card _("الرسالة") icon="edit_record" %}
       <p class="form-note">
-        {% include "components/icon.html" with name="info" %}
+        {% icon "status_info" %}
         {% blocktrans count counter=object.edit_history.count %}لم تعدّل هذه الرسالة من قبل. عند الحفظ سيُرسَل إشعار للمطوّر.{% plural %}عدد التعديلات السابقة على هذه الرسالة: {{ counter }}.{% endblocktrans %}
       </p>
 
@@ -97,7 +97,7 @@
 
     {# ── سجل التعديلات السابقة ── #}
     {% if object.edit_history.exists %}
-    {% section_card _("سجل التعديلات السابقة") meta=object.edit_history.count icon="clock" %}
+    {% section_card _("سجل التعديلات السابقة") meta=object.edit_history.count icon="time" %}
       <ol class="df-history-list">
         {% for h in object.edit_history.all %}
           <li>
@@ -113,7 +113,7 @@
     <div class="form-actions">
       <a href="{% url 'developer_feedback:my_messages' %}" class="btn-secondary">{% trans "إلغاء" %}</a>
       <button type="submit" class="btn-primary">
-        {% include "components/icon.html" with name="save" %}
+        {% icon "save" %}
         {% trans "حفظ التعديلات" %}
       </button>
     </div>

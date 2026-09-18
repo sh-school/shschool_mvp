@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load i18n sorting ui %}
+{% load i18n icons sorting ui %}
 {% comment %}
 صندوقُ المطوّر — كانت الوحدةُ ترسم ترويستَها وبطاقاتِها وجدولَها ومرشِّحَها
 وتقسيمَها بنظامٍ خاصٍّ (`df-*`) لا يتبع مكوّنات المنصّة. فصارت الترويسةُ
@@ -17,7 +17,7 @@
 
 {% block content %}
 <div class="exec-dash df-page">
-  {% page_header _("صندوق المطوّر") subtitle=_("كلُّ ما أرسله المنتسبون إلى المطوّر — يُرشَّح بالحالة والنوع والأولويّة") icon="inbox" %}{% endpage_header %}
+  {% page_header _("صندوق المطوّر") subtitle=_("كلُّ ما أرسله المنتسبون إلى المطوّر — يُرشَّح بالحالة والنوع والأولويّة") icon="dev_inbox" %}{% endpage_header %}
 
   {% filter_bar _("فلترة الرسائل") %}
     {% field "q" _("بحث") type="search" id="df-q" value=current_q grow=True placeholder=_("العنوان أو الوصف…") %}
@@ -49,18 +49,18 @@
 
     <div class="filter-actions">
       <button type="submit" class="btn-primary btn-sm">
-        {% include "components/icon.html" with name="search" %}
+        {% icon "search" %}
         {% trans "بحث" %}
       </button>
       <a href="{% url 'developer_feedback:inbox_list' %}" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="refresh" %}
+        {% icon "refresh" %}
         {% trans "إعادة تعيين" %}
       </a>
     </div>
   {% endfilter_bar %}
 
   {# الصفحةُ خمسٌ وعشرون من الكلّ، والفرزُ لا يُدّعى في المتصفّح على جزءٍ من القائمة. #}
-  {% section_card _("الرسائل") meta=page_obj.paginator.count icon="mail" flush=True empty=_("لا توجد رسائل مطابقة") empty_sub=_("حاول تعديل معايير البحث أو أعد التعيين لعرض كل الرسائل.") %}{% if messages_list %}
+  {% section_card _("الرسائل") meta=page_obj.paginator.count icon="messages" flush=True empty=_("لا توجد رسائل مطابقة") empty_sub=_("حاول تعديل معايير البحث أو أعد التعيين لعرض كل الرسائل.") %}{% if messages_list %}
     <div class="table-wrap" role="region" aria-label="{% trans 'جدول رسائل المطوّر' %}">
       <table data-no-sort>
         <thead>
