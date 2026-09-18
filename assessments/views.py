@@ -811,7 +811,7 @@ def failing_students(request):
                 "student": r.student,
                 "subjects": [],
                 # صفُّ الطالب من أوّل موادّه — كما كان القالبُ يقرؤه للترشيح.
-                "grade": r.setup.class_group.get_grade_display(),
+                "grade": r.setup.class_group.grade.removeprefix("G"),
                 # الكشفُ يقرأ `year` لا `semester` — فالرابطُ يحمل عامَ القائمة نفسَه.
                 "report_url": f"{reverse('student_report', args=[sid])}?year={year}",
             }

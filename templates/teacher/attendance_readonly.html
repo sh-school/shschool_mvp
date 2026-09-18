@@ -6,7 +6,7 @@
 للمعلّم نقرتان تسجّلان اللحظةَ بلا إدخال: «دخل الآن» لمن دخل متأخّراً، و«خرج بإذن» ثمّ
 «عاد» لمن غادر الفصل أثناء الحصّة (قرارُ 2026-09-13). ولا رقمَ شخصيّاً: الاسمُ يكفي.
 {% endcomment %}
-{% block title %}حصّتي — {{ session.class_group }}{% endblock %}
+{% block title %}حصّتي — {{ session.class_group.short_label }}{% endblock %}
 
 {% block breadcrumbs %}
 {% url 'teacher_schedule' as schedule_url %}

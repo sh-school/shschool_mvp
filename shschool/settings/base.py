@@ -731,6 +731,19 @@ TRUSTED_PROXY_HOPS = int(os.environ.get("TRUSTED_PROXY_HOPS", "0"))
 RATELIMIT_IP_META_KEY = "core.request_utils.get_client_ip"
 AXES_CLIENT_IP_CALLABLE = "core.request_utils.get_client_ip"
 
+# سقوطُ Redis كان يُسقط `@ratelimit` بخطأٍ غيرِ مُلتقَط (500) على كلّ عرضٍ
+# يحمله — لا حدّاً مرفوضاً. والقفلُ الحقيقيّ على باب الدخول عند axes، وهو
+# يُخزَّن في القاعدة لا في Redis (`AxesDatabaseHandler` الافتراضيّ) فيبقى
+# عاملاً كاملاً وقت الانقطاع. فالتعادُل هنا آمنٌ: يفتح `@ratelimit` وحده.
+#
+# هذا الإعداد وحده لا يكفي: `django_ratelimit.core.get_usage` يلتقط
+# `socket.gaierror` فقط حول `cache.add()`، فاستثناء Redis الحقيقيّ يفلت قبل
+# أن يصل الفرعَ الذي يقرأ هذا الإعداد. الإصلاحُ الفعليّ في
+# `core/ratelimit_safe.py` (يستعمله `core/views_auth.py` وoperations/api_views.py
+# بدل `django_ratelimit.decorators.ratelimit` مباشرة)، وهذا الإعداد دفاعٌ ثانٍ
+# للفرع الذي تغطّيه المكتبة فعلاً (قيمةٌ فارغة بلا استثناء).
+RATELIMIT_FAIL_OPEN = True
+
 # ── كم نسخةً سابقةً من الجدول تُبقى ────────────────────────────────────
 # كلُّ اعتمادٍ يُؤرشف الجدولَ السابق كاملاً — 870 صفّاً مطفأً — ولا يحذفه، فبلغت
 # النسخُ المؤرشفة خمساً في يومٍ واحد (2026-09-05). قرارُ المدرسة يومَها: **جدولٌ

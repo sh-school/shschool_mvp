@@ -1,6 +1,7 @@
 {% extends "base/base.html" %}
 {% load icons %}
 {% load ui %}
+{% load navigation %}
 {% block title %}غيابات المعلمين{% endblock %}
 
 {% block breadcrumbs %}
@@ -11,7 +12,7 @@
 <div class="exec-dash">
 
   {% page_header "غيابات المعلمين" subtitle="غيابُ اليوم ومن يحلّ محلَّه — والبدلاءُ يُقترحون من الحصص الحرّة" icon="attendance_teacher_absence" %}
-    <a href="{% url 'register_absence' %}" class="btn-primary btn-sm">{% icon "edit_record" %} تسجيل غياب</a>
+    {% if request.user|can_open:"register_absence" %}<a href="{% url 'register_absence' %}" class="btn-primary btn-sm">{% icon "edit_record" %} تسجيل غياب</a>{% endif %}
     <a href="{% url 'substitute_report' %}" class="btn-secondary btn-sm">{% icon "attendance_teacher_absence" %} تقرير البدلاء</a>
   {% endpage_header %}
 

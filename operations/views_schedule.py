@@ -20,7 +20,8 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.audit_export import log_export
-from core.capabilities import capability_required
+from core.capabilities import capability_required, has_capability
+from core.dashboard_presentation import chunk_for_grid
 from core.domain.tones import tone_for
 from core.models import CustomUser, Membership
 from core.models.academic import grade_order
@@ -491,9 +492,9 @@ def teacher_absence_list(request):
 
 
 @login_required
-@capability_required("operations.reports")
+@capability_required("operations.substitutes_manage")
 def register_teacher_absence(request):
-    """تسجيل غياب معلم — للمدير والمنسق"""
+    """تسجيل غياب معلم — للمدير والمنسق، ومشرفُ الجناح يقرأ ولا يكتب هنا."""
     from core.permissions import get_department_teacher_ids
 
     school = request.school
@@ -588,15 +589,18 @@ def absence_detail(request, absence_id):
             "covered_label": f"من {len(slots_data)}",
             # حصّةٌ بلا بديلٍ واحدةٌ تكفي للأحمر؛ ولا حصصَ = لا شيءَ ينتظر.
             "covered_tone": "green" if covered_count == len(slots_data) else "red",
+            # مشرفُ الجناح يفتح هذه الصفحةَ (`operations.reports`) ولا يعيّن
+            # (`operations.substitutes_manage`) — فالنموذجُ يظهر لمن يكتب وحدَه.
+            "can_assign": has_capability(request.user, "operations.substitutes_manage"),
         },
     )
 
 
 @login_required
-@capability_required("operations.reports")
+@capability_required("operations.substitutes_manage")
 @require_POST
 def assign_substitute(request, absence_id, slot_id):
-    """HTMX: تعيين بديل لحصة"""
+    """HTMX: تعيين بديل لحصة — مشرفُ الجناح يرى المعيَّن ولا يعيّنه."""
     from core.permissions import get_department_teacher_ids
 
     school = request.school
@@ -626,7 +630,14 @@ def assign_substitute(request, absence_id, slot_id):
     return render(
         request,
         "substitute/partials/slot_card.html",
-        {"item": _slot_presentation(slot, assignment, available), "absence": absence},
+        # مسارُ هذا الردّ دائماً وراء `operations.substitutes_manage` (الديكوريتور
+        # أعلاه) — لكن `can_assign` صريحةٌ هنا احتراساً لا اتّكالاً على أنّ
+        # `item.assignment` يبقى صحيحاً أبداً.
+        {
+            "item": _slot_presentation(slot, assignment, available),
+            "absence": absence,
+            "can_assign": True,
+        },
     )
 
 
@@ -934,6 +945,8 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
     * مؤشّراتُ المختبر مصفوفةٌ واحدة: صفٌّ لكلّ مؤشّر، وعمودٌ للأساس ثمّ عمودٌ
       لكلّ توليد. كانت جدولاً داخل `details` داخل صفٍّ من سجلّ التوليد، لكلّ
       توليدٍ جدولُه، فلا يُقارَن توليدٌ بتوليدٍ إلّا بفتح اثنين والتنقّل بينهما.
+    * وصفوفُها لا تُقصّ (اثنان وعشرون مؤشّراً فأكثر) ومحتوى الصفّ ضيّق — فتُقسَّم
+      ثلاثة أعمدةٍ متجاورة (معيار تخطيط الصفحات) بدل عمودٍ واحدٍ يطيل الصفحة.
     """
     for g in generations:
         g.lab_tone = tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
@@ -962,6 +975,7 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
         ),
         "lab_columns": measured,
         "lab_matrix": list(rows.values()),
+        "lab_matrix_cols": chunk_for_grid(list(rows.values()), 3),
     }
 
 

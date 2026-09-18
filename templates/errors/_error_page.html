@@ -8,6 +8,10 @@
 مرّتين (للنهار ولليل)، وأربعةٌ منها لا رمزَ لها (1a0a12 و0c1a35 وe8a0b5
 وf1a94e). والألوانُ هنا تُكتب رقماً من `core.brand` عمداً لا `var()`: صفحةُ 500
 قد تُعرض والخادمُ عاجزٌ عن خدمة ملفّ الأنماط.
+
+والخطوطُ بـ`get_static_prefix` لا بوسم static عمداً: الثاني يسأل بيانَ الثابت،
+فإن غاب رفع خطأً داخلَ صفحة الخطأ نفسِها وظهرت شاشةُ Daphne الإنجليزيّة المجرّدة
+(حادثة 2026-09-17). والاسمُ غيرُ المبصوم يبقى مخدوماً بجوار المبصوم.
 {% endcomment %}
 <html lang="ar" dir="rtl">
 <head>
@@ -16,9 +20,9 @@
   <meta name="theme-color" content="{% brand_color 'MAROON' %}">
   <title>{{ code }} — {{ heading }}</title>
   <style>
-    @font-face{font-family:'Tajawal';font-weight:400;font-display:swap;src:url("{% static 'fonts/Tajawal-Regular.woff2' %}") format('woff2');}
-    @font-face{font-family:'Tajawal';font-weight:500;font-display:swap;src:url("{% static 'fonts/Tajawal-Medium.woff2' %}") format('woff2');}
-    @font-face{font-family:'Tajawal';font-weight:700;font-display:swap;src:url("{% static 'fonts/Tajawal-Bold.woff2' %}") format('woff2');}
+    @font-face{font-family:'Tajawal';font-weight:400;font-display:swap;src:url("{% get_static_prefix %}fonts/Tajawal-Regular.woff2") format('woff2');}
+    @font-face{font-family:'Tajawal';font-weight:500;font-display:swap;src:url("{% get_static_prefix %}fonts/Tajawal-Medium.woff2") format('woff2');}
+    @font-face{font-family:'Tajawal';font-weight:700;font-display:swap;src:url("{% get_static_prefix %}fonts/Tajawal-Bold.woff2") format('woff2');}
   </style>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

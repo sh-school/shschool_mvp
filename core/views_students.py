@@ -604,7 +604,8 @@ def student_export_excel(request):
         grade_display = ""
         section_display = ""
         if enr:
-            grade_display = enr.class_group.get_grade_display()
+            grade_digits = "".join(c for c in enr.class_group.grade if c.isdigit())
+            grade_display = grade_digits.zfill(2) if grade_digits else enr.class_group.grade
             section_display = enr.class_group.section
 
         ws.cell(row=row_num, column=1, value=st.national_id or "")

@@ -1,4 +1,5 @@
 {% extends "reports/base_qatar_report.html" %}
+{% load labels %}
 
 {% block report_title_bar %}
 <h1 class="report-title-bar">{{ title|default:"تقرير التأخر الصباحي" }}</h1>
@@ -41,7 +42,7 @@
     <tr>
       <td class="cell-num">{{ forloop.counter }}</td>
       <td class="cell-name">{{ rec.student.full_name }}</td>
-      <td>{{ rec.session.class_group.grade }} / {{ rec.session.class_group.section }}</td>
+      <td>{% class_label rec.session.class_group.grade rec.session.class_group.section %}</td>
       <td class="cell-num">{{ rec.cumulative }}</td>
       <td>{{ rec.tardiness_recorded_at|time:"H:i"|default:"—" }}</td>
       <td>{{ rec.excuse_notes|default:"—" }}</td>

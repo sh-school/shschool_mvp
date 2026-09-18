@@ -621,7 +621,7 @@
           {% for cell in day %}
           {# رقمُ العمود في الأسبوع كلِّه (0–34) — اليومُ سبعُ حصص. #}
           {% widthratio forloop.parentloop.counter0 1 7 as day_offset %}
-          <td class="m-cell{% if forloop.first %} m-day-start{% endif %}" data-col="{{ day_offset|add:forloop.counter0 }}"{% if cell %} data-c="{% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}" data-s="{% for slot in cell %}{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }} — {{ slot.class_group.get_grade_display }} / {{ slot.class_group.section }}{% if not forloop.last %} · {% endif %}{% endfor %}"{% endif %}>
+          <td class="m-cell{% if forloop.first %} m-day-start{% endif %}" data-col="{{ day_offset|add:forloop.counter0 }}"{% if cell %} data-c="{% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}" data-s="{% for slot in cell %}{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }} — {{ slot.class_group.short_label }}{% if not forloop.last %} · {% endif %}{% endfor %}"{% endif %}>
             {% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}
           </td>
           {% endfor %}

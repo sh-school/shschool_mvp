@@ -75,12 +75,14 @@ Run `smoke-test.sh` after every Railway deploy:
 
 ### Integration with Railway Deploy
 
-Add to `scripts/railway-release.sh` (post-deploy hook):
+Add to `scripts/railway-predeploy.sh` (runs once before traffic switches — not
+`railway-release.sh`, whose `start` ends in `exec daphne`, so nothing after it
+would ever run):
 
 ```bash
-# At the end of railway-release.sh:
+# Near the end of railway-predeploy.sh, before the RLS/exit:
 if [ -n "${ALERT_WEBHOOK:-}" ]; then
-    ./scripts/smoke-test.sh --webhook "$ALERT_WEBHOOK" || true
+    ./scripts/smoke-test.sh --webhook "$ALERT_WEBHOOK"
 fi
 ```
 

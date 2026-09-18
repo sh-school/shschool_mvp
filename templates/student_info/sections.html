@@ -26,7 +26,7 @@
   <div class="ui-entity-grid">
     {% for c in cards %}
       {% entity_card c.title who=c.group.supervisor.full_name count=c.count href=c.href %}
-        {% entity_chips %}<span class="chip">{{ c.group.get_grade_display }}</span>{% if c.group.track %}<span class="chip">{{ c.group.get_track_display }}</span>{% endif %}{% endentity_chips %}
+        {% if c.group.track %}{% entity_chips %}<span class="chip">{{ c.group.get_track_display }}</span>{% endentity_chips %}{% endif %}
       {% endentity_card %}
     {% endfor %}
   </div>

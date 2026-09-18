@@ -29,6 +29,7 @@ from core.audit_export import log_export
 from core.capabilities import capability_required, has_capability
 from core.domain.attendance import attendance_rate
 from core.domain.tones import ATTENDANCE_SUMMARY, tone_for
+from core.excel_safety import neutralize_formula_value
 from core.export_utils import (
     add_excel_footer,
     add_excel_header,
@@ -56,7 +57,7 @@ from core.privacy import mask_national_id
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 from library.models import BookBorrowing
 from operations.absence_standing import standing_for
-from operations.models import AbsenceAlert, Session, StudentAttendance
+from operations.models import AbsenceAlert, ClassExit, Session, StudentAttendance
 from operations.presence import presence_now
 from operations.tardiness import tardiness_now
 from wings.scope import student_scope_for
@@ -465,22 +466,20 @@ def student_table_partial(request):
 # ═════════════════════════════════════════════════════════════════════
 
 
-@login_required
-@capability_required("student_affairs.manage")
-def student_export_excel(request):
-    """تصدير قائمة الطلاب إلى Excel — مع هيدر وفوتر احترافي."""
-    import openpyxl
-    from openpyxl.styles import Alignment
+def _student_register_queryset(request):
+    """الاستعلامُ المشترَك بين تصديرَي سجل الطلاب — Excel وPDF.
 
+    نفس فلترة student_list، بما فيها الإصلاحُ الذي أخذته الشاشةُ في #191 ولم
+    يكن قد بلغ أيَّ تصدير: المقيَّدُ أوّلاً، ومن لا قيدَ له هذا العامَ يخرج
+    بترشيحٍ صريحٍ (`status=unenrolled` أو `all`) لا بعدٍّ يُساوي به العضويّةَ
+    بالقيد.
+    """
     school = request.school
     year = academic_year_for(request)
     q = request.GET.get("q", "").strip()
     grade_filter = request.GET.get("grade", "")
     section_filter = request.GET.get("section", "")
 
-    ctx = get_export_context(request, "سجل الطلاب")
-
-    # نفس فلترة student_list
     students = (
         Membership.objects.filter(
             school=school,
@@ -495,6 +494,20 @@ def student_export_excel(request):
         students = students.filter(
             Q(user__full_name__icontains=q) | Q(user__national_id__icontains=q)
         )
+
+    status = request.GET.get("status") or "enrolled"
+    is_enrolled = Exists(
+        StudentEnrollment.objects.filter(
+            student_id=OuterRef("user_id"),
+            class_group__school=school,
+            class_group__academic_year=year,
+            is_active=True,
+        )
+    )
+    if status == "enrolled":
+        students = students.filter(is_enrolled)
+    elif status == "unenrolled":
+        students = students.exclude(is_enrolled)
 
     enrollment_data = {}
     for enr in StudentEnrollment.objects.filter(
@@ -518,6 +531,19 @@ def student_export_excel(request):
             if data.get("class_group__section") == section_filter
         ]
         students = students.filter(user_id__in=enrolled_ids)
+
+    return students, enrollment_data, year
+
+
+@login_required
+@capability_required("student_affairs.manage")
+def student_export_excel(request):
+    """تصدير قائمة الطلاب إلى Excel — مع هيدر وفوتر احترافي."""
+    import openpyxl
+    from openpyxl.styles import Alignment
+
+    ctx = get_export_context(request, "سجل الطلاب")
+    students, enrollment_data, year = _student_register_queryset(request)
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -554,6 +580,7 @@ def student_export_excel(request):
             m.user.phone or "—",
             m.user.email or "—",
         ]
+        row_data = [neutralize_formula_value(v) for v in row_data]
         for col, val in enumerate(row_data, 1):
             cell = ws.cell(row=data_start + i, column=col, value=val)
             cell.font = cell_font
@@ -583,6 +610,53 @@ def student_export_excel(request):
     )
     filename = generate_export_filename("students", "list", "xlsx")
     return excel_to_response(wb, filename)
+
+
+@login_required
+@capability_required("student_affairs.manage")
+def student_list_pdf(request):
+    """تصدير قائمة الطلاب إلى PDF — بنفس فلترة student_export_excel."""
+    ctx = get_export_context(request, "سجل الطلاب")
+    students, enrollment_data, year = _student_register_queryset(request)
+
+    rows = []
+    for i, m in enumerate(students, 1):
+        enr = enrollment_data.get(m.user_id, {})
+        rows.append(
+            {
+                "num": i,
+                "full_name": m.user.full_name,
+                "national_id": m.user.national_id,
+                "grade": enr.get("class_group__grade", "—"),
+                "section": enr.get("class_group__section", "—"),
+                "phone": m.user.phone or "—",
+                "email": m.user.email or "—",
+            }
+        )
+
+    pdf_header = get_pdf_header_html(ctx)
+    pdf_footer = get_pdf_footer_html(ctx)
+
+    html = render_to_string(
+        "student_affairs/student_list_pdf.html",
+        {
+            "rows": rows,
+            "total_students": len(rows),
+            "pdf_header": pdf_header,
+            "pdf_footer": pdf_footer,
+            **ctx,
+        },
+    )
+
+    log_export(
+        request,
+        "student_affairs.students_pdf",
+        rows=len(rows),
+        full_national_id=False,
+        object_repr=f"سجل الطلاب PDF — {year}",
+    )
+    filename = generate_export_filename("students", "list", "pdf")
+    return render_pdf(html, filename, paper_size="A4")
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -652,7 +726,7 @@ def student_add(request):
                 messages.success(
                     request,
                     f"تم إضافة الطالب {user.full_name} في "
-                    f"{class_group.grade}/{class_group.section} بنجاح.",
+                    f"{class_label(class_group.grade, class_group.section)} بنجاح.",
                 )
                 return redirect("student_affairs:student_profile", student_id=user.id)
 
@@ -1172,6 +1246,86 @@ def _followup_wing_label(scope) -> str:
 
 def _with_wing(text: str, wing: str) -> str:
     return f"{text} — {wing}" if wing else text
+
+
+@login_required
+@capability_required("student_affairs.follow_up")
+def student_movements(request):
+    """تحركاتُ الطلبة خارج الفصل في تاريخٍ بعينه — عيادةٌ وإدارةٌ ودورةُ
+    مياهٍ وأخرى. تُقرأ من `ClassExit` نفسها التي يكتبها زرّ «خرج بإذن» في
+    كشف الحصّة (`operations.class_exit`) — لا نسخةٌ ثانية من البيانات.
+
+    طلبُ سلطان الهاجرى (SOS-20260915-9077): شاشةٌ كشاشة الغياب لتحركات
+    الطلبة. و«الخروج من المدرسة» (انصرافٌ كاملٌ بحضور وليّ الأمر، الدليل
+    2026 §3.4.3) نمطٌ مختلفٌ لا تُسجّله `ClassExit` — يبقى خارج هذه الشاشة.
+    """
+    school = request.school
+    scope = _followup_scope(request)
+    selected_date = _tardiness_day(request)
+
+    base_qs = scope.narrow(ClassExit.objects.filter(school=school, session__date=selected_date))
+    # بطاقةٌ لكل وجهةٍ — تعُدّ كلَّ حركات اليوم بصرف النظر عن مرشِّح الوجهة
+    # المطبَّق على الجدول أسفلها، فتبقى ثابتةً تصلح للتنقّل بينها.
+    # `.values_list("destination", "n")` بعد التجميع — لا `.values_list("destination")`
+    # وحدَه، فتلك تُخرج صفوفاً أحاديّة العنصر لا يبنيها `dict()` بمفتاحٍ وقيمة.
+    destination_counts = dict(
+        base_qs.values("destination")
+        .annotate(n=Count("id"))
+        .order_by()
+        .values_list("destination", "n")
+    )
+
+    exits_qs = base_qs.select_related(
+        "student", "session__class_group", "session__subject", "allowed_by"
+    )
+
+    destination = request.GET.get("destination", "")
+    if destination:
+        exits_qs = exits_qs.filter(destination=destination)
+
+    status = request.GET.get("status", "")
+    if status == "open":
+        exits_qs = exits_qs.filter(returned_at__isnull=True)
+    elif status == "closed":
+        exits_qs = exits_qs.exclude(returned_at__isnull=True)
+
+    grade_filter = request.GET.get("grade", "")
+    if grade_filter:
+        exits_qs = exits_qs.filter(session__class_group__grade=grade_filter)
+
+    exits = list(exits_qs.order_by("-left_at"))
+    for e in exits:
+        e.class_text = class_label(e.session.class_group.grade, e.session.class_group.section)
+
+    day_qs = f"date={selected_date.isoformat()}"
+    return render(
+        request,
+        "student_affairs/student_movements.html",
+        {
+            "exits": exits,
+            "selected_date": selected_date,
+            "destinations": ClassExit.DESTINATIONS,
+            "destination": destination,
+            "status": status,
+            "grade_filter": grade_filter,
+            "grades": ClassGroup.GRADES,
+            "open_count": sum(1 for e in exits if e.returned_at is None),
+            "total_count": len(exits),
+            "wing_label": _followup_wing_label(scope),
+            # بطاقةُ `action_tile` نفسُها المستعملة في الأقسام السريعة —
+            # حدٌّ وظلٌّ وأيقونة، لا رقمٌ عارٍ (طلب المدير، SOS-20260915-9077،
+            # توضيحه 2026-09-17: "ليست بطاقات كل منها" على النسخة الأولى).
+            # الرابعة «الخروج مبكراً من المدرسة» ثابتةٌ عمداً بلا رابط فعليّ:
+            # نمطٌ مختلفٌ (انصرافٌ كاملٌ بحضور وليّ الأمر) لا تُسجّله
+            # `ClassExit` بعد — بطاقتُها هنا مكانٌ محجوزٌ لا بياناتٌ ناقصة.
+            "clinic_desc": f"اليوم: {destination_counts.get('clinic', 0)}",
+            "admin_desc": f"اليوم: {destination_counts.get('admin', 0)}",
+            "restroom_desc": f"اليوم: {destination_counts.get('restroom', 0)}",
+            "clinic_href": f"?{day_qs}&destination=clinic",
+            "admin_href": f"?{day_qs}&destination=admin",
+            "restroom_href": f"?{day_qs}&destination=restroom",
+        },
+    )
 
 
 @login_required
@@ -2153,6 +2307,7 @@ def behavior_export_excel(request):
             mask_national_id(rec["student__national_id"]),
             rec["count"],
         ]
+        row_data = [neutralize_formula_value(v) for v in row_data]
         for col, val in enumerate(row_data, 1):
             cell = ws.cell(row=data_start + i, column=col, value=val)
             cell.font = cell_font

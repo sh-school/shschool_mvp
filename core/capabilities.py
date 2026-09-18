@@ -23,6 +23,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from functools import cache
 
+from core.parent_consent import holds_parent_membership
 from core.permissions import expand_roles, role_required
 
 #: الأساسُ حين لا نصَّ ولا قرار — القدرةُ كما في الشيفرة، تنتظر المراجعة.
@@ -236,6 +237,12 @@ def registry() -> dict[str, Capability]:
             P.EXAM_CONTROL_ACCESS,
             basis="افتراضُ المنصّة — والنصُّ الوزاريُّ يجعله لجنةً موقوتة (الدراسة، ملحق د)",
         ),
+        _cap(
+            "exam_control.report_incident",
+            "تسجيلُ حادثةِ اختبارٍ ومراجعتُها",
+            P.EXAM_CONTROL_REPORT_INCIDENT,
+            basis="قرارُ 2026-09-15 (النطاق) وقرارُ المستخدم 2026-09-17 (لا شيءَ آخر من الكنترول)",
+        ),
         # ── الحضور والجدول ──────────────────────────────────────────
         _cap(
             "attendance.mark",
@@ -251,6 +258,11 @@ def registry() -> dict[str, Capability]:
             },
         ),
         _cap("operations.reports", "تقاريرُ الجدول والحضور", P.OPERATIONS_REPORTS),
+        _cap(
+            "operations.substitutes_manage",
+            "تسجيلُ غياب معلّمٍ وتعيينُ بديله",
+            P.OPERATIONS_SUBSTITUTES_MANAGE,
+        ),
         _cap(
             "schedule.day",
             "جدولُ اليوم",
@@ -347,7 +359,17 @@ def registry() -> dict[str, Capability]:
         _cap("observation.self", "التقييمُ الذاتيّ", P.OBSERVATION_SELF_CREATE),
         _cap("observation.peer", "تبادلُ الزيارات", P.OBSERVATION_PEER_CREATE),
         # ── وليّ الأمر ──────────────────────────────────────────────
-        _cap("parents.portal", "بوّابةُ وليّ الأمر", P.PARENT_PORTAL, scope="أبناؤه وحدَهم"),
+        _cap(
+            "parents.portal",
+            "بوّابةُ وليّ الأمر",
+            P.PARENT_PORTAL,
+            scope="أبناؤه وحدَهم",
+            basis=(
+                "قرارُ المالك 2026-09-16: الكادرُ الذي له عضويّةُ وليّ أمرٍ يدخل بوّابتَه "
+                "ليرى أبناءه وحدَهم، بعد الموافقة على سياسة البيانات"
+            ),
+            grant=holds_parent_membership,
+        ),
         _cap("parents.admin", "إدارةُ ربط أولياء الأمور", P.PARENT_PORTAL_ADMIN),
         # ── الأجنحة ─────────────────────────────────────────────────
         _cap(
