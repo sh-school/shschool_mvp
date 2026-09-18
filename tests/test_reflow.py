@@ -24,9 +24,8 @@
 
 from __future__ import annotations
 
-import re
-
 import pathlib
+import re
 
 from tests.css_contrast import iter_rules, strip_noise
 
