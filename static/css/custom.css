@@ -7997,7 +7997,9 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   gap: var(--sp-2);
 }
 @media (max-width: 640px) { .ui-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.ui-actions .action-card { padding: 14px 16px; min-inline-size: 0; }
+/* ارتفاعٌ أقلّ بـ10% من البلاطة العامّة (18px→) — صفٌّ واحدٌ من الأزرار
+   لا يحتاج حشوتها الكاملة، وتقليصُه يُسقط سكرولاً رأسياً في لوحة المدير. */
+.ui-actions .action-card { padding: 10px 16px; min-inline-size: 0; }
 
 /* ── 12. نموذجٌ بجوار قائمته: الإضافةُ ثُلثٌ والجدولُ ثلثان ──
    ومن الحدّ الأدنى ينفكّان عموداً: النموذجُ فوق ما يضيف إليه. */
