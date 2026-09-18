@@ -63,10 +63,28 @@ class AcademicCalendar:
         """يُشتقّ العام والفصل من التاريخ.
 
         `on` للاختبار وللتقارير بأثرٍ رجعيّ — لا يُمرَّر في الاستعمال العاديّ.
+
+        تُستدعى من مواضعَ عدّة في نفس الطلب (معالج السياق، خدمات الحضور
+        والسلوك) بنفس المدرسة واليوم — فتُحفظ نتيجتُها على الطلب الجاري
+        وحدَه (`core.middleware.get_current_request`)، لا خارج الطلب حيث لا
+        خطرَ تكرارٍ (أمرٌ إداريّ، مهمّةُ Celery) ولا مكانَ يُحفظ فيه.
         """
+        from core.middleware import get_current_request
         from core.models import AcademicYear
 
         day = on or timezone.localdate()
+
+        request = get_current_request()
+        cache = None
+        key = None
+        if request is not None:
+            cache = getattr(request, "_academic_now_cache", None)
+            if cache is None:
+                cache = {}
+                request._academic_now_cache = cache
+            key = (school.pk if school is not None else None, day)
+            if key in cache:
+                return cache[key]
 
         year = (
             AcademicYear.objects.filter(school=school, start_date__lte=day, end_date__gte=day)
@@ -81,7 +99,10 @@ class AcademicCalendar:
         if year is not None:
             semester = year.semesters.filter(start_date__lte=day, end_date__gte=day).first()
 
-        return AcademicNow(year=year, semester=semester)
+        result = AcademicNow(year=year, semester=semester)
+        if cache is not None:
+            cache[key] = result
+        return result
 
     @staticmethod
     def year_name(school, on=None) -> str:
