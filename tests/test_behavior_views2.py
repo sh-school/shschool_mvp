@@ -262,9 +262,15 @@ class TestReportInfractionExtended:
         assert resp.status_code == 302
         assert f"/behavior/student/{student_user.id}/" in resp.url
 
-    def test_post_level3_redirects_to_committee(
+    def test_post_level3_by_someone_without_committee_access_lands_on_the_profile(
         self, client_as, teacher_user, school, student_user, enrolled_student
     ):
+        """المخالفةُ تُحال إلى اللجنة دائماً، لكنّ الراصد الذي لا يفتح صفحتها لا يُساق إليها.
+
+        كان الردُّ ``/behavior/committee/`` مهما كان الراصد، فيلقى المعلّمُ (وغيرُ
+        أعضاء اللجنة) «غير مسموح» بعد حفظٍ ناجح — نفسُ العلّة التي واجهت مشرف
+        الجناح. راجع ``_after_record_url``.
+        """
         client = client_as(teacher_user)
         resp = client.post(
             "/behavior/report/",
@@ -278,9 +284,11 @@ class TestReportInfractionExtended:
             },
         )
         assert resp.status_code == 302
-        assert "/behavior/committee/" in resp.url
+        assert resp.url == f"/behavior/student/{student_user.id}/"
+        assert BehaviorInfraction.objects.filter(student=student_user, level=3).exists()
+        # فتحُ الملفّ نفسه فرعٌ آخر (نطاقُ الطالب على المعلّم) — لا تُختبَر هنا.
 
-    def test_post_level4_redirects_to_committee(
+    def test_post_level4_by_someone_without_committee_access_lands_on_the_profile(
         self, client_as, teacher_user, school, student_user, enrolled_student
     ):
         client = client_as(teacher_user)
@@ -296,7 +304,27 @@ class TestReportInfractionExtended:
             },
         )
         assert resp.status_code == 302
-        assert "/behavior/committee/" in resp.url
+        assert resp.url == f"/behavior/student/{student_user.id}/"
+        assert BehaviorInfraction.objects.filter(student=student_user, level=4).exists()
+
+    def test_post_level3_by_vice_admin_still_redirects_to_committee(
+        self, client_as, vice_admin_user, school, student_user, enrolled_student
+    ):
+        """من يفتح صفحة اللجنة فعلاً يُساق إليها كما كان — لا تراجع لهذا الجزء."""
+        client = client_as(vice_admin_user)
+        resp = client.post(
+            "/behavior/report/",
+            {
+                "student_id": str(student_user.id),
+                "level": 3,
+                "description": "مخالفة جسيمة",
+                "points_deducted": 25,
+                "disciplinary_action_type": "verbal_warning",
+            },
+        )
+        assert resp.status_code == 302
+        assert resp.url == "/behavior/committee/"
+        assert client.get(resp.url).status_code == 200
 
     def test_coordinator_can_report(self, client_as, coordinator_user, school):
         client = client_as(coordinator_user)

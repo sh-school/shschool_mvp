@@ -68,6 +68,7 @@ from behavior.models import ViolationCategory
 from core.capabilities import capability_required, has_capability
 from core.domain.tones import SHARE_KPI, tone_for
 from core.models import BehaviorInfraction, CustomUser
+from core.navigation import can_open
 from wings.scope import student_scope_for
 
 # ── نطاقُ الطلبة ─────────────────────────────────────────────
@@ -349,8 +350,7 @@ def report_infraction(request):
                     messages.warning(
                         request, f"تم إحالة المخالفة للجنة الضبط السلوكي لكونها من الدرجة {level}"
                     )
-                    return redirect("behavior:committee")
-                return redirect("behavior:student_profile", student_id=student.id)
+                return redirect(_after_record_url(request.user, student.id, level))
 
     students = _get_scoped_students(request, school)
     return render(
@@ -474,10 +474,9 @@ def quick_log(request):
                 robust=True,
             )
 
-        redirect_url = f"/behavior/student/{student.id}/"
+        redirect_url = _after_record_url(request.user, student.id, level)
         msg = f"تم تسجيل مخالفة درجة {level} للطالب {student.full_name}"
         if level >= 3:
-            redirect_url = "/behavior/committee/"
             msg += " — تم إحالتها للجنة الضبط"
         return htmx_redirect(redirect_url, msg=msg, msg_type="success")
 
@@ -489,6 +488,18 @@ def quick_log(request):
         "behavior/partials/quick_log_form.html",
         _quick_log_context(request, school, student_id_hint),
     )
+
+
+def _after_record_url(user, student_id, level: int) -> str:
+    """وجهةُ ما بعد التسجيل: الجسيمةُ إلى اللجنة لمن يفتحها، وإلّا ملفُّ الطالب.
+
+    المشرفُ الإداريّ يسجّل الدرجتين الثالثة والرابعة ولا يدخل صفحةَ اللجنة،
+    فتحويلُه إليها كان يُريه «غير مصرّح» بعد حفظٍ ناجح. والإحالةُ نفسُها
+    تتمّ في `create_infraction` أيّاً كانت الوجهة.
+    """
+    if level >= 3 and can_open(user, "behavior:committee"):
+        return reverse("behavior:committee")
+    return reverse("behavior:student_profile", kwargs={"student_id": student_id})
 
 
 def _quick_log_context(request, school, preselected_student_id=""):
