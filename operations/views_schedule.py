@@ -23,7 +23,7 @@ from core.audit_export import log_export
 from core.capabilities import capability_required, has_capability
 from core.dashboard_presentation import chunk_for_grid
 from core.domain.tones import tone_for
-from core.models import CustomUser, Department, Membership
+from core.models import CustomUser, Membership
 from core.models.academic import grade_order
 from core.models.access import EXEMPTABLE_ROLES
 
@@ -1132,6 +1132,8 @@ def _one_of(raw, allowed, fallback):
 @capability_required("schedule.settings")
 def schedule_settings(request):
     """إعدادات الجدول الذكي — تفريغات المعلمين + حصص مزدوجة"""
+    from .departments import active_departments
+
     school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
@@ -1159,7 +1161,7 @@ def schedule_settings(request):
 
     #: تفريغُ قسمٍ كاملٍ لاجتماعه الأسبوعيّ (قرارُ 2026-09-18) — خيارٌ في نفس
     #: قائمة الاختيار، فتفريغُ الاجتماع طلبٌ واحدٌ لا نصابَ قسمٍ يُفرَّغ عضواً عضواً.
-    departments = Department.objects.filter(school=school, is_active=True)
+    departments = active_departments(school)
 
     return render(
         request,
@@ -1185,47 +1187,13 @@ def exemption_grid(request):
     وبلا معلّمٍ مختارٍ تُعاد شبكةٌ خاوية: المجموعةُ («كلّ المنسّقين») لا جدولَ
     واحدَ لها، فتُظلَّل نمطاً مجرّداً بلا شواغلَ ولا سعة.
     """
-    import uuid
-
-    from operations.exemption_grid import DAYS, PERIODS, build_grid
-
-    from .forms import TeacherExemptionForm
+    from operations.exemption_grid import DAYS, PERIODS, build_grid, resolve_exemption_selection
 
     school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     raw = (request.GET.get("teacher") or "").strip()
 
-    # المجموعةُ («كلّ المنسّقين» أو قسمٌ كاملٌ) لا جدولَ واحداً لها، فشبكتُها
-    # مجرّدة. وهي اسمٌ معلومٌ لا معرّف — فمن أرسل معرّفَ معلّمٍ ليس من المدرسة
-    # لا يُعامَل معاملةَ المجموعة: كان يسقط إلى الشبكة المجرّدة فيرى باباً
-    # يُوهمه بأنّ اختيارَه صالح، والنموذجُ يردّه بعد التظليل لا قبله.
-    group = ""
-    group_label = ""
-    if raw in TeacherExemptionForm.GROUPS:
-        group = raw
-        group_label = "منسّقو المواد"
-    elif raw.startswith(TeacherExemptionForm.DEPT_PREFIX):
-        try:
-            dept_id = uuid.UUID(raw[len(TeacherExemptionForm.DEPT_PREFIX) :])
-        except ValueError:
-            dept_id = None
-        department = (
-            Department.objects.filter(pk=dept_id, school=school, is_active=True).first()
-            if dept_id
-            else None
-        )
-        if department is not None:
-            group = raw
-            group_label = department.name
-
-    teacher = None
-    if raw and not group:
-        # القيدُ بالمدرسة لا زينة: بلا `in_school` يُقرأ أسبوعُ معلّمٍ في
-        # مدرسةٍ أخرى بتغيير معرّفٍ في الرابط.
-        try:
-            teacher = CustomUser.objects.in_school(school).filter(pk=uuid.UUID(raw)).first()
-        except ValueError:
-            teacher = None
+    group, group_label, teacher = resolve_exemption_selection(school, raw)
 
     grid = build_grid(school, teacher, year) if teacher is not None else None
     return render(

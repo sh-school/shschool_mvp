@@ -25,7 +25,7 @@
       <td class="wg-day">{{ line.day }}</td>
       {% for entry in line.entries %}
       {% if entry.kind == "period" %}
-      <td{% if entry.multi %} class="wg-multi"{% elif entry.exemption_class %} class="{{ entry.exemption_class }}" title="{{ entry.exemption_label }}"{% endif %}><div class="wg-fit">
+      <td class="{% if entry.multi %}wg-multi{% elif entry.exemption_class %}{{ entry.exemption_class }}{% endif %}"{% if entry.exemption_label %} title="{{ entry.exemption_label }}"{% endif %}><div class="wg-fit">
         {% for slot in entry.slots %}
         {% comment %}الخانةُ المشتركةُ تُكتب بما فيها كلِّه: «التكنولوجيا / الفنون البصرية».{% endcomment %}
         <div class="slot-subject">{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }}</div>

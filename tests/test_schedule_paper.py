@@ -262,13 +262,12 @@ def test_a_ministry_exemption_colors_an_empty_slot_with_its_reason(
 
 
 @pytest.mark.django_db
-def test_an_occupied_slot_is_never_colored_even_with_a_matching_exemption(
-    client, principal_user, school, paper_lessons
-):
+def test_an_occupied_slot_is_never_colored_even_with_a_matching_exemption(school, paper_lessons):
     """التلوينُ حكمٌ على الفراغ — خليّةٌ فيها حصّةٌ فعليّةٌ لا تُلوَّن مهما وُجد تفريغٌ يطابقها."""
     from operations.models import TeacherExemption
+    from operations.schedule_paper import annotate_teacher_exemptions, teacher_exemption_map
 
-    teacher, _ = paper_lessons  # حصّتُه الوحيدةُ الاثنينَ (يوم 1) الحصّةَ 2
+    teacher, _ = paper_lessons  # حصّتُه الوحيدةُ الاثنينَ (يوم 1) الحصّةَ 2 — مشغولة
     TeacherExemption.objects.create(
         school=school,
         teacher=teacher,
@@ -280,15 +279,16 @@ def test_an_occupied_slot_is_never_colored_even_with_a_matching_exemption(
         source="school",
         is_active=True,
     )
-    client.force_login(principal_user)
+    days = grid_to_days(ScheduleService.get_weekly_schedule(school, teacher, None, YEAR))
+    band_codes = ScheduleService._band_codes(school)
+    week = week_layout(days, teacher_bands_by_day(days, band_codes), bell_tables(school))
+    exemption_map = teacher_exemption_map(school, teacher, YEAR)
+    annotate_teacher_exemptions(week, exemption_map)
 
-    body = client.get(
-        reverse("schedule_print"),
-        {"view": "teacher", "teacher": teacher.id, "year": YEAR},
-        HTTP_HOST="localhost",
-    ).content.decode()
-
-    assert "exempt-school" not in body
+    entry = next(
+        e for e in week["lines"][1]["entries"] if e.get("kind") == "period" and e["number"] == 2
+    )
+    assert "exemption_class" not in entry
 
 
 @pytest.mark.django_db

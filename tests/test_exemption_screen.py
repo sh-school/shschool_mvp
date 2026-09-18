@@ -243,14 +243,15 @@ def test_a_whole_department_as_one_choice(school, teacher):
     assert (
         TeacherExemption.objects.filter(day_of_week=0, period_number=1).count() == 4
     ), "المنسّقُ وثلاثةُ معلّمين — أربعةٌ لا واحداً"
-    assert not TeacherExemption.objects.filter(teacher=teacher).exists(), "المعلّمُ خارج القسم لا يُفرَّغ"
+    assert not TeacherExemption.objects.filter(
+        teacher=teacher
+    ).exists(), "المعلّمُ خارج القسم لا يُفرَّغ"
 
 
 def test_a_department_from_another_school_is_refused(school, teacher):
     """معرّفُ قسمٍ صحيحٌ لكنّه من مدرسةٍ أخرى — يُرفض كسائر التلاعب بالمعرّفات."""
-    from tests.conftest import SchoolFactory
-
     from core.models import Department
+    from tests.conftest import SchoolFactory
 
     other_school = SchoolFactory()
     other_department = Department.objects.create(school=other_school, name="قسمٌ آخر", code="x")

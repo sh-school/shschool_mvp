@@ -5782,7 +5782,6 @@ th[aria-sort="descending"] .th-sort-label {
     box-shadow: var(--shadow-md);
     border-color: var(--maroon-border);
   }
-  html.dark .schedule-pages-card { color: var(--text-primary); }
   /* عرضٌ عاديٌّ مستقلٌّ عن الطباعة (قرارُ 2026-09-18) — بطاقةٌ لكلّ صفحةٍ
      بعنوانها وجدولها، بدل ورقةٍ بالملّيمتر في إطارٍ يُقرأ بتمريرٍ داخل
      تمرير على اللمس. يعمل على كلّ شاشةٍ بلا استثناء الهاتف. */
@@ -5890,7 +5889,7 @@ th[aria-sort="descending"] .th-sort-label {
   .week-grid td.wg-break { background: var(--surface-alt); }
   /* الخانةُ الفارغةُ من استراحةٍ (يومٌ لا صلاةَ عنده) أغمقُ من الخانة
      العاديّة — إشارةٌ إلى فراغها لا مجرّد نصٍّ باهت. */
-  .week-grid td.wg-break.is-empty { background: var(--border); color: var(--text-muted); }
+  .week-grid td.wg-break.is-empty { background: var(--border); color: var(--text-secondary); }
   .week-grid .wg-fit { display: flex; flex-direction: column; gap: 2px; align-items: center; text-align: center; }
   .week-grid .slot-subject { font-weight: 700; color: var(--maroon-fg); line-height: 1.2; }
   .week-grid .slot-meta { font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.2; }

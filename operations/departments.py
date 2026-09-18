@@ -18,7 +18,15 @@
     والأحياء. والكيمياءُ والفيزياء قسمان مستقلّان.
 """
 
+from __future__ import annotations
+
 from collections import Counter
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
+
+    from core.models import CustomUser, Department, School
 
 #: الأقسام مرتّبةً كما تُقرأ في ورقة الجدول العام: العلومُ بعد اللغات،
 #: والمواد التطبيقية في الذيل. والترتيبُ هنا هو ترتيبُ السطور في الورقة.
@@ -298,7 +306,18 @@ def derived_department(lessons) -> dict:
     return {**info, "order": 1000 + info["order"], "head": "", "specialty": "", "registered": False}
 
 
-def teachers_of_department(school, year, department) -> list:
+def active_departments(school: School) -> QuerySet[Department]:
+    """أقسامُ المدرسة النشطة — لقوائم الاختيار (تفريغٌ، إسنادٌ، إلخ).
+
+    قراءةٌ لا عرض: القراءةُ هنا لا في العرض تُبقي دوالَّ `views_schedule.py`
+    تحت سقف حارس الطبقات (`tests/layering_ratchet.py`).
+    """
+    from core.models import Department
+
+    return Department.objects.filter(school=school, is_active=True)
+
+
+def teachers_of_department(school: School, year: str, department: Department) -> list[CustomUser]:
     """معلّمو قسمٍ بعينه — فعليّون لا مسجَّلون وحدَهم.
 
     نفسُ قاعدة شاشة الإسناد (2026-09-06) لكلّ معلّمٍ على حدة: قسمُه المسجَّل
@@ -311,10 +330,9 @@ def teachers_of_department(school, year, department) -> list:
     from core.models import Membership
     from operations.models import SubjectClassAssignment
 
-    memberships = (
-        Membership.objects.filter(school=school, is_active=True, role__name__in=TEACHING_ROLES)
-        .select_related("user", "department_obj")
-    )
+    memberships = Membership.objects.filter(
+        school=school, is_active=True, role__name__in=TEACHING_ROLES
+    ).select_related("user", "department_obj")
     rows_by_teacher = defaultdict(list)
     for row in (
         SubjectClassAssignment.objects.live(school, year=year)

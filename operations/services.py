@@ -24,7 +24,6 @@ from operations.departments import (
     registered_departments,
     school_department_codes,
 )
-from operations.schedule_paper import colored_exemptions_by_teacher
 from operations.models import (
     AbsenceAlert,
     CompensatorySession,
@@ -40,6 +39,7 @@ from operations.models import (
     TeacherSwap,
     TimeSlotConfig,
 )
+from operations.schedule_paper import colored_exemptions_by_teacher
 from operations.school_days import SchoolDays
 
 logger = logging.getLogger(__name__)

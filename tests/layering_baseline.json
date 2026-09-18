@@ -450,9 +450,6 @@
    "lines": 104,
    "orm": 7
   },
-  "operations/views_schedule.py::exemption_grid": {
-   "orm": 7
-  },
   "operations/views_schedule.py::register_teacher_absence": {
    "orm": 11
   },
