@@ -157,7 +157,9 @@ class TestRecording:
         client = client_as(supervisor)
         profile = reverse("behavior:student_profile", kwargs={"student_id": mine.id})
 
-        resp = client.post(reverse("behavior:report_infraction"), {**_record_payload(mine), "level": 3})
+        resp = client.post(
+            reverse("behavior:report_infraction"), {**_record_payload(mine), "level": 3}
+        )
         assert resp.status_code == 302
         assert resp.url == profile
         assert client.get(resp.url).status_code == 200
