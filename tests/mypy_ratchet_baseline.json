@@ -86,7 +86,6 @@
   "core/sentry_config.py": 23,
   "core/signals.py": 47,
   "core/sorting.py": 5,
-  "core/styleguide.py": 1,
   "core/templatetags/dict_filters.py": 5,
   "core/templatetags/labels.py": 1,
   "core/templatetags/navigation.py": 1,
@@ -151,5 +150,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1832
+ "total": 1831
 }
