@@ -694,7 +694,7 @@
   },
   "staff_affairs/views.py::staff_profile": {
    "lines": 74,
-   "orm": 16
+   "orm": 12
   },
   "staff_affairs/views.py::staff_profile_save": {
    "orm": 9
