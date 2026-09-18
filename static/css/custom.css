@@ -102,8 +102,8 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
      نفسَها، لا رماديّاً محايداً. الفرقُ كان ضعيفاً جدّاً عن `--surface`
      (١٪ فقط) فبَدت الصفحةُ نهاراً أبيضَ مسطّحاً بلا عمقٍ يفصل البطاقةَ عن
      أرضيّتها، بخلاف الليليّ حيث الفرقُ بين `#1e293b` و`#0f172a` واضحٌ للعين. */
-  --surface-alt:    #f2f5fa;
-  --page-bg:        #e6ebf3;   /* كحليٌّ فاتحٌ — خلفية الصفحة النهارية */
+  --surface-alt:    #e3e8f0;
+  --page-bg:        #d7dee8;   /* كحليٌّ فاتحٌ — خلفية الصفحة النهارية (مُجرَّبٌ أغمق 2026-09-18) */
 
   --radius:         10px;
   --radius-lg:      14px;
@@ -183,7 +183,7 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --chart-1: #8A1538;   /* الماروني — دائماً الأول */
   --chart-2: #0D7B6A;   /* التيل المكمل */
   --chart-3: #1A3A5C;   /* الأزرق الداكن */
-  --chart-4: #A8801F;   /* الذهبي — عُمِّق: #D4A843 نسبتُه 2.21 على الأبيض */
+  --chart-4: #946f0e;   /* الذهبي — عُمِّق مجدَّداً 2026-09-18 بعد تغميق خلفية الصفحة (3.42 عليها، كان 3.04 قبل التغميق) */
   --chart-5: #2E7D9A;   /* الأزرق — عُمِّق: #4194B3 كان 3.44 */
   --chart-6: #6B7280;   /* الرمادي (أخرى) */
 
@@ -3067,7 +3067,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 
 /* شريط تقدم مصغّر داخل الجدول */
 .mini-progress-wrap  { display: flex; align-items: center; gap: 0.5rem; }
-.mini-progress-track { flex: 1; height: 6px; background: var(--surface-alt); border-radius: 99px; overflow: hidden; }
+.mini-progress-track { flex: 1; height: 6px; background: var(--border-strong); border-radius: 99px; overflow: hidden; }
 .mini-progress-fill  { height: 100%; width: var(--progress-w, 0%); border-radius: 99px; }
 .mini-progress-fill.green  { background: var(--status-success); }
 .mini-progress-fill.amber  { background: var(--status-warning); }
