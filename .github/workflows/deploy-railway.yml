@@ -1,8 +1,14 @@
 name: CD — Railway Deploy Pipeline
 
+# يدويٌّ لا تلقائيّ منذ 2026-09-18: النشرُ التلقائيّ على دمج main مقطوعٌ
+# (serviceInstanceAutoDeployUpdate=false على الخدمات الثلاث)، والترقيةُ
+# للإنتاج صارت railway service redeploy --from-source بعد مراجعةٍ على
+# معاينة main المحلّية. فكان `on: push` يفتح «🔴 DEPLOY FAILED» عند كلّ
+# دمجٍ عاديّ لا يتبعه نشرٌ فوريّاً — الفحصُ صحيحٌ والافتراضُ (كلّ دمجٍ ينشر)
+# صار خطأً. شغّل هذا الوركفلو يدويّاً (Actions → هذا الاسم → Run workflow)
+# فور تنفيذ أمر الترقية، لا قبله.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 # التحقّق البَعدي يُثبت **آخر حالة لـmain**، لا حالةً عبَرت.
 #
