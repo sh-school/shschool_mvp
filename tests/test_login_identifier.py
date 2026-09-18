@@ -1,8 +1,11 @@
-"""معرّفُ الدخول: الرقمُ الوظيفيُّ للكادر، والمفتاحُ المعياريُّ للقفل.
+"""معرّفُ الدخول: الرقمُ الوظيفيُّ للكادر وحدَه، والمفتاحُ المعياريُّ للقفل.
 
 الرقمُ الشخصيُّ القطريُّ بياناتٌ شخصيّة، وكان يُكتب في نموذج الدخول كلَّ صباح
 ويسكن في سجلّ المحاولات الفاشلة نصّاً صريحاً. فصار الكادرُ يدخل برقمه الوظيفيّ،
-وصار ما يُقفل عليه مفتاحاً معياريّاً لا النصَّ المكتوب.
+وصار ما يُقفل عليه مفتاحاً معياريّاً لا النصَّ المكتوب. وقرارُ المالك 2026-09-18
+(ق-10) قطع نافذةَ القبول المزدوج: من له رقمٌ وظيفيّ لا يدخل برقمه الشخصيّ بعد
+اليوم — يُعامَل كمعرّفٍ مجهول. الطلبةُ وأولياءُ الأمور بلا رقمٍ وظيفيّ يدخلون
+برقمهم الشخصيّ كما هم.
 """
 
 import pytest
@@ -23,8 +26,11 @@ class TestResolution:
     def test_employee_number_finds_the_staff_member(self, staff):
         assert resolve_user("137032") == staff
 
-    def test_national_id_still_finds_them(self, staff):
-        assert resolve_user(staff.national_id) == staff
+    def test_national_id_is_rejected_for_staff(self, staff):
+        assert resolve_user(staff.national_id) is None
+
+    def test_national_id_still_finds_a_student_or_parent(self, student_user):
+        assert resolve_user(student_user.national_id) == student_user
 
     def test_unknown_identifier_is_none(self, db):
         assert resolve_user("00000000000") is None
@@ -39,9 +45,10 @@ class TestResolution:
 
 
 class TestLockoutKey:
-    def test_both_identifiers_share_one_key(self, staff):
-        """وإلّا ملك الموظّفُ عشرَ محاولاتٍ لا خمساً."""
-        assert lockout_key("137032") == lockout_key(staff.national_id)
+    def test_the_rejected_national_id_no_longer_shares_the_staff_key(self, staff):
+        """قبل ق-10 كانا يتشاركان مفتاحاً واحداً؛ اليوم الرقمُ الشخصيّ مرفوضٌ
+        فيسقط على مفتاح المجهول — لا يعود يحمي حسابَ الموظّف من القفل."""
+        assert lockout_key("137032") != lockout_key(staff.national_id)
 
     def test_the_key_never_carries_the_national_id(self, staff):
         for raw in ("137032", staff.national_id):
@@ -63,18 +70,20 @@ class TestLoginScreen:
         resp = client.post("/auth/login/", {"identifier": "137032", "password": "testpass123"})
         assert resp.status_code == 302
 
-    def test_national_id_is_still_accepted_during_the_window(self, client, staff):
+    def test_national_id_is_rejected_for_staff(self, client, staff):
         resp = client.post(
             "/auth/login/",
             {"identifier": staff.national_id, "password": "testpass123"},
         )
-        assert resp.status_code == 302
+        assert resp.status_code == 200
+        assert "المعرّف أو كلمة المرور غير صحيحة" in resp.content.decode()
 
-    def test_the_old_field_name_still_posts(self, client, staff):
-        """نماذجُ المتصفّحات المحفوظة لا تُكسر في يوم النشر."""
+    def test_the_old_field_name_still_posts_for_a_student(self, client, student_user):
+        """نماذجُ المتصفّحات المحفوظة لا تُكسر في يوم النشر — لمن يدخل برقمه
+        الشخصيّ أصلاً (لا كادرَ له رقمٌ وظيفيّ)."""
         resp = client.post(
             "/auth/login/",
-            {"national_id": staff.national_id, "password": "testpass123"},
+            {"national_id": student_user.national_id, "password": "testpass123"},
         )
         assert resp.status_code == 302
 
@@ -83,13 +92,22 @@ class TestLoginScreen:
         assert resp.status_code == 200
         assert "المعرّف أو كلمة المرور غير صحيحة" in resp.content.decode()
 
-    def test_failures_on_either_identifier_feed_one_counter(self, client, staff):
-        """ثلاثٌ بالوظيفيّ واثنتان بالشخصيّ = خمسٌ على الحساب نفسِه."""
-        for raw in ("137032", "137032", "137032", staff.national_id, staff.national_id):
-            client.post("/auth/login/", {"identifier": raw, "password": "wrong"})
+    def test_failures_by_employee_number_lock_the_account(self, client, staff):
+        for _ in range(5):
+            client.post("/auth/login/", {"identifier": "137032", "password": "wrong"})
         staff.refresh_from_db()
         assert staff.failed_login_attempts == 5
         assert staff.locked_until is not None
+
+    def test_failures_by_the_rejected_national_id_do_not_touch_the_staff_account(
+        self, client, staff
+    ):
+        """المعرّفُ مرفوضٌ فلا يُحَلّ إلى الموظّف — فشله لا يُعدّ على حسابه."""
+        for _ in range(5):
+            client.post("/auth/login/", {"identifier": staff.national_id, "password": "wrong"})
+        staff.refresh_from_db()
+        assert staff.failed_login_attempts == 0
+        assert staff.locked_until is None
 
     def test_the_audit_log_records_which_identifier_was_used(self, client, staff):
         from core.models import AuditLog
