@@ -26,7 +26,7 @@ jobs:
 
       # ── انتظار نجاح CI أولاً ──────────────────────────────────
       - name: انتظار نجاح اختبارات CI
-        uses: lewagon/wait-on-check-action@v1.3.4
+        uses: lewagon/wait-on-check-action@v1.9.1
         with:
           ref:              ${{ github.sha }}
           # يتطابق مع اسم job "gate-summary" في quality-gate.yml — وهو السياقُ
