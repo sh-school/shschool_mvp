@@ -13,7 +13,6 @@ class LibraryConfig(AppConfig):
             name="library",
             label="المكتبة",
             url_prefix="/library/",
-            icon="bi-book",
             allowed_roles={
                 "principal",
                 "vice_admin",

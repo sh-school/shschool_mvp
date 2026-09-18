@@ -13,7 +13,6 @@ class ClinicConfig(AppConfig):
             name="clinic",
             label="العيادة الصحية",
             url_prefix="/clinic/",
-            icon="bi-heart-pulse",
             allowed_roles={"principal", "vice_admin", "nurse"},
             # ووليُّ الأمر والطالبُ ليسا هنا: بابُهما `/parents/`، وواجهاتُ هذه
             # الوحدة كلُّها للكادر. ووعدٌ في القائمة تردُّه البوّابةُ رابطٌ يُفضي

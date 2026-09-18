@@ -14,7 +14,6 @@ class NotificationsConfig(AppConfig):
             name="notifications",
             label="الإشعارات",
             url_prefix="/notifications/",
-            icon="bi-bell",
             # البوّابةُ لكلّ مسجَّلٍ في المدرسة — الكادرُ والطالبُ ووليُّ الأمر: الصندوقُ والعدّادُ وتعليمُ المقروء بياناتُ صاحبها وحدَه
             # (``user=request.user``)، وإدارةُ الإشعارات والإرسالُ الجماعيّ محميّان بقدرتهما
             # ``notifications.broadcast``. كانت البوّابةُ تستثني اثني عشرَ دوراً — الكادرَ

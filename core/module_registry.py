@@ -14,7 +14,6 @@ Usage:
                 name="assessments",
                 label="التقييمات والدرجات",
                 url_prefix="/assessments/",
-                icon="bi-journal-check",
                 allowed_roles={"principal", "vice_academic", ...},
                 sort_order=10,
             )
@@ -41,7 +40,6 @@ class ModuleInfo:
     name: str  # مفتاح فريد (e.g. "assessments")
     label: str  # عنوان عربي
     url_prefix: str  # مسار الـ URL (e.g. "/assessments/")
-    icon: str  # Bootstrap Icons class
     allowed_roles: frozenset  # الأدوار المسموح لها
     sidebar_roles: frozenset  # الأدوار التي ترى الوحدة في القائمة الجانبية
     sort_order: int  # ترتيب العرض
@@ -64,7 +62,6 @@ def register_module(
     name: str,
     label: str,
     url_prefix: str,
-    icon: str = "bi-grid",
     allowed_roles: set | frozenset | None = None,
     sidebar_roles: set | frozenset | None = None,
     sort_order: int = 50,
@@ -82,8 +79,6 @@ def register_module(
         العنوان العربي الذي يظهر في القائمة.
     url_prefix : str
         بداية المسار المحمي (e.g. "/assessments/").
-    icon : str
-        أيقونة Bootstrap Icons.
     allowed_roles : set
         الأدوار المسموح لها بالوصول (للـ Middleware).
     sidebar_roles : set | None
@@ -106,7 +101,6 @@ def register_module(
         name=name,
         label=label,
         url_prefix=url_prefix,
-        icon=icon,
         allowed_roles=roles,
         sidebar_roles=sidebar,
         sort_order=sort_order,
@@ -163,7 +157,7 @@ def get_accessible_modules_from_registry(user) -> list[dict]:
     Returns
     -------
     list[dict]
-        كل عنصر: {"name", "label", "url", "icon", "parent"}
+        كل عنصر: {"name", "label", "url", "parent"}
     """
     if not user or not user.is_authenticated:
         return []
@@ -174,7 +168,6 @@ def get_accessible_modules_from_registry(user) -> list[dict]:
                 "name": m.name,
                 "label": m.label,
                 "url": m.url_prefix,
-                "icon": m.icon,
                 "parent": m.parent,
             }
             for m in sorted(_MODULES.values(), key=lambda m: m.sort_order)
@@ -189,7 +182,6 @@ def get_accessible_modules_from_registry(user) -> list[dict]:
                     "name": m.name,
                     "label": m.label,
                     "url": m.url_prefix,
-                    "icon": m.icon,
                     "parent": m.parent,
                 }
             )
