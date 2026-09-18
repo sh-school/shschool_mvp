@@ -14,7 +14,7 @@ _REQUIRED_ENV = {
     # S3 إلزاميٌّ في الإنتاج الآن (البند 11) — بلا هذه الثلاث يفشل كلّ اختبارٍ
     # هنا عند الاستيراد (ImproperlyConfigured)، لا فحصَ الإعداد الذي يقصده.
     "AWS_ACCESS_KEY_ID": "test-only-access-key",
-    "AWS_SECRET_ACCESS_KEY": "test-only-secret-key",
+    "AWS_SECRET_ACCESS_KEY": "test-only-secret-key",  # pragma: allowlist secret
     "AWS_STORAGE_BUCKET_NAME": "test-only-bucket",
     # فارغةٌ عمداً — قيمٌ صريحةٌ لا غياب: decouple يقرأ os.environ أوّلاً ثمّ
     # ملفّ .env الحقيقيّ في هذه الشجرة (قد يحمل مفاتيح R2 فعليّة، البند 11)؛
