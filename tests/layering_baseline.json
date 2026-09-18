@@ -343,11 +343,11 @@
    "orm": 17
   },
   "behavior/views.py::quick_log": {
-   "lines": 98,
+   "lines": 97,
    "orm": 30
   },
   "behavior/views.py::report_infraction": {
-   "lines": 112,
+   "lines": 111,
    "orm": 31
   },
   "behavior/views.py::student_behavior_pdf": {
