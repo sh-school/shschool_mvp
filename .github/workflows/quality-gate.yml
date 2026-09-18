@@ -60,7 +60,7 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -148,7 +148,7 @@ jobs:
     name: Ruff — lint + format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -176,7 +176,7 @@ jobs:
     name: mypy — سقّاطة الأنواع
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -238,7 +238,7 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # التاريخُ كاملاً: `--git-commit-id` يقارن بفرع الأساس، وهو أسلافُ
           # رأس الفرع أصلاً (طلبُ الدمج/طابورُ الدمج) — لا حاجةَ لجلبٍ إضافيّ.
@@ -284,7 +284,7 @@ jobs:
     name: Radon — تعقيد CC ≤ 30
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -336,7 +336,7 @@ jobs:
     name: detect-secrets — كشف الأسرار
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -404,7 +404,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: الأحد–الخميس 07:00–14:00 بتوقيت قطر ممنوع إلّا «نشر-عاجل»
         env:
           GH_TOKEN: ${{ github.token }}
@@ -427,7 +427,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: مقارنةُ ملفّات هذا الطلب بالطلبات المفتوحة الأخرى
         env:
           GH_TOKEN: ${{ github.token }}
@@ -481,7 +481,7 @@ jobs:
     name: Tailwind — البناءُ الملتزَم محدَّث
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:

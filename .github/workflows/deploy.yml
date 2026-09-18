@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: سحب الكود
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # ── انتظار نجاح CI أولاً ──────────────────────────────────
       - name: انتظار نجاح اختبارات CI
