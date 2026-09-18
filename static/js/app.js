@@ -51,6 +51,18 @@
     if (palette) palette.classList.add('cmd-hidden');
   };
 
+  /* \u0623\u064a\u0642\u0648\u0646\u0629\u064f \u0646\u062a\u064a\u062c\u0629\u064d \u0645\u0646 \u0642\u0627\u0645\u0648\u0633 core/icons.py \u2014 \u0627\u0644\u0645\u0641\u062a\u0627\u062d\u064f \u0627\u0633\u0645\u064c \u062f\u0644\u0627\u0644\u064a\u064c\u0651 (\u0644\u0627 \u0631\u0645\u0632\u064c \u062e\u0627\u0645\u0651)
+     \u064a\u0635\u0644\u0647 JSON \u0645\u0646 core/views_search.py\u061b \u0627\u0644\u0631\u0633\u0645\u064f \u0645\u0646 \u0646\u0641\u0633 \u0627\u0644\u0648\u0631\u0642\u0629 \u0627\u0644\u062e\u0627\u0631\u062c\u064a\u0629 \u0627\u0644\u0645\u0628\u0635\u0648\u0645\u0629
+     \u0627\u0644\u062a\u064a \u064a\u0633\u062a\u0639\u0645\u0644\u0647\u0627 \u0648\u0633\u0645 {% icon %}\u060c \u0644\u0627 \u0645\u0635\u062f\u0631\u064c \u0645\u0648\u0627\u0632\u064d. \u0645\u0641\u062a\u0627\u062d\u064c \u063a\u064a\u0631 \u0645\u0639\u0631\u0648\u0641\u064d (\u062d\u0631\u0641\u064c \u063a\u064a\u0631
+     [a-z0-9_]) \u064a\u064f\u0631\u0633\u0645 \u0641\u0627\u0631\u063a\u0627\u064b \u0628\u062f\u0644 \u0623\u0646 \u064a\u0643\u0633\u0631 \u0627\u0644\u0646\u062a\u064a\u062c\u0629\u064e \u0643\u0644\u064e\u0651\u0647\u0627. */
+  var ICON_KEY_RE = /^[a-z][a-z0-9_]*$/;
+  function iconSvg(key) {
+    var sprite = document.body.dataset.iconSprite;
+    if (!sprite || !key || !ICON_KEY_RE.test(key)) return '';
+    return '<svg class="icon icon-hg" aria-hidden="true" focusable="false">'
+      + '<use href="' + sprite + '#i-' + key + '"></use></svg>';
+  }
+
   function renderResults(items) {
     if (!cmdResults) return;
     if (!items.length) {
@@ -59,7 +71,7 @@
     }
     cmdResults.innerHTML = items.map(function (r, i) {
       return '<a class="cmd-item" href="' + esc(r.url) + '" data-idx="' + i + '">'
-        + '<span class="cmd-item-icon">' + esc(r.icon) + '</span>'
+        + '<span class="cmd-item-icon">' + iconSvg(r.icon) + '</span>'
         + '<div class="cmd-item-text">'
         + '<div class="cmd-item-title">' + esc(r.title) + '</div>'
         + '<div class="cmd-item-sub">' + esc(r.sub) + '</div>'
