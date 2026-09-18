@@ -6,6 +6,7 @@
 1. الموظف بدون جزاء → يمكن تقييمه بـ "ممتاز" و"جيد جداً"
 2. الموظف مع جزاء نشط → لا يمكن تقييمه بـ "ممتاز" ولا "جيد جداً"
 """
+
 from unittest.mock import patch
 
 from django.test import TestCase
@@ -34,7 +35,7 @@ class SanctionRulesTestCase(TestCase):
             national_id="SNC00000001",
             full_name="الموظف الاختبار",
             email="staff@example.com",
-            password="testpass123",
+            password="testpass123",  # pragma: allowlist secret
         )
         cls.academic_year = default_academic_year()
 

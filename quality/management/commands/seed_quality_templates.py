@@ -439,7 +439,7 @@ ROLE_TO_TEMPLATE = {
     "coordinator": "admin_role_1",  # منسق ← الوظائف الإدارية 1
     "counselor": "admin_role_1",  # مرشد ← الوظائف الإدارية 1
     "nurse": "admin_role_2",  # ممرضة ← الوظائف الإدارية 2
-    "secretary": "admin_role_2",  # سكرتيرة ← الوظائف الإدارية 2
+    "secretary": "admin_role_2",  # سكرتيرة ← الوظائف الإدارية 2  # pragma: allowlist secret
     "lab_technician": "admin_role_3",  # فني مختبر ← الوظائف الإدارية 3
 }
 
