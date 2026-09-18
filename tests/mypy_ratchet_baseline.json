@@ -77,7 +77,6 @@
   "core/models/stored_file.py": 1,
   "core/models/user.py": 32,
   "core/module_registry.py": 1,
-  "core/navigation.py": 6,
   "core/pdf_utils.py": 22,
   "core/permissions.py": 52,
   "core/querysets.py": 19,
@@ -110,7 +109,7 @@
   "notifications/consumers.py": 7,
   "notifications/delivery_state.py": 8,
   "notifications/enqueue_state.py": 2,
-  "notifications/hub.py": 47,
+  "notifications/hub.py": 42,
   "notifications/models.py": 30,
   "notifications/push_publisher.py": 11,
   "notifications/reconciler.py": 19,
@@ -119,12 +118,12 @@
   "operations/absence_policy.py": 4,
   "operations/absence_standing.py": 12,
   "operations/bells.py": 12,
-  "operations/class_exit.py": 8,
-  "operations/constraint_registry.py": 33,
+  "operations/class_exit.py": 5,
+  "operations/constraint_registry.py": 20,
   "operations/day_attendance.py": 4,
   "operations/departments.py": 11,
   "operations/models.py": 54,
-  "operations/period_register.py": 13,
+  "operations/period_register.py": 11,
   "operations/preference_capacity.py": 1,
   "operations/schedule_feasibility.py": 5,
   "operations/schedule_lab.py": 14,
@@ -132,7 +131,7 @@
   "operations/scheduler_constraints.py": 10,
   "operations/scheduler_improve.py": 11,
   "operations/scheduler_tight.py": 5,
-  "operations/services.py": 36,
+  "operations/services.py": 33,
   "operations/tardiness.py": 4,
   "quality/models.py": 45,
   "quality/observation_models.py": 8,
@@ -152,5 +151,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1864
+ "total": 1835
 }

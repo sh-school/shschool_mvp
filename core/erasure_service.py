@@ -33,7 +33,7 @@ def _lazy_student_fk_models():
         return _STUDENT_FK_MODELS
 
     from assessments.models import AnnualSubjectResult, StudentAssessmentGrade, StudentSubjectResult
-    from behavior.models import BehaviorInfraction
+    from behavior.models import AutoInfractionNotice, BehaviorInfraction
     from clinic.models import ClinicVisit, HealthRecord
     from library.models import BookBorrowing
     from operations.models import AbsenceAlert, AbsenceExcuse, StudentAttendance
@@ -47,6 +47,7 @@ def _lazy_student_fk_models():
             (StudentSubjectResult, "student", False),
             (AnnualSubjectResult, "student", False),
             (BehaviorInfraction, "student", False),
+            (AutoInfractionNotice, "student", False),  # علامةُ إبلاغ الأسرة بمخالفة رصد
             (StudentAttendance, "student", False),
             (AbsenceAlert, "student", False),
             (AbsenceExcuse, "student", False),  # عذرُ غياب (يحوي مستنداً)

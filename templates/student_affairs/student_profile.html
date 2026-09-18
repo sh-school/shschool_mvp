@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
 {% load icons %}
 {% load navigation %}
-{% load privacy ui %}
+{% load privacy ui labels %}
 {% comment %}
   المشرفُ الإداريُّ يفتح هذا الملفَّ لطالبٍ من جناحه (`limited`، قرارُ 2026-09-15): لا درجاتٍ
   ولا أنشطةَ ولا انتقالات، ومن العيادة تاريخُ الزيارة و«أُعيد إلى المنزل» وحدَهما. والشاشةُ
@@ -56,7 +56,7 @@
           <dt>الاسم</dt><dd>{{ student.full_name }}</dd>
           <dt>الرقم الشخصي</dt><dd dir="ltr">{{ student.national_id|mask_id }}</dd>
           {% if enrollment %}
-          <dt>الصف / الشعبة</dt><dd>{{ enrollment.class_group.get_grade_display }} — الشعبة {{ enrollment.class_group.section }}</dd>
+          <dt>الصف / الشعبة</dt><dd>{% class_label enrollment.class_group.grade enrollment.class_group.section %}</dd>
           {% endif %}
           {% if profile and profile.birth_date %}
           <dt>تاريخ الميلاد</dt><dd>{{ profile.birth_date|date:"d/m/Y" }}</dd>

@@ -98,6 +98,20 @@ def test_the_grant_ends_with_the_cover(client_as, school, wing, principal):
     assert "لم تُفعَّل صلاحيّاتُك" in body
 
 
+def test_past_days_belong_to_todays_holder_not_to_the_date_in_the_link(
+    client_as, school, wing, principal
+):
+    """الوصولُ بحامل اليوم: البديلُ المنتهي لا يعود بتاريخ تكليفه، والأصيلُ يراجع ما فاته."""
+    substitute = _staff(school, "بديلُ الأسبوع الماضي", "admin_supervisor", "29400000009")
+    today = timezone.localdate()
+    covered_day = today - dt.timedelta(days=2)
+    _cover(wing, substitute, principal, today - dt.timedelta(days=5), today - dt.timedelta(days=1))
+    url = reverse("wings:record_index") + f"?date={covered_day:%Y-%m-%d}"
+
+    assert "جناح 4" not in client_as(substitute).get(url).content.decode()
+    assert "جناح 4" in client_as(wing.supervisor).get(url).content.decode()
+
+
 def test_the_substitute_opens_no_other_wing_screen(client_as, school, wing, principal):
     """البوّابةُ تُدخل أدوارَ البديل، وكلُّ شاشةٍ تقرّر بحارسها: الرصدُ بالتكليف، والبقيّةُ لا."""
     substitute = _staff(school, "البديل", "services_worker", "29400000008")

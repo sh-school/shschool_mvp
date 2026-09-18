@@ -16,13 +16,13 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
-from django_ratelimit.decorators import ratelimit
 
 from core.auth_identity import identifier_kind, lockout_key, resolve_user
 from core.mfa_session import mark_verified
 from core.models import AuditLog, CustomUser
 from core.models.access import TIER_5_BENEFICIARIES
 from core.privacy import mask_national_id
+from core.ratelimit_safe import ratelimit
 
 logger = logging.getLogger(__name__)
 

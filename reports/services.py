@@ -380,7 +380,7 @@ class AcademicReportsService:
                 {
                     "student_name": grade.student.full_name,
                     "subject": grade.assessment.package.setup.subject.name_ar,
-                    "class_group": str(grade.assessment.package.setup.class_group),
+                    "class_group": grade.assessment.package.setup.class_group.short_label,
                     "title": grade.assessment.title,
                     "date": grade.assessment.date,
                     "max_grade": float(grade.assessment.max_grade),
@@ -392,11 +392,13 @@ class AcademicReportsService:
 
         # lookups for filter dropdowns (scoped to the school)
         subjects = list(Subject.objects.filter(school=school).order_by("name_ar"))
-        classes = list(
-            ClassGroup.objects.filter(school=school, academic_year=year, is_active=True).order_by(
-                "grade", "section"
-            )
-        )
+        # عرضٌ رقميٌّ في القائمة المنسدلة — لا نصَّ الصفّ الكامل.
+        classes = [
+            (c.id, c.short_label)
+            for c in ClassGroup.objects.filter(
+                school=school, academic_year=year, is_active=True
+            ).order_by("grade", "section")
+        ]
 
         return {
             "school": school,
@@ -485,7 +487,7 @@ class AcademicReportsService:
                 scores.append(float(val))
 
             avg = cls._avg(scores)
-            cg_key = str(pkg.setup.class_group)
+            cg_key = pkg.setup.class_group.short_label
 
             row = {
                 "package": pkg.get_package_type_display(),
@@ -515,11 +517,13 @@ class AcademicReportsService:
                 }
             )
 
-        classes = list(
-            ClassGroup.objects.filter(school=school, academic_year=year, is_active=True).order_by(
-                "grade", "section"
-            )
-        )
+        # عرضٌ رقميٌّ في القائمة المنسدلة — لا نصَّ الصفّ الكامل.
+        classes = [
+            (c.id, c.short_label)
+            for c in ClassGroup.objects.filter(
+                school=school, academic_year=year, is_active=True
+            ).order_by("grade", "section")
+        ]
 
         return {
             "school": school,
@@ -613,11 +617,13 @@ class AcademicReportsService:
             for i, s in enumerate(students, start=1):
                 s["rank"] = i
 
-        classes = list(
-            ClassGroup.objects.filter(school=school, academic_year=year, is_active=True).order_by(
-                "grade", "section"
-            )
-        )
+        # عرضٌ رقميٌّ في القائمة المنسدلة — لا نصَّ الصفّ الكامل.
+        classes = [
+            (c.id, c.short_label)
+            for c in ClassGroup.objects.filter(
+                school=school, academic_year=year, is_active=True
+            ).order_by("grade", "section")
+        ]
 
         overall_pcts = [s["avg_pct"] for s in students if s["avg_pct"] is not None]
 
@@ -747,11 +753,13 @@ class AcademicReportsService:
         quiz_avg_all = cls._avg([r["quiz_avg"] for r in rows if r["quiz_avg"] is not None])
         total_infractions = sum(r["behavior_count"] for r in rows)
 
-        classes = list(
-            ClassGroup.objects.filter(school=school, academic_year=year, is_active=True).order_by(
-                "grade", "section"
-            )
-        )
+        # عرضٌ رقميٌّ في القائمة المنسدلة — لا نصَّ الصفّ الكامل.
+        classes = [
+            (c.id, c.short_label)
+            for c in ClassGroup.objects.filter(
+                school=school, academic_year=year, is_active=True
+            ).order_by("grade", "section")
+        ]
 
         return {
             "school": school,
@@ -915,7 +923,7 @@ class AcademicReportsExcel:
                 ]
             )
         cg = data.get("class_group")
-        title = f"تقارير التقدم الأكاديمي — {cg}" if cg else "تقارير التقدم الأكاديمي"
+        title = f"تقارير التقدم الأكاديمي — {cg.short_label}" if cg else "تقارير التقدم الأكاديمي"
         wb = cls._build(
             "التقدم الأكاديمي",
             title,
@@ -1189,7 +1197,7 @@ class ExcelService:
         cls._add_professional_header(
             ws,
             school.name,
-            f"كشف نتائج الفصل — {class_group}",
+            f"كشف نتائج الفصل — {class_group.short_label}",
             year,
             num_cols,
         )
@@ -1255,7 +1263,7 @@ class ExcelService:
         else:
             cls._setup_print_a4_portrait(ws, num_cols, len(data["student_rows"]))
 
-        filename = f"نتائج_{class_group.get_grade_display()}_{class_group.section}_{year}.xlsx"
+        filename = f"نتائج_{class_group.grade.removeprefix('G')}_{class_group.section}_{year}.xlsx"
         return cls.to_response(wb, filename)
 
     @classmethod
@@ -1285,7 +1293,7 @@ class ExcelService:
         cls._add_professional_header(
             ws,
             school.name,
-            f"تقرير الحضور والغياب — {class_group}",
+            f"تقرير الحضور والغياب — {class_group.short_label}",
             year,
             num_cols,
         )
@@ -1337,7 +1345,7 @@ class ExcelService:
         else:
             cls._setup_print_a4_portrait(ws, num_cols, len(data["student_rows"]))
 
-        filename = f"غياب_{class_group.get_grade_display()}_{class_group.section}_{year}.xlsx"
+        filename = f"غياب_{class_group.grade.removeprefix('G')}_{class_group.section}_{year}.xlsx"
         return cls.to_response(wb, filename)
 
     @classmethod

@@ -68,6 +68,7 @@ from behavior.models import ViolationCategory
 from core.capabilities import capability_required, has_capability
 from core.domain.tones import SHARE_KPI, tone_for
 from core.models import BehaviorInfraction, CustomUser
+from core.navigation import can_open
 from wings.scope import student_scope_for
 
 # ── نطاقُ الطلبة ─────────────────────────────────────────────
@@ -124,61 +125,16 @@ def _get_scoped_students(request, school):
 
 from core.academic_calendar import academic_year_for
 
+from .notify import notify_behavior_after_commit
 from .services import (
     PERIOD_CHOICES,
     BehaviorPermissions,
     BehaviorService,
 )
 
-
-def _notify_behavior_after_commit(infraction, school, reporter):
-    """[B4-PRE3] إشعار وليّ الأمر بمخالفة — بعد أن تُصبح المخالفة نهائية.
-
-    هذان المساران يُطابران المهمّة مباشرةً لا عبر `NotificationHub`، فلا يشملهما
-    التأجيل الذي أُدخل في B4-PRE2. ووضعُ حدٍّ معامليّ حول إنشاء المخالفة بلا
-    تأجيل هذا الطبر كان سيُعيد العطب نفسه من باب آخر: طبرٌ داخل معاملة مفتوحة،
-    ومع `CELERY_TASK_ALWAYS_EAGER` إرسالٌ فعليّ قبل الالتزام.
-
-    و[B4-7A.3] الـ`except` يبقى **داخل** الـcallback لأن فشل النشر يقع بعد
-    الالتزام، فلا يبلغه `except` خارجه أصلاً. وما يحرسه اليوم هو الاحتواء
-    والرصد في موضع الوقوع — لا ارتداد متزامن: الإشعار لا يُعاد تنفيذه من
-    الويب، والفشل يُسجَّل ولا يُعوَّض.
-    """
-    try:
-        # [B4-7A.3] `OperationalError` هو ما يرفعه Kombu فعلاً عند سقوط الوسيط،
-        # ونسبُه `KombuError → Exception` — خارج الثلاثة الأخرى تماماً. فبدونه
-        # كان الاستثناء يخرج من هنا، فتضيع رسالتنا ويصير الرصد سطراً عامّاً من
-        # Django لا يذكر مخالفةً ولا إشعاراً. أُثبت ذلك سلوكياً قبل الإضافة.
-        from kombu.exceptions import OperationalError
-
-        from notifications.tasks import notify_behavior_task
-
-        notify_behavior_task.delay(
-            infraction_id=str(infraction.id),
-            reporter_id=str(reporter.id),
-            school_id=str(school.id),
-        )
-    except (ImportError, OSError, RuntimeError, OperationalError):
-        # [B4-7A.3] لا ارتداد متزامن — الفشل يُرصد ولا يُعوَّض هنا.
-        #
-        # كان هذا الموضع يستدعي `BehaviorService.notify_parents` مباشرةً، وهي
-        # تعود إلى `NotificationHub`، والـHub بدوره يرتدّ إلى `_send_sync` —
-        # فينتهي الأمر بنداءات مزوّد داخل طلب HTTP، بلا مهلة ولا إعادة ولا
-        # استئجار ولا شيء ممّا بنيناه في B4-5/B4-6.
-        #
-        # وأخطر من البطء: فشلُ النشر **غامض**. قد يكون الوسيط قبِل الرسالة ثم
-        # انقطع الاتصال قبل الإقرار — فيعمل العامل والويب معاً، ويصل الإشعار
-        # مرّتين، ويُكتب صفّا `InAppNotification` لحدثٍ واحد. ولا سياج يمنع ذلك
-        # في هذا المسار القديم: لا `NotificationDispatch` ولا استحواذ.
-        #
-        # فنختار خسارة محاولة إشعار نادرة عند عطل الوسيط على تكرارٍ يكسر
-        # الدلالة. و`logger.error` — لا `warning` — لأن `LoggingIntegration`
-        # يرفع `ERROR` فأعلى إلى Sentry، فيصير العطل مرئياً لا مدفوناً.
-        logger.error(
-            "broker publish failed — إشعار المخالفة %s لم يُطابر ولن يُرسل",
-            infraction.pk,
-            exc_info=True,
-        )
+# [B4-PRE3] المساعدُ المؤجَّل — انتقل إلى `behavior/notify.py` ليستدعيه كشفُ الحصص
+# أيضاً بلا أن تستورد خدمةٌ شاشة، وبقي اسمُه هنا لشاشتَي المخالفة.
+_notify_behavior_after_commit = notify_behavior_after_commit
 
 
 # ── لوحة التحكم ──────────────────────────────────────────────
@@ -394,8 +350,7 @@ def report_infraction(request):
                     messages.warning(
                         request, f"تم إحالة المخالفة للجنة الضبط السلوكي لكونها من الدرجة {level}"
                     )
-                    return redirect("behavior:committee")
-                return redirect("behavior:student_profile", student_id=student.id)
+                return redirect(_after_record_url(request.user, student.id, level))
 
     students = _get_scoped_students(request, school)
     return render(
@@ -519,10 +474,9 @@ def quick_log(request):
                 robust=True,
             )
 
-        redirect_url = f"/behavior/student/{student.id}/"
+        redirect_url = _after_record_url(request.user, student.id, level)
         msg = f"تم تسجيل مخالفة درجة {level} للطالب {student.full_name}"
         if level >= 3:
-            redirect_url = "/behavior/committee/"
             msg += " — تم إحالتها للجنة الضبط"
         return htmx_redirect(redirect_url, msg=msg, msg_type="success")
 
@@ -534,6 +488,18 @@ def quick_log(request):
         "behavior/partials/quick_log_form.html",
         _quick_log_context(request, school, student_id_hint),
     )
+
+
+def _after_record_url(user, student_id, level: int) -> str:
+    """وجهةُ ما بعد التسجيل: الجسيمةُ إلى اللجنة لمن يفتحها، وإلّا ملفُّ الطالب.
+
+    المشرفُ الإداريّ يسجّل الدرجتين الثالثة والرابعة ولا يدخل صفحةَ اللجنة،
+    فتحويلُه إليها كان يُريه «غير مصرّح» بعد حفظٍ ناجح. والإحالةُ نفسُها
+    تتمّ في `create_infraction` أيّاً كانت الوجهة.
+    """
+    if level >= 3 and can_open(user, "behavior:committee"):
+        return reverse("behavior:committee")
+    return reverse("behavior:student_profile", kwargs={"student_id": student_id})
 
 
 def _quick_log_context(request, school, preselected_student_id=""):
@@ -1113,7 +1079,7 @@ def student_behavior_pdf(request, student_id):
         "student": student,
         "school": school,
         "class_name": str(cg) if cg else None,
-        "student_grade": cg.get_grade_display() if cg else None,
+        "student_grade": cg.grade.removeprefix("G") if cg else None,
         "student_section": cg.section if cg else None,
         "academic_year": year,
         "generated_at": _tz.now(),

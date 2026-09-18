@@ -150,8 +150,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
-<script nonce="{{ request.csp_nonce }}">
+<script src="{% static 'js/vendor/chart.umd.min.js' %}" defer></script>
+<script nonce="{{ request.csp_nonce }}" defer>
   (function () {
     var data = JSON.parse(document.getElementById("lab-radar-data").textContent);
     var el = document.getElementById("lab-radar");
