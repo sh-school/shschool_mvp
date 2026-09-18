@@ -27,9 +27,11 @@ from .appraisal_forms import forms_by_role
 from .evaluation_services import (
     PRINCIPAL_NOT_EVALUATED,
     SELF_EVALUATION,
+    TEMPLATE_OFF_FORM,
     EvaluationRejectedError,
     annual_rating_summary,
     axis_values,
+    form_template_ok,
     is_academic_year,
     is_school_principal,
     record_receipt_on_refusal,
@@ -340,6 +342,11 @@ def create_evaluation(request, employee_id):
     axis_rows = [(key, label, weight, values[key]) for key, label, weight in axes]
     role_name = _get_employee_role(school, employee)
     subtitle_parts = [employee.full_name, role_name, obj.get_period_display(), year]
+    # التقريرُ السنويّ على قالبٍ خرج عن الاستمارة لا يُحفظ ولا يُعتمد (المادة 15،
+    # 02_staff_affairs.md:199) — فلا يُعرض زرٌّ يُفضي إلى رفض، ويُقال السببُ مرّةً.
+    off_form = period == EmployeeEvaluation.MINISTRY_PERIOD and not form_template_ok(obj)
+    if off_form and template is not None:
+        messages.warning(request, TEMPLATE_OFF_FORM)
 
     return render(
         request,
@@ -362,10 +369,12 @@ def create_evaluation(request, employee_id):
             # المادة 16: واضعٌ واحد — فغيرُه يرى التقريرَ ولا يحفظ عليه.
             "is_editable": obj.status in ("draft", "submitted")
             and (not has_content or obj.evaluator_id == request.user.pk)
-            and not (period == EmployeeEvaluation.MINISTRY_PERIOD and template is None),
+            and not off_form,
+            # الاعتمادُ يرفض ما ليس درجاتِ الاستمارة (`approve_evaluation`)، فالزرُّ بشرطه نفسه.
             "can_approve": bool(existing)
             and obj.status == "submitted"
-            and request.user.get_role() == "principal",
+            and request.user.get_role() == "principal"
+            and (period != EmployeeEvaluation.MINISTRY_PERIOD or obj.has_form_scores()),
             "can_record_receipt": bool(existing)
             and obj.status == "approved"
             and obj.acknowledged_at is None

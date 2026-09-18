@@ -9,8 +9,14 @@ quality/appraisal_seed.py
 تُبذر أربعَ مرّات (سكرتير، محاسب، استقبال، فنّيّ تقنية).
 
 الخطّةُ لا تكتب شيئاً، والتطبيقُ لا يلمس ما طابق (فالتشغيلُ الثاني صفرُ كتابات)،
-ولا يغيّر قالباً عليه تقييماتٌ محفوظة — درجاتُها مخزّنةٌ بمفاتيح محاوره. ويُعاد فحصُ
-هذا القفل داخل معاملة الكتابة، فتقييمٌ رُبط بالقالب بين العرض والتطبيق يُقفله.
+ولا يغيّر قالباً عليه تقريرٌ معتمَد (`approved`/`acknowledged`) — تلك نسخةٌ اعتمدها المدير
+وأُعلن بها الموظّف (المادة 16، 02_staff_affairs.md:200؛ والتظلّمُ عليها، المادة 20). ويُعاد
+فحصُ هذا القفل داخل معاملة الكتابة، فتقريرٌ اعتُمد بين العرض والتطبيق يُقفله.
+
+وقالبٌ خرج عن استمارته وعليه تقاريرُ لم تُعتمد يُعاد إليها، وتُرجَع تلك التقاريرُ مسودّاتٍ بلا
+مجموعٍ ولا مستوى (بسطرٍ في سجلّ التدقيق لكلٍّ منها): درجاتُها بمفاتيحه لكن على أوزانٍ غير
+المطبوعة، فيعيد واضعُها وضعَها. كان كلُّ تقييمٍ يُقفله، فلا يُعتمد تقريرٌ سنويٌّ عليه ولا يُصحَّح
+قالبُه أبداً (`save_evaluation` يرفض الآن حفظه). وإرجاعُها مسودّاتٍ اختيارٌ هندسيٌّ لا حكمٌ وزاريّ.
 
 والتقييماتُ القائمةُ خارج القالب (على المحاور الافتراضيّة، أو على قالب دورٍ سابقٍ
 للموظّف) تُعدّ في الخطّة لكلّ دور ولا تُنقل: شاشةُ التقييم تعرض ما عليه درجاتٌ على
@@ -24,13 +30,16 @@ from dataclasses import dataclass, field
 
 from django.db import transaction
 from django.db.models import Count, Q
+from django.utils import timezone
 
-from core.models import Membership, Role, School
+from core.models import AuditLog, Membership, Role, School
 
 from .appraisal_forms import AppraisalForm, forms_by_role
 from .models import EmployeeEvaluation, EvaluationAxis, RoleEvaluationTemplate
 
 _KNOWN_ROLE_NAMES = frozenset(name for name, _label in Role.ROLES)
+#: تقريرٌ اعتمده المدير — يُقفل قالبَه.
+FINAL_STATUSES = ("approved", "acknowledged")
 
 
 @dataclass
@@ -39,7 +48,10 @@ class TemplatePlan:
     form: AppraisalForm
     template: RoleEvaluationTemplate | None
     changes: list[str] = field(default_factory=list)
+    #: تقاريرُ معتمَدةٌ على القالب — تُقفله.
     evaluations: int = 0
+    #: تقاريرُ غيرُ معتمَدةٍ عليه — تُرجَع مسودّاتٍ إن تغيّر.
+    open_evaluations: int = 0
     #: تقييماتٌ محفوظةٌ لموظّفين بهذا الدور في العام، ليست على هذا القالب — لا تُنقل إليه.
     outside_template: int = 0
 
@@ -113,7 +125,10 @@ def build_plan(school: School, year: str) -> SchoolPlan:
     existing = {
         t.role_name: t
         for t in RoleEvaluationTemplate.objects.filter(school=school, academic_year=year)
-        .annotate(n_evaluations=Count("evaluations"))
+        .annotate(
+            n_evaluations=Count("evaluations"),
+            n_final=Count("evaluations", filter=Q(evaluations__status__in=FINAL_STATUSES)),
+        )
         .prefetch_related("axes")
     }
     outside = _saved_outside_template(school, year, existing)
@@ -128,7 +143,8 @@ def build_plan(school: School, year: str) -> SchoolPlan:
         )
         if template is not None:
             plan.changes = _diff(template, form)
-            plan.evaluations = template.n_evaluations
+            plan.evaluations = template.n_final
+            plan.open_evaluations = template.n_evaluations - template.n_final
         plans.append(plan)
     orphans = [t for name, t in sorted(existing.items()) if name not in _KNOWN_ROLE_NAMES]
     return SchoolPlan(school=school, year=year, templates=plans, orphans=orphans)
@@ -137,15 +153,15 @@ def build_plan(school: School, year: str) -> SchoolPlan:
 @transaction.atomic
 def apply_plan(plan: SchoolPlan, *, prune_orphans: bool = False) -> dict[str, int]:
     """يكتب ما في الخطّة. يُرجع عدّاداتٍ للعرض."""
-    counts = {"created": 0, "updated": 0, "same": 0, "locked": 0, "pruned": 0}
+    counts = {"created": 0, "updated": 0, "same": 0, "locked": 0, "reopened": 0, "pruned": 0}
     for tp in plan.templates:
         if tp.status == "changed" and tp.template is not None:
-            # الخطّةُ بُنيت خارج هذه المعاملة: قد يكون تقييمٌ رُبط بالقالب منذئذ.
+            # الخطّةُ بُنيت خارج هذه المعاملة: قد يكون تقريرٌ اعتُمد على القالب منذئذ.
             locked = (
                 RoleEvaluationTemplate.objects.select_for_update().filter(pk=tp.template.pk).first()
             )
-            if locked is not None and locked.evaluations.exists():
-                tp.evaluations = locked.evaluations.count()
+            if locked is not None:
+                tp.evaluations = locked.evaluations.filter(status__in=FINAL_STATUSES).count()
         if tp.status in ("same", "locked"):
             counts[tp.status] += 1
             continue
@@ -164,6 +180,7 @@ def apply_plan(plan: SchoolPlan, *, prune_orphans: bool = False) -> dict[str, in
             )
             keys.append(axis.key)
         EvaluationAxis.objects.filter(template=template).exclude(key__in=keys).delete()
+        counts["reopened"] += _reopen_on_changed_template(plan.school, template)
         counts["created" if tp.status == "new" else "updated"] += 1
     if prune_orphans:
         for orphan in plan.orphans:
@@ -172,3 +189,37 @@ def apply_plan(plan: SchoolPlan, *, prune_orphans: bool = False) -> dict[str, in
             orphan.delete()
             counts["pruned"] += 1
     return counts
+
+
+def _reopen_on_changed_template(school: School, template: RoleEvaluationTemplate) -> int:
+    """
+    تقاريرُ القالب غيرُ المعتمَدة (والقفلُ ضمن أنْ لا معتمَدَ عليه) تُرجَع مسودّاتٍ بلا مجموعٍ ولا
+    مستوى: حُسبت على أوزانٍ غير المطبوعة. وكلُّ واحدٍ بسطرٍ في سجلّ التدقيق — لا فاعلَ بشريّاً له.
+    """
+    rows = list(
+        template.evaluations.select_for_update()
+        .exclude(status__in=FINAL_STATUSES)
+        .values_list("pk", "status", "total_score", "rating")
+    )
+    if not rows:
+        return 0
+    template.evaluations.filter(pk__in=[pk for pk, *_ in rows]).update(
+        status="draft", total_score=0, rating="", updated_at=timezone.now()
+    )
+    for pk, status, total_score, rating in rows:
+        # `AuditLog.log` بلا طلب هو هذا الإنشاءُ نفسُه — وهو بلا أنواع، فلا يُستدعى من شيفرةٍ مُنوَّعة.
+        AuditLog.objects.create(
+            user=None,
+            action="update",
+            model_name="other",
+            object_id=str(pk),
+            object_repr="seed_quality_templates: قالبٌ أُعيد إلى الاستمارة",
+            school=school,
+            changes={
+                "status": [status, "draft"],
+                "total_score": [total_score, 0],
+                "rating": [rating, ""],
+                "template": str(template.pk),
+            },
+        )
+    return len(rows)

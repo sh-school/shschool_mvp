@@ -254,6 +254,10 @@ def test_dry_run_shows_drift_and_apply_repairs_it(school):
 
 @pytest.mark.django_db
 def test_template_with_evaluations_is_never_rewritten(school, principal_user, teacher_user):
+    """
+    القفلُ تقريرٌ معتمَد (المادة 16) — منذ جولة الإصلاح 5؛ وغيرُ المعتمَد يُرجَع مسودّةً
+    (`tests/test_evaluation_review_round6.py`).
+    """
     _seed(school, "--apply")
     template = RoleEvaluationTemplate.objects.get(
         school=school, role_name="teacher", academic_year=YEAR
@@ -265,6 +269,7 @@ def test_template_with_evaluations_is_never_rewritten(school, principal_user, te
         template=template,
         academic_year=YEAR,
         period="S1",
+        status="approved",
     )
     template.axes.filter(key="assessment").update(weight=20)
 
@@ -408,7 +413,7 @@ def test_blank_draft_is_still_moved_to_the_role_template(
 
 @pytest.mark.django_db
 def test_lock_is_rechecked_inside_the_write(school, principal_user, teacher_user):
-    """تقييمٌ رُبط بالقالب بين بناء الخطّة وتطبيقها يُقفله — فلا تُحذف محاورُه."""
+    """تقريرٌ معتمَدٌ رُبط بالقالب بين بناء الخطّة وتطبيقها يُقفله — فلا تُحذف محاورُه."""
     from quality.appraisal_seed import apply_plan, build_plan
 
     _seed(school, "--apply")
@@ -426,6 +431,7 @@ def test_lock_is_rechecked_inside_the_write(school, principal_user, teacher_user
         template=template,
         academic_year=YEAR,
         period="S2",
+        status="approved",
     )
     counts = apply_plan(plan)
     assert counts["locked"] == 1

@@ -25,7 +25,7 @@ _STATUS_LABEL = {
     "new": "جديد",
     "same": "مطابق",
     "changed": "يختلف",
-    "locked": "يختلف — مقفل (عليه تقييمات، لا يُغيَّر)",
+    "locked": "يختلف — مقفل (عليه تقريرٌ معتمَد، لا يُغيَّر)",
 }
 
 
@@ -79,6 +79,13 @@ class Command(BaseCommand):
             )
             for change in tp.changes:
                 self.stdout.write(f"      {change}")
+            if tp.status == "changed" and tp.open_evaluations:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"      تقاريرُ غيرُ معتمَدةٍ عليه يُعاد مسودّةً: {tp.open_evaluations}"
+                        " — بلا مجموعٍ ولا مستوى، ويعيد واضعُها وضعَها"
+                    )
+                )
             if tp.outside_template:
                 self.stdout.write(
                     self.style.WARNING(

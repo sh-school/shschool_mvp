@@ -97,6 +97,22 @@ SELF_EVALUATION = (
 )
 
 
+#: قالبُ التقرير السنويّ لم يعد استمارةَ دوره المطبوعة (وزنٌ أو محورٌ تغيّر بعد البذر). والمخرجُ
+#: `seed_quality_templates --apply`: يعيده إلى الاستمارة ويُرجع ما عليه مسودّةً (`appraisal_seed`)،
+#: ما لم يكن عليه تقريرٌ معتمَد.
+TEMPLATE_OFF_FORM = (
+    "قالبُ هذا التقرير لا يطابق استمارةَ الوزارة المطبوعة لدور الموظّف — المادة 15: «وفقاً "
+    "للنماذج المعتمدة من الوزير» (02_staff_affairs.md:199). يُصحَّح بـ"
+    "seed_quality_templates --apply، فإن بقي مقفلاً بتقريرٍ معتمَد فالأمرُ للمالك."
+)
+
+
+def form_template_ok(evaluation: EmployeeEvaluation) -> bool:
+    """أمربوطٌ بقالبٍ هو استمارةُ دوره المطبوعة؟ (`RoleEvaluationTemplate.matches_ministry_form`)."""
+    template = evaluation.template if evaluation.template_id is not None else None
+    return template is not None and template.matches_ministry_form()
+
+
 def is_school_principal(school: School, user: CustomUser) -> bool:
     """
     ألَه عضويّةٌ نشطةٌ بدور المدير في هذه المدرسة — أيّاً كانت عضويّاتُه الأخرى. كان الفحصُ
@@ -300,6 +316,10 @@ def save_evaluation(
             "التقريرُ السنويّ يوضع على استمارة الوزارة لدور الموظّف، ولا استمارةَ له هنا — "
             "المادة 15: «وفقاً للنماذج المعتمدة من الوزير» (02_staff_affairs.md:199)."
         )
+    # والقالبُ نفسُه استمارةُ دوره كما طُبعت (`matches_ministry_form`): مسودّةٌ عليها درجاتٌ
+    # تبقى على قالبها، فإن خرج عن الاستمارة بعدها كان تقديمُها يُقبل ولا يُعتمد أبداً.
+    if evaluation.period == EmployeeEvaluation.MINISTRY_PERIOD and not form_template_ok(evaluation):
+        raise EvaluationRejectedError(TEMPLATE_OFF_FORM)
     scores = parse_axis_scores(axes, data)
 
     if _uses_default_axes(axes):

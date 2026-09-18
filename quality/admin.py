@@ -3,6 +3,7 @@ import logging
 from django.contrib import admin
 
 from core.academic_calendar import academic_year_for, default_academic_year
+from core.models import AuditLog
 
 logger = logging.getLogger(__name__)
 
@@ -336,14 +337,51 @@ class EmployeeEvaluationAdmin(admin.ModelAdmin):
     )
     inlines = [EvaluationScoreInline]
 
+    #: نصوصُ الواضع: تُصحَّح هنا ما دام التقريرُ لم يُعتمد.
+    _EVALUATOR_TEXTS = ("strengths", "improvements", "goals_next")
+
     def has_add_permission(self, request):
         return False
 
+    def get_readonly_fields(self, request, obj=None):
+        """
+        تعليقُ الموظّف كلامُه — يكتبه مسارُ الإقرار وحده (`EmployeeEvaluation.acknowledge`). ونصوصُ الواضع تُقفل
+        باعتماد المدير: النسخةُ المعتمَدةُ (المادة 16، 02_staff_affairs.md:200) هي التي أُعلن بها
+        الموظّفُ وعليها يتظلّم خلال خمسة عشر يوماً (المادة 20، صفحة الملفّ 12)، ومسارُ الشاشة
+        يرفض أيَّ تعديلٍ بعدها (`save_evaluation`). وتواريخُ التظلّم تبقى للّوحة.
+        """
+        fields = [*self.readonly_fields, "employee_comment"]
+        if obj is not None and obj.status in ("approved", "acknowledged"):
+            fields.extend(self._EVALUATOR_TEXTS)
+        return fields
+
     def save_model(self, request, obj, form, change):
-        # الحقولُ القابلةُ للتحرير نصوصٌ وحدها، فتُكتب وحدها: لا يُعاد حسابُ المجموع.
-        changed = [f for f in form.changed_data if f not in self.readonly_fields]
-        if changed:
-            obj.save(update_fields=[*changed, "updated_at"])
+        # الحقولُ القابلةُ للتحرير نصوصٌ وتواريخُ وحدها، فتُكتب وحدها: لا يُعاد حسابُ المجموع.
+        # والقفلُ من الحالة المحفوظة لا من نسخة النموذج، وكلُّ تغييرٍ بسطرٍ في سجلّ التدقيق كما
+        # في مسارات الشاشة.
+        stored = type(obj).objects.get(pk=obj.pk)
+        readonly = set(self.get_readonly_fields(request, stored))
+        changed = [f for f in form.changed_data if f not in readonly]
+        if not changed:
+            return
+        obj.save(update_fields=[*changed, "updated_at"])
+        AuditLog.log(
+            user=request.user,
+            action="update",
+            model_name="other",
+            object_id=obj.pk,
+            object_repr=str(obj),
+            school=obj.school,
+            request=request,
+            changes={
+                f: [_audit_value(getattr(stored, f)), _audit_value(getattr(obj, f))]
+                for f in changed
+            },
+        )
+
+
+def _audit_value(value):
+    return value.isoformat() if hasattr(value, "isoformat") else value
 
 
 @admin.register(EvaluationLevelBackup)

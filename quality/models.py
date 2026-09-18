@@ -1328,13 +1328,20 @@ class EvaluationCycle(models.Model):
         ).values("user_id")
         # بلا ترتيبٍ افتراضيّ: حقولُ الترتيب تدخل DISTINCT فيُعدّ الموظّفُ مرّتين.
         total_staff = staff_ids.order_by().distinct().count()
-        evaluated = EmployeeEvaluation.objects.filter(
+        placed = EmployeeEvaluation.objects.filter(
             school=self.school,
             academic_year=self.academic_year,
             period=self.period,
             status__in=["submitted", "approved", "acknowledged"],
             employee_id__in=staff_ids,
-        ).count()
+        )
+        if self.period == EmployeeEvaluation.MINISTRY_PERIOD:
+            # تقريرٌ سنويٌّ ليس على درجات الاستمارة لا يُعتمد (`approve_evaluation`) — فلا يُعدّ
+            # منجزاً؛ كان مُقدَّمٌ على قالبٍ خرج عن الاستمارة يُكمل الدورةَ ولا سبيلَ إلى اعتماده.
+            rows = placed.select_related("template").prefetch_related("scores", "template__axes")
+            evaluated = sum(1 for row in rows if row.has_form_scores())
+        else:
+            evaluated = placed.count()
         return round(evaluated / total_staff * 100) if total_staff else 0
 
 
