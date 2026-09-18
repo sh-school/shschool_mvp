@@ -94,7 +94,7 @@ PyJWT==2.13.0
 pyOpenSSL==26.4.0
 pyotp==2.9.0
 pypdf==6.16.1
-pypdfium2==5.6.0
+pypdfium2==5.13.0
 pyphen==0.17.2
 python-bidi==0.6.7
 python-crontab==3.3.0
