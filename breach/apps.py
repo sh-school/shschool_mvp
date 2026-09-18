@@ -13,7 +13,6 @@ class BreachConfig(AppConfig):
             name="breach",
             label="خرق البيانات",
             url_prefix="/breach/",
-            icon="bi-shield-exclamation",
             # والنائبُ الأكاديميُّ يرث المنسّقَ فالمعلّم، فيمرّ من حارس الواجهة —
             # وكانت البوّابةُ تردّه (اختبار `test_module_gates_match_guards`).
             allowed_roles={

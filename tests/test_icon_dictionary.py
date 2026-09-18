@@ -214,6 +214,28 @@ def test_every_requested_meaning_exists(path, key):
     assert key in ICONS, f"{path}: لا أيقونةَ بالمعنى {key!r}"
 
 
+# ── لوحة الأوامر (core/views_search.py) — JSON لا وسمٌ، فلا يسقط عند العرض ──
+
+_SEARCH_VIEW = ROOT / "core" / "views_search.py"
+_SEARCH_ICON_RE = re.compile(r'"icon":\s*"([^"]*)"')
+
+
+def _search_view_icon_keys():
+    return sorted(set(_SEARCH_ICON_RE.findall(_SEARCH_VIEW.read_text(encoding="utf-8"))))
+
+
+@pytest.mark.parametrize("key", _search_view_icon_keys())
+def test_the_command_palette_names_a_real_meaning(key):
+    """كانت نتائجُ Ctrl+K إيموجي خاماً (🎓👨‍🏫🏠…) — رسمٌ موازٍ خارج القاموس
+    تماماً، لا يمرّ على `{% icon %}` فلا يحرسه شيء. صار كلُّ عنصرٍ مفتاحاً
+    دلاليّاً يرسمه `static/js/app.js` من الورقة نفسها التي يرسمها الوسم —
+    فهذا الحارسُ يمنع عودة رمزٍ خامٍّ، والتصيير الفعليّ في المتصفّح يبقى
+    خارج نطاق هذا الملفّ الساكن.
+    """
+    assert key, "قيمةُ icon فارغة في core/views_search.py"
+    assert key in ICONS, f"core/views_search.py: لا أيقونةَ بالمعنى {key!r}"
+
+
 def test_the_shell_speaks_only_the_dictionary():
     """القائمةُ وشريطُ الهاتف والرأس: لا ورقةَ قديمة، ولا حرفَ يقوم مقامَ رسم."""
     base = (TEMPLATES / "base" / "base.html").read_text(encoding="utf-8")
