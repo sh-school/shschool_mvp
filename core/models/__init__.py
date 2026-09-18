@@ -43,6 +43,7 @@ from .base import (  # noqa: F401
     TimeStampedModel,
 )
 from .department import Department  # noqa: F401
+from .export_job import ExportJob  # noqa: F401
 from .permission_audit import PermissionAuditLog  # noqa: F401
 from .school import School, _uuid  # noqa: F401
 from .stored_file import StoredFile  # noqa: F401
@@ -85,6 +86,7 @@ __all__ = [
     "ErasureRequest",
     "Department",
     "PermissionAuditLog",
+    "ExportJob",
     # re-exported from sub-apps
     "HealthRecord",
     "ClinicVisit",

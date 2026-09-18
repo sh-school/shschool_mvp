@@ -115,6 +115,12 @@ app.conf.beat_schedule = {
         "task": "core.worker_heartbeat",
         "schedule": crontab(minute="*/5"),
     },
+    # صفوفُ تصدير PDF/Excel الخلفيّة (البند 5، P4-6) مؤقّتة — تُحذف بعد يوم
+    # كي لا تتراكم محتوىً ثنائيّاً في القاعدة كملفّات `StoredFile` الدائمة.
+    "purge-expired-export-jobs": {
+        "task": "operations.purge_expired_export_jobs",
+        "schedule": crontab(hour=4, minute=0),  # يومياً 4:00 صباحاً
+    },
 }
 
 app.conf.update(timezone="Asia/Qatar")
