@@ -9,19 +9,20 @@
 
 {% block content %}
 {% csrf_token %}
-<div class="exec-dash notif-inbox">
+<div class="exec-dash">
 
   {% page_header "صندوق الإشعارات" icon="notifications" %}
     <span class="notif-shortcuts" tabindex="0" title="اختصارات: j/k للتنقل · m للتحديد كمقروء · Enter لفتح الرابط" aria-label="اختصارات لوحة المفاتيح: j و k للتنقل، m للتحديد كمقروء، Enter لفتح الرابط">{% icon "tip" %} الاختصارات</span>
+    {% comment %}
+    كان زرَّ HTMX يستهدف `#notif-list` فيضع فيه ردَّ الخادم «0» — فتُمحى القائمةُ
+    ويبقى صفرٌ وحده. والتحديدُ يغيّر كلَّ بطاقةٍ والأعدادَ معاً، فإعادةُ الصفحة
+    بنموذجٍ عاديٍّ أصدقُ من ترقيع أجزائها.
+    {% endcomment %}
     {% if unread_count %}
-    <button
-      hx-post="{% url 'mark_all_read' %}"
-      hx-target="#notif-list"
-      hx-swap="innerHTML"
-      hx-include="[name=csrfmiddlewaretoken]"
-      class="btn-primary btn-sm">
-      {% icon "status_success" %} تحديد الكل كمقروء
-    </button>
+    <form method="post" action="{% url 'mark_all_read' %}" class="notif-inline-form">
+      {% csrf_token %}
+      <button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} تحديد الكل كمقروء</button>
+    </form>
     {% endif %}
     <a href="{% url 'notification_preferences' %}" class="btn-secondary btn-sm">{% icon "settings" %} التفضيلات</a>
   {% endpage_header %}
@@ -30,25 +31,27 @@
   <div id="inbox-kpis">
     {% kpi_strip label="أرقام الصندوق" %}
       {% kpi "غير مقروء" unread_count|default:0 tone="maroon" %}
-      {% kpi "إجمالي" notifications|length tone="blue" title="آخرُ مئة إشعار" %}
+      {% kpi "عاجل لم يُقرأ" urgent_notifications|length tone="red" %}
+      {% kpi "إجمالي" total_count|default:0 tone="blue" %}
     {% endkpi_strip %}
   </div>
 
-  {% filter_bar "بحثٌ في الإشعارات" live=True %}
-    {% field "q" "بحث" type="search" id="notif-search" grow=True placeholder="بحث في الإشعارات..." autocomplete="off" %}
+  {# البحثُ والرقاقاتُ شريطٌ واحد: كانا بطاقةً للبحث وحدَه وسطراً للرقاقات تحتها. #}
+  {% filter_bar "بحثٌ في الإشعارات" live=True css="notif-toolbar" %}
+    {% field "q" "بحث" type="search" id="notif-search" placeholder="عنوانٌ أو نصّ..." autocomplete="off" %}
+    <nav class="chip-row notif-toolbar__chips" aria-label="ترشيح الإشعارات">
+      <a href="{% url 'notification_inbox' %}{% if unread_only %}?unread=1{% endif %}" class="status-badge notif-type {% if not event_filter %}status-maroon{% else %}status-gray{% endif %}"{% if not event_filter %} aria-current="page"{% endif %}>الكل <span class="notif-type__n">{{ total_count }}</span></a>
+      {% for code, label, n in event_types %}
+      <a href="{% url 'notification_inbox' %}?type={{ code }}{% if unread_only %}&amp;unread=1{% endif %}" class="status-badge notif-type {% if event_filter == code %}status-maroon{% else %}status-gray{% endif %}"{% if event_filter == code %} aria-current="page"{% endif %}>{{ label }} <span class="notif-type__n">{{ n }}</span></a>
+      {% endfor %}
+      <a href="{% url 'notification_inbox' %}?{% if event_filter %}type={{ event_filter }}&amp;{% endif %}{% if not unread_only %}unread=1{% endif %}" class="status-badge notif-type {% if unread_only %}status-maroon{% else %}status-gray{% endif %}" aria-pressed="{{ unread_only|yesno:'true,false' }}">{% icon "filter" %} غير المقروء فقط</a>
+    </nav>
   {% endfilter_bar %}
-
-  <nav class="chip-row" aria-label="نوع الإشعار">
-    <a href="{% url 'notification_inbox' %}" class="status-badge notif-type {% if not event_filter %}status-maroon{% else %}status-gray{% endif %}"{% if not event_filter %} aria-current="page"{% endif %}>الكل</a>
-    {% for code, label in event_types %}
-    <a href="{% url 'notification_inbox' %}?type={{ code }}" class="status-badge notif-type {% if event_filter == code %}status-maroon{% else %}status-gray{% endif %}"{% if event_filter == code %} aria-current="page"{% endif %}>{{ label }}</a>
-    {% endfor %}
-  </nav>
 
   {# العاجلُ غيرُ المقروء مثبَّتٌ أعلى الصندوق ومطروحٌ من القائمة تحته (العرض). #}
   {% if urgent_notifications %}
   {% section_card "إشعارات عاجلة" meta=urgent_notifications|length icon="status_critical" %}
-    <div class="notif-list" id="urgent-section">
+    <div class="notif-list notif-grid auto-grid" id="urgent-section">
       {% for notif in urgent_notifications %}
         {% include "notifications/partials/notif_item.html" with notif=notif %}
       {% endfor %}
@@ -57,16 +60,31 @@
   {% endif %}
 
   {% comment %}
-  `#notif-list` يبقى في الصفحة دائماً — زرُّ «تحديد الكل كمقروء» يستهدفه —
-  فالحالةُ الفارغةُ داخله لا بدلَه.
+  `#notif-list` يبقى في الصفحة دائماً — بحثُ الصفحة ومفاتيحُها يقرآنه —
+  فالحالةُ الفارغةُ داخله لا بدلَه. والإشعاراتُ مجموعاتٌ بالأيّام، وكلُّ مجموعةٍ
+  أعمدةٌ متجاورة (`group_by_day` ← `chunk_for_grid`): الإشعارُ سطرٌ أو سطران
+  وعددُها حتى المئة، فعمودٌ واحدٌ كان يطول بها ويترك عرضَ النافذة فارغاً.
   {% endcomment %}
-  {% section_card "الإشعارات" icon="notifications" %}
-    <div id="notif-list" class="notif-list">
-      {% for notif in other_notifications %}
-      {% include "notifications/partials/notif_item.html" with notif=notif %}
+  {% section_card "الإشعارات" meta=other_notifications|length icon="notifications" %}
+    <div id="notif-list" class="notif-feed">
+      {% for group in day_groups %}
+      <section data-notif-day aria-labelledby="notif-day-{{ group.key }}">
+        <h3 class="notif-day__title" id="notif-day-{{ group.key }}">{{ group.label }} <span class="notif-day__count">{{ group.count }}</span></h3>
+        <div class="auto-grid notif-grid">
+          {% for col in group.columns %}
+          <div class="notif-list">
+            {% for notif in col %}
+              {% include "notifications/partials/notif_item.html" with notif=notif %}
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
       {% empty %}
         {% if urgent_notifications %}
           {% empty_state "لا إشعاراتَ غيرُ العاجلة" icon="notifications" %}
+        {% elif unread_only or event_filter %}
+          {% empty_state "لا إشعاراتَ بهذا الترشيح" sub="اختر «الكل» لعرض الصندوق كاملاً" icon="notifications" %}
         {% else %}
           {% empty_state "لا توجد إشعارات" sub="ستظهر هنا إشعارات المدرسة والتنبيهات الهامة" icon="notifications" %}
         {% endif %}
@@ -87,15 +105,14 @@
   if (searchInput) {
     searchInput.addEventListener('input', function () {
       var q = this.value;
-      /* بحث في القائمة الرئيسية */
-      document.querySelectorAll('#notif-list [data-filter-item]').forEach(function (el) {
+      /* العاجلُ والقائمةُ معاً */
+      document.querySelectorAll('#notif-list [data-filter-item], #urgent-section [data-filter-item]').forEach(function (el) {
         var text = (el.getAttribute('data-title') || '') + ' ' + (el.getAttribute('data-body') || '');
-        el.style.display = window.smartMatch(q, text) ? '' : 'none';
+        el.hidden = !window.smartMatch(q, text);
       });
-      /* إخفاء/إظهار الإشعارات العاجلة أيضاً */
-      document.querySelectorAll('#urgent-section [data-filter-item]').forEach(function (el) {
-        var text = (el.getAttribute('data-title') || '') + ' ' + (el.getAttribute('data-body') || '');
-        el.style.display = window.smartMatch(q, text) ? '' : 'none';
+      /* مجموعةُ يومٍ لم يبقَ فيها ظاهرٌ تُخفى بعنوانها — لا عنوانَ فوق فراغ. */
+      document.querySelectorAll('#notif-list [data-notif-day]').forEach(function (day) {
+        day.hidden = !day.querySelector('[data-filter-item]:not([hidden])');
       });
     });
   }
@@ -112,7 +129,7 @@
   var activeIdx = -1;
 
   function getItems() {
-    return Array.from(document.querySelectorAll('#notif-list .notif-item'));
+    return Array.from(document.querySelectorAll('#notif-list .notif-item:not([hidden])'));
   }
 
   /* التمييزُ صنفٌ (`is-active`) لا تنسيقٌ يُكتب في العنصر. */

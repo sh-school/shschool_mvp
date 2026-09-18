@@ -230,10 +230,18 @@ def api_recent_notifications(request):
 @login_required
 def notification_inbox(request):
     """صفحة صندوق الإشعارات"""
+    from django.db.models import Count
+
+    from .inbox_presentation import group_by_day
+
     event_filter = request.GET.get("type", "")
-    qs = InAppNotification.objects.filter(user=request.user)
+    unread_only = request.GET.get("unread") == "1"
+    mine = InAppNotification.objects.filter(user=request.user)
+    qs = mine
     if event_filter:
         qs = qs.filter(event_type=event_filter)
+    if unread_only:
+        qs = qs.filter(is_read=False)
 
     notifications = list(qs.order_by("-created_at")[:100])
     # العاجلُ غيرُ المقروء يُثبَّت أعلى الصندوق **ويُطرح من القائمة تحته**.
@@ -258,11 +266,23 @@ def notification_inbox(request):
     STUDENT_TYPES = {"grade", "fail", "behavior", "absence", "clinic", "general"}
     role = getattr(request.user, "get_role", lambda: "")()
     if role == "parent":
-        visible_types = [t for t in InAppNotification.EVENT_TYPES if t[0] in PARENT_TYPES]
+        role_types = [t for t in InAppNotification.EVENT_TYPES if t[0] in PARENT_TYPES]
     elif role == "student":
-        visible_types = [t for t in InAppNotification.EVENT_TYPES if t[0] in STUDENT_TYPES]
+        role_types = [t for t in InAppNotification.EVENT_TYPES if t[0] in STUDENT_TYPES]
     else:
-        visible_types = InAppNotification.EVENT_TYPES
+        role_types = InAppNotification.EVENT_TYPES
+
+    # رقاقةُ نوعٍ لا إشعارَ منه ترشيحٌ يُفضي إلى صفحةٍ فارغة — كانت سبعَ عشرةَ
+    # رقاقةً للإداريّ أكثرُها كذلك. فالظاهرُ ما في الصندوق منه شيءٌ، وعددُه معه،
+    # والمختارُ يبقى ظاهراً وإن فرغ ليُلغى.
+    type_counts = dict(
+        mine.order_by().values("event_type").annotate(c=Count("id")).values_list("event_type", "c")
+    )
+    event_types = [
+        (code, label, type_counts.get(code, 0))
+        for code, label in role_types
+        if type_counts.get(code) or code == event_filter
+    ]
 
     return render(
         request,
@@ -271,9 +291,12 @@ def notification_inbox(request):
             "notifications": notifications,
             "urgent_notifications": urgent,
             "other_notifications": rest,
+            "day_groups": group_by_day(rest),
             "unread_count": unread_count,
+            "total_count": sum(type_counts.values()),
             "event_filter": event_filter,
-            "event_types": visible_types,
+            "unread_only": unread_only,
+            "event_types": event_types,
         },
     )
 
@@ -302,10 +325,6 @@ def mark_notification_read(request, notif_id):
 def mark_all_read(request):
     """تحديد كل الإشعارات كمقروءة"""
     InAppNotification.objects.mark_all_read(request.user)
-
-    if request.headers.get("HX-Request"):
-        return HttpResponse("0")
-
     messages.success(request, "✓ تم تحديد كل الإشعارات كمقروءة")
     return redirect("notification_inbox")
 

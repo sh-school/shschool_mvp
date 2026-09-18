@@ -1,0 +1,87 @@
+"""تخطيطُ صندوق الإشعارات: مجموعاتٌ بالأيّام، رقاقاتٌ بأعدادها، وتحديدُ الكلّ لا يمحو القائمة."""
+
+from datetime import date, datetime, timedelta
+from types import SimpleNamespace
+
+import pytest
+from django.urls import reverse
+from django.utils import timezone
+
+from notifications.inbox_presentation import INBOX_COLUMNS, group_by_day
+from notifications.models import InAppNotification
+
+TODAY = date(2026, 9, 17)
+
+
+def _at(days_ago: int, hour: int = 10):
+    moment = datetime(TODAY.year, TODAY.month, TODAY.day, hour) - timedelta(days=days_ago)
+    return SimpleNamespace(created_at=timezone.make_aware(moment))
+
+
+class TestGroupByDay:
+    def test_buckets_are_ordered_and_empty_ones_dropped(self):
+        items = [_at(0), _at(0), _at(1), _at(3), _at(30)]
+        groups = group_by_day(items, today=TODAY)
+        assert [g["key"] for g in groups] == ["today", "yesterday", "week", "older"]
+        assert [g["count"] for g in groups] == [2, 1, 1, 1]
+
+        assert [g["key"] for g in group_by_day([_at(9)], today=TODAY)] == ["older"]
+        assert group_by_day([], today=TODAY) == []
+
+    def test_columns_are_sequential_so_reading_order_is_time_order(self):
+        items = [_at(0, hour=23 - i) for i in range(7)]
+        columns = group_by_day(items, today=TODAY)[0]["columns"]
+        assert len(columns) == INBOX_COLUMNS
+        assert [n for col in columns for n in col] == items
+
+    def test_a_single_item_is_one_column_not_three_empty_ones(self):
+        assert len(group_by_day([_at(0)], today=TODAY)[0]["columns"]) == 1
+
+
+@pytest.mark.django_db
+class TestInboxView:
+    def _make(self, user, school, **kw):
+        return InAppNotification.objects.create(
+            user=user, school=school, title=kw.pop("title", "إشعار"), **kw
+        )
+
+    def test_only_types_present_in_the_inbox_get_a_chip(self, client_as, school, teacher_user):
+        self._make(teacher_user, school, event_type="grade")
+        self._make(teacher_user, school, event_type="grade")
+        self._make(teacher_user, school, event_type="general")
+
+        resp = client_as(teacher_user).get(reverse("notification_inbox"))
+
+        assert resp.context["event_types"] == [
+            ("grade", "درجات جديدة", 2),
+            ("general", "إشعار عام", 1),
+        ]
+        assert resp.context["total_count"] == 3
+
+    def test_the_chosen_type_keeps_its_chip_even_when_empty(self, client_as, school, teacher_user):
+        self._make(teacher_user, school, event_type="grade")
+        resp = client_as(teacher_user).get(reverse("notification_inbox") + "?type=clinic")
+        assert ("clinic", "زيارة عيادة", 0) in resp.context["event_types"]
+
+    def test_unread_only_filters_the_list(self, client_as, school, teacher_user):
+        unread = self._make(teacher_user, school, title="جديد")
+        self._make(teacher_user, school, title="قديم", is_read=True)
+
+        resp = client_as(teacher_user).get(reverse("notification_inbox") + "?unread=1")
+
+        assert resp.context["notifications"] == [unread]
+        assert resp.context["unread_only"] is True
+
+    def test_mark_all_read_is_a_plain_form_that_returns_to_the_inbox(
+        self, client_as, school, teacher_user
+    ):
+        """كان زرَّ HTMX يضع ردَّ الخادم «0» مكانَ القائمة كلّها."""
+        self._make(teacher_user, school)
+        c = client_as(teacher_user)
+        body = c.get(reverse("notification_inbox")).content.decode()
+        assert 'hx-target="#notif-list"' not in body
+
+        resp = c.post(reverse("mark_all_read"), HTTP_HX_REQUEST="true")
+
+        assert resp.status_code == 302
+        assert not InAppNotification.objects.filter(user=teacher_user, is_read=False).exists()
