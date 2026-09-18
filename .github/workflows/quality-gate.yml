@@ -249,6 +249,16 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: تثبيت مكتبات النظام (Cairo)
+        # بلا هذه: pip يبني pycairo من المصدر (لا عجلةَ منشورةً له على PyPI)
+        # ويسقط بـ`Dependency "cairo" not found` — كان يمرّ صدفةً بذاكرة pip
+        # المؤقّتة لعجلةٍ بُنيت لإصدارٍ مثبَّتٍ سابقاً، فكشفه أوّلُ ترقية
+        # (1.29.0 → 1.29.1، PR #364).
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libcairo2-dev pkg-config
+
       - name: تحديد الأساس للمقارنة
         run: |
           case "${{ github.event_name }}" in
