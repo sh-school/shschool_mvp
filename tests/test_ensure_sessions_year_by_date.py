@@ -54,7 +54,9 @@ def current_year(school):
 def _slot(school, *, academic_year, teacher_name, subject_name):
     teacher = UserFactory(full_name=teacher_name)
     MembershipFactory(user=teacher, school=school, role=RoleFactory(school=school, name="teacher"))
-    cg = ClassGroup.objects.create(school=school, grade="G8", section="1", academic_year=academic_year)
+    cg = ClassGroup.objects.create(
+        school=school, grade="G8", section="1", academic_year=academic_year
+    )
     subject = Subject.objects.create(school=school, name_ar=subject_name)
     return ScheduleSlot.objects.create(
         school=school,
@@ -75,7 +77,10 @@ class TestSessionsUseTheDatesOwnYear:
         self, school, old_year, current_year
     ):
         old_slot = _slot(
-            school, academic_year=OLD_YEAR, teacher_name="معلّمُ العام المنقضي", subject_name="التاريخ"
+            school,
+            academic_year=OLD_YEAR,
+            teacher_name="معلّمُ العام المنقضي",
+            subject_name="التاريخ",
         )
         _slot(
             school,
@@ -96,7 +101,10 @@ class TestSessionsUseTheDatesOwnYear:
         self, school, old_year, current_year
     ):
         old_slot = _slot(
-            school, academic_year=OLD_YEAR, teacher_name="معلّمُ العام المنقضي", subject_name="التاريخ"
+            school,
+            academic_year=OLD_YEAR,
+            teacher_name="معلّمُ العام المنقضي",
+            subject_name="التاريخ",
         )
         _slot(
             school,
