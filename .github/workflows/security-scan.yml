@@ -35,7 +35,7 @@ jobs:
     name: pip-audit — PyPI advisories
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -74,7 +74,7 @@ jobs:
     name: Bandit — SAST Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -135,7 +135,7 @@ jobs:
     name: pip-audit — OSV advisories
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
@@ -197,7 +197,7 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: "ci-test-password"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v5
         with:
