@@ -20,7 +20,7 @@ isort==9.0.1
 ruff==0.4.4
 
 # Type checking
-mypy==1.10.0
+mypy==2.3.1
 django-stubs==5.0.2
 djangorestframework-stubs==3.15.0
 
