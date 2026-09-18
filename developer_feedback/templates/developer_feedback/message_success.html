@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load i18n ui %}
+{% load i18n icons ui %}
 {% comment %}
 صفحةُ النجاح — الترويسةُ `page_header` وفيها الفعلان، ورقمُ التذكرة وحدَه في
 `section_card` بشكله الاحتفاليّ الخاصّ بالوحدة. ومن دخل الصفحةَ بلا رسالةٍ في
@@ -15,45 +15,45 @@
 {% block content %}
 <div class="exec-dash df-page">
   {% if ticket_number %}
-    {% page_header _("تم استلام رسالتك") subtitle=_("احتفظ برقم التذكرة لمتابعة حالتها لاحقاً.") icon="check-circle" %}
+    {% page_header _("تم استلام رسالتك") subtitle=_("احتفظ برقم التذكرة لمتابعة حالتها لاحقاً.") icon="status_success" %}
       <a href="{% url 'developer_feedback:my_messages' %}" class="btn-primary btn-sm">
-        {% include "components/icon.html" with name="list-checks" %}
+        {% icon "checklist" %}
         {% trans "عرض رسائلي" %}
       </a>
       <a href="{% url 'developer_feedback:message_create' %}" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="mail" %}
+        {% icon "messages" %}
         {% trans "إرسال رسالة أخرى" %}
       </a>
     {% endpage_header %}
 
-    {% section_card _("رقم التذكرة") icon="mail" %}
+    {% section_card _("رقم التذكرة") icon="messages" %}
       <div class="df-ticket-hero" aria-labelledby="df-success-title">
         <div class="df-success-icon" aria-hidden="true">
-          {% include "components/icon.html" with name="check-circle" %}
+          {% icon "status_success" %}
         </div>
         <p id="df-success-title">{% trans "رقم التذكرة الخاص بك:" %}</p>
         <code class="df-ticket-number" dir="ltr">{{ ticket_number }}</code>
       </div>
       <p class="form-note">
-        {% include "components/icon.html" with name="info" %}
+        {% icon "status_info" %}
         {% trans "سيصل إشعار إلى المطوّر خلال دقائق. سنراسلك بحالة التذكرة داخل النظام." %}
       </p>
     {% endsection_card %}
 
   {% else %}
     {# المستخدم دخل مباشرة دون إرسال رسالة #}
-    {% page_header _("تم الإرسال") icon="info" %}
+    {% page_header _("تم الإرسال") icon="status_info" %}
       <a href="{% url 'developer_feedback:message_create' %}" class="btn-primary btn-sm">
-        {% include "components/icon.html" with name="mail" %}
+        {% icon "messages" %}
         {% trans "إرسال رسالة جديدة" %}
       </a>
       <a href="{% url 'developer_feedback:my_messages' %}" class="btn-secondary btn-sm">
-        {% include "components/icon.html" with name="list-checks" %}
+        {% icon "checklist" %}
         {% trans "عرض رسائلي" %}
       </a>
     {% endpage_header %}
 
-    {% empty_state _("لا توجد رسالة حديثة") sub=_("لم يتم إرسال أي رسالة في هذه الجلسة.") icon="info" compact=False %}
+    {% empty_state _("لا توجد رسالة حديثة") sub=_("لم يتم إرسال أي رسالة في هذه الجلسة.") icon="status_info" compact=False %}
   {% endif %}
 </div>
 {% endblock %}

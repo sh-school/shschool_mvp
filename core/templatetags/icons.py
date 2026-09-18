@@ -17,9 +17,6 @@
 
 from __future__ import annotations
 
-import re
-from pathlib import Path
-
 from django import template
 from django.templatetags.static import static
 from django.utils.html import format_html
@@ -72,34 +69,13 @@ def icon(key: str, size: str = "", label: str = "", degree: int | str | None = N
     )
 
 
-#: أسماءُ الورقة القديمة ``components/sprite.html`` — تُقرأ مرّةً عند التحميل.
-_LEGACY_SPRITE = (
-    Path(__file__).resolve().parent.parent.parent / "templates" / "components" / "sprite.html"
-)
-_LEGACY_NAMES = frozenset(
-    re.findall(r'id="icon-([a-z0-9-]+)"', _LEGACY_SPRITE.read_text(encoding="utf-8"))
-)
-
-
 @register.simple_tag
 def icon_named(name: str, size: str = "") -> SafeString | str:
-    """وسمُ المكوّنات في الانتقال — يُحذف مع ``components/sprite.html`` (المرحلة 5).
-
-    المكوّناتُ (``page_header`` و``section_card`` و``empty_state`` و``action_tile``)
-    تستقبل الأيقونةَ معاملاً من 136 قالباً لا تُرحَّل في طلبٍ واحد. فمعنى القاموس
-    يُرسم بالوسم الجديد، والاسمُ القديم يُرسم كما كان — والسقّاطةُ في
-    ``tests/test_icon_dictionary.py`` تمنع أن يزيد القديم.
+    """وسمُ المكوّنات (``page_header``/``section_card``/``empty_state``/``action_tile``):
+    معاملُ ``icon`` عندها اختياريّ، فالخانةُ الفارغة ترسم لا شيء بدل الخطأ.
     """
     if not name:
         return ""
     if name in ICONS:
         return icon(name, size=size)
-    if name in _LEGACY_NAMES:
-        return format_html(
-            '<svg class="icon{}" aria-hidden="true" focusable="false"><use href="#icon-{}"/></svg>',
-            f" icon-{size}" if size else "",
-            name,
-        )
-    raise template.TemplateSyntaxError(
-        f"icon_named: {name!r} ليس معنًى في القاموس ولا اسماً في الورقة القديمة"
-    )
+    raise template.TemplateSyntaxError(f"icon_named: لا أيقونةَ بالمعنى {name!r} في core/icons.py")

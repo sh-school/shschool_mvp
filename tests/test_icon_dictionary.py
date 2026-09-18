@@ -174,12 +174,11 @@ def test_components_draw_a_meaning_with_the_new_sprite():
     assert "icons/sprite.svg#i-library" in html and "icon-2xl" in html
 
 
-def test_components_still_draw_a_legacy_name_during_the_migration():
-    """الملفّاتُ الساخنة تُرحَّل في دفعةٍ لاحقة — والسقّاطةُ تمنع أن يزيد القديم."""
-    assert '<use href="#icon-bar-chart"/>' in _render('{% icon_named "bar-chart" %}')
+def test_components_skip_a_missing_icon_without_erroring():
+    assert _render('{% icon_named "" %}') == ""
 
 
-def test_components_refuse_a_name_from_neither_sprite():
+def test_components_refuse_an_unknown_meaning():
     with pytest.raises(TemplateSyntaxError):
         _render('{% icon_named "📚" %}')
 
@@ -253,55 +252,51 @@ def test_the_theme_toggle_carries_both_glyphs_from_the_dictionary():
     assert "#icon-sun" not in js and "#icon-moon" not in js
 
 
-LEGACY_BASELINE = ROOT / "tests" / "icon_legacy_baseline.json"
-_LEGACY_INCLUDE = re.compile(r"components/icon\.html")
+_LEGACY_ICON_INCLUDE = re.compile(r"components/icon\.html")
+_LEGACY_SPRITE_INCLUDE = re.compile(r"components/sprite\.html")
 _LEGACY_USE = re.compile(r'<use href="#icon-')
 _COMPONENT_ICON = re.compile(
     r"(?:\{%\s*(?:page_header|section_card|empty_state|action_tile)\b"
     r'|components/(?:ui/)?(?:empty_state|action_tile|page_header|section_card)\.html")'
     r'[^%]*?\bicon="([\w-]+)"'
 )
-_LEGACY_EXEMPT = {"components/sprite.html", "components/icon.html", "styleguide/icon_preview.html"}
+#: مجلّداتٌ لا تُفحص — وليس ``templates/`` وحده: كان لِـexam_control
+#: وdeveloper_feedback مجلّدا قوالبَ محليّان داخل التطبيق خارج ذلك المسح، فبقيت
+#: 16 قالباً (35+ استعمالاً قديماً) معطوبةَ الأيقونات على الإنتاج بلا رصدٍ حتى
+#: اكتُشفت يدويّاً 2026-09-18 — فهذا الحارسُ يمسح المشروعَ كلَّه.
+_SKIP_DIRS = {".git", "node_modules", ".venv", "staticfiles"}
 
 
-def legacy_counts() -> dict[str, int]:
-    """استعمالاتُ الورقة القديمة في كلّ قالب: استدعاءٌ، ومعاملُ مكوّنٍ باسمٍ قديم، و`<use>` مكتوب."""
-    counts = {}
-    for path in sorted(TEMPLATES.rglob("*.html")):
-        rel = path.relative_to(TEMPLATES).as_posix()
-        if rel in _LEGACY_EXEMPT:
+def _legacy_icon_usages() -> dict[str, list[str]]:
+    """كلُّ استعمالٍ للورقة القديمة (المحذوفة) في أيّ قالبٍ بالمشروع."""
+    offenders: dict[str, list[str]] = {}
+    for path in sorted(ROOT.rglob("*.html")):
+        if any(part in _SKIP_DIRS for part in path.parts):
             continue
-        text = path.read_text(encoding="utf-8")
-        n = len(_LEGACY_INCLUDE.findall(text)) + len(_LEGACY_USE.findall(text))
-        n += sum(1 for name in _COMPONENT_ICON.findall(text) if name not in ICONS)
-        if n:
-            counts[rel] = n
-    return counts
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        hits = []
+        if _LEGACY_ICON_INCLUDE.search(text):
+            hits.append("include components/icon.html")
+        if _LEGACY_SPRITE_INCLUDE.search(text):
+            hits.append("include components/sprite.html")
+        if _LEGACY_USE.search(text):
+            hits.append('<use href="#icon-...">')
+        bad_names = sorted({n for n in _COMPONENT_ICON.findall(text) if n not in ICONS})
+        if bad_names:
+            hits.append(f"icon=معنًى غيرُ موجود {bad_names}")
+        if hits:
+            offenders[str(path.relative_to(ROOT))] = hits
+    return offenders
 
 
-def test_legacy_icons_only_shrink():
-    """سقّاطة: القديمُ لا يزيد في ملفّ، ولا يدخل ملفّاً خلا منه.
-
-    والنقصانُ لا يُلزم تحديثَ السجلّ — جلستان تُرحّلان معاً لا تتصادمان عليه.
-    ولتسجيل الأعداد بعد ترحيل: ``python -m tests.test_icon_dictionary``.
+def test_no_template_anywhere_in_the_project_uses_the_legacy_icon_sheet():
+    """الورقةُ القديمة (``components/sprite.html``/``icon.html``) محذوفةٌ نهائيّاً
+    2026-09-18 — لا استثناءَ يُبقيها، ولا مصدرَ يُرضي استعمالاً قديماً بعد اليوم.
     """
-    baseline = json.loads(LEGACY_BASELINE.read_text(encoding="utf-8"))
-    grown = {
-        f: (baseline.get(f, 0), n) for f, n in legacy_counts().items() if n > baseline.get(f, 0)
-    }
-    assert not grown, f"أيقوناتٌ قديمةٌ زادت (المسجَّل، الآن) — استعمل {{% icon %}}: {grown}"
+    offenders = _legacy_icon_usages()
+    assert not offenders, offenders
 
 
 def test_the_new_icon_classes_are_styled():
     css = (ROOT / "static" / "css" / "custom.css").read_text(encoding="utf-8")
     assert ".icon-hg" in css and ".icon-mirror" in css
-
-
-if __name__ == "__main__":
-    counts = legacy_counts()
-    LEGACY_BASELINE.write_text(
-        json.dumps(counts, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
-        encoding="utf-8",
-        newline="\n",
-    )
-    print(f"سُجّل {sum(counts.values())} استعمالاً قديماً في {len(counts)} قالباً")

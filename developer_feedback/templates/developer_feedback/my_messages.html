@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load i18n sorting ui %}
+{% load i18n icons sorting ui %}
 {% comment %}
 رسائلُ المستخدم إلى المطوّر — الترويسةُ `page_header` وفعلُها الأوّل «إرسال
 رسالة جديدة»، والجدولُ في `section_card` بعدّه، والحالةُ الفارغةُ من البطاقة
@@ -14,14 +14,14 @@
 
 {% block content %}
 <div class="exec-dash df-page">
-  {% page_header _("رسائلي للمطوّر") subtitle=_("ما أرسلتَه إلى المطوّر وحالةُ كلّ تذكرة") icon="mail" %}
+  {% page_header _("رسائلي للمطوّر") subtitle=_("ما أرسلتَه إلى المطوّر وحالةُ كلّ تذكرة") icon="messages" %}
     <a href="{% url 'developer_feedback:message_create' %}" class="btn-primary btn-sm">
-      {% include "components/icon.html" with name="mail" %}
+      {% icon "messages" %}
       {% trans "إرسال رسالة جديدة" %}
     </a>
   {% endpage_header %}
 
-  {% section_card _("رسائلي") meta=page_obj.paginator.count icon="list-checks" flush=True empty=_("لم تُرسل أي رسالة بعد") empty_sub=_("ابدأ بإرسال أول رسالة إلى المطوّر لتحسين تجربتك في المنصّة.") %}{% if messages_list %}
+  {% section_card _("رسائلي") meta=page_obj.paginator.count icon="checklist" flush=True empty=_("لم تُرسل أي رسالة بعد") empty_sub=_("ابدأ بإرسال أول رسالة إلى المطوّر لتحسين تجربتك في المنصّة.") %}{% if messages_list %}
     <div class="table-wrap" role="region" aria-label="{% trans 'قائمة رسائلي' %}">
       <table data-no-sort>
         <thead>
@@ -55,7 +55,7 @@
                 <a href="{% url 'developer_feedback:message_edit' pk=msg.pk %}"
                    class="btn-secondary btn-xs"
                    aria-label="{% trans 'تعديل الرسالة' %} {{ msg.ticket_number }}">
-                  {% include "components/icon.html" with name="file-pen" %}
+                  {% icon "edit" %}
                   {% trans "تعديل" %}
                 </a>
               </td>

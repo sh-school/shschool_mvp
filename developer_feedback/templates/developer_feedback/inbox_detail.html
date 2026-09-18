@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load i18n ui %}
+{% load i18n icons ui %}
 {% comment %}
 تفصيلُ التذكرة — عنوانُ الرسالة هو عنوانُ الصفحة، ورقمُ التذكرة في طرف
 الترويسة بصنفه (`dir="ltr"` يحفظ ترتيبَ حروفه داخل سطرٍ عربيّ) فلا يُعاد في
@@ -16,10 +16,10 @@
 
 {% block content %}
 <div class="exec-dash df-page">
-  {% page_header dev_message.subject subtitle=dev_message.get_message_type_display icon="inbox" %}
+  {% page_header dev_message.subject subtitle=dev_message.get_message_type_display icon="dev_inbox" %}
     <code class="df-ticket-inline" dir="ltr">{{ dev_message.ticket_number }}</code>
     <a href="{% url 'developer_feedback:inbox_list' %}" class="btn-secondary btn-sm">
-      {% include "components/icon.html" with name="arrow-right" %}
+      {% icon "back" %}
       {% trans "عودة للصندوق" %}
     </a>
   {% endpage_header %}
@@ -29,11 +29,11 @@
     {# ═══════════════════════ الجانب الرئيسي ═══════════════════════ #}
     <div class="df-main-col">
 
-      {% section_card _("نصّ الرسالة") icon="mail" %}
+      {% section_card _("نصّ الرسالة") icon="messages" %}
         <div class="df-message-body">{{ dev_message.body|linebreaks }}</div>
       {% endsection_card %}
 
-      {% section_card _("معلومات السياق التقني") icon="info" empty=_("لا توجد معلومات سياق مرفقة.") %}{% if dev_message.context_json %}
+      {% section_card _("معلومات السياق التقني") icon="status_info" empty=_("لا توجد معلومات سياق مرفقة.") %}{% if dev_message.context_json %}
         <dl class="df-context-preview">
           {% for key, value in dev_message.context_json.items %}
             <dt>{{ key }}</dt>
@@ -72,7 +72,7 @@
 
           <div class="form-actions">
             <button type="submit" class="btn-primary">
-              {% include "components/icon.html" with name="check" %}
+              {% icon "confirm" %}
               {% trans "تحديث الحالة" %}
             </button>
           </div>
@@ -83,7 +83,7 @@
     {# ═══════════════════════ الجانب الفرعي (Sidebar) ═══════════════════════ #}
     <aside class="df-sidebar-col" aria-label="{% trans 'بيانات التذكرة' %}">
 
-      {% section_card _("بيانات التذكرة") icon="file-text" %}
+      {% section_card _("بيانات التذكرة") icon="document" %}
         <dl class="df-meta-list">
           <dt>{% trans "النوع" %}</dt>
           <dd><span class="df-badge df-badge-type">{{ dev_message.get_message_type_display }}</span></dd>
@@ -114,7 +114,7 @@
         </dl>
       {% endsection_card %}
 
-      {% section_card _("سجل الحالة") meta=status_logs|length icon="clock" empty=_("لا يوجد سجل تغييرات حتى الآن.") %}{% if status_logs %}
+      {% section_card _("سجل الحالة") meta=status_logs|length icon="time" empty=_("لا يوجد سجل تغييرات حتى الآن.") %}{% if status_logs %}
         <ul class="df-timeline">
           {% for log in status_logs %}
             <li>
