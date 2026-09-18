@@ -13,6 +13,19 @@ updates:
     groups:
       python-patch-minor:
         update-types: ["patch", "minor"]
+    ignore:
+      # django-celery-beat يفرض cron-descriptor<2.0.0 حتى في أحدث إصداره
+      # (2.9.0، تحقّقتُ عبر PyPI 2026-09-18) — ليس تعارضاً عابراً يُنتظر
+      # حلّه، بل سقفٌ ثابت. بلا هذا الاستثناء يسقط كلّ تجميعةٍ شهريّةٍ
+      # تضمّه (كما وقع فعلاً في PR #348).
+      - dependency-name: "cron-descriptor"
+        versions: [">=2.0.0"]
+      # قرار المالك 2026-09-18: البقاء على مسار Django 5.2 (LTS، دعمٌ حتى
+      # ~2028) — لا 6.x (إصدارٌ عاديٌّ قصير الدعم ~8 أشهر). الانتقال
+      # القادم يكون لإصدار LTS التالي (على الأرجح 7.2) كمشروعٍ مخطَّطٍ
+      # له، لا اقتراحاً أسبوعياً متكرّراً (أُغلق PR #355 لهذا السبب).
+      - dependency-name: "Django"
+        versions: [">=6"]
 
   # جافاسكربت — package-lock.json (أدواتُ بناءٍ عابرة مثل tailwindcss/postcss،
   # لا أثر runtime مباشر — راجع معالجة ثغرات 2026-06-21).
@@ -26,6 +39,14 @@ updates:
     groups:
       npm-patch-minor:
         update-types: ["patch", "minor"]
+    ignore:
+      # قرار المالك 2026-09-18: البقاء على Tailwind v3 — v4 محرّكٌ جديدٌ
+      # بالكامل (Oxide) وفلسفةُ إعدادٍ مختلفة (@theme بدل tailwind.config.js)،
+      # يكسر خطَّ البناء الحاليّ فعلياً (تحقّقتُ: tailwindcss: not found).
+      # ترقيةٌ كهذه تحتاج مراجعةً بصريّةً شاملةً لنظام التصميم القائم
+      # (توكينات قطرية، Dark Mode، RTL)، لا اقتراحاً أسبوعياً (أُغلق PR #346).
+      - dependency-name: "tailwindcss"
+        versions: [">=4"]
 
   # صورة الإنتاج (Dockerfile: python:3.12-slim-bookworm وما شابه)
   - package-ecosystem: "docker"
@@ -35,6 +56,12 @@ updates:
       day: "monday"
     open-pull-requests-limit: 5
     labels: ["dependencies", "docker"]
+    ignore:
+      # قرار المالك 2026-09-18: بايثون 3.12 في كل مكان (الإنتاج وCI
+      # والصورة المحلّية) — راجع project_python_312_migration. لا ترقية
+      # لصورة القاعدة بمعزلٍ عن هذا القرار الموحَّد (أُغلق PR #341).
+      - dependency-name: "python"
+        versions: [">=3.13"]
 
   # أفعال GitHub Actions المستخدمة في .github/workflows/
   - package-ecosystem: "github-actions"

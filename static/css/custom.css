@@ -5790,8 +5790,14 @@ th[aria-sort="descending"] .th-sort-label {
   /* وفي الهاتف يقع اللوحُ تحت الورقة لا بجوارها: كان بعرضٍ ثابتٍ 250px إلى
      جانب إطارٍ في شاشةٍ عرضُها 390px، فيضيق الجدولُ إلى نحو 140px متى فُتح. */
   .schedule-stage { display: flex; flex-direction: column; gap: 10px; align-items: stretch; }
-  /* مسرحُ الورقة بطول النافذة، والإطارُ يملؤه — ورقةٌ بيضاءُ في الوضعين. */
-  .schedule-stage.is-sheet { block-size: calc(100vh - 230px); min-block-size: 560px; }
+  /* مسرحُ الجدول العامّ وحدَه الآن (2026-09-18): معلّمٌ وشعبةٌ صارا جدولاً
+     عاديّاً تحت `.table-wrap` بلا إطار، فبقي هذا المسرحُ للمصفوفة العريضة.
+     وطولُه بطول النافذة، والإطارُ يملؤه — ورقةٌ بيضاءُ في الوضعين. و230px
+     كانت حساب أعلى الصفحة وحده (ترويسة+فتات خبز+عنوان+شريط أدوات)، فتجاوز
+     أسفلُها (ذيلُ المنصّة ~180px) ارتفاعَ النافذة وأظهر تمريراً لم يكن
+     مقصوداً — قياسٌ فعليٌّ 2026-09-18: 441px كاملةً. و`overflow: hidden`
+     يمنع تمريرَ الصفحة لو زاد المحتوى فوق هذا التقدير في حالةٍ لم تُقَس. */
+  .schedule-stage.is-sheet { block-size: calc(100vh - 450px); min-block-size: 420px; overflow: hidden; }
   .schedule-sheet-frame {
     inline-size: 100%;
     block-size: 100%;
@@ -5841,6 +5847,47 @@ th[aria-sort="descending"] .th-sort-label {
     font: inherit; color: var(--text-secondary);
   }
   .teacher-panel .tp-close:hover { border-color: var(--maroon); }
+
+  /* ── جدولُ معلّمٍ أو شعبةٍ على الشاشة (2026-09-18) ──
+     جزئيّةُ البيانات نفسُها التي تملأ ورقة الطباعة (`week_grid.html`)، هنا
+     بلا مقاسٍ بالملّيمتر: جدولٌ عاديٌّ داخل `.table-wrap` يأخذ ترويسته
+     العنّابيّة من رمز المنصّة العامّ، فلا تكرارَ ولا خطّ مصغَّرٌ ليُشبه الورق. */
+  .week-grid { width: 100%; border-collapse: collapse; }
+  /* خطٌّ أوضح بعد عمود اليوم — يفصله عن أعمدة الحصص حين يُمرَّر الجدولُ
+     أفقيّاً (نفسُ فكرة `.m-day-start` في ورقة الطباعة العامّة). */
+  .week-grid .wg-day { white-space: nowrap; font-weight: 700; border-inline-end: 2px solid var(--border-strong); }
+  /* `td.wg-break` وحدَها — `th.wg-break` تبقى بلا خلفيّةٍ خاصّة كي تبقى
+     ترويسةُ الجدول عنّابيّةً كلُّها بلا استثناء (كانت خلفيّةُ الفسحة الرماديّة
+     تكسر ذلك في عمود الفسحة/الصلاة). */
+  .week-grid td.wg-break { background: var(--surface-alt); text-align: center; }
+  .week-grid td.wg-break.is-empty { color: var(--text-muted); }
+  .week-grid .wg-fit { display: flex; flex-direction: column; gap: 2px; align-items: center; text-align: center; }
+  .week-grid .slot-subject { font-weight: 700; }
+  .week-grid .slot-meta { font-size: var(--text-xs); color: var(--text-secondary); }
+  .week-grid .slot-time { font-size: var(--text-xs); color: var(--text-muted); direction: ltr; }
+  .week-grid .slot-empty,
+  .week-grid .wg-multi { color: var(--text-muted); }
+  .week-grid .break-label { font-size: var(--text-xs); font-weight: 600; }
+  .week-grid .break-band { font-size: 10px; color: var(--text-muted); }
+  /* ── تمييزُ عمود الاستراحة بطابقه (2026-09-18) ──
+     معلّمُ الطابقين يرى عمودَي «صلاة» أو أكثر بلا فارقٍ بصريّ بينها إلّا
+     نصّاً داخل الخليّة. فلونٌ ثابتٌ لكلّ طابقٍ (لا خلفيّةَ ترويسةٍ — تبقى
+     عنّابيّةً كلُّها؛ إشارةٌ سفليّةٌ فقط) يُقرأ من عمود العنوان مباشرةً،
+     ويتكرّر بخلفيّةٍ خفيفةٍ في خلايا الجسم. الطباعةُ لا تحمل هذه الأصناف
+     تأثيراً (`week_grid_css.html` منفصلةٌ ولا تعرّفها). */
+  .week-grid th.wg-break.band-ground  { border-block-end: 3px solid var(--accent-teal); }
+  .week-grid th.wg-break.band-ninth   { border-block-end: 3px solid var(--accent-orange); }
+  .week-grid th.wg-break.band-secondary { border-block-end: 3px solid var(--accent-purple); }
+  .week-grid .wg-break-band { display: block; font-size: 10px; font-weight: 400; opacity: .85; }
+  .week-grid td.wg-break.band-ground  { background: color-mix(in srgb, var(--accent-teal) 14%, var(--surface-alt)); }
+  .week-grid td.wg-break.band-ninth   { background: color-mix(in srgb, var(--accent-orange) 14%, var(--surface-alt)); }
+  .week-grid td.wg-break.band-secondary { background: color-mix(in srgb, var(--accent-purple) 14%, var(--surface-alt)); }
+  /* إطارُ الطباعة حين لا يُعرض (معلّمٌ أو شعبة): موجودٌ للعمل لا للعين —
+     بلا `display:none` كي تبقى نافذتُه صالحةً للطباعة في كلّ متصفّح. */
+  .schedule-print-frame-hidden {
+    position: absolute; inline-size: 0; block-size: 0; border: 0;
+    opacity: 0; pointer-events: none;
+  }
 
 /* ── templates/schedule/quality_lab.html ── */
   /* ── مختبر الجودة: بوّابة، رادار، بطاقات، جداول — كلُّ رقمٍ بجانب مرجعه ── */
@@ -5896,9 +5943,13 @@ th[aria-sort="descending"] .th-sort-label {
   .free-slots-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
   .respond-closed { justify-content: center; }
   .respond-page .swap-detail + .form-note { margin-block-end: var(--sp-4); }
-  .prefs-page { max-width: 42rem; }
   .prefs-note { margin-block-end: var(--sp-4); }
   .prefs-form { display: grid; gap: var(--sp-5, 20px); }
+  /* البطاقةُ تمتدّ عرضَ عمودها كسائر المنصّة، لكنّ قائمةً منسدلةً بسبع قيمٍ
+     رقميّةٍ لا تحتاج ذلك العرض — فيُقصر عليها وعلى سطر التلميح قياسٌ يُقرأ. */
+  .prefs-form select.form-control { max-width: 20rem; }
+  .prefs-form .form-hint { max-width: 46rem; }
+  .prefs-form textarea.form-control { max-width: 46rem; }
 
 /* ── templates/schedule/schedule_settings.html ── */
   .settings-note { margin-block-end: var(--sp-3); }
@@ -8063,7 +8114,10 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 @media (max-width: 640px) { .ui-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* ارتفاعٌ أقلّ بـ10% من البلاطة العامّة (18px→) — صفٌّ واحدٌ من الأزرار
    لا يحتاج حشوتها الكاملة، وتقليصُه يُسقط سكرولاً رأسياً في لوحة المدير. */
-.ui-actions .action-card { padding: 10px 16px; min-inline-size: 0; }
+/* وارتفاعٌ أقلّ بـ10% أخرى (2026-09-18): 64.7px → 58.7px بقياسٍ فعليّ —
+   الحشوةُ الرأسيّةُ وحدَها تُمسّ (10px→7px)؛ الأيقونةُ 42px والحشوةُ الأفقيّة
+   كما هما. */
+.ui-actions .action-card { padding: 7px 16px; min-inline-size: 0; }
 
 /* ── 12. نموذجٌ بجوار قائمته: الإضافةُ ثُلثٌ والجدولُ ثلثان ──
    ومن الحدّ الأدنى ينفكّان عموداً: النموذجُ فوق ما يضيف إليه. */

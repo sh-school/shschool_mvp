@@ -55,26 +55,26 @@
    "core/capabilities.py"
   ],
   "assessments": [
+   "core/dashboard_selectors.py",
    "core/erasure_service.py",
-   "core/management/commands/full_seed.py",
-   "core/views_dashboard.py"
+   "core/management/commands/full_seed.py"
   ],
   "behavior": [
+   "core/dashboard_selectors.py",
    "core/erasure_service.py",
    "core/models/__init__.py",
-   "core/retention.py",
-   "core/views_dashboard.py"
+   "core/retention.py"
   ],
   "clinic": [
+   "core/dashboard_selectors.py",
    "core/erasure_service.py",
    "core/management/commands/rotate_fernet_key.py",
-   "core/models/__init__.py",
-   "core/views_dashboard.py"
+   "core/models/__init__.py"
   ],
   "library": [
+   "core/dashboard_selectors.py",
    "core/erasure_service.py",
    "core/models/__init__.py",
-   "core/views_dashboard.py",
    "core/views_media.py"
   ],
   "notifications": [
@@ -83,6 +83,7 @@
    "core/retention.py"
   ],
   "operations": [
+   "core/dashboard_selectors.py",
    "core/erasure_service.py",
    "core/management/commands/full_seed.py",
    "core/management/commands/seed_departments.py",
@@ -105,22 +106,22 @@
    "core/retention.py"
   ],
   "student_affairs": [
+   "core/dashboard_selectors.py",
    "core/erasure_service.py",
    "core/management/commands/import_enrolment_register.py",
-   "core/views_dashboard.py",
    "core/views_media.py"
   ],
   "student_info": [
    "core/capabilities.py"
   ],
   "transport": [
+   "core/dashboard_selectors.py",
    "core/erasure_service.py",
-   "core/models/__init__.py",
-   "core/views_dashboard.py"
+   "core/models/__init__.py"
   ],
   "wings": [
+   "core/dashboard_selectors.py",
    "core/permissions.py",
-   "core/views_dashboard.py",
    "core/views_media.py",
    "core/views_search.py"
   ]
@@ -382,37 +383,6 @@
   "core/views_auth.py::verify_2fa": {
    "lines": 72,
    "orm": 12
-  },
-  "core/views_dashboard.py::_get_activities_ctx": {
-   "orm": 19
-  },
-  "core/views_dashboard.py::_get_admin_ops_ctx": {
-   "orm": 17
-  },
-  "core/views_dashboard.py::_get_director_ctx": {
-   "lines": 124,
-   "orm": 61
-  },
-  "core/views_dashboard.py::_get_service_ctx": {
-   "orm": 18
-  },
-  "core/views_dashboard.py::_get_specialist_social_ctx": {
-   "orm": 25
-  },
-  "core/views_dashboard.py::_get_student_ctx": {
-   "orm": 20
-  },
-  "core/views_dashboard.py::_get_teacher_ctx": {
-   "orm": 24
-  },
-  "core/views_dashboard.py::_get_therapist_ctx": {
-   "orm": 15
-  },
-  "core/views_dashboard.py::_get_transport_ctx": {
-   "orm": 6
-  },
-  "core/views_dashboard.py::dashboard": {
-   "orm": 188
   },
   "core/views_health.py::status_check": {
    "lines": 77
