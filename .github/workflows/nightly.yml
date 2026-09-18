@@ -129,7 +129,7 @@ jobs:
       # التي في `deploy-railway.yml` (ليست PR، من github-actions[bot]، بالبادئة).
       - name: "الفشل: فتحُ قضيّةٍ أو التعليقُ على المفتوحة"
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prefix = '🌙 NIGHTLY FAILED';
@@ -169,7 +169,7 @@ jobs:
 
       - name: "النجاح: إغلاقُ قضايا الفشل المفتوحة"
         if: success()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prefix = '🌙 NIGHTLY FAILED';
