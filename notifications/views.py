@@ -230,39 +230,37 @@ def api_recent_notifications(request):
 @login_required
 def notification_inbox(request):
     """صفحة صندوق الإشعارات"""
-    event_filter = request.GET.get("type", "")
-    qs = InAppNotification.objects.filter(user=request.user)
-    if event_filter:
-        qs = qs.filter(event_type=event_filter)
+    from .inbox_presentation import (
+        event_type_chips,
+        group_by_day,
+        group_by_type,
+        inbox_query,
+        role_event_types,
+    )
+    from .selectors import inbox_notifications, inbox_type_counts, inbox_unread_count
 
-    notifications = list(qs.order_by("-created_at")[:100])
+    event_filter = request.GET.get("type", "")
+    unread_only = request.GET.get("unread") == "1"
+    # «حسب النوع» تجميعٌ لا ترشيح: الصندوقُ كلُّه، كلُّ نوعٍ مجموعتُه.
+    group_mode = "type" if request.GET.get("group") == "type" else "day"
+
+    notifications = inbox_notifications(request.user, event_filter, unread_only)
     # العاجلُ غيرُ المقروء يُثبَّت أعلى الصندوق **ويُطرح من القائمة تحته**.
     # كان القالبُ يعرضه في الموضعين، ويفتح قسمَه بـ`forloop.first` للقائمة كلّها —
     # فلا يُفتح إلّا إن كان أوّلُ إشعارٍ عاجلاً، ويتكرّر `id` العنصر في الصفحة.
     urgent = [n for n in notifications if n.priority == "urgent" and not n.is_read]
     rest = [n for n in notifications if not (n.priority == "urgent" and not n.is_read)]
-    unread_count = InAppNotification.objects.unread_count(request.user)
+    unread_count = inbox_unread_count(request.user)
 
-    # فلترة أنواع الإشعارات حسب الدور
-    PARENT_TYPES = {
-        "behavior",
-        "absence",
-        "grade",
-        "fail",
-        "clinic",
-        "sent_home",
-        "meeting",
-        "parent_summon",
-        "general",
-    }
-    STUDENT_TYPES = {"grade", "fail", "behavior", "absence", "clinic", "general"}
     role = getattr(request.user, "get_role", lambda: "")()
-    if role == "parent":
-        visible_types = [t for t in InAppNotification.EVENT_TYPES if t[0] in PARENT_TYPES]
-    elif role == "student":
-        visible_types = [t for t in InAppNotification.EVENT_TYPES if t[0] in STUDENT_TYPES]
+    role_types = role_event_types(role, InAppNotification.EVENT_TYPES)
+    type_counts = inbox_type_counts(request.user)
+    state = {"type": event_filter, "unread": unread_only, "group": group_mode}
+    event_types = event_type_chips(role_types, type_counts, event_filter, state)
+    if group_mode == "type":
+        groups = group_by_type(rest, dict(InAppNotification.EVENT_TYPES))
     else:
-        visible_types = InAppNotification.EVENT_TYPES
+        groups = group_by_day(rest)
 
     return render(
         request,
@@ -271,9 +269,17 @@ def notification_inbox(request):
             "notifications": notifications,
             "urgent_notifications": urgent,
             "other_notifications": rest,
+            "groups": groups,
+            "group_mode": group_mode,
             "unread_count": unread_count,
+            "total_count": sum(type_counts.values()),
             "event_filter": event_filter,
-            "event_types": visible_types,
+            "unread_only": unread_only,
+            "event_types": event_types,
+            "all_types_url": inbox_query(**{**state, "type": ""}),
+            "unread_toggle_url": inbox_query(**{**state, "unread": not unread_only}),
+            "group_day_url": inbox_query(**{**state, "group": "day"}),
+            "group_type_url": inbox_query(**{**state, "group": "type"}),
         },
     )
 
@@ -302,10 +308,6 @@ def mark_notification_read(request, notif_id):
 def mark_all_read(request):
     """تحديد كل الإشعارات كمقروءة"""
     InAppNotification.objects.mark_all_read(request.user)
-
-    if request.headers.get("HX-Request"):
-        return HttpResponse("0")
-
     messages.success(request, "✓ تم تحديد كل الإشعارات كمقروءة")
     return redirect("notification_inbox")
 
