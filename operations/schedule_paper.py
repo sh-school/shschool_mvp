@@ -66,6 +66,11 @@ BAND_LABELS = {
     "secondary": "الثانويّ",
 }
 
+#: لونُ تمييز عمود الاستراحة بطابقه — على الشاشة وحدها (2026-09-18)، ليعرف
+#: معلّمُ الطابقين أيَّ صلاةٍ لأيّ طابقٍ بلمحةٍ لا بفتح الخليّة. مفتاحُه نصُّ
+#: `BAND_LABELS` نفسُه، فيبقى صحيحاً لو تغيّر اسمُ طابقٍ يوماً.
+BAND_COLOR_CLASS = {label: f"band-{code}" for code, label in BAND_LABELS.items()}
+
 
 def band_label(bell: Bell) -> str:
     """اسمُ الجرس في خانة الاستراحة: «الأرضيّ» و«تاسع 3-4» و«الثانويّ»."""
@@ -136,11 +141,18 @@ def week_layout(
             columns.append({"kind": "period", "number": number})
         if number in positions:
             names = {item.label for breaks in per_day for after, item in breaks if after == number}
+            # طابقُ العمود: صحيحٌ فقط حين يتّفق كلُّ يومٍ يستعمل هذا الموضع على
+            # الاسم نفسه — فموضعٌ يخدم طابقين مختلفين في يومين مختلفين لا يُنسب
+            # لأحدهما كذباً، ويبقى بلا لونٍ في الترويسة.
+            bands = {item.band for breaks in per_day for after, item in breaks if after == number}
+            band = bands.pop() if len(bands) == 1 else ""
             columns.append(
                 {
                     "kind": "break",
                     "after": number,
                     "label": names.pop() if len(names) == 1 else "استراحة",
+                    "band": band,
+                    "band_class": BAND_COLOR_CLASS.get(band, ""),
                 }
             )
 
@@ -158,6 +170,7 @@ def week_layout(
                     {
                         "kind": "break",
                         "items": [item for after, item in per_day[d] if after == column["after"]],
+                        "band_class": column["band_class"],
                     }
                 )
         lines.append({"day": day_names[d], "entries": entries})
