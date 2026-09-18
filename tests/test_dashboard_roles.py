@@ -136,6 +136,17 @@ def test_the_director_dashboard_shows_class_and_days_on_absence_alerts(
 
 
 @pytest.mark.django_db
+def test_the_alerts_card_stays_in_place_with_no_pending_alerts(client_as, principal_user):
+    """طلب المدير 2026-09-18: البطاقةُ الثالثةُ دائمةٌ لا تختفي — فاختفاؤها
+    يُخِلّ بشبكة الأعمدة الثلاثة (تعود عموداً واحداً فقط لا اثنين متجاورين
+    بجانب فراغ) كلّما خلا يومٌ من التنبيهات المعلّقة."""
+    html = client_as(principal_user).get("/dashboard/").content.decode()
+
+    assert "تنبيهات الغياب المتكرّر" in html
+    assert "لا تنبيهات معلّقة" in html
+
+
+@pytest.mark.django_db
 class TestTherapistWeekStats:
     """أسبوعُ لوحة المعالج (`_get_therapist_ctx`) يبدأ الأحد لا الاثنين.
 
