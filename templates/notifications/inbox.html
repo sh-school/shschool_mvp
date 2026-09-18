@@ -40,11 +40,16 @@
   {% filter_bar "بحثٌ في الإشعارات" live=True css="notif-toolbar" %}
     {% field "q" "بحث" type="search" id="notif-search" placeholder="عنوانٌ أو نصّ..." autocomplete="off" %}
     <nav class="chip-row notif-toolbar__chips" aria-label="ترشيح الإشعارات">
-      <a href="{% url 'notification_inbox' %}{% if unread_only %}?unread=1{% endif %}" class="status-badge notif-type {% if not event_filter %}status-maroon{% else %}status-gray{% endif %}"{% if not event_filter %} aria-current="page"{% endif %}>الكل <span class="notif-type__n">{{ total_count }}</span></a>
-      {% for code, label, n in event_types %}
-      <a href="{% url 'notification_inbox' %}?type={{ code }}{% if unread_only %}&amp;unread=1{% endif %}" class="status-badge notif-type {% if event_filter == code %}status-maroon{% else %}status-gray{% endif %}"{% if event_filter == code %} aria-current="page"{% endif %}>{{ label }} <span class="notif-type__n">{{ n }}</span></a>
+      <a href="{% url 'notification_inbox' %}{{ all_types_url }}" class="status-badge notif-type {% if not event_filter %}status-maroon{% else %}status-gray{% endif %}"{% if not event_filter %} aria-current="page"{% endif %}>الكل <span class="notif-type__n">{{ total_count }}</span></a>
+      {% for code, label, n, url in event_types %}
+      <a href="{% url 'notification_inbox' %}{{ url }}" class="status-badge notif-type {% if event_filter == code %}status-maroon{% else %}status-gray{% endif %}"{% if event_filter == code %} aria-current="page"{% endif %}>{{ label }} <span class="notif-type__n">{{ n }}</span></a>
       {% endfor %}
-      <a href="{% url 'notification_inbox' %}?{% if event_filter %}type={{ event_filter }}&amp;{% endif %}{% if not unread_only %}unread=1{% endif %}" class="status-badge notif-type {% if unread_only %}status-maroon{% else %}status-gray{% endif %}" aria-pressed="{{ unread_only|yesno:'true,false' }}">{% icon "filter" %} غير المقروء فقط</a>
+      <a href="{% url 'notification_inbox' %}{{ unread_toggle_url }}" class="status-badge notif-type {% if unread_only %}status-maroon{% else %}status-gray{% endif %}" aria-pressed="{{ unread_only|yesno:'true,false' }}">{% icon "filter" %} غير المقروء فقط</a>
+    </nav>
+    {# التجميعُ غيرُ الترشيح: يرتّب الصندوقَ كلَّه ولا يُسقط منه شيئاً. #}
+    <nav class="notif-group-switch" aria-label="تجميع الإشعارات">
+      <a href="{% url 'notification_inbox' %}{{ group_day_url }}" class="notif-group-switch__opt"{% if group_mode == "day" %} aria-current="page"{% endif %}>حسب اليوم</a>
+      <a href="{% url 'notification_inbox' %}{{ group_type_url }}" class="notif-group-switch__opt"{% if group_mode == "type" %} aria-current="page"{% endif %}>حسب النوع</a>
     </nav>
   {% endfilter_bar %}
 
@@ -61,13 +66,13 @@
 
   {% comment %}
   `#notif-list` يبقى في الصفحة دائماً — بحثُ الصفحة ومفاتيحُها يقرآنه —
-  فالحالةُ الفارغةُ داخله لا بدلَه. والإشعاراتُ مجموعاتٌ بالأيّام، وكلُّ مجموعةٍ
-  أعمدةٌ متجاورة (`group_by_day` ← `chunk_for_grid`): الإشعارُ سطرٌ أو سطران
+  فالحالةُ الفارغةُ داخله لا بدلَه. والإشعاراتُ مجموعاتٌ بالأيّام أو بالأنواع، وكلُّ
+  مجموعةٍ أعمدةٌ متجاورة (`group_by_day`/`group_by_type` ← `chunk_for_grid`): الإشعارُ سطرٌ أو سطران
   وعددُها حتى المئة، فعمودٌ واحدٌ كان يطول بها ويترك عرضَ النافذة فارغاً.
   {% endcomment %}
   {% section_card "الإشعارات" meta=other_notifications|length icon="notifications" %}
     <div id="notif-list" class="notif-feed">
-      {% for group in day_groups %}
+      {% for group in groups %}
       <section data-notif-day aria-labelledby="notif-day-{{ group.key }}">
         <h3 class="notif-day__title" id="notif-day-{{ group.key }}">{{ group.label }} <span class="notif-day__count">{{ group.count }}</span></h3>
         <div class="auto-grid notif-grid">

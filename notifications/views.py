@@ -232,10 +232,12 @@ def notification_inbox(request):
     """صفحة صندوق الإشعارات"""
     from django.db.models import Count
 
-    from .inbox_presentation import group_by_day
+    from .inbox_presentation import group_by_day, group_by_type, inbox_query
 
     event_filter = request.GET.get("type", "")
     unread_only = request.GET.get("unread") == "1"
+    # «حسب النوع» تجميعٌ لا ترشيح: الصندوقُ كلُّه، كلُّ نوعٍ مجموعتُه.
+    group_mode = "type" if request.GET.get("group") == "type" else "day"
     mine = InAppNotification.objects.filter(user=request.user)
     qs = mine
     if event_filter:
@@ -278,11 +280,16 @@ def notification_inbox(request):
     type_counts = dict(
         mine.order_by().values("event_type").annotate(c=Count("id")).values_list("event_type", "c")
     )
+    state = {"type": event_filter, "unread": unread_only, "group": group_mode}
     event_types = [
-        (code, label, type_counts.get(code, 0))
+        (code, label, type_counts.get(code, 0), inbox_query(**{**state, "type": code}))
         for code, label in role_types
         if type_counts.get(code) or code == event_filter
     ]
+    if group_mode == "type":
+        groups = group_by_type(rest, dict(InAppNotification.EVENT_TYPES))
+    else:
+        groups = group_by_day(rest)
 
     return render(
         request,
@@ -291,12 +298,17 @@ def notification_inbox(request):
             "notifications": notifications,
             "urgent_notifications": urgent,
             "other_notifications": rest,
-            "day_groups": group_by_day(rest),
+            "groups": groups,
+            "group_mode": group_mode,
             "unread_count": unread_count,
             "total_count": sum(type_counts.values()),
             "event_filter": event_filter,
             "unread_only": unread_only,
             "event_types": event_types,
+            "all_types_url": inbox_query(**{**state, "type": ""}),
+            "unread_toggle_url": inbox_query(**{**state, "unread": not unread_only}),
+            "group_day_url": inbox_query(**{**state, "group": "day"}),
+            "group_type_url": inbox_query(**{**state, "group": "type"}),
         },
     )
 

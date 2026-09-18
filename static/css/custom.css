@@ -4401,6 +4401,18 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
 .notif-toolbar .ui-field { flex: 1 1 240px; max-inline-size: 26rem; }
 .notif-toolbar__chips { flex: 1 1 360px; align-items: center; padding-block-end: 4px; }
 .notif-type { text-decoration: none; padding: 4px 12px; }
+/* مفتاحُ التجميع زرّان متلاصقان: الجاري بأرضيّةٍ عنّابيّةٍ خفيفةٍ وخطٍّ تحته. */
+.notif-group-switch {
+  display: inline-flex; flex-shrink: 0; margin-block-end: 4px;
+  border: 1px solid var(--maroon-border); border-radius: var(--radius-md); overflow: hidden;
+}
+.notif-group-switch__opt {
+  padding: 5px 12px; font-size: var(--text-xs); font-weight: 700;
+  color: var(--text-secondary); text-decoration: none; white-space: nowrap;
+}
+.notif-group-switch__opt + .notif-group-switch__opt { border-inline-start: 1px solid var(--maroon-border); }
+.notif-group-switch__opt:hover { background: var(--maroon-bg); color: var(--maroon-fg); }
+.notif-group-switch__opt[aria-current="page"] { background: var(--maroon-bg); color: var(--maroon-fg); box-shadow: inset 0 -2px 0 var(--maroon-fg); }
 .notif-type__n { font-weight: 500; opacity: .75; font-variant-numeric: tabular-nums; }
 .notif-shortcuts {
   display: inline-flex; align-items: center; gap: 4px;
