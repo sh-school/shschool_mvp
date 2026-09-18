@@ -212,7 +212,18 @@ class AnnualSubjectResultAdmin(admin.ModelAdmin):
 
         if not is_open_year(obj.setup):
             raise PermissionDenied("العامُ الدراسيّ مغلق — لا يُرصد فيه دورٌ ثانٍ.")
+        # نتائجُ الشعبة إن كانت بقواعد أقدم ستُعاد كتابتُها كلُّها مع هذا الرصد — يُعرف قبله
+        # فيُخبَر المستخدمُ بعده، لا أن يبقى صامتاً. (جولة 9.)
+        will_restamp = GradeService.is_deferred(obj.setup.class_group, obj.setup.academic_year)
         GradeService.record_second_round(obj, request.user)
+        # `hasattr` لأنّ `save_model` يُستدعى أحياناً بطلبٍ خامٍ بلا وسيط الرسائل (اختباراتٌ
+        # تستدعيه مباشرةً) — فلا يُسقط استدعاءٌ لا يعرض شيئاً للمستخدم أصلاً.
+        if will_restamp and hasattr(request, "_messages"):
+            self.message_user(
+                request,
+                "نتائجُ شعبة هذا الطالب كانت بقواعد حكمٍ أقدم — أُعيد حسابُها كلُّها الآن.",
+                level="warning",
+            )
 
     def get_subject(self, obj):
         return obj.setup.subject.name_ar

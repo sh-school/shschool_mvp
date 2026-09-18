@@ -62,30 +62,29 @@ def _others(n=4):
     return [SubjectFacts(f"o{i}", _s1(12, 4, 16), _s2(12, 4, 32)) for i in range(n)]
 
 
-# ═══ 1 — موضعُ الجبر قراءةٌ: حيث يتغيّر بها الموقفُ يُعرض ولا يُطوى ═══════════════════
+# ═══ 1 — موضعُ الجبر مستقرٌّ (جولة 9): لا قراءاتٌ بديلةٌ تُقارَن ولا تنبيهُ مراجعة ═══════
 
 
-def test_jabr_reading_that_changes_the_standing_is_flagged():
-    """(أ) 7.1+2.1+9.1 ← 19 بجبر المنتصف، و18.5 بجبر المجموع وحدَه؛ (ب) 47.
+def test_jabr_position_is_settled_not_a_review_flag():
+    """(أ) 7.1+2.1+9.1 ← 19 بجبر المنتصف ثمّ المجموع — القراءةُ الوحيدة، بلا تنبيه.
 
-    المعتمدة: مادّةٌ راسبةٌ نقصُها 3 — دورٌ ثانٍ. وبجبر المجموع وحدَه: مادّتان نقصُهما 0.5 و3
-    — القاعدةُ الثانية (م50) ترفّعه. فالقراءةُ ليست في صالح الطالب دائماً.
+    كانت الجولةُ 7 تقارن هذه بقراءةٍ بديلة («جبرُ المجموع وحدَه» تُرفّع الطالبَ بالقاعدة
+    الثانية) وتحمل تنبيهاً؛ الجولةُ 9 حسمت موضعَ الجبر (لا خلاف) فأُسقطت المقارنةُ والتنبيه.
     """
-    from core.domain.grades import JABR_READING, JABR_READINGS
+    from core.domain.grades import JABR_MIDTERM_THEN_TOTAL, JABR_READING
+
+    assert JABR_READING == JABR_MIDTERM_THEN_TOTAL
 
     a = SubjectFacts("a", _s1(F("7.1"), F("2.1"), F("9.1")), _s2(7, 2, 22))
     b = SubjectFacts("b", _s1(7, 2, 8), _s2(7, 2, 21))
     verdict = judge_student(10, [a, b] + _others())
-    assert JABR_READING in JABR_READINGS and len(JABR_READINGS) == 3
     by = verdict.by_key()
     assert (verdict.standing, by["a"].annual_total, by["b"].status) == (
         "second_round",
         Decimal("50"),
         "second_round",
     )
-    assert "م8 موضعُ الجبر قراءة" in by["a"].review and "ناجح بالترفيع" in by["a"].review
-    assert "م8" in by["b"].review
-    assert all("م8" not in by[f"o{i}"].review for i in range(4))
+    assert all("م8 موضعُ الجبر" not in by[k].review for k in by)
 
 
 def test_jabr_reading_without_effect_on_the_standing_is_silent():

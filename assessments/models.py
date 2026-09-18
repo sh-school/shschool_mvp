@@ -528,8 +528,10 @@ class AnnualSubjectResult(models.Model):
     mark = models.CharField(max_length=10, choices=MARK_CHOICES, blank=True, default="")
     #: موضعُ الحكم من السياسة («م27»، «م50 القاعدة الثالثة» …).
     article = models.CharField(max_length=40, blank=True, default="")
-    #: تنبيهٌ للمراجعة لا حكم (م50-الأولى «في أية مادة») — من `SubjectVerdict.review`.
-    review = models.CharField(max_length=300, blank=True, default="")
+    #: تنبيهٌ للمراجعة لا حكم (م50-الأولى «في أية مادة»، وبنيةٌ خارج القرار …) — من
+    #: `SubjectVerdict.review`، وقد تتراكم عدّةُ تنبيهاتٍ بفاصل «؛» لمادّةٍ واحدة (`_add_review`).
+    #: كان 300 يقصّ تنبيهاتٍ مركَّبةً وسط الجملة (جولة 8)؛ 500 تتّسع لثلاثة تنبيهاتٍ نمطيّة.
+    review = models.CharField(max_length=500, blank=True, default="")
     # ── مدخلاتُ الدور الثاني — وقائعُ تُرصد لا تُحسب، وإعادةُ الحساب لا تمسّها ──
     second_round_score = models.DecimalField(
         max_digits=5,
@@ -549,8 +551,11 @@ class AnnualSubjectResult(models.Model):
         blank=True,
         verbose_name="قصوى اختبار الدور الثاني",
     )
-    #: إصدارُ قواعد الحكم الذي كُتب به الصفّ — ما دون `VERDICT_RULESET` قديمٌ ينتظر
-    #: `recalculate_grade_results --apply`، ولا يُعاد حسابُه جزئيّاً قبلَه.
+    #: إصدارُ قواعد الحكم الذي كُتب به الصفّ — ما دون `VERDICT_RULESET` قديمٌ، ويُعاد الحكمُ
+    #: عليه تلقائيّاً على مستوى الشعبة كلِّها (لا هذا الصفّ وحدَه) مع أوّل مسارٍ يمسّها
+    #: (`GradeService.recalculate_students`، انظر تعليق `VERDICT_RULESET` في
+    #: `core/domain/grades.py`)؛ و`recalculate_grade_results --apply` طريقٌ صريحٌ إضافيّ
+    #: لإعادة الحكم على مدرسةٍ كاملة، لا الطريقَ الوحيد.
     ruleset = models.PositiveSmallIntegerField(
         default=VERDICT_RULESET, verbose_name="إصدار قواعد الحكم"
     )

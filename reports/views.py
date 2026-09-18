@@ -21,11 +21,13 @@ from core.academic_calendar import academic_year_for
 from core.audit_export import log_export
 from core.capabilities import capability_required
 from core.domain.grades import (
+    PROMOTION_RULE_3_ARTICLE,
     RESULT_STATUS_LABELS,
     STANDING_INCOMPLETE,
     STANDING_LABELS,
     STANDING_TONES,
     STATUS_INCOMPLETE,
+    STATUS_PROMOTED,
     STATUS_TONES,
 )
 from core.domain.tones import tone_for
@@ -222,6 +224,16 @@ def _subject_rows_presentation(rows: list[dict]) -> None:
         status = annual.status if annual else STATUS_INCOMPLETE
         row["status_label"] = RESULT_STATUS_LABELS.get(status, "غير مكتمل")
         row["status_tone"] = _REPORT_TONE[STATUS_TONES.get(status, "warning")]
+        # م50: «يوضح في الشهادة أنه قد تم ترفيع الطالب … بناء على القاعدة الثالثة» —
+        # الحكمُ العامّ «مُرفَّع» لا يميّزها عن ترفيع القاعدتين الأولى والثانية. (جولة 9، §3.)
+        row["promotion_note"] = (
+            f"مُرفَّع بالقاعدة الثالثة (م50) — درجةُ الدور الثاني: {annual.second_round_score}"
+            if annual
+            and status == STATUS_PROMOTED
+            and annual.article == PROMOTION_RULE_3_ARTICLE
+            and annual.second_round_score is not None
+            else ""
+        )
 
 
 def _annual_grade(total) -> str:

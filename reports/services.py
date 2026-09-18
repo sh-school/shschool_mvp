@@ -210,7 +210,12 @@ class ReportDataService:
             row["grades_list"] = [row["grades"].get(s.name_ar) for s in subjects]
 
         total_passed = sum(1 for r in student_rows if r["standing"] in PASSING_STANDINGS)
-        total_failed = sum(1 for r in student_rows if r["standing"] in FAILING_STANDINGS)
+        # `FAILING_STANDINGS` تضمّ `second_round` — وهو موقفُ كلّ من يدخل الدور الثاني ولو
+        # لم يرسب في مادّةٍ إطلاقاً (معذورٌ عن نهاية فصلٍ، أو محرومٌ بقرار). فمن عدّه هنا
+        # «راسباً» يناقض `row["failed"]` نفسَه (0 له) وقائمةَ الراسبين والتحليلات (تُبنى على
+        # `FAILING_STATUSES` بمستوى المادّة لا الموقف)؛ فالعدُّ هنا على المادّة أيضاً: طالبٌ
+        # «راسبٌ» في الكشف فقط إن رسب فعلاً في مادّةٍ واحدةٍ فأكثر. (جولة 9.)
+        total_failed = sum(1 for r in student_rows if r["failed"] > 0)
 
         return {
             "class_group": class_group,

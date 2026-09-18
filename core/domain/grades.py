@@ -248,12 +248,11 @@ def jabr_fraction(value: Score | Fraction | str | None) -> Decimal | None:
     القيمة **الدقيقة** (`Fraction`) — لا قصَّ إلى 0.01 قبله: القصُّ كان يُنزل كسراً
     حقيقيّاً (19.5025 ← 19.5 لا 20)، والنصُّ لا يُنزل كسراً. (تصحيح 2026-09-15.)
 
-    **وموضعُه قراءةٌ لا نصّ** — م8 تعطف «في منتصف الفصل أو نهايته أو الدور الثاني»
-    عطفاً متوازياً ولا تسمّي ما يُجبر في كلٍّ منها، فتحتمل ثلاثاً (`JABR_READINGS`):
-    جبرَ المنتصف ثمّ مجموعِ الفصل (المعتمدةُ هنا، `JABR_READING`)، أو جبرَ المجموع وحدَه،
-    أو جبرَ كلِّ اختبار. وسياسةُ الثاني عشر (م7 ص5) «في نهاية كل فصل دراسي أو الدور الثاني»
-    لا منتصفَ فيها فلا خلاف. وحيث تختلف القراءاتُ في موقف الطالب يُحمل تنبيهٌ للمراجعة
-    (`_jabr_reading_reviews`) ولا يُطوى الخلاف. (تصحيح 2026-09-17، جولة 7: كان يُقدَّم نصّاً.)
+    **وموضعُه** — مستقرٌّ منذ الجولة 9 (`JABR_READING` وتعليقُها): ثلاثُ لحظاتٍ فقط
+    (منتصفُ الفصل، نهايتُه، الدورُ الثاني)، ونهايةُ الفصل مجموعُ الباقات الثلاث فتُجبر
+    مجموعاً واحداً بعد أن يُجبر المنتصفُ وحدَه ككيانٍ مستقلّ. وسياسةُ الثاني عشر (م7 ص5)
+    «في نهاية كل فصل دراسي أو الدور الثاني» لا منتصفَ فيها فلا خلاف. (تصحيح 2026-09-17،
+    جولة 7: كان يُقدَّم نصّاً؛ وجولة 9: كانت قراءتان بديلتان تُقارَنان بتنبيه — أُسقطتا.)
 
     >>> [str(jabr_fraction(v)) for v in ("47", "47.01", "47.5", "47.51", "49.99")]
     ['47', '47.5', '47.5', '48', '50']
@@ -265,19 +264,25 @@ def jabr_fraction(value: Score | Fraction | str | None) -> Decimal | None:
     return _to_decimal(_jabr_exact(_exact(value)))
 
 
-#: الباقاتُ التي هي «منتصفُ الفصل» في م8 — تُجبر وحدَها قبل الجمع (في القراءة المعتمدة).
+#: الباقاتُ التي هي «منتصفُ الفصل» في م8 — تُجبر وحدَها قبل الجمع.
 MIDTERM_PACKAGES = frozenset({"P1", "P3"})
 
-#: قراءاتُ موضع الجبر في م8 (4–11 ص9) — النصُّ لا يحسم بينها.
+#: موضعُ الجبر (م8) — **مستقرٌّ**، لا قراءاتٌ متعدّدة (مراجعةٌ عدائيّة، جولة 9، 2026-09-17؛
+#: اتّفاق مشكّكَين مستقلَّين): ثلاثُ لحظاتٍ فقط لا رابعة — منتصفُ الفصل، نهايتُه، الدورُ الثاني.
+#: «نهايةُ الفصل» (م6) اسمٌ لمجموع الباقات الثلاث (منتصف + أعمال + نهاية) لا للاختبار
+#: الختاميّ وحدَه، فجبرُها جبرٌ للمجموع الكلّي مرّةً واحدة لا جبرٌ وسيطٌ لكلّ باقةٍ قبل جمعها؛
+#: واستثناءً: «منتصفُ الفصل» (P1/P3) حين تكون هي نفسُها مركَّبةً من أجزاءٍ (اللغتان) تُجبر
+#: ككيانٍ مستقلٍّ أوّلاً ثمّ يدخل ناتجُها المجبورُ ضمن مجموع نهاية الفصل الذي يُجبر مجدَّداً —
+#: وهو ما تطبّقه `semester_total` و`_mid_part` هنا. ولا سندَ نصّيّاً لجبر «أعمال الفصل»
+#: منفردةً ولا لجبر «اختبار نهاية الفصل» (P2/P4) وحدَه قبل الجمع؛ فلا مكانَ هنا لقراءتَي
+#: «جبرِ المجموع وحدَه» أو «جبرِ كلّ اختبار» اللتين كانتا تُقارَنان بتنبيهٍ (`JABR_READINGS`
+#: القديمة، حُذفت مع `_jabr_reading_reviews`، جولة 9): لم تكونا قراءتين محتملتين يُرجَّح
+#: بينهما، بل قراءتين تخالفان النصَّ فيهما، فحسمُهما إسقاطٌ لا خلاف.
+#: الاستشهاد: المادّتان (6) و(8)، الصفحة المطبوعة ٩ (PDF ص10)؛ ومؤيَّدةً إجرائياً بـ«خامساً:
+#: قواعد الرصد» المطبوعة ٤٤ (PDF ص45) البندين 1 و6؛ ومؤكَّدةً بالمادّة (14) المطبوعة ١٨
+#: (PDF ص19). ولا خلافَ في الثاني عشر: سياستُه (م7 ص5) «في نهاية كلّ فصلٍ دراسيّ أو الدور
+#: الثاني» بلا منتصف.
 JABR_MIDTERM_THEN_TOTAL = "midterm_then_total"
-JABR_TOTAL_ONLY = "total_only"
-JABR_EACH_EXAM = "each_exam"
-JABR_READINGS: dict[str, str] = {
-    JABR_MIDTERM_THEN_TOTAL: "جبرُ المنتصف ثمّ مجموعِ الفصل",
-    JABR_TOTAL_ONLY: "جبرُ مجموعِ الفصل وحدَه",
-    JABR_EACH_EXAM: "جبرُ كلِّ اختبارٍ ثمّ المجموع",
-}
-#: القراءةُ المعتمدة للتخزين — معروضةٌ على المالك قراءةً (خطّة الإصلاح، بند 0.1).
 JABR_READING = JABR_MIDTERM_THEN_TOTAL
 
 _CENT = Decimal("0.01")
@@ -429,9 +434,14 @@ def semester_total(raw_scores: Mapping[str, Score | Fraction | str | None]) -> D
 # قرارٍ تنبيهٌ يُعرض ولا يُحكم به.
 
 #: إصدارُ قواعد الحكم — يُرفع متى تغيّر ما يُخزَّن لنتيجةٍ لم تتغيّر وقائعُها. الصفُّ المكتوب
-#: بإصدارٍ أقدم لا يُعاد حسابُه جزئيّاً (حفظُ درجة، زرّ) حتّى يُعاد الحكمُ على المدرسة كلِّها
-#: (`recalculate_grade_results --apply`) — فلا تُخرج شعبةٌ واحدةٌ طلبةً متساوين بقاعدتين.
-#: 0 = ما كتبته الشيفرةُ قبل الحكم الواحد؛ 1 = جولة 6 (2026-09-16).
+#: بإصدارٍ أقدم **يُعاد حسابُه تلقائيّاً — على الشعبة كلِّها لا على الطالب وحدَه** — مع أوّل
+#: مسارٍ يمسّها (حفظُ درجة، زرّ، قرارُ فريق السلوك): `GradeService.recalculate_students`
+#: (`assessments/services.py`) يكتشف القِدَم (`is_deferred`) ويُعيد الحكمَ على طلبة الشعبة
+#: كلِّهم بالإصدار الجاري («restamp») قبل أن يكتب أثرَ الحفظ نفسِه — فلا تُخرج شعبةٌ واحدةٌ
+#: طلبةً متساوين بقاعدتين، ولا يبقى رصدٌ محفوظاً بلا أثرٍ حتّى يُشغَّل أمرٌ يدويّ (كانت هذه
+#: العلّةَ قبل الجولة 7). و`recalculate_grade_results --apply` طريقٌ صريحٌ لإعادة الحكم على
+#: مدرسةٍ كاملةٍ دفعةً واحدة (بعد نشرٍ مثلاً) — لا الطريقَ الوحيد. 0 = ما كتبته الشيفرةُ قبل
+#: الحكم الواحد؛ 1 = جولة 6 (2026-09-16).
 VERDICT_RULESET = 1
 
 PASS_MARK = Decimal("50")
@@ -442,6 +452,10 @@ PROMOTION_RULE_2_GAP = 4
 #: القاعدةُ الثالثة (م50): 75% في كلّ مادّةٍ باقية، و40% في مادّة الرسوب.
 PROMOTION_RULE_3_OTHERS = Decimal("75")
 PROMOTION_RULE_3_FAILED = 40
+#: نصُّ مادّة الترفيع الذي يُخزَّن في `SubjectVerdict.article` للقاعدة الثالثة تحديداً —
+#: يوجب م50 «أن يوضح في الشهادة أنه قد تم ترفيع الطالب … بناء على القاعدة الثالثة»، فتقرأ
+#: طبقةُ التقارير هذا النصَّ بعينه لتميّزه عن ترفيع القاعدتين الأولى والثانية.
+PROMOTION_RULE_3_ARTICLE = "م50 القاعدة الثالثة"
 
 _PASS = Fraction(50)
 
@@ -662,6 +676,55 @@ def exempt_on_certificate(grade: int, subject_name: str) -> bool:
     return not (7 <= grade <= 9 and ("الفنية" in name or "الفنون" in name))
 
 
+#: الموادُّ الإضافيّة الاختياريّة — ملحق 4–11 ص59–63: «يمكن للمدرسة … أن تضيف مادة واحدة
+#: من المواد التالية» لكلٍّ من الصفوف الخامس حتى العاشر (لا الرابع). أسماؤها كما وردت.
+ADDITIONAL_SUBJECT_NAMES: frozenset[str] = frozenset(
+    {
+        "مسرح ودراما",
+        "المسرح والدراما",
+        "الروبوت",
+        "روبوت",
+        "اللغة الفرنسية",
+        "الفرنسية",
+        "مناظرات عربية",
+        "مناظرات باللغة العربية",
+        "مناظرات إنجليزية",
+        "مناظرات باللغة الإنجليزية",
+    }
+)
+#: «الفنون» خيارٌ سادسٌ إضافيٌّ في العاشر وحدَه (ملحق ص61) — لا في الحادي عشر، حيث «الفنون»
+#: أحدُ خيارات «المادّة الاختياريّة» الأساسيّة (نجاح/رسوب، ملحق ص62–63) لا مادّةٌ إضافيّة.
+_ADDITIONAL_ARTS_GRADE = 10
+_ADDITIONAL_ARTS_NAME = "الفنون"
+
+
+def is_additional_subject(grade: int, subject_name: str) -> bool:
+    """أمادّةٌ «إضافيّةٌ» اختياريّة (ملحق 4–11 ص59–63) — لا تُنشأ لها سجلّاتُ درجاتٍ إطلاقاً؟
+
+    «لا توجد لهذه المواد تقييمات دورية، ولا تُكتب في تقرير الطالب ولا في شهادة نهاية العام
+    إطلاقاً» — غيابٌ كلّيٌّ عن كلّ السجلّات الرسميّة، أشدُّ من «ليست مادة نجاح ورسوب»
+    (`default_has_pass_mark`: تلك تُحسب وتُعرض بلا حكم نجاح/رسوب؛ وهذه لا تُحسب أصلاً).
+    الصفُّ الرابعُ صمتٌ تامّ (لا فقرة مواد إضافية)، والحادي عشرُ كذلك (بدلاً منها «المادّة
+    الاختياريّة»، أساسيّةٌ نجاح/رسوب، وتضمّ «الفنون» أيضاً — فلا يُخلَط حكماها المتضادّان).
+
+    الاستشهاد: ملحق المواد الدراسية 4–11، الصفحات المطبوعة 59–63 (PDF ص60–63)، فقرة
+    «المادة الاختيارية» ص62–63 (مواصفةُ الجولة 9، §2).
+
+    >>> is_additional_subject(8, "اللغة الفرنسية"), is_additional_subject(11, "الفنون")
+    (True, False)
+    >>> is_additional_subject(10, "الفنون"), is_additional_subject(9, "الفنون")
+    (True, False)
+    >>> is_additional_subject(4, "الروبوت"), is_additional_subject(12, "الروبوت")
+    (False, False)
+    """
+    if not (5 <= grade <= 10):
+        return False
+    name = subject_name.replace("ـ", "")
+    if grade == _ADDITIONAL_ARTS_GRADE and _ADDITIONAL_ARTS_NAME in name:
+        return True
+    return any(n in name for n in ADDITIONAL_SUBJECT_NAMES)
+
+
 @dataclass(frozen=True)
 class ExamFacts:
     """باقةٌ واحدة (اختبارٌ أو أعمال) لطالبٍ في مادّة — وقائعُ لا حكم.
@@ -823,31 +886,23 @@ def _mid_part(
     exam: ExamFacts | None,
     zeroed: bool,
     borrowed: Fraction,
-    reading: str = JABR_READING,
 ) -> Fraction | None:
     """درجةُ منتصف الفصل مجبورةً (م8) **بعد** ضمّ ما عُذر عنه منه بنسبة النهاية (م24).
 
     المحرومُ منه (م29 1–3) ومن غشّ فيه (م42) صفر. والجبرُ على المنتصف كاملاً: جبرُ الحاضر
     وحدَه ثمّ إضافةُ المستعار كان يرفع الفصلَ فوق قصواه (40.5 من 40). (تصحيح جولة 6.)
-    وفي قراءة «المجموع وحدَه» (`JABR_TOTAL_ONLY`) لا يُجبر هنا.
     """
     if zeroed:
         return Fraction(0)
     if exam is None or exam.score is None:
         return None
-    value = exam.score + borrowed
-    return value if reading == JABR_TOTAL_ONLY else _jabr_exact(value)
+    return _jabr_exact(exam.score + borrowed)
 
 
 def _score(exam: ExamFacts | None, deprived: bool = False) -> Fraction | None:
     if deprived:
         return Fraction(0)
     return None if exam is None else exam.score
-
-
-def _final_part(value: Fraction | None, reading: str) -> Fraction | None:
-    """درجةُ اختبار نهاية الفصل — تُجبر وحدَها في قراءة «كلّ اختبار» فقط."""
-    return _jabr_or_none(value) if reading == JABR_EACH_EXAM else value
 
 
 def _unrecorded(exam: ExamFacts | None, not_needed: bool = False) -> bool:
@@ -900,7 +955,6 @@ def _first_semester_standard(
     makeup: MakeupFacts | None,
     gates: frozenset[str],
     cheated: frozenset[str] = frozenset(),
-    reading: str = JABR_READING,
 ) -> _Round1:
     p1, p2, aw = ex.get("P1"), ex.get("P2"), ex.get("AW")
     dep_mid, dep_fin = GATE_S1_MIDTERM in gates, GATE_S1_FINAL in gates
@@ -922,7 +976,7 @@ def _first_semester_standard(
         # درجات (اختبار منتصف الفصل، أعمال الفصل)»؛ ومن ليس له درجاتُهما (معذورٌ عن المنتصف
         # فنهايتُه 100%: م17، أو عن الفصل كلِّه فملحقُه 100%: م18) «فلا يسمح لهم بدخول
         # اختبارات الفصل الدراسي الثاني في مادة الغش وتحسب ضمن مواد الرسوب».
-        mid = _mid_part(p1, zero_mid, Fraction(0), reading)
+        mid = _mid_part(p1, zero_mid, Fraction(0))
         if m1 == EXCUSED_MARK or mid is None or aw_s is None:
             return _Round1(_VOID, article="م43", mark=CHEATING_MARK)
         return _Round1(_SCORED, s1=_jabr_exact(mid + aw_s), article="م43")
@@ -963,11 +1017,11 @@ def _first_semester_standard(
                     _SCORED, s1=_jabr_exact(final * SEMESTER_MAX_EXACT["S1"]), article="م17"
                 )
             # م24 «أولاً-1»: الجزءُ المعذورُ من المنتصف بنسبة النهاية — ونهايتُه بملحقها (م19).
-            mid = _mid_part(p1, zero_mid, final * mid_excused, reading)
-            made = _sum([mid, aw_s, _final_part(final * p2.out_of, reading)])
+            mid = _mid_part(p1, zero_mid, final * mid_excused)
+            made = _sum([mid, aw_s, final * p2.out_of])
             return _Round1(_SCORED, s1=_jabr_or_none(made), article=mid_art or "م19")
-        mid = _mid_part(p1, zero_mid, Fraction(0), reading)
-        made = _sum([mid, aw_s, _final_part(p2.score, reading)])
+        mid = _mid_part(p1, zero_mid, Fraction(0))
+        made = _sum([mid, aw_s, p2.score])
         return _Round1(_SCORED, s1=_jabr_or_none(made), article="م20")
 
     if m1 == EXCUSED_MARK:
@@ -981,9 +1035,9 @@ def _first_semester_standard(
     borrowed = Fraction(0) if dep_fin else _borrowed(p2, mid_excused)
     total = _sum(
         [
-            _mid_part(p1, zero_mid, borrowed, reading),
+            _mid_part(p1, zero_mid, borrowed),
             aw_s,
-            _final_part(_score(p2, dep_fin), reading),
+            _score(p2, dep_fin),
         ]
     )
     if total is None:
@@ -996,7 +1050,6 @@ def _second_semester_standard(
     gates: frozenset[str],
     s1: Fraction | None,
     cheated: frozenset[str] = frozenset(),
-    reading: str = JABR_READING,
 ) -> _Round1:
     p3, p4, aw = ex.get("P3"), ex.get("P4"), ex.get("AW")
     dep_mid = GATE_S2_MIDTERM in gates
@@ -1032,7 +1085,14 @@ def _second_semester_standard(
             # هنا اختبارُ الدور الثاني — فيُضمّ إلى قصواه، ويُحمل الحاضرُ خاماً (يُجبر المجموع).
             mid = p3.score or Fraction(0)
         else:
-            mid = _mid_part(p3, zero_mid, Fraction(0), reading) or Fraction(0)
+            mid = _mid_part(p3, zero_mid, Fraction(0)) or Fraction(0)
+        # اجتهادٌ هندسيٌّ بالقياس على م24«أولاً-1» ومنطق م25 — لا نصٌّ حرفيٌّ فيه: الأصلُ
+        # صامتٌ عن إعذارٍ جزئيّ عن منتصف الفصل الثاني مجموعاً مع إعذارٍ كاملٍ عن نهايته
+        # (مادّةٌ عاديّةٌ بلا فروع)؛ فقصوى الدور الثاني هنا (`p4.out_of + mid_excused`، مثلاً
+        # 47.5 = 40 + نصف الـ15 المعذور) تعويضٌ دقيقٌ بنسبة الإعذار الفعليّة — لا حكمٌ منصوصٌ
+        # عليه. البديلُ الأوّل (تجاهلُ الإعذار الجزئي، القصوى 40) يُفقد تمييزَ ما أُعذر عنه
+        # فعلاً؛ والثاني (افتراضُ إعذارٍ كاملٍ عن كامل المنتصف، القصوى 55) يمنح تعويضاً أكبرَ
+        # من المستحقّ. (مواصفةُ الجولة 9، §4.)
         return _Round1(
             _EXCUSED,
             s1=s1,
@@ -1054,22 +1114,27 @@ def _second_semester_standard(
         borrowed = _borrowed(p4, p3.excused_share * p3.out_of)
     total = _sum(
         [
-            _mid_part(p3, zero_mid, borrowed, reading),
+            _mid_part(p3, zero_mid, borrowed),
             aw_s,
-            _final_part(_score(p4), reading),
+            _score(p4),
         ]
     )
     return _Round1(_SCORED, s1=s1, s2=_jabr_or_none(total), article="م42" if cheat_mid else "")
 
 
-def _round1_standard(
-    f: SubjectFacts, gates: frozenset[str], reading: str = JABR_READING
-) -> _Round1:
-    first = _first_semester_standard(f.s1, f.makeup, gates, f.cheated, reading)
+def _round1_standard(f: SubjectFacts, gates: frozenset[str]) -> _Round1:
+    first = _first_semester_standard(f.s1, f.makeup, gates, f.cheated)
     if first.state != _SCORED:
         # م21 وم22 وم43: لا يدخل الفصلَ الثاني في المادّة — فما رُصد له فيه لا يُقرأ.
         return first
-    second = _second_semester_standard(f.s2, gates, first.s1, f.cheated, reading)
+    if first.s1 is None:
+        # الفصلُ الأول لم يُرصد (باقةٌ إلزاميّةٌ غائبة، السطرُ أعلاه) — «غير مكتمل»، ولا
+        # يُبنى عليه حكمُ الفصل الثاني ولا الدورُ الثاني: م25/م26 يفترضان فصلاً أوّلَ معلوماً
+        # («تضاف إلى درجاته في الفصل الدراسي الأول») لا صفراً. كان `s1 or Fraction(0)` في
+        # `_second_semester_standard` يحمل صفراً لمعذورٍ عن نهاية الثاني فصلُه الأول لم
+        # يُرصد، فيرسب في دورٍ ثانٍ قصواه 60 بدل «غير مكتمل». (جولة 9، عيبٌ عالي الخطورة.)
+        return _Round1(_SCORED)
+    second = _second_semester_standard(f.s2, gates, first.s1, f.cheated)
     if second.state == _SCORED and not second.article:
         return replace(second, article=first.article)
     return second
@@ -1105,6 +1170,25 @@ def _round1_final_grade(f: SubjectFacts) -> _Round1:
 
 def _dec(value: Fraction | None) -> Decimal | None:
     return None if value is None else _to_decimal(value)
+
+
+def _dec2(value: Fraction | None) -> Decimal | None:
+    """كسرٌ إلى 0.01 — لقيمٍ **ليست** درجةَ طالبٍ خاضعةً لجبر م8 (قصوى اختبارٍ، لا مُحصَّل).
+
+    `_dec` يفترض مضاعفَ نصفٍ (`_to_decimal` تؤكّد ذلك) لأنّ كلَّ درجةٍ محسوبة تمرّ بالجبر
+    أوّلاً. أمّا `second_round_max` فقصوى بنائيّة (`p4.out_of + mid_excused` في م25) قد لا
+    تكون مضاعفَ نصفٍ (43.75 مثلاً، حصّةُ إعذارٍ ربعُها) — فتمريرُها في `_dec` كان يُسقط
+    `AssertionError` عند حفظ أيّ درجةٍ في الشعبة، لا في هذه المادّة وحدَها. (جولة 9، عيبٌ
+    عالي الخطورة.)
+
+    >>> _dec2(Fraction(175, 4))
+    Decimal('43.75')
+    """
+    if value is None:
+        return None
+    return (Decimal(value.numerator) / Decimal(value.denominator)).quantize(
+        _CENT, rounding=ROUND_HALF_UP
+    )
 
 
 def _to_plain(value: Fraction) -> str:
@@ -1199,43 +1283,6 @@ def _add_review(v: SubjectVerdict, note: str) -> SubjectVerdict:
     return replace(v, review="؛ ".join(n for n in (v.review, note) if n))
 
 
-def _jabr_reading_reviews(
-    verdict: StudentVerdict, others: Mapping[str, StudentVerdict]
-) -> StudentVerdict:
-    """تنبيهٌ حيث يتغيّر **موقفُ** الطالب بقراءةٍ أخرى لموضع الجبر (م8) — لا حكم.
-
-    النصُّ (4–11 م8 ص9) «عند حساب درجات أية مادة … في منتصف الفصل أو نهايته أو الدور
-    الثاني» لا يحسم ما يُجبر؛ والحكمُ المخزَّن على `JABR_READING`. وقد يرفع جبرُ المنتصف مادّةً
-    إلى الخمسين فيُسقط عن الطالب القاعدةَ الثانية (م50 «في مادتين») التي كان ينالها بغيره —
-    فيُعرض على مراجعة النتائج، ولا يُطوى. والفرقُ في المجموع وحدَه بلا أثرٍ في الموقف لا يُنبَّه.
-    """
-    mine = verdict.by_key()
-    notes: dict[str, list[str]] = {}
-    for reading, other in others.items():
-        if other.standing == verdict.standing:
-            continue
-        theirs = other.by_key()
-        differ = [
-            k
-            for k, v in mine.items()
-            if k in theirs
-            and (theirs[k].status, theirs[k].annual_total) != (v.status, v.annual_total)
-        ] or list(mine)
-        for k in differ:
-            t = theirs.get(k)
-            here = "" if t is None else f"، والمادّةُ {t.label} {t.annual_total or ''}".rstrip()
-            notes.setdefault(k, []).append(
-                f"م8 موضعُ الجبر قراءة: على «{JABR_READINGS[reading]}» الموقفُ {other.label}{here}"
-                " — يُعرض على مراجعة النتائج"
-            )
-    if not notes:
-        return verdict
-    subs = tuple(
-        _add_review(v, "؛ ".join(notes[v.key])) if v.key in notes else v for v in verdict.subjects
-    )
-    return replace(verdict, subjects=subs)
-
-
 def judge_student(
     grade: int,
     subjects: list[SubjectFacts] | tuple[SubjectFacts, ...],
@@ -1266,11 +1313,6 @@ def judge_student(
     gates = frozenset(deprived_gates)
     counted = [f for f in subjects if f.has_pass_mark]
     verdict = _judge(grade, counted, gates)
-    if not g12:
-        verdict = _jabr_reading_reviews(
-            verdict,
-            {r: _judge(grade, counted, gates, r) for r in JABR_READINGS if r != JABR_READING},
-        )
     by_key = verdict.by_key()
     exempt_art = "الملحق 7" if g12 else "م11 والملحق"
     subs = []
@@ -1308,7 +1350,6 @@ def _judge(
     grade: int,
     subjects: list[SubjectFacts] | tuple[SubjectFacts, ...],
     gates: frozenset[str],
-    reading: str = JABR_READING,
 ) -> StudentVerdict:
     """الحكمُ في الموادّ التي لها نهايةٌ صغرى: حالةُ كلّ مادّةٍ ومجموعُها وموضعُها، والموقف.
 
@@ -1329,7 +1370,7 @@ def _judge(
         f.key: (
             _Round1(_BLOCKED)
             if _outside(grade, f) or f.structure
-            else (_round1_final_grade(f) if g12 else _round1_standard(f, gates, reading))
+            else (_round1_final_grade(f) if g12 else _round1_standard(f, gates))
         )
         for f in subjects
     }
@@ -1372,7 +1413,7 @@ def _judge(
             annual_total=_dec(r.total) if numeric else None,
             mark=mark,
             article=article or r.article,
-            second_round_max=_dec(retake_max if retake_max is not None else r.retake_max)
+            second_round_max=_dec2(retake_max if retake_max is not None else r.retake_max)
             if sitting
             else None,
         )
@@ -1562,7 +1603,7 @@ def _second_round(
                 and others
                 and all(t is not None and t >= PROMOTION_RULE_3_OTHERS for t in others)
             ):
-                rule = "م50 القاعدة الثالثة"
+                rule = PROMOTION_RULE_3_ARTICLE
         if rule:
             # «يرصد في كشوف الدرجات والشهادة الدرجة التي حصل عليها» — تبقى درجتُه.
             for k in failed:

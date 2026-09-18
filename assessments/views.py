@@ -1,3 +1,4 @@
+import json
 import logging
 from decimal import Decimal
 
@@ -342,6 +343,10 @@ def save_single_grade(request, assessment_id):
                 logger.warning("فشل تحويل الدرجة إلى Decimal: %r — %s", raw, e)
                 return HttpResponse("درجة غير صالحة", status=400)
 
+    setup = assessment.package.setup
+    # نتائجُ الشعبة إن كانت بقواعد أقدم ستُعاد كتابتُها كلُّها (الشعبةُ لا هذا الطالب وحدَه)
+    # مع هذا الحفظ بعينه — يُعرف قبل الحفظ فيُخبَر المستخدمُ بعده، لا أن يبقى صامتاً. (جولة 9.)
+    will_restamp = GradeService.is_deferred(setup.class_group, setup.academic_year)
     try:
         grade_obj, _ = GradeService.save_grade(
             assessment=assessment,
@@ -357,7 +362,7 @@ def save_single_grade(request, assessment_id):
 
     stats = GradeService.get_assessment_stats(assessment)
 
-    return render(
+    response = render(
         request,
         "assessments/partials/grade_row.html",
         {
@@ -367,6 +372,16 @@ def save_single_grade(request, assessment_id):
             "stats": stats,
         },
     )
+    if will_restamp:
+        response["HX-Trigger"] = json.dumps(
+            {
+                "showToast": {
+                    "message": "نتائجُ الشعبة كانت بقواعد حكمٍ أقدم — أُعيد حسابُها كلُّها الآن",
+                    "type": "info",
+                }
+            }
+        )
+    return response
 
 
 @login_required

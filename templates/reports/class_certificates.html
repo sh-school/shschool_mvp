@@ -102,7 +102,10 @@
             <td>{{ r.annual.s2_total|default:"—" }}</td>
             <td>{% if r.annual %}{{ r.annual.total_display }}{% else %}—{% endif %}</td>
             <td>{{ r.annual.letter_grade|default:"—" }}</td>
-            <td><b class="c-{{ r.status_tone }}">{{ r.status_label }}</b></td>
+            <td>
+              <b class="c-{{ r.status_tone }}">{{ r.status_label }}</b>
+              {% if r.promotion_note %}<br><small>{{ r.promotion_note }}</small>{% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>

@@ -10,6 +10,7 @@ assessments/services.py
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
@@ -43,6 +44,7 @@ from core.domain.grades import (
     SecondRoundFacts,
     SubjectFacts,
     band_of,
+    is_additional_subject,
     judge_student,
     package_out_of,
     package_score,
@@ -104,6 +106,14 @@ def package_facts(
     الحكمُ ولا يجمعها، ودرجتُها `None` (لا «0» في السجلّ).
     والغائبُ عن تقييمٍ جزءٌ صفرٌ فيها، وحصّتُه تُعدّ بعذرٍ أو بغيره — والحكمُ بها في
     `judge_student`. وتقييمُ الملحق (`Assessment.MAKEUP`) لا يدخل درجةَ باقته.
+
+    والباقةُ **مرصودةٌ** لطالبٍ فقط إن كان لكلّ تقييمٍ منشورٍ فيها مدخلٌ محدَّدٌ له — درجةٌ
+    أو غياب؛ فتقييمٌ واحدٌ لم يُرصد بعدُ (خانةٌ فارغة، أو `StudentAssessmentGrade` بلا درجةٍ
+    ولا غياب، أو لا صفَّ له إطلاقاً) يجعل الباقةَ كلَّها «غير مرصودة» لذلك الطالب — لا نسبةً
+    محسوبةً من الموجود وحدَه كأنّ الباقي صفر. وإلّا فإنشاءَ تقييمٍ جديدٍ في باقةٍ (`AW` عادةً)
+    كان يخفض فوراً درجةَ كلّ من أُنجزت باقيةُ تقييماته (وزنُه يدخل المقام قبل أن يُرصد لأحد)،
+    وخانةً فارغةً تُحفظ بلا قيمةٍ لغير طالبٍ («حفظ الكلّ») كانت تُحسب صفراً مرصوداً لا خانةً
+    لم تُملأ بعد. (جولة 9، عيبٌ عالي الخطورة.)
     """
     if not packages or not student_ids:
         return {}, {}
@@ -140,12 +150,13 @@ def package_facts(
             grade_number(pkg.setup.class_group.grade), pkg.semester, pkg.package_type
         ) or Fraction(0)
         for sid in student_ids:
-            pct, excused, absent, seen = Fraction(0), Fraction(0), Fraction(0), False
+            pct, excused, absent = Fraction(0), Fraction(0), Fraction(0)
+            complete = True
             for aid, item_max, w in items:
                 entry = index.get((sid, aid))
                 if entry is None:
+                    complete = False
                     continue
-                seen = True
                 value, is_absent, is_excused = entry
                 share = w / total_w
                 if is_absent:
@@ -153,9 +164,13 @@ def package_facts(
                         excused += share
                     else:
                         absent += share
-                elif value is not None and item_max:
-                    pct += Fraction(value) / item_max * share
-            if seen:
+                elif value is not None:
+                    if item_max:
+                        pct += Fraction(value) / item_max * share
+                else:
+                    # صفٌّ محفوظٌ بلا درجةٍ ولا غياب — خانةٌ فارغة، لا صفرٌ مرصود.
+                    complete = False
+            if complete:
                 score = pct * out_of if out_of else None
                 exams[(sid, pkg_id)] = ExamFacts(score, out_of, excused, absent)
 
@@ -344,8 +359,14 @@ class GradeService:
         ما يُنشأ يأتي من `package_weights` وحدَه: شعبةُ الثاني عشر تنال P2 في
         الفصل الأول وP4 في الثاني لا غير (القرار 14/2018، المادّة 3 «ثالثاً»،
         2018/06/06) — فلا P1/P3/AW بوزن صفر. متكرّرُ الاستدعاء بلا أثرٍ زائد.
+
+        والمادّةُ «الإضافيّةُ» الاختياريّة (`is_additional_subject`؛ ملحق 4–11 ص59–63)
+        لا تُنشأ لها باقاتٌ إطلاقاً — «لا توجد لها تقييمات دورية» نصّاً، فلا تظهر لمعلّمها
+        شاشةُ رصدٍ من الأصل. (مواصفةُ الجولة 9، §2.)
         """
         grade = grade_number(setup.class_group.grade)
+        if is_additional_subject(grade, setup.subject.name_ar):
+            return []
         semester_max = SEMESTER_MAX.get(semester, Decimal("40"))
         for ptype, weight in package_weights(grade, semester).items():
             AssessmentPackage.objects.get_or_create(
@@ -370,6 +391,11 @@ class GradeService:
         قاعدةٍ بُذرت بالجدول القديم (P1 وP4 بخمسين في الفصل الأول) كان يُضيف فوقها
         فيبلغ مجموعُ الأوزان 162.5٪. فهنا: إن لم تُرصد في الفصل درجةٌ حُذف الزائدُ وأُعيد
         الوزنُ إلى الجدول؛ وإن رُصدت فلا يُمسّ شيء ويُرفع `PackageStructureError`.
+
+        **ثغرةٌ باقية (جولة 9)**: `table` من `package_weights(grade, semester)` لا يعرف
+        المادّةَ الإضافيّةَ الاختياريّة (`is_additional_subject`) — فبذرٌ يستدعي هذه الدالّة
+        على إعداد مادّةٍ إضافيّة قد يُنشئ لها باقاتٍ خلافاً لـ`ensure_packages` التي تستثنيها.
+        لم تُصلَح هنا: مسارُ البذر خارج نطاق «محرّك التقييم» المباشر، وتعديلُه يمسّ full_seed.
         """
         grade = grade_number(setup.class_group.grade)
         table = package_weights(grade, semester)
@@ -650,6 +676,13 @@ class GradeService:
         if not setups:
             plan.students = 0
             return plan
+        grade = grade_number(class_group.grade)
+        # المادّةُ الإضافيّةُ الاختياريّة لا تُنشأ لها سجلّاتُ درجاتٍ إطلاقاً — غيابٌ كلّيٌّ
+        # عن محرّك التقييم، لا حالةُ «ليست مادة نجاح ورسوب» (`has_pass_mark`). (جولة 9، §2.)
+        setups = [s for s in setups if not is_additional_subject(grade, s.subject.name_ar)]
+        if not setups:
+            plan.students = 0
+            return plan
         for setup in setups:
             ensure_open_year(setup)
         school = setups[0].school
@@ -657,7 +690,6 @@ class GradeService:
         if not restamp and GradeService.is_deferred(class_group, year):
             plan.deferred = True
             return plan
-        grade = grade_number(class_group.grade)
         sids = [s.id for s in students]
 
         packages = list(
@@ -775,7 +807,7 @@ class GradeService:
                         "standing": verdict.standing,
                         "mark": v.mark,
                         "article": v.article[:40],
-                        "review": v.review[:300],
+                        "review": v.review[:500],
                         "second_round_max": v.second_round_max,
                         "ruleset": VERDICT_RULESET,
                     },
@@ -989,9 +1021,11 @@ class GradeService:
 
         from .models import AnnualSubjectResult
 
-        # ── Grade distribution bands ──
+        # ── Grade distribution bands ── (status__in=RESULT_STATUSES: مادّةٌ «ليست مادة
+        # نجاح ورسوب» لها annual_total مخزَّنٌ للعرض، ولا تدخل شرائحَ العرض ولا متوسّطات
+        # الشعبة — كما تُستبعَد في `analytics/services.py` وaggregate الموادّ أدناه. (جولة 9.)
         results_values = AnnualSubjectResult.objects.filter(
-            school=school, academic_year=year
+            school=school, academic_year=year, status__in=RESULT_STATUSES
         ).values_list("annual_total", flat=True)
 
         # من الأدنى إلى الأعلى: <50, 50-59, 60-69, 70-79, 80-89, 90-100 — رتبةُ الشريحة.
@@ -1019,6 +1053,7 @@ class GradeService:
             school=school,
             academic_year=year,
             annual_total__isnull=False,
+            status__in=RESULT_STATUSES,
         ).values_list("student_id", "annual_total"):
             cg_id = student_to_class.get(student_id)
             if cg_id:
@@ -1267,6 +1302,10 @@ class ExamDecisionService:
     فلا يبقى الحكمُ المخزَّن على ما قبل القرار وتنبيهُ العتبة قد سقط.
     """
 
+    # ملاحظةٌ: «note» (ExamDeprivation وExamMisconduct) و«report_ref» (ExamMisconduct) نصوصٌ
+    # حرّةٌ قد تحمل بياناتٍ ذاتَ طبيعةٍ خاصّة (سببَ عذرٍ صحّياً، رقمَ محضرٍ) — لا تُنسخ قيمتُها
+    # في `AuditLog` (لا يُمحى ولا يُعدَّل: `core/models/audit.py`)؛ يُسجَّل فقط أنّها تغيّرت
+    # (`_TEXT_FIELDS` أدناه) فيبقى أثرُ «ماذا تغيّر» بلا محتواها. (جولة 9، PDPPL م18.)
     FIELDS: dict[type, tuple[str, ...]] = {
         ExamDeprivation: (
             "student_id",
@@ -1275,7 +1314,6 @@ class ExamDecisionService:
             "deprived",
             "decided_on",
             "decided_by_id",
-            "note",
         ),
         ExamMisconduct: (
             "student_id",
@@ -1284,16 +1322,30 @@ class ExamDecisionService:
             "setup_id",
             "exam",
             "basis",
-            "report_ref",
             "decided_on",
             "decided_by_id",
-            "note",
         ),
+    }
+    #: نصوصٌ حرّةٌ لا تُنسخ قيمتُها — يُسجَّل بصمتُها وحدَها (`{field}_hash`) لكشف التغيّر بلا محتوى.
+    _TEXT_FIELDS: dict[type, tuple[str, ...]] = {
+        ExamDeprivation: ("note",),
+        ExamMisconduct: ("note", "report_ref"),
     }
 
     @staticmethod
     def _snapshot(obj: ExamDeprivation | ExamMisconduct) -> dict[str, str]:
-        return {f: _audit_value(getattr(obj, f)) for f in ExamDecisionService.FIELDS[type(obj)]}
+        snap = {f: _audit_value(getattr(obj, f)) for f in ExamDecisionService.FIELDS[type(obj)]}
+        for f in ExamDecisionService._TEXT_FIELDS[type(obj)]:
+            text = getattr(obj, f) or ""
+            snap[f"{f}_hash"] = hashlib.sha256(text.encode()).hexdigest()[:12] if text else ""
+        return snap
+
+    @staticmethod
+    def _describe(obj: ExamDeprivation | ExamMisconduct) -> str:
+        """وصفٌ عامٌّ بلا اسم طالبٍ — `object_repr` لا يُمحى مع طلب المحو (PDPPL م18)."""
+        if isinstance(obj, ExamDeprivation):
+            return f"{obj.get_gate_display()} | {obj.academic_year}"
+        return f"{obj.get_kind_display()} | {obj.get_exam_display()} | {obj.academic_year}"
 
     @staticmethod
     def ensure_open(school: School, year: str) -> None:
@@ -1314,7 +1366,7 @@ class ExamDecisionService:
             action=action,
             model_name="other",
             object_id=str(obj.pk),
-            object_repr=str(obj)[:300],
+            object_repr=ExamDecisionService._describe(obj)[:300],
             changes={
                 "op": DECISION_AUDIT_OP,
                 "model": type(obj).__name__,
