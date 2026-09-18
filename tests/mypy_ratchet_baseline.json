@@ -85,7 +85,7 @@
   "core/rls.py": 2,
   "core/secrets_manager.py": 11,
   "core/sentry_config.py": 23,
-  "core/signals.py": 47,
+  "core/signals.py": 44,
   "core/sorting.py": 5,
   "core/templatetags/dict_filters.py": 5,
   "core/templatetags/labels.py": 1,
@@ -150,5 +150,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1844
+ "total": 1841
 }

@@ -153,7 +153,7 @@ def get_current_user():
     return _current_user.get(None)
 
 
-def get_current_request():
+def get_current_request() -> HttpRequest | None:
     return _current_request.get(None)
 
 

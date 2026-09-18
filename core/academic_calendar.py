@@ -75,15 +75,15 @@ class AcademicCalendar:
         day = on or timezone.localdate()
 
         request = get_current_request()
-        cache = None
-        key = None
+        cache: dict[tuple, AcademicNow] | None = None
+        key: tuple | None = None
         if request is not None:
-            cache = getattr(request, "_academic_now_cache", None)
+            cache = request.__dict__.get("_academic_now_cache")
             if cache is None:
                 cache = {}
-                request._academic_now_cache = cache
+                request.__dict__["_academic_now_cache"] = cache
             key = (school.pk if school is not None else None, day)
-            if key in cache:
+            if key is not None and key in cache:
                 return cache[key]
 
         year = (
@@ -100,7 +100,7 @@ class AcademicCalendar:
             semester = year.semesters.filter(start_date__lte=day, end_date__gte=day).first()
 
         result = AcademicNow(year=year, semester=semester)
-        if cache is not None:
+        if cache is not None and key is not None:
             cache[key] = result
         return result
 
