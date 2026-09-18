@@ -166,7 +166,8 @@ def test_no_dark_mode_rule_lives_outside_the_theme_layer():
     stray = [
         (sel, _layer_of(ctx))
         for sel, _decls, ctx in iter_rules(_css())
-        if _DARK_SELECTOR.search(" ".join(sel.split())) and _layer_of(ctx) not in (None, THEME_LAYER)
+        if _DARK_SELECTOR.search(" ".join(sel.split()))
+        and _layer_of(ctx) not in (None, THEME_LAYER)
     ]
     lines = [f"  {sel[:70]}   في طبقة `{layer}`" for sel, layer in stray[:25]]
     more = f"\n  … و{len(stray) - 25} غيرُها" if len(stray) > 25 else ""
