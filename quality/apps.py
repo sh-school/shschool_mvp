@@ -14,7 +14,6 @@ class QualityConfig(AppConfig):
             name="quality_evaluations",
             label="تقييمات الجودة",
             url_prefix="/quality/evaluations/",
-            icon="bi-clipboard-check",
             allowed_roles={
                 "principal",
                 "vice_admin",
@@ -50,7 +49,6 @@ class QualityConfig(AppConfig):
             name="quality",
             label="الجودة والتطوير",
             url_prefix="/quality/",
-            icon="bi-award",
             # بوّابةُ الوحدة يجب أن تسع من تسمّيه صلاحياتُها: كان
             # `academic_advisor` في `OBSERVATION_CREATE` — أي يُنشئ زيارةً
             # إشرافية — و`activities_coordinator` في `OBSERVATION_SELF_CREATE`،
