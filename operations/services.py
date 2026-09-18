@@ -95,6 +95,11 @@ class AttendanceService:
                     marked_by=marked_by,
                 )
             )
+        if not records:
+            # شعبةٌ بلا طالبٍ نشطٍ — غالباً جلسةٌ يتيمة من عامٍ منقضٍ لم تُنظَّف
+            # بعد. رفعُ الحالة إلى "in_progress" هنا كان يُبقي أثراً بلا حضورٍ
+            # يحميه `ScheduleService._untouched` من التنظيف الآليّ إلى الأبد.
+            return 0
         StudentAttendance.objects.bulk_create(records, ignore_conflicts=True)
         session.status = "in_progress"
         session.save(update_fields=["status"])
@@ -937,7 +942,10 @@ class ScheduleService:
 
         Returns: عدد الحصص المُنشأة (0 إذا كانت موجودة مسبقاً).
         """
-        academic_year = academic_year or academic_year_for_school(school)
+        # عامُ *التاريخ* لا عامُ اليوم: شاشةٌ فُتحت بتاريخٍ من عامٍ مضى (تقرير،
+        # كشفُ حضور تاريخيّ) كانت تُولَّد له حصصٌ من جدول العام الجاري، فتظهر
+        # فيه شُعبٌ ومعلّمون لا صلة لهم بذلك الأسبوع.
+        academic_year = academic_year or academic_year_for_school(school, on=target_date)
         from datetime import timedelta
 
         week_sun, week_thu = ScheduleService._get_week_bounds(target_date)
@@ -1074,7 +1082,8 @@ class ScheduleService:
 
         wanted: dict[tuple[Any, ...], ScheduleSlot] = {}
         if target_date in school_days:
-            academic_year = academic_year or academic_year_for_school(school)
+            # نفسُ سبب ensure_sessions_for_date: عامُ التاريخ لا عامُ اليوم.
+            academic_year = academic_year or academic_year_for_school(school, on=target_date)
             slots = ScheduleSlot.objects.filter(
                 school=school, academic_year=academic_year, day_of_week=qatar_day, is_active=True
             ).select_related("teacher", "class_group", "subject")
