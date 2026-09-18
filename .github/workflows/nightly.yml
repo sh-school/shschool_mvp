@@ -95,7 +95,7 @@ jobs:
             --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
 
       - name: رفع نتائج الاختبارات
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nightly-test-results

@@ -60,7 +60,7 @@ jobs:
             --progress-spinner off
 
       - name: Upload pip-audit Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pip-audit-pypi-report
@@ -105,7 +105,7 @@ jobs:
             -f html -o bandit-full-report.html
 
       - name: Upload Bandit Reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: bandit-reports
@@ -160,7 +160,7 @@ jobs:
             --progress-spinner off
 
       - name: Upload OSV Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pip-audit-osv-report
@@ -220,7 +220,7 @@ jobs:
           python manage.py check --deploy --fail-level WARNING 2>&1 | tee django-deploy-check.txt
 
       - name: Upload Django Check Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: django-deploy-check
