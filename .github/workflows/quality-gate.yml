@@ -467,7 +467,13 @@ jobs:
             pkg-config
 
       - name: تثبيت المتطلبات
-        run: pip install -r requirements-dev.txt
+        # حزمٌ محدّدة لا `requirements-dev.txt` كاملاً — فيه مسافةٌ لتعارضٍ
+        # سابقٍ بين click وmutmut غيرِ متعلّقٍ بهذه الوظيفة (كما تفعل وظيفتا
+        # pytest وmypy أعلاه، كلٌّ يثبّت ما يحتاجه فقط).
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-django factory-boy \
+            pytest-playwright==0.9.0 axe-playwright-python==0.1.8
 
       - name: تثبيت متصفّح Chromium (مع مكتبات النظام)
         run: playwright install --with-deps chromium
