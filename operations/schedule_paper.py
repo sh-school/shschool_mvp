@@ -30,7 +30,7 @@ from operations.bells import REGULAR, THURSDAY, Bell, bells_for
 from operations.models import ScheduleSlot
 
 if TYPE_CHECKING:
-    from core.models import School
+    from core.models import CustomUser, School
 
 #: عددُ الحصص في اليوم وعددُ أيّام الدراسة — شكلُ `days` في `ScheduleService`.
 PERIODS = 7
@@ -196,9 +196,7 @@ EXEMPTION_COLORS: dict[str, tuple[str, str, str]] = {
 }
 
 
-def _fill_exemption_map(
-    out: dict, day: int, period: int | None, source: str, reason: str
-) -> None:
+def _fill_exemption_map(out: dict, day: int, period: int | None, source: str, reason: str) -> None:
     """يومٌ كاملٌ يملأ حصصَه السبع بمصدره وسببه نفسيهما؛ وحصّةٌ بعينها خانتُها وحدها."""
     if period is None:
         for p in range(1, PERIODS + 1):
@@ -207,7 +205,9 @@ def _fill_exemption_map(
         out[(day, period)] = (source, reason)
 
 
-def teacher_exemption_map(school, teacher, year) -> dict[tuple[int, int], tuple[str, str]]:
+def teacher_exemption_map(
+    school: School, teacher: CustomUser, year: str
+) -> dict[tuple[int, int], tuple[str, str]]:
     """(يوم، حصّة) ← (مصدرُ تفريغه، سببُه) — لمعلّمٍ واحد، وللقرارات الثلاثة الملوَّنة وحدها.
 
     والخانةُ المشغولةُ فعلاً (تعارضٌ سابقُ التوليد) لا تُلوَّن — التلوينُ حكمٌ
@@ -230,7 +230,7 @@ def teacher_exemption_map(school, teacher, year) -> dict[tuple[int, int], tuple[
     return out
 
 
-def colored_exemptions_by_teacher(school, year) -> dict:
+def colored_exemptions_by_teacher(school: School, year: str) -> dict:
     """معلّمٌ ← {(يوم، حصّة): (مصدر، سبب)} — استعلامٌ واحدٌ للمدرسة كلِّها.
 
     الجدولُ العامّ سطرٌ لكلّ معلّمٍ من عشرات: استعلامٌ لكلّ سطرٍ سبعون

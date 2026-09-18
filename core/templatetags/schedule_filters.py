@@ -12,7 +12,7 @@ def get_item(dictionary, key):
 
 
 @register.simple_tag
-def exempt_dot(exempt_map, day: int, period: int):
+def exempt_dot(exempt_map: dict[tuple[int, int], tuple[str, str]], day: int, period: int) -> str:
     """شارةُ تفريغٍ صغيرةٌ في زاوية خليّة الجدول العام — أو فراغ.
 
     الجدولُ العامّ مُلوَّنٌ صفّاً كاملاً بقسم معلّمه أصلاً (قرارُ 2026-09-14)،
@@ -28,7 +28,9 @@ def exempt_dot(exempt_map, day: int, period: int):
     source, reason = found
     css_class, label, letter = EXEMPTION_COLORS[source]
     title = f"{label} — {reason}" if reason else label
-    return format_html('<span class="m-exempt-dot {}" title="{}">{}</span>', css_class, title, letter)
+    return format_html(
+        '<span class="m-exempt-dot {}" title="{}">{}</span>', css_class, title, letter
+    )
 
 
 @register.filter
