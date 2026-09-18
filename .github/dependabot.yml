@@ -1,0 +1,46 @@
+version: 2
+
+updates:
+  # بايثون — requirements.txt مثبَّتٌ بدقّة (==)، فتحديثه هنا لا يغيّر
+  # السلوك الفعليّ حتى يُدمَج — لا فرق عن أيّ تحديث تبعيةٍ يدويّ آخر.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "python"]
+    groups:
+      python-patch-minor:
+        update-types: ["patch", "minor"]
+
+  # جافاسكربت — package-lock.json (أدواتُ بناءٍ عابرة مثل tailwindcss/postcss،
+  # لا أثر runtime مباشر — راجع معالجة ثغرات 2026-06-21).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "javascript"]
+    groups:
+      npm-patch-minor:
+        update-types: ["patch", "minor"]
+
+  # صورة الإنتاج (Dockerfile: python:3.12-slim-bookworm وما شابه)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "docker"]
+
+  # أفعال GitHub Actions المستخدمة في .github/workflows/
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "ci"]
