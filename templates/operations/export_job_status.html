@@ -7,6 +7,10 @@
 {% endcomment %}
 {% block title %}تحضير التصدير{% endblock %}
 
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="تحضير التصدير" %}
+{% endblock %}
+
 {% block extra_head %}
 {% if job.status == "pending" or job.status == "running" %}
 <meta http-equiv="refresh" content="2">

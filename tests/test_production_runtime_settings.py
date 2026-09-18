@@ -3,8 +3,6 @@
 import os
 import subprocess
 import sys
-import tempfile
-from pathlib import Path
 
 _REQUIRED_ENV = {
     "DEBUG": "false",
@@ -25,7 +23,7 @@ _RUNTIME_KEYS = (
 )
 
 
-def _load_production_settings(script_name="-c", **overrides):
+def _load_production_settings(**overrides):
     env = os.environ.copy()
 
     for key in _RUNTIME_KEYS:
@@ -47,36 +45,14 @@ print("CONN_MAX_AGE=" + str(settings.DATABASES["default"]["CONN_MAX_AGE"]))
 print("DB_OPTIONS=" + str(settings.DATABASES["default"].get("OPTIONS", {})))
 """
 
-    return _run_as(code, script_name, env)
-
-
-def _run_as(code, script_name, env):
-    """يُنفَّذ الشيفرةُ بملفٍّ اسمُه `script_name` — لا `-c` دائماً — كي يحمل
-    `sys.argv[0]` ذلك الاسمَ فعلياً، تماماً كما يميّز production.py بين
-    daphne وغيره."""
-    if script_name == "-c":
-        return subprocess.run(
-            [sys.executable, "-c", code],
-            env=env,
-            cwd=os.getcwd(),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    with tempfile.TemporaryDirectory() as tmp:
-        script = Path(tmp) / script_name
-        script.write_text(code, encoding="utf-8")
-        # سكربتٌ خارج شجرة المشروع لا يجد حزمة `shschool` من تلقاء نفسه —
-        # `python -c` يضيف `cwd` إلى `sys.path` ضمناً، وملفٌّ بمساره الكامل لا.
-        run_env = {**env, "PYTHONPATH": os.getcwd()}
-        return subprocess.run(
-            [sys.executable, str(script)],
-            env=run_env,
-            cwd=os.getcwd(),
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+    return subprocess.run(
+        [sys.executable, "-c", code],
+        env=env,
+        cwd=os.getcwd(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
 
 def _values(result):
@@ -253,42 +229,32 @@ def test_the_environment_variable_cannot_override_it():
 
 
 # ══════════════════════════════════════════════════════════════════
-#  statement_timeout — daphne وحدَه، لا migrate ولا Celery (البند 6)
+#  statement_timeout — علمٌ صريح من البيئة، لا استنتاجٌ من العملية (البند 6)
 # ══════════════════════════════════════════════════════════════════
 
 
-def test_daphne_gets_a_statement_timeout_by_default():
-    result = _load_production_settings(script_name="daphne")
+def test_statement_timeout_is_disabled_by_default():
+    """معطَّلٌ افتراضياً — يُفعَّل فقط بضبط الراية صراحةً على خدمة الويب في Railway.
+
+    لا فحص `sys.argv`/اسم العملية هنا: `test_sentry_error_only_mode.py` يفحص
+    `production.py` بشجرة AST ويُسقط أيّ استخدامٍ لـ`sys.argv` فيه — اكتشافٌ
+    ضمنيّ للعملية يكسر بصمت.
+    """
+    result = _load_production_settings()
 
     assert result.returncode == 0, result.stderr
-    assert "statement_timeout=30000" in _values(result)["DB_OPTIONS"]
+    assert _values(result)["DB_OPTIONS"] == "{}"
 
 
 def test_statement_timeout_is_configurable():
-    result = _load_production_settings(script_name="daphne", DB_STATEMENT_TIMEOUT_MS="5000")
+    result = _load_production_settings(DB_STATEMENT_TIMEOUT_MS="5000")
 
     assert result.returncode == 0, result.stderr
     assert "statement_timeout=5000" in _values(result)["DB_OPTIONS"]
 
 
-def test_a_zero_timeout_disables_it():
-    result = _load_production_settings(script_name="daphne", DB_STATEMENT_TIMEOUT_MS="0")
-
-    assert result.returncode == 0, result.stderr
-    assert _values(result)["DB_OPTIONS"] == "{}"
-
-
-def test_a_migrate_like_invocation_gets_no_timeout():
-    """`manage.py migrate`/`backfill_*` لا تحمل `daphne` في `sys.argv[0]` — فلا تُقطع هجرةٌ طويلة."""
-    result = _load_production_settings(script_name="manage.py")
-
-    assert result.returncode == 0, result.stderr
-    assert _values(result)["DB_OPTIONS"] == "{}"
-
-
-def test_a_celery_worker_invocation_gets_no_timeout():
-    """عاملُ Celery (توليدُ الجدول حتى 900 ثانية) لا يُقاس بمهلة الويب."""
-    result = _load_production_settings(script_name="celery")
+def test_a_zero_timeout_keeps_it_disabled():
+    result = _load_production_settings(DB_STATEMENT_TIMEOUT_MS="0")
 
     assert result.returncode == 0, result.stderr
     assert _values(result)["DB_OPTIONS"] == "{}"

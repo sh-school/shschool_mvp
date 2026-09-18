@@ -5,9 +5,20 @@ import uuid
 from django.conf import settings
 from django.db import migrations, models
 
+TABLE = "core_exportjob"
+PREDICATE = f"{TABLE}.school_id = public.app_rls_school()"
+ENABLE = f"""
+ALTER TABLE public.{TABLE} ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS school_isolation ON public.{TABLE};
+CREATE POLICY school_isolation ON public.{TABLE} USING ({PREDICATE}) WITH CHECK ({PREDICATE});
+"""
+DISABLE = f"""
+DROP POLICY IF EXISTS school_isolation ON public.{TABLE};
+ALTER TABLE public.{TABLE} DISABLE ROW LEVEL SECURITY;
+"""
+
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("core", "0067_school_vision"),
     ]
@@ -27,9 +38,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "created_at",
-                    models.DateTimeField(
-                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
-                    ),
+                    models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء"),
                 ),
                 (
                     "updated_at",
@@ -37,9 +46,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "kind",
-                    models.CharField(
-                        db_index=True, max_length=50, verbose_name="النوع"
-                    ),
+                    models.CharField(db_index=True, max_length=50, verbose_name="النوع"),
                 ),
                 (
                     "query_string",
@@ -66,27 +73,19 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "content_type",
-                    models.CharField(
-                        blank=True, max_length=100, verbose_name="نوع المحتوى"
-                    ),
+                    models.CharField(blank=True, max_length=100, verbose_name="نوع المحتوى"),
                 ),
                 (
                     "filename",
-                    models.CharField(
-                        blank=True, max_length=255, verbose_name="اسم الملف"
-                    ),
+                    models.CharField(blank=True, max_length=255, verbose_name="اسم الملف"),
                 ),
                 (
                     "error_message",
-                    models.CharField(
-                        blank=True, max_length=2000, verbose_name="رسالة الخطأ"
-                    ),
+                    models.CharField(blank=True, max_length=2000, verbose_name="رسالة الخطأ"),
                 ),
                 (
                     "finished_at",
-                    models.DateTimeField(
-                        blank=True, null=True, verbose_name="وقت الانتهاء"
-                    ),
+                    models.DateTimeField(blank=True, null=True, verbose_name="وقت الانتهاء"),
                 ),
                 (
                     "requested_by",
@@ -124,4 +123,5 @@ class Migration(migrations.Migration):
                 ],
             },
         ),
+        migrations.RunSQL(sql=ENABLE, reverse_sql=DISABLE),
     ]
