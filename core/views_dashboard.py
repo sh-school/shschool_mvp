@@ -13,7 +13,7 @@ from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required, has_capability
 from core.dashboard_presentation import present
 from core.domain.attendance import attendance_rate
-from core.models.academic import Wing, grade_order
+from core.models.academic import StudentEnrollment, Wing, grade_order
 from library.models import BookBorrowing
 from operations.models import (
     AbsenceAlert,
@@ -123,11 +123,22 @@ def _get_director_ctx(school, today):
     att_delta = att_pct - att_pct_y if att_pct_y is not None else None
     absent_delta = absent - absent_y if total_y else None
 
-    alerts = (
+    #: قواميسُ لا نماذج — `AbsenceAlert` لا حقلَ صفٍّ فيها، وإلحاقُ خانةٍ
+    #: ديناميكيّةً بنموذج Django غيرُ مطابَقٍ للتصريح (`mypy: attr-defined`).
+    alerts = []
+    for alert in (
         AbsenceAlert.objects.filter(school=school, status="pending")
         .select_related("student")
         .order_by("-created_at")[:5]
-    )
+    ):
+        enrollment = StudentEnrollment.objects.current_of(alert.student, school=school)
+        alerts.append(
+            {
+                "student": alert.student,
+                "class_text": enrollment.class_group.short_label if enrollment else "—",
+                "absence_count": alert.absence_count,
+            }
+        )
 
     # إحصائيات التقييمات — aggregate واحد
     annual = AnnualSubjectResult.objects.filter(school=school, academic_year=year).aggregate(
