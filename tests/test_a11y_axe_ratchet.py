@@ -4,6 +4,10 @@
 (الرقم الوظيفي أو الشخصي)، لا `national_id` كما كان في `tests/e2e/conftest.py`
 القديم (كان يفشل صامتاً: `pytest-playwright` نفسُه لم يكن مثبَّتاً فلا يُجمَع
 الملفُّ أصلاً — أُصلح الاثنان معاً هنا).
+
+`axe-playwright-python` مثبَّتٌ في وظيفة `axe-a11y` في CI وحدها (`quality-gate.yml`)
+— لا في `pytest — تغطية` التي تجمع `tests/` كلَّه بحزمٍ أخفّ. فغيابُ الحزمة هناك
+تخطٍّ متوقَّعٌ لا خطأَ استيراد.
 """
 
 from __future__ import annotations
@@ -12,8 +16,10 @@ import os
 
 import pytest
 
-from tests import a11y_axe_ratchet as ratchet
-from tests.test_a11y_live_pages import PAGES, _url
+pytest.importorskip("axe_playwright_python")
+
+from tests import a11y_axe_ratchet as ratchet  # noqa: E402
+from tests.test_a11y_live_pages import PAGES, _url  # noqa: E402
 
 pytestmark = pytest.mark.django_db
 
