@@ -1040,6 +1040,9 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .ui-section .empty-state-v2 .es-icon { margin-bottom: var(--sp-2); }
 .ui-section .empty-state-v2 .es-title { font-size: var(--text-base); margin-bottom: 4px; }
 .ui-section .empty-state-v2 .es-sub { margin-bottom: 0; }
+/* شريطُ البطاقة بلونه الواحد في كلّ بطاقة؛ وحين يليه جدولٌ عنّابيُّ الترويسة يفصل بينهما خطٌّ بلون السطح، وإلّا التحما كتلةً واحدة. */
+.ui-section.is-flush > .card-bar,
+.ui-section.is-flush > .ui-section__fold > .card-bar { border-block-end: 3px solid var(--surface); }
 .ui-section.is-flush > .card-bar { margin: 0; }
 .ui-section.is-flush > .ui-section__body > .table-wrap { border: 0; border-radius: 0; box-shadow: none; }
 /* `foldable=True`: الشريطُ نفسُه `<summary>` — بطاقةٌ يطول محتواها بطول سجلٍّ
@@ -1509,9 +1512,25 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 @media (max-width: 900px) { .beh-form-grid { grid-template-columns: 1fr; } }
 .beh-fieldset { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
+/* استدعاء ولي أمر: بطاقتان متجاورتان — النموذجُ، وعمودٌ جانبيٌّ (أولياءُ الأمور، المرسِل، التنبيه). والطالبُ المحدَّد اسمٌ لا قائمة. */
+.beh-summon-cards { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-2); align-items: start; }
+.beh-side { display: flex; flex-direction: column; gap: var(--sp-2); min-inline-size: 0; }
+.beh-summon__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-3); }
+.beh-summon__trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 var(--sp-3); }
+@media (max-width: 900px) {
+  .beh-summon-cards, .beh-summon__pair, .beh-summon__trio { grid-template-columns: 1fr; }
+}
+.beh-summon-cards .beh-pills { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.beh-summon-cards .beh-pill { justify-content: center; }
+.beh-summon-cards .beh-fieldset { margin-block-end: var(--sp-2); }
+.beh-student-line {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  padding: 9px 14px; border: 1.5px solid var(--control-border); border-radius: var(--radius);
+  background: var(--surface); color: var(--text-primary); font-size: var(--text-sm);
+}
 .beh-pills { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .beh-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: var(--radius-md); font-size: var(--text-sm); cursor: pointer; }
-.beh-pill input { accent-color: var(--maroon-fg); }
+.beh-pill input { accent-color: var(--maroon-fg); inline-size: auto; flex: none; }
 .beh-form-actions { margin-block-start: var(--sp-3); }
 
 /* خطواتُ التصعيد: الحاليّةُ مصمَتةٌ بلون الهويّة. */
