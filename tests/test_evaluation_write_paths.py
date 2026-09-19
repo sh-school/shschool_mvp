@@ -392,13 +392,13 @@ def test_staff_affairs_counts_open_reports_and_lists_only_published_ones(school,
     other = _staff(school, "teacher", "زميل")
     EmployeeEvaluation.objects.create(
         school=school, employee=other, evaluator=vice, academic_year=YEAR,
-        period="S1", status="submitted", total_score=70,
+        period="S1", status="submitted",
     )  # fmt: skip
     approved_for = _staff(school, "teacher", "معتمَد له")
     EmployeeEvaluation.objects.create(
         school=school, employee=approved_for, evaluator=vice, academic_year=YEAR,
-        period="S1", status="approved", approved_at=timezone.now(), total_score=88,
-        rating="very_good",
+        period="S1", status="approved", approved_at=timezone.now(),
+        axis_professional=22, axis_commitment=22, axis_teamwork=22, axis_development=22,
     )  # fmt: skip
 
     stats = StaffService.get_dashboard_stats(school, YEAR)

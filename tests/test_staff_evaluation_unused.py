@@ -13,9 +13,13 @@ import re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-#: كلُّ ما يخصّ التقييمَ القديم — النموذجُ نفسُه ومرجعاه العكسيّان على المدرسة والمستخدم.
+#: استعمالٌ لا ذكر: استيرادٌ (سطراً أو بين قوسين)، أو `StaffEvaluation.` / `StaffEvaluation(`،
+#: أو علاقةٌ عكسيّة. فتعليقٌ أو وصفٌ يسمّي النموذجَ المُهمَل لا يُسقط الحارس.
 PATTERN = re.compile(
-    r"\bStaffEvaluation\b|\bstaff_evaluations\b|\bevaluations_as_staff\b|\bevaluations_as_evaluator\b"
+    r"import[^\n]*\bStaffEvaluation\b"
+    r"|^\s*StaffEvaluation,?\s*$"
+    r"|\bStaffEvaluation\s*[.(]"
+    r"|\bstaff_evaluations\b|\bevaluations_as_staff\b|\bevaluations_as_evaluator\b"
 )
 
 #: ما يجوز أن يذكره: تعريفُه (حتى تُحذف)، وسجلُّ التدقيق يسمّيه نوعَ كيان (نصٌّ لا استعمال)،
@@ -49,3 +53,19 @@ def test_nothing_reads_or_writes_the_deprecated_staff_evaluation():
         "استعمالٌ لـ`operations.StaffEvaluation` المُهمَل — استعمل `quality.EmployeeEvaluation` "
         "(ADR-0002):\n  " + "\n  ".join(offenders)
     )
+
+
+def test_the_guard_pattern_catches_usage_but_not_prose():
+    for usage in (
+        "from operations.models import StaffEvaluation, TeacherAbsence",
+        "    StaffEvaluation,",
+        "rows = StaffEvaluation.objects.filter(school=school)",
+        "school.staff_evaluations.filter(staff=user)",
+        "user.evaluations_as_staff.count()",
+    ):
+        assert PATTERN.search(usage), usage
+    for prose in (
+        "# StaffEvaluation المُهمَل: لا قارئَ ولا كاتب",
+        "وتقييمُ الأداء في `quality.EmployeeEvaluation` لا في `StaffEvaluation` المُهمَل.",
+    ):
+        assert not PATTERN.search(prose), prose
