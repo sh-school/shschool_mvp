@@ -50,7 +50,9 @@ from django.utils import timezone
 
 from core.models import Membership
 
+from .evaluation_selectors import get_employee_role, get_school_roles
 from .models import EmployeeEvaluation, EvaluationScore, RoleEvaluationTemplate
+from .reporting_lines import may_place, rejection_reason
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
@@ -121,6 +123,20 @@ def is_school_principal(school: School, user: CustomUser) -> bool:
     return Membership.objects.filter(
         school=school, user=user, is_active=True, role__name="principal"
     ).exists()
+
+
+def placement_rejection(school: School, evaluator: CustomUser, employee: CustomUser) -> str | None:
+    """
+    نصُّ الرفض إن لم يكن `evaluator` الرئيسَ المباشرَ لـ`employee` (ولا المديرَ)، وإلّا None.
+    المادة 16 وبطاقاتُ الوصف الوظيفيّ: `quality/reporting_lines.py`.
+    """
+    if evaluator.is_superuser:
+        return None
+    roles = get_school_roles(school, evaluator)
+    employee_role = get_employee_role(school, employee)
+    if may_place(roles, employee_role):
+        return None
+    return rejection_reason(employee_role)
 
 
 def is_academic_year(value: str) -> bool:
@@ -304,6 +320,9 @@ def save_evaluation(
         raise EvaluationRejectedError(PRINCIPAL_NOT_EVALUATED)
     if evaluation.employee_id == evaluator.pk:
         raise EvaluationRejectedError(SELF_EVALUATION)
+    rejected = placement_rejection(evaluation.school, evaluator, evaluation.employee)
+    if rejected is not None:
+        raise EvaluationRejectedError(rejected)
     # المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمد من مدير المدرسة» — واضعٌ واحد.
     # كان كلُّ من يضغط حفظاً (المديرُ يفتح التقرير ليعتمده) يصير مقيِّماً ثانياً بدرجاتٍ
     # صفريّة ووزن 100، فينقسم المجموع ويُستبدل الواضع.
@@ -395,9 +414,9 @@ def approve_evaluation(*, evaluation: EmployeeEvaluation, approver: CustomUser) 
     لمدير المدرسة وحده، لتقريرٍ مُقدَّم، وتُعاد فيه قيودُ المواد 17–19 — فالوقائعُ قد
     تتغيّر بين التقديم والاعتماد.
     """
-    if approver.role != "principal":
-        raise EvaluationRejectedError("الاعتمادُ لمدير المدرسة وحده — المادة 16.")
     locked = EmployeeEvaluation.objects.select_for_update().get(pk=evaluation.pk)
+    if not is_school_principal(locked.school, approver):
+        raise EvaluationRejectedError("الاعتمادُ لمدير المدرسة وحده — المادة 16.")
     if locked.status != "submitted":
         raise EvaluationRejectedError("لا يُعتمد إلّا تقريرٌ مُقدَّم.")
     if locked.employee_id == approver.pk or is_school_principal(locked.school, locked.employee):
@@ -432,9 +451,9 @@ def record_receipt_on_refusal(
     «تاريخ علمه» الذي تبدأ منه مهلةُ التظلّم (المادة 20). وكان الإقرارُ وحدَه يبدأها، فرفضُ
     الموظّف الإقرارَ يُبقي التقريرَ غيرَ نهائيٍّ أبداً.
     """
-    if recorder.role != "principal":
-        raise EvaluationRejectedError("تدوينُ تاريخ الاستلام لمدير المدرسة — موقِّعِ الاستمارة.")
     locked = EmployeeEvaluation.objects.select_for_update().get(pk=evaluation.pk)
+    if not is_school_principal(locked.school, recorder):
+        raise EvaluationRejectedError("تدوينُ تاريخ الاستلام لمدير المدرسة — موقِّعِ الاستمارة.")
     if locked.status != "approved" or locked.acknowledged_at is not None:
         raise EvaluationRejectedError("يُدوَّن تاريخُ الاستلام لتقريرٍ معتمَدٍ لم يُقرّ به الموظّف.")
     if locked.received_on is not None:

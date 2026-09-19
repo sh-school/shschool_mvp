@@ -269,6 +269,9 @@ class RoleEvaluationTemplateAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         # حذفُه كان يُفرغ `EmployeeEvaluation.template` فيُحسب المجموعُ من المحاور الافتراضيّة
         # الصفريّة. والنموذجُ يمنعه أيضاً (`on_delete=RESTRICT`).
+        if obj is None:
+            # قائمةُ التغيير بلا كائن: إجراءُ «حذف المحدَّد» كان يظهر ثمّ يسقط بـRestrictedError.
+            return False
         return not _template_has_evaluations(obj) and super().has_delete_permission(request, obj)
 
 

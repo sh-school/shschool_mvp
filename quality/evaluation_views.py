@@ -33,6 +33,7 @@ from .evaluation_services import (
     form_template_ok,
     is_academic_year,
     is_school_principal,
+    placement_rejection,
     record_receipt_on_refusal,
     save_evaluation_form,
 )
@@ -126,6 +127,7 @@ def _annual_report_blocked(school, employee, template, has_content):
     return HttpResponse(
         f"لا يُفتح التقريرُ السنويّ لـ{employee.full_name} ({role_name}): {reason}.",
         status=409,
+        content_type="text/plain; charset=utf-8",
     )
 
 
@@ -193,6 +195,9 @@ def _evaluation_target(request, employee_id):
         return employee, year, period, HttpResponse(PRINCIPAL_NOT_EVALUATED, status=403)
     if employee.pk == request.user.pk:
         return employee, year, period, HttpResponse(SELF_EVALUATION, status=403)
+    reason = placement_rejection(school, request.user, employee)
+    if reason is not None:
+        return employee, year, period, HttpResponse(reason, status=403)
     return employee, year, period, None
 
 

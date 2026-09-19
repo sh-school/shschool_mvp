@@ -18,6 +18,7 @@ from .models import (
     EvaluationCycle,
     RoleEvaluationTemplate,
 )
+from .reporting_lines import may_place
 
 # المحاور الافتراضية (تُستخدم عندما لا يوجد قالب مخصص)
 DEFAULT_AXES = [
@@ -109,13 +110,28 @@ def s2_blocked_reason(role_name: str, seeded_roles: set[str]) -> str:
     return "لا استمارة وزاريّة للدور — معلّقٌ للمالك"
 
 
+def get_school_roles(school: Any, user: CustomUser) -> set[str]:
+    """أسماءُ أدوار المستخدم النشطة في المدرسة."""
+    return set(
+        Membership.objects.filter(school=school, user=user, is_active=True).values_list(
+            "role__name", flat=True
+        )
+    )
+
+
 def get_evaluable_staff(school: Any, year: str, viewer: CustomUser | None = None) -> list[dict]:
     """قائمة الموظفين القابلين للتقييم مع حالة التقييم"""
-    memberships = (
+    viewer_roles = get_school_roles(school, viewer) if viewer is not None else None
+    # صفٌّ لكلّ موظّفٍ بدورِه الحاكم (ترتيبُ `get_employee_role` نفسُه): صاحبُ عضويّتين كان يظهر
+    # صفّين، وكلٌّ منهما بحالة استمارةٍ لدورٍ لا يُقيَّم عليه (`create_evaluation`).
+    governing: dict[Any, Membership] = {}
+    for m in (
         Membership.objects.filter(school=school, is_active=True, role__name__in=_EVALUABLE_ROLES)
         .select_related("user", "role")
-        .order_by("role__name", "user__full_name")
-    )
+        .order_by(role_rank(), "joined_at", "id")
+    ):
+        governing.setdefault(m.user_id, m)
+    memberships = sorted(governing.values(), key=lambda m: (m.role.name, m.user.full_name))
 
     # التقييمات الحالية لهذا العام
     existing_evals = {
@@ -147,6 +163,8 @@ def get_evaluable_staff(school: Any, year: str, viewer: CustomUser | None = None
                 "s2": s2_eval,
                 # المادة 16: «يضع الرئيس المباشر» — فلا زرَّ لتقييم المقيِّم نفسه.
                 "is_self": viewer is not None and m.user_id == viewer.pk,
+                # المادة 16: يضع «الرئيس المباشر» — فلا زرَّ لمن ليس رئيسَه المباشر (بطاقة الوصف).
+                "can_place": viewer_roles is None or may_place(viewer_roles, m.role.name),
                 "s2_blocked": s2_blocked_reason(m.role.name, seeded_roles),
             }
         )

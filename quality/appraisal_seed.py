@@ -95,6 +95,12 @@ def _diff(template: RoleEvaluationTemplate, form: AppraisalForm) -> list[str]:
     return changes
 
 
+def _structure_differs(template: RoleEvaluationTemplate, form: AppraisalForm) -> bool:
+    """أتغيّرت مفاتيحُ المحاور أو أوزانُها؟ (وهو ما يقرؤه `matches_ministry_form`)."""
+    stored = sorted((a.key, a.weight) for a in template.axes.all())
+    return stored != sorted((a.key, a.weight) for a in form.axes)
+
+
 def _saved_outside_template(
     school: School, year: str, templates: Mapping[str, RoleEvaluationTemplate]
 ) -> dict[str, int]:
@@ -165,6 +171,9 @@ def apply_plan(plan: SchoolPlan, *, prune_orphans: bool = False) -> dict[str, in
         if tp.status in ("same", "locked"):
             counts[tp.status] += 1
             continue
+        # تغيّرُ الأوزان أو المفاتيح وحدَه يُسقط ما حُسب على القالب؛ وتصحيحُ اسمٍ أو ترتيبٍ
+        # لا يمسّ مجموعاً، فلا يُصفَّر به تقريرٌ مُقدَّمٌ ينتظر اعتمادَ المدير.
+        structural = tp.template is not None and _structure_differs(tp.template, tp.form)
         template, _ = RoleEvaluationTemplate.objects.update_or_create(
             school=plan.school,
             role_name=tp.role_name,
@@ -180,7 +189,8 @@ def apply_plan(plan: SchoolPlan, *, prune_orphans: bool = False) -> dict[str, in
             )
             keys.append(axis.key)
         EvaluationAxis.objects.filter(template=template).exclude(key__in=keys).delete()
-        counts["reopened"] += _reopen_on_changed_template(plan.school, template)
+        if structural:
+            counts["reopened"] += _reopen_on_changed_template(plan.school, template)
         counts["created" if tp.status == "new" else "updated"] += 1
     if prune_orphans:
         for orphan in plan.orphans:

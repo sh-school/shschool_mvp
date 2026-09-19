@@ -185,13 +185,15 @@ def test_s2_cycle_completes_when_every_role_with_a_form_is_reported(
     nurse = _staff(school, "nurse", "الممرّض")
     vice_academic = _staff(school, "vice_academic", "النائب الأكاديمي")
     vice_admin = _staff(school, "vice_admin", "النائب الإداري")
+    # المادة 16: يضع «الرئيس المباشر» — المعلّمُ يضعه النائبُ الأكاديميّ، والنائبان مديرُ المدرسة
+    # (المسؤولُ المباشر في بطاقتَيهما)، فلا يضع أحدُ النائبين تقريرَ الآخر.
     client.force_login(vice_academic)
     assert client.post(_url(teacher_user), _post_total(form, 80)).status_code == 302
+    client.force_login(principal_user)
     assert (
         client.post(_url(vice_admin), _post_total(forms_by_role()["vice_admin"], 80)).status_code
         == 302
     )
-    client.force_login(vice_admin)
     vice_form = forms_by_role()["vice_academic"]
     assert client.post(_url(vice_academic), _post_total(vice_form, 80)).status_code == 302
     assert EmployeeEvaluation.objects.filter(period="S2", status="submitted").count() == 3
