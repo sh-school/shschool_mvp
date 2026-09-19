@@ -23,7 +23,7 @@ a.th-sort { text-decoration: none; }
 .th-sort {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-1);
   width: 100%;
   max-width: 100%;
   padding: 0;
