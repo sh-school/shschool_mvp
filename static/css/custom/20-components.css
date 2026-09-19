@@ -1656,8 +1656,8 @@ body { padding-bottom: 72px; }
 .nb-bar .chv { display: none; }
 
 /* لوحةُ الجوال والقائمةُ الفرعيّة معاً: اللوحةُ تنكمش إلى يمين الشاشة، والفرعيّةُ
-   عائمةٌ على يسارها — لا فوقها (base.js: `sdPlace`). وفوق 641px لا شيءَ من هذا. */
-@media (max-width: 640px) {
+   عائمةٌ على يسارها — لا فوقها (base.js: `sdPlace`). وفوق 1024px لا شيءَ من هذا — الشريطُ الأفقيُّ لا يتّسع لقوائمه دونه فيلتفّ أسطراً، فيبقى الهامبرغر حتى الجهاز اللوحيّ. */
+@media (max-width: 1024px) {
   .nb-bar.nb-split { inset-inline-end: auto; inline-size: 50%; }
   .sd-menu.sd-drawer {
     inset-inline-end: 6px;
@@ -1671,7 +1671,7 @@ body { padding-bottom: 72px; }
   .sd-menu.sd-drawer .sd-label { padding-inline: 12px; }
 }
 
-@media (min-width: 641px) {
+@media (min-width: 1025px) {
   #mob-menu-btn { display: none; }
   .nb-bar {
     display: flex;

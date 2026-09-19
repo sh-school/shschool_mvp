@@ -110,11 +110,11 @@ function sdPos(m, btn) {
   m.style.left = left + 'px';
 }
 
-// لوحةُ الجوال (حتى 640px، كما في custom.css): القائمةُ الفرعيّةُ كانت تُثبَّت أعلى
+// لوحةُ الجوال (حتى 1024px، كما في custom.css): القائمةُ الفرعيّةُ كانت تُثبَّت أعلى
 // الشاشة فوق اللوحة فتُخفي القائمةَ الرئيسيّة كلَّها (بلاغ 2026-09-14 بلقطة).
 // والقرار: تبقى عائمة، لكن اللوحةُ تنكمش إلى يمين الشاشة والفرعيّةُ على يسارها
 // (`nb-split` و`sd-drawer`) — فتُرى القائمتان معاً.
-var SD_DRAWER = '(max-width: 640px)';
+var SD_DRAWER = '(max-width: 1024px)';
 
 function sdInDrawer(btn) {
   return !!(btn.closest('.nb-bar') && window.matchMedia(SD_DRAWER).matches);
@@ -134,7 +134,9 @@ function sdPlace(m, btn) {
     m.style.left = '';
     // تنتهي فوق شريط التنقّل السفليّ لا تحته.
     var dock = document.querySelector('.mobile-bottom-nav');
-    var bottom = dock ? dock.getBoundingClientRect().top : window.innerHeight;
+    // الشريطُ السفليُّ مخفيٌّ فوق 640px (rect صفريّ): لا يُحسب وإلّا انكمشت القائمةُ إلى 160px.
+    var dockRect = dock ? dock.getBoundingClientRect() : null;
+    var bottom = dockRect && dockRect.height ? dockRect.top : window.innerHeight;
     m.style.maxHeight = Math.max(160, Math.round(bottom - top - 8)) + 'px';
   } else {
     m.style.maxHeight = '';
