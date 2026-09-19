@@ -29,6 +29,7 @@ from .models import (
     StudentSubjectResult,
     SubjectClassSetup,
 )
+from .verdict_engine import VerdictEngine, ensure_open_year, verdict_engine_enabled
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
@@ -57,6 +58,10 @@ class GradeService:
         Uses select_for_update() to prevent race conditions when two
         teachers attempt to record the same student's grade simultaneously.
         """
+        engine = verdict_engine_enabled()
+        if engine:
+            # الأعوامُ المغلقة مجمَّدة — رفضٌ صريحٌ قبل أيّ كتابة (محرّك الحكم الواحد).
+            ensure_open_year(assessment.package.setup)
         if grade is not None:
             grade = Decimal(str(grade))
             grade = max(Decimal("0"), min(grade, assessment.max_grade))
@@ -94,7 +99,16 @@ class GradeService:
         semester = assessment.package.semester
 
         # [PERF-02] عند الحفظ الجماعي نُمرِّر recalc=False ونعيد الحساب دفعةً واحدة بعد الحلقة
-        if recalc:
+        if recalc and engine:
+            VerdictEngine.recalculate_students(
+                setup.class_group,
+                setup.academic_year,
+                [student],
+                setup,
+                actor=entered_by,
+                trigger=f"save_grade:{assessment.pk}",
+            )
+        elif recalc:
             # 1. نتيجة الفصل
             GradeService.recalculate_semester_result(student, setup, semester)
             # 2. النتيجة السنوية
@@ -258,6 +272,13 @@ class GradeService:
         يحسب ويخزن مجموع درجات الطالب في مادة للفصل المحدد.
         الناتج: total ∈ [0, semester_max] (40 أو 60)
         """
+        if verdict_engine_enabled():
+            # نتيجةُ الفصل بعد الحكم على الطالب في موادّه كلِّها.
+            VerdictEngine.recalculate_students(
+                setup.class_group, setup.academic_year, [student], setup
+            )
+            return StudentSubjectResult.objects.get(student=student, setup=setup, semester=semester)
+
         packages = AssessmentPackage.objects.filter(setup=setup, semester=semester, is_active=True)
 
         scores: dict = {}
@@ -315,6 +336,11 @@ class GradeService:
         حيث s1_total ∈ [0,40] و s2_total ∈ [0,60]
         """
         year = setup.academic_year
+
+        if verdict_engine_enabled():
+            # الحالةُ والمجموعُ والموضعُ من `judge_student` لا من هنا.
+            VerdictEngine.recalculate_students(setup.class_group, year, [student], setup)
+            return AnnualSubjectResult.objects.get(student=student, setup=setup, academic_year=year)
 
         try:
             s1_result = StudentSubjectResult.objects.get(
@@ -412,10 +438,24 @@ class GradeService:
         )
 
     @staticmethod
-    def recalculate_full_class(setup: SubjectClassSetup) -> None:
+    def recalculate_full_class(setup: SubjectClassSetup, actor: CustomUser | None = None) -> None:
         """إعادة حساب كامل — كل طلاب الفصل، كلا الفصلين، والسنوي.
         [PERF-01] يستخدم calc_package_scores_batch (استعلام واحد للدرجات لكل فصل) بدل
-        الحساب لكل طالب × باقة — نفس النتائج بعدد استعلامات ثابت مهما زاد عدد الطلاب."""
+        الحساب لكل طالب × باقة — نفس النتائج بعدد استعلامات ثابت مهما زاد عدد الطلاب.
+
+        بمحرّك الحكم الواحد (راية `VERDICT_ENGINE_ENABLED`): الحكمُ على كلّ طلبة الشعبة في
+        موادّها كلِّها لأنّه عابرٌ للموادّ، بسجلّ مراجعةٍ بما تغيّر."""
+        if verdict_engine_enabled():
+            ensure_open_year(setup)
+            VerdictEngine.recalculate_students(
+                setup.class_group,
+                setup.academic_year,
+                VerdictEngine.class_students(setup.class_group),
+                setup,
+                actor=actor,
+                trigger=f"recalculate_full_class:{setup.pk}",
+            )
+            return
         enrollments = list(
             StudentEnrollment.objects.filter(
                 class_group=setup.class_group, is_active=True
