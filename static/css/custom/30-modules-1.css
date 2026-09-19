@@ -644,8 +644,8 @@
 /* ── 13. Dashboard utility classes ──────────────────────────── */
 
 /* btn-sm: للأزرار/الروابط الصغيرة في صفحة اللوحة */
-.btn-sm  { font-size: var(--text-xs); padding: 6px 14px; }
-.btn-xs  { font-size: var(--text-xs); padding: var(--sp-1) 10px; }
+.btn-sm  { font-size: var(--text-xs); padding: var(--sp-1-5) var(--sp-3-5); }
+.btn-xs  { font-size: var(--text-xs); padding: var(--sp-1) var(--sp-2-5); }
 .text-sm { font-size: var(--text-sm); }
 a.btn-primary, a.btn-secondary { text-decoration: none; }
 
@@ -732,7 +732,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   font-size: 17px;
   font-weight: 800;
   color: var(--on-fill);
-  margin: 0 0 6px;
+  margin: 0 0 var(--sp-1-5);
   line-height: 1.5;
 }
 .login-platform-name {
@@ -809,16 +809,16 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--sp-1-5);
   padding: var(--sp-4) 0;
   flex-wrap: wrap;
 }
 .pagination-wrap .btn-primary,
 .pagination-wrap .btn-secondary {
-  padding: 6px var(--sp-3);
+  padding: var(--sp-1-5) var(--sp-3);
   font-size: .85rem;
 }
-.pagination-wrap .btn-primary { cursor: default; padding-inline: 14px; }
+.pagination-wrap .btn-primary { cursor: default; padding-inline: var(--sp-3-5); }
 .pagination-info {
   color: var(--text-muted);
   font-size: .8rem;
@@ -851,8 +851,8 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .report-tab {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 18px;
+  gap: var(--sp-1-5);
+  padding: var(--sp-2-5) var(--sp-4-5);
   font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-muted);
@@ -878,7 +878,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  padding: 18px var(--sp-5);
+  padding: var(--sp-4-5) var(--sp-5);
   min-inline-size: 0;
   transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
 }
@@ -945,7 +945,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .exec-meta { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; max-width: 100%; min-inline-size: 0; }
 .exec-date {
   font-size: .7rem; background: var(--status-danger-bg); color: var(--maroon-fg);
-  border: 1px solid var(--border); padding: var(--sp-1) 10px; border-radius: 6px; font-weight: 500;
+  border: 1px solid var(--border); padding: var(--sp-1) var(--sp-2-5); border-radius: 6px; font-weight: 500;
 }
 
 /* ── KPI Strip (auto-fit: 4-5 cards per row, readable) ── */
@@ -998,12 +998,12 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   background: var(--status-danger-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: var(--sp-1) 10px;
+  padding: var(--sp-1) var(--sp-2-5);
   font-size: .65rem;
   color: var(--status-danger-fg);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-1-5);
 }
 .alert-strip a { color: var(--status-danger-fg); text-decoration: underline; }
 /* تنبيهٌ لا خطر — والخلفيّةُ الفاتحةُ ممنوعةٌ في الوضع الداكن، فتُقلَب شفّافيّةً. */
