@@ -22,6 +22,7 @@ VISIBLE = frozenset(
         "text",
         "search",
         "number",
+        "range",
         "date",
         "email",
         "tel",
@@ -95,6 +96,9 @@ PAGES = [
     ("library:book_list", "principal_user"),
     ("ui_components", "principal_user"),
     ("permission_audit_log", "principal_user"),
+    ("evaluation_dashboard", "principal_user"),
+    ("my_evaluations", "teacher_user"),
+    ("evaluation_grievances", "principal_user"),
 ]
 
 
@@ -157,3 +161,67 @@ def test_saving_the_health_record_still_posts_the_same_names(client_as, nurse_us
     assert health_record.blood_type == "A-"
     assert health_record.allergies == "حساسيّةٌ من اللاتكس"
     assert health_record.emergency_contact_name == "وليُّ الأمر"
+
+
+# ── تقييمُ الأداء والتظلّم (المادة 20): الحقولُ لا تظهر إلّا بوجود بيانات، فالصفحاتُ الفارغةُ أعلاه لا تكفي ──
+
+
+def _evaluation_case(school, employee, evaluator, *, grievance=False):
+    """تقريرٌ معتمَدٌ أقرّ الموظّفُ باستلامه قبل ثلاثة أيّام — بابُ التظلّم مفتوح، أو التظلّمُ مقدَّم."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from quality.models import EmployeeEvaluation
+
+    then = timezone.now() - timedelta(days=3)
+    extra = (
+        {"grievance_submitted_on": timezone.localdate(), "grievance_reason": "سببُ تظلّمٍ تجريبيّ."}
+        if grievance
+        else {}
+    )
+    return EmployeeEvaluation.objects.create(
+        school=school, employee=employee, evaluator=evaluator, academic_year="2026-2027",
+        period="S1", status="acknowledged", approved_at=then - timedelta(days=1),
+        acknowledged_at=then, **extra,
+    )  # fmt: skip
+
+
+def test_the_employees_grievance_form_names_its_field_and_has_a_heading(
+    client_as, school, teacher_user, principal_user
+):
+    """«سببُ التظلّم» محتوىً مرسومٌ فقط حين يفتح البابُ: `<label for>` يطابق `id`."""
+    ev = _evaluation_case(school, teacher_user, principal_user)
+    body = client_as(teacher_user).get(reverse("my_evaluations")).content.decode()
+
+    assert f'id="grv-{ev.pk}"' in body and f'for="grv-{ev.pk}"' in body
+    assert not unnamed_fields(body)
+    assert "<h1" in body
+
+
+def test_the_principals_grievance_screen_names_every_decision_field(
+    client_as, school, teacher_user, principal_user
+):
+    """اختيارُ قرار اللجنة وتاريخا الإخطار والاعتماد — كلُّها بأسماءٍ محسوبة."""
+    ev = _evaluation_case(school, teacher_user, principal_user, grievance=True)
+    response = client_as(principal_user).get(reverse("evaluation_grievances") + "?year=2026-2027")
+    body = response.content.decode()
+
+    assert response.status_code == 200
+    for prefix in ("dec", "dd", "da"):
+        assert f'id="{prefix}-{ev.pk}"' in body and f'for="{prefix}-{ev.pk}"' in body
+    assert not unnamed_fields(body)
+    assert "<h1" in body
+
+
+def test_the_evaluation_form_page_names_every_field(
+    client_as, school, teacher_user, principal_user
+):
+    """استمارةُ التقييم: المحاورُ (range) والملاحظاتُ — كلُّها بأسماءٍ محسوبة."""
+    url = reverse("create_evaluation", kwargs={"employee_id": teacher_user.pk})
+    response = client_as(principal_user).get(url + "?year=2026-2027&period=S1")
+
+    assert response.status_code == 200
+    body = response.content.decode()
+    assert body.count('type="range"') >= 4, "فحصٌ فارغ: لا منزلقاتِ محاورَ في الصفحة"
+    assert not unnamed_fields(body)
