@@ -4662,6 +4662,24 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
     min-height: 0;
     overflow: hidden;
   }
+  /* سطرُ بطاقتين أخيرٌ (لوحة شؤون الموظفين): يملأ الباقي، وتُمرَّر قائمةُ كلّ بطاقةٍ وحدَها. */
+  #main-content.page-noscroll .auto-grid .table-wrap tbody td { padding-block: 5px; }
+  #main-content.page-noscroll .auto-grid .table-wrap thead th { padding-block: 6px; }
+  #main-content.page-noscroll > .exec-dash > .ui-grid-2:last-child {
+    flex: 1;
+    min-height: 130px;
+    grid-template-rows: minmax(0, 1fr);
+  }
+  #main-content.page-noscroll > .exec-dash > .ui-grid-2:last-child > .ui-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  #main-content.page-noscroll > .exec-dash > .ui-grid-2:last-child > .ui-section > .ui-section__body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
   /* تقييم الأداء: بطاقتان صغيرتان في سطر، قوائمهما بسقفٍ قصير — والجدولُ هو ما يملأ الباقي. */
   #main-content.page-noscroll .qeval-side { flex: 0 0 auto; }
   #main-content.page-noscroll .qeval-side .plain-list.is-scroll { max-block-size: 96px; }
