@@ -76,3 +76,39 @@ def test_a_delivering_backend_still_records_sent(school, student_user):
     assert ok is True
     assert err is None
     assert NotificationLog.objects.filter(school=school).last().status == "sent"
+
+
+@pytest.fixture
+def developer_message(db):
+    from developer_feedback.models import DeveloperMessage
+
+    return DeveloperMessage.objects.create(
+        ticket_number="DEV-UNDELIVERED-1",
+        user_id_hash="0" * 64,
+        subject="موضوع",
+        body="نص",
+    )
+
+
+@pytest.mark.django_db
+@override_settings(EMAIL_BACKEND=_BACKEND)
+def test_developer_notification_is_failed_when_nothing_delivers(developer_message):
+    from developer_feedback.services.notifications import (
+        send_developer_edit_notification,
+        send_developer_notification,
+    )
+
+    first = send_developer_notification(developer_message)
+    edit = send_developer_edit_notification(developer_message)
+
+    assert first.status == "failed"
+    assert edit.status == "failed"
+    assert "مزوّد بريد" in first.error_detail
+
+
+@pytest.mark.django_db
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+def test_developer_notification_is_sent_with_a_delivering_backend(developer_message):
+    from developer_feedback.services.notifications import send_developer_notification
+
+    assert send_developer_notification(developer_message).status == "sent"
