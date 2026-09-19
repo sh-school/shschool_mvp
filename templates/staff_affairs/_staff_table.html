@@ -14,8 +14,9 @@
 {% endcomment %}
 
 <div class="sa-panel sa-register" id="staff-table-container">
-<div class="table-wrap-scroll">
   {% if staff %}
+  {# العددُ والصفحاتُ خارج صندوق التمرير فتبقى ثابتةً في أسفل البطاقة (كسجلّ الطلاب). #}
+  <div class="table-wrap-scroll">
   <table class="staff-register" data-no-sort>
     <thead>
       <tr>
@@ -82,10 +83,12 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   <div class="table-empty sa-register__foot">{{ total }} منتسباً — صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</div>
   {% include "components/pagination.html" with page_obj=page_obj target="#staff-table-container" swap="outerHTML" %}
   {% else %}
+  <div class="table-wrap-scroll">
   {% empty_state "لا منتسبين مطابقين" sub="جرّب بحثاً آخر أو غيّر الترشيح" icon="staff" %}
+  </div>
   {% endif %}
-</div>
 </div>
