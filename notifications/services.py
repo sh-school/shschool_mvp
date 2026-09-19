@@ -222,7 +222,7 @@ class NotificationService:
                 )
 
             # SMS
-            if parent.phone and cfg and cfg.sms_enabled:
+            if parent.get_phone_decrypted() and cfg and cfg.sms_enabled:
                 sms_body = (
                     f"مدرسة {school.name}: الطالب {student.full_name} تغيّب "
                     f"{absence_alert.absence_count} مرات خلال الفترة "
@@ -231,14 +231,19 @@ class NotificationService:
                 )
                 ok, err = NotificationService.send_sms(
                     school=school,
-                    phone_number=parent.phone,
+                    phone_number=parent.get_phone_decrypted(),
                     message=sms_body,
                     student=student,
                     notif_type="absence_alert",
                     sent_by=sent_by,
                 )
                 results.append(
-                    {"channel": "sms", "recipient": parent.phone, "ok": ok, "error": err}
+                    {
+                        "channel": "sms",
+                        "recipient": parent.get_phone_decrypted(),
+                        "ok": ok,
+                        "error": err,
+                    }
                 )
 
         # تحديث حالة التنبيه
@@ -304,7 +309,7 @@ class NotificationService:
                     {"channel": "email", "recipient": parent.email, "ok": ok, "error": err}
                 )
 
-            if parent.phone and cfg and cfg.sms_enabled:
+            if parent.get_phone_decrypted() and cfg and cfg.sms_enabled:
                 subjects_str = "، ".join(failed_subjects[:3])
                 sms_body = (
                     f"مدرسة {school.name}: الطالب {student.full_name} راسب في "
@@ -313,14 +318,19 @@ class NotificationService:
                 )
                 ok, err = NotificationService.send_sms(
                     school=school,
-                    phone_number=parent.phone,
+                    phone_number=parent.get_phone_decrypted(),
                     message=sms_body,
                     student=student,
                     notif_type="fail_alert",
                     sent_by=sent_by,
                 )
                 results.append(
-                    {"channel": "sms", "recipient": parent.phone, "ok": ok, "error": err}
+                    {
+                        "channel": "sms",
+                        "recipient": parent.get_phone_decrypted(),
+                        "ok": ok,
+                        "error": err,
+                    }
                 )
 
         return results

@@ -555,7 +555,7 @@ class BehaviorService:
             "generated_at": timezone.now(),
             "parent_name": parent.full_name if parent else None,
             "parent_id": parent.national_id if parent else None,
-            "parent_phone": getattr(parent, "phone", None) if parent else None,
+            "parent_phone": parent.get_phone_decrypted() if parent else None,
             "parent_email": parent.email if parent else None,
         }
 

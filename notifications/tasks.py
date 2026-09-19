@@ -1157,10 +1157,10 @@ def hub_send_notification_task(
             results.append(("email", True, None))
 
         # ── SMS ────────────────────────────────────────────────
-        if "sms" in channels and user.phone:
+        if "sms" in channels and user.get_phone_decrypted():
             send_sms_task.delay(
                 school_id=str(school.id),
-                phone_number=user.phone,
+                phone_number=user.get_phone_decrypted(),
                 message=f"{title}\n{body}",
                 notif_type=_hub_to_notif_type(event_type),
                 sent_by_id=str(sender.id) if sender else None,
@@ -1169,10 +1169,10 @@ def hub_send_notification_task(
             results.append(("sms", True, None))
 
         # ── WhatsApp (عبر Twilio WhatsApp API) ────────────────
-        if "whatsapp" in channels and user.phone:
+        if "whatsapp" in channels and user.get_phone_decrypted():
             send_whatsapp_task.delay(
                 school_id=str(school.id),
-                phone_number=user.phone,
+                phone_number=user.get_phone_decrypted(),
                 title=title,
                 body=body,
                 sent_by_id=str(sender.id) if sender else None,

@@ -30,6 +30,7 @@ from .forms import (
     StaffPersonForm,
 )
 from .models import LeaveRequest
+from .selectors import phone_holder_ids
 from .services import LeaveService, StaffService
 
 
@@ -262,7 +263,7 @@ def staff_list(request):
             | Q(title_key__icontains=shaped)
             | Q(national_id__icontains=q)
             | Q(employee_number__icontains=q)
-            | Q(phone__icontains=q)
+            | Q(id__in=phone_holder_ids(people, q))
             | Q(email__icontains=q)
             | Q(residence_area__icontains=q)
             | Q(nationality__icontains=q)
