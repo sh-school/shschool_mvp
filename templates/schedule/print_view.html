@@ -91,6 +91,10 @@
     {% include "schedule/pdf/week_grid.html" with who="class" show_band_labels=True %}
     {% endif %}
   </div>
+  {% comment %}جدولُ المعلّم وحدَه يحمل تفريغاتٍ ملوَّنة — الشعبةُ لا تفريغَ لها. {% endcomment %}
+  {% if view_type == "teacher" and has_colored_exemptions %}
+  {% include "schedule/partials/week_legend.html" %}
+  {% endif %}
   {% comment %}إطارٌ مخفيٌّ للطباعة والتصدير وحدَهما — ورقتُه الحقيقيّةُ بملّيمترها وترويستها كما كانت دائماً، ولا صلةَ له بما هو معروضٌ أعلاه.{% endcomment %}
   <iframe id="schedule-print-frame" title="{{ title }}"
           src="{% url 'schedule_print' %}?embed=1&amp;{{ selection_query }}"

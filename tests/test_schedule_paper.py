@@ -227,6 +227,70 @@ def test_the_service_keeps_seven_cells_beside_the_week(school, paper_lessons):
     assert teacher_bands_by_day(days, ScheduleService._band_codes(school))[1] == ["secondary"]
 
 
+# ── تلوينُ التفريغات على الجدول ──────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_a_ministry_exemption_colors_an_empty_slot_with_its_reason(
+    client, principal_user, school, paper_lessons
+):
+    """الخليّةُ الفارغةُ المفرَّغةُ بقرارٍ وزاريٍّ تُلوَّن وتكتب السببَ، والجهةُ تلميحٌ في title."""
+    from operations.models import TeacherExemption
+
+    teacher, _ = paper_lessons
+    TeacherExemption.objects.create(
+        school=school,
+        teacher=teacher,
+        academic_year=YEAR,
+        exemption_type="specific_period",
+        day_of_week=0,
+        period_number=1,
+        reason="دورةٌ تدريبيّةٌ خارج المدرسة",
+        source="ministry",
+        is_active=True,
+    )
+    client.force_login(principal_user)
+
+    body = client.get(
+        reverse("schedule_print"),
+        {"view": "teacher", "teacher": teacher.id, "year": YEAR},
+        HTTP_HOST="localhost",
+    ).content.decode()
+
+    assert 'class="exempt-ministry" title="قرارُ الوزارة"' in body
+    assert '<span class="slot-empty slot-exempt">دورةٌ تدريبيّةٌ خارج المدرسة</span>' in body
+
+
+@pytest.mark.django_db
+def test_an_occupied_slot_is_never_colored_even_with_a_matching_exemption(school, paper_lessons):
+    """التلوينُ حكمٌ على الفراغ — خليّةٌ فيها حصّةٌ فعليّةٌ لا تُلوَّن مهما وُجد تفريغٌ يطابقها."""
+    from operations.models import TeacherExemption
+    from operations.schedule_paper import annotate_teacher_exemptions, teacher_exemption_map
+
+    teacher, _ = paper_lessons  # حصّتُه الوحيدةُ الاثنينَ (يوم 1) الحصّةَ 2 — مشغولة
+    TeacherExemption.objects.create(
+        school=school,
+        teacher=teacher,
+        academic_year=YEAR,
+        exemption_type="specific_period",
+        day_of_week=1,
+        period_number=2,
+        reason="لا يهمّ",
+        source="school",
+        is_active=True,
+    )
+    days = grid_to_days(ScheduleService.get_weekly_schedule(school, teacher, None, YEAR))
+    band_codes = ScheduleService._band_codes(school)
+    week = week_layout(days, teacher_bands_by_day(days, band_codes), bell_tables(school))
+    exemption_map = teacher_exemption_map(school, teacher, YEAR)
+    annotate_teacher_exemptions(week, exemption_map)
+
+    entry = next(
+        e for e in week["lines"][1]["entries"] if e.get("kind") == "period" and e["number"] == 2
+    )
+    assert "exemption_class" not in entry
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize(("paper", "orient"), [("a4", "landscape"), ("a3", "portrait")])
 def test_the_pdf_is_one_full_page_per_teacher(client, principal_user, paper_lessons, paper, orient):

@@ -22,10 +22,12 @@ from core.permissions import SCHEDULE_BROWSE
 
 from .models import ScheduleGeneration, ScheduleSlot
 from .schedule_paper import (
+    annotate_teacher_exemptions,
     bell_tables,
     grid_to_days,
     paper_geometry,
     teacher_bands_by_day,
+    teacher_exemption_map,
     week_layout,
 )
 from .services import ScheduleService
@@ -169,9 +171,11 @@ def schedule_print_payload(school, user, get_params) -> dict:
     # الجدولُ العام يكشف جداول المعلّمين جميعاً، ومن لا يتصفّح غيره صُرف
     # إلى جدوله في اختيار الطباعة.
     grid, matrix, matrix_totals, week, geometry = {}, [], None, None, None
+    has_colored_exemptions = False
     if ctx["view_type"] == "all_teachers":
         matrix = ScheduleService.get_teachers_matrix(school, year, generation=ctx["preview"])
         matrix_totals = ScheduleService.matrix_totals(matrix, school, year)
+        has_colored_exemptions = any(row.get("exempt_map") for row in matrix)
     else:
         grid = ScheduleService.get_weekly_schedule(
             school, ctx["target_teacher"], ctx["target_class"], year, generation=ctx["preview"]
@@ -186,6 +190,12 @@ def schedule_print_payload(school, user, get_params) -> dict:
         else:
             bands = teacher_bands_by_day(days, band_codes)
         week = week_layout(days, bands, bell_tables(school))
+        # تلوينُ خانات التفريغ بمصدره — للمعلّم وحدَه، فالشعبةُ لا تفريغَ لها.
+        if ctx["target_teacher"] is not None:
+            exemption_map = teacher_exemption_map(school, ctx["target_teacher"], year)
+            if exemption_map:
+                annotate_teacher_exemptions(week, exemption_map)
+                has_colored_exemptions = True
         geometry = paper_geometry(ctx["paper"], ctx["orient"], with_who=False)
 
     # أسماءُ الأيّام من `ScheduleSlot.DAYS` — مصدرٌ واحدٌ يقرؤه المولّدُ والورقة.
@@ -205,6 +215,7 @@ def schedule_print_payload(school, user, get_params) -> dict:
         "geo": geometry,
         "matrix": matrix,
         "matrix_totals": matrix_totals,
+        "has_colored_exemptions": has_colored_exemptions,
         "days": days_names,
         "periods": periods,
         "period_numbers": range(1, 8),

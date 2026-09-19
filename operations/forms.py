@@ -22,8 +22,16 @@ class TeacherExemptionForm(forms.Form):
 
     #: المجموعاتُ المقبولةُ مكانَ معرّف المعلّم — والقيمةُ ليست UUID عمداً.
     GROUPS = {"coordinators": ("coordinator",)}
+    #: تفريغُ قسمٍ كاملٍ لاجتماعه الأسبوعيّ (قرارُ 2026-09-18) — معرّفُه
+    #: `dept:<uuid>` لا معرّفَ خامٍ، فلا يُخلط بمعرّف معلّمٍ ولا بمفتاح مجموعةٍ
+    #: ثابت. ومعلّمو القسم من `operations.departments.teachers_of_department`
+    #: — نفسُ قاعدة شاشة الإسناد (السجلُّ أوّلاً، فاشتقاقُ الحصص احتياطاً).
+    DEPT_PREFIX = "dept:"
 
-    teacher = forms.CharField(max_length=40, label="المعلم/المنسق")
+    #: 40 كانت تكفي معرّفَ معلّمٍ (UUID، 36 حرفاً) أو `coordinators` — ولا
+    #: تكفي `dept:<uuid>` (41 حرفاً)، فسقط تفريغُ القسم على هذا الحدّ وحدَه
+    #: قبل أن يبلغ `clean_teacher` أصلاً.
+    teacher = forms.CharField(max_length=48, label="المعلم/المنسق")
     #: النوعُ اختياريٌّ لأنّ الشبكةَ تحمله في الخانة: «يوم:*» يومٌ كاملٌ وما
     #: عداه حصّةٌ بعينها. وكان مطلوباً بعد أن رُفع من الشاشة، فكان كلُّ تظليلٍ
     #: يُردّ بـ«نوع التفريغ: هذا الحقل مطلوب» — رسالةٌ عن حقلٍ لا يراه أحد.
@@ -56,15 +64,18 @@ class TeacherExemptionForm(forms.Form):
         label="جهة القرار",
     )
 
-    def __init__(self, *args, school, **kwargs):
+    def __init__(self, *args, school, year, **kwargs):
         super().__init__(*args, **kwargs)
         self.school = school
+        #: العامُ لازمٌ لتفريغ قسمٍ كامل: اشتقاقُ من لا عضويّةَ مسجَّلةً له
+        #: يقرأ إسناداتِ عامه — لا عامٍ لا معنى لـ«معلّمي القسم اليوم».
+        self.year = year
 
     def clean_teacher(self):
         """يُرجع قائمةَ المعلّمين المقصودين — واحداً بمعرّفه أو مجموعةً بدورها."""
         import uuid
 
-        from core.models import CustomUser
+        from core.models import CustomUser, Department
 
         raw = self.cleaned_data["teacher"].strip()
         roles = self.GROUPS.get(raw)
@@ -80,6 +91,26 @@ class TeacherExemptionForm(forms.Form):
             )
             if not teachers:
                 raise forms.ValidationError("لا منسّقين في مدرستك.")
+            return teachers
+        if raw.startswith(self.DEPT_PREFIX):
+            try:
+                dept_id = uuid.UUID(raw[len(self.DEPT_PREFIX) :])
+            except ValueError as exc:
+                raise forms.ValidationError("اختر معلّماً أو مجموعة.") from exc
+            department = Department.objects.filter(
+                pk=dept_id, school=self.school, is_active=True
+            ).first()
+            if department is None:
+                raise forms.ValidationError("القسمُ المختار ليس من مدرستك.")
+            # `department.get_teachers()` عضويّاتٌ مسجَّلةٌ صراحةً وحدها — وهي
+            # فارغةٌ في أكثر المدارس اليوم (سجلُّ الأقسام لم يُملأ بعد). فمعلّمو
+            # القسم الفعليّون من `teachers_of_department`: نفسُ قاعدة شاشة
+            # الإسناد (السجلُّ أوّلاً، فاشتقاقُ الحصص لمن لا سجلَّ له).
+            from operations.departments import teachers_of_department
+
+            teachers = teachers_of_department(self.school, self.year, department)
+            if not teachers:
+                raise forms.ValidationError("لا معلّمين في هذا القسم.")
             return teachers
         try:
             pk = uuid.UUID(raw)

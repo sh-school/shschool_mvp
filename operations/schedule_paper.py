@@ -30,7 +30,7 @@ from operations.bells import REGULAR, THURSDAY, Bell, bells_for
 from operations.models import ScheduleSlot
 
 if TYPE_CHECKING:
-    from core.models import School
+    from core.models import CustomUser, School
 
 #: عددُ الحصص في اليوم وعددُ أيّام الدراسة — شكلُ `days` في `ScheduleService`.
 PERIODS = 7
@@ -164,7 +164,14 @@ def week_layout(
             if column["kind"] == "period":
                 slots = cells[column["number"] - 1]
                 # الخانةُ المشتركةُ (حصّتان متوازيتان) بخطٍّ أصغر: كانت تُقصّ توقيتَ ثانيتهما.
-                entries.append({"kind": "period", "slots": slots, "multi": len(slots) > 1})
+                entries.append(
+                    {
+                        "kind": "period",
+                        "number": column["number"],
+                        "slots": slots,
+                        "multi": len(slots) > 1,
+                    }
+                )
             else:
                 entries.append(
                     {
@@ -175,6 +182,100 @@ def week_layout(
                 )
         lines.append({"day": day_names[d], "entries": entries})
     return {"columns": columns, "lines": lines, "break_count": len(positions)}
+
+
+#: قراراتٌ ثلاثةٌ فقط تُلوَّن في الجدول (قرارُ المستخدم 2026-09-18) — «لتوليد
+#: الجدول» أداةُ تشكيلٍ لا قرارَ جهةٍ (انظر `TeacherExemption.SOFT_SOURCES`)،
+#: و«أخرى» فئةٌ مبهمةٌ لا تستحقّ لوناً مخصَّصاً. والصنفُ والتسميةُ والحرفُ
+#: القصيرُ من مصدرٍ واحدٍ هنا. والحرفُ لخانة الجدول العامّ الضيّقة (13px) —
+#: لا تسع تسميةً كاملةً كخلايا جدول المعلم الفردي فتُقرأ نصّاً هناك.
+EXEMPTION_COLORS: dict[str, tuple[str, str, str]] = {
+    "ministry": ("exempt-ministry", "قرارُ الوزارة", "و"),
+    "school": ("exempt-school", "قرارُ إدارة المدرسة", "إ"),
+    "department": ("exempt-department", "قرارُ القسم الأكاديميّ", "ق"),
+}
+
+
+def _fill_exemption_map(out: dict, day: int, period: int | None, source: str, reason: str) -> None:
+    """يومٌ كاملٌ يملأ حصصَه السبع بمصدره وسببه نفسيهما؛ وحصّةٌ بعينها خانتُها وحدها."""
+    if period is None:
+        for p in range(1, PERIODS + 1):
+            out[(day, p)] = (source, reason)
+    else:
+        out[(day, period)] = (source, reason)
+
+
+def teacher_exemption_map(
+    school: School, teacher: CustomUser, year: str
+) -> dict[tuple[int, int], tuple[str, str]]:
+    """(يوم، حصّة) ← (مصدرُ تفريغه، سببُه) — لمعلّمٍ واحد، وللقرارات الثلاثة الملوَّنة وحدها.
+
+    والخانةُ المشغولةُ فعلاً (تعارضٌ سابقُ التوليد) لا تُلوَّن — التلوينُ حكمٌ
+    على الفراغ لا فوق حصّةٍ قائمة. لجدول العام (معلّمون كثيرون معاً) انظر
+    `colored_exemptions_by_teacher` — استعلامٌ واحدٌ لا واحدٌ لكلّ معلّم.
+    """
+    from operations.models import TeacherExemption
+
+    rows = TeacherExemption.objects.filter(
+        school=school,
+        teacher=teacher,
+        academic_year=year,
+        is_active=True,
+        source__in=EXEMPTION_COLORS,
+    ).values_list("day_of_week", "period_number", "source", "reason")
+
+    out: dict[tuple[int, int], tuple[str, str]] = {}
+    for day, period, source, reason in rows:
+        _fill_exemption_map(out, day, period, source, reason)
+    return out
+
+
+def colored_exemptions_by_teacher(school: School, year: str) -> dict:
+    """معلّمٌ ← {(يوم، حصّة): (مصدر، سبب)} — استعلامٌ واحدٌ للمدرسة كلِّها.
+
+    الجدولُ العامّ سطرٌ لكلّ معلّمٍ من عشرات: استعلامٌ لكلّ سطرٍ سبعون
+    استعلاماً إضافيّاً على صفحةٍ واحدة (`N+1`) — وهذه نظيرتُها الجماعيّة.
+    """
+    from operations.models import TeacherExemption
+
+    rows = TeacherExemption.objects.filter(
+        school=school,
+        academic_year=year,
+        is_active=True,
+        source__in=EXEMPTION_COLORS,
+    ).values_list("teacher_id", "day_of_week", "period_number", "source", "reason")
+
+    out: dict = {}
+    for teacher_id, day, period, source, reason in rows:
+        _fill_exemption_map(out.setdefault(teacher_id, {}), day, period, source, reason)
+    return out
+
+
+def annotate_teacher_exemptions(
+    week: dict, exemption_map: dict[tuple[int, int], tuple[str, str]]
+) -> None:
+    """يضع صنفَ التلوين والسببَ على خانات الفراغ التي تطابق `exemption_map`.
+
+    الخليّةُ تكتب سببَ التفريغ («دورةٌ في الوزارة») لا اسمَ جهته («قرارُ
+    الوزارة») — ذاك تقوله الألوانُ نفسُها وشريطُ تفسيرها أسفل الجدول
+    (قرارُ المستخدم 2026-09-18)، فتكرارُه في كلّ خليّةٍ نثرٌ لا يزيد شيئاً.
+    واسمُ الجهة يبقى في `title` الخليّة للتلميح عند الحاجة.
+
+    يُعدَّل `week["lines"]` في مكانه — نداءٌ بعد `week_layout` مباشرةً، لا بديلٌ
+    عنها: تلك تبني الأعمدة والصفوف، وهذه تُلوّن ما بُني.
+    """
+    for day_index, line in enumerate(week["lines"]):
+        for entry in line["entries"]:
+            if entry["kind"] != "period" or entry["slots"]:
+                continue
+            found = exemption_map.get((day_index, entry["number"]))
+            if not found:
+                continue
+            source, reason = found
+            css_class, label, _letter = EXEMPTION_COLORS[source]
+            entry["exemption_class"] = css_class
+            entry["exemption_label"] = label
+            entry["exemption_reason"] = reason
 
 
 def grid_to_days(grid: dict) -> list:

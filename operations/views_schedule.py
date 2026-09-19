@@ -1132,6 +1132,8 @@ def _one_of(raw, allowed, fallback):
 @capability_required("schedule.settings")
 def schedule_settings(request):
     """إعدادات الجدول الذكي — تفريغات المعلمين + حصص مزدوجة"""
+    from .departments import active_departments
+
     school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
@@ -1157,6 +1159,10 @@ def schedule_settings(request):
     ).values_list("user_id", flat=True)
     teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
 
+    #: تفريغُ قسمٍ كاملٍ لاجتماعه الأسبوعيّ (قرارُ 2026-09-18) — خيارٌ في نفس
+    #: قائمة الاختيار، فتفريغُ الاجتماع طلبٌ واحدٌ لا نصابَ قسمٍ يُفرَّغ عضواً عضواً.
+    departments = active_departments(school)
+
     return render(
         request,
         "schedule/schedule_settings.html",
@@ -1165,6 +1171,7 @@ def schedule_settings(request):
             "subjects": subjects,
             "teacher_prefs": teacher_prefs,
             "teachers": teachers,
+            "departments": departments,
             "days": ScheduleSlot.DAYS,
             "periods": ScheduleSlot.PERIODS,
             "year": year,
@@ -1180,30 +1187,13 @@ def exemption_grid(request):
     وبلا معلّمٍ مختارٍ تُعاد شبكةٌ خاوية: المجموعةُ («كلّ المنسّقين») لا جدولَ
     واحدَ لها، فتُظلَّل نمطاً مجرّداً بلا شواغلَ ولا سعة.
     """
-    import uuid
-
-    from operations.exemption_grid import DAYS, PERIODS, build_grid
-
-    from .forms import TeacherExemptionForm
+    from operations.exemption_grid import DAYS, PERIODS, build_grid, resolve_exemption_selection
 
     school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     raw = (request.GET.get("teacher") or "").strip()
 
-    # المجموعةُ («كلّ المنسّقين») لا جدولَ واحداً لها، فشبكتُها مجرّدة. وهي
-    # اسمٌ معلومٌ لا معرّف — فمن أرسل معرّفَ معلّمٍ ليس من المدرسة لا يُعامَل
-    # معاملةَ المجموعة: كان يسقط إلى الشبكة المجرّدة فيرى باباً يُوهمه بأنّ
-    # اختيارَه صالح، والنموذجُ يردّه بعد التظليل لا قبله.
-    group = raw if raw in TeacherExemptionForm.GROUPS else ""
-
-    teacher = None
-    if raw and not group:
-        # القيدُ بالمدرسة لا زينة: بلا `in_school` يُقرأ أسبوعُ معلّمٍ في
-        # مدرسةٍ أخرى بتغيير معرّفٍ في الرابط.
-        try:
-            teacher = CustomUser.objects.in_school(school).filter(pk=uuid.UUID(raw)).first()
-        except ValueError:
-            teacher = None
+    group, group_label, teacher = resolve_exemption_selection(school, raw)
 
     grid = build_grid(school, teacher, year) if teacher is not None else None
     return render(
@@ -1213,6 +1203,7 @@ def exemption_grid(request):
             "grid": grid,
             "teacher": teacher,
             "group": group,
+            "group_label": group_label,
             "days": DAYS,
             "periods": PERIODS,
             "year": year,
@@ -1237,7 +1228,7 @@ def add_exemption(request):
     school = request.school
     year = request.POST.get("year") or academic_year_for(request)
 
-    form = TeacherExemptionForm(request.POST, school=school)
+    form = TeacherExemptionForm(request.POST, school=school, year=year)
     if not form.is_valid():
         for field, errors in form.errors.items():
             label = form.fields[field].label if field in form.fields else ""
@@ -1515,7 +1506,8 @@ def _pages_payload(request) -> dict:
 @login_required
 @capability_required("schedule.browse")
 def schedule_pages(request):
-    """الصفحةُ داخل المنصّة — هيدرٌ وفوترٌ وأدوات، والورقةُ في إطارٍ يُطبع وحده."""
+    """الصفحةُ داخل المنصّة — عرضٌ عاديٌّ مستقلٌّ عن الطباعة (قرارُ 2026-09-18)،
+    والطباعةُ والتنزيلُ من ورقتهما الحقيقيّة عبر إطارٍ مخفيّ."""
     return render(request, "schedule/pages_view.html", _pages_payload(request))
 
 

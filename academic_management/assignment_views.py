@@ -32,6 +32,7 @@ from academic_management import curriculum_services as curriculum_service
 from academic_management import workload_workflow as flow
 from academic_management.models import FROZEN_STATUSES, CoursePreparation
 from core.academic_calendar import academic_year_for
+from core.dashboard_presentation import chunk_for_grid
 from core.models import ClassGroup, CustomUser, Department, Membership
 from core.models.access import DEPARTMENT_ROLES
 from operations.models import Subject, SubjectClassAssignment
@@ -148,6 +149,7 @@ def assignments(request):
             "page_subtitle": selectors.assignments_subtitle(year, ctx["totals"]),
             "module_name": MODULE_NAME,
             "year": year,
+            "dept_cols": chunk_for_grid(ctx["groups"], 2),
             "selected_dept": selected,
             **ctx,
         },

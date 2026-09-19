@@ -173,8 +173,10 @@ def test_app_mode_script_keeps_its_contract():
 
 
 def test_the_pages_view_offers_one_pdf_button_on_touch_screens():
-    """زرُّ PDF العلويُّ يختفي على اللمس مع «طباعة» — ويبقى الكبيرُ تحت «فتح الجداول»."""
+    """زرُّ PDF واحدٌ لا اثنان: العرضُ الجديد (قرار 2026-09-18، فصلُ العرض عن
+    الطباعة) جدولٌ عاديٌّ في الصفحة على كلّ شاشة — فلا حاجةَ لزرٍّ ثانٍ يظهر
+    على اللمس وحدَه ولا لإخفاء أحدهما بصنفٍ خاصّ باللمس."""
     src = (TEMPLATES / "schedule/pages_view.html").read_text(encoding="utf-8")
-    header_pdf = re.search(r"<a[^>]*schedule_pages_pdf[^>]*btn-sm[^>]*>", src)
+    pdf_links = re.findall(r"<a[^>]*schedule_pages_pdf[^>]*>", src)
 
-    assert header_pdf and "schedule-frame-print" in header_pdf.group(0)
+    assert len(pdf_links) == 1
