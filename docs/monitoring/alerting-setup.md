@@ -69,7 +69,7 @@ Run `smoke-test.sh` after every Railway deploy:
 |---|----------|----------|-----------|
 | 1 | `/health/` | HTTP 200 | App is alive |
 | 2 | `/ready/` | HTTP 200 | DB + dependencies ready |
-| 3 | `/status/` | HTTP 200 + JSON | Status API works |
+| 3 | `/status/` | HTTP 301/302/401/403 | Operational details are **not** public (`internal_only`, P4-9) — a 200 means it leaked |
 | 4 | `/` | HTTP 200 + login HTML | Frontend loads |
 | 5 | `/admin/` | HTTP 200 or 302 | Admin accessible |
 

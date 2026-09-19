@@ -103,6 +103,8 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `assessments_studentassessmentgrade` | درجاتُ التقييمات |
 | `assessments_studentsubjectresult` | نتائجُ الفصول |
 | `assessments_annualsubjectresult` | النتائجُ السنويّة |
+| `assessments_examdeprivation` | قراراتُ فريق السلوك في أهليّة الطالب لاختبار (الحرمان) |
+| `assessments_exammisconduct` | وقائعُ لجان الاختبار بمحضر («غش» في مادّة، «ملغي» في كلّ الموادّ) |
 | `core_studentenrollment` | القيدُ في الشعب |
 | `core_parentstudentlink` | ربطُ وليّ الأمر بالطالب وصلاحيّاتُه |
 | `operations_studentattendance` | الحضورُ بالحصّة |
@@ -139,6 +141,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `operations_staffevaluation` | تقييمُ الأداء |
 | `quality_employeeevaluation` | تقييمُ الموظّف |
 | `quality_evaluationscore` | درجاتُ المقيِّمين |
+| `quality_evaluationlevelbackup` | مجموعُ التقرير ومستواه قبل الهجرة 0018 — يتبع تقييمَ الموظّف (يُحذف بحذفه)؛ انظر §5 بند 5 |
 | `quality_classroomobservation` | الزياراتُ الصفّيّة |
 | `quality_observationscore` | درجاتُها |
 | `quality_qualitycommitteemember` | عضويّةُ لجنة الجودة |
@@ -234,3 +237,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
    و`record_staff_departure` لا يُفرِّغه اليوم. حذفٌ بحدثٍ لا بزمن — خارجَ هذه المهمّة، ويُقرَّر.
 4. **المدّةُ نفسُها**: 730 افتراضٌ هندسيّ (عامان دراسيّان) لا رقمٌ وزاريّ. يُثبَّت بقرار
    مسؤول حماية البيانات ويُضبط في Railway على خدمة العامل.
+5. **`quality_evaluationlevelbackup`**: سجلُّ ما غيّرته الهجرة 0018 من مجموع التقرير ومستواه، ومنه
+   يسترجع عكسُها ما محته. وُضع في §4.3 مع تقييم الموظّف (يُحذف بحذفه، `on_delete=CASCADE`)، وهو
+   الأحوط ما دامت الهجرةُ قابلةً للعكس. أمّا حذفُه بعد استقرارها (نقلُه إلى §3) فقرارُ مسؤول حماية
+   البيانات.

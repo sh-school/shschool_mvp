@@ -105,8 +105,8 @@
   margin-inline: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
+  gap: var(--sp-3);
+  padding: 14px var(--sp-4);
   background: var(--maroon);
   color: var(--on-fill);
   border-radius: var(--radius-lg);
@@ -133,7 +133,7 @@
 /* ── PWA Banner — close button ───────────────────────────────────── */
 .pwa-close-btn {
   background: none; border: none; color: color-mix(in srgb, var(--on-fill) 60%, transparent);
-  font-size: var(--text-lg); cursor: pointer; flex-shrink: 0; padding: 0 4px;
+  font-size: var(--text-lg); cursor: pointer; flex-shrink: 0; padding: 0 var(--sp-1);
 }
 .pwa-subtitle {
   color: color-mix(in srgb, var(--on-fill) 75%, transparent);
@@ -161,15 +161,15 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
 .notif-inline-form { display: contents; }
 .notif-toolbar { align-items: flex-end; }
 .notif-toolbar .ui-field { flex: 1 1 240px; max-inline-size: 26rem; }
-.notif-toolbar__chips { flex: 1 1 360px; align-items: center; padding-block-end: 4px; }
-.notif-type { text-decoration: none; padding: 4px 12px; }
+.notif-toolbar__chips { flex: 1 1 360px; align-items: center; padding-block-end: var(--sp-1); }
+.notif-type { text-decoration: none; padding: var(--sp-1) var(--sp-3); }
 /* مفتاحُ التجميع زرّان متلاصقان: الجاري بأرضيّةٍ عنّابيّةٍ خفيفةٍ وخطٍّ تحته. */
 .notif-group-switch {
-  display: inline-flex; flex-shrink: 0; margin-block-end: 4px;
+  display: inline-flex; flex-shrink: 0; margin-block-end: var(--sp-1);
   border: 1px solid var(--maroon-border); border-radius: var(--radius-md); overflow: hidden;
 }
 .notif-group-switch__opt {
-  padding: 5px 12px; font-size: var(--text-xs); font-weight: 700;
+  padding: 5px var(--sp-3); font-size: var(--text-xs); font-weight: 700;
   color: var(--text-secondary); text-decoration: none; white-space: nowrap;
 }
 .notif-group-switch__opt + .notif-group-switch__opt { border-inline-start: 1px solid var(--maroon-border); }
@@ -177,7 +177,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
 .notif-group-switch__opt[aria-current="page"] { background: var(--maroon-bg); color: var(--maroon-fg); box-shadow: inset 0 -2px 0 var(--maroon-fg); }
 .notif-type__n { font-weight: 500; opacity: .75; font-variant-numeric: tabular-nums; }
 .notif-shortcuts {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: var(--sp-1);
   font-size: var(--text-xs); color: var(--text-muted); cursor: help;
 }
 .notif-shortcuts:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; border-radius: var(--radius-sm); }
@@ -200,7 +200,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
    كانت البطاقةُ كلُّها عنّابيّةً فيصير نصفُ الصندوق كتلةً داكنةً لا يُميَّز فيها شيء. */
 .notif-item {
   display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-2);
-  padding: 10px 12px;
+  padding: 10px var(--sp-3);
   background: var(--surface);
   border: 1px solid var(--border);
   border-inline-start-width: 3px;
@@ -221,10 +221,10 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   overflow-wrap: anywhere;
 }
 .notif-item__meta {
-  margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--sp-2);
+  margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2);
   font-size: var(--text-xs); color: var(--text-muted);
 }
-.notif-item__meta .status-badge { padding: 1px 8px; font-size: 10.5px; }
+.notif-item__meta .status-badge { padding: 1px var(--sp-2); font-size: 10.5px; }
 .notif-item__meta time { font-variant-numeric: tabular-nums; }
 .notif-item__read {
   flex-shrink: 0;
@@ -235,7 +235,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   cursor: pointer; transition: background .12s;
 }
 .notif-item__read:hover { background: var(--maroon-bg); }
-.notif-item__done { flex-shrink: 0; padding: 4px 8px; color: var(--text-muted); opacity: .6; }
+.notif-item__done { flex-shrink: 0; padding: var(--sp-1) var(--sp-2); color: var(--text-muted); opacity: .6; }
 
 /* لوحةُ الإشعارات: سجلٌّ يتمرّر داخل بطاقته، وبحثُه فوقه بحشو البطاقة. */
 .notif-log-search { padding: var(--sp-2) var(--sp-3); border-block-end: 1px solid var(--border); }
@@ -268,7 +268,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   /* أهدافُ اللمس — WCAG 2.5.8: ‏24px أدنى، والإصبعُ أعرضُ من المؤشّر.
      زرُّ الرجوع وروابطُ الفتات في كلّ صفحة، وأزرارُ فرز الأعمدة في كلّ جدول. */
   .bc-back { width: 32px; height: 32px; }
-  .breadcrumbs a { display: inline-block; padding-block: 4px; min-height: 24px; }
+  .breadcrumbs a { display: inline-block; padding-block: var(--sp-1); min-height: 24px; }
   .th-sort { min-height: 24px; }
 }
 
@@ -334,7 +334,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   }
   #main-content.page-noscroll .floor-cols > .wing-pair { display: contents; }
   #main-content.page-noscroll .floor-cols .bell-table th,
-  #main-content.page-noscroll .floor-cols .bell-table td { padding-block: 2px; }
+  #main-content.page-noscroll .floor-cols .bell-table td { padding-block: var(--sp-1); }
   /* التغطية: بطاقةٌ لكلّ جناحٍ تُمرَّر داخلها. */
   #main-content.page-noscroll > .exec-dash > .wing-row:last-child { flex: 1; min-height: 130px; grid-auto-rows: minmax(0, 1fr); }
   #main-content.page-noscroll .wing-row > .ui-section { min-height: 0; overflow: auto; }
@@ -356,7 +356,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
     grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr);
     grid-template-rows: minmax(0, 1fr);
   }
-  #main-content.page-noscroll .beh-vitem { padding: 5px 10px; line-height: 1.4; }
+  #main-content.page-noscroll .beh-vitem { padding: var(--sp-1) var(--sp-2); line-height: 1.4; }
   #main-content.page-noscroll .beh-degree { display: flex; flex-direction: column; min-height: 0; }
   #main-content.page-noscroll .beh-degree__list { flex: 1; min-height: 0; max-block-size: none; }
   /* رصد الغياب: أجنحةٌ أعمدةٌ متجاورة وشُعبُها رأسيّة. */
@@ -370,7 +370,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
     grid-template-rows: minmax(0, 1fr);
   }
   #main-content.page-noscroll .wing-cols > .wing-panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
-  #main-content.page-noscroll .wing-cols .wing-panel__bar { flex-wrap: wrap; row-gap: 6px; }
+  #main-content.page-noscroll .wing-cols .wing-panel__bar { flex-wrap: wrap; row-gap: var(--sp-2); }
   #main-content.page-noscroll .wing-cols .rec-sections { flex: 1; min-height: 0; overflow: auto; align-content: start; grid-template-columns: 1fr; padding: var(--sp-2); }
   /* شُعبُ مركز المعلومات: من أعلى الشبكة لا مُطاطةً. */
   #main-content.page-noscroll > .exec-dash > .ui-entity-grid:last-child { align-content: start; }

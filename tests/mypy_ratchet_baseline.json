@@ -130,9 +130,17 @@
   "operations/scheduler_constraints.py": 10,
   "operations/scheduler_improve.py": 11,
   "operations/scheduler_tight.py": 5,
-  "operations/services.py": 33,
+  "operations/services/attendance.py": 4,
+  "operations/services/capacity_check.py": 4,
+  "operations/services/free_slot.py": 3,
+  "operations/services/schedule.py": 2,
+  "operations/services/schedule_read.py": 5,
+  "operations/services/schedule_retention.py": 6,
+  "operations/services/substitute.py": 3,
+  "operations/services/swap.py": 5,
+  "operations/services/teacher_load.py": 1,
   "operations/tardiness.py": 4,
-  "quality/models.py": 45,
+  "quality/models.py": 35,
   "quality/observation_models.py": 8,
   "quality/querysets.py": 5,
   "scripts/seed_data.py": 8,
@@ -150,5 +158,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1840
+ "total": 1830
 }

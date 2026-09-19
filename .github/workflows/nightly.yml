@@ -81,6 +81,11 @@ jobs:
       - name: تثبيت المتطلبات
         run: pip install -r requirements-dev.txt
 
+      - name: تثبيت متصفّح Chromium (مع مكتبات النظام)
+        # اختباراتُ Playwright (tests/e2e وaxe والحمولة) تحتاج المتصفّح — وتُشغَّل في خطوةٍ
+        # منفصلةٍ أدناه، لأنّ fixture الجلسة تُبقي حلقةَ async قائمةً في العمليّة كلَّها.
+        run: playwright install --with-deps chromium
+
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
 
@@ -88,11 +93,27 @@ jobs:
         # -p no:cacheprovider: لا cache (كل شيء من الصفر)
         # بدون -n auto (متسلسل — لاكتشاف الاختبار المتقلّب بسهولة)
         # العتبةُ من `[tool.coverage.report].fail_under` — pytest-cov يقرؤها.
+        # Playwright خارج هذه العمليّة: حلقةُ async التي يُبقيها fixture الجلسة تُسقط كلَّ
+        # اختبارٍ يلمس القاعدةَ بعده بـSynchronousOnlyOperation (27 فشلاً، 2026-09-19).
         run: |
           python -m pytest \
+            --ignore=tests/e2e \
+            --ignore=tests/test_a11y_axe_ratchet.py \
+            --ignore=tests/test_web_vitals_budget.py \
             --junit-xml=test-results.xml \
             -p no:cacheprovider \
             --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
+
+      - name: "Playwright — e2e وaxe والحمولة (عمليّةٌ منفصلة)"
+        if: always()
+        env:
+          # كما في وظيفتَي axe وe2e في quality-gate.yml: fixtures المتصفّح تلمس القاعدةَ
+          # من داخل حلقة Playwright. ولا يُضبط على الخطوة الرئيسيّة فيُخفي أعطالاً حقيقيّة.
+          DJANGO_ALLOW_ASYNC_UNSAFE: "1"
+        run: |
+          python -m pytest tests/e2e tests/test_a11y_axe_ratchet.py \
+            $(ls tests/test_web_vitals_budget.py 2>/dev/null) \
+            -p no:cacheprovider -v
 
       - name: رفع نتائج الاختبارات
         uses: actions/upload-artifact@v7

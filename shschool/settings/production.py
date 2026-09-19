@@ -7,6 +7,12 @@ from .base import *
 
 DEBUG = False
 
+# ── البريد: بلا مزوّدٍ مُهيَّأ لا يُدَّعى التسليم ─────────────────────────
+# الافتراضيُّ في base.py هو `console` الذي يطبع نصَّ الرسالة (PII) في السجلّ
+# ويردّ «أُرسلت». في الإنتاج يبقى هذا الـbackend إلى أن تُضبط `EMAIL_BACKEND`
+# ومعها `EMAIL_HOST*` على الخدمات الثلاث (web/worker/beat).
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="core.mail_backends.UndeliveredEmailBackend")
+
 # ── قاعدة البيانات: بلا اتّصالاتٍ مستمرّة تحت ASGI (P4-9) ──────────────
 # base.py يقرأ `DB_CONN_MAX_AGE` من البيئة (افتراضُه 600) لخدمةٍ محلّيّةٍ WSGI
 # ولا مشكلةَ فيها. لكنّ daphne هنا يخدم الطلباتِ كلَّها — المتزامنةَ والمُدارةَ
@@ -396,7 +402,7 @@ STORAGES = {
     "default": _s3_storage,
     # الملفات الثابتة → WhiteNoise (Brotli + GZip + hash → cache ∞)
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "core.static_storage.MinifiedManifestStaticFilesStorage",
     },
 }
 
