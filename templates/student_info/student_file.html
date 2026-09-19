@@ -4,6 +4,9 @@
 
 {% block title %}ملفّ {{ student.full_name }}{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}page-noscroll{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/student-info/" parent_label="مركز معلومات الطلبة" current=student.full_name %}
 {% endblock %}
@@ -22,13 +25,14 @@
 
   {# ── التحصيل ومستواه: المتوسّطُ بلون شريحته، ثمّ نتيجةُ كلّ مادّة ── #}
   {# لا يُعرض للمشرف الإداريّ (قرار 2026-09-15)، ولا يُحسب له في الشاشة أصلاً. #}
-  {% if shows_grades %}
-  {% if average %}
+  {% if shows_grades and average %}
   {% kpi_strip label="متوسّط التحصيل" %}
     {% kpi "المتوسّط السنوي" average.value sub=average.band_label tone=average.kpi_tone title="متوسّط المجموع السنوي في موادّ الطالب — من 100" %}
   {% endkpi_strip %}
   {% endif %}
 
+  <div class="fill-grid" style="--flow: row; --tc: repeat(auto-fit, minmax(24rem, 1fr))">
+  {% if shows_grades %}
   {% section_card "التحصيل ومستواه" meta=results|length icon="grades" flush=True empty="لم تُرصد نتائج سنوية لهذا الطالب بعد" %}{% if results %}
     <div class="table-wrap">
       <table>
@@ -110,5 +114,6 @@
       </table>
     </div>
   {% endif %}{% endsection_card %}
+  </div>
 </div>
 {% endblock %}

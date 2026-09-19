@@ -110,11 +110,11 @@ function sdPos(m, btn) {
   m.style.left = left + 'px';
 }
 
-// لوحةُ الجوال (حتى 640px، كما في custom.css): القائمةُ الفرعيّةُ كانت تُثبَّت أعلى
+// لوحةُ الجوال (حتى 1024px، كما في custom.css): القائمةُ الفرعيّةُ كانت تُثبَّت أعلى
 // الشاشة فوق اللوحة فتُخفي القائمةَ الرئيسيّة كلَّها (بلاغ 2026-09-14 بلقطة).
 // والقرار: تبقى عائمة، لكن اللوحةُ تنكمش إلى يمين الشاشة والفرعيّةُ على يسارها
 // (`nb-split` و`sd-drawer`) — فتُرى القائمتان معاً.
-var SD_DRAWER = '(max-width: 640px)';
+var SD_DRAWER = '(max-width: 1024px)';
 
 function sdInDrawer(btn) {
   return !!(btn.closest('.nb-bar') && window.matchMedia(SD_DRAWER).matches);
@@ -134,7 +134,9 @@ function sdPlace(m, btn) {
     m.style.left = '';
     // تنتهي فوق شريط التنقّل السفليّ لا تحته.
     var dock = document.querySelector('.mobile-bottom-nav');
-    var bottom = dock ? dock.getBoundingClientRect().top : window.innerHeight;
+    // الشريطُ السفليُّ مخفيٌّ فوق 640px (rect صفريّ): لا يُحسب وإلّا انكمشت القائمةُ إلى 160px.
+    var dockRect = dock ? dock.getBoundingClientRect() : null;
+    var bottom = dockRect && dockRect.height ? dockRect.top : window.innerHeight;
     m.style.maxHeight = Math.max(160, Math.round(bottom - top - 8)) + 'px';
   } else {
     m.style.maxHeight = '';
@@ -698,14 +700,15 @@ document.addEventListener('click', function(e) {
     localStorage.setItem('theme', theme);
     updateIcon();
   });
+})();
 
-  // Listen for system preference changes
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
-    if (!localStorage.getItem('theme')) {
-      document.documentElement.classList.toggle('dark', e.matches);
-      updateIcon();
-    }
-  });
+/* قائمةُ التصدير في لوح الجناح (details): تُغلق بالنقر خارجها وبـEsc، فلا تبقى عدّةُ قوائمَ مفتوحةً معاً. */
+(function () {
+  function closeMenus(except) {
+    document.querySelectorAll('.per-exports-menu[open]').forEach(function (d) { if (d !== except) d.removeAttribute('open'); });
+  }
+  document.addEventListener('click', function (e) { closeMenus(e.target.closest('.per-exports-menu')); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenus(null); });
 })();
 
 /* ── الورقُ نهاريٌّ دائماً ──

@@ -1,7 +1,11 @@
 {% extends "base/base.html" %}
 {% load icons %}
 {% load ui %}
+{% load navigation %}
 {% block title %}استدعاء ولي أمر{% endblock %}
+
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}page-noscroll{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="السلوك" current="استدعاء ولي أمر" %}
@@ -10,68 +14,50 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "استدعاء ولي أمر" subtitle=summon_subtitle icon="behavior_violation" %}{% endpage_header %}
+  {% page_header "استدعاء ولي أمر" subtitle=summon_subtitle icon="behavior_violation" %}
+    {% if request.user|can_open:'student_affairs:student_list' %}<a href="{% url 'student_affairs:student_list' %}" class="btn-secondary btn-sm">{% icon "student_info" %} سجل الطلاب</a>{% endif %}
+  {% endpage_header %}
 
   {% if selected_student %}
-  {% kpi_strip label="سياق الطالب" %}
-    {% kpi "مؤشر السلوك" behavior_score sub="من 100" tone=behavior_score_tone title="يُحسب من عدد المخالفات ودرجاتها — لا نقاط مخصومة" %}
-    {% kpi "مخالفات نشطة" active_infractions tone=active_infractions_tone %}
-    {% kpi "أولياء أمور مربوطون" parents_info|length tone=parents_tone %}
-  {% endkpi_strip %}
-
-  {% section_card "أولياء الأمور — سيستلمون الإشعار" icon="parents" flush=True empty="لا يوجد أولياء أمور مربوطون بهذا الطالب" empty_sub="لن يُرسَل إشعار" %}{% if parents_info %}
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">الاسم</th>
-            <th scope="col">صلة القرابة</th>
-            <th scope="col">الهاتف</th>
-            <th scope="col">النوع</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in parents_info %}
-          <tr>
-            <td>{{ p.name }}</td>
-            <td>{{ p.relationship }}</td>
-            <td>{% if p.phone %}<a href="tel:{{ p.phone }}" class="link-maroon" dir="ltr" title="اتصال">{{ p.phone }}</a>{% else %}—{% endif %}</td>
-            <td>{% if p.is_primary %}<span class="status-badge status-success">أساسي</span>{% else %}<span class="status-badge status-gray">ثانوي</span>{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% endif %}{% endsection_card %}
+  {# سياقُ الطالب أرقامٌ مضغوطةٌ لا بطاقاتٌ عريضة: قيمتُها أقلُّ من المساحة التي كانت تأخذها. #}
+  <ul class="chip-row" aria-label="سياق الطالب">
+    <li class="chip-stat" title="يُحسب من عدد المخالفات ودرجاتها — لا نقاط مخصومة"><span class="chip-stat__key">مؤشر السلوك</span><b class="chip-stat__value">{{ behavior_score }} من 100</b></li>
+    <li class="chip-stat"><span class="chip-stat__key">مخالفات نشطة</span><b class="chip-stat__value">{{ active_infractions }}</b></li>
+    <li class="chip-stat"><span class="chip-stat__key">أولياء أمور مربوطون</span><b class="chip-stat__value">{{ parents_info|length }}</b></li>
+  </ul>
   {% endif %}
 
-  <div class="beh-form-grid">
+  {# بطاقتان متجاورتان: النموذجُ، وعمودٌ جانبيٌّ (أولياءُ الأمور فالمرسِل) #}
+  <div class="beh-summon-cards">
 
     {% section_card "بيانات الاستدعاء" icon="call_parent" %}
       <form method="post">
         {% csrf_token %}
 
+        {% if selected_student %}
+        <input type="hidden" name="student_id" value="{{ selected_student.pk }}">
+        <div class="form-group">
+          <span class="form-label">الطالب</span>
+          <div class="beh-student-line">
+            <b>{{ selected_student.full_name }}</b>
+          </div>
+        </div>
+        {% else %}
         <div class="form-group">
           <label class="form-label" for="summonStudent">الطالب <span class="required">*</span></label>
           <select name="student_id" id="summonStudent" required class="form-control">
             <option value="">— اختر الطالب —</option>
             {% for s in students %}
-            <option value="{{ s.pk }}" {% if selected_student and selected_student.pk == s.pk %}selected{% endif %}>{{ s.full_name }}</option>
+            <option value="{{ s.pk }}">{{ s.full_name }}</option>
             {% endfor %}
           </select>
-          {% if not selected_student %}
           <p class="form-hint">اختر الطالب ثم اضغط «تحميل بيانات الطالب» لعرض أولياء أموره</p>
-          {% endif %}
-        </div>
-
-        {% if not selected_student %}
-        <div class="form-group">
           <button type="button" id="loadStudentBtn" class="btn-secondary btn-sm">تحميل بيانات الطالب</button>
         </div>
         {% endif %}
 
-        <div class="form-row form-group">
-          <div>
+        <div class="beh-summon__pair">
+          <div class="form-group">
             <label class="form-label" for="summonCategory">تصنيف الاستدعاء <span class="required">*</span></label>
             <select name="category" id="summonCategory" required class="form-control">
               {% for val, label in categories %}
@@ -94,21 +80,21 @@
 
         <div class="form-group">
           <label class="form-label" for="summonReason">سبب الاستدعاء <span class="required">*</span></label>
-          <textarea name="reason" id="summonReason" required rows="4" maxlength="1000"
+          <textarea name="reason" id="summonReason" required rows="3" maxlength="1000"
                     placeholder="اكتب سبب استدعاء ولي الأمر بالتفصيل..."
                     class="form-control resize-y"></textarea>
         </div>
 
-        <div class="form-row form-group">
-          <div>
+        <div class="beh-summon__trio">
+          <div class="form-group">
             <label class="form-label" for="summonDate">تاريخ الحضور</label>
             <input type="date" name="summon_date" id="summonDate" class="form-control">
           </div>
-          <div>
+          <div class="form-group">
             <label class="form-label" for="summonTime">الوقت</label>
             <input type="time" name="summon_time" id="summonTime" class="form-control">
           </div>
-          <div>
+          <div class="form-group">
             <label class="form-label" for="meetingPlace">مكان الاجتماع</label>
             <select name="meeting_place" id="meetingPlace" class="form-control">
               <option value="">— المكان —</option>
@@ -123,11 +109,6 @@
                  placeholder="حدد المكان..." aria-label="مكان الاجتماع" class="form-control">
         </div>
 
-        <div class="form-note is-warning" role="note">
-          {% icon "status_warning" %}
-          <span>يُرسَل إشعارٌ فوريٌّ لجميع أولياء الأمور المربوطين عبر المنصّة والرسائل النصّيّة والبريد الإلكتروني. الحالاتُ الطارئة تُعطى أولويّةً عالية، ويُفضَّل تحديدُ الموعد والمكان.</span>
-        </div>
-
         <div class="form-actions beh-form-actions">
           <a href="{% url 'behavior:dashboard' %}" class="btn-secondary">إلغاء</a>
           <button type="submit" class="btn-primary">{% icon "call_parent" %} إرسال الاستدعاء</button>
@@ -135,20 +116,54 @@
       </form>
     {% endsection_card %}
 
-    {% section_card "مرسل الاستدعاء" icon="call_parent" %}
-      <ul class="plain-list">
-        <li class="plain-list__row">
-          <span class="plain-list__title">{{ sender.full_name }}</span>
-          {% if sender.get_role_display %}<span class="status-badge status-maroon">{{ sender.get_role_display }}</span>{% endif %}
-        </li>
-        {% if sender.phone %}
-        <li class="plain-list__row">
-          <span class="plain-list__sub">الهاتف</span>
-          <span dir="ltr">{{ sender.phone }}</span>
-        </li>
-        {% endif %}
-      </ul>
-    {% endsection_card %}
+    <div class="beh-side">
+      {% if selected_student %}
+      {% section_card "أولياء الأمور — سيستلمون الإشعار" icon="parents" flush=True empty="لا يوجد أولياء أمور مربوطون بهذا الطالب" empty_sub="لن يُرسَل إشعار" %}{% if parents_info %}
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">الاسم</th>
+                <th scope="col">صلة القرابة</th>
+                <th scope="col">الهاتف</th>
+                <th scope="col">النوع</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in parents_info %}
+              <tr>
+                <td>{{ p.name }}</td>
+                <td>{{ p.relationship }}</td>
+                <td>{% if p.phone %}<a href="tel:{{ p.phone }}" class="link-maroon" dir="ltr" title="اتصال">{{ p.phone }}</a>{% else %}—{% endif %}</td>
+                <td>{% if p.is_primary %}<span class="status-badge status-success">أساسي</span>{% else %}<span class="status-badge status-gray">ثانوي</span>{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}{% endsection_card %}
+      {% endif %}
+
+      {% section_card "مرسل الاستدعاء" icon="call_parent" %}
+        <ul class="plain-list">
+          <li class="plain-list__row">
+            <span class="plain-list__title">{{ sender.full_name }}</span>
+            {% if sender.get_role_display %}<span class="status-badge status-maroon">{{ sender.get_role_display }}</span>{% endif %}
+          </li>
+          {% if sender.phone %}
+          <li class="plain-list__row">
+            <span class="plain-list__sub">الهاتف</span>
+            <span dir="ltr">{{ sender.phone }}</span>
+          </li>
+          {% endif %}
+        </ul>
+      {% endsection_card %}
+
+      <div class="form-note is-warning" role="note">
+        {% icon "status_warning" %}
+        <span>يُرسَل إشعارٌ فوريٌّ لجميع أولياء الأمور المربوطين عبر المنصّة والرسائل النصّيّة والبريد الإلكتروني. الحالاتُ الطارئة تُعطى أولويّةً عالية، ويُفضَّل تحديدُ الموعد والمكان.</span>
+      </div>
+    </div>
 
   </div>
 </div>

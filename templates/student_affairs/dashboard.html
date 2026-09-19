@@ -5,6 +5,9 @@
 
 {% block title %}شؤون الطلاب{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}page-noscroll{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with current="شؤون الطلاب" %}
 {% endblock %}
@@ -41,7 +44,7 @@
   {% endkpi_strip %}
 
   {# القوائم اليومية (SOS-20260420-9A91) #}
-  <div class="charts-grid-3">
+  <div class="fill-grid">
     {% section_card "الغائبون اليوم" meta=absent_today icon="absence" empty="لا غياب اليوم" %}{% if absent_list %}
       <ul class="plain-list is-scroll">
         {% for s in absent_list %}
@@ -68,7 +71,6 @@
         {% endfor %}
       </ul>
     {% endif %}{% endsection_card %}
-  </div>
 
   {% if grade_rows %}
   {% section_card "توزيع الطلاب حسب الصف" icon="stats" flush=True %}
@@ -93,6 +95,7 @@
     </div>
   {% endsection_card %}
   {% endif %}
+  </div>
 
 </div>
 {% endblock %}

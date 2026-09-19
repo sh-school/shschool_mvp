@@ -4,6 +4,9 @@
 
 {% block title %}ملخص سلوك الطلاب — شؤون الطلاب{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}page-noscroll{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="ملخص السلوك" %}
 {% endblock %}
@@ -39,7 +42,7 @@
     </ul>
   {% endsection_card %}
 
-  <div class="ui-grid-2">
+  <div class="fill-grid">
     {% section_card "اتجاه المخالفات الشهري" meta="آخر 6 أشهر" icon="trend" %}
       <div class="dash-chart-wrap">
         <canvas id="infractions-chart" role="img" aria-label="رسم بياني: عدد المخالفات في كل شهر من آخر ستة أشهر"></canvas>
@@ -64,7 +67,7 @@
 {% block extra_js %}
 <script src="{% static 'js/vendor/chart.umd.min.js' %}" defer></script>
 <script nonce="{{ request.csp_nonce }}" defer>
-(function() {
+document.addEventListener('DOMContentLoaded', function() {
   Chart.defaults.font.family = 'Tajawal, sans-serif';
   Chart.defaults.font.size = 11;
 
@@ -100,6 +103,6 @@
       }
     }
   });
-})();
+});
 </script>
 {% endblock %}

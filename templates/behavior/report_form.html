@@ -3,6 +3,9 @@
 {% load ui %}
 {% block title %}تسجيل مخالفة سلوكية{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}page-noscroll{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="الضبط السلوكي" current="تسجيل مخالفة" %}
 {% endblock %}
@@ -12,7 +15,7 @@
 
   {% page_header "تسجيل مخالفة سلوكية" subtitle="لائحة السلوك الطلابي — قطر 2025-2026" icon="behavior_violation" %}{% endpage_header %}
 
-  <form method="post" class="beh-form-stack" data-validate>
+  <form method="post" class="beh-form-stack fill-grid" style="--tc: minmax(0, 1fr) minmax(20rem, 24%)" data-validate>
     {% csrf_token %}
     <input type="hidden" name="violation_category" id="hiddenViolationId" value="">
     <input type="hidden" name="level" id="hiddenLevel" value="1">

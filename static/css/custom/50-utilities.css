@@ -274,86 +274,115 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
 
 /* في طبقة utilities لا components: `.exec-dash{display:grid}` و`.qeval-staff{max-height}` في modules،
    والطبقةُ اللاحقةُ تغلب مهما كانت الخصوصيّة — فبقيت هذه القواعدُ في components بلا أثر. */
-/* ── main.page-noscroll: الصفحةُ لا تُمرَّر، الجدولُ وحدَه يُمرَّر ──
-   قوالبُ القائمة (فرزٌ وبحثٌ فوق جدول) كانت تُمرَّر مرّتين: الصفحةُ كلُّها
-   فوق جدولٍ مُمرَّرٍ أصلاً بسقفٍ ثابت (70vh أعلاه) — شريطا تمريرٍ لهدفٍ واحد.
-   هذا يُلغي تمريرَ الصفحة على الحاسوب وحدَه (سطح المكتب فسيح): يملأ سلسلةُ
-   الحاويات المتداخلة ارتفاعَ النافذة، ويُستبدَل السقفُ الثابتُ في الجدول
-   بمساحته الباقية — فيبقى شريطُ تمريرٍ واحد. وفي الهاتف يعود السلوكُ
-   المعتاد (`.exec-dash{height:auto}` أدناه): الترويسةُ والبحثُ يأخذان من
-   ارتفاعٍ ضيّقٍ أصلاً ما لا يُبقي للجدول شيئاً. */
+/* main.page-noscroll: الصفحةُ لا تُمرَّر والجدولُ/البطاقةُ يُم */
 @media (min-width: 1025px) {
-  body:has(> #main-content.page-noscroll) {
-    height: 100vh;
-    overflow: hidden;
-  }
-  #main-content.page-noscroll {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
-  }
-  #main-content.page-noscroll > .exec-dash {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-  }
-  /* القسمُ الذي يحمل الجدولَ الطويل يملأ الباقي — آخرُ قسمٍ في الصفحة
-     (`#staff-table-container` سجلُّ الكادر لا قسمَ له، فبمعرّفه). ولا تصلح
-     الصفحاتُ متعدّدةُ الأقسام (تقييم الأداء): أقسامُها الأخرى تأكل الارتفاعَ فينضغط الجدول. */
+  body:has(> #main-content.page-noscroll) { height: 100vh; overflow: hidden; }
+  /* auto لا hidden: على شاشةٍ قصيرةٍ يظهر شريطٌ بدل القصّ. */
+  #main-content.page-noscroll { display: flex; flex-direction: column; min-height: 0; overflow: auto; }
+  #main-content.page-noscroll > .exec-dash { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  /* آخرُ قسمٍ (أو غلافُ الجدول بمعرّفه) يملأ الباقي */
   #main-content.page-noscroll #staff-table-container,
-  #main-content.page-noscroll > .exec-dash > .ui-section:last-child {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-  }
-  #main-content.page-noscroll > .exec-dash > .ui-section:last-child > .ui-section__body {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-  }
-  /* سطرُ بطاقتين أخيرٌ (لوحة شؤون الموظفين): يملأ الباقي، وتُمرَّر قائمةُ كلّ بطاقةٍ وحدَها. */
+  #main-content.page-noscroll #student-table-container,
+  #main-content.page-noscroll #links-container,
+  #main-content.page-noscroll > .exec-dash > .table-wrap:last-child,
+  #main-content.page-noscroll > .exec-dash > .ui-section:last-child { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  #main-content.page-noscroll > .exec-dash > .ui-section:last-child > .ui-section__body { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }
+  /* ربط الأولياء: الجدولُ يُمرَّر وحده والترقيمُ ثابتٌ أسفل البطاقة. */
+  #main-content.page-noscroll #links-container > .table-wrap { display: flex; flex-direction: column; overflow: hidden; }
+  #main-content.page-noscroll #links-container > .table-wrap > .overflow-x-auto { flex: 1; min-height: 0; overflow: auto; }
+  /* استدعاء ولي أمر */
+  #main-content.page-noscroll .beh-summon-cards { flex: 0 1 auto; min-height: 0; }
+  #main-content.page-noscroll .beh-summon-cards .form-group { margin-block-end: var(--sp-2); }
+  /* سطرُ بطاقتين أخيرٌ: يملأ الباقي وتُمرَّر قائمةُ كلٍّ داخلها. */
   #main-content.page-noscroll .auto-grid .table-wrap tbody td { padding-block: 5px; }
   #main-content.page-noscroll .auto-grid .table-wrap thead th { padding-block: 6px; }
-  #main-content.page-noscroll > .exec-dash > .ui-grid-2:last-child {
+  #main-content.page-noscroll > .exec-dash > .ui-grid-2:last-child { flex: 1; min-height: 130px; grid-template-rows: minmax(0, 1fr); }
+  #main-content.page-noscroll > .exec-dash > .ui-grid-2:last-child > .ui-section { display: flex; flex-direction: column; min-height: 0; }
+  #main-content.page-noscroll > .exec-dash > .ui-grid-2:last-child > .ui-section > .ui-section__body { flex: 1; min-height: 0; overflow: auto; }
+  /* `.fill-grid`: أعمدتُها في --tc وصفوفُها في --rows، وتُمرَّر  */
+  #main-content.page-noscroll > .exec-dash > .fill-grid:last-child {
+    display: grid;
     flex: 1;
     min-height: 130px;
-    grid-template-rows: minmax(0, 1fr);
+    gap: var(--sp-2);
+    grid-auto-flow: var(--flow, column);
+    grid-auto-columns: minmax(0, 1fr);
+    grid-template-columns: var(--tc, none);
+    grid-template-rows: repeat(var(--rows, 1), minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
   }
-  #main-content.page-noscroll > .exec-dash > .ui-grid-2:last-child > .ui-section {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-  #main-content.page-noscroll > .exec-dash > .ui-grid-2:last-child > .ui-section > .ui-section__body {
+  #main-content.page-noscroll .fill-grid > .ui-section { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  #main-content.page-noscroll .fill-grid > .ui-section > .ui-section__body { flex: 1; min-height: 0; overflow: auto; }
+  #main-content.page-noscroll > .exec-dash > .ui-grid-2:not(:last-child) .chip-row { max-block-size: 88px; overflow: auto; }
+  #main-content.page-noscroll .fill-grid .plain-list.is-scroll { max-block-size: none; }
+  #main-content.page-noscroll .fill-grid .dash-chart-wrap { block-size: 100%; min-block-size: 120px; }
+  /* الأجنحة: الطابقان على قدر محتواهما وجدولا الجرس يملآن الباقي. */
+  #main-content.page-noscroll > .exec-dash > .wing-pair--floors { flex: 0 1 auto; min-height: 120px; flex-wrap: nowrap; }
+  #main-content.page-noscroll > .exec-dash > .wing-pair--floors:last-child { flex: 1 1 0; }
+  #main-content.page-noscroll .wing-pair > .wing-panel,
+  #main-content.page-noscroll .wing-pair > .ui-section { min-height: 0; overflow: hidden; }
+  #main-content.page-noscroll .wing-pair > .wing-panel > .wing-grid { min-height: 0; overflow: auto; }
+  #main-content.page-noscroll .wing-pair > .ui-section > .ui-section__body { min-height: 0; overflow: auto; }
+  /* أجنحة المدرسة: عمودان رأسيّان (الطابقُ فتوقيتُه) بشبكةٍ واحدة. */
+  #main-content.page-noscroll > .exec-dash > .floor-cols {
+    display: grid;
     flex: 1;
     min-height: 0;
-    overflow: auto;
+    gap: var(--sp-2);
+    grid-template-columns: var(--floor-cols, repeat(2, minmax(0, 1fr)));
+    grid-template-rows: auto minmax(0, 1fr);
   }
-  /* تقييم الأداء: بطاقتان صغيرتان في سطر، قوائمهما بسقفٍ قصير — والجدولُ هو ما يملأ الباقي. */
+  #main-content.page-noscroll .floor-cols > .wing-pair { display: contents; }
+  #main-content.page-noscroll .floor-cols .bell-table th,
+  #main-content.page-noscroll .floor-cols .bell-table td { padding-block: var(--sp-1); }
+  /* التغطية: بطاقةٌ لكلّ جناحٍ تُمرَّر داخلها. */
+  #main-content.page-noscroll > .exec-dash > .wing-row:last-child { flex: 1; min-height: 130px; grid-auto-rows: minmax(0, 1fr); }
+  #main-content.page-noscroll .wing-row > .ui-section { min-height: 0; overflow: auto; }
+  /* لجنة الضبط: غلافا البطاقتين يُخفيهما السكربتُ بـ hidden. */
+  #main-content.page-noscroll .fill-grid > [data-section]:not([hidden]) { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  #main-content.page-noscroll .fill-grid > [data-section] > .ui-section { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  #main-content.page-noscroll .fill-grid > [data-section] > .ui-section > .ui-section__body { flex: 1; min-height: 0; overflow: auto; }
+  /* النماذج: ثلاثةُ أعمدة، وتُمرَّر البطاقةُ إن طالت. */
+  #main-content.page-noscroll > .exec-dash > .form-card { flex: 0 1 auto; min-height: 0; overflow: auto; }
+  #main-content.page-noscroll .form-card .form-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2) var(--sp-3); }
+  /* تسجيل مخالفة: البطاقتان على قدر محتواهما. */
+  #main-content.page-noscroll > .exec-dash > .beh-form-stack.fill-grid:last-child { flex: 0 1 auto; }
+  /* تسجيل مخالفة: قوائمُ الدرجات تملأ الارتفاعَ بلا سقف 220px. */
+  #main-content.page-noscroll .beh-form-stack > .ui-section:first-child > .ui-section__body { display: flex; flex-direction: column; gap: var(--sp-2); overflow: hidden; }
+  #main-content.page-noscroll .beh-degrees {
+    flex: 1;
+    min-height: 0;
+    /* الدرجة 4 أكثرُها بنوداً: ضعفُ العرض. */
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  #main-content.page-noscroll .beh-vitem { padding: var(--sp-1) var(--sp-2); line-height: 1.4; }
+  #main-content.page-noscroll .beh-degree { display: flex; flex-direction: column; min-height: 0; }
+  #main-content.page-noscroll .beh-degree__list { flex: 1; min-height: 0; max-block-size: none; }
+  /* رصد الغياب: أجنحةٌ أعمدةٌ متجاورة وشُعبُها رأسيّة. */
+  #main-content.page-noscroll > .exec-dash > .wing-cols {
+    display: grid;
+    flex: 0 1 auto;
+    min-height: 120px;
+    gap: var(--sp-2);
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  #main-content.page-noscroll .wing-cols > .wing-panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  #main-content.page-noscroll .wing-cols .wing-panel__bar { flex-wrap: wrap; row-gap: var(--sp-2); }
+  #main-content.page-noscroll .wing-cols .rec-sections { flex: 1; min-height: 0; overflow: auto; align-content: start; grid-template-columns: 1fr; padding: var(--sp-2); }
+  /* شُعبُ مركز المعلومات: من أعلى الشبكة لا مُطاطةً. */
+  #main-content.page-noscroll > .exec-dash > .ui-entity-grid:last-child { align-content: start; }
+  /* تقييم الأداء: بطاقتان صغيرتان في سطر. */
   #main-content.page-noscroll .qeval-side { flex: 0 0 auto; }
   #main-content.page-noscroll .qeval-side .plain-list.is-scroll { max-block-size: 96px; }
-  #main-content.page-noscroll .qeval-side .empty-state-v2 {
-    flex-direction: row;
-    justify-content: center;
-    gap: var(--sp-2);
-    padding-block: var(--sp-2);
-    min-block-size: 0;
-  }
+  #main-content.page-noscroll .qeval-side .empty-state-v2 { flex-direction: row; justify-content: center; gap: var(--sp-2); padding-block: var(--sp-2); min-block-size: 0; }
   #main-content.page-noscroll .qeval-side .empty-state-v2 .es-icon { font-size: var(--text-lg); margin: 0; }
   #main-content.page-noscroll .qeval-side .empty-state-v2 .es-icon svg { inline-size: 24px; block-size: 24px; }
   #main-content.page-noscroll .qeval-side .empty-state-v2 .es-sub { display: none; }
   #main-content.page-noscroll .table-wrap-scroll,
   #main-content.page-noscroll .table-wrap,
-  #main-content.page-noscroll .ui-entity-grid {
-    flex: 1;
-    min-height: 0;
-    max-height: none;
-    overflow: auto;
-  }
+  #main-content.page-noscroll .ui-entity-grid { flex: 1; min-height: 0; max-height: none; overflow: auto; }
 }
 }
