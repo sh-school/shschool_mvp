@@ -162,6 +162,16 @@ class TestSorting:
 
         assert _names(body)[:1] == ["ألف"], "يعود إلى ترتيب الشاشة الأصليّ"
 
+    def test_the_phone_column_is_not_sortable(self, client_as, school, principal):
+        """الجوّالُ مخزَّنٌ مشفَّراً (البند 13) فلا يُفرَز في القاعدة — والترويسةُ بلا رابط فرز،
+        ومفتاحٌ قديمٌ محفوظٌ في علامةٍ يعود إلى ترتيب الشاشة الأصليّ."""
+        self._three(school)
+
+        body = _body(client_as, principal, "?sort=phone&dir=desc")
+
+        assert _names(body)[:1] == ["ألف"]
+        assert "sort=phone" not in body
+
     def test_sorting_covers_the_whole_register_not_the_visible_page(
         self, client_as, school, principal
     ):

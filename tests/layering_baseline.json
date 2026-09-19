@@ -665,7 +665,7 @@
    "orm": 7
   },
   "staff_affairs/views.py::staff_list": {
-   "lines": 184,
+   "lines": 183,
    "orm": 44
   },
   "staff_affairs/views.py::staff_profile": {
