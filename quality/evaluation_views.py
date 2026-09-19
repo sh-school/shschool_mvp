@@ -96,7 +96,8 @@ def evaluation_dashboard(request):
             "staff_list": staff_list,
             "year": year,
             "school": school,
-            "is_principal": is_school_principal(school, request.user),
+            "can_view_grievances": request.user.is_superuser
+            or is_school_principal(school, request.user),
             "grievances_waiting": sum(
                 1
                 for g in selectors.get_grievances(school, year)

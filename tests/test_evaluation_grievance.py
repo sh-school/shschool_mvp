@@ -220,3 +220,34 @@ def test_a_non_principal_cannot_record_and_dates_must_follow_the_sequence(
         )
     ev.refresh_from_db()
     assert ev.grievance_decided_on is None
+
+
+@pytest.mark.django_db
+def test_the_platform_developer_sees_the_grievances_but_cannot_record(
+    client, school, teacher_user, vice
+):
+    """مطوّرُ المنصّة (superuser) يرى ما يراه المدير للعرض وحدَه؛ التدوينُ لمدير المدرسة."""
+    from tests.conftest import MembershipFactory, RoleFactory, UserFactory
+
+    ev = _known_days_ago(
+        school, teacher_user, vice, 4, grievance_submitted_on=timezone.localdate(),
+        grievance_reason=REASON,
+    )  # fmt: skip
+    dev = UserFactory(is_superuser=True, is_staff=True, full_name="مطوّر المنصّة")
+    MembershipFactory(
+        user=dev, school=school, role=RoleFactory(school=school, name="platform_developer")
+    )
+    client.force_login(dev)
+
+    response = client.get(reverse("evaluation_grievances") + f"?year={YEAR}")
+    body = response.content.decode()
+    assert response.status_code == 200
+    assert REASON in body and "عرضٌ فقط" in body
+    assert reverse("record_grievance_decision", kwargs={"eval_id": ev.pk}) not in body
+
+    client.post(
+        reverse("record_grievance_decision", kwargs={"eval_id": ev.pk}),
+        {"outcome": "rejected", "decided_on": timezone.localdate().isoformat()},
+    )
+    ev.refresh_from_db()
+    assert ev.grievance_decided_on is None

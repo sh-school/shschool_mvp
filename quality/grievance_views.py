@@ -67,8 +67,12 @@ def file_evaluation_grievance(request, eval_id):
 @login_required
 @capability_required("quality.evaluations")
 def evaluation_grievances(request):
-    """مديرُ المدرسة: التظلّماتُ المقدَّمةُ ومرحلةُ كلٍّ منها، وتدوينُ قرار اللجنة."""
-    if not is_school_principal(request.school, request.user):
+    """
+    مديرُ المدرسة: التظلّماتُ المقدَّمةُ ومرحلةُ كلٍّ منها، وتدوينُ قرار اللجنة. ومطوّرُ المنصّة
+    (`is_superuser`) يرى ما يراه المديرُ **للعرض وحدَه** — التدوينُ للمدير (`record_grievance_decision`).
+    """
+    can_record = is_school_principal(request.school, request.user)
+    if not (can_record or request.user.is_superuser):
         return HttpResponse("غير مسموح — لمدير المدرسة وحده", status=403)
     year = request.GET.get("year") or academic_year_for(request)
     if not is_academic_year(year):
@@ -86,6 +90,7 @@ def evaluation_grievances(request):
             "waiting": len(waiting),
             "year": year,
             "outcomes": EmployeeEvaluation.GRIEVANCE_OUTCOMES,
+            "can_record": can_record,
         },
     )
 

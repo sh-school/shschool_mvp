@@ -13,7 +13,7 @@
 <div class="qeval exec-dash">
 
   {% page_header "تقييم أداء الموظفين" subtitle="النظام الوظيفي لموظفي المدارس (قرار 32/2019) · المواد 15–21" icon="staff_evaluation" %}
-    {% if is_principal %}<a href="{% url 'evaluation_grievances' %}?year={{ year }}" class="btn-secondary btn-sm">التظلّمات{% if grievances_waiting %} ({{ grievances_waiting }}){% endif %}</a>{% endif %}
+    {% if can_view_grievances %}<a href="{% url 'evaluation_grievances' %}?year={{ year }}" class="btn-secondary btn-sm">التظلّمات{% if grievances_waiting %} ({{ grievances_waiting }}){% endif %}</a>{% endif %}
   {% endpage_header %}
 
   {% if avg_score is not None %}

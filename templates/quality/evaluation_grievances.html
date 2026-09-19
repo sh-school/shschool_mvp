@@ -12,6 +12,8 @@
 
   {% page_header "تظلّمات تقييم الأداء" subtitle="المادة 20 · لجنة موظفي المدارس" icon="policy" %}{% endpage_header %}
 
+  {% if not can_record %}<p class="form-note"><span>عرضٌ فقط — يدوّن قرارَ اللجنة مديرُ المدرسة.</span></p>{% endif %}
+
   {% kpi_strip label="أرقام التظلّمات" %}
     {% kpi "تظلّمات مقدَّمة" rows|length %}
     {% kpi "بانتظار اللجنة أو الوزير" waiting tone="amber" title="تظلّمٌ لم يصدر فيه قرارٌ معتمَد ولم تمضِ مدّةُ البتّ" %}
@@ -43,7 +45,7 @@
       {% endif %}
     </ul>
 
-    {% if not row.ev.grievance_decided_on or not row.ev.grievance_decision_approved_on %}
+    {% if can_record and not row.ev.grievance_decision_approved_on %}
     {# ما وصل من اللجنة: قرارُها وتاريخُ إخطار الموظّف، ثمّ اعتمادُ الوزير — ولا يُعاد تدوينُ ما دُوِّن. #}
     <form method="post" action="{% url 'record_grievance_decision' row.ev.id %}" class="qeval-notes" data-confirm="يُدوَّن ما وصل من اللجنة ولا يُعدَّل بعد ذلك. أدوِّنه؟">
       {% csrf_token %}
