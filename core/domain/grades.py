@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from decimal import ROUND_HALF_UP, Decimal
 from fractions import Fraction
@@ -950,6 +950,77 @@ def _borrowed(final: ExamFacts | None, part: Fraction) -> Fraction:
     return final.attended_pct * part
 
 
+def _s1_cheated_final(
+    p1: ExamFacts | None, aw_s: Fraction | None, m1: str, zero_mid: bool
+) -> _Round1:
+    """غشٌّ في نهاية الفصل الأول — م43: يُلغى اختبارُ النهاية وحدَه لمن له منتصفٌ وأعمال."""
+    # م43: «الإلغاء قاصراً على الدرجة المخصصة لاختبار نهاية الفصل فقط للطلبة الذين لهم
+    # درجات (اختبار منتصف الفصل، أعمال الفصل)»؛ ومن ليس له درجاتُهما (معذورٌ عن المنتصف
+    # فنهايتُه 100%: م17، أو عن الفصل كلِّه فملحقُه 100%: م18) «فلا يسمح لهم بدخول
+    # اختبارات الفصل الدراسي الثاني في مادة الغش وتحسب ضمن مواد الرسوب».
+    mid = _mid_part(p1, zero_mid, Fraction(0))
+    if m1 == EXCUSED_MARK or mid is None or aw_s is None:
+        return _Round1(_VOID, article="م43", mark=CHEATING_MARK)
+    return _Round1(_SCORED, s1=_jabr_exact(mid + aw_s), article="م43")
+
+
+def _s1_final_excused(
+    ex: Mapping[str, ExamFacts],
+    makeup: MakeupFacts | None,
+    marks: tuple[str, str],
+    zero_mid: bool,
+    mid_excused: Fraction,
+    mid_art: str,
+) -> _Round1:
+    """معذورٌ عن (بعض) نهاية الفصل الأول — م17–م20 والملحق."""
+    p1, p2, aw = ex.get("P1"), ex["P2"], ex.get("AW")
+    aw_s = _score(aw)
+    m1, _m2 = marks
+    whole = m1 == EXCUSED_MARK and _m2 == EXCUSED_MARK
+    if makeup is None:
+        # م18 / م19: الملحقُ أوّلاً — لا دورَ ثانياً قبله.
+        return _Round1(_MAKEUP, article="م18" if whole else "م19")
+    if whole:
+        return _s1_whole_semester_excused(makeup, aw, aw_s)
+    if makeup.mark == PRESENT and makeup.pct is not None and p2.out_of:
+        final = _final_pct(p2, makeup)
+        if m1 == EXCUSED_MARK:
+            # م17: المعذورُ عن المنتصف كلِّه — الفصلُ كلُّه من النهاية، ونهايتُه بملحقها.
+            return _Round1(_SCORED, s1=_jabr_exact(final * SEMESTER_MAX_EXACT["S1"]), article="م17")
+        # م24 «أولاً-1»: الجزءُ المعذورُ من المنتصف بنسبة النهاية — ونهايتُه بملحقها (م19).
+        mid = _mid_part(p1, zero_mid, final * mid_excused)
+        made = _sum([mid, aw_s, final * p2.out_of])
+        return _Round1(_SCORED, s1=_jabr_or_none(made), article=mid_art or "م19")
+    mid = _mid_part(p1, zero_mid, Fraction(0))
+    made = _sum([mid, aw_s, p2.score])
+    return _Round1(_SCORED, s1=_jabr_or_none(made), article="م20")
+
+
+def _s1_whole_semester_excused(
+    makeup: MakeupFacts, aw: ExamFacts | None, aw_s: Fraction | None
+) -> _Round1:
+    """معذورٌ عن الفصل الأول كلِّه — يُحكم بملحقه (م18، م20، م21)."""
+    if makeup.mark == PRESENT and makeup.pct is not None:
+        s1 = _jabr_exact(makeup.pct * SEMESTER_MAX_EXACT["S1"])
+        return _Round1(_SCORED, s1=s1, article="م18")
+    if makeup.mark == EXCUSED_MARK:
+        return _Round1(_EXCUSED, article="م21", retake_max=Fraction(100))
+    # غائبٌ بلا عذر عن الملحق بعد عذرٍ عن الفصل كلِّه — صمتٌ في النصّ؛ والأقربُ
+    # م20 («سواء أكان الغياب بعذر أم بدون عذر»): درجةُ الفصل ما حضره.
+    if _unrecorded(aw):
+        return _Round1(_SCORED)
+    return _Round1(_SCORED, s1=_jabr_exact(aw_s or Fraction(0)), article="م20")
+
+
+def _s1_midterm_excused(p2: ExamFacts | None, dep_fin: bool) -> _Round1:
+    """معذورٌ عن المنتصف كلِّه — م17: «يختبر في نهاية الفصل بواقع 100% من درجة الفصل»."""
+    if dep_fin:
+        return _Round1(_SCORED, s1=Fraction(0), article="م17")
+    pct = None if p2 is None else p2.attended_pct
+    from_final = None if pct is None else _jabr_exact(pct * SEMESTER_MAX_EXACT["S1"])
+    return _Round1(_SCORED, s1=from_final, article="م17")
+
+
 def _first_semester_standard(
     ex: Mapping[str, ExamFacts],
     makeup: MakeupFacts | None,
@@ -972,14 +1043,7 @@ def _first_semester_standard(
     mid_art = "م42" if cheat_mid else ""
 
     if cheat_fin:
-        # م43: «الإلغاء قاصراً على الدرجة المخصصة لاختبار نهاية الفصل فقط للطلبة الذين لهم
-        # درجات (اختبار منتصف الفصل، أعمال الفصل)»؛ ومن ليس له درجاتُهما (معذورٌ عن المنتصف
-        # فنهايتُه 100%: م17، أو عن الفصل كلِّه فملحقُه 100%: م18) «فلا يسمح لهم بدخول
-        # اختبارات الفصل الدراسي الثاني في مادة الغش وتحسب ضمن مواد الرسوب».
-        mid = _mid_part(p1, zero_mid, Fraction(0))
-        if m1 == EXCUSED_MARK or mid is None or aw_s is None:
-            return _Round1(_VOID, article="م43", mark=CHEATING_MARK)
-        return _Round1(_SCORED, s1=_jabr_exact(mid + aw_s), article="م43")
+        return _s1_cheated_final(p1, aw_s, m1, zero_mid)
 
     # باقةٌ إلزاميّةٌ لم تُرصد: «غير مكتمل». والمعذورُ عن المنتصف كلِّه فصلُه من النهاية
     # (م17، م18) — فالأعمالُ لا تلزمه هنا.
@@ -994,43 +1058,10 @@ def _first_semester_standard(
     mid_excused = Fraction(0) if (p1 is None or zero_mid) else p1.excused_share * p1.out_of
 
     if p2 is not None and p2_excused:
-        whole = m1 == EXCUSED_MARK and m2 == EXCUSED_MARK
-        if makeup is None:
-            # م18 / م19: الملحقُ أوّلاً — لا دورَ ثانياً قبله.
-            return _Round1(_MAKEUP, article="م18" if whole else "م19")
-        if whole:
-            if makeup.mark == PRESENT and makeup.pct is not None:
-                s1 = _jabr_exact(makeup.pct * SEMESTER_MAX_EXACT["S1"])
-                return _Round1(_SCORED, s1=s1, article="م18")
-            if makeup.mark == EXCUSED_MARK:
-                return _Round1(_EXCUSED, article="م21", retake_max=Fraction(100))
-            # غائبٌ بلا عذر عن الملحق بعد عذرٍ عن الفصل كلِّه — صمتٌ في النصّ؛ والأقربُ
-            # م20 («سواء أكان الغياب بعذر أم بدون عذر»): درجةُ الفصل ما حضره.
-            if _unrecorded(aw):
-                return _Round1(_SCORED)
-            return _Round1(_SCORED, s1=_jabr_exact(aw_s or Fraction(0)), article="م20")
-        if makeup.mark == PRESENT and makeup.pct is not None and p2.out_of:
-            final = _final_pct(p2, makeup)
-            if m1 == EXCUSED_MARK:
-                # م17: المعذورُ عن المنتصف كلِّه — الفصلُ كلُّه من النهاية، ونهايتُه بملحقها.
-                return _Round1(
-                    _SCORED, s1=_jabr_exact(final * SEMESTER_MAX_EXACT["S1"]), article="م17"
-                )
-            # م24 «أولاً-1»: الجزءُ المعذورُ من المنتصف بنسبة النهاية — ونهايتُه بملحقها (م19).
-            mid = _mid_part(p1, zero_mid, final * mid_excused)
-            made = _sum([mid, aw_s, final * p2.out_of])
-            return _Round1(_SCORED, s1=_jabr_or_none(made), article=mid_art or "م19")
-        mid = _mid_part(p1, zero_mid, Fraction(0))
-        made = _sum([mid, aw_s, p2.score])
-        return _Round1(_SCORED, s1=_jabr_or_none(made), article="م20")
+        return _s1_final_excused(ex, makeup, (m1, m2), zero_mid, mid_excused, mid_art)
 
     if m1 == EXCUSED_MARK:
-        # م17: «يختبر في نهاية الفصل بواقع 100% من الدرجة المخصصة للفصل».
-        if dep_fin:
-            return _Round1(_SCORED, s1=Fraction(0), article="م17")
-        pct = None if p2 is None else p2.attended_pct
-        from_final = None if pct is None else _jabr_exact(pct * SEMESTER_MAX_EXACT["S1"])
-        return _Round1(_SCORED, s1=from_final, article="م17")
+        return _s1_midterm_excused(p2, dep_fin)
 
     borrowed = Fraction(0) if dep_fin else _borrowed(p2, mid_excused)
     total = _sum(
@@ -1346,26 +1377,24 @@ def judge_student(
     return replace(verdict, subjects=tuple(subs))
 
 
-def _judge(
-    grade: int,
-    subjects: list[SubjectFacts] | tuple[SubjectFacts, ...],
-    gates: frozenset[str],
-) -> StudentVerdict:
-    """الحكمُ في الموادّ التي لها نهايةٌ صغرى: حالةُ كلّ مادّةٍ ومجموعُها وموضعُها، والموقف.
+@dataclass(frozen=True)
+class _Tally:
+    """تصنيفُ موادّ الطالب بعد الدور الأول — قوائمُ مفاتيح بترتيب المواد."""
 
-    المدخلاتُ وقائع: درجاتُ الباقات وغيابُها بعذرٍ وبغيره، والملحق، وقراراتُ الحرمان
-    المسجَّلة (`gates`)، والغشُّ المسجَّل، وما رُصد في الدور الثاني. والقواعدُ العابرةُ للموادّ
-    (م13، م15، م23، م29، م33، م50، م51) تُطبَّق هنا مرّةً — فلا يحكم مستهلكٌ بحكمٍ موازٍ.
+    r1: dict[str, _Round1]
+    absent_s1: list[str]
+    absent_final: list[str]
+    void: list[str]
+    complete: set[str]
+    low: list[str]
+    excused: list[str]
+    pending: list[str]
+    failed: list[str]
+    first_gaps: dict[str, Fraction]
 
-    الترتيبُ نصّيّ: حرمانُ الثاني عشر من نهاية الأول (م19-1، قبل أن يُمتحن الأول فلا يُعدّ
-    غيابُه فيه «غائباً»)؛ ثمّ م23 (12: م15) لأنّ حكمَ الفصل الأول يسبق عتبةَ الدور الأول؛ ثمّ
-    الحرمانُ من الدور الأول (م29-4، 12: م19-2)؛ ثمّ م13 وم12-أ؛ ثمّ ما لم يكتمل؛ ثمّ الترفيعُ
-    بالأوليين (م50) ثمّ الدورُ الثاني.
-    """
+
+def _tally(grade: int, subjects: Sequence[SubjectFacts], gates: frozenset[str]) -> _Tally:
     g12 = grade == FINAL_GRADE
-    if not subjects:
-        return StudentVerdict(STANDING_INCOMPLETE, "", ())
-    facts = {f.key: f for f in subjects}
     r1 = {
         f.key: (
             _Round1(_BLOCKED)
@@ -1374,7 +1403,6 @@ def _judge(
         )
         for f in subjects
     }
-
     absent_s1 = [k for k, r in r1.items() if r.state == _ABSENT_S1]
     absent_final = [k for k, r in r1.items() if r.state == _ABSENT_FINAL]
     void = [k for k, r in r1.items() if r.state == _VOID]
@@ -1388,13 +1416,34 @@ def _judge(
         for k, r in r1.items()
         if r.state in (_MAKEUP, _BLOCKED) or (r.state == _SCORED and k not in complete)
     ]
-    failed = absent_s1 + absent_final + void + low
-    first_gaps = {k: _PASS - (r1[k].total or 0) for k in low}
+    return _Tally(
+        r1=r1,
+        absent_s1=absent_s1,
+        absent_final=absent_final,
+        void=void,
+        complete=complete,
+        low=low,
+        excused=excused,
+        pending=pending,
+        failed=absent_s1 + absent_final + void + low,
+        first_gaps={k: _PASS - (r1[k].total or 0) for k in low},
+    )
 
-    def done(v: StudentVerdict) -> StudentVerdict:
-        return _rule_one_reviews(grade, v, first_gaps)
+
+class _Judgment:
+    """حكمُ طالبٍ في موادّ لها نهايةٌ صغرى: سُلَّمُ البوّابات ثمّ الترفيعُ ثمّ الدورُ الثاني."""
+
+    def __init__(self, grade: int, facts: Mapping[str, SubjectFacts], tally: _Tally) -> None:
+        self.grade = grade
+        self.g12 = grade == FINAL_GRADE
+        self.facts = facts
+        self.t = tally
+
+    def done(self, v: StudentVerdict) -> StudentVerdict:
+        return _rule_one_reviews(self.grade, v, self.t.first_gaps)
 
     def verdict(
+        self,
         k: str,
         status: str,
         article: str = "",
@@ -1403,7 +1452,7 @@ def _judge(
         retake_max: Fraction | None = None,
         void_s1: bool = False,
     ) -> SubjectVerdict:
-        r = r1[k]
+        r = self.t.r1[k]
         sitting = status in SITTING_STATUSES
         return SubjectVerdict(
             key=k,
@@ -1418,87 +1467,243 @@ def _judge(
             else None,
         )
 
-    def own(k: str) -> SubjectVerdict:
+    def own(self, k: str) -> SubjectVerdict:
         """حالةُ المادّة بما وقع فيها وحدَها — لطالبٍ حُسم موقفُه بغيرها."""
-        r = r1[k]
+        r = self.t.r1[k]
         if r.state in (_ABSENT_S1, _ABSENT_FINAL, _VOID):
-            return verdict(k, STATUS_FAIL, mark=r.mark, numeric=False)
+            return self.verdict(k, STATUS_FAIL, mark=r.mark, numeric=False)
         if r.state == _EXCUSED:
             return replace(
-                verdict(k, STATUS_EXCUSED, mark=EXCUSED_MARK, numeric=False), second_round_max=None
+                self.verdict(k, STATUS_EXCUSED, mark=EXCUSED_MARK, numeric=False),
+                second_round_max=None,
             )
         if r.state == _MAKEUP:
-            return verdict(k, STATUS_MAKEUP, numeric=False)
-        if k not in complete:
-            return verdict(k, STATUS_INCOMPLETE, numeric=r.state != _BLOCKED)
-        return verdict(k, STATUS_FAIL if k in low else STATUS_PASS)
+            return self.verdict(k, STATUS_MAKEUP, numeric=False)
+        if k not in self.t.complete:
+            return self.verdict(k, STATUS_INCOMPLETE, numeric=r.state != _BLOCKED)
+        return self.verdict(k, STATUS_FAIL if k in self.t.low else STATUS_PASS)
 
-    def all_deprived(article: str) -> StudentVerdict:
+    def owns(self, standing: str, article: str) -> StudentVerdict:
+        return StudentVerdict(standing, article, tuple(self.own(k) for k in self.t.r1))
+
+    def all_deprived(self, article: str) -> StudentVerdict:
         # م16-3 وم29-4 (12: م19): «محروم» في كلّ الموادّ، ويُختبر فيها من مئة. والثاني عشر:
         # م19-1 لم يُمتحن الفصلَ الأول، وم19-2 «(تلغى درجات الطالب في الفصل الأول)».
         subs = tuple(
-            verdict(
+            self.verdict(
                 k,
                 STATUS_DEPRIVED,
                 article,
                 mark=DEPRIVED_MARK,
                 numeric=False,
                 retake_max=Fraction(100),
-                void_s1=g12,
+                void_s1=self.g12,
             )
-            for k in r1
+            for k in self.t.r1
         )
-        return _second_round(grade, StudentVerdict(STANDING_SECOND_ROUND, article, subs), facts, r1)
+        first = StudentVerdict(STANDING_SECOND_ROUND, article, subs)
+        return _second_round(self.grade, first, self.facts, self.t.r1)
 
-    if g12 and GATE_S1_FINAL in gates:
-        return all_deprived(FINAL_GRADE_S1_DEPRIVED_ARTICLE)
-    if len(absent_s1) > MAX_FAILED_FOR_SECOND_ROUND:
-        return done(
-            StudentVerdict(STANDING_FAILED, _art("barred_s1", grade), tuple(own(k) for k in r1))
-        )
-    if GATE_S2_FINAL in gates:
-        return all_deprived(_art("deprived_first_round", grade))
-    if len(absent_final) > MAX_FAILED_FOR_SECOND_ROUND:
-        return done(
-            StudentVerdict(STANDING_FAILED, _art("barred", grade), tuple(own(k) for k in r1))
-        )
-    if len(failed) > MAX_FAILED_FOR_SECOND_ROUND:
-        return done(
-            StudentVerdict(
-                STANDING_FAILED, _art("eligible", grade, "-أ"), tuple(own(k) for k in r1)
+    def gate_ladder(self, gates: frozenset[str]) -> StudentVerdict | None:
+        """البوّاباتُ التي تحسم قبل الترفيع — أو `None` إن لم تحسم."""
+        t, grade = self.t, self.grade
+        if self.g12 and GATE_S1_FINAL in gates:
+            return self.all_deprived(FINAL_GRADE_S1_DEPRIVED_ARTICLE)
+        if len(t.absent_s1) > MAX_FAILED_FOR_SECOND_ROUND:
+            return self.done(self.owns(STANDING_FAILED, _art("barred_s1", grade)))
+        if GATE_S2_FINAL in gates:
+            return self.all_deprived(_art("deprived_first_round", grade))
+        if len(t.absent_final) > MAX_FAILED_FOR_SECOND_ROUND:
+            return self.done(self.owns(STANDING_FAILED, _art("barred", grade)))
+        if len(t.failed) > MAX_FAILED_FOR_SECOND_ROUND:
+            return self.done(self.owns(STANDING_FAILED, _art("eligible", grade, "-أ")))
+        if t.pending:
+            return self.owns(STANDING_INCOMPLETE, "")
+        return None
+
+    def resolve(self) -> StudentVerdict:
+        """بلا بوّابةٍ حاسمة: ترفيعٌ بالأوليين (م50)، أو نجاحٌ، أو الدورُ الثاني."""
+        t, grade = self.t, self.grade
+        if not self.g12 and not t.excused and t.low and len(t.low) == len(t.failed):
+            rule = _promotion_rule([_PASS - (t.r1[k].total or 0) for k in t.low])
+            if rule:
+                subs = tuple(
+                    self.verdict(k, STATUS_PROMOTED, rule)
+                    if k in t.low
+                    else self.verdict(k, STATUS_PASS)
+                    for k in t.r1
+                )
+                return StudentVerdict(STANDING_PROMOTED, rule, subs)
+        if not t.failed and not t.excused:
+            return StudentVerdict(
+                STANDING_PASSED,
+                _art("passed", grade),
+                tuple(self.verdict(k, STATUS_PASS) for k in t.r1),
             )
-        )
-    if pending:
-        return StudentVerdict(STANDING_INCOMPLETE, "", tuple(own(k) for k in r1))
+        return self.done(_second_round(grade, self._first_sitting(), self.facts, t.r1))
 
-    if not g12 and not excused and low and len(low) == len(failed):
-        rule = _promotion_rule([_PASS - (r1[k].total or 0) for k in low])
+    def _first_sitting(self) -> StudentVerdict:
+        """موقفُ «دورٌ ثانٍ» ومواقفُ مادّاته قبل ما رُصد فيه."""
+        t = self.t
+        suffix = "-ج" if t.failed and t.excused else ("-ب" if t.excused else "-أ")
+        art = _art("eligible", self.grade, suffix)
+        subs_list = []
+        for k in t.r1:
+            if k in t.excused:
+                subs_list.append(self.verdict(k, STATUS_EXCUSED, mark=EXCUSED_MARK, numeric=False))
+            elif k in t.absent_s1 or k in t.absent_final or k in t.void:
+                subs_list.append(
+                    self.verdict(k, STATUS_SECOND_ROUND, mark=t.r1[k].mark, numeric=False)
+                )
+            elif k in t.low:
+                subs_list.append(self.verdict(k, STATUS_SECOND_ROUND, art))
+            else:
+                subs_list.append(self.verdict(k, STATUS_PASS))
+        return StudentVerdict(STANDING_SECOND_ROUND, art, tuple(subs_list))
+
+
+def _judge(
+    grade: int,
+    subjects: list[SubjectFacts] | tuple[SubjectFacts, ...],
+    gates: frozenset[str],
+) -> StudentVerdict:
+    """الحكمُ في الموادّ التي لها نهايةٌ صغرى: حالةُ كلّ مادّةٍ ومجموعُها وموضعُها، والموقف.
+
+    المدخلاتُ وقائع: درجاتُ الباقات وغيابُها بعذرٍ وبغيره، والملحق، وقراراتُ الحرمان
+    المسجَّلة (`gates`)، والغشُّ المسجَّل، وما رُصد في الدور الثاني. والقواعدُ العابرةُ للموادّ
+    (م13، م15، م23، م29، م33، م50، م51) تُطبَّق هنا مرّةً — فلا يحكم مستهلكٌ بحكمٍ موازٍ.
+
+    الترتيبُ نصّيّ: حرمانُ الثاني عشر من نهاية الأول (م19-1، قبل أن يُمتحن الأول فلا يُعدّ
+    غيابُه فيه «غائباً»)؛ ثمّ م23 (12: م15) لأنّ حكمَ الفصل الأول يسبق عتبةَ الدور الأول؛ ثمّ
+    الحرمانُ من الدور الأول (م29-4، 12: م19-2)؛ ثمّ م13 وم12-أ؛ ثمّ ما لم يكتمل؛ ثمّ الترفيعُ
+    بالأوليين (م50) ثمّ الدورُ الثاني. (`_Judgment.gate_ladder` ثمّ `_Judgment.resolve`.)
+    """
+    if not subjects:
+        return StudentVerdict(STANDING_INCOMPLETE, "", ())
+    judgment = _Judgment(grade, {f.key: f for f in subjects}, _tally(grade, subjects, gates))
+    early = judgment.gate_ladder(gates)
+    return early if early is not None else judgment.resolve()
+
+
+_SR_PASSED, _SR_FAILED, _SR_UNDECIDED = "passed", "failed", "undecided"
+
+
+def _second_round_subject(
+    grade: int,
+    v: SubjectVerdict,
+    sr: SecondRoundFacts | None,
+    r1: Mapping[str, _Round1],
+    context: tuple[bool, bool, bool],
+) -> tuple[SubjectVerdict, str, Fraction | None]:
+    """حكمُ مادّةٍ جلس (أو كان يجلس) فيها الدورَ الثاني: (المادّة، النتيجة، الدرجةُ المعتمدة).
+
+    `context` = (غشٌّ في هذه المادّة، غشٌّ في مادّةٍ ما، غيابٌ عن مادّةٍ ما في الدور الثاني).
+    النتيجةُ `passed` أو `failed` أو `undecided` (لم يُرصد بعدُ أو رصدٌ يُعرض ولا يُحكم).
+    """
+    cheated_here, any_cheat, any_absent = context
+    g12 = grade == FINAL_GRADE
+    if cheated_here:
+        if g12:
+            # م33: «يلغى اختبار الطالب في المادة الواحدة … ولا يسمح له بمواصلة الاختبار في
+            # المواد الباقية ويعتبر راسباً في صفه».
+            failed = replace(
+                v,
+                status=STATUS_FAIL,
+                annual_total=None,
+                mark=CHEATING_MARK,
+                article=_art("cheat_second_round", grade),
+            )
+            return failed, _SR_FAILED, None
+        # سياسةُ 4–11 تحكم الغشَّ في المنتصف والنهاية والملحق (م42–م44) وتكرارَه (م45)،
+        # ولا تذكر الدورَ الثاني — صمتٌ: يُعرض ولا يُحكم.
+        reviewed = _add_review(
+            v,
+            "غشٌّ مسجَّلٌ في الدور الثاني — سياسةُ 4–11 لا تنصّ على حكمه (م42–م44 للفصلين"
+            " والملحق)؛ يُعرض على مراجعة النتائج",
+        )
+        return reviewed, _SR_UNDECIDED, None
+    if sr is None or sr.absent or sr.score is None:
+        if (sr is not None and sr.absent) or any_absent:
+            # م15: من غاب عن مادّةٍ في الدور الثاني لا يستمرّ في باقيها.
+            absent = replace(
+                v,
+                status=STATUS_FAIL,
+                annual_total=None,
+                mark=ABSENT,
+                article=_art("second_round_absent", grade),
+            )
+            return absent, _SR_FAILED, None
+        if g12 and any_cheat:
+            # م33: «ولا يسمح له بمواصلة الاختبار في المواد الباقية».
+            barred = replace(
+                v,
+                status=STATUS_FAIL,
+                annual_total=None,
+                mark="",
+                article=_art("cheat_second_round", grade),
+            )
+            return barred, _SR_FAILED, None
+        return v, _SR_UNDECIDED, None
+    return _second_round_scored(grade, v, sr.score, r1)
+
+
+def _second_round_scored(
+    grade: int, v: SubjectVerdict, score: Fraction, r1: Mapping[str, _Round1]
+) -> tuple[SubjectVerdict, str, Fraction | None]:
+    """مادّةٌ رُصدت لها درجةٌ في الدور الثاني — الاعتمادُ (م16) أو رصدٌ خاطئٌ يُعرض."""
+    carried = r1[v.key].carried if v.status == STATUS_EXCUSED else Fraction(0)
+    if v.status == STATUS_DEPRIVED:
+        carried = Fraction(0)
+    limit = FULL_MARK if v.second_round_max is None else v.second_round_max
+    if score > _exact(limit) or score < 0:
+        # رصدٌ خاطئ (فوق قصوى اختبار الدور الثاني: م25 منهاجُ الفصل الثاني وحدَه) — لا يُحكم
+        # به ولا يُسقط إعادةَ الحساب؛ يبقى حكمُ الدور الأول ويُعرض الخطأ للتصحيح.
+        reviewed = _add_review(
+            v,
+            f"درجةُ الدور الثاني المرصودة {_to_plain(score)} خارج قصوى اختبارها "
+            f"{_to_plain(_exact(limit))} ({v.article}) — تُصحَّح ثمّ يُعاد الحساب",
+        )
+        return reviewed, _SR_UNDECIDED, None
+    passed, value = second_round_credit(v.status, score, carried, grade=grade)
+    credited = replace(
+        v,
+        status=STATUS_PASS if passed else STATUS_FAIL,
+        annual_total=value,
+        mark="",
+        article=_art("credit", grade),
+    )
+    return credited, _SR_PASSED if passed else _SR_FAILED, _jabr_exact(score + carried)
+
+
+def _second_round_standing(
+    grade: int,
+    first: StudentVerdict,
+    subs_map: dict[str, SubjectVerdict],
+    values: Mapping[str, Fraction],
+    failed: list[str],
+) -> StudentVerdict:
+    """موقفُ الطالب بعد أن حُسمت مادّتُه كلُّها في الدور الثاني — م50 (الثالثةُ هنا) وم51."""
+    subs = tuple(subs_map.values())
+    if failed and grade != FINAL_GRADE and all(k in values for k in failed):
+        rule = _promotion_rule([_PASS - values[k] for k in failed])
+        if not rule and len(failed) == 1:
+            k = failed[0]
+            # «في كل مادة من المواد الباقية الأخرى التي لها نهاية صغرى» — والموادُّ هنا كلُّها كذلك.
+            others = [subs_map[o].annual_total for o in subs_map if o != k]
+            if (
+                values[k] >= PROMOTION_RULE_3_FAILED
+                and others
+                and all(t is not None and t >= PROMOTION_RULE_3_OTHERS for t in others)
+            ):
+                rule = PROMOTION_RULE_3_ARTICLE
         if rule:
-            subs = tuple(
-                verdict(k, STATUS_PROMOTED, rule) if k in low else verdict(k, STATUS_PASS)
-                for k in r1
-            )
-            return StudentVerdict(STANDING_PROMOTED, rule, subs)
-
-    if not failed and not excused:
-        return StudentVerdict(
-            STANDING_PASSED, _art("passed", grade), tuple(verdict(k, STATUS_PASS) for k in r1)
-        )
-
-    suffix = "-ج" if failed and excused else ("-ب" if excused else "-أ")
-    art = _art("eligible", grade, suffix)
-    subs_list = []
-    for k in r1:
-        if k in excused:
-            subs_list.append(verdict(k, STATUS_EXCUSED, mark=EXCUSED_MARK, numeric=False))
-        elif k in absent_s1 or k in absent_final or k in void:
-            subs_list.append(verdict(k, STATUS_SECOND_ROUND, mark=r1[k].mark, numeric=False))
-        elif k in low:
-            subs_list.append(verdict(k, STATUS_SECOND_ROUND, art))
-        else:
-            subs_list.append(verdict(k, STATUS_PASS))
-    first = StudentVerdict(STANDING_SECOND_ROUND, art, tuple(subs_list))
-    return done(_second_round(grade, first, facts, r1))
+            # «يرصد في كشوف الدرجات والشهادة الدرجة التي حصل عليها» — تبقى درجتُه.
+            for k in failed:
+                subs_map[k] = replace(subs_map[k], status=STATUS_PROMOTED, article=rule)
+            return StudentVerdict(STANDING_PROMOTED, rule, tuple(subs_map.values()))
+    if failed:
+        return StudentVerdict(STANDING_FAILED, first.article, subs)
+    return StudentVerdict(STANDING_PASSED, _art("credit", grade), subs)
 
 
 def _second_round(
@@ -1517,98 +1722,27 @@ def _second_round(
     ):
         return first
     any_absent = any(sr is not None and sr.absent for sr in rounds.values())
-    absent_art = _art("second_round_absent", grade)
-    cheat_art = _art("cheat_second_round", grade)
     decided: dict[str, SubjectVerdict] = {}
     values: dict[str, Fraction] = {}
     failed: list[str] = []
     undecided = False
     for v in sitting:
-        sr = rounds[v.key]
-        if v.key in cheats:
-            if g12:
-                # م33: «يلغى اختبار الطالب في المادة الواحدة … ولا يسمح له بمواصلة الاختبار في
-                # المواد الباقية ويعتبر راسباً في صفه».
-                decided[v.key] = replace(
-                    v, status=STATUS_FAIL, annual_total=None, mark=CHEATING_MARK, article=cheat_art
-                )
-                failed.append(v.key)
-            else:
-                # سياسةُ 4–11 تحكم الغشَّ في المنتصف والنهاية والملحق (م42–م44) وتكرارَه (م45)،
-                # ولا تذكر الدورَ الثاني — صمتٌ: يُعرض ولا يُحكم.
-                decided[v.key] = _add_review(
-                    v,
-                    "غشٌّ مسجَّلٌ في الدور الثاني — سياسةُ 4–11 لا تنصّ على حكمه (م42–م44 للفصلين"
-                    " والملحق)؛ يُعرض على مراجعة النتائج",
-                )
-                undecided = True
-            continue
-        if sr is None or sr.absent or sr.score is None:
-            if (sr is not None and sr.absent) or any_absent:
-                # م15: من غاب عن مادّةٍ في الدور الثاني لا يستمرّ في باقيها.
-                decided[v.key] = replace(
-                    v, status=STATUS_FAIL, annual_total=None, mark=ABSENT, article=absent_art
-                )
-                failed.append(v.key)
-            elif g12 and cheats:
-                # م33: «ولا يسمح له بمواصلة الاختبار في المواد الباقية».
-                decided[v.key] = replace(
-                    v, status=STATUS_FAIL, annual_total=None, mark="", article=cheat_art
-                )
-                failed.append(v.key)
-            else:
-                undecided = True
-            continue
-        carried = r1[v.key].carried if v.status == STATUS_EXCUSED else Fraction(0)
-        if v.status == STATUS_DEPRIVED:
-            carried = Fraction(0)
-        limit = FULL_MARK if v.second_round_max is None else v.second_round_max
-        if sr.score > _exact(limit) or sr.score < 0:
-            # رصدٌ خاطئ (فوق قصوى اختبار الدور الثاني: م25 منهاجُ الفصل الثاني وحدَه) — لا يُحكم
-            # به ولا يُسقط إعادةَ الحساب؛ يبقى حكمُ الدور الأول ويُعرض الخطأ للتصحيح.
-            decided[v.key] = _add_review(
-                v,
-                f"درجةُ الدور الثاني المرصودة {_to_plain(sr.score)} خارج قصوى اختبارها "
-                f"{_to_plain(_exact(limit))} ({v.article}) — تُصحَّح ثمّ يُعاد الحساب",
-            )
-            undecided = True
-            continue
-        passed, value = second_round_credit(v.status, sr.score, carried, grade=grade)
-        values[v.key] = _jabr_exact(sr.score + carried)
-        decided[v.key] = replace(
-            v,
-            status=STATUS_PASS if passed else STATUS_FAIL,
-            annual_total=value,
-            mark="",
-            article=_art("credit", grade),
+        verdict, outcome, value = _second_round_subject(
+            grade, v, rounds[v.key], r1, (v.key in cheats, bool(cheats), any_absent)
         )
-        if not passed:
+        decided[v.key] = verdict
+        if value is not None:
+            values[v.key] = value
+        if outcome == _SR_FAILED:
             failed.append(v.key)
+        elif outcome == _SR_UNDECIDED:
+            undecided = True
 
     subs_map = {v.key: decided.get(v.key, v) for v in first.subjects}
     if g12 and cheats:
         # «ويعتبر راسباً في صفه» — لا انتظارَ لما لم يُرصد.
+        cheat_art = _art("cheat_second_round", grade)
         return StudentVerdict(STANDING_FAILED, cheat_art, tuple(subs_map.values()))
     if undecided:
         return StudentVerdict(first.standing, first.article, tuple(subs_map.values()))
-
-    if failed and not g12 and all(k in values for k in failed):
-        rule = _promotion_rule([_PASS - values[k] for k in failed])
-        if not rule and len(failed) == 1:
-            k = failed[0]
-            # «في كل مادة من المواد الباقية الأخرى التي لها نهاية صغرى» — والموادُّ هنا كلُّها كذلك.
-            others = [subs_map[o].annual_total for o in subs_map if o != k]
-            if (
-                values[k] >= PROMOTION_RULE_3_FAILED
-                and others
-                and all(t is not None and t >= PROMOTION_RULE_3_OTHERS for t in others)
-            ):
-                rule = PROMOTION_RULE_3_ARTICLE
-        if rule:
-            # «يرصد في كشوف الدرجات والشهادة الدرجة التي حصل عليها» — تبقى درجتُه.
-            for k in failed:
-                subs_map[k] = replace(subs_map[k], status=STATUS_PROMOTED, article=rule)
-            return StudentVerdict(STANDING_PROMOTED, rule, tuple(subs_map.values()))
-    if failed:
-        return StudentVerdict(STANDING_FAILED, first.article, tuple(subs_map.values()))
-    return StudentVerdict(STANDING_PASSED, _art("credit", grade), tuple(subs_map.values()))
+    return _second_round_standing(grade, first, subs_map, values, failed)
