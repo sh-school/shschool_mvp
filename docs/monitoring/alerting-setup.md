@@ -145,7 +145,13 @@ cat /tmp/schoolos-monitor-failures.count
 
 ## 4. GitHub Actions Monitoring
 
-Create `.github/workflows/monitor.yml`:
+> **Live:** `.github/workflows/monitor.yml` exists and runs every 15 minutes. It
+> needs no secret: two attempts a minute apart, a failure opens (or comments on)
+> one `uptime-failure` issue, and the next success closes it — the same pattern
+> as `nightly.yml`. The sample below is the older Slack-webhook design, kept for
+> reference only.
+
+Sample (superseded) `.github/workflows/monitor.yml`:
 
 ```yaml
 name: SchoolOS Health Monitor
