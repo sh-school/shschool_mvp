@@ -11,7 +11,18 @@ _REQUIRED_ENV = {
     "EXCEL_PROTECTION_PASSWORD": "test-only-password",
     "ALLOWED_HOSTS": "localhost",
     "SENTRY_DSN": "",
-    "USE_S3": "false",
+    # S3 إلزاميٌّ في الإنتاج الآن (البند 11) — بلا هذه الثلاث يفشل كلّ اختبارٍ
+    # هنا عند الاستيراد (ImproperlyConfigured)، لا فحصَ الإعداد الذي يقصده.
+    "AWS_ACCESS_KEY_ID": "test-only-access-key",
+    "AWS_SECRET_ACCESS_KEY": "test-only-secret-key",  # pragma: allowlist secret
+    "AWS_STORAGE_BUCKET_NAME": "test-only-bucket",
+    # فارغةٌ عمداً — قيمٌ صريحةٌ لا غياب: decouple يقرأ os.environ أوّلاً ثمّ
+    # ملفّ .env الحقيقيّ في هذه الشجرة (قد يحمل مفاتيح R2 فعليّة، البند 11)؛
+    # فبلا هذا الحضور الصريح يتسرّب محتوى الملفّ الحقيقيّ إلى العملية الفرعية
+    # رغم `env=` الممرَّر لها — الغيابُ من القاموس ليس غياباً من decouple.
+    "AWS_S3_ENDPOINT_URL": "",
+    "AWS_S3_REGION_NAME": "me-south-1",
+    "AWS_S3_CUSTOM_DOMAIN": "",
 }
 
 _RUNTIME_KEYS = (
@@ -43,6 +54,8 @@ print("CELERY_BROKER=" + str(getattr(settings, "CELERY_BROKER_URL", "")))
 print("CORS=" + "|".join(settings.CORS_ALLOWED_ORIGINS))
 print("CONN_MAX_AGE=" + str(settings.DATABASES["default"]["CONN_MAX_AGE"]))
 print("DB_OPTIONS=" + str(settings.DATABASES["default"].get("OPTIONS", {})))
+print("STORAGE_BACKEND=" + settings.STORAGES["default"]["BACKEND"])
+print("MEDIA_URL=" + settings.MEDIA_URL)
 """
 
     return subprocess.run(
@@ -258,3 +271,54 @@ def test_a_zero_timeout_keeps_it_disabled():
 
     assert result.returncode == 0, result.stderr
     assert _values(result)["DB_OPTIONS"] == "{}"
+
+
+# ══════════════════════════════════════════════════════════════════
+#  S3 إلزاميٌّ في الإنتاج — لا تراجعَ صامتاً إلى القاعدة (البند 11)
+# ══════════════════════════════════════════════════════════════════
+
+
+def test_s3_is_wired_as_the_default_storage_when_configured():
+    result = _load_production_settings()
+
+    assert result.returncode == 0, result.stderr
+    values = _values(result)
+    assert values["STORAGE_BACKEND"] == "storages.backends.s3boto3.S3Boto3Storage"
+
+
+def test_missing_access_key_fails_the_boot_instead_of_falling_back():
+    """كانت هذه الحالة تُصدر تحذيراً وتتراجع إلى DatabaseStorage — الآن تُسقط الإقلاع."""
+    result = _load_production_settings(AWS_ACCESS_KEY_ID="")
+
+    assert result.returncode != 0
+    assert "AWS_ACCESS_KEY_ID" in result.stderr
+
+
+def test_missing_bucket_name_fails_the_boot():
+    result = _load_production_settings(AWS_STORAGE_BUCKET_NAME="")
+
+    assert result.returncode != 0
+    assert "AWS_STORAGE_BUCKET_NAME" in result.stderr
+
+
+def test_an_s3_compatible_endpoint_shapes_the_media_url():
+    """R2/MinIO: الرابطُ يُبنى من نقطة النهاية لا من نمط AWS القياسيّ."""
+    result = _load_production_settings(
+        AWS_S3_ENDPOINT_URL="https://example.r2.cloudflarestorage.com"
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert (
+        _values(result)["MEDIA_URL"]
+        == "https://example.r2.cloudflarestorage.com/test-only-bucket/media/"
+    )
+
+
+def test_the_aws_default_media_url_is_used_without_an_endpoint():
+    result = _load_production_settings()
+
+    assert result.returncode == 0, result.stderr
+    assert (
+        _values(result)["MEDIA_URL"]
+        == "https://test-only-bucket.s3.me-south-1.amazonaws.com/media/"
+    )

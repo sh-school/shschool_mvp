@@ -374,66 +374,36 @@ else:
     CONTENT_SECURITY_POLICY = None
 
 
-# ── WhiteNoise: static files مع Brotli/GZip + cache forever ──
-# يعمل دائماً في الإنتاج بغض النظر عن USE_S3
+# ── S3 Object Storage للملفات (media) — إلزاميٌّ لا اختياريّ (البند 11) ──
+# حاويةُ الويب على Railway بلا قرصٍ دائم؛ كان التراجعُ الصامتُ إلى
+# DatabaseStorage عند نقص المفاتيح يعني تضخّم القاعدة صامتاً أو فقدان ملفٍّ
+# بلا تنبيه. الآن: `USE_S3` لم يعد يُقرأ هنا أصلاً — الإنتاجُ يتطلّب S3 دائماً،
+# ويفشل عند الإقلاع (`ImproperlyConfigured`) إن نقصت مفاتيحه، لا يتراجع بصمت.
+from core.storage_config import s3_default_storage  # noqa: E402
+
+INSTALLED_APPS = [a for a in INSTALLED_APPS if a != "storages"] + ["storages"]
+_s3_storage, MEDIA_URL = s3_default_storage(
+    access_key_id=AWS_ACCESS_KEY_ID,
+    secret_access_key=AWS_SECRET_ACCESS_KEY,
+    bucket_name=AWS_STORAGE_BUCKET_NAME,
+    region_name=AWS_S3_REGION_NAME,
+    endpoint_url=AWS_S3_ENDPOINT_URL,
+    querystring_expire=AWS_QUERYSTRING_EXPIRE,
+    custom_domain=config("AWS_S3_CUSTOM_DOMAIN", default=""),
+)
 STORAGES = {
-    # الملفات المرفوعة → قاعدة البيانات (تدوم على Railway المؤقّت). S3 يتجاوزه أدناه عند USE_S3.
-    "default": {"BACKEND": "core.db_storage.DatabaseStorage"},
+    "default": _s3_storage,
+    # الملفات الثابتة → WhiteNoise (Brotli + GZip + hash → cache ∞)
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
 
-# ── S3 Object Storage للملفات (media) ────────────────────────
-# فعّله بـ USE_S3=true في .env ومتغيرات AWS_* / نقطة نهاية S3 متوافقة
-if USE_S3:
-    if not all([AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_STORAGE_BUCKET_NAME]):
-        import logging
-
-        logging.getLogger(__name__).warning(
-            "⚠️ USE_S3=true لكن AWS_* credentials ناقصة — سيُستخدم التخزين المحلي"
-        )
-    else:
-        INSTALLED_APPS = [a for a in INSTALLED_APPS if a != "storages"] + ["storages"]
-        STORAGES = {
-            # ملفات المستخدمين (library PDFs، صور) → S3 خاص
-            "default": {
-                "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-                "OPTIONS": {
-                    "bucket_name": AWS_STORAGE_BUCKET_NAME,
-                    "region_name": AWS_S3_REGION_NAME,
-                    "endpoint_url": AWS_S3_ENDPOINT_URL or None,
-                    "location": "media",
-                    "file_overwrite": False,
-                    "default_acl": "private",
-                    "querystring_auth": True,
-                    "querystring_expire": AWS_QUERYSTRING_EXPIRE,
-                    "object_parameters": {
-                        "ContentDisposition": "inline",
-                    },
-                },
-            },
-            # الملفات الثابتة → WhiteNoise (Brotli + GZip + hash → cache ∞)
-            "staticfiles": {
-                "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-            },
-        }
-        # MEDIA_URL → روابط S3 (أو CDN)
-        _cdn = config("AWS_S3_CUSTOM_DOMAIN", default="")
-        if _cdn:
-            MEDIA_URL = f"https://{_cdn}/media/"
-        elif AWS_S3_ENDPOINT_URL:
-            MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/media/"
-        else:
-            MEDIA_URL = (
-                f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/media/"
-            )
-
 # ── CDN Configuration (Cloudflare / CloudFront) ─────────────────
 CDN_DOMAIN = config("CDN_DOMAIN", default="")
 if CDN_DOMAIN:
     STATIC_URL = f"https://{CDN_DOMAIN}/static/"
-    # Media continues to use signed S3 URLs if USE_S3 is enabled
+    # الملفّاتُ المرفوعة تبقى بروابط S3 الموقَّعة — لا تتأثّر بهذا النطاق
 
 # ── التحقق من ALLOWED_HOSTS ──────────────────────────────────
 if not ALLOWED_HOSTS or ALLOWED_HOSTS == [""]:
