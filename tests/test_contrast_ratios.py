@@ -17,12 +17,10 @@ tests/test_contrast_ratios.py
 وحدُّ AA: 4.5 للنصّ العاديّ، و3 للكبير (24px، أو 18.66px بخطٍّ عريض).
 """
 
-import pathlib
 import re
 
 from tests.css_contrast import iter_rules, over, ratio, resolve, token_table
-
-CSS_PATH = pathlib.Path("static/css/custom.css")
+from tests.css_source import read_css
 
 #: حدُّ WCAG AA للنصّ العاديّ، وللكبير.
 AA_NORMAL = 4.5
@@ -69,7 +67,7 @@ CHART_TOKENS = [f"--chart-{i}" for i in range(1, 7)]
 
 
 def _css():
-    return CSS_PATH.read_text(encoding="utf-8")
+    return read_css()
 
 
 def _themes():

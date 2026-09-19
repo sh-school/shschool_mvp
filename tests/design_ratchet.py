@@ -218,7 +218,7 @@ def measure() -> dict[str, dict[str, int]]:
 
 def defined_classes() -> set[str]:
     names = set()
-    for sheet in CSS_DIR.glob("*.css"):
+    for sheet in CSS_DIR.rglob("*.css"):
         # مصدرُ Tailwind قبل البناء يذكر الأصنافَ ولا يعرّفها.
         if sheet.name.endswith("_input.css"):
             continue

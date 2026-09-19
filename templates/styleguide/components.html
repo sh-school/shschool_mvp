@@ -15,7 +15,7 @@
   {% endpage_header %}
 
   {# ══ 1 ══ #}
-  {% section_card "1 · لوحةُ الرموز" meta=":root · static/css/custom.css" icon="filter" empty="لم يُقرأ ملفُّ الأنماط" empty_sub="css/custom.css غيرُ موجودٍ في مسارات الملفّات الثابتة" %}{% if swatch_groups %}
+  {% section_card "1 · لوحةُ الرموز" meta=":root · static/css/custom/" icon="filter" empty="لم يُقرأ ملفُّ الأنماط" empty_sub="css/custom/ غيرُ موجودٍ في مسارات الملفّات الثابتة" %}{% if swatch_groups %}
     {% for group in swatch_groups %}
       <p class="sg-label">{{ group.label }} · {{ group.tokens|length }}</p>
       <ul class="sg-swatches">

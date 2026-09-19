@@ -127,7 +127,9 @@ def test_pure_parent_exempt_paths_pass(pure_parent):
     client = _client(pure_parent)
 
     assert client.get(CONSENT_URL).status_code == 200
-    assert client.get("/static/css/custom.css").get("Location") != reverse("parent_consent")
+    assert client.get("/static/css/custom/10-foundation.css").get("Location") != reverse(
+        "parent_consent"
+    )
     logout = client.post("/auth/logout/")
     assert logout.get("Location") != reverse("parent_consent")
 

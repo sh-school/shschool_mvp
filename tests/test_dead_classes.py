@@ -18,7 +18,8 @@
 import re
 
 from tests.css_contrast import iter_rules
-from tests.test_design_tokens_resolve import CSS, _consumer_sources
+from tests.css_source import read_css
+from tests.test_design_tokens_resolve import _consumer_sources
 
 #: أصنافٌ تضعها مكتبةٌ لا شيفرتُنا — HTMX يضيف `htmx-request` وأخواتِه أثناء الطلب.
 LIBRARY_PREFIXES = ("htmx-",)
@@ -29,7 +30,7 @@ DYNAMIC_RE = re.compile(r"([_a-zA-Z][\w-]*?[-_])(?:\{\{|\{%|\$\{|['\"]\s*\+|\{[a
 
 def _css_classes():
     classes = set()
-    for selector, _, _ in iter_rules(CSS.read_text(encoding="utf-8")):
+    for selector, _, _ in iter_rules(read_css()):
         if selector.startswith("@"):
             continue
         bare = re.sub(r"\[[^\]]*\]|url\([^)]*\)", "", selector)

@@ -43,7 +43,7 @@ def worker(request):
 
 
 def test_no_worker_precaches_an_unfingerprinted_static_asset(worker):
-    """`cache.addAll(['/static/css/custom.css', …])` يثبّت نسخةً لا تُراجَع.
+    """`cache.addAll(['/static/css/custom/10-foundation.css', …])` يثبّت نسخةً لا تُراجَع.
 
     وهو أوّلُ نصفِ الفخّ: الأصلُ يدخل الذاكرةَ عند التثبيت، ثمّ يخدمه
     `cache-first` إلى الأبد.
@@ -85,8 +85,8 @@ def test_the_fingerprint_pattern_tells_the_two_apart(worker):
     assert m, f"{path}: تعريفُ البصمة غيرُ مقروء"
     flags = re.I if "i" in m.group(2) else 0
     pattern = re.compile(m.group(1), flags)
-    assert pattern.search("/static/css/custom.06dcd9ebed41.css"), "المبصومُ لم يُعرَف"
-    assert not pattern.search("/static/css/custom.css"), "غيرُ المبصوم عُدَّ مبصوماً"
+    assert pattern.search("/static/css/custom/10-foundation.06dcd9ebed41.css"), "المبصومُ لم يُعرَف"
+    assert not pattern.search("/static/css/custom/10-foundation.css"), "غيرُ المبصوم عُدَّ مبصوماً"
 
 
 def test_the_served_worker_is_the_reviewed_one(db, client):

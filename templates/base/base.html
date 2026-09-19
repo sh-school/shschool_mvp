@@ -1,5 +1,5 @@
 {% load privacy brand_tags icons %}
-{% load navigation %}
+{% load navigation assets %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -56,9 +56,9 @@
   <link rel="preload" href="{% static 'fonts/Tajawal-Regular.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
 
-  {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
+  {# ── CSS — Tailwind in lowest layer, then the platform sheets (core/css_files.py, ADR-0003) ── #}
   <style>@import url("{% static 'css/tailwind.min.css' %}") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+  {% custom_css %}
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}

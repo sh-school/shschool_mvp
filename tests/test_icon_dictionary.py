@@ -31,6 +31,7 @@ from core.icons import (
     VIOLATION_DEGREES,
     symbol_id,
 )
+from tests.css_source import read_css
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -298,5 +299,5 @@ def test_no_template_anywhere_in_the_project_uses_the_legacy_icon_sheet():
 
 
 def test_the_new_icon_classes_are_styled():
-    css = (ROOT / "static" / "css" / "custom.css").read_text(encoding="utf-8")
+    css = read_css()
     assert ".icon-hg" in css and ".icon-mirror" in css

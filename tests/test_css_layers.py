@@ -17,12 +17,10 @@ tests/test_css_layers.py
 — لا بقراءة الملفّ. وقد قِيس يومَها على اثنتَي عشرةَ صفحةً في الوضعين.
 """
 
-import pathlib
 import re
 
 from tests.css_contrast import iter_rules, strip_noise
-
-CSS_PATH = pathlib.Path("static/css/custom.css")
+from tests.css_source import read_css
 
 #: `tailwind` مُعلَنةٌ لورقةٍ أخرى (`tailwind.min.css`) تُحمَّل قبل هذه،
 #: فلا كتلةَ لها في هذا الملفّ — وهذا مقصود.
@@ -34,7 +32,7 @@ THEME_LAYER = "themes"
 
 
 def _css() -> str:
-    return CSS_PATH.read_text(encoding="utf-8")
+    return read_css()
 
 
 def _layer_of(context) -> str | None:

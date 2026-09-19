@@ -16,7 +16,6 @@ tests/test_dark_parity.py
 سطحاً يبقى فاتحاً. وأُصلحت.
 """
 
-import pathlib
 import re
 
 from tests.css_contrast import (
@@ -28,8 +27,7 @@ from tests.css_contrast import (
     resolve,
     token_table,
 )
-
-CSS_PATH = pathlib.Path("static/css/custom.css")
+from tests.css_source import read_css
 
 AA_NORMAL = 4.5
 #: فوقها يُعدّ اللونُ «فاتحاً» — أبيضُ 1.0، و`--surface` الليليُّ 0.018.
@@ -87,7 +85,7 @@ PRINT_TOKEN_PREFIXES = ("--form-", "--print-", "--dept-")
 
 
 def _css() -> str:
-    return CSS_PATH.read_text(encoding="utf-8")
+    return read_css()
 
 
 def _screen_rules(css):

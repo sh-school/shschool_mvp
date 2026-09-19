@@ -24,12 +24,10 @@
 
 from __future__ import annotations
 
-import pathlib
 import re
 
 from tests.css_contrast import iter_rules, strip_noise
-
-CSS_PATH = pathlib.Path("static/css/custom.css")
+from tests.css_source import read_css
 
 #: WCAG 1.4.10 يستثني صراحةً البيانات الجدوليّة التي تحتاج عرضاً وارتفاعاً
 #: معاً ليُقرأ محتواها (جدولٌ ذو أعمدةٍ كثيرة). هذه أغلفةُ التمرير المعروفة.
@@ -45,7 +43,7 @@ MAX_REACHABLE_WIDTH = 320
 
 
 def _css() -> str:
-    return CSS_PATH.read_text(encoding="utf-8")
+    return read_css()
 
 
 def _declared_order(css: str) -> list[str]:

@@ -41,7 +41,7 @@ def test_collision_reports_the_other_pr_and_shared_files():
     prs = [
         _pr(300, "claude/a", "templates/base/base.html", "behavior/views.py"),
         _pr(306, "claude/b", "templates/base/base.html", "parents/views.py"),
-        _pr(315, "claude/c", "templates/base/base.html", "static/css/custom.css"),
+        _pr(315, "claude/c", "templates/base/base.html", "static/css/custom/32-modules-3.css"),
     ]
     hits = module.collisions(300, prs)
     numbers = {number for number, _ref, _files in hits}

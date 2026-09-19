@@ -15,10 +15,9 @@ input[type="search"]` — زوجٌ مبنيٌّ على `html[dir="rtl"]` صري�
 فئةٌ منفصلة (حدودٌ لا تموضع) لم تدخل نطاقَ P1-3.
 """
 
-import pathlib
 import re
 
-CSS_PATH = pathlib.Path("static/css/custom.css")
+from tests.css_source import read_css
 
 #: يطابق `left:`/`right:` بادئتيهما غير مسبوقتين بشرطةٍ (فلا يلتقط
 #: `padding-right`/`border-left` وأخواتهما) ولا بحرفٍ آخر يجعلهما جزءاً
@@ -27,7 +26,7 @@ PHYSICAL_INSET = re.compile(r"(?<![-\w])(left|right)\s*:\s*[^;]+;")
 
 
 def test_no_physical_left_or_right_in_positioning():
-    css = CSS_PATH.read_text(encoding="utf-8")
+    css = read_css()
     offenders = PHYSICAL_INSET.findall(css)
     matches = PHYSICAL_INSET.finditer(css)
     lines = []
