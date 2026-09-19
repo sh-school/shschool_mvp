@@ -425,7 +425,7 @@ def _encloses_in_atomic(module_path, function_name):
         ("behavior/services.py", "apply_committee_decision"),
         ("behavior/services.py", "escalate_infraction"),
         ("behavior/services.py", "record_security_referral"),
-        ("operations/services.py", "expire_stale_swaps"),
+        ("operations/services/swap.py", "expire_stale_swaps"),
         ("quality/views.py", "update_procedure_status"),
         ("quality/views.py", "approve_procedure"),
         ("quality/views.py", "toggle_evidence_request"),
@@ -444,7 +444,7 @@ def test_the_notification_helpers_do_not_own_a_boundary():
     معاملةً منفصلة عن الطفرة — أي العطب نفسه بشكل يبدو مُعالَجاً.
     """
     assert not _encloses_in_atomic("behavior/services.py", "_auto_summon_parent")
-    assert not _encloses_in_atomic("operations/services.py", "_notify")
+    assert not _encloses_in_atomic("operations/services/swap.py", "_notify")
 
 
 def _defers_to(module_path, function_name, target_name):

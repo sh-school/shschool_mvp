@@ -141,7 +141,7 @@ def test_the_times_come_from_the_data_not_the_code():
     """توقيتٌ مكتوبٌ في الشيفرة يصير كذبةً يوم تُغيّر المدرسة جدولها."""
     import pathlib
 
-    src = pathlib.Path("operations/services.py").read_text(encoding="utf-8")
+    src = pathlib.Path("operations/services/schedule.py").read_text(encoding="utf-8")
     body = src.split("def period_times", 1)[1].split("@staticmethod", 1)[0]
 
     assert "TimeSlotConfig" in body, "ما تُعلنه المدرسة أوّلاً"
