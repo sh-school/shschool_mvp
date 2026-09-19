@@ -1381,6 +1381,7 @@ tr.active {
      فتختفي أعمدتُه الأخيرةُ ولا يُقال لأحدٍ أنّها هناك. */
   overflow: auto;
 }
+
 .table-wrap table {
   font-size: var(--text-sm);
 }
@@ -4617,6 +4618,72 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   .th-sort { min-height: 24px; }
 }
 
+/* في طبقة utilities لا components: `.exec-dash{display:grid}` و`.qeval-staff{max-height}` في modules،
+   والطبقةُ اللاحقةُ تغلب مهما كانت الخصوصيّة — فبقيت هذه القواعدُ في components بلا أثر. */
+/* ── main.page-noscroll: الصفحةُ لا تُمرَّر، الجدولُ وحدَه يُمرَّر ──
+   قوالبُ القائمة (فرزٌ وبحثٌ فوق جدول) كانت تُمرَّر مرّتين: الصفحةُ كلُّها
+   فوق جدولٍ مُمرَّرٍ أصلاً بسقفٍ ثابت (70vh أعلاه) — شريطا تمريرٍ لهدفٍ واحد.
+   هذا يُلغي تمريرَ الصفحة على الحاسوب وحدَه (سطح المكتب فسيح): يملأ سلسلةُ
+   الحاويات المتداخلة ارتفاعَ النافذة، ويُستبدَل السقفُ الثابتُ في الجدول
+   بمساحته الباقية — فيبقى شريطُ تمريرٍ واحد. وفي الهاتف يعود السلوكُ
+   المعتاد (`.exec-dash{height:auto}` أدناه): الترويسةُ والبحثُ يأخذان من
+   ارتفاعٍ ضيّقٍ أصلاً ما لا يُبقي للجدول شيئاً. */
+@media (min-width: 1025px) {
+  body:has(> #main-content.page-noscroll) {
+    height: 100vh;
+    overflow: hidden;
+  }
+  #main-content.page-noscroll {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  #main-content.page-noscroll > .exec-dash {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+  /* القسمُ الذي يحمل الجدولَ الطويل يملأ الباقي — آخرُ قسمٍ في الصفحة
+     (`#staff-table-container` سجلُّ الكادر لا قسمَ له، فبمعرّفه). ولا تصلح
+     الصفحاتُ متعدّدةُ الأقسام (تقييم الأداء): أقسامُها الأخرى تأكل الارتفاعَ فينضغط الجدول. */
+  #main-content.page-noscroll #staff-table-container,
+  #main-content.page-noscroll > .exec-dash > .ui-section:last-child {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+  #main-content.page-noscroll > .exec-dash > .ui-section:last-child > .ui-section__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+  /* تقييم الأداء: بطاقتان صغيرتان في سطر، قوائمهما بسقفٍ قصير — والجدولُ هو ما يملأ الباقي. */
+  #main-content.page-noscroll .qeval-side { flex: 0 0 auto; }
+  #main-content.page-noscroll .qeval-side .plain-list.is-scroll { max-block-size: 96px; }
+  #main-content.page-noscroll .qeval-side .empty-state-v2 {
+    flex-direction: row;
+    justify-content: center;
+    gap: var(--sp-2);
+    padding-block: var(--sp-2);
+    min-block-size: 0;
+  }
+  #main-content.page-noscroll .qeval-side .empty-state-v2 .es-icon { font-size: var(--text-lg); margin: 0; }
+  #main-content.page-noscroll .qeval-side .empty-state-v2 .es-icon svg { inline-size: 24px; block-size: 24px; }
+  #main-content.page-noscroll .qeval-side .empty-state-v2 .es-sub { display: none; }
+  #main-content.page-noscroll .table-wrap-scroll,
+  #main-content.page-noscroll .table-wrap,
+  #main-content.page-noscroll .ui-entity-grid {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+    overflow: auto;
+  }
+}
 } /* end @layer utilities */
 
 @layer modules {
