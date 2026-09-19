@@ -18,8 +18,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from api.permissions import IsSchoolAdmin
-from core.erasure_service import ErasureService
 from core.models import CustomUser, ErasureRequest, ParentStudentLink
+from governance.erasure_service import ErasureService
 
 # ── Serializers ───────────────────────────────────────────────
 

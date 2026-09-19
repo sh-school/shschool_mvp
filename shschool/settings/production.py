@@ -329,6 +329,13 @@ LOGGING = {
         "operations.tasks": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "operations.scheduler": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "core": {"handlers": ["security_file", "console"], "level": "WARNING", "propagate": False},
+        # المحو والاحتفاظ وتدوير المفاتيح انتقلت من `core` إلى `governance` (ADR-0004):
+        # المعالجةُ نفسُها كي لا تفقد سجلَّ الأمان.
+        "governance": {
+            "handlers": ["security_file", "console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
         # ✅ v5.1: Channels & WebSocket logging
         "channels": {"handlers": ["file"], "level": "WARNING", "propagate": False},
         "daphne": {"handlers": ["console"], "level": "WARNING", "propagate": False},

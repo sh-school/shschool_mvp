@@ -266,7 +266,7 @@ class TestErasureAPI:
 @pytest.mark.django_db
 class TestErasureService:
     def test_execute_anonymizes_student(self, student_with_data, school):
-        from core.erasure_service import ErasureService
+        from governance.erasure_service import ErasureService
 
         admin = UserFactory(full_name="مدير التنفيذ", is_superuser=True)
         req = ErasureRequest.objects.create(
@@ -287,7 +287,7 @@ class TestErasureService:
         assert student_with_data.email == ""
 
     def test_execute_preserves_auditlog(self, student_with_data, school):
-        from core.erasure_service import ErasureService
+        from governance.erasure_service import ErasureService
 
         # Create an audit log for the student
         before_count = AuditLog.objects.count()

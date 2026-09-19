@@ -1,6 +1,6 @@
 """الاحتفاظُ بالبيانات — ما يُحذف يُحذف، وما يُحفظ لا يُلمَس، والوثيقةُ تحكم كلَّ جدول.
 
-`docs/privacy/data_retention.md` هي السياسة، و`core/retention.py` يُنفِّذ شطرَ
+`docs/privacy/data_retention.md` هي السياسة، و`governance/retention.py` يُنفِّذ شطرَ
 «يُحذف» منها. وهذا الملفُّ يربطهما:
 
 - لكلّ صنفٍ محذوف: القديمُ يذهب والحديثُ يبقى — وما ينتهي بذاته يذهب عند أجله.
@@ -24,7 +24,7 @@ from django.core.management import CommandError, call_command
 from django.utils import timezone
 
 from core.models import AuditLog
-from core.retention import RULES, enforce_retention
+from governance.retention import RULES, enforce_retention
 from tests.conftest import UserFactory
 
 pytestmark = pytest.mark.django_db

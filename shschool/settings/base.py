@@ -61,6 +61,8 @@ INSTALLED_APPS = [
     # ✅ مركز معلومات الطلبة — ملفّ الطالب الجامع وملاحظات الجهات الخمس
     "student_info.apps.StudentInfoConfig",
     "wings.apps.WingsConfig",
+    # الحوكمة وحماية البيانات: المحو والاحتفاظ وتدوير المفاتيح ووصول الملفّات (ADR-0004)
+    "governance.apps.GovernanceConfig",
     # ✅ فلترة احترافية
     "django_filters",
     # ✅ [SEC-02] قائمة حظر توكنات التحديث بعد التدوير (JWT) — تتطلب migrate
@@ -454,13 +456,13 @@ DPO_PHONE = os.environ.get("DPO_PHONE", "")
 
 # ── الاحتفاظُ بالبيانات (PDPPL م.7 و10) ───────────────────────────────
 # بعد كم يوماً يُحذف ما انقضى غرضُه من آثار التشغيل (السياسةُ جدولاً جدولاً في
-# docs/privacy/data_retention.md، والمُنفِّذ core/retention.py). كان المتغيّرُ
+# docs/privacy/data_retention.md، والمُنفِّذ governance/retention.py). كان المتغيّرُ
 # معلَناً في .railway/railway.ts ولا يقرؤه أحد. والصفرُ يعطّل الحذفَ كلَّه.
 #
 # نصٌّ خامٌ لا `int()` هنا: الإعداداتُ تُقرأ عند إقلاع كلّ عمليّة، فخطأٌ مطبعيٌّ
 # في البيئة كان يُسقط المنصّةَ كلَّها لا الحذفَ وحده — وقد وقع يومَ 2026-09-14:
 # القيمةُ على Railway `730)` فسقطت مرحلةُ الإصدار مرّتين. والتحليلُ في
-# `core.retention.retention_days()`: ما لا يُفهم رقماً يعطّل الحذفَ ويُسجَّل خطأً.
+# `governance.retention.retention_days()`: ما لا يُفهم رقماً يعطّل الحذفَ ويُسجَّل خطأً.
 PDPPL_DATA_RETENTION_DAYS = os.environ.get("PDPPL_DATA_RETENTION_DAYS", "730").strip()
 
 # ══════════════════════════════════════════════════════════════════════
