@@ -268,7 +268,8 @@ class KPIService:
         from django.utils import timezone
 
         from behavior.models import BehaviorInfraction
-        from core.models import BookBorrowing, Membership, StudentEnrollment
+        from core.models import Membership, StudentEnrollment
+        from library.models import BookBorrowing
         from operations.models import StudentAttendance, TeacherAbsence
 
         today = timezone.now().date()
