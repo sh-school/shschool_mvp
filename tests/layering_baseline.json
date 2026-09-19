@@ -62,19 +62,16 @@
   "behavior": [
    "core/dashboard_selectors.py",
    "core/erasure_service.py",
-   "core/models/__init__.py",
    "core/retention.py"
   ],
   "clinic": [
    "core/dashboard_selectors.py",
    "core/erasure_service.py",
-   "core/management/commands/rotate_fernet_key.py",
-   "core/models/__init__.py"
+   "core/management/commands/rotate_fernet_key.py"
   ],
   "library": [
    "core/dashboard_selectors.py",
    "core/erasure_service.py",
-   "core/models/__init__.py",
    "core/views_media.py"
   ],
   "notifications": [
@@ -116,8 +113,7 @@
   ],
   "transport": [
    "core/dashboard_selectors.py",
-   "core/erasure_service.py",
-   "core/models/__init__.py"
+   "core/erasure_service.py"
   ],
   "wings": [
    "core/dashboard_selectors.py",
@@ -129,9 +125,9 @@
  "core_imports": {
   "academic_management": 2,
   "assessments": 4,
-  "behavior": 4,
-  "clinic": 5,
-  "library": 5,
+  "behavior": 3,
+  "clinic": 4,
+  "library": 4,
   "notifications": 11,
   "operations": 18,
   "quality": 3,
@@ -139,7 +135,7 @@
   "staging": 1,
   "student_affairs": 5,
   "student_info": 1,
-  "transport": 3,
+  "transport": 2,
   "wings": 5
  },
  "definition": 5,

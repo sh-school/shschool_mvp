@@ -9,9 +9,10 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
+from clinic.models import ClinicVisit, HealthRecord
 from clinic.services import ClinicService
 from core.capabilities import capability_required
-from core.models import AuditLog, ClinicVisit, CustomUser, HealthRecord
+from core.models import AuditLog, CustomUser
 
 
 @login_required

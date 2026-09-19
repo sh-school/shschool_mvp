@@ -17,7 +17,8 @@ import pytest
 from django.http import HttpResponse
 from django.urls import reverse
 
-from core.models import BehaviorInfraction, Wing
+from behavior.models import BehaviorInfraction
+from core.models import Wing
 from core.permissions import get_teacher_student_ids
 from tests.conftest import (
     BehaviorInfractionFactory,

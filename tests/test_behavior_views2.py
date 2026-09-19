@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.models import BehaviorInfraction
+from behavior.models import BehaviorInfraction
 
 from .conftest import (
     BehaviorInfractionFactory,

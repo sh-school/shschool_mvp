@@ -28,11 +28,8 @@ from core.domain.tones import tone_for
 
 logger = logging.getLogger(__name__)
 
-from core.models import (
-    BehaviorInfraction,
-    ParentStudentLink,
-    StudentEnrollment,
-)
+from behavior.models import BehaviorInfraction
+from core.models import ParentStudentLink, StudentEnrollment
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
