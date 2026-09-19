@@ -311,6 +311,24 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
     min-height: 0;
     overflow: auto;
   }
+  /* ربط الأولياء: الجدولُ يُمرَّر وحده والترقيمُ ثابتٌ أسفل البطاقة. */
+  #main-content.page-noscroll #links-container > .table-wrap { display: flex; flex-direction: column; overflow: hidden; }
+  #main-content.page-noscroll #links-container > .table-wrap > .overflow-x-auto { flex: 1; min-height: 0; overflow: auto; }
+  /* استدعاء ولي أمر: النموذجُ يمينَ العمودِ الجانبيّ (أولياءُ الأمور فالمرسِل) وكلاهما يملأ الباقي ويُمرَّر داخله. */
+  #main-content.page-noscroll > .exec-dash > .beh-form-grid:last-child {
+    flex: 1;
+    min-height: 0;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    align-items: stretch;
+  }
+  #main-content.page-noscroll .beh-form-grid > .ui-section,
+  #main-content.page-noscroll .beh-side > .ui-section { display: flex; flex-direction: column; min-height: 0; }
+  #main-content.page-noscroll .beh-form-grid > .ui-section > .ui-section__body,
+  #main-content.page-noscroll .beh-side > .ui-section > .ui-section__body { flex: 1; min-height: 0; overflow: auto; }
+  #main-content.page-noscroll .beh-form-grid .form-group { margin-block-end: var(--sp-2); }
+  #main-content.page-noscroll .beh-side { display: flex; flex-direction: column; gap: var(--sp-2); min-height: 0; min-width: 0; }
+  #main-content.page-noscroll .beh-side > .ui-section:not(:last-child) { flex: 1 1 0; }
   /* سطرُ بطاقتين أخيرٌ: يملأ الباقي وتُمرَّر قائمةُ كلٍّ داخلها. */
   #main-content.page-noscroll .auto-grid .table-wrap tbody td { padding-block: 5px; }
   #main-content.page-noscroll .auto-grid .table-wrap thead th { padding-block: 6px; }

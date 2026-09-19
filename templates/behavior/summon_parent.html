@@ -3,6 +3,9 @@
 {% load ui %}
 {% block title %}استدعاء ولي أمر{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}page-noscroll{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="السلوك" current="استدعاء ولي أمر" %}
 {% endblock %}
@@ -19,30 +22,6 @@
     {% kpi "أولياء أمور مربوطون" parents_info|length tone=parents_tone %}
   {% endkpi_strip %}
 
-  {% section_card "أولياء الأمور — سيستلمون الإشعار" icon="parents" flush=True empty="لا يوجد أولياء أمور مربوطون بهذا الطالب" empty_sub="لن يُرسَل إشعار" %}{% if parents_info %}
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">الاسم</th>
-            <th scope="col">صلة القرابة</th>
-            <th scope="col">الهاتف</th>
-            <th scope="col">النوع</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for p in parents_info %}
-          <tr>
-            <td>{{ p.name }}</td>
-            <td>{{ p.relationship }}</td>
-            <td>{% if p.phone %}<a href="tel:{{ p.phone }}" class="link-maroon" dir="ltr" title="اتصال">{{ p.phone }}</a>{% else %}—{% endif %}</td>
-            <td>{% if p.is_primary %}<span class="status-badge status-success">أساسي</span>{% else %}<span class="status-badge status-gray">ثانوي</span>{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% endif %}{% endsection_card %}
   {% endif %}
 
   <div class="beh-form-grid">
@@ -94,7 +73,7 @@
 
         <div class="form-group">
           <label class="form-label" for="summonReason">سبب الاستدعاء <span class="required">*</span></label>
-          <textarea name="reason" id="summonReason" required rows="4" maxlength="1000"
+          <textarea name="reason" id="summonReason" required rows="3" maxlength="1000"
                     placeholder="اكتب سبب استدعاء ولي الأمر بالتفصيل..."
                     class="form-control resize-y"></textarea>
         </div>
@@ -135,6 +114,33 @@
       </form>
     {% endsection_card %}
 
+    <div class="beh-side">
+    {% if selected_student %}
+    {% section_card "أولياء الأمور — سيستلمون الإشعار" icon="parents" flush=True empty="لا يوجد أولياء أمور مربوطون بهذا الطالب" empty_sub="لن يُرسَل إشعار" %}{% if parents_info %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">الاسم</th>
+              <th scope="col">صلة القرابة</th>
+              <th scope="col">الهاتف</th>
+              <th scope="col">النوع</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in parents_info %}
+            <tr>
+              <td>{{ p.name }}</td>
+              <td>{{ p.relationship }}</td>
+              <td>{% if p.phone %}<a href="tel:{{ p.phone }}" class="link-maroon" dir="ltr" title="اتصال">{{ p.phone }}</a>{% else %}—{% endif %}</td>
+              <td>{% if p.is_primary %}<span class="status-badge status-success">أساسي</span>{% else %}<span class="status-badge status-gray">ثانوي</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}{% endsection_card %}
+    {% endif %}
     {% section_card "مرسل الاستدعاء" icon="call_parent" %}
       <ul class="plain-list">
         <li class="plain-list__row">
@@ -149,6 +155,7 @@
         {% endif %}
       </ul>
     {% endsection_card %}
+    </div>
 
   </div>
 </div>
