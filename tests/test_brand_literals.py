@@ -15,6 +15,8 @@ tests/test_brand_literals.py
 import pathlib
 import re
 
+from tests.css_source import read_css
+
 ROOTS = [pathlib.Path("templates")] + sorted(pathlib.Path(".").glob("*/templates"))
 EXTENDS_BASE = re.compile(r"""\{%\s*extends\s+["'](base\.html|base/base\.html)["']""")
 INLINE_MAROON = re.compile(r"""style\s*=\s*["'][^"']*#8a1538""", re.I)
@@ -88,7 +90,7 @@ def test_every_chart_colour_names_a_real_token():
     """اسمٌ لا رمزَ له يُرجع سلسلةً فارغة — فيُرسم الشكلُ أسودَ بلا خطأ."""
     from tests.css_contrast import token_table
 
-    light, _dark = token_table(pathlib.Path("static/css/custom.css").read_text(encoding="utf-8"))
+    light, _dark = token_table(read_css())
     missing, used = [], 0
     for path, _text, m in _chart_scripts():
         for name in HELPER_CALL.findall(m.group(1)):

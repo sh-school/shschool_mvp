@@ -21,14 +21,14 @@ import pathlib
 import re
 
 from tests.css_contrast import iter_rules
+from tests.css_source import read_css
 
-CSS_PATH = pathlib.Path("static/css/custom.css")
 SHEET = pathlib.Path("templates/schedule/print_schedule.html")
 TEMPLATES = pathlib.Path("templates")
 
 
 def _rules():
-    return list(iter_rules(CSS_PATH.read_text(encoding="utf-8")))
+    return list(iter_rules(read_css()))
 
 
 def _decl(selector, prop, *, media=None):

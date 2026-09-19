@@ -6,7 +6,6 @@
 لونٍ في `:root` يُعرض باسمه، وكلُّ معنًى في `core/icons.py`.
 """
 
-import pathlib
 import re
 
 import pytest
@@ -15,8 +14,7 @@ from django.urls import reverse
 from core.icons import ICONS
 from core.styleguide import colour_token_groups, icon_dictionary_groups
 from core.templatetags.ui import KPI_TONES
-
-CSS = pathlib.Path("static/css/custom.css")
+from tests.css_source import read_css
 
 
 def _tokens():
@@ -41,7 +39,7 @@ def test_the_palette_holds_colours_only():
 
 def test_every_hex_token_in_root_reaches_the_palette():
     """رمزٌ يُضاف إلى `:root` برقمٍ سداسيٍّ يظهر في الدليل بلا تعديل."""
-    css = re.sub(r"/\*.*?\*/", "", CSS.read_text(encoding="utf-8"), flags=re.S)
+    css = re.sub(r"/\*.*?\*/", "", read_css(), flags=re.S)
     first_root = re.search(r":root\s*\{([^}]*)\}", css).group(1)
     hex_tokens = set(re.findall(r"--([\w-]+)\s*:\s*#[0-9A-Fa-f]{3,8}\s*;", first_root))
 

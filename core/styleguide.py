@@ -6,7 +6,7 @@
 واحدٍ منها في الكود) لا قاموسَ المعنى الفعليّ الذي تستعمله المنصّة — فصارت
 تعرض `core/icons.py` نفسَه: كلُّ مفتاحٍ دلاليٍّ برسمه ومجموعته.
 
-فالدليلُ هنا نافذة: الرموزُ من `:root` في `static/css/custom.css`، والأيقوناتُ
+فالدليلُ هنا نافذة: الرموزُ من `:root` في `static/css/custom/`، والأيقوناتُ
 من قاموس `core/icons.py`. ويُعاد قراءةُ الألوان متى تغيّر الملفّ (بتاريخ
 تعديله)، فلا يُقرأ القرصُ في كلّ طلب ولا يبقى الدليلُ على نسخةٍ قديمة.
 """
@@ -17,8 +17,7 @@ import os
 import re
 from functools import lru_cache
 
-from django.contrib.staticfiles import finders
-
+from core.css_files import find_paths
 from core.icons import GROUPS, ICONS
 
 _COMMENT_RE = re.compile(r"/\*.*?\*/", re.S)
@@ -49,9 +48,13 @@ def _mtime(path: str | None) -> float:
 
 
 @lru_cache(maxsize=4)
-def _parse_colour_tokens(path: str, _mtime: float) -> tuple[str, ...]:
-    with open(path, encoding="utf-8") as sheet:
-        css = _COMMENT_RE.sub("", sheet.read())
+def _parse_colour_tokens(sheets: tuple[tuple[str, float], ...]) -> tuple[str, ...]:
+    """`sheets` = (مسار، وقتُ التعديل) بترتيب التحميل؛ الأوّلُ ظهوراً يحسم قيمةَ الرمز."""
+    parts = []
+    for path, _mtime in sheets:
+        with open(path, encoding="utf-8") as sheet:
+            parts.append(sheet.read())
+    css = _COMMENT_RE.sub("", "\n".join(parts))
     values: dict[str, str] = {}
     for block in _ROOT_RE.findall(css):
         for name, value in _DECL_RE.findall(block):
@@ -81,10 +84,10 @@ def colour_token_groups() -> list[dict]:
 
     القيمةُ لا تُحمل: الصفحةُ تقرؤها من المتصفّح، فتُرى قيمةُ الوضع الذي فيه القارئ.
     """
-    path = finders.find("css/custom.css")
-    if not path:
+    paths = find_paths()
+    if not paths:
         return []
-    names = _parse_colour_tokens(path, _mtime(path))
+    names = _parse_colour_tokens(tuple((path, _mtime(path)) for path in paths))
     order = [label for label, _ in _GROUPS] + [_OTHER]
     grouped: dict[str, list[str]] = {label: [] for label in order}
     for name in names:

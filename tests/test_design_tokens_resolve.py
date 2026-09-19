@@ -26,7 +26,9 @@ import os
 import pathlib
 import re
 
-CSS = pathlib.Path("static/css/custom.css")
+from core.css_files import CSS_FILES
+from tests.css_source import read_css
+
 TW_CONFIG = pathlib.Path("tailwind.config.js")
 
 #: جذورُ القوالب الحيّة — `docs/` وثائقُ مستقلّةٌ لا تُقدَّم من المنصّة.
@@ -69,7 +71,7 @@ def _defined_in(text):
 
 
 def test_the_stylesheet_defines_every_token_it_uses():
-    text = CSS.read_text(encoding="utf-8")
+    text = read_css()
     missing = sorted(set(USE_RE.findall(text)) - _defined_in(text))
     assert not missing, "رموزٌ تُستعمَل في custom.css ولا تُعرَّف فيه — والتصريحُ كلُّه يسقط: " + ", ".join(
         "--" + name for name in missing
@@ -77,7 +79,7 @@ def test_the_stylesheet_defines_every_token_it_uses():
 
 
 def test_the_templates_use_no_token_the_platform_never_defines():
-    known = _defined_in(CSS.read_text(encoding="utf-8"))
+    known = _defined_in(read_css())
     offenders = {}
     for template in _live_templates():
         text = template.read_text(encoding="utf-8")
@@ -148,7 +150,7 @@ def test_no_token_is_defined_that_nothing_reads():
     منها نظيرٌ ليليّ. فمن يبحث عن لون «التنبيه» يجد رمزين ولا يدري أيّهما
     الحيّ، ومن يغيّر الميّتَ لا يرى أثراً فيظنّ الخللَ في غيره.
     """
-    css = COMMENT_RE.sub("", CSS.read_text(encoding="utf-8"))
+    css = COMMENT_RE.sub("", read_css())
     defined = _defined_in(css)
     read_in_css = set(re.findall(r"var\(\s*--([a-zA-Z0-9_-]+)", css))
     words = set()
@@ -185,7 +187,7 @@ def test_no_app_template_is_shadowed_by_a_root_one():
 
 #: قيمُ الرموز اللونيّة في `:root` — الرمزُ اسماً والقيمةُ رقماً.
 def _root_colours():
-    text = CSS.read_text(encoding="utf-8")
+    text = read_css()
     root = text[text.index(":root {") : text.index("@layer layout")]
     return {
         name: value.strip().lower()
@@ -220,7 +222,7 @@ def test_the_dark_mirror_matches_the_stylesheet():
     from core import brand
     from tests.css_contrast import dark_overrides
 
-    dark = dark_overrides(CSS.read_text(encoding="utf-8"))
+    dark = dark_overrides(read_css())
     drifted = []
     for const, value in brand.DARK.items():
         token = brand.TOKEN_OF.get(const)
@@ -291,7 +293,7 @@ COMMENT_RE = re.compile(r"/\*.*?\*/", re.S)
 
 def _dark_palette():
     """قيمُ رموز الوضع الداكن — ما تُعيد `html.dark` تعريفَه في `:root`."""
-    text = CSS.read_text(encoding="utf-8")
+    text = read_css()
     block = re.search(r"html\.dark \{(.*?)\}", text, re.S).group(1)
     return {
         value.strip().lower(): name
@@ -308,7 +310,7 @@ def test_dark_rules_name_their_colours_instead_of_repeating_them():
     تغييرُ لونِ السطح يقتضي تعديلَ مئتَي سطرٍ بدل سطرٍ واحد.
     """
     palette = _dark_palette()
-    text = CSS.read_text(encoding="utf-8")
+    text = read_css()
     offenders = []
     for match in BLOCK_RE.finditer(text):
         selector = COMMENT_RE.sub("", match.group(1)).strip()
@@ -349,7 +351,7 @@ def test_no_page_carries_a_stylesheet_of_its_own():
             continue
         offenders.append(str(template))
     assert not offenders, (
-        "صفحاتٌ تحمل CSS في رأسها — انقلها إلى static/css/custom.css:\n  " + "\n  ".join(offenders)
+        "صفحاتٌ تحمل CSS في رأسها — انقلها إلى static/css/custom/:\n  " + "\n  ".join(offenders)
     )
 
 
@@ -360,7 +362,7 @@ def test_the_platform_keeps_one_stylesheet():
     وأربعون `var()` فقط) فوقَ المركزيّ، فيغلبه بلا نوعيّة.
     """
     allowed = {
-        pathlib.Path("static/css/custom.css"),
+        *(pathlib.Path("static/css/custom") / name for name in CSS_FILES),
         pathlib.Path("static/css/tailwind_input.css"),
         pathlib.Path("static/css/tailwind.min.css"),
     }

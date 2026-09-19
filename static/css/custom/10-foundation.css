@@ -1,0 +1,510 @@
+/*
+ * SchoolOS — الهوية البصرية الرسمية
+ * مدرسة الشحانية الإعدادية الثانوية للبنين | دولة قطر
+ *
+ * الألوان الرسمية لدولة قطر (GBA — gba.gco.gov.qa):
+ *   Al Adaam  #8A1538  Pantone 1955C  ← اللون الرئيسي
+ *   Skyline   #0D4261  ← الأزرق الداكن
+ *   Palm      #129B82  ← الأخضر
+ *   Sea       #4194B3  ← الأزرق الفاتح
+ *   Sand      #A29475  ← الرملي (محظور على المدارس)
+ *
+ * ملاحظة: custom.css يُحمَّل بعد Tailwind — له الأولوية.
+ *
+ * CSS Layers (أولوية تصاعدية — الأخيرة تفوز):
+ *   reset → base → tokens → layout → components → modules → utilities → themes
+ *
+ * نقاطُ الكسر (مرجعٌ واحد — قرارُ 2026-09-18، خارطة طريق الهويّة البصريّة P1-5):
+ *   560px    هاتفٌ ضيّقٌ جدّاً — استثناءٌ نادر (form-grid واحد)
+ *   640/641  الحدُّ الرئيسيُّ هاتف↔سطح مكتب — max-width:640 وmin-width:641 زوجٌ
+ *            متعمَّدٌ لا تداخل: لا يصحّ min-width:640 مع max-width:640 معاً
+ *            (كلاهما صادقٌ عند 640px بالضبط)، فالزوجُ 640/641 هو أسلوبُ عدم
+ *            التداخل القياسيّ، لا قيمتان متقاربتان بلا مبرّر
+ *   768/769  نفسُ الأسلوب لحدٍّ ثانٍ (لوحةٌ متوسّطة) — استعمالٌ أقلّ
+ *   900      عرضُ لوحاتٍ تنفيذيّة محدَّد — لا زوجَ min له (لا حاجةَ اتّجاهين)
+ *   1024     سطحُ مكتبٍ ضيّق — max وmin معاً على عنصرين مختلفين تماماً
+ *            (.exec-dash/.kpi-strip مقابل .exemption-form)، فتداخلُهما
+ *            النظريُّ عند 1024px بالضبط بلا أثرٍ فعليّ (لا يتشاركان محدِّداً)
+ *   1600     شاشةٌ عريضة — استثناءٌ واحد (توسيع عمودَي إسناد الأنصبة)
+ * ══════════════════════════════════════════════════════════════
+ */
+
+/* ═══ CSS Layer Order Declaration ═══ */
+@layer tailwind, reset, base, tokens, layout, components, modules, utilities, themes;
+
+/* ═══ @layer reset — CSS Reset & Box Model ═══ */
+@layer reset {
+  *, *::before, *::after { box-sizing: border-box; }
+  body { margin: 0; }
+  img, svg { display: block; max-width: 100%; }
+
+  /* `hidden` يجب أن يغلب أصناف العرض (flex/grid) وإلا بقي العنصر ظاهراً.
+     تعتمد عليه مفردات data-toggle/data-hide في actions.js. */
+  [hidden] { display: none !important; }
+}
+
+@layer base {
+
+/* ── SVG Icon System — Lucide ───────────────────────────────── */
+.icon {
+  width: 20px; height: 20px;
+  display: inline-block;
+  vertical-align: -0.15em;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+/* قاموسُ الأيقونات (core/icons.py + static/icons/sprite.svg): الرسومُ بلا سُمكٍ
+   مكتوب، فالسُّمكُ رمزٌ يُضبط هنا — والانعكاسُ لما يدلّ على اتّجاه. */
+.icon-hg { stroke-width: var(--icon-stroke, 1.5); }
+html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
+/* حلقةُ الشارة بلون ما خلفها — وإلّا ظهرت دائرةٌ بيضاءُ على الشريط العنّابيّ */
+.site-nav { --icon-cutout: var(--nav-bg); }
+.sd-menu a:hover { --icon-cutout: var(--maroon-bg); }
+.icon-sm  { width: 16px; height: 16px; }
+.icon-lg  { width: 24px; height: 24px; }
+.icon-xl  { width: 32px; height: 32px; }
+.icon-2xl { width: 48px; height: 48px; }
+
+/* icon colors — inherit by default, override when needed */
+.icon-maroon { color: var(--maroon-fg); }
+.icon-success { color: var(--status-success-fg); }
+.icon-danger { color: var(--status-danger-fg); }
+.icon-warning { color: var(--status-warning-fg); }
+.icon-info { color: var(--status-info-fg); }
+.icon-muted { color: var(--text-muted); }
+
+/* ── متغيرات الألوان الرسمية ────────────────────────────────── */
+:root {
+  --maroon:       #8A1538;   /* Al Adaam — اللون الرئيسي */
+  --maroon-dark:  #6b0f2a;   /* للـ hover */
+  --maroon-light: #b8294e;   /* للنصوص على خلفية فاتحة */
+  --maroon-bg:    #fdf2f5;   /* خلفية خفيفة */
+  --maroon-border:#e8b4c3;   /* حدود خفيفة */
+
+  --gold:         #D4A843;   /* ذهبي — للتمييز في الحدود والأيقونات */   /* ذهبي فاتح */
+
+  --skyline:      #0D4261;   /* أزرق داكن */
+  --palm:         #129B82;   /* أخضر */
+  --sea:          #4194B3;   /* أزرق فاتح */
+
+  --text-primary:   #111827;
+  --text-secondary: #4b5563;
+  --text-muted:     #5f6775;   /* 5.70 على السطح و5.03 على خلفيّة الصفحة — و#6b7280 كان 4.27 عليها */
+
+  --border:         #e5e7eb;
+  --border-strong:  #d1d5db;
+  --surface:        #ffffff;
+  /* درجةٌ أعمق قليلاً بصبغةٍ كحليّةٍ خفيفة — تطابق فصيلةَ الليليّ (slate)
+     نفسَها، لا رماديّاً محايداً. الفرقُ كان ضعيفاً جدّاً عن `--surface`
+     (١٪ فقط) فبَدت الصفحةُ نهاراً أبيضَ مسطّحاً بلا عمقٍ يفصل البطاقةَ عن
+     أرضيّتها، بخلاف الليليّ حيث الفرقُ بين `#1e293b` و`#0f172a` واضحٌ للعين. */
+  --surface-alt:    #e3e8f0;
+  --page-bg:        #d7dee8;   /* كحليٌّ فاتحٌ — خلفية الصفحة النهارية (مُجرَّبٌ أغمق 2026-09-18) */
+
+  --radius:         10px;
+  --radius-lg:      14px;
+  --shadow-sm:      0 1px 3px rgba(0,0,0,.08);
+  --shadow-md:      0 4px 16px rgba(0,0,0,.10);
+
+  /* رقعةُ شعار سفيان مسيف في الفوتر — بيضاءُ ثابتةٌ في الوضعين لأنّ ألوانه
+     المائيّة الفاتحة ونصّه الكحليّ يختفيان على خلفيّة الفوتر الداكنة. */
+  --footer-brand-chip-bg:   #ffffff;
+  --footer-brand-chip-ring: none;
+
+  /* Animation Tokens */
+  --transition-fast:   100ms ease;
+  --transition-base:   150ms ease;
+  --transition-slow:   250ms ease;
+  --focus-ring:        0 0 0 3px color-mix(in srgb, var(--maroon) 22%, transparent);
+  --focus-ring-offset: 2px;
+  /* لونُ حلقة التركيز — العنّابيُّ المقروء، فينقلب ليلاً إلى الورديّ. وكان
+     `--maroon` الثابت: 9.35 على السطح نهاراً و1.56 ليلاً، فلا يرى المتنقّلُ
+     بلوحة المفاتيح أين هو (قِيس في المتصفّح 2026-09-13). */
+  --focus-color: var(--maroon-fg);
+
+  /* ── Status Colors — unified across all pages ── */
+  --status-danger:       #dc2626;
+  --status-danger-dark:  #991b1b;
+  --status-danger-bg:    #fef2f2;
+  --status-danger-border:#fecaca;
+  --status-warning:      #d97706;
+  --status-warning-dark: #92400e;
+  --status-warning-bg:   #fef3c7;
+  --status-warning-border:#f59e0b;
+  --status-success:      #16a34a;
+  --status-success-dark: #166534;
+  --status-success-bg:   #dcfce7;
+  --status-success-border:#86efac;
+  --status-info:         #2563eb;
+  --status-info-dark:    #1e40af;
+  --status-info-bg:      #dbeafe;
+  --status-info-border:  #93c5fd;
+
+  /* ── حشوٌ يحمل نصّاً أبيض ──
+     `--status-*` مضبوطةٌ لتُرى شكلاً (حدُّ 3) لا لتحمل نصّاً: الأبيضُ على
+     `--status-success` نسبتُه 3.30 وعلى `--status-warning` 3.19 — دون AA.
+     فهذان حشوان أغمقُ بالقدر الذي يُبلِغ الأبيضَ 4.5، ولا ينقلبان مع الوضع
+     لأنّ الأبيضَ فوقهما لا ينقلب. */
+  --status-success-solid: #12873d;   /* الأبيضُ عليه 4.61 */
+  --neutral-solid:        #4b5563;   /* الأبيضُ عليه 7.56 */
+
+  /* ── ما يُكتب فوق الحشو — لا ينقلب ──
+     نصُّ الترويسة العنّابيّة، وشارةُ الإشعار، وأزرارُ العلامة: الحشوُ تحتها
+     ثابتٌ في الوضعين، فالنصُّ فوقه ثابتٌ مثلَه. كان يُكتب `#fff` خاماً خمساً
+     وسبعين مرّة، فلا يعرف قارئُه أهو حرفيٌّ منسيٌّ أم قرار — ويساوي
+     `--surface` نهاراً بالمصادفة، فاستبدالُه به يُطفئ كلَّ ترويسةٍ في الليل.
+     فللدور اسمُه. انظر `tests/test_on_fill.py`. */
+  --on-fill:              #ffffff;
+
+  /* ── لونُ النصّ على سطحٍ محايد — ينقلب في الوضع الداكن ──
+     الحالةُ لونان لا لون: لونٌ يملأ (خلفيّةُ شارةٍ أو زرّ) ولونٌ يُقرأ
+     (نصٌّ على سطحٍ فاتحٍ أو داكن). و`--status-danger` يصلح للأوّل ويسقط
+     في الثاني: نسبتُه على خلفيّة الصفحة 4.26 وحدُّ WCAG AA هو 4.5.
+     فهذه قيمٌ مقيسةٌ تنجح على الأسطح الثلاثة في الوضعين. */
+  --maroon-fg:          #8A1538;   /* 8.26 على خلفيّة الصفحة */
+  --status-danger-fg:   #c81e1e;   /* 5.06 */
+  --status-warning-fg:  #92400e;   /* 6.26 */
+  --status-success-fg:  #166534;   /* 6.29 */
+  --status-info-fg:     #1d4ed8;   /* 5.92 على خلفيّة الصفحة و5.49 على سطحه — و#2563eb كان 4.24 عليه */
+
+  /* ── ألوانُ التمييز لبطاقات المؤشّرات — نفسُ القاعدة: يملأ ويُقرأ ── */
+  --accent-teal:      #0d9488;  --accent-teal-fg:   #0f766e;   /* 4.83 */
+  --accent-orange:    #ea580c;  --accent-orange-fg: #c2410c;   /* 4.57 */
+  --accent-purple:    #7c3aed;  --accent-purple-fg: #7c3aed;   /* 5.03 */
+  --accent-sky:       #0284c7;  --accent-sky-fg:    #0369a1;   /* 5.24 */
+  --accent-rose:      #e11d48;  --accent-rose-fg:   #be123c;   /* 5.34 */
+  --accent-green:     #059669;  --accent-green-fg:  #047857;   /* 4.61 — قيمةٌ غيرُ --status-success عمداً: التصنيفُ لا يحمل حكمَ «نجاح». */
+  --skyline-fg:       #0D4261;  /* 9.41 */
+  --ring-track:       #e5e7eb;  /* مسارُ الحلقة في مؤشّرات الجودة */
+
+  /* ══ Chart Palette — 6 ألوان إلزامية بترتيب ثابت ══ */
+  --chart-1: #8A1538;   /* الماروني — دائماً الأول */
+  --chart-2: #0D7B6A;   /* التيل المكمل */
+  --chart-3: #1A3A5C;   /* الأزرق الداكن */
+  --chart-4: #946f0e;   /* الذهبي — عُمِّق مجدَّداً 2026-09-18 بعد تغميق خلفية الصفحة (3.42 عليها، كان 3.04 قبل التغميق) */
+  --chart-5: #2E7D9A;   /* الأزرق — عُمِّق: #4194B3 كان 3.44 */
+  --chart-6: #6B7280;   /* الرمادي (أخرى) */
+
+  /* ══ Role Colors — ألوان وظيفية للأدوار (MTG-2026-003-TEC) ══ */
+  --role-executor-bg: #eff6ff;
+
+  /* ══ ألوانُ الوثائق المطبوعة — لا تُرسم على الشاشة، فلا تنقلب ليلاً ══
+     تصلها قوالبُ الـPDF والطباعة بـ`{% brand_color %}` من مرآتها في `core/brand.py`. */
+  /* استمارةُ الإشراف طبقَ نموذج المدرسة (docx): شريطُ العناوين، وأرضيّةُ خانة العنوان، والحبر. */
+  --form-band:      #943634;
+  --form-key-bg:    #DDD9C3;
+  --print-ink:      #000000;
+  --print-ink-soft: #444444;
+  /* فرزُ الأقسام لوناً في مصفوفة الجدول المطبوعة — فاتحةٌ يُقرأ الأسودُ فوقها،
+     ومتباعدةٌ بين كلّ قسمين متجاورين. */
+  --dept-sharia:      #d9ead3;
+  --dept-arabic:      #fce5cd;
+  --dept-math:        #cfe2f3;
+  --dept-english:     #ead1dc;
+  --dept-science:     #d0e8e4;
+  --dept-biology:     #eef3cf;
+  --dept-chemistry:   #fad4d0;
+  --dept-physics:     #dcd8f0;
+  --dept-social:      #fdedb3;
+  --dept-tech:        #d8e2e6;
+  --dept-business:    #e8e0c8;
+  --dept-pe:          #cfe8d8;
+  --dept-arts:        #f4d9e8;
+  --dept-life-skills: #e8ded0;
+  --dept-other:       #e8e8e8;
+
+  /* Quality module tokens */
+  /* وحدةُ الجودة كان لها عنّابيٌّ ثانٍ (#8d1b3d) يخالف علامةَ المنصّة — رُدّ إليها */
+  --q-silver: #C0C0C0;
+  --q-silver-light: rgba(192,192,192,0.3);
+  --q-font-data: 'Amiri', serif;
+  --q-font-ui: inherit;
+  --q-radius: 8px;
+  --q-transition: 0.2s ease;
+
+  /* ══ Typography Scale (7 أحجام — Perfect Fourth) ══ */
+  --text-xs:   0.75rem;    /* 12px — labels, captions */
+  --text-sm:   0.875rem;   /* 14px — secondary text */
+  --text-base: 1rem;       /* 16px — body */
+  --text-lg:   1.125rem;   /* 18px — emphasized */
+  --text-xl:   1.25rem;    /* 20px — card titles */
+  --text-2xl:  1.5rem;     /* 24px — section headers */
+  --text-3xl:  2rem;       /* 32px — page titles */
+
+  /* ══ Line Heights ══ */
+  --lh-tight:  1.25;   /* عناوين */
+  --lh-normal: 1.6;    /* body */
+  --lh-ar:     1.8;    /* Arabic body — للتشكيل والامتدادات */
+
+  /* ══ Spacing Scale (مضاعفات 4px) ══ */
+  --sp-1: 4px;   --sp-2: 8px;   --sp-3: 12px;  --sp-4: 16px;
+  --sp-5: 20px;  --sp-6: 24px;  --sp-8: 32px;  --sp-10: 40px;
+  --sp-12: 48px; --sp-16: 64px;
+
+  /* ══ Radius Scale ══ */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  /* --radius: 10px  ← موجود أعلاه */
+  /* --radius-lg: 14px ← موجود أعلاه */
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* ══ Z-index Scale (موحد — بدل z-index عشوائي) ══ */
+  --z-base:     1;
+  --z-raised:   100;
+  --z-dropdown: 500;
+  --z-sticky:   700;
+  --z-navbar:   1000;
+  --z-sidebar:  1100;
+  /* قوائمُ الشريط نفسِه — غيرُ `--z-dropdown` الذي يخدم قوائمَ داخل المحتوى.
+     تلك يجب أن تبقى تحت الشريط اللزج عند التمرير، وهذه تنفتح من الشريط فيجب
+     أن تعلوه. وكانت `.sd-menu` على `--z-dropdown` (500)، والشريطُ لزجٌ بطبقة
+     1000 فينشئ سياقَ تكديسٍ تجلس فيه لوحةُ الجوّال — فتُرسم القائمةُ الفرعيّةُ
+     تحت اللوحة التي فُتحت منها، لا تُرى ولا تُضغط. انظر `tests/test_z_scale.py`. */
+  --z-nav-menu: 1200;
+  --z-modal:    9000;
+  --z-toast:    9500;
+  --z-critical: 9999;
+
+  /* ══ Shadow/Elevation Scale ══ */
+  /* --shadow-sm و --shadow-md موجودتان أعلاه */
+  --shadow-lg:    0 10px 30px rgba(0,0,0,.12);
+  --shadow-modal: 0 20px 60px rgba(0,0,0,.25);
+
+  /* ══ Transition Durations ══ */
+  --dur-fast:   100ms;
+  --dur-normal: 200ms;
+  --dur-slow:   350ms;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ══ رموزُ الأدوار — كلُّ لونٍ في قاعدةٍ يُقرأ من هنا ══════════════════
+     كانت هذه القيمُ حرفيّةً داخل القواعد (≈380 موضعاً)، ولكثيرٍ منها نظيرةٌ
+     في `html.dark` تكرّر القاعدةَ بلونٍ ليليّ. فصار لكلّ دورٍ رمزٌ بقيمتين —
+     هنا للنهار، وفي كتلة `html.dark` لليل — والنظيرةُ حُذفت حيث صارت زائدة.
+     القيمُ نفسُها بلا تعديل: ما يُرى نهاراً وليلاً هو ما كان يُرى. ولكلّ رمزٍ
+     قيمةٌ ليليّةٌ مكتوبةٌ ولو ساوت النهاريّة، فلا يُظنّ أنّه نُسي.
+     وحارسُه `tests/test_css_colours_are_tokens.py`. */
+
+  /* ظلالٌ وستائر */
+  --shadow-ink:          #000;   /* لونُ الظلّ، يُمزج بنسبته: color-mix(… var(--shadow-ink) 6%, transparent) */
+  --shadow-nav:          0 2px 8px rgba(0,0,0,.18);
+  --shadow-nav-panel:    0 6px 24px rgba(0,0,0,.18);
+  --shadow-menu:         0 10px 40px rgba(0,0,0,.13);
+  --shadow-bottom-nav:   0 -2px 12px rgba(0,0,0,.08);
+  --shadow-toast:        0 4px 20px rgba(0,0,0,.15);
+  --shadow-palette:      0 20px 60px rgba(0,0,0,.25);
+  --shadow-modal-box:    var(--shadow-md);
+  --shadow-q-modal:      0 25px 50px rgba(0,0,0,.25);
+  --shadow-login-card:   0 20px 60px rgba(0,0,0,.10), 0 4px 16px rgba(0,0,0,.06);
+  --shadow-dropdown:     0 8px 24px rgba(0,0,0,.12);
+  --overlay-scrim:       rgba(0,0,0,.45);
+  --cmd-scrim:           rgba(0,0,0,.5);
+  --q-modal-scrim:       rgba(0,0,0,.6);
+  --loading-veil:        rgba(255,255,255,.4);
+
+  /* الشريطُ والقوائم */
+  --header-bg:           var(--maroon);
+  --nav-bg:              var(--maroon);
+  --admin-header-link:   #ffe0e9;   /* رابطٌ فوق ترويسة لوحة Django العنّابيّة */
+  --border-soft:         #e2e8f0;
+  --menu-ink:            #1e293b;
+  --menu-ink-strong:     #0f172a;
+  --menu-label:          #94a3b8;
+  --menu-divider:        #f1f5f9;
+  --breadcrumb-hover:    var(--maroon-dark);
+  --scrollbar-track:     #f1f5f9;
+  --scrollbar-thumb-hover: var(--maroon-light);
+  --placeholder:         #b3bac5;
+  --table-stripe:        var(--surface-alt);
+
+  /* أسطحٌ وحقول */
+  --surface-sunken:      var(--surface);
+  --field-border:        #d1d5db;   /* حدُّ حقلٍ لا تبدّله قاعدةُ الحقول الليليّة */
+  --ink-empty:           #d1d5db;   /* «—» خانةٌ فارغة */
+  --skeleton-base:       #f0f0f0;
+  --skeleton-shine:      #e0e0e0;
+  --dropzone-preview-bg: var(--surface);
+
+  /* الأزرار */
+  --btn-secondary-hover-bg: #fce8ee;
+  --gold-deep:              #c9952e;
+  --status-success-solid-hover: #047857;
+
+  /* الحالات: حدودٌ ناعمةٌ وأرضيّاتٌ وحبرٌ حيّ */
+  --status-success-border-soft: #bbf7d0;
+  --status-warning-border-soft: #fde68a;
+  --status-info-border-soft:    #bfdbfe;
+  --status-neutral-bg:          #f8fafc;
+  --status-neutral-fg:          #475569;
+  --status-warning-bright: #f59e0b;
+  --status-danger-deep:    #b91c1c;
+  --status-warning-deep:   #b45309;
+  --status-info-strong:    #1d4ed8;
+  --status-danger-tint:    var(--status-danger-bg);
+  --status-warning-tint:        var(--status-warning-bg);
+  --status-warning-tint-strong: var(--status-warning-bg);
+  --status-warning-tint-deep:   var(--status-warning-bg);
+  --status-warning-badge-bg:    var(--status-warning-bg);
+  --status-warning-fg-vivid: var(--status-warning-fg);
+  --status-info-fg-vivid:    var(--status-info-fg);
+  --free-slot-bg:          #D1FAE5;
+  --free-slot-fg:          #065F46;
+  --maroon-link:           var(--maroon-fg);
+  /* «تنبيهٌ خفيف» الذهبيّ الداكن ومشتقّاتُه */
+  --caution:               #ca8a04;
+
+  /* بطاقاتُ المؤشّرات والجودة */
+  --plan-row-pending:      rgba(251,191,36,.7);
+  --plan-row-completed:    rgba(34,197,94,.6);
+  --q-badge-warning-bg:    color-mix(in srgb, var(--caution) 15%, transparent);
+  --q-badge-warning-fg:    var(--caution);
+  --q-badge-neutral-bg:    rgba(107,114,128,.12);
+  --asg-warning-border:    #fde68a;
+  --asg-success-border:    #bbf7d0;
+
+  /* صفحةُ الدخول */
+  --login-bg-start:        var(--maroon-bg);
+  --login-bg-mid:          var(--surface-alt);
+  --login-bg-end:          #f0f4ff;
+  --login-card-border:     rgba(255,255,255,.8);
+  --login-input-border:    #d1d5db;
+  --login-input-bg:        #fafafa;
+  --login-input-focus-halo: color-mix(in srgb, var(--maroon) 10%, transparent);
+
+  /* الورقة — تقريرٌ يُطبع أبيضَ في الوضعين عمداً */
+  --paper:                 #fff;
+  --paper-ink:             #000;
+  --paper-rule:            #ccc;
+
+  /* ملاحظاتُ المطوّر (developer_feedback) */
+  --df-ink:                #333;
+  --df-ink-strong:         #222;
+  --df-meta-ink:           #222;
+  --df-history-ink:        #666;
+  --df-muted:              var(--text-muted);
+  --df-label:              #555;
+  --df-field-bg:           #fff;
+  --df-panel-bg:           #fafafa;
+  --df-focus-halo:         color-mix(in srgb, var(--maroon) 15%, transparent);
+  --df-dot-ring:           #fff;
+  --df-chip-bg:            #f5f5f5;
+  --df-chip-fg:            #424242;
+  --df-chip-border:        #bdbdbd;
+  --df-new-bg: #e3f2fd;       --df-new-fg: #0d47a1;       --df-new-border: #90caf9;
+  --df-seen-bg: #f3e5f5;      --df-seen-fg: #4a148c;      --df-seen-border: #ce93d8;
+  --df-progress-bg: #fff3e0;  --df-progress-fg: #c24400;  --df-progress-border: #ffb74d;
+  --df-resolved-bg: #e8f5e9;  --df-resolved-fg: #1b5e20;  --df-resolved-border: #81c784;
+  --df-closed-bg: #eceff1;    --df-closed-fg: #37474f;    --df-closed-border: #b0bec5;
+  --df-high-bg: #ffebee;      --df-high-fg: #b71c1c;      --df-high-border: #ef9a9a;
+  --df-low-bg: #e0f7fa;       --df-low-fg: #006064;       --df-low-border: #80deea;
+  --df-edited-bg: #fff3cd;    --df-edited-fg: #856404;    --df-edited-border: #ffeaa7;
+  --df-success-ring:       #81c784;
+}
+
+/* ── Box sizing عالمي ─────────────────────────────────────────── */
+html { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: inherit; }
+
+/* ── RTL عربي عام ─────────────────────────────────────────────── */
+html[lang="ar"] {
+  letter-spacing: 0;
+  hyphens: none;
+  -webkit-hyphens: none;
+}
+
+/* ── Maroon utility classes (Tailwind arbitrary values لا تعمل مع المصغّر) ── */
+.bg-maroon { background-color: var(--maroon); }
+
+.text-maroon { color: var(--maroon-fg); }
+
+/* (variables merged into :root above) */
+
+/* ── الخط العربي — Tajawal محلي (WOFF2 + TTF fallback) ─────
+ * unicode-range يمنع تحميل الخط إلا عند الحاجة الفعلية
+ * Arabic: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF
+ * Latin:  U+0000-007F (Basic Latin — أرقام + حروف إنجليزية)
+ * ────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Tajawal';
+  src: url('../../fonts/Tajawal-Regular.woff2') format('woff2'),
+       url('../../fonts/Tajawal-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
+                 U+0000-007F, U+00A0-00FF, U+0660-066F;
+}
+@font-face {
+  font-family: 'Tajawal';
+  src: url('../../fonts/Tajawal-Medium.woff2') format('woff2'),
+       url('../../fonts/Tajawal-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
+                 U+0000-007F, U+00A0-00FF, U+0660-066F;
+}
+@font-face {
+  font-family: 'Tajawal';
+  src: url('../../fonts/Tajawal-Bold.woff2') format('woff2'),
+       url('../../fonts/Tajawal-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
+                 U+0000-007F, U+00A0-00FF, U+0660-066F;
+}
+
+/* ── خط Amiri — للجداول فقط (var(--q-font-data)) ──────────
+ * يُحمَّل فقط عند عرض عنصر يستخدم font-family: Amiri فعلاً
+ * unicode-range يقلل الحجم من 759KB إلى ~120KB
+ * ────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Amiri';
+  src: url('../../fonts/Amiri-Regular.woff2') format('woff2'),
+       url('../../fonts/Amiri-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
+                 U+0000-007F, U+00A0-00FF, U+0660-066F;
+}
+@font-face {
+  font-family: 'Amiri';
+  src: url('../../fonts/Amiri-Bold.woff2') format('woff2'),
+       url('../../fonts/Amiri-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
+                 U+0000-007F, U+00A0-00FF, U+0660-066F;
+}
+
+body {
+  font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif;
+  line-height: var(--lh-normal);
+  background: var(--page-bg);
+}
+/* جسمُ صفحات المنصّة (`base.html`). كان `bg-gray-50`، ومرآتُه في طبقة
+   `utilities` تغلب `--page-bg` أعلاه نهاراً فتُرسم الأرضيّةُ `--surface-alt`؛
+   وليلاً يتساويان. فالصنفُ يحفظ ما يُرى — وتسويةُ الأرضيّة بـ`--page-bg`
+   قرارٌ بصريٌّ منفصل. */
+.app-body { background: var(--surface-alt); }
+
+} /* end @layer base */
+
+/* ═══ @layer tokens — Design Tokens live in :root inside @layer base ═══ */
+/* Note: :root variables are defined in @layer base (lines 54–170)
+   They are globally available regardless of layer placement.
+   This empty layer preserves the declared cascade order. */
+@layer tokens {}
+
+/* ═══ @layer layout — Page-level structural patterns ═══ */
+@layer layout {
+  .container       { width: 100%; max-width: 1280px; margin-inline: auto; padding-inline: var(--sp-4); }
+
+}

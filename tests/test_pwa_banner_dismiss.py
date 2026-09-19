@@ -8,6 +8,8 @@
 
 from pathlib import Path
 
+from tests.css_source import read_css
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -43,4 +45,4 @@ def test_the_banner_never_returns_once_installed_or_dismissed():
 
 
 def test_hidden_wins_over_every_layer():
-    assert "[hidden] { display: none !important; }" in _read("static/css/custom.css")
+    assert "[hidden] { display: none !important; }" in read_css()

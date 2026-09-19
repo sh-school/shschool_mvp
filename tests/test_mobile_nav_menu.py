@@ -10,8 +10,10 @@
 import pathlib
 import re
 
+from tests.css_source import read_css
+
 BASE_JS = pathlib.Path("static/js/base.js").read_text(encoding="utf-8")
-CSS = pathlib.Path("static/css/custom.css").read_text(encoding="utf-8")
+CSS = read_css()
 BASE_HTML = pathlib.Path("templates/base/base.html").read_text(encoding="utf-8")
 
 
