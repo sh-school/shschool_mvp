@@ -22,4 +22,12 @@ def read_css() -> str:
 
 
 def css_size() -> int:
+    """بايتاتُ المصدر على القرص — بتعليقاته."""
     return sum(path.stat().st_size for path in css_paths())
+
+
+def shipped_size() -> int:
+    """بايتاتُ ما يصل المتصفّحَ: المصدرُ بعد التصغير الذي يجريه `collectstatic` في الإنتاج."""
+    from core.static_storage import minify_css
+
+    return sum(len(minify_css(path.read_text(encoding="utf-8")).encode()) for path in css_paths())
