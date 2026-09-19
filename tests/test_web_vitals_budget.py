@@ -94,10 +94,27 @@ def test_the_pages_stay_within_the_web_vitals_budget(browser, live_server, princ
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
             summary.write("### Core Web Vitals — ميزانية الصفحات الحيّة\n\n" + table + "\n")
 
+    assert results["login"]["lcp_ms"] > 0, (
+        "صفحةُ الدخول لا تُبلِّغ LCP — عادت بطاقتُها تدخل من opacity: 0 "
+        "(`@keyframes loginCardIn`)، فيُفقد قياسُ أوّل ما يراه كلُّ مستخدم.\n\n" + table
+    )
     found = [
         line for name, metrics in results.items() for line in web_vitals.violations(name, metrics)
     ]
     assert not found, "تجاوزت الصفحاتُ ميزانيةَ الأداء:\n  " + "\n  ".join(found) + "\n\n" + table
+
+
+def test_the_login_card_enters_without_an_opacity_fade():
+    """السببُ نفسُه بلا متصفّح: مفتاحُ الأنيميشن لا يحمل `opacity`."""
+    import re
+
+    from tests.css_source import read_css
+
+    match = re.search(r"@keyframes loginCardIn\s*\{(.*?)\n\}", read_css(), re.S)
+    assert match, "لا @keyframes loginCardIn"
+    assert "opacity" not in match.group(
+        1
+    ), "loginCardIn يبدأ من opacity: 0 — لا يُبلَّغ FCP/LCP على صفحة الدخول"
 
 
 class TestTheBudgetItself:
