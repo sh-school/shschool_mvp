@@ -159,7 +159,6 @@ STAFF_SORTS = {
     # ترويسةٌ تَعرض شيئاً وترتّب بغيره.
     "title": ("title_key", "name_key"),
     "department": ("dept_key", "name_key"),
-    "phone": ("phone_key", "name_key"),
     "email": ("email_key", "name_key"),
     "residence": ("residence_key", "name_key"),
     "nationality": ("nationality_key", "name_key"),
@@ -242,7 +241,6 @@ def staff_list(request):
         name_key=arabic_key(F("full_name")),
         dept_key=arabic_key(F("gov_department")),
         national_key=blank_as_null("national_id"),
-        phone_key=blank_as_null("phone"),
         email_key=blank_as_null("email"),
         residence_key=blank_as_null("residence_area"),
         nationality_key=arabic_key(F("nationality")),
