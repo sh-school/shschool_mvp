@@ -133,7 +133,8 @@ def send_developer_notification(
                 to=[to_email],
             )
             email.attach_alternative(html_body, "text/html")
-            email.send(fail_silently=False)
+            if not email.send(fail_silently=False):
+                raise RuntimeError("لم يُسلَّم البريد: لا مزوّد بريد مُهيَّأ")
 
             notification.status = NotificationStatus.SENT
             notification.sent_at = timezone.now()
@@ -213,7 +214,8 @@ def send_developer_edit_notification(
                 to=[to_email],
             )
             email.attach_alternative(html_body, "text/html")
-            email.send(fail_silently=False)
+            if not email.send(fail_silently=False):
+                raise RuntimeError("لم يُسلَّم البريد: لا مزوّد بريد مُهيَّأ")
 
             notification.status = NotificationStatus.SENT
             notification.sent_at = timezone.now()

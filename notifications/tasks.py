@@ -793,13 +793,15 @@ PDPPL م.11 — يجب إشعار NCSA خلال 72 ساعة من الاكتشا�
 
     if recipients:
         try:
-            send_mail(
+            delivered = send_mail(
                 subject=subject,
                 message=body,
                 from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
                 recipient_list=list(set(recipients)),
                 fail_silently=True,
             )
+            if not delivered:
+                logger.error("تنبيه الخرق لم يُسلَّم بالبريد — مهلة NCSA قائمة، تابِعه يدوياً")
         except (OSError, RuntimeError, ValueError) as e:
             logger.error("breach alert email failed error=%s", type(e).__name__, exc_info=True)
 

@@ -22,6 +22,7 @@ from core.models import ParentStudentLink
 from .models import NotificationLog, NotificationSettings
 
 _EMAIL_FAILURE_MESSAGE = "تعذر إرسال البريد الإلكتروني."
+_EMAIL_UNDELIVERED_MESSAGE = "لم يُسلَّم البريد: لا مزوّد بريد مُهيَّأ."
 _SMS_FAILURE_MESSAGE = "تعذر إرسال رسالة SMS."
 
 if TYPE_CHECKING:
@@ -77,15 +78,22 @@ class NotificationService:
                 msg.attach_alternative(body_html, "text/html")
                 if cfg and cfg.reply_to:
                     msg.reply_to = [cfg.reply_to]
-                msg.send()
+                delivered = msg.send()
             else:
-                django.core.mail.send_mail(
+                delivered = django.core.mail.send_mail(
                     subject=subject,
                     message=body_text,
                     from_email=f"{from_name} <{from_email}>",
                     recipient_list=[recipient_email],
                     fail_silently=False,
                 )
+
+            if not delivered:
+                logger.error("البريد لم يُسلَّم: الـbackend ردّ صفراً")
+                log.status = "failed"
+                log.error_msg = _EMAIL_UNDELIVERED_MESSAGE
+                log.save(update_fields=["status", "error_msg"])
+                return False, _EMAIL_UNDELIVERED_MESSAGE
 
             log.status = "sent"
             log.save(update_fields=["status"])
