@@ -10,6 +10,8 @@ from typing import TYPE_CHECKING
 
 import django.core.mail
 
+from core.verdict_read import failing_statuses
+
 logger = logging.getLogger(__name__)
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -366,7 +368,7 @@ class NotificationService:
 
         # الطلاب الراسبون في مادة أو أكثر
         fail_results = AnnualSubjectResult.objects.filter(
-            school=school, academic_year=year, status="fail"
+            school=school, academic_year=year, status__in=failing_statuses()
         ).select_related("student", "setup__subject")
 
         # تجميع المواد الراسب فيها لكل طالب
@@ -459,7 +461,9 @@ class NotificationService:
         )
 
         failing_students = (
-            AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
+            AnnualSubjectResult.objects.filter(
+                school=school, academic_year=year, status__in=failing_statuses()
+            )
             .values("student")
             .distinct()
             .count()
