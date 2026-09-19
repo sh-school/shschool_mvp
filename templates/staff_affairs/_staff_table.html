@@ -28,7 +28,9 @@
         نفسَه بلفظين حشوٌ.{% endcomment %}
         {% sort_th sort "title" "المسمّى الوظيفي" "col-center" target="#staff-table-container" %}
         {% sort_th sort "department" "القسم" "col-center" target="#staff-table-container" %}
-        {% sort_th sort "phone" "الجوال" "col-center" target="#staff-table-container" %}
+        {% comment %}الجوّال بلا فرز: مخزَّنٌ مشفَّراً (البند 13) فلا يُفرَز في القاعدة، وفرزُ الأرقام
+        لا قيمةَ له عمليّةً. والبحثُ به باقٍ.{% endcomment %}
+        <th class="col-center">الجوال</th>
         {% sort_th sort "email" "البريد" target="#staff-table-container" %}
         {% sort_th sort "residence" "السكن" "col-center" target="#staff-table-container" %}
         {% sort_th sort "nationality" "الجنسية" "col-center" target="#staff-table-container" %}

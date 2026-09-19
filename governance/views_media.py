@@ -1,5 +1,5 @@
 """
-core/views_media.py
+governance/views_media.py
 خدمة الملفات المُخزَّنة في قاعدة البيانات (DatabaseStorage) — بتفويض fail-closed.
 
 لكل ملف نُحدِّد السجلّ المالك ومدرسته، ونتحقّق أن المستخدم من نفس المدرسة وله الدور
@@ -25,6 +25,11 @@ _INLINE_SAFE = {"application/pdf", "image/png", "image/jpeg", "image/gif", "imag
 _NEVER_INLINE = {"image/svg+xml", "text/html", "application/xhtml+xml", "text/xml"}
 
 
+def _staff_file(obj):
+    """مرفقاتُ الإجازات ونموذج 03 (م-31) قد تحوي تقارير طبية حسّاسة → قيادة المدرسة فقط (عدا المالك)."""
+    return (obj.school_id, obj.staff_id, {"principal", "vice_admin"}, False)
+
+
 def _resolve_file_access(name):
     """يُعيد (school_id, owner_user_id, allowed_roles, student_owned) للملف، أو None إن لم يُعرَف مالكه.
 
@@ -43,11 +48,8 @@ def _resolve_file_access(name):
     from library.models import LibraryBook
     from operations.models import AbsenceExcuse, StudentAttendance
     from quality.models import ProcedureEvidence
-    from staff_affairs.models import LeaveRequest
+    from staff_affairs.models import AttendanceException, LeaveRequest
     from student_affairs.models import StudentActivity
-
-    # مرفقات الإجازات قد تحوي تقارير طبية حسّاسة → قيادة المدرسة فقط (عدا المالك)
-    leave_roles = {"principal", "vice_admin"}
 
     resolvers = (
         # عذرُ التأخّر الصباحيّ: رصدُه من عمل المشرف (الدليل 2026 م 3.4.2.2) — لجناحه.
@@ -62,7 +64,8 @@ def _resolve_file_access(name):
             "document",
             lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW | WING_DAY_RECORD, True),
         ),
-        (LeaveRequest, "attachment", lambda o: (o.school_id, o.staff_id, leave_roles, False)),
+        (LeaveRequest, "attachment", _staff_file),
+        (AttendanceException, "evidence_file", _staff_file),
         (
             ProcedureEvidence,
             "file",

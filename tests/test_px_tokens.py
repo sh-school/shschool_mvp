@@ -3,7 +3,7 @@
 `var(--sp-2)` هي عينُ `8px` (معرَّفةٌ مرّةً في `:root`)، فالترحيلُ لا يغيّر شيئاً في الرسم؛
 وقيمةٌ حرفيّةٌ تطابق درجةً في السلّم تعني أنّ كاتبها لم يعلم بالرمز، ثمّ يتباعد الاثنان
 حين يُعدَّل السلّم. أمّا ما **خارج** السلّم (6 و10 و2 و14 و18…) فهو الأكثرُ استعمالاً فعلاً
-(≈300 موضعاً) — وتحويلُه إلى أقرب درجةٍ تغييرٌ بصريٌّ لا ترحيل، فقرارُ تصميمٍ منفصل؛
+(≈320 موضعاً — رُمِّزت بدرجاتٍ نصفيّة: 2·6·10·14·18) — وتحويلُه إلى أقرب درجةٍ تغييرٌ بصريٌّ لا ترحيل، فقرارُ تصميمٍ منفصل؛
 وحتّى يُقرَّر تُثبَّت أعدادُه هنا كسقّاطة: لا تزيد، وإن نقصت فسجّل النقص.
 """
 
@@ -11,7 +11,7 @@ from tests import px_tokens as px
 from tests.css_source import read_css
 
 #: خارجَ السلّم يومَ الترحيل (2026-09-19). تُخفَّض ولا تُرفع.
-OFF_SCALE_SPACING = 402
+OFF_SCALE_SPACING = 92
 OFF_SCALE_RADIUS = 62
 
 
@@ -55,7 +55,7 @@ class TestTheMigrationItself:
         )
 
     def test_an_off_scale_value_is_left_alone(self):
-        css = ".a { padding: 6px 10px; gap: 2px; }"
+        css = ".a { padding: 3px 5px; gap: 1px; }"
         assert px.migrate(css) == css
 
     def test_negative_and_decimal_values_are_left_alone(self):

@@ -64,10 +64,10 @@ def _behavior_report_redirect(
 
 
 from behavior.forms import InfractionForm
-from behavior.models import ViolationCategory
+from behavior.models import BehaviorInfraction, ViolationCategory
 from core.capabilities import capability_required, has_capability
 from core.domain.tones import SHARE_KPI, tone_for
-from core.models import BehaviorInfraction, CustomUser
+from core.models import CustomUser
 from core.navigation import can_open
 from wings.scope import student_scope_for
 
@@ -1001,7 +1001,7 @@ def summon_parent(request, student_id=None):
             parents_info.append(
                 {
                     "name": link.parent.full_name,
-                    "phone": link.parent.phone or "",
+                    "phone": link.parent.get_phone_decrypted() or "",
                     "relationship": link.get_relationship_display(),
                     "is_primary": link.is_primary,
                 }

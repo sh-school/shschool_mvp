@@ -300,6 +300,8 @@
       {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% icon "dashboard" %} الرئيسية</a>
       {% endif %}
+      {% if role == "secretary" %}<a href="{% url 'staff_affairs:attendance_board' %}" class="nb">{% icon "attendance_register" %} حضور الموظفين</a>
+      <a href="{% url 'staff_affairs:permit_queue' %}" class="nb">{% icon "tardiness" %} طلبات الأذونات</a>{% endif %}
       {% if role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="nb">{% icon "attendance_register" %} رصد الغياب</a>
       {# طلبةُ جناحه في قائمةٍ منسدلةٍ واحدة (m-wing-students أدناه): خمسةُ روابطَ مستقلّةٍ كانت تلفّ الشريطَ سطرين على الحاسوب #}
       <button class="nb" id="btn-wing-students" data-sd="m-wing-students" aria-expanded="false" aria-controls="m-wing-students">{% icon "students" %} طلبة جناحي <span class="chv">▼</span></button>
@@ -521,12 +523,24 @@
   {% if request.user|can_open:"staff_affairs:leave_list" %}
   <a href="{% url 'staff_affairs:leave_list' %}">{% icon "leave" %} طلبات الإجازات</a>
   {% endif %}
+  {% if request.user|can_open:"staff_affairs:attendance_board" %}
+  <a href="{% url 'staff_affairs:attendance_board' %}">{% icon "attendance_register" %} رصد حضور الموظفين</a>
+  {% endif %}
+  {% if request.user|can_open:"staff_affairs:attendance_report" %}
+  <a href="{% url 'staff_affairs:attendance_report' %}">{% icon "reports" %} تقرير الحضور الشهري</a>
+  {% endif %}
+  {% if request.user|can_open:"staff_affairs:permit_queue" %}
+  <a href="{% url 'staff_affairs:permit_queue' %}">{% icon "tardiness" %} طلبات الأذونات</a>
+  {% endif %}
   <hr>
   <div class="sd-label">التقييم والتطوير</div>
   {% if is_leadership %}
   {% if request.user|can_open:"evaluation_dashboard" %}
   <a href="{% url 'evaluation_dashboard' %}">{% icon "staff_evaluation" %} تقييم أداء الموظفين</a>
   {% endif %}
+  {% endif %}
+  {% if request.user|can_open:"staff_affairs:assignments" %}
+  <a href="{% url 'staff_affairs:assignments' %}">{% icon "staff" %} التكليفات</a>
   {% endif %}
   {% if request.user|can_open:"staff_affairs:licensing" %}
   <a href="{% url 'staff_affairs:licensing' %}">{% icon "licences" %} الرخص المهنية</a>
@@ -845,6 +859,9 @@
   <a href="#" id="theme-toggle-menu" data-click="#theme-toggle">
     <span id="theme-menu-icon"><span data-theme-icon="dark">{% icon "theme_dark" %}</span><span data-theme-icon="light" hidden>{% icon "theme_light" %}</span></span> <span id="theme-menu-text">الوضع الليلي</span>
   </a>
+  {% if request.user|can_open:"staff_affairs:my_permits" %}
+  <a href="{% url 'staff_affairs:my_permits' %}">{% icon "leave" %} أذوناتي</a>
+  {% endif %}
   {% if request.user|can_open:"change_password" %}
   <a href="{% url 'change_password' %}">{% icon "password" %} تغيير كلمة المرور</a>
   {% endif %}

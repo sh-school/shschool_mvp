@@ -1,5 +1,5 @@
 """
-core/erasure_service.py — Right to Erasure (PDPPL م.18)
+governance/erasure_service.py — Right to Erasure (PDPPL م.18)
 
 Anonymizes student PII across all models while preserving:
 - AuditLog entries (immutable per م.19, user FK set to NULL)

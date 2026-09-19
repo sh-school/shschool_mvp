@@ -30,6 +30,7 @@ from .forms import (
     StaffPersonForm,
 )
 from .models import LeaveRequest
+from .selectors import phone_holder_ids
 from .services import LeaveService, StaffService
 
 
@@ -158,7 +159,6 @@ STAFF_SORTS = {
     # ترويسةٌ تَعرض شيئاً وترتّب بغيره.
     "title": ("title_key", "name_key"),
     "department": ("dept_key", "name_key"),
-    "phone": ("phone_key", "name_key"),
     "email": ("email_key", "name_key"),
     "residence": ("residence_key", "name_key"),
     "nationality": ("nationality_key", "name_key"),
@@ -241,7 +241,6 @@ def staff_list(request):
         name_key=arabic_key(F("full_name")),
         dept_key=arabic_key(F("gov_department")),
         national_key=blank_as_null("national_id"),
-        phone_key=blank_as_null("phone"),
         email_key=blank_as_null("email"),
         residence_key=blank_as_null("residence_area"),
         nationality_key=arabic_key(F("nationality")),
@@ -262,7 +261,7 @@ def staff_list(request):
             | Q(title_key__icontains=shaped)
             | Q(national_id__icontains=q)
             | Q(employee_number__icontains=q)
-            | Q(phone__icontains=q)
+            | Q(id__in=phone_holder_ids(people, q))
             | Q(email__icontains=q)
             | Q(residence_area__icontains=q)
             | Q(nationality__icontains=q)

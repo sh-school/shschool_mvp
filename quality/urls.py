@@ -4,7 +4,7 @@ quality/urls.py — الإصلاح #4: إضافة مسارات لجنة المن
 
 from django.urls import path
 
-from . import evaluation_views, observation_views, views
+from . import evaluation_views, grievance_views, observation_views, views
 
 urlpatterns = [
     # ── الإشراف على أداء المعلّم (الملاحظة الصفّية) ──────────
@@ -101,6 +101,21 @@ urlpatterns = [
         "evaluations/receipt/<uuid:eval_id>/",
         evaluation_views.record_evaluation_receipt,
         name="record_evaluation_receipt",
+    ),
+    path(
+        "evaluations/grievances/",
+        grievance_views.evaluation_grievances,
+        name="evaluation_grievances",
+    ),
+    path(
+        "evaluations/grievance/<uuid:eval_id>/",
+        grievance_views.file_evaluation_grievance,
+        name="file_evaluation_grievance",
+    ),
+    path(
+        "evaluations/grievance/<uuid:eval_id>/decision/",
+        grievance_views.record_grievance_decision,
+        name="record_grievance_decision",
     ),
     path(
         "evaluations/acknowledge/<uuid:eval_id>/",

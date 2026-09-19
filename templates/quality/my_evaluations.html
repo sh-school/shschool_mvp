@@ -30,6 +30,43 @@
     {% elif ev.acknowledged_at %}
     <p class="qeval-ack">{% icon "confirm" %} تم الإقرار بالاستلام {{ ev.acknowledged_at|date:"Y-m-d" }}</p>
     {% endif %}
+    {# المادة 20: «يجوز للموظف أن يتظلم منه إلى لجنة موظفي المدارس خلال خمسة عشر يوماً من تاريخ علمه». #}
+    {% if ev.status == 'approved' or ev.status == 'acknowledged' %}
+    <ul class="plain-list">
+      <li class="plain-list__row">
+        <span class="plain-list__main">
+          <b class="plain-list__title">التظلّم من التقرير</b>
+          <span class="plain-list__sub">{{ ev.grievance.label }}{% if ev.grievance.due %} · آخرُ يوم {{ ev.grievance.due|date:"Y-m-d" }} (بقي {{ ev.grievance.days_left }} يوماً){% endif %}</span>
+        </span>
+        <span class="status-badge status-{{ ev.grievance_tone }}">{% if ev.grievance.final %}نهائي{% else %}غير نهائي{% endif %}</span>
+      </li>
+      {% if ev.grievance_submitted_on %}
+      <li class="plain-list__row">
+        <span class="plain-list__main">
+          <b class="plain-list__title">قُدِّم التظلّم في {{ ev.grievance_submitted_on|date:"Y-m-d" }}</b>
+          <span class="plain-list__sub">{{ ev.grievance_reason }}</span>
+        </span>
+      </li>
+      {% endif %}
+      {% if ev.grievance_decided_on %}
+      <li class="plain-list__row">
+        <span class="plain-list__main">
+          <b class="plain-list__title">قرارُ اللجنة: {{ ev.grievance_outcome_label }}</b>
+          <span class="plain-list__sub">أُخطرتَ به في {{ ev.grievance_decided_on|date:"Y-m-d" }}{% if ev.grievance_decision_approved_on %} · اعتمده الوزير في {{ ev.grievance_decision_approved_on|date:"Y-m-d" }}{% else %} · بانتظار اعتماد الوزير{% endif %}</span>
+        </span>
+      </li>
+      {% endif %}
+    </ul>
+    {% if ev.grievance.code == 'open' %}
+    <form method="post" action="{% url 'file_evaluation_grievance' ev.id %}" class="qeval-notes" data-confirm="يُقدَّم التظلّمُ مرّةً واحدةً ولا يُعدَّل بعد ذلك. أتقدّم به؟">
+      {% csrf_token %}
+      <label for="grv-{{ ev.id }}">سببُ التظلّم</label>
+      <textarea name="reason" id="grv-{{ ev.id }}" rows="3" minlength="10" maxlength="2000" required class="form-control"></textarea>
+      <p class="form-note"><span>يُسجَّل ويُحال إلى لجنة موظفي المدارس عبر مدير المدرسة، وتبتّ فيه خلال ثلاثين يوماً من تقديمه.</span></p>
+      <div class="form-actions"><button type="submit" class="btn-primary btn-sm">تقديم التظلّم</button></div>
+    </form>
+    {% endif %}
+    {% endif %}
   {% endsection_card %}
   {% empty %}
   {% empty_state "لا توجد تقييمات بعد" icon="staff_evaluation" %}

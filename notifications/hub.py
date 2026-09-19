@@ -873,11 +873,11 @@ def _send_sync(
                 exc_info=True,
             )
 
-    if "sms" in channels and user.phone:
+    if "sms" in channels and user.get_phone_decrypted():
         try:
             NotificationService.send_sms(
                 school=school,
-                phone_number=user.phone,
+                phone_number=user.get_phone_decrypted(),
                 message=f"{title}\n{body}",
                 notif_type=_map_event_type(event_type),
                 sent_by=sent_by,

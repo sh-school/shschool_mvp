@@ -208,3 +208,14 @@ def get_published_evaluations(school: Any, employee: CustomUser) -> list[Employe
         .select_related("evaluator", "template")
         .order_by("-created_at")
     )
+
+
+def get_grievances(school: Any, year: str) -> list[EmployeeEvaluation]:
+    """تقاريرُ العام التي قُدِّم تظلّمٌ منها — الأحدثُ تقديماً أوّلاً."""
+    return list(
+        EmployeeEvaluation.objects.filter(
+            school=school, academic_year=year, grievance_submitted_on__isnull=False
+        )
+        .select_related("employee")
+        .order_by("-grievance_submitted_on", "-created_at")
+    )

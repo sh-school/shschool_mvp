@@ -169,6 +169,16 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             new_enc = encrypt_field(self.phone)
             if new_enc and new_enc != self.phone_encrypted:
                 self.phone_encrypted = new_enc
+        else:
+            # الأعمدةُ الثلاثة وحدةٌ واحدة: مسحُ الرقم يمسح نسختَه المشفَّرة وبصمتَه،
+            # وإلا بقي الرقمُ القديم قابلاً للفكّ وقرأته الإشعاراتُ بعد أن أُلغي.
+            self.phone_encrypted = ""
+            self.phone_hmac = ""
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "phone" in update_fields:
+            # `save(update_fields=["phone"])` كان يحفظ الرقمَ الصريح وحدَه ويترك
+            # النسخةَ المشفَّرة والبصمةَ على القيمة السابقة.
+            kwargs["update_fields"] = {*update_fields, "phone_encrypted", "phone_hmac"}
         super().save(*args, **kwargs)
 
     def get_national_id_decrypted(self):
@@ -179,13 +189,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
                 return decrypted
         return self.national_id
 
-    def get_phone_decrypted(self):
+    def get_phone_decrypted(self) -> str:
         """فك تشفير رقم الهاتف — fallback إلى الحقل العادي."""
         if self.phone_encrypted:
             decrypted = decrypt_field(self.phone_encrypted)
             if decrypted and decrypted != self.phone_encrypted:
-                return decrypted
-        return self.phone
+                return str(decrypted)
+        return str(self.phone)
 
     @property
     def active_membership(self):

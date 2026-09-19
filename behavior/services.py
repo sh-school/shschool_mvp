@@ -28,11 +28,8 @@ from core.domain.tones import tone_for
 
 logger = logging.getLogger(__name__)
 
-from core.models import (
-    BehaviorInfraction,
-    ParentStudentLink,
-    StudentEnrollment,
-)
+from behavior.models import BehaviorInfraction
+from core.models import ParentStudentLink, StudentEnrollment
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
@@ -555,7 +552,7 @@ class BehaviorService:
             "generated_at": timezone.now(),
             "parent_name": parent.full_name if parent else None,
             "parent_id": parent.national_id if parent else None,
-            "parent_phone": getattr(parent, "phone", None) if parent else None,
+            "parent_phone": parent.get_phone_decrypted() if parent else None,
             "parent_email": parent.email if parent else None,
         }
 

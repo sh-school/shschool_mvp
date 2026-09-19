@@ -32,9 +32,11 @@ from core.domain.grades import (
     MISCONDUCT_EXAM_CHOICES,
     RESULT_STATUS_CHOICES,
     STANDING_CHOICES,
+    default_has_pass_mark,
     letter_of,
 )
 from core.models import ClassGroup, CustomUser, School
+from core.models.academic import grade_number
 from operations.models import Subject
 
 from .querysets import (
@@ -99,6 +101,13 @@ class SubjectClassSetup(models.Model):
 
     def __str__(self):
         return f"{self.subject.name_ar} | {self.class_group} | {self.teacher.full_name}"
+
+    @property
+    def counts_pass_mark(self) -> bool:
+        """للمادّة نهايةٌ صغرى — التصريحُ إن وُجد، وإلّا ملحقُ السياسة."""
+        if self.has_pass_mark is not None:
+            return self.has_pass_mark
+        return default_has_pass_mark(grade_number(self.class_group.grade), self.subject.name_ar)
 
 
 # ─────────────────────────────────────────────────────────────
