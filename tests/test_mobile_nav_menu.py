@@ -52,7 +52,9 @@ def test_closing_the_drawer_leaves_the_user_menu_alone():
 
 
 def test_submenu_floats_beside_the_drawer_not_over_it():
-    assert "(max-width: 1024px)" in BASE_JS  # نقطةُ التحوّل نفسُها في CSS (رُفعت من 640 ليظهر الهامبرغر على الجهاز اللوحيّ)
+    assert (
+        "(max-width: 1024px)" in BASE_JS
+    )  # نقطةُ التحوّل نفسُها في CSS (رُفعت من 640 ليظهر الهامبرغر على الجهاز اللوحيّ)
     drawer = CSS[CSS.index(".nb-bar.nb-split") :]
     assert "inline-size: 50%" in drawer.split("}")[0]
     assert ".sd-menu.sd-drawer" in drawer
