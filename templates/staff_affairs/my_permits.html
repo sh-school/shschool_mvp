@@ -1,0 +1,128 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}أذوناتي{% endblock %}
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="أذوناتي" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "أذوناتي" subtitle="تأخير · استئذان · خروج مبكر — عشر ساعات في الشهر، وثلاث ساعات للمرّة، ومرّةٌ في اليوم — وما فوق ذلك بموافقةٍ كتابيّة (م.79/3 من قانون الموارد البشرية)" icon="leave" %}{% endpage_header %}
+
+  {% kpi_strip label="رصيد أذونات هذا الشهر" %}
+    {% kpi "المعتمد هذا الشهر" balance.approved sub="دقيقة" tone="teal" %}
+    {% kpi "قيد الاعتماد" balance.pending sub="دقيقة — لا يُخصم قبل الاعتماد" tone="amber" %}
+    {% kpi "المتبقّي" balance.remaining sub="من 600 دقيقة" tone="green" %}
+  {% endkpi_strip %}
+
+  {% section_card "طلب إذن جديد" icon="edit_record" %}
+    {% if not can_submit %}
+    <p class="form-note">{% icon "status_info" %} نموذج 02 للموظّفين.</p>
+    {% else %}
+    <p class="form-note">التأخير الصباحي يبدأ 7:00، والخروج المبكر ينتهي 14:00، والاستئذان بينهما (البندان 1.1 و2.1). والخروج والاستئذان يُطلبان قبل وقت بدئهما، وما لم يُعتمد قبله يصير «منتهياً» — «يتعين على الموظف عدم الخروج إلا بعد اعتماده وإخطاره من قبل السكرتارية بالموافقة» (حاشية نموذج 02).</p>
+    <form method="post">{% csrf_token %}
+      {% if form.non_field_errors %}<p class="form-note is-warning sa-errors" role="alert">{% icon "status_warning" %} {{ form.non_field_errors|join:" · " }}</p>{% endif %}
+      <div class="form-row">
+        {% field "permit_type" "نوع الطلب" type="select" choices=permit_types value=form.data.permit_type required=True error=form.permit_type.errors.0 %}
+        {% field "date" "التاريخ" type="date" value=form.data.date required=True error=form.date.errors.0 %}
+        {% field "start_time" "من الساعة" type="time" value=form.data.start_time required=True error=form.start_time.errors.0 %}
+        {% field "end_time" "إلى الساعة" type="time" value=form.data.end_time required=True error=form.end_time.errors.0 %}
+        {% field "reason" "سبب الطلب" type="textarea" rows=2 value=form.data.reason required=True maxlength=500 error=form.reason.errors.0 css="sa-span-2" %}
+      </div>
+      <div class="form-actions sa-form-footer">
+        <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} تقديم الطلب</button>
+      </div>
+    </form>
+    {% endif %}
+  {% endsection_card %}
+
+  {% if can_request_exception %}
+  {% section_card "طلب استثناء من مدير المدرسة (نموذج 03)" icon="edit_record" %}
+    <p class="form-note">«نموذج طلب» إلى مدير المدرسة لاستثناء التأخير الصباحيّ أو الخروج المبكر في مدّةٍ من الأيّام — «يجب ارفاق مع طلب استثناء الخروج المبكر أو التأخير الصباحي ما يثبت حاجة الموظف لذلك». يقرّره المدير أو من ينوب عنه في غيابه بتغذيةٍ راجعة، ولا يُخصم من سقف الأذونات الشهريّ.</p>
+    <form method="post" enctype="multipart/form-data">{% csrf_token %}
+      <input type="hidden" name="form" value="exception">
+      {% if exception_form.non_field_errors %}<p class="form-note is-warning sa-errors" role="alert">{% icon "status_warning" %} {{ exception_form.non_field_errors|join:" · " }}</p>{% endif %}
+      <div class="form-row">
+        {% field "exception_type" "نوع الاستثناء" type="select" choices=exception_types value=exception_form.data.exception_type required=True id="f-exc-type" error=exception_form.exception_type.errors.0 %}
+        {% field "start_date" "من تاريخ" type="date" value=exception_form.data.start_date required=True id="f-exc-from" error=exception_form.start_date.errors.0 %}
+        {% field "end_date" "إلى تاريخ" type="date" value=exception_form.data.end_date required=True id="f-exc-to" error=exception_form.end_date.errors.0 %}
+        {% field "boundary_time" "الساعة (حضورٌ حتّاها أو انصرافٌ منها)" type="time" value=exception_form.data.boundary_time required=True id="f-exc-time" error=exception_form.boundary_time.errors.0 %}
+        {% field "content" "محتوى الطلب" type="textarea" rows=2 value=exception_form.data.content required=True maxlength=1000 id="f-exc-content" error=exception_form.content.errors.0 css="sa-span-2" %}
+        {% field "evidence_file" "المرفق — ما يثبت الحاجة (PDF أو صورة)" type="file" required=True accept=".pdf,.png,.jpg,.jpeg" id="f-exc-file" error=exception_form.evidence_file.errors.0 %}
+        {% field "evidence" "وصف المرفق (اختياري)" value=exception_form.data.evidence maxlength=300 id="f-exc-evidence" %}
+      </div>
+      <div class="form-actions sa-form-footer">
+        <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} تقديم الطلب إلى المدير</button>
+      </div>
+    </form>
+  {% endsection_card %}
+  {% endif %}
+
+  {% if exceptions %}
+  {% section_card "استثناءاتي (نموذج 03)" meta=exceptions|length icon="checklist" flush=True %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>النوع</th>
+            <th class="col-center">من – إلى</th>
+            <th class="col-center">الساعة</th>
+            <th class="col-center">الحالة</th>
+            <th>التغذية الراجعة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in exceptions %}
+          <tr>
+            <td>{{ e.get_exception_type_display }}</td>
+            <td class="col-center">{{ e.start_date|date:"d/m/Y" }} – {{ e.end_date|date:"d/m/Y" }}</td>
+            <td class="col-center" dir="ltr">{{ e.boundary_time|time:"H:i" }}</td>
+            <td class="col-center"><span class="status-badge {% if e.status == 'approved' %}status-success{% elif e.status == 'rejected' %}status-danger{% else %}status-warning{% endif %}">{{ e.get_status_display }}</span></td>
+            <td class="text-xs">{{ e.feedback|default:"—" }}{% if e.decided_on_behalf %} · بالإنابة: {{ e.reviewed_by.full_name }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endsection_card %}
+  {% endif %}
+
+  {% section_card "طلباتي" meta=permits|length icon="checklist" flush=True empty="لم تقدّم طلبَ إذنٍ بعد" %}{% if permits %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-center">التاريخ</th>
+            <th>النوع</th>
+            <th class="col-center">من – إلى</th>
+            <th class="num">الدقائق</th>
+            <th class="col-center">الحالة</th>
+            <th class="col-center">المرحلة</th>
+            <th>ملاحظة</th>
+            <th class="col-actions">إجراء</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in permits %}
+          <tr>
+            <td class="col-center">{{ p.date|date:"d/m/Y" }}</td>
+            <td>{{ p.get_permit_type_display }}</td>
+            <td class="col-center" dir="ltr">{{ p.start_time|time:"H:i" }} – {{ p.end_time|time:"H:i" }}</td>
+            <td class="num">{{ p.duration_minutes }}</td>
+            <td class="col-center"><span class="status-badge {% if p.status == 'approved' %}status-success{% elif p.status == 'rejected' %}status-danger{% elif p.status == 'pending' %}status-warning{% else %}status-gray{% endif %}">{{ p.get_status_display }}</span></td>
+            <td class="col-center text-xs">{{ p.get_stage_display }}</td>
+            <td class="text-xs">{% if p.rejection_reason %}{{ p.rejection_reason }}{% elif p.notified_at %}أُخطرت {{ p.notified_at|date:"d/m H:i" }}{% if p.decided_on_behalf %} · بالإنابة: {{ p.reviewed_by.full_name }}{% endif %}{% else %}—{% endif %}</td>
+            <td class="col-actions">{% if p.cancellable %}
+              <form method="post" action="{% url 'staff_affairs:permit_cancel' p.pk %}">{% csrf_token %}
+                <button type="submit" class="btn-secondary btn-xs" title="{% if p.status == 'approved' %}يُلغى قبل بدء نافذته فيُستردّ رصيدُه{% else %}يُلغى ما دام معلّقاً{% endif %}">{% icon "close" %} إلغاء</button>
+              </form>
+            {% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+</div>
+{% endblock %}

@@ -355,9 +355,6 @@
   "core/views_health.py::status_check": {
    "lines": 77
   },
-  "core/views_media.py::_resolve_file_access": {
-   "lines": 61
-  },
   "core/views_media.py::serve_db_file": {
    "orm": 6
   },

@@ -208,7 +208,8 @@ class TestTheSupervisorsFrame:
     ):
         body = client_as(supervisor).get(reverse("dashboard")).content.decode()
 
-        assert reverse("staff_affairs:dashboard") not in body
+        # الرابطُ نفسُه لا بادئتُه: «أذوناتي» في قائمة المستخدم تبدأ بالبادئة ذاتها وهي له.
+        assert f'href="{reverse("staff_affairs:dashboard")}"' not in body
         assert "طلبة جناحي" in body
 
     def test_breadcrumbs_have_no_double_separator_and_the_dashboard_no_duplicate(
