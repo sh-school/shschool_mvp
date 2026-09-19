@@ -972,16 +972,6 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 
 /* ── Charts Grid (3×2 responsive) ── */
 
-/* ثلاثُ قوائمَ متجاورة — كانت شؤونُ الطلاب تستعمل الصنفَ ولا تعريفَ له،
-   فتتراصّ قوائمُها الثلاث بعرض الصفحة. و`auto-fit` بحدٍّ أدنى يفكّها عموداً
-   في الشاشة الضيّقة بلا استعلامِ وسَط. */
-.charts-grid-3 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
-  gap: var(--sp-2);
-  min-height: 0;
-}
-
 .dash-chart-wrap {
   position: relative;
   height: 220px;

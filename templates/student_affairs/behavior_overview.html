@@ -66,7 +66,7 @@
 
 {% block extra_js %}
 <script src="{% static 'js/vendor/chart.umd.min.js' %}" defer></script>
-<script nonce="{{ request.csp_nonce }}">
+<script nonce="{{ request.csp_nonce }}" defer>
 document.addEventListener('DOMContentLoaded', function() {
   Chart.defaults.font.family = 'Tajawal, sans-serif';
   Chart.defaults.font.size = 11;

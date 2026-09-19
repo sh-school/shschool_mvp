@@ -1503,14 +1503,6 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 
 .beh-parents { margin-block-end: var(--sp-3); }
 
-/* نموذجُ الاستدعاء بجوار بطاقة المرسِل. */
-.beh-form-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
-  gap: var(--sp-2);
-  align-items: start;
-}
-@media (max-width: 900px) { .beh-form-grid { grid-template-columns: 1fr; } }
 .beh-fieldset { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
 /* استدعاء ولي أمر: بطاقتان متجاورتان — النموذجُ، وعمودٌ جانبيٌّ (أولياءُ الأمور، المرسِل، التنبيه). والطالبُ المحدَّد اسمٌ لا قائمة. */
 .beh-summon-cards { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-2); align-items: start; }
