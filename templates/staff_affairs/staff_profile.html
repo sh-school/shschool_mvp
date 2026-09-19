@@ -135,8 +135,8 @@
       <ul class="plain-list">
         {% for ev in evaluations %}
         <li class="plain-list__row">
-          <span class="plain-list__main"><b class="plain-list__title">{{ ev.academic_year }}</b><span class="plain-list__sub">{{ ev.get_recommendation_display }}</span></span>
-          <span class="status-badge status-{{ ev.score_tone }}">{{ ev.overall_score|floatformat:1 }}/5</span>
+          <span class="plain-list__main"><b class="plain-list__title">{{ ev.academic_year }} · {{ ev.get_period_display }}</b><span class="plain-list__sub">{{ ev.get_rating_display|default:"—" }}</span></span>
+          <span class="status-badge status-{{ ev.score_tone }}">{{ ev.total_score }}/100</span>
         </li>
         {% endfor %}
       </ul>

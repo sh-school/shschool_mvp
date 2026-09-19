@@ -1,7 +1,8 @@
 """
 staff_affairs/models.py — نماذج شؤون الموظفين
 نموذجان جديدان فقط — الباقي استعلامات من نماذج موجودة
-(TeacherAbsence, StaffEvaluation, TeacherSwap, CompensatorySession).
+(TeacherAbsence, TeacherSwap, CompensatorySession). وتقييمُ الأداء في `quality.EmployeeEvaluation`
+(ADR-0002) — لا في `StaffEvaluation` المُهمَل.
 """
 
 from django.db import models

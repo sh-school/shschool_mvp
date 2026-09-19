@@ -371,3 +371,41 @@ def test_s2_cycle_deadline_is_flagged_outside_first_half_of_june(school, period,
         school=school, academic_year=YEAR, period=period, deadline=date(*deadline)
     )
     assert cycle.deadline_outside_article_16 is outside
+
+
+# ── شؤون الموظفين تقرأ من `quality.EmployeeEvaluation` لا من `StaffEvaluation` المُهمَل ──────
+
+
+@pytest.mark.django_db
+def test_staff_affairs_counts_open_reports_and_lists_only_published_ones(school, teacher_user):
+    from django.utils import timezone
+
+    from quality.models import EmployeeEvaluation
+    from staff_affairs.services import StaffService
+    from tests.test_evaluation_review_round1 import YEAR, _staff
+
+    vice = _staff(school, "vice_academic", "النائب الأكاديمي")
+    EmployeeEvaluation.objects.create(
+        school=school, employee=teacher_user, evaluator=vice, academic_year=YEAR,
+        period="S1", status="draft",
+    )  # fmt: skip
+    other = _staff(school, "teacher", "زميل")
+    EmployeeEvaluation.objects.create(
+        school=school, employee=other, evaluator=vice, academic_year=YEAR,
+        period="S1", status="submitted", total_score=70,
+    )  # fmt: skip
+    approved_for = _staff(school, "teacher", "معتمَد له")
+    EmployeeEvaluation.objects.create(
+        school=school, employee=approved_for, evaluator=vice, academic_year=YEAR,
+        period="S1", status="approved", approved_at=timezone.now(), total_score=88,
+        rating="very_good",
+    )  # fmt: skip
+
+    stats = StaffService.get_dashboard_stats(school, YEAR)
+    assert stats["pending_evals"] == 2  # مسودّةٌ + مُقدَّم؛ المعتمَدُ ليس «غير مكتمل»
+
+    draft_profile = StaffService.get_staff_profile_data(teacher_user, school, YEAR)
+    assert draft_profile["evaluations"] == []  # المسودّةُ عملُ المقيِّم لا تظهر في الملفّ
+
+    profile = StaffService.get_staff_profile_data(approved_for, school, YEAR)
+    assert [(e.total_score, e.score_tone) for e in profile["evaluations"]] == [(88, "warning")]

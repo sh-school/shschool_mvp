@@ -199,6 +199,13 @@ def get_scores(evaluation: EmployeeEvaluation) -> list:
     return list(evaluation.scores.select_related("evaluator").all())
 
 
+def count_open_evaluations(school: Any, year: str) -> int:
+    """تقاريرُ العام التي لم تُعتمد بعد — مسودّةٌ أو مُقدَّمة (رقمُ «غير مكتملة» في لوحة شؤون الموظفين)."""
+    return EmployeeEvaluation.objects.filter(
+        school=school, academic_year=year, status__in=("draft", "submitted")
+    ).count()
+
+
 def get_published_evaluations(school: Any, employee: CustomUser) -> list[EmployeeEvaluation]:
     """ما يراه الموظّفُ عن نفسه: المعتمَدُ والمُقرّ به فقط."""
     return list(
