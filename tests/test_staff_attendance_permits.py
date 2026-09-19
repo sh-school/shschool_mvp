@@ -124,7 +124,11 @@ def _actor(school, role):
 
 
 #: صاحبُ كلّ مربّعٍ بصفته الطبيعيّة — لتُكمَل مدرسةُ الاختبار به فلا يُختبر هنا الرفعُ (م-28).
-NATURAL = {"secretary": "secretary", "external": "secretary", "principal": "principal"}
+NATURAL = {
+    "secretary": "secretary",  # pragma: allowlist secret
+    "external": "secretary",  # pragma: allowlist secret
+    "principal": "principal",
+}
 
 
 def _through(permit, approve=True, reason="غير مناسب"):

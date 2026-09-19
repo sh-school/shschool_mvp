@@ -369,7 +369,7 @@ class PermitBalance:
 LINE_MANAGER: dict[str, str] = {
     "vice_admin": "principal",  # :21 نائب المدير للشؤون الإدارية وشؤون الطالب
     "vice_academic": "principal",  # :28 نائب المدير للشؤون الأكاديمية
-    "secretary": "principal",  # :36 سكرتير مدرسة
+    "secretary": "principal",  # :36 سكرتير مدرسة  # pragma: allowlist secret
     "social_worker": "vice_admin",  # :43 أخصائي اجتماعي
     "psychologist": "vice_admin",  # :50 أخصائي نفسي
     "storekeeper": "vice_admin",  # :58 أمين مخزن
