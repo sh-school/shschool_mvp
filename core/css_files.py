@@ -31,5 +31,6 @@ def static_names() -> list[str]:
 
 def find_paths() -> list[str]:
     """مساراتُها على القرص، فارغةٌ إن غاب أيُّ ملفٍّ (فلا نصفُ نتيجة)."""
-    paths = [finders.find(name) for name in static_names()]
-    return [] if not all(paths) else paths
+    found = [finders.find(name) for name in static_names()]
+    paths = [path for path in found if isinstance(path, str)]
+    return paths if len(paths) == len(found) else []
