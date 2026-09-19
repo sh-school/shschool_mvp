@@ -396,7 +396,7 @@ STORAGES = {
     "default": _s3_storage,
     # الملفات الثابتة → WhiteNoise (Brotli + GZip + hash → cache ∞)
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "core.static_storage.MinifiedManifestStaticFilesStorage",
     },
 }
 
