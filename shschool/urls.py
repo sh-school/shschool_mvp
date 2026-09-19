@@ -11,9 +11,9 @@ from core import views_styleguide
 from core.mfa_session import admin_login_redirect
 from core.permissions import internal_only
 from core.views_health import health_check, readiness_check, status_check
-from core.views_media import serve_db_file
 from core.views_pwa import global_manifest, global_sw, offline_global
 from core.views_search import global_search
+from governance.views_media import serve_db_file
 
 urlpatterns = [
     path("health/", health_check),

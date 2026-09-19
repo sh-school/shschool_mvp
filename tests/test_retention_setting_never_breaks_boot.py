@@ -18,7 +18,7 @@ import logging
 
 import pytest
 
-from core.retention import retention_days
+from governance.retention import retention_days
 from tests.test_production_runtime_settings import _load_production_settings
 
 BROKEN = "730)"  # القيمةُ التي كانت على Railway حرفيّاً
@@ -50,7 +50,7 @@ def test_valid_values_parse(settings, raw, expected):
 @pytest.mark.parametrize("raw", [BROKEN, "730 days", "730x", "2y"])
 def test_unreadable_value_disables_and_logs(settings, caplog, raw):
     settings.PDPPL_DATA_RETENTION_DAYS = raw
-    with caplog.at_level(logging.ERROR, logger="core.retention"):
+    with caplog.at_level(logging.ERROR, logger="governance.retention"):
         days = retention_days()
     assert days == 0, "قيمةٌ لا تُفهم يجب أن تعطّل الحذف لا أن تُخمَّن"
     assert any(

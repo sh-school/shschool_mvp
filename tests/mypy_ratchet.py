@@ -35,7 +35,7 @@ from collections import Counter
 BASELINE = pathlib.Path("tests/mypy_ratchet_baseline.json")
 
 #: ما تدّعي البوّابةُ فحصَه — وما تفحصه فعلاً.
-TARGETS = ("core", "shschool")
+TARGETS = ("core", "shschool", "governance")
 
 #: `path:line: error: message  [code]` — سطرُ mypy بلا `--pretty`.
 ERROR_LINE = re.compile(r"^(?P<path>[^:\n]+):\d+(?::\d+)?: error: ")

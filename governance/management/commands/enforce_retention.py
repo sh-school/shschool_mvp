@@ -4,7 +4,7 @@
     python manage.py enforce_retention --dry-run    # الشيءُ نفسُه صراحةً
     python manage.py enforce_retention --apply      # الحذفُ فعلاً + سطرٌ في التدقيق
 
-السياسةُ والمدّةُ في `core/retention.py` و`docs/privacy/data_retention.md`؛
+السياسةُ والمدّةُ في `governance/retention.py` و`docs/privacy/data_retention.md`؛
 والمهمّةُ المجدولةُ `core.enforce_data_retention` تُجريها أسبوعيّاً. هذا الأمرُ
 للتشغيل بين الجدولين أو للتحقّق قبل تغيير المدّة.
 """
@@ -15,7 +15,7 @@ from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
 
-from core.retention import BATCH_SIZE, RULES, enforce_retention
+from governance.retention import BATCH_SIZE, RULES, enforce_retention
 
 
 class Command(BaseCommand):
