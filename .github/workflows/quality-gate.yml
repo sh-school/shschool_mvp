@@ -488,7 +488,7 @@ jobs:
       # والخدمات والهجراتُ جاهزةٌ. ولا يُعاد تسمية الوظيفة: اسمُها هو اسمُ الفحص
       # المطلوب في حماية الفرع وطابور الدمج، وتبديلُه يُعلّق الدمج على اسمٍ لا يصل.
       - name: ميزانية Core Web Vitals على الصفحات الحيّة
-        run: python -m pytest tests/test_web_vitals_budget.py -v -s
+        run: python -m pytest tests/test_web_vitals_budget.py tests/test_action_cards_fit_narrow_screens.py -v -s
 
   # ══════════════════════════════════════════════════════
   #  6b. tests/e2e/ — Playwright: مصادقة، تنقّل، صلاحياتُ أدوار (أُحييت 2026-09-19)
