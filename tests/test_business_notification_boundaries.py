@@ -21,7 +21,7 @@ from unittest.mock import patch
 import pytest
 from django.db import transaction
 
-from core.models import BehaviorInfraction
+from behavior.models import BehaviorInfraction
 from notifications.models import InAppNotification
 from tests.conftest import SchoolFactory, UserFactory
 

@@ -80,16 +80,13 @@
    "core/management/commands/full_seed.py"
   ],
   "behavior": [
-   "core/dashboard_selectors.py",
-   "core/models/__init__.py"
+   "core/dashboard_selectors.py"
   ],
   "clinic": [
-   "core/dashboard_selectors.py",
-   "core/models/__init__.py"
+   "core/dashboard_selectors.py"
   ],
   "library": [
-   "core/dashboard_selectors.py",
-   "core/models/__init__.py"
+   "core/dashboard_selectors.py"
   ],
   "notifications": [
    "core/management/commands/full_seed.py"
@@ -116,8 +113,7 @@
    "core/capabilities.py"
   ],
   "transport": [
-   "core/dashboard_selectors.py",
-   "core/models/__init__.py"
+   "core/dashboard_selectors.py"
   ],
   "wings": [
    "core/dashboard_selectors.py",
@@ -128,15 +124,15 @@
  "core_imports": {
   "academic_management": 2,
   "assessments": 3,
-  "behavior": 2,
-  "clinic": 2,
-  "library": 2,
+  "behavior": 1,
+  "clinic": 1,
+  "library": 1,
   "notifications": 1,
   "operations": 15,
   "quality": 2,
   "student_affairs": 2,
   "student_info": 1,
-  "transport": 2,
+  "transport": 1,
   "wings": 4
  },
  "definition": 5,

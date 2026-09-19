@@ -30,16 +30,19 @@ from .evaluation_services import (
     EvaluationRejectedError,
     annual_rating_summary,
     axis_values,
+    developer_trial_note,
     form_template_ok,
+    grievance_stage,
     is_academic_year,
     is_school_principal,
+    may_act_as_principal,
     placement_rejection,
     record_receipt_on_refusal,
     save_evaluation_form,
 )
 from .evaluation_services import approve_evaluation as approve_evaluation_service
 from .models import EmployeeEvaluation
-from .presentation import evaluation_rating_tone, evaluation_status_tone
+from .presentation import evaluation_rating_tone, evaluation_status_tone, grievance_stage_tone
 
 
 #: يُقرأ وقت الطلب لا وقت الاستيراد — ثابتُ الوحدة يتجمّد عند إقلاع العملية.
@@ -95,6 +98,13 @@ def evaluation_dashboard(request):
             "staff_list": staff_list,
             "year": year,
             "school": school,
+            "can_view_grievances": request.user.is_superuser
+            or is_school_principal(school, request.user),
+            "grievances_waiting": sum(
+                1
+                for g in selectors.get_grievances(school, year)
+                if grievance_stage(g).code in ("filed", "decided")
+            ),
         },
     )
 
@@ -143,7 +153,7 @@ def _form_context(request, obj, *, existing, axes, template, employee, year, per
     off_form = period == EmployeeEvaluation.MINISTRY_PERIOD and not form_template_ok(obj)
     if off_form and template is not None:
         messages.warning(request, TEMPLATE_OFF_FORM)
-    is_principal = request.user.get_role() == "principal"
+    is_principal = may_act_as_principal(request.school, request.user)
     return {
         "obj": obj,
         "axis_rows": axis_rows,
@@ -282,7 +292,7 @@ def approve_evaluation(request, eval_id):
             object_id=obj.pk,
             object_repr=str(obj),
             request=request,
-            changes={"status": "approved"},
+            changes={"status": "approved", **developer_trial_note(school, request.user)},
         )
         messages.success(request, f"اعتُمد تقييم {obj.employee.full_name}.")
     return redirect(
@@ -316,7 +326,10 @@ def record_evaluation_receipt(request, eval_id):
             object_id=obj.pk,
             object_repr=str(obj),
             request=request,
-            changes={"received_on": received_on.isoformat()},
+            changes={
+                "received_on": received_on.isoformat(),
+                **developer_trial_note(school, request.user),
+            },
         )
         messages.success(request, "دُوِّن تاريخُ استلام الموظّف.")
     return redirect(
@@ -350,6 +363,9 @@ def my_evaluations(request):
     for ev in evals:
         ev.card_title = f"{ev.get_period_display()} — {ev.academic_year}"
         ev.score_tone = evaluation_rating_tone(ev.rating)
+        ev.grievance = grievance_stage(ev)
+        ev.grievance_tone = grievance_stage_tone(ev.grievance.code)
+        ev.grievance_outcome_label = ev.get_grievance_outcome_display()
     return render(
         request,
         "quality/my_evaluations.html",

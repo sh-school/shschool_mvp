@@ -16,25 +16,20 @@ from django.views.decorators.cache import cache_page
 from django.views.decorators.vary import vary_on_cookie
 
 from assessments.models import StudentSubjectResult
+from behavior.models import BehaviorInfraction
+from clinic.models import ClinicVisit, HealthRecord
 from core import brand
 from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required
 from core.domain.attendance import attendance_rate
 from core.domain.grades import GRADE_BANDS, band_of
-from core.models import (
-    BehaviorInfraction,
-    BookBorrowing,
-    ClinicVisit,
-    HealthRecord,
-    LibraryBook,
-    Membership,
-    SchoolBus,
-    StudentEnrollment,
-)
+from core.models import Membership, StudentEnrollment
 from core.models.academic import grade_order
 from core.pdf_utils import render_pdf
+from library.models import BookBorrowing, LibraryBook
 from operations.models import Session, StudentAttendance
 from quality.models import OperationalDomain, OperationalProcedure
+from transport.models import SchoolBus
 
 from .services import KPIService
 

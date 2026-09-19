@@ -41,9 +41,12 @@ def test_every_mapped_role_exists_in_the_role_registry():
         ({"principal"}, "vice_admin", True),
         ({"principal"}, "secretary", True),
         ({"principal"}, "teacher", True),
-        # من لا بطاقةَ له في المصدر: لا خطَّ تبعيّة، فيبقى لمن تجيزه الشاشةُ.
+        # من لا بطاقةَ له في المصدر: قرارُ المالك 2026-09-19 — يتبعون النائبَ الإداريّ.
         ({"vice_admin"}, "accountant", True),
-        ({"vice_academic"}, "accountant", True),
+        ({"vice_academic"}, "accountant", False),
+        ({"vice_admin"}, "academic_advisor", True),
+        ({"vice_academic"}, "teacher_assistant", False),
+        ({"principal"}, "accountant", True),
     ],
 )
 def test_only_the_direct_supervisor_or_the_principal_places(evaluator, employee, allowed):

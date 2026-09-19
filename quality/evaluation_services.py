@@ -41,10 +41,12 @@ import re
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from fractions import Fraction
 from typing import TYPE_CHECKING
 
+from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
@@ -123,6 +125,24 @@ def is_school_principal(school: School, user: CustomUser) -> bool:
     return Membership.objects.filter(
         school=school, user=user, is_active=True, role__name="principal"
     ).exists()
+
+
+def may_act_as_principal(school: School, user: CustomUser) -> bool:
+    """
+    أيفعل أفعالَ المدير (اعتمادٌ، تدوينُ استلامٍ أو قرارِ لجنة)؟ مديرُ المدرسة بعضويّة الدور. ومطوّرُ
+    المنصّة (`is_superuser`) إن فُعِّل مفتاحُ التجربة `APPRAISAL_DEVELOPER_ACTS_AS_PRINCIPAL` —
+    مؤقّتٌ بقرار المالك (2026-09-19)؛ وإطفاؤه يسحب الصلاحيّةَ كلَّها.
+    """
+    if is_school_principal(school, user):
+        return True
+    return bool(
+        user.is_superuser and getattr(settings, "APPRAISAL_DEVELOPER_ACTS_AS_PRINCIPAL", False)
+    )
+
+
+def developer_trial_note(school: School, user: CustomUser) -> dict[str, bool]:
+    """علامةُ سجلّ التدقيق لفعلٍ جرى بمفتاح التجربة لا بعضويّة المدير — وإلّا فارغة."""
+    return {} if is_school_principal(school, user) else {"developer_trial": True}
 
 
 def placement_rejection(school: School, evaluator: CustomUser, employee: CustomUser) -> str | None:
@@ -415,7 +435,7 @@ def approve_evaluation(*, evaluation: EmployeeEvaluation, approver: CustomUser) 
     تتغيّر بين التقديم والاعتماد.
     """
     locked = EmployeeEvaluation.objects.select_for_update().get(pk=evaluation.pk)
-    if not is_school_principal(locked.school, approver):
+    if not may_act_as_principal(locked.school, approver):
         raise EvaluationRejectedError("الاعتمادُ لمدير المدرسة وحده — المادة 16.")
     if locked.status != "submitted":
         raise EvaluationRejectedError("لا يُعتمد إلّا تقريرٌ مُقدَّم.")
@@ -452,7 +472,7 @@ def record_receipt_on_refusal(
     الموظّف الإقرارَ يُبقي التقريرَ غيرَ نهائيٍّ أبداً.
     """
     locked = EmployeeEvaluation.objects.select_for_update().get(pk=evaluation.pk)
-    if not is_school_principal(locked.school, recorder):
+    if not may_act_as_principal(locked.school, recorder):
         raise EvaluationRejectedError("تدوينُ تاريخ الاستلام لمدير المدرسة — موقِّعِ الاستمارة.")
     if locked.status != "approved" or locked.acknowledged_at is not None:
         raise EvaluationRejectedError("يُدوَّن تاريخُ الاستلام لتقريرٍ معتمَدٍ لم يُقرّ به الموظّف.")
@@ -553,3 +573,144 @@ def save_evaluation_form(
             obj.save()
         save_evaluation(evaluation=obj, evaluator=evaluator, axes=axes, data=data)
     return obj
+
+
+# ── التظلّم — المادة 20 ────────────────────────────────────────────────────
+#
+# «يُعلن الموظف بنسخة من تقرير تقييم الأداء، ويجوز للموظف أن يتظلم منه إلى لجنة موظفي المدارس
+# خلال خمسة عشر يوماً من تاريخ علمه، وتبت اللجنة في التظلم خلال ثلاثين يوماً من تاريخ تقديمه،
+# ويعتبر مضي المدة دون إخطار الموظف بتعديل التقرير بمثابة قرار بالرفض، ويكون قرار اللجنة في
+# التظلم نهائياً بعد اعتماده من الوزير، ولا يعتبر التقرير نهائياً إلا بعد انقضاء ميعاد التظلم
+# منه أو البت فيه» (`02_staff_affairs.md:211`، صفحتا الملفّ 12–13).
+#
+# اللجنةُ خارج المدرسة: يقدّم الموظّفُ تظلّمَه هنا فيُسجَّل ويُحال، ويدوّن مديرُ المدرسة قرارَها
+# وتاريخَ اعتماد الوزير له حين يصله. والمهلتان من `EmployeeEvaluation` (تقويميّتان حتى يُقرَّر).
+
+GRIEVANCE_REASON_MIN = 10
+
+
+@dataclass(frozen=True)
+class GrievanceStage:
+    """أين بلغ تقريرٌ معتمَدٌ من مسار المادة 20 — للعرض، لا للحكم (الحكمُ لـ`is_final`)."""
+
+    code: str
+    label: str
+    #: آخرُ يومٍ لما هو مفتوح: للتظلّم (`open`) أو لبتّ اللجنة (`filed`).
+    due: date | None = None
+    days_left: int | None = None
+    final: bool = False
+
+
+def grievance_stage(evaluation: EmployeeEvaluation, today: date | None = None) -> GrievanceStage:
+    today = today or timezone.localdate()
+    final = evaluation.is_final(today)
+    deadline = evaluation.grievance_deadline()
+    submitted = evaluation.grievance_submitted_on
+    if evaluation.status not in ("approved", "acknowledged") or deadline is None:
+        return GrievanceStage("unknown", "بانتظار إقرار الموظّف بالاستلام")
+    if submitted is None or submitted > deadline:
+        if today <= deadline:
+            return GrievanceStage("open", "باب التظلّم مفتوح", deadline, (deadline - today).days)
+        return GrievanceStage("closed", "انقضى ميعاد التظلّم — التقرير نهائي", final=final)
+    decision_by = submitted + timedelta(days=_decision_days())
+    if evaluation.grievance_decision_approved_on is not None and final:
+        return GrievanceStage("approved", "قرار اللجنة معتمَدٌ من الوزير — التقرير نهائي", final=True)
+    if (
+        evaluation.grievance_decided_on is not None
+        and evaluation.grievance_decided_on <= decision_by
+    ):
+        return GrievanceStage("decided", "قرار اللجنة بانتظار اعتماد الوزير")
+    if today <= decision_by:
+        return GrievanceStage(
+            "filed", "التظلّم بانتظار قرار اللجنة", decision_by, (decision_by - today).days
+        )
+    return GrievanceStage("lapsed", "مضت مدّة البتّ — رفضٌ حكميّ، التقرير نهائي", final=final)
+
+
+def _decision_days() -> int:
+    from .models import APPRAISAL_GRIEVANCE_DECISION_DAYS
+
+    return int(
+        getattr(settings, "APPRAISAL_GRIEVANCE_DECISION_DAYS", APPRAISAL_GRIEVANCE_DECISION_DAYS)
+    )
+
+
+def _validated(evaluation: EmployeeEvaluation, fields: Sequence[str]) -> None:
+    """يشغّل فحصَ النموذج (`clean`) ويحوّل خطأَه إلى رفضٍ بنصّه."""
+    try:
+        evaluation.clean()
+    except ValidationError as exc:
+        raise EvaluationRejectedError(" ".join(exc.messages)) from exc
+    evaluation.save(update_fields=[*fields, "updated_at"])
+
+
+@transaction.atomic
+def file_grievance(
+    *, evaluation: EmployeeEvaluation, employee: CustomUser, reason: str, today: date | None = None
+) -> None:
+    """تظلّمُ الموظّف من تقريره: مرّةً واحدةً، خلال ميعاده، بسببٍ مكتوب."""
+    locked = EmployeeEvaluation.objects.select_for_update().get(pk=evaluation.pk)
+    today = today or timezone.localdate()
+    if locked.employee_id != employee.pk:
+        raise EvaluationRejectedError("التظلّمُ لصاحب التقرير وحدَه — المادة 20.")
+    if locked.status not in ("approved", "acknowledged"):
+        raise EvaluationRejectedError("لا تظلّمَ من تقريرٍ لم يُعتمد بعد — المادة 20.")
+    deadline = locked.grievance_deadline()
+    if deadline is None:
+        raise EvaluationRejectedError(
+            "يبدأ ميعادُ التظلّم من تاريخ علمك بالتقرير — أقرَّ باستلامه أوّلاً (المادة 20)."
+        )
+    if locked.grievance_submitted_on is not None:
+        raise EvaluationRejectedError("قُدِّم تظلّمٌ من هذا التقرير من قبل.")
+    if today > deadline:
+        raise EvaluationRejectedError(
+            f"انقضى ميعادُ التظلّم في {deadline} — «خلال خمسة عشر يوماً من تاريخ علمه» (المادة 20)."
+        )
+    reason = (reason or "").strip()
+    if len(reason) < GRIEVANCE_REASON_MIN:
+        raise EvaluationRejectedError("اكتب سببَ التظلّم (عشرةَ أحرفٍ على الأقلّ).")
+    locked.grievance_submitted_on = today
+    locked.grievance_reason = reason
+    _validated(locked, ("grievance_submitted_on", "grievance_reason"))
+    evaluation.grievance_submitted_on = locked.grievance_submitted_on
+    evaluation.grievance_reason = locked.grievance_reason
+
+
+@transaction.atomic
+def record_grievance_decision(
+    *,
+    evaluation: EmployeeEvaluation,
+    recorder: CustomUser,
+    decided_on: date | None,
+    outcome: str,
+    approved_on: date | None,
+) -> None:
+    """
+    مديرُ المدرسة يدوّن ما وصله من لجنة موظفي المدارس: قرارُها وتاريخُ إخطار الموظّف به، ثمّ
+    (حين يصله) تاريخُ اعتماد الوزير. ما دُوِّن لا يُعاد كتابتُه — يُملأ الناقصُ فقط.
+    """
+    locked = EmployeeEvaluation.objects.select_for_update().get(pk=evaluation.pk)
+    if not may_act_as_principal(locked.school, recorder):
+        raise EvaluationRejectedError("تدوينُ قرار اللجنة لمدير المدرسة — المادة 20.")
+    if locked.grievance_submitted_on is None:
+        raise EvaluationRejectedError("لا قرارَ للجنة بلا تظلّمٍ مقدَّم — المادة 20.")
+    if decided_on is None and approved_on is None:
+        raise EvaluationRejectedError("دوِّن تاريخَ إخطار الموظّف بالقرار أو تاريخَ اعتماد الوزير.")
+    changed: list[str] = []
+    if decided_on is not None:
+        if locked.grievance_decided_on is not None:
+            raise EvaluationRejectedError("قرارُ اللجنة مدوَّنٌ من قبل.")
+        if outcome not in dict(EmployeeEvaluation.GRIEVANCE_OUTCOMES):
+            raise EvaluationRejectedError("اختر قرارَ اللجنة: رفضُ التظلّم أو تعديلُ التقرير.")
+        locked.grievance_decided_on, locked.grievance_outcome = decided_on, outcome
+        changed += ["grievance_decided_on", "grievance_outcome"]
+    if approved_on is not None:
+        if locked.grievance_decision_approved_on is not None:
+            raise EvaluationRejectedError("اعتمادُ الوزير مدوَّنٌ من قبل.")
+        if not (locked.grievance_outcome or decided_on):
+            raise EvaluationRejectedError("يُعتمد قرارٌ مدوَّن — دوِّن قرارَ اللجنة أوّلاً (المادة 20).")
+        locked.grievance_decision_approved_on = approved_on
+        changed.append("grievance_decision_approved_on")
+    _validated(locked, changed)
+    for name in changed:
+        setattr(evaluation, name, getattr(locked, name))
