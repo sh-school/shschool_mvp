@@ -1693,38 +1693,21 @@ class StaffAttendanceService:
         )
 
     @staticmethod
-    @transaction.atomic
-    def mark(
-        *,
+    def _check_input(
         school: School,
         staff: CustomUser,
         day: date,
         status: str,
         actor: CustomUser,
-        check_in: time | None = None,
-        check_out: time | None = None,
-        absence_type: str = "",
-        accepted_excuse: str | None = "",
-        request: HttpRequest | None = None,
-    ) -> StaffAttendance:
-        """رصدُ حالة موظّفٍ في يوم — بنقرة، ووقتُ الحضور شاهدُها.
+        check_in: time | None,
+        check_out: time | None,
+        absence_type: str,
+        now: datetime,
+    ) -> str:
+        """فحوصُ مدخلات الرصد قبل القفل — الحالةُ واليومُ والراصدُ والأوقاتُ ونوعُ الغياب.
 
-        * لا يرصد أحدٌ نفسَه: السجلُّ سندُ الخصم (البند 5).
-        * الحاضرُ والمتأخّرُ والمستأذنُ بوقت حضورهم، فبه تُحسب دقائقُ التأخّر (م-3 وم-6)،
-          ونقرةٌ تخالف تصنيفَه تُرفض باسم البند. والغائبُ بلا وقتٍ جائز.
-        * ``accepted_excuse`` (م-7) لا يقبله إلّا المديرُ أو من ينوب عنه، ويُكتب لمن حضر
-          بعد 9:00 بلا تغطيةٍ سارية، فيُعدّ متأخّراً بدقائقه لا غائباً. و``None`` «لم يُعرض
-          الحقل»: يبقى العذرُ المحفوظ كما هو — فالراصدُ لا يرى نصَّه (قد يحمل بيانةً صحّيّة،
-          PDPPL م.16) ويكتب الوقتَ في سطرٍ قُبل عذرُه دون أن يُعدّ ذلك رفعاً له.
-        * ``absence_type`` نوعُ يوم الغياب من سجلّ الغياب المدرسيّ (إجازةٌ أو مهمّة)،
-          والفارغُ غيابٌ لم يُغطَّ بعد (م-35).
-        * ``check_out`` وقتُ الانصراف، وما بينه وبين 14:00 بلا إذنٍ يُعدّ (م-1) — إلّا في
-          يوم الغياب (م-9).
-
-        والكتابةُ تحت قفل صفّ الموظّف — القفلِ نفسِه الذي يأخذه ``PermitService.act`` —
-        فلا يكتب رصدٌ فوق ما أعادت ``reconcile`` حسابَه، ولا يتسابق راصدان.
+        وتُرجع نوعَ الغياب مطبَّعاً (الفارغُ غيابٌ لم يُغطَّ بعد، م-35).
         """
-        now = _now()
         if status not in STATUSES:
             raise PolicyError("حالةٌ غيرُ معروفة.")
         if day > now.date():
@@ -1772,6 +1755,44 @@ class StaffAttendanceService:
                 "لا يُرصد غيابُ اليوم قبل أن تمضي التاسعة — «يعتبر الموظف غائبا إذا حضر بعد "
                 "الساعة التاسعة» (البند 2.4، م-4)؛ وقبلها يُرصد الغيابُ بنوعه من سجلّ الغياب."
             )
+        return absence_type
+
+    @staticmethod
+    @transaction.atomic
+    def mark(
+        *,
+        school: School,
+        staff: CustomUser,
+        day: date,
+        status: str,
+        actor: CustomUser,
+        check_in: time | None = None,
+        check_out: time | None = None,
+        absence_type: str = "",
+        accepted_excuse: str | None = "",
+        request: HttpRequest | None = None,
+    ) -> StaffAttendance:
+        """رصدُ حالة موظّفٍ في يوم — بنقرة، ووقتُ الحضور شاهدُها.
+
+        * لا يرصد أحدٌ نفسَه: السجلُّ سندُ الخصم (البند 5).
+        * الحاضرُ والمتأخّرُ والمستأذنُ بوقت حضورهم، فبه تُحسب دقائقُ التأخّر (م-3 وم-6)،
+          ونقرةٌ تخالف تصنيفَه تُرفض باسم البند. والغائبُ بلا وقتٍ جائز.
+        * ``accepted_excuse`` (م-7) لا يقبله إلّا المديرُ أو من ينوب عنه، ويُكتب لمن حضر
+          بعد 9:00 بلا تغطيةٍ سارية، فيُعدّ متأخّراً بدقائقه لا غائباً. و``None`` «لم يُعرض
+          الحقل»: يبقى العذرُ المحفوظ كما هو — فالراصدُ لا يرى نصَّه (قد يحمل بيانةً صحّيّة،
+          PDPPL م.16) ويكتب الوقتَ في سطرٍ قُبل عذرُه دون أن يُعدّ ذلك رفعاً له.
+        * ``absence_type`` نوعُ يوم الغياب من سجلّ الغياب المدرسيّ (إجازةٌ أو مهمّة)،
+          والفارغُ غيابٌ لم يُغطَّ بعد (م-35).
+        * ``check_out`` وقتُ الانصراف، وما بينه وبين 14:00 بلا إذنٍ يُعدّ (م-1) — إلّا في
+          يوم الغياب (م-9).
+
+        والكتابةُ تحت قفل صفّ الموظّف — القفلِ نفسِه الذي يأخذه ``PermitService.act`` —
+        فلا يكتب رصدٌ فوق ما أعادت ``reconcile`` حسابَه، ولا يتسابق راصدان.
+        """
+        now = _now()
+        absence_type = StaffAttendanceService._check_input(
+            school, staff, day, status, actor, check_in, check_out, absence_type, now
+        )
         CustomUser.objects.select_for_update().filter(pk=staff.pk).first()
         record = StaffAttendanceService._locked_record(school, staff, day)
         if accepted_excuse is None:
@@ -1835,6 +1856,37 @@ class StaffAttendanceService:
                 ),
             ),
         }
+        return StaffAttendanceService._write_mark(
+            school,
+            staff,
+            day,
+            actor,
+            record,
+            values,
+            check_in,
+            now,
+            status,
+            basis,
+            withdrawing,
+            request,
+        )
+
+    @staticmethod
+    def _write_mark(
+        school: School,
+        staff: CustomUser,
+        day: date,
+        actor: CustomUser,
+        record: StaffAttendance | None,
+        values: dict[str, Any],
+        check_in: time | None,
+        now: datetime,
+        status: str,
+        basis: dict[str, Any],
+        withdrawing: bool,
+        request: HttpRequest | None,
+    ) -> StaffAttendance:
+        """يكتب سجلَّ الرصد: إنشاءً أو تحديثاً — ولا يكتب ما لم يتغيّر — ويُدقَّق بالتغيير."""
         if record is None:
             values["covered_at"] = StaffAttendanceService._covered_at(
                 StaffAttendance(), values, check_in, now
