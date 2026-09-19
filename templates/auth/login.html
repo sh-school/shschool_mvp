@@ -6,7 +6,7 @@
   <meta name="theme-color" content="{% brand_color 'MAROON' %}" id="meta-theme-color">
   <meta name="color-scheme" content="light" id="meta-color-scheme">
   <script nonce="{{ request.csp_nonce }}">
-    (function(){var t=localStorage.getItem('theme'),isDark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='{% brand_color "MAROON_BG" "dark" %}';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
+    (function(){var t=localStorage.getItem('theme'),isDark=t==='dark';if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='{% brand_color "MAROON_BG" "dark" %}';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
   </script>
   <title>تسجيل الدخول — {{ current_school.name|default:"المدرسة" }}</title>
   {% load static %}

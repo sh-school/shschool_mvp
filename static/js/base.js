@@ -698,14 +698,6 @@ document.addEventListener('click', function(e) {
     localStorage.setItem('theme', theme);
     updateIcon();
   });
-
-  // Listen for system preference changes
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
-    if (!localStorage.getItem('theme')) {
-      document.documentElement.classList.toggle('dark', e.matches);
-      updateIcon();
-    }
-  });
 })();
 
 /* ── الورقُ نهاريٌّ دائماً ──

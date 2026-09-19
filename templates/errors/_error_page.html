@@ -72,17 +72,8 @@
     }
     .error-icon-bg svg { width: 40px; height: 40px; }
   </style>
-  {% comment %}
-  الليلُ مرّتان بالقيم نفسها: تفضيلُ النظام يعمل ولو مُنع السكربتُ (صفحةُ 500 بلا
-  nonce)، و`html.dark` يتبع اختيارَ المستخدم المحفوظ في المنصّة.
-  {% endcomment %}
+  {% comment %}النهاريُّ هو الافتراضيّ؛ الليلُ باختيار المستخدم المحفوظ وحدَه (`html.dark`) لا بتفضيل النظام.{% endcomment %}
   <style>
-    @media (prefers-color-scheme: dark) {
-      body { background: linear-gradient(145deg, {% brand_color "PAGE_BG" "dark" %} 0%, {% brand_color "MAROON_BG" "dark" %} 50%, {% brand_color "PAGE_BG" "dark" %} 100%); color: {% brand_color "TEXT_PRIMARY" "dark" %}; }
-      .error-card { background: {% brand_color "SURFACE" "dark" %}; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
-      .error-title { color: {% brand_color "TEXT_PRIMARY" "dark" %}; }
-      .error-desc, .error-footer { color: {% brand_color "TEXT_MUTED" "dark" %}; }
-    }
     html.dark body { background: linear-gradient(145deg, {% brand_color "PAGE_BG" "dark" %} 0%, {% brand_color "MAROON_BG" "dark" %} 50%, {% brand_color "PAGE_BG" "dark" %} 100%); color: {% brand_color "TEXT_PRIMARY" "dark" %}; }
     html.dark .error-card { background: {% brand_color "SURFACE" "dark" %}; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
     html.dark .error-title { color: {% brand_color "TEXT_PRIMARY" "dark" %}; }
@@ -94,7 +85,7 @@
   </style>
   <script nonce="{{ request.csp_nonce }}">
     (function(){var t=localStorage.getItem('theme');
-    if(t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches))
+    if(t==='dark')
       document.documentElement.classList.add('dark');
     })();
   </script>
