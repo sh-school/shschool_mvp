@@ -21,10 +21,11 @@ from core.models import AuditLog
 from . import evaluation_selectors as selectors
 from .evaluation_services import (
     EvaluationRejectedError,
+    developer_trial_note,
     file_grievance,
     grievance_stage,
     is_academic_year,
-    is_school_principal,
+    may_act_as_principal,
 )
 from .evaluation_services import record_grievance_decision as record_decision_service
 from .models import EmployeeEvaluation
@@ -71,7 +72,7 @@ def evaluation_grievances(request):
     مديرُ المدرسة: التظلّماتُ المقدَّمةُ ومرحلةُ كلٍّ منها، وتدوينُ قرار اللجنة. ومطوّرُ المنصّة
     (`is_superuser`) يرى ما يراه المديرُ **للعرض وحدَه** — التدوينُ للمدير (`record_grievance_decision`).
     """
-    can_record = is_school_principal(request.school, request.user)
+    can_record = may_act_as_principal(request.school, request.user)
     if not (can_record or request.user.is_superuser):
         return HttpResponse("غير مسموح — لمدير المدرسة وحده", status=403)
     year = request.GET.get("year") or academic_year_for(request)
@@ -121,6 +122,7 @@ def record_grievance_decision(request, eval_id):
                 "grievance_decided_on": str(obj.grievance_decided_on or ""),
                 "grievance_outcome": obj.grievance_outcome,
                 "grievance_decision_approved_on": str(obj.grievance_decision_approved_on or ""),
+                **developer_trial_note(request.school, request.user),
             },
         )
         messages.success(request, "دُوِّن قرارُ اللجنة.")
