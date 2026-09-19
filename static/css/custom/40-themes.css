@@ -24,6 +24,7 @@ html.dark {
 
   --border:         #334155;
   --border-strong:  #475569;
+  --control-border: #64748b;
   --surface:        #1e293b;
   --surface-alt:    #0f172a;
   /* أرضيّةُ الصفحة كانت بلا قيمةٍ ليليّة، تعمل لأنّ `html.dark body` تتجاوزها
@@ -278,7 +279,7 @@ html.dark .form-select,
 html.dark .filter-bar select,
 html.dark .filter-bar input {
   background: var(--surface-alt);
-  border-color: var(--border-strong);
+  border-color: var(--control-border);
   color: var(--text-primary);
 }
 html.dark .form-control:focus,

@@ -823,11 +823,11 @@ tr.active {
 .filter-bar select,
 .filter-bar input {
   padding: 7px 12px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-border);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
   font-family: inherit;
-  background: var(--surface-alt);
+  background: var(--surface);
   color: var(--text-primary);
   outline: none;
   transition: border-color .12s;
@@ -1087,12 +1087,12 @@ main.page-wide {
   box-sizing: border-box;
   width: 100%;
   padding: 10px 14px;
-  border: 1.5px solid var(--border-strong);
+  border: 1.5px solid var(--control-border);
   border-radius: var(--radius);
   font-size: 13.5px;
   font-family: inherit;
   color: var(--text-primary);
-  background: var(--surface-alt);
+  background: var(--surface);
   outline: none;
   transition: border-color .12s, box-shadow .12s, background .12s;
 }
