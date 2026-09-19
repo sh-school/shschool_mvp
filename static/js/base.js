@@ -702,6 +702,15 @@ document.addEventListener('click', function(e) {
   });
 })();
 
+/* قائمةُ التصدير في لوح الجناح (details): تُغلق بالنقر خارجها وبـEsc، فلا تبقى عدّةُ قوائمَ مفتوحةً معاً. */
+(function () {
+  function closeMenus(except) {
+    document.querySelectorAll('.per-exports-menu[open]').forEach(function (d) { if (d !== except) d.removeAttribute('open'); });
+  }
+  document.addEventListener('click', function (e) { closeMenus(e.target.closest('.per-exports-menu')); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenus(null); });
+})();
+
 /* ── الورقُ نهاريٌّ دائماً ──
    قواعدُ الوضع الداكن لا تعرف الطباعة: من طبع صفحةً وهو في الليل خرجت بطاقاتٌ
    كحليّةٌ بنصٍّ فاتحٍ (#f1f5f9) — حبرٌ يُهدَر إن طُبعت الخلفيّات، وبياضٌ على

@@ -439,7 +439,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   /* رصد الغياب: أجنحةٌ أعمدةٌ متجاورة وشُعبُها رأسيّة. */
   #main-content.page-noscroll > .exec-dash > .wing-cols {
     display: grid;
-    flex: 1;
+    flex: 0 1 auto;
     min-height: 120px;
     gap: var(--sp-2);
     grid-auto-flow: column;
@@ -448,7 +448,6 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   }
   #main-content.page-noscroll .wing-cols > .wing-panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
   #main-content.page-noscroll .wing-cols .wing-panel__bar { flex-wrap: wrap; row-gap: 6px; }
-  #main-content.page-noscroll .wing-cols .wing-panel__bar .per-exports { margin-inline-start: 0; inline-size: 100%; }
   #main-content.page-noscroll .wing-cols .rec-sections {
     flex: 1;
     min-height: 0;
@@ -457,16 +456,6 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
     grid-template-columns: 1fr;
     padding: var(--sp-2);
   }
-  /* رقاقةُ الشعبة سطرٌ ملتفٌّ لتتّسع الشُّعبُ بلا تمرير. */
-  #main-content.page-noscroll .wing-cols .rec-chip {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 2px var(--sp-2);
-    padding: 6px 10px;
-    min-height: 0;
-  }
-  #main-content.page-noscroll .wing-cols .rec-chip__meta:last-child { margin-inline-start: auto; }
   /* شُعبُ مركز المعلومات: من أعلى الشبكة لا مُطاطةً. */
   #main-content.page-noscroll > .exec-dash > .ui-entity-grid:last-child { align-content: start; }
   /* تقييم الأداء: بطاقتان صغيرتان في سطر. */
