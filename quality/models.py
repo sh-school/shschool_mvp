@@ -750,6 +750,11 @@ class EmployeeEvaluation(models.Model):
         ("acceptable", "مقبول (65–50)"),
         ("weak", "ضعيف (أقل من 50)"),
     ]
+    #: قرارُ لجنة موظفي المدارس في التظلّم (المادة 20): «بتعديل التقرير»، أو الرفضُ.
+    GRIEVANCE_OUTCOMES = [
+        ("rejected", "رفضُ التظلّم"),
+        ("modified", "تعديلُ التقرير"),
+    ]
     STATUS = [
         ("draft", "مسودة"),
         ("submitted", "مُقدَّم"),
@@ -812,6 +817,15 @@ class EmployeeEvaluation(models.Model):
     )
     grievance_decided_on = models.DateField(
         null=True, blank=True, verbose_name="تاريخ إخطار الموظّف بقرار اللجنة"
+    )
+    #: سببُ التظلّم بقلم الموظّف — يُحال إلى لجنة موظفي المدارس مع التقرير.
+    grievance_reason = models.TextField(blank=True, db_default="", verbose_name="سبب التظلّم")
+    grievance_outcome = models.CharField(
+        max_length=10,
+        choices=GRIEVANCE_OUTCOMES,
+        blank=True,
+        db_default="",
+        verbose_name="قرار اللجنة في التظلّم",
     )
     #: «ويكون قرار اللجنة في التظلم نهائياً بعد اعتماده من الوزير» (المادة 20، صفحة الملفّ 13).
     grievance_decision_approved_on = models.DateField(
@@ -1018,6 +1032,8 @@ class EmployeeEvaluation(models.Model):
         """
         super().clean()
         errors = self._grievance_order_errors()
+        if self.grievance_outcome and self.grievance_decided_on is None:
+            errors["grievance_outcome"] = "قرارٌ بلا تاريخ إخطار الموظّف به (المادة 20)."
         deadline = self.grievance_deadline()
         if (
             "grievance_submitted_on" not in errors
