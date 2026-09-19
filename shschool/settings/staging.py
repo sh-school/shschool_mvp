@@ -32,7 +32,7 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.logging import LoggingIntegration
     from sentry_sdk.integrations.redis import RedisIntegration
 
-    from core.sentry_config import before_send, traces_sampler
+    from core.sentry_config import SENTRY_EXCLUDE_BEAT_TASKS, before_send, traces_sampler
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,
@@ -43,7 +43,9 @@ if SENTRY_DSN:
                 signals_spans=True,
                 cache_spans=True,
             ),
-            CeleryIntegration(monitor_beat_tasks=True),
+            CeleryIntegration(
+                monitor_beat_tasks=True, exclude_beat_tasks=SENTRY_EXCLUDE_BEAT_TASKS
+            ),
             RedisIntegration(),
             LoggingIntegration(level=None, event_level="ERROR"),
         ],
