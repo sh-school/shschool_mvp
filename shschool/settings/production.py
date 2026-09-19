@@ -66,7 +66,7 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.logging import LoggingIntegration
     from sentry_sdk.integrations.redis import RedisIntegration
 
-    from core.sentry_config import before_send, traces_sampler
+    from core.sentry_config import SENTRY_EXCLUDE_BEAT_TASKS, before_send, traces_sampler
 
     # [B4-7Q.1] خياراتُ الأداء كتلةٌ واحدة تُبدَّل، لا ثلاثة أسطر تُنسى واحدةً.
     #
@@ -97,7 +97,8 @@ if SENTRY_DSN:
                 cache_spans=True,  # قياس أداء cache
             ),
             CeleryIntegration(
-                monitor_beat_tasks=True,  # مراقبة Celery Beat
+                monitor_beat_tasks=True,  # مراقبة Celery Beat — للنبضة وحدها (حصّة الخطّة)
+                exclude_beat_tasks=SENTRY_EXCLUDE_BEAT_TASKS,
             ),
             RedisIntegration(),
             LoggingIntegration(

@@ -58,6 +58,22 @@ def ignored_exception_types():
     )
 
 
+#: مهامُّ Beat التي يراقبها Sentry Crons — بأسماء مداخل `beat_schedule`.
+#:
+#: `monitor_beat_tasks=True` وحدها تُنشئ مراقباً لكلّ مهمّةٍ مجدولة (11 اليوم)،
+#: والخطّةُ المجّانيّة تتّسع لمراقبٍ واحد: استُنفدت الحصّة (2026-09-19 «Usage
+#: Exceeded») فصارت المراقبةُ نفسُها مهدَّدةً بفقد البيانات. والنبضةُ هي التي
+#: تدلّ على موت العامل؛ الباقي تُكشف أعطالُه أخطاءً عاديّة لا مراقبَ لكلٍّ منها.
+SENTRY_MONITORED_BEAT_TASKS = ("worker-heartbeat",)
+
+#: تعبيرٌ نمطيّ يستثني كلّ مدخلٍ عدا المراقَبة — يُمرَّر إلى `exclude_beat_tasks`.
+#: والمرساةُ `^` لازمة: السكربتُ يستعمل `re.search` لا `re.match`، فبدونها يلتقط
+#: التعبيرُ ما بعد الحرف الأوّل ويستثني النبضةَ نفسَها.
+SENTRY_EXCLUDE_BEAT_TASKS = [
+    rf"^(?!(?:{'|'.join(map(re.escape, SENTRY_MONITORED_BEAT_TASKS))})$).*"
+]
+
+
 # مسارات URL لا تُسجّل أخطاؤها (health probes, static, media)
 _IGNORED_URL_PATTERNS = re.compile(
     r"^/(health|ready|status|favicon\.ico|static|media|robots\.txt|\.well-known)/?"
