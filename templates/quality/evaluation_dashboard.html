@@ -2,12 +2,15 @@
 {% load ui %}
 {% block title %}تقييم أداء الموظفين — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
+{# الصفحةُ لا تُمرَّر: القسمان الصغيران في سطرٍ واحد، وجدولُ الموظفين يملأ الباقي ويُمرَّر وحدَه. #}
+{% block main_class %}page-noscroll{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/quality/" parent_label="ضمان الجودة" current="تقييم أداء الموظفين" %}
 {% endblock %}
 
 {% block content %}
-<div class="qeval">
+<div class="qeval exec-dash">
 
   {% page_header "تقييم أداء الموظفين" subtitle="القرار الأميري 9/2016 · QNSA المعيار 1" icon="staff_evaluation" %}{% endpage_header %}
 
@@ -20,6 +23,7 @@
   {% endkpi_strip %}
   {% endif %}
 
+  <div class="auto-grid qeval-side">
   {% section_card "دورات التقييم" meta=cycle_stats|length icon="date" empty="لا دوراتِ تقييمٍ لهذا العام" %}{% if cycle_stats %}
     <ul class="plain-list">
       {% for cs in cycle_stats %}
@@ -34,6 +38,24 @@
       {% endfor %}
     </ul>
   {% endif %}{% endsection_card %}
+
+  {% section_card "التقييمات الأخيرة" meta=recent_evals|length icon="staff_evaluation" empty="لا توجد تقييمات بعد لهذا العام" %}{% if recent_evals %}
+    <ul class="plain-list is-scroll" id="eval-recent-list">
+      {% for ev in recent_evals %}
+      <li class="plain-list__row" data-text="{{ ev.employee.full_name }} {{ ev.get_period_display }}">
+        <span class="plain-list__main">
+          <b class="plain-list__title">{{ ev.employee.full_name }}</b>
+          <span class="plain-list__sub">{{ ev.get_period_display }} · {{ ev.academic_year }} · المقيِّم: {{ ev.evaluator.full_name }}</span>
+        </span>
+        <span class="qeval-recent__end">
+          <b class="grade-total is-{{ ev.score_tone }}">{{ ev.total_score }}</b>
+          <span class="status-badge status-{{ ev.status_tone }}">{{ ev.get_status_display }}</span>
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}{% endsection_card %}
+  </div>
 
   {% if staff_list %}
   {% section_card "الموظفون القابلون للتقييم" icon="staff" flush=True %}
@@ -80,23 +102,6 @@
     </div>
   {% endsection_card %}
   {% endif %}
-
-  {% section_card "التقييمات الأخيرة" meta=recent_evals|length icon="staff_evaluation" empty="لا توجد تقييمات بعد لهذا العام" %}{% if recent_evals %}
-    <ul class="plain-list is-scroll" id="eval-recent-list">
-      {% for ev in recent_evals %}
-      <li class="plain-list__row" data-text="{{ ev.employee.full_name }} {{ ev.get_period_display }}">
-        <span class="plain-list__main">
-          <b class="plain-list__title">{{ ev.employee.full_name }}</b>
-          <span class="plain-list__sub">{{ ev.get_period_display }} · {{ ev.academic_year }} · المقيِّم: {{ ev.evaluator.full_name }}</span>
-        </span>
-        <span class="qeval-recent__end">
-          <b class="grade-total is-{{ ev.score_tone }}">{{ ev.total_score }}</b>
-          <span class="status-badge status-{{ ev.status_tone }}">{{ ev.get_status_display }}</span>
-        </span>
-      </li>
-      {% endfor %}
-    </ul>
-  {% endif %}{% endsection_card %}
 
 </div>
 {% endblock %}
