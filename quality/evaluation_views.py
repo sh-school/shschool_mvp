@@ -31,6 +31,7 @@ from .evaluation_services import (
     annual_rating_summary,
     axis_values,
     form_template_ok,
+    grievance_stage,
     is_academic_year,
     is_school_principal,
     placement_rejection,
@@ -39,7 +40,7 @@ from .evaluation_services import (
 )
 from .evaluation_services import approve_evaluation as approve_evaluation_service
 from .models import EmployeeEvaluation
-from .presentation import evaluation_rating_tone, evaluation_status_tone
+from .presentation import evaluation_rating_tone, evaluation_status_tone, grievance_stage_tone
 
 
 #: يُقرأ وقت الطلب لا وقت الاستيراد — ثابتُ الوحدة يتجمّد عند إقلاع العملية.
@@ -95,6 +96,12 @@ def evaluation_dashboard(request):
             "staff_list": staff_list,
             "year": year,
             "school": school,
+            "is_principal": is_school_principal(school, request.user),
+            "grievances_waiting": sum(
+                1
+                for g in selectors.get_grievances(school, year)
+                if grievance_stage(g).code in ("filed", "decided")
+            ),
         },
     )
 
@@ -350,6 +357,9 @@ def my_evaluations(request):
     for ev in evals:
         ev.card_title = f"{ev.get_period_display()} — {ev.academic_year}"
         ev.score_tone = evaluation_rating_tone(ev.rating)
+        ev.grievance = grievance_stage(ev)
+        ev.grievance_tone = grievance_stage_tone(ev.grievance.code)
+        ev.grievance_outcome_label = ev.get_grievance_outcome_display()
     return render(
         request,
         "quality/my_evaluations.html",
