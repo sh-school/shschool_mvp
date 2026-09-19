@@ -1001,7 +1001,7 @@ def summon_parent(request, student_id=None):
             parents_info.append(
                 {
                     "name": link.parent.full_name,
-                    "phone": link.parent.phone or "",
+                    "phone": link.parent.get_phone_decrypted() or "",
                     "relationship": link.get_relationship_display(),
                     "is_primary": link.is_primary,
                 }
