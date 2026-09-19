@@ -62,10 +62,10 @@ def evaluation_status_tone(status: str) -> str:
 
 
 def evaluation_rating_tone(rating: str) -> str:
-    """لونُ الدرجة: ممتازٌ أخضر، ويحتاج تطويراً أحمر، وما بينهما كهرمانيّ — كما كان."""
+    """لونُ المستوى: ممتازٌ أخضر، وضعيفٌ أحمر، وما بينهما (جيد جداً، جيد، مقبول) كهرمانيّ."""
     if rating == "excellent":
         return "success"
-    if rating == "needs_dev":
+    if rating == "weak":
         return "danger"
     return "warning"
 
