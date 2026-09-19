@@ -679,15 +679,15 @@ class TestEmployeeEvaluation:
         assert ev.total_score == 80
         assert ev.rating == "very_good"
 
-    def test_calculate_total_good(self):
+    def test_calculate_total_acceptable(self):
         ev = self._eval(prof=15, commit=15, team=15, dev=18)
         assert ev.total_score == 63
-        assert ev.rating == "good"
+        assert ev.rating == "acceptable"
 
-    def test_calculate_total_needs_dev(self):
+    def test_calculate_total_weak(self):
         ev = self._eval(prof=10, commit=10, team=10, dev=10)
         assert ev.total_score == 40
-        assert ev.rating == "needs_dev"
+        assert ev.rating == "weak"
 
     def test_boundary_90(self):
         ev = self._eval(prof=25, commit=25, team=25, dev=15)
@@ -697,17 +697,17 @@ class TestEmployeeEvaluation:
     def test_boundary_75(self):
         ev = self._eval(prof=20, commit=20, team=20, dev=15)
         assert ev.total_score == 75
-        assert ev.rating == "very_good"
+        assert ev.rating == "good"
 
     def test_boundary_60(self):
         ev = self._eval(prof=15, commit=15, team=15, dev=15)
         assert ev.total_score == 60
-        assert ev.rating == "good"
+        assert ev.rating == "acceptable"
 
     def test_boundary_59(self):
         ev = self._eval(prof=15, commit=15, team=15, dev=14)
         assert ev.total_score == 59
-        assert ev.rating == "needs_dev"
+        assert ev.rating == "acceptable"
 
     def test_str(self):
         ev = self._eval()

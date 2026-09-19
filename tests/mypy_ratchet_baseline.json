@@ -138,7 +138,7 @@
   "operations/services/swap.py": 5,
   "operations/services/teacher_load.py": 1,
   "operations/tardiness.py": 4,
-  "quality/models.py": 45,
+  "quality/models.py": 35,
   "quality/observation_models.py": 8,
   "quality/querysets.py": 5,
   "scripts/seed_data.py": 8,
@@ -156,5 +156,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1840
+ "total": 1830
 }

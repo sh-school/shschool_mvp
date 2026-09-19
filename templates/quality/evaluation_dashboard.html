@@ -12,14 +12,16 @@
 {% block content %}
 <div class="qeval exec-dash">
 
-  {% page_header "تقييم أداء الموظفين" subtitle="القرار الأميري 9/2016 · QNSA المعيار 1" icon="staff_evaluation" %}{% endpage_header %}
+  {% page_header "تقييم أداء الموظفين" subtitle="النظام الوظيفي لموظفي المدارس (قرار 32/2019) · المواد 15–21" icon="staff_evaluation" %}{% endpage_header %}
 
-  {% if avg_score %}
+  {% if avg_score is not None %}
   {% kpi_strip label="أرقام التقييم" %}
-    {% kpi "متوسط الدرجات" avg_score title="متوسط التقييمات المقدَّمة والمعتمدة والمستلمة" %}
+    {% kpi "متوسط الدرجات" avg_score title="متوسط التقارير السنوية على استمارة الوزارة: المقدَّمة والمعتمدة والمستلمة" %}
     {% kpi "ممتاز" rating_dist.excellent|default:0 tone="green" %}
     {% kpi "جيد جداً" rating_dist.very_good|default:0 tone="blue" %}
-    {% kpi "يحتاج تطوير" rating_dist.needs_dev|default:0 tone="amber" %}
+    {% kpi "جيد" rating_dist.good|default:0 tone="amber" %}
+    {% kpi "مقبول" rating_dist.acceptable|default:0 tone="amber" %}
+    {% kpi "ضعيف" rating_dist.weak|default:0 tone="red" %}
   {% endkpi_strip %}
   {% endif %}
 
@@ -30,7 +32,7 @@
       <li class="plain-list__row">
         <span class="plain-list__main">
           <b class="plain-list__title">{{ cs.cycle.get_period_display }}</b>
-          <span class="plain-list__sub">الموعد النهائي: {{ cs.cycle.deadline }}</span>
+          <span class="plain-list__sub">الموعد النهائي: {{ cs.cycle.deadline }}{% if cs.cycle.deadline_outside_article_16 %} · خارج النصف الأوّل من يونيو (المادة 16){% endif %}</span>
         </span>
         <span class="qeval-cycle__bar progress-qatar" aria-hidden="true"><span class="progress-qatar-fill pf-{{ cs.tone }}" style="--progress-w:{{ cs.completion_rate }}%"></span></span>
         <span class="status-badge status-{{ cs.tone }}">{{ cs.completion_rate }}% مكتمل</span>
@@ -72,8 +74,8 @@
           <tr>
             <th scope="col">الموظف</th>
             <th scope="col">الدور</th>
-            <th scope="col" class="num">الفصل الأول (S1)</th>
-            <th scope="col" class="num">نهاية العام (S2)</th>
+            <th scope="col" class="num">متابعة داخليّة (S1)</th>
+            <th scope="col" class="num">التقرير السنويّ (S2)</th>
           </tr>
         </thead>
         <tbody id="eval-staff-tbody">
@@ -82,15 +84,22 @@
             <td>{{ s.user.full_name }}</td>
             <td class="pr-muted">{{ s.role_display }}</td>
             <td class="num">
-              {% if s.s1 %}
+              {# المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف» — لا يُقيِّم أحدٌ نفسَه. #}
+              {% if s.is_self or not s.can_place %}
+                <span class="pr-muted">—</span>
+              {% elif s.s1 %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S1&year={{ year }}" class="status-badge status-{{ s.s1_tone }}">{{ s.s1.total_score }} · {{ s.s1.get_status_display }}</a>
               {% else %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S1&year={{ year }}" class="btn-primary btn-sm">تقييم</a>
               {% endif %}
             </td>
             <td class="num">
-              {% if s.s2 %}
+              {% if s.is_self or not s.can_place %}
+                <span class="pr-muted">—</span>
+              {% elif s.s2 %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S2&year={{ year }}" class="status-badge status-{{ s.s2_tone }}">{{ s.s2.total_score }} · {{ s.s2.get_status_display }}</a>
+              {% elif s.s2_blocked %}
+                <span class="pr-muted">{{ s.s2_blocked }}</span>
               {% else %}
                 <a href="{% url 'create_evaluation' s.user.id %}?period=S2&year={{ year }}" class="btn-primary btn-sm">تقييم</a>
               {% endif %}

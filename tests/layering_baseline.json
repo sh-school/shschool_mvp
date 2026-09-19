@@ -163,7 +163,6 @@
   "operations/views_attendance.py": 9,
   "operations/views_swap.py": 11,
   "parents/views.py": 16,
-  "quality/evaluation_views.py": 4,
   "quality/observation_views.py": 6,
   "quality/views.py": 12,
   "quality/views_committee.py": 5,
@@ -527,19 +526,6 @@
   },
   "parents/views.py::student_grades": {
    "orm": 9
-  },
-  "quality/evaluation_views.py::_get_axes_for_employee": {
-   "orm": 10
-  },
-  "quality/evaluation_views.py::_get_evaluable_staff": {
-   "orm": 7
-  },
-  "quality/evaluation_views.py::create_evaluation": {
-   "lines": 66,
-   "orm": 23
-  },
-  "quality/evaluation_views.py::evaluation_dashboard": {
-   "orm": 24
   },
   "quality/observation_views.py::_form_context": {
    "orm": 18
