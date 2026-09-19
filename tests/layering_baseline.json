@@ -58,13 +58,6 @@
   },
   {
    "from": 0,
-   "metric": "lines",
-   "reason": "نقلٌ حرفيٌّ من core/views_media.py إلى governance (ADR-0004): الدَّينُ نفسُه بعينه لا زيادةٌ جديدة — كان مسجَّلاً باسم الملفّ القديم",
-   "to": 61,
-   "where": "governance/views_media.py::_resolve_file_access"
-  },
-  {
-   "from": 0,
    "metric": "orm",
    "reason": "نقلٌ حرفيٌّ من core/views_media.py إلى governance (ADR-0004): الدَّينُ نفسُه بعينه لا زيادةٌ جديدة — كان مسجَّلاً باسم الملفّ القديم",
    "to": 6,
@@ -399,9 +392,6 @@
   },
   "exam_control/views.py::supervisors": {
    "orm": 12
-  },
-  "governance/views_media.py::_resolve_file_access": {
-   "lines": 61
   },
   "governance/views_media.py::serve_db_file": {
    "orm": 6
