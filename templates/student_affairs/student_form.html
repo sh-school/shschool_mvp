@@ -4,6 +4,9 @@
 
 {% block title %}{% if mode == "add" %}إضافة طالب{% else %}تعديل طالب{% endif %}{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}page-noscroll{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/student-affairs/list/" parent_label="سجل الطلاب" current=block.super %}
 {% endblock %}

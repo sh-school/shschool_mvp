@@ -4,6 +4,9 @@
 
 {% block title %}إحصائيات الغياب — شؤون الطلاب{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}page-noscroll{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="إحصائيات الغياب" %}
 {% endblock %}
@@ -28,6 +31,7 @@
     {% kpi "معذورون" summary.excused tone="blue" %}
   {% endkpi_strip %}
 
+  <div class="fill-grid" style="--flow: row; --tc: repeat(2, minmax(0, 1fr)); --rows: 2">
   {% section_card "اتجاه الحضور والغياب" meta="آخر 14 يوماً" icon="trend" %}
     <div class="dash-chart-wrap">
       <canvas id="attendanceChart" role="img" aria-label="رسم بياني: نسبتا الحضور والغياب آخر 14 يوماً"></canvas>
@@ -63,7 +67,6 @@
     </div>
   {% endif %}{% endsection_card %}
 
-  <div class="ui-grid-2">
     {% section_card "أكثر الطلاب غياباً" meta="آخر 30 يوماً" icon="stats" empty="لا بيانات غياب في آخر 30 يوماً" %}{% if worst_students %}
       <ol class="plain-list is-scroll">
         {% for s in worst_students %}
@@ -96,7 +99,7 @@
 {% block extra_js %}
 <script src="{% static 'js/vendor/chart.umd.min.js' %}" defer></script>
 <script nonce="{{ request.csp_nonce }}" defer>
-(function() {
+document.addEventListener('DOMContentLoaded', function() {
   var ctx = document.getElementById('attendanceChart');
   if (!ctx) return;
 
@@ -168,6 +171,6 @@
       }
     }
   });
-})();
+});
 </script>
 {% endblock %}

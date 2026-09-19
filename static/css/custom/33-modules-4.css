@@ -341,7 +341,6 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .wing-panel__sub {
   font-size: var(--text-xs);
   font-weight: 400;
-  opacity: .85;
   margin-inline-start: auto;
 }
 
@@ -604,19 +603,21 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
   gap: var(--sp-2);
 }
+/* رقاقةُ الشعبة: رمزٌ وحالتُها وعدّادُها في سطرٍ ملتفٍّ، ونقاطُ الحصص تحتها، وعددُ الطلاب في الطرف. */
 .rec-chip {
   display: flex;
-  flex-direction: column;
-  gap: var(--sp-0-5);
-  padding: var(--sp-3);
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1) var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
   border: 1px solid var(--border);
   border-inline-start: 4px solid var(--status-warning);
   border-radius: var(--radius-md);
   background: var(--surface);
   text-decoration: none;
-  min-height: 72px;
   transition: box-shadow var(--transition-base), border-color var(--transition-base);
 }
+.rec-chip__meta:last-child { margin-inline-start: auto; }
 .rec-chip:hover { box-shadow: var(--shadow-sm); border-color: var(--maroon-border); }
 /* رُصدت: أخضرُ مطفأٌ — و«لم تُرصد» تبقى كهرمانيّةً حتّى تُرصد. */
 .rec-chip.is-done { border-inline-start-color: var(--status-success); }
@@ -629,7 +630,9 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 }
 .rec-chip__say { font-size: var(--text-sm); color: var(--text-secondary); }
 .rec-chip.is-done .rec-chip__say { color: var(--status-success-fg); font-weight: 600; }
-.rec-chip__meta { font-size: var(--text-xs); color: var(--text-muted); }
+.rec-chip__meta { font-size: var(--text-xs); color: var(--text-secondary); }
+/* نقاطُ الحصص لا تظهر إلّا حين يكون فيها ما يُقال: كلُّها بلا حالةٍ = لا معلومة. */
+.per-track:not(:has(.is-present, .is-confirmed, .is-absent, .is-missed, .is-late, .is-confirmed_late, .is-current)) { display: none; }
 
 /* ── قائمةُ الطلاب ── */
 .rec-row {
@@ -942,7 +945,24 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-bar__actions .btn-primary, .per-bar__actions .btn-secondary { min-height: 44px; }
 
 /* أزرارُ التصدير والطباعة: في رأس كشف الشعبة، وفي شريط بطاقة الجناح بعد عدّاد الانتظار. */
-.per-exports { display: flex; gap: var(--sp-1-5); flex-wrap: wrap; align-items: center; }
+/* مفاتيحُ التصدير والطباعة سطرٌ واحدٌ لا يلتفّ؛ والقائمةُ تضيق أوّلاً. */
+.per-exports { display: flex; gap: var(--sp-2); flex-wrap: nowrap; align-items: center; min-inline-size: 0; }
+.per-exports .btn-sm { flex-shrink: 0; white-space: nowrap; padding-inline: var(--sp-2); }
+/* قائمةُ التصدير: زرٌّ لكلّ جناحٍ تُفتح في حدّ لوحه (مرساتُها ترويسةُ اللوح لا الزرّ) فلا تخرج عن الصفحة. */
+.wing-panel__bar { position: relative; }
+.per-exports-menu { position: static; }
+.per-exports-menu > summary { list-style: none; cursor: pointer; }
+.per-exports-menu > summary::-webkit-details-marker { display: none; }
+.per-exports-menu[open] > .per-exports {
+  position: absolute; inset-inline-end: var(--sp-3); inset-block-start: calc(100% + 6px); z-index: 20;
+  padding: var(--sp-2); background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-md); color: var(--text-primary);
+}
+.per-exports-menu[open] > .per-exports { flex-direction: column; align-items: stretch; gap: var(--sp-1); inline-size: max-content; min-inline-size: 11rem; }
+.per-exports-menu[open] .per-orient { inline-size: 100%; min-inline-size: 0; }
+.per-exports-menu[open] .btn-sm { justify-content: flex-start; }
+.per-exports-menu .per-exports { margin: 0; }
+.per-exports .per-orient { flex: 0 0 auto; min-inline-size: 6rem; }
 .wing-panel__bar .per-exports { margin-inline-start: auto; }
 .per-orient { width: auto; min-height: 32px; padding-block: var(--sp-0-5); font-size: var(--text-xs); }
 
@@ -1034,6 +1054,9 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .ui-section .empty-state-v2 .es-icon { margin-bottom: var(--sp-2); }
 .ui-section .empty-state-v2 .es-title { font-size: var(--text-base); margin-bottom: var(--sp-1); }
 .ui-section .empty-state-v2 .es-sub { margin-bottom: 0; }
+/* شريطُ البطاقة بلونه الواحد في كلّ بطاقة؛ وحين يليه جدولٌ عنّابيُّ الترويسة يفصل بينهما خطٌّ بلون السطح، وإلّا التحما كتلةً واحدة. */
+.ui-section.is-flush > .card-bar,
+.ui-section.is-flush > .ui-section__fold > .card-bar { border-block-end: 3px solid var(--surface); }
 .ui-section.is-flush > .card-bar { margin: 0; }
 .ui-section.is-flush > .ui-section__body > .table-wrap { border: 0; border-radius: 0; box-shadow: none; }
 /* `foldable=True`: الشريطُ نفسُه `<summary>` — بطاقةٌ يطول محتواها بطول سجلٍّ
@@ -1501,18 +1524,26 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 
 .beh-parents { margin-block-end: var(--sp-3); }
 
-/* نموذجُ الاستدعاء بجوار بطاقة المرسِل. */
-.beh-form-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
-  gap: var(--sp-2);
-  align-items: start;
-}
-@media (max-width: 900px) { .beh-form-grid { grid-template-columns: 1fr; } }
 .beh-fieldset { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
+/* استدعاء ولي أمر: بطاقتان متجاورتان — النموذجُ، وعمودٌ جانبيٌّ (أولياءُ الأمور، المرسِل، التنبيه). والطالبُ المحدَّد اسمٌ لا قائمة. */
+.beh-summon-cards { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-2); align-items: start; }
+.beh-side { display: flex; flex-direction: column; gap: var(--sp-2); min-inline-size: 0; }
+.beh-summon__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-3); }
+.beh-summon__trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 var(--sp-3); }
+@media (max-width: 900px) {
+  .beh-summon-cards, .beh-summon__pair, .beh-summon__trio { grid-template-columns: 1fr; }
+}
+.beh-summon-cards .beh-pills { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.beh-summon-cards .beh-pill { justify-content: center; }
+.beh-summon-cards .beh-fieldset { margin-block-end: var(--sp-2); }
+.beh-student-line {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3); border: 1.5px solid var(--control-border); border-radius: var(--radius);
+  background: var(--surface); color: var(--text-primary); font-size: var(--text-sm);
+}
 .beh-pills { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .beh-pill { display: inline-flex; align-items: center; gap: var(--sp-1-5); padding: var(--sp-1-5) var(--sp-3); border-radius: var(--radius-md); font-size: var(--text-sm); cursor: pointer; }
-.beh-pill input { accent-color: var(--maroon-fg); }
+.beh-pill input { accent-color: var(--maroon-fg); inline-size: auto; flex: none; }
 .beh-form-actions { margin-block-start: var(--sp-3); }
 
 /* خطواتُ التصعيد: الحاليّةُ مصمَتةٌ بلون الهويّة. */
@@ -1537,11 +1568,13 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 .beh-degree {
   min-inline-size: 0;
-  border: 1px solid var(--border);
-  border-block-start: 3px solid var(--kc);
+  /* إطارٌ كاملٌ بلون الدرجة (`--kc` من صنف النغمة) لا شريطٌ علويٌّ وحدَه — تُعرَف الدرجةُ من حدودها قبل نصّها. */
+  border: 1.5px solid var(--kc);
+  border-block-start-width: 4px;
   border-radius: var(--radius-md);
   background: var(--surface);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 .beh-degree.is-selected { box-shadow: 0 0 0 2px var(--kc); }
 .beh-degree__head {
@@ -1549,35 +1582,54 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-2);
-  padding: var(--sp-1-5) var(--sp-2-5);
-  font-size: var(--text-xs);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--kc-fg);
-  border-block-end: 1px solid var(--border);
+  background: color-mix(in srgb, var(--kc) 9%, var(--surface));
+  border-block-end: 1px solid color-mix(in srgb, var(--kc) 35%, var(--border));
 }
 .beh-degree__count {
+  min-inline-size: 26px;
   padding: 0 var(--sp-2);
+  text-align: center;
   border-radius: var(--radius-pill);
-  background: var(--surface-alt);
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--kc) 40%, var(--border));
   font-variant-numeric: tabular-nums;
 }
-.beh-degree__list { display: grid; gap: var(--sp-0-5); padding: var(--sp-1); max-block-size: 220px; overflow-y: auto; }
+.beh-degree__list { display: grid; align-content: start; padding: 0; max-block-size: 220px; overflow-y: auto; }
 .beh-vitem {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
   inline-size: 100%;
-  padding: var(--sp-1-5) var(--sp-2-5);
+  padding: var(--sp-2) var(--sp-3);
   text-align: start;
   font: inherit;
   font-size: var(--text-xs);
+  line-height: 1.55;
   color: var(--text-primary);
   background: transparent;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border: 0;
+  border-block-end: 1px solid var(--border);
+  border-radius: 0;
   cursor: pointer;
 }
-.beh-vitem:hover { background: var(--surface-alt); }
+.beh-vitem:last-child { border-block-end: 0; }
+.beh-vitem:hover { background: color-mix(in srgb, var(--kc) 8%, var(--surface)); }
 .beh-vitem:focus-visible { outline: 2px solid var(--focus-color); outline-offset: -2px; }
-.beh-vitem.is-selected { background: var(--status-info-bg); border-color: var(--status-info); font-weight: 700; }
-.beh-vitem__code { color: var(--kc-fg); font-variant-numeric: tabular-nums; }
+.beh-vitem.is-selected { background: color-mix(in srgb, var(--kc) 14%, var(--surface)); box-shadow: inset 3px 0 0 var(--kc); font-weight: 700; }
+.beh-vitem__code {
+  flex-shrink: 0;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--kc) 12%, var(--surface));
+  color: var(--kc-fg);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
 .beh-selected { margin-block-start: var(--sp-3); align-items: center; }
 .beh-selected > span { flex: 1; }
 

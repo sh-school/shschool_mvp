@@ -97,6 +97,7 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
 
   --border:         #e5e7eb;
   --border-strong:  #d1d5db;
+  --control-border: #6b7280;   /* حدُّ حقول الإدخال: 3.7 على خلفيّة الصفحة (WCAG 1.4.11 يطلب 3) و4.8 على الأبيض */
   --surface:        #ffffff;
   /* درجةٌ أعمق قليلاً بصبغةٍ كحليّةٍ خفيفة — تطابق فصيلةَ الليليّ (slate)
      نفسَها، لا رماديّاً محايداً. الفرقُ كان ضعيفاً جدّاً عن `--surface`
@@ -323,7 +324,7 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --breadcrumb-hover:    var(--maroon-dark);
   --scrollbar-track:     #f1f5f9;
   --scrollbar-thumb-hover: var(--maroon-light);
-  --placeholder:         #b3bac5;
+  --placeholder:         #6b7280;
   --table-stripe:        var(--surface-alt);
 
   /* أسطحٌ وحقول */

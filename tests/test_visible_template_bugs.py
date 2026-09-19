@@ -18,7 +18,6 @@ from core.academic_calendar import academic_year_for_school
 from notifications.models import InAppNotification
 from operations.models import ScheduleSlot, Subject, SubstituteAssignment, TeacherAbsence
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
-from tests.css_source import read_css
 
 TEMPLATES = Path(settings.BASE_DIR) / "templates"
 SUNDAY = dt.date(2026, 9, 13)
@@ -93,11 +92,8 @@ class TestTemplatesAgreeWithTheStylesheet:
         ]
         assert offenders == []
 
-    # `quick-links--few` كانت هنا — حُذفت مع «الوصول السريع» لمّا صار أزراراً في الترويسة.
-    @pytest.mark.parametrize("name", ["charts-grid-3"])
-    def test_the_grid_classes_the_dashboards_use_are_defined(self, name):
-        assert re.search(rf"\.{re.escape(name)}\s*\{{", read_css())
-
+    # `quick-links--few` و`charts-grid-3` كانتا هنا — حُذفتا: الأولى مع «الوصول السريع»،
+    # والثانية صارت ميتةً (لا قالبَ يستعملها) فأسقطها `test_dead_classes`.
     @pytest.mark.parametrize("page", ["clinic/dashboard.html", "library/dashboard.html"])
     def test_no_inline_column_count_beats_the_phone_rule(self, page):
         text = (TEMPLATES / page).read_text(encoding="utf-8")
