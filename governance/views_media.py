@@ -1,5 +1,5 @@
 """
-core/views_media.py
+governance/views_media.py
 خدمة الملفات المُخزَّنة في قاعدة البيانات (DatabaseStorage) — بتفويض fail-closed.
 
 لكل ملف نُحدِّد السجلّ المالك ومدرسته، ونتحقّق أن المستخدم من نفس المدرسة وله الدور

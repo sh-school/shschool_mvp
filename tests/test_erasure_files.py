@@ -9,8 +9,8 @@ import pytest
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 
-from core.erasure_service import ErasureService
 from core.models import ErasureRequest, StoredFile
+from governance.erasure_service import ErasureService
 from student_affairs.models import StudentActivity
 
 

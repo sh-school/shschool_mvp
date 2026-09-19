@@ -180,8 +180,9 @@ check_untyped_defs      = false
 module = [
     "*.views", "*.admin",
     "api.views_erasure",
+    "governance.views_media",
     "core.views_audit", "core.views_auth", "core.views_dashboard", "core.views_health",
-    "core.views_media", "core.views_pwa", "core.views_search", "core.views_students",
+    "core.views_pwa", "core.views_search", "core.views_students",
     "core.views_styleguide",
     "operations.views_attendance", "operations.views_schedule", "operations.views_swap",
     "quality.views_committee", "quality.views_executor", "quality.views_reports",

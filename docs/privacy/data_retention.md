@@ -2,7 +2,7 @@
 
 > المرجعُ القانونيّ: قانونُ حماية خصوصيّة البيانات الشخصيّة القطريّ رقم (13) لسنة 2016،
 > المادّتان 7 (لا تُحفظ البياناتُ أطولَ ممّا يقتضيه غرضُها) و10 (التزاماتُ المتحكّم في
-> التنظيم والحماية). والمُنفِّذ: `core/retention.py`، والحارس: `tests/test_data_retention.py`.
+> التنظيم والحماية). والمُنفِّذ: `governance/retention.py`، والحارس: `tests/test_data_retention.py`.
 > أُقرّت 2026-09-14 (سواط — الموجة الثانية، البند A).
 
 ## 1. المبدأ
@@ -26,7 +26,7 @@
 | الافتراض | `730` يوماً (عامان دراسيّان) — في `.env.example` و`.env.railway.example` |
 | التعطيل | `0` — لا يُحذف شيء، ولا يُكتب سطرٌ في التدقيق |
 | أين يُقرأ | العامل (`celery-worker`) — لذا الاسمُ في `WORKER_VARIABLES` في `.railway/railway.ts` |
-| المهمّة | `core.enforce_data_retention` (`core/tasks.py`) |
+| المهمّة | `core.enforce_data_retention` (`governance/tasks.py`) |
 | الجدولة | أسبوعيّاً، الجمعة 03:30 بتوقيت قطر (`shschool/celery.py: beat_schedule`) |
 | يدويّاً | `python manage.py enforce_retention` (عرض) / `--apply` (حذف) |
 | الأثر | سطرٌ في `AuditLog(action="delete", model_name="other")` بالأعداد لكلّ صنفٍ — لا أسماء |
