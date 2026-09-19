@@ -81,6 +81,11 @@ jobs:
       - name: تثبيت المتطلبات
         run: pip install -r requirements-dev.txt
 
+      - name: تثبيت متصفّح Chromium (مع مكتبات النظام)
+        # tests/e2e/ صارت في المجموعة الكاملة (#381) — بلا المتصفّح تسقط 171 تهيئةً
+        # وتترك حلقةَ async تُسقط اختباراتِ القاعدة بعدها بـSynchronousOnlyOperation.
+        run: playwright install --with-deps chromium
+
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
 
