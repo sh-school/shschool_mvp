@@ -4,6 +4,8 @@ import os
 import subprocess
 import sys
 
+import pytest
+
 _REQUIRED_ENV = {
     "DEBUG": "false",
     "SECRET_KEY": "test-only-secret-key-for-production-settings-regression",
@@ -26,6 +28,7 @@ _REQUIRED_ENV = {
 }
 
 _RUNTIME_KEYS = (
+    "EMAIL_BACKEND",
     "REDIS_URL",
     "CELERY_ASYNC_ENABLED",
     "USE_REDIS_SESSIONS",
@@ -56,6 +59,7 @@ print("CONN_MAX_AGE=" + str(settings.DATABASES["default"]["CONN_MAX_AGE"]))
 print("DB_OPTIONS=" + str(settings.DATABASES["default"].get("OPTIONS", {})))
 print("STORAGE_BACKEND=" + settings.STORAGES["default"]["BACKEND"])
 print("MEDIA_URL=" + settings.MEDIA_URL)
+print("EMAIL_BACKEND=" + settings.EMAIL_BACKEND)
 """
 
     return subprocess.run(
@@ -322,3 +326,30 @@ def test_the_aws_default_media_url_is_used_without_an_endpoint():
         _values(result)["MEDIA_URL"]
         == "https://test-only-bucket.s3.me-south-1.amazonaws.com/media/"
     )
+
+
+def _real_env_file_sets_email_backend():
+    path = os.path.join(os.getcwd(), ".env")
+    if not os.path.exists(path):
+        return False
+    with open(path, encoding="utf-8") as fh:
+        return any(line.startswith("EMAIL_BACKEND=") for line in fh)
+
+
+@pytest.mark.skipif(
+    _real_env_file_sets_email_backend(),
+    reason=".env الحقيقيّ يضبط EMAIL_BACKEND فلا يُختبر الافتراضيّ هنا",
+)
+def test_email_backend_defaults_to_one_that_never_claims_delivery():
+    result = _load_production_settings()
+
+    assert result.returncode == 0, result.stderr
+    assert _values(result)["EMAIL_BACKEND"] == "core.mail_backends.UndeliveredEmailBackend"
+
+
+def test_an_explicit_email_backend_is_honoured():
+    backend = "django.core.mail.backends.smtp.EmailBackend"
+    result = _load_production_settings(EMAIL_BACKEND=backend)
+
+    assert result.returncode == 0, result.stderr
+    assert _values(result)["EMAIL_BACKEND"] == backend
