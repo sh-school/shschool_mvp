@@ -558,19 +558,24 @@ def save_evaluation_form(
     لا يترك مسودّةً. كانت في `create_evaluation` (العرض) فتجاوزت سقفَ الطبقات.
     """
     with transaction.atomic():
-        obj = existing or EmployeeEvaluation(
-            school=school,
-            employee=employee,
-            academic_year=year,
-            period=period,
-            evaluator=evaluator,
-        )
-        if obj.template_id != (template.pk if template else None):
+        obj, created = existing, False
+        if obj is None:
+            # `get_or_create` لا `save()`: نقرتان متزامنتان على تقريرٍ لم يُنشأ بعدُ كانتا تصطدمان
+            # بـ`unique_eval_per_period` فتُسقطان 500. والخاسرُ يأخذ صفَّ الرابح، فإن كان عليه
+            # محتوىً لغير الخاسر رفضه `save_evaluation` (واضعٌ واحد، المادة 16) لا خطأُ قاعدة.
+            obj, created = EmployeeEvaluation.objects.get_or_create(
+                school=school,
+                employee=employee,
+                academic_year=year,
+                period=period,
+                defaults={"evaluator": evaluator, "template": template},
+            )
+        template_id = template.pk if template else None
+        # صفٌّ وجده الخاسرُ وعليه محتوىً يبقى على قالبه: ربطُه بغيره يفسد ما حُفظ عليه.
+        keeps_template = existing is None and not created and obj.has_saved_content()
+        if not created and not keeps_template and obj.template_id != template_id:
             obj.template = template
-            if not obj._state.adding:
-                obj.save(update_fields=["template"])
-        if obj._state.adding:
-            obj.save()
+            obj.save(update_fields=["template"])
         save_evaluation(evaluation=obj, evaluator=evaluator, axes=axes, data=data)
     return obj
 

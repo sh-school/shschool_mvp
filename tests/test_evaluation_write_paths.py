@@ -371,3 +371,71 @@ def test_s2_cycle_deadline_is_flagged_outside_first_half_of_june(school, period,
         school=school, academic_year=YEAR, period=period, deadline=date(*deadline)
     )
     assert cycle.deadline_outside_article_16 is outside
+
+
+# ── السباق: نقرتان متزامنتان على تقريرٍ لم يُنشأ بعد ─────────────────────────
+
+
+@pytest.mark.django_db
+def test_a_lost_race_takes_the_winners_row_instead_of_a_database_error(school, teacher_user):
+    """
+    الطلبان وجدا `existing=None` معاً؛ الأوّل أنشأ الصفَّ، فكان الثاني يصطدم بـ`unique_eval_per_period`
+    (500). الآن يأخذ صفَّ الأوّل ويحفظ عليه — صفٌّ واحدٌ لا اثنان.
+    """
+    from quality.evaluation_services import save_evaluation_form
+    from quality.models import EmployeeEvaluation
+    from tests.test_evaluation_review_round1 import YEAR, _staff
+
+    vice = _staff(school, "vice_academic", "النائب الأكاديمي")
+    winner = EmployeeEvaluation.objects.create(
+        school=school, employee=teacher_user, evaluator=vice, academic_year=YEAR, period="S1"
+    )
+    axes = [
+        ("axis_professional", "الكفاءة المهنية", 25),
+        ("axis_commitment", "الالتزام والمسؤولية", 25),
+        ("axis_teamwork", "العمل الجماعي والتواصل", 25),
+        ("axis_development", "التطوير المهني والمبادرة", 25),
+    ]
+    data = {key: "20" for key, _label, _max in axes} | {"action": "draft"}
+
+    saved = save_evaluation_form(
+        school=school, employee=teacher_user, year=YEAR, period="S1", existing=None,
+        template=None, axes=axes, evaluator=vice, data=data,
+    )  # fmt: skip
+
+    assert saved.pk == winner.pk
+    assert EmployeeEvaluation.objects.filter(employee=teacher_user, period="S1").count() == 1
+    saved.refresh_from_db()
+    assert saved.total_score == 80
+
+
+@pytest.mark.django_db
+def test_a_lost_race_against_another_evaluators_saved_report_is_rejected_not_crashed(
+    school, teacher_user
+):
+    from quality.evaluation_services import EvaluationRejectedError, save_evaluation_form
+    from quality.models import EmployeeEvaluation
+    from tests.test_evaluation_review_round1 import YEAR, _staff
+
+    winner_vice = _staff(school, "vice_academic", "النائب الأكاديمي")
+    loser = _staff(school, "principal", "المدير")
+    EmployeeEvaluation.objects.create(
+        school=school, employee=teacher_user, evaluator=winner_vice, academic_year=YEAR,
+        period="S1", axis_professional=20, axis_commitment=20, axis_teamwork=20,
+        axis_development=20,
+    )  # fmt: skip
+    axes = [
+        ("axis_professional", "الكفاءة المهنية", 25),
+        ("axis_commitment", "الالتزام والمسؤولية", 25),
+        ("axis_teamwork", "العمل الجماعي والتواصل", 25),
+        ("axis_development", "التطوير المهني والمبادرة", 25),
+    ]
+    data = {key: "5" for key, _label, _max in axes} | {"action": "draft"}
+
+    with pytest.raises(EvaluationRejectedError):
+        save_evaluation_form(
+            school=school, employee=teacher_user, year=YEAR, period="S1", existing=None,
+            template=None, axes=axes, evaluator=loser, data=data,
+        )  # fmt: skip
+
+    assert EmployeeEvaluation.objects.get(employee=teacher_user, period="S1").total_score == 80
