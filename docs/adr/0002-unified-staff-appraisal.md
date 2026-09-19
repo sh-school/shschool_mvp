@@ -113,8 +113,19 @@ railway ssh -s shschool_mvp
 python manage.py shell -c "from operations.models import StaffEvaluation; from quality.models import EmployeeEvaluation, EvaluationScore, EvaluationCycle, RoleEvaluationTemplate, EvaluationAxis; [print(M._meta.label, M.objects.count()) for M in (StaffEvaluation, EmployeeEvaluation, EvaluationScore, EvaluationCycle, RoleEvaluationTemplate, EvaluationAxis)]; print(sorted(RoleEvaluationTemplate.objects.values_list('school__code', 'role_name', 'academic_year'))); from collections import Counter; print(Counter(EmployeeEvaluation.objects.values_list('rating', flat=True)))"
 ```
 
-النتيجة: ___ (تُلصق هنا قبل تحويل الحالة إلى «مقبول»، وقبل تطبيق الهجرة
-`quality/0018_employeeevaluation_five_level_rating` على الإنتاج — فهي تعيد حسابَ مستوى كلّ صفّ).
+النتيجة (2026-09-19، من المالك على الإنتاج):
+
+```text
+operations.StaffEvaluation 0
+quality.EmployeeEvaluation 1
+quality.EvaluationScore 0
+quality.EvaluationCycle 0
+quality.RoleEvaluationTemplate 0
+quality.EvaluationAxis 0
+Counter({('S1', 'draft', 'needs_dev'): 1})
+```
+
+صفٌّ واحدٌ: مسودّةُ S1 بلا قالبٍ ولا درجات مقيِّم. فالهجرةُ 0018 لا تمسّ تقريراً مقدَّماً أو معتمَداً، وما تغيّره من مستواها يُحفظ في `EvaluationLevelBackup`. ولا قوالبَ في الإنتاج، فبعد النشر يُشغَّل `seed_quality_templates` (عرضاً ثمّ `--apply`) ليُفتح التقريرُ السنويّ (S2)؛ وقبله يردّ 409.
 
 ### 1.4 الفروق الحقليّة، ومقابلُها في المصدر
 
