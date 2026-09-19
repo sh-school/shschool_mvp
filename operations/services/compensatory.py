@@ -121,7 +121,8 @@ class CompensatoryService:
                         related_url="/teacher/schedule/compensatory/",
                     )
         except (ImportError, OSError):
-            pass
+            # الإشعار جانبيّ: فشلُه لا يُسقط إنشاء الطلب، لكنّه يُسجَّل لا يُبتلع.
+            logger.warning("CompensatoryService: تعذّر إشعار المنسّقين بطلب التعويض")
 
         logger.info(
             "CompensatoryService: created request %s for teacher %s", comp.pk, teacher.full_name
@@ -204,7 +205,8 @@ class CompensatoryService:
                 related_url="/teacher/schedule/compensatory/",
             )
         except (ImportError, OSError, RuntimeError, ValueError):
-            pass
+            # الإشعار جانبيّ: فشلُه لا يُلغي قرار الموافقة/الرفض، لكنّه يُسجَّل لا يُبتلع.
+            logger.warning("CompensatoryService: تعذّر إشعار المعلّم بقرار التعويض")
 
         return comp
 
