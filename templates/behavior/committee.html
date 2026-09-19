@@ -4,6 +4,9 @@
 
 {% block title %}لجنة الضبط السلوكي{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}page-noscroll{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/behavior/dashboard/" parent_label="الضبط السلوكي" current="لجنة الضبط" %}
 {% endblock %}
@@ -29,6 +32,7 @@
     <button type="button" id="btn-reset-filters" class="btn-ghost btn-sm" title="إعادة تعيين">مسح</button>
   {% endfilter_bar %}
 
+  <div class="fill-grid">
   <div id="open-cases-card" data-section="open">
     {% section_card "القضايا المفتوحة — تحتاج قرار اللجنة" icon="behavior_committee" empty="لا توجد قضايا مفتوحة" empty_sub="جميع المخالفات الجسيمة تمت معالجتها" %}{% if open_cases %}
       <ul class="plain-list">
@@ -89,6 +93,7 @@
     {% endsection_card %}
   </div>
   {% endif %}
+  </div>
 
 </div>
 {% endblock %}

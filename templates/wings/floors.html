@@ -4,6 +4,9 @@
 
 {% block title %}أجنحة المدرسة{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}page-noscroll{% endblock %}
+
 {% block breadcrumbs %}
 {# المكوّنُ يضع «الرئيسية» بنفسه — فتمريرُها أباً يكرّرها. #}
 {% include "components/breadcrumbs.html" with current="أجنحة المدرسة" %}
@@ -34,6 +37,8 @@
 
   {# ══ الطابقان — بطاقتان في سطر، تنفكّان عموداً في الشاشة الضيّقة ══ #}
   {# لوحُ الطابق لا `section_card`: شريطُه يحمل شاراتِ الجرس، والمكوّنُ يأخذ نصّاً. #}
+  {# عمودان رأسيّان: الطابقُ فتوقيتُه تحته — والصفُّ الأوّل والثاني من الشبكة نفسِها فيتحاذى العمودان. #}
+  <div class="floor-cols"{% if panels|length == 2 %} style="--floor-cols: minmax(0, {{ panels.0.width_weight|stringformat:'s' }}fr) minmax(0, {{ panels.1.width_weight|stringformat:'s' }}fr)"{% endif %}>
   <div class="wing-pair wing-pair--floors">
   {% for panel in panels %}
   <div class="wing-panel">
@@ -138,6 +143,7 @@
     </p>
   {% endsection_card %}
   {% endfor %}
+  </div>
   </div>
 
 </div>
