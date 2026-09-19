@@ -493,9 +493,9 @@ html.dark .report-tabs { border-bottom-color: var(--border); }
 .import-errors { margin-block-start: var(--sp-3); }
 .import-errors .plain-list__row { justify-content: flex-start; font-size: var(--text-xs); color: var(--status-danger-fg); }
 .import-drop {
-  display: grid; justify-items: center; gap: 4px;
+  display: grid; justify-items: center; gap: var(--sp-1);
   margin-block-start: var(--sp-3);
-  padding: var(--sp-6, 24px) var(--sp-3);
+  padding: var(--sp-6, var(--sp-6)) var(--sp-3);
   border: 2px dashed var(--border-strong);
   border-radius: var(--radius-lg);
   color: var(--text-muted);
