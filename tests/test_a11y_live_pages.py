@@ -96,9 +96,6 @@ PAGES = [
     ("library:book_list", "principal_user"),
     ("ui_components", "principal_user"),
     ("permission_audit_log", "principal_user"),
-    ("evaluation_dashboard", "principal_user"),
-    ("my_evaluations", "teacher_user"),
-    ("evaluation_grievances", "principal_user"),
 ]
 
 
@@ -113,6 +110,25 @@ def _url(name):
 def test_every_field_on_the_page_has_a_computed_name(
     request, client_as, name, who, school_bus, library_book
 ):
+    user = request.getfixturevalue(who)
+    response = client_as(user).get(_url(name))
+    assert response.status_code == 200, f"{name}: {response.status_code}"
+    missing = unnamed_fields(response.content.decode())
+    assert not missing, f"{name}: حقولٌ بلا اسمٍ محسوب:\n  " + "\n  ".join(missing)
+
+
+#: صفحاتُ تقييم الأداء (المادة 15–20) بحسابَيها. **خارج `PAGES` عمداً**: `tests/test_a11y_axe_ratchet.py`
+#: يستورد `PAGES` ويسجّل الدخول مرّةً بحساب المدير وحدَه، فصفحةٌ بحساب المعلّم فيها تُعيد تسجيلَ الدخول
+#: وهو مسجَّلٌ فتنتظر حقلاً لا وجودَ له (سقط CI بذلك). وضمُّها إلى axe يحتاج قاعدةَ قياسٍ وحسابَين.
+EVALUATION_PAGES = [
+    ("evaluation_dashboard", "principal_user"),
+    ("evaluation_grievances", "principal_user"),
+    ("my_evaluations", "teacher_user"),
+]
+
+
+@pytest.mark.parametrize("name,who", EVALUATION_PAGES)
+def test_every_field_on_the_evaluation_pages_has_a_computed_name(request, client_as, name, who):
     user = request.getfixturevalue(who)
     response = client_as(user).get(_url(name))
     assert response.status_code == 200, f"{name}: {response.status_code}"
