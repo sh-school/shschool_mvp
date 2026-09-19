@@ -17,6 +17,7 @@ notifications/tasks.py
 import logging
 import re
 from time import monotonic
+from typing import TYPE_CHECKING
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
@@ -752,10 +753,98 @@ def check_breach_deadlines_task():
     }
 
 
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
+
+    from core.models import BreachReport, CustomUser
+
+
+#: لا يُكرَّر تنبيهُ المنصّة لنفس المستلم والبلاغ قبل انقضاء هذه المدّة — والمهمّةُ ساعيّة.
+BREACH_INAPP_REPEAT_HOURS = 12
+
+
+def _breach_inapp_recipients(breach: "BreachReport") -> "QuerySet[CustomUser]":
+    """من يصله تنبيهُ المنصّة: المكلَّف والمُبلِّغ والمدير ومسؤولُ حماية البيانات.
+
+    مسؤولُ حماية البيانات يُعرف بـ`DPO_EMAIL` إن ضُبط، وبدور مطوّر المنصّة في هذه المدرسة
+    (هو من يمارس الدور اليوم). فلا يعتمد الوصولُ على مزوّد بريدٍ لم يُشترَ بعد.
+    """
+    from django.conf import settings
+
+    from core.models import CustomUser
+    from core.models.access import TIER_1_LEADERSHIP, TIER_SYSTEM, Membership
+
+    ids = set(
+        Membership.objects.filter(
+            school=breach.school,
+            is_active=True,
+            role__name__in=TIER_1_LEADERSHIP | TIER_SYSTEM,
+        ).values_list("user_id", flat=True)
+    )
+    if breach.assigned_to_id:
+        ids.add(breach.assigned_to_id)
+    if breach.reported_by_id:
+        ids.add(breach.reported_by_id)
+    dpo_email = getattr(settings, "DPO_EMAIL", "")
+    if dpo_email:
+        ids.update(CustomUser.objects.filter(email__iexact=dpo_email).values_list("pk", flat=True))
+    return CustomUser.objects.filter(pk__in=ids, is_active=True)
+
+
+def _notify_breach_in_app(
+    breach: "BreachReport", hours_left: float | None, overdue: bool = False
+) -> int:
+    """تنبيهُ الخرق داخل المنصّة (الجرس) — لا يعتمد على مزوّد بريد.
+
+    الإنذارُ كان بالبريد وحدَه، و`DPO_EMAIL` ومزوّدُ البريد غيرُ مضبوطَين في الإنتاج
+    (DPIA R8)، فكان مؤقّتُ الـ72 ساعة يعمل ولا يصل أحداً. والنصُّ هنا بلا بياناتٍ
+    شخصيّة ولا عنوانِ البلاغ: رقمٌ ومهلةٌ ورابط.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from notifications.models import InAppNotification
+
+    since = timezone.now() - timedelta(hours=BREACH_INAPP_REPEAT_HOURS)
+    title = (
+        "🚨 تجاوزتَ مهلةَ إشعار الجهة المختصّة عن خرق بيانات"
+        if overdue
+        else f"⚠️ بقي {hours_left} ساعة على مهلة إشعار الجهة المختصّة عن خرق بيانات"
+    )
+    created = 0
+    for user in _breach_inapp_recipients(breach):
+        already = InAppNotification.objects.filter(
+            user=user,
+            school=breach.school,
+            related_object_id=str(breach.pk),
+            created_at__gte=since,
+        ).exists()
+        if already:
+            continue
+        InAppNotification.objects.create(
+            user=user,
+            school=breach.school,
+            title=title,
+            body=f"الخطورة: {breach.get_severity_display()} — افتح البلاغ لاتّخاذ الإجراء.",
+            event_type="general",
+            priority="urgent",
+            related_object_id=str(breach.pk),
+            related_url=f"/breach/{breach.pk}/",
+        )
+        created += 1
+    return created
+
+
 def _send_breach_alert(breach, hours_left, overdue=False):
-    """إرسال تنبيه بريد للمدير والـ DPO"""
+    """تنبيه الخرق: داخل المنصّة أوّلاً (لا يحتاج مزوّداً)، ثمّ بالبريد للمدير والـ DPO"""
     from django.conf import settings
     from django.core.mail import send_mail
+
+    try:
+        _notify_breach_in_app(breach, hours_left, overdue=overdue)
+    except Exception:  # noqa: BLE001 — الإنذارُ لا يسقط ببابٍ منه فيُحجب الآخر
+        logger.error("breach in-app alert failed", exc_info=True)
 
     subject = (
         f"🚨 [عاجل] تجاوز مهلة إشعار NCSA — {breach.title}"
