@@ -367,6 +367,37 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   #main-content.page-noscroll .beh-vitem { padding: var(--sp-1) var(--sp-2); line-height: 1.4; }
   #main-content.page-noscroll .beh-degree { display: flex; flex-direction: column; min-height: 0; }
   #main-content.page-noscroll .beh-degree__list { flex: 1; min-height: 0; max-block-size: none; }
+  /* صندوق الإشعارات: العاجلُ له سقفٌ يُمرَّر داخلَه، فلا يأكل ارتفاعَ الصندوق كلَّه. */
+  #main-content.page-noscroll #urgent-section { max-block-size: 22vh; overflow: auto; }
+  /* «حسب اليوم»: التمريرُ في بدن البطاقة وحدَه. «حسب النوع»: كلُّ نوعٍ صندوقٌ يُمرَّر
+     داخلَه، والصناديقُ تقتسم الارتفاعَ فترى الأنواعَ كلَّها دون تمريرِ الصفحة. */
+  #main-content.page-noscroll .notif-feed--types {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: minmax(170px, 1fr);
+    gap: var(--sp-3);
+  }
+  #main-content.page-noscroll .notif-feed--types > [data-notif-day]:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+  }
+  /* «حسب اليوم»: أربعةُ أعمدةٍ ثابتة لكلّ يوم (INBOX_COLUMNS). */
+  #main-content.page-noscroll .notif-feed:not(.notif-feed--types) .notif-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* الشاشةُ العريضةُ: خمسةُ أنواعٍ في الصفّ. */
+  @media (min-width: 1600px) {
+    #main-content.page-noscroll .notif-feed--types { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  }
+  #main-content.page-noscroll .notif-feed--types .notif-day__title { flex-shrink: 0; }
+  /* القائمةُ عمودٌ واحدٌ يُمرَّر: الأعمدةُ المتجاورة (chunk_for_grid) لا تناسب صندوقاً بعرض 300px. */
+  #main-content.page-noscroll .notif-feed--types .notif-grid { display: block; flex: 1; min-height: 0; overflow: auto; }
+  #main-content.page-noscroll .notif-feed--types .notif-list + .notif-list { margin-block-start: var(--sp-1-5); }
   /* رصد الغياب: أجنحةٌ أعمدةٌ متجاورة وشُعبُها رأسيّة. */
   #main-content.page-noscroll > .exec-dash > .wing-cols {
     display: grid;
