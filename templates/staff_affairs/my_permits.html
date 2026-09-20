@@ -17,12 +17,10 @@
   {% endkpi_strip %}
 
   {% section_card "طلب إذن جديد" icon="edit_record" %}
-    {% if not can_submit %}
-    <p class="form-note">{% icon "status_info" %} نموذج 02 للموظّفين.</p>
-    {% else %}
-    <p class="form-note">التأخير الصباحي يبدأ 7:00، والخروج المبكر ينتهي 14:00، والاستئذان بينهما (البندان 1.1 و2.1). والخروج والاستئذان يُطلبان قبل وقت بدئهما، وما لم يُعتمد قبله يصير «منتهياً» — «يتعين على الموظف عدم الخروج إلا بعد اعتماده وإخطاره من قبل السكرتارية بالموافقة» (حاشية نموذج 02).</p>
+    {% if can_submit %}
+    {% callout "warning" %}التأخير الصباحي يبدأ 7:00، والخروج المبكر ينتهي 14:00، والاستئذان بينهما (البندان 1.1 و2.1). والخروج والاستئذان يُطلبان قبل وقت بدئهما، وما لم يُعتمد قبله يصير «منتهياً» — «يتعين على الموظف عدم الخروج إلا بعد اعتماده وإخطاره من قبل السكرتارية بالموافقة» (حاشية نموذج 02).{% endcallout %}
     <form method="post">{% csrf_token %}
-      {% if form.non_field_errors %}<p class="form-note is-warning sa-errors" role="alert">{% icon "status_warning" %} {{ form.non_field_errors|join:" · " }}</p>{% endif %}
+      {% if form.non_field_errors %}{% callout "error" %}{{ form.non_field_errors|join:" · " }}{% endcallout %}{% endif %}
       <div class="form-row">
         {% field "permit_type" "نوع الطلب" type="select" choices=permit_types value=form.data.permit_type required=True error=form.permit_type.errors.0 %}
         {% field "date" "التاريخ" type="date" value=form.data.date required=True error=form.date.errors.0 %}
@@ -39,10 +37,10 @@
 
   {% if can_request_exception %}
   {% section_card "طلب استثناء من مدير المدرسة (نموذج 03)" icon="edit_record" %}
-    <p class="form-note">«نموذج طلب» إلى مدير المدرسة لاستثناء التأخير الصباحيّ أو الخروج المبكر في مدّةٍ من الأيّام — «يجب ارفاق مع طلب استثناء الخروج المبكر أو التأخير الصباحي ما يثبت حاجة الموظف لذلك». يقرّره المدير أو من ينوب عنه في غيابه بتغذيةٍ راجعة، ولا يُخصم من سقف الأذونات الشهريّ.</p>
+    {% callout "info" %}«نموذج طلب» إلى مدير المدرسة لاستثناء التأخير الصباحيّ أو الخروج المبكر في مدّةٍ من الأيّام — «يجب ارفاق مع طلب استثناء الخروج المبكر أو التأخير الصباحي ما يثبت حاجة الموظف لذلك». يقرّره المدير أو من ينوب عنه في غيابه بتغذيةٍ راجعة، ولا يُخصم من سقف الأذونات الشهريّ.{% endcallout %}
     <form method="post" enctype="multipart/form-data">{% csrf_token %}
       <input type="hidden" name="form" value="exception">
-      {% if exception_form.non_field_errors %}<p class="form-note is-warning sa-errors" role="alert">{% icon "status_warning" %} {{ exception_form.non_field_errors|join:" · " }}</p>{% endif %}
+      {% if exception_form.non_field_errors %}{% callout "error" %}{{ exception_form.non_field_errors|join:" · " }}{% endcallout %}{% endif %}
       <div class="form-row">
         {% field "exception_type" "نوع الاستثناء" type="select" choices=exception_types value=exception_form.data.exception_type required=True id="f-exc-type" error=exception_form.exception_type.errors.0 %}
         {% field "start_date" "من تاريخ" type="date" value=exception_form.data.start_date required=True id="f-exc-from" error=exception_form.start_date.errors.0 %}

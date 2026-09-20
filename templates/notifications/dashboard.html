@@ -24,6 +24,14 @@
     <a href="{% url 'notification_preferences' %}" class="btn-secondary btn-sm">{% icon "settings" %} التفضيلات</a>
   {% endpage_header %}
 
+  {% if pending_absence_count or failing_students %}
+  {% callout "warning" %}
+    زرّا الإرسال يُرسلان فوراً إلى أولياء الأمور ولا يُسحب ما أُرسل:
+    {% if pending_absence_count %}تنبيهات الغياب: {{ pending_absence_count }} تنبيهٌ معلّق.{% endif %}
+    {% if failing_students %}إشعارات الرسوب: أولياءُ {{ failing_students }} طالباً راسباً.{% endif %}
+  {% endcallout %}
+  {% endif %}
+
   {% kpi_strip label="أرقام الإشعارات" %}
     {% kpi "أُرسلت بنجاح" total_sent|default:0 tone="green" %}
     {% kpi "فشل الإرسال" total_failed|default:0 tone=failed_tone %}
@@ -87,12 +95,12 @@
         <div class="form-group">
           <label class="form-label" for="cfg-absence-subject">موضوع رسالة الغياب</label>
           <input type="text" id="cfg-absence-subject" name="absence_email_subject" value="{{ cfg.absence_email_subject }}" class="form-control">
-          <p class="form-hint">متغيرات: {student_name} {absence_count}</p>
+          <p class="ui-field-hint">متغيرات: {student_name} {absence_count}</p>
         </div>
         <div class="form-group">
           <label class="form-label" for="cfg-fail-subject">موضوع رسالة الرسوب</label>
           <input type="text" id="cfg-fail-subject" name="fail_email_subject" value="{{ cfg.fail_email_subject }}" class="form-control">
-          <p class="form-hint">متغيرات: {student_name} {fail_count}</p>
+          <p class="ui-field-hint">متغيرات: {student_name} {fail_count}</p>
         </div>
       {% endsection_card %}
 
@@ -113,7 +121,7 @@
         <div class="form-group">
           <label class="form-label" for="cfg-token">Auth Token</label>
           <input type="password" id="cfg-token" name="twilio_auth_token" placeholder="{% if cfg.twilio_auth_token %}--------{% else %}أدخل Auth Token{% endif %}" class="form-control" dir="ltr">
-          <p class="form-hint">اتركه فارغاً للإبقاء على القيمة الحالية</p>
+          <p class="ui-field-hint">اتركه فارغاً للإبقاء على القيمة الحالية</p>
         </div>
       {% endsection_card %}
     </div>
@@ -126,8 +134,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/vendor/chart.umd.min.js' %}" defer></script>
-<script nonce="{{ request.csp_nonce }}" defer>
+<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+<script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   /* smartFilter for log search */
   if (typeof window.smartFilter === 'function') {

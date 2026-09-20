@@ -15,7 +15,7 @@
     {% for panel in record_panels %}
       {% include "wings/partials/record_panel.html" %}
     {% empty %}
-      <div class="wing-warn">{% icon "status_warning" %} لا جناحَ مُسنَدٌ إليك اليوم — راجع النائبَ الإداريّ.</div>
+      {% callout "info" show=True %}لا جناحَ مُسنَدٌ إليك اليوم — راجع النائبَ الإداريّ.{% endcallout %}
     {% endfor %}
   {% endif %}
 

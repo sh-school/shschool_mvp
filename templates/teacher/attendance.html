@@ -52,6 +52,8 @@
   {% endif %}
 {% endfilter_bar %}
 
+{% callout "warning" %}«غائب» بلا عذرٍ يُحتسب ضمن حدّ الغياب، وقد يصل وليَّ الأمر إنذارٌ عند اقتراب الحدّ أو بلوغه؛ وتصحيحُ الحالة إلى «حاضر» لا يسحب إنذاراً أُرسل.{% endcallout %}
+
 {# ── قائمة الطلاب — `#students-list` يستبدله «الكل حاضر» بنفسه ── #}
 {% section_card "الطلاب" meta=students_data|length icon="students" flush=True empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}
   <div id="students-list" class="att-list">

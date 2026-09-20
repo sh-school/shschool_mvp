@@ -11,10 +11,6 @@
 <div class="exec-dash">
 
   {% page_header "لوحة السلوك" subtitle=today_label icon="behavior" %}
-    {% if can_report %}<a href="{% url 'behavior:report_infraction' %}" class="btn-primary btn-sm">{% icon "add" %} تسجيل مخالفة</a>{% endif %}
-    {% if is_committee %}<a href="{% url 'behavior:committee' %}" class="btn-secondary btn-sm">{% icon "behavior_committee" %} لجنة الضبط</a>{% endif %}
-    {% if can_stats %}<a href="{% url 'behavior:statistics' %}" class="btn-secondary btn-sm">{% icon "stats" %} الإحصائيات</a>{% endif %}
-    {% if can_summon %}<a href="{% url 'behavior:summon_parent' %}" class="btn-secondary btn-sm">{% icon "call_parent" %} استدعاء ولي أمر</a>{% endif %}
     <a data-app-file href="{% url 'behavior:policy_pdf' %}" class="btn-secondary btn-sm">{% icon "export_pdf" %} لائحة السلوك (PDF)</a>
   {% endpage_header %}
 
@@ -72,8 +68,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/vendor/chart.umd.min.js' %}" defer></script>
-<script nonce="{{ request.csp_nonce }}" defer>
+<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+<script nonce="{{ request.csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function(){
   Chart.defaults.font.family='Tajawal,sans-serif';
   Chart.defaults.font.size=11;

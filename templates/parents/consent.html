@@ -35,10 +35,7 @@
     {% endfor %}
 
     {% if links %}
-      <p class="form-note is-warning" role="note">
-        {% icon "status_warning" %}
-        سحبُ الموافقة على نوعٍ من البيانات يحجب عنك متابعةَ ابنك في ذلك المجال.
-      </p>
+      {% callout "warning" %}سحبُ الموافقة على نوعٍ من البيانات يوقف إشعاراتِ ذلك النوع عن ابنك، ولا يحجب عنك الاطّلاعَ عليه في البوّابة.{% endcallout %}
       <div class="form-actions">
         {# الكادرُ الذي هو وليُّ أمرٍ يعود إلى عمله؛ فبوّابتُه تردّه إلى هنا ما لم يوافق. #}
         <a href="{% if request.user.is_staff_member %}{% url 'dashboard' %}{% else %}{% url 'parent_dashboard' %}{% endif %}" class="btn-ghost">إلغاء</a>

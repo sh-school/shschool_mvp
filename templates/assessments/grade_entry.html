@@ -48,7 +48,8 @@
     </div>
 
     <div class="asm-save-bar">
-      <p class="form-note" role="note">{% icon "status_info" %} Enter يحفظ الصفَّ وينتقل إلى التالي، و↑↓ أو Tab للتنقّل — أو احفظ الكلَّ دفعةً واحدة.</p>
+      {% callout "hint" %}Enter يحفظ الصفَّ وينتقل إلى التالي، و↑↓ أو Tab للتنقّل — أو احفظ الكلَّ دفعةً واحدة.{% endcallout %}
+      {% callout "warning" %}«حفظ الكل وإغلاق» يعيد حساب نتائج الفصل للشعبة كلّها ويُثبّت حالة التقييم «مرصود».{% endcallout %}
       <form method="post" action="{% url 'save_all_grades' assessment.id %}">
         {% csrf_token %}
         {% for item in students_data %}

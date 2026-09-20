@@ -19,11 +19,12 @@
       <b class="grade-total is-{{ ev.score_tone }}">{{ ev.total_score }}</b>
     </p>
     {% if ev.strengths %}
-    <p class="form-note"><span><b>نقاط القوة:</b> {{ ev.strengths }}</span></p>
+    <p class="ui-note"><b>نقاط القوة:</b> {{ ev.strengths }}</p>
     {% endif %}
     {% if ev.status == 'approved' and not ev.acknowledged_at %}
     <form method="post" action="{% url 'acknowledge_evaluation' ev.id %}" class="qeval-notes">
       {% csrf_token %}
+      {% callout "warning" %}يبدأ بإقرارك ميعادُ التظلّم من التقرير (15 يوماً، م 20)، ولا يُعاد الإقرار.{% endcallout %}
       <textarea name="comment" rows="2" placeholder="تعليقك (اختياري)..." class="form-control" aria-label="تعليقك على التقييم"></textarea>
       <div class="form-actions"><button type="submit" class="btn-primary btn-sm">إقرار باستلام التقييم</button></div>
     </form>
@@ -62,7 +63,7 @@
       {% csrf_token %}
       <label for="grv-{{ ev.id }}">سببُ التظلّم</label>
       <textarea name="reason" id="grv-{{ ev.id }}" rows="3" minlength="10" maxlength="2000" required class="form-control"></textarea>
-      <p class="form-note"><span>يُسجَّل ويُحال إلى لجنة موظفي المدارس عبر مدير المدرسة، وتبتّ فيه خلال ثلاثين يوماً من تقديمه.</span></p>
+      {% callout "warning" %}يُسجَّل ويُحال إلى لجنة موظفي المدارس عبر مدير المدرسة، وتبتّ فيه خلال ثلاثين يوماً من تقديمه، ولا يُعدَّل بعد التقديم.{% endcallout %}
       <div class="form-actions"><button type="submit" class="btn-primary btn-sm">تقديم التظلّم</button></div>
     </form>
     {% endif %}
