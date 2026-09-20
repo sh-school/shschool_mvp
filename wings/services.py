@@ -13,6 +13,7 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass
 
+from django.core.paginator import Paginator
 from django.db.models import Count, Prefetch, Q
 from django.utils import timezone
 
@@ -536,3 +537,62 @@ def record_panels(user, school, year, day) -> list[dict]:
             }
         )
     return panels
+
+
+#: سجلُّ أحداث الطالب: عددُ الأسطر في الصفحة، وعددُ ما يُعرض من الأعذار والإخطارات الأحدث.
+EVENTS_PER_PAGE = 5
+SHORT_LIST = 3
+
+
+def student_events_context(student, school, query) -> dict:
+    """ما تعرضه صفحةُ «تصحيح وعذر» من سجلّات الطالب — صفحاتٌ بعددٍ ثابتٍ لا تمريرٌ داخل البطاقة.
+
+    الغيابُ والخروجُ سجلٌّ واحدٌ بترتيب الأحدث (قرارُ المالك 2026-09-20: لا تمريرَ في البطاقات)؛
+    والأعذارُ والإخطاراتُ تُعرض الأحدثُ منها `SHORT_LIST` مع العدد الكلّيّ.
+    """
+    from operations.guardian_contact import contacts_of
+    from operations.models import AbsenceExcuse, ClassExit, StudentAttendance
+
+    attendance = list(
+        StudentAttendance.objects.filter(student=student, school=school)
+        .exclude(status="present")
+        .select_related("session__subject", "session__class_group")
+        .order_by("-session__date", "-session__start_time")[:60]
+    )
+    exits = list(
+        ClassExit.objects.filter(student=student, school=school)
+        .select_related("session__subject", "allowed_by")
+        .order_by("-left_at")[:60]
+    )
+    stamped = [
+        ("attendance", e, dt.datetime.combine(e.session.date, e.session.start_time)) for e in attendance
+    ] + [
+        ("exit", x, dt.datetime.combine(x.session.date, timezone.localtime(x.left_at).time()))
+        for x in exits
+    ]
+    stamped.sort(key=lambda row: row[2], reverse=True)
+    page = Paginator([(kind, obj) for kind, obj, _ in stamped], EVENTS_PER_PAGE).get_page(query.get("ep"))
+    paging = query.copy()
+
+    def url(number):
+        paging["ep"] = number
+        return "?" + paging.urlencode()
+
+    excuses = list(
+        AbsenceExcuse.objects.filter(student=student, school=school)
+        .select_related("granted_by")
+        .order_by("-date_from")
+    )
+    contacts = contacts_of(student, school, limit=200)
+    return {
+        "events_page": page,
+        "events_prev_url": url(page.previous_page_number()) if page.has_previous() else "",
+        "events_next_url": url(page.next_page_number()) if page.has_next() else "",
+        "attendance_events": attendance,
+        "exit_events": exits,
+        "events_count": len(attendance) + len(exits),
+        "excuses": excuses[:SHORT_LIST],
+        "excuses_total": len(excuses),
+        "contacts": contacts[:SHORT_LIST],
+        "contacts_total": len(contacts),
+    }

@@ -1,8 +1,5 @@
-{% load icons %}
+{% load icons ui %}
 {% comment %}لا دوامَ في اليوم المعروض — عطلةُ الأسبوع، أو إجازةٌ من تقويم الوزارة باسمها.
 يقرؤه فهرسُ الرصد ولوحتا المشرف والبديل. و`dated` يكتب التاريخَ بدل «اليوم»:
 الفهرسُ يُفتح على أيّ يوم.{% endcomment %}
-<div class="wing-warn">
-  {% icon "status_warning" %}
-  {% if dated %}{{ school_day.day|date:"D، d M Y" }}{% else %}اليوم{% endif %} — {{ school_day.closed_reason }}: لا دوامَ فيه، فلا رصد.
-</div>
+{% callout "info" show=True %}{% if dated %}{{ school_day.day|date:"D، d M Y" }}{% else %}اليوم{% endif %} — {{ school_day.closed_reason }}: لا دوامَ فيه، فلا رصد.{% endcallout %}

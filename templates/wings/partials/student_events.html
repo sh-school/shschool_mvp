@@ -1,17 +1,18 @@
-{% load ui %}
+{% load ui icons %}
 {% comment %}سجلُّ أحداث الطالب (غياب/تأخّر/خروج) بحذفٍ مُسبَّب — يُدرج في صفحة التصحيح. يحتاج: attendance_events, exit_events, can_delete_events.{% endcomment %}
-    {% if attendance_events or exit_events %}
-    {% section_card "سجلُّ الأحداث — غيابٌ وتأخّرٌ وخروج" icon="absence" meta=events_count %}
+    {% section_card "سجلُّ الأحداث — غيابٌ وتأخّرٌ وخروج" icon="absence" meta=events_count empty="لا غيابَ ولا تأخّرَ ولا خروجاً مسجَّلاً على هذا الطالب" %}{% if attendance_events or exit_events %}
+    {% callout "hint" %}رُصد شيءٌ على هذا الطالب بالخطأ؟ احذفه هنا بسبب؛ الحذفُ لا يمحو الأصل. ولتصحيحِ حصّةٍ كاملةٍ أعِد تثبيتَها من الكشف.{% endcallout %}
+      {% callout "warning" %}الحذفُ يُسجَّل في سجلّ المراجعة، وتزول معه المخالفةُ المبنيّةُ عليه، وتعود الخانةُ «لم تُرصد» لا «حاضراً».{% endcallout %}
       <div class="table-wrap">
-        <table data-no-sort>
-          <thead><tr><th>التاريخ</th><th>الحصّة</th><th>الحدث</th><th>المصدر</th>{% if can_delete_events %}<th>تصحيح</th>{% endif %}</tr></thead>
+        <table data-no-sort class="ev-table">
+          <thead><tr><th>التاريخ</th><th>الحصّة</th><th>الحدث</th>{% if can_delete_events %}<th>تصحيح</th>{% endif %}</tr></thead>
           <tbody>
-            {% for e in attendance_events %}
+            {% for kind, e in events_page %}
+            {% if kind == "attendance" %}
             <tr>
               <td>{{ e.session.date|date:"d/m" }}</td>
               <td>{{ e.session.start_time|time:"H:i" }} · {{ e.session.subject.name_ar|default:"—" }}</td>
-              <td>{% if e.status == "absent" %}<span class="status-badge status-danger">غائب</span>{% if e.whereabouts %} <small>{{ e.get_whereabouts_display }}</small>{% endif %}{% if e.excuse_type %} <small>بعذر: {{ e.get_excuse_type_display }}</small>{% endif %}{% elif e.status == "late" %}<span class="status-badge status-warning">متأخّر {{ e.late_minutes|default:"—" }} د</span>{% else %}<span class="status-badge status-info">{{ e.get_status_display }}</span>{% endif %}</td>
-              <td><small>{{ e.get_source_display }}</small></td>
+              <td>{% if e.status == "absent" %}<span class="status-badge status-danger">غائب</span>{% if e.whereabouts %} <small>{{ e.get_whereabouts_display }}</small>{% endif %}{% if e.excuse_type %} <small>بعذر: {{ e.get_excuse_type_display }}</small>{% endif %}{% elif e.status == "late" %}<span class="status-badge status-warning">متأخّر {{ e.late_minutes|default:"—" }} د</span>{% else %}<span class="status-badge status-info">{{ e.get_status_display }}</span>{% endif %} <small class="text-muted">· {{ e.get_source_display }}</small></td>
               {% if can_delete_events %}
               <td>
                 <form method="post" action="{% url 'wings:attendance_event_delete' e.pk %}" class="sa-undo" data-confirm="حذفُ هذا السجلّ وتسجيلُ التراجع؟">
@@ -22,16 +23,14 @@
               </td>
               {% endif %}
             </tr>
-            {% endfor %}
-            {% for x in exit_events %}
+            {% else %}
             <tr>
-              <td>{{ x.session.date|date:"d/m" }}</td>
-              <td>{{ x.session.start_time|time:"H:i" }} · {{ x.session.subject.name_ar|default:"—" }}</td>
-              <td><span class="status-badge status-info">خرج بإذن — {{ x.get_destination_display }}</span> <small>{{ x.left_at|time:"H:i" }}{% if x.returned_at %} ← {{ x.returned_at|time:"H:i" }}{% else %} — لم يعد{% endif %}</small></td>
-              <td><small>{{ x.allowed_by.full_name|default:"—" }}</small></td>
+              <td>{{ e.session.date|date:"d/m" }}</td>
+              <td>{{ e.session.start_time|time:"H:i" }} · {{ e.session.subject.name_ar|default:"—" }}</td>
+              <td><span class="status-badge status-info">خرج بإذن — {{ e.get_destination_display }}</span> <small>{{ e.left_at|time:"H:i" }}{% if e.returned_at %} ← {{ e.returned_at|time:"H:i" }}{% else %} — لم يعد{% endif %} · {{ e.allowed_by.full_name|default:"—" }}</small></td>
               {% if can_delete_events %}
               <td>
-                <form method="post" action="{% url 'wings:exit_event_delete' x.pk %}" class="sa-undo" data-confirm="حذفُ هذا الخروج وتسجيلُ التراجع؟">
+                <form method="post" action="{% url 'wings:exit_event_delete' e.pk %}" class="sa-undo" data-confirm="حذفُ هذا الخروج وتسجيلُ التراجع؟">
                   {% csrf_token %}
                   <input type="text" name="reason" class="form-control form-control-sm" placeholder="السبب" required aria-label="سببُ الحذف">
                   <button type="submit" class="btn-secondary btn-xs">حذف</button>
@@ -39,11 +38,17 @@
               </td>
               {% endif %}
             </tr>
+            {% endif %}
             {% endfor %}
           </tbody>
         </table>
       </div>
-      <p class="bell-note">الحذفُ لا يمحو الأصل: يُسجَّل في سجلّ المراجعة من حذف وماذا ولماذا، وتزول معه مخالفةُ التأخّر أو الهروب التي بُنيت عليه.</p>
-    {% endsection_card %}
-    {% endif %}
+      {% if events_page.paginator.num_pages > 1 %}
+      <nav class="ev-pager" aria-label="صفحاتُ سجلّ الأحداث">
+        {% if events_next_url %}<a href="{{ events_next_url }}" class="btn-secondary btn-xs" rel="next">الأقدم ‹</a>{% endif %}
+        <span class="pagination-info">صفحة {{ events_page.number }} من {{ events_page.paginator.num_pages }}</span>
+        {% if events_prev_url %}<a href="{{ events_prev_url }}" class="btn-secondary btn-xs" rel="prev">› الأحدث</a>{% endif %}
+      </nav>
+      {% endif %}
+    {% endif %}{% endsection_card %}
 

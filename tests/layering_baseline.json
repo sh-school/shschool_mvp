@@ -851,8 +851,7 @@
    "orm": 55
   },
   "wings/views.py::student_events": {
-   "lines": 74,
-   "orm": 25
+   "orm": 12
   },
   "wings/views_absence_file.py::_own_student": {
    "orm": 6
