@@ -65,8 +65,8 @@ def test_the_old_guide_route_is_a_permanent_redirect(client, teacher_user):
 
 
 @pytest.mark.django_db
-def test_the_guide_renders_every_component_and_links_the_icons(client, teacher_user):
-    client.force_login(teacher_user)
+def test_the_guide_renders_every_component_and_links_the_icons(client, developer_user):
+    client.force_login(developer_user)
 
     html = client.get(reverse("ui_components")).content.decode()
 
@@ -84,10 +84,20 @@ def test_the_guide_renders_every_component_and_links_the_icons(client, teacher_u
 
 
 @pytest.mark.django_db
-def test_the_icon_page_renders_every_meaning(client, teacher_user):
-    client.force_login(teacher_user)
+def test_the_icon_page_renders_every_meaning(client, developer_user):
+    client.force_login(developer_user)
 
     html = client.get(reverse("icon_preview")).content.decode()
 
     for key in ICONS:
         assert f">{key}<" in html, key
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("name", ["ui_components", "icon_preview"])
+def test_the_guide_is_for_the_platform_developer_only(client, teacher_user, principal_user, name):
+    """قرارُ المالك 2026-09-20: لا يراه معلّمٌ ولا مدير — 403 — ولا زائرٌ غيرُ مسجَّل."""
+    assert client.get(reverse(name)).status_code == 302
+    for user in (teacher_user, principal_user):
+        client.force_login(user)
+        assert client.get(reverse(name)).status_code == 403, (name, user)

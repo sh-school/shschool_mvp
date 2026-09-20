@@ -5,6 +5,6 @@
 {% elif type == 'textarea' %}<textarea id="{{ id }}" name="{{ name }}" class="form-control" rows="{{ rows }}"{{ common }}>{{ value|default_if_none:"" }}</textarea>
 {% elif type == 'checkbox' %}<input type="checkbox" id="{{ id }}" name="{{ name }}" class="ui-field__check" value="{{ value|default_if_none:"1" }}"{% if checked %} checked{% endif %}{{ common }}><label for="{{ id }}" class="ui-field__label">{{ label }}</label>
 {% else %}<input type="{{ type }}" id="{{ id }}" name="{{ name }}" class="form-control"{% if value is not None %} value="{{ value }}"{% endif %}{{ common }}>{% endif %}
-{% if help %}<p id="{{ id }}-help" class="form-hint">{{ help }}</p>{% endif %}
+{% if help %}<p id="{{ id }}-help" class="ui-field-hint">{{ help }}</p>{% endif %}
 {% if error %}<p id="{{ id }}-error" class="field-error" role="alert">{{ error }}</p>{% endif %}
 </div>

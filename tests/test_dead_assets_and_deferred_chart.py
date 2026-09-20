@@ -60,16 +60,15 @@ _CHART_SCRIPT = re.compile(
 )
 
 
-def test_every_chart_js_load_and_its_init_script_are_both_deferred():
-    """`defer` على السكربت الأوّل بلا الثاني يُسقط `Chart is not defined` فوراً."""
+def test_every_chart_js_load_precedes_its_init_script_synchronously():
+    """`defer` لا أثرَ له على سكربتٍ مضمَّن (بلا `src`): يجري فور التحليل. فتأجيلُ المكتبة وحدَها يُسقط
+    `Chart is not defined` (لوحاتُ العيادة والمكتبة والرئيسيّة لم ترسم) — فالمكتبةُ تُحمَّل متزامنةً في ذيل الصفحة قبل سكربتها."""
     checked = 0
     for path in TEMPLATES.rglob("*.html"):
         text = path.read_text(encoding="utf-8")
         for vendor_attrs, init_attrs in _CHART_SCRIPT.findall(text):
             checked += 1
-            assert "defer" in vendor_attrs, f"{path}: سكربت chart.umd.min.js بلا defer"
-            assert (
-                "defer" in init_attrs
-            ), f"{path}: سكربتُ تهيئة الرسم بلا defer — يسبق تحميل المكتبة"
+            assert "defer" not in vendor_attrs, f"{path}: chart.umd.min.js بـdefer يسبقه سكربتُ تهيئته المضمَّن"
+            assert "defer" not in init_attrs, f"{path}: defer على سكربتٍ مضمَّن بلا أثر ومضلِّل"
 
     assert checked == 12, f"كان المتوقَّع 12 صفحةً تحمّل Chart.js، وُجد {checked}"

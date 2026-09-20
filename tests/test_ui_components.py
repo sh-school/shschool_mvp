@@ -211,7 +211,7 @@ class TestField:
         html = render('{% field "phone" "الجوّال" type="tel" help="بصيغة دوليّة" error="غيرُ صالح" %}')
         assert 'aria-describedby="f-phone-help f-phone-error"' in html
         assert 'aria-invalid="true"' in html
-        assert '<p id="f-phone-help" class="form-hint">بصيغة دوليّة</p>' in html
+        assert '<p id="f-phone-help" class="ui-field-hint">بصيغة دوليّة</p>' in html
         assert '<p id="f-phone-error" class="field-error" role="alert">غيرُ صالح</p>' in html
         assert "ui-field has-error" in html
 
@@ -274,8 +274,8 @@ class TestFilterBar:
 
 
 @pytest.mark.django_db
-def test_the_components_page_renders_every_component(client_as, principal_user):
-    body = client_as(principal_user).get(reverse("ui_components")).content.decode()
+def test_the_components_page_renders_every_component(client_as, developer_user):
+    body = client_as(developer_user).get(reverse("ui_components")).content.decode()
 
     for marker in (
         "ui-kpis",
@@ -287,3 +287,61 @@ def test_the_components_page_renders_every_component(client_as, principal_user):
         'for="f-sg_phone"',
     ):
         assert marker in body
+
+
+class TestCallout:
+    """خمسةُ أنواعٍ لا يخلط أحدُها بغيره — تلميحٌ ومعلومةٌ أيقونتان، وتحذيرٌ وخطأٌ ونجاحٌ أسطر."""
+
+    def test_error_and_success_are_visible_rows_with_their_roles(self):
+        for kind, role in (("error", "alert"), ("success", "status")):
+            html = render(f'{{% callout "{kind}" %}}نصّ{{% endcallout %}}')
+            assert f'ui-callout--{kind}' in html and f'role="{role}"' in html
+            assert "نصّ" in html and "ui-tip" not in html
+
+    def test_hint_info_and_warning_are_icons_whose_text_is_in_a_panel(self):
+        html = render('{% callout "hint" %}كيف تُحتسب المهلة؟{% endcallout %}')
+        assert 'class="ui-tip ui-tip--hint"' in html
+        assert 'role="tooltip"' in html and 'aria-controls="tip-' in html
+        assert "ui-callout" not in html
+        assert "ui-tip--info" in render('{% callout "info" %}س{% endcallout %}')
+        assert "ui-tip--warning" in render('{% callout "warning" %}س{% endcallout %}')
+
+    def test_show_makes_any_kind_a_visible_row(self):
+        """حالةٌ تقول للمستخدم شيئاً لا يجوز إخفاؤه («لا دوامَ اليوم») تُطلب ظاهرةً."""
+        html = render('{% callout "warning" show=True %}لا دوام{% endcallout %}')
+        assert "ui-callout--warning" in html and "ui-tip" not in html and "لا دوام" in html
+
+    def test_tips_are_ordered_hint_then_warning_then_info_everywhere(self):
+        html = render(
+            '{% section_card "س" %}{% callout "info" %}أ{% endcallout %}{% callout "warning" %}ب{% endcallout %}'
+            '{% callout "hint" %}ج{% endcallout %}{% endsection_card %}'
+        )
+        assert html.index("ui-tip--hint") < html.index("ui-tip--warning") < html.index("ui-tip--info")
+
+    def test_an_unknown_kind_is_an_error_not_a_silent_default(self):
+        with pytest.raises(TemplateSyntaxError, match="غيرُ معروف"):
+            render('{% callout "danger" %}س{% endcallout %}')
+
+    def test_empty_content_at_render_time_draws_nothing(self):
+        assert render('{% callout "warning" %}{% if x %}س{% endif %}{% endcallout %}').strip() == ""
+
+    def test_a_tip_moves_to_the_section_card_bar_and_leaves_the_body(self):
+        html = render(
+            '{% section_card "العنوان" %}{% callout "hint" %}شرح{% endcallout %}<p id="b">جسم</p>{% endsection_card %}'
+        )
+        bar, body = html.split('class="ui-section__body"')
+        assert "ui-tip" in bar and "ui-tip" not in body
+        assert '<p id="b">جسم</p>' in body
+
+    def test_a_tip_moves_beside_the_page_title_and_actions_stay_html(self):
+        html = render(
+            '{% page_header "العنوان" %}{% callout "hint" %}شرح{% endcallout %}<a href="#">رابط</a>{% endpage_header %}'
+        )
+        assert html.index("ui-tip") < html.index("exec-meta")
+        assert '<a href="#">رابط</a>' in html and "&lt;a" not in html
+
+    def test_a_folded_card_keeps_the_tip_in_its_body(self):
+        html = render(
+            '{% section_card "س" foldable=True %}{% callout "hint" %}شرح{% endcallout %}ب{% endsection_card %}'
+        )
+        assert html.index("ui-section__body") < html.index("ui-tip")

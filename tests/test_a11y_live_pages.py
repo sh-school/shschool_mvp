@@ -93,7 +93,7 @@ PAGES = [
     ("manage_parent_links", "principal_user"),
     ("transport:buses_list", "principal_user"),
     ("library:book_list", "principal_user"),
-    ("ui_components", "principal_user"),
+    ("ui_components", "developer_user"),
     ("permission_audit_log", "principal_user"),
 ]
 

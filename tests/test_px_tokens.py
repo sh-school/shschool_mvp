@@ -11,8 +11,8 @@ from tests import px_tokens as px
 from tests.css_source import read_css
 
 #: خارجَ السلّم يومَ الترحيل (2026-09-19). تُخفَّض ولا تُرفع.
-OFF_SCALE_SPACING = 92
-OFF_SCALE_RADIUS = 62
+OFF_SCALE_SPACING = 86
+OFF_SCALE_RADIUS = 60
 
 
 def test_no_spacing_or_radius_px_literal_matches_a_token():
