@@ -139,7 +139,27 @@ def detail(request, pk):
     if not _admin_only(request.user):
         return HttpResponseForbidden("للمدير فقط")
     breach = get_object_or_404(BreachReport, pk=pk, school=request.user.get_school())
-    return render(request, "breach/detail.html", {"breach": breach})
+    hours = breach.hours_remaining
+    return render(
+        request,
+        "breach/detail.html",
+        {
+            "breach": breach,
+            # اللونُ يحمل التنبيه كما في اللوحة: 12 ساعةً فأقلّ كهرمانيّ.
+            "remaining_tone": "amber" if hours is not None and hours <= 12 else "green",
+            "severity_tone": {"critical": "red", "high": "red", "medium": "amber"}.get(
+                breach.severity, "green"
+            ),
+            "status_tone": {"discovered": "red", "assessing": "amber", "notified": "green"}.get(
+                breach.status, "teal"
+            ),
+            "overdue_sub": (
+                f"كان الموعد {timezone.localtime(breach.ncsa_deadline):%d/%m %H:%M}"
+                if breach.is_overdue
+                else ""
+            ),
+        },
+    )
 
 
 @login_required
@@ -155,7 +175,8 @@ def update_status(request, pk):
 
     if new_status in dict(BreachReport.STATUS):
         breach.status = new_status
-        if new_status == "notified":
+        # وقتُ الإشعار يُختم مرّةً واحدة: هو المعتمَد قانونيّاً، فلا يُعاد ختمُه.
+        if new_status == "notified" and not breach.ncsa_notified_at:
             breach.ncsa_notified_at = timezone.now()
         if new_status == "resolved":
             breach.resolved_at = timezone.now()
