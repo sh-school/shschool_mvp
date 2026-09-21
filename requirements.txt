@@ -117,7 +117,7 @@ sentry-sdk[django]>=2.69.2
 service-identity==26.1.0
 six==1.17.0
 sqlparse==0.6.0
-svglib==1.6.0
+svglib==2.2.0
 tinycss2==1.5.1
 tinyhtml5==2.1.0
 twilio==9.11.1
