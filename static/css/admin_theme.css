@@ -324,3 +324,30 @@ a.adm-card:hover { background: var(--selected-row); }
   .dashboard #content-related .actionlist li { font-size: 0.8125rem; line-height: 1.3; }
 }
 @media (min-width: 1025px) { .adm-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; margin-block: 0.25rem 0.5rem; } .adm-card__value { font-size: 1.25rem; } }
+/* ── تحسيناتُ الاستعمال ────────────────────────────────────────────────────────── */
+/* الجوّال: اسمُ المدرسة يلتفّ بدل أن يوسّع الصفحةَ أفقيّاً (كان 429px في شاشة 375px). */
+@media (max-width: 767px) {
+  #header #site-name, #header .branding { min-inline-size: 0; max-inline-size: 100%; }
+  .adm-brand__name { white-space: normal; font-size: 0.95rem; line-height: 1.4; }
+  .adm-brand__suffix { display: block; }
+}
+/* ترويسةُ الجداول بلغتها لا بحروفٍ كبيرةٍ إنجليزيّة (جانغو يكبّرها). */
+thead th, .module caption { text-transform: none; }
+/* شريطُ الحفظ ثابتٌ أسفل منطقة المحتوى: لا نزولَ داخل النموذج الطويل للوصول إلى «حفظ». */
+.submit-row { position: sticky; inset-block-end: 0; z-index: 5; box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.08); }
+/* التذييلُ في سطرٍ واحدٍ على الشاشات العريضة: يوفّر نحوَ 80px من ارتفاع الصفحة. */
+@media (min-width: 1025px) {
+  .adm-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.25rem 1.5rem; margin-block-start: 0; padding: 0.5rem var(--adm-hpad, 2.5rem); }
+  .adm-footer__version, .adm-footer__vision, .adm-footer__brand { margin-block-start: 0; }
+}
+/* عناصرُ مطلقةُ الموضع (حقولُ select2 المخفيّة) كانت تُفلت من القصّ وتطيل الصفحة: تُحتَوى في المنطقة المقفولة. */
+@media (min-width: 1025px) and (min-height: 560px) {
+  body:not(.popup) #container { overflow: hidden; }
+  body:not(.popup) #container > .main > .content { position: relative; }
+}
+/* حقولُ النماذج في عمودين على الشاشات العريضة (كانت عموداً واحداً يترك نصفَ العرض فارغاً)؛ وما فيه نصٌّ طويلٌ أو وصفٌ يمتدّ على العرض كلِّه. */
+@media (min-width: 1200px) {
+  fieldset.module.aligned { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1.5rem; }
+  fieldset.module.aligned > h2, fieldset.module.aligned > .description, fieldset.module.aligned > .form-row:has(textarea, table, .related-widget-wrapper .vLargeTextField) { grid-column: 1 / -1; }
+  fieldset.module.aligned .form-row > div, fieldset.module.aligned .form-row > .flex-container { flex-wrap: wrap; }
+}

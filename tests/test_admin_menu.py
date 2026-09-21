@@ -65,3 +65,8 @@ def test_the_menu_keeps_the_platform_section_order_and_hides_nothing():
     assert menu[1]["current"] is True and menu[0]["current"] is False
     assert menu[2]["sections"][0]["items"][0]["name"] == "مجهول"
     assert [g[0] for g in GROUPS][:3] == ["الشؤون الأكاديمية", "شؤون الموظفين", "شؤون الطلاب"]
+
+
+def test_admin_lists_default_to_a_screenful_of_rows():
+    """جانغو يعرض 100 صفٍّ؛ الإدارةُ لا تُمرَّر فيها الصفحةُ فالافتراضيُّ 25."""
+    assert admin.ModelAdmin.list_per_page == 25
