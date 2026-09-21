@@ -161,10 +161,8 @@ html.dark {
   --df-ink-strong:         var(--text-primary);
   /* كانا #222 و#666 ليلاً أيضاً — نصُّ «المرسل» و«تاريخ الإرسال» في بطاقة
      بيانات التذكرة لا يُرى على الأرضيّة الداكنة (2026-09-13). */
-  --df-meta-ink:           var(--text-primary);
   --df-history-ink:        var(--text-secondary);
   --df-muted:              #b8b8b8;
-  --df-label:              #d0d0d0;
   --df-field-bg:           #1f0c14;
   --df-panel-bg:           #1f0c14;
   --df-focus-halo:         rgba(245,208,220,.15);
@@ -843,10 +841,6 @@ html.dark .df-form-group input[type="number"]:focus,
 html.dark .df-form-group textarea:focus,
 html.dark .df-form-group select:focus {
   border-color: var(--maroon-fg);
-}
-html.dark .df-context-preview {
-  border-inline-start-color: var(--gold);
-  color: var(--text-primary);
 }
 html.dark .df-ticket-number {
   background: var(--maroon-bg);

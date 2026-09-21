@@ -397,10 +397,8 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   /* ملاحظاتُ المطوّر (developer_feedback) */
   --df-ink:                #333;
   --df-ink-strong:         #222;
-  --df-meta-ink:           #222;
   --df-history-ink:        #666;
   --df-muted:              var(--text-muted);
-  --df-label:              #555;
   --df-field-bg:           #fff;
   --df-panel-bg:           #fafafa;
   --df-focus-halo:         color-mix(in srgb, var(--maroon) 15%, transparent);
