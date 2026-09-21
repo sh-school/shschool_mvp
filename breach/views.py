@@ -5,12 +5,12 @@ breach/views.py — SchoolOS v5
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from core.capabilities import capability_required
-from core.models import AuditLog, BreachReport
 
+from . import selectors
 from .forms import BreachEditForm, BreachReportForm
 from .services import (
     InvalidTransitionError,
@@ -19,27 +19,12 @@ from .services import (
     update_breach,
 )
 
-_STATUS = dict(BreachReport.STATUS)
-
 
 @login_required
 @capability_required("breach.manage")
 def dashboard(request):
-    from django.db.models import Count, Q
-
-    school = request.user.get_school()
-    reports = BreachReport.objects.filter(school=school).order_by("-discovered_at")
-    open_states = ["discovered", "assessing"]
-    stats = reports.aggregate(
-        active=Count("id", filter=Q(status__in=open_states)),
-        notified=Count("id", filter=Q(status="notified")),
-        resolved=Count("id", filter=Q(status="resolved")),
-        # نفسُ شرط `BreachReport.is_overdue` في قاعدة البيانات: لا حلقةَ في Python.
-        overdue=Count(
-            "id",
-            filter=Q(ncsa_deadline__lt=timezone.now()) & Q(status__in=open_states),
-        ),
-    )
+    reports = selectors.school_reports(request.school)
+    stats = selectors.dashboard_stats(reports)
     return render(
         request,
         "breach/dashboard.html",
@@ -56,7 +41,7 @@ def dashboard(request):
 @login_required
 @capability_required("breach.manage")
 def create(request):
-    school = request.user.get_school()
+    school = request.school
 
     if request.method == "POST":
         form = BreachReportForm(request.POST, school=school)
@@ -74,36 +59,11 @@ def create(request):
     return render(request, "breach/form.html", {"form": form})
 
 
-def _history(breach):
-    """سجلُّ ما جرى على الخرق من AuditLog: من فعل ماذا ومتى (الأحدثُ أوّلاً)."""
-    rows = (
-        AuditLog.objects.filter(object_id=str(breach.pk), model_name="other")
-        .select_related("user")
-        .order_by("-timestamp")[:15]
-    )
-    out = []
-    for row in rows:
-        changes = row.changes or {}
-        if row.action == "create":
-            what = "سُجّل الخرق"
-        elif "to" in changes:
-            what = (
-                f"الحالة: {_STATUS.get(changes['from'], '—')} ← {_STATUS.get(changes['to'], '—')}"
-            )
-            if changes.get("closed_without_ncsa_notice"):
-                what += " (بلا إشعار NCSA)"
-        else:
-            what = "تعديل بيانات الخرق"
-        who = getattr(row.user, "full_name", "") or "—"
-        out.append({"what": what, "who": who, "at": row.timestamp})
-    return out
-
-
 @login_required
 @capability_required("breach.manage")
 def edit(request, pk):
-    school = request.user.get_school()
-    breach = get_object_or_404(BreachReport, pk=pk, school=school)
+    school = request.school
+    breach = selectors.breach_for_school(pk, school)
     if breach.status == "resolved":
         messages.error(request, "لا يُعدَّل خرقٌ مُغلق.")
         return redirect("breach:detail", pk=pk)
@@ -126,14 +86,14 @@ def edit(request, pk):
 @login_required
 @capability_required("breach.manage")
 def detail(request, pk):
-    breach = get_object_or_404(BreachReport, pk=pk, school=request.user.get_school())
+    breach = selectors.breach_for_school(pk, request.school)
     hours = breach.hours_remaining
     return render(
         request,
         "breach/detail.html",
         {
             "breach": breach,
-            "history": _history(breach),
+            "history": selectors.history_for(breach),
             # اللونُ يحمل التنبيه كما في اللوحة: 12 ساعةً فأقلّ كهرمانيّ.
             "remaining_tone": "amber" if hours is not None and hours <= 12 else "green",
             "severity_tone": {"critical": "red", "high": "red", "medium": "amber"}.get(
@@ -159,7 +119,7 @@ def update_status(request, pk):
     if request.method != "POST":
         return redirect("breach:detail", pk=pk)
 
-    breach = get_object_or_404(BreachReport, pk=pk, school=request.user.get_school())
+    breach = selectors.breach_for_school(pk, request.school)
     try:
         transition(breach, request.POST.get("status", ""), user=request.user, request=request)
     except InvalidTransitionError as exc:
@@ -171,7 +131,7 @@ def update_status(request, pk):
 @login_required
 @capability_required("breach.manage")
 def breach_pdf(request, pk):
-    breach = get_object_or_404(BreachReport, pk=pk, school=request.user.get_school())
+    breach = selectors.breach_for_school(pk, request.school)
     from django.template.loader import render_to_string
 
     from core.audit_export import log_export
