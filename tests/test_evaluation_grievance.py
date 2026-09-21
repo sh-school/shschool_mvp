@@ -254,48 +254,30 @@ def test_the_platform_developer_sees_the_grievances_but_cannot_record(
 
 
 @pytest.mark.django_db
-def test_the_developer_trial_switch_grants_and_withdraws_the_principals_actions(
-    client, school, settings, teacher_user, vice
-):
+def test_the_platform_developer_cannot_act_as_the_principal(school, teacher_user, vice):
     """
-    مفتاحُ التجربة (2026-09-19): مطوّرُ المنصّة يفعل أفعالَ المدير ما دام مفعَّلاً — ويُسحب بإطفائه.
-    ولا يمنح غيرَ الـsuperuser شيئاً، ويُسجَّل كلُّ فعلٍ به بعلامة `developer_trial`.
+    مفتاحُ التجربة سُحب (2026-09-21، بقرار المالك): مطوّرُ المنصّة (superuser) يرى شاشةَ التظلّمات
+    للعرض، لكنّ اعتمادَ التقرير وتدوينَ الاستلام وقرارَ اللجنة لمدير المدرسة بعضويّة الدور وحدَه.
     """
-    from core.models import AuditLog
-    from quality.evaluation_services import approve_evaluation, may_act_as_principal
+    from quality.evaluation_services import approve_evaluation, record_receipt_on_refusal
     from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 
     dev = UserFactory(is_superuser=True, is_staff=True, full_name="مطوّر المنصّة")
     MembershipFactory(
         user=dev, school=school, role=RoleFactory(school=school, name="platform_developer")
     )
-    staff = _staff(school, "vice_admin", "نائبٌ عاديّ")
-
-    settings.APPRAISAL_DEVELOPER_ACTS_AS_PRINCIPAL = False
-    assert may_act_as_principal(school, dev) is False
-
-    settings.APPRAISAL_DEVELOPER_ACTS_AS_PRINCIPAL = True
-    assert may_act_as_principal(school, dev) is True
-    assert may_act_as_principal(school, staff) is False  # المفتاحُ للـsuperuser وحدَه
-
-    ev = _known_days_ago(
-        school, teacher_user, vice, 6, grievance_submitted_on=timezone.localdate(),
-        grievance_reason=REASON,
-    )  # fmt: skip
-    client.force_login(dev)
-    url = reverse("record_grievance_decision", kwargs={"eval_id": ev.pk})
-    client.post(url, {"outcome": "rejected", "decided_on": timezone.localdate().isoformat()})
-    ev.refresh_from_db()
-    assert ev.grievance_outcome == "rejected"
-    assert AuditLog.objects.filter(object_id=str(ev.pk), changes__developer_trial=True).exists()
-
-    settings.APPRAISAL_DEVELOPER_ACTS_AS_PRINCIPAL = False  # سحبُ الصلاحيّة
     submitted = EmployeeEvaluation.objects.create(
         school=school, employee=teacher_user, evaluator=vice, academic_year=YEAR,
         period="S2", status="submitted", total_score=70,
     )  # fmt: skip
     with pytest.raises(EvaluationRejectedError, match="لمدير المدرسة"):
         approve_evaluation(evaluation=submitted, approver=dev)
+
+    approved = _known_days_ago(school, teacher_user, vice, 2)
+    with pytest.raises(EvaluationRejectedError, match="لمدير المدرسة"):
+        record_receipt_on_refusal(
+            evaluation=approved, recorder=dev, received_on=timezone.localdate()
+        )
 
 
 # ── إشعارُ المدير بتظلّمٍ جديد (قرارُ المالك 2026-09-21) ──────────────────────

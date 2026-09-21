@@ -30,13 +30,11 @@ from .evaluation_services import (
     EvaluationRejectedError,
     annual_rating_summary,
     axis_values,
-    developer_trial_note,
     first_year_rejection,
     form_template_ok,
     grievance_stage,
     is_academic_year,
     is_school_principal,
-    may_act_as_principal,
     placement_rejection,
     record_receipt_on_refusal,
     save_evaluation_form,
@@ -154,7 +152,7 @@ def _form_context(request, obj, *, existing, axes, template, employee, year, per
     off_form = period == EmployeeEvaluation.MINISTRY_PERIOD and not form_template_ok(obj)
     if off_form and template is not None:
         messages.warning(request, TEMPLATE_OFF_FORM)
-    is_principal = may_act_as_principal(request.school, request.user)
+    is_principal = is_school_principal(request.school, request.user)
     return {
         "obj": obj,
         "axis_rows": axis_rows,
@@ -302,7 +300,7 @@ def approve_evaluation(request, eval_id):
             object_id=obj.pk,
             object_repr=str(obj),
             request=request,
-            changes={"status": "approved", **developer_trial_note(school, request.user)},
+            changes={"status": "approved"},
         )
         messages.success(request, f"اعتُمد تقييم {obj.employee.full_name}.")
     return redirect(
@@ -336,10 +334,7 @@ def record_evaluation_receipt(request, eval_id):
             object_id=obj.pk,
             object_repr=str(obj),
             request=request,
-            changes={
-                "received_on": received_on.isoformat(),
-                **developer_trial_note(school, request.user),
-            },
+            changes={"received_on": received_on.isoformat()},
         )
         messages.success(request, "دُوِّن تاريخُ استلام الموظّف.")
     return redirect(

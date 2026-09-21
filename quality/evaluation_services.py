@@ -127,24 +127,6 @@ def is_school_principal(school: School, user: CustomUser) -> bool:
     ).exists()
 
 
-def may_act_as_principal(school: School, user: CustomUser) -> bool:
-    """
-    أيفعل أفعالَ المدير (اعتمادٌ، تدوينُ استلامٍ أو قرارِ لجنة)؟ مديرُ المدرسة بعضويّة الدور. ومطوّرُ
-    المنصّة (`is_superuser`) إن فُعِّل مفتاحُ التجربة `APPRAISAL_DEVELOPER_ACTS_AS_PRINCIPAL` —
-    مؤقّتٌ بقرار المالك (2026-09-19)؛ وإطفاؤه يسحب الصلاحيّةَ كلَّها.
-    """
-    if is_school_principal(school, user):
-        return True
-    return bool(
-        user.is_superuser and getattr(settings, "APPRAISAL_DEVELOPER_ACTS_AS_PRINCIPAL", False)
-    )
-
-
-def developer_trial_note(school: School, user: CustomUser) -> dict[str, bool]:
-    """علامةُ سجلّ التدقيق لفعلٍ جرى بمفتاح التجربة لا بعضويّة المدير — وإلّا فارغة."""
-    return {} if is_school_principal(school, user) else {"developer_trial": True}
-
-
 def placement_rejection(school: School, evaluator: CustomUser, employee: CustomUser) -> str | None:
     """
     نصُّ الرفض إن لم يكن `evaluator` الرئيسَ المباشرَ لـ`employee` (ولا المديرَ)، وإلّا None.
@@ -469,7 +451,7 @@ def approve_evaluation(*, evaluation: EmployeeEvaluation, approver: CustomUser) 
     تتغيّر بين التقديم والاعتماد.
     """
     locked = EmployeeEvaluation.objects.select_for_update().get(pk=evaluation.pk)
-    if not may_act_as_principal(locked.school, approver):
+    if not is_school_principal(locked.school, approver):
         raise EvaluationRejectedError("الاعتمادُ لمدير المدرسة وحده — المادة 16.")
     if locked.status != "submitted":
         raise EvaluationRejectedError("لا يُعتمد إلّا تقريرٌ مُقدَّم.")
@@ -506,7 +488,7 @@ def record_receipt_on_refusal(
     الموظّف الإقرارَ يُبقي التقريرَ غيرَ نهائيٍّ أبداً.
     """
     locked = EmployeeEvaluation.objects.select_for_update().get(pk=evaluation.pk)
-    if not may_act_as_principal(locked.school, recorder):
+    if not is_school_principal(locked.school, recorder):
         raise EvaluationRejectedError("تدوينُ تاريخ الاستلام لمدير المدرسة — موقِّعِ الاستمارة.")
     if locked.status != "approved" or locked.acknowledged_at is not None:
         raise EvaluationRejectedError("يُدوَّن تاريخُ الاستلام لتقريرٍ معتمَدٍ لم يُقرّ به الموظّف.")
@@ -760,7 +742,7 @@ def record_grievance_decision(
     (حين يصله) تاريخُ اعتماد الوزير. ما دُوِّن لا يُعاد كتابتُه — يُملأ الناقصُ فقط.
     """
     locked = EmployeeEvaluation.objects.select_for_update().get(pk=evaluation.pk)
-    if not may_act_as_principal(locked.school, recorder):
+    if not is_school_principal(locked.school, recorder):
         raise EvaluationRejectedError("تدوينُ قرار اللجنة لمدير المدرسة — المادة 20.")
     if locked.grievance_submitted_on is None:
         raise EvaluationRejectedError("لا قرارَ للجنة بلا تظلّمٍ مقدَّم — المادة 20.")
