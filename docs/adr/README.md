@@ -15,6 +15,6 @@
 | الرقم | العنوان | الحالة | التاريخ |
 |---|---|---|---|
 | [0001](0001-school-site-public-app.md) | تطبيق `school_site`: الموقع العامّ للمدرسة داخل المنصّة | مقترح | 2026-09-14 |
-| [0002](0002-unified-staff-appraisal.md) | نموذجٌ واحدٌ لتقييم أداء الموظّفين: `quality.EmployeeEvaluation` | مقترح | 2026-09-14 |
+| [0002](0002-unified-staff-appraisal.md) | نموذجٌ واحدٌ لتقييم أداء الموظّفين: `quality.EmployeeEvaluation` | مقبول | 2026-09-14 |
 | [0003](0003-split-custom-css-by-layer.md) | تقسيم `static/css/custom.css` إلى ملفّاتٍ بحسب الطبقة | مقبول | 2026-09-19 |
 | [0004](0004-core-does-not-import-downstream.md) | النواة `core` لا تستورد من التطبيقات النازلة | مقبول | 2026-09-19 |
