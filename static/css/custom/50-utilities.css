@@ -353,6 +353,14 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   #main-content.page-noscroll .fill-grid > [data-section]:not([hidden]) { display: flex; flex-direction: column; min-height: 0; min-width: 0; align-self: start; max-block-size: 100%; }
   #main-content.page-noscroll .fill-grid > [data-section] > .ui-section { flex: 0 1 auto; display: flex; flex-direction: column; min-height: 0; }
   #main-content.page-noscroll .fill-grid > [data-section] > .ui-section > .ui-section__body { flex: 0 1 auto; min-height: 0; overflow: auto; }
+  /* التكليفات: عمودان بارتفاع النافذة؛ النموذجُ على قدره وكلُّ قائمةٍ تملأ الباقي وتُمرَّر داخلها. */
+  #main-content.page-noscroll > .exec-dash > .sa-assign { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+  #main-content.page-noscroll .sa-assign__col { min-height: 0; }
+  #main-content.page-noscroll .sa-assign__col > .ui-section { display: flex; flex-direction: column; min-height: 120px; }
+  #main-content.page-noscroll .sa-assign__col > .ui-section > .ui-section__body { flex: 1; min-height: 0; overflow: auto; }
+  #main-content.page-noscroll .sa-assign__col > .ui-section:not(.is-flush) { flex: 0 1 auto; }
+  #main-content.page-noscroll .sa-assign__col > .ui-section.is-flush { flex: 1 1 auto; }
+  #main-content.page-noscroll .sa-assign .table-wrap thead th { position: sticky; inset-block-start: 0; z-index: 1; }
   /* النماذج: ثلاثةُ أعمدة، وتُمرَّر البطاقةُ إن طالت. */
   #main-content.page-noscroll > .exec-dash > .form-card { flex: 0 1 auto; min-height: 0; overflow: auto; }
   #main-content.page-noscroll .form-card .form-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2) var(--sp-3); }
