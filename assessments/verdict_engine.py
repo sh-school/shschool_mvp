@@ -16,7 +16,6 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import TYPE_CHECKING, Any
 
-from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
@@ -56,12 +55,6 @@ if TYPE_CHECKING:
     from core.models import ClassGroup, CustomUser, School
 
 
-def verdict_engine_enabled() -> bool:
-    """أيُحسب الحكمُ الواحد ويُخزَّن؟ — راية `VERDICT_ENGINE_ENABLED` (مطفأةٌ افتراضاً)."""
-    return bool(getattr(settings, "VERDICT_ENGINE_ENABLED", False))
-
-
-#: حالاتُ التقييم التي تُحسب — ما سواها مسودّة.
 COUNTED_STATUSES = ("published", "graded", "closed")
 
 

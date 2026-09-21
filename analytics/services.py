@@ -17,6 +17,8 @@ import logging
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+from core.verdict_read import failing_statuses, passing_statuses
+
 logger = logging.getLogger(__name__)
 
 from django.db.models import Avg, Count, Q
@@ -108,7 +110,8 @@ class AnalyticsService:
             ),
             passed=Count(
                 "enrollments__student__annual_results",
-                filter=result_filter & Q(enrollments__student__annual_results__status="pass"),
+                filter=result_filter
+                & Q(enrollments__student__annual_results__status__in=passing_statuses()),
             ),
         )
 
@@ -140,7 +143,9 @@ class AnalyticsService:
                     "annualresults__annual_total",
                     filter=Q(annualresults__annual_total__isnull=False),
                 ),
-                pass_count=Count("annualresults", filter=Q(annualresults__status="pass")),
+                pass_count=Count(
+                    "annualresults", filter=Q(annualresults__status__in=passing_statuses())
+                ),
                 total_count=Count("annualresults"),
             )
         )
@@ -177,7 +182,7 @@ class AnalyticsService:
                     enrollments__is_active=True,
                     enrollments__student__annual_results__school=school,
                     enrollments__student__annual_results__academic_year=year,
-                    enrollments__student__annual_results__status="fail",
+                    enrollments__student__annual_results__status__in=failing_statuses(),
                 ),
                 distinct=True,
             ),
