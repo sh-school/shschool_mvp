@@ -283,7 +283,7 @@ html[data-theme="dark"] {
     gap: 0 1rem;
     align-items: start;
     margin: 0;
-    padding-inline: 0;
+    padding-inline: 2.5rem;
     float: none;
     width: auto;
   }
