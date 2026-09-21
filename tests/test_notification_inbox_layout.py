@@ -125,6 +125,18 @@ class TestInboxView:
         # الرقاقاتُ تحمل التجميعَ معها، فالترشيحُ لا يُرجع الصفحةَ إلى الأيّام.
         assert all("group=type" in t[3] for t in resp.context["event_types"])
 
+    def test_the_page_is_no_scroll_and_types_become_boxes(self, client_as, school, teacher_user):
+        """الصفحةُ بارتفاع النافذة (`page-noscroll`)؛ و«حسب النوع» صناديقُ تُمرَّر كلٌّ وحدَه."""
+        self._make(teacher_user, school, event_type="grade")
+        c = client_as(teacher_user)
+
+        by_day = c.get(reverse("notification_inbox")).content.decode()
+        by_type = c.get(reverse("notification_inbox") + "?group=type").content.decode()
+
+        assert "page-noscroll" in by_day and "page-noscroll" in by_type
+        assert "notif-feed--types" in by_type
+        assert "notif-feed--types" not in by_day
+
     def test_mark_all_read_is_a_plain_form_that_returns_to_the_inbox(
         self, client_as, school, teacher_user
     ):
