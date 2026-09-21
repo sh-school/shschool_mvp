@@ -11,11 +11,10 @@
   {% page_header "الإعفاء من رصد الحضور اليومي" subtitle="موظّفٌ لا يداوم بحكم وضعه الوظيفي: يبقى حسابُه وصلاحيّاتُه، ولا يدخل لوحةَ الرصد ولا تقريرَ الغياب ولا إخطارَ الخصم" icon="staff" %}{% endpage_header %}
 
   <div class="sa-assign">
-  <div class="sa-assign__col">
   {% section_card "إعفاءٌ جديد" icon="confirm" %}
-    <p class="form-note sa-assign__note">{% icon "status_info" %} لا يُسجَّل سببُ الإعفاء هنا (قد يكون بيانةً صحّيّة) — يكفي رقمُ القرار المكتوب وتاريخُه، والأصلُ في ملفّ الموظّف. اترك «إلى تاريخ» فارغاً لإعفاءٍ مفتوحٍ حتى يُرفع.</p>
-    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
-    {% if form.staff.errors %}<div class="alert alert-danger">{{ form.staff.errors }}</div>{% endif %}
+    {% callout "info" %}لا يُسجَّل سببُ الإعفاء هنا (قد يكون بيانةً صحّيّة) — يكفي رقمُ القرار المكتوب وتاريخُه، والأصلُ في ملفّ الموظّف. اترك «إلى تاريخ» فارغاً لإعفاءٍ مفتوحٍ حتى يُرفع.{% endcallout %}
+    {% if form.non_field_errors %}{% callout "error" %}{{ form.non_field_errors|join:" · " }}{% endcallout %}{% endif %}
+    {% if form.staff.errors %}{% callout "error" %}{{ form.staff.errors|join:" · " }}{% endcallout %}{% endif %}
     {% if candidates %}
     <form method="post" action="{% url 'staff_affairs:exemptions' %}">{% csrf_token %}
       <div class="form-row">
@@ -32,15 +31,12 @@
       </div>
     </form>
     {% else %}
-    <p class="form-note">لا موظّفَ متاحاً للإعفاء الآن.</p>
+    {% callout "info" %}لا موظّفَ متاحاً للإعفاء الآن.{% endcallout %}
     {% endif %}
   {% endsection_card %}
-  </div>
 
-  <div class="sa-assign__col">
   {% section_card "المعفَون اليوم" meta=current|length icon="staff" flush=True empty="لا إعفاءَ قائماً اليوم" %}{% if current %}{% include "staff_affairs/partials/exemption_rows.html" with rows=current live=True %}{% endif %}{% endsection_card %}
   {% section_card "السجلّ (منتهية أو مرفوعة أو قادمة)" meta=past|length icon="checklist" flush=True empty="لا سجلَّ بعد" %}{% if past %}{% include "staff_affairs/partials/exemption_rows.html" with rows=past live=False %}{% endif %}{% endsection_card %}
-  </div>
   </div>
 </div>
 {% endblock %}
