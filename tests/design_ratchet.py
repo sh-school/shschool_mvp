@@ -257,7 +257,10 @@ def undefined_classes() -> list[str]:
         local = _local_classes(text)
         # وجزءٌ مضمَّنٌ يرى أنماطَ من يضمّنه، ومن يضمّن ذاك (`signatures` ← `section_sheet` ← الوثيقة).
         local |= _host_classes(_template_name(path), includers)
-        if ADMIN_EXTENDS_RE.search(text) or pathlib.PurePosixPath(path.as_posix()) in ADMIN_TEMPLATES:
+        if (
+            ADMIN_EXTENDS_RE.search(text)
+            or pathlib.PurePosixPath(path.as_posix()) in ADMIN_TEMPLATES
+        ):
             local |= ADMIN_CLASSES
         for attr in CLASS_ATTR_RE.finditer(text):
             raw = attr.group(1)

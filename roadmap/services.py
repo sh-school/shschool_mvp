@@ -36,7 +36,20 @@ ITEM_EDITABLE = frozenset({"status", "progress", "start", "end", "pr", "note"})
 DECISION_EDITABLE = frozenset({"status", "date"})
 #: حقولُ البند الجديد — وبعد الإنشاء لا يُحرَّر منها إلّا `ITEM_EDITABLE`.
 ITEM_CREATABLE = frozenset(
-    {"title", "lane", "status", "start", "end", "effort", "deps", "criterion", "note", "gate", "ref", "pr"}
+    {
+        "title",
+        "lane",
+        "status",
+        "start",
+        "end",
+        "effort",
+        "deps",
+        "criterion",
+        "note",
+        "gate",
+        "ref",
+        "pr",
+    }
 )
 NEW_ITEM_SRC = "NEW"
 TITLE_MAX = 500
@@ -198,7 +211,9 @@ def static_sections(meta: Mapping[str, Any]) -> dict[str, Any]:
         {"domain": r[0], "standard": r[1], "where": r[2], "status": r[3] if len(r) > 3 else ""}
         for r in _pairs(meta.get("standards"), 3)
     ]
-    ownership = [{"role": r[0], "who": r[1], "duty": r[2]} for r in _pairs(meta.get("ownership"), 3)]
+    ownership = [
+        {"role": r[0], "who": r[1], "duty": r[2]} for r in _pairs(meta.get("ownership"), 3)
+    ]
     mapping = [{"old": r[0], "new": r[1]} for r in _pairs(meta.get("mapping"), 2)]
     return {
         "limits": str(meta.get("limits") or ""),
@@ -426,7 +441,9 @@ def _clean_effort(value: object, errors: dict[str, str]) -> float:
 
 
 @transaction.atomic
-def create_item(payload: object, *, user: Any, request: HttpRequest | None = None) -> dict[str, Any]:
+def create_item(
+    payload: object, *, user: Any, request: HttpRequest | None = None
+) -> dict[str, Any]:
     """يضيف بنداً جديداً (مهمّةً مستقبليّة): الرمزُ يُولَّد `N-001…` والمصدرُ `NEW`."""
     fields = _reject_unknown(payload, ITEM_CREATABLE)
     errors: dict[str, str] = {}
@@ -434,12 +451,18 @@ def create_item(payload: object, *, user: Any, request: HttpRequest | None = Non
     title = _clean_text(fields.get("title", ""), "title", TITLE_MAX, errors)
     if not title and "title" not in errors:
         errors["title"] = "العنوانُ مطلوب"
-    lanes = {str(lane.get("key")) for lane in selectors.meta_data().get("lanes", []) if isinstance(lane, dict)}
+    lanes = {
+        str(lane.get("key"))
+        for lane in selectors.meta_data().get("lanes", [])
+        if isinstance(lane, dict)
+    }
     lane = fields.get("lane")
     if not isinstance(lane, str) or lane not in lanes:
         errors["lane"] = "مسارٌ غيرُ معروف"
     status = (
-        _clean_status(fields["status"], ItemStatus.values, errors) if "status" in fields else ItemStatus.TODO
+        _clean_status(fields["status"], ItemStatus.values, errors)
+        if "status" in fields
+        else ItemStatus.TODO
     )
     start = _clean_date(fields.get("start"), "start", errors)
     end = _clean_date(fields.get("end"), "end", errors)
@@ -462,16 +485,34 @@ def create_item(payload: object, *, user: Any, request: HttpRequest | None = Non
     code = selectors.next_new_item_code()
     try:
         item = RoadmapItem.objects.create(
-            code=code, src=NEW_ITEM_SRC, lane=str(lane), title=title, status=status,
-            progress=100 if status == ItemStatus.DONE else 0, start_date=start, end_date=end,
-            date_basis=MANUAL_DATE_BASIS if (start or end) else "", effort=effort, deps=deps,
-            criterion=criterion, note=note, gate=gate, ref=ref, pr=pr,
-            sort_order=selectors.next_item_sort_order(), updated_by=stamp_user(user),
+            code=code,
+            src=NEW_ITEM_SRC,
+            lane=str(lane),
+            title=title,
+            status=status,
+            progress=100 if status == ItemStatus.DONE else 0,
+            start_date=start,
+            end_date=end,
+            date_basis=MANUAL_DATE_BASIS if (start or end) else "",
+            effort=effort,
+            deps=deps,
+            criterion=criterion,
+            note=note,
+            gate=gate,
+            ref=ref,
+            pr=pr,
+            sort_order=selectors.next_item_sort_order(),
+            updated_by=stamp_user(user),
         )
     except IntegrityError as exc:  # سباقٌ على الرمز نفسِه
         raise RoadmapError({"code": "تعارضٌ في الرمز — أعِد المحاولة"}) from exc
-    _audit(user, request, "roadmap_item_create", code,
-           {"before": {}, "after": {"title": title, "lane": str(lane), "status": status}})
+    _audit(
+        user,
+        request,
+        "roadmap_item_create",
+        code,
+        {"before": {}, "after": {"title": title, "lane": str(lane), "status": status}},
+    )
     return serialize_item(item)
 
 

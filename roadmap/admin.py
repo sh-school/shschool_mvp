@@ -9,7 +9,6 @@
 from django.contrib import admin
 
 from core.developer_access import is_platform_developer
-
 from roadmap.models import (
     RoadmapChecklistItem,
     RoadmapDecision,
@@ -52,6 +51,7 @@ class _RoadmapAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return is_platform_developer(request.user)
+
     list_per_page = 50
     show_full_result_count = False
 

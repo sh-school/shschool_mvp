@@ -30,9 +30,32 @@ def test_labels_only_rename_mapped_models():
 
 def test_the_menu_keeps_the_platform_section_order_and_hides_nothing():
     apps = [
-        {"app_label": "clinic", "models": [{"object_name": "ClinicVisit", "name": "زيارات العيادة", "admin_url": "/admin/clinic/clinicvisit/"}]},
-        {"app_label": "core", "models": [{"object_name": "StudentEnrollment", "name": "تسجيل طالبs", "admin_url": "/admin/core/studentenrollment/"}]},
-        {"app_label": "zzz", "models": [{"object_name": "Unknown", "name": "مجهول", "admin_url": "/admin/zzz/unknown/"}]},
+        {
+            "app_label": "clinic",
+            "models": [
+                {
+                    "object_name": "ClinicVisit",
+                    "name": "زيارات العيادة",
+                    "admin_url": "/admin/clinic/clinicvisit/",
+                }
+            ],
+        },
+        {
+            "app_label": "core",
+            "models": [
+                {
+                    "object_name": "StudentEnrollment",
+                    "name": "تسجيل طالبs",
+                    "admin_url": "/admin/core/studentenrollment/",
+                }
+            ],
+        },
+        {
+            "app_label": "zzz",
+            "models": [
+                {"object_name": "Unknown", "name": "مجهول", "admin_url": "/admin/zzz/unknown/"}
+            ],
+        },
     ]
 
     menu = build_menu(apps, "/admin/clinic/clinicvisit/")

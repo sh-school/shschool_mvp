@@ -112,9 +112,7 @@ GROUPS: tuple[tuple[str, tuple[tuple[str | None, tuple[str, ...]], ...]], ...] =
     ),
     (
         "مركز معلومات الطلبة",
-        (
-            (None, ("student_info.StudentNote", "student_affairs.StudentActivity")),
-        ),
+        ((None, ("student_info.StudentNote", "student_affairs.StudentActivity")),),
     ),
     (
         "الجودة",

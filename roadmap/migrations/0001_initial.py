@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -107,9 +106,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "decider",
-                    models.CharField(
-                        blank=True, max_length=64, verbose_name="صاحبُ القرار"
-                    ),
+                    models.CharField(blank=True, max_length=64, verbose_name="صاحبُ القرار"),
                 ),
                 (
                     "due",
@@ -117,9 +114,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "decision_date",
-                    models.DateField(
-                        blank=True, null=True, verbose_name="تاريخُ الحسم"
-                    ),
+                    models.DateField(blank=True, null=True, verbose_name="تاريخُ الحسم"),
                 ),
                 ("blocks", models.TextField(blank=True, verbose_name="يحجب")),
                 ("options", models.TextField(blank=True, verbose_name="الخيارات")),
@@ -172,9 +167,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "lane",
-                    models.CharField(
-                        db_index=True, max_length=32, verbose_name="المسار"
-                    ),
+                    models.CharField(db_index=True, max_length=32, verbose_name="المسار"),
                 ),
                 ("name", models.CharField(max_length=255, verbose_name="المؤشّر")),
                 (
@@ -191,15 +184,11 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "baseline_text",
-                    models.CharField(
-                        blank=True, max_length=255, verbose_name="الأساس (نصّاً)"
-                    ),
+                    models.CharField(blank=True, max_length=255, verbose_name="الأساس (نصّاً)"),
                 ),
                 (
                     "target_text",
-                    models.CharField(
-                        blank=True, max_length=255, verbose_name="الهدف (نصّاً)"
-                    ),
+                    models.CharField(blank=True, max_length=255, verbose_name="الهدف (نصّاً)"),
                 ),
                 (
                     "direction",
@@ -229,9 +218,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "measured_at",
-                    models.DateField(
-                        blank=True, null=True, verbose_name="تاريخ القياس"
-                    ),
+                    models.DateField(blank=True, null=True, verbose_name="تاريخ القياس"),
                 ),
                 (
                     "history",
@@ -341,9 +328,7 @@ class Migration(migrations.Migration):
                 ("risk", models.TextField(verbose_name="المخاطرة")),
                 (
                     "prob",
-                    models.CharField(
-                        blank=True, max_length=32, verbose_name="الاحتمال"
-                    ),
+                    models.CharField(blank=True, max_length=32, verbose_name="الاحتمال"),
                 ),
                 (
                     "impact",
@@ -399,9 +384,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "lane",
-                    models.CharField(
-                        db_index=True, max_length=32, verbose_name="المسار"
-                    ),
+                    models.CharField(db_index=True, max_length=32, verbose_name="المسار"),
                 ),
                 ("title", models.TextField(verbose_name="العنوان")),
                 (
@@ -421,9 +404,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "progress",
-                    models.PositiveSmallIntegerField(
-                        default=0, verbose_name="التقدّم %"
-                    ),
+                    models.PositiveSmallIntegerField(default=0, verbose_name="التقدّم %"),
                 ),
                 (
                     "start_date",
@@ -435,16 +416,12 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "date_basis",
-                    models.CharField(
-                        blank=True, max_length=120, verbose_name="أساس التاريخ"
-                    ),
+                    models.CharField(blank=True, max_length=120, verbose_name="أساس التاريخ"),
                 ),
                 ("effort", models.FloatField(default=1, verbose_name="الجهد (أيّام)")),
                 (
                     "deps",
-                    models.CharField(
-                        blank=True, max_length=255, verbose_name="الاعتماديّات"
-                    ),
+                    models.CharField(blank=True, max_length=255, verbose_name="الاعتماديّات"),
                 ),
                 (
                     "criterion",
@@ -453,9 +430,7 @@ class Migration(migrations.Migration):
                 ("note", models.TextField(blank=True, verbose_name="ملاحظة")),
                 (
                     "gate",
-                    models.CharField(
-                        blank=True, max_length=32, verbose_name="البوّابة"
-                    ),
+                    models.CharField(blank=True, max_length=32, verbose_name="البوّابة"),
                 ),
                 (
                     "ref",
@@ -463,9 +438,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "pr",
-                    models.CharField(
-                        blank=True, max_length=64, verbose_name="طلب الدمج"
-                    ),
+                    models.CharField(blank=True, max_length=64, verbose_name="طلب الدمج"),
                 ),
                 ("sort_order", models.IntegerField(default=0, verbose_name="الترتيب")),
                 (
@@ -486,9 +459,7 @@ class Migration(migrations.Migration):
                 "ordering": ["sort_order", "code"],
                 "constraints": [
                     models.CheckConstraint(
-                        condition=models.Q(
-                            ("progress__gte", 0), ("progress__lte", 100)
-                        ),
+                        condition=models.Q(("progress__gte", 0), ("progress__lte", 100)),
                         name="roadmap_item_progress_0_100",
                     )
                 ],

@@ -597,13 +597,22 @@ def test_no_roadmap_table_is_school_scoped():
 
 
 class TestCreateItem:
-    PAYLOAD = {"title": "مهمّةٌ مستقبليّة", "lane": "sec", "effort": 2, "start": "2026-10-01", "end": "2026-10-09", "gate": "owner"}
+    PAYLOAD = {
+        "title": "مهمّةٌ مستقبليّة",
+        "lane": "sec",
+        "effort": 2,
+        "start": "2026-10-01",
+        "end": "2026-10-09",
+        "gate": "owner",
+    }
 
     def _create(self, client, payload):
         import json
 
         return client.post(
-            reverse("roadmap_item_create"), data=json.dumps(payload), content_type="application/json"
+            reverse("roadmap_item_create"),
+            data=json.dumps(payload),
+            content_type="application/json",
         )
 
     def test_a_developer_creates_an_item_with_a_generated_code_and_an_audit_trail(
@@ -615,7 +624,11 @@ class TestCreateItem:
         row = response.json()["row"]
         assert row["id"] == "N-001" and row["src"] == "NEW" and row["status"] == "todo"
         item = RoadmapItem.objects.get(code="N-001")
-        assert item.title == "مهمّةٌ مستقبليّة" and item.updated_by == developer_user and item.gate == "owner"
+        assert (
+            item.title == "مهمّةٌ مستقبليّة"
+            and item.updated_by == developer_user
+            and item.gate == "owner"
+        )
         assert AuditLog.objects.filter(changes__event="roadmap_item_create").count() == 1
         assert self._create(client_as(developer_user), self.PAYLOAD).json()["row"]["id"] == "N-002"
 
