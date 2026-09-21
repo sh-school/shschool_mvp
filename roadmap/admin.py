@@ -8,6 +8,8 @@
 
 from django.contrib import admin
 
+from core.developer_access import is_platform_developer
+
 from roadmap.models import (
     RoadmapChecklistItem,
     RoadmapDecision,
@@ -32,7 +34,24 @@ _STAMPS_SECTION = _section("الطوابع", *_STAMPS)
 
 
 class _RoadmapAdmin(admin.ModelAdmin):
+    """الخارطةُ فيها تفاصيلُ أمنيّةٌ حسّاسة: تُرى وتُحرَّر لمطوّر المنصّة وحدَه كصفحة `/roadmap/`."""
+
     readonly_fields = _STAMPS
+
+    def has_module_permission(self, request):
+        return is_platform_developer(request.user)
+
+    def has_view_permission(self, request, obj=None):
+        return is_platform_developer(request.user)
+
+    def has_add_permission(self, request):
+        return is_platform_developer(request.user)
+
+    def has_change_permission(self, request, obj=None):
+        return is_platform_developer(request.user)
+
+    def has_delete_permission(self, request, obj=None):
+        return is_platform_developer(request.user)
     list_per_page = 50
     show_full_result_count = False
 

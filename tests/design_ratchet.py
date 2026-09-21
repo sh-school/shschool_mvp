@@ -139,7 +139,8 @@ ADMIN_CLASSES = frozenset(
         "visually-hidden",
     }
 )
-ADMIN_TEMPLATES_DIR = pathlib.Path("templates/admin")
+#: الملفُّ الوحيد الذي ينسخ أصنافَ Django بلا `extends` — لا الدليلُ كلُّه، كي لا يمرّ صنفٌ جديدٌ غيرُ معرَّف.
+ADMIN_TEMPLATES = frozenset({pathlib.PurePosixPath("templates/admin/app_list.html")})
 EXTENDS_RE = re.compile(r"""\{%\s*extends\s+["']([^"']+)["']""")
 
 
@@ -256,7 +257,7 @@ def undefined_classes() -> list[str]:
         local = _local_classes(text)
         # وجزءٌ مضمَّنٌ يرى أنماطَ من يضمّنه، ومن يضمّن ذاك (`signatures` ← `section_sheet` ← الوثيقة).
         local |= _host_classes(_template_name(path), includers)
-        if ADMIN_EXTENDS_RE.search(text) or path.is_relative_to(ADMIN_TEMPLATES_DIR):
+        if ADMIN_EXTENDS_RE.search(text) or pathlib.PurePosixPath(path.as_posix()) in ADMIN_TEMPLATES:
             local |= ADMIN_CLASSES
         for attr in CLASS_ATTR_RE.finditer(text):
             raw = attr.group(1)

@@ -25,4 +25,4 @@
 
 {% block nav-global %}{% admin_nav %}{% endblock %}
 
-{% block footer %}{% include "admin/_footer.html" %}{% endblock %}
+{% block footer %}{% if user.is_authenticated %}{% include "admin/_footer.html" %}{% endif %}{% endblock %}
