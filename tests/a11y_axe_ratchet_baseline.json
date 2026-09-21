@@ -1,8 +1,5 @@
 {
  "notification_inbox": {
   "aria-allowed-attr": 1
- },
- "ui_components": {
-  "scrollable-region-focusable": 1
  }
 }
