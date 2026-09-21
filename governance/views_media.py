@@ -30,6 +30,13 @@ def _staff_file(obj):
     return (obj.school_id, obj.staff_id, {"principal", "vice_admin"}, False)
 
 
+def _exception_file(obj):
+    """مرفقُ نموذج 03 (م-31): تقريرٌ طبيّ محتمل — لصاحبه ولقيادة المدرسة (المدير ونائبيه)."""
+    from staff_affairs.models import EXCEPTION_EVIDENCE_ROLES
+
+    return (obj.school_id, obj.staff_id, set(EXCEPTION_EVIDENCE_ROLES), False)
+
+
 def _resolve_file_access(name):
     """يُعيد (school_id, owner_user_id, allowed_roles, student_owned) للملف، أو None إن لم يُعرَف مالكه.
 
@@ -65,7 +72,7 @@ def _resolve_file_access(name):
             lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW | WING_DAY_RECORD, True),
         ),
         (LeaveRequest, "attachment", _staff_file),
-        (AttendanceException, "evidence_file", _staff_file),
+        (AttendanceException, "evidence_file", _exception_file),
         (
             ProcedureEvidence,
             "file",

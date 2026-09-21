@@ -3176,3 +3176,58 @@ class TestLineManagerExcuse:
             {"staff_id": worker.pk, "date": "2026-02-15", "status": "present", "check_in": "06:55"},
         )
         assert response.status_code == 403
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  مرفقُ نموذج 03 — بوّابةُ الملفّات تطابق ما يعرضه الطابور
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestExceptionEvidenceAccess:
+    """يفتحه صاحبُه والمديرُ ونائباه؛ ولا يفتحه سكرتيرٌ ولا معلّمٌ آخر ولا منسّق."""
+
+    def test_only_the_owner_and_the_leadership_open_the_attachment(
+        self, client_as, school, principal_user
+    ):
+        staff = _staff(school, 1)
+        request = _exception(
+            school, staff, principal_user, "late_arrival", FEB, FEB, time(7, 30), approve=None
+        )
+        url = request.evidence_file.url
+
+        allowed = (
+            staff,
+            principal_user,
+            _actor(school, "vice_admin"),
+            _actor(school, "vice_academic"),
+        )
+        for user in allowed:
+            assert client_as(user).get(url).status_code == 200, user
+        for user in (
+            _actor(school, "secretary"),
+            _staff(school, 2),
+            _staff(school, 3, "coordinator"),
+        ):
+            assert client_as(user).get(url).status_code == 404, user
+
+    def test_the_queue_shows_the_link_only_to_those_the_gate_admits(
+        self, client_as, school, principal_user
+    ):
+        staff = _staff(school, 1)
+        request = _exception(
+            school, staff, principal_user, "late_arrival", FEB, FEB, time(7, 30), approve=None
+        )
+        queue = reverse("staff_affairs:permit_queue")
+        page = client_as(principal_user).get(queue).content.decode()
+        assert request.evidence_file.url in page and "فتح المرفق" in page
+
+        # نائبٌ مكلَّفٌ بأعباء المدير يقرّر النموذجَ ويرى مرفقَه.
+        vice_academic = _actor(school, "vice_academic")
+        _assign(school, principal_user, vice_academic)
+        page = client_as(vice_academic).get(queue).content.decode()
+        assert request.evidence_file.url in page
+
+        # ومكلَّفٌ لا يفتحه دورُه لا يُعرض له رابطٌ يردّه بـ404.
+        coordinator = _staff(school, 3, "coordinator")
+        _assign(school, vice_academic, coordinator)
+        assert client_as(coordinator).get(request.evidence_file.url).status_code == 404
