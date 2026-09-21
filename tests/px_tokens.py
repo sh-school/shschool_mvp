@@ -37,7 +37,13 @@ SPACING_TOKENS = {
     48: "--sp-12",
     64: "--sp-16",
 }
-RADIUS_TOKENS = {4: "--radius-sm", 8: "--radius-md", 14: "--radius-lg", 16: "--radius-xl"}
+RADIUS_TOKENS = {
+    4: "--radius-sm",
+    6: "--radius-1-5",
+    8: "--radius-md",
+    14: "--radius-lg",
+    16: "--radius-xl",
+}
 
 SPACING_PROP = re.compile(
     r"(margin|padding)(-(top|bottom|left|right|inline|block)(-(start|end))?)?$|(row-|column-)?gap$"

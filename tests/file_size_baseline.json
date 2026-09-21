@@ -1,0 +1,22 @@
+{
+  "api/views.py": 915,
+  "behavior/conduct_2026.py": 1451,
+  "behavior/views.py": 1120,
+  "core/domain/grades.py": 1748,
+  "core/management/commands/full_seed.py": 962,
+  "core/models/academic.py": 913,
+  "core/permissions.py": 1084,
+  "notifications/hub.py": 989,
+  "notifications/tasks.py": 1503,
+  "operations/management/commands/import_timetable_pdf.py": 990,
+  "operations/models.py": 2213,
+  "operations/schedule_lab.py": 984,
+  "operations/scheduler.py": 1725,
+  "operations/scheduler_constraints.py": 1074,
+  "operations/views_schedule.py": 1541,
+  "quality/models.py": 1369,
+  "quality/views.py": 932,
+  "reports/services.py": 1438,
+  "student_affairs/services.py": 1069,
+  "student_affairs/views.py": 2936
+}

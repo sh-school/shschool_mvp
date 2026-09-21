@@ -1,86 +1,105 @@
 {% extends "base/base.html" %}
 {% load icons %}
 {% load ui %}
-{% block title %}تسجيل خرق بيانات{% endblock %}
+{% block title %}{% if is_edit %}تعديل خرق بيانات{% else %}تسجيل خرق بيانات{% endif %}{% endblock %}
 
 {% block breadcrumbs %}
+{% if is_edit %}
+{% include "components/breadcrumbs.html" with parent_url="/breach/" parent_label="خرق البيانات" current="تعديل الخرق" %}
+{% else %}
 {% include "components/breadcrumbs.html" with parent_url="/breach/" parent_label="خرق البيانات" current="تسجيل خرق" %}
+{% endif %}
 {% endblock %}
 
 {% block content %}
 <div class="exec-dash beh-narrow">
 
+  {% if is_edit %}
+  {% page_header "تعديل خرق بيانات" subtitle="وقتُ الاكتشاف لا يُعدَّل: عليه مهلةُ الـ72 ساعة المعتمَدة" icon="breach" %}{% endpage_header %}
+  {% else %}
   {% page_header "تسجيل خرق بيانات جديد" subtitle="PDPPL م.11 — إشعار NCSA" icon="breach" %}{% endpage_header %}
+  {% endif %}
 
-  <form method="post" class="beh-form-stack" data-validate>{% csrf_token %}
+  <form method="post" class="beh-form-stack" data-validate novalidate>{% csrf_token %}
+    {% if form.errors %}
+    {% callout "error" show=True %}تعذّر التسجيل، صحِّح ما يلي:{% for field in form %}{% for error in field.errors %}<br>{{ error }}{% endfor %}{% endfor %}{% for error in form.non_field_errors %}<br>{{ error }}{% endfor %}{% endcallout %}
+    {% endif %}
 
     {% section_card "عنوان الخرق والتصنيف" icon="breach" %}
       <div class="form-group">
         <label class="form-label" for="breachTitle">عنوان الخرق <span class="required">*</span></label>
-        <input name="title" id="breachTitle" class="form-control" required placeholder="مثال: تسريب بيانات طلاب من قاعدة البيانات">
+        {{ form.title }}
       </div>
 
       <div class="form-row form-group">
         <div>
           <label class="form-label" for="breachSeverity">الخطورة</label>
-          <select name="severity" id="breachSeverity" class="form-control">
-            <option value="low">منخفضة</option>
-            <option value="medium" selected>متوسطة</option>
-            <option value="high">عالية</option>
-            <option value="critical">حرجة</option>
-          </select>
+          {{ form.severity }}
         </div>
         <div>
           <label class="form-label" for="breachDataType">نوع البيانات المتأثرة</label>
-          <select name="data_type_affected" id="breachDataType" class="form-control">
-            <option value="health">بيانات صحية</option>
-            <option value="academic">بيانات أكاديمية</option>
-            <option value="personal" selected>بيانات شخصية</option>
-            <option value="financial">بيانات مالية</option>
-            <option value="all">جميع البيانات</option>
-          </select>
+          {{ form.data_type_affected }}
         </div>
         <div>
           <label class="form-label" for="breachAffected">عدد الأشخاص المتأثرين</label>
-          <input name="affected_count" id="breachAffected" type="number" class="form-control" value="0" min="0">
+          {{ form.affected_count }}
         </div>
       </div>
 
+      {% if "discovered_at" in form.fields %}
       <div class="form-group">
         <label class="form-label" for="breachDiscovered">وقت الاكتشاف <span class="required">*</span></label>
-        <input name="discovered_at" id="breachDiscovered" type="datetime-local" class="form-control" required value="{{ now }}">
+        {{ form.discovered_at }}
       </div>
+      {% endif %}
     {% endsection_card %}
 
     {% section_card "وصف الخرق والإجراءات" icon="breach" %}
       <div class="form-group">
         <label class="form-label" for="breachDescription">وصف الخرق التفصيلي <span class="required">*</span></label>
-        <textarea name="description" id="breachDescription" class="form-control resize-y" rows="3" required
-          placeholder="ماذا حدث؟ كيف اكتُشف؟ ما البيانات المتأثرة؟"></textarea>
+        {{ form.description }}
       </div>
       <div class="form-group">
         <label class="form-label" for="breachImmediate">الإجراء الفوري المتخذ</label>
-        <textarea name="immediate_action" id="breachImmediate" class="form-control resize-y" rows="2"
-          placeholder="عزل النظام، تغيير كلمات المرور، إغلاق الثغرة..."></textarea>
+        {{ form.immediate_action }}
       </div>
       <div class="form-group">
         <label class="form-label" for="breachContainment">إجراءات الاحتواء</label>
-        <textarea name="containment_action" id="breachContainment" class="form-control resize-y" rows="2"></textarea>
+        {{ form.containment_action }}
+      </div>
+      <div class="form-row form-group">
+        <div>
+          <label class="form-label" for="breachAssignee">المسؤول عن المتابعة (DPO)</label>
+          {{ form.assigned_to }}
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="breachEvidence">الأدلة والملاحظات</label>
+        {{ form.evidence_notes }}
       </div>
     {% endsection_card %}
 
     {% section_card "إشعار NCSA" icon="notifications" %}
       <div class="form-group">
-        <label class="form-label" for="breachNotification">نص الإشعار لـ NCSA</label>
-        <textarea name="notification_text" id="breachNotification" class="form-control resize-y" rows="4"
-          placeholder="وفق نموذج NCSA الرسمي...">{{ ncsa_template }}</textarea>
+        <label class="form-label" for="breachNotification">نصّ الإشعار لـ NCSA (اختياري)</label>
+        {{ form.notification_text }}
       </div>
-      {% callout "warning" show=True %}تُحسب مهلةُ الإشعار (72 ساعة) من وقت الاكتشاف المُدخَل لا من وقت الحفظ، وتصل تنبيهاتُها تلقائياً للمسؤول؛ ولا تُعدَّل بيانات التقرير ولا نصُّ الإشعار بعد الحفظ.{% endcallout %}
+      {% if is_edit and "regenerate_notice" in form.fields and not form.regenerate_notice.field.disabled %}
+      <div class="form-group">
+        <label class="form-label" for="breachRegenerate">{{ form.regenerate_notice }} {{ form.regenerate_notice.label }}</label>
+      </div>
+      {% endif %}
+      {% callout "warning" show=True %}تُحسب مهلةُ الإشعار (72 ساعة) من وقت الاكتشاف المُدخَل لا من وقت الحفظ، ولا يُعدَّل وقتُ الاكتشاف بعد الحفظ؛ وتصل تنبيهاتُها تلقائياً للمسؤول. ويُقفل نصُّ الإشعار بعد «تم إشعار NCSA» لأنه سجلُّ ما أُرسل.{% endcallout %}
     {% endsection_card %}
 
     <div class="form-actions">
+      {% if is_edit %}
+      <a href="{% url 'breach:detail' breach.pk %}" class="btn-secondary">إلغاء</a>
+      <button type="submit" class="btn-primary">{% icon "confirm" %} حفظ التعديل</button>
+      {% else %}
       <a href="{% url 'breach:dashboard' %}" class="btn-secondary">إلغاء</a>
       <button type="submit" class="btn-danger">{% icon "breach" %} تسجيل الخرق</button>
+      {% endif %}
     </div>
   </form>
 
