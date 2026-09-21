@@ -271,3 +271,5 @@ html[data-theme="dark"] {
 .app-fold__summary a.section:link,
 .app-fold__summary a.section:visited { color: inherit; margin-inline-end: auto; }
 .app-fold__count { font-size: 0.7rem; opacity: 0.85; font-variant-numeric: tabular-nums; }
+/* جانغو يترك 30px تحت كلّ .module، وهو مناسبٌ لجداولَ مفتوحة لا لأشرطةِ أقسامٍ مطويّة؛ فيقاربها هنا. */
+.dashboard #content-main .module { margin-bottom: 0.4rem; }
