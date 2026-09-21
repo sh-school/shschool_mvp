@@ -17,7 +17,7 @@ Faker==40.39.0
 # Code quality
 black==26.5.1
 isort==9.0.1
-ruff==0.16.7
+ruff==0.16.8
 
 # Type checking
 mypy==2.3.1
@@ -25,7 +25,7 @@ django-stubs==6.1.1
 djangorestframework-stubs==3.18.1
 
 # Load testing
-locust==2.46.5
+locust==2.46.6
 
 # Mutation testing (quality.yml الأسبوعيّ + make test-mutmut)
 mutmut==3.8.0
