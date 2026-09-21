@@ -1,5 +1,6 @@
 {% load icons %}
-<div class="form-note clinic-done">
+{% load ui %}
+<div class="ui-callout ui-callout--success clinic-done">
   {% icon "status_success" %}
   <div>
     <p class="clinic-done__title">تم تسجيل الزيارة بنجاح</p>
@@ -10,5 +11,8 @@
     <a href="{% url 'clinic:health_record' visit.student.id %}" class="clinic-done__link">
       عرض السجل الصحي الكامل →
     </a>
+    {% if visit.is_sent_home and not visit.parent_notified %}
+    {% callout "warning" show=True %}لم يُبلَّغ وليُّ الأمر: لا بريدَ مسجَّلاً له أو تعذّر الإرسال. تواصل معه مباشرةً.{% endcallout %}
+    {% endif %}
   </div>
 </div>

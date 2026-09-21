@@ -25,3 +25,21 @@ def test_shrinkage_is_recorded_so_it_cannot_be_spent_again():
     assert not stale, (
         f"صغُر ملفٌّ ولم يُثبَّت نقصُه — أحسنت؛ ثبّته بـ `{UPDATE}` وأودع السجلّ:\n  " + "\n  ".join(stale)
     )
+
+
+class TestTheRatchetItself:
+    def test_a_few_lines_of_growth_inside_the_margin_pass(self):
+        worse, stale = ratchet.compare({"a.py": 1000}, {"a.py": 1000 + ratchet.TOLERANCE})
+        assert not worse and not stale
+
+    def test_growth_past_the_margin_fails(self):
+        worse, _ = ratchet.compare({"a.py": 1000}, {"a.py": 1000 + ratchet.TOLERANCE + 1})
+        assert worse
+
+    def test_a_new_file_over_the_limit_fails_and_under_it_passes(self):
+        assert ratchet.compare({}, {"b.py": ratchet.HARD_LIMIT + 1})[0]
+        assert not ratchet.compare({}, {"b.py": ratchet.HARD_LIMIT})[0]
+
+    def test_a_file_that_fell_under_the_limit_must_leave_the_baseline(self):
+        _, stale = ratchet.compare({"a.py": 1000}, {"a.py": ratchet.HARD_LIMIT - 1})
+        assert stale

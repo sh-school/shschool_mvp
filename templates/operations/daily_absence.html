@@ -19,6 +19,7 @@
       <input type="date" name="date" value="{{ report.day|date:'Y-m-d' }}" class="form-control" aria-label="التاريخ">
       <button type="submit" class="btn-secondary btn-sm">اعرض</button>
     </form>
+    {% callout "hint" %}النطاقُ قسمُك: حصصُ معلّميه وطلابُها.{% endcallout %}
   {% endpage_header %}
 
   {% kpi_strip label="اليوم في رقم" %}
@@ -29,12 +30,12 @@
   {% endkpi_strip %}
 
   {% if report.scoped_to_department %}
-  <p class="bell-note">النطاقُ قسمُك: حصصُ معلّميه وطلابُها.</p>
+  
   {% endif %}
 
   {% if report.ministry_rows %}
   {% section_card "للرفع في نظام الوزارة — غابوا الحصّتين الأولى والثانية" meta=report.ministry_rows|length icon="status_warning" %}
-    <p class="bell-note">يرفعها مشرفُ الجناح في نظام الوزارة خارجَ المنصّة، بعذرٍ أو بدونه بحسب حال الطالب.</p>
+    {% callout "hint" %}يرفعها مشرفُ الجناح في نظام الوزارة خارجَ المنصّة، بعذرٍ أو بدونه بحسب حال الطالب.{% endcallout %}
     <div class="table-wrap">
       <table data-no-sort>
         <thead><tr><th>الطالب</th><th>الشعبة</th><th>الحال</th></tr></thead>
@@ -81,7 +82,7 @@
         </tbody>
       </table>
     </div>
-    <p class="bell-note">ح حاضر · غ غائب · ع غائب بعذر · م متأخّر · <b>·</b> لم تُرصد.</p>
+    <p class="ui-note">ح حاضر · غ غائب · ع غائب بعذر · م متأخّر · <b>·</b> لم تُرصد.</p>
     {% else %}
     {% include "components/empty_state.html" with title="لا غيابَ ولا تأخّرَ مرصوداً في هذا اليوم" only %}
     {% endif %}

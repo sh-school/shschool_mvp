@@ -63,7 +63,8 @@
         <li class="status-badge {% if link.parent.email %}status-success{% else %}status-gray{% endif %}">{{ link.parent.full_name }}{% if not link.parent.email %} · لا بريد{% endif %}</li>
       {% endfor %}
     </ul>
-    <form method="post" class="form-actions">
+    {% callout "warning" %}يُرسَل التقرير فوراً بالبريد إلى وليّ أمر قاصر ولا يُسحب بعد الإرسال؛ ولا يصل إلّا من له بريدٌ مسجَّل.{% endcallout %}
+    <form method="post" class="form-actions" data-confirm="يُرسَل التقرير السلوكي فوراً بالبريد إلى وليّ الأمر ولا يُسحب. أتابع؟">
       {% csrf_token %}
       <input type="hidden" name="action" value="send">
       <button type="submit" class="btn-primary btn-sm">{% icon "messages" %} إرسال التقرير بالبريد الإلكتروني</button>

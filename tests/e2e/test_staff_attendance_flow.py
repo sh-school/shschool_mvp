@@ -48,7 +48,8 @@ class TestAssignmentsScreen:
 
         page.wait_for_load_state("networkidle")
         expect(page.locator("main")).to_contain_text("نائب الاختبار")
-        expect(page.locator("main")).to_contain_text("رفع التكليف")  # صفٌّ في «قائمةٌ اليوم»
+        # صفُّه في «قائمةُ اليوم» بزرّ رفعٍ اسمُه المتاح «رفع تكليف <المكلَّف>» (aria-label)
+        expect(page.get_by_role("button", name="رفع تكليف نائب الاختبار")).to_be_visible()
 
     def test_a_teacher_cannot_open_the_assignments_screen(
         self, teacher_page, live_server, e2e_deputy

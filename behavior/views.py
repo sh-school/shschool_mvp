@@ -644,9 +644,9 @@ def behavior_report(request, student_id):
                     f"{school.name}"
                 )
                 try:
-                    NotificationService.send_email(
+                    NotificationService.deliver_email(
+                        user=parent,
                         school=school,
-                        recipient_email=parent.email,
                         subject=f"التقرير السلوكي — {student.full_name} — {report['period_label']}",
                         body_text=body,
                         student=student,

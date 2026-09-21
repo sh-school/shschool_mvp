@@ -7,6 +7,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="{% brand_color 'MAROON' %}" id="meta-theme-color">
   <meta name="color-scheme" content="light" id="meta-color-scheme">
+  {% comment %}لونُ أرضيّة الصفحة يُرسم قبل أيّ ملفٍّ خارجيّ (من `core.brand` مرآةِ `--page-bg`): كانت الصفحةُ الجديدةُ بيضاءَ لحظةً بين النقرة وتحميل الأنماط فتُرى الشاشةُ «تُفرَّغ» ثمّ تعود. الآن لا أبيضَ يظهر: تبقى الأرضيّةُ بلونها نهاراً وليلاً.{% endcomment %}
+  <style>html{background:{% brand_color "PAGE_BG" %}}html.dark{background:{% brand_color "PAGE_BG" "dark" %}}</style>
   {# ── Dark Mode: تطبيق مبكر لمنع وميض الأبيض (FOUC) ── #}
   <script nonce="{{ request.csp_nonce }}">
     (function(){var t=localStorage.getItem('theme'),isDark=t==='dark';if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='{% brand_color "MAROON_BG" "dark" %}';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
@@ -65,7 +67,7 @@
   <script src="{% static 'js/htmx.min.js' %}" defer></script>
 </head>
 
-<body class="app-body min-h-screen flex flex-col" data-icon-sprite="{% static 'icons/sprite.svg' %}">
+<body class="app-body min-h-screen flex flex-col" data-icon-sprite="{% static 'icons/sprite.svg' %}" data-page-nav>
 
 {# ✅ Skip Navigation — WCAG 2.1 AA #}
 <a href="#main-content" class="skip-nav">تخطي للمحتوى الرئيسي</a>
@@ -594,6 +596,9 @@
   {% if is_developer %}
   <hr>
   <div class="sd-label">أدوات المطوّر</div>
+  <a href="{% url 'ui_components' %}" role="menuitem" aria-label="دليل الهوية البصرية ومعاييرها">
+    {% icon "developer" %} دليل الهويّة البصريّة
+  </a>
   {% if request.user|can_open:"developer_feedback:inbox_list" %}
   <a href="{% url 'developer_feedback:inbox_list' %}" role="menuitem"
      aria-label="صندوق الوارد للمطوّر">
@@ -890,6 +895,7 @@
 
 
 {# ════════════════ FLASH MESSAGES ═══════════════════════════════════════ #}
+<div id="page-msgs" class="page-crumbs">
 {% if messages %}
 <div class="msgs-wrap space-y-2" id="msgs-wrap">
   {% for msg in messages %}
@@ -903,10 +909,11 @@
   {% endfor %}
 </div>
 {% endif %}
+</div>
 
 
 {# ════════════════ BREADCRUMBS ══════════════════════════════════════════ #}
-{% block breadcrumbs %}{% endblock %}
+<div id="crumbs" class="page-crumbs">{% block breadcrumbs %}{% endblock %}</div>
 
 {# ════════════════ MAIN CONTENT ═════════════════════════════════════════ #}
 <main id="main-content" class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full {% block main_class %}{% endblock %}">
@@ -985,6 +992,8 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
 <script src="{% static 'js/app.js' %}" defer></script>
 {# التطبيقُ المثبَّت بلا شريطِ متصفّح: الملفّاتُ إلى قائمة المشاركة، و«اللسانُ الجديد» في النافذة نفسها #}
 <script src="{% static 'js/app-mode.js' %}" defer></script>
+{% comment %}التنقّلُ بين الصفحات بتبديل المحتوى وحدَه: الترويسةُ والقائمةُ والفوتر ثابتةٌ لا تُعاد، والمحتوى يتلاشى ثمّ يظهر بسلاسةٍ (قرارُ المالك 2026-09-20). صفحةٌ لها سكربتُها أو أنماطُها الخاصّة تُحمَّل كاملةً كما كانت.{% endcomment %}
+<script src="{% static 'js/page-nav.js' %}" defer></script>
 
 {% block extra_js %}{% endblock %}
 

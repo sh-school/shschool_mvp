@@ -28,6 +28,7 @@
   {% section_card "سجل المخالفات" icon="behavior_violation" empty="لا توجد مخالفات مسجلة" %}{% if infractions %}
     <input type="search" id="infractionsSearch" class="form-control form-control-sm beh-search"
            placeholder="بحث في المخالفات..." aria-label="بحث في المخالفات" autocomplete="off">
+    {% if is_committee %}{% callout "warning" %}«تصعيد» ينقل المخالفة إلى الخطوة التالية ويُبلِّغ وليَّ الأمر تلقائياً (الدرجة الثانية فأعلى)، ولا تراجعَ عنه.{% endcallout %}{% endif %}
     <ul class="plain-list">
       {% for inf in infractions %}
         <li class="plain-list__row beh-case js-filter-row"
@@ -48,7 +49,7 @@
           </div>
           <div class="beh-row-actions">
             {% if is_committee and not inf.is_resolved %}
-            <form method="post" action="{% url 'behavior:escalate_infraction' inf.id %}">
+            <form method="post" action="{% url 'behavior:escalate_infraction' inf.id %}" data-confirm="تصعيد المخالفة إلى الخطوة التالية وإبلاغ وليّ الأمر تلقائياً، ولا تراجعَ عنه. أتابع؟">
               {% csrf_token %}
               <button type="submit" class="btn-warning btn-xs">{% icon "stats" %} تصعيد</button>
             </form>

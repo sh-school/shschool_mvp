@@ -17,7 +17,7 @@ notifications/tasks.py
 import logging
 import re
 from time import monotonic
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
@@ -1436,3 +1436,68 @@ def reconcile_deliveries_task(self, school_id):
     from .reconciler import reconcile_school
 
     return reconcile_school(school_id)
+
+
+@shared_task(
+    base=TenantRLSTask,
+    bind=True,
+    max_retries=0,
+    name="notifications.release_after_quiet_hours",
+)
+def release_after_quiet_hours_task(
+    self: Any, school_id: Any, user_id: Any, target: str, payload: dict
+) -> dict:
+    """يحفظ إرسالاً خارجياً حتى تنتهي ساعاتُ هدوء مستلمه، ثم يُطلقه.
+
+    المرجعُ المشترك لكلّ مسارات الإرسال الخارجيّ (الـHub وخدمة الغياب والرسوب):
+    `quiet_hours.plan`. تُجدوَل هذه المهمّةُ بموعد (`eta`) لا يتجاوز قفزةً واحدة،
+    وعند كلّ قفزةٍ يُعاد السؤال — فإن انتهت الساعاتُ أُطلقت الحمولةُ كما هي إلى
+    مهمّة قناتها، وإلّا أعادت جدولةَ نفسها. القفزاتُ القصيرة عمداً: وسيطُ Redis
+    يُعيد تسليم رسالةٍ مؤجَّلة تجاوزت `visibility_timeout`، فموعدٌ واحدٌ بعيد
+    (حتى ثماني ساعات) كان يُخرجها مكرّرةً كلَّ ساعة.
+
+    `target` مفتاحٌ من قائمةٍ مغلقة لا اسمُ مهمّةٍ حرّ: هذه المهمّة لا تُنفّذ ما
+    يُملى عليها. والحمولةُ لا تحمل `delivery_id` — التسليمُ المتتبَّع يُعاد إنتاجُه
+    بالـHub (`dispatch_id`) لا هنا.
+
+    لا `retry`: الفشلُ في هذه الحلقة القصيرة يُعالَج بأنّ المنتِج (الـHub أو المُصالِح)
+    يعود فيطلب من جديد، ورسالةُ الخدمة المباشرة تبقى في سجلّ تنبيهها `pending`.
+    """
+    from core.models import CustomUser
+    from notifications import quiet_hours
+
+    targets = {
+        "hub": hub_send_notification_task,
+        "email": send_email_task,
+        "sms": send_sms_task,
+    }
+    task = targets.get(target)
+    if task is None:
+        logger.error("release_after_quiet_hours: unknown target=%s", target)
+        return {"status": "unknown_target"}
+
+    user = CustomUser.objects.filter(id=user_id).first()
+    if user is None:
+        plan = quiet_hours.QuietPlan(quiet_hours.SEND_NOW)
+    else:
+        plan = quiet_hours.plan(user)
+
+    if plan.action == quiet_hours.HOLD:
+        assert plan.eta is not None  # HOLD يحمل موعداً دائماً
+        self.apply_async(
+            kwargs={
+                "school_id": school_id,
+                "user_id": user_id,
+                "target": target,
+                "payload": payload,
+            },
+            eta=plan.eta,
+        )
+        return {"status": "held", "until": plan.eta.isoformat()}
+
+    if plan.action == quiet_hours.SKIP:
+        logger.warning("release_after_quiet_hours: no worker to hold — dropped target=%s", target)
+        return {"status": "skipped"}
+
+    task.delay(**payload)
+    return {"status": "released", "target": target}
