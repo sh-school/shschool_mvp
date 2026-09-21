@@ -44,7 +44,7 @@
   {% endif %}{% endsection_card %}
 
   {% section_card "التقييمات الأخيرة" meta=recent_evals|length icon="staff_evaluation" empty="لا توجد تقييمات بعد لهذا العام" %}{% if recent_evals %}
-    <ul class="plain-list is-scroll" id="eval-recent-list">
+    <ul class="plain-list is-scroll" id="eval-recent-list" tabindex="0" aria-label="التقييمات الأخيرة">
       {% for ev in recent_evals %}
       <li class="plain-list__row" data-text="{{ ev.employee.full_name }} {{ ev.get_period_display }}">
         <span class="plain-list__main">
