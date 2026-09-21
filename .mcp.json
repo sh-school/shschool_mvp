@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "schoolos-db": {
+      "command": "bash",
+      "args": ["scripts/mcp-postgres.sh"]
+    }
+  }
+}

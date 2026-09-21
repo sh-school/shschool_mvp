@@ -1,4 +1,4 @@
-.PHONY: up down build logs shell migrate seed full-seed test reset \
+.PHONY: up down build logs shell migrate seed full-seed test reset session-up session-down \
         quality lint security ci test-cov pre-commit-install minify-js \
         axes-reset health-check ready-check test-v54 pip-audit-check \
         railway-plan
@@ -19,6 +19,13 @@ logs:
 
 shell:
 	docker-compose exec web python manage.py shell
+
+# ── خادمُ جلسة (شجرةُ عمل) — انظر CLAUDE.md ─────────────
+session-up:
+	bash scripts/session-up.sh
+
+session-down:
+	bash scripts/session-up.sh --down
 
 # ── Docker (Production) ───────────────────────────────
 prod-up:
