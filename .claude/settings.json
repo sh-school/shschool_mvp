@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash scripts/session-start-prod.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}
