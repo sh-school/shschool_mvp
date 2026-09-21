@@ -13,15 +13,15 @@
   .dab td.dab-absent.dab-excused { color: var(--status-info-fg); background: var(--status-info-bg); }
   .dab td.dab-late { color: var(--status-warning-fg); background: var(--status-warning-bg); }
   .dab td.dab-none { color: var(--text-muted); font-weight: 400; }
-  .asg-guard { border-radius: 12px; padding: var(--sp-2-5) var(--sp-3-5); margin: var(--sp-1) 0 var(--sp-3-5); border: 1px solid var(--border); font-size: 13px; }
+  .asg-guard { border-radius: 12px; padding: var(--sp-2-5) var(--sp-3-5); margin: var(--sp-1) 0 var(--sp-3-5); border: 1px solid var(--border); font-size: 0.8125rem; }
   .asg-guard.ok { background: var(--status-success-bg); border-color: var(--status-success-border); color: var(--status-success-fg); }
   .asg-guard.bad { background: var(--status-warning-bg); border-color: var(--asg-warning-border); color: var(--status-warning-fg); }
   .asg-guard-head { display: flex; gap: var(--sp-2-5); align-items: baseline; flex-wrap: wrap; }
   .asg-guard-head strong { font-size: var(--text-sm); }
   .asg-guard details { margin-top: var(--sp-2); }
-  .asg-guard summary { cursor: pointer; font-weight: 700; font-size: 12.5px; }
+  .asg-guard summary { cursor: pointer; font-weight: 700; font-size: 0.78125rem; }
   .asg-guard-scroll { max-height: 280px; overflow: auto; margin-top: var(--sp-1-5); background: var(--surface); border-radius: var(--radius-md); }
-  table.asg-guard-table { width: 100%; border-collapse: collapse; font-size: 12.5px; color: var(--text-primary); }
+  table.asg-guard-table { width: 100%; border-collapse: collapse; font-size: 0.78125rem; color: var(--text-primary); }
   /* `thead th` العامّة تكتب بالأبيض على الخمريّ. وهذه الترويسةُ فاتحةٌ داخل
      بطاقةِ التنبيه، فبلا لونٍ صريحٍ يصير الأبيضُ على الفاتح — نصٌّ لا يُقرأ. */
   table.asg-guard-table th { position: sticky; top: 0; background: var(--surface-alt); color: var(--text-primary); font-weight: 700; text-align: right; padding: 5px var(--sp-2); border-bottom: 1px solid var(--border); }
@@ -33,11 +33,11 @@
   .asg-dept-fold { margin: var(--sp-5) 0 0; }
   .asg-dept-fold > .asg-dept-summary { display: flex; align-items: center; gap: var(--sp-2); cursor: pointer; list-style: none; border-bottom: 2px solid var(--border); padding-bottom: 5px; }
   .asg-dept-fold > .asg-dept-summary::-webkit-details-marker { display: none; }
-  .asg-dept-fold > .asg-dept-summary::before { content: "◂"; color: var(--text-muted); font-size: 12px; transition: transform var(--transition-base); }
+  .asg-dept-fold > .asg-dept-summary::before { content: "◂"; color: var(--text-muted); font-size: 0.75rem; transition: transform var(--transition-base); }
   .asg-dept-fold[open] > .asg-dept-summary::before { transform: rotate(-90deg); }
   .asg-dept-fold > .asg-dept-summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 3px; border-radius: 6px; }
   .asg-dept-fold > .asg-grid { margin-top: var(--sp-2); }
-  .asg-dept { margin: 0; font-size: 15px; font-weight: 800; color: var(--maroon-fg); }
+  .asg-dept { margin: 0; font-size: 0.9375rem; font-weight: 800; color: var(--maroon-fg); }
   .asg-dept small { font-weight: 400; color: var(--text-muted); font-size: var(--text-xs); }
   .asg-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: var(--sp-2-5) var(--sp-3-5) var(--sp-3); margin-bottom: var(--sp-2-5); }
   /* عمودٌ واحدٌ دائماً — أسماءُ معلّمي القسم أسفل بعضها (قرارُ 2026-09-18، بعد
@@ -49,11 +49,11 @@
   .asg-search { flex: 0 1 200px; margin: 0; }
   .asg-fold > .asg-summary { display: flex; align-items: center; gap: var(--sp-2-5); flex-wrap: wrap; cursor: pointer; list-style: none; }
   .asg-fold > .asg-summary::-webkit-details-marker { display: none; }
-  .asg-fold > .asg-summary::before { content: "◂"; color: var(--text-muted); font-size: 12px; transition: transform var(--transition-base); }
+  .asg-fold > .asg-summary::before { content: "◂"; color: var(--text-muted); font-size: 0.75rem; transition: transform var(--transition-base); }
   .asg-fold[open] > .asg-summary::before { transform: rotate(-90deg); }
   .asg-fold > .asg-summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 3px; border-radius: 6px; }
   .asg-fold[open] > .asg-head { margin-top: var(--sp-2); padding-top: var(--sp-2); border-top: 1px dashed var(--border); }
-  .asg-count { font-size: 12px; color: var(--text-muted); }
+  .asg-count { font-size: 0.75rem; color: var(--text-muted); }
   .asg-chip-alert { background: var(--status-danger-bg); color: var(--status-danger-fg); border-color: var(--status-danger-border); }
   .asg-table-wrap { overflow-x: auto; max-width: 100%; }
   /* الحالةُ تُركَّب في `assignment_teacher.html` من قيمة الخطّة كما هي (`approved`)،
@@ -63,41 +63,41 @@
   .asg-card.asg-submitted { border-inline-start: 4px solid var(--status-warning-deep); }
   .asg-card.asg-reviewed { border-inline-start: 4px solid var(--status-info-strong); }
   .asg-head { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
-  .asg-name { font-weight: 800; font-size: 15px; }
-  .asg-chip { font-size: 11.5px; padding: var(--sp-0-5) var(--sp-2); border-radius: 999px; border: 1px solid var(--border); color: var(--text-secondary); background: var(--surface-alt); }
+  .asg-name { font-weight: 800; font-size: 0.9375rem; }
+  .asg-chip { font-size: 0.71875rem; padding: var(--sp-0-5) var(--sp-2); border-radius: 999px; border: 1px solid var(--border); color: var(--text-secondary); background: var(--surface-alt); }
   .asg-chip-submitted { background: var(--status-warning-bg); color: var(--status-warning-fg); border-color: var(--asg-warning-border); }
   .asg-chip-reviewed { background: var(--status-info-bg); color: var(--status-info-fg); border-color: var(--status-info-border); }
   .asg-chip-approved, .asg-chip-locked { background: var(--status-success-bg); color: var(--status-success-fg); border-color: var(--asg-success-border); }
-  .asg-load { font-size: 12.5px; color: var(--text-secondary); margin-inline-start: auto; }
+  .asg-load { font-size: 0.78125rem; color: var(--text-secondary); margin-inline-start: auto; }
   .asg-load.over { color: var(--status-danger-fg); font-weight: 700; }
   .asg-load.exact { color: var(--status-success-fg); font-weight: 700; }
   .asg-dept-pick select { padding: 3px var(--sp-1-5); border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; font-size: var(--text-xs); background: var(--surface); max-width: 190px; }
   .asg-dept-pick select.empty { border-color: var(--status-warning-border); background: var(--status-warning-bg); }
-  .asg-quota { display: inline-flex; align-items: center; gap: var(--sp-1-5); font-size: 12.5px; }
+  .asg-quota { display: inline-flex; align-items: center; gap: var(--sp-1-5); font-size: 0.78125rem; }
   .asg-quota input { width: 62px; padding: var(--sp-1) var(--sp-1-5); border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; text-align: center; }
   .asg-inline { display: inline; }
-  table.asg { width: 100%; border-collapse: collapse; margin-top: var(--sp-2); font-size: 13px; }
+  table.asg { width: 100%; border-collapse: collapse; margin-top: var(--sp-2); font-size: 0.8125rem; }
   /* ترويسةٌ عنابيّةٌ ⇒ نصٌّ أبيض. كان اللونُ هنا `--text-muted` رماديّاً على
      أرضيّة `thead tr` العنابيّة، فالتخصيصُ الأخصُّ يغلب العامَّ ويبهت الرأس. */
   table.asg thead th { text-align: right; color: var(--on-fill); font-weight: 600; padding: var(--sp-1) var(--sp-1-5); }
   table.asg tbody th { text-align: right; color: var(--text-muted); font-weight: 600; padding: var(--sp-1) var(--sp-1-5); border-bottom: 1px solid var(--border); }
   table.asg td { padding: var(--sp-1) var(--sp-1-5); border-bottom: 1px solid var(--border); vertical-align: middle; }
   table.asg input[type=number] { width: 54px; padding: 3px 5px; border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; text-align: center; }
-  table.asg select { padding: 5px var(--sp-2); border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; font-size: 13px; background: var(--surface); min-width: 170px; }
+  table.asg select { padding: 5px var(--sp-2); border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; font-size: 0.8125rem; background: var(--surface); min-width: 170px; }
   .asg-add td { background: var(--surface-alt); }
   .asg-addform { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; }
-  .asg-plus { padding: 5px var(--sp-3-5); border-radius: var(--radius-md); border: 1.5px solid var(--maroon); background: var(--maroon); color: var(--on-fill); font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; }
-  .asg-check { display: inline-flex; gap: var(--sp-1); align-items: center; font-size: 12.5px; }
-  .asg-x { border: 0; background: transparent; color: var(--status-danger-fg); font-size: 15px; cursor: pointer; padding: 0 var(--sp-1-5); }
-  .asg-confirm { margin-top: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); background: var(--status-warning-bg); border: 1px solid var(--asg-warning-border); color: var(--status-warning-fg); font-size: 12.5px; display: flex; gap: var(--sp-2-5); align-items: center; flex-wrap: wrap; }
+  .asg-plus { padding: 5px var(--sp-3-5); border-radius: var(--radius-md); border: 1.5px solid var(--maroon); background: var(--maroon); color: var(--on-fill); font-family: inherit; font-size: 0.78125rem; font-weight: 700; cursor: pointer; }
+  .asg-check { display: inline-flex; gap: var(--sp-1); align-items: center; font-size: 0.78125rem; }
+  .asg-x { border: 0; background: transparent; color: var(--status-danger-fg); font-size: 0.9375rem; cursor: pointer; padding: 0 var(--sp-1-5); }
+  .asg-confirm { margin-top: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); background: var(--status-warning-bg); border: 1px solid var(--asg-warning-border); color: var(--status-warning-fg); font-size: 0.78125rem; display: flex; gap: var(--sp-2-5); align-items: center; flex-wrap: wrap; }
   .asg-confirm p { margin: 0; flex: 1 1 320px; }
-  .asg-err { margin-top: var(--sp-2); padding: var(--sp-1-5) var(--sp-2-5); border-radius: var(--radius-md); background: var(--status-danger-bg); color: var(--status-danger-fg); border: 1px solid var(--status-danger-border); font-size: 12.5px; }
+  .asg-err { margin-top: var(--sp-2); padding: var(--sp-1-5) var(--sp-2-5); border-radius: var(--radius-md); background: var(--status-danger-bg); color: var(--status-danger-fg); border: 1px solid var(--status-danger-border); font-size: 0.78125rem; }
   .asg-note { margin-top: var(--sp-1-5); font-size: var(--text-xs); color: var(--status-warning-fg); }
-  .asg-empty { color: var(--text-muted); font-size: 12.5px; padding: var(--sp-1-5) 0; }
-  .asg-hint { color: var(--text-muted); font-size: 11.5px; }
+  .asg-empty { color: var(--text-muted); font-size: 0.78125rem; padding: var(--sp-1-5) 0; }
+  .asg-hint { color: var(--text-muted); font-size: 0.71875rem; }
   .asg-flow { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; margin-top: var(--sp-2-5); padding-top: var(--sp-2); border-top: 1px dashed var(--border); }
-  .asg-comment { flex: 1 1 220px; min-width: 160px; padding: 5px var(--sp-2); border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; font-size: 12.5px; }
-  .asg-btn { padding: 5px var(--sp-3-5); border-radius: var(--radius-md); font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer; border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text-primary); }
+  .asg-comment { flex: 1 1 220px; min-width: 160px; padding: 5px var(--sp-2); border: 1.5px solid var(--border-strong); border-radius: var(--radius-md); font-family: inherit; font-size: 0.78125rem; }
+  .asg-btn { padding: 5px var(--sp-3-5); border-radius: var(--radius-md); font-family: inherit; font-size: 0.78125rem; font-weight: 700; cursor: pointer; border: 1.5px solid var(--border-strong); background: var(--surface); color: var(--text-primary); }
   .asg-btn-primary { background: var(--maroon); border-color: var(--maroon); color: var(--on-fill); }
   .asg-btn-approve { background: var(--status-success-dark); border-color: var(--status-success-dark); color: var(--on-fill); }
   .asg-btn-ghost { background: transparent; }
@@ -215,18 +215,18 @@
   display: flex; flex-direction: column;
   align-items: center; justify-content: center; line-height: 1.1;
 }
-.kpi-donut-val { font-size: 13px; font-weight: 800; }
-.kpi-donut-unit { font-size: 8px; color: var(--text-muted); }
+.kpi-donut-val { font-size: 0.8125rem; font-weight: 800; }
+.kpi-donut-unit { font-size: 0.5rem; color: var(--text-muted); }
 .kpi-donut-label {
-  font-size: 9px; font-weight: 600; color: var(--text-primary);
+  font-size: 0.5625rem; font-weight: 600; color: var(--text-primary);
   text-align: center; line-height: 1.2;
 }
 .kpi-donut-meta {
-  font-size: 8px; color: var(--text-muted); text-align: center;
+  font-size: 0.5rem; color: var(--text-muted); text-align: center;
 }
 .kpi-donut-meta b { color: var(--text-secondary); font-weight: 600; }
 .kpi-donut-badge {
-  font-size: 8px; font-weight: 600;
+  font-size: 0.5rem; font-weight: 600;
   padding: 1px 5px; border-radius: var(--radius-pill); white-space: nowrap;
 }
 
@@ -253,12 +253,12 @@
 .kpi-unavail-icon .icon { width: 14px; height: 14px; }
 .kpi-unavail-info { flex: 1; min-width: 0; }
 .kpi-unavail-name {
-  font-size: 10px; font-weight: 600; color: var(--text-secondary);
+  font-size: 0.625rem; font-weight: 600; color: var(--text-secondary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.kpi-unavail-detail { font-size: 9px; color: var(--text-muted); }
+.kpi-unavail-detail { font-size: 0.5625rem; color: var(--text-muted); }
 .kpi-unavail-tag {
-  font-size: 8px; font-weight: 600; color: var(--text-muted);
+  font-size: 0.5rem; font-weight: 600; color: var(--text-muted);
   background: var(--surface-alt); padding: 1px var(--sp-1-5);
   border-radius: var(--radius-pill);
 }
@@ -947,16 +947,16 @@
   .teacher-panel {
     flex: 0 0 auto; border: 1px solid var(--border); border-radius: var(--radius-md);
     background: var(--surface-alt); padding: var(--sp-3); overflow-y: auto;
-    font-size: 13px; line-height: 1.9;
+    font-size: 0.8125rem; line-height: 1.9;
   }
   @media (min-width: 641px) {
     .schedule-stage { flex-direction: row; }
     .teacher-panel { flex: 0 0 250px; }
   }
   .teacher-panel[hidden] { display: none; }
-  .teacher-panel h2 { font-size: 15px; font-weight: 700; margin: 0 0 var(--sp-0-5); }
+  .teacher-panel h2 { font-size: 0.9375rem; font-weight: 700; margin: 0 0 var(--sp-0-5); }
   /* تخصّصُ من أُلحق إدارياً بقسمٍ غيرِ تخصّصه — بلونه نفسِه في الورقة. */
-  .teacher-panel .tp-spec { color: var(--maroon-fg); font-weight: 500; font-size: 13px; }
+  .teacher-panel .tp-spec { color: var(--maroon-fg); font-weight: 500; font-size: 0.8125rem; }
   .teacher-panel .tp-dept { color: var(--text-secondary); font-size: var(--text-xs); }
   .teacher-panel .tp-nums { display: flex; gap: var(--sp-1-5); margin: var(--sp-2-5) 0; }
   .teacher-panel .tp-num {
@@ -964,7 +964,7 @@
     border-radius: 6px; padding: var(--sp-1-5) var(--sp-0-5); background: var(--surface);
   }
   .teacher-panel .tp-num b { display: block; font-size: var(--text-lg); line-height: 1.2; }
-  .teacher-panel .tp-num span { font-size: 11px; color: var(--text-secondary); }
+  .teacher-panel .tp-num span { font-size: 0.6875rem; color: var(--text-secondary); }
   .teacher-panel .tp-day {
     display: flex; align-items: center; gap: var(--sp-1-5); padding: 3px 0;
     border-bottom: 1px dashed var(--border);
@@ -1028,13 +1028,13 @@
   .week-grid .slot-empty,
   .week-grid .wg-multi { color: var(--text-muted); }
   .week-grid .break-label { font-size: var(--text-xs); font-weight: 700; color: var(--text-secondary); line-height: 1.15; }
-  .week-grid .break-band { font-size: 10px; font-weight: 400; color: var(--text-muted); }
+  .week-grid .break-band { font-size: 0.625rem; font-weight: 400; color: var(--text-muted); }
   /* ── تمييزُ عمود الاستراحة بطابقه (2026-09-18) ──
      معلّمُ الطابقين يرى عمودَي «صلاة» أو أكثر بلا فارقٍ بصريّ بينها إلّا
      نصّاً داخل الخليّة. والترويسةُ عنّابيّةٌ كلُّها بلا استثناءٍ مهما كان
      صغيراً (قرارٌ صريحٌ سابق) — فاسمُ الطابق نصّاً تحت اسم الاستراحة يكفي
      هناك، واللونُ يظهر في خلايا الجسم وحدَها. */
-  .week-grid .wg-break-band { display: block; font-size: 10px; font-weight: 400; opacity: .85; }
+  .week-grid .wg-break-band { display: block; font-size: 0.625rem; font-weight: 400; opacity: .85; }
   .week-grid td.wg-break.band-ground  { background: color-mix(in srgb, var(--accent-teal) 14%, var(--surface-alt)); }
   .week-grid td.wg-break.band-ninth   { background: color-mix(in srgb, var(--accent-orange) 14%, var(--surface-alt)); }
   .week-grid td.wg-break.band-secondary { background: color-mix(in srgb, var(--accent-purple) 14%, var(--surface-alt)); }
@@ -1084,9 +1084,9 @@
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: var(--sp-2-5); padding: var(--sp-3); }
   .tile { border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-2-5) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-1); background: var(--surface); }
   .tile-label { font-size: var(--text-xs); color: var(--text-secondary); font-weight: 600; min-height: 2.4em; }
-  .tile-value { font-size: 22px; font-weight: 800; color: var(--maroon-fg); direction: ltr; text-align: end; }
-  .tile-value small { font-size: 11px; color: var(--text-secondary); font-weight: 500; margin-inline-start: var(--sp-1); }
-  .tile-foot { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--text-secondary); }
+  .tile-value { font-size: 1.375rem; font-weight: 800; color: var(--maroon-fg); direction: ltr; text-align: end; }
+  .tile-value small { font-size: 0.6875rem; color: var(--text-secondary); font-weight: 500; margin-inline-start: var(--sp-1); }
+  .tile-foot { display: flex; justify-content: space-between; align-items: center; font-size: 0.6875rem; color: var(--text-secondary); }
   .delta { font-weight: 700; direction: ltr; }
   .delta-better { color: var(--status-success-fg); }
   .delta-worse { color: var(--status-danger-fg); }
@@ -1097,11 +1097,11 @@
   .bar-ref > i { background: var(--gold); }
 
   .lab-tables { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--sp-3-5); }
-  .lab-tables table { width: 100%; font-size: 13px; }
+  .lab-tables table { width: 100%; font-size: 0.8125rem; }
   .lab-tables td.num { direction: ltr; text-align: end; font-weight: 700; }
   .res-bar { height: 8px; background: var(--border); border-radius: var(--radius-sm); overflow: hidden; }
   .res-bar > i { display: block; height: 100%; width: var(--progress-w, 0%); background: var(--maroon); }
-  .legend { display: flex; gap: var(--sp-3-5); font-size: 11px; color: var(--text-secondary); padding: 0 var(--sp-3) var(--sp-2-5); }
+  .legend { display: flex; gap: var(--sp-3-5); font-size: 0.6875rem; color: var(--text-secondary); padding: 0 var(--sp-3) var(--sp-2-5); }
   .legend i { display: inline-block; width: 14px; height: 5px; border-radius: 3px; vertical-align: middle; margin-inline-end: var(--sp-1); }
   .legend i.legend-cur { background: var(--maroon); }
   .legend i.legend-ref { background: var(--gold); }
@@ -1162,7 +1162,7 @@
   .settings-fold { margin-block-start: var(--sp-3); }
   .settings-fold__summary { display: flex; align-items: center; gap: var(--sp-2); cursor: pointer; list-style: none; font-weight: 700; color: var(--maroon-fg); }
   .settings-fold__summary::-webkit-details-marker { display: none; }
-  .settings-fold__summary::before { content: "◂"; color: var(--text-muted); font-size: 12px; transition: transform var(--transition-base); }
+  .settings-fold__summary::before { content: "◂"; color: var(--text-muted); font-size: 0.75rem; transition: transform var(--transition-base); }
   .settings-fold[open] > .settings-fold__summary::before { transform: rotate(-90deg); }
   .settings-fold__summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 3px; border-radius: 6px; }
   .settings-fold__count { font-weight: 400; color: var(--text-muted); font-size: var(--text-sm); }
@@ -1202,7 +1202,7 @@
   .gen-running { margin-block-end: var(--sp-3); padding: var(--sp-3); border: 1px solid var(--status-info); border-radius: var(--radius-md); background: var(--surface-alt); }
   .gen-running__summary { display: flex; align-items: center; gap: var(--sp-2); cursor: pointer; list-style: none; }
   .gen-running__summary::-webkit-details-marker { display: none; }
-  .gen-running__summary::before { content: "◂"; color: var(--text-muted); font-size: 12px; transition: transform var(--transition-base); }
+  .gen-running__summary::before { content: "◂"; color: var(--text-muted); font-size: 0.75rem; transition: transform var(--transition-base); }
   .gen-running[open] > .gen-running__summary::before { transform: rotate(-90deg); }
   .gen-running__summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 3px; border-radius: 6px; }
   .gen-running__label { margin: 0; font-size: var(--text-sm); font-weight: 600; color: var(--status-info-fg); }
@@ -1299,10 +1299,10 @@
      فيقف على حافّة الشاشة اليمنى ويبقى نصفُها فارغاً. التوسيطُ بـ margin. */
   .ap-form { max-width: 1040px; margin-inline: auto; }
   .ap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--sp-3-5) var(--sp-4-5); }
-  .ap-field label { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: var(--sp-1); color: var(--text-secondary); }
+  .ap-field label { display: block; font-size: 0.78125rem; font-weight: 600; margin-bottom: var(--sp-1); color: var(--text-secondary); }
   .ap-field .form-control { width: 100%; }
   .ap-field .req { color: var(--status-danger-fg); }
-  .ap-note { margin-top: var(--sp-3-5); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); background: var(--surface-alt); border: 1px solid var(--border); font-size: 12.5px; color: var(--text-secondary); }
+  .ap-note { margin-top: var(--sp-3-5); padding: var(--sp-2) var(--sp-3); border-radius: var(--radius); background: var(--surface-alt); border: 1px solid var(--border); font-size: 0.78125rem; color: var(--text-secondary); }
   .ap-err { margin-top: var(--sp-1-5); font-size: var(--text-xs); color: var(--status-danger-fg); }
   .ap-actions { margin-top: var(--sp-4); display: flex; gap: var(--sp-2-5); }
 
@@ -1311,8 +1311,8 @@
   .sa-field { display: flex; flex-direction: column; gap: 3px; }
   .sa-field label { font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary); }
   .sa-field .form-control { width: 100%; }
-  .sa-hint { font-size: 11.5px; color: var(--text-muted); }
-  .sa-err { font-size: 11.5px; color: var(--status-danger-fg); }
+  .sa-hint { font-size: 0.71875rem; color: var(--text-muted); }
+  .sa-err { font-size: 0.71875rem; color: var(--status-danger-fg); }
 
   .sa-actions { grid-column: 1 / -1; display: flex; justify-content: flex-start; }
   .sa-change { font-size: var(--text-xs); }

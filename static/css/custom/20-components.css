@@ -63,7 +63,7 @@
   gap: 5px;
   padding: var(--sp-1-5) var(--sp-2-5);
   border-radius: 7px;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   color: var(--on-fill);
   background: none;
   border: none;
@@ -75,7 +75,7 @@
   line-height: 1.4;
 }
 .nb:hover, .nb.on { background: color-mix(in srgb, var(--on-fill) 16%, transparent); }
-.chv { font-size: 8px; opacity: .6; transition: transform .18s; }
+.chv { font-size: 0.5rem; opacity: .6; transition: transform .18s; }
 .nb.on .chv { transform: rotate(180deg); }
 
 /* الشعار */
@@ -120,7 +120,7 @@
   inset-inline-start: 3px;
   background: var(--status-danger);
   color: var(--on-fill);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 700;
   min-width: 15px;
   height: 15px;
@@ -183,7 +183,7 @@
 .sd-menu hr { border: none; border-top: 1px solid var(--menu-divider); margin: var(--sp-1) 0; }
 .sd-label {
   padding: var(--sp-1-5) var(--sp-4) 3px;
-  font-size: 10px; font-weight: 700; color: var(--menu-label);
+  font-size: 0.625rem; font-weight: 700; color: var(--menu-label);
 }
 /* رأس قائمة المستخدم */
 .sd-user-header    { padding: var(--sp-2-5) var(--sp-4) 9px; border-bottom: 1px solid var(--menu-divider); }
@@ -208,13 +208,13 @@
 .msg-bar {
   display: flex; align-items: flex-start; gap: var(--sp-2-5);
   padding: 11px 15px; border-radius: var(--radius);
-  font-size: 13.5px; font-weight: 500; line-height: 1.5;
+  font-size: 0.84375rem; font-weight: 500; line-height: 1.5;
   transition: opacity .4s;
 }
 .msg-bar button.msg-x {
   margin-inline-start: auto; flex-shrink: 0;
   background: none; border: none; cursor: pointer;
-  opacity: .45; font-size: 15px; padding: 0 var(--sp-0-5); line-height: 1;
+  opacity: .45; font-size: 0.9375rem; padding: 0 var(--sp-0-5); line-height: 1;
 }
 .msg-bar button.msg-x:hover { opacity: 1; }
 .msg-icon { flex-shrink: 0; font-size: var(--text-base); }
@@ -370,7 +370,7 @@ div#header h1 a {
 }
 .site-footer-version {
   text-align: center;
-  font-size: 10.5px;
+  font-size: 0.65625rem;
   color: var(--text-muted);
   margin: var(--sp-1) 0 0;
   font-family: 'IBM Plex Mono', 'Tajawal', monospace;
@@ -379,7 +379,7 @@ div#header h1 a {
 /* رؤية الوزارة — تحت سطر الإصدار، بلون الهوية لا برماديّ الإصدار */
 .site-footer-vision {
   text-align: center;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--maroon-fg);
   margin: var(--sp-1-5) 0 0;
@@ -400,7 +400,7 @@ div#header h1 a {
 }
 .site-footer-brand-label {
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   white-space: nowrap;
 }
 .site-footer-brand-logo {
@@ -459,7 +459,7 @@ div#header h1 a {
 .pwa-icon     { font-size: var(--text-2xl); flex-shrink: 0; }
 .pwa-text     { flex: 1; min-width: 0; }
 .pwa-title    { display: block; font-size: var(--text-sm); font-weight: 700; }
-.pwa-subtitle { opacity: .8; font-size: 11.5px; }
+.pwa-subtitle { opacity: .8; font-size: 0.71875rem; }
 .pwa-install-btn {
   background: var(--surface);
   color: var(--maroon-fg);
@@ -732,7 +732,7 @@ tr.active {
   margin-bottom: var(--sp-6);
 }
 .page-title {
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 800;
   color: var(--text-primary);
   margin: 0;
@@ -1036,7 +1036,7 @@ main.page-wide {
 .status-badge {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px var(--sp-2-5); border-radius: 20px;
-  font-size: 11.5px; font-weight: 700; white-space: nowrap;
+  font-size: 0.71875rem; font-weight: 700; white-space: nowrap;
 }
 .status-success { background: var(--status-success-bg); color: var(--status-success-dark); border: 1px solid var(--status-success-border-soft); }
 .status-danger  { background: var(--status-danger-bg); color: var(--status-danger-dark); border: 1px solid var(--status-danger-border); }
@@ -1089,7 +1089,7 @@ main.page-wide {
   padding: var(--sp-2-5) var(--sp-3-5);
   border: 1.5px solid var(--control-border);
   border-radius: var(--radius);
-  font-size: 13.5px;
+  font-size: 0.84375rem;
   font-family: inherit;
   color: var(--text-primary);
   background: var(--surface);
@@ -1104,7 +1104,7 @@ main.page-wide {
 }
 .form-control::placeholder { color: var(--placeholder); }
 .form-hint {
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   color: var(--text-muted);
   margin-top: 5px;
 }
@@ -1141,7 +1141,7 @@ main.page-wide {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-danger) 10%, transparent);
 }
 .form-error {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--status-danger-fg);
   margin-top: var(--sp-1);
   display: flex;
@@ -1190,7 +1190,7 @@ main.page-wide {
   padding: var(--sp-12) var(--sp-6);
   color: var(--text-muted);
 }
-.empty-state .empty-icon { font-size: 48px; margin-bottom: var(--sp-3); display: block; }
+.empty-state .empty-icon { font-size: 3rem; margin-bottom: var(--sp-3); display: block; }
 .empty-state .empty-title {
   font-size: var(--text-base); font-weight: 700;
   color: var(--text-secondary); margin: 0 0 var(--sp-1-5);
@@ -1646,7 +1646,7 @@ body { padding-bottom: 72px; }
   border-bottom: 1px solid var(--menu-divider);
   min-height: 48px;
   color: var(--menu-ink);
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 500;
   border-radius: 0;
   white-space: normal;
@@ -1755,7 +1755,7 @@ body { padding-bottom: 72px; }
 .breadcrumbs .bc-sep {
   /* فاصلٌ يُقرأ لا حدٌّ يُرسم — بلونِ الحدّ كانت نسبتُه 1.30 نهاراً و2.36 ليلاً */
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   user-select: none;
 }
 .breadcrumbs .bc-current {
@@ -1795,14 +1795,14 @@ body { padding-bottom: 72px; }
   flex: 1;
   border: none;
   outline: none;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-family: inherit;
   color: var(--text-primary);
   background: transparent;
 }
 .cmd-input::placeholder { color: var(--placeholder); }
 .cmd-kbd {
-  font-size: 10px;
+  font-size: 0.625rem;
   background: var(--surface-alt);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

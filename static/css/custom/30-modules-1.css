@@ -70,7 +70,7 @@
   border-bottom: 1px solid var(--q-silver);
   border-left: 1px solid var(--q-silver-light);
   vertical-align: middle;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   line-height: 1.65;
   font-family: var(--q-font-data);
   font-weight: 400;
@@ -729,14 +729,14 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   filter: brightness(0) invert(1);
 }
 .login-school-name {
-  font-size: 17px;
+  font-size: 1.0625rem;
   font-weight: 800;
   color: var(--on-fill);
   margin: 0 0 var(--sp-1-5);
   line-height: 1.5;
 }
 .login-platform-name {
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   color: color-mix(in srgb, var(--on-fill) 75%, transparent);
   margin: 0;
 }
@@ -772,7 +772,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .login-input::placeholder { color: var(--text-muted); }
 .login-btn {
   width: 100%; background: var(--maroon);
-  color: var(--on-fill); font-weight: 700; font-size: 15px;
+  color: var(--on-fill); font-weight: 700; font-size: 0.9375rem;
   padding: 13px var(--sp-4); border-radius: 12px;
   border: none; cursor: pointer; font-family: inherit;
   transition: background .15s, box-shadow .15s, transform .1s;

@@ -66,7 +66,7 @@ class TestTheMigrationItself:
         out = px.migrate(".a { border-radius: 8px; border-top-left-radius: 14px; }")
         assert "var(--radius-md)" in out and "var(--radius-lg)" in out
 
-    def test_font_size_and_size_properties_are_left_alone(self):
+    def test_size_properties_are_left_alone_by_the_spacing_migration(self):
         css = ".a { font-size: 16px; width: 16px; height: 8px; top: 8px; }"
         assert px.migrate(css) == css
 
@@ -95,3 +95,32 @@ class TestTheMigrationItself:
                 assert re.search(
                     rf"{re.escape(token)}\s*:\s*{value}px", css
                 ), f"{token} ≠ {value}px"
+
+
+class TestFontSizeInRem:
+    """`font-size` بـrem لا px: يتبع تكبيرَ المستخدم (WCAG 1.4.4) والرسمُ الافتراضيُّ واحد."""
+
+    def test_no_simple_px_font_size_is_left_in_the_stylesheets(self):
+        left = px.count_font_size_px(read_css())
+        assert left == 0, (
+            f"{left} قيمةَ font-size بـpx — اكتبها rem (12px → 0.75rem، 14px → 0.875rem، 16px → 1rem)"
+        )
+
+    def test_rem_is_px_over_sixteen(self):
+        assert px.migrate_font_size(".a { font-size: 12px; }") == ".a { font-size: 0.75rem; }"
+        assert px.migrate_font_size(".a { font-size: 12.5px; }") == ".a { font-size: 0.78125rem; }"
+        assert px.migrate_font_size(".a { font-size: 16px !important; }") == (
+            ".a { font-size: 1rem !important; }"
+        )
+
+    def test_compound_values_are_left_alone(self):
+        css = "textarea { font-size: max(16px, 1em); } .b { font-size: calc(1em + 2px); }"
+        assert px.migrate_font_size(css) == css
+        assert px.count_font_size_px(css) == 0
+
+    def test_root_font_size_is_never_set_so_rem_equals_sixteen_px(self):
+        import re
+
+        assert not re.search(r"(^|[\s,}])(html|:root)\s*\{[^}]*font-size", read_css()), (
+            "ضُبط font-size على الجذر — rem لم يعد 16px، فراجع ترحيل font-size كلَّه"
+        )

@@ -9,7 +9,7 @@
 
 ما لا يدخل هنا عمداً:
 
-- `font-size`: التحويلُ إلى `rem` يجعل الحجمَ يتبع تفضيلَ المستخدم (سلوكٌ يتغيّر لا يُحفظ).
+- `font-size`: يُعالَج بدالّتَيه أدناه (rem) لا بجدول الرموز.
 - القيمُ السالبة (`-8px`): لا رمزَ سالب، و`calc(var(--x) * -1)` أثقلُ من القيمة.
 - `@page`/`@font-face`: لا عناصرَ فيها تُحلّ منها `var()`.
 - شروطُ `@media`: الرموزُ لا تعمل في الاستعلامات.
@@ -150,4 +150,43 @@ def revert(css: str) -> str:
     for table in (SPACING_TOKENS, RADIUS_TOKENS):
         for value, token in table.items():
             css = css.replace(f"var({token})", f"{value}px")
+    return css
+
+
+# ── font-size: px ← rem (D-12، 2026-09-21) ─────────────────────────────────────
+# `html` بلا `font-size` في المنصّة (16px الافتراضيّ) ولا JS يغيّره، فالقيمةُ `0.75rem`
+# هي عينُ `12px` عند الإعداد الافتراضيّ، وتتبع تكبيرَ المستخدم في المتصفّح (WCAG 1.4.4).
+
+_FONT_SIZE_PX = re.compile(r"(\d+(?:\.\d+)?)px(\s*!important)?")
+
+
+def _rem(px_value: str) -> str:
+    """px ← rem على أساس 16 بلا ضجيجٍ عشريّ: 12 → 0.75rem، 12.5 → 0.78125rem."""
+    return f"{format(float(px_value) / 16, 'f').rstrip('0').rstrip('.')}rem"
+
+
+def _font_size_spans(css: str):
+    """(بدايةُ القيمة، نهايتُها، النصُّ) لكلّ `font-size` قيمتُه px بسيطةٌ وحدَها (لا `max()` ولا `calc()`)."""
+    masked = _mask(css)
+    for match in _DECL.finditer(masked):
+        if match.group(1) != "font-size":
+            continue
+        value = match.group(2)
+        if _FONT_SIZE_PX.fullmatch(value):
+            yield match.start(2), match.end(2), value
+
+
+def count_font_size_px(css: str) -> int:
+    """كم `font-size` بـpx بسيطٍ ما زال حرفيّاً — يجب أن يبلغ صفراً."""
+    return sum(1 for _ in _font_size_spans(css))
+
+
+def migrate_font_size(css: str) -> str:
+    """كلُّ `font-size: Npx` بسيطٍ ← rem — لا غير."""
+    edits = []
+    for start, end, value in _font_size_spans(css):
+        m = _FONT_SIZE_PX.fullmatch(value)
+        edits.append((start, end, _rem(m.group(1)) + (m.group(2) or "")))
+    for begin, stop, text in sorted(edits, reverse=True):
+        css = css[:begin] + text + css[stop:]
     return css

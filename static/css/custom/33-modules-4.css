@@ -126,7 +126,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 /* حذفٌ مُسبَّب في سجلّ أحداث الطالب: حقلُ السبب وزرُّه في سطرٍ واحد. */
 .sa-undo { display: inline-flex; gap: var(--sp-1); align-items: center; }
 /* رابطُ التصحيح بجانب اسم الطالب في الكشف: خافتٌ حتى المرور، فلا يزاحم الرصد. */
-.rec-row__fix { font-size: 10px; color: var(--text-muted); opacity: .6; text-decoration: none; margin-inline-start: var(--sp-1); }
+.rec-row__fix { font-size: 0.625rem; color: var(--text-muted); opacity: .6; text-decoration: none; margin-inline-start: var(--sp-1); }
 .rec-row:hover .rec-row__fix, .rec-row__fix:focus-visible { opacity: 1; color: var(--maroon-fg); }
 .sa-undo .form-control { width: 140px; min-height: 30px; padding-block: var(--sp-0-5); font-size: var(--text-xs); }
 
@@ -265,7 +265,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .grid-cell__nid { margin: var(--sp-0-5) 0 0; font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; text-align: center; }
 .grid-cell__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-1); margin-block-start: var(--sp-1); }
 .att-btn--tile { min-block-size: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-0-5); font-weight: 700; }
-.att-btn--tile span { font-size: 10px; }
+.att-btn--tile span { font-size: 0.625rem; }
 
 /* ── توقيعا المنسّقَين على بطاقة التبديل ────────────────────────────────
    القارئُ يحتاج أن يعرف **أين وقف الطلب** لا أن يستنتجه من حالةٍ واحدة:
@@ -691,7 +691,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 
 @media (max-width: 640px) {
   .rec-row__pick { gap: var(--sp-0-5); }
-  .rec-pick > span { min-width: 44px; font-size: 11px; }
+  .rec-pick > span { min-width: 44px; font-size: 0.6875rem; }
 
 }
 
@@ -707,7 +707,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .rec-row { flex-wrap: wrap; }
 
 .rec-row__flags { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
-.rec-row__flags .badge { font-size: 11px; }
+.rec-row__flags .badge { font-size: 0.6875rem; }
 /* «أين الطالب» للغائب وحدَه، والدقائقُ للمتأخّر وحدَه — فالسطرُ قصيرٌ ما دام
    الطالبُ حاضراً، وهو الغالب. */
 .rec-row__more { display: flex; gap: var(--sp-1); flex-shrink: 0; }
@@ -806,7 +806,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   display: inline-block;
   padding: 1px var(--sp-2);
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   line-height: 1.6;
   color: var(--text-secondary);
@@ -1064,7 +1064,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
    الآن لا بـ`.card-bar`/`.ui-section__body` مباشرةً — طبقةٌ إضافيّةٌ في الشجرة. */
 .ui-section__fold-summary { margin: 0; cursor: pointer; list-style: none; }
 .ui-section__fold-summary::-webkit-details-marker { display: none; }
-.ui-section__fold-summary::before { content: "◂"; color: var(--on-fill); opacity: .85; font-size: 12px; transition: transform var(--transition-base); }
+.ui-section__fold-summary::before { content: "◂"; color: var(--on-fill); opacity: .85; font-size: 0.75rem; transition: transform var(--transition-base); }
 .ui-section__fold[open] > .ui-section__fold-summary::before { transform: rotate(-90deg); }
 .ui-section__fold-summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: -3px; border-radius: 6px; }
 .ui-section.is-flush > .ui-section__fold > .card-bar { margin: 0; }
@@ -1480,7 +1480,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .ui-field .form-hint,
 .ui-field .field-error { margin: 0; }
 .filter-bar .ui-field { min-inline-size: 140px; gap: var(--sp-0-5); }
-.filter-bar .ui-field__label { font-size: 10px; color: var(--text-secondary); }
+.filter-bar .ui-field__label { font-size: 0.625rem; color: var(--text-secondary); }
 .filter-bar .ui-field--grow { flex: 1 1 240px; }
 /* حقلٌ يجاور أزراراً في سطرٍ واحد (`filter-actions`) يتحاذى معها من الأسفل. */
 .filter-bar .filter-actions { align-self: flex-end; }
@@ -1626,7 +1626,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--kc) 12%, var(--surface));
   color: var(--kc-fg);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
