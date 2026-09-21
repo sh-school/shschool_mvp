@@ -20,6 +20,12 @@ from core.academic_calendar import academic_year_for_school
 from core.domain.grades import GRADE_BANDS, band_of
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
+from core.verdict_read import (
+    failing_statuses,
+    passing_statuses,
+    pending_statuses,
+    verdict_engine_enabled,
+)
 
 from .models import (
     AnnualSubjectResult,
@@ -29,7 +35,7 @@ from .models import (
     StudentSubjectResult,
     SubjectClassSetup,
 )
-from .verdict_engine import VerdictEngine, ensure_open_year, verdict_engine_enabled
+from .verdict_engine import VerdictEngine, ensure_open_year
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
@@ -560,9 +566,9 @@ class GradeService:
         year = year or academic_year_for_school(setup.school)
         stats = AnnualSubjectResult.objects.filter(setup=setup, academic_year=year).aggregate(
             total=Count("id"),
-            passed=Count("id", filter=Q(status="pass")),
-            failed=Count("id", filter=Q(status="fail")),
-            incomplete=Count("id", filter=Q(status="incomplete")),
+            passed=Count("id", filter=Q(status__in=passing_statuses())),
+            failed=Count("id", filter=Q(status__in=failing_statuses())),
+            incomplete=Count("id", filter=Q(status__in=pending_statuses())),
             avg=Avg("annual_total"),
         )
         total = stats["total"]
@@ -597,7 +603,9 @@ class GradeService:
         """الطلاب الراسبون سنوياً"""
         year = year or academic_year_for_school(school)
         return (
-            AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
+            AnnualSubjectResult.objects.filter(
+                school=school, academic_year=year, status__in=failing_statuses()
+            )
             .select_related("student", "setup__subject", "setup__class_group")
             .order_by(grade_order("setup__class_group__grade"), "student__full_name")
         )
@@ -693,7 +701,7 @@ class GradeService:
             .values("setup__subject__name_ar")
             .annotate(
                 avg=Avg("annual_total"),
-                fail_count=Count("id", filter=Q(status="fail")),
+                fail_count=Count("id", filter=Q(status__in=failing_statuses())),
                 total=Count("id"),
             )
             .order_by("-avg")[:10]

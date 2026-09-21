@@ -17,6 +17,7 @@ from core.academic_calendar import academic_year_for_school
 from core.domain.attendance import attendance_rate
 from core.domain.tones import ATTENDANCE_KPI, GRADE_CELL, tone_for
 from core.models import ParentStudentLink, StudentEnrollment
+from core.verdict_read import failing_statuses, passing_statuses, pending_statuses
 from operations.models import StudentAttendance
 
 if TYPE_CHECKING:
@@ -60,9 +61,9 @@ class ParentService:
             .values("student_id")
             .annotate(
                 total_subj=Count("id"),
-                passed=Count("id", filter=Q(status="pass")),
-                failed=Count("id", filter=Q(status="fail")),
-                incomplete=Count("id", filter=Q(status="incomplete")),
+                passed=Count("id", filter=Q(status__in=passing_statuses())),
+                failed=Count("id", filter=Q(status__in=failing_statuses())),
+                incomplete=Count("id", filter=Q(status__in=pending_statuses())),
             )
         )
         annual_map = {row["student_id"]: row for row in annual_counts}
@@ -150,8 +151,8 @@ class ParentService:
             "annual_results": annual,
             "rows": rows,
             "total": annual.count(),
-            "passed": annual.filter(status="pass").count(),
-            "failed": annual.filter(status="fail").count(),
+            "passed": annual.filter(status__in=passing_statuses()).count(),
+            "failed": annual.filter(status__in=failing_statuses()).count(),
             "avg": avg,
         }
 

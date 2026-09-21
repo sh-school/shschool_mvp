@@ -32,9 +32,10 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
 from assessments.models import SubjectClassSetup
-from assessments.verdict_engine import VerdictEngine, VerdictPlan, verdict_engine_enabled
+from assessments.verdict_engine import VerdictEngine, VerdictPlan
 from core.academic_calendar import academic_year_for_school
 from core.models import AuditLog, ClassGroup, CustomUser, School, StudentEnrollment
+from core.verdict_read import verdict_engine_enabled
 
 OP = "recalculate_grade_results"
 
