@@ -318,6 +318,9 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   #main-content.page-noscroll .fill-grid > .ui-section > .ui-section__body { flex: 0 1 auto; min-height: 0; overflow: auto; }
   #main-content.page-noscroll .fill-grid > .ui-section:has(.dash-chart-wrap) { align-self: stretch; }
   #main-content.page-noscroll .fill-grid > .ui-section:has(.dash-chart-wrap) > .ui-section__body { flex: 1; }
+  /* `.fill-grid.is-stretch`: بطاقاتُ الصفّ الواحد بارتفاعٍ واحد (لوحاتٌ ذاتُ صفوف: أرقامٌ ورسومٌ وجداولُ متجاورة) — لا تُترك كلٌّ بمحتواها. */
+  #main-content.page-noscroll .fill-grid.is-stretch > .ui-section { align-self: stretch; }
+  #main-content.page-noscroll .fill-grid.is-stretch > .ui-section > .ui-section__body { flex: 1; }
   #main-content.page-noscroll > .exec-dash > .ui-grid-2:not(:last-child) .chip-row { max-block-size: 88px; overflow: auto; }
   #main-content.page-noscroll .fill-grid .plain-list.is-scroll { max-block-size: none; }
   #main-content.page-noscroll .fill-grid .dash-chart-wrap { block-size: 100%; min-block-size: 120px; }

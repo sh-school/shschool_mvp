@@ -1486,7 +1486,9 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
    كان مرسوماً بعشرين صنفَ Tailwind بلونٍ أخضرَ ثابتٍ ومسارٍ رماديٍّ لا يُرى
    ليلاً. هنا الحقلُ نفسُه يُقرأ بقارئ الشاشة ويُضغط بلوحة المفاتيح، والمسارُ
    ظلُّه. والاتّجاهُ منطقيّ: المقبضُ يبدأ من البداية ويذهب إلى النهاية. */
-.ui-switch { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); inline-size: 100%; cursor: pointer; }
+/* المفتاحُ في بداية نصّه لا في طرف السطر الآخر: يفصل العرضُ بينهما فيحار المستخدم أيَّ مفتاحٍ لأيِّ نصّ. */
+.ui-switch { display: flex; align-items: center; justify-content: flex-start; gap: var(--sp-3); inline-size: 100%; cursor: pointer; }
+.ui-switch__track { order: -1; }
 .ui-switch__label { font-size: var(--text-sm); color: var(--text-primary); }
 .ui-switch__input { position: absolute; opacity: 0; inline-size: 1px; block-size: 1px; }
 .ui-switch__track {
