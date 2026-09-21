@@ -17,18 +17,12 @@
   {% if is_edit %}
   {% page_header "تعديل خرق بيانات" subtitle="وقتُ الاكتشاف لا يُعدَّل: عليه مهلةُ الـ72 ساعة المعتمَدة" icon="breach" %}{% endpage_header %}
   {% else %}
-  {% page_header "تسجيل خرق بيانات جديد" subtitle="PDPPL م.11 — تُحسب مهلةُ إشعار NCSA تلقائيّاً (72 ساعة)" icon="breach" %}{% endpage_header %}
+  {% page_header "تسجيل خرق بيانات جديد" subtitle="PDPPL م.11 — إشعار NCSA" icon="breach" %}{% endpage_header %}
   {% endif %}
 
   <form method="post" class="beh-form-stack" data-validate novalidate>{% csrf_token %}
     {% if form.errors %}
-    <p class="form-note is-warning" role="alert">
-      {% icon "status_warning" %}
-      <span>تعذّر التسجيل، صحِّح ما يلي:
-        {% for field in form %}{% for error in field.errors %}<br>{{ error }}{% endfor %}{% endfor %}
-        {% for error in form.non_field_errors %}<br>{{ error }}{% endfor %}
-      </span>
-    </p>
+    {% callout "error" show=True %}تعذّر التسجيل، صحِّح ما يلي:{% for field in form %}{% for error in field.errors %}<br>{{ error }}{% endfor %}{% endfor %}{% for error in form.non_field_errors %}<br>{{ error }}{% endfor %}{% endcallout %}
     {% endif %}
 
     {% section_card "عنوان الخرق والتصنيف" icon="breach" %}
@@ -95,12 +89,7 @@
         <label class="form-label" for="breachRegenerate">{{ form.regenerate_notice }} {{ form.regenerate_notice.label }}</label>
       </div>
       {% endif %}
-      {% if not is_edit %}
-      <p class="form-note is-warning" role="note">
-        {% icon "time" %}
-        <span>بعد الحفظ يبدأ عدٌّ تنازليٌّ لـ72 ساعة، وتصل تنبيهاتٌ تلقائيّةٌ للمسؤول.</span>
-      </p>
-      {% endif %}
+      {% callout "warning" show=True %}تُحسب مهلةُ الإشعار (72 ساعة) من وقت الاكتشاف المُدخَل لا من وقت الحفظ، ولا يُعدَّل وقتُ الاكتشاف بعد الحفظ؛ وتصل تنبيهاتُها تلقائياً للمسؤول. ويُقفل نصُّ الإشعار بعد «تم إشعار NCSA» لأنه سجلُّ ما أُرسل.{% endcallout %}
     {% endsection_card %}
 
     <div class="form-actions">

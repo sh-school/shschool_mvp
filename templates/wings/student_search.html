@@ -16,7 +16,7 @@
   {% include "wings/partials/student_search_form.html" %}
 
   {% if too_short %}
-    <p class="form-note">{% icon "status_info" %} <span>اكتب حرفين على الأقلّ من الاسم.</span></p>
+    {% callout "error" show=True %}اكتب حرفين على الأقلّ من الاسم.{% endcallout %}
   {% elif query %}
     {% section_card "النتائج" meta=results|length icon="students" empty="لا طالبَ بهذا الاسم أو الرقم في جناحك" empty_sub="جرّب جزءاً آخر من الاسم، أو أوّلَ الرقم الشخصيّ. وطالبُ جناحٍ آخر لا يظهر هنا." %}
       {% if results %}
@@ -30,7 +30,7 @@
         </li>
         {% endfor %}
       </ul>
-      {% if more %}<p class="bell-note">تُعرض أوّلُ عشرين نتيجة — زد حرفاً من الاسم.</p>{% endif %}
+      {% if more %}{% callout "hint" %}تُعرض أوّلُ عشرين نتيجة — زد حرفاً من الاسم.{% endcallout %}{% endif %}
       {% endif %}
     {% endsection_card %}
   {% endif %}

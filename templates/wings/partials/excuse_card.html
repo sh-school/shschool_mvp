@@ -1,6 +1,6 @@
 {% load ui icons %}
 {% comment %}قبولُ عذرِ غيابٍ من القائمة المغلقة (الدليل 2026 م 3.4.1.4) في مهلة يومين دراسيّين من عودة الطالب، وبعدها يُرسَل للنائب (قرارُ 2026-09-14) — يحتاج: klass, student, excuse_kinds, excuse_day, grace_days, may_override, excuses.{% endcomment %}
-{% section_card "عذرٌ للغياب — من القائمة المغلقة" icon="checklist" meta=excuses|length %}
+{% section_card "عذرٌ للغياب — من القائمة المغلقة" icon="checklist" meta=excuses_total %}
   <form method="post" action="{% url 'wings:excuse_grant' klass.id student.id %}" enctype="multipart/form-data">
     {% csrf_token %}
     <div class="exc-form__grid">
@@ -18,23 +18,26 @@
           {% endfor %}
         </select>
       </label>
-      <label class="form-label">المستند <small>(صورةٌ من الجوّال أو ملفّ)</small>
+      <label class="form-label"><span>المستند <small>(صورةٌ من الجوّال أو ملفّ)</small></span>
         <input type="file" name="document" class="form-control" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,application/pdf,.heic,.heif">
       </label>
-      <label class="form-label exc-form__wide">بيان
+      <label class="form-label{% if not may_override %} exc-form__wide{% endif %}">بيان
         <input type="text" name="notes" class="form-control" placeholder="صلةُ القرابة، أو جهةُ الموعد…">
       </label>
       {% if may_override %}
-      <label class="form-label exc-form__wide">سببُ القبول بعد المهلة <small>(إن مضى يومان دراسيّان على عودة الطالب)</small>
+      <label class="form-label"><span>سببُ القبول بعد المهلة <small>(إن مضى يومان دراسيّان على عودة الطالب)</small></span>
         <input type="text" name="override_reason" class="form-control">
       </label>
       {% endif %}
+    </div>
+    <div class="exc-form__wide">
+      {% callout "warning" %}«احفظ العذر» يقبله إن كان في المهلة ويرسله إلى النائب الإداريّ إن مضت، ويُسقط أيّامَ الغياب بلا عذرٍ في المدّة من عدّ الحرمان.{% endcallout %}
     </div>
     <div class="exc-form__actions">
       <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} احفظ العذر</button>
     </div>
   </form>
-  <p class="bell-note">«احفظ العذر» يقبله إن كان في المهلة، ويرسله إلى النائب الإداريّ إن مضت. يغطّي العذرُ كلَّ حصص الغياب بلا عذرٍ في المدّة، ويُسقط أيّامَها من عدّ الحرمان. المشرفُ يقبله حتى يمضي يومان دراسيّان على عودة الطالب، ومن بعدها يُرسَل إلى النائب الإداريّ بالضغطة نفسها. والصورةُ تُصغَّر وتُمحى بياناتُها المخفيّة. وما ليس في القائمة «غيابٌ بدون عذر».</p>
+{% callout "hint" %}يغطّي العذرُ كلَّ حصص الغياب بلا عذرٍ في المدّة. المشرفُ يقبله حتى يمضي يومان دراسيّان على عودة الطالب، ومن بعدها يُرسَل إلى النائب الإداريّ بالضغطة نفسها. والصورةُ تُصغَّر وتُمحى بياناتُها المخفيّة. وما ليس في القائمة «غيابٌ بدون عذر».{% endcallout %}
 
   {% if excuses %}
   <div class="table-wrap">
@@ -61,5 +64,6 @@
       </tbody>
     </table>
   </div>
+    {% if excuses_total > excuses|length %}<p class="ui-note">الأحدث {{ excuses|length }} من {{ excuses_total }}.</p>{% endif %}
   {% endif %}
 {% endsection_card %}

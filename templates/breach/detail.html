@@ -80,7 +80,7 @@
 
   {% if breach.notification_text %}
   {% section_card "نصّ إشعار NCSA" icon="notifications" %}
-    <p class="form-note" role="note">{% icon "tip" %}<span>لا تُرسل المنصّةُ هذا النصَّ تلقائيّاً؛ الإرسالُ إلى الجهة قرارُ المسؤول، ثمّ يُسجَّل بزرّ «تم إشعار NCSA».</span></p>
+    {% callout "info" show=True %}لا تُرسل المنصّةُ هذا النصَّ تلقائيّاً؛ الإرسالُ إلى الجهة قرارُ المسؤول، ثمّ يُسجَّل بزرّ «تم إشعار NCSA».{% endcallout %}
     <p>{{ breach.notification_text|linebreaksbr }}</p>
   {% endsection_card %}
   {% endif %}
@@ -98,13 +98,10 @@
 
   {% section_card "تغيير الحالة" icon="notifications" %}
     {% if breach.status == "resolved" %}
-      <p class="form-note" role="note">{% icon "confirm" %}<span>أُغلق هذا الخرق ولا إجراءَ متبقّياً.</span></p>
+      {% callout "success" show=True %}أُغلق هذا الخرق ولا إجراءَ متبقّياً.{% endcallout %}
     {% else %}
       {% if breach.status != "notified" %}
-      <p class="form-note is-warning" role="note">
-        {% icon "time" %}
-        <span>زرُّ «تم إشعار NCSA» <strong>لا رجعةَ فيه</strong>: يُختم به وقتُ الإشعار الفعليّ، وهو الوقتُ المعتمَد قانونيّاً في احتساب الالتزام بمهلة الـ72 ساعة. لا تضغطه إلّا بعد إرسال الإشعار فعلاً إلى المركز الوطني للأمن السيبراني.</span>
-      </p>
+      {% callout "warning" show=True %}زرُّ «تم إشعار NCSA» <strong>لا رجعةَ فيه</strong>: يُختم به وقتُ الإشعار الفعليّ، وهو الوقتُ المعتمَد قانونيّاً في احتساب الالتزام بمهلة الـ72 ساعة. لا تضغطه إلّا بعد إرسال الإشعار فعلاً إلى المركز الوطني للأمن السيبراني.{% endcallout %}
       {% endif %}
       <form method="post" action="{% url 'breach:update_status' breach.pk %}" class="form-actions">{% csrf_token %}
         {% if breach.status == "discovered" %}

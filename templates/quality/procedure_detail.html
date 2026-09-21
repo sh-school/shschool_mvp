@@ -75,10 +75,7 @@
     </div>
     {% endif %}
     {% if procedure.comments %}
-    <div class="qproc-strip qproc-strip--warning">
-      <span class="qproc-strip__label">تعليقات</span>
-      <p class="qproc-strip__text">{{ procedure.comments }}</p>
-    </div>
+    {% callout "warning" %}<strong>تعليقات:</strong> {{ procedure.comments }}{% endcallout %}
     {% endif %}
   {% endsection_card %}
 
