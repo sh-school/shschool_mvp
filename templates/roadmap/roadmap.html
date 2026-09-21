@@ -61,21 +61,11 @@
           <label class="rm-filter"><span>المسار</span><select class="form-control form-control-sm" id="rm-f-lane" data-rm-filter="lane"></select></label>
           <label class="rm-filter"><span>الحالة</span><select class="form-control form-control-sm" id="rm-f-st" data-rm-filter="st"></select></label>
           <label class="rm-filter"><span>المصدر</span><select class="form-control form-control-sm" id="rm-f-src" data-rm-filter="src"></select></label>
+          <div class="rm-subtabs" id="rm-gview" role="group" aria-label="طريقة العرض"></div>
         </div>
-        <ul class="rm-legend" aria-label="دليل الألوان">
-          <li><i class="rm-swatch is-todo"></i>لم يبدأ</li>
-          <li><i class="rm-swatch is-doing"></i>قيد التنفيذ</li>
-          <li><i class="rm-swatch is-done"></i>مُغلَق</li>
-          <li><i class="rm-swatch is-blocked"></i>محجوب</li>
-          <li><i class="rm-swatch is-deferred"></i>مؤجّل</li>
-          <li><i class="rm-swatch is-today"></i>اليوم</li>
-          <li><i class="rm-swatch is-mile"></i>محطّة</li>
-          <li><i class="rm-swatch is-suggest"></i>تاريخٌ مقترَح</li>
-        </ul>
       {% endfilter_bar %}
-      <div class="rm-subtabs" id="rm-gview" role="group" aria-label="طريقة العرض"></div>
       <div class="rm-matrix" id="rm-matrix"></div>
-      <div class="rm-gh" id="rm-gantt-head" hidden></div><div class="rm-fit rm-gantt" id="rm-fit-gantt" hidden></div><div class="rm-pager" id="rm-pg-gantt" hidden></div>
+      <div class="rm-fit rm-scroll" id="rm-fit-gantt" hidden></div>
     {% endsection_card %}
   </div>
 
@@ -114,18 +104,18 @@
   {# ══ القواعد والتحديث ══ #}
   <div class="rm-panel" id="rm-tab-ru" role="tabpanel" aria-labelledby="rm-t-ru" hidden>
     {% section_card "القواعدُ والتعريفات" icon="policy" %}
-      <div class="rm-subtabs" id="rm-ru-tabs" role="group" aria-label="أقسام القواعد"></div>
+      <select class="form-control form-control-sm" id="rm-ru-tabs" aria-label="أقسام القواعد"></select>
       <div class="rm-fit rm-cards rm-cols3" id="rm-fit-rules"></div><div class="rm-pager" id="rm-pg-rules"></div>
     {% endsection_card %}
   </div>
 
-  {# لوحةُ تحرير بندٍ — جانبيّة، تُمرَّر داخلَها لا الصفحة #}
-  <aside class="rm-drawer" id="rm-drawer" role="dialog" aria-modal="false" aria-label="تحرير بند" hidden>
-    {% section_card "تحرير بند" icon="edit" %}
-      <button type="button" class="btn-secondary btn-sm rm-drawer__close" id="rm-drawer-close">إغلاق</button>
-      <div class="rm-drawer__body" id="rm-drawer-body"></div>
-    {% endsection_card %}
-  </aside>
+  {# تحريرُ بندٍ وقائمةُ الخليّة وإنشاءُ بند: نافذةُ المنصّة المنبثقة المركزيّة #}
+  <div class="modal-overlay" id="rm-drawer" hidden>
+    <div class="modal-box modal-md" role="dialog" aria-modal="true" aria-labelledby="rm-drawer-title">
+      <div class="modal-header"><span id="rm-drawer-title">تحرير بند</span><button type="button" class="modal-close-btn" id="rm-drawer-close" aria-label="إغلاق">&times;</button></div>
+      <div class="modal-body" id="rm-drawer-body"></div>
+    </div>
+  </div>
 
   {{ roadmap_data|json_script:"rm-data" }}
 </div>

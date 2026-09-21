@@ -59,12 +59,6 @@
   var DAY = 86400000;
 
   function dt(s) { return s ? new Date(s + 'T00:00:00Z').getTime() : null; }
-  var A0 = dt(S.meta.horizonStart) || dt('2026-09-21');
-  // نهايةُ المحور من أفق الخارطة (شاملةً يومَها الأخير) لا من رقمٍ ثابت — وإلّا رُسمت بنودُ ما بعده شريحةً رفيعة وسقطت مراحلُه
-  var A1 = (dt(S.meta.horizonEnd) ? dt(S.meta.horizonEnd) + DAY : A0 + 98 * DAY);
-  var SPAN = (A1 - A0) / DAY;
-  root.style.setProperty('--rm-weeks', String(SPAN / 7));
-  function pos(t) { return Math.max(0, Math.min(100, (t - A0) / DAY / SPAN * 100)); }
   var TODAY = (function () { var n = new Date(); return Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()); })();
   function dstr(t) { return t ? new Date(t).toISOString().slice(5, 10) : '–'; }
   function pc(n) { return n + '%'; }
@@ -102,7 +96,7 @@
     return String(v);
   }
   function pill(kind, text) { return h('span', { class: 'rm-pill ' + PILL[kind], text: text }); }
-  function meter(p) { return h('div', { class: 'rm-meter', vars: { '--rm-p': pc(p) } }, h('i')); }
+  function meter(p) { return h('div', { class: 'progress-qatar' }, h('div', { class: 'progress-qatar-fill', vars: { '--progress-w': pc(p) } })); }
   function bidi(text, cls) { return h('bdi', { class: cls || null, text: text }); }
 
   // ── التعبئةُ حتى الامتلاء ثمّ الترقيم ────────────────────────────────
@@ -121,7 +115,7 @@
     var sec = m.host.closest('.ui-section');
     var sub = sec && sec.querySelector('.card-bar-sub');
     var title = sec && sec.querySelector('.ui-section__title');
-    if (sub && !sub.hasAttribute('data-static')) sub.textContent = items.length;
+    if (sub && key !== 'gantt') sub.textContent = items.length;
     m.host.setAttribute('tabindex', '0');
     m.host.setAttribute('role', 'region');
     m.host.setAttribute('aria-label', title ? title.textContent.trim() : key);
@@ -306,22 +300,11 @@
       b.dataset.view = v[0];
       gv.append(b);
     });
-    gv.append(h('button', { type: 'button', class: 'btn-primary btn-sm', text: '+ بندٌ جديد', onclick: openCreate }));
+    gv.append(h('button', { type: 'button', class: 'btn-primary btn-sm', text: '+ بند', title: 'بندٌ جديد', onclick: openCreate }));
     var ruTabs = $('#rm-ru-tabs');
-    RULE_SECTIONS.forEach(function (o) {
-      ruTabs.append(h('button', { type: 'button', class: 'btn-secondary btn-sm', 'aria-pressed': String(o[0] === S.ru), text: o[1],
-        onclick: function () {
-          S.ru = o[0];
-          Array.prototype.forEach.call(ruTabs.children, function (b) { b.setAttribute('aria-pressed', String(b === this)); }, this);
-          resetPg('rules');
-          fit('rules');
-        } }));
-    });
-    var leg = $('.rm-legend');
-    (S.meta.milestones || []).forEach(function (ms) {
-      var x = dt(ms.d);
-      if (x >= A0 && x <= A1) leg.append(h('li', { class: 'rm-mile-li', title: ms.name }, h('i', { class: 'rm-swatch is-mile' }), dstr(x) + ' ', bidi(ms.name)));
-    });
+    RULE_SECTIONS.forEach(function (o) { ruTabs.append(h('option', { value: o[0], text: o[1] })); });
+    ruTabs.value = S.ru;
+    ruTabs.addEventListener('change', function () { S.ru = ruTabs.value; resetPg('rules'); fit('rules'); });
   }
   function filtered() {
     return S.items.filter(function (i) {
@@ -345,7 +328,7 @@
     });
     var s0 = h('input', { type: 'date', class: 'form-control', value: it.start || '', 'aria-label': 'بداية ' + id, onchange: function (e) { save('item', id, { start: e.target.value || null }, 'start'); } });
     var s1 = h('input', { type: 'date', class: 'form-control', value: it.end || '', 'aria-label': 'نهاية ' + id, onchange: function (e) { save('item', id, { end: e.target.value || null }, 'end'); } });
-    var pr = h('input', { type: 'text', class: 'form-control', value: it.pr || '', placeholder: '#446', maxlength: '64', dir: 'ltr', 'aria-label': 'طلب الدمج ' + id, onchange: function (e) { save('item', id, { pr: e.target.value.trim() }, 'pr'); } });
+    var pr = h('input', { type: 'text', class: 'form-control', value: it.pr || '', placeholder: 'رقم الطلب', maxlength: '64', dir: 'ltr', 'aria-label': 'طلب الدمج ' + id, onchange: function (e) { save('item', id, { pr: e.target.value.trim() }, 'pr'); } });
     var note = h('textarea', { class: 'form-control', maxlength: '2000', 'aria-label': 'ملاحظة ' + id, onchange: function (e) { save('item', id, { note: e.target.value }, 'note'); } });
     note.value = it.note || '';
     rng.setAttribute('data-rm-id', id);
@@ -435,7 +418,7 @@
   function listRow(it) {
     return h('button', { type: 'button', class: 'rm-lrow', onclick: function () { openDrawer(it.id); } },
       h('b', { class: 'rm-code', text: it.id }),
-      h('span', { class: 'rm-lrow__t rm-clamp' }, bidi(it.title)),
+      h('span', { class: 'rm-lrow__t rm-clamp' }, bidi(it.title), h('small', { text: it.start && it.end ? ' — ' + dstr(dt(it.start)) + ' ← ' + dstr(dt(it.end)) : ' — غيرُ مؤرَّخ' })),
       pill(it.status === 'done' ? 'ok' : (it.status === 'blocked' ? 'bad' : (it.status === 'doing' ? 'accent' : 'idle')), ST[it.status] + (it.status === 'doing' ? ' ' + (it.progress || 0) + '%' : '')));
   }
   function renderDrawer() {
@@ -444,13 +427,13 @@
     var body = $('#rm-drawer-body');
     if (S.creating) {
       dr.hidden = false;
-      $('#rm-drawer .ui-section__title').textContent = 'بندٌ جديد';
+      $('#rm-drawer-title').textContent = 'بندٌ جديد';
       clear(body).append(newItemForm());
       return;
     }
     if (it) {
       dr.hidden = false;
-      $('#rm-drawer .ui-section__title').textContent = 'تحرير ' + it.id;
+      $('#rm-drawer-title').textContent = 'تحرير ' + it.id;
       var y = dr.scrollTop;
       clear(body);
       if (S.list) body.append(h('button', { type: 'button', class: 'btn-secondary btn-sm', text: 'رجوعٌ إلى القائمة', onclick: function () { S.drawer = null; renderDrawer(); } }));
@@ -460,7 +443,7 @@
     }
     if (S.list) {
       dr.hidden = false;
-      $('#rm-drawer .ui-section__title').textContent = S.list.title;
+      $('#rm-drawer-title').textContent = S.list.title;
       var ids = S.list.ids;
       clear(body).append(h('div', { class: 'rm-lrows' }, S.items.filter(function (x) { return ids.indexOf(x.id) >= 0; }).map(listRow)));
       return;
@@ -469,7 +452,7 @@
   }
 
   // ── مصفوفةُ المرحلة × المسار: العرضُ الافتراضيّ للخريطة ─────────────
-  var VIEWS = [['mx', 'مصفوفةُ المراحل'], ['tl', 'الخطُّ الزمنيّ']];
+  var VIEWS = [['mx', 'المصفوفة'], ['tl', 'الخطّ الزمنيّ']];
   function phaseOf(i) {
     var ps = S.meta.phases || [];
     if (!i.end || !ps.length) return -1;
@@ -481,15 +464,11 @@
     if (!items.length) return h('div', { class: 'rm-mx-c is-empty', 'aria-hidden': 'true' });
     var n = { done: 0, doing: 0, blocked: 0, todo: 0, deferred: 0 };
     items.forEach(function (i) { n[i.status] = (n[i.status] || 0) + 1; });
-    var bar = h('div', { class: 'rm-mx-bar' });
-    ['done', 'doing', 'blocked', 'todo', 'deferred'].forEach(function (st) {
-      if (n[st]) bar.append(h('span', { class: 'is-' + st, vars: { '--rm-w': pc(100 * n[st] / items.length) } }));
-    });
     var sub = n.done + ' مُغلَق' + (n.doing ? ' · ' + n.doing + ' جارٍ' : '') + (n.blocked ? ' · ' + n.blocked + ' محجوب' : '');
     var ids = items.map(function (i) { return i.id; });
     return h('button', { type: 'button', class: 'rm-mx-c', title: laneName(lane.key) + ' — ' + label + ': ' + sub,
       onclick: function () { openList(laneName(lane.key) + ' — ' + label, ids); } },
-      h('b', { text: String(items.length) }), h('span', { text: sub }), bar);
+      h('b', { text: String(items.length) }), h('span', { text: sub }));
   }
   function renderMatrix() {
     var host = clear($('#rm-matrix'));
@@ -510,83 +489,35 @@
   function renderGanttView() {
     var mx = S.gview === 'mx';
     $('#rm-matrix').hidden = !mx;
-    $('#rm-gantt-head').hidden = mx;
     $('#rm-fit-gantt').hidden = mx;
-    $('#rm-pg-gantt').hidden = mx;
     var vb = $('#rm-gview');
     Array.prototype.forEach.call(vb.children, function (b) { b.setAttribute('aria-pressed', String(b.dataset.view === S.gview)); });
     if (mx) { renderMatrix(); return; }
-    renderGanttHead();
     fit('gantt');
   }
 
-  // صفوفُ الخريطة: رأسُ المسار ثمّ بنودُه المؤرَّخة ثمّ غيرُ المجدولة مجمَّعةً (كلُّ صفٍّ عنصرٌ في الترقيم)
-  var CHIPS_PER_ROW = 8;
+  // الخطُّ الزمنيّ قائمةٌ بمكوّنات المنصّة: رأسُ كلّ مسارٍ ثمّ بنودُه مرتَّبةً بالبدء (غيرُ المؤرَّخة في آخره)
   function ganttEntries() {
     var list = filtered(), out = [];
+    function begin(i) { return i.start ? dt(i.start) : Infinity; }
     (S.meta.lanes || []).forEach(function (l) {
       var li = list.filter(function (i) { return i.lane === l.key; });
       if (!li.length) return;
-      out.push({ t: 'lane', l: l, li: li });
-      li.filter(function (i) { return i.start && i.end; })
-        .sort(function (a, b) { return dt(a.start) - dt(b.start) || dt(a.end) - dt(b.end); })
-        .forEach(function (i) { out.push({ t: 'row', i: i }); });
-      var und = li.filter(function (i) { return !(i.start && i.end); });
-      for (var k = 0; k < und.length; k += CHIPS_PER_ROW) out.push({ t: 'und', list: und.slice(k, k + CHIPS_PER_ROW), first: k === 0 });
+      out.push({ l: l, li: li });
+      li.slice().sort(function (a, b) { return begin(a) - begin(b); }).forEach(function (i) { out.push({ i: i }); });
     });
     return out;
   }
   function mkGantt(e) {
-    if (e.t === 'lane') {
-      return h('div', { class: 'rm-lane' },
-        h('div', { class: 'rm-lab' }, h('span', { text: e.l.name }), h('span', { class: 'rm-lab__n', text: pct(e.li) + '٪ · ' + e.li.length })),
-        h('div', { class: 'rm-lane-p' }, meter(pct(e.li))));
-    }
-    if (e.t === 'und') {
-      var box = h('div', { class: 'rm-und' }, e.first ? h('b', { text: 'غير مجدولة:' }) : null);
-      e.list.forEach(function (i) { box.append(h('button', { type: 'button', class: 'rm-chip', title: i.title, text: i.id, onclick: function () { openDrawer(i.id); } })); });
-      return box;
-    }
-    var i = e.i;
-    var a = pos(Math.max(dt(i.start), A0)), b = pos(Math.min(dt(i.end) + DAY, A1));
-    if (b <= a) b = a + 0.8;
-    var suggested = /مقترَح/.test(i.dateBasis || '');
-    var bar = h('div', { class: 'rm-bar is-' + i.status + (suggested ? ' is-suggested' : ''), vars: { '--rm-a': pc(a), '--rm-w': pc(b - a) }, title: i.id + ' — ' + i.title + ' — ' + dstr(dt(i.start)) + ' ← ' + dstr(dt(i.end)) });
-    if (i.status === 'doing' && i.progress) bar.append(h('i', { vars: { '--rm-p': pc(i.progress) } }));
-    var track = h('div', { class: 'rm-track' }, bar);
-    (S.meta.milestones || []).forEach(function (ms) {
-      var x = dt(ms.d);
-      if (x >= A0 && x <= A1) track.append(h('div', { class: 'rm-mk', vars: { '--rm-a': pc(pos(x)) }, title: ms.name }));
-    });
-    if (TODAY >= A0 && TODAY <= A1) track.append(h('div', { class: 'rm-today', vars: { '--rm-a': pc(pos(TODAY)) } }));
-    return h('div', { class: 'rm-row' },
-      h('button', { type: 'button', class: 'rm-lab', title: i.title, 'aria-haspopup': 'dialog', onclick: function () { openDrawer(i.id); } },
-        h('b', { text: i.id }), h('span', { class: 'rm-lab__t' }, bidi(i.title))),
-      track);
-  }
-  function renderGanttHead() {
-    var head = clear($('#rm-gantt-head'));
-    var axis = h('div', { class: 'rm-axis' });
-    (S.meta.phases || []).forEach(function (p) {
-      var a = pos(Math.max(dt(p.start), A0)), b = pos(Math.min(dt(p.end) + DAY, A1));
-      if (b <= a) return;
-      axis.append(h('div', { class: 'rm-ph', title: p.key + ' — ' + p.name, vars: { '--rm-a': pc(a), '--rm-w': pc(b - a) }, text: p.key + ' — ' + p.name }));
-    });
-    // عددُ تسميات الأسابيع بما يتّسع له المحورُ (≈48px لكلٍّ) — الأفقُ نحو 27 أسبوعاً لا 14
-    var room = Math.max(4, Math.floor(((axis.clientWidth || (head.clientWidth || root.clientWidth) * 0.75) || 480) / 48));
-    var step = Math.max(1, Math.ceil(Math.ceil(SPAN / 7) / room));
-    for (var w = 0; w < Math.ceil(SPAN / 7); w += step) {
-      var t = A0 + w * 7 * DAY;
-      axis.append(h('div', { class: 'rm-wk', vars: { '--rm-a': pc(pos(t)), '--rm-w': pc(step * 7 / SPAN * 100) }, text: dstr(t) }));
-    }
-    head.append(h('div', { class: 'rm-lab', text: 'البند' }), axis);
+    if (e.i) return listRow(e.i);
+    return h('div', { class: 'rm-lane' }, h('b', { text: e.l.name }), h('span', { text: pct(e.li) + '٪ · ' + e.li.length }), meter(pct(e.li)));
   }
 
   // ── المؤشّرات والقرارات والمخاطر والمعايير والقواعد ─────────────────
   function kpiGroup(g) { return S.kpis.filter(function (k) { var c = String(k.code || ''); return g === 'U' ? /^UK/.test(c) : (g === 'M' ? /^MK/.test(c) : !/^(UK|MK)/.test(c)); }); }
   function mkKpi(k) {
     var c = calc(k);
-    var gauge = h('div', { class: 'rm-gauge', vars: c.pct != null ? { '--rm-p': pc(c.pct) } : null }, c.pct != null ? h('i') : null, h('u'));
+    var gauge = meter(c.pct || 0);
     var baseTxt = k.textMode || (k.baseline == null && k.baselineText) ? (k.baselineText || '–') : fmt(k.baseline, k.unit);
     var targetTxt = k.textMode || (k.target == null && k.targetText) ? (k.targetText || '–') : (k.dir === 'down' ? '≤ ' : '≥ ') + fmt(k.target, k.unit);
     return h('article', { class: 'rm-tile' },
@@ -660,7 +591,6 @@
   }
   function renderAll() {
     renderSummary();
-    renderGanttHead();
     fitTab();
     renderDrawer();
     statics();
@@ -670,7 +600,7 @@
   mount('lanes', laneRows, mkLane);
   mount('next', soonItems, mkSoon);
   mount('phases', function () { return S.meta.phases || []; }, mkPhase);
-  mount('gantt', ganttEntries, mkGantt);
+  mountScroll('gantt', ganttEntries, mkGantt);
   mountScroll('kpU', function () { return kpiGroup('U'); }, mkKpi);
   mountScroll('kpM', function () { return kpiGroup('M'); }, mkKpi);
   mountScroll('kpV', function () { return kpiGroup('V'); }, mkKpi);
@@ -696,7 +626,6 @@
     });
     if ($('#rm-tabsel')) $('#rm-tabsel').value = t;
     TABS.forEach(function (x) { $('#rm-tab-' + x).hidden = x !== t; });
-    renderGanttHead();
     fitTab();
   }
   tabButtons.forEach(function (b) {
@@ -734,12 +663,13 @@
     fill.parentNode.insertBefore(seg, fill);
   });
   $('#rm-drawer-close').addEventListener('click', closeDrawer);
+  $('#rm-drawer').addEventListener('click', function (e) { if (e.target === this) closeDrawer(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && (S.drawer || S.creating || S.list)) closeDrawer(); });
 
   var resizeTimer = null;
   window.addEventListener('resize', function () {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(function () { renderGanttHead(); fitTab(); }, 120);
+    resizeTimer = setTimeout(fitTab, 120);
   });
 
   var refitTimer = null;
