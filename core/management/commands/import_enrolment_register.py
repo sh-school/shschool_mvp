@@ -39,8 +39,10 @@ from collections import Counter
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from core.initial_passwords import write_credentials_csv
 from core.models import ClassGroup, CustomUser, School
 from core.models.academic import StudentEnrollment
+from core.privacy import mask_national_id
 
 #: رؤوسُ الجدول في السطر الثالث، فالبياناتُ تبدأ من الرابع.
 FIRST_DATA_ROW = 4
@@ -111,6 +113,14 @@ class Command(BaseCommand):
             help="مطابقةُ ترقيمٍ صريحة، مثل 12/2=12/4",
         )
         parser.add_argument("--apply", action="store_true", help="بدونه يعرض ولا يكتب")
+        parser.add_argument(
+            "--credentials-out",
+            default="",
+            help=(
+                "مسارُ CSV لكلمات المرور الأوّليّة العشوائيّة للحسابات المُنشأة — إلزاميٌّ "
+                "مع --create-missing --apply. الملفُّ سرٌّ يُوزَّع ثمّ يُحذف."
+            ),
+        )
 
     # ── التنفيذ ──────────────────────────────────────────────────────
 
@@ -156,6 +166,11 @@ class Command(BaseCommand):
             raise CommandError(
                 f"{len(students['unknown'])} طالباً في السجلّ بلا حساب — أضف "
                 "--create-missing لإنشائها، أو أنشئها أوّلاً."
+            )
+        if students["unknown"] and options["create_missing"] and not options["credentials_out"]:
+            raise CommandError(
+                "الحساباتُ المُنشأة تنال كلماتِ مرورٍ عشوائيّةً — حدّد --credentials-out "
+                "لملفٍّ تُكتب إليه، وإلّا ضاعت."
             )
 
         self._write(school, year, roster, sections, students, options)
@@ -384,8 +399,9 @@ class Command(BaseCommand):
         if options["create_missing"]:
             from student_affairs.services import StudentService
 
+            issued = []
             for national_id, name, section in students["unknown"]:
-                StudentService.create_student(
+                new_user = StudentService.create_student(
                     school,
                     {
                         "national_id": national_id,
@@ -393,8 +409,22 @@ class Command(BaseCommand):
                         "class_group_id": sections["labels"][section].id,
                     },
                 )
+                issued.append(
+                    {
+                        "role": "طالب",
+                        "nid": mask_national_id(new_user.national_id),
+                        "name": new_user.full_name,
+                        "password": new_user.initial_password,
+                    }
+                )
                 created += 1
             w(self.style.SUCCESS(f"أُنشئ {created} حساباً وقُيّد أصحابُها."))
+            if issued:
+                write_credentials_csv(options["credentials_out"], issued)
+                w(
+                    f"كلماتُ المرور الأوّليّة العشوائيّة في: {options['credentials_out']} — "
+                    "الملفُّ سرٌّ: وزّعه ثمّ احذفه."
+                )
 
         for user, group in students["to_enrol"]:
             StudentEnrollment.objects.create(student=user, class_group=group, is_active=True)

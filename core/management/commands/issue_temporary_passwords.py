@@ -26,12 +26,14 @@
 ولا يكتب شيئاً بلا `--apply`.
 """
 
-import secrets
-
 from django.contrib.auth.password_validation import validate_password
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
+from core.initial_passwords import (  # noqa: F401 — الاسمان يُستوردان من هنا في الاختبارات
+    LENGTH,
+    make_initial_password as make_password,
+)
 from core.models import School
 from core.models.access import Membership
 from core.models.audit import AuditLog
@@ -39,25 +41,6 @@ from core.models.user import CustomUser
 
 #: أدوارٌ ليست كادراً — لا تُصدَر لها من هنا.
 NOT_STAFF = ("student", "parent")
-
-#: أبجديّةٌ بلا ملتبسٍ بصريّاً: لا O ولا 0 ولا l ولا 1 ولا I.
-#: الكلمةُ تُقرأ من ورقةٍ وتُكتب بيدٍ، فحرفٌ يُخطئ فيه القارئُ بابٌ مغلق.
-LETTERS_UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-LETTERS_LOWER = "abcdefghijkmnpqrstuvwxyz"
-DIGITS = "23456789"
-SYMBOLS = "!@#$%*-+=?"
-LENGTH = 14
-
-
-def make_password() -> str:
-    """كلمةٌ تُرضي المدقّق بالبناء لا بالمحاولة: حرفٌ من كلّ صنفٍ ثمّ الباقي."""
-    pools = (LETTERS_UPPER, LETTERS_LOWER, DIGITS, SYMBOLS)
-    chars = [secrets.choice(pool) for pool in pools]
-    everything = "".join(pools)
-    chars += [secrets.choice(everything) for _ in range(LENGTH - len(pools))]
-    # الخلطُ ضروريّ: بلا مزجٍ يقع الرمزُ رابعاً دائماً فيصير النمطُ معروفاً.
-    secrets.SystemRandom().shuffle(chars)
-    return "".join(chars)
 
 
 class Command(BaseCommand):

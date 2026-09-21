@@ -10,7 +10,8 @@
 6. لا تكرار — آمن للتشغيل أكثر من مرة
 
 الاستخدام:
-  python manage.py shell < scripts/import_students_parents.py
+  CREDENTIALS_OUT=creds.csv python manage.py shell < scripts/import_students_parents.py
+  (الكلمات الأولية عشوائية وتُكتب إلى CREDENTIALS_OUT؛ الملف سرّ)
 """
 
 import csv
@@ -52,6 +53,15 @@ def run():
         School,
         StudentEnrollment,
     )
+
+    from core.initial_passwords import assign_initial_password, write_credentials_csv
+
+    # مسار ورقة كلمات المرور العشوائية — إلزامي كي لا تضيع الكلمات (لا كلمة = الرقم الشخصي)
+    credentials_out = os.environ.get("CREDENTIALS_OUT", "")
+    if not credentials_out:
+        print("❌ حدّد CREDENTIALS_OUT=<مسار csv> — تُكتب إليه كلمات المرور الأولية العشوائية.")
+        return
+    issued: list[dict] = []
 
     # ── إعداد ──────────────────────────────────────────────────
     school = School.objects.first()
@@ -122,8 +132,8 @@ def run():
             )
 
             if s_created:
-                # كلمة مرور افتراضية = الرقم الشخصي
-                student.set_password(student_nid)
+                # كلمة مرور عشوائية (لا الرقم الشخصي) + must_change_password
+                assign_initial_password(student, issued, "طالب")
                 student.save()
                 stats["students_created"] += 1
             else:
@@ -170,8 +180,7 @@ def run():
             )
 
             if p_created:
-                # كلمة مرور افتراضية = الرقم الشخصي
-                parent.set_password(parent_nid)
+                assign_initial_password(parent, issued, "ولي أمر")
                 parent.save()
                 stats["parents_created"] += 1
             else:
@@ -239,8 +248,9 @@ def run():
 
     print("━" * 55)
     print("✅ اكتمل الاستيراد بنجاح\n")
-    print("ملاحظة: كلمة المرور الافتراضية = الرقم الشخصي للمستخدم")
-    print("        يُنصح بإخبار أولياء الأمور بتغييرها أول دخول\n")
+    count = write_credentials_csv(credentials_out, issued)
+    print(f"كلمات المرور الأولية العشوائية ({count} حساباً) في: {credentials_out}")
+    print("الملف سرّ: وزّعه ثم احذفه. ويُلزَم كل صاحب بتغيير كلمته عند أول دخول\n")
 
 
 run()
