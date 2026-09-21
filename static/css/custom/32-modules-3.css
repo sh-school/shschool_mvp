@@ -1328,10 +1328,9 @@
   .sa-start { text-align: start; }
 
 /* ── templates/staff_affairs/assignments.html ── */
-  /* عمودان متجاوران من 769px، وعمودٌ واحدٌ على الهاتف. الارتفاعُ المحدود
+  /* عمودان من 769px، وأربعةٌ من 1025px (ثلاثةٌ بلا نموذج)، وعمودٌ واحدٌ على الهاتف. الارتفاعُ المحدود
      وتمريرُ البطاقات داخلياً في 50-utilities.css (page-noscroll). */
   .sa-assign { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); align-items: start; }
-  .sa-assign__col { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
   .sa-assign .form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2) var(--sp-3); }
   .sa-assign__footer { align-self: end; justify-content: flex-end; }
   .sa-cell-sub { display: block; font-size: var(--text-xs); color: var(--text-muted); font-weight: 400; }
@@ -1339,6 +1338,10 @@
   @media (min-width: 769px) {
     .sa-assign { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .sa-assign--solo { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (min-width: 1025px) {
+    .sa-assign { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .sa-assign--solo { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   }
   @media (max-width: 480px) {
     .sa-assign .form-row { grid-template-columns: 1fr; }

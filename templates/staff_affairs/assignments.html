@@ -2,7 +2,7 @@
 {% load icons %}
 {% load ui %}
 {% block title %}التكليفات{% endblock %}
-{# الصفحةُ بارتفاع النافذة: عمودان، وما يطول يُمرَّر داخل بطاقته لا الصفحة. #}
+{# الصفحةُ بارتفاع النافذة: أربعُ بطاقاتٍ في أربعة أعمدة، وما يطول يُمرَّر داخل بطاقته لا الصفحة. #}
 {% block main_class %}page-noscroll{% endblock %}
 {% block breadcrumbs %}
 {% url 'staff_affairs:dashboard' as home_url %}{% include "components/breadcrumbs.html" with parent_url=home_url parent_label="شؤون الموظفين" current="التكليفات" %}
@@ -14,7 +14,6 @@
 
   <div class="sa-assign{% if not acting_role %} sa-assign--solo{% endif %}">
   {% if acting_role %}
-  <div class="sa-assign__col">
   {% section_card "تكليفٌ جديد" icon="confirm" %}
     {% callout "warning" %}تكلّف عن وظيفتك ({% if acting_role == "principal" %}مدير المدرسة{% elif acting_role == "vice_academic" %}النائب الأكاديمي{% else %}النائب الإداري{% endif %}) — ويعمل المكلَّفُ في اعتماد الأذونات وقبول العذر وقرار نموذج 03 طوال المدّة، ويُوسم قرارُه بمعرّف تكليفه. لمدّةٍ لا تجاوز عاماً أكاديمياً.{% endcallout %}
     {% if form.non_field_errors %}{% callout "error" %}{{ form.non_field_errors|join:" · " }}{% endcallout %}{% endif %}
@@ -40,14 +39,11 @@
     {% callout "info" %}لا أحدَ يجوز تكليفُه الآن بحسب قرار المدرسة{% if acting_role == "principal" %} (يكلّف المديرُ نائبَيه، ولا يكلّف غيرَهما إلا إن غاب النائبان معاً){% endif %}.{% endcallout %}
     {% endif %}
   {% endsection_card %}
-  </div>
   {% endif %}
 
-  <div class="sa-assign__col">
   {% section_card "قائمةٌ اليوم" meta=current|length icon="staff" flush=True empty="لا تكليفَ قائماً اليوم" %}{% if current %}{% include "staff_affairs/partials/assignment_rows.html" with rows=current live=True %}{% endif %}{% endsection_card %}
   {% section_card "قادمة" meta=upcoming|length icon="leave" flush=True empty="لا تكليفاتٍ قادمة" %}{% if upcoming %}{% include "staff_affairs/partials/assignment_rows.html" with rows=upcoming live=True %}{% endif %}{% endsection_card %}
   {% section_card "السجلّ (منتهية أو مرفوعة)" meta=past|length icon="checklist" flush=True empty="لا سجلَّ بعد" %}{% if past %}{% include "staff_affairs/partials/assignment_rows.html" with rows=past live=False %}{% endif %}{% endsection_card %}
-  </div>
   </div>
 </div>
 {% endblock %}
