@@ -19,6 +19,9 @@ ROOT = Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "tests" / "file_size_baseline.json"
 HARD_LIMIT = 900
 WARN_LIMIT = 600
+# هامشٌ لا يُحسب زيادةً: سطرٌ أو سطران في ملفٍّ كبير لا يُسقط جلساتٍ متوازيةً ولا يتصادم فيه السجلّ
+# (كلُّ جلسةٍ ستعدّل الأساسَ نفسَه). أمّا نموُّ عشراتِ الأسطر فيسقط.
+TOLERANCE = 25
 
 # الهجراتُ مولَّدة، والاختباراتُ تطول بعدد الحالات لا بتعقيدٍ في التصميم.
 _SKIP_DIRS = {
@@ -57,17 +60,18 @@ def measure() -> dict[str, int]:
 
 
 def compare(baseline: dict[str, int], current: dict[str, int]) -> tuple[list[str], list[str]]:
-    """(الأسوأ، القديم): ملفٌّ جديدٌ فوق الحدّ أو مسجَّلٌ كبُر؛ ومسجَّلٌ صغُر أو نزل تحت الحدّ."""
+    """(الأسوأ، القديم): ملفٌّ جديدٌ فوق الحدّ أو مسجَّلٌ كبُر فوق الهامش؛ ومسجَّلٌ صغُر كثيراً أو نزل تحت الحدّ."""
     worse, stale = [], []
     for path, lines in current.items():
         if path in baseline:
-            if lines > baseline[path]:
+            if lines > baseline[path] + TOLERANCE:
                 worse.append(f"{path}: {baseline[path]} → {lines}")
         elif lines > HARD_LIMIT:
             worse.append(f"{path}: {lines} سطراً (الحدُّ {HARD_LIMIT}) وهو غيرُ مسجَّل")
     for path, recorded in baseline.items():
         lines = current.get(path, 0)
-        if lines < recorded:
+        # نزل تحت الحدّ (أو اختفى): يُحذف من الأساس. وصغُر كثيراً: يُثبَّت نقصُه فلا يُنفَق ثانيةً.
+        if lines <= HARD_LIMIT or lines < recorded - TOLERANCE:
             stale.append(f"{path}: {recorded} → {lines}")
     return worse, stale
 
