@@ -61,6 +61,8 @@ INSTALLED_APPS = [
     # ✅ مركز معلومات الطلبة — ملفّ الطالب الجامع وملاحظات الجهات الخمس
     "student_info.apps.StudentInfoConfig",
     "wings.apps.WingsConfig",
+    # خارطة تجويد المنصّة — لمطوّر المنصّة وحدَه (أدوات المطوّر)
+    "roadmap.apps.RoadmapConfig",
     # الحوكمة وحماية البيانات: المحو والاحتفاظ وتدوير المفاتيح ووصول الملفّات (ADR-0004)
     "governance.apps.GovernanceConfig",
     # ✅ فلترة احترافية

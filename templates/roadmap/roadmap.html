@@ -1,0 +1,136 @@
+{% extends "base/base.html" %}
+{% load static ui icons %}
+
+{% block title %}خارطةُ تجويد المنصّة{% endblock %}
+
+{% block main_class %}page-noscroll{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="خارطةُ التجويد" %}
+{% endblock %}
+
+{% block content %}
+{% url 'roadmap_item_update' code='CODE' as item_url %}
+{% url 'roadmap_decision_update' code='CODE' as decision_url %}
+{% url 'roadmap_checklist_update' code='CODE' as checklist_url %}
+{% url 'roadmap_item_create' as item_create_url %}
+<div class="exec-dash rm-page" id="rm-root"
+     data-item-url="{{ item_url }}" data-decision-url="{{ decision_url }}"
+     data-checklist-url="{{ checklist_url }}" data-item-create-url="{{ item_create_url }}" data-csrf="{{ csrf_token }}">
+
+  {# عنوانُ الصفحة كبقيّة المنصّة: مكوّن page_header المركزيّ #}
+  {% page_header "خارطةُ تجويد المنصّة" icon="roadmap" %}
+    <div class="rm-big" title="التقدّمُ المرجَّحُ بالجهد"><b id="rm-pct">{{ overall_progress }}</b><span>% تقدّم</span></div>
+  {% endpage_header %}
+
+  {# شريطُ الأقسام: بطاقةٌ خاصّةٌ به تحت العنوان #}
+  <div class="rm-tabsbar">
+    <p class="rm-live" id="rm-live" role="status" aria-live="polite"></p>
+    <select class="form-control rm-tabsel" id="rm-tabsel" aria-label="القسم"></select>
+    <div class="rm-tabs" role="tablist" aria-label="أقسام الخارطة">
+      <button type="button" class="tab-btn rm-tab" role="tab" id="rm-t-ov" data-rm-tab="ov" aria-controls="rm-tab-ov" aria-selected="true">نظرةٌ عامّة</button>
+      <button type="button" class="tab-btn rm-tab" role="tab" id="rm-t-gt" data-rm-tab="gt" aria-controls="rm-tab-gt" aria-selected="false">الخريطةُ الزمنيّة</button>
+      <button type="button" class="tab-btn rm-tab" role="tab" id="rm-t-kp" data-rm-tab="kp" aria-controls="rm-tab-kp" aria-selected="false">المؤشّرات</button>
+      <button type="button" class="tab-btn rm-tab" role="tab" id="rm-t-dc" data-rm-tab="dc" aria-controls="rm-tab-dc" aria-selected="false">القرارات</button>
+      <button type="button" class="tab-btn rm-tab" role="tab" id="rm-t-rk" data-rm-tab="rk" aria-controls="rm-tab-rk" aria-selected="false">المخاطرُ والفحص</button>
+      <button type="button" class="tab-btn rm-tab" role="tab" id="rm-t-st" data-rm-tab="st" aria-controls="rm-tab-st" aria-selected="false">المعايير</button>
+      <button type="button" class="tab-btn rm-tab" role="tab" id="rm-t-ru" data-rm-tab="ru" aria-controls="rm-tab-ru" aria-selected="false">القواعدُ والتحديث</button>
+    </div>
+  </div>
+
+  <noscript><p class="rm-note">تعرض الخارطةُ بياناتِها بجافاسكربت — فعِّله لتراها وتحدّثها.</p></noscript>
+  {% if not item_count %}
+    <p class="rm-note">لا بياناتَ بعد: شغِّل <code dir="ltr">python manage.py import_roadmap_snapshot &lt;path&gt;</code> لملء الخارطة.</p>
+  {% endif %}
+
+  {# ══ نظرة عامّة ══ #}
+  <div class="rm-panel" id="rm-tab-ov" role="tabpanel" aria-labelledby="rm-t-ov">
+    <div class="ui-kpis" id="rm-summary" role="list" aria-label="ملخّص الخارطة"></div>
+    <div class="rm-fill">
+      {% section_card "التقدّمُ حسب المسار" icon="stats" %}<div class="rm-fit" id="rm-fit-lanes"></div><div class="rm-pager" id="rm-pg-lanes"></div>{% endsection_card %}
+      {% section_card "الأسابيعُ القادمة" meta="14 يوماً" icon="schedule" %}<div class="rm-fit" id="rm-fit-next"></div><div class="rm-pager" id="rm-pg-next"></div>{% endsection_card %}
+      {% section_card "المراحل" icon="plan_execution" %}<div class="rm-fit" id="rm-fit-phases"></div><div class="rm-pager" id="rm-pg-phases"></div>{% endsection_card %}
+    </div>
+  </div>
+
+  {# ══ الخريطة الزمنيّة ══ #}
+  <div class="rm-panel" id="rm-tab-gt" role="tabpanel" aria-labelledby="rm-t-gt" hidden>
+    {% section_card "الخريطةُ الزمنيّة" meta="انقر خليّةً أو بنداً" icon="plan_execution" %}
+      {% filter_bar "مرشّحاتُ الخريطة الزمنيّة" live=True css="rm-tools" %}
+        <div class="rm-filters">
+          <label class="rm-filter"><span>المسار</span><select class="form-control form-control-sm" id="rm-f-lane" data-rm-filter="lane"></select></label>
+          <label class="rm-filter"><span>الحالة</span><select class="form-control form-control-sm" id="rm-f-st" data-rm-filter="st"></select></label>
+          <label class="rm-filter"><span>المصدر</span><select class="form-control form-control-sm" id="rm-f-src" data-rm-filter="src"></select></label>
+        </div>
+        <ul class="rm-legend" aria-label="دليل الألوان">
+          <li><i class="rm-swatch is-todo"></i>لم يبدأ</li>
+          <li><i class="rm-swatch is-doing"></i>قيد التنفيذ</li>
+          <li><i class="rm-swatch is-done"></i>مُغلَق</li>
+          <li><i class="rm-swatch is-blocked"></i>محجوب</li>
+          <li><i class="rm-swatch is-deferred"></i>مؤجّل</li>
+          <li><i class="rm-swatch is-today"></i>اليوم</li>
+          <li><i class="rm-swatch is-mile"></i>محطّة</li>
+          <li><i class="rm-swatch is-suggest"></i>تاريخٌ مقترَح</li>
+        </ul>
+      {% endfilter_bar %}
+      <div class="rm-subtabs" id="rm-gview" role="group" aria-label="طريقة العرض"></div>
+      <div class="rm-matrix" id="rm-matrix"></div>
+      <div class="rm-gh" id="rm-gantt-head" hidden></div><div class="rm-fit rm-gantt" id="rm-fit-gantt" hidden></div><div class="rm-pager" id="rm-pg-gantt" hidden></div>
+    {% endsection_card %}
+  </div>
+
+  {# ══ المؤشّرات ══ #}
+  <div class="rm-panel" id="rm-tab-kp" role="tabpanel" aria-labelledby="rm-t-kp" hidden>
+    <div class="rm-fill">
+      {% section_card "مؤشّراتُ الخطّة الموحّدة" meta="…" icon="kpi" %}<div class="rm-fit rm-scroll rm-cards" id="rm-fit-kpU"></div>{% endsection_card %}
+      {% section_card "مؤشّراتُ خطّة الجوال" meta="…" icon="kpi" %}<div class="rm-fit rm-scroll rm-cards" id="rm-fit-kpM"></div>{% endsection_card %}
+      {% section_card "مؤشّراتُ المنصّة والهويّة" meta="…" icon="kpi" %}<div class="rm-fit rm-scroll rm-cards" id="rm-fit-kpV"></div>{% endsection_card %}
+    </div>
+  </div>
+
+  {# ══ القرارات ══ #}
+  <div class="rm-panel" id="rm-tab-dc" role="tabpanel" aria-labelledby="rm-t-dc" hidden>
+    <div class="rm-fill">
+      {% section_card "قراراتٌ مفتوحة" meta="…" icon="confirm" %}<div class="rm-fit rm-scroll rm-cards" id="rm-fit-dcOpen"></div>{% endsection_card %}
+      {% section_card "قراراتٌ محسومة" meta="…" icon="confirm" %}<div class="rm-fit rm-scroll rm-cards" id="rm-fit-dcDone"></div>{% endsection_card %}
+      {% section_card "قراراتٌ مؤجَّلة" meta="…" icon="confirm" %}<div class="rm-fit rm-scroll rm-cards" id="rm-fit-dcDef"></div>{% endsection_card %}
+    </div>
+  </div>
+
+  {# ══ المخاطر والفحص ══ #}
+  <div class="rm-panel" id="rm-tab-rk" role="tabpanel" aria-labelledby="rm-t-rk" hidden>
+    <div class="rm-fill">
+      {% section_card "مخاطرُ أثرُها مرتفع" meta="…" icon="status_warning" %}<div class="rm-fit rm-scroll rm-cards" id="rm-fit-rkHigh"></div>{% endsection_card %}
+      {% section_card "مخاطرُ أثرُها متوسّطٌ أو منخفض" meta="…" icon="status_warning" %}<div class="rm-fit rm-scroll rm-cards" id="rm-fit-rkOther"></div>{% endsection_card %}
+      {% section_card "قائمةُ فحص الجهاز الحقيقيّ" meta="للمالك قبل نشر كلّ مرحلة" icon="checklist" %}<div class="rm-fit rm-scroll rm-cards" id="rm-fit-cks"></div>{% endsection_card %}
+    </div>
+  </div>
+
+  {# ══ المعايير ══ #}
+  <div class="rm-panel" id="rm-tab-st" role="tabpanel" aria-labelledby="rm-t-st" hidden>
+    {% section_card "المعايير المتّبعة وأين تُقاس" icon="policy" %}<div class="rm-fit rm-cards rm-cols3" id="rm-fit-stds"></div><div class="rm-pager" id="rm-pg-stds"></div>{% endsection_card %}
+  </div>
+
+  {# ══ القواعد والتحديث ══ #}
+  <div class="rm-panel" id="rm-tab-ru" role="tabpanel" aria-labelledby="rm-t-ru" hidden>
+    {% section_card "القواعدُ والتعريفات" icon="policy" %}
+      <div class="rm-subtabs" id="rm-ru-tabs" role="group" aria-label="أقسام القواعد"></div>
+      <div class="rm-fit rm-cards rm-cols3" id="rm-fit-rules"></div><div class="rm-pager" id="rm-pg-rules"></div>
+    {% endsection_card %}
+  </div>
+
+  {# لوحةُ تحرير بندٍ — جانبيّة، تُمرَّر داخلَها لا الصفحة #}
+  <aside class="rm-drawer" id="rm-drawer" role="dialog" aria-modal="false" aria-label="تحرير بند" hidden>
+    {% section_card "تحرير بند" icon="edit" %}
+      <button type="button" class="btn-secondary btn-sm rm-drawer__close" id="rm-drawer-close">إغلاق</button>
+      <div class="rm-drawer__body" id="rm-drawer-body"></div>
+    {% endsection_card %}
+  </aside>
+
+  {{ roadmap_data|json_script:"rm-data" }}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/roadmap.js' %}" defer></script>
+{% endblock %}
