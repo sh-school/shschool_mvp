@@ -15,7 +15,7 @@ import sys
 
 root = sys.argv[1] if len(sys.argv) > 1 else "."
 files = sorted(glob.glob(f"{root}/static/css/custom/*.css"))
-css = "".join(open(f, encoding="utf8").read() for f in files)
+css = "".join(pathlib.Path(f).read_text(encoding="utf8") for f in files)
 
 out = {}
 out["info_css_source_bytes"] = len(css.encode("utf8"))
@@ -56,7 +56,7 @@ out["K10_physical_props"] = (
     + len(re.findall(r"(?<![-\w])(?:left|right)\s*:\s*[^;]", css))
     + len(re.findall(r"float\s*:\s*(?:left|right)", css))
 )
-themes = open(f"{root}/static/css/custom/40-themes.css", encoding="utf8").read()
+themes = pathlib.Path(f"{root}/static/css/custom/40-themes.css").read_text(encoding="utf8")
 out["K11_dark_rules_outside_themes"] = css.count("html.dark") - themes.count("html.dark")
 out["K12_raw_brand_as_text"] = sum(
     len(re.findall(rf"(?<![-\w])color\s*:\s*var\(--{t}\)", css))
@@ -131,7 +131,7 @@ out["K15_min_control_contrast_dark"] = worst(dark, NONTEXT_PAIRS)
 
 # ── القوالب ──
 tpl = {
-    f: open(f, encoding="utf8", errors="ignore").read()
+    f: pathlib.Path(f).read_text(encoding="utf8", errors="ignore")
     for f in glob.glob(f"{root}/templates/**/*.html", recursive=True)
     if "pdf" not in f and "email" not in f
 }
