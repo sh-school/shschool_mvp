@@ -16,8 +16,8 @@
   {% if acting_role %}
   <div class="sa-assign__col">
   {% section_card "تكليفٌ جديد" icon="confirm" %}
-    <p class="form-note sa-assign__note">{% icon "status_info" %} تكلّف عن وظيفتك ({% if acting_role == "principal" %}مدير المدرسة{% elif acting_role == "vice_academic" %}النائب الأكاديمي{% else %}النائب الإداري{% endif %}) — ويعمل المكلَّفُ في اعتماد الأذونات وقبول العذر وقرار نموذج 03 طوال المدّة، ويُوسم قرارُه بمعرّف تكليفه. لمدّةٍ لا تجاوز عاماً أكاديمياً.</p>
-    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    {% callout "warning" %}تكلّف عن وظيفتك ({% if acting_role == "principal" %}مدير المدرسة{% elif acting_role == "vice_academic" %}النائب الأكاديمي{% else %}النائب الإداري{% endif %}) — ويعمل المكلَّفُ في اعتماد الأذونات وقبول العذر وقرار نموذج 03 طوال المدّة، ويُوسم قرارُه بمعرّف تكليفه. لمدّةٍ لا تجاوز عاماً أكاديمياً.{% endcallout %}
+    {% if form.non_field_errors %}{% callout "error" %}{{ form.non_field_errors|join:" · " }}{% endcallout %}{% endif %}
     {% if candidates %}
     <form method="post" action="{% url 'staff_affairs:assignments' %}">{% csrf_token %}
       <div class="form-row">
@@ -37,7 +37,7 @@
       </div>
     </form>
     {% else %}
-    <p class="form-note">لا أحدَ يجوز تكليفُه الآن بحسب قرار المدرسة{% if acting_role == "principal" %} (يكلّف المديرُ نائبَيه، ولا يكلّف غيرَهما إلا إن غاب النائبان معاً){% endif %}.</p>
+    {% callout "info" %}لا أحدَ يجوز تكليفُه الآن بحسب قرار المدرسة{% if acting_role == "principal" %} (يكلّف المديرُ نائبَيه، ولا يكلّف غيرَهما إلا إن غاب النائبان معاً){% endif %}.{% endcallout %}
     {% endif %}
   {% endsection_card %}
   </div>

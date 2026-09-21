@@ -374,6 +374,58 @@ class TestNotificationHubDispatch:
 
 
 # ══════════════════════════════════════════════════════════════════════
+#  الموافقة الصريحة (PDPPL): لا سجلَّ ⇒ لم يوافق
+# ══════════════════════════════════════════════════════════════════════
+
+
+class TestExplicitConsent:
+    def _consent(self, school, parent, student, data_type, is_given):
+        from core.models import ConsentRecord
+
+        ConsentRecord.objects.create(
+            school=school,
+            parent=parent,
+            student=student,
+            data_type=data_type,
+            is_given=is_given,
+        )
+
+    def _sent(self, event, school, student, parent):
+        NotificationHub.dispatch_to_parents(
+            event_type=event, school=school, student=student, title=f"t-{event}"
+        )
+        return InAppNotification.objects.filter(user=parent, title=f"t-{event}").exists()
+
+    @pytest.mark.parametrize("event", ["behavior_l1", "behavior_digest", "grade", "fail", "clinic"])
+    def test_optional_events_need_an_explicit_yes(self, school, student_user, parent_user, event):
+        assert not self._sent(event, school, student_user, parent_user)
+
+    def test_explicit_yes_on_the_type_delivers(self, school, student_user, parent_user):
+        self._consent(school, parent_user, student_user, "grades", True)
+        assert self._sent("grade", school, student_user, parent_user)
+        # وموافقةُ «الدرجات» لا تفتح «السلوك».
+        assert not self._sent("behavior_l1", school, student_user, parent_user)
+
+    def test_all_covers_every_optional_type(self, school, student_user, parent_user):
+        self._consent(school, parent_user, student_user, "all", True)
+        assert self._sent("clinic", school, student_user, parent_user)
+
+    def test_an_explicit_withdrawal_beats_a_yes_on_all(self, school, student_user, parent_user):
+        self._consent(school, parent_user, student_user, "all", True)
+        self._consent(school, parent_user, student_user, "grades", False)
+        assert not self._sent("grade", school, student_user, parent_user)
+
+    @pytest.mark.parametrize("event", ["absence", "parent_summon", "sent_home"])
+    def test_mandatory_service_notices_ignore_consent(
+        self, school, student_user, parent_user, event
+    ):
+        assert self._sent(event, school, student_user, parent_user)
+        self._consent(school, parent_user, student_user, "attendance", False)
+        self._consent(school, parent_user, student_user, "behavior", False)
+        assert self._sent(event, school, student_user, parent_user) is True
+
+
+# ══════════════════════════════════════════════════════════════════════
 #  دوال المساعدة الداخلية
 # ══════════════════════════════════════════════════════════════════════
 

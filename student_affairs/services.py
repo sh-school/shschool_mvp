@@ -15,16 +15,20 @@ student_affairs/services.py — Business Logic لشؤون الطلاب
 
 import logging
 from datetime import timedelta
+from typing import Any
 
 from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
+from core.initial_passwords import make_initial_password
 from core.labels import class_label
 from core.models.academic import ClassGroup, ParentStudentLink, StudentEnrollment, grade_order
 from core.models.access import Membership, Role
+from core.models.audit import AuditLog
 from core.models.user import CustomUser, Profile
+from core.privacy import mask_national_id
 
 logger = logging.getLogger(__name__)
 
@@ -448,6 +452,53 @@ class StudentService:
     # ── إنشاء طالب جديد ───────────────────────────────────────────
 
     @staticmethod
+    def find_class_group(school: Any, grade: Any, section: Any, year: Any) -> ClassGroup | None:
+        """الشعبةُ الفاعلةُ في العام أو None."""
+        found: ClassGroup | None = ClassGroup.objects.filter(
+            school=school, grade=grade, section=section, academic_year=year, is_active=True
+        ).first()
+        return found
+
+    @staticmethod
+    def student_data_from_form(cd: dict, class_group_id: Any) -> dict:
+        """بياناتُ `create_student` من `cleaned_data` نموذج الإضافة."""
+        return {
+            "national_id": cd["national_id"],
+            "full_name": cd["full_name"],
+            "phone": cd.get("phone", ""),
+            "email": cd.get("email", ""),
+            "gender": cd.get("gender", ""),
+            "birth_date": cd.get("birth_date"),
+            "nationality": cd.get("nationality", ""),
+            "class_group_id": class_group_id,
+        }
+
+    @staticmethod
+    def audit_student_added(school: Any, actor: Any, user: Any) -> None:
+        """أثرُ إضافة طالبٍ بكلمة مرورٍ أوّليّة — بلا الكلمة."""
+        AuditLog.objects.create(
+            school=school,
+            user=actor,
+            action="create",
+            model_name="other",
+            object_id=str(user.id),
+            object_repr=f"إضافةُ طالبٍ بكلمة مرورٍ أوّليّةٍ عشوائيّة: {user.full_name}"[:300],
+            changes={"event": "student_added_initial_password", "must_change_password": True},
+        )
+
+    @staticmethod
+    def credentials_sheet(user: Any) -> list[dict]:
+        """ورقةُ الاعتماد للعرض مرّةً في الاستجابة — في الذاكرة، لا تُخزَّن ولا تُسجَّل."""
+        return [
+            {
+                "role": "طالب",
+                "nid": mask_national_id(user.national_id),
+                "name": user.full_name,
+                "password": user.initial_password,
+            }
+        ]
+
+    @staticmethod
     @transaction.atomic
     def create_student(school, data: dict) -> CustomUser:
         """
@@ -458,7 +509,7 @@ class StudentService:
             data: dict يحتوي:
                 - national_id (str): الرقم الشخصي
                 - full_name (str): الاسم الكامل
-                - password (str, optional): كلمة المرور (افتراضي = national_id)
+                - password (str, optional): كلمة المرور (الافتراضي: عشوائيّة — لا الرقم الشخصي)
                 - gender (str, optional): "M" أو "F"
                 - birth_date (date, optional)
                 - phone (str, optional)
@@ -489,7 +540,9 @@ class StudentService:
             raise ValueError("الشعبة المحددة غير موجودة أو غير فعّالة في هذه المدرسة.")
 
         # ── 1. إنشاء المستخدم ──
-        password = data.get("password", national_id)
+        # كلمةٌ عشوائيّةٌ لا الرقمُ الشخصيّ (قرارُ المالك). تُسلَّم للمستدعي على
+        # الكائن نفسِه في الذاكرة (`initial_password`) ليعرضها مرّةً — ولا تُخزَّن.
+        password = data.get("password") or make_initial_password()
         user = CustomUser.objects.create_user(
             national_id=national_id,
             full_name=data["full_name"],
@@ -501,6 +554,7 @@ class StudentService:
         if data.get("nationality"):
             user.nationality = data["nationality"]
         user.save(update_fields=["must_change_password", "nationality"])
+        user.initial_password = password  # ذاكرةٌ فقط — ليس حقلاً ولا يُحفظ
 
         # ── 2. الملف الشخصي ──
         Profile.objects.create(

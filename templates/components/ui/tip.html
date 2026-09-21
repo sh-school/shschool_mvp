@@ -1,0 +1,6 @@
+{% comment %}تلميحٌ أو معلومةٌ بأيقونةٍ تُظهر نصَّها بالمرور أو التركيز أو الضغط — الوسم `{% callout %}`.{% endcomment %}
+{% load icons %}
+<span class="ui-tip ui-tip--{{ kind }}" data-ui-tip>
+  <button type="button" class="ui-tip__btn" aria-label="{{ label }}" aria-expanded="false" aria-controls="{{ uid }}">{% icon_named icon %}</button>
+  <span class="ui-tip__panel" id="{{ uid }}" role="tooltip">{{ body }}</span>
+</span>

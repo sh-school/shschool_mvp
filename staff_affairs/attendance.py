@@ -900,6 +900,23 @@ class PermitService:
             related_object_id=str(permit.pk),
             related_url="/staff-affairs/permits/mine/",
         )
+        if permit.staff.email:
+            # البريدُ خلفيّاً بعد الإيداع (الطلبُ لا ينتظر مزوّداً)، بلا سببِ الإذن (بيانةٌ محتملة).
+            from notifications.tasks import send_email_task
+
+            transaction.on_commit(
+                lambda: send_email_task.delay(
+                    school_id=str(permit.school_id),
+                    recipient_email=permit.staff.email,
+                    subject="السكرتارية: اعتُمد طلبُ الإذن",
+                    body_text=(
+                        f"{permit.get_permit_type_display()} يوم {permit.date:%Y-%m-%d} "
+                        f"من {permit.start_time:%H:%M} إلى {permit.end_time:%H:%M} — اعتمده "
+                        "مدير المدرسة، ولا خروجَ قبل هذا الإخطار."
+                    ),
+                    notif_type="custom",
+                )
+            )
 
     @staticmethod
     @transaction.atomic
