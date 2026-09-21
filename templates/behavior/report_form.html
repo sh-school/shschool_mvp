@@ -46,7 +46,7 @@
         {% endfor %}
       </div>
 
-      <div id="selectedViolation" class="form-note beh-selected" role="status" hidden>
+      <div id="selectedViolation" class="ui-callout ui-callout--success beh-selected" role="status" hidden>
         {% icon "status_success" %}
         <span>المخالفة المختارة: <b id="selectedText"></b></span>
         <button type="button" id="clearSelection" class="btn-ghost btn-xs">تغيير</button>
@@ -95,7 +95,7 @@
         <textarea name="violation_description" id="violationDescription" rows="4" minlength="20" maxlength="2000"
                   aria-describedby="violationDescriptionCounter" placeholder="اذكر تفاصيل المخالفة (20-2000 حرف)"
                   class="form-control"></textarea>
-        <p id="violationDescriptionCounter" class="form-hint"><span id="violationDescCount">0</span> / 2000 حرف</p>
+        <p id="violationDescriptionCounter" class="ui-field-hint"><span id="violationDescCount">0</span> / 2000 حرف</p>
       </div>
 
       <div class="form-group">
@@ -103,10 +103,7 @@
         <textarea name="description" id="infractionDescription" rows="3" required placeholder="اكتب وصفاً تفصيلياً للمخالفة..." class="form-control"></textarea>
       </div>
 
-      <p class="form-note is-warning" role="note">
-        {% icon "status_warning" %}
-        <span>المخالفات من الدرجة 3 و4 تُحال تلقائياً إلى لجنة الضبط السلوكي.</span>
-      </p>
+      {% callout "warning" %}عند التسجيل يُشعَر وليُّ الأمر بالمخالفة (بحسب تفضيلاته)، والمخالفات من الدرجة 3 و4 تُحال أيضاً تلقائياً إلى لجنة الضبط السلوكي.{% endcallout %}
 
       <div class="form-actions beh-form-actions">
         <a href="{% url 'behavior:dashboard' %}" class="btn-secondary">إلغاء</a>

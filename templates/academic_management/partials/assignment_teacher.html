@@ -4,6 +4,7 @@
 سطرُ الحمل مع الصفّ في الضربة نفسها. وأزرارُ الدورة أسفلَها: رفعٌ ثمّ مراجعةٌ
 ثمّ اعتماد — لكلٍّ صاحبُه، ولا يظهر زرٌّ لمن لا يملكه.
 {% endcomment %}
+{% load ui %}
 <section class="asg-card asg-{{ card.status|default:"none" }}" id="teacher-{{ card.teacher.id }}"{% if oob %} hx-swap-oob="outerHTML"{% endif %}>
   {% comment %}
   البطاقةُ مطويّةٌ افتراضاً (قرارُ 2026-09-13): ثلاثةٌ وسبعون معلّماً ومنسّقاً كانوا صفحةً
@@ -213,6 +214,7 @@
   {% if card.plan.review_comment %}<div class="asg-note">ملاحظةُ المراجعة: {{ card.plan.review_comment }}</div>{% endif %}
 
   {% if card.can_submit or card.can_review or card.can_return or card.can_approve or card.can_revise %}
+  {% if card.can_approve %}{% callout "warning" %}الاعتمادُ توقيعٌ باسمك يُجمِّد البطاقة؛ ولا يُعدَّل الإسنادُ بعده إلّا بإصدارٍ جديدٍ يُراجَع ويُعتمد من جديد.{% endcallout %}{% endif %}
   <div class="asg-flow">
     {% if card.can_review or card.can_return %}
     <input type="text" name="comment" class="asg-comment" placeholder="ملاحظةُ المراجعة (اختياريّة)" aria-label="ملاحظةُ المراجعة">

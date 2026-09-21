@@ -62,10 +62,15 @@ FRIDAY = SUNDAY - dt.timedelta(days=2)
 LATE = {"status": "late", "late_minutes": 10}
 
 
-def _parent_of(school, student, **link):
+def _parent_of(school, student, *, consent=True, **link):
+    """وليُّ أمر مربوط. `consent=True` يمنحه موافقةً صريحةً على السلوك (PDPPL: لا سجلَّ ⇒ لا إشعار)."""
     user = UserFactory(full_name="وليّ أمر")
     MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name="parent"))
     ParentStudentLink.objects.create(parent=user, student=student, school=school, **link)
+    if consent:
+        ConsentRecord.objects.create(
+            school=school, parent=user, student=student, data_type="behavior", is_given=True
+        )
     return user
 
 
@@ -498,16 +503,19 @@ class TestRecipients:
         self, school, klass, kids, teacher, supervisor, parent
     ):
         hidden = _parent_of(school, kids[0], can_view_behavior=False)
-        withdrawn = _parent_of(school, kids[0])
+        withdrawn = _parent_of(school, kids[0], consent=False)
         ConsentRecord.objects.create(
             school=school, parent=withdrawn, student=kids[0], data_type="behavior", is_given=False
         )
+        never_asked = _parent_of(school, kids[0], consent=False)  # لا سجلَّ ⇒ لم يوافق
         _tardy_and_class_escape(school, klass, teacher, supervisor, kids[0])
 
         assert send_day(school, SUNDAY, today=SUNDAY) == 1
 
         assert _digests(parent).count() == 1
-        assert not InAppNotification.objects.filter(user__in=[hidden, withdrawn]).exists()
+        assert not InAppNotification.objects.filter(
+            user__in=[hidden, withdrawn, never_asked]
+        ).exists()
         assert set(AutoInfractionNotice.objects.values_list("recipients", flat=True)) == {1}
 
     def test_nobody_to_tell_leaves_the_day_open_for_a_parent_linked_later(

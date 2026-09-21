@@ -6,7 +6,8 @@ notifications/services.py
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING, NamedTuple
 
 import django.core.mail
 
@@ -17,10 +18,12 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.utils import timezone
+from kombu.exceptions import OperationalError
 
 from core.academic_calendar import academic_year_for_school
 from core.models import ParentStudentLink
 
+from . import quiet_hours
 from .models import NotificationLog, NotificationSettings
 
 _EMAIL_FAILURE_MESSAGE = "تعذر إرسال البريد الإلكتروني."
@@ -32,7 +35,169 @@ if TYPE_CHECKING:
     from operations.models import AbsenceAlert
 
 
+_QUIET_UNHELD_MESSAGE = "ساعات هدوء المستلم — لا عاملَ يحفظ الإرسال المؤجَّل."
+_QUIET_HOLD_FAILED_MESSAGE = "تعذّر جدولة الإرسال المؤجَّل إلى انتهاء ساعات الهدوء."
+
+
+class DeliveryOutcome(NamedTuple):
+    """نتيجةُ إرسالٍ خارجيّ لمستلمٍ يحترم ساعات الهدوء.
+
+    `deferred_until` غيرُ فارغ ⇒ لم يخرج شيءٌ بعد: جُدوِل ليخرج عند انتهاء ساعات
+    هدوء المستلم، و`ok=True` تعني «قُبل للجدولة» لا «وصل».
+    """
+
+    ok: bool
+    error: str | None
+    deferred_until: datetime | None = None
+
+
+class SendCounts(tuple):
+    """`(sent, failed)` كما كانت — ومعها `.deferred` لما جُدوِل لا لما خرج.
+
+    صنفُ tuple لا NamedTuple ثلاثيّ: المستدعون كلّهم يفكّكون اثنين، وثالثٌ يكسرهم.
+    `sent` يشمل المؤجَّل (قُبل)، و`deferred` يقول كم منه لم يخرج بعد.
+    """
+
+    deferred: int
+
+    def __new__(cls, sent: int, failed: int, deferred: int = 0) -> SendCounts:
+        obj = super().__new__(cls, (sent, failed))
+        obj.deferred = deferred
+        return obj
+
+
+def _result(channel: str, recipient: str, outcome: DeliveryOutcome) -> dict:
+    """صفُّ نتيجةٍ موحَّد؛ `deferred` يقول إنّ الإرسال جُدوِل ولم يخرج بعد."""
+    return {
+        "channel": channel,
+        "recipient": recipient,
+        "ok": outcome.ok,
+        "error": outcome.error,
+        "deferred": outcome.deferred_until is not None,
+    }
+
+
 class NotificationService:
+    # ── إرسال خارجيّ يحترم ساعات الهدوء ─────────────────────────
+    #
+    # المدخلُ الموحَّد لكلّ إرسالٍ خارجيّ إلى مستخدمٍ معروف (وليّ أمر…). الـHub يطرح
+    # السؤالَ نفسه عند الطبر (`hub._queue_external_now`)؛ وكلاهما يسأل
+    # `quiet_hours.plan`. `send_email`/`send_sms` أدناه تبقيان المنفِّذَ الخامَ
+    # بلا حكمٍ: هما تُستدعيان بعد أن قُرّر أنّ اللحظة مناسبة.
+
+    @staticmethod
+    def _hold(
+        user: CustomUser, school: School, target: str, payload: dict, eta: datetime | None
+    ) -> DeliveryOutcome:
+        from .tasks import release_after_quiet_hours_task
+
+        assert eta is not None  # HOLD يحمل موعداً دائماً
+        try:
+            release_after_quiet_hours_task.apply_async(
+                kwargs={
+                    "school_id": str(school.id),
+                    "user_id": str(user.id),
+                    "target": target,
+                    "payload": payload,
+                },
+                eta=eta,
+            )
+        except (OperationalError, OSError):
+            logger.warning("quiet hours — hold failed target=%s recipient_id=%s", target, user.pk)
+            return DeliveryOutcome(False, _QUIET_HOLD_FAILED_MESSAGE)
+
+        logger.info("quiet hours — held target=%s recipient_id=%s", target, user.pk)
+        return DeliveryOutcome(True, None, eta)
+
+    @staticmethod
+    def deliver_email(
+        user: CustomUser,
+        school: School,
+        subject: str,
+        body_text: str,
+        body_html: str | None = None,
+        student: CustomUser | None = None,
+        notif_type: str = "custom",
+        sent_by: CustomUser | None = None,
+    ) -> DeliveryOutcome:
+        """بريدٌ إلى `user` على عنوانه: الآن، أو مؤجَّلاً إلى انتهاء ساعات هدوئه."""
+        plan = quiet_hours.plan(user)
+
+        if plan.action == quiet_hours.SKIP:
+            return DeliveryOutcome(False, _QUIET_UNHELD_MESSAGE)
+
+        if plan.action == quiet_hours.HOLD:
+            return NotificationService._hold(
+                user,
+                school,
+                "email",
+                {
+                    "school_id": str(school.id),
+                    "recipient_email": user.email,
+                    "subject": subject,
+                    "body_text": body_text,
+                    "body_html": body_html,
+                    "student_id": str(student.id) if student else None,
+                    "notif_type": notif_type,
+                    "sent_by_id": str(sent_by.id) if sent_by else None,
+                },
+                plan.eta,
+            )
+
+        ok, err = NotificationService.send_email(
+            school=school,
+            recipient_email=user.email,
+            subject=subject,
+            body_text=body_text,
+            body_html=body_html,
+            student=student,
+            notif_type=notif_type,
+            sent_by=sent_by,
+        )
+        return DeliveryOutcome(ok, err)
+
+    @staticmethod
+    def deliver_sms(
+        user: CustomUser,
+        school: School,
+        phone_number: str,
+        message: str,
+        student: CustomUser | None = None,
+        notif_type: str = "custom",
+        sent_by: CustomUser | None = None,
+    ) -> DeliveryOutcome:
+        """رسالةٌ نصّيّة إلى `user`: الآن، أو مؤجَّلةً إلى انتهاء ساعات هدوئه."""
+        plan = quiet_hours.plan(user)
+
+        if plan.action == quiet_hours.SKIP:
+            return DeliveryOutcome(False, _QUIET_UNHELD_MESSAGE)
+
+        if plan.action == quiet_hours.HOLD:
+            return NotificationService._hold(
+                user,
+                school,
+                "sms",
+                {
+                    "school_id": str(school.id),
+                    "phone_number": phone_number,
+                    "message": message,
+                    "student_id": str(student.id) if student else None,
+                    "notif_type": notif_type,
+                    "sent_by_id": str(sent_by.id) if sent_by else None,
+                },
+                plan.eta,
+            )
+
+        ok, err = NotificationService.send_sms(
+            school=school,
+            phone_number=phone_number,
+            message=message,
+            student=student,
+            notif_type=notif_type,
+            sent_by=sent_by,
+        )
+        return DeliveryOutcome(ok, err)
+
     # ── إرسال بريد إلكتروني ──────────────────────────────────
 
     @staticmethod
@@ -184,7 +349,7 @@ class NotificationService:
         # أولياء الأمور المرتبطون بالطالب
         links = ParentStudentLink.objects.filter(
             student=student, school=school, can_view_attendance=True
-        ).select_related("student", "parent")
+        ).select_related("student", "parent", "parent__notification_preferences")
 
         results: list = []
 
@@ -209,9 +374,9 @@ class NotificationService:
                 body_text = render_to_string("notifications/email/absence_text.txt", ctx)
                 body_html = render_to_string("notifications/email/absence_html.html", ctx)
 
-                ok, err = NotificationService.send_email(
+                outcome = NotificationService.deliver_email(
+                    user=parent,
                     school=school,
-                    recipient_email=parent.email,
                     subject=subject,
                     body_text=body_text,
                     body_html=body_html,
@@ -219,9 +384,7 @@ class NotificationService:
                     notif_type="absence_alert",
                     sent_by=sent_by,
                 )
-                results.append(
-                    {"channel": "email", "recipient": parent.email, "ok": ok, "error": err}
-                )
+                results.append(_result("email", parent.email, outcome))
 
             # SMS
             if parent.get_phone_decrypted() and cfg and cfg.sms_enabled:
@@ -231,7 +394,8 @@ class NotificationService:
                     f"{absence_alert.period_start} – {absence_alert.period_end}. "
                     f"يُرجى التواصل مع الإدارة."
                 )
-                ok, err = NotificationService.send_sms(
+                outcome = NotificationService.deliver_sms(
+                    user=parent,
                     school=school,
                     phone_number=parent.get_phone_decrypted(),
                     message=sms_body,
@@ -239,14 +403,7 @@ class NotificationService:
                     notif_type="absence_alert",
                     sent_by=sent_by,
                 )
-                results.append(
-                    {
-                        "channel": "sms",
-                        "recipient": parent.get_phone_decrypted(),
-                        "ok": ok,
-                        "error": err,
-                    }
-                )
+                results.append(_result("sms", parent.get_phone_decrypted(), outcome))
 
         # تحديث حالة التنبيه
         if results and any(r["ok"] for r in results):
@@ -273,7 +430,7 @@ class NotificationService:
 
         links = ParentStudentLink.objects.filter(
             student=student, school=school, can_view_grades=True
-        ).select_related("student", "parent")
+        ).select_related("student", "parent", "parent__notification_preferences")
 
         results: list = []
 
@@ -297,9 +454,9 @@ class NotificationService:
                 body_text = render_to_string("notifications/email/fail_text.txt", ctx)
                 body_html = render_to_string("notifications/email/fail_html.html", ctx)
 
-                ok, err = NotificationService.send_email(
+                outcome = NotificationService.deliver_email(
+                    user=parent,
                     school=school,
-                    recipient_email=parent.email,
                     subject=subject,
                     body_text=body_text,
                     body_html=body_html,
@@ -307,9 +464,7 @@ class NotificationService:
                     notif_type="fail_alert",
                     sent_by=sent_by,
                 )
-                results.append(
-                    {"channel": "email", "recipient": parent.email, "ok": ok, "error": err}
-                )
+                results.append(_result("email", parent.email, outcome))
 
             if parent.get_phone_decrypted() and cfg and cfg.sms_enabled:
                 subjects_str = "، ".join(failed_subjects[:3])
@@ -318,7 +473,8 @@ class NotificationService:
                     f"{len(failed_subjects)} مادة ({subjects_str}) للعام {year}. "
                     f"يُرجى التواصل مع الإدارة."
                 )
-                ok, err = NotificationService.send_sms(
+                outcome = NotificationService.deliver_sms(
+                    user=parent,
                     school=school,
                     phone_number=parent.get_phone_decrypted(),
                     message=sms_body,
@@ -326,14 +482,7 @@ class NotificationService:
                     notif_type="fail_alert",
                     sent_by=sent_by,
                 )
-                results.append(
-                    {
-                        "channel": "sms",
-                        "recipient": parent.get_phone_decrypted(),
-                        "ok": ok,
-                        "error": err,
-                    }
-                )
+                results.append(_result("sms", parent.get_phone_decrypted(), outcome))
 
         return results
 
@@ -347,14 +496,16 @@ class NotificationService:
         alerts = AbsenceAlert.objects.filter(school=school, status="pending")
         total_sent = 0
         total_failed = 0
+        total_deferred = 0
         for alert in alerts:
             results = NotificationService.notify_absence(alert, sent_by=sent_by)
             for r in results:
                 if r["ok"]:
                     total_sent += 1
+                    total_deferred += bool(r.get("deferred"))
                 else:
                     total_failed += 1
-        return total_sent, total_failed
+        return SendCounts(total_sent, total_failed, total_deferred)
 
     @staticmethod
     def send_fail_alerts_for_year(
@@ -379,7 +530,7 @@ class NotificationService:
                 by_student[sid] = {"student": r.student, "subjects": []}
             by_student[sid]["subjects"].append(r.setup.subject.name_ar)
 
-        total_sent = total_failed = 0
+        total_sent = total_failed = total_deferred = 0
         for data in by_student.values():
             results = NotificationService.notify_fail(
                 student=data["student"],
@@ -391,10 +542,43 @@ class NotificationService:
             for r in results:
                 if r["ok"]:
                     total_sent += 1
+                    total_deferred += bool(r.get("deferred"))
                 else:
                     total_failed += 1
 
-        return total_sent, total_failed
+        return SendCounts(total_sent, total_failed, total_deferred)
+
+    @staticmethod
+    def count_alert_recipients(school: School, year: str) -> dict:
+        """كم وليَّ أمرٍ سيبلغه زرُّ الغياب وزرُّ الرسوب — استعلامان بلا حلقة.
+
+        الأولياءُ لا التنبيهات: وليٌّ واحدٌ لأخوين يُشعَر مرّتين بحدثين لكنّه شخصٌ
+        واحد. والشرطُ صلاحيةُ الرؤية نفسُها التي تفرضها `notify_absence`/`notify_fail`.
+        """
+        from assessments.models import AnnualSubjectResult
+        from operations.models import AbsenceAlert
+
+        absent_students = AbsenceAlert.objects.filter(school=school, status="pending").values(
+            "student"
+        )
+        failing_students = AnnualSubjectResult.objects.filter(
+            school=school, academic_year=year, status="fail"
+        ).values("student")
+
+        return {
+            "absence": ParentStudentLink.objects.filter(
+                school=school, can_view_attendance=True, student__in=absent_students
+            )
+            .values("parent")
+            .distinct()
+            .count(),
+            "fail": ParentStudentLink.objects.filter(
+                school=school, can_view_grades=True, student__in=failing_students
+            )
+            .values("parent")
+            .distinct()
+            .count(),
+        }
 
     @staticmethod
     def get_dashboard_stats(school: School, year: str) -> dict:

@@ -2,7 +2,7 @@
 {% load static i18n icons ui %}
 {% comment %}
 تعديلُ رسالةٍ سبق إرسالُها — رقمُ التذكرة في طرف الترويسة بصنفه (`dir="ltr"`
-يحفظ ترتيبَ حروفه داخل سطرٍ عربيّ)، وملاحظةُ عدد التعديلات السابقة `form-note`
+يحفظ ترتيبَ حروفه داخل سطرٍ عربيّ)، وملاحظةُ عدد التعديلات السابقة `callout`
 داخل بطاقة الاستمارة لا بطاقةً بارزةً فوقها، وسجلُّ التعديلات `section_card`.
 {% endcomment %}
 
@@ -27,10 +27,7 @@
     {% endif %}
 
     {% section_card _("الرسالة") icon="edit_record" %}
-      <p class="form-note">
-        {% icon "status_info" %}
-        {% blocktrans count counter=object.edit_history.count %}لم تعدّل هذه الرسالة من قبل. عند الحفظ سيُرسَل إشعار للمطوّر.{% plural %}عدد التعديلات السابقة على هذه الرسالة: {{ counter }}.{% endblocktrans %}
-      </p>
+      {% callout "warning" %}{% blocktrans count counter=object.edit_history.count %}لم تعدّل هذه الرسالة من قبل. عند الحفظ سيُرسَل إشعار للمطوّر.{% plural %}عدد التعديلات السابقة على هذه الرسالة: {{ counter }}.{% endblocktrans %}{% endcallout %}
 
       {# ── نوع الرسالة + الأولوية ── #}
       <div class="df-row-2">

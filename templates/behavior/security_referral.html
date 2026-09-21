@@ -17,8 +17,9 @@
   {% include "behavior/partials/infraction_summary.html" %}
 
   {% section_card "بيانات الإحالة" icon="behavior_committee" %}
-    <form method="post">
+    <form method="post" data-confirm="تُسجَّل الإحالة الأمنية ويُستدعى وليُّ الأمر تلقائياً، ولا مسارَ للتراجع. أتابع؟">
       {% csrf_token %}
+      {% callout "warning" %}يُسجَّل في ملف المخالفة اسمُ الجهة الأمنية وتاريخُ الإحالة ويُستدعى وليُّ الأمر تلقائياً، ولا مسارَ للتراجع عن التسجيل.{% endcallout %}
       <div class="form-group">
         <label class="form-label" for="securityAgency">الجهة الأمنية <span class="required">*</span></label>
         <select name="security_agency" id="securityAgency" required class="form-control">

@@ -62,6 +62,9 @@
         {% field "notes" "ملاحظات" placeholder="ملاحظات المراجعة..." %}
         {% endif %}
       </div>
+      {% if transfer.direction == "out" %}
+      {% callout "warning" %}«مكتمل» في انتقالٍ صادرٍ يعطّل قيدَ الطالب وعضويّتَه فوراً، ولا يُستردّ من هذه الصفحة.{% endcallout %}
+      {% endif %}
       <div class="form-actions">
         <button type="submit" class="btn-primary btn-sm">{% icon "status_success" %} تنفيذ القرار</button>
       </div>

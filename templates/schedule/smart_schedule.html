@@ -46,24 +46,16 @@
 {% section_card "فحصُ الجدوى قبل التوليد" meta=feasibility_verdict icon="checklist" %}
   <div class="smart-notes">
     {% if feasibility.blocking %}
-    <p class="form-note is-warning">
-      {% icon "status_warning" %}
-      <span><strong>{{ feasibility.minimum_unplaceable }} حصّةً على الأقلّ لن تجد موضعاً مهما طال البحث.</strong>
-      والعلاجُ في التوزيعات لا في المولّد: راجع ما دونه ثمّ أعد الفحص.</span>
-    </p>
+    {% callout "warning" %}<strong>{{ feasibility.minimum_unplaceable }} حصّةً على الأقلّ لن تجد موضعاً مهما طال البحث.</strong>
+      والعلاجُ في التوزيعات لا في المولّد: راجع ما دونه ثمّ أعد الفحص.{% endcallout %}
     {% else %}
-    <p class="form-note">
-      لا عجزَ في العدّ: الطلبُ يسعه ما في الأسبوع من خانات. وبقيّةُ التعذّر — إن وقع —
-      من تشابك القيود لا من ضيق الطاقة.
-    </p>
+    {% callout "info" %}لا عجزَ في العدّ: الطلبُ يسعه ما في الأسبوع من خانات. وبقيّةُ التعذّر — إن وقع —
+      من تشابك القيود لا من ضيق الطاقة.{% endcallout %}
     {% endif %}
     {% if constraint_overrides %}
-    <p class="form-note is-warning">
-      {% icon "status_warning" %}
-      <span>قيودٌ خُولف فيها افتراضُ الشيفرة هذا العام:
+    {% callout "info" %}قيودٌ خُولف فيها افتراضُ الشيفرة هذا العام:
       {% for code, title in constraint_overrides %}<strong>{{ code }} · {{ title }}</strong>{% if not forloop.last %}، {% endif %}{% endfor %}.
-      وأثرُ الرتبة لا يكشفه عدٌّ — فوَلِّد وقِس بالمختبر قبل الاعتماد.</span>
-    </p>
+      وأثرُ الرتبة لا يكشفه عدٌّ — فوَلِّد وقِس بالمختبر قبل الاعتماد.{% endcallout %}
     {% endif %}
   </div>
 
@@ -127,6 +119,9 @@
   {% endif %}
 
   {% if generations %}
+  {% if can_approve %}
+  {% callout "warning" %}اعتماد مسوّدة يؤرشف الجدولَ المعتمَد ويحذف ما أُرشف قبله، ويصالح جلساتِ الأسبوع الجاري (يحذف ما لا يطابق ولا حضورَ عليه)، ويُشعِر المعلّمين، ولا رجوعَ عنه.{% endcallout %}
+  {% endif %}
   <div class="table-wrap">
     <table class="gen-log-table">
       <thead>

@@ -679,64 +679,35 @@ def student_add(request):
     school = request.school
     year = academic_year_for(request)
 
-    if request.method == "POST":
-        form = StudentAddForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-
-            # ── تحديد الشعبة (المطلوب للـ Service) ──
-            class_group = ClassGroup.objects.filter(
-                school=school,
-                grade=cd["grade"],
-                section=cd["section"],
-                academic_year=year,
-                is_active=True,
-            ).first()
-            if not class_group:
-                messages.error(
-                    request,
-                    f"لا توجد شعبة {cd['section']} في الصف {cd['grade']} للعام {year}.",
-                )
-                return render(
-                    request,
-                    "student_affairs/student_form.html",
-                    {
-                        "form": form,
-                        "mode": "add",
-                        "year": year,
-                        "grades": ClassGroup.GRADES,
-                        "school": school,
-                    },
-                )
-
+    form = StudentAddForm(request.POST) if request.method == "POST" else StudentAddForm()
+    if request.method == "POST" and form.is_valid():
+        cd = form.cleaned_data
+        class_group = StudentService.find_class_group(school, cd["grade"], cd["section"], year)
+        if not class_group:
+            messages.error(
+                request, f"لا توجد شعبة {cd['section']} في الصف {cd['grade']} للعام {year}."
+            )
+        else:
             # ── تفويض الإنشاء للـ Service Layer ──
             try:
-                user = StudentService.create_student(
-                    school,
+                data = StudentService.student_data_from_form(cd, class_group.pk)
+                user = StudentService.create_student(school, data)
+                StudentService.audit_student_added(school, request.user, user)
+                # لا إعادةَ توجيه: كلمةُ المرور العشوائيّة تُعرض في هذه الاستجابة
+                # وحدَها (لا رسالةَ في الجلسة ولا قاعدة) ثمّ تزول.
+                return render(
+                    request,
+                    "student_affairs/student_credentials.html",
                     {
-                        "national_id": cd["national_id"],
-                        "full_name": cd["full_name"],
-                        "phone": cd.get("phone", ""),
-                        "email": cd.get("email", ""),
-                        "gender": cd.get("gender", ""),
-                        "birth_date": cd.get("birth_date"),
-                        "nationality": cd.get("nationality", ""),
-                        "class_group_id": class_group.pk,
+                        "student": user,
+                        "class_label": class_label(class_group.grade, class_group.section),
+                        "credentials": StudentService.credentials_sheet(user),
                     },
                 )
-                messages.success(
-                    request,
-                    f"تم إضافة الطالب {user.full_name} في "
-                    f"{class_label(class_group.grade, class_group.section)} بنجاح.",
-                )
-                return redirect("student_affairs:student_profile", student_id=user.id)
-
             except ValueError as e:
                 messages.error(request, str(e))
             except Exception as e:
                 messages.error(request, f"خطأ غير متوقع أثناء إضافة الطالب: {e}")
-    else:
-        form = StudentAddForm()
 
     return render(
         request,

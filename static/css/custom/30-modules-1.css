@@ -548,38 +548,6 @@
   padding: 1rem 1.5rem;
   border-top: 1px solid var(--border);
 }
-.q-modal-footer .btn-cancel {
-  padding: 0.5rem 1.5rem;
-  border-radius: var(--radius-md);
-  font-weight: 700;
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  background: none;
-  border: none;
-  cursor: pointer;
-  transition: background var(--q-transition);
-}
-.q-modal-footer .btn-cancel:hover { background: var(--surface-alt); }
-.q-modal-footer .btn-save {
-  padding: 0.5rem 1.5rem;
-  border-radius: var(--radius-md);
-  font-weight: 700;
-  font-size: 0.82rem;
-  background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-dark) 100%);
-  color: var(--on-fill);
-  border: 2px solid var(--gold);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  transition: all var(--q-transition);
-  box-shadow: 0 2px 6px color-mix(in srgb, var(--maroon-dark) 25%, transparent);
-}
-.q-modal-footer .btn-save:hover {
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--maroon-dark) 35%, transparent);
-  transform: translateY(-1px);
-}
-
 /* View-only overlay */
 .q-view-only {
   opacity: 0.6;
@@ -644,8 +612,6 @@
 /* ── 13. Dashboard utility classes ──────────────────────────── */
 
 /* btn-sm: للأزرار/الروابط الصغيرة في صفحة اللوحة */
-.btn-sm  { font-size: var(--text-xs); padding: var(--sp-1-5) var(--sp-3-5); }
-.btn-xs  { font-size: var(--text-xs); padding: var(--sp-1) var(--sp-2-5); }
 .text-sm { font-size: var(--text-sm); }
 a.btn-primary, a.btn-secondary { text-decoration: none; }
 
