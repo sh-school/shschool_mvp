@@ -61,7 +61,9 @@ _KPI_KNOWN = frozenset(
 )  # fmt: skip
 #: حقولُ الصفوف المحرَّرة من الواجهة (`ITEM_EDITABLE` وأخواتُها) بأسمائها في النموذج.
 _HAND_EDITED: dict[str, frozenset[str]] = {
-    "items": frozenset({"status", "progress", "start_date", "end_date", "date_basis", "note", "pr"}),
+    "items": frozenset(
+        {"status", "progress", "start_date", "end_date", "date_basis", "note", "pr"}
+    ),
     "decisions": frozenset({"status", "decision_date"}),
     "checklist": frozenset({"done"}),
 }

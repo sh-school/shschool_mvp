@@ -198,7 +198,9 @@ class TestImport:
         import_snapshot(seeded, overwrite=True)
 
         item = RoadmapItem.objects.get(code="T-01")
-        assert item.status == seeded["items"][0]["status"] and item.note == seeded["items"][0].get("note", "")
+        assert item.status == seeded["items"][0]["status"] and item.note == seeded["items"][0].get(
+            "note", ""
+        )
 
     def test_a_new_row_takes_every_field_from_the_snapshot(self, snapshot):
         snapshot["items"][0].update(status="doing", progress=40, note="من اللقطة")
