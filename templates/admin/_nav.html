@@ -1,0 +1,21 @@
+{% comment %}
+  القائمةُ الأفقيّةُ في ترويسة لوحة الإدارة: أقسامٌ بأسماء قائمة المنصّة وقوائمُ منسدلةٌ بالنماذج.
+  التجميعُ في roadmap/admin_menu.py؛ والسلوكُ في static/js/admin_nav.js؛ والأنماطُ في admin_theme.css.
+{% endcomment %}{% if groups %}
+<nav class="adm-nav" aria-label="أقسام لوحة الإدارة">
+  <a class="adm-nav__btn adm-nav__home" href="{% url 'admin:index' %}">الرئيسية</a>
+  {% for group in groups %}
+  <div class="adm-nav__item{% if group.current %} is-current{% endif %}">
+    <button type="button" class="adm-nav__btn" aria-expanded="false" aria-haspopup="true" aria-controls="adm-menu-{{ forloop.counter }}">{{ group.label }} <span class="adm-nav__chv" aria-hidden="true">&#9662;</span></button>
+    <div class="adm-nav__menu adm-nav__menu--cols-{{ group.sections|length }}" id="adm-menu-{{ forloop.counter }}" role="menu">
+      {% for section in group.sections %}
+      <div class="adm-nav__section">
+        {% if section.label %}<div class="adm-nav__label">{{ section.label }}</div>{% endif %}
+        {% for item in section.items %}<a role="menuitem" href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.name }}</a>{% endfor %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</nav>
+{% endif %}

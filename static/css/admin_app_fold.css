@@ -1,0 +1,23 @@
+/* طيُّ أقسام التطبيقات في الصفحة الرئيسيّة للإدارة (templates/admin/app_list.html).
+   لوحةُ الإدارة لا تحمل أنماطَ المنصّة، فالألوانُ من متغيّراتها هي فتتبع وضعَها الليليّ. */
+.app-fold > .app-fold__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  list-style: none;
+  background: var(--header-bg);
+  color: var(--header-link-color);
+  font-size: 0.75rem;
+  letter-spacing: 0.03rem;
+  text-transform: uppercase;
+}
+.app-fold > .app-fold__summary::-webkit-details-marker { display: none; }
+.app-fold > .app-fold__summary::before { content: "\25C2"; margin-inline-end: 0.4rem; }
+.app-fold[open] > .app-fold__summary::before { content: "\25BE"; }
+.app-fold__summary a.section,
+.app-fold__summary a.section:link,
+.app-fold__summary a.section:visited { color: inherit; margin-inline-end: auto; }
+.app-fold__count { font-size: 0.7rem; opacity: 0.85; font-variant-numeric: tabular-nums; }

@@ -17,6 +17,9 @@ from roadmap.models import (
     RoadmapRisk,
 )
 
+# القائمةُ الأفقيّة في الترويسة (admin_menu) تغني عن الشريط الجانبيّ فلا تكرار.
+admin.site.enable_nav_sidebar = False
+
 _STAMPS = ("created_at", "updated_at", "updated_by")
 _COLLAPSE = ("collapse",)
 

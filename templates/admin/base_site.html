@@ -1,0 +1,28 @@
+{% extends "admin/base.html" %}
+{% load static admin_menu %}
+{% comment %}
+  لوحةُ الإدارة تَرِث هويّةَ المنصّة: ألوانُها النهاريّةُ والليليّةُ (`static/css/admin_theme.css`)
+  وأيقونتُها (favicon)، والوضعُ يُقرأ من `localStorage['theme']` نفسِه الذي تكتبه المنصّة.
+  ما سوى ذلك نسخةٌ من `django/contrib/admin/templates/admin/base_site.html` (5.2).
+{% endcomment %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/admin_theme.css' %}">{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/favicon.png' %}">
+<link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}">
+<script src="{% static 'js/admin_nav.js' %}" defer></script>
+{% endblock %}
+
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}" class="adm-brand"><img src="{% static 'icons/favicon.png' %}" width="27" height="27" alt="" class="adm-brand__logo"><span class="adm-brand__name">{{ current_school.name|default:site_header|default:_('Django administration') }}<span class="adm-brand__suffix">&ensp;-&ensp;لوحة الإدارة</span></span></a></div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% admin_nav %}{% endblock %}
+
+{% block footer %}{% include "admin/_footer.html" %}{% endblock %}

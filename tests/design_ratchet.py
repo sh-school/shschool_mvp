@@ -119,9 +119,27 @@ HOOK_PREFIX = "js-"
 #: قوالبُ لوحة إدارة Django ترث `admin/…` وتُرسم بأنماط Django نفسها (`admin/css/*.css`
 #: في الحزمة) لا بأنماط المنصّة — فهذه الأصنافُ معرَّفةٌ هناك، والحارسُ لا يقرأ حزمَ الطرف الثالث.
 ADMIN_EXTENDS_RE = re.compile(r"""\{%\s*extends\s+["']admin/""")
+#: وقوالبُ `templates/admin/` التي تنسخ جزءاً من قوالب Django (كـ`app_list.html`) بلا `extends` —
+#: أصنافُها كذلك من حزمة Django (`addlink` و`changelink` و`viewlink` و`current-app` و`current-model`
+#: و`visually-hidden`) فتُقرأ مثل ما يُقرأ القالبُ الوارثُ لقالبٍ من الإدارة.
 ADMIN_CLASSES = frozenset(
-    {"aligned", "button", "cancel-link", "deletelink", "errornote", "module", "submit-row"}
+    {
+        "addlink",
+        "aligned",
+        "button",
+        "cancel-link",
+        "changelink",
+        "current-app",
+        "current-model",
+        "deletelink",
+        "errornote",
+        "module",
+        "submit-row",
+        "viewlink",
+        "visually-hidden",
+    }
 )
+ADMIN_TEMPLATES_DIR = pathlib.Path("templates/admin")
 EXTENDS_RE = re.compile(r"""\{%\s*extends\s+["']([^"']+)["']""")
 
 
@@ -238,7 +256,7 @@ def undefined_classes() -> list[str]:
         local = _local_classes(text)
         # وجزءٌ مضمَّنٌ يرى أنماطَ من يضمّنه، ومن يضمّن ذاك (`signatures` ← `section_sheet` ← الوثيقة).
         local |= _host_classes(_template_name(path), includers)
-        if ADMIN_EXTENDS_RE.search(text):
+        if ADMIN_EXTENDS_RE.search(text) or path.is_relative_to(ADMIN_TEMPLATES_DIR):
             local |= ADMIN_CLASSES
         for attr in CLASS_ATTR_RE.finditer(text):
             raw = attr.group(1)
