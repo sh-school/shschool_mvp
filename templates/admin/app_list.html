@@ -15,7 +15,7 @@
           <a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
           <span class="app-fold__count">{{ app.models|length }}</span>
         </summary>{% endif %}
-      <table>
+      <div class="table-wrap"><table>
         {% if not show_changelinks %}<caption>
           <a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
         </caption>{% endif %}
@@ -55,7 +55,7 @@
             </tr>
           {% endwith %}
         {% endfor %}
-      </table>
+      </table></div>
       {% if show_changelinks %}</details>{% endif %}
     </div>
   {% endfor %}

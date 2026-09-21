@@ -11,11 +11,13 @@
       {% for section in group.sections %}
       <div class="adm-nav__section">
         {% if section.label %}<div class="adm-nav__label">{{ section.label }}</div>{% endif %}
-        {% for item in section.items %}<a role="menuitem" href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.name }}</a>{% endfor %}
+        {% for item in section.items %}<a role="menuitem" href="{{ item.url }}"{% if item.current %} aria-current="page"{% endif %}>{{ item.name }}</a>{% empty %}{% endfor %}
       </div>
+      {% empty %}
       {% endfor %}
     </div>
   </div>
+  {% empty %}
   {% endfor %}
 </nav>
 {% endif %}

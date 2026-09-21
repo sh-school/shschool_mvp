@@ -1,4 +1,0 @@
-{% extends "admin/index.html" %}
-{% load static %}
-{% comment %}أقسامُ التطبيقات في الصفحة الرئيسيّة للإدارة قابلةٌ للطيّ ومطويّةٌ افتراضاً — انظر `admin/app_list.html`.{% endcomment %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/admin_app_fold.css' %}">{% endblock %}
