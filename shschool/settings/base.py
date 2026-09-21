@@ -452,6 +452,8 @@ VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "")
 # وبريدُه وجوّالُه ليست إعداداتٍ تُودَع (انظر `.env.example`).
 DPO_NAME = os.environ.get("DPO_NAME", "")
 DPO_EMAIL = os.environ.get("DPO_EMAIL", "")
+# مستلِمُ إشعارات «أرسل إلى المطوّر»: يُضبط على خدمة الويب؛ فارغٌ = لا إرسال (يُسجَّل فشلاً).
+DEVELOPER_FEEDBACK_RECIPIENT = os.environ.get("DEVELOPER_FEEDBACK_RECIPIENT", "")
 DPO_PHONE = os.environ.get("DPO_PHONE", "")
 
 # ── الاحتفاظُ بالبيانات (PDPPL م.7 و10) ───────────────────────────────

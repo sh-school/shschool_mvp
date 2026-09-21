@@ -55,6 +55,7 @@ from core.models.user import CustomUser
 from core.pdf_utils import render_pdf
 from core.privacy import mask_national_id
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
+from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
 from operations.absence_standing import standing_for
 from operations.models import AbsenceAlert, ClassExit, Session, StudentAttendance
@@ -967,8 +968,8 @@ def student_profile(request, student_id):
         )
         grades_summary = grades.aggregate(
             total_subjects=Count("id"),
-            passed=Count("id", filter=Q(status="pass")),
-            failed=Count("id", filter=Q(status="fail")),
+            passed=Count("id", filter=Q(status__in=passing_statuses())),
+            failed=Count("id", filter=Q(status__in=failing_statuses())),
         )
 
     if limited:

@@ -619,7 +619,7 @@ jobs:
   gate-summary:
     name: ملخص بوابة الجودة
     runs-on: ubuntu-latest
-    needs: [test-coverage, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window, axe-a11y, e2e]
+    needs: [test-coverage, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window, axe-a11y, e2e, tailwind-build]
     if: always()
     steps:
       - name: نتيجة بوابة الجودة
@@ -636,6 +636,7 @@ jobs:
           echo "| نافذة النشر (لا دمج وقت الدوام) | ${{ needs.deploy-window.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| axe-core — وصوليّةٌ حيّة | ${{ needs.axe-a11y.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Playwright — e2e | ${{ needs.e2e.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tailwind — البناءُ الملتزَم محدَّث | ${{ needs.tailwind-build.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: فشل إذا فشل أي فحص
         if: >-
@@ -647,7 +648,8 @@ jobs:
           needs.secrets-scan.result != 'success' ||
           needs.deploy-window.result != 'success' ||
           needs.axe-a11y.result != 'success' ||
-          needs.e2e.result != 'success'
+          needs.e2e.result != 'success' ||
+          needs.tailwind-build.result != 'success'
         run: |
           echo "::error::Quality Gate FAILED — one or more checks did not pass"
           exit 1
