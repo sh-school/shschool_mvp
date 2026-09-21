@@ -116,6 +116,12 @@ GLOBAL_INFRASTRUCTURE = {
     "django_content_type": "model registry",
     "django_session": "session store, keyed on session id",
     "notifications_usernotificationpreference": "a person's own channel preferences, held once across schools",
+    "roadmap_roadmapchecklistitem": "platform-developer planning document about the platform itself, no school or person data",
+    "roadmap_roadmapdecision": "platform-developer planning document about the platform itself, no school or person data",
+    "roadmap_roadmapitem": "platform-developer planning document about the platform itself, no school or person data",
+    "roadmap_roadmapkpi": "platform-developer planning document about the platform itself, no school or person data",
+    "roadmap_roadmapmeta": "platform-developer planning document about the platform itself, no school or person data",
+    "roadmap_roadmaprisk": "platform-developer planning document about the platform itself, no school or person data",
     "token_blacklist_blacklistedtoken": "JWT revocation list, keyed on token",
     "token_blacklist_outstandingtoken": "JWT revocation list, keyed on token",
 }
