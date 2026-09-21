@@ -137,6 +137,14 @@ class TestInboxView:
         assert "notif-feed--types" in by_type
         assert "notif-feed--types" not in by_day
 
+    def test_overflowing_scroll_containers_become_keyboard_regions(
+        self, client_as, school, teacher_user
+    ):
+        """صفحةٌ بلا تمرير: الحاويةُ التي تفيض تُصبح منطقةً تُركَّز بلوحة المفاتيح (axe: scrollable-region-focusable)."""
+        html = client_as(teacher_user).get(reverse("notification_inbox")).content.decode()
+        assert "scrollRegion" in html and "setAttribute('tabindex', '0')" in html
+        assert "role', 'region'" in html
+
     def test_mark_all_read_is_a_plain_form_that_returns_to_the_inbox(
         self, client_as, school, teacher_user
     ):
