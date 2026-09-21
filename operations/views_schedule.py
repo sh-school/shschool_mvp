@@ -209,12 +209,14 @@ def schedule_export_excel(request):
 
 @login_required
 def export_job_status(request, job_id):
-    """متابعة/تنزيل صفّ تصديرٍ خلفيّ — تتحدَّث تلقائياً حتى يجهز الناتج."""
+    """متابعة/تنزيل صفّ تصديرٍ خلفيّ — تتحدَّث تلقائياً حتى يجهز الناتج أو تنتهي مهلتُه."""
     from urllib.parse import quote
 
     from core.models import ExportJob
+    from operations.export_job_services import expire_if_stale
 
     job = get_object_or_404(ExportJob, id=job_id, school=request.school, requested_by=request.user)
+    expire_if_stale(job)  # عالقٌ أكثرَ من المهلة → يفشل برسالةٍ فيتوقّف التحديثُ التلقائيّ
     if job.status == "done":
         response = HttpResponse(bytes(job.content), content_type=job.content_type)
         response["Content-Disposition"] = (
