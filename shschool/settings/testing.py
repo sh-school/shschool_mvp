@@ -124,3 +124,8 @@ try:
     INSTALLED_APPS = [*INSTALLED_APPS, "django_migration_linter"]
 except ImportError:
     pass
+
+# استثناءٌ واحدٌ بالاسم، لا إسكاتٌ للبوّابة: هجرةُ حذف `operations.StaffEvaluation` هي الخطوة 2 من
+# «توسيعٌ ثمّ تقليص» (CLAUDE.md، ADR-0002 §4) — الخطوةُ 1 (#417) أوقفت كلَّ قارئٍ وكاتب وعدُّ الإنتاج صفر.
+# والمدقّقُ يقبل سلسلةً واحدة: فأيُّ حذفٍ آخرَ يُسقطه كما كان، ويحتاج استثناءَه المسمّى.
+MIGRATION_LINTER_OPTIONS = {"ignore_name_contains": "delete_staffevaluation"}
