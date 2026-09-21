@@ -679,6 +679,33 @@ def file_grievance(
     _validated(locked, ("grievance_submitted_on", "grievance_reason"))
     evaluation.grievance_submitted_on = locked.grievance_submitted_on
     evaluation.grievance_reason = locked.grievance_reason
+    _notify_principal_of_grievance(locked)
+
+
+def _notify_principal_of_grievance(evaluation: EmployeeEvaluation) -> None:
+    """
+    إشعارٌ داخل المنصّة لمدير المدرسة بتظلّمٍ جديد (قرارُ المالك 2026-09-21). لا يحمل سببَ التظلّم
+    ولا درجةً — اسمُ الموظّف والتقرير فقط؛ والتفصيلُ في شاشة التظلّمات. ولا يُسقط التظلّمَ أبداً:
+    فشلُ الإشعار يُسجَّل ولا يُلغي ما قُدِّم (كإشعارات الملاحظة الصفّية).
+    """
+    try:
+        from notifications.hub import NotificationHub
+
+        NotificationHub.dispatch_to_role(
+            "appraisal_grievance",
+            evaluation.school,
+            "principal",
+            "تظلّمٌ جديدٌ من تقرير تقييم الأداء",
+            f"قدّم {evaluation.employee.full_name} تظلّماً من تقريره "
+            f"({evaluation.get_period_display()} — {evaluation.academic_year}). يُحال إلى لجنة "
+            "موظفي المدارس وتبتّ فيه خلال ثلاثين يوماً من تقديمه.",
+            related_url=f"/quality/evaluations/grievances/?year={evaluation.academic_year}",
+            related_object_id=str(evaluation.pk),
+        )
+    except Exception:  # noqa: BLE001 — الإشعارُ لا يُسقط تظلّماً قُدِّم
+        import logging
+
+        logging.getLogger("quality").exception("grievance notify failed")
 
 
 @transaction.atomic

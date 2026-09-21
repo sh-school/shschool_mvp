@@ -79,6 +79,9 @@ DEFAULT_CHANNELS = {
     "plan_overdue": ["in_app", "email"],
     "review_cycle": ["in_app", "email"],
     "observation": ["in_app", "email"],
+    # تظلّمُ موظّفٍ من تقرير أدائه (المادة 20): داخل المنصّة وحدَها — لا بريدَ ولا رسالةً خارجيّة لبيانات
+    # تقييمٍ وظيفيّ. ولا يحمل الإشعارُ سببَ التظلّم (يقرؤه المديرُ في شاشة التظلّمات).
+    "appraisal_grievance": ["in_app"],
     "general": ["in_app", "push", "email"],
 }
 
@@ -101,6 +104,7 @@ DEFAULT_PRIORITY = {
     "plan_deadline": "medium",
     "plan_overdue": "high",
     "review_cycle": "low",
+    "appraisal_grievance": "high",
     "general": "low",
 }
 
@@ -571,6 +575,7 @@ def _map_event_type(hub_event):
         "plan_overdue": "plan_overdue",
         "review_cycle": "review_cycle",
         "observation": "general",
+        "appraisal_grievance": "general",
         "general": "general",
     }
     return mapping.get(hub_event, "general")
