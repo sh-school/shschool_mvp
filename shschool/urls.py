@@ -10,13 +10,19 @@ from django_prometheus.exports import ExportToDjangoView
 from core import views_styleguide
 from core.mfa_session import admin_login_redirect
 from core.permissions import internal_only
-from core.views_health import health_check, readiness_check, status_check
+from core.views_health import (
+    health_check,
+    readiness_check,
+    status_check,
+    worker_heartbeat_check,
+)
 from core.views_pwa import global_manifest, global_sw, offline_global
 from core.views_search import global_search
 from governance.views_media import serve_db_file
 
 urlpatterns = [
     path("health/", health_check),
+    path("health/worker/", worker_heartbeat_check, name="worker_heartbeat_check"),
     # ✅ v5.4: Readiness Probe خفيف (DB فقط) — load balancer + rolling deployments
     path("ready/", readiness_check, name="readiness_check"),
     # ✅ v5.4: Full status endpoint — DB + Redis + migrations + uptime + version

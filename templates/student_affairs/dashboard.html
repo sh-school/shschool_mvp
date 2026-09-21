@@ -22,7 +22,6 @@
   {% endcomment %}
   {% page_header "شؤون الطلاب" subtitle=page_subtitle icon="students" %}
     {% if not limited or request.user|can_open:'student_affairs:student_add' %}<a href="{% url 'student_affairs:student_add' %}" class="btn-primary btn-sm">{% icon "student_add" %} إضافة طالب</a>{% endif %}
-    <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
   {# الإحصائيات اليومية (SOS-20260420-9A91) — والمرحلتان تفصيلُ الإجمالي لا بطاقةٌ بسطرين #}

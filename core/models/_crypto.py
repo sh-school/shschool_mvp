@@ -13,6 +13,7 @@ Encryption utilities for SchoolOS — Fernet + HMAC
 import hashlib
 import hmac as _hmac
 import logging
+from typing import Any
 
 from django.conf import settings
 
@@ -73,7 +74,7 @@ def _get_fernet():
         return None
 
 
-def encrypt_field(value):
+def encrypt_field(value: Any) -> Any:
     """تشفير قيمة نصية بالمفتاح الحالي."""
     if not value:
         return value
@@ -87,7 +88,7 @@ def encrypt_field(value):
 _decrypt_failures = 0
 
 
-def decrypt_field(value):
+def decrypt_field(value: Any) -> Any:
     """فك تشفير — يحاول المفتاح الحالي ثم القديمة (MultiFernet).
 
     والإخفاقُ هنا حالةُ بيانٍ لا خطأَ برنامج: صفٌّ شُفِّر بمفتاحٍ لم يعد

@@ -4,6 +4,7 @@ core/views_health.py
 GET /health/ — فحص صحة كامل (DB + Redis + بيان الملفات الثابتة)
 GET /ready/  — Readiness Probe خفيف (DB فقط — لـ load balancer و Kubernetes)
 GET /status/ — معلومات تشغيلية مفصّلة (DB + Redis + migrations + uptime + version)
+GET /health/worker/ — عمرُ آخر نبضةٍ للعامل (503 إن تجاوز 15 دقيقة) — يفحصه GitHub Actions
 
 الفرق:
   /health/ → Liveness: يتحقق من DB + Redis — للمراقبة والتنبيهات
@@ -203,4 +204,31 @@ def status_check(request):
             "checks": checks,
         },
         status=status_code,
+    )
+
+
+@require_GET
+@never_cache
+def worker_heartbeat_check(request):
+    """عمرُ آخر نبضةٍ ختمها العامل — 200 سليم، 503 متوقّف أو غائب.
+
+    عامٌّ بلا مصادقة كـ`/health/` (يعيد رقماً وحالةً فقط)، ليفحصه GitHub Actions من خارج
+    Railway: العاملُ الميّتُ لا يُنذِر بنفسه، والمراقبةُ الداخليّةُ تسقط معه.
+    """
+    from core import worker_heartbeat as heartbeat
+
+    try:
+        beat = heartbeat.last_beat()
+    except Exception as exc:  # noqa: BLE001 — أيّ عطلٍ في Redis يُبلَّغ لا يُخفى
+        logger.error("worker_heartbeat_check: Redis فشل: %s", type(exc).__name__)
+        return JsonResponse({"status": "cache-unavailable"}, status=503)
+
+    if beat is None:
+        return JsonResponse({"status": "missing"}, status=503)
+
+    age = max(0, int(time.time() - beat))
+    fresh = age <= heartbeat.MAX_AGE_SECONDS
+    return JsonResponse(
+        {"status": "ok" if fresh else "stale", "age_seconds": age},
+        status=200 if fresh else 503,
     )
