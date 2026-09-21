@@ -16,7 +16,7 @@ from assessments.models import AnnualSubjectResult, StudentSubjectResult
 from core.academic_calendar import academic_year_for_school
 from core.domain.attendance import attendance_rate
 from core.domain.tones import ATTENDANCE_KPI, GRADE_CELL, tone_for
-from core.models import ParentStudentLink, StudentEnrollment
+from core.models import ConsentRecord, ParentStudentLink, StudentEnrollment
 from operations.models import StudentAttendance
 
 if TYPE_CHECKING:
@@ -279,6 +279,44 @@ class ParentService:
             child_data["kpis"] = _child_kpis(child_data)
 
         return children
+
+
+def save_consents(parent, school, links, post, data_types) -> None:
+    """يحفظ موافقاتِ وليّ الأمر من POST — سجلٌّ لكلّ (طالب، نوع)؛ والسحبُ يختم `withdrawn_at`."""
+    for link in links:
+        for dt, _ in data_types:
+            is_given = post.get(f"consent_{link.student_id}_{dt}") == "1"
+            obj, created = ConsentRecord.objects.get_or_create(
+                parent=parent,
+                student=link.student,
+                school=school,
+                data_type=dt,
+                defaults={"is_given": is_given, "method": "digital", "recorded_by": parent},
+            )
+            if not created and obj.is_given != is_given:
+                obj.is_given = is_given
+                obj.withdrawn_at = None if is_given else timezone.now()
+                obj.save(update_fields=["is_given", "withdrawn_at"])
+    if not parent.consent_given_at:
+        parent.consent_given_at = timezone.now()
+        parent.save(update_fields=["consent_given_at"])
+
+
+def consent_state(parent, links, data_types) -> dict:
+    """{student_id: {data_type: given}} — بجلبٍ واحدٍ (بلا N+1)."""
+    student_ids = [link.student_id for link in links]
+    all_consents = ConsentRecord.objects.filter(
+        parent=parent, student_id__in=student_ids
+    ).values_list("student_id", "data_type", "is_given")
+    consent_map = {(str(sid), dt): given for sid, dt, given in all_consents}
+    return {
+        str(link.student_id): {
+            # الموافقةُ صريحة (PDPPL): لا سجلَّ ⇒ لم يوافق ⇒ المفتاحُ مُطفأ.
+            dt: consent_map.get((str(link.student_id), dt), False)
+            for dt, _ in data_types
+        }
+        for link in links
+    }
 
 
 def _child_kpis(child: dict) -> list[dict]:

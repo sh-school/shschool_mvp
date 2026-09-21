@@ -26,9 +26,9 @@
 
   {% if pending_absence_count or failing_students %}
   {% callout "warning" %}
-    زرّا الإرسال يُرسلان فوراً إلى أولياء الأمور ولا يُسحب ما أُرسل:
-    {% if pending_absence_count %}تنبيهات الغياب: {{ pending_absence_count }} تنبيهٌ معلّق.{% endif %}
-    {% if failing_students %}إشعارات الرسوب: أولياءُ {{ failing_students }} طالباً راسباً.{% endif %}
+    زرّا الإرسال يُرسلان بريداً أو SMS إلى أولياء الأمور ولا يُسحب ما أُرسل. ووليُّ الأمر الذي يقع الآن ضمن ساعات هدوئه لا يصله شيءٌ الآن: يُؤجَّل إرسالُه إلى انتهائها ولا يضيع، ويُذكر عددُ المؤجَّل في رسالة النتيجة.
+    {% if pending_absence_count %}تنبيهات الغياب: {{ pending_absence_count }} تنبيهٌ معلّق إلى {{ recipients.absence }} من أولياء الأمور.{% endif %}
+    {% if failing_students %}إشعارات الرسوب: أولياءُ {{ failing_students }} طالباً راسباً — {{ recipients.fail }} وليَّ أمرٍ.{% endif %}
   {% endcallout %}
   {% endif %}
 

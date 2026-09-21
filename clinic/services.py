@@ -304,9 +304,9 @@ class ClinicService:
                     f"إلى المنزل من العيادة المدرسية بسبب: {visit.reason}. "
                     f"يُرجى التواصل مع المدرسة للاستفسار."
                 )
-                NotificationService.send_email(
+                NotificationService.deliver_email(
+                    user=parent,
                     school=school,
-                    recipient_email=parent.email,
                     subject=f"إشعار عيادة: {visit.student.full_name}",
                     body_text=msg,
                     student=visit.student,

@@ -35,7 +35,7 @@
     {% endfor %}
 
     {% if links %}
-      {% callout "warning" %}سحبُ الموافقة على نوعٍ من البيانات يوقف إشعاراتِ ذلك النوع عن ابنك، ولا يحجب عنك الاطّلاعَ عليه في البوّابة.{% endcallout %}
+      {% callout "warning" %}لا تصلك إشعاراتُ نوعٍ من البيانات إلّا إذا وافقتَ عليه صراحةً هنا، وسحبُ الموافقة يوقفها، ولا يحجب عنك الاطّلاعَ عليه في البوّابة. وإخطاراتُ الغياب واستدعاءِ ولي الأمر وإرسالِ الطالب إلى البيت تصلك دائماً لأن المدرسة ملزَمةٌ بها.{% endcallout %}
       <div class="form-actions">
         {# الكادرُ الذي هو وليُّ أمرٍ يعود إلى عمله؛ فبوّابتُه تردّه إلى هنا ما لم يوافق. #}
         <a href="{% if request.user.is_staff_member %}{% url 'dashboard' %}{% else %}{% url 'parent_dashboard' %}{% endif %}" class="btn-ghost">إلغاء</a>
@@ -52,14 +52,14 @@
 </div>
 
 <script nonce="{{ request.csp_nonce }}">
-// حالةُ المفاتيح من الموافقات المحفوظة — وما لم يُحفظ بعدُ موافَقٌ عليه افتراضاً.
+// حالةُ المفاتيح من الموافقات المحفوظة — وما لم يُحفظ بعدُ غيرُ موافَقٍ عليه (موافقةٌ صريحة لا افتراضيّة).
 const consentData = JSON.parse('{{ consent_data_json|escapejs }}');
 document.querySelectorAll('.ui-switch__input').forEach(cb => {
   const parts = cb.name.split('_');
   if (parts.length < 3) return;
   const dt  = parts[parts.length - 1];
   const sid = parts.slice(1, parts.length - 1).join('_');
-  cb.checked = consentData[sid] && consentData[sid][dt] !== undefined ? consentData[sid][dt] : true;
+  cb.checked = !!(consentData[sid] && consentData[sid][dt] === true);
 });
 </script>
 {% endblock %}
