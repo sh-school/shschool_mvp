@@ -1,0 +1,32 @@
+{% load icons %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>الموظّف</th>
+        <th class="col-center">المدّة</th>
+        <th>المرجع</th>
+        <th class="col-actions">{% if live %}إجراء{% else %}الحالة{% endif %}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in rows %}
+      <tr>
+        <td><strong>{{ e.staff.full_name }}</strong></td>
+        <td class="col-center sa-nowrap">{{ e.start_date|date:"d/m/Y" }}<span class="sa-cell-sub">{% if e.end_date %}{{ e.end_date|date:"d/m/Y" }}{% else %}مفتوح{% endif %}</span></td>
+        <td class="text-xs">{{ e.reference|default:"—" }}</td>
+        <td class="col-actions">
+          {% if live %}
+          <form method="post" action="{% url 'staff_affairs:exemption_revoke' e.pk %}">{% csrf_token %}
+            <button type="submit" class="btn-secondary btn-xs" title="رفع الإعفاء" aria-label="رفع إعفاء {{ e.staff.full_name }}">{% icon "close" %} رفع</button>
+          </form>
+          {% elif e.revoked_at %}<span class="status-badge status-danger">رُفع {{ e.revoked_at|date:"d/m/Y" }}</span>
+          {% else %}<span class="status-badge status-success">منتهٍ أو قادم</span>{% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="text-xs">لا سجلَّ.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

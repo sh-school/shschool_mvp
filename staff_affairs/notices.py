@@ -20,7 +20,7 @@ from django.db import transaction
 
 from core.models.school import School
 from core.models.user import CustomUser
-from staff_affairs.attendance import COVERAGE_DEADLINE_DAY, month_bounds
+from staff_affairs.attendance import COVERAGE_DEADLINE_DAY, exempt_days, month_bounds
 from staff_affairs.models import StaffAttendance
 
 
@@ -34,8 +34,11 @@ def uncovered_absences(school: School, year: int, month: int) -> dict[CustomUser
         .select_related("staff")
         .order_by("staff__full_name", "date")
     )
+    exempt = exempt_days(school, first, last)  # المعفى لا يُخطَر بغيابٍ لا يُرصد عليه
     by_staff: dict[CustomUser, list[date]] = defaultdict(list)
     for record in rows:
+        if any(a <= record.date <= b for a, b in exempt.get(record.staff_id, ())):
+            continue
         by_staff[record.staff].append(record.date)
     return dict(by_staff)
 

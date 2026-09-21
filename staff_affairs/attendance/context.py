@@ -22,6 +22,7 @@ from staff_affairs.models import (
     PermitRequest,
     StaffAssignment,
     StaffAttendance,
+    StaffAttendanceExemption,
 )
 
 NON_STAFF_ROLES = ("student", "parent")
@@ -89,12 +90,20 @@ def _audited(key: str, value: Any) -> Any:
 def _audit(
     actor: CustomUser | None,
     action: str,
-    obj: StaffAttendance | PermitRequest | AttendanceException | StaffAssignment,
+    obj: StaffAttendance
+    | PermitRequest
+    | AttendanceException
+    | StaffAssignment
+    | StaffAttendanceExemption,
     changes: dict[str, Any],
     request: HttpRequest | None = None,
 ) -> None:
     """أثرٌ في سجلّ التدقيق بلا اسمٍ ولا رقمٍ شخصيّ — النوعُ والمعرّفُ والتغيير."""
-    day = obj.start_date if isinstance(obj, AttendanceException | StaffAssignment) else obj.date
+    day = (
+        obj.start_date
+        if isinstance(obj, AttendanceException | StaffAssignment | StaffAttendanceExemption)
+        else obj.date
+    )
     AuditLog.log(  # type: ignore[no-untyped-call]
         user=actor,
         action=action,

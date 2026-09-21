@@ -1,0 +1,46 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}الإعفاء من الرصد{% endblock %}
+{% block breadcrumbs %}
+{% url 'staff_affairs:dashboard' as home_url %}{% include "components/breadcrumbs.html" with parent_url=home_url parent_label="شؤون الموظفين" current="الإعفاء من الرصد" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "الإعفاء من رصد الحضور اليومي" subtitle="موظّفٌ لا يداوم بحكم وضعه الوظيفي: يبقى حسابُه وصلاحيّاتُه، ولا يدخل لوحةَ الرصد ولا تقريرَ الغياب ولا إخطارَ الخصم" icon="staff" %}{% endpage_header %}
+
+  <div class="sa-assign">
+  <div class="sa-assign__col">
+  {% section_card "إعفاءٌ جديد" icon="confirm" %}
+    <p class="form-note sa-assign__note">{% icon "status_info" %} لا يُسجَّل سببُ الإعفاء هنا (قد يكون بيانةً صحّيّة) — يكفي رقمُ القرار المكتوب وتاريخُه، والأصلُ في ملفّ الموظّف. اترك «إلى تاريخ» فارغاً لإعفاءٍ مفتوحٍ حتى يُرفع.</p>
+    {% if form.non_field_errors %}<div class="alert alert-danger">{{ form.non_field_errors }}</div>{% endif %}
+    {% if form.staff.errors %}<div class="alert alert-danger">{{ form.staff.errors }}</div>{% endif %}
+    {% if candidates %}
+    <form method="post" action="{% url 'staff_affairs:exemptions' %}">{% csrf_token %}
+      <div class="form-row">
+        <div class="ui-field">
+          <label for="f-staff" class="ui-field__label">الموظّفون <span class="req-star" aria-hidden="true">*</span></label>
+          <select id="f-staff" name="staff" class="form-control" multiple size="8" required>
+            {% for c in candidates %}<option value="{{ c.pk }}">{{ c.full_name }}{% if c.employee_number %} — {{ c.employee_number }}{% endif %}</option>{% endfor %}
+          </select>
+        </div>
+        {% field "start_date" "من تاريخ" type="date" value=today|date:"Y-m-d" required=True %}
+        {% field "end_date" "إلى تاريخ (اختياري)" type="date" %}
+        {% field "reference" "مرجع القرار (اختياري)" maxlength=200 %}
+        <div class="form-actions sa-assign__footer"><button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} إعفاء</button></div>
+      </div>
+    </form>
+    {% else %}
+    <p class="form-note">لا موظّفَ متاحاً للإعفاء الآن.</p>
+    {% endif %}
+  {% endsection_card %}
+  </div>
+
+  <div class="sa-assign__col">
+  {% section_card "المعفَون اليوم" meta=current|length icon="staff" flush=True empty="لا إعفاءَ قائماً اليوم" %}{% if current %}{% include "staff_affairs/partials/exemption_rows.html" with rows=current live=True %}{% endif %}{% endsection_card %}
+  {% section_card "السجلّ (منتهية أو مرفوعة أو قادمة)" meta=past|length icon="checklist" flush=True empty="لا سجلَّ بعد" %}{% if past %}{% include "staff_affairs/partials/exemption_rows.html" with rows=past live=False %}{% endif %}{% endsection_card %}
+  </div>
+  </div>
+</div>
+{% endblock %}

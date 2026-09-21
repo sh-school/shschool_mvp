@@ -667,3 +667,60 @@ class StaffAssignment(AuditedModel):
 
     def __str__(self) -> str:
         return f"{self.assignee.full_name} — {self.get_acting_role_display()} ({self.start_date})"
+
+
+class StaffAttendanceExemption(AuditedModel):
+    """إعفاءُ موظّفٍ من الرصد اليوميّ للحضور — يُسجَّل لواحدٍ أو أكثر، لمدّةٍ أو بلا نهاية.
+
+    قرارُ المالك (2026-09-21): موظّفٌ لا يداوم بحكم وضعه الوظيفيّ يبقى حسابُه ودورُه، ولا
+    يدخل لوحةَ رصد اليوم ولا تقريرَ الغياب الشهريّ ولا إخطارَ الخصم (البند 5.1). فلا يُرصد غائباً
+    خطأً فيُخصم منه.
+
+    لا **سببَ** هنا عمداً: سببُ الإعفاء قد يكون بيانةً صحّيّةً (قانون 13/2016)، فلا تُخزَّن
+    في المنصّة — يكفي ``reference`` رقمُ القرار المكتوب وتاريخُه، والأصلُ في ملفّ الموظّف. ولا
+    يُحذف ولا يُعدَّل: رفعُه يكتب ``revoked_at``/``revoked_by``، فيبقى من أُعفي ومن أعفاه ومتى.
+    ``end_date`` فارغٌ = إعفاءٌ مفتوحٌ حتى يُرفع.
+    """
+
+    school = models.ForeignKey(
+        School,
+        on_delete=models.CASCADE,
+        related_name="staff_attendance_exemptions",
+        verbose_name="المدرسة",
+    )
+    staff = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="attendance_exemptions",
+        verbose_name="الموظّف المعفى",
+    )
+    start_date = models.DateField(verbose_name="من تاريخ")
+    end_date = models.DateField(null=True, blank=True, verbose_name="إلى تاريخ (فارغٌ = مفتوح)")
+    #: رقمُ القرار المكتوب وتاريخُه — لا سببٌ ولا تشخيص.
+    reference = models.CharField(max_length=200, blank=True, verbose_name="مرجع القرار")
+    revoked_at = models.DateTimeField(null=True, blank=True, verbose_name="رُفع في")
+    revoked_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="attendance_exemptions_revoked",
+        verbose_name="رفعه",
+    )
+
+    class Meta:
+        ordering = ["-start_date", "-created_at"]
+        verbose_name = "إعفاءٌ من رصد الحضور"
+        verbose_name_plural = "الإعفاءات من رصد الحضور"
+        constraints = [
+            # django-stubs 5.0.2 لا يعرف `condition` (Django 5.1).
+            models.CheckConstraint(  # type: ignore[call-arg]
+                condition=models.Q(end_date__isnull=True)
+                | models.Q(end_date__gte=models.F("start_date")),
+                name="attendance_exemption_end_after_start",
+            ),
+        ]
+        indexes = [models.Index(fields=["school", "start_date", "end_date"])]
+
+    def __str__(self) -> str:
+        return f"{self.staff.full_name} — معفى من {self.start_date}"

@@ -43,6 +43,7 @@ from .context import (
 from .exceptions import (
     ExceptionService,
 )
+from .exemptions import exempt_ids, recording_staff
 from .permits import (
     PermitService,
 )
@@ -346,6 +347,8 @@ class StaffAttendanceService:
             )
         if not staff_members(school).filter(pk=staff.pk).exists():
             raise PolicyError("ليس من كادر هذه المدرسة.")
+        if staff.pk in exempt_ids(school, day):
+            raise PolicyError("الموظّفُ معفًى من الرصد اليوميّ في هذا اليوم.")
         absence_type = absence_type or ""
         if absence_type and absence_type not in ABSENCE_TYPE_KEYS:
             raise PolicyError("نوعُ غيابٍ غيرُ معروف (سجلّ الغياب).")
@@ -553,7 +556,7 @@ class StaffAttendanceService:
 
         والمسؤولُ المباشرُ الذي لا يرصد للكادر كلِّه (نائبٌ أو مكلَّفٌ) لا يرى إلّا من تحته.
         """
-        staff = list(staff_members(school).only("id", "full_name", "employee_number"))
+        staff = list(recording_staff(school, day).only("id", "full_name", "employee_number"))
         if viewer is not None and not StaffAttendanceService.can_record(school, viewer):
             stage = _StageDay(school, _pkg._now())
             roles = {
@@ -594,8 +597,11 @@ class StaffAttendanceService:
         permitted = PermitRequest.objects.filter(
             school=school, status="approved", date__range=(first, last)
         ).values("staff_id")
+        # المعفى الشهرَ كلَّه لا يدخل التقرير إلّا إن كان له سجلٌّ أو إذنٌ فيه.
+        exempt = exempt_ids(school, first, last)
+        roster = staff_members(school).exclude(pk__in=exempt).values("pk")
         people = CustomUser.objects.filter(
-            Q(pk__in=staff_members(school).values("pk")) | Q(pk__in=marked) | Q(pk__in=permitted)
+            Q(pk__in=roster) | Q(pk__in=marked) | Q(pk__in=permitted)
         ).order_by("full_name")
         viewer_role = _role_of(viewer) if viewer is not None else PRINCIPAL
         if viewer_role in REPORT_WHOLE_SCHOOL or viewer_role not in LINE_MANAGER.values():

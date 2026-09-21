@@ -1,5 +1,7 @@
 """staff_affairs/forms.py — نماذج إدخال شؤون الموظفين."""
 
+from typing import Any
+
 from django import forms
 
 from core.validators import FileTypeValidator
@@ -218,6 +220,21 @@ class AssignmentForm(forms.Form):
     end_date = forms.DateField(label="إلى تاريخ")
     reason = forms.CharField(max_length=300, label="سبب التكليف")
     reference = forms.CharField(max_length=200, required=False, label="مرجع القرار")
+
+
+class AttendanceExemptionForm(forms.Form):
+    """إعفاءُ موظّفٍ أو أكثر من الرصد اليوميّ — بلا سببٍ (بيانةٌ صحّيّةٌ محتملة)."""
+
+    staff = forms.MultipleChoiceField(
+        choices=[], error_messages={"required": "اختر موظّفاً واحداً على الأقلّ."}
+    )
+    start_date = forms.DateField(label="من تاريخ")
+    end_date = forms.DateField(label="إلى تاريخ", required=False)
+    reference = forms.CharField(max_length=200, required=False, label="مرجع القرار")
+
+    def __init__(self, *args: Any, candidates: Any = (), **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.fields["staff"].choices = [(str(c.pk), c.full_name) for c in candidates]
 
 
 class PermitReviewForm(forms.Form):
