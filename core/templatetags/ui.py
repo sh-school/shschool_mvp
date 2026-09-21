@@ -44,6 +44,20 @@
 8. لكلّ حقلٍ اسمٌ يقرؤه قارئُ الشاشة — `<label for>` يحمله الوسمُ `field` من
    `name`، فلا حقلَ بلا تسميةٍ ولا تسميةَ بلا `for`.
 
+وقاعدةٌ تاسعة للتنبيهات (قرارُ المالك 2026-09-20): كلُّ ما كان `form-note` و`bell-note`
+و`wing-warn` صار وسماً واحداً بخمسة أنواعٍ لا يخلط أحدُها بغيره:
+
+    {% callout "hint" %}كيف تُحتسب المهلة؟ …{% endcallout %}       مصباحٌ يُظهر نصَّه بالمرور
+    {% callout "info" %}الرصدُ لمشرف الجناح.{% endcallout %}          ⓘ يُظهر نصَّه بالمرور
+    {% callout "warning" %}يبدأ عدٌّ تنازليٌّ 72 ساعة.{% endcallout %}   علامةُ تعجّبٍ حمراء تُظهر نصَّها بالمرور
+    {% callout "error" %}تعذّر الحفظ.{% endcallout %}                 سطرٌ ظاهرٌ (role=alert)
+    {% callout "success" %}حُفظت البيانات.{% endcallout %}            سطرٌ ظاهرٌ
+
+التلميحُ والمعلومةُ **والتحذيرُ** أيقونةٌ لا سطر (قرارُ المالك 2026-09-20: لا يأخذ التنبيهُ صفّاً كاملاً):
+تُنقل تلقائياً إلى شريط عنوان `section_card` (أو بجانب عنوان `page_header`)، وتظهر بالمرور والتركيز
+والضغط. والخطأُ والنجاحُ أسطرٌ ظاهرة، وما كان **حالةً** تقول للمستخدم شيئاً لا يجوز أن يُخبَّأ («لا دوامَ
+اليوم») يُطلب ظاهراً بـ`show=True` في أيّ نوع.
+
 والخطأُ في الاستعمال (سابعُ بطاقة، لونٌ لا رمزَ له، بطاقةُ كيانٍ بسطرٍ رابع،
 حقلٌ بلا تسمية) `TemplateSyntaxError` لا رسمٌ صامت: يظهر في أوّل اختبارٍ يعرض
 الصفحة.
@@ -55,6 +69,7 @@ import re
 
 from django import template
 from django.template.loader import render_to_string
+from django.utils.crypto import get_random_string
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
@@ -70,6 +85,28 @@ KPI_TONES = ("maroon", "green", "blue", "red", "amber", "teal", "orange", "purpl
 STATUS_TONES = ("neutral", "success", "warning", "danger", "info")
 
 #: علامةٌ يضعها كلُّ `kpi` فيعدّها الشريط — ولا تظهر في الصفحة.
+#: أنواعُ التنبيه: تلميحٌ ومعلومةٌ أيقونتان تُظهران نصَّهما (`TIP_KINDS`)،
+#: وتحذيرٌ وخطأٌ ونجاحٌ أسطرٌ ظاهرة (`ROW_KINDS`). الأيقونةُ من قاموس `core/icons.py`.
+TIP_KINDS = {
+    "hint": ("tip", "تلميح"),
+    "info": ("status_info", "معلومة"),
+    "warning": ("status_warning", "تحذير"),
+}
+ROW_KINDS = {
+    "error": ("status_error", "alert"),
+    "success": ("status_success", "status"),
+}
+#: حين يُطلب النوعُ ظاهراً (`show=True`): أيقونتُه و`role` سطره.
+SHOWN_KINDS = {
+    "hint": ("tip", "note"),
+    "info": ("status_info", "note"),
+    "warning": ("status_warning", "note"),
+    **ROW_KINDS,
+}
+#: تُحيط بأيقونة التلميح فتنقلها `section_card` و`page_header` إلى ترويستها.
+_TIP_OPEN, _TIP_CLOSE = "<!--ui-tip-->", "<!--/ui-tip-->"
+_TIP_RE = re.compile(re.escape(_TIP_OPEN) + r".*?" + re.escape(_TIP_CLOSE), re.S)
+
 _KPI_MARK = "data-ui-kpi"
 _CHIPS_MARK = "data-ui-entity-chips"
 _STATUS_MARK = "data-ui-entity-status"
@@ -134,6 +171,63 @@ def kpi_strip(content, label="أرقام الصفحة"):
     )
 
 
+# ── 1ب. التنبيهات ─────────────────────────────────────────────────────────
+
+
+@register.simple_block_tag  # type: ignore[attr-defined,misc]
+def callout(content: str, kind: str = "info", title: str = "", show: bool = False) -> str:
+    """تنبيهٌ بنوعٍ من خمسة — راجع القاعدةَ التاسعة في رأس الملفّ.
+
+    نوعٌ لا يعرفه الوسمُ `TemplateSyntaxError`. وتنبيهٌ فارغٌ وقتَ العرض لا يُرسم.
+    """
+    if kind not in TIP_KINDS and kind not in ROW_KINDS:
+        raise template.TemplateSyntaxError(
+            f"callout: نوعٌ {kind!r} غيرُ معروف — المتاح: " + ", ".join([*TIP_KINDS, *ROW_KINDS])
+        )
+    if not content.strip():
+        # فراغُ المحتوى وقتَ العرض (شرطٌ لم يتحقّق) لا خطأ في القالب: لا يُرسم شيء.
+        return ""
+    if show or kind in ROW_KINDS:
+        icon, role = SHOWN_KINDS[kind]
+        return mark_safe(
+            render_to_string(
+                "components/ui/callout.html",
+                {"kind": kind, "icon": icon, "role": role, "body": content},
+            )
+        )
+    # ما بقي نوعُ تلميحٍ حتماً: الأنواعُ الأخرى (ROW_KINDS) عادت أعلاه.
+    icon, label = TIP_KINDS[kind]
+    html = render_to_string(
+        "components/ui/tip.html",
+        {
+            "kind": kind,
+            "icon": icon,
+            "label": title or label,
+            "body": content,
+            "uid": "tip-" + get_random_string(8),
+        },
+    )
+    return mark_safe(_TIP_OPEN + html + _TIP_CLOSE)
+
+
+_TIP_ORDER = ("hint", "warning", "info")
+
+
+def _tip_rank(html: str) -> int:
+    match = re.search(r"ui-tip--(\w+)", html)
+    kind = match.group(1) if match else ""
+    return _TIP_ORDER.index(kind) if kind in _TIP_ORDER else len(_TIP_ORDER)
+
+
+def _split_tips(content: str) -> tuple[str, str]:
+    """يفصل أيقوناتِ التلميح عن المحتوى: `(المحتوى بلا تلميحات، التلميحاتُ متجاورة)`."""
+    # ترتيبٌ واحدٌ في كلّ موضع (قرارُ المالك 2026-09-20): المصباحُ أوّلاً ثمّ علامةُ التعجّب ثمّ المعلومة.
+    found = sorted(_TIP_RE.findall(content), key=_tip_rank)
+    tips = "".join(found)
+    # مُحتوى الوسم الكتليّ آمنٌ (صيَّره القالبُ)، وبعد `sub` يصير نصّاً عادياً فيُهرَّب كلُّ وسمٍ فيه.
+    return mark_safe(_TIP_RE.sub("", content)), mark_safe(tips)
+
+
 # ── 2. بطاقةُ القسم ───────────────────────────────────────────────────────
 
 
@@ -159,6 +253,10 @@ def section_card(
     (`tests/design_ratchet.py`، `legacy_header`).
     """
     _require(title, "section_card", "العنوان")
+    # التلميحُ أيقونةٌ في شريط العنوان لا سطرٌ في الجسم (إلّا في الطيّ: زرٌّ داخل زرٍّ لا يصحّ).
+    tips = ""
+    if not foldable:
+        content, tips = _split_tips(content)
     body = content if content.strip() else None
     return mark_safe(
         render_to_string(
@@ -172,6 +270,7 @@ def section_card(
                 "empty_sub": empty_sub,
                 "flush": flush,
                 "foldable": foldable,
+                "tips": mark_safe(tips),
             },
         )
     )
@@ -263,10 +362,17 @@ def empty_state(title="لا توجد بيانات", sub="", icon="empty", compac
 def page_header(content, title, subtitle="", icon=""):
     """عنوانُ الصفحة وسطرُها الوصفيّ وإجراءاتُها — إطارٌ واحدٌ بدل ثلاثة."""
     _require(title, "page_header", "العنوان")
+    content, tips = _split_tips(content)
     return mark_safe(
         render_to_string(
             "components/ui/page_header.html",
-            {"title": title, "subtitle": subtitle, "icon": icon, "actions": content},
+            {
+                "title": title,
+                "subtitle": subtitle,
+                "icon": icon,
+                "actions": content,
+                "tips": mark_safe(tips),
+            },
         )
     )
 

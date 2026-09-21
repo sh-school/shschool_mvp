@@ -59,6 +59,48 @@ class TestParentViews:
         parent_user.refresh_from_db()
         assert parent_user.consent_given_at is not None
 
+    def test_consent_page_starts_with_nothing_given(
+        self, client_as, parent_user, school, student_user
+    ):
+        """لا سجلَّ ⇒ كلُّ المفاتيح مُطفأة (PDPPL: موافقةٌ صريحة لا مسبَقة)."""
+        import json
+
+        ParentStudentLink.objects.get_or_create(
+            parent=parent_user, student=student_user, school=school
+        )
+        resp = client_as(parent_user).get("/parents/consent/")
+        data = json.loads(resp.context["consent_data_json"])
+        assert data[str(student_user.id)]
+        assert not any(data[str(student_user.id)].values())
+        assert "!!(consentData" in resp.content.decode()
+
+    def test_consent_submit_records_exactly_what_was_chosen(
+        self, client_as, parent_user, school, student_user
+    ):
+        from core.models import ConsentRecord
+
+        ParentStudentLink.objects.get_or_create(
+            parent=parent_user, student=student_user, school=school
+        )
+        sid = student_user.id
+        post = {f"consent_{sid}_{dt}": "0" for dt in ("health", "behavior", "grades", "attendance")}
+        post[f"consent_{sid}_transport"] = "0"
+        post[f"consent_{sid}_grades"] = "1"
+        client_as(parent_user).post("/parents/consent/", post)
+
+        given = dict(
+            ConsentRecord.objects.filter(parent=parent_user, student=student_user).values_list(
+                "data_type", "is_given"
+            )
+        )
+        assert given == {
+            "health": False,
+            "behavior": False,
+            "grades": True,
+            "attendance": False,
+            "transport": False,
+        }
+
     def test_student_grades_own_child(self, client_as, parent_with_consent, student_user):
         c = client_as(parent_with_consent)
         resp = c.get(f"/parents/student/{student_user.id}/grades/")

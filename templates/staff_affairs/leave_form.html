@@ -12,7 +12,7 @@
 
   {% section_card "بيانات الطلب" icon="edit_record" %}
     <form method="post" enctype="multipart/form-data">{% csrf_token %}
-      {% if form.non_field_errors %}<p class="form-note is-warning sa-errors" role="alert">{% icon "status_warning" %} {{ form.non_field_errors|join:" · " }}</p>{% endif %}
+      {% if form.non_field_errors %}{% callout "error" %}{{ form.non_field_errors|join:" · " }}{% endcallout %}{% endif %}
 
       <div class="form-row">
         {# الموظّف: قيمتُه معرّفُ المستخدم ونصُّه اسمُه الكامل — خياراتٌ مركّبةٌ لا تُعبَّر بـchoices، فالقائمةُ باليد بتسميتها #}
@@ -29,6 +29,8 @@
         {% field "end_date" "إلى" type="date" required=True %}
         {% field "reason" "السبب" type="textarea" rows=3 required=True placeholder="سبب الإجازة..." css="sa-span-2" %}
       </div>
+
+      {% callout "warning" %}المرفق (كتقرير طبّي) بيانٌ صحّيّ ذو طبيعةٍ خاصّة؛ أرفِق ما يلزم لإثبات الإجازة فقط.{% endcallout %}
 
       <div class="form-actions sa-form-footer">
         <a href="{% url 'staff_affairs:leave_list' %}" class="btn-secondary btn-sm">إلغاء</a>

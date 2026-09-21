@@ -69,7 +69,7 @@
           <input type="time" id="quiet-end" name="quiet_hours_end" value="{% if prefs.quiet_hours_end %}{{ prefs.quiet_hours_end|time:'H:i' }}{% endif %}" class="form-control">
         </div>
       </div>
-      <p class="form-hint">لا تُرسل إشعاراتٌ خارجيّة (SMS/WhatsApp/Email) في هذه الفترة</p>
+      {% callout "hint" %}إشعارُ المنصّة داخل التطبيق يصلك فوراً في كلّ وقت. أمّا الإشعاراتُ الخارجيّة (Push وSMS وWhatsApp والبريد) الواردة في هذه الفترة فلا تُرسَل الآن، بل تُؤجَّل وتصلك دفعةً عند انتهائها ولا تضيع. وتُحسب الساعاتُ بتوقيت قطر، وتصحّ النافذةُ التي تعبر منتصفَ الليل (مثلاً من 22:00 إلى 06:00).{% endcallout %}
     {% endsection_card %}
 
     <div class="form-actions">

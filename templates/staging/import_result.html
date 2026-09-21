@@ -29,10 +29,7 @@
 
   {% section_card "الملف والتقييم" meta=log.file_name icon="export_excel" %}
     {% if is_dry_run %}
-    <p class="form-note is-warning" role="note">
-      {% icon "view" %}
-      <span>وضع المعاينة — لم يُحفظ أيُّ درجة. راجع الأخطاء، ثمّ ارفع الملف مجدداً واختر <strong>استيراد</strong> للحفظ الفعلي.</span>
-    </p>
+    {% callout "warning" %}وضع المعاينة — لم يُحفظ أيُّ درجة. راجع الأخطاء، ثمّ ارفع الملف مجدداً واختر <strong>استيراد</strong> للحفظ الفعلي.{% endcallout %}
     {% endif %}
     <ul class="chip-row import-meta" aria-label="التقييم">
       <li class="chip-stat"><span class="chip-stat__key">المادة</span><b class="chip-stat__value">{{ assessment.package.setup.subject.name_ar }}</b></li>

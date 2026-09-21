@@ -120,12 +120,22 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --transition-fast:   100ms ease;
   --transition-base:   150ms ease;
   --transition-slow:   250ms ease;
+  /* انتقالُ الصفحات بتبديل المحتوى (page-nav.js): 500 خروجاً و500 ظهوراً — قرارُ المالك 2026-09-20. رمزٌ خاصٌّ بها فلا يتغيّر
+     غيرُها بتغيير مدّتها. */
+  --transition-page:   500ms ease;
+  --control-h:         44px;   /* أدنى ارتفاعٍ لعنصر تحكّمٍ يُلمس (WCAG 2.5.8) — أزرارٌ وحقولٌ */
   --focus-ring:        0 0 0 3px color-mix(in srgb, var(--maroon) 22%, transparent);
   --focus-ring-offset: 2px;
   /* لونُ حلقة التركيز — العنّابيُّ المقروء، فينقلب ليلاً إلى الورديّ. وكان
      `--maroon` الثابت: 9.35 على السطح نهاراً و1.56 ليلاً، فلا يرى المتنقّلُ
      بلوحة المفاتيح أين هو (قِيس في المتصفّح 2026-09-13). */
   --focus-color: var(--maroon-fg);
+
+  /* ── الألواحُ العائمة (تلميحٌ، نافذةُ وجهات، قائمةُ تصدير) — قرارُ المالك 2026-09-20 ──
+     أخضرُ مطفأٌ يفصلها عن أبيض البطاقة لا أبيضَ مثلَه: عُشرُ أخضر الحالة على السطح، فيتبع الثيمَ الليليَّ تلقائياً
+     (`--surface` يُعاد تعريفُه هناك). ونصُّ اللوح `--text-primary` (أسودُ نهاراً وأبيضُ ليلاً) بتباينٍ ≥ 9:1 في الثيمين. */
+  --popover-bg: color-mix(in srgb, var(--status-success) 10%, var(--surface));
+  --popover-border: color-mix(in srgb, var(--status-success) 35%, var(--surface));
 
   /* ── Status Colors — unified across all pages ── */
   --status-danger:       #dc2626;
@@ -150,7 +160,6 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
      `--status-success` نسبتُه 3.30 وعلى `--status-warning` 3.19 — دون AA.
      فهذان حشوان أغمقُ بالقدر الذي يُبلِغ الأبيضَ 4.5، ولا ينقلبان مع الوضع
      لأنّ الأبيضَ فوقهما لا ينقلب. */
-  --status-success-solid: #12873d;   /* الأبيضُ عليه 4.61 */
   --neutral-solid:        #4b5563;   /* الأبيضُ عليه 7.56 */
 
   /* ── ما يُكتب فوق الحشو — لا ينقلب ──
@@ -338,7 +347,6 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   /* الأزرار */
   --btn-secondary-hover-bg: #fce8ee;
   --gold-deep:              #c9952e;
-  --status-success-solid-hover: #047857;
 
   /* الحالات: حدودٌ ناعمةٌ وأرضيّاتٌ وحبرٌ حيّ */
   --status-success-border-soft: #bbf7d0;
@@ -347,7 +355,6 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --status-neutral-bg:          #f8fafc;
   --status-neutral-fg:          #475569;
   --status-warning-bright: #f59e0b;
-  --status-danger-deep:    #b91c1c;
   --status-warning-deep:   #b45309;
   --status-info-strong:    #1d4ed8;
   --status-danger-tint:    var(--status-danger-bg);
@@ -434,6 +441,12 @@ html[lang="ar"] {
  * Arabic: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF
  * Latin:  U+0000-007F (Basic Latin — أرقام + حروف إنجليزية)
  * ────────────────────────────────────────────────────────── */
+/* ── رؤيةُ الوزارة مشكولةً بحركاتٍ زرقاء (قرارُ المالك 2026-09-20) ──
+   `Tajawal Tashkeel` نسخةٌ من Tajawal ترسم الحركاتِ بلونٍ من لوحته (`scripts/build_tashkeel_fonts.py`) بدل لون النصّ،
+   فيبقى وصلُ الحروف وتموضعُ الحركة كما هما (لفُّ الحركة في عنصرٍ كان يقطع الوصل). ولا يُستعمل إلّا لنصّ الرؤية
+   (`.vision-text` في 20-components). اللوحةُ الافتراضيّة #1d4ed8 (6.7:1 على الأبيض) للثيم النهاريّ؛ وللّيليّ
+   لوحةٌ فاتحة. ولا يقبل `@font-palette-values` متغيّراً، فالقيمتان هنا مصدرُهما الوحيد. */
+@font-palette-values --tashkeel-dark { font-family: 'Tajawal Tashkeel'; override-colors: 0 #93c5fd; }
 @font-face {
   font-family: 'Tajawal';
   src: url('../../fonts/Tajawal-Regular.woff2') format('woff2'),
@@ -463,6 +476,33 @@ html[lang="ar"] {
   font-display: swap;
   unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
                  U+0000-007F, U+00A0-00FF, U+0660-066F;
+}
+@font-face {
+  font-family: 'Tajawal Tashkeel';
+  src: url('../../fonts/Tajawal-Regular-tk.woff2') format('woff2'),
+       url('../../fonts/Tajawal-Regular-tk.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'Tajawal Tashkeel';
+  src: url('../../fonts/Tajawal-Medium-tk.woff2') format('woff2'),
+       url('../../fonts/Tajawal-Medium-tk.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'Tajawal Tashkeel';
+  src: url('../../fonts/Tajawal-Bold-tk.woff2') format('woff2'),
+       url('../../fonts/Tajawal-Bold-tk.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF;
 }
 
 /* ── خط Amiri — للجداول فقط (var(--q-font-data)) ──────────
