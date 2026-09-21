@@ -50,20 +50,10 @@
     <div class="asm-save-bar">
       {% callout "hint" %}Enter يحفظ الصفَّ وينتقل إلى التالي، و↑↓ أو Tab للتنقّل — أو احفظ الكلَّ دفعةً واحدة.{% endcallout %}
       {% callout "warning" %}«حفظ الكل وإغلاق» يعيد حساب نتائج الفصل للشعبة كلّها ويُثبّت حالة التقييم «مرصود».{% endcallout %}
-      <form method="post" action="{% url 'save_all_grades' assessment.id %}">
+      <form method="post" action="{% url 'save_all_grades' assessment.id %}" id="save-all-form">
         {% csrf_token %}
-        {% for item in students_data %}
-        {% with s=item.student g=item.grade_obj %}
-        <input type="hidden" name="grade_{{ s.id }}" id="hidden_grade_{{ s.id }}"
-               value="{% if g and not g.is_absent %}{{ g.grade|default:'' }}{% endif %}">
-        <input type="hidden" name="absent_{{ s.id }}" id="hidden_absent_{{ s.id }}"
-               value="{% if g and g.is_absent %}1{% else %}0{% endif %}">
-        <input type="hidden" name="excused_{{ s.id }}" id="hidden_excused_{{ s.id }}"
-               value="{% if g and g.is_excused %}1{% else %}0{% endif %}">
-        <input type="hidden" name="notes_{{ s.id }}" id="hidden_notes_{{ s.id }}"
-               value="{% if g %}{{ g.notes }}{% endif %}">
-        {% endwith %}
-        {% endfor %}
+        {# الحقولُ المخفيّة تُبنى عند الإرسال من الحالة الحاليّة لكلّ صفّ — لا نسخةَ قديمة #}
+        <div id="save-all-fields" hidden></div>
         <button type="submit" class="btn-primary">
           {% icon "confirm" %} حفظ الكل وإغلاق
         </button>
@@ -126,6 +116,31 @@ document.addEventListener('DOMContentLoaded', function(){
         getGradeInputs()[nextIdx]?.focus();
       }, 300);
     }
+  });
+
+  // «حفظ الكل»: اقرأ الحالةَ الحاليّةَ لكلّ صفٍّ عند الإرسال (بعد أيّ حفظٍ HTMX أو تعديل)
+  document.getElementById('save-all-form')?.addEventListener('submit', function () {
+    var box = document.getElementById('save-all-fields');
+    box.textContent = '';
+    function add(name, value) {
+      var h = document.createElement('input');
+      h.type = 'hidden';
+      h.name = name;
+      h.value = value;
+      box.appendChild(h);
+    }
+    document.querySelectorAll('#grades-body tr[id^="row-"]').forEach(function (tr) {
+      var sid = tr.id.slice(4);
+      var g = tr.querySelector('input[name="grade"]');
+      var a = tr.querySelector('input[name="is_absent"]');
+      var e = tr.querySelector('input[name="is_excused"]');
+      var n = tr.querySelector('input[name="notes"]');
+      if (!g || !a || !e || !n) return;
+      add('grade_' + sid, g.value);
+      add('absent_' + sid, a.checked ? '1' : '0');
+      add('excused_' + sid, e.checked ? '1' : '0');
+      add('notes_' + sid, n.value);
+    });
   });
 
   // إضافة data-idx لكل input لتسهيل التتبع البصري
