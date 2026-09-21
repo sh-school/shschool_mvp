@@ -19,7 +19,7 @@ import pytest
 pytest.importorskip("axe_playwright_python")
 
 from tests import a11y_axe_ratchet as ratchet  # noqa: E402
-from tests.test_a11y_live_pages import PAGES, _url  # noqa: E402
+from tests.test_a11y_live_pages import EVALUATION_PAGES, PAGES, _evaluation_case, _url  # noqa: E402
 
 pytestmark = pytest.mark.django_db
 
@@ -29,6 +29,8 @@ UPDATE_CMD = (
 
 
 def _login(page, live_server, user, password="testpass123"):  # pragma: allowlist secret
+    # مستخدمٌ سابقٌ ما زال داخلاً: صفحةُ الدخول تحوّله إلى اللوحة فلا يجد `fill` الحقلَ (انتهت مهلتُه 30 ثانية).
+    page.context.clear_cookies()
     page.goto(f"{live_server.url}/auth/login/")
     page.fill('input[name="identifier"]', user.national_id)
     page.fill('input[name="password"]', password)
@@ -36,16 +38,42 @@ def _login(page, live_server, user, password="testpass123"):  # pragma: allowlis
     page.wait_for_load_state("networkidle")
 
 
+#: صفحاتُ تقييم الأداء تُقاس على عامٍ ثابتٍ تُنشأ عليه بياناتُها (`_seed_evaluations`)، لا على عامٍ يشتقّه الطلب.
+EVALUATION_YEAR = "2026-2027"
+
+
+def _target(name: str) -> str:
+    query = f"?year={EVALUATION_YEAR}" if name.startswith("evaluation_") else ""
+    return f"{_url(name)}{query}"
+
+
+def _seed_evaluations(request) -> None:
+    """
+    حقولُ التظلّم (سببُ التظلّم؛ قرارُ اللجنة وتاريخاه) لا تُرسم إلّا ببيانات: تقريرٌ بابُ تظلّمه مفتوحٌ
+    لحساب المعلّم في «تقييماتي»، وآخرُ قُدِّم تظلّمُه لشاشة المدير — وإلّا قِيست صفحاتٌ فارغةٌ.
+    """
+    from tests.test_evaluation_review_round1 import _staff
+
+    school = request.getfixturevalue("school")
+    principal = request.getfixturevalue("principal_user")
+    _evaluation_case(school, request.getfixturevalue("teacher_user"), principal)
+    _evaluation_case(school, _staff(school, "teacher", "زميل"), principal, grievance=True)
+
+
 def _measure_all(request, page, live_server) -> dict[str, dict[str, int]]:
-    """كلُّ صفحات `PAGES` (تُسجَّل الدخول مرّةً — جميعُها principal_user اليوم)."""
+    """
+    كلُّ صفحات `PAGES` ثمّ صفحاتِ التقييم. يُسجَّل الدخولُ عند كلّ تبديلِ حساب، **بعد مسح الكوكيز**:
+    الدخولُ وهو مسجَّلٌ يُحيل صفحةَ الدخول إلى اللوحة فينتظر `page.fill` حقلاً لا وجودَ له (سقط CI بذلك).
+    """
     results: dict[str, dict[str, int]] = {}
     logged_in_as = None
-    for name, who in PAGES:
+    for name, who in [*PAGES, *EVALUATION_PAGES]:
         user = request.getfixturevalue(who)
         if logged_in_as != who:
+            page.context.clear_cookies()
             _login(page, live_server, user)
             logged_in_as = who
-        page.goto(f"{live_server.url}{_url(name)}")
+        page.goto(f"{live_server.url}{_target(name)}")
         page.wait_for_load_state("networkidle")
         counts = ratchet.measure_page(page)
         if counts:
@@ -54,6 +82,7 @@ def _measure_all(request, page, live_server) -> dict[str, dict[str, int]]:
 
 
 def test_axe_violations_have_not_grown(request, page, live_server, school_bus, library_book):
+    _seed_evaluations(request)
     current = _measure_all(request, page, live_server)
 
     if os.environ.get("AXE_UPDATE"):

@@ -35,7 +35,7 @@
 {% kpi_strip label="حصص اليوم" %}
   {% kpi "إجمالي الحصص" all_count %}
   {% kpi "مكتملة" completed_count tone="green" %}
-  {% kpi "غير مكتملة" open_count tone=open_tone title="حصصٌ لم يُنهَ رصدُها بعد — منها الملغاة" %}
+  {% kpi "غير مكتملة" open_count tone=open_tone sub="تشمل الملغاة" %}
 {% endkpi_strip %}
 
 {# ── فلاتر ذكية ── #}

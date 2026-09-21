@@ -56,11 +56,11 @@
       <div class="comp-actions">
         <form method="post" action="{% url 'compensatory_approve' comp.pk %}">{% csrf_token %}
           <input type="hidden" name="action" value="approve">
-          <button class="btn-sm btn-approve">موافقة</button>
+          <button class="btn-sm btn-success">موافقة</button>
         </form>
         <form method="post" action="{% url 'compensatory_approve' comp.pk %}">{% csrf_token %}
           <input type="hidden" name="action" value="reject">
-          <button class="btn-sm btn-reject">رفض</button>
+          <button class="btn-sm btn-danger">رفض</button>
         </form>
       </div>
       {% endif %}

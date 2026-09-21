@@ -45,7 +45,7 @@
       {% if can_excuse %}
       {% field "accepted_excuse" "العذر المقبول لمن حضر بعد 9:00 — يقبله المدير أو من ينوب عنه (البند 2.4)" value=values.accepted_excuse id=eid maxlength=300 grow=True %}
       {% elif record.accepted_excuse %}
-      <p class="form-note">قُبل عذرٌ لهذا اليوم — نصُّه للمدير ومن ينوب عنه (البند 2.4)، وتغييرُ وقت الحضور يحتاج منهما قبولاً جديداً.</p>
+      {% callout "info" show=True %}قُبل عذرٌ لهذا اليوم — نصُّه للمدير ومن ينوب عنه (البند 2.4)، وتغييرُ وقت الحضور يحتاج منهما قبولاً جديداً.{% endcallout %}
       {% endif %}
     </div>
   </details>

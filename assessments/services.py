@@ -10,8 +10,9 @@ assessments/services.py
 
 from __future__ import annotations
 
+import logging
 from decimal import ROUND_HALF_UP, Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
 from django.db.models import Avg, Count, Q, QuerySet
@@ -20,6 +21,12 @@ from core.academic_calendar import academic_year_for_school
 from core.domain.grades import GRADE_BANDS, band_of
 from core.models import StudentEnrollment
 from core.models.academic import grade_order
+from core.verdict_read import (
+    failing_statuses,
+    passing_statuses,
+    pending_statuses,
+    verdict_engine_enabled,
+)
 
 from .models import (
     AnnualSubjectResult,
@@ -29,10 +36,15 @@ from .models import (
     StudentSubjectResult,
     SubjectClassSetup,
 )
-from .verdict_engine import VerdictEngine, ensure_open_year, verdict_engine_enabled
+from .verdict_engine import VerdictEngine, ensure_open_year
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
+
+
+logger = logging.getLogger(__name__)
+
+_ROW_KEYS = ("grade_", "absent_", "excused_", "notes_")
 
 
 class GradeService:
@@ -438,6 +450,75 @@ class GradeService:
         )
 
     @staticmethod
+    def _grade_from_post(
+        post: Any,
+        sid: str,
+        current: StudentAssessmentGrade | None,
+        is_absent: bool,
+        is_excused: bool,
+        notes: str,
+    ) -> tuple[Decimal | None, bool]:
+        """(الدرجة، تخطٍّ؟) لصفٍّ واحد من نموذج الحفظ الجماعيّ — منطقُ التخطّي الدفاعيّ."""
+        if is_absent or is_excused:
+            return None, False
+        grade = None
+        if f"grade_{sid}" in post:
+            raw = post[f"grade_{sid}"].strip()
+            if raw:
+                try:
+                    grade = Decimal(raw)
+                except (ValueError, TypeError, ArithmeticError) as e:
+                    logger.warning("فشل تحويل درجة الطالب %s إلى Decimal: %r — %s", sid, raw, e)
+                    return None, True
+            # raw فارغ مع وجود المفتاح = مسحٌ صريحٌ من المستخدم (grade=None)
+        elif current is not None:
+            grade = current.grade  # المفتاحُ غائبٌ: أبقِ الدرجةَ المحفوظة
+        # صفٌّ فارغٌ بلا سجلٍّ سابق: لا تُنشئ سجلاً خاوياً
+        return grade, grade is None and current is None and not notes.strip()
+
+    @staticmethod
+    def save_all_from_post(assessment: Assessment, post: Any, entered_by: CustomUser | None) -> int:
+        """حفظ كل درجات تقييمٍ دفعةً واحدة من POST، ثمّ إعادة الحساب مرّةً وتحديث الحالة.
+
+        صفٌّ لم يُرسَل منه شيءٌ لا يُلمس أبداً — الغيابُ ليس «مسحاً». يُرجع عددَ المحفوظ."""
+        enrollments = StudentEnrollment.objects.filter(
+            class_group=assessment.class_group, is_active=True
+        ).select_related("student")
+        existing = {
+            g.student_id: g for g in StudentAssessmentGrade.objects.filter(assessment=assessment)
+        }
+        saved = 0
+        for enr in enrollments:
+            sid = str(enr.student.id)
+            if not any(f"{p}{sid}" in post for p in _ROW_KEYS):
+                continue
+            current = existing.get(enr.student.id)
+            is_absent = post.get(f"absent_{sid}") == "1"
+            is_excused = post.get(f"excused_{sid}") == "1"
+            notes = post.get(f"notes_{sid}", "")
+            grade, skip = GradeService._grade_from_post(
+                post, sid, current, is_absent, is_excused, notes
+            )
+            if skip:
+                continue
+            GradeService.save_grade(
+                assessment=assessment,
+                student=enr.student,
+                grade=grade,
+                is_absent=is_absent,
+                is_excused=is_excused,
+                notes=notes,
+                entered_by=entered_by,
+                recalc=False,  # [PERF-02] يُعاد الحساب دفعةً واحدة بعد الحلقة
+            )
+            saved += 1
+        # [PERF-02] إعادة حساب الفصل كاملاً مرة واحدة (batch) بدل مرة لكل طالب
+        GradeService.recalculate_full_class(assessment.package.setup)
+        assessment.status = "graded"
+        assessment.save(update_fields=["status"])
+        return saved
+
+    @staticmethod
     def recalculate_full_class(setup: SubjectClassSetup, actor: CustomUser | None = None) -> None:
         """إعادة حساب كامل — كل طلاب الفصل، كلا الفصلين، والسنوي.
         [PERF-01] يستخدم calc_package_scores_batch (استعلام واحد للدرجات لكل فصل) بدل
@@ -560,9 +641,9 @@ class GradeService:
         year = year or academic_year_for_school(setup.school)
         stats = AnnualSubjectResult.objects.filter(setup=setup, academic_year=year).aggregate(
             total=Count("id"),
-            passed=Count("id", filter=Q(status="pass")),
-            failed=Count("id", filter=Q(status="fail")),
-            incomplete=Count("id", filter=Q(status="incomplete")),
+            passed=Count("id", filter=Q(status__in=passing_statuses())),
+            failed=Count("id", filter=Q(status__in=failing_statuses())),
+            incomplete=Count("id", filter=Q(status__in=pending_statuses())),
             avg=Avg("annual_total"),
         )
         total = stats["total"]
@@ -597,7 +678,9 @@ class GradeService:
         """الطلاب الراسبون سنوياً"""
         year = year or academic_year_for_school(school)
         return (
-            AnnualSubjectResult.objects.filter(school=school, academic_year=year, status="fail")
+            AnnualSubjectResult.objects.filter(
+                school=school, academic_year=year, status__in=failing_statuses()
+            )
             .select_related("student", "setup__subject", "setup__class_group")
             .order_by(grade_order("setup__class_group__grade"), "student__full_name")
         )
@@ -693,7 +776,7 @@ class GradeService:
             .values("setup__subject__name_ar")
             .annotate(
                 avg=Avg("annual_total"),
-                fail_count=Count("id", filter=Q(status="fail")),
+                fail_count=Count("id", filter=Q(status__in=failing_statuses())),
                 total=Count("id"),
             )
             .order_by("-avg")[:10]

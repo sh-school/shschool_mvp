@@ -28,6 +28,7 @@ from core.domain.attendance import attendance_rate
 from core.export_utils import add_excel_title_rows, brand_cell, excel_table_styles, xl_font
 from core.models import StudentEnrollment
 from core.privacy import mask_national_id
+from core.verdict_read import failing_statuses, passing_statuses
 from operations.models import StudentAttendance
 
 if TYPE_CHECKING:
@@ -82,8 +83,8 @@ class ReportDataService:
         ]
 
         total = annual.count()
-        passed = annual.filter(status="pass").count()
-        failed = annual.filter(status="fail").count()
+        passed = annual.filter(status__in=passing_statuses()).count()
+        failed = annual.filter(status__in=failing_statuses()).count()
         grades = [float(r.annual_total) for r in annual if r.annual_total]
         avg = round(sum(grades) / len(grades), 2) if grades else None
 
@@ -154,9 +155,9 @@ class ReportDataService:
                 if annual:
                     if annual.annual_total:
                         grades.append(float(annual.annual_total))
-                    if annual.status == "pass":
+                    if annual.status in passing_statuses():
                         passed += 1
-                    elif annual.status == "fail":
+                    elif annual.status in failing_statuses():
                         failed += 1
 
             avg = round(sum(grades) / len(grades), 2) if grades else None

@@ -66,7 +66,6 @@
       {% endwith %}
       {% endfor %}
     </div>
-    <p class="form-note lab-note">الدرجة لغة العرض وحدها؛ القيم الأصلية في البطاقات.</p>
   {% endsection_card %}
 
   {# ── أشدّ المعلّمين ضغطاً والموارد ── #}
@@ -150,8 +149,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/vendor/chart.umd.min.js' %}" defer></script>
-<script nonce="{{ request.csp_nonce }}" defer>
+<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+<script nonce="{{ request.csp_nonce }}">
   (function () {
     var data = JSON.parse(document.getElementById("lab-radar-data").textContent);
     var el = document.getElementById("lab-radar");
