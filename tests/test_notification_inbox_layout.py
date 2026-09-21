@@ -134,8 +134,9 @@ class TestInboxView:
         by_type = c.get(reverse("notification_inbox") + "?group=type").content.decode()
 
         assert "page-noscroll" in by_day and "page-noscroll" in by_type
-        assert "notif-feed--types" in by_type
-        assert "notif-feed--types" not in by_day
+        # الصنفُ على وسم الحاوية لا في نصّ السكربت (يذكر المحدِّدَ نفسَه).
+        assert 'class="notif-feed notif-feed--types"' in by_type
+        assert 'class="notif-feed notif-feed--types"' not in by_day
 
     def test_overflowing_scroll_containers_become_keyboard_regions(
         self, client_as, school, teacher_user
