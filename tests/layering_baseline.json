@@ -48,20 +48,6 @@
    "reason": "زاد استدعاءً في #328 (f4828437) قبل وصول الحارس إلى main؛ يُنقل إلى dashboard/ ضمن البند 20",
    "to": 188,
    "where": "core/views_dashboard.py::dashboard"
-  },
-  {
-   "from": 0,
-   "metric": "get_school",
-   "reason": "نقلٌ حرفيٌّ من core/views_media.py إلى governance (ADR-0004): الدَّينُ نفسُه بعينه لا زيادةٌ جديدة — كان مسجَّلاً باسم الملفّ القديم",
-   "to": 1,
-   "where": "governance/views_media.py"
-  },
-  {
-   "from": 0,
-   "metric": "orm",
-   "reason": "نقلٌ حرفيٌّ من core/views_media.py إلى governance (ADR-0004): الدَّينُ نفسُه بعينه لا زيادةٌ جديدة — كان مسجَّلاً باسم الملفّ القديم",
-   "to": 6,
-   "where": "governance/views_media.py::serve_db_file"
   }
  ],
  "core_import_sites": {
@@ -141,7 +127,6 @@
   "core/views_search.py": 1,
   "core/views_students.py": 2,
   "exam_control/views.py": 10,
-  "governance/views_media.py": 1,
   "library/views.py": 6,
   "notifications/views.py": 5,
   "operations/api_views.py": 1,
@@ -378,9 +363,6 @@
   },
   "exam_control/views.py::supervisors": {
    "orm": 12
-  },
-  "governance/views_media.py::serve_db_file": {
-   "orm": 6
   },
   "library/views.py::book_list": {
    "orm": 8
