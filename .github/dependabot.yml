@@ -11,6 +11,11 @@ updates:
     open-pull-requests-limit: 10
     labels: ["dependencies", "python"]
     groups:
+      # الثلاثةُ تُرقّى معاً: سقوطُ «Timeout reading from redis» (2026-09) جاء من ترقيةِ
+      # redis-py وحدَها تحت channels-redis؛ فطلبٌ واحدٌ يمرّ على اختبار التكامل
+      # tests/test_channel_layer_redis_integration.py. أوّلُ مجموعةٍ مطابِقةٍ تكسب، فتسبق الآتية.
+      redis-channels:
+        patterns: ["redis", "channels", "channels-redis"]
       python-patch-minor:
         update-types: ["patch", "minor"]
     ignore:
