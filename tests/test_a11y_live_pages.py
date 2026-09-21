@@ -117,9 +117,9 @@ def test_every_field_on_the_page_has_a_computed_name(
     assert not missing, f"{name}: حقولٌ بلا اسمٍ محسوب:\n  " + "\n  ".join(missing)
 
 
-#: صفحاتُ تقييم الأداء (المادة 15–20) بحسابَيها. **خارج `PAGES` عمداً**: `tests/test_a11y_axe_ratchet.py`
-#: يستورد `PAGES` ويسجّل الدخول مرّةً بحساب المدير وحدَه، فصفحةٌ بحساب المعلّم فيها تُعيد تسجيلَ الدخول
-#: وهو مسجَّلٌ فتنتظر حقلاً لا وجودَ له (سقط CI بذلك). وضمُّها إلى axe يحتاج قاعدةَ قياسٍ وحسابَين.
+#: صفحاتُ تقييم الأداء (المادة 15–20) بحسابَيها. قائمةٌ مستقلّةٌ عن `PAGES` عمداً: `PAGES` كلُّها بحساب
+#: المدير، وهذه بحسابَين. و`tests/test_a11y_axe_ratchet.py` يقيسها مع `PAGES` (ببيانات `_evaluation_case`)
+#: ويمسح الكوكيز عند تبديل الحساب — فالدخولُ وهو مسجَّلٌ كان يُسقط `Page.fill` بمهلةٍ.
 EVALUATION_PAGES = [
     ("evaluation_dashboard", "principal_user"),
     ("evaluation_grievances", "principal_user"),
