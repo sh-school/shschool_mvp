@@ -134,11 +134,22 @@ WSGI_APPLICATION = "shschool.wsgi.application"
 ASGI_APPLICATION = "shschool.asgi.application"
 
 # ── Django Channels — Channel Layer (Redis) ────────────────────────────
+CHANNEL_LAYER_SOCKET_TIMEOUT = 15  # ثانية؛ يجب أن تفوق RedisChannelLayer.brpop_timeout (5)
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [config("REDIS_URL", default="redis://localhost:6379/0")],
+            # مهلةُ القراءة صريحةٌ: redis-py ≥ 8 صار افتراضُها 5s (كان بلا مهلة)،
+            # وchannels_redis يقرأ بـBZPOPMIN بمهلة `brpop_timeout` = 5s على الاتصال
+            # نفسه — فتتساوى المهلتان ويسقط كلُّ مستهلكٍ خامل بـ«Timeout reading from
+            # redis» بعد ~5s. تبقى أكبر من 5s بهامشٍ يكشف الاتصالَ الميّت.
+            "hosts": [
+                {
+                    "address": config("REDIS_URL", default="redis://localhost:6379/0"),
+                    "socket_timeout": CHANNEL_LAYER_SOCKET_TIMEOUT,
+                    "socket_connect_timeout": 5,
+                }
+            ],
             "capacity": 1500,  # حد الرسائل لكل channel
             "expiry": 30,  # TTL الرسالة بالثواني
         },
@@ -452,6 +463,8 @@ VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "")
 # وبريدُه وجوّالُه ليست إعداداتٍ تُودَع (انظر `.env.example`).
 DPO_NAME = os.environ.get("DPO_NAME", "")
 DPO_EMAIL = os.environ.get("DPO_EMAIL", "")
+# مستلِمُ إشعارات «أرسل إلى المطوّر»: يُضبط على خدمة الويب؛ فارغٌ = لا إرسال (يُسجَّل فشلاً).
+DEVELOPER_FEEDBACK_RECIPIENT = os.environ.get("DEVELOPER_FEEDBACK_RECIPIENT", "")
 DPO_PHONE = os.environ.get("DPO_PHONE", "")
 
 # ── الاحتفاظُ بالبيانات (PDPPL م.7 و10) ───────────────────────────────

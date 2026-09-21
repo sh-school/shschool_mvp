@@ -10,6 +10,7 @@
 """
 
 import pathlib
+import re
 
 import pytest
 from django.template.loader import render_to_string
@@ -18,7 +19,7 @@ from django.urls import reverse
 #: نصُّ رؤية الوزارة كما تنشره في صفحة «مهام ومسؤوليات الوزارة»
 #: (edu.gov.qa) ضمن استراتيجيتها 2024-2030 — لا الرسالة، فهما نصّان
 #: مختلفان في الصفحة نفسها. ونصٌّ يُنسب إلى وزارةٍ يُؤخذ عنها لا يُصاغ.
-VISION = "متعلم ريادي لتنمية مستدامة"
+VISION = "مُتَعَلِّمٌ رِيَادِيٌّ لِتَنْمِيَةٍ مُسْتَدَامَةٍ"
 
 PARTIAL = pathlib.Path("templates/components/ministry_vision.html")
 
@@ -29,6 +30,21 @@ STANDALONE_DOCS = [
     "templates/behavior/pdf/base_form.html",
     "templates/reports/base_qatar_report.html",
 ]
+
+
+def _plain(rendered: str) -> str:
+    """النصُّ بلا الوسم الذي يلفّه (`vision-text`)."""
+    return re.sub(r"<[^>]+>", "", rendered).strip()
+
+
+def test_the_vision_is_vowelled_in_the_blue_tashkeel_font():
+    """قرارُ المالك 2026-09-20: الرؤيةُ مشكولةٌ بحركاتٍ زرقاء، في كلّ موضعٍ تظهر فيه."""
+    rendered = render_to_string("components/ministry_vision.html").strip()
+
+    assert 'class="vision-text"' in rendered
+    assert re.search("[ً-ْ]", VISION), "نصُّ الرؤية بلا حركات"
+    css = pathlib.Path("static/css/custom/20-components.css").read_text(encoding="utf-8")
+    assert ".vision-text" in css and "Tajawal Tashkeel" in css
 
 
 def test_the_vision_has_one_source():
@@ -54,7 +70,7 @@ def test_the_partial_falls_back_without_a_school():
     فيه — يبقى النصّ الافتراضيّ نفسُه ظاهراً، لا فراغاً في الفوتر."""
     rendered = render_to_string("components/ministry_vision.html").strip()
 
-    assert rendered == VISION
+    assert _plain(rendered) == VISION
 
 
 @pytest.mark.django_db
@@ -65,7 +81,7 @@ def test_the_partial_reads_the_schools_vision_field(school):
 
     rendered = render_to_string("components/ministry_vision.html", {"school": school}).strip()
 
-    assert rendered == "نصٌّ مخصَّصٌ اعتمدته هذه المدرسة"
+    assert _plain(rendered) == "نصٌّ مخصَّصٌ اعتمدته هذه المدرسة"
 
 
 @pytest.mark.django_db

@@ -52,6 +52,7 @@ from core.models import (
 )
 from core.parent_consent import needs_parent_consent
 from core.permissions import LIBRARY_BORROWINGS_ALL
+from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing, LibraryBook
 from notifications.models import InAppNotification, UserNotificationPreference
 from operations.models import Session, StudentAttendance
@@ -228,8 +229,8 @@ def student_grades(request, student_id):
         "student": student,
         "year": year,
         "total_subjects": annual.count(),
-        "passed": annual.filter(status="pass").count(),
-        "failed": annual.filter(status="fail").count(),
+        "passed": annual.filter(status__in=passing_statuses()).count(),
+        "failed": annual.filter(status__in=failing_statuses()).count(),
         "average": average,
         "subjects": annual,
     }

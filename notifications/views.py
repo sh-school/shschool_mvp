@@ -74,6 +74,12 @@ def notifications_dashboard(request):
             "year": year,
             **stats,
             **_dashboard_presentation(stats, year),
+            # كم وليَّ أمرٍ سيبلغه كلُّ زر — استعلامان، ولا يُحسبان إن لم يكن ما يُرسَل.
+            "recipients": (
+                NotificationService.count_alert_recipients(school, year)
+                if stats.get("pending_absence_count") or stats.get("failing_students")
+                else {"absence": 0, "fail": 0}
+            ),
         },
     )
 
@@ -94,17 +100,27 @@ def _dashboard_presentation(stats: dict, year) -> dict:
     }
 
 
+def _deferred_note(counts) -> str:
+    """ما لم يخرج بعد لأنّ مستلمَه في ساعات هدوء: يُقال صراحةً لا يُحسب «أُرسل»."""
+    deferred = getattr(counts, "deferred", 0)
+    if not deferred:
+        return ""
+    return f" — منها {deferred} مؤجَّلٌ إلى انتهاء ساعات هدوء المستلم"
+
+
 @login_required
 @capability_required("notifications.broadcast")
 @require_POST
 def send_absence_alerts(request):
     """إرسال كل تنبيهات الغياب المعلقة"""
     school = request.user.get_school()
-    sent, failed = NotificationService.send_pending_absence_alerts(
-        school=school, sent_by=request.user
-    )
+    counts = NotificationService.send_pending_absence_alerts(school=school, sent_by=request.user)
+    sent, failed = counts
     messages.success(
-        request, f"✓ تم إرسال {sent} إشعار غياب" + (f" — فشل {failed}" if failed else "")
+        request,
+        f"✓ تم إرسال {sent} إشعار غياب"
+        + (f" — فشل {failed}" if failed else "")
+        + _deferred_note(counts),
     )
     return redirect("notifications_dashboard")
 
@@ -116,11 +132,15 @@ def send_fail_alerts(request):
     """إرسال إشعارات الرسوب للسنة الدراسية"""
     school = request.user.get_school()
     year = request.POST.get("year") or academic_year_for(request)
-    sent, failed = NotificationService.send_fail_alerts_for_year(
+    counts = NotificationService.send_fail_alerts_for_year(
         school=school, year=year, sent_by=request.user
     )
+    sent, failed = counts
     messages.success(
-        request, f"✓ تم إرسال {sent} إشعار رسوب" + (f" — فشل {failed}" if failed else "")
+        request,
+        f"✓ تم إرسال {sent} إشعار رسوب"
+        + (f" — فشل {failed}" if failed else "")
+        + _deferred_note(counts),
     )
     return redirect("notifications_dashboard")
 

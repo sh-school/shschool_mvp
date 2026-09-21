@@ -126,11 +126,26 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 /* حذفٌ مُسبَّب في سجلّ أحداث الطالب: حقلُ السبب وزرُّه في سطرٍ واحد. */
 .sa-undo { display: inline-flex; gap: var(--sp-1); align-items: center; }
 /* رابطُ التصحيح بجانب اسم الطالب في الكشف: خافتٌ حتى المرور، فلا يزاحم الرصد. */
-.rec-row__fix { font-size: 10px; color: var(--text-muted); opacity: .6; text-decoration: none; margin-inline-start: var(--sp-1); }
+.rec-row__fix { font-size: 0.625rem; color: var(--text-muted); opacity: .6; text-decoration: none; margin-inline-start: var(--sp-1); }
 .rec-row:hover .rec-row__fix, .rec-row__fix:focus-visible { opacity: 1; color: var(--maroon-fg); }
 .sa-undo .form-control { width: 140px; min-height: 30px; padding-block: var(--sp-0-5); font-size: var(--text-xs); }
 
 /* عذرُ الغياب — نموذجٌ قصيرٌ في بطاقة (wings/partials/excuse_card.html) */
+/* سجلُّ أحداث الطالب: أسطرٌ مضغوطةٌ (سطرٌ واحد لكلّ حدث) وصفحاتٌ بدل تمريرٍ داخل البطاقة. */
+/* الجدولُ بأعمدةٍ ثابتةِ النِّسَب لا يتجاوز عرضَ البطاقة أيّاً كان: النصُّ الطويلُ يُقتطع بنقطتين، وحقلُ السبب يتقلّص. */
+.ev-table { table-layout: fixed; width: 100%; }
+.ev-table td, .ev-table th { padding-block: var(--sp-1); }
+/* تسميةُ الحقل وتلميحُها سطرٌ واحد: الطويلُ يُقتطع بنقطتين. */
+.exc-form__grid .form-label > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev-table td, .ev-table th { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev-table th:nth-child(1) { inline-size: 13%; }
+.ev-table th:nth-child(2) { inline-size: 27%; }
+.ev-table th:nth-child(3) { inline-size: 30%; }
+.ev-table th:nth-child(4) { inline-size: 30%; }
+.ev-table .sa-undo { display: flex; inline-size: 100%; min-inline-size: 0; }
+.ev-table .sa-undo .form-control { flex: 1 1 0; inline-size: auto; min-inline-size: 0; }
+.ev-table .sa-undo .btn-xs { flex: 0 0 auto; }
+.ev-pager { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-block-start: var(--sp-2); }
 .exc-form__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); }
 .exc-form__grid .form-label { display: flex; flex-direction: column; gap: var(--sp-1); margin: 0; }
 .exc-form__wide { grid-column: 1 / -1; }
@@ -265,7 +280,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .grid-cell__nid { margin: var(--sp-0-5) 0 0; font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; text-align: center; }
 .grid-cell__actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-1); margin-block-start: var(--sp-1); }
 .att-btn--tile { min-block-size: 44px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-0-5); font-weight: 700; }
-.att-btn--tile span { font-size: 10px; }
+.att-btn--tile span { font-size: 0.625rem; }
 
 /* ── توقيعا المنسّقَين على بطاقة التبديل ────────────────────────────────
    القارئُ يحتاج أن يعرف **أين وقف الطلب** لا أن يستنتجه من حالةٍ واحدة:
@@ -468,18 +483,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   opacity: .8;
 }
 
-/* ── جرسٌ من طابقٍ آخر: خطأٌ في البيانات لا حالةٌ مشروعة ── */
-.wing-warn {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-1-5);
-  font-size: var(--text-xs);
-  font-weight: 600;
-  padding: 5px var(--sp-2);
-  border-radius: var(--radius-sm);
-  background: var(--status-danger-bg);
-  color: var(--status-danger-fg);
-}
+/* ── جرسٌ من طابقٍ آخر: خطأٌ في البيانات لا حالةٌ مشروعة — `ui-callout--error` بمقاسٍ صغير ── */
 
 /* ── ترويسةُ الطابق: العددُ والجرسُ في ذيل الشريط العنّابيّ ── */
 .floor-meta { display: flex; align-items: center; gap: var(--sp-1-5); flex-wrap: wrap; margin-inline-start: auto; }
@@ -507,12 +511,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .bell-table td.is-break .bell-slot__name { color: var(--status-success-fg); font-weight: 700; }
 .bell-table td.is-break .bell-slot__time { color: var(--status-success-fg); opacity: .85; }
 .bell-none { text-align: center; color: var(--text-muted); }
-.bell-note {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  line-height: 1.8;
-  margin: var(--sp-3) 0 0;
-}
+/* `bell-note` صار `ui-note` (20-components) */
 
 /* ── استمارةُ التغطية داخل بطاقة الجناح ── */
 .wing-cover-form {
@@ -554,7 +553,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 }
 .wing-line .wing-box__count { margin-inline-start: auto; white-space: nowrap; }
 .wing-line--now .wing-now,
-.wing-line--now .wing-warn { padding: var(--sp-0-5) var(--sp-2); font-size: var(--text-xs); }
+.wing-line--now .ui-callout { align-items: center; padding: var(--sp-0-5) var(--sp-2); font-size: var(--text-xs); font-weight: 600; }
 .wing-line--now { flex-wrap: nowrap; }
 .wing-line--now { gap: var(--sp-1); }
 .wing-line--now .wing-now { flex: 1 1 0; min-inline-size: 0; gap: var(--sp-1); padding-inline: var(--sp-1-5); }
@@ -691,7 +690,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 
 @media (max-width: 640px) {
   .rec-row__pick { gap: var(--sp-0-5); }
-  .rec-pick > span { min-width: 44px; font-size: 11px; }
+  .rec-pick > span { min-width: 44px; font-size: 0.6875rem; }
 
 }
 
@@ -707,7 +706,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .rec-row { flex-wrap: wrap; }
 
 .rec-row__flags { display: flex; gap: var(--sp-1); flex-wrap: wrap; }
-.rec-row__flags .badge { font-size: 11px; }
+.rec-row__flags .badge { font-size: 0.6875rem; }
 /* «أين الطالب» للغائب وحدَه، والدقائقُ للمتأخّر وحدَه — فالسطرُ قصيرٌ ما دام
    الطالبُ حاضراً، وهو الغالب. */
 .rec-row__more { display: flex; gap: var(--sp-1); flex-shrink: 0; }
@@ -799,6 +798,8 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 }
 .per-head__time b { color: var(--text-primary); }
 .per-head__note { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
+/* الملاحظتان في سطرٍ واحد ما اتّسع العرض، وتلتفّان في الهاتف. */
+.per-head__notes { display: flex; flex-wrap: wrap; column-gap: var(--sp-3); }
 .per-bulk { display: flex; gap: var(--sp-1-5); }
 
 /* رقاقةُ حال الحصّة: كلمةٌ ولونٌ معاً. */
@@ -806,7 +807,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   display: inline-block;
   padding: 1px var(--sp-2);
   border-radius: 999px;
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 600;
   line-height: 1.6;
   color: var(--text-secondary);
@@ -923,6 +924,109 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-grid .rec-row:has(.rec-pick--late input:checked) > th,
 .per-grid .rec-row:has(.rec-pick--late input:checked) > .per-grid__no { background: var(--status-warning-bg); box-shadow: inset -3px 0 0 var(--status-warning-dark); }
 
+/* ── الشبكة: الجدولُ نفسُه صفّاً = بطاقة (لا نسخةَ ثانيةٌ من الحقول) ──────────
+   تُفعَّل بـ`.is-tiles` على الغلاف. الاسمُ ثمّ الأزرارُ الثلاثةُ ثمّ حالُ الحصص
+   الأخرى حروفاً صغيرة. ورأسُ الجدول يُخفى وتحلّ محلَّه `.per-tabs` للتنقّل بين الحصص. */
+.per-view { display: flex; gap: var(--sp-1); }
+/* مفاتيحُ الرأس وتحتها شريطُ الحصص — في بطاقة الحصّة المفتوحة لا فوق الشبكة. */
+.per-head__tools { display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-end; }
+.per-head__keys { display: flex; gap: var(--sp-3); flex-wrap: wrap; justify-content: flex-end; }
+.per-tabs { display: flex; gap: var(--sp-1-5); flex-wrap: wrap; justify-content: flex-end; }
+.per-grid-wrap.is-tiles { overflow: visible; background: none; border: 0; }
+.per-tab {
+  /* بمقاس مفاتيح الرأس (`.btn-sm`) ليحاذيها: الخطُّ والحشوةُ والوزنُ نفسُها. */
+  display: inline-flex; align-items: center;
+  padding: var(--sp-1-5) var(--sp-3-5);
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
+  color: var(--text-primary); font-size: var(--text-xs); font-weight: 700; line-height: 1.5; text-decoration: none;
+}
+.per-tab.is-focus { background: var(--maroon); border-color: var(--maroon); color: var(--on-fill); }
+.per-tab.is-confirmed { border-color: var(--status-success); }
+.per-tab.is-missed { border-color: var(--status-danger); }
+
+.per-grid-wrap.is-tiles .per-grid,
+.per-grid-wrap.is-tiles .per-grid tbody { display: block; }
+.per-grid-wrap.is-tiles .per-grid thead { display: none; }
+.per-grid-wrap.is-tiles .per-grid tbody {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: var(--sp-3);
+}
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row {
+  display: flex; flex-wrap: wrap; align-content: flex-start; gap: var(--sp-1-5);
+  padding: var(--sp-2-5); background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+}
+/* الحالةُ شريطٌ جانبيٌّ بلون رمزها المركزيّ (كشريط `.per-head`) والبطاقةُ محايدة: لا مساحةَ
+   خضراءَ تُتعب العين في شعبةٍ أغلبُها حاضر، ولا يضيع الاستثناءُ. */
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row { border-inline-start-width: 4px; }
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row:has(.rec-pick--present input:checked) { border-inline-start-color: var(--status-success); }
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row:has(.rec-pick--absent input:checked) { border-inline-start-color: var(--status-danger); }
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row:has(.rec-pick--late input:checked) { border-inline-start-color: var(--status-warning); }
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > * {
+  display: block; min-width: 0; max-width: none; padding: 0; border: 0;
+  background: none; box-shadow: none; position: static;
+}
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > .per-grid__no { display: none; }
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > .per-grid__name { flex: 1 1 100%; order: 0; }
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > td.per-cell.is-focus { flex: 1 1 100%; order: 2; border: 0; background: none; }
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > td.per-cell.is-focus { display: flex; gap: var(--sp-1); position: relative; }
+.per-grid-wrap.is-tiles .per-cell.is-focus .rec-row__pick { flex: 1 1 0; min-width: 0; display: flex; }
+.per-grid-wrap.is-tiles .per-cell.is-focus .rec-pick { flex: 1 1 0; }
+.per-grid-wrap.is-tiles .per-cell.is-focus .rec-pick > span { min-width: 0; min-height: 40px; padding-inline: var(--sp-1); }
+.per-grid-wrap.is-tiles .per-mark { width: 20px; height: 20px; font-size: 0.6875rem; }
+/* اسمُ الطالب وحصصُه الأخرى في سطرٍ واحد؛ والشاراتُ والتصحيحُ تحته بخطٍّ أصغر. */
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row { gap: var(--sp-1); padding: var(--sp-2); }
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > td.per-cell:not(.is-focus) { display: flex; align-items: center; flex: 0 0 auto; order: 3; }
+/* «تصحيح» في زاوية البطاقة لا في سطرٍ خاصّ به: يوفّر سطراً كاملاً من الارتفاع. */
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row { position: relative; }
+.per-grid-wrap.is-tiles .rec-row__fix { opacity: 1; position: absolute; inset-block-start: var(--sp-2); inset-inline-end: var(--sp-2); font-size: 0.625rem; }
+.per-grid-wrap.is-tiles .per-grid__name { padding-inline-end: 0; }
+/* الاسمُ سطرٌ واحدٌ بخطّه المعتاد: الطويلُ يُقتطع بنقطتين، وتمامُه في التلميح. */
+.per-grid-wrap.is-tiles .rec-row__file {
+  display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding-inline-end: var(--sp-8);
+}
+.per-grid-wrap.is-tiles .rec-row__flags { margin-top: var(--sp-0-5); }
+.per-grid-wrap.is-tiles .rec-row__flags .badge { font-size: 0.625rem; padding-block: 0; }
+
+/* «خروج» ونافذةُ وجهاتِه، ودقائقُ التأخّر: عائمتان فوق البطاقة لا تزيدان ارتفاعَها.
+   خارجَ الشبكة (الجدول) لا يظهر «خروج»: قائمةُ «أين الطالب» موجودةٌ في الخلية. */
+.rec-exit, .rec-pop { display: none; }
+.per-grid-wrap.is-tiles .rec-exit {
+  display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+  max-width: 46%; min-height: 40px; padding-inline: var(--sp-2); cursor: pointer;
+  font: inherit; font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary);
+  background: var(--surface-alt); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.per-grid-wrap.is-tiles .rec-exit:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; }
+.per-grid-wrap.is-tiles .rec-exit.is-set { background: var(--status-danger-bg); border-color: var(--status-danger); color: var(--status-danger-fg); }
+.rec-exit__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* اللوحان العائمان داخل البطاقة (الطالب) لا يخرجان عنها (قرارُ المالك 2026-09-20): خليّةُ الرصد بلا `position`
+   فتُرسى اللوحان على البطاقة كلِّها؛ ونافذةُ الوجهات تغطّيها بعمودَين، ودقائقُ التأخّر في أسفلها فوق صفّ الحصص. */
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > td.per-cell.is-focus { position: static; }
+.per-grid-wrap.is-tiles .is-exit-open .rec-pop,
+.per-grid-wrap.is-tiles .per-cell.is-focus .per-minutes { position: absolute; z-index: 6; box-shadow: var(--shadow-md); }
+.per-grid-wrap.is-tiles .is-exit-open .rec-pop {
+  inset: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: center; gap: var(--sp-0-5);
+  padding: var(--sp-1); background: var(--popover-bg); border: 1px solid var(--popover-border); border-radius: var(--radius-md);
+}
+.per-grid-wrap.is-tiles .per-cell.is-focus .per-minutes { inset-inline: var(--sp-2); inset-block-end: var(--sp-2); }
+/* البطاقةُ تتّسع لنافذة الوجهات وهي مفتوحة: سبعةُ خياراتٍ في أربعة صفوف. */
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row:has(.is-exit-open) { min-block-size: 9.5rem; }
+.rec-pop__opt {
+  min-height: 30px; padding-inline: var(--sp-1-5); text-align: start; cursor: pointer;
+  font: inherit; font-size: var(--text-xs); color: var(--text-primary);
+  background: none; border: 0; border-radius: var(--radius-sm);
+}
+.rec-pop__opt:hover, .rec-pop__opt:focus-visible { background: var(--surface); }
+.per-grid-wrap.is-tiles .rec-row__more { display: contents; }
+.per-grid-wrap.is-tiles .per-where { display: none; }
+.per-grid-wrap.is-tiles .per-cell.is-focus .per-minutes { width: auto; background: var(--popover-bg); border-color: var(--popover-border); }
+/* دقائقُ التأخّر تُفتح بالضغط على «متأخّر» ولا تبقى (JS: is-min-open). */
+.per-grid-wrap.is-tiles .per-cell.is-focus .per-minutes { display: none; }
+.per-grid-wrap.is-tiles .per-cell.is-focus.is-min-open .per-minutes { display: block; }
+
 /* شريطُ التثبيت: لاصقٌ أسفلَ الشاشة، فلا يمرّر المشرفُ ستّةً وعشرين سطراً ليُثبّت. */
 .per-bar {
   position: sticky;
@@ -955,7 +1059,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-exports-menu > summary::-webkit-details-marker { display: none; }
 .per-exports-menu[open] > .per-exports {
   position: absolute; inset-inline-end: var(--sp-3); inset-block-start: calc(100% + 6px); z-index: 20;
-  padding: var(--sp-2); background: var(--surface); border: 1px solid var(--border-strong);
+  padding: var(--sp-2); background: var(--popover-bg); border: 1px solid var(--popover-border);
   border-radius: var(--radius-md); box-shadow: var(--shadow-md); color: var(--text-primary);
 }
 .per-exports-menu[open] > .per-exports { flex-direction: column; align-items: stretch; gap: var(--sp-1); inline-size: max-content; min-inline-size: 11rem; }
@@ -969,9 +1073,13 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 @media (max-width: 640px) {
   .per-head { padding: var(--sp-3); }
   .per-head__badge { width: 44px; height: 44px; font-size: var(--text-base); }
+  .per-head__tools, .per-head__keys, .per-tabs { width: 100%; align-items: stretch; justify-content: flex-start; }
   .per-bulk { width: 100%; }
   .per-bulk .btn-sm { flex: 1; min-height: 40px; }
   .per-grid__name { min-width: 130px; max-width: 150px; }
+  /* الشبكةُ عمودان في الهاتف: بطاقةٌ بـ150px تتّسع لأزرارٍ ثلاثةٍ بخطّ 11px. */
+  .per-grid-wrap.is-tiles .per-grid tbody { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-2); }
+  .per-grid-wrap.is-tiles .per-cell.is-focus .rec-pick > span { font-size: 0.6875rem; }
   .per-cell.is-focus .rec-pick > span { min-height: 44px; min-width: 50px; }
   /* فوق شريط التنقّل السفليّ الثابت (72px في الهاتف) لا تحته. */
   .per-bar { bottom: 72px; padding: var(--sp-2) var(--sp-3); }
@@ -993,11 +1101,11 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 
 /* ── 1. شريطُ الأرقام: كلُّ بطاقةٍ سطرٌ واحد ──
    الاسمُ ثمّ الرقمُ ثمّ التفصيل، على خطٍّ قاعديٍّ واحد. والتفصيلُ وحدَه
-   يُقصّ حين يضيق؛ الاسمُ والرقمُ لا يُقصّان. و`auto-fit` بحدٍّ أدنى يعيد
+   يُقصّ حين يضيق؛ الاسمُ والرقمُ لا يُقصّان. و`auto-fit` بحدٍّ أدنى 200px (لا 170: قُصّ التفصيلُ في خمس بطاقاتٍ من ثمانٍ عند 1100px) يعيد
    الشريطَ عمودين في الهاتف بلا استعلامِ وسَط. */
 .ui-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   gap: var(--sp-2);
   min-inline-size: 0;
 }
@@ -1064,9 +1172,9 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
    الآن لا بـ`.card-bar`/`.ui-section__body` مباشرةً — طبقةٌ إضافيّةٌ في الشجرة. */
 .ui-section__fold-summary { margin: 0; cursor: pointer; list-style: none; }
 .ui-section__fold-summary::-webkit-details-marker { display: none; }
-.ui-section__fold-summary::before { content: "◂"; color: var(--on-fill); opacity: .85; font-size: 12px; transition: transform var(--transition-base); }
+.ui-section__fold-summary::before { content: "◂"; color: var(--on-fill); opacity: .85; font-size: 0.75rem; transition: transform var(--transition-base); }
 .ui-section__fold[open] > .ui-section__fold-summary::before { transform: rotate(-90deg); }
-.ui-section__fold-summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: -3px; border-radius: 6px; }
+.ui-section__fold-summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: -3px; border-radius: var(--radius-1-5); }
 .ui-section.is-flush > .ui-section__fold > .card-bar { margin: 0; }
 .ui-section.is-flush > .ui-section__fold > .ui-section__body > .table-wrap { border: 0; border-radius: 0; box-shadow: none; }
 
@@ -1408,15 +1516,6 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 @media (prefers-reduced-motion: reduce) { .ui-switch__track, .ui-switch__track::after { transition: none; } }
 
 /* ── 10. ملاحظةُ النموذج وأزرارُه ── */
-.form-note {
-  display: flex; align-items: flex-start; gap: var(--sp-2);
-  margin: 0; padding: var(--sp-3);
-  border-radius: var(--radius-md);
-  font-size: var(--text-sm);
-  background: var(--surface-alt); color: var(--text-secondary);
-}
-.form-note.is-warning { background: var(--status-warning-bg); color: var(--status-warning-fg); }
-.form-note .icon { flex-shrink: 0; margin-block-start: var(--sp-0-5); }
 .form-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); flex-wrap: wrap; }
 .consent-page { max-width: 720px; margin-inline: auto; }
 .consent-form { display: grid; gap: var(--sp-3); }
@@ -1477,10 +1576,10 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   border-color: var(--status-danger);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-danger) 10%, transparent);
 }
-.ui-field .form-hint,
+.ui-field .ui-field-hint,
 .ui-field .field-error { margin: 0; }
 .filter-bar .ui-field { min-inline-size: 140px; gap: var(--sp-0-5); }
-.filter-bar .ui-field__label { font-size: 10px; color: var(--text-secondary); }
+.filter-bar .ui-field__label { font-size: 0.625rem; color: var(--text-secondary); }
 .filter-bar .ui-field--grow { flex: 1 1 240px; }
 /* حقلٌ يجاور أزراراً في سطرٍ واحد (`filter-actions`) يتحاذى معها من الأسفل. */
 .filter-bar .filter-actions { align-self: flex-end; }
@@ -1626,7 +1725,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--kc) 12%, var(--surface));
   color: var(--kc-fg);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -1651,8 +1750,8 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .beh-combo .form-control.is-valid { border-color: var(--status-success); }
 
 /* نافذةُ التسجيل السريع: أربعُ درجاتٍ أزرارٌ كبيرة، والمختارةُ بلون الهويّة. */
-.beh-quick .form-hint { display: inline; margin: 0; }
-.beh-quick p.form-hint { display: block; margin-block-start: var(--sp-1); }
+.beh-quick .ui-field-hint { display: inline; margin: 0; }
+.beh-quick p.ui-field-hint { display: block; margin-block-start: var(--sp-1); }
 .beh-level-pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); }
 .beh-level-pick__option { cursor: pointer; }
 .beh-level-pick__box {
@@ -1716,8 +1815,8 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   padding: var(--sp-3);
   border-block-start: 1px solid var(--border);
 }
-.asm-save-bar .form-note { flex: 1 1 280px; padding: var(--sp-2) var(--sp-3); }
-.ui-section.is-flush > .ui-section__body > .form-note { border-radius: 0; border-block-start: 1px solid var(--border); }
+.asm-save-bar .ui-callout { flex: 1 1 280px; padding: var(--sp-2) var(--sp-3); }
+.ui-section.is-flush > .ui-section__body > .ui-callout { border-radius: 0; border-block-start: 1px solid var(--border); }
 
 /* ── مركز معلومات الطلبة — templates/student_info ──
    عرضُ الأعمدة الثابتة، ونصُّ الملاحظة بأسطره كما كُتب، وعددُ كلّ شريحةٍ

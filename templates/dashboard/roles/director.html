@@ -4,12 +4,11 @@
 <div class="exec-dash">
 
   {% page_header dashboard_title|default:"لوحة تحكم المدير" subtitle=subtitle icon="dashboard" %}
-    <button type="button" class="btn-secondary btn-sm js-print-btn">{% icon "print" %} طباعة</button>
     <a href="{% url 'daily_report' %}" class="btn-primary btn-sm">{% icon "absence" %} غياب اليوم</a>
   {% endpage_header %}
 
   {% if pending_excuses %}
-    <div class="wing-warn">{% icon "status_warning" %} أعذارٌ أرسلها المشرفون بعد المهلة تنتظر قرارك: {{ pending_excuses }}. <a href="{% url 'wings:excuse_requests' %}" class="btn-primary btn-sm">افتح الأعذار</a></div>
+    {% callout "warning" show=True %}أعذارٌ أرسلها المشرفون بعد المهلة تنتظر قرارك: {{ pending_excuses }}. <a href="{% url 'wings:excuse_requests' %}" class="btn-primary btn-sm">افتح الأعذار</a>{% endcallout %}
   {% endif %}
 
   {% kpi_strip label="الحضور اليوم" %}

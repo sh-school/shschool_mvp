@@ -116,7 +116,6 @@ html.dark {
 
   --btn-secondary-hover-bg: var(--maroon-bg);
   --gold-deep:              #c9952e;
-  --status-success-solid-hover: #047857;
 
   --status-success-border-soft: var(--status-success-border);
   --status-warning-border-soft: var(--status-warning-border);
@@ -124,7 +123,6 @@ html.dark {
   --status-neutral-bg:          var(--surface);
   --status-neutral-fg:          var(--text-muted);
   --status-warning-bright: #f59e0b;
-  --status-danger-deep:    #b91c1c;
   --status-warning-deep:   #b45309;
   --status-info-strong:    #1d4ed8;
   --status-danger-tint:    #1a0a0a;
@@ -349,13 +347,6 @@ html.dark .q-modal-footer {
   background: var(--surface);
   border-top-color: var(--border);
 }
-html.dark .q-modal-footer .btn-cancel {
-  background: var(--border);
-  color: var(--text-secondary);
-  border-color: var(--border-strong);
-}
-html.dark .q-modal-footer .btn-cancel:hover { background: var(--border-strong); }
-
 /* قيمُ الرسالة ليلاً كما كانت تُحسب من أصناف تايلويند: الأرضيّةُ من «31» التي
    تغلب ما فوقها، والحدُّ من «35i/35m» (`--border`). والأرقامُ الأربعة التي
    كانت هنا صارت رموزاً تنقلب (`--status-danger-tint`، `--status-warning-tint`،
@@ -485,12 +476,10 @@ html.dark .report-tabs { border-bottom-color: var(--border); }
 .import-actions { display: flex; align-items: center; justify-content: center; gap: var(--sp-2); flex-wrap: wrap; }
 .import-actions .form-control { flex: 1 1 180px; inline-size: auto; }
 .import-upload { margin-block-start: var(--sp-2); padding-block-start: var(--sp-2); border-block-start: 1px solid var(--border); }
-.import-note { margin: var(--sp-2) var(--sp-3); }
 .import-error { justify-content: flex-start; color: var(--status-danger-fg); font-size: var(--text-xs); }
 .import-error .icon { flex-shrink: 0; }
 .import-log-file { max-inline-size: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .import-meta { margin-block-start: var(--sp-2); }
-.import-rules ul { margin: 0; padding-inline-start: 1.2em; display: grid; gap: var(--sp-0-5); font-size: var(--text-xs); }
 .import-errors { margin-block-start: var(--sp-3); }
 .import-errors .plain-list__row { justify-content: flex-start; font-size: var(--text-xs); color: var(--status-danger-fg); }
 .import-drop {
@@ -694,11 +683,10 @@ html.dark .msg-bar {
   border-color: var(--border);
 }
 
-html.dark .alert-danger { background: var(--status-danger-bg); color: var(--status-danger-fg); }
 
 /* ── 35j. Tooltips & Popovers ────────────────────────────────── */
 html.dark [role="tooltip"] {
-  background: var(--border);
+  background: var(--popover-bg);
   color: var(--text-primary);
 }
 
@@ -887,5 +875,6 @@ html.dark {
 }
 html.dark .wing-panel { color: var(--text-primary); }
 html.dark .wing-panel__bar { background: var(--maroon-dark); }
-
+/* رؤيةُ المدرسة: تشكيلُها أزرقُ في الوضع النهاريّ وفاتحٌ في الليليّ (لوحةُ الخطّ `--tashkeel-dark` في 10-foundation) */
+html.dark .vision-text { font-palette: --tashkeel-dark; }
 }

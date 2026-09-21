@@ -48,20 +48,6 @@
    "reason": "زاد استدعاءً في #328 (f4828437) قبل وصول الحارس إلى main؛ يُنقل إلى dashboard/ ضمن البند 20",
    "to": 188,
    "where": "core/views_dashboard.py::dashboard"
-  },
-  {
-   "from": 0,
-   "metric": "get_school",
-   "reason": "نقلٌ حرفيٌّ من core/views_media.py إلى governance (ADR-0004): الدَّينُ نفسُه بعينه لا زيادةٌ جديدة — كان مسجَّلاً باسم الملفّ القديم",
-   "to": 1,
-   "where": "governance/views_media.py"
-  },
-  {
-   "from": 0,
-   "metric": "orm",
-   "reason": "نقلٌ حرفيٌّ من core/views_media.py إلى governance (ADR-0004): الدَّينُ نفسُه بعينه لا زيادةٌ جديدة — كان مسجَّلاً باسم الملفّ القديم",
-   "to": 6,
-   "where": "governance/views_media.py::serve_db_file"
   }
  ],
  "core_import_sites": {
@@ -135,14 +121,12 @@
   "analytics/views.py": 12,
   "api/views.py": 16,
   "api/views_erasure.py": 2,
-  "breach/views.py": 5,
   "clinic/views.py": 6,
   "core/views_audit.py": 1,
   "core/views_dashboard.py": 1,
   "core/views_search.py": 1,
   "core/views_students.py": 2,
   "exam_control/views.py": 10,
-  "governance/views_media.py": 1,
   "library/views.py": 6,
   "notifications/views.py": 5,
   "operations/api_views.py": 1,
@@ -315,9 +299,6 @@
    "lines": 153,
    "orm": 34
   },
-  "breach/views.py::dashboard": {
-   "orm": 7
-  },
   "clinic/views.py::student_health_record": {
    "orm": 7
   },
@@ -345,19 +326,9 @@
    "lines": 113,
    "orm": 19
   },
-  "core/views_students.py::_enroll_student_in_class": {
-   "orm": 9
-  },
-  "core/views_students.py::_process_import": {
-   "lines": 108,
-   "orm": 21
-  },
   "core/views_students.py::student_export_excel": {
    "lines": 119,
    "orm": 14
-  },
-  "core/views_students.py::student_import_export": {
-   "orm": 27
   },
   "core/views_students.py::student_import_template": {
    "lines": 95
@@ -392,9 +363,6 @@
   },
   "exam_control/views.py::supervisors": {
    "orm": 12
-  },
-  "governance/views_media.py::serve_db_file": {
-   "orm": 6
   },
   "library/views.py::book_list": {
    "orm": 8
@@ -486,10 +454,6 @@
   },
   "parents/views.py::add_parent_link": {
    "orm": 11
-  },
-  "parents/views.py::consent_view": {
-   "lines": 64,
-   "orm": 10
   },
   "parents/views.py::manage_parent_links": {
    "lines": 145,
@@ -722,10 +686,6 @@
    "lines": 81,
    "orm": 25
   },
-  "student_affairs/views.py::student_add": {
-   "lines": 82,
-   "orm": 7
-  },
   "student_affairs/views.py::student_dashboard": {
    "lines": 61
   },
@@ -851,8 +811,7 @@
    "orm": 55
   },
   "wings/views.py::student_events": {
-   "lines": 74,
-   "orm": 25
+   "orm": 12
   },
   "wings/views_absence_file.py::_own_student": {
    "orm": 6
