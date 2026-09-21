@@ -142,7 +142,6 @@ class SubjectClassAssignmentAdmin(admin.ModelAdmin):
     search_fields = ("teacher__full_name", "subject__name_ar", "class_group__section")
     autocomplete_fields = ("teacher", "class_group", "subject")
     list_editable = ("weekly_periods", "requires_lab", "double_period", "is_active")
-    list_per_page = 50
 
 
 @admin.register(SchedulingResource)

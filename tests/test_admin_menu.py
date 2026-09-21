@@ -67,6 +67,11 @@ def test_the_menu_keeps_the_platform_section_order_and_hides_nothing():
     assert [g[0] for g in GROUPS][:3] == ["الشؤون الأكاديمية", "شؤون الموظفين", "شؤون الطلاب"]
 
 
-def test_admin_lists_default_to_a_screenful_of_rows():
-    """جانغو يعرض 100 صفٍّ؛ الإدارةُ لا تُمرَّر فيها الصفحةُ فالافتراضيُّ 25."""
-    assert admin.ModelAdmin.list_per_page == 25
+def test_every_admin_list_shows_25_rows():
+    """جانغو يعرض 100 صفٍّ؛ الإدارةُ لا تُمرَّر فيها الصفحةُ فكلُّ قائمةٍ 25 — ولا نموذجَ يشذّ."""
+    off = {
+        f"{m._meta.label}: {a.list_per_page}"
+        for m, a in admin.site._registry.items()
+        if a.list_per_page != 25
+    }
+    assert not off, f"قوائمُ بغير 25 صفّاً: {sorted(off)}"

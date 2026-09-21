@@ -22,7 +22,7 @@ from roadmap.models import (
 admin.site.enable_nav_sidebar = False
 
 # جانغو يعرض 100 صفٍّ في كلّ صفحة قائمة، وهو كثيرٌ على شاشةٍ لا تُمرَّر؛ فالافتراضيُّ 25 لكلّ ModelAdmin
-# لم يحدّد `list_per_page` بنفسه (رابطُ «إظهار الكل» يبقى، ومن حدّد رقمَه احتفظ به).
+# لم يحدّد `list_per_page` بنفسه (رابطُ «إظهار الكل» يبقى). ولا يُحدّد نموذجٌ رقماً آخر: يحرسه tests/test_admin_menu.py.
 admin.ModelAdmin.list_per_page = 25
 
 _STAMPS = ("created_at", "updated_at", "updated_by")
@@ -56,7 +56,6 @@ class _RoadmapAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return is_platform_developer(request.user)
 
-    list_per_page = 50
     show_full_result_count = False
 
 
