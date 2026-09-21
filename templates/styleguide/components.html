@@ -54,10 +54,10 @@
         {% kpi "purple" 0 tone="purple" %}
         {% kpi "sky" "95%" sub="نسبة" tone="sky" %}
       {% endkpi_strip %}
-      <pre class="sg-code" dir="ltr">{% templatetag openblock %} kpi_strip {% templatetag closeblock %}
+      <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} kpi_strip {% templatetag closeblock %}
   {% templatetag openblock %} kpi "زيارات اليوم" visits_today {% templatetag closeblock %}
   {% templatetag openblock %} kpi "متكرّرو الزيارة" frequent sub="هذا الشهر" tone="red" href=url title="…" {% templatetag closeblock %}
-{% templatetag openblock %} endkpi_strip {% templatetag closeblock %}</pre>
+{% templatetag openblock %} endkpi_strip {% templatetag closeblock %}</pre></details>
       <ul class="sg-rules">
         <li>الاسم ثمّ الرقم ثمّ تفصيلٌ قصير — في سطرٍ واحد. التفصيل يُخفى على الهاتف ويبقى في التلميح.</li>
         <li>ستّ بطاقات على الأكثر؛ السابعة خطأٌ يظهر في الاختبار لا التفافٌ صامت — لذا هنا شريطان.</li>
@@ -90,9 +90,9 @@
         </div>
       {% endsection_card %}
     </div>
-    <pre class="sg-code" dir="ltr">{% templatetag openblock %} section_card "الغائبون اليوم" meta=absent|length icon="students" flush=True empty="لم يغب أحد" empty_sub="…" {% templatetag closeblock %}
+    <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} section_card "الغائبون اليوم" meta=absent|length icon="students" flush=True empty="لم يغب أحد" empty_sub="…" {% templatetag closeblock %}
   {% templatetag openblock %} if absent {% templatetag closeblock %}&lt;div class="table-wrap"&gt;…&lt;/div&gt;{% templatetag openblock %} endif {% templatetag closeblock %}
-{% templatetag openblock %} endsection_card {% templatetag closeblock %}</pre>
+{% templatetag openblock %} endsection_card {% templatetag closeblock %}</pre></details>
     <ul class="sg-rules">
       <li>الترويسة دائماً الشريط العنّابيّ، والعدد أو الفترة في طرفه لا في سطرٍ تحته.</li>
       <li>المحتوى الفارغ يُرسم حالةً فارغةً موحّدة تلقائيّاً — غلِّف القائمة بـ<code>{% templatetag openblock %} if {% templatetag closeblock %}</code> ولا تكتب <code>{% templatetag openblock %} empty {% templatetag closeblock %}</code> بجملةٍ خاصّة.</li>
@@ -129,10 +129,10 @@
         {% entity_status tone="info" %}{% icon "status_info" %} info · متابعةٌ واحدةٌ مفتوحة{% endentity_status %}
       {% endentity_card %}
     </div>
-    <pre class="sg-code" dir="ltr">{% templatetag openblock %} entity_card wing.name who=holder.full_name count=students tone="maroon" href=url badge="…" {% templatetag closeblock %}
+    <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} entity_card wing.name who=holder.full_name count=students tone="maroon" href=url badge="…" {% templatetag closeblock %}
   {% templatetag openblock %} entity_chips {% templatetag closeblock %}…{% templatetag openblock %} endentity_chips {% templatetag closeblock %}
   {% templatetag openblock %} entity_status tone="warning" title="…" {% templatetag closeblock %}…{% templatetag openblock %} endentity_status {% templatetag closeblock %}
-{% templatetag openblock %} endentity_card {% templatetag closeblock %}</pre>
+{% templatetag openblock %} endentity_card {% templatetag closeblock %}</pre></details>
     <ul class="sg-rules">
       <li>ثلاثة أسطر: من وكم · الرقاقات · الحالة. أيُّ محتوى غيرها خطأ — الشرح تلميح.</li>
       <li>اسم المسؤول الطويل يُقصّ بنقاطٍ وكاملُه في التلميح؛ العنوان والعدد لا يُقصّان.</li>
@@ -145,13 +145,13 @@
   <div class="sg-pair">
     {% section_card "5 · الحالةُ الفارغة" meta="empty_state" icon="empty" %}
       {% empty_state "لا توجد نتائج" sub="جرّب كلمةً أخرى أو وسّع الفترة" icon="search" %}
-      <pre class="sg-code" dir="ltr">{% templatetag openblock %} empty_state "لا توجد نتائج" sub="…" icon="search" {% templatetag closeblock %}</pre>
+      <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} empty_state "لا توجد نتائج" sub="…" icon="search" {% templatetag closeblock %}</pre></details>
     {% endsection_card %}
     {% section_card "6 · ترويسةُ الصفحة" meta="page_header" icon="document" %}
       <p class="sg-p">الترويسة أعلى هذه الصفحة مرسومةٌ به: العنوان وأيقونته، والسطر الوصفيّ، والإجراءات في طرفها — <code>btn-primary btn-sm</code> للفعل الأوّل و<code>btn-secondary btn-sm</code> للبقيّة.</p>
-      <pre class="sg-code" dir="ltr">{% templatetag openblock %} page_header "العيادة" subtitle=today icon="clinic" {% templatetag closeblock %}
+      <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} page_header "العيادة" subtitle=today icon="clinic" {% templatetag closeblock %}
   &lt;a class="btn-primary btn-sm" href="…"&gt;تسجيل زيارة&lt;/a&gt;
-{% templatetag openblock %} endpage_header {% templatetag closeblock %}</pre>
+{% templatetag openblock %} endpage_header {% templatetag closeblock %}</pre></details>
     {% endsection_card %}
   </div>
 
@@ -162,10 +162,10 @@
       {% action_tile "الجدولُ المدرسيّ" desc="حصصُ اليوم والأسبوع" icon="date" href="#" %}
       {% action_tile "التقارير" icon="document" href="#" %}
     </nav>
-    <pre class="sg-code" dir="ltr">&lt;nav class="ui-actions" aria-label="…"&gt;
+    <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">&lt;nav class="ui-actions" aria-label="…"&gt;
   {% templatetag openblock %} action_tile "رصدُ الغياب" desc="…" icon="confirm" href=url primary=True {% templatetag closeblock %}
   {% templatetag openblock %} action_tile "التقارير" icon="document" href=url {% templatetag closeblock %}
-&lt;/nav&gt;</pre>
+&lt;/nav&gt;</pre></details>
     <ul class="sg-rules">
       <li>أيقونةٌ وعنوانٌ وسطرُ وصفٍ اختياريّ؛ العنوانُ والرابطُ مطلوبان.</li>
       <li><code>primary</code> لبلاطةٍ واحدةٍ في الصفّ: فعلُ الدور الأوّل.</li>
@@ -291,10 +291,10 @@
           <a href="#" class="btn-secondary btn-sm">مسح</a>
         </div>
       {% endfilter_bar %}
-      <pre class="sg-code" dir="ltr">{% templatetag openblock %} filter_bar "ترشيحُ سجلّ الطلاب" {% templatetag closeblock %}
+      <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} filter_bar "ترشيحُ سجلّ الطلاب" {% templatetag closeblock %}
   {% templatetag openblock %} field "q" "بحث" value=q grow=True hx_get=url hx_trigger="input changed delay:400ms" hx_target="#rows" {% templatetag closeblock %}
   {% templatetag openblock %} field "grade" "الصفّ" type="select" choices=grades value=grade blank="— الكل —" data_autosubmit=True {% templatetag closeblock %}
-{% templatetag openblock %} endfilter_bar {% templatetag closeblock %}</pre>
+{% templatetag openblock %} endfilter_bar {% templatetag closeblock %}</pre></details>
 
       <p class="sg-label">field في نموذجٍ كامل — الأنواعُ والمساعدةُ والخطأ</p>
       <div class="ui-grid-2">
@@ -304,9 +304,9 @@
         {% field "sg_notes" "ملاحظات" type="textarea" rows=2 placeholder="اختياريّ" %}
         {% field "sg_notify" "إشعارُ وليّ الأمر" type="checkbox" checked=True %}
       </div>
-      <pre class="sg-code" dir="ltr">{% templatetag openblock %} field "phone" "الجوّال" type="tel" inputmode="tel" value=form.phone.value error=form.phone.errors.0 {% templatetag closeblock %}
+      <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} field "phone" "الجوّال" type="tel" inputmode="tel" value=form.phone.value error=form.phone.errors.0 {% templatetag closeblock %}
 {% templatetag openblock %} field "notes" "ملاحظات" type="textarea" rows=3 value=notes help="…" {% templatetag closeblock %}
-{% templatetag openblock %} field "notify" "إشعارُ وليّ الأمر" type="checkbox" checked=obj.notify {% templatetag closeblock %}</pre>
+{% templatetag openblock %} field "notify" "إشعارُ وليّ الأمر" type="checkbox" checked=obj.notify {% templatetag closeblock %}</pre></details>
     </div>
     <ul class="sg-rules">
       <li>الاسمُ البرمجيُّ <code>name</code> والقيمُ كما هي — الوسمُ يملك <code>id</code> و<code>label[for]</code> لا البيانات. و<code>id</code> يُمرَّر صريحاً حين يتكرّر الاسمُ في الصفحة.</li>
@@ -342,24 +342,24 @@
           <button type="button" class="btn-secondary btn-sm" data-toast="تنبيه مهم|warning">warning</button>
           <button type="button" class="btn-secondary btn-sm" data-toast="معلومة إضافية|info">info</button>
         </div>
-        <pre class="sg-code" dir="ltr">window.showToast("تم الحفظ بنجاح", "success");
-&lt;button data-toast="تم الحفظ|success"&gt;…&lt;/button&gt;</pre>
+        <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">window.showToast("تم الحفظ بنجاح", "success");
+&lt;button data-toast="تم الحفظ|success"&gt;…&lt;/button&gt;</pre></details>
 
         <p class="sg-label">فتاتُ الخبز — كلُّ صفحةٍ تعلنها</p>
         {% include "components/breadcrumbs.html" with parent_url="#" parent_label="الوحدة" current="الصفحة الحالية" no_back=True %}
-        <pre class="sg-code" dir="ltr">{% templatetag openblock %} block breadcrumbs {% templatetag closeblock %}
+        <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} block breadcrumbs {% templatetag closeblock %}
 {% templatetag openblock %} include "components/breadcrumbs.html" with parent_url=url parent_label="…" current="…" {% templatetag closeblock %}
-{% templatetag openblock %} endblock {% templatetag closeblock %}</pre>
+{% templatetag openblock %} endblock {% templatetag closeblock %}</pre></details>
       </div>
       <div class="sg-stack">
         <p class="sg-label">هيكلُ التحميل — skeleton</p>
         {% include "components/skeleton.html" with type="card" count=1 %}
-        <pre class="sg-code" dir="ltr">{% templatetag openblock %} include "components/skeleton.html" with type="card" count=6 {% templatetag closeblock %}
-{% templatetag openblock %} include "components/skeleton.html" with type="table" rows=8 {% templatetag closeblock %}</pre>
+        <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} include "components/skeleton.html" with type="card" count=6 {% templatetag closeblock %}
+{% templatetag openblock %} include "components/skeleton.html" with type="table" rows=8 {% templatetag closeblock %}</pre></details>
 
         <p class="sg-label">البحثُ الحيّ والترقيم — مع HTMX</p>
-        <pre class="sg-code" dir="ltr">{% templatetag openblock %} include "components/search_input.html" with search_url=request.path target="#results" placeholder="…" name="q" value=query {% templatetag closeblock %}
-{% templatetag openblock %} include "components/pagination.html" with page_obj=page_obj target="#results" {% templatetag closeblock %}</pre>
+        <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} include "components/search_input.html" with search_url=request.path target="#results" placeholder="…" name="q" value=query {% templatetag closeblock %}
+{% templatetag openblock %} include "components/pagination.html" with page_obj=page_obj target="#results" {% templatetag closeblock %}</pre></details>
       </div>
     </div>
     <ul class="sg-rules">
