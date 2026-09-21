@@ -1465,23 +1465,6 @@
   margin-inline: auto;
 }
 
-.df-grid-2 {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 1.5rem;
-}
-
-/* عنصرُ الشبكة أدنى عرضه `auto` — فنصُّ رسالةٍ طويلٌ بلا فواصل يمطّ عمودَه
-   ويدفع الشريطَ الجانبيَّ خارج الصفحة. والبطاقاتُ داخل العمود تتراصّ بفجوة
-   الشبكة الأمّ نفسِها. */
-.df-main-col,
-.df-sidebar-col {
-  min-inline-size: 0;
-  display: grid;
-  gap: var(--sp-2);
-  align-content: start;
-}
-
 .df-row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1489,7 +1472,6 @@
 }
 
 @media (max-width: 768px) {
-  .df-grid-2,
   .df-row-2 {
     grid-template-columns: 1fr;
   }
@@ -1738,29 +1720,8 @@
   line-height: 1.7;
 }
 
-/* ── 4. معاينةُ السياق التقنيّ ── */
-.df-context-preview {
-  background: var(--df-panel-bg);
-  border-inline-start: 3px solid var(--gold);
-  padding: 0.85rem 1.1rem;
-  border-radius: var(--radius-1-5);
-  font-size: var(--text-sm);
-  margin: 0.5rem 0 0;
-}
 
-.df-context-preview dt {
-  font-weight: 600;
-  color: var(--df-label);
-  margin-top: 0.35rem;
-}
 
-.df-context-preview dd {
-  margin: 0 0 0.5rem;
-  color: var(--df-ink-strong);
-  font-family: ui-monospace, "Cascadia Code", Menlo, monospace;
-  font-size: 0.82rem;
-  word-break: break-word;
-}
 
 /* ── 5. رقمُ التذكرة: كبيراً في صفحة النجاح، وصغيراً في الجداول ── */
 .df-ticket-hero {
@@ -1889,29 +1850,9 @@
   white-space: pre-wrap;
 }
 
-.df-meta-list {
-  margin: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.25rem;
-}
 
-.df-meta-list dt {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  font-weight: 600;
-  margin-top: 0.5rem;
-}
 
-.df-meta-list dt:first-child {
-  margin-top: 0;
-}
 
-.df-meta-list dd {
-  margin: 0 0 0.25rem;
-  color: var(--df-meta-ink);
-  font-size: 0.95rem;
-}
 
 /* ── 8. حالاتُ التركيز (WCAG AA) ── */
 .df-form :focus-visible {
