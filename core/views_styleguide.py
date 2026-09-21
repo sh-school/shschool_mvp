@@ -4,28 +4,11 @@
 (`styleguide/icons/`). و`styleguide/` القديم تحويلٌ دائمٌ إلى الأولى في `urls.py`.
 """
 
-from functools import wraps
-
-from django.contrib.auth.decorators import login_required
-from django.core.exceptions import PermissionDenied
 from django.shortcuts import render
 
+from core.developer_access import developer_only
 from core.icons import ICONS
 from core.styleguide import colour_token_groups, icon_dictionary_groups
-
-
-def developer_only(view):
-    """دليلُ الهويّة لمطوّر المنصّة وحدَه (قرارُ المالك 2026-09-20): superuser أو مجموعة developers — كقائمة «أدوات المطوّر»."""
-
-    @wraps(view)
-    @login_required
-    def wrapped(request, *args, **kwargs):
-        user = request.user
-        if not (user.is_superuser or user.groups.filter(name__iexact="developers").exists()):
-            raise PermissionDenied
-        return view(request, *args, **kwargs)
-
-    return wrapped
 
 
 @developer_only

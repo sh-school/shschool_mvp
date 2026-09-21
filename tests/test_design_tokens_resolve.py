@@ -365,6 +365,9 @@ def test_the_platform_keeps_one_stylesheet():
         *(pathlib.Path("static/css/custom") / name for name in CSS_FILES),
         pathlib.Path("static/css/tailwind_input.css"),
         pathlib.Path("static/css/tailwind.min.css"),
+        # لوحةُ الإدارة لا تحمل custom.css (تَرِث قالبَ جانغو) فلها ورقةٌ واحدةٌ بألوان المنصّة منقولةً حرفيّاً؛
+        # وحارسُ tests/test_admin_theme.py يفشل إن انجرفت قيمُها عن رموز المنصّة.
+        pathlib.Path("static/css/admin_theme.css"),
     }
     found = {
         path

@@ -600,6 +600,9 @@
   <a href="{% url 'ui_components' %}" role="menuitem" aria-label="دليل الهوية البصرية ومعاييرها">
     {% icon "developer" %} دليل الهويّة البصريّة
   </a>
+  <a href="{% url 'improvement_roadmap' %}" role="menuitem" aria-label="خارطة تجويد المنصة الزمنية">
+    {% icon "roadmap" %} خارطة التجويد
+  </a>
   {% if request.user|can_open:"developer_feedback:inbox_list" %}
   <a href="{% url 'developer_feedback:inbox_list' %}" role="menuitem"
      aria-label="صندوق الوارد للمطوّر">
