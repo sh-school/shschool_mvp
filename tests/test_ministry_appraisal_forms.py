@@ -147,8 +147,9 @@ def test_every_mapped_role_exists_is_evaluable_and_unique():
     mapping = forms_by_role()  # يرفع ValueError إن تكرّر دور
     assert set(mapping) <= known
     assert set(mapping) <= _EVALUABLE_ROLES, set(mapping) - _EVALUABLE_ROLES
-    # 23 خانةً مسمّاةً في الرؤوس + تكليفان موثَّقان (bus_supervisor، transport_officer).
-    assert len(mapping) == 25
+    # 23 خانةً مسمّاةً في الرؤوس + 4 تكاليف موثَّقة (bus_supervisor، transport_officer، وبقرار
+    # المالك 2026-09-21 coordinator وese_teacher على استمارة المعلّم).
+    assert len(mapping) == 27
 
 
 def test_librarian_and_activities_specialist_are_named_by_admin_form_3():
@@ -171,8 +172,6 @@ def test_librarian_and_activities_specialist_are_named_by_admin_form_3():
         # «وتتولى لجنة شؤون المدارس تقييم أداء مديري المدارس سنوياً» (02_staff_affairs.md:199)
         "principal",
         # بلا خانةٍ في رأس أيٍّ من الاستمارات السبع — لا تُربط تخميناً (ADR-0002 §6.4).
-        "coordinator",
-        "ese_teacher",
         "nurse",
         "speech_therapist",
         "occupational_therapist",
@@ -220,11 +219,11 @@ def test_dry_run_writes_nothing(school):
 def test_apply_is_idempotent(school):
     _seed(school, "--apply")
     first = _counts(school)
-    # 25 دوراً (23 خانة + تكليفان)؛ ومحاورُها: 5×20 + 7 + 6 + 5 + 6×6 + 4×8 + 7×6 = 228
-    assert first == (25, 228)
+    # 27 دوراً (23 خانة + 4 تكاليف)؛ ومحاورُها: 5×20 + 7×3 + 6 + 5 + 6×6 + 4×8 + 7×6 = 242
+    assert first == (27, 242)
     output = _seed(school, "--apply")
     assert _counts(school) == first
-    assert "'created': 0, 'updated': 0, 'same': 25" in output
+    assert "'created': 0, 'updated': 0, 'same': 27" in output
 
 
 @pytest.mark.django_db

@@ -133,6 +133,9 @@ class StaffPersonForm(forms.Form):
     email = forms.EmailField(required=False, label="البريد الإلكتروني")
     phone = forms.CharField(max_length=20, required=False, label="الجوال")
     nationality = forms.CharField(max_length=100, required=False, label="الجنسية")
+    service_start_date = forms.DateField(
+        required=False, label="تاريخ المباشرة", widget=forms.DateInput(attrs={"type": "date"})
+    )
     professional_license_number = forms.CharField(
         max_length=50, required=False, label="رقم الرخصة المهنية"
     )

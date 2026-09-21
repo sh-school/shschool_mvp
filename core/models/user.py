@@ -61,6 +61,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         default="",
         verbose_name="الجنسية",
     )
+    #: تاريخُ مباشرة العمل في الخدمة (لا الالتحاق بهذه المدرسة — ذاك `Membership.joined_at`).
+    #: يحسب به تقريرُ السنة الأولى (النظام الوظيفي، المادة 16: مدّةٌ «لا تقل عن ثلاثة أشهر»).
+    #: فارغٌ = غيرُ معروف، فلا يُرفض به تقرير.
+    service_start_date = models.DateField(null=True, blank=True, verbose_name="تاريخ المباشرة")
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(default=timezone.now)
