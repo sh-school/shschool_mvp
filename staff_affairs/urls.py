@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_attendance
+from . import views, views_attendance, views_exemptions
 
 app_name = "staff_affairs"
 
@@ -47,6 +47,12 @@ urlpatterns = [
         "assignments/<uuid:pk>/revoke/",
         views_attendance.staff_assignment_revoke,
         name="assignment_revoke",
+    ),
+    path("exemptions/", views_exemptions.staff_exemptions, name="exemptions"),
+    path(
+        "exemptions/<uuid:pk>/revoke/",
+        views_exemptions.staff_exemption_revoke,
+        name="exemption_revoke",
     ),
     # ── الرخص المهنية ──
     path("licensing/", views.licensing_overview, name="licensing"),

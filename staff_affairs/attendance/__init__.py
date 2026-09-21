@@ -61,6 +61,14 @@ from .daily import (
 from .exceptions import (
     ExceptionService,
 )
+from .exemptions import (
+    EXEMPTION_ROLES,
+    ExemptionService,
+    covering,
+    exempt_days,
+    exempt_ids,
+    recording_staff,
+)
 from .permits import (
     COORDINATED_ROLES,
     PermitBalance,
@@ -92,6 +100,12 @@ from .rules import (
 )
 
 __all__ = [
+    "EXEMPTION_ROLES",
+    "ExemptionService",
+    "covering",
+    "exempt_days",
+    "exempt_ids",
+    "recording_staff",
     "NON_STAFF_ROLES",
     "PRINCIPAL",
     "PRINCIPAL_DELEGATE",
