@@ -11,7 +11,7 @@ from tests import px_tokens as px
 from tests.css_source import read_css
 
 #: خارجَ السلّم يومَ الترحيل (2026-09-19). تُخفَّض ولا تُرفع.
-OFF_SCALE_SPACING = 92
+OFF_SCALE_SPACING = 86
 OFF_SCALE_RADIUS = 31
 
 

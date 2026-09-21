@@ -46,7 +46,7 @@
       </div>
     </form>
     {% if staff_user.professional_license_expiry and staff_user.professional_license_expiry < today %}
-    <p class="form-note is-warning sa-note">{% icon "status_warning" %} الرخصةُ المهنيّةُ منتهيةٌ منذ {{ staff_user.professional_license_expiry|date:"d/m/Y" }}.</p>
+    {% callout "warning" %}الرخصةُ المهنيّةُ منتهيةٌ منذ {{ staff_user.professional_license_expiry|date:"d/m/Y" }}.{% endcallout %}
     {% endif %}
   {% endsection_card %}
 
@@ -73,7 +73,7 @@
           <button type="submit" class="btn-primary btn-sm">{% icon "confirm" %} حفظ بيانات الوظيفة</button>
         </div>
       </form>
-      <p class="form-note sa-note">تغييرُ الدور نفسِه ليس تصحيحاً — هو تعيينٌ جديدٌ أو نقلٌ بين وظيفتين، وبابُه «تعيين منتسب».</p>
+      {% callout "info" %}تغييرُ الدور نفسِه ليس تصحيحاً — هو تعيينٌ جديدٌ أو نقلٌ بين وظيفتين، وبابُه «تعيين منتسب».{% endcallout %}
     {% endsection_card %}
     {% endif %}
 

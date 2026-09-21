@@ -34,10 +34,7 @@
   {% endfilter_bar %}
 
   {% section_card "الإجراءات" meta=procedures|length icon="checklist" empty="لا توجد إجراءات مرتبطة بحسابك" %}{% if not mapping_exists %}
-    <p class="form-note is-warning">
-      {% icon "status_warning" %}
-      <span><b>حسابك غير مربوط بالخطة التشغيلية.</b> تواصل مع مدير المدرسة ليربطه بمسمّاك الوظيفيّ من صفحة «ربط المنفذين بالموظفين».</span>
-    </p>
+    {% callout "warning" %}<b>حسابك غير مربوط بالخطة التشغيلية.</b> تواصل مع مدير المدرسة ليربطه بمسمّاك الوظيفيّ من صفحة «ربط المنفذين بالموظفين».{% endcallout %}
   {% elif procedures %}
     <ul class="plain-list" id="qmy-list">
       {% for proc in procedures %}

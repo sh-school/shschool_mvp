@@ -42,6 +42,7 @@ from .services import (
     next_section_awaiting,
     outside_the_wings,
     record_panels,
+    student_events_context,
     substitute_pool,
     wings_of,
 )
@@ -401,8 +402,7 @@ def student_events(request, class_id, student_id):
     """
     from operations.excuses import GRACE_DAYS, kinds
     from operations.guardian_contact import awaiting_contact as _awaiting
-    from operations.guardian_contact import contacts_of
-    from operations.models import AbsenceExcuse, ClassExit, GuardianContact
+    from operations.models import GuardianContact
 
     school, klass = _own_class(request, class_id)
     student = get_object_or_404(
@@ -432,37 +432,20 @@ def student_events(request, class_id, student_id):
         .first()
     )
     focus_day = _day(request.GET.get("date"), last_absent or today)
-    attendance_events = list(
-        StudentAttendance.objects.filter(student=student, school=school)
-        .exclude(status="present")
-        .select_related("session__subject", "session__class_group")
-        .order_by("-session__date", "-session__start_time")[:60]
-    )
-    exit_events = list(
-        ClassExit.objects.filter(student=student, school=school)
-        .select_related("session__subject", "allowed_by")
-        .order_by("-left_at")[:60]
-    )
     return render(
         request,
         "wings/student_events.html",
         {
+            **student_events_context(student, school, request.GET),
             "klass": klass,
             "student": student,
-            "attendance_events": attendance_events,
-            "exit_events": exit_events,
             "can_delete_events": True,
             # تحويلُ الغياب إلى «بعذرٍ مقبول» (قرارُ 2026-09-13) — القائمةُ المغلقة.
-            "excuses": AbsenceExcuse.objects.filter(student=student, school=school)
-            .select_related("granted_by")
-            .order_by("-date_from")[:20],
             "excuse_kinds": kinds(),
             "excuse_day": focus_day,
             # إخطارُ وليّ الأمر — بضغطةٍ بنتيجته (قرارُ 2026-09-13).
-            "contacts": contacts_of(student, school),
             "contact_outcomes": GuardianContact.OUTCOMES,
             "contact_day": _awaiting(klass, today).get(student.id) or focus_day,
-            "events_count": len(attendance_events) + len(exit_events),
             "grace_days": GRACE_DAYS,
             "may_override": has_capability(request.user, "wings.excuse_after_deadline"),
         },

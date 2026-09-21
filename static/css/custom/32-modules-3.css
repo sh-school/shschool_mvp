@@ -386,7 +386,7 @@
 
 /* ── templates/quality/my_procedures.html ──
    لافتةُ «غير مربوط» كانت شريطاً بتنسيقٍ داخل الوسم بين الترويسة والأرقام —
-   صارت `form-note` داخل بطاقة القائمة التي تفسّر فراغَها. */
+   صارت `ui-callout` داخل بطاقة القائمة التي تفسّر فراغَها. */
 .qmy { display: flex; flex-direction: column; gap: var(--sp-3); }
 .qmy-filters { margin: 0; }
 .qmy-item__link { text-decoration: none; color: inherit; }
@@ -438,7 +438,6 @@
   border-radius: var(--radius-md);
 }
 .qproc-strip--info { background: var(--status-info-bg); }
-.qproc-strip--warning { background: var(--status-warning-bg); }
 .qproc-strip__label {
   display: block; font-size: var(--text-xs); color: var(--text-secondary); margin-bottom: var(--sp-1);
 }
@@ -699,7 +698,7 @@
 .qeval-notes { display: grid; gap: var(--sp-1-5); }
 .qeval-notes label { font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary); margin-top: var(--sp-1-5); }
 .qeval-notes label:first-child { margin-top: 0; }
-.qeval .form-note { margin-top: var(--sp-2); }
+.qeval .ui-callout { margin-top: var(--sp-2); }
 .qeval-ack { margin: var(--sp-2) 0 0; font-size: var(--text-xs); color: var(--status-success-fg); display: flex; align-items: center; gap: var(--sp-1-5); }
 
 /* ── templates/quality/executor_mapping.html ──
@@ -844,7 +843,6 @@
 .form-group label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: var(--sp-1); }
 .form-group select, .form-group input, .form-group textarea { box-sizing: border-box; width: 100%; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--field-border); border-radius: var(--radius-1-5); font-size: .85rem; font-family: inherit; }
 .form-group textarea { min-height: 60px; resize: vertical; }
-.btn-submit { background: var(--maroon); color: var(--on-fill); padding: var(--sp-2-5) 28px; border: none; border-radius: var(--radius-md); font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; }
 .hint { font-size: .72rem; color: var(--text-muted); margin-top: var(--sp-0-5); }
 
 /* ── templates/schedule/compensatory_list.html ── */
@@ -859,9 +857,6 @@
 .comp-badge.cancelled, .comp-badge.expired { background: var(--status-danger-bg); color: var(--status-danger-fg); }
 .comp-info { font-size: .78rem; color: var(--text-muted); margin-top: var(--sp-1); }
 .comp-actions { display: flex; gap: var(--sp-1-5); margin-top: var(--sp-2); }
-.btn-sm { padding: 5px var(--sp-3-5); border-radius: var(--radius-1-5); font-size: var(--text-xs); font-weight: 700; border: none; cursor: pointer; font-family: inherit; }
-.btn-approve { background: var(--status-success-solid); color: var(--on-fill); }
-.btn-reject { background: var(--status-danger); color: var(--on-fill); }
 .empty-state { text-align: center; padding: var(--sp-12) var(--sp-4); color: var(--text-muted); }
 
 /* ── templates/schedule/pages_view.html و print_view.html — شريطُ الأدوات ── */
@@ -1072,7 +1067,6 @@
   /* بوّابةُ الصلاحية صارت شريطَ أرقام (`kpi_strip`) — كانت لوحاتٍ مصمَتةً بنظامٍ خاصّ. */
   .lab-main { display: grid; grid-template-columns: 320px 1fr; gap: var(--sp-2); align-items: start; }
   .lab-radar { max-height: 300px; }
-  .lab-note { margin-block-start: var(--sp-2); font-size: var(--text-xs); }
   .lab-chips { padding: var(--sp-2) var(--sp-3); }
   .lab-res-col { width: 40%; }
   .score-list { display: grid; gap: var(--sp-1-5); margin-top: var(--sp-2); }
@@ -1109,20 +1103,17 @@
   @media print { .lab-head form { display: none !important; } .tiles { grid-template-columns: repeat(3, 1fr); } }
 
 /* ── templates/schedule/ — التبديلُ والتعويضُ والتفضيلات: ما كان تنسيقاً في الوسوم ── */
-  .schedule-form-note { margin-block-end: var(--sp-4); }
   .schedule-cards { max-height: 420px; }
   .swap-info--slots { margin-top: var(--sp-1); }
   .swap-info--reason { margin-top: var(--sp-0-5); }
   .swap-respond-link { text-decoration: none; padding: 5px var(--sp-3-5); }
   .free-slots-table { width: 100%; border-collapse: collapse; font-size: .78rem; }
-  .respond-closed { justify-content: center; }
-  .respond-page .swap-detail + .form-note { margin-block-end: var(--sp-4); }
-  .prefs-note { margin-block-end: var(--sp-4); }
+  .respond-page .swap-detail + .ui-callout { margin-block-end: var(--sp-4); }
   .prefs-form { display: grid; gap: var(--sp-5, var(--sp-5)); }
   /* البطاقةُ تمتدّ عرضَ عمودها كسائر المنصّة، لكنّ قائمةً منسدلةً بسبع قيمٍ
      رقميّةٍ لا تحتاج ذلك العرض — فيُقصر عليها وعلى سطر التلميح قياسٌ يُقرأ. */
   .prefs-form select.form-control { max-width: 20rem; }
-  .prefs-form .form-hint { max-width: 46rem; }
+  .prefs-form .ui-field-hint { max-width: 46rem; }
   .prefs-form textarea.form-control { max-width: 46rem; }
 
 /* ── templates/schedule/schedule_settings.html ── */
@@ -1238,11 +1229,6 @@
 .swap-badge.rejected, .swap-badge.cancelled { background: var(--status-danger-bg); color: var(--status-danger-fg); }
 .swap-actions { display: flex; gap: var(--sp-1-5); margin-top: var(--sp-2); }
 .swap-actions form { display: inline; }
-.btn-sm { padding: 5px var(--sp-3-5); border-radius: var(--radius-1-5); font-size: var(--text-xs); font-weight: 700; border: none; cursor: pointer; font-family: inherit; }
-.btn-approve { background: var(--status-success-solid); color: var(--on-fill); }
-.btn-reject { background: var(--status-danger); color: var(--on-fill); }
-.btn-approve:hover { background: var(--status-success-solid-hover); }
-.btn-reject:hover { background: var(--status-danger-deep); }
 .empty-state { text-align: center; padding: var(--sp-12) var(--sp-4); color: var(--text-muted); }
 
 /* ── templates/schedule/swap_request.html ── */
@@ -1253,8 +1239,6 @@
 .form-group label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: var(--sp-1); }
 .form-group select, .form-group input, .form-group textarea { box-sizing: border-box; width: 100%; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--field-border); border-radius: var(--radius-1-5); font-size: .85rem; font-family: inherit; }
 .form-group textarea { min-height: 60px; resize: vertical; }
-.btn-submit { background: var(--maroon); color: var(--on-fill); padding: var(--sp-2-5) 28px; border: none; border-radius: var(--radius-md); font-size: .85rem; font-weight: 700; cursor: pointer; font-family: inherit; }
-.btn-submit:hover { opacity: .9; }
 .hint { font-size: .72rem; color: var(--text-muted); margin-top: var(--sp-0-5); }
 #swap-options-container { margin-top: var(--sp-3); min-height: 40px; }
 
@@ -1270,10 +1254,7 @@
 .swap-arrow-col { font-size: 1.6rem; color: var(--maroon-fg); font-weight: 900; }
 .respond-actions { display: flex; gap: var(--sp-2-5); margin-top: var(--sp-5); }
 .respond-actions form { flex: 1; }
-.btn-respond { width: 100%; padding: var(--sp-2-5); border: none; border-radius: var(--radius-md); font-size: .85rem; font-weight: 700; font-family: inherit; cursor: pointer; transition: opacity .2s; }
-.btn-respond:hover { opacity: .85; }
-.btn-accept { background: var(--status-success-solid); color: var(--on-fill); }
-.btn-decline { background: var(--status-danger); color: var(--on-fill); }
+.respond-actions button { width: 100%; }
 .reject-reason { margin-top: var(--sp-3); }
 .reject-reason textarea { width: 100%; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border-strong); border-radius: var(--radius-md); font-size: .8rem; font-family: inherit; resize: vertical; min-height: 60px; }
 .reject-reason label { font-size: .78rem; font-weight: 600; color: var(--text-primary, var(--text-secondary)); display: block; margin-bottom: var(--sp-1); }
@@ -1316,7 +1297,6 @@
 
   .sa-actions { grid-column: 1 / -1; display: flex; justify-content: flex-start; }
   .sa-change { font-size: var(--text-xs); }
-  .sa-note { margin-block-start: var(--sp-3); }
   .sa-nowrap { white-space: nowrap; }
   /* استمارةُ المغادرة وإلغائها: حقولٌ في سطرٍ والزرُّ في ذيله — كانت بتنسيقٍ في وسومها. */
   .sa-inline-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-2); margin-block-start: var(--sp-3); }
@@ -1342,7 +1322,6 @@
   /* صفحاتُ الإجازة استمارةٌ وتفاصيل: عمودُ قراءةٍ في الوسط لا بعرض الشاشة. */
   .sa-narrow { max-width: 700px; margin-inline: auto; }
   .sa-span-2 { grid-column: 1 / -1; }
-  .sa-errors { margin-block-end: var(--sp-4); }
   .sa-form-footer { margin-block-start: var(--sp-4); }
   .sa-register { padding: 0; }
   .sa-register__foot { padding: var(--sp-2); }
@@ -1354,7 +1333,6 @@
   .sa-assign { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); align-items: start; }
   .sa-assign__col { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
   .sa-assign .form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2) var(--sp-3); }
-  .sa-assign__note { margin-block-end: var(--sp-2); font-size: var(--text-xs); }
   .sa-assign__footer { align-self: end; justify-content: flex-end; }
   .sa-cell-sub { display: block; font-size: var(--text-xs); color: var(--text-muted); font-weight: 400; }
   .sa-assign .col-actions { width: auto; }

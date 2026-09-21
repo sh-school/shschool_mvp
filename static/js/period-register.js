@@ -25,6 +25,100 @@
     try { window.localStorage.removeItem(key); } catch (e) { /* لا تخزين */ }
   }
 
+  // الشبكةُ أو الجدول: الاختيارُ عادةٌ للمشرف فيُحفظ، والشبكةُ الأصلُ حتى يختار غيرَها.
+  var viewKey = 'per-view';
+  var wrap = form.querySelector('.per-grid-wrap');
+  function setView(view) {
+    if (wrap) wrap.classList.toggle('is-tiles', view !== 'table');
+    form.querySelectorAll('[data-view]').forEach(function (button) {
+      button.setAttribute('aria-pressed', button.getAttribute('data-view') === view ? 'true' : 'false');
+    });
+  }
+  try { setView(window.localStorage.getItem(viewKey) === 'table' ? 'table' : 'tiles'); } catch (e) { /* لا تخزين */ }
+  form.querySelectorAll('[data-view]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var view = button.getAttribute('data-view');
+      setView(view);
+      try { window.localStorage.setItem(viewKey, view); } catch (e) { /* لا تخزين */ }
+    });
+  });
+
+  // «خروج» (الشبكة): نافذةٌ عائمةٌ تكتب في قائمة «أين الطالب» نفسِها، فلا حقلَ جديدَ في الإرسال.
+  // اختيارُ وجهةٍ يجعل الطالبَ غائباً؛ والرجوعُ إلى حاضر/متأخّر يمحو وجهتَه.
+  function exitCells() { return form.querySelectorAll('td.per-cell.is-focus'); }
+  function syncExit(cell) {
+    var select = cell.querySelector('select.per-where');
+    var label = cell.querySelector('[data-exit-label]');
+    var button = cell.querySelector('[data-exit-open]');
+    if (!select || !label || !button) return;
+    var option = select.options[select.selectedIndex];
+    var set = !!select.value;
+    label.textContent = set ? option.textContent : 'خروج';
+    button.classList.toggle('is-set', set);
+  }
+  function closeExit() {
+    exitCells().forEach(function (cell) {
+      cell.classList.remove('is-exit-open', 'is-min-open');
+      var button = cell.querySelector('[data-exit-open]');
+      if (button) button.setAttribute('aria-expanded', 'false');
+    });
+  }
+  exitCells().forEach(function (cell) {
+    var button = cell.querySelector('[data-exit-open]');
+    if (!button) return;
+    button.addEventListener('click', function (event) {
+      event.stopPropagation();
+      var open = !cell.classList.contains('is-exit-open');
+      closeExit();
+      cell.classList.toggle('is-exit-open', open);
+      button.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    cell.querySelectorAll('[data-where]').forEach(function (option) {
+      option.addEventListener('click', function () {
+        var select = cell.querySelector('select.per-where');
+        var value = option.getAttribute('data-where');
+        select.value = value;
+        if (value) {
+          var absent = cell.querySelector('input[type=radio][value="absent"]');
+          if (absent && !absent.checked) { absent.checked = true; absent.dispatchEvent(new Event('change', { bubbles: true })); }
+        }
+        syncExit(cell);
+        closeExit();
+        write(snapshot());
+        count();
+      });
+    });
+  });
+  // نافذةُ دقائق التأخّر (الشبكة، خارجَ وقت الحصّة): تُفتح عند الضغط على «متأخّر» لهذه البطاقة
+  // وحدَها، وتُغلق بالضغط عليه ثانيةً أو بمفتاحٍ آخر في البطاقة أو بالنقر خارجها أو Enter/Esc —
+  // فلا تبقى مفتوحةً على كلّ متأخّر.
+  form.addEventListener('click', function (event) {
+    var radio = event.target;
+    if (!radio || radio.type !== 'radio') return;
+    var cell = radio.closest('td.per-cell.is-focus');
+    if (!cell || !cell.querySelector('.per-minutes')) return;
+    var wasOpen = cell.classList.contains('is-min-open');
+    closeExit();
+    if (radio.value === 'late' && !wasOpen) {
+      cell.classList.add('is-min-open');
+      var box = cell.querySelector('.per-minutes');
+      if (box) box.focus();
+    }
+  });
+  form.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' && event.target.classList && event.target.classList.contains('per-minutes')) {
+      event.preventDefault();
+      closeExit();
+    }
+  });
+  document.addEventListener('click', function (event) {
+    var t = event.target;
+    if (!t.closest) return;
+    if (t.closest('[data-exit-pop]') || t.closest('.per-minutes') || t.closest('.rec-pick')) return;
+    closeExit();
+  });
+  document.addEventListener('keydown', function (event) { if (event.key === 'Escape') closeExit(); });
+
   function snapshot() {
     var data = {};
     form.querySelectorAll('input[type=radio]:checked, select, input[type=number], input[type=hidden][name^="t-"]').forEach(function (el) {
@@ -72,6 +166,7 @@
 
   var draft = read();
   if (draft) restore(draft);
+  exitCells().forEach(syncExit);
   count();
 
   // لحظةُ النقرة على «متأخّر» تُحفظ بساعة الخادم: الدقائقُ منها لا من لحظة التثبيت.
@@ -81,6 +176,11 @@
     if (radio && radio.type === 'radio') {
       var tap = form.querySelector('[name="t-' + radio.name.slice(2) + '"]');
       if (tap) tap.value = radio.value === 'late' ? String(Math.floor((Date.now() + skew) / 1000)) : '';
+    }
+    // من رجع حاضراً أو متأخّراً لا وجهةَ له: تُمحى فلا تُحفظ وجهةٌ على غير غائب.
+    if (radio && radio.type === 'radio' && radio.value !== 'absent') {
+      var where = form.querySelector('select[name="w-' + radio.name.slice(2) + '"]');
+      if (where && where.value) { where.value = ''; syncExit(where.closest('td')); }
     }
     write(snapshot());
     count();
@@ -99,6 +199,10 @@
         // «الكلُّ حاضر» و«غيابُ الكلّ» لا متأخّرَ بعدهما — فلا لحظةَ نقرةٍ تبقى.
         var tap = form.querySelector('[name="t-' + radio.name.slice(2) + '"]');
         if (tap) tap.value = '';
+        if (value !== 'absent') {
+          var where = form.querySelector('select[name="w-' + radio.name.slice(2) + '"]');
+          if (where && where.value) { where.value = ''; syncExit(where.closest('td')); }
+        }
       });
       write(snapshot());
       count();

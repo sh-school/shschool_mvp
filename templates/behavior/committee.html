@@ -35,6 +35,7 @@
   <div class="fill-grid">
   <div id="open-cases-card" data-section="open">
     {% section_card "القضايا المفتوحة — تحتاج قرار اللجنة" icon="behavior_committee" empty="لا توجد قضايا مفتوحة" empty_sub="جميع المخالفات الجسيمة تمت معالجتها" %}{% if open_cases %}
+      {% callout "warning" %}الإيقاف المؤقت والتصعيد يستدعيان وليَّ الأمر تلقائياً، والتصعيد إلى الدرجة 4 لا يُعكس.{% endcallout %}
       <ul class="plain-list">
         {% for inf in open_cases %}
           <li class="plain-list__row beh-case" data-filter-row data-status="open" data-student="{{ inf.student.full_name }}" data-date="{{ inf.date|date:'Y-m-d' }}" data-level="{{ inf.level }}">
@@ -53,9 +54,9 @@
               <textarea name="action_taken" rows="2" placeholder="ملاحظات اللجنة (اختياري)" aria-label="ملاحظات اللجنة" class="form-control form-control-sm"></textarea>
               <div class="beh-decision__actions">
                 <button name="decision" value="resolve" class="btn-success btn-sm">{% icon "status_success" %} حل وإغلاق</button>
-                <button name="decision" value="suspend" class="btn-warning btn-sm">{% icon "time" %} إيقاف مؤقت</button>
+                <button name="decision" value="suspend" class="btn-warning btn-sm" data-confirm="يُسجَّل الإيقاف المؤقت ويُستدعى وليُّ الأمر تلقائياً. أتابع؟">{% icon "time" %} إيقاف مؤقت</button>
                 {% if inf.level == 3 %}
-                <button name="decision" value="escalate" class="btn-danger btn-sm">{% icon "stats" %} تصعيد</button>
+                <button name="decision" value="escalate" class="btn-danger btn-sm" data-confirm="يُرفع التصعيد إلى الدرجة 4 ويُستدعى وليُّ الأمر تلقائياً، ولا يُعكس. أتابع؟">{% icon "stats" %} تصعيد</button>
                 {% endif %}
               </div>
             </form>

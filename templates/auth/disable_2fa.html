@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
 {% load icons %}
+{% load ui %}
 {% block title %}إيقاف المصادقة الثنائية{% endblock %}
 
 {% block breadcrumbs %}
@@ -25,13 +26,7 @@
   {% endif %}
 
   <!-- تحذير -->
-  <div class="msg-warning rounded-xl p-4 mb-6 flex gap-3">
-    <span class="flex-shrink-0 mt-0.5">{% icon "status_warning" %}</span>
-    <p class="text-sm text-status-warning">
-      إيقاف المصادقة الثنائية يُقلّل من أمان حسابك.
-      تأكد من هذا القرار خاصةً إذا كان حسابك إدارياً.
-    </p>
-  </div>
+  {% callout "warning" %}إيقاف المصادقة الثنائية يُقلّل من أمان حسابك. تأكد من هذا القرار خاصةً إذا كان حسابك إدارياً.{% endcallout %}
 
   <div class="form-card">
     <form method="post">

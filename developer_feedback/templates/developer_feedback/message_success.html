@@ -34,10 +34,7 @@
         <p id="df-success-title">{% trans "رقم التذكرة الخاص بك:" %}</p>
         <code class="df-ticket-number" dir="ltr">{{ ticket_number }}</code>
       </div>
-      <p class="form-note">
-        {% icon "status_info" %}
-        {% trans "سيصل إشعار إلى المطوّر خلال دقائق. سنراسلك بحالة التذكرة داخل النظام." %}
-      </p>
+      {% callout "info" %}{% trans "سيصل إشعار إلى المطوّر خلال دقائق. سنراسلك بحالة التذكرة داخل النظام." %}{% endcallout %}
     {% endsection_card %}
 
   {% else %}
