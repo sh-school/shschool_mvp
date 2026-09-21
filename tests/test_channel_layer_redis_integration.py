@@ -36,7 +36,9 @@ def _redis_reachable() -> bool:
         if url is None:
             return True  # عنوانُ مقبسٍ/sentinel لا نفحصه هنا
         try:
-            with socket.create_connection((url.hostname or "localhost", url.port or 6379), timeout=1):
+            with socket.create_connection(
+                (url.hostname or "localhost", url.port or 6379), timeout=1
+            ):
                 pass
         except OSError:
             return False
