@@ -44,6 +44,7 @@
   "core/management/commands/issue_temporary_passwords.py": 2,
   "core/management/commands/populate_phone_encryption.py": 2,
   "core/management/commands/provision_rls_role.py": 3,
+  "core/management/commands/purge_parent_consents.py": 1,
   "core/management/commands/real_seed.py": 1,
   "core/management/commands/reassign_staff_role.py": 4,
   "core/management/commands/record_staff_departure.py": 2,
@@ -95,7 +96,6 @@
   "core/tenancy.py": 5,
   "core/validators.py": 7,
   "core/views_auth.py": 17,
-  "core/views_students.py": 8,
   "developer_feedback/models.py": 2,
   "developer_feedback/services/ticketing.py": 1,
   "exam_control/models.py": 7,
@@ -155,5 +155,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1764
+ "total": 1757
 }

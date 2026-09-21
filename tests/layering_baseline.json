@@ -330,19 +330,9 @@
    "lines": 113,
    "orm": 19
   },
-  "core/views_students.py::_enroll_student_in_class": {
-   "orm": 9
-  },
-  "core/views_students.py::_process_import": {
-   "lines": 108,
-   "orm": 21
-  },
   "core/views_students.py::student_export_excel": {
    "lines": 119,
    "orm": 14
-  },
-  "core/views_students.py::student_import_export": {
-   "orm": 27
   },
   "core/views_students.py::student_import_template": {
    "lines": 95
@@ -468,10 +458,6 @@
   },
   "parents/views.py::add_parent_link": {
    "orm": 11
-  },
-  "parents/views.py::consent_view": {
-   "lines": 64,
-   "orm": 10
   },
   "parents/views.py::manage_parent_links": {
    "lines": 145,
@@ -704,10 +690,6 @@
    "lines": 81,
    "orm": 25
   },
-  "student_affairs/views.py::student_add": {
-   "lines": 82,
-   "orm": 7
-  },
   "student_affairs/views.py::student_dashboard": {
    "lines": 61
   },
@@ -833,8 +815,7 @@
    "orm": 55
   },
   "wings/views.py::student_events": {
-   "lines": 74,
-   "orm": 25
+   "orm": 12
   },
   "wings/views_absence_file.py::_own_student": {
    "orm": 6

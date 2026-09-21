@@ -11,7 +11,6 @@
 <div class="exec-dash form-page">
   {% page_header "طلب حصة تعويضية" icon="compensation" %}{% endpage_header %}
   {% section_card "بيانات الطلب" icon="edit_record" %}
-    <p class="form-note is-warning schedule-form-note">{% icon "status_warning" %} الحد الأقصى للتعويض: أسبوع واحد من تاريخ الغياب</p>
 
     <form method="post">
       {% csrf_token %}
@@ -42,7 +41,7 @@
         {% field "notes" "ملاحظات (اختياري)" type="textarea" placeholder="أي ملاحظات إضافية..." %}
       </div>
 
-      <button type="submit" class="btn-submit mt-4">إرسال طلب التعويض</button>
+      <button type="submit" class="btn-primary mt-4" data-loading>إرسال طلب التعويض</button>
     </form>
   {% endsection_card %}
 </div>

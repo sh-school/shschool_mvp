@@ -14,17 +14,7 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "شؤون الموظفين" subtitle=page_subtitle icon="settings" %}
-    <a href="{% url 'staff_affairs:staff_list' %}" class="btn-primary btn-sm">{% icon "staff_register" %} سجل الموظفين</a>
-    <a href="{% url 'absence_list' %}" class="btn-secondary btn-sm">{% icon "attendance_teacher_absence" %} غياب المعلمين</a>
-    <a href="{% url 'swap_list' %}" class="btn-secondary btn-sm">{% icon "refresh" %} طلبات التبديل</a>
-    <a href="{% url 'compensatory_list' %}" class="btn-secondary btn-sm">{% icon "compensation" %} الحصص التعويضية</a>
-    <a href="{% url 'staff_affairs:leave_list' %}" class="btn-secondary btn-sm">{% icon "leave" %} الإجازات</a>
-    <a href="{% url 'evaluation_dashboard' %}" class="btn-secondary btn-sm">{% icon "staff_evaluation" %} تقييم الأداء</a>
-    <a href="{% url 'staff_affairs:assignments' %}" class="btn-secondary btn-sm">{% icon "staff" %} التكليفات</a>
-    <a href="{% url 'staff_affairs:licensing' %}" class="btn-secondary btn-sm">{% icon "licences" %} الرخص المهنية</a>
-    <a href="{% url 'teacher_load_report' %}" class="btn-secondary btn-sm">{% icon "workload" %} أعباء المعلمين</a>
-  {% endpage_header %}
+  {% page_header "شؤون الموظفين" subtitle=page_subtitle icon="settings" %}{% endpage_header %}
 
   {% url 'absence_list' as absences_url %}
   {% url 'swap_list' as swaps_url %}

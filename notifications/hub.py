@@ -28,6 +28,7 @@ from django.conf import settings
 from django.db import transaction
 from kombu.exceptions import OperationalError
 
+from . import quiet_hours
 from .channels import deliverable_external_channels
 from .delivery_state import CLAIMABLE
 from .models import (
@@ -381,6 +382,9 @@ _CONSENT_DATA_TYPE = {
     "clinic": "health",
 }
 
+# إخطاراتُ خدمةٍ إلزاميّة: تصل وليَّ الأمر مهما كانت موافقتُه (انظر `_filter_consent`).
+_MANDATORY_SERVICE_EVENTS = frozenset({"absence", "parent_summon", "sent_home"})
+
 
 def _prepare_recipient(user, prepared, results):
     """إشعار المنصّة، ثم القنوات الخارجية المطلوبة لهذا المستلم — أو `None`.
@@ -415,13 +419,10 @@ def _prepare_recipient(user, prepared, results):
     if not external_channels:
         return None
 
-    # التحقق من ساعات الهدوء
+    # ساعات الهدوء تُؤجِّل ولا تُتخطّى — القرارُ عند الطبر في `_queue_external_now`
+    # عبر `quiet_hours.plan` (موضعٌ واحد يخدم الـHub والخدمة معاً). وهنا العدّ وحده.
     if prefs and prefs.is_quiet_hours():
-        # في ساعات الهدوء: in_app فقط (أُرسل أعلاه)
-        # [B4-7O] مُعرِّفٌ لا اسم — السجلّ يقول «مَن» بما يكفي للتتبّع، ولا يحمل
-        # هويّةً دلالية إلى وجهةٍ لا نتحكّم في حفظها.
-        logger.info("quiet hours — external channels skipped recipient_id=%s", user.pk)
-        return None
+        results["deferred"] = results.get("deferred", 0) + 1
 
     for channel in external_channels:
         results["queued"][channel] = results["queued"].get(channel, 0) + 1
@@ -499,27 +500,39 @@ def _create_dispatch(
 
 
 def _filter_consent(recipients: list[Any], event_type: str, school: Any, student: Any) -> list[Any]:
-    """يستبعد أولياء الأمور الذين سحبوا موافقتهم (is_given=False) على نوع
-    البيانات المرتبط بالحدث — تطبيقاً لـ PDPPL (قانون قطر 13/2016).
-    عدم وجود سجل ⇒ مسموح (الافتراضي). 'all' يغطّي كل الأنواع."""
+    """يُبقي من أولياء الأمور من وافق صراحةً — تطبيقاً لـ PDPPL (قانون قطر 13/2016).
+
+    قرار المالك 2026-09-21: الموافقة صريحة لا افتراضيّة. لا سجلَّ ⇒ لم يوافق.
+
+    الدلالة لكلّ حدث:
+    - أحداثُ الخدمة الإلزاميّة (`_MANDATORY_SERVICE_EVENTS`: غياب، استدعاء ولي
+      الأمر، إرسال الطالب إلى البيت) تصل دائماً بلا فحص موافقة: هي إخطاراتٌ
+      تؤدّيها المدرسةُ لالتزامٍ تنظيميّ تجاه وليّ الأمر (إخطارُ الغياب واستدعاؤه
+      في دليل الوزارة)، لا معالجةً اختياريّة تُبنى على الموافقة.
+    - غيرُها (سلوك، درجات، رسوب، صحّة) اختياريّ: يصل لمن سُجِّلت له موافقةٌ
+      `is_given=True` على نوع الحدث أو على «all».
+    - سحبٌ صريح (`is_given=False`) على النوع أو على «all» يغلب أيّ موافقةٍ أخرى.
+    """
+    if event_type in _MANDATORY_SERVICE_EVENTS or not recipients:
+        return recipients
     data_type = _CONSENT_DATA_TYPE.get(event_type)
-    if not data_type or not recipients:
+    if not data_type:
         return recipients
 
     from core.models import ConsentRecord
 
-    withdrawn = set(
-        ConsentRecord.objects.filter(
-            student=student,
-            school=school,
-            data_type__in=[data_type, "all"],
-            is_given=False,
-        ).values_list("parent_id", flat=True)
-    )
-    if not withdrawn:
-        return recipients
+    given: set = set()
+    withdrawn: set = set()
+    for parent_id, is_given in ConsentRecord.objects.filter(
+        student=student,
+        school=school,
+        data_type__in=[data_type, "all"],
+        parent_id__in=[p.pk for p in recipients],
+    ).values_list("parent_id", "is_given"):
+        (given if is_given else withdrawn).add(parent_id)
 
-    kept = [p for p in recipients if p.pk not in withdrawn]
+    allowed = given - withdrawn
+    kept = [p for p in recipients if p.pk in allowed]
     dropped = len(recipients) - len(kept)
     if dropped:
         logger.info(
@@ -768,8 +781,59 @@ def _queue_external_now(
     ولا يُعاد رفع خطأ الطبر في المسار المتتبَّع: المعاملة التزمت فعلاً، فرفعُه
     يُنتج خطأ HTTP عن عمليةٍ قبلتها القاعدة، فيُعيدها المستخدم ظنّاً أنها فشلت.
     """
+    # [ساعات الهدوء] القرارُ من مرجعٍ واحد يشاركه فيه مسارُ الخدمة (`quiet_hours.plan`).
+    # في ساعات هدوء المستلم لا يخرج شيء خارجيٌّ الآن: يُؤجَّل إلى انتهائها بمهمّةٍ
+    # مؤجَّلة تُعيد السؤالَ عند كلّ قفزة. ومسارُ الإرسال أدناه لا يتغيّر حرفاً.
+    # ولا يمرّ التسليمُ المتتبَّع بمسارٍ آخر: المُصالِحُ يعود إلى هذه الدالّة نفسها
+    # فيُحكَم عليه هنا بحكم لحظته.
+    plan = quiet_hours.plan(user)
+
+    if plan.action == quiet_hours.SKIP:
+        # لا عاملَ يحفظ مهمّةً مؤجَّلة (تنفيذٌ فوريّ): إرسالٌ الآن يكسر الهدوء، فلا يخرج.
+        # التسليمُ المتتبَّع يبقى `pending` فيستردّه المُصالِحُ بعد انتهاء النافذة.
+        logger.info(
+            "quiet hours — no worker to hold, external send skipped recipient_id=%s dispatch=%s",
+            user.pk,
+            dispatch_id,
+        )
+        return False
+
+    serialized_context = _serialize_context(context)
     try:
-        from .tasks import hub_send_notification_task
+        from .tasks import hub_send_notification_task, release_after_quiet_hours_task
+
+        if plan.action == quiet_hours.HOLD:
+            assert plan.eta is not None  # HOLD يحمل موعداً دائماً
+            # الحمولةُ نفسُها التي يقرؤها `hub_send` — بأسماء وسائطه. (كُتبت هنا لا
+            # بجوار `.delay` أدناه لأن حارسَ السلك يشترط أن يبقى النشرُ المتتبَّع
+            # حرفيّاً في هذه الدالّة.)
+            release_after_quiet_hours_task.apply_async(
+                kwargs={
+                    "school_id": str(school.id),
+                    "user_id": str(user.id),
+                    "target": "hub",
+                    "payload": {
+                        "user_id": str(user.id),
+                        "school_id": str(school.id),
+                        "channels": list(channels),
+                        "title": title,
+                        "body": body,
+                        "event_type": event_type,
+                        "context": serialized_context,
+                        "sent_by_id": str(sent_by.id) if sent_by else None,
+                        "dispatch_id": dispatch_id,
+                        **({"email_html": email_html} if email_html else {}),
+                        **({"email_text": email_text} if email_text else {}),
+                    },
+                },
+                eta=plan.eta,
+            )
+            logger.info(
+                "quiet hours — external channels held recipient_id=%s until<=%s",
+                user.pk,
+                plan.eta.isoformat(),
+            )
+            return True
 
         hub_send_notification_task.delay(
             user_id=str(user.id),
@@ -778,7 +842,7 @@ def _queue_external_now(
             title=title,
             body=body,
             event_type=event_type,
-            context=_serialize_context(context),
+            context=serialized_context,
             sent_by_id=str(sent_by.id) if sent_by else None,
             dispatch_id=dispatch_id,
             # لا تُمرَّر وسيطةٌ فارغة. عاملٌ قديمٌ يستقبل كلمةً لا يعرفها يرفع
@@ -800,6 +864,13 @@ def _queue_external_now(
         if dispatch_id:
             logger.exception(
                 "Tracked dispatch %s: enqueue failed — deliveries stay pending", dispatch_id
+            )
+            return False
+
+        if plan.action == quiet_hours.HOLD:
+            # الوسيطُ غائبٌ وهذا وقتُ هدوء: لا إرسالَ متزامناً يكسره — كما كان يُتخطّى.
+            logger.warning(
+                "quiet hours — broker unavailable, hold failed error=%s", type(e).__name__
             )
             return False
 

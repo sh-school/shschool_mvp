@@ -27,10 +27,7 @@
   {% endpage_header %}
 
   {% if not periods %}
-    <div class="wing-warn">
-      {% icon "status_warning" %}
-      لا حصصَ لهذه الشعبة في {{ day|date:"d M" }} — فلا شيءَ يُرصد.
-    </div>
+    {% callout "info" show=True %}لا حصصَ لهذه الشعبة في {{ day|date:"d M" }} — فلا شيءَ يُرصد.{% endcallout %}
   {% else %}
 
   <form method="post" action="{% url 'wings:record_period' klass.id %}" class="rec-form"
@@ -51,20 +48,37 @@
           <span>تبدأ <b>{{ focus.start|time:"H:i" }}</b></span>
           <span>تنتهي <b>{{ focus.end|time:"H:i" }}</b></span>
         </p>
+        <div class="per-head__notes">
         {% if focus.confirmation %}<p class="per-head__note">ثُبّتت أوّلَ مرّةٍ {{ focus.confirmation.first_confirmed_at|time:"H:i:s" }} — والتثبيتُ ثانيةً يستبدل ما رُصد ولا يغيّر هذا الوقت.</p>{% endif %}
         {% if not measured_now %}<p class="per-head__note">خارجَ وقت الحصّة: دقائقُ التأخّر تُكتب باليد.</p>{% endif %}
+        </div>
       </div>
-      <div class="per-bulk">
-        <button type="button" class="btn-secondary btn-sm" data-bulk="present">الكلُّ حاضر</button>
-        <button type="button" class="btn-secondary btn-sm" data-bulk="absent">غيابُ الكلّ</button>
+      <div class="per-head__tools">
+        <div class="per-head__keys">
+        <div class="per-bulk">
+          <button type="button" class="btn-secondary btn-sm" data-bulk="present">الكلُّ حاضر</button>
+          <button type="button" class="btn-secondary btn-sm" data-bulk="absent">غيابُ الكلّ</button>
+        </div>
+        <div class="per-view" role="group" aria-label="طريقةُ العرض">
+          <button type="button" class="btn-secondary btn-sm" data-view="tiles" aria-pressed="true">شبكة</button>
+          <button type="button" class="btn-secondary btn-sm" data-view="table" aria-pressed="false">جدول</button>
+        </div>
+        </div>
+        <nav class="per-tabs" aria-label="حصصُ اليوم">
+          {% for period, status in periods %}
+            <a href="?date={{ day|date:'Y-m-d' }}&amp;p={{ period.key }}" class="per-tab is-{{ status }}{% if period.start == focus.start %} is-focus{% endif %}" {% if period.start == focus.start %}aria-current="true"{% endif %}>ح{{ period.number }}</a>
+          {% endfor %}
+        </nav>
       </div>
     </section>
 
     {% comment %}
       كشفُ الشعبة: الطلابُ صفوفاً، وحصصُ اليوم كلُّها أعمدة. العمودُ المفتوحُ للرصد
       فيه الأزرار، وبقيّةُ الأعمدة حالُ الطالب فيها. ورأسُ العمود يفتح حصّتَه.
+      والشبكةُ (الأصل) هي الجدولُ نفسُه بلا نسخةٍ ثانيةٍ من الحقول: يُعاد تنسيقُ الصفّ
+      بطاقةً بالأنماط وحدَها، فلا يتضاعف شيءٌ في الإرسال.
     {% endcomment %}
-    <div class="per-grid-wrap">
+    <div class="per-grid-wrap is-tiles">
       <table class="per-grid" data-no-sort>
         <thead>
           <tr data-plain-head>
@@ -93,7 +107,7 @@
           <tr class="rec-row" data-student="{{ sid }}" data-prefill="{{ row.pick.marker }}">
             <td class="per-grid__no">{{ forloop.counter }}</td>
             <th scope="row" class="per-grid__name">
-              <span class="rec-row__name"><a href="{% url 'wings:absence_file' sid %}" class="rec-row__file" title="ملفُّ غيابه يوماً بيوم">{{ row.student.full_name }}</a> <a href="{% url 'wings:student_events' klass.id sid %}" class="rec-row__fix" title="تصحيح أو عذرُ إدخالٍ خاطئ على هذا الطالب">تصحيح</a></span>
+              <span class="rec-row__name"><a href="{% url 'wings:absence_file' sid %}" class="rec-row__file" title="{{ row.student.full_name }} — ملفُّ غيابه يوماً بيوم">{{ row.student.full_name }}</a> <a href="{% url 'wings:student_events' klass.id sid %}" class="rec-row__fix" title="تصحيح أو عذرُ إدخالٍ خاطئ على هذا الطالب">تصحيح</a></span>
               {% if row.absent_yesterday or row.days or row.pick.away_note %}
               <span class="rec-row__flags">
                 {% if row.pick.away_note %}<span class="badge badge--info" title="بإذن المعلّم">{{ row.pick.away_note }}</span>{% endif %}
@@ -120,6 +134,16 @@
                     <span>متأخّر{% if row.pick.marker == "late" %} <small title="نقرةُ المعلّم">{{ row.pick.tap }} د</small>{% endif %}</span>
                   </label>
                 </span>
+                {% comment %} الشبكةُ فقط: «خروج» يفتح نافذةً عائمةً بوجهات «أين الطالب» (تكتب `w-` نفسَه)، فلا يزيد ارتفاعَ البطاقة. {% endcomment %}
+                <button type="button" class="rec-exit" data-exit-open aria-haspopup="true" aria-expanded="false" title="خروجُ الطالب — أين هو؟">
+                  <span class="rec-exit__label" data-exit-label>خروج</span>
+                </button>
+                <div class="rec-pop" data-exit-pop role="menu" aria-label="أين الطالب">
+                  <button type="button" role="menuitem" class="rec-pop__opt" data-where="">في فصله</button>
+                  {% for value, label in whereabouts %}
+                    <button type="button" role="menuitem" class="rec-pop__opt" data-where="{{ value }}">{{ label }}</button>
+                  {% endfor %}
+                </div>
                 <input type="hidden" name="t-{{ sid }}" value="">
                 {% if row.pick.seen_exit %}<input type="hidden" name="o-{{ sid }}" value="{{ row.pick.seen_exit }}">{% endif %}
                 <span class="rec-row__more">

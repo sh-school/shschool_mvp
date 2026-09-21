@@ -17,6 +17,7 @@
   <header class="card-bar">
     {% icon_named icon %}
     <h2 class="ui-section__title">{{ title }}</h2>
+    {{ tips }}
     {% if meta or meta == 0 %}<span class="card-bar-sub">{{ meta }}</span>{% endif %}
   </header>
   <div class="ui-section__body">
