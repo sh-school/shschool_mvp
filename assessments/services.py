@@ -10,8 +10,9 @@ assessments/services.py
 
 from __future__ import annotations
 
+import logging
 from decimal import ROUND_HALF_UP, Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
 from django.db.models import Avg, Count, Q, QuerySet
@@ -39,6 +40,11 @@ from .verdict_engine import VerdictEngine, ensure_open_year
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
+
+
+logger = logging.getLogger(__name__)
+
+_ROW_KEYS = ("grade_", "absent_", "excused_", "notes_")
 
 
 class GradeService:
@@ -442,6 +448,75 @@ class GradeService:
         return StudentSubjectResult.objects.create(
             student=student, setup=setup, semester=semester, **defaults
         )
+
+    @staticmethod
+    def _grade_from_post(
+        post: Any,
+        sid: str,
+        current: StudentAssessmentGrade | None,
+        is_absent: bool,
+        is_excused: bool,
+        notes: str,
+    ) -> tuple[Decimal | None, bool]:
+        """(الدرجة، تخطٍّ؟) لصفٍّ واحد من نموذج الحفظ الجماعيّ — منطقُ التخطّي الدفاعيّ."""
+        if is_absent or is_excused:
+            return None, False
+        grade = None
+        if f"grade_{sid}" in post:
+            raw = post[f"grade_{sid}"].strip()
+            if raw:
+                try:
+                    grade = Decimal(raw)
+                except (ValueError, TypeError, ArithmeticError) as e:
+                    logger.warning("فشل تحويل درجة الطالب %s إلى Decimal: %r — %s", sid, raw, e)
+                    return None, True
+            # raw فارغ مع وجود المفتاح = مسحٌ صريحٌ من المستخدم (grade=None)
+        elif current is not None:
+            grade = current.grade  # المفتاحُ غائبٌ: أبقِ الدرجةَ المحفوظة
+        # صفٌّ فارغٌ بلا سجلٍّ سابق: لا تُنشئ سجلاً خاوياً
+        return grade, grade is None and current is None and not notes.strip()
+
+    @staticmethod
+    def save_all_from_post(assessment: Assessment, post: Any, entered_by: CustomUser | None) -> int:
+        """حفظ كل درجات تقييمٍ دفعةً واحدة من POST، ثمّ إعادة الحساب مرّةً وتحديث الحالة.
+
+        صفٌّ لم يُرسَل منه شيءٌ لا يُلمس أبداً — الغيابُ ليس «مسحاً». يُرجع عددَ المحفوظ."""
+        enrollments = StudentEnrollment.objects.filter(
+            class_group=assessment.class_group, is_active=True
+        ).select_related("student")
+        existing = {
+            g.student_id: g for g in StudentAssessmentGrade.objects.filter(assessment=assessment)
+        }
+        saved = 0
+        for enr in enrollments:
+            sid = str(enr.student.id)
+            if not any(f"{p}{sid}" in post for p in _ROW_KEYS):
+                continue
+            current = existing.get(enr.student.id)
+            is_absent = post.get(f"absent_{sid}") == "1"
+            is_excused = post.get(f"excused_{sid}") == "1"
+            notes = post.get(f"notes_{sid}", "")
+            grade, skip = GradeService._grade_from_post(
+                post, sid, current, is_absent, is_excused, notes
+            )
+            if skip:
+                continue
+            GradeService.save_grade(
+                assessment=assessment,
+                student=enr.student,
+                grade=grade,
+                is_absent=is_absent,
+                is_excused=is_excused,
+                notes=notes,
+                entered_by=entered_by,
+                recalc=False,  # [PERF-02] يُعاد الحساب دفعةً واحدة بعد الحلقة
+            )
+            saved += 1
+        # [PERF-02] إعادة حساب الفصل كاملاً مرة واحدة (batch) بدل مرة لكل طالب
+        GradeService.recalculate_full_class(assessment.package.setup)
+        assessment.status = "graded"
+        assessment.save(update_fields=["status"])
+        return saved
 
     @staticmethod
     def recalculate_full_class(setup: SubjectClassSetup, actor: CustomUser | None = None) -> None:

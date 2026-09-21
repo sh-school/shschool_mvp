@@ -14,6 +14,7 @@
 <div class="exec-dash">
   {% page_header student.full_name subtitle=klass.short_code icon="absence" %}
     <a href="{% url 'wings:student_events' klass.id student.id %}" class="btn-secondary btn-sm">تصحيح الرصد</a>
+    {% callout "info" %}لا وليَّ أمرٍ مربوطٌ بهذا الطالب — راجع شؤونَ الطلبة.{% endcallout %}
   {% endpage_header %}
 
   {% include "wings/partials/student_search_form.html" %}
@@ -36,7 +37,7 @@
     {% endfor %}
   </ul>
   {% else %}
-  <p class="form-note">{% icon "status_warning" %} <span>لا وليَّ أمرٍ مربوطٌ بهذا الطالب — راجع شؤونَ الطلبة.</span></p>
+  
   {% endif %}
 
   {% section_card "أيّامُ الغياب" meta=days|length icon="absence" empty="لا غيابَ على هذا الطالب هذا العام" %}
@@ -105,7 +106,7 @@
       </li>
       {% endfor %}
     </ul>
-    <p class="bell-note">العذرُ يشمل أيّامَ الغياب بلا عذرٍ المتّصلة بيومه. والمشرفُ يقبله حتى يمضي يومان دراسيّان على عودة الطالب، ومن بعدها يُرسَل إلى النائب الإداريّ بالضغطة نفسها.</p>
+    {% callout "hint" %}العذرُ يشمل أيّامَ الغياب بلا عذرٍ المتّصلة بيومه. والمشرفُ يقبله حتى يمضي يومان دراسيّان على عودة الطالب، ومن بعدها يُرسَل إلى النائب الإداريّ بالضغطة نفسها.{% endcallout %}
     {% endif %}
   {% endsection_card %}
 </div>

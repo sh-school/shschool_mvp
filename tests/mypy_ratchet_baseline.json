@@ -95,7 +95,6 @@
   "core/tenancy.py": 5,
   "core/validators.py": 7,
   "core/views_auth.py": 17,
-  "core/views_students.py": 8,
   "developer_feedback/models.py": 2,
   "developer_feedback/services/ticketing.py": 1,
   "exam_control/models.py": 7,
@@ -158,5 +157,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1829
+ "total": 1821
 }

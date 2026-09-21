@@ -19,6 +19,8 @@
       {% field "date" "اليوم" type="date" value=day|date:'Y-m-d' hide_label=True %}
       <button type="submit" class="btn-secondary btn-sm">اعرض</button>
     </form>
+    {% callout "hint" %}تُرصد كلُّ حصّةٍ بدخول الفصل، والحصّةُ التي لم تُثبَّت حتى خمس دقائق بعد نهايتها
+    تبقى «لم تُرصد». وشعبةٌ «لم تُرصد» ليست شعبةً كلُّها حاضر.{% endcallout %}
   {% endpage_header %}
 
   {% include "wings/partials/student_search_form.html" %}
@@ -30,18 +32,12 @@
     {% for panel in panels %}
     {% include "wings/partials/record_panel.html" %}
     {% empty %}
-      <div class="wing-warn">
-        {% icon "status_warning" %}
-        لا جناحَ مُسنَدٌ إليك اليوم — راجع «تغطية الأجنحة».
-      </div>
+      {% callout "info" show=True %}لا جناحَ مُسنَدٌ إليك اليوم — راجع «تغطية الأجنحة».{% endcallout %}
     {% endfor %}
     </div>
   {% endif %}
 
-  <p class="bell-note">
-    تُرصد كلُّ حصّةٍ بدخول الفصل، والحصّةُ التي لم تُثبَّت حتى خمس دقائق بعد نهايتها
-    تبقى «لم تُرصد». وشعبةٌ «لم تُرصد» ليست شعبةً كلُّها حاضر.
-  </p>
+  
 
 </div>
 {% endblock %}

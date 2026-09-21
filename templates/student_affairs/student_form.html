@@ -60,6 +60,10 @@
 
       </div>
 
+      {% if mode == "add" %}
+      {% callout "warning" %}الرقمُ الشخصيّ لا يُعدَّل بعد الحفظ؛ راجعه قبل إضافة الطالب.{% endcallout %}
+      {% endif %}
+
       {# ── الأزرار ── #}
       <div class="form-footer">
         <a href="{% url 'student_affairs:student_list' %}" class="btn-secondary btn-sm">إلغاء</a>
