@@ -22,7 +22,7 @@
 
 ## 2. خريطةُ الحرّاس
 
-### أ. سقّاطاتُ العدّ (خمس)
+### أ. سقّاطاتُ العدّ (ست)
 
 | السقّاطة | ما تعدّه | الملفّ | خطُّ الأساس اليوم | أين تعمل | تسجيلُ التحسّن |
 |---|---|---|---|---|---|
@@ -31,6 +31,7 @@
 | **axe-core الحيّ** | عُقَدُ المخالفة لكلّ صفحةٍ وكلّ قاعدة WCAG 2.0/2.1 (أ وAA) في Chromium بعد تسجيل الدخول | `tests/a11y_axe_ratchet.py` ← `a11y_axe_ratchet_baseline.json` | **2**: `aria-allowed-attr` في `notification_inbox`، `scrollable-region-focusable` في `ui_components` | وظيفةُ `axe-a11y` | `AXE_UPDATE=1 pytest tests/test_a11y_axe_ratchet.py::test_axe_violations_have_not_grown` |
 | **الأنواع** | أخطاءُ mypy لكلّ ملف | `tests/mypy_ratchet.py` ← `mypy_ratchet_baseline.json` | **1,829** خطأً في 157 ملفاً | وظيفةُ `mypy` (`python -m tests.mypy_ratchet`) | `python -m tests.mypy_ratchet --update` |
 | **الطبقات** | دالّةُ العرض ≤ 60 سطراً و≤ 5 استدعاءاتِ ORM؛ `core` لا يستورد وحدةً نازلة؛ `get_school()` في ملفّات العروض | `tests/layering_ratchet.py` ← `layering_baseline.json` (ADR-0004) | `views` 220، `get_school` 31، `core_imports` 12، `accepted` 9 | `pytest — تغطية` (`test_layering.py`) | `--update` · `--accept "<موضع>" --reason "<سبب>"` · `--rebaseline` (على المضيف: `git` ليس في الحاوية) |
+| **حجمُ ملفّات الشيفرة** | أسطرُ كلّ `.py` (عدا الهجرات والاختبارات) فوق **1000** سطر: الملفُّ الجديدُ لا يتجاوز، والمسجَّلُ لا يكبر أكثرَ من هامش **25** سطراً — سطرٌ أو سطران في ملفٍّ كبير لا يُسقط جلساتٍ متوازية (استثناءٌ مقصودٌ من «النقص يسقط أيضاً»: النقصُ يسقط عند تجاوز الهامش أو النزول تحت الحدّ) | `tests/file_size_ratchet.py` ← `file_size_baseline.json` | 13 ملفّاً مسجَّلاً، أكبرُها `student_affairs/views.py` | `pytest — تغطية` (`test_file_size.py`) | `python -m tests.file_size_ratchet --update` · وعند التجاوز: حزمةٌ حسب المسؤوليّة (النموذج `staff_affairs/attendance/`، #447) |
 
 > **نشأتُها:** الهويّةُ البصريّة 2026-09-13 (`c201de9f`)، الوصوليّةُ والأنواع 2026-09-14 (`35ff73d5`)، الطبقات 2026-09-18 (`9edd0097`)، axe 2026-09-18 (#379).
 >

@@ -1,4 +1,4 @@
-"""[FILE-SIZE] لا ملفَّ شيفرةٍ جديدٌ فوق 900 سطر، ولا قائمٌ تجاوزه يكبر — راجع `tests/file_size_ratchet.py`."""
+"""[FILE-SIZE] لا ملفَّ شيفرةٍ جديدٌ فوق 1000 سطر، ولا قائمٌ تجاوزه يكبر — راجع `tests/file_size_ratchet.py`."""
 
 import json
 

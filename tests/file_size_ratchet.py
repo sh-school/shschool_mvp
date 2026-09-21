@@ -17,7 +17,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BASELINE = ROOT / "tests" / "file_size_baseline.json"
-HARD_LIMIT = 900
+# 1000: معيارُ القبول في خطّة Backend (البند 8: «لا ملفَّ فوق 1000 سطر»، #393/#402).
+HARD_LIMIT = 1000
 WARN_LIMIT = 600
 # هامشٌ لا يُحسب زيادةً: سطرٌ أو سطران في ملفٍّ كبير لا يُسقط جلساتٍ متوازيةً ولا يتصادم فيه السجلّ
 # (كلُّ جلسةٍ ستعدّل الأساسَ نفسَه). أمّا نموُّ عشراتِ الأسطر فيسقط.
