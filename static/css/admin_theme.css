@@ -48,8 +48,6 @@ html[data-theme="light"],
   --header-branding-color: #d4a843;
   --header-bg: #8a1538;
   --header-link-color: #fff;
-  --breadcrumbs-fg: #e8b4c3;
-  --breadcrumbs-link-fg: #fff;
   --breadcrumbs-bg: #6b0f2a;
   --link-fg: #8a1538;
   --link-hover-color: #6b0f2a;
@@ -83,7 +81,6 @@ html[data-theme="light"],
     --body-quiet-color: #cbd5e1;
     --body-medium-color: #e2e8f0;
     --body-loud-color: #fff;
-    --breadcrumbs-fg: #e8b4c3;
     --breadcrumbs-bg: #3b1125;
     --link-fg: #f9a8c9;
     --link-hover-color: #fff;
@@ -110,7 +107,6 @@ html[data-theme="dark"] {
   --body-quiet-color: #cbd5e1;
   --body-medium-color: #e2e8f0;
   --body-loud-color: #fff;
-  --breadcrumbs-fg: #e8b4c3;
   --breadcrumbs-bg: #3b1125;
   --link-fg: #f9a8c9;
   --link-hover-color: #fff;
@@ -271,15 +267,15 @@ html[data-theme="dark"] {
 .app-fold__summary a.section:link,
 .app-fold__summary a.section:visited { color: inherit; margin-inline-end: auto; }
 .app-fold__count { font-size: 0.7rem; opacity: 0.85; font-variant-numeric: tabular-nums; }
-/* جانغو يترك 30px تحت كلّ .module، وهو مناسبٌ لجداولَ مفتوحة لا لأشرطةِ أقسامٍ مطويّة؛ فيُلغى هنا وتُوزَّع الأقسام أعمدةً (17rem أدنى) فيقلّ التمريرُ. */
-.dashboard #content-main { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+/* جانغو يترك 30px تحت كلّ .module، وهو مناسبٌ لجداولَ مفتوحة لا لأشرطةِ أقسامٍ مطويّة؛ فيُلغى هنا وتُوزَّع الأقسام أعمدةً (13rem أدنى) فيقلّ التمريرُ. */
+.dashboard #content-main { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
   gap: 0.4rem 1rem; align-items: start; }
 .dashboard #content-main .module { margin-bottom: 0; }
 /* الرئيسيّة: «آخر الإجراءات» على الجهة المقابلة لمكانها الافتراضيّ وبعمودين؛ وتحت 1025px تعود جانغو إلى تكديسها. */
 @media (min-width: 1025px) {
   .dashboard #content.colMS {
     display: grid;
-    grid-template-columns: 30rem minmax(0, 1fr);
+    grid-template-columns: 38rem minmax(0, 1fr);
     gap: 0 1rem;
     align-items: start;
     margin: 0;
@@ -288,8 +284,43 @@ html[data-theme="dark"] {
     width: auto;
   }
   .dashboard #content.colMS > * { grid-column: 1 / -1; }
-  .dashboard #content.colMS > #content-main { float: none; grid-column: 2; grid-row: 2; width: auto; margin: 0; }
-  .dashboard #content.colMS > #content-related { float: none; grid-column: 1; grid-row: 2; width: auto; margin: 0; }
-  .dashboard #content-related .actionlist { columns: 2; column-gap: 1rem; }
+  .dashboard #content.colMS > #content-main { float: none; grid-column: 2; grid-row: 3; width: auto; margin: 0; }
+  .dashboard #content.colMS > #content-related { float: none; grid-column: 1; grid-row: 3; width: auto; margin: 0; }
+  .dashboard #content-related .actionlist { columns: 3; column-gap: 1rem; }
   .dashboard #content-related .actionlist li { break-inside: avoid; }
 }
+/* بطاقاتُ مراقبةِ المطوّر (`admin/_dev_cards.html`): ألوانُ الحالة من رموز جانغو نفسِها فتنقلب مع الوضع الليليّ. */
+.adm-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 0.75rem; margin-block: 0.5rem 1rem; }
+.adm-card, .adm-card:link, .adm-card:visited { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.5rem 0.75rem; border: 1px solid var(--hairline-color); border-inline-start: 4px solid var(--border-color); background: var(--darkened-bg); color: var(--body-fg); text-decoration: none; }
+a.adm-card:hover { background: var(--selected-row); }
+.adm-card--ok { border-inline-start-color: var(--message-success-bg); }
+.adm-card--warn { border-inline-start-color: var(--message-warning-bg); }
+.adm-card--bad { border-inline-start-color: var(--error-fg); }
+.adm-card__title { font-size: 0.75rem; color: var(--body-quiet-color); }
+.adm-card__value { font-size: 1.5rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.adm-card__detail { font-size: 0.75rem; color: var(--body-quiet-color); }
+/* صفحاتُ الإدارة كلُّها بلا تمريرٍ رأسيٍّ للصفحة: الترويسةُ والقائمةُ والتذييل ثابتة، ومنطقةُ المحتوى تمرّر داخلَ نفسها. */
+@media (min-width: 1025px) and (min-height: 560px) {
+  body:not(.popup) #container { height: 100vh; height: 100dvh; min-height: 0; }
+  body:not(.popup) #container > #header, body:not(.popup) #container > #footer { flex: none; }
+  body:not(.popup) #container > .main { flex: 1 1 0; min-height: 0; overflow: hidden; }
+  body:not(.popup) #container > .main > .content { min-height: 0; overflow-y: auto; }
+  /* الرئيسيّةُ: القائمتان تمرّران كلٌّ داخلَ نفسها فلا تمرّر المنطقةُ كلُّها. */
+  .dashboard #container > .main > .content { overflow: hidden; }
+  .dashboard #content.colMS { height: 100%; box-sizing: border-box; grid-template-rows: auto auto minmax(0, 1fr); padding-block: 0.5rem 0; }
+  .dashboard #content.colMS > h1 { margin: 0 0 0.5rem; }
+  .dashboard #content.colMS > br.clear { display: none; }
+  .dashboard #content.colMS > #content-main, .dashboard #content.colMS > #content-related { min-height: 0; max-height: 100%; overflow-y: auto; }
+}
+/* لا شريطَ مسارٍ: القائمةُ الأفقيّةُ تكفي وهو يأكل ارتفاعَ الصفحة (قوالبُ جانغو الفرعيّة تُعيد تعريفَ كتلته فلا يُلغى من القالب). */
+.breadcrumbs { display: none; }
+/* الأقسامُ ثلاثةُ أعمدةٍ لا أكثر على الشاشات العريضة (وتحت 1025px تتجاوب تلقائيّاً). */
+@media (min-width: 1025px) { .dashboard #content-main { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* «آخر الإجراءات» مضغوطةً لتتّسع في ارتفاع النافذة. */
+@media (min-width: 1025px) and (min-height: 560px) {
+  .dashboard #content-related h2 { padding-block: 0.5rem; }
+  .dashboard #content-related h3 { margin-block: 0 0.5rem; }
+  .dashboard #content-related .actionlist { margin: 0.5rem 1rem; }
+  .dashboard #content-related .actionlist li { font-size: 0.8125rem; line-height: 1.3; }
+}
+@media (min-width: 1025px) { .adm-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; margin-block: 0.25rem 0.5rem; } .adm-card__value { font-size: 1.25rem; } }
