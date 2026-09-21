@@ -136,6 +136,7 @@ class TestBreachStatusLifecycle:
 
     def test_transition_to_resolved_sets_resolved_at(self, client_as, principal_user, breach):
         c = client_as(principal_user)
+        c.post(f"/breach/{breach.pk}/status/", {"status": "notified"})
         c.post(f"/breach/{breach.pk}/status/", {"status": "resolved"})
         breach.refresh_from_db()
         assert breach.status == "resolved"

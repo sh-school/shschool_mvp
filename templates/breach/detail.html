@@ -11,6 +11,7 @@
 <div class="exec-dash">
 
   {% page_header breach.title subtitle="PDPPL م.11 — إشعار NCSA خلال 72 ساعة من الاكتشاف" icon="breach" %}
+    {% if breach.status != "resolved" %}<a href="{% url 'breach:edit' breach.pk %}" class="btn-secondary btn-sm">{% icon "edit" %} تعديل</a>{% endif %}
     <a href="{% url 'breach:pdf' breach.pk %}" class="btn-secondary btn-sm">{% icon "download" %} تقرير PDF</a>
   {% endpage_header %}
 
@@ -19,7 +20,7 @@
       {% if breach.is_overdue %}
         {% kpi "المهلة المتبقية" "فاتت" sub=overdue_sub tone="red" title="مهلةُ إشعار NCSA (72 ساعة) انقضت ولم يُسجَّل الإشعار" %}
       {% else %}
-        {% kpi "ساعات متبقية" breach.hours_remaining sub="حتى موعد إشعار NCSA" tone=remaining_tone %}
+        {% kpi "ساعات متبقية" breach.hours_remaining sub=remaining_sub tone=remaining_tone %}
       {% endif %}
     {% else %}
       {% kpi "المهلة" "مُغلقة" sub=breach.get_status_display tone="green" %}
@@ -66,14 +67,34 @@
         <span class="plain-list__title">الاحتواء</span>
         <span>{{ breach.containment_action|default:"—"|linebreaksbr }}</span>
       </li>
+      <li class="plain-list__row">
+        <span class="plain-list__title">المسؤول عن المتابعة</span>
+        <span>{{ breach.assigned_to.full_name|default:"لم يُكلَّف أحد" }}</span>
+      </li>
+      <li class="plain-list__row">
+        <span class="plain-list__title">الأدلة والملاحظات</span>
+        <span>{{ breach.evidence_notes|default:"—"|linebreaksbr }}</span>
+      </li>
     </ul>
   {% endsection_card %}
 
   {% if breach.notification_text %}
   {% section_card "نصّ إشعار NCSA" icon="notifications" %}
+    <p class="form-note" role="note">{% icon "tip" %}<span>لا تُرسل المنصّةُ هذا النصَّ تلقائيّاً؛ الإرسالُ إلى الجهة قرارُ المسؤول، ثمّ يُسجَّل بزرّ «تم إشعار NCSA».</span></p>
     <p>{{ breach.notification_text|linebreaksbr }}</p>
   {% endsection_card %}
   {% endif %}
+
+  {% section_card "سجلّ التغييرات" meta=history|length icon="reports" empty="لا سجلَّ بعد" %}{% if history %}
+    <ul class="plain-list">
+      {% for h in history %}
+      <li class="plain-list__row">
+        <span class="plain-list__title">{{ h.what }}</span>
+        <span class="num">{{ h.who }} · {{ h.at|date:"Y/m/d H:i" }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}{% endsection_card %}
 
   {% section_card "تغيير الحالة" icon="notifications" %}
     {% if breach.status == "resolved" %}
@@ -88,6 +109,9 @@
       <form method="post" action="{% url 'breach:update_status' breach.pk %}" class="form-actions">{% csrf_token %}
         {% if breach.status == "discovered" %}
         <button type="submit" name="status" value="assessing" class="btn-secondary">قيد التقييم</button>
+        {% endif %}
+        {% if breach.status == "assessing" %}
+        <button type="submit" name="status" value="resolved" class="btn-secondary" title="خلص التقييمُ إلى أنّ الخرق لا يستوجب إشعاراً — يُدقَّق الإغلاقُ بلا إشعارٍ في السجلّ">إغلاق دون إشعار</button>
         {% endif %}
         {% if breach.status != "notified" %}
         <button type="submit" name="status" value="notified" class="btn-danger">{% icon "notifications" %} تم إشعار NCSA</button>
