@@ -90,8 +90,15 @@ class SchoolPermissionMiddleware:
                 return JsonResponse(
                     {"error": "لا توجد عضوية نشطة", "code": "no_membership"}, status=403
                 )
+            # طريقٌ مسدود بلا مخرج: من دخل بحسابٍ بلا عضويّةٍ لا يملك تسجيلَ الخروج ليدخل بغيره،
+            # ومسارُ الخروج POST وحده — فيُعرَض معه زرُّه.
+            from django.middleware.csrf import get_token
+
             return HttpResponseForbidden(
                 "<h2 dir='rtl'>ليس لديك عضوية نشطة في أي مدرسة. تواصل مع مدير النظام.</h2>"
+                f"<form method='post' action='{reverse('logout')}' dir='rtl'>"
+                f"<input type='hidden' name='csrfmiddlewaretoken' value='{get_token(request)}'>"
+                "<button type='submit'>تسجيل الخروج</button></form>"
             )
 
         from core.module_registry import gate_admits
