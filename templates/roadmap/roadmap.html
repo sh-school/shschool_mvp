@@ -18,15 +18,8 @@
      data-item-url="{{ item_url }}" data-decision-url="{{ decision_url }}"
      data-checklist-url="{{ checklist_url }}" data-item-create-url="{{ item_create_url }}" data-csrf="{{ csrf_token }}">
 
-  {# عنوانُ الصفحة كبقيّة المنصّة: مكوّن page_header المركزيّ #}
+  {# العنوانُ والتقدّمُ والأقسام في صفٍّ واحد: مكوّن page_header المركزيّ (يوفّر سطراً كاملاً من الارتفاع) #}
   {% page_header "خارطةُ تجويد المنصّة" icon="roadmap" %}
-    <div class="rm-big" title="التقدّمُ المرجَّحُ بالجهد"><b id="rm-pct">{{ overall_progress }}</b><span>% تقدّم</span></div>
-  {% endpage_header %}
-
-  {# شريطُ الأقسام: بطاقةٌ خاصّةٌ به تحت العنوان #}
-  <div class="rm-tabsbar">
-    <p class="rm-live" id="rm-live" role="status" aria-live="polite"></p>
-    <select class="form-control rm-tabsel" id="rm-tabsel" aria-label="القسم"></select>
     <div class="rm-tabs" role="tablist" aria-label="أقسام الخارطة">
       <button type="button" class="tab-btn rm-tab" role="tab" id="rm-t-ov" data-rm-tab="ov" aria-controls="rm-tab-ov" aria-selected="true">نظرةٌ عامّة</button>
       <button type="button" class="tab-btn rm-tab" role="tab" id="rm-t-gt" data-rm-tab="gt" aria-controls="rm-tab-gt" aria-selected="false">الخريطةُ الزمنيّة</button>
@@ -36,7 +29,10 @@
       <button type="button" class="tab-btn rm-tab" role="tab" id="rm-t-st" data-rm-tab="st" aria-controls="rm-tab-st" aria-selected="false">المعايير</button>
       <button type="button" class="tab-btn rm-tab" role="tab" id="rm-t-ru" data-rm-tab="ru" aria-controls="rm-tab-ru" aria-selected="false">القواعدُ والتحديث</button>
     </div>
-  </div>
+    <div class="rm-big" title="التقدّمُ المرجَّحُ بالجهد"><b id="rm-pct">{{ overall_progress }}</b><span>% تقدّم</span></div>
+  {% endpage_header %}
+  <p class="rm-live" id="rm-live" role="status" aria-live="polite"></p>
+  <select class="form-control rm-tabsel" id="rm-tabsel" aria-label="القسم"></select>
 
   <noscript><p class="rm-note">تعرض الخارطةُ بياناتِها بجافاسكربت — فعِّله لتراها وتحدّثها.</p></noscript>
   {% if not item_count %}
