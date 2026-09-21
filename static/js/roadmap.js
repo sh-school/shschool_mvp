@@ -653,7 +653,7 @@
 
   function restoreFocus() {
     if (!S.focus) return;
-    var esc = function (v) { return window.CSS && CSS.escape ? CSS.escape(String(v)) : String(v).replace(/["\]/g, '\$&'); };
+    var esc = function (v) { return window.CSS && CSS.escape ? CSS.escape(String(v)) : String(v).replace(/["\\]/g, '\\$&'); };
     var target = root.querySelector('[data-rm-id="' + esc(S.focus.id) + '"][data-rm-field="' + esc(S.focus.field) + '"]');
     S.focus = null;
     if (target) target.focus();
