@@ -135,7 +135,6 @@
   "analytics/views.py": 12,
   "api/views.py": 16,
   "api/views_erasure.py": 2,
-  "breach/views.py": 5,
   "clinic/views.py": 6,
   "core/views_audit.py": 1,
   "core/views_dashboard.py": 1,
@@ -314,9 +313,6 @@
   "behavior/views.py::summon_parent": {
    "lines": 153,
    "orm": 34
-  },
-  "breach/views.py::dashboard": {
-   "orm": 7
   },
   "clinic/views.py::student_health_record": {
    "orm": 7
