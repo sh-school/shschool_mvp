@@ -106,3 +106,70 @@ def test_purge_deletes_only_jobs_older_than_a_day(school, principal_user):
 
     assert not ExportJob.objects.filter(pk=old.pk).exists()
     assert ExportJob.objects.filter(pk=fresh.pk).exists()
+
+
+# ── مهلةُ المهمّة العالقة: لا تحديثَ تلقائيّاً بلا نهاية ─────────────────────
+
+
+def _job(school, user, status, age_minutes):
+    job = ExportJob.objects.create(
+        school=school, requested_by=user, kind="schedule.pdf", status=status
+    )
+    ExportJob.objects.filter(pk=job.pk).update(
+        created_at=timezone.now() - timedelta(minutes=age_minutes)
+    )
+    job.refresh_from_db()
+    return job
+
+
+@pytest.mark.parametrize("status", ["pending", "running"])
+def test_a_stuck_job_past_the_timeout_fails_with_a_message_and_stops_refreshing(
+    client_as, school, principal_user, status
+):
+    from operations.export_job_services import STALE_MESSAGE
+
+    job = _job(school, principal_user, status, age_minutes=10)
+
+    resp = client_as(principal_user).get(reverse("export_job_status", args=[job.id]))
+
+    job.refresh_from_db()
+    assert job.status == "failed" and job.error_message == STALE_MESSAGE
+    assert job.finished_at is not None
+    assert resp.status_code == 200
+    content = resp.content.decode()
+    assert "انتهت مهلةُ تحضير الملفّ" in content
+    assert 'http-equiv="refresh"' not in content  # لا إعادةَ تحميلٍ بعد الآن
+
+
+def test_a_fresh_pending_job_keeps_refreshing_and_is_not_touched(client_as, school, principal_user):
+    job = _job(school, principal_user, "pending", age_minutes=1)
+
+    resp = client_as(principal_user).get(reverse("export_job_status", args=[job.id]))
+
+    job.refresh_from_db()
+    assert job.status == "pending" and job.error_message == ""
+    assert 'http-equiv="refresh"' in resp.content.decode()
+
+
+def test_the_timeout_never_overrides_a_job_the_worker_finished(school, principal_user):
+    from operations.export_job_services import expire_if_stale
+
+    job = _job(school, principal_user, "pending", age_minutes=10)
+    ExportJob.objects.filter(pk=job.pk).update(status="done")  # العاملُ أنهاها بعد قراءتنا
+
+    assert expire_if_stale(job) is False
+    job.refresh_from_db()
+    assert job.status == "done"
+
+
+def test_expiry_is_idempotent_and_ignores_finished_jobs(school, principal_user):
+    from operations.export_job_services import expire_if_stale
+
+    stuck = _job(school, principal_user, "running", age_minutes=10)
+    done = _job(school, principal_user, "done", age_minutes=10)
+
+    assert expire_if_stale(stuck) is True
+    assert expire_if_stale(stuck) is False  # ثانيةً: لم يعد نشطاً
+    assert expire_if_stale(done) is False
+    done.refresh_from_db()
+    assert done.status == "done"
