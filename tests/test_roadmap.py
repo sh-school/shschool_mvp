@@ -169,13 +169,52 @@ class TestImport:
         ]
         assert counts == [3, 2, 2, 1, 2]
 
-    def test_a_changed_snapshot_field_reaches_the_row(self, snapshot):
+    def test_a_changed_structural_field_reaches_the_row(self, snapshot):
         import_snapshot(snapshot)
-        snapshot["items"][0]["status"] = "done"
-        snapshot["items"][0]["progress"] = 100
+        snapshot["items"][0]["title"] = "عنوانٌ جديد"
         import_snapshot(snapshot)
 
-        assert RoadmapItem.objects.get(code="T-01").status == "done"
+        assert RoadmapItem.objects.get(code="T-01").title == "عنوانٌ جديد"
+
+    def test_reimport_keeps_what_the_developer_edited_in_the_ui(self, seeded):
+        RoadmapItem.objects.filter(code="T-01").update(
+            status="done", progress=100, note="ملاحظتي", date_basis="محدَّث يدوياً"
+        )
+        RoadmapDecision.objects.filter(code="D-1").update(status="decided")
+        RoadmapChecklistItem.objects.filter(code="C1").update(done=True)
+        seeded["items"][0].update(status="todo", progress=0, note="", dateBasis="")
+        seeded["kpis"][0]["current"] = 3
+        import_snapshot(seeded)
+
+        item = RoadmapItem.objects.get(code="T-01")
+        assert (item.status, item.progress, item.note) == ("done", 100, "ملاحظتي")
+        assert item.date_basis == "محدَّث يدوياً"
+        assert RoadmapDecision.objects.get(code="D-1").status == "decided"
+        assert RoadmapChecklistItem.objects.get(code="C1").done is True
+        assert RoadmapKpi.objects.get(code="K1").current == 3  # القياسُ هو الغرض من إعادة الاستيراد
+
+    def test_overwrite_returns_edited_fields_to_the_snapshot(self, seeded):
+        RoadmapItem.objects.filter(code="T-01").update(status="done", note="ملاحظتي")
+        import_snapshot(seeded, overwrite=True)
+
+        item = RoadmapItem.objects.get(code="T-01")
+        assert item.status == seeded["items"][0]["status"] and item.note == seeded["items"][0].get("note", "")
+
+    def test_a_new_row_takes_every_field_from_the_snapshot(self, snapshot):
+        snapshot["items"][0].update(status="doing", progress=40, note="من اللقطة")
+        import_snapshot(snapshot)
+
+        item = RoadmapItem.objects.get(code="T-01")
+        assert (item.status, item.progress, item.note) == ("doing", 40, "من اللقطة")
+
+    @pytest.mark.parametrize("effort", [-3, 0, 400, "كثير"])
+    def test_a_bad_effort_is_rejected_not_imported_as_a_weight(self, snapshot, effort):
+        snapshot["items"][0]["effort"] = effort
+
+        with pytest.raises(RoadmapError):
+            import_snapshot(snapshot)
+
+        assert RoadmapItem.objects.count() == 0
 
     def test_fields_map_to_columns_and_odd_keys_go_to_extra(self, seeded):
         item = RoadmapItem.objects.get(code="T-01")

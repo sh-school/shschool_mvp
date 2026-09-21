@@ -2,7 +2,7 @@
    البياناتُ من json_script `#rm-data`، والتحريرُ يُحفظ في القاعدة عبر POST JSON إلى
    `data-item-url` و`data-decision-url` و`data-checklist-url` برمز CSRF في الترويسة.
    لا HTML خامّ من البيانات: كلُّ نصٍّ يدخل الصفحةَ بـtextContent. وحسابُ التقدّم مرآةُ
-   roadmap/services.py::weighted_progress.
+   roadmap/services.py::weighted_progress (الدالّةُ `pct` هنا).
 
    لا تمريرَ للصفحة ولا لأيّ بطاقة: كلُّ قائمةٍ تُملأ عنصراً عنصراً حتى يمتلئ ارتفاعُ حاويتها
    (`fit`) ثمّ تُقسَّم صفحاتٍ بأزرار السابق/التالي، فتتّسع لأيّ نافذةٍ من الجوال إلى الشاشة العريضة. */
@@ -40,7 +40,7 @@
   var S = {
     meta: D.meta || {}, items: D.items || [], kpis: D.kpis || [], decs: D.decisions || [],
     risks: D.risks || [], cks: D.checklist || [], tab: 'ov', lane: 'all', st: 'all', src: 'all',
-    dc: 'all', kl: 'all', ru: 'rules', gview: 'mx', list: null, creating: false, drawer: null, busy: false, focus: null
+    dc: 'all', kl: 'all', ru: 'rules', gview: 'mx', list: null, creating: false, drawer: null, focus: null
   };
   var TABS = ['ov', 'gt', 'kp', 'dc', 'rk', 'st', 'ru'];
   var ST = { todo: 'لم يبدأ', doing: 'قيد التنفيذ', done: 'مُغلَق', blocked: 'محجوب', deferred: 'مؤجّل' };
@@ -51,7 +51,7 @@
     ['own', 'المسؤوليّات'], ['rbk', 'التراجع والفحص بعد النشر'], ['map', 'خريطة الترقيم القديم ← الجديد'], ['srcs', 'مصادر الخارطة'], ['upd', 'كيف تُحدَّث الخارطة']];
   var HOW_TO_UPDATE = [
     'الحالةُ والتقدّمُ والتواريخُ: من تبويب الخريطة الزمنيّة بالنقر على أيّ بند؛ التعديلُ يُحفظ فوراً في القاعدة ويُدقَّق.',
-    'المؤشّراتُ الآليّة: شغِّل scripts/measure_identity_kpis.py ثمّ أعِد الاستيرادَ: manage.py import_roadmap_snapshot <path> (يعيد كتابةَ كلّ حقلٍ في اللقطة).',
+    'المؤشّراتُ الآليّة: شغِّل scripts/measure_identity_kpis.py ثمّ أعِد الاستيرادَ: manage.py import_roadmap_snapshot <path> (لا يمسّ ما عدّلتَه هنا من حالةٍ وتقدّمٍ وتواريخَ وملاحظاتٍ وتأشيراتِ فحص؛ يحدّث المؤشّراتِ والحقولَ البنيويّة، و`--overwrite` يعيد الكلَّ إلى اللقطة).',
     'بنودُ الخطّة الموحّدة: الحالةُ الأصليّةُ في الخطّة الموحّدة؛ هنا الجدولُ الزمنيّ فوقها. عند الاختلاف تُعدَّل هناك أوّلاً.',
     'لا يُغلَق بندٌ إلّا بدليل: رقمُ طلب دمجٍ أو مؤشّرٌ تحرّك.',
     'مراجعةٌ ربعيّة: إعادةُ السواط ذي الأبعاد الثمانية، ثمّ إعادةُ ضبط التواريخ المقترَحة.'
@@ -60,8 +60,10 @@
 
   function dt(s) { return s ? new Date(s + 'T00:00:00Z').getTime() : null; }
   var A0 = dt(S.meta.horizonStart) || dt('2026-09-21');
-  var A1 = A0 + 97 * DAY;
+  // نهايةُ المحور من أفق الخارطة (شاملةً يومَها الأخير) لا من رقمٍ ثابت — وإلّا رُسمت بنودُ ما بعده شريحةً رفيعة وسقطت مراحلُه
+  var A1 = (dt(S.meta.horizonEnd) ? dt(S.meta.horizonEnd) + DAY : A0 + 98 * DAY);
   var SPAN = (A1 - A0) / DAY;
+  root.style.setProperty('--rm-weeks', String(SPAN / 7));
   function pos(t) { return Math.max(0, Math.min(100, (t - A0) / DAY / SPAN * 100)); }
   var TODAY = (function () { var n = new Date(); return Date.UTC(n.getFullYear(), n.getMonth(), n.getDate()); })();
   function dstr(t) { return t ? new Date(t).toISOString().slice(5, 10) : '–'; }
@@ -127,7 +129,15 @@
   function fit(key, again) {
     var m = M[key], st = PG[key];
     if (m && m.scroll) { renderScroll(key); return; }
-    if (!m || !m.host || !m.host.clientHeight) return;
+    if (!m || !m.host) return;
+    if (!m.host.clientHeight) {
+      // لوحةٌ مخفيّة: تُملأ عند إظهارها. أمّا الظاهرةُ بارتفاعٍ صفريّ فلا تُترك بيضاء بلا أثر: أوّلُ عنصرٍ على الأقلّ
+      if (m.host.offsetParent !== null && !m.host.firstChild) {
+        var first = m.items();
+        m.host.append(first.length ? m.mk(first[0], 0) : h('div', { class: 'rm-empty', text: 'لا عناصرَ.' }));
+      }
+      return;
+    }
     var items = m.items();
     if (st.start >= items.length) { st.start = 0; st.stack = []; }
     // ظهورُ شريط الترقيم يقتطع من ارتفاع الحاوية: نُثبّت حالتَه قبل التعبئة ونعيد مرّةً إن تغيّرت
@@ -194,10 +204,8 @@
   }
   function save(kind, code, body, field) {
     var url = root.dataset[kind + 'Url'];
-    S.busy = true;
     say('يُحفظ ' + code + ' …', false);
     return post(url, code, body).then(function (r) {
-      S.busy = false;
       if (r.status === 200 && r.body && r.body.ok) {
         var list = { item: S.items, decision: S.decs, checklist: S.cks }[kind];
         for (var i = 0; i < list.length; i++) if (list[i].id === code) list[i] = r.body.row;
@@ -208,7 +216,6 @@
       S.focus = field ? { id: code, field: field } : null;
       renderAll();
     }).catch(function () {
-      S.busy = false;
       say('تعذّر الاتّصال بالخادم — لم يُحفظ ' + code, true);
       renderAll();
     });
@@ -375,8 +382,13 @@
     var gate = h('input', { type: 'checkbox', 'aria-label': 'ينتظر قرار المالك' });
     var err = h('p', { class: 'rm-live is-error', role: 'alert' });
     function lab(text, control) { return h('label', null, text, control); }
+    var sending = false; // نقرتان متتاليتان لا تُنشئان بندَين
+    var send = h('button', { type: 'submit', class: 'btn-primary btn-sm', text: 'إضافة البند' });
     function submit(ev) {
       ev.preventDefault();
+      if (sending) return;
+      sending = true;
+      send.disabled = true;
       var body = { title: title.value, lane: lane.value, status: status.value, effort: effort.value,
         start: start.value || null, end: end.value || null, deps: deps.value, criterion: criterion.value, note: note.value, gate: gate.checked ? 'owner' : '' };
       clear(err);
@@ -396,7 +408,8 @@
             err.textContent = r.status === 403 ? 'لا صلاحيّةَ للكتابة' : 'تعذّر الحفظ';
           }
         })
-        .catch(function () { err.textContent = 'تعذّر الاتّصال بالخادم'; });
+        .catch(function () { err.textContent = 'تعذّر الاتّصال بالخادم'; })
+        .then(function () { sending = false; send.disabled = false; });
     }
     return h('form', { class: 'rm-det', onsubmit: submit },
       lab('العنوان *', title),
@@ -405,7 +418,7 @@
       h('label', { class: 'rm-check' }, gate, h('span', { text: 'ينتظر قرارَ/إذنَ المالك' })),
       err,
       h('div', { class: 'rm-inline' },
-        h('button', { type: 'submit', class: 'btn-primary btn-sm', text: 'إضافة البند' }),
+        send,
         h('button', { type: 'button', class: 'btn-secondary btn-sm', text: 'إلغاء', onclick: closeDrawer })));
   }
 
@@ -559,9 +572,9 @@
       if (b <= a) return;
       axis.append(h('div', { class: 'rm-ph', title: p.key + ' — ' + p.name, vars: { '--rm-a': pc(a), '--rm-w': pc(b - a) }, text: p.key + ' — ' + p.name }));
     });
-    var step = axis.clientWidth && axis.clientWidth < 420 ? 4 : 1;
-    var wide = head.clientWidth || root.clientWidth;
-    if (wide && wide < 760) step = wide < 520 ? 4 : 2;
+    // عددُ تسميات الأسابيع بما يتّسع له المحورُ (≈48px لكلٍّ) — الأفقُ نحو 27 أسبوعاً لا 14
+    var room = Math.max(4, Math.floor(((axis.clientWidth || (head.clientWidth || root.clientWidth) * 0.75) || 480) / 48));
+    var step = Math.max(1, Math.ceil(Math.ceil(SPAN / 7) / room));
     for (var w = 0; w < Math.ceil(SPAN / 7); w += step) {
       var t = A0 + w * 7 * DAY;
       axis.append(h('div', { class: 'rm-wk', vars: { '--rm-a': pc(pos(t)), '--rm-w': pc(step * 7 / SPAN * 100) }, text: dstr(t) }));
@@ -633,12 +646,15 @@
     var lim = S.meta.limits;
     var asof = S.meta.asOf ? 'حتى ' + (S.meta.horizonEnd || '') + ' — آخرُ تحديثٍ للبيانات ' + S.meta.asOf : '';
     // تاريخُ آخر تحديثٍ في تلميح التقدّم لا في سطرٍ مستقلّ يأكل ارتفاعاً
-    $('#rm-pct').parentNode.title = asof || (lim || '');
+    var big = $('#rm-pct').parentNode;
+    if (!big.dataset.baseTitle) big.dataset.baseTitle = big.title;
+    big.title = big.dataset.baseTitle + (asof || lim ? ' — ' + (asof || lim) : '');
   }
 
   function restoreFocus() {
     if (!S.focus) return;
-    var target = root.querySelector('[data-rm-id="' + S.focus.id + '"][data-rm-field="' + S.focus.field + '"]');
+    var esc = function (v) { return window.CSS && CSS.escape ? CSS.escape(String(v)) : String(v).replace(/["\]/g, '\$&'); };
+    var target = root.querySelector('[data-rm-id="' + esc(S.focus.id) + '"][data-rm-field="' + esc(S.focus.field) + '"]');
     S.focus = null;
     if (target) target.focus();
   }
@@ -718,7 +734,7 @@
     fill.parentNode.insertBefore(seg, fill);
   });
   $('#rm-drawer-close').addEventListener('click', closeDrawer);
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && S.drawer) closeDrawer(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && (S.drawer || S.creating || S.list)) closeDrawer(); });
 
   var resizeTimer = null;
   window.addEventListener('resize', function () {

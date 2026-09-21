@@ -3,6 +3,11 @@
 يُتحقَّق من اللقطة كلِّها قبل أيّ كتابة (فلا يُكتب نصفُها)، ويُبلَّغ بعدد المُنشأ والمُحدَّث
 لكلّ نوع، ويُكتب في سجلّ التدقيق **العددُ** لا المحتوى. والملفّاتُ ذاتُ الاسم
 `*_services.py` طبقةُ كتابةٍ كـ`services.py` عند حارس الطبقات.
+
+**ما عُدِّل من الواجهة لا يُمحى:** الصفحةُ نفسُها تأمر بإعادة الاستيراد بعد كلّ قياس، فلو كتب
+الاستيرادُ فوق الملاحظات والحالةَ والتقدّمَ والتواريخَ وتأشيراتِ الفحص لضاع عملُ المطوّر في
+كلّ مرّة. فالصفوفُ **الموجودةُ** لا تُمسّ حقولُها المحرَّرةُ (`_HAND_EDITED`) — تُكتب فقط عند
+الإنشاء — ما لم يُطلَب `overwrite=True` صراحةً. والمؤشّراتُ تُكتب دائماً: تحديثُها هو الغرض.
 """
 
 from __future__ import annotations
@@ -26,7 +31,7 @@ from roadmap.models import (
     RoadmapMeta,
     RoadmapRisk,
 )
-from roadmap.services import RoadmapError, stamp_user
+from roadmap.services import RoadmapError, _clean_effort, stamp_user
 
 
 @dataclass
@@ -54,6 +59,12 @@ _KPI_KNOWN = frozenset(
         "dir", "unit", "source", "why", "textMode", "measuredAt", "history", "order",
     }
 )  # fmt: skip
+#: حقولُ الصفوف المحرَّرة من الواجهة (`ITEM_EDITABLE` وأخواتُها) بأسمائها في النموذج.
+_HAND_EDITED: dict[str, frozenset[str]] = {
+    "items": frozenset({"status", "progress", "start_date", "end_date", "date_basis", "note", "pr"}),
+    "decisions": frozenset({"status", "decision_date"}),
+    "checklist": frozenset({"done"}),
+}
 _SNAPSHOT_KINDS = ("items", "kpis", "decisions", "risks", "checklist")
 
 
@@ -98,6 +109,10 @@ def _item_defaults(rec: Mapping[str, Any], where: str, errors: list[str]) -> dic
     if isinstance(progress, bool) or not isinstance(progress, int) or not 0 <= progress <= 100:
         errors.append(f"{where}: progress ليس عدداً بين 0 و100")
         progress = 0
+    effort_errors: dict[str, str] = {}
+    raw_effort = rec.get("effort")
+    effort = 1.0 if raw_effort in (None, "") else _clean_effort(raw_effort, effort_errors)
+    errors.extend(f"{where}: effort — {reason}" for reason in effort_errors.values())
     defaults: dict[str, Any] = {
         "src": _text(rec, "src"),
         "lane": _text(rec, "lane"),
@@ -107,7 +122,7 @@ def _item_defaults(rec: Mapping[str, Any], where: str, errors: list[str]) -> dic
         "start_date": _snapshot_date(rec, "start", where, errors),
         "end_date": _snapshot_date(rec, "end", where, errors),
         "date_basis": _text(rec, "dateBasis"),
-        "effort": _number(rec, "effort", where, errors) or 1,
+        "effort": effort,
         "deps": _text(rec, "deps"),
         "criterion": _text(rec, "criterion"),
         "note": _text(rec, "note"),
@@ -221,8 +236,12 @@ def _build_import(data: Mapping[str, Any]) -> tuple[list[_Row], list[str]]:
     return rows, errors
 
 
-def import_snapshot(data: object, *, user: Any = None) -> ImportReport:
-    """يستورد لقطةَ الخارطة: update_or_create بالرمز، ذرّيّاً، بتدقيقٍ بالأعداد لا بالمحتوى."""
+def import_snapshot(data: object, *, user: Any = None, overwrite: bool = False) -> ImportReport:
+    """يستورد لقطةَ الخارطة: update_or_create بالرمز، ذرّيّاً، بتدقيقٍ بالأعداد لا بالمحتوى.
+
+    `overwrite=False` (الافتراضيّ): الصفوفُ الموجودةُ تُحدَّث حقولُها البنيويّةُ وحدَها ولا تُمسّ
+    حقولُها المحرَّرةُ من الواجهة (`_HAND_EDITED`). `overwrite=True` يعيدها إلى ما في اللقطة.
+    """
     if not isinstance(data, Mapping) or not any(kind in data for kind in _SNAPSHOT_KINDS):
         raise RoadmapError({"snapshot": "لقطةٌ بلا items/kpis/decisions/risks/checklist"})
     rows, errors = _build_import(data)
@@ -236,6 +255,9 @@ def import_snapshot(data: object, *, user: Any = None) -> ImportReport:
     report = ImportReport()
     with transaction.atomic():
         for kind, model, code, defaults in rows:
+            if not overwrite and model.objects.filter(code=code).exists():
+                protected = _HAND_EDITED.get(kind, frozenset())
+                defaults = {k: v for k, v in defaults.items() if k not in protected}
             _, created = model.objects.update_or_create(
                 code=code, defaults={**defaults, "updated_by": stamp}
             )
@@ -255,6 +277,7 @@ def import_snapshot(data: object, *, user: Any = None) -> ImportReport:
                 "event": "roadmap_snapshot_import",
                 "created": report.created,
                 "updated": report.updated,
+                "overwrite": overwrite,
             },
         )
     return report

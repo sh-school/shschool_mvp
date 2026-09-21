@@ -4,8 +4,9 @@
 
 اللقطةُ ملفٌّ JSON بمفاتيح items وkpis وdecisions وrisks وchecklist وmeta. **لا تُودَع في
 المستودع** (عامّ، وفي الخارطة تفاصيلُ أمنيّةٌ حسّاسة): يُمرَّر مسارُها وسيطاً. والأمرُ
-idempotent: `update_or_create` بالرمز، فتشغيلُه ثانيةً لا يُضاعف صفّاً — لكنّه **يعيد كتابةَ
-كلّ حقلٍ في اللقطة**، فما عُدِّل من الواجهة (الحالة والتقدّم والتواريخ) يرجع إلى ما في الملفّ.
+idempotent: `update_or_create` بالرمز، فتشغيلُه ثانيةً لا يُضاعف صفّاً — لكنّه **لا يمسّ ما عُدِّل
+من الواجهة** (الحالة والتقدّم والتواريخ والملاحظة وتأشيرات الفحص) في الصفوف الموجودة إلّا
+بـ`--overwrite`.
 """
 
 from __future__ import annotations
@@ -25,8 +26,13 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("path", help="مسارُ ملفّ اللقطة (JSON)")
+        parser.add_argument(
+            "--overwrite",
+            action="store_true",
+            help="يعيد الحالةَ والتقدّمَ والتواريخَ والملاحظةَ وتأشيراتِ الفحص إلى ما في اللقطة (يمحو التعديلاتِ اليدويّة)",
+        )
 
-    def handle(self, *args: Any, path: str, **options: Any) -> None:
+    def handle(self, *args: Any, path: str, overwrite: bool = False, **options: Any) -> None:
         source = Path(path)
         if not source.is_file():
             raise CommandError(f"لا ملفَّ في {source}")
@@ -35,7 +41,7 @@ class Command(BaseCommand):
         except (OSError, ValueError) as exc:
             raise CommandError(f"تعذّرت قراءةُ اللقطة: {exc}") from exc
         try:
-            report = import_snapshot(data)
+            report = import_snapshot(data, overwrite=overwrite)
         except RoadmapError as exc:
             detail = "\n".join(f"  - {key}: {value}" for key, value in exc.errors.items())
             raise CommandError(f"لقطةٌ مرفوضة (لم يُكتب شيء):\n{detail}") from exc

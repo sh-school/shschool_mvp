@@ -4,7 +4,8 @@
   قيمةٍ قبل أيّ كتابة (قائمةٌ بيضاءُ من الحقول، وحالةٌ من المعرَّف، وتقدّمٌ 0..100، وتاريخٌ
   ISO)، ويكتب سطراً في سجلّ التدقيق بما تغيّر وحدَه (قبل/بعد) — لا بالمحتوى كلِّه.
 * **الحساب** (`weighted_progress`): الجهدُ × التقدّم، والمؤجَّلُ وزنُه صفر، والمُغلَقُ 100.
-  وتنفيذُه في `static/js/roadmap.js` مرآةٌ لهذا؛ والاختبارُ يقيس أنّهما يتّفقان.
+  وتنفيذُه في `static/js/roadmap.js` (`pct()` في الواجهة) مرآةٌ لهذا — يُبقيهما متّفقَين قراءةُ
+  الصيغتين معاً عند أيّ تعديل (لا اختبارَ آليّاً يشغّل الجافاسكربت في CI).
 * **الاستيراد**: في `import_services.py`.
 """
 
@@ -17,8 +18,8 @@ from typing import Any
 
 from django.db import IntegrityError, transaction
 from django.http import HttpRequest
+from django.utils import timezone
 
-from core.dashboard_presentation import chunk_for_grid
 from core.models import AuditLog
 from roadmap import selectors
 from roadmap.models import (
@@ -127,7 +128,7 @@ def serialize_item(o: RoadmapItem) -> dict[str, Any]:
         "gate": o.gate,
         "ref": o.ref,
         "order": o.sort_order,
-        "updated": o.updated_at.date().isoformat(),
+        "updated": timezone.localtime(o.updated_at).date().isoformat(),
     }
     if o.pr:
         data["pr"] = o.pr
@@ -191,51 +192,6 @@ def serialize_checklist(o: RoadmapChecklistItem) -> dict[str, Any]:
     return {"id": o.code, "src": o.src, "text": o.text, "done": o.done, "order": o.sort_order}
 
 
-def _texts(value: object) -> list[str]:
-    return [str(v) for v in value] if isinstance(value, list) else []
-
-
-def _pairs(value: object, width: int) -> list[list[str]]:
-    """صفوفٌ من أزواجٍ أو ثلاثيّاتٍ (المعايير والمسؤوليّات والترقيم) — ما شذّ عن العرض يُهمَل."""
-    rows = value if isinstance(value, list) else []
-    return [[str(c) for c in r] for r in rows if isinstance(r, list) and len(r) >= width]
-
-
-def static_sections(meta: Mapping[str, Any]) -> dict[str, Any]:
-    """ما لا يتغيّر من الواجهة يُرسم في القالب لا في الجافاسكربت: قوائمُ ضيّقةٌ تُقسَّم أعمدةً.
-
-    القسمةُ في الخدمة لا في القالب (`chunk_for_grid` — معيارُ تخطيط الصفحات)، وكلُّ قائمةٍ
-    بعمودين، والمعاييرُ بثلاثة (صفُّها أعرض). والاتّجاهُ في الأعمدة متتابعٌ لا تبادليّ.
-    """
-    standards = [
-        {"domain": r[0], "standard": r[1], "where": r[2], "status": r[3] if len(r) > 3 else ""}
-        for r in _pairs(meta.get("standards"), 3)
-    ]
-    ownership = [
-        {"role": r[0], "who": r[1], "duty": r[2]} for r in _pairs(meta.get("ownership"), 3)
-    ]
-    mapping = [{"old": r[0], "new": r[1]} for r in _pairs(meta.get("mapping"), 2)]
-    return {
-        "limits": str(meta.get("limits") or ""),
-        "as_of": str(meta.get("asOf") or ""),
-        "horizon_end": str(meta.get("horizonEnd") or ""),
-        "standards_cols": chunk_for_grid(standards, 3),
-        "ownership_cols": chunk_for_grid(ownership, 2),
-        "mapping_cols": chunk_for_grid(mapping, 2),
-        **{
-            f"{key}_cols": chunk_for_grid(_texts(meta.get(source)), 2)
-            for key, source in (
-                ("rules", "rules"),
-                ("dod", "dod"),
-                ("critical", "criticalPath"),
-                ("windows", "windows"),
-                ("rollback", "rollback"),
-                ("sources", "sources"),
-            )
-        },
-    }
-
-
 def page_context() -> dict[str, Any]:
     """كلُّ ما تحتاجه الصفحةُ في استعلاماتٍ ست، والتقدّمُ العامّ محسوباً هنا لا في القالب."""
     item_rows = list(selectors.items())
@@ -243,7 +199,6 @@ def page_context() -> dict[str, Any]:
     return {
         "overall_progress": _progress_of(item_rows),
         "item_count": len(item_rows),
-        **static_sections(meta),
         "roadmap_data": {
             "meta": meta,
             "items": [serialize_item(o) for o in item_rows],
@@ -355,6 +310,7 @@ def _tracked_item(item: RoadmapItem) -> dict[str, Any]:
         "end": _iso(item.end_date),
         "pr": item.pr,
         "note": item.note,
+        "dateBasis": item.date_basis,
     }
 
 
