@@ -993,11 +993,11 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 
 /* ── 1. شريطُ الأرقام: كلُّ بطاقةٍ سطرٌ واحد ──
    الاسمُ ثمّ الرقمُ ثمّ التفصيل، على خطٍّ قاعديٍّ واحد. والتفصيلُ وحدَه
-   يُقصّ حين يضيق؛ الاسمُ والرقمُ لا يُقصّان. و`auto-fit` بحدٍّ أدنى يعيد
+   يُقصّ حين يضيق؛ الاسمُ والرقمُ لا يُقصّان. و`auto-fit` بحدٍّ أدنى 200px (لا 170: قُصّ التفصيلُ في خمس بطاقاتٍ من ثمانٍ عند 1100px) يعيد
    الشريطَ عمودين في الهاتف بلا استعلامِ وسَط. */
 .ui-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   gap: var(--sp-2);
   min-inline-size: 0;
 }
