@@ -4,6 +4,8 @@ from decimal import Decimal
 import django.db
 from django.contrib import messages
 
+from core.verdict_read import failing_statuses, passing_statuses
+
 logger = logging.getLogger(__name__)
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -96,8 +98,8 @@ def assessments_dashboard(request):
         annual_stats = AnnualSubjectResult.objects.filter(
             school=school, academic_year=year
         ).aggregate(
-            passed=Count("id", filter=Q(status="pass")),
-            failed=Count("id", filter=Q(status="fail")),
+            passed=Count("id", filter=Q(status__in=passing_statuses())),
+            failed=Count("id", filter=Q(status__in=failing_statuses())),
         )
         passed = annual_stats["passed"]
         failed = annual_stats["failed"]
@@ -751,8 +753,8 @@ def student_report(request, student_id):
     results = GradeService.get_student_annual_report(student, school, year)
     stats = results.aggregate(
         total_subjects=Count("id"),
-        passed=Count("id", filter=Q(status="pass")),
-        failed=Count("id", filter=Q(status="fail")),
+        passed=Count("id", filter=Q(status__in=passing_statuses())),
+        failed=Count("id", filter=Q(status__in=failing_statuses())),
     )
     total_subjects = stats["total_subjects"]
     passed = stats["passed"]
