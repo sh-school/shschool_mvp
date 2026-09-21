@@ -334,3 +334,4 @@ def test_a_user_without_membership_can_still_log_out(client, django_user_model):
 
     assert response.status_code == 403
     assert "/auth/logout/" in response.content.decode()
+    assert "error-card" in response.content.decode()

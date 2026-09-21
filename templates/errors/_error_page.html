@@ -1,7 +1,8 @@
-{% load static brand_tags %}<!DOCTYPE html>
+{% load static brand_tags assets %}<!DOCTYPE html>
 {% comment %}
 صفحةُ الخطأ الواحدة — 403 و404 و500 تُضمّنها بمعاملاتها ولا تختلف إلّا فيها:
-  code، heading، desc، desc2، icon (lock | search | alert)،
+  code، heading، desc، desc2، icon (lock | search | alert)، logout (اختياريّ: زرُّ تسجيل الخروج بدل رابطَي العودة)،
+  brand_footer (اختياريّ: رؤيةُ الوزارة وتوقيعُ المطوّر بأنماط المنصّة نفسِها بدل سطر المدرسة — للصفحات التي تُخدَم فيها الأنماط لا 500)،
   accent اسمُ ثابت لون النهار في core.brand، وaccent_dark نظيرُه ليلاً في brand.DARK.
 
 كانت ثلاثَ نسخٍ متطابقةً في 130 سطراً لكلٍّ منها، كلُّ لونٍ فيها مكتوبٌ رقماً
@@ -58,6 +59,8 @@
       font-size: 14px;
       transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
     }
+    .error-brand { margin-top: 28px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    button.error-btn { border: 0; cursor: pointer; font-family: inherit; }
     .error-btn { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; }
     .error-btn:hover { background: {% brand_color "MAROON_DARK" %}; box-shadow: 0 4px 16px rgba(138,21,56,.25); }
     .error-btn-outline { background: transparent; color: {% brand_color accent %}; border: 2px solid {% brand_color accent %}; }
@@ -83,6 +86,7 @@
     html.dark .error-btn-outline { color: {% brand_color accent_dark "dark" %}; border-color: {% brand_color accent_dark "dark" %}; }
     html.dark .error-btn-outline:hover { background: {% brand_color accent_dark "dark" %}; color: {% brand_color "SURFACE" "dark" %}; }
   </style>
+  {% if brand_footer %}<style>@import url("{% static 'css/tailwind.min.css' %}") layer(tailwind);</style>{% custom_css %}{% endif %}
   <script nonce="{{ request.csp_nonce }}">
     (function(){var t=localStorage.getItem('theme');
     if(t==='dark')
@@ -103,10 +107,16 @@
     <h1 class="error-title">{{ heading }}</h1>
     <p class="error-desc">{{ desc }}<br>{{ desc2 }}</p>
     <div class="error-actions">
+      {% if logout %}
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="error-btn">تسجيل الخروج</button></form>
+      {% else %}
       <a href="/dashboard/" class="error-btn">العودة للرئيسية</a>
       <a href="javascript:history.back()" class="error-btn-outline">الرجوع للخلف</a>
+      {% endif %}
     </div>
+    {% if brand_footer %}<div class="error-brand">{% include "components/site_brand.html" %}</div>{% else %}
     <div class="error-footer">{{ current_school.name|default:"المدرسة" }} — وزارة التربية والتعليم والتعليم العالي</div>
+    {% endif %}
   </div>
 </body>
 </html>

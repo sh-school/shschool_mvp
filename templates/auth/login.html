@@ -114,18 +114,8 @@
         {% endif %}
       </p>
 
-      {# ── Azkia brand attribution (Client 001) ── #}
-      <div class="site-footer-brand login-brand" aria-label="Azkia brand attribution">
-        <span class="site-footer-brand-label">طُوِّر بواسطة</span>
-        <img
-          src="{% static 'brand/azkia-logo.svg' %}"
-          alt="شعار أذكياء للبرمجيات"
-          class="site-footer-brand-logo"
-          width="20"
-          height="20"
-        >
-        <span class="site-footer-brand-name">أذكياء للبرمجيات</span>
-      </div>
+      {# ── رؤيةُ الوزارة وتوقيعُ المطوّر — نفسُ ذيل المنصّة (components/site_brand.html) ── #}
+      <div class="login-brand">{% include "components/site_brand.html" %}</div>
     </div>
 
     </div>{# /login-card-body #}

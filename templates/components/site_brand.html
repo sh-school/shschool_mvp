@@ -1,0 +1,15 @@
+{% load static %}{% comment %}
+رؤيةُ الوزارة وتوقيعُ المطوّر — نفسُ ما في ذيل `base/base.html` بأصنافه (`site-footer-vision`
+و`site-footer-brand*`) فتُرسَم بأنماط المنصّة لا بنسخةٍ ثانيةٍ منها. تُضمَّن في الصفحات التي
+لا تحمل الذيلَ كاملاً (صفحةُ «لا عضويّة نشطة»)؛ و`base.html` يحمل نسختَه المضمَّنة.
+{% endcomment %}
+<p class="site-footer-vision">{% include "components/ministry_vision.html" with school=current_school %}</p>
+<div class="site-footer-brand" aria-label="Azkia and Sufyan Mesyef brand attribution">
+  <span class="site-footer-brand-label">طُوِّر بواسطة</span>
+  <img src="{% static 'brand/azkia-logo.svg' %}" alt="شعار أذكياء للبرمجيات" class="site-footer-brand-logo" width="24" height="24" loading="lazy">
+  <span class="site-footer-brand-name">أذكياء للبرمجيات</span>
+  <span class="site-footer-brand-sep" aria-hidden="true"></span>
+  <span class="site-footer-brand-logo-chip">
+    <img src="{% static 'brand/sufyan-logo.png' %}" alt="شعار سفيان مسيف" class="site-footer-brand-logo site-footer-brand-logo--sufyan" width="57" height="28" loading="lazy">
+  </span>
+</div>
