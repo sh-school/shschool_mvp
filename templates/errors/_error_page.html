@@ -86,7 +86,7 @@
     html.dark .error-btn-outline { color: {% brand_color accent_dark "dark" %}; border-color: {% brand_color accent_dark "dark" %}; }
     html.dark .error-btn-outline:hover { background: {% brand_color accent_dark "dark" %}; color: {% brand_color "SURFACE" "dark" %}; }
   </style>
-  {% if brand_footer %}<style>@import url("{% static 'css/tailwind.min.css' %}") layer(tailwind);</style>{% custom_css %}{% endif %}
+  {% if brand_footer %}<style>@import url("{% get_static_prefix %}css/tailwind.min.css") layer(tailwind);</style>{% custom_css %}{% endif %}
   <script nonce="{{ request.csp_nonce }}">
     (function(){var t=localStorage.getItem('theme');
     if(t==='dark')
