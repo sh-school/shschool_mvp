@@ -504,6 +504,11 @@ EXCEPTION_TYPES = [
     ("early_departure", "خروج مبكر"),
 ]
 
+#: من يفتح مرفقَ نموذج 03 (قد يكون تقريراً طبيّاً): قيادةُ المدرسة — المديرُ ونائباه — لأنّ أيَّ
+#: نائبٍ قد يُكلَّف بأعباء المدير فيقرّر النموذجَ (م-43)، ولا يقرّر من لا يرى ما يثبت الحاجة.
+#: وصاحبُ الطلب يفتحه بملكيّته. (بوّابةُ الملفّات: ``governance/views_media.py``.)
+EXCEPTION_EVIDENCE_ROLES = frozenset({"principal", "vice_admin", "vice_academic"})
+
 EXCEPTION_STATUS = [
     ("pending", "قيد الانتظار"),
     ("approved", "معتمد"),

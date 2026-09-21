@@ -44,7 +44,7 @@
             <td class="col-center">{{ e.start_date|date:"d/m/Y" }} – {{ e.end_date|date:"d/m/Y" }}</td>
             <td class="col-center" dir="ltr">{{ e.boundary_time|time:"H:i" }}</td>
             <td class="text-xs">{{ e.content }}</td>
-            <td class="text-xs">{% if e.evidence_file %}<a href="{{ e.evidence_file.url }}" target="_blank" rel="noopener">{% icon "attach" %} فتح المرفق</a>{% endif %}{% if e.evidence %} {{ e.evidence }}{% endif %}</td>
+            <td class="text-xs">{% if e.evidence_file %}{% if can_view_evidence %}<a href="{{ e.evidence_file.url }}" target="_blank" rel="noopener">{% icon "attach" %} فتح المرفق</a>{% else %}{% icon "attach" %} مرفقٌ يفتحه المدير ونائباه{% endif %}{% endif %}{% if e.evidence %} {{ e.evidence }}{% endif %}</td>
             <td class="col-actions">
               <form method="post" action="{% url 'staff_affairs:exception_review' e.pk %}">{% csrf_token %}
                 {% field "feedback" "التغذية الراجعة" id=fid hide_label=True placeholder="التغذية الراجعة (لازمة)" maxlength=500 required=True %}
