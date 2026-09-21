@@ -425,7 +425,7 @@ div#header h1 a {
   align-items: center;
   background: var(--footer-brand-chip-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-1-5);
   padding: 3px var(--sp-1-5);
   line-height: 0;
   flex-shrink: 0;
@@ -1361,13 +1361,13 @@ textarea:focus-visible {
   );
   background-size: 800px 100%;
   animation: skeletonShimmer 1.4s ease-in-out infinite;
-  border-radius: 6px;
+  border-radius: var(--radius-1-5);
 }
 .skeleton-text   { height: 14px; margin-bottom: var(--sp-2); }
 .skeleton-title  { height: 20px; width: 60%; margin-bottom: var(--sp-3); }
 .skeleton-header { height: 40px; margin-bottom: var(--sp-1); border-radius: var(--radius-md); opacity: .5; }
 
-.skeleton-row    { height: 44px; margin-bottom: var(--sp-1); border-radius: 6px; }
+.skeleton-row    { height: 44px; margin-bottom: var(--sp-1); border-radius: var(--radius-1-5); }
 
 /* ── Toast / Notification Animations ──────────────────────── */
 @keyframes toastIn {

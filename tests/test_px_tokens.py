@@ -12,7 +12,7 @@ from tests.css_source import read_css
 
 #: خارجَ السلّم يومَ الترحيل (2026-09-19). تُخفَّض ولا تُرفع.
 OFF_SCALE_SPACING = 92
-OFF_SCALE_RADIUS = 62
+OFF_SCALE_RADIUS = 31
 
 
 def test_no_spacing_or_radius_px_literal_matches_a_token():
@@ -23,7 +23,7 @@ def test_no_spacing_or_radius_px_literal_matches_a_token():
     )
     assert counts["radius_on_scale"] == 0, (
         f"{counts['radius_on_scale']} قيمةَ تقوّسٍ حرفيّةً تطابق رمزاً — "
-        "اكتب var(--radius-sm|md|lg|xl) (4·8·14·16)"
+        "اكتب var(--radius-sm|md|lg|xl) (4·6·8·14·16)"
     )
 
 

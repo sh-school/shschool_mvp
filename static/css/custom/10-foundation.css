@@ -253,6 +253,7 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
 
   /* ══ Radius Scale ══ */
   --radius-sm: 4px;
+  --radius-1-5: 6px;
   --radius-md: 8px;
   /* --radius: 10px  ← موجود أعلاه */
   /* --radius-lg: 14px ← موجود أعلاه */

@@ -1066,7 +1066,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .ui-section__fold-summary::-webkit-details-marker { display: none; }
 .ui-section__fold-summary::before { content: "◂"; color: var(--on-fill); opacity: .85; font-size: 12px; transition: transform var(--transition-base); }
 .ui-section__fold[open] > .ui-section__fold-summary::before { transform: rotate(-90deg); }
-.ui-section__fold-summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: -3px; border-radius: 6px; }
+.ui-section__fold-summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: -3px; border-radius: var(--radius-1-5); }
 .ui-section.is-flush > .ui-section__fold > .card-bar { margin: 0; }
 .ui-section.is-flush > .ui-section__fold > .ui-section__body > .table-wrap { border: 0; border-radius: 0; box-shadow: none; }
 
