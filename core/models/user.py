@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.validators import RegexValidator
@@ -153,7 +153,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         # إلى AuditLog.object_repr (جدول دائم غير قابل للحذف).
         return self.full_name
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         # ── Auto-populate HMAC + Fernet fields on every save ──
         if self.national_id:
             new_hmac = hmac_field(self.national_id)
