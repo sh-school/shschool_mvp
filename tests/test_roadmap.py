@@ -607,8 +607,6 @@ class TestCreateItem:
     }
 
     def _create(self, client, payload):
-        import json
-
         return client.post(
             reverse("roadmap_item_create"),
             data=json.dumps(payload),
