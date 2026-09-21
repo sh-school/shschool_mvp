@@ -9,7 +9,7 @@
   "notifications/hub.py": 989,
   "notifications/tasks.py": 1503,
   "operations/management/commands/import_timetable_pdf.py": 990,
-  "operations/models.py": 2213,
+  "operations/models.py": 2022,
   "operations/schedule_lab.py": 984,
   "operations/scheduler.py": 1725,
   "operations/scheduler_constraints.py": 1074,
