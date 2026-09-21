@@ -58,6 +58,7 @@
 | **الوصولية والتركيز** | `test_focus_and_names`، `test_a11y_live_pages` | حلقةُ التركيز؛ لكلّ حقلٍ اسمٌ محسوبٌ في الصفحة المرسومة |
 | **المكوّنات** | `test_icon_dictionary`، `test_dead_classes`، `test_no_styles_in_python`، `test_styleguide`، `test_template_references_resolve` | المعنى واحدٌ ورسمُه واحد؛ كلُّ صنفٍ يذكره شيءٌ يُرسم؛ لا تنسيقَ في بايثون؛ دليلُ الهويّة يعرض المصدرَ لا نسخةً منه |
 | **الطباعة والنشر** | `test_print_styles`، `test_static_storage_minifies`، `test_sw_cache_policy` | الورقُ نهاريّ؛ التصغيرُ وقتَ `collectstatic` بلا فقدِ قاعدة؛ عاملُ الخدمة لا يخزّن غيرَ المبصوم |
+| **طبقةُ القنوات (redis)** | `test_channel_layer_socket_timeout`، `test_channel_layer_redis_integration` | `socket_timeout` أكبرُ من `brpop_timeout` (5s)؛ ومستهلكٌ خاملٌ 7s على redis **حقيقيّ** لا يسقط بـ«Timeout reading from redis». الثاني يعمل في `test-coverage` (خدمةُ `redis` فيها)، ويُتخطّى محلّياً بلا redis ويفشل في CI إن غاب. مرجعُ الفشل: redis-py 8 (`socket_timeout`=5s افتراضاً). تُرقّى `redis` و`channels-redis` و`channels` معاً (مجموعةُ dependabot) |
 
 ## 3. ما يحجب الدمج فعلاً
 
