@@ -18,3 +18,4 @@
 | [0002](0002-unified-staff-appraisal.md) | نموذجٌ واحدٌ لتقييم أداء الموظّفين: `quality.EmployeeEvaluation` | مقبول | 2026-09-14 |
 | [0003](0003-split-custom-css-by-layer.md) | تقسيم `static/css/custom.css` إلى ملفّاتٍ بحسب الطبقة | مقبول | 2026-09-19 |
 | [0004](0004-core-does-not-import-downstream.md) | النواة `core` لا تستورد من التطبيقات النازلة | مقبول | 2026-09-19 |
+| [0005](0005-frontend-phase3-decisions.md) | قراراتُ الواجهة في المرحلة 3: رموزُ التباعد، ميزانيّةُ الأداء، وترك `@container` | مقبول | 2026-09-21 |
