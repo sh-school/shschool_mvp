@@ -174,8 +174,6 @@ document.addEventListener('click', function(e) {
   }
   var mobBtn = e.target.closest('#mob-menu-btn');
   if (mobBtn) { toggleMobMenu(); return; }
-  var printBtn = e.target.closest('.js-print-btn');
-  if (printBtn) { window.print(); return; }
   var dismissBtn = e.target.closest('[data-dismiss="msg-bar"]');
   if (dismissBtn) { var bar = dismissBtn.closest('.msg-bar'); if (bar) bar.remove(); return; }
   var backdropEl = e.target.closest('[data-dismiss-on-backdrop]');
