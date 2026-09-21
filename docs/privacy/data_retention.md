@@ -46,6 +46,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `django_session` | `expire_date < now` | جلسةٌ منتهيةٌ لا تفتح شيئاً، ومحتواها الموقَّع يحمل معرّفَ المستخدم. وهو ما يفعله `clearsessions` لو أُجري. |
 | `token_blacklist_outstandingtoken` | `expires_at < now` | رمزُ تحديثٍ منقضٍ لا يُقبل أصلاً. |
 | `token_blacklist_blacklistedtoken` | يتبع رمزَه بالتسلسل | قائمةُ حظرٍ لرمزٍ لم يعد له وجود. |
+| `axes_accessattemptexpiration` | يتبع صفَّ `axes_accessattempt` بالتسلسل (`CASCADE`) | موعدُ انتهاء صفّ محاولةٍ (axes 8): مفتاحٌ أجنبيٌّ وتاريخٌ فقط، بلا بياناتٍ شخصيّة؛ يُحذف مع أبيه حين يحذفه إنفاذُ الاحتفاظ. |
 
 ### 3.2 يُحذف بعد N يوماً
 
