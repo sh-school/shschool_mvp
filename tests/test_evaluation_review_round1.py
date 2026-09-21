@@ -186,7 +186,8 @@ def test_only_the_principal_records_the_receipt_and_not_in_the_future(
 
 @pytest.mark.django_db
 # bus_supervisor خرج منها: تكليفٌ على «ملاحظ طلبة» (جولة الإصلاح 3، test_evaluation_review_round3).
-@pytest.mark.parametrize("role_name", ["nurse", "coordinator", "ese_teacher", "admin"])
+# coordinator وese_teacher خرجا منها: استمارةُ المعلّم بقرار المالك 2026-09-21 (ADR-0002 §6.8).
+@pytest.mark.parametrize("role_name", ["nurse", "admin"])
 def test_silent_roles_get_no_annual_report_on_invented_axes(
     client, school, principal_user, role_name
 ):
@@ -198,6 +199,25 @@ def test_silent_roles_get_no_annual_report_on_invented_axes(
     data = {field: "25" for field, _l, _m in _DEFAULT_AXES} | {"action": "submitted"}
     assert client.post(_url(employee), data).status_code == 409
     assert not EmployeeEvaluation.objects.filter(employee=employee).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("role_name", ["coordinator", "ese_teacher"])
+def test_owner_assigned_roles_are_appraised_on_the_teacher_form(
+    client, school, principal_user, role_name
+):
+    """قرارُ المالك 2026-09-21: المنسّقُ ومعلّمُ التربية الخاصة على استمارة المعلّم — لا 409."""
+    from tests.test_evaluation_review_round3 import _post_total
+
+    _seed(school)
+    employee = _staff(school, role_name)
+    client.force_login(principal_user)
+    assert client.get(_url(employee)).status_code == 200
+    form = forms_by_role()[role_name]
+    assert form.code == forms_by_role()["teacher"].code
+    assert client.post(_url(employee), _post_total(form, 80)).status_code == 302
+    evaluation = EmployeeEvaluation.objects.get(employee=employee, period="S2")
+    assert (evaluation.total_score, evaluation.template.role_name) == (80, role_name)
 
 
 @pytest.mark.django_db

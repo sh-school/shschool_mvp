@@ -28,7 +28,6 @@
     </form>
     <a data-app-file href="{% url 'student_affairs:tardiness_export' %}?date={{ selected_date|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
     <a data-app-file href="{% url 'student_affairs:tardiness_pdf' %}?date={{ selected_date|date:'Y-m-d' }}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>
-    <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
   {% kpi_strip label="أرقام التأخر" %}

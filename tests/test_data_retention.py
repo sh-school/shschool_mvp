@@ -452,7 +452,11 @@ class TestEveryTableHasARuling:
         rule_tables = {rule.table for rule in RULES}
         assert rule_tables <= deleted, sorted(rule_tables - deleted)
         # ما في الوثيقة تحت «يُحذف» ولا قاعدةَ له — إلّا ما يتبع أباه بالتسلسل.
-        cascade_only = {"token_blacklist_outstandingtoken", "token_blacklist_blacklistedtoken"}
+        cascade_only = {
+            "token_blacklist_outstandingtoken",
+            "token_blacklist_blacklistedtoken",
+            "axes_accessattemptexpiration",  # OneToOne CASCADE إلى axes_accessattempt (axes 8)
+        }
         every = {m._meta.db_table for m in apps.get_models(include_auto_created=True)}
         undocumented = sorted((deleted & every) - rule_tables - cascade_only)
         assert not undocumented, f"موصوفةٌ بالحذف بلا قاعدةٍ تُنفِّذه: {undocumented}"

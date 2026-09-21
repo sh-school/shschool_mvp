@@ -18,84 +18,12 @@ from django.contrib.auth.views import redirect_to_login
 from django.http import Http404, HttpResponse
 
 from core.permissions import expand_roles
+from governance.media_selectors import resolve_file_access, stored_file_named
 
 # أنواع آمنة للعرض داخل المتصفّح؛ ما عداها يُجبَر على التنزيل
 _INLINE_SAFE = {"application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp"}
 # أنواع تُنفَّذ في المتصفّح — تُحيَّد دائماً
 _NEVER_INLINE = {"image/svg+xml", "text/html", "application/xhtml+xml", "text/xml"}
-
-
-def _staff_file(obj):
-    """مرفقاتُ الإجازات ونموذج 03 (م-31) قد تحوي تقارير طبية حسّاسة → قيادة المدرسة فقط (عدا المالك)."""
-    return (obj.school_id, obj.staff_id, {"principal", "vice_admin"}, False)
-
-
-def _exception_file(obj):
-    """مرفقُ نموذج 03 (م-31): تقريرٌ طبيّ محتمل — لصاحبه ولقيادة المدرسة (المدير ونائبيه)."""
-    from staff_affairs.models import EXCEPTION_EVIDENCE_ROLES
-
-    return (obj.school_id, obj.staff_id, set(EXCEPTION_EVIDENCE_ROLES), False)
-
-
-def _resolve_file_access(name):
-    """يُعيد (school_id, owner_user_id, allowed_roles, student_owned) للملف، أو None إن لم يُعرَف مالكه.
-
-    `student_owned`: الملفُّ ملفُّ طالبٍ (`owner_user_id` هو الطالب)، فيُسأل عنه نطاقُ الجناح.
-    """
-    # استيراد كسول لتفادي الدورات
-    from core.models import School
-    from core.permissions import (
-        LIBRARY_FULL,
-        LIBRARY_VIEW,
-        QUALITY_VIEW,
-        STUDENT_AFFAIRS_VIEW,
-        STUDENT_FOLLOW_UP,
-        WING_DAY_RECORD,
-    )
-    from library.models import LibraryBook
-    from operations.models import AbsenceExcuse, StudentAttendance
-    from quality.models import ProcedureEvidence
-    from staff_affairs.models import AttendanceException, LeaveRequest
-    from student_affairs.models import StudentActivity
-
-    resolvers = (
-        # عذرُ التأخّر الصباحيّ: رصدُه من عمل المشرف (الدليل 2026 م 3.4.2.2) — لجناحه.
-        (
-            StudentAttendance,
-            "excuse_file",
-            lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW | STUDENT_FOLLOW_UP, True),
-        ),
-        # مستندُ عذر الغياب: من يرصد في الأجنحة ومن يرى شؤونَ الطلبة — والطالبُ صاحبُه.
-        (
-            AbsenceExcuse,
-            "document",
-            lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW | WING_DAY_RECORD, True),
-        ),
-        (LeaveRequest, "attachment", _staff_file),
-        (AttendanceException, "evidence_file", _exception_file),
-        (
-            ProcedureEvidence,
-            "file",
-            lambda o: (o.procedure.school_id, o.uploaded_by_id, QUALITY_VIEW, False),
-        ),
-        (
-            StudentActivity,
-            "attachment",
-            lambda o: (o.school_id, o.student_id, STUDENT_AFFAIRS_VIEW, True),
-        ),
-        (
-            LibraryBook,
-            "digital_file",
-            lambda o: (o.school_id, None, LIBRARY_VIEW | LIBRARY_FULL, False),
-        ),
-        # الشعار: أي مستخدم مُصادَق من نفس المدرسة (allowed_roles=None)
-        (School, "logo", lambda o: (o.id, None, None, False)),
-    )
-    for model, field, extract in resolvers:
-        obj = model.objects.filter(**{field: name}).first()
-        if obj is not None:
-            return extract(obj)
-    return None
 
 
 def _authorize(request, access):
@@ -108,7 +36,7 @@ def _authorize(request, access):
     if user.is_superuser:
         return None
 
-    user_school = user.get_school()
+    user_school = request.school
     if user_school is None or user_school.id != school_id:
         raise Http404  # عزل المدرسة
     is_owner = owner_user_id is not None and owner_user_id == user.id
@@ -126,9 +54,7 @@ def _authorize(request, access):
 
 def serve_db_file(request, name):
     """يُقدّم ملفاً مُخزَّناً في القاعدة بعد تفويض fail-closed."""
-    from core.models import StoredFile
-
-    access = _resolve_file_access(name)
+    access = resolve_file_access(name)
     if access is None:
         raise Http404  # ملف يتيم/غير معروف المالك → لا يُقدَّم
 
@@ -136,7 +62,7 @@ def serve_db_file(request, name):
     if deny is not None:
         return deny  # تحويل لتسجيل الدخول
 
-    sf = StoredFile.objects.filter(name=name).first()
+    sf = stored_file_named(name)
     if sf is None:
         raise Http404
 

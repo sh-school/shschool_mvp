@@ -227,7 +227,9 @@ def registry() -> dict[str, Capability]:
         _cap(
             "breach.manage",
             "تقاريرُ خرق البيانات",
-            {"principal", "vice_admin", "vice_academic", "admin"},
+            # مطوّرُ المنصّة يمارس دورَ مسؤول حماية البيانات، ويصله تنبيهُ مهلة الـ72 ساعة
+            # (`_breach_inapp_recipients`) برابط الصفحة — فلا يُحجب عنها.
+            {"principal", "vice_admin", "vice_academic", "admin", "platform_developer"},
         ),
         # ── الإشعارات والتحليلات ────────────────────────────────────
         _cap("notifications.broadcast", "إدارةُ الإشعارات والإرسالُ الجماعيّ", leadership),

@@ -43,7 +43,8 @@
 |---|---|---|---|
 | **حجمُ CSS المصغَّر** (ما يصل المتصفّح) | ≤ **260KB**؛ ≈ 236KB يومَ 2026-09-19 (المصدرُ 418KB بتعليقاته العربيّة لا يُقاس) | `tests/test_css_budget.py` (ADR-0003 §10) | `pytest — تغطية` |
 | **Core Web Vitals والحمولة** | CLS ≤ 0.1 · LCP ≤ 2500ms · INP ≤ 300ms · أوراقُ أنماطٍ تحجب الرسم ≤ **10** · CSS خامٌ ≤ 460KB · JS ≤ 400KB · خطوط ≤ 120KB · صور ≤ 220KB · طلبات ≤ 40 | `tests/web_vitals.py:BUDGET` ← `tests/test_web_vitals_budget.py` | وظيفةُ `axe-a11y` |
-| **قيمُ px خارجَ السلّم** | تباعدٌ ≤ **92**، تقوّسٌ ≤ **62** — والصفرُ على السلّم | `tests/test_px_tokens.py` | `pytest — تغطية` |
+| **قيمُ px خارجَ السلّم** | تباعدٌ ≤ **86**، تقوّسٌ ≤ **31** — والصفرُ على السلّم | `tests/test_px_tokens.py` | `pytest — تغطية` |
+| **`font-size` بـpx** | صفرٌ (يُكتب rem) | `tests/test_px_tokens.py` | `pytest — تغطية` |
 
 سببُ كلّ رقمٍ في الوسيط الأوّل مكتوبٌ فوقه في الملفّ نفسه (`BUDGET` مثلاً): مقيسٌ، لا «ما تحتمله الأجهزة».
 
@@ -57,6 +58,7 @@
 | **الوصولية والتركيز** | `test_focus_and_names`، `test_a11y_live_pages` | حلقةُ التركيز؛ لكلّ حقلٍ اسمٌ محسوبٌ في الصفحة المرسومة |
 | **المكوّنات** | `test_icon_dictionary`، `test_dead_classes`، `test_no_styles_in_python`، `test_styleguide`، `test_template_references_resolve` | المعنى واحدٌ ورسمُه واحد؛ كلُّ صنفٍ يذكره شيءٌ يُرسم؛ لا تنسيقَ في بايثون؛ دليلُ الهويّة يعرض المصدرَ لا نسخةً منه |
 | **الطباعة والنشر** | `test_print_styles`، `test_static_storage_minifies`، `test_sw_cache_policy` | الورقُ نهاريّ؛ التصغيرُ وقتَ `collectstatic` بلا فقدِ قاعدة؛ عاملُ الخدمة لا يخزّن غيرَ المبصوم |
+| **طبقةُ القنوات (redis)** | `test_channel_layer_socket_timeout`، `test_channel_layer_redis_integration` | `socket_timeout` أكبرُ من `brpop_timeout` (5s)؛ ومستهلكٌ خاملٌ 7s على redis **حقيقيّ** لا يسقط بـ«Timeout reading from redis». الثاني يعمل في `test-coverage` (خدمةُ `redis` فيها)، ويُتخطّى محلّياً بلا redis ويفشل في CI إن غاب. مرجعُ الفشل: redis-py 8 (`socket_timeout`=5s افتراضاً). تُرقّى `redis` و`channels-redis` و`channels` معاً (مجموعةُ dependabot) |
 
 ## 3. ما يحجب الدمج فعلاً
 
@@ -66,16 +68,14 @@
 الملخّصان يجمّعان وظائفَ غيرهما:
 
 - `ملخص بوابة الجودة` (`gate-summary` في `quality-gate.yml`) يشترط نجاحَ: `test-coverage` · `ruff` · `mypy` ·
-  `migration-linter` · `complexity` · `secrets-scan` · `deploy-window` · **`axe-a11y`** · `e2e`.
+  `migration-linter` · `complexity` · `secrets-scan` · `deploy-window` · **`axe-a11y`** · `e2e` · `tailwind-build`.
 - `Security Summary` (في `security-scan.yml`) يشترط: `pip-audit-pypi` · `pip-audit-osv` · `bandit` · `django-check`.
 
 **القاعدةُ الأهمّ:** وظيفةٌ لا تُذكر في `needs` وفي شرط الفشل داخل `gate-summary` **لا تحجب شيئاً** — تخضرّ
 أو تحمرّ والدمجُ يمرّ. فحارسٌ جديدٌ يُوضع في وظيفةٍ قائمةٍ في القائمة (كما وُضعت ميزانيةُ Web Vitals في `axe-a11y`)،
 أو يُضاف اسمُ وظيفته إلى `gate-summary` في الطلب نفسه.
 
-> **ثغرةٌ قائمةٌ اليوم:** وظيفةُ `tailwind-build` («Tailwind — البناءُ الملتزَم محدَّث») تعمل ولا تحجب،
-> لأنّها خارجَ `needs`. غرضُها منعُ أن يُنشر `tailwind.min.css` قديماً فتصمت الأنماط بلا خطأ. عرضُها هنا
-> وإصلاحُها في طلبٍ منفصل (إضافةُ سطرين) لأنّه يغيّر ما يحجب الدمج.
+> **أُغلقت ثغرةُ `tailwind-build` (#437):** صارت ضمن `needs` وشرط الفشل، فسقوطُها يحجب الدمج.
 > (وظيفةُ `pr-file-collision` تحذيرٌ بالتصميم، وCodeQL إعدادٌ افتراضيٌّ منفصلٌ في GitHub.)
 
 ## 4. قواعدُ العمل
@@ -119,11 +119,10 @@
 
 | الدَّين | الأثر | المخرج |
 |---|---|---|
-| `tailwind-build` خارجَ `gate-summary` | بناءٌ قديمٌ لـ`tailwind.min.css` يمرّ | سطران في `quality-gate.yml` (طلبٌ منفصل) |
 | axe: مخالفتان مسجَّلتان لا تُصلَحان | يمنع الزيادةَ ولا يُصلح | بندٌ منفصل لإصلاحهما ثمّ `AXE_UPDATE=1` |
 | mypy: 1,829 خطأً | التصفيرُ بعيد | يتناقص بالمرور على الملفّات؛ لا حدَّ زمنيّ |
 | لا سقّاطةَ لقياس الجوال | 58% من العناصر التفاعليّة < 44px بحسب سواط الجوال (2026-09-20) | خطّةُ الجوال (M-00: أداةُ قياسٍ وسقّاطة) — تُضاف إلى القسم 2 حين تُدمج |
-| قيمُ px خارجَ السلّم (92 + 62) وقراراتُ المظهر D-12 | سقّاطةٌ تمنع الزيادة | قرارُ المالك: رمزُ تقوّس لـ6px، و`font-size` px→rem، وحدُّ `ui-kpis` |
+| قيمُ px خارجَ السلّم (86 + 31) وقراراتُ المظهر D-12 | سقّاطةٌ تمنع الزيادة | قرارُ المالك: حدُّ `ui-kpis` (رمزُ تقوّس 6px و`font-size` px→rem اتُّخذا) |
 
 ## 8. مراجعُ
 

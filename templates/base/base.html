@@ -433,6 +433,10 @@
     الكادرُ الذي هو وليُّ أمرٍ أيضاً (قرارُ 2026-09-16): بابُه إلى أبنائه — والموافقةُ
     تُطلب منه هناك لا في عمله. والعضويّةُ من المحفوظ على الكائن، فلا استعلامَ لكلّ صفحة.
     {% endcomment %}
+    {# خروقاتُ البيانات: القيادةُ في قائمة «الإدارة»، والإداريّ ومطوّرُ المنصّة رابطٌ مباشر هنا. #}
+    {% if not is_admin_role and request.user|can_open:"breach:dashboard" %}
+    <a href="{% url 'breach:dashboard' %}" class="nb">{% icon "breach" %} خروقات البيانات</a>
+    {% endif %}
     {% if role != "parent" and request.user.has_parent_membership and request.user|can_open:"parent_dashboard" %}
       <a href="{% url 'parent_dashboard' %}" class="nb" id="nav-my-portal">{% icon "children" %} بوابتي</a>
     {% endif %}
@@ -623,6 +627,9 @@
   <div class="sd-label">الأمان والصلاحيات</div>
   {% if request.user|can_open:"permission_audit_log" %}
   <a href="{% url 'permission_audit_log' %}">{% icon "security" %} سجل تغييرات الصلاحيات</a>
+  {% endif %}
+  {% if request.user|can_open:"breach:dashboard" %}
+  <a href="{% url 'breach:dashboard' %}">{% icon "breach" %} خروقات البيانات</a>
   {% endif %}
   {% endif %}
 </div>

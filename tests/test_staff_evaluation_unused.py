@@ -1,9 +1,9 @@
-"""[GUARD] `operations.StaffEvaluation` مُهمَلٌ: لا قارئَ ولا كاتب — قبل هجرة حذفه.
+"""[GUARD] `operations.StaffEvaluation` حُذف (هجرة `operations/0056`): لا يُعاد استعمالُه ولا إدخالُه.
 
 ADR-0002 (`docs/adr/0002-unified-staff-appraisal.md` §1.3، §5): تقييمُ الأداء في
 `quality.EmployeeEvaluation`، والنموذجُ القديم صفرٌ في الإنتاج. وحذفُ جدولٍ يكون على خطوتين
 في إصدارين (CLAUDE.md، «توسيعٌ ثمّ تقليص»): هذا الحارسُ يضمن أنّ الشيفرةَ التي تعمل أثناء
-النشر لا تلمس الجدولَ، فتكون الهجرةُ التالية آمنة. فمن استعمل النموذجَ من جديد سقط هنا.
+النشر لا تلمس الجدولَ (كان ذلك شرطَ هجرة الحذف)؛ وبعدها يمنع إعادةَ النموذج أو استعمالِ علاقاته العكسيّة.
 """
 
 from __future__ import annotations
@@ -22,10 +22,9 @@ PATTERN = re.compile(
     r"|\bstaff_evaluations\b|\bevaluations_as_staff\b|\bevaluations_as_evaluator\b"
 )
 
-#: ما يجوز أن يذكره: تعريفُه (حتى تُحذف)، وسجلُّ التدقيق يسمّيه نوعَ كيان (نصٌّ لا استعمال)،
+#: ما يجوز أن يذكره: سجلُّ التدقيق يسمّيه نوعَ كيان (نصٌّ لا استعمال، وسجلّاتٌ قديمةٌ قد تحمله)،
 #: والهجراتُ (تاريخٌ لا شيفرة)، وهذا الحارسُ.
 ALLOWED = {
-    "operations/models.py",
     "core/models/audit.py",
     "tests/test_staff_evaluation_unused.py",
 }

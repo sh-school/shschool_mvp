@@ -1,0 +1,123 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}{{ breach.title }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/breach/" parent_label="خرق البيانات" current="تفاصيل الخرق" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header breach.title subtitle="PDPPL م.11 — إشعار NCSA خلال 72 ساعة من الاكتشاف" icon="breach" %}
+    {% if breach.status != "resolved" %}<a href="{% url 'breach:edit' breach.pk %}" class="btn-secondary btn-sm">{% icon "edit" %} تعديل</a>{% endif %}
+    <a data-app-file href="{% url 'breach:pdf' breach.pk %}" class="btn-secondary btn-sm">{% icon "download" %} تقرير PDF</a>
+  {% endpage_header %}
+
+  {% kpi_strip label="مؤشرات الخرق" %}
+    {% if breach.hours_remaining != None %}
+      {% if breach.is_overdue %}
+        {% kpi "المهلة المتبقية" "فاتت" sub=overdue_sub tone="red" title="مهلةُ إشعار NCSA (72 ساعة) انقضت ولم يُسجَّل الإشعار" %}
+      {% else %}
+        {% kpi "ساعات متبقية" breach.hours_remaining sub=remaining_sub tone=remaining_tone %}
+      {% endif %}
+    {% else %}
+      {% kpi "المهلة" "مُغلقة" sub=breach.get_status_display tone="green" %}
+    {% endif %}
+    {% kpi "الخطورة" breach.get_severity_display tone=severity_tone %}
+    {% kpi "المتأثرون" breach.affected_count sub=breach.get_data_type_affected_display tone="maroon" %}
+    {% kpi "الحالة" breach.get_status_display tone=status_tone %}
+  {% endkpi_strip %}
+
+  {% section_card "المهلة والإشعار" icon="time" %}
+    <ul class="plain-list">
+      <li class="plain-list__row">
+        <span class="plain-list__title">وقت الاكتشاف</span>
+        <span class="num">{{ breach.discovered_at|date:"Y/m/d H:i" }}</span>
+      </li>
+      <li class="plain-list__row">
+        <span class="plain-list__title">موعد إشعار NCSA (اكتشاف + 72 ساعة)</span>
+        <span class="num">{{ breach.ncsa_deadline|date:"Y/m/d H:i"|default:"—" }}</span>
+      </li>
+      <li class="plain-list__row">
+        <span class="plain-list__title">وقت إشعار NCSA الفعلي</span>
+        <span class="num">{% if breach.ncsa_notified_at %}{{ breach.ncsa_notified_at|date:"Y/m/d H:i" }}{% else %}لم يُسجَّل بعد{% endif %}</span>
+      </li>
+      {% if breach.resolved_at %}
+      <li class="plain-list__row">
+        <span class="plain-list__title">وقت الحلّ</span>
+        <span class="num">{{ breach.resolved_at|date:"Y/m/d H:i" }}</span>
+      </li>
+      {% endif %}
+    </ul>
+  {% endsection_card %}
+
+  {% section_card "وصف الخرق" icon="breach" %}
+    <p>{{ breach.description|linebreaksbr }}</p>
+  {% endsection_card %}
+
+  {% section_card "الإجراءات" icon="reports" %}
+    <ul class="plain-list">
+      <li class="plain-list__row">
+        <span class="plain-list__title">الإجراء الفوري</span>
+        <span>{{ breach.immediate_action|default:"—"|linebreaksbr }}</span>
+      </li>
+      <li class="plain-list__row">
+        <span class="plain-list__title">الاحتواء</span>
+        <span>{{ breach.containment_action|default:"—"|linebreaksbr }}</span>
+      </li>
+      <li class="plain-list__row">
+        <span class="plain-list__title">المسؤول عن المتابعة</span>
+        <span>{{ breach.assigned_to.full_name|default:"لم يُكلَّف أحد" }}</span>
+      </li>
+      <li class="plain-list__row">
+        <span class="plain-list__title">الأدلة والملاحظات</span>
+        <span>{{ breach.evidence_notes|default:"—"|linebreaksbr }}</span>
+      </li>
+    </ul>
+  {% endsection_card %}
+
+  {% if breach.notification_text %}
+  {% section_card "نصّ إشعار NCSA" icon="notifications" %}
+    {% callout "info" show=True %}لا تُرسل المنصّةُ هذا النصَّ تلقائيّاً؛ الإرسالُ إلى الجهة قرارُ المسؤول، ثمّ يُسجَّل بزرّ «تم إشعار NCSA».{% endcallout %}
+    <p>{{ breach.notification_text|linebreaksbr }}</p>
+  {% endsection_card %}
+  {% endif %}
+
+  {% section_card "سجلّ التغييرات" meta=history|length icon="reports" empty="لا سجلَّ بعد" %}{% if history %}
+    <ul class="plain-list">
+      {% for h in history %}
+      <li class="plain-list__row">
+        <span class="plain-list__title">{{ h.what }}</span>
+        <span class="num">{{ h.who }} · {{ h.at|date:"Y/m/d H:i" }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  {% endif %}{% endsection_card %}
+
+  {% section_card "تغيير الحالة" icon="notifications" %}
+    {% if breach.status == "resolved" %}
+      {% callout "success" show=True %}أُغلق هذا الخرق ولا إجراءَ متبقّياً.{% endcallout %}
+    {% else %}
+      {% if breach.status != "notified" %}
+      {% callout "warning" show=True %}زرُّ «تم إشعار NCSA» <strong>لا رجعةَ فيه</strong>: يُختم به وقتُ الإشعار الفعليّ، وهو الوقتُ المعتمَد قانونيّاً في احتساب الالتزام بمهلة الـ72 ساعة. لا تضغطه إلّا بعد إرسال الإشعار فعلاً إلى المركز الوطني للأمن السيبراني.{% endcallout %}
+      {% endif %}
+      <form method="post" action="{% url 'breach:update_status' breach.pk %}" class="form-actions">{% csrf_token %}
+        {% if breach.status == "discovered" %}
+        <button type="submit" name="status" value="assessing" class="btn-secondary">قيد التقييم</button>
+        {% endif %}
+        {% if breach.status == "assessing" %}
+        <button type="submit" name="status" value="resolved" class="btn-secondary" title="خلص التقييمُ إلى أنّ الخرق لا يستوجب إشعاراً — يُدقَّق الإغلاقُ بلا إشعارٍ في السجلّ">إغلاق دون إشعار</button>
+        {% endif %}
+        {% if breach.status != "notified" %}
+        <button type="submit" name="status" value="notified" class="btn-danger">{% icon "notifications" %} تم إشعار NCSA</button>
+        {% else %}
+        <button type="submit" name="status" value="resolved" class="btn-primary">{% icon "confirm" %} تمّ الحلّ</button>
+        {% endif %}
+      </form>
+    {% endif %}
+  {% endsection_card %}
+
+</div>
+{% endblock %}

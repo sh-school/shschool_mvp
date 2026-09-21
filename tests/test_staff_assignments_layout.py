@@ -1,7 +1,7 @@
-"""تخطيطُ صفحة التكليفات: عمودان بارتفاع النافذة، والقوائمُ تُمرَّر داخل بطاقتها لا الصفحة.
+"""تخطيطُ صفحة التكليفات: أربعةُ أعمدةٍ بارتفاع النافذة، والقوائمُ تُمرَّر داخل بطاقتها لا الصفحة.
 
 حارسٌ ساكنٌ على القالب وCSS (القياسُ الحيُّ بمتصفّحٍ حقيقيّ في وصف طلب الدمج): إن سقط
-`page-noscroll` أو انفكّ العمودان أو عاد الجدولُ ستّةَ أعمدة عاد التمريرُ الرأسيّ.
+`page-noscroll` أو انفكّت الأعمدةُ الأربعة أو عاد الجدولُ ستّةَ أعمدة عاد التمريرُ الرأسيّ.
 """
 
 import pathlib
@@ -18,8 +18,9 @@ def test_page_opts_into_no_page_scroll():
     assert "{% block main_class %}page-noscroll{% endblock %}" in PAGE
 
 
-def test_cards_sit_in_two_columns_and_solo_when_no_form():
-    assert PAGE.count('class="sa-assign__col"') == 2
+def test_cards_are_direct_grid_children_and_solo_when_no_form():
+    assert "sa-assign__col" not in PAGE
+    assert PAGE.count("{% section_card ") == 4
     assert "sa-assign--solo" in PAGE
 
 
@@ -36,9 +37,9 @@ def test_table_is_compact_four_columns():
 
 def test_css_pins_columns_and_scrolls_bodies_inside_cards():
     css = read_css()
-    assert "grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)" in css
+    assert ".sa-assign { grid-template-columns: repeat(4, minmax(0, 1fr)); }" in css
     assert "#main-content.page-noscroll > .exec-dash > .sa-assign" in css
     assert (
-        ".sa-assign__col > .ui-section > .ui-section__body { flex: 1; min-height: 0; overflow: auto; }"
+        ".sa-assign > .ui-section > .ui-section__body { flex: 1; min-height: 0; overflow: auto; }"
         in css
     )
