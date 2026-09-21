@@ -97,6 +97,7 @@ GLOBAL_INFRASTRUCTURE = {
     "auth_group_permissions": "join table over two global tables",
     "auth_permission": "permission catalogue, created by Django from the models",
     "axes_accessattempt": "login throttling state, keyed on username/IP before a tenant is known",
+    "axes_accessattemptexpiration": "expiry marker (one-to-one, cascade) of an axes_accessattempt row: login throttling state, no tenant",
     "axes_accessfailurelog": "login throttling state, keyed on username/IP before a tenant is known",
     "axes_accesslog": "login throttling state, keyed on username/IP before a tenant is known",
     "behavior_violationcategory": "shared catalogue of violation types, not per school",

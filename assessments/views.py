@@ -4,6 +4,8 @@ from decimal import Decimal
 import django.db
 from django.contrib import messages
 
+from core.verdict_read import failing_statuses, passing_statuses
+
 logger = logging.getLogger(__name__)
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
@@ -96,8 +98,8 @@ def assessments_dashboard(request):
         annual_stats = AnnualSubjectResult.objects.filter(
             school=school, academic_year=year
         ).aggregate(
-            passed=Count("id", filter=Q(status="pass")),
-            failed=Count("id", filter=Q(status="fail")),
+            passed=Count("id", filter=Q(status__in=passing_statuses())),
+            failed=Count("id", filter=Q(status__in=failing_statuses())),
         )
         passed = annual_stats["passed"]
         failed = annual_stats["failed"]
@@ -389,45 +391,7 @@ def save_all_grades(request, assessment_id):
     if not request.user.is_admin() and assessment.package.setup.teacher != request.user:
         return HttpResponse("غير مسموح", status=403)
 
-    enrollments = StudentEnrollment.objects.filter(
-        class_group=assessment.class_group, is_active=True
-    ).select_related("student")
-
-    saved = 0
-    for enr in enrollments:
-        sid = str(enr.student.id)
-        is_absent = request.POST.get(f"absent_{sid}") == "1"
-        is_excused = request.POST.get(f"excused_{sid}") == "1"
-        notes = request.POST.get(f"notes_{sid}", "")
-        grade = None
-
-        if not is_absent and not is_excused:
-            raw = request.POST.get(f"grade_{sid}", "").strip()
-            if raw:
-                try:
-                    grade = Decimal(raw)
-                except (ValueError, TypeError, ArithmeticError) as e:
-                    logger.warning("فشل تحويل درجة الطالب %s إلى Decimal: %r — %s", sid, raw, e)
-                    continue
-
-        GradeService.save_grade(
-            assessment=assessment,
-            student=enr.student,
-            grade=grade,
-            is_absent=is_absent,
-            is_excused=is_excused,
-            notes=notes,
-            entered_by=request.user,
-            recalc=False,  # [PERF-02] يُعاد الحساب دفعةً واحدة بعد الحلقة
-        )
-        saved += 1
-
-    # [PERF-02] إعادة حساب الفصل كاملاً مرة واحدة (batch) بدل مرة لكل طالب
-    GradeService.recalculate_full_class(assessment.package.setup)
-
-    # تحديث حالة التقييم
-    assessment.status = "graded"
-    assessment.save(update_fields=["status"])
+    saved = GradeService.save_all_from_post(assessment, request.POST, request.user)
 
     messages.success(request, f"تم حفظ {saved} درجة بنجاح")
     return redirect("grade_entry", assessment_id=assessment_id)
@@ -751,8 +715,8 @@ def student_report(request, student_id):
     results = GradeService.get_student_annual_report(student, school, year)
     stats = results.aggregate(
         total_subjects=Count("id"),
-        passed=Count("id", filter=Q(status="pass")),
-        failed=Count("id", filter=Q(status="fail")),
+        passed=Count("id", filter=Q(status__in=passing_statuses())),
+        failed=Count("id", filter=Q(status__in=failing_statuses())),
     )
     total_subjects = stats["total_subjects"]
     passed = stats["passed"]

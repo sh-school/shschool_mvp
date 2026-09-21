@@ -25,7 +25,6 @@
     {% if not limited or request.user|can_open:'behavior:report_infraction' %}<a href="{% url 'behavior:report_infraction' %}" class="btn-secondary btn-sm">{% icon "behavior_violation" %} تسجيل مخالفة</a>{% endif %}
     {% if can_see_results %}<a data-app-file href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">{% icon "grades" %} كشف الدرجات</a>{% endif %}
     <a data-app-file href="{% url 'student_affairs:student_profile_pdf' student.id %}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>
-    <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
   {% kpi_strip label="ملخص الطالب" %}
@@ -132,11 +131,9 @@
         </table>
       </div>
 
-      <p class="form-note sa-block-gap">
-        تُحتسب تراكمياً من بداية العام، متصلةً أو غير متصلة. والعذر المقبول:
+      {% callout "hint" %}تُحتسب تراكمياً من بداية العام، متصلةً أو غير متصلة. والعذر المقبول:
         مرضٌ بشهادة طبية حكومية معتمدة، أو ظرفٌ قهريّ، أو مهمّة رسمية بشهادة من جهة العمل.
-        وهذا عرضٌ للاطّلاع — قرار الحرمان لإدارة المدرسة.
-      </p>
+        وهذا عرضٌ للاطّلاع — قرار الحرمان لإدارة المدرسة.{% endcallout %}
     {% endsection_card %}
     {% endif %}
 
@@ -199,7 +196,7 @@
           </tr></tfoot>
         </table>
       </div>
-      {% if presence.semester %}<p class="bell-note">هذا الفصل: حضر {{ presence.semester.total.present_minutes }} من {{ presence.semester.total.scheduled_minutes }} دقيقة ({{ presence.semester.total.present_pct }}%). وحصصٌ لم تُرصد: {{ presence.year.total.unrecorded_periods }}.</p>{% endif %}
+      {% if presence.semester %}<p class="ui-note">هذا الفصل: حضر {{ presence.semester.total.present_minutes }} من {{ presence.semester.total.scheduled_minutes }} دقيقة ({{ presence.semester.total.present_pct }}%). وحصصٌ لم تُرصد: {{ presence.year.total.unrecorded_periods }}.</p>{% endif %}
     {% endsection_card %}
     {% endif %}
   </div>

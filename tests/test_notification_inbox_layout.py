@@ -125,6 +125,27 @@ class TestInboxView:
         # الرقاقاتُ تحمل التجميعَ معها، فالترشيحُ لا يُرجع الصفحةَ إلى الأيّام.
         assert all("group=type" in t[3] for t in resp.context["event_types"])
 
+    def test_the_page_is_no_scroll_and_types_become_boxes(self, client_as, school, teacher_user):
+        """الصفحةُ بارتفاع النافذة (`page-noscroll`)؛ و«حسب النوع» صناديقُ تُمرَّر كلٌّ وحدَه."""
+        self._make(teacher_user, school, event_type="grade")
+        c = client_as(teacher_user)
+
+        by_day = c.get(reverse("notification_inbox")).content.decode()
+        by_type = c.get(reverse("notification_inbox") + "?group=type").content.decode()
+
+        assert "page-noscroll" in by_day and "page-noscroll" in by_type
+        # الصنفُ على وسم الحاوية لا في نصّ السكربت (يذكر المحدِّدَ نفسَه).
+        assert 'class="notif-feed notif-feed--types"' in by_type
+        assert 'class="notif-feed notif-feed--types"' not in by_day
+
+    def test_overflowing_scroll_containers_become_keyboard_regions(
+        self, client_as, school, teacher_user
+    ):
+        """صفحةٌ بلا تمرير: الحاويةُ التي تفيض تُصبح منطقةً تُركَّز بلوحة المفاتيح (axe: scrollable-region-focusable)."""
+        html = client_as(teacher_user).get(reverse("notification_inbox")).content.decode()
+        assert "scrollRegion" in html and "setAttribute('tabindex', '0')" in html
+        assert "role', 'region'" in html
+
     def test_mark_all_read_is_a_plain_form_that_returns_to_the_inbox(
         self, client_as, school, teacher_user
     ):

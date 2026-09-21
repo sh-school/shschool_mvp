@@ -126,8 +126,17 @@ class TestBreachStatusLifecycle:
         assert breach.status == "notified"
         assert breach.ncsa_notified_at is not None
 
+    def test_renotify_does_not_restamp_ncsa_time(self, client_as, principal_user, breach):
+        """إعادةُ إرسال «notified» لا تمحو وقتَ الإشعار الأصليّ."""
+        c = client_as(principal_user)
+        c.post(f"/breach/{breach.pk}/status/", {"status": "notified"})
+        first = BreachReport.objects.get(pk=breach.pk).ncsa_notified_at
+        c.post(f"/breach/{breach.pk}/status/", {"status": "notified"})
+        assert BreachReport.objects.get(pk=breach.pk).ncsa_notified_at == first
+
     def test_transition_to_resolved_sets_resolved_at(self, client_as, principal_user, breach):
         c = client_as(principal_user)
+        c.post(f"/breach/{breach.pk}/status/", {"status": "notified"})
         c.post(f"/breach/{breach.pk}/status/", {"status": "resolved"})
         breach.refresh_from_db()
         assert breach.status == "resolved"
@@ -203,6 +212,37 @@ class TestBreachViews:
         c = client_as(principal_user)
         resp = c.get(f"/breach/{breach.pk}/")
         assert resp.status_code == 200
+
+    def test_detail_shows_deadline_hours_and_notify_action(self, client_as, principal_user, breach):
+        """الصفحةُ ليست فارغة: موعدُ NCSA والساعاتُ المتبقّية وزرُّ الإشعار وتحذيرُه."""
+        c = client_as(principal_user)
+        resp = c.get(f"/breach/{breach.pk}/")
+        assert resp.status_code == 200
+        html = resp.content.decode()
+        assert breach.title in html
+        deadline = timezone.localtime(breach.ncsa_deadline)
+        assert f"{deadline:%Y/%m/%d %H:%M}" in html
+        assert "ساعات متبقية" in html
+        assert 'name="status" value="notified"' in html
+        assert "لا رجعةَ فيه" in html
+        assert f"/breach/{breach.pk}/status/" in html
+        assert "style=" not in html.split('class="exec-dash"', 1)[1]
+
+    def test_detail_overdue_shows_missed_deadline(self, client_as, principal_user, overdue_breach):
+        c = client_as(principal_user)
+        html = c.get(f"/breach/{overdue_breach.pk}/").content.decode()
+        assert "فاتت" in html
+        assert 'name="status" value="notified"' in html
+
+    def test_detail_hides_notify_button_once_notified(self, client_as, principal_user, breach):
+        """الإشعارُ المختوم لا يُعاد ختمُه من الواجهة."""
+        c = client_as(principal_user)
+        c.post(f"/breach/{breach.pk}/status/", {"status": "notified"})
+        stamped = BreachReport.objects.get(pk=breach.pk).ncsa_notified_at
+        html = c.get(f"/breach/{breach.pk}/").content.decode()
+        assert 'value="notified"' not in html
+        assert 'value="resolved"' in html
+        assert f"{timezone.localtime(stamped):%Y/%m/%d %H:%M}" in html
 
     def test_detail_forbidden_for_teacher(self, client_as, teacher_user, breach):
         c = client_as(teacher_user)

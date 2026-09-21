@@ -199,9 +199,9 @@ def test_a_template_for_a_role_without_a_form_opens_no_annual_report(
     اللوحة أو من قاعدةٍ قديمة) لا يفتح تقريراً سنويّاً، ولا تُعدّ درجاتُه درجاتِ استمارة.
     """
     _seed(school)
-    coordinator = _staff(school, "coordinator")
+    coordinator = _staff(school, "nurse")
     template = RoleEvaluationTemplate.objects.create(
-        school=school, role_name="coordinator", academic_year=YEAR
+        school=school, role_name="nurse", academic_year=YEAR
     )
     EvaluationAxis.objects.create(template=template, key="all", label="الأداء", weight=100)
     client.force_login(principal_user)

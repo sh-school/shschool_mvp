@@ -193,7 +193,7 @@ class LeaveRequest(AuditedModel):
 # المرجع: AAdocs/ministry_data/2026_2027/06_attendance_performance_review.md §1
 # («سياسة وضوابط الحضور والانصراف»، ت/د: 2027/01 بتاريخ 2026-08-23، مدرسة الشحانية)
 # و07_forms_catalog.md جدول 1 بند 02 (نموذج طلب تأخير / استئذان / خروج مبكر).
-# والقواعدُ نفسُها (الحدود والتصنيف) في `staff_affairs/attendance.py` لا هنا.
+# والقواعدُ نفسُها (الحدود والتصنيف) في `staff_affairs/attendance/` (حزمة) لا هنا.
 
 STAFF_ATTENDANCE_STATUS = [
     ("present", "حاضر"),
@@ -503,6 +503,11 @@ EXCEPTION_TYPES = [
     ("late_arrival", "تأخير صباحي"),
     ("early_departure", "خروج مبكر"),
 ]
+
+#: من يفتح مرفقَ نموذج 03 (قد يكون تقريراً طبيّاً): قيادةُ المدرسة — المديرُ ونائباه — لأنّ أيَّ
+#: نائبٍ قد يُكلَّف بأعباء المدير فيقرّر النموذجَ (م-43)، ولا يقرّر من لا يرى ما يثبت الحاجة.
+#: وصاحبُ الطلب يفتحه بملكيّته. (بوّابةُ الملفّات: ``governance/views_media.py``.)
+EXCEPTION_EVIDENCE_ROLES = frozenset({"principal", "vice_admin", "vice_academic"})
 
 EXCEPTION_STATUS = [
     ("pending", "قيد الانتظار"),

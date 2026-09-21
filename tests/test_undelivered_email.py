@@ -91,7 +91,7 @@ def developer_message(db):
 
 
 @pytest.mark.django_db
-@override_settings(EMAIL_BACKEND=_BACKEND)
+@override_settings(EMAIL_BACKEND=_BACKEND, DEVELOPER_FEEDBACK_RECIPIENT="dev@example.test")
 def test_developer_notification_is_failed_when_nothing_delivers(developer_message):
     from developer_feedback.services.notifications import (
         send_developer_edit_notification,
@@ -107,8 +107,42 @@ def test_developer_notification_is_failed_when_nothing_delivers(developer_messag
 
 
 @pytest.mark.django_db
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    DEVELOPER_FEEDBACK_RECIPIENT="dev@example.test",
+)
 def test_developer_notification_is_sent_with_a_delivering_backend(developer_message):
     from developer_feedback.services.notifications import send_developer_notification
 
     assert send_developer_notification(developer_message).status == "sent"
+
+
+@pytest.mark.django_db
+@override_settings(
+    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    DEVELOPER_FEEDBACK_RECIPIENT="",
+)
+def test_developer_notification_without_a_configured_recipient_is_failed_not_sent(
+    developer_message,
+):
+    from django.core import mail
+
+    from developer_feedback.services.notifications import (
+        send_developer_edit_notification,
+        send_developer_notification,
+    )
+
+    first = send_developer_notification(developer_message)
+    edit = send_developer_edit_notification(developer_message)
+
+    assert first.status == "failed" and edit.status == "failed"
+    assert "DEVELOPER_FEEDBACK_RECIPIENT" in first.error_detail
+    assert mail.outbox == []
+
+
+def test_no_real_developer_address_is_tracked_in_the_source():
+    import pathlib
+
+    src = pathlib.Path("developer_feedback/services/notifications.py").read_text(encoding="utf-8")
+
+    assert "@education.qa" not in src

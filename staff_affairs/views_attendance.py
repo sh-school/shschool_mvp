@@ -1,7 +1,7 @@
 """شاشاتُ حضور الموظّفين (1.1) والأذونات القصيرة (1.3) — للكادر وحدَه.
 
 العرضُ يقرأ الطلبَ ويستدعي الخدمة ويرسم؛ القواعدُ والاستعلاماتُ كلُّها في
-``staff_affairs/attendance.py``، والتدقيقُ يُكتب هناك مع كلّ كتابة.
+``staff_affairs/attendance/`` (حزمة)، والتدقيقُ يُكتب هناك مع كلّ كتابة.
 """
 
 from __future__ import annotations
@@ -42,7 +42,13 @@ from .forms import (
     PermitRequestForm,
     PermitReviewForm,
 )
-from .models import ABSENCE_TYPES, EXCEPTION_TYPES, PERMIT_TYPES, StaffAttendance
+from .models import (
+    ABSENCE_TYPES,
+    EXCEPTION_EVIDENCE_ROLES,
+    EXCEPTION_TYPES,
+    PERMIT_TYPES,
+    StaffAttendance,
+)
 
 
 def _school(request: HttpRequest) -> School:
@@ -339,6 +345,8 @@ def permit_queue(request: HttpRequest) -> HttpResponse:
             "permits": PermitService.awaiting(school, user),
             "exceptions": ExceptionService.awaiting(school, user),
             "is_principal": AssignmentService.is_principal(school, user),
+            # من لا يفتح المرفقَ بوّابةُ الملفّات لا يُعرض له رابطٌ يردّه (عدمُ الاتّساق كان هنا).
+            "can_view_evidence": _user(request).get_role() in EXCEPTION_EVIDENCE_ROLES,
         },
     )
 

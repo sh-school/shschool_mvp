@@ -141,6 +141,40 @@ def placement_rejection(school: School, evaluator: CustomUser, employee: CustomU
     return rejection_reason(employee_role)
 
 
+#: المادة 16: تقريرُ السنة الأولى «وفقاً للمدة التي قضاها خلال هذه السنة، على ألا تقل عن ثلاثة أشهر».
+FIRST_YEAR_MIN_MONTHS = 3
+
+
+def _add_months(day: date, months: int) -> date:
+    index = day.year * 12 + day.month - 1 + months
+    year, month = divmod(index, 12)
+    month += 1
+    last = (date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)).day
+    return date(year, month, min(day.day, last))
+
+
+def first_year_rejection(employee: CustomUser, year: str, on: date | None = None) -> str | None:
+    """
+    نصُّ الرفض إن باشر الموظفُ في هذا العام ولم يقضِ فيه ثلاثةَ أشهر حتى `on` (أو نهايةِ العام
+    إن سبقت)، وإلّا None. **وتاريخُ المباشرة المجهولُ لا يرفض**: لا تُحجب تقارير الكادر كلِّه
+    لنقصٍ في سجلّ. والمصدرُ صامتٌ عمّا يترتّب عند القِلّة (ADR-0002 §6.7): الرفضُ تأجيلٌ لا حكم.
+    """
+    started = employee.service_start_date
+    if started is None or not is_academic_year(year):
+        return None
+    first = int(year[:4])
+    year_start, year_end = date(first, 9, 1), date(first + 1, 8, 31)
+    if not year_start <= started <= year_end:
+        return None
+    until = min(on or timezone.localdate(), year_end)
+    if until >= _add_months(started, FIRST_YEAR_MIN_MONTHS):
+        return None
+    return (
+        f"باشر {employee.full_name} في {started:%d/%m/%Y}؛ ولا يوضع تقريرُ السنة الأولى قبل "
+        f"أن يقضي ثلاثةَ أشهر (النظام الوظيفي، المادة 16)."
+    )
+
+
 def is_academic_year(value: str) -> bool:
     """«2026-2027» — عامان متتاليان. غيرُه يُكتب تحت عامٍ لا تقرؤه شاشةٌ ولا يُفحص فيه جزاء."""
     match = _ACADEMIC_YEAR.match(value or "")
@@ -539,6 +573,10 @@ def save_evaluation_form(
     الإنشاءُ وربطُ القالب والحفظُ معاملةٌ واحدة: الطلبُ المرفوض (`EvaluationRejectedError`)
     لا يترك مسودّةً. كانت في `create_evaluation` (العرض) فتجاوزت سقفَ الطبقات.
     """
+    if existing is None and period == EmployeeEvaluation.MINISTRY_PERIOD:
+        reason = first_year_rejection(employee, year)
+        if reason is not None:
+            raise EvaluationRejectedError(reason)
     with transaction.atomic():
         obj, created = existing, False
         if obj is None:
@@ -661,6 +699,33 @@ def file_grievance(
     _validated(locked, ("grievance_submitted_on", "grievance_reason"))
     evaluation.grievance_submitted_on = locked.grievance_submitted_on
     evaluation.grievance_reason = locked.grievance_reason
+    _notify_principal_of_grievance(locked)
+
+
+def _notify_principal_of_grievance(evaluation: EmployeeEvaluation) -> None:
+    """
+    إشعارٌ داخل المنصّة لمدير المدرسة بتظلّمٍ جديد (قرارُ المالك 2026-09-21). لا يحمل سببَ التظلّم
+    ولا درجةً — اسمُ الموظّف والتقرير فقط؛ والتفصيلُ في شاشة التظلّمات. ولا يُسقط التظلّمَ أبداً:
+    فشلُ الإشعار يُسجَّل ولا يُلغي ما قُدِّم (كإشعارات الملاحظة الصفّية).
+    """
+    try:
+        from notifications.hub import NotificationHub
+
+        NotificationHub.dispatch_to_role(
+            "appraisal_grievance",
+            evaluation.school,
+            "principal",
+            "تظلّمٌ جديدٌ من تقرير تقييم الأداء",
+            f"قدّم {evaluation.employee.full_name} تظلّماً من تقريره "
+            f"({evaluation.get_period_display()} — {evaluation.academic_year}). يُحال إلى لجنة "
+            "موظفي المدارس وتبتّ فيه خلال ثلاثين يوماً من تقديمه.",
+            related_url=f"/quality/evaluations/grievances/?year={evaluation.academic_year}",
+            related_object_id=str(evaluation.pk),
+        )
+    except Exception:  # noqa: BLE001 — الإشعارُ لا يُسقط تظلّماً قُدِّم
+        import logging
+
+        logging.getLogger("quality").exception("grievance notify failed")
 
 
 @transaction.atomic

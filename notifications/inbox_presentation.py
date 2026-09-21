@@ -15,9 +15,9 @@ from django.utils import timezone
 
 from core.dashboard_presentation import chunk_for_grid
 
-# ثلاثةُ أعمدةٍ تملأ نافذةَ المكتب بعرضٍ يتّسع لسطرَي النصّ؛ و`.auto-grid`
-# يفكّها عموداً واحداً على الهاتف بلا استعلامات @media.
-INBOX_COLUMNS = 3
+# أربعةُ أعمدةٍ تملأ نافذةَ المكتب بلا تمريرٍ للصفحة (قرارُ المالك 2026-09-20)؛
+# و`.auto-grid` يفكّها عموداً واحداً على الهاتف بلا استعلامات @media.
+INBOX_COLUMNS = 4
 
 _BUCKETS = (
     ("today", "اليوم"),

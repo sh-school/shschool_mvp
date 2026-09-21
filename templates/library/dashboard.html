@@ -89,8 +89,11 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/vendor/chart.umd.min.js' %}" defer></script>
-<script nonce="{{ request.csp_nonce }}" defer>
+<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+<script nonce="{{ request.csp_nonce }}">
+/* `defer` لا أثر له على سكربتٍ مضمَّن: يجري فور التحليل قبل chart.umd المؤجَّل → «Chart is not defined».
+   فيُنتظر DOMContentLoaded (تسبقه المؤجَّلاتُ)؛ ومع page-nav يُنفَّذ المستمعُ فوراً بالمُهيِّئ. */
+document.addEventListener('DOMContentLoaded', function(){
 Chart.defaults.font.family="'Tajawal','Segoe UI',Tahoma,sans-serif";
 Chart.defaults.font.size=10;
 Chart.defaults.plugins.legend.position='bottom';
@@ -105,7 +108,7 @@ async function fc(url,chartId){
   var loadEl=document.getElementById('loading-'+chartId);
   try{
     var data=await(await fetch(url)).json();
-    if(loadEl)loadEl.classList.add('hidden');
+    document.querySelectorAll('.chart-loading').forEach(function(e){e.classList.add('hidden');});   // الرسمان يشتركان في طلبٍ واحد
     return data;
   }catch(e){
     console.error("Chart:",url,e);
@@ -141,5 +144,6 @@ async function fc(url,chartId){
     });
   }
 })();
+});
 </script>
 {% endblock %}

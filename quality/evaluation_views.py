@@ -30,6 +30,7 @@ from .evaluation_services import (
     EvaluationRejectedError,
     annual_rating_summary,
     axis_values,
+    first_year_rejection,
     form_template_ok,
     grievance_stage,
     is_academic_year,
@@ -206,6 +207,15 @@ def _evaluation_target(request, employee_id):
     reason = placement_rejection(school, request.user, employee)
     if reason is not None:
         return employee, year, period, HttpResponse(reason, status=403)
+    if period == EmployeeEvaluation.MINISTRY_PERIOD:
+        reason = first_year_rejection(employee, year)
+        if reason is not None:
+            return (
+                employee,
+                year,
+                period,
+                HttpResponse(reason, status=409, content_type="text/plain; charset=utf-8"),
+            )
     return employee, year, period, None
 
 

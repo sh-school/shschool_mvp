@@ -80,6 +80,12 @@ app.conf.beat_schedule = {
         "task": "analytics.send_monthly_kpi_report",
         "schedule": crontab(hour=6, minute=0, day_of_month=1),
     },
+    # سياسةُ الحضور والانصراف 5.1: «الخصم … بعد اشعار الموظف … بداية كل شهر بتقرير أيام الغياب
+    # عن الشهر السابق» — أوّلَ كلّ شهرٍ 7:30، فتبقى مهلةُ التغطية (قبل يوم 15) أسبوعَين.
+    "staff-monthly-absence-notices": {
+        "task": "staff_affairs.send_monthly_absence_notices",
+        "schedule": crontab(hour=7, minute=30, day_of_month=1),
+    },
     # ✅ v7: إلغاء الصلاحيات المؤقتة المنتهية — كل دقيقة
     "revoke-expired-temp-permissions": {
         "task": "operations.revoke_expired_temp_permissions",

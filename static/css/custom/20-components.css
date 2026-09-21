@@ -63,7 +63,7 @@
   gap: 5px;
   padding: var(--sp-1-5) var(--sp-2-5);
   border-radius: 7px;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   color: var(--on-fill);
   background: none;
   border: none;
@@ -75,7 +75,9 @@
   line-height: 1.4;
 }
 .nb:hover, .nb.on { background: color-mix(in srgb, var(--on-fill) 16%, transparent); }
-.chv { font-size: 8px; opacity: .6; transition: transform .18s; }
+/* القسمُ الذي فيه المستخدم الآن (base.js::markCurrentSection): خطٌّ سفليٌّ ذهبيٌّ بدل شريط القسم الفرعيّ المُلغى. */
+.nb.nb-current { box-shadow: inset 0 -3px 0 var(--gold); }
+.chv { font-size: 0.5rem; opacity: .6; transition: transform .18s; }
 .nb.on .chv { transform: rotate(180deg); }
 
 /* الشعار */
@@ -120,7 +122,7 @@
   inset-inline-start: 3px;
   background: var(--status-danger);
   color: var(--on-fill);
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 700;
   min-width: 15px;
   height: 15px;
@@ -183,7 +185,7 @@
 .sd-menu hr { border: none; border-top: 1px solid var(--menu-divider); margin: var(--sp-1) 0; }
 .sd-label {
   padding: var(--sp-1-5) var(--sp-4) 3px;
-  font-size: 10px; font-weight: 700; color: var(--menu-label);
+  font-size: 0.625rem; font-weight: 700; color: var(--menu-label);
 }
 /* رأس قائمة المستخدم */
 .sd-user-header    { padding: var(--sp-2-5) var(--sp-4) 9px; border-bottom: 1px solid var(--menu-divider); }
@@ -208,13 +210,13 @@
 .msg-bar {
   display: flex; align-items: flex-start; gap: var(--sp-2-5);
   padding: 11px 15px; border-radius: var(--radius);
-  font-size: 13.5px; font-weight: 500; line-height: 1.5;
+  font-size: 0.84375rem; font-weight: 500; line-height: 1.5;
   transition: opacity .4s;
 }
 .msg-bar button.msg-x {
   margin-inline-start: auto; flex-shrink: 0;
   background: none; border: none; cursor: pointer;
-  opacity: .45; font-size: 15px; padding: 0 var(--sp-0-5); line-height: 1;
+  opacity: .45; font-size: 0.9375rem; padding: 0 var(--sp-0-5); line-height: 1;
 }
 .msg-bar button.msg-x:hover { opacity: 1; }
 .msg-icon { flex-shrink: 0; font-size: var(--text-base); }
@@ -370,7 +372,7 @@ div#header h1 a {
 }
 .site-footer-version {
   text-align: center;
-  font-size: 10.5px;
+  font-size: 0.65625rem;
   color: var(--text-muted);
   margin: var(--sp-1) 0 0;
   font-family: 'IBM Plex Mono', 'Tajawal', monospace;
@@ -379,7 +381,7 @@ div#header h1 a {
 /* رؤية الوزارة — تحت سطر الإصدار، بلون الهوية لا برماديّ الإصدار */
 .site-footer-vision {
   text-align: center;
-  font-size: 16px;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--maroon-fg);
   margin: var(--sp-1-5) 0 0;
@@ -400,7 +402,7 @@ div#header h1 a {
 }
 .site-footer-brand-label {
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: 0.71875rem;
   white-space: nowrap;
 }
 .site-footer-brand-logo {
@@ -425,7 +427,7 @@ div#header h1 a {
   align-items: center;
   background: var(--footer-brand-chip-bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-1-5);
   padding: 3px var(--sp-1-5);
   line-height: 0;
   flex-shrink: 0;
@@ -459,7 +461,7 @@ div#header h1 a {
 .pwa-icon     { font-size: var(--text-2xl); flex-shrink: 0; }
 .pwa-text     { flex: 1; min-width: 0; }
 .pwa-title    { display: block; font-size: var(--text-sm); font-weight: 700; }
-.pwa-subtitle { opacity: .8; font-size: 11.5px; }
+.pwa-subtitle { opacity: .8; font-size: 0.71875rem; }
 .pwa-install-btn {
   background: var(--surface);
   color: var(--maroon-fg);
@@ -653,6 +655,26 @@ tr.active {
   transform: translateY(1px);
 }
 
+/* ── المقاسان وحالةُ «معطَّل» — تعريفٌ واحد (قرارُ المالك 2026-09-20) ──
+   كان `btn-sm` في ثلاثة مواضعَ بقيمٍ متعارضة (حشوةُ 5px وتقوّسُ 6px حرفيّان وخطٌّ بوزن 700 وحدٌّ محذوف) فيتوقّف
+   مظهرُ 419 مفتاحاً على ترتيب الملفّات. صار مقاساً من مفتاحه: ما عدا الخطِّ والحشوة يبقى للنوع (وزنُه 600 وحدُّه
+   وتقوّسُه من `--radius`). ولا يُعرَّف `.btn-sm`/`.btn-xs` في غير هذا الملفّ (`tests/test_button_definitions.py`). */
+.btn-sm { font-size: var(--text-xs); padding: var(--sp-1-5) var(--sp-3-5); }
+.btn-xs { font-size: var(--text-xs); padding: var(--sp-1) var(--sp-2-5); }
+/* حالةُ التحميل الموحَّدة لكلّ مفتاح: `is-loading` (يضعه السكربتُ عند الإرسال) — دوّارةٌ بدل النصّ ولا نقرةَ ثانية. */
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+.is-loading { position: relative; color: transparent !important; pointer-events: none; }
+.is-loading::after {
+  content: ""; position: absolute; inset-block-start: 50%; inset-inline-start: 50%;
+  inline-size: 1em; block-size: 1em; margin: -.5em 0 0 -.5em;
+  border: 2px solid var(--on-fill); border-inline-end-color: transparent; border-radius: 50%;
+  animation: btn-spin .7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .is-loading::after { animation-duration: 2s; } }
+:is(.btn-primary, .btn-secondary, .btn-danger, .btn-warning, .btn-ghost, .btn-success):is(:disabled, [aria-disabled="true"]) {
+  opacity: .55; cursor: not-allowed; box-shadow: none;
+}
+
 /* ── Pagination ─────────────────────────────────────────────── */
 .pagination {
   display: flex;
@@ -732,7 +754,7 @@ tr.active {
   margin-bottom: var(--sp-6);
 }
 .page-title {
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 800;
   color: var(--text-primary);
   margin: 0;
@@ -1036,7 +1058,7 @@ main.page-wide {
 .status-badge {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px var(--sp-2-5); border-radius: 20px;
-  font-size: 11.5px; font-weight: 700; white-space: nowrap;
+  font-size: 0.71875rem; font-weight: 700; white-space: nowrap;
 }
 .status-success { background: var(--status-success-bg); color: var(--status-success-dark); border: 1px solid var(--status-success-border-soft); }
 .status-danger  { background: var(--status-danger-bg); color: var(--status-danger-dark); border: 1px solid var(--status-danger-border); }
@@ -1089,7 +1111,7 @@ main.page-wide {
   padding: var(--sp-2-5) var(--sp-3-5);
   border: 1.5px solid var(--control-border);
   border-radius: var(--radius);
-  font-size: 13.5px;
+  font-size: 0.84375rem;
   font-family: inherit;
   color: var(--text-primary);
   background: var(--surface);
@@ -1103,11 +1125,154 @@ main.page-wide {
   background: var(--surface);
 }
 .form-control::placeholder { color: var(--placeholder); }
-.form-hint {
-  font-size: 11.5px;
-  color: var(--text-muted);
-  margin-top: 5px;
+/* ══════════════════════════════════════════════════════════
+   التنبيهات — الوسمُ `{% callout %}` (قرارُ المالك 2026-09-20)
+   ══════════════════════════════════════════════════════════
+   نوعان: أيقونةٌ تُظهر نصَّها (تلميح ومعلومة) فلا تزحم البطاقة، وسطرٌ ظاهرٌ دائماً
+   (تحذير وخطأ ونجاح) لأنّ من لا يمرّ فوقه لا يقرأ ما يغيّر فعلَه. وكلُّ لونٍ رمزٌ من
+   رموز الحالة، فيتبع الوضعَ الليليّ. وما كان `form-note` و`bell-note` و`wing-warn`
+   و`form-hint` حُذف من الأنماط، والحارسُ يرفض إعادةَ استعماله (صنفٌ بلا تعريف). */
+.ui-field-hint {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  margin: var(--sp-1-5) 0 0;
 }
+/* سطرٌ صغيرٌ في القالب لا يُطوى: مفتاحُ رموزٍ أو حالةُ عمل أو «الأحدث 3 من N». */
+.ui-note {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  line-height: 1.8;
+  margin: var(--sp-3) 0 0;
+}
+.ui-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-2-5) var(--sp-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+}
+/* تنبيهٌ يليه ما يليه يفصله عنه فراغٌ واحدٌ من الوسم نفسه — لا صنفٌ لكلّ صفحة. */
+.ui-callout:not(:last-child) { margin-block-end: var(--sp-3); }
+.ui-callout > .icon { flex-shrink: 0; margin-block-start: var(--sp-0-5); }
+.ui-callout__body { min-inline-size: 0; }
+.ui-callout__body > :first-child { margin-block-start: 0; }
+.ui-callout__body > :last-child { margin-block-end: 0; }
+/* `show=True` على تلميحٍ أو معلومة: سطرٌ محايدٌ بأيقونته — حالةٌ تقول شيئاً لا يجوز إخفاؤه. */
+.ui-callout--hint, .ui-callout--info { background: var(--surface-alt); color: var(--text-secondary); }
+.ui-callout--hint > .icon { color: var(--status-warning-fg); }
+.ui-callout--info > .icon { color: var(--status-info-fg); }
+.ui-callout--warning { background: var(--status-warning-bg); color: var(--status-warning-fg); border-color: var(--status-warning-border-soft); }
+/* علامةُ التعجّب في التحذير حمراء (قرارُ المالك 2026-09-20) والخلفيةُ والنصّ عنبريّان: العينُ تلتقط الأيقونةَ أوّلاً. */
+.ui-callout--warning > .icon { color: var(--status-danger-fg); }
+.ui-callout--error { background: var(--status-danger-bg); color: var(--status-danger-fg); border-color: var(--status-danger-border); }
+.ui-callout--success { background: var(--status-success-bg); color: var(--status-success-fg); border-color: var(--status-success-border-soft); }
+
+/* التلميحُ والمعلومة: زرٌّ بأيقونة، ونصُّه في لوحٍ عائمٍ يُفتح بالمرور والتركيز (لوحة المفاتيح)
+   والضغط (اللمس) — والإغلاقُ بالنقر خارجه أو Esc (base.js). المصباحُ خافتٌ ثمّ مضاءٌ عند الفتح. */
+.ui-tip { position: relative; display: inline-flex; vertical-align: middle; }
+.ui-tip__btn {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 28px;
+  min-block-size: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: help;
+  transition: color .15s, background-color .15s;
+}
+.ui-tip__btn:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; }
+.ui-tip--hint .ui-tip__btn:hover,
+.ui-tip--hint .ui-tip__btn:focus-visible,
+.ui-tip--hint.is-open .ui-tip__btn { color: var(--status-warning-fg); background: var(--maroon-bg); }
+.ui-tip--info .ui-tip__btn { color: var(--status-info-fg); }
+.ui-tip--info .ui-tip__btn:hover,
+.ui-tip--info .ui-tip__btn:focus-visible,
+.ui-tip--info.is-open .ui-tip__btn { background: var(--status-info-bg); }
+.ui-tip__panel {
+  display: none;
+  position: absolute;
+  z-index: var(--z-dropdown);
+  inset-block-start: calc(100% + var(--sp-1));
+  inset-inline-start: 0;
+  inline-size: max-content;
+  max-inline-size: min(26rem, 80vw);
+  padding: var(--sp-3);
+  background: var(--popover-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--popover-border);
+  border-inline-start: 3px solid var(--gold);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  line-height: 1.8;
+  text-align: start;
+  white-space: normal;
+}
+.ui-tip--info .ui-tip__panel { border-inline-start-color: var(--status-info); }
+/* علامةُ التعجّب: حمراءُ كالتحذير، وفي الشريط العنّابيّ دائرةٌ بيضاء تُرى عليه. */
+.ui-tip--warning .ui-tip__btn { color: var(--status-danger-fg); }
+.ui-tip--warning .ui-tip__btn:hover,
+.ui-tip--warning .ui-tip__btn:focus-visible,
+.ui-tip--warning.is-open .ui-tip__btn { background: var(--status-danger-bg); }
+.ui-tip--warning .ui-tip__panel { border-inline-start-color: var(--status-danger); }
+.card-bar .ui-tip--warning .ui-tip__btn { background: var(--surface); color: var(--status-danger-fg); border-radius: 50%; min-inline-size: 24px; min-block-size: 24px; }
+.card-bar .ui-tip--warning .ui-tip__btn:hover,
+.card-bar .ui-tip--warning .ui-tip__btn:focus-visible,
+.card-bar .ui-tip--warning.is-open .ui-tip__btn { background: var(--status-danger-bg); color: var(--status-danger-fg); }
+/* جسرٌ شفّافٌ فوق الفراغ بين الزرّ واللوح: لا ينطفئ اللوحُ والمؤشّرُ في طريقه إليه. */
+.ui-tip__panel::before { content: ""; position: absolute; inset-inline: 0; inset-block-start: calc(-1 * var(--sp-1)); block-size: var(--sp-1); }
+.ui-tip:hover > .ui-tip__panel,
+.ui-tip:focus-within > .ui-tip__panel,
+.ui-tip.is-open > .ui-tip__panel { display: block; }
+/* في شريط العنوان العنّابيّ: مصباحٌ ذهبيّ (الذهبيُّ للأيقونات بنصّ الهويّة). */
+.card-bar { position: relative; }
+.card-bar .ui-tip { position: static; margin-inline-start: var(--sp-0-5); }
+/* اللوحُ داخل البطاقة أفقيّاً لا يخرج عنها (قرارُ المالك 2026-09-20)، وليس بطولها: بعرض نصّه حتى ~18rem
+   فيلتفّ في سطرين أو أكثر، مرسىً على جهة الأيقونات، ولا يجاوز عرضَ البطاقة بحاشيتَيها. */
+.card-bar .ui-tip__panel {
+  inset-inline-start: var(--sp-3); inline-size: max-content;
+  max-inline-size: min(18rem, calc(100% - 2 * var(--sp-3)));
+}
+.card-bar .ui-tip--hint .ui-tip__btn { color: var(--gold); }
+.card-bar .ui-tip--info .ui-tip__btn { color: var(--on-fill); }
+.card-bar .ui-tip__btn:hover,
+.card-bar .ui-tip__btn:focus-visible,
+.card-bar .ui-tip.is-open .ui-tip__btn { background: color-mix(in srgb, var(--on-fill) 18%, transparent); color: var(--on-fill); }
+/* نصُّ الرؤية (`components/ministry_vision.html`): مشكولٌ بحركاتٍ زرقاء من خطّ `Tajawal Tashkeel` (10-foundation).
+   ولا يغيّر شيئاً غيرَ لون الحركات: اللونُ والحجمُ من الحاضن (فوتر المنصّة، ذيلُ كلّ وثيقة). وليلاً اللوحةُ الفاتحة. */
+.vision-text { font-family: 'Tajawal Tashkeel', 'Tajawal', sans-serif; }
+/* تنقّلُ القسم: مفاتيحُ متجاورةٌ تلتفّ، والحاليّةُ أساسيّة — يسبق ترويسةَ الصفحة فتأتي مفاتيحُها تحتَه. */
+/* تنقّلُ الصفحات بتبديل المحتوى (static/js/page-nav.js): القديمُ يتلاشى والجديدُ يظهر تدريجيّاً — الترويسةُ والفوتر لا يتحرّكان.
+   `.page-crumbs` غلافٌ لا أثرَ له في التخطيط. */
+.page-crumbs { display: contents; }
+/* مدّةُ التلاشي ومنحناه من رمز الحركة المركزيّ `--transition-page` = 500ms (10-foundation؛ قرارُ المالك 2026-09-20: 500 خروجاً و500 ظهوراً) — معيارٌ في الهويّة لا رقمٌ هنا؛ وpage-nav.js
+   يقرأ المدّةَ من هذه القاعدة نفسِها فلا تتباعد. */
+/* ما يتلاشى هو أبناءُ الصفحة كلُّهم. الصفحةُ إمّا `#main-content > .exec-dash > …` أو أبناؤها مباشرةً. */
+/* الظهور: حركةُ `page-in` تبدأ من نفسها لحظةَ إدراج العنصر (صفحةٌ حُمّلت كاملةً أو مبدَّلةٌ بالسكربت) — بلا صنفٍ يُزال ولا انتقالٍ
+   يتوقّف على ترتيب الأنماط، فلا يأتي المحتوى فجأة. `backwards` فقط: بعد نهايتها يعود الأصلُ فيعمل التلاشي عند الخروج.
+   والاختفاءُ: `.is-leaving` (يضعه السكربتُ) شفّافٌ بانتقالٍ بالمدّة نفسِها. */
+@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
+#main-content > :not(.exec-dash),
+#main-content > .exec-dash >  {
+  animation: page-in var(--transition-page) backwards;
+  transition: opacity var(--transition-page);
+}
+#main-content.is-leaving > :not(.exec-dash),
+#main-content.is-leaving > .exec-dash >  { opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  #main-content > :not(.exec-dash),
+  #main-content > .exec-dash >  { animation: none; transition: none; }
+}
+.ui-page-header__title { display: flex; align-items: center; gap: var(--sp-2); }
+@media print { .ui-tip { display: none; } }
 
 /* ── بطاقة النموذج ── */
 .form-card {
@@ -1141,7 +1306,7 @@ main.page-wide {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-danger) 10%, transparent);
 }
 .form-error {
-  font-size: 11px;
+  font-size: 0.6875rem;
   color: var(--status-danger-fg);
   margin-top: var(--sp-1);
   display: flex;
@@ -1190,7 +1355,7 @@ main.page-wide {
   padding: var(--sp-12) var(--sp-6);
   color: var(--text-muted);
 }
-.empty-state .empty-icon { font-size: 48px; margin-bottom: var(--sp-3); display: block; }
+.empty-state .empty-icon { font-size: 3rem; margin-bottom: var(--sp-3); display: block; }
 .empty-state .empty-title {
   font-size: var(--text-base); font-weight: 700;
   color: var(--text-secondary); margin: 0 0 var(--sp-1-5);
@@ -1361,13 +1526,13 @@ textarea:focus-visible {
   );
   background-size: 800px 100%;
   animation: skeletonShimmer 1.4s ease-in-out infinite;
-  border-radius: 6px;
+  border-radius: var(--radius-1-5);
 }
 .skeleton-text   { height: 14px; margin-bottom: var(--sp-2); }
 .skeleton-title  { height: 20px; width: 60%; margin-bottom: var(--sp-3); }
 .skeleton-header { height: 40px; margin-bottom: var(--sp-1); border-radius: var(--radius-md); opacity: .5; }
 
-.skeleton-row    { height: 44px; margin-bottom: var(--sp-1); border-radius: 6px; }
+.skeleton-row    { height: 44px; margin-bottom: var(--sp-1); border-radius: var(--radius-1-5); }
 
 /* ── Toast / Notification Animations ──────────────────────── */
 @keyframes toastIn {
@@ -1533,8 +1698,8 @@ textarea:focus-visible {
 /* ── Mobile-First: bottom nav + tap targets (default=mobile) ── */
 .mobile-bottom-nav { display: block; }
 body { padding-bottom: 72px; }
-.btn-primary, .btn-secondary, .btn-danger { min-height: 44px; }
-.form-control, .form-select { min-height: 44px; font-size: var(--text-base); }  /* منع zoom على iOS */
+.btn-primary, .btn-secondary, .btn-danger { min-height: var(--control-h); }
+.form-control, .form-select { min-height: var(--control-h); font-size: var(--text-base); }  /* منع zoom على iOS */
 
 /* ── الترويسةُ في الهاتف: لا تدفع الصفحةَ أفقيّاً ──────────────
    كان اسمُ المدرسة في `.nav-logo-text` بـ`nowrap` عرضُه 296px، واسمُ
@@ -1646,7 +1811,7 @@ body { padding-bottom: 72px; }
   border-bottom: 1px solid var(--menu-divider);
   min-height: 48px;
   color: var(--menu-ink);
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-weight: 500;
   border-radius: 0;
   white-space: normal;
@@ -1755,7 +1920,7 @@ body { padding-bottom: 72px; }
 .breadcrumbs .bc-sep {
   /* فاصلٌ يُقرأ لا حدٌّ يُرسم — بلونِ الحدّ كانت نسبتُه 1.30 نهاراً و2.36 ليلاً */
   color: var(--text-muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   user-select: none;
 }
 .breadcrumbs .bc-current {
@@ -1795,14 +1960,14 @@ body { padding-bottom: 72px; }
   flex: 1;
   border: none;
   outline: none;
-  font-size: 15px;
+  font-size: 0.9375rem;
   font-family: inherit;
   color: var(--text-primary);
   background: transparent;
 }
 .cmd-input::placeholder { color: var(--placeholder); }
 .cmd-kbd {
-  font-size: 10px;
+  font-size: 0.625rem;
   background: var(--surface-alt);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);

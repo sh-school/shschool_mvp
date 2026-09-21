@@ -31,11 +31,19 @@ def test_every_recorded_file_still_exists():
     assert not gone, f"ملفّاتٌ في السجلّ لم تعد موجودة (python -m tests.mypy_ratchet --update): {gone}"
 
 
+#: هدفٌ بلغ صفرَ أخطاء: غيابُه عن السجلّ نجاحٌ لا إهمال — يبقى في `TARGETS` فيُفحص وأيُّ خطأٍ فيه
+#: يسقط (ملفٌّ جديدٌ يبدأ من الصفر). البند 9، سداد ديون `governance` (2026-09-21).
+FULLY_CLEAN_TARGETS = frozenset({"governance"})
+
+
 def test_the_baseline_covers_the_declared_targets_and_what_they_import():
     """mypy يتبع الاستيرادات (`follow_imports = normal`) فيحكم على `operations/models.py`
     حين يستوردها `core/` — فالسجلُّ أوسعُ من الهدفين، وهذا مقصود: لا يضيق."""
     files = _baseline()["files"]
     for target in ratchet.TARGETS:
+        assert pathlib.Path(target).is_dir(), f"{target}/ ليس مجلّداً"
+        if target in FULLY_CLEAN_TARGETS:
+            continue
         assert any(path.startswith(f"{target}/") for path in files), f"لا ملفَّ من {target}/ في السجلّ"
     assert all(pathlib.Path(path).suffix == ".py" for path in files)
 

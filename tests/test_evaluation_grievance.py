@@ -278,3 +278,43 @@ def test_the_platform_developer_cannot_act_as_the_principal(school, teacher_user
         record_receipt_on_refusal(
             evaluation=approved, recorder=dev, received_on=timezone.localdate()
         )
+
+
+# ── إشعارُ المدير بتظلّمٍ جديد (قرارُ المالك 2026-09-21) ──────────────────────
+
+
+@pytest.mark.django_db
+def test_filing_a_grievance_notifies_the_principal_in_app_without_the_reason(
+    school, teacher_user, vice, principal_user
+):
+    from notifications.models import InAppNotification
+
+    ev = _known_days_ago(school, teacher_user, vice, 3)
+
+    file_grievance(evaluation=ev, employee=teacher_user, reason=REASON)
+
+    notes = InAppNotification.objects.filter(user=principal_user)
+    assert notes.count() == 1
+    note = notes.get()
+    assert teacher_user.full_name in note.body
+    assert REASON not in note.title + note.body  # بيانات تقييم: لا سببَ في الإشعار
+    assert note.related_url.startswith("/quality/evaluations/grievances/")
+    assert not InAppNotification.objects.filter(user=vice).exists()  # لغير المدير لا يصل
+
+
+@pytest.mark.django_db
+def test_a_failing_notification_never_drops_the_grievance(
+    school, teacher_user, vice, principal_user
+):
+    from unittest.mock import patch
+
+    ev = _known_days_ago(school, teacher_user, vice, 3)
+
+    with patch(
+        "notifications.hub.NotificationHub.dispatch_to_role", side_effect=RuntimeError("boom")
+    ):
+        file_grievance(evaluation=ev, employee=teacher_user, reason=REASON)
+
+    ev.refresh_from_db()
+    assert ev.grievance_submitted_on == timezone.localdate()
+    assert ev.grievance_reason == REASON

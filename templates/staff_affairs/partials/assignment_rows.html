@@ -1,12 +1,11 @@
 {% load icons %}
+{# أربعةُ أعمدة: المكلَّف ووظيفتُه تحته، والمدّة، والسبب والمكلِّفُ تحته، والإجراء أو الحالة. #}
 <div class="table-wrap">
   <table>
     <thead>
       <tr>
         <th>المكلَّف</th>
-        <th>الوظيفة</th>
-        <th class="col-center">من – إلى</th>
-        <th>المكلِّف</th>
+        <th class="col-center">المدّة</th>
         <th>السبب</th>
         <th class="col-actions">{% if live %}إجراء{% else %}الحالة{% endif %}</th>
       </tr>
@@ -14,22 +13,20 @@
     <tbody>
       {% for a in rows %}
       <tr>
-        <td><strong>{{ a.assignee.full_name }}</strong></td>
-        <td>{{ a.get_acting_role_display }}</td>
-        <td class="col-center">{{ a.start_date|date:"d/m/Y" }} – {{ a.end_date|date:"d/m/Y" }}</td>
-        <td>{{ a.assigned_by.full_name }}</td>
-        <td class="text-xs">{{ a.reason }}{% if a.reference %} · {{ a.reference }}{% endif %}</td>
+        <td><strong>{{ a.assignee.full_name }}</strong><span class="sa-cell-sub">{{ a.get_acting_role_display }}</span></td>
+        <td class="col-center sa-nowrap">{{ a.start_date|date:"d/m/Y" }}<span class="sa-cell-sub">{{ a.end_date|date:"d/m/Y" }}</span></td>
+        <td class="text-xs">{{ a.reason }}<span class="sa-cell-sub">{{ a.assigned_by.full_name }}{% if a.reference %} · {{ a.reference }}{% endif %}</span></td>
         <td class="col-actions">
           {% if live %}
           <form method="post" action="{% url 'staff_affairs:assignment_revoke' a.pk %}">{% csrf_token %}
-            <button type="submit" class="btn-secondary btn-xs">{% icon "close" %} رفع التكليف</button>
+            <button type="submit" class="btn-secondary btn-xs" title="رفع التكليف" aria-label="رفع تكليف {{ a.assignee.full_name }}">{% icon "close" %} رفع</button>
           </form>
           {% elif a.revoked_at %}<span class="status-badge status-danger">رُفع {{ a.revoked_at|date:"d/m/Y" }}</span>
           {% else %}<span class="status-badge status-success">انتهى</span>{% endif %}
         </td>
       </tr>
       {% empty %}
-      <tr><td colspan="6" class="text-xs">لا سجلَّ.</td></tr>
+      <tr><td colspan="4" class="text-xs">لا سجلَّ.</td></tr>
       {% endfor %}
     </tbody>
   </table>

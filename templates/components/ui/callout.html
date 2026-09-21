@@ -1,0 +1,6 @@
+{% comment %}تنبيهٌ ظاهرٌ دائماً (تحذير/خطأ/نجاح) — يُرسم من الوسم `{% callout %}` في core/templatetags/ui.py.{% endcomment %}
+{% load icons %}
+<div class="ui-callout ui-callout--{{ kind }}" role="{{ role }}">
+  {% icon_named icon %}
+  <div class="ui-callout__body">{{ body }}</div>
+</div>

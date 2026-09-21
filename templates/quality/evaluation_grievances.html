@@ -10,9 +10,10 @@
 {% block content %}
 <div class="qeval qeval--narrow">
 
-  {% page_header "تظلّمات تقييم الأداء" subtitle="المادة 20 · لجنة موظفي المدارس" icon="policy" %}{% endpage_header %}
+  {% page_header "تظلّمات تقييم الأداء" subtitle="المادة 20 · لجنة موظفي المدارس" icon="policy" %}  {% callout "info" %}عرضٌ فقط — يدوّن قرارَ اللجنة مديرُ المدرسة.{% endcallout %}
+  {% endpage_header %}
 
-  {% if not can_record %}<p class="form-note"><span>عرضٌ فقط — يدوّن قرارَ اللجنة مديرُ المدرسة.</span></p>{% endif %}
+  {% if not can_record %}{% endif %}
 
   {% kpi_strip label="أرقام التظلّمات" %}
     {% kpi "تظلّمات مقدَّمة" rows|length %}

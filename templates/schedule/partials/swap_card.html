@@ -50,7 +50,7 @@
   {# أزرار الإجراءات حسب الدور والحالة #}
   {% if swap.status == "pending_b" and request.user == swap.teacher_b %}
   <div class="swap-actions">
-    <a href="{% url 'swap_respond' swap.pk %}" class="btn-sm btn-approve swap-respond-link">عرض والرد</a>
+    <a href="{% url 'swap_respond' swap.pk %}" class="btn-sm btn-success swap-respond-link">عرض والرد</a>
   </div>
   {% endif %}
 
@@ -63,11 +63,11 @@
     <div class="swap-actions">
       <form method="post" action="{% url 'swap_approve' swap.pk %}">{% csrf_token %}
         <input type="hidden" name="action" value="approve">
-        <button class="btn-sm btn-approve">اعتماد</button>
+        <button class="btn-sm btn-success">اعتماد</button>
       </form>
       <form method="post" action="{% url 'swap_approve' swap.pk %}">{% csrf_token %}
         <input type="hidden" name="action" value="reject">
-        <button class="btn-sm btn-reject">رفض</button>
+        <button class="btn-sm btn-danger">رفض</button>
       </form>
     </div>
     {% endif %}
@@ -77,14 +77,14 @@
   {% if swap.status == "pending_b" and request.user == swap.teacher_a %}
   <div class="swap-actions">
     <form method="post" action="{% url 'swap_cancel' swap.pk %}" data-confirm="هل تريد إلغاء هذا الطلب؟">{% csrf_token %}
-      <button class="btn-sm btn-reject">إلغاء الطلب</button>
+      <button class="btn-sm btn-danger">إلغاء الطلب</button>
     </form>
   </div>
   {% elif swap.status in "accepted_b,pending_coordinator,pending_vp" %}
     {% if request.user == swap.teacher_a or request.user == swap.teacher_b %}
     <div class="swap-actions">
       <form method="post" action="{% url 'swap_cancel' swap.pk %}" data-confirm="هل تريد سحب هذا الطلب؟">{% csrf_token %}
-        <button class="btn-sm btn-reject">سحب الطلب</button>
+        <button class="btn-sm btn-danger">سحب الطلب</button>
       </form>
     </div>
     {% endif %}
@@ -92,7 +92,7 @@
     {% if current_role == "coordinator" or current_role == "principal" or current_role == "vice_academic" or current_role == "vice_admin" %}
     <div class="swap-actions">
       <form method="post" action="{% url 'swap_cancel' swap.pk %}" data-confirm="هل تريد إلغاء هذا التبديل المعتمد؟">{% csrf_token %}
-        <button class="btn-sm btn-reject">إلغاء التبديل</button>
+        <button class="btn-sm btn-danger">إلغاء التبديل</button>
       </form>
     </div>
     {% endif %}

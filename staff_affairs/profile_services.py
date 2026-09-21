@@ -21,7 +21,14 @@ from django.db import transaction
 from core.models import AuditLog, Department
 
 #: حقولُ الشخص — تخصّ صاحبَها أينما عمل.
-PERSON_FIELDS = ("full_name", "employee_number", "email", "phone", "nationality")
+PERSON_FIELDS = (
+    "full_name",
+    "employee_number",
+    "email",
+    "phone",
+    "nationality",
+    "service_start_date",
+)
 
 #: حقولُ الرخصة المهنيّة — وزاريّةٌ لها رقمٌ وتاريخُ انتهاء.
 LICENSE_FIELDS = ("professional_license_number", "professional_license_expiry")
@@ -35,6 +42,7 @@ LABELS = {
     "email": "البريد الإلكتروني",
     "phone": "الجوال",
     "nationality": "الجنسية",
+    "service_start_date": "تاريخ المباشرة",
     "professional_license_number": "رقم الرخصة المهنية",
     "professional_license_expiry": "انتهاء الرخصة",
     "job_title": "المسمّى الوظيفي",

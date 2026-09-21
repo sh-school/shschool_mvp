@@ -14,6 +14,7 @@ rotate_fernet_key — إعادة تشفير كل الحقول المشفّرة �
 """
 
 import logging
+from typing import Any
 
 from cryptography.fernet import InvalidToken
 from django.core.management.base import BaseCommand
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     help = "إعادة تشفير جميع الحقول المشفّرة بالمفتاح الجديد (FERNET_KEY)"
 
-    def _reencrypt_attr(self, obj, attr):
+    def _reencrypt_attr(self, obj: Any, attr: str) -> bool:
         """يفكّ حقلاً يخزّن نصاً مشفّراً بالمفتاح القديم ويعيد تشفيره بالحالي."""
         val = getattr(obj, attr, "") or ""
         if not val:
@@ -37,7 +38,7 @@ class Command(BaseCommand):
             return True
         return False
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         total = 0
         errors = 0
 

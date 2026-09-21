@@ -104,6 +104,6 @@ def test_every_class_group_query_is_scoped_to_a_year_or_an_identity():
 
 def test_the_student_import_names_the_year_when_it_finds_no_section():
     """رسالةٌ لا تذكر العام تُقرأ «الشعبة غير موجودة» وهي موجودةٌ في عامٍ آخر."""
-    src = pathlib.Path("core/views_students.py").read_text(encoding="utf-8")
+    src = pathlib.Path("core/services.py").read_text(encoding="utf-8")
 
     assert "غير موجود في {year}" in src

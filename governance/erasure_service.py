@@ -7,6 +7,7 @@ Anonymizes student PII across all models while preserving:
 """
 
 import logging
+from typing import Any
 
 from django.db import transaction
 from django.utils import timezone
@@ -24,10 +25,10 @@ logger = logging.getLogger("core")
 
 # Models with FK `student` → CustomUser (on_delete=CASCADE handles deletion,
 # but we anonymize first to ensure no PII leaks via DB backups)
-_STUDENT_FK_MODELS = []
+_STUDENT_FK_MODELS: list[tuple[Any, str, bool]] = []
 
 
-def _lazy_student_fk_models():
+def _lazy_student_fk_models() -> list[tuple[Any, str, bool]]:
     """Lazy import to avoid circular imports at module level."""
     if _STUDENT_FK_MODELS:
         return _STUDENT_FK_MODELS
@@ -67,10 +68,10 @@ def _lazy_student_fk_models():
 
 
 # نماذج بحقول ملفات مرتبطة بالطالب — تُطهَّر blobs الملفات قبل الحذف
-_FILE_FIELD_MODELS = []
+_FILE_FIELD_MODELS: list[tuple[Any, str, str]] = []
 
 
-def _lazy_file_field_models():
+def _lazy_file_field_models() -> list[tuple[Any, str, str]]:
     """(Model, fk_field, file_field) للنماذج التي ترفع ملفات مرتبطة بالطالب."""
     if _FILE_FIELD_MODELS:
         return _FILE_FIELD_MODELS
@@ -93,7 +94,7 @@ class ErasureService:
 
     @staticmethod
     @transaction.atomic
-    def execute(erasure_request: ErasureRequest) -> dict:
+    def execute(erasure_request: ErasureRequest) -> dict[str, Any]:
         """
         Execute an approved erasure request.
         Returns a summary dict of what was anonymized/deleted.
@@ -103,7 +104,7 @@ class ErasureService:
             raise ValueError("Student record not found for this erasure request.")
 
         anon_id = f"ERASED-{str(erasure_request.id)[:8].upper()}"
-        summary = {"anon_id": anon_id, "models": {}}
+        summary: dict[str, Any] = {"anon_id": anon_id, "models": {}}
 
         # 1. Anonymize records in child models (count before deleting)
         for Model, fk_field, is_one_to_one in _lazy_student_fk_models():

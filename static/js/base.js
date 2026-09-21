@@ -165,11 +165,15 @@ window.sd = function(id, btn) {
 /* ── Event delegation: all interactive buttons ── */
 document.addEventListener('click', function(e) {
   var sdBtn = e.target.closest('[data-sd]');
-  if (sdBtn) { sd(sdBtn.getAttribute('data-sd'), sdBtn); return; }
+  if (sdBtn) {
+    // على الحاسوب فتحت المرورُ القائمةَ قبل النقر: النقرةُ لا تغلقها (كان `sd` يبدّل الحالة فتُغلق ما فتحه المرور).
+    var sdMenu = document.getElementById(sdBtn.getAttribute('data-sd'));
+    if (window.sdHoverMode && window.sdHoverMode() && sdMenu && sdMenu.classList.contains('open')) return;
+    sd(sdBtn.getAttribute('data-sd'), sdBtn);
+    return;
+  }
   var mobBtn = e.target.closest('#mob-menu-btn');
   if (mobBtn) { toggleMobMenu(); return; }
-  var printBtn = e.target.closest('.js-print-btn');
-  if (printBtn) { window.print(); return; }
   var dismissBtn = e.target.closest('[data-dismiss="msg-bar"]');
   if (dismissBtn) { var bar = dismissBtn.closest('.msg-bar'); if (bar) bar.remove(); return; }
   var backdropEl = e.target.closest('[data-dismiss-on-backdrop]');
@@ -187,6 +191,75 @@ window.addEventListener('resize', function() {
     if (btn) sdPlace(m, btn);
   });
 });
+
+/* ── القوائمُ الرئيسيّة تُفتح بالمرور (قرارُ المالك 2026-09-20) ──
+   على الحاسوب (مؤشّرٌ دقيق يملك مرورًا وعرضٌ فوق لوحة الجوال): المرورُ على مفتاح القائمة يفتحها، فيصير الوصولُ نقرةً واحدة.
+   الفتحُ بتأخّرٍ قصير (`OPEN_MS`) لئلّا يفتح مرورٌ عابر، وبين قائمةٍ وأخرى فورًا؛ والإغلاقُ بتأخّرٍ (`CLOSE_MS`) يتيح
+   للمؤشّر أن يعبر الفجوةَ قُطريّاً إلى القائمة دون أن تختفي (WCAG 1.4.13). وEsc يغلق. واللمسُ يبقى بالنقر كما كان. */
+(function () {
+  var OPEN_MS = 150, CLOSE_MS = 300, openTimer = null, closeTimer = null;
+  var pointer = window.matchMedia('(hover: hover) and (pointer: fine)');
+
+  window.sdHoverMode = function () { return pointer.matches && !window.matchMedia(SD_DRAWER).matches; };
+
+  function clearTimers() { clearTimeout(openTimer); clearTimeout(closeTimer); }
+  function anyOpen() { return !!document.querySelector('.sd-menu.open'); }
+  function inside(target) { return !!(target && target.closest && (target.closest('[data-sd]') || target.closest('.sd-menu'))); }
+
+  function openFor(btn) {
+    var m = document.getElementById(btn.getAttribute('data-sd'));
+    if (m && !m.classList.contains('open')) window.sd(m.id, btn);
+  }
+
+  document.addEventListener('mouseover', function (e) {
+    if (!window.sdHoverMode()) return;
+    var btn = e.target.closest && e.target.closest('.nb-bar [data-sd], .site-nav [data-sd]');
+    if (btn) {
+      clearTimers();
+      var m = document.getElementById(btn.getAttribute('data-sd'));
+      if (m && m.classList.contains('open')) return;
+      if (anyOpen()) openFor(btn);                              // بين قائمتين: فورًا
+      else openTimer = setTimeout(function () { openFor(btn); }, OPEN_MS);
+      return;
+    }
+    if (e.target.closest && e.target.closest('.sd-menu')) clearTimers();   // المؤشّرُ على القائمة: لا تُغلق
+  });
+
+  document.addEventListener('mouseout', function (e) {
+    if (!window.sdHoverMode()) return;
+    if (!inside(e.target) || inside(e.relatedTarget)) return;
+    clearTimeout(openTimer);
+    closeTimer = setTimeout(sdCloseAll, CLOSE_MS);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || !anyOpen()) return;
+    var on = document.querySelector('.nb.on');
+    sdCloseAll();
+    if (on) on.focus();
+  });
+})();
+
+/* ── القسمُ الحاليّ في القائمة الرئيسيّة ──
+   يُميَّز مفتاحُ القائمة التي فيها صفحةُ المستخدم (أدقُّ تطابقٍ لمسار الرابط، ثمّ أطولُ بادئة) ليعرف أين هو دون شريطٍ ثانٍ.
+   يُعاد بعد كلّ تبديلٍ للمحتوى (page-nav.js يطلق `htmx:afterSwap`). */
+function markCurrentSection() {
+  var path = location.pathname, best = null, bestLen = -1;
+  document.querySelectorAll('.sd-menu a[href], .nb-bar > a.nb[href]').forEach(function (a) {
+    var p = a.pathname;
+    if (!p || p === '/' || a.origin !== location.origin) return;
+    var score = p === path ? 100000 + p.length : (path.indexOf(p) === 0 ? p.length : -1);
+    if (score > bestLen) { bestLen = score; best = a; }
+  });
+  document.querySelectorAll('.nb.nb-current').forEach(function (x) { x.classList.remove('nb-current'); x.removeAttribute('aria-current'); });
+  if (!best) return;
+  var menu = best.closest('.sd-menu');
+  var top = menu ? document.getElementById('btn-' + menu.id.replace('m-', '')) : best;
+  if (top) { top.classList.add('nb-current'); top.setAttribute('aria-current', 'true'); }
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', markCurrentSection);
+else markCurrentSection();
+document.addEventListener('htmx:afterSwap', markCurrentSection);
 
 
 /* ── Notification bell ────────────────────────────────────── */
@@ -709,6 +782,26 @@ document.addEventListener('click', function(e) {
   }
   document.addEventListener('click', function (e) { closeMenus(e.target.closest('.per-exports-menu')); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenus(null); });
+})();
+
+/* التلميحُ والمعلومة (`{% callout %}`): يظهر نصُّهما بالمرور والتركيز في CSS، وبالضغط لمن لا فأرةَ له
+   (اللمس)؛ وتُغلق باللوح بالنقر خارجه وبـEsc، فلا تبقى عدّةُ ألواحٍ مفتوحةً معاً. */
+(function () {
+  function closeTips(except) {
+    document.querySelectorAll('.ui-tip.is-open').forEach(function (tip) {
+      if (tip === except) return;
+      tip.classList.remove('is-open');
+      var b = tip.querySelector('.ui-tip__btn');
+      if (b) b.setAttribute('aria-expanded', 'false');
+    });
+  }
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.ui-tip__btn');
+    var tip = btn && btn.closest('.ui-tip');
+    closeTips(tip);
+    if (tip) btn.setAttribute('aria-expanded', tip.classList.toggle('is-open') ? 'true' : 'false');
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeTips(null); });
 })();
 
 /* ── الورقُ نهاريٌّ دائماً ──

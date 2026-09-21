@@ -30,9 +30,33 @@ if [ "${1:-}" = "--name" ]; then echo "$TARGET_DB"; exit 0; fi
 psql_admin() { docker exec -i "$DB_CONTAINER" psql -U "$PGUSER" -d postgres -v ON_ERROR_STOP=1 "$@"; }
 PGUSER=$(docker exec "$DB_CONTAINER" printenv POSTGRES_USER)
 
+# صلاحياتُ دور التطبيق — الأدوارُ على مستوى العنقود، والمنحُ على مستوى القاعدة.
+#
+# والمنحُ الحاليّ وحدَه لا يكفي: جدولٌ تُنشئه هجرةٌ بعد النسخ (بدور الهجرة `shschool_user`)
+# لا يأخذ صلاحياتِ `shschool_app` — فتسقط الصفحةُ بـ«permission denied for table …» (500)
+# وطلبُ الاختبار لا يراه لأنّه يتّصل بالدور المالك. فنمنح كذلك **الجداولَ القادمة** بـ
+# ALTER DEFAULT PRIVILEGES لكلّ دورٍ ينشئ جداول (مالكُ النسخة ودورُ الهجرة).
+grant_app() {
+  local db="$1" creator
+  psql_admin -d "$db" -c "GRANT ALL ON SCHEMA public TO shschool_app" 2>/dev/null || true
+  psql_admin -d "$db" -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO shschool_app" 2>/dev/null || true
+  psql_admin -d "$db" -c "GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO shschool_app" 2>/dev/null || true
+  for creator in "$PGUSER" shschool_user; do
+    psql_admin -d "$db" -c "ALTER DEFAULT PRIVILEGES FOR ROLE $creator IN SCHEMA public GRANT ALL ON TABLES TO shschool_app" 2>/dev/null || true
+    psql_admin -d "$db" -c "ALTER DEFAULT PRIVILEGES FOR ROLE $creator IN SCHEMA public GRANT ALL ON SEQUENCES TO shschool_app" 2>/dev/null || true
+  done
+}
+
+# --grants: أصلِح صلاحيات قاعدةٍ موجودة (جداولُ هجراتٍ أُنشئت بعد نسخها) دون نسخٍ جديد.
+if [ "${1:-}" = "--grants" ]; then
+  grant_app "$TARGET_DB"
+  echo "مُنحت صلاحياتُ shschool_app على $TARGET_DB (الجداولُ الحاليّة والقادمة)."
+  exit 0
+fi
+
 exists=$(psql_admin -tAc "select 1 from pg_database where datname='$TARGET_DB'" || true)
 if [ "$exists" = "1" ]; then
-  echo "$TARGET_DB موجودةٌ سلفاً — لا شيءَ يُفعل."
+  echo "$TARGET_DB موجودةٌ سلفاً — لا شيءَ يُفعل. (سقطت صفحةٌ بـ«permission denied for table»؟ شغّل: bash scripts/session-db.sh --grants)"
   exit 0
 fi
 
@@ -40,8 +64,5 @@ echo "تُنشأ $TARGET_DB نسخةً عن $SOURCE_DB …"
 psql_admin -c "CREATE DATABASE \"$TARGET_DB\""
 docker exec "$DB_CONTAINER" sh -c \
   "pg_dump -U '$PGUSER' --no-owner --no-privileges '$SOURCE_DB' | psql -U '$PGUSER' -q -d '$TARGET_DB'"
-# صلاحياتُ دور التطبيق — الأدوارُ على مستوى العنقود، والمنحُ على مستوى القاعدة.
-psql_admin -d "$TARGET_DB" -c "GRANT ALL ON SCHEMA public TO shschool_app" 2>/dev/null || true
-psql_admin -d "$TARGET_DB" -c "GRANT ALL ON ALL TABLES IN SCHEMA public TO shschool_app" 2>/dev/null || true
-psql_admin -d "$TARGET_DB" -c "GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO shschool_app" 2>/dev/null || true
+grant_app "$TARGET_DB"
 echo "تمّت: $TARGET_DB"

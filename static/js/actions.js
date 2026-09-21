@@ -16,6 +16,7 @@
    ────────
      data-autosubmit                 change  → يُرسل النموذج الحاضن
      data-action="print|reload|back|stop"
+     data-loading                    submit  → دوّارةٌ على المفتاح المُرسِل (`is-loading`) حتى يُبدَّل المحتوى
      data-confirm="نصّ"              submit  → يمنع الإرسال ما لم يُؤكَّد
                                      (المُنفِّذ في `base.js` — نافذةٌ مخصّصة)
      data-toggle="#sel"              click   → يقلب إخفاء الهدف (خاصية hidden)
@@ -80,7 +81,19 @@
 
   /* ── إرسالٌ تلقائيّ عند تغيّر حقل داخل نموذج ───────────────────── */
   on("change", "data-autosubmit", function (el) {
-    if (el.form) el.form.submit();
+    // `requestSubmit` يُطلق حدثَ submit فيلتقطه التنقّلُ بتبديل المحتوى (page-nav.js)؛ `submit()` كان يحمّل مستنداً كاملاً.
+    if (el.form) { if (el.form.requestSubmit) el.form.requestSubmit(); else el.form.submit(); }
+  });
+
+  /* ── حالةُ التحميل: تُضاف بعد أن يستقرّ الإرسال (لم يُمنع بتأكيدٍ) وتُزال إن عاد المستند من ذاكرة التنقّل ── */
+  document.addEventListener("submit", function (e) {
+    var btn = e.submitter;
+    if (!btn || !btn.closest("[data-loading]") && !btn.hasAttribute("data-loading")) return;
+    setTimeout(function () { // مُنع الإرسال: تأكيدٌ معلَّق/مُلغى (لا دوّارة)، أو أخذه التنقّلُ بتبديل المحتوى (`#main-content.is-leaving` — فالدوّارة).
+      if (!e.defaultPrevented || document.querySelector("#main-content.is-leaving")) btn.classList.add("is-loading"); }, 0);
+  });
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted) document.querySelectorAll(".is-loading").forEach(function (b) { b.classList.remove("is-loading"); });
   });
 
   /* ── تأكيدٌ قبل الإرسال — مالكُه `base.js` وحدَه ──────────────────

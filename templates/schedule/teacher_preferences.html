@@ -9,9 +9,10 @@
 {% block content %}
 
 <div class="exec-dash">
-{% page_header "تفضيلاتي للجدولة الذكية" subtitle=year icon="settings" %}{% endpage_header %}
+{% page_header "تفضيلاتي للجدولة الذكية" subtitle=year icon="settings" %}
+  {% endpage_header %}
 
-<p class="form-note prefs-note">حدّد تفضيلاتك ليأخذها النظام بعين الاعتبار عند بناء جدولك.</p>
+
 <form method="post" class="prefs-form">
   {% csrf_token %}
 
@@ -26,7 +27,7 @@
           </option>
           {% endfor %}
         </select>
-        <p class="form-hint">
+        <p class="ui-field-hint">
           أقصى عدد حصص متتالية بلا استراحة بينها. و«حصة واحدة» تعني ألّا تقع لك حصتان متجاورتان إطلاقاً.
         </p>
       </div>
@@ -43,7 +44,7 @@
           <option value="2" {% if pref.max_gap == 2 %}selected{% endif %}>حصتان فارغتان</option>
           <option value="3" {% if pref.max_gap == 3 %}selected{% endif %}>3 حصص فارغة</option>
         </select>
-        <p class="form-hint">
+        <p class="ui-field-hint">
           أوسع فراغٍ تقبله بين حصّتين في اليوم نفسه. و«حصّة فارغة واحدة» تعني أن تكون حصصك متباعدة حصّةً حصّة —
           الثانية فالرابعة فالسادسة. اختيارُ رقمٍ هنا يجعله قيداً شخصيّاً لا يُخرق أبداً؛
           و«بدون حد» يترك الفراغ ترجيحاً عامّاً كسائر الكادر.
@@ -67,7 +68,7 @@
           </option>
           {% endfor %}
         </select>
-        <p class="form-hint">
+        <p class="ui-field-hint">
           أكبر عدد حصص تريدها في يومك الواحد. نحاول تحقيقه دائماً، وقد نتجاوزه بحصّةٍ واحدة في أضيق أيّام الأسبوع.
           {% if load %}نصابُك <b>{{ load }}</b> حصة{% if min_daily %} — فأدنى رقمٍ يحتمله نصابُك عادةً <b>{{ min_daily }}</b>{% endif %}.{% endif %}
         </p>
@@ -81,7 +82,7 @@
           <option value="{{ val }}" {% if pref.free_day == val %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
-        <p class="form-hint">اليوم الذي تفضّل ألّا تكون فيه حصص. نُرجّحه بقوّة، لكن لا نضمنه إذا ضاق الأسبوع.</p>
+        <p class="ui-field-hint">اليوم الذي تفضّل ألّا تكون فيه حصص. نُرجّحه بقوّة، لكن لا نضمنه إذا ضاق الأسبوع.</p>
       </div>
     {% endsection_card %}
   </div>
