@@ -13,7 +13,9 @@
     python manage.py purge_parent_consents --apply --reset-gate  # تنفيذ
 """
 
+from argparse import ArgumentParser
 from collections import Counter
+from typing import Any
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -24,7 +26,7 @@ from core.models import AuditLog, ConsentRecord, CustomUser, ParentStudentLink
 class Command(BaseCommand):
     help = "يحذف كلَّ سجلّات ConsentRecord — عرضٌ فقط ما لم يُمرَّر --apply"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("--apply", action="store_true", help="ينفّذ الحذفَ فعلاً")
         parser.add_argument(
             "--reset-gate",
@@ -32,7 +34,7 @@ class Command(BaseCommand):
             help="يصفّر consent_given_at لأولياء الأمور المربوطين ليُطلب منهم الاختيار من جديد",
         )
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         apply = options["apply"]
         reset_gate = options["reset_gate"]
 
@@ -72,7 +74,7 @@ class Command(BaseCommand):
                 ).update(consent_given_at=None)
 
             for school_id, count in by_school.items():
-                AuditLog.log(
+                AuditLog.log(  # type: ignore[no-untyped-call]
                     user=None,
                     action="delete",
                     model_name="ConsentRecord",
@@ -91,7 +93,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"حُذف {total} سجلّاً."))
 
 
-def _school(school_id):
+def _school(school_id: Any) -> Any:
     from core.models import School
 
     return School.objects.filter(pk=school_id).first()

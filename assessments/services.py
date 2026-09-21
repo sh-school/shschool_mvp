@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import logging
 from decimal import ROUND_HALF_UP, Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
 from django.db.models import Avg, Count, Q, QuerySet
@@ -444,7 +444,14 @@ class GradeService:
         )
 
     @staticmethod
-    def _grade_from_post(post, sid, current, is_absent, is_excused, notes):
+    def _grade_from_post(
+        post: Any,
+        sid: str,
+        current: StudentAssessmentGrade | None,
+        is_absent: bool,
+        is_excused: bool,
+        notes: str,
+    ) -> tuple[Decimal | None, bool]:
         """(الدرجة، تخطٍّ؟) لصفٍّ واحد من نموذج الحفظ الجماعيّ — منطقُ التخطّي الدفاعيّ."""
         if is_absent or is_excused:
             return None, False
@@ -464,7 +471,7 @@ class GradeService:
         return grade, grade is None and current is None and not notes.strip()
 
     @staticmethod
-    def save_all_from_post(assessment, post, entered_by) -> int:
+    def save_all_from_post(assessment: Assessment, post: Any, entered_by: CustomUser | None) -> int:
         """حفظ كل درجات تقييمٍ دفعةً واحدة من POST، ثمّ إعادة الحساب مرّةً وتحديث الحالة.
 
         صفٌّ لم يُرسَل منه شيءٌ لا يُلمس أبداً — الغيابُ ليس «مسحاً». يُرجع عددَ المحفوظ."""

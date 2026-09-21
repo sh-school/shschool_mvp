@@ -17,7 +17,7 @@ notifications/tasks.py
 import logging
 import re
 from time import monotonic
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
@@ -1444,7 +1444,9 @@ def reconcile_deliveries_task(self, school_id):
     max_retries=0,
     name="notifications.release_after_quiet_hours",
 )
-def release_after_quiet_hours_task(self, school_id, user_id, target, payload):
+def release_after_quiet_hours_task(
+    self: Any, school_id: Any, user_id: Any, target: str, payload: dict
+) -> dict:
     """يحفظ إرسالاً خارجياً حتى تنتهي ساعاتُ هدوء مستلمه، ثم يُطلقه.
 
     المرجعُ المشترك لكلّ مسارات الإرسال الخارجيّ (الـHub وخدمة الغياب والرسوب):
@@ -1481,6 +1483,7 @@ def release_after_quiet_hours_task(self, school_id, user_id, target, payload):
         plan = quiet_hours.plan(user)
 
     if plan.action == quiet_hours.HOLD:
+        assert plan.eta is not None  # HOLD يحمل موعداً دائماً
         self.apply_async(
             kwargs={
                 "school_id": school_id,

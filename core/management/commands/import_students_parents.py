@@ -1,6 +1,7 @@
 import csv
 import logging
 import os
+from argparse import ArgumentParser
 
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
@@ -38,7 +39,7 @@ GRADE_MAP = {
 class Command(BaseCommand):
     help = "استيراد الطلاب + أولياء الأمور + الربط من ملف CSV"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument(
             "--credentials-out",
             required=True,

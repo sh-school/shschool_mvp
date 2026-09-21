@@ -67,4 +67,7 @@ def build(weight: str) -> tuple[Path, Path]:
 if __name__ == "__main__":
     for weight in WEIGHTS:
         ttf, woff2 = build(weight)
-        print(f"{weight}: {ttf.stat().st_size // 1024} KB ttf · {woff2.stat().st_size // 1024} KB woff2", file=sys.stdout)
+        print(
+            f"{weight}: {ttf.stat().st_size // 1024} KB ttf · {woff2.stat().st_size // 1024} KB woff2",
+            file=sys.stdout,
+        )

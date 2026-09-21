@@ -58,7 +58,7 @@ class SendCounts(tuple):
 
     deferred: int
 
-    def __new__(cls, sent: int, failed: int, deferred: int = 0):
+    def __new__(cls, sent: int, failed: int, deferred: int = 0) -> SendCounts:
         obj = super().__new__(cls, (sent, failed))
         obj.deferred = deferred
         return obj
@@ -84,9 +84,12 @@ class NotificationService:
     # بلا حكمٍ: هما تُستدعيان بعد أن قُرّر أنّ اللحظة مناسبة.
 
     @staticmethod
-    def _hold(user, school, target: str, payload: dict, eta: datetime) -> DeliveryOutcome:
+    def _hold(
+        user: CustomUser, school: School, target: str, payload: dict, eta: datetime | None
+    ) -> DeliveryOutcome:
         from .tasks import release_after_quiet_hours_task
 
+        assert eta is not None  # HOLD يحمل موعداً دائماً
         try:
             release_after_quiet_hours_task.apply_async(
                 kwargs={

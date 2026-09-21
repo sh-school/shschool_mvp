@@ -13,9 +13,7 @@ pytestmark = pytest.mark.django_db
 
 @pytest.fixture
 def records(school, parent_user, student_user):
-    ParentStudentLink.objects.get_or_create(
-        parent=parent_user, student=student_user, school=school
-    )
+    ParentStudentLink.objects.get_or_create(parent=parent_user, student=student_user, school=school)
     for data_type in ("health", "grades"):
         ConsentRecord.objects.create(
             school=school, parent=parent_user, student=student_user, data_type=data_type

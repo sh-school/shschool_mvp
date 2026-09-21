@@ -212,7 +212,9 @@ def developer_user(db, school):
     """مطوّرُ المنصّة — عضوُ مجموعة developers (يفتح دليلَ الهويّة)"""
     from django.contrib.auth.models import Group
 
-    role = RoleFactory(school=school, name="it_technician")   # لا يُدخل الدليلَ دورٌ؛ العضويّةُ تكفي ليمرّ الوسيط
+    role = RoleFactory(
+        school=school, name="it_technician"
+    )  # لا يُدخل الدليلَ دورٌ؛ العضويّةُ تكفي ليمرّ الوسيط
     user = UserFactory(full_name="مطوّر المنصّة")
     MembershipFactory(user=user, school=school, role=role)
     user.groups.add(Group.objects.get_or_create(name="developers")[0])

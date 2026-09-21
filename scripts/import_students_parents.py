@@ -44,6 +44,7 @@ GRADE_MAP = {
 
 
 def run():
+    from core.initial_passwords import assign_initial_password, write_credentials_csv
     from core.models import (
         ClassGroup,
         CustomUser,
@@ -53,8 +54,6 @@ def run():
         School,
         StudentEnrollment,
     )
-
-    from core.initial_passwords import assign_initial_password, write_credentials_csv
 
     # مسار ورقة كلمات المرور العشوائية — إلزامي كي لا تضيع الكلمات (لا كلمة = الرقم الشخصي)
     credentials_out = os.environ.get("CREDENTIALS_OUT", "")

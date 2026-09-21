@@ -12,7 +12,16 @@ CSS = pathlib.Path("static/css/custom")
 CENTRAL = "20-components.css"
 
 #: مفاتيحٌ دلاليّةٌ ومقاسات — تعريفُها الأساسيّ (قاعدةٌ بمحدِّدٍ واحدٍ هو الصنفُ نفسُه) في الملفّ المركزيّ وحدَه.
-CENTRAL_ONLY = ("btn-primary", "btn-secondary", "btn-danger", "btn-warning", "btn-ghost", "btn-success", "btn-sm", "btn-xs")
+CENTRAL_ONLY = (
+    "btn-primary",
+    "btn-secondary",
+    "btn-danger",
+    "btn-warning",
+    "btn-ghost",
+    "btn-success",
+    "btn-sm",
+    "btn-xs",
+)
 
 #: صيغُ الوحدات القائمةُ يومَ التجميد (2026-09-20) — لا تزيد. تُحذف إذا رُحِّلت إلى نوعٍ دلاليّ.
 FROZEN_VARIANTS = {
@@ -49,7 +58,8 @@ def test_no_new_module_button_variant_appears():
     central = set(CENTRAL_ONLY)
     new = sorted(seen - central - FROZEN_VARIANTS)
     assert not new, (
-        "صيغةُ مفتاحٍ جديدةٌ خارج الأنواع الدلاليّة: " + ", ".join(new)
+        "صيغةُ مفتاحٍ جديدةٌ خارج الأنواع الدلاليّة: "
+        + ", ".join(new)
         + " — استعمل primary/secondary/danger/success/warning/ghost بدل تعريف صيغة"
     )
 

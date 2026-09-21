@@ -15,6 +15,7 @@ student_affairs/services.py — Business Logic لشؤون الطلاب
 
 import logging
 from datetime import timedelta
+from typing import Any
 
 from django.db import transaction
 from django.db.models import Count, Q
@@ -451,14 +452,15 @@ class StudentService:
     # ── إنشاء طالب جديد ───────────────────────────────────────────
 
     @staticmethod
-    def find_class_group(school, grade, section, year):
+    def find_class_group(school: Any, grade: Any, section: Any, year: Any) -> ClassGroup | None:
         """الشعبةُ الفاعلةُ في العام أو None."""
-        return ClassGroup.objects.filter(
+        found: ClassGroup | None = ClassGroup.objects.filter(
             school=school, grade=grade, section=section, academic_year=year, is_active=True
         ).first()
+        return found
 
     @staticmethod
-    def student_data_from_form(cd: dict, class_group_id) -> dict:
+    def student_data_from_form(cd: dict, class_group_id: Any) -> dict:
         """بياناتُ `create_student` من `cleaned_data` نموذج الإضافة."""
         return {
             "national_id": cd["national_id"],
@@ -472,7 +474,7 @@ class StudentService:
         }
 
     @staticmethod
-    def audit_student_added(school, actor, user) -> None:
+    def audit_student_added(school: Any, actor: Any, user: Any) -> None:
         """أثرُ إضافة طالبٍ بكلمة مرورٍ أوّليّة — بلا الكلمة."""
         AuditLog.objects.create(
             school=school,
@@ -485,7 +487,7 @@ class StudentService:
         )
 
     @staticmethod
-    def credentials_sheet(user) -> list[dict]:
+    def credentials_sheet(user: Any) -> list[dict]:
         """ورقةُ الاعتماد للعرض مرّةً في الاستجابة — في الذاكرة، لا تُخزَّن ولا تُسجَّل."""
         return [
             {

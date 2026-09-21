@@ -68,7 +68,9 @@ def test_every_chart_js_load_precedes_its_init_script_synchronously():
         text = path.read_text(encoding="utf-8")
         for vendor_attrs, init_attrs in _CHART_SCRIPT.findall(text):
             checked += 1
-            assert "defer" not in vendor_attrs, f"{path}: chart.umd.min.js بـdefer يسبقه سكربتُ تهيئته المضمَّن"
+            assert (
+                "defer" not in vendor_attrs
+            ), f"{path}: chart.umd.min.js بـdefer يسبقه سكربتُ تهيئته المضمَّن"
             assert "defer" not in init_attrs, f"{path}: defer على سكربتٍ مضمَّن بلا أثر ومضلِّل"
 
     assert checked == 12, f"كان المتوقَّع 12 صفحةً تحمّل Chart.js، وُجد {checked}"

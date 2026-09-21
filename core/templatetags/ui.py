@@ -174,16 +174,15 @@ def kpi_strip(content, label="أرقام الصفحة"):
 # ── 1ب. التنبيهات ─────────────────────────────────────────────────────────
 
 
-@register.simple_block_tag
-def callout(content, kind="info", title="", show=False):
+@register.simple_block_tag  # type: ignore[attr-defined,misc]
+def callout(content: str, kind: str = "info", title: str = "", show: bool = False) -> str:
     """تنبيهٌ بنوعٍ من خمسة — راجع القاعدةَ التاسعة في رأس الملفّ.
 
     نوعٌ لا يعرفه الوسمُ `TemplateSyntaxError`. وتنبيهٌ فارغٌ وقتَ العرض لا يُرسم.
     """
     if kind not in TIP_KINDS and kind not in ROW_KINDS:
         raise template.TemplateSyntaxError(
-            f"callout: نوعٌ {kind!r} غيرُ معروف — المتاح: "
-            + ", ".join([*TIP_KINDS, *ROW_KINDS])
+            f"callout: نوعٌ {kind!r} غيرُ معروف — المتاح: " + ", ".join([*TIP_KINDS, *ROW_KINDS])
         )
     if not content.strip():
         # فراغُ المحتوى وقتَ العرض (شرطٌ لم يتحقّق) لا خطأ في القالب: لا يُرسم شيء.
@@ -196,19 +195,19 @@ def callout(content, kind="info", title="", show=False):
                 {"kind": kind, "icon": icon, "role": role, "body": content},
             )
         )
-    if kind in TIP_KINDS:
-        icon, label = TIP_KINDS[kind]
-        html = render_to_string(
-            "components/ui/tip.html",
-            {
-                "kind": kind,
-                "icon": icon,
-                "label": title or label,
-                "body": content,
-                "uid": "tip-" + get_random_string(8),
-            },
-        )
-        return mark_safe(_TIP_OPEN + html + _TIP_CLOSE)
+    # ما بقي نوعُ تلميحٍ حتماً: الأنواعُ الأخرى (ROW_KINDS) عادت أعلاه.
+    icon, label = TIP_KINDS[kind]
+    html = render_to_string(
+        "components/ui/tip.html",
+        {
+            "kind": kind,
+            "icon": icon,
+            "label": title or label,
+            "body": content,
+            "uid": "tip-" + get_random_string(8),
+        },
+    )
+    return mark_safe(_TIP_OPEN + html + _TIP_CLOSE)
 
 
 _TIP_ORDER = ("hint", "warning", "info")
@@ -367,7 +366,13 @@ def page_header(content, title, subtitle="", icon=""):
     return mark_safe(
         render_to_string(
             "components/ui/page_header.html",
-            {"title": title, "subtitle": subtitle, "icon": icon, "actions": content, "tips": mark_safe(tips)},
+            {
+                "title": title,
+                "subtitle": subtitle,
+                "icon": icon,
+                "actions": content,
+                "tips": mark_safe(tips),
+            },
         )
     )
 

@@ -20,10 +20,11 @@ from __future__ import annotations
 import csv
 import secrets
 from collections.abc import Iterable
+from typing import Any
 
 #: أبجديّةٌ بلا ملتبسٍ بصريّاً: الكلمةُ تُقرأ من ورقةٍ وتُكتب بيدٍ.
-LETTERS_UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ"
-LETTERS_LOWER = "abcdefghijkmnpqrstuvwxyz"
+LETTERS_UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ"  # pragma: allowlist secret — أبجديّةٌ لا سرّ
+LETTERS_LOWER = "abcdefghijkmnpqrstuvwxyz"  # pragma: allowlist secret — أبجديّةٌ لا سرّ
 DIGITS = "23456789"
 SYMBOLS = "!@#$%*-+=?"
 LENGTH = 14
@@ -44,7 +45,7 @@ def make_initial_password() -> str:
     return "".join(chars)
 
 
-def assign_initial_password(user, issued: list, role_label: str) -> str:
+def assign_initial_password(user: Any, issued: list, role_label: str) -> str:
     """يضع على حسابٍ **جديدٍ** كلمةً عشوائيّةً ويرفع `must_change_password`.
 
     لا يحفظ (`save()` على المستدعي)، ويُضيف صفَّ ورقة الاعتماد إلى `issued`

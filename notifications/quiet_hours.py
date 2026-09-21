@@ -24,7 +24,7 @@ notifications/quiet_hours.py
 from __future__ import annotations
 
 from datetime import datetime, time, timedelta
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from django.conf import settings
 from django.utils import timezone
@@ -66,7 +66,7 @@ def _next_occurrence(end: time, local_now: datetime) -> datetime:
     return candidate
 
 
-def _prefs(user):
+def _prefs(user: Any) -> Any:
     from .models import UserNotificationPreference
 
     try:
@@ -75,7 +75,7 @@ def _prefs(user):
         return None
 
 
-def quiet_release_at(user, now: datetime | None = None) -> datetime | None:
+def quiet_release_at(user: Any, now: datetime | None = None) -> datetime | None:
     """لحظةُ انتهاء ساعات هدوء المستخدم إن كان فيها الآن، وإلّا `None`.
 
     التوقيتُ محلّيٌّ للمنصّة (`TIME_ZONE = Asia/Qatar`) لا UTC.
@@ -95,7 +95,7 @@ def can_hold() -> bool:
     return not getattr(settings, "CELERY_TASK_ALWAYS_EAGER", False)
 
 
-def plan(user, now: datetime | None = None) -> QuietPlan:
+def plan(user: Any, now: datetime | None = None) -> QuietPlan:
     """الحكمُ المركزيّ: أُرسل الآن، أم أُؤجَّل (وإلى متى)، أم أُتخطّى."""
     now = now or timezone.now()
     release = quiet_release_at(user, now)

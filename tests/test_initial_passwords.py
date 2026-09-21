@@ -162,9 +162,7 @@ class TestImportFlow:
         passwords = [row["password"] for row in response.context["credentials"]]
         assert passwords
 
-        audit = " ".join(
-            f"{log.object_repr} {log.changes}" for log in AuditLog.objects.all()
-        )
+        audit = " ".join(f"{log.object_repr} {log.changes}" for log in AuditLog.objects.all())
         session = " ".join(str(v) for v in client.session.items())
         stored = " ".join(CustomUser.objects.values_list("password", flat=True))
         raw_sessions = " ".join(Session.objects.values_list("session_data", flat=True))

@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from django.db import transaction
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # ── ثوابت الاستيراد ──────────────────────────────────────────────────
 
-_IMPORT_RELATION_MAP = {
+_IMPORT_RELATION_MAP: dict[str, str] = {
     "father": "father",
     "mother": "mother",
     "guardian": "guardian",
@@ -55,7 +56,7 @@ _IMPORT_GRADE_NORMALIZE = {
 # ── مساعدات الاستيراد ─────────────────────────────────────────────────
 
 
-def _split_class_notation(grade_cell, section_cell):
+def _split_class_notation(grade_cell: str, section_cell: str) -> tuple[str, str]:
     """يقبل «7/1» في خانة الصف كما يقبل عمودين منفصلين.
 
     الشُّعب في المدرسة تُسمّى «7/1» و«11/2» — اسمٌ واحد لا حقلان. وكان
@@ -76,10 +77,10 @@ def _split_class_notation(grade_cell, section_cell):
     return grade_cell, section_cell
 
 
-def _parse_import_row(row):
+def _parse_import_row(row: Any) -> dict[str, str]:
     """يحوّل tuple الصف الخام إلى قاموس بأسماء واضحة."""
 
-    def _cell(pos, default=""):
+    def _cell(pos: int, default: str = "") -> str:
         return str(row[pos]).strip() if len(row) > pos and row[pos] else default
 
     grade_raw, section = _split_class_notation(_cell(2), _cell(3))
@@ -99,7 +100,15 @@ def _parse_import_row(row):
     }
 
 
-def _upsert_user(nid, full_name, phone="", email="", *, role_label="", issued=None):
+def _upsert_user(
+    nid: str,
+    full_name: str,
+    phone: str = "",
+    email: str = "",
+    *,
+    role_label: str = "",
+    issued: list[dict] | None = None,
+) -> tuple[Any, bool]:
     """
     get_or_create مستخدم بالرقم الشخصي.
     إذا أُنشئ: كلمةُ مرورٍ عشوائيّةٌ (قرارُ المالك: لا تساوي الرقمَ الشخصيّ) مع
@@ -113,6 +122,7 @@ def _upsert_user(nid, full_name, phone="", email="", *, role_label="", issued=No
     from core.initial_passwords import assign_initial_password
     from core.models import CustomUser
 
+    user: Any
     user, created = CustomUser.objects.get_or_create(
         national_id=nid,
         defaults={"full_name": full_name or nid, "is_active": True},
@@ -140,7 +150,14 @@ def _upsert_user(nid, full_name, phone="", email="", *, role_label="", issued=No
     return user, created
 
 
-def _enroll_student_in_class(student, school, grade_raw, section, stats, row_num):
+def _enroll_student_in_class(
+    student: Any,
+    school: Any,
+    grade_raw: str,
+    section: str,
+    stats: dict[str, Any],
+    row_num: int,
+) -> bool:
     """
     يبحث عن الفصل ويسجّل الطالب فيه.
     يُضيف خطأ إلى stats إذا لم يُعثر على الفصل.
@@ -169,10 +186,12 @@ def _enroll_student_in_class(student, school, grade_raw, section, stats, row_num
     _, created = StudentEnrollment.objects.get_or_create(
         student=student, class_group=class_group, defaults={"is_active": True}
     )
-    return created
+    return bool(created)
 
 
-def _link_parent_to_student(parent, student, school, relation_raw, stats):
+def _link_parent_to_student(
+    parent: Any, student: Any, school: Any, relation_raw: str, stats: dict[str, Any]
+) -> bool:
     """
     يُنشئ ParentStudentLink إذا لم يكن موجوداً.
     يُعيد True إذا أُنشئ رابط جديد.
@@ -194,7 +213,7 @@ def _link_parent_to_student(parent, student, school, relation_raw, stats):
     return created
 
 
-def process_student_import(uploaded_file, school, year):
+def process_student_import(uploaded_file: Any, school: Any, year: Any) -> dict[str, Any]:
     """
     يقرأ ملف Excel ويستورد الطلاب + أولياء الأمور.
     يُعيد dict بإحصائيات النتيجة + قائمة الأخطاء.
@@ -226,7 +245,7 @@ def process_student_import(uploaded_file, school, year):
             continue
         data_rows.append(row)
 
-    stats = {
+    stats: dict[str, Any] = {
         "students_created": 0,
         "students_existed": 0,
         "parents_created": 0,
@@ -312,7 +331,7 @@ def process_student_import(uploaded_file, school, year):
     }
 
 
-def _audit_credentials_issued(user, school, count):
+def _audit_credentials_issued(user: Any, school: Any, count: int) -> None:
     """يترك أثراً بأنّ كلماتِ مرورٍ صدرت — **العددُ** لا الكلمات ولا أصحابُها."""
     from core.models.audit import AuditLog
 
@@ -331,7 +350,7 @@ def _audit_credentials_issued(user, school, count):
     )
 
 
-def import_result_context(user, school, result) -> dict:
+def import_result_context(user: Any, school: Any, result: dict[str, Any]) -> dict:
     """ما يُضاف إلى سياق الصفحة من نتيجة الاستيراد: ورقةُ الاعتماد وعدّادُ الأخطاء.
 
     ورقةُ الاعتماد تُعرض في هذه الاستجابة وحدَها؛ وصفحةٌ للمسجَّل بلا تخزين
@@ -352,7 +371,7 @@ def import_result_context(user, school, result) -> dict:
     return extra
 
 
-def count_active_students(school) -> int:
+def count_active_students(school: Any) -> int:
     """عددُ الطلاب الفاعلين في المدرسة (عضويّةٌ بدور student)."""
     from core.models import Membership, Role
 

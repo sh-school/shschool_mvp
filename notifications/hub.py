@@ -798,10 +798,12 @@ def _queue_external_now(
         )
         return False
 
+    serialized_context = _serialize_context(context)
     try:
         from .tasks import hub_send_notification_task, release_after_quiet_hours_task
 
         if plan.action == quiet_hours.HOLD:
+            assert plan.eta is not None  # HOLD يحمل موعداً دائماً
             # الحمولةُ نفسُها التي يقرؤها `hub_send` — بأسماء وسائطه. (كُتبت هنا لا
             # بجوار `.delay` أدناه لأن حارسَ السلك يشترط أن يبقى النشرُ المتتبَّع
             # حرفيّاً في هذه الدالّة.)
@@ -817,7 +819,7 @@ def _queue_external_now(
                         "title": title,
                         "body": body,
                         "event_type": event_type,
-                        "context": _serialize_context(context),
+                        "context": serialized_context,
                         "sent_by_id": str(sent_by.id) if sent_by else None,
                         "dispatch_id": dispatch_id,
                         **({"email_html": email_html} if email_html else {}),
@@ -840,7 +842,7 @@ def _queue_external_now(
             title=title,
             body=body,
             event_type=event_type,
-            context=_serialize_context(context),
+            context=serialized_context,
             sent_by_id=str(sent_by.id) if sent_by else None,
             dispatch_id=dispatch_id,
             # لا تُمرَّر وسيطةٌ فارغة. عاملٌ قديمٌ يستقبل كلمةً لا يعرفها يرفع

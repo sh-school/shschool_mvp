@@ -32,6 +32,8 @@ from django.db import transaction
 
 from core.initial_passwords import (  # noqa: F401 — الاسمان يُستوردان من هنا في الاختبارات
     LENGTH,
+)
+from core.initial_passwords import (
     make_initial_password as make_password,
 )
 from core.models import School

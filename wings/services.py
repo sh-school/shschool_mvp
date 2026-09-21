@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass
+from typing import Any
 
 from django.core.paginator import Paginator
 from django.db.models import Count, Prefetch, Q
@@ -544,7 +545,7 @@ EVENTS_PER_PAGE = 5
 SHORT_LIST = 3
 
 
-def student_events_context(student, school, query) -> dict:
+def student_events_context(student: Any, school: Any, query: Any) -> dict:
     """ما تعرضه صفحةُ «تصحيح وعذر» من سجلّات الطالب — صفحاتٌ بعددٍ ثابتٍ لا تمريرٌ داخل البطاقة.
 
     الغيابُ والخروجُ سجلٌّ واحدٌ بترتيب الأحدث (قرارُ المالك 2026-09-20: لا تمريرَ في البطاقات)؛
@@ -565,18 +566,21 @@ def student_events_context(student, school, query) -> dict:
         .order_by("-left_at")[:60]
     )
     stamped = [
-        ("attendance", e, dt.datetime.combine(e.session.date, e.session.start_time)) for e in attendance
+        ("attendance", e, dt.datetime.combine(e.session.date, e.session.start_time))
+        for e in attendance
     ] + [
         ("exit", x, dt.datetime.combine(x.session.date, timezone.localtime(x.left_at).time()))
         for x in exits
     ]
     stamped.sort(key=lambda row: row[2], reverse=True)
-    page = Paginator([(kind, obj) for kind, obj, _ in stamped], EVENTS_PER_PAGE).get_page(query.get("ep"))
+    page = Paginator([(kind, obj) for kind, obj, _ in stamped], EVENTS_PER_PAGE).get_page(
+        query.get("ep")
+    )
     paging = query.copy()
 
-    def url(number):
+    def url(number: int) -> str:
         paging["ep"] = number
-        return "?" + paging.urlencode()
+        return "?" + str(paging.urlencode())
 
     excuses = list(
         AbsenceExcuse.objects.filter(student=student, school=school)

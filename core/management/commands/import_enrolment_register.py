@@ -414,7 +414,7 @@ class Command(BaseCommand):
                         "role": "طالب",
                         "nid": mask_national_id(new_user.national_id),
                         "name": new_user.full_name,
-                        "password": new_user.initial_password,
+                        "password": new_user.initial_password,  # type: ignore[attr-defined]
                     }
                 )
                 created += 1

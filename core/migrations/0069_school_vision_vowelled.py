@@ -17,7 +17,6 @@ def unvowel(apps, schema_editor):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("core", "0068_export_job"),
     ]

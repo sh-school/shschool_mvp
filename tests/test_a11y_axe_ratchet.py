@@ -29,6 +29,8 @@ UPDATE_CMD = (
 
 
 def _login(page, live_server, user, password="testpass123"):  # pragma: allowlist secret
+    # مستخدمٌ سابقٌ ما زال داخلاً: صفحةُ الدخول تحوّله إلى اللوحة فلا يجد `fill` الحقلَ (انتهت مهلتُه 30 ثانية).
+    page.context.clear_cookies()
     page.goto(f"{live_server.url}/auth/login/")
     page.fill('input[name="identifier"]', user.national_id)
     page.fill('input[name="password"]', password)

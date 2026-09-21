@@ -295,7 +295,7 @@ class TestCallout:
     def test_error_and_success_are_visible_rows_with_their_roles(self):
         for kind, role in (("error", "alert"), ("success", "status")):
             html = render(f'{{% callout "{kind}" %}}نصّ{{% endcallout %}}')
-            assert f'ui-callout--{kind}' in html and f'role="{role}"' in html
+            assert f"ui-callout--{kind}" in html and f'role="{role}"' in html
             assert "نصّ" in html and "ui-tip" not in html
 
     def test_hint_info_and_warning_are_icons_whose_text_is_in_a_panel(self):
@@ -316,7 +316,9 @@ class TestCallout:
             '{% section_card "س" %}{% callout "info" %}أ{% endcallout %}{% callout "warning" %}ب{% endcallout %}'
             '{% callout "hint" %}ج{% endcallout %}{% endsection_card %}'
         )
-        assert html.index("ui-tip--hint") < html.index("ui-tip--warning") < html.index("ui-tip--info")
+        assert (
+            html.index("ui-tip--hint") < html.index("ui-tip--warning") < html.index("ui-tip--info")
+        )
 
     def test_an_unknown_kind_is_an_error_not_a_silent_default(self):
         with pytest.raises(TemplateSyntaxError, match="غيرُ معروف"):
