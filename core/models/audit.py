@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Any
 
 from django.core.exceptions import PermissionDenied
 from django.db import models
@@ -90,7 +91,7 @@ class AuditLog(models.Model):
     def __str__(self):
         return f"{self.user} | {self.action} | {self.model_name} | {self.timestamp:%Y-%m-%d %H:%M}"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if self.pk and AuditLog.objects.filter(pk=self.pk).exists():
             raise PermissionDenied("AuditLog records are immutable and cannot be updated.")
         super().save(*args, **kwargs)
@@ -102,15 +103,15 @@ class AuditLog(models.Model):
     def log(
         cls,
         *,
-        user,
-        action,
-        model_name,
-        object_id="",
-        object_repr="",
-        changes=None,
-        school=None,
-        request=None,
-    ):
+        user: Any,
+        action: str,
+        model_name: str,
+        object_id: Any = "",
+        object_repr: Any = "",
+        changes: Any = None,
+        school: Any = None,
+        request: Any = None,
+    ) -> None:
         ip = ua = ""
         if request:
             from core.request_utils import get_client_ip

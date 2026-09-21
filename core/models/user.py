@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.validators import RegexValidator
@@ -61,6 +61,10 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         default="",
         verbose_name="الجنسية",
     )
+    #: تاريخُ مباشرة العمل في الخدمة (لا الالتحاق بهذه المدرسة — ذاك `Membership.joined_at`).
+    #: يحسب به تقريرُ السنة الأولى (النظام الوظيفي، المادة 16: مدّةٌ «لا تقل عن ثلاثة أشهر»).
+    #: فارغٌ = غيرُ معروف، فلا يُرفض به تقرير.
+    service_start_date = models.DateField(null=True, blank=True, verbose_name="تاريخ المباشرة")
     is_staff = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(default=timezone.now)
@@ -153,7 +157,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         # إلى AuditLog.object_repr (جدول دائم غير قابل للحذف).
         return self.full_name
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         # ── Auto-populate HMAC + Fernet fields on every save ──
         if self.national_id:
             new_hmac = hmac_field(self.national_id)

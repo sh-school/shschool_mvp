@@ -25,7 +25,6 @@
     {% if not limited or request.user|can_open:'behavior:report_infraction' %}<a href="{% url 'behavior:report_infraction' %}" class="btn-secondary btn-sm">{% icon "behavior_violation" %} تسجيل مخالفة</a>{% endif %}
     {% if can_see_results %}<a data-app-file href="{% url 'student_result_pdf' student.id %}" class="btn-secondary btn-sm">{% icon "grades" %} كشف الدرجات</a>{% endif %}
     <a data-app-file href="{% url 'student_affairs:student_profile_pdf' student.id %}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>
-    <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
   {% kpi_strip label="ملخص الطالب" %}
