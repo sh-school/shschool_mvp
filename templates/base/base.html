@@ -548,6 +548,9 @@
   {% if request.user|can_open:"staff_affairs:assignments" %}
   <a href="{% url 'staff_affairs:assignments' %}">{% icon "staff" %} التكليفات</a>
   {% endif %}
+  {% if request.user|can_open:"staff_affairs:exemptions" %}
+  <a href="{% url 'staff_affairs:exemptions' %}">{% icon "staff" %} الإعفاء من الرصد</a>
+  {% endif %}
   {% if request.user|can_open:"staff_affairs:licensing" %}
   <a href="{% url 'staff_affairs:licensing' %}">{% icon "licences" %} الرخص المهنية</a>
   {% endif %}
