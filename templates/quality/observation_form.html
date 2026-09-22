@@ -42,7 +42,7 @@
         </label>
         {% endif %}
         <label>التاريخ <input type="date" name="observation_date" id="qobs-date" required class="form-control"
-          value="{% if obs %}{{ obs.observation_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}"
+          value="{{ default_date|date:'Y-m-d' }}"
           {% if not is_self %}hx-get="{% url 'observation_teacher_schedule' %}" hx-trigger="change"
           hx-target="#teacher-schedule-row" hx-include="#qobs-teacher"{% endif %}></label>
         <label>المادّة
@@ -151,6 +151,28 @@
   </form>
 
 </div>
+<script nonce="{{ request.csp_nonce }}">
+  // قفلُ عطلة نهاية الأسبوع على حقل التاريخ: الجمعة والسبت بلا استعلامٍ
+  // (كـ`is_school_day` في الخادم) — يُرجع القيمةَ السابقة فوراً بدل انتظار
+  // ردّ الخادم على يومٍ لا حصصَ فيه أصلاً. أمّا إجازاتُ التقويم فرسالةُ
+  // الخادم وحدَها تكشفها (`ليس يومَ دراسةٍ` في teacher_schedule_row.html) —
+  // مصدرُ الحقيقة تقويمُ الوزارة، لا نسخةٌ منه هنا.
+  (function () {
+    var input = document.getElementById('qobs-date');
+    if (!input) return;
+    var lastValid = input.value;
+    input.addEventListener('change', function () {
+      var d = input.valueAsDate;
+      var day = d ? new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).getDay() : null;
+      if (day === 5 || day === 6) {
+        input.value = lastValid;
+        window.showToast && window.showToast('الجمعة والسبت عطلةٌ أسبوعيّة — اختر يوم دراسة.', 'warning');
+        return;
+      }
+      lastValid = input.value;
+    });
+  })();
+</script>
 {% if not is_self %}
 <script nonce="{{ request.csp_nonce }}">
   // SOS-20260915: نقرةُ حصّةٍ في صفّ جدول المعلّم تملأ المادّة والشعبة

@@ -122,3 +122,40 @@ def test_editing_a_saved_visit_shows_its_own_day_from_first_load(
     html = client.get(reverse("observation_edit", args=[obs.id])).content.decode()
 
     assert f'data-class-group="{a_session.class_group_id}"' in html
+
+
+FRIDAY = dt.date(2026, 9, 18)
+SATURDAY = dt.date(2026, 9, 19)
+
+
+@pytest.mark.parametrize("weekend_day", [FRIDAY, SATURDAY])
+def test_weekend_date_shows_not_a_school_day_not_an_empty_schedule(
+    client, coordinator_user, teacher_user, weekend_day
+):
+    """الجمعة والسبت لا حصصَ فيهما أصلاً — رسالةٌ صريحة بدل صفٍّ فارغٍ صامت
+    يُفهم خطأً على أنّه عطلٌ في الميزة."""
+    client.force_login(coordinator_user)
+
+    html = client.get(
+        reverse("observation_teacher_schedule"),
+        {"teacher": teacher_user.id, "observation_date": weekend_day.isoformat()},
+    ).content.decode()
+
+    assert "ليس يومَ دراسةٍ" in html
+
+
+def test_create_form_defaults_to_a_school_day_not_literally_today(client, coordinator_user):
+    """قيمةُ حقل التاريخ الافتراضيّة عند الإنشاء يومُ دراسةٍ حقيقيّ — لا اليوم
+    حرفيّاً، الذي قد يصادف عطلةً فيُفتح الاستمارةُ على جدولٍ فارغ."""
+    from operations.school_days import is_school_day
+
+    client.force_login(coordinator_user)
+
+    html = client.get(reverse("observation_create")).content.decode()
+
+    import re
+
+    m = re.search(r'id="qobs-date"[^>]*value="(\d{4}-\d{2}-\d{2})"', html)
+    assert m, "حقلُ التاريخ بلا قيمةٍ افتراضية"
+    default = dt.date.fromisoformat(m.group(1))
+    assert is_school_day(coordinator_user.get_school(), default)

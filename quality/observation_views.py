@@ -26,6 +26,7 @@ from core.permissions import (
     OBSERVATION_VIEW_ALL,
 )
 from core.sorting import apply_sort
+from operations.school_days import is_school_day
 
 from .observation_models import (
     FOLLOW_UP_MODE,
@@ -163,6 +164,21 @@ def _obs_perms(user, obs):
     }
 
 
+def _default_observation_date(school):
+    """أقربُ يومِ دراسةٍ للخلف من اليوم — لا اليوم حرفيّاً: لو صادف الجمعةَ أو
+    السبتَ أو إجازةً كان تاريخُ الاستمارة الافتراضيُّ يوماً بلا حصصٍ أصلاً."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    day = timezone.localdate()
+    for _ in range(14):
+        if is_school_day(school, day):
+            return day
+        day -= timedelta(days=1)
+    return timezone.localdate()
+
+
 def _form_context(school, *, obs=None, scores_map=None, is_self=False, is_peer=False):
     """grouped_criteria = [(domain_label, [(criterion, score|None)])] — score للتعبئة عند التعديل."""
     scores_map = scores_map or {}
@@ -180,6 +196,7 @@ def _form_context(school, *, obs=None, scores_map=None, is_self=False, is_peer=F
             "follow_up_scopes": FOLLOW_UP_SCOPE,
             "mode": "edit" if obs else "create",
             "obs": obs,
+            "default_date": obs.observation_date if obs else _default_observation_date(school),
             "is_self": is_self or bool(obs and obs.kind == "self"),
             "is_peer": is_peer or bool(obs and obs.kind == "peer"),
             # تعديلُ زيارةٍ محفوظة يفتح ومعه صفُّ جدول تاريخها من أوّل تحميل —
@@ -322,6 +339,10 @@ def _teacher_schedule_context(school, teacher_id, raw_date) -> dict:
             selected_date = None
         if selected_date is None:
             error = "تاريخٌ غير صالح."
+        elif not is_school_day(school, selected_date):
+            # الجمعة والسبت والإجازاتُ من تقويم الوزارة: لا حصصَ فيها أصلاً،
+            # فرسالةٌ صريحة بدل صفٍّ فارغٍ صامت (كان المستخدم يظنّه عطلاً).
+            error = "ليس يومَ دراسةٍ — عطلةٌ أسبوعيّة أو إجازةٌ في تقويم المدرسة."
         else:
             ScheduleService.ensure_sessions_for_date(school, selected_date)
             sessions = (
