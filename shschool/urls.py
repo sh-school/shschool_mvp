@@ -38,6 +38,7 @@ urlpatterns = [
     path("auth/", include("core.urls.auth")),
     path("dashboard/", include("core.urls.dashboard")),
     path("core/", include("core.urls.audit")),
+    path("core/it-admin/", include("core.urls.it_admin")),
     path("core/students/import-export/", include("core.urls.students")),
     path("teacher/", include("operations.urls")),
     path("quality/", include("quality.urls")),

@@ -238,6 +238,15 @@ LABELS: Mapping[str, str] = {
 }
 
 
+#: أسماءُ تطبيقاتٍ من مكتباتٍ خارجيّة — عربيّةً في قالب الإدارة فقط، والاسمُ التقنيُّ بين قوسين
+#: (يبقى مطابقاً لاسم التطبيق في settings.INSTALLED_APPS فيسهل البحث عنه في الكود). لا تُعدَّل
+#: حزمُ الطرف الثالث نفسُها.
+APP_LABELS = {
+    "axes": "الحماية من محاولات الدخول (AXES)",
+    "token_blacklist": "الرموزُ المُبطَلة (Token Blacklist)",
+}
+
+
 def mapped_keys() -> list[str]:
     return [key for _g, secs in GROUPS for _t, keys in secs for key in keys]
 
@@ -275,3 +284,14 @@ def build_menu(available_apps: Iterable[Mapping[str, Any]], path: str) -> list[d
         group["current"] = any(i["current"] for s in group["sections"] for i in s["items"])
         group["count"] = sum(len(s["items"]) for s in group["sections"])
     return menu
+
+
+def search_index(menu: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """فهرسُ بحثٍ مسطَّحٌ لكلّ نماذج القائمة — يُضمَّن JSON في `_nav.html` ويُصفَّى في admin_nav.js
+    بلا طلبٍ إضافيّ؛ 97 نموذجاً لا يستحقّ استعلاماً منفصلاً في كلّ ضغطة مفتاح."""
+    return [
+        {"name": str(item["name"]), "url": item["url"], "group": str(group["label"])}
+        for group in menu
+        for section in group["sections"]
+        for item in section["items"]
+    ]

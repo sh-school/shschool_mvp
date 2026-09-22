@@ -206,22 +206,64 @@
 /* قائمة المستخدم — min-width */
 #m-user { min-width: 200px; }
 
-/* ══ Flash messages ══════════════════════════════════════ */
+/* ══ Flash messages — عائمةٌ فوق الصفحة (قرار المالك 2026-09-22): كانت سطراً
+   في مجرى الصفحة يسقط تحت الطيّ أو يُغطّيه محتوًى طويل، وخطُّها 13.5px لا
+   يُقرأ من مسافة. هوّيةٌ مركزيّةٌ واحدة في base.html — كلُّ صفحةٍ ترثها.
+   `top` يساوي ارتفاع .site-header (48px) + .site-nav (42px) + هامشٍ، فلا
+   تُغطّي القائمة خلفها؛ والعرضُ يحتضن محتواه (لا يفرض 640px على رسالةٍ
+   قصيرة) حتى سقفٍ يسع سطراً واحداً لرسالةٍ كرسالة كلمة المرور. ══ */
+.msgs-wrap {
+  position: fixed; inset-inline: 0; top: calc(48px + 42px + var(--sp-3));
+  z-index: var(--z-navbar); display: flex; flex-direction: column; align-items: center;
+  padding-inline: var(--sp-4); pointer-events: none;
+}
 .msg-bar {
-  display: flex; align-items: flex-start; gap: var(--sp-2-5);
-  padding: 11px 15px; border-radius: var(--radius);
-  font-size: 0.84375rem; font-weight: 500; line-height: 1.5;
+  display: flex; align-items: center; gap: var(--sp-2-5);
+  padding: var(--sp-3) var(--sp-4-5); border-radius: var(--radius);
+  font-size: var(--text-lg); font-weight: 500; line-height: 1.5;
+  box-shadow: var(--shadow-lg); pointer-events: auto;
+  max-width: min(94vw, 1100px); width: fit-content;
   transition: opacity .4s;
 }
 .msg-bar button.msg-x {
   margin-inline-start: auto; flex-shrink: 0;
   background: none; border: none; cursor: pointer;
-  opacity: .45; font-size: 0.9375rem; padding: 0 var(--sp-0-5); line-height: 1;
+  opacity: .45; font-size: var(--text-lg); padding: 0 var(--sp-0-5); line-height: 1;
 }
 .msg-bar button.msg-x:hover { opacity: 1; }
-.msg-icon { flex-shrink: 0; font-size: var(--text-base); }
+.msg-icon { flex-shrink: 0; font-size: var(--text-lg); }
 .msg-text { flex: 1; }
-.msgs-wrap { max-width: 1280px; margin: var(--sp-3-5) auto 0; padding: 0 var(--sp-4); }
+/* كلمةُ مرورٍ أو رمزٌ مسلَّمٌ مرّةً واحدة — داخل msg-text، بلونٍ ولحمةٍ مميَّزين لا يُخلطان بالنصّ حولهما. */
+.msg-highlight {
+  font-family: 'IBM Plex Mono', monospace; font-weight: 700;
+  color: var(--maroon-fg); background: var(--maroon-bg);
+  padding: 0.1em 0.5em; border-radius: var(--radius-sm); margin-inline: 0.2em;
+  white-space: nowrap;
+}
+/* زرُّ نسخ ما يجاوره من msg-highlight — data-copy فعلٌ مركزيٌّ (static/js/actions.js). */
+.msg-copy {
+  font: inherit; font-size: 0.8em; font-weight: 700; color: var(--maroon-fg);
+  background: none; border: 1px solid var(--maroon-border); border-radius: var(--radius-sm);
+  padding: 0.15em 0.6em; cursor: pointer; white-space: nowrap;
+}
+.msg-copy:hover { background: var(--maroon-bg); }
+
+/* «تمّ النسخ» — عنصرٌ واحدٌ مشتركٌ (static/js/actions.js) يظهر فوق أيّ زرّ data-copy، لا فوق
+   .msg-copy وحدَه؛ مركزيٌّ لكلّ استعمالات النسخ في المنصّة (كإعداد الثنائية). */
+.copy-feedback {
+  position: fixed; transform: translate(-50%, calc(-100% - var(--sp-2)));
+  background: var(--popover-bg); color: var(--status-success-fg);
+  border: 1px solid var(--popover-border); border-radius: var(--radius-sm);
+  padding: 0.2em 0.7em; font-size: var(--text-xs); font-weight: 700;
+  box-shadow: var(--shadow-sm); z-index: var(--z-modal); pointer-events: none;
+  white-space: nowrap;
+}
+.copy-feedback[hidden] { display: none; }
+@media (max-width: 767px) {
+  .msg-bar { font-size: var(--text-base); max-width: 92vw; }
+  .msg-text { white-space: normal; }
+}
+
 
 /* ── الأزرار الرئيسية ───────────────────────────────────────── */
 /* استخدم .btn-primary بدل inline style — see btn-primary below */
