@@ -16,6 +16,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils.html import format_html
 from django.views.decorators.http import require_http_methods
 
 from core.capabilities import capability_required
@@ -68,10 +69,22 @@ def password_reset_action(request, user_id):
         school=request.school, target_id=user_id, actor=request.user
     )
 
+    # format_html تُفلت الاسمَ والكلمةَ تلقائيّاً؛ الوسمُ الثابتُ وحدَه حرفيّ — لا خطرَ حقنٍ،
+    # ولا أثرَ على أيّ رسالةٍ أخرى في المنصّة (هي وحدَها SafeString لا كلُّ الرسائل).
+    # data-copy فعلٌ مركزيٌّ جاهزٌ (static/js/actions.js) — لا سكربتَ جديد.
+    password_widget = format_html(
+        '<strong class="msg-highlight" dir="ltr">{}</strong>'
+        '<button type="button" class="msg-copy" data-copy="{}">نسخ</button>',
+        new_password,
+        new_password,
+    )
     messages.success(
         request,
-        f"كلمةُ مرورٍ جديدةٌ لـ{target.full_name}: {new_password} — "
-        "لن تظهر مرّةً أخرى، انسخها الآن وسلّمها للمستخدم.",
+        format_html(
+            "كلمةُ مرورٍ جديدةٌ لـ{}: {} — لن تظهر مرّةً أخرى، انسخها وسلّمها للمستخدم.",
+            target.full_name,
+            password_widget,
+        ),
     )
     url = reverse("it_admin_password_reset_list")
     if request.GET.get("q"):
