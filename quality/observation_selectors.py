@@ -167,7 +167,7 @@ def teacher_schedule_context(school, teacher_id, raw_date) -> dict:
     للتعديل (تعرِض حصص تاريخ الزيارة المحفوظ من أوّل تحميل) وview الـHTMX
     عند تغيير المعلّم أو التاريخ (`observation_teacher_schedule`).
     """
-    from operations.models import Session
+    from operations.models import ScheduleSlot, Session
     from operations.services import ScheduleService
 
     teacher_id = teacher_id or ""
@@ -189,11 +189,34 @@ def teacher_schedule_context(school, teacher_id, raw_date) -> dict:
             error = "ليس يومَ دراسةٍ — عطلةٌ أسبوعيّة أو إجازةٌ في تقويم المدرسة."
         else:
             ScheduleService.ensure_sessions_for_date(school, selected_date)
-            sessions = (
+            sessions = list(
                 Session.objects.filter(school=school, teacher_id=teacher_id, date=selected_date)
                 .exclude(status="cancelled")
                 .select_related("subject", "class_group")
                 .order_by("start_time")
             )
-            periods = [{"number": i, "session": s} for i, s in enumerate(sessions, start=1)]
+            # رقمُ الحصّة الحقيقيّ من ScheduleSlot لا من ترتيب حصص المعلّم في
+            # يومه: معلّمٌ حصصه الثلاث اليوم في ح2/ح4/ح6 كان يظهر ح1/ح2/ح3
+            # بالعدّ البسيط — فيُسجَّل رقمُ حصّةٍ خاطئٌ في محضر الزيارة نفسه.
+            # المطابقةُ بـ(الشعبة، وقت البدء) لا المعلّم وحده: التبديلُ يُكتب
+            # في Session لا في القالب الأسبوعيّ (راجع Session.original_teacher).
+            qatar_day = (selected_date.weekday() + 1) % 7
+            period_by_slot = {
+                (class_group_id, start_time): period_number
+                for class_group_id, start_time, period_number in (
+                    ScheduleSlot.objects.live(school, on=selected_date)
+                    .filter(
+                        day_of_week=qatar_day,
+                        class_group_id__in={s.class_group_id for s in sessions},
+                    )
+                    .values_list("class_group_id", "start_time", "period_number")
+                )
+            }
+            periods = [
+                {
+                    "number": period_by_slot.get((s.class_group_id, s.start_time), i),
+                    "session": s,
+                }
+                for i, s in enumerate(sessions, start=1)
+            ]
     return {"periods": periods, "error": error, "has_query": bool(teacher_id and raw_date)}

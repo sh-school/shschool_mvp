@@ -127,7 +127,7 @@
                 {% if group.teachers %}
                 <div class="qobs-dept-members">
                   {% for t in group.teachers %}
-                  <label class="qobs-teacher-opt">
+                  <label class="qobs-teacher-chip">
                     <input type="radio" name="qobs-teacher-radio" value="{{ t.id }}"
                       {% if obs and obs.teacher_id == t.id %}checked{% endif %}>
                     {{ t.full_name }}

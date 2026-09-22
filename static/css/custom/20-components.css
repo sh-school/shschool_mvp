@@ -2079,21 +2079,21 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
   margin-inline-end: var(--sp-1-5);
   flex: 0 0 auto;
 }
-.dept-sharia      { background: var(--dept-sharia); }
-.dept-arabic      { background: var(--dept-arabic); }
-.dept-math        { background: var(--dept-math); }
-.dept-english     { background: var(--dept-english); }
-.dept-science     { background: var(--dept-science); }
-.dept-biology     { background: var(--dept-biology); }
-.dept-chemistry   { background: var(--dept-chemistry); }
-.dept-physics     { background: var(--dept-physics); }
-.dept-social      { background: var(--dept-social); }
-.dept-tech        { background: var(--dept-tech); }
-.dept-business    { background: var(--dept-business); }
-.dept-pe          { background: var(--dept-pe); }
-.dept-arts        { background: var(--dept-arts); }
+.dept-sharia { background: var(--dept-sharia); }
+.dept-arabic { background: var(--dept-arabic); }
+.dept-math { background: var(--dept-math); }
+.dept-english { background: var(--dept-english); }
+.dept-science { background: var(--dept-science); }
+.dept-biology { background: var(--dept-biology); }
+.dept-chemistry { background: var(--dept-chemistry); }
+.dept-physics { background: var(--dept-physics); }
+.dept-social { background: var(--dept-social); }
+.dept-tech { background: var(--dept-tech); }
+.dept-business { background: var(--dept-business); }
+.dept-pe { background: var(--dept-pe); }
+.dept-arts { background: var(--dept-arts); }
 .dept-life-skills { background: var(--dept-life-skills); }
-.dept-other       { background: var(--dept-other); }
+.dept-other { background: var(--dept-other); }
 
 /* نافذةُ اختيار المعلّم، مُجمَّعةً حسب القسم — نظامُ modal-overlay/modal-box
    نفسُه، حجمٌ جديدٌ وحدَه (modal-lg). */
@@ -2121,7 +2121,6 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
   gap: var(--sp-0-5);
   padding-inline-start: var(--sp-5);
 }
-.qobs-teacher-opt,
 .qobs-teacher-chip {
   display: flex;
   align-items: center;
