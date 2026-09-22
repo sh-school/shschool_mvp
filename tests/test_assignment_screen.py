@@ -264,6 +264,23 @@ def test_a_subject_without_a_plan_row_is_refused_with_a_reason(
     assert not SubjectClassAssignment.objects.exists()
 
 
+@pytest.mark.parametrize("missing", ["class_group", "subject"])
+def test_an_unchosen_field_is_refused_in_the_card_not_with_a_500(
+    client, school, departments, maths_teacher, coordinator, seventh, subjects, missing
+):
+    """الإنتاج 2026-09-22: حقلٌ فارغٌ كان يسقط الطلبَ بـ500 (ValidationError على UUID)."""
+    login(client, coordinator, school)
+
+    data = {"year": YEAR, "class_group": seventh.id, "subject": subjects["MAT"].id, missing: ""}
+    response = client.post(
+        reverse("academic_management:assignment_add_row", args=[maths_teacher.id]), data
+    )
+
+    assert response.status_code == 200
+    assert "اختر الشعبةَ والمادّةَ أوّلاً" in response.content.decode()
+    assert not SubjectClassAssignment.objects.exists()
+
+
 def test_the_subject_options_are_the_class_plan(
     client, school, departments, coordinator, seventh, subjects, plan_rows
 ):
