@@ -211,6 +211,11 @@
         if (mine !== token) return;
         var fresh = document.adoptNode(incoming);
         main.replaceWith(fresh);   // ظهورُ الجديد حركةُ `page-in` في CSS تبدأ بإدراجه
+        // التبديلُ هنا يدويٌّ لا عبر آلية HTMX الخاصّة بالتبديل، وهذه النسخةُ من htmx.min.js
+        // بلا MutationObserver يكتشف عناصر جديدة من نفسه — فـ`hx-get`/`hx-trigger` داخل
+        // المحتوى الوارد تبقى خرساء (لا تُستجاب أبداً، ولو بتفاعل المستخدم) حتى يُستدعى
+        // `htmx.process` عليها صراحةً، كما توصي وثائقُ htmx لكلّ تبديلٍ يدويٍّ للـDOM.
+        if (window.htmx) htmx.process(fresh);
         document.getElementById('crumbs').innerHTML = doc.getElementById('crumbs').innerHTML;
         var msgs = document.getElementById('page-msgs');
         if (msgs && doc.getElementById('page-msgs')) msgs.innerHTML = doc.getElementById('page-msgs').innerHTML;
