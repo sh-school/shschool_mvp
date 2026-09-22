@@ -4,8 +4,10 @@
 {% endcomment %}{% if groups %}
 <nav class="adm-nav" aria-label="أقسام لوحة الإدارة">
   <a class="adm-nav__btn adm-nav__home" href="{% url 'admin:index' %}">الرئيسية</a>
-  {# نتائجُ البحث مُقرَّرةٌ من الخادم (Django يُفلت href/name/group) — لا بناءَ DOM من نصٍّ في المتصفّح،
-     فلا وجودَ للسَّطو الذي يحرسه CodeQL (DOM text reinterpreted as HTML) أصلاً. الفلترةُ إظهارٌ/إخفاءٌ فقط. #}
+  {% comment %}
+  نتائجُ البحث مُقرَّرةٌ من الخادم (Django يُفلت href/name/group) — لا بناءَ DOM من نصٍّ في المتصفّح،
+  فلا وجودَ للسَّطو الذي يحرسه CodeQL (DOM text reinterpreted as HTML) أصلاً. الفلترةُ إظهارٌ/إخفاءٌ فقط.
+  {% endcomment %}
   <div class="adm-nav__search">
     <input type="search" id="adm-nav-search" class="adm-nav__search-input" placeholder="ابحث في القائمة… (/)" aria-label="بحثٌ في قائمة الإدارة" autocomplete="off">
     <ul class="adm-nav__search-results" id="adm-nav-search-results" role="listbox" hidden>
