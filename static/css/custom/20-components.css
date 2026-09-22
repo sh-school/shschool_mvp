@@ -2097,7 +2097,18 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
 
 /* نافذةُ اختيار المعلّم، مُجمَّعةً حسب القسم — نظامُ modal-overlay/modal-box
    نفسُه، حجمٌ جديدٌ وحدَه (modal-lg). */
-.qobs-teacher-trigger { display: block; width: 100%; text-align: start; cursor: pointer; }
+/* لا wrap: اسمٌ طويلٌ بلا هذا يمتدّ الحقلُ أفقيّاً ويسحب أعمدةَ الشبكة معه
+   (min-width: 0 على label في 32-modules-3.css يفتح الطريقَ، وهذا يقصّ). */
+.qobs-teacher-trigger {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: start;
+  cursor: pointer;
+}
 .qobs-teacher-trigger.is-invalid { border-color: var(--status-danger-border); }
 .modal-box.modal-lg { max-width: 960px; }
 .qobs-dept-grid { align-items: start; }
