@@ -11,14 +11,14 @@
     {% callout "warning" show=True %}أعذارٌ أرسلها المشرفون بعد المهلة تنتظر قرارك: {{ pending_excuses }}. <a href="{% url 'wings:excuse_requests' %}" class="btn-primary btn-sm">افتح الأعذار</a>{% endcallout %}
   {% endif %}
 
-  {% kpi_strip label="الحضور اليوم" %}
-    {% kpi "نسبة الحضور" attendance_label sub=att_delta_label tone="green" %}
-    {% kpi "الحاضرون" present tone="teal" %}
-    {% kpi "الغائبون" absent sub=absent_delta_label tone="red" %}
-    {% kpi "حصص اليوم" sessions_today sub=sessions_sub tone="maroon" %}
-  {% endkpi_strip %}
-
-  {% section_card "نبض الأقسام" meta="اليوم وهذا الشهر" icon="departments" %}
+  {% comment %}بطاقةٌ واحدةٌ لأرقام اليوم كلِّها: شريطان لأنّ الشريطَ لا يتجاوز ستّاً (MAX_KPIS).{% endcomment %}
+  {% section_card "نبض المدرسة" meta="اليوم وهذا الشهر" icon="dashboard" %}
+    {% kpi_strip label="الحضور اليوم" %}
+      {% kpi "نسبة الحضور" attendance_label sub=att_delta_label tone="green" %}
+      {% kpi "الحاضرون" present tone="teal" %}
+      {% kpi "الغائبون" absent sub=absent_delta_label tone="red" %}
+      {% kpi "حصص اليوم" sessions_today sub=sessions_sub tone="maroon" %}
+    {% endkpi_strip %}
     {% kpi_strip label="نبض الأقسام" %}
       {% kpi "مخالفات الشهر" behavior_monthly|default:0 sub=behavior_sub tone=behavior_tone href=behavior_url %}
       {% kpi "زيارات العيادة" clinic_today|default:0 sub=clinic_sub tone=clinic_tone href=clinic_url %}
