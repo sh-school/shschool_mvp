@@ -31,6 +31,26 @@ html.dark {
      — رمزٌ يصدق على الشاشة ويكذب على قارئه. فصار الانقلابُ في الرمز. */
   --page-bg:        #0f172a;
 
+  /* نقطةُ لون القسم على الشاشة (2026-09-22، observation_form.html) —
+     الرموزُ النهاريّة (10-foundation.css) بهتٌ صُمِّم لورق الجدول المطبوع
+     الأبيض، وانقلابُها هنا وحدَه (لا نظيرةُ `.dept-*` بذاتها) يكفي الحارسَ
+     (`tests/test_dark_parity.py`) ويُبقي التمييزَ نفسَه بلونٍ أغمق. */
+  --dept-sharia:      #366c23;
+  --dept-arabic:      #8f4900;
+  --dept-math:        #0f4b80;
+  --dept-english:     #6d2243;
+  --dept-science:     #246b5f;
+  --dept-biology:     #70800f;
+  --dept-chemistry:   #8f0e00;
+  --dept-physics:     #2a1c73;
+  --dept-social:      #8f7000;
+  --dept-tech:        #2e5261;
+  --dept-business:    #705c1f;
+  --dept-pe:          #236b3d;
+  --dept-arts:        #7c134d;
+  --dept-life-skills: #6b4d24;
+  --dept-other:       #52525b;
+
   --maroon-bg:      #3b1125;
   --maroon-border:  #6b2640;
 

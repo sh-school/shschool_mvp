@@ -26,29 +26,26 @@ from core.permissions import (
     OBSERVATION_VIEW_ALL,
 )
 from core.sorting import apply_sort
-from operations.school_days import is_school_day
 
 from .observation_models import (
     FOLLOW_UP_MODE,
     FOLLOW_UP_SCOPE,
-    OBSERVATION_DOMAINS,
     OBSERVATION_KIND,
     OBSERVATION_STATUS,
     RATING_CHOICES,
     ClassroomObservation,
 )
+from .observation_selectors import TEACHER_ROLES as _TEACHER_ROLES
+from .observation_selectors import default_observation_date as _default_observation_date
+from .observation_selectors import form_lists as _form_lists
+from .observation_selectors import grouped_criteria as _grouped_criteria
+from .observation_selectors import groups_with_scores as _groups_with_scores
+from .observation_selectors import teacher_schedule_context as _teacher_schedule_context
 from .observation_services import ObservationService
 from .presentation import decorate_observation
 
 logger = logging.getLogger(__name__)
 
-_TEACHER_ROLES = [
-    "teacher",
-    "ese_teacher",
-    "coordinator",
-    "activities_coordinator",
-    "e_projects_coordinator",
-]
 # حقولُ الفرز المسموحة: `?sort=` نصٌّ من المستخدم لا يبلغ ORM إلّا مصفّى،
 # ولكلٍّ حقلٌ ثانٍ يقطع التساوي فلا يتأرجح ترتيبُ الصفحات بين طلبين.
 OBSERVATION_SORTS = {
@@ -82,36 +79,6 @@ def _is_leadership(user):
 
 def _can_send(user):
     return user.is_superuser or user.get_role() in OBSERVATION_SEND
-
-
-def _grouped_criteria(school):
-    """[(domain_label, [criterion, ...])] مرتّبة حسب المجال ثم الترتيب."""
-    crits = list(ObservationService.criteria_for(school))
-    groups = []
-    for domain, label in OBSERVATION_DOMAINS:
-        items = [c for c in crits if c.domain == domain]
-        if items:
-            groups.append((label, items))
-    return groups
-
-
-def _form_lists(school):
-    from core.models.academic import ClassGroup
-    from operations.models import Subject
-
-    return {
-        "teachers": CustomUser.objects.filter(
-            memberships__school=school,
-            memberships__role__name__in=_TEACHER_ROLES,
-            memberships__is_active=True,
-        )
-        .distinct()
-        .order_by("full_name"),
-        "subjects": Subject.objects.filter(school=school).order_by("name_ar"),
-        "class_groups": ClassGroup.objects.filter(
-            school=school, academic_year=academic_year_for_school(school)
-        ).in_school_order(),
-    }
 
 
 def _collect_post(request, school):
@@ -162,21 +129,6 @@ def _obs_perms(user, obs):
         "can_ack": is_teacher and status == "submitted" and obs.kind != "self",
         "can_delete": can_delete,
     }
-
-
-def _default_observation_date(school):
-    """أقربُ يومِ دراسةٍ للخلف من اليوم — لا اليوم حرفيّاً: لو صادف الجمعةَ أو
-    السبتَ أو إجازةً كان تاريخُ الاستمارة الافتراضيُّ يوماً بلا حصصٍ أصلاً."""
-    from datetime import timedelta
-
-    from django.utils import timezone
-
-    day = timezone.localdate()
-    for _ in range(14):
-        if is_school_day(school, day):
-            return day
-        day -= timedelta(days=1)
-    return timezone.localdate()
 
 
 def _form_context(school, *, obs=None, scores_map=None, is_self=False, is_peer=False):
@@ -300,59 +252,6 @@ def _pdf_context(obs):
             "peer": "تبادل الزيارات بين المعلّمين",
         }.get(obs.kind, "الإشراف على أداء المعلّم"),
     }
-
-
-def _groups_with_scores(obs):
-    scores = {str(s.criterion_id): s for s in obs.scores.select_related("criterion")}
-    return [
-        (label, [(c, scores.get(str(c.id))) for c in items])
-        for label, items in _grouped_criteria(obs.school)
-    ]
-
-
-# ══════════════════════════ جدول المعلّم عند إنشاء الزيارة ═══════════
-def _teacher_schedule_context(school, teacher_id, raw_date) -> dict:
-    """SOS-20260915: صفٌّ واحد من حصص المعلّم في التاريخ المختار — يُختار
-    منه بنقرة بدل إدخال المادّة والشعبة يدويّاً عن ظهر قلب. المصدر Session
-    نفسه الذي يقرأه جدولُ المعلّم اليوميّ (`operations.views_attendance.schedule`)
-    لا نسخةٌ ثانية قد تختلف عنه.
-
-    مصدرٌ واحد لاستعلام الجدول: تستدعيه هذه الدالّة عند فتح الاستمارة
-    للتعديل (تعرِض حصص تاريخ الزيارة المحفوظ من أوّل تحميل) وview الـHTMX
-    عند تغيير المعلّم أو التاريخ (`observation_teacher_schedule` أدناه).
-    """
-    import datetime as dt
-
-    from operations.models import Session
-    from operations.services import ScheduleService
-
-    teacher_id = teacher_id or ""
-    raw_date = raw_date or ""
-    periods: list[dict] = []
-    error = ""
-    if teacher_id and raw_date:
-        try:
-            selected_date = (
-                raw_date if isinstance(raw_date, dt.date) else dt.date.fromisoformat(raw_date)
-            )
-        except ValueError:
-            selected_date = None
-        if selected_date is None:
-            error = "تاريخٌ غير صالح."
-        elif not is_school_day(school, selected_date):
-            # الجمعة والسبت والإجازاتُ من تقويم الوزارة: لا حصصَ فيها أصلاً،
-            # فرسالةٌ صريحة بدل صفٍّ فارغٍ صامت (كان المستخدم يظنّه عطلاً).
-            error = "ليس يومَ دراسةٍ — عطلةٌ أسبوعيّة أو إجازةٌ في تقويم المدرسة."
-        else:
-            ScheduleService.ensure_sessions_for_date(school, selected_date)
-            sessions = (
-                Session.objects.filter(school=school, teacher_id=teacher_id, date=selected_date)
-                .exclude(status="cancelled")
-                .select_related("subject", "class_group")
-                .order_by("start_time")
-            )
-            periods = [{"number": i, "session": s} for i, s in enumerate(sessions, start=1)]
-    return {"periods": periods, "error": error, "has_query": bool(teacher_id and raw_date)}
 
 
 @login_required
