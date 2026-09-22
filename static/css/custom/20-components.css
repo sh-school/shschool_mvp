@@ -331,7 +331,10 @@ tbody tr:hover {
 }
 
 tbody tr:nth-child(even) {
-  background: var(--surface-alt);
+  /* لا `--surface-alt`: هو نفسُه لونُ أرضيّة المنصّة (`--page-bg`)، فبدت صفوفُ
+     الجدول داخل البطاقة بلا تمييزٍ عنها — نظيرُ ما أُصلح ليلاً في 40-themes.css
+     (`--table-stripe`، 2026-09-22) ولم يكن مطبَّقاً هنا في النهاريّ. */
+  background: var(--table-stripe);
 }
 
 tbody tr:nth-child(even):hover {
