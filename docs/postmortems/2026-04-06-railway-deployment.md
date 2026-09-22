@@ -206,3 +206,4 @@ When the CEO is watching, the instinct is to skip testing and "just try things."
 This incident was entirely preventable. Not one of the five root causes was exotic or surprising. They are all well-documented PaaS deployment pitfalls that a 15-minute checklist would have caught. The failure was not technical -- it was process. We had no checklist, no staging, no runbook, and no documentation. We deployed hope instead of software.
 
 The only acceptable outcome from this postmortem is that it never happens again.
+سفيان مسيف
