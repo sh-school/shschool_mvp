@@ -24,7 +24,7 @@
      data-hide="#sel" / data-show="#sel"
      data-remove="#sel|closest:.sel" click   → يحذف الهدف
      data-click="#sel"               click   → ينقر الهدف نيابةً عنه
-     data-copy="نصّ"                 click   → ينسخ إلى الحافظة
+     data-copy="نصّ"                 click   → ينسخ إلى الحافظة، و«تمّ النسخ» عائمةٌ ثانيتين
      data-call="اسم"                 click   → يُنادي دالّةً من قائمةٍ بيضاء
      data-arg="وسيط"                         → وسيطٌ واحد اختياريّ لـdata-call
      data-mirror="#sel"              input   → يعكس القيمة نصّاً في الهدف
@@ -161,9 +161,32 @@
     if (t) t.click();
   });
 
-  /* ── الحافظة ───────────────────────────────────────────────────── */
+  /* ── الحافظة ─── «تمّ النسخ» عائمةٌ عند العنصر نفسِه (لا عند المؤشّر —
+     لمسُ الجوّال بلا مؤشّر)، تختفي بعد ثانيتين. عنصرٌ واحدٌ مشتركٌ يُعاد
+     استعمالُه، لا عنصرٌ جديدٌ لكلّ نسخٍ — فلا تتراكم عند نقراتٍ متتالية. */
+  var copyFeedback = null;
+  var copyFeedbackTimer = null;
+  function showCopyFeedback(el) {
+    if (!copyFeedback) {
+      copyFeedback = document.createElement("span");
+      copyFeedback.className = "copy-feedback";
+      copyFeedback.setAttribute("role", "status");
+      copyFeedback.setAttribute("aria-live", "polite");
+      copyFeedback.textContent = "تمّ النسخ";
+      document.body.appendChild(copyFeedback);
+    }
+    var r = el.getBoundingClientRect();
+    copyFeedback.style.top = r.top + "px";
+    copyFeedback.style.insetInlineStart = r.left + r.width / 2 + "px";
+    copyFeedback.hidden = false;
+    if (copyFeedbackTimer) clearTimeout(copyFeedbackTimer);
+    copyFeedbackTimer = setTimeout(function () { copyFeedback.hidden = true; }, 2000);
+  }
   on("click", "data-copy", function (el) {
-    if (navigator.clipboard) navigator.clipboard.writeText(el.getAttribute("data-copy"));
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(el.getAttribute("data-copy")).then(function () {
+      showCopyFeedback(el);
+    });
   });
 
   /* ── نداءٌ بالاسم من القائمة البيضاء ───────────────────────────── */

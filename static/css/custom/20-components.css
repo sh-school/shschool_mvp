@@ -247,6 +247,18 @@
   padding: 0.15em 0.6em; cursor: pointer; white-space: nowrap;
 }
 .msg-copy:hover { background: var(--maroon-bg); }
+
+/* «تمّ النسخ» — عنصرٌ واحدٌ مشتركٌ (static/js/actions.js) يظهر فوق أيّ زرّ data-copy، لا فوق
+   .msg-copy وحدَه؛ مركزيٌّ لكلّ استعمالات النسخ في المنصّة (كإعداد الثنائية). */
+.copy-feedback {
+  position: fixed; transform: translate(-50%, calc(-100% - var(--sp-2)));
+  background: var(--popover-bg); color: var(--status-success-fg);
+  border: 1px solid var(--popover-border); border-radius: var(--radius-sm);
+  padding: 0.2em 0.7em; font-size: var(--text-xs); font-weight: 700;
+  box-shadow: var(--shadow-sm); z-index: var(--z-modal); pointer-events: none;
+  white-space: nowrap;
+}
+.copy-feedback[hidden] { display: none; }
 @media (max-width: 767px) {
   .msg-bar { font-size: var(--text-base); max-width: 92vw; }
   .msg-text { white-space: normal; }
