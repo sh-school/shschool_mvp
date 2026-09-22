@@ -53,6 +53,54 @@
       }
     });
   });
+
+  /* بحثُ القائمة: فهرسٌ مضمَّنٌ (json_script) لا طلبٌ إضافيّ؛ Enter يفتح أوّل نتيجة، Esc يُفرغ، / يُركِّز الحقلَ من أيّ مكانٍ في الصفحة. */
+  var searchInput = document.getElementById('adm-nav-search');
+  var results = document.getElementById('adm-nav-search-results');
+  var indexEl = document.getElementById('adm-nav-search-index');
+  var index = indexEl ? JSON.parse(indexEl.textContent) : [];
+  var active = -1;
+  function closeSearch() { results.hidden = true; results.textContent = ''; active = -1; }
+  function renderSearch(items) {
+    results.textContent = '';
+    items.forEach(function (item, i) {
+      var a = document.createElement('a');
+      a.href = item.url; a.setAttribute('role', 'option'); a.tabIndex = -1;
+      a.textContent = item.name;
+      var g = document.createElement('small'); g.textContent = item.group; a.appendChild(g);
+      if (i === active) a.classList.add('is-active');
+      results.appendChild(a);
+    });
+    results.hidden = items.length === 0;
+  }
+  function matches(q) {
+    q = q.trim();
+    if (!q) return [];
+    var terms = q.split(/\s+/);
+    return index.filter(function (item) {
+      var hay = item.name + ' ' + item.group;
+      return terms.every(function (t) { return hay.indexOf(t) !== -1; });
+    }).slice(0, 8);
+  }
+  if (searchInput && results && index.length) {
+    searchInput.addEventListener('input', function () { active = -1; renderSearch(matches(searchInput.value)); });
+    searchInput.addEventListener('keydown', function (e) {
+      var items = results.querySelectorAll('a');
+      if (e.key === 'Escape') { searchInput.value = ''; closeSearch(); searchInput.blur(); return; }
+      if (e.key === 'ArrowDown' && items.length) { e.preventDefault(); active = Math.min(active + 1, items.length - 1); renderSearch(matches(searchInput.value)); }
+      if (e.key === 'ArrowUp' && items.length) { e.preventDefault(); active = Math.max(active - 1, 0); renderSearch(matches(searchInput.value)); }
+      if (e.key === 'Enter') { var target = items[active] || items[0]; if (target) { e.preventDefault(); window.location.href = target.href; } }
+    });
+    searchInput.addEventListener('blur', function () { setTimeout(closeSearch, 150); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== '/' || e.target === searchInput) return;
+      var tag = (e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
+      e.preventDefault();
+      searchInput.focus();
+    });
+  }
+
   nav.addEventListener('mouseleave', function () { if (!pinned) closeAll(null); });
   document.addEventListener('click', function () { pinned = null; closeAll(null); });
 })();

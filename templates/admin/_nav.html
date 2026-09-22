@@ -4,6 +4,10 @@
 {% endcomment %}{% if groups %}
 <nav class="adm-nav" aria-label="أقسام لوحة الإدارة">
   <a class="adm-nav__btn adm-nav__home" href="{% url 'admin:index' %}">الرئيسية</a>
+  <div class="adm-nav__search">
+    <input type="search" id="adm-nav-search" class="adm-nav__search-input" placeholder="ابحث في القائمة… (/)" aria-label="بحثٌ في قائمة الإدارة" autocomplete="off">
+    <ul class="adm-nav__search-results" id="adm-nav-search-results" role="listbox" hidden></ul>
+  </div>
   {% for group in groups %}
   <div class="adm-nav__item{% if group.current %} is-current{% endif %}">
     <button type="button" class="adm-nav__btn" aria-expanded="false" aria-haspopup="true" aria-controls="adm-menu-{{ forloop.counter }}">{{ group.label }} <span class="adm-nav__chv" aria-hidden="true">&#9662;</span></button>
@@ -20,4 +24,5 @@
   {% empty %}
   {% endfor %}
 </nav>
+{{ search_index|json_script:"adm-nav-search-index" }}
 {% endif %}

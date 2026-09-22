@@ -75,3 +75,34 @@ def test_every_admin_list_shows_25_rows():
         if a.list_per_page != 25
     }
     assert not off, f"قوائمُ بغير 25 صفّاً: {sorted(off)}"
+
+
+def test_third_party_app_names_are_arabic_in_the_admin_template():
+    """AXES وToken Blacklist عربيّةٌ في app_list.html وحدَه — الحزمتان نفسُهما لم تُعدَّلا."""
+    from roadmap.admin_menu import APP_LABELS
+    from roadmap.templatetags.admin_menu import app_label
+
+    assert app_label("axes", "AXES") == APP_LABELS["axes"]
+    assert app_label("token_blacklist", "Token Blacklist") == APP_LABELS["token_blacklist"]
+    assert app_label("unknown_app", "Unknown") == "Unknown"
+
+
+def test_search_index_covers_every_link_the_menu_shows():
+    """فهرسُ البحث يطابق عدد الروابط في القائمة نفسِها — لا نقصان ولا تكرار."""
+    from django.contrib import admin
+
+    from roadmap.admin_menu import build_menu, search_index
+
+    apps = [
+        {
+            "app_label": m._meta.app_label,
+            "models": [
+                {"object_name": m.__name__, "name": m._meta.verbose_name, "admin_url": "/x/"}
+            ],
+        }
+        for m in admin.site._registry
+    ]
+    menu = build_menu(apps, "/admin/")
+    idx = search_index(menu)
+    assert len(idx) == sum(len(s["items"]) for g in menu for s in g["sections"])
+    assert all(isinstance(row["name"], str) and isinstance(row["group"], str) for row in idx)
