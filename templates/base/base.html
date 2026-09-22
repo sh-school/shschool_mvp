@@ -755,12 +755,9 @@
   {% if request.user|can_open:"student_affairs:attendance_overview" %}
   <a href="{% url 'student_affairs:attendance_overview' %}">{% icon "stats" %} إحصائيات غياب الجناح</a>
   {% endif %}
-<<<<<<< HEAD
-=======
   {% if request.user|can_open:"student_affairs:student_movements" %}
   <a href="{% url 'student_affairs:student_movements' %}">{% icon "sent_home" %} تحركات الطلبة</a>
   {% endif %}
->>>>>>> origin/main
   {% if request.user|can_open:"student_affairs:tardiness_list" %}
   <a href="{% url 'student_affairs:tardiness_list' %}">{% icon "tardiness" %} التأخر الصباحي</a>
   {% endif %}

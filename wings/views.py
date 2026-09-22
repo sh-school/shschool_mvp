@@ -413,27 +413,6 @@ def student_events(request, class_id, student_id):
     today = timezone.localdate()
     # اليومُ المقصود: ما في الرابط، وإلّا آخرُ يومِ غيابٍ بلا عذر — لا اليوم: كان الفراغُ
     # يُملأ بتاريخ اليوم فيُكتب العذرُ والإخطارُ على يومٍ لم يغب فيه.
-<<<<<<< HEAD
-    last_absent = (
-        StudentAttendance.objects.filter(
-            student=student, school=school, status="absent", excuse_type=""
-        )
-        .order_by("-session__date")
-        .values_list("session__date", flat=True)
-        .first()
-    )
-    focus_day = _day(request.GET.get("date"), last_absent or today)
-    attendance_events = list(
-        StudentAttendance.objects.filter(student=student, school=school)
-        .exclude(status="present")
-        .select_related("session__subject", "session__class_group")
-        .order_by("-session__date", "-session__start_time")[:60]
-    )
-    exit_events = list(
-        ClassExit.objects.filter(student=student, school=school)
-        .select_related("session__subject", "allowed_by")
-        .order_by("-left_at")[:60]
-=======
     # وفي هذا العام وحده وحتى اليوم: غيابُ يونيو الماضي كان يملأ الخانتين، فيُرسَل عذرُ
     # اليوم ومستندُه إلى النائب عن يومٍ من عامٍ مضى.
     window = academic_year_window(school, today)
@@ -451,7 +430,6 @@ def student_events(request, class_id, student_id):
         .order_by("-session__date")
         .values_list("session__date", flat=True)
         .first()
->>>>>>> origin/main
     )
     focus_day = _day(request.GET.get("date"), last_absent or today)
     return render(
@@ -468,7 +446,6 @@ def student_events(request, class_id, student_id):
             # إخطارُ وليّ الأمر — بضغطةٍ بنتيجته (قرارُ 2026-09-13).
             "contact_outcomes": GuardianContact.OUTCOMES,
             "contact_day": _awaiting(klass, today).get(student.id) or focus_day,
-            "events_count": len(attendance_events) + len(exit_events),
             "grace_days": GRACE_DAYS,
             "may_override": has_capability(request.user, "wings.excuse_after_deadline"),
         },

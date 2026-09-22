@@ -2,14 +2,6 @@
 {% comment %}ما ينتظر المشرفَ اليوم — إخطارُ أولياء الأمور ومن عند العتبات (لوحةُ المشرف v1). يحتاج: awaiting_contact, at_gates.{% endcomment %}
 {% if awaiting_contact %}
 {% section_card "ينتظرون إخطارَ وليّ الأمر — غابوا أمس" meta=awaiting_contact|length icon="call_parent" %}
-<<<<<<< HEAD
-  <ul class="plain-list">
-    {% for row in awaiting_contact %}
-    <li class="plain-list__row">
-      <span class="plain-list__title">{{ row.student.full_name }} <small>{{ row.class_group.short_code }}</small></span>
-      <a href="{% url 'wings:absence_file' row.student.id %}?call={{ row.needs_contact|date:'Y-m-d' }}#day-{{ row.needs_contact|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "call_parent" %} أخطِر</a>
-    </li>
-=======
   <div class="auto-grid">
     {% for col in awaiting_contact_cols %}
     <ul class="plain-list">
@@ -20,7 +12,6 @@
       </li>
       {% endfor %}
     </ul>
->>>>>>> origin/main
     {% endfor %}
   </div>
   {% callout "hint" %}الإخطارُ في اليوم نفسِه هاتفيّاً ونصّيّاً (م 3.4.1.5).{% endcallout %}
