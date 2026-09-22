@@ -116,3 +116,20 @@ def test_the_seed_does_not_hand_out_the_admin_door():
     grants = re.findall(r'"is_staff":\s*True|is_staff\s*=\s*True', src)
 
     assert not grants, "البذور لا تمنح بابَ لوحة الإدارة"
+
+
+# ── الرابط في المنصّة: يظهر لمن يفتح فعلاً لا لمن يحمل دوراً قياديّاً فقط ──
+
+
+def test_the_nav_only_promises_the_admin_link_to_whoever_is_staff(db, person, client_as):
+    """رابطُ «لوحة الإدارة» ثلاثةٌ في base.html — كان يُبنى على is_admin_role/الدور
+    لا على is_staff الفعليّ، فيعِد نائبَ المدير برابطٍ يردّه 403 (`is_leadership`
+    تشمل vice_admin/vice_academic ولا تشملهما سياسةُ `ADMIN_SITE_ROLES`)."""
+    principal = person("مدير", "principal", staff=True)
+    vice = person("نائب", "vice_admin", staff=False)
+
+    principal_html = client_as(principal).get("/dashboard/", follow=True).content.decode()
+    vice_html = client_as(vice).get("/dashboard/", follow=True).content.decode()
+
+    assert 'href="/admin/"' in principal_html
+    assert 'href="/admin/"' not in vice_html

@@ -29,11 +29,10 @@
       {% kpi "مستخدمون نشطون" active_users|default:0 tone="blue" %}
       {% kpi "إجمالي المستخدمين" total_users|default:0 tone="maroon" %}
     {% endkpi_strip %}
+    {# `/admin/` ليس مهمّةَ هذا الدور: البطاقةُ الوظيفيّةُ الوزاريّةُ تنسبه لشبكة المدرسة وأجهزتها لا لحسابات المنصّة (rbac_permissions_matrix.md)؛ ومهمّةُ كلمات المرور التي يحملها هنا فعلاً نافذةٌ داخل المنصّة. #}
     {% section_card "الأدوات التقنيّة" icon="maintenance" %}
       <nav class="ui-actions" aria-label="الأدوات التقنيّة">
-        {% action_tile "لوحة الإدارة التقنيّة" desc="إدارةُ النظام والإعدادات" icon="settings" href="/admin/" primary=True %}
-        {% action_tile "إدارة المستخدمين" desc="حساباتُ المعلّمين والموظّفين" icon="staff" href="/admin/core/customuser/" %}
-        {% action_tile "سجلّ النشاطات" desc="آخرُ العمليّات على النظام" icon="activities" href="/admin/admin/logentry/" %}
+        {% url 'it_admin_password_reset_list' as u %}{% action_tile "إعادة تعيين كلمات المرور" desc="لأيّ مستخدمٍ في المدرسة" icon="password" href=u primary=True %}
       </nav>
     {% endsection_card %}
 
