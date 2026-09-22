@@ -2067,14 +2067,8 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
 .skeleton-list-body { flex: 1; }
 .skeleton-kpi-card { padding: var(--sp-5); }
 
-}
-
-/* ── نقطةُ لون القسم (2026-09-22) ──────────────────────────────────────
-   تُستعمل حيث يُعرض القسمُ الأكاديميُّ في قائمةٍ على الشاشة — نقطةٌ صغيرة لا
-   خلفيّةُ صفٍّ كاملة: رموزُ `--dept-*` (10-foundation.css) باهتةٌ صُمِّمت
-   لورق الجدول المطبوع الأبيض (`templates/schedule/print_schedule.html`)،
-   ولا نظيرَ ليليّاً لها بعد — خلفيّةٌ كاملةٌ بها تكسر التباين في الوضع
-   الليليّ. الأكوادُ نفسُها التي تبني صنفَ `dept-{code}` هناك — مصدرٌ واحد. */
+/* نقطةُ لون القسم — رموزُ --dept-* باهتةٌ للورق المطبوع، فنقطةٌ لا خلفيّةٌ
+   كاملة تكسر التباين الليليّ. */
 .dept-dot {
   display: inline-block;
   inline-size: 10px;
@@ -2101,9 +2095,8 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
 .dept-life-skills { background: var(--dept-life-skills); }
 .dept-other       { background: var(--dept-other); }
 
-/* ── نافذةُ اختيار المعلّم العائمة، مُجمَّعةً حسب القسم (استمارة الزيارة
-   الصفّية، 2026-09-22) — نظامُ `.modal-overlay/.modal-box` نفسُه، حجمٌ جديدٌ
-   وحدَه (`.modal-lg`) يتّسع لكلّ الأقسام معاً بلا طيّ. ── */
+/* نافذةُ اختيار المعلّم، مُجمَّعةً حسب القسم — نظامُ modal-overlay/modal-box
+   نفسُه، حجمٌ جديدٌ وحدَه (modal-lg). */
 .qobs-teacher-trigger { display: block; width: 100%; text-align: start; cursor: pointer; }
 .qobs-teacher-trigger.is-invalid { border-color: var(--status-danger-border); }
 .modal-box.modal-lg { max-width: 960px; }
@@ -2146,3 +2139,5 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
   font-size: var(--text-sm);
 }
 .qobs-coord-badge { font-size: var(--text-xs); }
+
+}
