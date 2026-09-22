@@ -335,7 +335,9 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --scrollbar-track:     #f1f5f9;
   --scrollbar-thumb-hover: var(--maroon-light);
   --placeholder:         #6b7280;
-  --table-stripe:        var(--surface-alt);
+  /* خاصٌّ لا نسخةٌ من --surface-alt: كانت قريبةً جدّاً من --page-bg فبدت
+     صفوفُ الجدول بلا تمييز (2026-09-22). */
+  --table-stripe:        #eef1f5;
 
   /* أسطحٌ وحقول */
   --surface-sunken:      var(--surface);

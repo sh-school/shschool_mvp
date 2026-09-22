@@ -23,26 +23,33 @@
         {% if is_self %}
         <p class="qobs-fields__self"><b>المعلّم:</b> أنت <span class="pr-muted">(تقييم ذاتي لأدائك)</span></p>
         {% else %}
-        <label>{% if is_peer %}الزميل الذي أزوره *{% else %}المعلّم *{% endif %}
+        <label>{% if is_peer %}الزميل الذي أزوره *{% else %}المعلّم / المنسّق *{% endif %}
           {% comment %}
-          `load` إلى جانب `change`: متصفّحاتٌ تُعيد قيمة `<select>` من
-          تاريخ الصفحة عند تحديثها أو العودة إليها بلا حدث `change` —
-          فيبقى المعلّم ظاهراً مختاراً وصفُّ الجدول عالقاً على رسالة
-          «اختر المعلّم والتاريخ». `load` يطلب الجدولَ مرّةً فور التحميل
-          بالقيمة الحاضرة أيّاً كانت، فارغةً أو مُستعادة.
+          زرُّ فتحٍ لا `<select>` مباشرة — القائمةُ نفسُها (المجمَّعة حسب
+          القسم بلونه ومنسّقه) أسفلَ شبكة الحقول، تفتح بهذا الزرّ وتُغلق
+          نفسَها عند الاختيار. الحقلُ الفعليُّ للنموذج مخفيٌّ (`#qobs-teacher`)
+          — لا شيءَ في HTMX أو التحقّق الخادميّ يتغيّر (`name="teacher"` نفسُه).
+
+          `load` إلى جانب `change` على الحقل المخفيّ: `load` طلبُ HTMX
+          الاصطناعيّ يعمل على أيّ عنصرٍ لا `<select>` وحدَه — يطلب الجدولَ
+          مرّةً فور التحميل بالقيمة الحاضرة أيّاً كانت (فارغةً أو من تعديلٍ
+          محفوظ)، لا ينتظر تفاعلاً.
           {% endcomment %}
-          <select name="teacher" id="qobs-teacher" required class="form-control"
+          <button type="button" id="qobs-teacher-trigger" class="form-control qobs-teacher-trigger"
+            data-modal-open="teacher-picker" aria-haspopup="dialog">
+            {% if obs and obs.teacher %}{{ obs.teacher.full_name }}{% else %}— اختر —{% endif %}
+          </button>
+          {% comment %}لا `required` هنا: المواصفةُ لا تتحقّق من حقولٍ مخفيّة (لا
+          تركيزَ لها) — التحقّقُ بجافاسكربت أسفله + التحقّق الخادميّ الأصليّ
+          (`get_object_or_404` على `POST["teacher"]`) كافٍ ومزدوج.{% endcomment %}
+          <input type="hidden" name="teacher" id="qobs-teacher"
+            value="{% if obs %}{{ obs.teacher_id }}{% endif %}"
             hx-get="{% url 'observation_teacher_schedule' %}" hx-trigger="change, load"
             hx-target="#teacher-schedule-row" hx-include="#qobs-date">
-            <option value="">— اختر —</option>
-            {% for t in teachers %}
-            <option value="{{ t.id }}" {% if obs and obs.teacher_id == t.id %}selected{% endif %}>{{ t.full_name }}</option>
-            {% endfor %}
-          </select>
         </label>
         {% endif %}
         <label>التاريخ <input type="date" name="observation_date" id="qobs-date" required class="form-control"
-          value="{% if obs %}{{ obs.observation_date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}"
+          value="{{ default_date|date:'Y-m-d' }}"
           {% if not is_self %}hx-get="{% url 'observation_teacher_schedule' %}" hx-trigger="change"
           hx-target="#teacher-schedule-row" hx-include="#qobs-teacher"{% endif %}></label>
         <label>المادّة
@@ -83,6 +90,57 @@
         <label>ملاحظات البث <input type="text" name="broadcast_note" class="form-control" value="{{ obs.broadcast_note|default:'' }}"></label>
       </div>
       {% if not is_self %}
+      {% comment %}
+      نافذةٌ عائمة (`modalManager` — نفسُ نظام نوافذ المنصّة في `base.js`،
+      لا مكوّنٌ جديد) فيها كلُّ الأقسام معاً بلا طيّ — طلب المالك 2026-09-22:
+      القسمُ بلونه كالجدول العامّ المطبوع، ومنسّقُه شارةٌ قابلةٌ للاختيار
+      بجانب اسمه، وتحته بقيّةُ معلّمي القسم. `.auto-grid` (معيار تخطيط
+      الصفحات في CLAUDE.md) يرتّب الأقسامَ أعمدةً تتجاوب تلقائياً، و`.modal-box`
+      نفسُها تُقيَّد بـ90% من ارتفاع الشاشة وتُمرَّر داخلياً — فلا تخرج عن
+      شاشة العرض ولو طال عددُ الأقسام، على الجوّال كما سطح المكتب (النظامُ
+      نفسُه يخدم حوارَ التأكيد أصلاً، مُختبرٌ ومتجاوب). `teacher_groups` من
+      `_form_lists`.
+      {% endcomment %}
+      <div id="modal-teacher-picker" class="modal-overlay" hidden role="dialog"
+           aria-modal="true" aria-labelledby="qobs-teacher-picker-title">
+        <div class="modal-box modal-lg" role="document">
+          <div class="modal-header">
+            <span id="qobs-teacher-picker-title">اختيارُ المعلّم</span>
+            <button type="button" class="modal-close-btn" data-modal-close="teacher-picker"
+              aria-label="إغلاق النافذة">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="auto-grid qobs-dept-grid">
+              {% for group in teacher_groups %}
+              <div class="qobs-dept-card">
+                <h3 class="qobs-dept-card__head">
+                  <span class="dept-dot dept-{{ group.css_class }}" aria-hidden="true"></span>
+                  {{ group.name }}
+                  {% if group.head %}
+                  <label class="qobs-teacher-chip qobs-teacher-chip--coord">
+                    <input type="radio" name="qobs-teacher-radio" value="{{ group.head.id }}"
+                      {% if obs and obs.teacher_id == group.head.id %}checked{% endif %}>
+                    {{ group.head.full_name }} <span class="status-badge status-info qobs-coord-badge">منسّق</span>
+                  </label>
+                  {% endif %}
+                </h3>
+                {% if group.teachers %}
+                <div class="qobs-dept-members">
+                  {% for t in group.teachers %}
+                  <label class="qobs-teacher-chip">
+                    <input type="radio" name="qobs-teacher-radio" value="{{ t.id }}"
+                      {% if obs and obs.teacher_id == t.id %}checked{% endif %}>
+                    {{ t.full_name }}
+                  </label>
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
       {% comment %}
       جدولُ المعلّم لهذا التاريخ — سطرٌ واحد يُختار منه بنقرة بدل إدخال
       المادّة والشعبة يدويّاً. مُعبَّأٌ عند التعديل بحصص تاريخ الزيارة
@@ -151,6 +209,28 @@
   </form>
 
 </div>
+<script nonce="{{ request.csp_nonce }}">
+  // قفلُ عطلة نهاية الأسبوع على حقل التاريخ: الجمعة والسبت بلا استعلامٍ
+  // (كـ`is_school_day` في الخادم) — يُرجع القيمةَ السابقة فوراً بدل انتظار
+  // ردّ الخادم على يومٍ لا حصصَ فيه أصلاً. أمّا إجازاتُ التقويم فرسالةُ
+  // الخادم وحدَها تكشفها (`ليس يومَ دراسةٍ` في teacher_schedule_row.html) —
+  // مصدرُ الحقيقة تقويمُ الوزارة، لا نسخةٌ منه هنا.
+  (function () {
+    var input = document.getElementById('qobs-date');
+    if (!input) return;
+    var lastValid = input.value;
+    input.addEventListener('change', function () {
+      var d = input.valueAsDate;
+      var day = d ? new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()).getDay() : null;
+      if (day === 5 || day === 6) {
+        input.value = lastValid;
+        window.showToast && window.showToast('الجمعة والسبت عطلةٌ أسبوعيّة — اختر يوم دراسة.', 'warning');
+        return;
+      }
+      lastValid = input.value;
+    });
+  })();
+</script>
 {% if not is_self %}
 <script nonce="{{ request.csp_nonce }}">
   // SOS-20260915: نقرةُ حصّةٍ في صفّ جدول المعلّم تملأ المادّة والشعبة
@@ -168,6 +248,40 @@
       el.classList.toggle('is-active', el === btn);
     });
   });
+</script>
+<script nonce="{{ request.csp_nonce }}">
+  // نافذةُ اختيار المعلّم العائمة (2026-09-22): `modalManager` (base.js)
+  // يفتحها ويغلقها ويحصر التركيز فيها — نظامُ النوافذ نفسُه في المنصّة، لا
+  // جديد. الاختيارُ يملأ الحقلَ المخفيَّ #qobs-teacher (الاسمُ الحقيقيُّ في
+  // النموذج) ويطلقُ `change` عليه — فتسمعه HTMX كما لو كان حقلُ الاختيار تغيَّر،
+  // بلا مسّ لسلك الجدول اليوميّ.
+  (function () {
+    var trigger = document.getElementById('qobs-teacher-trigger');
+    var modal = document.getElementById('modal-teacher-picker');
+    var hidden = document.getElementById('qobs-teacher');
+    if (!trigger || !modal || !hidden) return;
+
+    modal.addEventListener('change', function (e) {
+      if (e.target.name !== 'qobs-teacher-radio') return;
+      hidden.value = e.target.value;
+      hidden.dispatchEvent(new Event('change', { bubbles: true }));
+      var label = e.target.closest('label');
+      trigger.textContent = label ? label.textContent.trim() : trigger.textContent;
+      trigger.classList.remove('is-invalid');
+      window.modalManager.close('teacher-picker');
+    });
+
+    var form = trigger.closest('form');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        if (hidden.value) return;
+        e.preventDefault();
+        trigger.classList.add('is-invalid');
+        window.modalManager.open('teacher-picker');
+        window.showToast && window.showToast('اختر المعلّم من القائمة.', 'warning');
+      });
+    }
+  })();
 </script>
 {% endif %}
 {% endblock %}

@@ -474,30 +474,18 @@
   "parents/views.py::student_grades": {
    "orm": 9
   },
-  "quality/observation_views.py::_form_context": {
-   "orm": 18
-  },
-  "quality/observation_views.py::_form_lists": {
-   "orm": 13
-  },
   "quality/observation_views.py::observation_create": {
-   "orm": 24
+   "orm": 6
   },
   "quality/observation_views.py::observation_edit": {
-   "orm": 26
+   "orm": 8
   },
   "quality/observation_views.py::observation_list": {
    "lines": 71,
    "orm": 18
   },
   "quality/observation_views.py::observation_pdf": {
-   "orm": 12
-  },
-  "quality/observation_views.py::observation_peer_create": {
-   "orm": 23
-  },
-  "quality/observation_views.py::observation_self_create": {
-   "orm": 20
+   "orm": 11
   },
   "quality/views.py::_build_procedure_qs": {
    "lines": 61,

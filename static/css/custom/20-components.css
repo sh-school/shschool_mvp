@@ -2109,4 +2109,87 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
 .skeleton-list-body { flex: 1; }
 .skeleton-kpi-card { padding: var(--sp-5); }
 
+/* نقطةُ لون القسم — رموزُ --dept-* باهتةٌ للورق المطبوع، فنقطةٌ لا خلفيّةٌ
+   كاملة تكسر التباين الليليّ. */
+.dept-dot {
+  display: inline-block;
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  vertical-align: middle;
+  margin-inline-end: var(--sp-1-5);
+  flex: 0 0 auto;
+}
+.dept-sharia { background: var(--dept-sharia); }
+.dept-arabic { background: var(--dept-arabic); }
+.dept-math { background: var(--dept-math); }
+.dept-english { background: var(--dept-english); }
+.dept-science { background: var(--dept-science); }
+.dept-biology { background: var(--dept-biology); }
+.dept-chemistry { background: var(--dept-chemistry); }
+.dept-physics { background: var(--dept-physics); }
+.dept-social { background: var(--dept-social); }
+.dept-tech { background: var(--dept-tech); }
+.dept-business { background: var(--dept-business); }
+.dept-pe { background: var(--dept-pe); }
+.dept-arts { background: var(--dept-arts); }
+.dept-life-skills { background: var(--dept-life-skills); }
+.dept-other { background: var(--dept-other); }
+
+/* نافذةُ اختيار المعلّم، مُجمَّعةً حسب القسم — نظامُ modal-overlay/modal-box
+   نفسُه، حجمٌ جديدٌ وحدَه (modal-lg). */
+/* لا wrap: اسمٌ طويلٌ بلا هذا يمتدّ الحقلُ أفقيّاً ويسحب أعمدةَ الشبكة معه
+   (min-width: 0 على label في 32-modules-3.css يفتح الطريقَ، وهذا يقصّ). */
+.qobs-teacher-trigger {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: start;
+  cursor: pointer;
+}
+.qobs-teacher-trigger.is-invalid { border-color: var(--status-danger-border); }
+.modal-box.modal-lg { max-width: 960px; }
+.qobs-dept-grid { align-items: start; }
+.qobs-dept-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3);
+}
+.qobs-dept-card__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+  font-size: var(--text-base);
+  font-weight: 600;
+  margin: 0 0 var(--sp-2);
+}
+.qobs-dept-members {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-0-5);
+  padding-inline-start: var(--sp-5);
+}
+.qobs-teacher-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1-5);
+  padding: var(--sp-1) 0;
+  cursor: pointer;
+}
+.qobs-teacher-chip--coord {
+  margin-inline-start: auto;
+  padding: var(--sp-0-5) var(--sp-2);
+  border: 1px solid var(--status-info-border);
+  border-radius: var(--radius-pill);
+  background: var(--status-info-bg);
+  font-weight: 400;
+  font-size: var(--text-sm);
+}
+.qobs-coord-badge { font-size: var(--text-xs); }
+
 }
