@@ -561,7 +561,7 @@
     </select>
   </form>
   <script nonce="{{ request.csp_nonce }}">
-    function submitScheduleView(select) {
+    window.submitScheduleView = function (select) {
       var form = document.getElementById('schedule-view-form');
       var option = select.options[select.selectedIndex];
 
@@ -569,7 +569,7 @@
       form.elements.teacher.value = option.dataset.teacher || '';
       form.elements['class'].value = option.dataset.class || '';
       form.submit();
-    }
+    };
   </script>
   {% endif %}
 
