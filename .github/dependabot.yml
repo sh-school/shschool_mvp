@@ -23,6 +23,13 @@ updates:
       # (2.9.0، تحقّقتُ عبر PyPI 2026-09-18) — ليس تعارضاً عابراً يُنتظر
       # حلّه، بل سقفٌ ثابت. بلا هذا الاستثناء يسقط كلّ تجميعةٍ شهريّةٍ
       # تضمّه (كما وقع فعلاً في PR #348).
+      # ruff مثبَّتٌ عمداً على 0.4.4 في CI (quality-gate.yml) وpre-commit — إصداراتٌ
+      # أحدث تغيّر قواعد التنسيق فتُسقط بوّابة «Ruff — lint + format» رغم نجاحها
+      # محلّياً (راجع feedback_ruff_pinned_version، وقعَ فعلاً في PR #125 وPR #254).
+      # ترقيةٌ ثلاثيّةٌ (requirements-dev + quality-gate.yml + .pre-commit-config.yaml
+      # معاً بعد مراجعة فروقات التنسيق) لا اقتراحاً أسبوعيّاً متكرّراً (سبّب DBT-18).
+      - dependency-name: "ruff"
+        versions: [">=0.4.5"]
       - dependency-name: "cron-descriptor"
         versions: [">=2.0.0"]
       # الوجهُ الآخر للتعارض نفسِه: django-celery-beat 2.9.0 هو من يفرض
