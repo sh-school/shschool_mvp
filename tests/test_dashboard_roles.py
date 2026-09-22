@@ -199,3 +199,14 @@ class TestTherapistWeekStats:
         ctx = get_therapist_ctx(teacher, school, tuesday)
 
         assert ctx["week_total"] == 0
+
+
+@pytest.mark.django_db
+def test_the_director_numbers_share_one_card(client_as, principal_user):
+    """طلب المالك 2026-09-23: أرقامُ الحضور ونبضُ الأقسام في بطاقةٍ واحدة لا شريطٌ عائمٌ فوقها."""
+    html = client_as(principal_user).get("/dashboard/").content.decode()
+
+    card = html[html.index("نبض المدرسة") :]
+    card = card[: card.index("</section>")]
+    assert 'aria-label="الحضور اليوم"' in card
+    assert 'aria-label="نبض الأقسام"' in card

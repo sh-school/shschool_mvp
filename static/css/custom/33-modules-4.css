@@ -1109,6 +1109,8 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   gap: var(--sp-2);
   min-inline-size: 0;
 }
+/* شريطان في بطاقةٍ واحدة (أكثرُ من ستّة أرقام): المسافةُ بينهما مسافةُ البطاقات نفسُها. */
+.ui-kpis + .ui-kpis { margin-block-start: var(--sp-2); }
 .ui-kpi {
   display: flex;
   align-items: baseline;
