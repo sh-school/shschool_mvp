@@ -5,19 +5,19 @@
   التطبيقُ الجاريُ وحدَه إن كانت الصفحةُ داخلَه. والشريطُ الجانبيّ بلا تغيير.
   أنماطُ الطيّ في `static/css/admin_theme.css` (قسم `.app-fold`).
 {% endcomment %}
-{% load i18n %}
+{% load i18n admin_menu %}
 
 {% if app_list %}
   {% for app in app_list %}
     <div class="app-{{ app.app_label }} module{% if app.app_url in request.path|urlencode %} current-app{% endif %}">
       {% if show_changelinks %}<details class="app-fold"{% if app.app_url in request.path|urlencode %} open{% endif %}>
         <summary class="app-fold__summary">
-          <a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
-          <span class="app-fold__count">{{ app.models|length }}</span>
+          {% with app_name=app.app_label|app_label:app.name %}<a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app_name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app_name }}</a>
+          <span class="app-fold__count">{{ app.models|length }}</span>{% endwith %}
         </summary>{% endif %}
       <div class="table-wrap"><table>
         {% if not show_changelinks %}<caption>
-          <a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app.name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app.name }}</a>
+          {% with app_name=app.app_label|app_label:app.name %}<a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app_name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app_name }}</a>{% endwith %}
         </caption>{% endif %}
         <thead class="visually-hidden">
           <tr>
