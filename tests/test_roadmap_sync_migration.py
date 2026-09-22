@@ -89,3 +89,10 @@ def test_0003_adds_missing_items_once():
 def test_0003_does_not_decide_d12():
     """الحسمُ للمالك: لا تحديثَ لـU-30 في الهجرة."""
     assert "U-30" not in {u[0] for u in _sync3.UPDATES}
+
+
+def test_0003_note_only_update_is_idempotent():
+    _item("U-02", "doing", 50)
+    assert _sync3.sync(RoadmapItem) == ["U-02"]
+    assert _sync3.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="U-02").note.count("#408") == 1

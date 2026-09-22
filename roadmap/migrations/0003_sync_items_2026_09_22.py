@@ -51,6 +51,16 @@ UPDATES = [
         "أُغلق: #468 ثبّت العتبة 1000 والهامش 25 سطراً ووثّق الهامشَ استثناءً مقصوداً من «النقص يسقط».",
     ),
     (
+        "DBT-09",
+        ("todo", 0),
+        "done",
+        100,
+        "",
+        "أُغلق بتحقّقٍ بلا تعديل: main@d126733d بلا علامة TODO/FIXME حقيقيّة خارج الهجرات"
+        " والاختبارات (الباقي قيمُ تعدادٍ `ItemStatus.TODO` ونصُّ حارس placeholder)؛"
+        " زالت الثلاثُ ضمن طلباتٍ أخرى.",
+    ),
+    (
         "U-02",
         ("doing", 50),
         "doing",
@@ -101,7 +111,8 @@ def sync(item_model):
     changed = []
     for code, expected, status, progress, pr, line in UPDATES:
         item = item_model.objects.filter(code=code).first()
-        if item is None or (item.status, item.progress) != expected:
+        # الملاحظةُ الموجودة تمنع التكرار حين لا تتغيّر الحالة (U-02).
+        if item is None or (item.status, item.progress) != expected or line in item.note:
             continue
         item.status, item.progress = status, progress
         if pr:
