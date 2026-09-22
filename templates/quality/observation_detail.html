@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="qobs qobs--narrow">
+<div class="qobs">
 
   {# الإجراءاتُ بحسب الحالة والصلاحيّة في رأس الصفحة — كانت شريطاً تحت الجداول. #}
   {% page_header page_title icon="observation" %}
@@ -37,7 +37,7 @@
       <div><dt>النسبة الإجماليّة</dt><dd>{% if obs.score_percent != None %}<b class="grade-total is-{{ obs.score_tone }}">{{ score_label }}</b>{% else %}—{% endif %}</dd></div>
       <div><dt>الزائر</dt><dd>{{ obs.observer.full_name }}</dd></div>
       <div><dt>المادّة</dt><dd>{{ obs.subject.name_ar|default:"—" }}</dd></div>
-      <div><dt>الصّف</dt><dd>{{ obs.class_group|default:"—" }}</dd></div>
+      <div><dt>الصّف</dt><dd>{{ obs.class_group.short_label|default:"—" }}</dd></div>
       <div><dt>التاريخ</dt><dd>{{ obs.observation_date }}</dd></div>
       <div><dt>الحصة</dt><dd>{{ obs.period|default:"—" }}</dd></div>
       <div><dt>الموضوع</dt><dd>{{ obs.topic|default:"—" }}</dd></div>
@@ -56,7 +56,7 @@
         <tr>
           <td>{{ c.text }}</td>
           <td>{% if sc and sc.rating %}{{ sc.get_rating_display }}{% else %}—{% endif %}</td>
-          <td>{{ sc.recommendation|default:"—" }}</td>
+          <td>{{ sc.recommendation|default:"—"|linebreaksbr }}</td>
         </tr>
         {% endfor %}
       </tbody>

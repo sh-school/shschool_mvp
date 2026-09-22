@@ -6,7 +6,8 @@ description: |
 
 # Web Design — معايير SchoolOS الفعلية
 
-> هذه المعايير مبنية على الكود الحقيقي في `static/css/custom.css` و `templates/base.html`.
+> هذه المعايير مبنية على الكود الحقيقي في `static/css/custom/` و `templates/base.html`.
+> (`custom.css` صار ثمانيةَ ملفّاتٍ على حدود الطبقات — ADR-0003؛ كلُّ ذكرٍ له أدناه يعني تلك الملفّات.)
 > لا تحتوي مبادئ عامة — فقط ما هو خاص بهذا المشروع.
 
 ---

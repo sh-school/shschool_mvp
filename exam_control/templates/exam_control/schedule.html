@@ -9,12 +9,12 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header "جدول الاختبارات" subtitle=session.name icon="calendar" %}
+  {% page_header "جدول الاختبارات" subtitle=session.name icon="schedule" %}
     <a href="{% url 'exam_control:session_detail' session.pk %}" class="btn-ghost btn-sm">رجوع إلى الدورة</a>
   {% endpage_header %}
 
   <div class="ui-split">
-    {% section_card "إضافة اختبار" icon="plus" %}
+    {% section_card "إضافة اختبار" icon="add" %}
       <form method="post" class="form-stack">{% csrf_token %}
         <div class="form-group"><label class="form-label" for="ex-room">القاعة</label>
           <select id="ex-room" name="room_id" class="form-control" required>{% for r in rooms %}<option value="{{ r.pk }}">{{ r.name }}</option>{% endfor %}</select></div>
@@ -30,7 +30,7 @@
       </form>
     {% endsection_card %}
 
-    {% section_card "الاختبارات المجدولة" meta=schedules|length icon="calendar" flush=True empty="لا جدولَ بعد" %}{% if schedules %}
+    {% section_card "الاختبارات المجدولة" meta=schedules|length icon="schedule" flush=True empty="لا جدولَ بعد" %}{% if schedules %}
       {% include "exam_control/_schedule_table.html" %}
     {% endif %}{% endsection_card %}
   </div>

@@ -29,8 +29,12 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from operations.models import TimeSlotConfig
+
+if TYPE_CHECKING:
+    from operations.school_days import SchoolDay
 
 #: نوعا اليوم المبذوران. و`ramadan` خيارٌ في النموذج لم يُبذَر بعد — فمن
 #: طلبه يُرجَع بجرسٍ فارغٍ لا بجرسٍ خطأ.
@@ -188,15 +192,26 @@ def floor_bells(
     return [bell for bell in known.values() if bell.floor == floor]
 
 
-def wing_position(wing, when: dt.datetime, table: dict[str, Bell] | None = None) -> list[Position]:
+def wing_position(
+    wing,
+    when: dt.datetime,
+    table: dict[str, Bell] | None = None,
+    today: SchoolDay | None = None,
+) -> list[Position]:
     """موضعُ الجناح من هذه اللحظة — موضعٌ لكلّ جرسٍ فيه.
 
     وقائمةٌ لا قيمةٌ واحدة: جناح 3 بجرسين، فـ«الحصّةُ الآن» فيه سؤالٌ جوابُه
     اثنان — وقيمةٌ واحدةٌ تعني اختيارَ أحدِهما صامتاً وتكذيبَ نصفِ الممرّ.
+
+    و`today` يومُ `when` من تقويم الوزارة إن قرأه المستدعي (كـ`floors_overview`) — وإلّا
+    قُرئ هنا باستعلامٍ إضافيّ، فلا يرنّ جرسٌ في إجازةٍ رسميّة ولو وقعت بين الأحد والخميس
+    (`operations.school_days` — الوحدةُ التي تسأل هذا السؤالَ لكلّ شاشةٍ أخرى).
     """
-    day_type = day_type_for(when.date())
+    from operations.school_days import school_day  # هنا لا فوق: bells لا يستورد school_days دائرياً
+
+    today = today or school_day(wing.school, when.date())
     moment = when.time()
     return [
         Position(bell=bell, running=bell.running(moment), upcoming=bell.upcoming(moment))
-        for bell in wing_bells(wing, day_type, table)
+        for bell in wing_bells(wing, today.bell_day_type, table)
     ]

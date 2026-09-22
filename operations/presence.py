@@ -17,6 +17,9 @@
 | الهروب | `BehaviorInfraction.auto_rule` in (class_escape, school_escape) بحصّته |
 | **دقائقُ الحضور** | دقائقُ الجدول − دقائقُ حصص الغياب − دقائقُ التأخّر − دقائقُ الخروج |
 
+والخروجُ في خانةٍ رُصدت غياباً (من لم يعد) يُعدّ مرّةً ولا تُطرح دقائقُه: الخانةُ كلُّها
+طُرحت غياباً.
+
 والخانةُ لا الحصّة: زوجُ الاختيار حصّتان في توقيتٍ واحد، والطالبُ في إحداهما —
 فيُعدّ بالخانة (التاريخ + وقتُ البدء) وتُنسب المادّةُ إلى أوّل حصّةٍ فيها.
 """
@@ -168,6 +171,9 @@ def presence_for(student, school, start: dt.date, end: dt.date) -> Presence:
         entry = subjects[subject]
         entry.subject = subject
         entry.exit_count += 1
+        if marks.get(key, ("",))[0] in ("absent", "excused"):
+            # الخانةُ غيابٌ كاملٌ طُرحت دقائقُها في (2) — فلا تُطرح دقائقُ خروجها ثانيةً.
+            continue
         until = timezone.make_aware(dt.datetime.combine(exit_.session.date, exit_.session.end_time))
         entry.exit_minutes += exit_.minutes_away(until)
 

@@ -89,10 +89,9 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 
 ```
 1. Railway يبني Docker image تلقائياً
-2. يُنفّذ scripts/railway-release.sh:
-   - Migrations
-   - Collectstatic
-3. يُشغّل gunicorn
+2. preDeployCommand — مرّةً واحدةً قبل أن تستقبل أيّ نسخةٍ الحركة (P4-1):
+   scripts/railway-predeploy.sh: Migrations + Collectstatic + دور RLS
+3. start — لكلّ نسخة: scripts/railway-release.sh (حارسٌ ثمّ daphne)
 4. يولّد domain: shschoolmvp-production.up.railway.app
 ```
 

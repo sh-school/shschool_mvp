@@ -35,7 +35,8 @@ class TransportService:
         """
         from django.db.models import Count, Q, Sum
 
-        from core.models import CustomUser, SchoolBus
+        from core.models import CustomUser
+        from transport.models import SchoolBus
 
         buses = (
             SchoolBus.objects.filter(school=school)
@@ -99,7 +100,8 @@ class TransportService:
         """
         from django.db.models import Sum
 
-        from core.models import CustomUser, SchoolBus
+        from core.models import CustomUser
+        from transport.models import SchoolBus
 
         buses = SchoolBus.objects.filter(school=school).select_related("supervisor")
         agg = buses.aggregate(total_capacity=Sum("capacity", default=0))

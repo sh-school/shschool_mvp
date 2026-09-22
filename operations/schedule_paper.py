@@ -30,7 +30,7 @@ from operations.bells import REGULAR, THURSDAY, Bell, bells_for
 from operations.models import ScheduleSlot
 
 if TYPE_CHECKING:
-    from core.models import School
+    from core.models import CustomUser, School
 
 #: عددُ الحصص في اليوم وعددُ أيّام الدراسة — شكلُ `days` في `ScheduleService`.
 PERIODS = 7
@@ -39,7 +39,7 @@ DAYS = 5
 
 @dataclass(frozen=True)
 class BreakItem:
-    """استراحةٌ في خانة: اسمُها ووقتُها، واسمُ جرسها حين يلتبس."""
+    """استراحةٌ في خانة: اسمُها ووقتُها واسمُ جرسها."""
 
     label: str
     start: dt.time
@@ -57,16 +57,24 @@ def bell_tables(school: School) -> dict[str, dict[str, Bell]]:
     return {REGULAR: bells_for(school, REGULAR), THURSDAY: bells_for(school, THURSDAY)}
 
 
-def band_label(bell: Bell) -> str:
-    """اسمُ الجرس في خانة الاستراحة: «الأرضيّ» و«التاسع» و«الثانويّ».
+#: اسمُ الجرس في خانة الاستراحة. «التاسع» وحدها تضلّل: تاسع 1·2 في الأرضيّ
+#: (بلاغ المستخدم 2026-09-16)، و«الطابق» أوّلُ كلمةٍ من اسم الأرضيّ لا تميّزه.
+#: والرقمان معزولان (U+2066…U+2069): مولّدُ PDF يقلبهما «4-3» بلا عازل.
+BAND_LABELS = {
+    "ground": "الأرضيّ",
+    "ninth": "تاسع \u20663-4\u2069",
+    "secondary": "الثانويّ",
+}
 
-    لا أوّلُ كلمةٍ من اسم النطاق وحدها (`Bell.band_short`): اسمُ الأرضيّ «الطابق
-    الأرضيّ (7، 8، …)» فأوّلُ كلمته «الطابق» — والأوّلُ طابقٌ أيضاً، فلا تميّز.
-    """
-    words = (bell.band_name or "").split()
-    if len(words) > 1 and words[0] == "الطابق":
-        return words[1]
-    return bell.band_short
+#: لونُ تمييز عمود الاستراحة بطابقه — على الشاشة وحدها (2026-09-18)، ليعرف
+#: معلّمُ الطابقين أيَّ صلاةٍ لأيّ طابقٍ بلمحةٍ لا بفتح الخليّة. مفتاحُه نصُّ
+#: `BAND_LABELS` نفسُه، فيبقى صحيحاً لو تغيّر اسمُ طابقٍ يوماً.
+BAND_COLOR_CLASS = {label: f"band-{code}" for code, label in BAND_LABELS.items()}
+
+
+def band_label(bell: Bell) -> str:
+    """اسمُ الجرس في خانة الاستراحة: «الأرضيّ» و«تاسع 3-4» و«الثانويّ»."""
+    return BAND_LABELS.get(bell.band_code) or bell.band_short
 
 
 def breaks_after(bell: Bell) -> list[tuple[int, BreakItem]]:
@@ -91,7 +99,8 @@ def breaks_after(bell: Bell) -> list[tuple[int, BreakItem]]:
 
 def _day_breaks(bands: list[str], table: dict[str, Bell]) -> list[tuple[int, BreakItem]]:
     """استراحاتُ يومٍ من أجراسه: المتطابقُ اسماً ووقتاً يُكتب مرّةً بأسماء أجراسه
-    كلِّها («التاسع · الثانويّ»)، واسمُ الجرس يبقى حيث تتكرّر الاستراحةُ نفسُها بوقتين."""
+    كلِّها («تاسع 3-4 · الثانويّ»). واسمُ الجرس مكتوبٌ دائماً: فسحةٌ بلا جرسٍ
+    تُقرأ فسحةَ الجميع، ووقتُها لا يصدق إلّا لجرسها."""
     seen: dict[tuple, tuple[int, list[str]]] = {}
     for code in [code for code in table if code in bands]:  # بترتيب الأجراس
         for after, item in breaks_after(table[code]):
@@ -101,17 +110,8 @@ def _day_breaks(bands: list[str], table: dict[str, Bell]) -> list[tuple[int, Bre
             if item.band not in seen[key][1]:
                 seen[key][1].append(item.band)
     ordered = sorted(seen.items(), key=lambda pair: (pair[0][1], pair[1][0]))
-    labels = [label for (label, _start, _end), _ in ordered]
     return [
-        (
-            after,
-            BreakItem(
-                label,
-                start,
-                end,
-                " · ".join(band_names) if labels.count(label) > 1 else "",
-            ),
-        )
+        (after, BreakItem(label, start, end, " · ".join(band_names)))
         for (label, start, end), (after, band_names) in ordered
     ]
 
@@ -141,11 +141,18 @@ def week_layout(
             columns.append({"kind": "period", "number": number})
         if number in positions:
             names = {item.label for breaks in per_day for after, item in breaks if after == number}
+            # طابقُ العمود: صحيحٌ فقط حين يتّفق كلُّ يومٍ يستعمل هذا الموضع على
+            # الاسم نفسه — فموضعٌ يخدم طابقين مختلفين في يومين مختلفين لا يُنسب
+            # لأحدهما كذباً، ويبقى بلا لونٍ في الترويسة.
+            bands = {item.band for breaks in per_day for after, item in breaks if after == number}
+            band = bands.pop() if len(bands) == 1 else ""
             columns.append(
                 {
                     "kind": "break",
                     "after": number,
                     "label": names.pop() if len(names) == 1 else "استراحة",
+                    "band": band,
+                    "band_class": BAND_COLOR_CLASS.get(band, ""),
                 }
             )
 
@@ -157,16 +164,118 @@ def week_layout(
             if column["kind"] == "period":
                 slots = cells[column["number"] - 1]
                 # الخانةُ المشتركةُ (حصّتان متوازيتان) بخطٍّ أصغر: كانت تُقصّ توقيتَ ثانيتهما.
-                entries.append({"kind": "period", "slots": slots, "multi": len(slots) > 1})
+                entries.append(
+                    {
+                        "kind": "period",
+                        "number": column["number"],
+                        "slots": slots,
+                        "multi": len(slots) > 1,
+                    }
+                )
             else:
                 entries.append(
                     {
                         "kind": "break",
                         "items": [item for after, item in per_day[d] if after == column["after"]],
+                        "band_class": column["band_class"],
                     }
                 )
         lines.append({"day": day_names[d], "entries": entries})
     return {"columns": columns, "lines": lines, "break_count": len(positions)}
+
+
+#: قراراتٌ ثلاثةٌ فقط تُلوَّن في الجدول (قرارُ المستخدم 2026-09-18) — «لتوليد
+#: الجدول» أداةُ تشكيلٍ لا قرارَ جهةٍ (انظر `TeacherExemption.SOFT_SOURCES`)،
+#: و«أخرى» فئةٌ مبهمةٌ لا تستحقّ لوناً مخصَّصاً. والصنفُ والتسميةُ والحرفُ
+#: القصيرُ من مصدرٍ واحدٍ هنا. والحرفُ لخانة الجدول العامّ الضيّقة (13px) —
+#: لا تسع تسميةً كاملةً كخلايا جدول المعلم الفردي فتُقرأ نصّاً هناك.
+EXEMPTION_COLORS: dict[str, tuple[str, str, str]] = {
+    "ministry": ("exempt-ministry", "قرارُ الوزارة", "و"),
+    "school": ("exempt-school", "قرارُ إدارة المدرسة", "إ"),
+    "department": ("exempt-department", "قرارُ القسم الأكاديميّ", "ق"),
+}
+
+
+def _fill_exemption_map(out: dict, day: int, period: int | None, source: str, reason: str) -> None:
+    """يومٌ كاملٌ يملأ حصصَه السبع بمصدره وسببه نفسيهما؛ وحصّةٌ بعينها خانتُها وحدها."""
+    if period is None:
+        for p in range(1, PERIODS + 1):
+            out[(day, p)] = (source, reason)
+    else:
+        out[(day, period)] = (source, reason)
+
+
+def teacher_exemption_map(
+    school: School, teacher: CustomUser, year: str
+) -> dict[tuple[int, int], tuple[str, str]]:
+    """(يوم، حصّة) ← (مصدرُ تفريغه، سببُه) — لمعلّمٍ واحد، وللقرارات الثلاثة الملوَّنة وحدها.
+
+    والخانةُ المشغولةُ فعلاً (تعارضٌ سابقُ التوليد) لا تُلوَّن — التلوينُ حكمٌ
+    على الفراغ لا فوق حصّةٍ قائمة. لجدول العام (معلّمون كثيرون معاً) انظر
+    `colored_exemptions_by_teacher` — استعلامٌ واحدٌ لا واحدٌ لكلّ معلّم.
+    """
+    from operations.models import TeacherExemption
+
+    rows = TeacherExemption.objects.filter(
+        school=school,
+        teacher=teacher,
+        academic_year=year,
+        is_active=True,
+        source__in=EXEMPTION_COLORS,
+    ).values_list("day_of_week", "period_number", "source", "reason")
+
+    out: dict[tuple[int, int], tuple[str, str]] = {}
+    for day, period, source, reason in rows:
+        _fill_exemption_map(out, day, period, source, reason)
+    return out
+
+
+def colored_exemptions_by_teacher(school: School, year: str) -> dict:
+    """معلّمٌ ← {(يوم، حصّة): (مصدر، سبب)} — استعلامٌ واحدٌ للمدرسة كلِّها.
+
+    الجدولُ العامّ سطرٌ لكلّ معلّمٍ من عشرات: استعلامٌ لكلّ سطرٍ سبعون
+    استعلاماً إضافيّاً على صفحةٍ واحدة (`N+1`) — وهذه نظيرتُها الجماعيّة.
+    """
+    from operations.models import TeacherExemption
+
+    rows = TeacherExemption.objects.filter(
+        school=school,
+        academic_year=year,
+        is_active=True,
+        source__in=EXEMPTION_COLORS,
+    ).values_list("teacher_id", "day_of_week", "period_number", "source", "reason")
+
+    out: dict = {}
+    for teacher_id, day, period, source, reason in rows:
+        _fill_exemption_map(out.setdefault(teacher_id, {}), day, period, source, reason)
+    return out
+
+
+def annotate_teacher_exemptions(
+    week: dict, exemption_map: dict[tuple[int, int], tuple[str, str]]
+) -> None:
+    """يضع صنفَ التلوين والسببَ على خانات الفراغ التي تطابق `exemption_map`.
+
+    الخليّةُ تكتب سببَ التفريغ («دورةٌ في الوزارة») لا اسمَ جهته («قرارُ
+    الوزارة») — ذاك تقوله الألوانُ نفسُها وشريطُ تفسيرها أسفل الجدول
+    (قرارُ المستخدم 2026-09-18)، فتكرارُه في كلّ خليّةٍ نثرٌ لا يزيد شيئاً.
+    واسمُ الجهة يبقى في `title` الخليّة للتلميح عند الحاجة.
+
+    يُعدَّل `week["lines"]` في مكانه — نداءٌ بعد `week_layout` مباشرةً، لا بديلٌ
+    عنها: تلك تبني الأعمدة والصفوف، وهذه تُلوّن ما بُني.
+    """
+    for day_index, line in enumerate(week["lines"]):
+        for entry in line["entries"]:
+            if entry["kind"] != "period" or entry["slots"]:
+                continue
+            found = exemption_map.get((day_index, entry["number"]))
+            if not found:
+                continue
+            source, reason = found
+            css_class, label, _letter = EXEMPTION_COLORS[source]
+            entry["exemption_class"] = css_class
+            entry["exemption_label"] = label
+            entry["exemption_reason"] = reason
 
 
 def grid_to_days(grid: dict) -> list:

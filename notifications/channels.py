@@ -20,8 +20,8 @@ def deliverable_external_channels(user, channels):
         channel
         for channel, allowed in (
             ("email", "email" in channels and bool(user.email)),
-            ("sms", "sms" in channels and bool(user.phone)),
-            ("whatsapp", "whatsapp" in channels and bool(user.phone)),
+            ("sms", "sms" in channels and bool(user.get_phone_decrypted())),
+            ("whatsapp", "whatsapp" in channels and bool(user.get_phone_decrypted())),
             ("push", "push" in channels),
         )
         if allowed

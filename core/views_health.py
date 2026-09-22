@@ -1,9 +1,10 @@
 """
 core/views_health.py
 ━━━━━━━━━━━━━━━━━━━
-GET /health/ — فحص صحة كامل (DB + Redis)
+GET /health/ — فحص صحة كامل (DB + Redis + بيان الملفات الثابتة)
 GET /ready/  — Readiness Probe خفيف (DB فقط — لـ load balancer و Kubernetes)
 GET /status/ — معلومات تشغيلية مفصّلة (DB + Redis + migrations + uptime + version)
+GET /health/worker/ — عمرُ آخر نبضةٍ للعامل (503 إن تجاوز 15 دقيقة) — يفحصه GitHub Actions
 
 الفرق:
   /health/ → Liveness: يتحقق من DB + Redis — للمراقبة والتنبيهات
@@ -17,6 +18,7 @@ import os
 import time
 
 from django.conf import settings
+from django.contrib.staticfiles.storage import staticfiles_storage
 from django.db import connection
 from django.http import JsonResponse
 from django.utils import timezone
@@ -28,6 +30,10 @@ _SERVER_START_TIME = time.monotonic()
 _SERVER_START_TIMESTAMP = timezone.now()
 
 logger = logging.getLogger(__name__)
+
+# ملفٌّ يستدعيه كلُّ قالبٍ أساسيّ. حادثة 2026-09-17: غاب بيانُ الثابت عن الحاويات
+# فسقطت كلُّ صفحةٍ و/health/ أخضر — فحوّل Railway الحركةَ إلى نسخةٍ ميتة.
+STATIC_PROBE = "fonts/Tajawal-Regular.woff2"
 
 
 @require_GET
@@ -55,6 +61,14 @@ def health_check(request):
     except Exception as e:  # noqa: BLE001 — broad catch intentional: health check must report any failure
         checks["cache"] = f"error: {type(e).__name__}"
         logger.error("health_check: Cache فشل: %s", e, exc_info=True)
+
+    # ── فحص بيان الملفات الثابتة (ManifestStaticFilesStorage يرفع إن غاب) ──
+    try:
+        staticfiles_storage.url(STATIC_PROBE)
+        checks["static"] = "ok"
+    except Exception as e:  # noqa: BLE001 — broad catch intentional: health check must report any failure
+        checks["static"] = f"error: {type(e).__name__}"
+        logger.error("health_check: الثابت غير مجموع: %s", e, exc_info=True)
 
     # ── الحالة الإجمالية ────────────────────────────────────────
     all_ok = all(v == "ok" for v in checks.values())
@@ -190,4 +204,31 @@ def status_check(request):
             "checks": checks,
         },
         status=status_code,
+    )
+
+
+@require_GET
+@never_cache
+def worker_heartbeat_check(request):
+    """عمرُ آخر نبضةٍ ختمها العامل — 200 سليم، 503 متوقّف أو غائب.
+
+    عامٌّ بلا مصادقة كـ`/health/` (يعيد رقماً وحالةً فقط)، ليفحصه GitHub Actions من خارج
+    Railway: العاملُ الميّتُ لا يُنذِر بنفسه، والمراقبةُ الداخليّةُ تسقط معه.
+    """
+    from core import worker_heartbeat as heartbeat
+
+    try:
+        beat = heartbeat.last_beat()
+    except Exception as exc:  # noqa: BLE001 — أيّ عطلٍ في Redis يُبلَّغ لا يُخفى
+        logger.error("worker_heartbeat_check: Redis فشل: %s", type(exc).__name__)
+        return JsonResponse({"status": "cache-unavailable"}, status=503)
+
+    if beat is None:
+        return JsonResponse({"status": "missing"}, status=503)
+
+    age = max(0, int(time.time() - beat))
+    fresh = age <= heartbeat.MAX_AGE_SECONDS
+    return JsonResponse(
+        {"status": "ok" if fresh else "stale", "age_seconds": age},
+        status=200 if fresh else 503,
     )

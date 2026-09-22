@@ -10,15 +10,10 @@ from decimal import Decimal
 
 import pytest
 
-from core.models import (
-    BehaviorInfraction,
-    BehaviorPointRecovery,
-    BookBorrowing,
-    BusRoute,
-    ClinicVisit,
-    LibraryBook,
-    SchoolBus,
-)
+from behavior.models import BehaviorInfraction, BehaviorPointRecovery
+from clinic.models import ClinicVisit
+from library.models import BookBorrowing, LibraryBook
+from transport.models import BusRoute, SchoolBus
 
 from .conftest import (
     BehaviorInfractionFactory,

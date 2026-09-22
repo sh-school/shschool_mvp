@@ -144,6 +144,34 @@ http_test() {
     return 0
 }
 
+# ── Protected-endpoint helper ───────────────────────────────────────────
+# protected_test URL LABEL
+# The endpoint must NOT be publicly readable: an unauthenticated request has to
+# be turned away (redirect to login, 401 or 403). A 200 here means it leaked.
+# Redirects are deliberately not followed — the login page itself is a 200.
+protected_test() {
+    local url="$1"
+    local label="$2"
+
+    local http_code
+    http_code=$(curl -sS -o /dev/null -w "%{http_code}"         --max-time "$TIMEOUT"         "$url" 2>/dev/null) || http_code="000"
+
+    case "$http_code" in
+        301|302|401|403)
+            pass_check "$label -> HTTP $http_code (protected, not public)"
+            ;;
+        200)
+            fail_check "$label -> HTTP 200 (publicly readable — should be protected)"
+            return 1
+            ;;
+        *)
+            fail_check "$label -> HTTP $http_code (expected 301/302/401/403)"
+            return 1
+            ;;
+    esac
+    return 0
+}
+
 # ════════════════════════════════════════════════════════════════════════
 echo ""
 echo -e "${BOLD}${CYAN}SchoolOS Post-Deploy Smoke Test${NC}"
@@ -160,8 +188,8 @@ echo -e "\n${BOLD}[2/5] Readiness endpoint${NC}"
 http_test "${BASE_URL}/ready/" "200" "" "/ready/"
 
 # ── 3. Status endpoint (JSON) ──────────────────────────────────────────
-echo -e "\n${BOLD}[3/5] Status endpoint (JSON)${NC}"
-http_test "${BASE_URL}/status/" "200" "json" "/status/"
+echo -e "\n${BOLD}[3/5] Status endpoint (must be protected)${NC}"
+protected_test "${BASE_URL}/status/" "/status/"
 
 # ── 4. Homepage / Login form ───────────────────────────────────────────
 echo -e "\n${BOLD}[4/5] Homepage (login form)${NC}"

@@ -1,5 +1,5 @@
 {% extends "reports/base_qatar_report.html" %}
-{% load privacy %}
+{% load privacy labels %}
 {% comment %}
   للمقيَّد بجناحه (`limited`): الرقمُ الشخصيُّ مستور، ولا درجاتٍ ولا أنشطة — والشاشةُ لا تحسبهما له.
 {% endcomment %}
@@ -31,7 +31,7 @@
   </tr>
   <tr>
     <th>الصف / الشعبة</th>
-    <td>{% if enrollment %}{{ enrollment.class_group.grade }} / {{ enrollment.class_group.section }}{% else %}—{% endif %}</td>
+    <td>{% if enrollment %}{% class_label enrollment.class_group.grade enrollment.class_group.section %}{% else %}—{% endif %}</td>
     <th>العام الدراسي</th>
     <td>{{ year }}</td>
   </tr>

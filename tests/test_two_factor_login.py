@@ -129,6 +129,9 @@ class TestEveryStaffMemberMustSetItUp:
     def test_a_teacher_with_totp_passes(self, client, school):
         user, _ = _leader_with_totp(school)
         client.force_login(user)
+        session = client.session
+        session["mfa_verified"] = True  # كما تكتبه صفحةُ التحقّق بعد الرمز
+        session.save()
 
         assert client.get(reverse("dashboard")).status_code == 200
 

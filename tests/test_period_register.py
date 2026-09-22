@@ -831,8 +831,11 @@ class TestTheScreen:
         assert reverse("wings:record_index") in body
 
     def test_the_supervisors_home_page_shows_his_sections_to_record(
-        self, client_as, school, klass, kids, teacher, supervisor
+        self, client_as, school, klass, kids, teacher, supervisor, monkeypatch
     ):
+        # يومُ دوام: يومَ الجمعة لا تُعرض الشُّعب، فالساعةُ الحقيقيّة تُسقطه آخرَ الأسبوع.
+        monkeypatch.setattr("django.utils.timezone.now", lambda: at(9, 0))
+
         body = client_as(supervisor).get(reverse("dashboard")).content.decode()
 
         assert klass.short_code in body
@@ -875,14 +878,19 @@ class TestTheScreen:
                 f"s-{kids[0].id}": "absent",
                 f"s-{kids[1].id}": "late",
                 f"m-{kids[1].id}": "9",
+                f"s-{kids[2].id}": "absent",
                 f"w-{kids[2].id}": "clinic",
+                # «حاضر» ومكانٌ خفيٌّ بقي في النموذج: الحاضرُ في فصله لا في العيادة.
+                f"w-{kids[3].id}": "clinic",
             },
         )
 
         c = PeriodConfirmation.objects.get(class_group=klass, date=SUNDAY)
-        assert (c.absent_count, c.late_count) == (1, 1)
+        assert (c.absent_count, c.late_count) == (2, 1)
         row = StudentAttendance.objects.get(session=periods[0], student=kids[2])
         assert row.whereabouts == "clinic"
+        row = StudentAttendance.objects.get(session=periods[0], student=kids[3])
+        assert (row.status, row.whereabouts) == ("present", "")
 
     def test_confirm_and_move_on_goes_to_the_next_section_awaiting_the_same_period(
         self, client_as, school, seeded_calendar, year, klass, kids, teacher, supervisor

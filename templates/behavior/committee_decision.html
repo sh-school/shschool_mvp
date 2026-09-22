@@ -29,6 +29,7 @@
   {% section_card "قرار اللجنة" icon="status_success" %}
     <form method="post">
       {% csrf_token %}
+      {% callout "warning" %}الإيقاف المؤقت والتصعيد يستدعيان وليَّ الأمر تلقائياً، والتصعيد إلى الدرجة 4 لا يُعكس.{% endcallout %}
       <div class="form-group">
         <label class="form-label" for="decisionNotes">ملاحظات اللجنة</label>
         <textarea name="action_taken" id="decisionNotes" rows="2" placeholder="ملاحظات اللجنة..." class="form-control"></textarea>
@@ -48,9 +49,9 @@
       </div>
       <div class="form-actions">
         <button name="decision" value="resolve" class="btn-success">{% icon "status_success" %} حل وإغلاق</button>
-        <button name="decision" value="suspend" class="btn-warning">{% icon "time" %} إيقاف مؤقت</button>
+        <button name="decision" value="suspend" class="btn-warning" data-confirm="يُسجَّل الإيقاف المؤقت ويُستدعى وليُّ الأمر تلقائياً. أتابع؟">{% icon "time" %} إيقاف مؤقت</button>
         {% if infraction.level == 3 %}
-        <button name="decision" value="escalate" class="btn-danger">{% icon "stats" %} تصعيد للدرجة 4</button>
+        <button name="decision" value="escalate" class="btn-danger" data-confirm="يُرفع التصعيد إلى الدرجة 4 ويُستدعى وليُّ الأمر تلقائياً، ولا يُعكس. أتابع؟">{% icon "stats" %} تصعيد للدرجة 4</button>
         {% endif %}
       </div>
     </form>

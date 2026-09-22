@@ -17,7 +17,8 @@ import pytest
 from django.http import HttpResponse
 from django.urls import reverse
 
-from core.models import BehaviorInfraction, Wing
+from behavior.models import BehaviorInfraction
+from core.models import Wing
 from core.permissions import get_teacher_student_ids
 from tests.conftest import (
     BehaviorInfractionFactory,
@@ -149,6 +150,36 @@ class TestRecording:
 
         assert resp.status_code == 302
         assert BehaviorInfraction.objects.filter(student=mine, reported_by=supervisor).exists()
+
+    def test_a_grave_record_lands_him_on_the_students_file_not_the_committee(
+        self, client_as, school, seeded_calendar, mine, supervisor
+    ):
+        """الجسيمةُ تُحال إلى اللجنة، والمشرفُ لا يدخل صفحتَها — فوجهتُه ملفُّ الطالب."""
+        client = client_as(supervisor)
+        profile = reverse("behavior:student_profile", kwargs={"student_id": mine.id})
+
+        resp = client.post(
+            reverse("behavior:report_infraction"), {**_record_payload(mine), "level": 3}
+        )
+        assert resp.status_code == 302
+        assert resp.url == profile
+        assert client.get(resp.url).status_code == 200
+
+        resp = client.post(
+            reverse("behavior:quick_log"),
+            {"student_id": str(mine.id), "description": "شجار", "level": 4},
+        )
+        assert resp.headers["HX-Redirect"] == profile
+        assert BehaviorInfraction.objects.filter(student=mine, level__gte=3).count() == 2
+
+    def test_the_principal_still_lands_on_the_committee(
+        self, client_as, school, seeded_calendar, theirs, principal
+    ):
+        resp = client_as(principal).post(
+            reverse("behavior:report_infraction"), {**_record_payload(theirs), "level": 3}
+        )
+
+        assert resp.url == reverse("behavior:committee")
 
     def test_a_student_of_another_wing_is_404_and_nothing_is_written(
         self, client_as, school, seeded_calendar, theirs, supervisor

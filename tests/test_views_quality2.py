@@ -1083,7 +1083,8 @@ class TestCreateEvaluation:
         client.force_login(admin)
         client.post(
             reverse("create_evaluation", kwargs={"employee_id": teacher.pk})
-            + "?year=2025-2026&period=S2",
+            # S1: التقريرُ السنويّ (S2) لا يُحفظ على المحاور الافتراضيّة (جولة الإصلاح 1).
+            + "?year=2025-2026&period=S1",
             {
                 "axis_professional": 15,
                 "axis_commitment": 15,
@@ -1161,6 +1162,7 @@ class TestMyEvaluations:
     def test_employee_sees_evaluations(self, client, school):
         admin = make_admin(school)
         teacher = make_teacher(school, "47")
+        # يُعلَن الموظّفُ بالتقرير بعد اعتماده — المسودّةُ لا تُعرض له (جولة الإصلاح 1).
         EmployeeEvaluation.objects.create(
             school=school,
             employee=teacher,
@@ -1171,6 +1173,7 @@ class TestMyEvaluations:
             axis_commitment=20,
             axis_teamwork=20,
             axis_development=20,
+            status="approved",
         )
         client.force_login(teacher)
         resp = client.get(reverse("my_evaluations"))

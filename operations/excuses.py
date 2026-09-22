@@ -31,8 +31,8 @@ from django.utils import timezone
 from core.models import AuditLog, CustomUser, School
 from core.photo_privacy import clean_photo
 from core.validators import FileTypeValidator
-from operations.bells import day_type_for
 from operations.models import AbsenceExcuse, StudentAttendance
+from operations.school_days import SchoolDays, student_grade
 
 #: القائمةُ المغلقة — بترتيب النصّ.
 CLOSED_LIST = ("medical", "bereavement", "family", "state_representation", "official")
@@ -63,29 +63,15 @@ def kinds() -> list[tuple[str, str, str]]:
     return [(k, labels[k], NEEDS_DOCUMENT.get(k, "")) for k in CLOSED_LIST]
 
 
-def is_school_day(school: School, day: dt.date) -> bool:
-    """يومٌ يدرس فيه الطلبة: أحدٌ إلى خميس، وليس في إجازةٍ من تقويم الوزارة."""
-    from core.models import CalendarEvent
+def _grace_after(school: School, back: dt.date, grade: str | None = None) -> dt.date:
+    """ثاني يومٍ دراسيٍّ بعد يوم العودة — بقاعدة `SchoolDays.grace_after` الواحدة، لا حلقةٍ
+    تستعلم عن كلّ يومٍ على حدة (كانت هنا قبل توحيدها مع `absence_file._SchoolDays`).
 
-    if not day_type_for(day):
-        return False
-    return not CalendarEvent.objects.filter(
-        academic_year__school=school,
-        event_type="break",
-        audience__in=("both", "students"),
-        start_date__lte=day,
-        end_date__gte=day,
-    ).exists()
-
-
-def _grace_after(school: School, back: dt.date) -> dt.date:
-    """ثاني يومٍ دراسيٍّ بعد يوم العودة."""
-    day, counted = back, 0
-    while counted < GRACE_DAYS:
-        day += dt.timedelta(days=1)
-        if is_school_day(school, day):
-            counted += 1
-    return day
+    و`grade` يضيّق الإجازاتِ إلى نطاق صفّ الطالب — إجازةُ الثاني عشر وحده لا تُخطئ مهلةَ
+    طالبٍ في السابع.
+    """
+    window = SchoolDays(school, back, back + dt.timedelta(days=60), grade)
+    return window.grace_after(back, GRACE_DAYS)
 
 
 def return_day(school: School, student: CustomUser, absence_day: dt.date) -> dt.date | None:
@@ -111,7 +97,7 @@ def deadline_of(school: School, student: CustomUser, absence_day: dt.date) -> dt
     ولا مهلةَ لمن لم يعد: يُعيد لا شيء، والعذرُ مقبولٌ عند المشرف حتى يعود ويمضي يوماه.
     """
     back = return_day(school, student, absence_day)
-    return None if back is None else _grace_after(school, back)
+    return None if back is None else _grace_after(school, back, student_grade(student, school))
 
 
 def first_late_day(
@@ -132,13 +118,14 @@ def first_late_day(
             ).values_list("session__date", flat=True)
         )
     )
+    grade = student_grade(student, school)
     closes: dict[dt.date, dt.date] = {}
     for day in days:
         back = next((a for a in attended if a >= day), None)
         if back is None:
             return None  # لم يعد بعد هذا اليوم — ولا بعد ما يليه
         if back not in closes:
-            closes[back] = _grace_after(school, back)
+            closes[back] = _grace_after(school, back, grade)
         if today > closes[back]:
             return day, closes[back]
     return None

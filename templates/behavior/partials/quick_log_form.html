@@ -24,7 +24,7 @@
  </div>
 
  <div class="form-group">
-  <label for="ql-violation" class="form-label">نوع المخالفة <span class="form-hint">(حسب اللائحة — اختياري)</span></label>
+  <label for="ql-violation" class="form-label">نوع المخالفة <span class="ui-field-hint">(حسب اللائحة — اختياري)</span></label>
   <select id="ql-violation" name="violation_category" class="form-control">
    <option value="">— اختر (اختياري) —</option>
    {% regroup violation_categories by get_degree_display as degree_list %}
@@ -51,18 +51,18 @@
    </label>
    {% endfor %}
   </div>
-  <p class="form-hint">1: بسيطة · 2: متوسطة · 3: جسيمة · 4: شديدة الخطورة</p>
+  <p class="ui-field-hint">1: بسيطة · 2: متوسطة · 3: جسيمة · 4: شديدة الخطورة</p>
  </fieldset>
 
  <div class="form-group">
   <label for="ql-desc" class="form-label">وصف المخالفة <span class="required">*</span></label>
   <textarea id="ql-desc" name="description" rows="3" maxlength="2000" required
             placeholder="اكتب وصفاً موجزاً للمخالفة..." class="form-control"></textarea>
-  <p class="form-hint" id="ql-desc-count">0 / 2000</p>
+  <p class="ui-field-hint" id="ql-desc-count">0 / 2000</p>
  </div>
 
  <div class="form-group">
-  <label for="ql-action" class="form-label">الإجراء المتخذ <span class="form-hint">(اختياري)</span></label>
+  <label for="ql-action" class="form-label">الإجراء المتخذ <span class="ui-field-hint">(اختياري)</span></label>
   <input id="ql-action" type="text" name="action_taken" maxlength="500"
          placeholder="مثال: تنبيه شفهي، تواصل مع ولي الأمر..." class="form-control">
  </div>

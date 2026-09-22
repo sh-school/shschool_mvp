@@ -28,11 +28,8 @@ from core.domain.tones import tone_for
 
 logger = logging.getLogger(__name__)
 
-from core.models import (
-    BehaviorInfraction,
-    ParentStudentLink,
-    StudentEnrollment,
-)
+from behavior.models import BehaviorInfraction
+from core.models import ParentStudentLink, StudentEnrollment
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
@@ -548,14 +545,14 @@ class BehaviorService:
             "infraction": infraction,
             "school": school,
             "class_name": class_name,
-            "student_grade": cg.get_grade_display() if cg else None,
+            "student_grade": cg.grade.removeprefix("G") if cg else None,
             "student_section": cg.section if cg else None,
             "infraction_count": infraction_count,
             "academic_year": academic_year_for_school(school),
             "generated_at": timezone.now(),
             "parent_name": parent.full_name if parent else None,
             "parent_id": parent.national_id if parent else None,
-            "parent_phone": getattr(parent, "phone", None) if parent else None,
+            "parent_phone": parent.get_phone_decrypted() if parent else None,
             "parent_email": parent.email if parent else None,
         }
 
@@ -572,16 +569,22 @@ class BehaviorService:
         حسب درجة المخالفة وتفضيلات كل ولي أمر.
         """
         try:
+            from django.urls import reverse
+
             from notifications.hub import NotificationHub
 
             event_type = f"behavior_l{infraction.level}"  # behavior_l1 … behavior_l4
+            # يومُ الحصّة إن عُرفت: مخالفةُ الرصد قد تُكتب اليومَ عن حصّةٍ مضت (تصحيح)،
+            # و`date` يومُ الكتابة لا يومُ الواقعة.
+            session = infraction.session if infraction.session_id else None
+            when = session.date if session is not None else infraction.date
             title = (
                 f"⚠️ مخالفة سلوكية — {infraction.student.full_name} "
                 f"({LEVEL_DISPLAY.get(infraction.level, '')})"
             )
             body = (
                 f"{LEVEL_DESC.get(infraction.level, '')}\n"
-                f"التاريخ: {infraction.date.strftime('%Y/%m/%d') if infraction.date else ''}"
+                f"التاريخ: {when.strftime('%Y/%m/%d') if when else ''}"
             )
 
             NotificationHub.dispatch_to_parents(
@@ -597,9 +600,7 @@ class BehaviorService:
                     # ما يطلبه قالبُ البريد المنسَّق — أسماءٌ مقروءةٌ لا كائنات،
                     # فالسياقُ يعبر Celery مُسلسَلاً.
                     "student_name": infraction.student.full_name,
-                    "infraction_date": (
-                        infraction.date.strftime("%Y/%m/%d") if infraction.date else ""
-                    ),
+                    "infraction_date": when.strftime("%Y/%m/%d") if when else "",
                     "level_display": LEVEL_DISPLAY.get(infraction.level, ""),
                     "level_description": LEVEL_DESC.get(infraction.level, ""),
                     "description": infraction.description or "",
@@ -613,8 +614,13 @@ class BehaviorService:
                 email_html_template="notifications/email/behavior_html.html",
                 email_text_template="notifications/email/behavior_text.txt",
                 related_object_id=infraction.pk,
-                related_url=f"/behavior/student/{infraction.student.pk}/",
+                # المستلمون أولياءُ أمورٍ وحدَهم (`dispatch_to_parents`)، وصفحةُ الطالب
+                # في `/behavior/student/` للكادر لا تُفتح لهم — فيصلون إلى بوابتهم.
+                related_url=reverse("parent_behavior"),
                 sent_by=reporter,
+                # مخالفةُ الرصد (الهروبُ من المدرسة) لمن يرى السلوكَ في بوابته وحدَه —
+                # كملخّص الرصد. ولم تكن تبلغ وليّاً قبل القرار، فلا تفتح له ما حُجب عنه.
+                behavior_viewers_only=bool(infraction.auto_rule),
             )
         except Exception as e:
             logger.error(

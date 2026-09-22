@@ -16,7 +16,7 @@
 
 ## والكتابةُ عبر الخدمة لا حولها
 
-`assignment_service.apply_assignment` هو المسارُ الوحيد: يفحص، ويسجّل في
+`assignment_services.apply_assignment` هو المسارُ الوحيد: يفحص، ويسجّل في
 التدقيق ما كان وما صار، ويحرس النقلَ من زميلٍ إلى آخر. والكتابةُ المباشرةُ
 هنا كانت ستلتفّ على ذلك كلِّه — فتنقل البياناتِ وتترك السجلَّ أعمى.
 """
@@ -29,7 +29,7 @@ import sys
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from academic_management import assignment_service as service
+from academic_management import assignment_services as service
 from core.academic_calendar import default_academic_year
 from core.models import ClassGroup, CustomUser, Membership, School
 from core.models.access import TEACHING_ROLES

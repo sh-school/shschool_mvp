@@ -1,28 +1,31 @@
-import datetime
-
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
-from assessments.models import AnnualSubjectResult, SubjectClassSetup
-from behavior.models import BehaviorInfraction
-from clinic.models import ClinicVisit
-from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required, has_capability
 from core.dashboard_presentation import present
-from core.domain.attendance import attendance_rate
-from core.models.academic import Wing, grade_order
-from library.models import BookBorrowing
-from operations.models import (
-    AbsenceAlert,
-    CompensatorySession,
-    Session,
-    StudentAttendance,
-    TeacherAbsence,
-    TeacherSwap,
+from core.dashboard_selectors import (
+    ADMIN_OPS_ROLES,
+    DIRECTOR_ROLES,
+    DIRECTOR_TITLES,
+    SERVICE_ROLES,
+    SPECIALIST_SOCIAL_ROLES,
+    TEACHER_ROLES,
+    THERAPIST_ROLES,
+    TRANSPORT_ROLES,
+    get_activities_ctx,
+    get_admin_ops_ctx,
+    get_director_ctx,
+    get_service_ctx,
+    get_specialist_social_ctx,
+    get_student_ctx,
+    get_teacher_ctx,
+    get_therapist_ctx,
+    get_transport_ctx,
+    supervisor_record_ctx,
 )
+<<<<<<< HEAD
 from transport.models import BusRoute, SchoolBus
 
 # ─────────────────────────────────────────────────────────────────────
@@ -552,12 +555,19 @@ _SERVICE_ROLES = {"nurse", "librarian", "it_technician"}
 
 # النقل المدرسي
 _TRANSPORT_ROLES = {"transport_officer", "bus_supervisor"}
+=======
+from core.models.academic import Wing
+>>>>>>> origin/main
 
 
 @login_required
 @capability_required("dashboard.open")
 def dashboard(request):
-    """لوحة التحكم الرئيسية — موزّع يعيد التوجيه أو يبني السياق حسب الدور."""
+    """لوحة التحكم الرئيسية — موزّع يعيد التوجيه أو يبني السياق حسب الدور.
+
+    كلُّ منطق جلب البيانات في `core/dashboard_selectors.py` (طبقةُ قراءة —
+    راجعها لسبب الفصل: حارس الطبقات يسقف كلّ دالّةٍ في ملفّ عروضٍ بستّين
+    سطراً وخمسة استدعاءات ORM، وكانت هذه الدالّة أثقل عرضٍ في المشروع)."""
     user = request.user
     school = user.get_school()
     role = user.get_role()
@@ -575,11 +585,19 @@ def dashboard(request):
     ctx = {"today": today, "school": school}
 
     if role == "student":
+<<<<<<< HEAD
         ctx.update(_get_student_ctx(user, school, today))
     elif user.is_superuser or role in _DIRECTOR_ROLES:
         ctx.update(_get_director_ctx(school, today))
         # العنوانُ باسم صاحب اللوحة: النائبُ كان يرى «لوحة تحكم المدير».
         ctx["dashboard_title"] = _DIRECTOR_TITLES.get(role, "لوحة تحكم المدير")
+=======
+        ctx.update(get_student_ctx(user, school, today))
+    elif user.is_superuser or role in DIRECTOR_ROLES:
+        ctx.update(get_director_ctx(school, today))
+        # العنوانُ باسم صاحب اللوحة: النائبُ كان يرى «لوحة تحكم المدير».
+        ctx["dashboard_title"] = DIRECTOR_TITLES.get(role, "لوحة تحكم المدير")
+>>>>>>> origin/main
         if has_capability(user, "wings.excuse_after_deadline"):
             # أعذارٌ أرسلها المشرفون بعد مهلة العودة — تنتظر النائبَ (قرارُ 2026-09-14).
             from operations.models import AbsenceExcuse
@@ -587,25 +605,25 @@ def dashboard(request):
             ctx["pending_excuses"] = AbsenceExcuse.objects.filter(
                 school=school, status="pending"
             ).count()
-    elif role in _TEACHER_ROLES:
-        ctx.update(_get_teacher_ctx(user, school, today, role))
-    elif role in _SPECIALIST_SOCIAL_ROLES:
-        ctx.update(_get_specialist_social_ctx(user, school, today))
-    elif role in _THERAPIST_ROLES:
-        ctx.update(_get_therapist_ctx(user, school, today))
+    elif role in TEACHER_ROLES:
+        ctx.update(get_teacher_ctx(user, school, today, role))
+    elif role in SPECIALIST_SOCIAL_ROLES:
+        ctx.update(get_specialist_social_ctx(user, school, today))
+    elif role in THERAPIST_ROLES:
+        ctx.update(get_therapist_ctx(user, school, today))
     elif role == "activities_coordinator":
-        ctx.update(_get_activities_ctx(user, school, today))
-    elif role in _ADMIN_OPS_ROLES:
-        ctx.update(_get_admin_ops_ctx(user, school, today, role))
-    elif role in _TRANSPORT_ROLES:
-        ctx.update(_get_transport_ctx(user, school, today))
-    elif role in _SERVICE_ROLES:
-        ctx.update(_get_service_ctx(user, school, today, role))
+        ctx.update(get_activities_ctx(user, school, today))
+    elif role in ADMIN_OPS_ROLES:
+        ctx.update(get_admin_ops_ctx(user, school, today, role))
+    elif role in TRANSPORT_ROLES:
+        ctx.update(get_transport_ctx(user, school, today))
+    elif role in SERVICE_ROLES:
+        ctx.update(get_service_ctx(user, school, today, role))
     elif Wing.is_held_by(user, today):
         # بديلُ الجناح من ملاحظي الطلبة وعمّال الخدمات (قرارُ المدير): لا لوحةَ لدوره،
         # ولوحتُه يومَ تكليفه رصدُ جناحه — لا «لم تُفعَّل صلاحيّاتُك».
         ctx["view_type"] = "wing_holder"
-        ctx.update(_supervisor_record_ctx(user, school, today))
+        ctx.update(supervisor_record_ctx(user, school, today))
     else:
         ctx["view_type"] = "other"
 

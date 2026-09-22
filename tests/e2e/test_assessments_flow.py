@@ -4,8 +4,12 @@ E2E Tests: تدفق الدرجات والتقييمات — SchoolOS v5.2
 يختبر: عرض الدرجات، التنقل بين صفحات التقييم، التحقق من الوصول.
 """
 
+import re
+
 import pytest
-from playwright.sync_api import expect
+
+pytest.importorskip("pytest_playwright")
+from playwright.sync_api import expect  # noqa: E402
 
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
 
@@ -17,7 +21,7 @@ class TestAssessmentsAccess:
         """المدير يستطيع الوصول لصفحة التقييمات."""
         principal_page.goto(f"{live_server.url}/assessments/")
         expect(principal_page.locator("main")).to_be_visible()
-        expect(principal_page).to_have_url(lambda url: "/assessments/" in url)
+        expect(principal_page).to_have_url(re.compile(r"/assessments/"))
 
     def test_teacher_can_access_assessments(self, teacher_page, live_server):
         """المعلم يستطيع الوصول لصفحة التقييمات."""

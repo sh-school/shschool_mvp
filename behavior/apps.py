@@ -13,7 +13,6 @@ class BehaviorConfig(AppConfig):
             name="behavior",
             label="السلوك والانضباط",
             url_prefix="/behavior/",
-            icon="bi-shield-check",
             allowed_roles={
                 "principal",
                 "vice_admin",

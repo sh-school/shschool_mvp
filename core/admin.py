@@ -189,7 +189,7 @@ class SchoolAdmin(admin.ModelAdmin):
         (
             "الهوية البصرية",
             {
-                "fields": ("logo",),
+                "fields": ("logo", "vision"),
                 "classes": ("collapse",),
             },
         ),

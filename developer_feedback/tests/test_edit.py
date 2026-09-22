@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from django.contrib.auth import get_user_model
 from django.core import mail
-from django.test import Client, TestCase
+from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 
 from developer_feedback.models import (
@@ -131,6 +131,7 @@ class MessageEditTests(TestCase):
             ).exists()
         )
 
+    @override_settings(DEVELOPER_FEEDBACK_RECIPIENT="dev@example.test")
     def test_edit_sends_smtp_notification(self):
         msg = self._make_message(self.user_a)
         c = Client()

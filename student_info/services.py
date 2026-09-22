@@ -122,7 +122,7 @@ def achievement_overview(school, year, grade="", track=""):
         if band is None:
             continue
         overall[band] += 1
-        by_grade[r.setup.class_group.get_grade_display()][band] += 1
+        by_grade[r.setup.class_group.grade.removeprefix("G")][band] += 1
         by_subject[r.setup.subject.name_ar][band] += 1
 
     return {

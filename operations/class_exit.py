@@ -1,11 +1,17 @@
-"""خروجُ الطالب من الفصل بإذن المعلّم — النقرتان، وما يُكتب في سجلّ الحضور.
+"""خروجُ الطالب من الفصل بإذن المعلّم — النقرتان، وكيف يبلغ أثرُهما كشفَ المشرف.
 
-- **«خرج بإذن»**: سطرُ `ClassExit` بلحظته ووجهته. لا يمسّ سجلَّ الحضور: الطالبُ
-  حاضرٌ خرج لدقائق.
-- **«عاد»**: يُغلق السطرَ بلحظة العودة.
-- **من لم يعد حتى نهاية الحصّة**: عند تثبيت المشرف (أو إغلاق اليوم) يُكتب في سجلّ
-  الحضور «غائب · `whereabouts` = العيادة/خرج بإذن» بمصدر `teacher_out` — فلا
-  يُحسب هارباً (`AWAY_WITH_LEAVE`) ولا يُعدّ حاضراً حصّةً غاب أكثرَها.
+- **«خرج بإذن»**: سطرُ `ClassExit` بلحظته ووجهته، ولا يُكتب في سجلّ الحضور شيءٌ
+  قبل تثبيت المشرف: التقريرُ اليوميّ وملفُّ الغياب وحكمُ اليوم تقرأ السجلَّ بكلّ
+  مصادره، فسطرٌ مؤقّتٌ كان سيظهر غياباً لم يثبّته أحد.
+- **«عاد»**: يُغلق السطرَ بلحظة العودة. وإن عاد قبل الجرس وكان المشرفُ قد ثبّته
+  غائباً **من هذا الخروج** رجع حاضراً تلقائيّاً، بسطرٍ في سجلّ المراجعة.
+- **ملءُ الكشف عند القراءة** (`period_register.prefill_of`): من لم يعد يُعرض للمشرف
+  «غائباً» بمكانه — العيادة أو «خرج بإذن» — بعلامة «بإذن المعلّم»، فتثبيتُه بلا
+  تغييرٍ يحفظه كذلك ولا يُحسب هارباً (`AWAY_WITH_LEAVE`). ودورةُ المياه داخلَ الجناح:
+  تبقى «حاضراً» بشارةٍ ما دامت الحصّةُ جاريةً.
+- **نهايةُ الحصّة** (`exit_reflection.finalize_exits_for_day`، مهمّةٌ مجدولة): يُغلق
+  الخروجُ المفتوحُ عند الجرس، ومن لم يعد في حصّةٍ مثبّتةٍ حاضراً دون أن يرى المشرفُ
+  خروجَه يُكتب «غائباً بإذن» — بسجلّ مراجعة. ولا يُغلق خروجٌ قبل نهاية حصّته أبداً.
 
 المعلّمُ لا يُدخل وقتاً: اللحظاتُ كلُّها من النقرة (قرارُ 2026-09-13).
 """
@@ -13,15 +19,25 @@
 from __future__ import annotations
 
 import datetime as dt
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from django.db import transaction
 from django.utils import timezone
 
-from operations.models import ClassExit, StudentAttendance
+from operations.models import ClassExit
+
+if TYPE_CHECKING:
+    from core.models import ClassGroup, CustomUser
+    from operations.models import Session
 
 #: وجهاتٌ تُخرج الطالبَ من الجناح فيحتاج بطاقةَ المشرف — فيُشعَر فوراً (قرارُ 2026-09-14).
 #: دورةُ المياه داخل الجناح، بلا إشعار.
 NOTIFY_SUPERVISOR_FOR = ("clinic", "admin")
+
+#: الوجهةُ التي لا تُغيّب الطالبَ ما دامت الحصّةُ جارية — داخلَ الجناح ودقائقُها قليلة
+#: (قرارُ 2026-09-16). فإن بقي خارجاً حتى الجرس حُسب غائباً بإذن.
+IN_WING = "restroom"
 
 #: وجهةُ الخروج → «أين الطالب» في سجلّ الحضور لمن لم يعد.
 WHEREABOUTS_OF = {
@@ -30,6 +46,7 @@ WHEREABOUTS_OF = {
     "restroom": "out_permit",
     "other": "out_permit",
 }
+#: مصدرٌ قديمٌ كان يُكتب عند التثبيت — يُقرأ ولا يُكتب بعد اليوم.
 TEACHER_OUT = "teacher_out"
 
 
@@ -64,7 +81,8 @@ def leave(session, student, destination: str, by, now: dt.datetime | None = None
 def _notify_supervisor(exit_: ClassExit) -> None:
     """يُشعِر من يحمل الجناحَ اليوم (أصيلاً أو بديلاً) — الطالبُ قادمٌ إليه لبطاقة الخروج.
 
-    الإشعارُ لا يُسقط الخروجَ إن تعذّر: نقرةُ المعلّم حقيقةٌ تُحفظ أوّلاً.
+    الإشعارُ لا يُسقط الخروجَ إن تعذّر: نقرةُ المعلّم حقيقةٌ تُحفظ أوّلاً. والرابطُ
+    يفتح عمودَ الحصّة نفسِها (`p=`)، لا الحصّةَ الجاريةَ حين يُقرأ الإشعار.
     """
     import logging
 
@@ -90,7 +108,7 @@ def _notify_supervisor(exit_: ClassExit) -> None:
                 "يحتاج بطاقةَ خروجٍ من الجناح."
             ),
             related_url=reverse("wings:record_section", args=[exit_.session.class_group_id])
-            + f"?date={exit_.session.date.isoformat()}",
+            + f"?date={exit_.session.date.isoformat()}&p={exit_.session.start_time:%H:%M}",
             related_object_id=str(exit_.pk),
             sent_by=exit_.allowed_by,
         )
@@ -99,13 +117,26 @@ def _notify_supervisor(exit_: ClassExit) -> None:
 
 
 @transaction.atomic
-def come_back(session, student, now: dt.datetime | None = None) -> ClassExit | None:
-    """نقرةُ «عاد» — تُغلق الخروجَ المفتوح؛ ولا شيءَ إن لم يكن خارجاً."""
+def come_back(
+    session: Session,
+    student: CustomUser,
+    now: dt.datetime | None = None,
+    by: CustomUser | None = None,
+) -> ClassExit | None:
+    """نقرةُ «عاد» — تُغلق الخروجَ المفتوح؛ ولا شيءَ إن لم يكن خارجاً.
+
+    والعودةُ قبل الجرس تُرجع «حاضراً» غيابَ المشرف المشتقَّ من هذا الخروج وحدَه
+    (`exit_reflection.revert_derived_absence`) — فلا غيابَ كاذبٌ على من حضر أكثرَ الحصّة.
+    """
     current = open_exit(session, student)
     if current is None:
         return None
     current.returned_at = now or timezone.now()
     current.save(update_fields=["returned_at"])
+    if current.returned_at < session_end(session):
+        from operations.exit_reflection import revert_derived_absence
+
+        revert_derived_absence(current, by=by or current.allowed_by, why="عاد قبل نهاية الحصّة")
     return current
 
 
@@ -113,36 +144,82 @@ def session_end(session) -> dt.datetime:
     return timezone.make_aware(dt.datetime.combine(session.date, session.end_time))
 
 
-@transaction.atomic
-def close_unreturned(session, by=None) -> int:
-    """من خرج ولم يعد حتى نهاية الحصّة: يُغلق خروجُه عند نهايتها، ويُكتب «غائب · بإذن».
+def is_unreturned(exit_: ClassExit) -> bool:
+    """لم يعد قبل نهاية حصّته: خروجٌ مفتوح، أو عودةٌ عند الجرس أو بعده."""
+    end = session_end(exit_.session)
+    return exit_.left_at < end and (exit_.returned_at is None or exit_.returned_at >= end)
 
-    يُستدعى عند تثبيت المشرف للحصّة، ولا يكتب فوق ما رصده المشرفُ أو ما كان مكتوباً
-    بمصدر المشرف — التثبيتُ سيّدُ السجلّ.
+
+@transaction.atomic
+def close_unreturned(session: Session, now: dt.datetime | None = None) -> int:
+    """يُغلق عند نهاية الحصّة كلَّ خروجٍ بقي مفتوحاً — ويُرجع عددَها.
+
+    لا يُغلق قبل الجرس: خروجٌ أُغلق مبكّراً يُسقط «عاد» و«إلغاء» من يد المعلّم، ويُضخّم
+    دقائقَ الغياب إلى نهاية الحصّة (كان التثبيتُ في بدء الحصّة يفعل ذلك). ولا يكتب في
+    سجلّ الحضور: أثرُ الخروج هناك يُقرأ عند العرض ويُحسم بالتثبيت أو بنهاية الحصّة.
     """
     end = session_end(session)
-    closed = 0
-    for exit_ in ClassExit.objects.filter(
+    if (now or timezone.now()) < end:
+        return 0
+    return ClassExit.objects.filter(
         session=session, returned_at__isnull=True, left_at__lt=end
-    ):
-        exit_.returned_at = end
-        exit_.save(update_fields=["returned_at"])
-        closed += 1
-        row = StudentAttendance.objects.filter(session=session, student=exit_.student).first()
-        if row is not None and row.source == "supervisor":
+    ).update(returned_at=end)
+
+
+@dataclass(frozen=True)
+class Away:
+    """خروجٌ لم يعد صاحبُه قبل نهاية حصّته — كما يُعرض في الكشف.
+
+    `exit` فارغٌ لسطرٍ قديمٍ بمصدر `teacher_out` لا خروجَ وراءه يُقرأ.
+    """
+
+    exit: ClassExit | None
+    whereabouts: str
+    destination: str = ""
+    left_at: dt.datetime | None = None
+    still_open: bool = False
+
+    @property
+    def destination_label(self) -> str:
+        return dict(ClassExit.DESTINATIONS).get(self.destination, "")
+
+    def counts_as_absent(self, now: dt.datetime, end: dt.datetime) -> bool:
+        """هل يُحسب غائباً الآن؟ — دورةُ المياه الجاريةُ لا، حتى يرنّ الجرسُ وهو خارج."""
+        return not (self.destination == IN_WING and self.still_open and now < end)
+
+
+def away_of(exit_: ClassExit) -> Away:
+    return Away(
+        exit=exit_,
+        whereabouts=WHEREABOUTS_OF.get(exit_.destination, "out_permit"),
+        destination=exit_.destination,
+        left_at=exit_.left_at,
+        still_open=exit_.returned_at is None,
+    )
+
+
+def unreturned_of(class_group: ClassGroup, day: dt.date) -> dict:
+    """`{student_id: {start_time: Away}}` — من لم يعد قبل نهاية حصّته، باستعلامٍ واحد.
+
+    والمفتاحُ وقتُ البدء: خروجٌ من إحدى حصّتَي زوج الاختيار يملأ خانتَهما الواحدة.
+    وإن تعدّد في الخانة فالأحدثُ، والمفتوحُ يغلب ما أُغلق عند الجرس.
+    """
+    out: dict = {}
+    exits = (
+        ClassExit.objects.filter(session__class_group=class_group, session__date=day)
+        .exclude(session__status="cancelled")
+        .select_related("session")
+        .order_by("left_at")
+    )
+    for exit_ in exits:
+        if not is_unreturned(exit_):
             continue
-        StudentAttendance.objects.update_or_create(
-            session=session,
-            student=exit_.student,
-            defaults={
-                "school": session.school,
-                "status": "absent",
-                "source": TEACHER_OUT,
-                "marked_by": by or exit_.allowed_by,
-                "whereabouts": WHEREABOUTS_OF.get(exit_.destination, "out_permit"),
-            },
-        )
-    return closed
+        slot = out.setdefault(exit_.student_id, {})
+        current = slot.get(exit_.session.start_time)
+        if current is not None and current.still_open and exit_.returned_at is not None:
+            continue
+        slot[exit_.session.start_time] = away_of(exit_)
+    return out
 
 
 def exits_of_session(session) -> dict:

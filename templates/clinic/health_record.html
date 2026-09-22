@@ -33,13 +33,14 @@
             {% field "emergency_contact_name" "اسم جهة الطوارئ" value=health_record.emergency_contact_name placeholder="اسم ولي الأمر" %}
             {% field "emergency_contact_phone" "هاتف الطوارئ" type="tel" inputmode="tel" value=health_record.emergency_contact_phone placeholder="+974XXXXXXXX" %}
           </div>
+          {% callout "warning" %}بياناتٌ صحّيّةٌ ذاتُ طبيعةٍ خاصّة، وكلُّ اطّلاعٍ عليها وتعديلٍ فيها يُسجَّل باسمك في سجلّ المراجعة.{% endcallout %}
           <button type="submit" class="btn-danger mt-4 w-full py-2 text-sm font-bold">
             {% icon "save" %} حفظ السجل الصحي
           </button>
         </form>
 
         {% if health_record.updated_at %}
-        <p class="form-hint text-center">آخر تحديث: {{ health_record.updated_at|date:"d/m/Y H:i" }}</p>
+        <p class="ui-field-hint text-center">آخر تحديث: {{ health_record.updated_at|date:"d/m/Y H:i" }}</p>
         {% endif %}
       {% endsection_card %}
     </div>
@@ -61,6 +62,8 @@
               {% endif %}
               {% if visit.parent_notified %}
               <span class="status-badge status-success">{% icon "confirm" %} أُبلغ ولي الأمر</span>
+              {% elif visit.is_sent_home %}
+              <span class="status-badge status-danger">لم يُبلَّغ ولي الأمر</span>
               {% endif %}
               {% if visit.temperature %}
               <span class="clinic-temp{% if visit.is_feverish %} is-fever{% endif %}">{{ visit.temperature }}°</span>

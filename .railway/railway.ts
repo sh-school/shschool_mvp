@@ -46,6 +46,9 @@ const SHARED_VARIABLES = [
   "DJANGO_SETTINGS_MODULE",
   "EXCEL_PROTECTION_PASSWORD",
   "FERNET_KEY",
+  // المفاتيحُ القديمة لكلّ خدمةٍ تقرأ المشفَّر — كانت للعامل وحدَه، فتدويرُ
+  // المفتاح يكسر القراءةَ على الويب (حادثة الثنائيّة 2026-09-14). P1-5.
+  "FERNET_OLD_KEYS",
   "REDIS_URL",
   "SECRET_KEY",
   "SENTRY_DSN",
@@ -80,7 +83,6 @@ const WEB_VARIABLES = [
 
 const WORKER_VARIABLES = [
   ...SHARED_VARIABLES,
-  "FERNET_OLD_KEYS",
   // مهمّةُ الاحتفاظ بالبيانات (`core.enforce_data_retention`) تعمل في العامل لا في الويب،
   // فالمدّةُ تُقرأ هنا — وإلّا سرى افتراضُ الإعدادات (730) مهما ضُبط على الويب.
   "PDPPL_DATA_RETENTION_DAYS",
@@ -95,6 +97,9 @@ export default defineRailway(() => {
   const web = service("shschool_mvp", {
     source: github(REPO),
     build: DOCKER_BUILD,
+    // preDeploy يُنفَّذ مرّةً واحدةً قبل أن تستقبل أيّ نسخةٍ الحركة: الهجراتُ
+    // والبذرُ والثابتُ وتوفيرُ دور RLS. start بعده لكلّ نسخةٍ: حارسٌ ثمّ daphne (P4-1).
+    preDeploy: "bash scripts/railway-predeploy.sh",
     start: "bash scripts/railway-release.sh",
     healthcheck: "/health/",
     healthcheckTimeout: 100,

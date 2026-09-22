@@ -49,3 +49,22 @@ def test_data_retention_is_scheduled_weekly_at_dawn():
     when = entries[0]["schedule"]
     assert len(when.day_of_week) == 1, "أسبوعيّاً: يومٌ واحدٌ في الأسبوع"
     assert max(when.hour) <= 5, "فجراً: قبل بداية الدوام"
+
+
+def test_worker_heartbeat_runs_every_five_minutes_or_less():
+    """P4-9: غيابُ النبضة عن Sentry Crons هو الإنذار — فترةٌ أطول تُبطئ الاكتشاف."""
+    app.loader.import_default_modules()
+    entries = [e for e in app.conf.beat_schedule.values() if e["task"] == "core.worker_heartbeat"]
+    assert len(entries) == 1, "لا نبضةَ عاملٍ في الجدول — أو فيها مرّتين"
+    when = entries[0]["schedule"]
+    minutes = sorted(when.minute)
+    gaps = [b - a for a, b in zip(minutes, minutes[1:])] or [60]
+    gaps.append(60 - minutes[-1] + minutes[0])
+    assert max(gaps) <= 5, "فجوةٌ بين نبضتين أطولُ من خمس دقائق"
+
+
+def test_sentry_watches_the_scheduled_tasks_in_production_and_staging():
+    """بلا `monitor_beat_tasks=True` توقّفُ العامل صامتٌ — لا فائدةَ من نبضةٍ لا يراها أحد."""
+    for module in ("production", "staging"):
+        source = pathlib.Path(f"shschool/settings/{module}.py").read_text(encoding="utf-8")
+        assert "monitor_beat_tasks=True" in source, module

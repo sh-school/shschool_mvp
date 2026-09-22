@@ -11,10 +11,10 @@
 .doc-body > table:not([class]) thead th.subject-head { font-size: 9px; }
 {% endblock %}
 
-{% block report_title %}كشف النتائج السنوية — {{ class_group }} — {{ year }}{% endblock %}
+{% block report_title %}كشف النتائج السنوية — {{ class_group.short_label }} — {{ year }}{% endblock %}
 
 {% block report_meta_cells %}
-<td>الفصل: <strong>{{ class_group }}</strong></td>
+<td>الفصل: <strong>{{ class_group.short_label }}</strong></td>
 <td>السنة: <strong>{{ year }}</strong></td>
 <td>تاريخ الطباعة: <strong>{{ print_date }}</strong></td>
 {% endblock %}

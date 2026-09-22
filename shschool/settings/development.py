@@ -58,6 +58,22 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
+# ── S3/R2 اختياريٌّ محلياً — راية Opt-in لكلّ شجرة عملٍ على حدة (البند 11) ──
+# الإنتاجُ يفرضه دائماً (production.py)؛ التطويرُ يبقى DatabaseStorage افتراضاً
+# كي لا يُكسَر أيّ شجرةِ عملٍ أخرى لا تحمل مفاتيح R2 في .env الخاصّ بها.
+if USE_S3:
+    from core.storage_config import s3_default_storage
+
+    _s3_storage, MEDIA_URL = s3_default_storage(
+        access_key_id=AWS_ACCESS_KEY_ID,
+        secret_access_key=AWS_SECRET_ACCESS_KEY,
+        bucket_name=AWS_STORAGE_BUCKET_NAME,
+        region_name=AWS_S3_REGION_NAME,
+        endpoint_url=AWS_S3_ENDPOINT_URL,
+        querystring_expire=AWS_QUERYSTRING_EXPIRE,
+    )
+    STORAGES["default"] = _s3_storage
+
 # ── تطوير: CSP معطّلة — Tailwind CDN يتعارض معها ──────────
 # نزعُ الوسيط يكفي؛ وأيّ توجيهات هنا لا تُقرأ بعد ذلك، فلا تُترك موهِمة.
 MIDDLEWARE = [m for m in MIDDLEWARE if m != "csp.middleware.CSPMiddleware"]

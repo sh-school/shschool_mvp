@@ -1,0 +1,48 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% load navigation %}
+{% block title %}رصد حضور الموظفين{% endblock %}
+{% block breadcrumbs %}
+{% if request.user|can_open:"staff_affairs:dashboard" %}
+{% url 'staff_affairs:dashboard' as dashboard_url %}{% include "components/breadcrumbs.html" with parent_url=dashboard_url parent_label="شؤون الموظفين" current="رصد الحضور" %}
+{% else %}
+{% include "components/breadcrumbs.html" with current="رصد الحضور" %}
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "رصد حضور الموظفين" subtitle="بعد 7:00 متأخّر، وبعد 9:00 غائب ما لم يغطِّه إذنٌ معتمد أو عذرٌ مقبول، والانصراف قبل 14:00 يُعدّ — سياسة الحضور ت/د 2027/01، البنود 1.1 و2.1 و2.4" icon="attendance_register" %}
+    {% if request.user|can_open:"staff_affairs:attendance_report" %}<a href="{% url 'staff_affairs:attendance_report' %}" class="btn-secondary btn-sm">{% icon "reports" %} تقرير الشهر</a>{% endif %}
+    {% if request.user|can_open:"staff_affairs:permit_queue" %}<a href="{% url 'staff_affairs:permit_queue' %}" class="btn-secondary btn-sm">{% icon "checklist" %} طلبات الأذونات</a>{% endif %}
+  {% endpage_header %}
+
+  {% if can_record %}
+  {% filter_bar "اختيار يوم الرصد" %}
+    {% field "date" "اليوم" type="date" value=day|date:"Y-m-d" max=today|date:"Y-m-d" data_autosubmit=True %}
+    <div class="filter-actions">
+      <a href="{% url 'staff_affairs:attendance_board' %}" class="btn-secondary btn-xs">اليوم</a>
+    </div>
+  {% endfilter_bar %}
+
+  {% kpi_strip label="أرقام رصد اليوم" %}
+    {% kpi "حاضر" counts.present tone="green" %}
+    {% kpi "متأخّر" counts.late tone="amber" %}
+    {% kpi "غائب" counts.absent tone="red" %}
+    {% kpi "مستأذن" counts.permitted tone="sky" %}
+    {% kpi "لم يُرصد" counts.unmarked tone="maroon" %}
+  {% endkpi_strip %}
+
+  {% section_card "الكادر" meta=day|date:"l d/m/Y" icon="staff" flush=True empty="لا كادرَ نشطاً في هذه المدرسة" %}{% if rows %}
+    <div class="att-list">
+      {% for row in rows %}{% include "staff_affairs/partials/attendance_row.html" with staff=row.staff record=row.record values=row.values %}{% endfor %}
+    </div>
+  {% endif %}{% endsection_card %}
+  {% else %}
+  {% section_card "الرصد بالإنابة" icon="staff" %}
+    <p>يُفتح رصدُ الحضور وقبولُ العذر لنائب الشؤون الإدارية حين ينوب عن المدير: غيابُه المرصودُ اليوم، أو إنابتُه الصريحة، أو شغورُ المنصب (م-24 وم-25). والمديرُ حاضرٌ الآن، فالرصدُ للسكرتارية والمدير.</p>
+  {% endsection_card %}
+  {% endif %}
+</div>
+{% endblock %}

@@ -6,6 +6,7 @@ parents/views.py — thin views (Phase 4)
 import json
 import logging
 import re
+from datetime import timedelta
 
 from django.conf import settings
 
@@ -16,6 +17,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import CharField, Exists, F, Func, OuterRef, Q, Subquery, Value
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -25,7 +27,6 @@ from behavior.models import BehaviorInfraction
 from core.capabilities import capability_required
 from core.domain.tones import ATTENDANCE_KPI, AVERAGE_KPI, tone_for
 from core.models import (
-    ConsentRecord,
     CustomUser,
     Membership,
     ParentStudentLink,
@@ -35,7 +36,7 @@ from core.models import (
 from core.sorting import apply_sort, arabic_key
 from operations.models import AbsenceAlert
 
-from .services import ParentService
+from .services import ParentService, consent_state, save_consents
 
 
 def _get_parent_school(request):
@@ -308,19 +309,26 @@ def parent_behavior(request):
         BehaviorInfraction.objects.filter(
             school=school, student_id__in=[link.student_id for link in links]
         )
-        .select_related("violation_category")
-        .order_by("-date")
+        .select_related("violation_category", "session")
+        # يومُ الحصّة لا يومُ الكتابة: تصحيحٌ اليومَ عن حصّةٍ مضت يُكتب اليوم، فلو رُتّب
+        # بـ`date` لعلا الأيّامَ الأحدث وهو أقدمُ منها في العرض.
+        .annotate(shown_day=Coalesce("session__date", "date"))
+        .order_by("-shown_day", F("session__start_time").desc(nulls_last=True), "-created_at")
     ):
         by_student.setdefault(infraction.student_id, []).append(infraction)
 
+    recent_from = timezone.localdate() - timedelta(days=14)
     children_behavior = []
     for link in links:
         infractions = by_student.get(link.student_id, [])
         unresolved = sum(1 for inf in infractions if not inf.is_resolved)
+        # عشرةٌ على الأقلّ، وكلُّ ما في الأسبوعين الأخيرين وإن زاد: ملخّصُ الرصد يقول
+        # «التفاصيل في البوابة» عن أيّامٍ خمسةٍ مضت، والرصدُ يكتب صفوفاً عدّةً في اليوم.
+        recent = sum(1 for inf in infractions if inf.shown_day >= recent_from)
         children_behavior.append(
             {
                 "student": link.student,
-                "infractions": infractions[:10],
+                "infractions": infractions[: max(10, recent)],
                 "total_infractions": len(infractions),
                 "unresolved": unresolved,
                 "unresolved_tone": "amber" if unresolved else "green",
@@ -540,6 +548,17 @@ def _parent_from_identity(request, school, national_id, full_name, phone, email=
     return parent
 
 
+def _member_of_school(school, user_id, **extra_filters):
+    """مستخدمٌ ضمن مدرسةٍ محدّدة — يمنع IDOR بتمرير معرِّفٍ من مدرسةٍ أخرى."""
+    return get_object_or_404(
+        CustomUser,
+        id=user_id,
+        memberships__school=school,
+        memberships__is_active=True,
+        **extra_filters,
+    )
+
+
 @login_required
 @capability_required("parents.admin")
 def add_parent_link(request):
@@ -568,10 +587,10 @@ def add_parent_link(request):
     if not student_id:
         messages.error(request, "اختر الطالبَ المراد ربطُه.")
         return redirect("manage_parent_links")
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = _member_of_school(school, student_id)
 
     if parent_id:
-        parent = get_object_or_404(CustomUser, id=parent_id)
+        parent = _member_of_school(school, parent_id, memberships__role__name="parent")
     else:
         parent = _parent_from_identity(request, school, national_id, full_name, phone, email)
         if parent is None:
@@ -628,50 +647,19 @@ def consent_view(request):
     if not request.user.has_role("parent") and not request.user.is_superuser:
         return HttpResponse("هذه الصفحة لأولياء الأمور فقط.", status=403)
 
-    school = request.user.get_school()
+    # مدرسةُ عضويّة وليّ الأمر كما تقرؤها البوّابة — لا مدرسةُ الدور الحاكم، فالكادرُ
+    # الذي هو وليُّ أمرٍ قد تكون عضويّتُه الحاكمةُ في غيرها فلا يرى أبناءه هنا.
+    school = _get_parent_school(request) or request.user.get_school()
     links = ParentStudentLink.objects.filter(parent=request.user, school=school).select_related(
         "student"
     )
 
     if request.method == "POST":
-        for link in links:
-            for dt, _ in DATA_TYPES:
-                is_given = request.POST.get(f"consent_{link.student_id}_{dt}") == "1"
-                obj, created = ConsentRecord.objects.get_or_create(
-                    parent=request.user,
-                    student=link.student,
-                    school=school,
-                    data_type=dt,
-                    defaults={
-                        "is_given": is_given,
-                        "method": "digital",
-                        "recorded_by": request.user,
-                    },
-                )
-                if not created and obj.is_given != is_given:
-                    obj.is_given = is_given
-                    obj.withdrawn_at = None if is_given else timezone.now()
-                    obj.save(update_fields=["is_given", "withdrawn_at"])
-
-        if not request.user.consent_given_at:
-            request.user.consent_given_at = timezone.now()
-            request.user.save(update_fields=["consent_given_at"])
-
+        save_consents(request.user, school, links, request.POST, DATA_TYPES)
         messages.success(request, "تم حفظ إعدادات الموافقة بنجاح.")
         return redirect("parent_dashboard")
 
-    # Batch load all consent records (avoid N+1)
-    student_ids = [link.student_id for link in links]
-    all_consents = ConsentRecord.objects.filter(
-        parent=request.user, student_id__in=student_ids
-    ).values_list("student_id", "data_type", "is_given")
-    consent_map = {(str(sid), dt): given for sid, dt, given in all_consents}
-    consent_data = {
-        str(link.student_id): {
-            dt: consent_map.get((str(link.student_id), dt), True) for dt, _ in DATA_TYPES
-        }
-        for link in links
-    }
+    consent_data = consent_state(request.user, links, DATA_TYPES)
 
     import json as _json
 

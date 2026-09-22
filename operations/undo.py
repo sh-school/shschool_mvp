@@ -5,7 +5,9 @@
 - **لا شيءَ يُمحى صامتاً.** كلُّ تراجعٍ يكتب سطراً في `AuditLog`: من تراجع، وعن ماذا،
   ولماذا، وما كان قبله — فالأصلُ يبقى مقروءاً وإن زال من الرصد.
 - **المعلّمُ يتراجع عن نقرته وحدَها** ما دام المشرفُ لم يثبّت (مصدرُها `teacher_late` أو
-  `ClassExit` مفتوح). وبعد التثبيت صار السجلُّ للمشرف، وتصحيحُه بإعادة التثبيت.
+  `ClassExit` مفتوح). وبعد التثبيت صار السجلُّ للمشرف، وتصحيحُه بإعادة التثبيت —
+  إلّا غياباً اشتُقّ من الخروج الملغى نفسِه (`StudentAttendance.exit`): يرجع حاضراً معه،
+  فلا يبقى غيابٌ لا خروجَ وراءه.
 - **المشرفُ والنائبُ يحذفان حدثاً من ملف الطالب** (غياب/تأخّر/خروج) بسبب — ويزول معه
   ما أنشأه آليّاً (مخالفةُ تأخّرٍ أو هروب) عبر إعادة حكم الكشف على اليوم.
 """
@@ -53,7 +55,12 @@ def undo_late_tap(request, session, student) -> bool:
 
 @transaction.atomic
 def cancel_exit(request, session, student) -> bool:
-    """المعلّمُ يلغي «خرج بإذن» المفتوحَ — نقرةٌ على طالبٍ آخر؛ لا أثرَ لها في الدقائق."""
+    """المعلّمُ يلغي «خرج بإذن» المفتوحَ — نقرةٌ على طالبٍ آخر؛ لا أثرَ لها في الدقائق.
+
+    وإن كان المشرفُ قد ثبّته غائباً من هذا الخروج رجع حاضراً (قرارُ 2026-09-16).
+    """
+    from operations.exit_reflection import revert_derived_absence
+
     current = ClassExit.objects.filter(
         session=session, student=student, returned_at__isnull=True
     ).first()
@@ -67,6 +74,7 @@ def cancel_exit(request, session, student) -> bool:
         repr_=f"إلغاءُ «خرج بإذن» — {student.full_name} · {session}",
         changes={"destination": current.destination, "left_at": current.left_at.isoformat()},
     )
+    revert_derived_absence(current, by=request.user, why="ألغى المعلّمُ الخروج")
     current.delete()
     return True
 
@@ -105,7 +113,13 @@ def delete_attendance_event(request, row: StudentAttendance, reason: str) -> Non
 
 @transaction.atomic
 def delete_exit_event(request, exit_: ClassExit, reason: str) -> None:
-    """حذفُ خروجٍ من ملف الطالب بسبب."""
+    """حذفُ خروجٍ من ملف الطالب بسبب — والغيابُ المشتقُّ منه يرجع حاضراً معه.
+
+    الحذفُ يمحو رقمَ الخروج من سطر الحضور (`SET_NULL`)، فلو بقي الغيابُ لصار كغيابٍ قاله
+    المشرفُ بنفسه: لا عودةَ تُرجعه ولا أثرَ يدلّ عليه. فيُحسم قبل الحذف كما في الإلغاء.
+    """
+    from operations.exit_reflection import revert_derived_absence
+
     _audit(
         request,
         action="delete",
@@ -119,4 +133,5 @@ def delete_exit_event(request, exit_: ClassExit, reason: str) -> None:
             "reason": reason,
         },
     )
+    revert_derived_absence(exit_, by=request.user, why=f"حُذف الخروجُ من ملف الطالب — {reason}")
     exit_.delete()

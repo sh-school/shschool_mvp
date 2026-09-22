@@ -13,7 +13,6 @@ class StagingConfig(AppConfig):
             name="staging",
             label="الاستيراد والتصدير",
             url_prefix="/staging/",
-            icon="bi-cloud-upload",
             allowed_roles={"principal", "vice_academic", "vice_admin", "admin", "secretary"},
             sort_order=85,
         )

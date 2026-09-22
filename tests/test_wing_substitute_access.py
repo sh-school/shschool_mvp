@@ -23,6 +23,14 @@ from tests.conftest import MembershipFactory, RoleFactory, UserFactory
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture(autouse=True)
+def on_a_school_day(monkeypatch):
+    """الأربعاءُ صباحاً: يومَ الجمعة لا تُعرض الشُّعب (لا دوام)، فاختبارٌ على الساعة
+    الحقيقيّة يسقط آخرَ الأسبوع وحدَه."""
+    frozen = timezone.make_aware(dt.datetime(2026, 9, 16, 9, 0))
+    monkeypatch.setattr("django.utils.timezone.now", lambda: frozen)
+
+
 def _staff(school, name, role, national_id):
     user = UserFactory(full_name=name, national_id=national_id)
     MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name=role))
@@ -88,6 +96,20 @@ def test_the_grant_ends_with_the_cover(client_as, school, wing, principal):
     assert client_as(substitute).get(reverse("wings:record_index")).status_code in (302, 403)
     body = client_as(substitute).get(reverse("dashboard")).content.decode()
     assert "لم تُفعَّل صلاحيّاتُك" in body
+
+
+def test_past_days_belong_to_todays_holder_not_to_the_date_in_the_link(
+    client_as, school, wing, principal
+):
+    """الوصولُ بحامل اليوم: البديلُ المنتهي لا يعود بتاريخ تكليفه، والأصيلُ يراجع ما فاته."""
+    substitute = _staff(school, "بديلُ الأسبوع الماضي", "admin_supervisor", "29400000009")
+    today = timezone.localdate()
+    covered_day = today - dt.timedelta(days=2)
+    _cover(wing, substitute, principal, today - dt.timedelta(days=5), today - dt.timedelta(days=1))
+    url = reverse("wings:record_index") + f"?date={covered_day:%Y-%m-%d}"
+
+    assert "جناح 4" not in client_as(substitute).get(url).content.decode()
+    assert "جناح 4" in client_as(wing.supervisor).get(url).content.decode()
 
 
 def test_the_substitute_opens_no_other_wing_screen(client_as, school, wing, principal):

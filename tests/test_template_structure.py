@@ -18,6 +18,8 @@ ALLOWED_ORPHANS = {
     # جانغو يجدهما بـhandler404/handler500 لا باسمٍ مكتوب.
     "404.html",
     "500.html",
+    # جانغو يضمّنها بالاسم من `admin/index.html` و`nav_sidebar.html` (نسخةٌ من قالبه بتعديلٍ وحيدٍ هو الطيّ).
+    "admin/app_list.html",
 }
 
 

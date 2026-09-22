@@ -766,7 +766,8 @@ class TestEmployeeEvaluation:
         assert ev.total_score == 95
         assert ev.rating == "excellent"
 
-    def test_rating_good(self, school):
+    def test_rating_acceptable(self, school):
+        """62 «مقبول» بالمادة 16 (من 50 إلى 65) — كانت «جيد» بعتبة 60 التي لا سندَ لها."""
         admin = make_admin(school)
         teacher = make_teacher(school)
         ev = make_evaluation(
@@ -779,9 +780,9 @@ class TestEmployeeEvaluation:
             axis_development=16,
         )
         assert ev.total_score == 62
-        assert ev.rating == "good"
+        assert ev.rating == "acceptable"
 
-    def test_rating_needs_dev(self, school):
+    def test_rating_weak(self, school):
         admin = make_admin(school)
         teacher = make_teacher(school)
         ev = make_evaluation(
@@ -794,7 +795,7 @@ class TestEmployeeEvaluation:
             axis_development=10,
         )
         assert ev.total_score == 40
-        assert ev.rating == "needs_dev"
+        assert ev.rating == "weak"
 
     def test_save_with_update_fields_skips_recalc(self, school):
         """إصلاح #3: update_fields بدون محاور لا يُعيد الحساب"""

@@ -4,12 +4,17 @@ quality/urls.py — الإصلاح #4: إضافة مسارات لجنة المن
 
 from django.urls import path
 
-from . import evaluation_views, observation_views, views
+from . import evaluation_views, grievance_views, observation_views, views
 
 urlpatterns = [
     # ── الإشراف على أداء المعلّم (الملاحظة الصفّية) ──────────
     path("observations/", observation_views.observation_list, name="observation_list"),
     path("observations/new/", observation_views.observation_create, name="observation_create"),
+    path(
+        "observations/teacher-schedule/",
+        observation_views.observation_teacher_schedule,
+        name="observation_teacher_schedule",
+    ),
     path(
         "observations/archive/",
         observation_views.observation_archive,
@@ -86,6 +91,31 @@ urlpatterns = [
         "evaluations/employee/<uuid:employee_id>/",
         evaluation_views.create_evaluation,
         name="create_evaluation",
+    ),
+    path(
+        "evaluations/approve/<uuid:eval_id>/",
+        evaluation_views.approve_evaluation,
+        name="approve_evaluation",
+    ),
+    path(
+        "evaluations/receipt/<uuid:eval_id>/",
+        evaluation_views.record_evaluation_receipt,
+        name="record_evaluation_receipt",
+    ),
+    path(
+        "evaluations/grievances/",
+        grievance_views.evaluation_grievances,
+        name="evaluation_grievances",
+    ),
+    path(
+        "evaluations/grievance/<uuid:eval_id>/",
+        grievance_views.file_evaluation_grievance,
+        name="file_evaluation_grievance",
+    ),
+    path(
+        "evaluations/grievance/<uuid:eval_id>/decision/",
+        grievance_views.record_grievance_decision,
+        name="record_grievance_decision",
     ),
     path(
         "evaluations/acknowledge/<uuid:eval_id>/",

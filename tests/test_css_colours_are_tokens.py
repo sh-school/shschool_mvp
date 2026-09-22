@@ -17,8 +17,8 @@ import pathlib
 import re
 
 from tests.css_contrast import iter_rules
+from tests.css_source import read_css
 
-CSS = pathlib.Path("static/css/custom.css")
 JS_ROOT = pathlib.Path("static/js")
 
 #: أسماءُ ألوان CSS — ومنها ألوانُ النظام (`canvas`، `canvastext`).
@@ -129,7 +129,7 @@ def _live_scripts():
 
 
 def test_no_rule_in_the_stylesheet_writes_a_colour_by_hand():
-    offenders = css_literals(CSS.read_text(encoding="utf-8"))
+    offenders = css_literals(read_css())
     assert not offenders, (
         f"{len(offenders)} لوناً حرفيّاً داخل قواعد custom.css — اكتب `var(--رمز)`، وإن لم يوجد "
         "فأضِفه في `:root` وفي `html.dark` باسمٍ بما يعنيه:\n  " + "\n  ".join(offenders[:30])
@@ -155,7 +155,7 @@ def test_no_live_script_writes_a_colour_by_hand():
 
 def test_the_scan_reaches_the_stylesheet_and_the_scripts():
     """مسحٌ لا يرى شيئاً ينجح كاذباً."""
-    rules = list(iter_rules(CSS.read_text(encoding="utf-8")))
+    rules = list(iter_rules(read_css()))
     assert len(rules) >= 2000, f"لم يُفكَّك إلّا {len(rules)} قاعدة"
     tokens = sum(
         1 for sel, decls, _c in rules if _is_token_block(sel) for k in decls if k.startswith("--")

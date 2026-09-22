@@ -13,7 +13,6 @@
   {% page_header "الأنشطة والإنجازات" subtitle=year icon="activities" %}
     <a href="{% url 'student_affairs:activity_add' %}" class="btn-primary btn-sm">{% icon "edit_record" %} تسجيل نشاط جديد</a>
     <a data-app-file href="{% url 'student_affairs:activities_export' %}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
-    <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
   {# فلتر #}

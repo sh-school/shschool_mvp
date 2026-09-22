@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, cast
 
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.http.response import HttpResponseBase
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.urls import reverse
 
 if TYPE_CHECKING:
@@ -90,14 +90,16 @@ class SchoolPermissionMiddleware:
                 return JsonResponse(
                     {"error": "لا توجد عضوية نشطة", "code": "no_membership"}, status=403
                 )
-            return HttpResponseForbidden(
-                "<h2 dir='rtl'>ليس لديك عضوية نشطة في أي مدرسة. تواصل مع مدير النظام.</h2>"
-            )
+            # طريقٌ مسدودٌ بلا مخرج: صفحةُ الخطأ الواحدة بزرّ تسجيل الخروج (مسارُه POST وحده).
+            return render(request, "errors/no_membership.html", status=403)
+
+        from core.module_registry import gate_admits
 
         user_role = request.user.get_role()
         for protected_path, allowed_roles in self.protected_paths.items():
             if path.startswith(protected_path):
-                if user_role not in allowed_roles:
+                # بالدور الحاكم، أو بمنح الوحدة لصفةٍ أخرى (المعلّمُ الذي هو وليُّ أمر).
+                if not gate_admits(request.user, protected_path, allowed_roles):
                     from core.permissions import log_denial
 
                     log_denial(request, role=user_role, required=allowed_roles, source="middleware")
@@ -150,7 +152,7 @@ def get_current_user():
     return _current_user.get(None)
 
 
-def get_current_request():
+def get_current_request() -> HttpRequest | None:
     return _current_request.get(None)
 
 
@@ -331,27 +333,20 @@ class TwoFactorEnforcementMiddleware:
 
 # ── Middleware إجبار ولي الأمر على الموافقة ───────────────
 class ParentConsentMiddleware:
-    """يُجبر ولي الأمر على الموافقة قبل الوصول لأي صفحة (بما فيها API)"""
+    """يُجبر وليَّ الأمر على الموافقة قبل الوصول لأي صفحة (بما فيها API).
 
-    EXEMPT_PATHS = [
-        "/auth/",
-        "/parents/consent/",
-        "/static/",
-        "/media/",
-        "/admin/",
-        # /api/ لم يعد مستثنى — يجب أن يوافق ولي الأمر حتى عبر API
-    ]
+    والكادرُ الذي هو وليُّ أمرٍ أيضاً لا يُحجب عن عمله: تظهر له صفحةُ الموافقة عند
+    شاشات وليّ الأمر وحدَها. والسياسةُ كلُّها في ``core/parent_consent.py`` — يقرؤها
+    هذا الوسيطُ وصلاحيّةُ الـAPI معاً، فلا تفترقان. و``/api/`` ليس مستثنى.
+    """
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        if (
-            request.user.is_authenticated
-            and request.user.has_role("parent")
-            and request.user.consent_given_at is None
-            and not any(request.path.startswith(p) for p in self.EXEMPT_PATHS)
-        ):
+        from core.parent_consent import consent_blocks
+
+        if consent_blocks(request.user, request.path):
             if request.path.startswith("/api/"):
                 return JsonResponse(
                     {"error": "يجب الموافقة على سياسة البيانات أولاً", "code": "consent_required"},

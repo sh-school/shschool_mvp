@@ -61,6 +61,10 @@ INSTALLED_APPS = [
     # ✅ مركز معلومات الطلبة — ملفّ الطالب الجامع وملاحظات الجهات الخمس
     "student_info.apps.StudentInfoConfig",
     "wings.apps.WingsConfig",
+    # خارطة تجويد المنصّة — لمطوّر المنصّة وحدَه (أدوات المطوّر)
+    "roadmap.apps.RoadmapConfig",
+    # الحوكمة وحماية البيانات: المحو والاحتفاظ وتدوير المفاتيح ووصول الملفّات (ADR-0004)
+    "governance.apps.GovernanceConfig",
     # ✅ فلترة احترافية
     "django_filters",
     # ✅ [SEC-02] قائمة حظر توكنات التحديث بعد التدوير (JWT) — تتطلب migrate
@@ -98,6 +102,8 @@ MIDDLEWARE = [
     # الإلزامُ بتغيير كلمة المرور قبل موافقة وليّ الأمر: من لم يُبدّل كلمتَه لا يوافق بها.
     "core.middleware.ForcePasswordChangeMiddleware",
     "core.middleware.TwoFactorEnforcementMiddleware",
+    # المفعِّلُ لا تُقبل جلستُه بلا رمزٍ أُدخل فيها — يسدّ ما يفتح جلسةً بكلمة المرور وحدَها
+    "core.mfa_session.MfaSessionMiddleware",
     "core.middleware.ParentConsentMiddleware",
     # صفحةُ المسجَّل لا تُخزَّن: طزاجةٌ بعد النشر، وخصوصيّةٌ على جهازٍ مشترك
     "core.middleware.PrivateHtmlNoStoreMiddleware",
@@ -130,11 +136,22 @@ WSGI_APPLICATION = "shschool.wsgi.application"
 ASGI_APPLICATION = "shschool.asgi.application"
 
 # ── Django Channels — Channel Layer (Redis) ────────────────────────────
+CHANNEL_LAYER_SOCKET_TIMEOUT = 15  # ثانية؛ يجب أن تفوق RedisChannelLayer.brpop_timeout (5)
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [config("REDIS_URL", default="redis://localhost:6379/0")],
+            # مهلةُ القراءة صريحةٌ: redis-py ≥ 8 صار افتراضُها 5s (كان بلا مهلة)،
+            # وchannels_redis يقرأ بـBZPOPMIN بمهلة `brpop_timeout` = 5s على الاتصال
+            # نفسه — فتتساوى المهلتان ويسقط كلُّ مستهلكٍ خامل بـ«Timeout reading from
+            # redis» بعد ~5s. تبقى أكبر من 5s بهامشٍ يكشف الاتصالَ الميّت.
+            "hosts": [
+                {
+                    "address": config("REDIS_URL", default="redis://localhost:6379/0"),
+                    "socket_timeout": CHANNEL_LAYER_SOCKET_TIMEOUT,
+                    "socket_connect_timeout": 5,
+                }
+            ],
             "capacity": 1500,  # حد الرسائل لكل channel
             "expiry": 30,  # TTL الرسالة بالثواني
         },
@@ -306,12 +323,15 @@ CSRF_FAILURE_VIEW = "django.views.csrf.csrf_failure"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# بابُ JWT مغلقٌ ما لم يُفتح صراحةً. كان مفتوحاً «للتطبيق المحمول المستقبليّ»
+# ولم يُصدَر منه رمزٌ واحد (فحصُ الإنتاج 2026-09-16)، وهو يتجاوز ما يحمي
+# دخولَ الجلسة: لا ثنائيّة، ولا axes، ولا حدَّ للمحاولات. فلا مساراتِ رموز
+# ولا مُصادِقَ رموز حتى يُبنى التطبيقُ ويُحرَس الباب (P1-1).
+API_JWT_ENABLED = config("API_JWT_ENABLED", default=False, cast=bool)
+
 _AUTH_CLASSES = ["rest_framework.authentication.SessionAuthentication"]
-try:
-    __import__("rest_framework_simplejwt")
+if API_JWT_ENABLED:
     _AUTH_CLASSES.append("rest_framework_simplejwt.authentication.JWTAuthentication")
-except ImportError:
-    pass
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": _AUTH_CLASSES,
@@ -445,13 +465,20 @@ VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "")
 # وبريدُه وجوّالُه ليست إعداداتٍ تُودَع (انظر `.env.example`).
 DPO_NAME = os.environ.get("DPO_NAME", "")
 DPO_EMAIL = os.environ.get("DPO_EMAIL", "")
+# مستلِمُ إشعارات «أرسل إلى المطوّر»: يُضبط على خدمة الويب؛ فارغٌ = لا إرسال (يُسجَّل فشلاً).
+DEVELOPER_FEEDBACK_RECIPIENT = os.environ.get("DEVELOPER_FEEDBACK_RECIPIENT", "")
 DPO_PHONE = os.environ.get("DPO_PHONE", "")
 
 # ── الاحتفاظُ بالبيانات (PDPPL م.7 و10) ───────────────────────────────
 # بعد كم يوماً يُحذف ما انقضى غرضُه من آثار التشغيل (السياسةُ جدولاً جدولاً في
-# docs/privacy/data_retention.md، والمُنفِّذ core/retention.py). كان المتغيّرُ
+# docs/privacy/data_retention.md، والمُنفِّذ governance/retention.py). كان المتغيّرُ
 # معلَناً في .railway/railway.ts ولا يقرؤه أحد. والصفرُ يعطّل الحذفَ كلَّه.
-PDPPL_DATA_RETENTION_DAYS = int(os.environ.get("PDPPL_DATA_RETENTION_DAYS", "730"))
+#
+# نصٌّ خامٌ لا `int()` هنا: الإعداداتُ تُقرأ عند إقلاع كلّ عمليّة، فخطأٌ مطبعيٌّ
+# في البيئة كان يُسقط المنصّةَ كلَّها لا الحذفَ وحده — وقد وقع يومَ 2026-09-14:
+# القيمةُ على Railway `730)` فسقطت مرحلةُ الإصدار مرّتين. والتحليلُ في
+# `governance.retention.retention_days()`: ما لا يُفهم رقماً يعطّل الحذفَ ويُسجَّل خطأً.
+PDPPL_DATA_RETENTION_DAYS = os.environ.get("PDPPL_DATA_RETENTION_DAYS", "730").strip()
 
 # ══════════════════════════════════════════════════════════════════════
 # ✅ v5.4: django-axes — حماية من هجمات القوة الغاشمة (Brute Force)
@@ -491,8 +518,10 @@ AXES_VERBOSE = False
 AXES_USERNAME_FORM_FIELD = "identifier"
 AXES_USERNAME_CALLABLE = "core.auth_identity.axes_username"
 
-# إعادة توجيه مخصصة عند القفل — None = HTTP 403 الافتراضي
+# صفحةُ القفل بهويّة المنصّة بدل نصّ axes الخام (كانت None = استجابةُ axes الافتراضيّة
+# بلا خطٍّ ولا طريق عودة). AXES_LOCKOUT_URL يبقى None: الاستدعاءُ يستبقه.
 AXES_LOCKOUT_URL = None
+AXES_LOCKOUT_CALLABLE = "core.views_auth.axes_lockout_response"
 
 # ── F-004: حد حجم الرفع (5 MB) — OWASP File Upload ──────────────
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5 MB
@@ -714,9 +743,40 @@ SCHEDULE_TIME_BUDGET_SECONDS = int(os.environ.get("SCHEDULE_TIME_BUDGET_SECONDS"
 # لا تُصدَّق (0)؛ Railway يُلحق قفزةً واحدة (الإنتاج 1). راجع core/request_utils.py.
 TRUSTED_PROXY_HOPS = int(os.environ.get("TRUSTED_PROXY_HOPS", "0"))
 
+# والحدُّ على باب الدخول وقفلُ axes يعدّان بهذا العنوان نفسه (P1-2). كانا يقرآن
+# REMOTE_ADDR، وهو على Railway عنوانُ الوكيل الداخليّ: كلُّ ما سجّله axes على
+# الإنتاج عناوينُ داخليّة (فحص 2026-09-16). فكان «عشرُ محاولاتٍ في الدقيقة لكلّ
+# عنوان» عشراً للمدرسة كلّها، ومخطئٌ واحدٌ يحبس الجميع.
+RATELIMIT_IP_META_KEY = "core.request_utils.get_client_ip"
+AXES_CLIENT_IP_CALLABLE = "core.request_utils.get_client_ip"
+
+# سقوطُ Redis كان يُسقط `@ratelimit` بخطأٍ غيرِ مُلتقَط (500) على كلّ عرضٍ
+# يحمله — لا حدّاً مرفوضاً. والقفلُ الحقيقيّ على باب الدخول عند axes، وهو
+# يُخزَّن في القاعدة لا في Redis (`AxesDatabaseHandler` الافتراضيّ) فيبقى
+# عاملاً كاملاً وقت الانقطاع. فالتعادُل هنا آمنٌ: يفتح `@ratelimit` وحده.
+#
+# هذا الإعداد وحده لا يكفي: `django_ratelimit.core.get_usage` يلتقط
+# `socket.gaierror` فقط حول `cache.add()`، فاستثناء Redis الحقيقيّ يفلت قبل
+# أن يصل الفرعَ الذي يقرأ هذا الإعداد. الإصلاحُ الفعليّ في
+# `core/ratelimit_safe.py` (يستعمله `core/views_auth.py` وoperations/api_views.py
+# بدل `django_ratelimit.decorators.ratelimit` مباشرة)، وهذا الإعداد دفاعٌ ثانٍ
+# للفرع الذي تغطّيه المكتبة فعلاً (قيمةٌ فارغة بلا استثناء).
+RATELIMIT_FAIL_OPEN = True
+
 # ── كم نسخةً سابقةً من الجدول تُبقى ────────────────────────────────────
 # كلُّ اعتمادٍ يُؤرشف الجدولَ السابق كاملاً — 870 صفّاً مطفأً — ولا يحذفه، فبلغت
 # النسخُ المؤرشفة خمساً في يومٍ واحد (2026-09-05). قرارُ المدرسة يومَها: **جدولٌ
 # واحدٌ فقط، الحيّ**. فما يُؤرشف يذهب مع حصصه عند الاعتماد التالي، والمسودّاتُ
 # باقيةٌ لأنّها عملٌ جارٍ لا نسخةٌ قديمة.
 SCHEDULE_ARCHIVE_RETENTION = int(os.environ.get("SCHEDULE_ARCHIVE_RETENTION", "0"))
+
+# ── محرّكُ الحكم الواحد (`assessments/verdict_engine.py`) ─────────────────
+# مطفأٌ افتراضاً: ما دام كذلك يبقى حسابُ الدرجات على حاله القديم، فلا تتغيّر شهادةٌ ولا
+# نتيجة. تُرفع مع الطلب الذي يحوّل المستهلكين لقراءة الحكم المخزَّن — والحالاتُ الجديدة
+# («مُرفَّع»، «دور ثانٍ»…) لا تفهمها الشاشاتُ التي تعدّ `fail` و`pass` وحدَهما. والمتغيّرُ
+# يُضبط على الخدمات الثلاث (ويب + worker + beat) معاً.
+VERDICT_ENGINE_ENABLED = os.environ.get("VERDICT_ENGINE_ENABLED", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+}

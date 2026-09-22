@@ -123,18 +123,19 @@ html { box-sizing: border-box; }
 ## بنية CSS في المشروع
 
 ```
-custom.css — المصدر الوحيد للـ styles
-├── 1. CSS Variables (--q-maroon, --q-font-ui, ...)
-├── 2. Reset / Base (border-box, typography)
-├── 3. Layout (page-header, sidebar, grid)
-├── 4. Components (cards, badges, buttons, tables)
-├── 5. Modules (quality, behavior, clinic, ...)
-├── 6. Utilities (text-center, mt-1, hidden, ...)
-└── 7. Responsive (@media min-width queries)
+static/css/custom/ — المصدر الوحيد للـ styles (ثمانية ملفّات على حدود الطبقات، ADR-0003)
+├── 10-foundation.css   جملة ترتيب الطبقات + reset + base (:root والخطوط) + tokens + layout
+├── 20-components.css   components (cards, badges, buttons, tables)
+├── 30..33-modules-N.css  modules (quality, behavior, clinic, ...) — أربعة ملفّات بتسلسلها
+├── 40-themes.css       themes (كلّ قواعد html.dark)
+└── 50-utilities.css    utilities (text-center, mt-1, hidden, ...)
 ```
+القائمةُ وترتيبُ التحميل في `core/css_files.py:CSS_FILES` ويحمّلها الوسمُ `{% custom_css %}`؛
+ملفٌّ جديدٌ يُضاف إليها وإلّا سقط `tests/test_css_split.py`.
 
 **قواعد ثابتة:**
 - لا `<style>` blocks في أي template
 - لا `!important` جديدة
-- لا inline styles — CSS class في custom.css
-- رفع `?v=N` عند كل تغيير
+- لا inline styles — CSS class في `static/css/custom/` (الملفّ الحاملُ لطبقته)
+- لا قاعدةَ خارج `@layer`، وجملةُ ترتيب الطبقات في `10-foundation.css` وحدَه
+- لا `?v=N`: الإنتاج يبصم الاسمَ بمحتواه (CLAUDE.md)

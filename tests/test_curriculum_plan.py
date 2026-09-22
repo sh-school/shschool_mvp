@@ -15,7 +15,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db.utils import IntegrityError
 
-from academic_management import curriculum_service as cs
+from academic_management import curriculum_services as cs
 from academic_management.models import (
     FROM_MINISTRY_GUIDE,
     FROM_PILOT,

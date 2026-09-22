@@ -1,0 +1,4 @@
+{% comment %}
+  اسمُ النموذج في قائمة الإدارة: تصحيحاتٌ إملائيّةٌ تخصّ لوحةَ الإدارة وحدَها (لا يُعدَّل نموذجُ المنصّة ولا هجرةٌ):
+  الجموعُ التي كانت تُشتقّ آليّاً فتلصق «s» اللاتينيّة أو ينقصها التعريف.
+{% endcomment %}{% if model.object_name == "StudentEnrollment" %}تسجيلات الطلاب{% elif model.object_name == "ImportLog" %}سجلات الاستيراد{% elif model.object_name == "StudentActivity" %}الأنشطة الطلابية{% elif model.object_name == "NotificationEnqueueIntent" %}نيّات الإدراج في الطابور{% else %}{{ model.name }}{% endif %}

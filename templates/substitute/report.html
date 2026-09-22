@@ -58,7 +58,7 @@
             <td>{{ a.absence.date }}</td>
             <td>{{ a.absence.teacher.full_name }}</td>
             <td>{{ a.slot.subject|default:"—" }}</td>
-            <td data-sort-value="{{ a.slot.class_group.school_order }}">{{ a.slot.class_group }}</td>
+            <td data-sort-value="{{ a.slot.class_group.school_order }}">{{ a.slot.class_group.short_label }}</td>
             <td class="num">{{ a.slot.period_number }}</td>
             <td><b>{{ a.substitute.full_name }}</b></td>
             <td><span class="status-badge status-{{ a.status_tone }}">{{ a.get_status_display }}</span></td>

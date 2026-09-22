@@ -13,9 +13,15 @@
 from datetime import date, timedelta
 
 import pytest
+from django.contrib.auth.models import AnonymousUser
 from django.core.management import call_command
+from django.db import connection
+from django.http import HttpResponse
+from django.test import RequestFactory
+from django.test.utils import CaptureQueriesContext
 
 from core.academic_calendar import AcademicCalendar
+from core.middleware import CurrentUserMiddleware
 from core.models import AcademicYear, CalendarEvent, Semester
 
 
@@ -157,3 +163,47 @@ def test_seeding_twice_does_not_duplicate(seeded):
     call_command("seed_academic_calendar", school=seeded.code, verbosity=0)
 
     assert CalendarEvent.objects.filter(academic_year__school=seeded).count() == before
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  الذاكرة المؤقّتة لكلّ طلب (البند 9، خطّة الإصلاح العامّة)
+# ═══════════════════════════════════════════════════════════════════
+
+
+def _anonymous_request():
+    request = RequestFactory().get("/")
+    request.user = AnonymousUser()
+    return request
+
+
+def test_current_adds_no_query_on_a_second_call_in_the_same_request(seeded):
+    """معالجُ السياق وخدماتُ الحضور والسلوك تنادي `current` بنفس المدرسة واليوم
+    في الطلب نفسه — والنداءُ الثاني يُقرأ من ذاكرة الطلب لا القاعدة."""
+    day = date(2026, 8, 23)
+
+    def view(req):
+        AcademicCalendar.current(seeded, on=day)  # إحماء — يملأ ذاكرة الطلب
+        with CaptureQueriesContext(connection) as ctx:
+            AcademicCalendar.current(seeded, on=day)
+        assert not ctx.captured_queries, ctx.captured_queries
+        return HttpResponse("ok")
+
+    CurrentUserMiddleware(view)(_anonymous_request())
+
+
+def test_current_does_not_leak_across_requests(seeded):
+    """ذاكرةُ طلبٍ لا تُجاب بها أسئلةُ طلبٍ آخر — كائنُ الطلب مختلفٌ في كلٍّ."""
+    day = date(2026, 8, 23)
+
+    def first(req):
+        AcademicCalendar.current(seeded, on=day)
+        return HttpResponse("ok")
+
+    def second(req):
+        with CaptureQueriesContext(connection) as ctx:
+            AcademicCalendar.current(seeded, on=day)
+        assert ctx.captured_queries, "طلبٌ جديد يجب أن يستعلم من جديد"
+        return HttpResponse("ok")
+
+    CurrentUserMiddleware(first)(_anonymous_request())
+    CurrentUserMiddleware(second)(_anonymous_request())

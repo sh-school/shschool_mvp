@@ -13,7 +13,6 @@ class ReportsConfig(AppConfig):
             name="reports",
             label="التقارير والشهادات",
             url_prefix="/reports/",
-            icon="bi-file-earmark-bar-graph",
             allowed_roles={
                 "principal",
                 "vice_academic",

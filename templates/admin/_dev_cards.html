@@ -1,0 +1,12 @@
+{% if cards %}
+<section class="adm-cards" aria-label="مراقبة المنصّة">
+  {% for card in cards %}
+  <{% if card.url %}a href="{{ card.url }}"{% else %}div{% endif %} class="adm-card adm-card--{{ card.level }}">
+    <span class="adm-card__title">{{ card.title }}</span>
+    <strong class="adm-card__value">{{ card.value }}</strong>
+    <span class="adm-card__detail">{{ card.detail }}</span>
+  </{% if card.url %}a{% else %}div{% endif %}>
+  {% empty %}
+  {% endfor %}
+</section>
+{% endif %}

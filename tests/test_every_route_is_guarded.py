@@ -18,6 +18,7 @@
 
 import re
 
+from django.conf import settings
 from django.urls import URLPattern, URLResolver, get_resolver
 
 from core.middleware import EXEMPT
@@ -42,6 +43,13 @@ GUARDED_INSIDE = {
     "academic/assignments/row/<uuid:assignment_id>/remove/": "_guard() — قدرةُ الإدخال/المراجعة/الاعتماد، ونطاقُ قسم المنسّق",
     "dbmedia/<path:name>": "_authorize() — مالكُ الملفّ أو الدورُ المسجَّل له، وإلّا 404 (fail-closed)",
     "search/": "الطلبةُ للكادر، والرقمُ الشخصيُّ لشؤون الطلبة، والكادرُ للمدير (#222)",
+    "styleguide/icons/": "developer_only — superuser أو مجموعة developers",
+    "styleguide/components/": "developer_only — superuser أو مجموعة developers",
+    "roadmap/": "developer_only — superuser أو مجموعة developers",
+    "roadmap/items/new/": "developer_only — superuser أو مجموعة developers (إضافةُ بند)",
+    "roadmap/items/<str:code>/": "developer_only — superuser أو مجموعة developers",
+    "roadmap/decisions/<str:code>/": "developer_only — superuser أو مجموعة developers",
+    "roadmap/checklist/<str:code>/": "developer_only — superuser أو مجموعة developers",
     "developer-feedback/inbox/": "DeveloperOnlyMixin",
     "developer-feedback/inbox/<int:pk>/": "DeveloperOnlyMixin",
     "developer-feedback/onboarding/": "NotStudentMixin — ورسائلُ المستخدم لنفسه",
@@ -57,6 +65,9 @@ GUARDED_INSIDE = {
     "api/v1/notifications/<uuid:notif_id>/read/": "get_object_or_404(..., user=request.user)",
     "api/v1/notifications/mark-all-read/": "filter(user=request.user)",
     "api/v1/notification-preferences/": "تفضيلاتُ المستخدم نفسِه",
+    "teacher/weekly-schedule/export/status/<uuid:job_id>/": (
+        "get_object_or_404(..., school=request.school, requested_by=request.user)"
+    ),
 }
 
 #: مفتوحٌ لكلّ مسجَّلٍ بقصد — المسارُ ← لماذا لا يكشف بياناتِ غيره.
@@ -64,8 +75,6 @@ OPEN_BY_DESIGN = {
     "": "تحويلٌ إلى لوحة التحكّم",
     "status/": "حالةُ الخدمة (القاعدة والذاكرة المؤقّتة) — بلا بياناتِ أشخاص",
     "styleguide/": "تحويلٌ دائمٌ (301) إلى دليل الهويّة — لا يعرض شيئاً",
-    "styleguide/icons/": "مرجعُ الأيقونات — أسماءُ sprite.html بلا بيانات",
-    "styleguide/components/": "دليلُ الهويّة: المكوّناتُ ولوحةُ الرموز — أمثلةٌ توضيحيّة بلا بيانات",
     "academic/evaluations/": "_stub_view — صفحةٌ قيد الإنشاء بلا بيانات",
     "academic/departments/": "_stub_view — صفحةٌ قيد الإنشاء بلا بيانات",
     "academic/test-analytics/": "_stub_view — صفحةٌ قيد الإنشاء بلا بيانات",
@@ -74,12 +83,15 @@ OPEN_BY_DESIGN = {
     "academic/class-performance/": "_stub_view — صفحةٌ قيد الإنشاء بلا بيانات",
     "academic/underperformance/": "_stub_view — صفحةٌ قيد الإنشاء بلا بيانات",
     "api/v1/library/books/": "فهرسُ الكتب — لا بياناتِ أشخاص",
-    "api/v1/auth/token/": "إصدارُ رمز JWT — بابُ الدخول نفسُه",
-    "api/v1/auth/token/refresh/": "تجديدُ رمز JWT",
     "api/v1/schema/": "مخطّطُ الـAPI — والوسيطُ يفرض الدخولَ على /api/",
     "api/v1/docs/": "توثيقُ الـAPI",
     "api/v1/redoc/": "توثيقُ الـAPI",
 }
+
+if settings.API_JWT_ENABLED:
+    # بابُ الدخول نفسُه — لا يُفتح إلّا بالراية (test_api_jwt_disabled.py).
+    OPEN_BY_DESIGN["api/v1/auth/token/"] = "إصدارُ رمز JWT — بابُ الدخول نفسُه"
+    OPEN_BY_DESIGN["api/v1/auth/token/refresh/"] = "تجديدُ رمز JWT"
 
 
 def _walk(patterns, prefix=""):

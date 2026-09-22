@@ -1,0 +1,76 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% load navigation %}
+{% block title %}تقرير حضور الموظفين{% endblock %}
+{% block breadcrumbs %}
+{% if request.user|can_open:"staff_affairs:attendance_board" %}
+{% url 'staff_affairs:attendance_board' as board_url %}{% include "components/breadcrumbs.html" with parent_url=board_url parent_label="رصد الحضور" current="تقرير الشهر" %}
+{% else %}
+{% include "components/breadcrumbs.html" with current="تقرير الشهر" %}
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "تقرير حضور الموظفين الشهري" subtitle="يحسب ولا يخصم: الخصمُ (البند 5) قرارٌ إداريّ على هذا التقرير" icon="reports" %}
+    <a data-app-file href="{% url 'staff_affairs:attendance_report_xlsx' %}?month={{ month_value }}" class="btn-primary btn-sm">{% icon "export_excel" %} تنزيل Excel</a>
+  {% endpage_header %}
+
+  {% filter_bar "اختيار شهر التقرير" %}
+    {% field "month" "الشهر" type="month" value=month_value data_autosubmit=True %}
+  {% endfilter_bar %}
+
+  {% kpi_strip label="مجاميع الشهر" %}
+    {% with permitted=totals.permitted|stringformat:"s" %}{% kpi "أيام حضور" totals.present sub="وأيام استئذان: "|add:permitted title="أيام «حاضر» وحدها، وأيام «مستأذن» منفصلة في الحاشية لا تدخل الرقم — كعمودَي الجدول" tone="green" %}{% endwith %}
+    {% kpi "أيام تأخّر" totals.late tone="amber" %}
+    {% with uncovered=totals.absent_uncovered|stringformat:"s" %}{% kpi "أيام غياب" totals.absent sub="غير مغطّاة: "|add:uncovered title="الغياب بلا نوعٍ من سجلّ الغياب ولا عذرٍ مقبول" tone="red" %}{% endwith %}
+    {% with limit=deadline|date:"d/m" %}{% kpi "غُطّي بعد المهلة" totals.covered_late sub="المهلة: "|add:limit title="أيام غيابٍ غُطّيت بعد يوم 14 من الشهر التالي — تُوسم ولا تُمنع (البند 5.3)" tone="purple" %}{% endwith %}
+    {% with early=totals.early_leave_minutes|stringformat:"s" %}{% kpi "دقائق التأخّر" totals.late_minutes sub="انصراف مبكر: "|add:early title="الانصراف قبل 14:00 بلا إذن (البند 1.1)" tone="orange" %}{% endwith %}
+    {% kpi "دقائق الإذن" totals.permit_minutes title="الإذن المعتمد — السقف 600 دقيقة لكل موظف" tone="teal" %}
+  {% endkpi_strip %}
+
+  {% section_card "الكادر" meta=first|date:"F Y" icon="staff" flush=True empty="لا موظّفين في نطاق تقريرك لهذا الشهر" %}{% if rows %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="col-center">الرقم الوظيفي</th>
+            <th>الاسم</th>
+            <th class="num">حاضر</th>
+            <th class="num">متأخّر</th>
+            <th class="num">غائب</th>
+            <th class="num">منه غير مغطّى</th>
+            <th class="num" title="غُطّي بعد نهاية {{ deadline|date:"d/m/Y" }} (البند 5.3)">غُطّي بعد المهلة</th>
+            <th class="num">مستأذن</th>
+            <th class="num">دقائق التأخّر</th>
+            <th class="num">دقائق الانصراف المبكر</th>
+            <th class="num">دقائق الإذن</th>
+            <th class="num">المتبقّي من السقف</th>
+            <th class="num" title="استثناء نموذج 03 المعتمد — مستقلٌّ عن الأذونات ولا يُحتسب من سقف 600 دقيقة">أيام الاستثناء</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td class="col-center" dir="ltr">{{ r.employee_number|default:"—" }}</td>
+            <td><strong>{{ r.full_name }}</strong></td>
+            <td class="num">{{ r.present }}</td>
+            <td class="num">{{ r.late }}</td>
+            <td class="num">{{ r.absent }}</td>
+            <td class="num">{{ r.absent_uncovered }}</td>
+            <td class="num">{{ r.covered_late }}</td>
+            <td class="num">{{ r.permitted }}</td>
+            <td class="num">{{ r.late_minutes }}</td>
+            <td class="num">{{ r.early_leave_minutes }}</td>
+            <td class="num">{{ r.permit_minutes }}</td>
+            <td class="num">{{ r.permit_remaining }}</td>
+            <td class="num">{{ r.exception_days }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+</div>
+{% endblock %}

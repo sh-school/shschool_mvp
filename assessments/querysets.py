@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from django.db.models import Avg, Count, Q, QuerySet
 
+from core.verdict_read import failing_statuses, passing_statuses
+
 
 class SubjectResultQuerySet(QuerySet):
     """QuerySet لـ StudentSubjectResult."""
@@ -70,10 +72,10 @@ class AnnualResultQuerySet(QuerySet):
         return self.filter(setup__academic_year=academic_year)
 
     def failed(self) -> AnnualResultQuerySet:
-        return self.filter(status="fail")
+        return self.filter(status__in=failing_statuses())
 
     def passed(self) -> AnnualResultQuerySet:
-        return self.filter(status="pass")
+        return self.filter(status__in=passing_statuses())
 
     def by_grade(self, grade: str) -> AnnualResultQuerySet:
         """فلترة حسب التقدير: A+, A, B+, ..., F — يعتمد على annual_total"""
@@ -117,8 +119,8 @@ class AnnualResultQuerySet(QuerySet):
             .year(academic_year)
             .values("setup__subject__name_ar")
             .annotate(
-                fail_count=Count("id", filter=Q(status="fail")),
-                pass_count=Count("id", filter=Q(status="pass")),
+                fail_count=Count("id", filter=Q(status__in=failing_statuses())),
+                pass_count=Count("id", filter=Q(status__in=passing_statuses())),
                 avg_score=Avg("annual_total"),
             )
             .order_by("-fail_count")

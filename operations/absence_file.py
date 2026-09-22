@@ -26,11 +26,11 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass
 
-from core.models import CalendarEvent, CustomUser, School
+from core.models import CustomUser, School
 from operations.absence_standing import day_verdicts
-from operations.bells import day_type_for
 from operations.excuses import GRACE_DAYS, RETURNED
 from operations.models import AbsenceExcuse, GuardianContact, StudentAttendance
+from operations.school_days import SchoolDays, student_grade
 
 VERDICT_LABELS = {
     "absent_unexcused": "غائبٌ بلا عذر",
@@ -80,39 +80,11 @@ class AbsenceDay:
         return self.contact is None or self.contact.outcome == "no_answer"
 
 
-class _SchoolDays:
-    """أيّامُ الدراسة في نافذةٍ — بإجازاتها مقروءةً مرّةً واحدة لا يوماً يوماً."""
-
-    def __init__(self, school: School, start: dt.date, end: dt.date) -> None:
-        self.breaks = list(
-            CalendarEvent.objects.filter(
-                academic_year__school=school,
-                event_type="break",
-                audience__in=("both", "students"),
-                start_date__lte=end,
-                end_date__gte=start,
-            ).values_list("start_date", "end_date")
-        )
-
-    def __contains__(self, day: dt.date) -> bool:
-        if not day_type_for(day):
-            return False
-        return not any(a <= day <= b for a, b in self.breaks)
-
-    def step(self, day: dt.date, direction: int) -> dt.date:
-        """اليومُ الدراسيُّ التالي (+1) أو السابق (-1) — بحدٍّ يمنع الدوران بلا نهاية."""
-        for _ in range(60):
-            day += dt.timedelta(days=direction)
-            if day in self:
-                return day
-        return day
+class _SchoolDays(SchoolDays):
+    """أيّامُ الدراسة في نافذة الملفّ — بمهلة العذر الافتراضيّة (`excuses.GRACE_DAYS`)."""
 
     def grace_after(self, back: dt.date) -> dt.date:
-        """ثاني يومٍ دراسيٍّ بعد يوم العودة — كـ`excuses._grace_after` بلا استعلامٍ لكلّ يوم."""
-        day = back
-        for _ in range(GRACE_DAYS):
-            day = self.step(day, +1)
-        return day
+        return super().grace_after(back, GRACE_DAYS)
 
 
 def _runs(unexcused: set[dt.date], days: _SchoolDays) -> dict[dt.date, tuple[dt.date, dt.date]]:
@@ -181,7 +153,10 @@ def absence_days(
         )
 
     # والإجازاتُ إلى ما بعد اليوم: مهلةٌ تُغلق بعد اليوم قد تقفز فوق إجازةٍ قادمة.
-    school_days = _SchoolDays(school, start, today + dt.timedelta(days=60))
+    # وصفُّ الطالب يضيّق الإجازاتِ إلى نطاقه — إجازةُ الثاني عشر وحده لا تمسّ مهلةَ سابع.
+    school_days = _SchoolDays(
+        school, start, today + dt.timedelta(days=60), student_grade(student, school)
+    )
     # يومٌ عذرُه بانتظار النائب يقطع السلسلة: لا يُعاد إرسالُه، ولا يُحبط زرَّ ما حوله.
     unexcused = {
         d

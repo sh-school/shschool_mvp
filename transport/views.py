@@ -4,7 +4,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
 
 from core.capabilities import capability_required
-from core.models import BusRoute, CustomUser, SchoolBus
+from core.models import CustomUser
+from transport.models import BusRoute, SchoolBus
 from transport.services import TransportService
 
 

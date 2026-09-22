@@ -19,6 +19,8 @@
       يجوز تفريغُ <b>{{ grid.allowance }}</b>
       {% if grid.blocked %}<span class="exg-muted">— مفرَّغٌ الآن {{ grid.blocked }}، يبقى {{ grid.remaining }}</span>{% endif %}
     </span>
+    {# زرُّ الإضافة في سطر الشبكة نفسه لا فوقها (قرارُ 2026-09-18) — القرارُ يقع هنا حيث تُختار الخانات. #}
+    <button type="submit" class="btn-primary btn-sm">{% icon "add" %} إضافة تفريغ</button>
   </div>
   {% if grid.margin < grid.allowance %}
   <p class="exg-hint">وتفضيلاتُه أضيق: تسع {{ grid.capacity }} حصّةً فقط، فالفعليُّ {{ grid.margin }}.</p>
@@ -64,6 +66,8 @@
                   title="تظليل يوم {{ row.name }} كاملاً">يوم</button>
         </td>
       </tr>
+      {% empty %}
+      <tr><td colspan="9">لا أيّامَ دراسيّة</td></tr>
       {% endfor %}
     </tbody>
   </table>
@@ -99,7 +103,10 @@
 
 {% elif group %}
 <div class="exg exg-empty">
-  <p>اختيارُ مجموعةٍ لا جدولَ واحداً لها — ظلِّل النمطَ المطلوبَ وسيُطبَّق على أعضائها جميعاً.</p>
+  <div class="exg-head">
+    <span class="exg-title">تفريغُ {{ group_label|default:"المجموعة" }}</span>
+    <button type="submit" class="btn-primary btn-sm">{% icon "add" %} إضافة تفريغ</button>
+  </div>
   <div class="exg-scroll">
   <table class="exg-grid" data-exg>
     <thead>
@@ -121,6 +128,33 @@
 </div>
 
 {% else %}
-{# لا معلّمَ ولا مجموعةً بعد — حالةُ الفراغ الموحّدة لا سطرُ تلميحٍ باليد. #}
-{% empty_state "اختر معلّماً أو مجموعة" sub="تظهر شبكةُ أسبوعه هنا بعد الاختيار" icon="schedule" %}
+{% comment %}
+لا معلّمَ ولا مجموعةً بعد — وهيكلُ الشبكةِ ظاهرٌ مع ذلك (قرارُ المستخدم
+2026-09-18: ثابتٌ دائماً لا عند الاختيار فقط)، خلاياه معطَّلةٌ بلا سياقٍ
+يُحسب عليه بعد. فلا تقفز البطاقةُ من رسالةٍ إلى شبكةٍ كاملة.
+{% endcomment %}
+<div class="exg exg-empty">
+  <div class="exg-head">
+    <span class="exg-title">أسبوعُ من؟</span>
+    <button type="submit" class="btn-primary btn-sm" disabled>{% icon "add" %} إضافة تفريغ</button>
+  </div>
+  <div class="exg-scroll">
+  <table class="exg-grid">
+    <thead>
+      <tr><th scope="col">اليوم</th>{% for p in periods %}<th scope="col">{{ p }}</th>{% endfor %}<th scope="col">الكل</th></tr>
+    </thead>
+    <tbody>
+      {% for val, label in days %}
+      <tr>
+        <th scope="row">{{ label }}</th>
+        {% for p in periods %}
+        <td><span class="exg-cell is-off" aria-hidden="true">—</span></td>
+        {% endfor %}
+        <td><span class="exg-cell is-off" aria-hidden="true">—</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
 {% endif %}

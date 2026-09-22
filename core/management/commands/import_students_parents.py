@@ -1,11 +1,13 @@
 import csv
 import logging
 import os
+from argparse import ArgumentParser
 
 from django.core.management.base import BaseCommand
 from django.db import IntegrityError
 
 from core.academic_calendar import academic_year_for_school
+from core.initial_passwords import assign_initial_password, write_credentials_csv
 
 logger = logging.getLogger(__name__)
 from django.db import transaction
@@ -37,7 +39,19 @@ GRADE_MAP = {
 class Command(BaseCommand):
     help = "استيراد الطلاب + أولياء الأمور + الربط من ملف CSV"
 
+    def add_arguments(self, parser: ArgumentParser) -> None:
+        parser.add_argument(
+            "--credentials-out",
+            required=True,
+            help=(
+                "مسارُ ملفّ CSV تُكتب إليه كلماتُ المرور الأوّليّة العشوائيّة للحسابات "
+                "الجديدة (لا كلمةَ تساوي الرقمَ الشخصيّ). الملفُّ سرٌّ يُوزَّع ثمّ يُحذف."
+            ),
+        )
+
     def handle(self, *args, **options):
+        credentials_out = options["credentials_out"]
+        issued: list[dict] = []
         from core.models import (
             ClassGroup,
             CustomUser,
@@ -113,7 +127,7 @@ class Command(BaseCommand):
                 )
 
                 if s_created:
-                    student.set_password(student_nid)
+                    assign_initial_password(student, issued, "طالب")
                     student.save()
                     stats["students_created"] += 1
                 else:
@@ -162,7 +176,7 @@ class Command(BaseCommand):
                 )
 
                 if p_created:
-                    parent.set_password(parent_nid)
+                    assign_initial_password(parent, issued, "ولي أمر")
                     parent.save()
                     stats["parents_created"] += 1
                 else:
@@ -225,5 +239,9 @@ class Command(BaseCommand):
 
         self.stdout.write("━" * 55)
         self.stdout.write("✅ اكتمل الاستيراد بنجاح\n")
-        self.stdout.write("ملاحظة: كلمة المرور الافتراضية = الرقم الشخصي للمستخدم")
-        self.stdout.write("        يُنصح بإخبار أولياء الأمور بتغييرها أول دخول\n")
+        count = write_credentials_csv(credentials_out, issued)
+        self.stdout.write(
+            f"كلماتُ المرور الأوّليّة (عشوائيّة، {count} حساباً) في: {credentials_out}\n"
+            "الملفُّ سرٌّ: وزّعه ثمّ احذفه؛ ولا تُلصقه في محادثة. "
+            "ويُلزَم كلُّ صاحبٍ بتغيير كلمته عند أوّل دخول.\n"
+        )

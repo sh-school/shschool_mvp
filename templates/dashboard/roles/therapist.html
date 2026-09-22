@@ -19,7 +19,7 @@
           {% for s in sessions_today %}
             <tr>
               <td class="num">{{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}</td>
-              <td data-sort-value="{{ s.class_group.school_order }}">{{ s.class_group }}</td>
+              <td data-sort-value="{{ s.class_group.school_order }}">{{ s.class_group.short_label }}</td>
               <td>{{ s.subject|default:"جلسة" }}</td>
               <td><span class="status-badge {{ session_status_badges|get_item:s.status|default:'status-gray' }}">{{ s.get_status_display }}</span></td>
             </tr>

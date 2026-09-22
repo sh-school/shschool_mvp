@@ -19,8 +19,8 @@ import pathlib
 import re
 
 from tests.css_contrast import iter_rules, token_table
+from tests.css_source import read_css
 
-CSS_PATH = pathlib.Path("static/css/custom.css")
 BASE = pathlib.Path("templates/base/base.html")
 
 #: المقياسُ مرتَّباً من الأدنى — كلُّ طبقةٍ تعلو ما قبلها.
@@ -28,14 +28,14 @@ ORDER = ["--z-dropdown", "--z-navbar", "--z-sidebar", "--z-nav-menu", "--z-modal
 
 
 def _tokens():
-    light, _dark = token_table(CSS_PATH.read_text(encoding="utf-8"))
+    light, _dark = token_table(read_css())
     return light
 
 
 def _z_of(selector: str) -> int:
     """طبقةُ مُحدِّدٍ بعينه في الملفّ، بعد حلّ رمزها."""
     tokens = _tokens()
-    for sel, decls, ctx in iter_rules(CSS_PATH.read_text(encoding="utf-8")):
+    for sel, decls, ctx in iter_rules(read_css()):
         if any("media" in c for c in ctx):
             continue
         if " ".join(sel.split()) == selector and "z-index" in decls:

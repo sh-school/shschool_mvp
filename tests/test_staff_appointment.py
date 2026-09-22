@@ -368,7 +368,7 @@ def test_a_departure_does_not_touch_the_parent_membership(client_as, school, pri
 
 
 def test_saving_the_person_records_who_changed_what(client_as, school, principal):
-    from staff_affairs import profile_service
+    from staff_affairs import profile_services
 
     membership = appoint(school, principal)
     user = membership.user
@@ -388,7 +388,7 @@ def test_saving_the_person_records_who_changed_what(client_as, school, principal
 
     user.refresh_from_db()
     assert user.employee_number == "12345" and user.email == "new@education.qa"
-    trail = profile_service.history(user, membership)
+    trail = profile_services.history(user, membership)
     assert any("الرقم الوظيفي" in line for row in trail for line in row["lines"])
     assert trail[0]["who"] == principal.full_name, "ويُختم باسم من حفظ"
 

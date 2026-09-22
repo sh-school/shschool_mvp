@@ -13,6 +13,10 @@
 
   {% section_card "بانتظار قرارك" meta=requests|length icon="checklist" empty="لا عذرَ ينتظرك." %}
     {% if requests %}
+<<<<<<< HEAD
+=======
+    {% callout "warning" %}قبولُ العذر يُسقط أيّامَه من عدّ الحرمان، ورفضُه يُبقيها غياباً بلا عذر ويبقى القرارُ سجلّاً لا يُحذف؛ ولا تراجعَ عن الرفض من هذه الصفحة.{% endcallout %}
+>>>>>>> origin/main
     <ul class="af-days">
       {% for x in requests %}
       <li class="af-day">

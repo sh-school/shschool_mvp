@@ -1,22 +1,20 @@
 """[DESIGN] دليلُ الهويّة الواحد — يعرض ما في المصدر، لا نسخةً منه.
 
 كان للمنصّة دليلان وصفحةُ أيقونات: القديمُ يكتب ألوانَ العلامة أرقاماً تباعدت
-عن `:root`، وصفحةُ الأيقونات تنسخ ثمانيةً وأربعين رسماً — اسمان منها لا
-وجودَ لهما في `sprite.html` الذي فيه مئةٌ واثنتان. فهنا يُقاس أنّ الدليلَ
-نافذةٌ على المصدر: كلُّ لونٍ في `:root` يُعرض باسمه، وكلُّ أيقونةٍ في الملفّ.
+عن `:root`، وصفحةُ الأيقونات تعرض ورقةَ Lucide القديمة (محذوفةٌ 2026-09-18)
+بلا معنى واحدٍ منها في الكود. فهنا يُقاس أنّ الدليلَ نافذةٌ على المصدر: كلُّ
+لونٍ في `:root` يُعرض باسمه، وكلُّ معنًى في `core/icons.py`.
 """
 
-import pathlib
 import re
 
 import pytest
 from django.urls import reverse
 
-from core.styleguide import colour_token_groups, sprite_icons
+from core.icons import ICONS
+from core.styleguide import colour_token_groups, icon_dictionary_groups
 from core.templatetags.ui import KPI_TONES
-
-CSS = pathlib.Path("static/css/custom.css")
-SPRITE = pathlib.Path("templates/components/sprite.html")
+from tests.css_source import read_css
 
 
 def _tokens():
@@ -41,17 +39,19 @@ def test_the_palette_holds_colours_only():
 
 def test_every_hex_token_in_root_reaches_the_palette():
     """رمزٌ يُضاف إلى `:root` برقمٍ سداسيٍّ يظهر في الدليل بلا تعديل."""
-    css = re.sub(r"/\*.*?\*/", "", CSS.read_text(encoding="utf-8"), flags=re.S)
+    css = re.sub(r"/\*.*?\*/", "", read_css(), flags=re.S)
     first_root = re.search(r":root\s*\{([^}]*)\}", css).group(1)
     hex_tokens = set(re.findall(r"--([\w-]+)\s*:\s*#[0-9A-Fa-f]{3,8}\s*;", first_root))
 
     assert hex_tokens and hex_tokens <= set(_tokens()), sorted(hex_tokens - set(_tokens()))
 
 
-def test_the_icon_page_lists_every_symbol_in_the_sprite():
-    symbols = re.findall(r'<symbol\s+id="icon-([a-z0-9-]+)"', SPRITE.read_text(encoding="utf-8"))
+def test_the_icon_page_lists_every_meaning_in_the_dictionary():
+    groups = icon_dictionary_groups()
+    listed_keys = {entry["key"] for group in groups for entry in group["icons"]}
 
-    assert list(sprite_icons()) == list(dict.fromkeys(symbols))
+    assert listed_keys == set(ICONS)
+    assert sum(len(group["icons"]) for group in groups) == len(ICONS)
 
 
 @pytest.mark.django_db
@@ -65,8 +65,8 @@ def test_the_old_guide_route_is_a_permanent_redirect(client, teacher_user):
 
 
 @pytest.mark.django_db
-def test_the_guide_renders_every_component_and_links_the_icons(client, teacher_user):
-    client.force_login(teacher_user)
+def test_the_guide_renders_every_component_and_links_the_icons(client, developer_user):
+    client.force_login(developer_user)
 
     html = client.get(reverse("ui_components")).content.decode()
 
@@ -84,10 +84,20 @@ def test_the_guide_renders_every_component_and_links_the_icons(client, teacher_u
 
 
 @pytest.mark.django_db
-def test_the_icon_page_renders_the_sprite_names(client, teacher_user):
-    client.force_login(teacher_user)
+def test_the_icon_page_renders_every_meaning(client, developer_user):
+    client.force_login(developer_user)
 
     html = client.get(reverse("icon_preview")).content.decode()
 
-    for name in sprite_icons():
-        assert f'href="#icon-{name}"' in html, name
+    for key in ICONS:
+        assert f">{key}<" in html, key
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("name", ["ui_components", "icon_preview"])
+def test_the_guide_is_for_the_platform_developer_only(client, teacher_user, principal_user, name):
+    """قرارُ المالك 2026-09-20: لا يراه معلّمٌ ولا مدير — 403 — ولا زائرٌ غيرُ مسجَّل."""
+    assert client.get(reverse(name)).status_code == 302
+    for user in (teacher_user, principal_user):
+        client.force_login(user)
+        assert client.get(reverse(name)).status_code == 403, (name, user)

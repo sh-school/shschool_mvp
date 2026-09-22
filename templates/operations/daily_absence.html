@@ -19,6 +19,7 @@
       <input type="date" name="date" value="{{ report.day|date:'Y-m-d' }}" class="form-control" aria-label="التاريخ">
       <button type="submit" class="btn-secondary btn-sm">اعرض</button>
     </form>
+    {% callout "hint" %}النطاقُ قسمُك: حصصُ معلّميه وطلابُها.{% endcallout %}
   {% endpage_header %}
 
   {% kpi_strip label="اليوم في رقم" %}
@@ -29,12 +30,12 @@
   {% endkpi_strip %}
 
   {% if report.scoped_to_department %}
-  <p class="bell-note">النطاقُ قسمُك: حصصُ معلّميه وطلابُها.</p>
+  
   {% endif %}
 
   {% if report.ministry_rows %}
   {% section_card "للرفع في نظام الوزارة — غابوا الحصّتين الأولى والثانية" meta=report.ministry_rows|length icon="status_warning" %}
-    <p class="bell-note">يرفعها مشرفُ الجناح في نظام الوزارة خارجَ المنصّة، بعذرٍ أو بدونه بحسب حال الطالب.</p>
+    {% callout "hint" %}يرفعها مشرفُ الجناح في نظام الوزارة خارجَ المنصّة، بعذرٍ أو بدونه بحسب حال الطالب.{% endcallout %}
     <div class="table-wrap">
       <table data-no-sort>
         <thead><tr><th>الطالب</th><th>الشعبة</th><th>الحال</th></tr></thead>
@@ -42,7 +43,7 @@
           {% for row in report.ministry_rows %}
           <tr>
             <td>{{ row.student.full_name }}</td>
-            <td>{{ row.class_group }}</td>
+            <td>{{ row.class_group.short_label }}</td>
             <td><span class="status-badge {% if row.ministry_flag == 'excused' %}status-info{% else %}status-danger{% endif %}">{{ row.ministry_label }}</span></td>
           </tr>
           {% endfor %}
@@ -70,7 +71,7 @@
           {% for row in report.rows %}
           <tr>
             <td>{{ row.student.full_name }}</td>
-            <td>{{ row.class_group }}</td>
+            <td>{{ row.class_group.short_label }}</td>
             {% for slot in row.slots %}<td class="num dab-{{ slot.status|default:'none' }}{% if slot.excused %} dab-excused{% endif %}">{{ slot.letter }}</td>{% endfor %}
             {% for _ in row.padding %}<td></td>{% endfor %}
             <td class="num">{{ row.absent_periods }}</td>
@@ -81,7 +82,7 @@
         </tbody>
       </table>
     </div>
-    <p class="bell-note">ح حاضر · غ غائب · ع غائب بعذر · م متأخّر · <b>·</b> لم تُرصد.</p>
+    <p class="ui-note">ح حاضر · غ غائب · ع غائب بعذر · م متأخّر · <b>·</b> لم تُرصد.</p>
     {% else %}
     {% include "components/empty_state.html" with title="لا غيابَ ولا تأخّرَ مرصوداً في هذا اليوم" only %}
     {% endif %}

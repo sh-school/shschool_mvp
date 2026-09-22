@@ -65,7 +65,7 @@ def global_search(request):
         results.append(
             {
                 "type": "student",
-                "icon": "🎓",
+                "icon": "student",
                 "title": s["full_name"],
                 "sub": f"***{s['national_id'][-4:]}" if s["national_id"] else "",
                 "url": f"/behavior/student/{s['id']}/",
@@ -92,7 +92,7 @@ def global_search(request):
             results.append(
                 {
                     "type": "teacher",
-                    "icon": "👨‍🏫",
+                    "icon": "teacher",
                     "title": t["full_name"],
                     "sub": t["email"] or "",
                     "url": f"/staff-affairs/profile/{t['id']}/",
@@ -101,18 +101,18 @@ def global_search(request):
 
     # صفحات سريعة (static)
     pages = [
-        {"title": "لوحة التحكم", "url": "/dashboard/", "icon": "🏠"},
-        {"title": "الجدول الأسبوعي", "url": "/schedule/weekly/", "icon": "📅"},
-        {"title": "التقييمات", "url": "/assessments/", "icon": "📝"},
-        {"title": "حصصي اليوم", "url": "/teacher/schedule/", "icon": "📋"},
-        {"title": "غياب اليوم", "url": "/teacher/reports/daily/", "icon": "📅"},
-        {"title": "الإشعارات", "url": "/notifications/inbox/", "icon": "🔔"},
-        {"title": "التقارير", "url": "/reports/", "icon": "📄"},
-        {"title": "العيادة", "url": "/clinic/", "icon": "🏥"},
-        {"title": "المكتبة", "url": "/library/", "icon": "📚"},
-        {"title": "السلوك", "url": "/behavior/", "icon": "⚖️"},
-        {"title": "الجودة", "url": "/quality/", "icon": "📊"},
-        {"title": "التحليلات", "url": "/analytics/", "icon": "📈"},
+        {"title": "لوحة التحكم", "url": "/dashboard/", "icon": "dashboard"},
+        {"title": "الجدول الأسبوعي", "url": "/schedule/weekly/", "icon": "schedule"},
+        {"title": "التقييمات", "url": "/assessments/", "icon": "assessments"},
+        {"title": "حصصي اليوم", "url": "/teacher/schedule/", "icon": "periods_today"},
+        {"title": "غياب اليوم", "url": "/teacher/reports/daily/", "icon": "attendance_register"},
+        {"title": "الإشعارات", "url": "/notifications/inbox/", "icon": "notifications"},
+        {"title": "التقارير", "url": "/reports/", "icon": "reports"},
+        {"title": "العيادة", "url": "/clinic/", "icon": "clinic"},
+        {"title": "المكتبة", "url": "/library/", "icon": "library"},
+        {"title": "السلوك", "url": "/behavior/", "icon": "behavior"},
+        {"title": "الجودة", "url": "/quality/", "icon": "quality"},
+        {"title": "التحليلات", "url": "/analytics/", "icon": "stats"},
     ]
     for p in pages:
         if q in p["title"]:

@@ -7,13 +7,13 @@ class OperationsConfig(AppConfig):
     verbose_name = "العمليات"
 
     def ready(self):
+        import operations.signals  # noqa: F401
         from core.module_registry import register_module
 
         register_module(
             name="schedule",
             label="الجدول الدراسي",
             url_prefix="/operations/schedule/",
-            icon="bi-calendar-week",
             allowed_roles={
                 "principal",
                 "vice_academic",
@@ -40,7 +40,6 @@ class OperationsConfig(AppConfig):
             name="attendance",
             label="الحضور والغياب",
             url_prefix="/operations/",
-            icon="bi-person-check",
             allowed_roles={
                 "principal",
                 "vice_academic",

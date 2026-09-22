@@ -15,13 +15,13 @@ import pathlib
 import re
 
 from tests.css_contrast import iter_rules
+from tests.css_source import read_css
 
-CSS = pathlib.Path("static/css/custom.css")
 BASE_JS = pathlib.Path("static/js/base.js")
 
 
 def _print_rules():
-    for selector, decls, ctx in iter_rules(CSS.read_text(encoding="utf-8")):
+    for selector, decls, ctx in iter_rules(read_css()):
         if any(re.match(r"@media\s+print\b", head) for head in ctx):
             yield selector, decls, ctx
 

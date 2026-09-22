@@ -60,9 +60,12 @@ def principal(db, school):
 
 
 def _get(user, name, query=""):
+    """يتبع إعادة التوجيه: تصديرا PDF/Excel صارا خلفيَّين (البند 5) — الرابطُ
+    يُنشئ صفَّ تصديرٍ ويُحيل إلى صفحة المتابعة، التي تُرجع الملفَّ فوراً هنا
+    لأنّ `CELERY_TASK_ALWAYS_EAGER=True` في الاختبارات."""
     client = Client()
     client.force_login(user)
-    return client.get(reverse(name) + query, HTTP_HOST="localhost")
+    return client.get(reverse(name) + query, HTTP_HOST="localhost", follow=True)
 
 
 # ── عمودُ القسم في الورقة ────────────────────────────────────────────
@@ -131,14 +134,15 @@ def test_the_workbook_holds_the_department_column(db, principal, teaching_school
     assert sheet.sheet_view.rightToLeft
 
 
-def test_pdf_export_returns_a_document(db, principal, teaching_school):
-    """مولّدُ PDF يتدهور إلى 503 حين تغيب مكتبته — والمسارُ لا ينهار."""
+def test_pdf_export_returns_a_document_or_a_clean_failure_page(db, principal, teaching_school):
+    """مولّدُ PDF يتدهور إلى صفحة فشلٍ نظيفة حين تغيب مكتبته — والمسارُ لا ينهار."""
     resp = _get(principal, "schedule_export_pdf", "?view=all_teachers&paper=a3")
 
-    assert resp.status_code in (200, 503)
-    if resp.status_code == 200:
-        assert resp["Content-Type"] == "application/pdf"
+    assert resp.status_code == 200
+    if resp["Content-Type"] == "application/pdf":
         assert resp.content.startswith(b"%PDF")
+    else:
+        assert "تعذّر" in resp.content.decode()
 
 
 def test_a_teacher_exports_only_their_own_schedule(db, teaching_school):
@@ -153,6 +157,7 @@ def test_a_teacher_exports_only_their_own_schedule(db, teaching_school):
     response = resp.get(
         reverse("schedule_export_excel") + f"?view=teacher&teacher={colleague.id}",
         HTTP_HOST="localhost",
+        follow=True,
     )
 
     assert response.status_code == 200

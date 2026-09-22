@@ -35,9 +35,9 @@ jobs:
     name: pip-audit — PyPI advisories
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -60,7 +60,7 @@ jobs:
             --progress-spinner off
 
       - name: Upload pip-audit Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pip-audit-pypi-report
@@ -74,9 +74,9 @@ jobs:
     name: Bandit — SAST Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -105,7 +105,7 @@ jobs:
             -f html -o bandit-full-report.html
 
       - name: Upload Bandit Reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: bandit-reports
@@ -135,9 +135,9 @@ jobs:
     name: pip-audit — OSV advisories
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -160,7 +160,7 @@ jobs:
             --progress-spinner off
 
       - name: Upload OSV Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: pip-audit-osv-report
@@ -197,9 +197,9 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: "ci-test-password"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -220,7 +220,7 @@ jobs:
           python manage.py check --deploy --fail-level WARNING 2>&1 | tee django-deploy-check.txt
 
       - name: Upload Django Check Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: django-deploy-check

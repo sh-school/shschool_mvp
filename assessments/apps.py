@@ -13,7 +13,6 @@ class AssessmentsConfig(AppConfig):
             name="assessments",
             label="التقييمات والدرجات",
             url_prefix="/assessments/",
-            icon="bi-journal-check",
             allowed_roles={
                 "principal",
                 "vice_academic",

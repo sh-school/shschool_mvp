@@ -5,7 +5,9 @@ E2E Tests: بوابة أولياء الأمور — SchoolOS v5.2
 """
 
 import pytest
-from playwright.sync_api import expect
+
+pytest.importorskip("pytest_playwright")
+from playwright.sync_api import expect  # noqa: E402
 
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
 
@@ -55,5 +57,5 @@ class TestResponsiveLayout:
     def test_desktop_viewport_shows_nav(self, principal_page):
         """في الديسكتوب، شريط التنقل ظاهر."""
         principal_page.set_viewport_size({"width": 1280, "height": 800})
-        expect(principal_page.locator("nav")).to_be_visible()
+        expect(principal_page.locator("nav").first).to_be_visible()
         expect(principal_page.locator("main")).to_be_visible()

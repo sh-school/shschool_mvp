@@ -8,11 +8,13 @@ import os
 
 import pytest
 
-# ✅ v5.4: Locust (loadtest) و Playwright (e2e) يحتاجان مكتبات خاصة
-# غير مثبّتة في بيئة الاختبار العادية — نستثنيها من الجمع
+# ✅ v5.4: Locust (loadtest) يحتاج مكتبةً خاصّة غير مثبّتة في بيئة الاختبار
+# العاديّة — يُستثنى من الجمع. أمّا Playwright (e2e، 2026-09-19) فمثبَّتٌ في
+# requirements-dev.txt الآن (P2-1)؛ ملفّاته تتخطّى نفسَها بـ
+# `pytest.importorskip("pytest_playwright")` حين تغيب الحزمة (كوظيفة
+# `pytest — تغطية` الرئيسية) بدل استثناءٍ شاملٍ هنا.
 collect_ignore_glob = [
     "tests/loadtest/**",
-    "tests/e2e/**",
 ]
 
 #: إعداداتُ الاختبار كما يعرفها CI — وهي ما في `[tool.pytest.ini_options]` بـpyproject.toml.

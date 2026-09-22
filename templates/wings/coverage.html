@@ -4,6 +4,9 @@
 
 {% block title %}تغطية الأجنحة{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}page-noscroll{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/wings/" parent_label="أجنحة المدرسة" current="التغطية والإنابة" %}
 {% endblock %}
@@ -13,14 +16,13 @@
 
   {% page_header "تغطية الأجنحة" subtitle=subtitle icon="wing_coverage" %}
     <span class="exec-date">{{ today|date:"D، d M Y" }}</span>
-  {% endpage_header %}
-
-  <p class="bell-note">
-    الجناحُ نطاقُ مشرفه: غيابُه يوماً يعني خمسَ شُعبٍ لا يرصد غيابَها أحد، وعذراً لا
+    {% callout "hint" %}الجناحُ نطاقُ مشرفه: غيابُه يوماً يعني خمسَ شُعبٍ لا يرصد غيابَها أحد، وعذراً لا
     يعتمده أحد. والبديلُ من مشرفٍ إداريٍّ أو عاملِ خدماتٍ أو ملاحظِ طلبة (قرارُ المدير)،
     ويُعيّنه المديرُ أو النائبان أو مطوّرُ المنصّة. والإنهاءُ بتاريخٍ لا بحذف — فمن يقرأ
-    غيابَ الأسبوع الماضي يحتاج أن يعرف من كان يرصده.
-  </p>
+    غيابَ الأسبوع الماضي يحتاج أن يعرف من كان يرصده.{% endcallout %}
+  {% endpage_header %}
+
+  
 
   <div class="wing-row">
   {% for row in rows %}
@@ -118,6 +120,9 @@
             <span>ملاحظة</span>
             <input type="text" name="note" class="form-control" maxlength="200">
           </label>
+          <div class="wing-cover-field--wide">
+            {% callout "warning" %}يصير البديلُ حاملَ الجناح فيرى ملفّاتِ غياب طلابه ويرصد شُعبَه، ويفرغ نطاقُ المشرف الأصيل مدّةَ التغطية.{% endcallout %}
+          </div>
           <button type="submit" class="btn-primary btn-sm">
             {% icon "user_add" %} عيّن بديلاً
           </button>
@@ -126,11 +131,10 @@
     </div>
 
     {% if row.history %}
-      <p class="bell-note">سابقاً:
+      <p class="ui-note">سابقاً:
         {% for past in row.history %}
           {{ past.substitute.full_name }} ({{ past.start_date }}–{{ past.end_date|default:"…" }}){% if not forloop.last %} · {% endif %}
-        {% endfor %}
-      </p>
+        {% endfor %}</p>
     {% endif %}
   {% endsection_card %}
   {% endfor %}

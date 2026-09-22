@@ -1,0 +1,75 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% block title %}تظلّمات تقييم الأداء — {{ current_school.name|default:"المدرسة" }}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/quality/evaluations/" parent_label="تقييم أداء الموظفين" current="التظلّمات" %}
+{% endblock %}
+
+{% block content %}
+<div class="qeval qeval--narrow">
+
+  {% page_header "تظلّمات تقييم الأداء" subtitle="المادة 20 · لجنة موظفي المدارس" icon="policy" %}  {% callout "info" %}عرضٌ فقط — يدوّن قرارَ اللجنة مديرُ المدرسة.{% endcallout %}
+  {% endpage_header %}
+
+  {% if not can_record %}{% endif %}
+
+  {% kpi_strip label="أرقام التظلّمات" %}
+    {% kpi "تظلّمات مقدَّمة" rows|length %}
+    {% kpi "بانتظار اللجنة أو الوزير" waiting tone="amber" title="تظلّمٌ لم يصدر فيه قرارٌ معتمَد ولم تمضِ مدّةُ البتّ" %}
+  {% endkpi_strip %}
+
+  {% for row in rows %}
+  {% section_card row.ev.employee.full_name meta=row.stage.label icon="staff_evaluation" %}
+    <ul class="plain-list">
+      <li class="plain-list__row">
+        <span class="plain-list__main">
+          <b class="plain-list__title">{{ row.ev.get_period_display }} — {{ row.ev.academic_year }}</b>
+          <span class="plain-list__sub">قُدِّم التظلّم في {{ row.ev.grievance_submitted_on|date:"Y-m-d" }}{% if row.stage.due %} · آخرُ يومٍ لبتّ اللجنة {{ row.stage.due|date:"Y-m-d" }} (بقي {{ row.stage.days_left }} يوماً){% endif %}</span>
+        </span>
+        <span class="status-badge status-{{ row.tone }}">{% if row.stage.final %}نهائي{% else %}غير نهائي{% endif %}</span>
+      </li>
+      <li class="plain-list__row">
+        <span class="plain-list__main">
+          <b class="plain-list__title">سببُ التظلّم</b>
+          <span class="plain-list__sub">{{ row.ev.grievance_reason|default:"—" }}</span>
+        </span>
+      </li>
+      {% if row.ev.grievance_decided_on %}
+      <li class="plain-list__row">
+        <span class="plain-list__main">
+          <b class="plain-list__title">قرارُ اللجنة: {{ row.ev.get_grievance_outcome_display }}</b>
+          <span class="plain-list__sub">أُخطر الموظّف في {{ row.ev.grievance_decided_on|date:"Y-m-d" }}{% if row.ev.grievance_decision_approved_on %} · اعتمده الوزير في {{ row.ev.grievance_decision_approved_on|date:"Y-m-d" }}{% endif %}</span>
+        </span>
+      </li>
+      {% endif %}
+    </ul>
+
+    {% if can_record and not row.ev.grievance_decision_approved_on %}
+    {# ما وصل من اللجنة: قرارُها وتاريخُ إخطار الموظّف، ثمّ اعتمادُ الوزير — ولا يُعاد تدوينُ ما دُوِّن. #}
+    <form method="post" action="{% url 'record_grievance_decision' row.ev.id %}" class="qeval-notes" data-confirm="يُدوَّن ما وصل من اللجنة ولا يُعدَّل بعد ذلك. أدوِّنه؟">
+      {% csrf_token %}
+      {% if not row.ev.grievance_decided_on %}
+      <label for="dec-{{ row.ev.id }}">قرارُ اللجنة</label>
+      <select name="outcome" id="dec-{{ row.ev.id }}" class="form-control">
+        <option value="">— اختر —</option>
+        {% for value, label in outcomes %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+      <label for="dd-{{ row.ev.id }}">تاريخُ إخطار الموظّف بالقرار</label>
+      <input type="date" name="decided_on" id="dd-{{ row.ev.id }}" class="form-control">
+      {% endif %}
+      {% if not row.ev.grievance_decision_approved_on %}
+      <label for="da-{{ row.ev.id }}">تاريخُ اعتماد الوزير لقرار اللجنة</label>
+      <input type="date" name="approved_on" id="da-{{ row.ev.id }}" class="form-control">
+      {% endif %}
+      <div class="form-actions"><button type="submit" class="btn-primary btn-sm">تدوين</button></div>
+    </form>
+    {% endif %}
+  {% endsection_card %}
+  {% empty %}
+  {% empty_state "لا تظلّمات مقدَّمة في هذا العام" sub="يتظلّم الموظّفُ من تقريره المعتمَد في «تقييماتي» خلال خمسة عشر يوماً من علمه." icon="policy" %}
+  {% endfor %}
+
+</div>
+{% endblock %}

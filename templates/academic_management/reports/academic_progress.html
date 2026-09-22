@@ -18,7 +18,7 @@
 {% block report_body %}
   {% if data.class_group %}
     {% kpi_strip label="ملخّص الشعبة" %}
-      {% kpi "الشعبة" data.class_group %}
+      {% kpi "الشعبة" data.class_group.short_label %}
       {% kpi "الطلاب" data.students|length tone="blue" %}
       {% kpi "المتوسط العام %" data.overall_avg|default_if_none:"—" tone="teal" %}
     {% endkpi_strip %}

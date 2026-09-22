@@ -14,6 +14,7 @@ from core.models import ClassGroup, TimeBand
 from operations.bells import REGULAR, THURSDAY
 from operations.models import ScheduleSlot, Subject
 from operations.schedule_paper import (
+    BAND_LABELS,
     bell_tables,
     breaks_after,
     grid_to_days,
@@ -101,6 +102,7 @@ def test_a_teacher_in_two_bells_sees_both_bells_named(school, bands):
         (dt.time(10, 25), True),
     ], "فسحتان بوقتين، ولكلٍّ اسمُ جرسه"
     assert [f.band for f in fasahat] == ["الأرضيّ", "الثانويّ"], "لا «الطابق» اسماً لجرس"
+    assert BAND_LABELS["ninth"].startswith("تاسع ") and "3-4" in BAND_LABELS["ninth"]
 
 
 @pytest.mark.django_db
@@ -115,7 +117,21 @@ def test_a_break_shared_by_two_bells_names_both(school, bands):
         for item in entry["items"]
         if item.label == "الفسحة" and item.start == dt.time(10, 25)
     ]
-    assert len(upper) == 1 and upper[0].band == "التاسع · الثانويّ"
+    assert len(upper) == 1 and upper[0].band == f"{BAND_LABELS['ninth']} · الثانويّ"
+
+
+@pytest.mark.django_db
+def test_a_single_bell_break_still_names_its_bell(school, bands):
+    """بلاغ 2026-09-16: «الفسحة» وحدها تضلّل — معلّمُ الثانويّ يرى «الثانويّ» تحتها."""
+    for code in ("secondary", "ninth", "ground"):
+        week = week_layout(_empty_days(), [[code]] * 5, bell_tables(school))
+        items = [
+            item
+            for entry in week["lines"][0]["entries"]
+            if entry["kind"] == "break"
+            for item in entry["items"]
+        ]
+        assert items and all(item.band == BAND_LABELS[code] for item in items), code
 
 
 @pytest.mark.django_db
@@ -209,6 +225,70 @@ def test_the_service_keeps_seven_cells_beside_the_week(school, paper_lessons):
     assert row["week"]["break_count"] == 2
     days = grid_to_days(ScheduleService.get_weekly_schedule(school, row["teacher"], None, YEAR))
     assert teacher_bands_by_day(days, ScheduleService._band_codes(school))[1] == ["secondary"]
+
+
+# ── تلوينُ التفريغات على الجدول ──────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_a_ministry_exemption_colors_an_empty_slot_with_its_reason(
+    client, principal_user, school, paper_lessons
+):
+    """الخليّةُ الفارغةُ المفرَّغةُ بقرارٍ وزاريٍّ تُلوَّن وتكتب السببَ، والجهةُ تلميحٌ في title."""
+    from operations.models import TeacherExemption
+
+    teacher, _ = paper_lessons
+    TeacherExemption.objects.create(
+        school=school,
+        teacher=teacher,
+        academic_year=YEAR,
+        exemption_type="specific_period",
+        day_of_week=0,
+        period_number=1,
+        reason="دورةٌ تدريبيّةٌ خارج المدرسة",
+        source="ministry",
+        is_active=True,
+    )
+    client.force_login(principal_user)
+
+    body = client.get(
+        reverse("schedule_print"),
+        {"view": "teacher", "teacher": teacher.id, "year": YEAR},
+        HTTP_HOST="localhost",
+    ).content.decode()
+
+    assert 'class="exempt-ministry" title="قرارُ الوزارة"' in body
+    assert '<span class="slot-empty slot-exempt">دورةٌ تدريبيّةٌ خارج المدرسة</span>' in body
+
+
+@pytest.mark.django_db
+def test_an_occupied_slot_is_never_colored_even_with_a_matching_exemption(school, paper_lessons):
+    """التلوينُ حكمٌ على الفراغ — خليّةٌ فيها حصّةٌ فعليّةٌ لا تُلوَّن مهما وُجد تفريغٌ يطابقها."""
+    from operations.models import TeacherExemption
+    from operations.schedule_paper import annotate_teacher_exemptions, teacher_exemption_map
+
+    teacher, _ = paper_lessons  # حصّتُه الوحيدةُ الاثنينَ (يوم 1) الحصّةَ 2 — مشغولة
+    TeacherExemption.objects.create(
+        school=school,
+        teacher=teacher,
+        academic_year=YEAR,
+        exemption_type="specific_period",
+        day_of_week=1,
+        period_number=2,
+        reason="لا يهمّ",
+        source="school",
+        is_active=True,
+    )
+    days = grid_to_days(ScheduleService.get_weekly_schedule(school, teacher, None, YEAR))
+    band_codes = ScheduleService._band_codes(school)
+    week = week_layout(days, teacher_bands_by_day(days, band_codes), bell_tables(school))
+    exemption_map = teacher_exemption_map(school, teacher, YEAR)
+    annotate_teacher_exemptions(week, exemption_map)
+
+    entry = next(
+        e for e in week["lines"][1]["entries"] if e.get("kind") == "period" and e["number"] == 2
+    )
+    assert "exemption_class" not in entry
 
 
 @pytest.mark.django_db

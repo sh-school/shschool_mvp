@@ -118,8 +118,19 @@ def test_parent_behavior_numbers_still_right(client, school, teacher_user):
     row = client.get(reverse("parent_behavior")).context["children_behavior"][0]
     assert row["total_infractions"] == 12
     assert row["unresolved"] == 8
-    assert len(row["infractions"]) == 10
+    # حديثةٌ كلُّها: الأسبوعان الأخيران يُعرضان كاملَين (ملخّصُ الرصد يحيل إليها).
+    assert len(row["infractions"]) == 12
     assert row["unresolved_tone"] == "amber"
+
+    # وما قدُم يبقى في سقف العشر.
+    from behavior.models import BehaviorInfraction
+
+    BehaviorInfraction.objects.filter(student=child).update(
+        date=timezone.localdate() - timedelta(days=30)
+    )
+    row = client.get(reverse("parent_behavior")).context["children_behavior"][0]
+    assert row["total_infractions"] == 12
+    assert len(row["infractions"]) == 10
 
 
 # ══════════════════════════════════════════════════════════════════════

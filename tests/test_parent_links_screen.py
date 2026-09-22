@@ -237,6 +237,46 @@ class TestOneDoorAdds:
 
         assert ParentStudentLink.objects.filter(parent=parent, student=student).exists()
 
+    def test_a_student_from_another_school_cannot_be_linked(self, client_as, school, admin, year):
+        """IDOR: مديرُ مدرسةٍ لا يربط طالباً من مدرسةٍ أخرى بتمرير معرِّفه مباشرةً."""
+        from tests.conftest import SchoolFactory
+
+        other_school = SchoolFactory()
+        foreign_student = _student(other_school, "طالبٌ غريب", "31400000040")
+        parent = _parent(school, "الوليّ", "28400000040")
+
+        resp = client_as(admin).post(
+            reverse("add_parent_link"),
+            {
+                "parent_id": str(parent.id),
+                "student_id": str(foreign_student.id),
+                "relationship": "father",
+            },
+        )
+
+        assert resp.status_code == 404
+        assert not ParentStudentLink.objects.filter(parent=parent, student=foreign_student).exists()
+
+    def test_a_parent_from_another_school_cannot_be_linked(self, client_as, school, admin, year):
+        """IDOR: ولا وليّاً من مدرسةٍ أخرى بتمرير معرِّفه مباشرةً."""
+        from tests.conftest import SchoolFactory
+
+        other_school = SchoolFactory()
+        foreign_parent = _parent(other_school, "وليٌّ غريب", "28400000041")
+        student = _student(school, "الطالب", "31400000041", year=year)
+
+        resp = client_as(admin).post(
+            reverse("add_parent_link"),
+            {
+                "parent_id": str(foreign_parent.id),
+                "student_id": str(student.id),
+                "relationship": "father",
+            },
+        )
+
+        assert resp.status_code == 404
+        assert not ParentStudentLink.objects.filter(parent=foreign_parent, student=student).exists()
+
     def test_a_new_guardian_is_created_and_linked_in_one_go(self, client_as, school, admin, year):
         student = _student(school, "الطالب", "31400000031", year=year)
 

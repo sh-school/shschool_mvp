@@ -69,18 +69,20 @@ Run `smoke-test.sh` after every Railway deploy:
 |---|----------|----------|-----------|
 | 1 | `/health/` | HTTP 200 | App is alive |
 | 2 | `/ready/` | HTTP 200 | DB + dependencies ready |
-| 3 | `/status/` | HTTP 200 + JSON | Status API works |
+| 3 | `/status/` | HTTP 301/302/401/403 | Operational details are **not** public (`internal_only`, P4-9) — a 200 means it leaked |
 | 4 | `/` | HTTP 200 + login HTML | Frontend loads |
 | 5 | `/admin/` | HTTP 200 or 302 | Admin accessible |
 
 ### Integration with Railway Deploy
 
-Add to `scripts/railway-release.sh` (post-deploy hook):
+Add to `scripts/railway-predeploy.sh` (runs once before traffic switches — not
+`railway-release.sh`, whose `start` ends in `exec daphne`, so nothing after it
+would ever run):
 
 ```bash
-# At the end of railway-release.sh:
+# Near the end of railway-predeploy.sh, before the RLS/exit:
 if [ -n "${ALERT_WEBHOOK:-}" ]; then
-    ./scripts/smoke-test.sh --webhook "$ALERT_WEBHOOK" || true
+    ./scripts/smoke-test.sh --webhook "$ALERT_WEBHOOK"
 fi
 ```
 
@@ -143,7 +145,13 @@ cat /tmp/schoolos-monitor-failures.count
 
 ## 4. GitHub Actions Monitoring
 
-Create `.github/workflows/monitor.yml`:
+> **Live:** `.github/workflows/monitor.yml` exists and runs every 15 minutes. It
+> needs no secret: two attempts a minute apart, a failure opens (or comments on)
+> one `uptime-failure` issue, and the next success closes it — the same pattern
+> as `nightly.yml`. The sample below is the older Slack-webhook design, kept for
+> reference only.
+
+Sample (superseded) `.github/workflows/monitor.yml`:
 
 ```yaml
 name: SchoolOS Health Monitor

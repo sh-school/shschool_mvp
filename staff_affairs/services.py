@@ -51,7 +51,8 @@ class StaffService:
 
         from core.models.access import Membership
         from core.models.user import CustomUser
-        from operations.models import StaffEvaluation, TeacherAbsence, TeacherSwap
+        from operations.models import TeacherAbsence, TeacherSwap
+        from quality.evaluation_selectors import count_open_evaluations
         from staff_affairs.models import LeaveRequest
 
         today = today or timezone.localdate()
@@ -80,11 +81,7 @@ class StaffService:
             status="pending",
         ).count()
 
-        pending_evals = StaffEvaluation.objects.filter(
-            school=school,
-            status="draft",
-            academic_year=year,
-        ).count()
+        pending_evals = count_open_evaluations(school, year)
 
         expiring_licenses = CustomUser.objects.filter(
             memberships__school=school,
@@ -153,6 +150,8 @@ class StaffService:
             TeacherAbsence,
             TeacherSwap,
         )
+        from quality.evaluation_selectors import get_published_evaluations
+        from quality.presentation import evaluation_rating_tone
         from staff_affairs.models import LeaveBalance, LeaveRequest
 
         membership = (
@@ -176,11 +175,12 @@ class StaffService:
             school=school,
         ).count()
 
-        evaluations = (
-            list(school.staff_evaluations.filter(staff=user).order_by("-academic_year")[:5])
-            if hasattr(school, "staff_evaluations")
-            else []
-        )
+        # تقاريرُ `quality.EmployeeEvaluation` المعتمَدة وحدَها — ما يُعلَن به الموظّفُ (المادة 20)؛
+        # فالمسودّةُ والمُقدَّمُ عملُ المقيِّم لا يُعرضان في ملفّ الموظّف. (كان هنا `StaffEvaluation`
+        # المُهمَل، صفرٌ في الإنتاج دائماً: ADR-0002 §1.3.)
+        evaluations = get_published_evaluations(school, user)[:5]
+        for evaluation in evaluations:
+            evaluation.score_tone = evaluation_rating_tone(evaluation.rating)
 
         leaves = list(
             LeaveRequest.objects.filter(staff=user, school=school).order_by("-created_at")[:10]

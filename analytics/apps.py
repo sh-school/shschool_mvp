@@ -13,7 +13,6 @@ class AnalyticsConfig(AppConfig):
             name="analytics",
             label="التحليلات والإحصاءات",
             url_prefix="/analytics/",
-            icon="bi-graph-up",
             allowed_roles={
                 "principal",
                 "vice_academic",

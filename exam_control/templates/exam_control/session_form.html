@@ -9,9 +9,9 @@
 {% block content %}
 <div class="exec-dash form-page">
 
-  {% page_header "دورةُ اختبارٍ جديدة" subtitle="كنترول الاختبارات" icon="plus" %}{% endpage_header %}
+  {% page_header "دورةُ اختبارٍ جديدة" subtitle="كنترول الاختبارات" icon="add" %}{% endpage_header %}
 
-  {% section_card "بياناتُ الدورة" icon="clipboard-check" %}
+  {% section_card "بياناتُ الدورة" icon="exam_control" %}
     <form method="post" class="form-stack">{% csrf_token %}
       <div class="form-group"><label class="form-label" for="ses-name">اسم الدورة</label>
         <input id="ses-name" name="name" class="form-control" placeholder="مثال: نهاية الفصل الأوّل {{ default_year }}" required></div>

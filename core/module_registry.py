@@ -14,7 +14,6 @@ Usage:
                 name="assessments",
                 label="التقييمات والدرجات",
                 url_prefix="/assessments/",
-                icon="bi-journal-check",
                 allowed_roles={"principal", "vice_academic", ...},
                 sort_order=10,
             )
@@ -23,7 +22,9 @@ Usage:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +40,14 @@ class ModuleInfo:
     name: str  # مفتاح فريد (e.g. "assessments")
     label: str  # عنوان عربي
     url_prefix: str  # مسار الـ URL (e.g. "/assessments/")
-    icon: str  # Bootstrap Icons class
     allowed_roles: frozenset  # الأدوار المسموح لها
     sidebar_roles: frozenset  # الأدوار التي ترى الوحدة في القائمة الجانبية
     sort_order: int  # ترتيب العرض
     parent: str  # وحدة أب (للـ sub-modules)
+    #: منحٌ لا يقرؤه الدورُ الحاكم: ``grant(user) -> bool``. لوحدةٍ يدخلها المستخدمُ
+    #: بصفةٍ أخرى له غيرِ دوره الحاكم — كالمعلّم الذي هو وليُّ أمرٍ في ``/parents/``.
+    #: وحارسُ كلّ واجهةٍ تحتها يبقى يفحص بنفسه؛ المنحُ يفتح البوّابةَ لا الشاشات.
+    grant: Callable[[Any], bool] | None = None
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -58,11 +62,11 @@ def register_module(
     name: str,
     label: str,
     url_prefix: str,
-    icon: str = "bi-grid",
     allowed_roles: set | frozenset | None = None,
     sidebar_roles: set | frozenset | None = None,
     sort_order: int = 50,
     parent: str = "",
+    grant: Callable[[Any], bool] | None = None,
 ) -> None:
     """
     يُسجّل وحدة جديدة في السجل المركزي.
@@ -75,8 +79,6 @@ def register_module(
         العنوان العربي الذي يظهر في القائمة.
     url_prefix : str
         بداية المسار المحمي (e.g. "/assessments/").
-    icon : str
-        أيقونة Bootstrap Icons.
     allowed_roles : set
         الأدوار المسموح لها بالوصول (للـ Middleware).
     sidebar_roles : set | None
@@ -85,6 +87,8 @@ def register_module(
         ترتيب العرض في القائمة الجانبية.
     parent : str
         اسم الوحدة الأب (للوحدات الفرعية مثل quality/evaluations).
+    grant : callable | None
+        منحٌ يُدخل البوّابةَ من ليس دورُه الحاكمُ في ``allowed_roles``.
     """
     if name in _MODULES:
         logger.debug("Module '%s' already registered — skipping", name)
@@ -97,11 +101,11 @@ def register_module(
         name=name,
         label=label,
         url_prefix=url_prefix,
-        icon=icon,
         allowed_roles=roles,
         sidebar_roles=sidebar,
         sort_order=sort_order,
         parent=parent,
+        grant=grant,
     )
     logger.debug("Module registered: %s (%s)", name, url_prefix)
 
@@ -130,6 +134,22 @@ def get_protected_paths() -> dict[str, list[str]]:
     return paths
 
 
+def get_protected_grants() -> dict[str, Callable[[Any], bool]]:
+    """منحُ كلّ بوّابةٍ لها منح — ``{url_prefix: grant}``؛ ويقرؤه الوسيطُ والقائمة."""
+    return {m.url_prefix: m.grant for m in _MODULES.values() if m.grant is not None}
+
+
+def gate_admits(user: Any, prefix: str, allowed_roles: Any) -> bool:
+    """أتُدخل بوّابةُ ``prefix`` هذا المستخدم؟ — بدوره الحاكم أو بمنح الوحدة.
+
+    والمنحُ يُسأل فقط حين يردّه الدور، فلا يكلّف أحداً شيئاً في الطريق الغالب.
+    """
+    if user.get_role() in allowed_roles:
+        return True
+    grant = get_protected_grants().get(prefix)
+    return grant is not None and bool(grant(user))
+
+
 def get_accessible_modules_from_registry(user) -> list[dict]:
     """
     يُعيد قائمة الوحدات التي يمكن للمستخدم الوصول إليها.
@@ -137,7 +157,7 @@ def get_accessible_modules_from_registry(user) -> list[dict]:
     Returns
     -------
     list[dict]
-        كل عنصر: {"name", "label", "url", "icon", "parent"}
+        كل عنصر: {"name", "label", "url", "parent"}
     """
     if not user or not user.is_authenticated:
         return []
@@ -148,7 +168,6 @@ def get_accessible_modules_from_registry(user) -> list[dict]:
                 "name": m.name,
                 "label": m.label,
                 "url": m.url_prefix,
-                "icon": m.icon,
                 "parent": m.parent,
             }
             for m in sorted(_MODULES.values(), key=lambda m: m.sort_order)
@@ -163,7 +182,6 @@ def get_accessible_modules_from_registry(user) -> list[dict]:
                     "name": m.name,
                     "label": m.label,
                     "url": m.url_prefix,
-                    "icon": m.icon,
                     "parent": m.parent,
                 }
             )

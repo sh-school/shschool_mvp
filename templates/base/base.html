@@ -1,5 +1,5 @@
 {% load privacy brand_tags icons %}
-{% load navigation %}
+{% load navigation assets %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -7,9 +7,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="{% brand_color 'MAROON' %}" id="meta-theme-color">
   <meta name="color-scheme" content="light" id="meta-color-scheme">
+  {% comment %}لونُ أرضيّة الصفحة يُرسم قبل أيّ ملفٍّ خارجيّ (من `core.brand` مرآةِ `--page-bg`): كانت الصفحةُ الجديدةُ بيضاءَ لحظةً بين النقرة وتحميل الأنماط فتُرى الشاشةُ «تُفرَّغ» ثمّ تعود. الآن لا أبيضَ يظهر: تبقى الأرضيّةُ بلونها نهاراً وليلاً.{% endcomment %}
+  <style>html{background:{% brand_color "PAGE_BG" %}}html.dark{background:{% brand_color "PAGE_BG" "dark" %}}</style>
   {# ── Dark Mode: تطبيق مبكر لمنع وميض الأبيض (FOUC) ── #}
   <script nonce="{{ request.csp_nonce }}">
-    (function(){var t=localStorage.getItem('theme'),isDark=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='{% brand_color "MAROON_BG" "dark" %}';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
+    (function(){var t=localStorage.getItem('theme'),isDark=t==='dark';if(isDark){document.documentElement.classList.add('dark');var mc=document.getElementById('meta-theme-color');if(mc)mc.content='{% brand_color "MAROON_BG" "dark" %}';var cs=document.getElementById('meta-color-scheme');if(cs)cs.content='dark'}})();
   </script>
   {% comment %}
   لوحةُ الرسوم تُقرأ من `:root`. ألوانُ Chart.js كانت تُكتب أرقاماً في
@@ -56,19 +58,16 @@
   <link rel="preload" href="{% static 'fonts/Tajawal-Regular.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
 
-  {# ── CSS — Tailwind in lowest layer, custom.css layers override ── #}
+  {# ── CSS — Tailwind in lowest layer, then the platform sheets (core/css_files.py, ADR-0003) ── #}
   <style>@import url("{% static 'css/tailwind.min.css' %}") layer(tailwind);</style>
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}">
+  {% custom_css %}
   {% block extra_css %}{% endblock %}
 
   {# ── HTMX 1.9.12 (محلي — بدون CDN لتجنب مشاكل integrity) ── #}
   <script src="{% static 'js/htmx.min.js' %}" defer></script>
 </head>
 
-<body class="app-body min-h-screen flex flex-col">
-
-{# الورقةُ القديمة (Lucide) — لم يبقَ ما يطلبها إلّا صفحةُ دليلها ووسمُ الانتقال؛ تُحذف في المرحلة 5، والأيقوناتُ من core/icons.py #}
-{% include "components/sprite.html" %}
+<body class="app-body min-h-screen flex flex-col" data-icon-sprite="{% static 'icons/sprite.svg' %}" data-page-nav>
 
 {# ✅ Skip Navigation — WCAG 2.1 AA #}
 <a href="#main-content" class="skip-nav">تخطي للمحتوى الرئيسي</a>
@@ -303,6 +302,8 @@
       {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% icon "dashboard" %} الرئيسية</a>
       {% endif %}
+      {% if role == "secretary" %}<a href="{% url 'staff_affairs:attendance_board' %}" class="nb">{% icon "attendance_register" %} حضور الموظفين</a>
+      <a href="{% url 'staff_affairs:permit_queue' %}" class="nb">{% icon "tardiness" %} طلبات الأذونات</a>{% endif %}
       {% if role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="nb">{% icon "attendance_register" %} رصد الغياب</a>
       {# طلبةُ جناحه في قائمةٍ منسدلةٍ واحدة (m-wing-students أدناه): خمسةُ روابطَ مستقلّةٍ كانت تلفّ الشريطَ سطرين على الحاسوب #}
       <button class="nb" id="btn-wing-students" data-sd="m-wing-students" aria-expanded="false" aria-controls="m-wing-students">{% icon "students" %} طلبة جناحي <span class="chv">▼</span></button>
@@ -324,7 +325,7 @@
       {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% icon "dashboard" %} الرئيسية</a>
       {% endif %}
-      <a href="/admin/" class="nb">{% icon "maintenance" %} لوحة الإدارة</a>
+      <a href="{% url 'it_admin_password_reset_list' %}" class="nb">{% icon "password" %} إعادة تعيين كلمات المرور</a>
 
     {# ── الأدوار الجديدة v7 ── #}
 
@@ -428,6 +429,17 @@
       <button class="nb" id="btn-admin"    data-sd="m-admin"    aria-expanded="false" aria-controls="m-admin">{% icon "maintenance" %} الإدارة <span class="chv">▼</span></button>
 
     {% endif %}
+    {% comment %}
+    الكادرُ الذي هو وليُّ أمرٍ أيضاً (قرارُ 2026-09-16): بابُه إلى أبنائه — والموافقةُ
+    تُطلب منه هناك لا في عمله. والعضويّةُ من المحفوظ على الكائن، فلا استعلامَ لكلّ صفحة.
+    {% endcomment %}
+    {# خروقاتُ البيانات: القيادةُ في قائمة «الإدارة»، والإداريّ ومطوّرُ المنصّة رابطٌ مباشر هنا. #}
+    {% if not is_admin_role and request.user|can_open:"breach:dashboard" %}
+    <a href="{% url 'breach:dashboard' %}" class="nb">{% icon "breach" %} خروقات البيانات</a>
+    {% endif %}
+    {% if role != "parent" and request.user.has_parent_membership and request.user|can_open:"parent_dashboard" %}
+      <a href="{% url 'parent_dashboard' %}" class="nb" id="nav-my-portal">{% icon "children" %} بوابتي</a>
+    {% endif %}
     </div>
 
   </div>
@@ -517,12 +529,27 @@
   {% if request.user|can_open:"staff_affairs:leave_list" %}
   <a href="{% url 'staff_affairs:leave_list' %}">{% icon "leave" %} طلبات الإجازات</a>
   {% endif %}
+  {% if request.user|can_open:"staff_affairs:attendance_board" %}
+  <a href="{% url 'staff_affairs:attendance_board' %}">{% icon "attendance_register" %} رصد حضور الموظفين</a>
+  {% endif %}
+  {% if request.user|can_open:"staff_affairs:attendance_report" %}
+  <a href="{% url 'staff_affairs:attendance_report' %}">{% icon "reports" %} تقرير الحضور الشهري</a>
+  {% endif %}
+  {% if request.user|can_open:"staff_affairs:permit_queue" %}
+  <a href="{% url 'staff_affairs:permit_queue' %}">{% icon "tardiness" %} طلبات الأذونات</a>
+  {% endif %}
   <hr>
   <div class="sd-label">التقييم والتطوير</div>
   {% if is_leadership %}
   {% if request.user|can_open:"evaluation_dashboard" %}
   <a href="{% url 'evaluation_dashboard' %}">{% icon "staff_evaluation" %} تقييم أداء الموظفين</a>
   {% endif %}
+  {% endif %}
+  {% if request.user|can_open:"staff_affairs:assignments" %}
+  <a href="{% url 'staff_affairs:assignments' %}">{% icon "staff" %} التكليفات</a>
+  {% endif %}
+  {% if request.user|can_open:"staff_affairs:exemptions" %}
+  <a href="{% url 'staff_affairs:exemptions' %}">{% icon "staff" %} الإعفاء من الرصد</a>
   {% endif %}
   {% if request.user|can_open:"staff_affairs:licensing" %}
   <a href="{% url 'staff_affairs:licensing' %}">{% icon "licences" %} الرخص المهنية</a>
@@ -566,13 +593,21 @@
   <a href="{% url 'notifications_dashboard' %}">{% icon "notifications" %} مركز الإشعارات</a>
   {% endif %}
   <hr>
+  {% if request.user.is_staff %}
   <a href="/admin/">{% icon "maintenance" %} لوحة الإدارة التقنية</a>
+  {% endif %}
   {% if request.user|can_open:"developer_feedback:message_create" %}
   <a href="{% url 'developer_feedback:message_create' %}">{% icon "developer" %} أرسل إلى المطوّر</a>
   {% endif %}
   {% if is_developer %}
   <hr>
   <div class="sd-label">أدوات المطوّر</div>
+  <a href="{% url 'ui_components' %}" role="menuitem" aria-label="دليل الهوية البصرية ومعاييرها">
+    {% icon "developer" %} دليل الهويّة البصريّة
+  </a>
+  <a href="{% url 'improvement_roadmap' %}" role="menuitem" aria-label="خارطة تجويد المنصة الزمنية">
+    {% icon "roadmap" %} خارطة التجويد
+  </a>
   {% if request.user|can_open:"developer_feedback:inbox_list" %}
   <a href="{% url 'developer_feedback:inbox_list' %}" role="menuitem"
      aria-label="صندوق الوارد للمطوّر">
@@ -597,6 +632,9 @@
   <div class="sd-label">الأمان والصلاحيات</div>
   {% if request.user|can_open:"permission_audit_log" %}
   <a href="{% url 'permission_audit_log' %}">{% icon "security" %} سجل تغييرات الصلاحيات</a>
+  {% endif %}
+  {% if request.user|can_open:"breach:dashboard" %}
+  <a href="{% url 'breach:dashboard' %}">{% icon "breach" %} خروقات البيانات</a>
   {% endif %}
   {% endif %}
 </div>
@@ -646,6 +684,9 @@
   {% endif %}
   {% if request.user|can_open:"student_affairs:attendance_overview" %}
   <a href="{% url 'student_affairs:attendance_overview' %}">{% icon "stats" %} إحصائيات الغياب</a>
+  {% endif %}
+  {% if request.user|can_open:"student_affairs:student_movements" %}
+  <a href="{% url 'student_affairs:student_movements' %}">{% icon "sent_home" %} تحركات الطلبة</a>
   {% endif %}
   {% comment %} «تسجيل الحضور» القديمة للمعلّم وحدَه («حصصي اليوم» في قائمته) — القيادةُ والمشرفون يرصدون من كشف الأجنحة (قرارُ 2026-09-13). {% endcomment %}
   {% if request.user|can_open:"daily_report" %}
@@ -714,6 +755,12 @@
   {% if request.user|can_open:"student_affairs:attendance_overview" %}
   <a href="{% url 'student_affairs:attendance_overview' %}">{% icon "stats" %} إحصائيات غياب الجناح</a>
   {% endif %}
+<<<<<<< HEAD
+=======
+  {% if request.user|can_open:"student_affairs:student_movements" %}
+  <a href="{% url 'student_affairs:student_movements' %}">{% icon "sent_home" %} تحركات الطلبة</a>
+  {% endif %}
+>>>>>>> origin/main
   {% if request.user|can_open:"student_affairs:tardiness_list" %}
   <a href="{% url 'student_affairs:tardiness_list' %}">{% icon "tardiness" %} التأخر الصباحي</a>
   {% endif %}
@@ -835,10 +882,13 @@
   <a href="#" id="theme-toggle-menu" data-click="#theme-toggle">
     <span id="theme-menu-icon"><span data-theme-icon="dark">{% icon "theme_dark" %}</span><span data-theme-icon="light" hidden>{% icon "theme_light" %}</span></span> <span id="theme-menu-text">الوضع الليلي</span>
   </a>
+  {% if request.user|can_open:"staff_affairs:my_permits" %}
+  <a href="{% url 'staff_affairs:my_permits' %}">{% icon "leave" %} أذوناتي</a>
+  {% endif %}
   {% if request.user|can_open:"change_password" %}
   <a href="{% url 'change_password' %}">{% icon "password" %} تغيير كلمة المرور</a>
   {% endif %}
-  {% if is_admin_role %}
+  {% if request.user.is_staff %}
   <a href="/admin/">{% icon "maintenance" %} لوحة الإدارة</a>
   {% endif %}
   {% if is_admin_role %}
@@ -860,6 +910,7 @@
 
 
 {# ════════════════ FLASH MESSAGES ═══════════════════════════════════════ #}
+<div id="page-msgs" class="page-crumbs">
 {% if messages %}
 <div class="msgs-wrap space-y-2" id="msgs-wrap">
   {% for msg in messages %}
@@ -873,10 +924,11 @@
   {% endfor %}
 </div>
 {% endif %}
+</div>
 
 
 {# ════════════════ BREADCRUMBS ══════════════════════════════════════════ #}
-{% block breadcrumbs %}{% endblock %}
+<div id="crumbs" class="page-crumbs">{% block breadcrumbs %}{% endblock %}</div>
 
 {# ════════════════ MAIN CONTENT ═════════════════════════════════════════ #}
 <main id="main-content" class="max-w-7xl mx-auto px-4 py-6 flex-1 w-full {% block main_class %}{% endblock %}">
@@ -916,9 +968,9 @@
   <p class="site-footer-version">
     SchoolOS v{{ platform_version }} &ensp;·&ensp; &copy; {% now "Y" %}
   </p>
-  <p class="site-footer-vision">{% include "components/ministry_vision.html" %}</p>
-  {# Azkia brand attribution — شعار + اسم الشركة في نفس السطر #}
-  <div class="site-footer-brand" aria-label="Azkia brand attribution">
+  <p class="site-footer-vision">{% include "components/ministry_vision.html" with school=current_school %}</p>
+  {# Azkia brand attribution + توقيع المطوّر سفيان مسيف — كلاهما في نفس السطر #}
+  <div class="site-footer-brand" aria-label="Azkia and Sufyan Mesyef brand attribution">
     <span class="site-footer-brand-label">طُوِّر بواسطة</span>
     <img
       src="{% static 'brand/azkia-logo.svg' %}"
@@ -929,6 +981,17 @@
       loading="lazy"
     />
     <span class="site-footer-brand-name">أذكياء للبرمجيات</span>
+    <span class="site-footer-brand-sep" aria-hidden="true"></span>
+    <span class="site-footer-brand-logo-chip">
+      <img
+        src="{% static 'brand/sufyan-logo.png' %}"
+        alt="شعار سفيان مسيف"
+        class="site-footer-brand-logo site-footer-brand-logo--sufyan"
+        width="57"
+        height="28"
+        loading="lazy"
+      />
+    </span>
   </div>
 </footer>
 
@@ -944,6 +1007,8 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
 <script src="{% static 'js/app.js' %}" defer></script>
 {# التطبيقُ المثبَّت بلا شريطِ متصفّح: الملفّاتُ إلى قائمة المشاركة، و«اللسانُ الجديد» في النافذة نفسها #}
 <script src="{% static 'js/app-mode.js' %}" defer></script>
+{% comment %}التنقّلُ بين الصفحات بتبديل المحتوى وحدَه: الترويسةُ والقائمةُ والفوتر ثابتةٌ لا تُعاد، والمحتوى يتلاشى ثمّ يظهر بسلاسةٍ (قرارُ المالك 2026-09-20). صفحةٌ لها سكربتُها أو أنماطُها الخاصّة تُحمَّل كاملةً كما كانت.{% endcomment %}
+<script src="{% static 'js/page-nav.js' %}" defer></script>
 
 {% block extra_js %}{% endblock %}
 
@@ -990,6 +1055,11 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
       <span class="mobile-nav-icon">{% icon "children" %}</span><span>أبنائي</span>
     </a>
     {% endif %}
+    {% elif request.user.has_parent_membership and request.user|can_open:"parent_dashboard" %}
+    {# لا تُضاء على `/parents/admin/`: تلك شاشةُ ربطٍ للإدارة، لا بوّابتُه هو. #}
+    <a href="{% url 'parent_dashboard' %}" id="mnav-my-portal" class="mobile-nav-item {% if request.path|slice:':9' == '/parents/' and '/parents/admin/' not in request.path %}active{% endif %}">
+      <span class="mobile-nav-icon">{% icon "children" %}</span><span>بوابتي</span>
+    </a>
     {% endif %}
     {% if role == 'student' %}
     {% if request.user|can_open:"reports_index" %}

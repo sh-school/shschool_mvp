@@ -250,12 +250,12 @@ def test_push_needs_no_subscription_at_write_time(queued):
 
 @TRACKED
 @pytest.mark.django_db
-def test_quiet_hours_leave_a_dispatch_with_no_deliveries(queued):
+def test_quiet_hours_hold_the_deliveries_instead_of_queueing_them(queued):
     """
     [B4-2B] الواقعة تصف الحدث لا الطابور.
 
-    ساعات الهدوء تمنع الخروج الخارجي، فلا تسليم — لكن الحدث وقع وبلغ المستلم
-    على المنصّة، فالواقعة تُسجَّل.
+    ساعات الهدوء تُرجئ الخروجَ الخارجيّ إلى نهاية النافذة (لا تتخطّاه): تُسجَّل الواقعةُ وتسليماتُها فوراً
+    دليلاً على أنّ الحدث وقع، ولا تدخل الطابورَ الآن — تُطلقها مهمّةُ الإرجاء عند انتهاء الهدوء.
     """
     from datetime import time
 
@@ -268,7 +268,7 @@ def test_quiet_hours_leave_a_dispatch_with_no_deliveries(queued):
     _dispatch(school, [user])
 
     assert NotificationDispatch.objects.count() == 1
-    assert NotificationDelivery.objects.count() == 0
+    assert NotificationDelivery.objects.count() > 0
     assert not queued.called
 
 

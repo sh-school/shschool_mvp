@@ -29,6 +29,7 @@
   {% if leave.status == "pending" %}
   {% section_card "مراجعة الطلب" icon="checklist" %}
     <form method="post" action="{% url 'staff_affairs:leave_review' leave.pk %}">{% csrf_token %}
+      {% callout "warning" %}الموافقة تخصم أيامَ الإجازة من رصيد الموظف فوراً ولا مسارَ للتراجع عنها من المنصّة؛ أمّا الرفض فلا يمسّ الرصيد.{% endcallout %}
       <div class="form-row">
         {% field "action" "القرار" type="select" choices="approved=موافقة|rejected=رفض" required=True %}
         {% field "rejection_reason" "سبب الرفض" placeholder="سبب الرفض..." help="مطلوب عند الرفض" %}

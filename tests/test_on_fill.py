@@ -14,12 +14,10 @@ tests/test_on_fill.py
 أهو حرفيٌّ منسيٌّ أم قرار. وهذا الحارسُ يُبقي القرارَ مكتوباً.
 """
 
-import pathlib
 import re
 
 from tests.css_contrast import dark_overrides, token_table
-
-CSS_PATH = pathlib.Path("static/css/custom.css")
+from tests.css_source import read_css
 
 #: تصريحُ `color` بأبيضَ حرفيّ — لا `background-color` ولا `border-color`.
 RAW_WHITE_TEXT = re.compile(
@@ -29,7 +27,7 @@ RAW_WHITE_TEXT = re.compile(
 
 
 def _css_without_comments() -> str:
-    src = CSS_PATH.read_text(encoding="utf-8")
+    src = read_css()
     return re.sub(r"/\*.*?\*/", "", src, flags=re.S)
 
 
@@ -54,7 +52,7 @@ def test_on_fill_stays_white_in_both_themes():
     فالحشوُ تحته (`--maroon`، `--status-danger`…) لا ينقلب، والنصُّ فوقه
     يجب ألّا ينقلب كذلك. وهي قاعدةُ «ترويسةُ الجدول العنّابيّة نصُّها أبيض».
     """
-    css = CSS_PATH.read_text(encoding="utf-8")
+    css = read_css()
     light, dark = token_table(css)
     assert "--on-fill" in light, "`--on-fill` غيرُ معرَّفٍ في `:root`"
     assert "--on-fill" not in dark_overrides(

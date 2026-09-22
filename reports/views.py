@@ -70,8 +70,16 @@ def report_viewer(request):
 
 
 def _has_parent_access(request, student, school) -> bool:
-    """يتحقق من أن المستخدم الحالي هو ولي أمر مرتبط بالطالب في هذه المدرسة."""
+    """يتحقق من أن المستخدم الحالي هو ولي أمر مرتبط بالطالب في هذه المدرسة — وقد وافق.
+
+    فالوصولُ بسبب الربط معالجةٌ لبيانات الابن لصالح وليّ الأمر، أيّاً كان المسار.
+    والنائبُ الذي هو وليُّ أمرٍ يبلغ هذه التقارير بدوره، فلا يمرّ بالربط قبل الموافقة.
+    """
     from core.models import ParentStudentLink
+    from core.parent_consent import needs_parent_consent
+
+    if needs_parent_consent(request.user):
+        return False
 
     return ParentStudentLink.objects.filter(
         parent=request.user, student=student, school=school
@@ -351,7 +359,7 @@ def class_results_pdf(request, class_id):
     html = render_to_string("reports/class_results.html", ctx, request=request)
     return render_pdf(
         html,
-        f"نتائج_{class_grp.get_grade_display()}_{class_grp.section}_{year}.pdf",
+        f"نتائج_{class_grp.grade.removeprefix('G')}_{class_grp.section}_{year}.pdf",
         paper_size=paper,
         as_attachment=_wants_download(request),
     )
@@ -405,7 +413,7 @@ def class_certificates_pdf(request, class_id):
     html = render_to_string("reports/class_certificates.html", page_ctx, request=request)
     return render_pdf(
         html,
-        f"شهادات_{class_grp.get_grade_display()}_{class_grp.section}_{year}.pdf",
+        f"شهادات_{class_grp.grade.removeprefix('G')}_{class_grp.section}_{year}.pdf",
         paper_size=paper,
         as_attachment=_wants_download(request),
     )
@@ -441,7 +449,7 @@ def attendance_report_pdf(request, class_id):
     html = render_to_string("reports/attendance_report.html", ctx, request=request)
     return render_pdf(
         html,
-        f"غياب_{class_grp.get_grade_display()}_{class_grp.section}_{year}.pdf",
+        f"غياب_{class_grp.grade.removeprefix('G')}_{class_grp.section}_{year}.pdf",
         paper_size=paper,
         as_attachment=_wants_download(request),
     )

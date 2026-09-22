@@ -5,7 +5,7 @@ tests/test_views_transport.py
 
 import pytest
 
-from core.models import BusRoute, SchoolBus
+from transport.models import BusRoute, SchoolBus
 
 
 @pytest.mark.django_db

@@ -1,0 +1,76 @@
+{% extends "reports/base_qatar_report.html" %}
+{% load privacy %}
+
+{% block report_title_bar %}
+<h1 class="report-title-bar">{{ title|default:"سجل الطلاب" }}</h1>
+{% endblock %}
+
+{% block report_meta %}
+<table class="report-meta">
+  <tr>
+    <td>العام الدراسي: <strong>{{ academic_year }}</strong></td>
+    <td>التاريخ: <strong>{{ export_datetime }}</strong></td>
+    <td>صدر بواسطة: <strong>{{ exported_by }}</strong> — {{ exporter_role_ar }}</td>
+  </tr>
+</table>
+{% endblock %}
+
+{% block content %}
+
+<div class="kpi-strip">
+  <div class="kpi-item"><span class="kpi-num c-maroon">{{ total_students }}</span><span class="kpi-label">إجمالي الطلاب المقيَّدين</span></div>
+</div>
+
+<div class="section-head">قائمة الطلاب</div>
+{% if rows %}
+<table class="report-table">
+  <thead>
+    <tr>
+      <th class="col-w-5">#</th>
+      <th>الاسم الكامل</th>
+      <th class="col-w-12">الرقم الشخصي</th>
+      <th class="col-w-8">الصف</th>
+      <th class="col-w-8">الشعبة</th>
+      <th class="col-w-14">الجوال</th>
+      <th class="col-w-20">البريد</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td class="cell-num">{{ r.num }}</td>
+      <td class="cell-name">{{ r.full_name }}</td>
+      <td>{{ r.national_id|mask_id }}</td>
+      <td>{{ r.grade }}</td>
+      <td>{{ r.section }}</td>
+      <td>{{ r.phone }}</td>
+      <td>{{ r.email }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="no-data">لا يوجد طلاب مقيَّدون مطابقون لهذا الترشيح</p>
+{% endif %}
+
+{% endblock %}
+
+{% block signatures %}
+<div class="sig-block no-break">
+  <div class="sig-item">
+    <div class="sig-title">صدر بواسطة</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">{{ exported_by }}</div>
+    <div class="sig-role">{{ exporter_role_ar }}</div>
+    <div class="sig-stamp">{{ export_datetime }}</div>
+  </div>
+  <div class="sig-item">
+    <div class="sig-title">اعتماد مدير المدرسة</div>
+    <div class="sig-space"></div>
+    <div class="sig-line"></div>
+    <div class="sig-name">&nbsp;</div>
+    <div class="sig-role">التوقيع والختم</div>
+  </div>
+</div>
+{% endblock %}

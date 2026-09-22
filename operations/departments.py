@@ -18,7 +18,15 @@
     والأحياء. والكيمياءُ والفيزياء قسمان مستقلّان.
 """
 
+from __future__ import annotations
+
 from collections import Counter
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
+
+    from core.models import CustomUser, Department, School
 
 #: الأقسام مرتّبةً كما تُقرأ في ورقة الجدول العام: العلومُ بعد اللغات،
 #: والمواد التطبيقية في الذيل. والترتيبُ هنا هو ترتيبُ السطور في الورقة.
@@ -296,3 +304,57 @@ def derived_department(lessons) -> dict:
     """قسمٌ مشتقٌّ من الحصص — احتياطُ من لا سجلَّ له، ويأتي بعد المسجَّلين."""
     info = department_info(resolve_from_lessons(lessons))
     return {**info, "order": 1000 + info["order"], "head": "", "specialty": "", "registered": False}
+
+
+def active_departments(school: School) -> QuerySet[Department]:
+    """أقسامُ المدرسة النشطة — لقوائم الاختيار (تفريغٌ، إسنادٌ، إلخ).
+
+    قراءةٌ لا عرض: القراءةُ هنا لا في العرض تُبقي دوالَّ `views_schedule.py`
+    تحت سقف حارس الطبقات (`tests/layering_ratchet.py`).
+    """
+    from core.models import Department
+
+    return Department.objects.filter(school=school, is_active=True)
+
+
+def teachers_of_department(school: School, year: str, department: Department) -> list[CustomUser]:
+    """معلّمو قسمٍ بعينه — فعليّون لا مسجَّلون وحدَهم.
+
+    نفسُ قاعدة شاشة الإسناد (2026-09-06) لكلّ معلّمٍ على حدة: قسمُه المسجَّل
+    إن سُجّل (`department_obj`)، وإلّا فالمشتقُّ من حصصه الفعليّة. فمدرسةٌ لم
+    تملأ سجلَّ الأقسام بعد — وهي الغالبةُ اليوم — لا يخلو تفريغُ قسمٍ فيها من
+    معلّمين لمجرّد أنّ العضويّاتِ لم تُربَط بالسجلّ صراحةً.
+    """
+    from collections import defaultdict
+
+    from core.models import Membership
+    from operations.models import SubjectClassAssignment
+
+    memberships = Membership.objects.filter(
+        school=school, is_active=True, role__name__in=TEACHING_ROLES
+    ).select_related("user", "department_obj")
+    rows_by_teacher = defaultdict(list)
+    for row in (
+        SubjectClassAssignment.objects.live(school, year=year)
+        .filter(teacher__isnull=False)
+        .select_related("subject", "class_group")
+    ):
+        rows_by_teacher[row.teacher_id].append(row)
+
+    seen, matched = set(), []
+    for membership in memberships:
+        if membership.user_id in seen:
+            continue
+        seen.add(membership.user_id)
+        if membership.department_obj_id:
+            code = membership.department_obj.code
+        else:
+            lessons = (
+                (row.subject.name_ar, row.class_group.grade, row.weekly_periods)
+                for row in rows_by_teacher.get(membership.user_id, [])
+            )
+            code = resolve_from_lessons(lessons)
+        if code == department.code:
+            matched.append(membership.user)
+    matched.sort(key=lambda u: u.full_name)
+    return matched

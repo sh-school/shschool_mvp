@@ -20,6 +20,10 @@
     <a href="{% url 'quality_dashboard' %}" class="btn-secondary btn-sm">← الخطة التشغيلية</a>
   {% endpage_header %}
 
+  {% if mapped_count > 0 %}
+  {% callout "warning" %}«تطبيق الكل» يستبدل المنفِّذَ في كلّ إجراءات الخطة المربوطة مسمّياتُها ({{ mapped_count }} ربط) بالموظّف المحفوظ لكلٍّ منها.{% endcallout %}
+  {% endif %}
+
   {% kpi_strip label="أرقام الربط" %}
     {% kpi "إجمالي المسميات" total %}
     {% kpi "مربوط" mapped_count tone="green" %}

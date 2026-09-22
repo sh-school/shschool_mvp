@@ -1,6 +1,6 @@
 """الاحتفاظُ بالبيانات — ما يُحذف يُحذف، وما يُحفظ لا يُلمَس، والوثيقةُ تحكم كلَّ جدول.
 
-`docs/privacy/data_retention.md` هي السياسة، و`core/retention.py` يُنفِّذ شطرَ
+`docs/privacy/data_retention.md` هي السياسة، و`governance/retention.py` يُنفِّذ شطرَ
 «يُحذف» منها. وهذا الملفُّ يربطهما:
 
 - لكلّ صنفٍ محذوف: القديمُ يذهب والحديثُ يبقى — وما ينتهي بذاته يذهب عند أجله.
@@ -24,7 +24,7 @@ from django.core.management import CommandError, call_command
 from django.utils import timezone
 
 from core.models import AuditLog
-from core.retention import RULES, enforce_retention
+from governance.retention import RULES, enforce_retention
 from tests.conftest import UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -316,6 +316,35 @@ class TestBellAndPush:
         }
 
 
+class TestAutoInfractionNotices:
+    def test_old_family_notice_markers_go(self, retention, school, student_user):
+        import datetime as dt
+
+        from behavior.models import AutoInfractionNotice
+
+        def notice(day):
+            return AutoInfractionNotice.objects.create(
+                school=school,
+                student=student_user,
+                date=day,
+                auto_rule="period_tardy",
+                start_time=dt.time(7, 10),
+                kind="digest",
+                recipients=1,
+            )
+
+        _backdate(notice(dt.date(2026, 1, 4)), OLD, "sent_at")
+        fresh = _backdate(notice(dt.date(2026, 1, 5)), FRESH, "sent_at")
+
+        assert _run(dry_run=True).counts["behavior.auto_notices"] == 1
+        assert AutoInfractionNotice.objects.count() == 2
+
+        report = _run()
+
+        assert report.counts["behavior.auto_notices"] == 1
+        assert AutoInfractionNotice.objects.get().pk == fresh.pk
+
+
 class TestImportLogs:
     def test_old_import_logs_go(self, retention, school):
         from staging.models import ImportLog
@@ -423,7 +452,11 @@ class TestEveryTableHasARuling:
         rule_tables = {rule.table for rule in RULES}
         assert rule_tables <= deleted, sorted(rule_tables - deleted)
         # ما في الوثيقة تحت «يُحذف» ولا قاعدةَ له — إلّا ما يتبع أباه بالتسلسل.
-        cascade_only = {"token_blacklist_outstandingtoken", "token_blacklist_blacklistedtoken"}
+        cascade_only = {
+            "token_blacklist_outstandingtoken",
+            "token_blacklist_blacklistedtoken",
+            "axes_accessattemptexpiration",  # OneToOne CASCADE إلى axes_accessattempt (axes 8)
+        }
         every = {m._meta.db_table for m in apps.get_models(include_auto_created=True)}
         undocumented = sorted((deleted & every) - rule_tables - cascade_only)
         assert not undocumented, f"موصوفةٌ بالحذف بلا قاعدةٍ تُنفِّذه: {undocumented}"

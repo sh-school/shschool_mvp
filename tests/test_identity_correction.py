@@ -110,8 +110,12 @@ class TestApplying:
         """أخطرُ تفصيلةٍ في العمليّة: البصمةُ تُعاد مع الرقم.
 
         `update_fields` لا يحفظ إلّا ما سُمّي — ونسيانُ البصمة يترك بصمةً قديمةً
-        على رقمٍ جديد، فيُغلق البابُ في وجه صاحبه بلا رسالةِ خطأ.
+        على رقمٍ جديد. والبابُ الذي يعنينا رقمُه الوظيفيّ (ق-10 يرفض الرقمَ
+        الشخصيّ لكلّ كادرٍ له رقمٌ وظيفيّ) — فيُتحقَّق من البصمة مباشرةً لا
+        بمحاولة الدخول بها.
         """
+        from core.models._crypto import hmac_field
+
         user = self._staff("سالم المصحَّح", "28100000010", "555555")
         path = _register(
             tmp_path, [["28100000011", "سالم المصحَّح", "555555", "محاسب", "97455500005"]]
@@ -121,7 +125,9 @@ class TestApplying:
 
         user.refresh_from_db()
         assert user.national_id == "28100000011"
-        assert resolve_user("28100000011") == user
+        assert user.national_id_hmac == hmac_field("28100000011")
+        assert resolve_user("555555") == user
+        assert resolve_user("28100000011") is None
         assert resolve_user("28100000010") is None
 
     def test_every_write_leaves_an_audit_row_with_masked_numbers(self, db, school, tmp_path):

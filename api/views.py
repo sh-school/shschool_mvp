@@ -50,7 +50,9 @@ from core.models import (
     ParentStudentLink,
     StudentEnrollment,
 )
+from core.parent_consent import needs_parent_consent
 from core.permissions import LIBRARY_BORROWINGS_ALL
+from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing, LibraryBook
 from notifications.models import InAppNotification, UserNotificationPreference
 from operations.models import Session, StudentAttendance
@@ -227,8 +229,8 @@ def student_grades(request, student_id):
         "student": student,
         "year": year,
         "total_subjects": annual.count(),
-        "passed": annual.filter(status="pass").count(),
-        "failed": annual.filter(status="fail").count(),
+        "passed": annual.filter(status__in=passing_statuses()).count(),
+        "failed": annual.filter(status__in=failing_statuses()).count(),
         "average": average,
         "subjects": annual,
     }
@@ -862,10 +864,15 @@ class BorrowingListView(generics.ListAPIView):
         school = _school(self.request)
         qs = BookBorrowing.objects.filter(book__school=school)
         if not (user.is_superuser or user.get_role() in LIBRARY_BORROWINGS_ALL):
-            children = ParentStudentLink.objects.filter(parent=user, school=school).values(
-                "student_id"
-            )
-            qs = qs.filter(Q(user=user) | Q(user_id__in=children))
+            own = Q(user=user)
+            # استعاراتُ الأبناء معالجةٌ لبياناتهم لصالح وليّ الأمر — فلا تُعرض قبل
+            # موافقته. والكادرُ الذي هو وليُّ أمرٍ يبلغ هذا المسارَ بلا موافقة.
+            if not needs_parent_consent(user):
+                children = ParentStudentLink.objects.filter(parent=user, school=school).values(
+                    "student_id"
+                )
+                own |= Q(user_id__in=children)
+            qs = qs.filter(own)
         return qs.with_details()
 
 

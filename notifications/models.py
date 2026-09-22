@@ -402,7 +402,7 @@ class UserNotificationPreference(models.Model):
     # فارغ = استخدام الإعدادات الافتراضية
     event_channels = models.JSONField(default=dict, blank=True, verbose_name="قنوات حسب نوع الحدث")
 
-    # ساعات الهدوء — لا ترسل إشعارات خارجية في هذه الفترة
+    # ساعات الهدوء — الإشعارات الخارجية تُؤجَّل إلى انتهائها (إشعار المنصّة يصل فوراً)
     quiet_hours_start = models.TimeField(null=True, blank=True, verbose_name="بداية ساعات الهدوء")
     quiet_hours_end = models.TimeField(null=True, blank=True, verbose_name="نهاية ساعات الهدوء")
 
@@ -440,15 +440,13 @@ class UserNotificationPreference(models.Model):
 
     def is_quiet_hours(self):
         """هل الوقت الحالي ضمن ساعات الهدوء؟"""
-        if not self.quiet_hours_start or not self.quiet_hours_end:
-            return False
+        # الحكمُ في مكانٍ واحد (`notifications/quiet_hours.py`) — تعبر النافذةُ
+        # منتصفَ الليل، والطرفُ الأخير خارجَها.
         from django.utils import timezone as tz
 
-        now = tz.localtime().time()
-        if self.quiet_hours_start <= self.quiet_hours_end:
-            return self.quiet_hours_start <= now <= self.quiet_hours_end
-        else:  # يعبر منتصف الليل
-            return now >= self.quiet_hours_start or now <= self.quiet_hours_end
+        from .quiet_hours import in_quiet_window
+
+        return in_quiet_window(self.quiet_hours_start, self.quiet_hours_end, tz.localtime().time())
 
 
 # ════════════════════════════════════════════════════════════════════

@@ -1,14 +1,16 @@
 {% extends "base/base.html" %}
-{% load i18n ui %}
+{% load i18n icons ui %}
 {% comment %}
 تفصيلُ التذكرة — عنوانُ الرسالة هو عنوانُ الصفحة، ورقمُ التذكرة في طرف
 الترويسة بصنفه (`dir="ltr"` يحفظ ترتيبَ حروفه داخل سطرٍ عربيّ) فلا يُعاد في
-بطاقة البيانات. والبطاقاتُ الخمس من `section_card`: النصُّ، والسياقُ التقنيُّ
-(حالتُه الفارغةُ من البطاقة)، وتحديثُ الحالة، والبياناتُ، والسجلُّ الزمنيّ.
-والعمودان `df-grid-2` خاصّان بالوحدة.
+بطاقة البيانات. والصفحةُ لا تُمرَّر رأسيّاً (`page-noscroll` كصفحة الإرسال): ثلاثُ
+بطاقاتٍ من `section_card` في ثلاثة أعمدة — الرسالةُ وسياقُها التقنيّ، والحالةُ
+(بياناتُ التذكرة وتحديثُها)، والسجلُّ الزمنيّ — وما طال يُمرَّر داخل بطاقته.
 {% endcomment %}
 
 {% block title %}{% trans "تذكرة" %} {{ dev_message.ticket_number }}{% endblock %}
+
+{% block main_class %}page-noscroll{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent2_url="/developer-feedback/" parent2_label="تواصل مع المطوّر" parent_url="/developer-feedback/inbox/" parent_label="صندوق الوارد" current="تفصيل الرسالة" %}
@@ -16,127 +18,116 @@
 
 {% block content %}
 <div class="exec-dash df-page">
-  {% page_header dev_message.subject subtitle=dev_message.get_message_type_display icon="inbox" %}
+  {% page_header dev_message.subject subtitle=dev_message.get_message_type_display icon="dev_inbox" %}
     <code class="df-ticket-inline" dir="ltr">{{ dev_message.ticket_number }}</code>
+    <span class="df-badge df-badge-type">{{ dev_message.get_message_type_display }}</span>
+    <span class="df-badge df-badge-priority-{{ dev_message.priority }}">{{ dev_message.get_priority_display }}</span>
+    {% include "developer_feedback/_status_badge.html" with status=dev_message.status %}
     <a href="{% url 'developer_feedback:inbox_list' %}" class="btn-secondary btn-sm">
-      {% include "components/icon.html" with name="arrow-right" %}
+      {% icon "back" %}
       {% trans "عودة للصندوق" %}
     </a>
   {% endpage_header %}
 
-  <div class="df-grid-2">
+  <div class="fill-grid" style="--tc: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr)">
 
-    {# ═══════════════════════ الجانب الرئيسي ═══════════════════════ #}
-    <div class="df-main-col">
-
-      {% section_card _("نصّ الرسالة") icon="mail" %}
-        <div class="df-message-body">{{ dev_message.body|linebreaks }}</div>
-      {% endsection_card %}
-
-      {% section_card _("معلومات السياق التقني") icon="info" empty=_("لا توجد معلومات سياق مرفقة.") %}{% if dev_message.context_json %}
-        <dl class="df-context-preview">
+    {# ── الرسالة وسياقُها التقنيّ ── #}
+    {% section_card _("نصّ الرسالة") icon="messages" %}
+      <div class="df-message-body">{{ dev_message.body|linebreaks }}</div>
+      <h3>{% trans "معلومات السياق التقني" %}</h3>
+      {% if dev_message.context_json %}
+        <dl class="detail-dl">
           {% for key, value in dev_message.context_json.items %}
             <dt>{{ key }}</dt>
             <dd>{{ value }}</dd>
           {% endfor %}
         </dl>
-      {% endif %}{% endsection_card %}
+      {% else %}
+        <p class="ui-note">{% trans "لا توجد معلومات سياق مرفقة." %}</p>
+      {% endif %}
+      <h3>{% trans "بيانات المرسل" %}</h3>
+      <dl class="detail-dl">
+        <dt>{% trans "المرسل" %}</dt>
+        <dd>
+          {% if dev_message.user %}
+            {{ dev_message.user.full_name|default:dev_message.user }}
+          {% else %}
+            <em>{% trans "محذوف" %}</em>
+          {% endif %}
+        </dd>
 
-      {% section_card _("تحديث حالة التذكرة") icon="refresh" %}
-        <form method="post" action="" novalidate class="df-form">
-          {% csrf_token %}
+        <dt>{% trans "بصمة المستخدم" %}</dt>
+        <dd><code dir="ltr" title="{{ dev_message.user_id_hash }}">{{ dev_message.user_id_hash|slice:":12" }}…</code></dd>
 
-          <div class="df-form-group">
-            <label for="df-new-status">
-              {% trans "الحالة الجديدة" %}<span class="required" aria-hidden="true">*</span>
-            </label>
-            <select name="new_status" id="df-new-status" class="form-select" aria-required="true" required>
-              {% for value, label in status_choices %}
-                <option value="{{ value }}" {% if dev_message.status == value %}selected{% endif %}>{{ label }}</option>
-              {% endfor %}
-            </select>
-          </div>
+        <dt>{% trans "تاريخ الإرسال" %}</dt>
+        <dd><time datetime="{{ dev_message.created_at|date:'c' }}">{{ dev_message.created_at|date:"Y/m/d H:i" }}</time></dd>
 
-          <div class="df-form-group">
-            <label for="df-note">{% trans "ملاحظة (اختياري)" %}</label>
-            <textarea
-              name="note"
-              id="df-note"
-              rows="3"
-              class="form-control"
-              maxlength="1000"
-              placeholder="{% trans 'سبب التغيير أو ملاحظة للسجل…' %}"
-            ></textarea>
-            <small class="helptext">{% trans "ستظهر في سجل التغييرات أسفل الصفحة." %}</small>
-          </div>
+        <dt>{% trans "آخر تحديث" %}</dt>
+        <dd><time datetime="{{ dev_message.updated_at|date:'c' }}">{{ dev_message.updated_at|date:"Y/m/d H:i" }}</time></dd>
+      </dl>
+    {% endsection_card %}
 
-          <div class="form-actions">
-            <button type="submit" class="btn-primary">
-              {% include "components/icon.html" with name="check" %}
-              {% trans "تحديث الحالة" %}
-            </button>
-          </div>
-        </form>
-      {% endsection_card %}
-    </div>
+    {# ── تحديثُ الحالة ── #}
+    {% section_card _("تحديث حالة التذكرة") icon="refresh" %}
 
-    {# ═══════════════════════ الجانب الفرعي (Sidebar) ═══════════════════════ #}
-    <aside class="df-sidebar-col" aria-label="{% trans 'بيانات التذكرة' %}">
+      <form method="post" action="" novalidate class="df-form">
+        {% csrf_token %}
 
-      {% section_card _("بيانات التذكرة") icon="file-text" %}
-        <dl class="df-meta-list">
-          <dt>{% trans "النوع" %}</dt>
-          <dd><span class="df-badge df-badge-type">{{ dev_message.get_message_type_display }}</span></dd>
+        <div class="df-form-group">
+          <label for="df-new-status">
+            {% trans "الحالة الجديدة" %}<span class="required" aria-hidden="true">*</span>
+          </label>
+          <select name="new_status" id="df-new-status" class="form-select" aria-required="true" required>
+            {% for value, label in status_choices %}
+              <option value="{{ value }}" {% if dev_message.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-          <dt>{% trans "الأولوية" %}</dt>
-          <dd><span class="df-badge df-badge-priority-{{ dev_message.priority }}">{{ dev_message.get_priority_display }}</span></dd>
+        <div class="df-form-group">
+          <label for="df-note">{% trans "ملاحظة (اختياري)" %}</label>
+          <textarea
+            name="note"
+            id="df-note"
+            rows="3"
+            class="form-control"
+            maxlength="1000"
+            placeholder="{% trans 'سبب التغيير أو ملاحظة للسجل…' %}"
+          ></textarea>
+        </div>
 
-          <dt>{% trans "الحالة الحالية" %}</dt>
-          <dd>{% include "developer_feedback/_status_badge.html" with status=dev_message.status %}</dd>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">
+            {% icon "confirm" %}
+            {% trans "تحديث الحالة" %}
+          </button>
+        </div>
+      </form>
+    {% endsection_card %}
 
-          <dt>{% trans "المرسل" %}</dt>
-          <dd>
-            {% if dev_message.user %}
-              {{ dev_message.user.full_name|default:dev_message.user }}
-            {% else %}
-              <em>{% trans "محذوف" %}</em>
-            {% endif %}
-          </dd>
-
-          <dt>{% trans "بصمة المستخدم" %}</dt>
-          <dd><code dir="ltr" title="{{ dev_message.user_id_hash }}">{{ dev_message.user_id_hash|slice:":12" }}…</code></dd>
-
-          <dt>{% trans "تاريخ الإرسال" %}</dt>
-          <dd><time datetime="{{ dev_message.created_at|date:'c' }}">{{ dev_message.created_at|date:"Y/m/d H:i" }}</time></dd>
-
-          <dt>{% trans "آخر تحديث" %}</dt>
-          <dd><time datetime="{{ dev_message.updated_at|date:'c' }}">{{ dev_message.updated_at|date:"Y/m/d H:i" }}</time></dd>
-        </dl>
-      {% endsection_card %}
-
-      {% section_card _("سجل الحالة") meta=status_logs|length icon="clock" empty=_("لا يوجد سجل تغييرات حتى الآن.") %}{% if status_logs %}
-        <ul class="df-timeline">
-          {% for log in status_logs %}
-            <li>
-              <div class="df-timeline-change">
-                {% include "developer_feedback/_status_badge.html" with status=log.old_status %}
-                <span aria-hidden="true">←</span>
-                {% include "developer_feedback/_status_badge.html" with status=log.new_status %}
-              </div>
-              <div class="df-timeline-meta">
-                <time datetime="{{ log.changed_at|date:'c' }}">{{ log.changed_at|date:"Y/m/d H:i" }}</time>
-                {% if log.changed_by %}
-                  — {{ log.changed_by.full_name|default:log.changed_by }}
-                {% endif %}
-              </div>
-              {% if log.note %}
-                <div class="df-timeline-note">{{ log.note }}</div>
+    {# ── السجلّ الزمنيّ ── #}
+    {% section_card _("سجل الحالة") meta=status_logs|length icon="time" empty=_("لا يوجد سجل تغييرات حتى الآن.") %}{% if status_logs %}
+      <ul class="df-timeline">
+        {% for log in status_logs %}
+          <li>
+            <div class="df-timeline-change">
+              {% include "developer_feedback/_status_badge.html" with status=log.old_status %}
+              <span aria-hidden="true">←</span>
+              {% include "developer_feedback/_status_badge.html" with status=log.new_status %}
+            </div>
+            <div class="df-timeline-meta">
+              <time datetime="{{ log.changed_at|date:'c' }}">{{ log.changed_at|date:"Y/m/d H:i" }}</time>
+              {% if log.changed_by %}
+                — {{ log.changed_by.full_name|default:log.changed_by }}
               {% endif %}
-            </li>
-          {% endfor %}
-        </ul>
-      {% endif %}{% endsection_card %}
-    </aside>
+            </div>
+            {% if log.note %}
+              <div class="df-timeline-note">{{ log.note }}</div>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}{% endsection_card %}
   </div>
 </div>
 {% endblock %}

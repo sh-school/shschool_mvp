@@ -21,11 +21,14 @@ NotificationHub — الموجّه المركزي لكل الإشعارات
 """
 
 import logging
+from typing import Any
 
+import redis
 from django.conf import settings
 from django.db import transaction
 from kombu.exceptions import OperationalError
 
+from . import quiet_hours
 from .channels import deliverable_external_channels
 from .delivery_state import CLAIMABLE
 from .models import (
@@ -62,6 +65,9 @@ DEFAULT_CHANNELS = {
     "behavior_l3": ["in_app", "push", "whatsapp", "email", "sms"],
     "behavior_l4": ["in_app", "push", "whatsapp", "email", "sms"],
     "behavior_risk": ["in_app"],
+    # ملخّصُ مخالفات الرصد اليوميّ لوليّ الأمر (قرارُ المالك 2026-09-16): رسالةٌ كلَّ
+    # يومٍ دراسيٍّ فيه مخالفة — فلا SMS لرسالةٍ متكرّرة.
+    "behavior_digest": ["in_app", "push", "whatsapp", "email"],
     "absence": ["in_app", "push", "whatsapp", "email"],
     "grade": ["in_app", "push", "email"],
     "fail": ["in_app", "push", "whatsapp", "email", "sms"],
@@ -74,6 +80,9 @@ DEFAULT_CHANNELS = {
     "plan_overdue": ["in_app", "email"],
     "review_cycle": ["in_app", "email"],
     "observation": ["in_app", "email"],
+    # تظلّمُ موظّفٍ من تقرير أدائه (المادة 20): داخل المنصّة وحدَها — لا بريدَ ولا رسالةً خارجيّة لبيانات
+    # تقييمٍ وظيفيّ. ولا يحمل الإشعارُ سببَ التظلّم (يقرؤه المديرُ في شاشة التظلّمات).
+    "appraisal_grievance": ["in_app"],
     "general": ["in_app", "push", "email"],
 }
 
@@ -83,6 +92,7 @@ DEFAULT_PRIORITY = {
     "behavior_l2": "medium",
     "behavior_l3": "high",
     "behavior_l4": "urgent",
+    "behavior_digest": "medium",
     "absence": "medium",
     "class_exit": "high",
     "grade": "low",
@@ -95,6 +105,7 @@ DEFAULT_PRIORITY = {
     "plan_deadline": "medium",
     "plan_overdue": "high",
     "review_cycle": "low",
+    "appraisal_grievance": "high",
     "general": "low",
 }
 
@@ -110,19 +121,19 @@ class NotificationHub:
 
     @staticmethod
     def dispatch(
-        event_type,
-        school,
-        recipients,
-        title,
-        body="",
-        context=None,
-        priority=None,
-        related_url="",
-        related_object_id="",
-        sent_by=None,
-        email_html_template=None,
-        email_text_template=None,
-    ):
+        event_type: str,
+        school: Any,
+        recipients: Any,
+        title: str,
+        body: str = "",
+        context: dict[str, Any] | None = None,
+        priority: str | None = None,
+        related_url: str = "",
+        related_object_id: Any = "",
+        sent_by: Any = None,
+        email_html_template: str | None = None,
+        email_text_template: str | None = None,
+    ) -> dict[str, Any]:
         """
         إرسال إشعار لقائمة مستلمين عبر كل القنوات المناسبة.
 
@@ -144,7 +155,7 @@ class NotificationHub:
                 الـHTML. وبدونه يُستعمل `body` نفسُه.
 
         Returns:
-            dict: {"in_app": count, "queued": {"email": n, "sms": n, ...}}
+            dict: {"in_app": count, "queued": {"email": n, "sms": n, ...}, "failed": n}
         """
         if context is None:
             context = {}
@@ -156,7 +167,9 @@ class NotificationHub:
         inapp_event = _map_event_type(event_type)
         default_channels = DEFAULT_CHANNELS.get(event_type, ["in_app", "email"])
 
-        results = {"in_app": 0, "queued": {}}
+        # `failed`: مستلمون سقط تحضيرُهم فابتلعه الاحتواءُ أدناه. من يكتب علامةَ «أُرسل»
+        # في معاملة النداء (`behavior/digest.py`) يحتاجه ليعرف أنّ شيئاً لم يخرج.
+        results: dict[str, Any] = {"in_app": 0, "queued": {}, "failed": 0}
 
         if not recipients:
             # لا مستلم ⇒ لا واقعة. إشعارٌ لا يخصّ أحداً ليس حدثاً يُسجَّل.
@@ -231,6 +244,7 @@ class NotificationHub:
                     if external_channels:
                         _register(user, external_channels, None)
                 except (OSError, RuntimeError, ValueError, KeyError) as e:
+                    results["failed"] += 1
                     # [B4-7O] `{user}` يستدعي `__str__` فيُسرّب الاسم الكامل.
                     # والمُعرِّف يكفي للتتبّع، ونوعُ الاستثناء يكفي للتصنيف —
                     # وتفصيلُه يبقى في التتبّع لا في نصّ الرسالة.
@@ -261,6 +275,7 @@ class NotificationHub:
                         if external_channels:
                             intents.append((user, external_channels))
                     except (OSError, RuntimeError, ValueError, KeyError) as e:
+                        results["failed"] += 1
                         # [B4-7O] كما أعلاه — مُعرِّفٌ ونوع، لا اسمٌ ولا نصّ خطأ.
                         logger.error(
                             "hub dispatch failed recipient_id=%s error=%s",
@@ -322,13 +337,22 @@ class NotificationHub:
         )
 
     @staticmethod
-    def dispatch_to_parents(event_type, school, student, title, body="", **kwargs):
-        """إرسال لأولياء أمور طالب محدد"""
+    def dispatch_to_parents(
+        event_type, school, student, title, body="", *, behavior_viewers_only=False, **kwargs
+    ):
+        """إرسال لأولياء أمور طالب محدد.
+
+        `behavior_viewers_only`: لمن رُبط بـ`can_view_behavior` وحدَه — كما تعرض بوابتُه.
+        تطلبه مخالفاتُ الرصد (قرار 2026-09-16) فلا تبلغ وليّاً حجبت المدرسةُ عنه السلوك.
+        والمخالفةُ اليدويّة على حالها حتى يُقرَّر فيها (المالك ومسؤولُ حماية البيانات).
+        """
         from core.models import ParentStudentLink
 
         links = ParentStudentLink.objects.filter(student=student, school=school).select_related(
             "parent"
         )
+        if behavior_viewers_only:
+            links = links.filter(can_view_behavior=True)
         recipients = [link.parent for link in links]
 
         # ── PDPPL: استبعاد ولي أمر سحب موافقته على نوع بيانات هذا الحدث ──
@@ -353,6 +377,7 @@ _CONSENT_DATA_TYPE = {
     "behavior_l3": "behavior",
     "behavior_l4": "behavior",
     "behavior_risk": "behavior",
+    "behavior_digest": "behavior",
     "parent_summon": "behavior",
     "sent_home": "behavior",
     "absence": "attendance",
@@ -360,6 +385,9 @@ _CONSENT_DATA_TYPE = {
     "fail": "grades",
     "clinic": "health",
 }
+
+# إخطاراتُ خدمةٍ إلزاميّة: تصل وليَّ الأمر مهما كانت موافقتُه (انظر `_filter_consent`).
+_MANDATORY_SERVICE_EVENTS = frozenset({"absence", "parent_summon", "sent_home"})
 
 
 def _prepare_recipient(user, prepared, results):
@@ -395,13 +423,10 @@ def _prepare_recipient(user, prepared, results):
     if not external_channels:
         return None
 
-    # التحقق من ساعات الهدوء
+    # ساعات الهدوء تُؤجِّل ولا تُتخطّى — القرارُ عند الطبر في `_queue_external_now`
+    # عبر `quiet_hours.plan` (موضعٌ واحد يخدم الـHub والخدمة معاً). وهنا العدّ وحده.
     if prefs and prefs.is_quiet_hours():
-        # في ساعات الهدوء: in_app فقط (أُرسل أعلاه)
-        # [B4-7O] مُعرِّفٌ لا اسم — السجلّ يقول «مَن» بما يكفي للتتبّع، ولا يحمل
-        # هويّةً دلالية إلى وجهةٍ لا نتحكّم في حفظها.
-        logger.info("quiet hours — external channels skipped recipient_id=%s", user.pk)
-        return None
+        results["deferred"] = results.get("deferred", 0) + 1
 
     for channel in external_channels:
         results["queued"][channel] = results["queued"].get(channel, 0) + 1
@@ -478,28 +503,40 @@ def _create_dispatch(
     return dispatch
 
 
-def _filter_consent(recipients, event_type, school, student):
-    """يستبعد أولياء الأمور الذين سحبوا موافقتهم (is_given=False) على نوع
-    البيانات المرتبط بالحدث — تطبيقاً لـ PDPPL (قانون قطر 13/2016).
-    عدم وجود سجل ⇒ مسموح (الافتراضي). 'all' يغطّي كل الأنواع."""
+def _filter_consent(recipients: list[Any], event_type: str, school: Any, student: Any) -> list[Any]:
+    """يُبقي من أولياء الأمور من وافق صراحةً — تطبيقاً لـ PDPPL (قانون قطر 13/2016).
+
+    قرار المالك 2026-09-21: الموافقة صريحة لا افتراضيّة. لا سجلَّ ⇒ لم يوافق.
+
+    الدلالة لكلّ حدث:
+    - أحداثُ الخدمة الإلزاميّة (`_MANDATORY_SERVICE_EVENTS`: غياب، استدعاء ولي
+      الأمر، إرسال الطالب إلى البيت) تصل دائماً بلا فحص موافقة: هي إخطاراتٌ
+      تؤدّيها المدرسةُ لالتزامٍ تنظيميّ تجاه وليّ الأمر (إخطارُ الغياب واستدعاؤه
+      في دليل الوزارة)، لا معالجةً اختياريّة تُبنى على الموافقة.
+    - غيرُها (سلوك، درجات، رسوب، صحّة) اختياريّ: يصل لمن سُجِّلت له موافقةٌ
+      `is_given=True` على نوع الحدث أو على «all».
+    - سحبٌ صريح (`is_given=False`) على النوع أو على «all» يغلب أيّ موافقةٍ أخرى.
+    """
+    if event_type in _MANDATORY_SERVICE_EVENTS or not recipients:
+        return recipients
     data_type = _CONSENT_DATA_TYPE.get(event_type)
-    if not data_type or not recipients:
+    if not data_type:
         return recipients
 
     from core.models import ConsentRecord
 
-    withdrawn = set(
-        ConsentRecord.objects.filter(
-            student=student,
-            school=school,
-            data_type__in=[data_type, "all"],
-            is_given=False,
-        ).values_list("parent_id", flat=True)
-    )
-    if not withdrawn:
-        return recipients
+    given: set = set()
+    withdrawn: set = set()
+    for parent_id, is_given in ConsentRecord.objects.filter(
+        student=student,
+        school=school,
+        data_type__in=[data_type, "all"],
+        parent_id__in=[p.pk for p in recipients],
+    ).values_list("parent_id", "is_given"):
+        (given if is_given else withdrawn).add(parent_id)
 
-    kept = [p for p in recipients if p.pk not in withdrawn]
+    allowed = given - withdrawn
+    kept = [p for p in recipients if p.pk in allowed]
     dropped = len(recipients) - len(kept)
     if dropped:
         logger.info(
@@ -537,6 +574,7 @@ def _map_event_type(hub_event):
         "behavior_l3": "behavior",
         "behavior_l4": "behavior",
         "behavior_risk": "behavior",
+        "behavior_digest": "behavior",
         "absence": "absence",
         "class_exit": "general",
         "grade": "grade",
@@ -550,6 +588,7 @@ def _map_event_type(hub_event):
         "plan_overdue": "plan_overdue",
         "review_cycle": "review_cycle",
         "observation": "general",
+        "appraisal_grievance": "general",
         "general": "general",
     }
     return mapping.get(hub_event, "general")
@@ -747,8 +786,59 @@ def _queue_external_now(
     ولا يُعاد رفع خطأ الطبر في المسار المتتبَّع: المعاملة التزمت فعلاً، فرفعُه
     يُنتج خطأ HTTP عن عمليةٍ قبلتها القاعدة، فيُعيدها المستخدم ظنّاً أنها فشلت.
     """
+    # [ساعات الهدوء] القرارُ من مرجعٍ واحد يشاركه فيه مسارُ الخدمة (`quiet_hours.plan`).
+    # في ساعات هدوء المستلم لا يخرج شيء خارجيٌّ الآن: يُؤجَّل إلى انتهائها بمهمّةٍ
+    # مؤجَّلة تُعيد السؤالَ عند كلّ قفزة. ومسارُ الإرسال أدناه لا يتغيّر حرفاً.
+    # ولا يمرّ التسليمُ المتتبَّع بمسارٍ آخر: المُصالِحُ يعود إلى هذه الدالّة نفسها
+    # فيُحكَم عليه هنا بحكم لحظته.
+    plan = quiet_hours.plan(user)
+
+    if plan.action == quiet_hours.SKIP:
+        # لا عاملَ يحفظ مهمّةً مؤجَّلة (تنفيذٌ فوريّ): إرسالٌ الآن يكسر الهدوء، فلا يخرج.
+        # التسليمُ المتتبَّع يبقى `pending` فيستردّه المُصالِحُ بعد انتهاء النافذة.
+        logger.info(
+            "quiet hours — no worker to hold, external send skipped recipient_id=%s dispatch=%s",
+            user.pk,
+            dispatch_id,
+        )
+        return False
+
+    serialized_context = _serialize_context(context)
     try:
-        from .tasks import hub_send_notification_task
+        from .tasks import hub_send_notification_task, release_after_quiet_hours_task
+
+        if plan.action == quiet_hours.HOLD:
+            assert plan.eta is not None  # HOLD يحمل موعداً دائماً
+            # الحمولةُ نفسُها التي يقرؤها `hub_send` — بأسماء وسائطه. (كُتبت هنا لا
+            # بجوار `.delay` أدناه لأن حارسَ السلك يشترط أن يبقى النشرُ المتتبَّع
+            # حرفيّاً في هذه الدالّة.)
+            release_after_quiet_hours_task.apply_async(
+                kwargs={
+                    "school_id": str(school.id),
+                    "user_id": str(user.id),
+                    "target": "hub",
+                    "payload": {
+                        "user_id": str(user.id),
+                        "school_id": str(school.id),
+                        "channels": list(channels),
+                        "title": title,
+                        "body": body,
+                        "event_type": event_type,
+                        "context": serialized_context,
+                        "sent_by_id": str(sent_by.id) if sent_by else None,
+                        "dispatch_id": dispatch_id,
+                        **({"email_html": email_html} if email_html else {}),
+                        **({"email_text": email_text} if email_text else {}),
+                    },
+                },
+                eta=plan.eta,
+            )
+            logger.info(
+                "quiet hours — external channels held recipient_id=%s until<=%s",
+                user.pk,
+                plan.eta.isoformat(),
+            )
+            return True
 
         hub_send_notification_task.delay(
             user_id=str(user.id),
@@ -757,7 +847,7 @@ def _queue_external_now(
             title=title,
             body=body,
             event_type=event_type,
-            context=_serialize_context(context),
+            context=serialized_context,
             sent_by_id=str(sent_by.id) if sent_by else None,
             dispatch_id=dispatch_id,
             # لا تُمرَّر وسيطةٌ فارغة. عاملٌ قديمٌ يستقبل كلمةً لا يعرفها يرفع
@@ -779,6 +869,13 @@ def _queue_external_now(
         if dispatch_id:
             logger.exception(
                 "Tracked dispatch %s: enqueue failed — deliveries stay pending", dispatch_id
+            )
+            return False
+
+        if plan.action == quiet_hours.HOLD:
+            # الوسيطُ غائبٌ وهذا وقتُ هدوء: لا إرسالَ متزامناً يكسره — كما كان يُتخطّى.
+            logger.warning(
+                "quiet hours — broker unavailable, hold failed error=%s", type(e).__name__
             )
             return False
 
@@ -852,11 +949,11 @@ def _send_sync(
                 exc_info=True,
             )
 
-    if "sms" in channels and user.phone:
+    if "sms" in channels and user.get_phone_decrypted():
         try:
             NotificationService.send_sms(
                 school=school,
-                phone_number=user.phone,
+                phone_number=user.get_phone_decrypted(),
                 message=f"{title}\n{body}",
                 notif_type=_map_event_type(event_type),
                 sent_by=sent_by,
@@ -892,6 +989,6 @@ def _push_websocket(user, notif):
                 "url": notif.related_url or "",
             },
         )
-    except (ImportError, OSError, RuntimeError, AttributeError) as exc:
+    except (ImportError, OSError, RuntimeError, AttributeError, redis.exceptions.RedisError) as exc:
         # لا نُوقف hub.dispatch() أبداً بسبب WebSocket
         logger.warning(f"WS push failed (non-critical): {exc}")

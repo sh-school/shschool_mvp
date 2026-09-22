@@ -12,7 +12,7 @@
 - **Onboarding قانوني إلزامي:** شاشة + اختبار (3/3) + تفويض إداري كتابي
 - **SMTP:** TLS 1.3 + hash للـ user_id + محتوى مُقيّد (PDPPL)
 - **النطاق:** كل الأدوار باستثناء `role=Student` (PDPPL مادة 16)
-- **بريد المطوّر:** `s.mesyef0904@education.qa`
+- **بريد المطوّر:** يُضبط بمتغيّر البيئة `DEVELOPER_FEEDBACK_RECIPIENT` (لا بريدَ حقيقيّاً في المستودع)
 - **DPO:** أذكياء للبرمجيات
 - **Retention:** 90 يوم للنصوص (cleanup تلقائي عبر management command)
 

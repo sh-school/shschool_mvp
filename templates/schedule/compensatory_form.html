@@ -11,7 +11,6 @@
 <div class="exec-dash form-page">
   {% page_header "طلب حصة تعويضية" icon="compensation" %}{% endpage_header %}
   {% section_card "بيانات الطلب" icon="edit_record" %}
-    <p class="form-note is-warning schedule-form-note">{% icon "status_warning" %} الحد الأقصى للتعويض: أسبوع واحد من تاريخ الغياب</p>
 
     <form method="post">
       {% csrf_token %}
@@ -32,7 +31,7 @@
           <select name="original_slot" id="comp-original-slot" class="form-control" required>
             <option value="">— اختر حصة —</option>
             {% for slot in my_slots %}
-            <option value="{{ slot.pk }}">{{ slot.get_day_of_week_display }} — ح{{ slot.period_number }} — {{ slot.subject|default:"مادة" }} ({{ slot.class_group }})</option>
+            <option value="{{ slot.pk }}">{{ slot.get_day_of_week_display }} — ح{{ slot.period_number }} — {{ slot.subject|default:"مادة" }} ({{ slot.class_group.short_label }})</option>
             {% endfor %}
           </select>
         </div>
@@ -42,7 +41,7 @@
         {% field "notes" "ملاحظات (اختياري)" type="textarea" placeholder="أي ملاحظات إضافية..." %}
       </div>
 
-      <button type="submit" class="btn-submit mt-4">إرسال طلب التعويض</button>
+      <button type="submit" class="btn-primary mt-4" data-loading>إرسال طلب التعويض</button>
     </form>
   {% endsection_card %}
 </div>

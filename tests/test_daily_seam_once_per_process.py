@@ -8,6 +8,7 @@
 from types import SimpleNamespace
 
 import pytest
+import redis
 
 from operations import middleware as mw
 
@@ -27,6 +28,21 @@ class _BrokenCache:
 
     def set(self, key, value, timeout=None):
         raise ConnectionError("redis down")
+
+
+class _BrokenRedisCache:
+    """cache يرمي استثناء `redis` الحقيقيّ — لا `ConnectionError` المدمجة.
+
+    `redis.exceptions.ConnectionError` لا يرث من `ConnectionError` المدمجة
+    (`issubclass(...) is False`) — فهذا هو الاستثناء الذي كان يفلت من
+    `except (OSError, ConnectionError)` ويُسقط المِفصل على **كلّ** طلب.
+    """
+
+    def get(self, key):
+        raise redis.exceptions.ConnectionError("redis down")
+
+    def set(self, key, value, timeout=None):
+        raise redis.exceptions.ConnectionError("redis down")
 
 
 def _request(user):
@@ -74,3 +90,19 @@ def test_a_cache_hit_from_another_worker_is_remembered_locally(school, teacher_u
         seam._ensure_sessions(_request(teacher_user))
 
     assert reads["n"] == 1
+
+
+def test_a_real_redis_connection_error_does_not_crash_the_seam(school, teacher_user, monkeypatch):
+    """`redis.exceptions.ConnectionError` الحقيقيّ — لا مجرّد `ConnectionError` مدمجة."""
+    monkeypatch.setattr(mw, "cache", _BrokenRedisCache())
+    from operations.services import ScheduleService
+
+    monkeypatch.setattr(
+        ScheduleService, "retire_past_year_records", staticmethod(lambda s, on=None: {})
+    )
+    monkeypatch.setattr(ScheduleService, "ensure_sessions_for_date", staticmethod(lambda s, d: 0))
+
+    seam = mw.SessionAutoGenerateMiddleware(lambda r: "ok")
+    response = seam(_request(teacher_user))  # لا يجوز أن يرفع — الطلب كلّه ينهار لولا الإصلاح
+
+    assert response == "ok"

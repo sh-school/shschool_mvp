@@ -25,12 +25,24 @@ from developer_feedback.models import (
 
 logger = logging.getLogger(__name__)
 
-# بريد المطوّر المعتمد من المؤسس (MTG-2026-015)
-DEVELOPER_EMAIL = getattr(
-    settings,
-    "DEVELOPER_FEEDBACK_RECIPIENT",
-    "s.mesyef0904@education.qa",
-)
+
+def developer_recipient() -> str:
+    """مستلِمُ إشعارات المطوّر — من الإعدادات وحدَها (`DEVELOPER_FEEDBACK_RECIPIENT`).
+
+    لا بريدَ افتراضيّاً في الشيفرة: المستودعُ عامّ، والبريدُ الحقيقيّ لا يُكتب فيه.
+    """
+    return getattr(settings, "DEVELOPER_FEEDBACK_RECIPIENT", "")
+
+
+def _fail_without_recipient(
+    notification: DeveloperMessageNotification,
+) -> DeveloperMessageNotification:
+    notification.status = NotificationStatus.FAILED
+    notification.error_detail = "لا مستلِم: DEVELOPER_FEEDBACK_RECIPIENT غير مضبوط"
+    notification.save()
+    logger.error("Developer notification not sent: recipient is not configured")
+    return notification
+
 
 MAX_RETRIES = 3
 
@@ -111,7 +123,7 @@ def send_developer_notification(
     Returns:
         DeveloperMessageNotification instance
     """
-    to_email = recipient or DEVELOPER_EMAIL
+    to_email = recipient or developer_recipient()
     payload = _build_safe_payload(message)
     subject, text_body, html_body = _render_email(payload)
 
@@ -121,6 +133,8 @@ def send_developer_notification(
         recipient=to_email,
         status=NotificationStatus.PENDING,
     )
+    if not to_email:
+        return _fail_without_recipient(notification)
 
     last_error: str | None = None
     for attempt in range(1, MAX_RETRIES + 1):
@@ -133,7 +147,8 @@ def send_developer_notification(
                 to=[to_email],
             )
             email.attach_alternative(html_body, "text/html")
-            email.send(fail_silently=False)
+            if not email.send(fail_silently=False):
+                raise RuntimeError("لم يُسلَّم البريد: لا مزوّد بريد مُهيَّأ")
 
             notification.status = NotificationStatus.SENT
             notification.sent_at = timezone.now()
@@ -182,7 +197,7 @@ def send_developer_edit_notification(
     - يتضمن ملاحظة واضحة أن الرسالة عُدّلت بعد إرسالها الأصلي
     - يتضمن edit_count ليُعلم المطوّر بعدد التعديلات السابقة
     """
-    to_email = recipient or DEVELOPER_EMAIL
+    to_email = recipient or developer_recipient()
     payload = _build_safe_payload(message)
     edit_count = message.edit_history.count()
 
@@ -201,6 +216,8 @@ def send_developer_edit_notification(
         recipient=to_email,
         status=NotificationStatus.PENDING,
     )
+    if not to_email:
+        return _fail_without_recipient(notification)
 
     last_error: str | None = None
     for attempt in range(1, MAX_RETRIES + 1):
@@ -213,7 +230,8 @@ def send_developer_edit_notification(
                 to=[to_email],
             )
             email.attach_alternative(html_body, "text/html")
-            email.send(fail_silently=False)
+            if not email.send(fail_silently=False):
+                raise RuntimeError("لم يُسلَّم البريد: لا مزوّد بريد مُهيَّأ")
 
             notification.status = NotificationStatus.SENT
             notification.sent_at = timezone.now()

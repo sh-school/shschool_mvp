@@ -13,15 +13,17 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import F
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
-from django_ratelimit.decorators import ratelimit
 
 from core.auth_identity import identifier_kind, lockout_key, resolve_user
+from core.mfa_session import mark_verified
 from core.models import AuditLog, CustomUser
 from core.models.access import TIER_5_BENEFICIARIES
 from core.privacy import mask_national_id
+from core.ratelimit_safe import ratelimit
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +193,30 @@ def _enforce_rotation(user) -> None:
 _AUTH_ERROR = "المعرّف أو كلمة المرور غير صحيحة"
 
 
+def axes_lockout_response(request, credentials=None):
+    """صفحةُ قفل axes بهويّة المنصّة — `AXES_LOCKOUT_CALLABLE` في الإعدادات.
+
+    بلا هذا كانت axes تردّ نصّاً خاماً (AXES_LOCKOUT_URL=None، استجابتُها
+    الداخليّة): لا خطَّ المنصّة ولا طريقَ عودة. والمدّةُ المتبقّية توصَف بدقائق
+    مقرَّبةً لأعلى (`get_cool_off` تُعيد فرقاً دقيقاً، ودقيقةٌ صفرٌ أشدُّ إرباكاً
+    من دقيقةٍ واحدة).
+    """
+    from axes.helpers import get_cool_off
+
+    cool_off = get_cool_off(request)
+    if cool_off:
+        minutes = max(1, -(-int(cool_off.total_seconds()) // 60))
+        desc = f"عددُ محاولات الدخول الخاطئة تجاوز الحدّ المسموح. أعِد المحاولة بعد {minutes} دقيقة تقريباً."
+    else:
+        desc = "عددُ محاولات الدخول الخاطئة تجاوز الحدّ المسموح. أعِد المحاولة لاحقاً."
+    return render(
+        request,
+        "errors/locked_out.html",
+        {"desc": desc, "login_url": reverse("login")},
+        status=getattr(settings, "AXES_HTTP_RESPONSE_CODE", 429),
+    )
+
+
 @ratelimit(key="ip", rate="10/m", method="POST", block=True)
 def login_view(request):
     """صفحة تسجيل الدخول — مع حماية من القوة الغاشمة وقفل الحساب."""
@@ -329,6 +355,7 @@ def verify_2fa(request):
             # أي أنّ كلَّ من فعّل المصادقةَ الثنائيّة لم يعد يستطيع الدخول.
             backend = request.session.pop("pending_2fa_backend", "") or PRIMARY_AUTH_BACKEND
             login(request, user, backend=backend)
+            mark_verified(request)
             _enforce_rotation(user)
             if user.must_change_password:
                 return redirect("force_change_password")
@@ -400,6 +427,8 @@ def setup_2fa(request):
         if totp.verify(code, valid_window=1):
             user.totp_enabled = True
             user.save(update_fields=["totp_enabled"])
+            # أثبت الرمزَ الآن — وإلّا أغلق MfaSessionMiddleware جلستَه لحظةَ التفعيل.
+            mark_verified(request)
             messages.success(request, "✅ تم تفعيل المصادقة الثنائية بنجاح!")
             return redirect("dashboard")
         else:
@@ -533,7 +562,15 @@ def change_password(request):
 
 @require_POST
 def logout_view(request):
-    """تسجيل الخروج الآمن — مسح الجلسة والتوجيه لصفحة الدخول"""
+    """تسجيل الخروج الآمن — مسح الجلسة والتوجيه لصفحة الدخول.
+
+    و`Clear-Site-Data: "cache"` يمحو ذاكرةَ المتصفّح لهذا الموقع: ما حُفظ من
+    صفحاتٍ شخصيّة قبل `no-store` لا يبقى على جهازٍ مشترك بعد الخروج (P1-3).
+    ولا `"storage"`: تمحو تفضيلاتِ المستخدم وتُلغي عاملَ الخدمة العامّ، والصفحاتُ
+    لم تعد تُحفظ في ذاكرة العامل أصلاً.
+    """
     logout(request)
     request.session.flush()
-    return redirect("login")
+    response = redirect("login")
+    response["Clear-Site-Data"] = '"cache"'
+    return response

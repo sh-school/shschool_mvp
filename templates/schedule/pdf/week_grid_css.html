@@ -34,6 +34,10 @@
   .week-grid .slot-subject { font-size: {{ geo.css.subject_pt }}; font-weight: 700; color: {% brand_color "MAROON" %}; line-height: 1.2; }
   .week-grid .slot-meta { font-size: {{ geo.css.meta_pt }}; color: {% brand_color "TEXT_SECONDARY" %}; line-height: 1.2; }
   .week-grid .slot-time { font-size: {{ geo.css.time_pt }}; color: {% brand_color "TEXT_MUTED" %}; line-height: 1.2; direction: ltr; unicode-bidi: embed; }
+  {% comment %}عمودُ الفسحة/الصلاة ضيّقٌ بالملّيمتر — «10:25 – 10:45» في سطرٍ واحد يفيض عنه، فيبقى سطرين هنا وحده.{% endcomment %}
+  .week-grid .wg-break .slot-time-sep { display: none; }
+  .week-grid .wg-break .slot-time-start,
+  .week-grid .wg-break .slot-time-end { display: block; }
   .week-grid .slot-empty { color: {% brand_color "TEXT_MUTED" %}; }
   .week-grid .slot-time + .slot-subject { margin-top: 0.8mm; padding-top: 0.8mm; border-top: 1px dashed {% brand_color "BORDER_STRONG" %}; }
   .week-grid .break-label { font-size: {{ geo.css.break_pt }}; font-weight: 700; color: {% brand_color "TEXT_SECONDARY" %}; line-height: 1.15; }
