@@ -17,7 +17,7 @@ Faker==40.39.0
 # Code quality
 black==26.5.1
 isort==9.0.1
-ruff==0.16.8
+ruff==0.4.4  # ثابتٌ عمداً — يطابق CI (quality-gate.yml) وpre-commit، انظر feedback_ruff_pinned_version
 
 # Type checking
 mypy==2.3.1
