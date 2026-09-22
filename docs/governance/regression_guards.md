@@ -43,7 +43,7 @@
 | السقفُ | القيمة | الملفّ | أين يعمل |
 |---|---|---|---|
 | **حجمُ CSS المصغَّر** (ما يصل المتصفّح) | ≤ **260KB**؛ ≈ 236KB يومَ 2026-09-19 (المصدرُ 418KB بتعليقاته العربيّة لا يُقاس) | `tests/test_css_budget.py` (ADR-0003 §10) | `pytest — تغطية` |
-| **Core Web Vitals والحمولة** | CLS ≤ 0.1 · LCP ≤ 2500ms · INP ≤ 300ms · أوراقُ أنماطٍ تحجب الرسم ≤ **10** · CSS خامٌ ≤ 462KB · JS ≤ 400KB · خطوط ≤ 120KB · صور ≤ 220KB · طلبات ≤ 40 | `tests/web_vitals.py:BUDGET` ← `tests/test_web_vitals_budget.py` | وظيفةُ `axe-a11y` |
+| **Core Web Vitals والحمولة** | CLS ≤ 0.1 · LCP ≤ 2500ms · INP ≤ 300ms · أوراقُ أنماطٍ تحجب الرسم ≤ **10** · CSS خامٌ ≤ 466KB · JS ≤ 400KB · خطوط ≤ 120KB · صور ≤ 220KB · طلبات ≤ 40 | `tests/web_vitals.py:BUDGET` ← `tests/test_web_vitals_budget.py` | وظيفةُ `axe-a11y` |
 | **قيمُ px خارجَ السلّم** | تباعدٌ ≤ **86**، تقوّسٌ ≤ **31** — والصفرُ على السلّم | `tests/test_px_tokens.py` | `pytest — تغطية` |
 | **`font-size` بـpx** | صفرٌ (يُكتب rem) | `tests/test_px_tokens.py` | `pytest — تغطية` |
 
