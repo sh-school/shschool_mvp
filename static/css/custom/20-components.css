@@ -206,22 +206,32 @@
 /* قائمة المستخدم — min-width */
 #m-user { min-width: 200px; }
 
-/* ══ Flash messages ══════════════════════════════════════ */
+/* ══ Flash messages — عائمةٌ فوق الصفحة (قرار المالك 2026-09-22): كانت سطراً
+   في مجرى الصفحة يسقط تحت الطيّ أو يُغطّيه محتوًى طويل، وخطُّها 13.5px لا
+   يُقرأ من مسافة. هوّيةٌ مركزيّةٌ واحدة في base.html — كلُّ صفحةٍ ترثها. ══ */
+.msgs-wrap {
+  position: fixed; inset-inline: 0; top: var(--sp-4);
+  z-index: var(--z-modal); max-width: 640px; margin-inline: auto;
+  padding-inline: var(--sp-4); pointer-events: none;
+}
 .msg-bar {
   display: flex; align-items: flex-start; gap: var(--sp-2-5);
-  padding: 11px 15px; border-radius: var(--radius);
-  font-size: 0.84375rem; font-weight: 500; line-height: 1.5;
+  padding: var(--sp-4) var(--sp-4-5); border-radius: var(--radius);
+  font-size: var(--text-2xl); font-weight: 500; line-height: 1.5;
+  box-shadow: var(--shadow-lg); pointer-events: auto;
   transition: opacity .4s;
 }
 .msg-bar button.msg-x {
   margin-inline-start: auto; flex-shrink: 0;
   background: none; border: none; cursor: pointer;
-  opacity: .45; font-size: 0.9375rem; padding: 0 var(--sp-0-5); line-height: 1;
+  opacity: .45; font-size: var(--text-xl); padding: 0 var(--sp-0-5); line-height: 1;
 }
 .msg-bar button.msg-x:hover { opacity: 1; }
-.msg-icon { flex-shrink: 0; font-size: var(--text-base); }
+.msg-icon { flex-shrink: 0; font-size: var(--text-xl); }
 .msg-text { flex: 1; }
-.msgs-wrap { max-width: 1280px; margin: var(--sp-3-5) auto 0; padding: 0 var(--sp-4); }
+@media (max-width: 480px) {
+  .msg-bar { font-size: var(--text-xl); }
+}
 
 /* ── الأزرار الرئيسية ───────────────────────────────────────── */
 /* استخدم .btn-primary بدل inline style — see btn-primary below */

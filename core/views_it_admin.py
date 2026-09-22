@@ -6,25 +6,21 @@
 المعلومات (نطاقُه شبكة/أجهزة)، لكنّ المالك اختار أن يحمل فنّي تقنية المعلومات
 هذه المهمّةَ فعلاً — قرارُ مدرسةٍ لا خطأً.
 
-كلمةُ المرور الجديدة عشوائيّةٌ (`core.initial_passwords`) لا نصّاً يُدخله
-الفنّي: لا حقلَ حرٍّ يفتح باباً لكلمةٍ ضعيفة، والكلمةُ تُعرض **مرّةً واحدةً**
-في نفس الاستجابة ولا تُخزَّن نصّاً في أيّ مكان — كما في تدفّق الإصدار الأوّليّ.
+الكتابةُ والقراءةُ في core/services.py (`reset_user_password`، `school_users`) —
+هذا الملفُّ إحضارُ سياقٍ وردٌّ لا أكثر.
 """
 
 from __future__ import annotations
 
 from django.contrib import messages
 from django.core.paginator import Paginator
-from django.db import transaction
-from django.shortcuts import get_object_or_404, redirect, render
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
-from core.initial_passwords import make_initial_password
-from core.models import AuditLog, CustomUser
+from core.capabilities import capability_required
 from core.models.access import Role
-from core.permissions import role_required
-from core.privacy import mask_national_id
+from core.services import reset_user_password, school_users
 
 PAGE_SIZE = 25
 
@@ -34,14 +30,10 @@ def _role_label(name: str) -> str:
     return dict(Role.ROLES).get(name, name) if name else "—"
 
 
-@role_required("it_technician")
+@capability_required("it_admin.reset_passwords")
 def password_reset_list(request):
-    school = request.user.get_school()
-    people = CustomUser.objects.filter(memberships__school=school).distinct().order_by("full_name")
-
     q = request.GET.get("q", "").strip()
-    if q:
-        people = people.search_simple(q)
+    people = school_users(request.school, q)
 
     paginator = Paginator(people, PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("page"))
@@ -50,7 +42,7 @@ def password_reset_list(request):
         {
             "id": user.id,
             "full_name": user.full_name,
-            "national_id": mask_national_id(user.national_id),
+            "national_id": user.national_id,
             "role_display": _role_label(user.get_role()),
             "is_active": user.is_active,
         }
@@ -69,27 +61,12 @@ def password_reset_list(request):
     )
 
 
-@role_required("it_technician")
+@capability_required("it_admin.reset_passwords")
 @require_http_methods(["POST"])
 def password_reset_action(request, user_id):
-    school = request.user.get_school()
-    target = get_object_or_404(
-        CustomUser.objects.filter(memberships__school=school).distinct(), id=user_id
+    target, new_password = reset_user_password(
+        school=request.school, target_id=user_id, actor=request.user
     )
-
-    new_password = make_initial_password()
-    with transaction.atomic():
-        target.set_password(new_password)
-        target.must_change_password = True
-        target.save(update_fields=["password", "must_change_password"])
-        AuditLog.objects.create(
-            school=school,
-            user=request.user,
-            action="update",
-            model_name="CustomUser",
-            object_id=str(target.id),
-            object_repr=f"إعادة تعيين كلمة مرور: {target.full_name}"[:300],
-        )
 
     messages.success(
         request,

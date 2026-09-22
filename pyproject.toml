@@ -182,6 +182,7 @@ module = [
     "api.views_erasure",
     "governance.views_media",
     "core.views_audit", "core.views_auth", "core.views_dashboard", "core.views_health",
+    "core.views_it_admin",
     "core.views_pwa", "core.views_search", "core.views_students",
     "core.views_styleguide",
     "operations.views_attendance", "operations.views_schedule", "operations.views_swap",

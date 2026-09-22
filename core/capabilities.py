@@ -322,6 +322,13 @@ def registry() -> dict[str, Capability]:
         _cap("library.lend", "الإعارةُ والإرجاع", {"librarian", "principal", "vice_admin"}),
         _cap("library.borrowings_all", "سجلُّ استعارات المدرسة", P.LIBRARY_BORROWINGS_ALL),
         _cap("transport.access", "وحدةُ النقل", P.TRANSPORT_FULL | P.TRANSPORT_MANAGE),
+        # ── الأدوات التقنيّة ─────────────────────────────────────────
+        _cap(
+            "it_admin.reset_passwords",
+            "إعادةُ تعيين كلمات مرور المستخدمين",
+            {"it_technician"},
+            basis="قرارُ المالك 2026-09-22",
+        ),
         # ── الكنترول ────────────────────────────────────────────────
         _cap(
             "exam_control.access",

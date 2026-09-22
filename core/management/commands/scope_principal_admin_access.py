@@ -14,6 +14,11 @@
 ولا يكتب شيئاً بلا `--apply`.
 """
 
+from __future__ import annotations
+
+from argparse import ArgumentParser
+from typing import Any
+
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
@@ -25,10 +30,10 @@ from core.models.access import Membership
 class Command(BaseCommand):
     help = "يستبدل is_superuser عن حساب المدير بـis_staff وصلاحيّاتٍ صريحة (core.admin_access)"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("--apply", action="store_true", help="بدونه يعرض ولا يكتب")
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         principal_ids = set(
             Membership.objects.filter(is_active=True, role__name="principal").values_list(
                 "user_id", flat=True

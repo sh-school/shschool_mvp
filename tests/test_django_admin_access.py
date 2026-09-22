@@ -106,16 +106,23 @@ def test_without_apply_nothing_changes(db, person):
 # ── المصدر لا يعود ───────────────────────────────────────────────────
 
 
-def test_the_seed_does_not_hand_out_the_admin_door():
-    """`full_seed` كان يضع `is_staff=True` لكل من يُنشئه من الطاقم —
-    وهو مصدرُ المئة والتسعة والعشرين."""
+def test_the_seed_only_grants_the_door_to_the_principal_by_name():
+    """`full_seed` كان يضع `is_staff=True` لكل من يُنشئه من الطاقم — وهو مصدرُ المئة
+    والتسعة والعشرين. ومنذ قرار المالك 2026-09-22 يُمنح `is_staff` **للمدير وحده**
+    وبصلاحياتٍ صريحة (`core.admin_access.sync_principal_admin_group`) لا `is_superuser` —
+    فسطرٌ واحدٌ مسموحٌ به مسمّىً، لا منحٌ عامٌّ للطاقم."""
     import pathlib
     import re
 
     src = pathlib.Path("core/management/commands/full_seed.py").read_text(encoding="utf-8")
     grants = re.findall(r'"is_staff":\s*True|is_staff\s*=\s*True', src)
 
-    assert not grants, "البذور لا تمنح بابَ لوحة الإدارة"
+    assert len(grants) == 1, (
+        "البذورُ تمنح بابَ لوحة الإدارة في أكثر من موضعٍ — المدير وحدَه يُمنحه بالاسم: " + src
+    )
+    assert (
+        "sync_principal_admin_group" in src
+    ), "منحُ is_staff بلا صلاحيّاتٍ صريحةٍ من core.admin_access"
 
 
 # ── الرابط في المنصّة: يظهر لمن يفتح فعلاً لا لمن يحمل دوراً قياديّاً فقط ──
