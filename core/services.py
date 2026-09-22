@@ -379,3 +379,47 @@ def count_active_students(school: Any) -> int:
     if not (school and student_role):
         return 0
     return Membership.objects.filter(school=school, role=student_role, is_active=True).count()
+
+
+# ── إعادةُ تعيين كلمات مرور المستخدمين (فنّي تقنية المعلومات) ────────────
+
+
+def school_users(school: Any, q: str = "") -> Any:
+    """مستخدمو مدرسةٍ للبحث والعرض — `search_simple` عند وجود استعلام."""
+    from core.models import CustomUser
+
+    people = CustomUser.objects.filter(memberships__school=school).distinct().order_by("full_name")
+    if not q:
+        return people
+    # django-stubs لا يعرف UserQuerySet خلف CustomUserManager — search_simple موجودةٌ فعلاً (core/querysets.py).
+    return people.search_simple(q)  # type: ignore[attr-defined]
+
+
+def reset_user_password(*, school: Any, target_id: Any, actor: Any) -> tuple[Any, str]:
+    """يعيد تعيين كلمةَ مرور مستخدمٍ في مدرسة الفاعل — كلمةٌ عشوائيّة (لا حقلَ حرّ)،
+    تُلزمه بتغييرها عند الدخول التالي، وتُسجَّل في AuditLog بلا القيمة نفسها.
+
+    يرفع `Http404` إن لم يكن المستخدَمُ عضواً في مدرسة الفاعل — لا تسريبَ بين المدارس.
+    """
+    from django.shortcuts import get_object_or_404
+
+    from core.initial_passwords import make_initial_password
+    from core.models import AuditLog, CustomUser
+
+    target = get_object_or_404(
+        CustomUser.objects.filter(memberships__school=school).distinct(), id=target_id
+    )
+    new_password = make_initial_password()
+    with transaction.atomic():
+        target.set_password(new_password)
+        target.must_change_password = True
+        target.save(update_fields=["password", "must_change_password"])
+        AuditLog.objects.create(
+            school=school,
+            user=actor,
+            action="update",
+            model_name="CustomUser",
+            object_id=str(target.id),
+            object_repr=f"إعادة تعيين كلمة مرور: {target.full_name}"[:300],
+        )
+    return target, new_password

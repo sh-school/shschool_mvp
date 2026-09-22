@@ -42,13 +42,17 @@ OVERFLOWING = r"""() => {
 
 
 def test_no_action_card_text_overflows_its_card_on_a_narrow_phone(
-    request, browser, live_server, it_technician_user
+    request, browser, live_server, librarian_user
 ):
+    # كانت العيّنةُ دورَ «فنّي تقنية المعلومات» (ثلاثُ بطاقات) — لوحتُه صارت بطاقةً واحدةً
+    # (قرارُ المالك 2026-09-22: إعادةُ تعيين كلمات المرور بدل روابط /admin/)، فلا تختبر
+    # فيضاناً بعد اليوم. أمينُ المكتبة يحمل الشكلَ نفسَه (kpi_strip + ثلاث action_tile)
+    # على المكوّن العامّ نفسِه (`.action-card`)، فتبقى الحراسةُ على نمط الفيضان لا على الدور.
     base = live_server.url
     login = browser.new_context()
     page = login.new_page()
     page.goto(f"{base}/auth/login/")
-    page.fill('input[name="identifier"]', it_technician_user.national_id)
+    page.fill('input[name="identifier"]', librarian_user.national_id)
     page.fill('input[name="password"]', "testpass123")  # pragma: allowlist secret
     page.click('button[type="submit"]')
     page.wait_for_load_state("networkidle")

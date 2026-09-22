@@ -206,22 +206,64 @@
 /* قائمة المستخدم — min-width */
 #m-user { min-width: 200px; }
 
-/* ══ Flash messages ══════════════════════════════════════ */
+/* ══ Flash messages — عائمةٌ فوق الصفحة (قرار المالك 2026-09-22): كانت سطراً
+   في مجرى الصفحة يسقط تحت الطيّ أو يُغطّيه محتوًى طويل، وخطُّها 13.5px لا
+   يُقرأ من مسافة. هوّيةٌ مركزيّةٌ واحدة في base.html — كلُّ صفحةٍ ترثها.
+   `top` يساوي ارتفاع .site-header (48px) + .site-nav (42px) + هامشٍ، فلا
+   تُغطّي القائمة خلفها؛ والعرضُ يحتضن محتواه (لا يفرض 640px على رسالةٍ
+   قصيرة) حتى سقفٍ يسع سطراً واحداً لرسالةٍ كرسالة كلمة المرور. ══ */
+.msgs-wrap {
+  position: fixed; inset-inline: 0; top: calc(48px + 42px + var(--sp-3));
+  z-index: var(--z-navbar); display: flex; flex-direction: column; align-items: center;
+  padding-inline: var(--sp-4); pointer-events: none;
+}
 .msg-bar {
-  display: flex; align-items: flex-start; gap: var(--sp-2-5);
-  padding: 11px 15px; border-radius: var(--radius);
-  font-size: 0.84375rem; font-weight: 500; line-height: 1.5;
+  display: flex; align-items: center; gap: var(--sp-2-5);
+  padding: var(--sp-3) var(--sp-4-5); border-radius: var(--radius);
+  font-size: var(--text-lg); font-weight: 500; line-height: 1.5;
+  box-shadow: var(--shadow-lg); pointer-events: auto;
+  max-width: min(94vw, 1100px); width: fit-content;
   transition: opacity .4s;
 }
 .msg-bar button.msg-x {
   margin-inline-start: auto; flex-shrink: 0;
   background: none; border: none; cursor: pointer;
-  opacity: .45; font-size: 0.9375rem; padding: 0 var(--sp-0-5); line-height: 1;
+  opacity: .45; font-size: var(--text-lg); padding: 0 var(--sp-0-5); line-height: 1;
 }
 .msg-bar button.msg-x:hover { opacity: 1; }
-.msg-icon { flex-shrink: 0; font-size: var(--text-base); }
+.msg-icon { flex-shrink: 0; font-size: var(--text-lg); }
 .msg-text { flex: 1; }
-.msgs-wrap { max-width: 1280px; margin: var(--sp-3-5) auto 0; padding: 0 var(--sp-4); }
+/* كلمةُ مرورٍ أو رمزٌ مسلَّمٌ مرّةً واحدة — داخل msg-text، بلونٍ ولحمةٍ مميَّزين لا يُخلطان بالنصّ حولهما. */
+.msg-highlight {
+  font-family: 'IBM Plex Mono', monospace; font-weight: 700;
+  color: var(--maroon-fg); background: var(--maroon-bg);
+  padding: 0.1em 0.5em; border-radius: var(--radius-sm); margin-inline: 0.2em;
+  white-space: nowrap;
+}
+/* زرُّ نسخ ما يجاوره من msg-highlight — data-copy فعلٌ مركزيٌّ (static/js/actions.js). */
+.msg-copy {
+  font: inherit; font-size: 0.8em; font-weight: 700; color: var(--maroon-fg);
+  background: none; border: 1px solid var(--maroon-border); border-radius: var(--radius-sm);
+  padding: 0.15em 0.6em; cursor: pointer; white-space: nowrap;
+}
+.msg-copy:hover { background: var(--maroon-bg); }
+
+/* «تمّ النسخ» — عنصرٌ واحدٌ مشتركٌ (static/js/actions.js) يظهر فوق أيّ زرّ data-copy، لا فوق
+   .msg-copy وحدَه؛ مركزيٌّ لكلّ استعمالات النسخ في المنصّة (كإعداد الثنائية). */
+.copy-feedback {
+  position: fixed; transform: translate(-50%, calc(-100% - var(--sp-2)));
+  background: var(--popover-bg); color: var(--status-success-fg);
+  border: 1px solid var(--popover-border); border-radius: var(--radius-sm);
+  padding: 0.2em 0.7em; font-size: var(--text-xs); font-weight: 700;
+  box-shadow: var(--shadow-sm); z-index: var(--z-modal); pointer-events: none;
+  white-space: nowrap;
+}
+.copy-feedback[hidden] { display: none; }
+@media (max-width: 767px) {
+  .msg-bar { font-size: var(--text-base); max-width: 92vw; }
+  .msg-text { white-space: normal; }
+}
+
 
 /* ── الأزرار الرئيسية ───────────────────────────────────────── */
 /* استخدم .btn-primary بدل inline style — see btn-primary below */
@@ -2066,5 +2108,88 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
 .skeleton-list-avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; }
 .skeleton-list-body { flex: 1; }
 .skeleton-kpi-card { padding: var(--sp-5); }
+
+/* نقطةُ لون القسم — رموزُ --dept-* باهتةٌ للورق المطبوع، فنقطةٌ لا خلفيّةٌ
+   كاملة تكسر التباين الليليّ. */
+.dept-dot {
+  display: inline-block;
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  vertical-align: middle;
+  margin-inline-end: var(--sp-1-5);
+  flex: 0 0 auto;
+}
+.dept-sharia { background: var(--dept-sharia); }
+.dept-arabic { background: var(--dept-arabic); }
+.dept-math { background: var(--dept-math); }
+.dept-english { background: var(--dept-english); }
+.dept-science { background: var(--dept-science); }
+.dept-biology { background: var(--dept-biology); }
+.dept-chemistry { background: var(--dept-chemistry); }
+.dept-physics { background: var(--dept-physics); }
+.dept-social { background: var(--dept-social); }
+.dept-tech { background: var(--dept-tech); }
+.dept-business { background: var(--dept-business); }
+.dept-pe { background: var(--dept-pe); }
+.dept-arts { background: var(--dept-arts); }
+.dept-life-skills { background: var(--dept-life-skills); }
+.dept-other { background: var(--dept-other); }
+
+/* نافذةُ اختيار المعلّم، مُجمَّعةً حسب القسم — نظامُ modal-overlay/modal-box
+   نفسُه، حجمٌ جديدٌ وحدَه (modal-lg). */
+/* لا wrap: اسمٌ طويلٌ بلا هذا يمتدّ الحقلُ أفقيّاً ويسحب أعمدةَ الشبكة معه
+   (min-width: 0 على label في 32-modules-3.css يفتح الطريقَ، وهذا يقصّ). */
+.qobs-teacher-trigger {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: start;
+  cursor: pointer;
+}
+.qobs-teacher-trigger.is-invalid { border-color: var(--status-danger-border); }
+.modal-box.modal-lg { max-width: 960px; }
+.qobs-dept-grid { align-items: start; }
+.qobs-dept-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3);
+}
+.qobs-dept-card__head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+  font-size: var(--text-base);
+  font-weight: 600;
+  margin: 0 0 var(--sp-2);
+}
+.qobs-dept-members {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-0-5);
+  padding-inline-start: var(--sp-5);
+}
+.qobs-teacher-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1-5);
+  padding: var(--sp-1) 0;
+  cursor: pointer;
+}
+.qobs-teacher-chip--coord {
+  margin-inline-start: auto;
+  padding: var(--sp-0-5) var(--sp-2);
+  border: 1px solid var(--status-info-border);
+  border-radius: var(--radius-pill);
+  background: var(--status-info-bg);
+  font-weight: 400;
+  font-size: var(--text-sm);
+}
+.qobs-coord-badge { font-size: var(--text-xs); }
 
 }

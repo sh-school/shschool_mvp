@@ -5,7 +5,7 @@ import re
 from django import template
 
 from core.developer_access import is_platform_developer
-from roadmap.admin_menu import build_menu
+from roadmap.admin_menu import APP_LABELS, build_menu, search_index
 from roadmap.admin_monitor import build_cards
 
 register = template.Library()
@@ -15,7 +15,8 @@ register = template.Library()
 def admin_nav(context):
     request = context.get("request")
     path = request.path if request is not None else ""
-    return {"groups": build_menu(context.get("available_apps") or [], path)}
+    groups = build_menu(context.get("available_apps") or [], path)
+    return {"groups": groups, "search_index": search_index(groups)}
 
 
 @register.inclusion_tag("admin/_dev_cards.html", takes_context=True)
@@ -33,3 +34,9 @@ _LONG_NUMBER = re.compile(r"\d{8,}")
 def hide_ids(value):
     """يستر كلَّ رقمٍ من ثمانيةِ أرقامٍ فأكثر (رقمٌ شخصيّ أو وظيفيّ) في نصّ السجلّ — PDPPL."""
     return _LONG_NUMBER.sub("••••", str(value))
+
+
+@register.filter
+def app_label(app_label_key, default_name):
+    """اسمُ تطبيقٍ عربيّاً في app_list.html — لتطبيقات الطرف الثالث المسجَّلة في APP_LABELS."""
+    return APP_LABELS.get(app_label_key, default_name)

@@ -325,7 +325,7 @@
       {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% icon "dashboard" %} الرئيسية</a>
       {% endif %}
-      <a href="/admin/" class="nb">{% icon "maintenance" %} لوحة الإدارة</a>
+      <a href="{% url 'it_admin_password_reset_list' %}" class="nb">{% icon "password" %} إعادة تعيين كلمات المرور</a>
 
     {# ── الأدوار الجديدة v7 ── #}
 
@@ -593,7 +593,9 @@
   <a href="{% url 'notifications_dashboard' %}">{% icon "notifications" %} مركز الإشعارات</a>
   {% endif %}
   <hr>
+  {% if request.user.is_staff %}
   <a href="/admin/">{% icon "maintenance" %} لوحة الإدارة التقنية</a>
+  {% endif %}
   {% if request.user|can_open:"developer_feedback:message_create" %}
   <a href="{% url 'developer_feedback:message_create' %}">{% icon "developer" %} أرسل إلى المطوّر</a>
   {% endif %}
@@ -883,7 +885,7 @@
   {% if request.user|can_open:"change_password" %}
   <a href="{% url 'change_password' %}">{% icon "password" %} تغيير كلمة المرور</a>
   {% endif %}
-  {% if is_admin_role %}
+  {% if request.user.is_staff %}
   <a href="/admin/">{% icon "maintenance" %} لوحة الإدارة</a>
   {% endif %}
   {% if is_admin_role %}

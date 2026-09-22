@@ -802,7 +802,10 @@
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: var(--sp-3);
 }
-.qobs-fields label { display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary); }
+/* min-width: 0 يكسر عرضَ المحتوى الأدنى الضمنيّ لعنصر الشبكة (خانةُ المعلّم
+   امتدّت بعرض اسمٍ طويلٍ بلا هذا — عمودٌ واحدٌ يسحب باقي الأعمدة معه، راجع
+   .qobs-teacher-trigger للقصّ الفعليّ). */
+.qobs-fields label { display: flex; flex-direction: column; gap: var(--sp-1); font-size: var(--text-sm); font-weight: 600; color: var(--text-secondary); min-width: 0; }
 .qobs-fields__self { margin: 0; align-self: end; font-size: var(--text-sm); }
 
 /* SOS-20260915: صفُّ جدول المعلّم — يُختار منه اليوم بدل إدخال المادّة

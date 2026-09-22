@@ -213,7 +213,7 @@ def axes_lockout_response(request, credentials=None):
         request,
         "errors/locked_out.html",
         {"desc": desc, "login_url": reverse("login")},
-        status=settings.AXES_HTTP_RESPONSE_CODE,
+        status=getattr(settings, "AXES_HTTP_RESPONSE_CODE", 429),
     )
 
 

@@ -351,3 +351,23 @@ thead th, .module caption { text-transform: none; }
   fieldset.module.aligned > h2, fieldset.module.aligned > .description, fieldset.module.aligned > .form-row:has(textarea, table, .related-widget-wrapper .vLargeTextField) { grid-column: 1 / -1; }
   fieldset.module.aligned .form-row > div, fieldset.module.aligned .form-row > .flex-container { flex-wrap: wrap; }
 }
+/* بحثُ القائمة: حقلٌ في الترويسة يقفز إلى أيّ نموذجٍ من 97 — فهرسٌ مضمَّنٌ بلا طلبٍ إضافيّ. */
+.adm-nav__search { position: relative; margin-inline-start: 0.5rem; flex: none; }
+.adm-nav__search-input {
+  inline-size: 11rem; padding: 0.3rem 0.7rem; border-radius: 999px; border: 1px solid color-mix(in srgb, #fff 30%, transparent);
+  background: color-mix(in srgb, #fff 14%, transparent); color: var(--header-link-color); font: inherit; font-size: 0.82rem;
+  transition: inline-size 0.15s ease;
+}
+.adm-nav__search-input::placeholder { color: color-mix(in srgb, var(--header-link-color) 70%, transparent); }
+.adm-nav__search-input:focus { inline-size: 16rem; outline: 2px solid var(--accent); outline-offset: 1px; background: var(--body-bg); color: var(--body-fg); }
+.adm-nav__search-results {
+  position: absolute; inset-inline-start: 0; inset-block-start: calc(100% + 0.3rem); z-index: 30; margin: 0; padding: 0.3rem;
+  list-style: none; min-inline-size: 20rem; max-block-size: 60vh; overflow-y: auto; background: var(--body-bg); color: var(--body-fg);
+  border: 1px solid var(--hairline-color); border-radius: 0.6rem; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.adm-nav__search-results a { display: flex; justify-content: space-between; gap: 0.6rem; padding: 0.4rem 0.6rem; border-radius: 0.4rem; color: inherit; text-decoration: none; font-size: 0.86rem; }
+/* 97 نتيجةً مرسومةً سلفاً من الخادم، مطويّةٌ بـhidden حتى تُطابق البحثَ — القاعدةُ أعلاه أقوى من UA hidden فتحتاج نقضاً صريحاً. */
+.adm-nav__search-results a[hidden] { display: none; }
+.adm-nav__search-results a small { color: var(--body-quiet-color); font-size: 0.74rem; flex: none; }
+.adm-nav__search-results a:hover, .adm-nav__search-results a.is-active { background: var(--selected-row); }
+@media (max-width: 767px) { .adm-nav__search { inline-size: 100%; margin-inline-start: 0; order: 2; } .adm-nav__search-input, .adm-nav__search-input:focus { inline-size: 100%; } }
