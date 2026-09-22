@@ -54,49 +54,45 @@
     });
   });
 
-  /* بحثُ القائمة: فهرسٌ مضمَّنٌ (json_script) لا طلبٌ إضافيّ؛ Enter يفتح أوّل نتيجة، Esc يُفرغ، / يُركِّز الحقلَ من أيّ مكانٍ في الصفحة. */
+  /* بحثُ القائمة: النتائجُ مُقرَّرةٌ من الخادم في _nav.html (كلُّ الروابط مرسومةٌ سلفاً،
+     مُفلَتةً بـDjango) — الفلترةُ هنا إظهارٌ/إخفاءٌ بصفة hidden وحدَها، لا بناءَ DOM من
+     نصٍّ ولا a.href = <من JSON> أبداً، فلا سَطوَ (CodeQL: DOM text reinterpreted as HTML)
+     يُحرَس أصلاً. Enter يفتح أوّل نتيجةٍ ظاهرة، Esc يُفرغ، / يُركِّز الحقلَ من أيّ مكان. */
   var searchInput = document.getElementById('adm-nav-search');
   var results = document.getElementById('adm-nav-search-results');
-  var indexEl = document.getElementById('adm-nav-search-index');
-  var index = indexEl ? JSON.parse(indexEl.textContent) : [];
+  var allHits = results ? Array.prototype.slice.call(results.querySelectorAll('a')) : [];
   var active = -1;
-  function closeSearch() { results.hidden = true; results.textContent = ''; active = -1; }
-  /* رابطُ نتيجة البحث يجب أن يبقى داخل /admin/ — الفهرسُ من الخادم نفسِه (json_script)
-     ولا مصدرَ خارجيّاً يكتبه، لكنّ CodeQL يحرس السَّطوَ (DOM text reinterpreted as HTML)
-     بلا افتراضِ ثقةٍ في مصدر البيانات، فيُتحقَّق من الشكل صراحةً قبل a.href. */
-  function isSafeAdminUrl(url) {
-    return typeof url === 'string' && /^\/admin\//.test(url);
+  var MAX_SHOWN = 8;
+  function closeSearch() {
+    results.hidden = true;
+    allHits.forEach(function (a) { a.hidden = true; a.classList.remove('is-active'); });
+    active = -1;
   }
-  function renderSearch(items) {
-    results.textContent = '';
-    items.forEach(function (item, i) {
-      if (!isSafeAdminUrl(item.url)) return;
-      var a = document.createElement('a');
-      a.href = item.url; a.setAttribute('role', 'option'); a.tabIndex = -1;
-      a.textContent = item.name;
-      var g = document.createElement('small'); g.textContent = item.group; a.appendChild(g);
-      if (i === active) a.classList.add('is-active');
-      results.appendChild(a);
+  function renderSearch(q) {
+    q = q.trim().toLowerCase();
+    var terms = q ? q.split(/\s+/) : [];
+    var shown = 0;
+    allHits.forEach(function (a) {
+      var hay = a.getAttribute('data-name') + ' ' + a.getAttribute('data-group');
+      var hit = terms.length > 0 && shown < MAX_SHOWN
+        && terms.every(function (t) { return hay.indexOf(t) !== -1; });
+      a.hidden = !hit;
+      a.classList.remove('is-active');
+      if (hit) shown += 1;
     });
-    results.hidden = results.children.length === 0;
+    var visible = allHits.filter(function (a) { return !a.hidden; });
+    if (active >= 0 && active < visible.length) visible[active].classList.add('is-active');
+    results.hidden = visible.length === 0;
+    return visible;
   }
-  function matches(q) {
-    q = q.trim();
-    if (!q) return [];
-    var terms = q.split(/\s+/);
-    return index.filter(function (item) {
-      var hay = item.name + ' ' + item.group;
-      return terms.every(function (t) { return hay.indexOf(t) !== -1; });
-    }).slice(0, 8);
-  }
-  if (searchInput && results && index.length) {
-    searchInput.addEventListener('input', function () { active = -1; renderSearch(matches(searchInput.value)); });
+  if (searchInput && results && allHits.length) {
+    searchInput.addEventListener('input', function () { active = -1; renderSearch(searchInput.value); });
     searchInput.addEventListener('keydown', function (e) {
-      var items = results.querySelectorAll('a');
+      var visible = allHits.filter(function (a) { return !a.hidden; });
       if (e.key === 'Escape') { searchInput.value = ''; closeSearch(); searchInput.blur(); return; }
-      if (e.key === 'ArrowDown' && items.length) { e.preventDefault(); active = Math.min(active + 1, items.length - 1); renderSearch(matches(searchInput.value)); }
-      if (e.key === 'ArrowUp' && items.length) { e.preventDefault(); active = Math.max(active - 1, 0); renderSearch(matches(searchInput.value)); }
-      if (e.key === 'Enter') { var target = items[active] || items[0]; if (target) { e.preventDefault(); window.location.href = target.href; } }
+      if (e.key === 'ArrowDown' && visible.length) { e.preventDefault(); active = Math.min(active + 1, visible.length - 1); renderSearch(searchInput.value); }
+      if (e.key === 'ArrowUp' && visible.length) { e.preventDefault(); active = Math.max(active - 1, 0); renderSearch(searchInput.value); }
+      if (e.key === 'Enter') { var target = visible[active] || visible[0]; if (target) { e.preventDefault(); window.location.href = target.href; } }
     });
     searchInput.addEventListener('blur', function () { setTimeout(closeSearch, 150); });
     document.addEventListener('keydown', function (e) {
