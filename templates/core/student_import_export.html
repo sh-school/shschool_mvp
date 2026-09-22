@@ -134,7 +134,7 @@
 
 <script nonce="{{ request.csp_nonce }}">
   /* الإظهارُ والإخفاءُ بسمة `hidden` لا بصنفٍ يعرّفه Tailwind. */
-  function toggleImportForm() {
+  window.toggleImportForm = function () {
     var area = document.getElementById('import-form-area');
     var btn  = document.getElementById('btn-show-import');
     var isHidden = area.hidden;
@@ -145,9 +145,9 @@
     if (isHidden) {
       area.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }
+  };
 
-  function onFileSelected(input) {
+  window.onFileSelected = function (input) {
     var submitBtn  = document.getElementById('btn-import-submit');
     var preview    = document.getElementById('file-preview');
     var nameEl     = document.getElementById('file-name-display');
@@ -171,7 +171,7 @@
       submitBtn.disabled = true;
       submitBtn.setAttribute('aria-disabled', 'true');
     }
-  }
+  };
 
   // إظهار شريط التقدم عند إرسال النموذج
   document.getElementById('import-form').addEventListener('submit', function () {
