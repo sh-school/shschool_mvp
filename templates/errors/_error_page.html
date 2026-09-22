@@ -1,7 +1,12 @@
 {% load static brand_tags assets %}<!DOCTYPE html>
 {% comment %}
-صفحةُ الخطأ الواحدة — 403 و404 و500 تُضمّنها بمعاملاتها ولا تختلف إلّا فيها:
+صفحةُ الخطأ الواحدة — 403 و404 و500 والقفلُ تُضمّنها بمعاملاتها ولا تختلف إلّا فيها:
   code، heading، desc، desc2، icon (lock | search | alert)، logout (اختياريّ: زرُّ تسجيل الخروج بدل رابطَي العودة)،
+  primary_url وprimary_label (اختياريّان: يستبدلان رابطَ «العودة للرئيسية» الافتراضيَّ (/dashboard/) — لصفحةٍ
+  لا يصحّ لها ذلك الرابط، كقفل قبل الدخول أصلاً)،
+  login_header (اختياريّ: ترويسةٌ عنّابيّةٌ بالشعار واسم المدرسة بهويّة بطاقة الدخول — بأصنافٍ خاصّةٍ بهذه
+  الصفحة (`eh-*`) لا بأصناف `login-card*` المشتركة (طبقاتُ CSS، انظر التعليق عند تعريفها) — للصفحات
+  قبل الدخول أصلاً، كالقفل)،
   brand_footer (اختياريّ: رؤيةُ الوزارة وتوقيعُ المطوّر بأنماط المنصّة نفسِها بدل سطر المدرسة — للصفحات التي تُخدَم فيها الأنماط لا 500)،
   accent اسمُ ثابت لون النهار في core.brand، وaccent_dark نظيرُه ليلاً في brand.DARK.
 
@@ -75,6 +80,54 @@
     }
     .error-icon-bg svg { width: 40px; height: 40px; }
   </style>
+  {% if login_header %}
+  {% comment %}
+  ترويسةٌ بهويّة بطاقة الدخول (شعارٌ واسمُ مدرسةٍ على عنّابيٍّ متدرِّج) — أصنافٌ خاصّةٌ
+  بهذه الصفحة (`eh-*`) لا أصنافُ `login-card*` المشتركة نفسُها: هذا مستندٌ مستقلٌّ
+  بلا طبقات CSS (`@layer`)، وأصنافُ `login-card*` معرَّفةٌ داخل `@layer modules` في
+  الورقة المشتركة — وفي حساب التتالي (cascade) تخسر قواعدُ أيّ طبقةٍ أمام قاعدةٍ
+  بلا طبقةٍ مهما عَلَت خصوصيّتُها؛ فكان تصفيرُ `* { margin: 0; padding: 0 }` أعلاه
+  يبتلع تباعدَها كلَّه (الشعارُ يلتصق بالحافّة، والنصُّ يلامس الأطراف). والمقاساتُ
+  هنا أكبرُ 20% من نظيراتها في بطاقة الدخول (طلبُ 2026-09-22).
+  {% endcomment %}
+  <style>
+    .eh-card { background: {% brand_color "SURFACE" %}; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.04); max-width: 504px; width: 90%; overflow: hidden; }
+    .eh-header { background: linear-gradient(160deg, {% brand_color "MAROON" %} 0%, {% brand_color "MAROON_DARK" %} 100%); padding: 40px 44px 34px; text-align: center; }
+    .eh-logo { width: 86px; height: 86px; margin: 0 auto 19px; }
+    .eh-logo img { width: 100%; height: 100%; object-fit: contain; display: block; filter: brightness(0) invert(1); }
+    .eh-school { font-size: 1.28rem; font-weight: 800; color: {% brand_color "ON_FILL" %}; margin: 0 0 7px; line-height: 1.5; }
+    .eh-platform { font-size: 0.94rem; color: {% brand_color "ON_FILL" %}; opacity: .75; margin: 0; }
+    .eh-ministry { font-size: 0.8rem; color: {% brand_color "ON_FILL" %}; opacity: .55; margin: 5px 0 0; }
+    .eh-body { padding: 38px 44px 40px; text-align: center; }
+    .eh-body .error-icon-bg { width: 96px; height: 96px; margin: 0 auto 19px; }
+    .eh-body .error-icon-bg svg { width: 48px; height: 48px; }
+    .eh-body .error-code { font-size: 96px; margin-bottom: 10px; }
+    .eh-body .error-title { font-size: 24px; margin-bottom: 14px; }
+    .eh-body .error-desc { font-size: 17px; margin-bottom: 34px; }
+    .eh-body .error-actions { gap: 12px; }
+    .eh-body .error-btn, .eh-body .error-btn-outline { padding: 14px 34px; font-size: 17px; border-radius: 14px; }
+    .eh-body .error-brand { margin-top: 24px; }
+    html.dark .eh-card { background: {% brand_color "SURFACE" "dark" %}; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+    {% comment %}الجوال (≤640px): الحجمُ المكبَّر يناسب سطح المكتب لا شاشةً بارتفاع 812px — كان يفرض تمريرَ
+    الصفحة نحو شاشةٍ كاملةٍ إضافيّة قبل بلوغ الزرّ. فيعود هنا إلى مقاساتٍ تلائم الجوّال (لا 20%+).{% endcomment %}
+    @media (max-width: 640px) {
+      .eh-card { max-width: 380px; width: 92%; }
+      .eh-header { padding: 26px 20px 18px; }
+      .eh-logo { width: 60px; height: 60px; margin: 0 auto 10px; }
+      .eh-school { font-size: 0.98rem; margin-bottom: 4px; }
+      .eh-platform { font-size: 0.72rem; }
+      .eh-ministry { font-size: 0.65rem; margin-top: 3px; }
+      .eh-body { padding: 22px 22px 26px; }
+      .eh-body .error-icon-bg { width: 60px; height: 60px; margin-bottom: 10px; }
+      .eh-body .error-icon-bg svg { width: 30px; height: 30px; }
+      .eh-body .error-code { font-size: 52px; margin-bottom: 6px; }
+      .eh-body .error-title { font-size: 16px; margin-bottom: 10px; }
+      .eh-body .error-desc { font-size: 13px; margin-bottom: 18px; }
+      .eh-body .error-btn, .eh-body .error-btn-outline { padding: 11px 18px; font-size: 13px; }
+      .eh-body .error-brand { margin-top: 16px; }
+    }
+  </style>
+  {% endif %}
   {% comment %}النهاريُّ هو الافتراضيّ؛ الليلُ باختيار المستخدم المحفوظ وحدَه (`html.dark`) لا بتفضيل النظام.{% endcomment %}
   <style>
     html.dark body { background: linear-gradient(145deg, {% brand_color "PAGE_BG" "dark" %} 0%, {% brand_color "MAROON_BG" "dark" %} 50%, {% brand_color "PAGE_BG" "dark" %} 100%); color: {% brand_color "TEXT_PRIMARY" "dark" %}; }
@@ -95,7 +148,17 @@
   </script>
 </head>
 <body>
-  <div class="error-card">
+  <div class="{% if login_header %}eh-card{% else %}error-card{% endif %}">
+    {% if login_header %}
+    {# ترويسةٌ بهويّة بطاقة الدخول — أصنافُ eh-* أعلاه، لا login-card* المشتركة (طبقاتُ CSS، انظر التعليق أعلاه) #}
+    <div class="eh-header">
+      <div class="eh-logo"><img src="{% get_static_prefix %}icons/favicon.png" alt="شعار المدرسة" width="86" height="86"></div>
+      <h1 class="eh-school">{{ current_school.name|default:"المدرسة" }}</h1>
+      <p class="eh-platform">منصة الإدارة المدرسية</p>
+      <p class="eh-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</p>
+    </div>
+    <div class="eh-body">
+    {% endif %}
     <div class="error-icon-bg">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         {% if icon == "lock" %}<circle cx="12" cy="16" r="1"/><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
@@ -110,13 +173,14 @@
       {% if logout %}
       <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="error-btn">تسجيل الخروج</button></form>
       {% else %}
-      <a href="/dashboard/" class="error-btn">العودة للرئيسية</a>
+      <a href="{{ primary_url|default:'/dashboard/' }}" class="error-btn">{{ primary_label|default:'العودة للرئيسية' }}</a>
       <a href="javascript:history.back()" class="error-btn-outline">الرجوع للخلف</a>
       {% endif %}
     </div>
     {% if brand_footer %}<div class="error-brand">{% include "components/site_brand.html" %}</div>{% else %}
     <div class="error-footer">{{ current_school.name|default:"المدرسة" }} — وزارة التربية والتعليم والتعليم العالي</div>
     {% endif %}
+    {% if login_header %}</div>{% endif %}{# /eh-body #}
   </div>
 </body>
 </html>
