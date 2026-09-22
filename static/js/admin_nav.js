@@ -61,9 +61,16 @@
   var index = indexEl ? JSON.parse(indexEl.textContent) : [];
   var active = -1;
   function closeSearch() { results.hidden = true; results.textContent = ''; active = -1; }
+  /* رابطُ نتيجة البحث يجب أن يبقى داخل /admin/ — الفهرسُ من الخادم نفسِه (json_script)
+     ولا مصدرَ خارجيّاً يكتبه، لكنّ CodeQL يحرس السَّطوَ (DOM text reinterpreted as HTML)
+     بلا افتراضِ ثقةٍ في مصدر البيانات، فيُتحقَّق من الشكل صراحةً قبل a.href. */
+  function isSafeAdminUrl(url) {
+    return typeof url === 'string' && /^\/admin\//.test(url);
+  }
   function renderSearch(items) {
     results.textContent = '';
     items.forEach(function (item, i) {
+      if (!isSafeAdminUrl(item.url)) return;
       var a = document.createElement('a');
       a.href = item.url; a.setAttribute('role', 'option'); a.tabIndex = -1;
       a.textContent = item.name;
@@ -71,7 +78,7 @@
       if (i === active) a.classList.add('is-active');
       results.appendChild(a);
     });
-    results.hidden = items.length === 0;
+    results.hidden = results.children.length === 0;
   }
   function matches(q) {
     q = q.trim();
