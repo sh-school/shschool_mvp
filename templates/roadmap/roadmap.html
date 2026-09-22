@@ -54,9 +54,9 @@
     {% section_card "الخريطةُ الزمنيّة" meta="انقر خليّةً أو بنداً" icon="plan_execution" %}
       {% filter_bar "مرشّحاتُ الخريطة الزمنيّة" live=True css="rm-tools" %}
         <div class="rm-filters">
-          <label class="rm-filter"><span>المسار</span><select class="form-control form-control-sm" id="rm-f-lane" data-rm-filter="lane"></select></label>
-          <label class="rm-filter"><span>الحالة</span><select class="form-control form-control-sm" id="rm-f-st" data-rm-filter="st"></select></label>
-          <label class="rm-filter"><span>المصدر</span><select class="form-control form-control-sm" id="rm-f-src" data-rm-filter="src"></select></label>
+          <label class="rm-filter"><span>المسار</span><select class="form-control form-control-sm" id="rm-f-lane" data-rm-filter="lane" aria-label="المسار"></select></label>
+          <label class="rm-filter"><span>الحالة</span><select class="form-control form-control-sm" id="rm-f-st" data-rm-filter="st" aria-label="الحالة"></select></label>
+          <label class="rm-filter"><span>المصدر</span><select class="form-control form-control-sm" id="rm-f-src" data-rm-filter="src" aria-label="المصدر"></select></label>
           <div class="rm-subtabs" id="rm-gview" role="group" aria-label="طريقة العرض"></div>
         </div>
       {% endfilter_bar %}
