@@ -13,6 +13,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.db.models import F
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
@@ -190,6 +191,30 @@ def _enforce_rotation(user) -> None:
 # ── رسالة خطأ موحّدة — تمنع User Enumeration ──────────────────────
 # لا تغيّر هذه الرسالة ولا تجعلها تختلف بحسب وجود المستخدم من عدمه
 _AUTH_ERROR = "المعرّف أو كلمة المرور غير صحيحة"
+
+
+def axes_lockout_response(request, credentials=None):
+    """صفحةُ قفل axes بهويّة المنصّة — `AXES_LOCKOUT_CALLABLE` في الإعدادات.
+
+    بلا هذا كانت axes تردّ نصّاً خاماً (AXES_LOCKOUT_URL=None، استجابتُها
+    الداخليّة): لا خطَّ المنصّة ولا طريقَ عودة. والمدّةُ المتبقّية توصَف بدقائق
+    مقرَّبةً لأعلى (`get_cool_off` تُعيد فرقاً دقيقاً، ودقيقةٌ صفرٌ أشدُّ إرباكاً
+    من دقيقةٍ واحدة).
+    """
+    from axes.helpers import get_cool_off
+
+    cool_off = get_cool_off(request)
+    if cool_off:
+        minutes = max(1, -(-int(cool_off.total_seconds()) // 60))
+        desc = f"عددُ محاولات الدخول الخاطئة تجاوز الحدّ المسموح. أعِد المحاولة بعد {minutes} دقيقة تقريباً."
+    else:
+        desc = "عددُ محاولات الدخول الخاطئة تجاوز الحدّ المسموح. أعِد المحاولة لاحقاً."
+    return render(
+        request,
+        "errors/locked_out.html",
+        {"desc": desc, "login_url": reverse("login")},
+        status=settings.AXES_HTTP_RESPONSE_CODE,
+    )
 
 
 @ratelimit(key="ip", rate="10/m", method="POST", block=True)
