@@ -518,8 +518,10 @@ AXES_VERBOSE = False
 AXES_USERNAME_FORM_FIELD = "identifier"
 AXES_USERNAME_CALLABLE = "core.auth_identity.axes_username"
 
-# إعادة توجيه مخصصة عند القفل — None = HTTP 403 الافتراضي
+# صفحةُ القفل بهويّة المنصّة بدل نصّ axes الخام (كانت None = استجابةُ axes الافتراضيّة
+# بلا خطٍّ ولا طريق عودة). AXES_LOCKOUT_URL يبقى None: الاستدعاءُ يستبقه.
 AXES_LOCKOUT_URL = None
+AXES_LOCKOUT_CALLABLE = "core.views_auth.axes_lockout_response"
 
 # ── F-004: حد حجم الرفع (5 MB) — OWASP File Upload ──────────────
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5 MB
