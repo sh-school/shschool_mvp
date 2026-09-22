@@ -321,3 +321,17 @@ class TestRBACPermissions:
         client.force_login(admin)
         resp = client.get("/analytics/")
         assert resp.status_code == 200
+
+
+def test_a_user_without_membership_can_still_log_out(client, django_user_model):
+    """طريقٌ مسدود: صفحةُ «لا عضويّة» كانت بلا مخرج، ومسارُ الخروج POST وحده."""
+    user = django_user_model.objects.create_user(
+        national_id="9990000003", password="x-Str0ng-pass!", full_name="بلا عضويّة"
+    )
+    client.force_login(user)
+
+    response = client.get("/dashboard/")
+
+    assert response.status_code == 403
+    assert "/auth/logout/" in response.content.decode()
+    assert "error-card" in response.content.decode()

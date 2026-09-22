@@ -720,7 +720,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .login-help-text { font-size: var(--text-xs); color: var(--text-muted); margin: 0; line-height: 1.7; }
 .login-help-phone {
   font-family: 'IBM Plex Mono', monospace; font-size: var(--text-xs);
-  color: var(--maroon-fg); font-weight: 600;
+  color: var(--maroon-fg); font-weight: 600; white-space: nowrap; margin-inline-start: var(--sp-2);
 }
 .login-input {
   width: 100%; padding: 13px var(--sp-4);
@@ -748,7 +748,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 /* أيقونةٌ بحجم سطرها في رسالة الخطأ ورقم الهاتف — وكانت `style=` على كلٍّ منهما. */
 .login-inline-icon { width: 1em; height: 1em; vertical-align: middle; }
 /* توقيعُ «أذكياء» في ذيل البطاقة: أبعدُ عن نصّ المساعدة منه في ذيل المنصّة. */
-.login-card .login-brand { margin-top: 1rem; justify-content: center; }
+.login-card .login-brand { margin-top: 1rem; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); }
 /* شارةُ «المصادقة الثنائية مفعّلة» — دائرةٌ خضراءُ مصمتة تفتح ليلاً، وعلامتُها
    بيضاء. كان القالبُ يمرّر `class="text-white"` إلى `icon.html` وهو لا يقبل
    صنفاً، فكانت العلامةُ ترث لونَ ما حولها: سوداءَ على الأخضر الداكن نهاراً. */
