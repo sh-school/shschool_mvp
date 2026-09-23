@@ -408,3 +408,13 @@ thead th, .module caption { text-transform: none; }
 .adm-nav__search-results a small { color: var(--body-quiet-color); font-size: 0.74rem; flex: none; }
 .adm-nav__search-results a:hover, .adm-nav__search-results a.is-active { background: var(--selected-row); }
 @media (max-width: 767px) { .adm-nav__search { inline-size: 100%; margin-inline-start: 0; order: 2; } .adm-nav__search-input, .adm-nav__search-input:focus { inline-size: 100%; } }
+/* زرُّ «القائمة» للجوّال وحدَه: مخفيٌّ على الشاشات الأعرض ولو أظهره السكربت. */
+.adm-nav__toggle { display: none; }
+@media (max-width: 767px) {
+  .adm-nav.has-toggle .adm-nav__toggle { display: inline-flex; }
+  .adm-nav.has-toggle:not(.is-expanded) > .adm-nav__item,
+  .adm-nav.has-toggle:not(.is-expanded) > .adm-nav__search { display: none; }
+  /* هدفُ لمسٍ 44px لأزرار الشريط وروابط القوائم المنسدلة (WCAG 2.5.5؛ مقياس المنصّة). */
+  .adm-nav__btn, #header .adm-nav__menu a { min-block-size: 44px; box-sizing: border-box; }
+  #header .adm-nav__menu a { display: flex; align-items: center; }
+}
