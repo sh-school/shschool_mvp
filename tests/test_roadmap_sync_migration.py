@@ -205,22 +205,16 @@ def test_0007_adds_kpis_and_open_decision_once():
     assert RoadmapDecision.objects.get(code="D-16").status == "open"
 
 
-def test_0007_annotates_and_reschedules_only_untouched_vi24():
+def test_0007_annotates_once_without_touching_dates_or_status():
     from datetime import date
 
     _item("VI-24", "todo", 0, start_date=date(2026, 11, 2), end_date=date(2026, 12, 17))
-    _item("U-33", "todo", 0, note="قديمة")
+    _item("U-33", "doing", 30, note="قديمة")
     assert _sync7.annotate(RoadmapItem) == ["U-33", "VI-24"]
     vi24 = RoadmapItem.objects.get(code="VI-24")
-    assert (str(vi24.start_date), str(vi24.end_date)) == ("2026-12-01", "2027-02-26")
-    assert RoadmapItem.objects.get(code="U-33").note.startswith("قديمة\n[2026-09-23]")
+    assert (str(vi24.start_date), str(vi24.end_date)) == ("2026-11-02", "2026-12-17")
+    assert "LAY-05" in vi24.note
+    u33 = RoadmapItem.objects.get(code="U-33")
+    assert (u33.status, u33.progress) == ("doing", 30)
+    assert u33.note.startswith("قديمة\n[2026-09-23]")
     assert _sync7.annotate(RoadmapItem) == []
-
-
-def test_0007_keeps_a_developer_edited_vi24():
-    from datetime import date
-
-    _item("VI-24", "doing", 30, start_date=date(2026, 11, 2), end_date=date(2026, 12, 17))
-    assert _sync7.annotate(RoadmapItem) == []
-    vi24 = RoadmapItem.objects.get(code="VI-24")
-    assert (vi24.status, str(vi24.end_date)) == ("doing", "2026-12-17")
