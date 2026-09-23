@@ -105,3 +105,36 @@ def test_the_vision_is_drawn_with_the_platform_tashkeel_font():
 def _admin_rule(css: str, selector: str) -> str:
     start = css.index(selector + " {")
     return css[start : css.index("}", start)]
+
+
+# ── قائمةُ الإدارة على الجوّال: سطرٌ واحدٌ مطويّ، وتعزيزٌ تدريجيّ (بلا سكربتٍ تبقى مفتوحة) ──────────
+
+
+def test_the_mobile_nav_toggle_is_hidden_until_the_script_shows_it():
+    html = pathlib.Path("templates/admin/_nav.html").read_text(encoding="utf-8")
+    toggle = html[html.index('class="adm-nav__btn adm-nav__toggle"') :]
+    toggle = toggle[: toggle.index("</button>")]
+    assert (
+        " hidden" in toggle
+        and 'aria-controls="adm-nav"' in toggle
+        and 'aria-expanded="false"' in toggle
+    )
+    assert 'id="adm-nav"' in html
+
+
+def test_the_nav_collapses_only_on_phones_and_only_when_the_script_ran():
+    css = ADMIN.read_text(encoding="utf-8")
+    assert ".adm-nav__toggle { display: none; }" in css
+    block = css[css.index(".adm-nav.has-toggle .adm-nav__toggle") - 40 :]
+    assert (
+        block.lstrip().startswith("@media (max-width: 767px)")
+        or "@media (max-width: 767px) {\n  .adm-nav.has-toggle" in css
+    )
+    assert ".adm-nav.has-toggle:not(.is-expanded) > .adm-nav__item" in css
+    js = pathlib.Path("static/js/admin_nav.js").read_text(encoding="utf-8")
+    assert "classList.add('has-toggle')" in js and "toggle.hidden = false" in js
+
+
+def test_nav_touch_targets_are_44px_on_phones():
+    css = ADMIN.read_text(encoding="utf-8")
+    assert ".adm-nav__btn, #header .adm-nav__menu a { min-block-size: 44px;" in css
