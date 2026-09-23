@@ -1,16 +1,17 @@
 {% load static %}{% comment %}
-  فوترُ المنصّة نفسُه في لوحة الإدارة (المدرسة والوزارة والإصدار والرؤية وتوقيع المطوّر) — دائمٌ في كلّ صفحة.
+  فوترُ المنصّة نفسُه في لوحة الإدارة (المدرسة والوزارة والرؤية وتوقيع المطوّر) — دائمٌ في كلّ صفحة.
+  سطرٌ واحد على الحاسوب بثلاثة أقسام: هويّةُ المدرسة | الرؤية | التوقيع؛ ومتراصٌّ مركَّزٌ على الجوّال.
+  بلا اسم التطبيق ورقم الإصدار (قرارُ المالك)، وشعارا أذكياء وسفيان كلٌّ على رقعةٍ بيضاء بحجمٍ واحد.
   أصنافُه `adm-footer*` في admin_theme.css لأنّ لوحةَ الإدارة لا تحمل أنماطَ المنصّة.
 {% endcomment %}
 <footer class="adm-footer" role="contentinfo">
-  <p class="adm-footer__text">{{ current_school.name|default:"المدرسة" }} &ensp;|&ensp; وزارة التربية والتعليم والتعليم العالي — دولة قطر</p>
-  <p class="adm-footer__version">SchoolOS v{{ platform_version }} &ensp;·&ensp; &copy; {% now "Y" %}</p>
+  <p class="adm-footer__text">{{ current_school.name|default:"المدرسة" }} &ensp;|&ensp; وزارة التربية والتعليم والتعليم العالي — دولة قطر &ensp;·&ensp; &copy; {% now "Y" %}</p>
   <p class="adm-footer__vision">{% include "components/ministry_vision.html" with school=current_school %}</p>
   <div class="adm-footer__brand" aria-label="Azkia and Sufyan Mesyef brand attribution">
     <span class="adm-footer__label">طُوِّر بواسطة</span>
-    <img src="{% static 'brand/azkia-logo.svg' %}" alt="شعار أذكياء للبرمجيات" class="adm-footer__logo" width="24" height="24" loading="lazy">
+    <span class="adm-footer__chip"><img src="{% static 'brand/azkia-logo.svg' %}" alt="شعار أذكياء للبرمجيات" class="adm-footer__logo" width="28" height="28" loading="lazy"></span>
     <span class="adm-footer__name">أذكياء للبرمجيات</span>
     <span class="adm-footer__sep" aria-hidden="true"></span>
-    <span class="adm-footer__chip"><img src="{% static 'brand/sufyan-logo.png' %}" alt="شعار سفيان مسيف" class="adm-footer__logo adm-footer__logo--sufyan" width="57" height="28" loading="lazy"></span>
+    <span class="adm-footer__chip"><img src="{% static 'brand/sufyan-logo.png' %}" alt="شعار سفيان مسيف" class="adm-footer__logo" width="57" height="28" loading="lazy"></span>
   </div>
 </footer>

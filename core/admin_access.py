@@ -12,7 +12,8 @@
 
 ## الفئات
 
-- **`FULL_ACCESS_MODELS`**: تعديلٌ كامل (عرض/إضافة/تغيير/حذف) — إعدادٌ مدرسيٌّ
+- **`FULL_ACCESS_MODELS`**: تعديلٌ كامل (عرض/إضافة/تغيير/حذف) — إلّا ما في
+  `SUPERUSER_ONLY_ACTIONS` — إعدادٌ مدرسيٌّ
   لا شاشةَ مخصَّصةً له في المنصّة (المدرسة، السنة والفصل، التقويم، النطاقات
   الزمنيّة، الأجنحة، الأقسام، الشُّعب، والنقل).
 - **`VIEW_ONLY_MODELS`**: قراءةٌ فقط — تدقيقٌ واطمئنانٌ لا تعديلٌ خام (سجلُّ
@@ -71,6 +72,14 @@ VIEW_ONLY_MODELS: frozenset[tuple[str, str]] = frozenset(
 )
 
 _ACTIONS_FULL = ("view", "add", "change", "delete")
+
+#: أفعالٌ محجوبةٌ عن المدير ولو كان النموذجُ في `FULL_ACCESS_MODELS` — للمطوّر (superuser) وحدَه.
+#: حذفُ سجلّ «المدرسة» يمسح بالتسلسل كلَّ ما يرتبط بها (طلبةٌ وحضورٌ ودرجاتٌ وتقييماتٌ وجدول)، وإضافةُ
+#: مدرسةٍ ثانيةٍ من لوحة مدرسةٍ قائمةٍ فتحُ مستأجرٍ جديدٍ لا شأنَ للمدير به؛ وتعديلُ بياناتها (الاسم والرمز
+#: والعنوان والشعار…) يبقى له. قرارُ المالك 2026-09-23 («ليس كلُّ شيءٍ متاحاً للمدير»).
+SUPERUSER_ONLY_ACTIONS: dict[tuple[str, str], tuple[str, ...]] = {
+    ("core", "school"): ("add", "delete"),
+}
 _ACTIONS_VIEW = ("view",)
 
 
@@ -82,6 +91,8 @@ def _permissions_for(models: frozenset[tuple[str, str]], actions: tuple[str, ...
         except ContentType.DoesNotExist:
             continue  # النموذجُ لم يُهاجَر بعدُ في هذه القاعدة — لا يُوقف المزامنة.
         for action in actions:
+            if action in SUPERUSER_ONLY_ACTIONS.get((app_label, model), ()):
+                continue
             perm = Permission.objects.filter(content_type=ct, codename=f"{action}_{model}").first()
             if perm:
                 ids.add(perm.id)
