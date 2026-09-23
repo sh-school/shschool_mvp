@@ -1,10 +1,11 @@
 from django.contrib import admin
 
+from core.admin import SchoolScopedAdmin
 from transport.models import BusRoute, SchoolBus
 
 
 @admin.register(SchoolBus)
-class SchoolBusAdmin(admin.ModelAdmin):
+class SchoolBusAdmin(SchoolScopedAdmin):
     list_display = ("bus_number", "driver_name", "capacity", "school")
     list_filter = ("school", "capacity")
     search_fields = ("bus_number", "driver_name")  # [PII-09] driver_phone مشفّر — أُزيل من البحث
@@ -17,7 +18,9 @@ class SchoolBusAdmin(admin.ModelAdmin):
 
 
 @admin.register(BusRoute)
-class BusRouteAdmin(admin.ModelAdmin):
+class BusRouteAdmin(SchoolScopedAdmin):
+    school_lookup = "bus__school"
+
     list_display = ("bus", "area_name", "get_students_count")
     list_filter = ("bus__school", "area_name")
     search_fields = ("area_name", "bus__bus_number")
