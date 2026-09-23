@@ -96,3 +96,30 @@ def test_0003_note_only_update_is_idempotent():
     assert _sync3.sync(RoadmapItem) == ["U-02"]
     assert _sync3.sync(RoadmapItem) == []
     assert RoadmapItem.objects.get(code="U-02").note.count("#408") == 1
+
+
+# ── 0004: مزامنة 2026-09-23 + حسمُ D-12 ──
+
+_sync4 = importlib.import_module("roadmap.migrations.0004_sync_items_2026_09_23")
+
+
+def test_0004_closes_u30_once():
+    _item("U-30", "doing", 80)
+    assert _sync4.sync(RoadmapItem) == ["U-30"]
+    assert _sync4.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="U-30").status == "done"
+
+
+def test_0004_decides_only_an_open_decision():
+    from roadmap.models import RoadmapDecision
+
+    RoadmapDecision.objects.create(code="D-12", title="قرارات المظهر", status="open")
+    assert _sync4.decide(RoadmapDecision) == ["D-12"]
+    d12 = RoadmapDecision.objects.get(code="D-12")
+    assert (d12.status, str(d12.decision_date)) == ("decided", "2026-09-23")
+    assert _sync4.decide(RoadmapDecision) == []
+
+
+def test_0004_adds_n013():
+    assert _sync4.add_missing(RoadmapItem) == ["N-013"]
+    assert RoadmapItem.objects.get(code="N-013").pr == "#489"
