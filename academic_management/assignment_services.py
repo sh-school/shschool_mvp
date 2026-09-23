@@ -439,6 +439,41 @@ def _snapshot(a):
     }
 
 
+def set_coordinator_entry_paused(school, paused: bool, by):
+    """يوقف الإسنادَ عن المنسّقين أو يفتحه — صريحاً لا قلباً، فتكرارُ النقرة لا يعكس.
+
+    المفتاحُ للمدير والنائب الأكاديميّ ومطوّر المنصّة وحدَهم، ويُسجَّل من بدّله
+    ومتى في `AuditLog` بما كان وما صار.
+    """
+    from django.core.exceptions import PermissionDenied
+
+    from core import permissions as perms
+    from core.signals import _log
+
+    if not (getattr(by, "is_superuser", False) or by.get_role() in perms.ASSIGNMENT_ENTRY_TOGGLE):
+        raise PermissionDenied("وقفُ الإسناد وفتحُه للمدير والنائب الأكاديميّ ومطوّر المنصّة.")
+    with transaction.atomic():
+        governance, _created = WorkloadGovernance.objects.select_for_update().get_or_create(
+            school=school
+        )
+        before = governance.coordinator_entry_paused
+        if before == paused:
+            return governance
+        governance.coordinator_entry_paused = paused
+        governance.entry_changed_at = timezone.now()
+        governance.entry_changed_by = by
+        governance.save(
+            update_fields=["coordinator_entry_paused", "entry_changed_at", "entry_changed_by"]
+        )
+        _log(
+            "WorkloadGovernance",
+            "update",
+            governance,
+            changes={"coordinator_entry_paused": {"before": before, "after": paused}},
+        )
+    return governance
+
+
 def _audit(instance, action, before, after, findings=()):
     from core.signals import _log
 

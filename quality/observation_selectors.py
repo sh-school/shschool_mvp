@@ -13,6 +13,7 @@ from __future__ import annotations
 import datetime as dt
 
 from core.academic_calendar import academic_year_for_school
+from core.dept_colors import OTHER, dept_key
 from core.models import CustomUser
 from operations.school_days import is_school_day
 
@@ -48,41 +49,14 @@ def groups_with_scores(obs):
     ]
 
 
-#: كودُ القسم (حرٌّ لكلّ مدرسة، `Department.code`) → صنفُ اللون الجاهز في
-#: core/brand.py (DEPT_*، نفسُه الذي يُلوّن الجدول العامّ المطبوع). كودٌ خارج
-#: هذا القاموس (لم تُسجَّل مدرستُه على النمط المتوقَّع) يأخذ لون "أخرى" —
-#: لا يُخترَع له صنفٌ جديد.
-_DEPT_COLOR_OF = {
-    "sharia": "sharia",
-    "arabic": "arabic",
-    "math": "math",
-    "english": "english",
-    "science": "science",
-    "science_prep": "science",  # مدرسةٌ تفصل علومَ الإعداديّ عن الثانويّ بكودٍ آخر
-    "science_sec": "science",
-    "biology": "biology",
-    "chemistry": "chemistry",
-    "physics": "physics",
-    "social": "social",
-    "tech": "tech",
-    "business": "business",
-    "pe": "pe",
-    "arts": "arts",
-    "life-skills": "life-skills",
-    "life_skills": "life-skills",  # كودُ المدرسة الفعليّ بشرطةٍ سفليّة
-}
-
-
 def teacher_picker_groups(school, teachers):
     """قائمةُ المعلّمين مُجمَّعةً حسب القسم الأكاديميّ — المنسّقُ أوّلاً في كلِّ
     قسم (طلب المالك 2026-09-22: القسمُ ظاهرٌ بلونه كالجدول العامّ المطبوع،
-    والمنسّقُ مُميَّزٌ في رأس مجموعته). اللونُ نقطةٌ صغيرة لا خلفيّةُ صفٍّ —
-    الرموزُ `--dept-*` باهتةٌ صُمِّمت لورق أبيض (core/brand.py)، وخلفيّةٌ كاملةٌ
-    بها تكسر التباين في الوضع الليليّ (لا رمزَ ليليّاً موازياً لها بعد).
+    والمنسّقُ مُميَّزٌ في رأس مجموعته). ثمّ صار اللونُ خلفيّةَ بطاقة القسم
+    كلِّها (2026-09-23) — ولرموز `--dept-*` نظيرٌ ليليّ فيبقى التباينُ سليماً.
 
-    مصدرٌ واحد: `Department.code` نفسُه الذي يُبنى منه صنفُ `dept-{code}` في
-    مصفوفة الجدول المطبوعة (`templates/schedule/print_schedule.html`) — لا
-    نسخةَ ثانية من هذا الترتيب هنا.
+    مصدرٌ واحد: `core/dept_colors.py` — كودُ القسم إلى لونه كما في مصفوفة الجدول
+    المطبوعة (`templates/schedule/print_schedule.html`)، لا نسخةَ ثانية من الخريطة هنا.
     """
     from core.models.department import Department
 
@@ -107,16 +81,14 @@ def teacher_picker_groups(school, teachers):
         groups.append(
             {
                 "name": dept.name,
-                "css_class": _DEPT_COLOR_OF.get(dept.code, "other"),
+                "css_class": dept_key(dept.code),
                 "head": head,
                 "teachers": members,
             }
         )
     rest = sorted((t for t in teachers if t.id not in grouped_ids), key=lambda t: t.full_name)
     if rest:
-        groups.append(
-            {"name": "بلا قسم مسجَّل", "css_class": "other", "head": None, "teachers": rest}
-        )
+        groups.append({"name": "بلا قسم مسجَّل", "css_class": OTHER, "head": None, "teachers": rest})
     return groups
 
 

@@ -17,6 +17,7 @@ urlpatterns = [
     path("departments/", views.departments, name="departments"),
     path("test-analytics/", views.test_analytics, name="test_analytics"),
     path("assignments/", assignment_views.assignments, name="assignments"),
+    path("assignments/entry/", assignment_views.toggle_entry, name="assignment_entry_toggle"),
     path(
         "assignments/subjects/", assignment_views.subject_options, name="assignment_subject_options"
     ),

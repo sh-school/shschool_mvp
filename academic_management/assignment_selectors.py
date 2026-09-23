@@ -27,7 +27,10 @@ from academic_management.models import (
     SUBMITTED,
     CoursePreparation,
     TeacherWorkloadPlan,
+    WorkloadGovernance,
 )
+from core import permissions as perms
+from core.dept_colors import OTHER, dept_key
 from core.models import ClassGroup, Department, Membership
 from core.models.academic import grade_order
 from operations import departments as dept_map
@@ -47,12 +50,23 @@ NO_DEPARTMENT = "none"
 
 
 def caps(user, school):
-    """قدراتُ هذا المستخدم على الأنصبة — إدخالٌ ومراجعةٌ واعتماد."""
+    """قدراتُ هذا المستخدم على الأنصبة — إدخالٌ ومراجعةٌ واعتماد ومفتاحُ الوقف."""
     return {
         "edit": flow.has_capability(user, school, flow.EDIT),
         "review": flow.has_capability(user, school, flow.REVIEW),
         "approve": flow.has_capability(user, school, flow.APPROVE),
+        # الوقفُ قرارُ المدرسة، والمفتاحُ لثلاثةِ أدوارٍ ثابتة (لا تهيئة).
+        "paused": WorkloadGovernance.for_school(school).coordinator_entry_paused,
+        "toggle": bool(getattr(user, "is_superuser", False))
+        or user.get_role() in perms.ASSIGNMENT_ENTRY_TOGGLE,
     }
+
+
+def entry_paused_for(teacher_caps) -> bool:
+    """أموقوفٌ الإسنادُ عن **هذا** المستخدم؟ — عن المنسّق وحدَه: من يراجع أو يعتمد يكتب دائماً."""
+    return bool(
+        teacher_caps.get("paused") and not (teacher_caps["review"] or teacher_caps["approve"])
+    )
 
 
 def registry_filled(school) -> bool:
@@ -101,6 +115,15 @@ def teachers(school):
     return out
 
 
+def coordinator_ids(school) -> set:
+    """معرّفاتُ منسّقي التخصّص — يتقدّمون قائمةَ قسمهم ويُوسَمون بوسمٍ موحَّد."""
+    return set(
+        Membership.objects.filter(
+            school=school, is_active=True, role__name="coordinator"
+        ).values_list("user_id", flat=True)
+    )
+
+
 def department_of(department, rows, filled=False):
     """قسمُ المعلّم: السجلُّ إن سُجّل، وإلّا فالغالبُ على حصصه.
 
@@ -126,6 +149,15 @@ def department_of(department, rows, filled=False):
     )
     info = dept_map.department_info(code)
     return f"der:{info['code']}", info["name"], (1, info["order"], info["name"])
+
+
+def department_color(department, key) -> str:
+    """مفتاحُ لون القسم كما في الجدول العامّ — سجلُّه إن وُجد، وإلّا كودُ الاشتقاق، وإلّا محايد."""
+    if department is not None:
+        return dept_key(department.code)
+    if str(key).startswith("der:"):
+        return dept_key(str(key)[4:])
+    return OTHER
 
 
 def rows_by_teacher(school, year):
@@ -235,6 +267,8 @@ def may_write(plan, teacher_caps):
     """
     if plan is not None and plan.status in FROZEN_STATUSES:
         return False
+    if entry_paused_for(teacher_caps):
+        return False
     if plan is not None and plan.status in (SUBMITTED, REVIEWED):
         return teacher_caps["review"] or teacher_caps["approve"]
     return teacher_caps["edit"]
@@ -279,6 +313,7 @@ def card(
     classes=None,
     registry=None,
     department=None,
+    coordinator=None,
     error=None,
     notes=(),
     transfer=None,
@@ -301,8 +336,12 @@ def card(
     # آخر. تُحسب البصمةُ من الصفوف التي في اليد — بلا استعلامٍ لكلّ بطاقة.
     diverged = flow.has_diverged(plan, rows) if plan and status in FROZEN_STATUSES else None
 
+    if coordinator is None:  # بطاقةٌ تُعاد وحدَها بعد حفظ — الصفحةُ الكاملةُ تمرّر الجوابَ جاهزاً
+        coordinator = teacher.id in coordinator_ids(school)
+
     return {
         "teacher": teacher,
+        "coordinator": coordinator,
         "rows": rows,
         "load": teacher_load,
         "plan": plan,
@@ -321,7 +360,11 @@ def card(
         # نقلُ مادّةٍ من زميلٍ — يُعرض ليُؤكَّد لا ليقع صامتاً.
         "transfer": transfer,
         # ── أزرارُ الدورة: مسودّةٌ ← رفعٌ ← مراجعةٌ ← اعتماد ──
-        "can_submit": bool(plan) and status == DRAFT and teacher_caps["edit"],
+        "can_submit": bool(plan)
+        and status == DRAFT
+        and teacher_caps["edit"]
+        and not entry_paused_for(teacher_caps),
+        "paused": entry_paused_for(teacher_caps),
         "can_review": bool(plan) and status == SUBMITTED and teacher_caps["review"],
         "can_return": bool(plan) and status in (SUBMITTED, REVIEWED) and teacher_caps["review"],
         "can_approve": bool(plan) and status == REVIEWED and teacher_caps["approve"],
@@ -401,6 +444,7 @@ def assignments_page_context(school, teacher_caps, scope, year, selected):
     prepared_by = prepared_by_teacher(school, year)
     plans = plans_by_teacher(school, year)
     filled = registry_filled(school)
+    coordinators = coordinator_ids(school)
     registry = (
         list(Department.objects.filter(school=school, is_active=True))
         if teacher_caps["review"]
@@ -417,7 +461,15 @@ def assignments_page_context(school, teacher_caps, scope, year, selected):
         if scope is not None and key != scope:
             continue
         group = groups.setdefault(
-            key, {"key": key, "name": name, "order": order, "count": 0, "cards": []}
+            key,
+            {
+                "key": key,
+                "name": name,
+                "color": department_color(department, key),
+                "order": order,
+                "count": 0,
+                "cards": [],
+            },
         )
         group["count"] += 1
         if selected and key != selected:
@@ -435,9 +487,13 @@ def assignments_page_context(school, teacher_caps, scope, year, selected):
                 classes=classes_list,
                 registry=registry,
                 department=department,
+                coordinator=teacher.id in coordinators,
             )
         )
 
+    # منسّقُ التخصّص أوّلَ قائمة قسمه؛ والترتيبُ ثابتٌ فيبقى الباقون بترتيبهم (بالاسم).
+    for g in groups.values():
+        g["cards"].sort(key=lambda c: not c["coordinator"])
     ordered = sorted(groups.values(), key=lambda g: g["order"])
     shown = [g for g in ordered if g["cards"]]
     cards = [c for g in shown for c in g["cards"]]
