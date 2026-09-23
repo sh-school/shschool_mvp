@@ -105,3 +105,22 @@ def test_the_vision_is_drawn_with_the_platform_tashkeel_font():
 def _admin_rule(css: str, selector: str) -> str:
     start = css.index(selector + " {")
     return css[start : css.index("}", start)]
+
+
+# ── بنيةُ الوصولية: معلَمٌ واحدٌ وعنصرٌ تفاعليٌّ واحدٌ لكلّ موضع (axe: nested-interactive و landmark-*) ──────
+
+
+def test_the_admin_footer_is_not_a_second_contentinfo_landmark():
+    """جانغو يلفّ الكتلةَ بـ`<footer id="footer">`؛ وسمٌ ثانٍ أو role=contentinfo يكرّر المعلَم ويعشّشه."""
+    html = FOOTER_TEMPLATE.read_text(encoding="utf-8")
+    assert "<footer" not in html.replace("{% comment %}", "").split("{% endcomment %}")[-1]
+    assert "contentinfo" not in html.split("{% endcomment %}")[-1]
+
+
+def test_the_app_fold_summary_holds_no_link():
+    """رابطٌ داخل `<summary>` عنصرٌ تفاعليٌّ داخل عنصرٍ تفاعليّ — 21 موضعاً في الرئيسيّة كانت تُخالف axe."""
+    import re
+
+    html = pathlib.Path("templates/admin/app_list.html").read_text(encoding="utf-8")
+    for summary in re.findall(r"<summary.*?</summary>", html, flags=re.S):
+        assert "<a " not in summary and "<button" not in summary, summary

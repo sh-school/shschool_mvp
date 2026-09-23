@@ -298,9 +298,10 @@ html[data-theme="dark"] .vision-text { font-palette: --tashkeel-dark; }
 .app-fold > .app-fold__summary::-webkit-details-marker { display: none; }
 .app-fold > .app-fold__summary::before { content: "\25C2"; margin-inline-end: 0.4rem; }
 .app-fold[open] > .app-fold__summary::before { content: "\25BE"; }
-.app-fold__summary a.section,
-.app-fold__summary a.section:link,
-.app-fold__summary a.section:visited { color: inherit; margin-inline-end: auto; }
+.app-fold__summary .section { color: inherit; margin-inline-end: auto; }
+.app-fold__open { margin: 0; padding: 0.3rem 0.75rem; font-size: 0.8rem; }
+/* غلافُ الجدول المضمَّن: يمرّر أفقيّاً داخلَه بدل أن يوسّع الصفحة على الجوّال. */
+.inline-group .table-wrap { overflow-x: auto; }
 .app-fold__count { font-size: 0.7rem; opacity: 0.85; font-variant-numeric: tabular-nums; }
 /* جانغو يترك 30px تحت كلّ .module، وهو مناسبٌ لجداولَ مفتوحة لا لأشرطةِ أقسامٍ مطويّة؛ فيُلغى هنا وتُوزَّع الأقسام أعمدةً (13rem أدنى) فيقلّ التمريرُ. */
 .dashboard #content-main { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
