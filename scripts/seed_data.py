@@ -19,6 +19,14 @@ from operations.models import Session, StudentAttendance, Subject
 
 
 def run():
+    from django.conf import settings
+
+    if getattr(settings, "SETTINGS_MODULE", "") != "shschool.settings.development":
+        raise RuntimeError(
+            "seed_data يزرع كلماتِ مرورٍ ثابتةً ضعيفة (admin123/teacher123) — بيئةُ التطوير المحلّية"
+            " وحدها (shschool.settings.development)، لا الإنتاج ولا staging ولا الاختبار."
+        )
+
     print("🌱 بدء تهيئة البيانات التجريبية...")
 
     with transaction.atomic():
