@@ -39,6 +39,10 @@ bash scripts/session-db.sh
 SESSION_DB=$(bash scripts/session-db.sh --name) WEB_PORT=8001 docker compose -p schoolos-$(basename $PWD) --project-directory . -f D:/shschool_mvp/docker-compose.session.yml up -d
 ```
 
+ويقلع معه عاملُ خلفيّةٍ للشجرة (`worker`) على طابورٍ باسم قاعدتها (`SESSION_NAMESPACE`)
+— فالتصديرُ والتوليدُ يعملان بكود شجرتك وقاعدتها، ولا يلتقطهما عاملُ الحزمة الأصليّة.
+والعاملُ لا يُعيد تحميلَ الكود: بعد تعديل مهمّةٍ أعِد تشغيلَه بالأمر نفسِه مع `restart worker`.
+
 و`--project-directory .` هو المفتاح: ملفُّ الإنشاء يبقى في الجذر واحداً،
 والمساراتُ فيه تُحلّ على شجرتك أنت — فلا يُنسخ إلى كلّ شجرةٍ ولا يُخلّف ملفّاً
 غيرَ متتبَّعٍ يمنع سحبَ الفرع لاحقاً.

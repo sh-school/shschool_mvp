@@ -1,4 +1,5 @@
 import os as _os
+from typing import Any
 
 from .base import *
 
@@ -125,3 +126,28 @@ if not REDIS_URL and not _redis_running():
             "BACKEND": "channels.layers.InMemoryChannelLayer",
         }
     }
+
+
+# ── فضاءُ الجلسة في redis المشترك ─────────────────────────────
+# خوادمُ الجلسات (docker-compose.session.yml) تشترك في redis الحزمة الأصليّة، ولكلٍّ
+# منها قاعدتُها. فكانت مهمّةُ الخلفيّة تُرسَل إلى الطابور المشترك `celery`، فيلتقطها
+# عاملُ الحزمة الأصليّة ويبحث عن صفّها في `shschool_db` فلا يجده — «صفّ التصدير
+# غير موجود» — ويبقى التصديرُ معلّقاً (2026-09-23). ومثلُه طبقةُ القنوات: مجموعاتُ
+# إشعارات المستخدم نفسِه تعبر من جلسةٍ إلى أخرى.
+#
+# فالجلسةُ تحمل اسمَ قاعدتها (`SESSION_NAMESPACE`)، وبه يُسمّى طابورُها وبادئةُ
+# قنواتها في redis نفسِه. لا رقمَ قاعدةٍ منطقيّةٍ يُوزَّع (ستّ عشرةَ لا تكفي الأشجار)،
+# ولا حالةَ تُحفظ: الاسمُ فريدٌ أصلاً لأنّه اسمُ القاعدة. وفراغُه = السلوكُ المشترك القديم.
+SESSION_NAMESPACE = config("SESSION_NAMESPACE", default="")
+if SESSION_NAMESPACE:
+    CELERY_TASK_DEFAULT_QUEUE = SESSION_NAMESPACE
+    _layer: dict[str, Any] = dict(CHANNEL_LAYERS["default"])
+    if str(_layer["BACKEND"]).startswith("channels_redis"):
+        # نسخةٌ لا تعديلٌ في المكان: القاموسُ نفسُه مستورَدٌ من base.
+        CHANNEL_LAYERS = {
+            **CHANNEL_LAYERS,
+            "default": {
+                **_layer,
+                "CONFIG": {**dict(_layer.get("CONFIG", {})), "prefix": f"asgi:{SESSION_NAMESPACE}"},
+            },
+        }
