@@ -64,3 +64,44 @@ def test_the_admin_uses_the_platform_favicon():
 
     assert "icons/favicon.png" in base and "icons/favicon.png" in platform
     assert "css/admin_theme.css" in base
+
+
+# ── فوتر لوحة الإدارة = فوتر المنصّة (قرارُ المالك 2026-09-23) ─────────────────────────────
+
+FOOTER_TEMPLATE = pathlib.Path("templates/admin/_footer.html")
+
+
+def test_the_admin_footer_has_no_app_name_or_version():
+    html = FOOTER_TEMPLATE.read_text(encoding="utf-8")
+    assert "platform_version" not in html and "SchoolOS" not in html
+
+
+def test_both_footer_logos_sit_on_a_white_chip_of_the_same_height():
+    html = FOOTER_TEMPLATE.read_text(encoding="utf-8")
+    assert html.count('class="adm-footer__chip"') == 2
+    assert html.count('height="28"') == 2
+    css = ADMIN.read_text(encoding="utf-8")
+    assert "background: #fff" in _admin_rule(css, ".adm-footer__chip")
+    assert "block-size: 1.75rem" in _admin_rule(css, ".adm-footer__logo")
+
+
+def test_the_admin_footer_is_one_three_section_row_on_desktop_after_the_base_rules():
+    """قاعدةُ الحاسوب بعد الأساسيّة: بالأولويّة نفسها يحسم الأخير، وإلا غلبت `center` على `start`."""
+    css = ADMIN.read_text(encoding="utf-8")
+    base = css.index(".adm-footer { margin-block-start")
+    desktop = css.index("grid-template-columns: 1fr auto 1fr")
+    assert desktop > base
+    assert "var(--accent)" in _admin_rule(css, ".adm-footer")
+
+
+def test_the_vision_is_drawn_with_the_platform_tashkeel_font():
+    css = ADMIN.read_text(encoding="utf-8")
+    assert css.count("font-family: 'Tajawal Tashkeel';") >= 3
+    assert "--tashkeel-dark" in css and ".vision-text" in css
+    for weight in ("Regular", "Medium", "Bold"):
+        assert pathlib.Path(f"static/fonts/Tajawal-{weight}-tk.woff2").exists()
+
+
+def _admin_rule(css: str, selector: str) -> str:
+    start = css.index(selector + " {")
+    return css[start : css.index("}", start)]
