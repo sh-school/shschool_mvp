@@ -153,6 +153,14 @@ class SchoolAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at",)
     autocomplete_fields = ("principal",)
 
+    # حذفُ المدرسة يمسح بالتسلسل كلَّ ما يرتبط بها، وإضافةُ مدرسةٍ مستأجرٌ جديد — للمطوّر وحدَه.
+    # (`core.admin_access.SUPERUSER_ONLY_ACTIONS` تحجبهما عن مجموعة المدير كذلك.)
+    def has_add_permission(self, request):
+        return request.user.is_superuser and super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser and super().has_delete_permission(request, obj)
+
     fieldsets = (
         (
             "المعلومات الأساسية",
