@@ -176,3 +176,45 @@ def test_0006_links_admin_work_to_the_owner_items():
     _sync6.add_missing(RoadmapItem)
     assert "OWN-27" in RoadmapItem.objects.get(code="N-019").note
     assert "OWN-22" in RoadmapItem.objects.get(code="N-021").note
+
+
+# ── 0007: نظام أنماط التخطيط المركزيّة (LAY-01..07، LK1..5، D-16) ──
+
+_sync7 = importlib.import_module("roadmap.migrations.0007_layout_system_items")
+
+
+def test_0007_adds_lay_items_once_after_existing_order():
+    _item("U-33", "todo", 0, sort_order=500)
+    assert _sync7.add_items(RoadmapItem) == [f"LAY-0{n}" for n in range(1, 8)]
+    assert _sync7.add_items(RoadmapItem) == []
+    first = RoadmapItem.objects.get(code="LAY-01")
+    assert (first.status, first.gate, first.sort_order) == ("todo", "owner", 501)
+    assert first.date_basis.startswith("مقترَح")
+    assert RoadmapItem.objects.get(code="LAY-07").lane == "desktop"
+
+
+def test_0007_adds_kpis_and_open_decision_once():
+    from roadmap.models import RoadmapDecision, RoadmapKpi
+
+    assert _sync7.add_kpis(RoadmapKpi) == ["LK1", "LK2", "LK3", "LK4", "LK5"]
+    assert _sync7.add_kpis(RoadmapKpi) == []
+    lk3 = RoadmapKpi.objects.get(code="LK3")
+    assert (lk3.baseline, lk3.target, lk3.direction) == (24.3, 100, "up")
+    assert _sync7.add_decision(RoadmapDecision) == ["D-16"]
+    assert _sync7.add_decision(RoadmapDecision) == []
+    assert RoadmapDecision.objects.get(code="D-16").status == "open"
+
+
+def test_0007_annotates_once_without_touching_dates_or_status():
+    from datetime import date
+
+    _item("VI-24", "todo", 0, start_date=date(2026, 11, 2), end_date=date(2026, 12, 17))
+    _item("U-33", "doing", 30, note="قديمة")
+    assert _sync7.annotate(RoadmapItem) == ["U-33", "VI-24"]
+    vi24 = RoadmapItem.objects.get(code="VI-24")
+    assert (str(vi24.start_date), str(vi24.end_date)) == ("2026-11-02", "2026-12-17")
+    assert "LAY-05" in vi24.note
+    u33 = RoadmapItem.objects.get(code="U-33")
+    assert (u33.status, u33.progress) == ("doing", 30)
+    assert u33.note.startswith("قديمة\n[2026-09-23]")
+    assert _sync7.annotate(RoadmapItem) == []
