@@ -1555,7 +1555,7 @@
 .df-form .form-control,
 .df-form .form-select {
   width: 100%;
-  min-height: 44px; /* touch target >= 44px */
+  min-height: var(--control-h);
   padding: 0.625rem 0.875rem;
   font-size: var(--text-base);
   font-family: inherit;
@@ -1600,7 +1600,7 @@
   cursor: pointer;
   line-height: var(--lh-normal);
   padding: 0.3rem 0;
-  min-height: 44px;
+  min-height: var(--control-h);
 }
 
 .df-checkbox-label input[type="checkbox"] {
@@ -1656,7 +1656,7 @@
   margin: 0;
   padding: 0.3rem 0.5rem;
   border-radius: var(--radius-1-5);
-  min-height: 44px;
+  min-height: var(--control-h);
 }
 
 .df-quiz-choices label:hover,
