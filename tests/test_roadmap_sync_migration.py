@@ -170,3 +170,9 @@ def test_0006_adds_the_unrecorded_merged_work_once():
     created = _sync6.add_missing(RoadmapItem)
     assert created[0] == "N-015" and created[-1] == "N-021" and len(created) == 7
     assert _sync6.add_missing(RoadmapItem) == []
+
+
+def test_0006_links_admin_work_to_the_owner_items():
+    _sync6.add_missing(RoadmapItem)
+    assert "OWN-27" in RoadmapItem.objects.get(code="N-019").note
+    assert "OWN-22" in RoadmapItem.objects.get(code="N-021").note
