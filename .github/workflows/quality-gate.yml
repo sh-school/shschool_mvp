@@ -475,8 +475,9 @@ jobs:
           pip install pytest pytest-django factory-boy \
             pytest-playwright==0.9.0 axe-playwright-python==0.1.8
 
-      - name: تثبيت متصفّح Chromium (مع مكتبات النظام)
-        run: playwright install --with-deps chromium
+      # WebKit (محرّكُ iOS Safari) لسقّاطة الجوال وحدها (Q-02)؛ وaxe وCore Web Vitals على Chromium.
+      - name: تثبيت متصفّحَي Chromium وWebKit (مع مكتبات النظام)
+        run: playwright install --with-deps chromium webkit
 
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
@@ -489,6 +490,11 @@ jobs:
       # المطلوب في حماية الفرع وطابور الدمج، وتبديلُه يُعلّق الدمج على اسمٍ لا يصل.
       - name: ميزانية Core Web Vitals على الصفحات الحيّة
         run: python -m pytest tests/test_web_vitals_budget.py tests/test_action_cards_fit_narrow_screens.py -v -s
+
+      # سقّاطةُ الجوال (M-00، خطّة الجوال §3): أهدافُ اللمس والنصّ والتجاوز على رحلات خمسة
+      # أدوار، جوالاً بالمحرّكَين وسطحَ مكتبٍ بـChromium. الخطوةُ هنا لا في وظيفةٍ جديدة للسبب أعلاه.
+      - name: سقّاطة الجوال على الرحلات الحيّة
+        run: python -m pytest tests/test_mobile_audit.py -v
 
   # ══════════════════════════════════════════════════════
   #  6b. tests/e2e/ — Playwright: مصادقة، تنقّل، صلاحياتُ أدوار (أُحييت 2026-09-19)
