@@ -42,7 +42,20 @@ services:
     restart: unless-stopped
     # runserver وحدَه بدور التطبيق غير-superuser (shschool_app) ليخضع لـRLS.
     # والهجرةُ تُطبَّق هنا الآن: لكلّ شجرةٍ قاعدتُها (انظر SESSION_DB أدناه).
-    command: sh -c "DB_USER=shschool_app DB_PASSWORD=$$APP_DB_PASSWORD python manage.py runserver 0.0.0.0:8000"
+    #
+    # وينتظر القاعدةَ قبل أن يبدأ: بعد إعادة تشغيل Docker تقلع الحاوياتُ معاً،
+    # فيسبق الخادمُ القاعدةَ («the database system is starting up»)، ويسقط فحصُ
+    # runserver الأوّل فيبقى المُعيدُ التلقائيُّ ينتظر تعديلَ ملفٍّ لا يأتي —
+    # فتبقى الشجرةُ معطّلةً حتى يُعاد تشغيلُها يدويّاً (وقع مرّتين 2026-09-22).
+    command:
+      - sh
+      - -c
+      - |
+        export DB_USER=shschool_app DB_PASSWORD=$$APP_DB_PASSWORD
+        until python -c "import os, psycopg2; psycopg2.connect(host=os.environ['DB_HOST'], port=os.environ['DB_PORT'], dbname=os.environ['DB_NAME'], user=os.environ['DB_USER'], password=os.environ['DB_PASSWORD'], connect_timeout=3).close()" 2>/dev/null; do
+          echo "بانتظار قاعدة البيانات على $$DB_HOST:$$DB_PORT…"; sleep 2
+        done
+        exec python manage.py runserver 0.0.0.0:8000
     environment:
       DJANGO_SETTINGS_MODULE: shschool.settings.development
       # قاعدةُ البيانات وredis في حزمةٍ أخرى، فيُوصَل إليهما عبر منفذَي
@@ -74,7 +87,16 @@ services:
     profiles: ["worker"]
     image: ${SCHOOLOS_IMAGE:-shschool_mvp-web}
     restart: unless-stopped
-    command: sh -c "DB_USER=shschool_app DB_PASSWORD=$$APP_DB_PASSWORD celery -A shschool worker -l info --concurrency=2"
+    # ينتظر القاعدةَ كالخادم أعلاه.
+    command:
+      - sh
+      - -c
+      - |
+        export DB_USER=shschool_app DB_PASSWORD=$$APP_DB_PASSWORD
+        until python -c "import os, psycopg2; psycopg2.connect(host=os.environ['DB_HOST'], port=os.environ['DB_PORT'], dbname=os.environ['DB_NAME'], user=os.environ['DB_USER'], password=os.environ['DB_PASSWORD'], connect_timeout=3).close()" 2>/dev/null; do
+          echo "بانتظار قاعدة البيانات على $$DB_HOST:$$DB_PORT…"; sleep 2
+        done
+        exec celery -A shschool worker -l info --concurrency=2
     environment:
       DJANGO_SETTINGS_MODULE: shschool.settings.development
       DB_HOST: host.docker.internal
