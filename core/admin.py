@@ -96,6 +96,10 @@ class SchoolScopedAdmin(admin.ModelAdmin):
         return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 
+def _department_sort_key(department: Department) -> int:
+    return int(department.sort_order)
+
+
 class DepartmentListFilter(admin.RelatedFieldListFilter):
     """مرشّحُ «القسم» في الشريط الجانبيّ بمنسّقيه في استعلامٍ واحد.
 
@@ -200,10 +204,13 @@ class CustomUserAdmin(SchoolScopedAdmin, UserAdmin):
         """
         # من العضويّات المجلوبة سلفاً لا `obj.department_obj` (استعلامٌ لكلّ صفّ) — بالقاعدة نفسِها:
         # أوّلُ عضويّةٍ نشطةٍ تحمل قسماً بترتيب القسم.
-        with_department = [m for m in obj.active_memberships if m.department_obj_id]
-        if not with_department:
+        departments: list[Department] = [
+            m.department_obj for m in obj.active_memberships if m.department_obj is not None
+        ]
+        if not departments:
             return "—"
-        return min(with_department, key=lambda m: m.department_obj.sort_order).department_obj.name
+        first: Department = min(departments, key=_department_sort_key)
+        return str(first.name)
 
     @admin.display(description="الرقم الشخصي", ordering="national_id")
     def masked_national_id(self, obj: CustomUser) -> str:
