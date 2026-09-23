@@ -9,6 +9,19 @@
   var pinned = null;
   var canHover = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
+  /* الجوّال: زرُّ «القائمة» يطوي الأقسامَ والبحثَ فتبقى الترويسةُ سطراً واحداً (كانت ~235px من 812).
+     الصنفُ has-toggle يُضاف هنا لا في القالب: بلا سكربتٍ لا زرَّ ولا طيَّ، والقائمةُ مفتوحةٌ كما كانت. */
+  var toggle = nav.querySelector('.adm-nav__toggle');
+  if (toggle) {
+    toggle.hidden = false;
+    nav.classList.add('has-toggle');
+    toggle.addEventListener('click', function () {
+      var open = !nav.classList.contains('is-expanded');
+      nav.classList.toggle('is-expanded', open);
+      toggle.setAttribute('aria-expanded', String(open));
+    });
+  }
+
   function keepInside(item) {
     var menu = item.querySelector('.adm-nav__menu');
     if (!menu) return;
