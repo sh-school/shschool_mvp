@@ -434,10 +434,16 @@ div#header h1 a {
 }
 
 /* ── الفوتر ─────────────────────────────────────────────────── */
+/* سطرٌ واحد على الحاسوب: هويّةُ المدرسة | الرؤية | التوقيع. وتحت لوحة الجوال
+   تتراصّ مركَّزةً كما كانت — السطرُ الواحد لا يتّسع هناك. */
 .site-footer {
-  border-top: 1px solid var(--border);
-  padding: var(--sp-3-5) var(--sp-4);
+  border-top: 1px solid var(--gold);
+  padding: var(--sp-2) var(--sp-4);
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1-5);
 }
 .site-footer-text {
   text-align: center;
@@ -446,21 +452,13 @@ div#header h1 a {
   line-height: 1.7;
   margin: 0;
 }
-.site-footer-version {
-  text-align: center;
-  font-size: 0.65625rem;
-  color: var(--text-muted);
-  margin: var(--sp-1) 0 0;
-  font-family: 'IBM Plex Mono', 'Tajawal', monospace;
-  letter-spacing: 0.03em;
-}
-/* رؤية الوزارة — تحت سطر الإصدار، بلون الهوية لا برماديّ الإصدار */
+/* رؤية الوزارة — بلون الهويّة، في وسط السطر */
 .site-footer-vision {
   text-align: center;
   font-size: 1rem;
   font-weight: 600;
   color: var(--maroon-fg);
-  margin: var(--sp-1-5) 0 0;
+  margin: 0;
   letter-spacing: 0.01em;
 }
 /* Azkia brand attribution — horizontal flex row, same line */
@@ -471,7 +469,7 @@ div#header h1 a {
   align-items: center;
   justify-content: center;
   gap: var(--sp-2);
-  margin: var(--sp-2) 0 0;
+  margin: 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
   line-height: 1;
@@ -483,13 +481,10 @@ div#header h1 a {
 }
 .site-footer-brand-logo {
   display: inline-block;
-  height: 24px;
+  height: 28px;
   width: auto;
   vertical-align: middle;
   flex-shrink: 0;
-}
-.site-footer-brand-logo--sufyan {
-  height: 20px;
 }
 .site-footer-brand-sep {
   width: 1px;
@@ -497,7 +492,7 @@ div#header h1 a {
   background: var(--border);
   flex-shrink: 0;
 }
-/* شعار سفيان مسيف بألوان مائيّة فاتحة — رقعةٌ بيضاء ثابتة تُبقيه واضحاً في الوضعين */
+/* شعارا أذكياء وسفيان مسيف — رقعةٌ بيضاء ثابتة بحجمٍ واحد تُبقيهما واضحَين في الوضعين */
 .site-footer-brand-logo-chip {
   display: inline-flex;
   align-items: center;
@@ -515,6 +510,17 @@ div#header h1 a {
   color: var(--text-primary);
   white-space: nowrap;
   letter-spacing: 0.01em;
+}
+/* بعد القواعد الأساسيّة عمداً: بالأولويّة نفسها يحسم الأخيرُ، فكانت `center` تغلب `start` */
+@media (min-width: 1025px) {
+  .site-footer {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: var(--sp-4);
+  }
+  .site-footer-text { text-align: start; }
+  .site-footer-brand { justify-self: end; }
 }
 
 /* ── PWA Install Banner ──────────────────────────────────── */

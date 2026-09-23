@@ -928,12 +928,25 @@
   .schedule-stage { display: flex; flex-direction: column; gap: var(--sp-2-5); align-items: stretch; }
   /* مسرحُ الجدول العامّ وحدَه الآن (2026-09-18): معلّمٌ وشعبةٌ صارا جدولاً
      عاديّاً تحت `.table-wrap` بلا إطار، فبقي هذا المسرحُ للمصفوفة العريضة.
-     وطولُه بطول النافذة، والإطارُ يملؤه — ورقةٌ بيضاءُ في الوضعين. و230px
-     كانت حساب أعلى الصفحة وحده (ترويسة+فتات خبز+عنوان+شريط أدوات)، فتجاوز
-     أسفلُها (ذيلُ المنصّة ~180px) ارتفاعَ النافذة وأظهر تمريراً لم يكن
-     مقصوداً — قياسٌ فعليٌّ 2026-09-18: 441px كاملةً. و`overflow: hidden`
-     يمنع تمريرَ الصفحة لو زاد المحتوى فوق هذا التقدير في حالةٍ لم تُقَس. */
-  .schedule-stage.is-sheet { block-size: calc(100vh - 450px); min-block-size: 420px; overflow: hidden; }
+     وطولُه بطول النافذة، والإطارُ يملؤه — ورقةٌ بيضاءُ في الوضعين.
+     كان رقماً مقيساً يدويّاً (`calc(100vh - 450px)`) لارتفاع الترويسة
+     والذيل معاً — ينكسر على أيّ نافذةٍ لم تُقَس (بلاغ 2026-09-23: الذيلُ
+     يظهر في وسط الصفحة على نوافذَ أطول، والباقي فراغٌ إلى أسفلها). صار
+     `flex: 1` يملأ ما تبقّى فعليّاً من `main` (نفسُ سلسلة `flex-1` التي
+     تُلصق الذيلَ بأسفل النافذة أصلاً في `base.html`) — لا رقمَ يُقاس ولا
+     ينكسر على نافذةٍ لم تُختبَر. */
+  .schedule-stage.is-sheet { flex: 1 1 auto; block-size: auto; min-block-size: 420px; overflow: hidden; }
+  main.page-wide:has(.schedule-stage.is-sheet) {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+  }
+  .schedule-pages-card:has(.schedule-stage.is-sheet) {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-block-size: 0;
+  }
   .schedule-sheet-frame {
     inline-size: 100%;
     block-size: 100%;
