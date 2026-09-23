@@ -33,6 +33,22 @@ class SchoolScopedAdmin(admin.ModelAdmin):
     #: مسارُ الترشيح من النموذج إلى `School` — يُسمّى في كلّ لوحةٍ ترث هذا.
     school_lookup = "school"
 
+    def _lookup_is_multivalued(self) -> bool:
+        """هل يمرّ المسارُ بعلاقةٍ متعدّدة القيم (عكسيّة/M2M)؟ وحدها تحتاج `distinct()`.
+
+        `distinct()` على جدولٍ ضخم (سجلُّ الإشعارات) يُكلّف فرزاً بلا فائدة حين
+        يكون المسارُ مفتاحاً أجنبيّاً مباشراً أو سلسلةَ مفاتيح أجنبيّة.
+        """
+        model = self.model
+        for part in self.school_lookup.split("__"):
+            if part == "pk":
+                break
+            field = model._meta.get_field(part)
+            if field.many_to_many or field.one_to_many:
+                return True
+            model = field.related_model
+        return False
+
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
         if request.user.is_superuser:
@@ -40,7 +56,32 @@ class SchoolScopedAdmin(admin.ModelAdmin):
         school = request.user.get_school() if hasattr(request.user, "get_school") else None
         if school is None:
             return queryset.none()
-        return queryset.filter(**{self.school_lookup: school}).distinct()
+        # `.pk` لا الكائن: مسارُ `pk` (لوحة المدرسة نفسِها) يرفض كائناً حيث يقبله المفتاحُ الأجنبيّ.
+        queryset = queryset.filter(**{self.school_lookup: school.pk})
+        return queryset.distinct() if self._lookup_is_multivalued() else queryset
+
+    def _scoped_related_queryset(self, request, db_field):
+        """قائمةُ الخيارات = ما تراه لوحةُ النموذج المرتبط نفسُها لهذا المستخدم.
+
+        بدونها يعرض حقلُ `school` أو `wing` أو `supervisor` كلَّ مدارس القاعدة وأشخاصِها
+        في القائمة المنسدلة ولو كانت الصفوفُ نفسُها مقيَّدة — فيُنشأ صفٌّ في مدرسةٍ أخرى.
+        """
+        related_admin = self.admin_site._registry.get(db_field.remote_field.model)
+        if isinstance(related_admin, SchoolScopedAdmin) and not request.user.is_superuser:
+            return related_admin.get_queryset(request)
+        return None
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        queryset = self._scoped_related_queryset(request, db_field)
+        if queryset is not None and "queryset" not in kwargs:
+            kwargs["queryset"] = queryset
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        queryset = self._scoped_related_queryset(request, db_field)
+        if queryset is not None and "queryset" not in kwargs:
+            kwargs["queryset"] = queryset
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 
 class MembershipInline(admin.TabularInline):
@@ -137,7 +178,9 @@ class CustomUserAdmin(SchoolScopedAdmin, UserAdmin):
 
 
 @admin.register(School)
-class SchoolAdmin(admin.ModelAdmin):
+class SchoolAdmin(SchoolScopedAdmin):
+    school_lookup = "pk"
+
     list_display = (
         "name",
         "code",
@@ -203,14 +246,18 @@ class SchoolAdmin(admin.ModelAdmin):
 
 
 @admin.register(Role)
-class RoleAdmin(admin.ModelAdmin):
+class RoleAdmin(SchoolScopedAdmin):
+    school_lookup = "school"
+
     list_display = ("school", "name", "get_name_display")
     list_filter = ("name", "school")
     search_fields = ("name",)
 
 
 @admin.register(Department)
-class DepartmentAdmin(admin.ModelAdmin):
+class DepartmentAdmin(SchoolScopedAdmin):
+    school_lookup = "school"
+
     """سجلُّ الأقسام — مصدرُ الحقيقة لانتماء المعلّم.
 
     الانتماءُ نفسه في `Membership.department_obj` لا هنا: القسمُ يخصّ العضويّةَ
@@ -255,7 +302,9 @@ class MembershipAdmin(SchoolScopedAdmin):
 
 
 @admin.register(ClassGroup)
-class ClassGroupAdmin(admin.ModelAdmin):
+class ClassGroupAdmin(SchoolScopedAdmin):
+    school_lookup = "school"
+
     """نطاقُ التوقيت يُنسب من هنا: قائمةٌ قابلةٌ للتحرير، فتوزيعُ الشُّعب على
     الأجراس قرارُ إدارةٍ يتبدّل بتبدّل الطوابق لا بترحيل."""
 
@@ -277,7 +326,9 @@ class ClassGroupAdmin(admin.ModelAdmin):
 
 
 @admin.register(Wing)
-class WingAdmin(admin.ModelAdmin):
+class WingAdmin(SchoolScopedAdmin):
+    school_lookup = "school"
+
     """المشرفُ يُعيَّن من هنا — و`seed_wings` لا يخمّنه.
 
     و`autocomplete_fields` على المشرف يفتح على كلّ مستخدمي القاعدة؛ والنموذجُ
@@ -318,7 +369,9 @@ class WingCoverageAdmin(SchoolScopedAdmin):
 
 
 @admin.register(TimeBand)
-class TimeBandAdmin(admin.ModelAdmin):
+class TimeBandAdmin(SchoolScopedAdmin):
+    school_lookup = "school"
+
     list_display = ("name", "code", "order", "school", "is_active", "class_count")
     list_filter = ("school", "is_active")
     ordering = ("order", "code")
@@ -353,7 +406,9 @@ class SemesterInline(admin.TabularInline):
 
 
 @admin.register(AcademicYear)
-class AcademicYearAdmin(admin.ModelAdmin):
+class AcademicYearAdmin(SchoolScopedAdmin):
+    school_lookup = "school"
+
     list_display = ("name", "school", "start_date", "end_date", "is_current")
     list_filter = ("school", "is_current")
     search_fields = ("name",)
@@ -362,7 +417,9 @@ class AcademicYearAdmin(admin.ModelAdmin):
 
 
 @admin.register(Semester)
-class SemesterAdmin(admin.ModelAdmin):
+class SemesterAdmin(SchoolScopedAdmin):
+    school_lookup = "academic_year__school"
+
     list_display = ("academic_year", "code", "start_date", "end_date", "max_grade")
     list_filter = ("code", "academic_year__school", "academic_year__name")
     list_select_related = ("academic_year",)
@@ -370,7 +427,9 @@ class SemesterAdmin(admin.ModelAdmin):
 
 
 @admin.register(CalendarEvent)
-class CalendarEventAdmin(admin.ModelAdmin):
+class CalendarEventAdmin(SchoolScopedAdmin):
+    school_lookup = "academic_year__school"
+
     list_display = (
         "name",
         "event_type",
