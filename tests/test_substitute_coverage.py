@@ -248,9 +248,7 @@ class TestSwapsKeepTheirLabel:
             end_time=dt.time(9, 45),
         )
 
-        (marked,) = SubstituteService.mark_covers([session])
-
-        assert marked.is_cover is False
+        assert SubstituteService.cover_session_ids([session]) == set()
 
 
 class TestTheCoordinatorCountsHisDepartment:

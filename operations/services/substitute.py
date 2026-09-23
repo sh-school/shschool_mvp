@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from datetime import date
 from typing import TYPE_CHECKING
 
@@ -56,14 +57,16 @@ class SubstituteService:
         """
         from core.models import Membership
 
-        teacher_ids = Membership.objects.filter(
-            school=school, is_active=True, role__name__in=TEACHING_ROLES
-        ).values_list("user_id", flat=True)
+        teacher_ids = set(
+            Membership.objects.filter(
+                school=school, is_active=True, role__name__in=TEACHING_ROLES
+            ).values_list("user_id", flat=True)
+        )
 
         if exclude_teacher:
-            teacher_ids = [t for t in teacher_ids if t != exclude_teacher.id]
+            teacher_ids.discard(exclude_teacher.id)
         if within_ids is not None:
-            teacher_ids = [t for t in teacher_ids if t in within_ids]
+            teacher_ids &= within_ids
 
         # من لديهم حصة في نفس الوقت
         # والعامُ قيدٌ: معلّمٌ له حصّةٌ في جدول عامٍ مضى كان يُعدّ مشغولاً
@@ -84,7 +87,7 @@ class SubstituteService:
         # فيُوسَم ولا يمنع: صاحبُه رُتّب له جدولُه ولم يُمنَع من الحصّة.
         exempt_ids = SubstituteService.exempted_teacher_ids(school, day_of_week, period_number)
 
-        available_ids = set(teacher_ids) - set(busy_ids) - set(absent_ids) - exempt_ids
+        available_ids = teacher_ids - set(busy_ids) - set(absent_ids) - exempt_ids
 
         from core.models import CustomUser
 
@@ -140,12 +143,14 @@ class SubstituteService:
         for teacher_id, kind, period in rows:
             if kind == "full_day":
                 full_day.add(teacher_id)
-            else:
+            elif period is not None:
                 by_period.setdefault(period, set()).add(teacher_id)
         return full_day, by_period
 
     @staticmethod
-    def coverage_candidates(absence: TeacherAbsence, slots, within_ids: set | None = None) -> dict:
+    def coverage_candidates(
+        absence: TeacherAbsence, slots: Iterable[ScheduleSlot], within_ids: set | None = None
+    ) -> dict:
         """من يُشغَل في كلّ حصّةٍ من حصص الغائب، ومع كلٍّ ما يُختار به.
 
         أمام كلّ اسمٍ عدّادُ إشغالاته هذا العام ونصابُه المسند وحصصُه يومَها،
@@ -320,7 +325,9 @@ class SubstituteService:
         return assignment
 
     @staticmethod
-    def hand_over_session(school: School, slot: ScheduleSlot, day: date, to_teacher) -> Session:
+    def hand_over_session(
+        school: School, slot: ScheduleSlot, day: date, to_teacher: CustomUser
+    ) -> Session:
         """يُسلّم حصّةَ ذلك اليوم لمعلّمٍ آخر، ويحفظ اسمَ صاحبها الأوّل.
 
         مشتركٌ بين الإشغال والتبديل: الأثرُ على `Session` ليومه لا على القالب
@@ -347,7 +354,9 @@ class SubstituteService:
         return session
 
     @staticmethod
-    def cover_recipients(absence: TeacherAbsence, substitute, actor=None) -> list:
+    def cover_recipients(
+        absence: TeacherAbsence, substitute: CustomUser, actor: CustomUser | None = None
+    ) -> list[CustomUser]:
         """من يُبلَّغ بالتغطية (قرارُ المالك 2026-09-23): المعلّمان، ومنسّقا
         قسمَيهما، والنائبُ الأكاديميّ، والمدير، والمطوّر. ومن قرّر لا يُبلَّغ بما فعل."""
         from core.developer_access import DEVELOPERS_GROUP
@@ -376,7 +385,7 @@ class SubstituteService:
         return list(CustomUser.objects.filter(id__in=people, is_active=True))
 
     @staticmethod
-    def _notify_cover(assignment: SubstituteAssignment, actor=None) -> None:
+    def _notify_cover(assignment: SubstituteAssignment, actor: CustomUser | None = None) -> None:
         """إشعارُ الإشغال — يفشل بصمتٍ إن تعطّل نظامُ الإشعارات، ولا يُسقط التعيين."""
         from django.utils.formats import date_format
 
@@ -406,16 +415,15 @@ class SubstituteService:
             logger.warning("SubstituteService._notify_cover failed [%s]: %s", assignment.pk, exc)
 
     @staticmethod
-    def mark_covers(sessions) -> list:
-        """يَسِم من حصص اليوم ما كان إشغالاً — تمييزاً له عن التبديل.
+    def cover_session_ids(sessions: Iterable[Session]) -> set:
+        """معرّفاتُ ما كان من حصص اليوم إشغالاً — تمييزاً له عن التبديل.
 
         كلاهما يكتب `original_teacher`، فالعلامةُ وحدَها لا تفرّق بينهما؛ والفرقُ
         في وجود تعيين بديلٍ للحصّة نفسها. استعلامٌ واحدٌ للقائمة كلّها.
         """
-        rows = list(sessions)
-        moved = [s for s in rows if s.original_teacher_id]
+        moved = [s for s in sessions if s.original_teacher_id]
         if not moved:
-            return rows
+            return set()
         keys = set(
             SubstituteAssignment.objects.filter(
                 substitute_id__in={s.teacher_id for s in moved},
@@ -425,9 +433,9 @@ class SubstituteService:
                 "substitute_id", "absence__date", "slot__class_group_id", "slot__start_time"
             )
         )
-        for s in moved:
-            s.is_cover = (s.teacher_id, s.date, s.class_group_id, s.start_time) in keys
-        return rows
+        return {
+            s.id for s in moved if (s.teacher_id, s.date, s.class_group_id, s.start_time) in keys
+        }
 
     @staticmethod
     def _date_to_day(date: date) -> int:

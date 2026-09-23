@@ -101,8 +101,8 @@ def schedule(request):
         teacher_filter = class_filter = status_filter = period_filter = show_all = ""
         all_count = completed_count = 0
 
-    # الإشغالُ والتبديلُ يكتبان كلاهما `original_teacher`؛ فيُوسَم الإشغالُ ليُقرأ باسمه.
-    sessions = SubstituteService.mark_covers(sessions)
+    # الإشغالُ والتبديلُ يكتبان كلاهما `original_teacher`؛ فيُعرف الإشغالُ ليُقرأ باسمه.
+    cover_ids = SubstituteService.cover_session_ids(sessions)
 
     now = timezone.now().time()
     next_session = None
@@ -145,6 +145,7 @@ def schedule(request):
             # ما بقي بلا إنهاءٍ ينبّه، والصفرُ أخضر.
             "open_tone": "orange" if open_count else "green",
             "sessions": sessions,
+            "cover_ids": cover_ids,
             "selected_date": selected_date,
             "today": timezone.localdate(),
             "next_session": next_session,

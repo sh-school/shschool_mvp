@@ -940,7 +940,7 @@ def teacher_can_access_student(user, student_id):
     return student_id in ids
 
 
-def get_department_teacher_ids(user):
+def get_department_teacher_ids(user: Any) -> set[Any] | None:
     """
     يُعيد قائمة IDs المعلمين في قسم المنسق.
     - المنسق → معلمي قسمه/تخصصه في نفس المدرسة

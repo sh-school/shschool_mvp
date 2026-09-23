@@ -12,7 +12,7 @@
   "behavior/services.py": 21,
   "clinic/models.py": 3,
   "clinic/querysets.py": 4,
-  "core/academic_calendar.py": 7,
+  "core/academic_calendar.py": 6,
   "core/admin.py": 2,
   "core/apps.py": 1,
   "core/audit_export.py": 1,
@@ -133,7 +133,6 @@
   "operations/services/schedule.py": 2,
   "operations/services/schedule_read.py": 5,
   "operations/services/schedule_retention.py": 6,
-  "operations/services/substitute.py": 3,
   "operations/services/swap.py": 5,
   "operations/services/teacher_load.py": 1,
   "operations/tardiness.py": 4,
@@ -155,5 +154,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1749
+ "total": 1745
 }
