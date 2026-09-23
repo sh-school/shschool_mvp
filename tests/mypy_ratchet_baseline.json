@@ -13,6 +13,7 @@
   "clinic/models.py": 3,
   "clinic/querysets.py": 4,
   "core/academic_calendar.py": 7,
+  "core/admin.py": 2,
   "core/apps.py": 1,
   "core/audit_export.py": 1,
   "core/auth_identity.py": 6,
