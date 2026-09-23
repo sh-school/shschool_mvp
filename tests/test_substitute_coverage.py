@@ -113,9 +113,7 @@ def _names(rows):
 
 
 class TestWhoCanBeChosen:
-    def test_the_coordinator_chooses_from_his_department_only(
-        self, absence, lesson, people, math
-    ):
+    def test_the_coordinator_chooses_from_his_department_only(self, absence, lesson, people, math):
         rows = SubstituteService.coverage_candidates(
             absence, [lesson], within_ids=math.get_teacher_ids()
         )[lesson.id]
@@ -126,9 +124,7 @@ class TestWhoCanBeChosen:
         assert "الغائب" not in _names(rows)
 
     def test_leadership_chooses_from_the_whole_teaching_staff(self, absence, lesson):
-        rows = SubstituteService.coverage_candidates(absence, [lesson], within_ids=None)[
-            lesson.id
-        ]
+        rows = SubstituteService.coverage_candidates(absence, [lesson], within_ids=None)[lesson.id]
 
         assert {"رياضيّاتٌ متفرّغ", "علومٌ متفرّغ"} <= _names(rows)
         assert "النائب الأكاديمي" not in _names(rows), "ليس من الكادر التعليميّ"
@@ -201,9 +197,7 @@ class TestTheSubstituteIsTold:
     def test_the_lesson_is_handed_over_and_labelled_as_a_cover(
         self, client_as, school, absence, lesson, people
     ):
-        resp = self._assign(
-            client_as, people["coordinator"], absence, lesson, people["math_free"]
-        )
+        resp = self._assign(client_as, people["coordinator"], absence, lesson, people["math_free"])
         assert resp.status_code == 200
 
         session = Session.objects.get(class_group=lesson.class_group, date=SUNDAY)
