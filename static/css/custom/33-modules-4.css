@@ -1111,6 +1111,11 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 }
 /* شريطان في بطاقةٍ واحدة (أكثرُ من ستّة أرقام): المسافةُ بينهما مسافةُ البطاقات نفسُها. */
 .ui-kpis + .ui-kpis { margin-block-start: var(--sp-2); }
+/* شريطٌ من خمسة: صفٌّ واحدٌ بخمسةٍ على العريض، لا أربعةٌ ويتيمٌ في سطرٍ ثانٍ؛
+   وتحت ≈1100px (5 × 200px لا تتّسع) يعود الالتفافُ التلقائيّ فلا تُقصّ الأسماء. */
+@media (min-width: 1100px) {
+  .ui-kpis:has(> :nth-child(5):last-child) { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
 .ui-kpi {
   display: flex;
   align-items: baseline;
