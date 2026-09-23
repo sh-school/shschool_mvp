@@ -112,9 +112,8 @@
           <div class="modal-body">
             <div class="auto-grid qobs-dept-grid">
               {% for group in teacher_groups %}
-              <div class="qobs-dept-card">
+              <div class="qobs-dept-card dept-{{ group.css_class }}">
                 <h3 class="qobs-dept-card__head">
-                  <span class="dept-dot dept-{{ group.css_class }}" aria-hidden="true"></span>
                   {{ group.name }}
                   {% if group.head %}
                   <label class="qobs-teacher-chip qobs-teacher-chip--coord">
