@@ -187,6 +187,39 @@ def test_sms_provider_failure_resolves_to_failed():
     assert log.status == "failed"
 
 
+def test_sms_without_twilio_credentials_is_skipped_without_calling_the_provider():
+    """DBT-12: لا بيانات اعتماد ⇒ فشلٌ صامتٌ كالبريد غير المهيَّأ، لا استثناءٌ يصل Sentry يومياً."""
+    school = SchoolFactory()
+    _sms_settings(school, twilio_account_sid="", twilio_auth_token="")
+    spy = _ProviderSpy()
+
+    with _with_twilio(spy):
+        ok, error = NotificationService.send_sms(school, "+97455555555", "نصّ")
+
+    assert spy.called is False
+    assert ok is False and error
+    log = _only_log()
+    assert log.channel == "sms"
+    assert log.status == "failed"
+
+
+def test_sms_twilio_rest_exception_resolves_to_failed_not_unhandled():
+    """DBT-12: TwilioRestException (401 مثلاً) تُحسم failed لا تنفلت خارج الدالّة."""
+    from twilio.base.exceptions import TwilioRestException
+
+    school = SchoolFactory()
+    _sms_settings(school)
+    spy = _ProviderSpy(raises=TwilioRestException(401, "https://api.twilio.com", "Authenticate"))
+
+    with _with_twilio(spy):
+        ok, error = NotificationService.send_sms(school, "+97455555555", "نصّ")
+
+    assert ok is False and error
+    log = _only_log()
+    assert log.channel == "sms"
+    assert log.status == "failed"
+
+
 # ══════════════════════════════════════════════════════════════════
 # WhatsApp — القناة التي كانت تُسجّل نجاحها وحده
 # ══════════════════════════════════════════════════════════════════
