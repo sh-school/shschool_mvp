@@ -136,3 +136,43 @@ def test_0005_closes_dbt22_once_and_adds_n014():
     assert _sync5.sync(RoadmapItem) == []
     assert RoadmapItem.objects.get(code="DBT-22").pr == "#492"
     assert _sync5.add_missing(RoadmapItem) == ["N-014"]
+
+
+# ── 0006: حزمةُ القياس والديونُ المحجوبة ──
+
+_sync6 = importlib.import_module("roadmap.migrations.0006_sync_items_2026_09_23c")
+
+
+def test_0006_closes_measurement_items_and_starts_the_half_done_ones():
+    for code in ("M-00", "Q-03", "Q-01"):
+        _item(code, "todo", 0)
+    assert _sync6.sync(RoadmapItem) == ["M-00", "Q-03", "Q-01"]
+    assert _sync6.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="M-00").status == "done"
+    q1 = RoadmapItem.objects.get(code="Q-01")
+    assert (q1.status, q1.progress) == ("doing", 60)
+
+
+def test_0006_blocks_sentry_debts_instead_of_closing_them():
+    _item("DBT-14", "todo", 0)
+    _sync6.sync(RoadmapItem)
+    item = RoadmapItem.objects.get(code="DBT-14")
+    assert (item.status, item.pr) == ("blocked", "")
+    assert "Sentry" in item.note
+
+
+def test_0006_developer_edit_is_preserved():
+    _item("DBT-13", "doing", 30)
+    assert _sync6.sync(RoadmapItem) == []
+
+
+def test_0006_adds_the_unrecorded_merged_work_once():
+    created = _sync6.add_missing(RoadmapItem)
+    assert created[0] == "N-015" and created[-1] == "N-021" and len(created) == 7
+    assert _sync6.add_missing(RoadmapItem) == []
+
+
+def test_0006_links_admin_work_to_the_owner_items():
+    _sync6.add_missing(RoadmapItem)
+    assert "OWN-27" in RoadmapItem.objects.get(code="N-019").note
+    assert "OWN-22" in RoadmapItem.objects.get(code="N-021").note

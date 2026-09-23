@@ -15,6 +15,7 @@ from django.core.management import call_command
 from core.admin_access import (
     FULL_ACCESS_MODELS,
     PRINCIPAL_GROUP_NAME,
+    SUPERUSER_ONLY_ACTIONS,
     VIEW_ONLY_MODELS,
     sync_principal_admin_group,
 )
@@ -50,6 +51,9 @@ def test_the_group_grants_exactly_the_documented_permissions(db):
     }
     for app_label, model in FULL_ACCESS_MODELS:
         for action in ("view", "add", "change", "delete"):
+            if action in SUPERUSER_ONLY_ACTIONS.get((app_label, model), ()):
+                assert (app_label, model, action) not in codenames, (app_label, model, action)
+                continue
             assert (app_label, model, action) in codenames, (app_label, model, action)
     for app_label, model in VIEW_ONLY_MODELS:
         assert (app_label, model, "view") in codenames
@@ -117,3 +121,47 @@ def test_sync_is_idempotent_and_returns_the_same_group(db):
     second = sync_principal_admin_group()
     assert first.pk == second.pk
     assert Group.objects.filter(name=PRINCIPAL_GROUP_NAME).count() == 1
+
+
+# ── «المدرسة»: المديرُ يعدّل ولا يُضيف ولا يحذف (قرارُ المالك 2026-09-23) ─────────────────────
+
+
+def test_the_group_can_view_and_change_the_school_but_not_add_or_delete_it(db):
+    codenames = {p.codename for p in sync_principal_admin_group().permissions.all()}
+    assert {"view_school", "change_school"} <= codenames
+    assert "add_school" not in codenames and "delete_school" not in codenames
+
+
+def test_the_school_admin_refuses_add_and_delete_to_a_principal_but_not_to_the_developer(db):
+    from django.contrib.admin.sites import site
+    from django.test import RequestFactory
+
+    from core.models import School
+
+    group = sync_principal_admin_group()
+    principal = CustomUser.objects.create_user("30000000091", "مدير", "x-Aa1!aaaa")
+    principal.is_staff = True
+    principal.save()
+    principal.groups.add(group)
+    developer = CustomUser.objects.create_user("30000000092", "مطوّر", "x-Aa1!aaaa")
+    developer.is_staff = developer.is_superuser = True
+    developer.save()
+
+    model_admin = site._registry[School]
+
+    def _request(user):
+        request = RequestFactory().get("/admin/")
+        request.user = user
+        return request
+
+    mine = _request(CustomUser.objects.get(pk=principal.pk))
+    assert model_admin.has_view_permission(mine) and model_admin.has_change_permission(mine)
+    assert not model_admin.has_add_permission(mine)
+    assert not model_admin.has_delete_permission(mine)
+
+    theirs = _request(developer)
+    assert model_admin.has_add_permission(theirs) and model_admin.has_delete_permission(theirs)
+
+
+def test_only_the_school_carries_superuser_only_actions():
+    assert SUPERUSER_ONLY_ACTIONS == {("core", "school"): ("add", "delete")}
