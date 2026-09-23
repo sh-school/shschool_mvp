@@ -208,5 +208,5 @@ def test_the_director_numbers_share_one_card(client_as, principal_user):
 
     card = html[html.index("نبض المدرسة") :]
     card = card[: card.index("</section>")]
-    assert 'aria-label="الحضور اليوم"' in card
+    assert 'aria-label="اليوم"' in card
     assert 'aria-label="نبض الأقسام"' in card

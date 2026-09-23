@@ -11,13 +11,15 @@
     {% callout "warning" show=True %}أعذارٌ أرسلها المشرفون بعد المهلة تنتظر قرارك: {{ pending_excuses }}. <a href="{% url 'wings:excuse_requests' %}" class="btn-primary btn-sm">افتح الأعذار</a>{% endcallout %}
   {% endif %}
 
-  {% comment %}بطاقةٌ واحدةٌ لأرقام اليوم كلِّها: شريطان لأنّ الشريطَ لا يتجاوز ستّاً (MAX_KPIS).{% endcomment %}
+  {% comment %}بطاقةٌ واحدةٌ لأرقام اليوم كلِّها: صفّان بخمسةٍ خمسة (طلب المالك 2026-09-23) —
+  الأوّلُ أرقامُ اليوم (الحضور والحصص والمعلّمون الغائبون)، والثاني ما ينتظر في الأقسام.{% endcomment %}
   {% section_card "نبض المدرسة" meta="اليوم وهذا الشهر" icon="dashboard" %}
-    {% kpi_strip label="الحضور اليوم" %}
+    {% kpi_strip label="اليوم" %}
       {% kpi "نسبة الحضور" attendance_label sub=att_delta_label tone="green" %}
       {% kpi "الحاضرون" present tone="teal" %}
       {% kpi "الغائبون" absent sub=absent_delta_label tone="red" %}
       {% kpi "حصص اليوم" sessions_today sub=sessions_sub tone="maroon" %}
+      {% kpi "معلّمون غائبون" absent_teachers_today tone=teachers_tone href=teachers_url %}
     {% endkpi_strip %}
     {% kpi_strip label="نبض الأقسام" %}
       {% kpi "مخالفات الشهر" behavior_monthly|default:0 sub=behavior_sub tone=behavior_tone href=behavior_url %}
@@ -25,7 +27,6 @@
       {% kpi "إعارات متأخّرة" library_overdue|default:0 tone=library_tone href=library_url %}
       {% kpi "تبديلات معلّقة" pending_swaps tone=swaps_tone href=swaps_url %}
       {% kpi "تعويضات معلّقة" pending_comp tone=comp_tone href=comp_url %}
-      {% kpi "معلّمون غائبون" absent_teachers_today tone=teachers_tone href=teachers_url %}
     {% endkpi_strip %}
   {% endsection_card %}
 
