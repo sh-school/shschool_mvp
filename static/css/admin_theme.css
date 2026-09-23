@@ -31,6 +31,36 @@
   font-display: swap;
   unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF, U+0000-007F, U+00A0-00FF, U+0660-066F;
 }
+/* رؤيةُ الوزارة مشكولةً بحركاتٍ زرقاء — الخطُّ نفسُه الذي تستعمله المنصّة (10-foundation.css): نسخةٌ من Tajawal ترسم الحركاتِ بلونٍ من لوحته.
+   ولا يقبل `@font-palette-values` متغيّراً، فالقيمةُ الليليّةُ هنا منقولةٌ حرفيّاً من المنصّة. */
+@font-palette-values --tashkeel-dark { font-family: 'Tajawal Tashkeel'; override-colors: 0 #93c5fd; }
+@font-face {
+  font-family: 'Tajawal Tashkeel';
+  src: url('../fonts/Tajawal-Regular-tk.woff2') format('woff2'),
+       url('../fonts/Tajawal-Regular-tk.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'Tajawal Tashkeel';
+  src: url('../fonts/Tajawal-Medium-tk.woff2') format('woff2'),
+       url('../fonts/Tajawal-Medium-tk.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'Tajawal Tashkeel';
+  src: url('../fonts/Tajawal-Bold-tk.woff2') format('woff2'),
+       url('../fonts/Tajawal-Bold-tk.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF;
+}
 
 html[data-theme="light"],
 :root {
@@ -59,6 +89,7 @@ html[data-theme="light"],
   --message-warning-bg: #fef3c7;
   --message-error-bg: #fef2f2;
   --darkened-bg: #e3e8f0;
+  --footer-bg: var(--darkened-bg); /* أرضيّةُ الصفحة النهاريّة في المنصّة نفسُها (#e3e8f0) */
   --selected-bg: #fdf2f5;
   --selected-row: #fdf2f5;
   --button-fg: #fff;
@@ -92,6 +123,7 @@ html[data-theme="light"],
     --message-warning-bg: #3a2a08;
     --message-error-bg: #3b1114;
     --darkened-bg: #1e293b;
+    --footer-bg: var(--body-bg);
     --selected-bg: #3b1125;
     --selected-row: #3b1125;
     --close-button-bg: #64748b;
@@ -118,6 +150,7 @@ html[data-theme="dark"] {
   --message-warning-bg: #3a2a08;
   --message-error-bg: #3b1114;
   --darkened-bg: #1e293b;
+  --footer-bg: var(--body-bg);
   --selected-bg: #3b1125;
   --selected-row: #3b1125;
   --close-button-bg: #64748b;
@@ -214,17 +247,19 @@ html[data-theme="dark"] {
 #header .adm-nav__menu a[aria-current="page"] { font-weight: 700; box-shadow: inset 3px 0 0 var(--primary); }
 
 /* ── الفوتر الدائم (templates/admin/_footer.html) — كفوتر المنصّة ── */
-.adm-footer { margin-block-start: 2rem; padding: 0.9rem 1rem; border-block-start: 1px solid var(--hairline-color); text-align: center; }
+.adm-footer { margin-block-start: 2rem; padding: 0.5rem 1rem; background: var(--footer-bg); border-block-start: 1px solid var(--accent); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.375rem; }
 .adm-footer p { margin: 0; }
 .adm-footer__text { font-size: 0.75rem; color: var(--body-quiet-color); line-height: 1.7; }
-.adm-footer__version { margin-block-start: 0.25rem; font-size: 0.66rem; color: var(--body-quiet-color); letter-spacing: 0.03em; }
-.adm-footer__vision { margin-block-start: 0.4rem; font-size: 1rem; font-weight: 600; color: var(--link-fg); }
-.adm-footer__brand { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-block-start: 0.5rem; font-size: 0.75rem; color: var(--body-quiet-color); }
+.adm-footer__vision { font-size: 1rem; font-weight: 600; color: var(--link-fg); }
+.vision-text { font-family: 'Tajawal Tashkeel', 'Tajawal', sans-serif; }
+html[data-theme="dark"] .vision-text { font-palette: --tashkeel-dark; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .vision-text { font-palette: --tashkeel-dark; } }
+.adm-footer__brand { display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.75rem; color: var(--body-quiet-color); }
 .adm-footer__label { font-size: 0.72rem; white-space: nowrap; }
-.adm-footer__logo { display: inline-block; block-size: 1.5rem; inline-size: auto; flex: none; }
-.adm-footer__logo--sufyan { block-size: 1.25rem; }
+.adm-footer__logo { display: inline-block; block-size: 1.75rem; inline-size: auto; flex: none; }
 .adm-footer__name { font-weight: 600; color: var(--body-fg); white-space: nowrap; }
 .adm-footer__sep { inline-size: 1px; block-size: 0.9rem; background: var(--hairline-color); flex: none; }
+/* شعارا أذكياء وسفيان: رقعةٌ بيضاء ثابتة بحجمٍ واحد — تبقى بيضاءَ في الوضع الليليّ ليظهرا واضحَين. */
 .adm-footer__chip { display: inline-flex; align-items: center; padding: 0.2rem 0.4rem; background: #fff; border: 1px solid var(--hairline-color); border-radius: 0.4rem; line-height: 0; flex: none; }
 
 /* ── الاسمُ والشعار كما في ترويسة المنصّة: شعارُ المنصّة أبيضَ واسمُ المدرسة (templates/admin/base_site.html) ── */
@@ -336,9 +371,11 @@ thead th, .module caption { text-transform: none; }
 /* شريطُ الحفظ ثابتٌ أسفل منطقة المحتوى: لا نزولَ داخل النموذج الطويل للوصول إلى «حفظ». */
 .submit-row { position: sticky; inset-block-end: 0; z-index: 5; box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.08); }
 /* التذييلُ في سطرٍ واحدٍ على الشاشات العريضة: يوفّر نحوَ 80px من ارتفاع الصفحة. */
+/* بعد القواعد الأساسيّة عمداً: بالأولويّة نفسها يحسم الأخيرُ، فتغلب `center` الأساسيّةُ على `start`. */
 @media (min-width: 1025px) {
-  .adm-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.25rem 1.5rem; margin-block-start: 0; padding: 0.5rem var(--adm-hpad, 2.5rem); }
-  .adm-footer__version, .adm-footer__vision, .adm-footer__brand { margin-block-start: 0; }
+  .adm-footer { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1rem; margin-block-start: 0; padding: 0.5rem var(--adm-hpad, 2.5rem); }
+  .adm-footer__text { text-align: start; }
+  .adm-footer__brand { justify-self: end; }
 }
 /* عناصرُ مطلقةُ الموضع (حقولُ select2 المخفيّة) كانت تُفلت من القصّ وتطيل الصفحة: تُحتَوى في المنطقة المقفولة. */
 @media (min-width: 1025px) and (min-height: 560px) {
