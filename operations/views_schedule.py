@@ -400,11 +400,11 @@ def absence_detail(request, absence_id):
         return HttpResponse("هذا المعلم ليس من قسمك", status=403)
 
     our_day = SubstituteService._date_to_day(absence.date)
-    slots = list(
+    slots = sorted(
         ScheduleSlot.objects.live(school)
         .filter(teacher=absence.teacher, day_of_week=our_day)
-        .select_related("class_group", "subject")
-        .order_by("period_number")
+        .select_related("class_group", "subject"),
+        key=lambda slot: slot.period_number,
     )
 
     assignments = {

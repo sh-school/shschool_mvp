@@ -101,15 +101,10 @@ def schedule(request):
         teacher_filter = class_filter = status_filter = period_filter = show_all = ""
         all_count = completed_count = 0
 
-    # الإشغالُ والتبديلُ يكتبان كلاهما `original_teacher`؛ فيُعرف الإشغالُ ليُقرأ باسمه.
-    cover_ids = SubstituteService.cover_session_ids(sessions)
-
     now = timezone.now().time()
-    next_session = None
-    for s in sessions:
-        if s.start_time >= now and s.status == "scheduled":
-            next_session = s
-            break
+    next_session = next(
+        (s for s in sessions if s.start_time >= now and s.status == "scheduled"), None
+    )
 
     # ── بيانات الفلاتر (للقيادة فقط) ──
     filter_teachers = []
@@ -145,7 +140,8 @@ def schedule(request):
             # ما بقي بلا إنهاءٍ ينبّه، والصفرُ أخضر.
             "open_tone": "orange" if open_count else "green",
             "sessions": sessions,
-            "cover_ids": cover_ids,
+            # الإشغالُ والتبديلُ يكتبان كلاهما `original_teacher`؛ فيُعرف الإشغالُ باسمه.
+            "cover_ids": SubstituteService.cover_session_ids(sessions),
             "selected_date": selected_date,
             "today": timezone.localdate(),
             "next_session": next_session,
