@@ -187,6 +187,37 @@
   padding: var(--sp-1-5) var(--sp-4) 3px;
   font-size: 0.625rem; font-weight: 700; color: var(--menu-label);
 }
+/* قائمةٌ فرعيّةٌ بأعمدة — نظيرُ القائمة الأفقيّة في لوحة الإدارة
+   (`adm-nav__menu--cols-N` في admin_theme.css)، لمن وُسم `sd-menu--cols-N`
+   في base.html (طلبُ المالك 2026-09-22): كلُّ قسمٍ `.sd-section` عمودٌ
+   بعنوانه فوق 1025px، فلا تطول القائمةُ الطويلةُ عموداً واحداً رأسيّاً.
+   وتحت هذا العرض تبقى عموداً واحداً كسابق عهدها — لوحةُ الجوّال (`sd-drawer`)
+   ضيّقةٌ لا تتّسع لأعمدة. والفاصلُ بين الأقسام خطٌّ سفليٌّ عموداً واحداً،
+   يصير خطّاً جانبيّاً بين الأعمدة عند التبويب. */
+.sd-section:not(:last-child) {
+  border-block-end: 1px solid var(--menu-divider);
+  padding-block-end: var(--sp-1);
+  margin-block-end: var(--sp-1);
+}
+@media (min-width: 1025px) {
+  .sd-menu--cols-2.open, .sd-menu--cols-2.sd-measure,
+  .sd-menu--cols-3.open, .sd-menu--cols-3.sd-measure,
+  .sd-menu--cols-4.open, .sd-menu--cols-4.sd-measure {
+    display: grid;
+  }
+  .sd-menu--cols-2 { grid-template-columns: repeat(2, minmax(190px, 1fr)); min-width: min(26rem, 90vw); }
+  .sd-menu--cols-3 { grid-template-columns: repeat(3, minmax(170px, 1fr)); min-width: min(38rem, 90vw); }
+  .sd-menu--cols-4 { grid-template-columns: repeat(4, minmax(160px, 1fr)); min-width: min(50rem, 90vw); }
+  .sd-menu--cols-2 .sd-section, .sd-menu--cols-3 .sd-section, .sd-menu--cols-4 .sd-section {
+    border-block-end: 0; padding-block-end: 0; margin-block-end: 0;
+  }
+  .sd-menu--cols-2 .sd-section:not(:first-child),
+  .sd-menu--cols-3 .sd-section:not(:first-child),
+  .sd-menu--cols-4 .sd-section:not(:first-child) {
+    border-inline-start: 1px solid var(--menu-divider);
+    padding-inline-start: var(--sp-1);
+  }
+}
 /* رأس قائمة المستخدم */
 .sd-user-header    { padding: var(--sp-2-5) var(--sp-4) 9px; border-bottom: 1px solid var(--menu-divider); }
 .sd-user-fullname  { font-size: var(--text-sm); font-weight: 700; color: var(--menu-ink-strong); margin: 0 0 var(--sp-0-5); }
