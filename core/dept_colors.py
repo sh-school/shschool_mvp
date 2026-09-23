@@ -38,6 +38,6 @@ DEPT_KEY_OF_CODE = {
 OTHER = "other"
 
 
-def dept_key(code) -> str:
+def dept_key(code: object) -> str:
     """مفتاحُ لون هذا الكود — `other` لما لا يُعرف، فلا يسقط عرضٌ من كودٍ جديد."""
     return DEPT_KEY_OF_CODE.get(str(code or "").strip().lower(), OTHER)
