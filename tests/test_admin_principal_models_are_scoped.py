@@ -120,9 +120,9 @@ def test_a_principal_cannot_open_another_schools_class_group(two_schools):
 
     rows = site._registry[ClassGroup].get_queryset(_request_for(principal))
     assert mine in rows and theirs not in rows
-    assert site._registry[ClassGroup].get_object(_request_for(principal), str(theirs.pk)) is None, (
-        "رابطُ صفٍّ من مدرسةٍ أخرى يُرجع لا شيء لا الصفّ"
-    )
+    assert (
+        site._registry[ClassGroup].get_object(_request_for(principal), str(theirs.pk)) is None
+    ), "رابطُ صفٍّ من مدرسةٍ أخرى يُرجع لا شيء لا الصفّ"
 
 
 def test_semester_and_school_admins_reach_school_through_their_paths(two_schools):
