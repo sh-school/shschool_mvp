@@ -47,3 +47,92 @@ def test_title_swap_only_for_stale_text():
     )
     _sync.sync(RoadmapItem)
     assert "#461" in RoadmapItem.objects.get(code="DBT-06").title
+
+
+# ── 0003: مزامنة 2026-09-22 + بنودُ العمل المدموج بلا بند ──
+
+_sync3 = importlib.import_module("roadmap.migrations.0003_sync_items_2026_09_22")
+
+
+def test_0003_closes_untouched_item_with_pr():
+    _item("H-02", "doing", 60, note="قديمة")
+    assert _sync3.sync(RoadmapItem) == ["H-02"]
+    item = RoadmapItem.objects.get(code="H-02")
+    assert (item.status, item.progress, item.pr) == ("done", 100, "#423 #450")
+    assert item.note.startswith("قديمة\n[2026-09-22]")
+
+
+def test_0003_note_only_update_keeps_status_and_pr():
+    _item("U-02", "doing", 50, pr="")
+    _sync3.sync(RoadmapItem)
+    item = RoadmapItem.objects.get(code="U-02")
+    assert (item.status, item.progress, item.pr) == ("doing", 50, "")
+    assert "#408 مدموج" in item.note
+
+
+def test_0003_developer_edit_is_preserved():
+    _item("DBT-19", "doing", 40)
+    assert _sync3.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="DBT-19").progress == 40
+
+
+def test_0003_adds_missing_items_once():
+    _item("N-008", "doing", 10, title="أُنشئ يدوياً")
+    created = _sync3.add_missing(RoadmapItem)
+    assert "N-008" not in created and "N-012" in created
+    assert RoadmapItem.objects.get(code="N-008").title == "أُنشئ يدوياً"
+    new = RoadmapItem.objects.get(code="N-012")
+    assert (new.status, new.progress, new.pr) == ("done", 100, "#481")
+    assert _sync3.add_missing(RoadmapItem) == []
+
+
+def test_0003_does_not_decide_d12():
+    """الحسمُ للمالك: لا تحديثَ لـU-30 في الهجرة."""
+    assert "U-30" not in {u[0] for u in _sync3.UPDATES}
+
+
+def test_0003_note_only_update_is_idempotent():
+    _item("U-02", "doing", 50)
+    assert _sync3.sync(RoadmapItem) == ["U-02"]
+    assert _sync3.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="U-02").note.count("#408") == 1
+
+
+# ── 0004: مزامنة 2026-09-23 + حسمُ D-12 ──
+
+_sync4 = importlib.import_module("roadmap.migrations.0004_sync_items_2026_09_23")
+
+
+def test_0004_closes_u30_once():
+    _item("U-30", "doing", 80)
+    assert _sync4.sync(RoadmapItem) == ["U-30"]
+    assert _sync4.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="U-30").status == "done"
+
+
+def test_0004_decides_only_an_open_decision():
+    from roadmap.models import RoadmapDecision
+
+    RoadmapDecision.objects.create(code="D-12", title="قرارات المظهر", status="open")
+    assert _sync4.decide(RoadmapDecision) == ["D-12"]
+    d12 = RoadmapDecision.objects.get(code="D-12")
+    assert (d12.status, str(d12.decision_date)) == ("decided", "2026-09-23")
+    assert _sync4.decide(RoadmapDecision) == []
+
+
+def test_0004_adds_n013():
+    assert _sync4.add_missing(RoadmapItem) == ["N-013"]
+    assert RoadmapItem.objects.get(code="N-013").pr == "#489"
+
+
+# ── 0005: DBT-22 وN-014 ──
+
+_sync5 = importlib.import_module("roadmap.migrations.0005_sync_items_2026_09_23b")
+
+
+def test_0005_closes_dbt22_once_and_adds_n014():
+    _item("DBT-22", "todo", 0)
+    assert _sync5.sync(RoadmapItem) == ["DBT-22"]
+    assert _sync5.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="DBT-22").pr == "#492"
+    assert _sync5.add_missing(RoadmapItem) == ["N-014"]

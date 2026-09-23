@@ -148,7 +148,7 @@
  },
  "views": {
   "academic_management/assignment_views.py::add_row": {
-   "lines": 85,
+   "lines": 74,
    "orm": 16
   },
   "academic_management/assignment_views.py::cancel_transfer": {

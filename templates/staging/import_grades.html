@@ -97,9 +97,9 @@
 </div>
 
 <script nonce="{{ request.csp_nonce }}">
-function toggleUpload(id) {
+window.toggleUpload = function (id) {
   const el = document.getElementById('upload-' + id);
   if (el) el.hidden = !el.hidden;
-}
+};
 </script>
 {% endblock %}

@@ -30,8 +30,10 @@
   {% endfor %}
 </select>
 <script nonce="{{ request.csp_nonce }}">
-  function goToSchedule(select) {
+  // على `window` صراحةً: التنقّلُ بتبديل المحتوى (page-nav.js) يشغّل سكربتَ الصفحة داخل غلاف،
+  // فإعلانُ `function goToSchedule` يبقى محلّيّاً فيه، ولا يجده `data-call-change` فلا يتبدّل الجدول.
+  window.goToSchedule = function (select) {
     var href = select.options[select.selectedIndex].dataset.href;
     if (href) { window.location = href; }
-  }
+  };
 </script>

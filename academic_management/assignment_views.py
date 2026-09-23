@@ -200,6 +200,27 @@ def subject_options(request):
     )
 
 
+def _chosen_plan_row(request, school):
+    """(الشعبة، المادّة، صفُّ خطّتها، الخطأ) — والخطأُ نصٌّ يُقال في البطاقة.
+
+    حقلٌ لم يُختر يصل نصّاً فارغاً، و`get_object_or_404` لا يعدّه «غيرَ موجود» بل
+    يرفعه ValidationError فيسقط الطلبُ بـ500 (الإنتاج 2026-09-22: شعبةٌ لا خطّةَ لها
+    فقائمةُ موادّها خالية). فالناقصُ يُقال في البطاقة كسائر الأخطاء.
+    """
+    class_id = request.POST.get("class_group") or ""
+    subject_id = request.POST.get("subject") or ""
+    if not (_is_uuid(class_id) and _is_uuid(subject_id)):
+        return None, None, None, "اختر الشعبةَ والمادّةَ أوّلاً."
+    group = get_object_or_404(ClassGroup, id=class_id, school=school)
+    subject = get_object_or_404(Subject, id=subject_id, school=school)
+    planned = next(
+        (r for r in curriculum_service.demand_for(group) if r.subject_id == subject.id), None
+    )
+    if planned is None:
+        return group, subject, None, "لا خطّةَ دراسيّةً لهذه المادّة في هذه الشعبة."
+    return group, subject, planned, None
+
+
 @login_required
 @require_POST
 def add_row(request, teacher_id):
@@ -210,20 +231,9 @@ def add_row(request, teacher_id):
     if locked is not None:
         return locked
 
-    group = get_object_or_404(ClassGroup, id=request.POST.get("class_group"), school=school)
-    subject = get_object_or_404(Subject, id=request.POST.get("subject"), school=school)
-    planned = next(
-        (r for r in curriculum_service.demand_for(group) if r.subject_id == subject.id), None
-    )
-    if planned is None:
-        return _render_card(
-            request,
-            school,
-            year,
-            teacher,
-            caps,
-            error="لا خطّةَ دراسيّةً لهذه المادّة في هذه الشعبة.",
-        )
+    group, subject, planned, error = _chosen_plan_row(request, school)
+    if error:
+        return _render_card(request, school, year, teacher, caps, error=error)
 
     try:
         _row, findings = assignment_service.apply_assignment(

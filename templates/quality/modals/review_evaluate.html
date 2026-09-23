@@ -161,9 +161,9 @@
 </div>
 
 <script nonce="{{ request.csp_nonce }}">
-function closeModal() {
+window.closeModal = function () {
   document.getElementById('modal-container').innerHTML = '';
-}
+};
 </script>
 
 {% comment %}
