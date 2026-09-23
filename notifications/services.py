@@ -29,6 +29,7 @@ from .models import NotificationLog, NotificationSettings
 _EMAIL_FAILURE_MESSAGE = "تعذر إرسال البريد الإلكتروني."
 _EMAIL_UNDELIVERED_MESSAGE = "لم يُسلَّم البريد: لا مزوّد بريد مُهيَّأ."
 _SMS_FAILURE_MESSAGE = "تعذر إرسال رسالة SMS."
+_SMS_UNDELIVERED_MESSAGE = "لم تُسلَّم الرسالة: لا مزوّد SMS مُهيَّأ."
 
 if TYPE_CHECKING:
     from core.models import CustomUser, School
@@ -311,7 +312,15 @@ class NotificationService:
                 return False, "SMS معطّل"
 
             if cfg.sms_provider == "twilio":
+                if not (cfg.twilio_account_sid and cfg.twilio_auth_token and cfg.sms_from_number):
+                    logger.info("SMS: لا بيانات اعتماد Twilio — تُخطَّى القناة كالبريد غير المهيَّأ")
+                    log.status = "failed"
+                    log.error_msg = _SMS_UNDELIVERED_MESSAGE
+                    log.save(update_fields=["status", "error_msg"])
+                    return False, _SMS_UNDELIVERED_MESSAGE
+
                 try:
+                    from twilio.base.exceptions import TwilioException
                     from twilio.rest import Client
 
                     client = Client(cfg.twilio_account_sid, cfg.twilio_auth_token)
@@ -322,6 +331,8 @@ class NotificationService:
                     )
                 except ImportError:
                     raise RuntimeError("مكتبة twilio غير مثبتة — شغّل: pip install twilio")
+                except TwilioException as exc:
+                    raise RuntimeError(str(exc)) from exc
 
             log.status = "sent"
             log.save(update_fields=["status"])
