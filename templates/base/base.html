@@ -226,6 +226,7 @@
       {% if request.user|can_open:"behavior:dashboard" %}
       <a href="{% url 'behavior:dashboard' %}" class="nb">{% icon "behavior" %} السلوك</a>
       {% endif %}
+      <button class="nb" id="btn-admin" data-sd="m-admin" aria-expanded="false" aria-controls="m-admin">{% icon "maintenance" %} الإدارة <span class="chv">▼</span></button>
 
     {% elif role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" or role == "e_projects_coordinator" %}
       {% if request.user|can_open:"dashboard" %}
@@ -255,6 +256,7 @@
       {% if request.user|can_open:"behavior:dashboard" %}
       <a href="{% url 'behavior:dashboard' %}" class="nb">{% icon "behavior" %} السلوك</a>
       {% endif %}
+      <button class="nb" id="btn-admin" data-sd="m-admin" aria-expanded="false" aria-controls="m-admin">{% icon "maintenance" %} الإدارة <span class="chv">▼</span></button>
 
     {% elif role == "social_worker" or role == "psychologist" %}
       {% if request.user|can_open:"dashboard" %}
@@ -626,68 +628,6 @@
   </div>
 </div>
 
-{% comment %}
-عددُ الأعمدة هنا يتبع الدورَ لا رقماً ثابتاً: قسما «أدوات المطوّر» و«الأمان
-والصلاحيات» مشروطان (is_developer/is_leadership)، فلو ثُبِّت sd-menu--cols-3
-رأى الإداريُّ العاديّ عمودين فارغين. القاعدةُ إذاً كما في build_menu بلوحة
-الإدارة (roadmap/admin_menu.py) — عددُ الأعمدة = عددُ الأقسام الحاضرة فعلاً.
-{% endcomment %}
-<div class="sd-menu{% if is_developer and is_leadership %} sd-menu--cols-3{% elif is_developer or is_leadership %} sd-menu--cols-2{% endif %}" id="m-admin" role="menu" aria-label="الإدارة">
-  <div class="sd-section">
-  <div class="sd-label">إدارة المدرسة</div>
-  {% if request.user|can_open:"notifications_dashboard" %}
-  <a href="{% url 'notifications_dashboard' %}">{% icon "notifications" %} مركز الإشعارات</a>
-  {% endif %}
-  <hr>
-  {% if request.user.is_staff %}
-  <a href="/admin/">{% icon "maintenance" %} لوحة الإدارة التقنية</a>
-  {% endif %}
-  {% if request.user|can_open:"developer_feedback:message_create" %}
-  <a href="{% url 'developer_feedback:message_create' %}">{% icon "developer" %} أرسل إلى المطوّر</a>
-  {% endif %}
-  </div>
-  {% if is_developer %}
-  <div class="sd-section">
-  <div class="sd-label">أدوات المطوّر</div>
-  <a href="{% url 'ui_components' %}" role="menuitem" aria-label="دليل الهوية البصرية ومعاييرها">
-    {% icon "developer" %} دليل الهويّة البصريّة
-  </a>
-  <a href="{% url 'improvement_roadmap' %}" role="menuitem" aria-label="خارطة تجويد المنصة الزمنية">
-    {% icon "roadmap" %} خارطة التجويد
-  </a>
-  {% if request.user|can_open:"developer_feedback:inbox_list" %}
-  <a href="{% url 'developer_feedback:inbox_list' %}" role="menuitem"
-     aria-label="صندوق الوارد للمطوّر">
-    {% icon "messages" %} صندوق الوارد
-  </a>
-  {% endif %}
-  {% if request.user|can_open:"developer_feedback:inbox_list" %}
-  <a href="{% url 'developer_feedback:inbox_list' %}?status=new" role="menuitem"
-     aria-label="الرسائل الجديدة غير المقروءة">
-    {% icon "mail_unread" %} الرسائل الجديدة
-  </a>
-  {% endif %}
-  {% if request.user|can_open:"developer_feedback:my_messages" %}
-  <a href="{% url 'developer_feedback:my_messages' %}" role="menuitem"
-     aria-label="الرسائل التي أرسلتها">
-    {% icon "mail_sent" %} رسائلي المرسلة
-  </a>
-  {% endif %}
-  </div>
-  {% endif %}
-  {% if is_leadership %}
-  <div class="sd-section">
-  <div class="sd-label">الأمان والصلاحيات</div>
-  {% if request.user|can_open:"permission_audit_log" %}
-  <a href="{% url 'permission_audit_log' %}">{% icon "security" %} سجل تغييرات الصلاحيات</a>
-  {% endif %}
-  {% if request.user|can_open:"breach:dashboard" %}
-  <a href="{% url 'breach:dashboard' %}">{% icon "breach" %} خروقات البيانات</a>
-  {% endif %}
-  </div>
-  {% endif %}
-</div>
-
 <div class="sd-menu" id="m-services" role="menu" aria-label="الخدمات">
   <div class="sd-label">الخدمات المساندة</div>
   {% if request.user|can_open:"clinic:dashboard" %}
@@ -801,6 +741,72 @@
 
 {% endif %}
 
+{% comment %}
+«الإدارة» — القائمةُ نفسُها التي يراها المدير والنائبان (لا نسخةٌ موازية)،
+موسَّعةٌ لتراها كذلك المنسّقُ والمعلّمون: كلُّ عنصرٍ فيها محروسٌ بحقّه (can_open/
+is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه هو وحدَه — طلبُ
+المالك 2026-09-23: «أرسل إلى المطوّر» مفتاحٌ كاملٌ للإدارة لا رابطٌ منفرد.
+عددُ الأعمدة يتبع الدورَ لا رقماً ثابتاً — القاعدةُ نفسُها في build_menu بلوحة
+الإدارة (roadmap/admin_menu.py).
+{% endcomment %}
+{% if is_admin_role or role == "coordinator" or role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" or role == "e_projects_coordinator" %}
+<div class="sd-menu{% if is_developer and is_leadership %} sd-menu--cols-3{% elif is_developer or is_leadership %} sd-menu--cols-2{% endif %}" id="m-admin" role="menu" aria-label="الإدارة">
+  <div class="sd-section">
+  <div class="sd-label">إدارة المدرسة</div>
+  {% if request.user|can_open:"notifications_dashboard" %}
+  <a href="{% url 'notifications_dashboard' %}">{% icon "notifications" %} مركز الإشعارات</a>
+  {% endif %}
+  <hr>
+  {% if request.user.is_staff %}
+  <a href="/admin/">{% icon "maintenance" %} لوحة الإدارة التقنية</a>
+  {% endif %}
+  {% if request.user|can_open:"developer_feedback:message_create" %}
+  <a href="{% url 'developer_feedback:message_create' %}">{% icon "developer" %} أرسل إلى المطوّر</a>
+  {% endif %}
+  </div>
+  {% if is_developer %}
+  <div class="sd-section">
+  <div class="sd-label">أدوات المطوّر</div>
+  <a href="{% url 'ui_components' %}" role="menuitem" aria-label="دليل الهوية البصرية ومعاييرها">
+    {% icon "developer" %} دليل الهويّة البصريّة
+  </a>
+  <a href="{% url 'improvement_roadmap' %}" role="menuitem" aria-label="خارطة تجويد المنصة الزمنية">
+    {% icon "roadmap" %} خارطة التجويد
+  </a>
+  {% if request.user|can_open:"developer_feedback:inbox_list" %}
+  <a href="{% url 'developer_feedback:inbox_list' %}" role="menuitem"
+     aria-label="صندوق الوارد للمطوّر">
+    {% icon "messages" %} صندوق الوارد
+  </a>
+  {% endif %}
+  {% if request.user|can_open:"developer_feedback:inbox_list" %}
+  <a href="{% url 'developer_feedback:inbox_list' %}?status=new" role="menuitem"
+     aria-label="الرسائل الجديدة غير المقروءة">
+    {% icon "mail_unread" %} الرسائل الجديدة
+  </a>
+  {% endif %}
+  {% if request.user|can_open:"developer_feedback:my_messages" %}
+  <a href="{% url 'developer_feedback:my_messages' %}" role="menuitem"
+     aria-label="الرسائل التي أرسلتها">
+    {% icon "mail_sent" %} رسائلي المرسلة
+  </a>
+  {% endif %}
+  </div>
+  {% endif %}
+  {% if is_leadership %}
+  <div class="sd-section">
+  <div class="sd-label">الأمان والصلاحيات</div>
+  {% if request.user|can_open:"permission_audit_log" %}
+  <a href="{% url 'permission_audit_log' %}">{% icon "security" %} سجل تغييرات الصلاحيات</a>
+  {% endif %}
+  {% if request.user|can_open:"breach:dashboard" %}
+  <a href="{% url 'breach:dashboard' %}">{% icon "breach" %} خروقات البيانات</a>
+  {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
 {# ── Coordinator Schedule Dropdown ── #}
 {% if role == "admin_supervisor" %}
 {# المشرفُ الإداريّ: طلبةُ جناحه وحدَهم (قرارا 2026-09-14/15) — متابعةٌ ورصدٌ، لا إضافةَ ولا انتقالاتٍ ولا أنشطة #}
@@ -854,11 +860,17 @@
   {% if request.user|can_open:"teacher_schedule" %}
   <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% icon "periods_today" %} حصصي اليوم</a>
   {% endif %}
+  {% comment %}
+  `weekly_schedule`/`schedule_print` بلا وسائط تعرضان الجدولَ العامّ (كلُّ
+  المعلّمين) لمن يتصفّح غيرَه (`SCHEDULE_BROWSE`، والمنسّقُ منهم) لا جدولَه
+  هو — فروابطُ «جدولي» هنا مصرَّحةٌ بوسائط الذات صراحةً، و«الجدول العام»
+  رابطٌ منفصلٌ أدناه لمن يملك حقَّ التصفّح (قرارُ المالك 2026-09-23).
+  {% endcomment %}
   {% if request.user|can_open:"weekly_schedule" %}
-  <a href="{% url 'weekly_schedule' %}">{% icon "schedule" %} الجدول الأسبوعي</a>
+  <a href="{% url 'weekly_schedule' %}?view=teacher&teacher={{ request.user.id }}">{% icon "schedule" %} الجدول الأسبوعي</a>
   {% endif %}
   {% if request.user|can_open:"schedule_print" %}
-  <a href="{% url 'schedule_print' %}">{% icon "print" %} طباعة الجدول</a>
+  <a href="{% url 'schedule_print' %}?view=teacher&teacher={{ request.user.id }}">{% icon "print" %} طباعة الجدول</a>
   {% endif %}
   {% if request.user|can_open:"teacher_preferences" %}
   <a href="{% url 'teacher_preferences' %}">{% icon "settings" %} تفضيلاتي للجدولة</a>
@@ -869,6 +881,9 @@
   {# المنسّقُ له صلاحيّةُ مرصد الأنصبة (قراءةً، ومحرّرُ الخطّة إن مُنح قدرةَ التحرير) — وكان بلا رابطٍ إليه. #}
   {% if request.user|can_open:"academic_management:assignments" %}
   <a href="{% url 'academic_management:assignments' %}">{% icon "workload" %} الإسناد</a>
+  {% endif %}
+  {% if request.user|can_open:"weekly_schedule" %}
+  <a href="{% url 'weekly_schedule' %}">{% icon "schedule" %} الجدول العام</a>
   {% endif %}
   {% if request.user|can_open:"swap_list" %}
   <a href="{% url 'swap_list' %}">{% icon "swap_requests" %} طلبات التبديل</a>
@@ -881,12 +896,9 @@
   {% endif %}
   </div>
   <div class="sd-section">
-  <div class="sd-label">روابط أخرى</div>
+  <div class="sd-label">السلوك</div>
   {% if request.user|can_open:"behavior:report_infraction" %}
   <a href="{% url 'behavior:report_infraction' %}">{% icon "behavior_violation" %} تسجيل سلوك</a>
-  {% endif %}
-  {% if request.user|can_open:"developer_feedback:message_create" %}
-  <a href="{% url 'developer_feedback:message_create' %}">{% icon "developer" %} أرسل إلى المطوّر</a>
   {% endif %}
   </div>
 </div>
@@ -904,11 +916,15 @@
   {% if request.user|can_open:"teacher_schedule" %}
   <a href="{% url 'teacher_schedule' %}" class="font-semibold">{% icon "periods_today" %} حصصي اليوم</a>
   {% endif %}
+  {# مسؤولُ التعليم الإلكترونيّ وحدَه هنا يملك تصفّح غيره (SCHEDULE_BROWSE)، فوسائطُ الذات صريحةٌ — لا أثرَ لها على البقيّة أصلاً (الحارسُ يفرض جدولَهم هم دائماً). #}
   {% if request.user|can_open:"weekly_schedule" %}
-  <a href="{% url 'weekly_schedule' %}">{% icon "schedule" %} الجدول الأسبوعي</a>
+  <a href="{% url 'weekly_schedule' %}?view=teacher&teacher={{ request.user.id }}">{% icon "schedule" %} الجدول الأسبوعي</a>
   {% endif %}
   {% if request.user|can_open:"schedule_print" %}
-  <a href="{% url 'schedule_print' %}">{% icon "print" %} طباعة الجدول</a>
+  <a href="{% url 'schedule_print' %}?view=teacher&teacher={{ request.user.id }}">{% icon "print" %} طباعة الجدول</a>
+  {% endif %}
+  {% if role == "e_projects_coordinator" and request.user|can_open:"weekly_schedule" %}
+  <a href="{% url 'weekly_schedule' %}">{% icon "schedule" %} الجدول العام</a>
   {% endif %}
   {% if request.user|can_open:"teacher_preferences" %}
   <a href="{% url 'teacher_preferences' %}">{% icon "settings" %} تفضيلاتي للجدولة</a>
@@ -926,12 +942,9 @@
   </div>
   {% endif %}
   <div class="sd-section">
-  <div class="sd-label">روابط أخرى</div>
+  <div class="sd-label">السلوك</div>
   {% if request.user|can_open:"behavior:report_infraction" %}
   <a href="{% url 'behavior:report_infraction' %}">{% icon "behavior_violation" %} تسجيل سلوك</a>
-  {% endif %}
-  {% if request.user|can_open:"developer_feedback:message_create" %}
-  <a href="{% url 'developer_feedback:message_create' %}">{% icon "developer" %} أرسل إلى المطوّر</a>
   {% endif %}
   </div>
 </div>

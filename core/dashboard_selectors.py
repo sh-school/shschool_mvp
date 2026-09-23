@@ -15,6 +15,7 @@ behavior، clinic، library، operations، transport) — الملفّ لا يز
 import datetime
 
 from django.db.models import Count, Q
+from django.urls import reverse
 from django.utils import timezone
 
 from assessments.models import AnnualSubjectResult, SubjectClassSetup
@@ -23,6 +24,7 @@ from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for_school
 from core.domain.attendance import attendance_rate
 from core.models.academic import StudentEnrollment, grade_order
+from core.permissions import SCHEDULE_BROWSE
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
 from operations.models import (
@@ -273,12 +275,22 @@ def get_teacher_ctx(user, school, today, role):
         school=school, teacher_b=user, status="pending_b"
     ).count()
 
+    # `weekly_schedule` بلا وسائط تعرض الجدولَ العامّ (كلُّ المعلّمين) لمن
+    # يتصفّح غيرَه (`SCHEDULE_BROWSE`، ومنهم المنسّق ومسؤولُ التعليم
+    # الإلكترونيّ) — لا جدولَه هو. فبطاقةُ «جدولي» هنا تُصرَّح بوسائطها صراحةً
+    # (`view=teacher&teacher=<هو>`) لا الافتراض، وتبقى «الجدول العامّ» متاحةً
+    # منفصلةً لمن يملك حقَّ تصفّح غيره (قرارُ المالك 2026-09-23).
+    my_weekly_schedule_url = f"{reverse('weekly_schedule')}?view=teacher&teacher={user.id}"
+    general_schedule_url = reverse("weekly_schedule") if role in SCHEDULE_BROWSE else ""
+
     ctx = {
         "view_type": "teacher",
         "sessions": sessions,
         "next_session": next_session,
         "my_setups": my_setups,
         "my_pending_swaps": my_pending_swaps,
+        "my_weekly_schedule_url": my_weekly_schedule_url,
+        "general_schedule_url": general_schedule_url,
     }
 
     if role == "coordinator":
