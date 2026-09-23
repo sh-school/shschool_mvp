@@ -223,8 +223,8 @@
       <a href="{% url 'review_list' %}" class="nb">{% icon "self_review" %} المراجعة الذاتية</a>
       {% endif %}
       {% endif %}
-      {% if request.user|can_open:"behavior:dashboard" %}
-      <a href="{% url 'behavior:dashboard' %}" class="nb">{% icon "behavior" %} السلوك</a>
+      {% if request.user|can_open:"behavior:dashboard" or request.user|can_open:"behavior:report_infraction" %}
+      <button class="nb" id="btn-behavior" data-sd="m-behavior" aria-expanded="false" aria-controls="m-behavior">{% icon "behavior" %} السلوك <span class="chv">▼</span></button>
       {% endif %}
       <button class="nb" id="btn-admin" data-sd="m-admin" aria-expanded="false" aria-controls="m-admin">{% icon "maintenance" %} الإدارة <span class="chv">▼</span></button>
 
@@ -253,8 +253,8 @@
       <a href="{% url 'review_list' %}" class="nb">{% icon "self_review" %} المراجعة الذاتية</a>
       {% endif %}
       {% endif %}
-      {% if request.user|can_open:"behavior:dashboard" %}
-      <a href="{% url 'behavior:dashboard' %}" class="nb">{% icon "behavior" %} السلوك</a>
+      {% if request.user|can_open:"behavior:dashboard" or request.user|can_open:"behavior:report_infraction" %}
+      <button class="nb" id="btn-behavior" data-sd="m-behavior" aria-expanded="false" aria-controls="m-behavior">{% icon "behavior" %} السلوك <span class="chv">▼</span></button>
       {% endif %}
       <button class="nb" id="btn-admin" data-sd="m-admin" aria-expanded="false" aria-controls="m-admin">{% icon "maintenance" %} الإدارة <span class="chv">▼</span></button>
 
@@ -351,8 +351,8 @@
       {% if request.user|can_open:"student_affairs:activity_list" %}
       <a href="{% url 'student_affairs:activity_list' %}" class="nb">{% icon "activities" %} الأنشطة</a>
       {% endif %}
-      {% if request.user|can_open:"behavior:dashboard" %}
-      <a href="{% url 'behavior:dashboard' %}" class="nb">{% icon "behavior" %} السلوك</a>
+      {% if request.user|can_open:"behavior:dashboard" or request.user|can_open:"behavior:report_infraction" %}
+      <button class="nb" id="btn-behavior" data-sd="m-behavior" aria-expanded="false" aria-controls="m-behavior">{% icon "behavior" %} السلوك <span class="chv">▼</span></button>
       {% endif %}
       {% if request.user|can_open:"reports_index" %}
       <a href="{% url 'reports_index' %}" class="nb">{% icon "reports" %} التقارير</a>
@@ -854,7 +854,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 {% endif %}
 
 {% if role == "coordinator" %}
-<div class="sd-menu sd-menu--cols-3" id="m-coord-schedule" role="menu" aria-label="جدول المنسق">
+<div class="sd-menu sd-menu--cols-2" id="m-coord-schedule" role="menu" aria-label="جدول المنسق">
   <div class="sd-section">
   <div class="sd-label">جدولي</div>
   {% if request.user|can_open:"teacher_schedule" %}
@@ -895,12 +895,6 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <a href="{% url 'absence_list' %}">{% icon "attendance_teacher_absence" %} غياب المعلمين والبدلاء</a>
   {% endif %}
   </div>
-  <div class="sd-section">
-  <div class="sd-label">السلوك</div>
-  {% if request.user|can_open:"behavior:report_infraction" %}
-  <a href="{% url 'behavior:report_infraction' %}">{% icon "behavior_violation" %} تسجيل سلوك</a>
-  {% endif %}
-  </div>
 </div>
 {% endif %}
 
@@ -910,7 +904,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 مساعدو المعلّم لا يرون قسمَ «طلبات» (خارج مهامهم)، فعمودان لهم و3 لغيرهم —
 لا عمودٌ فارغ لمساعدي المعلّم والتربية الخاصة.
 {% endcomment %}
-<div class="sd-menu{% if role != 'teacher_assistant' and role != 'ese_assistant' %} sd-menu--cols-3{% else %} sd-menu--cols-2{% endif %}" id="m-teacher-schedule" role="menu" aria-label="جدول المعلم">
+<div class="sd-menu{% if role != 'teacher_assistant' and role != 'ese_assistant' %} sd-menu--cols-2{% endif %}" id="m-teacher-schedule" role="menu" aria-label="جدول المعلم">
   <div class="sd-section">
   <div class="sd-label">جدولي</div>
   {% if request.user|can_open:"teacher_schedule" %}
@@ -941,12 +935,19 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% endif %}
   </div>
   {% endif %}
-  <div class="sd-section">
-  <div class="sd-label">السلوك</div>
+</div>
+{% endif %}
+
+{# ── قائمة السلوك للمنسّق والمعلّم ومنسّق الأنشطة — تسجيلُ السلوك هنا لا في قوائم الجداول ── #}
+{% if role == "coordinator" or role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" or role == "e_projects_coordinator" or role == "activities_coordinator" %}
+<div class="sd-menu" id="m-behavior" role="menu" aria-label="السلوك">
+  <div class="sd-label">السلوك الطلابي</div>
+  {% if request.user|can_open:"behavior:dashboard" %}
+  <a href="{% url 'behavior:dashboard' %}">{% icon "behavior" %} لوحة السلوك</a>
+  {% endif %}
   {% if request.user|can_open:"behavior:report_infraction" %}
   <a href="{% url 'behavior:report_infraction' %}">{% icon "behavior_violation" %} تسجيل سلوك</a>
   {% endif %}
-  </div>
 </div>
 {% endif %}
 
