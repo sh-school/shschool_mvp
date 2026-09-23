@@ -1,0 +1,359 @@
+{% extends "base/base.html" %}
+{% load static ui icons %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/styleguide.css' %}">{% endblock %}
+
+{% block title %}أنماطُ التخطيط{% endblock %}
+
+{% block breadcrumbs %}
+{% url 'ui_components' as guide_url %}
+{% include "components/breadcrumbs.html" with parent_label="دليلُ الهويّة" parent_url=guide_url current="أنماطُ التخطيط" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+
+  {% page_header "أنماطُ التخطيط" subtitle="سبعةُ أنماطٍ تعلنها كلُّ صفحة — قرارُ D-16 (2026-09-23)، والمواصفاتُ الكاملة في docs/design/page_layouts.md" icon="dashboard" %}
+    <a href="{% url 'ui_components' %}" class="btn-secondary btn-sm">{% icon "back" %} دليلُ الهويّة</a>
+  {% endpage_header %}
+
+  {% callout "info" %}الأصنافُ <code>layout-*</code> تُبنى في LAY-03؛ حتى ذلك الحين هذه الصفحةُ مرجعُ التصميم، والمخطّطاتُ فيها رسومٌ توضيحيّةٌ لا الصفحاتُ نفسُها.{% endcallout %}
+
+  {# ══ 0 ══ #}
+  {% section_card "0 · الطبقاتُ والفئات" meta="الغلاف · النمط · المكوّن" icon="filter" %}
+    <div class="sg-pair">
+      <ul class="sg-rules">
+        <li><b>الغلاف</b> (الترويسة والقائمة والفتات والتذييل) يملكه <code>base/base.html</code> ولا تلمسه الصفحة.</li>
+        <li><b>النمط</b> صنفٌ واحدٌ على <code>#main-content</code> في <code>{% templatetag openblock %} block main_class {% templatetag closeblock %}</code>، ويحدّد الشبكةَ والتمريرَ والعرض.</li>
+        <li><b>المكوّن</b> وسومُ <code>ui.py</code>: البطاقةُ لا تعرف مكانَها، والنمطُ لا يعرف محتواها.</li>
+        <li>نمطان مختلفان إن اختلف <b>عرضُ المحتوى أو سلوكُ التمرير</b>، لا الموضوعُ ولا الدور.</li>
+        <li>صفحةٌ لا يناسبها نمطٌ تعلن <code>layout-custom</code> وتُسجَّل سببُها في جدول الاستثناءات.</li>
+      </ul>
+      <div class="table-wrap">
+        <table>
+          <caption class="sr-only">فئاتُ عرض النافذة</caption>
+          <thead><tr><th>الفئة</th><th>العرض</th><th>المرجع</th></tr></thead>
+          <tbody>
+            <tr><td><code>compact</code> — جوال</td><td class="num"><bdi dir="ltr">≤ 640</bdi></td><td>375×812</td></tr>
+            <tr><td><code>medium</code> — لوحيّ</td><td class="num"><bdi dir="ltr">641–1024</bdi></td><td>768×1024</td></tr>
+            <tr><td><code>expanded</code> — لابتوب</td><td class="num"><bdi dir="ltr">1025–1439</bdi></td><td>1366×768</td></tr>
+            <tr><td><code>large</code> — شاشةٌ عريضة</td><td class="num"><bdi dir="ltr">≥ 1440</bdi></td><td>1920×1080</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <ul class="sg-rules">
+      <li>«بلا تمريرٍ للصفحة» على سطح المكتب مشروطٌ بالعرض <b>والارتفاع</b> معاً؛ النافذةُ القصيرة (لابتوب بتكبير 125–150%) تُمرَّر بالتخطيط نفسه.</li>
+      <li>الأنماطُ السبعة، والفئةُ العريضة، والكثافةُ المريحة للجميع، ومعاييرُ القبول، واللوحةُ بشرائطَ وأعمدةٍ مكدّسة — كلُّها قرارُ D-16.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 1 · لوحة ══ #}
+  {% section_card "1 · لوحة" meta="layout-dashboard" icon="dashboard" %}
+    <p class="sg-p">نظرةٌ واحدةٌ على الحال لصاحب دور: شريطٌ عريضٌ لما ينتظر إجراءً ولنبض المؤشّرات، ثمّ أعمدةٌ مكدّسةٌ ثابتةُ المواقع تُرصّ فيها البطاقاتُ بارتفاع محتواها فلا ثقوب.</p>
+    <div class="sg-wires">
+      <figure class="sg-wire" style="--ar: 16 / 10">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-title">العنوان</span>
+          <span class="sg-wire__b is-band">ما ينتظرك</span>
+          <span class="sg-wire__b is-band" style="--h: 2">النبض</span>
+          <div class="sg-wire__row is-fill">
+            <div class="sg-wire__stack"><span class="sg-wire__b is-card" style="--h: 4">تنبيهات</span><span class="sg-wire__b is-card" style="--h: 2">معلّقة</span></div>
+            <div class="sg-wire__stack"><span class="sg-wire__b is-card" style="--h: 5">اتّجاه</span><span class="sg-wire__b is-card">فارغة</span></div>
+            <div class="sg-wire__stack"><span class="sg-wire__b is-card" style="--h: 3">توزيع</span><span class="sg-wire__b is-card" style="--h: 3">وصول سريع</span></div>
+          </div>
+        </div>
+        <figcaption>سطحُ المكتب: شريطان وثلاثةُ أعمدة (أربعةٌ على العريض)</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 3 / 4">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-title">العنوان</span>
+          <span class="sg-wire__b is-band">ما ينتظرك</span>
+          <span class="sg-wire__b is-band" style="--h: 2">النبض</span>
+          <div class="sg-wire__row is-fill">
+            <div class="sg-wire__stack"><span class="sg-wire__b is-card" style="--h: 4">تنبيهات</span><span class="sg-wire__b is-card" style="--h: 3">توزيع</span></div>
+            <div class="sg-wire__stack"><span class="sg-wire__b is-card" style="--h: 5">اتّجاه</span><span class="sg-wire__b is-card" style="--h: 2">وصول</span></div>
+          </div>
+        </div>
+        <figcaption>اللوحيّ: عمودان، والصفحةُ تُمرَّر</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 9 / 18">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-title">العنوان</span>
+          <span class="sg-wire__b is-band">ينتظرك</span>
+          <span class="sg-wire__b is-band" style="--h: 2">النبض</span>
+          <span class="sg-wire__b is-card" style="--h: 4">تنبيهات</span>
+          <span class="sg-wire__b is-card" style="--h: 3">اتّجاه</span>
+        </div>
+        <figcaption>الجوال: عمودٌ بترتيب الأولويّة</figcaption>
+      </figure>
+    </div>
+    <ul class="sg-rules">
+      <li>أمثلة: <code>dashboard/main.html</code> بقوالب الأدوار، و<code>behavior/dashboard</code>، و<code>clinic/dashboard</code>.</li>
+      <li>العمودُ الأوّل عمودُ الأولويّة؛ والمواقعُ من إعداد الدور، لا من ترصيفٍ آليٍّ ينقل الودجات.</li>
+      <li>القائمةُ داخل الودجة عددٌ محدود ثمّ «عرض الكلّ»؛ لا تمريرَ داخل ودجات اللوحة.</li>
+      <li>الودجةُ تُصفّى بالقدرة <b>قبل حساب بياناتها</b>.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 2 · مدخل ══ #}
+  {% section_card "2 · مدخلُ وحدة" meta="layout-hub" icon="departments" %}
+    <p class="sg-p">صفحةُ الدخول إلى وحدةٍ فيها وظائف كثيرة: سطرُ ملخّصٍ اختياريّ، ثمّ مجموعاتُ بلاطاتٍ بعنوانٍ لكلّ مجموعة.</p>
+    <div class="sg-wires">
+      <figure class="sg-wire" style="--ar: 16 / 10">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-title">العنوان</span>
+          <span class="sg-wire__b is-band">ملخّص</span>
+          <span class="sg-wire__b is-label">مجموعة</span>
+          <div class="sg-wire__row"><span class="sg-wire__b is-tile" style="--h: 2"></span><span class="sg-wire__b is-tile" style="--h: 2"></span><span class="sg-wire__b is-tile" style="--h: 2"></span><span class="sg-wire__b is-tile" style="--h: 2"></span><span class="sg-wire__b is-tile" style="--h: 2"></span></div>
+          <span class="sg-wire__b is-label">مجموعة</span>
+          <div class="sg-wire__row"><span class="sg-wire__b is-tile" style="--h: 2"></span><span class="sg-wire__b is-tile" style="--h: 2"></span><span class="sg-wire__b is-tile" style="--h: 2"></span><span class="sg-wire__b is-ghost"></span><span class="sg-wire__b is-ghost"></span></div>
+        </div>
+        <figcaption>سطحُ المكتب: خمسُ بلاطاتٍ في السطر (سبعٌ على العريض)</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 3 / 4">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-title">العنوان</span>
+          <span class="sg-wire__b is-label">مجموعة</span>
+          <div class="sg-wire__row"><span class="sg-wire__b is-tile" style="--h: 2"></span><span class="sg-wire__b is-tile" style="--h: 2"></span><span class="sg-wire__b is-tile" style="--h: 2"></span></div>
+          <div class="sg-wire__row"><span class="sg-wire__b is-tile" style="--h: 2"></span><span class="sg-wire__b is-tile" style="--h: 2"></span><span class="sg-wire__b is-ghost"></span></div>
+        </div>
+        <figcaption>اللوحيّ: ثلاث</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 9 / 18">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-title">العنوان</span>
+          <span class="sg-wire__b is-tile" style="--h: 2"></span>
+          <span class="sg-wire__b is-tile" style="--h: 2"></span>
+          <span class="sg-wire__b is-tile" style="--h: 2"></span>
+        </div>
+        <figcaption>الجوال: بلاطةٌ في السطر</figcaption>
+      </figure>
+    </div>
+    <ul class="sg-rules">
+      <li>أمثلة: <code>reports/index.html</code>، و<code>academic_management/reports/landing.html</code>.</li>
+      <li>البلاطةُ <code>action_tile</code> هدفٌ ≥ <code>--control-h</code> على اللمس، والصفحةُ تُمرَّر.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 3 · سجلّ ══ #}
+  {% section_card "3 · سجلّ" meta="layout-list" icon="checklist" %}
+    <p class="sg-p">قائمةُ سجلّاتٍ للبحث والتصفية والفتح — أكثرُ الأنماط شيوعاً. على سطح المكتب الجدولُ يُمرَّر داخل بطاقته وترويستُه ثابتة، ولوحةٌ جانبيّةٌ اختياريّة للسجلّ المختار.</p>
+    <div class="sg-wires">
+      <figure class="sg-wire" style="--ar: 16 / 10">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-title">العنوان · الإجراء</span>
+          <span class="sg-wire__b is-band">شريطُ التصفية</span>
+          <div class="sg-wire__row is-fill">
+            <span class="sg-wire__b is-table" style="--w: 3">الجدول</span>
+            <span class="sg-wire__b is-side">تفاصيل</span>
+          </div>
+        </div>
+        <figcaption>سطحُ المكتب: الجدولُ يملأ الباقي ويُمرَّر وحده</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 3 / 4">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-title">العنوان</span>
+          <span class="sg-wire__b is-band">التصفية</span>
+          <span class="sg-wire__b is-table" style="--h: 10">الجدول ↔</span>
+        </div>
+        <figcaption>اللوحيّ: الصفحةُ تُمرَّر، والجدولُ أفقيّاً</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 9 / 18">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-title">العنوان</span>
+          <span class="sg-wire__b is-band">التصفية</span>
+          <span class="sg-wire__b is-card" style="--h: 2">صفّ</span>
+          <span class="sg-wire__b is-card" style="--h: 2">صفّ</span>
+          <span class="sg-wire__b is-card" style="--h: 2">صفّ</span>
+        </div>
+        <figcaption>الجوال: الصفُّ بطاقةٌ إن كان ≤ 4 حقول</figcaption>
+      </figure>
+    </div>
+    <ul class="sg-rules">
+      <li>أمثلة: <code>student_affairs/student_list</code>، و<code>staff_affairs/staff_list</code>، و<code>notifications/inbox</code>.</li>
+      <li>الترتيب: العنوان، المؤشّرات (اختياريّة)، <code>filter_bar</code>، الجدول، الترقيم.</li>
+      <li>قائمةٌ ضيّقةُ الصفّ غيرُ محدودة تُقسَّم أعمدةً بـ<code>chunk_for_grid</code>؛ والسجلُّ العريض عمودٌ واحد.</li>
+      <li>حالةٌ فارغةٌ مركزيّة إلزاميّة، والجدولُ ذو التمرير يقبل التركيز ولها اسم.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 4 · تفصيل ══ #}
+  {% section_card "4 · تفصيل" meta="layout-detail" icon="document" %}
+    <p class="sg-p">سجلٌّ واحدٌ بكلّ ما يتعلّق به: ترويسةُ هويّةٍ ثابتة، ومحتوى رئيسيّ، وعمودٌ جانبيٌّ للحقائق الثابتة.</p>
+    <div class="sg-wires">
+      <figure class="sg-wire" style="--ar: 16 / 10">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-band" style="--h: 2">الاسم · الحالة · الإجراءات</span>
+          <span class="sg-wire__b is-label">تبويبات</span>
+          <div class="sg-wire__row is-fill">
+            <div class="sg-wire__stack" style="--w: 3"><span class="sg-wire__b is-card" style="--h: 4">القسم</span><span class="sg-wire__b is-card" style="--h: 3">القسم</span></div>
+            <div class="sg-wire__stack"><span class="sg-wire__b is-side" style="--h: 3">بيانات</span><span class="sg-wire__b is-side" style="--h: 2">اتّصال</span></div>
+          </div>
+        </div>
+        <figcaption>سطحُ المكتب: رئيسيّ + جانبيّ في طرف السطر</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 3 / 4">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-band" style="--h: 2">الاسم · الحالة</span>
+          <span class="sg-wire__b is-side" style="--h: 2">بيانات</span>
+          <span class="sg-wire__b is-card" style="--h: 4">القسم</span>
+        </div>
+        <figcaption>اللوحيّ: الجانبيُّ تحت الترويسة</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 9 / 18">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-band" style="--h: 2">الاسم</span>
+          <span class="sg-wire__b is-side">بيانات ▾</span>
+          <span class="sg-wire__b is-card" style="--h: 4">القسم</span>
+        </div>
+        <figcaption>الجوال: الجانبيُّ مطويّ</figcaption>
+      </figure>
+    </div>
+    <ul class="sg-rules">
+      <li>أمثلة: <code>student_affairs/student_profile</code>، و<code>staff_affairs/staff_profile</code>، و<code>breach/detail</code>.</li>
+      <li>التبويباتُ حين تتجاوز الأقسامُ ثلاثة، بنمط APG Tabs، وموضعُها في الرابط (<code>?tab=</code>).</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 5 · نموذج ══ #}
+  {% section_card "5 · نموذج" meta="layout-form" icon="edit" %}
+    <p class="sg-p">إدخالُ سجلٍّ أو تعديلُه: عمودُ قراءةٍ لا يتجاوز 760px، وأقسامُ حقول، وشريطُ إجراءاتٍ ثابتٌ في الأسفل. والمعالجُ ووضعُ التركيز تنويعان عليه.</p>
+    <div class="sg-wires">
+      <figure class="sg-wire" style="--ar: 16 / 10">
+        <div class="sg-wire__page is-centred" aria-hidden="true">
+          <span class="sg-wire__b is-title" style="--iw: 55%">العنوان</span>
+          <span class="sg-wire__b is-alert" style="--iw: 55%">ملخّصُ الأخطاء</span>
+          <span class="sg-wire__b is-card" style="--h: 4; --iw: 55%">قسمُ الحقول</span>
+          <span class="sg-wire__b is-card" style="--h: 3; --iw: 55%">قسمُ الحقول</span>
+          <span class="sg-wire__b is-bar" style="--iw: 55%">حفظ · إلغاء</span>
+        </div>
+        <figcaption>سطحُ المكتب: عمودُ قراءةٍ في الوسط</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 3 / 4">
+        <div class="sg-wire__page is-centred" aria-hidden="true">
+          <span class="sg-wire__b is-title" style="--iw: 85%">العنوان</span>
+          <span class="sg-wire__b is-card" style="--h: 5; --iw: 85%">قسمُ الحقول</span>
+          <span class="sg-wire__b is-bar" style="--iw: 85%">حفظ</span>
+        </div>
+        <figcaption>اللوحيّ: كذلك</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 9 / 18">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-title">العنوان</span>
+          <span class="sg-wire__b is-card" style="--h: 6">الحقول</span>
+          <span class="sg-wire__b is-bar">حفظ</span>
+        </div>
+        <figcaption>الجوال: عرضٌ كامل وإجراءاتٌ ثابتة</figcaption>
+      </figure>
+    </div>
+    <ul class="sg-rules">
+      <li>أمثلة: <code>staff_affairs/leave_form</code>، و<code>student_affairs/student_form</code>، و<code>clinic/record_visit</code>.</li>
+      <li>الخطأُ بجانب حقله ومُلخَّصٌ في الأعلى يُنقل إليه التركيز؛ والشريطُ الثابت لا يغطّي حقلاً مركَّزاً (WCAG 2.4.11).</li>
+      <li>المعالج: خطوةٌ في الصفحة، وحالتُها في الخادم. وضعُ التركيز: مهمّةٌ واحدةٌ متكرّرة بلا عناصر ثانويّة.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 6 · ورقة ══ #}
+  {% section_card "6 · ورقةٌ كثيفة" meta="layout-sheet" icon="schedule" %}
+    <p class="sg-p">شبكةُ صفوفٍ وأعمدةٍ كثيرة تُقرأ وتُحرَّر في مكانها: شريطُ أدواتٍ واحد ثمّ الورقة، بعمودٍ أوّلَ وترويسةٍ ثابتين، وتمريرٍ داخلها في الاتّجاهين.</p>
+    <div class="sg-wires">
+      <figure class="sg-wire" style="--ar: 16 / 10">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-band">التاريخ · الشعبة · الإجراءات</span>
+          <span class="sg-wire__b is-sheet is-fill">الورقة ↕↔</span>
+        </div>
+        <figcaption>سطحُ المكتب: الورقةُ تملأ النافذة</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 3 / 4">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-band">الأدوات</span>
+          <span class="sg-wire__b is-sheet is-fill">الورقة ↔</span>
+        </div>
+        <figcaption>اللوحيّ: كذلك</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 9 / 18">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-band">الأدوات</span>
+          <span class="sg-wire__b is-sheet is-fill">↔</span>
+        </div>
+        <figcaption>الجوال: أفقيٌّ بعمودٍ ثابت، أو بطاقاتٌ حين يسمح المحتوى</figcaption>
+      </figure>
+    </div>
+    <ul class="sg-rules">
+      <li>أمثلة: الجدولُ الأسبوعيّ العامّ (<code>schedule/print_view</code>)، و<code>teacher/attendance_grid</code>، و<code>wings/record_section</code>.</li>
+      <li>لوحةُ المفاتيح بنمط APG Grid، وحفظُ الخليّة يُعلَن لقارئ الشاشة ولا يحرّك التخطيط.</li>
+      <li>محتوى ثنائيُّ الأبعاد مستثنى من شرط 320px (WCAG 1.4.10) بشرط بقاء عمود الأسماء ظاهراً.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 7 · تقرير ══ #}
+  {% section_card "7 · تقرير" meta="layout-report" icon="reports" %}
+    <p class="sg-p">وثيقةٌ تُقرأ ثمّ تُصدَّر أو تُطبع: شريطُ التصدير ثمّ الوثيقةُ بعرض ورقة A4 في الوسط، فما على الشاشة يطابق ما يُطبع.</p>
+    <div class="sg-wires">
+      <figure class="sg-wire" style="--ar: 16 / 10">
+        <div class="sg-wire__page is-centred" aria-hidden="true">
+          <span class="sg-wire__b is-band">تصدير: PDF · Word · Excel</span>
+          <span class="sg-wire__b is-paper is-fill" style="--iw: 42%">A4</span>
+        </div>
+        <figcaption>سطحُ المكتب: ورقةٌ في الوسط</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 3 / 4">
+        <div class="sg-wire__page is-centred" aria-hidden="true">
+          <span class="sg-wire__b is-band">تصدير</span>
+          <span class="sg-wire__b is-paper is-fill" style="--iw: 80%">A4</span>
+        </div>
+        <figcaption>اللوحيّ: مصغّرة</figcaption>
+      </figure>
+      <figure class="sg-wire" style="--ar: 9 / 18">
+        <div class="sg-wire__page" aria-hidden="true">
+          <span class="sg-wire__b is-band">تصدير</span>
+          <span class="sg-wire__b is-paper is-fill">الوثيقة</span>
+        </div>
+        <figcaption>الجوال: عرضٌ كامل</figcaption>
+      </figure>
+    </div>
+    <ul class="sg-rules">
+      <li>أمثلة: <code>reports/report_viewer</code>، و<code>schedule/pages_view</code>. قوالبُ PDF خارج هذا النمط لأنّها لا ترث الغلاف.</li>
+      <li>شريطُ التصدير هو المكوّنُ الموحّد في U-41 حين يُبنى.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 8 · حالات الودجة ══ #}
+  {% section_card "8 · حالاتُ الودجة الأربع" meta="تحميل · فارغة · خطأ · ممتلئة" icon="status_info" %}
+    <div class="sg-pair">
+      {% section_card "تحميل" meta="skeleton" icon="time" %}
+        {% include "components/skeleton.html" with type="list" %}
+      {% endsection_card %}
+      {% section_card "فارغة" meta="0" icon="empty" empty="لا تنبيهاتٍ معلّقة" empty_sub="تظهر هنا حين يتكرّر غيابُ طالب" %}{% for item in nothing %}{{ item }}{% endfor %}{% endsection_card %}
+      {% section_card "خطأ" meta="LAY-06" icon="status_warning" %}
+        {% callout "error" %}تعذّر تحميلُ هذه البيانات الآن.{% endcallout %}
+        <div class="form-actions"><button type="button" class="btn-secondary btn-sm">{% icon "refresh" %} أعِد المحاولة</button></div>
+      {% endsection_card %}
+      {% section_card "ممتلئة" meta="2" icon="checklist" %}
+        <ul class="plain-list">
+          <li class="plain-list__row"><span class="plain-list__main"><b class="plain-list__title">طالبٌ أوّل</b><span class="plain-list__sub">7/2 · غيابٌ ثالث</span></span><span class="status-badge status-warning">ينتظر الإخطار</span></li>
+          <li class="plain-list__row"><span class="plain-list__main"><b class="plain-list__title">طالبٌ ثانٍ</b><span class="plain-list__sub">9/1 · غيابٌ خامس</span></span><span class="status-badge status-danger">عتبة</span></li>
+        </ul>
+      {% endsection_card %}
+    </div>
+    <ul class="sg-rules">
+      <li>التحميلُ يحجز ارتفاعَ المحتوى فلا يقفز التخطيط (CLS &lt; 0.1)، والودجةُ البطيئة (&gt; 300ms) تُحمَّل بعد الصفحة.</li>
+      <li>الفارغةُ سطرٌ واحد، ومنطقةٌ كلُّ بطاقاتها فارغة تصير شريطاً واحداً.</li>
+      <li>مكوّنُ الخطأ بزرّ إعادة المحاولة يُبنى في LAY-06؛ المثالُ هنا من <code>callout</code> القائم.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 9 · القبول ══ #}
+  {% section_card "9 · قبل ترحيل صفحةٍ إلى نمط" meta="معاييرُ القبول" icon="status_success" %}
+    <ul class="sg-rules">
+      <li>صفرُ مخالفةٍ خطيرةٍ في axe، ولوحةُ المفاتيح بترتيبٍ يطابق الرؤية، والتركيزُ لا يختفي خلف عنصرٍ ثابت.</li>
+      <li>لا تمريرَ أفقيٌّ للصفحة عند 320px، وسلامةٌ بتكبير النصّ 200%.</li>
+      <li>لقطاتٌ على 1366×768 و1920×1080 و768×1024 و375×812، نهاراً وليلاً.</li>
+      <li>CLS &lt; 0.1 وINP ≤ 200ms، وصافي حجم CSS لا يزيد.</li>
+      <li><code>h1</code> واحدٌ للصفحة و<code>h2</code> لكلّ بطاقة، وترتيبُ DOM هو ترتيبُ الرؤية.</li>
+    </ul>
+  {% endsection_card %}
+
+</div>
+{% endblock %}

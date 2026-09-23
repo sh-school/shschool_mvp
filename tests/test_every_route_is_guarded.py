@@ -45,6 +45,7 @@ GUARDED_INSIDE = {
     "search/": "الطلبةُ للكادر، والرقمُ الشخصيُّ لشؤون الطلبة، والكادرُ للمدير (#222)",
     "styleguide/icons/": "developer_only — superuser أو مجموعة developers",
     "styleguide/components/": "developer_only — superuser أو مجموعة developers",
+    "styleguide/layouts/": "developer_only — superuser أو مجموعة developers",
     "roadmap/": "developer_only — superuser أو مجموعة developers",
     "roadmap/items/new/": "developer_only — superuser أو مجموعة developers (إضافةُ بند)",
     "roadmap/items/<str:code>/": "developer_only — superuser أو مجموعة developers",
