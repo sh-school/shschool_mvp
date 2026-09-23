@@ -123,3 +123,16 @@ def test_0004_decides_only_an_open_decision():
 def test_0004_adds_n013():
     assert _sync4.add_missing(RoadmapItem) == ["N-013"]
     assert RoadmapItem.objects.get(code="N-013").pr == "#489"
+
+
+# ── 0005: DBT-22 وN-014 ──
+
+_sync5 = importlib.import_module("roadmap.migrations.0005_sync_items_2026_09_23b")
+
+
+def test_0005_closes_dbt22_once_and_adds_n014():
+    _item("DBT-22", "todo", 0)
+    assert _sync5.sync(RoadmapItem) == ["DBT-22"]
+    assert _sync5.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="DBT-22").pr == "#492"
+    assert _sync5.add_missing(RoadmapItem) == ["N-014"]
