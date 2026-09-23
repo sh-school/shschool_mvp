@@ -408,10 +408,9 @@ html.dark .cmd-results:empty::after { color: var(--text-muted); }
 /* ── 17. Footer ─────────────────────────────────────────────────── */
 html.dark footer,
 html.dark .site-footer {
-  border-top-color: var(--border);
+  border-top-color: var(--gold);
   color: var(--text-muted);
 }
-html.dark .site-footer-version { color: var(--text-muted); }
 html.dark .site-footer-brand { color: var(--text-muted); }
 html.dark .site-footer-brand-label { color: var(--text-muted); }
 html.dark .site-footer-brand-name { color: var(--text-primary); }
