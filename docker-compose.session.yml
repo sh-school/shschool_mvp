@@ -101,6 +101,14 @@ services:
           echo "بانتظار قاعدة البيانات على $$DB_HOST:$$DB_PORT…"; sleep 2
         done
         exec celery -A shschool worker -l info --concurrency=2
+    # فحصُ الصحّة للعامل لا للخادم: الصورةُ ترث فحصَ `/health/` على المنفذ 8000، ولا
+    # خادمَ في حاوية العامل فتظهر «unhealthy» وهي سليمة. هذا فحصُ الحزمة الأصليّة نفسُه.
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A shschool inspect ping -d celery@$$(hostname) --timeout 10 | grep -q pong || exit 1"]
+      interval: 30s
+      timeout: 15s
+      start_period: 40s
+      retries: 3
     environment:
       DJANGO_SETTINGS_MODULE: shschool.settings.development
       DB_HOST: host.docker.internal
