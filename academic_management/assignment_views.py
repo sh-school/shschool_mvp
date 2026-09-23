@@ -23,7 +23,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
 from academic_management import assignment_selectors as selectors
@@ -38,6 +38,8 @@ from core.models.access import DEPARTMENT_ROLES
 from operations.models import Subject, SubjectClassAssignment
 
 MODULE_NAME = "إدارة الشؤون الأكاديمية"
+
+ENTRY_PAUSED_REASON = "الإسنادُ موقوفٌ عن المنسّقين — يفتحه النائبُ الأكاديميّ أو المدير."
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -151,9 +153,24 @@ def assignments(request):
             "year": year,
             "dept_cols": chunk_for_grid(ctx["groups"], 2),
             "selected_dept": selected,
+            "caps": caps,
+            "governance": selectors.WorkloadGovernance.for_school(school),
             **ctx,
         },
     )
+
+
+@login_required
+@require_POST
+def toggle_entry(request):
+    """يوقف الإسنادَ عن المنسّقين (`paused=1`) أو يفتحه (`paused=0`) — للمدير والنائب والمطوّر.
+
+    القيمةُ صريحةٌ لا قلبٌ: نقرتان متتاليتان من صفحتين قديمتين لا تُعيدان الحالَ إلى عكس ما أراده.
+    """
+    school, _caps_, _scope, _year = _guard(request)
+    paused = request.POST.get("paused") == "1"
+    assignment_service.set_coordinator_entry_paused(school, paused, request.user)
+    return redirect("academic_management:assignments")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -166,11 +183,12 @@ def _locked_card(request, school, year, teacher, caps):
     plan = selectors.latest_plan(school, teacher, year)
     if selectors.may_write(plan, caps):
         return None
-    reason = (
-        "هذه الخطّةُ معتمَدةٌ — افتح إصداراً جديداً للتعديل."
-        if plan and plan.status in FROZEN_STATUSES
-        else "الخطّةُ مرفوعةٌ للمراجعة — لا تُعدَّل حتّى تُردَّ إليك."
-    )
+    if plan and plan.status in FROZEN_STATUSES:
+        reason = "هذه الخطّةُ معتمَدةٌ — افتح إصداراً جديداً للتعديل."
+    elif selectors.entry_paused_for(caps):
+        reason = ENTRY_PAUSED_REASON
+    else:
+        reason = "الخطّةُ مرفوعةٌ للمراجعة — لا تُعدَّل حتّى تُردَّ إليك."
     return _render_card(request, school, year, teacher, caps, error=reason)
 
 
@@ -594,6 +612,8 @@ def move(request, teacher_id, action):
     """نقلةٌ واحدةٌ في دورة الخطّة — والبوّابةُ والختمُ في `workload_workflow`."""
     teacher = get_object_or_404(CustomUser, id=teacher_id)
     school, caps, _scope, year = _guard(request, teacher)
+    if selectors.entry_paused_for(caps):
+        return _render_card(request, school, year, teacher, caps, error=ENTRY_PAUSED_REASON)
     plan = selectors.latest_plan(school, teacher, year)
     if plan is None:
         return _render_card(

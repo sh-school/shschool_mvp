@@ -173,3 +173,70 @@ def test_expiry_is_idempotent_and_ignores_finished_jobs(school, principal_user):
     assert expire_if_stale(done) is False
     done.refresh_from_db()
     assert done.status == "done"
+
+
+# ── الإشعار العائم: JSON بدل صفحة المتابعة ────────────────────────────────────
+
+AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+
+def test_an_ajax_export_request_gets_json_with_the_status_url_not_a_redirect(
+    client_as, school, principal_user, monkeypatch
+):
+    import operations.tasks as tasks_module
+
+    monkeypatch.setattr(tasks_module.render_schedule_export_task, "delay", lambda *a, **k: None)
+
+    resp = client_as(principal_user).get(
+        reverse("schedule_export_excel") + "?view=all_teachers", **AJAX
+    )
+
+    job = ExportJob.objects.get(school=school, kind="schedule.xlsx")
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "job_id": str(job.id),
+        "status_url": reverse("export_job_status", args=[job.id]),
+    }
+
+
+def test_the_json_status_reports_progress_without_returning_the_file(
+    client_as, school, principal_user
+):
+    job = _job(school, principal_user, "pending", age_minutes=1)
+
+    resp = client_as(principal_user).get(
+        reverse("export_job_status", args=[job.id]) + "?format=json"
+    )
+
+    assert resp.json() == {"status": "pending", "error": ""}
+
+
+def test_the_json_status_carries_the_reason_of_a_failure(client_as, school, principal_user):
+    job = _job(school, principal_user, "failed", age_minutes=1)
+    ExportJob.objects.filter(pk=job.pk).update(error_message="سببٌ صريح")
+
+    resp = client_as(principal_user).get(
+        reverse("export_job_status", args=[job.id]) + "?format=json"
+    )
+
+    assert resp.json() == {"status": "failed", "error": "سببٌ صريح"}
+
+
+def test_a_done_job_still_returns_the_file_at_the_plain_status_url(
+    client_as, school, principal_user
+):
+    job = ExportJob.objects.create(
+        school=school,
+        requested_by=principal_user,
+        kind="schedule.pdf",
+        status="done",
+        content=b"%PDF-1.4 x",
+        content_type="application/pdf",
+        filename="جدول.pdf",
+    )
+
+    resp = client_as(principal_user).get(reverse("export_job_status", args=[job.id]))
+
+    assert resp.status_code == 200
+    assert resp["Content-Type"] == "application/pdf"
+    assert "attachment" in resp["Content-Disposition"]
