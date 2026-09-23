@@ -39,10 +39,16 @@
     {% if view_type == "coordinator" %}
       {% url 'swap_list' as u %}{% action_tile "طلبات التبديل" desc="مراجعةٌ واعتماد" icon="refresh" href=u primary=True %}
       {% url 'absence_list' as u %}{% action_tile "غياب المعلّمين" desc="تعيين البدلاء" icon="attendance_teacher_absence" href=u %}
+      {% url 'teacher_schedule' as u %}{% action_tile "حصصي اليوم" desc="حصصُ اليوم — والحضورُ لشُعب التربية الخاصّة" icon="periods_today" href=u %}
+      {% action_tile "الجدول الأسبوعي" desc="حصصي هذا الأسبوع" icon="schedule" href=my_weekly_schedule_url %}
+      {% if general_schedule_url %}{% action_tile "الجدول العام" desc="جداولُ كلّ المعلّمين" icon="schedule" href=general_schedule_url %}{% endif %}
+      {% url 'behavior:report_infraction' as u %}{% action_tile "تسجيل سلوك" desc="تسجيلُ مخالفةٍ لطالب" icon="behavior_violation" href=u %}
       {% url 'assessments_dashboard' as u %}{% action_tile "التقييمات" desc="إدخال الدرجات" icon="assessments" href=u %}
     {% else %}
       {% url 'teacher_schedule' as u %}{% action_tile "حصصي اليوم" desc="حصصُ اليوم — والحضورُ لشُعب التربية الخاصّة" icon="periods_today" href=u primary=True %}
-      {% url 'weekly_schedule' as u %}{% action_tile "الجدول الأسبوعي" desc="حصصي هذا الأسبوع" icon="schedule" href=u %}
+      {% action_tile "الجدول الأسبوعي" desc="حصصي هذا الأسبوع" icon="schedule" href=my_weekly_schedule_url %}
+      {% if general_schedule_url %}{% action_tile "الجدول العام" desc="جداولُ كلّ المعلّمين" icon="schedule" href=general_schedule_url %}{% endif %}
+      {% url 'behavior:report_infraction' as u %}{% action_tile "تسجيل سلوك" desc="تسجيلُ مخالفةٍ لطالب" icon="behavior_violation" href=u %}
       {% url 'assessments_dashboard' as u %}{% action_tile "التقييمات" desc="إدخال الدرجات" icon="assessments" href=u %}
       {% url 'swap_request' as u %}{% action_tile "طلب تبديل" desc="تبديلُ حصّةٍ مع زميل" icon="refresh" href=u %}
     {% endif %}
