@@ -28,7 +28,7 @@
         {% if session.original_teacher_id %}
         <div class="swap-note">
           {% icon "refresh" size="sm" %}
-          مبدَّلة — كانت لـ{{ session.original_teacher.full_name }}
+          {% if session.is_cover %}إشغال — عن {{ session.original_teacher.full_name }}{% else %}مبدَّلة — كانت لـ{{ session.original_teacher.full_name }}{% endif %}
         </div>
         {% endif %}
       </td>

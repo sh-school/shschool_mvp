@@ -17,7 +17,7 @@ from core.models import StudentEnrollment
 
 from .day_attendance import can_record, is_recorder, recorded_by_supervisor
 from .models import Session, StudentAttendance
-from .services import AttendanceService, ScheduleService
+from .services import AttendanceService, ScheduleService, SubstituteService
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +100,9 @@ def schedule(request):
         )
         teacher_filter = class_filter = status_filter = period_filter = show_all = ""
         all_count = completed_count = 0
+
+    # الإشغالُ والتبديلُ يكتبان كلاهما `original_teacher`؛ فيُوسَم الإشغالُ ليُقرأ باسمه.
+    sessions = SubstituteService.mark_covers(sessions)
 
     now = timezone.now().time()
     next_session = None

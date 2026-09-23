@@ -26,6 +26,13 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from core.models import CustomUser, School
 
+#: الكادرُ التعليميّ الذي يُسجَّل غيابُه ويُشغَل منه — قرارُ المالك 2026-09-23.
+#: وكان البدلاءُ «معلّماً ومنسّقاً» وحدَهما، ويُسجَّل غيابُ الأربعة.
+TEACHING_ROLES = ("teacher", "coordinator", "ese_teacher", "e_projects_coordinator")
+
+#: حصّةٌ تصنع مع ما حولها من حصص المرشَّح هذا الطول تُنبَّه عليها.
+LONG_RUN = 3
+
 
 class SubstituteService:
     @staticmethod
@@ -36,6 +43,7 @@ class SubstituteService:
         period_number: int,
         exclude_teacher: CustomUser | None = None,
         subject_id: int | None = None,
+        within_ids: set | None = None,
     ) -> QuerySet:
         """
         إيجاد معلمين متاحين للبدل:
@@ -44,17 +52,18 @@ class SubstituteService:
         - لم يُسجَّل غيابهم في نفس اليوم
 
         إذا تم تمرير subject_id، يُرتَّب المعلمون بحيث يظهر
-        معلمو نفس المادة أولاً ثم البقية.
+        معلمو نفس المادة أولاً ثم البقية. و`within_ids` يحصرهم في قسم المنسّق.
         """
         from core.models import Membership
 
-        # جميع معلمي المدرسة
         teacher_ids = Membership.objects.filter(
-            school=school, is_active=True, role__name__in=("teacher", "coordinator")
+            school=school, is_active=True, role__name__in=TEACHING_ROLES
         ).values_list("user_id", flat=True)
 
         if exclude_teacher:
             teacher_ids = [t for t in teacher_ids if t != exclude_teacher.id]
+        if within_ids is not None:
+            teacher_ids = [t for t in teacher_ids if t in within_ids]
 
         # من لديهم حصة في نفس الوقت
         # والعامُ قيدٌ: معلّمٌ له حصّةٌ في جدول عامٍ مضى كان يُعدّ مشغولاً
@@ -108,18 +117,137 @@ class SubstituteService:
         يومٌ كاملٌ أو الحصّةُ بعينها، من عام المدرسة الجاري، وبجهةٍ تُلزم —
         فتفريغُ «لتوليد الجدول» لا يدخل هنا (`TeacherExemption.SOFT_SOURCES`).
         """
+        full_day, by_period = SubstituteService._day_exemptions(school, day_of_week)
+        return full_day | by_period.get(period_number, set())
+
+    @staticmethod
+    def _day_exemptions(school: School, day_of_week: int) -> tuple[set, dict[int, set]]:
+        """تفريغاتُ اليوم الملزمة مرّةً: من فُرّغ يومَه كلَّه، ومن فُرّغ في كلّ حصّة."""
         from core.querysets import year_or_current
 
-        rows = TeacherExemption.objects.filter(
-            school=school,
-            academic_year=year_or_current(school),
-            is_active=True,
-            day_of_week=day_of_week,
-        ).exclude(source__in=TeacherExemption.SOFT_SOURCES)
-        rows = rows.filter(
-            models.Q(exemption_type="full_day") | models.Q(period_number=period_number)
+        rows = (
+            TeacherExemption.objects.filter(
+                school=school,
+                academic_year=year_or_current(school),
+                is_active=True,
+                day_of_week=day_of_week,
+            )
+            .exclude(source__in=TeacherExemption.SOFT_SOURCES)
+            .values_list("teacher_id", "exemption_type", "period_number")
         )
-        return set(rows.values_list("teacher_id", flat=True))
+        full_day: set = set()
+        by_period: dict[int, set] = {}
+        for teacher_id, kind, period in rows:
+            if kind == "full_day":
+                full_day.add(teacher_id)
+            else:
+                by_period.setdefault(period, set()).add(teacher_id)
+        return full_day, by_period
+
+    @staticmethod
+    def coverage_candidates(absence: TeacherAbsence, slots, within_ids: set | None = None) -> dict:
+        """من يُشغَل في كلّ حصّةٍ من حصص الغائب، ومع كلٍّ ما يُختار به.
+
+        أمام كلّ اسمٍ عدّادُ إشغالاته هذا العام ونصابُه المسند وحصصُه يومَها،
+        وتنبيهٌ إن صارت له بالإشغال حصصٌ متلاصقةٌ طويلة — كي لا يُضغط جدولُه
+        (قرارُ المالك 2026-09-23). ويُرتَّب معلّمو المادّة ثمّ الأقلُّ إشغالاً.
+        والاستعلاماتُ ثابتةُ العدد مهما كثرت الحصص والمرشَّحون.
+        """
+        from django.db.models import Count
+
+        from core.academic_calendar import academic_year_window
+        from core.models import CustomUser, Membership
+
+        school = absence.school
+        slots = list(slots)
+        day = SubstituteService._date_to_day(absence.date)
+
+        pool = set(
+            Membership.objects.filter(
+                school=school,
+                is_active=True,
+                user__is_active=True,
+                role__name__in=TEACHING_ROLES,
+            ).values_list("user_id", flat=True)
+        )
+        pool.discard(absence.teacher_id)
+        if within_ids is not None:
+            pool &= set(within_ids)
+        pool -= set(
+            TeacherAbsence.objects.filter(school=school, date=absence.date).values_list(
+                "teacher_id", flat=True
+            )
+        )
+        if not slots or not pool:
+            return {slot.id: [] for slot in slots}
+
+        periods_of: dict = {}
+        for teacher_id, period in (
+            ScheduleSlot.objects.live(school)
+            .filter(day_of_week=day, teacher_id__in=pool)
+            .values_list("teacher_id", "period_number")
+        ):
+            periods_of.setdefault(teacher_id, set()).add(period)
+
+        # `order_by()` فارغة: الترتيبُ الافتراضيّ للنموذج يدخل التجميعَ فيُفرّق العدّ.
+        load = dict(
+            ScheduleSlot.objects.live(school)
+            .filter(teacher_id__in=pool)
+            .order_by()
+            .values_list("teacher_id")
+            .annotate(n=Count("id"))
+        )
+        window = academic_year_window(school, absence.date)
+        subs_qs = SubstituteAssignment.objects.filter(
+            school=school, substitute_id__in=pool, status__in=("assigned", "confirmed")
+        )
+        if window:
+            subs_qs = subs_qs.filter(absence__date__range=window)
+        subs = dict(subs_qs.order_by().values_list("substitute_id").annotate(n=Count("id")))
+
+        subject_ids = {s.subject_id for s in slots if s.subject_id}
+        teaches: set = set(
+            SubjectClassAssignment.objects.live(school)
+            .filter(subject_id__in=subject_ids, teacher_id__in=pool)
+            .values_list("subject_id", "teacher_id")
+        )
+        names = dict(CustomUser.objects.filter(id__in=pool).values_list("id", "full_name"))
+        full_day, exempt_by_period = SubstituteService._day_exemptions(school, day)
+
+        result = {}
+        for slot in slots:
+            period = slot.period_number
+            blocked = full_day | exempt_by_period.get(period, set())
+            rows = []
+            for teacher_id in pool - blocked:
+                mine = periods_of.get(teacher_id, set())
+                if period in mine:
+                    continue
+                rows.append(
+                    {
+                        "id": teacher_id,
+                        "name": names.get(teacher_id, ""),
+                        "subs": subs.get(teacher_id, 0),
+                        "load": load.get(teacher_id, 0),
+                        "day": len(mine),
+                        "same_subject": (slot.subject_id, teacher_id) in teaches,
+                        "long_run": SubstituteService._run_length(mine | {period}, period)
+                        >= LONG_RUN,
+                    }
+                )
+            rows.sort(key=lambda r: (not r["same_subject"], r["subs"], r["day"], r["name"]))
+            result[slot.id] = rows
+        return result
+
+    @staticmethod
+    def _run_length(periods: set, period: int) -> int:
+        """طولُ سلسلة الحصص المتتالية التي تقع فيها `period`."""
+        low = high = period
+        while low - 1 in periods:
+            low -= 1
+        while high + 1 in periods:
+            high += 1
+        return high - low + 1
 
     @staticmethod
     @transaction.atomic
@@ -154,7 +282,11 @@ class SubstituteService:
         assigned_by: CustomUser | None = None,
         notes: str = "",
     ) -> SubstituteAssignment:
-        """تعيين بديل لحصة محددة"""
+        """تعيينُ بديلٍ لحصّة: تكليفٌ نافذ، تُسلَّم له حصّةُ اليوم ويُبلَّغ الجميع.
+
+        كان التعيينُ صفّاً في `SubstituteAssignment` وحدَه: لا يصل البديلَ إشعارٌ،
+        ولا تظهر الحصّةُ في «حصصي اليوم» عنده — فلا يعلم أنّه كُلِّف.
+        """
         assignment, created = SubstituteAssignment.objects.update_or_create(
             absence=absence,
             slot=slot,
@@ -183,7 +315,119 @@ class SubstituteService:
         else:
             absence.status = "pending"
         absence.save(update_fields=["status"])
+        SubstituteService.hand_over_session(absence.school, slot, absence.date, substitute)
+        transaction.on_commit(lambda: SubstituteService._notify_cover(assignment, assigned_by))
         return assignment
+
+    @staticmethod
+    def hand_over_session(school: School, slot: ScheduleSlot, day: date, to_teacher) -> Session:
+        """يُسلّم حصّةَ ذلك اليوم لمعلّمٍ آخر، ويحفظ اسمَ صاحبها الأوّل.
+
+        مشتركٌ بين الإشغال والتبديل: الأثرُ على `Session` ليومه لا على القالب
+        الأسبوعيّ. ولو لم تُنشأ بعدُ أُنشئت من قالبها. والبحثُ بمجموعة الاختيار
+        أيضاً: شعبةٌ تتفرّق بين مادّتين في التوقيت نفسه لها جلستان.
+        """
+        session, _created = Session.objects.get_or_create(
+            school=school,
+            class_group=slot.class_group,
+            date=day,
+            start_time=slot.start_time,
+            elective_group=slot.elective_group,
+            defaults={
+                "teacher": slot.teacher,
+                "subject": slot.subject,
+                "end_time": slot.end_time,
+            },
+        )
+        # صاحبُها الأوّلُ يُكتب مرّةً: حصّةٌ سُلّمت مرّتين صاحبُها الأوّلُ أوّلُها.
+        if session.original_teacher_id is None:
+            session.original_teacher_id = session.teacher_id
+        session.teacher = to_teacher
+        session.save(update_fields=["teacher", "original_teacher"])
+        return session
+
+    @staticmethod
+    def cover_recipients(absence: TeacherAbsence, substitute, actor=None) -> list:
+        """من يُبلَّغ بالتغطية (قرارُ المالك 2026-09-23): المعلّمان، ومنسّقا
+        قسمَيهما، والنائبُ الأكاديميّ، والمدير، والمطوّر. ومن قرّر لا يُبلَّغ بما فعل."""
+        from core.developer_access import DEVELOPERS_GROUP
+        from core.models import CustomUser, Membership
+
+        school = absence.school
+        people = {absence.teacher_id, substitute.id}
+        for teacher in (absence.teacher, substitute):
+            dept = teacher.department_obj
+            if dept and dept.head_id:
+                people.add(dept.head_id)
+        members = Membership.objects.filter(school=school, is_active=True, user__is_active=True)
+        people |= set(
+            members.filter(role__name__in=("vice_academic", "principal")).values_list(
+                "user_id", flat=True
+            )
+        )
+        people |= set(
+            members.filter(
+                models.Q(user__is_superuser=True)
+                | models.Q(user__groups__name__iexact=DEVELOPERS_GROUP)
+            ).values_list("user_id", flat=True)
+        )
+        if actor is not None:
+            people.discard(actor.id)
+        return list(CustomUser.objects.filter(id__in=people, is_active=True))
+
+    @staticmethod
+    def _notify_cover(assignment: SubstituteAssignment, actor=None) -> None:
+        """إشعارُ الإشغال — يفشل بصمتٍ إن تعطّل نظامُ الإشعارات، ولا يُسقط التعيين."""
+        from django.utils.formats import date_format
+
+        absence = assignment.absence
+        slot = assignment.slot
+        substitute = assignment.substitute
+        when = date_format(absence.date, "l j F")
+        title = f"إشغال: {substitute.full_name} عن {absence.teacher.full_name}"
+        body = (
+            f"الحصّة {slot.period_number} · {slot.subject or '—'} · {slot.class_group} — {when}. "
+            f"كلّفه {assignment.assigned_by.full_name if assignment.assigned_by else 'الإدارة'}."
+        )
+        try:
+            from notifications.hub import NotificationHub
+
+            NotificationHub.dispatch(
+                event_type="teacher_cover",
+                school=absence.school,
+                recipients=SubstituteService.cover_recipients(absence, substitute, actor),
+                title=title,
+                body=body,
+                related_url=f"/teacher/absences/{absence.id}/",
+                related_object_id=str(assignment.id),
+                sent_by=actor,
+            )
+        except Exception as exc:
+            logger.warning("SubstituteService._notify_cover failed [%s]: %s", assignment.pk, exc)
+
+    @staticmethod
+    def mark_covers(sessions) -> list:
+        """يَسِم من حصص اليوم ما كان إشغالاً — تمييزاً له عن التبديل.
+
+        كلاهما يكتب `original_teacher`، فالعلامةُ وحدَها لا تفرّق بينهما؛ والفرقُ
+        في وجود تعيين بديلٍ للحصّة نفسها. استعلامٌ واحدٌ للقائمة كلّها.
+        """
+        rows = list(sessions)
+        moved = [s for s in rows if s.original_teacher_id]
+        if not moved:
+            return rows
+        keys = set(
+            SubstituteAssignment.objects.filter(
+                substitute_id__in={s.teacher_id for s in moved},
+                absence__date__in={s.date for s in moved},
+                status__in=("assigned", "confirmed"),
+            ).values_list(
+                "substitute_id", "absence__date", "slot__class_group_id", "slot__start_time"
+            )
+        )
+        for s in moved:
+            s.is_cover = (s.teacher_id, s.date, s.class_group_id, s.start_time) in keys
+        return rows
 
     @staticmethod
     def _date_to_day(date: date) -> int:
@@ -200,65 +444,3 @@ class SubstituteService:
             .select_related("substitute", "absence__teacher", "slot__class_group", "slot__subject")
             .order_by("absence__date", "slot__period_number")
         )
-
-    @staticmethod
-    def suggest_best_substitute(
-        school: School,
-        target_date: date,
-        day_of_week: int,
-        period_number: int,
-        exclude_teacher: CustomUser | None = None,
-    ) -> CustomUser | None:
-        """اقتراح أفضل بديل — الأقل حِملاً في البدائل هذا الأسبوع"""
-        available = SubstituteService.get_available_teachers(
-            school, target_date, day_of_week, period_number, exclude_teacher
-        )
-        if not available.exists():
-            return None
-
-        # حساب عدد بدائل كل معلم هذا الأسبوع
-        from datetime import timedelta
-
-        week_start = target_date - timedelta(days=target_date.weekday())
-        week_end = week_start + timedelta(days=6)
-
-        sub_counts = {}
-        for teacher in available:
-            count = SubstituteAssignment.objects.filter(
-                substitute=teacher,
-                absence__date__range=(week_start, week_end),
-                school=school,
-            ).count()
-            sub_counts[teacher] = count
-
-        # الأقل بدائل هذا الأسبوع
-        return min(sub_counts, key=sub_counts.get)
-
-    @staticmethod
-    @transaction.atomic
-    def assign_substitute_and_update_session(
-        absence: TeacherAbsence,
-        slot: ScheduleSlot,
-        substitute: CustomUser,
-        assigned_by: CustomUser | None = None,
-        notes: str = "",
-    ) -> SubstituteAssignment:
-        """
-        تعيين بديل + تحديث Session.teacher (الفجوة الحرجة المكتشفة).
-        يضمن أن الحصة اليومية تعكس المعلم الفعلي.
-        """
-        assignment = SubstituteService.assign_substitute(
-            absence,
-            slot,
-            substitute,
-            assigned_by,
-            notes,
-        )
-        # تحديث Session اليومية إذا وُجدت
-        Session.objects.filter(
-            school=absence.school,
-            teacher=absence.teacher,
-            date=absence.date,
-            start_time=slot.start_time,
-        ).update(teacher=substitute)
-        return assignment
