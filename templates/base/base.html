@@ -848,7 +848,7 @@
 {% endif %}
 
 {% if role == "coordinator" %}
-<div class="sd-menu sd-menu--cols-2" id="m-coord-schedule" role="menu" aria-label="جدول المنسق">
+<div class="sd-menu sd-menu--cols-3" id="m-coord-schedule" role="menu" aria-label="جدول المنسق">
   <div class="sd-section">
   <div class="sd-label">جدولي</div>
   {% if request.user|can_open:"teacher_schedule" %}
@@ -880,16 +880,25 @@
   <a href="{% url 'absence_list' %}">{% icon "attendance_teacher_absence" %} غياب المعلمين والبدلاء</a>
   {% endif %}
   </div>
+  <div class="sd-section">
+  <div class="sd-label">روابط أخرى</div>
+  {% if request.user|can_open:"behavior:report_infraction" %}
+  <a href="{% url 'behavior:report_infraction' %}">{% icon "behavior_violation" %} تسجيل سلوك</a>
+  {% endif %}
+  {% if request.user|can_open:"developer_feedback:message_create" %}
+  <a href="{% url 'developer_feedback:message_create' %}">{% icon "developer" %} أرسل إلى المطوّر</a>
+  {% endif %}
+  </div>
 </div>
 {% endif %}
 
 {# ── Teacher Schedule Dropdown — يشمل مساعدي المعلم v7 ── #}
 {% if role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" or role == "e_projects_coordinator" %}
 {% comment %}
-مساعدو المعلّم لا يرون القسمَ الثاني كلَّه (طلباتٌ خارج مهامهم)، فعمودان فقط
-لمن يراه فعلاً — لا عمودٌ ثانٍ فارغ لمساعدي المعلّم والتربية الخاصة.
+مساعدو المعلّم لا يرون قسمَ «طلبات» (خارج مهامهم)، فعمودان لهم و3 لغيرهم —
+لا عمودٌ فارغ لمساعدي المعلّم والتربية الخاصة.
 {% endcomment %}
-<div class="sd-menu{% if role != 'teacher_assistant' and role != 'ese_assistant' %} sd-menu--cols-2{% endif %}" id="m-teacher-schedule" role="menu" aria-label="جدول المعلم">
+<div class="sd-menu{% if role != 'teacher_assistant' and role != 'ese_assistant' %} sd-menu--cols-3{% else %} sd-menu--cols-2{% endif %}" id="m-teacher-schedule" role="menu" aria-label="جدول المعلم">
   <div class="sd-section">
   <div class="sd-label">جدولي</div>
   {% if request.user|can_open:"teacher_schedule" %}
@@ -916,6 +925,15 @@
   {% endif %}
   </div>
   {% endif %}
+  <div class="sd-section">
+  <div class="sd-label">روابط أخرى</div>
+  {% if request.user|can_open:"behavior:report_infraction" %}
+  <a href="{% url 'behavior:report_infraction' %}">{% icon "behavior_violation" %} تسجيل سلوك</a>
+  {% endif %}
+  {% if request.user|can_open:"developer_feedback:message_create" %}
+  <a href="{% url 'developer_feedback:message_create' %}">{% icon "developer" %} أرسل إلى المطوّر</a>
+  {% endif %}
+  </div>
 </div>
 {% endif %}
 
