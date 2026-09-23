@@ -1630,10 +1630,7 @@ textarea:focus-visible {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Toast Container — تحت الترويسة، تحت اسم المستخدم (قرار المالك 2026-09-23) ──
-   `top` هو نفسُ ارتفاع `.msgs-wrap` أعلاه (`.site-header` 48px + `.site-nav` 42px + هامش)،
-   فلا يُغطّي الشريطَ اللزج؛ والطرفُ `inset-inline-end` بهامش الترويسة نفسِه، فيقع الإشعارُ
-   تحت اسم المستخدم في الواجهة العربيّة (يسار الشاشة). الأحدثُ تحت الأقدم. ── */
+/* Toast — تحت الترويسة (2026-09-23) */
 #toast-container {
   position: fixed;
   top: calc(48px + 42px + var(--sp-3));
@@ -1654,7 +1651,7 @@ textarea:focus-visible {
   box-shadow: var(--shadow-toast);
   border-inline-start: 4px solid var(--maroon);
   animation: toastIn .25s ease forwards;
-  cursor: pointer;  /* الضغطُ في أيّ موضعٍ يُغلقه — base.js */
+  cursor: pointer;
   font-size: .9rem;
   font-weight: 500;
 }
@@ -2153,9 +2150,6 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
 .skeleton-list-body { flex: 1; }
 .skeleton-kpi-card { padding: var(--sp-5); }
 
-/* لونُ القسم خلفيّةً — كما في الجدول العامّ المطبوع. رموزُ `--dept-*` لها نظيرٌ ليليّ
-   (40-themes.css)، فيتبع اللونُ الوضعَ ويبقى `--text-primary` مقروءاً فوقه في الوضعين.
-   يُطبَّق على أيّ لوحةٍ بالصنف `dept-{مفتاح}` (مفتاحه من core/dept_colors.py). */
 .dept-sharia { background: var(--dept-sharia); }
 .dept-arabic { background: var(--dept-arabic); }
 .dept-math { background: var(--dept-math); }
