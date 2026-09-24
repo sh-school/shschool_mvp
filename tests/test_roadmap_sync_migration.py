@@ -753,7 +753,7 @@ def test_0015_closes_dbt05_by_an_operation_not_a_pr():
     assert "archive/wave3-f-2026-09-24" in dbt05.note
 
 
-# ── 0016: اعتمادُ الجدول الجديد وقياسُه، و#555، وثلاثةَ عشرَ ديناً ──
+# ── 0016: اعتمادُ الجدول الجديد وقياسُه، و#555 و#563، وأربعةَ عشرَ ديناً ──
 
 _sync16 = importlib.import_module("roadmap.migrations.0016_sync_items_2026_09_24g")
 
@@ -778,20 +778,21 @@ def test_0016_adds_notes_without_moving_any_status():
 
 
 def test_0016_adds_n035_closed_once():
-    assert _sync16.add_missing(RoadmapItem) == ["N-035"]
+    assert _sync16.add_missing(RoadmapItem) == ["N-035", "N-036"]
     assert _sync16.add_missing(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="N-036").pr == "#563"
     n035 = RoadmapItem.objects.get(code="N-035")
     assert (n035.status, n035.pr, n035.lane) == ("done", "#555", "frontend")
     assert "js_icon_problems" in n035.note
 
 
-def test_0016_opens_the_thirteen_debts_undated_and_leaves_dbt37_alone():
-    assert _sync16.add_open_debts(RoadmapItem) == [f"DBT-{n}" for n in range(40, 53)]
+def test_0016_opens_the_fourteen_debts_undated_and_leaves_dbt37_alone():
+    assert _sync16.add_open_debts(RoadmapItem) == [f"DBT-{n}" for n in range(40, 54)]
     assert _sync16.add_open_debts(RoadmapItem) == []
     assert not RoadmapItem.objects.filter(code="DBT-37").exists()
     assert all(
         (i.status, i.pr, i.start_date, i.src) == ("todo", "", None, "DBT")
-        for i in RoadmapItem.objects.filter(code__in=[f"DBT-{n}" for n in range(40, 53)])
+        for i in RoadmapItem.objects.filter(code__in=[f"DBT-{n}" for n in range(40, 54)])
     )
     leave = RoadmapItem.objects.get(code="DBT-40")
     assert leave.lane == "sec" and "#560" in leave.note and "الأشدُّ حساسيّةً" in leave.note
