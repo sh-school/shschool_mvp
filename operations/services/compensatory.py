@@ -160,6 +160,11 @@ class CompensatoryService:
             ).first()
 
             if time_config:
+                # يومُ التعويض يُولَّد كاملاً أوّلاً: حصّتُه وحدها في يومٍ لم يُولَّد
+                # كانت تُبقيه بحصّةٍ واحدة للمدرسة كلّها («اليومُ المبتور»).
+                from operations.services.schedule import ScheduleService
+
+                ScheduleService.ensure_sessions_for_date(comp.school, comp.compensatory_date)
                 session, _ = Session.objects.get_or_create(
                     school=comp.school,
                     teacher=comp.teacher,
