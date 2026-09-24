@@ -38,6 +38,14 @@ VIA_SERVICE = {
         "staff_affairs/attendance/exceptions.py",
         "ExceptionService.submit (مرفقُ استثناء الموظّف، DBT-41)",
     ),
+    "quality/views.py::upload_evidence": (
+        "quality/evidence_files.py",
+        "QualityService.upload_evidence ← screen_evidence (دليلُ الإجراء، DBT-43)",
+    ),
+    "quality/views.py::_process_task_update": (
+        "quality/evidence_files.py",
+        "QualityService.update_procedure_status ← screen_evidence (نافذةُ التحديث، DBT-43)",
+    ),
 }
 
 #: نماذجُ لا تقبل صورةً أصلاً: مدقّقُ الملفّ `document` (PDF وOffice وtxt) يرفض الامتدادات الصوريّة،
@@ -61,12 +69,8 @@ DOCUMENTS_ONLY = {
 }
 
 #: **دينٌ مسجَّل** — تُراجَع كلٌّ منها (هل تقبل صورةً؟ أهي بياناتٌ شخصيّةٌ أو صحّيّة؟) وتُنظَّف أو تُسمّى بسببها.
-KNOWN_UNCLEANED = {
-    "quality/views.py::upload_evidence": "دليلُ إجراءٍ: يفحص `document` بالامتداد (لا صور)، ولم يُثبَت ذلك بحارس",
-    "quality/views.py::_process_task_update": (
-        "دليلُ إجراءٍ من نافذة التحديث: **بلا أيّ فحصِ نوعٍ أو حجم** (يمرّر الملفَّ إلى الخدمة كما هو)"
-    ),
-}
+#: فارغةٌ منذ DBT-43 (دليلُ الإجراء) — وتبقى الآليّةُ لمن يجيء بمدخلٍ جديدٍ لم يُنظَّف بعد.
+KNOWN_UNCLEANED: dict[str, str] = {}
 
 
 def _call_name(node):
