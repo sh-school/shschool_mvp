@@ -529,3 +529,141 @@ def test_0013_leaves_a_d18_the_developer_wrote_first():
     RoadmapDecision.objects.create(code="D-18", title="كتبه المطوّر", status="open")
     assert _sync13.add_decisions(RoadmapDecision) == []
     assert RoadmapDecision.objects.get(code="D-18").title == "كتبه المطوّر"
+
+
+# ── 0014: ما دُمج بعد 0011، وقياساتُ المؤشّرات على main@be8be7cc ──
+
+_sync14 = importlib.import_module("roadmap.migrations.0014_sync_items_2026_09_24e")
+
+
+def test_0014_moves_the_merged_items_once():
+    starts = {
+        "LAY-03": ("todo", 0),
+        "M-01": ("todo", 0),
+        "H-04": ("todo", 0),
+        "H-05": ("todo", 0),
+        "M-03": ("todo", 0),
+        "M-04": ("todo", 0),
+        "OWN-24": ("todo", 0),
+        "OWN-21": ("doing", 50),
+        "OWN-19": ("done", 100),
+        "DBT-36": ("todo", 0),
+    }
+    for code, (status, progress) in starts.items():
+        _item(code, status, progress)
+    assert _sync14.sync(RoadmapItem) == list(starts)
+    assert _sync14.sync(RoadmapItem) == []
+    got = {c: RoadmapItem.objects.get(code=c) for c in starts}
+    assert (got["LAY-03"].status, got["LAY-03"].progress, got["LAY-03"].pr) == (
+        "doing",
+        50,
+        "#532 #539 #543",
+    )
+    assert (got["LAY-03"].start_date, got["LAY-03"].gate) == (None, "")
+    for code in ("M-01", "H-04", "H-05", "M-03", "OWN-24"):
+        assert (got[code].status, got[code].progress) == ("done", 100), code
+    assert got["H-05"].pr == got["H-04"].pr == got["M-03"].pr == "#549"
+    assert (got["M-04"].status, got["M-04"].progress) == ("doing", 40)
+    assert (got["OWN-21"].progress, got["OWN-21"].pr) == (60, "#508 #541")
+    assert got["OWN-19"].pr == "#526 #533 #541" and "filter_horizontal" in got["OWN-19"].note
+    assert "470KB" in got["DBT-36"].note
+
+
+def test_0014_leaves_an_item_the_developer_moved():
+    _item("M-04", "doing", 70)
+    _item("OWN-21", "doing", 75)
+    assert _sync14.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="M-04").progress == 70
+
+
+def test_0014_adds_n033_closed_once():
+    assert _sync14.add_missing(RoadmapItem) == ["N-033"]
+    assert _sync14.add_missing(RoadmapItem) == []
+    n033 = RoadmapItem.objects.get(code="N-033")
+    assert (n033.status, n033.pr, n033.src) == ("done", "#546", "NEW")
+    assert "D-19" in n033.note
+
+
+def test_0014_replaces_todays_point_instead_of_adding_a_second_one():
+    RoadmapKpi.objects.create(
+        code="LK2",
+        lane="frontend",
+        name="حدود",
+        baseline=9.0,
+        current=9.0,
+        measured_at=_sync14.DAY,
+        history=[{"d": "2026-09-23", "v": 9.0}, {"d": "2026-09-24", "v": 9.0}],
+    )
+    RoadmapKpi.objects.create(
+        code="LK1",
+        lane="frontend",
+        name="أنماط",
+        baseline=0.0,
+        current=0.0,
+        measured_at=_sync14.DAY,
+    )
+    assert _sync14.sync_kpis(RoadmapKpi) == ["LK1", "LK2"]
+    assert _sync14.sync_kpis(RoadmapKpi) == []
+    lk2 = RoadmapKpi.objects.get(code="LK2")
+    assert (lk2.current, lk2.baseline) == (5.0, 9.0)
+    assert lk2.history == [{"d": "2026-09-23", "v": 9.0}, {"d": "2026-09-24", "v": 5.0}]
+    assert "be8be7cc" in lk2.source
+
+
+def test_0014_leaves_a_kpi_the_developer_remeasured():
+    RoadmapKpi.objects.create(
+        code="LK5",
+        lane="frontend",
+        name="أسطر",
+        baseline=1088.0,
+        current=970.0,
+        measured_at=_sync14.DAY,
+    )
+    assert _sync14.sync_kpis(RoadmapKpi) == []
+    assert RoadmapKpi.objects.get(code="LK5").current == 970.0
+
+
+def test_0014_fills_the_text_mode_mobile_kpis_only_when_never_measured():
+    for code in ("MK1", "MK2", "MK7", "MK18"):
+        RoadmapKpi.objects.create(
+            code=code, lane="mobile", name=code, text_mode=True, baseline_text="نصّ"
+        )
+    RoadmapKpi.objects.filter(code="MK2").update(current=3.0, measured_at=_sync14.DAY)
+    assert _sync14.first_readings(RoadmapKpi) == ["MK1", "MK7", "MK18"]
+    assert _sync14.first_readings(RoadmapKpi) == []
+    mk1 = RoadmapKpi.objects.get(code="MK1")
+    assert (mk1.current, mk1.unit, mk1.history) == (0.2, "pct", [{"d": "2026-09-24", "v": 0.2}])
+    assert RoadmapKpi.objects.get(code="MK2").current == 3.0
+
+
+def test_0014_opens_the_three_verified_debts_undated_and_without_a_pr():
+    assert _sync14.add_open_debts(RoadmapItem) == ["DBT-37", "DBT-38", "DBT-39"]
+    assert _sync14.add_open_debts(RoadmapItem) == []
+    privacy = RoadmapItem.objects.get(code="DBT-37")
+    assert (privacy.status, privacy.pr, privacy.start_date, privacy.lane) == (
+        "todo",
+        "",
+        None,
+        "sec",
+    )
+    assert "clean_photo" in privacy.criterion and "PDPPL" in privacy.title
+    assert RoadmapItem.objects.get(code="DBT-39").sort_order == 468
+
+
+def test_0014_leaves_a_debt_the_developer_wrote_first():
+    _item("DBT-37", "doing", 30, title="كتبه المطوّر")
+    assert _sync14.add_open_debts(RoadmapItem) == ["DBT-38", "DBT-39"]
+    assert RoadmapItem.objects.get(code="DBT-37").title == "كتبه المطوّر"
+
+
+def test_0014_records_d19_decided_once_and_leaves_a_developer_d19():
+    from roadmap.models import RoadmapDecision
+
+    assert _sync14.add_decisions(RoadmapDecision) == ["D-19"]
+    assert _sync14.add_decisions(RoadmapDecision) == []
+    d19 = RoadmapDecision.objects.get(code="D-19")
+    assert (d19.status, str(d19.decision_date), d19.blocks) == ("decided", "2026-09-24", "N-033")
+    RoadmapDecision.objects.filter(code="D-19").delete()
+    RoadmapDecision.objects.create(code="D-19", title="كتبه المطوّر", status="open")
+    assert _sync14.add_decisions(RoadmapDecision) == []
+    assert RoadmapDecision.objects.get(code="D-19").title == "كتبه المطوّر"
