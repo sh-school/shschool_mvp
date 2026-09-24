@@ -784,11 +784,14 @@ def test_0016_adds_notes_and_closes_dbt39_and_dbt37():
     assert "22.8%" in RoadmapItem.objects.get(code="SCH-11").note
 
 
-def test_0016_adds_vi34_n036_n037_closed_once():
-    assert _sync16.add_missing(RoadmapItem) == ["VI-34", "N-036", "N-037"]
+def test_0016_adds_vi34_n036_n037_n038_closed_once():
+    assert _sync16.add_missing(RoadmapItem) == ["VI-34", "N-036", "N-037", "N-038"]
     assert _sync16.add_missing(RoadmapItem) == []
     assert RoadmapItem.objects.get(code="N-036").pr == "#563"
     assert RoadmapItem.objects.get(code="N-037").pr == "#547"
+    n038 = RoadmapItem.objects.get(code="N-038")
+    assert (n038.status, n038.pr, n038.lane) == ("done", "#562", "desktop")
+    assert "لا يُوسَم منجزاً بصريّاً" in n038.note
     vi34 = RoadmapItem.objects.get(code="VI-34")
     assert (vi34.status, vi34.pr, vi34.lane, vi34.src) == ("done", "#555", "frontend", "VI")
     assert "js_icon_problems" in vi34.note
