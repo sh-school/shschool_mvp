@@ -1618,26 +1618,26 @@ textarea:focus-visible {
 
 /* ── Toast / Notification Animations ──────────────────────── */
 @keyframes toastIn {
-  from { opacity: 0; transform: translateX(-24px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes toastOut {
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(-24px); }
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-12px); }
 }
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Toast Container (RTL — bottom-left) ──────────────────── */
+/* Toast — تحت الترويسة (2026-09-23) */
 #toast-container {
   position: fixed;
-  bottom: 20px;
-  inset-inline-end: 20px;
+  top: calc(48px + 42px + var(--sp-3));
+  inset-inline-end: clamp(var(--sp-3), 1.4vw, 28px);
   z-index: var(--z-toast);
   display: flex;
-  flex-direction: column-reverse;
+  flex-direction: column;
   gap: var(--sp-2-5);
   max-width: 340px;
 }
@@ -1649,14 +1649,15 @@ textarea:focus-visible {
   border-radius: var(--radius);
   background: var(--surface);
   box-shadow: var(--shadow-toast);
-  border-right: 4px solid var(--maroon);
+  border-inline-start: 4px solid var(--maroon);
   animation: toastIn .25s ease forwards;
+  cursor: pointer;
   font-size: .9rem;
   font-weight: 500;
 }
 .toast.toast-success  { border-color: var(--palm); }
 .toast.toast-danger   { border-color: var(--status-danger); }
-.toast.toast-info     { border-color: var(--sea); }
+.toast.toast-info     { border-color: var(--maroon-fg); }
 .toast.toast-warning  { border-color: var(--status-warning); }
 .toast.toast-leaving  { animation: toastOut .25s ease forwards; }
 .toast-icon { font-size: 1.1rem; flex-shrink: 0; }
@@ -2149,18 +2150,6 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
 .skeleton-list-body { flex: 1; }
 .skeleton-kpi-card { padding: var(--sp-5); }
 
-/* نقطةُ لون القسم — رموزُ --dept-* باهتةٌ للورق المطبوع، فنقطةٌ لا خلفيّةٌ
-   كاملة تكسر التباين الليليّ. */
-.dept-dot {
-  display: inline-block;
-  inline-size: 10px;
-  block-size: 10px;
-  border-radius: 50%;
-  border: 1px solid var(--border-strong);
-  vertical-align: middle;
-  margin-inline-end: var(--sp-1-5);
-  flex: 0 0 auto;
-}
 .dept-sharia { background: var(--dept-sharia); }
 .dept-arabic { background: var(--dept-arabic); }
 .dept-math { background: var(--dept-math); }

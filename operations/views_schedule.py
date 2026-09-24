@@ -164,6 +164,18 @@ def schedule_print(request):
     return render(request, "schedule/print_schedule.html", _schedule_print_payload(request))
 
 
+def _export_started(request, job):
+    """جوابُ بدء التصدير: JSON لطلب الصفحة (إشعارٌ عائم)، وتحويلٌ لصفحة المتابعة لغيره.
+
+    صفحةُ المتابعة بقيت للرابط المفتوح مباشرةً بلا JS (نافذةٌ خارج المنصّة، روابطٌ محفوظة)؛
+    أمّا من الصفحة فيبدأ `static/js/schedule-export.js` المهمّةَ ويتابعها بإشعارٍ عائمٍ ثمّ يُنزّل.
+    """
+    status_url = reverse("export_job_status", args=[job.id])
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({"job_id": str(job.id), "status_url": status_url})
+    return redirect(status_url)
+
+
 @login_required
 @capability_required("schedule.print")
 def schedule_export_pdf(request):
@@ -185,7 +197,7 @@ def schedule_export_pdf(request):
         query_string=query,
     )
     render_schedule_export_task.delay(str(job.id), "pdf")
-    return redirect("export_job_status", job_id=job.id)
+    return _export_started(request, job)
 
 
 @login_required
@@ -204,7 +216,7 @@ def schedule_export_excel(request):
         query_string=query,
     )
     render_schedule_export_task.delay(str(job.id), "xlsx")
-    return redirect("export_job_status", job_id=job.id)
+    return _export_started(request, job)
 
 
 @login_required
@@ -217,6 +229,10 @@ def export_job_status(request, job_id):
 
     job = get_object_or_404(ExportJob, id=job_id, school=request.school, requested_by=request.user)
     expire_if_stale(job)  # عالقٌ أكثرَ من المهلة → يفشل برسالةٍ فيتوقّف التحديثُ التلقائيّ
+    if request.GET.get("format") == "json":  # متابعةُ الإشعار العائم — الحالةُ فقط، لا الملفّ
+        return JsonResponse(
+            {"status": job.status, "error": job.error_message if job.status == "failed" else ""}
+        )
     if job.status == "done":
         response = HttpResponse(bytes(job.content), content_type=job.content_type)
         response["Content-Disposition"] = (

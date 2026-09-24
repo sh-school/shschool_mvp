@@ -251,6 +251,10 @@ ANALYTICS_VIEW = {
 WORKLOAD_EDIT = {"coordinator", "vice_academic", "principal", "platform_developer"}
 WORKLOAD_REVIEW = {"vice_academic", "principal", "platform_developer"}
 WORKLOAD_APPROVE = {"principal", "platform_developer"}
+# وقفُ الإسناد عن المنسّقين وفتحُه — مفتاحٌ في صفحة الإسناد لهؤلاء الثلاثة وحدَهم،
+# لا يتبدّل بتهيئة أدوار الحوكمة: المنسّقُ هو المحكومُ به، فلا يُترك للمدرسة
+# أن تُدخله في من يملك المفتاح.
+ASSIGNMENT_ENTRY_TOGGLE = {"principal", "vice_academic", "platform_developer"}
 
 # ── إدارة المستخدمين والنظام ────────────────────────────────────
 USER_MANAGE = {"principal"}

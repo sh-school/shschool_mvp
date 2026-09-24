@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load static %}
 {% load icons %}
 {% load ui %}
 {% block title %}الجدول الأسبوعي — {{ title }}{% endblock %}
@@ -69,8 +70,8 @@
 
       <button type="button" id="schedule-print-btn" class="btn-primary btn-sm">طباعة</button>
       {# التصديرُ للورقة المعروضة نفسها: الاختيارُ محمولٌ في `selection_query`. #}
-      <a data-app-file href="{% url 'schedule_export_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
-      <a data-app-file href="{% url 'schedule_export_excel' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير Excel</a>
+      <a data-app-file data-export-job href="{% url 'schedule_export_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
+      <a data-app-file data-export-job href="{% url 'schedule_export_excel' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير Excel</a>
     </div>
   </div>
 
@@ -102,6 +103,7 @@
   {% endif %}
 </div>
 
+<script src="{% static 'js/schedule-export.js' %}" defer></script>
 <script nonce="{{ request.csp_nonce }}">
   // الطباعةُ للإطار لا للصفحة: ما يخرج على الورق هو الجدولُ وحده — ظاهراً
   // كان الإطارُ (الجدول العامّ) أو مخفيّاً (معلّمٌ أو شعبة).
