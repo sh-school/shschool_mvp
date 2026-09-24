@@ -175,7 +175,73 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
   {% endsection_card %}
 
   {# ══ 7 ══ #}
-  {% section_card "7 · شريطُ الأرقام" meta="kpi_strip · kpi" icon="stats" span="wide" %}
+  {% section_card "7 · المقاييسُ والحدودُ الدنيا" meta="control-h · z · safe · media" icon="checklist" span="full" %}
+    <div class="ui-grid-2">
+      <div class="sg-stack">
+        <p class="sg-label">ارتفاعُ عنصر التحكّم · {{ scales.control|length }}</p>
+        <ul class="sg-tokens">
+          {% for t in scales.control %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
+        </ul>
+        <p class="sg-label">الطبقات · {{ scales.layer|length }}</p>
+        <ul class="sg-tokens">
+          {% for t in scales.layer %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
+        </ul>
+        <p class="sg-label">المنطقةُ الآمنة · {{ scales.safe|length }}</p>
+        {% if scales.safe %}
+        <ul class="sg-tokens">
+          {% for t in scales.safe %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
+        </ul>
+        {% else %}
+        <p class="ui-note">لم تُعرَّف رموزُ <code><bdi dir="ltr">--safe-*</bdi></code> بعد (H-04)؛ تظهر هنا وحدَها حين تُعرَّف في <code><bdi dir="ltr">:root</bdi></code>.</p>
+        {% endif %}
+        <p class="sg-label">نقاطُ التوقّف في الأنماط · {{ breakpoints|length }}</p>
+        <ul class="chip-row" aria-label="نقاطُ التوقّف وعددُ استعلاماتِ كلٍّ منها">
+          {% for bp in breakpoints %}
+            <li class="chip-stat"><span class="chip-stat__key"><bdi dir="ltr">{{ bp.px }}px</bdi></span><b class="chip-stat__value">{{ bp.uses }}</b></li>
+          {% empty %}
+            <li class="chip-stat"><span class="chip-stat__key">لا استعلاماتِ عرض</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="sg-stack">
+        <p class="sg-label">القواعدُ الخمس (خطّةُ الجوال H-06)</p>
+        <div class="table-wrap">
+          <table data-no-sort>
+            <thead><tr><th>القاعدة</th><th>الحالة</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>لا خطَّ دون 12px (<code><bdi dir="ltr">--text-xs</bdi></code>) إلّا الزخرفيّ الموثَّق.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> حارسُ <code>test_font_scale</code>؛ واستثناءُ الشبكات الكثيفة مؤقّتٌ بسقفٍ لا يزيد.</td>
+              </tr>
+              <tr>
+                <td>هدفُ اللمس 44px (<code><bdi dir="ltr">--control-h</bdi></code>) على المؤشّر الخشن <code>coarse</code>، و24px للفأرة.</td>
+                <td><span class="status-badge status-warning">جزئيّة</span> الحدُّ يُكتب بالرمز لا بالرقم (<code>test_touch_target_token</code>)؛ ورفعُ الأزرار الصغيرة على <code>coarse</code> في M-01.</td>
+              </tr>
+              <tr>
+                <td>المنطقةُ الآمنة من رموز <code><bdi dir="ltr">--safe-*</bdi></code> لا من <code>env()</code> مباشرةً.</td>
+                <td><span class="status-badge status-gray">تنتظر H-04</span> الرموزُ لم تُعرَّف، و<code>env(safe-area…)</code> ما زال مكتوباً مباشرةً.</td>
+              </tr>
+              <tr>
+                <td>الطبقاتُ من سلّم <code><bdi dir="ltr">--z-*</bdi></code> لا أرقامٌ خام.</td>
+                <td><span class="status-badge status-warning">جزئيّة</span> السلّمُ معرَّف، وبقيت قيمٌ خامٌّ قليلةٌ بلا حارسٍ بعد.</td>
+              </tr>
+              <tr>
+                <td>نقاطُ التوقّف من جدولٍ واحد — الجدولُ الحيُّ بجانبها، وهو مؤشّرُ الخارطة LK2 نفسُه.</td>
+                <td><span class="status-badge status-gray">تنتظر D2</span> توحيدُ حدّ الجوال قرارُ المالك D2، وتقليصُ النقاط في LAY-03.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <ul class="sg-rules">
+      <li>كلُّ رقمٍ في هذا القسم يُقرأ من الأنماط عند العرض (<code>core.styleguide.scale_tokens</code> و<code>breakpoints</code>) — رمزٌ يُضاف في <code><bdi dir="ltr">:root</bdi></code> أو استعلامٌ في CSS يظهر هنا بلا تعديل قالب.</li>
+      <li>«المؤشّرُ الخشن» <code>(pointer: coarse)</code> للمؤشّر الأوّليّ وحدَه، لا <code>any-pointer</code>: الجهازُ الهجين يُعامَل بمؤشّره الأساسيّ.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 8 ══ #}
+  {% section_card "8 · شريطُ الأرقام" meta="kpi_strip · kpi" icon="stats" span="wide" %}
     <div class="sg-demo">
       {% kpi_strip label="النغماتُ الستّ الأولى" %}
         {% kpi "maroon" 12 %}
@@ -203,8 +269,8 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     </div>
   {% endsection_card %}
 
-  {# ══ 8 ══ #}
-  {% section_card "8 · الشاراتُ والأزرار" meta="status-badge · btn-*" icon="reinforcement" span="wide" %}
+  {# ══ 9 ══ #}
+  {% section_card "9 · الشاراتُ والأزرار" meta="status-badge · btn" icon="reinforcement" span="wide" %}
     <div class="sg-stack">
       <p class="sg-label">status-badge — ستّةُ أسماءٍ فقط</p>
       <div class="sg-row">
@@ -232,11 +298,13 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     <ul class="sg-rules">
       <li>الشارة: <code>status-success · status-danger · status-warning · status-info · status-maroon · status-gray</code>. و<code>status-green/red/orange/blue/purple/teal</code> غيرُ معرَّفة — شارةٌ بلا لون.</li>
       <li>في الترويسة: <code>btn-primary btn-sm</code> للفعل الأوّل و<code>btn-secondary btn-sm</code> للبقيّة. و<code>btn-ghost</code> لأفعال الصفّ داخل الجدول.</li>
+      <li>الشارةُ خطُّها لا يقلّ عن 12px (<code><bdi dir="ltr">--text-xs</bdi></code>) — والأسماءُ الستّةُ نفسُها لا تتغيّر.</li>
+      <li>على المؤشّر الخشن (<code>pointer: coarse</code>) يصير <code>btn-sm</code> بارتفاع <code><bdi dir="ltr">--control-h</bdi></code> (44px)، والرابطُ الصغيرُ له منطقةُ لمسٍ 44px وإن بقي رسمُه صغيراً — المعيارُ هنا، وتطبيقُه في M-01.</li>
     </ul>
   {% endsection_card %}
 
-  {# ══ 9 ══ #}
-  {% section_card "9 · بطاقةُ القسم" meta="section_card" icon="dashboard" span="full" %}
+  {# ══ 10 ══ #}
+  {% section_card "10 · بطاقةُ القسم" meta="section_card" icon="dashboard" span="full" %}
     <div class="sg-pair">
       {% section_card "بمحتوى" meta="4 طلبات" icon="empty" %}
         <ul class="plain-list">
@@ -269,8 +337,8 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     </ul>
   {% endsection_card %}
 
-  {# ══ 10 ══ #}
-  {% section_card "10 · بطاقةُ الكيان" meta="entity_card · entity_chips · entity_status" icon="school_building" span="full" %}
+  {# ══ 11 ══ #}
+  {% section_card "11 · بطاقةُ الكيان" meta="entity_card · entity_chips · entity_status" icon="school_building" span="full" %}
     <div class="ui-entity-grid">
       {% entity_card "جناح 1" who="اسم المشرف الإداريّ الكامل" count="164 طالباً" %}
         {% entity_chips %}<span class="chip">7.1</span><span class="chip">7.2</span><span class="chip">7.3</span><span class="chip">8.1</span>{% endentity_chips %}
@@ -309,8 +377,8 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     </ul>
   {% endsection_card %}
 
-  {# ══ 11 ══ #}
-  {% section_card "11 · بلاطاتُ الانتقال" meta="action_tile" icon="back" span="wide" %}
+  {# ══ 12 ══ #}
+  {% section_card "12 · بلاطاتُ الانتقال" meta="action_tile" icon="back" span="wide" %}
     <nav class="ui-actions" aria-label="مثالُ بلاطات الانتقال">
       {% action_tile "رصدُ الغياب" desc="الفعلُ الأوّل للدور — واحدةٌ فقط" icon="confirm" href="#" primary=True %}
       {% action_tile "الجدولُ المدرسيّ" desc="حصصُ اليوم والأسبوع" icon="date" href="#" %}
@@ -327,22 +395,22 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     </ul>
   {% endsection_card %}
 
-  {# ══ 12 ══ #}
-  {% section_card "12 · الحالةُ الفارغة" meta="empty_state" icon="empty" %}
+  {# ══ 13 ══ #}
+  {% section_card "13 · الحالةُ الفارغة" meta="empty_state" icon="empty" %}
     {% empty_state "لا توجد نتائج" sub="جرّب كلمةً أخرى أو وسّع الفترة" icon="search" %}
     <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} empty_state "لا توجد نتائج" sub="…" icon="search" {% templatetag closeblock %}</pre></details>
   {% endsection_card %}
 
-  {# ══ 13 ══ #}
-  {% section_card "13 · ترويسةُ الصفحة" meta="page_header" icon="document" %}
+  {# ══ 14 ══ #}
+  {% section_card "14 · ترويسةُ الصفحة" meta="page_header" icon="document" %}
     <p class="sg-p">الترويسة أعلى هذه الصفحة مرسومةٌ به: العنوان وأيقونته، والسطر الوصفيّ، والإجراءات في طرفها — <code>btn-primary btn-sm</code> للفعل الأوّل و<code>btn-secondary btn-sm</code> للبقيّة.</p>
     <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} page_header "العيادة" subtitle=today icon="clinic" {% templatetag closeblock %}
   &lt;a class="btn-primary btn-sm" href="…"&gt;تسجيل زيارة&lt;/a&gt;
 {% templatetag openblock %} endpage_header {% templatetag closeblock %}</pre></details>
   {% endsection_card %}
 
-  {# ══ 14 ══ #}
-  {% section_card "14 · أصنافُ القسم 39" meta="plain-list · chip-row · period-switch" icon="checklist" span="wide" %}
+  {# ══ 15 ══ #}
+  {% section_card "15 · أصنافُ القسم 39" meta="plain-list · chip-row · period-switch" icon="checklist" span="wide" %}
     <div class="ui-grid-2">
       <div class="sg-stack">
         <p class="sg-label">plain-list · is-scroll</p>
@@ -376,8 +444,8 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     </ul>
   {% endsection_card %}
 
-  {# ══ 15 ══ #}
-  {% section_card "15 · النماذج" meta="ui-switch · callout · form-actions" icon="edit" span="wide" %}
+  {# ══ 16 ══ #}
+  {% section_card "16 · النماذج" meta="ui-switch · callout · form-actions" icon="edit" span="wide" %}
     <div class="sg-stack">
       <ul class="plain-list">
         <li class="plain-list__row">
@@ -414,8 +482,8 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     </ul>
   {% endsection_card %}
 
-  {# ══ 16 ══ #}
-  {% section_card "16 · الحقلُ وشريطُ الترشيح" meta="field · filter_bar" icon="search" span="full" %}
+  {# ══ 17 ══ #}
+  {% section_card "17 · الحقلُ وشريطُ الترشيح" meta="field · filter_bar" icon="search" span="full" %}
     <div class="sg-stack">
       <p class="sg-label">filter_bar — نموذجُ GET بدور بحثٍ واسمٍ معلَن، وحقولُه field</p>
       {% filter_bar "مثالُ شريط الترشيح" %}
@@ -455,8 +523,8 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     </ul>
   {% endsection_card %}
 
-  {# ══ 17 ══ #}
-  {% section_card "17 · الجداول" meta="table-wrap · td.num · data-sort" icon="students" span="wide" %}
+  {# ══ 18 ══ #}
+  {% section_card "18 · الجداول" meta="table-wrap · td.num · data-sort" icon="students" span="wide" %}
     <div class="table-wrap">
       <table>
         <thead><tr><th>الطالب</th><th>الشعبة</th><th class="num">الغياب</th><th data-sort="none">إجراء</th></tr></thead>
@@ -474,8 +542,8 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     </ul>
   {% endsection_card %}
 
-  {# ══ 18 ══ #}
-  {% section_card "18 · الشبكاتُ والتخطيط" meta="card-flow · ui-grid-2 · auto-grid · fill-grid" icon="dashboard" span="wide" %}
+  {# ══ 19 ══ #}
+  {% section_card "19 · الشبكاتُ والتخطيط" meta="card-flow · ui-grid-2 · auto-grid · fill-grid" icon="dashboard" span="wide" %}
     <pre class="sg-code" dir="ltr">&lt;div class="card-flow"&gt;
   {% templatetag openblock %} section_card "…" span="wide" {% templatetag closeblock %}…{% templatetag openblock %} endsection_card {% templatetag closeblock %}
 &lt;/div&gt;
@@ -483,7 +551,7 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
 # view: items_cols = chunk_for_grid(items, 4)
 &lt;div class="auto-grid"&gt;{% templatetag openblock %} for col in items_cols {% templatetag closeblock %}…{% templatetag openblock %} endfor {% templatetag closeblock %}&lt;/div&gt;</pre>
     <ul class="sg-rules">
-      <li><code>card-flow</code> لبطاقاتٍ مختلفةِ الحجم: أعمدتُها 1 ثمّ 2 (768px) ثمّ 4 (1280px) — زوجيّةٌ دائماً فتتجاور العريضتان؛ والبطاقةُ تعلن عرضَها بـ<code>span="wide"</code> (نصفُ السطر) أو <code>"full"</code> (السطر)، وبطاقاتُ السطر بارتفاعٍ واحد. ويُرتَّب القالبُ صفوفاً متقاربةَ المحتوى.</li>
+      <li><code>card-flow</code> لبطاقاتٍ مختلفةِ الحجم: أعمدتُها 1 ثمّ 2 (768px) ثمّ 4 (1100px) — زوجيّةٌ دائماً فتتجاور العريضتان، وعلى نقاط التوقّف القائمة لا نقطةٍ جديدة (LK2)؛ والبطاقةُ تعلن عرضَها بـ<code>span="wide"</code> (نصفُ السطر) أو <code>"full"</code> (السطر)، وبطاقاتُ السطر بارتفاعٍ واحد. ويُرتَّب القالبُ صفوفاً متقاربةَ المحتوى.</li>
       <li><code>ui-grid-2</code> لبطاقتين متجاورتين، و<code>ui-entity-grid</code> لبطاقات الكيان، و<code>ui-actions</code> للبلاطات.</li>
       <li>قائمةٌ ضيّقةُ الصفّ غيرُ محدودة ← أعمدةٌ بـ<code>chunk_for_grid</code> في العرض و<code>auto-grid</code> في القالب؛ والمحدودةُ (<code>[:10]</code>) لا تُقسَّم.</li>
       <li>في صفحةٍ <code>page-noscroll</code>: <code>fill-grid is-fit</code> لبطاقةٍ محدودة المحتوى، و<code>fill-grid</code> وحدَه لقائمةٍ غير محدودةٍ تُمرَّر داخلها.</li>
@@ -491,8 +559,8 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     </ul>
   {% endsection_card %}
 
-  {# ══ 19 ══ #}
-  {% section_card "19 · مكوّناتٌ تُضمَّن" meta="include" icon="wings" span="full" %}
+  {# ══ 20 ══ #}
+  {% section_card "20 · مكوّناتٌ تُضمَّن" meta="include" icon="wings" span="full" %}
     <div class="ui-grid-2">
       <div class="sg-stack">
         <p class="sg-label">التنبيهُ العائم — showToast · data-toast</p>
@@ -528,8 +596,8 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     </ul>
   {% endsection_card %}
 
-  {# ══ 20 ══ #}
-  {% section_card "20 · الوضعُ الداكن" meta="html.dark · 40-themes.css" icon="settings" span="wide" %}
+  {# ══ 21 ══ #}
+  {% section_card "21 · الوضعُ الداكن" meta="html.dark · 40-themes.css" icon="settings" span="wide" %}
     <ul class="sg-rules">
       <li>يُفعَّل بصنف <code>dark</code> على <code>&lt;html&gt;</code>، وتُعاد فيه قيمُ الرموز نفسِها في <code>40-themes.css</code> — فالقالبُ لا يعرف الوضعَ ولا يكتب له شيئاً. بدِّل الوضعَ تتبدّل قيمُ اللوحة.</li>
       <li>الأبيضُ للنصوص والأطر وحدَها لا خلفيّةً؛ والخلفيّةُ الفاتحة تُكتب رمزاً له قيمةٌ ليليّة معتمة.</li>
@@ -538,8 +606,8 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     </ul>
   {% endsection_card %}
 
-  {# ══ 21 ══ #}
-  {% section_card "21 · معاييرُ الهويّة" meta="حركة · تنقّل · تنبيه · بطاقة" icon="checklist" span="wide" %}
+  {# ══ 22 ══ #}
+  {% section_card "22 · معاييرُ الهويّة" meta="حركة · تنقّل · تنبيه · بطاقة" icon="checklist" span="wide" %}
     <ul class="sg-rules">
       <li><b>الانتقال:</b> الترويسةُ والقائمةُ والفوتر ثابتةٌ، والمحتوى وحدَه يتلاشى 500ms ثمّ يظهر 500ms (<code><bdi dir="ltr">--transition-page</bdi></code>)؛ ولا تلاشيَ لمن طلب تقليلَ الحركة.</li>
       <li><b>القوائم:</b> تُفتح بالمرور على الحاسوب (150ms فتحاً و300ms إغلاقاً)، وبالنقر على اللمس؛ Esc يغلق؛ والقسمُ الحاليّ بخطٍّ ذهبيٍّ سفليّ. لا شريطَ فرعيّ.</li>

@@ -92,6 +92,8 @@ class AuditLogAdmin(admin.ModelAdmin):
         "target_message",
         "created_at",
     )
+    # الأعمدةُ و`__str__` تقرأ هذه العلاقات لكلّ صفّ — تُجلب في استعلام القائمة نفسه (كانت ~25 سؤالاً للصفحة).
+    list_select_related = ("actor", "target_message")
     list_filter = ("action",)
     search_fields = ("actor__username", "target_message__ticket_number")
     readonly_fields = (

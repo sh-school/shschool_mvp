@@ -134,10 +134,14 @@ class OperationalDomain(models.Model):
     """المجال: التحصيل الأكاديمي / القيادة والإدارة / ..."""
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="op_domains")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="op_domains", verbose_name="المدرسة"
+    )
     name = models.CharField(max_length=200, verbose_name="اسم المجال")
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
-    order = models.IntegerField(default=0)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
+    order = models.IntegerField(default=0, verbose_name="الترتيب")
 
     # ربط QuerySet الموجود
     from quality.querysets import DomainQuerySet
@@ -190,7 +194,9 @@ class OperationalDomain(models.Model):
 
 class OperationalTarget(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    domain = models.ForeignKey(OperationalDomain, on_delete=models.CASCADE, related_name="targets")
+    domain = models.ForeignKey(
+        OperationalDomain, on_delete=models.CASCADE, related_name="targets", verbose_name="المجال"
+    )
     number = models.CharField(max_length=20, verbose_name="رقم الهدف")
     text = models.TextField(verbose_name="نص الهدف")
 
@@ -209,7 +215,7 @@ class OperationalTarget(models.Model):
 class OperationalIndicator(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     target = models.ForeignKey(
-        OperationalTarget, on_delete=models.CASCADE, related_name="indicators"
+        OperationalTarget, on_delete=models.CASCADE, related_name="indicators", verbose_name="الهدف"
     )
     number = models.CharField(max_length=30, verbose_name="رقم المؤشر")
     text = models.TextField(verbose_name="نص المؤشر")
@@ -259,9 +265,14 @@ class OperationalProcedure(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     indicator = models.ForeignKey(
-        OperationalIndicator, on_delete=models.CASCADE, related_name="procedures"
+        OperationalIndicator,
+        on_delete=models.CASCADE,
+        related_name="procedures",
+        verbose_name="المؤشّر",
     )
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="procedures")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="procedures", verbose_name="المدرسة"
+    )
     number = models.CharField(max_length=30, verbose_name="رقم الإجراء", db_index=True)
     text = models.TextField(verbose_name="نص الإجراء")
 
@@ -278,12 +289,16 @@ class OperationalProcedure(models.Model):
 
     date_range = models.CharField(max_length=50, verbose_name="الفترة الزمنية", blank=True)
     deadline = models.DateField(null=True, blank=True, verbose_name="الموعد النهائي")
-    status = models.CharField(max_length=20, choices=STATUS, default="In Progress", db_index=True)
+    status = models.CharField(
+        max_length=20, choices=STATUS, default="In Progress", db_index=True, verbose_name="الحالة"
+    )
     evaluation = models.TextField(blank=True, verbose_name="التقييم")
     evaluation_notes = models.TextField(blank=True, verbose_name="ملاحظات التقييم")
     follow_up = models.TextField(blank=True, verbose_name="المتابعة")
     comments = models.TextField(blank=True, verbose_name="تعليقات")
-    evidence_type = models.CharField(max_length=20, choices=EVIDENCE_TYPE, blank=True)
+    evidence_type = models.CharField(
+        max_length=20, choices=EVIDENCE_TYPE, blank=True, verbose_name="نوع الشاهد"
+    )
     evidence_source_employee = models.TextField(blank=True, verbose_name="موظف مصدر الدليل")
     evidence_source_file = models.TextField(blank=True, verbose_name="ملف مصدر الدليل")
 
@@ -317,9 +332,11 @@ class OperationalProcedure(models.Model):
     reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ المراجعة")
     review_note = models.TextField(blank=True, verbose_name="ملاحظة المراجعة")
 
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     # ربط QuerySet الموجود
     from quality.querysets import ProcedureQuerySet
@@ -396,15 +413,24 @@ class OperationalProcedure(models.Model):
 class ProcedureEvidence(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     procedure = models.ForeignKey(
-        OperationalProcedure, on_delete=models.CASCADE, related_name="evidences"
+        OperationalProcedure,
+        on_delete=models.CASCADE,
+        related_name="evidences",
+        verbose_name="الإجراء التشغيلي",
     )
     uploaded_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="uploaded_evidences"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="uploaded_evidences",
+        verbose_name="رفعه",
     )
     title = models.CharField(max_length=200, verbose_name="عنوان الدليل")
-    description = models.TextField(blank=True)
-    file = models.FileField(upload_to="evidence/%Y/%m/", null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    description = models.TextField(blank=True, verbose_name="الوصف")
+    file = models.FileField(
+        upload_to="evidence/%Y/%m/", null=True, blank=True, verbose_name="الملف"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "دليل"
@@ -428,6 +454,7 @@ class ProcedureStatusLog(models.Model):
         OperationalProcedure,
         on_delete=models.CASCADE,
         related_name="status_logs",
+        verbose_name="الإجراء التشغيلي",
     )
     old_status = models.CharField(max_length=20, verbose_name="الحالة السابقة")
     new_status = models.CharField(max_length=20, verbose_name="الحالة الجديدة")
@@ -436,9 +463,10 @@ class ProcedureStatusLog(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         related_name="procedure_status_changes",
+        verbose_name="غيّر الحالة",
     )
     note = models.TextField(blank=True, verbose_name="ملاحظة")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "سجل تغيير حالة"
@@ -462,7 +490,9 @@ class ExecutorMapping(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="executor_mappings")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="executor_mappings", verbose_name="المدرسة"
+    )
     executor_norm = models.CharField(max_length=100, verbose_name="المسمى الوظيفي", db_index=True)
     user = models.ForeignKey(
         CustomUser,
@@ -472,9 +502,11 @@ class ExecutorMapping(models.Model):
         related_name="executor_mappings",
         verbose_name="الموظف",
     )
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "ربط منفذ"
@@ -573,13 +605,16 @@ class QualityCommitteeMember(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="quality_members")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="quality_members", verbose_name="المدرسة"
+    )
     user = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
         related_name="quality_memberships",
         null=True,
         blank=True,
+        verbose_name="المستخدم",
     )
     job_title = models.CharField(max_length=100, verbose_name="المسمى الوظيفي")
     responsibility = models.CharField(
@@ -600,8 +635,10 @@ class QualityCommitteeMember(models.Model):
         related_name="committee_members",
         verbose_name="المجال المسؤول عنه",
     )
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
-    is_active = models.BooleanField(default=True)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
 
     # صلاحيات على مستوى الفرد (كانت على مستوى اللجنة كلها سابقاً)
     can_execute = models.BooleanField(default=True, verbose_name="صلاحية تنفيذ إجراء")
@@ -655,15 +692,19 @@ class RoleEvaluationTemplate(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="eval_templates")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="eval_templates", verbose_name="المدرسة"
+    )
     role_name = models.CharField(
         max_length=30,
         verbose_name="الدور الوظيفي",
         help_text="يطابق Role.name — مثل teacher, nurse, librarian",
     )
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "قالب تقييم دور"
@@ -706,7 +747,10 @@ class EvaluationAxis(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     template = models.ForeignKey(
-        RoleEvaluationTemplate, on_delete=models.CASCADE, related_name="axes"
+        RoleEvaluationTemplate,
+        on_delete=models.CASCADE,
+        related_name="axes",
+        verbose_name="قالب التقييم",
     )
     key = models.CharField(
         max_length=50,
@@ -715,7 +759,7 @@ class EvaluationAxis(models.Model):
     )
     label = models.CharField(max_length=200, verbose_name="اسم المحور")
     weight = models.PositiveSmallIntegerField(default=25, verbose_name="الوزن (من 100)")
-    order = models.PositiveSmallIntegerField(default=0)
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="الترتيب")
 
     class Meta:
         verbose_name = "محور تقييم"
@@ -763,7 +807,9 @@ class EmployeeEvaluation(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="evaluations")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="evaluations", verbose_name="المدرسة"
+    )
     employee = models.ForeignKey(
         CustomUser, on_delete=models.CASCADE, related_name="evaluations", verbose_name="الموظف"
     )
@@ -784,9 +830,11 @@ class EmployeeEvaluation(models.Model):
         verbose_name="قالب التقييم",
         help_text="يُحدَّد تلقائياً حسب دور الموظف. null = المحاور الافتراضية",
     )
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
     period = models.CharField(max_length=2, choices=PERIODS, verbose_name="الفترة")
-    status = models.CharField(max_length=15, choices=STATUS, default="draft")
+    status = models.CharField(max_length=15, choices=STATUS, default="draft", verbose_name="الحالة")
 
     # المحاور الأربعة الافتراضية (backward compatible)
     axis_professional = models.PositiveSmallIntegerField(
@@ -802,13 +850,13 @@ class EmployeeEvaluation(models.Model):
         default=0, verbose_name="التطوير المهني والمبادرة (25)"
     )
     total_score = models.PositiveSmallIntegerField(default=0, verbose_name="المجموع الكلي")
-    rating = models.CharField(max_length=15, choices=RATINGS, blank=True)
+    rating = models.CharField(max_length=15, choices=RATINGS, blank=True, verbose_name="التقدير")
     strengths = models.TextField(blank=True, verbose_name="نقاط القوة")
     improvements = models.TextField(blank=True, verbose_name="مجالات التطوير")
     goals_next = models.TextField(blank=True, verbose_name="أهداف الفترة القادمة")
     employee_comment = models.TextField(blank=True, verbose_name="تعليق الموظف")
     #: «تاريخ علمه» (المادة 20) — ومنه تبدأ مهلةُ التظلّم.
-    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    acknowledged_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ اطّلاع الموظّف")
     #: لحظةُ اعتماد المدير («ويعتمد من مدير المدرسة» — المادة 16). ولا يُعلم الموظّفُ
     #: بتقريرٍ قبل اعتماده، فهي الحدُّ الأدنى لتاريخ الاستلام المدوَّن (المادة 20).
     approved_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ اعتماد المدير")
@@ -836,8 +884,8 @@ class EmployeeEvaluation(models.Model):
     received_on = models.DateField(
         null=True, blank=True, verbose_name="تاريخ استلام الموظف (عند رفضه التوقيع)"
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "تقييم موظف"
@@ -1182,7 +1230,7 @@ class EvaluationScore(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     evaluation = models.ForeignKey(
-        EmployeeEvaluation, on_delete=models.CASCADE, related_name="scores"
+        EmployeeEvaluation, on_delete=models.CASCADE, related_name="scores", verbose_name="التقييم"
     )
     evaluator = models.ForeignKey(
         CustomUser,
@@ -1197,11 +1245,11 @@ class EvaluationScore(models.Model):
     )
 
     # المحاور الافتراضية
-    axis_professional = models.PositiveSmallIntegerField(default=0)
-    axis_commitment = models.PositiveSmallIntegerField(default=0)
-    axis_teamwork = models.PositiveSmallIntegerField(default=0)
-    axis_development = models.PositiveSmallIntegerField(default=0)
-    total_score = models.PositiveSmallIntegerField(default=0)
+    axis_professional = models.PositiveSmallIntegerField(default=0, verbose_name="المحور المهنيّ")
+    axis_commitment = models.PositiveSmallIntegerField(default=0, verbose_name="محور الالتزام")
+    axis_teamwork = models.PositiveSmallIntegerField(default=0, verbose_name="محور العمل الجماعيّ")
+    axis_development = models.PositiveSmallIntegerField(default=0, verbose_name="محور التطوير")
+    total_score = models.PositiveSmallIntegerField(default=0, verbose_name="المجموع")
 
     # محاور مخصصة (JSON) — للقوالب المخصصة
     custom_axes = models.JSONField(
@@ -1212,8 +1260,8 @@ class EvaluationScore(models.Model):
     )
 
     note = models.TextField(blank=True, verbose_name="ملاحظات المقيِّم")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "تقييم مقيِّم"
@@ -1266,7 +1314,7 @@ class EvaluationLevelBackup(models.Model):
     old_rating = models.CharField(max_length=15, blank=True, verbose_name="المستوى قبل الهجرة")
     new_total_score = models.PositiveSmallIntegerField(verbose_name="المجموع بعد الهجرة")
     new_rating = models.CharField(max_length=15, blank=True, verbose_name="المستوى بعد الهجرة")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "مستوى تقييمٍ قبل الهجرة 0018"
@@ -1281,13 +1329,21 @@ class EvaluationLevelBackup(models.Model):
 
 class EvaluationCycle(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="eval_cycles")
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
-    period = models.CharField(max_length=2, choices=EmployeeEvaluation.PERIODS)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="eval_cycles", verbose_name="المدرسة"
+    )
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
+    period = models.CharField(
+        max_length=2, choices=EmployeeEvaluation.PERIODS, verbose_name="الفترة"
+    )
     deadline = models.DateField(verbose_name="الموعد النهائي للتقييم")
-    is_closed = models.BooleanField(default=False)
-    created_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_closed = models.BooleanField(default=False, verbose_name="مغلقة")
+    created_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, verbose_name="أنشأه"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "دورة تقييم"

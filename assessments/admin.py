@@ -34,7 +34,7 @@ class AssessmentPackageAdmin(admin.ModelAdmin):
         "semester",
         "weight",
         "semester_max_grade",
-        "effective_max_grade",
+        "max_grade_effective",
         "is_active",
     )
     list_filter = ("package_type", "semester", "school", "is_active")
@@ -50,7 +50,11 @@ class AssessmentPackageAdmin(admin.ModelAdmin):
         return str(obj.setup.class_group)
 
     get_subject.short_description = "المادة"
-    get_class.short_description = "الفصل"
+    get_class.short_description = "الشعبة"
+
+    @admin.display(description="الدرجة القصوى الفعليّة")
+    def max_grade_effective(self, obj):
+        return obj.effective_max_grade
 
 
 @admin.register(Assessment)
@@ -80,7 +84,7 @@ class AssessmentAdmin(admin.ModelAdmin):
         return obj.package.get_semester_display()
 
     get_subject.short_description = "المادة"
-    get_class.short_description = "الفصل"
+    get_class.short_description = "الشعبة"
     get_semester.short_description = "الفصل الدراسي"
 
 
@@ -120,7 +124,7 @@ class StudentSubjectResultAdmin(admin.ModelAdmin):
         return str(obj.setup.class_group)
 
     get_subject.short_description = "المادة"
-    get_class.short_description = "الفصل"
+    get_class.short_description = "الشعبة"
 
 
 @admin.register(AnnualSubjectResult)
@@ -151,5 +155,5 @@ class AnnualSubjectResultAdmin(admin.ModelAdmin):
         return obj.letter_grade
 
     get_subject.short_description = "المادة"
-    get_class.short_description = "الفصل"
+    get_class.short_description = "الشعبة"
     letter_grade.short_description = "التقدير"

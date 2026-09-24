@@ -64,19 +64,30 @@ class AuditLog(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
-        School, on_delete=models.CASCADE, null=True, blank=True, related_name="audit_logs"
+        School,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="audit_logs",
+        verbose_name="المدرسة",
     )
     user = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="audit_actions"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="audit_actions",
+        verbose_name="المستخدم",
     )
-    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
-    model_name = models.CharField(max_length=50, choices=MODEL_CHOICES, default="other")
-    object_id = models.CharField(max_length=100, blank=True)
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES, verbose_name="الإجراء")
+    model_name = models.CharField(
+        max_length=50, choices=MODEL_CHOICES, default="other", verbose_name="النموذج"
+    )
+    object_id = models.CharField(max_length=100, blank=True, verbose_name="معرّف السجل")
     object_repr = models.CharField(max_length=300, blank=True, verbose_name="وصف السجل")
     changes = models.JSONField(null=True, blank=True, verbose_name="التغييرات")
-    ip_address = models.GenericIPAddressField(null=True, blank=True)
-    user_agent = models.CharField(max_length=300, blank=True)
-    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True, verbose_name="عنوان IP")
+    user_agent = models.CharField(max_length=300, blank=True, verbose_name="المتصفّح")
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="الوقت")
 
     class Meta:
         verbose_name = "سجل مراجعة"
@@ -150,19 +161,33 @@ class ConsentRecord(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE)
-    parent = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="consent_records")
-    student = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="consent_as_student"
+    school = models.ForeignKey(School, on_delete=models.CASCADE, verbose_name="المدرسة")
+    parent = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="consent_records",
+        verbose_name="وليّ الأمر",
     )
-    data_type = models.CharField(max_length=20, choices=DATA_TYPES)
+    student = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="consent_as_student",
+        verbose_name="الطالب",
+    )
+    data_type = models.CharField(max_length=20, choices=DATA_TYPES, verbose_name="نوع البيانات")
     is_given = models.BooleanField(default=True, verbose_name="تمت الموافقة")
-    method = models.CharField(max_length=10, choices=METHODS, default="digital")
-    given_at = models.DateTimeField(auto_now_add=True)
-    withdrawn_at = models.DateTimeField(null=True, blank=True)
-    notes = models.TextField(blank=True)
+    method = models.CharField(
+        max_length=10, choices=METHODS, default="digital", verbose_name="طريقة الموافقة"
+    )
+    given_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الموافقة")
+    withdrawn_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ السحب")
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
     recorded_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="consents_recorded"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="consents_recorded",
+        verbose_name="سجّله",
     )
 
     class Meta:
@@ -212,10 +237,14 @@ class BreachReport(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="breach_reports")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="breach_reports", verbose_name="المدرسة"
+    )
     title = models.CharField(max_length=300, verbose_name="عنوان الخرق")
     description = models.TextField(verbose_name="وصف الخرق التفصيلي")
-    severity = models.CharField(max_length=10, choices=SEVERITY, default="medium")
+    severity = models.CharField(
+        max_length=10, choices=SEVERITY, default="medium", verbose_name="الخطورة"
+    )
     data_type_affected = models.CharField(
         max_length=15,
         choices=DATA_TYPES_AFFECTED,
@@ -224,17 +253,23 @@ class BreachReport(models.Model):
     )
     affected_count = models.PositiveIntegerField(default=0, verbose_name="عدد الأشخاص المتأثرين")
     discovered_at = models.DateTimeField(verbose_name="وقت الاكتشاف")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
     ncsa_deadline = models.DateTimeField(
         null=True, blank=True, verbose_name="موعد إشعار NCSA (72 ساعة)"
     )
     ncsa_notified_at = models.DateTimeField(
         null=True, blank=True, verbose_name="وقت إشعار NCSA الفعلي"
     )
-    resolved_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(max_length=15, choices=STATUS, default="discovered")
+    resolved_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ المعالجة")
+    status = models.CharField(
+        max_length=15, choices=STATUS, default="discovered", verbose_name="الحالة"
+    )
     reported_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="reported_breaches"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="reported_breaches",
+        verbose_name="المُبلِّغ",
     )
     assigned_to = models.ForeignKey(
         CustomUser,
@@ -294,26 +329,39 @@ class ErasureRequest(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="erasure_requests")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="erasure_requests", verbose_name="المدرسة"
+    )
     student = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="erasure_requests"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="erasure_requests",
+        verbose_name="الطالب",
     )
     requested_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="erasure_filed"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="erasure_filed",
+        verbose_name="مقدّم الطلب",
     )
     reason = models.TextField(verbose_name="سبب الطلب")
-    status = models.CharField(max_length=12, choices=STATUS, default="pending")
+    status = models.CharField(
+        max_length=12, choices=STATUS, default="pending", verbose_name="الحالة"
+    )
     reviewed_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="erasure_reviewed",
+        verbose_name="راجعه",
     )
     review_note = models.TextField(blank=True, verbose_name="ملاحظات المراجع")
-    created_at = models.DateTimeField(auto_now_add=True)
-    reviewed_at = models.DateTimeField(null=True, blank=True)
-    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ المراجعة")
+    completed_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الاكتمال")
     anonymized_id = models.CharField(
         max_length=20, blank=True, verbose_name="المعرّف المجهّل", help_text="مثل: ERASED-0001"
     )

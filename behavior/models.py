@@ -88,7 +88,7 @@ class ViolationCategory(models.Model):
         verbose_name="الإجراء الافتراضي",
     )
     points = models.PositiveSmallIntegerField(default=5, verbose_name="النقاط المخصومة")
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
 
     # ── حقول جديدة 2025 ──
     tags = models.CharField(
@@ -237,17 +237,19 @@ class BehaviorInfraction(models.Model):
     objects = InfractionQuerySet.as_manager()
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey("core.School", on_delete=models.CASCADE)
+    school = models.ForeignKey("core.School", on_delete=models.CASCADE, verbose_name="المدرسة")
     student = models.ForeignKey(
         "core.CustomUser",
         on_delete=models.PROTECT,
         related_name="behavior_infractions",
+        verbose_name="الطالب",
     )
     reported_by = models.ForeignKey(
         "core.CustomUser",
         on_delete=models.SET_NULL,
         null=True,
         related_name="reported_infractions",
+        verbose_name="المُبلِّغ",
     )
 
     # ── فئة المخالفة ──
@@ -261,8 +263,8 @@ class BehaviorInfraction(models.Model):
     )
 
     # ── التواريخ ──
-    date = models.DateField(auto_now_add=True)
-    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    date = models.DateField(auto_now_add=True, verbose_name="تاريخ المخالفة")
+    created_at = models.DateTimeField(auto_now_add=True, null=True, verbose_name="تاريخ الإنشاء")
     #: الحصّةُ التي وقعت فيها — وبها تُعرف المادّة. «الهروبُ من الحصّة» يُعدّ
     #: تكرارُه **لكلّ مادّةٍ على حدة** (الدليل التنظيميّ 2026، ص91)، والمادّةُ
     #: لا تُعرف بلا الحصّة.
@@ -291,6 +293,7 @@ class BehaviorInfraction(models.Model):
         choices=LEVELS,
         default=1,
         db_index=True,
+        verbose_name="الدرجة",
     )
     description = models.TextField(
         verbose_name="وصف المخالفة",
@@ -417,7 +420,7 @@ class BehaviorInfraction(models.Model):
     )
 
     # ── الحالة ──
-    is_resolved = models.BooleanField(default=False)
+    is_resolved = models.BooleanField(default=False, verbose_name="معالَجة")
 
     class Meta:
         verbose_name = "مخالفة سلوكية"
@@ -501,15 +504,17 @@ class BehaviorPointRecovery(models.Model):
         BehaviorInfraction,
         on_delete=models.CASCADE,
         related_name="recovery",
+        verbose_name="المخالفة",
     )
     reason = models.TextField(verbose_name="سبب استعادة النقاط (سلوك إيجابي)")
-    points_restored = models.PositiveIntegerField(default=0)
+    points_restored = models.PositiveIntegerField(default=0, verbose_name="النقاط المستعادة")
     approved_by = models.ForeignKey(
         "core.CustomUser",
         on_delete=models.SET_NULL,
         null=True,
+        verbose_name="اعتمده",
     )
-    date = models.DateField(auto_now_add=True)
+    date = models.DateField(auto_now_add=True, verbose_name="تاريخ الاستعادة")
 
     class Meta:
         verbose_name = "استعادة نقاط"
@@ -542,10 +547,16 @@ class AutoInfractionNotice(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
-        "core.School", on_delete=models.CASCADE, related_name="auto_infraction_notices"
+        "core.School",
+        on_delete=models.CASCADE,
+        related_name="auto_infraction_notices",
+        verbose_name="المدرسة",
     )
     student = models.ForeignKey(
-        "core.CustomUser", on_delete=models.CASCADE, related_name="auto_infraction_notices"
+        "core.CustomUser",
+        on_delete=models.CASCADE,
+        related_name="auto_infraction_notices",
+        verbose_name="الطالب",
     )
     #: يومُ الحصّة — لا يومُ كتابة المخالفة: تصحيحُ حصّةٍ مضت يُكتب اليوم عن يومها.
     date = models.DateField(verbose_name="يومُ الحصّة")
@@ -560,9 +571,10 @@ class AutoInfractionNotice(models.Model):
         null=True,
         blank=True,
         related_name="notices",
+        verbose_name="المخالفة",
     )
     #: الرسالةُ التي حملته — صفوفُ الملخّص الواحد تشترك فيه، وهو معرّفُ الإشعار.
-    message_id = models.UUIDField(default=_uuid, db_index=True)
+    message_id = models.UUIDField(default=_uuid, db_index=True, verbose_name="معرّف الرسالة")
     #: `immediate` للهروب من المدرسة، `digest` للملخّص، `supplement` لإضافةٍ إليه،
     #: و`baseline` لما سبق الإطلاق (الهجرة 0018) — لم يُرسَل ولن يُرسَل.
     KINDS = [
@@ -571,12 +583,14 @@ class AutoInfractionNotice(models.Model):
         ("supplement", "إضافةٌ إلى الملخّص"),
         ("baseline", "سابقٌ للإطلاق — لم يُرسَل"),
     ]
-    kind = models.CharField(max_length=10, choices=KINDS)
+    kind = models.CharField(max_length=10, choices=KINDS, verbose_name="نوع الإشعار")
     #: عددُ من وصلته الرسالةُ بعد صلاحيّة الرؤية والموافقة (لا علامةَ ملخّصٍ بلا
     #: مستلم). وفارغٌ للفوريّ — يمرّ بمسار المخالفة اليدويّة في العامل فعددُه لا
     #: يُعرف هنا — وللأساس، إذ لم يُرسَل شيء.
-    recipients = models.PositiveSmallIntegerField(null=True, blank=True)
-    sent_at = models.DateTimeField(auto_now_add=True)
+    recipients = models.PositiveSmallIntegerField(
+        null=True, blank=True, verbose_name="عدد المستلمين"
+    )
+    sent_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإرسال")
 
     class Meta:
         verbose_name = "إبلاغٌ بمخالفة رصد"

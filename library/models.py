@@ -29,13 +29,18 @@ class LibraryBook(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
-        "core.School", on_delete=models.CASCADE, related_name="library_books"
+        "core.School",
+        on_delete=models.CASCADE,
+        related_name="library_books",
+        verbose_name="المدرسة",
     )
     title = models.CharField(max_length=500, verbose_name="عنوان الكتاب")
     author = models.CharField(max_length=200, verbose_name="المؤلف")
-    isbn = models.CharField(max_length=20, blank=True, verbose_name="ISBN")
+    isbn = models.CharField(max_length=20, blank=True, verbose_name="الرقم الدوليّ (ISBN)")
     category = models.CharField(max_length=100, verbose_name="التصنيف (ديوي العشري)")
-    book_type = models.CharField(max_length=20, choices=BOOK_TYPES, default="PRINT")
+    book_type = models.CharField(
+        max_length=20, choices=BOOK_TYPES, default="PRINT", verbose_name="نوع الكتاب"
+    )
     quantity = models.PositiveIntegerField(default=1, verbose_name="الكمية المتوفرة")
     available_qty = models.PositiveIntegerField(default=1, verbose_name="الكمية المتاحة للإعارة")
     digital_file = models.FileField(
@@ -70,17 +75,21 @@ class BookBorrowing(models.Model):
     objects = BorrowingQuerySet.as_manager()
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    book = models.ForeignKey(LibraryBook, on_delete=models.CASCADE, related_name="borrowings")
+    book = models.ForeignKey(
+        LibraryBook, on_delete=models.CASCADE, related_name="borrowings", verbose_name="الكتاب"
+    )
     user = models.ForeignKey(
         "core.CustomUser",
         on_delete=models.CASCADE,
         related_name="borrowed_books",
         verbose_name="المستعير",
     )
-    borrow_date = models.DateField(auto_now_add=True)
+    borrow_date = models.DateField(auto_now_add=True, verbose_name="تاريخ الإعارة")
     due_date = models.DateField(verbose_name="تاريخ الإرجاع المتوقع")
     return_date = models.DateField(null=True, blank=True, verbose_name="تاريخ الإرجاع الفعلي")
-    status = models.CharField(max_length=20, choices=STATUS, default="BORROWED")
+    status = models.CharField(
+        max_length=20, choices=STATUS, default="BORROWED", verbose_name="حالة الإعارة"
+    )
     librarian = models.ForeignKey(
         "core.CustomUser",
         on_delete=models.SET_NULL,
@@ -103,10 +112,10 @@ class LibraryActivity(models.Model):
     """نشاط مكتبة — قراءة جماعية، معارض، إلخ"""
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey("core.School", on_delete=models.CASCADE)
+    school = models.ForeignKey("core.School", on_delete=models.CASCADE, verbose_name="المدرسة")
     title = models.CharField(max_length=200, verbose_name="اسم النشاط")
     description = models.TextField(verbose_name="وصف النشاط")
-    date = models.DateField()
+    date = models.DateField(verbose_name="تاريخ النشاط")
     participants = models.ManyToManyField(
         "core.CustomUser", related_name="library_activities", verbose_name="المشاركون"
     )

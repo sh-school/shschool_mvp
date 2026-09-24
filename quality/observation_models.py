@@ -72,12 +72,15 @@ class ObservationCriterion(TimeStampedModel):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
-        School, on_delete=models.CASCADE, related_name="observation_criteria"
+        School,
+        on_delete=models.CASCADE,
+        related_name="observation_criteria",
+        verbose_name="المدرسة",
     )
     domain = models.CharField(max_length=20, choices=OBSERVATION_DOMAINS, verbose_name="المجال")
     text = models.TextField(verbose_name="معيار الأداء")
-    order = models.PositiveSmallIntegerField(default=0)
-    is_active = models.BooleanField(default=True)
+    order = models.PositiveSmallIntegerField(default=0, verbose_name="الترتيب")
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
 
     class Meta:
         verbose_name = "معيار ملاحظة صفّية"
@@ -98,7 +101,10 @@ class ClassroomObservation(AuditedModel):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
-        School, on_delete=models.CASCADE, related_name="classroom_observations"
+        School,
+        on_delete=models.CASCADE,
+        related_name="classroom_observations",
+        verbose_name="المدرسة",
     )
     teacher = models.ForeignKey(
         CustomUser,
@@ -136,20 +142,26 @@ class ClassroomObservation(AuditedModel):
     follow_up_mode = models.CharField(
         max_length=10, choices=FOLLOW_UP_MODE, blank=True, verbose_name="نوع المتابعة"
     )
-    follow_up_scope = models.CharField(max_length=10, choices=FOLLOW_UP_SCOPE, blank=True)
+    follow_up_scope = models.CharField(
+        max_length=10, choices=FOLLOW_UP_SCOPE, blank=True, verbose_name="نطاق المتابعة"
+    )
     broadcast_note = models.CharField(max_length=200, blank=True, verbose_name="ملاحظات البث")
     general_notes = models.TextField(blank=True, verbose_name="ملاحظات وتوصيات عامّة")
 
-    status = models.CharField(max_length=15, choices=OBSERVATION_STATUS, default="draft")
+    status = models.CharField(
+        max_length=15, choices=OBSERVATION_STATUS, default="draft", verbose_name="الحالة"
+    )
     score_percent = models.DecimalField(
         max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="النسبة الإجماليّة"
     )
-    submitted_at = models.DateTimeField(null=True, blank=True)
-    teacher_acknowledged_at = models.DateTimeField(null=True, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الإرسال")
+    teacher_acknowledged_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="تاريخ اطّلاع المعلّم"
+    )
     teacher_comment = models.TextField(blank=True, verbose_name="تعليق المعلّم")
 
     # عدّاد مرّات الإرسال — يُميّز الإرسال الأول من إعادة الإرسال بعد سحب/إعادة فتح
-    submission_count = models.PositiveSmallIntegerField(default=0)
+    submission_count = models.PositiveSmallIntegerField(default=0, verbose_name="مرّات الإرسال")
 
     # ── الحذف الناعم: مُركَّب يدوياً فوق AuditedModel للحفاظ على created_by/updated_by ──
     # (مطابق لـ core.models.base.SoftDeleteModel:129-152 — لا نرث منه كي لا نفقد أعمدة التدقيق)
@@ -203,12 +215,20 @@ class ObservationScore(TimeStampedModel):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     observation = models.ForeignKey(
-        ClassroomObservation, on_delete=models.CASCADE, related_name="scores"
+        ClassroomObservation,
+        on_delete=models.CASCADE,
+        related_name="scores",
+        verbose_name="الزيارة الصفّيّة",
     )
     criterion = models.ForeignKey(
-        ObservationCriterion, on_delete=models.PROTECT, related_name="scores"
+        ObservationCriterion,
+        on_delete=models.PROTECT,
+        related_name="scores",
+        verbose_name="المعيار",
     )
-    rating = models.CharField(max_length=15, choices=RATING_CHOICES, blank=True)
+    rating = models.CharField(
+        max_length=15, choices=RATING_CHOICES, blank=True, verbose_name="التقدير"
+    )
     recommendation = models.TextField(blank=True, verbose_name="التوصية")
 
     class Meta:
