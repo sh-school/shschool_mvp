@@ -703,8 +703,6 @@
 .qcom-member__name { display: block; font-weight: 700; color: var(--text-primary); }
 .qcom-member__job { display: block; font-size: var(--text-xs); color: var(--text-muted); }
 .qcom-actions { display: inline-flex; align-items: center; gap: var(--sp-1, var(--sp-1)); flex-wrap: wrap; justify-content: center; }
-@media (max-width: 900px) { .qcom .q-add-form-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 560px) { .qcom .q-add-form-grid { grid-template-columns: 1fr; } }
 
 /* ── templates/quality/observation_*.html — الزيارات الصفّيّة ──
    كانت ترويسةُ الصفحة متداخلةً داخل بطاقةٍ واحدةٍ تحمل الصفحةَ كلَّها، ولكلّ
@@ -1051,7 +1049,10 @@
   .lab-head .form-group { margin: 0; min-width: 220px; }
 
   /* بوّابةُ الصلاحية صارت شريطَ أرقام (`kpi_strip`) — كانت لوحاتٍ مصمَتةً بنظامٍ خاصّ. */
-  .lab-main { display: grid; grid-template-columns: 320px 1fr; gap: var(--sp-2); align-items: start; }
+  /* الرادارُ 320px وجارُه، ينفكّان حين تضيق الحاوية. min-inline-size: 0 وإلّا دفع عرضُ الرسم عمودَ الصفحة. */
+  .lab-main { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: flex-start; min-inline-size: 0; }
+  .lab-main > * { flex: 1 1 20rem; min-inline-size: 0; }
+  .lab-main > * + * { flex: 99999 1 36rem; }
   .lab-radar { max-height: 300px; }
   .lab-chips { padding: var(--sp-2) var(--sp-3); }
   .lab-res-col { width: 40%; }
@@ -1085,7 +1086,6 @@
   .legend i { display: inline-block; width: 14px; height: 5px; border-radius: 3px; vertical-align: middle; margin-inline-end: var(--sp-1); }
   .legend i.legend-cur { background: var(--maroon); }
   .legend i.legend-ref { background: var(--gold); }
-  @media (max-width: 900px) { .lab-main { grid-template-columns: 1fr; } }
   @media print { .lab-head form { display: none !important; } .tiles { grid-template-columns: repeat(3, 1fr); } }
 
 /* ── templates/schedule/ — التبديلُ والتعويضُ والتفضيلات: ما كان تنسيقاً في الوسوم ── */
@@ -1314,23 +1314,20 @@
   .sa-start { text-align: start; }
 
 /* ── templates/staff_affairs/assignments.html ── */
-  /* عمودان من 769px، وأربعةٌ من 1025px (ثلاثةٌ بلا نموذج)، وعمودٌ واحدٌ على الهاتف. الارتفاعُ المحدود
-     وتمريرُ البطاقات داخلياً في 50-utilities.css (page-noscroll). */
-  .sa-assign { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); align-items: start; }
+  /* أربعةُ أعمدةٍ من 1025px (ثلاثةٌ بلا نموذج)، ودونها عمودان متى اتّسعت الحاويةُ لـ2×26rem.
+     الارتفاعُ المحدود وتمريرُ البطاقات داخلياً في 50-utilities.css (page-noscroll). */
+  .sa-assign { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: var(--sp-2); align-items: start; }
+  .sa-assign--solo { grid-template-columns: minmax(0, 1fr); }
   .sa-assign .form-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2) var(--sp-3); }
   .sa-assign__footer { align-self: end; justify-content: flex-end; }
   .sa-cell-sub { display: block; font-size: var(--text-xs); color: var(--text-muted); font-weight: 400; }
   .sa-assign .col-actions { width: auto; }
-  @media (min-width: 769px) {
-    .sa-assign { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-    .sa-assign--solo { grid-template-columns: minmax(0, 1fr); }
+  @media (max-width: 640px) {
+    .sa-assign .form-row { grid-template-columns: 1fr; }
   }
   @media (min-width: 1025px) {
     .sa-assign { grid-template-columns: repeat(4, minmax(0, 1fr)); }
     .sa-assign--solo { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  }
-  @media (max-width: 480px) {
-    .sa-assign .form-row { grid-template-columns: 1fr; }
   }
 
 /* ── templates/student_affairs/student_profile.html ── */
@@ -1407,7 +1404,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  z-index: 50;
+  z-index: var(--z-dropdown);
 }
 .sa-late-result {
   display: flex;
@@ -1455,12 +1452,7 @@
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
 }
-
-@media (max-width: 768px) {
-  .df-row-2 {
-    grid-template-columns: 1fr;
-  }
-}
+@media (max-width: 640px) { .df-row-2 { grid-template-columns: 1fr; } }
 
 /* الشرحُ التمهيديّ في صفحة الإعداد القانونيّ: فقراتٌ بعناوينَ فرعيّة داخل بطاقةٍ واحدة. */
 .df-intro-block {

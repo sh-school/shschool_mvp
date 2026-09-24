@@ -18,13 +18,24 @@ tests/test_z_scale.py
 import pathlib
 import re
 
-from tests.css_contrast import iter_rules, token_table
-from tests.css_source import read_css
+from tests.css_contrast import iter_rules, strip_noise, token_table
+from tests.css_source import css_paths, read_css
 
 BASE = pathlib.Path("templates/base/base.html")
 
 #: المقياسُ مرتَّباً من الأدنى — كلُّ طبقةٍ تعلو ما قبلها.
-ORDER = ["--z-dropdown", "--z-navbar", "--z-sidebar", "--z-nav-menu", "--z-modal", "--z-toast"]
+ORDER = [
+    "--z-banner",
+    "--z-dropdown",
+    "--z-navbar",
+    "--z-sidebar",
+    "--z-nav-menu",
+    "--z-modal",
+    "--z-toast",
+]
+
+#: أدنى رقمٍ خامٍّ يُعدّ «طبقةَ صفحة» (K18 في خطّة الجوال): ما دونه ترتيبٌ محلّيٌّ داخل مكوّنٍ.
+RAW_LAYER_FLOOR = 20
 
 
 def _tokens():
@@ -82,3 +93,33 @@ def test_a_nav_menu_is_drawn_above_the_bar_it_opens_from():
     tokens = _tokens()
     assert menu > int(tokens["--z-sidebar"]), "القائمةُ دون لوحة الجوّال"
     assert menu < int(tokens["--z-modal"]), "القائمةُ تعلو النوافذَ الحواريّة"
+
+
+def test_no_page_layer_is_a_raw_number():
+    """K18 = 0: طبقةُ الصفحة (≥ 20) رمزٌ من السلّم لا رقمٌ خام.
+
+    الرقمُ الخامّ يُخفي مقارنتَه بغيره: كان شريطُ التثبيت على `9999` فيعلو المودالَ والتوستَ
+    (طبقاتُ 9000 و9500)، وثلاثُ قوائمَ منسدلةٍ على 20 و50 فتسقط تحت ترويسات الجداول اللاصقة (100).
+    """
+    raw = []
+    for path in css_paths():
+        text = strip_noise(path.read_text(encoding="utf-8"))
+        for number, line in enumerate(text.splitlines(), 1):
+            for match in re.finditer(r"(?i)z-index\s*:\s*(-?\d+)", line):
+                if int(match.group(1)) >= RAW_LAYER_FLOOR:
+                    raw.append(f"{path.name}:{number}: {line.strip()[:90]}")
+    assert not raw, "z-index خامٌّ ≥ 20 — استعمل رمزاً من `--z-*`:\n  " + "\n  ".join(raw)
+
+
+def test_the_install_banner_sits_under_everything_the_user_opens():
+    """شريطُ «ثبّت المنصّة» فوق المحتوى وتحت كلّ ما يفتحه المستخدم أو يثبت في الشاشة.
+
+    لوحةُ الهامبرغر ابنةُ `.site-nav` اللزج (سياقُ تكديسٍ بطبقة 1000)، فطبقتُها الفعليّة في الجذر
+    1000 لا `--z-sidebar` — فما كان فوق 1000 غطّى اللوحةَ. لذلك الشريطُ دون `--z-navbar` لا فوقه.
+    """
+    tokens = _tokens()
+    banner = _z_of(".pwa-banner")
+    assert banner == int(tokens["--z-banner"]), "`.pwa-banner` لا تقرأ `--z-banner`"
+    assert int(tokens["--z-raised"]) < banner < int(tokens["--z-dropdown"])
+    assert banner < int(tokens["--z-navbar"]) < _z_of(".sd-menu") < int(tokens["--z-modal"])
+    assert int(tokens["--z-modal"]) < int(tokens["--z-toast"])

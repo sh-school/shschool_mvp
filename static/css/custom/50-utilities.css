@@ -93,25 +93,7 @@
 /* ── Link Accent (for inline links with specific colors) ─────────── */
 .link-maroon { color: var(--maroon-link); font-weight: 600; }
 
-/* ── PWA Banner ──────────────────────────────────────────────────────
-   كان تنسيقُه كلُّه في وسمه، وإظهارُه بـ`style.display` — فصار صنفاً يُظهَر
-   بسمة `hidden`، وهي التي يضبطها زرُّ الإغلاق أصلاً (`data-hide`). */
-.pwa-banner {
-  position: fixed;
-  inset-block-end: 16px;
-  inset-inline: 12px;
-  z-index: 9999;
-  max-width: 360px;
-  margin-inline: auto;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-3-5) var(--sp-4);
-  background: var(--maroon);
-  color: var(--on-fill);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-}
+/* PWA Banner: قاعدتُه الوحيدةُ في 20-components.css؛ يُظهَر بسمة `hidden` (`data-hide`). */
 .pwa-banner__icon { flex-shrink: 0; display: inline-flex; }
 .pwa-banner__icon .icon { width: 28px; height: 28px; }
 .pwa-banner__text { flex: 1; min-inline-size: 0; }
@@ -433,7 +415,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   /* «حسب اليوم»: أربعةُ أعمدةٍ ثابتة لكلّ يوم (INBOX_COLUMNS). */
   #main-content.page-noscroll .notif-feed:not(.notif-feed--types) .notif-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   /* الشاشةُ العريضةُ: خمسةُ أنواعٍ في الصفّ. */
-  @media (min-width: 1600px) {
+  @media (min-width: 1440px) {
     #main-content.page-noscroll .notif-feed--types { grid-template-columns: repeat(auto-fit, minmax(calc((100% - 4 * var(--sp-3)) / 5), 1fr)); }
   }
   #main-content.page-noscroll .notif-feed--types .notif-day__title { flex-shrink: 0; }
