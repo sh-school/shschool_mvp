@@ -758,9 +758,10 @@ def test_0015_closes_dbt05_by_an_operation_not_a_pr():
 _sync16 = importlib.import_module("roadmap.migrations.0016_sync_items_2026_09_24g")
 
 
-def test_0016_adds_notes_without_moving_any_status():
+def test_0016_adds_notes_and_closes_only_dbt39():
     starts = {
         "SCH-08": ("doing", 90),
+        "DBT-39": ("todo", 0),
         "SCH-11": ("todo", 0),
         "DBT-36": ("todo", 0),
         "Q-11": ("todo", 0),
@@ -772,7 +773,9 @@ def test_0016_adds_notes_without_moving_any_status():
     assert _sync16.sync(RoadmapItem) == []
     for code, (status, progress) in starts.items():
         item = RoadmapItem.objects.get(code=code)
-        assert (item.status, item.progress) == (status, progress), code
+        want = (status, progress) if code != "DBT-39" else ("done", 100)
+        assert (item.status, item.progress) == want, code
+    assert RoadmapItem.objects.get(code="DBT-39").pr == "#559"
     assert "c2dba53a" in RoadmapItem.objects.get(code="SCH-08").note
     assert "22.8%" in RoadmapItem.objects.get(code="SCH-11").note
 
