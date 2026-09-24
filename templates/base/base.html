@@ -1053,8 +1053,10 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% block page_header %}{% endblock %}
   {% block content %}{% endblock %}
 </main>
-{# «بلا تمرير» مشروطٌ بسعة النافذة (LAY-03، قرارُ المالك 2026-09-24): يُقرَّر هنا قبل الرسم الأوّل لا في base.js
-   المؤجَّل — فالقرارُ بعد الرسم قفزةٌ في التخطيط (CLS نحو 1.0 مقيسٌ). الشرحُ والمستمعاتُ في base.js. #}
+{% comment %}
+  «بلا تمرير» مشروطٌ بسعة النافذة (LAY-03، قرارُ المالك 2026-09-24): يُقرَّر هنا قبل الرسم الأوّل لا في base.js
+  المؤجَّل — فالقرارُ بعد الرسم قفزةٌ في التخطيط (CLS نحو 1.0 مقيسٌ). الشرحُ والمستمعاتُ في base.js.
+{% endcomment %}
 <script nonce="{{ request.csp_nonce }}">
 window.fitNoscroll = function () {
   var main = document.getElementById('main-content');

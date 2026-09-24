@@ -10,9 +10,12 @@ import pathlib
 import re
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-#: القالبُ بلا تعليقات جانغو — لا تصل الصفحة، وتعليقُ الرأس يذكر `</main>` نصّاً.
+#: القالبُ بلا تعليقات جانغو (`{# #}` وكتلةُ `{% comment %}`) — لا تصل الصفحة، وتعليقُ الرأس يذكر `</main>` نصّاً.
 BASE = re.sub(
-    r"\{#.*?#\}", "", (ROOT / "templates/base/base.html").read_text(encoding="utf-8"), flags=re.S
+    r"\{#.*?#\}|\{% comment %\}.*?\{% endcomment %\}",
+    "",
+    (ROOT / "templates/base/base.html").read_text(encoding="utf-8"),
+    flags=re.S,
 )
 BASE_JS = (ROOT / "static/js/base.js").read_text(encoding="utf-8")
 
