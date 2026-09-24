@@ -270,6 +270,24 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   .bc-back { width: 32px; height: 32px; }
   .breadcrumbs a { display: inline-block; padding-block: var(--sp-1); min-height: 24px; }
   .th-sort { min-height: 24px; }
+
+  /* سجلُّ الموظفين: 12 عموداً في 338px يلفّ الاسمَ حرفاً حرفاً؛ فيُمرَّر داخل غلافه والاسمُ لاصق. */
+  .table-wrap-scroll:has(> .staff-register) { overflow-x: auto; }
+  .staff-register { min-inline-size: 64rem; }
+}
+
+/* M-01: أهدافُ اللمس 44px على المؤشّر الخشن (D1). الصندوقُ نفسُه يكبر لأنّ mobile_audit يقيسه. */
+@media (pointer: coarse) {
+  .site-header .nav-logo, .site-header .nav-user-btn, .btn-sm, .btn-xs, .parent-child__actions .btn-secondary,
+  .notif-group-switch__opt, .period-switch__item, a.status-badge, a.ui-kpi { min-block-size: var(--control-h); }
+  .site-header .nav-bell, .theme-toggle, .bc-back, .breadcrumbs a, .th-sort, .ui-tip__btn,
+  .pwa-dismiss-btn, .toast-close, .modal-close-btn { min-inline-size: var(--control-h); min-block-size: var(--control-h); }
+  .col-actions .btn-xs { min-inline-size: var(--control-h); }
+  .site-header .nav-bell, .breadcrumbs a, .btn-xs, .notif-group-switch__opt, a.status-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .ui-tip__btn { margin-block: calc(-1 * var(--sp-2)); } /* لا يُكبّر شريطَ البطاقة */
+  input[type="checkbox"], input[type="radio"] { min-inline-size: 24px; min-block-size: 24px; }
 }
 
 /* في طبقة utilities لا components: `.exec-dash{display:grid}` و`.qeval-staff{max-height}` في modules،
