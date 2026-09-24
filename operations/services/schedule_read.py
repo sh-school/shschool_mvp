@@ -163,9 +163,9 @@ class ScheduleReadMixin:
             grid[slot.day_of_week].setdefault(slot.period_number, []).append(slot)
         return grid
 
-    @staticmethod
+    @classmethod
     def get_teachers_matrix(
-        school: School, academic_year: str | None = None, generation=None
+        cls, school: School, academic_year: str | None = None, generation=None
     ) -> list[dict]:
         """الجدول العام: صفٌّ لكل معلّم، وخمسةُ أيامٍ في كلٍّ منها سبعُ حصص.
 
@@ -198,6 +198,15 @@ class ScheduleReadMixin:
         slots = qs.select_related("teacher", "class_group", "subject").order_by(
             "teacher__full_name", "day_of_week", "period_number"
         )
+        return cls._matrix_rows(school, academic_year, slots, generation)
+
+    @classmethod
+    def _matrix_rows(cls, school: School, academic_year: str, slots, generation=None) -> list[dict]:
+        """صفوفُ الجدول العام من حصصٍ بشكل الخانة، مرتّبةً بالمعلّم فاليوم فالحصّة.
+
+        مشتركةٌ بين الخطّة (`ScheduleSlot`) والأسبوع الفعليّ (`Session`، `get_week_matrix`): الورقةُ
+        واحدةٌ ومصدرُها يتبدّل — فلا يُكتب بناؤها مرّتين.
+        """
         labels = parallel_labels(school, academic_year, generation)
 
         rows: dict = {}
