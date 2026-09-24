@@ -63,4 +63,4 @@ def icon_preview(request):
 @developer_only
 def ui_layouts(request):
     """أنماطُ التخطيط السبعة — المواصفاتُ في docs/design/page_layouts.md، والأصنافُ في LAY-03."""
-    return render(request, "styleguide/layouts.html")
+    return render(request, "styleguide/layouts.html", {"icon_count": len(ICONS)})
