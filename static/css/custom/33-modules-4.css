@@ -7,7 +7,8 @@
    ونموذجُ التعيين في سطرها الثاني. */
 .slot-cell { display: grid; min-inline-size: 0; }
 .slot-assign { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1-5); inline-size: 100%; }
-.slot-assign .form-select { flex: 1 1 150px; inline-size: auto; }
+/* خياراتُ البديل طويلةٌ بعدّاداتها: بلا حدٍّ أدنى صفريّ لا ينكمش الحقلُ دون أطولها فيخرج عن البطاقة. */
+.slot-assign .form-select { flex: 1 1 150px; inline-size: auto; min-inline-size: 0; max-inline-size: 100%; }
 .slot-assign .form-control { flex: 1 1 110px; inline-size: auto; }
 .substitute-form-page { max-width: 640px; margin-inline: auto; }
 

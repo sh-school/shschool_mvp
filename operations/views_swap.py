@@ -18,7 +18,7 @@ from .models import (
     TeacherAbsence,
     TeacherSwap,
 )
-from .services import CompensatoryService, FreeSlotService, SwapService
+from .services import AbsenceSwapService, CompensatoryService, FreeSlotService, SwapService
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +63,11 @@ def swap_list(request):
 
     # التوقيعُ حقُّ منسّقِ الجهة، فالزرُّ يظهر لمن يملكه لا لكلّ منسّقٍ في
     # المدرسة. ويُحسَب هنا لا في القالب: القالبُ لا يستدعي خدمةً بمعاملات.
+    # وتبديلُ الغياب بعد التوقيعين يعتمده النائبُ أو من كُلِّف عنه.
     swaps = list(swaps)
     for swap in swaps:
         swap.my_sides = SwapService.signable_sides(swap, request.user)
+        swap.can_final = AbsenceSwapService.can_final_approve(swap, request.user)
 
     return render(
         request,
@@ -281,6 +283,65 @@ def swap_cancel(request, swap_id):
     except ValueError as e:
         messages.error(request, str(e))
     return redirect("swap_list")
+
+
+# ── التبديل بسبب الغياب ──────────────────────────────────────────
+
+
+def _absence_and_slot(request, absence_id, slot_id):
+    """الغيابُ وحصّتُه — والمنسّقُ لا يمسّ غيابَ معلّمٍ من غير قسمه."""
+    from django.http import Http404
+
+    from core.permissions import get_department_teacher_ids
+
+    school = request.school
+    absence = get_object_or_404(TeacherAbsence, id=absence_id, school=school)
+    slot = get_object_or_404(ScheduleSlot, id=slot_id, school=school, teacher=absence.teacher)
+    dept_ids = get_department_teacher_ids(request.user)
+    if dept_ids is not None and absence.teacher_id not in dept_ids:
+        raise Http404("هذا المعلم ليس من قسمك")
+    return absence, slot
+
+
+@login_required
+@capability_required("operations.substitutes_manage")
+def absence_swap_options(request, absence_id, slot_id):
+    """HTMX: معلّمو الشعبة المتفرّغون للتبديل في حصّة الغائب، ويومُ الردّ لكلٍّ."""
+    absence, slot = _absence_and_slot(request, absence_id, slot_id)
+    return render(
+        request,
+        "substitute/partials/swap_options.html",
+        {
+            "absence": absence,
+            "slot": slot,
+            "options": AbsenceSwapService.options(absence, slot),
+            "immediate": AbsenceSwapService.is_leadership(request.user, absence.school),
+        },
+    )
+
+
+@login_required
+@capability_required("operations.substitutes_manage")
+@require_POST
+def absence_swap_create(request, absence_id, slot_id):
+    """ينشئ التبديلَ: القيادةُ تنفّذه فوراً، والمنسّقُ يبدأ مسارَ موافقته."""
+    from datetime import date as date_cls
+
+    absence, slot = _absence_and_slot(request, absence_id, slot_id)
+    try:
+        slot_b_id, raw_date = request.POST.get("option", "").split("|")
+        slot_b = get_object_or_404(ScheduleSlot, id=slot_b_id, school=absence.school)
+        swap = AbsenceSwapService.request(
+            absence, slot, slot_b, date_cls.fromisoformat(raw_date), request.user
+        )
+    except ValueError as bad:
+        messages.error(request, str(bad) or "اختر تبديلاً من القائمة")
+    else:
+        if swap.status == "executed":
+            messages.success(request, "نُفِّذ التبديلُ وأُبلغ الجميع")
+        else:
+            messages.success(request, "أُرسل التبديلُ إلى المعلّم للموافقة، ثمّ المنسّقَين والنائب")
+    return redirect("absence_detail", absence_id=absence.id)
 
 
 # ── الحصص التعويضية ───────────────────────────────────────────────

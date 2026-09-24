@@ -3,8 +3,10 @@
   سطرٌ واحد على الحاسوب بثلاثة أقسام: هويّةُ المدرسة | الرؤية | التوقيع؛ ومتراصٌّ مركَّزٌ على الجوّال.
   بلا اسم التطبيق ورقم الإصدار (قرارُ المالك)، وشعارا أذكياء وسفيان كلٌّ على رقعةٍ بيضاء بحجمٍ واحد.
   أصنافُه `adm-footer*` في admin_theme.css لأنّ لوحةَ الإدارة لا تحمل أنماطَ المنصّة.
+  وسمُه `div` لا `footer`: جانغو يلفّ هذه الكتلةَ بـ`<footer id="footer">` أصلاً، فوسمٌ ثانٍ (أو role=contentinfo) كان
+  يُنشئ معلَماً مكرَّراً متداخلاً يرصده axe (landmark-no-duplicate-contentinfo وأخواتُه).
 {% endcomment %}
-<footer class="adm-footer" role="contentinfo">
+<div class="adm-footer">
   <p class="adm-footer__text">{{ current_school.name|default:"المدرسة" }} &ensp;|&ensp; وزارة التربية والتعليم والتعليم العالي — دولة قطر &ensp;·&ensp; &copy; {% now "Y" %}</p>
   <p class="adm-footer__vision">{% include "components/ministry_vision.html" with school=current_school %}</p>
   <div class="adm-footer__brand" aria-label="Azkia and Sufyan Mesyef brand attribution">
@@ -14,4 +16,4 @@
     <span class="adm-footer__sep" aria-hidden="true"></span>
     <span class="adm-footer__chip"><img src="{% static 'brand/sufyan-logo.png' %}" alt="شعار سفيان مسيف" class="adm-footer__logo" width="57" height="28" loading="lazy"></span>
   </div>
-</footer>
+</div>

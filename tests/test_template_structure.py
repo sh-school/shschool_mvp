@@ -20,6 +20,8 @@ ALLOWED_ORPHANS = {
     "500.html",
     # جانغو يضمّنها بالاسم من `admin/index.html` و`nav_sidebar.html` (نسخةٌ من قالبه بتعديلٍ وحيدٍ هو الطيّ).
     "admin/app_list.html",
+    # جانغو يجدها بالاسم من `admin/includes/fieldset`/نموذج الصفحة المضمَّنة (نسخةٌ من قالبه بتسميةٍ مخفيّةٍ لكلّ خليّة).
+    "admin/edit_inline/tabular.html",
 }
 
 
