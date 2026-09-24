@@ -16,11 +16,13 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .scheduler_constraints import slot_violations
+from .constraint_registry import REGISTRY
+from .scheduler_constraints import get_max_periods_for_day, slot_violations
 
 if TYPE_CHECKING:
     from .scheduler import ScheduleGrid, Task
@@ -129,3 +131,39 @@ def summary(breaches: list[Breach]) -> dict:
     for b in breaches:
         by_code[b.code] = by_code.get(b.code, 0) + 1
     return {"count": len(breaches), "by_code": by_code, "items": [b.as_dict() for b in breaches]}
+
+
+def blockers(
+    grid: ScheduleGrid, task: Task, blocked: Blocked | None = None, limit: int = 3
+) -> list[tuple[str, int]]:
+    """القيودُ التي تمنع أكثرَ خاناتِ مهمّةٍ لم تجد موضعاً — (رمزٌ، عددُ الخانات) (SCH-15).
+
+    «تعذّر وضع» تقول إنّ الحصّةَ بلا موضعٍ ولا تقول **لماذا**، فيبقى النائبُ يخمّن: أالمعلّمُ
+    مشغول؟ أم الشعبةُ ممتلئة؟ أم قسمةُ المادّة؟ فتُسأل كلُّ خانةٍ في الأسبوع أيَّ قيدٍ صلبٍ
+    يرفضها (`slot_violations` بلا رخصة)، وتُعدّ الرموزُ — فأكثرُها منعاً هو الجواب.
+    """
+    counts: Counter[str] = Counter()
+    for day in range(5):
+        last = get_max_periods_for_day(day, getattr(task, "level_type", ""))
+        for period in range(1, last - task.span + 2):
+            codes = set(slot_violations(grid, day, period, task))
+            if blocked and any(
+                (m.teacher_id, day, slot) in blocked
+                for m in task.members
+                for slot in task.slots(period)
+            ):
+                codes.add(EXEMPTION)
+            counts.update(codes)
+    # وعند التعادل بترتيب الرمز — ليثبت الجوابُ بين تشغيلٍ وآخر.
+    return sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:limit]
+
+
+def unplaced_message(grid: ScheduleGrid, task: Task, blocked: Blocked | None = None) -> str:
+    """سطرُ «تعذّر وضع» مع أكثر ما منعها — بأسماء القيود لا برموزها."""
+    head = f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})"
+    why = "؛ ".join(
+        f"{'تفريغُ معلّم' if code == EXEMPTION else REGISTRY[code].title if code in REGISTRY else code}"
+        f" ({count} خانة)"
+        for code, count in blockers(grid, task, blocked)
+    )
+    return f"{head} — أكثرُ ما منعها: {why}" if why else head

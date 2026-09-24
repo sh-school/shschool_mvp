@@ -136,6 +136,26 @@ def test_the_admin_widgets_have_accessible_names(
     assert not found, f"مخالفاتُ axe في صفحات الإدارة (راجع static/js/admin_a11y.js): {found}"
 
 
+def test_the_admin_image_alternatives_are_arabic(page, live_server, developer_user, teacher_user):
+    """axe لا يحكم على لغة النصّ البديل: أيقونةُ القيمة المنطقيّة تقول «True» وحقلُ البحث «Search» بلا هذا الحارس."""
+    developer_user.is_staff = developer_user.is_superuser = True
+    developer_user.save()
+    _login(page, live_server, developer_user)
+
+    page.goto(f"{live_server.url}/admin/core/customuser/")
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(200)
+    assert page.locator('img[alt="True"], img[alt="False"], img[alt="None"]').count() == 0
+    assert (
+        page.locator('td.field-is_active img[alt="نعم"]').count() >= 1
+    )  # عمود «حساب نشط» يعرض أيقونةً
+
+    page.goto(f"{live_server.url}/admin/auth/group/")
+    page.wait_for_load_state("networkidle")
+    page.wait_for_timeout(200)
+    assert page.locator('label[for="searchbar"] img').get_attribute("alt") == "بحث"
+
+
 class TestTheRatchetItself:
     """الحارسُ يحرس ما يقول إنّه يحرسه — منطقُ المقارنة لا يحتاج متصفّحاً لاختباره."""
 
