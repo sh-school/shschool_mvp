@@ -5,6 +5,9 @@
  * JSON فيه رابطُ الحالة؛ ثمّ يُتابَع بإشعارٍ عائمٍ «جارٍ التحضير» كلَّ ثانيتين، فإذا جهز
  * نُزِّل الملفُّ في الخلفيّة والصفحةُ في مكانها، وإن فشل ظهر السببُ في إشعارٍ أحمر.
  * وبلا `showToast` (ورقةٌ مستقلّةٌ بلا base.js) يُترك الرابطُ لسلوكه — صفحةُ المتابعة.
+ *
+ * والورقةُ المستقلّة (print_schedule.html) تُحيل تصديرَها إلى هذه الصفحة بـ`?export=pdf|excel`:
+ * يُبدأ التصديرُ هنا عند التحميل ثمّ يُحذف الوسيطُ من الرابط، فلا يتكرّر عند التحديث.
  */
 (function () {
   'use strict';
@@ -120,4 +123,15 @@
     event.preventDefault();
     start(link);
   }, true);
+
+  // تصديرٌ طلبته الورقةُ المستقلّة (`?export=pdf|excel`) — السكربتُ `defer` فالصفحةُ مرسومة.
+  var params = new URLSearchParams(window.location.search);
+  var kind = params.get('export');
+  if (kind) {
+    params.delete('export');
+    var rest = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (rest ? '?' + rest : ''));
+    var requested = document.querySelector('a[data-export-job="' + (kind === 'excel' ? 'excel' : 'pdf') + '"]');
+    if (requested && toaster('showToast')) start(requested);
+  }
 })();
