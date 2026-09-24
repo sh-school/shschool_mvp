@@ -419,3 +419,23 @@ thead th, .module caption { text-transform: none; }
   .adm-nav__btn, #header .adm-nav__menu a { min-block-size: 44px; box-sizing: border-box; }
   #header .adm-nav__menu a { display: flex; align-items: center; }
 }
+
+/* ── الانتقال بين الصفحات — بمدّة المنصّة نفسِها (`static/css/custom/20-components.css`، ومعيارُ الهويّة في CLAUDE.md) ──
+   الرمزُ `--transition-page` وحركةُ `page-in` منقولان منها حرفيّاً (tests/test_admin_theme.py يفشل إن اختلفا).
+   صفحاتُ الإدارة تُحمَّل كاملةً لا يُبدَّل DOM فيها (أدواتُها — jQuery وselect2 وSelectFilter — تهيَّأ عند `load`)، فإعادةُ
+   التحميل كانت ترسم الترويسةَ والتذييلَ من جديدٍ فيرمشان. لذا: */
+:root { --transition-page: 500ms ease; }
+@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
+/* ١) المتصفّحُ يمازج الصفحتين بنفسه (Chrome/Edge 126+، Safari 18.2+): القديمةُ تبقى ظاهرةً حتى تجهز الجديدة ثمّ تمتزجان — وما تطابق
+      فيهما (الترويسةُ والتذييل) يبقى كما هو بلا رمش. وحدةُ `animation-duration` هنا لا تقبل الرمزَ المركَّب، فالمدّةُ مكرَّرةٌ ويحرسها الاختبار. */
+@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } }
+::view-transition-group(root) { animation-duration: 500ms; }
+/* ٢) غيرُه: يتلاشى المحتوى وحدَه (page-nav.js بنمط `fade`) ثمّ تظهر الصفحةُ التالية بـ`page-in`. والنوافذُ المنبثقةُ (`.popup`) بلا حركة. */
+@supports not at-rule(@view-transition) {
+  body:not(.popup) #content-start > * { animation: page-in var(--transition-page) backwards; transition: opacity var(--transition-page); }
+  body:not(.popup) #content-start.is-leaving > * { opacity: 0; pointer-events: none; }
+}
+/* القائمةُ المنسدلةُ بعد نقرِ رابطٍ فيها: تتلاشى بالمدّة نفسِها ثمّ يغلقها page-nav.js (`is-fading` على القسم الفاتح). */
+.adm-nav__item.is-fading > .adm-nav__menu { animation: adm-menu-out var(--transition-page) forwards; pointer-events: none; }
+@keyframes adm-menu-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { body:not(.popup) #content-start > * { animation: none; transition: none; } }

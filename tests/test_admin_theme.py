@@ -58,6 +58,59 @@ def test_dark_admin_colours_are_the_platform_dark_tokens():
         assert f"{admin_var}: {_token(themes, token)};" in dark, (admin_var, token)
 
 
+def test_the_admin_page_fade_is_the_platform_fade():
+    """مدّةُ التلاشي رمزٌ واحدٌ وحركةُ الظهور واحدة — نُقلا حرفيّاً كألوان الهويّة، فلا يتباعد الانتقالان (قرارُ المالك 2026-09-24)."""
+    platform_token = re.search(
+        r"--transition-page:\s*([^;]+);", (CUSTOM / "10-foundation.css").read_text(encoding="utf-8")
+    )
+    admin = ADMIN.read_text(encoding="utf-8")
+    admin_token = re.search(r"--transition-page:\s*([^;]+);", admin)
+    assert platform_token and admin_token
+    assert admin_token.group(1).strip() == platform_token.group(1).strip()
+
+    def keyframes(css: str) -> str:
+        return " ".join(re.search(r"@keyframes page-in\s*\{.*?\}\s*\}", css, re.S).group(0).split())
+
+    assert keyframes(admin) == keyframes((CUSTOM / "20-components.css").read_text(encoding="utf-8"))
+    for rule in (
+        "animation: page-in var(--transition-page) backwards;",
+        "transition: opacity var(--transition-page);",
+    ):
+        assert rule in admin, rule
+
+    # المزجُ الأصليُّ بين الصفحتين (`@view-transition`) بالمدّة نفسِها — وحدةُ `animation-duration` لا تقبل الرمزَ المركَّب فتُكرَّر.
+    duration = admin_token.group(1).split()[0]
+    assert re.search(
+        rf"::view-transition-group\(root\)\s*\{{\s*animation-duration:\s*{re.escape(duration)}\s*;",
+        admin,
+    )
+    assert re.search(
+        r"prefers-reduced-motion:\s*no-preference\)\s*\{\s*@view-transition\s*\{\s*navigation:\s*auto;",
+        admin,
+    )
+
+
+def test_the_admin_hands_the_page_mix_to_the_browser_and_keeps_the_js_fade_as_fallback():
+    """صفحاتُ الإدارة تُحمَّل كاملةً (أدواتُها تهيَّأ عند load): المزجُ للمتصفّح حيث يدعمه، والتلاشي بـJS ولا شيءَ سواه حيث لا يدعمه."""
+    admin = ADMIN.read_text(encoding="utf-8")
+    assert "@supports not at-rule(@view-transition)" in admin
+    fallback = admin[admin.index("@supports not at-rule(@view-transition)") :]
+    assert fallback.index("#content-start.is-leaving > *") < fallback.index(
+        ".adm-nav__item.is-fading"
+    )
+    js = pathlib.Path("static/js/page-nav.js").read_text(encoding="utf-8")
+    assert "at-rule(@view-transition)" in js and "FADE_ONLY && NATIVE_VT" in js
+
+
+def test_the_admin_preloads_the_fonts_its_header_uses():
+    """بلا تحميلٍ مسبقٍ يُرسم نصُّ الترويسة بخطٍّ بديلٍ لحظةً ثمّ يتبدّل عند كلّ صفحة (وميض)."""
+    base = pathlib.Path("templates/admin/base_site.html").read_text(encoding="utf-8")
+    css = ADMIN.read_text(encoding="utf-8")
+    for weight in ("Regular", "Medium", "Bold"):
+        assert f"fonts/Tajawal-{weight}.woff2" in base and f"fonts/Tajawal-{weight}.woff2" in css
+    assert base.count('rel="preload"') >= 3 and "crossorigin" in base
+
+
 def test_the_admin_uses_the_platform_favicon():
     base = pathlib.Path("templates/admin/base_site.html").read_text(encoding="utf-8")
     platform = pathlib.Path("templates/base/base.html").read_text(encoding="utf-8")

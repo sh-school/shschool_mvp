@@ -30,6 +30,7 @@
     if (r.left < 0 || r.right > document.documentElement.clientWidth) menu.classList.add('adm-nav__menu--flip');
   }
   function setOpen(item, open) {
+    if (!open && item.classList.contains('is-fading')) return;   // تتلاشى بعد نقرِ رابطٍ فيها: يغلقها page-nav.js عند انقضاء التلاشي
     item.classList.toggle('is-open', open);
     var btn = item.querySelector('.adm-nav__btn');
     if (btn) btn.setAttribute('aria-expanded', String(open));
@@ -118,5 +119,10 @@
   }
 
   nav.addEventListener('mouseleave', function () { if (!pinned) closeAll(null); });
-  document.addEventListener('click', function () { pinned = null; closeAll(null); });
+  document.addEventListener('click', function (e) {
+    // نقرةٌ عاديّةٌ على رابطٍ في القائمة: لا تُغلَق هنا فجأةً — page-nav.js يُخفتها بمدّة تلاشي الصفحة ثمّ يغلقها.
+    var link = e.target.closest && e.target.closest('.adm-nav__menu a[href]');
+    if (link && e.button === 0 && !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) && !link.target) return;
+    pinned = null; closeAll(null);
+  });
 })();
