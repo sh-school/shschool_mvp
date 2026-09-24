@@ -258,6 +258,32 @@ def check_license_expiry_task():
 
 
 # ═════════════════════════════════════════════════════════════════════
+# مصالحةُ الأسابيع المولَّدة سلفاً بعد اعتماد جدول (SCH-08)
+# ═════════════════════════════════════════════════════════════════════
+
+
+@shared_task(
+    name="operations.resync_generated_sessions",
+    max_retries=0,
+    soft_time_limit=600,
+    time_limit=660,
+)
+def resync_generated_sessions_task(school_id, academic_year):
+    """يُصالح حصصَ الأيّام المولَّدة بعد أسبوع الاعتماد مع الجدول المعتمَد.
+
+    الاعتمادُ يصالح الأسبوعَ الجاريَ في الطلب، وهذه تُكمل ما بعده خارجَه: كلفتُها تكبر
+    بعدد الأسابيع المولَّدة (قرابةَ مئةٍ وستٍّ وسبعين حصّةً لكلّ يوم). وثابتةُ التكرار:
+    دورةٌ ثانيةٌ على جدولٍ مصالَحٍ لا تجد ما تحذفه ولا ما تُنشئه.
+    """
+    from core.models import School
+    from operations.services import ScheduleService
+
+    school = School.objects.get(pk=school_id)
+    with school_rls_scope(school.id):
+        return ScheduleService.resync_future_weeks(school, academic_year)
+
+
+# ═════════════════════════════════════════════════════════════════════
 # توليد الجدول الأسبوعيّ الذكيّ — بطلب المستخدم
 # ═════════════════════════════════════════════════════════════════════
 
@@ -298,14 +324,21 @@ def generate_smart_schedule_task(self, generation_id):
         return {"ok": False, "reason": "not_pending", "status": generation.status}
 
     school = generation.school
+    # من «الانتظار» إلى «يجري» شرطاً لا حفظاً: إن أُوقف بين القراءة وهنا فلا يُبعث من جديد.
+    rows = ScheduleGeneration.objects.filter(
+        pk=generation.pk, status__in=ScheduleGeneration.PENDING_STATUSES
+    )
+    if not rows.update(status="running"):
+        return {"ok": False, "reason": "not_pending"}
     generation.status = "running"
-    generation.save(update_fields=["status"])
+
+    from operations.services.schedule_drafts import is_stopped
 
     def _fail(message):
-        generation.status = "failed"
-        generation.error_message = message[:2000]
-        generation.finished_at = timezone.now()
-        generation.save(update_fields=["status", "error_message", "finished_at"])
+        # شرطاً على «يجري»: صفٌّ أوقفه المستخدمُ أو حذفه لا يُكتب فوقه، ولا يُسقط المهمّة.
+        ScheduleGeneration.objects.filter(pk=generation.pk, status="running").update(
+            status="failed", error_message=message[:2000], finished_at=timezone.now()
+        )
         _notify_generation_done(generation, ok=False, summary=message)
 
     try:
@@ -320,6 +353,7 @@ def generate_smart_schedule_task(self, generation_id):
                 user=generation.generated_by,
                 generation=generation,
                 publish=False,
+                should_stop=lambda: is_stopped(generation.pk),
             )
     except SoftTimeLimitExceeded:
         logger.error("generate_smart_schedule: تجاوز الزمنَ المسموح — %s", generation_id)
@@ -331,6 +365,10 @@ def generate_smart_schedule_task(self, generation_id):
         # جداول أو جزءاً من تتبّع المكدّس، وهذه الرسالةُ تُعرض في الواجهة وتُبثّ JSON.
         _fail("خطأ غير متوقَّع في التوليد — سُجّلت التفاصيلُ للمشغّل، أعد المحاولةَ أو راجع السجلّ.")
         return {"ok": False, "reason": "exception"}
+
+    if result.get("stopped"):
+        logger.info("generate_smart_schedule: أُوقف يدويّاً — %s", generation_id)
+        return {"ok": False, "reason": "stopped"}
 
     # مؤشراتُ المختبر تُحسب هنا مرّةً وتُحفظ في صفّ التوليد — فالصفحةُ تعرض ولا تحسب.
     try:
@@ -353,8 +391,10 @@ def generate_smart_schedule_task(self, generation_id):
         return {"ok": False, "reason": "not_saved"}
 
     if result["errors"]:
-        generation.error_message = "؛ ".join(result["errors"])[:2000]
-        generation.save(update_fields=["error_message"])
+        # بالاستعلام لا بالحفظ: مسودّةٌ حُذفت بين الحفظ وهنا لا تُسقط المهمّة.
+        ScheduleGeneration.objects.filter(pk=generation.pk).update(
+            error_message="؛ ".join(result["errors"])[:2000]
+        )
 
     _notify_generation_done(generation, ok=result["success"], summary=summary)
     return {"ok": result["success"], "summary": summary, "failed": len(result["errors"])}

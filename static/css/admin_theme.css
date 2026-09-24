@@ -442,7 +442,39 @@ thead th, .module caption { text-transform: none; }
   .adm-nav.has-toggle .adm-nav__toggle { display: inline-flex; }
   .adm-nav.has-toggle:not(.is-expanded) > .adm-nav__item,
   .adm-nav.has-toggle:not(.is-expanded) > .adm-nav__search { display: none; }
-  /* هدفُ لمسٍ 44px لأزرار الشريط وروابط القوائم المنسدلة (WCAG 2.5.5؛ مقياس المنصّة). */
-  .adm-nav__btn, #header .adm-nav__menu a { min-block-size: 44px; box-sizing: border-box; }
+  /* هدفُ لمسٍ لأزرار الشريط وروابط القوائم المنسدلة (WCAG 2.5.5؛ مقياس المنصّة). */
+  .adm-nav__btn, #header .adm-nav__menu a { min-block-size: var(--adm-control-h); box-sizing: border-box; }
   #header .adm-nav__menu a { display: flex; align-items: center; }
+}
+/* الحدُّ الأدنى لهدف اللمس — منقولٌ من `--control-h` في `10-foundation.css` (لوحةُ الإدارة لا تحمل رموزَ المنصّة)،
+   وحارسٌ (tests/test_admin_theme.py) يفشل إن اختلفا. */
+:root { --adm-control-h: 44px; }
+/* أهدافُ اللمس على الجوّال في صفحات الإدارة كلِّها (OWN-21): قِيس 736 هدفاً دون الحدّ على ثماني صفحات — روابطُ صفوف
+   القوائم والمرشّحات والترقيم (14–20px)، وحقولُ الإدخال (28–36px)، وأزرارُ الترويسة (14–24px)، وأدواتُ جانغو
+   (إضافة/تعديل الحقل المرتبط 24px، وأسهمُ الاختيار بين قائمتين، واختصاراتُ «اليوم/الآن»). خانةُ الاختيار والدائرة
+   خارجُ القاعدة: لا يُلمس منهما إلّا ما يحمل تسميتَه، والتسميةُ هدفُ اللمس. */
+@media (max-width: 767px) {
+  #site-name a,
+  #content :is(td, th, li, p, h3, nav, div.text) > a, #content :is(a.addlink, a.changelink, a.viewlink, a.deletelink, a.inline-deletelink), #content .sortoptions a,
+  #content .related-widget-wrapper-link, #content .datetimeshortcuts a, #content .selector button {
+    display: inline-flex; align-items: center; min-block-size: var(--adm-control-h); min-inline-size: var(--adm-control-h); box-sizing: border-box;
+  }
+  #content .related-widget-wrapper-link, #content .selector button { justify-content: center; }
+  /* أدواتُ المستخدم في الترويسة صفٌّ واحدٌ من أهدافٍ بالحدّ الأدنى: نصُّ الترحيب والفواصلُ «/» (عُقَدُ نصٍّ بين الروابط)
+     تُخفى بحجم الخطّ صفراً ويُعاد الحجمُ للروابط والأزرار — فلا يزيد ارتفاعُ الترويسة إلّا بما يلزم الهدفَ نفسَه. */
+  #user-tools { display: flex; flex-wrap: wrap; align-items: center; column-gap: 0; float: none; margin: 0; font-size: 0; }
+  #user-tools strong { display: none; }
+  #user-tools > * { margin: 0; }
+  #logout-form { display: inline-flex; }
+  #header #user-tools :is(a, button) {
+    display: inline-flex; align-items: center; justify-content: center; min-block-size: var(--adm-control-h);
+    min-inline-size: var(--adm-control-h); padding-inline: 0.5rem; box-sizing: border-box;
+    font-size: 0.8125rem; line-height: var(--adm-control-h); text-transform: none; border-bottom: 0; text-decoration: underline;
+  }
+  /* الطيّةُ والمرشِّحُ سطرُهما كاملٌ يُلمس: يبقى عرضُهما ويرتفع الحدُّ الأدنى وحدَه (العلامةُ المرجعيّةُ ::before للسهم). */
+  #content .app-fold__summary, #content #changelist-filter summary { min-block-size: var(--adm-control-h); box-sizing: border-box; }
+  #content :is(input:not([type=checkbox], [type=radio], [type=hidden], [type=file]), select, textarea, button, a.button) {
+    min-block-size: var(--adm-control-h); box-sizing: border-box;
+  }
+  #content :is(button, input[type=submit], input[type=button], a.button) { min-inline-size: var(--adm-control-h); }
 }

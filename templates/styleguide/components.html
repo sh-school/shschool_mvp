@@ -128,8 +128,9 @@
       {% endfor %}
     </ul>
     <ul class="sg-rules">
-      <li>الظلُّ يدلّ على الارتفاع لا يزيّن: البطاقةُ <code><bdi dir="ltr">--shadow-sm</bdi></code>، وقوائمُ التنقّل المنسدلة <code><bdi dir="ltr">--shadow-menu</bdi></code> (أغمقُ لأنّها بلونِ القائمة فلا يفصلها عنها غيرُ الظلّ)، والنافذةُ <code><bdi dir="ltr">--shadow-modal</bdi></code> — ولا ظلَّ يُكتب بقيمته.</li>
-      <li>الطبقاتُ بسلّم <code><bdi dir="ltr">--z-*</bdi></code> وحدَه (base · raised · dropdown · sticky · navbar · modal · toast) — لا <code>z-index</code> برقمٍ عشوائيّ.</li>
+      <li>الظلُّ يدلّ على الارتفاع لا يزيّن: البطاقةُ <code><bdi dir="ltr">--shadow-sm</bdi></code>، والقائمةُ المنسدلة <code><bdi dir="ltr">--shadow-dropdown</bdi></code>، وقوائمُ التنقّل المنسدلة <code><bdi dir="ltr">--shadow-menu</bdi></code> (أغمقُ لأنّها بلونِ القائمة فلا يفصلها عنها غيرُ الظلّ)، والنافذةُ <code><bdi dir="ltr">--shadow-modal</bdi></code> — ولا ظلَّ يُكتب بقيمته.</li>
+      <li>الطبقاتُ بسلّم <code><bdi dir="ltr">--z-*</bdi></code> وحدَه (base · raised · banner · dropdown · sticky · navbar · sidebar · modal · toast) — لا <code>z-index</code> برقمٍ عشوائيّ.</li>
+
     </ul>
   {% endsection_card %}
 
@@ -186,13 +187,9 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
           {% for t in scales.layer %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
         </ul>
         <p class="sg-label">المنطقةُ الآمنة · {{ scales.safe|length }}</p>
-        {% if scales.safe %}
         <ul class="sg-tokens">
           {% for t in scales.safe %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
         </ul>
-        {% else %}
-        <p class="ui-note">لم تُعرَّف رموزُ <code><bdi dir="ltr">--safe-*</bdi></code> بعد (H-04)؛ تظهر هنا وحدَها حين تُعرَّف في <code><bdi dir="ltr">:root</bdi></code>.</p>
-        {% endif %}
         <p class="sg-label">نقاطُ التوقّف في الأنماط · {{ breakpoints|length }}</p>
         <ul class="chip-row" aria-label="نقاطُ التوقّف وعددُ استعلاماتِ كلٍّ منها">
           {% for bp in breakpoints %}
@@ -218,11 +215,11 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
               </tr>
               <tr>
                 <td>المنطقةُ الآمنة من رموز <code><bdi dir="ltr">--safe-*</bdi></code> لا من <code>env()</code> مباشرةً.</td>
-                <td><span class="status-badge status-gray">تنتظر H-04</span> الرموزُ لم تُعرَّف، و<code>env(safe-area…)</code> ما زال مكتوباً مباشرةً.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> الرموزُ معرَّفةٌ في <code>:root</code> (H-04) وحارسُها <code>test_safe_area_tokens</code>؛ و<code>app_back_bar</code> تعرّف الرمزَ محلّيّاً لأنّها ورقةٌ مستقلّة.</td>
               </tr>
               <tr>
                 <td>الطبقاتُ من سلّم <code><bdi dir="ltr">--z-*</bdi></code> لا أرقامٌ خام.</td>
-                <td><span class="status-badge status-warning">جزئيّة</span> السلّمُ معرَّف، وبقيت قيمٌ خامٌّ قليلةٌ بلا حارسٍ بعد.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> لا <code>z-index</code> خامَّ ≥ 20، و<code><bdi dir="ltr">--z-banner</bdi></code> تحت ما يفتحه المستخدم — حارسُها <code>test_z_scale</code>.</td>
               </tr>
               <tr>
                 <td>نقاطُ التوقّف من جدولٍ واحد — الجدولُ الحيُّ بجانبها، وهو مؤشّرُ الخارطة LK2 نفسُه.</td>

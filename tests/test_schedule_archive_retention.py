@@ -1,8 +1,9 @@
-"""نسخُ الجدول المؤرشفة — جدولٌ واحدٌ فقط، الحيّ.
+"""نسخُ الجدول المؤرشفة — حدُّ الإبقاء نسختان افتراضاً (SCH-07).
 
 كلُّ اعتمادٍ يُؤرشف الجدولَ السابق كاملاً (870 صفّاً) ولا يحذفه، فبلغت النسخُ
 على الإنتاج خمساً في يومٍ واحد: 4,350 صفّاً مطفأً مقابل 870 حيّة. وقرارُ
-المدرسة (2026-09-05): لا يُبقى إلّا الحيّ.
+المدرسة (2026-09-05): لا يُبقى إلّا الحيّ. ثمّ اعتُمد جدولٌ باثنتي عشرةَ مخالفةً
+(2026-09-24) ولا سابقَ يُرجَع إليه — فصار الافتراضُ نسختين، والصفرُ خيارٌ يُضبط.
 
 وحدُّ الإبقاء إعدادٌ لا رقمٌ مدفون، والاعتمادُ والأمرُ يقرآنه من موضعٍ واحد
 كي لا يحذف أحدُهما ما يحفظه الآخر.
@@ -52,15 +53,37 @@ def _slot(school, class_group, teacher, subject, gen, *, year, period=1, active=
     )
 
 
-# ══════════════════════ الافتراض: لا نسخةَ تبقى ══════════════════════
+# ══════════════════════ الافتراض: نسختان (SCH-07) ══════════════════════
 
 
 @pytest.mark.django_db
-def test_by_default_no_archived_copy_is_kept(school, seeded_calendar):
+def test_by_default_the_two_newest_archived_copies_are_kept(school, seeded_calendar):
+    """السابقُ للتراجع والذي قبله للمقارنة — لا صفرٌ يمحو كلَّ ما يُرجَع إليه."""
+    _gen(school, seeded_calendar, "archived", minutes_ago=30)
+    middle = _gen(school, seeded_calendar, "archived", minutes_ago=20)
+    newest = _gen(school, seeded_calendar, "archived", minutes_ago=10)
+
+    kept = ScheduleService.retained_archived_ids(school, seeded_calendar)
+
+    assert kept == [newest.pk, middle.pk]
+
+
+# ══════════════════════ حدُّ صفر: لا نسخةَ تبقى ══════════════════════
+
+#: الحدُّ صفرٌ صراحةً — ما تحرسه هذه الاختبارات هو الحذفُ نفسُه لا الافتراض.
+no_archive_kept = override_settings(SCHEDULE_ARCHIVE_RETENTION=0)
+
+
+@pytest.mark.django_db
+@no_archive_kept
+def test_with_a_zero_limit_no_archived_copy_is_kept(school, seeded_calendar):
+    _gen(school, seeded_calendar, "archived")
+
     assert ScheduleService.retained_archived_ids(school, seeded_calendar) == []
 
 
 @pytest.mark.django_db
+@no_archive_kept
 def test_an_archived_generation_goes_with_its_dead_slots(
     school, class_group, teacher_user, subject_ar, seeded_calendar
 ):
@@ -75,6 +98,7 @@ def test_an_archived_generation_goes_with_its_dead_slots(
 
 
 @pytest.mark.django_db
+@no_archive_kept
 def test_the_approved_generation_and_the_drafts_survive(school, seeded_calendar):
     """المسودّةُ عملٌ جارٍ قد يُعتمد غداً، والمعتمَدُ هو الجدولُ نفسُه."""
     approved = _gen(school, seeded_calendar, "approved")
@@ -88,6 +112,7 @@ def test_the_approved_generation_and_the_drafts_survive(school, seeded_calendar)
 
 
 @pytest.mark.django_db
+@no_archive_kept
 def test_an_archived_generation_holding_a_live_slot_is_never_touched(
     school, class_group, teacher_user, subject_ar, seeded_calendar
 ):
@@ -122,6 +147,7 @@ def test_a_larger_limit_keeps_the_newest_copies(school, seeded_calendar):
 
 
 @pytest.mark.django_db
+@no_archive_kept
 def test_the_command_shows_before_it_deletes(
     school, class_group, teacher_user, subject_ar, seeded_calendar
 ):
@@ -136,6 +162,7 @@ def test_the_command_shows_before_it_deletes(
 
 
 @pytest.mark.django_db
+@no_archive_kept
 def test_the_command_deletes_with_apply(
     school, class_group, teacher_user, subject_ar, seeded_calendar
 ):

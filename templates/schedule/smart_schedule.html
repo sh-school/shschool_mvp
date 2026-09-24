@@ -120,17 +120,57 @@
 
   {% if generations %}
   {% if can_approve %}
-  {% callout "warning" %}اعتماد مسوّدة يؤرشف الجدولَ المعتمَد ويحذف ما أُرشف قبله، ويصالح جلساتِ الأسبوع الجاري (يحذف ما لا يطابق ولا حضورَ عليه)، ويُشعِر المعلّمين، ولا رجوعَ عنه.{% endcallout %}
+  {% callout "warning" %}اعتماد مسوّدة يؤرشف الجدولَ المعتمَد ويحذف من المؤرشف ما زاد على حدّ الإبقاء، ويصالح جلساتِ الأسبوع الجاري (يحذف ما لا يطابق ولا حضورَ عليه)، ويُشعِر المعلّمين، ولا رجوعَ عنه.{% endcallout %}
   {% endif %}
+  {% comment %}
+  بوّابةُ الاعتماد (SCH-05): ما بقي مكسوراً بعد السداد يُعرض بموضعه — شعبةً ومادّةً
+  ويوماً — والاعتمادُ معه هنا لا في سطر السجلّ، فمن يعتمد يرى ما يُقرّ به. وكان
+  المختبرُ يلخّصه في «98.2% مطابقة» فاعتُمد جدولٌ باثنتي عشرةَ مخالفةً لم يرها أحد.
+  {% endcomment %}
+  {% for g in generations %}{% if g.status == "draft" and g.breaches.count %}
+  <div class="gen-panel" id="gen-breaches-{{ g.id }}">
+    {% callout "warning" %}مسودّةُ {{ g.generated_at|date:"d/m H:i" }} تخالف قيوداً صلبةً لم يسدّدها التوليد
+      (عددُها <strong>{{ g.breaches.count }}</strong>) — ولا تُعتمد إلّا بإقرارٍ صريحٍ بها.{% endcallout %}
+    {% for grp in g.breaches.groups %}
+    <details class="feas-details">
+      <summary>{{ grp.code }} · {{ grp.title }} ({{ grp.count }})</summary>
+      <div class="auto-grid">
+        {% for col in grp.cols %}
+        <ul class="feas-list">
+          {% for b in col %}
+          <li><b>{{ b.class }}</b> · {{ b.subject }} · {{ b.teacher }} — {{ b.day_name }}، الحصّة {{ b.period }}</li>
+          {% endfor %}
+        </ul>
+        {% endfor %}
+      </div>
+    </details>
+    {% endfor %}
+    {% if can_approve %}
+    <form method="post" action="{% url 'approve_schedule' g.id %}" class="form-actions"
+          data-confirm="اعتماد هذه المسودّة بمخالفاتها؟ ستحلّ محلّ الجدول القائم ويُشعَر المعلّمون.">
+      {% csrf_token %}
+      {% with gid=g.id|stringformat:"s" %}
+      {% field "acknowledge_breaches" "أُقرّ بالمخالفات المذكورة وأعتمد الجدول" type="checkbox" required=True id="ack-"|add:gid %}
+      {% endwith %}
+      <button type="submit" class="btn-primary btn-xs">اعتماد مع الإقرار</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}{% endfor %}
   <div class="table-wrap">
-    <table class="gen-log-table">
+    {% comment %}
+    سجلُّ التوليد يُفرَز من ترويسته (`base.js`) ويبدأ تصاعديّاً بتاريخ التوليد ووقته، وصفّان
+    يكفيان له (`data-sort-min-rows`). والتاريخُ والزمنُ يُفرزان بقيمةٍ صريحة: نصُّ «24/09/2026 14:53»
+    يُقرأ عدداً فيُفرَز باليوم وحدَه، و«6:14 د» أكبرُ من «25.6 ث» في النصّ وأصغرُ في الواقع.
+    {% endcomment %}
+    <table class="gen-log-table" data-sort-min-rows="2">
       <thead>
         <tr data-plain-head>
-          <th scope="col">التاريخ</th>
+          <th scope="col" data-sort="num" data-sort-first="asc" data-sort-default="asc">التاريخ</th>
           <th scope="col" class="text-center">الحالة</th>
-          <th scope="col" class="num" title="منسوبةً إلى الأساس المعتمَد">الجودة</th>
-          <th scope="col" class="num">الحصص</th>
-          <th scope="col" class="num">الزمن</th>
+          <th scope="col" class="num" data-sort="num" title="منسوبةً إلى الأساس المعتمَد">الجودة</th>
+          <th scope="col" class="num" data-sort="num">الحصص</th>
+          <th scope="col" class="num" data-sort="num">الزمن</th>
           <th scope="col">بواسطة</th>
           <th scope="col" class="text-center">إجراءات</th>
         </tr>
@@ -138,7 +178,7 @@
       <tbody>
         {% for g in generations %}
         <tr>
-          <td>{{ g.generated_at|date:"d/m/Y H:i" }}</td>
+          <td data-sort-value="{{ g.generated_at|date:'U' }}">{{ g.generated_at|date:"d/m/Y H:i" }}</td>
           <td class="text-center">
             <span class="status-badge {% if g.status == 'approved' %}status-success{% elif g.status == 'draft' %}status-warning{% elif g.status == 'failed' %}status-danger{% elif g.is_pending %}status-info{% else %}status-gray{% endif %}">
               {{ g.get_status_display }}
@@ -174,12 +214,15 @@
             <span class="text-xs text-muted">({{ g.placed_ratio }}%)</span>
             {% endif %}
           </td>
-          <td class="num text-muted">{% if g.is_pending or g.status == 'failed' %}—{% else %}{{ g.generation_time_ms|duration_ms }}{% endif %}</td>
+          <td class="num text-muted" data-sort-value="{% if g.is_pending or g.status == 'failed' %}{% else %}{{ g.generation_time_ms }}{% endif %}">{% if g.is_pending or g.status == 'failed' %}—{% else %}{{ g.generation_time_ms|duration_ms }}{% endif %}</td>
           <td>{{ g.generated_by.full_name|default:"—" }}</td>
           <td class="text-center">
             {% if g.status == "draft" %}
             <a href="{% url 'weekly_schedule' %}?year={{ year }}&amp;generation={{ g.id }}" class="btn-secondary btn-xs">معاينة</a>
-            {% if can_approve %}
+            {% include "schedule/partials/discard_generation.html" %}
+            {% if g.breaches.count %}
+            <a href="#gen-breaches-{{ g.id }}" class="btn-secondary btn-xs">المخالفات ({{ g.breaches.count }})</a>
+            {% elif can_approve %}
             <form method="post" action="{% url 'approve_schedule' g.id %}" data-confirm="اعتماد هذه المسودّة؟ ستحلّ محلّ الجدول القائم ويُشعَر المعلّمون." class="gen-inline-form">
               {% csrf_token %}
               <button type="submit" class="btn-primary btn-xs">اعتماد</button>
@@ -187,6 +230,13 @@
             {% endif %}
             {% elif g.status == "approved" %}
             <a href="{% url 'weekly_schedule' %}?year={{ year }}" class="btn-secondary btn-xs">الجدول الحيّ</a>
+            {% elif g.is_pending %}
+            <form method="post" action="{% url 'stop_schedule_generation' g.id %}" data-confirm="إيقافُ التوليد الجاري؟ يقف عند أقرب حدٍّ آمن ولا يُكتب منه شيء، ثمّ تحذفه من السجلّ." class="gen-inline-form">
+              {% csrf_token %}
+              <button type="submit" class="btn-danger btn-xs">إيقاف التوليد</button>
+            </form>
+            {% elif g.status == "failed" %}
+            {% include "schedule/partials/discard_generation.html" %}
             {% else %}—{% endif %}
           </td>
         </tr>

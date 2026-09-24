@@ -29,7 +29,6 @@ from .views_attendance import (
 from .views_schedule import (
     absence_detail,
     add_exemption,
-    approve_schedule,
     assign_substitute,
     exemption_grid,
     export_job_status,
@@ -56,6 +55,7 @@ from .views_schedule import (
     teacher_preferences,
     weekly_schedule,
 )
+from .views_schedule_drafts import approve_schedule
 
 # ── Swap & Compensatory ─────────────────────────────────────────
 from .views_swap import (
