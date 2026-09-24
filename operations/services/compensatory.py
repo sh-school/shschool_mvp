@@ -73,6 +73,28 @@ class CompensatoryService:
         return bell
 
     @classmethod
+    def _open_claims(
+        cls, school: School, teacher: CustomUser, class_group: ClassGroup, day: date, exclude: Any
+    ) -> tuple[set[int], list[tuple[int, time, time]]]:
+        """ما حُجز يومَ `day` بطلباتٍ مفتوحة: حصصُ الشعبة المطلوبة، وطلباتُ المعلّم في شُعبٍ أخرى.
+
+        الثانيةُ بالساعة لا بالرقم: القيدُ في القاعدة بالرقم، والانشغالُ الفعليّ بالوقت.
+        وفُصلت لتبقى `day_options` تحت سقف التعقيد (Radon ≤ 30).
+        """
+        open_here = CompensatorySession.objects.filter(
+            school=school, compensatory_date=day, status__in=OPEN_STATUSES
+        ).exclude(pk=exclude)
+        claimed = set(
+            open_here.filter(class_group=class_group).values_list("compensatory_period", flat=True)
+        )
+        mine_open = [
+            (c.compensatory_period, *times)
+            for c in open_here.filter(teacher=teacher).select_related("class_group__time_band")
+            if (times := cls._bell(school, c.class_group, day).get(c.compensatory_period))
+        ]
+        return claimed, mine_open
+
+    @classmethod
     def day_options(
         cls,
         school: School,
@@ -103,18 +125,7 @@ class CompensatoryService:
                 Session.objects.filter(pk__in=[s.pk for s in sessions])
             ).values_list("pk", flat=True)
         )
-        open_here = CompensatorySession.objects.filter(
-            school=school, compensatory_date=day, status__in=OPEN_STATUSES
-        ).exclude(pk=exclude)
-        claimed = set(
-            open_here.filter(class_group=class_group).values_list("compensatory_period", flat=True)
-        )
-        # طلباتي المفتوحة في شُعبٍ أخرى: القيدُ في القاعدة بالرقم، والانشغالُ بالساعة.
-        mine_open = [
-            (c.compensatory_period, *times)
-            for c in open_here.filter(teacher=teacher).select_related("class_group__time_band")
-            if (times := cls._bell(school, c.class_group, day).get(c.compensatory_period))
-        ]
+        claimed, mine_open = cls._open_claims(school, teacher, class_group, day, exclude)
         # غائبٌ ذلك اليوم: لا يُعوِّض فيه — سجلُّ غيابه يُلغي ما اعتُمد له، ولا يُطلب له جديد.
         absent = TeacherAbsence.objects.filter(school=school, teacher=teacher, date=day).exists()
         rows = []
