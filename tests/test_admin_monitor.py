@@ -73,6 +73,6 @@ def test_a_missing_worker_heartbeat_is_red(monkeypatch):
 
 
 def test_long_numbers_are_hidden_in_the_recent_actions_text():
-    from roadmap.templatetags.admin_menu import hide_ids
+    from core.templatetags.admin_menu import hide_ids
 
     assert hide_ids("Access Log for 12345678901 @ 2026-09-02") == "Access Log for •••• @ 2026-09-02"
