@@ -99,6 +99,12 @@ urlpatterns = [
     path("schedule/swap/<uuid:swap_id>/cancel/", views.swap_cancel, name="swap_cancel"),
     path("schedule/compensatory/", views.compensatory_list, name="compensatory_list"),
     path("schedule/compensatory/request/", views.compensatory_request, name="compensatory_request"),
+    path("schedule/compensatory/options/", views.compensatory_options, name="compensatory_options"),
+    path(
+        "schedule/compensatory/<uuid:comp_id>/respond/",
+        views.compensatory_respond,
+        name="compensatory_respond",
+    ),
     path(
         "schedule/compensatory/<uuid:comp_id>/approve/",
         views.compensatory_approve,

@@ -88,7 +88,11 @@ class AbsenceSwapService:
         غائبٍ ولا مفرَّغٍ فيها. ولكلّ حصّةٍ له في الشعبة يُقترح أقربُ يومٍ بعد الغياب
         يكون فيه الغائبُ متفرّغاً لها — وهو يومُ الردّ.
         """
+        from operations.services.compensatory import CompensatoryService
+
         school = absence.school
+        if slot.id in CompensatoryService.taken_slot_ids(absence):
+            return []  # أخذها زميلٌ تعويضاً: ليست حصّةَ الغائب يومَه
         day_a = SubstituteService._date_to_day(absence.date)
         live = ScheduleSlot.objects.live(school)
         class_slots = [

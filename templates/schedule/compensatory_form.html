@@ -36,8 +36,19 @@
           </select>
         </div>
 
-        {% field "compensatory_date" "تاريخ التعويض" type="date" required=True help="يجب أن يكون خلال أسبوع من تاريخ الغياب" %}
-        {% field "compensatory_period" "رقم الحصة (1-7)" type="select" choices="1=حصة 1|2=حصة 2|3=حصة 3|4=حصة 4|5=حصة 5|6=حصة 6|7=حصة 7" required=True help="اختر حصة تكون فارغة لك وللشعبة" %}
+        {% field "compensatory_date" "تاريخ التعويض" type="date" id="comp-date" required=True help="يجب أن يكون خلال أسبوع من تاريخ الغياب" %}
+        {% comment %}
+        حصصُ الشعبة ذلك اليومَ بجرس طابقها — تُحمَّل بعد اختيار الحصّة الفائتة والتاريخ.
+        المُشغِّلُ على غلافٍ ثابتٍ لا على الحقل: حقلٌ يستبدل نفسه يُضيّع طلباً ينتظر خلفَ
+        طلبٍ جارٍ (تغييران متتاليان)، و`hx-sync` يُبقي آخرَ الطلبات وحده.
+        {% endcomment %}
+        <div id="comp-period-box"
+             hx-get="{% url 'compensatory_options' %}"
+             hx-trigger="change from:#comp-original-slot, change from:#comp-date"
+             hx-include="#comp-original-slot, #comp-date"
+             hx-sync="this:replace">
+          {% include "schedule/partials/compensatory_options.html" %}
+        </div>
         {% field "notes" "ملاحظات (اختياري)" type="textarea" placeholder="أي ملاحظات إضافية..." %}
       </div>
 

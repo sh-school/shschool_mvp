@@ -100,6 +100,42 @@ def test_axe_violations_have_not_grown(request, page, live_server, school_bus, l
     )
 
 
+#: صفحاتُ إدارةٍ تجمع أدواتِ جانغو التي تُرسم بلا اسمٍ يقرؤه قارئُ الشاشة (OWN-21): حقولُ التحرير داخل القائمة
+#: (الأقسام، العضويّات)، وشقّا التاريخ والوقت والجدولُ المضمَّن (المستخدم)، والاختيارُ بين قائمتين (المجموعات)،
+#: وselect2 (باقاتُ التقييم). يسمّيها `static/js/admin_a11y.js` — كانت 620 عقدةً على 237 صفحةَ إدارة.
+def _admin_pages(teacher) -> list[str]:
+    return [
+        "/admin/core/department/",
+        "/admin/core/membership/",
+        f"/admin/core/customuser/{teacher.pk}/change/",
+        "/admin/auth/group/add/",
+        "/admin/assessments/assessmentpackage/add/",
+    ]
+
+
+def test_the_admin_widgets_have_accessible_names(
+    page, live_server, school, developer_user, teacher_user
+):
+    """لا سقّاطةَ هنا بل صفر: كلُّ مخالفات هذه الصفحات من أدوات جانغو، وقد سُمّيت كلُّها."""
+    from core.models import Department
+
+    developer_user.is_staff = developer_user.is_superuser = True
+    developer_user.save()
+    Department.objects.create(school=school, name="الرياضيات", code="math")
+    _login(page, live_server, developer_user)
+
+    found = {}
+    for path in _admin_pages(teacher_user):
+        page.goto(f"{live_server.url}{path}")
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(200)  # select2 والاختيارُ بين قائمتين يُنشآن بعد التحميل ثمّ يُسمَّيان
+        counts = ratchet.measure_page(page)
+        if counts:
+            found[path] = counts
+
+    assert not found, f"مخالفاتُ axe في صفحات الإدارة (راجع static/js/admin_a11y.js): {found}"
+
+
 class TestTheRatchetItself:
     """الحارسُ يحرس ما يقول إنّه يحرسه — منطقُ المقارنة لا يحتاج متصفّحاً لاختباره."""
 

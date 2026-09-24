@@ -214,7 +214,7 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
               </tr>
               <tr>
                 <td>هدفُ اللمس 44px (<code><bdi dir="ltr">--control-h</bdi></code>) على المؤشّر الخشن <code>coarse</code>، و24px للفأرة.</td>
-                <td><span class="status-badge status-warning">جزئيّة</span> الحدُّ يُكتب بالرمز لا بالرقم (<code>test_touch_target_token</code>)؛ ورفعُ الأزرار الصغيرة على <code>coarse</code> في M-01.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> كتلةُ <code>pointer: coarse</code> (M-01) بالرمز لا بالرقم، وحارسُها <code>test_touch_target_token</code>.</td>
               </tr>
               <tr>
                 <td>المنطقةُ الآمنة من رموز <code><bdi dir="ltr">--safe-*</bdi></code> لا من <code>env()</code> مباشرةً.</td>
@@ -298,7 +298,7 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
       <li>الشارة: <code>status-success · status-danger · status-warning · status-info · status-maroon · status-gray</code>. و<code>status-green/red/orange/blue/purple/teal</code> غيرُ معرَّفة — شارةٌ بلا لون.</li>
       <li>في الترويسة: <code>btn-primary btn-sm</code> للفعل الأوّل و<code>btn-secondary btn-sm</code> للبقيّة. و<code>btn-ghost</code> لأفعال الصفّ داخل الجدول.</li>
       <li>الشارةُ خطُّها لا يقلّ عن 12px (<code><bdi dir="ltr">--text-xs</bdi></code>) — والأسماءُ الستّةُ نفسُها لا تتغيّر.</li>
-      <li>على المؤشّر الخشن (<code>pointer: coarse</code>) يصير <code>btn-sm</code> بارتفاع <code><bdi dir="ltr">--control-h</bdi></code> (44px)، والرابطُ الصغيرُ له منطقةُ لمسٍ 44px وإن بقي رسمُه صغيراً — المعيارُ هنا، وتطبيقُه في M-01.</li>
+      <li>على المؤشّر الخشن (<code>pointer: coarse</code>) يصير <code>btn-sm</code> بارتفاع <code><bdi dir="ltr">--control-h</bdi></code> (44px)، والرابطُ الصغيرُ وزرُّ الإغلاق وأيقونةُ التلميح 44px — مطبَّقٌ في كتلة <code>pointer: coarse</code> (M-01).</li>
     </ul>
   {% endsection_card %}
 
