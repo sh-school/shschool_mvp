@@ -45,8 +45,6 @@
 | السقفُ | القيمة | الملفّ | أين يعمل |
 |---|---|---|---|
 | **حجمُ CSS المصغَّر** (ما يصل المتصفّح) | ≤ **260KB** (266,240 بايتاً)؛ ≈ 236KB يومَ 2026-09-19، و261,720 بايتاً (98.3%) يومَ 2026-09-24 — دَينُ DBT-36؛ وأصنافُ دليل الهويّة خارجه في `static/css/styleguide.css` لأنّها للمطوّر وحده (#517) (المصدرُ 418KB بتعليقاته العربيّة لا يُقاس) | `tests/test_css_budget.py` (ADR-0003 §10) | `pytest — تغطية` |
-| **Core Web Vitals والحمولة** | CLS ≤ 0.1 · LCP ≤ 2500ms · INP ≤ 300ms · أوراقُ أنماطٍ تحجب الرسم ≤ **10** · CSS خامٌ ≤ 468KB · JS ≤ 400KB · خطوط ≤ 120KB · صور ≤ 220KB · طلبات ≤ 40 | `tests/web_vitals.py:BUDGET` ← `tests/test_web_vitals_budget.py` | وظيفةُ `axe-a11y` |
-| **حجمُ CSS المصغَّر** (ما يصل المتصفّح) | ≤ **260KB**؛ ≈ 236KB يومَ 2026-09-19 (المصدرُ 418KB بتعليقاته العربيّة لا يُقاس) | `tests/test_css_budget.py` (ADR-0003 §10) | `pytest — تغطية` |
 | **Core Web Vitals والحمولة** | CLS ≤ 0.1 · LCP ≤ 2500ms · INP ≤ 300ms · أوراقُ أنماطٍ تحجب الرسم ≤ **10** · CSS خامٌ ≤ 470KB · JS ≤ 400KB · خطوط ≤ 120KB · صور ≤ 220KB · طلبات ≤ 40 | `tests/web_vitals.py:BUDGET` ← `tests/test_web_vitals_budget.py` | وظيفةُ `axe-a11y` |
 | **Lighthouse للجوال (Q-03)** — ليليٌّ لا حاجب | خمسُ صفحاتٍ رئيسة بمِلفّ الجوال (Slow 4G + معالجٌ ×4): الوصوليّةُ لا تنزل أبداً، والأداءُ لا ينزل أكثر من **15** نقطةً عن الأساس (تذبذبُه المقيس 14 نقطة على لوحة المدير). ليس رقمَ الإنتاج: `live_server` يخدم الأصولَ خاماً | `tests/lighthouse_audit.py` ← `lighthouse_baseline.json` · `LIGHTHOUSE_RUN=1 LIGHTHOUSE_UPDATE=1 pytest tests/test_lighthouse_mobile.py -s` | `nightly.yml` — يفتح قضيّةَ الفشل الليليّ |
 | **قيمُ px خارجَ السلّم** | تباعدٌ ≤ **86**، تقوّسٌ ≤ **31** — والصفرُ على السلّم | `tests/test_px_tokens.py` | `pytest — تغطية` |
