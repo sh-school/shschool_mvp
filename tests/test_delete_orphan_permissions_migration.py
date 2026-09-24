@@ -49,6 +49,9 @@ def test_the_deletion_reports_what_it_cascades_to_users_and_groups(capsys):
     out = capsys.readouterr().out
     assert "operations.staffevaluation" in out
     assert "لمستخدمين: 1" in out and "لمجموعات: 1" in out
+    # الأزواجُ نفسُها تُطبع فتُستعاد يدويّاً: معرّفُ المستخدم ← اسمُ الصلاحيّة، وكذلك المجموعة
+    assert f"مستخدم {user.pk} ← add_staffevaluation" in out
+    assert f"مجموعة {group.pk} ← add_staffevaluation" in out
     assert not user.user_permissions.filter(pk=orphan.pk).exists()
 
 

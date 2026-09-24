@@ -38,22 +38,31 @@ def delete_orphan_permissions(apps, schema_editor):
         ids = list(orphans.values_list("pk", flat=True))
         if not ids:
             continue
-        # ما سيتسلسل حذفُه من إسناداتٍ يُسجَّل قبل الحذف — يظهر في سجلّ النشر (لا رجوع بعده)
-        by_users = (
-            user_model.user_permissions.through.objects.using(alias)
-            .filter(permission_id__in=ids)
-            .count()
-        )
-        by_groups = (
-            group_model.permissions.through.objects.using(alias)
-            .filter(permission_id__in=ids)
-            .count()
-        )
+        # ما سيتسلسل حذفُه من إسناداتٍ يُسجَّل قبل الحذف (لا رجوع بعده) — عددٌ ثمّ الأزواجُ نفسُها
+        # (معرّفُ المستخدم أو المجموعة ← اسمُ الصلاحيّة) فتُستعاد يدويّاً من سجلّ النشر إن لزم.
+        codenames = dict(orphans.values_list("pk", "codename"))
+        assignments = []
+        for kind, holder, through in (
+            ("مستخدم", user_model, user_model.user_permissions.through),
+            ("مجموعة", group_model, group_model.permissions.through),
+        ):
+            holder_field = next(
+                f for f in through._meta.fields if f.is_relation and f.related_model is holder
+            ).attname
+            rows = through.objects.using(alias).filter(permission_id__in=ids)
+            assignments += [
+                (kind, str(getattr(row, holder_field)), codenames[row.permission_id])
+                for row in rows
+            ]
+        by_users = sum(1 for kind, _, _ in assignments if kind == "مستخدم")
+        by_groups = len(assignments) - by_users
         orphans.delete()
         print(  # noqa: T201 — سجلُّ النشر
             f"  core/0072: حُذفت {len(ids)} صلاحيّةً يتيمةً لـ{app_label}.{model_name} "
             f"(إسناداتٌ مباشرةٌ لمستخدمين: {by_users}، ولمجموعات: {by_groups})"
         )
+        for kind, holder_id, codename in sorted(assignments):
+            print(f"  core/0072:   إسنادٌ محذوف — {kind} {holder_id} ← {codename}")  # noqa: T201
 
 
 class Migration(migrations.Migration):
