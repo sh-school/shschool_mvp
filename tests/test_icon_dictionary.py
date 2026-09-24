@@ -324,8 +324,12 @@ _JS_SKIP_PARTS = {"vendor", "node_modules"}
 def js_icon_problems(js: str, symbols: set[str]) -> list[str]:
     """كلُّ مرجعِ أيقونةٍ في سكربتٍ لا يجد رمزَه في الورقة."""
     code = _JS_COMMENT.sub("", js)
-    problems = [f"مرجعٌ محلّيٌّ لا هدفَ له (الورقةُ خارجيّة): {m.group(0)}…" for m in _JS_LOCAL_USE.finditer(code)]
-    problems += [f"معرّفٌ من الورقة القديمة المحذوفة: {m.group(0)}" for m in _JS_LEGACY_ID.finditer(code)]
+    problems = [
+        f"مرجعٌ محلّيٌّ لا هدفَ له (الورقةُ خارجيّة): {m.group(0)}…" for m in _JS_LOCAL_USE.finditer(code)
+    ]
+    problems += [
+        f"معرّفٌ من الورقة القديمة المحذوفة: {m.group(0)}" for m in _JS_LEGACY_ID.finditer(code)
+    ]
     problems += [
         f"رمزٌ ليس في sprite.svg: #{m.group(1)}"
         for m in _JS_SYMBOL_ID.finditer(code)
@@ -372,8 +376,11 @@ def test_the_script_scan_covers_the_shell_scripts():
 @pytest.mark.parametrize(
     "snippet,is_broken",
     [
-        ('\'<svg><use href="#icon-alert-triangle"/></svg>\'', True),  # ما كان في base.js
-        ("'<svg><use xlink:href=\"#i-status_warning\"/></svg>'", True),  # الورقةُ خارجيّة: المحلّيّ لا يصل
+        ("'<svg><use href=\"#icon-alert-triangle\"/></svg>'", True),  # ما كان في base.js
+        (
+            "'<svg><use xlink:href=\"#i-status_warning\"/></svg>'",
+            True,
+        ),  # الورقةُ خارجيّة: المحلّيّ لا يصل
         ("node.setAttribute('href', '#icon-close')", True),
         ("'<use href=\"' + sprite + '#i-no_such_meaning\"></use>'", True),
         ("'<use href=\"' + sprite + '#i-status_warning\"></use>'", False),  # الصواب
