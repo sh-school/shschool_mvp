@@ -86,15 +86,14 @@ def test_nothing_generated_beyond_the_covered_week_means_nothing_to_do(school, m
 def test_approving_queues_the_future_weeks_after_commit(
     school, monkeypatch, django_capture_on_commit_callbacks
 ):
+    from celery import current_app
+
     from core import academic_calendar
-    from operations import tasks
     from operations.models import ScheduleGeneration
 
     monkeypatch.setattr(academic_calendar, "academic_year_for_school", lambda _school: YEAR)
     sent = []
-    monkeypatch.setattr(
-        tasks.resync_generated_sessions_task, "delay", lambda *args: sent.append(args)
-    )
+    monkeypatch.setattr(current_app, "send_task", lambda name, args: sent.append((name, args)))
     monkeypatch.setattr(ScheduleService, "resync_current_week", classmethod(lambda *a, **k: {}))
     gen = ScheduleGeneration.objects.create(school=school, academic_year=YEAR, status="draft")
 
@@ -102,23 +101,24 @@ def test_approving_queues_the_future_weeks_after_commit(
         result = ScheduleService.approve_generation(gen, notify=False)
 
     assert result["future_weeks_queued"] is True
-    assert sent == [(str(school.pk), YEAR)]
+    assert sent == [("operations.resync_generated_sessions", [str(school.pk), YEAR])]
 
 
 @pytest.mark.django_db
 def test_a_dead_broker_does_not_fail_the_approval(
     school, monkeypatch, django_capture_on_commit_callbacks
 ):
+    from celery import current_app
+
     from core import academic_calendar
-    from operations import tasks
     from operations.models import ScheduleGeneration
 
     monkeypatch.setattr(academic_calendar, "academic_year_for_school", lambda _school: YEAR)
 
-    def dead(*_args):
+    def dead(*_args, **_kwargs):
         raise ConnectionError("broker down")
 
-    monkeypatch.setattr(tasks.resync_generated_sessions_task, "delay", dead)
+    monkeypatch.setattr(current_app, "send_task", dead)
     monkeypatch.setattr(ScheduleService, "resync_current_week", classmethod(lambda *a, **k: {}))
     gen = ScheduleGeneration.objects.create(school=school, academic_year=YEAR, status="draft")
 

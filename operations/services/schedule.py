@@ -134,11 +134,16 @@ class ScheduleService(ScheduleReadMixin, ScheduleRetentionMixin, ScheduleSession
         فالاعتمادُ تمّ والمعلّمون أُشعروا، وما فاته مصالحةُ أسابيعَ قادمةٍ يُعاد بها الأمرُ
         نفسُه (`sync_schedule` أو المهمّةُ ذاتُها). فيُسجَّل العطبُ ويُقال، ولا يُخفى.
         """
-        from operations.tasks import resync_generated_sessions_task
+        from celery import current_app
 
         def send() -> None:
+            # بالاسم لا باستيراد `operations.tasks`: استيرادُها من خدمةٍ يجرّ معها في رسم mypy
+            # ما تستورده من نماذجَ وتقارير (124 خطأً في #548) — والمهمّةُ مسجَّلةٌ باسمها أصلاً.
             try:
-                resync_generated_sessions_task.delay(str(school.pk), academic_year)
+                current_app.send_task(
+                    "operations.resync_generated_sessions",
+                    args=[str(school.pk), academic_year],
+                )
             except Exception:  # noqa: BLE001 — يُسجَّل ولا يُبتلع
                 logger.exception("تعذّر إرسال مصالحة الأسابيع المولَّدة للمدرسة %s", school.pk)
 

@@ -16,11 +16,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .scheduler import ScheduleGrid
@@ -92,11 +92,13 @@ def grid_run(grid: ScheduleGrid, teacher_id: str, day: int) -> int:
 #:
 #: وهو سياقٌ لا ذاكرةٌ عامّة: مَن ينادي الدالّةَ منفردةً — الاختباراتُ
 #: تُبدّل الجرسَ بين نداءين — يقرأ القاعدةَ كما كان.
-_PAIRS_CACHE: ContextVar[dict | None] = ContextVar("joinable_pairs_cache", default=None)
+_PAIRS_CACHE: ContextVar[dict[tuple[Any, str], set[tuple[int, int]]] | None] = ContextVar(
+    "joinable_pairs_cache", default=None
+)
 
 
 @contextmanager
-def joinable_pairs_cached():
+def joinable_pairs_cached() -> Iterator[None]:
     """يفتح ذاكرةَ أزواج الجرس لمدّة الكتلة — يستدعيه `generate_schedule`."""
     token = _PAIRS_CACHE.set({})
     try:
@@ -105,7 +107,7 @@ def joinable_pairs_cached():
         _PAIRS_CACHE.reset(token)
 
 
-def joinable_pairs(school, band_id: str = "") -> set:
+def joinable_pairs(school: Any, band_id: str = "") -> set[tuple[int, int]]:
     """أزواجُ الحصص المتلاصقةِ فعلاً — من جرس نطاق الشعبة لا من الكود.
 
     الحصّةُ المزدوجةُ حصّتان لا تقطعهما فسحةٌ ولا صلاة. والفسحةُ في الطابق
@@ -126,7 +128,7 @@ def joinable_pairs(school, band_id: str = "") -> set:
     return pairs
 
 
-def _joinable_pairs_from_bell(school, band_id: str = "") -> set:
+def _joinable_pairs_from_bell(school: Any, band_id: str = "") -> set[tuple[int, int]]:
     from operations.models import TimeSlotConfig
 
     bell = TimeSlotConfig.objects.filter(school=school, day_type="regular", is_break=False)

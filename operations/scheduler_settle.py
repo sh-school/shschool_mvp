@@ -473,5 +473,5 @@ def settle_safely(
     except Exception:  # noqa: BLE001 — يُسجَّل ولا يُبتلع
         logging.getLogger(__name__).exception("السداد: عطبٌ في مرحلة السداد — يُكمل التوليدُ بلا سداد")
         while grid._journal:
-            grid.rollback()
+            grid.rollback()  # type: ignore[no-untyped-call]
         return {"failed": True}

@@ -19,6 +19,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from django.db import transaction
 from django.utils import timezone
 
@@ -38,7 +40,7 @@ def can_discard(generation: ScheduleGeneration) -> bool:
 
 
 @transaction.atomic
-def discard_generation(generation: ScheduleGeneration, *, user, request=None) -> int:
+def discard_generation(generation: ScheduleGeneration, *, user: Any, request: Any = None) -> int:
     """يحذف توليداً لم يُعتمد مع حصصه المطفأة، ويعيد عددَ الحصص المحذوفة."""
     locked = ScheduleGeneration.objects.select_for_update().get(pk=generation.pk)
     if locked.status in ScheduleGeneration.PENDING_STATUSES:
@@ -68,13 +70,13 @@ def discard_generation(generation: ScheduleGeneration, *, user, request=None) ->
     return removed
 
 
-def is_stopped(generation_id) -> bool:
+def is_stopped(generation_id: Any) -> bool:
     """أيجب أن يقف التوليدُ الآن؟ — الصفُّ لم يعد «يجري»: أُوقف أو حُذف."""
     return not ScheduleGeneration.objects.filter(pk=generation_id, status="running").exists()
 
 
 @transaction.atomic
-def stop_generation(generation: ScheduleGeneration, *, user, request=None) -> None:
+def stop_generation(generation: ScheduleGeneration, *, user: Any, request: Any = None) -> None:
     """يوقف توليداً في الانتظار أو جارياً: يصير «فشل» بسببٍ مكتوب، فيظهر زرُّ حذفه.
 
     والعاملُ يرى ذلك عند أقرب حدٍّ آمن (بين المحاولات، وقبل السداد، وتحت قفل

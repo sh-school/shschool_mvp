@@ -1,3 +1,5 @@
+from typing import Any
+
 from django import template
 
 register = template.Library()
@@ -11,7 +13,7 @@ def get_item(dictionary, key):
 
 
 @register.filter
-def has_capability(user, key):
+def has_capability(user: Any, key: str) -> bool:
     """أيملك المستخدمُ هذه القدرة؟ — للقالب، بالحكم نفسِه الذي يحرس العرض.
 
     فزرٌّ تحرسه قدرةٌ في العرض يُسأل عنها هنا لا بعلَمٍ في سياق العرض: علَمٌ لكلّ
