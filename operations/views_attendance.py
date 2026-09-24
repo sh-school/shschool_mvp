@@ -140,8 +140,8 @@ def schedule(request):
             # ما بقي بلا إنهاءٍ ينبّه، والصفرُ أخضر.
             "open_tone": "orange" if open_count else "green",
             "sessions": sessions,
-            # الإشغالُ والتبديلُ يكتبان كلاهما `original_teacher`؛ فيُعرف الإشغالُ باسمه.
-            "cover_ids": SubstituteService.cover_session_ids(sessions),
+            # الإشغالُ والتعويضُ والتبديلُ تكتب `original_teacher`؛ فيُعرف الأوّلان بسجلّيهما.
+            **SubstituteService.moved_marks(sessions),
             "selected_date": selected_date,
             "today": timezone.localdate(),
             "next_session": next_session,
