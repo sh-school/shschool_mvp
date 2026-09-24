@@ -73,20 +73,9 @@ def schedule(request):
         elif not show_all:
             # ── افتراضياً: فقط الحصص التي تحتاج تسجيل حضور ──
             sessions = sessions.exclude(status="completed")
-        if period_filter:
-            # Session ليس فيه period_number — نفلتر بوقت البداية عبر ScheduleSlot
-            from operations.models import ScheduleSlot
-
-            # والعامُ قيدٌ: أجراسُ عامٍ مضى تختلف، فبلا قيدٍ تُفلتَر حصصُ اليوم
-            # بأوقات جدولٍ قديم.
-            slot_times = (
-                ScheduleSlot.objects.live(school)
-                .filter(period_number=int(period_filter))
-                .values_list("start_time", flat=True)
-                .distinct()
-            )
-            if slot_times:
-                sessions = sessions.filter(start_time__in=list(slot_times))
+        if period_filter.isdigit():
+            # رقمُ الحصّة محفوظٌ فيها: كان يُستنتج من أوقات الجدول، فيخطئ بين الطوابق والخميس.
+            sessions = sessions.filter(period_number=int(period_filter))
         # إحصائيات سريعة
         all_count = Session.objects.filter(school=school, date=selected_date).count()
         completed_count = Session.objects.filter(

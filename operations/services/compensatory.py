@@ -451,6 +451,7 @@ class CompensatoryService:
                 date=comp.compensatory_date,
                 start_time=row["start"],
                 end_time=row["end"],
+                period_number=row["period"],
                 status="scheduled",
                 notes=notes,
             )
