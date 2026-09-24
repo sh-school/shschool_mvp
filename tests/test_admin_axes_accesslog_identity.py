@@ -76,6 +76,7 @@ def test_installing_twice_keeps_a_single_registration():
     install()
     install()
     assert type(site._registry[AccessLog]).__name__ == "IdentifiedAccessLogAdmin"
+    assert list(site._registry).count(AccessLog) == 1
 
 
 def test_the_typed_national_id_is_masked_in_the_list(client_as, superuser):
@@ -94,3 +95,34 @@ def test_mask_keeps_employee_numbers_and_marks_empty():
     assert mask_national_id("70009") == "70009"
     assert mask_national_id("NURSETEST7") == "NURSETEST7"
     assert mask_national_id("") == "—"
+
+
+@pytest.mark.parametrize(
+    "model_name,make",
+    [
+        (
+            "accessattempt",
+            lambda u: __import__("axes.models", fromlist=["x"]).AccessAttempt.objects.create(
+                username=u,
+                ip_address="10.0.0.2",
+                user_agent="t",
+                attempt_time=timezone.now(),
+                get_data="",
+                post_data="",
+                failures_since_start=1,
+            ),
+        ),
+        (
+            "accessfailurelog",
+            lambda u: __import__("axes.models", fromlist=["x"]).AccessFailureLog.objects.create(
+                username=u, ip_address="10.0.0.3", user_agent="t", attempt_time=timezone.now()
+            ),
+        ),
+    ],
+)
+def test_the_other_axes_lists_are_identified_and_masked(client_as, superuser, model_name, make):
+    owner = UserFactory(full_name="صاحبُ محاولةٍ فاشلة", employee_number="70077")
+    make(owner.national_id)
+    html = client_as(superuser).get(reverse(f"admin:axes_{model_name}_changelist")).content.decode()
+    assert "صاحبُ محاولةٍ فاشلة" in html and "70077" in html
+    assert owner.national_id not in html, f"{model_name}: الرقمُ الشخصيّ كاملاً ظهر في القائمة"
