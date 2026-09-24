@@ -23,14 +23,37 @@ ORPHANED_MODELS = (
 
 def delete_orphan_permissions(apps, schema_editor):
     permission = apps.get_model("auth", "Permission")
+    user_model = apps.get_model("core", "CustomUser")
+    group_model = apps.get_model("auth", "Group")
     alias = schema_editor.connection.alias
     for app_label, model_name in ORPHANED_MODELS:
         try:
             live_apps.get_model(app_label, model_name)
+            continue  # النموذجُ قائم: ليست يتيمة
         except LookupError:
-            permission.objects.using(alias).filter(
-                content_type__app_label=app_label, content_type__model=model_name
-            ).delete()
+            pass
+        orphans = permission.objects.using(alias).filter(
+            content_type__app_label=app_label, content_type__model=model_name
+        )
+        ids = list(orphans.values_list("pk", flat=True))
+        if not ids:
+            continue
+        # ما سيتسلسل حذفُه من إسناداتٍ يُسجَّل قبل الحذف — يظهر في سجلّ النشر (لا رجوع بعده)
+        by_users = (
+            user_model.user_permissions.through.objects.using(alias)
+            .filter(permission_id__in=ids)
+            .count()
+        )
+        by_groups = (
+            group_model.permissions.through.objects.using(alias)
+            .filter(permission_id__in=ids)
+            .count()
+        )
+        orphans.delete()
+        print(  # noqa: T201 — سجلُّ النشر
+            f"  core/0072: حُذفت {len(ids)} صلاحيّةً يتيمةً لـ{app_label}.{model_name} "
+            f"(إسناداتٌ مباشرةٌ لمستخدمين: {by_users}، ولمجموعات: {by_groups})"
+        )
 
 
 class Migration(migrations.Migration):

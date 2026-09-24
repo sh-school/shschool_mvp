@@ -34,6 +34,24 @@ def _run():
     migration.delete_orphan_permissions(apps, _Schema)
 
 
+def test_the_deletion_reports_what_it_cascades_to_users_and_groups(capsys):
+    """سجلُّ النشر يُظهر ما حُذف من إسناداتٍ مباشرةٍ — لا رجوعَ بعد الحذف."""
+    from tests.conftest import UserFactory
+
+    orphan = _permission("operations", "staffevaluation")
+    user = UserFactory()
+    user.user_permissions.add(orphan)
+    group = Group.objects.create(name="مجموعةٌ بصلاحيّةٍ يتيمة")
+    group.permissions.add(orphan)
+
+    _run()
+
+    out = capsys.readouterr().out
+    assert "operations.staffevaluation" in out
+    assert "لمستخدمين: 1" in out and "لمجموعات: 1" in out
+    assert not user.user_permissions.filter(pk=orphan.pk).exists()
+
+
 def test_the_named_orphans_are_deleted_with_their_group_links():
     orphan = _permission("operations", "staffevaluation")
     other = _permission("academic_management", "teachersubjectqualification", "view")
