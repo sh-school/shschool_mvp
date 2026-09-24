@@ -32,6 +32,7 @@ _ALIAS_RE = re.compile(r"^var\(\s*--([A-Za-z0-9_-]+)\s*\)$")
 _GROUPS = (
     ("الهويّة", ("maroon", "gold", "skyline", "palm", "sea")),
     ("النصُّ والأسطح", ("text", "border", "surface", "page-bg", "on-fill", "focus-color")),
+    ("الترويسةُ والقائمةُ والذيل", ("header", "nav", "footer", "menu")),
     ("الحالات", ("status", "neutral-solid")),
     ("ألوانُ التمييز", ("accent",)),
     ("الرسومُ البيانيّة", ("chart", "ring-track")),

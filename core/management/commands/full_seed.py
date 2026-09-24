@@ -529,6 +529,7 @@ class Command(BaseCommand):
                     defaults={
                         "subject": slot.subject,
                         "end_time": slot.end_time,
+                        "period_number": slot.period_number,
                         "status": "completed",
                     },
                 )

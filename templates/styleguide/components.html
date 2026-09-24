@@ -13,8 +13,7 @@
 <div class="exec-dash">
 
   {% page_header "دليلُ الهويّة" subtitle="المرجعُ الواحد: رموزُ :root، ووسومُ core/templatetags/ui.py، وأصنافُ القسم 39 — الأمثلةُ توضيحيّة" icon="wings" %}
-    <a href="{% url 'icon_preview' %}" class="btn-secondary btn-sm">{% icon "reinforcement" %} الأيقونات ({{ icon_count }})</a>
-    <a href="{% url 'ui_layouts' %}" class="btn-secondary btn-sm">{% icon "dashboard" %} أنماطُ التخطيط</a>
+    {% include "styleguide/_switch.html" with current="components" %}
   {% endpage_header %}
 
   {# البطاقاتُ تتجاور بعرض حاجتها: span="wide" عمودان، و"full" السطرُ كلُّه (.card-flow). #}
@@ -129,8 +128,9 @@
       {% endfor %}
     </ul>
     <ul class="sg-rules">
-      <li>الظلُّ يدلّ على الارتفاع لا يزيّن: البطاقةُ <code><bdi dir="ltr">--shadow-sm</bdi></code>، والقائمةُ المنسدلة <code><bdi dir="ltr">--shadow-dropdown</bdi></code>، والنافذةُ <code><bdi dir="ltr">--shadow-modal</bdi></code> — ولا ظلَّ يُكتب بقيمته.</li>
-      <li>الطبقاتُ بسلّم <code><bdi dir="ltr">--z-*</bdi></code> وحدَه (base · raised · dropdown · sticky · navbar · modal · toast) — لا <code>z-index</code> برقمٍ عشوائيّ.</li>
+      <li>الظلُّ يدلّ على الارتفاع لا يزيّن: البطاقةُ <code><bdi dir="ltr">--shadow-sm</bdi></code>، والقائمةُ المنسدلة <code><bdi dir="ltr">--shadow-dropdown</bdi></code>، وقوائمُ التنقّل المنسدلة <code><bdi dir="ltr">--shadow-menu</bdi></code> (أغمقُ لأنّها بلونِ القائمة فلا يفصلها عنها غيرُ الظلّ)، والنافذةُ <code><bdi dir="ltr">--shadow-modal</bdi></code> — ولا ظلَّ يُكتب بقيمته.</li>
+      <li>الطبقاتُ بسلّم <code><bdi dir="ltr">--z-*</bdi></code> وحدَه (base · raised · banner · dropdown · sticky · navbar · sidebar · modal · toast) — لا <code>z-index</code> برقمٍ عشوائيّ.</li>
+
     </ul>
   {% endsection_card %}
 
@@ -187,13 +187,9 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
           {% for t in scales.layer %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
         </ul>
         <p class="sg-label">المنطقةُ الآمنة · {{ scales.safe|length }}</p>
-        {% if scales.safe %}
         <ul class="sg-tokens">
           {% for t in scales.safe %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
         </ul>
-        {% else %}
-        <p class="ui-note">لم تُعرَّف رموزُ <code><bdi dir="ltr">--safe-*</bdi></code> بعد (H-04)؛ تظهر هنا وحدَها حين تُعرَّف في <code><bdi dir="ltr">:root</bdi></code>.</p>
-        {% endif %}
         <p class="sg-label">نقاطُ التوقّف في الأنماط · {{ breakpoints|length }}</p>
         <ul class="chip-row" aria-label="نقاطُ التوقّف وعددُ استعلاماتِ كلٍّ منها">
           {% for bp in breakpoints %}
@@ -219,11 +215,11 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
               </tr>
               <tr>
                 <td>المنطقةُ الآمنة من رموز <code><bdi dir="ltr">--safe-*</bdi></code> لا من <code>env()</code> مباشرةً.</td>
-                <td><span class="status-badge status-gray">تنتظر H-04</span> الرموزُ لم تُعرَّف، و<code>env(safe-area…)</code> ما زال مكتوباً مباشرةً.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> الرموزُ معرَّفةٌ في <code>:root</code> (H-04) وحارسُها <code>test_safe_area_tokens</code>؛ و<code>app_back_bar</code> تعرّف الرمزَ محلّيّاً لأنّها ورقةٌ مستقلّة.</td>
               </tr>
               <tr>
                 <td>الطبقاتُ من سلّم <code><bdi dir="ltr">--z-*</bdi></code> لا أرقامٌ خام.</td>
-                <td><span class="status-badge status-warning">جزئيّة</span> السلّمُ معرَّف، وبقيت قيمٌ خامٌّ قليلةٌ بلا حارسٍ بعد.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> لا <code>z-index</code> خامَّ ≥ 20، و<code><bdi dir="ltr">--z-banner</bdi></code> تحت ما يفتحه المستخدم — حارسُها <code>test_z_scale</code>.</td>
               </tr>
               <tr>
                 <td>نقاطُ التوقّف من جدولٍ واحد — الجدولُ الحيُّ بجانبها، وهو مؤشّرُ الخارطة LK2 نفسُه.</td>
@@ -601,7 +597,7 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
     <ul class="sg-rules">
       <li>يُفعَّل بصنف <code>dark</code> على <code>&lt;html&gt;</code>، وتُعاد فيه قيمُ الرموز نفسِها في <code>40-themes.css</code> — فالقالبُ لا يعرف الوضعَ ولا يكتب له شيئاً. بدِّل الوضعَ تتبدّل قيمُ اللوحة.</li>
       <li>الأبيضُ للنصوص والأطر وحدَها لا خلفيّةً؛ والخلفيّةُ الفاتحة تُكتب رمزاً له قيمةٌ ليليّة معتمة.</li>
-      <li>الشريطُ العنّابيُّ وترويسةُ الجدول يبقيان عنّابيَّين بنصٍّ أبيض في الوضعين.</li>
+      <li>ترويسةُ الموقع والذيلُ وترويسةُ الجدول عنّابيّةٌ بنصٍّ أبيض <code><bdi dir="ltr">--on-fill</bdi></code> نهاراً (والترويسةُ والذيلُ بنفسجيٌّ داكنٌ جدّاً ليلاً)؛ والقائمةُ الرئيسيّةُ رملٌ بنصٍّ عنّابيٍّ داكنٍ نهاراً — انظر القسم 23.</li>
       <li>لونٌ مكتوبٌ في قالبٍ أو <code>style=</code> لا يتبع الوضع — ولذلك يرفضه <code>test_design_ratchet</code>. والتباينُ يُقاس في الوضعين (<code>test_contrast_ratios</code>).</li>
     </ul>
   {% endsection_card %}
@@ -610,11 +606,40 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
   {% section_card "22 · معاييرُ الهويّة" meta="حركة · تنقّل · تنبيه · بطاقة" icon="checklist" span="wide" %}
     <ul class="sg-rules">
       <li><b>الانتقال:</b> الترويسةُ والقائمةُ والفوتر ثابتةٌ، والمحتوى وحدَه يتلاشى 500ms ثمّ يظهر 500ms (<code><bdi dir="ltr">--transition-page</bdi></code>)؛ ولا تلاشيَ لمن طلب تقليلَ الحركة.</li>
-      <li><b>القوائم:</b> تُفتح بالمرور على الحاسوب (150ms فتحاً و300ms إغلاقاً)، وبالنقر على اللمس؛ Esc يغلق؛ والقسمُ الحاليّ بخطٍّ ذهبيٍّ سفليّ. لا شريطَ فرعيّ.</li>
+      <li><b>القوائم:</b> تُفتح بالمرور على الحاسوب (150ms فتحاً و300ms إغلاقاً)، وبالنقر على اللمس؛ Esc يغلق؛ والقسمُ الحاليّ بخطٍّ سفليٍّ <code><bdi dir="ltr">--nav-mark</bdi></code>. لا شريطَ فرعيّ.</li>
       <li><b>التنبيهات:</b> <code>{% templatetag openblock %} callout "hint|info|warning|error|success" {% templatetag closeblock %}</code> — التلميحُ والمعلومةُ والتحذيرُ أيقوناتٌ بالترتيب: مصباحٌ، تعجّبٌ أحمر، معلومة؛ والخطأُ والنجاحُ أسطرٌ ظاهرة.</li>
       <li><b>البطاقات:</b> ارتفاعُها بمحتواها لا بالنافذة (<code>fill-grid is-fit</code>)، ولا تمريرَ داخل بطاقةٍ محدودة؛ والطافيةُ تبقى داخل بطاقتها بخلفيةٍ خضراءَ خافتةٍ (<code><bdi dir="ltr">--popover-bg</bdi></code>) ونصٍّ أسود.</li>
       <li><b>التباعد والتقوّس:</b> رموزُ <code><bdi dir="ltr">--sp-*</bdi></code> و<code><bdi dir="ltr">--radius-*</bdi></code> وحدَها؛ والألوانُ رموزُ الحالة وحدَها.</li>
-      <li><b>الحرّاس:</b> <code>test_design_ratchet</code> · <code>test_px_tokens</code> · <code>test_dead_classes</code> · <code>test_contrast_ratios</code> · <code>test_page_nav_shell</code>.</li>
+      <li><b>الحرّاس:</b> <code>test_design_ratchet</code> · <code>test_px_tokens</code> · <code>test_dead_classes</code> · <code>test_contrast_ratios</code> · <code>test_admin_theme</code> · <code>test_page_nav_shell</code>.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 23 ══ #}
+  {% section_card "23 · الترويسةُ والقائمةُ والذيل" meta="header · nav · menu · footer" icon="dashboard" span="full" %}
+    <div class="sg-chrome" role="img" aria-label="معاينةٌ للترويسة والقائمة الرئيسيّة والقائمة المنسدلة والذيل بألوان الوضع الحاليّ">
+      <div class="sg-chrome__header"><span>اسمُ المدرسة</span><span class="sg-chrome__grow"></span><span>المستخدم</span></div>
+      <div class="sg-chrome__nav">
+        <span class="sg-chrome__item">الرئيسية</span>
+        <span class="sg-chrome__item is-current">إدارةُ الشؤون الأكاديميّة</span>
+        <span class="sg-chrome__item is-hover">شؤونُ الموظّفين</span>
+        <span class="sg-chrome__item">الجودة</span>
+      </div>
+      <div class="sg-chrome__page">
+        <div class="sg-chrome__menu">
+          <span class="sg-chrome__label">الجدولُ والجدولة</span>
+          <span class="sg-chrome__link">الجدولةُ الذكيّة</span>
+          <span class="sg-chrome__link is-hover">الإسناد</span>
+          <span class="sg-chrome__link">إعداداتُ الجدول</span>
+        </div>
+      </div>
+      <div class="sg-chrome__footer"><span class="sg-chrome__soft">المدرسةُ · وزارةُ التربية والتعليم والتعليم العالي</span><span>رؤيةُ الوزارة</span></div>
+    </div>
+    <ul class="sg-rules">
+      <li><b>الترويسةُ والذيلُ لونٌ واحد:</b> <code><bdi dir="ltr">--header-bg</bdi></code> (عنّابيٌّ نهاراً، بنفسجيٌّ داكنٌ جدّاً ليلاً) و<code><bdi dir="ltr">--footer-bg: var(--header-bg)</bdi></code>؛ نصُّهما <code><bdi dir="ltr">--on-fill</bdi></code> و<code><bdi dir="ltr">--footer-fg</bdi></code>، والثانويُّ <code><bdi dir="ltr">--footer-fg-soft</bdi></code>، وخطُّ الذيل العلويّ <code><bdi dir="ltr">--gold</bdi></code>.</li>
+      <li><b>القائمةُ الرئيسيّة</b> <code><bdi dir="ltr">--nav-bg</bdi></code> رملٌ خفيفٌ نهاراً بنصٍّ <code><bdi dir="ltr">--nav-fg</bdi></code> عنّابيٍّ داكن، ومرورٌ <code><bdi dir="ltr">--nav-hover</bdi></code>، وعلامةُ القسم الحاليّ <code><bdi dir="ltr">--nav-mark</bdi></code>. لا حدَّ عنّابيَّ تحتها؛ ولا أبيضَ ولا تظليلَ أبيضَ فوق سطحٍ فاتح (<code><bdi dir="ltr">--on-fill</bdi></code> للحشو الثابت وحدَه).</li>
+      <li><b>القوائمُ المنسدلة بلونِ القائمة نفسِه</b> لا أبيضَ ثابتاً: <code><bdi dir="ltr">--menu-bg: var(--nav-bg)</bdi></code>؛ فاصلُها <code><bdi dir="ltr">--menu-rule</bdi></code> وتظليلُ مرورها <code><bdi dir="ltr">--menu-hover</bdi></code> مشتقّان منه، وأسماءُ أعمدتها <code><bdi dir="ltr">--menu-label</bdi></code> عوديّةٌ نهاراً، وظلُّها <code><bdi dir="ltr">--shadow-menu</bdi></code>.</li>
+      <li><b>لوحةُ الإدارة تنسخ الرموزَ نفسَها</b> في <code>admin_theme.css</code>، ويمنع <code>test_admin_theme</code> انجرافَها؛ فتغييرُ لونٍ منها قيمةُ رمزٍ في <code>10-foundation.css</code> و<code>40-themes.css</code> ونظيرِها هناك — لا قاعدةٌ في صفحة.</li>
+      <li>ألوانُ نصّ الذيل مقيَّدةٌ بـ<code>.site-footer</code> لأنّ أصنافَه (<code>site-footer-vision</code> و<code>site-footer-brand*</code>) تُضمَّن في صفحة الدخول والأخطاء على خلفيّاتٍ فاتحة؛ والتشكيلُ الأزرقُ للرؤية يأخذ لوحةَ الخطّ الفاتحة <code><bdi dir="ltr">--tashkeel-dark</bdi></code> فوق الذيل.</li>
     </ul>
   {% endsection_card %}
 

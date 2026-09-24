@@ -59,7 +59,7 @@
 html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
 /* حلقةُ الشارة بلون ما خلفها — وإلّا ظهرت دائرةٌ بيضاءُ على الشريط العنّابيّ */
 .site-nav { --icon-cutout: var(--nav-bg); }
-.sd-menu a:hover { --icon-cutout: var(--maroon-bg); }
+.sd-menu a:hover { --icon-cutout: var(--menu-hover); }
 .icon-sm  { width: 16px; height: 16px; }
 .icon-lg  { width: 24px; height: 24px; }
 .icon-xl  { width: 32px; height: 32px; }
@@ -311,7 +311,7 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --shadow-ink:          #000;   /* لونُ الظلّ، يُمزج بنسبته: color-mix(… var(--shadow-ink) 6%, transparent) */
   --shadow-nav:          0 2px 8px rgba(0,0,0,.18);
   --shadow-nav-panel:    0 6px 24px rgba(0,0,0,.18);
-  --shadow-menu:         0 10px 40px rgba(0,0,0,.13);
+  --shadow-menu:         0 12px 40px rgba(0,0,0,.38);
   --shadow-bottom-nav:   0 -2px 12px rgba(0,0,0,.08);
   --shadow-toast:        0 4px 20px rgba(0,0,0,.15);
   --shadow-palette:      0 20px 60px rgba(0,0,0,.25);
@@ -324,15 +324,26 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --q-modal-scrim:       rgba(0,0,0,.6);
   --loading-veil:        rgba(255,255,255,.4);
 
-  /* الشريطُ والقوائم */
+  /* الذيلُ بلون الترويسة، والقائمةُ رملٌ بنصٍّ عنّابيّ لا أبيض (قرارُ المالك 2026-09-24) */
   --header-bg:           var(--maroon);
-  --nav-bg:              var(--maroon);
+  --nav-bg:              #f4f0e7;
+  --nav-fg:              var(--maroon-dark);   /* 10.69 */
+  --nav-hover:           color-mix(in srgb, var(--maroon) 12%, transparent);
+  --nav-mark:            var(--maroon);        /* 8.22 */
+  --footer-bg:           var(--header-bg);
+  --footer-fg:           var(--on-fill);
+  --footer-fg-soft:      #e5cbd3;   /* 6.15 */
+  --footer-line:         color-mix(in srgb, var(--on-fill) 35%, transparent);
   --admin-header-link:   #ffe0e9;   /* رابطٌ فوق ترويسة لوحة Django العنّابيّة */
   --border-soft:         #e2e8f0;
   --menu-ink:            #1e293b;
   --menu-ink-strong:     #0f172a;
-  --menu-label:          #94a3b8;
+  --menu-label:          #5a3928;   /* عودي */
   --menu-divider:        #f1f5f9;
+  /* القائمةُ المنسدلة بلون القائمة نفسِه؛ فاصلُها وتظليلُ مرورها مشتقّان منه */
+  --menu-bg:             var(--nav-bg);
+  --menu-hover:          color-mix(in srgb, var(--maroon) 9%, var(--menu-bg));
+  --menu-rule:           color-mix(in srgb, var(--menu-bg) 85%, var(--menu-ink-strong));
   --breadcrumb-hover:    var(--maroon-dark);
   --scrollbar-track:     #f1f5f9;
   --scrollbar-thumb-hover: var(--maroon-light);
