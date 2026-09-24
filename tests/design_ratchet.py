@@ -139,10 +139,27 @@ ADMIN_CLASSES = frozenset(
         "submit-row",
         "viewlink",
         "visually-hidden",
+        # من `admin/edit_inline/tabular.html` (نسخةُ الجدول المضمَّن بتسمياتٍ مخفيّة) — `admin/css/forms.css`.
+        "delete",
+        "empty-form",
+        "has_original",
+        "help",
+        "help-tooltip",
+        "inline-heading",
+        "inline-related",
+        "last-related",
+        "original",
+        "row-form-errors",
+        "tabular",
     }
 )
-#: الملفُّ الوحيد الذي ينسخ أصنافَ Django بلا `extends` — لا الدليلُ كلُّه، كي لا يمرّ صنفٌ جديدٌ غيرُ معرَّف.
-ADMIN_TEMPLATES = frozenset({pathlib.PurePosixPath("templates/admin/app_list.html")})
+#: الملفّاتُ التي تنسخ أصنافَ Django بلا `extends` — بأسمائها لا الدليلُ كلُّه، كي لا يمرّ صنفٌ جديدٌ غيرُ معرَّف.
+ADMIN_TEMPLATES = frozenset(
+    {
+        pathlib.PurePosixPath("templates/admin/app_list.html"),
+        pathlib.PurePosixPath("templates/admin/edit_inline/tabular.html"),
+    }
+)
 EXTENDS_RE = re.compile(r"""\{%\s*extends\s+["']([^"']+)["']""")
 
 
