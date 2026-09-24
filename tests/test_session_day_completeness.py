@@ -93,9 +93,23 @@ class TestADayIsCompleteByItsCountNotByOneRow:
     def test_a_complete_week_is_left_alone_cheaply(
         self, school, plan, django_assert_max_num_queries
     ):
+        # أسبوعٌ كاملٌ حقّاً: لكلّ يومٍ حصّةٌ في الخطّة — ويومٌ بلا خطّةٍ يبقى «فارغاً».
+        first = plan["slots"][0]
+        for day in range(1, 5):
+            ScheduleSlot.objects.create(
+                school=school,
+                teacher=first.teacher,
+                class_group=first.class_group,
+                subject=first.subject,
+                day_of_week=day,
+                period_number=1,
+                start_time=first.start_time,
+                end_time=first.end_time,
+                academic_year=YEAR,
+            )
         ScheduleService.ensure_sessions_for_date(school, SUNDAY, academic_year=YEAR)
 
-        with django_assert_max_num_queries(2):
+        with django_assert_max_num_queries(1):
             assert ScheduleService.ensure_sessions_for_date(school, SUNDAY, academic_year=YEAR) == 0
 
 
