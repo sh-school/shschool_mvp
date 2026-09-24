@@ -1343,18 +1343,20 @@ main.page-wide {
 /* ما يتلاشى هو أبناءُ الصفحة كلُّهم. الصفحةُ إمّا `#main-content > .exec-dash > …` أو أبناؤها مباشرةً. */
 /* الظهور: حركةُ `page-in` تبدأ من نفسها لحظةَ إدراج العنصر (صفحةٌ حُمّلت كاملةً أو مبدَّلةٌ بالسكربت) — بلا صنفٍ يُزال ولا انتقالٍ
    يتوقّف على ترتيب الأنماط، فلا يأتي المحتوى فجأة. `backwards` فقط: بعد نهايتها يعود الأصلُ فيعمل التلاشي عند الخروج.
-   والاختفاءُ: `.is-leaving` (يضعه السكربتُ) شفّافٌ بانتقالٍ بالمدّة نفسِها. */
+   والاختفاءُ: `.is-leaving` (يضعه السكربتُ) شفّافٌ بانتقالٍ بالمدّة نفسِها، وبـ`!important` لأنّ انتقالَ ابنٍ خاصّاً في طبقةٍ أحدث (`.sa-panel`) يغلب `transition` أعلاه. */
 @keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
 #main-content > :not(.exec-dash),
-#main-content > .exec-dash >  {
+#main-content > .exec-dash > * {
   animation: page-in var(--transition-page) backwards;
   transition: opacity var(--transition-page);
 }
 #main-content.is-leaving > :not(.exec-dash),
-#main-content.is-leaving > .exec-dash >  { opacity: 0; pointer-events: none; }
+#main-content.is-leaving > .exec-dash > * { opacity: 0; pointer-events: none; transition: opacity var(--transition-page) !important; }
 @media (prefers-reduced-motion: reduce) {
   #main-content > :not(.exec-dash),
-  #main-content > .exec-dash >  { animation: none; transition: none; }
+  #main-content > .exec-dash > * { animation: none; transition: none; }
+  #main-content.is-leaving > :not(.exec-dash),
+  #main-content.is-leaving > .exec-dash > * { transition: none !important; }
 }
 .ui-page-header__title { display: flex; align-items: center; gap: var(--sp-2); }
 @media print { .ui-tip { display: none; } }
