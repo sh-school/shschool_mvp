@@ -12,14 +12,31 @@
  * سكربتاتُ الصفحة وأنماطُها تُحمَّل وتُشغَّل بعد التبديل بترتيبها. وسكربتٌ شُغِّل من قبلُ في هذا المستند يُشغَّل ثانيةً
  * داخل غلافٍ فلا تصطدم ثوابتُه العامّةُ بالسابقة. وما لا يُؤمَن تبديلُه (ليست من هذا القالب كالدخول، أو ردُّها ليس HTML)
  * يُحمَّل كاملاً كما كان — فالأسوأ حالٌ هو ما كان قبلَه لا صفحةٌ معطوبة.
+ *
+ * القوائمُ المنسدلةُ تتلاشى من لحظة النقر بمدّة تلاشي الصفحة نفسِها (`.is-fading`، CSS) ثمّ تُغلق — كانت تبقى مفتوحةً حتى يُبدَّل
+ * المحتوى ثمّ تختفي فجأة.
+ *
+ * لوحةُ الإدارة (`data-page-nav="fade"` على وسم السكربت، و`data-page-nav-root` للحاوية): صفحاتُها تحمل سكربتاتٍ تهيّئ أدواتِها عند
+ * `load` (SelectFilter وDateTimeShortcuts وactions…) ولا تُعاد هذه بعد تبديل DOM، فلا تُبدَّل. تتلاشى الحاويةُ بالآلية نفسِها
+ * ثمّ يُحمَّل المستندُ كاملاً، وتظهر الصفحةُ التالية بحركة `page-in` نفسِها (في admin_theme.css): رمشٌ واحدٌ صار انتقالاً سلساً.
  */
 (function () {
   'use strict';
-  if (!document.body || !document.body.hasAttribute('data-page-nav') || !window.fetch || !window.DOMParser || !window.FormData) return;
+  var cfg = document.currentScript;
+  var FADE_ONLY = !!cfg && cfg.getAttribute('data-page-nav') === 'fade';
+  if (!document.body) return;
+  if (FADE_ONLY) {
+    if (document.body.classList.contains('popup')) return;   // نافذةُ إضافةٍ/بحثٍ منبثقة: لا انتقالَ فيها
+  } else if (!document.body.hasAttribute('data-page-nav') || !window.fetch || !window.DOMParser || !window.FormData) return;
 
-  var SKIP_PATH = /^\/(admin|logout|static|media|api)\b/;
+  var ROOT = (cfg && cfg.getAttribute('data-page-nav-root')) || '#main-content';
+  var SKIP_PATH = FADE_ONLY ? /^\/(static|media|api)\b|\/logout\/?$/ : /^\/(admin|logout|static|media|api)\b/;
   var FILE_LIKE = /(\.(pdf|xlsx?|csv|zip|docx?|png|jpe?g|svg|json)$|\/(pdf|xlsx|csv|export|download|print)(\/|$|\?))/i;
+  // ما يحمل حالةَ الفتح: قائمةُ المنصّة `.open`، وقسمُ قائمة الإدارة `.is-open` (والتلاشي `.is-fading` يوضع على الحامل نفسِه).
+  var MENUS = '.sd-menu.open, .sd-menu.is-open, .adm-nav__item.is-open';
   var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // ما يدعم المزجَ الأصليَّ بين صفحتين (`@view-transition`): الإدارةُ تتركه له بدل تلاشي JS.
+  var NATIVE_VT = !!(window.CSS && CSS.supports && CSS.supports('at-rule(@view-transition)'));
   var token = 0;
   var nonce = (function () { var s = document.querySelector('script[nonce]'); return s ? (s.nonce || s.getAttribute('nonce') || '') : ''; })();
   var executed = new Set();   // سكربتاتُ الصفحات التي شُغِّلت بعد التحميل الأوّل
@@ -162,12 +179,52 @@
     });
   }
 
+  // إغلاقٌ فوريٌّ (بعد أن انقضى التلاشي، أو لمن يُفضّل تقليلَ الحركة).
   function closeMenus() {
-    document.querySelectorAll('.sd-menu.open, .sd-menu.is-open').forEach(function (el) { el.classList.remove('open', 'is-open'); });
-    document.querySelectorAll('[data-sd][aria-expanded="true"]').forEach(function (el) { el.setAttribute('aria-expanded', 'false'); });
+    document.querySelectorAll('.is-fading').forEach(function (el) { el.classList.remove('is-fading'); });
+    document.querySelectorAll(MENUS).forEach(function (el) { el.classList.remove('open', 'is-open'); });
+    document.querySelectorAll('[data-sd][aria-expanded="true"], .adm-nav__btn[aria-expanded="true"]').forEach(function (el) { el.setAttribute('aria-expanded', 'false'); });
+    if (window.sdCloseAll) window.sdCloseAll();   // زرُّ القائمة الرئيسيّة `.nb.on` ولوحةُ الجوّال — وحدَه base.js يعرفهما
   }
 
-  function full(url) { window.location.href = url; }
+  // النقرُ على رابطٍ: تتلاشى القائمةُ المفتوحةُ من هذه اللحظة بمدّة تلاشي الصفحة، لا بعد التبديل.
+  function fadeMenus() {
+    var open = document.querySelectorAll(MENUS);
+    if (!open.length) return;
+    if (reduced) { closeMenus(); return; }
+    open.forEach(function (el) { el.classList.add('is-fading'); });
+    setTimeout(closeMenus, fadeMs());
+  }
+
+  // انتقالٌ لن يُبدَّل فيه المحتوى: إن لم يقع (تنزيلٌ أو إلغاءٌ) عاد المحتوى الشفّافُ ظاهراً بدل أن تبقى الصفحةُ فارغة.
+  function restoreLater() {
+    var t = setTimeout(function () {
+      var root = document.querySelector(ROOT);
+      if (root) root.classList.remove('is-leaving');
+      closeMenus();
+    }, fadeMs() + 4000);
+    window.addEventListener('pagehide', function () { clearTimeout(t); }, { once: true });
+  }
+
+  function full(url) { restoreLater(); window.location.href = url; }
+
+  // نمطُ `fade` (الإدارة): تلاشٍ بالآلية نفسِها ثمّ تحميلٌ كامل.
+  function leave(url) {
+    var root = document.querySelector(ROOT);
+    if (!root || reduced) { window.location.href = url; return; }
+    root.classList.add('is-leaving');
+    fadeMenus();
+    restoreLater();
+    setTimeout(function () { window.location.href = url; }, fadeMs());
+  }
+
+  // الرجوعُ من ذاكرة الصفحة (bfcache) يعيدها كما تُركت: `is-leaving` قائمٌ فيبقى المحتوى شفّافاً.
+  window.addEventListener('pageshow', function (e) {
+    if (!e.persisted) return;
+    var root = document.querySelector(ROOT);
+    if (root) root.classList.remove('is-leaving');
+    closeMenus();
+  });
 
   function download(res, name) {
     return res.blob().then(function (blob) {
@@ -185,6 +242,7 @@
     var post = init && init.method === 'POST';
     if (!main) { if (post) return; full(url); return; }
     if (!reduced) main.classList.add('is-leaving');
+    fadeMenus();
     var fade = new Promise(function (r) { setTimeout(r, reduced ? 0 : fadeMs()); });
     var options = { credentials: 'same-origin', headers: { 'X-Page-Nav': '1', Accept: 'text/html' } };
     if (init) { options.method = init.method; options.body = init.body; }
@@ -234,12 +292,17 @@
   document.addEventListener('click', function (e) {
     var a = e.target.closest && e.target.closest('a[href]');
     if (!eligibleLink(a, e) || e.defaultPrevented) return;
+    var same = a.pathname === location.pathname && a.search === location.search;
+    // المتصفّحُ يمازج الصفحتين بنفسه (`@view-transition` في admin_theme.css): لا نعترض الرابطَ، ونُخفت القائمةَ وحدَها من لحظة النقر.
+    if (FADE_ONLY && NATIVE_VT && !same) { fadeMenus(); return; }
     e.preventDefault();
     // رابطٌ إلى الصفحة الحاليّة بعينها (النقرةُ الثانية على مفتاحٍ في القائمة الرئيسيّة أو فرعيّتها): لا شيءَ يُعاد — لا تحميلَ
-    // ولا تلاشي ولا طلب. تُغلق القائمةُ المنسدلة فقط.
-    if (a.pathname === location.pathname && a.search === location.search) { closeMenus(); return; }
-    go(a.href, true);
+    // ولا تلاشي ولا طلب. تُغلق القائمةُ المنسدلة فقط (بتلاشيها).
+    if (same) { fadeMenus(); return; }
+    if (FADE_ONLY) leave(a.href); else go(a.href, true);
   });
+
+  if (FADE_ONLY) return;   // لا نماذجَ ولا سجلَّ في نمط `fade`: الحفظُ بإرسالٍ عاديٍّ والرجوعُ بالمتصفّح
 
   // بعد معالِج التأكيد (`data-confirm` في actions.js): إن مُنع الإرسالُ فلا نُكمل.
   document.addEventListener('submit', function (e) {

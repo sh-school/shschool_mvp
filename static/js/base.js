@@ -162,7 +162,8 @@ function sdPlace(m, btn) {
 }
 
 function sdCloseAll() {
-  document.querySelectorAll('.sd-menu.open').forEach(function(x) { x.classList.remove('open', 'sd-drawer'); });
+  // قائمةٌ تتلاشى بعد نقرِ رابطٍ فيها (`.is-fading`، page-nav.js) تُغلق هي بنفسها عند انقضاء التلاشي — لا يقطعها مؤشّرٌ خرج منها.
+  document.querySelectorAll('.sd-menu.open:not(.is-fading)').forEach(function(x) { x.classList.remove('open', 'sd-drawer'); });
   document.querySelectorAll('.nb.on').forEach(function(x) { x.classList.remove('on'); x.setAttribute('aria-expanded', 'false'); });
   document.querySelectorAll('.nb-bar.nb-split').forEach(function(x) { x.classList.remove('nb-split'); });
 }
