@@ -52,6 +52,15 @@ UPDATES = [
         "إظهارهم. (أبلغت به جلسةُ إصلاح قاعدة التلاشي.)",
     ),
     (
+        "DBT-37",
+        ("todo", 0),
+        "done",
+        100,
+        "#560",
+        "أُغلق: #560 صورةُ إذن التأخّر تمرّ بـclean_photo (يُمحى EXIF/GPS ويُصغَّر)، ويحكم الحارسُ بالبايتات لا بالاسم؛ وحارسٌ بنيويّ لمداخل "
+        "الرفع كلِّها tests/test_uploads_are_photo_cleaned.py (KNOWN_UNCLEANED وDOCUMENTS_ONLY). كشف مداخلَ أخرى: DBT-41 (#565) وDBT-43.",
+    ),
+    (
         "OWN-09",
         ("done", 100),
         "done",
@@ -148,32 +157,35 @@ OPEN_DEBTS = [
     (
         "DBT-40",
         "sec",
-        "خصوصيّة (PDPPL): مرفقُ إجازة الموظّف يُحفظ بلا clean_photo — قد يكون تقريراً طبّيّاً",
-        "يمرّ بـcore.photo_privacy.clean_photo، ويخرج من KNOWN_UNCLEANED في tests/test_uploads_are_photo_cleaned.py.",
-        "staff_affairs/views.py::leave_request_create — **الأشدُّ حساسيّةً بين المداخل الستّة، يلي #560 (DBT-37)**. تحقّقتُ أنّه يقرأ FILES "
-        "بلا clean_photo، وأنّ clean_photo لا يُستعمل في الإنتاج إلا في operations/excuses.py:202.",
+        "مرفقُ إجازة الموظّف (LeaveRequestForm.attachment): لا دَينَ خصوصيّة — المدقّقُ يرفض الامتداداتِ الصوريّة",
+        "لا يدخل EXIF من بابه: مدقّقُ document يرفض ستّةَ امتداداتٍ صوريّة (jpg/jpeg/png/webp/heic/heif).",
+        "staff_affairs/views.py::leave_request_create. **أُغلق «لا دَين» لا «منجز»** بمرجع الحارس DOCUMENTS_ONLY في "
+        "tests/test_uploads_are_photo_cleaned.py (#560) — فحصٌ أثبته الحارسُ بالاختبار لا بالقراءة؛ وكنتُ سجّلتُه خطأً دَينَ خصوصيّة "
+        "من قراءةٍ أولى ثمّ صحّحته جلسةُ «اصلاحات 02». (يقرأ FILES بلا clean_photo فعلاً، لكنّه لا يقبل صوراً.)",
     ),
     (
         "DBT-41",
         "sec",
-        "خصوصيّة (PDPPL): مرفقُ استثناء الحضور للموظّف يُحفظ بلا clean_photo",
-        "يمرّ بـclean_photo ويخرج من KNOWN_UNCLEANED.",
-        "staff_affairs/views_attendance.py::my_permits. تحقّقتُ أنّه يقرأ FILES بلا clean_photo. (أبلغت به جلسةُ «اصلاحات 02».)",
+        "خصوصيّة (PDPPL): مرفقُ استثناء الحضور للموظّف (ExceptionService.submit) يُحفظ بلا clean_photo",
+        "يمرّ بـclean_photo ويخرج من KNOWN_UNCLEANED — #565 (دمجٌ تلقائيّ مفعَّل، لم يندمج بعد).",
+        "الدَّينُ الفعليّ في ExceptionService.submit لا في my_permits وحدها (تصحيحُ جلسة «اصلاحات 02» بعد فحصٍ أثبته الحارس). "
+        "يُغلق برقم #565 حين يُدمج — لا قبله.",
     ),
     (
         "DBT-42",
         "sec",
-        "خصوصيّة (PDPPL): مرفقُ النشاط الطلّابيّ يُحفظ بلا clean_photo — صورٌ فيها طلبة",
-        "يمرّ بـclean_photo في الإضافة والتعديل معاً، ويخرج من KNOWN_UNCLEANED.",
-        "student_affairs/views.py::activity_add و::activity_edit. تحقّقتُ أنّهما يقرآن FILES بلا clean_photo.",
+        "مرفقُ النشاط الطلّابيّ (ActivityForm.attachment): لا دَينَ خصوصيّة — المدقّقُ يرفض الامتداداتِ الصوريّة",
+        "لا يدخل EXIF من بابه: مدقّقُ document يرفض ستّةَ امتداداتٍ صوريّة.",
+        "student_affairs/views.py::activity_add و::activity_edit. **أُغلق «لا دَين» لا «منجز»** بمرجع الحارس DOCUMENTS_ONLY في "
+        "tests/test_uploads_are_photo_cleaned.py (#560)؛ وكنتُ سجّلتُه خطأً دَينَ خصوصيّة ثمّ صحّحته جلسةُ «اصلاحات 02».",
     ),
     (
         "DBT-43",
         "sec",
-        "خصوصيّة (PDPPL): دليلُ الإجراء في الجودة يُحفظ بلا clean_photo",
-        "تُراجَع: هل يقبل صورةً؟ وهل هو بياناتٌ شخصيّة؟ ثمّ يمرّ بـclean_photo أو يُوثَّق سببُ إعفائه.",
-        "quality/views.py::upload_evidence و::_process_task_update. تحقّقتُ أنّهما يقرآن FILES بلا clean_photo، **ولم أتحقّق أنّهما "
-        "يقبلان صوراً** — الأخفُّ بين المداخل الستّة.",
+        "دليلُ الإجراء في الجودة: _process_task_update يمرّر الملفَّ بلا أيّ فحصِ نوعٍ أو حجم",
+        "فحصُ نوعٍ وحجمٍ في _process_task_update، ثمّ يمرّ بـclean_photo أو يُوثَّق سببُ إعفائه؛ ويخرج من KNOWN_UNCLEANED.",
+        "quality/views.py::_process_task_update يمرّر الملفَّ بلا أيّ فحصِ نوعٍ أو حجم، وupload_evidence يفحص `document` بالامتداد فقط. "
+        "**هو الباقي في KNOWN_UNCLEANED** ولم تعالجه جلسةُ «اصلاحات 02». (أُعيد وصفُه بتصحيحها.)",
     ),
     (
         "DBT-44",
@@ -254,6 +266,8 @@ OPEN_DEBTS = [
     ),
 ]
 OPEN_DEBTS_FIRST_ORDER = 473  # بعد N-037 (472)
+# ديونٌ سُجّلت بأرقامها ثمّ ثبت أنّها «لا دَين» بفحصٍ أثبته الحارس: تُنشأ مُغلقةً (لا منجزةً) فتبقى الأرقامُ مستقرّةً عند الجلسات.
+CLOSED_NO_DEBT = {"DBT-40", "DBT-42"}
 
 # مؤشّراتٌ رقميّة: (الرمز، (القيمة، تاريخ القياس) المتوقَّعان، القيمة الجديدة، مرجعُ القياس) — قياسُ الإنتاج قراءةً فقط بعد اعتماد
 # التوليد c2dba53a؛ ونقطةُ اليوم في السجلّ تُستبدل لا تتكرّر (والأساسُ باقٍ في baseline).
@@ -318,19 +332,22 @@ def add_missing(item_model):
 
 
 def add_open_debts(item_model):
-    """تُنشئ الديونَ المفتوحةَ الغائبة بلا تاريخٍ ولا طلب؛ تُرجع رموزَ ما أُنشئ."""
+    """تُنشئ الديونَ الغائبة (المفتوحةُ بلا تاريخٍ ولا طلب، وما ثبت «لا دَين» مُغلقاً)؛ تُرجع رموزَ ما أُنشئ."""
     created = []
     for offset, (code, lane, title, criterion, extra) in enumerate(OPEN_DEBTS):
         if item_model.objects.filter(code=code).exists():
             continue
+        closed = code in CLOSED_NO_DEBT
         item_model.objects.create(
             code=code,
             src="DBT",
             lane=lane,
             title=title,
-            status="todo",
-            progress=0,
-            date_basis=BASIS,
+            status="done" if closed else "todo",
+            progress=100 if closed else 0,
+            start_date=DAY if closed else None,
+            end_date=DAY if closed else None,
+            date_basis="محدَّث يدوياً" if closed else BASIS,
             criterion=criterion,
             note=f"{STAMP} {extra}",
             sort_order=OPEN_DEBTS_FIRST_ORDER + offset,
