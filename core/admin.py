@@ -3,6 +3,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.db.models import Prefetch
 from django.utils.html import format_html
 
+from .admin_password_forms import ArabicAdminPasswordChangeForm, ArabicUserChangeForm
 from .models import (
     AcademicYear,
     CalendarEvent,
@@ -133,6 +134,9 @@ class CustomUserAdmin(SchoolScopedAdmin, UserAdmin):
     """
 
     model = CustomUser
+    # نصوصُ جانغو في صفحتي تعديل المستخدم وتغيير كلمته بلا ترجمةٍ عربيّة (core/admin_password_forms.py)
+    form = ArabicUserChangeForm
+    change_password_form = ArabicAdminPasswordChangeForm
     school_lookup = "memberships__school"
     # ── PDPPL: نستخدم masked_national_id بدل national_id في القائمة ──
     list_display = (

@@ -38,6 +38,7 @@ from .models import (
     TeacherExemption,
     TeacherPreference,
 )
+from .schedule_breaches import draft_breaches
 from .schedule_paper import paper_geometry
 from .schedule_selectors import DEFAULT_ORIENTATION, ORIENTATIONS, PAPERS
 from .schedule_selectors import browse_lists as _browse_lists
@@ -406,13 +407,7 @@ def absence_detail(request, absence_id):
     if dept_ids is not None and absence.teacher_id not in dept_ids:
         return HttpResponse("هذا المعلم ليس من قسمك", status=403)
 
-    our_day = SubstituteService._date_to_day(absence.date)
-    slots = sorted(
-        ScheduleSlot.objects.live(school)
-        .filter(teacher=absence.teacher, day_of_week=our_day)
-        .select_related("class_group", "subject"),
-        key=lambda slot: slot.period_number,
-    )
+    slots = sorted(SubstituteService.absence_slots(absence), key=lambda slot: slot.period_number)
 
     assignments = {
         a.slot_id: a
@@ -806,6 +801,8 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
     """
     for g in generations:
         g.lab_tone = tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
+        # ما بقي مكسوراً بموضعه — والإقرارُ به شرطُ اعتماد المسودّة (SCH-05).
+        g.breaches = draft_breaches(g.config_snapshot)
     measured = [g for g in generations if g.lab_rows]
     rows: dict[str, dict] = {}
     for column, g in enumerate(measured):
@@ -1116,30 +1113,6 @@ def teacher_preferences(request):
 
 
 # ── اعتماد الجدول ─────────────────────────────────────────────────
-
-
-@login_required
-@capability_required("schedule.settings")
-@require_POST
-def approve_schedule(request, generation_id):
-    """اعتماد الجدول المولّد"""
-    school = request.school
-    gen = get_object_or_404(ScheduleGeneration, id=generation_id, school=school)
-
-    if gen.status != "draft":
-        messages.warning(request, "هذا الجدول ليس مسودة — لا يمكن اعتماده")
-        return redirect("smart_schedule")
-
-    # الاعتمادُ كلُّه في الخدمة — الزرُّ وأمرُ النقل يمرّان من الباب نفسِه.
-    result = ScheduleService.approve_generation(gen)
-    sync = result["sync"]
-
-    messages.success(
-        request,
-        f"تم اعتماد الجدول وإشعار {result['notified']} معلم — جلساتُ الأسبوع: "
-        f"حُذف {sync['deleted']}، أُنشئ {sync['created']}، أُبقي {sync['kept']}",
-    )
-    return redirect("smart_schedule")
 
 
 def _one_of(raw, allowed, fallback):

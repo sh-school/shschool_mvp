@@ -387,10 +387,9 @@ document.addEventListener('click', function(e) {
 
 
 /* ── PWA Install Banner ───────────────────────────────────── */
-// الإظهارُ والإخفاءُ بسمة `hidden` لا بصنف `.visible`: قاعدةُ `.pwa-banner` في طبقة
-// `utilities` (#232) تجعله `flex` وتغلب `display:none` القديمةَ في `components` —
-// فكان الشريطُ ظاهراً دائماً ولا يُغلقه زرُّه. و`[hidden]` في `reset` بـ`!important`
-// يغلب الطبقاتِ كلَّها.
+// الإظهارُ والإخفاءُ بسمة `hidden` لا بصنف `.visible`: قاعدةُ `.pwa-banner` (`display: flex`)
+// في `20-components.css` تغلب `display:none`، و`[hidden]` في `reset` بـ`!important`
+// يغلب الطبقاتِ كلَّها — فيُغلقه زرُّه.
 //
 // ولا يعود الشريطُ أبداً (قرارُ 2026-09-13) إن: أُغلق بـ✕، أو ثُبّت التطبيق، أو فُتحت
 // المنصّةُ تطبيقاً مثبّتاً.
@@ -855,6 +854,8 @@ document.addEventListener('click', function(e) {
      <th data-sort="none">           عمودٌ بعينه لا يُفرَز
      <th data-sort="text|num">       نوعٌ مفروضٌ بدل المستنتَج
      <th data-sort-first="asc|desc"> اتّجاهُ النقرة الأولى بدل الطبيعيّ
+     <th data-sort-default="asc|desc"> الترتيبُ عند التحميل — قبل أيّ نقرة (عمودٌ واحد)
+     <table data-sort-min-rows="2">  أقلُّ عددٍ من الصفوف يُفرَز (الافتراض 3)
      <td data-sort-value="…">        قيمةُ الفرز حين يخالف النصُّ المعنى
      <tr data-sort-pin>              صفٌّ يبقى في الذيل (الإجماليّات)
 
@@ -987,7 +988,9 @@ document.addEventListener('click', function(e) {
       if (isPinned(row)) { pinned.push(row); continue; }
       groups.push({ row: row, nodes: [row], order: groups.length });
     }
-    if (groups.length < MIN_ROWS) return false;
+    /* سجلٌّ بصفٍّ أو صفّين يُفرَز إن صرّح قالبُه (`data-sort-min-rows`): جدولُ التوليد يبدأ صغيراً. */
+    var minRows = parseInt(table.getAttribute('data-sort-min-rows') || MIN_ROWS, 10) || MIN_ROWS;
+    if (groups.length < minRows) return false;
 
     var plain = groups.map(function (g) { return g.row; });
     var kinds = [], sortableCount = 0;
@@ -1103,6 +1106,16 @@ document.addEventListener('click', function(e) {
       });
     });
 
+    /* الترتيبُ الافتراضيّ: عمودٌ صرّح قالبُه أنّه يُفرَز عند التحميل — كأنّ القارئ نقر عليه. */
+    Array.prototype.forEach.call(head.cells, function (th, index) {
+      var wanted = th.getAttribute('data-sort-default');
+      if (!kinds[index] || (wanted !== 'asc' && wanted !== 'desc') || state.index !== -1) return;
+      state.index = index;
+      state.dir = wanted === 'asc' ? 1 : -1;
+      th.setAttribute('aria-sort', wanted === 'asc' ? 'ascending' : 'descending');
+      apply();
+    });
+
     table.__sortBound = true;
     table.classList.add('is-sortable-table');
     return true;
@@ -1131,4 +1144,22 @@ document.addEventListener('click', function(e) {
   }
   /* HTMX يستبدل أجزاءً من الصفحة، والجدولُ الجديدُ يحتاج ترويسةً جديدة. */
   document.addEventListener('htmx:afterSwap', function (e) { initAll(e.target); });
+})();
+
+/* ── «بلا تمرير» مشروطٌ بسعة النافذة (LAY-03، قرارُ المالك 2026-09-24) ─────────
+   صفحةُ `page-noscroll` تملأ النافذةَ وتُمرِّر قوائمَها داخل بطاقاتها. وعلى نافذةٍ قصيرة — لابتوب
+   1366×768 نافذتُه نحو 620px — كانت نصفُ هذه الصفحات تحشر جدولَها في صفّين (قياسُ 32 صفحةً،
+   docs/design/page_layouts.md §5). فإن ضيّق ارتفاعُ النافذة منطقةَ تمريرٍ دون 15rem نُزع
+   `page-noscroll` فمُرِّرت الصفحةُ كلُّها بالتخطيط نفسه، ويعود حين تتّسع.
+   لا تُحسب منطقةٌ قصيرةٌ بتصميمها: المعيارُ أن تطول حين يُنزع الصنف، أي أنّ النافذةَ هي التي قصّرتها.
+   والدالّةُ `window.fitNoscroll` مضمَّنةٌ في base.html بعد `</main>` لتقرّر قبل الرسم الأوّل؛
+   وهنا ما يعيد القرارَ حين يتغيّر المقاسُ أو المحتوى — لا عند `load`: إعادتُه بعد الرسم أحدثت قفزةً
+   مقيسةً (CLS 0.94 في قائمة الطلاب). */
+(function () {
+  if (typeof window.fitNoscroll !== 'function') return;
+  var timer = null;
+  function later() { clearTimeout(timer); timer = setTimeout(window.fitNoscroll, 150); }
+  window.addEventListener('resize', later);
+  /* تبديلُ الصفحة (page-nav.js) وأجزاءُ HTMX يغيّران المحتوى فتتغيّر الحاجة. */
+  document.addEventListener('htmx:afterSwap', later);
 })();

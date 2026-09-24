@@ -79,6 +79,9 @@ def _grid_stub(load, days, periods_by_day, teacher="t1"):
     return SimpleNamespace(
         coverage={teacher: (load, load, frozenset(days))},
         teacher_periods_on=lambda tid, day: periods_by_day.get(day, []),
+        # بلا حصصٍ موضوعةٍ ولا جرس: التتابعُ يُحكم برقم الحصّة كما كان (SCH-18).
+        teacher_task_at=lambda tid, day, period: None,
+        interval=lambda band, day, period: None,
     )
 
 

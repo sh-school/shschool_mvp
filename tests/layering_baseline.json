@@ -131,7 +131,7 @@
   "notifications/views.py": 5,
   "operations/api_views.py": 1,
   "operations/views_attendance.py": 9,
-  "operations/views_swap.py": 11,
+  "operations/views_swap.py": 10,
   "parents/views.py": 16,
   "quality/observation_views.py": 6,
   "quality/views.py": 12,
@@ -393,9 +393,6 @@
   "operations/views_schedule.py::_reap_stale_generations": {
    "orm": 6
   },
-  "operations/views_schedule.py::absence_detail": {
-   "orm": 7
-  },
   "operations/views_schedule.py::add_exemption": {
    "lines": 104,
    "orm": 7
@@ -435,9 +432,6 @@
   "operations/views_schedule.py::teacher_preferences": {
    "lines": 90,
    "orm": 13
-  },
-  "operations/views_swap.py::compensatory_list": {
-   "orm": 9
   },
   "operations/views_swap.py::compensatory_request": {
    "orm": 9

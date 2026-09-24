@@ -1,0 +1,21 @@
+{% load ui %}
+{% comment %}
+حقلُ «حصّة التعويض» — يُحمَّل في غلافه `#comp-period-box` بنموذج الطلب كلّما تغيّرت الحصّةُ
+الفائتةُ أو التاريخ. خياراتُه حصصُ الشعبة يومَها بجرس طابقها: الجدولُ المعتمد ممتلئ،
+فالتعويضُ في حصّة زميلٍ يوافق عليها (قرارُ المالك 2026-09-24)، وما لا يصلح يُعرض معطَّلاً
+بسببه لا يُخفى. وتسميةُ الخيار مركّبةٌ من رقمٍ ووقتٍ وما في الشعبة — فالقائمةُ يدويّة.
+{% endcomment %}
+<div class="ui-field">
+  <label for="comp-period-select" class="ui-field__label">حصّة التعويض</label>
+  {% if error %}
+  {% callout "warning" show=True %}{{ error }}{% endcallout %}
+  {% else %}
+  <select name="compensatory_period" id="comp-period-select" class="form-control" required{% if not options %} disabled{% endif %}>
+    <option value="">{% if ready %}— اختر —{% else %}— اختر الحصّة الفائتة والتاريخ أوّلاً —{% endif %}</option>
+    {% for row in options %}
+    <option value="{{ row.period }}"{% if not row.ok %} disabled{% endif %}>ح{{ row.period }} · {{ row.start|time:"H:i" }}–{{ row.end|time:"H:i" }} · {{ row.occupant|default:"الشعبة فارغة" }}{% if not row.ok %} — {{ row.why }}{% endif %}</option>
+    {% endfor %}
+  </select>
+  <p class="ui-field-hint">تُعوِّض في حصّة زميلٍ يدرّس الشعبة: يوافق هو أوّلاً، ثمّ يعتمد المنسّق.</p>
+  {% endif %}
+</div>

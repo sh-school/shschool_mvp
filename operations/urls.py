@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from .views_schedule_drafts import discard_schedule, stop_schedule_generation
 
 urlpatterns = [
     path("schedule/", views.schedule, name="teacher_schedule"),
@@ -65,6 +66,16 @@ urlpatterns = [
         views.approve_schedule,
         name="approve_schedule",
     ),
+    path(
+        "smart-schedule/<uuid:generation_id>/discard/",
+        discard_schedule,
+        name="discard_schedule",
+    ),
+    path(
+        "smart-schedule/<uuid:generation_id>/stop/",
+        stop_schedule_generation,
+        name="stop_schedule_generation",
+    ),
     path("reports/teacher-load/", views.teacher_load_report, name="teacher_load_report"),
     path("schedule-settings/", views.schedule_settings, name="schedule_settings"),
     path("schedule-settings/exemption/grid/", views.exemption_grid, name="exemption_grid"),
@@ -99,6 +110,12 @@ urlpatterns = [
     path("schedule/swap/<uuid:swap_id>/cancel/", views.swap_cancel, name="swap_cancel"),
     path("schedule/compensatory/", views.compensatory_list, name="compensatory_list"),
     path("schedule/compensatory/request/", views.compensatory_request, name="compensatory_request"),
+    path("schedule/compensatory/options/", views.compensatory_options, name="compensatory_options"),
+    path(
+        "schedule/compensatory/<uuid:comp_id>/respond/",
+        views.compensatory_respond,
+        name="compensatory_respond",
+    ),
     path(
         "schedule/compensatory/<uuid:comp_id>/approve/",
         views.compensatory_approve,

@@ -219,12 +219,16 @@ class SubstituteService:
         names = dict(CustomUser.objects.filter(id__in=pool).values_list("id", "full_name"))
         full_day, exempt_by_period = SubstituteService._day_exemptions(school, day)
 
+        from operations.services.compensatory import CompensatoryService
+
+        taken = CompensatoryService.taken_slot_ids(absence)
         result = {}
         for slot in slots:
             period = slot.period_number
             blocked = full_day | exempt_by_period.get(period, set())
             rows = []
-            for teacher_id in pool - blocked:
+            # حصّةٌ أخذها زميلٌ تعويضاً ليست للإشغال: لا مرشَّحَ لها.
+            for teacher_id in () if slot.id in taken else pool - blocked:
                 mine = periods_of.get(teacher_id, set())
                 if period in mine:
                     continue
@@ -309,18 +313,29 @@ class SubstituteService:
         return assignment
 
     @staticmethod
+    def absence_slots(absence: TeacherAbsence) -> QuerySet[ScheduleSlot]:
+        """حصصُ الغائب يومَ غيابه التي ما زالت عليه.
+
+        ما أخذه زميلٌ تعويضاً لم يعد حصّتَه ذلك اليوم — فلا يُعرض للإشغال ولا يُحسب في
+        التغطية، وإلّا كُتب فوق حصّة التعويض المعتمَدة فخسرها صاحبُها بلا إشعار.
+        """
+        from operations.services.compensatory import CompensatoryService
+
+        return (
+            ScheduleSlot.objects.live(absence.school)
+            .filter(
+                teacher=absence.teacher, day_of_week=SubstituteService._date_to_day(absence.date)
+            )
+            .exclude(id__in=CompensatoryService.taken_slot_ids(absence))
+            .select_related("class_group", "subject")
+        )
+
+    @staticmethod
     def refresh_absence_status(absence: TeacherAbsence) -> None:
         """«مغطّى» حين تُغطّى كلُّ حصص الغائب يومَه — بإشغالٍ أو بتبديلٍ نُفِّذ."""
         from operations.models import TeacherSwap
 
-        total_slots = (
-            ScheduleSlot.objects.live(absence.school)
-            .filter(
-                teacher=absence.teacher,
-                day_of_week=SubstituteService._date_to_day(absence.date),
-            )
-            .count()
-        )
+        total_slots = SubstituteService.absence_slots(absence).count()
         covered = set(
             SubstituteAssignment.objects.filter(
                 absence=absence, status__in=("assigned", "confirmed")
@@ -361,6 +376,9 @@ class SubstituteService:
                 "end_time": slot.end_time,
             },
         )
+        # حصّةٌ أخذها زميلٌ تعويضاً لا يُكتب فوقها: يخسرها صاحبُها بلا إشعار.
+        if session.compensatory_source.exists():
+            raise ValueError("أخذ زميلٌ هذه الحصّةَ تعويضاً في هذا اليوم — لا تُسلَّم لغيره")
         # صاحبُها الأوّلُ يُكتب مرّةً: حصّةٌ سُلّمت مرّتين صاحبُها الأوّلُ أوّلُها.
         if session.original_teacher_id is None:
             session.original_teacher_id = session.teacher_id
@@ -450,6 +468,20 @@ class SubstituteService:
         )
         return {
             s.id for s in moved if (s.teacher_id, s.date, s.class_group_id, s.start_time) in keys
+        }
+
+    @staticmethod
+    def moved_marks(sessions: list[Session]) -> dict[str, set]:
+        """علامتا «حصصي اليوم»: ما كان إشغالاً وما كان تعويضاً — والباقي تبديل.
+
+        ثلاثتُها تكتب `original_teacher`؛ والتعويضُ حصّةُ زميلٍ أخذها صاحبُه بموافقته
+        (2026-09-24)، فيُعرف بسجلّه لا بعلامة الحصّة.
+        """
+        from operations.services.compensatory import CompensatoryService
+
+        return {
+            "cover_ids": SubstituteService.cover_session_ids(sessions),
+            "comp_ids": CompensatoryService.session_ids(sessions),
         }
 
     @staticmethod
