@@ -76,13 +76,39 @@ def test_the_admin_footer_has_no_app_name_or_version():
     assert "platform_version" not in html and "SchoolOS" not in html
 
 
+BRAND_COMPONENT = pathlib.Path("templates/components/site_brand.html")
+LINE_COMPONENT = pathlib.Path("templates/components/site_footer_line.html")
+
+
 def test_both_footer_logos_sit_on_a_white_chip_of_the_same_height():
-    html = FOOTER_TEMPLATE.read_text(encoding="utf-8")
-    assert html.count('class="adm-footer__chip"') == 2
+    html = BRAND_COMPONENT.read_text(encoding="utf-8")
+    assert html.count('class="site-footer-brand-logo-chip"') == 2
     assert html.count('height="28"') == 2
     css = ADMIN.read_text(encoding="utf-8")
-    assert "background: #fff" in _admin_rule(css, ".adm-footer__chip")
-    assert "block-size: 1.75rem" in _admin_rule(css, ".adm-footer__logo")
+    assert "background: #fff" in _admin_rule(css, ".adm-footer .site-footer-brand-logo-chip")
+    assert "block-size: 1.75rem" in _admin_rule(css, ".adm-footer .site-footer-brand-logo")
+
+
+def test_the_footer_has_one_source_for_the_platform_and_the_admin():
+    """OWN-22: ذيلُ المنصّة وذيلُ الإدارة يضمّنان المكوّنَين نفسَيهما — لا نسخةَ ثالثةً تنجرف.
+
+    كانت ثلاثُ نسخٍ من الرؤية والتوقيع (`base.html` والإدارةُ والمكوّن)، فتعديلُ شعارٍ في
+    إحداها يُنسى في الأخرى. والنصُّ الحرفيُّ للتوقيع في المكوّن وحدَه.
+    """
+    platform = pathlib.Path("templates/base/base.html").read_text(encoding="utf-8")
+    admin_footer = FOOTER_TEMPLATE.read_text(encoding="utf-8")
+    for html in (platform, admin_footer):
+        assert '{% include "components/site_footer_line.html" %}' in html
+        assert '{% include "components/site_brand.html" %}' in html
+    owners = [
+        path.as_posix()
+        for path in pathlib.Path("templates").rglob("*.html")
+        if "أذكياء للبرمجيات</span>" in path.read_text(encoding="utf-8")
+    ]
+    assert owners == [BRAND_COMPONENT.as_posix()], owners
+    assert "وزارة التربية والتعليم والتعليم العالي — دولة قطر" in LINE_COMPONENT.read_text(
+        encoding="utf-8"
+    )
 
 
 def test_the_admin_footer_is_one_three_section_row_on_desktop_after_the_base_rules():
@@ -105,6 +131,25 @@ def test_the_vision_is_drawn_with_the_platform_tashkeel_font():
 def _admin_rule(css: str, selector: str) -> str:
     start = css.index(selector + " {")
     return css[start : css.index("}", start)]
+
+
+# ── بنيةُ الوصولية: معلَمٌ واحدٌ وعنصرٌ تفاعليٌّ واحدٌ لكلّ موضع (axe: nested-interactive و landmark-*) ──────
+
+
+def test_the_admin_footer_is_not_a_second_contentinfo_landmark():
+    """جانغو يلفّ الكتلةَ بـ`<footer id="footer">`؛ وسمٌ ثانٍ أو role=contentinfo يكرّر المعلَم ويعشّشه."""
+    html = FOOTER_TEMPLATE.read_text(encoding="utf-8")
+    assert "<footer" not in html.replace("{% comment %}", "").split("{% endcomment %}")[-1]
+    assert "contentinfo" not in html.split("{% endcomment %}")[-1]
+
+
+def test_the_app_fold_summary_holds_no_link():
+    """رابطٌ داخل `<summary>` عنصرٌ تفاعليٌّ داخل عنصرٍ تفاعليّ — 21 موضعاً في الرئيسيّة كانت تُخالف axe."""
+    import re
+
+    html = pathlib.Path("templates/admin/app_list.html").read_text(encoding="utf-8")
+    for summary in re.findall(r"<summary.*?</summary>", html, flags=re.S):
+        assert "<a " not in summary and "<button" not in summary, summary
 
 
 # ── قائمةُ الإدارة على الجوّال: سطرٌ واحدٌ مطويّ، وتعزيزٌ تدريجيّ (بلا سكربتٍ تبقى مفتوحة) ──────────

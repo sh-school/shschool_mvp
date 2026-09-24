@@ -23,7 +23,9 @@ class SchoolBus(models.Model):
     objects = BusQuerySet.as_manager()
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey("core.School", on_delete=models.CASCADE, related_name="buses")
+    school = models.ForeignKey(
+        "core.School", on_delete=models.CASCADE, related_name="buses", verbose_name="المدرسة"
+    )
     bus_number = models.CharField(max_length=20, verbose_name="رقم الحافلة")
     driver_name = models.CharField(max_length=200, verbose_name="اسم السائق")
     driver_phone = EncryptedTextField(verbose_name="جوال السائق")  # [PII-09] مشفّر at-rest
@@ -34,7 +36,7 @@ class SchoolBus(models.Model):
         related_name="supervised_buses",
         verbose_name="مشرف الباص",
     )
-    capacity = models.PositiveIntegerField(default=30)
+    capacity = models.PositiveIntegerField(default=30, verbose_name="السعة")
     karwa_id = models.CharField(max_length=50, blank=True, verbose_name="رقم كروة (Karwa ID)")
     gps_link = EncryptedTextField(
         blank=True, verbose_name="رابط التتبع (GPS)"
@@ -55,7 +57,9 @@ class BusRoute(models.Model):
     objects = RouteQuerySet.as_manager()
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    bus = models.ForeignKey(SchoolBus, on_delete=models.CASCADE, related_name="routes")
+    bus = models.ForeignKey(
+        SchoolBus, on_delete=models.CASCADE, related_name="routes", verbose_name="الحافلة"
+    )
     area_name = models.CharField(max_length=200, verbose_name="المنطقة")
     students = models.ManyToManyField(
         "core.CustomUser", related_name="bus_routes", verbose_name="الطلاب"

@@ -13,7 +13,12 @@ import pytest
 from django.urls import reverse
 
 from core.icons import ICONS
-from core.styleguide import colour_token_groups, icon_dictionary_groups
+from core.styleguide import (
+    breakpoints,
+    colour_token_groups,
+    icon_dictionary_groups,
+    scale_tokens,
+)
 from core.templatetags.ui import KPI_TONES
 from tests.css_source import read_css
 
@@ -65,6 +70,46 @@ def test_the_old_guide_route_is_a_permanent_redirect(client, teacher_user):
     assert response["Location"] == reverse("ui_components")
 
 
+def test_the_scales_are_read_from_root_in_order():
+    """سلالمُ الأسس من `:root` نفسِه — درجةٌ تُضاف هناك تظهر في الدليل بلا تعديل."""
+    scales = scale_tokens()
+    names = {key: [t["name"] for t in tokens] for key, tokens in scales.items()}
+
+    assert names["text"][0] == "text-xs" and "text-3xl" in names["text"]
+    assert "text-primary" not in names["text"]
+    assert names["space"][:3] == ["sp-0-5", "sp-1", "sp-1-5"] and names["space"][-1] == "sp-16"
+    assert names["radius"][0] == "radius-sm" and names["radius"][-1] == "radius-pill"
+    assert "shadow-sm" in names["shadow"] and "shadow-ink" not in names["shadow"]
+    assert "transition-page" in names["motion"] and "lh-ar" in names["leading"]
+
+
+def test_the_minimum_measures_are_read_from_root():
+    """H-06: ارتفاعُ التحكّم والطبقاتُ والمنطقةُ الآمنة تُقرأ كالسلالم — رمزٌ جديدٌ يظهر بلا قالب."""
+    scales = scale_tokens()
+    layers = [t["name"] for t in scales["layer"]]
+
+    assert "control-h" in [t["name"] for t in scales["control"]]
+    assert layers[0] == "z-base" and layers.index("z-dropdown") < layers.index("z-modal")
+    assert "safe" in scales  # فارغٌ حتّى H-04، والقسمُ يقول ذلك صراحةً
+
+
+def test_the_breakpoints_match_the_layout_kpi_definition():
+    """جدولُ الدليل هو مؤشّرُ الخارطة LK2 نفسُه: المتجاورتان بفارق 1px حدٌّ واحد."""
+    points = [bp["px"] for bp in breakpoints()]
+    css = re.sub(r"/\*.*?\*/", "", read_css(), flags=re.S)
+    widths = sorted(
+        {
+            int(w)
+            for cond in re.findall(r"@media\s*([^{]+)\{", css)
+            for w in re.findall(r"(?:min|max)-width\s*:\s*(\d+)px", cond)
+        }
+    )
+    expected = [w for prev, w in zip([-9, *widths], widths, strict=False) if w - prev > 1]
+
+    assert points == expected
+    assert 640 in points and all(b - a > 1 for a, b in zip(points, points[1:], strict=False))
+
+
 @pytest.mark.django_db
 def test_the_guide_renders_every_component_and_links_the_icons(client, developer_user):
     client.force_login(developer_user)
@@ -82,6 +127,31 @@ def test_the_guide_renders_every_component_and_links_the_icons(client, developer
     assert "ui-section is-flush" in html
     for badge in ("success", "danger", "warning", "info", "maroon", "gray"):
         assert f"status-badge status-{badge}" in html
+    # الأسسُ وأنماطُ التخطيط: كلُّ سلّمٍ يُرسم من رموزه، والبطاقاتُ في تدفّقٍ واحد.
+    assert 'class="card-flow"' in html
+    assert "{#" not in html
+    for sample in (
+        "--size:var(--text-sm)",
+        "--bar:var(--sp-4)",
+        "--r:var(--radius-md)",
+        "--shadow:var(--shadow-md)",
+        "--swatch:var(--chart-1)",
+    ):
+        assert f'style="{sample}"' in html, sample
+    assert "المقاييسُ والحدودُ الدنيا</h2>" in html
+    for token in ("--control-h", "--z-modal"):
+        assert f'<bdi dir="ltr">{token}</bdi>' in html, token
+    for title in (
+        "الخطّ",
+        "التباعدُ والتقوّس",
+        "الظلالُ والارتفاع",
+        "الحركةُ والتركيز",
+        "الجداول",
+        "الرسومُ البيانيّة",
+        "الشبكاتُ والتخطيط",
+        "الوضعُ الداكن",
+    ):
+        assert f"· {title}</h2>" in html, title
 
 
 @pytest.mark.django_db
@@ -92,6 +162,15 @@ def test_the_icon_page_renders_every_meaning(client, developer_user):
 
     for key in ICONS:
         assert f">{key}<" in html, key
+    # كلُّ مجموعةٍ بطاقةٌ في تدفّقٍ واحد، وعرضُها بعدد أيقوناتها؛ وألوانُ الأيقونة الستّةُ معروضة.
+    assert 'class="card-flow"' in html
+    for group in icon_dictionary_groups():
+        assert f'<h2 class="ui-section__title">{group["label"]}</h2>' in html, group["label"]
+    assert "ui-section is-full" in html and "ui-section is-wide" in html
+    for tone in ("maroon", "success", "danger", "warning", "info", "muted"):
+        assert f'class="icon-{tone}"' in html, tone
+    # تعليقُ القالب لا يتسرّب نصّاً إلى الصفحة.
+    assert "{#" not in html
 
 
 @pytest.mark.django_db

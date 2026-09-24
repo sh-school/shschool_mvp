@@ -1,7 +1,7 @@
 {% comment %}بطاقةُ قسم — تُرسم من الوسم `{% section_card %}` في core/templatetags/ui.py.
 `foldable` تُبدّل السطرَ العنوانَ بمفتاح طيٍّ — الشريطُ نفسُه لا يتغيّر شكلاً.{% endcomment %}
 {% load icons %}
-<section class="card-qatar ui-section{% if flush %} is-flush{% endif %}">
+<section class="card-qatar ui-section{% if flush %} is-flush{% endif %}{% if span %} is-{{ span }}{% endif %}">
   {% if foldable %}
   <details class="ui-section__fold">
     <summary class="card-bar ui-section__fold-summary">

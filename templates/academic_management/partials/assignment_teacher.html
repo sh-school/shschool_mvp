@@ -46,7 +46,7 @@
       {% csrf_token %}
       <input type="hidden" name="year" value="{{ card.year }}">
       <label for="quota-{{ card.teacher.id }}">النصاب</label>
-      <input id="quota-{{ card.teacher.id }}" type="number" name="required_weekly_periods" min="0" max="40"
+      <input id="quota-{{ card.teacher.id }}" type="number" inputmode="numeric" name="required_weekly_periods" min="0" max="40"
              value="{% if card.plan %}{{ card.plan.required_weekly_periods }}{% endif %}"
              {% if not card.writable %}disabled{% endif %} placeholder="—">
     </form>
@@ -68,7 +68,7 @@
         <td>
           <form hx-post="{% url 'academic_management:assignment_update_periods' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
             {% csrf_token %}
-            <input type="number" name="weekly_periods" min="1" max="35" value="{{ row.weekly_periods }}" {% if not card.writable %}disabled{% endif %} aria-label="الحصص الأسبوعيّة — {{ row.subject.name_ar }} في {{ row.class_group.short_label }}">
+            <input type="number" inputmode="numeric" name="weekly_periods" min="1" max="35" value="{{ row.weekly_periods }}" {% if not card.writable %}disabled{% endif %} aria-label="الحصص الأسبوعيّة — {{ row.subject.name_ar }} في {{ row.class_group.short_label }}">
             {% if row.periods_override_reason %}<span class="asg-hint" title="{{ row.periods_override_reason }}">(خلافُ الخطّة)</span>{% endif %}
           </form>
         </td>

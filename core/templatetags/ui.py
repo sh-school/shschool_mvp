@@ -230,6 +230,9 @@ def _split_tips(content: str) -> tuple[str, str]:
 
 # ── 2. بطاقةُ القسم ───────────────────────────────────────────────────────
 
+#: عرضُ البطاقة في `.card-flow` (20-components.css): فارغٌ عمود، ثمّ نصفُ السطر، ثمّ السطر.
+_SECTION_SPANS = frozenset({"", "wide", "full"})
+
 
 @register.simple_block_tag
 def section_card(
@@ -241,6 +244,7 @@ def section_card(
     empty_sub="",
     flush=False,
     foldable=False,
+    span="",
 ):
     """قسمٌ بترويسةٍ عنّابيّة — والعددُ أو الفترةُ في طرفها لا في سطرٍ تحتها.
 
@@ -251,8 +255,15 @@ def section_card(
     يطول محتواها بطول سجلٍّ (قرارُ 2026-09-18). القسّمةُ نفسُها لا مكوّنٌ آخر:
     فمن كتب `card-qatar`/`card-bar` بيده خارج هذا الملفّ رفضته السقّاطةُ
     (`tests/design_ratchet.py`، `legacy_header`).
+
+    و`span` عرضُ البطاقة داخل `.card-flow`: فارغٌ عمودٌ واحد، و`wide` نصفُ السطر،
+    و`full` السطرُ كلُّه — فتتجاور البطاقاتُ الصغيرة ولا تحتلّ واحدةٌ سطراً وحدَها.
     """
     _require(title, "section_card", "العنوان")
+    if span not in _SECTION_SPANS:
+        raise template.TemplateSyntaxError(
+            f"section_card: span «{span}» غيرُ معروف — {sorted(_SECTION_SPANS)}"
+        )
     # التلميحُ أيقونةٌ في شريط العنوان لا سطرٌ في الجسم (إلّا في الطيّ: زرٌّ داخل زرٍّ لا يصحّ).
     tips = ""
     if not foldable:
@@ -270,6 +281,7 @@ def section_card(
                 "empty_sub": empty_sub,
                 "flush": flush,
                 "foldable": foldable,
+                "span": span,
                 "tips": mark_safe(tips),
             },
         )
@@ -522,6 +534,8 @@ def field(
     if type != "select" and choices is not None:
         raise template.TemplateSyntaxError(f"field «{name}»: choices لغير select")
     field_id = id or f"f-{_ID_RE.sub('-', str(name)).strip('-')}"
+    if type == "number" and not inputmode:
+        inputmode = number_inputmode(attrs.get("step"))
     described = [f"{field_id}-help" if help else "", f"{field_id}-error" if error else ""]
     common = {
         "placeholder": placeholder,
@@ -558,6 +572,16 @@ def field(
             },
         )
     )
+
+
+def number_inputmode(step: object) -> str:
+    """لوحةُ مفاتيح الجوال لحقلٍ رقميّ (خطّة الجوال M-07): كسريّةٌ حين تقبل الخطوةُ كسراً.
+
+    `type="number"` وحدَه لا يُظهر لوحةَ الأرقام على كلّ جهاز (iOS يعرض لوحةً كاملة)،
+    و`inputmode` هو ما يطلبها: `decimal` بفاصلةٍ عشريّة، و`numeric` أرقامٌ صحيحةٌ فقط.
+    """
+    text = str(step or "").strip().lower()
+    return "decimal" if text == "any" or "." in text else "numeric"
 
 
 @register.simple_block_tag

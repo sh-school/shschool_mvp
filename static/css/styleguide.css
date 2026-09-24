@@ -60,9 +60,39 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
   gap: var(--sp-2);
 }
+/* مجموعةُ رموزٍ تُطوى: العنوانُ سطرٌ واحدٌ فيه الاسمُ والعددُ وشريطُ ألوانها. */
+.sg-group { border-block-end: 1px solid var(--border); }
+.sg-group:last-of-type { border-block-end: 0; }
+.sg-group__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding-block: var(--sp-2);
+  cursor: pointer;
+  list-style: none;
+}
+.sg-group__summary::-webkit-details-marker { display: none; }
+.sg-group__summary::before {
+  content: "◂";
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  transition: transform var(--transition-base);
+}
+.sg-group[open] > .sg-group__summary::before { transform: rotate(-90deg); }
+.sg-group__summary:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; border-radius: var(--radius-sm); }
+.sg-group__label { flex-shrink: 0; font-size: var(--text-sm); font-weight: 700; color: var(--text-primary); }
+.sg-group__strip { display: flex; flex-wrap: wrap; gap: var(--sp-0-5); min-inline-size: 0; overflow: hidden; max-block-size: 16px; }
+.sg-group__strip > span {
+  inline-size: 16px;
+  block-size: 16px;
+  border-radius: var(--radius-sm);
+  background: var(--swatch, transparent);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.sg-group > .sg-swatches { padding-block-end: var(--sp-3); }
 .sg-swatch { display: flex; align-items: center; gap: var(--sp-2); min-inline-size: 0; }
 .sg-swatch__chip {
   flex-shrink: 0;
@@ -140,20 +170,79 @@
     repeating-linear-gradient(to bottom, var(--surface) 0 var(--sp-2), var(--table-stripe) var(--sp-2) var(--sp-4));
 }
 
+/* سلالمُ الأسس — كلُّ عيّنةٍ تقرأ رمزَها من متغيّرٍ يمرّره القالبُ اسماً (`--size`، `--bar`…). */
+.sg-weights, .sg-type-scale, .sg-space-scale, .sg-tokens, .sg-radius-scale, .sg-shadow-scale, .sg-chart {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.sg-weights { display: grid; gap: var(--sp-1); }
+.sg-weight { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-1) var(--sp-3); }
+.sg-weight__sample { font-size: var(--text-lg); font-weight: var(--weight); color: var(--text-primary); }
+.sg-weight__use, .sg-tokens code, .sg-radius code, .sg-shadow code, .sg-chart code { font-size: var(--text-xs); color: var(--text-muted); }
+
+.sg-type-scale { display: grid; gap: var(--sp-1); }
+.sg-type {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding-block: var(--sp-1);
+  border-block-end: 1px dashed var(--border);
+}
+.sg-type:last-child { border-block-end: 0; }
+.sg-type__sample {
+  font-size: var(--size);
+  line-height: var(--lh-tight);
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sg-type__name { font-size: var(--text-xs); font-weight: 600; color: var(--text-primary); }
+.sg-type__value, .sg-space__value, .sg-radius__value { font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+.sg-tokens { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-4); font-size: var(--text-sm); color: var(--text-secondary); }
+
+/* الدرجةُ صفٌّ قصير (الاسم · الشريط · القيمة) فتتجاور الدرجاتُ أعمدةً لا تطول بعرض البطاقة. */
+.sg-space-scale { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: var(--sp-1) var(--sp-4); }
+.sg-space { display: grid; grid-template-columns: 5.5em 64px auto; align-items: center; gap: var(--sp-2); }
+.sg-space__name { font-size: var(--text-xs); color: var(--text-primary); }
+.sg-space__bar { display: block; inline-size: var(--bar); block-size: 10px; background: var(--maroon); border-radius: var(--radius-sm); }
+
+.sg-radius-scale { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.sg-radius { display: grid; justify-items: center; gap: var(--sp-1); }
+.sg-radius__box {
+  inline-size: 56px;
+  block-size: 40px;
+  border-radius: var(--r);
+  background: var(--maroon-bg);
+  border: 2px solid var(--maroon);
+}
+
+.sg-shadow-scale { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr)); gap: var(--sp-4) var(--sp-3); padding: var(--sp-2); }
+.sg-shadow { display: grid; justify-items: center; gap: var(--sp-2); min-inline-size: 0; }
+.sg-shadow__box { inline-size: 100%; block-size: 44px; background: var(--surface); border-radius: var(--radius-md); box-shadow: var(--shadow); }
+.sg-shadow code { max-inline-size: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sg-chart { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 110px), 1fr)); gap: var(--sp-3); }
+.sg-chart__item { display: grid; gap: var(--sp-1); }
+.sg-chart__bar { display: block; block-size: 40px; border-radius: var(--radius-sm); background: var(--swatch); }
+
 /* صفحةُ الأيقونات — templates/styleguide/icon_preview.html */
 .sg-icons {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
-  gap: var(--sp-2);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 124px), 1fr));
+  gap: var(--sp-1-5);
 }
 .sg-icon {
   display: grid;
   justify-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-3) var(--sp-2);
+  gap: var(--sp-1-5);
+  padding: var(--sp-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -168,4 +257,7 @@
 }
 .sg-sizes { display: flex; flex-wrap: wrap; align-items: end; justify-content: center; gap: var(--sp-6); color: var(--maroon-fg); }
 .sg-size { display: grid; justify-items: center; gap: var(--sp-1); }
+/* ألوانُ الأيقونة الستّة: الرسمُ بلونه والصنفُ تحته. */
+.sg-icon-tones { list-style: none; margin: 0 0 var(--sp-2); padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 96px), 1fr)); gap: var(--sp-2); }
+.sg-icon-tone { display: grid; justify-items: center; gap: var(--sp-1); }
 } /* end @layer modules */

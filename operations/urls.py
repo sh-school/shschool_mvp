@@ -45,6 +45,16 @@ urlpatterns = [
         views.assign_substitute,
         name="assign_substitute",
     ),
+    path(
+        "absences/<uuid:absence_id>/swap/<uuid:slot_id>/",
+        views.absence_swap_options,
+        name="absence_swap_options",
+    ),
+    path(
+        "absences/<uuid:absence_id>/swap/<uuid:slot_id>/create/",
+        views.absence_swap_create,
+        name="absence_swap_create",
+    ),
     path("reports/substitutes/", views.substitute_report, name="substitute_report"),
     # -- المرحلة 3: الجدولة الذكية --
     path("smart-schedule/", views.smart_schedule_view, name="smart_schedule"),

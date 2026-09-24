@@ -2221,4 +2221,26 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
 }
 .qobs-coord-badge { font-size: var(--text-xs); }
 
+
+/* ── تدفّقُ البطاقات (card-flow): أكثرُ من بطاقةٍ في السطر، وعرضُ كلٍّ بمعدِّلها:
+   is-wide نصفُ السطر، is-full كلُّه. الأعمدةُ زوجيّةٌ (1←2←4) فتتجاور العريضتان،
+   وبطاقاتُ السطر بارتفاعٍ واحد. التفصيلُ في دليل الهويّة، قسم «الشبكاتُ والتخطيط». */
+.card-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-2);
+  align-items: stretch;
+}
+.card-flow > * { min-inline-size: 0; }
+.card-flow > .is-full { grid-column: 1 / -1; }
+@media (min-width: 768px) {
+  .card-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card-flow > .is-wide { grid-column: 1 / -1; }
+}
+@media (min-width: 1100px) {
+  .card-flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .card-flow > .is-wide { grid-column: span 2; }
+}
+}
+
 }

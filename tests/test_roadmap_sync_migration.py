@@ -4,7 +4,7 @@ import importlib
 
 import pytest
 
-from roadmap.models import RoadmapItem
+from roadmap.models import RoadmapItem, RoadmapKpi
 
 pytestmark = pytest.mark.django_db
 
@@ -258,3 +258,140 @@ def test_0008_adds_the_css_debt_open_and_the_merged_work_closed():
     assert (debt.status, debt.end_date, debt.lane) == ("todo", None, "debt")
     assert RoadmapItem.objects.get(code="N-025").pr == "#512 #516"
     assert _sync8.add_missing(RoadmapItem) == []
+
+
+# ── 0009: LAY-01/LAY-02 بـ#517، وH-03 جزئيّاً، وM-11 ──
+
+_sync9 = importlib.import_module("roadmap.migrations.0009_sync_items_2026_09_24b")
+
+
+def test_0009_closes_the_layout_items_and_keeps_h03_open():
+    for code, status, progress in (
+        ("LAY-01", "todo", 0),
+        ("LAY-02", "doing", 60),
+        ("H-03", "doing", 30),
+    ):
+        _item(code, status, progress)
+    assert _sync9.sync(RoadmapItem) == ["LAY-01", "LAY-02", "H-03"]
+    assert _sync9.sync(RoadmapItem) == []
+    h03 = RoadmapItem.objects.get(code="H-03")
+    assert (h03.status, h03.progress) == ("doing", 70)
+    assert RoadmapItem.objects.get(code="LAY-01").pr == "#517"
+
+
+def test_0009_adds_the_nightly_fix_once():
+    assert _sync9.add_missing(RoadmapItem) == ["N-026", "N-027", "N-028"]
+    assert "#422" in RoadmapItem.objects.get(code="N-026").note
+    assert _sync9.add_missing(RoadmapItem) == []
+
+
+# ── 0010: بنودُ المالك من لقطة claude.ai ──
+
+_sync10 = importlib.import_module("roadmap.migrations.0010_owner_items_from_snapshot")
+
+
+def test_0010_brings_the_23_snapshot_items_once():
+    created = _sync10.add_missing(RoadmapItem)
+    assert len(created) == 23 and created[0] == "OWN-09" and created[-1] == "DONE-26"
+    assert _sync10.add_missing(RoadmapItem) == []
+
+
+def test_0010_closes_the_items_that_waited_for_477():
+    _sync10.add_missing(RoadmapItem)
+    for code in ("OWN-26", "OWN-27", "OWN-28"):
+        item = RoadmapItem.objects.get(code=code)
+        assert (item.status, item.progress, item.pr) == ("done", 100, "#477")
+
+
+def test_0010_closes_own20_done_since_298():
+    _sync10.add_missing(RoadmapItem)
+    own20 = RoadmapItem.objects.get(code="OWN-20")
+    assert (own20.status, own20.pr) == ("done", "#298")
+
+
+def test_0010_keeps_an_item_the_developer_added_first():
+    _item("OWN-20", "doing", 40, title="أضافه المطوّر")
+    _sync10.add_missing(RoadmapItem)
+    assert RoadmapItem.objects.get(code="OWN-20").title == "أضافه المطوّر"
+
+
+def test_0010_publishes_no_personal_number_nor_the_temporary_password_scheme():
+    import json
+    import re
+
+    blob = json.dumps(_sync10.ITEMS, ensure_ascii=False)
+    assert not re.findall(r"\d{5,}", blob)
+    assert "AUg" not in blob
+
+
+# ── 0011: #519 و#508 و#526، وثلاثةُ أعمالٍ بلا بند، وأوّلُ مؤشّراتٍ تُحدَّث في هجرة ──
+
+_sync11 = importlib.import_module("roadmap.migrations.0011_sync_items_2026_09_24c")
+
+
+def test_0011_moves_the_items_and_leaves_lay03_alone():
+    for code in ("VI-28", "H-06", "VI-29", "OWN-19", "OWN-21", "M-07", "DBT-36", "LAY-03"):
+        _item(code, "todo", 0)
+    assert _sync11.sync(RoadmapItem) == [
+        "VI-28",
+        "H-06",
+        "H-06",
+        "VI-29",
+        "OWN-19",
+        "OWN-21",
+        "M-07",
+        "DBT-36",
+    ]
+    assert _sync11.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="VI-28").pr == "#519"
+    h06 = RoadmapItem.objects.get(code="H-06")
+    assert (h06.status, h06.progress, h06.pr) == ("done", 100, "#519 #529")
+    assert "#519:" in h06.note and "#529" in h06.note
+    own19 = RoadmapItem.objects.get(code="OWN-19")
+    assert (own19.status, own19.progress, own19.pr) == ("doing", 90, "#526")
+    vi29 = RoadmapItem.objects.get(code="VI-29")
+    assert (vi29.status, vi29.pr) == ("todo", "") and "card-flow" in vi29.note
+    lay03 = RoadmapItem.objects.get(code="LAY-03")
+    assert (lay03.status, lay03.note) == ("todo", "")
+
+
+def test_0011_adds_the_merged_work_once():
+    assert _sync11.add_missing(RoadmapItem) == ["N-029", "N-030", "N-031"]
+    assert RoadmapItem.objects.get(code="N-031").pr == "#514"
+    assert _sync11.add_missing(RoadmapItem) == []
+
+
+def _kpi(code, current, measured_at, **kw):
+    return RoadmapKpi.objects.create(
+        code=code,
+        lane="frontend",
+        name="مؤشّر",
+        baseline=current,
+        current=current,
+        measured_at=measured_at,
+        **kw,
+    )
+
+
+def test_0011_updates_an_untouched_kpi_and_keeps_both_points():
+    _kpi("LK5", 1088.0, _sync11.KPI_MEASURED, source="scripts/x")
+    assert _sync11.sync_kpis(RoadmapKpi) == ["LK5"]
+    kpi = RoadmapKpi.objects.get(code="LK5")
+    assert (kpi.current, kpi.baseline, kpi.measured_at) == (998.0, 1088.0, _sync11.DAY)
+    assert kpi.history == [{"d": "2026-09-23", "v": 1088.0}, {"d": "2026-09-24", "v": 998.0}]
+    assert "917a5bab" in kpi.source
+    assert _sync11.sync_kpis(RoadmapKpi) == []
+
+
+def test_0011_leaves_a_kpi_the_developer_remeasured():
+    _kpi("LK2", 12.0, _sync11.DAY)
+    assert _sync11.sync_kpis(RoadmapKpi) == []
+    assert RoadmapKpi.objects.get(code="LK2").current == 12.0
+
+
+def test_0011_records_lk2_back_at_nine_after_529():
+    _kpi("LK2", 9.0, _sync11.KPI_MEASURED)
+    assert _sync11.sync_kpis(RoadmapKpi) == ["LK2"]
+    kpi = RoadmapKpi.objects.get(code="LK2")
+    assert (kpi.current, kpi.measured_at) == (9.0, _sync11.DAY)
+    assert "410aa186" in kpi.source

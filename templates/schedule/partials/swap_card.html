@@ -6,7 +6,8 @@
     <span class="swap-arrow">&harr;</span>
     <span class="swap-teacher">{{ swap.teacher_b.full_name }}</span>
     <span class="swap-badge {% if swap.status == 'executed' or swap.status == 'approved' %}executed{% elif 'rejected' in swap.status or swap.status == 'cancelled' %}rejected{% else %}pending{% endif %}">
-      {{ swap.get_status_display }}
+      {# تسميةُ «بانتظار النائب» المخزَّنة تذكر «تخصّصات مختلفة» — وتبديلُ الغياب يصل النائبَ لأنّه غياب. #}
+      {% if swap.status == "pending_vp" and swap.absence_id %}بانتظار اعتماد النائب · غياب{% else %}{{ swap.get_status_display }}{% endif %}
     </span>
   </div>
   {% comment %}
@@ -59,7 +60,8 @@
   أيُّ منسّقٍ يعتمد أيَّ تبديل، ولا يُسأل أهو منسّقُ المادّة.
   {% endcomment %}
   {% if swap.status == "pending_coordinator" or swap.status == "pending_vp" or swap.status == "accepted_b" %}
-    {% if swap.my_sides %}
+    {# وتبديلُ الغياب بعد التوقيعين يعتمده النائبُ أو من كُلِّف عنه (`can_final`). #}
+    {% if swap.my_sides or swap.can_final %}
     <div class="swap-actions">
       <form method="post" action="{% url 'swap_approve' swap.pk %}">{% csrf_token %}
         <input type="hidden" name="action" value="approve">

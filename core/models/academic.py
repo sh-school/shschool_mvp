@@ -139,13 +139,15 @@ class TimeBand(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="time_bands")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="time_bands", verbose_name="المدرسة"
+    )
     code = models.SlugField(max_length=20, verbose_name="الرمز")
     name = models.CharField(max_length=60, verbose_name="الاسم")
     #: طابقُ الجرس — ولا يُشتقّ من الرمز. راجع صدرَ الصنف.
     floor = models.CharField(max_length=6, choices=FLOORS, default="ground", verbose_name="الطابق")
     order = models.PositiveSmallIntegerField(default=0, verbose_name="الترتيب")
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
 
     class Meta:
         verbose_name = "نطاق توقيت"
@@ -204,7 +206,9 @@ class Wing(models.Model):
     SUPERVISOR_ROLES = ("admin_supervisor", "vice_admin")
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="wings")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="wings", verbose_name="المدرسة"
+    )
     code = models.SlugField(max_length=20, verbose_name="الرمز")
     name = models.CharField(max_length=60, verbose_name="الاسم")
     floor = models.CharField(max_length=6, choices=FLOORS, default="ground", verbose_name="الطابق")
@@ -219,8 +223,10 @@ class Wing(models.Model):
         related_name="supervised_wings",
         verbose_name="المشرف الإداريّ",
     )
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
-    is_active = models.BooleanField(default=True)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
 
     class Meta:
         verbose_name = "جناح"
@@ -408,7 +414,9 @@ class WingCoverage(models.Model):
     ASSIGNER_ROLES = ("principal", "vice_admin", "vice_academic", "platform_developer")
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    wing = models.ForeignKey("core.Wing", on_delete=models.CASCADE, related_name="coverages")
+    wing = models.ForeignKey(
+        "core.Wing", on_delete=models.CASCADE, related_name="coverages", verbose_name="الجناح"
+    )
     substitute = models.ForeignKey(
         CustomUser,
         on_delete=models.PROTECT,
@@ -423,7 +431,9 @@ class WingCoverage(models.Model):
         related_name="wing_coverages_assigned",
         verbose_name="عيّنه",
     )
-    reason = models.CharField(max_length=10, choices=REASONS, default="absence")
+    reason = models.CharField(
+        max_length=10, choices=REASONS, default="absence", verbose_name="سبب التغطية"
+    )
     start_date = models.DateField(verbose_name="من")
     #: فارغةٌ = مفتوحةٌ حتّى تُنهى. ومدّةٌ بلا نهايةٍ ليست إهمالاً: غيابٌ طارئٌ
     #: لا يُعرف مداه يومَ يقع، والتاريخُ يُكتب حين يعود صاحبُه.
@@ -437,7 +447,7 @@ class WingCoverage(models.Model):
         verbose_name="أنهاها",
     )
     note = models.TextField(blank=True, verbose_name="ملاحظة")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "تغطيةُ جناح"
@@ -533,10 +543,14 @@ class ClassGroup(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="class_groups")
-    grade = models.CharField(max_length=3, choices=GRADES)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="class_groups", verbose_name="المدرسة"
+    )
+    grade = models.CharField(max_length=3, choices=GRADES, verbose_name="الصف")
     section = models.CharField(max_length=10, verbose_name="الشعبة")
-    level_type = models.CharField(max_length=4, choices=LEVELS, default="prep")
+    level_type = models.CharField(
+        max_length=4, choices=LEVELS, default="prep", verbose_name="المرحلة"
+    )
     #: جرسُ الشعبة — فارغٌ يعني «جرسَ المدرسة الافتراضيّ». راجع `TimeBand`.
     time_band = models.ForeignKey(
         "core.TimeBand",
@@ -552,7 +566,9 @@ class ClassGroup(models.Model):
     #: ولا يُقيَّد بالصفّ في قاعدة البيانات: القيد في `clean()` كي يبلغ الخطأُ
     #: الحقلَ نفسه في الاستمارة، بدل رفضٍ من المحرّك بلا بيان.
     track = models.CharField(max_length=12, choices=TRACKS, blank=True, verbose_name="المسار")
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
     #: جناحُ الشعبة — وفارغُه ليس نقصاً دائماً: شُعبُ التربية الخاصّة خارجَ
     #: الأجنحة بقرار الإدارة. و`seed_wings` يسمّي كلَّ شعبةٍ بلا جناحٍ كي لا
     #: يُقرأ الفارغُ المقصودُ والفارغُ المنسيُّ سواءً.
@@ -573,8 +589,9 @@ class ClassGroup(models.Model):
         null=True,
         blank=True,
         related_name="supervised_classes",
+        verbose_name="المشرف",
     )
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name="نشطة")
 
     #: شعبةٌ جدولُها خارج هذا النظام — تُستثنى من الخطّة الدراسيّة والإسناد
     #: والتغطية والمولّد.
@@ -705,17 +722,20 @@ class StudentEnrollmentManager(models.Manager.from_queryset(StudentEnrollmentQue
 
 class StudentEnrollment(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="enrollments")
-    class_group = models.ForeignKey(
-        ClassGroup, on_delete=models.CASCADE, related_name="enrollments"
+    student = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="enrollments", verbose_name="الطالب"
     )
-    is_active = models.BooleanField(default=True)
-    enrolled_at = models.DateField(default=timezone.now)
+    class_group = models.ForeignKey(
+        ClassGroup, on_delete=models.CASCADE, related_name="enrollments", verbose_name="الشعبة"
+    )
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
+    enrolled_at = models.DateField(default=timezone.now, verbose_name="تاريخ التسجيل")
 
     objects = StudentEnrollmentManager()
 
     class Meta:
         verbose_name = "تسجيل طالب"
+        verbose_name_plural = "تسجيلات الطلبة"
         constraints = [
             models.UniqueConstraint(
                 fields=["student", "class_group"],
@@ -741,7 +761,9 @@ class ParentStudentLink(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="parent_links")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="parent_links", verbose_name="المدرسة"
+    )
     parent = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
@@ -761,7 +783,7 @@ class ParentStudentLink(models.Model):
     can_view_grades = models.BooleanField(default=True, verbose_name="يرى الدرجات")
     can_view_attendance = models.BooleanField(default=True, verbose_name="يرى الغياب")
     can_view_behavior = models.BooleanField(default=True, verbose_name="يرى السلوك")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "ربط ولي أمر"
