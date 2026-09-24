@@ -484,7 +484,7 @@ def test_0013_closes_the_admin_items_and_unblocks_sch05():
 
 
 def test_0013_adds_n032_closed_and_sch17_open():
-    assert _sync13.add_missing(RoadmapItem) == ["N-032", "SCH-17"]
+    assert _sync13.add_missing(RoadmapItem) == ["N-032", "SCH-17", "SCH-18"]
     assert _sync13.add_missing(RoadmapItem) == []
     assert RoadmapItem.objects.get(code="N-032").pr == "#531"
     sch17 = RoadmapItem.objects.get(code="SCH-17")
@@ -508,3 +508,24 @@ def test_0013_annotates_md9_only_when_already_decided():
     assert "#537" in RoadmapDecision.objects.get(code="MD9").recommendation
     RoadmapDecision.objects.filter(code="MD9").update(status="open", recommendation="")
     assert _sync13.annotate_decisions(RoadmapDecision) == []
+
+
+def test_0013_records_d18_decided_once_and_its_item():
+    from roadmap.models import RoadmapDecision
+
+    assert _sync13.add_decisions(RoadmapDecision) == ["D-18"]
+    assert _sync13.add_decisions(RoadmapDecision) == []
+    d18 = RoadmapDecision.objects.get(code="D-18")
+    assert (d18.status, str(d18.decision_date)) == ("decided", "2026-09-24")
+    assert _sync13.ADJACENCY_RULING in d18.recommendation
+    _sync13.add_missing(RoadmapItem)
+    sch18 = RoadmapItem.objects.get(code="SCH-18")
+    assert (sch18.status, sch18.deps, sch18.sort_order) == ("todo", "D-18", 618)
+
+
+def test_0013_leaves_a_d18_the_developer_wrote_first():
+    from roadmap.models import RoadmapDecision
+
+    RoadmapDecision.objects.create(code="D-18", title="كتبه المطوّر", status="open")
+    assert _sync13.add_decisions(RoadmapDecision) == []
+    assert RoadmapDecision.objects.get(code="D-18").title == "كتبه المطوّر"
