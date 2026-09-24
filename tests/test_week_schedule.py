@@ -79,6 +79,9 @@ def world(school, seeded_calendar):
     w["s2"] = _slot(w, "upper", w["t2"], 0, 2, dt.time(8, 0), dt.time(8, 45), w["science"])
     w["s3"] = _slot(w, "ground", w["t1"], 2, 3, dt.time(8, 50), dt.time(9, 35), w["math"])
     w["s4"] = _slot(w, "upper", w["t2"], 4, 6, dt.time(11, 10), dt.time(11, 50), w["science"])
+    # وفي الاثنين والأربعاء حصّةٌ أيضاً: يومٌ بلا حصصٍ للمدرسة كلّها يبدو «لم يُولَّد» (لا صفوفَ له).
+    w["s5"] = _slot(w, "ground", w["t2"], 1, 2, dt.time(8, 0), dt.time(8, 50), w["science"])
+    w["s6"] = _slot(w, "upper", w["t1"], 3, 4, dt.time(9, 35), dt.time(10, 25), w["math"])
     return w
 
 
@@ -119,7 +122,9 @@ class TestAWeekThatWasNotGeneratedComesFromThePlan:
         assert _cells(result) == [
             (0, 1, "plan", ""),
             (0, 2, "plan", ""),
+            (1, 2, "plan", ""),
             (2, 3, "plan", ""),
+            (3, 4, "plan", ""),
             (4, 6, "plan", ""),
         ]
         cell = result["grid"][0][1][0]
@@ -145,7 +150,9 @@ class TestAWeekThatWasNotGeneratedComesFromThePlan:
         assert _cells(result) == [
             (0, 1, "actual", ""),
             (0, 2, "actual", ""),
+            (1, 2, "actual", ""),
             (2, 3, "plan", ""),
+            (3, 4, "actual", ""),
             (4, 6, "actual", ""),
         ]
 
@@ -157,7 +164,14 @@ class TestTheActualWeek:
         result = _week(world)
 
         assert result["week"].plan_days == set()
-        assert [(d, p) for d, p, *_ in _cells(result)] == [(0, 1), (0, 2), (2, 3), (4, 6)]
+        assert [(d, p) for d, p, *_ in _cells(result)] == [
+            (0, 1),
+            (0, 2),
+            (1, 2),
+            (2, 3),
+            (3, 4),
+            (4, 6),
+        ]
         assert {c[2] for c in _cells(result)} == {"actual"}
 
     def test_the_shape_matches_the_plans_grid(self, world):
@@ -181,7 +195,7 @@ class TestTheActualWeek:
         cell = _only(theirs)
         assert (cell.kind, cell.original_teacher) == ("swap", world["t1"])
         assert (cell.day_of_week, cell.period_number) == (0, 1)
-        assert [c[:2] for c in _cells(original)] == [(2, 3)], "من أُشغل عنه لا تظهر عنده"
+        assert [c[:2] for c in _cells(original)] == [(2, 3), (3, 4)], "من أُشغل عنه لا تظهر عنده"
 
     def test_a_cover_is_told_from_a_swap_by_its_assignment(self, world):
         _generate(world)
@@ -223,7 +237,7 @@ class TestTheActualWeek:
 
         result = _week(world, class_group=world["ground"])
 
-        assert [c[:2] for c in _cells(result)] == [(2, 3)]
+        assert [c[:2] for c in _cells(result)] == [(1, 2), (2, 3)]
 
     def test_a_teacher_with_no_lessons_on_a_day_does_not_make_it_ungenerated(self, world):
         _generate(world)
@@ -260,7 +274,8 @@ class TestLessonsWithoutAStoredNumber:
 
         result = _week(world)
 
-        assert [(c[0], c[1]) for c in _cells(result)] == [(0, 3)]
+        actual = [(c[0], c[1]) for c in _cells(result) if c[2] == "actual"]
+        assert actual == [(0, 3)]
         session.refresh_from_db()
         assert session.period_number is None, "القراءةُ لا تكتب الرقم"
 
@@ -277,7 +292,8 @@ class TestLessonsWithoutAStoredNumber:
 
         result = _week(world)
 
-        assert (_cells(result), result["week"].unplaced) == ([], 1)
+        actual = [c for c in _cells(result) if c[2] == "actual"]
+        assert (actual, result["week"].unplaced) == ([], 1)
 
 
 class TestTheWeekItself:
@@ -289,7 +305,6 @@ class TestTheWeekItself:
         assert len(week.days) == 5
 
     def test_the_queries_do_not_grow_with_the_lessons(self, world, django_assert_max_num_queries):
-        _generate(world)
         for i in range(30):
             teacher = _teacher(world["school"], f"معلّم {i}")
             klass = ClassGroupFactory(
@@ -305,9 +320,8 @@ class TestTheWeekItself:
                 dt.time(8, 50),
                 world["math"],
             )
-        ScheduleService.ensure_sessions_for_date(
-            world["school"], SUNDAY + dt.timedelta(days=1), academic_year=YEAR
-        )
+        _generate(world)  # بعد الخانات كلِّها: أكثرُ من ثلاثين حصّةً في الأسبوع
+        assert Session.objects.count() > 30
 
         with django_assert_max_num_queries(9):
             ScheduleService.get_week_schedule(world["school"], SUNDAY, academic_year=YEAR)
@@ -323,13 +337,13 @@ class TestTheGeneralScheduleForAWeek:
         rows = {r["teacher"].full_name: r for r in result["rows"]}
         assert set(rows) == {"معلّمُ الرياضيات", "معلّمُ العلوم", "البديل"}
         assert rows["البديل"]["total"] == 1 and rows["البديل"]["days"][0][0][0].kind == "swap"
-        assert rows["معلّمُ الرياضيات"]["total"] == 1, "بقيت له الثلاثاءُ وحدَها"
+        assert rows["معلّمُ الرياضيات"]["total"] == 2, "بقيت له الثلاثاءُ والأربعاء"
         assert result["week"].week_start == SUNDAY
 
     def test_the_plans_matrix_is_unchanged(self, world):
         rows = ScheduleService.get_teachers_matrix(world["school"], YEAR)
 
         assert {r["teacher"].full_name: r["total"] for r in rows} == {
-            "معلّمُ الرياضيات": 2,
-            "معلّمُ العلوم": 2,
+            "معلّمُ الرياضيات": 3,
+            "معلّمُ العلوم": 3,
         }
