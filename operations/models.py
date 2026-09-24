@@ -85,6 +85,8 @@ class Session(models.Model):
     date = models.DateField(verbose_name="التاريخ", db_index=True)
     start_time = models.TimeField(verbose_name="وقت البدء")
     end_time = models.TimeField(verbose_name="وقت النهاية")
+    #: رقمُ الحصّة في الجدول المعتمد — فارغٌ لما سبق الحقلَ ولا خانةَ نشطةً تطابقه.
+    period_number = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name="الحصّة")
     status = models.CharField(
         max_length=15, choices=STATUS, default="scheduled", db_index=True, verbose_name="الحالة"
     )
