@@ -8,7 +8,12 @@ from django.shortcuts import render
 
 from core.developer_access import developer_only
 from core.icons import ICONS
-from core.styleguide import colour_token_groups, icon_dictionary_groups, scale_tokens
+from core.styleguide import (
+    breakpoints,
+    colour_token_groups,
+    icon_dictionary_groups,
+    scale_tokens,
+)
 
 
 @developer_only
@@ -19,6 +24,7 @@ def ui_components(request):
         {
             "swatch_groups": colour_token_groups(),
             "scales": scale_tokens(),
+            "breakpoints": breakpoints(),
             "icon_count": len(ICONS),
             # خياراتُ أمثلة القسم 12 (field · filter_bar) — توضيحيّةٌ لا من قاعدة البيانات.
             "sg_grades": [("7", "السابع"), ("8", "الثامن"), ("9", "التاسع")],
