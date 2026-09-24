@@ -352,7 +352,7 @@ def test_the_bell_is_read_once_per_generation_even_in_repair(school, bands, monk
     """المُزيِّنُ جزءٌ من الدالّة: `load_band_times` أُدرجت فوق `generate_schedule`
     فسرقت `@joinable_pairs_cached()` — وعاد الجرسُ يُسأل عند كلّ مرشَّح."""
     from operations import scheduler
-    from operations.scheduler_constraints import _PAIRS_CACHE
+    from operations.scheduler_bell import _PAIRS_CACHE
 
     seen = []
 
