@@ -330,9 +330,17 @@ _sync11 = importlib.import_module("roadmap.migrations.0011_sync_items_2026_09_24
 
 
 def test_0011_moves_the_items_and_leaves_lay03_alone():
-    for code in ("VI-28", "H-06", "VI-29", "OWN-19", "OWN-21", "DBT-36", "LAY-03"):
+    for code in ("VI-28", "H-06", "VI-29", "OWN-19", "OWN-21", "M-07", "DBT-36", "LAY-03"):
         _item(code, "todo", 0)
-    assert _sync11.sync(RoadmapItem) == ["VI-28", "H-06", "VI-29", "OWN-19", "OWN-21", "DBT-36"]
+    assert _sync11.sync(RoadmapItem) == [
+        "VI-28",
+        "H-06",
+        "VI-29",
+        "OWN-19",
+        "OWN-21",
+        "M-07",
+        "DBT-36",
+    ]
     assert _sync11.sync(RoadmapItem) == []
     assert RoadmapItem.objects.get(code="VI-28").pr == "#519"
     own19 = RoadmapItem.objects.get(code="OWN-19")
