@@ -34,6 +34,7 @@ from core.academic_calendar import default_academic_year
 from core.models import School
 from operations.management.commands.sync_assignments import Resolver
 from operations.models import ScheduleGeneration, ScheduleSlot, SubjectClassAssignment
+from operations.schedule_breaches import BreachesNotAcknowledgedError, draft_breaches
 from operations.services import ScheduleService
 
 DAYS = dict(ScheduleSlot.DAYS)
@@ -73,6 +74,21 @@ def _generation_meta(gen):
 class Command(BaseCommand):
     help = "تصديرُ الجدول الحيّ أو استيرادُه بالمطابقة بالأسماء ثمّ اعتمادُه"
 
+    def _print_breaches(self, gen):
+        """المخالفاتُ المستوردةُ بموضعها قبل الاعتماد — فمن يعتمد بالأمر يراها كمن يعتمد بالشاشة."""
+        found = draft_breaches(gen.config_snapshot)
+        if not found or not found["count"]:
+            return
+        self.stderr.write(f"مخالفاتٌ صلبةٌ في المسودّة المستوردة: {found['count']}")
+        for group in found["groups"]:
+            self.stderr.write(f"  {group['code']} — {group['title']}: {group['count']}")
+            for column in group["cols"]:
+                for row in column:
+                    self.stderr.write(
+                        f"    {row.get('class', '')} · {row.get('subject', '')} · "
+                        f"{row.get('day_name', '')} ح{row.get('period', '')}"
+                    )
+
     def add_arguments(self, parser):
         parser.add_argument("mode", choices=["export", "import"])
         parser.add_argument("--file", default="-", help="مسارُ الملفّ، و«-» للقياسيّ (الافتراض)")
@@ -80,6 +96,11 @@ class Command(BaseCommand):
         parser.add_argument("--year", default="", help="العامُ الدراسيّ (الافتراض: الجاري)")
         parser.add_argument("--apply", action="store_true", help="نفِّذ فعلاً — وبدونه عرضٌ فقط")
         parser.add_argument("--no-notify", action="store_true", help="اعتمِد بلا إشعار المعلّمين")
+        parser.add_argument(
+            "--acknowledge-breaches",
+            action="store_true",
+            help="أقِرَّ بمخالفات المسودّة الصلبة المستوردة واعتمِد رغمها (تُطبع قبل الاعتماد)",
+        )
 
     def handle(self, *args, **options):
         school = School.objects.first()
@@ -244,7 +265,17 @@ class Command(BaseCommand):
                     for r, k, s, t in resolved
                 ]
             )
-            result = ScheduleService.approve_generation(gen, notify=not options["no_notify"])
+            self._print_breaches(gen)
+            try:
+                result = ScheduleService.approve_generation(
+                    gen,
+                    notify=not options["no_notify"],
+                    acknowledged=options["acknowledge_breaches"],
+                )
+            except BreachesNotAcknowledgedError as refusal:
+                raise CommandError(
+                    f"{refusal} أضِف --acknowledge-breaches للإقرار بها."
+                ) from refusal
 
         live = ScheduleSlot.objects.live(school, year=year).count()
         sync = result["sync"]
