@@ -522,6 +522,8 @@ def field(
     if type != "select" and choices is not None:
         raise template.TemplateSyntaxError(f"field «{name}»: choices لغير select")
     field_id = id or f"f-{_ID_RE.sub('-', str(name)).strip('-')}"
+    if type == "number" and not inputmode:
+        inputmode = number_inputmode(attrs.get("step"))
     described = [f"{field_id}-help" if help else "", f"{field_id}-error" if error else ""]
     common = {
         "placeholder": placeholder,
@@ -558,6 +560,16 @@ def field(
             },
         )
     )
+
+
+def number_inputmode(step: object) -> str:
+    """لوحةُ مفاتيح الجوال لحقلٍ رقميّ (خطّة الجوال M-07): كسريّةٌ حين تقبل الخطوةُ كسراً.
+
+    `type="number"` وحدَه لا يُظهر لوحةَ الأرقام على كلّ جهاز (iOS يعرض لوحةً كاملة)،
+    و`inputmode` هو ما يطلبها: `decimal` بفاصلةٍ عشريّة، و`numeric` أرقامٌ صحيحةٌ فقط.
+    """
+    text = str(step or "").strip().lower()
+    return "decimal" if text == "any" or "." in text else "numeric"
 
 
 @register.simple_block_tag
