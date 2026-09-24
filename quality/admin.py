@@ -32,10 +32,22 @@ class TargetInline(admin.TabularInline):
 
 @admin.register(OperationalDomain)
 class DomainAdmin(admin.ModelAdmin):
-    list_display = ("name", "school", "academic_year", "total_procedures", "completion_pct")
+    list_display = ("name", "school", "academic_year", "procedures_count", "completion")
     list_filter = ("school", "academic_year")
     search_fields = ("name",)
     inlines = [TargetInline]
+
+    def get_queryset(self, request):
+        # العدّان من استعلام القائمة نفسِه لا استعلامين لكلّ مجال
+        return super().get_queryset(request).with_progress()
+
+    @admin.display(description="عدد الإجراءات", ordering="total_procedures")
+    def procedures_count(self, obj):
+        return obj.total_procedures
+
+    @admin.display(description="نسبة الإنجاز %")
+    def completion(self, obj):
+        return obj.completion_pct
 
 
 class IndicatorInline(admin.TabularInline):
@@ -255,10 +267,14 @@ class RoleEvaluationTemplateAdmin(admin.ModelAdmin):
     إلى دورٍ أو عامٍ آخر. ويبقى حذفُ قالبٍ لا تقييماتَ عليه.
     """
 
-    list_display = ("role_name", "school", "academic_year", "is_active", "total_weight")
+    list_display = ("role_name", "school", "academic_year", "is_active", "weight_total")
     list_filter = ("school", "academic_year", "is_active")
     search_fields = ("role_name",)
     inlines = [EvaluationAxisInline]
+
+    @admin.display(description="مجموع الأوزان")
+    def weight_total(self, obj):
+        return obj.total_weight
 
     def has_add_permission(self, request):
         return False

@@ -22,9 +22,11 @@ def _excuse_upload_path(instance, filename):
 
 class Subject(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="subjects")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="subjects", verbose_name="المدرسة"
+    )
     name_ar = models.CharField(max_length=100, verbose_name="اسم المادة")
-    code = models.CharField(max_length=20, blank=True)
+    code = models.CharField(max_length=20, blank=True, verbose_name="رمز المادّة")
     #: طبيعةُ المادّة تربويّاً — تقرؤها مؤشراتُ الجودة (التوقيت التربويّ): الثقيلةُ
     #: يُفضَّل لها النصفُ الأوّل من اليوم، والنشاطُ النصفُ الثاني، والعاديّةُ بلا
     #: تفضيل. حقلٌ لا قائمةُ أسماءٍ في الكود — فسياسةُ المدرسة تتغيّر بلا نشر.
@@ -63,18 +65,29 @@ class Session(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="sessions")
-    class_group = models.ForeignKey(ClassGroup, on_delete=models.CASCADE, related_name="sessions")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="sessions", verbose_name="المدرسة"
+    )
+    class_group = models.ForeignKey(
+        ClassGroup, on_delete=models.CASCADE, related_name="sessions", verbose_name="الشعبة"
+    )
     teacher = models.ForeignKey(
         CustomUser, on_delete=models.PROTECT, related_name="sessions", verbose_name="المعلم"
     )
     subject = models.ForeignKey(
-        Subject, on_delete=models.SET_NULL, null=True, blank=True, related_name="sessions"
+        Subject,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="sessions",
+        verbose_name="المادّة",
     )
     date = models.DateField(verbose_name="التاريخ", db_index=True)
     start_time = models.TimeField(verbose_name="وقت البدء")
     end_time = models.TimeField(verbose_name="وقت النهاية")
-    status = models.CharField(max_length=15, choices=STATUS, default="scheduled", db_index=True)
+    status = models.CharField(
+        max_length=15, choices=STATUS, default="scheduled", db_index=True, verbose_name="الحالة"
+    )
     #: تُورَّث من `ScheduleSlot.elective_group`: شعبةٌ تتفرّق بين مادّتين في
     #: التوقيت نفسه تحتاج جلستين بمعلّمَين، والقيدُ الفريد بلا هذا الحقل كان
     #: يُسقط الثانيةَ بصمت في `bulk_create(ignore_conflicts=True)`.
@@ -94,8 +107,8 @@ class Session(models.Model):
         related_name="sessions_swapped_away",
         verbose_name="المعلّم الأصليّ",
     )
-    notes = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "حصة"
@@ -180,10 +193,18 @@ class StudentAttendance(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="attendances")
-    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="attendances")
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="attendances")
-    status = models.CharField(max_length=10, choices=STATUS, default="present", db_index=True)
+    session = models.ForeignKey(
+        Session, on_delete=models.CASCADE, related_name="attendances", verbose_name="الحصّة"
+    )
+    student = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="attendances", verbose_name="الطالب"
+    )
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="attendances", verbose_name="المدرسة"
+    )
+    status = models.CharField(
+        max_length=10, choices=STATUS, default="present", db_index=True, verbose_name="الحالة"
+    )
     tardiness_minutes = models.PositiveSmallIntegerField(
         verbose_name="دقائق التأخير",
         null=True,
@@ -229,7 +250,9 @@ class StudentAttendance(models.Model):
     late_minutes = models.PositiveSmallIntegerField(
         null=True, blank=True, verbose_name="دقائقُ التأخّر عن الحصّة"
     )
-    excuse_type = models.CharField(max_length=20, choices=EXCUSE, blank=True)
+    excuse_type = models.CharField(
+        max_length=20, choices=EXCUSE, blank=True, verbose_name="نوع العذر"
+    )
     #: العذرُ الذي غطّى هذا الغياب — قرارٌ واحدٌ بمستنده يغطّي أيّاماً وحصصاً
     #: (`AbsenceExcuse`). و`excuse_type` يبقى مكتوباً على الصفّ لأنّ الحسابَ يقرؤه.
     excuse = models.ForeignKey(
@@ -240,7 +263,7 @@ class StudentAttendance(models.Model):
         related_name="rows",
         verbose_name="العذرُ المقبول",
     )
-    excuse_notes = models.TextField(blank=True)
+    excuse_notes = models.TextField(blank=True, verbose_name="بيان العذر")
     excuse_file = models.FileField(
         upload_to=_excuse_upload_path,
         blank=True,
@@ -267,10 +290,14 @@ class StudentAttendance(models.Model):
         verbose_name="الخروجُ المحسوب",
     )
     marked_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="marked_attendances"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="marked_attendances",
+        verbose_name="رصده",
     )
-    marked_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    marked_at = models.DateTimeField(auto_now_add=True, verbose_name="وقت الرصد")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "حضور طالب"
@@ -312,9 +339,11 @@ class AbsenceExcuse(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="absence_excuses")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="absence_excuses", verbose_name="المدرسة"
+    )
     student = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="absence_excuses"
+        CustomUser, on_delete=models.CASCADE, related_name="absence_excuses", verbose_name="الطالب"
     )
     date_from = models.DateField(verbose_name="من")
     date_to = models.DateField(verbose_name="إلى")
@@ -327,11 +356,15 @@ class AbsenceExcuse(models.Model):
         validators=[FileTypeValidator(allowed_types="excuse", max_size_mb=10)],  # type: ignore[no-untyped-call]
     )
     granted_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="absence_excuses_granted"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="absence_excuses_granted",
+        verbose_name="سجّل العذر",
     )
-    granted_at = models.DateTimeField(auto_now_add=True)
+    granted_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ التسجيل")
     #: قُبل بعد مهلة اليومين — بصلاحيّة النائب وبسببٍ مكتوب.
-    after_deadline = models.BooleanField(default=False)
+    after_deadline = models.BooleanField(default=False, verbose_name="بعد انقضاء المهلة")
     override_reason = models.TextField(blank=True, verbose_name="سببُ القبول بعد المهلة")
     #: «مقبول» يُكتب على الصفوف؛ «بانتظار النائب» و«مرفوض» لا يمسّانها.
     status = models.CharField(
@@ -350,7 +383,7 @@ class AbsenceExcuse(models.Model):
         related_name="absence_excuses_reviewed",
         verbose_name="قرّره النائب",
     )
-    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ قرار النائب")
     rejection_reason = models.TextField(
         blank=True, default="", db_default="", verbose_name="سببُ الرفض"
     )
@@ -383,16 +416,27 @@ class GuardianContact(models.Model):
     CHANNELS = [("phone", "هاتف"), ("sms", "رسالة نصّيّة")]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="guardian_contacts")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="guardian_contacts", verbose_name="المدرسة"
+    )
     student = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="guardian_contacts"
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="guardian_contacts",
+        verbose_name="الطالب",
     )
     absence_date = models.DateField(verbose_name="يومُ الغياب")
     outcome = models.CharField(max_length=12, choices=OUTCOMES, verbose_name="النتيجة")
-    channel = models.CharField(max_length=6, choices=CHANNELS, default="phone")
+    channel = models.CharField(
+        max_length=6, choices=CHANNELS, default="phone", verbose_name="وسيلة التواصل"
+    )
     note = models.CharField(max_length=200, blank=True, verbose_name="ملاحظة")
     contacted_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="guardian_contacts_made"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="guardian_contacts_made",
+        verbose_name="القائم بالتواصل",
     )
     contacted_at = models.DateTimeField(verbose_name="وقتُ الاتّصال")
 
@@ -430,17 +474,25 @@ class ScheduleSlot(models.Model):
     PERIODS = list(range(1, PERIODS_PER_DAY + 1))
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="schedule_slots")
-    teacher = models.ForeignKey(CustomUser, on_delete=models.PROTECT, related_name="schedule_slots")
-    class_group = models.ForeignKey(
-        ClassGroup, on_delete=models.CASCADE, related_name="schedule_slots"
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="schedule_slots", verbose_name="المدرسة"
     )
-    subject = models.ForeignKey(Subject, on_delete=models.SET_NULL, null=True, blank=True)
+    teacher = models.ForeignKey(
+        CustomUser, on_delete=models.PROTECT, related_name="schedule_slots", verbose_name="المعلّم"
+    )
+    class_group = models.ForeignKey(
+        ClassGroup, on_delete=models.CASCADE, related_name="schedule_slots", verbose_name="الشعبة"
+    )
+    subject = models.ForeignKey(
+        Subject, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="المادّة"
+    )
     day_of_week = models.IntegerField(choices=DAYS, verbose_name="اليوم")
     period_number = models.IntegerField(verbose_name="رقم الحصة")  # 1..7
     start_time = models.TimeField(verbose_name="وقت البدء")
     end_time = models.TimeField(verbose_name="وقت النهاية")
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
     #: مجموعة الاختيار حين تنقسم الشعبة في الحصّة الواحدة.
     #:
     #: أربعُ شعبٍ يتفرّق طلابها بين مادّتين في التوقيت نفسه: 11/1 و12/1 بين
@@ -452,7 +504,7 @@ class ScheduleSlot(models.Model):
     elective_group = models.CharField(
         max_length=40, blank=True, default="", verbose_name="مجموعة الاختيار"
     )
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
     #: أيُّ توليدٍ أنتج هذه الحصّة — فارغٌ للحصص اليدويّة ولِما سبق هذا الحقل.
     #: وبه يصير الاعتمادُ فعلاً: تُفعَّل حصصُ التوليد المعتمَد وتُطفأ سواها،
     #: وكانت الحصصُ تُفعَّل لحظةَ التوليد فيراها المعلّمون قبل أن يُقرَّر شيء.
@@ -465,7 +517,7 @@ class ScheduleSlot(models.Model):
         verbose_name="التوليد المصدر",
     )
     notes = models.TextField(blank=True, default="", verbose_name="ملاحظات")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     objects = YearScopedQuerySet.as_manager()
 
@@ -517,22 +569,32 @@ class TeacherAbsence(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="teacher_absences")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="teacher_absences", verbose_name="المدرسة"
+    )
     teacher = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="absences_as_teacher"
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="absences_as_teacher",
+        verbose_name="المعلّم",
     )
     date = models.DateField(verbose_name="تاريخ الغياب", db_index=True)
-    reason = models.CharField(max_length=20, choices=REASON, default="other")
+    reason = models.CharField(
+        max_length=20, choices=REASON, default="other", verbose_name="سبب الغياب"
+    )
     reason_notes = models.TextField(blank=True, verbose_name="تفاصيل")
-    status = models.CharField(max_length=10, choices=STATUS, default="pending", db_index=True)
+    status = models.CharField(
+        max_length=10, choices=STATUS, default="pending", db_index=True, verbose_name="الحالة"
+    )
     reported_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="reported_absences",
+        verbose_name="سجّله",
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "غياب معلم"
@@ -557,23 +619,41 @@ class SubstituteAssignment(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     absence = models.ForeignKey(
-        TeacherAbsence, on_delete=models.CASCADE, related_name="assignments"
+        TeacherAbsence,
+        on_delete=models.CASCADE,
+        related_name="assignments",
+        verbose_name="غياب المعلّم",
     )
     slot = models.ForeignKey(
-        ScheduleSlot, on_delete=models.CASCADE, related_name="substitute_assignments"
+        ScheduleSlot,
+        on_delete=models.CASCADE,
+        related_name="substitute_assignments",
+        verbose_name="حصّة الجدول",
     )
     substitute = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="substitute_assignments"
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="substitute_assignments",
+        verbose_name="البديل",
     )
     school = models.ForeignKey(
-        School, on_delete=models.CASCADE, related_name="substitute_assignments"
+        School,
+        on_delete=models.CASCADE,
+        related_name="substitute_assignments",
+        verbose_name="المدرسة",
     )
-    status = models.CharField(max_length=10, choices=STATUS, default="assigned")
+    status = models.CharField(
+        max_length=10, choices=STATUS, default="assigned", verbose_name="الحالة"
+    )
     assigned_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="created_assignments"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="created_assignments",
+        verbose_name="كلّفه",
     )
-    notes = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "تعيين بديل"
@@ -597,18 +677,29 @@ class AbsenceAlert(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE)
-    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="absence_alerts")
-    absence_count = models.IntegerField()
+    school = models.ForeignKey(School, on_delete=models.CASCADE, verbose_name="المدرسة")
+    student = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="absence_alerts", verbose_name="الطالب"
+    )
+    absence_count = models.IntegerField(verbose_name="عدد أيّام الغياب")
     #: مفتاح العتبة في «سياسة تقييم الطلبة» — تنبيهٌ واحد لكل عتبةٍ في العام.
     #: كان التنبيه واحداً للعام كلّه، فلا يُنذَر أحدٌ عند العتبات التالية.
     gate = models.CharField(max_length=20, blank=True, verbose_name="العتبة")
-    period_start = models.DateField()
-    period_end = models.DateField()
-    status = models.CharField(max_length=10, choices=STATUS, default="pending", db_index=True)
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    period_start = models.DateField(verbose_name="بداية الفترة")
+    period_end = models.DateField(verbose_name="نهاية الفترة")
+    status = models.CharField(
+        max_length=10, choices=STATUS, default="pending", db_index=True, verbose_name="الحالة"
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True, db_index=True, verbose_name="تاريخ الإنشاء"
+    )
     resolved_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="resolved_alerts"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_alerts",
+        verbose_name="عالجه",
     )
 
     class Meta:
@@ -635,11 +726,15 @@ class TimeSlotConfig(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="time_slots_config")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="time_slots_config", verbose_name="المدرسة"
+    )
     period_number = models.PositiveIntegerField(verbose_name="رقم الحصة")
     start_time = models.TimeField(verbose_name="وقت البدء")
     end_time = models.TimeField(verbose_name="وقت الانتهاء")
-    day_type = models.CharField(max_length=10, choices=DAY_TYPES, default="regular")
+    day_type = models.CharField(
+        max_length=10, choices=DAY_TYPES, default="regular", verbose_name="نوع اليوم"
+    )
     #: جرسُ النطاق — فارغٌ يعني جرسَ المدرسة الافتراضيّ الذي يرثه من لا نطاقَ له.
     band = models.ForeignKey(
         "core.TimeBand",
@@ -685,21 +780,30 @@ class SectionDayConfirmation(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="day_confirmations")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="day_confirmations", verbose_name="المدرسة"
+    )
     class_group = models.ForeignKey(
-        ClassGroup, on_delete=models.CASCADE, related_name="day_confirmations"
+        ClassGroup,
+        on_delete=models.CASCADE,
+        related_name="day_confirmations",
+        verbose_name="الشعبة",
     )
-    date = models.DateField(db_index=True)
+    date = models.DateField(db_index=True, verbose_name="التاريخ")
     confirmed_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="day_confirmations"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="day_confirmations",
+        verbose_name="أكّده",
     )
-    confirmed_at = models.DateTimeField(auto_now=True)
-    present_count = models.PositiveSmallIntegerField(default=0)
-    absent_count = models.PositiveSmallIntegerField(default=0)
-    late_count = models.PositiveSmallIntegerField(default=0)
+    confirmed_at = models.DateTimeField(auto_now=True, verbose_name="وقت التأكيد")
+    present_count = models.PositiveSmallIntegerField(default=0, verbose_name="الحاضرون")
+    absent_count = models.PositiveSmallIntegerField(default=0, verbose_name="الغائبون")
+    late_count = models.PositiveSmallIntegerField(default=0, verbose_name="المتأخّرون")
     #: كم حصّةً كُتبت فيها الحالة — برهانُ السريان لا ادّعاؤه.
-    periods_written = models.PositiveSmallIntegerField(default=0)
-    note = models.TextField(blank=True)
+    periods_written = models.PositiveSmallIntegerField(default=0, verbose_name="الحصص المرصودة")
+    note = models.TextField(blank=True, verbose_name="ملاحظة")
 
     class Meta:
         verbose_name = "تثبيتُ رصدِ شعبة"
@@ -737,14 +841,26 @@ class ClassExit(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="class_exits")
-    session = models.ForeignKey(Session, on_delete=models.CASCADE, related_name="class_exits")
-    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="class_exits")
-    destination = models.CharField(max_length=10, choices=DESTINATIONS, default="restroom")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="class_exits", verbose_name="المدرسة"
+    )
+    session = models.ForeignKey(
+        Session, on_delete=models.CASCADE, related_name="class_exits", verbose_name="الحصّة"
+    )
+    student = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="class_exits", verbose_name="الطالب"
+    )
+    destination = models.CharField(
+        max_length=10, choices=DESTINATIONS, default="restroom", verbose_name="الوجهة"
+    )
     left_at = models.DateTimeField(verbose_name="وقتُ الخروج")
     returned_at = models.DateTimeField(null=True, blank=True, verbose_name="وقتُ العودة")
     allowed_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="class_exits_allowed"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="class_exits_allowed",
+        verbose_name="أذِن به",
     )
 
     class Meta:
@@ -791,23 +907,33 @@ class PeriodConfirmation(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
-        School, on_delete=models.CASCADE, related_name="period_confirmations"
+        School,
+        on_delete=models.CASCADE,
+        related_name="period_confirmations",
+        verbose_name="المدرسة",
     )
     class_group = models.ForeignKey(
-        ClassGroup, on_delete=models.CASCADE, related_name="period_confirmations"
+        ClassGroup,
+        on_delete=models.CASCADE,
+        related_name="period_confirmations",
+        verbose_name="الشعبة",
     )
-    date = models.DateField(db_index=True)
+    date = models.DateField(db_index=True, verbose_name="التاريخ")
     start_time = models.TimeField(verbose_name="بدءُ الخانة")
     end_time = models.TimeField(verbose_name="نهايةُ الخانة")
     confirmed_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="period_confirmations"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="period_confirmations",
+        verbose_name="أكّده",
     )
     first_confirmed_at = models.DateTimeField(verbose_name="أوّلُ تثبيت")
     confirmed_at = models.DateTimeField(auto_now=True, verbose_name="آخرُ تثبيت")
     confirmed_late = models.BooleanField(default=False, verbose_name="ثُبّتت بعد مهلتها")
-    present_count = models.PositiveSmallIntegerField(default=0)
-    absent_count = models.PositiveSmallIntegerField(default=0)
-    late_count = models.PositiveSmallIntegerField(default=0)
+    present_count = models.PositiveSmallIntegerField(default=0, verbose_name="الحاضرون")
+    absent_count = models.PositiveSmallIntegerField(default=0, verbose_name="الغائبون")
+    late_count = models.PositiveSmallIntegerField(default=0, verbose_name="المتأخّرون")
 
     class Meta:
         verbose_name = "تثبيتُ رصدِ حصّة"
@@ -839,11 +965,18 @@ class SubjectClassAssignment(AuditedModel):
     ليس أحقَّ بالحقيقة من زميلٍ سبقه.
     """
 
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="subject_assignments")
-    class_group = models.ForeignKey(
-        ClassGroup, on_delete=models.CASCADE, related_name="subject_assignments"
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="subject_assignments", verbose_name="المدرسة"
     )
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="class_assignments")
+    class_group = models.ForeignKey(
+        ClassGroup,
+        on_delete=models.CASCADE,
+        related_name="subject_assignments",
+        verbose_name="الشعبة",
+    )
+    subject = models.ForeignKey(
+        Subject, on_delete=models.CASCADE, related_name="class_assignments", verbose_name="المادّة"
+    )
     teacher = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
@@ -853,7 +986,9 @@ class SubjectClassAssignment(AuditedModel):
         verbose_name="المعلم",
     )
     weekly_periods = models.PositiveIntegerField(verbose_name="عدد الحصص الأسبوعية")
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
     requires_lab = models.BooleanField(default=False, verbose_name="يحتاج معمل؟")
     #: وسمُ المجموعة المتوازية: مادّتان في الشعبة الواحدة تحملان الوسمَ نفسه
     #: تُدرَّسان في التوقيت نفسه لقسمَي الطلاب — كالفنون والتكنولوجيا في 11/1.
@@ -895,7 +1030,7 @@ class SubjectClassAssignment(AuditedModel):
         help_text="يُلزَم حين يخالف عددُ الحصص الخطّةَ الدراسيّة",
     )
 
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
     #: الحذفُ ناعمٌ ويحمل أثره: من حذف ومتى ولماذا. فإسنادٌ اختفى من الشبكة
     #: بلا أثرٍ يُقرأ بعد شهرٍ خللاً في البيانات لا قراراً اتُّخذ.
     deleted_by = models.ForeignKey(
@@ -963,7 +1098,10 @@ class SchedulingResource(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
-        School, on_delete=models.CASCADE, related_name="scheduling_resources"
+        School,
+        on_delete=models.CASCADE,
+        related_name="scheduling_resources",
+        verbose_name="المدرسة",
     )
     name = models.CharField(max_length=100, verbose_name="المورد")
     capacity = models.PositiveIntegerField(default=1, verbose_name="كم حصّةً معاً")
@@ -977,7 +1115,7 @@ class SchedulingResource(models.Model):
     same_level_only = models.BooleanField(
         default=False, verbose_name="مرحلةٌ واحدةٌ في التوقيت (لا يجتمع إعداديّ وثانويّ)"
     )
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
 
     class Meta:
         verbose_name = "مورد جدولة"
@@ -996,10 +1134,17 @@ class TeacherPreference(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     teacher = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="schedule_preferences"
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="schedule_preferences",
+        verbose_name="المعلّم",
     )
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="teacher_preferences")
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="teacher_preferences", verbose_name="المدرسة"
+    )
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
     max_daily_periods = models.PositiveIntegerField(default=5, verbose_name="أقصى حصص يومية")
     max_consecutive = models.PositiveIntegerField(default=3, verbose_name="أقصى حصص متتالية")
     #: أوسعُ فراغٍ يُقبل بين حصّتين في اليوم الواحد — بعدد الحصص الفارغة.
@@ -1059,14 +1204,18 @@ class TeacherExemption(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="teacher_exemptions")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="teacher_exemptions", verbose_name="المدرسة"
+    )
     teacher = models.ForeignKey(
         CustomUser,
         on_delete=models.CASCADE,
         related_name="schedule_exemptions",
         verbose_name="المعلم/المنسق",
     )
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
     exemption_type = models.CharField(
         max_length=20,
         choices=EXEMPTION_TYPE,
@@ -1121,8 +1270,8 @@ class TeacherExemption(models.Model):
         related_name="+",
         verbose_name="أنشئ بواسطة",
     )
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "تفريغ معلم"
@@ -1157,8 +1306,10 @@ class ScheduleBaseline(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="schedule_baselines")
-    academic_year = models.CharField(max_length=9)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="schedule_baselines", verbose_name="المدرسة"
+    )
+    academic_year = models.CharField(max_length=9, verbose_name="العام الدراسي")
     label = models.CharField(max_length=60, verbose_name="الاسم")
     metrics = models.JSONField(default=dict, verbose_name="المؤشرات")
 
@@ -1170,9 +1321,14 @@ class ScheduleBaseline(models.Model):
     #: مرّةً ويُراجَع سنويّاً، لا أثرٌ جانبيٌّ لضغطة زرّ.
     is_pinned = models.BooleanField(default=False, verbose_name="مرجعٌ معتمَد")
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
     created_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="أنشأه",
     )
 
     class Meta:
@@ -1211,9 +1367,14 @@ class ScheduleConstraintOverride(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
-        School, on_delete=models.CASCADE, related_name="constraint_overrides"
+        School,
+        on_delete=models.CASCADE,
+        related_name="constraint_overrides",
+        verbose_name="المدرسة",
     )
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
     code = models.CharField(max_length=20, verbose_name="رمز القيد")
     break_at = models.CharField(
         max_length=10,
@@ -1231,9 +1392,14 @@ class ScheduleConstraintOverride(models.Model):
     #: لماذا خُولف الافتراض — فانحرافٌ بلا سببٍ يُقرأ بعد شهرٍ خللاً لا قراراً.
     reason = models.CharField(max_length=200, verbose_name="سبب المخالفة")
     updated_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="عدّله",
     )
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "استثناء قيد جدول"
@@ -1325,16 +1491,21 @@ class ScheduleGeneration(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
-        School, on_delete=models.CASCADE, related_name="schedule_generations"
+        School,
+        on_delete=models.CASCADE,
+        related_name="schedule_generations",
+        verbose_name="المدرسة",
     )
-    academic_year = models.CharField(max_length=9)
-    generated_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
-    generated_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=10, choices=STATUS, default="draft")
+    academic_year = models.CharField(max_length=9, verbose_name="العام الدراسي")
+    generated_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL, null=True, verbose_name="ولّده"
+    )
+    generated_at = models.DateTimeField(auto_now_add=True, verbose_name="وقت التوليد")
+    status = models.CharField(max_length=10, choices=STATUS, default="draft", verbose_name="الحالة")
     quality_score = models.FloatField(default=0, verbose_name="نقاط الجودة (0-100)")
     hard_violations = models.IntegerField(default=0, verbose_name="انتهاكات صلبة")
     soft_violations = models.JSONField(default=dict, verbose_name="انتهاكات مرنة")
-    total_slots_created = models.IntegerField(default=0)
+    total_slots_created = models.IntegerField(default=0, verbose_name="الحصص المولَّدة")
     generation_time_ms = models.IntegerField(default=0, verbose_name="زمن التوليد (مللي ثانية)")
     config_snapshot = models.JSONField(default=dict, verbose_name="نسخة الإعدادات")
     #: مؤشراتُ مختبر الجودة (`operations.schedule_lab`) — تُحسب عند انتهاء التوليد
@@ -1413,7 +1584,9 @@ class TeacherSwap(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="teacher_swaps")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="teacher_swaps", verbose_name="المدرسة"
+    )
 
     # المعلمان
     teacher_a = models.ForeignKey(
@@ -1447,8 +1620,12 @@ class TeacherSwap(models.Model):
     swap_date_a = models.DateField(verbose_name="تاريخ حصة أ")
     swap_date_b = models.DateField(verbose_name="تاريخ حصة ب")
 
-    swap_type = models.CharField(max_length=10, choices=SWAP_TYPE, default="same_day")
-    status = models.CharField(max_length=25, choices=STATUS, default="pending_b", db_index=True)
+    swap_type = models.CharField(
+        max_length=10, choices=SWAP_TYPE, default="same_day", verbose_name="نوع التبديل"
+    )
+    status = models.CharField(
+        max_length=25, choices=STATUS, default="pending_b", db_index=True, verbose_name="الحالة"
+    )
 
     # ربط اختياري بغياب (إذا التبديل بسبب غياب)
     absence = models.ForeignKey(
@@ -1468,7 +1645,9 @@ class TeacherSwap(models.Model):
         related_name="swap_requests_created",
         verbose_name="مُنشئ الطلب",
     )
-    b_responded_at = models.DateTimeField(null=True, blank=True)
+    b_responded_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت ردّ المعلّم الثاني"
+    )
 
     #: توقيعُ منسّقِ كلِّ مادّة على حِدَة.
     #:
@@ -1487,8 +1666,12 @@ class TeacherSwap(models.Model):
         related_name="swap_approvals_side_a",
         verbose_name="موافقةُ منسّق المادّة الأولى",
     )
-    approved_a_at = models.DateTimeField(null=True, blank=True)
-    approved_a_by_substitute = models.BooleanField(default=False)
+    approved_a_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت موافقة منسّق المادّة الأولى"
+    )
+    approved_a_by_substitute = models.BooleanField(
+        default=False, verbose_name="وقّع عن منسّق المادّة الأولى بديلٌ"
+    )
     approved_b_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
@@ -1497,8 +1680,12 @@ class TeacherSwap(models.Model):
         related_name="swap_approvals_side_b",
         verbose_name="موافقةُ منسّق المادّة الثانية",
     )
-    approved_b_at = models.DateTimeField(null=True, blank=True)
-    approved_b_by_substitute = models.BooleanField(default=False)
+    approved_b_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت موافقة منسّق المادّة الثانية"
+    )
+    approved_b_by_substitute = models.BooleanField(
+        default=False, verbose_name="وقّع عن منسّق المادّة الثانية بديلٌ"
+    )
 
     #: آخرُ من أتمّ الاعتماد — يبقى لتوافق الشاشات والسجلّات القديمة.
     approved_by = models.ForeignKey(
@@ -1509,15 +1696,15 @@ class TeacherSwap(models.Model):
         related_name="swap_approvals",
         verbose_name="المعتمِد",
     )
-    approved_at = models.DateTimeField(null=True, blank=True)
-    executed_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ إتمام الاعتماد")
+    executed_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت التنفيذ")
 
     reason = models.TextField(blank=True, verbose_name="سبب التبديل")
     rejection_reason = models.TextField(blank=True, verbose_name="سبب الرفض")
     notes = models.TextField(blank=True, verbose_name="ملاحظات")
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "طلب تبديل"
@@ -1659,7 +1846,10 @@ class CompensatorySession(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
-        School, on_delete=models.CASCADE, related_name="compensatory_sessions"
+        School,
+        on_delete=models.CASCADE,
+        related_name="compensatory_sessions",
+        verbose_name="المدرسة",
     )
 
     teacher = models.ForeignKey(
@@ -1706,7 +1896,9 @@ class CompensatorySession(models.Model):
         help_text="0 = نفس الأسبوع, 1 = الأسبوع التالي (الحد الأقصى)",
     )
 
-    status = models.CharField(max_length=10, choices=STATUS, default="pending", db_index=True)
+    status = models.CharField(
+        max_length=10, choices=STATUS, default="pending", db_index=True, verbose_name="الحالة"
+    )
 
     # الموافقة
     approved_by = models.ForeignKey(
@@ -1717,7 +1909,7 @@ class CompensatorySession(models.Model):
         related_name="compensatory_approvals",
         verbose_name="المعتمِد",
     )
-    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الاعتماد")
 
     # الربط بالحصة الفعلية بعد الإنشاء
     session_created = models.ForeignKey(
@@ -1730,8 +1922,8 @@ class CompensatorySession(models.Model):
     )
 
     notes = models.TextField(blank=True, verbose_name="ملاحظات")
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "حصة تعويضية"
@@ -1777,10 +1969,14 @@ class FreeSlotRegistry(models.Model):
         related_name="free_slots",
         verbose_name="المعلم",
     )
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="free_slots")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="free_slots", verbose_name="المدرسة"
+    )
     day_of_week = models.IntegerField(choices=ScheduleSlot.DAYS, verbose_name="اليوم")
     period_number = models.IntegerField(verbose_name="رقم الحصة")
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
     is_available = models.BooleanField(
         default=True,
         verbose_name="متاح؟",
@@ -1948,7 +2144,7 @@ class TemporaryPermission(models.Model):
     )
     notes = models.TextField(blank=True, verbose_name="ملاحظات")
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "صلاحية مؤقتة"

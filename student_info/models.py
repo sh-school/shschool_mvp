@@ -58,7 +58,9 @@ class StudentNote(AuditedModel):
     title = models.CharField(max_length=160, verbose_name="العنوان")
     body = EncryptedTextField(verbose_name="نصّ الملاحظة")
     occurred_on = models.DateField(verbose_name="التاريخ")
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
 
     class Meta(AuditedModel.Meta):
         verbose_name = "ملاحظة على طالب"

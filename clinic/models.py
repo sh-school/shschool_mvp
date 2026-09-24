@@ -32,9 +32,14 @@ class HealthRecord(models.Model):
     ]
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     student = models.OneToOneField(
-        "core.CustomUser", on_delete=models.CASCADE, related_name="health_record"
+        "core.CustomUser",
+        on_delete=models.CASCADE,
+        related_name="health_record",
+        verbose_name="الطالب",
     )
-    blood_type = models.CharField(max_length=3, choices=BLOOD_TYPES, blank=True)
+    blood_type = models.CharField(
+        max_length=3, choices=BLOOD_TYPES, blank=True, verbose_name="فصيلة الدم"
+    )
     # [PII-11] الحقولُ الطبّيّةُ الثلاثة كانت `TextField` تُشفَّر يدوياً عبر
     # `save_encrypted()`، بينما جهةُ الطوارئ تحتها `EncryptedTextField`. ومن
     # هذا الازدواج نشأ عيبٌ منشور: القالبُ يطبع الحقلَ الخام فتُعرض الطلاسمُ
@@ -46,9 +51,9 @@ class HealthRecord(models.Model):
     chronic_diseases = EncryptedTextField(blank=True, verbose_name="الأمراض المزمنة")
     medications = EncryptedTextField(blank=True, verbose_name="الأدوية المستمرة")
     # [PII-04] بيانات جهة اتصال الطوارئ (طرف ثالث بجوار سجل صحي لقاصر) — مشفّرة at-rest
-    emergency_contact_name = EncryptedTextField(blank=True)
-    emergency_contact_phone = EncryptedTextField(blank=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    emergency_contact_name = EncryptedTextField(blank=True, verbose_name="اسم جهة الطوارئ")
+    emergency_contact_phone = EncryptedTextField(blank=True, verbose_name="هاتف جهة الطوارئ")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "سجل صحي"
@@ -65,18 +70,27 @@ class ClinicVisit(models.Model):
     objects = ClinicVisitQuerySet.as_manager()
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey("core.School", on_delete=models.CASCADE)
+    school = models.ForeignKey("core.School", on_delete=models.CASCADE, verbose_name="المدرسة")
     student = models.ForeignKey(
-        "core.CustomUser", on_delete=models.CASCADE, related_name="clinic_visits"
+        "core.CustomUser",
+        on_delete=models.CASCADE,
+        related_name="clinic_visits",
+        verbose_name="الطالب",
     )
     nurse = models.ForeignKey(
-        "core.CustomUser", on_delete=models.SET_NULL, null=True, related_name="nurse_visits"
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="nurse_visits",
+        verbose_name="الممرّض",
     )
-    visit_date = models.DateTimeField(auto_now_add=True)
+    visit_date = models.DateTimeField(auto_now_add=True, verbose_name="وقت الزيارة")
     # بيانات صحية حسّاسة (م.8 PDPPL) — مشفّرة at-rest بـ Fernet
     reason = EncryptedTextField(verbose_name="سبب الزيارة")
     symptoms = EncryptedTextField(blank=True, verbose_name="الأعراض")
-    temperature = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
+    temperature = models.DecimalField(
+        max_digits=4, decimal_places=1, null=True, blank=True, verbose_name="درجة الحرارة"
+    )
     treatment = EncryptedTextField(blank=True, verbose_name="الإجراء المتخذ")
     is_sent_home = models.BooleanField(default=False, verbose_name="تم إرساله للمنزل")
     parent_notified = models.BooleanField(default=False, verbose_name="تم إبلاغ ولي الأمر")

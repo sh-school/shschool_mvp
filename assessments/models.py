@@ -59,10 +59,14 @@ class SubjectClassSetup(models.Model):
     """ربط المادة بالفصل والمعلم المسؤول للعام الدراسي"""
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="subject_setups")
-    subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name="class_setups")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="subject_setups", verbose_name="المدرسة"
+    )
+    subject = models.ForeignKey(
+        Subject, on_delete=models.CASCADE, related_name="class_setups", verbose_name="المادّة"
+    )
     class_group = models.ForeignKey(
-        ClassGroup, on_delete=models.CASCADE, related_name="subject_setups"
+        ClassGroup, on_delete=models.CASCADE, related_name="subject_setups", verbose_name="الشعبة"
     )
     teacher = models.ForeignKey(
         CustomUser,
@@ -70,8 +74,10 @@ class SubjectClassSetup(models.Model):
         related_name="subject_setups",
         verbose_name="المعلم المسؤول",
     )
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
-    is_active = models.BooleanField(default=True)
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
     #: أللمادّة نهايةٌ صغرى في هذا الصفّ؟ فارغٌ = من ملحق السياسة (`default_has_pass_mark`).
     has_pass_mark = models.BooleanField(
         null=True,
@@ -180,10 +186,19 @@ class AssessmentPackage(models.Model):
     }
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    setup = models.ForeignKey(SubjectClassSetup, on_delete=models.CASCADE, related_name="packages")
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="packages")
+    setup = models.ForeignKey(
+        SubjectClassSetup,
+        on_delete=models.CASCADE,
+        related_name="packages",
+        verbose_name="إعداد المادّة للشعبة",
+    )
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="packages", verbose_name="المدرسة"
+    )
     package_type = models.CharField(max_length=2, choices=PACKAGE_TYPE, verbose_name="نوع الباقة")
-    semester = models.CharField(max_length=2, choices=SEMESTER, default="S1")
+    semester = models.CharField(
+        max_length=2, choices=SEMESTER, default="S1", verbose_name="الفصل الدراسي"
+    )
     weight = models.DecimalField(
         max_digits=6,
         decimal_places=2,
@@ -197,8 +212,8 @@ class AssessmentPackage(models.Model):
         default=Decimal("40"),
         verbose_name="الدرجة القصوى للفصل من المجموع السنوي",
     )
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "باقة تقييم"
@@ -267,11 +282,18 @@ class Assessment(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     package = models.ForeignKey(
-        AssessmentPackage, on_delete=models.CASCADE, related_name="assessments"
+        AssessmentPackage,
+        on_delete=models.CASCADE,
+        related_name="assessments",
+        verbose_name="حزمة التقييم",
     )
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="assessments")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="assessments", verbose_name="المدرسة"
+    )
     title = models.CharField(max_length=200, verbose_name="عنوان التقييم")
-    assessment_type = models.CharField(max_length=15, choices=ASSESSMENT_TYPE, default="exam")
+    assessment_type = models.CharField(
+        max_length=15, choices=ASSESSMENT_TYPE, default="exam", verbose_name="نوع التقييم"
+    )
     date = models.DateField(verbose_name="تاريخ التقييم", null=True, blank=True)
     max_grade = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal("10"), verbose_name="الدرجة القصوى الخام"
@@ -283,12 +305,18 @@ class Assessment(models.Model):
         verbose_name="وزنه داخل الباقة %",
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
-    status = models.CharField(max_length=10, choices=STATUS, default="draft", db_index=True)
+    status = models.CharField(
+        max_length=10, choices=STATUS, default="draft", db_index=True, verbose_name="الحالة"
+    )
     description = models.TextField(blank=True, verbose_name="وصف / تعليمات")
     created_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="created_assessments"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="created_assessments",
+        verbose_name="أنشأه",
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "تقييم"
@@ -318,11 +346,18 @@ class StudentAssessmentGrade(models.Model):
     objects = AssessmentGradeQuerySet.as_manager()
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    assessment = models.ForeignKey(Assessment, on_delete=models.CASCADE, related_name="grades")
-    student = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="assessment_grades"
+    assessment = models.ForeignKey(
+        Assessment, on_delete=models.CASCADE, related_name="grades", verbose_name="التقييم"
     )
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="student_grades")
+    student = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="assessment_grades",
+        verbose_name="الطالب",
+    )
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="student_grades", verbose_name="المدرسة"
+    )
     grade = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -335,9 +370,13 @@ class StudentAssessmentGrade(models.Model):
     is_excused = models.BooleanField(default=False, verbose_name="معذور")
     notes = models.CharField(max_length=200, blank=True, verbose_name="ملاحظة")
     entered_by = models.ForeignKey(
-        CustomUser, on_delete=models.SET_NULL, null=True, related_name="entered_grades"
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="entered_grades",
+        verbose_name="رصده",
     )
-    entered_at = models.DateTimeField(auto_now=True)
+    entered_at = models.DateTimeField(auto_now=True, verbose_name="وقت الرصد")
 
     class Meta:
         verbose_name = "درجة طالب"
@@ -394,13 +433,20 @@ class StudentSubjectResult(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     student = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="subject_results"
+        CustomUser, on_delete=models.CASCADE, related_name="subject_results", verbose_name="الطالب"
     )
     setup = models.ForeignKey(
-        SubjectClassSetup, on_delete=models.CASCADE, related_name="student_results"
+        SubjectClassSetup,
+        on_delete=models.CASCADE,
+        related_name="student_results",
+        verbose_name="إعداد المادّة للشعبة",
     )
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="subject_results")
-    semester = models.CharField(max_length=2, choices=AssessmentPackage.SEMESTER, default="S1")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="subject_results", verbose_name="المدرسة"
+    )
+    semester = models.CharField(
+        max_length=2, choices=AssessmentPackage.SEMESTER, default="S1", verbose_name="الفصل الدراسي"
+    )
 
     # درجة كل باقة من مجموع الفصل (ليس نسبة مئوية)
     p1_score = models.DecimalField(
@@ -424,7 +470,7 @@ class StudentSubjectResult(models.Model):
     semester_max = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal("40"), verbose_name="الدرجة القصوى للفصل"
     )
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "نتيجة فصل"
@@ -482,12 +528,21 @@ class AnnualSubjectResult(models.Model):
     STATUS = list(RESULT_STATUS_CHOICES)
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="annual_results")
-    setup = models.ForeignKey(
-        SubjectClassSetup, on_delete=models.CASCADE, related_name="annual_results"
+    student = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="annual_results", verbose_name="الطالب"
     )
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="annual_results")
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    setup = models.ForeignKey(
+        SubjectClassSetup,
+        on_delete=models.CASCADE,
+        related_name="annual_results",
+        verbose_name="إعداد المادّة للشعبة",
+    )
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="annual_results", verbose_name="المدرسة"
+    )
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
 
     # مجاميع الفصلين (من نتائجهما المحسوبة)
     s1_total = models.DecimalField(
@@ -514,7 +569,9 @@ class AnnualSubjectResult(models.Model):
     pass_grade = models.DecimalField(
         max_digits=5, decimal_places=2, default=Decimal("50"), verbose_name="درجة النجاح"
     )
-    status = models.CharField(max_length=12, choices=STATUS, default="incomplete", db_index=True)
+    status = models.CharField(
+        max_length=12, choices=STATUS, default="incomplete", db_index=True, verbose_name="الحالة"
+    )
     #: موقفُ الطالب في موادّه كلِّها — واحدٌ في كلّ صفوفه (القواعدُ العابرة: م13، م23، م29، م50).
     standing = models.CharField(
         max_length=12,
@@ -522,17 +579,27 @@ class AnnualSubjectResult(models.Model):
         default="incomplete",
         db_default="incomplete",
         db_index=True,
+        verbose_name="الموقف",
     )
     #: الكلمةُ مكانَ المجموع (م30): غائب/معذور/محروم.
     mark = models.CharField(
-        max_length=10, choices=MARK_CHOICES, blank=True, default="", db_default=""
+        max_length=10,
+        choices=MARK_CHOICES,
+        blank=True,
+        default="",
+        db_default="",
+        verbose_name="بدل المجموع",
     )
     #: موضعُ الحكم من السياسة («م27»، «م50 القاعدة الثالثة» …).
-    article = models.CharField(max_length=40, blank=True, default="", db_default="")
+    article = models.CharField(
+        max_length=40, blank=True, default="", db_default="", verbose_name="المادّة من السياسة"
+    )
     #: تنبيهٌ للمراجعة لا حكم (م50-الأولى «في أية مادة»، وبنيةٌ خارج القرار …) — من
     #: `SubjectVerdict.review`، وقد تتراكم عدّةُ تنبيهاتٍ بفاصل «؛» لمادّةٍ واحدة (`_add_review`).
     #: كان 300 يقصّ تنبيهاتٍ مركَّبةً وسط الجملة (جولة 8)؛ 500 تتّسع لثلاثة تنبيهاتٍ نمطيّة.
-    review = models.CharField(max_length=500, blank=True, default="", db_default="")
+    review = models.CharField(
+        max_length=500, blank=True, default="", db_default="", verbose_name="تنبيه للمراجعة"
+    )
     # ── مدخلاتُ الدور الثاني — وقائعُ تُرصد لا تُحسب، وإعادةُ الحساب لا تمسّها ──
     second_round_score = models.DecimalField(
         max_digits=5,
@@ -560,7 +627,7 @@ class AnnualSubjectResult(models.Model):
     ruleset = models.PositiveSmallIntegerField(
         default=0, db_default=0, verbose_name="إصدار قواعد الحكم"
     )
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "نتيجة سنوية"
@@ -605,11 +672,18 @@ class ExamDeprivation(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="exam_deprivations")
-    student = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="exam_deprivations"
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="exam_deprivations", verbose_name="المدرسة"
     )
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    student = models.ForeignKey(
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="exam_deprivations",
+        verbose_name="الطالب",
+    )
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
     gate = models.CharField(max_length=12, choices=GATE_CHOICES, verbose_name="الاختبار")
     deprived = models.BooleanField(default=True, verbose_name="محروم")
     decided_on = models.DateField(verbose_name="تاريخ القرار")
@@ -622,7 +696,7 @@ class ExamDeprivation(models.Model):
         verbose_name="سجّله",
     )
     note = models.CharField(max_length=300, blank=True, verbose_name="ملاحظة")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "قرار أهليّة اختبار"
@@ -655,11 +729,15 @@ class ExamMisconduct(models.Model):
     )
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="exam_misconducts")
-    student = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="exam_misconducts"
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="exam_misconducts", verbose_name="المدرسة"
     )
-    academic_year = models.CharField(max_length=9, default=default_academic_year)
+    student = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="exam_misconducts", verbose_name="الطالب"
+    )
+    academic_year = models.CharField(
+        max_length=9, default=default_academic_year, verbose_name="العام الدراسي"
+    )
     kind = models.CharField(max_length=10, choices=KIND_CHOICES, verbose_name="الواقعة")
     setup = models.ForeignKey(
         SubjectClassSetup,
@@ -686,7 +764,7 @@ class ExamMisconduct(models.Model):
         verbose_name="سجّله",
     )
     note = models.CharField(max_length=300, blank=True, verbose_name="ملاحظة")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "واقعة انضباط اختبار"
