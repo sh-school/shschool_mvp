@@ -368,6 +368,10 @@ def test_the_platform_keeps_one_stylesheet():
         # لوحةُ الإدارة لا تحمل custom.css (تَرِث قالبَ جانغو) فلها ورقةٌ واحدةٌ بألوان المنصّة منقولةً حرفيّاً؛
         # وحارسُ tests/test_admin_theme.py يفشل إن انجرفت قيمُها عن رموز المنصّة.
         pathlib.Path("static/css/admin_theme.css"),
+        # دليلُ الهويّة لمطوّر المنصّة وحدَه (قرارُ المالك 2026-09-23): أصنافُ `sg-` خارج الحِمل
+        # المشحون لكلّ مستخدم، تحمّلها صفحاتُ الدليل الثلاث فقط. رموزُها من المركزيّ لا نسخةٌ منها،
+        # وحارساه في tests/test_styleguide.py (من يحمّله، ولا `sg-` في ملفّات المنصّة).
+        pathlib.Path("static/css/styleguide.css"),
     }
     found = {
         path

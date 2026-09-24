@@ -6,6 +6,7 @@
 لونٍ في `:root` يُعرض باسمه، وكلُّ معنًى في `core/icons.py`.
 """
 
+import pathlib
 import re
 
 import pytest
@@ -94,10 +95,78 @@ def test_the_icon_page_renders_every_meaning(client, developer_user):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("name", ["ui_components", "icon_preview"])
+@pytest.mark.parametrize("name", ["ui_components", "icon_preview", "ui_layouts"])
 def test_the_guide_is_for_the_platform_developer_only(client, teacher_user, principal_user, name):
     """قرارُ المالك 2026-09-20: لا يراه معلّمٌ ولا مدير — 403 — ولا زائرٌ غيرُ مسجَّل."""
     assert client.get(reverse(name)).status_code == 302
     for user in (teacher_user, principal_user):
         client.force_login(user)
         assert client.get(reverse(name)).status_code == 403, (name, user)
+
+
+#: الأنماطُ السبعة بقرار D-16 (2026-09-23) — المواصفاتُ في docs/design/page_layouts.md.
+LAYOUTS = ("dashboard", "hub", "list", "detail", "form", "sheet", "report")
+
+
+@pytest.mark.django_db
+def test_the_layouts_page_shows_the_seven_layouts_and_the_four_states(client, developer_user):
+    client.force_login(developer_user)
+
+    html = client.get(reverse("ui_layouts")).content.decode()
+
+    for name in LAYOUTS:
+        assert f"layout-{name}" in html, name
+    # ثلاثةُ أجهزةٍ لكلّ نمط: سطحُ المكتب واللوحيّ والجوال.
+    assert html.count('class="sg-wire"') == 3 * len(LAYOUTS)
+    for state in ("تحميل", "فارغة", "خطأ", "ممتلئة"):
+        assert state in html, state
+    assert reverse("ui_components") in html
+
+
+@pytest.mark.django_db
+def test_the_guide_links_the_layouts_page(client, developer_user):
+    client.force_login(developer_user)
+
+    html = client.get(reverse("ui_components")).content.decode()
+
+    assert reverse("ui_layouts") in html
+
+
+def test_the_layouts_spec_names_the_same_seven_layouts():
+    spec = (pathlib.Path(__file__).resolve().parents[1] / "docs/design/page_layouts.md").read_text(
+        encoding="utf-8"
+    )
+    assert sorted(set(re.findall(r"`layout-([a-z]+)`", spec)) - {"custom"}) == sorted(LAYOUTS)
+
+
+# ── أنماطُ الدليل في ملفٍّ مستقلٍّ لا يُشحن لغير المطوّر ──
+
+_ROOT = pathlib.Path(__file__).resolve().parents[1]
+_GUIDE_SHEET = "css/styleguide.css"
+
+
+def test_only_the_guide_pages_load_the_guide_sheet():
+    loaders = sorted(
+        path.relative_to(_ROOT / "templates").as_posix()
+        for path in (_ROOT / "templates").rglob("*.html")
+        if _GUIDE_SHEET in path.read_text(encoding="utf-8")
+    )
+    assert loaders == [
+        "styleguide/components.html",
+        "styleguide/icon_preview.html",
+        "styleguide/layouts.html",
+    ]
+
+
+def test_guide_classes_live_only_in_the_guide_sheet():
+    """`sg-` في ملفّات المنصّة يعود إلى الحِمل المشحون لكلّ مستخدم."""
+    assert not re.search(r"\.sg-[\w-]", read_css())
+    assert ".sg-wire" in (_ROOT / "static" / _GUIDE_SHEET).read_text(encoding="utf-8")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("name", ["ui_components", "icon_preview", "ui_layouts"])
+def test_each_guide_page_links_the_guide_sheet(client, developer_user, name):
+    client.force_login(developer_user)
+
+    assert "styleguide" in client.get(reverse(name)).content.decode().split("</head>")[0]

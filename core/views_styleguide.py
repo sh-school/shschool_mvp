@@ -1,7 +1,7 @@
 """دليلُ الهويّة — مرجعُ المطوّرين: أمثلةٌ توضيحيّةٌ بلا بياناتِ أشخاص.
 
-صفحتان: مكوّناتُ الواجهة ولوحةُ الرموز (`styleguide/components/`)، والأيقونات
-(`styleguide/icons/`). و`styleguide/` القديم تحويلٌ دائمٌ إلى الأولى في `urls.py`.
+ثلاثُ صفحات: مكوّناتُ الواجهة ولوحةُ الرموز (`styleguide/components/`)، والأيقونات
+(`styleguide/icons/`)، وأنماطُ تخطيط الصفحات (`styleguide/layouts/`، قرار D-16). و`styleguide/` القديم تحويلٌ دائمٌ إلى الأولى في `urls.py`.
 """
 
 from django.shortcuts import render
@@ -33,3 +33,9 @@ def icon_preview(request):
         "styleguide/icon_preview.html",
         {"icon_groups": icon_dictionary_groups(), "icon_count": len(ICONS)},
     )
+
+
+@developer_only
+def ui_layouts(request):
+    """أنماطُ التخطيط السبعة — المواصفاتُ في docs/design/page_layouts.md، والأصنافُ في LAY-03."""
+    return render(request, "styleguide/layouts.html")
