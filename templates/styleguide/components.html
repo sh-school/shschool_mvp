@@ -1,5 +1,7 @@
 {% extends "base/base.html" %}
-{% load ui icons %}
+{% load static ui icons %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/styleguide.css' %}">{% endblock %}
 
 {% block title %}دليلُ الهويّة{% endblock %}
 
@@ -12,6 +14,7 @@
 
   {% page_header "دليلُ الهويّة" subtitle="المرجعُ الواحد: رموزُ :root، ووسومُ core/templatetags/ui.py، وأصنافُ القسم 39 — الأمثلةُ توضيحيّة" icon="wings" %}
     <a href="{% url 'icon_preview' %}" class="btn-secondary btn-sm">{% icon "reinforcement" %} الأيقونات ({{ icon_count }})</a>
+    <a href="{% url 'ui_layouts' %}" class="btn-secondary btn-sm">{% icon "dashboard" %} أنماطُ التخطيط</a>
   {% endpage_header %}
 
   {# ══ 1 ══ #}

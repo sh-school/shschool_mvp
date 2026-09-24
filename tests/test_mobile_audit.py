@@ -24,6 +24,9 @@ pytestmark = pytest.mark.django_db
 
 UPDATE_CMD = "MOBILE_AUDIT_UPDATE=1 pytest tests/test_mobile_audit.py -s"
 
+#: ما تُحال إليه جلسةٌ لم تثبت — فصفحةٌ انتهت إليه لم تُقَس.
+LOGIN_PATH = "/auth/login/"
+
 #: رحلاتُ الأدوار (Q-01): الحسابُ المبذور، ثمّ صفحاتُه بترتيب يومه.
 JOURNEYS = {
     "leadership": (
@@ -82,6 +85,10 @@ def _signed_in_state(browser, base: str, user) -> dict:
         page.fill('input[name="identifier"]', user.national_id)
         page.fill('input[name="password"]', "testpass123")  # pragma: allowlist secret
         page.click('button[type="submit"]')
+        # الانتظارُ لمغادرة صفحة الدخول لا لسكون الشبكة: WebKit يبدأ الانتقالَ بعد النقر متأخّراً،
+        # فـ`networkidle` يجد الصفحةَ ساكنةً قبله ويعود وهي صفحةُ الدخول. وصفحةُ الدخول تردّ 200
+        # كغيرها، فكانت تُقاس على أنّها صفحةُ الدور «تحسّناً» كاذباً (رحلةُ القيادة، 2026-09-23).
+        page.wait_for_url(lambda url: LOGIN_PATH not in url, timeout=30_000)
         page.wait_for_load_state("networkidle")
         return context.storage_state()
     finally:
@@ -109,6 +116,9 @@ def _measure_all(request, playwright, base: str) -> dict[str, dict]:
                             assert (
                                 response and response.ok
                             ), f"{role}:{name} {response and response.status}"
+                            assert (
+                                LOGIN_PATH not in page.url
+                            ), f"{engine}/{role}:{name} أُحيل إلى الدخول — الجلسةُ لم تثبت"
                             page.evaluate("document.fonts.ready.then(() => 1)")
                             results[f"{engine}/{profile}/{role}:{name}"] = audit.measure_page(page)
                     finally:

@@ -96,6 +96,9 @@ jobs:
         # العتبةُ من `[tool.coverage.report].fail_under` — pytest-cov يقرؤها.
         # Playwright خارج هذه العمليّة: حلقةُ async التي يُبقيها fixture الجلسة تُسقط كلَّ
         # اختبارٍ يلمس القاعدةَ بعده بـSynchronousOnlyOperation (27 فشلاً، 2026-09-19).
+        # والقائمةُ تُنسى: ملفّان أُضيفا بلا استثناء (#416 في 09-19، و09-22) فسقطت الليالي من 09-20
+        # حتّى 09-23. فحارسُ `tests/test_nightly_isolates_browser_tests.py` يُسقط البناءَ إن طلب ملفٌّ
+        # `pytest_playwright` ولم يُستثنَ هنا ويُشغَّل في الخطوة المنفصلة أدناه.
         run: |
           python -m pytest \
             --ignore=tests/e2e \
@@ -103,6 +106,8 @@ jobs:
             --ignore=tests/test_web_vitals_budget.py \
             --ignore=tests/test_mobile_audit.py \
             --ignore=tests/test_lighthouse_mobile.py \
+            --ignore=tests/test_action_cards_fit_narrow_screens.py \
+            --ignore=tests/test_page_nav_htmx_process.py \
             --junit-xml=test-results.xml \
             -p no:cacheprovider \
             --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
@@ -117,6 +122,8 @@ jobs:
           python -m pytest tests/e2e tests/test_a11y_axe_ratchet.py \
             $(ls tests/test_web_vitals_budget.py 2>/dev/null) \
             tests/test_mobile_audit.py \
+            tests/test_action_cards_fit_narrow_screens.py \
+            tests/test_page_nav_htmx_process.py \
             -p no:cacheprovider -v
 
       # Q-03: Lighthouse للجوال على خمس صفحاتٍ رئيسة — ليلاً لا في البوّابة (ثلاثُ دقائق
