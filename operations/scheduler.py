@@ -29,6 +29,7 @@ from .models import (
     TeacherPreference,
     TimeSlotConfig,
 )
+from .scheduler_audit import unplaced_message
 from .scheduler_constraints import (
     calculate_quality_score,
     evaluate_soft_constraints,
@@ -1634,7 +1635,7 @@ def generate_schedule(
     breaches = summary(grid_breaches(grid, tasks, blocked_slots))
 
     for task in leftovers:
-        errors.append(f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})")
+        errors.append(unplaced_message(grid, task, blocked_slots))
     errors.extend(_slack_advice(leftovers, prefs_qs, blocked_slots, tasks))
     # ومن بقيت له حصّةٌ متعذّرةٌ لا يُقال عنه «يومٌ فارغ» — فالفراغُ أثرُها.
     errors.extend(
