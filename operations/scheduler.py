@@ -536,7 +536,9 @@ class ScheduleGrid:
             if tid == teacher_id and period == at
         }
 
-    def teacher_consecutive_counted(self, teacher_id: str, day: int, period: int) -> int:
+    def teacher_consecutive_counted(
+        self, teacher_id: str, day: int, period: int, band_id: str | None = None
+    ) -> int:
         """تتابعُ المعلّم عبر الشُّعب — وحصّةُ المكان الخاصّ تُعيد العدّاد.
 
         والتتابعُ صفةُ معلّمٍ لا صفةُ شعبة: حصّتان متتاليتان في شعبتين
@@ -553,15 +555,23 @@ class ScheduleGrid:
         لم تُسجّل ملعباً تبقى بدنيّتُها قاطعةً بطبيعتها — فلا يسقط المعنى بسقوط
         أحد المصدرين.
         """
+        from .scheduler_bell import cells_joined
+
+        if band_id is None:
+            here = self.teacher_task_at(teacher_id, day, period)
+            band_id = getattr(here, "band_id", "") or ""
         count = 0
         for step in (-1, 1):
-            p = period + step
+            p, at, at_band = period + step, period, band_id
             while 1 <= p <= 7:
                 task = self.teacher_task_at(teacher_id, day, p)
                 if task is None or task.resources or task.pedagogy == "activity":
                     break
+                # والفسحةُ والصلاةُ تفصلان (قرارُ المالك 2026-09-24): لا يُعدّ ما عبرهما تتابعاً.
+                if not cells_joined(self, day, at, at_band, p, task.band_id or ""):
+                    break
                 count += 1
-                p += step
+                p, at, at_band = p + step, p, task.band_id or ""
         return count
 
     def teacher_widest_gap_with(self, teacher_id: str, day: int, periods) -> int:
@@ -1604,18 +1614,22 @@ def generate_schedule(
     # ويجري ولو بقيت حصّةٌ متعذّرة: ما وُضع يُحسَّن، والمتعذّرُ يبقى مذكوراً.
     from .scheduler_audit import grid_breaches, summary
     from .scheduler_improve import improve
-    from .scheduler_settle import settle
+    from .scheduler_settle import settle_safely
 
     if stopped():
         return _stopped_result()
     # السدادُ قبل التحسين وبعده (SCH-03): ما كُسر برخصةٍ يُعاد إليه أوّلاً، فالصلبُ قبل المرن.
-    settled = [settle(grid, tasks, blocked_slots, preferences, school, time.time() + budget / 4)]
+    settled = [
+        settle_safely(grid, tasks, blocked_slots, preferences, school, time.time() + budget / 4)
+    ]
+    if stopped():
+        return _stopped_result()
     deadline = max(start_time + budget, time.time() + budget * 0.5)
     improvement = improve(
         grid, tasks, blocked_slots, preferences, lab_ctx, deadline, random.Random(101)
     )
     settled.append(
-        settle(grid, tasks, blocked_slots, preferences, school, time.time() + budget / 4)
+        settle_safely(grid, tasks, blocked_slots, preferences, school, time.time() + budget / 4)
     )
     breaches = summary(grid_breaches(grid, tasks, blocked_slots))
 

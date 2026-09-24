@@ -38,7 +38,7 @@ from .models import (
     TeacherExemption,
     TeacherPreference,
 )
-from .schedule_breaches import approval_refusal, draft_breaches
+from .schedule_breaches import draft_breaches
 from .schedule_paper import paper_geometry
 from .schedule_selectors import DEFAULT_ORIENTATION, ORIENTATIONS, PAPERS
 from .schedule_selectors import browse_lists as _browse_lists
@@ -783,7 +783,6 @@ def smart_schedule_view(request):
             # يضغطه فيُصدَم بـ403.
             "can_approve": request.user.is_superuser
             or request.user.get_role() in ("principal", "vice_academic"),
-            "can_discard": has_capability(request.user, "schedule.settings"),
             "year": year,
             "baseline": baseline,
             "total_weekly": total_weekly,
@@ -1120,35 +1119,6 @@ def teacher_preferences(request):
 
 
 # ── اعتماد الجدول ─────────────────────────────────────────────────
-
-
-@login_required
-@capability_required("schedule.settings")
-@require_POST
-def approve_schedule(request, generation_id):
-    """اعتماد الجدول المولّد"""
-    school = request.school
-    gen = get_object_or_404(ScheduleGeneration, id=generation_id, school=school)
-
-    if gen.status != "draft":
-        messages.warning(request, "هذا الجدول ليس مسودة — لا يمكن اعتماده")
-        return redirect("smart_schedule")
-    # مخالفةٌ صلبةٌ في المسودّة لا تُعتمد إلّا بإقرارٍ صريحٍ بها (SCH-05).
-    refusal = approval_refusal(gen, request.POST)
-    if refusal:
-        messages.error(request, refusal)
-        return _smart_schedule_redirect(gen.academic_year)
-
-    # الاعتمادُ كلُّه في الخدمة — الزرُّ وأمرُ النقل يمرّان من الباب نفسِه.
-    result = ScheduleService.approve_generation(gen)
-    sync = result["sync"]
-
-    messages.success(
-        request,
-        f"تم اعتماد الجدول وإشعار {result['notified']} معلم — جلساتُ الأسبوع: "
-        f"حُذف {sync['deleted']}، أُنشئ {sync['created']}، أُبقي {sync['kept']}",
-    )
-    return redirect("smart_schedule")
 
 
 def _one_of(raw, allowed, fallback):

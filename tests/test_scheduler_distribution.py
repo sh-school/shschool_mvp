@@ -214,25 +214,19 @@ def test_the_ban_is_on_the_last_period_alone():
 # ── الملاذُ الأخير: رخصةٌ تُصرَف بعد عجز ما دونها ────────────────────
 
 
-def test_the_last_resort_licence_lets_one_day_take_an_extra_period():
-    """`allow_dense` تسمح ليومٍ بحصّةٍ زائدةٍ عن القسمة — ولا شيءَ سواها.
+def test_no_licence_lets_a_day_take_more_than_the_division():
+    """توزيعُ المادّة لا يُكسَر البتّة — قرارُ المالك 2026-09-24 (D-17).
 
-    وهي ثمنُ الخانة الأخيرة في جدولٍ إشغالُه تامّ: نصابُ الشعبة أربعٌ وثلاثون
-    لا يُمَسّ، فيُدفع الثمنُ من ترتيب اليوم لا من المنهج.
+    كانت `allow_dense` تسمح ليومٍ بحصّةٍ زائدةٍ عن القسمة ثمنَ الخانة الأخيرة، فاعتُمد جدولٌ
+    باثنتي عشرةَ مخالفةً. وقِيس المولّدُ بلا رخصةٍ على نسخة الإنتاج: 869 من 869 بلا متعذّر.
+    فلا رخصةَ من رخصتَي الجولات، ولا الاثنتان معاً، ولا يومٌ بحصّتين ولا بثلاث.
     """
-    grid = ScheduleGrid()
-    fill(grid, weekly=5, days=5, per_day={0: 1})
+    for taken in (1, 2):
+        grid = ScheduleGrid()
+        fill(grid, weekly=5, days=5, per_day={0: taken})
 
-    assert not is_slot_valid(grid, 0, 6, task(weekly=5)), "القسمةُ تمنع الثانية"
-    assert is_slot_valid(grid, 0, 6, task(weekly=5), False, True), "والرخصةُ تأذن بها"
-
-
-def test_the_licence_grants_one_period_not_a_free_hand():
-    """حصّةٌ واحدةٌ زائدة — لا كومةٌ في يوم."""
-    grid = ScheduleGrid()
-    fill(grid, weekly=5, days=5, per_day={0: 2})
-
-    assert not is_slot_valid(grid, 0, 6, task(weekly=5), False, True), "والثالثةُ ممنوعةٌ ولو بالرخصة"
+        for licences in ((False, False), (True, False), (False, True), (True, True)):
+            assert not is_slot_valid(grid, 0, 6, task(weekly=5), *licences), (taken, licences)
 
 
 # ── على مولّدٍ كامل ──────────────────────────────────────────────────

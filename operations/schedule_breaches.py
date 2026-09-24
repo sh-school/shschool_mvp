@@ -61,7 +61,16 @@ def draft_breaches(snapshot: dict | None) -> dict | None:
     return {"count": int(recorded.get("count") or 0), "groups": groups}
 
 
-def approval_refusal(gen: ScheduleGeneration, data: Mapping[str, Any]) -> str:
+class BreachesNotAcknowledgedError(Exception):
+    """اعتمادُ مسودّةٍ فيها مخالفاتٌ صلبةٌ لم يُقَرّ بها — السببُ يُقال كما هو."""
+
+
+def acknowledged(data: Mapping[str, Any]) -> bool:
+    """أأقرّ الطلبُ بالمخالفات؟ — حقلُ النموذج بقيمته الصريحة."""
+    return data.get(ACKNOWLEDGE_FIELD) == "1"
+
+
+def approval_refusal(gen: ScheduleGeneration, acknowledged_: bool) -> str:
     """سببُ رفض الاعتماد — أو نصٌّ فارغٌ إن جاز.
 
     القيدُ الصلبُ لا يُكسر بصمت: إمّا يُسدَّد قبل انتهاء التوليد، وإمّا يُعلَن
@@ -70,7 +79,7 @@ def approval_refusal(gen: ScheduleGeneration, data: Mapping[str, Any]) -> str:
     """
     breaches = draft_breaches(gen.config_snapshot)
     count = breaches["count"] if breaches else 0
-    if not count or data.get(ACKNOWLEDGE_FIELD) == "1":
+    if not count or acknowledged_:
         return ""
     return (
         f"لم يُعتمد الجدول: في المسودّة مخالفاتٌ لقيودٍ صلبة (عددُها {count}). "

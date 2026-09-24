@@ -274,9 +274,9 @@ def test_every_refusal_is_named_not_only_the_first():
 
     assert slot_violations(grid, 0, 3, maths[1]) == ["HC1", "HC6"]
     assert is_slot_valid(grid, 0, 3, maths[1]) is False
-    # الرخصةُ تُسقط ما تملكه وحدَه: القسمةُ تلين في الملاذ الأخير، والنواةُ لا تلين.
-    assert slot_violations(grid, 0, 3, maths[1], allow_dense=True) == ["HC1"]
-    assert slot_violations(grid, 0, 5, maths[1], allow_dense=True) == []
+    # الرخصةُ لا تُسقط القسمةَ ولا النواةَ: توزيعُ المادّة لا يُكسَر البتّة (قرارُ المالك D-17).
+    assert slot_violations(grid, 0, 3, maths[1], allow_dense=True) == ["HC1", "HC6"]
+    assert slot_violations(grid, 0, 5, maths[1], allow_dense=True) == ["HC6"]
 
 
 # ══════════════════════════════════════════════════════════════
@@ -422,7 +422,10 @@ def test_an_empty_day_is_one_breach_for_the_teacher_not_one_per_lesson():
     for task, (day, period) in zip(tasks, cells, strict=True):
         grid.place(day, period, task)
 
-    assert [b.key for b in grid_breaches(grid, tasks)] == [("HC14", "t-1"), ("HC16B", "t-1")]
+    assert [b.key for b in grid_breaches(grid, tasks)] == [
+        ("HC14", ("t-1",)),
+        ("HC16B", ("t-1",)),
+    ]
 
     grid.remove("c-7", 3, 3)
     grid.place(4, 2, tasks[7])
@@ -446,24 +449,16 @@ def three_doubles():
     return grid, doubles
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="HC16B بلا إعفاء HC14: من مواضعُه دون أيّامه يُبلَّغ عنه في كلّ جدولٍ صحيح",
-)
 def test_three_doubles_on_three_days_are_not_a_breach():
     grid, doubles = three_doubles()
     for task, day in zip(doubles, range(3), strict=True):
         grid.place(day, 2, task)
-    # التغطيةُ تعفيه صراحةً (ثلاثةُ مواضع < خمسة أيّام) — والحدُّ الأدنى لا يعفيه.
+    # التغطيةُ تعفيه صراحةً (ثلاثةُ مواضع < خمسة أيّام) — والحدُّ الأدنى يعفيه كذلك.
     assert grid.coverage["t-art"] == (3, 6, frozenset(DAYS))
 
     assert grid_breaches(grid, doubles) == []
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="HC16B يرفض المزدوجةَ الثانية في كلّ خانةٍ فلا تنزل إلّا بملاذ الكثافة",
-)
 def test_the_second_double_needs_no_last_resort():
     grid, doubles = three_doubles()
     grid.place(0, 2, doubles[0])

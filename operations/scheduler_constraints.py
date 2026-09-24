@@ -17,10 +17,15 @@ scheduler_constraints.py — القيود الصلبة والمرنة للجدو
 
 from __future__ import annotations
 
-from contextlib import contextmanager
-from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
+
+from .scheduler_bell import (  # noqa: F401  (تُصدَّر من هنا لمن استوردها منه)
+    JOINABLE_GAP_MINUTES,
+    cells_joined,
+    joinable_pairs,
+    joinable_pairs_cached,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -255,8 +260,14 @@ def check_week_floor_reservation(
         info = grid.coverage.get(member.teacher_id)
         if info is None:
             continue
-        _placements, load, days = info
+        placements, load, days = info
         if not days or day not in days:
+            continue
+        #: ومن مواضعُه دون أيّامه — فنّانٌ بثلاثِ مزدوجاتٍ على خمسةِ أيّام — لا يبلغ حدَّ كلِّ يوم
+        #: مهما وُزّعت: المزدوجةُ حصّتان في يومٍ بحكمها. فمستثنىً كما في التغطية (HC14)، وإلّا
+        #: رُفضت كلُّ خانةٍ للمزدوجة الثانية بهذا القيد وحدَه ولم تُوضع إلّا في الملاذ الأخير،
+        #: وعُدّ الجدولُ المنتهي مخالفاً وهو سليم.
+        if placements < len(days):
             continue
         floor = load // len(days)
         if floor == 0:
@@ -315,9 +326,18 @@ def check_subject_not_adjacent(
     #: والحدُّ من سقف اليوم لا من رقمٍ محفور: خميسُ الإعداديّ ستُّ حصصٍ لا سبع.
     last = get_max_periods_for_day(day, getattr(task, "level_type", ""))
     neighbours = [at for at in (period - 1, period + task.span) if 1 <= at <= last]
+    #: والفسحةُ والصلاةُ تفصلان (قرارُ المالك 2026-09-24): جارةٌ تعبر استراحةً ليست تلاصقاً.
     return not any(
         (found := grid.get_task_at(task.class_id, day, at)) is not None
         and found.subject_id == task.subject_id
+        and cells_joined(
+            grid,
+            day,
+            at,
+            task.band_id,
+            period if at < period else period + task.span - 1,
+            task.band_id,
+        )
         for at in neighbours
     )
 
@@ -509,78 +529,6 @@ MAX_SAME_PERIOD = 2
 #: آخرُ حصّةٍ في اليوم.
 LAST_PERIOD = 7
 
-#: أطولُ فاصلٍ بين حصّتين يبقيان معه في كتلةٍ واحدة (بالدقائق).
-#: فخمسُ دقائقَ انتقالٌ بين صفّين، وعشرون فسحةٌ وخمسَ عشرةَ صلاة.
-JOINABLE_GAP_MINUTES = 10
-
-#: أزواجُ الجرس المحفوظةُ لمدّة توليدٍ واحد — `None` خارجَ التوليد.
-#:
-#: `joinable_pairs` تُسأل عند كلّ مرشَّحٍ لحصّةٍ مزدوجة: في الوضع الجشع،
-#: وفي كلّ إزاحةٍ بعمقٍ ثلاث، وفي كلّ محاولةٍ من الثماني. وعددُها يتبع
-#: ضيقَ البحث لا حجمَ المدرسة — على صورةٍ مطابقةٍ لبيانات الإنتاج
-#: (2026-09-03) كانت 6,168 استعلاماً في التوليد الواحد، نحوَ ثلث زمنه.
-#: والجرسُ لا يتغيّر في أثناء التوليد، فيُقرأ مرّةً عند بدئه ويُنسى عند
-#: انتهائه.
-#:
-#: وهو سياقٌ لا ذاكرةٌ عامّة: مَن ينادي الدالّةَ منفردةً — الاختباراتُ
-#: تُبدّل الجرسَ بين نداءين — يقرأ القاعدةَ كما كان.
-_PAIRS_CACHE: ContextVar[dict | None] = ContextVar("joinable_pairs_cache", default=None)
-
-
-@contextmanager
-def joinable_pairs_cached():
-    """يفتح ذاكرةَ أزواج الجرس لمدّة الكتلة — يستدعيه `generate_schedule`."""
-    token = _PAIRS_CACHE.set({})
-    try:
-        yield
-    finally:
-        _PAIRS_CACHE.reset(token)
-
-
-def joinable_pairs(school, band_id: str = "") -> set:
-    """أزواجُ الحصص المتلاصقةِ فعلاً — من جرس نطاق الشعبة لا من الكود.
-
-    الحصّةُ المزدوجةُ حصّتان لا تقطعهما فسحةٌ ولا صلاة. والفسحةُ في الطابق
-    الأرضيّ بعد الثالثة وفي العلويّ بعد الرابعة — فالثالثةُ والرابعةُ كتلةٌ
-    في العلويّ وليستا كتلةً في الأرضيّ. وكان الجرسُ يُقرأ للمدرسة كلِّها
-    فتختلط أجراسُ النطاقات، ويُجاز تلاصقٌ عبر فسحةٍ لا يعرفها.
-
-    ومدرسةٌ لم تُدخل أوقاتَها بعد: لا كتلَ تُعرَف، فلا يُمنع تجاورٌ بحجّة
-    فاصلٍ لا نعرفه. والصمتُ لا يُقرأ منعاً.
-    """
-    cache = _PAIRS_CACHE.get()
-    key = (getattr(school, "pk", school), band_id or "")
-    if cache is not None and key in cache:
-        return cache[key]
-    pairs = _joinable_pairs_from_bell(school, band_id)
-    if cache is not None:
-        cache[key] = pairs
-    return pairs
-
-
-def _joinable_pairs_from_bell(school, band_id: str = "") -> set:
-    from operations.models import TimeSlotConfig
-
-    bell = TimeSlotConfig.objects.filter(school=school, day_type="regular", is_break=False)
-    rows = list(bell.filter(band_id=band_id).order_by("period_number")) if band_id else []
-    if not rows:
-        # جرسُ المدرسة الافتراضيّ لمن لا نطاقَ له، أو لنطاقٍ بلا جرس.
-        rows = list(bell.filter(band__isnull=True).order_by("period_number"))
-    if not rows:
-        return {(p, p + 1) for p in range(1, LAST_PERIOD)}
-
-    pairs = set()
-    for earlier, later in zip(rows, rows[1:], strict=False):
-        if later.period_number != earlier.period_number + 1:
-            continue
-        gap = (later.start_time.hour * 60 + later.start_time.minute) - (
-            earlier.end_time.hour * 60 + earlier.end_time.minute
-        )
-        if gap <= JOINABLE_GAP_MINUTES:
-            pairs.add((earlier.period_number, later.period_number))
-    return pairs
-
-
 #: أكثرُ ما يُقبل من حصص طرفِ اليوم الواحد للمعلّم في الأسبوع — للأولى سقفُها
 #: وللسابعة سقفُها.
 #:
@@ -632,7 +580,7 @@ def check_max_consecutive(
     #: قرارٌ في حقّ الشخص يسبق كلَّ رخصةٍ عامّةٍ أو موضعيّة.
     if task.consecutive_cap:
         return all(
-            _run_length(grid, m.teacher_id, day, period) < task.consecutive_cap
+            _run_length(grid, m.teacher_id, day, period, task.band_id) < task.consecutive_cap
             for m in task.members
         )
 
@@ -640,7 +588,10 @@ def check_max_consecutive(
     #: «عن طيبِ خاطر»، وألغتها الإدارةُ 2026-09-06 — التجاورُ ضرورةٌ لا تفضيل،
     #: فلا يُفتح إلّا في جولة الاسترخاء لحصّةٍ لا موضعَ لها.
     limit = MAX_CONSECUTIVE + 1 if allow_adjacent else MAX_CONSECUTIVE
-    return all(_run_length(grid, member.teacher_id, day, period) < limit for member in task.members)
+    return all(
+        _run_length(grid, member.teacher_id, day, period, task.band_id) < limit
+        for member in task.members
+    )
 
 
 def check_max_gap(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool:
@@ -664,8 +615,13 @@ def check_max_gap(grid: ScheduleGrid, day: int, period: int, task: Task) -> bool
     )
 
 
-def _run_length(grid: ScheduleGrid, teacher_id: str, day: int, period: int) -> int:
-    """طولُ التلاصق حول هذه الخانة — بلا استثناءِ مادّةٍ ولا صنف.
+def _run_length(
+    grid: ScheduleGrid, teacher_id: str, day: int, period: int, band_id: str = ""
+) -> int:
+    """طولُ التلاصق المتّصل حول هذه الخانة — بلا استثناءِ مادّةٍ ولا صنف.
+
+    ولا يعبر استراحةً: الفسحةُ والصلاةُ تفصلان (قرارُ المالك 2026-09-24)، فيُحكم
+    بالساعة لا برقم الحصّة (`scheduler_bell`). وبلا جرسٍ معروفٍ يبقى الرقمُ حَكَماً.
 
     و`teacher_consecutive_counted` تُعفي `PE`/`SCI` من العدّ، وهو تخفيفٌ يليق
     بترجيحٍ مرن. أمّا المنعُ الصلبُ فيسأل سؤالاً واحداً: أيقف المعلّمُ حصّتين
@@ -673,9 +629,15 @@ def _run_length(grid: ScheduleGrid, teacher_id: str, day: int, period: int) -> i
     """
     count = 0
     for step in (-1, 1):
+        at, at_band = period, band_id
         neighbour = period + step
         while 1 <= neighbour <= 7 and grid.teacher_busy(teacher_id, day, neighbour):
+            found = grid.teacher_task_at(teacher_id, day, neighbour)
+            band = getattr(found, "band_id", "") or ""
+            if not cells_joined(grid, day, at, at_band, neighbour, band):
+                break
             count += 1
+            at, at_band = neighbour, band
             neighbour += step
     return count
 
@@ -882,7 +844,7 @@ def evaluate_soft_constraints(
     penalty.add("free_day", weights["free_day"], wanted_free is not None and wanted_free == day)
 
     # ── SC1 (تحديث): تتابع الحصص — تفضيل 2 كحد أقصى (3 = عقوبة) ──
-    consecutive = grid.teacher_consecutive_counted(task.teacher_id, day, period)
+    consecutive = grid.teacher_consecutive_counted(task.teacher_id, day, period, task.band_id)
     # الحصّةُ المزدوجةُ استثناءٌ مقصود: مادّةٌ وُسِمت بالازدواج تُرجَّح متجاورةً
     # لأنّ المعلّمَ يبقى مع الشعبة نفسها في الغرفة نفسها — فليست تتابعاً
     # يُتعب، بل هي الغرضُ نفسُه. وما عداها يُعاقَب من أوّل تلاصق.

@@ -63,10 +63,12 @@ class Breach:
 
 
 def _key(code: str, task: Task, day: int, period: int) -> tuple:
+    #: الحصّةُ المقسومةُ لها معلّمان: المخالفةُ لهما معاً لا لأوّلهما — فلا تُعدّ مرّتين باسمَين.
+    teachers = tuple(sorted(m.teacher_id for m in task.members))
     if code in _TEACHER_WEEK:
-        return (code, task.teacher_id)
+        return (code, teachers)
     if code in _TEACHER_DAY:
-        return (code, task.teacher_id, day)
+        return (code, teachers, day)
     if code in _SUBJECT_DAY:
         return (code, task.class_id, task.subject_id, day)
     return (code, task.class_id, day, period)

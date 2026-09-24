@@ -258,6 +258,32 @@ def check_license_expiry_task():
 
 
 # ═════════════════════════════════════════════════════════════════════
+# مصالحةُ الأسابيع المولَّدة سلفاً بعد اعتماد جدول (SCH-08)
+# ═════════════════════════════════════════════════════════════════════
+
+
+@shared_task(
+    name="operations.resync_generated_sessions",
+    max_retries=0,
+    soft_time_limit=600,
+    time_limit=660,
+)
+def resync_generated_sessions_task(school_id, academic_year):
+    """يُصالح حصصَ الأيّام المولَّدة بعد أسبوع الاعتماد مع الجدول المعتمَد.
+
+    الاعتمادُ يصالح الأسبوعَ الجاريَ في الطلب، وهذه تُكمل ما بعده خارجَه: كلفتُها تكبر
+    بعدد الأسابيع المولَّدة (قرابةَ مئةٍ وستٍّ وسبعين حصّةً لكلّ يوم). وثابتةُ التكرار:
+    دورةٌ ثانيةٌ على جدولٍ مصالَحٍ لا تجد ما تحذفه ولا ما تُنشئه.
+    """
+    from core.models import School
+    from operations.services import ScheduleService
+
+    school = School.objects.get(pk=school_id)
+    with school_rls_scope(school.id):
+        return ScheduleService.resync_future_weeks(school, academic_year)
+
+
+# ═════════════════════════════════════════════════════════════════════
 # توليد الجدول الأسبوعيّ الذكيّ — بطلب المستخدم
 # ═════════════════════════════════════════════════════════════════════
 

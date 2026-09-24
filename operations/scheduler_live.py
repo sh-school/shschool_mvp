@@ -37,6 +37,7 @@ from .scheduler import (
     load_inputs,
 )
 from .scheduler_audit import grid_breaches, summary
+from .scheduler_bell import joinable_pairs
 from .scheduler_constraints import calculate_quality_score, joinable_pairs_cached
 from .scheduler_persist import slots_from_grid
 from .scheduler_settle import settle
@@ -94,7 +95,14 @@ def load_grid(school: School, academic_year: str, slots: Iterable[ScheduleSlot])
             continue
         nxt = (class_id, day, period + 1)
         double = pool.get((class_id, sig, 2))
-        if double and cell_sig.get(nxt) == sig and nxt not in taken:
+        # خانتان بالبصمة نفسها لا تصيران مزدوجةً إلّا إن اتّصلتا بالساعة: مفردةٌ في الأولى
+        # ومزدوجةٌ في الثانية والثالثة كانت تُقرأ مزدوجةً في الأولى والثانية فتُعبَر بها فسحة.
+        if (
+            double
+            and cell_sig.get(nxt) == sig
+            and nxt not in taken
+            and (period, period + 1) in joinable_pairs(school, double[-1].band_id)
+        ):
             task = double.pop()
             taken.add(nxt)
         elif pool.get((class_id, sig, 1)):

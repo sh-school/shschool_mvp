@@ -12,6 +12,7 @@
 """
 
 import pytest
+from django.core.exceptions import ValidationError
 
 from operations import constraint_registry as cr
 from operations.models import ScheduleConstraintOverride
@@ -79,17 +80,32 @@ def test_the_core_is_not_tunable():
 
 
 def test_the_default_ranks_mirror_todays_generator():
-    """الرخصةُ الأولى للتلاصق، والثانيةُ للتغطية والقسمة والتوزيع، وما عداها لا يُكسَر."""
+    """الرخصةُ الأولى للتلاصق، والثانيةُ للتغطية والحدّ الأدنى، وما عداها لا يُكسَر.
+
+    والتوزيعُ (HC6) خرج من الرخصة الثانية بقرار المالك (D-17): لا يُكسَر ولا يُحرَّر.
+    """
     policy = cr.default_policy()
 
     assert policy.break_at("HC5") == cr.RELAXED
     assert policy.break_at("HC20") == cr.RELAXED, "تلاصقُ المادّة يُكسَر في الرخصة الأولى"
-    assert {c for c in policy.breaks if policy.break_at(c) == cr.DENSE} == {
-        "HC6",
-        "HC14",
-        "HC16B",
-    }
+    assert {c for c in policy.breaks if policy.break_at(c) == cr.DENSE} == {"HC14", "HC16B"}
+    assert policy.break_at("HC6") == cr.NEVER
     assert policy.break_at("HC17") == cr.NEVER
+
+
+def test_the_distribution_can_never_be_loosened_from_the_admin_panel(school):
+    """قرارُ المالك لا تُبطله لوحةُ الإدارة: صفُّ استثناءٍ لـHC6 يُطرَح."""
+    with pytest.raises(ValidationError):
+        override(school, "HC6", break_at=cr.DENSE)
+
+    # وصفٌّ أُدخل بالتحايل (بلا full_clean) لا يسري: `resolve` يتجاهل ما ليس قابلاً للتحرير.
+    ScheduleConstraintOverride.objects.create(
+        school=school, academic_year=YEAR, code="HC6", break_at=cr.DENSE, reason="تحايل"
+    )
+    policy = cr.resolve(school, YEAR)
+
+    assert policy.break_at("HC6") == cr.NEVER
+    assert "HC6" not in cr.TUNABLE_CODES
 
 
 def test_a_licence_of_the_second_round_carries_the_first():
@@ -116,7 +132,7 @@ def test_a_row_moves_the_rank(school):
 
     assert policy.break_at("HC5") == cr.NEVER
     assert policy.overridden == ("HC5",)
-    assert policy.break_at("HC6") == cr.DENSE, "ولا يمسّ غيرَه"
+    assert policy.break_at("HC6") == cr.NEVER, "ولا يمسّ غيرَه"
 
 
 def test_a_row_moves_a_soft_weight(school):
@@ -184,9 +200,13 @@ def _busy_thursday(policy=None):
 
 
 def test_thursday_holds_by_default_even_in_the_last_round():
-    """HC17 رتبتُه `never` — فلا تكسره رخصةٌ مهما ضاق الجدول."""
+    """HC17 رتبتُه `never` — فلا تكسره رخصةٌ مهما ضاق الجدول.
+
+    ونصابُ المادّة ستٌّ: سقفُها في اليوم حصّتان، فلا يمنع الحصّةَ الثانيةَ إلّا HC17.
+    وبنصابٍ أقلَّ كان HC6 يمنعها أيضاً، فلا يُعرف أيُّهما الحارس.
+    """
     grid = _busy_thursday()
-    second = task(grade="G11", level_type="sec")
+    second = task(grade="G11", level_type="sec", weekly_periods=6)
 
     assert is_slot_valid(grid, 4, 3, second) is False
     assert is_slot_valid(grid, 4, 3, second, allow_adjacent=True, allow_dense=True) is False
@@ -196,7 +216,7 @@ def test_a_rank_lets_thursday_bend_in_the_last_round_only(school):
     """وبرتبةٍ من الإدارة يُكسَر — في الملاذ الأخير وحدَه لا قبله."""
     override(school, "HC17", break_at=cr.DENSE)
     grid = _busy_thursday(cr.resolve(school, YEAR))
-    second = task(grade="G11", level_type="sec")
+    second = task(grade="G11", level_type="sec", weekly_periods=6)
 
     assert is_slot_valid(grid, 4, 3, second) is False, "الجولةُ الأولى تلتزم"
     assert is_slot_valid(grid, 4, 3, second, allow_adjacent=True) is False, "ولا الثانية"

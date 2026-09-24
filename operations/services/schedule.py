@@ -32,7 +32,9 @@ __all__ = ["ScheduleService", "parallel_labels"]
 
 class ScheduleService(ScheduleReadMixin, ScheduleRetentionMixin, ScheduleSessionsMixin):
     @classmethod
-    def approve_generation(cls, gen: ScheduleGeneration, *, notify: bool = True) -> dict:
+    def approve_generation(
+        cls, gen: ScheduleGeneration, *, notify: bool = True, acknowledged: bool = False
+    ) -> dict:
         """الاعتمادُ هو النشر — فعلٌ واحدٌ يستوي فيه زرُّ الشاشة وأمرُ النقل.
 
         حصصُ هذه المسودّة تُفعَّل ويُطفأ ما سواها في العام نفسِه. وكان الاعتمادُ
@@ -53,6 +55,14 @@ class ScheduleService(ScheduleReadMixin, ScheduleRetentionMixin, ScheduleSession
         from core.academic_calendar import academic_year_for_school
         from core.models import Membership
         from notifications.models import InAppNotification
+
+        from ..schedule_breaches import BreachesNotAcknowledgedError, approval_refusal
+
+        # مخالفةٌ صلبةٌ في المسودّة لا تُعتمد إلّا بإقرارٍ صريحٍ (SCH-05) — هنا لا في العرض:
+        # فأمرُ النقل والاستيرادُ يمرّان من هذا الباب أيضاً، ولا يُتجاوز الحارسُ بطريقٍ آخر.
+        refusal = approval_refusal(gen, acknowledged)
+        if refusal:
+            raise BreachesNotAcknowledgedError(refusal)
 
         school = gen.school
         with transaction.atomic():
@@ -111,9 +121,29 @@ class ScheduleService(ScheduleReadMixin, ScheduleRetentionMixin, ScheduleSession
                 notified = len(notifs)
 
         sync = {"deleted": 0, "created": 0, "kept": 0}
+        queued = False
         if gen.academic_year == academic_year_for_school(school):
             sync = cls.resync_current_week(school, gen.academic_year)
-        return {"notified": notified, "sync": sync}
+            queued = cls._queue_future_weeks_resync(school, gen.academic_year)
+        return {"notified": notified, "sync": sync, "future_weeks_queued": queued}
+
+    @staticmethod
+    def _queue_future_weeks_resync(school: School, academic_year: str) -> bool:
+        """الأسابيعُ المولَّدةُ بعد الجاري تُصالَح في الخلفيّة — وعطبُ الوسيط لا يُسقط اعتماداً.
+
+        فالاعتمادُ تمّ والمعلّمون أُشعروا، وما فاته مصالحةُ أسابيعَ قادمةٍ يُعاد بها الأمرُ
+        نفسُه (`sync_schedule` أو المهمّةُ ذاتُها). فيُسجَّل العطبُ ويُقال، ولا يُخفى.
+        """
+        from operations.tasks import resync_generated_sessions_task
+
+        def send() -> None:
+            try:
+                resync_generated_sessions_task.delay(str(school.pk), academic_year)
+            except Exception:  # noqa: BLE001 — يُسجَّل ولا يُبتلع
+                logger.exception("تعذّر إرسال مصالحة الأسابيع المولَّدة للمدرسة %s", school.pk)
+
+        transaction.on_commit(send)
+        return True
 
     @staticmethod
     @transaction.atomic

@@ -16,7 +16,12 @@ from django.urls import reverse
 from django.utils.html import escape
 
 from operations.constraint_registry import REGISTRY
-from operations.schedule_breaches import approval_refusal, draft_breaches
+from operations.schedule_breaches import (
+    BreachesNotAcknowledgedError,
+    acknowledged,
+    approval_refusal,
+    draft_breaches,
+)
 from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
 
 YEAR = "2026-2027"
@@ -67,7 +72,7 @@ def test_a_generation_older_than_the_auditor_has_nothing_to_show():
     """غيابُ الشهادة ليس شهادةً بالمخالفة: لا عرضَ ولا حجب."""
     assert draft_breaches({}) is None
     assert draft_breaches(None) is None
-    assert approval_refusal(SimpleNamespace(config_snapshot={}), {}) == ""
+    assert approval_refusal(SimpleNamespace(config_snapshot={}), False) == ""
 
 
 @pytest.mark.parametrize(
@@ -80,7 +85,7 @@ def test_a_generation_older_than_the_auditor_has_nothing_to_show():
     ],
 )
 def test_the_refusal_follows_the_count_and_the_acknowledgement(snapshot, data, refused):
-    reason = approval_refusal(SimpleNamespace(config_snapshot=snapshot), data)
+    reason = approval_refusal(SimpleNamespace(config_snapshot=snapshot), acknowledged(data))
 
     assert bool(reason) is refused
 
@@ -183,5 +188,22 @@ def test_a_draft_without_breaches_approves_as_before(
 
     _approve(client_as(principal), gen)
 
+    gen.refresh_from_db()
+    assert gen.status == "approved"
+
+
+@pytest.mark.django_db
+def test_the_service_itself_refuses_so_no_other_path_bypasses_the_gate(school):
+    """أمرُ النقل والاستيرادُ يستدعيان الخدمةَ لا العرض — فالحارسُ فيها لا في الزرّ."""
+    from operations.services import ScheduleService
+
+    gen = _draft(school, _snapshot(_item("HC6")))
+
+    with pytest.raises(BreachesNotAcknowledgedError):
+        ScheduleService.approve_generation(gen, notify=False)
+
+    gen.refresh_from_db()
+    assert gen.status == "draft"
+    assert ScheduleService.approve_generation(gen, notify=False, acknowledged=True)
     gen.refresh_from_db()
     assert gen.status == "approved"

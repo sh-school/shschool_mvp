@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from collections.abc import Callable, Iterable
 from functools import partial
@@ -451,3 +452,26 @@ def settle(
     وسداد الجدول الحيّ: المزدوجةُ تسأل عنها في كلّ مرشَّحٍ من السلسلة.
     """
     return Settler(grid, tasks, blocked, preferences, school, deadline).run()
+
+
+def settle_safely(
+    grid: ScheduleGrid,
+    tasks: Iterable[Task],
+    blocked: Blocked | None,
+    preferences: dict | None,
+    school: School | None = None,
+    deadline: float | None = None,
+) -> dict:
+    """السدادُ لا يُسقط توليداً: عطبٌ فيه يُسجَّل ويبقى الجدولُ كما وصل إليه.
+
+    والسدادُ مرحلةٌ تُحسّن ولا تُنشئ: جدولٌ تامٌّ بمخالفاتٍ مذكورةٍ خيرٌ من توليدٍ فشل بعد
+    دقيقتين من البحث. وما فُتح من أُطر التراجع في الشبكة قبل العطب يُطوى، فلا يبقى الجدولُ
+    نصفَ منقول (وهو ما يُكتب بعدها في القاعدة).
+    """
+    try:
+        return settle(grid, tasks, blocked, preferences, school, deadline)
+    except Exception:  # noqa: BLE001 — يُسجَّل ولا يُبتلع
+        logging.getLogger(__name__).exception("السداد: عطبٌ في مرحلة السداد — يُكمل التوليدُ بلا سداد")
+        while grid._journal:
+            grid.rollback()
+        return {"failed": True}
