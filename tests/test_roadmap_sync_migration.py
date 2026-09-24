@@ -929,3 +929,11 @@ def test_0017_adds_notes_only_without_touching_status_or_dates():
     )
     assert "لم يُغيَّر موعدُه" in lay05.note
     assert RoadmapItem.objects.get(code="VI-25").note == ""
+
+
+def test_0017_notes_that_562_already_did_part_of_vi36():
+    _item("VI-36", "todo", 0)
+    assert _sync17.sync_notes(RoadmapItem) == ["VI-36"]
+    vi36 = RoadmapItem.objects.get(code="VI-36")
+    assert (vi36.status, vi36.progress) == ("todo", 0)
+    assert "#562" in vi36.note and "VD1" in vi36.note
