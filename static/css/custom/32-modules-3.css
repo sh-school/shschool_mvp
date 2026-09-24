@@ -105,37 +105,17 @@
   .asg-btn-ghost { background: transparent; }
 
 /* ── templates/analytics/dashboard.html ── */
-/* ── Executive Dashboard ── */
-.exec-dash {
-  display: grid;
-  grid-template-rows: auto auto auto auto;
-  gap: var(--sp-2);
-}
-
-/* ── Header ── */
-.exec-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  flex-wrap: wrap;
-}
+/* `.exec-dash` و`.exec-header` و`.exec-subtitle` و`.exec-date` في 30-modules-1.css — كانت هنا
+   نسخةً حرفيّةً منها (LAY-03: تعريفٌ واحدٌ للغلاف). */
 .exec-title { font-size: var(--text-xl); font-weight: 700; color: var(--maroon-fg); margin: 0; }
-.exec-subtitle { font-size: var(--text-xs); color: var(--text-muted); margin: 0; }
 .exec-year-select {
   font-size: var(--text-xs); border: 1px solid var(--border); border-radius: var(--radius-1-5);
   padding: var(--sp-1) var(--sp-2); background: var(--surface);
 }
-.exec-date {
-  font-size: var(--text-xs); background: var(--status-danger-bg); color: var(--maroon-fg);
-  border: 1px solid var(--border); padding: var(--sp-1) var(--sp-2-5); border-radius: var(--radius-1-5); font-weight: 500;
-}
-
 /* ── KPI Strip — uses global from custom.css, only overrides here ── */
 
 /* ── Mobile fallback ── */
 @media (max-width: 1024px) {
-  .exec-dash { height: auto; overflow: auto; }
   .kpi-strip { grid-template-columns: repeat(4, 1fr); }
 
 }
@@ -150,13 +130,7 @@
 
 /* ── Miller's Law: collapsible secondary KPIs ── */
 
-/* ── Chart Loading / Error States ── */
-.chart-loading, .chart-error {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  font-size: var(--text-xs); color: var(--text-muted); z-index: 2; background: var(--surface);
-}
-.chart-error { color: var(--status-danger-fg); }
-.chart-loading.hidden, .chart-error.hidden { display: none; }
+/* حالاتُ تحميل الرسم وخطئه (`.chart-loading`/`.chart-error`) في 30-modules-1.css. */
 
 /* ── templates/analytics/kpi_dashboard.html ── */
 /* ══ KPI Dashboard — MTG-2026-002-REV Layout ══ */
@@ -842,15 +816,7 @@
 .qobs-lead__form { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
 .qobs-lead__form .form-control { flex: 1 1 260px; max-width: 420px; margin: 0; }
 
-/* ── templates/schedule/compensatory_form.html ── */
-.form-page { max-width: 700px; margin: 0 auto; padding: var(--sp-4); }
-.form-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: var(--sp-5) var(--sp-6); }
-.form-title { font-size: 1.1rem; font-weight: 700; color: var(--maroon-fg); margin-bottom: var(--sp-4); }
-.form-group { margin-bottom: var(--sp-3-5); }
-.form-group label { display: block; font-size: .8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: var(--sp-1); }
-.form-group select, .form-group input, .form-group textarea { box-sizing: border-box; width: 100%; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--field-border); border-radius: var(--radius-1-5); font-size: .85rem; font-family: inherit; }
-.form-group textarea { min-height: 60px; resize: vertical; }
-.hint { font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--sp-0-5); }
+/* ── templates/schedule/compensatory_form.html — أصنافُه كتلةُ swap_request أعلاه ── */
 
 /* ── templates/schedule/compensatory_list.html ── */
 .comp-page { max-width: 1100px; margin: 0 auto; padding: var(--sp-4); }
@@ -864,7 +830,6 @@
 .comp-badge.cancelled, .comp-badge.expired { background: var(--status-danger-bg); color: var(--status-danger-fg); }
 .comp-info { font-size: .78rem; color: var(--text-muted); margin-top: var(--sp-1); }
 .comp-actions { display: flex; gap: var(--sp-1-5); margin-top: var(--sp-2); }
-.empty-state { text-align: center; padding: var(--sp-12) var(--sp-4); color: var(--text-muted); }
 
 /* ── templates/schedule/pages_view.html و print_view.html — شريطُ الأدوات ── */
   /* على الحاسوب سطرٌ واحدٌ يتوسّط النافذة (قرار 2026-09-06): القائمةُ وحجمُ
@@ -1401,7 +1366,6 @@
 .sa-span-full { grid-column: 1 / -1; }
 
 .sa-link { color: var(--maroon-fg); font-weight: 600; text-decoration: none; }
-.sa-link:hover { text-decoration: underline; }
 .sa-btn-danger { color: var(--status-danger-fg); }
 .sa-inline-form { display: inline; }
 .sa-row-actions { display: flex; gap: var(--sp-1); justify-content: center; flex-wrap: nowrap; }
