@@ -224,7 +224,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   margin: var(--sp-0-5) 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2);
   font-size: var(--text-xs); color: var(--text-muted);
 }
-.notif-item__meta .status-badge { padding: 1px var(--sp-2); font-size: 0.65625rem; }
+.notif-item__meta .status-badge { padding: 1px var(--sp-2); font-size: var(--text-xs); }
 .notif-item__meta time { font-variant-numeric: tabular-nums; }
 .notif-item__read {
   flex-shrink: 0;

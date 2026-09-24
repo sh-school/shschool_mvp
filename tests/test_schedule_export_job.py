@@ -240,3 +240,32 @@ def test_a_done_job_still_returns_the_file_at_the_plain_status_url(
     assert resp.status_code == 200
     assert resp["Content-Type"] == "application/pdf"
     assert "attachment" in resp["Content-Disposition"]
+
+
+def test_the_standalone_sheet_exports_through_the_platform_page_not_a_status_page(
+    client_as, principal_user
+):
+    """الورقةُ المستقلّة بلا إشعارٍ عائم — فتصديرُها يفتح صفحةَ الجدول بـ`export=` بالاختيار نفسِه."""
+    html = (
+        client_as(principal_user)
+        .get(reverse("schedule_print") + "?view=all_teachers&paper=a3")
+        .content.decode()
+    )
+
+    page = reverse("weekly_schedule")
+    assert f'href="{page}?view=all_teachers&amp;paper=a3' in html
+    assert "&amp;export=pdf" in html and "&amp;export=excel" in html
+    assert reverse("schedule_export_pdf") not in html
+    assert reverse("schedule_export_excel") not in html
+
+
+def test_the_platform_page_marks_each_export_link_with_its_kind(client_as, principal_user):
+    """`export=pdf|excel` يجد رابطَه بوسمه — فالوسمُ قيمةٌ لا علامةٌ مجرّدة."""
+    html = (
+        client_as(principal_user)
+        .get(reverse("weekly_schedule") + "?view=all_teachers")
+        .content.decode()
+    )
+
+    assert 'data-export-job="pdf"' in html
+    assert 'data-export-job="excel"' in html

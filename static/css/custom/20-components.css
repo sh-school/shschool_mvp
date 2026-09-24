@@ -93,8 +93,8 @@
   color: var(--on-fill);
   font-size: 1.4rem;
   padding: var(--sp-1-5) var(--sp-2);
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--control-h);
+  min-height: var(--control-h);
   cursor: pointer;
   line-height: 1;
   flex-shrink: 0;
@@ -122,7 +122,7 @@
   inset-inline-start: 3px;
   background: var(--status-danger);
   color: var(--on-fill);
-  font-size: 0.5625rem;
+  font-size: var(--text-xs);
   font-weight: 700;
   min-width: 15px;
   height: 15px;
@@ -185,7 +185,7 @@
 .sd-menu hr { border: none; border-top: 1px solid var(--menu-divider); margin: var(--sp-1) 0; }
 .sd-label {
   padding: var(--sp-1-5) var(--sp-4) 3px;
-  font-size: 0.625rem; font-weight: 700; color: var(--menu-label);
+  font-size: var(--text-xs); font-weight: 700; color: var(--menu-label);
 }
 /* قائمةٌ فرعيّةٌ بأعمدة — نظيرُ القائمة الأفقيّة في لوحة الإدارة
    (`adm-nav__menu--cols-N` في admin_theme.css)، لمن وُسم `sd-menu--cols-N`
@@ -476,7 +476,7 @@ div#header h1 a {
 }
 .site-footer-brand-label {
   color: var(--text-muted);
-  font-size: 0.71875rem;
+  font-size: var(--text-xs);
   white-space: nowrap;
 }
 .site-footer-brand-logo {
@@ -543,7 +543,7 @@ div#header h1 a {
 .pwa-icon     { font-size: var(--text-2xl); flex-shrink: 0; }
 .pwa-text     { flex: 1; min-width: 0; }
 .pwa-title    { display: block; font-size: var(--text-sm); font-weight: 700; }
-.pwa-subtitle { opacity: .8; font-size: 0.71875rem; }
+.pwa-subtitle { opacity: .8; font-size: var(--text-xs); }
 .pwa-install-btn {
   background: var(--surface);
   color: var(--maroon-fg);
@@ -1140,7 +1140,7 @@ main.page-wide {
 .status-badge {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 3px var(--sp-2-5); border-radius: 20px;
-  font-size: 0.71875rem; font-weight: 700; white-space: nowrap;
+  font-size: var(--text-xs); font-weight: 700; white-space: nowrap;
 }
 .status-success { background: var(--status-success-bg); color: var(--status-success-dark); border: 1px solid var(--status-success-border-soft); }
 .status-danger  { background: var(--status-danger-bg); color: var(--status-danger-dark); border: 1px solid var(--status-danger-border); }
@@ -1388,7 +1388,7 @@ main.page-wide {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-danger) 10%, transparent);
 }
 .form-error {
-  font-size: 0.6875rem;
+  font-size: var(--text-xs);
   color: var(--status-danger-fg);
   margin-top: var(--sp-1);
   display: flex;
@@ -1767,12 +1767,12 @@ textarea:focus-visible {
   gap: 3px;
   text-decoration: none;
   color: var(--text-muted);
-  font-size: .65rem;
+  font-size: var(--text-xs);
   padding: var(--sp-1) var(--sp-3);
   border-radius: var(--radius-md);
   transition: color var(--transition-fast);
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--control-h);
+  min-height: var(--control-h);
   justify-content: center;
 }
 .mobile-nav-item:hover,
@@ -2050,7 +2050,7 @@ body { padding-bottom: 72px; }
 }
 .cmd-input::placeholder { color: var(--placeholder); }
 .cmd-kbd {
-  font-size: 0.625rem;
+  font-size: var(--text-xs);
   background: var(--surface-alt);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -2222,14 +2222,9 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
 .qobs-coord-badge { font-size: var(--text-xs); }
 
 
-/* ── تدفّقُ البطاقات: أكثرُ من بطاقةٍ في الصفّ، وعرضُ كلٍّ بحاجتها ──
-   صفحةٌ بطاقاتُها مختلفةُ الحجم (أمثلةٌ، قواعدُ، أزرار) كانت تُرصّ عموداً واحداً
-   بعرض النافذة، فبطاقةٌ فيها ثلاثةُ أزرارٍ تحتلّ سطراً كاملاً وبجانبها فراغ.
-   والبطاقةُ تعلن عرضَها بمعدِّل: بلا معدِّلٍ عمود، و`is-wide` نصفُ السطر، و`is-full` السطرُ كلُّه.
-   وعددُ الأعمدة زوجيٌّ دائماً (1 ← 2 ← 4): بثلاثةٍ لا تتجاور عريضتان، فتقع كلٌّ في سطرٍ
-   وبجانبها ثلثٌ فارغ — وهو عينُ ما جاء هذا ليزيله (رُصد على 1440px).
-   وبطاقاتُ السطر الواحد بارتفاعٍ واحد (stretch) فلا تنتهي كلٌّ على حدٍّ مختلف؛
-   والترتيبُ ترتيبُ القالب — فيُصفّ القالبُ صفوفاً مكتملةً متقاربةَ المحتوى. */
+/* ── تدفّقُ البطاقات (card-flow): أكثرُ من بطاقةٍ في السطر، وعرضُ كلٍّ بمعدِّلها:
+   is-wide نصفُ السطر، is-full كلُّه. الأعمدةُ زوجيّةٌ (1←2←4) فتتجاور العريضتان،
+   وبطاقاتُ السطر بارتفاعٍ واحد. التفصيلُ في دليل الهويّة، قسم «الشبكاتُ والتخطيط». */
 .card-flow {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

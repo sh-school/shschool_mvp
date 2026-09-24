@@ -45,6 +45,7 @@ from .schedule_selectors import export_filename as _export_filename
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
 from .services import ScheduleService, SubstituteService
+from .services.substitute import TEACHING_ROLES
 
 logger = logging.getLogger(__name__)
 
@@ -287,7 +288,7 @@ def _slot_presentation(slot, assignment, available) -> dict:
     """
     if assignment:
         status_tone = _assignment_tone(assignment)
-        tone, status_label = "green", f"مُغطّاة · {assignment.get_status_display()}"
+        tone, status_label = "green", "مُغطّاة · إشغال"
     elif available:
         tone, status_tone = "red", "danger"
         status_label = f"بحاجة بديل · {len(available)} متاح"
@@ -370,9 +371,7 @@ def register_teacher_absence(request):
         teachers = CustomUser.objects.filter(id__in=dept_ids).order_by("full_name")
     else:
         teacher_ids = Membership.objects.filter(
-            school=school,
-            is_active=True,
-            role__name__in=("teacher", "coordinator", "ese_teacher", "e_projects_coordinator"),
+            school=school, is_active=True, role__name__in=TEACHING_ROLES
         ).values_list("user_id", flat=True)
         teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
 
@@ -401,27 +400,23 @@ def absence_detail(request, absence_id):
         return HttpResponse("هذا المعلم ليس من قسمك", status=403)
 
     our_day = SubstituteService._date_to_day(absence.date)
-    slots = (
+    slots = sorted(
         ScheduleSlot.objects.live(school)
         .filter(teacher=absence.teacher, day_of_week=our_day)
-        .select_related("class_group", "subject")
+        .select_related("class_group", "subject"),
+        key=lambda slot: slot.period_number,
     )
 
     assignments = {
         a.slot_id: a
         for a in SubstituteAssignment.objects.filter(absence=absence).select_related("substitute")
     }
-    slots_data = []
-    for slot in slots:
-        available = SubstituteService.get_available_teachers(
-            school,
-            absence.date,
-            slot.day_of_week,
-            slot.period_number,
-            exclude_teacher=absence.teacher,
-            subject_id=slot.subject_id,
-        )
-        slots_data.append(_slot_presentation(slot, assignments.get(slot.id), available))
+    # المنسّقُ يُشغِل من قسمه وحدَه، والقيادةُ من الكادر كلِّه (قرارُ المالك 2026-09-23).
+    candidates = SubstituteService.coverage_candidates(absence, slots, within_ids=dept_ids)
+    slots_data = [
+        _slot_presentation(slot, assignments.get(slot.id), candidates.get(slot.id, []))
+        for slot in slots
+    ]
 
     # عددٌ لا سلسلةُ آحاد: القالبُ كان يطبع «1» لكلّ حصّةٍ مغطّاة، فثلاثٌ تُقرأ «111».
     covered_count = sum(1 for row in slots_data if row["assignment"])
@@ -459,7 +454,17 @@ def assign_substitute(request, absence_id, slot_id):
     if dept_ids is not None and absence.teacher_id not in dept_ids:
         return HttpResponse("هذا المعلم ليس من قسمك", status=403)
 
-    substitute = get_object_or_404(CustomUser, id=request.POST["substitute"])
+    # يُتحقّق من المختار على الخادم: كان يُقبل أيُّ معرّفٍ يُرسَل — معلّمٌ من
+    # قسمٍ آخر، أو له حصّةٌ في الوقت نفسه، أو غائبٌ هو أيضاً.
+    allowed = {
+        c["id"]
+        for c in SubstituteService.coverage_candidates(absence, [slot], within_ids=dept_ids)[
+            slot.id
+        ]
+    }
+    substitute = get_object_or_404(CustomUser, id=request.POST.get("substitute") or None)
+    if substitute.id not in allowed:
+        return HttpResponse("هذا المعلم غير متاحٍ لهذه الحصّة", status=400)
     assignment = SubstituteService.assign_substitute(
         absence,
         slot,
@@ -467,14 +472,7 @@ def assign_substitute(request, absence_id, slot_id):
         assigned_by=request.user,
         notes=request.POST.get("notes", ""),
     )
-    available = SubstituteService.get_available_teachers(
-        school,
-        absence.date,
-        slot.day_of_week,
-        slot.period_number,
-        exclude_teacher=absence.teacher,
-        subject_id=slot.subject_id,
-    )
+    available = SubstituteService.coverage_candidates(absence, [slot], within_ids=dept_ids)[slot.id]
     return render(
         request,
         "substitute/partials/slot_card.html",

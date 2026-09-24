@@ -95,6 +95,7 @@ PAGES = [
     ("transport:buses_list", "principal_user"),
     ("library:book_list", "principal_user"),
     ("ui_components", "developer_user"),
+    ("ui_layouts", "developer_user"),
     ("improvement_roadmap", "developer_user"),
     ("permission_audit_log", "principal_user"),
 ]
