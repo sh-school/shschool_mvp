@@ -145,7 +145,8 @@ function sdPlace(m, btn) {
 }
 
 function sdCloseAll() {
-  document.querySelectorAll('.sd-menu.open').forEach(function(x) { x.classList.remove('open', 'sd-drawer'); });
+  // قائمةٌ تتلاشى بعد نقرِ رابطٍ فيها (`.is-fading`، page-nav.js) تُغلق هي بنفسها عند انقضاء التلاشي — لا يقطعها مؤشّرٌ خرج منها.
+  document.querySelectorAll('.sd-menu.open:not(.is-fading)').forEach(function(x) { x.classList.remove('open', 'sd-drawer'); });
   document.querySelectorAll('.nb.on').forEach(function(x) { x.classList.remove('on'); x.setAttribute('aria-expanded', 'false'); });
   document.querySelectorAll('.nb-bar.nb-split').forEach(function(x) { x.classList.remove('nb-split'); });
 }
@@ -664,6 +665,17 @@ document.addEventListener('keydown', function(e) {
 (function() {
   var open = false;   // نافذةٌ واحدةٌ في المرّة: إرسالان متسابقان لا يفتحان اثنتين
 
+  /* رمزُ عنوان الحوار من قاموس core/icons.py (المفتاح status_warning). الورقةُ خارجيّةٌ
+     وعنوانُها في data-icon-sprite على <body> — كما يبني وسمُ {% icon %} وapp.js مسارَه —
+     فمرجعٌ محلّيٌّ `#icon-…` لا يجد هدفاً فيظهر العنوانُ بلا رسم. والحارسُ:
+     tests/test_icon_dictionary.py::test_no_script_references_an_icon_the_sprite_lacks. */
+  function warningIcon() {
+    var sprite = document.body.dataset.iconSprite;
+    if (!sprite) return '';
+    return '<svg class="icon icon-hg" aria-hidden="true" focusable="false">' +
+      '<use href="' + sprite + '#i-status_warning"></use></svg> ';
+  }
+
   document.addEventListener('submit', function(e) {
     var form = e.target;
     if (form._confirmed) { form._confirmed = false; return; } // already confirmed
@@ -692,12 +704,12 @@ document.addEventListener('keydown', function(e) {
     overlay.style.display = 'flex';
     overlay.innerHTML =
       '<div class="modal-box modal-sm" role="document">' +
-      '  <div class="modal-header"><span id="confirm-dlg-title" style="color:var(--status-danger)">' +
-      '    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-alert-triangle"/></svg> ' +
+      '  <div class="modal-header"><span id="confirm-dlg-title" class="confirm-dlg-title">' +
+      warningIcon() +
       '    \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0625\u062c\u0631\u0627\u0621</span>' +
       '    <button type="button" class="modal-close-btn" data-action="cancel" aria-label="\u0625\u063a\u0644\u0627\u0642">\u00d7</button>' +
       '  </div>' +
-      '  <div class="modal-body"><p data-confirm-message style="color:var(--text-secondary);line-height:1.7"></p></div>' +
+      '  <div class="modal-body"><p data-confirm-message class="confirm-dlg-message"></p></div>' +
       '  <div class="modal-footer">' +
       '    <button type="button" class="btn-secondary" data-action="cancel">\u0625\u0644\u063a\u0627\u0621</button>' +
       '    <button type="button" class="btn-danger" data-action="confirm">\u062a\u0623\u0643\u064a\u062f</button>' +
@@ -854,6 +866,8 @@ document.addEventListener('click', function(e) {
      <th data-sort="none">           عمودٌ بعينه لا يُفرَز
      <th data-sort="text|num">       نوعٌ مفروضٌ بدل المستنتَج
      <th data-sort-first="asc|desc"> اتّجاهُ النقرة الأولى بدل الطبيعيّ
+     <th data-sort-default="asc|desc"> الترتيبُ عند التحميل — قبل أيّ نقرة (عمودٌ واحد)
+     <table data-sort-min-rows="2">  أقلُّ عددٍ من الصفوف يُفرَز (الافتراض 3)
      <td data-sort-value="…">        قيمةُ الفرز حين يخالف النصُّ المعنى
      <tr data-sort-pin>              صفٌّ يبقى في الذيل (الإجماليّات)
 
@@ -986,7 +1000,9 @@ document.addEventListener('click', function(e) {
       if (isPinned(row)) { pinned.push(row); continue; }
       groups.push({ row: row, nodes: [row], order: groups.length });
     }
-    if (groups.length < MIN_ROWS) return false;
+    /* سجلٌّ بصفٍّ أو صفّين يُفرَز إن صرّح قالبُه (`data-sort-min-rows`): جدولُ التوليد يبدأ صغيراً. */
+    var minRows = parseInt(table.getAttribute('data-sort-min-rows') || MIN_ROWS, 10) || MIN_ROWS;
+    if (groups.length < minRows) return false;
 
     var plain = groups.map(function (g) { return g.row; });
     var kinds = [], sortableCount = 0;
@@ -1100,6 +1116,16 @@ document.addEventListener('click', function(e) {
         th.setAttribute('aria-sort', state.dir === 1 ? 'ascending' : state.dir === -1 ? 'descending' : 'none');
         apply();
       });
+    });
+
+    /* الترتيبُ الافتراضيّ: عمودٌ صرّح قالبُه أنّه يُفرَز عند التحميل — كأنّ القارئ نقر عليه. */
+    Array.prototype.forEach.call(head.cells, function (th, index) {
+      var wanted = th.getAttribute('data-sort-default');
+      if (!kinds[index] || (wanted !== 'asc' && wanted !== 'desc') || state.index !== -1) return;
+      state.index = index;
+      state.dir = wanted === 'asc' ? 1 : -1;
+      th.setAttribute('aria-sort', wanted === 'asc' ? 'ascending' : 'descending');
+      apply();
     });
 
     table.__sortBound = true;

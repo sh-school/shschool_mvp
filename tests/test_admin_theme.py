@@ -33,6 +33,10 @@ def test_light_admin_colours_are_the_platform_tokens():
         ("--accent", "gold"),
         ("--button-hover-bg", "maroon-dark"),
         ("--breadcrumbs-bg", "maroon-dark"),
+        ("--nav-bg", "nav-bg"),
+        ("--nav-fg", "maroon-dark"),
+        ("--nav-mark", "maroon"),
+        ("--menu-label", "menu-label"),
         ("--body-fg", "text-primary"),
         ("--body-quiet-color", "text-secondary"),
         ("--border-color", "border-strong"),
@@ -54,8 +58,118 @@ def test_dark_admin_colours_are_the_platform_dark_tokens():
         ("--hairline-color", "border"),
         ("--border-color", "border-strong"),
         ("--link-fg", "maroon-fg"),
+        ("--nav-bg", "nav-bg"),
     ):
         assert f"{admin_var}: {_token(themes, token)};" in dark, (admin_var, token)
+
+
+def test_the_admin_page_fade_is_the_platform_fade():
+    """مدّةُ التلاشي رمزٌ واحدٌ وحركةُ الظهور واحدة — نُقلا حرفيّاً كألوان الهويّة، فلا يتباعد الانتقالان (قرارُ المالك 2026-09-24)."""
+    platform_token = re.search(
+        r"--transition-page:\s*([^;]+);", (CUSTOM / "10-foundation.css").read_text(encoding="utf-8")
+    )
+    admin = ADMIN.read_text(encoding="utf-8")
+    admin_token = re.search(r"--transition-page:\s*([^;]+);", admin)
+    assert platform_token and admin_token
+    assert admin_token.group(1).strip() == platform_token.group(1).strip()
+
+    def keyframes(css: str) -> str:
+        return " ".join(re.search(r"@keyframes page-in\s*\{.*?\}\s*\}", css, re.S).group(0).split())
+
+    assert keyframes(admin) == keyframes((CUSTOM / "20-components.css").read_text(encoding="utf-8"))
+    for rule in (
+        "animation: page-in var(--transition-page) backwards;",
+        "transition: opacity var(--transition-page);",
+    ):
+        assert rule in admin, rule
+
+    # المزجُ الأصليُّ بين الصفحتين (`@view-transition`) بالمدّة نفسِها — وحدةُ `animation-duration` لا تقبل الرمزَ المركَّب فتُكرَّر.
+    duration = admin_token.group(1).split()[0]
+    assert re.search(
+        rf"::view-transition-group\(root\)\s*\{{\s*animation-duration:\s*{re.escape(duration)}\s*;",
+        admin,
+    )
+    assert re.search(
+        r"prefers-reduced-motion:\s*no-preference\)\s*\{\s*@view-transition\s*\{\s*navigation:\s*auto;",
+        admin,
+    )
+
+
+def test_the_admin_hands_the_page_mix_to_the_browser_and_keeps_the_js_fade_as_fallback():
+    """صفحاتُ الإدارة تُحمَّل كاملةً (أدواتُها تهيَّأ عند load): المزجُ للمتصفّح حيث يدعمه، والتلاشي بـJS ولا شيءَ سواه حيث لا يدعمه."""
+    admin = ADMIN.read_text(encoding="utf-8")
+    assert "@supports not at-rule(@view-transition)" in admin
+    fallback = admin[admin.index("@supports not at-rule(@view-transition)") :]
+    assert fallback.index("#content-start.is-leaving > *") < fallback.index(
+        ".adm-nav__item.is-fading"
+    )
+    js = pathlib.Path("static/js/page-nav.js").read_text(encoding="utf-8")
+    assert "at-rule(@view-transition)" in js and "FADE_ONLY && NATIVE_VT" in js
+
+
+def test_the_admin_preloads_the_fonts_its_header_uses():
+    """بلا تحميلٍ مسبقٍ يُرسم نصُّ الترويسة بخطٍّ بديلٍ لحظةً ثمّ يتبدّل عند كلّ صفحة (وميض)."""
+    base = pathlib.Path("templates/admin/base_site.html").read_text(encoding="utf-8")
+    css = ADMIN.read_text(encoding="utf-8")
+    for weight in ("Regular", "Medium", "Bold"):
+        assert f"fonts/Tajawal-{weight}.woff2" in base and f"fonts/Tajawal-{weight}.woff2" in css
+    assert base.count('rel="preload"') >= 3 and "crossorigin" in base
+
+
+def test_dropdown_menus_share_the_nav_colour_on_both_surfaces():
+    """القوائمُ المنسدلة بلونِ القائمة الرئيسيّة نفسِه لا أبيضَ ثابتاً (طلبُ المالك 2026-09-24).
+
+    رمزٌ واحدٌ `--menu-bg: var(--nav-bg)` — من غيّر لونَ القائمة تبعته قوائمُها في المنصّة والإدارة
+    نهاراً وليلاً، ولا يُكتب لونٌ ثانٍ للقائمة المنسدلة ينجرف عنها.
+    """
+    platform = (CUSTOM / "10-foundation.css").read_text(encoding="utf-8")
+    themes = (CUSTOM / "40-themes.css").read_text(encoding="utf-8")
+    admin = ADMIN.read_text(encoding="utf-8")
+
+    same = re.compile(r"--menu-bg:\s*var\(--nav-bg\)\s*;")
+    for css in (platform, admin):
+        assert same.search(css)
+    assert "--menu-bg" not in themes  # نظيرٌ ليليٌّ خاصٌّ بالقائمة المنسدلة هو ما يفصلها عن القائمة
+    assert admin.count("--menu-bg:") == 1
+    # ولا خلفيّةَ ثابتةَ البياض على القائمة المنسدلة في المنصّة ولا الإدارة
+    components = (CUSTOM / "20-components.css").read_text(encoding="utf-8")
+    assert re.search(r"\.sd-menu\s*\{[^}]*background:\s*var\(--menu-bg\)", components)
+    assert re.search(r"\.adm-nav__menu\s*\{[^}]*background:\s*var\(--menu-bg\)", admin)
+
+
+def _raw(css: str, name: str) -> str:
+    match = re.search(rf"^\s*--{re.escape(name)}\s*:\s*([^;]+);", css, re.M)
+    assert match, name
+    return " ".join(match.group(1).split())
+
+
+def test_the_dropdown_shadow_is_the_platform_token_on_both_surfaces():
+    """ظلُّ القائمة المنسدلة رمزٌ واحد `--shadow-menu` في المنصّة والإدارة نهاراً وليلاً (طلبُ المالك 2026-09-24)."""
+    platform = (CUSTOM / "10-foundation.css").read_text(encoding="utf-8")
+    themes = (CUSTOM / "40-themes.css").read_text(encoding="utf-8")
+    admin = ADMIN.read_text(encoding="utf-8")
+
+    light = _admin_block(admin, 'html[data-theme="light"]')
+    dark = _admin_block(admin, 'html[data-theme="dark"]')
+    assert _raw(light, "shadow-menu") == _raw(platform, "shadow-menu")
+    assert _raw(dark, "shadow-menu") == _raw(themes, "shadow-menu")
+    assert re.search(r"\.adm-nav__menu\s*\{[^}]*box-shadow:\s*var\(--shadow-menu\)", admin)
+
+
+def test_header_and_footer_are_one_colour_on_both_surfaces():
+    """الذيلُ لونُ الترويسة نفسُه، نهاراً وليلاً، في المنصّة وفي الإدارة (قرارُ المالك 2026-09-24).
+
+    رمزٌ واحدٌ يقرؤه الاثنان — `--footer-bg: var(--header-bg)` — فلا يُكتب لونٌ ثانٍ للذيل
+    ينجرف عن الترويسة. ونظيرٌ ليليٌّ يُعرَّف للذيل وحدَه هو بالذات ما يفصله عنها.
+    """
+    platform = (CUSTOM / "10-foundation.css").read_text(encoding="utf-8")
+    themes = (CUSTOM / "40-themes.css").read_text(encoding="utf-8")
+    admin = ADMIN.read_text(encoding="utf-8")
+
+    for css in (platform, admin):
+        assert re.search(r"--footer-bg:\s*var\(--header-bg\)\s*;", css)
+    assert "--footer-bg" not in themes
+    assert admin.count("--footer-bg:") == 1
 
 
 def test_the_admin_uses_the_platform_favicon():
@@ -133,6 +247,19 @@ def _admin_rule(css: str, selector: str) -> str:
     return css[start : css.index("}", start)]
 
 
+def test_the_nav_search_field_reads_the_nav_tokens_not_the_white_of_the_header():
+    """حقلُ بحث الإدارة كان بنصٍّ أبيضَ على رملٍ فاتح (1.11:1) — أسقطه axe في CI (#547).
+
+    كلُّ ما يُرسم داخل شريط القائمة يقرأ `--nav-fg` و`--nav-hover`، لا بياضَ الترويسة العنّابيّة؛ فمن
+    غيّر لونَ القائمة تبعه الحقلُ نهاراً وليلاً بلا موضعٍ ثانٍ يُصلَح.
+    """
+    admin = ADMIN.read_text(encoding="utf-8")
+    field = _admin_rule(admin, ".adm-nav__search-input")
+    assert "var(--nav-fg)" in field and "var(--nav-hover)" in field
+    assert "--header-link-color" not in field and "#fff" not in field
+    assert "var(--nav-fg)" in _admin_rule(admin, ".adm-nav__search-input::placeholder")
+
+
 # ── بنيةُ الوصولية: معلَمٌ واحدٌ وعنصرٌ تفاعليٌّ واحدٌ لكلّ موضع (axe: nested-interactive و landmark-*) ──────
 
 
@@ -182,4 +309,40 @@ def test_the_nav_collapses_only_on_phones_and_only_when_the_script_ran():
 
 def test_nav_touch_targets_are_44px_on_phones():
     css = ADMIN.read_text(encoding="utf-8")
-    assert ".adm-nav__btn, #header .adm-nav__menu a { min-block-size: 44px;" in css
+    assert ".adm-nav__btn, #header .adm-nav__menu a { min-block-size: var(--adm-control-h);" in css
+
+
+def test_the_admin_touch_minimum_is_the_platform_token():
+    """`--adm-control-h` نسخةٌ حرفيّةٌ من `--control-h` — فإن غُيّر الحدُّ في المنصّة تغيّر هنا أو سقط هذا."""
+    platform = re.findall(
+        r"--control-h\s*:\s*([^;]+);", (CUSTOM / "10-foundation.css").read_text(encoding="utf-8")
+    )
+    admin = re.findall(r"--adm-control-h\s*:\s*([^;]+);", ADMIN.read_text(encoding="utf-8"))
+
+    assert platform and admin == platform, (platform, admin)
+
+
+def test_no_admin_touch_minimum_is_written_44px():
+    """كما `test_touch_target_token` للمنصّة: الحدُّ يُكتب `var(--adm-control-h)` لا رقماً."""
+    css = ADMIN.read_text(encoding="utf-8")
+    assert not re.findall(r"\bmin-(?:height|width|block-size|inline-size)\s*:\s*44px", css)
+
+
+def test_phone_touch_rules_cover_the_admin_controls():
+    """قيسَت 736 هدفاً دون الحدّ — القواعدُ تسمّي الأصنافَ التي وُجدت، لا تخمّن."""
+    css = ADMIN.read_text(encoding="utf-8")
+    block = css[css.index("أهدافُ اللمس على الجوّال في صفحات الإدارة") :]
+    block = block[: block.index("\n}\n", block.index("@media")) + 3]
+    for selector in (
+        "#user-tools :is(a, button)",
+        "a.addlink",
+        ".related-widget-wrapper-link",
+        ".datetimeshortcuts a",
+        ".selector button",
+        ".app-fold__summary",
+        "#changelist-filter summary",
+        "select",
+        "textarea",
+    ):
+        assert selector in block, selector
+    assert "var(--adm-control-h)" in block and "44px" not in block

@@ -1,0 +1,8 @@
+{% load icons %}{% comment %}
+  مفتاحُ صفحات دليل الهويّة الثلاث — أزرارٌ دائمةٌ في ترويسة كلٍّ منها ليُنتقل بينها بنقرةٍ واحدة،
+  والصفحةُ الحاليّةُ مملوءةٌ وعليها aria-current. المصدرُ الواحدُ لها: تضمّنه الصفحاتُ الثلاث
+  (`components.html`، `icon_preview.html`، `layouts.html`) بـ`with current="components|icons|layouts"`،
+  فلا تُكتب الأزرارُ ثلاثَ مرّات ولا يُنسى أحدُها في صفحةٍ جديدة. و`icon_count` من العرض.
+{% endcomment %}<a href="{% url 'ui_components' %}" class="{% if current == 'components' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm"{% if current == 'components' %} aria-current="page"{% endif %}>{% icon "wings" %} دليلُ الهويّة</a>
+<a href="{% url 'icon_preview' %}" class="{% if current == 'icons' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm"{% if current == 'icons' %} aria-current="page"{% endif %}>{% icon "reinforcement" %} الأيقونات ({{ icon_count }})</a>
+<a href="{% url 'ui_layouts' %}" class="{% if current == 'layouts' %}btn-primary{% else %}btn-secondary{% endif %} btn-sm"{% if current == 'layouts' %} aria-current="page"{% endif %}>{% icon "dashboard" %} أنماطُ التخطيط</a>

@@ -124,7 +124,7 @@
   "operations/schedule_feasibility.py": 5,
   "operations/schedule_lab.py": 14,
   "operations/scheduler.py": 58,
-  "operations/scheduler_constraints.py": 10,
+  "operations/scheduler_constraints.py": 6,
   "operations/scheduler_improve.py": 11,
   "operations/scheduler_tight.py": 5,
   "operations/services/attendance.py": 3,
@@ -154,5 +154,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1740
+ "total": 1736
 }

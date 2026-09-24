@@ -164,6 +164,7 @@ class ScheduleSessionsMixin:
                     date=actual_date,
                     start_time=slot.start_time,
                     end_time=slot.end_time,
+                    period_number=slot.period_number,
                     status="scheduled",
                     elective_group=slot.elective_group,
                 )
@@ -278,6 +279,7 @@ class ScheduleSessionsMixin:
                 date=target_date,
                 start_time=slot.start_time,
                 end_time=slot.end_time,
+                period_number=slot.period_number,
                 status="scheduled",
                 elective_group=slot.elective_group,
             )
@@ -307,6 +309,39 @@ class ScheduleSessionsMixin:
         # كلُّ يومٍ في معاملته (`resync_sessions_for_date`) كما كان — لا معاملةٌ
         # خارجيّةٌ تزيد نقطةَ حفظٍ في مسار الاعتماد.
         return cls._resync_days(school, week_sun, week_thu, academic_year, generated=None)
+
+    @classmethod
+    def future_weeks_start(cls, today: date) -> date:
+        """أحدُ الأسبوع الذي بعد ما يُصالحه الاعتمادُ في الطلب (SCH-08).
+
+        `resync_current_week` تصالح الأحدَ إلى الخميس من `_get_week_bounds(اليوم)` — وهي تُعيد
+        الأسبوعَ القادمَ يومَي الجمعة والسبت. فما بعده يبدأ من خميسه + ثلاثة أيّام: لا فجوةَ
+        بين المصالحتين ولا تكرار.
+        """
+        from datetime import timedelta
+
+        return cls._get_week_bounds(today)[1] + timedelta(days=3)
+
+    @classmethod
+    def resync_future_weeks(cls, school: School, academic_year: str | None = None) -> dict:
+        """مصالحةُ الأسابيع المولَّدة سلفاً بعد أسبوع الاعتماد — عملُ الخلفيّة لا الطلب.
+
+        الاعتمادُ يصالح الأسبوعَ الجاريَ وحدَه: كلفةُ اليوم نحوُ مئةٍ وستٍّ وسبعين حصّةً تُحذف
+        وتُنشأ، فكلُّ أسبوعٍ إضافيٍّ يزيد زمنَ الطلب، وحارسُ عدّ الاستعلامات يُقرّ بذلك. ومن
+        غير هذا تبقى أيّامُ الأسابيع القادمة المولَّدة على الجدول القديم.
+        """
+        from django.utils import timezone
+
+        start = cls.future_weeks_start(timezone.localdate())
+        last = (
+            Session.objects.filter(school=school, date__gte=start)
+            .order_by("-date")
+            .values_list("date", flat=True)
+            .first()
+        )
+        if last is None:
+            return {"deleted": 0, "created": 0, "kept": 0}
+        return cls.resync_sessions_for_range(school, start, last, academic_year)
 
     @classmethod
     @transaction.atomic

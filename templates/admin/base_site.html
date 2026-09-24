@@ -13,9 +13,15 @@
 {% block extrahead %}{{ block.super }}
 <link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/favicon.png' %}">
 <link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}">
+{# الخطُّ مسبقاً: بدونه يُرسم نصُّ الترويسة بخطٍّ بديلٍ لحظةً عند كلّ تحميلٍ ثمّ يتبدّل — وميضٌ يراه المستخدمُ في الترويسة والقائمة. #}
+<link rel="preload" href="{% static 'fonts/Tajawal-Regular.woff2' %}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{% static 'fonts/Tajawal-Medium.woff2' %}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
 <script src="{% static 'js/admin_nav.js' %}" defer></script>
 <script src="{% static 'js/admin_i18n.js' %}" defer></script>
 <script src="{% static 'js/admin_a11y.js' %}" defer></script>
+{# الانتقالُ بين الصفحات بآلية المنصّة نفسِها (تلاشٍ ثمّ تحميل): نمطُ fade لا تبديلَ DOM — صفحاتُ الإدارة تهيّئ أدواتِها عند load. #}
+<script src="{% static 'js/page-nav.js' %}" data-page-nav="fade" data-page-nav-root="#content-start" defer></script>
 {% endblock %}
 
 {% block branding %}
