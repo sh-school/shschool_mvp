@@ -83,28 +83,41 @@ class ScheduleSessionsMixin:
         academic_year = academic_year or academic_year_for_school(school, on=target_date)
         from datetime import timedelta
 
+        from django.db.models import Count
+
         week_sun, week_thu = cls._get_week_bounds(target_date)
 
         # ── فحص سريع: أي أيام في هذا الأسبوع لديها حصص؟ ──
         # جلساتُ عامٍ آخرَ لا تُعَدّ: الأسبوعُ الأوّل من 2026-2027 وُلّد على الإنتاج
         # من شُعب 2025-2026 قبل اعتماد الجدول الجديد، فرآه هذا الفحصُ «كاملاً»
         # وبقيت 845 جلسةً لعامٍ منقضٍ أسبوعاً كاملاً.
-        existing_days = set(
+        existing = dict(
             Session.objects.filter(
                 school=school,
                 date__range=(week_sun, week_thu),
                 class_group__academic_year=academic_year,
             )
-            .values_list("date", flat=True)
-            .distinct()
+            .order_by()
+            .values_list("date")
+            .annotate(n=Count("id"))
         )
 
         # حساب الأيام الناقصة (أحد=0 … خميس=4)
         all_days = [week_sun + timedelta(days=i) for i in range(5)]
-        missing_days = [d for d in all_days if d not in existing_days]
+        missing_days = [d for d in all_days if d not in existing]
 
         if not missing_days:
             return 0  # الأسبوع كامل — لا شيء للفعل
+
+        # ── «اليومُ المبتور» ──
+        # يومٌ فيه حصّةٌ واحدةٌ كان يُعدّ مولَّداً: تبديلٌ أو إشغالٌ أو تعويضٌ لتاريخٍ
+        # في أسبوعٍ لم يُولَّد يُنشئ حصّتَه وحدها، فيبقى اليومُ للمدرسة كلّها بحصّةٍ
+        # واحدة ولا يُكمَل أبداً (ثبت بالتجربة 2026-09-24: 1 بدل 176). وحالُه أنّ
+        # أسبوعَه لم يُولَّد، فبقيّةُ أيّامه فارغة — أي أنّه يقع هنا لا في الفحص السريع.
+        # فأيّامُ الأسبوع التي فيها حصصٌ تُكمَل مع الفارغة من قراءة الخطّة نفسها،
+        # و`ignore_conflicts` يرفض ما وُجد منها — ولو بُدّل معلّمُه. والكاتبون أنفسُهم
+        # يولّدون يومَهم أوّلاً (`hand_over_session`، التعويض)، فلا يُبتَر يومٌ جديد.
+        partial_days = [d for d in all_days if d in existing]
 
         # ── يومُ إجازةِ الطلبة ليس يومَ حصص ──
         # كانت الإجازةُ الرسميّةُ يومَ ثلاثاء تُولَّد لها حصصُ الجدول كلُّها ما دام
@@ -113,11 +126,14 @@ class ScheduleSessionsMixin:
         # فأسبوعُه وحدَه يدفع استعلاماً ثانياً — واحداً للأسبوع كلّه.
         school_days = SchoolDays(school, week_sun, week_thu)
         missing_days = [d for d in missing_days if d in school_days]
+        if not missing_days:
+            return 0  # أسبوعُ إجازة: لا يُقرأ الجدول أصلاً
+        partial_days = [d for d in partial_days if d in school_days]
 
         # ── جلب ScheduleSlots لكل الأيام الناقصة ──
         missing_qatar_days = []
         day_map = {}  # qatar_day → actual_date
-        for d in missing_days:
+        for d in missing_days + partial_days:
             qatar_day = cls._PY_TO_QATAR.get(d.weekday(), -1)
             if qatar_day >= 0:
                 missing_qatar_days.append(qatar_day)
@@ -156,9 +172,16 @@ class ScheduleSessionsMixin:
         if not sessions_to_create:
             return 0
 
-        # bulk_create مع ignore_conflicts — يتجاهل أي تكرار بسبب UniqueConstraint
-        created = Session.objects.bulk_create(sessions_to_create, ignore_conflicts=True)
-        count = len(created)
+        # bulk_create مع ignore_conflicts — يتجاهل أي تكرار بسبب UniqueConstraint.
+        # وحين يُكمَل يومٌ ناقص فالعددُ فرقُ ما قبلُ وما بعدُ: تُرفض فيه الموجودةُ
+        # صامتةً، و`bulk_create` يُعيد ما أُرسل لا ما أُدرج.
+        if partial_days:
+            filled = Session.objects.filter(school=school, date__in=list(day_map.values()))
+            before = filled.count()
+            Session.objects.bulk_create(sessions_to_create, ignore_conflicts=True)
+            count = filled.count() - before
+        else:
+            count = len(Session.objects.bulk_create(sessions_to_create, ignore_conflicts=True))
 
         if count > 0:
             logger.info(
@@ -278,19 +301,70 @@ class ScheduleSessionsMixin:
         cls, school: School, academic_year: str | None = None
     ) -> dict[str, int]:
         """مصالحةُ أيّام الأسبوع الجاري (الأحد → الخميس) — تُستدعى عند الاعتماد."""
-        from datetime import timedelta
-
         from django.utils import timezone
 
         week_sun, week_thu = cls._get_week_bounds(timezone.localdate())
-        school_days = SchoolDays(school, week_sun, week_thu)
-        totals = {"deleted": 0, "created": 0, "kept": 0}
-        for i in range(5):
-            r = cls.resync_sessions_for_date(
-                school, week_sun + timedelta(days=i), academic_year, school_days
+        # كلُّ يومٍ في معاملته (`resync_sessions_for_date`) كما كان — لا معاملةٌ
+        # خارجيّةٌ تزيد نقطةَ حفظٍ في مسار الاعتماد.
+        return cls._resync_days(school, week_sun, week_thu, academic_year, generated=None)
+
+    @classmethod
+    @transaction.atomic
+    def resync_sessions_for_range(
+        cls,
+        school: School,
+        start: date,
+        end: date,
+        academic_year: str | None = None,
+        generated_only: bool = True,
+    ) -> dict[str, int]:
+        """مصالحةُ أيّام الدراسة في [start, end] مع الخطّة النشطة — واجهةٌ عامّة.
+
+        لمن يغيّر الخطّةَ (`ScheduleSlot`) مباشرةً بعد أن وُلّدت أيّامُها: تبديلٌ
+        دائمٌ بين معلّمَين، أو تصحيحُ حصّةٍ مزدوجة. فتلك التعديلاتُ لا تمسّ حصصَ
+        الأيّام المولَّدة، فتبقى على الخطّة القديمة. ولكلّ يومٍ حكمُ
+        `resync_sessions_for_date`: يُحذف ما لم يعد يطابق ولم يمسّه أحد، ويُنشأ
+        الناقص، ويُبقى ما فيه حضورٌ أو خروجٌ أو مخالفةٌ أو تبديلٌ أو تعويض.
+
+        و`generated_only` (الافتراض): الأيّامُ المولَّدةُ وحدها — فيومٌ لم يُولَّد
+        يُولَّد لاحقاً من الخطّة الجديدة أصلاً، ولا يُولَّد مستقبلٌ بعيدٌ هنا بلا
+        داعٍ. والمعاملةُ واحدةٌ للمدى كلّه: يُصالَح كلُّه أو لا شيء منه.
+        Returns: {"deleted", "created", "kept"}.
+        """
+        if end < start:
+            raise ValueError("نهايةُ المدى قبل بدايته")
+        generated = (
+            set(
+                Session.objects.filter(school=school, date__range=(start, end))
+                .values_list("date", flat=True)
+                .distinct()
             )
-            for k in totals:
-                totals[k] += r[k]
+            if generated_only
+            else None
+        )
+        return cls._resync_days(school, start, end, academic_year, generated)
+
+    @classmethod
+    def _resync_days(
+        cls,
+        school: School,
+        start: date,
+        end: date,
+        academic_year: str | None,
+        generated: set[date] | None,
+    ) -> dict[str, int]:
+        """حلقةُ المصالحة: أيّامُ الدراسة في المدى، أو ما في `generated` منها وحده."""
+        from datetime import timedelta
+
+        school_days = SchoolDays(school, start, end)
+        totals = {"deleted": 0, "created": 0, "kept": 0}
+        day = start
+        while day <= end:
+            if day.weekday() in cls._PY_TO_QATAR and (generated is None or day in generated):
+                r = cls.resync_sessions_for_date(school, day, academic_year, school_days)
+                for k in totals:
+                    totals[k] += r[k]
+            day += timedelta(days=1)
         return totals
 
     @classmethod

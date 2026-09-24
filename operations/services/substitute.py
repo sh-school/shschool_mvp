@@ -342,7 +342,13 @@ class SubstituteService:
         مشتركٌ بين الإشغال والتبديل: الأثرُ على `Session` ليومه لا على القالب
         الأسبوعيّ. ولو لم تُنشأ بعدُ أُنشئت من قالبها. والبحثُ بمجموعة الاختيار
         أيضاً: شعبةٌ تتفرّق بين مادّتين في التوقيت نفسه لها جلستان.
+
+        ويُولَّد يومُها كاملاً أوّلاً: حصّةٌ مفردةٌ في يومٍ لم يُولَّد كانت تُبقيه
+        للمدرسة كلّها بحصّةٍ واحدة («اليومُ المبتور»، 2026-09-24).
         """
+        from operations.services.schedule import ScheduleService
+
+        ScheduleService.ensure_sessions_for_date(school, day)
         session, _created = Session.objects.get_or_create(
             school=school,
             class_group=slot.class_group,

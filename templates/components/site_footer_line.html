@@ -1,0 +1,4 @@
+{% comment %}
+سطرُ الهويّة في ذيل المنصّة: المدرسةُ والوزارةُ والسنة. تضمّنه `base/base.html` ولوحةُ الإدارة
+(`admin/_footer.html`) فلا يُكتب مرّتين؛ وأنماطُه `site-footer-text` في المنصّة وفي `admin_theme.css`.
+{% endcomment %}<p class="site-footer-text">{{ current_school.name|default:"المدرسة" }} &ensp;|&ensp; وزارة التربية والتعليم والتعليم العالي — دولة قطر &ensp;·&ensp; &copy; {% now "Y" %}</p>

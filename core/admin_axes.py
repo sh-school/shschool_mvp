@@ -42,6 +42,14 @@ def mask_national_id(typed: str) -> str:
     return typed or "—"
 
 
+#: أعمدةُ axes التي تحمل نصّاً إنجليزيّاً لا ترجمةَ له في كتالوجها العربيّ ← بدائلُها العربيّة.
+#: (والترجمةُ بملفّ `.po` لا تصل الإنتاج: `compilemessages` في preDeploy وقرصُه غيرُ قرص الخدمة.)
+_ARABIC_COLUMNS = {"status": "lock_status", "expiration": "expires_at"}
+
+#: عناوينُ أقسام صفحة المحاولة في axes، بلا ترجمةٍ عربيّة في الحزمة.
+_ARABIC_FIELDSETS = {"Form Data": "بيانات النموذج", "Meta Data": "بيانات الطلب"}
+
+
 def _identified_columns(columns: Any) -> tuple[str, ...]:
     """أعمدةُ axes نفسُها، و«اسمُ المستخدم» مستبدَلٌ بالمخفيّ وبعده الاسمُ والرقمُ الوظيفيّ."""
     out: list[str] = []
@@ -49,8 +57,28 @@ def _identified_columns(columns: Any) -> tuple[str, ...]:
         if column == "username":
             out += ["typed_username", "owner_name", "owner_employee_number"]
         else:
-            out.append(column)
+            out.append(_ARABIC_COLUMNS.get(column, column))
     return tuple(out)
+
+
+class LockedOutFilter(admin.SimpleListFilter):
+    """مرشِّحُ «Locked Out» في axes بعنوانٍ عربيّ، والشرطُ شرطُه: الإخفاقاتُ بلغت الحدّ أم لا."""
+
+    title = "حالة القفل"
+    parameter_name = "locked_out"
+
+    def lookups(self, request: Any, model_admin: Any) -> tuple[tuple[str, str], ...]:
+        return (("yes", "مقفل"), ("no", "غير مقفل"))
+
+    def queryset(self, request: Any, queryset: QuerySet[Any]) -> QuerySet[Any]:
+        from axes.conf import settings as axes_settings
+
+        limit = axes_settings.AXES_FAILURE_LIMIT
+        if self.value() == "yes":
+            return queryset.filter(failures_since_start__gte=limit)
+        if self.value() == "no":
+            return queryset.filter(failures_since_start__lt=limit)
+        return queryset
 
 
 class IdentifiedAxesAdminMixin:
@@ -58,6 +86,16 @@ class IdentifiedAxesAdminMixin:
 
     def get_list_display(self, request: Any) -> tuple[str, ...]:
         return _identified_columns(super().get_list_display(request))  # type: ignore[misc]
+
+    def get_list_filter(self, request: Any) -> list[Any]:
+        from axes.admin import IsLockedOutFilter
+
+        filters = super().get_list_filter(request)  # type: ignore[misc]
+        return [LockedOutFilter if f is IsLockedOutFilter else f for f in filters]
+
+    def get_fieldsets(self, request: Any, obj: Any = None) -> list[Any]:
+        fieldsets = super().get_fieldsets(request, obj)  # type: ignore[misc]
+        return [(_ARABIC_FIELDSETS.get(str(title), title), opts) for title, opts in fieldsets]
 
     def get_queryset(self, request: Any) -> QuerySet[Any]:
         rows: QuerySet[Any] = super().get_queryset(request)  # type: ignore[misc]
@@ -87,6 +125,23 @@ class IdentifiedAxesAdminMixin:
     @admin.display(description="المكتوب في خانة الدخول", ordering="username")
     def typed_username(self, obj: Any) -> str:
         return mask_national_id(str(obj.username or ""))
+
+    @admin.display(description="الحالة")
+    def lock_status(self, obj: Any) -> str:
+        from axes.conf import settings as axes_settings
+
+        remaining = axes_settings.AXES_FAILURE_LIMIT - obj.failures_since_start
+        return f"باقٍ {remaining} من المحاولات" if remaining > 0 else "مقفل"
+
+    @admin.display(description="ينتهي في")
+    def expires_at(self, obj: Any) -> Any:
+        return obj.expiration.expires_at if hasattr(obj, "expiration") else "—"
+
+    @admin.action(description="حذف المحاولات المنتهية")  # type: ignore[type-var]  # خلطةٌ لا ModelAdmin
+    def cleanup_expired_attempts(self, request: Any, queryset: QuerySet[Any]) -> None:
+        # إجراءُ axes نفسُه (يحذف ما انتهت مدّتُه كلَّه لا المحدَّدَ وحده) برسالةٍ عربيّة
+        count = self.handler.clean_expired_user_attempts(request=request)  # type: ignore[attr-defined]
+        self.message_user(request, f"حُذفت {count} من المحاولات المنتهية.")  # type: ignore[attr-defined]
 
     @admin.display(description="الاسم", ordering="owner_name")
     def owner_name(self, obj: Any) -> str:
