@@ -395,7 +395,7 @@ PAGE_LAYOUTS = {
 
 
 @register.simple_tag
-def page_layout(name, *extra):
+def page_layout(name: str, *extra: str) -> str:
     """أصنافُ `#main-content` لنمط الصفحة: `{% block main_class %}{% page_layout "list" %}{% endblock %}`.
 
     نمطٌ غيرُ معروف `TemplateSyntaxError`، و`extra` أصنافٌ قائمةٌ تُلحق كما هي (`"page-wide"`).
