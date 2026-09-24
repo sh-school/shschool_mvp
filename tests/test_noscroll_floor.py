@@ -10,7 +10,10 @@ import pathlib
 import re
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-BASE = (ROOT / "templates/base/base.html").read_text(encoding="utf-8")
+#: القالبُ بلا تعليقات جانغو — لا تصل الصفحة، وتعليقُ الرأس يذكر `</main>` نصّاً.
+BASE = re.sub(
+    r"\{#.*?#\}", "", (ROOT / "templates/base/base.html").read_text(encoding="utf-8"), flags=re.S
+)
 BASE_JS = (ROOT / "static/js/base.js").read_text(encoding="utf-8")
 
 
@@ -18,8 +21,8 @@ def test_the_decision_runs_inline_right_after_the_content():
     main_end = BASE.index("</main>")
     script = BASE.index("window.fitNoscroll = function", main_end)
     call = BASE.index("window.fitNoscroll();", script)
-    # لا شيءَ بين المحتوى والقرار إلّا تعليقٌ ووسمُ السكربت.
-    between = re.sub(r"\{#.*?#\}", "", BASE[main_end + len("</main>") : script], flags=re.S)
+    # لا شيءَ بين المحتوى والقرار إلّا وسمُ السكربت.
+    between = BASE[main_end + len("</main>") : script]
     assert between.strip().startswith('<script nonce="{{ request.csp_nonce }}">')
     assert call > script
 
