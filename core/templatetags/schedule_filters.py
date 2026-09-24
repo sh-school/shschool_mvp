@@ -1,3 +1,5 @@
+from typing import Any
+
 from django import template
 
 register = template.Library()
@@ -8,6 +10,18 @@ def get_item(dictionary, key):
     if isinstance(dictionary, dict):
         return dictionary.get(key)
     return None
+
+
+@register.filter
+def has_capability(user: Any, key: str) -> bool:
+    """أيملك المستخدمُ هذه القدرة؟ — للقالب، بالحكم نفسِه الذي يحرس العرض.
+
+    فزرٌّ تحرسه قدرةٌ في العرض يُسأل عنها هنا لا بعلَمٍ في سياق العرض: علَمٌ لكلّ
+    زرٍّ يطيل العرضَ سطراً سطراً، والحارسُ يعدّ أسطره.
+    """
+    from core.capabilities import has_capability as _has
+
+    return _has(user, key)
 
 
 @register.filter

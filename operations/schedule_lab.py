@@ -26,6 +26,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from statistics import mean, pstdev
 
+from .scheduler_bell import longest_run
+
 DAYS = (0, 1, 2, 3, 4)
 LAST_PERIOD = 7
 WEEK_SLOTS = len(DAYS) * LAST_PERIOD
@@ -210,15 +212,6 @@ def alternating_compactness(periods: list[int]) -> float:
     return max(1.0, (distinct[-1] - distinct[0] + 1) / ideal_span)
 
 
-def _longest_run(periods: list[int]) -> int:
-    ordered = sorted(set(periods))
-    best = run = 1 if ordered else 0
-    for earlier, later in zip(ordered, ordered[1:], strict=False):
-        run = run + 1 if later == earlier + 1 else 1
-        best = max(best, run)
-    return best
-
-
 def _cv(values: list[float]) -> float:
     if not values or mean(values) == 0:
         return 0.0
@@ -294,6 +287,17 @@ class ScheduleLab:
 
     def available_days(self, tid: str) -> list[int]:
         return [d for d in DAYS if d not in self.ctx.full_days.get(tid, ())]
+
+    def longest_run(self, tid: str, day: int) -> int:
+        """أطولُ تتابعٍ متّصلٍ للمعلّم في يومه — بالساعة لا بالرقم (SCH-18).
+
+        فالفسحةُ والصلاةُ تفصلان (قرارُ المالك 2026-09-24): حصّتان تعبران استراحةً ليستا
+        تتابعاً، كما لا تُعدّان معاً في الحصّة المزدوجة. وبلا جرسٍ يبقى الرقمُ حَكَماً.
+        """
+        return longest_run(
+            self.by_teacher_day_bands[tid][day],
+            lambda band, period: _interval(self.ctx, band, day, period),
+        )
 
     def run_cap(self, tid: str) -> int:
         pref = self.ctx.preferences.get(tid)
@@ -395,8 +399,8 @@ class ScheduleLab:
         longest, breaches = [], []
         for tid, days in self.by_teacher_day.items():
             cap = self.run_cap(tid)
-            for day, periods in days.items():
-                run = _longest_run(periods)
+            for day in days:
+                run = self.longest_run(tid, day)
                 longest.append(run)
                 if run > cap:
                     breaches.append((self.names[tid], day, run))
@@ -498,7 +502,7 @@ class ScheduleLab:
             cap = self.run_cap(tid)
             gap_w = sum(excess_gap_weight(ps) for ps in days.values() if ps)
             edges = sum(1 for ps in days.values() for p in ps if p in (1, LAST_PERIOD))
-            breaches = sum(1 for ps in days.values() if _longest_run(ps) > cap)
+            breaches = sum(1 for day in days if self.longest_run(tid, day) > cap)
             counts = [len(set(days.get(d, []))) for d in self.available_days(tid)]
             imbalance = pstdev(counts) if len(counts) >= 2 else 0.0
             scores[tid] = (gap_w + edges + breaches + imbalance) / self.load[tid]
@@ -522,7 +526,7 @@ class ScheduleLab:
             else:
                 misses[name].append("السقف اليومي")
             checks += 1
-            if all(_longest_run(ps) <= (pref["max_consecutive"] or 99) for ps in days.values()):
+            if all(self.longest_run(tid, day) <= (pref["max_consecutive"] or 99) for day in days):
                 met += 1
             else:
                 misses[name].append("التتالي")
