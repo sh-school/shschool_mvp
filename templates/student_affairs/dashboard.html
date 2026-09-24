@@ -6,7 +6,7 @@
 {% block title %}شؤون الطلاب{% endblock %}
 
 {# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
-{% block main_class %}page-noscroll{% endblock %}
+{% block main_class %}{% page_layout "dashboard" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with current="شؤون الطلاب" %}
