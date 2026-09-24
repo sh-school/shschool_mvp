@@ -716,7 +716,7 @@
    "orm": 26
   },
   "student_affairs/views.py::tardiness_record": {
-   "lines": 119,
+   "lines": 113,
    "orm": 19
   },
   "student_affairs/views.py::tardiness_search_students": {

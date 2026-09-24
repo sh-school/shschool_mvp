@@ -58,6 +58,7 @@
 
 | المجال | الحرّاس | ما يفرضونه |
 |---|---|---|
+| **خصوصيّةُ الصور المرفوعة (PDPPL)** | `test_uploads_are_photo_cleaned`، `test_tardiness_excuse_photo_privacy` | كلُّ دالّةٍ تقرأ `request.FILES` تمرّ بـ`core.photo_privacy.clean_photo` (يمحو EXIF/GPS ويصغّر) أو مسمّاةٌ بسببها؛ والديونُ المعلَنة (`KNOWN_UNCLEANED`) لا تزيد وتُحذف حين تُنظَّف؛ وإذنُ التأخّر يُحفظ نظيفاً ومُتحقَّقاً منه بالبايتات |
 | **بنيةُ CSS** | `test_css_split`، `test_css_layers`، `test_design_tokens_resolve::test_the_platform_keeps_one_stylesheet` | ورقةُ أنماطٍ واحدةٌ للمنصّة (استثناءان مبرَّران: `admin_theme.css` و`styleguide.css`)؛ قائمةُ الملفّات = القرص؛ جملةُ الطبقات في أوّل ملفّ؛ **لا قاعدةَ خارجَ `@layer`**؛ كلُّ ملفٍّ على حدّ طبقته؛ لا `url()` نسبيٌّ مكسور؛ كلُّ قواعد `html.dark` في `themes` |
 | **الألوان والرموز** | `test_css_colours_are_tokens`، `test_design_tokens_resolve`، `test_brand_literals`، `test_dark_parity`، `test_contrast_ratios`، `test_on_fill` | لا لونَ حرفيّاً؛ كلُّ رمزٍ مستعمَلٍ معرَّف؛ مرآةُ بايثون = `:root`؛ تكافؤُ الليل؛ نسبُ التباين؛ نصٌّ على الحشو بـ`--on-fill` |
 | **الاتّجاه والتخطيط** | `test_rtl_logical_properties`، `test_reflow`، `test_z_scale` (ومعه K18 = 0 وشريطُ التثبيت `--z-banner` (300) تحت ما يفتحه المستخدم)، `test_safe_area_tokens`، `test_pwa_banner_position`، `test_mobile_layout`، `test_mobile_nav_menu`، `test_action_cards_fit_narrow_screens` | لا `left/right` مطلقاً؛ لا عرضَ ثابتاً > 320px (WCAG 1.4.10)؛ سلّمُ z-index؛ قواعدُ الجوال؛ نصُّ بطاقة الإجراء لا يفيض عند 375/360/320 |
