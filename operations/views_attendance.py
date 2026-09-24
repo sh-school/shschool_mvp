@@ -17,7 +17,7 @@ from core.models import StudentEnrollment
 
 from .day_attendance import can_record, is_recorder, recorded_by_supervisor
 from .models import Session, StudentAttendance
-from .services import AttendanceService, ScheduleService
+from .services import AttendanceService, ScheduleService, SubstituteService
 
 logger = logging.getLogger(__name__)
 
@@ -102,11 +102,9 @@ def schedule(request):
         all_count = completed_count = 0
 
     now = timezone.now().time()
-    next_session = None
-    for s in sessions:
-        if s.start_time >= now and s.status == "scheduled":
-            next_session = s
-            break
+    next_session = next(
+        (s for s in sessions if s.start_time >= now and s.status == "scheduled"), None
+    )
 
     # ── بيانات الفلاتر (للقيادة فقط) ──
     filter_teachers = []
@@ -142,6 +140,8 @@ def schedule(request):
             # ما بقي بلا إنهاءٍ ينبّه، والصفرُ أخضر.
             "open_tone": "orange" if open_count else "green",
             "sessions": sessions,
+            # الإشغالُ والتبديلُ يكتبان كلاهما `original_teacher`؛ فيُعرف الإشغالُ باسمه.
+            "cover_ids": SubstituteService.cover_session_ids(sessions),
             "selected_date": selected_date,
             "today": timezone.localdate(),
             "next_session": next_session,

@@ -36,7 +36,9 @@ FROZEN_FALLBACKS = Counter(
 _REPORTED: set[str] = set()
 
 if TYPE_CHECKING:  # النماذج تستورد هذه الوحدة لقيمها الافتراضية — فلا نستوردها هنا وقت التشغيل
-    from core.models import AcademicYear, Semester
+    import datetime as dt
+
+    from core.models import AcademicYear, School, Semester
 
 
 @dataclass(frozen=True)
@@ -162,7 +164,9 @@ def academic_year_for_school(school, on=None) -> str:
     )
 
 
-def academic_year_window(school, on=None):
+def academic_year_window(
+    school: School | None, on: dt.date | None = None
+) -> tuple[dt.date, dt.date] | None:
     """تاريخا بداية العام ونهايته — لا اسمه.
 
     عتبة الغياب القانونية (المادة ٧ من قانون التعليم الإلزامي ٢٥/٢٠٠١) تُحسب

@@ -13,7 +13,6 @@ from django.db import models, transaction
 
 from operations.models import (
     ScheduleSlot,
-    Session,
     TeacherAbsence,
     TeacherSwap,
     TimeSlotConfig,
@@ -458,24 +457,8 @@ class SwapService:
 
     @staticmethod
     def _move_session(swap: TeacherSwap, slot, day, to_teacher) -> None:
-        """يُسلّم حصّةَ ذلك اليوم لمعلّمٍ آخر، ويحفظ اسمَ صاحبها الأوّل."""
-        session, _created = Session.objects.get_or_create(
-            school=swap.school,
-            class_group=slot.class_group,
-            date=day,
-            start_time=slot.start_time,
-            defaults={
-                "teacher": slot.teacher,
-                "subject": slot.subject,
-                "end_time": slot.end_time,
-            },
-        )
-        # صاحبُها الأوّلُ يُكتب مرّةً: حصّةٌ بُدّلت مرّتين صاحبُها الأوّلُ
-        # أوّلُها لا أوسطُها.
-        if session.original_teacher_id is None:
-            session.original_teacher_id = session.teacher_id
-        session.teacher = to_teacher
-        session.save(update_fields=["teacher", "original_teacher"])
+        """يُسلّم حصّةَ ذلك اليوم لمعلّمٍ آخر — والتسليمُ نفسُه مشتركٌ مع الإشغال."""
+        SubstituteService.hand_over_session(swap.school, slot, day, to_teacher)
 
     @staticmethod
     @transaction.atomic
