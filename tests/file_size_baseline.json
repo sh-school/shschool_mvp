@@ -4,7 +4,6 @@
   "core/domain/grades.py": 1748,
   "core/permissions.py": 1084,
   "notifications/tasks.py": 1503,
-  "operations/models.py": 2218,
   "operations/scheduler.py": 1725,
   "operations/scheduler_constraints.py": 1074,
   "operations/views_schedule.py": 1543,
