@@ -65,16 +65,18 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     #: يحسب به تقريرُ السنة الأولى (النظام الوظيفي، المادة 16: مدّةٌ «لا تقل عن ثلاثة أشهر»).
     #: فارغٌ = غيرُ معروف، فلا يُرفض به تقرير.
     service_start_date = models.DateField(null=True, blank=True, verbose_name="تاريخ المباشرة")
-    is_staff = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
-    date_joined = models.DateTimeField(default=timezone.now)
+    is_staff = models.BooleanField(default=False, verbose_name="دخول لوحة الإدارة")
+    is_active = models.BooleanField(default=True, verbose_name="حساب نشط")
+    date_joined = models.DateTimeField(default=timezone.now, verbose_name="تاريخ الانضمام")
     must_change_password = models.BooleanField(default=True, verbose_name="يجب تغيير كلمة المرور")
     totp_secret = models.CharField(max_length=255, blank=True, verbose_name="مفتاح 2FA")
     totp_enabled = models.BooleanField(default=False, verbose_name="2FA مفعّل")
     last_password_change = models.DateTimeField(
         null=True, blank=True, verbose_name="آخر تغيير لكلمة المرور"
     )
-    failed_login_attempts = models.PositiveSmallIntegerField(default=0)
+    failed_login_attempts = models.PositiveSmallIntegerField(
+        default=0, verbose_name="محاولات الدخول الفاشلة"
+    )
     locked_until = models.DateTimeField(null=True, blank=True, verbose_name="مقفل حتى")
     consent_given_at = models.DateTimeField(
         null=True, blank=True, verbose_name="تاريخ إعطاء الموافقة"
@@ -372,14 +374,17 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
 class Profile(models.Model):
     GENDER = [("M", "ذكر"), ("F", "أنثى")]
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="profile")
-    gender = models.CharField(max_length=1, choices=GENDER, blank=True)
-    birth_date = models.DateField(null=True, blank=True)
-    notes = models.TextField(blank=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    user = models.OneToOneField(
+        CustomUser, on_delete=models.CASCADE, related_name="profile", verbose_name="المستخدم"
+    )
+    gender = models.CharField(max_length=1, choices=GENDER, blank=True, verbose_name="الجنس")
+    birth_date = models.DateField(null=True, blank=True, verbose_name="تاريخ الميلاد")
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "ملف شخصي"
+        verbose_name_plural = "الملفات الشخصية"
 
     def __str__(self):
         return f"Profile: {self.user.full_name}"

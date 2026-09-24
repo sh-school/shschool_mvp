@@ -183,7 +183,7 @@ class NotificationEnqueueIntentAdmin(ReadOnlyAdmin):
     """
 
     list_display = (
-        "id",
+        "intent_id",
         "recipient",
         "school",
         "last_enqueue_attempt_at",
@@ -197,6 +197,10 @@ class NotificationEnqueueIntentAdmin(ReadOnlyAdmin):
     date_hierarchy = "created_at"
     list_select_related = ("recipient", "school")
     ordering = ("-created_at",)
+
+    @admin.display(description="المعرّف", ordering="id")
+    def intent_id(self, obj):
+        return obj.pk
 
 
 @admin.register(NotificationLog)

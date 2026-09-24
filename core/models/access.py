@@ -170,8 +170,10 @@ class Role(models.Model):
         ("platform_developer", "مطور المنصة"),
     ]
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="roles")
-    name = models.CharField(max_length=30, choices=ROLES)
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="roles", verbose_name="المدرسة"
+    )
+    name = models.CharField(max_length=30, choices=ROLES, verbose_name="اسم الدور")
 
     class Meta:
         verbose_name = "دور"
@@ -248,13 +250,19 @@ class MembershipQuerySet(models.QuerySet):
 
 class Membership(models.Model):
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name="memberships")
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="memberships")
-    role = models.ForeignKey(Role, on_delete=models.PROTECT, related_name="memberships")
-    is_active = models.BooleanField(default=True)
+    user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="memberships", verbose_name="المستخدم"
+    )
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="memberships", verbose_name="المدرسة"
+    )
+    role = models.ForeignKey(
+        Role, on_delete=models.PROTECT, related_name="memberships", verbose_name="الدور"
+    )
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
     #: `timezone.now` تُرجع لحظةً لا يوماً، فيحمل الكائنُ غيرَ المحفوظ
     #: `datetime` في حقلِ `date` — وتنكسر أيُّ مقارنةٍ قبل أوّل حفظ.
-    joined_at = models.DateField(default=timezone.localdate)
+    joined_at = models.DateField(default=timezone.localdate, verbose_name="تاريخ الالتحاق")
 
     #: المسمّى الوظيفيُّ كما في لوائح الوزارة وكشف الكادر — حرفيّاً.
     #:

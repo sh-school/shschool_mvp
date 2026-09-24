@@ -257,9 +257,14 @@ class SchoolAdmin(SchoolScopedAdmin):
 class RoleAdmin(SchoolScopedAdmin):
     school_lookup = "school"
 
-    list_display = ("school", "name", "get_name_display")
+    list_display = ("school", "name", "code")
     list_filter = ("name", "school")
     search_fields = ("name",)
+
+    @admin.display(description="الرمز", ordering="name")
+    def code(self, obj):
+        # عمودُ «name» يعرض الاسمَ العربيّ من الخيارات، وهذا مفتاحُه البرمجيّ
+        return obj.name
 
 
 @admin.register(Department)
