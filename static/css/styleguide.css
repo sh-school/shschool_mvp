@@ -121,6 +121,8 @@
 .sg-wire__row.is-fill, .sg-wire__b.is-fill { flex: 1 1 auto; }
 .sg-wire__b.is-title, .sg-wire__b.is-label { background: none; border: 0; justify-content: flex-start; }
 .sg-wire__b.is-title { font-weight: 700; color: var(--text-primary); }
+/* التسميةُ على أرضيّة الصفحة لا على سطح: `--text-muted` عليها 4.2 (axe: color-contrast، يلزم 4.5). */
+.sg-wire__b.is-label { color: var(--text-secondary); }
 .sg-wire__b.is-band { background: var(--maroon-bg); border-color: var(--maroon-border); color: var(--maroon-fg); }
 .sg-wire__b.is-card { border-block-start: 3px solid var(--maroon); }
 .sg-wire__b.is-side, .sg-wire__b.is-bar { background: var(--surface-alt); }
