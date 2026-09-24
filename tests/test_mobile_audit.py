@@ -113,12 +113,12 @@ def _measure_all(request, playwright, base: str) -> dict[str, dict]:
                             # `load` لا `networkidle`: الأنماطُ والخطوطُ هي ما يُقاس، ونصفُ ثانيةٍ
                             # سكونٍ بعد كلّ صفحةٍ كان يضاعف الزمنَ فوق ميزانية CI (90 ث).
                             response = page.goto(f"{base}{_url(name)}", wait_until="load")
-                            assert (
-                                response and response.ok
-                            ), f"{role}:{name} {response and response.status}"
-                            assert (
-                                LOGIN_PATH not in page.url
-                            ), f"{engine}/{role}:{name} أُحيل إلى الدخول — الجلسةُ لم تثبت"
+                            assert response and response.ok, (
+                                f"{role}:{name} {response and response.status}"
+                            )
+                            assert LOGIN_PATH not in page.url, (
+                                f"{engine}/{role}:{name} أُحيل إلى الدخول — الجلسةُ لم تثبت"
+                            )
                             page.evaluate("document.fonts.ready.then(() => 1)")
                             results[f"{engine}/{profile}/{role}:{name}"] = audit.measure_page(page)
                     finally:
@@ -168,11 +168,22 @@ class TestTheRatchetItself:
             [],
         )
 
-    def test_desktop_guards_text_not_touch(self):
-        before = {"chromium/desktop/a:b": {"small44": 3, "tiny_text": 1}}
-        after = {"chromium/desktop/a:b": {"small44": 9, "tiny_text": 2}}
+    def test_desktop_guards_text_and_the_mouse_target_not_the_finger_target(self):
+        """سطحُ المكتب: النصُّ وحدُّ الفأرة 24px محروسان؛ و44px شأنُ الإصبع فلا يُحرس (DBT-44)."""
+        before = {"chromium/desktop/a:b": {"small44": 3, "small24": 4, "tiny_text": 1}}
+        after = {"chromium/desktop/a:b": {"small44": 9, "small24": 6, "tiny_text": 2}}
         worse, _ = audit.compare(before, after)
-        assert worse == ["chromium/desktop/a:b: tiny_text 1 → 2"]
+        assert worse == [
+            "chromium/desktop/a:b: small24 4 → 6",
+            "chromium/desktop/a:b: tiny_text 1 → 2",
+        ]
+
+    def test_a_desktop_target_under_24px_that_was_fixed_must_be_recorded(self):
+        """ينزل العددُ ولم يُسجَّل → يسقط كالجوال، فلا ينجرف خطُّ الأساس بصمت كما انجرف قبل الحارس."""
+        before = {"chromium/desktop/a:b": {"small24": 10}}
+        after = {"chromium/desktop/a:b": {"small24": 9}}
+        worse, stale = audit.compare(before, after)
+        assert not worse and stale == ["chromium/desktop/a:b: small24 10 → 9"]
 
     def test_a_new_page_with_overflow_is_worse(self):
         worse, _ = audit.compare({}, {"chromium/mobile/x:y": {"h_overflow": 12}})
