@@ -83,6 +83,8 @@ DEFAULT_CHANNELS = {
     # تظلّمُ موظّفٍ من تقرير أدائه (المادة 20): داخل المنصّة وحدَها — لا بريدَ ولا رسالةً خارجيّة لبيانات
     # تقييمٍ وظيفيّ. ولا يحمل الإشعارُ سببَ التظلّم (يقرؤه المديرُ في شاشة التظلّمات).
     "appraisal_grievance": ["in_app"],
+    # تغطيةُ غياب معلّم (إشغالٌ أو تبديل): تكليفٌ لحصّةٍ قريبة — داخل المنصّة وعلى الهاتف فوراً.
+    "teacher_cover": ["in_app", "push"],
     "general": ["in_app", "push", "email"],
 }
 
@@ -106,6 +108,7 @@ DEFAULT_PRIORITY = {
     "plan_overdue": "high",
     "review_cycle": "low",
     "appraisal_grievance": "high",
+    "teacher_cover": "high",
     "general": "low",
 }
 
@@ -589,6 +592,7 @@ def _map_event_type(hub_event):
         "review_cycle": "review_cycle",
         "observation": "general",
         "appraisal_grievance": "general",
+        "teacher_cover": "general",
         "general": "general",
     }
     return mapping.get(hub_event, "general")

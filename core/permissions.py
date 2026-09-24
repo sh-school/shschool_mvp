@@ -251,6 +251,10 @@ ANALYTICS_VIEW = {
 WORKLOAD_EDIT = {"coordinator", "vice_academic", "principal", "platform_developer"}
 WORKLOAD_REVIEW = {"vice_academic", "principal", "platform_developer"}
 WORKLOAD_APPROVE = {"principal", "platform_developer"}
+# وقفُ الإسناد عن المنسّقين وفتحُه — مفتاحٌ في صفحة الإسناد لهؤلاء الثلاثة وحدَهم،
+# لا يتبدّل بتهيئة أدوار الحوكمة: المنسّقُ هو المحكومُ به، فلا يُترك للمدرسة
+# أن تُدخله في من يملك المفتاح.
+ASSIGNMENT_ENTRY_TOGGLE = {"principal", "vice_academic", "platform_developer"}
 
 # ── إدارة المستخدمين والنظام ────────────────────────────────────
 USER_MANAGE = {"principal"}
@@ -940,7 +944,7 @@ def teacher_can_access_student(user, student_id):
     return student_id in ids
 
 
-def get_department_teacher_ids(user):
+def get_department_teacher_ids(user: Any) -> set[Any] | None:
     """
     يُعيد قائمة IDs المعلمين في قسم المنسق.
     - المنسق → معلمي قسمه/تخصصه في نفس المدرسة

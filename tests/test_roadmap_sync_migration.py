@@ -218,3 +218,43 @@ def test_0007_annotates_once_without_touching_dates_or_status():
     assert (u33.status, u33.progress) == ("doing", 30)
     assert u33.note.startswith("قديمة\n[2026-09-23]")
     assert _sync7.annotate(RoadmapItem) == []
+
+
+# ── 0008: Q-01/Q-02 وH-01 وحسمُ D-16 ودَينُ حجم CSS ──
+
+_sync8 = importlib.import_module("roadmap.migrations.0008_sync_items_2026_09_24")
+
+
+def test_0008_closes_the_merged_items_once():
+    for code, status, progress in (
+        ("Q-01", "doing", 60),
+        ("H-01", "todo", 0),
+        ("LAY-02", "todo", 0),
+    ):
+        _item(code, status, progress)
+    assert _sync8.sync(RoadmapItem) == ["Q-01", "H-01", "LAY-02"]
+    assert _sync8.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="H-01").pr == "#513"
+    lay2 = RoadmapItem.objects.get(code="LAY-02")
+    assert (lay2.status, lay2.progress, lay2.pr) == ("doing", 60, "")
+
+
+def test_0008_does_not_close_lay01_before_its_pr_merges():
+    assert "LAY-01" not in {u[0] for u in _sync8.UPDATES}
+
+
+def test_0008_decides_d16_on_the_owners_date():
+    from roadmap.models import RoadmapDecision
+
+    RoadmapDecision.objects.create(code="D-16", title="أنماط التخطيط", status="open")
+    assert _sync8.decide(RoadmapDecision) == ["D-16"]
+    assert str(RoadmapDecision.objects.get(code="D-16").decision_date) == "2026-09-23"
+    assert _sync8.decide(RoadmapDecision) == []
+
+
+def test_0008_adds_the_css_debt_open_and_the_merged_work_closed():
+    assert _sync8.add_missing(RoadmapItem) == ["DBT-36", "N-022", "N-023", "N-024", "N-025"]
+    debt = RoadmapItem.objects.get(code="DBT-36")
+    assert (debt.status, debt.end_date, debt.lane) == ("todo", None, "debt")
+    assert RoadmapItem.objects.get(code="N-025").pr == "#512 #516"
+    assert _sync8.add_missing(RoadmapItem) == []

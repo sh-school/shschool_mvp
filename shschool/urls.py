@@ -89,6 +89,7 @@ urlpatterns = [
     ),
     path("styleguide/components/", views_styleguide.ui_components, name="ui_components"),
     path("styleguide/icons/", views_styleguide.icon_preview, name="icon_preview"),
+    path("styleguide/layouts/", views_styleguide.ui_layouts, name="ui_layouts"),
     path("sw.js", global_sw, name="global_sw"),
     path("manifest.json", global_manifest, name="global_manifest"),
     path("offline/", offline_global, name="offline_global"),

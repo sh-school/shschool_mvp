@@ -825,3 +825,159 @@ def test_one_card_comes_back_when_the_owner_asked(
     )
 
     assert response.content.decode().count("hx-swap-oob") == 0
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  مفتاحُ وقف الإسناد عن المنسّقين
+# ══════════════════════════════════════════════════════════════════════
+
+
+def toggle(client, paused):
+    return client.post(
+        reverse("academic_management:assignment_entry_toggle"),
+        {"year": YEAR, "paused": "1" if paused else "0"},
+    )
+
+
+def is_paused(school):
+    from academic_management.models import WorkloadGovernance
+
+    return WorkloadGovernance.for_school(school).coordinator_entry_paused
+
+
+@pytest.mark.parametrize("role", ["vice_academic", "principal", "platform_developer"])
+def test_the_three_roles_can_pause_and_reopen_the_entry(client, school, role):
+    """المدير والنائبُ الأكاديميّ ومطوّرُ المنصّة — ولا سواهم."""
+    login(client, a_user(school, "صاحب المفتاح", role), school)
+
+    assert toggle(client, True).status_code == 302
+    assert is_paused(school)
+    toggle(client, False)
+    assert not is_paused(school)
+
+
+@pytest.mark.parametrize("role", ["coordinator", "teacher"])
+def test_a_coordinator_or_teacher_cannot_touch_the_switch(client, school, departments, role):
+    login(client, a_user(school, "بلا مفتاح", role, departments["MAT"]), school)
+
+    assert toggle(client, True).status_code == 403
+    assert not is_paused(school)
+
+
+def test_pausing_twice_is_one_change_and_is_audited(client, school, vice):
+    """القيمةُ صريحةٌ لا قلب: نقرتان لا تعكسان، وسجلُّ التدقيق بسطرٍ واحد."""
+    from core.models import AuditLog
+
+    login(client, vice, school)
+    toggle(client, True)
+    toggle(client, True)
+
+    assert is_paused(school)
+    logs = AuditLog.objects.filter(model_name="WorkloadGovernance")
+    assert logs.count() == 1
+    assert logs.get().changes == {"coordinator_entry_paused": {"before": False, "after": True}}
+
+
+def test_a_paused_entry_refuses_the_coordinator_but_still_shows_the_screen(
+    client, school, departments, maths_teacher, coordinator, vice, seventh, subjects, plan_rows
+):
+    login(client, vice, school)
+    toggle(client, True)
+
+    login(client, coordinator, school)
+    screen = page(client)
+    assert screen.status_code == 200
+    assert "الإسنادُ موقوفٌ عن المنسّقين" in screen.content.decode()
+    assert "وقفُ الإسناد عن المنسّقين" not in screen.content.decode()  # لا مفتاحَ عنده
+
+    refused = add(client, maths_teacher, seventh, subjects["MAT"])
+    assert "الإسنادُ موقوفٌ عن المنسّقين" in refused.content.decode()
+    set_quota(client, maths_teacher, 5)
+    assert not SubjectClassAssignment.objects.exists()
+    assert not TeacherWorkloadPlan.objects.exists()
+
+
+def test_a_paused_entry_stops_a_coordinator_submitting_a_draft(
+    client, school, departments, maths_teacher, coordinator, vice, seventh, subjects, plan_rows
+):
+    login(client, coordinator, school)
+    set_quota(client, maths_teacher, 5)
+    login(client, vice, school)
+    toggle(client, True)
+
+    login(client, coordinator, school)
+    move(client, maths_teacher, "submit")
+
+    assert TeacherWorkloadPlan.objects.get(teacher=maths_teacher).status == DRAFT
+
+
+def test_a_paused_entry_does_not_stop_the_vice_or_the_principal(
+    client, school, departments, maths_teacher, vice, principal, seventh, subjects, plan_rows
+):
+    login(client, vice, school)
+    toggle(client, True)
+
+    add(client, maths_teacher, seventh, subjects["MAT"])
+    assert SubjectClassAssignment.objects.count() == 1
+    login(client, principal, school)
+    assert set_quota(client, maths_teacher, 5).status_code == 200
+    assert TeacherWorkloadPlan.objects.get(teacher=maths_teacher).required_weekly_periods == 5
+
+
+def test_reopening_lets_the_coordinator_write_again(
+    client, school, departments, maths_teacher, coordinator, vice, seventh, subjects, plan_rows
+):
+    login(client, vice, school)
+    toggle(client, True)
+    toggle(client, False)
+
+    login(client, coordinator, school)
+    add(client, maths_teacher, seventh, subjects["MAT"])
+
+    assert SubjectClassAssignment.objects.count() == 1
+
+
+def test_the_coordinator_leads_their_department_list_with_one_uniform_badge(
+    client, school, departments, maths_teacher, coordinator, vice
+):
+    """منسّقُ التخصّص أوّلَ قائمة قسمه ولو تأخّر اسمُه أبجديّاً، ووسمُه واحدٌ لكلّ المنسّقين."""
+    login(client, vice, school)
+    html = page(client).content.decode()
+
+    assert html.index("منسّق الرياضيات") < html.index("معلّم الرياضيات")
+    assert html.count("asg-chip-coordinator") == 1
+    assert html.index("asg-chip-coordinator") > html.index("منسّق الرياضيات")
+
+
+def test_each_department_panel_carries_its_timetable_colour(
+    client, school, departments, maths_teacher, science_teacher, vice
+):
+    """لونُ القسم كما في الجدول العامّ: الرياضيات `math`، وما لا يُعرف كودُه رمادٌ محايد."""
+    departments["MAT"].code = "math"
+    departments["MAT"].save(update_fields=["code"])
+
+    login(client, vice, school)
+    html = page(client).content.decode()
+
+    assert "asg-dept-fold dept-math" in html
+    assert "asg-dept-fold dept-other" in html  # DEP-SCI لا يُعرف: محايد لا لونٌ مخترَع
+
+
+@pytest.mark.parametrize(
+    ("code", "key"),
+    [
+        ("sharia", "sharia"),
+        ("islamic", "sharia"),
+        ("science_prep", "science"),
+        ("science_sec", "biology"),
+        ("life_skills", "life-skills"),
+        ("MATH", "math"),
+        ("unknown", "other"),
+        ("", "other"),
+        (None, "other"),
+    ],
+)
+def test_dept_key_follows_the_printed_timetable(code, key):
+    from core.dept_colors import dept_key
+
+    assert dept_key(code) == key

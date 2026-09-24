@@ -400,11 +400,18 @@ class TestNotificationHub:
 
         التأجيل يقع عند الطبر (`_queue_external_now` عبر `quiet_hours.plan`)، فالـHub
         يُسجّل الإرسالَ كما كان؛ ومنعُ خروجه الآنيّ مُثبَتٌ في tests/test_quiet_hours.py."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        # نافذةٌ حولَ الساعة الآن لا 00:00–23:59: طرفُها الأخير خارجَها (`in_quiet_window`)،
+        # فكان الاختبارُ يسقط كلّما جرى في الدقيقة 23:59 بتوقيت الدوحة — وقد سقط به طابورُ الدمج.
+        now = timezone.localtime()
         user = UserFactory()
         UserNotificationPreference.objects.create(
             user=user,
-            quiet_hours_start=dt_time(0, 0),
-            quiet_hours_end=dt_time(23, 59),
+            quiet_hours_start=(now - timedelta(hours=1)).time(),
+            quiet_hours_end=(now + timedelta(hours=1)).time(),
         )
         result = NotificationHub.dispatch(
             event_type="general",

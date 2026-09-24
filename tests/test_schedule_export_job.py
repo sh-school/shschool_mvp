@@ -173,3 +173,99 @@ def test_expiry_is_idempotent_and_ignores_finished_jobs(school, principal_user):
     assert expire_if_stale(done) is False
     done.refresh_from_db()
     assert done.status == "done"
+
+
+# ── الإشعار العائم: JSON بدل صفحة المتابعة ────────────────────────────────────
+
+AJAX = {"HTTP_X_REQUESTED_WITH": "XMLHttpRequest"}
+
+
+def test_an_ajax_export_request_gets_json_with_the_status_url_not_a_redirect(
+    client_as, school, principal_user, monkeypatch
+):
+    import operations.tasks as tasks_module
+
+    monkeypatch.setattr(tasks_module.render_schedule_export_task, "delay", lambda *a, **k: None)
+
+    resp = client_as(principal_user).get(
+        reverse("schedule_export_excel") + "?view=all_teachers", **AJAX
+    )
+
+    job = ExportJob.objects.get(school=school, kind="schedule.xlsx")
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "job_id": str(job.id),
+        "status_url": reverse("export_job_status", args=[job.id]),
+    }
+
+
+def test_the_json_status_reports_progress_without_returning_the_file(
+    client_as, school, principal_user
+):
+    job = _job(school, principal_user, "pending", age_minutes=1)
+
+    resp = client_as(principal_user).get(
+        reverse("export_job_status", args=[job.id]) + "?format=json"
+    )
+
+    assert resp.json() == {"status": "pending", "error": ""}
+
+
+def test_the_json_status_carries_the_reason_of_a_failure(client_as, school, principal_user):
+    job = _job(school, principal_user, "failed", age_minutes=1)
+    ExportJob.objects.filter(pk=job.pk).update(error_message="سببٌ صريح")
+
+    resp = client_as(principal_user).get(
+        reverse("export_job_status", args=[job.id]) + "?format=json"
+    )
+
+    assert resp.json() == {"status": "failed", "error": "سببٌ صريح"}
+
+
+def test_a_done_job_still_returns_the_file_at_the_plain_status_url(
+    client_as, school, principal_user
+):
+    job = ExportJob.objects.create(
+        school=school,
+        requested_by=principal_user,
+        kind="schedule.pdf",
+        status="done",
+        content=b"%PDF-1.4 x",
+        content_type="application/pdf",
+        filename="جدول.pdf",
+    )
+
+    resp = client_as(principal_user).get(reverse("export_job_status", args=[job.id]))
+
+    assert resp.status_code == 200
+    assert resp["Content-Type"] == "application/pdf"
+    assert "attachment" in resp["Content-Disposition"]
+
+
+def test_the_standalone_sheet_exports_through_the_platform_page_not_a_status_page(
+    client_as, principal_user
+):
+    """الورقةُ المستقلّة بلا إشعارٍ عائم — فتصديرُها يفتح صفحةَ الجدول بـ`export=` بالاختيار نفسِه."""
+    html = (
+        client_as(principal_user)
+        .get(reverse("schedule_print") + "?view=all_teachers&paper=a3")
+        .content.decode()
+    )
+
+    page = reverse("weekly_schedule")
+    assert f'href="{page}?view=all_teachers&amp;paper=a3' in html
+    assert "&amp;export=pdf" in html and "&amp;export=excel" in html
+    assert reverse("schedule_export_pdf") not in html
+    assert reverse("schedule_export_excel") not in html
+
+
+def test_the_platform_page_marks_each_export_link_with_its_kind(client_as, principal_user):
+    """`export=pdf|excel` يجد رابطَه بوسمه — فالوسمُ قيمةٌ لا علامةٌ مجرّدة."""
+    html = (
+        client_as(principal_user)
+        .get(reverse("weekly_schedule") + "?view=all_teachers")
+        .content.decode()
+    )
+
+    assert 'data-export-job="pdf"' in html
+    assert 'data-export-job="excel"' in html

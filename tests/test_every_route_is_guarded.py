@@ -30,6 +30,7 @@ _NOT_A_ROLE_CHECK = {"IsAuthenticated", "AllowAny"}
 #: يفحص الصلاحيّةَ داخلَه — القدرةَ أو الكائنَ أو صاحبَ البيانات. المسارُ ← أين يُفحص.
 GUARDED_INSIDE = {
     "academic/assignments/": "_guard() — قدرةُ الإدخال/المراجعة/الاعتماد، ونطاقُ قسم المنسّق",
+    "academic/assignments/entry/": "_guard() ثمّ ASSIGNMENT_ENTRY_TOGGLE في set_coordinator_entry_paused",
     "academic/assignments/subjects/": "_guard() — قدرةُ الإدخال/المراجعة/الاعتماد، ونطاقُ قسم المنسّق",
     "academic/assignments/<uuid:teacher_id>/add/": "_guard() — قدرةُ الإدخال/المراجعة/الاعتماد، ونطاقُ قسم المنسّق",
     "academic/assignments/<uuid:teacher_id>/load/": "_guard() — قدرةُ الإدخال/المراجعة/الاعتماد، ونطاقُ قسم المنسّق",
@@ -45,6 +46,7 @@ GUARDED_INSIDE = {
     "search/": "الطلبةُ للكادر، والرقمُ الشخصيُّ لشؤون الطلبة، والكادرُ للمدير (#222)",
     "styleguide/icons/": "developer_only — superuser أو مجموعة developers",
     "styleguide/components/": "developer_only — superuser أو مجموعة developers",
+    "styleguide/layouts/": "developer_only — superuser أو مجموعة developers",
     "roadmap/": "developer_only — superuser أو مجموعة developers",
     "roadmap/items/new/": "developer_only — superuser أو مجموعة developers (إضافةُ بند)",
     "roadmap/items/<str:code>/": "developer_only — superuser أو مجموعة developers",

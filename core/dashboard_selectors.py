@@ -24,7 +24,7 @@ from clinic.models import ClinicVisit
 from core.academic_calendar import academic_year_for_school
 from core.domain.attendance import attendance_rate
 from core.models.academic import StudentEnrollment, grade_order
-from core.permissions import SCHEDULE_BROWSE
+from core.permissions import SCHEDULE_BROWSE, get_department_teacher_ids
 from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
 from operations.models import (
@@ -301,7 +301,13 @@ def get_teacher_ctx(user, school, today, role):
         ctx["coord_pending_comp"] = CompensatorySession.objects.filter(
             school=school, status="pending"
         ).count()
-        ctx["coord_absent_today"] = TeacherAbsence.objects.filter(school=school, date=today).count()
+        # يعدّ غائبي قسمه وحده: القائمةُ التي تفتحها النقرةُ محصورةٌ في قسمه، وكان
+        # العدّادُ يعدّ المدرسةَ كلَّها فيقول «5» وتفتح صفّين.
+        absent_today = TeacherAbsence.objects.filter(school=school, date=today)
+        dept_ids = get_department_teacher_ids(user)
+        if dept_ids is not None:
+            absent_today = absent_today.filter(teacher_id__in=dept_ids)
+        ctx["coord_absent_today"] = absent_today.count()
 
     return ctx
 

@@ -35,8 +35,9 @@ FILE_HINTS = re.compile(
         ]
     )
 )
-#: أسماءٌ على الاصطلاح وهي صفحات.
-PAGE_URL_NAMES = re.compile(r"\{%\s*url\s+['\"]student_import_export['\"]")
+#: أسماءٌ على الاصطلاح وهي صفحات — و`weekly_schedule?…&export=` صفحةُ الجدول تبدأ التصديرَ
+#: بنفسها بإشعارٍ عائم (schedule-export.js)، فالرابطُ صفحةٌ لا ملفّ.
+PAGE_URL_NAMES = re.compile(r"\{%\s*url\s+['\"](?:student_import_export|weekly_schedule)['\"]")
 TAG = re.compile(r"<(?:a|button)\b[^>]*>", re.S)
 
 #: صفحاتٌ كاملةٌ بلا base.html ولا تحتاج الشريط: الدخولُ قبل المنصّة، والبريدُ
