@@ -32,6 +32,26 @@ def test_the_entrance_is_a_keyframe_animation_not_a_class_toggled_transition():
     assert "is-entering" not in JS and "requestAnimationFrame" not in JS
 
 
+def test_leaving_forces_its_opacity_transition_over_a_childs_own():
+    """ابنٌ له انتقالٌ خاصٌّ في طبقةٍ أحدث (`.sa-panel`: ظلٌّ وحدٌّ وتحويل) يغلب `transition` العامّ فيختفي فجأةً.
+
+    قِيس على 74 صفحةً (220 ابناً): 4 أبناءٍ بلا تلاشي خروج قبل هذا. فالفرضُ بـ`!important` في حالة الخروج وحدَها،
+    ويُبطَل في كتلة تقليل الحركة بالمثل — والمقابلةُ نصّيّةٌ لأنّ السلوكَ يُقاس في المتصفّح لا هنا.
+    """
+    leaving = re.search(r"#main-content\.is-leaving > \.exec-dash > \*\s*\{([^}]*)\}", CSS)
+    assert leaving, "قاعدةُ الخروج `#main-content.is-leaving > .exec-dash > *` غائبة"
+    assert re.search(
+        r"transition:\s*opacity\s+var\(--transition-page\)\s*!important", leaving.group(1)
+    )
+    reduced = CSS[
+        CSS.index("@media (prefers-reduced-motion: reduce) {\n  #main-content > :not(.exec-dash)") :
+    ]
+    assert re.search(
+        r"#main-content\.is-leaving > \.exec-dash > \*\s*\{\s*transition:\s*none\s*!important",
+        reduced,
+    )
+
+
 def test_no_section_sub_menu_remains():
     """قرارُ المالك 2026-09-20: القائمةُ الرئيسيّةُ بالمرور تكفي — لا شريطَ قسمٍ فرعيّاً ولا شيفرتَه."""
     assert "section-nav" not in CSS and "section-nav" not in JS
