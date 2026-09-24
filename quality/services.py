@@ -18,6 +18,8 @@ from django.db.models import Count, Prefetch, QuerySet
 
 from core.academic_calendar import academic_year_for_school
 
+from .evidence_files import screen_evidence
+
 if TYPE_CHECKING:
     from core.models import CustomUser, School
 
@@ -307,9 +309,13 @@ class QualityService:
     ) -> ProcedureEvidence:
         """
         إنشاء دليل جديد للإجراء.
-        يجب التحقق من نوع الملف في الـ view قبل استدعاء هذه الدالة.
+        الملفُّ يُفحص ويُنظَّف هنا (`screen_evidence`، DBT-43) — فمن رُفض رُفع `ValidationError`
+        ولم يُكتب شيء؛ وعلى الـview أن تعرض رسالتَه.
         """
         from .models import ProcedureEvidence
+
+        if file:
+            file = screen_evidence(file)
 
         return ProcedureEvidence.objects.create(
             procedure=procedure,
@@ -336,8 +342,13 @@ class QualityService:
         """
         تحديث الإجراء + تسجيل log التغيير + رفع دليل اختياري.
         يُستدعى من view task_update_modal.
+        الملفُّ يُفحص ويُنظَّف **قبل** أيّ كتابة (`screen_evidence`، DBT-43): ملفٌّ مرفوضٌ لا يترك
+        الإجراءَ نصفَ محدَّث — يُرفع `ValidationError` وتبقى الحالةُ كما كانت.
         """
         from .models import ProcedureEvidence, ProcedureStatusLog
+
+        if file:
+            file = screen_evidence(file)
 
         old_status = procedure.status
         if status and status in dict(OperationalProcedure.STATUS):

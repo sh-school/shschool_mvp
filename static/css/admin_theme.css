@@ -398,6 +398,9 @@ a.adm-card:hover { background: var(--selected-row); }
 thead th, .module caption { text-transform: none; }
 /* شريطُ الحفظ ثابتٌ أسفل منطقة المحتوى: لا نزولَ داخل النموذج الطويل للوصول إلى «حفظ». */
 .submit-row { position: sticky; inset-block-end: 0; z-index: 5; box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.08); }
+/* على الجوّال لا يثبت: أزرارُه الأربعةُ مكدَّسةٌ بحدّ اللمس (4 × --adm-control-h وفواصلها) فكان الشريطُ يحجب نحوَ 208px من
+   812px — ربعَ الشاشة فوق النموذج — ويقصر أكثر على الهواتف الأقصر. يبقى في آخر النموذج ويثبت على الحاسوب. */
+@media (max-width: 767px) { .submit-row { position: static; box-shadow: none; } }
 /* التذييلُ في سطرٍ واحدٍ على الشاشات العريضة: يوفّر نحوَ 80px من ارتفاع الصفحة. */
 /* بعد القواعد الأساسيّة عمداً: بالأولويّة نفسها يحسم الأخيرُ، فتغلب `center` الأساسيّةُ على `start`. */
 @media (min-width: 1025px) {

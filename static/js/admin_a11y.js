@@ -11,6 +11,7 @@
      (axe: aria-input-field-name) → يُضاف إليه <label> الحقل، وإلى نصّ الاختيار داخلَه.
    - أيقونةُ البحث في الاختيار بين قائمتين (filter_horizontal): <span> عليه aria-label بلا دور
      (axe: aria-prohibited-attr) → role="img".
+   - بدائلُ صور القيمة المنطقيّة وحقل البحث: `alt="True"` و`alt="Search"` بالإنجليزيّة → «نعم»/«لا» و«بحث».
 
    select2 والاختيارُ بين قائمتين يُنشآن بعد تحميل الصفحة، وصفوفُ «أضف آخر» تُضاف بالنقر، فيُراقَب
    تغيُّرُ الصفحة ويُسمّى كلُّ عنصرٍ حين يظهر. ولا يُمسّ عنصرٌ له اسمٌ أصلاً. */
@@ -93,11 +94,25 @@
     });
   }
 
+  // بدائلُ الصور النصّيّة التي يكتبها جانغو بالإنجليزيّة ثابتةً بلا gettext: أيقونةُ القيمة المنطقيّة في القوائم
+  // (`_boolean_icon` تكتب `alt="True"`)، وأيقونةُ حقل البحث (`alt="Search"` حرفيّةٌ في القالب) — فيقرؤها قارئُ الشاشة
+  // بالإنجليزيّة وسطَ صفحةٍ عربيّة. القيمةُ المنطقيّةُ هنا `نعم`/`لا` كما يعرضها الباقي.
+  var BOOLEAN_ALT = { 'True': 'نعم', 'False': 'لا', 'None': 'غير محدَّد' };
+  function nameAlternatives(root) {
+    root.querySelectorAll('img[alt="True"], img[alt="False"], img[alt="None"]').forEach(function (img) {
+      img.setAttribute('alt', BOOLEAN_ALT[img.getAttribute('alt')]);
+    });
+    root.querySelectorAll('label[for="searchbar"] img[alt="Search"]').forEach(function (img) {
+      img.setAttribute('alt', 'بحث');
+    });
+  }
+
   function run() {
     nameListEditable(document);
     nameSplitDateTime(document);
     nameSelect2(document);
     nameFilterIcons(document);
+    nameAlternatives(document);
   }
 
   var pending = false;

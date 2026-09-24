@@ -229,7 +229,8 @@ def _search_view_icon_keys():
 def test_the_command_palette_names_a_real_meaning(key):
     """كانت نتائجُ Ctrl+K إيموجي خاماً (🎓👨‍🏫🏠…) — رسمٌ موازٍ خارج القاموس
     تماماً، لا يمرّ على `{% icon %}` فلا يحرسه شيء. صار كلُّ عنصرٍ مفتاحاً
-    دلاليّاً يرسمه `static/js/app.js` من الورقة نفسها التي يرسمها الوسم —
+    دلاليّاً يرسمه `static/js/app.js` بـ`window.iconSvg` (base.js) من الورقة
+    نفسها التي يرسمها الوسم —
     فهذا الحارسُ يمنع عودة رمزٍ خامٍّ، والتصيير الفعليّ في المتصفّح يبقى
     خارج نطاق هذا الملفّ الساكن.
     """
@@ -308,8 +309,9 @@ def test_the_new_icon_classes_are_styled():
 # الحارسُ أعلاه يمسح `*.html` وحدَها، والسكربتُ يكتب `<svg><use>` نصّاً في
 # `innerHTML` فلا يمرّ على وسمٍ ولا على مسحٍ. وحوارُ التأكيد في `base.js` كان
 # يكتب `#icon-alert-triangle` من ورقةٍ حُذفت، فيظهر عنوانُه بلا رسم — ولا يسقط
-# شيءٌ لأنّ المتصفّح لا يُبلغ عن `<use>` لا يجد هدفَه. وصوابُ السكربت أن يبني
-# المسارَ من `data-icon-sprite` في `<body>` كما يفعل الوسمُ و`static/js/app.js`.
+# شيءٌ لأنّ المتصفّح لا يُبلغ عن `<use>` لا يجد هدفَه. وصوابُ السكربت أن يستعمل
+# `window.iconSvg('<مفتاح>')` في `static/js/base.js` — المالكِ الوحيد لمسار الورقة
+# (يبنيه من `data-icon-sprite` في `<body>` كما يفعل الوسمُ) — لا أن يكتب `<use>` بيده.
 
 _JS_COMMENT = re.compile(r"/\*.*?\*/|(?<![:\\\"'])//[^\n]*", re.S)
 #: `<use href="#…">` — الورقةُ خارجيّةٌ، فأيُّ مرجعٍ يبدأ بـ`#` لا هدفَ له في الصفحة.
@@ -318,6 +320,9 @@ _JS_LEGACY_ID = re.compile(r"#icon-[\w-]+")
 #: معرّفٌ مكتوبٌ كاملاً (`…sprite.svg#i-status_warning`) — أمّا `'#i-' + key` فيُبنى
 #: وقتَ التشغيل ويحرسه `test_the_command_palette_names_a_real_meaning` بمفاتيحه.
 _JS_SYMBOL_ID = re.compile(r"#(i-[a-z0-9_-]+)")
+#: `window.iconSvg('status_warning')` — المفتاحُ المكتوبُ حرفيّاً يُطابَق بالقاموس (أمّا
+#: `iconSvg(r.icon)` فمفتاحٌ يصل وقتَ التشغيل من JSON، ويحرسه اختبارُ لوحة الأوامر).
+_JS_ICON_CALL = re.compile(r"""\biconSvg\(\s*['"]([^'"]*)['"]\s*\)""")
 _JS_SKIP_PARTS = {"vendor", "node_modules"}
 
 
@@ -334,6 +339,11 @@ def js_icon_problems(js: str, symbols: set[str]) -> list[str]:
         f"رمزٌ ليس في sprite.svg: #{m.group(1)}"
         for m in _JS_SYMBOL_ID.finditer(code)
         if m.group(1) not in symbols
+    ]
+    problems += [
+        f"iconSvg('{m.group(1)}'): لا أيقونةَ بهذا المعنى في القاموس"
+        for m in _JS_ICON_CALL.finditer(code)
+        if f"i-{m.group(1)}" not in symbols
     ]
     return problems
 
@@ -373,6 +383,18 @@ def test_the_script_scan_covers_the_shell_scripts():
     assert {"static/js/base.js", "static/js/app.js"} <= names
 
 
+def test_only_the_shell_script_knows_the_sprite_address():
+    """عنوانُ الورقة في `data-icon-sprite`: يقرؤه `base.js` وحدَه ويبني به الرسمَ
+    (`window.iconSvg`). سكربتٌ ثانٍ يقرؤه يعود إلى نسخةٍ مكرّرةٍ من البناء — كان
+    `app.js` يحمل واحدةً (DBT-50) وحوارُ التأكيد أخرى."""
+    readers = sorted(
+        path.relative_to(ROOT).as_posix()
+        for path in _project_scripts()
+        if "iconSprite" in path.read_text(encoding="utf-8")
+    )
+    assert readers == ["static/js/base.js"], readers
+
+
 @pytest.mark.parametrize(
     "snippet,is_broken",
     [
@@ -386,6 +408,10 @@ def test_the_script_scan_covers_the_shell_scripts():
         ("'<use href=\"' + sprite + '#i-status_warning\"></use>'", False),  # الصواب
         ("'<use href=\"' + sprite + '#i-' + key + '\"></use>'", False),  # مبنيٌّ وقتَ التشغيل
         ("// كان يكتب #icon-alert-triangle", False),  # التعليقُ لا يُحسب
+        ("window.iconSvg('status_warning') + ' '", False),  # الصواب: مفتاحٌ من القاموس
+        ("window.iconSvg('no_such_meaning')", True),  # مفتاحٌ ليس في القاموس
+        ('iconSvg( "alert-triangle" )', True),  # اسمُ الورقة القديمة لا مفتاحُ القاموس
+        ("window.iconSvg(r.icon)", False),  # مفتاحٌ يصل وقتَ التشغيل: يحرسه اختبارُ اللوحة
     ],
 )
 def test_the_script_guard_catches_what_it_is_meant_to(snippet, is_broken):
