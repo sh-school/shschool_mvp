@@ -71,7 +71,7 @@ class AbsenceSwapService:
         """من يُنفَّذ تبديلُه فوراً: المديرُ والنائبُ الأكاديميّ ومن كُلِّف عنه، والمطوّر."""
         from core.developer_access import is_platform_developer
 
-        if user.get_role() in LEADERSHIP_ROLES or is_platform_developer(user):
+        if user.role in LEADERSHIP_ROLES or is_platform_developer(user):
             return True
         return user.pk in AbsenceSwapService.vp_approvers(school, timezone.localdate())
 

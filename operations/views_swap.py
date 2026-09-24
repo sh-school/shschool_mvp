@@ -294,7 +294,7 @@ def _absence_and_slot(request, absence_id, slot_id):
 
     from core.permissions import get_department_teacher_ids
 
-    school = request.user.get_school()
+    school = request.school
     absence = get_object_or_404(TeacherAbsence, id=absence_id, school=school)
     slot = get_object_or_404(ScheduleSlot, id=slot_id, school=school, teacher=absence.teacher)
     dept_ids = get_department_teacher_ids(request.user)
