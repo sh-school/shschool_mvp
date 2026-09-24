@@ -32,8 +32,8 @@
 #   ١. الحزمةُ الأصليّة (`docker-compose.yml`) تعمل — منها قاعدةُ البيانات
 #      وredis والصورةُ المبنيّة. هذا الملفّ لا يبني شيئاً: الصورةُ تحمل
 #      الاعتماديّات، والكودُ مربوطٌ حيّاً، فالبدءُ لحظيّ.
-#   ٢. لا `migrate` هنا. القاعدةُ مشتركة، وهجرةٌ تنطلق من جلستين معاً تتصادم.
-#      الهجراتُ تُطبَّق من الحزمة الأصليّة وحدَها.
+#   ٢. لكلّ شجرةٍ قاعدتُها (`SESSION_DB`، انظر scripts/session-db.sh) وفضاؤها في
+#      redis المشترك: طابورٌ وبادئةُ قنواتٍ باسم القاعدة، وعاملٌ يخدمه (`worker`).
 # ══════════════════════════════════════════════════════════════
 services:
   web:
@@ -67,6 +67,9 @@ services:
       # هجرةُ فرعٍ تُسقط صفحاتِ كلّ الأشجار.
       DB_NAME: ${SESSION_DB:-shschool_db}
       REDIS_URL: redis://host.docker.internal:${REDIS_HOST_PORT:-6380}/0
+      # فضاءُ الجلسة في redis المشترك: طابورُ Celery وبادئةُ القنوات باسم قاعدتها
+      # (shschool/settings/development.py). فلا يلتقط عاملُ غيرِها مهامَّها.
+      SESSION_NAMESPACE: ${SESSION_DB:-}
       PYTHONUNBUFFERED: "1"
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
     env_file:
@@ -80,11 +83,12 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # عاملُ المهامّ الخلفيّة لهذه الشجرة — اختياريٌّ خلف profile.
-  # وبدونه تُنفَّذ مهامُّ الخلفيّة بكود الحزمة الأصليّة لا بكود شجرتك، وهذا
-  # يكفي إلّا حين تكون المهمّةُ نفسُها هي ما تعدّله.
+  # عاملُ المهامّ الخلفيّة لهذه الشجرة — يقلع مع الخادم دائماً.
+  # كان اختياريّاً خلف profile، فتُرسَل مهامُّ الشجرة إلى الطابور المشترك ويلتقطها
+  # عاملُ الحزمة الأصليّة على قاعدته هو («الصفّ غير موجود»). والآن للجلسة طابورُها
+  # (`SESSION_NAMESPACE`)، فلا يخدمها إلّا عاملُها — ولا يُعيد تحميلَ الكود من نفسه:
+  # بعد تعديل مهمّةٍ أعِد تشغيلَه (`… restart worker`).
   worker:
-    profiles: ["worker"]
     image: ${SCHOOLOS_IMAGE:-shschool_mvp-web}
     restart: unless-stopped
     # ينتظر القاعدةَ كالخادم أعلاه.
@@ -97,6 +101,14 @@ services:
           echo "بانتظار قاعدة البيانات على $$DB_HOST:$$DB_PORT…"; sleep 2
         done
         exec celery -A shschool worker -l info --concurrency=2
+    # فحصُ الصحّة للعامل لا للخادم: الصورةُ ترث فحصَ `/health/` على المنفذ 8000، ولا
+    # خادمَ في حاوية العامل فتظهر «unhealthy» وهي سليمة. هذا فحصُ الحزمة الأصليّة نفسُه.
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A shschool inspect ping -d celery@$$(hostname) --timeout 10 | grep -q pong || exit 1"]
+      interval: 30s
+      timeout: 15s
+      start_period: 40s
+      retries: 3
     environment:
       DJANGO_SETTINGS_MODULE: shschool.settings.development
       DB_HOST: host.docker.internal
@@ -106,6 +118,9 @@ services:
       # هجرةُ فرعٍ تُسقط صفحاتِ كلّ الأشجار.
       DB_NAME: ${SESSION_DB:-shschool_db}
       REDIS_URL: redis://host.docker.internal:${REDIS_HOST_PORT:-6380}/0
+      # فضاءُ الجلسة في redis المشترك: طابورُ Celery وبادئةُ القنوات باسم قاعدتها
+      # (shschool/settings/development.py). فلا يلتقط عاملُ غيرِها مهامَّها.
+      SESSION_NAMESPACE: ${SESSION_DB:-}
       PYTHONUNBUFFERED: "1"
       APP_DB_PASSWORD: ${APP_DB_PASSWORD}
     env_file:

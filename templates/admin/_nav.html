@@ -2,8 +2,10 @@
   القائمةُ الأفقيّةُ في ترويسة لوحة الإدارة: أقسامٌ بأسماء قائمة المنصّة وقوائمُ منسدلةٌ بالنماذج.
   التجميعُ في roadmap/admin_menu.py؛ والسلوكُ في static/js/admin_nav.js؛ والأنماطُ في admin_theme.css.
 {% endcomment %}{% if groups %}
-<nav class="adm-nav" aria-label="أقسام لوحة الإدارة">
+<nav class="adm-nav" id="adm-nav" aria-label="أقسام لوحة الإدارة">
   <a class="adm-nav__btn adm-nav__home" href="{% url 'admin:index' %}">الرئيسية</a>
+  {# على الجوّال وحدَه: يطوي الأقسامَ والبحثَ في سطرٍ واحد (admin_nav.js يُظهره؛ بلا سكربتٍ تبقى القائمةُ مفتوحةً كما كانت). #}
+  <button type="button" class="adm-nav__btn adm-nav__toggle" aria-expanded="false" aria-controls="adm-nav" hidden>القائمة <span class="adm-nav__chv" aria-hidden="true">&#9662;</span></button>
   {% comment %}
   نتائجُ البحث مُقرَّرةٌ من الخادم (Django يُفلت href/name/group) — لا بناءَ DOM من نصٍّ في المتصفّح،
   فلا وجودَ للسَّطو الذي يحرسه CodeQL (DOM text reinterpreted as HTML) أصلاً. الفلترةُ إظهارٌ/إخفاءٌ فقط.

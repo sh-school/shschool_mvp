@@ -475,9 +475,14 @@ setTimeout(function() {
 
 
 /* ── Toast System (canonical — app.js لا يعيد تعريفه) ─────── */
+/* زمنُ الظهور بالنوع (مركزيّ): النجاحُ والمعلومةُ يقرؤهما العابرُ سريعاً، والتحذيرُ أطول،
+   والخطأُ لا يختفي قبل أن يُقرأ (بندُ M-11 في docs/mobile_remediation_plan_2026-09.md).
+   و`duration = 0` يبقيه حتى يُغلَق بيدٍ أو بـ`dismissToast` — لإشعار «جارٍ التحضير». */
+var TOAST_DURATION = { success: 7000, info: 6000, warning: 9000, danger: 12000 };
+
 window.showToast = function(msg, type, duration) {
   type = type || 'success';
-  duration = duration || 4000;
+  if (duration === undefined || duration === null) duration = TOAST_DURATION[type] || 6000;
   var icons = { success: '\u2713', danger: '\u2717', info: '\u2139', warning: '\u26A0' };
   var container = document.getElementById('toast-container');
   if (!container) return;
@@ -504,13 +509,26 @@ window.showToast = function(msg, type, duration) {
   toast.appendChild(text);
   toast.appendChild(btn);
   container.appendChild(toast);
-  setTimeout(function() { _removeToast(toast); }, duration);
+  if (duration > 0) setTimeout(function() { _removeToast(toast); }, duration);
+  return toast;  // يُمسَك ليُغلَق مبكّراً (`dismissToast`): إشعارُ «جارٍ التحضير» ثمّ «جاهز».
 };
 
 function _removeToast(el) {
   el.classList.add('toast-leaving');
   setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 260);
 }
+
+window.dismissToast = function(toast) {
+  if (toast) _removeToast(toast);
+};
+
+/* ضغطةٌ في أيّ موضعٍ من الإشعار تُغلقه — لا زرُّ × الصغيرُ وحدَه (قرار المالك 2026-09-23).
+   مفوَّضةٌ على الحاوية فتشمل ما يرسمه `showToast` وما يرسمه القالبُ `components/toast.html`؛
+   وزرُّ × يبقى للوحة المفاتيح وقارئ الشاشة. */
+document.addEventListener('click', function(e) {
+  var toast = e.target.closest && e.target.closest('#toast-container .toast');
+  if (toast) _removeToast(toast);
+});
 
 window.removeToast = function(btn) {
   var toast = btn.closest ? btn.closest('.toast') : btn.parentElement;

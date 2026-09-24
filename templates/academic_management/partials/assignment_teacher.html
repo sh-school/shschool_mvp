@@ -15,6 +15,7 @@
   <details class="asg-fold"{% if open or card.error or card.transfer %} open{% endif %}>
   <summary class="asg-summary">
     <span class="asg-name">{{ card.teacher.full_name }}</span>
+    {% if card.coordinator %}<span class="asg-chip asg-chip-coordinator">منسّق</span>{% endif %}
     <span class="asg-chip asg-chip-{{ card.status|default:"none" }}">{{ card.status_label }}</span>
     {% if card.diverged or card.room and not card.room.fits %}<span class="asg-chip asg-chip-alert">يحتاج انتباهاً</span>{% endif %}
     <span class="asg-count">{{ card.rows|length }} إسناداً</span>
@@ -91,7 +92,7 @@
           <form hx-post="{% url 'academic_management:assignment_toggle_double' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
             {% csrf_token %}
             <input type="checkbox" name="double" value="1" {% if row.double_effective %}checked{% endif %} {% if not card.writable %}disabled{% endif %}
-                   title="{% if not card.writable %}الخطّةُ مقفلة — افتح إصداراً جديداً للتعديل{% else %}حصّتان متلاصقتان لا تقطعهما فسحةٌ ولا صلاة{% endif %}"
+                   title="{% if card.paused %}الإسنادُ موقوفٌ عن المنسّقين{% elif not card.writable %}الخطّةُ مقفلة — افتح إصداراً جديداً للتعديل{% else %}حصّتان متلاصقتان لا تقطعهما فسحةٌ ولا صلاة{% endif %}"
                    aria-label="حصّة مزدوجة — {{ row.subject.name_ar }} في {{ row.class_group.short_label }}">
           </form>
         </td>
@@ -106,7 +107,7 @@
             {% csrf_token %}
             <select name="partner" {% if not card.writable %}disabled{% endif %}
                     aria-label="متوازية مع — {{ row.subject.name_ar }} في {{ row.class_group.short_label }}"
-                    title="{% if not card.writable %}الخطّةُ مقفلة — افتح إصداراً جديداً للتعديل{% else %}{% if row.parallel_orphan %}موسومةٌ وحدَها — اختر شريكتَها أو فُكَّ الربط{% else %}تُدرَّس في التوقيت نفسه مع…{% endif %}{% endif %}">
+                    title="{% if card.paused %}الإسنادُ موقوفٌ عن المنسّقين{% elif not card.writable %}الخطّةُ مقفلة — افتح إصداراً جديداً للتعديل{% else %}{% if row.parallel_orphan %}موسومةٌ وحدَها — اختر شريكتَها أو فُكَّ الربط{% else %}تُدرَّس في التوقيت نفسه مع…{% endif %}{% endif %}">
               <option value="">— لا توازي —</option>
               {% for opt in row.parallel_options %}
               <option value="{{ opt.id }}" {% if row.parallel_partner and row.parallel_partner.id == opt.id %}selected{% endif %}>{{ opt.subject.name_ar }}</option>

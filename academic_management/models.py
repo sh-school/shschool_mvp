@@ -499,6 +499,24 @@ class WorkloadGovernance(models.Model):
         help_text="رموزُ نتائج الإسناد التي ترفعها المدرسةُ من تحذيرٍ إلى منع",
     )
 
+    #: وقفُ الإسناد عن المنسّقين: يُوقَف فيبقى الكلُّ يرى الشاشة، ولا يكتب فيها إلّا
+    #: النائبُ الأكاديميُّ والمدير والمطوّر. حقلٌ منطقيٌّ واحدٌ لا حالةٌ لكلّ معلّم —
+    #: فهو قرارٌ على المدرسة كلِّها، ويُفتح بنقرةٍ فلا يبقى قفلٌ منسيّ.
+    coordinator_entry_paused = models.BooleanField(
+        default=False,
+        verbose_name="الإسنادُ موقوفٌ عن المنسّقين",
+        help_text="متى كان مفعّلاً لا يُدخل المنسّقون إسناداً ولا يرفعونه",
+    )
+    #: من بدّل المفتاحَ آخرَ مرّة ومتى — يُقرأ في اللافتة، والتدقيقُ الكاملُ في `AuditLog`.
+    entry_changed_at = models.DateTimeField(null=True, blank=True)
+    entry_changed_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+
     class Meta:
         verbose_name = "حوكمة أنصبة المدرسة"
         verbose_name_plural = "حوكمة أنصبة المدارس"
