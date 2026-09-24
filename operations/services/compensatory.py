@@ -73,6 +73,28 @@ class CompensatoryService:
         return bell
 
     @classmethod
+    def _open_claims(
+        cls, school: School, teacher: CustomUser, class_group: ClassGroup, day: date, exclude: Any
+    ) -> tuple[set[int], list[tuple[int, time, time]]]:
+        """ما حُجز يومَ `day` بطلباتٍ مفتوحة: حصصُ الشعبة المطلوبة، وطلباتُ المعلّم في شُعبٍ أخرى.
+
+        الثانيةُ بالساعة لا بالرقم: القيدُ في القاعدة بالرقم، والانشغالُ الفعليّ بالوقت.
+        وفُصلت لتبقى `day_options` تحت سقف التعقيد (Radon ≤ 30).
+        """
+        open_here = CompensatorySession.objects.filter(
+            school=school, compensatory_date=day, status__in=OPEN_STATUSES
+        ).exclude(pk=exclude)
+        claimed = set(
+            open_here.filter(class_group=class_group).values_list("compensatory_period", flat=True)
+        )
+        mine_open = [
+            (c.compensatory_period, *times)
+            for c in open_here.filter(teacher=teacher).select_related("class_group__time_band")
+            if (times := cls._bell(school, c.class_group, day).get(c.compensatory_period))
+        ]
+        return claimed, mine_open
+
+    @classmethod
     def day_options(
         cls,
         school: School,
@@ -103,18 +125,9 @@ class CompensatoryService:
                 Session.objects.filter(pk__in=[s.pk for s in sessions])
             ).values_list("pk", flat=True)
         )
-        open_here = CompensatorySession.objects.filter(
-            school=school, compensatory_date=day, status__in=OPEN_STATUSES
-        ).exclude(pk=exclude)
-        claimed = set(
-            open_here.filter(class_group=class_group).values_list("compensatory_period", flat=True)
-        )
-        # طلباتي المفتوحة في شُعبٍ أخرى: القيدُ في القاعدة بالرقم، والانشغالُ بالساعة.
-        mine_open = [
-            (c.compensatory_period, *times)
-            for c in open_here.filter(teacher=teacher).select_related("class_group__time_band")
-            if (times := cls._bell(school, c.class_group, day).get(c.compensatory_period))
-        ]
+        claimed, mine_open = cls._open_claims(school, teacher, class_group, day, exclude)
+        # غائبٌ ذلك اليوم: لا يُعوِّض فيه — سجلُّ غيابه يُلغي ما اعتُمد له، ولا يُطلب له جديد.
+        absent = TeacherAbsence.objects.filter(school=school, teacher=teacher, date=day).exists()
         rows = []
         for period, (start, end) in sorted(bell.items()):
             during = [s for s in sessions if s.start_time < end and s.end_time > start]
@@ -127,7 +140,9 @@ class CompensatoryService:
                 f"{s.subject.name_ar if s.subject else 'حصّة'} — {s.teacher.full_name}"
                 for s in in_class
             )
-            if mine:
+            if absent:
+                why = "أنت مسجَّلٌ غائباً في هذا اليوم"
+            elif mine:
                 busy = mine[0]
                 subject = busy.subject.name_ar if busy.subject else "حصّة"
                 why = f"المعلّم مشغولٌ: {subject} مع {busy.class_group.short_label}"
@@ -435,6 +450,72 @@ class CompensatoryService:
         who = {comp.colleague_id} if comp.colleague_id else CompensatoryService._coordinators(user)
         CompensatoryService._tell(comp, who - {None}, f"سحب {user.full_name} طلبَ التعويض")
         return comp
+
+    @classmethod
+    @transaction.atomic
+    def release_for_absence(cls, absence: TeacherAbsence) -> int:
+        """معلّمٌ سُجّل غائباً: تُلغى تعويضاتُه ذلك اليوم وتعود الحصّةُ إلى صاحبها.
+
+        حصّةُ التعويض ليست في خاناته الأسبوعيّة، فلا تظهر في صفحة غيابه للإشغال — فتبقى
+        الشعبةُ بلا معلّمٍ ولا يعلم أحد، وقد تنازل عنها الزميلُ قبل ذلك. فالإلغاءُ آليٌّ:
+        الحصّةُ لزميلها بمادّته، أو تُحذف إن كانت جديدةً، والطلبُ المفتوحُ يُلغى، ويُبلَّغ
+        الزميلُ والمعلّمُ ومنسّقوه. وما رُصد حضورُه لا يُمسّ: الحصّةُ جرت. Returns: عددُ ما أُلغي.
+        """
+        comps = CompensatorySession.objects.filter(
+            school=absence.school,
+            teacher=absence.teacher,
+            compensatory_date=absence.date,
+            status__in=(*OPEN_STATUSES, "approved"),
+        ).select_related("session_created", "colleague", "class_group")
+        return sum(1 for comp in comps if cls._release(comp))
+
+    @classmethod
+    def _release(cls, comp: CompensatorySession) -> bool:
+        lesson = comp.session_created if comp.status == "approved" else None
+        if lesson is not None and (
+            lesson.status != "scheduled"
+            or lesson.attendances.exists()
+            or lesson.class_exits.exists()
+            or lesson.infractions.exists()
+        ):
+            return False  # جرت الحصّةُ: لا يُعاد شيء
+        comp.session_created = None
+        comp.status = "cancelled"
+        comp.notes = f"{comp.notes}\nأُلغي: غاب المعلّمُ يومَ التعويض".strip()
+        comp.save(update_fields=["session_created", "status", "notes", "updated_at"])
+        if lesson is not None:
+            cls._give_back(comp, lesson)
+        FreeSlotRegistry.objects.filter(reserved_for=comp).update(
+            is_available=True, reserved_for=None
+        )
+        people = {comp.teacher_id, comp.colleague_id} | cls._coordinators(comp.teacher)
+        cls._tell(comp, people - {None}, f"أُلغي تعويضٌ لغياب {comp.teacher.full_name} يومَه")
+        return True
+
+    @staticmethod
+    def _give_back(comp: CompensatorySession, lesson: Session) -> None:
+        """حصّةُ التعويض بعد إلغائه: لزميلها بمادّته من خانته، أو محذوفةً إن أنشأها التعويضُ."""
+        if comp.colleague_id is None or lesson.original_teacher_id != comp.colleague_id:
+            lesson.delete()  # لم تكن لأحدٍ قبله: كانت الشعبةُ فارغةً في وقتها
+            return
+        from operations.services.substitute import SubstituteService
+
+        subject_id = (
+            ScheduleSlot.objects.live(comp.school)
+            .filter(
+                teacher_id=comp.colleague_id,
+                class_group=comp.class_group,
+                day_of_week=SubstituteService._date_to_day(comp.compensatory_date),
+                start_time=lesson.start_time,
+            )
+            .values_list("subject_id", flat=True)
+            .first()
+        )
+        lesson.teacher_id = comp.colleague_id
+        lesson.original_teacher = None
+        lesson.subject_id = subject_id or lesson.subject_id
+        lesson.notes = ""
+        lesson.save(update_fields=["teacher", "original_teacher", "subject", "notes"])
 
     @staticmethod
     def _take(comp: CompensatorySession, row: dict[str, Any]) -> Session:

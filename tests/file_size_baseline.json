@@ -7,7 +7,6 @@
   "operations/scheduler.py": 1725,
   "operations/scheduler_constraints.py": 1074,
   "operations/views_schedule.py": 1543,
-  "quality/models.py": 1425,
   "reports/services.py": 1438,
   "student_affairs/services.py": 1069,
   "student_affairs/views.py": 2936
