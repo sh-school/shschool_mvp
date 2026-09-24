@@ -4,7 +4,7 @@
 {% block title %}الإشعارات{% endblock %}
 
 {# الصفحةُ لا تُمرَّر رأسيّاً: كلُّ البطاقات في صفحةٍ واحدة بشبكةٍ من صفّين — السجلُّ والرسمان، ثمّ إعداداتُ البريد وقوالبُه وSMS — وما طال يُمرَّر داخل بطاقته عند حافّتها (`flush`). #}
-{% block main_class %}page-noscroll{% endblock %}
+{% block main_class %}{% page_layout "dashboard" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/notifications/" parent_label="الإشعارات" current="لوحة الإشعارات" %}
