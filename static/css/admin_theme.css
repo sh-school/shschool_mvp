@@ -246,21 +246,21 @@ html[data-theme="dark"] {
 #header .adm-nav__menu a:focus-visible { background: var(--selected-bg); color: var(--link-hover-color); }
 #header .adm-nav__menu a[aria-current="page"] { font-weight: 700; box-shadow: inset 3px 0 0 var(--primary); }
 
-/* ── الفوتر الدائم (templates/admin/_footer.html) — كفوتر المنصّة ── */
+/* ── الفوتر الدائم (templates/admin/_footer.html) — مكوّنا ذيل المنصّة بأصنافهما (OWN-22) ── */
 .adm-footer { margin-block-start: 2rem; padding: 0.5rem 1rem; background: var(--footer-bg); border-block-start: 1px solid var(--accent); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.375rem; }
 .adm-footer p { margin: 0; }
-.adm-footer__text { font-size: 0.75rem; color: var(--body-quiet-color); line-height: 1.7; }
-.adm-footer__vision { font-size: 1rem; font-weight: 600; color: var(--link-fg); }
+.adm-footer .site-footer-text { font-size: 0.75rem; color: var(--body-quiet-color); line-height: 1.7; }
+.adm-footer .site-footer-vision { font-size: 1rem; font-weight: 600; color: var(--link-fg); }
 .vision-text { font-family: 'Tajawal Tashkeel', 'Tajawal', sans-serif; }
 html[data-theme="dark"] .vision-text { font-palette: --tashkeel-dark; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .vision-text { font-palette: --tashkeel-dark; } }
-.adm-footer__brand { display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.75rem; color: var(--body-quiet-color); }
-.adm-footer__label { font-size: 0.72rem; white-space: nowrap; }
-.adm-footer__logo { display: inline-block; block-size: 1.75rem; inline-size: auto; flex: none; }
-.adm-footer__name { font-weight: 600; color: var(--body-fg); white-space: nowrap; }
-.adm-footer__sep { inline-size: 1px; block-size: 0.9rem; background: var(--hairline-color); flex: none; }
+.adm-footer .site-footer-brand { display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.75rem; color: var(--body-quiet-color); }
+.adm-footer .site-footer-brand-label { font-size: 0.72rem; white-space: nowrap; }
+.adm-footer .site-footer-brand-logo { display: inline-block; block-size: 1.75rem; inline-size: auto; flex: none; }
+.adm-footer .site-footer-brand-name { font-weight: 600; color: var(--body-fg); white-space: nowrap; }
+.adm-footer .site-footer-brand-sep { inline-size: 1px; block-size: 0.9rem; background: var(--hairline-color); flex: none; }
 /* شعارا أذكياء وسفيان: رقعةٌ بيضاء ثابتة بحجمٍ واحد — تبقى بيضاءَ في الوضع الليليّ ليظهرا واضحَين. */
-.adm-footer__chip { display: inline-flex; align-items: center; padding: 0.2rem 0.4rem; background: #fff; border: 1px solid var(--hairline-color); border-radius: 0.4rem; line-height: 0; flex: none; }
+.adm-footer .site-footer-brand-logo-chip { display: inline-flex; align-items: center; padding: 0.2rem 0.4rem; background: #fff; border: 1px solid var(--hairline-color); border-radius: 0.4rem; line-height: 0; flex: none; }
 
 /* ── الاسمُ والشعار كما في ترويسة المنصّة: شعارُ المنصّة أبيضَ واسمُ المدرسة (templates/admin/base_site.html) ── */
 #header #site-name { margin: 0; }
@@ -375,8 +375,8 @@ thead th, .module caption { text-transform: none; }
 /* بعد القواعد الأساسيّة عمداً: بالأولويّة نفسها يحسم الأخيرُ، فتغلب `center` الأساسيّةُ على `start`. */
 @media (min-width: 1025px) {
   .adm-footer { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1rem; margin-block-start: 0; padding: 0.5rem var(--adm-hpad, 2.5rem); }
-  .adm-footer__text { text-align: start; }
-  .adm-footer__brand { justify-self: end; }
+  .adm-footer .site-footer-text { text-align: start; }
+  .adm-footer .site-footer-brand { justify-self: end; }
 }
 /* عناصرُ مطلقةُ الموضع (حقولُ select2 المخفيّة) كانت تُفلت من القصّ وتطيل الصفحة: تُحتَوى في المنطقة المقفولة. */
 @media (min-width: 1025px) and (min-height: 560px) {

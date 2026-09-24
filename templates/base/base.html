@@ -1077,38 +1077,8 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 {# ════════════════ FOOTER ════════════════════════════════════════════════ #}
 {% load tz %}
 <footer class="site-footer" role="contentinfo">
-  <p class="site-footer-text">
-    {{ current_school.name|default:"المدرسة" }}
-    &ensp;|&ensp; وزارة التربية والتعليم والتعليم العالي — دولة قطر
-    &ensp;·&ensp; &copy; {% now "Y" %}
-  </p>
-  <p class="site-footer-vision">{% include "components/ministry_vision.html" with school=current_school %}</p>
-  {# Azkia brand attribution + توقيع المطوّر سفيان مسيف — كلاهما على رقعةٍ بيضاء بحجمٍ واحد #}
-  <div class="site-footer-brand" aria-label="Azkia and Sufyan Mesyef brand attribution">
-    <span class="site-footer-brand-label">طُوِّر بواسطة</span>
-    <span class="site-footer-brand-logo-chip">
-      <img
-        src="{% static 'brand/azkia-logo.svg' %}"
-        alt="شعار أذكياء للبرمجيات"
-        class="site-footer-brand-logo"
-        width="28"
-        height="28"
-        loading="lazy"
-      />
-    </span>
-    <span class="site-footer-brand-name">أذكياء للبرمجيات</span>
-    <span class="site-footer-brand-sep" aria-hidden="true"></span>
-    <span class="site-footer-brand-logo-chip">
-      <img
-        src="{% static 'brand/sufyan-logo.png' %}"
-        alt="شعار سفيان مسيف"
-        class="site-footer-brand-logo"
-        width="57"
-        height="28"
-        loading="lazy"
-      />
-    </span>
-  </div>
+  {% include "components/site_footer_line.html" %}
+  {% include "components/site_brand.html" %}
 </footer>
 
 
