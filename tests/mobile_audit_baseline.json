@@ -255,8 +255,8 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 1,
-  "small44": 1,
+  "small24": 0,
+  "small44": 0,
   "targets": 30,
   "tiny_text": 0
  },
@@ -480,8 +480,8 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 1,
-  "small44": 4,
+  "small24": 0,
+  "small44": 0,
   "targets": 33,
   "tiny_text": 0
  },
