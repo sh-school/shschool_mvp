@@ -674,7 +674,7 @@ def test_0014_records_d19_decided_once_and_leaves_a_developer_d19():
 _sync15 = importlib.import_module("roadmap.migrations.0015_sync_items_2026_09_24f")
 
 
-def test_0015_closes_the_finished_plan_items_and_keeps_two_open():
+def test_0015_closes_the_finished_plan_items_defers_sch06_and_keeps_sch08_open():
     starts = {
         "SCH-01": ("doing", 60),
         "SCH-02": ("doing", 10),
@@ -694,8 +694,8 @@ def test_0015_closes_the_finished_plan_items_and_keeps_two_open():
     got = {c: RoadmapItem.objects.get(code=c) for c in starts}
     for code in ("SCH-01", "SCH-02", "SCH-03", "SCH-04", "SCH-05", "SCH-07", "SCH-17", "SCH-18"):
         assert (got[code].status, got[code].progress, got[code].pr) == ("done", 100, "#548"), code
-    assert (got["SCH-06"].status, got["SCH-06"].progress) == ("doing", 80)
-    assert "D-17" in got["SCH-06"].note and "يؤكّده المالك" in got["SCH-06"].note
+    assert (got["SCH-06"].status, got["SCH-06"].progress) == ("deferred", 80)
+    assert "D-20" in got["SCH-06"].note and "D-17" in got["SCH-06"].note
     assert (got["SCH-08"].status, got["SCH-08"].progress) == ("doing", 90)
     assert "لا يُغلق" in got["SCH-08"].note
 
@@ -707,13 +707,14 @@ def test_0015_leaves_a_plan_item_the_owner_session_moved():
     assert RoadmapItem.objects.get(code="SCH-06").progress == 95
 
 
-def test_0015_moves_own21_and_stacks_two_notes_on_own19():
+def test_0015_closes_own21_and_stacks_two_notes_on_own19():
     _item("OWN-21", "doing", 60, pr="#508 #541")
     _item("OWN-19", "done", 100, pr="#526 #533 #541")
     assert _sync15.sync(RoadmapItem) == ["OWN-21", "OWN-19", "OWN-19"]
     assert _sync15.sync(RoadmapItem) == []
     own21 = RoadmapItem.objects.get(code="OWN-21")
-    assert (own21.progress, own21.pr) == (85, "#508 #541 #551")
+    assert (own21.status, own21.progress, own21.pr) == ("done", 100, "#508 #541 #551")
+    assert "ستّ صفحات" in own21.note
     own19 = RoadmapItem.objects.get(code="OWN-19")
     assert own19.pr == "#526 #533 #541 #545 #552"
     assert "permission_names" in own19.note and "كلمة المرور" in own19.note
@@ -724,3 +725,29 @@ def test_0015_adds_n034_closed_once():
     assert _sync15.add_missing(RoadmapItem) == []
     n034 = RoadmapItem.objects.get(code="N-034")
     assert (n034.status, n034.pr, n034.sort_order) == ("done", "#548", 469)
+
+
+def test_0015_records_d20_decided_once_and_leaves_a_developer_d20():
+    from roadmap.models import RoadmapDecision
+
+    assert _sync15.add_decisions(RoadmapDecision) == ["D-20"]
+    assert _sync15.add_decisions(RoadmapDecision) == []
+    d20 = RoadmapDecision.objects.get(code="D-20")
+    assert (d20.status, str(d20.decision_date), d20.blocks) == (
+        "decided",
+        "2026-09-24",
+        "SCH-06، SCH-08",
+    )
+    RoadmapDecision.objects.filter(code="D-20").delete()
+    RoadmapDecision.objects.create(code="D-20", title="كتبه المطوّر", status="open")
+    assert _sync15.add_decisions(RoadmapDecision) == []
+    assert RoadmapDecision.objects.get(code="D-20").title == "كتبه المطوّر"
+
+
+def test_0015_closes_dbt05_by_an_operation_not_a_pr():
+    _item("DBT-05", "todo", 0)
+    assert _sync15.sync(RoadmapItem) == ["DBT-05"]
+    assert _sync15.sync(RoadmapItem) == []
+    dbt05 = RoadmapItem.objects.get(code="DBT-05")
+    assert (dbt05.status, dbt05.progress, dbt05.pr) == ("done", 100, "")
+    assert "archive/wave3-f-2026-09-24" in dbt05.note
