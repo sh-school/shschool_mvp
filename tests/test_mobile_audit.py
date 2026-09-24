@@ -113,12 +113,12 @@ def _measure_all(request, playwright, base: str) -> dict[str, dict]:
                             # `load` لا `networkidle`: الأنماطُ والخطوطُ هي ما يُقاس، ونصفُ ثانيةٍ
                             # سكونٍ بعد كلّ صفحةٍ كان يضاعف الزمنَ فوق ميزانية CI (90 ث).
                             response = page.goto(f"{base}{_url(name)}", wait_until="load")
-                            assert response and response.ok, (
-                                f"{role}:{name} {response and response.status}"
-                            )
-                            assert LOGIN_PATH not in page.url, (
-                                f"{engine}/{role}:{name} أُحيل إلى الدخول — الجلسةُ لم تثبت"
-                            )
+                            assert (
+                                response and response.ok
+                            ), f"{role}:{name} {response and response.status}"
+                            assert (
+                                LOGIN_PATH not in page.url
+                            ), f"{engine}/{role}:{name} أُحيل إلى الدخول — الجلسةُ لم تثبت"
                             page.evaluate("document.fonts.ready.then(() => 1)")
                             results[f"{engine}/{profile}/{role}:{name}"] = audit.measure_page(page)
                     finally:

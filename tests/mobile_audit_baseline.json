@@ -3,7 +3,7 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 1,
+  "small24": 0,
   "small44": 16,
   "targets": 18,
   "tiny_text": 0
@@ -21,7 +21,7 @@
   "h_overflow": 0,
   "inputs_under_16": 1,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 21,
   "targets": 22,
   "tiny_text": 0
@@ -30,7 +30,7 @@
   "h_overflow": 0,
   "inputs_under_16": 4,
   "min_font": 12,
-  "small24": 10,
+  "small24": 8,
   "small44": 29,
   "targets": 33,
   "tiny_text": 0
@@ -39,7 +39,7 @@
   "h_overflow": 0,
   "inputs_under_16": 5,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 25,
   "targets": 26,
   "tiny_text": 0
@@ -48,7 +48,7 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 16,
   "targets": 17,
   "tiny_text": 0
@@ -57,7 +57,7 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 3,
+  "small24": 1,
   "small44": 18,
   "targets": 23,
   "tiny_text": 0
@@ -66,7 +66,7 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 14,
   "targets": 15,
   "tiny_text": 0
@@ -75,7 +75,7 @@
   "h_overflow": 0,
   "inputs_under_16": 2,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 17,
   "targets": 18,
   "tiny_text": 0
@@ -93,7 +93,7 @@
   "h_overflow": 0,
   "inputs_under_16": 2,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 16,
   "targets": 17,
   "tiny_text": 0
@@ -102,7 +102,7 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 16,
   "targets": 17,
   "tiny_text": 0
@@ -111,7 +111,7 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 12,
   "targets": 13,
   "tiny_text": 0
@@ -120,7 +120,7 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 12,
   "targets": 13,
   "tiny_text": 0
@@ -129,7 +129,7 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 19,
   "targets": 20,
   "tiny_text": 0
@@ -147,7 +147,7 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 16,
   "targets": 17,
   "tiny_text": 0
@@ -156,7 +156,7 @@
   "h_overflow": 0,
   "inputs_under_16": 1,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 22,
   "targets": 23,
   "tiny_text": 0
@@ -165,7 +165,7 @@
   "h_overflow": 0,
   "inputs_under_16": 2,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 20,
   "targets": 21,
   "tiny_text": 0
@@ -174,7 +174,7 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 19,
   "targets": 21,
   "tiny_text": 0
@@ -192,7 +192,7 @@
   "h_overflow": 0,
   "inputs_under_16": 1,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 19,
   "targets": 20,
   "tiny_text": 0
@@ -201,7 +201,7 @@
   "h_overflow": 0,
   "inputs_under_16": 5,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 19,
   "targets": 20,
   "tiny_text": 0
@@ -210,7 +210,7 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 1,
+  "small24": 0,
   "small44": 14,
   "targets": 15,
   "tiny_text": 0
@@ -219,7 +219,7 @@
   "h_overflow": 0,
   "inputs_under_16": 0,
   "min_font": 12,
-  "small24": 2,
+  "small24": 0,
   "small44": 16,
   "targets": 19,
   "tiny_text": 0
