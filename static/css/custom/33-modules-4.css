@@ -1451,13 +1451,11 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 
 /* ── 12. نموذجٌ بجوار قائمته: الإضافةُ ثُلثٌ والجدولُ ثلثان ──
    ومن الحدّ الأدنى ينفكّان عموداً: النموذجُ فوق ما يضيف إليه. */
-.ui-split {
-  display: grid;
-  grid-template-columns: minmax(min(100%, 300px), 1fr) minmax(0, 2fr);
-  gap: var(--sp-2);
-  align-items: start;
-}
-@media (max-width: 900px) { .ui-split { grid-template-columns: 1fr; } }
+/* ثلثٌ وثلثان متجاوران ما اتّسعت الحاويةُ لـ300+600px، وإلّا عمود. min-inline-size: 0 على الحاوية
+   وإلّا دفع عرضُ الجدول عمودَ الصفحة فمُرِّرت جانبيّاً على الجوال. */
+.ui-split { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: flex-start; min-inline-size: 0; }
+.ui-split > * { flex: 1 1 18.75rem; min-inline-size: 0; }
+.ui-split > * + * { flex: 2 1 37.5rem; }
 .form-stack { display: grid; gap: var(--sp-3); }
 .form-stack .form-group { margin-bottom: 0; }
 .form-page { max-width: 760px; margin-inline: auto; }
@@ -1529,13 +1527,15 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 
 .beh-fieldset { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
 /* استدعاء ولي أمر: بطاقتان متجاورتان — النموذجُ، وعمودٌ جانبيٌّ (أولياءُ الأمور، المرسِل، التنبيه). والطالبُ المحدَّد اسمٌ لا قائمة. */
-.beh-summon-cards { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-2); align-items: start; }
+.beh-summon-cards { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: flex-start; min-inline-size: 0; }
+.beh-summon-cards > * { flex: 1 1 26rem; min-inline-size: 0; }
 .beh-side { display: flex; flex-direction: column; gap: var(--sp-2); min-inline-size: 0; }
-.beh-summon__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-3); }
-.beh-summon__trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 var(--sp-3); }
-@media (max-width: 900px) {
-  .beh-summon-cards, .beh-summon__pair, .beh-summon__trio { grid-template-columns: 1fr; }
-}
+/* الزوجُ والثلاثيُّ صفٌّ ما اتّسعت البطاقةُ للعتبة وإلّا عمود (الأساسُ (العتبة − 100%) × 999). والعتبةُ
+   من المحتوى: تتراكب أقراصُ الاستعجال دون 22rem، ويلزم التاريخَ 145px بخطّ الحقل و163px بخطّ الجوال 16px (بخطّ الاحتياط). */
+.beh-summon__pair, .beh-summon__trio { display: flex; flex-wrap: wrap; gap: 0 var(--sp-3); }
+.beh-summon__pair > * { flex: 1 1 calc((25rem - 100%) * 999); min-inline-size: 0; }
+.beh-summon__trio > * { flex: 1 1 calc((29rem - 100%) * 999); min-inline-size: 0; }
+@media (max-width: 640px) { .beh-summon__trio > * { flex-basis: calc((33rem - 100%) * 999); } }
 .beh-summon-cards .beh-pills { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .beh-summon-cards .beh-pill { justify-content: center; }
 .beh-summon-cards .beh-fieldset { margin-block-end: var(--sp-2); }

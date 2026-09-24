@@ -415,7 +415,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   /* «حسب اليوم»: أربعةُ أعمدةٍ ثابتة لكلّ يوم (INBOX_COLUMNS). */
   #main-content.page-noscroll .notif-feed:not(.notif-feed--types) .notif-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   /* الشاشةُ العريضةُ: خمسةُ أنواعٍ في الصفّ. */
-  @media (min-width: 1600px) {
+  @media (min-width: 1440px) {
     #main-content.page-noscroll .notif-feed--types { grid-template-columns: repeat(auto-fit, minmax(calc((100% - 4 * var(--sp-3)) / 5), 1fr)); }
   }
   #main-content.page-noscroll .notif-feed--types .notif-day__title { flex-shrink: 0; }
