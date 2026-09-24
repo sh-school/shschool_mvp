@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import date, time
 from typing import Any
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import QuerySet
 from django.http import HttpRequest
@@ -16,6 +17,7 @@ from django.utils import timezone
 import staff_affairs.attendance as _pkg
 from core.models.school import School
 from core.models.user import CustomUser
+from core.photo_privacy import clean_photo
 from staff_affairs.models import (
     EXCEPTION_TYPES,
     AttendanceException,
@@ -72,6 +74,17 @@ class ExceptionService:
             raise PolicyError("المرفقُ أكبرُ من 5 ميغابايت.")
 
     @staticmethod
+    def _cleaned_evidence(evidence_file: Any) -> Any:
+        """المرفقُ الذي يُحفظ: قد يكون تقريراً طبّيّاً بصورةٍ من جوّال — فالصورةُ JPEG مصغّراً بلا
+        إحداثيّاتٍ ولا تاريخٍ ولا جهاز، والـPDF كما هو (`core/photo_privacy`، قرار 2026-09-14).
+        والامتدادُ يفحصه `_check_evidence` باسم الملفّ وحدَه، أمّا هذا فبالبايتات: ملفٌّ اسمُه `.jpg`
+        وليس صورةً يُرفض."""
+        try:
+            return clean_photo(evidence_file)
+        except ValidationError as exc:
+            raise PolicyError(exc.messages[0]) from exc
+
+    @staticmethod
     @transaction.atomic
     def submit(
         *,
@@ -100,6 +113,7 @@ class ExceptionService:
         if not content.strip():
             raise PolicyError("محتوى الطلب مطلوب («استخدام الموظف»، نموذج 03).")
         ExceptionService._check_evidence(evidence_file)
+        evidence_file = ExceptionService._cleaned_evidence(evidence_file)
         exception = AttendanceException.objects.create(
             school=school,
             staff=staff,

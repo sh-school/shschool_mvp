@@ -14,7 +14,7 @@
 <div class="exec-dash">
 
   {% page_header "أيقوناتُ المنصّة" subtitle="Hugeicons Free · قاموسٌ دلاليٌّ — المعنى يختار الرسم، لا العكس (core/icons.py)" icon="view" %}
-    <a href="{% url 'ui_components' %}" class="btn-secondary btn-sm">{% icon "back" %} دليلُ الهويّة</a>
+    {% include "styleguide/_switch.html" with current="icons" %}
   {% endpage_header %}
 
   {% comment %}البطاقاتُ تتجاور بعرض حاجتها (.card-flow): المقاساتُ بجوار الألوان، وكلُّ مجموعةٍ بطاقةٌ
