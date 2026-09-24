@@ -43,7 +43,7 @@
 |---|---|---|
 | `20-components.css:1884` | `max-height: calc(100vh - 54px)` — قائمةُ الشريط المنسدلة | على iOS `100vh` = النافذةُ **بلا** شريط Safari: تمتدّ القائمةُ تحت الشريط السفليّ للمتصفّح. الأنسبُ `dvh` |
 | `20-components.css:1913` | `max-height: calc(100vh - 140px)` — درجُ القائمة «فوق شريط التنقّل السفليّ» | كذلك؛ والهامشُ 140px يفترض ارتفاعاً ثابتاً للشريطين |
-| `20-components.css:1752` | `padding … env(safe-area-inset-bottom, …)` — الشريطُ السفليّ | **لا أثرَ اليوم**: بلا `viewport-fit=cover` تبقى القيمةُ 0 (يعود إلى `--sp-2`) |
+| `20-components.css:1752` | `padding … env(safe-area-inset-bottom, …)` — الشريطُ السفليّ | **لا أثرَ اليوم**: بلا `viewport-fit=cover` تبقى القيمةُ 0. (كتبتُ هنا أنّها «تعود إلى `--sp-2`» — خطأ: الاحتياطُ في `env()` لا يُستعمل أبداً لأنّ المتغيّر معرَّفٌ دائماً؛ قِيس 2026-09-24 فكان `0px`.) وصار الموضعُ `var(--safe-bottom)` بـH-04 |
 | `30-modules-1.css:650` | `.login-page { min-height: 100vh }` | يُنتج تمريراً زائداً طفيفاً على iOS؛ غيرُ ضارّ |
 | `33-modules-4.css:1887` | `body:has(.rm-page) { height: 100dvh }` — الخارطةُ | **الموضعُ الوحيدُ بـ`dvh`** ✓ |
 | `50-utilities.css:279` | `height: 100vh` لـ`page-noscroll` | داخل `@media (min-width: 1025px)` — سطحُ مكتبٍ فقط، فلا خطرَ على الجوال |

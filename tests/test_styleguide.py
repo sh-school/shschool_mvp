@@ -90,7 +90,7 @@ def test_the_minimum_measures_are_read_from_root():
 
     assert "control-h" in [t["name"] for t in scales["control"]]
     assert layers[0] == "z-base" and layers.index("z-dropdown") < layers.index("z-modal")
-    assert "safe" in scales  # فارغٌ حتّى H-04، والقسمُ يقول ذلك صراحةً
+    assert {t["name"] for t in scales["safe"]} == {"safe-top", "safe-bottom", "safe-inline"}  # H-04
 
 
 def test_the_breakpoints_match_the_layout_kpi_definition():

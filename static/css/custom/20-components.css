@@ -9,6 +9,7 @@
   top: 0;
   z-index: calc(var(--z-navbar) + 1);
   border-bottom: 1px solid var(--maroon-dark);
+  padding: var(--safe-top) var(--safe-inline) 0;
 }
 /* هامشٌ يطابق `#main-content` (قرار 2026-09-11) — لا سقف 1280px القديم
    الذي كان يُبقي الشعارَ واسمَ المستخدم بعيدَين عن حافّة الصفحة الفعليّة
@@ -39,7 +40,8 @@
 .site-nav {
   background: var(--nav-bg);
   position: sticky;
-  top: 48px;
+  /* تحت الترويسة التي ارتفاعُها 48px + الحافّةُ العليا الآمنة (تُلبَّس فوقها) */
+  top: calc(48px + var(--safe-top));
   z-index: var(--z-navbar);
   border-bottom: 2px solid var(--maroon-dark);
   box-shadow: var(--shadow-nav);
@@ -244,7 +246,7 @@
    تُغطّي القائمة خلفها؛ والعرضُ يحتضن محتواه (لا يفرض 640px على رسالةٍ
    قصيرة) حتى سقفٍ يسع سطراً واحداً لرسالةٍ كرسالة كلمة المرور. ══ */
 .msgs-wrap {
-  position: fixed; inset-inline: 0; top: calc(48px + 42px + var(--sp-3));
+  position: fixed; inset-inline: 0; top: calc(48px + 42px + var(--sp-3) + var(--safe-top));
   z-index: var(--z-navbar); display: flex; flex-direction: column; align-items: center;
   padding-inline: var(--sp-4); pointer-events: none;
 }
@@ -1633,8 +1635,8 @@ textarea:focus-visible {
 /* Toast — تحت الترويسة (2026-09-23) */
 #toast-container {
   position: fixed;
-  top: calc(48px + 42px + var(--sp-3));
-  inset-inline-end: clamp(var(--sp-3), 1.4vw, 28px);
+  top: calc(48px + 42px + var(--sp-3) + var(--safe-top));
+  inset-inline-end: max(clamp(var(--sp-3), 1.4vw, 28px), var(--safe-inline));
   z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
@@ -1750,7 +1752,7 @@ textarea:focus-visible {
   z-index: var(--z-navbar);
   background: var(--surface);
   border-top: 1px solid var(--border);
-  padding: var(--sp-2) 0 env(safe-area-inset-bottom, var(--sp-2));
+  padding: var(--sp-2) var(--safe-inline) var(--safe-bottom);
   box-shadow: var(--shadow-bottom-nav);
 }
 .mobile-bottom-nav-inner {

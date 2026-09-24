@@ -192,7 +192,7 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
           {% for t in scales.safe %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
         </ul>
         {% else %}
-        <p class="ui-note">لم تُعرَّف رموزُ <code><bdi dir="ltr">--safe-*</bdi></code> بعد (H-04)؛ تظهر هنا وحدَها حين تُعرَّف في <code><bdi dir="ltr">:root</bdi></code>.</p>
+        <p class="ui-note">لا رموزَ <code><bdi dir="ltr">--safe-*</bdi></code> في <code><bdi dir="ltr">:root</bdi></code> — تظهر هنا وحدَها حين تُعرَّف.</p>
         {% endif %}
         <p class="sg-label">نقاطُ التوقّف في الأنماط · {{ breakpoints|length }}</p>
         <ul class="chip-row" aria-label="نقاطُ التوقّف وعددُ استعلاماتِ كلٍّ منها">
@@ -219,7 +219,7 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
               </tr>
               <tr>
                 <td>المنطقةُ الآمنة من رموز <code><bdi dir="ltr">--safe-*</bdi></code> لا من <code>env()</code> مباشرةً.</td>
-                <td><span class="status-badge status-gray">تنتظر H-04</span> الرموزُ لم تُعرَّف، و<code>env(safe-area…)</code> ما زال مكتوباً مباشرةً.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> الرموزُ معرَّفةٌ والعناصرُ اللاصقةُ بالحافّة تقرؤها (<code>test_safe_area_tokens</code>)؛ وقيمتُها 0 حتّى يُفعَّل <code>viewport-fit=cover</code> في M-04.</td>
               </tr>
               <tr>
                 <td>الطبقاتُ من سلّم <code><bdi dir="ltr">--z-*</bdi></code> لا أرقامٌ خام.</td>

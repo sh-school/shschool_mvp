@@ -288,6 +288,15 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --z-toast:    9500;
   --z-critical: 9999;
 
+  /* ══ المنطقةُ الآمنة (H-04) — رموزٌ لا `env()` مباشرةً ══
+     شقُّ الشاشة وجزيرتُها وحوافُّها المنحنيّة. القيمةُ 0 حتّى تُفعَّل بـ`viewport-fit=cover` (M-04)
+     وعلى جهازٍ بشقّ، فاستعمالُها اليوم لا يغيّر شيئاً — لكنّها تُكتب مرّةً هنا فيُفعَّل الجميعُ معاً.
+     ومن يحتاج حافّةً يكتب `var(--safe-*)` ولا يكتب `env(safe-area-inset-*)` (يحرسه `test_safe_area_tokens`).
+     `--safe-inline` الأكبرُ من الجهتين، فيُلبَّس الهامشُ متماثلاً (التدويرُ يُبدّل الجهة). */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-inline: max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+
   /* ══ Shadow/Elevation Scale ══ */
   /* --shadow-sm و --shadow-md موجودتان أعلاه */
   --shadow-lg:    0 10px 30px rgba(0,0,0,.12);

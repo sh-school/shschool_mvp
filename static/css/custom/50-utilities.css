@@ -98,8 +98,8 @@
    بسمة `hidden`، وهي التي يضبطها زرُّ الإغلاق أصلاً (`data-hide`). */
 .pwa-banner {
   position: fixed;
-  inset-block-end: 16px;
-  inset-inline: 12px;
+  inset-block-end: calc(16px + var(--safe-bottom));
+  inset-inline: max(12px, var(--safe-inline));
   z-index: 9999;
   max-width: 360px;
   margin-inline: auto;
