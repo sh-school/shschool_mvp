@@ -98,7 +98,7 @@ html.dark {
   --shadow-ink:          #000;
   --shadow-nav:          0 2px 8px rgba(0,0,0,.4);
   --shadow-nav-panel:    0 6px 24px rgba(0,0,0,.4);
-  --shadow-menu:         0 10px 40px rgba(0,0,0,.5);
+  --shadow-menu:         0 12px 40px rgba(0,0,0,.82);
   --shadow-bottom-nav:   0 -2px 12px rgba(0,0,0,.3);
   --shadow-toast:        0 4px 20px rgba(0,0,0,.5);
   --shadow-palette:      0 20px 60px rgba(0,0,0,.6);
@@ -112,13 +112,18 @@ html.dark {
   --loading-veil:        rgba(15,23,42,.4);
 
   --header-bg:           #1a0a12;
-  --nav-bg:              #120813;
+  --nav-bg:              #2c2922;
+  --nav-fg:              var(--on-fill);
+  --nav-hover:           color-mix(in srgb, var(--on-fill) 12%, transparent);
+  --nav-mark:            var(--gold);
+  --footer-fg-soft:      #cbd5e1;   /* 12.9 */
   --admin-header-link:   #ffe0e9;
   --border-soft:         var(--border);
   --menu-ink:            var(--text-primary);
   --menu-ink-strong:     var(--text-primary);
   --menu-label:          var(--text-muted);
   --menu-divider:        var(--border);
+  --menu-hover:          var(--maroon-bg);
   --breadcrumb-hover:    #fcc4d8;
   --scrollbar-track:     var(--surface-alt);
   --scrollbar-thumb-hover: #64748b;
@@ -210,16 +215,12 @@ html.dark body {
 html.dark .site-header {
   border-bottom-color: var(--maroon-bg);
 }
-html.dark .site-nav {
-  border-bottom-color: var(--maroon-bg);
-}
 
 /* ── 4. Dropdown Menus ──────────────────────────────────────────── */
 html.dark .sd-menu {
-  background: var(--surface);
   color-scheme: dark;
 }
-html.dark .sd-menu a:hover { background: var(--maroon-bg); color: var(--maroon-fg); }
+html.dark .sd-menu a:hover { background: var(--menu-hover); color: var(--maroon-fg); }
 html.dark .sd-user-nid { color: var(--text-muted); }
 html.dark .sd-logout-btn { color: var(--status-danger-fg); }
 
@@ -231,7 +232,7 @@ html.dark .nb-bar {
 html.dark .nb-bar .nb:hover, html.dark .nb-bar .nb:active { background: var(--maroon-bg); color: var(--maroon-fg); }
 @media (min-width: 641px) {
   html.dark .nb-bar { background: transparent; box-shadow: none; border-bottom: none; }
-  html.dark .nb-bar .nb:hover { background: color-mix(in srgb, var(--on-fill) 12%, transparent); color: var(--on-fill); }
+  html.dark .nb-bar .nb:hover { background: var(--nav-hover); color: var(--nav-fg); }
 }
 
 /* ── 6. Mobile Bottom Navigation ────────────────────────────────── */
@@ -406,14 +407,11 @@ html.dark .cmd-item-icon { background: var(--border); }
 html.dark .cmd-results:empty::after { color: var(--text-muted); }
 
 /* ── 17. Footer ─────────────────────────────────────────────────── */
-html.dark footer,
-html.dark .site-footer {
+/* ذيلُ المنصّة: رموزُ `--footer-*` تنقلب وحدها (20-components) */
+html.dark footer:not(.site-footer) {
   border-top-color: var(--gold);
   color: var(--text-muted);
 }
-html.dark .site-footer-brand { color: var(--text-muted); }
-html.dark .site-footer-brand-label { color: var(--text-muted); }
-html.dark .site-footer-brand-name { color: var(--text-primary); }
 html.dark .site-footer-brand-logo-chip {
   border-color: transparent;
 }

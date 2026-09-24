@@ -160,6 +160,7 @@ def test_the_guide_renders_every_component_and_links_the_icons(client, developer
         "الرسومُ البيانيّة",
         "الشبكاتُ والتخطيط",
         "الوضعُ الداكن",
+        "الترويسةُ والقائمةُ والذيل",
     ):
         assert f"· {title}</h2>" in html, title
 
@@ -219,6 +220,54 @@ def test_the_guide_links_the_layouts_page(client, developer_user):
     html = client.get(reverse("ui_components")).content.decode()
 
     assert reverse("ui_layouts") in html
+
+
+def test_the_palette_groups_the_header_nav_menu_and_footer_tokens_together():
+    """الترويسةُ والقائمةُ والقوائمُ المنسدلة والذيلُ مجموعةٌ واحدة في اللوحة — لا تتناثر في «أخرى»."""
+    groups = {group["label"]: group["tokens"] for group in colour_token_groups()}
+
+    chrome = groups["الترويسةُ والقائمةُ والذيل"]
+    for name in (
+        "header-bg",
+        "nav-bg",
+        "nav-fg",
+        "nav-hover",
+        "nav-mark",
+        "menu-bg",
+        "menu-hover",
+        "menu-rule",
+        "menu-label",
+        "footer-bg",
+        "footer-fg",
+        "footer-fg-soft",
+    ):
+        assert name in chrome, name
+
+
+_SWITCH_LINK = re.compile(
+    r'<a href="(?P<href>/styleguide/[a-z]+/)" class="(?P<kind>btn-primary|btn-secondary) btn-sm"'
+    r'(?P<current> aria-current="page")?>'
+)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("page", ["ui_components", "icon_preview", "ui_layouts"])
+def test_every_guide_page_carries_the_same_three_page_switch(client, developer_user, page):
+    """مفتاحُ الدليل: أزرارُ صفحاته الثلاث دائمةٌ في ترويسة كلٍّ منها، والحاليّةُ مملوءةٌ وعليها aria-current."""
+    client.force_login(developer_user)
+
+    html = client.get(reverse(page)).content.decode()
+    links = [m.groupdict() for m in _SWITCH_LINK.finditer(html)]
+
+    assert [link["href"] for link in links] == [
+        reverse("ui_components"),
+        reverse("icon_preview"),
+        reverse("ui_layouts"),
+    ]
+    current = [link for link in links if link["current"]]
+    assert [link["href"] for link in current] == [reverse(page)]
+    assert current[0]["kind"] == "btn-primary"
+    assert all(link["kind"] == "btn-secondary" for link in links if not link["current"])
 
 
 def test_the_layouts_spec_names_the_same_seven_layouts():
