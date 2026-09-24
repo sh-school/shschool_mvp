@@ -375,8 +375,8 @@ function mobMenuTop(bar) {
   var row = document.getElementById('mob-menu-btn').closest('.site-nav');
   if (!row) return;
   var top = Math.max(0, Math.round(row.getBoundingClientRect().bottom));
-  bar.style.top = top + 'px';
-  bar.style.maxHeight = 'calc(100vh - ' + top + 'px)';
+  // الارتفاعُ الأقصى في CSS من هذا المتغيّر (`100dvh - var(--nb-top)`) فلا معادلةَ مكرَّرةً هنا.
+  bar.style.setProperty('--nb-top', top + 'px');
 }
 
 window.addEventListener('resize', function() {
