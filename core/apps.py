@@ -9,5 +9,7 @@ class CoreConfig(AppConfig):
     def ready(self):
         import core.signals  # noqa
         from core.admin_axes import install
+        from core.admin_hidden import hide_unused_jwt_tables
 
         install()
+        hide_unused_jwt_tables()
