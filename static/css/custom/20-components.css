@@ -175,6 +175,9 @@
   from { opacity: 0; transform: translateY(-5px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+/* النقرُ على رابطٍ فيها: تتلاشى من لحظة النقر بمدّة تلاشي الصفحة، ويغلقها page-nav.js بعدها. */
+.sd-menu.is-fading { animation: sdFadeOut var(--transition-page) forwards; pointer-events: none; }
+@keyframes sdFadeOut { to { opacity: 0; } }
 .sd-menu a {
   display: flex; align-items: center; gap: 9px;
   padding: 9px var(--sp-4); font-size: var(--text-sm);
@@ -1348,7 +1351,7 @@ main.page-wide {
 .page-crumbs { display: contents; }
 /* مدّةُ التلاشي ومنحناه من رمز الحركة المركزيّ `--transition-page` = 500ms (10-foundation؛ قرارُ المالك 2026-09-20: 500 خروجاً و500 ظهوراً) — معيارٌ في الهويّة لا رقمٌ هنا؛ وpage-nav.js
    يقرأ المدّةَ من هذه القاعدة نفسِها فلا تتباعد. */
-/* ما يتلاشى هو أبناءُ الصفحة كلُّهم. الصفحةُ إمّا `#main-content > .exec-dash > …` أو أبناؤها مباشرةً. */
+/* ما يتلاشى هو أبناءُ الصفحة كلُّهم. الصفحةُ إمّا `#main-content > .exec-dash > *` أو أبناؤها مباشرةً. */
 /* الظهور: حركةُ `page-in` تبدأ من نفسها لحظةَ إدراج العنصر (صفحةٌ حُمّلت كاملةً أو مبدَّلةٌ بالسكربت) — بلا صنفٍ يُزال ولا انتقالٍ
    يتوقّف على ترتيب الأنماط، فلا يأتي المحتوى فجأة. `backwards` فقط: بعد نهايتها يعود الأصلُ فيعمل التلاشي عند الخروج.
    والاختفاءُ: `.is-leaving` (يضعه السكربتُ) شفّافٌ بانتقالٍ بالمدّة نفسِها، وبـ`!important` لأنّ انتقالَ ابنٍ خاصّاً في طبقةٍ أحدث (`.sa-panel`) يغلب `transition` أعلاه. */

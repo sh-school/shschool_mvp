@@ -61,7 +61,60 @@ def test_no_section_sub_menu_remains():
 def test_a_click_on_the_current_page_reloads_nothing():
     """النقرةُ الثانيةُ على مفتاحٍ في القائمة الرئيسيّة أو فرعيّتها لا تعيد التحميل."""
     assert "a.pathname === location.pathname && a.search === location.search" in JS
-    assert "closeMenus(); return;" in JS
+    assert "fadeMenus(); return;" in JS
+
+
+# ── القوائمُ المنسدلة تتلاشى من لحظة النقر (قرارُ المالك 2026-09-24) ───────────────────────────
+
+
+def test_a_menu_fades_from_the_click_not_after_the_swap():
+    """كانت القائمةُ تبقى مفتوحةً 500ms بعد النقر (ما دام المحتوى يتلاشى) ثمّ تختفي فجأةً عند التبديل."""
+    go = JS[JS.index("function go(") : JS.index("function go(") + 700]
+    assert "fadeMenus();" in go.split("Promise.all")[0], "التلاشي يبدأ مع `is-leaving` لا بعد الردّ"
+    assert "setTimeout(closeMenus, fadeMs())" in JS, "تُغلق بعد مدّة تلاشي الصفحة نفسِها لا برقمٍ آخر"
+
+
+def test_the_menu_fade_uses_the_page_token_and_is_not_cut_by_hover_closers():
+    assert re.search(
+        r"\.sd-menu\.is-fading\s*\{[^}]*animation:\s*sdFadeOut\s+var\(--transition-page\)", CSS
+    )
+    base = pathlib.Path("static/js/base.js").read_text(encoding="utf-8")
+    assert "'.sd-menu.open:not(.is-fading)'" in base, "مؤشّرٌ يخرج من قائمةٍ تتلاشى لا يقطعها"
+    admin_nav = pathlib.Path("static/js/admin_nav.js").read_text(encoding="utf-8")
+    assert "item.classList.contains('is-fading')" in admin_nav
+    # نقرةٌ عاديّةٌ على رابطٍ في قائمة الإدارة لا تُغلقها `admin_nav.js` فوراً — كان هذا سببَ الاختفاء المفاجئ قبل أن يُخفتها page-nav.
+    assert "e.target.closest('.adm-nav__menu a[href]')" in admin_nav
+
+
+def test_leaving_restores_the_content_when_the_page_is_restored_or_no_navigation_happens():
+    """`is-leaving` يبقى على الصفحة المحفوظة (bfcache) وعلى صفحةٍ كان انتقالُها تنزيلاً — فيبقى المحتوى شفّافاً."""
+    assert "'pageshow'" in JS and "e.persisted" in JS
+    assert "function restoreLater" in JS and "restoreLater(); window.location.href = url" in JS
+
+
+# ── لوحةُ الإدارة: الآليّةُ نفسُها بنمط fade ────────────────────────────────────────────────────
+
+
+def test_the_admin_loads_the_same_script_in_fade_mode_and_never_swaps_its_dom():
+    base = pathlib.Path("templates/admin/base_site.html").read_text(encoding="utf-8")
+    tag = re.search(r"<script[^>]*js/page-nav\.js[^>]*>", base)
+    assert tag, "لوحةُ الإدارة لا تحمل page-nav.js"
+    assert 'data-page-nav="fade"' in tag.group(
+        0
+    ) and 'data-page-nav-root="#content-start"' in tag.group(0)
+    # نمطُ fade يخرج قبل معالجَي النماذج والسجلّ: صفحاتُ الإدارة تهيّئ أدواتِها عند load فلا يصحّ تبديلُ DOM فيها.
+    assert JS.index("if (FADE_ONLY) return;") < JS.index("addEventListener('submit'")
+    assert JS.index("if (FADE_ONLY) return;") < JS.index("addEventListener('popstate'")
+
+
+def test_the_admin_fade_root_and_popups_are_excluded():
+    assert "document.body.classList.contains('popup')" in JS
+    admin = pathlib.Path("static/css/admin_theme.css").read_text(encoding="utf-8")
+    assert (
+        "body:not(.popup) #content-start > *" in admin
+        and "body:not(.popup) #content-start.is-leaving > *" in admin
+    )
+    assert "@media (prefers-reduced-motion: reduce)" in admin
 
 
 def test_the_main_menu_opens_on_hover_with_intent_delays_and_escape():
