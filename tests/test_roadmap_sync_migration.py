@@ -303,6 +303,12 @@ def test_0010_closes_the_items_that_waited_for_477():
         assert (item.status, item.progress, item.pr) == ("done", 100, "#477")
 
 
+def test_0010_closes_own20_done_since_298():
+    _sync10.add_missing(RoadmapItem)
+    own20 = RoadmapItem.objects.get(code="OWN-20")
+    assert (own20.status, own20.pr) == ("done", "#298")
+
+
 def test_0010_keeps_an_item_the_developer_added_first():
     _item("OWN-20", "doing", 40, title="أضافه المطوّر")
     _sync10.add_missing(RoadmapItem)
