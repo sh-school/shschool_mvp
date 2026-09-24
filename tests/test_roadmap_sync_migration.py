@@ -258,3 +258,28 @@ def test_0008_adds_the_css_debt_open_and_the_merged_work_closed():
     assert (debt.status, debt.end_date, debt.lane) == ("todo", None, "debt")
     assert RoadmapItem.objects.get(code="N-025").pr == "#512 #516"
     assert _sync8.add_missing(RoadmapItem) == []
+
+
+# ── 0009: LAY-01/LAY-02 بـ#517، وH-03 جزئيّاً، وM-11 ──
+
+_sync9 = importlib.import_module("roadmap.migrations.0009_sync_items_2026_09_24b")
+
+
+def test_0009_closes_the_layout_items_and_keeps_h03_open():
+    for code, status, progress in (
+        ("LAY-01", "todo", 0),
+        ("LAY-02", "doing", 60),
+        ("H-03", "doing", 30),
+    ):
+        _item(code, status, progress)
+    assert _sync9.sync(RoadmapItem) == ["LAY-01", "LAY-02", "H-03"]
+    assert _sync9.sync(RoadmapItem) == []
+    h03 = RoadmapItem.objects.get(code="H-03")
+    assert (h03.status, h03.progress) == ("doing", 70)
+    assert RoadmapItem.objects.get(code="LAY-01").pr == "#517"
+
+
+def test_0009_adds_the_nightly_fix_once():
+    assert _sync9.add_missing(RoadmapItem) == ["N-026", "N-027", "N-028"]
+    assert "#422" in RoadmapItem.objects.get(code="N-026").note
+    assert _sync9.add_missing(RoadmapItem) == []
