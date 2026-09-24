@@ -132,7 +132,7 @@ SOFT_CONSTRAINTS = (
     _soft("daily_load", "الحملُ اليوميّ", 5),
     _soft("day_balance", "توازنُ الأيّام", 6),
     _soft("thursday_pair", "حصّتا المادّة يومَ الخميس", 15),
-    _soft("core_early", "الموادُّ الأساسيّةُ مبكّراً", 3),
+    _soft("core_early", "الموادُّ الأساسيّةُ مبكّراً", 30),
     _soft("pe_after_break", "البدنيّةُ بعد الاستراحة", 2),
     _soft("double_bonus", "مكافأةُ الحصّة المزدوجة", -5),
     _soft("high_weekly_adjacent", "تلاصقُ مادّةٍ عاليةِ النصاب", 7),
