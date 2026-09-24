@@ -743,6 +743,10 @@ document.addEventListener('keydown', function(e) {
 
 /* ── Active nav link (aria-current) ──────────────────────── */
 (function() {
+  // الشريطُ السفليّ على الجوال: القالبُ يحسم `.active`، وهنا يُعلَن للقارئ (خطّة الجوال Q-08).
+  document.querySelectorAll('.mobile-nav-item.active').forEach(function(a) {
+    a.setAttribute('aria-current', 'page');
+  });
   var path = location.pathname;
   document.querySelectorAll('.nb-bar a.nb').forEach(function(a) {
     var href = a.getAttribute('href');
