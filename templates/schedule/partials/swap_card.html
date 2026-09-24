@@ -59,7 +59,8 @@
   أيُّ منسّقٍ يعتمد أيَّ تبديل، ولا يُسأل أهو منسّقُ المادّة.
   {% endcomment %}
   {% if swap.status == "pending_coordinator" or swap.status == "pending_vp" or swap.status == "accepted_b" %}
-    {% if swap.my_sides %}
+    {# وتبديلُ الغياب بعد التوقيعين يعتمده النائبُ أو من كُلِّف عنه (`can_final`). #}
+    {% if swap.my_sides or swap.can_final %}
     <div class="swap-actions">
       <form method="post" action="{% url 'swap_approve' swap.pk %}">{% csrf_token %}
         <input type="hidden" name="action" value="approve">
