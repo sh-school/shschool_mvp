@@ -13,7 +13,12 @@ import pytest
 from django.urls import reverse
 
 from core.icons import ICONS
-from core.styleguide import colour_token_groups, icon_dictionary_groups, scale_tokens
+from core.styleguide import (
+    breakpoints,
+    colour_token_groups,
+    icon_dictionary_groups,
+    scale_tokens,
+)
 from core.templatetags.ui import KPI_TONES
 from tests.css_source import read_css
 
@@ -78,6 +83,33 @@ def test_the_scales_are_read_from_root_in_order():
     assert "transition-page" in names["motion"] and "lh-ar" in names["leading"]
 
 
+def test_the_minimum_measures_are_read_from_root():
+    """H-06: ارتفاعُ التحكّم والطبقاتُ والمنطقةُ الآمنة تُقرأ كالسلالم — رمزٌ جديدٌ يظهر بلا قالب."""
+    scales = scale_tokens()
+    layers = [t["name"] for t in scales["layer"]]
+
+    assert "control-h" in [t["name"] for t in scales["control"]]
+    assert layers[0] == "z-base" and layers.index("z-dropdown") < layers.index("z-modal")
+    assert "safe" in scales  # فارغٌ حتّى H-04، والقسمُ يقول ذلك صراحةً
+
+
+def test_the_breakpoints_match_the_layout_kpi_definition():
+    """جدولُ الدليل هو مؤشّرُ الخارطة LK2 نفسُه: المتجاورتان بفارق 1px حدٌّ واحد."""
+    points = [bp["px"] for bp in breakpoints()]
+    css = re.sub(r"/\*.*?\*/", "", read_css(), flags=re.S)
+    widths = sorted(
+        {
+            int(w)
+            for cond in re.findall(r"@media\s*([^{]+)\{", css)
+            for w in re.findall(r"(?:min|max)-width\s*:\s*(\d+)px", cond)
+        }
+    )
+    expected = [w for prev, w in zip([-9, *widths], widths, strict=False) if w - prev > 1]
+
+    assert points == expected
+    assert 640 in points and all(b - a > 1 for a, b in zip(points, points[1:], strict=False))
+
+
 @pytest.mark.django_db
 def test_the_guide_renders_every_component_and_links_the_icons(client, developer_user):
     client.force_login(developer_user)
@@ -106,6 +138,9 @@ def test_the_guide_renders_every_component_and_links_the_icons(client, developer
         "--swatch:var(--chart-1)",
     ):
         assert f'style="{sample}"' in html, sample
+    assert "المقاييسُ والحدودُ الدنيا</h2>" in html
+    for token in ("--control-h", "--z-modal"):
+        assert f'<bdi dir="ltr">{token}</bdi>' in html, token
     for title in (
         "الخطّ",
         "التباعدُ والتقوّس",

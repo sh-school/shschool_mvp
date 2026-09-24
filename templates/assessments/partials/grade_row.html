@@ -15,6 +15,7 @@
              name="grade"
              value="{% if grade_obj and not grade_obj.is_absent and grade_obj.grade is not None %}{{ grade_obj.grade }}{% endif %}"
              min="0" max="{{ assessment.max_grade }}" step="0.5"
+             inputmode="decimal" enterkeyhint="next"
              class="form-control form-control-sm asm-grade-input"
              id="grade_inp_{{ student.id }}"
              aria-label="درجة {{ student.full_name }}"

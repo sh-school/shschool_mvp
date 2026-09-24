@@ -22,21 +22,31 @@ class ExamSession(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     school = models.ForeignKey(
-        "core.School", on_delete=models.CASCADE, related_name="exam_sessions"
+        "core.School",
+        on_delete=models.CASCADE,
+        related_name="exam_sessions",
+        verbose_name="المدرسة",
     )
     name = models.CharField(max_length=200, verbose_name="اسم دورة الاختبار")
-    session_type = models.CharField(max_length=10, choices=SESSION_TYPES, default="final")
-    academic_year = models.CharField(max_length=20, default=default_academic_year)
-    start_date = models.DateField()
-    end_date = models.DateField()
-    status = models.CharField(max_length=15, choices=STATUS, default="planned")
-    notes = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    session_type = models.CharField(
+        max_length=10, choices=SESSION_TYPES, default="final", verbose_name="نوع الدورة"
+    )
+    academic_year = models.CharField(
+        max_length=20, default=default_academic_year, verbose_name="العام الدراسي"
+    )
+    start_date = models.DateField(verbose_name="تاريخ البداية")
+    end_date = models.DateField(verbose_name="تاريخ النهاية")
+    status = models.CharField(
+        max_length=15, choices=STATUS, default="planned", verbose_name="الحالة"
+    )
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
     created_by = models.ForeignKey(
         "core.CustomUser",
         null=True,
         on_delete=models.SET_NULL,
         related_name="created_exam_sessions",
+        verbose_name="أنشأه",
     )
 
     class Meta:
@@ -52,11 +62,13 @@ class ExamRoom(models.Model):
     """قاعة الاختبار — المنطقة الآمنة (المحور 2)"""
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    session = models.ForeignKey(ExamSession, on_delete=models.CASCADE, related_name="rooms")
+    session = models.ForeignKey(
+        ExamSession, on_delete=models.CASCADE, related_name="rooms", verbose_name="دورة الاختبارات"
+    )
     name = models.CharField(max_length=100, verbose_name="اسم القاعة / الرقم")
-    capacity = models.PositiveSmallIntegerField(default=30)
-    floor = models.CharField(max_length=20, blank=True)
-    notes = models.TextField(blank=True)
+    capacity = models.PositiveSmallIntegerField(default=30, verbose_name="السعة")
+    floor = models.CharField(max_length=20, blank=True, verbose_name="الطابق")
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
 
     class Meta:
         verbose_name = "قاعة اختبار"
@@ -83,15 +95,30 @@ class ExamSupervisor(models.Model):
         ("observer", "مراقب"),
     ]
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    session = models.ForeignKey(ExamSession, on_delete=models.CASCADE, related_name="supervisors")
+    session = models.ForeignKey(
+        ExamSession,
+        on_delete=models.CASCADE,
+        related_name="supervisors",
+        verbose_name="دورة الاختبارات",
+    )
     room = models.ForeignKey(
-        ExamRoom, null=True, blank=True, on_delete=models.SET_NULL, related_name="supervisors"
+        ExamRoom,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="supervisors",
+        verbose_name="اللجنة",
     )
     staff = models.ForeignKey(
-        "core.CustomUser", on_delete=models.CASCADE, related_name="exam_roles"
+        "core.CustomUser",
+        on_delete=models.CASCADE,
+        related_name="exam_roles",
+        verbose_name="الموظّف",
     )
-    role = models.CharField(max_length=15, choices=ROLES, default="supervisor")
-    assigned_at = models.DateTimeField(auto_now_add=True)
+    role = models.CharField(
+        max_length=15, choices=ROLES, default="supervisor", verbose_name="المهمّة"
+    )
+    assigned_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ التكليف")
 
     class Meta:
         verbose_name = "مشرف كنترول"
@@ -111,14 +138,21 @@ class ExamSchedule(models.Model):
     """جدول الاختبارات اليومي — توزيع المواد على القاعات"""
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    session = models.ForeignKey(ExamSession, on_delete=models.CASCADE, related_name="schedules")
-    room = models.ForeignKey(ExamRoom, on_delete=models.CASCADE, related_name="schedules")
-    subject = models.CharField(max_length=100)
-    grade_level = models.CharField(max_length=20)
-    exam_date = models.DateField()
-    start_time = models.TimeField()
-    end_time = models.TimeField()
-    students_count = models.PositiveSmallIntegerField(default=0)
+    session = models.ForeignKey(
+        ExamSession,
+        on_delete=models.CASCADE,
+        related_name="schedules",
+        verbose_name="دورة الاختبارات",
+    )
+    room = models.ForeignKey(
+        ExamRoom, on_delete=models.CASCADE, related_name="schedules", verbose_name="اللجنة"
+    )
+    subject = models.CharField(max_length=100, verbose_name="المادّة")
+    grade_level = models.CharField(max_length=20, verbose_name="الصف")
+    exam_date = models.DateField(verbose_name="تاريخ الاختبار")
+    start_time = models.TimeField(verbose_name="وقت البداية")
+    end_time = models.TimeField(verbose_name="وقت النهاية")
+    students_count = models.PositiveSmallIntegerField(default=0, verbose_name="عدد الطلبة")
 
     class Meta:
         verbose_name = "جدول اختبار"
@@ -146,9 +180,19 @@ class ExamIncident(models.Model):
     STATUS = [("open", "مفتوحة"), ("referred", "محالة"), ("resolved", "منتهية")]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    session = models.ForeignKey(ExamSession, on_delete=models.CASCADE, related_name="incidents")
+    session = models.ForeignKey(
+        ExamSession,
+        on_delete=models.CASCADE,
+        related_name="incidents",
+        verbose_name="دورة الاختبارات",
+    )
     room = models.ForeignKey(
-        ExamRoom, null=True, blank=True, on_delete=models.SET_NULL, related_name="incidents"
+        ExamRoom,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="incidents",
+        verbose_name="اللجنة",
     )
     student = models.ForeignKey(
         "core.CustomUser",
@@ -163,17 +207,20 @@ class ExamIncident(models.Model):
         null=True,
         on_delete=models.SET_NULL,
         related_name="reported_exam_incidents",
+        verbose_name="المُبلِّغ",
     )
-    incident_type = models.CharField(max_length=15, choices=TYPES, default="other")
-    severity = models.PositiveSmallIntegerField(choices=SEVERITY, default=1)
+    incident_type = models.CharField(
+        max_length=15, choices=TYPES, default="other", verbose_name="نوع الحادثة"
+    )
+    severity = models.PositiveSmallIntegerField(choices=SEVERITY, default=1, verbose_name="الخطورة")
     description = models.TextField(verbose_name="وصف الحادث التفصيلي")  # القسم ب
     injuries = models.TextField(blank=True, verbose_name="الإصابات والأضرار")  # القسم ج
     action_taken = models.TextField(blank=True, verbose_name="الإجراء الفوري")  # القسم د
     attachments = models.TextField(blank=True, verbose_name="المرفقات/الشهود")  # القسم هـ
     recommendations = models.TextField(blank=True, verbose_name="التوصيات")  # القسم و
-    status = models.CharField(max_length=10, choices=STATUS, default="open")
-    incident_time = models.DateTimeField(auto_now_add=True)
-    resolved_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS, default="open", verbose_name="الحالة")
+    incident_time = models.DateTimeField(auto_now_add=True, verbose_name="وقت الحادثة")
+    resolved_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت المعالجة")
     # ربط بسلوك الطالب إن اقتضى
     behavior_link = models.ForeignKey(
         "behavior.BehaviorInfraction",
@@ -181,6 +228,7 @@ class ExamIncident(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="exam_incidents",
+        verbose_name="المخالفة السلوكيّة المرتبطة",
     )
 
     class Meta:
@@ -206,19 +254,27 @@ class ExamEnvelope(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    schedule = models.ForeignKey(ExamSchedule, on_delete=models.CASCADE, related_name="envelopes")
-    action = models.CharField(max_length=15, choices=ACTIONS)
-    done_by = models.ForeignKey("core.CustomUser", null=True, on_delete=models.SET_NULL)
+    schedule = models.ForeignKey(
+        ExamSchedule,
+        on_delete=models.CASCADE,
+        related_name="envelopes",
+        verbose_name="موعد الاختبار",
+    )
+    action = models.CharField(max_length=15, choices=ACTIONS, verbose_name="الإجراء على المظروف")
+    done_by = models.ForeignKey(
+        "core.CustomUser", null=True, on_delete=models.SET_NULL, verbose_name="المنفِّذ"
+    )
     witness = models.ForeignKey(
         "core.CustomUser",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="witnessed_envelopes",
+        verbose_name="الشاهد",
     )
     copies = models.PositiveSmallIntegerField(default=0, verbose_name="عدد النسخ")
-    notes = models.TextField(blank=True)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
+    timestamp = models.DateTimeField(auto_now_add=True, verbose_name="الوقت")
 
     class Meta:
         verbose_name = "محضر مظروف"
@@ -233,15 +289,24 @@ class ExamGradeSheet(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     schedule = models.ForeignKey(
-        ExamSchedule, on_delete=models.CASCADE, related_name="grade_sheets"
+        ExamSchedule,
+        on_delete=models.CASCADE,
+        related_name="grade_sheets",
+        verbose_name="موعد الاختبار",
     )
     grader = models.ForeignKey(
-        "core.CustomUser", null=True, on_delete=models.SET_NULL, related_name="grade_sheets"
+        "core.CustomUser",
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="grade_sheets",
+        verbose_name="المصحّح",
     )
     papers_count = models.PositiveSmallIntegerField(default=0, verbose_name="عدد الأوراق المستلمة")
-    status = models.CharField(max_length=12, choices=STATUS, default="pending")
-    submitted_at = models.DateTimeField(null=True, blank=True)
-    notes = models.TextField(blank=True)
+    status = models.CharField(
+        max_length=12, choices=STATUS, default="pending", verbose_name="الحالة"
+    )
+    submitted_at = models.DateTimeField(null=True, blank=True, verbose_name="تاريخ الإرسال")
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
 
     class Meta:
         verbose_name = "ورقة رصد"

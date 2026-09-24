@@ -17,7 +17,7 @@ class StoredFile(models.Model):
     content = models.BinaryField(verbose_name="المحتوى")
     size = models.PositiveIntegerField(default=0, verbose_name="الحجم (بايت)")
     content_type = models.CharField(max_length=200, blank=True, verbose_name="نوع المحتوى")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "ملف مُخزَّن"
