@@ -387,10 +387,9 @@ document.addEventListener('click', function(e) {
 
 
 /* ── PWA Install Banner ───────────────────────────────────── */
-// الإظهارُ والإخفاءُ بسمة `hidden` لا بصنف `.visible`: قاعدةُ `.pwa-banner` في طبقة
-// `utilities` (#232) تجعله `flex` وتغلب `display:none` القديمةَ في `components` —
-// فكان الشريطُ ظاهراً دائماً ولا يُغلقه زرُّه. و`[hidden]` في `reset` بـ`!important`
-// يغلب الطبقاتِ كلَّها.
+// الإظهارُ والإخفاءُ بسمة `hidden` لا بصنف `.visible`: قاعدةُ `.pwa-banner` (`display: flex`)
+// في `20-components.css` تغلب `display:none`، و`[hidden]` في `reset` بـ`!important`
+// يغلب الطبقاتِ كلَّها — فيُغلقه زرُّه.
 //
 // ولا يعود الشريطُ أبداً (قرارُ 2026-09-13) إن: أُغلق بـ✕، أو ثُبّت التطبيق، أو فُتحت
 // المنصّةُ تطبيقاً مثبّتاً.
@@ -665,6 +664,17 @@ document.addEventListener('keydown', function(e) {
 (function() {
   var open = false;   // نافذةٌ واحدةٌ في المرّة: إرسالان متسابقان لا يفتحان اثنتين
 
+  /* رمزُ عنوان الحوار من قاموس core/icons.py (المفتاح status_warning). الورقةُ خارجيّةٌ
+     وعنوانُها في data-icon-sprite على <body> — كما يبني وسمُ {% icon %} وapp.js مسارَه —
+     فمرجعٌ محلّيٌّ `#icon-…` لا يجد هدفاً فيظهر العنوانُ بلا رسم. والحارسُ:
+     tests/test_icon_dictionary.py::test_no_script_references_an_icon_the_sprite_lacks. */
+  function warningIcon() {
+    var sprite = document.body.dataset.iconSprite;
+    if (!sprite) return '';
+    return '<svg class="icon icon-hg" aria-hidden="true" focusable="false">' +
+      '<use href="' + sprite + '#i-status_warning"></use></svg> ';
+  }
+
   document.addEventListener('submit', function(e) {
     var form = e.target;
     if (form._confirmed) { form._confirmed = false; return; } // already confirmed
@@ -693,12 +703,12 @@ document.addEventListener('keydown', function(e) {
     overlay.style.display = 'flex';
     overlay.innerHTML =
       '<div class="modal-box modal-sm" role="document">' +
-      '  <div class="modal-header"><span id="confirm-dlg-title" style="color:var(--status-danger)">' +
-      '    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-alert-triangle"/></svg> ' +
+      '  <div class="modal-header"><span id="confirm-dlg-title" class="confirm-dlg-title">' +
+      warningIcon() +
       '    \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0625\u062c\u0631\u0627\u0621</span>' +
       '    <button type="button" class="modal-close-btn" data-action="cancel" aria-label="\u0625\u063a\u0644\u0627\u0642">\u00d7</button>' +
       '  </div>' +
-      '  <div class="modal-body"><p data-confirm-message style="color:var(--text-secondary);line-height:1.7"></p></div>' +
+      '  <div class="modal-body"><p data-confirm-message class="confirm-dlg-message"></p></div>' +
       '  <div class="modal-footer">' +
       '    <button type="button" class="btn-secondary" data-action="cancel">\u0625\u0644\u063a\u0627\u0621</button>' +
       '    <button type="button" class="btn-danger" data-action="confirm">\u062a\u0623\u0643\u064a\u062f</button>' +
@@ -1145,4 +1155,22 @@ document.addEventListener('click', function(e) {
   }
   /* HTMX يستبدل أجزاءً من الصفحة، والجدولُ الجديدُ يحتاج ترويسةً جديدة. */
   document.addEventListener('htmx:afterSwap', function (e) { initAll(e.target); });
+})();
+
+/* ── «بلا تمرير» مشروطٌ بسعة النافذة (LAY-03، قرارُ المالك 2026-09-24) ─────────
+   صفحةُ `page-noscroll` تملأ النافذةَ وتُمرِّر قوائمَها داخل بطاقاتها. وعلى نافذةٍ قصيرة — لابتوب
+   1366×768 نافذتُه نحو 620px — كانت نصفُ هذه الصفحات تحشر جدولَها في صفّين (قياسُ 32 صفحةً،
+   docs/design/page_layouts.md §5). فإن ضيّق ارتفاعُ النافذة منطقةَ تمريرٍ دون 15rem نُزع
+   `page-noscroll` فمُرِّرت الصفحةُ كلُّها بالتخطيط نفسه، ويعود حين تتّسع.
+   لا تُحسب منطقةٌ قصيرةٌ بتصميمها: المعيارُ أن تطول حين يُنزع الصنف، أي أنّ النافذةَ هي التي قصّرتها.
+   والدالّةُ `window.fitNoscroll` مضمَّنةٌ في base.html بعد `</main>` لتقرّر قبل الرسم الأوّل؛
+   وهنا ما يعيد القرارَ حين يتغيّر المقاسُ أو المحتوى — لا عند `load`: إعادتُه بعد الرسم أحدثت قفزةً
+   مقيسةً (CLS 0.94 في قائمة الطلاب). */
+(function () {
+  if (typeof window.fitNoscroll !== 'function') return;
+  var timer = null;
+  function later() { clearTimeout(timer); timer = setTimeout(window.fitNoscroll, 150); }
+  window.addEventListener('resize', later);
+  /* تبديلُ الصفحة (page-nav.js) وأجزاءُ HTMX يغيّران المحتوى فتتغيّر الحاجة. */
+  document.addEventListener('htmx:afterSwap', later);
 })();

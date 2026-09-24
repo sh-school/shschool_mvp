@@ -130,7 +130,7 @@
     </ul>
     <ul class="sg-rules">
       <li>الظلُّ يدلّ على الارتفاع لا يزيّن: البطاقةُ <code><bdi dir="ltr">--shadow-sm</bdi></code>، والقائمةُ المنسدلة <code><bdi dir="ltr">--shadow-dropdown</bdi></code>، والنافذةُ <code><bdi dir="ltr">--shadow-modal</bdi></code> — ولا ظلَّ يُكتب بقيمته.</li>
-      <li>الطبقاتُ بسلّم <code><bdi dir="ltr">--z-*</bdi></code> وحدَه (base · raised · dropdown · sticky · navbar · modal · toast) — لا <code>z-index</code> برقمٍ عشوائيّ.</li>
+      <li>الطبقاتُ بسلّم <code><bdi dir="ltr">--z-*</bdi></code> وحدَه (base · raised · banner · dropdown · sticky · navbar · sidebar · modal · toast) — لا <code>z-index</code> برقمٍ عشوائيّ.</li>
     </ul>
   {% endsection_card %}
 
@@ -187,13 +187,9 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
           {% for t in scales.layer %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
         </ul>
         <p class="sg-label">المنطقةُ الآمنة · {{ scales.safe|length }}</p>
-        {% if scales.safe %}
         <ul class="sg-tokens">
           {% for t in scales.safe %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
         </ul>
-        {% else %}
-        <p class="ui-note">لم تُعرَّف رموزُ <code><bdi dir="ltr">--safe-*</bdi></code> بعد (H-04)؛ تظهر هنا وحدَها حين تُعرَّف في <code><bdi dir="ltr">:root</bdi></code>.</p>
-        {% endif %}
         <p class="sg-label">نقاطُ التوقّف في الأنماط · {{ breakpoints|length }}</p>
         <ul class="chip-row" aria-label="نقاطُ التوقّف وعددُ استعلاماتِ كلٍّ منها">
           {% for bp in breakpoints %}
@@ -215,19 +211,19 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
               </tr>
               <tr>
                 <td>هدفُ اللمس 44px (<code><bdi dir="ltr">--control-h</bdi></code>) على المؤشّر الخشن <code>coarse</code>، و24px للفأرة.</td>
-                <td><span class="status-badge status-warning">جزئيّة</span> الحدُّ يُكتب بالرمز لا بالرقم (<code>test_touch_target_token</code>)؛ ورفعُ الأزرار الصغيرة على <code>coarse</code> في M-01.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> كتلةُ <code>pointer: coarse</code> (M-01) بالرمز لا بالرقم، وحارسُها <code>test_touch_target_token</code>.</td>
               </tr>
               <tr>
                 <td>المنطقةُ الآمنة من رموز <code><bdi dir="ltr">--safe-*</bdi></code> لا من <code>env()</code> مباشرةً.</td>
-                <td><span class="status-badge status-gray">تنتظر H-04</span> الرموزُ لم تُعرَّف، و<code>env(safe-area…)</code> ما زال مكتوباً مباشرةً.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> الرموزُ معرَّفةٌ في <code>:root</code> (H-04) وحارسُها <code>test_safe_area_tokens</code>؛ و<code>app_back_bar</code> تعرّف الرمزَ محلّيّاً لأنّها ورقةٌ مستقلّة.</td>
               </tr>
               <tr>
                 <td>الطبقاتُ من سلّم <code><bdi dir="ltr">--z-*</bdi></code> لا أرقامٌ خام.</td>
-                <td><span class="status-badge status-warning">جزئيّة</span> السلّمُ معرَّف، وبقيت قيمٌ خامٌّ قليلةٌ بلا حارسٍ بعد.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> لا <code>z-index</code> خامَّ ≥ 20، و<code><bdi dir="ltr">--z-banner</bdi></code> تحت ما يفتحه المستخدم — حارسُها <code>test_z_scale</code>.</td>
               </tr>
               <tr>
                 <td>نقاطُ التوقّف من جدولٍ واحد — الجدولُ الحيُّ بجانبها، وهو مؤشّرُ الخارطة LK2 نفسُه.</td>
-                <td><span class="status-badge status-gray">تنتظر D2</span> توحيدُ حدّ الجوال قرارُ المالك D2، وتقليصُ النقاط في LAY-03.</td>
+                <td><span class="status-badge status-warning">جزئيّة</span> وُحِّدت في LAY-03 إلى خمس (640 و1024 و1440، واستثناءان 400 و1100)؛ وحدُّ اللوحيّ الأعلى قرارُ المالك D2.</td>
               </tr>
             </tbody>
           </table>
@@ -299,7 +295,7 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
       <li>الشارة: <code>status-success · status-danger · status-warning · status-info · status-maroon · status-gray</code>. و<code>status-green/red/orange/blue/purple/teal</code> غيرُ معرَّفة — شارةٌ بلا لون.</li>
       <li>في الترويسة: <code>btn-primary btn-sm</code> للفعل الأوّل و<code>btn-secondary btn-sm</code> للبقيّة. و<code>btn-ghost</code> لأفعال الصفّ داخل الجدول.</li>
       <li>الشارةُ خطُّها لا يقلّ عن 12px (<code><bdi dir="ltr">--text-xs</bdi></code>) — والأسماءُ الستّةُ نفسُها لا تتغيّر.</li>
-      <li>على المؤشّر الخشن (<code>pointer: coarse</code>) يصير <code>btn-sm</code> بارتفاع <code><bdi dir="ltr">--control-h</bdi></code> (44px)، والرابطُ الصغيرُ له منطقةُ لمسٍ 44px وإن بقي رسمُه صغيراً — المعيارُ هنا، وتطبيقُه في M-01.</li>
+      <li>على المؤشّر الخشن (<code>pointer: coarse</code>) يصير <code>btn-sm</code> بارتفاع <code><bdi dir="ltr">--control-h</bdi></code> (44px)، والرابطُ الصغيرُ وزرُّ الإغلاق وأيقونةُ التلميح 44px — مطبَّقٌ في كتلة <code>pointer: coarse</code> (M-01).</li>
     </ul>
   {% endsection_card %}
 
@@ -551,7 +547,7 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
 # view: items_cols = chunk_for_grid(items, 4)
 &lt;div class="auto-grid"&gt;{% templatetag openblock %} for col in items_cols {% templatetag closeblock %}…{% templatetag openblock %} endfor {% templatetag closeblock %}&lt;/div&gt;</pre>
     <ul class="sg-rules">
-      <li><code>card-flow</code> لبطاقاتٍ مختلفةِ الحجم: أعمدتُها 1 ثمّ 2 (768px) ثمّ 4 (1100px) — زوجيّةٌ دائماً فتتجاور العريضتان، وعلى نقاط التوقّف القائمة لا نقطةٍ جديدة (LK2)؛ والبطاقةُ تعلن عرضَها بـ<code>span="wide"</code> (نصفُ السطر) أو <code>"full"</code> (السطر)، وبطاقاتُ السطر بارتفاعٍ واحد. ويُرتَّب القالبُ صفوفاً متقاربةَ المحتوى.</li>
+      <li><code>card-flow</code> لبطاقاتٍ مختلفةِ الحجم: أعمدتُها 1 ثمّ 2 (641px) ثمّ 4 (1025px) — زوجيّةٌ دائماً فتتجاور العريضتان، وعلى حدود فئات D-16 لا نقطةٍ خاصّة (LK2)؛ والبطاقةُ تعلن عرضَها بـ<code>span="wide"</code> (نصفُ السطر) أو <code>"full"</code> (السطر)، وبطاقاتُ السطر بارتفاعٍ واحد. ويُرتَّب القالبُ صفوفاً متقاربةَ المحتوى.</li>
       <li><code>ui-grid-2</code> لبطاقتين متجاورتين، و<code>ui-entity-grid</code> لبطاقات الكيان، و<code>ui-actions</code> للبلاطات.</li>
       <li>قائمةٌ ضيّقةُ الصفّ غيرُ محدودة ← أعمدةٌ بـ<code>chunk_for_grid</code> في العرض و<code>auto-grid</code> في القالب؛ والمحدودةُ (<code>[:10]</code>) لا تُقسَّم.</li>
       <li>في صفحةٍ <code>page-noscroll</code>: <code>fill-grid is-fit</code> لبطاقةٍ محدودة المحتوى، و<code>fill-grid</code> وحدَه لقائمةٍ غير محدودةٍ تُمرَّر داخلها.</li>
