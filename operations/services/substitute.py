@@ -374,6 +374,7 @@ class SubstituteService:
                 "teacher": slot.teacher,
                 "subject": slot.subject,
                 "end_time": slot.end_time,
+                "period_number": slot.period_number,
             },
         )
         # حصّةٌ أخذها زميلٌ تعويضاً لا يُكتب فوقها: يخسرها صاحبُها بلا إشعار.

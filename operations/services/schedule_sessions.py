@@ -164,6 +164,7 @@ class ScheduleSessionsMixin:
                     date=actual_date,
                     start_time=slot.start_time,
                     end_time=slot.end_time,
+                    period_number=slot.period_number,
                     status="scheduled",
                     elective_group=slot.elective_group,
                 )
@@ -278,6 +279,7 @@ class ScheduleSessionsMixin:
                 date=target_date,
                 start_time=slot.start_time,
                 end_time=slot.end_time,
+                period_number=slot.period_number,
                 status="scheduled",
                 elective_group=slot.elective_group,
             )
