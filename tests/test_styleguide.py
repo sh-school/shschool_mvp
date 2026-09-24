@@ -12,7 +12,7 @@ import pytest
 from django.urls import reverse
 
 from core.icons import ICONS
-from core.styleguide import colour_token_groups, icon_dictionary_groups
+from core.styleguide import colour_token_groups, icon_dictionary_groups, scale_tokens
 from core.templatetags.ui import KPI_TONES
 from tests.css_source import read_css
 
@@ -64,6 +64,19 @@ def test_the_old_guide_route_is_a_permanent_redirect(client, teacher_user):
     assert response["Location"] == reverse("ui_components")
 
 
+def test_the_scales_are_read_from_root_in_order():
+    """سلالمُ الأسس من `:root` نفسِه — درجةٌ تُضاف هناك تظهر في الدليل بلا تعديل."""
+    scales = scale_tokens()
+    names = {key: [t["name"] for t in tokens] for key, tokens in scales.items()}
+
+    assert names["text"][0] == "text-xs" and "text-3xl" in names["text"]
+    assert "text-primary" not in names["text"]
+    assert names["space"][:3] == ["sp-0-5", "sp-1", "sp-1-5"] and names["space"][-1] == "sp-16"
+    assert names["radius"][0] == "radius-sm" and names["radius"][-1] == "radius-pill"
+    assert "shadow-sm" in names["shadow"] and "shadow-ink" not in names["shadow"]
+    assert "transition-page" in names["motion"] and "lh-ar" in names["leading"]
+
+
 @pytest.mark.django_db
 def test_the_guide_renders_every_component_and_links_the_icons(client, developer_user):
     client.force_login(developer_user)
@@ -81,6 +94,28 @@ def test_the_guide_renders_every_component_and_links_the_icons(client, developer
     assert "ui-section is-flush" in html
     for badge in ("success", "danger", "warning", "info", "maroon", "gray"):
         assert f"status-badge status-{badge}" in html
+    # الأسسُ وأنماطُ التخطيط: كلُّ سلّمٍ يُرسم من رموزه، والبطاقاتُ في تدفّقٍ واحد.
+    assert 'class="card-flow"' in html
+    assert "{#" not in html
+    for sample in (
+        "--size:var(--text-sm)",
+        "--bar:var(--sp-4)",
+        "--r:var(--radius-md)",
+        "--shadow:var(--shadow-md)",
+        "--swatch:var(--chart-1)",
+    ):
+        assert f'style="{sample}"' in html, sample
+    for title in (
+        "الخطّ",
+        "التباعدُ والتقوّس",
+        "الظلالُ والارتفاع",
+        "الحركةُ والتركيز",
+        "الجداول",
+        "الرسومُ البيانيّة",
+        "الشبكاتُ والتخطيط",
+        "الوضعُ الداكن",
+    ):
+        assert f"· {title}</h2>" in html, title
 
 
 @pytest.mark.django_db
@@ -91,6 +126,15 @@ def test_the_icon_page_renders_every_meaning(client, developer_user):
 
     for key in ICONS:
         assert f">{key}<" in html, key
+    # كلُّ مجموعةٍ بطاقةٌ في تدفّقٍ واحد، وعرضُها بعدد أيقوناتها؛ وألوانُ الأيقونة الستّةُ معروضة.
+    assert 'class="card-flow"' in html
+    for group in icon_dictionary_groups():
+        assert f'<h2 class="ui-section__title">{group["label"]}</h2>' in html, group["label"]
+    assert "ui-section is-full" in html and "ui-section is-wide" in html
+    for tone in ("maroon", "success", "danger", "warning", "info", "muted"):
+        assert f'class="icon-{tone}"' in html, tone
+    # تعليقُ القالب لا يتسرّب نصّاً إلى الصفحة.
+    assert "{#" not in html
 
 
 @pytest.mark.django_db

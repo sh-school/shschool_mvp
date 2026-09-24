@@ -15,7 +15,11 @@
     <a href="{% url 'ui_components' %}" class="btn-secondary btn-sm">{% icon "back" %} دليلُ الهويّة</a>
   {% endpage_header %}
 
-  {% section_card "المقاسات" meta="icon · icon-sm · icon-lg · icon-xl · icon-2xl" icon="settings" %}
+  {% comment %}البطاقاتُ تتجاور بعرض حاجتها (.card-flow): المقاساتُ بجوار الألوان، وكلُّ مجموعةٍ بطاقةٌ
+     عرضُها بعدد أيقوناتها (ICON_GROUP_WIDE_MAX في العرض).{% endcomment %}
+  <div class="card-flow">
+
+  {% section_card "المقاسات" meta="icon · sm · lg · xl · 2xl" icon="settings" span="wide" %}
     <div class="sg-sizes">
       <div class="sg-size">{% icon "reports" size="sm" %}<code class="sg-icon__name" dir="ltr">icon-sm · 16</code></div>
       <div class="sg-size">{% icon "reports" %}<code class="sg-icon__name" dir="ltr">icon · 20</code></div>
@@ -23,28 +27,43 @@
       <div class="sg-size">{% icon "reports" size="xl" %}<code class="sg-icon__name" dir="ltr">icon-xl · 32</code></div>
       <div class="sg-size">{% icon "reports" size="2xl" %}<code class="sg-icon__name" dir="ltr">icon-2xl · 48</code></div>
     </div>
-    <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} load icons {% templatetag closeblock %}
-{% templatetag openblock %} icon "reports" size="lg" {% templatetag closeblock %}</pre></details>
+    <pre class="sg-code" dir="ltr">{% templatetag openblock %} load icons {% templatetag closeblock %}
+{% templatetag openblock %} icon "reports" size="lg" {% templatetag closeblock %}
+{% templatetag openblock %} icon "delete" label="حذف" {% templatetag closeblock %}   ← أيقونةٌ وحدَها في زرّ</pre>
+    <ul class="sg-rules">
+      <li><code>icon</code> (20) مع النصّ، و<code>sm</code> في الشارات والجداول، و<code>lg</code> في رؤوس البطاقات والبلاطات، و<code>xl</code>/<code>2xl</code> للحالة الفارغة وحدَها.</li>
+      <li>أيقونةٌ بلا نصٍّ بجوارها تحمل <code>label</code> فيُقرأ اسمُها؛ ومع النصّ زخرفةٌ مخفيّةٌ عن القارئ.</li>
+    </ul>
   {% endsection_card %}
 
-  {% section_card "كلُّ الأيقونات" meta=icon_count icon="folder" empty="لا أيقوناتٍ في القاموس" %}{% if icon_groups %}
-    {% for group in icon_groups %}
-      <p class="sg-label">{{ group.label }} <code dir="ltr">({{ group.icons|length }})</code></p>
-      <ul class="sg-icons">
-        {% for entry in group.icons %}
-          <li class="sg-icon" title="{{ entry.label }}">
-            {% icon entry.key size="lg" %}
-            <code class="sg-icon__name" dir="ltr">{{ entry.key }}</code>
-          </li>
-        {% endfor %}
-      </ul>
-    {% endfor %}
-    <ul class="sg-rules">
-      <li>الاسمُ المكتوب تحت الأيقونة هو المعنى المُمرَّر إلى <code>{% templatetag openblock %} icon "..." {% templatetag closeblock %}</code> — لا اسمَ رسمٍ ولا شكلَه.</li>
-      <li>الأيقونةُ ترث لونَ النصّ (<code>currentColor</code>)؛ ولونُها الدلاليُّ صنفٌ: <code>icon-maroon · icon-success · icon-danger · icon-warning · icon-info · icon-muted</code>.</li>
-      <li>لا إيموجي ولا اسمَ رسمٍ خامٍّ في الواجهة: الأيقوناتُ من هذا القاموس وحدَه — `core/icons.py`.</li>
+  {% section_card "الألوانُ والاستعمال" meta="currentColor · icon" icon="filter" span="wide" %}
+    <ul class="sg-icon-tones">
+      {% for tone in icon_tones %}
+        <li class="sg-icon-tone"><span class="icon-{{ tone.0 }}">{% icon tone.1 size="lg" %}</span><code class="sg-icon__name" dir="ltr">icon-{{ tone.0 }}</code></li>
+      {% endfor %}
     </ul>
-  {% endif %}{% endsection_card %}
+    <ul class="sg-rules">
+      <li>الاسمُ تحت الأيقونة هو المعنى المُمرَّر إلى <code>{% templatetag openblock %} icon "..." {% templatetag closeblock %}</code> — لا اسمَ رسمٍ ولا شكلَه؛ والمعنى يختار الرسم.</li>
+      <li>الأيقونةُ ترث لونَ النصّ (<code>currentColor</code>)؛ ولونُها الدلاليُّ صنفٌ على أبيها: <code>icon-maroon · icon-success · icon-danger · icon-warning · icon-info · icon-muted</code>.</li>
+      <li>لا إيموجي ولا اسمَ رسمٍ خامٍّ في الواجهة: الأيقوناتُ من <code>core/icons.py</code> وحدَه، ومعنًى جديدٌ يُضاف هناك فيظهر هنا.</li>
+    </ul>
+  {% endsection_card %}
 
+  {% for group in icon_groups %}
+  {% section_card group.label meta=group.icons|length icon="folder" span=group.span %}
+    <ul class="sg-icons">
+      {% for entry in group.icons %}
+        <li class="sg-icon" title="{{ entry.label }}">
+          {% icon entry.key size="lg" %}
+          <code class="sg-icon__name" dir="ltr">{{ entry.key }}</code>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endsection_card %}
+  {% empty %}
+  {% section_card "كلُّ الأيقونات" icon="folder" span="full" empty="لا أيقوناتٍ في القاموس" %}{% endsection_card %}
+  {% endfor %}
+
+  </div>
 </div>
 {% endblock %}

@@ -85,6 +85,19 @@ class TestSectionCard:
         html = render('{% section_card "x" flush=True %}y{% endsection_card %}')
         assert "ui-section is-flush" in html
 
+    def test_span_sets_the_width_inside_card_flow(self):
+        assert "ui-section is-wide" in render(
+            '{% section_card "x" span="wide" %}y{% endsection_card %}'
+        )
+        assert "ui-section is-full" in render(
+            '{% section_card "x" span="full" %}y{% endsection_card %}'
+        )
+        assert "is-wide" not in render('{% section_card "x" %}y{% endsection_card %}')
+
+    def test_an_unknown_span_is_refused(self):
+        with pytest.raises(TemplateSyntaxError, match="span"):
+            render('{% section_card "x" span="half" %}y{% endsection_card %}')
+
 
 class TestEntityCard:
     BODY = (

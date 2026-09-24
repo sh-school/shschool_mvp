@@ -2232,4 +2232,31 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
 }
 .qobs-coord-badge { font-size: var(--text-xs); }
 
+
+/* ── تدفّقُ البطاقات: أكثرُ من بطاقةٍ في الصفّ، وعرضُ كلٍّ بحاجتها ──
+   صفحةٌ بطاقاتُها مختلفةُ الحجم (أمثلةٌ، قواعدُ، أزرار) كانت تُرصّ عموداً واحداً
+   بعرض النافذة، فبطاقةٌ فيها ثلاثةُ أزرارٍ تحتلّ سطراً كاملاً وبجانبها فراغ.
+   والبطاقةُ تعلن عرضَها بمعدِّل: بلا معدِّلٍ عمود، و`is-wide` نصفُ السطر، و`is-full` السطرُ كلُّه.
+   وعددُ الأعمدة زوجيٌّ دائماً (1 ← 2 ← 4): بثلاثةٍ لا تتجاور عريضتان، فتقع كلٌّ في سطرٍ
+   وبجانبها ثلثٌ فارغ — وهو عينُ ما جاء هذا ليزيله (رُصد على 1440px).
+   وبطاقاتُ السطر الواحد بارتفاعٍ واحد (stretch) فلا تنتهي كلٌّ على حدٍّ مختلف؛
+   والترتيبُ ترتيبُ القالب — فيُصفّ القالبُ صفوفاً مكتملةً متقاربةَ المحتوى. */
+.card-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--sp-2);
+  align-items: stretch;
+}
+.card-flow > * { min-inline-size: 0; }
+.card-flow > .is-full { grid-column: 1 / -1; }
+@media (min-width: 768px) {
+  .card-flow { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card-flow > .is-wide { grid-column: 1 / -1; }
+}
+@media (min-width: 1280px) {
+  .card-flow { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .card-flow > .is-wide { grid-column: span 2; }
+}
+}
+
 }
