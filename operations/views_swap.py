@@ -351,30 +351,10 @@ def absence_swap_create(request, absence_id, slot_id):
 @capability_required("schedule.view")
 def compensatory_list(request):
     """قائمة الحصص التعويضية."""
-    school = request.user.get_school()
-    role = request.user.get_role()
-
-    if role in ("principal", "vice_academic", "vice_admin"):
-        comps = CompensatorySession.objects.filter(school=school)
-    elif role == "coordinator":
-        from core.permissions import get_department_teacher_ids
-
-        dept_teachers = get_department_teacher_ids(request.user) or set()
-        comps = CompensatorySession.objects.filter(school=school, teacher_id__in=dept_teachers)
-    else:
-        comps = CompensatorySession.objects.filter(school=school, teacher=request.user)
-
-    comps = comps.select_related(
-        "teacher",
-        "original_slot__subject",
-        "original_slot__class_group",
-        "class_group",
-        "subject",
-    ).order_by("-created_at")
-
     status_filter = request.GET.get("status", "")
-    if status_filter:
-        comps = comps.filter(status=status_filter)
+    comps = CompensatoryService.listing(
+        request.school, request.user, request.user.get_role(), status_filter
+    )
 
     return render(
         request,
@@ -410,17 +390,17 @@ def compensatory_request(request):
         absence = get_object_or_404(TeacherAbsence, pk=absence_id, school=school)
 
         try:
-            comp_date = date_cls.fromisoformat(comp_date_str)
-            CompensatoryService.request_compensatory(
+            comp = CompensatoryService.request_compensatory(
                 school=school,
                 teacher=request.user,
                 original_slot=slot,
                 absence=absence,
-                compensatory_date=comp_date,
+                compensatory_date=date_cls.fromisoformat(comp_date_str),
                 compensatory_period=int(comp_period),
                 notes=notes,
             )
-            messages.success(request, "تم إرسال طلب التعويض بنجاح")
+            who = comp.colleague.full_name if comp.colleague else "المنسّق"
+            messages.success(request, f"أُرسل طلبُ التعويض إلى {who}")
             return redirect("compensatory_list")
         except (ValueError, Exception) as e:
             messages.error(request, f"خطأ: {e}")
@@ -445,6 +425,60 @@ def compensatory_request(request):
             "my_slots": my_slots,
         },
     )
+
+
+@login_required
+@capability_required("compensatory.request")
+def compensatory_options(request):
+    """HTMX: حصصُ الشعبة يومَ التعويض بجرس طابقها — ولكلٍّ صاحبُها، وهل يُعوَّض فيها."""
+    from datetime import date as date_cls
+
+    from django.core.exceptions import ValidationError
+
+    ctx: dict = {"options": [], "error": "", "ready": False}
+    try:
+        slot = ScheduleSlot.objects.select_related("class_group__time_band").get(
+            pk=request.GET.get("original_slot"), school=request.school, teacher=request.user
+        )
+        day = date_cls.fromisoformat(request.GET.get("compensatory_date", ""))
+    except (ScheduleSlot.DoesNotExist, ValidationError, ValueError):
+        return render(request, "schedule/partials/compensatory_options.html", ctx)
+    ctx["ready"] = True
+    today = timezone.localdate()
+    if not today <= day <= today + timedelta(days=28):
+        # نقطةُ GET تولّد حصصَ أسبوع التاريخ: لا تُفتح لتاريخٍ اعتباطيّ.
+        ctx["error"] = "اختر تاريخاً من اليوم إلى أربعة أسابيع"
+        return render(request, "schedule/partials/compensatory_options.html", ctx)
+    try:
+        ctx["options"] = CompensatoryService.day_options(
+            request.school, request.user, slot.class_group, day
+        )
+    except ValueError as closed:
+        ctx["error"] = str(closed)
+    return render(request, "schedule/partials/compensatory_options.html", ctx)
+
+
+@login_required
+@capability_required("schedule.view")
+@require_POST
+def compensatory_respond(request, comp_id):
+    """صاحبُ الحصّة يوافق أو يعتذر، وصاحبُ الطلب يسحبه — والتحقّقُ من الصفة في الخدمة."""
+    comp = get_object_or_404(CompensatorySession, pk=comp_id, school=request.school)
+    action = request.POST.get("action")
+    try:
+        if action == "withdraw":
+            CompensatoryService.withdraw(comp, request.user)
+            done = "سُحب طلبُ التعويض"
+        else:
+            CompensatoryService.colleague_decide(
+                comp, request.user, action == "accept", request.POST.get("reason", "").strip()
+            )
+            done = "سُجّلت موافقتك — الطلبُ ينتظر الاعتماد" if action == "accept" else "سُجّل اعتذارك"
+    except ValueError as bad:
+        messages.error(request, str(bad))
+    else:
+        messages.success(request, done)
+    return redirect("compensatory_list")
 
 
 @login_required
