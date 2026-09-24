@@ -182,9 +182,10 @@ OPEN_DEBTS = [
         "DBT-41",
         "sec",
         "خصوصيّة (PDPPL): مرفقُ استثناء الحضور للموظّف (ExceptionService.submit) يُحفظ بلا clean_photo",
-        "يمرّ بـclean_photo ويخرج من KNOWN_UNCLEANED — #565 (دمجٌ تلقائيّ مفعَّل، لم يندمج بعد).",
+        "يمرّ بـclean_photo ويخرج من KNOWN_UNCLEANED — تحقّق بـ#565.",
         "الدَّينُ الفعليّ في ExceptionService.submit لا في my_permits وحدها (تصحيحُ جلسة «اصلاحات 02» بعد فحصٍ أثبته الحارس). "
-        "يُغلق برقم #565 حين يُدمج — لا قبله.",
+        "**أُغلق بـ#565** (اندمج 2026-09-24 20:44Z، 974e36b3): مرفقُ استثناء الموظّف يمرّ بـclean_photo، وحارسُ مداخل الرفع يتحقّق أنّ "
+        "خدمةَ VIA_SERVICE تستدعيه فعلاً وأنّ نماذجَ DOCUMENTS_ONLY ترفض الامتداداتِ الصوريّة.",
     ),
     (
         "DBT-42",
@@ -283,6 +284,8 @@ OPEN_DEBTS = [
 OPEN_DEBTS_FIRST_ORDER = 474  # بعد N-038 (473)
 # ديونٌ سُجّلت بأرقامها ثمّ ثبت أنّها «لا دَين» بفحصٍ أثبته الحارس: تُنشأ مُغلقةً (لا منجزةً) فتبقى الأرقامُ مستقرّةً عند الجلسات.
 CLOSED_NO_DEBT = {"DBT-40", "DBT-42"}
+# ديونٌ سُجّلت ثمّ أُغلقت بطلب اندمج قبل الإدراج: تُنشأ مُغلقةً برقم طلبها.
+CLOSED_BY_PR = {"DBT-41": "#565"}
 
 # مؤشّراتٌ رقميّة: (الرمز، (القيمة، تاريخ القياس) المتوقَّعان، القيمة الجديدة، مرجعُ القياس) — قياسُ الإنتاج قراءةً فقط بعد اعتماد
 # التوليد c2dba53a؛ ونقطةُ اليوم في السجلّ تُستبدل لا تتكرّر (والأساسُ باقٍ في baseline).
@@ -352,7 +355,7 @@ def add_open_debts(item_model):
     for offset, (code, lane, title, criterion, extra) in enumerate(OPEN_DEBTS):
         if item_model.objects.filter(code=code).exists():
             continue
-        closed = code in CLOSED_NO_DEBT
+        closed = code in CLOSED_NO_DEBT or code in CLOSED_BY_PR
         item_model.objects.create(
             code=code,
             src="DBT",
@@ -363,6 +366,7 @@ def add_open_debts(item_model):
             start_date=DAY if closed else None,
             end_date=DAY if closed else None,
             date_basis="محدَّث يدوياً" if closed else BASIS,
+            pr=CLOSED_BY_PR.get(code, ""),
             criterion=criterion,
             note=f"{STAMP} {extra}",
             sort_order=OPEN_DEBTS_FIRST_ORDER + offset,

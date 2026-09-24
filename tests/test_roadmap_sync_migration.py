@@ -797,18 +797,19 @@ def test_0016_adds_vi34_n036_n037_n038_closed_once():
     assert "js_icon_problems" in vi34.note
 
 
-def test_0016_registers_the_fourteen_debts_two_of_them_closed_as_no_debt():
+def test_0016_registers_the_fourteen_debts_two_closed_as_no_debt_and_one_by_565():
     assert _sync16.add_open_debts(RoadmapItem) == [f"DBT-{n}" for n in range(40, 54)]
     assert _sync16.add_open_debts(RoadmapItem) == []
     assert not RoadmapItem.objects.filter(code="DBT-37").exists()
-    closed = {"DBT-40", "DBT-42"}
+    closed = {"DBT-40", "DBT-42", "DBT-41"}
     for i in RoadmapItem.objects.filter(code__in=[f"DBT-{n}" for n in range(40, 54)]):
         want = ("done", 100) if i.code in closed else ("todo", 0)
-        assert (i.status, i.progress, i.pr, i.src) == (*want, "", "DBT"), i.code
+        pr = "#565" if i.code == "DBT-41" else ""
+        assert (i.status, i.progress, i.pr, i.src) == (*want, pr, "DBT"), i.code
     assert RoadmapItem.objects.get(code="DBT-40").start_date == _sync16.DAY
     assert RoadmapItem.objects.get(code="DBT-44").start_date is None
     assert "DOCUMENTS_ONLY" in RoadmapItem.objects.get(code="DBT-40").note
-    assert "#565" in RoadmapItem.objects.get(code="DBT-41").note
+    assert "أُغلق بـ#565" in RoadmapItem.objects.get(code="DBT-41").note
     assert "KNOWN_UNCLEANED" in RoadmapItem.objects.get(code="DBT-43").note
 
 
