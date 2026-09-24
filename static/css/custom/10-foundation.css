@@ -41,6 +41,8 @@
   /* `hidden` يجب أن يغلب أصناف العرض (flex/grid) وإلا بقي العنصر ظاهراً.
      تعتمد عليه مفردات data-toggle/data-hide في actions.js. */
   [hidden] { display: none !important; }
+  /* Q-08: لا انتظارَ نقرةٍ مزدوجة على اللمس */
+  a, button, input, select, textarea, label, summary, [role="button"] { touch-action: manipulation; }
 }
 
 @layer base {
