@@ -258,18 +258,38 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
    و`modules` تغلب `components` أيّاً كان وزنُ المُحدِّد.
    انظر `tests/test_mobile_layout.py`. */
 @media (max-width: 640px) {
-  /* خطُّ الحقل دون 16px يجعل Safari يُكبّر الصفحةَ عند التركيز ولا يُرجعها،
-     فيبقى المستخدمُ في صفحةٍ مكبَّرةٍ يسحبها بإصبعه. وكان في 27 صفحة —
-     أكثرُها `.form-control-sm` بخطّ 12px. */
+  /* خطُّ الحقل دون 16px يجعل Safari يُكبّر الصفحةَ عند التركيز ولا يُرجعها (كان في 27 صفحة) */
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]),
   select,
   textarea { font-size: max(16px, 1em); }
 
-  /* أهدافُ اللمس — WCAG 2.5.8: ‏24px أدنى، والإصبعُ أعرضُ من المؤشّر.
-     زرُّ الرجوع وروابطُ الفتات في كلّ صفحة، وأزرارُ فرز الأعمدة في كلّ جدول. */
+  /* أهدافُ اللمس — WCAG 2.5.8 (24px أدنى)؛ وعلى اللمس 44px في كتلة coarse أسفلَه */
   .bc-back { width: 32px; height: 32px; }
   .breadcrumbs a { display: inline-block; padding-block: var(--sp-1); min-height: 24px; }
   .th-sort { min-height: 24px; }
+
+  /* سجلُّ الموظفين: 12 عموداً في 338px يلفّ الاسمَ حرفاً حرفاً؛ فيُمرَّر داخل غلافه والاسمُ لاصق. */
+  .table-wrap-scroll:has(> .staff-register) { overflow-x: auto; }
+  .staff-register { min-inline-size: 64rem; }
+}
+
+/* M-01: 44px على المؤشّر الخشن (D1)؛ الصندوقُ نفسُه يكبر لأنّ mobile_audit يقيسه. */
+@media (pointer: coarse) {
+  .site-header .nav-logo, .site-header .nav-user-btn, .btn-sm, .btn-xs, .parent-child__actions .btn-secondary,
+  .notif-group-switch__opt, .period-switch__item, a.status-badge, a.ui-kpi, .staff-name { min-block-size: var(--control-h); }
+  .site-header .nav-bell, .theme-toggle, .bc-back, .breadcrumbs a, .th-sort, .ui-tip__btn,
+  .pwa-dismiss-btn, .toast-close, .modal-close-btn { min-inline-size: var(--control-h); min-block-size: var(--control-h); }
+  .col-actions .btn-xs { min-inline-size: var(--control-h); }
+  .site-header .nav-bell, .breadcrumbs a, .btn-xs, .notif-group-switch__opt, a.status-badge, .staff-name {
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  /* الرابطُ والملخّصُ لا يوسّطان محتواهما (والزرُّ يوسّطه)؛ وgap يعوّض مسافةَ الأيقونة التي يحذفها inline-flex */
+  :is(a, summary).btn-sm { display: inline-flex; align-items: center; justify-content: center; }
+  :is(a, summary).btn-sm, .btn-xs { gap: var(--sp-1); }
+  .ui-tip__btn { margin-block: calc(-1 * var(--sp-2)); } /* لا يُكبّر شريطَ البطاقة */
+  /* قرصُ التحذير الأبيضُ 24px داخل مسٍّ 44px */
+  .card-bar .ui-tip--warning .ui-tip__btn { padding: var(--sp-2-5); background-clip: content-box; }
+  input[type="checkbox"], input[type="radio"] { min-inline-size: 24px; min-block-size: 24px; }
 }
 
 /* في طبقة utilities لا components: `.exec-dash{display:grid}` و`.qeval-staff{max-height}` في modules،

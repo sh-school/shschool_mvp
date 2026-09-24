@@ -1093,7 +1093,8 @@ main.page-wide {
   inset-inline-start: 0;
   z-index: 2;
   background: var(--surface);
-  box-shadow: 1px 0 0 var(--border);
+  /* حدٌّ داخليّ على حافّة التمرير (RTL: اليسرى)؛ لا صيغةَ منطقيّةً لـbox-shadow */
+  box-shadow: inset -1px 0 0 var(--border);
 }
 /* والخليّةُ الثابتةُ تحتاج خلفيّةً خاصّةً بها وإلّا مرّ المحتوى تحتها. ولونُ
    الترويسة يأتي من `thead tr` لا من `th`، فلو أُعطيت الخليّةُ سطحاً فاتحاً
