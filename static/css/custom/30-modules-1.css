@@ -576,11 +576,14 @@
 
 /* Add-member collapsible form */
 
+/* أربعةٌ ثمّ اثنان (≤1024) ثمّ واحد (≤640) — لا auto-fit: يترك حقلاً يتيماً 3+1. */
 .q-add-form-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem 1rem;
 }
+@media (max-width: 1024px) { .q-add-form-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .q-add-form-grid { grid-template-columns: 1fr; } }
 .q-add-form-field {
   display: flex;
   flex-direction: column;
@@ -759,14 +762,12 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .q-modal-form-grid { grid-template-columns: 1fr; }
 .q-modal-info .info-grid { grid-template-columns: 1fr; }
 .q-modal { max-width: 95vw; }
-.q-add-form-grid { grid-template-columns: 1fr 1fr; }
 
-@media (min-width: 769px) {
+@media (min-width: 641px) {
   .quality-page { width: auto; padding: 1rem; }
   .q-modal-form-grid { grid-template-columns: 1fr 1fr; }
   .q-modal-info .info-grid { grid-template-columns: 1fr 1fr; }
   .q-modal { max-width: 600px; }
-  .q-add-form-grid { grid-template-columns: repeat(4, 1fr); }
 
 }
 
