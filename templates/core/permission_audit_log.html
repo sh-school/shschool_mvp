@@ -4,7 +4,7 @@
 {% block title %}سجل تغييرات الصلاحيات{% endblock %}
 
 {# الصفحةُ لا تُمرَّر: الترشيحُ في الأعلى والسجلُّ يُمرَّر داخل بطاقته (200 صفٍّ). #}
-{% block main_class %}page-noscroll{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with current="سجل الصلاحيات" %}

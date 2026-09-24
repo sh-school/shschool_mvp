@@ -1,15 +1,28 @@
 """operations/services/compensatory.py — الحصص التعويضيّة.
 
-منقولٌ حرفيّاً من `operations/services.py` (البند 8)؛ لا تغيير في المنطق.
+الحصّةُ الفائتةُ بغياب المعلّم تُعوَّض في حصّة زميلٍ يدرّس الشعبةَ نفسها، بموافقته
+(قرارُ المالك 2026-09-24): الجدولُ المعتمد ممتلئ، فلا حصّةَ فارغةً لشعبةٍ في الأسبوع
+كلّه (25 شعبة، 863 خانة في قاعدة الجلسة). فالمسار:
+
+1. المعلّمُ يختار الحصّةَ الفائتة والتاريخ، فيرى حصصَ الشعبة يومَها بجرس طابقها —
+   ولكلٍّ صاحبُها، وهل يُعوَّض فيها ولماذا (`day_options`).
+2. صاحبُ الحصّة يوافق أو يعتذر (`colleague_decide`).
+3. المنسّقُ يعتمد (`approve_compensatory`): تصير حصّةُ الزميل ذلك اليومَ لصاحب
+   التعويض بمادّته، ويبقى اسمُ الزميل في `original_teacher` كالتبديل والإشغال.
+
+والوقتُ من جرس نطاق الشعبة ليومها. كان أوّلَ إعدادٍ «عاديّ» في المدرسة بلا نطاقٍ ولا
+خميس، فيُكتب التعويضُ فوق حصّةٍ قائمةٍ بالساعة، أو يسقط الاعتمادُ بخطأ خادم.
 """
 
 from __future__ import annotations
 
 import logging
-from datetime import date
-from typing import TYPE_CHECKING
+from datetime import date, time
+from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
+from django.db.models import Q, QuerySet
+from django.utils import timezone
 
 from core.academic_calendar import (
     academic_year_for_school,
@@ -21,15 +34,218 @@ from operations.models import (
     Session,
     TeacherAbsence,
 )
+from operations.school_days import school_day
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from core.models import CustomUser, School
+    from core.models import ClassGroup, CustomUser, School
+
+#: طلبٌ ما زال يحجز حصّتَه: لا يُطلب تعويضٌ آخرُ فيها.
+OPEN_STATUSES = ("colleague", "pending")
+
+#: أبعدُ ما يقع التعويضُ بعد يوم الغياب: أسبوعُه والذي يليه (`week_offset` 0 أو 1).
+MAX_GAP_DAYS = 14
 
 
 class CompensatoryService:
     """خدمة الحصص التعويضية."""
+
+    @staticmethod
+    def _bell(school: School, class_group: ClassGroup, day: date) -> dict[int, tuple[time, time]]:
+        """جرسُ نطاق الشعبة ليومها — ويُرفض يومٌ لا دوامَ فيه لها.
+
+        فالسادسةُ كانت 11:35 لكلّ شعبةٍ في كلّ يوم (جرسُ الطابق الأرضيّ للأحد)، وسادسةُ
+        الثانويّ يومَ الخميس 11:10 وسادسةُ الأرضيّ 11:55. والجرسُ هنا جرسُ ورقة الطباعة
+        نفسُه (`period_times`)، فلا يختلف ما يُكتب عمّا يُطبع.
+        """
+        from operations.services.schedule import ScheduleService
+
+        today = school_day(school, day, class_group.grade)
+        if not today.is_open:
+            raise ValueError(f"لا دوامَ للشعبة يومَ {day:%Y/%m/%d}: {today.closed_reason}")
+        bell: dict[int, tuple[time, time]] = ScheduleService.period_times(
+            school,
+            class_group.academic_year,
+            band=class_group.time_band_id,
+            day_type=today.bell_day_type,
+        )
+        return bell
+
+    @classmethod
+    def day_options(
+        cls,
+        school: School,
+        teacher: CustomUser,
+        class_group: ClassGroup,
+        day: date,
+        exclude: Any = None,
+    ) -> list[dict[str, Any]]:
+        """حصصُ الشعبة يومَ `day` بجرس طابقها — ولكلٍّ صاحبُها، وهل يُعوَّض فيها ولماذا.
+
+        يصلح الوقتُ إن فرغ له المعلّمُ بالساعة لا بالرقم — معلّمُ الطابقين ثالثتُه في
+        الطابق الأوّل (8:45) تتداخل مع ثانيته في الأرضيّ (8:00–8:50) — وكانت حصّةُ
+        الشعبة فيه لزميلٍ واحدٍ لم تُمسّ: لا تبديلَ ولا إشغالَ ولا حضورَ مرصود، ولا طلبَ
+        تعويضٍ آخرَ عليها. ويُولَّد اليومُ كاملاً قبل السؤال: يومٌ لم يُولَّد يبدو فارغاً،
+        وحصّةٌ مفردةٌ فيه كانت تُبقيه بحصّةٍ واحدةٍ للمدرسة كلّها («اليومُ المبتور»).
+        """
+        from operations.services.schedule import ScheduleService
+
+        bell = cls._bell(school, class_group, day)
+        ScheduleService.ensure_sessions_for_date(school, day)
+        sessions = list(
+            Session.objects.filter(school=school, date=day)
+            .filter(Q(teacher=teacher) | Q(class_group=class_group))
+            .select_related("teacher", "subject", "class_group")
+        )
+        untouched = set(
+            ScheduleService._untouched(
+                Session.objects.filter(pk__in=[s.pk for s in sessions])
+            ).values_list("pk", flat=True)
+        )
+        open_here = CompensatorySession.objects.filter(
+            school=school, compensatory_date=day, status__in=OPEN_STATUSES
+        ).exclude(pk=exclude)
+        claimed = set(
+            open_here.filter(class_group=class_group).values_list("compensatory_period", flat=True)
+        )
+        # طلباتي المفتوحة في شُعبٍ أخرى: القيدُ في القاعدة بالرقم، والانشغالُ بالساعة.
+        mine_open = [
+            (c.compensatory_period, *times)
+            for c in open_here.filter(teacher=teacher).select_related("class_group__time_band")
+            if (times := cls._bell(school, c.class_group, day).get(c.compensatory_period))
+        ]
+        rows = []
+        for period, (start, end) in sorted(bell.items()):
+            during = [s for s in sessions if s.start_time < end and s.end_time > start]
+            mine = [s for s in during if s.teacher_id == teacher.pk]
+            # ما في الشعبة وقتَها أيّاً كان صاحبُه — والمأخوذُ حصّةُ زميلٍ مفردة.
+            in_class = [s for s in during if s.class_group_id == class_group.pk]
+            theirs = [s for s in in_class if s not in mine]
+            lesson = theirs[0] if len(theirs) == 1 else None
+            occupant = " / ".join(
+                f"{s.subject.name_ar if s.subject else 'حصّة'} — {s.teacher.full_name}"
+                for s in in_class
+            )
+            if mine:
+                busy = mine[0]
+                subject = busy.subject.name_ar if busy.subject else "حصّة"
+                why = f"المعلّم مشغولٌ: {subject} مع {busy.class_group.short_label}"
+            elif any(p == period or (s < end and e > start) for p, s, e in mine_open):
+                why = "لك طلبُ تعويضٍ آخرُ في هذا الوقت"
+            elif period in claimed:
+                why = "طُلبت لتعويضٍ آخر"
+            elif len(theirs) > 1:
+                why = "حصّتان اختياريّتان للشعبة"
+            elif lesson is not None and lesson.start_time != start:
+                why = "وقتُ حصّة الشعبة لا يوافق جرسها"
+            elif lesson is not None and lesson.pk not in untouched:
+                why = "مبدَّلةٌ أو مُشغَلةٌ أو رُصد حضورها"
+            else:
+                why = ""
+            rows.append(
+                {
+                    "period": period,
+                    "start": start,
+                    "end": end,
+                    "lesson": lesson,
+                    "occupant": occupant,
+                    "colleague": lesson.teacher if lesson is not None else None,
+                    "ok": not why,
+                    "why": why,
+                }
+            )
+        return rows
+
+    @classmethod
+    def _option(
+        cls,
+        school: School,
+        teacher: CustomUser,
+        class_group: ClassGroup,
+        day: date,
+        period: int,
+        exclude: Any = None,
+    ) -> dict[str, Any]:
+        """خيارُ الحصّة `period` يومَ `day` إن صلح للتعويض — وإلّا `ValueError` بسببه."""
+        from operations.services.schedule import ScheduleService
+
+        cls._not_past(day)
+        rows = cls.day_options(school, teacher, class_group, day, exclude)
+        row = next((r for r in rows if r["period"] == period), None)
+        if row is None:
+            name = class_group.time_band.name if class_group.time_band else "المدرسة"
+            weekday = dict(ScheduleSlot.DAYS)[ScheduleService._PY_TO_QATAR[day.weekday()]]
+            raise ValueError(f"لا حصّةَ {period} يومَ {weekday} في جرس «{name}»: حصصُه {len(rows)}")
+        if not row["ok"]:
+            raise ValueError(
+                f"الحصّة {period} ({row['start']:%H:%M}–{row['end']:%H:%M}): {row['why']}"
+            )
+        return row
+
+    @staticmethod
+    def _not_past(day: date) -> None:
+        """يومٌ مضى لا يُعوَّض فيه: طلبٌ عالقٌ كان يُعتمد بعد أسبوعين فيُسلَّم حصّةَ ماضٍ بأثرٍ رجعيّ."""
+        if day < timezone.localdate():
+            raise ValueError(f"مضى تاريخُ التعويض {day:%Y/%m/%d}")
+
+    @staticmethod
+    def taken_slot_ids(absence: TeacherAbsence) -> set[Any]:
+        """حصصُ الغائب يومَ غيابه التي أخذها زميلٌ تعويضاً: لم تعد حصصَه ذلك اليوم.
+
+        فلا تُعرض عليه للإشغال ولا تُحسب في تغطيته، وإلّا كتب الإشغالُ أو التبديلُ
+        فوق حصّة التعويض المعتمَدة (`hand_over_session` تجد الجلسةَ نفسَها بمفتاحها)
+        فيخسرها صاحبُها بلا إشعار.
+        """
+        taken = CompensatorySession.objects.filter(
+            school=absence.school,
+            colleague=absence.teacher,
+            compensatory_date=absence.date,
+            status__in=("approved", "completed"),
+            session_created__isnull=False,
+        ).select_related("session_created")
+        keys = {
+            (c.class_group_id, c.session_created.start_time) for c in taken if c.session_created
+        }
+        if not keys:
+            return set()
+        from operations.services.substitute import SubstituteService
+
+        slots = ScheduleSlot.objects.live(absence.school).filter(
+            teacher=absence.teacher, day_of_week=SubstituteService._date_to_day(absence.date)
+        )
+        return {s.id for s in slots if (s.class_group_id, s.start_time) in keys}
+
+    @staticmethod
+    def listing(
+        school: School, user: CustomUser, role: str, status: str = ""
+    ) -> QuerySet[CompensatorySession]:
+        """طلباتُ التعويض التي يراها هذا الدور: الأحدثُ أوّلاً.
+
+        القيادةُ تراها كلَّها، والمنسّقُ طلباتِ قسمه، والمعلّمُ طلباتِه. ولصاحب الحصّة
+        (الزميل) نصيبٌ أيّاً كان دورُه: يرى ما طُلب في حصّته فيوافق أو يعتذر من القائمة.
+        """
+        from core.permissions import get_department_teacher_ids
+
+        comps = CompensatorySession.objects.filter(school=school)
+        if role in ("principal", "vice_academic", "vice_admin"):
+            pass
+        elif role == "coordinator":
+            dept_teachers = get_department_teacher_ids(user) or set()
+            comps = comps.filter(Q(teacher_id__in=dept_teachers) | Q(colleague=user))
+        else:
+            comps = comps.filter(Q(teacher=user) | Q(colleague=user))
+        if status:
+            comps = comps.filter(status=status)
+        return comps.select_related(
+            "teacher",
+            "colleague",
+            "original_slot__subject",
+            "original_slot__class_group",
+            "class_group",
+            "subject",
+            "session_created",
+        ).order_by("-created_at")
 
     @staticmethod
     def get_available_compensatory_slots(
@@ -71,16 +287,22 @@ class CompensatoryService:
         compensatory_period: int,
         notes: str = "",
     ) -> CompensatorySession:
-        """إنشاء طلب تعويض + إشعار المنسق."""
+        """طلبُ تعويض: إلى صاحب الحصّة ليوافق، أو إلى المنسّق إن فرغت الشعبةُ في وقتها."""
+        if original_slot.teacher_id != teacher.pk or absence.teacher_id != teacher.pk:
+            raise ValueError("الحصّةُ الفائتةُ والغيابُ من سجلّك أنت")
 
-        # حساب week_offset
-        original_date = absence.date
-        diff_days = (compensatory_date - original_date).days
+        # التعويضُ بعد الغياب وبحدٍّ أقصى أسبوعان: `week_offset` 0 نفسُ الأسبوع و1 التالي.
+        # وكان الشرطُ `week_offset > 1` لا يتحقّق أبداً، فيُقبل تعويضٌ قبل الغياب أو بعده بأشهر.
+        diff_days = (compensatory_date - absence.date).days
+        if not 1 <= diff_days <= MAX_GAP_DAYS:
+            raise ValueError(f"التعويضُ بعد الغياب بيومٍ إلى {MAX_GAP_DAYS} يوماً — أسبوعُه والذي يليه")
         week_offset = 1 if diff_days > 7 else 0
 
-        if week_offset > 1:
-            raise ValueError("الحد الأقصى للتعويض أسبوع واحد")
-
+        # يُعرف الرفضُ عند الطلب لا عند الاعتماد، والاعتمادُ يسأل ثانيةً — فقد يتغيّر اليوم.
+        row = CompensatoryService._option(
+            school, teacher, original_slot.class_group, compensatory_date, compensatory_period
+        )
+        colleague = row["colleague"]
         comp = CompensatorySession.objects.create(
             school=school,
             teacher=teacher,
@@ -90,43 +312,52 @@ class CompensatoryService:
             compensatory_period=compensatory_period,
             class_group=original_slot.class_group,
             subject=original_slot.subject,
+            colleague=colleague,
             week_offset=week_offset,
-            status="pending",
+            status="colleague" if colleague else "pending",
             notes=notes,
         )
-
-        # إشعار المنسق (إذا وُجد)
-        try:
-            from notifications.hub import NotificationHub
-
-            dept_obj = teacher.department_obj
-            if dept_obj:
-                coordinators = dept_obj.memberships.filter(
-                    is_active=True,
-                    role__name="coordinator",
-                ).values_list("user_id", flat=True)
-            else:
-                coordinators = []
-            if coordinators:
-                from core.models import CustomUser
-
-                coord_users = list(CustomUser.objects.filter(pk__in=coordinators))
-                if coord_users:
-                    NotificationHub.dispatch(
-                        event_type="compensatory",
-                        school=school,
-                        recipients=coord_users,
-                        title=f"طلب تعويض من {teacher.full_name}",
-                        body=f"يطلب تعويض حصة {original_slot.subject or 'مادة'} بتاريخ {compensatory_date}",
-                        related_url="/teacher/schedule/compensatory/",
-                    )
-        except (ImportError, OSError):
-            # الإشعار جانبيّ: فشلُه لا يُسقط إنشاء الطلب، لكنّه يُسجَّل لا يُبتلع.
-            logger.warning("CompensatoryService: تعذّر إشعار المنسّقين بطلب التعويض")
+        if colleague is not None:
+            CompensatoryService._tell(
+                comp, {colleague.pk}, f"طلبُ تعويضٍ في حصّتك من {teacher.full_name} — ينتظر موافقتك"
+            )
+        else:
+            CompensatoryService._tell(
+                comp,
+                CompensatoryService._coordinators(teacher),
+                f"طلب تعويض من {teacher.full_name}",
+            )
 
         logger.info(
             "CompensatoryService: created request %s for teacher %s", comp.pk, teacher.full_name
         )
+        return comp
+
+    @staticmethod
+    @transaction.atomic
+    def colleague_decide(
+        comp: CompensatorySession, user: CustomUser, accepted: bool, reason: str = ""
+    ) -> CompensatorySession:
+        """صاحبُ الحصّة يوافق فيذهب الطلبُ إلى المنسّق، أو يعتذر فيُلغى."""
+        if comp.status != "colleague" or comp.colleague_id != user.pk:
+            raise ValueError("الردُّ لصاحب الحصّة وحده، ما دام الطلبُ ينتظره")
+        comp.colleague_responded_at = timezone.now()
+        if accepted:
+            CompensatoryService._not_past(comp.compensatory_date)
+            comp.status = "pending"
+            comp.save(update_fields=["status", "colleague_responded_at", "updated_at"])
+            CompensatoryService._tell(
+                comp,
+                CompensatoryService._coordinators(comp.teacher) | {comp.teacher_id},
+                f"وافق {user.full_name} على التعويض في حصّته — ينتظر الاعتماد",
+            )
+        else:
+            comp.status = "cancelled"
+            comp.notes = f"{comp.notes}\nاعتذر الزميل: {reason or 'بلا سبب مذكور'}".strip()
+            comp.save(update_fields=["status", "colleague_responded_at", "notes", "updated_at"])
+            CompensatoryService._tell(
+                comp, {comp.teacher_id}, f"اعتذر {user.full_name} عن التعويض في حصّته"
+            )
         return comp
 
     @staticmethod
@@ -137,48 +368,39 @@ class CompensatoryService:
         approved: bool = True,
         rejection_reason: str = "",
     ) -> CompensatorySession:
-        """المنسق/النائب يوافق على التعويض — ينشئ Session تلقائياً."""
-        from django.utils import timezone as tz
+        """المنسق/النائب يعتمد التعويض — فتصير حصّةُ الزميل يومَها لصاحب التعويض.
 
-        if comp.status != "pending":
-            raise ValueError(f"لا يمكن اعتماد طلب بحالة: {comp.get_status_display()}")
+        والاعتمادُ بعد موافقة الزميل وحدَها، أمّا الرفضُ فمن أيّ حالةٍ مفتوحة: طلبٌ ينتظر
+        زميلاً لا يردّ لا مخرجَ له إلّا رفضُ المنسّق. ولا يقرّر من كان طرفاً فيه، فمنسّقٌ هو
+        الزميلُ نفسُه كان يوافق ثمّ يعتمد فتصير الخطوتان خطوةً واحدة، ولا من هو خارج قسم صاحبه.
+        """
+        from core.permissions import get_department_teacher_ids
+
+        if comp.status not in OPEN_STATUSES or (approved and comp.status != "pending"):
+            verb = "اعتماد" if approved else "رفض"
+            raise ValueError(f"لا يمكن {verb} طلب بحالة: {comp.get_status_display()}")
+        if approved_by.pk in {comp.teacher_id, comp.colleague_id}:
+            raise ValueError("لا تُقرّر في طلبٍ أنت طرفٌ فيه — يقرّره غيرُك")
+        dept = get_department_teacher_ids(approved_by)
+        if dept is not None and comp.teacher_id not in dept:
+            raise ValueError("هذا الطلبُ من خارج قسمك")
 
         comp.approved_by = approved_by
-        comp.approved_at = tz.now()
+        comp.approved_at = timezone.now()
 
         if approved:
+            row = CompensatoryService._option(
+                comp.school,
+                comp.teacher,
+                comp.class_group,
+                comp.compensatory_date,
+                comp.compensatory_period,
+                exclude=comp.pk,
+            )
+            if (row["colleague"].pk if row["colleague"] else None) != comp.colleague_id:
+                raise ValueError("تغيّر صاحبُ الحصّة منذ الطلب — فليُقدَّم طلبٌ يوافق عليه صاحبُها")
             comp.status = "approved"
-
-            # إنشاء Session فعلية
-            from operations.models import TimeSlotConfig
-
-            time_config = TimeSlotConfig.objects.filter(
-                school=comp.school,
-                period_number=comp.compensatory_period,
-                day_type="regular",
-                is_break=False,
-            ).first()
-
-            if time_config:
-                # يومُ التعويض يُولَّد كاملاً أوّلاً: حصّتُه وحدها في يومٍ لم يُولَّد
-                # كانت تُبقيه بحصّةٍ واحدة للمدرسة كلّها («اليومُ المبتور»).
-                from operations.services.schedule import ScheduleService
-
-                ScheduleService.ensure_sessions_for_date(comp.school, comp.compensatory_date)
-                session, _ = Session.objects.get_or_create(
-                    school=comp.school,
-                    teacher=comp.teacher,
-                    class_group=comp.class_group,
-                    date=comp.compensatory_date,
-                    start_time=time_config.start_time,
-                    defaults={
-                        "subject": comp.subject,
-                        "end_time": time_config.end_time,
-                        "status": "scheduled",
-                        "notes": f"حصة تعويضية — أصلية: {comp.original_slot}",
-                    },
-                )
-                comp.session_created = session
+            comp.session_created = CompensatoryService._take(comp, row)
 
             # تحديث FreeSlotRegistry — حجز الحصة وربطها بالتعويض
             mapping = {6: 0, 0: 1, 1: 2, 2: 3, 3: 4}
@@ -196,24 +418,48 @@ class CompensatoryService:
 
         comp.save()
 
-        # إشعار المعلم
-        try:
-            from notifications.hub import NotificationHub
-
-            status_text = "تمت الموافقة" if approved else "تم الرفض"
-            NotificationHub.dispatch(
-                event_type="compensatory",
-                school=comp.school,
-                recipients=[comp.teacher],
-                title=f"طلب التعويض: {status_text}",
-                body=f"حصة {comp.subject or 'مادة'} بتاريخ {comp.compensatory_date}",
-                related_url="/teacher/schedule/compensatory/",
-            )
-        except (ImportError, OSError, RuntimeError, ValueError):
-            # الإشعار جانبيّ: فشلُه لا يُلغي قرار الموافقة/الرفض، لكنّه يُسجَّل لا يُبتلع.
-            logger.warning("CompensatoryService: تعذّر إشعار المعلّم بقرار التعويض")
-
+        people = {comp.teacher_id} | ({comp.colleague_id} if comp.colleague_id else set())
+        status_text = "تمت الموافقة" if approved else "تم الرفض"
+        CompensatoryService._tell(comp, people - {approved_by.pk}, f"طلب التعويض: {status_text}")
         return comp
+
+    @staticmethod
+    @transaction.atomic
+    def withdraw(comp: CompensatorySession, user: CustomUser) -> CompensatorySession:
+        """صاحبُ الطلب يسحبه ما دام مفتوحاً — فتُفكّ حصّتُه لغيره."""
+        if comp.teacher_id != user.pk or comp.status not in OPEN_STATUSES:
+            raise ValueError("السحبُ لصاحب الطلب وحدَه، ما دام مفتوحاً")
+        comp.status = "cancelled"
+        comp.notes = f"{comp.notes}\nسحبه صاحبُه".strip()
+        comp.save(update_fields=["status", "notes", "updated_at"])
+        who = {comp.colleague_id} if comp.colleague_id else CompensatoryService._coordinators(user)
+        CompensatoryService._tell(comp, who - {None}, f"سحب {user.full_name} طلبَ التعويض")
+        return comp
+
+    @staticmethod
+    def _take(comp: CompensatorySession, row: dict[str, Any]) -> Session:
+        """حصّةُ التعويض: حصّةُ الزميل ذلك اليومَ تصير لصاحب التعويض بمادّته، ويبقى اسمُ
+        الزميل في `original_teacher` — أو حصّةٌ جديدة إن فرغت الشعبةُ في وقتها."""
+        notes = f"حصة تعويضية — أصلية: {comp.original_slot}"
+        lesson: Session | None = row["lesson"]
+        if lesson is None:
+            return Session.objects.create(
+                school=comp.school,
+                teacher=comp.teacher,
+                class_group=comp.class_group,
+                subject=comp.subject,
+                date=comp.compensatory_date,
+                start_time=row["start"],
+                end_time=row["end"],
+                status="scheduled",
+                notes=notes,
+            )
+        lesson.original_teacher_id = lesson.teacher_id
+        lesson.teacher = comp.teacher
+        lesson.subject = comp.subject
+        lesson.notes = notes
+        lesson.save(update_fields=["teacher", "original_teacher", "subject", "notes"])
+        return lesson
 
     @staticmethod
     @transaction.atomic
@@ -233,9 +479,72 @@ class CompensatoryService:
         cutoff = date.today() - timedelta(days=14)
         updated = CompensatorySession.objects.filter(
             school=school,
-            status="pending",
+            status__in=OPEN_STATUSES,
             created_at__date__lt=cutoff,
         ).update(status="expired")
         if updated:
             logger.info("CompensatoryService.expire_overdue: expired %d requests", updated)
         return updated
+
+    @staticmethod
+    def session_ids(sessions: list[Session]) -> set[Any]:
+        """ما كان من حصص اليوم تعويضاً — تمييزاً له عن التبديل في «حصصي اليوم».
+
+        ثلاثتُها تكتب `original_teacher`؛ والتعويضُ يُعرف بسجلّه. استعلامٌ واحدٌ للقائمة.
+        """
+        moved = [s.pk for s in sessions if s.original_teacher_id]
+        if not moved:
+            return set()
+        return set(
+            CompensatorySession.objects.filter(session_created_id__in=moved).values_list(
+                "session_created_id", flat=True
+            )
+        )
+
+    # ── الإبلاغ ────────────────────────────────────────────────────
+
+    @staticmethod
+    def _coordinators(teacher: CustomUser) -> set[Any]:
+        """منسّقو قسم المعلّم — يعتمدون تعويضَه."""
+        dept = teacher.department_obj
+        if not dept:
+            return set()
+        return set(
+            dept.memberships.filter(is_active=True, role__name="coordinator").values_list(
+                "user_id", flat=True
+            )
+        )
+
+    @staticmethod
+    def _tell(comp: CompensatorySession, user_ids: set[Any], title: str) -> None:
+        """إشعارٌ بعد تثبيت المعاملة — وفشلُه لا يُسقط القرار، لكنّه يُسجَّل لا يُبتلع."""
+        from core.models import CustomUser
+
+        recipients = list(CustomUser.objects.filter(id__in=user_ids, is_active=True))
+        if not recipients:
+            return
+        colleague = comp.colleague
+        where = f" في حصّة {colleague.full_name}" if colleague else ""
+        body = (
+            f"{comp.teacher.full_name} يعوّض {comp.subject or 'حصّته'} للشعبة "
+            f"{comp.class_group.short_label}{where}: الحصّة {comp.compensatory_period} "
+            f"يوم {comp.compensatory_date:%d/%m}."
+        )
+
+        def _send() -> None:
+            try:
+                from notifications.hub import NotificationHub
+
+                NotificationHub.dispatch(
+                    event_type="compensatory",
+                    school=comp.school,
+                    recipients=recipients,
+                    title=title,
+                    body=body,
+                    related_url="/teacher/schedule/compensatory/",
+                    related_object_id=str(comp.pk),
+                )
+            except Exception as exc:
+                logger.warning("CompensatoryService notify failed [%s]: %s", comp.pk, exc)
+
+        transaction.on_commit(_send)

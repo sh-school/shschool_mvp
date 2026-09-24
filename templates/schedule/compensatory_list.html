@@ -4,7 +4,7 @@
 {% block title %}الحصص التعويضية{% endblock %}
 
 {# الجدولُ يُمرَّر وحدَه، لا الصفحةُ فوقه أيضاً. #}
-{% block main_class %}page-noscroll{% endblock %}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/teacher/weekly-schedule/" parent_label="الجدول" current="الحصص التعويضية" %}
@@ -46,18 +46,47 @@
     <div class="comp-info">
       <strong>الحصة الأصلية:</strong> {{ comp.original_slot.subject|default:"—" }} ({{ comp.original_slot.class_group.short_label }}) — {{ comp.original_slot.get_day_of_week_display }} ح{{ comp.original_slot.period_number }}
       &nbsp;|&nbsp;
-      <strong>التعويض:</strong> {{ comp.compensatory_date|date:"Y/m/d" }} ح{{ comp.compensatory_period }}
+      {# الوقتُ من الحصّة المنشأة: جرسُ طابق الشعبة ليومها، والخميسُ جرسُه غيرُ جرس الأحد. #}
+      <strong>التعويض:</strong> {{ comp.compensatory_date|date:"Y/m/d" }} ح{{ comp.compensatory_period }}{% if comp.session_created %} ({{ comp.session_created.start_time|time:"H:i" }}–{{ comp.session_created.end_time|time:"H:i" }}){% endif %}
+      {% if comp.colleague %}في حصّة {{ comp.colleague.full_name }}{% endif %}
       &nbsp;|&nbsp;
       {{ comp.created_at|date:"Y/m/d H:i" }}
     </div>
 
-    {% if comp.status == "pending" %}
+    {# صاحبُ الحصّة يوافق أوّلاً — ثمّ يصل الطلبُ إلى المنسّق. #}
+    {% if comp.status == "colleague" and comp.colleague_id == request.user.id %}
+      <div class="comp-actions">
+        <form method="post" action="{% url 'compensatory_respond' comp.pk %}">{% csrf_token %}
+          <input type="hidden" name="action" value="accept">
+          <button class="btn-sm btn-success">أوافق</button>
+        </form>
+        <form method="post" action="{% url 'compensatory_respond' comp.pk %}">{% csrf_token %}
+          <input type="hidden" name="action" value="decline">
+          <button class="btn-sm btn-danger">أعتذر</button>
+        </form>
+      </div>
+    {% endif %}
+
+    {# صاحبُ الطلب يسحبه ما دام مفتوحاً. #}
+    {% if comp.is_open and comp.teacher_id == request.user.id %}
+      <div class="comp-actions">
+        <form method="post" action="{% url 'compensatory_respond' comp.pk %}">{% csrf_token %}
+          <input type="hidden" name="action" value="withdraw">
+          <button class="btn-sm btn-danger">سحب الطلب</button>
+        </form>
+      </div>
+    {% endif %}
+
+    {# القرارُ للقيادة والمنسّق من غير أطراف الطلب: الاعتمادُ بعد موافقة الزميل، والرفضُ من أيّ حالةٍ مفتوحة. #}
+    {% if comp.is_open and comp.teacher_id != request.user.id and comp.colleague_id != request.user.id %}
       {% if current_role == "coordinator" or current_role == "principal" or current_role == "vice_academic" or current_role == "vice_admin" %}
       <div class="comp-actions">
+        {% if comp.status == "pending" %}
         <form method="post" action="{% url 'compensatory_approve' comp.pk %}">{% csrf_token %}
           <input type="hidden" name="action" value="approve">
           <button class="btn-sm btn-success">موافقة</button>
         </form>
+        {% endif %}
         <form method="post" action="{% url 'compensatory_approve' comp.pk %}">{% csrf_token %}
           <input type="hidden" name="action" value="reject">
           <button class="btn-sm btn-danger">رفض</button>

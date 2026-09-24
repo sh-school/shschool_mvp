@@ -1834,10 +1834,15 @@ class CompensatorySession(models.Model):
     """
     حصة تعويضية — المعلم يعوّض حصة فاتته بسبب غياب.
     القيد: أسبوع واحد كحد أقصى (week_offset: 0 أو 1)
+
+    وموضعُها حصّةُ زميلٍ يدرّس الشعبةَ نفسها، بموافقته (قرارُ المالك 2026-09-24):
+    الجدولُ المعتمد ممتلئ، فلا حصّةَ فارغةً لشعبةٍ يُعوَّض فيها. يوافق الزميلُ
+    أوّلاً ثمّ يعتمد المنسّق، فتصير حصّتُه ذلك اليومَ لصاحب التعويض بمادّته.
     """
 
     STATUS = [
-        ("pending", "بانتظار الموافقة"),
+        ("colleague", "بانتظار موافقة الزميل"),
+        ("pending", "بانتظار الاعتماد"),
         ("approved", "معتمدة"),
         ("completed", "مكتملة"),
         ("cancelled", "ملغاة"),
@@ -1887,6 +1892,19 @@ class CompensatorySession(models.Model):
         blank=True,
         related_name="compensatory_sessions",
         verbose_name="المادة",
+    )
+
+    #: صاحبُ الحصّة التي يُعوَّض فيها — وفارغٌ إن كانت الشعبةُ فارغةً في وقتها.
+    colleague = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="compensatory_hosted",
+        verbose_name="الزميل صاحب الحصّة",
+    )
+    colleague_responded_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت ردّ الزميل"
     )
 
     # 0 = نفس الأسبوع, 1 = الأسبوع التالي
@@ -1947,6 +1965,11 @@ class CompensatorySession(models.Model):
                 name="compensatory_max_one_week",
             ),
         ]
+
+    @property
+    def is_open(self) -> bool:
+        """طلبٌ ما زال ينتظر قراراً: زميلٍ أو منسّق."""
+        return self.status in ("colleague", "pending")
 
     def __str__(self):
         return (

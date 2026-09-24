@@ -22,7 +22,7 @@
 
 ## 2. خريطةُ الحرّاس
 
-### أ. سقّاطاتُ العدّ (سبع)
+### أ. سقّاطاتُ العدّ (ثمان)
 
 | السقّاطة | ما تعدّه | الملفّ | خطُّ الأساس اليوم | أين تعمل | تسجيلُ التحسّن |
 |---|---|---|---|---|---|
@@ -33,6 +33,7 @@
 | **الأنواع** | أخطاءُ mypy لكلّ ملف | `tests/mypy_ratchet.py` ← `mypy_ratchet_baseline.json` | **1,829** خطأً في 157 ملفاً | وظيفةُ `mypy` (`python -m tests.mypy_ratchet`) | `python -m tests.mypy_ratchet --update` |
 | **الطبقات** | دالّةُ العرض ≤ 60 سطراً و≤ 5 استدعاءاتِ ORM؛ `core` لا يستورد وحدةً نازلة؛ `get_school()` في ملفّات العروض | `tests/layering_ratchet.py` ← `layering_baseline.json` (ADR-0004) | `views` 220، `get_school` 31، `core_imports` 12، `accepted` 9 | `pytest — تغطية` (`test_layering.py`) | `--update` · `--accept "<موضع>" --reason "<سبب>"` · `--rebaseline` (على المضيف: `git` ليس في الحاوية) |
 | **حجمُ ملفّات الشيفرة** | أسطرُ كلّ `.py` (عدا الهجرات والاختبارات) فوق **1000** سطر: الملفُّ الجديدُ لا يتجاوز، والمسجَّلُ لا يكبر أكثرَ من هامش **25** سطراً — سطرٌ أو سطران في ملفٍّ كبير لا يُسقط جلساتٍ متوازية (استثناءٌ مقصودٌ من «النقص يسقط أيضاً»: النقصُ يسقط عند تجاوز الهامش أو النزول تحت الحدّ) | `tests/file_size_ratchet.py` ← `file_size_baseline.json` | 13 ملفّاً مسجَّلاً، أكبرُها `student_affairs/views.py` | `pytest — تغطية` (`test_file_size.py`) | `python -m tests.file_size_ratchet --update` · وعند التجاوز: حزمةٌ حسب المسؤوليّة (النموذج `staff_affairs/attendance/`، #447) |
+| **أنماطُ التخطيط (LAY-03)** | صفحاتٌ لم تعلن نمطَ تخطيطها بـ`{% block main_class %}{% page_layout "…" %}{% endblock %}` (الأنماطُ السبعة، قرار D-16، `docs/design/page_layouts.md`): صفحةٌ جديدةٌ بلا نمطٍ تسقط، ومن أعلن نمطَه يُحذف من الخطّ الأساس | `tests/page_layout_ratchet.py` ← `page_layout_baseline.json` | 138 صفحةً سبقت الحارس (LK1 = 12.7% عند دمجه) | `pytest — تغطية` (`test_page_layouts.py`) | `python -m tests.page_layout_ratchet --update` |
 
 > **نشأتُها:** الهويّةُ البصريّة 2026-09-13 (`c201de9f`)، الوصوليّةُ والأنواع 2026-09-14 (`35ff73d5`)، الطبقات 2026-09-18 (`9edd0097`)، axe 2026-09-18 (#379)، الجوال 2026-09-23 (M-00).
 >
@@ -43,8 +44,10 @@
 
 | السقفُ | القيمة | الملفّ | أين يعمل |
 |---|---|---|---|
-| **حجمُ CSS المصغَّر** (ما يصل المتصفّح) | ≤ **260KB**؛ ≈ 236KB يومَ 2026-09-19 (المصدرُ 418KB بتعليقاته العربيّة لا يُقاس) | `tests/test_css_budget.py` (ADR-0003 §10) | `pytest — تغطية` |
+| **حجمُ CSS المصغَّر** (ما يصل المتصفّح) | ≤ **260KB** (266,240 بايتاً)؛ ≈ 236KB يومَ 2026-09-19، و261,720 بايتاً (98.3%) يومَ 2026-09-24 — دَينُ DBT-36؛ وأصنافُ دليل الهويّة خارجه في `static/css/styleguide.css` لأنّها للمطوّر وحده (#517) (المصدرُ 418KB بتعليقاته العربيّة لا يُقاس) | `tests/test_css_budget.py` (ADR-0003 §10) | `pytest — تغطية` |
 | **Core Web Vitals والحمولة** | CLS ≤ 0.1 · LCP ≤ 2500ms · INP ≤ 300ms · أوراقُ أنماطٍ تحجب الرسم ≤ **10** · CSS خامٌ ≤ 468KB · JS ≤ 400KB · خطوط ≤ 120KB · صور ≤ 220KB · طلبات ≤ 40 | `tests/web_vitals.py:BUDGET` ← `tests/test_web_vitals_budget.py` | وظيفةُ `axe-a11y` |
+| **حجمُ CSS المصغَّر** (ما يصل المتصفّح) | ≤ **260KB**؛ ≈ 236KB يومَ 2026-09-19 (المصدرُ 418KB بتعليقاته العربيّة لا يُقاس) | `tests/test_css_budget.py` (ADR-0003 §10) | `pytest — تغطية` |
+| **Core Web Vitals والحمولة** | CLS ≤ 0.1 · LCP ≤ 2500ms · INP ≤ 300ms · أوراقُ أنماطٍ تحجب الرسم ≤ **10** · CSS خامٌ ≤ 470KB · JS ≤ 400KB · خطوط ≤ 120KB · صور ≤ 220KB · طلبات ≤ 40 | `tests/web_vitals.py:BUDGET` ← `tests/test_web_vitals_budget.py` | وظيفةُ `axe-a11y` |
 | **Lighthouse للجوال (Q-03)** — ليليٌّ لا حاجب | خمسُ صفحاتٍ رئيسة بمِلفّ الجوال (Slow 4G + معالجٌ ×4): الوصوليّةُ لا تنزل أبداً، والأداءُ لا ينزل أكثر من **15** نقطةً عن الأساس (تذبذبُه المقيس 14 نقطة على لوحة المدير). ليس رقمَ الإنتاج: `live_server` يخدم الأصولَ خاماً | `tests/lighthouse_audit.py` ← `lighthouse_baseline.json` · `LIGHTHOUSE_RUN=1 LIGHTHOUSE_UPDATE=1 pytest tests/test_lighthouse_mobile.py -s` | `nightly.yml` — يفتح قضيّةَ الفشل الليليّ |
 | **قيمُ px خارجَ السلّم** | تباعدٌ ≤ **86**، تقوّسٌ ≤ **31** — والصفرُ على السلّم | `tests/test_px_tokens.py` | `pytest — تغطية` |
 | **`font-size` بـpx** | صفرٌ (يُكتب rem) | `tests/test_px_tokens.py` | `pytest — تغطية` |
@@ -55,14 +58,16 @@
 
 | المجال | الحرّاس | ما يفرضونه |
 |---|---|---|
-| **بنيةُ CSS** | `test_css_split`، `test_css_layers`، `test_css_selectors_wellformed` | قائمةُ الملفّات = القرص؛ جملةُ الطبقات في أوّل ملفّ؛ **لا قاعدةَ خارجَ `@layer`**؛ كلُّ ملفٍّ على حدّ طبقته؛ لا `url()` نسبيٌّ مكسور؛ كلُّ قواعد `html.dark` في `themes`؛ **لا مُحدِّدَ مقطوعاً بعد رابطٍ (`>` `+` `~`) ولا مركَّباً فارغاً ولا فاصلةً زائدة** — المتصفّحُ يُسقط القاعدةَ كلَّها بجزئها الصالح، وقد بقي تلاشي الانتقال بين الصفحات معطَّلاً ثلاثةَ أيّامٍ بثلاث قواعدَ `> .exec-dash >` بلا `*` (#423) |
+| **بنيةُ CSS** | `test_css_split`، `test_css_layers`، `test_css_selectors_wellformed`، `test_design_tokens_resolve::test_the_platform_keeps_one_stylesheet` | ورقةُ أنماطٍ واحدةٌ للمنصّة (استثناءان مبرَّران: `admin_theme.css` و`styleguide.css`)؛ قائمةُ الملفّات = القرص؛ جملةُ الطبقات في أوّل ملفّ؛ **لا قاعدةَ خارجَ `@layer`**؛ كلُّ ملفٍّ على حدّ طبقته؛ لا `url()` نسبيٌّ مكسور؛ كلُّ قواعد `html.dark` في `themes`؛ **لا مُحدِّدَ مقطوعاً بعد رابطٍ (`>` `+` `~`) ولا مركَّباً فارغاً ولا فاصلةً زائدة** — المتصفّحُ يُسقط القاعدةَ كلَّها بجزئها الصالح، وقد بقي تلاشي الانتقال بين الصفحات معطَّلاً ثلاثةَ أيّامٍ بثلاث قواعدَ `> .exec-dash >` بلا `*` (#423) |
 | **الألوان والرموز** | `test_css_colours_are_tokens`، `test_design_tokens_resolve`، `test_brand_literals`، `test_dark_parity`، `test_contrast_ratios`، `test_on_fill` | لا لونَ حرفيّاً؛ كلُّ رمزٍ مستعمَلٍ معرَّف؛ مرآةُ بايثون = `:root`؛ تكافؤُ الليل؛ نسبُ التباين؛ نصٌّ على الحشو بـ`--on-fill` |
-| **الاتّجاه والتخطيط** | `test_rtl_logical_properties`، `test_reflow`، `test_z_scale`، `test_mobile_layout`، `test_mobile_nav_menu`، `test_action_cards_fit_narrow_screens` | لا `left/right` مطلقاً؛ لا عرضَ ثابتاً > 320px (WCAG 1.4.10)؛ سلّمُ z-index؛ قواعدُ الجوال؛ نصُّ بطاقة الإجراء لا يفيض عند 375/360/320 |
+| **الاتّجاه والتخطيط** | `test_rtl_logical_properties`، `test_reflow`، `test_z_scale` (ومعه K18 = 0 وشريطُ التثبيت `--z-banner` (300) تحت ما يفتحه المستخدم)، `test_safe_area_tokens`، `test_pwa_banner_position`، `test_mobile_layout`، `test_mobile_nav_menu`، `test_action_cards_fit_narrow_screens` | لا `left/right` مطلقاً؛ لا عرضَ ثابتاً > 320px (WCAG 1.4.10)؛ سلّمُ z-index؛ قواعدُ الجوال؛ نصُّ بطاقة الإجراء لا يفيض عند 375/360/320 |
 | **الوصولية والتركيز** | `test_focus_and_names`، `test_a11y_live_pages` | حلقةُ التركيز؛ لكلّ حقلٍ اسمٌ محسوبٌ في الصفحة المرسومة |
+| **وصوليّةُ لوحة الإدارة (OWN-21)** | `test_a11y_axe_ratchet::test_the_admin_widgets_have_accessible_names` (وظيفةُ `axe-a11y`) | صفرُ مخالفاتِ axe على خمس صفحات إدارةٍ تجمع أدواتِ جانغو المرسومةَ بلا اسم — حقولُ التحرير في القائمة، وشقّا التاريخ والوقت، وselect2، والاختيارُ بين قائمتين، والجدولُ المضمَّن؛ يسمّيها `static/js/admin_a11y.js` (كانت 620 عقدةً على 237 صفحة) |
 | **لوحةُ الأرقام (M-07)** | `test_numeric_inputmode` | لا `type="number"` مكتوبٌ باليد بلا `inputmode`؛ وسمُ `field` يشتقّه من `step`؛ ودجةُ الخرق تحمله |
 | **التطبيقُ المثبَّت واللمس (Q-12، Q-08)** | `test_pwa_install`، `test_touch_controls` | المانيفستان `standalone` (D9) بـ`id` ثابتٍ مختلفٍ ولا `orientation`، والأيقوناتُ لا يقصّها النظام، والاسمُ من سجلّ المدرسة؛ `touch-action: manipulation` على التحكّمات؛ `aria-current` لعنصر الشريط السفليّ الحاليّ |
+| **أهدافُ اللمس (H-01، M-01)** | `test_touch_target_token` | الحدُّ الأدنى للّمس يُكتب `var(--control-h)` لا `44px`، والرمزُ معرَّفٌ مرّةً واحدة؛ وكتلةُ `@media (pointer: coarse)` ترفع الأهدافَ الصغيرةَ المعروفة (الترويسة، الفتات، `btn-sm/xs`، فرزُ الأعمدة، التلميح، أزرارُ الإغلاق) إلى `--control-h` — حذفُ أحدها يُسقطه |
 | **الإشعارُ العائم (M-11)** | `test_toast_stays_readable` | الخطأ ≥12ث والنجاح ≥7ث في `base.js::TOAST_DURATION`؛ المدّةُ `0` حتى الإغلاق؛ `#toast-container` أعلى الصفحة (`top`) لا فوق الشريط السفليّ |
-| **المكوّنات** | `test_icon_dictionary`، `test_dead_classes`، `test_no_styles_in_python`، `test_styleguide`، `test_template_references_resolve` | المعنى واحدٌ ورسمُه واحد؛ كلُّ صنفٍ يذكره شيءٌ يُرسم؛ لا تنسيقَ في بايثون؛ دليلُ الهويّة يعرض المصدرَ لا نسخةً منه |
+| **المكوّنات** | `test_icon_dictionary`، `test_dead_classes`، `test_no_styles_in_python`، `test_styleguide`، `test_template_references_resolve`، `test_page_layouts` | المعنى واحدٌ ورسمُه واحد؛ كلُّ صنفٍ يذكره شيءٌ يُرسم؛ لا تنسيقَ في بايثون؛ دليلُ الهويّة يعرض المصدرَ لا نسخةً منه، و`styleguide.css` لا تحمّله إلّا صفحاتُ الدليل الثلاث ولا يُعرَّف `sg-` في ملفّات المنصّة (#517)؛ وسمُ `page_layout` يرفض نمطاً غيرَ السبعة ويولّد `page-noscroll` القائمَ لا نسخةً منه |
 | **أسماءُ الحقول** | `test_model_field_labels_arabic`، `test_model_naming` | كلُّ حقلٍ في نماذج المنصّة باسمٍ عربيّ — فلا «IS ACTIVE» عنوانَ عمودٍ في الإدارة ولا «حسب is staff» مرشِّحاً ولا «date joined» في رسالة تحقّق (470 حقلاً عُرّبت، OWN-19)؛ ولا جمعٌ بـ«s» لاتينيّة («ملف شخصيs»)؛ ولا نموذجان باسمٍ واحد |
 | **الطباعة والنشر** | `test_print_styles`، `test_static_storage_minifies`، `test_sw_cache_policy` | الورقُ نهاريّ؛ التصغيرُ وقتَ `collectstatic` بلا فقدِ قاعدة؛ عاملُ الخدمة لا يخزّن غيرَ المبصوم |
 | **التنقّلُ بتبديل المحتوى** | `test_page_nav_callables`، `test_page_nav_htmx_process`، `test_page_nav_shell`، `test_admin_theme` | كلُّ دالّةٍ في قائمة `CALLABLE` (`actions.js`) تُسنَد إلى `window` في القالب لا تُعلَن مجرّدةً — `page-nav.js` يغلّف سكربتَ الصفحة فيضيع الإعلانُ المجرّد (قائمةُ الجداول 2026-09-22)؛ وHTMX يُعاد ربطُه بعد التبديل؛ **والقائمةُ تتلاشى من لحظة النقر لا بعد التبديل** ولا يقطعها مغلِقٌ آخر؛ والإدارةُ بنمط `fade` (لا تبديلَ DOM) بمدّةٍ ورمزٍ ومفاتيحِ حركةٍ مطابقةٍ للمنصّة حرفيّاً |
