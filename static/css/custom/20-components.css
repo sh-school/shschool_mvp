@@ -93,8 +93,8 @@
   color: var(--on-fill);
   font-size: 1.4rem;
   padding: var(--sp-1-5) var(--sp-2);
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--control-h);
+  min-height: var(--control-h);
   cursor: pointer;
   line-height: 1;
   flex-shrink: 0;
@@ -1771,8 +1771,8 @@ textarea:focus-visible {
   padding: var(--sp-1) var(--sp-3);
   border-radius: var(--radius-md);
   transition: color var(--transition-fast);
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--control-h);
+  min-height: var(--control-h);
   justify-content: center;
 }
 .mobile-nav-item:hover,
