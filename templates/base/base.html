@@ -4,6 +4,8 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
+  {# الرسمُ الأوّلُ ينتظر قرارَ «بلا تمرير» بعد </main> (LAY-03) — وإلّا رُسمت الصفحةُ الطويلةُ ثمّ قفزت. #}
+  <link rel="expect" href="#noscroll-fitted" blocking="render">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="{% brand_color 'MAROON' %}" id="meta-theme-color">
   <meta name="color-scheme" content="light" id="meta-color-scheme">
@@ -747,7 +749,7 @@
 is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه هو وحدَه — طلبُ
 المالك 2026-09-23: «أرسل إلى المطوّر» مفتاحٌ كاملٌ للإدارة لا رابطٌ منفرد.
 عددُ الأعمدة يتبع الدورَ لا رقماً ثابتاً — القاعدةُ نفسُها في build_menu بلوحة
-الإدارة (roadmap/admin_menu.py).
+الإدارة (core/admin_menu.py).
 {% endcomment %}
 {% if is_admin_role or role == "coordinator" or role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" or role == "e_projects_coordinator" %}
 <div class="sd-menu{% if is_developer and is_leadership %} sd-menu--cols-3{% elif is_developer or is_leadership %} sd-menu--cols-2{% endif %}" id="m-admin" role="menu" aria-label="الإدارة">
@@ -1051,6 +1053,32 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% block page_header %}{% endblock %}
   {% block content %}{% endblock %}
 </main>
+{% comment %}
+  «بلا تمرير» مشروطٌ بسعة النافذة (LAY-03، قرارُ المالك 2026-09-24): يُقرَّر هنا قبل الرسم الأوّل لا في base.js
+  المؤجَّل — فالقرارُ بعد الرسم قفزةٌ في التخطيط (CLS نحو 1.0 مقيسٌ). الشرحُ والمستمعاتُ في base.js.
+{% endcomment %}
+<script nonce="{{ request.csp_nonce }}">
+window.fitNoscroll = function () {
+  var main = document.getElementById('main-content');
+  if (!main || !(main.classList.contains('page-noscroll') || main.dataset.noscroll === 'roomless')) return;
+  main.classList.add('page-noscroll');
+  var box = Array.prototype.filter.call(main.querySelectorAll('*'), function (el) {
+    var oy = getComputedStyle(el).overflowY;
+    return (oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 1;
+  });
+  var h = box.map(function (el) { return el.clientHeight; });
+  main.classList.remove('page-noscroll');
+  var floor = 15 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+  if (box.some(function (el, i) { return el.clientHeight > h[i] + 1 && h[i] < floor; })) {
+    main.dataset.noscroll = 'roomless';
+  } else {
+    delete main.dataset.noscroll;
+    main.classList.add('page-noscroll');
+  }
+};
+window.fitNoscroll();
+</script>
+<template id="noscroll-fitted"></template>
 
 {# ════════════════ COMMAND PALETTE (Ctrl+K) ═════════════════════════════ #}
 {% if user.is_authenticated %}

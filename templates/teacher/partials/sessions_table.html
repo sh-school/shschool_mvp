@@ -28,7 +28,7 @@
         {% if session.original_teacher_id %}
         <div class="swap-note">
           {% icon "refresh" size="sm" %}
-          {% if session.id in cover_ids %}إشغال — عن {{ session.original_teacher.full_name }}{% else %}مبدَّلة — كانت لـ{{ session.original_teacher.full_name }}{% endif %}
+          {% if session.id in comp_ids %}تعويض — في حصّة {{ session.original_teacher.full_name }}{% elif session.id in cover_ids %}إشغال — عن {{ session.original_teacher.full_name }}{% else %}مبدَّلة — كانت لـ{{ session.original_teacher.full_name }}{% endif %}
         </div>
         {% endif %}
       </td>

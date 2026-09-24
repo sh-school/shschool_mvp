@@ -3,6 +3,7 @@ from django.contrib.auth.admin import UserAdmin
 from django.db.models import Prefetch
 from django.utils.html import format_html
 
+from .admin_password_forms import ArabicAdminPasswordChangeForm, ArabicUserChangeForm
 from .models import (
     AcademicYear,
     CalendarEvent,
@@ -133,6 +134,9 @@ class CustomUserAdmin(SchoolScopedAdmin, UserAdmin):
     """
 
     model = CustomUser
+    # نصوصُ جانغو في صفحتي تعديل المستخدم وتغيير كلمته بلا ترجمةٍ عربيّة (core/admin_password_forms.py)
+    form = ArabicUserChangeForm
+    change_password_form = ArabicAdminPasswordChangeForm
     school_lookup = "memberships__school"
     # ── PDPPL: نستخدم masked_national_id بدل national_id في القائمة ──
     list_display = (
@@ -535,6 +539,13 @@ class CalendarEventAdmin(SchoolScopedAdmin):
 admin.site.site_header = "SchoolOS — لوحة الإدارة"
 admin.site.site_title = "SchoolOS Admin"
 admin.site.index_title = "لوحة إدارة النظام"
+
+# القائمةُ الأفقيّة في الترويسة (`core/admin_menu.py`) تغني عن الشريط الجانبيّ فلا تكرار.
+admin.site.enable_nav_sidebar = False
+
+# جانغو يعرض 100 صفٍّ في كلّ صفحة قائمة، وهو كثيرٌ على شاشةٍ لا تُمرَّر؛ فالافتراضيُّ 25 لكلّ ModelAdmin
+# لم يحدّد `list_per_page` بنفسه (رابطُ «إظهار الكل» يبقى). ولا يُحدّد نموذجٌ رقماً آخر: يحرسه tests/test_admin_menu.py.
+admin.ModelAdmin.list_per_page = 25
 
 
 @admin.register(ParentStudentLink)

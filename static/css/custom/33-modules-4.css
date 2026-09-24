@@ -1059,7 +1059,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-exports-menu > summary { list-style: none; cursor: pointer; }
 .per-exports-menu > summary::-webkit-details-marker { display: none; }
 .per-exports-menu[open] > .per-exports {
-  position: absolute; inset-inline-end: var(--sp-3); inset-block-start: calc(100% + 6px); z-index: 20;
+  position: absolute; inset-inline-end: var(--sp-3); inset-block-start: calc(100% + 6px); z-index: var(--z-dropdown);
   padding: var(--sp-2); background: var(--popover-bg); border: 1px solid var(--popover-border);
   border-radius: var(--radius-md); box-shadow: var(--shadow-md); color: var(--text-primary);
 }
@@ -1083,7 +1083,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   .per-grid-wrap.is-tiles .per-cell.is-focus .rec-pick > span { font-size: 0.6875rem; }
   .per-cell.is-focus .rec-pick > span { min-height: var(--control-h); min-width: 50px; }
   /* فوق شريط التنقّل السفليّ الثابت (72px في الهاتف) لا تحته. */
-  .per-bar { bottom: 72px; padding: var(--sp-2) var(--sp-3); }
+  .per-bar { bottom: calc(72px + var(--safe-bottom)); padding: var(--sp-2) var(--sp-3); }
   .per-bar__counts { gap: var(--sp-3); }
   .per-bar__actions { width: 100%; }
   .per-bar__actions > * { flex: 1; }
@@ -1451,13 +1451,11 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 
 /* ── 12. نموذجٌ بجوار قائمته: الإضافةُ ثُلثٌ والجدولُ ثلثان ──
    ومن الحدّ الأدنى ينفكّان عموداً: النموذجُ فوق ما يضيف إليه. */
-.ui-split {
-  display: grid;
-  grid-template-columns: minmax(min(100%, 300px), 1fr) minmax(0, 2fr);
-  gap: var(--sp-2);
-  align-items: start;
-}
-@media (max-width: 900px) { .ui-split { grid-template-columns: 1fr; } }
+/* ثلثٌ وثلثان متجاوران ما اتّسعت الحاويةُ لـ300+600px، وإلّا عمود. min-inline-size: 0 على الحاوية
+   وإلّا دفع عرضُ الجدول عمودَ الصفحة فمُرِّرت جانبيّاً على الجوال. */
+.ui-split { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: flex-start; min-inline-size: 0; }
+.ui-split > * { flex: 1 1 18.75rem; min-inline-size: 0; }
+.ui-split > * + * { flex: 2 1 37.5rem; }
 .form-stack { display: grid; gap: var(--sp-3); }
 .form-stack .form-group { margin-bottom: 0; }
 .form-page { max-width: 760px; margin-inline: auto; }
@@ -1529,13 +1527,15 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 
 .beh-fieldset { border: 0; margin: 0; padding: 0; min-inline-size: 0; }
 /* استدعاء ولي أمر: بطاقتان متجاورتان — النموذجُ، وعمودٌ جانبيٌّ (أولياءُ الأمور، المرسِل، التنبيه). والطالبُ المحدَّد اسمٌ لا قائمة. */
-.beh-summon-cards { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sp-2); align-items: start; }
+.beh-summon-cards { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: flex-start; min-inline-size: 0; }
+.beh-summon-cards > * { flex: 1 1 26rem; min-inline-size: 0; }
 .beh-side { display: flex; flex-direction: column; gap: var(--sp-2); min-inline-size: 0; }
-.beh-summon__pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-3); }
-.beh-summon__trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 var(--sp-3); }
-@media (max-width: 900px) {
-  .beh-summon-cards, .beh-summon__pair, .beh-summon__trio { grid-template-columns: 1fr; }
-}
+/* الزوجُ والثلاثيُّ صفٌّ ما اتّسعت البطاقةُ للعتبة وإلّا عمود (الأساسُ (العتبة − 100%) × 999). والعتبةُ
+   من المحتوى: تتراكب أقراصُ الاستعجال دون 22rem، ويلزم التاريخَ 145px بخطّ الحقل و163px بخطّ الجوال 16px (بخطّ الاحتياط). */
+.beh-summon__pair, .beh-summon__trio { display: flex; flex-wrap: wrap; gap: 0 var(--sp-3); }
+.beh-summon__pair > * { flex: 1 1 calc((25rem - 100%) * 999); min-inline-size: 0; }
+.beh-summon__trio > * { flex: 1 1 calc((29rem - 100%) * 999); min-inline-size: 0; }
+@media (max-width: 640px) { .beh-summon__trio > * { flex-basis: calc((33rem - 100%) * 999); } }
 .beh-summon-cards .beh-pills { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .beh-summon-cards .beh-pill { justify-content: center; }
 .beh-summon-cards .beh-fieldset { margin-block-end: var(--sp-2); }
@@ -1639,7 +1639,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .beh-combo { position: relative; }
 .beh-combo__list {
   position: absolute;
-  z-index: 50;
+  z-index: var(--z-dropdown);
   inset-inline: 0;
   inset-block-start: calc(100% + 4px);
   max-block-size: 12rem;

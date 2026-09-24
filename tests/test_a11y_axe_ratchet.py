@@ -100,6 +100,42 @@ def test_axe_violations_have_not_grown(request, page, live_server, school_bus, l
     )
 
 
+#: صفحاتُ إدارةٍ تجمع أدواتِ جانغو التي تُرسم بلا اسمٍ يقرؤه قارئُ الشاشة (OWN-21): حقولُ التحرير داخل القائمة
+#: (الأقسام، العضويّات)، وشقّا التاريخ والوقت والجدولُ المضمَّن (المستخدم)، والاختيارُ بين قائمتين (المجموعات)،
+#: وselect2 (باقاتُ التقييم). يسمّيها `static/js/admin_a11y.js` — كانت 620 عقدةً على 237 صفحةَ إدارة.
+def _admin_pages(teacher) -> list[str]:
+    return [
+        "/admin/core/department/",
+        "/admin/core/membership/",
+        f"/admin/core/customuser/{teacher.pk}/change/",
+        "/admin/auth/group/add/",
+        "/admin/assessments/assessmentpackage/add/",
+    ]
+
+
+def test_the_admin_widgets_have_accessible_names(
+    page, live_server, school, developer_user, teacher_user
+):
+    """لا سقّاطةَ هنا بل صفر: كلُّ مخالفات هذه الصفحات من أدوات جانغو، وقد سُمّيت كلُّها."""
+    from core.models import Department
+
+    developer_user.is_staff = developer_user.is_superuser = True
+    developer_user.save()
+    Department.objects.create(school=school, name="الرياضيات", code="math")
+    _login(page, live_server, developer_user)
+
+    found = {}
+    for path in _admin_pages(teacher_user):
+        page.goto(f"{live_server.url}{path}")
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(200)  # select2 والاختيارُ بين قائمتين يُنشآن بعد التحميل ثمّ يُسمَّيان
+        counts = ratchet.measure_page(page)
+        if counts:
+            found[path] = counts
+
+    assert not found, f"مخالفاتُ axe في صفحات الإدارة (راجع static/js/admin_a11y.js): {found}"
+
+
 class TestTheRatchetItself:
     """الحارسُ يحرس ما يقول إنّه يحرسه — منطقُ المقارنة لا يحتاج متصفّحاً لاختباره."""
 
@@ -124,3 +160,49 @@ class TestTheRatchetItself:
     def test_totals_sum_across_pages(self):
         data = {"a": {"rule1": 2}, "b": {"rule1": 1, "rule2": 3}}
         assert ratchet.totals(data) == {"rule1": 3, "rule2": 3}
+
+
+#: كلُّ هدفِ لمسٍ مرئيٍّ عرضُه أو ارتفاعُه دون الحدّ — كتعريف `mobile_audit.py` (`small44`). ما يُستثنى ليس هدفاً:
+#: رابطُ «تخطَّ إلى المحتوى» يُرى بالتركيز وحدَه، والعنصرُ المخفيُّ بصريّاً، ومصدرُ select2 الأصليُّ (يُستبدل بصندوقه).
+SMALL_TARGETS_JS = """(min) => [...document.querySelectorAll(
+  'a[href], button, input:not([type=hidden]):not([type=checkbox]):not([type=radio]), select, textarea, [role=button], summary')]
+  .filter(e => {
+    const r = e.getBoundingClientRect();
+    if (r.width <= 1 || r.height <= 1 || getComputedStyle(e).visibility === 'hidden') return false;
+    if (e.closest('.visually-hidden') || e.classList.contains('skip-to-content-link')) return false;
+    if (e.matches('select.select2-hidden-accessible, select.admin-autocomplete')) return false;
+    return r.width < min || r.height < min;
+  })
+  .map(e => e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') + '.' + String(e.className).split(' ')[0]
+     + ' ' + Math.round(e.getBoundingClientRect().width) + 'x' + Math.round(e.getBoundingClientRect().height))"""
+
+
+def test_the_admin_touch_targets_are_44px_on_phones(
+    page, live_server, school, developer_user, teacher_user
+):
+    """OWN-21: قِيس 736 هدفاً دون 44px على ثماني صفحات إدارةٍ بعرض 375؛ القواعدُ في `admin_theme.css` تُصفّرها."""
+    from core.models import Department
+
+    developer_user.is_staff = developer_user.is_superuser = True
+    developer_user.save()
+    Department.objects.create(school=school, name="الرياضيات", code="math")
+    page.set_viewport_size({"width": 375, "height": 812})
+    _login(page, live_server, developer_user)
+
+    found = {}
+    for path in [
+        "/admin/",
+        "/admin/core/department/",
+        "/admin/core/membership/",
+        f"/admin/core/customuser/{teacher_user.pk}/change/",
+        "/admin/auth/group/add/",
+        "/admin/assessments/assessmentpackage/add/",
+    ]:
+        page.goto(f"{live_server.url}{path}")
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(200)  # select2 والاختيارُ بين قائمتين يُنشآن بعد التحميل
+        small = page.evaluate(SMALL_TARGETS_JS, 44)
+        if small:
+            found[path] = small[:6]
+
+    assert not found, f"أهدافُ لمسٍ دون 44px على الجوّال (راجع admin_theme.css): {found}"
