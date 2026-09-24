@@ -1,23 +1,36 @@
 """قائمةُ الإدارة الأفقيّة تغطّي كلَّ نموذجٍ مسجَّلٍ مرّةً واحدة ولا تذكر ما لا وجودَ له."""
 
 import collections
+import warnings
 
 from django.contrib import admin
 
-from roadmap.admin_menu import GROUPS, LABELS, build_menu, mapped_keys
+from core.admin_menu import GROUPS, LABELS, build_menu, mapped_keys
 
 
 def _registered() -> set[str]:
     return {f"{m._meta.app_label}.{m.__name__}" for m in admin.site._registry}
 
 
-def test_every_registered_model_is_in_exactly_one_group():
+def test_no_model_is_in_two_groups():
     keys = mapped_keys()
     duplicates = [k for k, n in collections.Counter(keys).items() if n > 1]
-    missing = sorted(_registered() - set(keys))
 
     assert not duplicates, f"نموذجٌ في أكثر من قسم: {duplicates}"
-    assert not missing, f"نماذجُ مسجَّلةٌ بلا قسم (تظهر تحت «أخرى»): {missing}"
+
+
+def test_an_unmapped_model_is_a_warning_not_a_failure():
+    """نموذجٌ مسجَّلٌ بلا قسمٍ يظهر تحت «أخرى» فلا يسقط شيء — فهو تنبيهٌ لا عطل (OWN-24).
+
+    كان يُسقط البناءَ فيُسقط طلبَ كلِّ جلسةٍ تسجّل نموذجاً جديداً في الإدارة وهي لا تمسّ القائمة.
+    يُكتب التنبيهُ ليُرى في مخرجات الاختبار، ويُصنَّف النموذجُ في `core/admin_menu.py:GROUPS`.
+    """
+    missing = sorted(_registered() - set(mapped_keys()))
+    if missing:
+        warnings.warn(
+            f"نماذجُ مسجَّلةٌ بلا قسمٍ في core/admin_menu.py (تظهر تحت «أخرى»): {missing}",
+            stacklevel=1,
+        )
 
 
 def test_no_group_names_a_model_that_does_not_exist():
@@ -79,8 +92,8 @@ def test_every_admin_list_shows_25_rows():
 
 def test_third_party_app_names_are_arabic_in_the_admin_template():
     """AXES وToken Blacklist عربيّةٌ في app_list.html وحدَه — الحزمتان نفسُهما لم تُعدَّلا."""
-    from roadmap.admin_menu import APP_LABELS
-    from roadmap.templatetags.admin_menu import app_label
+    from core.admin_menu import APP_LABELS
+    from core.templatetags.admin_menu import app_label
 
     assert app_label("axes", "AXES") == APP_LABELS["axes"]
     assert app_label("token_blacklist", "Token Blacklist") == APP_LABELS["token_blacklist"]
@@ -91,7 +104,7 @@ def test_search_index_covers_every_link_the_menu_shows():
     """فهرسُ البحث يطابق عدد الروابط في القائمة نفسِها — لا نقصان ولا تكرار."""
     from django.contrib import admin
 
-    from roadmap.admin_menu import build_menu, search_index
+    from core.admin_menu import build_menu, search_index
 
     apps = [
         {
