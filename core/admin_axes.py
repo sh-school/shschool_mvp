@@ -27,6 +27,21 @@ def _owner(field: str) -> Subquery:
     return Subquery(matches.values(field)[:1])
 
 
+#: الرقمُ الشخصيّ القطريّ 11 رقماً (`core.models.user._national_id_validator`)؛ والرقمُ الوظيفيّ أقصر.
+_NATIONAL_ID_LENGTH = 11
+
+
+def mask_national_id(typed: str) -> str:
+    """الرقمُ الشخصيّ في القائمة آخرُ أربعة أرقامٍ فقط (PDPPL م.8 — كقائمة المستخدمين).
+
+    والرقمُ الوظيفيّ يبقى كما هو: عمودُه ظاهرٌ أصلاً. والبحثُ ما زال بالرقم الكامل (`search_fields`)،
+    والصفحةُ التفصيليّة للمحاولة تعرضه كاملاً لمن فتحها — كنموذج تعديل المستخدم.
+    """
+    if typed.isdigit() and len(typed) == _NATIONAL_ID_LENGTH:
+        return f"****{typed[-4:]}"
+    return typed or "—"
+
+
 def install() -> None:
     from axes.admin import AccessLogAdmin
     from axes.models import AccessLog
@@ -36,7 +51,7 @@ def install() -> None:
             "attempt_time",
             "logout_time",
             "ip_address",
-            "username",
+            "typed_username",
             "owner_name",
             "owner_employee_number",
             "user_agent",
@@ -50,6 +65,28 @@ def install() -> None:
                 owner_employee_number=_owner("employee_number"),
             )
             return cast("QuerySet[Any]", annotated)
+
+        def action_checkbox(self, obj: Any) -> str:
+            # وصفُ خانة الاختيار لقارئ الشاشة من `str(obj)` في جانغو — ونصُّ السجلّ في axes يحمل
+            # المكتوبَ كاملاً ("Access Log for <الرقم الشخصيّ> @ …") فيُسرّب ما أخفاه العمود. فيُبنى
+            # الوصفُ من الرقم المخفيّ نفسه، والسلوكُ كما هو (الاسمُ والقيمةُ والصنف).
+            from django import forms
+            from django.contrib.admin import helpers
+            from django.utils.html import format_html
+
+            label = format_html(
+                "اختر هذه المحاولة لإجراء — {} @ {}",
+                mask_national_id(str(obj.username or "")),
+                obj.attempt_time,
+            )
+            checkbox = forms.CheckboxInput(
+                {"class": "action-select", "aria-label": label}, lambda value: False
+            )
+            return str(checkbox.render(helpers.ACTION_CHECKBOX_NAME, str(obj.pk)))
+
+        @admin.display(description="المكتوب في خانة الدخول", ordering="username")
+        def typed_username(self, obj: Any) -> str:
+            return mask_national_id(str(obj.username or ""))
 
         @admin.display(description="الاسم", ordering="owner_name")
         def owner_name(self, obj: Any) -> str:

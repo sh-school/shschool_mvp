@@ -76,3 +76,21 @@ def test_installing_twice_keeps_a_single_registration():
     install()
     install()
     assert type(site._registry[AccessLog]).__name__ == "IdentifiedAccessLogAdmin"
+
+
+def test_the_typed_national_id_is_masked_in_the_list(client_as, superuser):
+    owner = UserFactory(full_name="مالكُ المحاولة", employee_number="70009")
+    _log(owner.national_id)
+    html, _ = _page(client_as(superuser))
+    assert owner.national_id not in html, "الرقمُ الشخصيّ كاملاً ظهر في القائمة"
+    assert f"****{owner.national_id[-4:]}" in html
+    assert "مالكُ المحاولة" in html
+
+
+def test_mask_keeps_employee_numbers_and_marks_empty():
+    from core.admin_axes import mask_national_id
+
+    assert mask_national_id("28181801642") == "****1642"
+    assert mask_national_id("70009") == "70009"
+    assert mask_national_id("NURSETEST7") == "NURSETEST7"
+    assert mask_national_id("") == "—"
