@@ -581,7 +581,7 @@ def test_0014_adds_n033_closed_once():
     assert _sync14.add_missing(RoadmapItem) == []
     n033 = RoadmapItem.objects.get(code="N-033")
     assert (n033.status, n033.pr, n033.src) == ("done", "#546", "NEW")
-    assert "منسوبٌ إليها لا قرارٌ مسجَّل" in n033.note
+    assert "D-19" in n033.note
 
 
 def test_0014_replaces_todays_point_instead_of_adding_a_second_one():
@@ -654,3 +654,16 @@ def test_0014_leaves_a_debt_the_developer_wrote_first():
     _item("DBT-37", "doing", 30, title="كتبه المطوّر")
     assert _sync14.add_open_debts(RoadmapItem) == ["DBT-38", "DBT-39"]
     assert RoadmapItem.objects.get(code="DBT-37").title == "كتبه المطوّر"
+
+
+def test_0014_records_d19_decided_once_and_leaves_a_developer_d19():
+    from roadmap.models import RoadmapDecision
+
+    assert _sync14.add_decisions(RoadmapDecision) == ["D-19"]
+    assert _sync14.add_decisions(RoadmapDecision) == []
+    d19 = RoadmapDecision.objects.get(code="D-19")
+    assert (d19.status, str(d19.decision_date), d19.blocks) == ("decided", "2026-09-24", "N-033")
+    RoadmapDecision.objects.filter(code="D-19").delete()
+    RoadmapDecision.objects.create(code="D-19", title="كتبه المطوّر", status="open")
+    assert _sync14.add_decisions(RoadmapDecision) == []
+    assert RoadmapDecision.objects.get(code="D-19").title == "كتبه المطوّر"
