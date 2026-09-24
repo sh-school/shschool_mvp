@@ -634,3 +634,23 @@ def test_0014_fills_the_text_mode_mobile_kpis_only_when_never_measured():
     mk1 = RoadmapKpi.objects.get(code="MK1")
     assert (mk1.current, mk1.unit, mk1.history) == (0.2, "pct", [{"d": "2026-09-24", "v": 0.2}])
     assert RoadmapKpi.objects.get(code="MK2").current == 3.0
+
+
+def test_0014_opens_the_three_verified_debts_undated_and_without_a_pr():
+    assert _sync14.add_open_debts(RoadmapItem) == ["DBT-37", "DBT-38", "DBT-39"]
+    assert _sync14.add_open_debts(RoadmapItem) == []
+    privacy = RoadmapItem.objects.get(code="DBT-37")
+    assert (privacy.status, privacy.pr, privacy.start_date, privacy.lane) == (
+        "todo",
+        "",
+        None,
+        "sec",
+    )
+    assert "clean_photo" in privacy.criterion and "PDPPL" in privacy.title
+    assert RoadmapItem.objects.get(code="DBT-39").sort_order == 468
+
+
+def test_0014_leaves_a_debt_the_developer_wrote_first():
+    _item("DBT-37", "doing", 30, title="كتبه المطوّر")
+    assert _sync14.add_open_debts(RoadmapItem) == ["DBT-38", "DBT-39"]
+    assert RoadmapItem.objects.get(code="DBT-37").title == "كتبه المطوّر"

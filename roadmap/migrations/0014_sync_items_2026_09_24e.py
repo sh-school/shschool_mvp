@@ -10,6 +10,8 @@
 - **الإدارة:** OWN-24 يُغلق بـ#536، وOWN-21 إلى 60 بـ#541 (سلّمُ جلسة الباك إند: 60 الآن، 85 بدمج أهداف اللمس، 100 بعد
   قياس الليليّ)، وOWN-19 ملاحظةُ تكملة أداة الاختيار.
 - **عملٌ بلا بند:** N-033 ← #546 (التعويضُ في حصّة زميلٍ بموافقته).
+- **ثلاثةُ ديونٍ مفتوحة** فتحتها جلسةُ «اصلاحات 02» وتحقّقتُ منها: DBT-37 (PDPPL: ملفُّ عذر التأخّر بلا clean_photo، الأولويّةُ الأولى)،
+  وDBT-38 (id شريط التثبيت مكرَّر)، وDBT-39 (قواعدُ انتقال الصفحات بمحدِّدٍ مقطوع).
 - **مؤشّراتُ الجوال MK1 وMK2 وMK7 وMK18** (نصّيّةُ الأساس والهدف) تأخذ أوّلَ قيمةٍ رقميّةٍ حاليّة.
 
 لا تحسم قراراً، ولا تُدرج ما لم يندمج طلبُه (#548 وبنودُ الجدول، #545 #551 #552 #553).
@@ -139,6 +141,38 @@ NEW_ITEMS = [
 ]
 NEW_ITEMS_FIRST_ORDER = 465  # بعد N-032 (464)
 
+# ديونٌ فتحتها جلسةُ «اصلاحات 02» أثناء بنود الجوال — **تحقّقتُ من كلٍّ منها في الشيفرة** قبل التسجيل — مفتوحةٌ بلا تاريخ ولا طلب:
+# (الرمز، المسار، العنوان، معيار الإغلاق، الملاحظة)
+OPEN_DEBTS = [
+    (
+        "DBT-37",
+        "sec",
+        "خصوصيّة (PDPPL): تحضيرُ التأخّر يحفظ ملفَّ العذر بلا clean_photo فيبقى EXIF/GPS",
+        "كلُّ رفعٍ لملفّ عذرٍ يمرّ بـcore.photo_privacy.clean_photo (يمحو EXIF/GPS ويصغّر — قرار 2026-09-14)، وحارسٌ يمنع حفظَ "
+        "ملفٍّ مرفوعٍ بلا تنظيف.",
+        "student_affairs/views.py::tardiness_record (نحو :2774-2869) يحفظ excuse_file (PDF/JPG/PNG) في attendance.excuse_file بلا "
+        "clean_photo، بينما operations/excuses.py:202 يستعمله. صورةُ عذرٍ من جوّالٍ قد تحمل موقعَ بيتٍ. **الأولويّةُ الأولى بين "
+        "الديون الجديدة.** يحتاج طلباً مستقلّاً بمالكٍ وحارس.",
+    ),
+    (
+        "DBT-38",
+        "mobile",
+        'شريطُ التثبيت: id="pwa-banner" مكرَّر ومنطقُ beforeinstallprompt منسوخ وإغلاقٌ لا يتذكّر في بوّابة وليّ الأمر',
+        "id واحدٌ لـpwa-banner في المستند، ومنطقٌ واحدٌ لـbeforeinstallprompt، وإغلاقُه يحفظ pwaDismissed في بوّابة وليّ الأمر أيضاً.",
+        "templates/base/base.html:1132 وtemplates/parents/dashboard.html:23 (الثانيةُ تمتدّ من base.html). وقد يكون .pwa-subtitle "
+        "معتّماً على العنّابيّ (استكشافٌ **لم يُقَس**).",
+    ),
+    (
+        "DBT-39",
+        "frontend",
+        "انتقالُ الصفحات: ثلاثُ قواعد في 20-components.css محدِّدُها مقطوعٌ `> {` فتسقط منذ #423 — لا تلاشيَ في أيّ صفحة",
+        "قواعدُ الانتقال الثلاثُ بمحدِّدٍ كامل، والتلاشي يعمل في الصفحات، وحارسٌ يمنع محدِّداً مقطوعاً `> {`.",
+        "20-components.css (نحو :1349-1358) مثل `#main-content > .exec-dash >  {`. بدأ المالكُ مهمّةً منفصلةً لإصلاحها في جلسةٍ أخرى — "
+        "يُربط برقم طلبها حين يُفتح. (المعيارُ الموثَّق في CLAUDE.md «الانتقالُ بين الصفحات»).",
+    ),
+]
+OPEN_DEBTS_FIRST_ORDER = 466  # بعد N-033 (465)
+
 # مؤشّراتٌ رقميّة: (الرمز، (القيمة، تاريخ القياس) المتوقَّعان، القيمة الجديدة، مرجعُ القياس)
 # قياسُ اليوم نفسِه يستبدل نقطةَ اليوم في السجلّ لا يضيف نقطةً ثانيةً بالتاريخ ذاته.
 KPI_UPDATES = [
@@ -207,6 +241,28 @@ def add_missing(item_model):
     return created
 
 
+def add_open_debts(item_model):
+    """تُنشئ الديونَ المفتوحةَ الغائبة بلا تاريخٍ ولا طلب؛ تُرجع رموزَ ما أُنشئ."""
+    created = []
+    for offset, (code, lane, title, criterion, extra) in enumerate(OPEN_DEBTS):
+        if item_model.objects.filter(code=code).exists():
+            continue
+        item_model.objects.create(
+            code=code,
+            src="DBT",
+            lane=lane,
+            title=title,
+            status="todo",
+            progress=0,
+            date_basis="غير مجدول",
+            criterion=criterion,
+            note=f"{STAMP} فتحتها جلسةُ «اصلاحات 02» أثناء بنود الجوال؛ تحقّقتُ منها في الشيفرة. {extra}",
+            sort_order=OPEN_DEBTS_FIRST_ORDER + offset,
+        )
+        created.append(code)
+    return created
+
+
 def _record(kpi, value):
     """تكتب قياسَ اليوم في السجلّ: تستبدل نقطةَ اليوم إن وُجدت، وإلّا تُلحقها."""
     today = DAY.isoformat()
@@ -258,6 +314,7 @@ def forwards(apps, schema_editor):
         return
     sync(item_model)
     add_missing(item_model)
+    add_open_debts(item_model)
     kpi_model = apps.get_model("roadmap", "RoadmapKpi")
     sync_kpis(kpi_model)
     first_readings(kpi_model)
