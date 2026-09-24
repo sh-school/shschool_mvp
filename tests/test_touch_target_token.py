@@ -42,6 +42,7 @@ COARSE_TARGETS = (
     ".period-switch__item",
     "a.status-badge",
     "a.ui-kpi",
+    ".staff-name",
     ".th-sort",
     ".ui-tip__btn",
     ".pwa-dismiss-btn",
