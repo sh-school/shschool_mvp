@@ -227,7 +227,7 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
               </tr>
               <tr>
                 <td>نقاطُ التوقّف من جدولٍ واحد — الجدولُ الحيُّ بجانبها، وهو مؤشّرُ الخارطة LK2 نفسُه.</td>
-                <td><span class="status-badge status-gray">تنتظر D2</span> توحيدُ حدّ الجوال قرارُ المالك D2، وتقليصُ النقاط في LAY-03.</td>
+                <td><span class="status-badge status-warning">جزئيّة</span> وُحِّدت في LAY-03 إلى خمس (640 و1024 و1440، واستثناءان 400 و1100)؛ وحدُّ اللوحيّ الأعلى قرارُ المالك D2.</td>
               </tr>
             </tbody>
           </table>
@@ -551,7 +551,7 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
 # view: items_cols = chunk_for_grid(items, 4)
 &lt;div class="auto-grid"&gt;{% templatetag openblock %} for col in items_cols {% templatetag closeblock %}…{% templatetag openblock %} endfor {% templatetag closeblock %}&lt;/div&gt;</pre>
     <ul class="sg-rules">
-      <li><code>card-flow</code> لبطاقاتٍ مختلفةِ الحجم: أعمدتُها 1 ثمّ 2 (768px) ثمّ 4 (1100px) — زوجيّةٌ دائماً فتتجاور العريضتان، وعلى نقاط التوقّف القائمة لا نقطةٍ جديدة (LK2)؛ والبطاقةُ تعلن عرضَها بـ<code>span="wide"</code> (نصفُ السطر) أو <code>"full"</code> (السطر)، وبطاقاتُ السطر بارتفاعٍ واحد. ويُرتَّب القالبُ صفوفاً متقاربةَ المحتوى.</li>
+      <li><code>card-flow</code> لبطاقاتٍ مختلفةِ الحجم: أعمدتُها 1 ثمّ 2 (641px) ثمّ 4 (1025px) — زوجيّةٌ دائماً فتتجاور العريضتان، وعلى حدود فئات D-16 لا نقطةٍ خاصّة (LK2)؛ والبطاقةُ تعلن عرضَها بـ<code>span="wide"</code> (نصفُ السطر) أو <code>"full"</code> (السطر)، وبطاقاتُ السطر بارتفاعٍ واحد. ويُرتَّب القالبُ صفوفاً متقاربةَ المحتوى.</li>
       <li><code>ui-grid-2</code> لبطاقتين متجاورتين، و<code>ui-entity-grid</code> لبطاقات الكيان، و<code>ui-actions</code> للبلاطات.</li>
       <li>قائمةٌ ضيّقةُ الصفّ غيرُ محدودة ← أعمدةٌ بـ<code>chunk_for_grid</code> في العرض و<code>auto-grid</code> في القالب؛ والمحدودةُ (<code>[:10]</code>) لا تُقسَّم.</li>
       <li>في صفحةٍ <code>page-noscroll</code>: <code>fill-grid is-fit</code> لبطاقةٍ محدودة المحتوى، و<code>fill-grid</code> وحدَه لقائمةٍ غير محدودةٍ تُمرَّر داخلها.</li>
