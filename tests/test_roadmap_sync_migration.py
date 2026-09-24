@@ -395,3 +395,43 @@ def test_0011_records_lk2_back_at_nine_after_529():
     kpi = RoadmapKpi.objects.get(code="LK2")
     assert (kpi.current, kpi.measured_at) == (9.0, _sync11.DAY)
     assert "410aa186" in kpi.source
+
+
+# ── 0012: خطّةُ إصلاح توليد الجدول (SCH-01..16، OWN-31، D-17، SK1..5) ──
+
+_sync12 = importlib.import_module("roadmap.migrations.0012_schedule_generation_plan")
+
+
+def test_0012_adds_the_plan_items_and_the_owner_item_once():
+    created = _sync12.add_items(RoadmapItem)
+    assert created == [f"SCH-{n:02d}" for n in range(1, 17)] + ["OWN-31"]
+    assert _sync12.add_items(RoadmapItem) == []
+    first = RoadmapItem.objects.get(code="SCH-01")
+    assert (first.status, first.progress, first.pr, first.src) == ("doing", 60, "", "SCH")
+    gate = RoadmapItem.objects.get(code="SCH-05")
+    assert gate.gate == "owner" and "D-17" in gate.deps
+    assert "#531" in RoadmapItem.objects.get(code="SCH-08").deps
+    assert RoadmapItem.objects.get(code="OWN-31").gate == "owner"
+
+
+def test_0012_keeps_an_item_the_developer_added_first():
+    _item("SCH-01", "done", 100, title="أُنشئ يدوياً")
+    assert "SCH-01" not in _sync12.add_items(RoadmapItem)
+    assert RoadmapItem.objects.get(code="SCH-01").title == "أُنشئ يدوياً"
+
+
+def test_0012_opens_d17_without_deciding_it():
+    from roadmap.models import RoadmapDecision
+
+    assert _sync12.add_decision(RoadmapDecision) == ["D-17"]
+    assert _sync12.add_decision(RoadmapDecision) == []
+    d17 = RoadmapDecision.objects.get(code="D-17")
+    assert (d17.status, d17.decision_date, d17.blocks) == ("open", None, "SCH-05")
+
+
+def test_0012_adds_the_kpis_with_their_first_measurement():
+    assert _sync12.add_kpis(RoadmapKpi) == ["SK1", "SK2", "SK3", "SK4", "SK5"]
+    assert _sync12.add_kpis(RoadmapKpi) == []
+    sk1 = RoadmapKpi.objects.get(code="SK1")
+    assert (sk1.current, sk1.target, sk1.direction) == (12.0, 0.0, "down")
+    assert sk1.history == [{"d": "2026-09-24", "v": 12.0}]
