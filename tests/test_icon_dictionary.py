@@ -9,6 +9,7 @@
 * لا يتشارك معنيان رسماً — وإلّا عاد الشكلُ يحمل معنيين.
 * كلُّ رسمٍ من المكتبة موجودٌ في مصدرها المقتطَع، والترخيصُ يرافقه.
 * لا حرفَ لاتينيّاً داخل رسم، والمجموعةُ المحلّيّة لا تتجاوز سقفها.
+* لا سكربتَ يكتب مرجعاً لرمزٍ ليس في الورقة (الحارسُ يمسح `*.js` كما يمسح `*.html`).
 """
 
 from __future__ import annotations
@@ -301,3 +302,84 @@ def test_no_template_anywhere_in_the_project_uses_the_legacy_icon_sheet():
 def test_the_new_icon_classes_are_styled():
     css = read_css()
     assert ".icon-hg" in css and ".icon-mirror" in css
+
+
+# ── السكربتات ─────────────────────────────────────────────────────────────
+# الحارسُ أعلاه يمسح `*.html` وحدَها، والسكربتُ يكتب `<svg><use>` نصّاً في
+# `innerHTML` فلا يمرّ على وسمٍ ولا على مسحٍ. وحوارُ التأكيد في `base.js` كان
+# يكتب `#icon-alert-triangle` من ورقةٍ حُذفت، فيظهر عنوانُه بلا رسم — ولا يسقط
+# شيءٌ لأنّ المتصفّح لا يُبلغ عن `<use>` لا يجد هدفَه. وصوابُ السكربت أن يبني
+# المسارَ من `data-icon-sprite` في `<body>` كما يفعل الوسمُ و`static/js/app.js`.
+
+_JS_COMMENT = re.compile(r"/\*.*?\*/|(?<![:\\\"'])//[^\n]*", re.S)
+#: `<use href="#…">` — الورقةُ خارجيّةٌ، فأيُّ مرجعٍ يبدأ بـ`#` لا هدفَ له في الصفحة.
+_JS_LOCAL_USE = re.compile(r"""<use\b[^>]*?\b(?:xlink:)?href\s*=\s*["']#""")
+_JS_LEGACY_ID = re.compile(r"#icon-[\w-]+")
+#: معرّفٌ مكتوبٌ كاملاً (`…sprite.svg#i-status_warning`) — أمّا `'#i-' + key` فيُبنى
+#: وقتَ التشغيل ويحرسه `test_the_command_palette_names_a_real_meaning` بمفاتيحه.
+_JS_SYMBOL_ID = re.compile(r"#(i-[a-z0-9_-]+)")
+_JS_SKIP_PARTS = {"vendor", "node_modules"}
+
+
+def js_icon_problems(js: str, symbols: set[str]) -> list[str]:
+    """كلُّ مرجعِ أيقونةٍ في سكربتٍ لا يجد رمزَه في الورقة."""
+    code = _JS_COMMENT.sub("", js)
+    problems = [f"مرجعٌ محلّيٌّ لا هدفَ له (الورقةُ خارجيّة): {m.group(0)}…" for m in _JS_LOCAL_USE.finditer(code)]
+    problems += [f"معرّفٌ من الورقة القديمة المحذوفة: {m.group(0)}" for m in _JS_LEGACY_ID.finditer(code)]
+    problems += [
+        f"رمزٌ ليس في sprite.svg: #{m.group(1)}"
+        for m in _JS_SYMBOL_ID.finditer(code)
+        if m.group(1) not in symbols
+    ]
+    return problems
+
+
+def _project_scripts() -> list[Path]:
+    """سكربتاتُ المنصّة الحيّة: `static/js` وأيُّ `<app>/static` وقوالبُ الـPWA."""
+    found = [
+        *ROOT.glob("static/js/*.js"),
+        *ROOT.glob("*/static/**/*.js"),
+        *ROOT.glob("templates/**/*.js"),
+    ]
+    return sorted(
+        p
+        for p in set(found)
+        if not p.name.endswith(".min.js") and not _JS_SKIP_PARTS & set(p.relative_to(ROOT).parts)
+    )
+
+
+def _sprite_symbols() -> set[str]:
+    sprite = icon_sprite.SPRITE.read_text(encoding="utf-8")
+    return set(re.findall(r'<symbol id="([^"]+)"', sprite))
+
+
+def test_no_script_references_an_icon_the_sprite_lacks():
+    symbols = _sprite_symbols()
+    offenders = {
+        path.relative_to(ROOT).as_posix(): problems
+        for path in _project_scripts()
+        if (problems := js_icon_problems(path.read_text(encoding="utf-8"), symbols))
+    }
+    assert not offenders, offenders
+
+
+def test_the_script_scan_covers_the_shell_scripts():
+    """مسحٌ فارغٌ يخضرّ كاذباً: يجب أن يشمل الملفّين اللذين يبنيان `<use>` فعلاً."""
+    names = {p.relative_to(ROOT).as_posix() for p in _project_scripts()}
+    assert {"static/js/base.js", "static/js/app.js"} <= names
+
+
+@pytest.mark.parametrize(
+    "snippet,is_broken",
+    [
+        ('\'<svg><use href="#icon-alert-triangle"/></svg>\'', True),  # ما كان في base.js
+        ("'<svg><use xlink:href=\"#i-status_warning\"/></svg>'", True),  # الورقةُ خارجيّة: المحلّيّ لا يصل
+        ("node.setAttribute('href', '#icon-close')", True),
+        ("'<use href=\"' + sprite + '#i-no_such_meaning\"></use>'", True),
+        ("'<use href=\"' + sprite + '#i-status_warning\"></use>'", False),  # الصواب
+        ("'<use href=\"' + sprite + '#i-' + key + '\"></use>'", False),  # مبنيٌّ وقتَ التشغيل
+        ("// كان يكتب #icon-alert-triangle", False),  # التعليقُ لا يُحسب
+    ],
+)
+def test_the_script_guard_catches_what_it_is_meant_to(snippet, is_broken):
+    assert bool(js_icon_problems(snippet, _sprite_symbols())) is is_broken, snippet

@@ -665,6 +665,17 @@ document.addEventListener('keydown', function(e) {
 (function() {
   var open = false;   // نافذةٌ واحدةٌ في المرّة: إرسالان متسابقان لا يفتحان اثنتين
 
+  /* رمزُ عنوان الحوار من قاموس core/icons.py (المفتاح status_warning). الورقةُ خارجيّةٌ
+     وعنوانُها في data-icon-sprite على <body> — كما يبني وسمُ {% icon %} وapp.js مسارَه —
+     فمرجعٌ محلّيٌّ `#icon-…` لا يجد هدفاً فيظهر العنوانُ بلا رسم. والحارسُ:
+     tests/test_icon_dictionary.py::test_no_script_references_an_icon_the_sprite_lacks. */
+  function warningIcon() {
+    var sprite = document.body.dataset.iconSprite;
+    if (!sprite) return '';
+    return '<svg class="icon icon-hg" aria-hidden="true" focusable="false">' +
+      '<use href="' + sprite + '#i-status_warning"></use></svg> ';
+  }
+
   document.addEventListener('submit', function(e) {
     var form = e.target;
     if (form._confirmed) { form._confirmed = false; return; } // already confirmed
@@ -693,12 +704,12 @@ document.addEventListener('keydown', function(e) {
     overlay.style.display = 'flex';
     overlay.innerHTML =
       '<div class="modal-box modal-sm" role="document">' +
-      '  <div class="modal-header"><span id="confirm-dlg-title" style="color:var(--status-danger)">' +
-      '    <svg class="icon" aria-hidden="true" focusable="false"><use href="#icon-alert-triangle"/></svg> ' +
+      '  <div class="modal-header"><span id="confirm-dlg-title" class="confirm-dlg-title">' +
+      warningIcon() +
       '    \u062a\u0623\u0643\u064a\u062f \u0627\u0644\u0625\u062c\u0631\u0627\u0621</span>' +
       '    <button type="button" class="modal-close-btn" data-action="cancel" aria-label="\u0625\u063a\u0644\u0627\u0642">\u00d7</button>' +
       '  </div>' +
-      '  <div class="modal-body"><p data-confirm-message style="color:var(--text-secondary);line-height:1.7"></p></div>' +
+      '  <div class="modal-body"><p data-confirm-message class="confirm-dlg-message"></p></div>' +
       '  <div class="modal-footer">' +
       '    <button type="button" class="btn-secondary" data-action="cancel">\u0625\u0644\u063a\u0627\u0621</button>' +
       '    <button type="button" class="btn-danger" data-action="confirm">\u062a\u0623\u0643\u064a\u062f</button>' +
