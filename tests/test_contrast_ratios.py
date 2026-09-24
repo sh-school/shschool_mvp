@@ -60,6 +60,25 @@ TOKEN_PAIRS = [
     ("--accent-purple-fg", "--surface"),
     ("--accent-sky-fg", "--surface"),
     ("--skyline-fg", "--surface"),
+    # القائمةُ برملِ الصحراء والذيلُ بلون الترويسة (2026-09-24): نصٌّ فوق كلٍّ منهما.
+    ("--nav-fg", "--nav-bg"),
+    ("--footer-fg", "--footer-bg"),
+    ("--footer-fg-soft", "--footer-bg"),
+    # القوائمُ المنسدلة ترث لونَ القائمة بدرجةٍ أفتح (2026-09-24): نصُّها وتظليلُ مرورها عليها.
+    ("--menu-ink", "--menu-bg"),
+    ("--menu-ink-strong", "--menu-bg"),
+    ("--menu-label", "--menu-bg"),
+    ("--text-muted", "--menu-bg"),
+    ("--maroon-fg", "--menu-bg"),
+    ("--maroon-fg", "--menu-hover"),
+    ("--status-danger-fg", "--menu-bg"),
+    ("--status-success-fg", "--menu-bg"),
+]
+
+#: (رمزُ الشكل، رمزُ السطح) — خطٌّ أو علامةٌ لا نصّ، فحدُّها 3 (WCAG 1.4.11).
+SHAPE_PAIRS = [
+    ("--nav-mark", "--nav-bg"),  # علامةُ القسم الحاليّ: عنّابيٌّ على الرمل، وذهبيٌّ على الليليّ
+    ("--gold", "--footer-bg"),  # خطُّ الذيل العلويّ
 ]
 
 #: ألوانُ الرسوم تُقرأ على سطحِ البطاقة — وهي أشكالٌ لا نصّ، فحدُّها 3.
@@ -93,6 +112,21 @@ def test_every_named_pair_is_readable_in_both_themes():
             if got < AA_NORMAL:
                 offenders.append(f"  {got:5.2f}  {theme}  {fg_name} على {bg_name}")
     assert not offenders, "أزواجٌ دون حدّ AA:\n" + "\n".join(offenders)
+
+
+def test_the_marks_on_the_nav_and_footer_bands_stay_visible():
+    """علامةٌ وخطٌّ لا نصّ: حدُّهما 3 (WCAG 1.4.11) — على القائمة والذيل في الوضعين."""
+    offenders = []
+    for theme, tokens in _themes():
+        for shape_name, bg_name in SHAPE_PAIRS:
+            shape = resolve(f"var({shape_name})", tokens)
+            bg = resolve(f"var({bg_name})", tokens)
+            assert shape is not None, f"{shape_name} لا يُحَلّ في {theme}"
+            assert bg is not None, f"{bg_name} لا يُحَلّ في {theme}"
+            got = ratio(shape, bg)
+            if got < AA_LARGE:
+                offenders.append(f"  {got:5.2f}  {theme}  {shape_name} على {bg_name}")
+    assert not offenders, "علاماتٌ لا تُرى:" + "".join("\n" + o for o in offenders)
 
 
 def test_the_chart_palette_stays_visible_on_its_surface():
