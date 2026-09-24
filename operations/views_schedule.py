@@ -44,7 +44,7 @@ from .schedule_selectors import browse_lists as _browse_lists
 from .schedule_selectors import export_filename as _export_filename
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
-from .services import ScheduleService, SubstituteService
+from .services import AbsenceSwapService, ScheduleService, SubstituteService
 from .services.substitute import TEACHING_ROLES
 
 logger = logging.getLogger(__name__)
@@ -280,15 +280,20 @@ def _absence_presentation(absence) -> None:
     absence.tone, absence.status_tone = _ABSENCE_TONES.get(absence.status, _ABSENCE_TONE_DEFAULT)
 
 
-def _slot_presentation(slot, assignment, available) -> dict:
+def _slot_presentation(slot, assignment, available, swap=None) -> dict:
     """حصّةُ الغائب في بطاقة كيان: الحصّة · البديل · الحالة.
 
     المغطّاةُ خضراء وسطرُ حالها حالُ التعيين (قبِل/رفض/مُعيَّن)؛ وغيرُ المغطّاة
     حمراء وسطرُها عددُ المتاحين — أو «لا معلمين متاحين» حين لا يُوجد أحد.
+    والمبدَّلةُ خضراءُ إن نُفِّذ تبديلُها، وكهرمانيّةٌ ما دام ينتظر موافقةً أو اعتماداً.
     """
+    swapped = swap is not None and swap.status in ("approved", "executed")
     if assignment:
         status_tone = _assignment_tone(assignment)
         tone, status_label = "green", "مُغطّاة · إشغال"
+    elif swap is not None:
+        tone, status_tone = ("green", "success") if swapped else ("amber", "warning")
+        status_label = AbsenceSwapService.slot_label(swap)
     elif available:
         tone, status_tone = "red", "danger"
         status_label = f"بحاجة بديل · {len(available)} متاح"
@@ -298,6 +303,8 @@ def _slot_presentation(slot, assignment, available) -> dict:
     return {
         "slot": slot,
         "assignment": assignment,
+        "swap": swap,
+        "covered": bool(assignment) or swapped,
         "available": available,
         "title": f"الحصّة {slot.period_number}",
         "who": f"{slot.subject or '—'} · {slot.class_group}",
@@ -413,13 +420,16 @@ def absence_detail(request, absence_id):
     }
     # المنسّقُ يُشغِل من قسمه وحدَه، والقيادةُ من الكادر كلِّه (قرارُ المالك 2026-09-23).
     candidates = SubstituteService.coverage_candidates(absence, slots, within_ids=dept_ids)
+    swaps = AbsenceSwapService.swaps_by_slot(absence)
     slots_data = [
-        _slot_presentation(slot, assignments.get(slot.id), candidates.get(slot.id, []))
+        _slot_presentation(
+            slot, assignments.get(slot.id), candidates.get(slot.id, []), swaps.get(slot.id)
+        )
         for slot in slots
     ]
 
     # عددٌ لا سلسلةُ آحاد: القالبُ كان يطبع «1» لكلّ حصّةٍ مغطّاة، فثلاثٌ تُقرأ «111».
-    covered_count = sum(1 for row in slots_data if row["assignment"])
+    covered_count = sum(1 for row in slots_data if row["covered"])
     _absence_presentation(absence)
     return render(
         request,

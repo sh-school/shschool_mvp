@@ -59,6 +59,8 @@ from .views_schedule import (
 
 # ── Swap & Compensatory ─────────────────────────────────────────
 from .views_swap import (
+    absence_swap_create,
+    absence_swap_options,
     build_free_slots,
     compensatory_approve,
     compensatory_list,
@@ -117,6 +119,8 @@ __all__ = [
     "remove_preferences",
     "teacher_preferences",
     # swap
+    "absence_swap_options",
+    "absence_swap_create",
     "swap_list",
     "swap_request",
     "swap_options_htmx",
