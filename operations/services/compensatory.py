@@ -34,7 +34,6 @@ from operations.models import (
     Session,
     TeacherAbsence,
 )
-from operations.schedule_profile import DAY_NAMES
 from operations.school_days import school_day
 
 logger = logging.getLogger(__name__)
@@ -176,7 +175,7 @@ class CompensatoryService:
         row = next((r for r in rows if r["period"] == period), None)
         if row is None:
             name = class_group.time_band.name if class_group.time_band else "المدرسة"
-            weekday = DAY_NAMES[ScheduleService._PY_TO_QATAR[day.weekday()]]
+            weekday = dict(ScheduleSlot.DAYS)[ScheduleService._PY_TO_QATAR[day.weekday()]]
             raise ValueError(f"لا حصّةَ {period} يومَ {weekday} في جرس «{name}»: حصصُه {len(rows)}")
         if not row["ok"]:
             raise ValueError(
