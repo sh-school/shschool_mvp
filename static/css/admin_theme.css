@@ -419,11 +419,11 @@ thead th, .module caption { text-transform: none; }
 /* بحثُ القائمة: حقلٌ في الترويسة يقفز إلى أيّ نموذجٍ من 97 — فهرسٌ مضمَّنٌ بلا طلبٍ إضافيّ. */
 .adm-nav__search { position: relative; margin-inline-start: 0.5rem; flex: none; }
 .adm-nav__search-input {
-  inline-size: 11rem; padding: 0.3rem 0.7rem; border-radius: 999px; border: 1px solid color-mix(in srgb, #fff 30%, transparent);
-  background: color-mix(in srgb, #fff 14%, transparent); color: var(--header-link-color); font: inherit; font-size: 0.82rem;
+  inline-size: 11rem; padding: 0.3rem 0.7rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--nav-fg) 30%, transparent);
+  background: var(--nav-hover); color: var(--nav-fg); font: inherit; font-size: 0.82rem;
   transition: inline-size 0.15s ease;
 }
-.adm-nav__search-input::placeholder { color: color-mix(in srgb, var(--header-link-color) 70%, transparent); }
+.adm-nav__search-input::placeholder { color: color-mix(in srgb, var(--nav-fg) 78%, transparent); }
 .adm-nav__search-input:focus { inline-size: 16rem; outline: 2px solid var(--accent); outline-offset: 1px; background: var(--body-bg); color: var(--body-fg); }
 .adm-nav__search-results {
   position: absolute; inset-inline-start: 0; inset-block-start: calc(100% + 0.3rem); z-index: 30; margin: 0; padding: 0.3rem;

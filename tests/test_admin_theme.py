@@ -194,6 +194,19 @@ def _admin_rule(css: str, selector: str) -> str:
     return css[start : css.index("}", start)]
 
 
+def test_the_nav_search_field_reads_the_nav_tokens_not_the_white_of_the_header():
+    """حقلُ بحث الإدارة كان بنصٍّ أبيضَ على رملٍ فاتح (1.11:1) — أسقطه axe في CI (#547).
+
+    كلُّ ما يُرسم داخل شريط القائمة يقرأ `--nav-fg` و`--nav-hover`، لا بياضَ الترويسة العنّابيّة؛ فمن
+    غيّر لونَ القائمة تبعه الحقلُ نهاراً وليلاً بلا موضعٍ ثانٍ يُصلَح.
+    """
+    admin = ADMIN.read_text(encoding="utf-8")
+    field = _admin_rule(admin, ".adm-nav__search-input")
+    assert "var(--nav-fg)" in field and "var(--nav-hover)" in field
+    assert "--header-link-color" not in field and "#fff" not in field
+    assert "var(--nav-fg)" in _admin_rule(admin, ".adm-nav__search-input::placeholder")
+
+
 # ── بنيةُ الوصولية: معلَمٌ واحدٌ وعنصرٌ تفاعليٌّ واحدٌ لكلّ موضع (axe: nested-interactive و landmark-*) ──────
 
 
