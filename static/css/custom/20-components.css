@@ -8,6 +8,7 @@
   position: sticky;
   top: 0;
   z-index: calc(var(--z-navbar) + 1);
+  padding-block-start: var(--safe-top);
   border-bottom: 1px solid var(--maroon-dark);
 }
 /* هامشٌ يطابق `#main-content` (قرار 2026-09-11) — لا سقف 1280px القديم
@@ -19,7 +20,7 @@
 .site-header .nav-inner {
   max-width: none;
   margin: 0;
-  padding-inline: clamp(var(--sp-3), 1.4vw, 28px);
+  padding-inline: max(clamp(var(--sp-3), 1.4vw, 28px), var(--safe-inline));
   display: flex;
   align-items: center;
   height: 48px;
@@ -39,7 +40,7 @@
 .site-nav {
   background: var(--nav-bg);
   position: sticky;
-  top: 48px;
+  top: calc(48px + var(--safe-top));
   z-index: var(--z-navbar);
   border-bottom: 2px solid var(--maroon-dark);
   box-shadow: var(--shadow-nav);
@@ -244,7 +245,7 @@
    تُغطّي القائمة خلفها؛ والعرضُ يحتضن محتواه (لا يفرض 640px على رسالةٍ
    قصيرة) حتى سقفٍ يسع سطراً واحداً لرسالةٍ كرسالة كلمة المرور. ══ */
 .msgs-wrap {
-  position: fixed; inset-inline: 0; top: calc(48px + 42px + var(--sp-3));
+  position: fixed; inset-inline: 0; top: calc(48px + 42px + var(--sp-3) + var(--safe-top));
   z-index: var(--z-navbar); display: flex; flex-direction: column; align-items: center;
   padding-inline: var(--sp-4); pointer-events: none;
 }
@@ -524,22 +525,23 @@ div#header h1 a {
 }
 
 /* ── PWA Install Banner ──────────────────────────────────── */
+body:has(.per-bar) .pwa-banner { display: none; }
 .pwa-banner {
-  display: none;
   position: fixed;
-  bottom: 80px;
-  inset-inline-start: 12px;
-  inset-inline-end: 12px;
-  z-index: var(--z-sidebar);
+  inset-block-end: calc(80px + var(--safe-bottom));
+  inset-inline: var(--sp-3);
+  z-index: var(--z-banner);
+  max-width: 360px;
+  margin-inline: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3-5) var(--sp-4);
   background: var(--maroon);
   color: var(--on-fill);
   border-radius: var(--radius-lg);
-  padding: var(--sp-3) var(--sp-4);
-  align-items: center;
-  gap: var(--sp-3);
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--maroon) 40%, transparent);
+  box-shadow: var(--shadow-lg);
 }
-.pwa-banner.visible { display: flex; }
 .pwa-icon     { font-size: var(--text-2xl); flex-shrink: 0; }
 .pwa-text     { flex: 1; min-width: 0; }
 .pwa-title    { display: block; font-size: var(--text-sm); font-weight: 700; }
@@ -1633,7 +1635,7 @@ textarea:focus-visible {
 /* Toast — تحت الترويسة (2026-09-23) */
 #toast-container {
   position: fixed;
-  top: calc(48px + 42px + var(--sp-3));
+  top: calc(48px + 42px + var(--sp-3) + var(--safe-top));
   inset-inline-end: clamp(var(--sp-3), 1.4vw, 28px);
   z-index: var(--z-toast);
   display: flex;
@@ -1750,7 +1752,7 @@ textarea:focus-visible {
   z-index: var(--z-navbar);
   background: var(--surface);
   border-top: 1px solid var(--border);
-  padding: var(--sp-2) 0 env(safe-area-inset-bottom, var(--sp-2));
+  padding: var(--sp-2) 0 var(--safe-bottom);
   box-shadow: var(--shadow-bottom-nav);
 }
 .mobile-bottom-nav-inner {
@@ -1780,7 +1782,7 @@ textarea:focus-visible {
 .mobile-nav-icon { font-size: 1.3rem; }
 /* ── Mobile-First: bottom nav + tap targets (default=mobile) ── */
 .mobile-bottom-nav { display: block; }
-body { padding-bottom: 72px; }
+body { padding-bottom: calc(72px + var(--safe-bottom)); }
 .btn-primary, .btn-secondary, .btn-danger { min-height: var(--control-h); }
 .form-control, .form-select { min-height: var(--control-h); font-size: var(--text-base); }  /* منع zoom على iOS */
 
@@ -1803,6 +1805,7 @@ body { padding-bottom: 72px; }
 @media (min-width: 641px) {
   .mobile-bottom-nav { display: none; }
   body { padding-bottom: 0; }
+  .pwa-banner { inset-block-end: var(--sp-4); }
   .btn-primary, .btn-secondary, .btn-danger { min-height: auto; }
   .form-control, .form-select { min-height: auto; font-size: inherit; }
   .nav-user-name { display: revert; }

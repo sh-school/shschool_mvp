@@ -387,10 +387,9 @@ document.addEventListener('click', function(e) {
 
 
 /* ── PWA Install Banner ───────────────────────────────────── */
-// الإظهارُ والإخفاءُ بسمة `hidden` لا بصنف `.visible`: قاعدةُ `.pwa-banner` في طبقة
-// `utilities` (#232) تجعله `flex` وتغلب `display:none` القديمةَ في `components` —
-// فكان الشريطُ ظاهراً دائماً ولا يُغلقه زرُّه. و`[hidden]` في `reset` بـ`!important`
-// يغلب الطبقاتِ كلَّها.
+// الإظهارُ والإخفاءُ بسمة `hidden` لا بصنف `.visible`: قاعدةُ `.pwa-banner` (`display: flex`)
+// في `20-components.css` تغلب `display:none`، و`[hidden]` في `reset` بـ`!important`
+// يغلب الطبقاتِ كلَّها — فيُغلقه زرُّه.
 //
 // ولا يعود الشريطُ أبداً (قرارُ 2026-09-13) إن: أُغلق بـ✕، أو ثُبّت التطبيق، أو فُتحت
 // المنصّةُ تطبيقاً مثبّتاً.

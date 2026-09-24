@@ -130,7 +130,7 @@
     </ul>
     <ul class="sg-rules">
       <li>الظلُّ يدلّ على الارتفاع لا يزيّن: البطاقةُ <code><bdi dir="ltr">--shadow-sm</bdi></code>، والقائمةُ المنسدلة <code><bdi dir="ltr">--shadow-dropdown</bdi></code>، والنافذةُ <code><bdi dir="ltr">--shadow-modal</bdi></code> — ولا ظلَّ يُكتب بقيمته.</li>
-      <li>الطبقاتُ بسلّم <code><bdi dir="ltr">--z-*</bdi></code> وحدَه (base · raised · dropdown · sticky · navbar · modal · toast) — لا <code>z-index</code> برقمٍ عشوائيّ.</li>
+      <li>الطبقاتُ بسلّم <code><bdi dir="ltr">--z-*</bdi></code> وحدَه (base · raised · banner · dropdown · sticky · navbar · sidebar · modal · toast) — لا <code>z-index</code> برقمٍ عشوائيّ.</li>
     </ul>
   {% endsection_card %}
 
@@ -219,11 +219,11 @@ backgroundColor: chartAlpha('chart-1', .12),</pre>
               </tr>
               <tr>
                 <td>المنطقةُ الآمنة من رموز <code><bdi dir="ltr">--safe-*</bdi></code> لا من <code>env()</code> مباشرةً.</td>
-                <td><span class="status-badge status-gray">تنتظر H-04</span> الرموزُ لم تُعرَّف، و<code>env(safe-area…)</code> ما زال مكتوباً مباشرةً.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> الرموزُ في <code>:root</code> (<code>test_safe_area_tokens</code>)؛ والورقةُ المستقلّة <code>app_back_bar</code> تعرّفها محلّياً لأنّها لا تحمّل أنماطَ المنصّة.</td>
               </tr>
               <tr>
                 <td>الطبقاتُ من سلّم <code><bdi dir="ltr">--z-*</bdi></code> لا أرقامٌ خام.</td>
-                <td><span class="status-badge status-warning">جزئيّة</span> السلّمُ معرَّف، وبقيت قيمٌ خامٌّ قليلةٌ بلا حارسٍ بعد.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> لا <code>z-index</code> خامٌّ ≥ 20 (<code>test_z_scale</code>)، وشريطُ التثبيت <code>--z-banner</code> تحت ما يفتحه المستخدم.</td>
               </tr>
               <tr>
                 <td>نقاطُ التوقّف من جدولٍ واحد — الجدولُ الحيُّ بجانبها، وهو مؤشّرُ الخارطة LK2 نفسُه.</td>

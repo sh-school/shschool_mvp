@@ -1443,7 +1443,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
-  z-index: 50;
+  z-index: var(--z-dropdown);
 }
 .sa-late-result {
   display: flex;

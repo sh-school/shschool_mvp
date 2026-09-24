@@ -274,6 +274,7 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   /* ══ Z-index Scale (موحد — بدل z-index عشوائي) ══ */
   --z-base:     1;
   --z-raised:   100;
+  --z-banner:   300;
   --z-dropdown: 500;
   --z-sticky:   700;
   --z-navbar:   1000;
@@ -287,6 +288,11 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --z-modal:    9000;
   --z-toast:    9500;
   --z-critical: 9999;
+
+  /* المنطقةُ الآمنة (الشقّ وشريطُ الإيماءات): `0px` بوحدته — `0` وحدَه يُبطل كلَّ calc تقرؤه. */
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-inline: max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
 
   /* ══ Shadow/Elevation Scale ══ */
   /* --shadow-sm و --shadow-md موجودتان أعلاه */
