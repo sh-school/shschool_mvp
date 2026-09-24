@@ -586,8 +586,8 @@
 
 
   <button data-action="print">طباعة</button>
-  {# التصديرُ من صفحة الجدول في المنصّة بالاختيار نفسِه: الورقةُ بلا ترويسةٍ ولا إشعارٍ عائم،
-     فتُفتح الصفحةُ ويبدأ التصديرُ فيها (`export=`، schedule-export.js) — لا صفحةَ متابعة. #}
+  {% comment %}التصديرُ من صفحة الجدول في المنصّة بالاختيار نفسِه: الورقةُ بلا ترويسةٍ ولا إشعارٍ عائم،
+  فتُفتح الصفحةُ ويبدأ التصديرُ فيها (`export=`، schedule-export.js) — لا صفحةَ متابعة.{% endcomment %}
   <a class="btn-export" href="{% url 'weekly_schedule' %}?{{ selection_query }}&amp;export=pdf">تصدير PDF</a>
   <a class="btn-export" href="{% url 'weekly_schedule' %}?{{ selection_query }}&amp;export=excel">تصدير Excel</a>
   {# صفحةٌ لكلّ معلّم مرتّبةً بالأقسام — ورقةُ المنسّق. زرّان باسم المطلوب لا رابطٌ عامّ. #}
