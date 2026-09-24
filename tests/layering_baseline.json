@@ -384,8 +384,8 @@
    "orm": 8
   },
   "operations/views_attendance.py::schedule": {
-   "lines": 122,
-   "orm": 33
+   "lines": 111,
+   "orm": 29
   },
   "operations/views_schedule.py::_pages_payload": {
    "orm": 7
