@@ -127,12 +127,17 @@ _SCALES = (
     ("radius", re.compile(r"^radius(?:-|$)")),
     ("shadow", re.compile(r"^shadow-(?!ink$)")),
     ("motion", re.compile(r"^transition-")),
+    # المقاييسُ والحدودُ الدنيا (H-06): ارتفاعُ عنصر التحكّم، والطبقات، والمنطقةُ الآمنة.
+    ("control", re.compile(r"^control-h(?:-|$)")),
+    ("layer", re.compile(r"^z-")),
+    ("safe", re.compile(r"^safe-")),
 )
 _PX_RE = re.compile(r"^([\d.]+)px$")
+_NUMBER_RE = re.compile(r"^-?\d+$")
 
 
 def scale_tokens() -> dict[str, list[dict]]:
-    """رموزُ الخطّ والتباعد والتقوّس والظلّ والحركة من `:root` — الاسمُ وقيمتُه المكتوبة.
+    """رموزُ الخطّ والتباعد والتقوّس والظلّ والحركة والحدودِ الدنيا من `:root` — الاسمُ وقيمتُه.
 
     كالألوان: الدليلُ يقرأ السلّمَ من الملفّ، فدرجةٌ تُضاف هناك تظهر هنا بلا تعديل.
     والتباعدُ والتقوّسُ يُرتَّبان بالقيمة لا بالموضع (الدرجاتُ النصفيّةُ في سطرٍ مستقلّ).
@@ -145,11 +150,53 @@ def scale_tokens() -> dict[str, list[dict]]:
             if pattern.match(name):
                 scales[key].append({"name": name, "value": value})
                 break
-    for key in ("space", "radius"):
+    for key in ("space", "radius", "control"):
         scales[key].sort(key=lambda token: _px(token["value"]))
+    scales["layer"].sort(key=lambda token: _layer(token["value"]))
     return scales
+
+
+def _layer(value: str) -> float:
+    return float(value) if _NUMBER_RE.match(value) else float("inf")
 
 
 def _px(value: str) -> float:
     match = _PX_RE.match(value)
     return float(match.group(1)) if match else float("inf")
+
+
+_MEDIA_RE = re.compile(r"@media\s*([^{]+)\{")
+_WIDTH_RE = re.compile(r"(?:min|max)-width\s*:\s*(\d+)px")
+
+
+@lru_cache(maxsize=4)
+def _breakpoints(sheets: tuple[tuple[str, float], ...]) -> tuple[tuple[int, int], ...]:
+    parts = []
+    for path, _mtime in sheets:
+        with open(path, encoding="utf-8") as sheet:
+            parts.append(sheet.read())
+    css = _COMMENT_RE.sub("", "\n".join(parts))
+    uses: dict[int, int] = {}
+    for condition in _MEDIA_RE.findall(css):
+        for width in _WIDTH_RE.findall(condition):
+            uses[int(width)] = uses.get(int(width), 0) + 1
+    boundaries: list[list[int]] = []
+    for width in sorted(uses):
+        if boundaries and width - boundaries[-1][2] <= 1:
+            boundaries[-1][1] += uses[width]
+            boundaries[-1][2] = width
+        else:
+            boundaries.append([width, uses[width], width])
+    return tuple((start, count) for start, count, _last in boundaries)
+
+
+def breakpoints() -> list[dict]:
+    """حدودُ التوقّف الفعليّة في أنماط المنصّة وعددُ استعلاماتِ كلٍّ منها.
+
+    بتعريف مؤشّر الخارطة LK2 نفسِه (`scripts/measure_layout_kpis.py`): قيمُ `width` في
+    `@media`، والمتجاورتان بفارق 1px حدٌّ واحد (`max-width:640` و`min-width:641`) — فالجدولُ
+    في الدليل والمؤشّرُ رقمٌ واحد، ويتقلّص وحدَه حين تُوحَّد النقاط (LAY-03، D2).
+    """
+    if not find_paths():
+        return []
+    return [{"px": px, "uses": uses} for px, uses in _breakpoints(_sheets())]
