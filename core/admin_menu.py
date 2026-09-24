@@ -10,6 +10,15 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from django.conf import settings
+
+#: جدولا رموز JWT — في الإدارة فقط حين يُفتح JWT (`core/admin_hidden.py`)؛ وهو مغلقٌ فجدولاهما فارغان.
+JWT_TABLES: tuple[str, ...] = (
+    ("token_blacklist.OutstandingToken", "token_blacklist.BlacklistedToken")
+    if settings.API_JWT_ENABLED
+    else ()
+)
+
 #: (اسمُ القسم، ((عنوانٌ فرعيّ أو None، (نماذج…)), …)) — بترتيب قائمة المنصّة العلويّة.
 GROUPS: tuple[tuple[str, tuple[tuple[str | None, tuple[str, ...]], ...]], ...] = (
     (
@@ -218,8 +227,7 @@ GROUPS: tuple[tuple[str, tuple[tuple[str | None, tuple[str, ...]], ...]], ...] =
                     "axes.AccessAttempt",
                     "axes.AccessLog",
                     "axes.AccessFailureLog",
-                    "token_blacklist.OutstandingToken",
-                    "token_blacklist.BlacklistedToken",
+                    *JWT_TABLES,
                     "staging.ImportLog",
                 ),
             ),

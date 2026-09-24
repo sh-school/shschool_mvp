@@ -531,3 +531,32 @@ def test_an_overbooked_resource_is_one_breach():
     grid.place(1, 4, second)
 
     assert [b.code for b in grid_breaches(grid, [first, second])] == ["HC9"]
+
+
+# ══════════════════════════════════════════════════════════════
+#  SCH-15 — لماذا تعذّر وضعُها؟
+# ══════════════════════════════════════════════════════════════
+
+
+def test_an_unplaceable_lesson_names_what_blocks_it_most():
+    """معلّمٌ مشغولٌ في كلّ خانات الأسبوع: أكثرُ المانع أنّه مشغول — لا «تعذّر وضع» مجرّدةً."""
+    from operations.scheduler_audit import blockers, unplaced_message
+
+    grid = ScheduleGrid()
+    for index, (day, period) in enumerate((d, p) for d in range(5) for p in range(1, 8)):
+        grid.place(day, period, lesson(f"busy-{index}", f"s-{index}", "t-1", weekly=1))
+    wanted = lesson("c-new", "s-new", "t-1", weekly=1)
+
+    top = dict(blockers(grid, wanted, limit=10))
+    message = unplaced_message(grid, wanted)
+
+    assert top["HC1"] >= 30, "المعلّمُ مشغولٌ في كلّ الخانات تقريباً"
+    assert list(blockers(grid, wanted))[0][0] == "HC1", "وعند التعادل بترتيب الرمز"
+    assert "أكثرُ ما منعها" in message and "المعلّم لا يُدرّس شعبتين معاً" in message
+    assert message.startswith("تعذر وضع:")
+
+
+def test_a_lesson_with_free_cells_is_not_blamed_for_any_constraint():
+    from operations.scheduler_audit import blockers
+
+    assert blockers(ScheduleGrid(), lesson("c-1", "s-1", "t-1", weekly=1)) == []
