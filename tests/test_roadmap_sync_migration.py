@@ -846,3 +846,86 @@ def test_0016_leaves_a_kpi_the_developer_remeasured():
     )
     assert _sync16.sync_kpis(RoadmapKpi) == []
     assert RoadmapKpi.objects.get(code="SK1").current == 5.0
+
+
+# ── 0017: خطّةُ إصلاح الهويّة (VI-35..53، VD1..8، V-K26..39، PK29) ──
+
+_sync17 = importlib.import_module("roadmap.migrations.0017_identity_remediation_plan")
+
+
+def test_0017_adds_the_nineteen_items_once_with_owner_gates_and_2027_dates():
+    created = _sync17.add_items(RoadmapItem)
+    assert created == [f"VI-{n}" for n in range(35, 54)]
+    assert _sync17.add_items(RoadmapItem) == []
+    vi36 = RoadmapItem.objects.get(code="VI-36")
+    assert (vi36.status, vi36.gate, vi36.src) == ("todo", "owner", "VI")
+    assert vi36.date_basis.startswith("مقترَح") and "VD1" in vi36.deps
+    assert str(RoadmapItem.objects.get(code="VI-48").end_date) == "2027-01-28"
+    assert RoadmapItem.objects.get(code="VI-49").lane == "quality"
+    assert RoadmapItem.objects.get(code="VI-53").lane == "product"
+    assert not RoadmapItem.objects.filter(code="VI-34").exists()
+
+
+def test_0017_keeps_an_item_the_developer_wrote_first():
+    _item("VI-40", "doing", 30, title="كتبه المطوّر")
+    assert "VI-40" not in _sync17.add_items(RoadmapItem)
+    assert RoadmapItem.objects.get(code="VI-40").title == "كتبه المطوّر"
+
+
+def test_0017_opens_the_eight_decisions_without_deciding_any():
+    from roadmap.models import RoadmapDecision
+
+    assert _sync17.add_decisions(RoadmapDecision) == [f"VD{n}" for n in range(1, 9)]
+    assert _sync17.add_decisions(RoadmapDecision) == []
+    decisions = list(RoadmapDecision.objects.filter(code__startswith="VD"))
+    assert all(
+        (d.status, d.decision_date, d.decider) == ("open", None, "المالك") for d in decisions
+    )
+    assert RoadmapDecision.objects.get(code="VD1").blocks == "VI-36"
+    assert RoadmapDecision.objects.get(code="VD2").due == "2026-11-05"
+
+
+def test_0017_renumbers_the_kpis_and_records_the_two_measured_today():
+    assert _sync17.add_kpis(RoadmapKpi) == [
+        "V-K26", "V-K27", "V-K28", "V-K29", "V-K30", "V-K31", "V-K32", "V-K33", "V-K34", "V-K35",
+        "V-K36", "V-K37", "V-K38", "V-K39", "PK29",
+    ]  # fmt: skip
+    assert _sync17.add_kpis(RoadmapKpi) == []
+    k26 = RoadmapKpi.objects.get(code="V-K26")
+    assert (k26.baseline, k26.current, k26.extra["plan_code"]) == (3.0, 0.0, "V-K24")
+    assert k26.history == [{"d": "2026-09-24", "v": 0.0}]
+    assert RoadmapKpi.objects.get(code="V-K28").measured_at is None
+    assert RoadmapKpi.objects.get(code="V-K33").text_mode is True
+    assert RoadmapKpi.objects.get(code="V-K39").extra["plan_code"] == "V-K38"
+    pk29 = RoadmapKpi.objects.get(code="PK29")
+    assert (pk29.baseline, pk29.target, pk29.extra["plan_code"]) == (7.1, 8.2, "PK1b")
+
+
+def test_0017_does_not_create_the_kpi_that_already_exists_as_vk25():
+    RoadmapKpi.objects.create(
+        code="V-K25", lane="quality", name="لقطات", baseline=0.0, current=0.0, target=5.0
+    )
+    RoadmapKpi.objects.create(code="V-K26", lane="frontend", name="كتبه المطوّر", current=9.0)
+    assert "V-K26" not in _sync17.add_kpis(RoadmapKpi)
+    assert RoadmapKpi.objects.get(code="V-K26").name == "كتبه المطوّر"
+    assert _sync17.sync_kpi_notes(RoadmapKpi) == ["V-K25"]
+    assert _sync17.sync_kpi_notes(RoadmapKpi) == []
+    assert "12 صفحةً" in RoadmapKpi.objects.get(code="V-K25").source
+
+
+def test_0017_adds_notes_only_without_touching_status_or_dates():
+    from datetime import date
+
+    _item("LAY-05", "todo", 0, start_date=date(2026, 11, 16), end_date=date(2026, 11, 30))
+    _item("VI-13", "todo", 0)
+    _item("VI-25", "doing", 30)
+    assert _sync17.sync_notes(RoadmapItem) == ["VI-13", "LAY-05"]
+    assert _sync17.sync_notes(RoadmapItem) == []
+    lay05 = RoadmapItem.objects.get(code="LAY-05")
+    assert (lay05.status, str(lay05.start_date), str(lay05.end_date)) == (
+        "todo",
+        "2026-11-16",
+        "2026-11-30",
+    )
+    assert "لم يُغيَّر موعدُه" in lay05.note
+    assert RoadmapItem.objects.get(code="VI-25").note == ""
