@@ -536,6 +536,13 @@ admin.site.site_header = "SchoolOS — لوحة الإدارة"
 admin.site.site_title = "SchoolOS Admin"
 admin.site.index_title = "لوحة إدارة النظام"
 
+# القائمةُ الأفقيّة في الترويسة (`core/admin_menu.py`) تغني عن الشريط الجانبيّ فلا تكرار.
+admin.site.enable_nav_sidebar = False
+
+# جانغو يعرض 100 صفٍّ في كلّ صفحة قائمة، وهو كثيرٌ على شاشةٍ لا تُمرَّر؛ فالافتراضيُّ 25 لكلّ ModelAdmin
+# لم يحدّد `list_per_page` بنفسه (رابطُ «إظهار الكل» يبقى). ولا يُحدّد نموذجٌ رقماً آخر: يحرسه tests/test_admin_menu.py.
+admin.ModelAdmin.list_per_page = 25
+
 
 @admin.register(ParentStudentLink)
 class ParentStudentLinkAdmin(SchoolScopedAdmin):

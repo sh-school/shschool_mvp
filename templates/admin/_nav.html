@@ -1,6 +1,6 @@
 {% comment %}
   القائمةُ الأفقيّةُ في ترويسة لوحة الإدارة: أقسامٌ بأسماء قائمة المنصّة وقوائمُ منسدلةٌ بالنماذج.
-  التجميعُ في roadmap/admin_menu.py؛ والسلوكُ في static/js/admin_nav.js؛ والأنماطُ في admin_theme.css.
+  التجميعُ في core/admin_menu.py؛ والسلوكُ في static/js/admin_nav.js؛ والأنماطُ في admin_theme.css.
 {% endcomment %}{% if groups %}
 <nav class="adm-nav" id="adm-nav" aria-label="أقسام لوحة الإدارة">
   <a class="adm-nav__btn adm-nav__home" href="{% url 'admin:index' %}">الرئيسية</a>
