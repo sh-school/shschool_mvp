@@ -114,6 +114,7 @@
  "student_info/student_file.html",
  "styleguide/components.html",
  "styleguide/icon_preview.html",
+ "styleguide/layouts.html",
  "substitute/absence_detail.html",
  "substitute/register_absence.html",
  "substitute/report.html",
