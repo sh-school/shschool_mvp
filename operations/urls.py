@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from .views_schedule_drafts import discard_schedule, stop_schedule_generation
 
 urlpatterns = [
     path("schedule/", views.schedule, name="teacher_schedule"),
@@ -64,6 +65,16 @@ urlpatterns = [
         "smart-schedule/<uuid:generation_id>/approve/",
         views.approve_schedule,
         name="approve_schedule",
+    ),
+    path(
+        "smart-schedule/<uuid:generation_id>/discard/",
+        discard_schedule,
+        name="discard_schedule",
+    ),
+    path(
+        "smart-schedule/<uuid:generation_id>/stop/",
+        stop_schedule_generation,
+        name="stop_schedule_generation",
     ),
     path("reports/teacher-load/", views.teacher_load_report, name="teacher_load_report"),
     path("schedule-settings/", views.schedule_settings, name="schedule_settings"),

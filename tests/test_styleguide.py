@@ -139,8 +139,18 @@ def test_the_guide_renders_every_component_and_links_the_icons(client, developer
     ):
         assert f'style="{sample}"' in html, sample
     assert "المقاييسُ والحدودُ الدنيا</h2>" in html
-    for token in ("--control-h", "--z-modal"):
+    for token in (
+        "--control-h",
+        "--z-modal",
+        "--z-banner",
+        "--safe-top",
+        "--safe-bottom",
+        "--safe-inline",
+    ):
         assert f'<bdi dir="ltr">{token}</bdi>' in html, token
+    # H-04/H-05 طُبّقا: القاعدتان لا تقولان «تنتظر» ولا «جزئيّة»، ولا تبقى ملاحظةُ «لم تُعرَّف بعد».
+    assert "تنتظر H-04" not in html and "لم تُعرَّف رموزُ" not in html
+    assert "test_safe_area_tokens" in html and "test_z_scale" in html
     for title in (
         "الخطّ",
         "التباعدُ والتقوّس",

@@ -235,4 +235,40 @@ def test_the_nav_collapses_only_on_phones_and_only_when_the_script_ran():
 
 def test_nav_touch_targets_are_44px_on_phones():
     css = ADMIN.read_text(encoding="utf-8")
-    assert ".adm-nav__btn, #header .adm-nav__menu a { min-block-size: 44px;" in css
+    assert ".adm-nav__btn, #header .adm-nav__menu a { min-block-size: var(--adm-control-h);" in css
+
+
+def test_the_admin_touch_minimum_is_the_platform_token():
+    """`--adm-control-h` نسخةٌ حرفيّةٌ من `--control-h` — فإن غُيّر الحدُّ في المنصّة تغيّر هنا أو سقط هذا."""
+    platform = re.findall(
+        r"--control-h\s*:\s*([^;]+);", (CUSTOM / "10-foundation.css").read_text(encoding="utf-8")
+    )
+    admin = re.findall(r"--adm-control-h\s*:\s*([^;]+);", ADMIN.read_text(encoding="utf-8"))
+
+    assert platform and admin == platform, (platform, admin)
+
+
+def test_no_admin_touch_minimum_is_written_44px():
+    """كما `test_touch_target_token` للمنصّة: الحدُّ يُكتب `var(--adm-control-h)` لا رقماً."""
+    css = ADMIN.read_text(encoding="utf-8")
+    assert not re.findall(r"\bmin-(?:height|width|block-size|inline-size)\s*:\s*44px", css)
+
+
+def test_phone_touch_rules_cover_the_admin_controls():
+    """قيسَت 736 هدفاً دون الحدّ — القواعدُ تسمّي الأصنافَ التي وُجدت، لا تخمّن."""
+    css = ADMIN.read_text(encoding="utf-8")
+    block = css[css.index("أهدافُ اللمس على الجوّال في صفحات الإدارة") :]
+    block = block[: block.index("\n}\n", block.index("@media")) + 3]
+    for selector in (
+        "#user-tools :is(a, button)",
+        "a.addlink",
+        ".related-widget-wrapper-link",
+        ".datetimeshortcuts a",
+        ".selector button",
+        ".app-fold__summary",
+        "#changelist-filter summary",
+        "select",
+        "textarea",
+    ):
+        assert selector in block, selector
+    assert "var(--adm-control-h)" in block and "44px" not in block

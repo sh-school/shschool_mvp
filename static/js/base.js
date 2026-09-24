@@ -855,6 +855,8 @@ document.addEventListener('click', function(e) {
      <th data-sort="none">           عمودٌ بعينه لا يُفرَز
      <th data-sort="text|num">       نوعٌ مفروضٌ بدل المستنتَج
      <th data-sort-first="asc|desc"> اتّجاهُ النقرة الأولى بدل الطبيعيّ
+     <th data-sort-default="asc|desc"> الترتيبُ عند التحميل — قبل أيّ نقرة (عمودٌ واحد)
+     <table data-sort-min-rows="2">  أقلُّ عددٍ من الصفوف يُفرَز (الافتراض 3)
      <td data-sort-value="…">        قيمةُ الفرز حين يخالف النصُّ المعنى
      <tr data-sort-pin>              صفٌّ يبقى في الذيل (الإجماليّات)
 
@@ -987,7 +989,9 @@ document.addEventListener('click', function(e) {
       if (isPinned(row)) { pinned.push(row); continue; }
       groups.push({ row: row, nodes: [row], order: groups.length });
     }
-    if (groups.length < MIN_ROWS) return false;
+    /* سجلٌّ بصفٍّ أو صفّين يُفرَز إن صرّح قالبُه (`data-sort-min-rows`): جدولُ التوليد يبدأ صغيراً. */
+    var minRows = parseInt(table.getAttribute('data-sort-min-rows') || MIN_ROWS, 10) || MIN_ROWS;
+    if (groups.length < minRows) return false;
 
     var plain = groups.map(function (g) { return g.row; });
     var kinds = [], sortableCount = 0;
@@ -1101,6 +1105,16 @@ document.addEventListener('click', function(e) {
         th.setAttribute('aria-sort', state.dir === 1 ? 'ascending' : state.dir === -1 ? 'descending' : 'none');
         apply();
       });
+    });
+
+    /* الترتيبُ الافتراضيّ: عمودٌ صرّح قالبُه أنّه يُفرَز عند التحميل — كأنّ القارئ نقر عليه. */
+    Array.prototype.forEach.call(head.cells, function (th, index) {
+      var wanted = th.getAttribute('data-sort-default');
+      if (!kinds[index] || (wanted !== 'asc' && wanted !== 'desc') || state.index !== -1) return;
+      state.index = index;
+      state.dir = wanted === 'asc' ? 1 : -1;
+      th.setAttribute('aria-sort', wanted === 'asc' ? 'ascending' : 'descending');
+      apply();
     });
 
     table.__sortBound = true;
