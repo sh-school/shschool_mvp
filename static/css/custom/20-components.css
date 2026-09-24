@@ -1742,6 +1742,9 @@ textarea:focus-visible {
   border-radius: var(--radius-sm);
 }
 .modal-close-btn:hover { color: var(--text-primary); }
+/* حوارُ التأكيد (base.js، data-confirm): العنوانُ بلون الخطر المقروء، والسؤالُ ثانويّ. */
+.confirm-dlg-title { color: var(--status-danger-fg); }
+.confirm-dlg-message { color: var(--text-secondary); line-height: 1.7; }
 
 /* ── Mobile Bottom Navigation ──────────────────────────────── */
 .mobile-bottom-nav {
