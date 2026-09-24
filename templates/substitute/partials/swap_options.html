@@ -1,0 +1,17 @@
+{% comment %}
+التبديلُ بسبب الغياب مع معلّمي الشعبة نفسها (قرارُ المالك 2026-09-23): يأخذ المعلّمُ الآخرُ
+حصّةَ الغائب يومَ غيابه، ويردّ له الغائبُ حصّةً من حصصه في الشعبة يومَ عودته — فلا يزيد
+نصابُ أحد. الخياراتُ من `AbsenceSwapService.options`، وكلُّ خيارٍ معلّمٌ وحصّةُ الردّ ويومُها.
+القيادةُ تنفّذه فوراً (`immediate`)، والمنسّقُ يرسله للموافقة ثمّ التوقيع ثمّ اعتماد النائب.
+{% endcomment %}
+{% if options %}
+<form class="slot-assign" method="post" action="{% url 'absence_swap_create' absence.id slot.id %}">{% csrf_token %}
+  <select name="option" required class="form-select form-control-sm" aria-label="التبديل ويوم الردّ">
+    <option value="">— اختر المعلّم ويومَ الردّ —</option>
+    {% for o in options %}<option value="{{ o.value }}">{{ o.teacher.full_name }} — {{ o.slot.subject|default:"—" }} · يردّها له {{ o.date|date:"l j/n" }} الحصّة {{ o.slot.period_number }}</option>{% endfor %}
+  </select>
+  <button type="submit" class="btn-primary btn-sm">{% if immediate %}تبديل الآن{% else %}أرسل للموافقة{% endif %}</button>
+</form>
+{% else %}
+<span class="ui-note">لا أحدَ من معلّمي الشعبة متفرّغٌ لهذه الحصّة ويومِ ردٍّ قريب.</span>
+{% endif %}

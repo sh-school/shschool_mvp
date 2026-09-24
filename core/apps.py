@@ -8,3 +8,6 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         import core.signals  # noqa
+        from core.admin_axes import install
+
+        install()

@@ -303,7 +303,16 @@ class SubstituteService:
                 "status": "assigned",
             },
         )
-        # تحديث حالة الغياب
+        SubstituteService.refresh_absence_status(absence)
+        SubstituteService.hand_over_session(absence.school, slot, absence.date, substitute)
+        transaction.on_commit(lambda: SubstituteService._notify_cover(assignment, assigned_by))
+        return assignment
+
+    @staticmethod
+    def refresh_absence_status(absence: TeacherAbsence) -> None:
+        """«مغطّى» حين تُغطّى كلُّ حصص الغائب يومَه — بإشغالٍ أو بتبديلٍ نُفِّذ."""
+        from operations.models import TeacherSwap
+
         total_slots = (
             ScheduleSlot.objects.live(absence.school)
             .filter(
@@ -312,17 +321,17 @@ class SubstituteService:
             )
             .count()
         )
-        covered = SubstituteAssignment.objects.filter(
-            absence=absence, status__in=("assigned", "confirmed")
-        ).count()
-        if total_slots > 0 and covered >= total_slots:
-            absence.status = "covered"
-        else:
-            absence.status = "pending"
+        covered = set(
+            SubstituteAssignment.objects.filter(
+                absence=absence, status__in=("assigned", "confirmed")
+            ).values_list("slot_id", flat=True)
+        ) | set(
+            TeacherSwap.objects.filter(
+                absence=absence, status__in=("approved", "executed")
+            ).values_list("slot_a_id", flat=True)
+        )
+        absence.status = "covered" if total_slots > 0 and len(covered) >= total_slots else "pending"
         absence.save(update_fields=["status"])
-        SubstituteService.hand_over_session(absence.school, slot, absence.date, substitute)
-        transaction.on_commit(lambda: SubstituteService._notify_cover(assignment, assigned_by))
-        return assignment
 
     @staticmethod
     def hand_over_session(

@@ -71,7 +71,13 @@ class BreachReportForm(forms.ModelForm):
             "severity": forms.Select(attrs={**_CONTROL, "id": "breachSeverity"}),
             "data_type_affected": forms.Select(attrs={**_CONTROL, "id": "breachDataType"}),
             "affected_count": forms.NumberInput(
-                attrs={**_CONTROL, "id": "breachAffected", "min": 0, "max": MAX_AFFECTED}
+                attrs={
+                    **_CONTROL,
+                    "id": "breachAffected",
+                    "min": 0,
+                    "max": MAX_AFFECTED,
+                    "inputmode": "numeric",
+                }
             ),
             "assigned_to": forms.Select(attrs={**_CONTROL, "id": "breachAssignee"}),
             "evidence_notes": forms.Textarea(

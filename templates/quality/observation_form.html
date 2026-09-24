@@ -68,7 +68,7 @@
             {% endfor %}
           </select>
         </label>
-        <label>الحصة <input type="number" name="period" id="qobs-period" min="1" max="8" class="form-control"
+        <label>الحصة <input type="number" inputmode="numeric" name="period" id="qobs-period" min="1" max="8" class="form-control"
           value="{{ obs.period|default_if_none:'' }}"></label>
         <label>الموضوع <input type="text" name="topic" class="form-control" value="{{ obs.topic|default:'' }}"></label>
         <label>نوع المتابعة

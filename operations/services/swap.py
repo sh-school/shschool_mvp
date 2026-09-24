@@ -311,6 +311,13 @@ class SwapService:
                 body=f"بانتظار موافقة {waiting}",
                 event_type="swap_response",
             )
+            if swap.absence_id:
+                # تبديلُ غيابٍ وقّعه منسّقاه حين بدأه: ينتقل إلى النائب بعد القبول.
+                from operations.services.absence_swap import AbsenceSwapService
+
+                swap.save()
+                AbsenceSwapService.to_vp_if_signed(swap)
+                return swap
         else:
             swap.status = "rejected_b"
             swap.rejection_reason = rejection_reason
@@ -366,8 +373,16 @@ class SwapService:
         approved: bool = True,
         rejection_reason: str = "",
     ) -> TeacherSwap:
-        """منسّقُ المادّة يوقّع عن جهته — ولا يُنفَّذ حتّى تُوقَّع الجهتان."""
+        """منسّقُ المادّة يوقّع عن جهته — ولا يُنفَّذ حتّى تُوقَّع الجهتان.
+
+        وتبديلُ الغياب بعد التوقيعين ينتظر النائبَ الأكاديميّ (قرارُ المالك 2026-09-23).
+        """
         from django.utils import timezone as tz
+
+        from operations.services.absence_swap import AbsenceSwapService
+
+        if swap.status == "pending_vp":
+            return AbsenceSwapService.vp_decide(swap, approved_by, approved, rejection_reason)
 
         valid_statuses = ("pending_coordinator", "pending_vp", "accepted_b")
         if swap.status not in valid_statuses:
@@ -401,6 +416,10 @@ class SwapService:
                     body="بانتظار توقيع منسّق المادّة الأخرى",
                     event_type="swap_response",
                 )
+                return swap
+            if swap.absence_id:
+                swap.save()
+                AbsenceSwapService.to_vp_if_signed(swap)
                 return swap
             swap.status = "approved"
             # تنفيذ تلقائي

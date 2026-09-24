@@ -10,11 +10,15 @@ class LeaveBalanceAdmin(admin.ModelAdmin):
         "leave_type",
         "total_days",
         "used_days",
-        "remaining_days",
+        "days_left",
         "academic_year",
     )
     list_filter = ("leave_type", "academic_year")
     search_fields = ("staff__full_name", "staff__national_id")
+
+    @admin.display(description="الأيّام المتبقّية")
+    def days_left(self, obj):
+        return obj.remaining_days
 
 
 @admin.register(LeaveRequest)

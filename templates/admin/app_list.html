@@ -3,6 +3,8 @@
   نسخةٌ من `django/contrib/admin/templates/admin/app_list.html` (5.2) بتغييرٍ واحد: في الصفحة
   الرئيسيّة (`show_changelinks`) يُلَفّ كلُّ تطبيقٍ في `<details>` بلا `open` فيُطوى، ويُفتح
   التطبيقُ الجاريُ وحدَه إن كانت الصفحةُ داخلَه. والشريطُ الجانبيّ بلا تغيير.
+  و`<summary>` نصٌّ فقط: كان فيه رابطُ التطبيق، والرابطُ داخل عنصرٍ تفاعليٍّ (`summary` نفسُه يطوي
+  ويفتح) مشكلةُ axe «nested-interactive» بـ21 موضعاً. فصار رابطُ صفحة التطبيق سطراً في المحتوى المطويّ.
   أنماطُ الطيّ في `static/css/admin_theme.css` (قسم `.app-fold`).
 {% endcomment %}
 {% load i18n admin_menu %}
@@ -12,9 +14,10 @@
     <div class="app-{{ app.app_label }} module{% if app.app_url in request.path|urlencode %} current-app{% endif %}">
       {% if show_changelinks %}<details class="app-fold"{% if app.app_url in request.path|urlencode %} open{% endif %}>
         <summary class="app-fold__summary">
-          {% with app_name=app.app_label|app_label:app.name %}<a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app_name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app_name }}</a>
+          {% with app_name=app.app_label|app_label:app.name %}<span class="section">{{ app_name }}</span>
           <span class="app-fold__count">{{ app.models|length }}</span>{% endwith %}
-        </summary>{% endif %}
+        </summary>
+        <p class="app-fold__open">{% with app_name=app.app_label|app_label:app.name %}<a href="{{ app.app_url }}">صفحةُ «{{ app_name }}»</a>{% endwith %}</p>{% endif %}
       <div class="table-wrap"><table>
         {% if not show_changelinks %}<caption>
           {% with app_name=app.app_label|app_label:app.name %}<a href="{{ app.app_url }}" class="section" title="{% blocktranslate with name=app_name %}Models in the {{ name }} application{% endblocktranslate %}">{{ app_name }}</a>{% endwith %}
