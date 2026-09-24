@@ -762,6 +762,8 @@ def test_0016_adds_notes_and_closes_only_dbt39():
     starts = {
         "SCH-08": ("doing", 90),
         "DBT-39": ("todo", 0),
+        "OWN-09": ("done", 100),
+        "OWN-22": ("done", 100),
         "SCH-11": ("todo", 0),
         "DBT-36": ("todo", 0),
         "Q-11": ("todo", 0),
@@ -780,13 +782,14 @@ def test_0016_adds_notes_and_closes_only_dbt39():
     assert "22.8%" in RoadmapItem.objects.get(code="SCH-11").note
 
 
-def test_0016_adds_n035_closed_once():
-    assert _sync16.add_missing(RoadmapItem) == ["N-035", "N-036"]
+def test_0016_adds_vi34_n036_n037_closed_once():
+    assert _sync16.add_missing(RoadmapItem) == ["VI-34", "N-036", "N-037"]
     assert _sync16.add_missing(RoadmapItem) == []
     assert RoadmapItem.objects.get(code="N-036").pr == "#563"
-    n035 = RoadmapItem.objects.get(code="N-035")
-    assert (n035.status, n035.pr, n035.lane) == ("done", "#555", "frontend")
-    assert "js_icon_problems" in n035.note
+    assert RoadmapItem.objects.get(code="N-037").pr == "#547"
+    vi34 = RoadmapItem.objects.get(code="VI-34")
+    assert (vi34.status, vi34.pr, vi34.lane, vi34.src) == ("done", "#555", "frontend", "VI")
+    assert "js_icon_problems" in vi34.note
 
 
 def test_0016_opens_the_fourteen_debts_undated_and_leaves_dbt37_alone():
