@@ -17,6 +17,7 @@ from django.db import migrations
 
 STAMP = "[2026-09-24]"
 DAY = datetime.date(2026, 9, 24)
+D = datetime.date
 
 OWNER_RULING = "لا تكسر توزيع المادة لو سمحت ابدا قيد صلب"
 
@@ -120,14 +121,25 @@ NEW_ITEMS = [
         "todo",
         0,
         "",
-        "من حسم D-17 (2026-09-24): HC6 قيدٌ صلبٌ لا رخصةَ له، فالسدادُ (SCH-03) احتياطٌ لا طريق. "
-        "تواريخُه ورقمُ طلبه من جلسة الجدولة حين يُفتح.",
-        None,
-        None,
-        "غير مجدول — ينتظر تاريخاً من جلسة الجدولة",
+        "من حسم D-17 (2026-09-24): HC6 قيدٌ صلبٌ لا رخصةَ له، فالسدادُ (SCH-03) احتياطٌ لا طريق. ونطاقُه أصغرُ ممّا "
+        "قُدِّر: قياسُ جلسة الجدولة على نسخة الإنتاج وضع 869 من 869 بلا متعذّر وHC6 لا يُكسر. رقمُ طلبه حين يُفتح.",
+        D(2026, 9, 24),
+        D(2026, 9, 26),
+        "مقترَح — من خطّة جلسة الجدولة، لم يعتمده المالك",
         617,  # بعد SCH-16 (616)
     ),
 ]
+
+# تفاصيلُ ما ليس في صفّ البند: (الجهد، الاعتماديّات، معيار الإغلاق، المرجع)
+DETAILS = {
+    "SCH-17": (
+        0.5,
+        "D-17",
+        "HC6 بـbreak_at=never وtunable=False في سجلّ القيود، وتوليدٌ على نسخة الإنتاج بصفر متعذّرٍ وصفر HC6، "
+        "وأيُّ متعذّرٍ مستقبليّ يُعلَن «تعذّر وضع» باسم القيد.",
+        "docs/schedule_generation_remediation_plan_2026-09.md",
+    ),
+}
 
 # (الرمز، الحالة المتوقَّعة، الحالة الجديدة، تاريخ الحسم، سطرٌ يُلحَق بالتوصية)
 DECISIONS = [
@@ -188,9 +200,14 @@ def add_missing(item_model):
     for code, src, lane, title, status, progress, pr, note, start, end, basis, order in NEW_ITEMS:
         if item_model.objects.filter(code=code).exists():
             continue
+        effort, deps, criterion, ref = DETAILS.get(code, (1, "", "", ""))
         item_model.objects.create(
             code=code,
             src=src,
+            effort=effort,
+            deps=deps,
+            criterion=criterion,
+            ref=ref,
             lane=lane,
             title=title,
             status=status,

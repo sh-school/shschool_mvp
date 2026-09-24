@@ -488,7 +488,13 @@ def test_0013_adds_n032_closed_and_sch17_open():
     assert _sync13.add_missing(RoadmapItem) == []
     assert RoadmapItem.objects.get(code="N-032").pr == "#531"
     sch17 = RoadmapItem.objects.get(code="SCH-17")
-    assert (sch17.status, sch17.pr, sch17.start_date, sch17.src) == ("todo", "", None, "SCH")
+    assert (sch17.status, sch17.pr, str(sch17.end_date), sch17.src) == (
+        "todo",
+        "",
+        "2026-09-26",
+        "SCH",
+    )
+    assert (sch17.effort, sch17.deps) == (0.5, "D-17") and "break_at=never" in sch17.criterion
 
 
 def test_0013_annotates_md9_only_when_already_decided():
