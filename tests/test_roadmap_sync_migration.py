@@ -751,3 +751,83 @@ def test_0015_closes_dbt05_by_an_operation_not_a_pr():
     dbt05 = RoadmapItem.objects.get(code="DBT-05")
     assert (dbt05.status, dbt05.progress, dbt05.pr) == ("done", 100, "")
     assert "archive/wave3-f-2026-09-24" in dbt05.note
+
+
+# ── 0016: اعتمادُ الجدول الجديد وقياسُه، و#555، وثلاثةَ عشرَ ديناً ──
+
+_sync16 = importlib.import_module("roadmap.migrations.0016_sync_items_2026_09_24g")
+
+
+def test_0016_adds_notes_without_moving_any_status():
+    starts = {
+        "SCH-08": ("doing", 90),
+        "SCH-11": ("todo", 0),
+        "DBT-36": ("todo", 0),
+        "Q-11": ("todo", 0),
+        "VI-13": ("todo", 0),
+    }
+    for code, (status, progress) in starts.items():
+        _item(code, status, progress)
+    assert _sync16.sync(RoadmapItem) == list(starts)
+    assert _sync16.sync(RoadmapItem) == []
+    for code, (status, progress) in starts.items():
+        item = RoadmapItem.objects.get(code=code)
+        assert (item.status, item.progress) == (status, progress), code
+    assert "c2dba53a" in RoadmapItem.objects.get(code="SCH-08").note
+    assert "22.8%" in RoadmapItem.objects.get(code="SCH-11").note
+
+
+def test_0016_adds_n035_closed_once():
+    assert _sync16.add_missing(RoadmapItem) == ["N-035"]
+    assert _sync16.add_missing(RoadmapItem) == []
+    n035 = RoadmapItem.objects.get(code="N-035")
+    assert (n035.status, n035.pr, n035.lane) == ("done", "#555", "frontend")
+    assert "js_icon_problems" in n035.note
+
+
+def test_0016_opens_the_thirteen_debts_undated_and_leaves_dbt37_alone():
+    assert _sync16.add_open_debts(RoadmapItem) == [f"DBT-{n}" for n in range(40, 53)]
+    assert _sync16.add_open_debts(RoadmapItem) == []
+    assert not RoadmapItem.objects.filter(code="DBT-37").exists()
+    assert all(
+        (i.status, i.pr, i.start_date, i.src) == ("todo", "", None, "DBT")
+        for i in RoadmapItem.objects.filter(code__in=[f"DBT-{n}" for n in range(40, 53)])
+    )
+    leave = RoadmapItem.objects.get(code="DBT-40")
+    assert leave.lane == "sec" and "#560" in leave.note and "الأشدُّ حساسيّةً" in leave.note
+    assert "لم أتحقّق أنّهما" in RoadmapItem.objects.get(code="DBT-43").note
+
+
+def test_0016_keeps_a_debt_the_developer_wrote_first():
+    _item("DBT-44", "doing", 20, title="كتبه المطوّر")
+    assert "DBT-44" not in _sync16.add_open_debts(RoadmapItem)
+    assert RoadmapItem.objects.get(code="DBT-44").title == "كتبه المطوّر"
+
+
+def test_0016_records_the_production_measurement_and_keeps_the_baseline():
+    values = {"SK1": 12.0, "SK2": 98.2, "SK3": 17.9, "SK4": 26.0, "SK5": 0.0}
+    for code, value in values.items():
+        RoadmapKpi.objects.create(
+            code=code,
+            lane="backend",
+            name=code,
+            baseline=value,
+            current=value,
+            measured_at=_sync16.DAY,
+            history=[{"d": "2026-09-24", "v": value}],
+        )
+    assert _sync16.sync_kpis(RoadmapKpi) == ["SK1", "SK2", "SK3", "SK4", "SK5"]
+    assert _sync16.sync_kpis(RoadmapKpi) == []
+    sk1 = RoadmapKpi.objects.get(code="SK1")
+    assert (sk1.baseline, sk1.current) == (12.0, 7.0)
+    assert sk1.history == [{"d": "2026-09-24", "v": 7.0}]
+    assert RoadmapKpi.objects.get(code="SK3").current == 6.1
+    assert RoadmapKpi.objects.get(code="SK5").current == 2.0
+
+
+def test_0016_leaves_a_kpi_the_developer_remeasured():
+    RoadmapKpi.objects.create(
+        code="SK1", lane="backend", name="SK1", baseline=12.0, current=5.0, measured_at=_sync16.DAY
+    )
+    assert _sync16.sync_kpis(RoadmapKpi) == []
+    assert RoadmapKpi.objects.get(code="SK1").current == 5.0
