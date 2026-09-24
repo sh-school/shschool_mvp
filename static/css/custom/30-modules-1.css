@@ -896,6 +896,8 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
    ──────────────────────────────────────────────────────── */
 .exec-dash {
   display: grid;
+  /* عمودٌ صريحٌ: الضمنيُّ `auto` يتمدّد لأدنى محتوى جدولٍ داخله (701px في 366 على /notifications/)، فيُقصّ الغلافُ. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto auto auto;
   gap: var(--sp-2);
 }
