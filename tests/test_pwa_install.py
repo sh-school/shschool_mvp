@@ -1,8 +1,16 @@
-"""التطبيقُ المثبَّت على الجوال يفتح بشاشةٍ كاملة (قرارُ 2026-09-14).
+"""التطبيقُ المثبَّت: وضعُ العرض، والهويّة، والأيقونات، والاسم.
 
-`fullscreen` يُخفي شريطَ الحالة وأزرارَ النظام في أندرويد، وما لا يدعمه يرجع
-من نفسه إلى `standalone`. لكنّ كشفَ «التطبيق مثبَّت» كان يسأل عن `standalone`
-وحدَه، فلو بقي كذلك لظهر شريطُ «ثبّت المنصّة» داخل التطبيق المثبَّت نفسِه.
+**وضعُ العرض `standalone`** (خطّة الجوال D9 وQ-12، 2026-09-21؛ وفوّض المالكُ الحسمَ
+2026-09-24: «الأفضل للمنصّة وعرضها على جميع الأجهزة»). كان `fullscreen` (قرارُ
+2026-09-14، #264) يُخفي شريطَ الحالة وأزرارَ النظام في أندرويد وحدَه، وما لا يدعمه يرجع
+من نفسه إلى `standalone` — فكانت المنصّةُ تُعرض بوضعين. و`standalone` واحدٌ على كلّ جهاز،
+ويُبقي للمعلّم الساعةَ وزرَّ الرجوع في تطبيقِ عملٍ يُفتح طوال اليوم.
+
+وكشفُ «التطبيق مثبَّت» يسأل عن الوضعين معاً: من ثبّته بـ`fullscreen` قبل التغيير يبقى
+عليه حتى يحدّث المتصفّحُ المانيفست — ولولا ذلك لظهر له شريطُ «ثبّت المنصّة» داخل التطبيق.
+
+**هويّةٌ ثابتة `id`**: `start_url` في المانيفست العامّ يتغيّر بالدور، وبلا `id` تُشتقّ هويّةُ
+التطبيق منه فيصير لكلّ دورٍ تطبيقٌ منفصل. وللبوّابة هويّتُها.
 """
 
 import json
@@ -11,6 +19,7 @@ import re
 from pathlib import Path
 
 import pytest
+from django.urls import reverse
 from PIL import Image, ImageChops
 
 from core.management.commands.build_app_icons import (
@@ -33,9 +42,9 @@ def _icons(manifest):
 
 
 @pytest.mark.parametrize("manifest", MANIFESTS)
-def test_installed_app_opens_fullscreen(manifest):
+def test_installed_app_opens_standalone(manifest):
     display = re.search(r'"display":\s*"([^"]+)"', _read(manifest))
-    assert display and display.group(1) == "fullscreen"
+    assert display and display.group(1) == "standalone"
 
 
 @pytest.mark.parametrize("manifest", MANIFESTS)
@@ -90,7 +99,29 @@ def test_fullscreen_counts_as_installed(source):
 
 def test_global_manifest_is_valid_json(client_as, school, teacher_user):
     response = client_as(teacher_user).get("/manifest.json")
-    assert json.loads(response.content)["display"] == "fullscreen"
+    assert json.loads(response.content)["display"] == "standalone"
+
+
+def _manifest(client, url):
+    response = client.get(url)
+    assert response.status_code == 200
+    return json.loads(response.content.decode())
+
+
+def test_each_manifest_has_its_own_stable_id(client, client_as, parent_user):
+    global_ = _manifest(client, reverse("global_manifest"))
+    # بوّابةُ وليّ الأمر خلف الدخول — مانيفستُها كذلك.
+    parents = _manifest(client_as(parent_user), reverse("pwa_manifest"))
+
+    assert global_["id"] == "/" and parents["id"] == "/parents/"
+
+
+def test_the_global_id_does_not_follow_the_role_start_url(client, client_as, teacher_user):
+    anonymous = _manifest(client, reverse("global_manifest"))
+    teacher = _manifest(client_as(teacher_user), reverse("global_manifest"))
+
+    assert anonymous["start_url"] != teacher["start_url"]  # يتغيّر بالدور
+    assert anonymous["id"] == teacher["id"]  # والهويّةُ واحدة
 
 
 def test_the_app_is_named_from_the_school_record(client_as, school, teacher_user):

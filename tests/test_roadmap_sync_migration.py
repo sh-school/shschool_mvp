@@ -4,7 +4,7 @@ import importlib
 
 import pytest
 
-from roadmap.models import RoadmapItem
+from roadmap.models import RoadmapItem, RoadmapKpi
 
 pytestmark = pytest.mark.django_db
 
@@ -322,3 +322,210 @@ def test_0010_publishes_no_personal_number_nor_the_temporary_password_scheme():
     blob = json.dumps(_sync10.ITEMS, ensure_ascii=False)
     assert not re.findall(r"\d{5,}", blob)
     assert "AUg" not in blob
+
+
+# ── 0011: #519 و#508 و#526، وثلاثةُ أعمالٍ بلا بند، وأوّلُ مؤشّراتٍ تُحدَّث في هجرة ──
+
+_sync11 = importlib.import_module("roadmap.migrations.0011_sync_items_2026_09_24c")
+
+
+def test_0011_moves_the_items_and_leaves_lay03_alone():
+    for code in ("VI-28", "H-06", "VI-29", "OWN-19", "OWN-21", "M-07", "DBT-36", "LAY-03"):
+        _item(code, "todo", 0)
+    assert _sync11.sync(RoadmapItem) == [
+        "VI-28",
+        "H-06",
+        "H-06",
+        "VI-29",
+        "OWN-19",
+        "OWN-21",
+        "M-07",
+        "DBT-36",
+    ]
+    assert _sync11.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="VI-28").pr == "#519"
+    h06 = RoadmapItem.objects.get(code="H-06")
+    assert (h06.status, h06.progress, h06.pr) == ("done", 100, "#519 #529")
+    assert "#519:" in h06.note and "#529" in h06.note
+    own19 = RoadmapItem.objects.get(code="OWN-19")
+    assert (own19.status, own19.progress, own19.pr) == ("doing", 90, "#526")
+    vi29 = RoadmapItem.objects.get(code="VI-29")
+    assert (vi29.status, vi29.pr) == ("todo", "") and "card-flow" in vi29.note
+    lay03 = RoadmapItem.objects.get(code="LAY-03")
+    assert (lay03.status, lay03.note) == ("todo", "")
+
+
+def test_0011_adds_the_merged_work_once():
+    assert _sync11.add_missing(RoadmapItem) == ["N-029", "N-030", "N-031"]
+    assert RoadmapItem.objects.get(code="N-031").pr == "#514"
+    assert _sync11.add_missing(RoadmapItem) == []
+
+
+def _kpi(code, current, measured_at, **kw):
+    return RoadmapKpi.objects.create(
+        code=code,
+        lane="frontend",
+        name="مؤشّر",
+        baseline=current,
+        current=current,
+        measured_at=measured_at,
+        **kw,
+    )
+
+
+def test_0011_updates_an_untouched_kpi_and_keeps_both_points():
+    _kpi("LK5", 1088.0, _sync11.KPI_MEASURED, source="scripts/x")
+    assert _sync11.sync_kpis(RoadmapKpi) == ["LK5"]
+    kpi = RoadmapKpi.objects.get(code="LK5")
+    assert (kpi.current, kpi.baseline, kpi.measured_at) == (998.0, 1088.0, _sync11.DAY)
+    assert kpi.history == [{"d": "2026-09-23", "v": 1088.0}, {"d": "2026-09-24", "v": 998.0}]
+    assert "917a5bab" in kpi.source
+    assert _sync11.sync_kpis(RoadmapKpi) == []
+
+
+def test_0011_leaves_a_kpi_the_developer_remeasured():
+    _kpi("LK2", 12.0, _sync11.DAY)
+    assert _sync11.sync_kpis(RoadmapKpi) == []
+    assert RoadmapKpi.objects.get(code="LK2").current == 12.0
+
+
+def test_0011_records_lk2_back_at_nine_after_529():
+    _kpi("LK2", 9.0, _sync11.KPI_MEASURED)
+    assert _sync11.sync_kpis(RoadmapKpi) == ["LK2"]
+    kpi = RoadmapKpi.objects.get(code="LK2")
+    assert (kpi.current, kpi.measured_at) == (9.0, _sync11.DAY)
+    assert "410aa186" in kpi.source
+
+
+# ── 0012: خطّةُ إصلاح توليد الجدول (SCH-01..16، OWN-31، D-17، SK1..5) ──
+
+_sync12 = importlib.import_module("roadmap.migrations.0012_schedule_generation_plan")
+
+
+def test_0012_adds_the_plan_items_and_the_owner_item_once():
+    created = _sync12.add_items(RoadmapItem)
+    assert created == [f"SCH-{n:02d}" for n in range(1, 17)] + ["OWN-31"]
+    assert _sync12.add_items(RoadmapItem) == []
+    first = RoadmapItem.objects.get(code="SCH-01")
+    assert (first.status, first.progress, first.pr, first.src) == ("doing", 60, "", "SCH")
+    gate = RoadmapItem.objects.get(code="SCH-05")
+    assert gate.gate == "owner" and "D-17" in gate.deps
+    assert "#531" in RoadmapItem.objects.get(code="SCH-08").deps
+    assert RoadmapItem.objects.get(code="OWN-31").gate == "owner"
+
+
+def test_0012_keeps_an_item_the_developer_added_first():
+    _item("SCH-01", "done", 100, title="أُنشئ يدوياً")
+    assert "SCH-01" not in _sync12.add_items(RoadmapItem)
+    assert RoadmapItem.objects.get(code="SCH-01").title == "أُنشئ يدوياً"
+
+
+def test_0012_opens_d17_without_deciding_it():
+    from roadmap.models import RoadmapDecision
+
+    assert _sync12.add_decision(RoadmapDecision) == ["D-17"]
+    assert _sync12.add_decision(RoadmapDecision) == []
+    d17 = RoadmapDecision.objects.get(code="D-17")
+    assert (d17.status, d17.decision_date, d17.blocks) == ("open", None, "SCH-05")
+
+
+def test_0012_adds_the_kpis_with_their_first_measurement():
+    assert _sync12.add_kpis(RoadmapKpi) == ["SK1", "SK2", "SK3", "SK4", "SK5"]
+    assert _sync12.add_kpis(RoadmapKpi) == []
+    sk1 = RoadmapKpi.objects.get(code="SK1")
+    assert (sk1.current, sk1.target, sk1.direction) == (12.0, 0.0, "down")
+    assert sk1.history == [{"d": "2026-09-24", "v": 12.0}]
+
+
+# ── 0013: حسمُ D-17 وأثرُه، وOWN-19/OWN-22، وN-032 ──
+
+_sync13 = importlib.import_module("roadmap.migrations.0013_sync_items_2026_09_24d")
+
+
+def test_0013_decides_d17_once_and_records_the_owner_ruling():
+    from roadmap.models import RoadmapDecision
+
+    RoadmapDecision.objects.create(
+        code="D-17", title="HC6", status="open", recommendation="(أ) تبقى."
+    )
+    assert _sync13.decide(RoadmapDecision) == ["D-17"]
+    assert _sync13.decide(RoadmapDecision) == []
+    d17 = RoadmapDecision.objects.get(code="D-17")
+    assert (d17.status, str(d17.decision_date)) == ("decided", "2026-09-24")
+    assert (
+        d17.recommendation.startswith("(أ) تبقى.\n") and _sync13.OWNER_RULING in d17.recommendation
+    )
+
+
+def test_0013_leaves_a_decision_the_owner_already_took():
+    from roadmap.models import RoadmapDecision
+
+    RoadmapDecision.objects.create(code="D-17", title="HC6", status="decided")
+    assert _sync13.decide(RoadmapDecision) == []
+
+
+def test_0013_closes_the_admin_items_and_unblocks_sch05():
+    _item("OWN-19", "doing", 90, pr="#526")
+    _item("OWN-22", "todo", 0)
+    _item("SCH-03", "doing", 5)
+    _item("SCH-05", "doing", 0, gate="owner")
+    _item("Q-12", "todo", 0)
+    _item("Q-08", "todo", 0)
+    assert _sync13.sync(RoadmapItem) == ["OWN-19", "OWN-22", "SCH-03", "SCH-05", "Q-12", "Q-08"]
+    assert _sync13.sync(RoadmapItem) == []
+    own19 = RoadmapItem.objects.get(code="OWN-19")
+    assert (own19.status, own19.pr) == ("done", "#526 #533")
+    sch05 = RoadmapItem.objects.get(code="SCH-05")
+    assert (sch05.status, sch05.gate) == ("doing", "") and "D-17" in sch05.note
+    sch03 = RoadmapItem.objects.get(code="SCH-03")
+    assert (sch03.status, sch03.progress, sch03.gate) == ("doing", 5, "")
+    q08 = RoadmapItem.objects.get(code="Q-08")
+    assert (q08.status, q08.progress, q08.pr) == ("doing", 60, "#537")
+
+
+def test_0013_adds_n032_closed_and_sch17_open():
+    assert _sync13.add_missing(RoadmapItem) == ["N-032", "SCH-17", "SCH-18"]
+    assert _sync13.add_missing(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="N-032").pr == "#531"
+    sch17 = RoadmapItem.objects.get(code="SCH-17")
+    assert (sch17.status, sch17.pr, str(sch17.end_date), sch17.src) == (
+        "todo",
+        "",
+        "2026-09-26",
+        "SCH",
+    )
+    assert (sch17.effort, sch17.deps) == (0.5, "D-17") and "break_at=never" in sch17.criterion
+
+
+def test_0013_annotates_md9_only_when_already_decided():
+    from roadmap.models import RoadmapDecision
+
+    RoadmapDecision.objects.create(
+        code="MD9", title="PWA", status="decided", recommendation="(ب) standalone."
+    )
+    assert _sync13.annotate_decisions(RoadmapDecision) == ["MD9"]
+    assert _sync13.annotate_decisions(RoadmapDecision) == []
+    assert "#537" in RoadmapDecision.objects.get(code="MD9").recommendation
+    RoadmapDecision.objects.filter(code="MD9").update(status="open", recommendation="")
+    assert _sync13.annotate_decisions(RoadmapDecision) == []
+
+
+def test_0013_records_d18_decided_once_and_its_item():
+    from roadmap.models import RoadmapDecision
+
+    assert _sync13.add_decisions(RoadmapDecision) == ["D-18"]
+    assert _sync13.add_decisions(RoadmapDecision) == []
+    d18 = RoadmapDecision.objects.get(code="D-18")
+    assert (d18.status, str(d18.decision_date)) == ("decided", "2026-09-24")
+    assert _sync13.ADJACENCY_RULING in d18.recommendation
+    _sync13.add_missing(RoadmapItem)
+    sch18 = RoadmapItem.objects.get(code="SCH-18")
+    assert (sch18.status, sch18.deps, sch18.sort_order) == ("todo", "D-18", 618)
+
+
+def test_0013_leaves_a_d18_the_developer_wrote_first():
+    from roadmap.models import RoadmapDecision
+
+    RoadmapDecision.objects.create(code="D-18", title="كتبه المطوّر", status="open")
+    assert _sync13.add_decisions(RoadmapDecision) == []
+    assert RoadmapDecision.objects.get(code="D-18").title == "كتبه المطوّر"

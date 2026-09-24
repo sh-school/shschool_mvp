@@ -5,7 +5,7 @@
 {% block title %}شؤون الموظفين{% endblock %}
 
 {# الصفحةُ لا تُمرَّر؛ قائمتا السطر الأخير تُمرَّر كلٌّ وحدَها. #}
-{% block main_class %}page-noscroll{% endblock %}
+{% block main_class %}{% page_layout "dashboard" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with current="شؤون الموظفين" %}

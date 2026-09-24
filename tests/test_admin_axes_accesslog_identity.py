@@ -126,3 +126,48 @@ def test_the_other_axes_lists_are_identified_and_masked(client_as, superuser, mo
     html = client_as(superuser).get(reverse(f"admin:axes_{model_name}_changelist")).content.decode()
     assert "صاحبُ محاولةٍ فاشلة" in html and "70077" in html
     assert owner.national_id not in html, f"{model_name}: الرقمُ الشخصيّ كاملاً ظهر في القائمة"
+
+
+def _attempt(username, failures):
+    from axes.models import AccessAttempt
+
+    return AccessAttempt.objects.create(
+        username=username,
+        ip_address="10.0.0.4",
+        user_agent="t",
+        attempt_time=timezone.now(),
+        get_data="",
+        post_data="",
+        failures_since_start=failures,
+    )
+
+
+def test_the_attempts_list_speaks_arabic(client_as, superuser):
+    """نصوصُ axes بلا ترجمةٍ عربيّة في كتالوجها — «Status» و«Locked Out» — تُستبدل في اللوحة (OWN-19)."""
+    from axes.conf import settings as axes_settings
+
+    limit = axes_settings.AXES_FAILURE_LIMIT
+    _attempt("11111111111", limit)
+    _attempt("22222222222", limit - 1)
+    html = client_as(superuser).get(reverse("admin:axes_accessattempt_changelist")).content.decode()
+
+    for english in ("Locked Out", "Attempt Remaining", "Status", "Expiration", "Clean up expired"):
+        assert english not in html, f"بقي «{english}» في قائمة المحاولات"
+    assert "حالة القفل" in html and "مقفل" in html and "باقٍ 1 من المحاولات" in html
+    assert "حذف المحاولات المنتهية" in html
+
+
+def test_the_arabic_lock_filter_keeps_the_axes_condition(client_as, superuser):
+    from axes.conf import settings as axes_settings
+
+    limit = axes_settings.AXES_FAILURE_LIMIT
+    locked = UserFactory(full_name="محاولةٌ مقفلة", employee_number="80011")
+    open_ = UserFactory(full_name="محاولةٌ باقية", employee_number="80022")
+    _attempt(locked.national_id, limit)
+    _attempt(open_.national_id, limit - 1)
+    url = reverse("admin:axes_accessattempt_changelist")
+
+    html = client_as(superuser).get(url, {"locked_out": "yes"}).content.decode()
+    assert "محاولةٌ مقفلة" in html and "محاولةٌ باقية" not in html
+    html = client_as(superuser).get(url, {"locked_out": "no"}).content.decode()
+    assert "محاولةٌ باقية" in html and "محاولةٌ مقفلة" not in html

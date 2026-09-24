@@ -5,7 +5,7 @@
 {% block title %}إحصائيات الغياب — شؤون الطلاب{% endblock %}
 
 {# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
-{% block main_class %}page-noscroll{% endblock %}
+{% block main_class %}{% page_layout "dashboard" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="إحصائيات الغياب" %}
