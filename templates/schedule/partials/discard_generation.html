@@ -1,0 +1,10 @@
+{% comment %}
+حذفُ توليدٍ لم يُعتمد (مسودّة أو فاشل) — بجانب «معاينة». الشروطُ في
+`operations/services/schedule_drafts.py`؛ والزرُّ لمن يملك `schedule.settings` وحدَه.
+{% endcomment %}
+{% if can_discard %}
+<form method="post" action="{% url 'discard_schedule' g.id %}" data-confirm="حذفُ هذا التوليد وحصص مسودّته نهائيّاً؟ الجدولُ المعتمَد لا يتأثّر." class="gen-inline-form">
+  {% csrf_token %}
+  <button type="submit" class="btn-danger btn-xs">حذف</button>
+</form>
+{% endif %}

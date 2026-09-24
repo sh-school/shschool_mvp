@@ -298,14 +298,21 @@ def generate_smart_schedule_task(self, generation_id):
         return {"ok": False, "reason": "not_pending", "status": generation.status}
 
     school = generation.school
+    # من «الانتظار» إلى «يجري» شرطاً لا حفظاً: إن أُوقف بين القراءة وهنا فلا يُبعث من جديد.
+    rows = ScheduleGeneration.objects.filter(
+        pk=generation.pk, status__in=ScheduleGeneration.PENDING_STATUSES
+    )
+    if not rows.update(status="running"):
+        return {"ok": False, "reason": "not_pending"}
     generation.status = "running"
-    generation.save(update_fields=["status"])
+
+    from operations.services.schedule_drafts import is_stopped
 
     def _fail(message):
-        generation.status = "failed"
-        generation.error_message = message[:2000]
-        generation.finished_at = timezone.now()
-        generation.save(update_fields=["status", "error_message", "finished_at"])
+        # شرطاً على «يجري»: صفٌّ أوقفه المستخدمُ أو حذفه لا يُكتب فوقه، ولا يُسقط المهمّة.
+        ScheduleGeneration.objects.filter(pk=generation.pk, status="running").update(
+            status="failed", error_message=message[:2000], finished_at=timezone.now()
+        )
         _notify_generation_done(generation, ok=False, summary=message)
 
     try:
@@ -320,6 +327,7 @@ def generate_smart_schedule_task(self, generation_id):
                 user=generation.generated_by,
                 generation=generation,
                 publish=False,
+                should_stop=lambda: is_stopped(generation.pk),
             )
     except SoftTimeLimitExceeded:
         logger.error("generate_smart_schedule: تجاوز الزمنَ المسموح — %s", generation_id)
@@ -331,6 +339,10 @@ def generate_smart_schedule_task(self, generation_id):
         # جداول أو جزءاً من تتبّع المكدّس، وهذه الرسالةُ تُعرض في الواجهة وتُبثّ JSON.
         _fail("خطأ غير متوقَّع في التوليد — سُجّلت التفاصيلُ للمشغّل، أعد المحاولةَ أو راجع السجلّ.")
         return {"ok": False, "reason": "exception"}
+
+    if result.get("stopped"):
+        logger.info("generate_smart_schedule: أُوقف يدويّاً — %s", generation_id)
+        return {"ok": False, "reason": "stopped"}
 
     # مؤشراتُ المختبر تُحسب هنا مرّةً وتُحفظ في صفّ التوليد — فالصفحةُ تعرض ولا تحسب.
     try:
@@ -353,8 +365,10 @@ def generate_smart_schedule_task(self, generation_id):
         return {"ok": False, "reason": "not_saved"}
 
     if result["errors"]:
-        generation.error_message = "؛ ".join(result["errors"])[:2000]
-        generation.save(update_fields=["error_message"])
+        # بالاستعلام لا بالحفظ: مسودّةٌ حُذفت بين الحفظ وهنا لا تُسقط المهمّة.
+        ScheduleGeneration.objects.filter(pk=generation.pk).update(
+            error_message="؛ ".join(result["errors"])[:2000]
+        )
 
     _notify_generation_done(generation, ok=result["success"], summary=summary)
     return {"ok": result["success"], "summary": summary, "failed": len(result["errors"])}

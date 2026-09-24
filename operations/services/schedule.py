@@ -66,7 +66,7 @@ class ScheduleService(ScheduleReadMixin, ScheduleRetentionMixin, ScheduleSession
             ScheduleGeneration.objects.filter(
                 school=school, academic_year=gen.academic_year, status="approved"
             ).update(status="archived")
-            # والمؤرشَفُ الزائدُ على حدّ الإبقاء يذهب مع حصصه — القرار: جدولٌ واحدٌ الحيّ.
+            # والمؤرشَفُ الزائدُ على حدّ الإبقاء (نسختان افتراضاً، SCH-07) يذهب مع حصصه.
             cls.retain_archived_generations(school, gen.academic_year)
 
             gen.status = "approved"

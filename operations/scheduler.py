@@ -35,6 +35,7 @@ from .scheduler_constraints import (
     is_slot_valid,
     joinable_pairs_cached,
 )
+from .scheduler_persist import slots_from_grid
 
 logger = logging.getLogger(__name__)
 
@@ -284,6 +285,10 @@ class ScheduleGrid:
                 self._forget(task, day, period)
             else:
                 self._remember(day, period, task)
+
+    def touched(self) -> list[Task]:
+        """المهامُّ التي تحرّكت في الإطار المفتوح — ليُحكَم فيما مسّته الحركةُ وحدَه."""
+        return list({id(t): t for *_, t in (self._journal[-1] if self._journal else [])}.values())
 
     def _log(self, kind: str, day: int, period: int, task: Task):
         if self._journal:
@@ -598,20 +603,6 @@ class ScheduleGrid:
     def get_task_at(self, class_id: str, day: int, period: int) -> Task | None:
         """ساكنُ خانةِ شعبةٍ بعينها — تقرؤه المزاوجةُ وتوزيعُ المادّة."""
         return self._class_grid(class_id)[day][period]
-
-
-def _member_labels(task) -> list[str]:
-    """وسمُ كلّ ساكنٍ في الخانة — فارغٌ لغير المنقسمة، ومميَّزٌ داخل المنقسمة.
-
-    و`ScheduleSlot.elective_group` جزءٌ من قيد «حصّةٌ واحدةٌ لشعبةٍ في التوقيت
-    الواحد»، فتساوي الوسمَين يعني صفّاً مكرَّراً ترفضه القاعدةُ عند الاعتماد.
-    """
-    if not task.is_split:
-        return ["" for _ in task.members]
-    names = [m.subject_name for m in task.members]
-    if len(set(names)) == len(names):
-        return [name[:40] for name in names]
-    return [f"{i + 1}·{name}"[:40] for i, name in enumerate(names)]
 
 
 def build_tasks(school: School, academic_year: str) -> list[Task]:
@@ -1135,6 +1126,18 @@ def _empty_result(errors: list[str]) -> dict:
     }
 
 
+#: ما يُقال حين يوقف المستخدمُ التوليد — والصفُّ يحمله من لحظة الإيقاف.
+GENERATION_STOPPED = "أُوقف التوليدُ يدويّاً — لم يُكتب منه شيء."
+
+
+class GenerationStoppedError(Exception):
+    """أوقف المستخدمُ التوليدَ قبل الحفظ — فلا يُكتب شيء."""
+
+
+def _stopped_result() -> dict:
+    return dict(_empty_result([GENERATION_STOPPED]), stopped=True)
+
+
 def load_band_times(school: School) -> dict:
     """{(نطاق, نوع اليوم): {رقم: (بداية, نهاية)}} من `TimeSlotConfig` — والمفتاح "" للافتراضيّ.
 
@@ -1427,56 +1430,8 @@ def _capacity_shortfalls(tasks: list[Task], prefs, blocked_slots: set) -> list[s
     return found
 
 
-#: الجرسُ يُقرأ مرّةً لمدّة التوليد — لا عند كلّ مرشَّحٍ لحصّةٍ مزدوجة (#109).
-#: والمُزيِّنُ جزءٌ من الدالّة: حين أُدرجت `load_band_times` فوقها (#121) سرقته،
-#: فعاد الجرسُ يُسأل آلافَ المرّات في جولة الإصلاح — 4,136 استعلاماً في توليدٍ
-#: واحد، وعلى الإنتاج كلُّ استعلامٍ رحلةٌ إلى قاعدةٍ في خادمٍ آخر.
-def _feasibility_snapshot(school, academic_year: str) -> dict:
-    """حكمُ فحص الجدوى كما كان لحظةَ التوليد — ولا يُسقط التوليدَ إن تعذّر."""
-    try:
-        from .schedule_feasibility import check
-
-        return check(school, academic_year).as_dict()
-    except Exception:  # pragma: no cover - لقطةٌ للسجلّ لا شرطٌ للتوليد
-        logger.exception("تعذّر حساب فحص الجدوى للقطة التوليد")
-        return {}
-
-
-@joinable_pairs_cached()
-def generate_schedule(
-    school: School,
-    academic_year: str,
-    user=None,
-    max_backtrack: int = 500,
-    generation=None,
-    publish: bool = True,
-) -> dict:
-    """
-    التوليد الرئيسي — Greedy + Backtracking
-
-    Args:
-        generation: صفُّ `ScheduleGeneration` أُنشئ قبل البدء ليحمل حالةَ
-            «قيد التوليد». إن مُرِّر حُدِّث مكانَه، وإلّا أُنشئ صفٌّ جديدٌ عند
-            النجاح — والحالتان قائمتان: الاستدعاءُ من العامل يمرّره، ومن
-            سطر الأوامر لا يمرّره.
-        publish: أتُفعَّل الحصصُ المولَّدةُ فوراً محلَّ الجدول القائم؟
-            `True` هو السلوكُ القديم (سطرُ الأوامر والاختبارات). و`False`
-            هو ما تفعله الواجهة: مسودّةٌ مربوطةٌ بصفّ التوليد، لا تمسّ
-            الجدولَ الحيَّ حتّى يعتمدها من يملك اعتمادَها — فكان المعلّمون
-            يرون الجدولَ الجديدَ قبل أن يُقرَّر فيه شيء.
-
-    Returns:
-        dict with keys: success, grid, quality, generation, errors
-    """
-    start_time = time.time()
-    errors = []
-
-    # 1. بناء المهام
-    tasks = build_tasks(school, academic_year)
-    if not tasks:
-        return _empty_result(["لا توجد توزيعات مواد (SubjectClassAssignment). أضف التوزيعات أولاً."])
-
-    # 2. تحميل التفضيلات
+def load_inputs(school: School, academic_year: str):
+    """(صفوفُ التفضيل، التفضيلاتُ بالمعلّم، الخاناتُ المحجوبةُ بالتفريغ) لعامٍ دراسيّ."""
     prefs_qs = TeacherPreference.objects.filter(school=school, academic_year=academic_year)
     preferences = {}
     for p in prefs_qs:
@@ -1501,6 +1456,66 @@ def generate_schedule(
                 blocked_slots.add((tid, ex.day_of_week, p))
         else:
             blocked_slots.add((tid, ex.day_of_week, ex.period_number))
+    return prefs_qs, preferences, blocked_slots
+
+
+#: الجرسُ يُقرأ مرّةً لمدّة التوليد — لا عند كلّ مرشَّحٍ لحصّةٍ مزدوجة (#109).
+#: والمُزيِّنُ جزءٌ من الدالّة: حين أُدرجت `load_band_times` فوقها (#121) سرقته،
+#: فعاد الجرسُ يُسأل آلافَ المرّات في جولة الإصلاح — 4,136 استعلاماً في توليدٍ
+#: واحد، وعلى الإنتاج كلُّ استعلامٍ رحلةٌ إلى قاعدةٍ في خادمٍ آخر.
+def _feasibility_snapshot(school, academic_year: str) -> dict:
+    """حكمُ فحص الجدوى كما كان لحظةَ التوليد — ولا يُسقط التوليدَ إن تعذّر."""
+    try:
+        from .schedule_feasibility import check
+
+        return check(school, academic_year).as_dict()
+    except Exception:  # pragma: no cover - لقطةٌ للسجلّ لا شرطٌ للتوليد
+        logger.exception("تعذّر حساب فحص الجدوى للقطة التوليد")
+        return {}
+
+
+@joinable_pairs_cached()
+def generate_schedule(
+    school: School,
+    academic_year: str,
+    user=None,
+    max_backtrack: int = 500,
+    generation=None,
+    publish: bool = True,
+    should_stop=None,
+) -> dict:
+    """
+    التوليد الرئيسي — Greedy + Backtracking
+
+    Args:
+        generation: صفُّ `ScheduleGeneration` أُنشئ قبل البدء ليحمل حالةَ
+            «قيد التوليد». إن مُرِّر حُدِّث مكانَه، وإلّا أُنشئ صفٌّ جديدٌ عند
+            النجاح — والحالتان قائمتان: الاستدعاءُ من العامل يمرّره، ومن
+            سطر الأوامر لا يمرّره.
+        publish: أتُفعَّل الحصصُ المولَّدةُ فوراً محلَّ الجدول القائم؟
+            `True` هو السلوكُ القديم (سطرُ الأوامر والاختبارات). و`False`
+            هو ما تفعله الواجهة: مسودّةٌ مربوطةٌ بصفّ التوليد، لا تمسّ
+            الجدولَ الحيَّ حتّى يعتمدها من يملك اعتمادَها — فكان المعلّمون
+            يرون الجدولَ الجديدَ قبل أن يُقرَّر فيه شيء.
+
+        should_stop: يُسأل بين المراحل — «أأوقفه المستخدم؟» — فيقف التوليدُ عند
+            حدٍّ آمن ولا يكتب شيئاً. والإيقافُ تعاونيٌّ لا قتلُ عامل: قتلُه في
+            منتصف الكتابة يترك جدولاً نصفَ مكتوب.
+
+    Returns:
+        dict with keys: success, grid, quality, generation, errors
+    """
+    stopped = should_stop or (lambda: False)
+    start_time = time.time()
+    errors = []
+
+    # 1. بناء المهام
+    tasks = build_tasks(school, academic_year)
+    if not tasks:
+        return _empty_result(["لا توجد توزيعات مواد (SubjectClassAssignment). أضف التوزيعات أولاً."])
+
+    # 2. التفضيلاتُ والتفريغات — والمحمِّلُ نفسُه يخدم سدادَ الجدول الحيّ.
+    prefs_qs, preferences, blocked_slots = load_inputs(school, academic_year)
 
     # 2c. قيودٌ لا تسع نصابَ صاحبها تُقال باسمها قبل أن تُقال «تعذّر وضع»
     # سبعَ مرّات: «متتالية 1» مع «فراغ 0» حصّةٌ واحدةٌ في اليوم.
@@ -1535,6 +1550,8 @@ def generate_schedule(
     since_improvement = 0
     attempt = -1
     while True:
+        if stopped():
+            return _stopped_result()
         attempt += 1
         attempt_started = time.time()
         rng = random.Random(attempt)
@@ -1585,12 +1602,22 @@ def generate_schedule(
     # التحسينُ المحلّيّ على الجدول الكامل: نقلٌ أو تبديلٌ يُقبل إن رفع درجةَ
     # المختبر بلا كسر قيد — فيما بقي من الميزانية، وربعُها على الأقلّ.
     # ويجري ولو بقيت حصّةٌ متعذّرة: ما وُضع يُحسَّن، والمتعذّرُ يبقى مذكوراً.
+    from .scheduler_audit import grid_breaches, summary
     from .scheduler_improve import improve
+    from .scheduler_settle import settle
 
+    if stopped():
+        return _stopped_result()
+    # السدادُ قبل التحسين وبعده (SCH-03): ما كُسر برخصةٍ يُعاد إليه أوّلاً، فالصلبُ قبل المرن.
+    settled = [settle(grid, tasks, blocked_slots, preferences, school, time.time() + budget / 4)]
     deadline = max(start_time + budget, time.time() + budget * 0.5)
     improvement = improve(
         grid, tasks, blocked_slots, preferences, lab_ctx, deadline, random.Random(101)
     )
+    settled.append(
+        settle(grid, tasks, blocked_slots, preferences, school, time.time() + budget / 4)
+    )
+    breaches = summary(grid_breaches(grid, tasks, blocked_slots))
 
     for task in leftovers:
         errors.append(f"تعذر وضع: {task.subject_name} → {task.class_name} ({task.teacher_name})")
@@ -1607,10 +1634,16 @@ def generate_schedule(
     required_periods = sum(t.span * len(t.members) for t in sorted_tasks)
     quality = calculate_quality_score(grid, preferences, total_required=required_periods)
 
-    # 6. حفظ النتائج
+    # 6. حفظ النتائج — والإيقافُ يُسأل مرّةً أخيرةً تحت قفل الصفّ، فلا يسبقه الحفظُ ولا يكتب فوقه.
     if not errors or quality["total_slots"] > 0:
         try:
             with transaction.atomic():
+                if should_stop is not None and generation is not None:
+                    running = ScheduleGeneration.objects.select_for_update().filter(
+                        pk=generation.pk, status="running"
+                    )
+                    if not running.exists():
+                        raise GenerationStoppedError
                 # صفُّ التوليد قبل حصصه: الحصّةُ تحمل مرجعَ توليدها، فلا بدّ أن
                 # يكون له مفتاحٌ قبل `bulk_create`.
                 if generation is None:
@@ -1627,50 +1660,17 @@ def generate_schedule(
                         school=school, academic_year=academic_year, is_active=True
                     ).update(is_active=False)
 
-                # وقتُ كلّ حصّةٍ من جرس نطاق شعبتها ليومها — الترتيبُ نفسُه الذي
-                # تُصالِح به `resync_slot_times` الحصصَ القائمة.
-                _get_time = bell_lookup(school)
-
-                bulk = []
-                for entry in grid.all_entries():
-                    t = entry["task"]
-                    d = entry["day"]
-                    p = entry["period"]
-                    # صفٌّ لكلّ (خانة × ساكن): المزدوجةُ تشغل خانتين، والشعبةُ
-                    # المنقسمةُ خانةً واحدةً بحصّتين. و`elective_group` هو ما
-                    # يُجيز اجتماعَ الحصّتين في القاعدة — فالقيدُ الفريدُ يشمله.
-                    # وسمٌ يميّز ساكناً عن ساكنٍ في الخانة الواحدة. واسمُ
-                    # المادّة يكفي حين تختلف المادّتان — وهو الغالب. أمّا
-                    # نصفا الشعبة في المادّة نفسها بمعلّمَين فاسمُهما واحد،
-                    # فيَرُدّ القيدُ الفريدُ ثانيَهما ويسقط الاعتماد. فيسبقه
-                    # ترتيبُه في المجموعة: «1·الكيمياء» و«2·الكيمياء».
-                    labels = _member_labels(t)
-                    for slot in t.slots(p):
-                        start, end = _get_time(d, slot, t.band_id)
-                        for index, member in enumerate(t.members):
-                            bulk.append(
-                                ScheduleSlot(
-                                    school=school,
-                                    teacher_id=member.teacher_id,
-                                    class_group_id=t.class_id,
-                                    subject_id=member.subject_id,
-                                    day_of_week=d,
-                                    period_number=slot,
-                                    start_time=start,
-                                    end_time=end,
-                                    academic_year=academic_year,
-                                    elective_group=labels[index],
-                                    is_active=publish,
-                                    generation=generation,
-                                )
-                            )
-                ScheduleSlot.objects.bulk_create(bulk)
+                # صفٌّ لكلّ (خانة × ساكن) بوقته من الجرس ووسمه — الكتابةُ نفسُها
+                # التي يكتب بها سدادُ الجدول الحيّ مسودّتَه (`scheduler_persist`).
+                ScheduleSlot.objects.bulk_create(
+                    slots_from_grid(school, academic_year, grid, generation, publish)
+                )
 
                 # سجل التوليد — تحديثُ الصفّ القائم إن مُرِّر، وإنشاؤه إن لم يُمرَّر.
                 fields = {
                     "status": "draft",
                     "quality_score": quality["score"],
-                    "hard_violations": len(errors),
+                    "hard_violations": len(errors) + breaches["count"],
                     "soft_violations": quality["violations"],
                     "total_slots_created": quality["total_slots"],
                     "generation_time_ms": elapsed_ms,
@@ -1685,6 +1685,9 @@ def generate_schedule(
                         "budget_seconds": budget,
                         "attempt_log": attempt_log,
                         "improvement": improvement,
+                        #: ما بقي مكسوراً بعد السداد — بموضعه، لبوّابة الاعتماد (SCH-04).
+                        "settlement": settled,
+                        "breaches": breaches,
                         "repaired": repaired,
                         "relaxed": relaxed,
                         "densed": densed,
@@ -1701,6 +1704,8 @@ def generate_schedule(
                 for key, value in fields.items():
                     setattr(generation, key, value)
                 generation.save(update_fields=list(fields))
+        except GenerationStoppedError:
+            return _stopped_result()
         except Exception as exc:
             logger.exception("فشل حفظ الجدول المولَّد: %s", exc)
             # نصُّ الاستثناء للسجلّ لا للواجهة: هذه القائمةُ تصير `error_message`
@@ -1722,4 +1727,5 @@ def generate_schedule(
         "repaired": repaired,
         "relaxed": relaxed,
         "densed": densed,
+        "breaches": breaches,
     }

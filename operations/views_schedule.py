@@ -38,6 +38,7 @@ from .models import (
     TeacherExemption,
     TeacherPreference,
 )
+from .schedule_breaches import approval_refusal, draft_breaches
 from .schedule_paper import paper_geometry
 from .schedule_selectors import DEFAULT_ORIENTATION, ORIENTATIONS, PAPERS
 from .schedule_selectors import browse_lists as _browse_lists
@@ -772,6 +773,7 @@ def smart_schedule_view(request):
             # يضغطه فيُصدَم بـ403.
             "can_approve": request.user.is_superuser
             or request.user.get_role() in ("principal", "vice_academic"),
+            "can_discard": has_capability(request.user, "schedule.settings"),
             "year": year,
             "baseline": baseline,
             "total_weekly": total_weekly,
@@ -796,6 +798,8 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
     """
     for g in generations:
         g.lab_tone = tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
+        # ما بقي مكسوراً بموضعه — والإقرارُ به شرطُ اعتماد المسودّة (SCH-05).
+        g.breaches = draft_breaches(g.config_snapshot)
     measured = [g for g in generations if g.lab_rows]
     rows: dict[str, dict] = {}
     for column, g in enumerate(measured):
@@ -1119,6 +1123,11 @@ def approve_schedule(request, generation_id):
     if gen.status != "draft":
         messages.warning(request, "هذا الجدول ليس مسودة — لا يمكن اعتماده")
         return redirect("smart_schedule")
+    # مخالفةٌ صلبةٌ في المسودّة لا تُعتمد إلّا بإقرارٍ صريحٍ بها (SCH-05).
+    refusal = approval_refusal(gen, request.POST)
+    if refusal:
+        messages.error(request, refusal)
+        return _smart_schedule_redirect(gen.academic_year)
 
     # الاعتمادُ كلُّه في الخدمة — الزرُّ وأمرُ النقل يمرّان من الباب نفسِه.
     result = ScheduleService.approve_generation(gen)

@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from .scheduler import ScheduleGrid, Task
 
 
@@ -713,15 +715,35 @@ def is_slot_valid(
     allow_adjacent: bool = False,
     allow_dense: bool = False,
 ) -> bool:
-    """تحقق من كل القيود الصلبة لخانة معينة.
+    """تحقق من كل القيود الصلبة لخانة معينة — يقف عند أوّل رفض."""
+    return next(_refusals(grid, day, period, task, allow_adjacent, allow_dense), None) is None
+
+
+def slot_violations(
+    grid: ScheduleGrid,
+    day: int,
+    period: int,
+    task: Task,
+    allow_adjacent: bool = False,
+    allow_dense: bool = False,
+) -> list[str]:
+    """رموزُ القيود الصلبة التي ترفض هذه الخانة — كلُّها لا أوّلُها (SCH-01).
+
+    المصدرُ واحدٌ مع `is_slot_valid`: كلاهما يقرأ `_refusals`، فلا يفترق الحكمُ
+    عن تفسيره. وبلا رخصٍ هو حكمُ المدقّق على جدولٍ منتهٍ (`scheduler_audit`).
+    """
+    return list(_refusals(grid, day, period, task, allow_adjacent, allow_dense))
+
+
+def _refusals(
+    grid: ScheduleGrid, day: int, period: int, task: Task, allow_adjacent: bool, allow_dense: bool
+) -> Iterator[str]:
+    """يُولِّد رمزَ كلِّ قيدٍ صلبٍ يرفض الخانة، بترتيب الكلفة.
 
     ورتبةُ الكسر — من `grid.policy` — تقول أيُّ قيدٍ يتنازل في أيّ جولة. وهي
     نوعان بحسب القيد: من عرف كيف يلين بنفسه تُمرَّر إليه الرخصةُ فيرفع سقفَه
     (التلاصقُ من واحدٍ إلى اثنين، لا إلغاءً)، ومن لا سقفَ له يُرفع فكسرُه
     تخطّيه في تلك الجولة وحدَها.
-
-    والافتراضُ في السجلّ هو ما كانت عليه الشيفرةُ قبله حرفاً بحرف: الرخصةُ
-    الأولى للتلاصق، والثانيةُ للتغطية والقسمة والتوزيع، وما عداها لا يُكسَر.
     """
     from .constraint_registry import REGISTRY
 
@@ -738,45 +760,42 @@ def is_slot_valid(
         """رخصةُ هذه الجولة كما تقرؤها دالّةٌ تعرف كيف تلين."""
         return policy.licence(code, allow_adjacent, allow_dense)
 
-    level_type = getattr(task, "level_type", "")
-    max_p = get_max_periods_for_day(day, level_type)
-    if period > max_p:
-        return False
+    if period > get_max_periods_for_day(day, getattr(task, "level_type", "")):
+        yield "HC4"
     if not check_teacher_conflict(grid, day, period, task.teacher_id):
-        return False
+        yield "HC1"
     if not check_class_conflict(grid, day, period, task.class_id):
-        return False
+        yield "HC2"
     if not check_teacher_time_overlap(grid, day, period, task):
-        return False
+        yield "HC12"
     if not check_band_transition(grid, day, period, task):
-        return False
+        yield "HC13"
     if not check_day_coverage(grid, day, period, task, eased("HC14")):
-        return False
+        yield "HC14"
     if not waived("HC16") and not check_week_balance_cap(grid, day, period, task):
-        return False
+        yield "HC16"
     if not check_week_floor_reservation(grid, day, period, task, eased("HC16B")):
-        return False
+        yield "HC16B"
     if not waived("HC17") and not check_thursday_secondary_pair(grid, day, period, task):
-        return False
+        yield "HC17"
     if not check_subject_not_adjacent(grid, day, period, task, eased("HC20")):
-        return False
+        yield "HC20"
     if not check_max_consecutive(grid, day, period, task, eased("HC5")):
-        return False
+        yield "HC5"
     if not check_subject_distribution(grid, day, task, eased("HC6")):
-        return False
+        yield "HC6"
     if not waived("HC7") and not check_period_variety(grid, period, task):
-        return False
+        yield "HC7"
     if not waived("HC8") and not check_last_period_share(grid, period, task):
-        return False
+        yield "HC8"
     if not check_resource_capacity(grid, day, period, task):
-        return False
+        yield "HC9"
     if not waived("HC11") and not check_resource_level_homogeneity(grid, day, period, task):
-        return False
+        yield "HC11"
     if not check_double_not_split_by_break(grid, day, period, task):
-        return False
+        yield "HC19"
     if not check_max_gap(grid, day, period, task):
-        return False
-    return True
+        yield "HC10"
 
 
 # ══════════════════════════════════════════════════════════════
