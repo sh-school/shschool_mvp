@@ -1,11 +1,12 @@
-"""مزامنةُ الخارطة الثالثة يومَ 2026-09-24، بعد دمج #508 #514 #518 #519 #524 #526 #528.
+"""مزامنةُ الخارطة الثالثة يومَ 2026-09-24، بعد دمج #508 #514 #518 #519 #524 #526 #528 #529.
 
 حارسةٌ كـ0009: لا تلمس بنداً إلّا إن كانت حالتُه وتقدّمُه ما في آخر لقطة؛ والملاحظةُ الموجودة لا تُلحَق
 ثانيةً؛ والبندُ الجديد يُنشأ إن غاب. وتزيد عليها **أوّلَ تحديثٍ لمؤشّراتٍ في هجرة**: مؤشّراتُ التخطيط
-LK1..LK5 بقياس main@917a5bab، ولا يُلمس مؤشّرٌ إلّا إن كانت قيمتُه وتاريخُ قياسه ما في آخر لقطة.
+LK1..LK5 بقياس main@917a5bab (وLK2 بعد #529)، ولا يُلمس مؤشّرٌ إلّا إن كانت قيمتُه وتاريخُ قياسه ما في آخر لقطة.
 
-- **VI-28** يُغلق بـ#519 (صفحتا الدليل والأيقونات). و**H-06** يبدأ بـ#519 (scale_tokens بستّة سلالم) —
-  وأقسامُ الدليل الثمانيةُ الجديدة جزءٌ منه لا بندٌ مستقلّ.
+- **VI-28** يُغلق بـ#519 (صفحتا الدليل والأيقونات). و**H-06** يمرّ بخطوتين في التشغيل نفسه: 40 بـ#519
+  (scale_tokens بستّة سلالم، وأقسامُ الدليل الثمانية جزءٌ منه لا بندٌ مستقلّ)، ثمّ يُغلق بـ#529 — فتبقى
+  الملاحظتان في سجلّه.
 - **OWN-19** إلى 90 بـ#526 (يُغلق مع بقيّة axes)، و**OWN-21** إلى 50 بـ#508.
 - **LAY-03 لا يُلمس:** مرحلتُه الأولى في فرعٍ لم يُدمج، ولا يُدرج عملٌ قبل اندماج طلبه.
 """
@@ -37,6 +38,16 @@ UPDATES = [
         "#519: scale_tokens تعرض ستّة سلالم من :root (text وlh وsp وradius وshadow وtransition) في ثمانية "
         "أقسامٍ جديدة بالدليل. الباقي: سلّما control-h وz-* (وsafe-* بعد H-04) في _SCALES، وقسمُ «المقاييس "
         "والحدود الدنيا»، وقواعدُ القسم 8.",
+    ),
+    (
+        "H-06",
+        ("doing", 40),
+        "done",
+        100,
+        "#519 #529",
+        "أُغلق: #529 قسمُ «المقاييس والحدود الدنيا» بالقواعد الخمس وحالتها الحقيقيّة، وscale_tokens تقرأ control-h* "
+        "وz-* وsafe-* (فارغةٌ حتى H-04)، وbreakpoints() بتعريف LK2 نفسه. نصُّ القواعد بتوقيع المالك (2026-09-24، "
+        "تعليقٌ في #529). والقسمُ مرآةُ M-01 وH-04: تُحدَّث حالةُ قاعدتيهما حين تندمجان.",
     ),
     (
         "VI-29",
@@ -112,16 +123,16 @@ NEW_ITEMS = [
 
 NEW_ITEMS_FIRST_ORDER = 461  # بعد N-028 (460)
 
-# (الرمز، (القيمة، تاريخ القياس) المتوقَّعان، القيمة الجديدة)
+# (الرمز، (القيمة، تاريخ القياس) المتوقَّعان، القيمة الجديدة، مرجعُ القياس)
+# LK2: رفعه #519 إلى 10 بنقطة 1280، وأعاده #529 إلى 9 بنقل card-flow إلى 1100 القائمة — فالمسجَّل آخرُ قياس.
 KPI_MEASURED = datetime.date(2026, 9, 23)
 KPI_UPDATES = [
-    ("LK1", (0.0, KPI_MEASURED), 0.0),
-    ("LK2", (9.0, KPI_MEASURED), 10.0),
-    ("LK3", (24.3, KPI_MEASURED), 24.0),
-    ("LK4", (11.0, KPI_MEASURED), 11.0),
-    ("LK5", (1088.0, KPI_MEASURED), 998.0),
+    ("LK1", (0.0, KPI_MEASURED), 0.0, "قياس main@917a5bab"),
+    ("LK2", (9.0, KPI_MEASURED), 9.0, "قياس main@410aa186"),
+    ("LK3", (24.3, KPI_MEASURED), 24.0, "قياس main@917a5bab"),
+    ("LK4", (11.0, KPI_MEASURED), 11.0, "قياس main@917a5bab"),
+    ("LK5", (1088.0, KPI_MEASURED), 998.0, "قياس main@917a5bab"),
 ]
-KPI_SOURCE_NOTE = "قياس main@917a5bab"
 
 
 def sync(item_model):
@@ -168,7 +179,7 @@ def add_missing(item_model):
 def sync_kpis(kpi_model):
     """تُحدِّث المؤشّراتِ التي لم تُمسّ منذ آخر لقطة، وتحفظ القياسين في سجلّها؛ تُرجع رموزَ ما تغيّر."""
     changed = []
-    for code, expected, value in KPI_UPDATES:
+    for code, expected, value, source_note in KPI_UPDATES:
         kpi = kpi_model.objects.filter(code=code).first()
         if kpi is None or (kpi.current, kpi.measured_at) != expected:
             continue
@@ -178,8 +189,8 @@ def sync_kpis(kpi_model):
             history.append({"d": expected[1].isoformat(), "v": expected[0]})
         history.append({"d": DAY.isoformat(), "v": value})
         kpi.current, kpi.measured_at, kpi.history = value, DAY, history
-        if KPI_SOURCE_NOTE not in kpi.source:
-            kpi.source = f"{kpi.source} ({KPI_SOURCE_NOTE})".strip()
+        if source_note not in kpi.source:
+            kpi.source = f"{kpi.source} ({source_note})".strip()
         kpi.save(update_fields=["current", "measured_at", "history", "source", "updated_at"])
         changed.append(code)
     return changed

@@ -335,6 +335,7 @@ def test_0011_moves_the_items_and_leaves_lay03_alone():
     assert _sync11.sync(RoadmapItem) == [
         "VI-28",
         "H-06",
+        "H-06",
         "VI-29",
         "OWN-19",
         "OWN-21",
@@ -343,6 +344,9 @@ def test_0011_moves_the_items_and_leaves_lay03_alone():
     ]
     assert _sync11.sync(RoadmapItem) == []
     assert RoadmapItem.objects.get(code="VI-28").pr == "#519"
+    h06 = RoadmapItem.objects.get(code="H-06")
+    assert (h06.status, h06.progress, h06.pr) == ("done", 100, "#519 #529")
+    assert "#519:" in h06.note and "#529" in h06.note
     own19 = RoadmapItem.objects.get(code="OWN-19")
     assert (own19.status, own19.progress, own19.pr) == ("doing", 90, "#526")
     vi29 = RoadmapItem.objects.get(code="VI-29")
@@ -383,3 +387,11 @@ def test_0011_leaves_a_kpi_the_developer_remeasured():
     _kpi("LK2", 12.0, _sync11.DAY)
     assert _sync11.sync_kpis(RoadmapKpi) == []
     assert RoadmapKpi.objects.get(code="LK2").current == 12.0
+
+
+def test_0011_records_lk2_back_at_nine_after_529():
+    _kpi("LK2", 9.0, _sync11.KPI_MEASURED)
+    assert _sync11.sync_kpis(RoadmapKpi) == ["LK2"]
+    kpi = RoadmapKpi.objects.get(code="LK2")
+    assert (kpi.current, kpi.measured_at) == (9.0, _sync11.DAY)
+    assert "410aa186" in kpi.source
