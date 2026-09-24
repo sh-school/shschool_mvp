@@ -11,6 +11,7 @@ from urllib.parse import quote
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import CharField, Count, Exists, F, Func, OuterRef, Q, Subquery, Value
 from django.http import Http404, HttpResponse
@@ -53,6 +54,7 @@ from core.models.access import Membership
 from core.models.audit import AuditLog
 from core.models.user import CustomUser
 from core.pdf_utils import render_pdf
+from core.photo_privacy import clean_photo
 from core.privacy import mask_national_id
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 from core.verdict_read import failing_statuses, passing_statuses
@@ -2760,6 +2762,30 @@ def tardiness_search_students(request):
     return JsonResponse({"results": results})
 
 
+#: مرفقُ إذن التأخّر — ما يُقبل، وسقفُ حجمه قبل التنظيف.
+EXCUSE_EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png")
+EXCUSE_CONTENT_TYPES = ("application/pdf", "image/jpeg", "image/png")
+EXCUSE_MAX_BYTES = 5 * 1024 * 1024
+
+
+def _screen_excuse_upload(upload):
+    """يفحص مرفقَ إذن التأخّر ويُعيده نظيفاً: `(الملف، سببُ الرفض)` — أحدُهما فارغ.
+
+    الاسمُ ونوعُ المحتوى يعلنهما المتصفّحُ فلا يُوثَق بهما: الحكمُ بالبايتات (`clean_photo`)، والصورةُ
+    تُحفظ JPEG مصغّراً بلا إحداثيّاتٍ ولا تاريخٍ ولا جهاز (`core/photo_privacy`، قرار 2026-09-14) —
+    والملفّاتُ في PostgreSQL فتصغيرُها يخفّ به وزنُ القاعدة والنسخ الاحتياطيّ.
+    """
+    extension = os.path.splitext(upload.name)[1].lower()
+    if extension not in EXCUSE_EXTENSIONS or upload.content_type not in EXCUSE_CONTENT_TYPES:
+        return None, "نوع الملف غير مسموح — يُقبل: PDF, JPG, PNG فقط."
+    if upload.size > EXCUSE_MAX_BYTES:
+        return None, "حجم الملف يتجاوز 5 ميغابايت."
+    try:
+        return clean_photo(upload), ""
+    except ValidationError as exc:
+        return None, exc.messages[0]
+
+
 @login_required
 @capability_required("student_affairs.tardiness")
 @require_POST
@@ -2773,17 +2799,11 @@ def tardiness_record(request):
     excuse_minutes = request.POST.get("excuse_minutes", "").strip()
     excuse_file = request.FILES.get("excuse_file")
 
-    # ── File validation (قبل أي عملية DB) ──
+    # ── فحصُ المرفق وتنظيفُه (قبل أيّ عمليّة DB) ──
     if excuse_file:
-        allowed_ext = (".pdf", ".jpg", ".jpeg", ".png")
-        allowed_ct = ("application/pdf", "image/jpeg", "image/png")
-        max_size = 5 * 1024 * 1024
-        ext = os.path.splitext(excuse_file.name)[1].lower()
-        if ext not in allowed_ext or excuse_file.content_type not in allowed_ct:
-            messages.error(request, "نوع الملف غير مسموح — يُقبل: PDF, JPG, PNG فقط.")
-            return redirect("student_affairs:tardiness_list")
-        if excuse_file.size > max_size:
-            messages.error(request, "حجم الملف يتجاوز 5 ميغابايت.")
+        excuse_file, refusal = _screen_excuse_upload(excuse_file)
+        if refusal:
+            messages.error(request, refusal)
             return redirect("student_affairs:tardiness_list")
 
     # طالبُ جناحٍ آخر: 404 قبل أيّ قراءةٍ أو كتابة — ومعرّفٌ فاسدٌ مثلُه للمقيَّد.
