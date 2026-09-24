@@ -389,6 +389,36 @@ def page_header(content, title, subtitle="", icon=""):
     )
 
 
+# ── 5ب. نمطُ تخطيط الصفحة (قرار D-16، docs/design/page_layouts.md) ─────────
+
+#: الأنماطُ السبعة، وما يلزم كلاًّ منها من سلوكٍ قائم. «بلا تمرير» على سطح المكتب هو
+#: `page-noscroll` نفسُه (50-utilities.css) لا نسخةٌ ثانية منه — فالوسمُ يولّده ولا
+#: يضيف إلى الحِمل المشحون بايتاً. و`custom` مَخرجٌ مسجَّلٌ في جدول الاستثناءات.
+PAGE_LAYOUTS = {
+    "dashboard": "page-noscroll",
+    "hub": "",
+    "list": "page-noscroll",
+    "detail": "",
+    "form": "",
+    "sheet": "page-noscroll",
+    "report": "",
+    "custom": "",
+}
+
+
+@register.simple_tag
+def page_layout(name: str, *extra: str) -> str:
+    """أصنافُ `#main-content` لنمط الصفحة: `{% block main_class %}{% page_layout "list" %}{% endblock %}`.
+
+    نمطٌ غيرُ معروف `TemplateSyntaxError`، و`extra` أصنافٌ قائمةٌ تُلحق كما هي (`"page-wide"`).
+    """
+    if name not in PAGE_LAYOUTS:
+        raise template.TemplateSyntaxError(
+            f"page_layout: نمطٌ {name!r} غيرُ معروف — المتاح: {', '.join(PAGE_LAYOUTS)}"
+        )
+    return " ".join(c for c in (f"layout-{name}", PAGE_LAYOUTS[name], *extra) if c)
+
+
 # ── 6. بلاطةُ الانتقال ────────────────────────────────────────────────────
 
 
