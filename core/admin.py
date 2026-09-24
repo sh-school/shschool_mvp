@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
+from django.db.models import Prefetch
 from django.utils.html import format_html
 
 from .models import (
@@ -19,6 +20,7 @@ from .models import (
     Wing,
     WingCoverage,
 )
+from .models.user import role_rank
 
 
 class SchoolScopedAdmin(admin.ModelAdmin):
@@ -75,13 +77,40 @@ class SchoolScopedAdmin(admin.ModelAdmin):
         queryset = self._scoped_related_queryset(request, db_field)
         if queryset is not None and "queryset" not in kwargs:
             kwargs["queryset"] = queryset
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+        field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        if field is not None and db_field.name in self.list_editable:
+            # قائمةٌ قابلةٌ للتحرير تبني نموذجاً لكلّ صفّ، وكلُّ نموذجٍ يعيد استعلامَ خياراته ويستدعي
+            # `__str__` لكلّ خيار (قسمٌ يسأل عن منسّقه): 373 استعلاماً لقائمة العضويّات. فتُحسب
+            # الخياراتُ مرّةً لكلّ طلب. والتحقّقُ عند الحفظ ما زال على `queryset` لا على هذه القائمة.
+            cache = request.__dict__.setdefault("_admin_editable_choices", {})
+            key = (self.model._meta.label, db_field.name)
+            if key not in cache:
+                cache[key] = list(field.choices)
+            field.choices = cache[key]
+        return field
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
         queryset = self._scoped_related_queryset(request, db_field)
         if queryset is not None and "queryset" not in kwargs:
             kwargs["queryset"] = queryset
         return super().formfield_for_manytomany(db_field, request, **kwargs)
+
+
+def _department_sort_key(department: Department) -> int:
+    return int(department.sort_order)
+
+
+class DepartmentListFilter(admin.RelatedFieldListFilter):
+    """مرشّحُ «القسم» في الشريط الجانبيّ بمنسّقيه في استعلامٍ واحد.
+
+    `Department.__str__` يقرأ اسمَ المنسّق، والمرشّحُ الافتراضيّ يسأل عنه لكلّ قسم — فيكبر عددُ
+    الاستعلامات بعدد الأقسام. والخياراتُ نفسُها وترتيبُها كما هي.
+    """
+
+    def field_choices(self, field, request, model_admin):
+        ordering = self.field_admin_ordering(field, request, model_admin)
+        departments = Department.objects.select_related("head").order_by(*(ordering or ("name",)))
+        return [(department.pk, str(department)) for department in departments]
 
 
 class MembershipInline(admin.TabularInline):
@@ -119,7 +148,7 @@ class CustomUserAdmin(SchoolScopedAdmin, UserAdmin):
         "is_active",
         "is_staff",
         "memberships__role__name",
-        "memberships__department_obj",
+        ("memberships__department_obj", DepartmentListFilter),
     )
     search_fields = ("national_id", "full_name", "email")
     ordering = ("full_name",)
@@ -143,6 +172,22 @@ class CustomUserAdmin(SchoolScopedAdmin, UserAdmin):
         ),
     )
 
+    def get_queryset(self, request):
+        # الدورُ والقسمُ في كلّ صفّ يقرآن العضويّات: تُجلب مرّةً للصفحة إلى المخبأ الذي تقرؤه
+        # `active_memberships` نفسُها (`_active_memberships`) بترتيب الحكم نفسِه — لا نسخةَ ثانيةً من المنطق.
+        active = (
+            Membership.objects.filter(is_active=True)
+            .select_related("school", "role", "department_obj")
+            .order_by(role_rank(), "joined_at", "id")
+        )
+        return (
+            super()
+            .get_queryset(request)
+            .prefetch_related(
+                Prefetch("memberships", queryset=active, to_attr="_active_memberships")
+            )
+        )
+
     @admin.display(description="الدور")
     def role_label(self, obj: CustomUser) -> str:
         """الدورُ الحاكم — والكادرُ يتقدّم على وليّ الأمر عند تعدّد العضويّات."""
@@ -157,8 +202,15 @@ class CustomUserAdmin(SchoolScopedAdmin, UserAdmin):
         عمل في مدرستين له قسمٌ في كلٍّ منهما. فيُعرض هنا ليُقرأ ويُرشَّح به،
         ويُحرَّر في «العضويّات» وحدَها — كي لا يكون للانتماء مصدران.
         """
-        department = obj.department_obj
-        return department.name if department else "—"
+        # من العضويّات المجلوبة سلفاً لا `obj.department_obj` (استعلامٌ لكلّ صفّ) — بالقاعدة نفسِها:
+        # أوّلُ عضويّةٍ نشطةٍ تحمل قسماً بترتيب القسم.
+        departments: list[Department] = [
+            m.department_obj for m in obj.active_memberships if m.department_obj is not None
+        ]
+        if not departments:
+            return "—"
+        first: Department = min(departments, key=_department_sort_key)
+        return str(first.name)
 
     @admin.display(description="الرقم الشخصي", ordering="national_id")
     def masked_national_id(self, obj: CustomUser) -> str:
@@ -269,8 +321,6 @@ class RoleAdmin(SchoolScopedAdmin):
 
 @admin.register(Department)
 class DepartmentAdmin(SchoolScopedAdmin):
-    school_lookup = "school"
-
     """سجلُّ الأقسام — مصدرُ الحقيقة لانتماء المعلّم.
 
     الانتماءُ نفسه في `Membership.department_obj` لا هنا: القسمُ يخصّ العضويّةَ
@@ -280,6 +330,8 @@ class DepartmentAdmin(SchoolScopedAdmin):
     ويُملأ الجدولُ مرّةً بأمر `seed_departments` (تقريرٌ أوّلاً، ولا يكتب إلّا
     بـ`--apply`)، ثمّ يُصحَّح من هنا يدويّاً.
     """
+
+    school_lookup = "school"
 
     list_display = ("name", "code", "school", "head", "members", "sort_order", "is_active")
     list_editable = ("sort_order", "is_active")
@@ -308,18 +360,33 @@ class MembershipAdmin(SchoolScopedAdmin):
         "joined_at",
     )
     list_editable = ("department_obj", "specialty")
-    list_filter = ("is_active", "school", "role__name", "department_obj")
-    list_select_related = ("user", "school", "role", "department_obj")
+    list_filter = ("is_active", "school", "role__name", ("department_obj", DepartmentListFilter))
+    list_select_related = (
+        "user",
+        "school",
+        "role__school",
+        "department_obj",
+        "department_obj__head",
+    )
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "department_obj":
+            # `Department.__str__` يقرأ اسمَ المنسّق — بلا هذا سؤالٌ لكلّ قسمٍ في القائمة المنسدلة.
+            scoped = self._scoped_related_queryset(request, db_field)
+            base = Department.objects.all() if scoped is None else scoped
+            kwargs["queryset"] = base.select_related("head")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     search_fields = ("user__full_name", "user__national_id")
     autocomplete_fields = ("user",)
 
 
 @admin.register(ClassGroup)
 class ClassGroupAdmin(SchoolScopedAdmin):
-    school_lookup = "school"
-
     """نطاقُ التوقيت يُنسب من هنا: قائمةٌ قابلةٌ للتحرير، فتوزيعُ الشُّعب على
     الأجراس قرارُ إدارةٍ يتبدّل بتبدّل الطوابق لا بترحيل."""
+
+    school_lookup = "school"
 
     list_display = (
         "school",
@@ -335,18 +402,18 @@ class ClassGroupAdmin(SchoolScopedAdmin):
     list_editable = ("time_band", "wing")
     search_fields = ("grade", "section")
     autocomplete_fields = ("supervisor",)
-    list_select_related = ("time_band", "wing")
+    list_select_related = ("school", "time_band", "wing")
 
 
 @admin.register(Wing)
 class WingAdmin(SchoolScopedAdmin):
-    school_lookup = "school"
-
     """المشرفُ يُعيَّن من هنا — و`seed_wings` لا يخمّنه.
 
     و`autocomplete_fields` على المشرف يفتح على كلّ مستخدمي القاعدة؛ والنموذجُ
     يردُّ من ليس مشرفاً إداريّاً ولا نائباً إداريّاً عند الحفظ، لا بعده.
     """
+
+    school_lookup = "school"
 
     list_display = (
         "name",
@@ -435,7 +502,7 @@ class SemesterAdmin(SchoolScopedAdmin):
 
     list_display = ("academic_year", "code", "start_date", "end_date", "max_grade")
     list_filter = ("code", "academic_year__school", "academic_year__name")
-    list_select_related = ("academic_year",)
+    list_select_related = ("academic_year__school",)
     ordering = ("-start_date",)
 
 
@@ -459,7 +526,7 @@ class CalendarEventAdmin(SchoolScopedAdmin):
         "grade_scope",
         "audience",
     )
-    list_select_related = ("academic_year", "semester")
+    list_select_related = ("academic_year__school", "semester")
     search_fields = ("name",)
     date_hierarchy = "start_date"
     ordering = ("start_date",)
