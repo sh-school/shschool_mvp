@@ -1180,4 +1180,33 @@ document.addEventListener('click', function(e) {
   window.addEventListener('resize', later);
   /* تبديلُ الصفحة (page-nav.js) وأجزاءُ HTMX يغيّران المحتوى فتتغيّر الحاجة. */
   document.addEventListener('htmx:afterSwap', later);
+  /* القرارُ المضمَّن يجري قبل أن يُحمَّل خطٌّ واحد (0 من 8، مقيس) فيقيس بخطّ الاحتياط، وعربيّةُ Tajawal تُطيل
+     النصَّ فتصغر المناطق (النسبةُ الوسيطة 0.81، وأدناها 0.56): 78 من 945 خليّةً (8.3%؛ 35 صفحةً × 9 ارتفاعات
+     × 3 عروض) بقيت «بلا تمرير» ومنطقتُها دون 15rem فتُقصّ. فيُشدَّد القرارُ مرّةً حين تجهز الخطوط؛ وبقاءُ المحتوى
+     محجوباً (opacity في base.html) إلى ذلك الحين يُخفي القفزةَ إن انقلب القرار.
+     الفحصُ هنا مرشِّحٌ قرائيٌّ فقط: يُستدعى القرارُ نفسُه (fitNoscroll) وحدَه حين يُرجَّح الانقلاب، فلا تبديلَ
+     للصنف بلا موجب (تبديلُه مع فرض التخطيط بعد الرسم يُحدث CLS زائفاً 0.96 ولو لم يتغيّر القرار). والمرشِّحُ
+     شرطٌ لازمٌ للانقلاب: منطقةٌ تفيض ودون 15rem وليست قصيرةً بسقفٍ مكتوب. ولا يشمل مضاعِفاتِ الإدخال
+     (textarea وselect وinput): ارتفاعُها من rows/size لا من النافذة فلا تطول بنزع الصنف. والاتّجاهُ واحد. */
+  function tighten() {
+    var main = document.getElementById('main-content');
+    if (!main || !main.classList.contains('page-noscroll')) return;
+    var floor = 15 * parseFloat(getComputedStyle(document.documentElement).fontSize);
+    var squeezed = Array.prototype.some.call(main.querySelectorAll('*'), function (el) {
+      if (/^(TEXTAREA|SELECT|INPUT)$/.test(el.tagName)) return false;
+      var cs = getComputedStyle(el);
+      if (cs.overflowY !== 'auto' && cs.overflowY !== 'scroll') return false;
+      if (el.scrollHeight <= el.clientHeight + 1 || el.clientHeight >= floor) return false;
+      var cap = /px$/.test(cs.maxHeight) ? parseFloat(cs.maxHeight) : 0;
+      return !(cap > 0 && el.clientHeight >= cap - 1);
+    });
+    if (!squeezed) return;
+    window.fitNoscroll();
+    /* صفحاتٌ تحمل حالةً مرتبطةً بالصنف (مناطقُ التمرير في inbox.html) تُصلح نفسَها عند هذا الحدث. */
+    if (!main.classList.contains('page-noscroll')) document.dispatchEvent(new Event('noscroll:changed'));
+  }
+  function settle() {
+    try { tighten(); } finally { if (window.noscrollReveal) window.noscrollReveal(); }
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(settle); else settle();
 })();

@@ -246,6 +246,7 @@
   window.addEventListener('resize', later);
   if (document.fonts && document.fonts.ready) { document.fonts.ready.then(sync); }
   document.body.addEventListener('htmx:afterSwap', later);
+  document.addEventListener('noscroll:changed', sync);
   var search = document.getElementById('notif-search');
   if (search) { search.addEventListener('input', later); }
 })();
