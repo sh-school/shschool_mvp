@@ -248,6 +248,9 @@ def week_nav(ctx: dict, week_info) -> dict:
         # «11 أكتوبر – 15 أكتوبر 2026» نصّاً: الورقةُ وExcel يكتبانه في ترويستهما كما تكتبه الصفحة.
         "range": f"{date_format(start, 'j F')} – {date_format(end, 'j F Y')}",
         "is_this_week": start == this,
+        # حدّا مرشّح التاريخ: أبعدُ أسبوعٍ يُتنقَّل إليه (MAX_WEEKS_AWAY) — وما وراءهما يرتدّ إلى الجاريّ.
+        "date_min": (this - timedelta(weeks=MAX_WEEKS_AWAY)).isoformat(),
+        "date_max": (this + timedelta(weeks=MAX_WEEKS_AWAY, days=6)).isoformat(),
         "prev_qs": qs(source="actual", week=(start - week).isoformat()),
         "next_qs": qs(source="actual", week=(start + week).isoformat()),
         "this_qs": qs(source="actual"),
