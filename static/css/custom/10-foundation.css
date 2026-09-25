@@ -287,6 +287,11 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --safe-top:    env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-inline: max(env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  /* الشريطُ السفليّ: `--dock-h` ارتفاعُه و`--dock-pad` حشوتُه السفلى (≥ 8px)؛ يقرؤهما معه `body` وشريطُ التثبيت و`.per-bar`. */
+  --dock-h:   4.5rem;
+  --dock-pad: max(var(--sp-2), var(--safe-bottom));
+  /* هامشُ المحتوى عن الحافّة: لا يقلّ عن الشقّ (`viewport-fit=cover`). */
+  --edge-inline: max(clamp(var(--sp-3), 1.4vw, 28px), var(--safe-inline));
 
   /* ══ Shadow/Elevation Scale ══ */
   /* --shadow-sm و --shadow-md موجودتان أعلاه */

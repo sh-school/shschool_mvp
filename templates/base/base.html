@@ -6,7 +6,7 @@
   <meta charset="UTF-8">
   {# الرسمُ الأوّلُ ينتظر قرارَ «بلا تمرير» بعد </main> (LAY-03) — وإلّا رُسمت الصفحةُ الطويلةُ ثمّ قفزت. #}
   <link rel="expect" href="#noscroll-fitted" blocking="render">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="{% brand_color 'MAROON' %}" id="meta-theme-color">
   <meta name="color-scheme" content="light" id="meta-color-scheme">
   {% comment %}لونُ أرضيّة الصفحة يُرسم قبل أيّ ملفٍّ خارجيّ (من `core.brand` مرآةِ `--page-bg`): كانت الصفحةُ الجديدةُ بيضاءَ لحظةً بين النقرة وتحميل الأنماط فتُرى الشاشةُ «تُفرَّغ» ثمّ تعود. الآن لا أبيضَ يظهر: تبقى الأرضيّةُ بلونها نهاراً وليلاً.{% endcomment %}
