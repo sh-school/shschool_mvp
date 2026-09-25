@@ -45,7 +45,7 @@ jobs:
         env:
           POSTGRES_DB:       test_db
           POSTGRES_USER:     test_user
-          POSTGRES_PASSWORD: test_pass
+          POSTGRES_PASSWORD: test_pass  # pragma: allowlist secret
         ports: ["5432:5432"]
         options: >-
           --health-cmd pg_isready
@@ -64,8 +64,8 @@ jobs:
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.testing
-      SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
-      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
+      SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6  # pragma: allowlist secret
+      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=  # pragma: allowlist secret
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
       # Playwright يستعمل حلقةَ أحداثٍ داخليّةً تُخطئ حارسَ Django غير المتزامن (كما في axe-a11y).
       DJANGO_ALLOW_ASYNC_UNSAFE: "1"
