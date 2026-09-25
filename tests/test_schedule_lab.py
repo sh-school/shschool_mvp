@@ -241,6 +241,52 @@ def test_two_doubles_back_to_back_are_a_run_of_two_tasks():
     assert exception_load(ScheduleLab(slots, Context()))["value"] == 1
 
 
+def test_the_run_breach_indicator_counts_a_required_double_as_one_task():
+    """SCH-19: `teacher.run_breaches` كان يعدّ المزدوجةَ المطلوبةَ تتابعاً — 24 يوماً على الإنتاج والحقيقيُّ 6.
+
+    معلّمُ فنّيةٍ كلُّ أيّامه مزدوجةٌ (حصّتان لمهمّةٍ واحدة) لا يحمل تلاصقاً مخالفاً، كما يحكم HC5 في المولّد.
+    """
+    slots = sum((_double("a", f"c{d}", d, 1) for d in range(5)), [])
+    lab = ScheduleLab(slots, Context())
+
+    assert lab.runs()[1]["value"] == 0.0
+    assert all(lab.longest_run("a", day) == 1 for day in range(5))
+
+
+def test_a_double_beside_another_lesson_is_still_a_run_breach():
+    """المزدوجةُ لا تُعفي ما يليها ولا ما يسبقها: مهمّتان متّصلتان."""
+    after = _double("a", "c1", 0, 1) + [
+        slot(teacher="a", klass="c2", subject="s2", day=0, period=3)
+    ]
+    before = [slot(teacher="a", klass="c2", subject="s2", day=0, period=1)] + _double(
+        "a", "c1", 0, 2
+    )
+
+    for slots in (after, before):
+        lab = ScheduleLab(slots, Context())
+        assert lab.longest_run("a", 0) == 2
+        assert lab.runs()[1]["value"] == 100.0
+
+
+def test_a_double_split_into_distant_periods_has_no_second_half():
+    """النصفُ الثاني هو الحصّةُ التي تلي الأولى مباشرةً لا مجرّدُ ثاني ما وُجد."""
+    slots = [
+        slot(teacher="a", klass="c1", subject="art", day=0, period=2, double=True),
+        slot(teacher="a", klass="c1", subject="art", day=0, period=5, double=True),
+    ]
+    assert ScheduleLab(slots, Context()).longest_run("a", 0) == 1
+
+
+def test_a_personal_cap_of_two_lets_a_double_and_a_lesson_pass():
+    ctx = Context()
+    ctx.preferences["a"] = {"max_daily": 7, "max_consecutive": 2, "max_gap": None, "free_day": None}
+    slots = _double("a", "c1", 0, 1) + [
+        slot(teacher="a", klass="c2", subject="s2", day=0, period=3)
+    ]
+
+    assert ScheduleLab(slots, ctx).runs()[1]["value"] == 0.0
+
+
 def test_exception_load_sees_a_class_that_bears_two_adjacent_lessons_of_one_subject():
     """الجانبُ الثاني: شعبةٌ فيها حصّتا مادّةٍ متجاورتان بمعلّمَين — لا تلاصقَ على أيٍّ منهما."""
     slots = [
