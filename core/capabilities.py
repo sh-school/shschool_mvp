@@ -22,6 +22,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from functools import cache
+from typing import Any
 
 from core.parent_consent import holds_parent_membership
 from core.permissions import expand_roles, role_required
@@ -70,7 +71,7 @@ def _holds_a_wing(user) -> bool:
 def _delegated(key: str) -> Callable:
     """منحٌ لا يقرؤه الدور: القدرةُ المفوَّضةُ باسم مستخدمٍ بمنحٍ فعّال (`core/capability_grants.py`)."""
 
-    def check(user) -> bool:
+    def check(user: Any) -> bool:
         from core.capability_grants import holds
 
         return holds(user, key)

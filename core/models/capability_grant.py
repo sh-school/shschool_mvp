@@ -70,9 +70,11 @@ class CapabilityGrant(SchoolScopedModel):
                 condition=Q(revoked_at__isnull=True),
                 name="uniq_active_capability_grant",
             ),
-            models.CheckConstraint(condition=~Q(reason=""), name="capability_grant_has_a_reason"),
-            # سحبٌ بلا سبب لا يُقبل: وقتٌ وسحبٌ وساحبٌ وسببٌ معاً أو لا شيء.
-            models.CheckConstraint(
+            models.CheckConstraint(  # type: ignore[call-arg]  # Django 5.1+: condition
+                condition=~Q(reason=""), name="capability_grant_has_a_reason"
+            ),
+            # سحبٌ بلا سبب لا يُقبل: وقتُ السحب وسببُه معاً أو لا شيء.
+            models.CheckConstraint(  # type: ignore[call-arg]  # Django 5.1+: condition
                 condition=Q(revoked_at__isnull=True, revoke_reason="")
                 | (Q(revoked_at__isnull=False) & ~Q(revoke_reason="")),
                 name="capability_grant_revocation_has_a_reason",

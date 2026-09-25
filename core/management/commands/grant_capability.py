@@ -16,6 +16,9 @@
 وتشغيلُه مرّتين لا يُحدث تغييراً ثانياً (منحٌ فعّالٌ قائمٌ يُبقى، وسحبٌ لمنحٍ غيرِ قائمٍ لا شيءَ فيه).
 """
 
+from argparse import ArgumentParser
+from typing import Any
+
 from django.core.management.base import BaseCommand, CommandError
 
 from core import capability_grants as service
@@ -43,7 +46,7 @@ def _user_by_employee_number(number: str, what: str) -> CustomUser:
 class Command(BaseCommand):
     help = "يمنح قدرةً مفوَّضةً لموظّف أو يسحبها أو يعرض الفعّالَ منها — ولا يكتب بلا --apply"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument("--school", required=True, help="رمز المدرسة (SHH001 على الإنتاج)")
         parser.add_argument(
             "--capability",
@@ -64,7 +67,7 @@ class Command(BaseCommand):
         )
         parser.add_argument("--apply", action="store_true", help="بدونه يعرض ولا يكتب")
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         school = School.objects.filter(code=options["school"]).first()
         if school is None:
             raise CommandError(f"لا مدرسةَ بالرمز {options['school']}")
@@ -112,7 +115,7 @@ class Command(BaseCommand):
             raise CommandError(str(exc)) from exc
         self.stdout.write(self.style.SUCCESS(f"\nتمّ {verb} القدرة."))
 
-    def _list(self, school, capability, label):
+    def _list(self, school: School, capability: str, label: str) -> None:
         grants = (
             CapabilityGrant.objects.filter(
                 school=school, capability=capability, revoked_at__isnull=True

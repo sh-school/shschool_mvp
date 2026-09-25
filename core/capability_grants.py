@@ -100,7 +100,7 @@ def _audit(
     label = DELEGABLE_CAPABILITIES[grant.capability]
     granted = action == "capability_granted"
     details = {"capability": grant.capability, "reason": reason, "grant": str(grant.pk)}
-    PermissionAuditLog.log(
+    PermissionAuditLog.log(  # type: ignore[no-untyped-call]
         actor=by, target=target, action=action, school=school, details=details, request=request
     )
     AuditLog.log(
