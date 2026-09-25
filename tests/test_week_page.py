@@ -56,8 +56,8 @@ def world(school, seeded_calendar, principal_user, monkeypatch):
         "principal": principal_user,
         "math": Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT"),
         "science": Subject.objects.create(school=school, name_ar="العلوم", code="SCI"),
-        "t1": _teacher(school, "معلّمُ الرياضيات"),
-        "t2": _teacher(school, "معلّمُ العلوم"),
+        "t1": _teacher(school, "معلّمٌ أوّل"),
+        "t2": _teacher(school, "معلّمٌ ثانٍ"),
         "sub": _teacher(school, "البديل"),
         "upper": ClassGroupFactory(
             school=school, grade="G10", level_type="sec", academic_year=YEAR, time_band=band
@@ -94,7 +94,7 @@ class TestThePageOpensOnTheActualWeek:
 
         body = _teacher_page(client, world, world["sub"]).content.decode()
 
-        assert "تبديل — كانت لـمعلّمُ الرياضيات" in body
+        assert "تبديل — كانت لـمعلّمٌ أوّل" in body
         assert "k-swap" in body, "الخانةُ ملوَّنة"
         assert "week-legend__swatch is-swap" in body, "ومفتاحُ الألوان يفسّرها"
 
@@ -107,7 +107,8 @@ class TestThePageOpensOnTheActualWeek:
         assert "الرياضيات" not in body.split("<tbody", 1)[1]
 
     def test_days_not_generated_yet_are_marked_as_from_the_plan(self, world, client):
-        body = _teacher_page(client, world, world["t1"]).content.decode()
+        # الأسبوعُ الجاري يولّده الوسيطُ عند أوّل طلبٍ في اليوم، فالخطّةُ تظهر في الأسابيع القادمة.
+        body = _teacher_page(client, world, world["t1"], week="2026-10-18").content.decode()
 
         assert "فتُعرض وفق الخطّة المعتمدة" in body
         assert "الأحد" in body.split("لم تُولَّد حصصُ", 1)[1].split("بعد", 1)[0]
@@ -180,7 +181,7 @@ class TestPrintAndExportStayOnThePlan:
 
         body = client.get(reverse("schedule_print"), query, HTTP_HOST="localhost").content.decode()
 
-        assert "تبديل — كانت لـمعلّمُ الرياضيات" in body
+        assert "تبديل — كانت لـمعلّمٌ أوّل" in body
 
     def test_the_pages_own_print_and_export_links_carry_the_chosen_week(self, world, client):
         body = _teacher_page(client, world, world["t1"], week="2026-10-18").content.decode()
