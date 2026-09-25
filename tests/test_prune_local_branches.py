@@ -470,9 +470,9 @@ def test_metrics_follow_the_roadmap_definitions(world):
     not_kept = [r for r in records if r["verdict"] not in ("KEEP_LIVE", "KEEP_OPEN_PR")]
     assert metrics["RK1"] == len(not_kept)
     single_copy = [r for r in records if r["verdict"] == "REVIEW" and not r["remote_copy"]]
-    assert metrics["RK2"] == len(single_copy)
+    assert metrics["RK2_candidates"] == len(single_copy)
     assert any(r["branch"] == "feat/remote-copy" and r["remote_copy"] for r in records)
-    assert metrics["RK3"] == 1, "شجرةُ feat/live الحيّةُ فرعُها مدموجٌ"
+    assert metrics["RK3_candidates"] == 1, "شجرةُ feat/live الحيّةُ فرعُها مدموجٌ"
     assert metrics["review_ceiling"] == {
         "count": sum(1 for r in records if r["verdict"] == "REVIEW"),
         "max": 40,

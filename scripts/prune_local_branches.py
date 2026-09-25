@@ -23,7 +23,7 @@
     scripts/prune_local_branches.sh                # عرضٌ فقط، لا حذف ولا وسم
     scripts/prune_local_branches.sh --archive      # يَسِم فروعَ REVIEW بوسمٍ محلّيّ (لا يحذف)
     scripts/prune_local_branches.sh --apply        # يحذف ما صُنِّف آمناً وحدَه (حتّى --max فرعاً في المرّة)
-    scripts/prune_local_branches.sh --json         # مخرَجٌ آليّ فيه المقاييسُ RK1..RK3 وسقفُ RD5
+    scripts/prune_local_branches.sh --json         # مخرَجٌ آليّ فيه RK1 ومرشّحاتُ RK2/RK3 وسقفُ RD5
 
 خيارات: --no-fetch (لا جلبَ من origin)، --no-gh (لا طلباتٍ من GitHub)، --prs-json <ملف> (قائمةُ طلباتٍ جاهزة بدل gh)،
 --main <مرجع>، --grace-hours <ساعات>، --max <عدد>، --skip-archive <regex>.
@@ -338,7 +338,12 @@ def metrics(
     now: float = 0.0,
     grace_hours: float = GRACE_HOURS,
 ) -> dict:
-    """RK1..RK3 كما تعرّفها الخارطة (وRD5: لا يُعدّ الفرعُ الحيُّ ولا المفتوحُ بطلب)."""
+    """مقاييسُ الخارطة (RK1..RK3) وسقفُ RD5. RK1 عدٌّ دقيق (RD5: لا يُعدّ الفرعُ الحيُّ ولا المفتوحُ بطلب).
+
+    أمّا RK2 وRK3 فهنا **مرشّحاتٌ** لا قراءةٌ رسميّة: REVIEW يعني «لم يُثبَت الدمج» لا «عملٌ فريد» — ملفٌّ ساخنٌ دُمج بالسحق مع صفوف غيره لا يطابق
+    أيَّ نسخةٍ في main فيُعدّ REVIEW ولو دُمج فعلاً — فمرشّحاتُ RK2 حدٌّ أعلى؛ وأشجارُ RK3 حدٌّ أدنى (لا دليلَ فلا تُعدّ). والقراءةُ الرسميّة
+    في الخارطة بعينٍ بشريّةٍ فوق هذه الأرقام.
+    """
     by_name = {b.name: b for b in records}
     review = [b for b in records if b.verdict == REVIEW]
     candidates = [
@@ -356,8 +361,8 @@ def metrics(
     ]
     return {
         "RK1": sum(1 for b in records if b.verdict not in (KEEP_LIVE, KEEP_OPEN_PR)),
-        "RK2": sum(1 for b in review if not b.remote_copy),
-        "RK3": len(candidates),
+        "RK2_candidates": sum(1 for b in review if not b.remote_copy),
+        "RK3_candidates": len(candidates),
         "review_ceiling": {
             "count": len(review),
             "max": REVIEW_CEILING,
@@ -466,7 +471,9 @@ def render(report: dict, records: list[Branch]) -> str:
     ceiling = m["review_ceiling"]
     lines += [
         "",
-        f"RK1 (الفروعُ المحلّيّة عدا الحيَّ والمفتوحَ بطلب) = {m['RK1']} | RK2 (فريدةٌ بنسخةٍ وحيدة) = {m['RK2']} | RK3 (أشجارٌ مدموجةٌ أو يتيمة) = {m['RK3']}",
+        f"RK1 (الفروعُ المحلّيّة عدا الحيَّ والمفتوحَ بطلب) = {m['RK1']}",
+        f"مرشّحاتُ RK2 (غيرُ مثبَتِ الدمج وبنسخةٍ وحيدة — حدٌّ أعلى يحتاج عيناً بشريّة) = {m['RK2_candidates']}",
+        f"مرشّحاتُ RK3 (أشجارٌ فرعُها مدموجٌ منذ ≥ {report['grace_hours']:g} ساعة أو يتيمة — حدٌّ أدنى) = {m['RK3_candidates']}",
         f"سقفُ RD5 على الفريدة وغير المدموجة: {ceiling['count']} من {ceiling['max']}"
         + (" — يتجاوز السقف!" if ceiling["exceeded"] else " — داخل السقف"),
     ]
