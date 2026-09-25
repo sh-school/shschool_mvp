@@ -2,14 +2,14 @@
 
 @layer modules {
 
-/* ═══════════════════════════════════════════════════════════════
+/* ════════════════════
    QUALITY MODULE — Central Design System
    Tables · Filters · Modals · Badges · Status · Animations
-   ═══════════════════════════════════════════════════════════════ */
+   ════════════════════ */
 
-/* ── 1. CSS Variables — defined in :root at top of file ────── */
+/* ── 1. CSS Variables — defined in :root at top of file ─── */
 
-/* ── 2. Page Layout ─────────────────────────────────────────── */
+/* ── 2. Page Layout ─── */
 .quality-page {
   max-width: 100%;
   margin: 0 auto;
@@ -34,7 +34,7 @@
   color: var(--text-primary);
 }
 
-/* ── 5. Plans Table ──────────────────────────────────────────── */
+/* ── 5. Plans Table ─── */
 .plans-table {
   width: 100%;
   border-collapse: separate;
@@ -150,7 +150,7 @@
 .quality-empty p { font-size: 0.85rem; font-weight: 700; }
 .quality-empty .sub { font-size: var(--text-xs); color: var(--text-muted); margin-top: 0.25rem; }
 
-/* ── 6. Pagination ────────────────────────────────────────────── */
+/* ── 6. Pagination ─── */
 .quality-pagination {
   display: flex;
   align-items: center;
@@ -194,7 +194,7 @@
   line-height: 1;
 }
 
-/* ── 7. Status Badges ─────────────────────────────────────────── */
+/* ── 7. Status Badges ─── */
 .q-badge {
   display: inline-flex;
   align-items: center;
@@ -221,7 +221,7 @@
   50%      { box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-danger) 0%, transparent); }
 }
 
-/* ── 8. Action Buttons (table cells) ──────────────────────────── */
+/* ── 8. Action Buttons (table cells) ─── */
 .q-btn {
   display: inline-flex;
   align-items: center;
@@ -283,7 +283,7 @@
   background: color-mix(in srgb, var(--maroon) 18%, transparent);
 }
 
-/* ── 9. Modal System ──────────────────────────────────────────── */
+/* ── 9. Modal System ─── */
 .q-modal-overlay {
   position: fixed;
   inset: 0;
@@ -567,7 +567,7 @@
   color: var(--status-danger-fg);
 }
 
-/* ── 12. Committee Pages ─────────────────────────────────────── */
+/* ── 12. Committee Pages ─── */
 
 /* Add-member collapsible form */
 
@@ -607,13 +607,13 @@
 
 /* Domain coverage cards */
 
-/* ── 13. Dashboard utility classes ──────────────────────────── */
+/* ── 13. Dashboard utility classes ─── */
 
 /* btn-sm: للأزرار/الروابط الصغيرة في صفحة اللوحة */
 .text-sm { font-size: var(--text-sm); }
 a.btn-primary, a.btn-secondary { text-decoration: none; }
 
-/* ── 14. Committee & table helpers ──────────────────────────── */
+/* ── 14. Committee & table helpers ─── */
 
 /* خلايا الجدول */
 .cell-domain        { font-size: var(--text-xs); color: var(--text-muted); }
@@ -643,7 +643,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 /* نموذج داخل السطر */
 .form-inline { display: inline; }
 
-/* ── 15. Login Page ──────────────────────────────────────────── */
+/* ── 15. Login Page ─── */
 .login-page {
   min-height: 100vh;
   min-height: 100dvh;
@@ -752,7 +752,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
    صنفاً، فكانت العلامةُ ترث لونَ ما حولها: سوداءَ على الأخضر الداكن نهاراً. */
 .tfa-status-badge { background-color: var(--status-success-dark); color: var(--on-fill); }
 
-/* ── 16. Responsive — Mobile-First ───────────────────────────── */
+/* ── 16. Responsive — Mobile-First ─── */
 .quality-page { width: 100%; padding: 0.5rem; }
 .q-modal-form-grid { grid-template-columns: 1fr; }
 .q-modal-info .info-grid { grid-template-columns: 1fr; }
@@ -766,7 +766,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 
 }
 
-/* ── Pagination ──────────────────────────────── */
+/* ── Pagination ─── */
 .pagination-wrap {
   display: flex;
   align-items: center;
@@ -787,7 +787,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   margin-inline-start: var(--sp-2);
 }
 
-/* ── Dashboard Misc ──────────────────────────── */
+/* ── Dashboard Misc ─── */
 
 .session-time { min-width: 52px; }
 
@@ -797,12 +797,12 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   border-color: var(--status-warning-border-soft);
 }
 
-/* ── Progress bar conditional colors ─────────── */
+/* ── Progress bar conditional colors ─── */
 
-/* ── Command Palette hidden state ────────────── */
+/* ── Command Palette hidden state ─── */
 .cmd-hidden { display: none; }
 
-/* ── Report Tabs ─────────────────────────────── */
+/* ── Report Tabs ─── */
 .report-tabs {
   display: flex;
   gap: var(--sp-1);
@@ -849,7 +849,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   border-color: var(--maroon-border);
 }
 
-/* ── Student search dropdown ─────────────────── */
+/* ── Student search dropdown ─── */
 .report-student-search { position: relative; }
 .report-student-search summary::-webkit-details-marker { display: none; }
 .report-student-dropdown {
@@ -880,11 +880,11 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   background: var(--surface);
 }
 
-/* ── Unified Dashboard System ─────────────────────────────
+/* ── Unified Dashboard System ───
    نظام لوحات موحد — نفس حجم analytics/dashboard
    يُستخدم في: main, assessments, clinic, transport,
    library, behavior, notifications, parents
-   ──────────────────────────────────────────────────────── */
+   ──────────────────── */
 .exec-dash {
   display: grid;
   /* العمودُ الضمنيُّ auto يتمدّد لأدنى محتوى جدول فيفيض الغلافُ على الهاتف. */
@@ -926,9 +926,9 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .kpi-purple { --kc: var(--accent-purple);   --kc-fg: var(--accent-purple-fg); }
 .kpi-sky    { --kc: var(--accent-sky);      --kc-fg: var(--accent-sky-fg); }
 
-/* ══════════════════════════════════════════════════════════════
+/* ════════════════════
    Q-KPI — نظام البطاقات الموحد (الدستور البصري MTG-2026-001)
-   ══════════════════════════════════════════════════════════════ */
+   ════════════════════ */
 
 /* ── Charts Grid (3×2 responsive) ── */
 
