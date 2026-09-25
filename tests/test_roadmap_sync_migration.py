@@ -2104,3 +2104,211 @@ def test_0024_publishes_no_personal_number_and_no_hash():
     bs = chr(92)
     assert not re.search(bs + "b" + bs + "d{11}" + bs + "b", body)
     assert not re.search(bs + "b[0-9a-f]{40}" + bs + "b", body)
+
+
+# ── 0025: إعادةُ قياس SK1..SK5 على التوليد المعتمد الآن 15007906 ──
+
+_sync25 = importlib.import_module("roadmap.migrations.0025_sync_kpis_2026_09_25")
+
+_SK25 = {
+    "SK1": (7.0, 12.0),
+    "SK2": (99.3, 98.2),
+    "SK3": (6.1, 17.9),
+    "SK4": (22.8, 26.0),
+    "SK5": (2.0, 0.0),
+}
+
+
+class _Apps25:
+    @staticmethod
+    def get_model(_app, name):
+        return RoadmapKpi if name == "RoadmapKpi" else RoadmapItem
+
+
+def _seed_sk25():
+    for code, (current, baseline) in _SK25.items():
+        RoadmapKpi.objects.create(
+            code=code,
+            lane="backend",
+            name=code,
+            baseline=baseline,
+            current=current,
+            measured_at=_sync25.PREVIOUS,
+            history=[{"d": "2026-09-24", "v": current}],
+            source="تدقيقُ الجدول الحيّ 2026-09-24 (جلسة الجدولة) (الإنتاج بعد اعتماد c2dba53a)",
+        )
+
+
+def test_0025_records_the_remeasurement_keeping_the_baselines_and_appending_a_history_point():
+    _seed_sk25()
+    assert _sync25.sync_kpis(RoadmapKpi) == ["SK1", "SK2", "SK3", "SK4", "SK5"]
+    assert _sync25.sync_kpis(RoadmapKpi) == []
+    values = {k.code: k.current for k in RoadmapKpi.objects.all()}
+    assert values == {"SK1": 7.0, "SK2": 99.3, "SK3": 6.9, "SK4": 23.6, "SK5": 2.0}
+    for k in RoadmapKpi.objects.all():
+        assert k.baseline == _SK25[k.code][1], k.code
+        assert k.measured_at == _sync25.DAY, k.code
+        # نقطةُ الأمس باقية ونقطةُ اليوم أُضيفت (حتى لو تساوت القيمتان).
+        assert [p["d"] for p in k.history] == ["2026-09-24", "2026-09-25"], k.code
+        assert "15007906" in k.source and len(k.source) <= 255, k.code
+
+
+def test_0025_warns_that_the_sk3_rise_is_the_definition_flaw_not_a_real_regression():
+    _seed_sk25()
+    _sync25.sync_kpis(RoadmapKpi)
+    sk3 = RoadmapKpi.objects.get(code="SK3")
+    assert "SCH-19" in sk3.source and "≈1.7%" in sk3.source and "يعدّ المزدوجةَ تتابعاً" in sk3.source
+
+
+def test_0025_attributes_the_sk4_cause_to_the_session_as_probable_not_proven():
+    _seed_sk25()
+    _sync25.sync_kpis(RoadmapKpi)
+    sk4 = RoadmapKpi.objects.get(code="SK4")
+    assert "سببٌ مرجَّحٌ لـ8033" in sk4.source and "#564" in sk4.source
+
+
+def test_0025_leaves_a_kpi_the_developer_remeasured():
+    _seed_sk25()
+    RoadmapKpi.objects.filter(code="SK4").update(current=20.0)
+    assert "SK4" not in _sync25.sync_kpis(RoadmapKpi)
+    assert RoadmapKpi.objects.get(code="SK4").current == 20.0
+
+
+def test_0025_never_writes_an_overflowing_source_but_still_records_the_value():
+    RoadmapKpi.objects.create(
+        code="SK3",
+        lane="backend",
+        name="x",
+        baseline=17.9,
+        current=6.1,
+        measured_at=_sync25.PREVIOUS,
+        source="ك" * 250,
+    )
+    assert _sync25.sync_kpis(RoadmapKpi) == ["SK3"]
+    sk3 = RoadmapKpi.objects.get(code="SK3")
+    assert sk3.source == "ك" * 250 and sk3.current == 6.9
+
+
+def test_0025_notes_sch11_without_moving_it_and_leaves_the_decision_to_the_owner():
+    _item("SCH-11", "doing", 15)
+    assert _sync25.sync_notes(RoadmapItem) == ["SCH-11"]
+    assert _sync25.sync_notes(RoadmapItem) == []
+    sch11 = RoadmapItem.objects.get(code="SCH-11")
+    assert (sch11.status, sch11.progress) == ("doing", 15)
+    assert "23.6%" in sch11.note and "قرارُ مالكٍ" in sch11.note and "لا يُتَّخذ هنا" in sch11.note
+    assert "مؤشِّرٌ لا إثبات" in sch11.note
+
+
+def test_0025_closes_rep03_by_the_neutral_sentence_and_lifts_its_owner_gate():
+    _item("REP-03", "doing", 60, gate="owner")
+    assert _sync25.sync(RoadmapItem) == ["REP-03"]
+    assert _sync25.sync(RoadmapItem) == []
+    rep03 = RoadmapItem.objects.get(code="REP-03")
+    assert (rep03.status, rep03.progress, rep03.gate) == ("done", 100, "")
+    # الجملةُ المحايدة كما أرسلتها جلسةُ Git: بلا أسماء متغيّراتٍ ولا أعدادٍ ولا تفاصيل.
+    assert "قورنت البصماتُ المسجَّلة بالإنتاج في الخدمات الثلاث؛ لا تطابق" in rep03.note
+    assert "خمسُ خطواتٍ من خمس" in rep03.note and "شغّله المالكُ بنفسه" in rep03.note
+
+
+def test_0025_adds_the_lay03_note_and_pr_tokens_without_moving_its_state_or_dates():
+    from datetime import date
+
+    _item(
+        "LAY-03",
+        "doing",
+        50,
+        pr="#532 #539 #543",
+        start_date=date(2026, 10, 19),
+        end_date=date(2026, 11, 6),
+    )
+    assert _sync25.sync(RoadmapItem) == ["LAY-03"]
+    assert _sync25.sync(RoadmapItem) == []
+    lay03 = RoadmapItem.objects.get(code="LAY-03")
+    assert (lay03.status, lay03.progress, lay03.pr) == ("doing", 50, "#532 #539 #543 #567 #585")
+    assert (str(lay03.start_date), str(lay03.end_date)) == ("2026-10-19", "2026-11-06")
+    note = lay03.note
+    assert "لا @container، ويبقى ADR-0005 D3" in note and "«مقترح» مقدَّمٌ لاعتماد المالك" in note
+    # #585 منشورٌ بإخطار جلسة النشر، و#586 و#587 قيد الطابور لا مدموجان.
+    assert "منشورٌ على الإنتاج main@7f7241e" in note and "قيد الطابور" in note
+    assert "لم يُنشر بعد" not in note
+    assert "لم تُغيَّر حالةُ البند ولا تقدّمُه ولا موعدُه" in note
+
+
+def test_0025_leaves_a_lay03_the_developer_moved():
+    _item("LAY-03", "done", 100)
+    assert _sync25.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="LAY-03").note == ""
+
+
+def test_0025_leaves_a_rep03_the_developer_moved_or_a_rep03_still_at_todo():
+    _item("REP-03", "todo", 0, gate="owner")
+    assert _sync25.sync(RoadmapItem) == []
+    rep03 = RoadmapItem.objects.get(code="REP-03")
+    assert (rep03.status, rep03.progress, rep03.gate, rep03.note) == ("todo", 0, "owner", "")
+
+
+def test_0025_adds_a_short_u03_note_without_touching_its_state_dates_or_dependencies():
+    from datetime import date
+
+    _item("U-03", "todo", 0, start_date=date(2026, 9, 21), end_date=date(2026, 9, 25), deps="U-01")
+    assert _sync25.sync_notes(RoadmapItem) == ["U-03"]
+    assert _sync25.sync_notes(RoadmapItem) == []
+    u03 = RoadmapItem.objects.get(code="U-03")
+    assert (u03.status, u03.progress, u03.deps) == ("todo", 0, "U-01")
+    assert (str(u03.start_date), str(u03.end_date)) == ("2026-09-21", "2026-09-25")
+    assert "لا تطابق" in u03.note and "لم يُغيَّر موعدُه ولا اعتماديّاتُه" in u03.note
+
+
+def test_0025_widens_sch16_by_a_note_and_adds_a_doc_fix_note_to_sch19_without_moving_either():
+    _item("SCH-16", "todo", 0)
+    _item("SCH-19", "todo", 0)
+    assert _sync25.sync_notes(RoadmapItem) == ["SCH-16", "SCH-19"]
+    assert _sync25.sync_notes(RoadmapItem) == []
+    sch16 = RoadmapItem.objects.get(code="SCH-16")
+    assert (sch16.status, sch16.progress) == ("todo", 0)
+    assert (
+        "998 من سقف 1000" in sch16.note
+        and "يشمل المختبر" in sch16.note
+        and "لم يُغيَّر موعدُه ولا معيارُه" in sch16.note
+    )
+    sch19 = RoadmapItem.objects.get(code="SCH-19")
+    assert (sch19.status, sch19.progress) == ("todo", 0)
+    assert "ستّةَ عشرَ مؤشراً" in sch19.note and "25" in sch19.note
+
+
+def test_0025_leaves_sch11_the_developer_moved():
+    _item("SCH-11", "done", 100)
+    assert _sync25.sync_notes(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="SCH-11").note == ""
+
+
+def test_0025_forwards_does_nothing_on_an_empty_database_and_is_idempotent():
+    _sync25.forwards(_Apps25, None)
+    assert RoadmapKpi.objects.count() == 0
+    _seed_sk25()
+    _item("SCH-11", "doing", 15)
+    _sync25.forwards(_Apps25, None)
+
+    def snapshot():
+        return (
+            list(
+                RoadmapKpi.objects.order_by("code").values_list(
+                    "code", "current", "history", "source"
+                )
+            ),
+            list(RoadmapItem.objects.values_list("code", "status", "progress", "note")),
+        )
+
+    first = snapshot()
+    _sync25.forwards(_Apps25, None)
+    assert snapshot() == first
+
+
+def test_0025_publishes_no_personal_number_and_no_hash():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0025_sync_kpis_2026_09_25").origin
+    body = open(origin, encoding="utf-8").read()
+    bs = chr(92)
+    assert not re.search(bs + "b" + bs + "d{11}" + bs + "b", body)
+    assert not re.search(bs + "b[0-9a-f]{40}" + bs + "b", body)
