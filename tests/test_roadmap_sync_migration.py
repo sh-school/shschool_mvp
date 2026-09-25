@@ -2122,7 +2122,7 @@ _SK25 = {
 class _Apps25:
     @staticmethod
     def get_model(_app, name):
-        return RoadmapKpi if name == "RoadmapKpi" else RoadmapItem
+        return {"RoadmapKpi": RoadmapKpi, "RoadmapDecision": RoadmapDecision}.get(name, RoadmapItem)
 
 
 def _seed_sk25():
@@ -2247,7 +2247,7 @@ def test_0025_closes_vi54_by_592_lifting_the_owner_gate_and_saying_it_is_unpubli
     vi54 = RoadmapItem.objects.get(code="VI-54")
     assert (vi54.status, vi54.progress, vi54.pr, vi54.gate) == ("done", 100, "#592", "")
     note = vi54.note
-    assert "مدموجٌ غيرُ منشور" in note and "2026-09-27" in note and "منشورٌ على الإنتاج" not in note
+    assert "مدموجٌ غيرُ منشور" in note and "منشورٌ على الإنتاج" not in note
     # ما لم يُقَس يُقال، والحارسُ باسمه، ولا يُدَّعى فحصٌ على الجوّال.
     assert "لم يُقَس" in note and "الإدارةُ على الجوال" in note
     assert "test_the_admin_is_day_by_default_and_never_reads_the_system_theme" in note
@@ -2275,6 +2275,61 @@ def test_0025_leaves_a_dbt44_the_developer_reopened():
     _item("DBT-44", "doing", 50)
     assert "DBT-44" not in _sync25.sync(RoadmapItem)
     assert RoadmapItem.objects.get(code="DBT-44").note == ""
+
+
+def test_0025_registers_lay08_as_a_proposed_open_umbrella_without_dates_or_a_closed_state():
+    assert _sync25.add_proposed(RoadmapItem) == ["LAY-08"]
+    assert _sync25.add_proposed(RoadmapItem) == []
+    lay08 = RoadmapItem.objects.get(code="LAY-08")
+    assert (lay08.status, lay08.progress, lay08.lane, lay08.src, lay08.deps) == (
+        "todo",
+        0,
+        "frontend",
+        "LAY",
+        "LAY-03",
+    )
+    assert (
+        lay08.start_date is None
+        and lay08.end_date is None
+        and lay08.gate == ""
+        and lay08.sort_order == 730
+    )
+    # القائمةُ الأحدَ عشرَ كلُّها في الملاحظة، ومنسوبةٌ لقياس 8101، وفيها القراران للمالك.
+    note = lay08.note
+    for marker in ("(1)", "(2)", "(3)", "(4)", "(5)", "(6)", "(7)", "(8)", "(9)", "(10)", "(11)"):
+        assert marker in note, marker
+    assert "8101" in note and "ولم تُصلَح" in note and "D-23" in note and "D-24" in note
+
+
+def test_0025_keeps_a_lay08_the_developer_wrote_first():
+    _item("LAY-08", "doing", 10, title="كتبه المطوّر")
+    assert _sync25.add_proposed(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="LAY-08").title == "كتبه المطوّر"
+
+
+def test_0025_opens_d22_d23_d24_for_the_owner_without_deciding_any():
+    assert _sync25.add_decisions(RoadmapDecision) == ["D-22", "D-23", "D-24"]
+    assert _sync25.add_decisions(RoadmapDecision) == []
+    decisions = {d.code: d for d in RoadmapDecision.objects.all()}
+    assert all(
+        (d.status, d.decision_date, d.decider) == ("open", None, "المالك")
+        for d in decisions.values()
+    )
+    assert [decisions[c].sort_order for c in ("D-22", "D-23", "D-24")] == [136, 137, 138]
+    # D-22 يحجب M-04 ويخيّر بين البقاء والتبديل بعد رؤيته على آيفون؛ وD-23/D-24 يحجبان LAY-08.
+    assert decisions["D-22"].blocks == "M-04" and "black-translucent" in decisions["D-22"].options
+    assert decisions["D-23"].blocks == "LAY-08" and "2026-09-06" in decisions["D-23"].title
+    assert decisions["D-24"].blocks == "LAY-08" and "fitNoscroll" in decisions["D-24"].options
+    # لا توصيةَ تُخترع: النصُّ يقول ذلك صراحةً.
+    assert all("لا توصيةَ" in d.recommendation for d in decisions.values())
+
+
+def test_0025_keeps_a_decision_the_owner_already_took():
+    RoadmapDecision.objects.create(
+        code="D-22", title="x", status="decided", recommendation="حسمه المالك"
+    )
+    assert "D-22" not in _sync25.add_decisions(RoadmapDecision)
+    assert RoadmapDecision.objects.get(code="D-22").recommendation == "حسمه المالك"
 
 
 def test_0025_closes_m04_by_594_keeping_the_open_owner_decision_and_the_unverified_device():
@@ -2342,23 +2397,38 @@ def test_0025_extends_the_dbt36_note_with_the_594_bytes():
     assert "929 بايتاً" in note and "+703 بايتاً" in note and "ولم يُقَس المجموعُ" in note
 
 
-def test_0025_moves_n041_to_67_as_merged_but_unpublished_and_never_closes_it():
+def test_0025_does_not_touch_n041_until_the_revert_and_reland_actually_happen():
     _item("N-041", "doing", 33, pr="#577")
-    assert _sync25.sync(RoadmapItem) == ["N-041"]
     assert _sync25.sync(RoadmapItem) == []
     n041 = RoadmapItem.objects.get(code="N-041")
-    assert (n041.status, n041.progress, n041.pr) == ("doing", 67, "#577 #584")
-    note = n041.note
-    # مدموجٌ لا منشور، ونشرُه محجوبٌ حتى تحقّق الأحد، والتقدّمُ عدُّ طلباتٍ ولا يُغلق، والباقي 3/3 لم يُدفع.
-    assert "مدموجٌ غيرُ منشور" in note and "محجوبٌ حتى تحقّق جلسة 8033" in note and "2026-09-27" in note
-    assert "عدُّ طلباتٍ لا جهد ولا يُغلق" in note and "3/3" in note and "لم يُدفع" in note
-    assert "منشورٌ على الإنتاج" not in note and "929 بايتاً" in note
+    assert (n041.status, n041.progress, n041.pr, n041.note) == ("doing", 33, "#577", "")
 
 
-def test_0025_leaves_an_n041_the_developer_moved():
-    _item("N-041", "done", 100)
-    assert "N-041" not in _sync25.sync(RoadmapItem)
-    assert RoadmapItem.objects.get(code="N-041").note == ""
+def test_0025_moves_sch08_to_95_by_the_sessions_suggestion_never_to_100():
+    _item("SCH-08", "doing", 90)
+    assert _sync25.sync(RoadmapItem) == ["SCH-08"]
+    assert _sync25.sync(RoadmapItem) == []
+    sch08 = RoadmapItem.objects.get(code="SCH-08")
+    assert (sch08.status, sch08.progress) == ("doing", 95)
+    note = sch08.note
+    # القياسُ الحقيقيّ 869/869، والثغرةُ وإصلاحُها (#596 قيد الفحوص) يُذكران، ولا 100% قبل النشر والقياس النهائيّ.
+    assert "869 من 869" in note and "#596" in note and "قيد الفحوص" in note and "لا 100%" in note
+    assert "2026-09-27" in note and "اقتراحُ 8033" in note and "أصلحها المالكُ بنفسه" in note
+
+
+def test_0025_leaves_a_sch08_the_developer_moved():
+    _item("SCH-08", "done", 100)
+    assert "SCH-08" not in _sync25.sync(RoadmapItem)
+    assert RoadmapItem.objects.get(code="SCH-08").note == ""
+
+
+def test_0025_never_claims_a_publication_delay_reason_that_the_owner_decision_changed():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0025_sync_kpis_2026_09_25").origin
+    body = open(origin, encoding="utf-8").read()
+    assert not re.search("تعليق نشر|نشرُ main معلَّق|ينتظر تحقّق 8033", body)
+    assert "مدموجٌ غيرُ منشور بعدُ" in body
 
 
 def test_0025_adds_a_dbt36_note_about_the_narrow_css_margin_without_moving_it():
