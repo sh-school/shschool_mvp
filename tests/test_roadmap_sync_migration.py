@@ -1852,8 +1852,9 @@ def test_0023_closes_rep04_by_its_pr_and_rep01_by_an_operation():
         and "RK6 من 2 إلى 0" in rep04.note
         and "DBT-56" in rep04.note
     )
-    # لم يُنشر بعد آخر إخطار نشرٍ: يُقال ذلك ولا يُدَّعى نشرٌ لم يقع.
-    assert "main@6087da6" in rep04.note and "فيُنشر في دورةٍ لاحقة" in rep04.note
+    # نُشر ضمن main@db33f87 بإخطار جلسة النشر: لا تبقى عبارةُ «يُنشر لاحقاً».
+    assert "منشورٌ على الإنتاج" in rep04.note and "main@db33f87" in rep04.note
+    assert "فيُنشر في دورةٍ لاحقة" not in rep04.note and "main@6087da6" not in rep04.note
     rep01 = RoadmapItem.objects.get(code="REP-01")
     assert (rep01.status, rep01.progress, rep01.pr) == ("done", 100, "")
     assert "بعمليّةٍ لا بطلب دمج" in rep01.note and "طابقت مراجعَ الحزمة كلَّها" in rep01.note
@@ -1999,32 +2000,52 @@ class _Apps24:
         return RoadmapItem
 
 
-def test_0024_moves_sch10_to_doing_at_50_by_the_sessions_explicit_count_and_never_closes_it():
+def test_0024_closes_sch10_at_100_once_both_criteria_are_met_keeping_the_50_history():
     from datetime import date
 
     _item("SCH-10", "todo", 0, start_date=date(2026, 9, 28), end_date=date(2026, 10, 2))
     assert _sync24.sync(RoadmapItem) == ["SCH-10"]
     assert _sync24.sync(RoadmapItem) == []
     sch10 = RoadmapItem.objects.get(code="SCH-10")
-    assert (sch10.status, sch10.progress, sch10.pr) == ("doing", 50, "#589")
-    # الموعدُ لم يُغيَّر، والنسبةُ منسوبةٌ لحسابٍ صريح، وما لم يُنجَز يُقال (كتابةٌ في الإنتاج بإذن المالك).
+    assert (sch10.status, sch10.progress, sch10.pr) == ("done", 100, "#589")
+    # الموعدُ لم يُغيَّر، والمعياران تحقّقا (الأساسُ حُفظ بإذن المالك)، وما كان 50% يُذكر تاريخاً.
     assert (str(sch10.start_date), str(sch10.end_date)) == ("2026-09-28", "2026-10-02")
     note = sch10.note
-    assert "اشتقاقُ 8033 بحسابٍ صريح" in note and "(100 + 0) / 2 = 50%" in note
-    assert "لم يُنجَز" in note and "ينتظر إذنَ المالك" in note
-    # عرضٌ لا حكم: لا يدخل الدرجة، والقياسُ على نسخةٍ لا الإنتاج نفسه ولا يغيّر SK*.
-    assert (
-        "عرضٌ لا حكم" in note and "نسخةٌ من الإنتاج لا الإنتاج نفسه" in note and "6 أيّامِ معلّمٍ" in note
-    )
+    assert "تحقّق معيارا الإغلاق" in note and "(100 + 0) / 2" in note and "كان البند 50%" in note
+    assert "15007906" in note and "= **2**" in note and "الأسسُ 5 ← 6" in note
+    # عرضٌ لا حكم: لا يدخل الدرجة، ولا تغيّرَ في SK*.
+    assert "عرضٌ لا حكم" in note and "ولا تغيّرَ في SK*" in note
 
 
-def test_0024_states_it_was_not_published_after_the_last_deploy_notice():
+def test_0024_records_the_owner_pinning_of_the_new_baseline_as_done_not_as_pending():
     _item("SCH-10", "todo", 0)
     _sync24.sync(RoadmapItem)
     note = RoadmapItem.objects.get(code="SCH-10").note
     assert (
-        "main@6087da6" in note and "فيُنشر في دورةٍ لاحقة" in note and "تحقّقُ الأحد 2026-09-27" in note
+        "ثُبِّت الأساسُ الجديد بقرار المالك" in note
+        and "ثبّت الأساس الجديد" in note
+        and "d37abbc3" in note
     )
+    assert "ويمكن إعادةُ تثبيته" in note
+    assert "لم يُثبَّت الأساسُ الجديد" not in note and "ولم يُتَّخذ" not in note
+
+
+def test_0024_states_it_was_published_on_production():
+    _item("SCH-10", "todo", 0)
+    _sync24.sync(RoadmapItem)
+    note = RoadmapItem.objects.get(code="SCH-10").note
+    assert (
+        "منشورٌ على الإنتاج" in note and "main@db33f87" in note and "فيُنشر في دورةٍ لاحقة" not in note
+    )
+
+
+def test_0024_notes_the_current_approved_generation_on_sch08_without_moving_it():
+    _item("SCH-08", "doing", 90)
+    assert _sync24.sync(RoadmapItem) == ["SCH-08"]
+    assert _sync24.sync(RoadmapItem) == []
+    sch08 = RoadmapItem.objects.get(code="SCH-08")
+    assert (sch08.status, sch08.progress) == ("doing", 90)
+    assert "15007906" in sch08.note and "c2dba53a" in sch08.note and "2026-09-27" in sch08.note
 
 
 def test_0024_leaves_sch10_the_developer_moved():
