@@ -24,6 +24,7 @@ a.th-sort { text-decoration: none; }
   display: inline-flex;
   align-items: center;
   gap: var(--sp-1);
+  min-block-size: 24px; /* WCAG 2.5.8 على كلّ مؤشّر (D1، DBT-55)؛ وعلى اللمس 44px في كتلة coarse */
   width: 100%;
   max-width: 100%;
   padding: 0;
