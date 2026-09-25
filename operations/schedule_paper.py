@@ -23,8 +23,9 @@
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from operations.bells import REGULAR, THURSDAY, Bell, bells_for
 from operations.models import ScheduleSlot
@@ -116,7 +117,7 @@ def _day_breaks(bands: list[str], table: dict[str, Bell]) -> list[tuple[int, Bre
     ]
 
 
-def cell_kind(slots) -> str:
+def cell_kind(slots: Iterable[Any] | None) -> str:
     """نوعُ أوّل حصّةٍ حُوّل معلّمُها في خانة: `swap` أو `cover` أو `comp` — وفارغٌ لغيرها.
 
     وحصصُ الخطّة بلا `kind` أصلاً، فخانتُها فارغةُ العلامة. تقرؤه الشبكةُ (`week_layout`) والجدولُ
