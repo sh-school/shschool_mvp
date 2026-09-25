@@ -220,9 +220,6 @@ html.dark .site-header {
 html.dark .sd-menu {
   color-scheme: dark;
 }
-html.dark .sd-menu a:hover { background: var(--menu-hover); color: var(--maroon-fg); }
-html.dark .sd-user-nid { color: var(--text-muted); }
-html.dark .sd-logout-btn { color: var(--status-danger-fg); }
 
 /* ── 5. Mobile Hamburger Menu (dark) — Mobile-First ────────────── */
 html.dark .nb-bar {
@@ -240,7 +237,6 @@ html.dark .mobile-bottom-nav {
   background: var(--surface);
   border-top-color: var(--border);
 }
-html.dark .mobile-nav-item { color: var(--text-muted); }
 html.dark .mobile-nav-item:hover,
 html.dark .mobile-nav-item.active { color: var(--maroon-fg); }
 
@@ -269,9 +265,6 @@ html.dark thead tr {
 html.dark tbody tr:nth-child(even) {
   background: var(--surface);
 }
-html.dark tbody tr:hover {
-  background: var(--maroon-bg);
-}
 html.dark tbody td,
 html.dark .table-wrap tbody td {
   color: var(--text-primary);
@@ -281,7 +274,6 @@ html.dark tfoot tr {
   background: var(--surface);
   border-top-color: var(--border-strong);
 }
-html.dark tfoot td { color: var(--text-primary); }
 html.dark tr.selected,
 html.dark tr.active {
   background: var(--maroon-bg);
@@ -316,7 +308,6 @@ html.dark .login-input:focus {
   background: var(--surface);
   box-shadow: 0 0 0 3px var(--login-input-focus-halo);
 }
-html.dark .login-input::placeholder { color: var(--text-muted); }
 html.dark .login-btn {
   background: var(--maroon-light);
 }
@@ -324,16 +315,10 @@ html.dark .login-btn:hover {
   background: var(--maroon);
 }
 html.dark .login-help-title { color: var(--text-muted); }
-html.dark .login-help-text { color: var(--text-muted); }
-html.dark .login-help-phone { color: var(--maroon-fg); }
 
 /* ── 11. Modals ─────────────────────────────────────────────────── */
-html.dark .modal-box {
-  background: var(--surface);
-}
 html.dark .modal-header { border-bottom-color: var(--border); color: var(--text-primary); }
 html.dark .modal-footer { border-top-color: var(--border); }
-html.dark .modal-close-btn { color: var(--text-muted); }
 html.dark .modal-close-btn:hover { color: var(--text-primary); }
 
 /* Quality modals */
@@ -343,8 +328,6 @@ html.dark .q-modal {
 html.dark .q-modal-header { background: linear-gradient(135deg, var(--maroon-bg) 0%, var(--maroon-bg) 100%); }
 html.dark .q-modal-body { color: var(--text-primary); }
 html.dark .q-modal-info { background: var(--surface); border-color: var(--border); }
-html.dark .q-modal-info .info-label { color: var(--text-muted); }
-html.dark .q-modal-info .info-value { color: var(--text-primary); }
 html.dark .q-modal-field select,
 html.dark .q-modal-field input,
 html.dark .q-modal-field textarea {
@@ -374,9 +357,6 @@ html.dark .msg-error   { border-color: var(--border); color: var(--status-danger
 html.dark .msg-warning { border-color: var(--border); }
 html.dark .msg-info    { background: var(--status-info-bg); border-color: var(--border); }
 
-/* dark: grade colors */
-html.dark .grade-na        { color: var(--text-muted); }
-
 /* ── 13. Status Badges ──────────────────────────────────────────── */
 html.dark .status-success { background: var(--status-success-bg); color: var(--status-success-fg); }
 html.dark .status-danger  { background: var(--status-danger-bg); color: var(--status-danger-fg); border-color: var(--status-danger-dark); }
@@ -394,17 +374,11 @@ html.dark .toast {
 }
 
 /* ── 16. Command Palette ────────────────────────────────────────── */
-html.dark .cmd-box {
-  background: var(--surface);
-}
-html.dark .cmd-input { color: var(--text-primary); }
 html.dark .cmd-input-wrap { border-bottom-color: var(--border); }
 html.dark .cmd-kbd { background: var(--border); border-color: var(--border-strong); color: var(--text-secondary); }
-html.dark .cmd-item { color: var(--text-primary); }
 html.dark .cmd-item:hover,
 html.dark .cmd-item.active { background: var(--maroon-bg); }
 html.dark .cmd-item-icon { background: var(--border); }
-html.dark .cmd-results:empty::after { color: var(--text-muted); }
 
 /* ── 17. Footer ─────────────────────────────────────────────────── */
 /* ذيلُ المنصّة: رموزُ `--footer-*` تنقلب وحدها (20-components) */
@@ -423,16 +397,11 @@ html.dark .btn-secondary {
   border-color: var(--maroon-border);
 }
 
-/* ── 21. Scrollbar ──────────────────────────────────────────────── */
-html.dark ::-webkit-scrollbar-thumb { background: var(--border-strong); }
-
 /* ── 22. Breadcrumbs ────────────────────────────────────────────── */
-html.dark .breadcrumbs a { color: var(--maroon-fg); }
-/* تبقى نظيرةً وإن انقلب الرمز: `html.dark .breadcrumbs a` فوقها في طبقة `themes`
-   تغلب قاعدةَ المرور النهاريّة في `components` فتمحو لونَ المرور ليلاً. */
+/* نظيرةُ المرور باقيةٌ وإن طابقت النهاريّةَ: لو أُعيدت نظيرةُ `html.dark .breadcrumbs a` لغلبت
+   في طبقة `themes` قاعدةَ المرور النهاريّة في `components` فمحت لونَ المرور ليلاً. */
 html.dark .breadcrumbs a:hover { color: var(--breadcrumb-hover); }
 html.dark .breadcrumbs .bc-sep { color: var(--text-muted); }
-html.dark .breadcrumbs .bc-current { color: var(--text-secondary); }
 html.dark .bc-back {
   border-color: var(--border-strong);
   background: var(--surface);
@@ -458,7 +427,6 @@ html.dark .mini-progress-track { background: var(--border); }
 
 /* Add-member form */
 
-html.dark .q-add-form-field label { color: var(--text-secondary); }
 html.dark .q-add-form-field select,
 html.dark .q-add-form-field input {
   background: var(--surface-alt);
@@ -810,11 +778,7 @@ html.dark .free-slots-td { border-color: var(--border); }
 html.dark .card-bar { background: var(--maroon-dark); }
 html.dark .tfa-status-badge { background-color: var(--status-success); }
 /* ── Dashboard KPI Colors ────────────────────── */
-html.dark .kpi-label        { color: var(--text-secondary); }
 html.dark .alert-strip { background: color-mix(in srgb, var(--status-danger) 10%, transparent); border-color: var(--border); }
-html.dark .text-status-danger  { color: var(--status-danger-fg); }
-html.dark .text-status-success { color: var(--status-success-fg); }
-html.dark .text-status-warning { color: var(--status-warning-fg); }
 html.dark .text-status-info    { color: var(--status-info-fg); }
 html.dark .radio-pill {
   border-color: var(--border-strong);
@@ -822,15 +786,11 @@ html.dark .radio-pill {
 }
 /* Dark */
 html.dark .kpi-donut-card { background: var(--surface); border-color: var(--border); }
-html.dark .kpi-donut-ring .donut-track { stroke: var(--border); }
 html.dark .kpi-unavail-item { background: var(--surface); border-color: var(--border); }
-html.dark .kpi-unavail-icon { background: var(--surface-alt); }
 html.dark .pr-dom { background: var(--surface-alt); border-color: var(--surface); }
 html.dark .pr-dom:hover { border-color: var(--border-strong); }
-html.dark .pr-dom__reviewer { color: var(--maroon-fg); }
 html.dark .pr-exec { background: var(--surface-alt); border-color: var(--surface); }
 html.dark .pr-exec:hover { border-color: var(--border-strong); }
-html.dark .pr-exec__user { color: var(--maroon-fg); }
 html.dark .schedule-pages-card { color: var(--text-primary); }
 html.dark .gen-log-table thead tr { background: var(--surface); color: var(--maroon-fg); }
 html.dark .gen-log-table thead th { color: var(--maroon-fg); }
