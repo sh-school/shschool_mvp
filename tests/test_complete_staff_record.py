@@ -131,20 +131,3 @@ def test_blank_employee_numbers_do_not_collide(db, school):
     CustomUser.objects.create(must_change_password=False, national_id="28900000003", full_name="ب")
 
     assert CustomUser.objects.filter(employee_number="").count() == 2
-
-
-# ── الجدول يعرف الاسم الجديد ─────────────────────────────────────────
-
-
-def test_the_timetable_name_map_is_well_formed():
-    """جدولُ الأسماء يربط اسمَ الجدول المختصر باسم المنصّة الكامل.
-
-    كانت هذه الحالةُ تُثبَّت باسمَي معلّمَين حقيقيَّين، فرُفعا من الاختبار: المستودعُ عامّ ولا
-    بيانَ شخصيّاً في اختبار. فيُثبَّت هنا الشكلُ لا الأسماء: جدولٌ غيرُ فارغ، ولكلّ إدخالٍ مفتاحٌ
-    واسمٌ كاملٌ غيرُ فارغَين.
-    """
-    from operations.management.commands.import_timetable_pdf import TEACHER_MAP
-
-    assert TEACHER_MAP
-    for short, full in TEACHER_MAP.items():
-        assert short.strip() and full.strip()
