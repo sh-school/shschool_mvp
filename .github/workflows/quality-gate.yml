@@ -190,9 +190,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends libcairo2-dev pkg-config
 
       - name: تثبيت mypy + stubs
-        run: |
-          pip install mypy==1.10.0 django-stubs==5.0.2 \
-            djangorestframework-stubs==3.15.0
+        # الإصداراتُ من requirements-mypy.txt وحدَه (OWN-30) — الملفُّ نفسُه الذي يستدعيه requirements-dev.txt،
+        # فما يقيسه المطوّرُ محلّيّاً هو ما تحكم به البوّابة. لا إصدارَ حرفيّاً هنا (يحرسه tests/test_mypy_pins_are_one_source.py).
+        run: pip install -r requirements-mypy.txt
 
       - name: تثبيت المتطلبات (لحل أنواع Django)
         run: pip install -r requirements.txt
