@@ -858,22 +858,16 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .report-student-search { position: relative; }
 .report-student-search summary::-webkit-details-marker { display: none; }
 .report-student-dropdown {
-  position: absolute;
-  inset-inline-end: 0;
-  top: calc(100% + 8px);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-dropdown);
   padding: var(--sp-3);
-  width: 340px;
   z-index: var(--z-dropdown);
 }
-/* Mobile-First: dropdown full-width on mobile */
+/* الجوّال أولاً؛ وقاعدةُ ≥641px تُعيد الجهاتِ كلَّها (auto وحدَها تمحو الطرفين). */
 .report-student-dropdown { position: fixed; inset-inline: 8px; width: auto; top: auto; }
 @media (min-width: 641px) {
-  /* قاعدةُ الجوّال أعلاه تكتب `inset-inline: 8px` و`top: auto`، فتُعاد هنا الجهاتُ كلُّها: `auto` وحدَها تمحو الطرفين
-     معاً فيقع الصندوقُ خارج الشاشة، و`auto 0` تُلصقه بطرف نهاية الزرّ، و`top` يعود إلى الفاصل الأصليّ. */
   .report-student-dropdown { position: absolute; inset-inline: auto 0; top: calc(100% + 8px); width: 340px; }
 }
 /* سطرُ الحال في نتائج البحث — يكتبه `searchStudent()` في templates/reports/index.html. */
@@ -898,6 +892,8 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
    ──────────────────────────────────────────────────────── */
 .exec-dash {
   display: grid;
+  /* العمودُ الضمنيُّ auto يتمدّد لأدنى محتوى جدول فيفيض الغلافُ على الهاتف. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto auto auto;
   gap: var(--sp-2);
 }
