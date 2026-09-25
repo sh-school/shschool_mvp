@@ -18,7 +18,7 @@
 
   {% if messages %}
     {% for msg in messages %}
-    <div class="msg-bar mb-4 {% if msg.tags == 'error' %}msg-error{% else %}msg-success{% endif %}">
+    <div class="msg-bar mb-4 {% if msg.tags == 'error' %}msg-error{% else %}msg-success{% endif %}" role="{% if msg.tags == 'error' %}alert{% else %}status{% endif %}">
       <span>{{ msg }}</span>
     </div>
     {% endfor %}
@@ -80,9 +80,9 @@
         <input type="text"
                id="f-code"
                name="code"
-               maxlength="6"
+               maxlength="7"
                inputmode="numeric"
-               pattern="[0-9]{6}"
+               pattern="[0-9]{3} ?[0-9]{3}"
                autocomplete="one-time-code"
                autofocus
                placeholder="أدخل الرمز المكوّن من 6 أرقام"

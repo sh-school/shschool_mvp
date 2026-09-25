@@ -3,7 +3,8 @@
 كان الفحصُ القديم يثق باسم الرأس وحدَه («طلبٌ مدموجٌ بهذا الاسم» ← آمن) فيحذف فرعاً أُعيد استعمالُ اسمه وعليه إيداعاتٌ جديدةٌ لم تُدمج، ولا يرى
 الدمجَ المسحوقَ في المقابل (فالفرعُ المدموجُ بالسحق ليس سلفاً لـmain) فيُبقي مئاتِ الفروع. فالاختباراتُ هنا تبني مستودعاً حقيقيّاً صغيراً
 فيه كلُّ صنفٍ من الفروع، وتُثبت: (1) ما فيه إيداعٌ غيرُ مدموجٍ لا يُعدّ آمناً ولا يُحذف بـ--apply مهما كان اسمُه، (2) ما محتواه في main فعلاً
-(دمجٌ مسحوقٌ، ولو تغيّر الملفُّ بعده) آمنٌ، (3) الوسمُ يسبق حذفَ ما لم يُدمج فيُسترجع بلا فقدان، (4) الحذفُ لا يتجاوز الطرفَ الذي حُكم عليه.
+(دمجٌ مسحوقٌ، ولو تغيّر الملفُّ بعده) آمنٌ — لا ما حُلّ تعارضُه يدويّاً فبلغ main ناتجٌ غيرُ ما في الفرع ولو تطابق العنوانُ، (3) الوسمُ يسبق حذفَ ما
+لم يُدمج فيُسترجع بلا فقدان، (4) الحذفُ لا يتجاوز الطرفَ الذي حُكم عليه.
 تُتخطّى حيث لا `git`. وهي في بوّابة الدمج (`pytest — تغطية`) لا في فحصٍ ليليٍّ وحدَه.
 """
 
@@ -125,7 +126,15 @@ def build_template(root: pathlib.Path) -> tuple[World, list[dict]]:
     """يبني كلَّ صنفٍ من الفروع (بلا شجرة عمل) ويردّ (العالم، طلباتِ GitHub المفترضة). يُبنى مرّةً وتُنسخ منه العوالم."""
     w = World(root)
     w.commit(
-        {"README.md": "r0", "a.txt": "a0", "keep.txt": "k0", "gone.txt": "g0"}, "c0", days_ago=20
+        {
+            "README.md": "r0",
+            "a.txt": "a0",
+            "keep.txt": "k0",
+            "gone.txt": "g0",
+            "res.txt": "l1\nl2\nl3",
+        },
+        "c0",
+        days_ago=20,
     )
 
     # 1) إيداعٌ غيرُ مدموج — الصنفُ الذي لا يجوز حذفُه أبداً
@@ -192,6 +201,10 @@ def build_template(root: pathlib.Path) -> tuple[World, list[dict]]:
     w.branch("backup-2026-01-01-before-a-fix", "main")
     w.commit({"snapshot.txt": "x"}, "before fix")
 
+    # 16) دمجٌ مسحوقٌ حُلّ تعارضُه يدويّاً: ما بلغ main غيرُ ما في الفرع، وعنوانُ إيداعه يطابق عنوانَ الفرع (+ رقمُ الطلب)
+    w.branch("feat/squash-resolved", "main")
+    w.commit({"res.txt": "l1\nمن الفرع\nl3"}, "resolved work")
+
     # ── main: يدمج ما دُمج، ثمّ يتغيّر ──
     w.git("checkout", "-q", "main")
     w.git("merge", "-q", "--ff-only", "feat/ff-merged")
@@ -200,6 +213,8 @@ def build_template(root: pathlib.Path) -> tuple[World, list[dict]]:
     w.commit({"a.txt": "a-later"}, "main edits the squashed file later")  # الملفُّ لم يعد كما دُمج
     w.commit({"p1.txt": "p1"}, "only p1 of the partial branch reached main")
     w.commit({"gone.txt": None}, "main deletes gone.txt itself")
+    w.commit({"res.txt": "l1\nمن main\nl3"}, "main edits res.txt before the squash")
+    w.commit({"res.txt": "l1\nمن الاثنين\nl3"}, "resolved work (#7)")  # سحقٌ بناتجٍ معدَّل
     w.git("merge", "-q", "--no-ff", "-m", "merge recent", "feat/recent-merged", days_ago=0.1)
     w.git("merge", "-q", "--no-ff", "-m", "merge live", "feat/live", days_ago=10)
 
@@ -286,6 +301,25 @@ def test_a_reused_branch_name_is_not_trusted_just_because_a_pr_with_that_name_me
     assert verdicts["feat/reused-name"] == "REVIEW"
 
 
+def test_a_squash_merge_whose_result_was_hand_resolved_is_review_not_safe(world, verdicts):
+    """دمجٌ مسحوقٌ حُلّ تعارضُه يدويّاً: ما بلغ main غيرُ ما في الفرع، فلا يُعرف أنّ عملَه بلغه كاملاً.
+
+    عنوانُ إيداع main يطابق عنوانَ الفرع (+ رقمَ الطلب) والملفُّ نفسُه موجودٌ في main — وكلاهما لا يُثبت شيئاً:
+    فالحكمُ REVIEW يراجعه إنسان. والاختبارُ يحرس من تخفيفٍ لاحقٍ يقبل «العنوانَ المطابق» أو «المسارَ الموجود» دليلاً.
+    """
+    w, prs = world
+    # أساسُ الاختبار: الحالةُ مبنيّةٌ كما وُصفت، فلا ينجح بلا معنى
+    tip_subject = w.git("log", "-1", "--format=%s", "refs/heads/feat/squash-resolved")
+    assert f"{tip_subject} (#7)" in w.git("log", "--format=%s", "main").splitlines()
+    assert w.git("ls-tree", "--name-only", "main", "res.txt") == "res.txt"
+    branch_blob = w.git("rev-parse", "refs/heads/feat/squash-resolved:res.txt")
+    assert branch_blob not in w.git("rev-list", "--objects", "main")
+
+    assert verdicts["feat/squash-resolved"] == "REVIEW"
+    record = next(r for r in w.report(prs=prs)["records"] if r["branch"] == "feat/squash-resolved")
+    assert "res.txt" in record["reason"], "التقريرُ يسمّي الملفَّ الذي يراجعه الإنسان"
+
+
 # ── 2) ما محتواه في main فعلاً آمنٌ — بأيّ طريقٍ دُمج ──
 
 
@@ -365,6 +399,7 @@ def test_apply_deletes_only_what_is_safe_and_never_unmerged_grace_live_or_open_w
     for name in (
         "feat/unmerged",
         "feat/reused-name",
+        "feat/squash-resolved",
         "feat/recent-merged",
         "feat/live",
         "feat/open-pr",

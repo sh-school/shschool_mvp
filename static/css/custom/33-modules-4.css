@@ -161,7 +161,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .af-result:hover .plain-list__title, .af-result:focus-visible .plain-list__title { text-decoration: underline; }
 .af-days { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 /* الترويسةُ لاصقةٌ بطابقين على الجوّال: اليومُ الذي يفتحه #day-… يقف تحتها لا خلفها */
-.af-day { display: flex; flex-direction: column; gap: var(--sp-2); padding-block: var(--sp-3); border-block-end: 1px solid var(--border); scroll-margin-block-start: 140px; }
+.af-day { display: flex; flex-direction: column; gap: var(--sp-2); padding-block: var(--sp-3); border-block-end: 1px solid var(--border); scroll-margin-block-start: var(--sp-3); }
 .af-day:last-child { border-block-end: 0; }
 .af-day:target { background: var(--surface-alt); }
 .af-day__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); }
