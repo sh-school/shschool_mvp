@@ -1154,3 +1154,198 @@ def test_0018_publishes_no_personal_number_nor_the_temporary_password_scheme():
     # المستودعُ عامّ: لا رقمَ شخصيٍّ ولا نمطَ كلمةِ مرورٍ مؤقّتة في هجرةٍ متتبَّعة.
     assert not __import__("re").search(r"\b\d{11}\b", body)
     assert "كلمة المرور المؤقتة" not in body and "Temp@" not in body
+
+
+# ── 0019: قراراتُ المالك على VD1..VD8 (2026-09-25) وVI-54 و#571 وN-041 ──
+
+_sync19 = importlib.import_module("roadmap.migrations.0019_owner_decisions_vd_2026_09_25")
+
+
+class _Apps19:
+    @staticmethod
+    def get_model(_app, name):
+        return RoadmapDecision if name == "RoadmapDecision" else RoadmapItem
+
+
+def _open_vd(*codes):
+    for code in codes or [f"VD{n}" for n in range(1, 9)]:
+        RoadmapDecision.objects.create(
+            code=code, title=f"قرار {code}", status="open", recommendation="توصية"
+        )
+
+
+def test_0019_decides_vd2_vd3_and_the_delegated_ones_and_keeps_vd4_open():
+    _open_vd()
+    assert _sync19.decide(RoadmapDecision) == ["VD1", "VD2", "VD3", "VD5", "VD6", "VD7", "VD8"]
+    assert _sync19.decide(RoadmapDecision) == []
+    for code in ("VD1", "VD2", "VD3", "VD5", "VD6", "VD7", "VD8"):
+        d = RoadmapDecision.objects.get(code=code)
+        assert (d.status, d.decision_date) == ("decided", _sync19.DAY), code
+    vd4 = RoadmapDecision.objects.get(code="VD4")
+    assert (vd4.status, vd4.decision_date) == ("open", None)
+
+
+def test_0019_states_that_a_decision_is_not_an_implementation():
+    _open_vd()
+    _sync19.decide(RoadmapDecision)
+    for code in ("VD1", "VD5", "VD6", "VD7", "VD8"):
+        rec = RoadmapDecision.objects.get(code=code).recommendation
+        assert "محسومة قرارا ولكن يجب العمل عليها" in rec and "قرارٌ لا تنفيذ" in rec, code
+    vd2 = RoadmapDecision.objects.get(code="VD2").recommendation
+    assert "أكّده لجلسة الخارطة مباشرةً" in vd2 and "الشطرُ الثاني من VI-37" in vd2
+    vd3 = RoadmapDecision.objects.get(code="VD3").recommendation
+    assert "لا مراسلةَ لـGCO ولا للوزارة ولا لأحد" in vd3 and "اتّساقٌ لا التزام" in vd3
+
+
+def test_0019_keeps_a_decision_the_owner_already_took_or_deferred():
+    RoadmapDecision.objects.create(
+        code="VD1", title="x", status="decided", recommendation="حسمه المالك"
+    )
+    RoadmapDecision.objects.create(code="VD5", title="x", status="deferred", recommendation="أجّله")
+    assert _sync19.decide(RoadmapDecision) == []
+    assert RoadmapDecision.objects.get(code="VD1").recommendation == "حسمه المالك"
+    assert RoadmapDecision.objects.get(code="VD5").status == "deferred"
+
+
+def test_0019_records_vd4_as_a_modified_proposal_without_deciding_it():
+    _open_vd("VD4")
+    assert _sync19.annotate_open(RoadmapDecision) == ["VD4"]
+    assert _sync19.annotate_open(RoadmapDecision) == []
+    vd4 = RoadmapDecision.objects.get(code="VD4")
+    assert (vd4.status, vd4.decision_date) == ("open", None)
+    # مقترَحٌ معدَّل بانتظار التأكيد المباشر: يُقال ذلك، ولا يُحسم بالتوصية الأولى.
+    assert "مقترَحٌ معدَّل مفتوح" in vd4.recommendation and "بلا فلتر تبييض" in vd4.recommendation
+    RoadmapDecision.objects.filter(code="VD4").update(status="decided")
+    assert _sync19.annotate_open(RoadmapDecision) == []
+
+
+def test_0019_adds_notes_without_touching_status_or_dates():
+    from datetime import date
+
+    _item("LAY-05", "todo", 0, start_date=date(2026, 11, 16), end_date=date(2026, 11, 30))
+    for code in ("VI-36", "VI-37", "VI-11", "VI-38", "VI-39", "VI-53", "DBT-36"):
+        _item(code, "todo", 0)
+    assert _sync19.sync_notes(RoadmapItem) == [
+        "VI-36",
+        "VI-37",
+        "VI-11",
+        "VI-38",
+        "VI-39",
+        "VI-53",
+        "LAY-05",
+        "DBT-36",
+    ]
+    assert _sync19.sync_notes(RoadmapItem) == []
+    lay05 = RoadmapItem.objects.get(code="LAY-05")
+    assert (lay05.status, str(lay05.start_date), str(lay05.end_date)) == (
+        "todo",
+        "2026-11-16",
+        "2026-11-30",
+    )
+    assert "لم يُغيَّر موعدُه" in lay05.note
+    assert "الشطرُ الثاني" in RoadmapItem.objects.get(code="VI-37").note
+    # VI-11: VD4 مقترَحٌ معدَّل لا محسوم.
+    assert "لا محسوم" in RoadmapItem.objects.get(code="VI-11").note
+
+
+def test_0019_leaves_an_item_the_developer_moved():
+    _item("VI-36", "doing", 30)
+    assert "VI-36" not in _sync19.sync_notes(RoadmapItem)
+    assert RoadmapItem.objects.get(code="VI-36").note == ""
+
+
+def test_0019_notes_571_on_own19_as_merged_not_published():
+    _item("OWN-19", "done", 100, pr="#526 #533 #541 #545 #552 #553 #556")
+    assert _sync19.sync(RoadmapItem) == ["OWN-19"]
+    assert _sync19.sync(RoadmapItem) == []
+    own19 = RoadmapItem.objects.get(code="OWN-19")
+    assert (own19.status, own19.progress) == ("done", 100)
+    assert own19.pr == "#526 #533 #541 #545 #552 #553 #556 #571"
+    # الرقمُ 16 يُقال، والهجرةُ لا رجوعَ لها، والحالةُ «مدموجٌ لا منشور».
+    assert "16 إسناداً مباشراً" in own19.note and "لا رجوع لها" in own19.note
+    assert "مدموجٌ لا منشور" in own19.note
+
+
+def test_0019_leaves_own19_the_developer_moved():
+    _item("OWN-19", "doing", 70)
+    assert _sync19.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="OWN-19").note == ""
+
+
+def test_0019_registers_the_weekly_schedule_as_in_progress_one_of_three_never_closed():
+    assert _sync19.add_in_progress(RoadmapItem) == ["N-041"]
+    assert _sync19.add_in_progress(RoadmapItem) == []
+    n041 = RoadmapItem.objects.get(code="N-041")
+    assert (n041.status, n041.progress, n041.pr, n041.lane, n041.src) == (
+        "doing",
+        33,
+        "#577",
+        "backend",
+        "NEW",
+    )
+    assert n041.start_date == _sync19.DAY and n041.end_date is None
+    # عدُّ طلباتٍ لا جهد، ولا واجهةَ فيه، وقيدُ النشر قبل تحقّق الأحد، وD-21 مفتوح.
+    assert "1/3" in n041.note and "لا يُغلق" in n041.note and "لا واجهةَ فيه" in n041.note
+    assert "2026-09-27" in n041.criterion and "D-21 مفتوحٌ للنقاش" in n041.note
+
+
+def test_0019_keeps_an_n041_the_developer_wrote_first():
+    _item("N-041", "todo", 0, title="كتبه المطوّر")
+    assert _sync19.add_in_progress(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="N-041").title == "كتبه المطوّر"
+
+
+def test_0019_registers_vi54_proposed_open_undated_and_gated():
+    assert _sync19.add_items(RoadmapItem) == ["VI-54"]
+    assert _sync19.add_items(RoadmapItem) == []
+    vi54 = RoadmapItem.objects.get(code="VI-54")
+    assert (vi54.status, vi54.progress, vi54.gate, vi54.src, vi54.lane) == (
+        "todo",
+        0,
+        "owner",
+        "VI",
+        "frontend",
+    )
+    assert vi54.start_date is None and vi54.end_date is None and vi54.effort == 0.5
+    assert (
+        vi54.deps == "VD2" and "بنداً مقترَحاً مفتوحاً" in vi54.note and "إذنَه قبل التنفيذ" in vi54.note
+    )
+
+
+def test_0019_keeps_a_vi54_the_developer_wrote_first():
+    _item("VI-54", "doing", 20, title="كتبه المطوّر")
+    assert _sync19.add_items(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="VI-54").title == "كتبه المطوّر"
+
+
+def test_0019_forwards_does_nothing_on_an_empty_database_and_is_idempotent():
+    _sync19.forwards(_Apps19, None)
+    assert RoadmapItem.objects.count() == 0 and RoadmapDecision.objects.count() == 0
+    _open_vd()
+    _item("VI-37", "todo", 0)
+    _sync19.forwards(_Apps19, None)
+    rows = list(
+        RoadmapDecision.objects.order_by("code").values_list("code", "status", "recommendation")
+    )
+    items = list(RoadmapItem.objects.order_by("code").values_list("code", "status", "note"))
+    _sync19.forwards(_Apps19, None)
+    assert (
+        list(
+            RoadmapDecision.objects.order_by("code").values_list("code", "status", "recommendation")
+        )
+        == rows
+    )
+    assert list(RoadmapItem.objects.order_by("code").values_list("code", "status", "note")) == items
+    assert {code for code, *_ in items} == {"VI-37", "N-041", "VI-54"}
+
+
+def test_0019_publishes_no_personal_number_nor_the_temporary_password_scheme():
+    import re
+
+    origin = importlib.util.find_spec(
+        "roadmap.migrations.0019_owner_decisions_vd_2026_09_25"
+    ).origin
+    body = open(origin, encoding="utf-8").read()
+    # المستودعُ عامّ: لا رقمَ شخصيٍّ ولا نمطَ كلمةِ مرورٍ مؤقّتة في هجرةٍ متتبَّعة.
+    assert not re.search(r"\b\d{11}\b", body)
+    assert "كلمة المرور المؤقتة" not in body and "Temp@" not in body
