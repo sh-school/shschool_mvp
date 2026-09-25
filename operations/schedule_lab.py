@@ -26,7 +26,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from statistics import mean, pstdev
 
-from .schedule_lab_exceptions import exception_load
+from .schedule_lab_exceptions import exception_load, longest_task_run
 from .scheduler_bell import Interval, longest_run
 
 DAYS = (0, 1, 2, 3, 4)
@@ -256,6 +256,7 @@ class ScheduleLab:
         self.names: dict[str, str] = {}
         self.load: dict[str, int] = defaultdict(int)
         self.placements: dict[str, float] = defaultdict(float)
+        self.halves: dict[tuple[str, int], set[int]] | None = None  # يملؤه `second_halves`
         for s in slots:
             self.by_teacher_day[s.teacher_id][s.day].append(s.period)
             self.by_teacher_day_bands[s.teacher_id][s.day].append((s.period, s.band_id))
@@ -290,12 +291,12 @@ class ScheduleLab:
         return [d for d in DAYS if d not in self.ctx.full_days.get(tid, ())]
 
     def longest_run(self, tid: str, day: int) -> int:
-        """أطولُ تتابعٍ متّصلٍ للمعلّم في يومه — بالساعة لا بالرقم (SCH-18).
+        """أطولُ تتابعٍ متّصلٍ لمهامّ المعلّم في يومه — بالساعة (SCH-18)، والمزدوجةُ مهمّةٌ (SCH-19).
 
         فالفسحةُ والصلاةُ تفصلان (قرارُ المالك 2026-09-24): حصّتان تعبران استراحةً ليستا
         تتابعاً، كما لا تُعدّان معاً في الحصّة المزدوجة. وبلا جرسٍ يبقى الرقمُ حَكَماً.
         """
-        return self.clock_run(self.by_teacher_day_bands[tid][day], day)
+        return longest_task_run(self, tid, day)
 
     def interval(self, band_id: str, day: int, period: int) -> Interval | None:
         """جرسُ حصّةٍ في نطاقٍ ويوم — `None` إن لم يُعرف."""
