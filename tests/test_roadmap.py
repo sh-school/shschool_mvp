@@ -624,6 +624,18 @@ def test_the_script_never_writes_html_from_data_and_uses_no_inline_handlers():
     assert not re.search(r"\son[a-z]+=|\sstyle=|<script(?![^>]*\bsrc=)(?![^>]*json)", template)
 
 
+def test_the_element_helper_flattens_array_children():
+    """درجُ خليّة المصفوفة يمرّر `.map(listRow)` إلى h(): تُلصق عناصرَ لا نصَّ «[object HTMLButtonElement]» (2026-09-25)."""
+    import pathlib
+
+    source = pathlib.Path("static/js/roadmap.js").read_text(encoding="utf-8")
+    helper = source[source.index("function h(tag, attrs)") : source.index("function clear(el)")]
+
+    assert "Array.isArray" in helper
+    # الاستدعاءُ الذي كشف العيبَ يمرّر المصفوفةَ مباشرةً، فلا يُفكَّك في موضعه ما دام المساعدُ يسطّحها.
+    assert "h('div', { class: 'rm-lrows' }" in source
+
+
 def test_no_roadmap_table_is_school_scoped():
     """وثيقةُ مطوّرٍ عن المنصّة: لا `school` في جداولها، فلا سياسةَ RLS تُطلب منها."""
     from django.apps import apps
