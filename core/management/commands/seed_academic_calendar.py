@@ -38,6 +38,16 @@ S2_START = {
 
 MAX_GRADE = {"S1": 40, "S2": 60}
 
+# ── نهايةُ دوام الطلبة (U-40) ────────────────────────────────────────
+# ليست في النشرة نصّاً: **مشتقّةٌ** من آخر يومٍ في اختبارات نهاية الفصل الثاني لكلّ نطاق صفوف — فلا يدرس
+# الطلبةُ بعد آخر اختبارٍ لصفّهم — كي لا يبقى الصيفُ كلُّه «يومَ دراسة» (`operations.school_days.ENDED`).
+# فإن نشرت الوزارةُ تاريخَ آخر يومٍ للطلبة فهو مكانُ تصحيحه: سطرٌ لكلّ نطاق، ولا شيفرةَ تتغيّر.
+STUDENTS_END = {
+    "2025-2026": {"g1_9": date(2026, 6, 15), "g10_11": date(2026, 6, 16), "g12": date(2026, 6, 21)},
+    "2026-2027": {"g1_9": date(2027, 6, 14), "g10_11": date(2027, 6, 15), "g12": date(2027, 6, 17)},
+    "2027-2028": {"g1_9": date(2028, 6, 12), "g10_11": date(2028, 6, 13), "g12": date(2028, 6, 15)},
+}
+
 # ── الأحداث: (النوع، البيان، من، إلى، نطاق الصفوف، الجمهور) ──────────
 EVENTS = {
     "2025-2026": [
@@ -563,5 +573,18 @@ class Command(BaseCommand):
                     audience=audience,
                 )
                 for kind, label, ev_start, ev_end, scope, audience in EVENTS[name]
+            ]
+            + [
+                CalendarEvent(
+                    academic_year=year,
+                    semester=s2,
+                    event_type="students_end",
+                    name="نهاية دوام الطلبة",
+                    start_date=last_day,
+                    end_date=last_day,
+                    grade_scope=scope,
+                    audience="students",
+                )
+                for scope, last_day in STUDENTS_END[name].items()
             ]
         )
