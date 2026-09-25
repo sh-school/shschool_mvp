@@ -82,7 +82,7 @@
 
 /* الشعار */
 .nav-logo      { font-weight: 700; font-size: var(--text-sm); gap: 7px; flex-shrink: 0; padding: var(--sp-1) var(--sp-2); }
-.nav-logo-img  { flex-shrink: 0; filter: brightness(0) invert(1); }
+.nav-logo-img  { flex-shrink: 0; }
 .nav-logo-text { white-space: nowrap; }
 
 /* زر الهامبرغر (الجوال) */
@@ -1895,14 +1895,15 @@ body { padding-bottom: calc(72px + var(--safe-bottom)); }
 .nb-bar {
   display: none;
   position: fixed;
-  top: 54px;
+  top: var(--nb-top, 54px); /* base.js: mobMenuTop يضبطه تحت صفّ الزرّ */
   inset-inline: 0;
   z-index: var(--z-sidebar);
   background: var(--surface);
   flex-direction: column;
   box-shadow: var(--shadow-nav-panel);
   border-bottom: 3px solid var(--maroon);
-  max-height: calc(100vh - 54px);
+  max-height: calc(100vh - var(--nb-top, 54px));
+  max-height: calc(100dvh - var(--nb-top, 54px));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -1932,6 +1933,7 @@ body { padding-bottom: calc(72px + var(--safe-bottom)); }
     inline-size: calc(50% - 12px);
     min-width: 0;
     max-height: calc(100vh - 140px); /* فوق شريط التنقّل السفليّ لا تحته */
+    max-height: calc(100dvh - 140px);
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
@@ -1995,6 +1997,10 @@ body { padding-bottom: calc(72px + var(--safe-bottom)); }
   flex-wrap: wrap;
 }
 .breadcrumbs a {
+  /* 24px أدنى هدفٍ في WCAG 2.5.8 على كلّ مؤشّر (D1)؛ وصفُّ الفتات 24px أصلاً بزرّ الرجوع فلا يكبر */
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 24px;
   color: var(--maroon-fg);
   text-decoration: none;
   font-weight: 500;

@@ -19,12 +19,17 @@
 مكتبة. وحلّ محلّها **مصدر بياناتٍ ثانٍ** عبر `pip-audit`: PyPI وOSV.
 """
 
+import ast
+import os
 import pathlib
+import subprocess
+import sys
 
 import pytest
 import yaml
 
 WORKFLOW = pathlib.Path(".github/workflows/security-scan.yml")
+PRODUCTION_SETTINGS = pathlib.Path("shschool/settings/production.py")
 
 #: الوظائف التي تحكم البوابة — تُطابق `needs` و`if` في الملخّص.
 REQUIRED_JOBS = ("pip-audit-pypi", "pip-audit-osv", "bandit", "django-check")
@@ -165,3 +170,46 @@ def test_the_broken_safety_check_is_gone():
 def test_the_retired_parser_is_gone():
     """الحَكَم الخاصّ بـSafety ذهب معها — لا شيفرة ميتة تُوهم بأنها تحرس."""
     assert not pathlib.Path("scripts/check_safety_report.py").exists()
+
+
+# ═══════════════════════════════════════════════════════════════════
+#  فحصُ النشر: يُقلع، ولا يُسكِت إلا ما سُمّي
+# ═══════════════════════════════════════════════════════════════════
+
+#: المعرِّفات المُسكَتة في الإنتاج — تحذيراتُ **توثيق** API (drf-spectacular) لا أمانِ النشر.
+#: القائمةُ لا تتّسع بصمت: من زاد معرِّفاً عدّل هذا الحارسَ وسُئل عنه في المراجعة.
+ALLOWED_SILENCED_CHECKS = {"drf_spectacular.W001", "drf_spectacular.W002"}
+
+
+def test_the_deploy_check_environment_boots_the_production_settings():
+    """بيئةُ وظيفة django-check تُقلع بها إعداداتُ الإنتاج — وإلّا لم يفحص الأمرُ شيئاً.
+
+    صار S3 إلزاميّاً في الإنتاج (#382) فانهارت الإعداداتُ عند الاستيراد
+    (`ImproperlyConfigured: … AWS_STORAGE_BUCKET_NAME ناقصة`) في هذه الوظيفة بالذات، وبقيت
+    خضراءَ لأنّ الأنبوب أخفى الانهيار. فمن أضاف متغيّراً إلزاميّاً غداً يسقط هنا لا في الظلّ.
+    """
+    job_env = {key: str(value) for key, value in _workflow()["jobs"]["django-check"]["env"].items()}
+    result = subprocess.run(
+        [sys.executable, "-c", "import shschool.settings.production"],
+        env={**os.environ, **job_env},
+        cwd=os.getcwd(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, "إعداداتُ الإنتاج لا تُقلع ببيئة الوظيفة:\n" + result.stderr[-900:]
+
+
+def test_the_silenced_system_checks_are_only_the_known_documentation_warnings():
+    """`SILENCED_SYSTEM_CHECKS` في الإنتاج تحذيراتُ توثيق API وحدَها — لا فحصَ أمنٍ يُسكَت هنا."""
+    silenced = None
+    for node in ast.parse(PRODUCTION_SETTINGS.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.Assign) and any(
+            getattr(target, "id", None) == "SILENCED_SYSTEM_CHECKS" for target in node.targets
+        ):
+            silenced = ast.literal_eval(node.value)
+
+    assert silenced is not None, "SILENCED_SYSTEM_CHECKS غير معرَّفة في production.py"
+    extra = set(silenced) - ALLOWED_SILENCED_CHECKS
+    assert not extra, f"فحوصٌ جديدةٌ مُسكَتة بلا مراجعة: {sorted(extra)}"

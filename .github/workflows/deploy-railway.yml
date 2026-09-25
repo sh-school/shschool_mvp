@@ -138,6 +138,8 @@ jobs:
 
       - name: "Preflight: Static files dry-run (test 7)"
         run: |
+          # بلا pipefail يُخفي `| tee` فشلَ collectstatic؛ وفحصُ grep أدناه لا يلتقط إلا ما طُبع
+          set -o pipefail
           python manage.py collectstatic --dry-run --noinput 2>&1 | tee /tmp/static_output.txt
           if grep -qi "error\|traceback" /tmp/static_output.txt; then
             echo "::error::collectstatic --dry-run has errors"

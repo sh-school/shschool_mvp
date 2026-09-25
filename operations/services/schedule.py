@@ -26,11 +26,14 @@ if TYPE_CHECKING:
 from operations.services.schedule_read import ScheduleReadMixin, parallel_labels
 from operations.services.schedule_retention import ScheduleRetentionMixin
 from operations.services.schedule_sessions import ScheduleSessionsMixin
+from operations.services.schedule_week import ScheduleWeekMixin
 
 __all__ = ["ScheduleService", "parallel_labels"]
 
 
-class ScheduleService(ScheduleReadMixin, ScheduleRetentionMixin, ScheduleSessionsMixin):
+class ScheduleService(
+    ScheduleReadMixin, ScheduleRetentionMixin, ScheduleSessionsMixin, ScheduleWeekMixin
+):
     @classmethod
     def approve_generation(
         cls, gen: ScheduleGeneration, *, notify: bool = True, acknowledged: bool = False

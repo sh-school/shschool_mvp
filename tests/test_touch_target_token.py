@@ -115,3 +115,27 @@ def test_the_warning_disc_stays_24px_inside_its_44px_target():
     rule = re.search(r"\.card-bar \.ui-tip--warning \.ui-tip__btn\s*\{([^}]*)\}", block)
     assert rule, "لا قاعدةَ لقرص التحذير داخل كتلة coarse"
     assert "background-clip: content-box" in rule.group(1) and "padding:" in rule.group(1)
+
+
+def test_breadcrumb_links_reach_the_mouse_minimum_on_every_pointer():
+    """DBT-44: رابطُ الفتات كان 19px على سطح المكتب — 40 من 48 هدفاً دون 24px (قياس 25 صفحة، 1440) —
+    لأنّ الحدَّ الأدنى كان في كتلة الهاتف وحدَها. صار في القاعدة العامّة لا داخل `@media`، وصفُّ الفتات
+    24px أصلاً بزرّ الرجوع فلا يكبر (قِيس: ارتفاعُ كلّ صفحةٍ لم يتغيّر). وinline-flex موسَّطٌ وإلّا
+    التصق النصُّ بأعلى الصندوق."""
+    css = re.sub(r"/\*.*?\*/", "", read_css(), flags=re.S)
+    rule = re.search(r"(?m)^\.breadcrumbs a\s*\{([^}]*)\}", css)
+    assert rule, "لا قاعدةَ عامّةً لـ.breadcrumbs a خارجَ الـ@media"
+    body = rule.group(1)
+    assert re.search(r"min-block-size:\s*24px", body), "رابطُ الفتات دون 24px على سطح المكتب"
+    assert "display: inline-flex" in body and "align-items: center" in body, "النصُّ لا يتوسّط"
+
+
+def test_column_sort_headers_reach_the_mouse_minimum_in_the_central_rule():
+    """DBT-55: رأسُ فرز العمود كان 22.4px على سطح المكتب (8 أهدافٍ دون 24px، قياسُ 25 صفحة) لأنّ الحدَّ
+    الأدنى كان في كتلة الهاتف وحدَها. صار في التعريف المركزيّ `.th-sort` لا في قالبٍ ولا داخل `@media`.
+    وقِيس أنّ ارتفاعَ ترويسة الجدول وارتفاعَ أيّ صفحةٍ لم يتغيّرا: الصفُّ يحدّده أطولُ رأسٍ (الملتفّ)."""
+    css = re.sub(r"/\*.*?\*/", "", read_css(), flags=re.S)
+    rule = re.search(r"(?m)^\.th-sort\s*\{([^}]*)\}", css)
+    assert rule, "لا تعريفَ مركزيّاً لـ.th-sort خارجَ الـ@media"
+    assert re.search(r"min-block-size:\s*24px", rule.group(1)), "رأسُ الفرز دون 24px على سطح المكتب"
+    assert "align-items: center" in rule.group(1), "النصُّ لا يتوسّط"

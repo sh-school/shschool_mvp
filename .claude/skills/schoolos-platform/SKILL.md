@@ -20,7 +20,7 @@ core/models/access.py      → Role (20 دور), Membership (ربط مستخدم
 core/models/base.py        → TimeStampedModel, SoftDeleteModel, SchoolScopedModel
 core/models/audit.py       → AuditLog, ConsentRecord, BreachReport, ErasureRequest
 
-operations/models.py       → Subject, Session, StudentAttendance, ScheduleSlot, TeacherAbsence, SubstituteAssignment, AbsenceAlert, TimeSlotConfig, SubjectClassAssignment
+operations/models/          → حزمة: schedule (Subject, ScheduleSlot, TimeSlotConfig, SubjectClassAssignment…)، attendance (Session, StudentAttendance, AbsenceAlert…)، substitution (TeacherAbsence, SubstituteAssignment…)
 assessments/models.py      → SubjectClassSetup, AssessmentPackage, Assessment, StudentAssessmentGrade, StudentSubjectResult, AnnualSubjectResult
 behavior/models.py         → ViolationCategory (40 مخالفة — لائحة الشحانية), BehaviorInfraction, BehaviorPointRecovery
 quality/models.py          → OperationalDomain, OperationalTarget, OperationalIndicator, OperationalProcedure, ProcedureEvidence
