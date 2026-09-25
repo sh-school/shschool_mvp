@@ -60,6 +60,7 @@
     "submitScheduleView",
     "installPWA",
     "showToast",
+    "openPalette",
   ];
 
   function resolve(el, sel) {

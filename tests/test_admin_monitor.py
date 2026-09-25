@@ -14,9 +14,9 @@ def _staff(user):
     return user
 
 
-def test_the_developer_sees_the_nine_cards(client_as, developer_user):
+def test_the_developer_sees_the_ten_cards(client_as, developer_user):
     html = client_as(_staff(developer_user)).get("/admin/").content.decode()
-    assert html.count("adm-card__title") == 9
+    assert html.count("adm-card__title") == 10
     assert "<h1" in html
 
 

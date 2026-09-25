@@ -375,7 +375,7 @@ body {
 
   <div class="doc-header">
     {% comment %} الـPDF يحلّ المسارَ النسبيّ من جذر المشروع، والمتصفّحُ من رابط الصفحة — فنسخةُ الشاشة (`for_screen`) تأخذ رابطَ الملفّات الثابتة. {% endcomment %}
-    <img src="{% if for_screen %}{% static 'brand/logoMaroon.png' %}{% else %}static/brand/logoMaroon.png{% endif %}" class="emblem" alt="">
+    <img src="{% if for_screen %}{% static 'brand/logoMaroon.png' %}{% else %}static/brand/logoMaroon.png{% endif %}" class="emblem" alt="" width="295" height="295">
     <div class="ministry-name">{% block ministry_line %}{{ ministry|default:"وزارة التربية والتعليم والتعليم العالي — دولة قطر" }}{% endblock %}</div>
     <div class="school-name">{% block school_name %}{{ school.name }}{% endblock %}</div>
   </div>

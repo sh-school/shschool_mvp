@@ -376,3 +376,28 @@ def test_the_save_bar_is_sticky_on_desktop_only():
     mobile = css[css.index("على الجوّال لا يثبت") :]
     assert "@media (max-width: 767px) { .submit-row { position: static;" in mobile
     assert css.index(".submit-row { position: sticky;") < css.index("على الجوّال لا يثبت")
+
+
+def test_the_admin_dropdown_is_one_full_width_column_on_phones():
+    """بلاغ 2026-09-25: القائمةُ المنسدلةُ متعدّدةُ الأعمدة (كلُّ عمودٍ لا يقلّ عن 13rem) تفيض على 375px —
+    يُقصّ عمودُها الثاني ويظهر له شريطُ تمريرٍ أفقيٌّ داخليّ. على الجوّال عمودٌ واحدٌ بعرض الشريط تحته،
+    وعلى ما فوق ذلك تبقى أعمدتُها كما كانت."""
+    from tests.css_contrast import iter_rules
+
+    css = ADMIN.read_text(encoding="utf-8")
+    phone, wide = {}, {}
+    for selector, decls, ctx in iter_rules(css):
+        (phone if any("max-width: 767px" in head for head in ctx) else wide)[selector] = decls
+
+    menu = phone["#header .adm-nav__menu"]
+    assert menu["grid-template-columns"].strip() == "minmax(0, 1fr)"
+    assert menu["inset-inline"].strip() == "0" and menu["inline-size"].strip() == "auto"
+    assert menu["max-inline-size"].strip() == "none"
+    assert menu["max-block-size"].strip().endswith("vh"), "بلا سقفِ ارتفاعٍ يطول فوق الشاشة"
+    # اللوحةُ تُثبَّت على الشريط كلِّه لا على زرّها: زرٌّ في وسط صفٍّ كان يُخرجها عن الشاشة
+    assert phone[".adm-nav__item"]["position"].strip() == "static"
+    assert phone["#header .adm-nav"]["position"].strip() == "relative"
+    # الأعمدةُ الأصليّةُ للحاسوب سليمة
+    for cols in ("2", "3", "4"):
+        assert f".adm-nav__menu--cols-{cols}" in wide
+        assert "repeat(" in wide[f".adm-nav__menu--cols-{cols}"]["grid-template-columns"]

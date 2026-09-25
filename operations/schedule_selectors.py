@@ -18,6 +18,7 @@ from urllib.parse import urlencode
 
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.formats import date_format
 
 from core.academic_calendar import academic_year_for_school
 from core.models import CustomUser, Membership
@@ -167,9 +168,12 @@ def schedule_print_selection(school, user, get_params, default_source="plan"):
         selection["class"] = str(target_class.id)
     # ما تحمله روابطُ التنقّل قبل أن يُضاف إليه المصدرُ والأسبوع: كلٌّ منها يضيف ما يخصّه.
     base = dict(selection)
+    # المصدرُ في الرابط دائماً: الورقةُ المستقلّةُ تُصدِّر عبر صفحة الجدول وهي تفتح على الأسبوع
+    # الفعليّ، فورقةُ خطّةٍ بلا مصدرٍ في رابطها كانت تُصدَّر أسبوعاً فعليّاً غيرَ ما تعرضه.
+    selection["source"] = source
     if source == "actual":
-        # الأسبوعُ الفعليّ في الرابط: فالإطارُ وزرّا التصدير والطباعةُ تتبعه لا الخطّةَ.
-        selection.update(source="actual", week=week_start.isoformat())
+        # والأسبوعُ معه: فالإطارُ وزرّا التصدير والطباعةُ تتبعه لا الخطّةَ.
+        selection["week"] = week_start.isoformat()
 
     return {
         "school": school,
@@ -237,30 +241,49 @@ def week_nav(ctx: dict, week_info) -> dict:
     def qs(**extra) -> str:
         return urlencode({**ctx["selection_base"], **extra})
 
+    end = start + timedelta(days=4)
     nav = {
         "start": start,
-        "end": start + timedelta(days=4),
+        "end": end,
+        # «11 أكتوبر – 15 أكتوبر 2026» نصّاً: الورقةُ وExcel يكتبانه في ترويستهما كما تكتبه الصفحة.
+        "range": f"{date_format(start, 'j F')} – {date_format(end, 'j F Y')}",
         "is_this_week": start == this,
         "prev_qs": qs(source="actual", week=(start - week).isoformat()),
         "next_qs": qs(source="actual", week=(start + week).isoformat()),
         "this_qs": qs(source="actual"),
         "actual_qs": qs(source="actual", week=start.isoformat()),
         "plan_qs": qs(source="plan"),
-        "plan_days": [],
-        "closed_text": "",
-        "unplaced": 0,
+        "notes": _week_notes(week_info),
         "kinds": [],
     }
     if week_info is not None:
-        names = dict(ScheduleSlot.DAYS)
-        nav["plan_days"] = [names[i] for i in sorted(week_info.plan_days)]
-        nav["closed_text"] = "؛ ".join(
-            f"{names[i]}: {why}" for i, why in sorted(week_info.closed.items())
-        )
-        nav["unplaced"] = week_info.unplaced
         present = {cell.kind for cell in week_info.lessons if cell.kind}
         nav["kinds"] = [(kind, label) for kind, label in KIND_LABELS.items() if kind in present]
     return nav
+
+
+def _week_notes(week_info) -> list[str]:
+    """ما يقوله الأسبوعُ الفعليّ عن نفسه: أيّامٌ مغلقةٌ، وأيّامٌ من الخطّة، وحصصٌ بلا رقم.
+
+    جملٌ كاملةٌ لا أجزاءُ جمل: الصفحةُ والورقةُ المطبوعةُ وExcel تكتبها كما هي فلا يختلف قولُها.
+    والأيّامُ المتّفقةُ في سبب إغلاقها تُجمع في جملةٍ واحدة — أسبوعُ إجازةٍ كاملٌ سطرٌ لا خمسة.
+    """
+    if week_info is None:
+        return []
+    names = dict(ScheduleSlot.DAYS)
+    notes = []
+    if week_info.closed:
+        by_reason: dict[str, list[str]] = {}
+        for day, why in sorted(week_info.closed.items()):
+            by_reason.setdefault(why, []).append(names[day])
+        closed = "؛ ".join(f"{'، '.join(days)}: {why}" for why, days in by_reason.items())
+        notes.append(f"{closed} — لا حصص.")
+    if week_info.plan_days:
+        days = "، ".join(names[i] for i in sorted(week_info.plan_days))
+        notes.append(f"لم تُولَّد حصصُ {days} بعد، فتُعرض وفق الخطّة المعتمدة.")
+    if week_info.unplaced:
+        notes.append(f"{week_info.unplaced} حصّةً تاريخيّةً بلا رقمٍ (من جدولٍ سابق) لا تُعرض.")
+    return notes
 
 
 def schedule_print_payload(school, user, get_params, default_source="plan") -> dict:
@@ -276,6 +299,7 @@ def schedule_print_payload(school, user, get_params, default_source="plan") -> d
     # الجدولُ العام يكشف جداول المعلّمين جميعاً، ومن لا يتصفّح غيره صُرف
     # إلى جدوله في اختيار الطباعة.
     grid, matrix, week_info = _read_sheet(ctx, school, year)
+    nav = week_nav(ctx, week_info)
     matrix_totals, week, geometry = None, None, None
     has_colored_exemptions = False
     if ctx["view_type"] == "all_teachers":
@@ -298,7 +322,12 @@ def schedule_print_payload(school, user, get_params, default_source="plan") -> d
             if exemption_map:
                 annotate_teacher_exemptions(week, exemption_map)
                 has_colored_exemptions = True
-        geometry = paper_geometry(ctx["paper"], ctx["orient"], with_who=False)
+        # شريطُ المفتاح والملاحظات أسفل الجدول يأخذ سطوراً من الورقة فيُحسب في مقاسها: سطرٌ للمفتاح
+        # وسطرٌ لكلّ ملاحظة. والخطّةُ بلا شريط — فمقاسُ المعلَّق في المدرسة كما كان.
+        strip_lines = len(nav["notes"]) + (1 if nav["kinds"] else 0)
+        geometry = paper_geometry(
+            ctx["paper"], ctx["orient"], with_who=False, strip_lines=strip_lines
+        )
 
     # أسماءُ الأيّام من `ScheduleSlot.DAYS` — مصدرٌ واحدٌ يقرؤه المولّدُ والورقة.
     days_names = list(ScheduleSlot.DAYS)
@@ -318,7 +347,7 @@ def schedule_print_payload(school, user, get_params, default_source="plan") -> d
         "matrix": matrix,
         "matrix_totals": matrix_totals,
         "week_info": week_info,
-        "nav": week_nav(ctx, week_info),
+        "nav": nav,
         "has_colored_exemptions": has_colored_exemptions,
         "days": days_names,
         "periods": periods,
@@ -337,4 +366,7 @@ def export_filename(ctx: dict, extension: str) -> str:
     from django.utils.text import get_valid_filename
 
     stem = f"{ctx.get('title') or 'الجدول'} {ctx.get('year') or ''}".strip()
+    # أسبوعان فعليّان لمعلّمٍ واحدٍ ملفّان مختلفان — فيحمل الاسمُ أحدَ أسبوعه؛ والخطّةُ اسمُها كما كان.
+    if ctx.get("source") == "actual" and ctx.get("week_start"):
+        stem = f"{stem} أسبوع {ctx['week_start'].isoformat()}"
     return f"{get_valid_filename(stem)}.{extension}"

@@ -954,8 +954,8 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   gap: var(--sp-3);
 }
 .per-grid-wrap.is-tiles .per-grid tbody tr.rec-row {
-  display: flex; flex-wrap: wrap; align-content: flex-start; gap: var(--sp-1-5);
-  padding: var(--sp-2-5); background: var(--surface);
+  display: flex; flex-wrap: wrap; align-content: flex-start;
+  background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius-md);
 }
 /* الحالةُ شريطٌ جانبيٌّ بلون رمزها المركزيّ (كشريط `.per-head`) والبطاقةُ محايدة: لا مساحةَ
@@ -971,7 +971,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > .per-grid__no { display: none; }
 .per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > .per-grid__name { flex: 1 1 100%; order: 0; }
 .per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > td.per-cell.is-focus { flex: 1 1 100%; order: 2; border: 0; background: none; }
-.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > td.per-cell.is-focus { display: flex; gap: var(--sp-1); position: relative; }
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > td.per-cell.is-focus { display: flex; gap: var(--sp-1); }
 .per-grid-wrap.is-tiles .per-cell.is-focus .rec-row__pick { flex: 1 1 0; min-width: 0; display: flex; }
 .per-grid-wrap.is-tiles .per-cell.is-focus .rec-pick { flex: 1 1 0; }
 .per-grid-wrap.is-tiles .per-cell.is-focus .rec-pick > span { min-width: 0; min-height: 40px; padding-inline: var(--sp-1); }
@@ -1475,7 +1475,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .ui-field__label { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); }
 .ui-field--grow { flex: 1 1 240px; }
 .ui-field--check { flex-direction: row; align-items: center; gap: var(--sp-2); }
-.ui-field__check { accent-color: var(--maroon); inline-size: 16px; block-size: 16px; margin: 0; }
+.ui-field__check { accent-color: var(--maroon); margin: 0; }
 .ui-field.has-error .form-control {
   border-color: var(--status-danger);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-danger) 10%, transparent);
@@ -1742,7 +1742,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
    كانت هذه كلُّها تنسيقاً داخل الوسوم (style=) وألوانَ Tailwind الخضراءَ الثابتة
    في قوالب templates/clinic/ — فلا تتبع الوضعَ الداكن ولا تتغيّر من موضع. */
 .clinic-form-page { max-inline-size: 42rem; margin-inline: auto; inline-size: 100%; }
-.clinic-check { inline-size: 1rem; block-size: 1rem; flex-shrink: 0; accent-color: var(--maroon-fg); }
+.clinic-check { flex-shrink: 0; accent-color: var(--maroon-fg); }
 /* سجلُّ زيارات الطالب: زيارةٌ لكلّ بند، والقائمةُ تتمرّر داخل بطاقتها. */
 .clinic-visits { list-style: none; margin: 0; padding: 0; max-block-size: 600px; overflow-y: auto; }
 .clinic-visit { padding: var(--sp-4) var(--sp-5); border-block-end: 1px solid var(--border); }

@@ -34,8 +34,10 @@
   var cmdResults = null;
   var searchTimer = null;
   var activeIdx = -1;
+  var opener = null;
 
   function openPalette() {
+    opener = document.activeElement;
     palette = document.getElementById('cmd-palette');
     cmdInput = document.getElementById('cmd-input');
     cmdResults = document.getElementById('cmd-results');
@@ -47,8 +49,14 @@
     setTimeout(function () { cmdInput.focus(); }, 50);
   }
 
+  /* يُنادى من زرّ الترويسة بـ`data-call` (actions.js — قائمةٌ بيضاء) وبالاختصار معاً. */
+  window.openPalette = openPalette;
+
   window.closePalette = function () {
     if (palette) palette.classList.add('cmd-hidden');
+    /* يعود التركيزُ إلى ما فتحها (الزرُّ أو الصفحة) — وإلّا ضاع موضعُ من يقرأ بلوحة المفاتيح أو قارئ الشاشة. */
+    if (opener && opener.isConnected && typeof opener.focus === 'function') opener.focus();
+    opener = null;
   };
 
   /* أيقونةُ نتيجةٍ من قاموس core/icons.py — المفتاحُ اسمٌ دلاليٌّ (لا رمزٌ خامّ) يصله JSON

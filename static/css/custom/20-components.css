@@ -322,8 +322,6 @@ textarea:focus {
 
 /* ── الروابط النشطة ─────────────────────────────────────────── */
 a:focus-visible {
-  outline: 2px solid var(--focus-color);
-  outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
 
@@ -828,7 +826,6 @@ tr.active {
 
 /* ── الجوال ─────────────────────────────────────────────────── */
 /* ── Mobile-First: responsive table stacking (default=mobile) ── */
-.login-card { padding: var(--sp-6) var(--sp-4-5); }
 
 @media (min-width: 641px) {
   .login-card { padding: var(--sp-8); }
@@ -1116,7 +1113,7 @@ main.page-wide {
 
 .staff-register tbody tr:hover td:first-child { background: var(--maroon-bg); }
 .staff-name {
-  /* سطريٌّ كان 24.000 على حدّ WCAG 2.5.8 تماماً؛ inline-block بارتفاع السطر (DBT-44) */
+  /* DBT-44: سطريٌّ كان 24.000 تماماً */
   display: inline-block;
   min-block-size: 24px;
   text-decoration: none;
@@ -1189,7 +1186,6 @@ main.page-wide {
 .status-dot-online { background: var(--status-success); }
 
 /* ── حقول النماذج ── */
-.form-group { margin-bottom: var(--sp-4-5); }
 .form-label {
   display: block;
   font-size: var(--text-sm);
@@ -1210,7 +1206,6 @@ main.page-wide {
   padding: var(--sp-2-5) var(--sp-3-5);
   border: 1.5px solid var(--control-border);
   border-radius: var(--radius);
-  font-size: 0.84375rem;
   font-family: inherit;
   color: var(--text-primary);
   background: var(--surface);
@@ -1377,10 +1372,6 @@ main.page-wide {
 
 /* ── بطاقة النموذج ── */
 .form-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: var(--sp-6) 28px;
   box-shadow: var(--shadow-sm);
 }
 .form-card .form-footer {
@@ -1451,11 +1442,6 @@ main.page-wide {
 }
 
 /* ── Empty State ── */
-.empty-state {
-  text-align: center;
-  padding: var(--sp-12) var(--sp-6);
-  color: var(--text-muted);
-}
 .empty-state .empty-icon { font-size: 3rem; margin-bottom: var(--sp-3); display: block; }
 .empty-state .empty-title {
   font-size: var(--text-base); font-weight: 700;
@@ -1764,7 +1750,6 @@ textarea:focus-visible {
 
 /* ── Mobile Bottom Navigation ──────────────────────────────── */
 .mobile-bottom-nav {
-  display: none;
   position: fixed;
   bottom: 0;
   inset-inline-start: 0;
@@ -1815,11 +1800,10 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
    يميناً وشمالاً، ويخرج نصفُ الجدول عن الشاشة، وكلُّ ضغطةٍ تُصيب موضعاً
    أزاحته الإزاحةُ الأفقيّة. وهذا موضعُ استعمال المشرف: هاتفٌ في الممرّ.
 
-   فالعلاجُ أن يُسمح للعنصرين بالانضغاط ويُقصّ ما زاد بثلاث نقاط. واسمُ
+   فالعلاجُ أن يُسمح للشعار وحدَه بالانضغاط ويُقصّ ما زاد بثلاث نقاط. واسمُ
    المستخدم يُخفى كلَّه — الحرفُ الأوّلُ في الصورة الرمزيّة يكفي هويّةً،
    والقائمةُ تحته تكتب الاسمَ كاملاً. */
-.site-header .nav-logo,
-.site-header .nav-user-btn { flex-shrink: 1; min-width: 0; }
+.site-header .nav-logo { flex-shrink: 1; min-width: 0; }
 .nav-logo-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .nav-user-name { display: none; }
 
@@ -1884,7 +1868,6 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
 
 /* على الديسكتوب: nb-bar شريط أفقي عادي */
 .nb-bar {
-  display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: var(--sp-0-5);
@@ -2001,7 +1984,7 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
   flex-wrap: wrap;
 }
 .breadcrumbs a {
-  /* 24px أدنى هدفٍ في WCAG 2.5.8 على كلّ مؤشّر (D1)؛ وصفُّ الفتات 24px أصلاً بزرّ الرجوع فلا يكبر */
+  /* 24px لكلّ مؤشّر: D1، DBT-44 */
   display: inline-flex;
   align-items: center;
   min-block-size: 24px;

@@ -28,7 +28,6 @@
 
 /* ═══ @layer reset — CSS Reset & Box Model ═══ */
 @layer reset {
-  *, *::before, *::after { box-sizing: border-box; }
   body { margin: 0; }
   img, svg { display: block; max-width: 100%; }
 
