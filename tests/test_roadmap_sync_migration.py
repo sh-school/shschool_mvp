@@ -2240,6 +2240,108 @@ def test_0025_leaves_a_lay03_the_developer_moved():
     assert RoadmapItem.objects.get(code="LAY-03").note == ""
 
 
+def test_0025_closes_vi54_by_592_lifting_the_owner_gate_and_saying_it_is_unpublished():
+    _item("VI-54", "todo", 0, gate="owner")
+    assert _sync25.sync(RoadmapItem) == ["VI-54"]
+    assert _sync25.sync(RoadmapItem) == []
+    vi54 = RoadmapItem.objects.get(code="VI-54")
+    assert (vi54.status, vi54.progress, vi54.pr, vi54.gate) == ("done", 100, "#592", "")
+    note = vi54.note
+    assert "مدموجٌ غيرُ منشور" in note and "2026-09-27" in note and "منشورٌ على الإنتاج" not in note
+    # ما لم يُقَس يُقال، والحارسُ باسمه، ولا يُدَّعى فحصٌ على الجوّال.
+    assert "لم يُقَس" in note and "الإدارةُ على الجوال" in note
+    assert "test_the_admin_is_day_by_default_and_never_reads_the_system_theme" in note
+
+
+def test_0025_leaves_a_vi54_the_developer_moved():
+    _item("VI-54", "doing", 30, gate="owner")
+    assert _sync25.sync(RoadmapItem) == []
+    vi54 = RoadmapItem.objects.get(code="VI-54")
+    assert (vi54.status, vi54.gate, vi54.note) == ("doing", "owner", "")
+
+
+def test_0025_adds_the_591_progress_note_on_dbt44_keeping_it_closed_and_unpublished():
+    _item("DBT-44", "done", 100, pr="#576")
+    assert _sync25.sync(RoadmapItem) == ["DBT-44"]
+    assert _sync25.sync(RoadmapItem) == []
+    dbt44 = RoadmapItem.objects.get(code="DBT-44")
+    assert (dbt44.status, dbt44.progress, dbt44.pr) == ("done", 100, "#576 #591")
+    note = dbt44.note
+    assert "1 من 491 (0.2%)" in note and "مدموجٌ غيرُ منشور" in note and "DBT-45" in note
+    assert "منشورٌ على الإنتاج" not in note
+
+
+def test_0025_leaves_a_dbt44_the_developer_reopened():
+    _item("DBT-44", "doing", 50)
+    assert "DBT-44" not in _sync25.sync(RoadmapItem)
+    assert RoadmapItem.objects.get(code="DBT-44").note == ""
+
+
+def test_0025_closes_m04_by_594_keeping_the_open_owner_decision_and_the_unverified_device():
+    _item("M-04", "doing", 40, pr="#549")
+    assert _sync25.sync(RoadmapItem) == ["M-04"]
+    assert _sync25.sync(RoadmapItem) == []
+    m04 = RoadmapItem.objects.get(code="M-04")
+    assert (m04.status, m04.progress, m04.pr) == ("done", 100, "#549 #594")
+    note = m04.note
+    assert "مدموجٌ غيرُ منشور" in note and "لم يُتحقَّق منه" in note and "جهازٌ حقيقيّ" in note
+    assert "قرارٌ مفتوحٌ للمالك" in note and "black-translucent" in note and "+703 بايتاً" in note
+    assert "منشورٌ على الإنتاج" not in note
+
+
+def test_0025_moves_own23_to_30_as_the_sessions_suggestion_not_a_measurement_and_keeps_the_gate():
+    _item("OWN-23", "todo", 0, gate="owner")
+    assert _sync25.sync(RoadmapItem) == ["OWN-23"]
+    assert _sync25.sync(RoadmapItem) == []
+    own23 = RoadmapItem.objects.get(code="OWN-23")
+    assert (own23.status, own23.progress, own23.pr, own23.gate) == ("doing", 30, "#593", "owner")
+    note = own23.note
+    assert (
+        "الشقُّ الأوّل فقط" in note
+        and "لا يُغلق البند" in note
+        and "اقتراحُ 8096" in note
+        and "لا قياس" in note
+    )
+    assert "لا نصَّ ولا معرّفاً" in note and "مدموجٌ غيرُ منشور" in note
+
+
+def test_0025_records_mk8_yes_as_one_with_a_history_point_once():
+    RoadmapKpi.objects.create(
+        code="MK8",
+        lane="mobile",
+        name="viewport-fit=cover",
+        baseline_text="لا",
+        target_text="نعم (P0: نعم)",
+        source="خطّة الجوال K8",
+        text_mode=True,
+    )
+    assert _sync25.first_readings(RoadmapKpi) == ["MK8"]
+    assert _sync25.first_readings(RoadmapKpi) == []
+    mk8 = RoadmapKpi.objects.get(code="MK8")
+    assert (mk8.current, mk8.measured_at) == (1.0, _sync25.DAY)
+    assert (
+        mk8.history == [{"d": "2026-09-25", "v": 1.0}]
+        and "1 = نعم" in mk8.source
+        and len(mk8.source) <= 255
+    )
+    assert (mk8.baseline_text, mk8.target_text) == ("لا", "نعم (P0: نعم)")
+
+
+def test_0025_never_overwrites_a_measured_mk8():
+    RoadmapKpi.objects.create(
+        code="MK8", lane="mobile", name="x", current=0.0, measured_at=_sync25.DAY
+    )
+    assert _sync25.first_readings(RoadmapKpi) == []
+    assert RoadmapKpi.objects.get(code="MK8").current == 0.0
+
+
+def test_0025_extends_the_dbt36_note_with_the_594_bytes():
+    _item("DBT-36", "todo", 0)
+    _sync25.sync_notes(RoadmapItem)
+    note = RoadmapItem.objects.get(code="DBT-36").note
+    assert "929 بايتاً" in note and "+703 بايتاً" in note and "ولم يُقَس المجموعُ" in note
+
+
 def test_0025_moves_n041_to_67_as_merged_but_unpublished_and_never_closes_it():
     _item("N-041", "doing", 33, pr="#577")
     assert _sync25.sync(RoadmapItem) == ["N-041"]
