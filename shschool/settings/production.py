@@ -49,6 +49,8 @@ TRUSTED_PROXY_HOPS = int(config("TRUSTED_PROXY_HOPS", default="1"))
 # ✅ v5.5: Sentry — مراقبة أذكياء (PDPPL + smart sampling + context)
 # ══════════════════════════════════════════════════════════════
 SENTRY_DSN = config("SENTRY_DSN", default="")
+# رابطُ صفحة مشكلات المشروع في Sentry — يفتحه المطوّرُ من بطاقة «أخطاء الخادم» في الإدارة (https فقط، وإلّا يُهمَل).
+SENTRY_ISSUES_URL = config("SENTRY_ISSUES_URL", default="")
 
 # [B4-7Q.1] فصلُ رصد الأخطاء عن قياس الأداء — بإعدادٍ صريح لا باستنتاج.
 #
