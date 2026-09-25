@@ -4993,27 +4993,38 @@ def test_0035_registers_n048_the_academic_menu_link_by_the_owners_request_as_sta
     assert "الجدولة الذكية" in n48.title and len(n48.date_basis) <= 120
 
 
-def test_0035_moves_rep10_to_70_with_the_first_official_rk1_reading_and_keeps_it_open():
-    from datetime import date
-
+def test_0035_moves_rep10_to_70_without_any_rk1_reading_and_keeps_it_open():
     _item("REP-10", "todo", 0)
     assert _sync35.sync(RoadmapItem) == ["REP-10"]
     rep10 = RoadmapItem.objects.get(code="REP-10")
     assert (rep10.status, rep10.progress, rep10.pr) == ("doing", 70, "#637")
-    assert "RK1 = 331" in rep10.note and "خطُّ أساسٍ لا مستهدَف" in rep10.note
+    assert "لا قراءةَ رسميّةً لـRK1 بعدُ" in rep10.note and "سُحبت" in rep10.note
+    assert "331" not in rep10.note and "RK1 = " not in rep10.note
     assert "RK2 وRK3 في مخرَج الأداة مرشِّحاتٌ لا قراءاتٌ رسميّة" in rep10.note
     assert "اقتراحُ صاحبه (أمين المستودع) لا قياس" in rep10.note
-    _kpi(
-        "RK1",
-        304.0,
-        date(2026, 9, 25),
-        source="git for-each-ref",
-        history=[{"d": "2026-09-25", "v": 304.0}],
-    )
-    assert _sync35.sync_kpis(RoadmapKpi) == ["RK1"]
-    rk1 = RoadmapKpi.objects.get(code="RK1")
-    assert rk1.current == 331.0 and rk1.history == [{"d": "2026-09-25", "v": 331.0}]
-    assert "prune_local_branches.sh --json" in rk1.source
+    assert not [row for row in _sync35.KPI_UPDATES if row[0] == "RK1"]
+
+
+def test_0035_moves_rep08_to_doing_without_a_percentage_and_without_branch_counts():
+    _item("REP-08", "todo", 0)
+    assert _sync35.sync(RoadmapItem) == ["REP-08"]
+    rep08 = RoadmapItem.objects.get(code="REP-08")
+    assert (rep08.status, rep08.progress) == ("doing", 0)
+    assert "لا قراءةَ رسميّةً لـRK1 بعدُ" in rep08.note and "مهلة الـ48 ساعة" in rep08.note
+    assert "فوُسم طرفاهما محلّيّاً فصارا محفوظَين — لا فقدان" in rep08.note
+    assert "لا نسبةَ مقترحةً للتقدّم" in rep08.note
+    for count in ("168", "331", "150", "129"):
+        assert count not in rep08.note
+
+
+def test_0035_moves_vi13_to_25_with_the_first_phase_only_and_keeps_vk25_uncounted():
+    _item("VI-13", "todo", 0)
+    assert _sync35.sync(RoadmapItem) == ["VI-13"]
+    vi13 = RoadmapItem.objects.get(code="VI-13")
+    assert (vi13.status, vi13.progress, vi13.pr) == ("doing", 25, "#638")
+    assert "20 من 20 بفرق 0.0000%" in vi13.note and "16 من 20" in vi13.note
+    assert "#646" in vi13.note and "V-K25 (0 ← 5) لا يُحتسب" in vi13.note
+    assert "المرحلة 1 من 4 — اقتراحُ صاحبه لا قياس" in vi13.note
 
 
 def test_0035_never_overwrites_an_existing_new_item():
