@@ -546,7 +546,7 @@ def _c_strings(shell: str, args: list[str]) -> list[str]:
                 try:
                     found.append(base64.b64decode(args[i + 1]).decode("utf-16-le"))
                 except ValueError:
-                    pass
+                    pass  # base64 فاسد: لا نصَّ لتحليله، والأمرُ نفسُه يفشل عند PowerShell
                 break
     elif shell == "cmd":
         for i, a in enumerate(args):
@@ -1014,7 +1014,7 @@ def _log_override(command: str, reason: str, hits: list[Hit], cwd: str | None) -
         with open(os.path.join(folder, "guard_git_overrides.log"), "a", encoding="utf-8") as fh:
             fh.write(line)
     except OSError:
-        pass
+        pass  # السجلُّ للمراجعة لا شرطٌ للتجاوز: قرصٌ ممتلئٌ أو مجلّدٌ محميٌّ لا يمنع الأمرَ المأذون
 
 
 def main() -> int:
@@ -1022,7 +1022,7 @@ def main() -> int:
         try:
             stream.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
         except (AttributeError, ValueError):
-            pass
+            pass  # مجرًى بلا reconfigure (مُعاد توجيهُه): تبقى الرسالةُ بترميزه، فلا يمنع ذلك الحكمَ
     try:
         payload = json.loads(sys.stdin.buffer.read().decode("utf-8") or "{}")
     except (ValueError, UnicodeDecodeError):
