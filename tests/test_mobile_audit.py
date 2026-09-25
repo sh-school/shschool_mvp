@@ -95,8 +95,10 @@ def _signed_in_state(browser, base: str, user) -> dict:
         context.close()
 
 
-def _measure_all(request, playwright, base: str) -> dict[str, dict]:
+def _measure_all(request, playwright, base: str) -> tuple[dict[str, dict], dict[str, dict]]:
+    """(الأرقامُ، وأسماءُ العناصر) — الثانيةُ لرسالة السقوط وحدَها ولا تدخل خطَّ الأساس."""
     results: dict[str, dict] = {}
+    details: dict[str, dict] = {}
     engines = {e for names in audit.ENGINES.values() for e in names}
     for engine in sorted(engines):
         browser = getattr(playwright, engine).launch()
@@ -120,16 +122,17 @@ def _measure_all(request, playwright, base: str) -> dict[str, dict]:
                                 LOGIN_PATH not in page.url
                             ), f"{engine}/{role}:{name} أُحيل إلى الدخول — الجلسةُ لم تثبت"
                             page.evaluate("document.fonts.ready.then(() => 1)")
-                            results[f"{engine}/{profile}/{role}:{name}"] = audit.measure_page(page)
+                            key = f"{engine}/{profile}/{role}:{name}"
+                            results[key], details[key] = audit.measure_page_detailed(page)
                     finally:
                         context.close()
         finally:
             browser.close()
-    return results
+    return results, details
 
 
 def test_touch_targets_and_text_have_not_regressed(request, playwright, live_server):
-    current = _measure_all(request, playwright, live_server.url)
+    current, details = _measure_all(request, playwright, live_server.url)
 
     if os.environ.get("MOBILE_AUDIT_UPDATE"):
         audit.write_baseline(current)
@@ -142,11 +145,19 @@ def test_touch_targets_and_text_have_not_regressed(request, playwright, live_ser
         pytest.skip("حُدِّث الخطّ الأساس — راجع tests/mobile_audit_baseline.json وأودعه")
 
     worse, stale = audit.compare(audit.read_baseline(), current)
-    assert not worse, "ساءت أهدافُ اللمس أو النصّ — لا تُودَع:\n  " + "\n  ".join(worse)
+    assert not worse, (
+        "ساءت أهدافُ اللمس أو النصّ — لا تُودَع:\n  " + "\n  ".join(worse) + _elements(worse, details)
+    )
     assert not stale, (
         f"تحسّنت صفحاتٌ ولم يُسجَّل تحسّنُها — ثبّته بـ `{UPDATE_CMD}` وأودع الملفّ:\n  "
         + "\n  ".join(stale)
+        + _elements(stale, details)
     )
+
+
+def _elements(changes: list[str], details: dict[str, dict]) -> str:
+    text = audit.describe(changes, details)
+    return f"\n\n  العناصرُ خلف التغيير:\n  {text}" if text else ""
 
 
 class TestTheRatchetItself:
@@ -184,6 +195,41 @@ class TestTheRatchetItself:
         after = {"chromium/desktop/a:b": {"small24": 9}}
         worse, stale = audit.compare(before, after)
         assert not worse and stale == ["chromium/desktop/a:b: small24 10 → 9"]
+
+    def test_the_message_names_the_elements_behind_a_changed_target_count(self):
+        """DBT-44: هدفٌ يظهر في CI ولا يظهر محلّياً كان يُخمَّن؛ الآن يُسمّى في رسالة السقوط نفسِها."""
+        details = {
+            "chromium/desktop/a:b": {"small44": [], "small24": ["a.staff-name 94.25×23.99 «مدير»"]}
+        }
+        text = audit.describe(["chromium/desktop/a:b: small24 2 → 1"], details)
+        assert "chromium/desktop/a:b small24" in text and "a.staff-name 94.25×23.99" in text
+
+    def test_the_message_is_silent_about_metrics_that_have_no_elements(self):
+        """النصُّ والتجاوزُ والحقولُ ليست أهدافاً: لا وصفَ لها ولا فراغَ يُطبع."""
+        details = {"m/mobile/a:b": {"small44": ["a 1×1"], "small24": []}}
+        assert (
+            audit.describe(
+                ["m/mobile/a:b: tiny_text 1 → 2", "m/mobile/a:b: h_overflow 0 → 3"], details
+            )
+            == ""
+        )
+        assert audit.describe(["m/mobile/a:b: small24 3 → 2"], details) == ""
+
+    def test_details_never_reach_the_baseline_numbers(self):
+        """الوصفُ يتغيّر بالنصّ والحجم؛ لو دخل خطَّ الأساس صار كلُّ تعديلٍ في نصٍّ سقوطاً."""
+
+        class FakePage:
+            def evaluate(self, _script):
+                return {
+                    "targets": 3,
+                    "small44": 1,
+                    "small24": 1,
+                    "elements": {"small44": ["a"], "small24": ["a"]},
+                }
+
+        numbers, elements = audit.measure_page_detailed(FakePage())
+        assert "elements" not in numbers and elements == {"small44": ["a"], "small24": ["a"]}
+        assert "elements" not in audit.measure_page(FakePage())
 
     def test_a_new_page_with_overflow_is_worse(self):
         worse, _ = audit.compare({}, {"chromium/mobile/x:y": {"h_overflow": 12}})
