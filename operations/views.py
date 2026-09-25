@@ -29,9 +29,9 @@ from .views_attendance import (
 from .views_schedule import (
     absence_detail,
     add_exemption,
-    approve_schedule,
     assign_substitute,
     exemption_grid,
+    export_job_status,
     register_teacher_absence,
     remove_exemption,
     remove_exemptions,
@@ -55,13 +55,18 @@ from .views_schedule import (
     teacher_preferences,
     weekly_schedule,
 )
+from .views_schedule_drafts import approve_schedule
 
 # ── Swap & Compensatory ─────────────────────────────────────────
 from .views_swap import (
+    absence_swap_create,
+    absence_swap_options,
     build_free_slots,
     compensatory_approve,
     compensatory_list,
+    compensatory_options,
     compensatory_request,
+    compensatory_respond,
     swap_approve,
     swap_cancel,
     swap_list,
@@ -110,11 +115,14 @@ __all__ = [
     "save_subject_scheduling",
     "add_exemption",
     "exemption_grid",
+    "export_job_status",
     "remove_exemption",
     "remove_exemptions",
     "remove_preferences",
     "teacher_preferences",
     # swap
+    "absence_swap_options",
+    "absence_swap_create",
     "swap_list",
     "swap_request",
     "swap_options_htmx",
@@ -123,6 +131,8 @@ __all__ = [
     "swap_cancel",
     "compensatory_list",
     "compensatory_request",
+    "compensatory_options",
+    "compensatory_respond",
     "compensatory_approve",
     "teacher_free_slots",
     "build_free_slots",

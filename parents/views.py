@@ -27,7 +27,6 @@ from behavior.models import BehaviorInfraction
 from core.capabilities import capability_required
 from core.domain.tones import ATTENDANCE_KPI, AVERAGE_KPI, tone_for
 from core.models import (
-    ConsentRecord,
     CustomUser,
     Membership,
     ParentStudentLink,
@@ -37,7 +36,7 @@ from core.models import (
 from core.sorting import apply_sort, arabic_key
 from operations.models import AbsenceAlert
 
-from .services import ParentService
+from .services import ParentService, consent_state, save_consents
 
 
 def _get_parent_school(request):
@@ -549,6 +548,17 @@ def _parent_from_identity(request, school, national_id, full_name, phone, email=
     return parent
 
 
+def _member_of_school(school, user_id, **extra_filters):
+    """مستخدمٌ ضمن مدرسةٍ محدّدة — يمنع IDOR بتمرير معرِّفٍ من مدرسةٍ أخرى."""
+    return get_object_or_404(
+        CustomUser,
+        id=user_id,
+        memberships__school=school,
+        memberships__is_active=True,
+        **extra_filters,
+    )
+
+
 @login_required
 @capability_required("parents.admin")
 def add_parent_link(request):
@@ -577,10 +587,10 @@ def add_parent_link(request):
     if not student_id:
         messages.error(request, "اختر الطالبَ المراد ربطُه.")
         return redirect("manage_parent_links")
-    student = get_object_or_404(CustomUser, id=student_id)
+    student = _member_of_school(school, student_id)
 
     if parent_id:
-        parent = get_object_or_404(CustomUser, id=parent_id)
+        parent = _member_of_school(school, parent_id, memberships__role__name="parent")
     else:
         parent = _parent_from_identity(request, school, national_id, full_name, phone, email)
         if parent is None:
@@ -645,44 +655,11 @@ def consent_view(request):
     )
 
     if request.method == "POST":
-        for link in links:
-            for dt, _ in DATA_TYPES:
-                is_given = request.POST.get(f"consent_{link.student_id}_{dt}") == "1"
-                obj, created = ConsentRecord.objects.get_or_create(
-                    parent=request.user,
-                    student=link.student,
-                    school=school,
-                    data_type=dt,
-                    defaults={
-                        "is_given": is_given,
-                        "method": "digital",
-                        "recorded_by": request.user,
-                    },
-                )
-                if not created and obj.is_given != is_given:
-                    obj.is_given = is_given
-                    obj.withdrawn_at = None if is_given else timezone.now()
-                    obj.save(update_fields=["is_given", "withdrawn_at"])
-
-        if not request.user.consent_given_at:
-            request.user.consent_given_at = timezone.now()
-            request.user.save(update_fields=["consent_given_at"])
-
+        save_consents(request.user, school, links, request.POST, DATA_TYPES)
         messages.success(request, "تم حفظ إعدادات الموافقة بنجاح.")
         return redirect("parent_dashboard")
 
-    # Batch load all consent records (avoid N+1)
-    student_ids = [link.student_id for link in links]
-    all_consents = ConsentRecord.objects.filter(
-        parent=request.user, student_id__in=student_ids
-    ).values_list("student_id", "data_type", "is_given")
-    consent_map = {(str(sid), dt): given for sid, dt, given in all_consents}
-    consent_data = {
-        str(link.student_id): {
-            dt: consent_map.get((str(link.student_id), dt), True) for dt, _ in DATA_TYPES
-        }
-        for link in links
-    }
+    consent_data = consent_state(request.user, links, DATA_TYPES)
 
     import json as _json
 

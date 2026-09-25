@@ -112,6 +112,60 @@ def test_resync_replaces_stale_sessions_but_keeps_those_with_attendance(school):
     assert Session.objects.filter(date=SUNDAY, class_group=new_cg, teacher=t_new).exists()
 
 
+def _subject_changed_setup(school):
+    """جلسةٌ لمعلّمٍ في شعبةٍ وحصّةٍ بمادّةٍ قديمة، والخطّةُ الآن بمادّةٍ أخرى لنفس المعلّم والحصّة."""
+    cg = ClassGroup.objects.create(
+        school=school, grade="G8", section="1", academic_year="2026-2027"
+    )
+    t = _teacher(school, "معلّم")
+    maths = Subject.objects.create(school=school, name_ar="الرياضيات")
+    skills = Subject.objects.create(school=school, name_ar="المهارات الحياتية والمهنية")
+    session = Session.objects.create(
+        school=school,
+        teacher=t,
+        class_group=cg,
+        subject=maths,
+        date=SUNDAY,
+        start_time=dt.time(7, 10),
+        end_time=dt.time(7, 55),
+        period_number=1,
+        status="scheduled",
+    )
+    _slot(school, t, cg, skills)
+    return cg, session, skills
+
+
+@pytest.mark.django_db
+def test_resync_replaces_a_session_whose_subject_changed_under_the_same_teacher(school):
+    """3 من 869 على الإنتاج (2026-09-25): المعلّمُ والشعبةُ والوقتُ هي هي، والمادّةُ تبدّلت بين توليدَين.
+
+    وكانت المصالحةُ تطابق بـ(المعلّم، الشعبة، الوقت) فتُبقي الجلسةَ بمادّتها القديمة، فيرى المعلّمُ
+    والمشرفُ في كشف اليوم مادّةً لم تعد حصّتَه.
+    """
+    cg, old, skills = _subject_changed_setup(school)
+
+    result = ScheduleService.resync_sessions_for_date(school, SUNDAY, academic_year="2026-2027")
+
+    assert result == {"deleted": 1, "created": 1, "kept": 0}
+    fresh = Session.objects.get(date=SUNDAY, class_group=cg)
+    assert fresh.subject == skills
+    assert fresh.id != old.id
+
+
+@pytest.mark.django_db
+def test_a_touched_session_with_a_stale_subject_is_kept_and_counted(school):
+    """ما سُجّل عليه حضورٌ لا يُحذف ولو تبدّلت مادّتُه — يُعدّ ويُبقى، ولا تنشأ ثانيةٌ فوقه."""
+    cg, old, _skills = _subject_changed_setup(school)
+    StudentAttendance.objects.create(
+        session=old, student=UserFactory(full_name="طالب"), school=school, status="present"
+    )
+
+    result = ScheduleService.resync_sessions_for_date(school, SUNDAY, academic_year="2026-2027")
+
+    assert result["deleted"] == 0 and result["kept"] == 1
+    assert list(Session.objects.filter(date=SUNDAY, class_group=cg)) == [old]
+
+
 @pytest.mark.django_db
 def test_resync_is_a_no_op_when_sessions_already_match(school):
     cg = ClassGroup.objects.create(

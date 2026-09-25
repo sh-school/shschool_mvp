@@ -17,12 +17,10 @@ tests/test_css_layers.py
 — لا بقراءة الملفّ. وقد قِيس يومَها على اثنتَي عشرةَ صفحةً في الوضعين.
 """
 
-import pathlib
 import re
 
 from tests.css_contrast import iter_rules, strip_noise
-
-CSS_PATH = pathlib.Path("static/css/custom.css")
+from tests.css_source import read_css
 
 #: `tailwind` مُعلَنةٌ لورقةٍ أخرى (`tailwind.min.css`) تُحمَّل قبل هذه،
 #: فلا كتلةَ لها في هذا الملفّ — وهذا مقصود.
@@ -34,7 +32,7 @@ THEME_LAYER = "themes"
 
 
 def _css() -> str:
-    return CSS_PATH.read_text(encoding="utf-8")
+    return read_css()
 
 
 def _layer_of(context) -> str | None:
@@ -147,7 +145,37 @@ def test_the_maroon_header_keeps_its_white_text_over_the_dark_override():
 
 
 # ══════════════════════════════════════════════════════════════════
-# ٤. حارسُ الحارس
+# ٥. قواعدُ الوضع الداكن كلُّها في طبقتها
+# ══════════════════════════════════════════════════════════════════
+
+
+_DARK_SELECTOR = re.compile(r"(^|[\s,{])html\.dark\b")
+
+
+def test_no_dark_mode_rule_lives_outside_the_theme_layer():
+    """`html.dark` تعيش في `themes` وحدها — لا حيث كُتبت أوّل مرّة.
+
+    كان يوم 2026-09-18 أربعون قاعدةً من 186 خارج `themes` (متناثرةً في
+    base/components/utilities/modules) — لا خطأً وظيفيّاً (الطبقةُ الأخيرة
+    تغلب مهما كان موضعُ القاعدة)، بل تشتّتاً معماريّاً: من يبحث عن كلّ ما
+    يخصّ الليل يفوته ما تبعثر. جُمعت كلُّها في `themes` (المُجمَّعةُ منها
+    موسومةٌ بتعليقٍ صريح أعلى الكتلة)، وهذا الحارسُ يمنع التبعثر من العودة.
+    """
+    stray = [
+        (sel, _layer_of(ctx))
+        for sel, _decls, ctx in iter_rules(_css())
+        if _DARK_SELECTOR.search(" ".join(sel.split()))
+        and _layer_of(ctx) not in (None, THEME_LAYER)
+    ]
+    lines = [f"  {sel[:70]}   في طبقة `{layer}`" for sel, layer in stray[:25]]
+    more = f"\n  … و{len(stray) - 25} غيرُها" if len(stray) > 25 else ""
+    assert not stray, (
+        f"{len(stray)} قاعدةَ `html.dark` خارج `{THEME_LAYER}`:\n" + "\n".join(lines) + more
+    )
+
+
+# ══════════════════════════════════════════════════════════════════
+# ٦. حارسُ الحارس
 # ══════════════════════════════════════════════════════════════════
 
 

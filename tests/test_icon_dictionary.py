@@ -9,6 +9,7 @@
 * لا يتشارك معنيان رسماً — وإلّا عاد الشكلُ يحمل معنيين.
 * كلُّ رسمٍ من المكتبة موجودٌ في مصدرها المقتطَع، والترخيصُ يرافقه.
 * لا حرفَ لاتينيّاً داخل رسم، والمجموعةُ المحلّيّة لا تتجاوز سقفها.
+* لا سكربتَ يكتب مرجعاً لرمزٍ ليس في الورقة (الحارسُ يمسح `*.js` كما يمسح `*.html`).
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ from core.icons import (
     VIOLATION_DEGREES,
     symbol_id,
 )
+from tests.css_source import read_css
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -174,12 +176,11 @@ def test_components_draw_a_meaning_with_the_new_sprite():
     assert "icons/sprite.svg#i-library" in html and "icon-2xl" in html
 
 
-def test_components_still_draw_a_legacy_name_during_the_migration():
-    """الملفّاتُ الساخنة تُرحَّل في دفعةٍ لاحقة — والسقّاطةُ تمنع أن يزيد القديم."""
-    assert '<use href="#icon-bar-chart"/>' in _render('{% icon_named "bar-chart" %}')
+def test_components_skip_a_missing_icon_without_erroring():
+    assert _render('{% icon_named "" %}') == ""
 
 
-def test_components_refuse_a_name_from_neither_sprite():
+def test_components_refuse_an_unknown_meaning():
     with pytest.raises(TemplateSyntaxError):
         _render('{% icon_named "📚" %}')
 
@@ -214,6 +215,29 @@ def test_every_requested_meaning_exists(path, key):
     assert key in ICONS, f"{path}: لا أيقونةَ بالمعنى {key!r}"
 
 
+# ── لوحة الأوامر (core/views_search.py) — JSON لا وسمٌ، فلا يسقط عند العرض ──
+
+_SEARCH_VIEW = ROOT / "core" / "views_search.py"
+_SEARCH_ICON_RE = re.compile(r'"icon":\s*"([^"]*)"')
+
+
+def _search_view_icon_keys():
+    return sorted(set(_SEARCH_ICON_RE.findall(_SEARCH_VIEW.read_text(encoding="utf-8"))))
+
+
+@pytest.mark.parametrize("key", _search_view_icon_keys())
+def test_the_command_palette_names_a_real_meaning(key):
+    """كانت نتائجُ Ctrl+K إيموجي خاماً (🎓👨‍🏫🏠…) — رسمٌ موازٍ خارج القاموس
+    تماماً، لا يمرّ على `{% icon %}` فلا يحرسه شيء. صار كلُّ عنصرٍ مفتاحاً
+    دلاليّاً يرسمه `static/js/app.js` بـ`window.iconSvg` (base.js) من الورقة
+    نفسها التي يرسمها الوسم —
+    فهذا الحارسُ يمنع عودة رمزٍ خامٍّ، والتصيير الفعليّ في المتصفّح يبقى
+    خارج نطاق هذا الملفّ الساكن.
+    """
+    assert key, "قيمةُ icon فارغة في core/views_search.py"
+    assert key in ICONS, f"core/views_search.py: لا أيقونةَ بالمعنى {key!r}"
+
+
 def test_the_shell_speaks_only_the_dictionary():
     """القائمةُ وشريطُ الهاتف والرأس: لا ورقةَ قديمة، ولا حرفَ يقوم مقامَ رسم."""
     base = (TEMPLATES / "base" / "base.html").read_text(encoding="utf-8")
@@ -231,55 +255,164 @@ def test_the_theme_toggle_carries_both_glyphs_from_the_dictionary():
     assert "#icon-sun" not in js and "#icon-moon" not in js
 
 
-LEGACY_BASELINE = ROOT / "tests" / "icon_legacy_baseline.json"
-_LEGACY_INCLUDE = re.compile(r"components/icon\.html")
+_LEGACY_ICON_INCLUDE = re.compile(r"components/icon\.html")
+_LEGACY_SPRITE_INCLUDE = re.compile(r"components/sprite\.html")
 _LEGACY_USE = re.compile(r'<use href="#icon-')
 _COMPONENT_ICON = re.compile(
     r"(?:\{%\s*(?:page_header|section_card|empty_state|action_tile)\b"
     r'|components/(?:ui/)?(?:empty_state|action_tile|page_header|section_card)\.html")'
     r'[^%]*?\bicon="([\w-]+)"'
 )
-_LEGACY_EXEMPT = {"components/sprite.html", "components/icon.html", "styleguide/icon_preview.html"}
+#: مجلّداتٌ لا تُفحص — وليس ``templates/`` وحده: كان لِـexam_control
+#: وdeveloper_feedback مجلّدا قوالبَ محليّان داخل التطبيق خارج ذلك المسح، فبقيت
+#: 16 قالباً (35+ استعمالاً قديماً) معطوبةَ الأيقونات على الإنتاج بلا رصدٍ حتى
+#: اكتُشفت يدويّاً 2026-09-18 — فهذا الحارسُ يمسح المشروعَ كلَّه.
+_SKIP_DIRS = {".git", "node_modules", ".venv", "staticfiles"}
 
 
-def legacy_counts() -> dict[str, int]:
-    """استعمالاتُ الورقة القديمة في كلّ قالب: استدعاءٌ، ومعاملُ مكوّنٍ باسمٍ قديم، و`<use>` مكتوب."""
-    counts = {}
-    for path in sorted(TEMPLATES.rglob("*.html")):
-        rel = path.relative_to(TEMPLATES).as_posix()
-        if rel in _LEGACY_EXEMPT:
+def _legacy_icon_usages() -> dict[str, list[str]]:
+    """كلُّ استعمالٍ للورقة القديمة (المحذوفة) في أيّ قالبٍ بالمشروع."""
+    offenders: dict[str, list[str]] = {}
+    for path in sorted(ROOT.rglob("*.html")):
+        if any(part in _SKIP_DIRS for part in path.parts):
             continue
-        text = path.read_text(encoding="utf-8")
-        n = len(_LEGACY_INCLUDE.findall(text)) + len(_LEGACY_USE.findall(text))
-        n += sum(1 for name in _COMPONENT_ICON.findall(text) if name not in ICONS)
-        if n:
-            counts[rel] = n
-    return counts
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        hits = []
+        if _LEGACY_ICON_INCLUDE.search(text):
+            hits.append("include components/icon.html")
+        if _LEGACY_SPRITE_INCLUDE.search(text):
+            hits.append("include components/sprite.html")
+        if _LEGACY_USE.search(text):
+            hits.append('<use href="#icon-...">')
+        bad_names = sorted({n for n in _COMPONENT_ICON.findall(text) if n not in ICONS})
+        if bad_names:
+            hits.append(f"icon=معنًى غيرُ موجود {bad_names}")
+        if hits:
+            offenders[str(path.relative_to(ROOT))] = hits
+    return offenders
 
 
-def test_legacy_icons_only_shrink():
-    """سقّاطة: القديمُ لا يزيد في ملفّ، ولا يدخل ملفّاً خلا منه.
-
-    والنقصانُ لا يُلزم تحديثَ السجلّ — جلستان تُرحّلان معاً لا تتصادمان عليه.
-    ولتسجيل الأعداد بعد ترحيل: ``python -m tests.test_icon_dictionary``.
+def test_no_template_anywhere_in_the_project_uses_the_legacy_icon_sheet():
+    """الورقةُ القديمة (``components/sprite.html``/``icon.html``) محذوفةٌ نهائيّاً
+    2026-09-18 — لا استثناءَ يُبقيها، ولا مصدرَ يُرضي استعمالاً قديماً بعد اليوم.
     """
-    baseline = json.loads(LEGACY_BASELINE.read_text(encoding="utf-8"))
-    grown = {
-        f: (baseline.get(f, 0), n) for f, n in legacy_counts().items() if n > baseline.get(f, 0)
-    }
-    assert not grown, f"أيقوناتٌ قديمةٌ زادت (المسجَّل، الآن) — استعمل {{% icon %}}: {grown}"
+    offenders = _legacy_icon_usages()
+    assert not offenders, offenders
 
 
 def test_the_new_icon_classes_are_styled():
-    css = (ROOT / "static" / "css" / "custom.css").read_text(encoding="utf-8")
+    css = read_css()
     assert ".icon-hg" in css and ".icon-mirror" in css
 
 
-if __name__ == "__main__":
-    counts = legacy_counts()
-    LEGACY_BASELINE.write_text(
-        json.dumps(counts, ensure_ascii=False, indent=1, sort_keys=True) + "\n",
-        encoding="utf-8",
-        newline="\n",
+# ── السكربتات ─────────────────────────────────────────────────────────────
+# الحارسُ أعلاه يمسح `*.html` وحدَها، والسكربتُ يكتب `<svg><use>` نصّاً في
+# `innerHTML` فلا يمرّ على وسمٍ ولا على مسحٍ. وحوارُ التأكيد في `base.js` كان
+# يكتب `#icon-alert-triangle` من ورقةٍ حُذفت، فيظهر عنوانُه بلا رسم — ولا يسقط
+# شيءٌ لأنّ المتصفّح لا يُبلغ عن `<use>` لا يجد هدفَه. وصوابُ السكربت أن يستعمل
+# `window.iconSvg('<مفتاح>')` في `static/js/base.js` — المالكِ الوحيد لمسار الورقة
+# (يبنيه من `data-icon-sprite` في `<body>` كما يفعل الوسمُ) — لا أن يكتب `<use>` بيده.
+
+_JS_COMMENT = re.compile(r"/\*.*?\*/|(?<![:\\\"'])//[^\n]*", re.S)
+#: `<use href="#…">` — الورقةُ خارجيّةٌ، فأيُّ مرجعٍ يبدأ بـ`#` لا هدفَ له في الصفحة.
+_JS_LOCAL_USE = re.compile(r"""<use\b[^>]*?\b(?:xlink:)?href\s*=\s*["']#""")
+_JS_LEGACY_ID = re.compile(r"#icon-[\w-]+")
+#: معرّفٌ مكتوبٌ كاملاً (`…sprite.svg#i-status_warning`) — أمّا `'#i-' + key` فيُبنى
+#: وقتَ التشغيل ويحرسه `test_the_command_palette_names_a_real_meaning` بمفاتيحه.
+_JS_SYMBOL_ID = re.compile(r"#(i-[a-z0-9_-]+)")
+#: `window.iconSvg('status_warning')` — المفتاحُ المكتوبُ حرفيّاً يُطابَق بالقاموس (أمّا
+#: `iconSvg(r.icon)` فمفتاحٌ يصل وقتَ التشغيل من JSON، ويحرسه اختبارُ لوحة الأوامر).
+_JS_ICON_CALL = re.compile(r"""\biconSvg\(\s*['"]([^'"]*)['"]\s*\)""")
+_JS_SKIP_PARTS = {"vendor", "node_modules"}
+
+
+def js_icon_problems(js: str, symbols: set[str]) -> list[str]:
+    """كلُّ مرجعِ أيقونةٍ في سكربتٍ لا يجد رمزَه في الورقة."""
+    code = _JS_COMMENT.sub("", js)
+    problems = [
+        f"مرجعٌ محلّيٌّ لا هدفَ له (الورقةُ خارجيّة): {m.group(0)}…" for m in _JS_LOCAL_USE.finditer(code)
+    ]
+    problems += [
+        f"معرّفٌ من الورقة القديمة المحذوفة: {m.group(0)}" for m in _JS_LEGACY_ID.finditer(code)
+    ]
+    problems += [
+        f"رمزٌ ليس في sprite.svg: #{m.group(1)}"
+        for m in _JS_SYMBOL_ID.finditer(code)
+        if m.group(1) not in symbols
+    ]
+    problems += [
+        f"iconSvg('{m.group(1)}'): لا أيقونةَ بهذا المعنى في القاموس"
+        for m in _JS_ICON_CALL.finditer(code)
+        if f"i-{m.group(1)}" not in symbols
+    ]
+    return problems
+
+
+def _project_scripts() -> list[Path]:
+    """سكربتاتُ المنصّة الحيّة: `static/js` وأيُّ `<app>/static` وقوالبُ الـPWA."""
+    found = [
+        *ROOT.glob("static/js/*.js"),
+        *ROOT.glob("*/static/**/*.js"),
+        *ROOT.glob("templates/**/*.js"),
+    ]
+    return sorted(
+        p
+        for p in set(found)
+        if not p.name.endswith(".min.js") and not _JS_SKIP_PARTS & set(p.relative_to(ROOT).parts)
     )
-    print(f"سُجّل {sum(counts.values())} استعمالاً قديماً في {len(counts)} قالباً")
+
+
+def _sprite_symbols() -> set[str]:
+    sprite = icon_sprite.SPRITE.read_text(encoding="utf-8")
+    return set(re.findall(r'<symbol id="([^"]+)"', sprite))
+
+
+def test_no_script_references_an_icon_the_sprite_lacks():
+    symbols = _sprite_symbols()
+    offenders = {
+        path.relative_to(ROOT).as_posix(): problems
+        for path in _project_scripts()
+        if (problems := js_icon_problems(path.read_text(encoding="utf-8"), symbols))
+    }
+    assert not offenders, offenders
+
+
+def test_the_script_scan_covers_the_shell_scripts():
+    """مسحٌ فارغٌ يخضرّ كاذباً: يجب أن يشمل الملفّين اللذين يبنيان `<use>` فعلاً."""
+    names = {p.relative_to(ROOT).as_posix() for p in _project_scripts()}
+    assert {"static/js/base.js", "static/js/app.js"} <= names
+
+
+def test_only_the_shell_script_knows_the_sprite_address():
+    """عنوانُ الورقة في `data-icon-sprite`: يقرؤه `base.js` وحدَه ويبني به الرسمَ
+    (`window.iconSvg`). سكربتٌ ثانٍ يقرؤه يعود إلى نسخةٍ مكرّرةٍ من البناء — كان
+    `app.js` يحمل واحدةً (DBT-50) وحوارُ التأكيد أخرى."""
+    readers = sorted(
+        path.relative_to(ROOT).as_posix()
+        for path in _project_scripts()
+        if "iconSprite" in path.read_text(encoding="utf-8")
+    )
+    assert readers == ["static/js/base.js"], readers
+
+
+@pytest.mark.parametrize(
+    "snippet,is_broken",
+    [
+        ("'<svg><use href=\"#icon-alert-triangle\"/></svg>'", True),  # ما كان في base.js
+        (
+            "'<svg><use xlink:href=\"#i-status_warning\"/></svg>'",
+            True,
+        ),  # الورقةُ خارجيّة: المحلّيّ لا يصل
+        ("node.setAttribute('href', '#icon-close')", True),
+        ("'<use href=\"' + sprite + '#i-no_such_meaning\"></use>'", True),
+        ("'<use href=\"' + sprite + '#i-status_warning\"></use>'", False),  # الصواب
+        ("'<use href=\"' + sprite + '#i-' + key + '\"></use>'", False),  # مبنيٌّ وقتَ التشغيل
+        ("// كان يكتب #icon-alert-triangle", False),  # التعليقُ لا يُحسب
+        ("window.iconSvg('status_warning') + ' '", False),  # الصواب: مفتاحٌ من القاموس
+        ("window.iconSvg('no_such_meaning')", True),  # مفتاحٌ ليس في القاموس
+        ('iconSvg( "alert-triangle" )', True),  # اسمُ الورقة القديمة لا مفتاحُ القاموس
+        ("window.iconSvg(r.icon)", False),  # مفتاحٌ يصل وقتَ التشغيل: يحرسه اختبارُ اللوحة
+    ],
+)
+def test_the_script_guard_catches_what_it_is_meant_to(snippet, is_broken):
+    assert bool(js_icon_problems(snippet, _sprite_symbols())) is is_broken, snippet

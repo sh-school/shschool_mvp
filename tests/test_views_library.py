@@ -5,7 +5,7 @@ tests/test_views_library.py
 
 import pytest
 
-from core.models import BookBorrowing, LibraryBook
+from library.models import BookBorrowing, LibraryBook
 
 from .conftest import LibraryBookFactory
 

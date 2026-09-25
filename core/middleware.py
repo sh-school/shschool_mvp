@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, cast
 
 from django.http import HttpRequest, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.http.response import HttpResponseBase
-from django.shortcuts import redirect
+from django.shortcuts import redirect, render
 from django.urls import reverse
 
 if TYPE_CHECKING:
@@ -90,9 +90,8 @@ class SchoolPermissionMiddleware:
                 return JsonResponse(
                     {"error": "لا توجد عضوية نشطة", "code": "no_membership"}, status=403
                 )
-            return HttpResponseForbidden(
-                "<h2 dir='rtl'>ليس لديك عضوية نشطة في أي مدرسة. تواصل مع مدير النظام.</h2>"
-            )
+            # طريقٌ مسدودٌ بلا مخرج: صفحةُ الخطأ الواحدة بزرّ تسجيل الخروج (مسارُه POST وحده).
+            return render(request, "errors/no_membership.html", status=403)
 
         from core.module_registry import gate_admits
 
@@ -153,7 +152,7 @@ def get_current_user():
     return _current_user.get(None)
 
 
-def get_current_request():
+def get_current_request() -> HttpRequest | None:
     return _current_request.get(None)
 
 

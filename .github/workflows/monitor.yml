@@ -1,0 +1,110 @@
+name: Uptime — فحصٌ ثانويّ للإنتاج من خارج Railway (جدولةُ GitHub بأفضل جهدٍ)
+
+# ══════════════════════════════════════════════════════
+#  مراقبةٌ خارجيّة: من خارج Railway، فلا تسقط معه.
+#  **صدقُ الوتيرة (REP-17 أ):** الجدولةُ المطلوبة كلَّ 15 دقيقة، لكنّ GitHub لا تضمنها — تؤخّر التشغيلاتِ المجدولة وتُسقط بعضَها
+#  تحت الحمل (قيس 2026-09-25: نحو 7% من الوتيرة المتوقَّعة). فهذا فحصٌ **ثانويّ**: المراقبُ الأوّلُ Sentry Uptime كلَّ 60 ثانيةً
+#  على `/`، وتحقّقُ ما بعد كلّ نشرٍ في post-deploy-canary.yml. وغيابُ قضيّةٍ هنا لا يثبت أنّ الإنتاج سليم.
+#  - يشغّل scripts/smoke-test.sh على /health/ و/ready/ و/status/ والدخول والإدارة.
+#  - محاولتان بينهما دقيقة: نشرٌ جارٍ (إعادةُ تشغيل daphne) أو تعثّرٌ عابر لا
+#    يُفتح له بلاغ؛ الفشلُ المتّصل وحده يفتحه.
+#  - الفشلُ يفتح قضيّةً واحدة (أو يُعلّق على المفتوحة) ويُغلقها أوّلُ نجاحٍ —
+#    النمطُ نفسُه في nightly.yml، بلا webhook ولا سرٍّ جديد.
+#  - عنوانُ الإنتاج من متغيّر المستودع PRODUCTION_URL إن وُجد، وإلّا افتراضُ
+#    السكربت. (وقاعدةُ Sentry Uptime إعدادٌ يدويّ في لوحة Sentry، خارج الكود.)
+# ══════════════════════════════════════════════════════
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: # تشغيلٌ يدويّ للتحقّق
+
+concurrency:
+  group: uptime-monitor
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  smoke:
+    name: فحصُ الإنتاج
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: فحصٌ بمحاولتين
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        run: |
+          chmod +x scripts/smoke-test.sh
+          if ./scripts/smoke-test.sh ${PRODUCTION_URL:+"$PRODUCTION_URL"}; then
+            exit 0
+          fi
+          echo "::warning::المحاولةُ الأولى فشلت — إعادةٌ بعد 60 ثانية"
+          sleep 60
+          ./scripts/smoke-test.sh ${PRODUCTION_URL:+"$PRODUCTION_URL"}
+
+      - name: "الفشل: فتحُ قضيّةٍ أو التعليقُ على المفتوحة"
+        if: failure()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const prefix = '🔴 UPTIME FAILED';
+            const detail = [
+              `**Time**: ${new Date().toISOString()}`,
+              `**Run**: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `**Result**: فحصُ الإنتاج فشل في محاولتين متتاليتين بينهما دقيقة — تفاصيلُ الفحوص في سجلّ التشغيل.`,
+            ].join('\n');
+            const isOurs = (item) =>
+              !item.pull_request &&
+              item.user &&
+              item.user.login === 'github-actions[bot]' &&
+              typeof item.title === 'string' &&
+              item.title.startsWith(prefix);
+            const open = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: 'uptime-failure',
+              sort: 'updated', direction: 'desc', per_page: 100,
+            });
+            const existing = open.data.filter(isOurs);
+            if (existing.length > 0) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: existing[0].number,
+                body: `### فشلٌ إضافيّ\n\n${detail}`,
+              });
+              core.info(`appended to issue #${existing[0].number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                ...context.repo,
+                title: `${prefix} — الإنتاج لا يستجيب`,
+                body: [`## Uptime — فشلٌ آليّ`, ``, detail, ``,
+                       `تُحدَّث هذه القضيّة عند كلّ فشلٍ لاحق، وتُغلق تلقائيّاً عند أوّل فحصٍ ناجح.`].join('\n'),
+                labels: ['bug', 'uptime-failure'],
+              });
+              core.info(`opened issue #${created.data.number}`);
+            }
+
+      - name: "النجاح: إغلاقُ قضايا الفشل المفتوحة"
+        if: success()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const prefix = '🔴 UPTIME FAILED';
+            const open = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: 'uptime-failure',
+              sort: 'updated', direction: 'desc', per_page: 100,
+            });
+            for (const issue of open.data) {
+              if (issue.pull_request || !issue.user || issue.user.login !== 'github-actions[bot]'
+                  || typeof issue.title !== 'string' || !issue.title.startsWith(prefix)) continue;
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: issue.number,
+                body: `عاد الإنتاج يستجيب (${new Date().toISOString()}) — تُغلق تلقائيّاً.`,
+              });
+              await github.rest.issues.update({
+                ...context.repo, issue_number: issue.number, state: 'closed', state_reason: 'completed',
+              });
+            }

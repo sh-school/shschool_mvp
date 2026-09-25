@@ -35,8 +35,9 @@ FILE_HINTS = re.compile(
         ]
     )
 )
-#: أسماءٌ على الاصطلاح وهي صفحات.
-PAGE_URL_NAMES = re.compile(r"\{%\s*url\s+['\"]student_import_export['\"]")
+#: أسماءٌ على الاصطلاح وهي صفحات — و`weekly_schedule?…&export=` صفحةُ الجدول تبدأ التصديرَ
+#: بنفسها بإشعارٍ عائم (schedule-export.js)، فالرابطُ صفحةٌ لا ملفّ.
+PAGE_URL_NAMES = re.compile(r"\{%\s*url\s+['\"](?:student_import_export|weekly_schedule)['\"]")
 TAG = re.compile(r"<(?:a|button)\b[^>]*>", re.S)
 
 #: صفحاتٌ كاملةٌ بلا base.html ولا تحتاج الشريط: الدخولُ قبل المنصّة، والبريدُ
@@ -173,8 +174,10 @@ def test_app_mode_script_keeps_its_contract():
 
 
 def test_the_pages_view_offers_one_pdf_button_on_touch_screens():
-    """زرُّ PDF العلويُّ يختفي على اللمس مع «طباعة» — ويبقى الكبيرُ تحت «فتح الجداول»."""
+    """زرُّ PDF واحدٌ لا اثنان: العرضُ الجديد (قرار 2026-09-18، فصلُ العرض عن
+    الطباعة) جدولٌ عاديٌّ في الصفحة على كلّ شاشة — فلا حاجةَ لزرٍّ ثانٍ يظهر
+    على اللمس وحدَه ولا لإخفاء أحدهما بصنفٍ خاصّ باللمس."""
     src = (TEMPLATES / "schedule/pages_view.html").read_text(encoding="utf-8")
-    header_pdf = re.search(r"<a[^>]*schedule_pages_pdf[^>]*btn-sm[^>]*>", src)
+    pdf_links = re.findall(r"<a[^>]*schedule_pages_pdf[^>]*>", src)
 
-    assert header_pdf and "schedule-frame-print" in header_pdf.group(0)
+    assert len(pdf_links) == 1

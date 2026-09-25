@@ -1,18 +1,22 @@
 {% extends "base/base.html" %}
-{% load ui %}
+{% load icons ui %}
 {% block title %}تسجيل حادث اختبار{% endblock %}
 
 {% block breadcrumbs %}
+{% if can_access_session %}
 {% include "components/breadcrumbs.html" with parent_url="/exam-control/" parent_label="كنترول الاختبارات" current="تسجيل حادث" %}
+{% else %}
+{% include "components/breadcrumbs.html" with current="تسجيل حادث" %}
+{% endif %}
 {% endblock %}
 
 {% block content %}
 <div class="exec-dash form-page">
 
-  {% page_header "محضرُ حادثةٍ اختباريّة" subtitle=session.name icon="file-pen" %}{% endpage_header %}
+  {% page_header "محضرُ حادثةٍ اختباريّة" subtitle=session.name icon="edit_record" %}{% endpage_header %}
 
   <form method="post" class="form-stack">{% csrf_token %}
-    {% section_card "أ · بياناتٌ عامّة" icon="clipboard" %}
+    {% section_card "أ · بياناتٌ عامّة" icon="document" %}
       <div class="form-row">
         <div class="form-group"><label class="form-label" for="inc-room">القاعة</label>
           <select id="inc-room" name="room_id" class="form-control"><option value="">— بدون قاعةٍ محدّدة —</option>{% for r in rooms %}<option value="{{ r.pk }}">{{ r.name }}</option>{% endfor %}</select></div>
@@ -24,29 +28,29 @@
           <select id="inc-severity" name="severity" class="form-control">{% for v,l in severity_choices %}<option value="{{ v }}">{{ l }}</option>{% endfor %}</select></div>
       </div>
     {% endsection_card %}
-    {% section_card "ب · وصفُ ما حدث" icon="file-text" %}
+    {% section_card "ب · وصفُ ما حدث" icon="edit_record" %}
       <label class="sr-only" for="inc-desc">وصفُ ما حدث</label>
       <textarea id="inc-desc" name="description" class="form-control" rows="3" placeholder="سردٌ موضوعيّ لما حدث…" required></textarea>
     {% endsection_card %}
-    {% section_card "ج · الإصاباتُ والأضرار" icon="heart" %}
+    {% section_card "ج · الإصاباتُ والأضرار" icon="injury" %}
       <label class="sr-only" for="inc-injuries">الإصاباتُ والأضرار</label>
       <textarea id="inc-injuries" name="injuries" class="form-control" rows="2" placeholder="اتركه فارغاً إن لم تكن إصابات"></textarea>
     {% endsection_card %}
-    {% section_card "د · الإجراءُ الفوريُّ المتّخذ" icon="check-circle" %}
+    {% section_card "د · الإجراءُ الفوريُّ المتّخذ" icon="status_success" %}
       <label class="sr-only" for="inc-action">الإجراءُ الفوريّ</label>
       <textarea id="inc-action" name="action_taken" class="form-control" rows="2" placeholder="الجهةُ المبلَّغة، والإجراءُ المتّخذ…"></textarea>
     {% endsection_card %}
-    {% section_card "هـ · المرفقاتُ والشهود" icon="paperclip" %}
+    {% section_card "هـ · المرفقاتُ والشهود" icon="attach" %}
       <label class="sr-only" for="inc-attach">المرفقاتُ والشهود</label>
       <textarea id="inc-attach" name="attachments" class="form-control" rows="2" placeholder="أسماءُ الشهود، صور، تقارير…"></textarea>
     {% endsection_card %}
-    {% section_card "و · التوصيات" icon="lightbulb" %}
+    {% section_card "و · التوصيات" icon="tip" %}
       <label class="sr-only" for="inc-reco">التوصيات</label>
       <textarea id="inc-reco" name="recommendations" class="form-control" rows="2"></textarea>
     {% endsection_card %}
     <div class="form-actions">
       <a href="{% url 'exam_control:incidents' session.pk %}" class="btn-ghost">إلغاء</a>
-      <button type="submit" class="btn-primary">{% include "components/icon.html" with name="save" %} حفظُ المحضر وطباعتُه</button>
+      <button type="submit" class="btn-primary">{% icon "save" %} حفظُ المحضر وطباعتُه</button>
     </div>
   </form>
 

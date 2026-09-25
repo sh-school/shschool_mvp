@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
 {% load icons %}
+{% load ui %}
 {% block title %}إيقاف المصادقة الثنائية{% endblock %}
 
 {% block breadcrumbs %}
@@ -18,20 +19,14 @@
 
   {% if messages %}
     {% for msg in messages %}
-    <div class="msg-bar mb-4 {% if msg.tags == 'error' %}msg-error{% else %}msg-success{% endif %}">
+    <div class="msg-bar mb-4 {% if msg.tags == 'error' %}msg-error{% else %}msg-success{% endif %}" role="{% if msg.tags == 'error' %}alert{% else %}status{% endif %}">
       <span>{{ msg }}</span>
     </div>
     {% endfor %}
   {% endif %}
 
   <!-- تحذير -->
-  <div class="msg-warning rounded-xl p-4 mb-6 flex gap-3">
-    <span class="flex-shrink-0 mt-0.5">{% icon "status_warning" %}</span>
-    <p class="text-sm text-status-warning">
-      إيقاف المصادقة الثنائية يُقلّل من أمان حسابك.
-      تأكد من هذا القرار خاصةً إذا كان حسابك إدارياً.
-    </p>
-  </div>
+  {% callout "warning" %}إيقاف المصادقة الثنائية يُقلّل من أمان حسابك. تأكد من هذا القرار خاصةً إذا كان حسابك إدارياً.{% endcallout %}
 
   <div class="form-card">
     <form method="post">
@@ -42,9 +37,9 @@
         <input type="text"
                id="f-code"
                name="code"
-               maxlength="6"
+               maxlength="7"
                inputmode="numeric"
-               pattern="[0-9]{6}"
+               pattern="[0-9]{3} ?[0-9]{3}"
                autocomplete="one-time-code"
                autofocus
                placeholder="• • • • • •"

@@ -343,6 +343,44 @@ class TestExamIncident:
             .context["incidents"]
         ) == {own, other, room}
 
+    def test_the_back_to_session_link_hides_for_the_supervisor(self, client_as, supervisor, exam):
+        """`exam_control.report_incident` لا يحمل `session_detail` — فرابطُ «رجوع
+        إلى الدورة» يُخفى عن مشرف الجناح، لا يُعرض ليؤدّي به إلى 403."""
+        session_url = reverse("exam_control:session_detail", args=[exam.pk])
+        assert client_as(supervisor).get(session_url).status_code == 403
+
+        body = (
+            client_as(supervisor)
+            .get(reverse("exam_control:incidents", args=[exam.pk]))
+            .content.decode()
+        )
+        assert f'href="{session_url}"' not in body
+
+    def test_the_back_to_session_link_shows_for_the_principal(self, client_as, principal, exam):
+        session_url = reverse("exam_control:session_detail", args=[exam.pk])
+        assert client_as(principal).get(session_url).status_code == 200
+
+        body = (
+            client_as(principal)
+            .get(reverse("exam_control:incidents", args=[exam.pk]))
+            .content.decode()
+        )
+        assert f'href="{session_url}"' in body
+
+    def test_the_exam_control_breadcrumb_hides_for_the_supervisor(
+        self, client_as, supervisor, exam
+    ):
+        """نفسُ الفجوة في محضر تسجيل الحادث: مسارُ التصفّح لا يعِد بلوحةٍ يرفضها الحارس."""
+        dashboard_url = reverse("exam_control:dashboard")
+        assert client_as(supervisor).get(dashboard_url).status_code == 403
+
+        body = (
+            client_as(supervisor)
+            .get(reverse("exam_control:incident_add", args=[exam.pk]))
+            .content.decode()
+        )
+        assert f'href="{dashboard_url}"' not in body
+
     def test_a_student_of_another_school_cannot_be_written_on(
         self, client_as, school, principal, exam
     ):
@@ -517,9 +555,9 @@ class TestRecentAlerts:
             )
 
     def _alerted(self, user, school, role):
-        from core.views_dashboard import _get_admin_ops_ctx
+        from core.dashboard_selectors import get_admin_ops_ctx
 
-        ctx = _get_admin_ops_ctx(user, school, SUNDAY, role)
+        ctx = get_admin_ops_ctx(user, school, SUNDAY, role)
         return {a.student for a in ctx["recent_alerts"]}
 
     def test_the_supervisor_sees_his_wing_alerts(self, school, supervisor, alerts, mine):

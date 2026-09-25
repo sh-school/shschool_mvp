@@ -1,0 +1,35 @@
+{% comment %}
+شريطُ التنقّل بين أسابيع الجدول (قرارُ المالك 2026-09-25): الأسبوعُ الفعليّ من حصص الأيّام هو الأصلُ،
+والخطّةُ المعتمدةُ زرٌّ يبقى. والروابطُ استعلاماتٌ جاهزةٌ من `week_nav` تحمل الاختيارَ الحاليَّ كلَّه
+(المعلّمُ والشعبةُ والورقُ) فلا يُبنى شيءٌ منها هنا. والمسودّةُ لا تُعاين إلّا من الخطّة فلا شريطَ لها.
+{% endcomment %}
+{% if not preview %}
+<nav class="schedule-head" aria-label="أسبوع الجدول">
+  {% if source == "actual" %}
+  <a href="?{{ nav.prev_qs }}" class="btn-secondary btn-sm" rel="prev">الأسبوع السابق</a>
+  <strong>{{ nav.start|date:"j F" }} – {{ nav.end|date:"j F Y" }}</strong>
+  <a href="?{{ nav.next_qs }}" class="btn-secondary btn-sm" rel="next">الأسبوع التالي</a>
+  {% if not nav.is_this_week %}<a href="?{{ nav.this_qs }}" class="btn-secondary btn-sm">هذا الأسبوع</a>{% endif %}
+  <a href="?{{ nav.plan_qs }}" class="btn-secondary btn-sm">الخطّة المعتمدة</a>
+  {% comment %}مرشّحُ التاريخ الواحد (U-20): أيُّ يومٍ يقفز إلى أسبوعه، بحدّي مدى التنقّل. الاختيارُ محمولٌ في حقولٍ مخفيّة
+  فلا يسقط المعلّمُ ولا الشعبةُ ولا الورق، والإرسالُ عند التغيّر بالآلية المركزيّة (`data-autosubmit`).{% endcomment %}
+  <form method="get">
+    {% for name, value in selection_base.items %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% empty %}{% endfor %}
+    <input type="hidden" name="source" value="actual">
+    <input type="date" name="week" class="form-control form-control-sm" value="{{ nav.start|date:'Y-m-d' }}" min="{{ nav.date_min }}" max="{{ nav.date_max }}" aria-label="الانتقال إلى أسبوع التاريخ" title="الانتقال إلى أسبوع التاريخ" data-autosubmit>
+    <noscript><button type="submit" class="btn-secondary btn-sm">انتقل</button></noscript>
+  </form>
+  {% else %}
+  <span class="ui-note">الخطّةُ المعتمدة كما اعتُمدت — لا كما جرت الحصص</span>
+  <a href="?{{ nav.actual_qs }}" class="btn-primary btn-sm">الأسبوع الفعليّ</a>
+  {% endif %}
+</nav>
+{% if source == "actual" %}
+{% for note in nav.notes %}<p class="ui-note">{{ note }}</p>{% empty %}{% endfor %}
+{% if nav.kinds %}
+<div class="week-legend">
+  {% for kind, label in nav.kinds %}<span class="week-legend__item"><span class="week-legend__swatch is-{{ kind }}"></span> {{ label }}</span>{% empty %}{% endfor %}
+</div>
+{% endif %}
+{% endif %}
+{% endif %}

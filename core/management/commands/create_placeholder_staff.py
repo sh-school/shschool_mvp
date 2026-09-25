@@ -1,7 +1,7 @@
 """
 يُنشئ سجلّاً مؤقّتاً لموظّفٍ جديدٍ باسمه المختصر حتى تُستكمل بياناته.
 
-    python manage.py create_placeholder_staff --name "جمال صالح" --apply
+    python manage.py create_placeholder_staff --name "سالم أحمد" --apply
     python manage.py create_placeholder_staff --role nurse --name "أيمن" --apply
 
 والدورُ الافتراضيّ `teacher`، فالمعلّم أكثرُ الحالات: يظهر في جدول الحصص
@@ -42,7 +42,7 @@ class Command(BaseCommand):
             action="append",
             required=True,
             metavar="اسم الموظّف",
-            help='يُكرَّر لكل موظّف: --name "جمال صالح" --name "علي الطيطي"',
+            help='يُكرَّر لكل موظّف: --name "سالم أحمد" --name "خالد يوسف"',
         )
         parser.add_argument(
             "--role",

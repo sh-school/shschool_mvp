@@ -1,0 +1,479 @@
+/* لوحةُ الإدارة بهويّة المنصّة — ألوانُها النهاريّةُ والليليّة.
+   لوحةُ الإدارة لا تحمل رموزَ المنصّة (`static/css/custom/10-foundation.css` و`40-themes.css`)،
+   فقيمُها هنا منقولةٌ منها حرفيّاً، وحارسٌ (tests/test_admin_theme.py) يفشل إن اختلفت.
+   الوضعُ: `html[data-theme]` تضبطه `static/admin/js/theme.js` (بديلُ ما في جانغو) من `localStorage['theme']` —
+   المفتاحُ نفسُه الذي تكتبه المنصّة. **نهاريٌّ افتراضيّاً للجميع** (قرارُ المالك 2026-09-25): `dark` وحدَه يفتح الليليَّ،
+   ولا قاعدةَ هنا تقرأ `prefers-color-scheme` — فلا تختلف الإدارةُ عن المنصّة على جهازٍ ليليّ. */
+/* الخطّ: Tajawal نفسُه الذي تحمله المنصّة (`static/fonts/`، ويُحمَّل عند الحاجة الفعليّة بـ`unicode-range`). */
+@font-face {
+  font-family: 'Tajawal';
+  src: url('../fonts/Tajawal-Regular.woff2') format('woff2'),
+       url('../fonts/Tajawal-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF, U+0000-007F, U+00A0-00FF, U+0660-066F;
+}
+@font-face {
+  font-family: 'Tajawal';
+  src: url('../fonts/Tajawal-Medium.woff2') format('woff2'),
+       url('../fonts/Tajawal-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF, U+0000-007F, U+00A0-00FF, U+0660-066F;
+}
+@font-face {
+  font-family: 'Tajawal';
+  src: url('../fonts/Tajawal-Bold.woff2') format('woff2'),
+       url('../fonts/Tajawal-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF, U+0000-007F, U+00A0-00FF, U+0660-066F;
+}
+/* رؤيةُ الوزارة مشكولةً بحركاتٍ زرقاء — الخطُّ نفسُه الذي تستعمله المنصّة (10-foundation.css): نسخةٌ من Tajawal ترسم الحركاتِ بلونٍ من لوحته.
+   ولا يقبل `@font-palette-values` متغيّراً، فالقيمةُ الليليّةُ هنا منقولةٌ حرفيّاً من المنصّة. */
+@font-palette-values --tashkeel-dark { font-family: 'Tajawal Tashkeel'; override-colors: 0 #93c5fd; }
+@font-face {
+  font-family: 'Tajawal Tashkeel';
+  src: url('../fonts/Tajawal-Regular-tk.woff2') format('woff2'),
+       url('../fonts/Tajawal-Regular-tk.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'Tajawal Tashkeel';
+  src: url('../fonts/Tajawal-Medium-tk.woff2') format('woff2'),
+       url('../fonts/Tajawal-Medium-tk.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF;
+}
+@font-face {
+  font-family: 'Tajawal Tashkeel';
+  src: url('../fonts/Tajawal-Bold-tk.woff2') format('woff2'),
+       url('../fonts/Tajawal-Bold-tk.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+html[data-theme="light"],
+:root {
+  --font-family-primary: 'Tajawal', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --primary: #8a1538;
+  --secondary: #8a1538;
+  --accent: #d4a843;
+  --primary-fg: #fff;
+  --body-fg: #111827;
+  --body-bg: #fff;
+  --body-quiet-color: #4b5563;
+  --body-medium-color: #374151;
+  --body-loud-color: #000;
+  --header-color: #fff;
+  --header-branding-color: #d4a843;
+  --header-bg: #8a1538;
+  --header-link-color: #fff;
+  --breadcrumbs-bg: #6b0f2a;
+  --link-fg: #8a1538;
+  --link-hover-color: #6b0f2a;
+  --link-selected-fg: #8a1538;
+  --hairline-color: #e5e7eb;
+  --border-color: #d1d5db;
+  --error-fg: #dc2626;
+  --message-success-bg: #dcfce7;
+  --message-warning-bg: #fef3c7;
+  --message-error-bg: #fef2f2;
+  --darkened-bg: #e3e8f0;
+  /* الترويسةُ والذيلُ لونٌ واحد، والقائمةُ بينهما رملُ الصحراء — نظيرُ رموز المنصّة (10-foundation.css) */
+  --nav-bg: #f4f0e7;
+  --nav-fg: #6b0f2a;
+  --nav-hover: color-mix(in srgb, var(--primary) 12%, transparent);
+  --nav-mark: #8a1538;
+  /* القوائمُ المنسدلة بلونِ القائمة نفسِه — نظيرُ رموز المنصّة */
+  --menu-bg: var(--nav-bg);
+  --menu-hover: color-mix(in srgb, var(--primary) 9%, var(--menu-bg));
+  --menu-rule: color-mix(in srgb, var(--menu-bg) 85%, var(--body-fg));
+  --shadow-menu: 0 12px 40px rgba(0,0,0,.38);
+  --menu-label: #5a3928;
+  --footer-bg: var(--header-bg);
+  --footer-fg: var(--header-color);
+  --footer-fg-soft: #e5cbd3;
+  --footer-line: color-mix(in srgb, var(--header-color) 35%, transparent);
+  --selected-bg: #fdf2f5;
+  --selected-row: #fdf2f5;
+  --button-fg: #fff;
+  --button-bg: #8a1538;
+  --button-hover-bg: #6b0f2a;
+  --default-button-bg: #6b0f2a;
+  --default-button-hover-bg: #8a1538;
+  --close-button-bg: #4b5563;
+  --close-button-hover-bg: #111827;
+  --delete-button-bg: #dc2626;
+  --delete-button-hover-bg: #991b1b;
+}
+
+html[data-theme="dark"] {
+  --primary: #8a1538;
+  --secondary: #8a1538;
+  --body-fg: #f1f5f9;
+  --body-bg: #0f172a;
+  --body-quiet-color: #cbd5e1;
+  --body-medium-color: #e2e8f0;
+  --body-loud-color: #fff;
+  --breadcrumbs-bg: #3b1125;
+  --link-fg: #f9a8c9;
+  --link-hover-color: #fff;
+  --link-selected-fg: #f9a8c9;
+  --hairline-color: #334155;
+  --border-color: #475569;
+  --error-fg: #fca5a5;
+  --message-success-bg: #0d2a1a;
+  --message-warning-bg: #3a2a08;
+  --message-error-bg: #3b1114;
+  --darkened-bg: #1e293b;
+  --nav-bg: #2c2922;
+  --nav-fg: #fff;
+  --nav-hover: color-mix(in srgb, #fff 12%, transparent);
+  --nav-mark: var(--accent);
+  --menu-hover: var(--selected-bg);
+  --shadow-menu: 0 12px 40px rgba(0,0,0,.82);
+  --menu-label: var(--body-quiet-color);
+  --selected-bg: #3b1125;
+  --selected-row: #3b1125;
+  --close-button-bg: #64748b;
+  --close-button-hover-bg: #94a3b8;
+}
+
+/* ── القائمةُ الأفقيّة في الترويسة (templates/admin/_nav.html) — شكلُ قائمة المنصّة العلويّة ── */
+/* الترويسةُ في Django `display:flex` بلا التفاف (وعموديّةٌ على الشاشات المتوسّطة والضيّقة)، فكان الشريطُ يُضغط
+   فوق أدوات المستخدم. الآن: الترويسةُ تلتفّ، والشريطُ صفٌّ مستقلٌّ أسفلَها بعرضها كلِّه (حشوُها متغيّرٌ بالنقطة). */
+#header { flex-wrap: wrap; --adm-hpad: 2.5rem; }
+@media (max-width: 1024px) { #header { --adm-hpad: 1.875rem; } }
+@media (max-width: 767px) { #header { --adm-hpad: 0.9375rem; } }
+#header .adm-nav {
+  flex: none;
+  order: 10;
+  inline-size: calc(100% + 2 * var(--adm-hpad));
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0.6rem calc(-1 * var(--adm-hpad)) -0.6rem;
+  padding: 0.25rem var(--adm-hpad);
+  background: var(--nav-bg);
+}
+.adm-nav__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.7rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: none;
+  color: var(--nav-fg);
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#header .adm-nav a.adm-nav__btn,
+#header .adm-nav a.adm-nav__btn:link,
+#header .adm-nav a.adm-nav__btn:visited { color: var(--nav-fg); }
+.adm-nav__btn:hover,
+.adm-nav__item.is-open > .adm-nav__btn { background: var(--nav-hover); color: var(--nav-fg); }
+.adm-nav__item.is-current > .adm-nav__btn { box-shadow: inset 0 -3px 0 var(--nav-mark); }
+.adm-nav__home { font-weight: 700; }
+.adm-nav__chv { font-size: 0.55rem; opacity: 0.7; }
+.adm-nav__item { position: relative; }
+.adm-nav__menu {
+  display: none;
+  position: absolute;
+  inset-block-start: 100%;
+  inset-inline-start: 0;
+  z-index: 1000;
+  min-inline-size: 13rem;
+  max-inline-size: 90vw;
+  max-block-size: 70vh;
+  overflow-y: auto;
+  padding: 0.35rem 0;
+  background: var(--menu-bg);
+  color: var(--body-fg);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-menu);
+}
+/* القائمةُ المنسدلة شبكةٌ: كلُّ قسمٍ فرعيٍّ عمودٌ بعنوانه (حتى أربعة) فلا تطول عموداً واحداً */
+.adm-nav__item.is-open > .adm-nav__menu { display: grid; }
+.adm-nav__menu--cols-1 { grid-template-columns: minmax(13rem, 1fr); }
+.adm-nav__menu--cols-2 { grid-template-columns: repeat(2, minmax(13rem, 1fr)); inline-size: min(30rem, 90vw); }
+.adm-nav__menu--cols-3 { grid-template-columns: repeat(3, minmax(12rem, 1fr)); inline-size: min(42rem, 90vw); }
+.adm-nav__menu--cols-4 { grid-template-columns: repeat(4, minmax(12rem, 1fr)); inline-size: min(54rem, 90vw); }
+.adm-nav__menu--flip { inset-inline-start: auto; inset-inline-end: 0; }
+.adm-nav__section { padding-block-end: 0.25rem; min-inline-size: 0; border-inline-start: 1px solid var(--menu-rule); }
+.adm-nav__section:first-child { border-inline-start: 0; }
+.adm-nav__label {
+  padding: 0.45rem 0.9rem 0.2rem;
+  color: var(--menu-label);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+/* `#header a:link` في base.css يجعل كلَّ رابطٍ في الترويسة أبيضَ بخصوصيّة المعرّف — فنرفع خصوصيّةَ ألوان القائمة المنسدلة (خلفيّتُها فاتحة) */
+#header .adm-nav__menu a,
+#header .adm-nav__menu a:link,
+#header .adm-nav__menu a:visited {
+  display: block;
+  padding: 0.4rem 0.9rem;
+  color: var(--link-fg);
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+#header .adm-nav__menu a:hover,
+#header .adm-nav__menu a:focus-visible { background: var(--menu-hover); color: var(--link-hover-color); }
+#header .adm-nav__menu a[aria-current="page"] { font-weight: 700; box-shadow: inset 3px 0 0 var(--primary); }
+
+/* ── الفوتر الدائم (templates/admin/_footer.html) — مكوّنا ذيل المنصّة بأصنافهما (OWN-22) ── */
+.adm-footer { margin-block-start: 2rem; padding: 0.5rem 1rem; background: var(--footer-bg); border-block-start: 1px solid var(--accent); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.375rem; }
+.adm-footer p { margin: 0; }
+.adm-footer .site-footer-text { font-size: 0.75rem; color: var(--footer-fg-soft); line-height: 1.7; }
+.adm-footer .site-footer-vision { font-size: 1rem; font-weight: 600; color: var(--footer-fg); }
+.vision-text { font-family: 'Tajawal Tashkeel', 'Tajawal', sans-serif; }
+.adm-footer .vision-text { font-palette: --tashkeel-dark; }
+html[data-theme="dark"] .vision-text { font-palette: --tashkeel-dark; }
+.adm-footer .site-footer-brand { display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.75rem; color: var(--footer-fg-soft); }
+.adm-footer .site-footer-brand-label { font-size: 0.72rem; white-space: nowrap; }
+.adm-footer .site-footer-brand-logo { display: inline-block; block-size: 1.75rem; inline-size: auto; flex: none; }
+.adm-footer .site-footer-brand-name { font-weight: 600; color: var(--footer-fg); white-space: nowrap; }
+.adm-footer .site-footer-brand-sep { inline-size: 1px; block-size: 0.9rem; background: var(--footer-line); flex: none; }
+/* شعارا أذكياء وسفيان: رقعةٌ بيضاء ثابتة بحجمٍ واحد — تبقى بيضاءَ في الوضع الليليّ ليظهرا واضحَين. */
+.adm-footer .site-footer-brand-logo-chip { display: inline-flex; align-items: center; padding: 0.2rem 0.4rem; background: #fff; border: 1px solid var(--hairline-color); border-radius: 0.4rem; line-height: 0; flex: none; }
+
+/* ── الاسمُ والشعار كما في ترويسة المنصّة: شعارُ المنصّة أبيضَ واسمُ المدرسة (templates/admin/base_site.html) ── */
+#header #site-name { margin: 0; }
+#header #site-name a.adm-brand,
+#header #site-name a.adm-brand:link,
+#header #site-name a.adm-brand:visited {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: var(--header-link-color);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+.adm-brand__logo { flex: none; }
+.adm-brand__name { white-space: nowrap; }
+.adm-brand__suffix { font-weight: 400; opacity: 0.9; }
+
+/* طيُّ أقسام التطبيقات في الصفحة الرئيسيّة للإدارة (templates/admin/app_list.html).
+   لوحةُ الإدارة لا تحمل أنماطَ المنصّة، فالألوانُ من متغيّراتها هي فتتبع وضعَها الليليّ. */
+.app-fold > .app-fold__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  cursor: pointer;
+  list-style: none;
+  background: var(--header-bg);
+  color: var(--header-link-color);
+  font-size: 0.75rem;
+  letter-spacing: 0.03rem;
+  text-transform: uppercase;
+}
+.app-fold > .app-fold__summary::-webkit-details-marker { display: none; }
+.app-fold > .app-fold__summary::before { content: "\25C2"; margin-inline-end: 0.4rem; }
+.app-fold[open] > .app-fold__summary::before { content: "\25BE"; }
+.app-fold__summary .section { color: inherit; margin-inline-end: auto; }
+.app-fold__open { margin: 0; padding: 0.3rem 0.75rem; font-size: 0.8rem; }
+/* غلافُ الجدول المضمَّن: يمرّر أفقيّاً داخلَه بدل أن يوسّع الصفحة على الجوّال. */
+.inline-group .table-wrap { overflow-x: auto; }
+.app-fold__count { font-size: 0.7rem; opacity: 0.85; font-variant-numeric: tabular-nums; }
+/* جانغو يترك 30px تحت كلّ .module، وهو مناسبٌ لجداولَ مفتوحة لا لأشرطةِ أقسامٍ مطويّة؛ فيُلغى هنا وتُوزَّع الأقسام أعمدةً (13rem أدنى) فيقلّ التمريرُ. */
+.dashboard #content-main { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  gap: 0.4rem 1rem; align-items: start; }
+.dashboard #content-main .module { margin-bottom: 0; }
+/* الرئيسيّة: «آخر الإجراءات» على الجهة المقابلة لمكانها الافتراضيّ وبعمودين؛ وتحت 1025px تعود جانغو إلى تكديسها. */
+@media (min-width: 1025px) {
+  .dashboard #content.colMS {
+    display: grid;
+    grid-template-columns: 38rem minmax(0, 1fr);
+    gap: 0 1rem;
+    align-items: start;
+    margin: 0;
+    padding-inline: 2.5rem;
+    float: none;
+    width: auto;
+  }
+  .dashboard #content.colMS > * { grid-column: 1 / -1; }
+  .dashboard #content.colMS > #content-main { float: none; grid-column: 2; grid-row: 3; width: auto; margin: 0; }
+  .dashboard #content.colMS > #content-related { float: none; grid-column: 1; grid-row: 3; width: auto; margin: 0; }
+  .dashboard #content-related .actionlist { columns: 3; column-gap: 1rem; }
+  .dashboard #content-related .actionlist li { break-inside: avoid; }
+}
+/* بطاقاتُ مراقبةِ المطوّر (`admin/_dev_cards.html`): ألوانُ الحالة من رموز جانغو نفسِها فتنقلب مع الوضع الليليّ. */
+.adm-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 0.75rem; margin-block: 0.5rem 1rem; }
+.adm-card, .adm-card:link, .adm-card:visited { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.5rem 0.75rem; border: 1px solid var(--hairline-color); border-inline-start: 4px solid var(--border-color); background: var(--darkened-bg); color: var(--body-fg); text-decoration: none; }
+a.adm-card:hover { background: var(--selected-row); }
+.adm-card--ok { border-inline-start-color: var(--message-success-bg); }
+.adm-card--warn { border-inline-start-color: var(--message-warning-bg); }
+.adm-card--bad { border-inline-start-color: var(--error-fg); }
+.adm-card__title { font-size: 0.75rem; color: var(--body-quiet-color); }
+.adm-card__value { font-size: 1.5rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.adm-card__detail { font-size: 0.75rem; color: var(--body-quiet-color); }
+/* صفحاتُ الإدارة كلُّها بلا تمريرٍ رأسيٍّ للصفحة: الترويسةُ والقائمةُ والتذييل ثابتة، ومنطقةُ المحتوى تمرّر داخلَ نفسها. */
+@media (min-width: 1025px) and (min-height: 560px) {
+  body:not(.popup) #container { height: 100vh; height: 100dvh; min-height: 0; }
+  body:not(.popup) #container > #header, body:not(.popup) #container > #footer { flex: none; }
+  body:not(.popup) #container > .main { flex: 1 1 0; min-height: 0; overflow: hidden; }
+  body:not(.popup) #container > .main > .content { min-height: 0; overflow-y: auto; }
+  /* الرئيسيّةُ: القائمتان تمرّران كلٌّ داخلَ نفسها فلا تمرّر المنطقةُ كلُّها. */
+  .dashboard #container > .main > .content { overflow: hidden; }
+  .dashboard #content.colMS { height: 100%; box-sizing: border-box; grid-template-rows: auto auto minmax(0, 1fr); padding-block: 0.5rem 0; }
+  .dashboard #content.colMS > h1 { margin: 0 0 0.5rem; }
+  .dashboard #content.colMS > br.clear { display: none; }
+  .dashboard #content.colMS > #content-main, .dashboard #content.colMS > #content-related { min-height: 0; max-height: 100%; overflow-y: auto; }
+}
+/* لا شريطَ مسارٍ: القائمةُ الأفقيّةُ تكفي وهو يأكل ارتفاعَ الصفحة (قوالبُ جانغو الفرعيّة تُعيد تعريفَ كتلته فلا يُلغى من القالب). */
+.breadcrumbs { display: none; }
+/* الأقسامُ ثلاثةُ أعمدةٍ لا أكثر على الشاشات العريضة (وتحت 1025px تتجاوب تلقائيّاً). */
+@media (min-width: 1025px) { .dashboard #content-main { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* «آخر الإجراءات» مضغوطةً لتتّسع في ارتفاع النافذة. */
+@media (min-width: 1025px) and (min-height: 560px) {
+  .dashboard #content-related h2 { padding-block: 0.5rem; }
+  .dashboard #content-related h3 { margin-block: 0 0.5rem; }
+  .dashboard #content-related .actionlist { margin: 0.5rem 1rem; }
+  .dashboard #content-related .actionlist li { font-size: 0.8125rem; line-height: 1.3; }
+}
+@media (min-width: 1025px) { .adm-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; margin-block: 0.25rem 0.5rem; } .adm-card__value { font-size: 1.25rem; } }
+/* ── تحسيناتُ الاستعمال ────────────────────────────────────────────────────────── */
+/* الجوّال: اسمُ المدرسة يلتفّ بدل أن يوسّع الصفحةَ أفقيّاً (كان 429px في شاشة 375px). */
+@media (max-width: 767px) {
+  #header #site-name, #header .branding { min-inline-size: 0; max-inline-size: 100%; }
+  .adm-brand__name { white-space: normal; font-size: 0.95rem; line-height: 1.4; }
+  .adm-brand__suffix { display: block; }
+}
+/* ترويسةُ الجداول بلغتها لا بحروفٍ كبيرةٍ إنجليزيّة (جانغو يكبّرها). */
+thead th, .module caption { text-transform: none; }
+/* شريطُ الحفظ ثابتٌ أسفل منطقة المحتوى: لا نزولَ داخل النموذج الطويل للوصول إلى «حفظ». */
+.submit-row { position: sticky; inset-block-end: 0; z-index: 5; box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.08); }
+/* على الجوّال لا يثبت: أزرارُه الأربعةُ مكدَّسةٌ بحدّ اللمس (4 × --adm-control-h وفواصلها) فكان الشريطُ يحجب نحوَ 208px من
+   812px — ربعَ الشاشة فوق النموذج — ويقصر أكثر على الهواتف الأقصر. يبقى في آخر النموذج ويثبت على الحاسوب. */
+@media (max-width: 767px) { .submit-row { position: static; box-shadow: none; } }
+/* رابطٌ داخل نصٍّ يميّزه اللونُ وحدَه (العنّابيّ على الرماديّ: 1.23:1) يفشل WCAG 1.4.1 — يُميَّز بالتسطير (OWN-21). */
+#content .small a { text-decoration: underline; }
+/* التذييلُ في سطرٍ واحدٍ على الشاشات العريضة: يوفّر نحوَ 80px من ارتفاع الصفحة. */
+/* بعد القواعد الأساسيّة عمداً: بالأولويّة نفسها يحسم الأخيرُ، فتغلب `center` الأساسيّةُ على `start`. */
+@media (min-width: 1025px) {
+  .adm-footer { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1rem; margin-block-start: 0; padding: 0.5rem var(--adm-hpad, 2.5rem); }
+  .adm-footer .site-footer-text { text-align: start; }
+  .adm-footer .site-footer-brand { justify-self: end; }
+}
+/* عناصرُ مطلقةُ الموضع (حقولُ select2 المخفيّة) كانت تُفلت من القصّ وتطيل الصفحة: تُحتَوى في المنطقة المقفولة. */
+@media (min-width: 1025px) and (min-height: 560px) {
+  body:not(.popup) #container { overflow: hidden; }
+  body:not(.popup) #container > .main > .content { position: relative; }
+}
+/* حقولُ النماذج في عمودين على الشاشات العريضة (كانت عموداً واحداً يترك نصفَ العرض فارغاً)؛ وما فيه نصٌّ طويلٌ أو وصفٌ يمتدّ على العرض كلِّه. */
+@media (min-width: 1200px) {
+  fieldset.module.aligned { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 1.5rem; }
+  fieldset.module.aligned > h2, fieldset.module.aligned > .description, fieldset.module.aligned > .form-row:has(textarea, table, .related-widget-wrapper .vLargeTextField) { grid-column: 1 / -1; }
+  fieldset.module.aligned .form-row > div, fieldset.module.aligned .form-row > .flex-container { flex-wrap: wrap; }
+}
+/* بحثُ القائمة: حقلٌ في الترويسة يقفز إلى أيّ نموذجٍ من 97 — فهرسٌ مضمَّنٌ بلا طلبٍ إضافيّ. */
+.adm-nav__search { position: relative; margin-inline-start: 0.5rem; flex: none; }
+.adm-nav__search-input {
+  inline-size: 11rem; padding: 0.3rem 0.7rem; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--nav-fg) 30%, transparent);
+  background: var(--nav-hover); color: var(--nav-fg); font: inherit; font-size: 0.82rem;
+  transition: inline-size 0.15s ease;
+}
+.adm-nav__search-input::placeholder { color: color-mix(in srgb, var(--nav-fg) 78%, transparent); }
+.adm-nav__search-input:focus { inline-size: 16rem; outline: 2px solid var(--accent); outline-offset: 1px; background: var(--body-bg); color: var(--body-fg); }
+.adm-nav__search-results {
+  position: absolute; inset-inline-start: 0; inset-block-start: calc(100% + 0.3rem); z-index: 30; margin: 0; padding: 0.3rem;
+  list-style: none; min-inline-size: 20rem; max-block-size: 60vh; overflow-y: auto; background: var(--body-bg); color: var(--body-fg);
+  border: 1px solid var(--hairline-color); border-radius: 0.6rem; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+.adm-nav__search-results a { display: flex; justify-content: space-between; gap: 0.6rem; padding: 0.4rem 0.6rem; border-radius: 0.4rem; color: inherit; text-decoration: none; font-size: 0.86rem; }
+/* 97 نتيجةً مرسومةً سلفاً من الخادم، مطويّةٌ بـhidden حتى تُطابق البحثَ — القاعدةُ أعلاه أقوى من UA hidden فتحتاج نقضاً صريحاً. */
+.adm-nav__search-results a[hidden] { display: none; }
+.adm-nav__search-results a small { color: var(--body-quiet-color); font-size: 0.74rem; flex: none; }
+.adm-nav__search-results a:hover, .adm-nav__search-results a.is-active { background: var(--selected-row); }
+@media (max-width: 767px) { .adm-nav__search { inline-size: 100%; margin-inline-start: 0; order: 2; } .adm-nav__search-input, .adm-nav__search-input:focus { inline-size: 100%; } }
+/* زرُّ «القائمة» للجوّال وحدَه: مخفيٌّ على الشاشات الأعرض ولو أظهره السكربت. */
+.adm-nav__toggle { display: none; }
+@media (max-width: 767px) {
+  .adm-nav.has-toggle .adm-nav__toggle { display: inline-flex; }
+  .adm-nav.has-toggle:not(.is-expanded) > .adm-nav__item,
+  .adm-nav.has-toggle:not(.is-expanded) > .adm-nav__search { display: none; }
+  /* هدفُ لمسٍ لأزرار الشريط وروابط القوائم المنسدلة (WCAG 2.5.5؛ مقياس المنصّة). */
+  .adm-nav__btn, #header .adm-nav__menu a { min-block-size: var(--adm-control-h); box-sizing: border-box; }
+  #header .adm-nav__menu a { display: flex; align-items: center; }
+  /* القائمةُ المنسدلة عمودٌ واحدٌ بعرض الشريط تحته: كانت أعمدةً أدناها 13rem فيفيض الثاني ويُقصّ بتمريرٍ أفقيٍّ داخليّ. */
+  #header .adm-nav { position: relative; }
+  .adm-nav__item { position: static; }
+  #header .adm-nav__menu { inset-inline: 0; inline-size: auto; max-inline-size: none; max-block-size: 50vh; grid-template-columns: minmax(0, 1fr); }
+  .adm-nav__section:not(:first-child) { border-inline-start: 0; border-block-start: 1px solid var(--menu-rule); }
+}
+/* الحدُّ الأدنى لهدف اللمس — منقولٌ من `--control-h` في `10-foundation.css` (لوحةُ الإدارة لا تحمل رموزَ المنصّة)،
+   وحارسٌ (tests/test_admin_theme.py) يفشل إن اختلفا. */
+:root { --adm-control-h: 44px; }
+/* أهدافُ اللمس على الجوّال في صفحات الإدارة كلِّها (OWN-21): قِيس 736 هدفاً دون الحدّ على ثماني صفحات — روابطُ صفوف
+   القوائم والمرشّحات والترقيم (14–20px)، وحقولُ الإدخال (28–36px)، وأزرارُ الترويسة (14–24px)، وأدواتُ جانغو
+   (إضافة/تعديل الحقل المرتبط 24px، وأسهمُ الاختيار بين قائمتين، واختصاراتُ «اليوم/الآن»). خانةُ الاختيار والدائرة
+   خارجُ القاعدة: لا يُلمس منهما إلّا ما يحمل تسميتَه، والتسميةُ هدفُ اللمس. */
+@media (max-width: 767px) {
+  #site-name a,
+  #content :is(td, th, li, p, h3, nav, div.text, .small) > a, #content :is(a.addlink, a.changelink, a.viewlink, a.deletelink, a.inline-deletelink), #content .sortoptions a,
+  #content .related-widget-wrapper-link, #content .datetimeshortcuts a, #content .selector button {
+    display: inline-flex; align-items: center; min-block-size: var(--adm-control-h); min-inline-size: var(--adm-control-h); box-sizing: border-box;
+  }
+  #content .related-widget-wrapper-link, #content .selector button { justify-content: center; }
+  /* أدواتُ المستخدم في الترويسة صفٌّ واحدٌ من أهدافٍ بالحدّ الأدنى: نصُّ الترحيب والفواصلُ «/» (عُقَدُ نصٍّ بين الروابط)
+     تُخفى بحجم الخطّ صفراً ويُعاد الحجمُ للروابط والأزرار — فلا يزيد ارتفاعُ الترويسة إلّا بما يلزم الهدفَ نفسَه. */
+  #user-tools { display: flex; flex-wrap: wrap; align-items: center; column-gap: 0; float: none; margin: 0; font-size: 0; }
+  #user-tools strong { display: none; }
+  #user-tools > * { margin: 0; }
+  #logout-form { display: inline-flex; }
+  #header #user-tools :is(a, button) {
+    display: inline-flex; align-items: center; justify-content: center; min-block-size: var(--adm-control-h);
+    min-inline-size: var(--adm-control-h); padding-inline: 0.5rem; box-sizing: border-box;
+    font-size: 0.8125rem; line-height: var(--adm-control-h); text-transform: none; border-bottom: 0; text-decoration: underline;
+  }
+  /* الطيّةُ والمرشِّحُ سطرُهما كاملٌ يُلمس: يبقى عرضُهما ويرتفع الحدُّ الأدنى وحدَه (العلامةُ المرجعيّةُ ::before للسهم). */
+  #content .app-fold__summary, #content #changelist-filter summary, #content details > summary { min-block-size: var(--adm-control-h); box-sizing: border-box; }
+  /* حقلُ الملفّ (شعارٌ ومرفقٌ) كان 26px: يُلمس كلُّه فيفتح المنتقي، فيرتفع صندوقُه وزرُّه الداخليّ. */
+  #content input[type=file] { min-block-size: var(--adm-control-h); box-sizing: border-box; }
+  #content input[type=file]::file-selector-button { min-block-size: calc(var(--adm-control-h) - 0.5rem); }
+  #content :is(input:not([type=checkbox], [type=radio], [type=hidden], [type=file]), select, textarea, button, a.button) {
+    min-block-size: var(--adm-control-h); box-sizing: border-box;
+  }
+  #content :is(button, input[type=submit], input[type=button], a.button) { min-inline-size: var(--adm-control-h); }
+}
+
+/* ── الانتقال بين الصفحات — بمدّة المنصّة نفسِها (`static/css/custom/20-components.css`، ومعيارُ الهويّة في CLAUDE.md) ──
+   الرمزُ `--transition-page` وحركةُ `page-in` منقولان منها حرفيّاً (tests/test_admin_theme.py يفشل إن اختلفا).
+   صفحاتُ الإدارة تُحمَّل كاملةً لا يُبدَّل DOM فيها (أدواتُها — jQuery وselect2 وSelectFilter — تهيَّأ عند `load`)، فإعادةُ
+   التحميل كانت ترسم الترويسةَ والتذييلَ من جديدٍ فيرمشان. لذا: */
+:root { --transition-page: 500ms ease; }
+@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
+/* ١) المتصفّحُ يمازج الصفحتين بنفسه (Chrome/Edge 126+، Safari 18.2+): القديمةُ تبقى ظاهرةً حتى تجهز الجديدة ثمّ تمتزجان — وما تطابق
+      فيهما (الترويسةُ والتذييل) يبقى كما هو بلا رمش. وحدةُ `animation-duration` هنا لا تقبل الرمزَ المركَّب، فالمدّةُ مكرَّرةٌ ويحرسها الاختبار. */
+@media (prefers-reduced-motion: no-preference) { @view-transition { navigation: auto; } }
+::view-transition-group(root) { animation-duration: 500ms; }
+/* ٢) غيرُه: يتلاشى المحتوى وحدَه (page-nav.js بنمط `fade`) ثمّ تظهر الصفحةُ التالية بـ`page-in`. والنوافذُ المنبثقةُ (`.popup`) بلا حركة. */
+@supports not at-rule(@view-transition) {
+  body:not(.popup) #content-start > * { animation: page-in var(--transition-page) backwards; transition: opacity var(--transition-page); }
+  body:not(.popup) #content-start.is-leaving > * { opacity: 0; pointer-events: none; }
+}
+/* القائمةُ المنسدلةُ بعد نقرِ رابطٍ فيها: تتلاشى بالمدّة نفسِها ثمّ يغلقها page-nav.js (`is-fading` على القسم الفاتح). */
+.adm-nav__item.is-fading > .adm-nav__menu { animation: adm-menu-out var(--transition-page) forwards; pointer-events: none; }
+@keyframes adm-menu-out { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { body:not(.popup) #content-start > * { animation: none; transition: none; } }

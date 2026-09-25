@@ -1,0 +1,13 @@
+{% comment %}
+  فوترُ المنصّة نفسُه في لوحة الإدارة (المدرسة والوزارة والرؤية وتوقيع المطوّر) — دائمٌ في كلّ صفحة.
+  سطرٌ واحد على الحاسوب بثلاثة أقسام: هويّةُ المدرسة | الرؤية | التوقيع؛ ومتراصٌّ مركَّزٌ على الجوّال.
+  بلا اسم التطبيق ورقم الإصدار (قرارُ المالك)، وشعارا أذكياء وسفيان كلٌّ على رقعةٍ بيضاء بحجمٍ واحد.
+  ومحتواه مكوّنا المنصّة نفسُهما (`components/site_footer_line.html` و`site_brand.html`، OWN-22) لا نسخةٌ منهما؛
+  وأنماطُ أصنافهما `site-footer-*` تحت `.adm-footer` في admin_theme.css لأنّ لوحةَ الإدارة لا تحمل أنماطَ المنصّة.
+  وسمُه `div` لا `footer`: جانغو يلفّ هذه الكتلةَ بـ`<footer id="footer">` أصلاً، فوسمٌ ثانٍ (أو role=contentinfo) كان
+  يُنشئ معلَماً مكرَّراً متداخلاً يرصده axe (landmark-no-duplicate-contentinfo وأخواتُه).
+{% endcomment %}
+<div class="adm-footer">
+  {% include "components/site_footer_line.html" %}
+  {% include "components/site_brand.html" %}
+</div>

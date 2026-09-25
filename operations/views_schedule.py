@@ -20,15 +20,12 @@ from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.audit_export import log_export
-from core.capabilities import capability_required
+from core.capabilities import capability_required, has_capability
 from core.dashboard_presentation import chunk_for_grid
 from core.domain.tones import tone_for
 from core.models import CustomUser, Membership
 from core.models.academic import grade_order
 from core.models.access import EXEMPTABLE_ROLES
-from core.permissions import (
-    SCHEDULE_BROWSE,
-)
 
 from .models import (
     ScheduleBaseline,
@@ -41,14 +38,15 @@ from .models import (
     TeacherExemption,
     TeacherPreference,
 )
-from .schedule_paper import (
-    bell_tables,
-    grid_to_days,
-    paper_geometry,
-    teacher_bands_by_day,
-    week_layout,
-)
-from .services import ScheduleService, SubstituteService
+from .schedule_breaches import draft_breaches
+from .schedule_paper import paper_geometry
+from .schedule_selectors import DEFAULT_ORIENTATION, ORIENTATIONS, PAPERS
+from .schedule_selectors import browse_lists as _browse_lists
+from .schedule_selectors import export_filename as _export_filename
+from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
+from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
+from .services import AbsenceSwapService, ScheduleService, SubstituteService
+from .services.substitute import TEACHING_ROLES
 
 logger = logging.getLogger(__name__)
 
@@ -56,12 +54,6 @@ logger = logging.getLogger(__name__)
 #: للمهمّة (خمس عشرة دقيقة) بهامشِ انتظارٍ في الطابور — فما تجاوزه لم يعد
 #: ينتظر عاملاً، بل يحجب الزرَّ عمّن يريد إعادةَ المحاولة.
 _GENERATION_STALE_AFTER = timedelta(minutes=20)
-
-
-#: أحجامُ الورق واتّجاهاتُه — تُقرأ من الرابط ولا تُخمَّن من نوع العرض.
-_ORIENTATIONS = ("landscape", "portrait")
-_PAPERS = ("a4", "a3")
-DEFAULT_ORIENTATION = "landscape"
 
 
 def _reap_stale_generations(school, year):
@@ -119,16 +111,23 @@ def _safe_schedule_settings_redirect(request, fallback_year=None):
 @login_required
 @capability_required("schedule.weekly")
 def weekly_schedule(request):
-    """صفحةُ الجدول الأسبوعيّ — وهي ورقةُ الطباعة نفسُها داخل المنصّة.
+    """صفحةُ الجدول الأسبوعيّ — عرضٌ في المنصّة، والطباعةُ ورقتُها الخاصّة.
 
-    كانت شبكةً ملوّنةً على حدة، وورقةُ الطباعة صفحةً ثانيةً وراء زرّ. قرارُ
-    الإدارة 2026-09-06: الورقةُ تكفي عرضاً للجدول، ففيها الاختيارُ والطباعةُ
-    والتصدير، ولا حاجةَ لشاشتين تقولان الشيءَ نفسَه بشكلين.
+    قرارُ 2026-09-06 وحّد العرضَ والطباعةَ في ورقةٍ واحدة داخل إطار، فصار
+    جدول المعلم يُقاس بالملّيمتر على الشاشة كما على الورق، وصار يحتاج تصغيراً
+    شاشيّاً وحيلَ ارتفاعٍ ليَسَعَ النافذةَ بلا تمرير — والتصغيرُ يُصغّر خطَّه
+    معه. فقرارُ 2026-09-18: العرضُ جدولٌ عاديٌّ برموز المنصّة (`week_grid.html`
+    نفسُ جزئيّة البيانات، بلا الملّيمتر)، والطباعةُ إطارٌ مخفيٌّ بورقتها
+    الحقيقيّة كما كانت — مستقلّان، ولا يُصغَّر أحدُهما ليشبه الآخر. والجدولُ
+    العامّ (كلّ المعلّمين) يبقى ورقةً في إطارٍ ظاهر: مصفوفةٌ عريضةٌ لا تصلح
+    جدولاً عاديّاً، وفيها بحثٌ ولوحُ تحليلٍ يتّصلان بالورقة مباشرةً.
 
     وما كان في الشبكة القديمة ولم يكن في الورقة انتقل إليها لا سقط: لافتةُ
     معاينة المسودّة (`?generation=`) والتعارضاتُ للإدارة.
     """
-    ctx = _schedule_print_selection(request)
+    ctx = _schedule_print_payload(
+        request, "actual"
+    )  # الصفحةُ على الأسبوع الفعليّ، والطباعةُ على الخطّة
     ctx["departments"] = (
         ScheduleService.department_options(ctx["school"], ctx["year"]) if ctx["may_browse"] else []
     )
@@ -140,182 +139,23 @@ def weekly_schedule(request):
     return render(request, "schedule/print_view.html", ctx)
 
 
-def _browse_lists(school):
-    """معلّمو المدرسة وشُعبُها لقائمة الجداول — لمن يتصفّح غيره."""
-    from core.models import ClassGroup
-
-    teacher_ids = Membership.objects.filter(
-        school=school,
-        is_active=True,
-        role__name__in=("teacher", "coordinator", "e_projects_coordinator"),
-    ).values_list("user_id", flat=True)
-    teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
-    classes = ClassGroup.objects.filter(
-        school=school, academic_year=academic_year_for_school(school), is_active=True
-    ).in_school_order()
-    return teachers, classes
-
-
 def _schedule_print_selection(request):
-    """ما يُطبع ولمن — يشترك فيه الورقُ وصفحةُ العرض التي تحتضنه."""
-    from core.models import ClassGroup
+    """ما يُطبع ولمن — يشترك فيه الورقُ وصفحةُ العرض التي تحتضنه.
 
-    school = request.school
-    year = request.GET.get("year") or academic_year_for(request)
-    # الورقةُ المعلّقة في المدرسة هي «الجدول العام للمعلمين»: المعلّمون
-    # سطوراً والأسبوعُ عرضاً. وكان الافتراضُ `school` — خمسُ خاناتٍ تحشر
-    # فيها ألفُ حصّةٍ فلا تُقرأ ولا تُطبع.
-    # ثلاثةُ عروض: الجدولُ العامّ، ومعلّمٌ، وشعبة. وكان رابعٌ «جدول المدرسة
-    # الكامل» — خمسُ خاناتٍ تُحشر فيها ألفُ حصّة — فأُزيل (قرار 2026-09-06)،
-    # ورابطٌ قديمٌ يطلبه يُصرف إلى الجدول العامّ.
-    view_type = request.GET.get("view", "all_teachers")
-    if view_type not in ("all_teachers", "teacher", "class"):
-        view_type = "all_teachers"
-    paper = request.GET.get("paper") or ("a3" if view_type == "all_teachers" else "a4")
-    if paper not in _PAPERS:
-        paper = "a4"
-    # الاتّجاهُ اختيارُ الطابع لا نتيجةُ حجم الورق. وافتراضُه ما كان قبل أن
-    # يصير خياراً: الجدولُ العامّ والورقةُ الكبيرةُ عرضاً، وغيرُهما طولاً —
-    # فلا يتبدّل مطبوعُ أحدٍ من تحته يومَ أُضيف الخيار.
-    orient = request.GET.get("orient")
-    if orient not in _ORIENTATIONS:
-        # الجدولُ المفرد صار سطراً لكلّ يومٍ وعموداً لكلّ حصّة (قرار 2026-09-08):
-        # سبعةُ أعمدةٍ على A4 عموديّ أربعةٌ وعشرون ملّيمتراً للعمود، تُلَفّ فيها
-        # «التربية الإسلامية» فوق اسم الشعبة فوق التوقيت. وعلى الأفقيّ ستّةٌ
-        # وثلاثون — فصار الأفقيُّ افتراضَ الجميع، واختيارُ الطابع فوقه.
-        orient = DEFAULT_ORIENTATION
-    teacher_id = request.GET.get("teacher")
-    class_id = request.GET.get("class")
-
-    target_teacher = None
-    target_class = None
-
-    # المعلّم يطبع جدوله هو. وكان الاختيار يُقرأ من الرابط بلا نظرٍ إلى
-    # طالبه، و`get_object_or_404(CustomUser, id=…)` بلا قيد مدرسة — أي
-    # جدولُ معلّمٍ في مدرسةٍ أخرى.
-    may_browse = request.user.is_admin() or request.user.get_role() in SCHEDULE_BROWSE
-
-    if not may_browse:
-        view_type = "teacher"
-        target_teacher = request.user
-    elif view_type == "teacher" and teacher_id:
-        # ومن غادر يبقى جدولُ عامه منسوباً إليه — فالبحثُ في كلّ من كان منها.
-        target_teacher = get_object_or_404(CustomUser.objects.ever_in_school(school), id=teacher_id)
-    elif view_type == "class" and class_id:
-        target_class = get_object_or_404(ClassGroup, id=class_id, school=school)
-
-    # قائمتا الاختيار لمن يتصفّح غيره وحده: عرضُهما على المعلّم يُظهر
-    # أسماء زملائه وشُعب المدرسة في أداةٍ لا تعمل له أصلاً.
-    teachers, classes = _browse_lists(school) if may_browse else ([], [])
-
-    # معاينةُ مسودّةِ توليدٍ قبل اعتمادها — لمن يتصفّح الجداول وحدَه، فالمسودّةُ
-    # ليست جدولَ أحدٍ بعد. ومن يعتمد جدولاً لم يرَه يعتمد رقماً لا جدولاً.
-    preview = None
-    generation_id = request.GET.get("generation")
-    if generation_id and may_browse:
-        preview = get_object_or_404(
-            ScheduleGeneration, id=generation_id, school=school, academic_year=year
-        )
-
-    title = "الجدول الدراسي العام"
-    if view_type == "all_teachers":
-        title = "الجدول العام للمعلمين"
-    elif target_teacher:
-        title = f"جدول المعلم: {target_teacher.full_name}"
-    elif target_class:
-        title = f"جدول الفصل: {target_class.label_with_track}"
-
-    # الاختيارُ نفسه سؤالاً في الرابط: الإطارُ وزرّا التصدير ثلاثةُ روابطَ
-    # تقصد الورقة الواحدة، فبناؤها ثلاثَ مرّاتٍ في القوالب يجعل اختلافها
-    # مسألةَ وقت — يُنسى معاملٌ في أحدها فيُصدَّر جدولُ غير المعروض.
-    selection = {"view": view_type, "paper": paper, "orient": orient, "year": year}
-    if preview:
-        selection["generation"] = str(preview.id)
-
-    picker_current = "matrix"
-    if target_teacher:
-        picker_current = f"teacher:{target_teacher.id}"
-    elif target_class:
-        picker_current = f"class:{target_class.id}"
-    if target_teacher:
-        selection["teacher"] = str(target_teacher.id)
-    if target_class:
-        selection["class"] = str(target_class.id)
-
-    return {
-        "school": school,
-        "year": year,
-        "view_type": view_type,
-        "paper": paper,
-        "orient": orient,
-        "target_teacher": target_teacher,
-        "target_class": target_class,
-        "preview": preview,
-        "may_browse": may_browse,
-        "picker_current": picker_current,
-        "teachers": teachers,
-        "classes": classes,
-        "title": title,
-        # عنوانُ الترويسة يُبنى هنا: المسودّةُ تُسمّى في العنوان لا في وسمٍ شرطيّ.
-        "heading": f"{title} — مسودّة" if preview else title,
-        "selection_query": urlencode(selection),
-    }
+    الجوهرُ في `operations/schedule_selectors.py` (طبقةُ قراءةٍ لا عرض) —
+    البند 5: عاملُ Celery الخلفيّ يستدعيه أيضاً بلا `request` حقيقيّ.
+    """
+    return _schedule_print_selection_core(request.school, request.user, request.GET)
 
 
-def _schedule_print_payload(request) -> dict:
+def _schedule_print_payload(request, default_source: str = "plan") -> dict:
     """سياقُ الورقة كاملاً: الاختيارُ وبياناته.
 
     ثلاثةُ مخارجَ تقرأ هذه الورقة — صفحةٌ في المتصفّح، وPDF، وExcel — فبناؤها
     في موضعٍ واحد يمنع أن يختلف المطبوعُ عن المعروض بعد تعديلٍ في أحدهما.
+    الجوهرُ في `operations/schedule_selectors.py` للسبب نفسه أعلاه.
     """
-    ctx = _schedule_print_selection(request)
-    school, year = ctx["school"], ctx["year"]
-
-    # الجدولُ العام يكشف جداول المعلّمين جميعاً، ومن لا يتصفّح غيره صُرف
-    # إلى جدوله في اختيار الطباعة.
-    grid, matrix, matrix_totals, week, geometry = {}, [], None, None, None
-    if ctx["view_type"] == "all_teachers":
-        matrix = ScheduleService.get_teachers_matrix(school, year, generation=ctx["preview"])
-        matrix_totals = ScheduleService.matrix_totals(matrix, school, year)
-    else:
-        grid = ScheduleService.get_weekly_schedule(
-            school, ctx["target_teacher"], ctx["target_class"], year, generation=ctx["preview"]
-        )
-        # الفسحةُ والصلاةُ بين الحصص، والورقةُ بالملّيمتر — كورقة الصفحات سواءً.
-        days = grid_to_days(grid)
-        band_codes = ScheduleService._band_codes(school)
-        target_class = ctx["target_class"]
-        if target_class is not None:
-            band = band_codes.get(target_class.time_band_id)
-            bands = [[band] if band else []] * 5
-        else:
-            bands = teacher_bands_by_day(days, band_codes)
-        week = week_layout(days, bands, bell_tables(school))
-        geometry = paper_geometry(ctx["paper"], ctx["orient"], with_who=False)
-
-    # أسماءُ الأيّام من `ScheduleSlot.DAYS` — مصدرٌ واحدٌ يقرؤه المولّدُ والورقة.
-    DAYS = list(ScheduleSlot.DAYS)
-    # الورقة المطبوعة تحمل توقيت كل حصة تحت رقمها، كما في جدول المدرسة —
-    # وكانت الخلايا بلا توقيتٍ أصلاً.
-    times = ScheduleService.period_times(school, year)
-    PERIODS = [
-        {"number": n, "start": times.get(n, (None, None))[0], "end": times.get(n, (None, None))[1]}
-        for n in ScheduleSlot.PERIODS
-    ]
-
-    return {
-        **ctx,
-        "grid": grid,
-        "week": week,
-        "geo": geometry,
-        "matrix": matrix,
-        "matrix_totals": matrix_totals,
-        "days": DAYS,
-        "periods": PERIODS,
-        "period_numbers": range(1, 8),
-        # داخل الإطار: الورقةُ وحدها، وأدواتُها في الصفحة الحاضنة.
-        "embed": request.GET.get("embed") == "1",
-    }
+    return _schedule_print_payload_core(request.school, request.user, request.GET, default_source)
 
 
 # `X_FRAME_OPTIONS = "DENY"` عامٌّ على المشروع، فيمنع عرض الورقة داخل إطار
@@ -328,70 +168,82 @@ def schedule_print(request):
     return render(request, "schedule/print_schedule.html", _schedule_print_payload(request))
 
 
-def _export_filename(ctx: dict, extension: str) -> str:
-    """اسمُ الملفّ: عنوانُ الورقة وسنتُها.
+def _export_started(request, job):
+    """جوابُ بدء التصدير: JSON لطلب الصفحة (إشعارٌ عائم)، وتحويلٌ لصفحة المتابعة لغيره.
 
-    و`get_valid_filename` يُسقط ما لا يقبله اسمُ ملفٍّ ولا ترويسةُ HTTP —
-    والعربيّةُ تبقى فيه حروفاً، فالاسمُ يُقرأ بعد التنزيل.
+    صفحةُ المتابعة بقيت للرابط المفتوح مباشرةً بلا JS (نافذةٌ خارج المنصّة، روابطٌ محفوظة)؛
+    أمّا من الصفحة فيبدأ `static/js/schedule-export.js` المهمّةَ ويتابعها بإشعارٍ عائمٍ ثمّ يُنزّل.
     """
-    from django.utils.text import get_valid_filename
-
-    stem = f"{ctx.get('title') or 'الجدول'} {ctx.get('year') or ''}".strip()
-    return f"{get_valid_filename(stem)}.{extension}"
+    status_url = reverse("export_job_status", args=[job.id])
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return JsonResponse({"job_id": str(job.id), "status_url": status_url})
+    return redirect(status_url)
 
 
 @login_required
 @capability_required("schedule.print")
 def schedule_export_pdf(request):
-    """الورقةُ نفسها ملفَّ PDF — قالبٌ واحدٌ للشاشة والورق والملفّ.
+    """يُنشئ صفَّ تصديرٍ خلفيّاً ويُرجع فوراً — لا توليدَ PDF متزامناً.
 
-    والأدواتُ تُخفى بـ`embed`: أزرارُ الطباعة والتصدير لا محلّ لها في ملفٍّ
-    يُرسَل أو يُؤرشَف.
+    WeasyPrint بطيءٌ بما يكفي ليُخالف معيار المشروع (>300ms → Background
+    Job، راجع `operations/tasks.py::render_schedule_export_task`). صفحةُ
+    المتابعة تتحدَّث تلقائياً وتُنزّل الناتجَ حين يجهز.
     """
-    from django.template.loader import render_to_string
+    from core.models import ExportJob
+    from operations.tasks import render_schedule_export_task
 
-    from core.pdf_utils import render_pdf
-
-    ctx = _schedule_print_payload(request)
-    ctx["embed"] = True
-    # الشعارُ بمسارٍ نسبيٍّ من جذر المشروع: مولّدُ PDF يقرأ من القرص لا من
-    # الويب، فرابطُ `/static/…` المطلق يقع خارج جذره ويخرج الشعارُ نصّاً.
-    ctx["for_pdf"] = True
-    html = render_to_string("schedule/print_schedule.html", ctx, request=request)
-    log_export(request, "schedule.pdf", object_repr=_export_filename(ctx, "pdf"))
-    return render_pdf(
-        html,
-        _export_filename(ctx, "pdf"),
-        paper_size="A3" if ctx.get("paper") == "a3" else "A4",
-        as_attachment=True,
+    query = request.GET.urlencode()
+    log_export(request, "schedule.pdf", object_repr=f"schedule.pdf?{query}")
+    job = ExportJob.objects.create(
+        school=request.school,
+        requested_by=request.user,
+        kind="schedule.pdf",
+        query_string=query,
     )
+    render_schedule_export_task.delay(str(job.id), "pdf")
+    return _export_started(request, job)
 
 
 @login_required
 @capability_required("schedule.print")
 def schedule_export_excel(request):
-    """الورقةُ نفسها مصنَّفَ Excel — بالشكل نفسه لا ببياناتٍ خام."""
-    from io import BytesIO
+    """صفُّ تصديرٍ خلفيّ أيضاً — الشرحُ في `schedule_export_pdf`."""
+    from core.models import ExportJob
+    from operations.tasks import render_schedule_export_task
+
+    query = request.GET.urlencode()
+    log_export(request, "schedule.xlsx", object_repr=f"schedule.xlsx?{query}")
+    job = ExportJob.objects.create(
+        school=request.school,
+        requested_by=request.user,
+        kind="schedule.xlsx",
+        query_string=query,
+    )
+    render_schedule_export_task.delay(str(job.id), "xlsx")
+    return _export_started(request, job)
+
+
+@login_required
+def export_job_status(request, job_id):
+    """متابعة/تنزيل صفّ تصديرٍ خلفيّ — تتحدَّث تلقائياً حتى يجهز الناتج أو تنتهي مهلتُه."""
     from urllib.parse import quote
 
-    from operations.schedule_export import schedule_workbook
+    from core.models import ExportJob
+    from operations.export_job_services import expire_if_stale
 
-    ctx = _schedule_print_payload(request)
-    buffer = BytesIO()
-    schedule_workbook(ctx).save(buffer)
-
-    filename = _export_filename(ctx, "xlsx")
-    log_export(request, "schedule.xlsx", object_repr=filename)
-    response = HttpResponse(
-        buffer.getvalue(),
-        content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    )
-    # اسمٌ لاتينيٌّ للقديم و`filename*` مُرمَّزٌ للحديث: ترويسةٌ عربيّةٌ كاملةً
-    # يُرمّزها Django بـRFC 2047 فلا يفهمها متصفّح، ويضيع طلبُ التنزيل.
-    response["Content-Disposition"] = (
-        f"attachment; filename=schedule.xlsx; filename*=UTF-8''{quote(filename)}"
-    )
-    return response
+    job = get_object_or_404(ExportJob, id=job_id, school=request.school, requested_by=request.user)
+    expire_if_stale(job)  # عالقٌ أكثرَ من المهلة → يفشل برسالةٍ فيتوقّف التحديثُ التلقائيّ
+    if request.GET.get("format") == "json":  # متابعةُ الإشعار العائم — الحالةُ فقط، لا الملفّ
+        return JsonResponse(
+            {"status": job.status, "error": job.error_message if job.status == "failed" else ""}
+        )
+    if job.status == "done":
+        response = HttpResponse(bytes(job.content), content_type=job.content_type)
+        response["Content-Disposition"] = (
+            f"attachment; filename=export; filename*=UTF-8''{quote(job.filename)}"
+        )
+        return response
+    return render(request, "operations/export_job_status.html", {"job": job})
 
 
 @login_required
@@ -431,15 +283,20 @@ def _absence_presentation(absence) -> None:
     absence.tone, absence.status_tone = _ABSENCE_TONES.get(absence.status, _ABSENCE_TONE_DEFAULT)
 
 
-def _slot_presentation(slot, assignment, available) -> dict:
+def _slot_presentation(slot, assignment, available, swap=None) -> dict:
     """حصّةُ الغائب في بطاقة كيان: الحصّة · البديل · الحالة.
 
     المغطّاةُ خضراء وسطرُ حالها حالُ التعيين (قبِل/رفض/مُعيَّن)؛ وغيرُ المغطّاة
     حمراء وسطرُها عددُ المتاحين — أو «لا معلمين متاحين» حين لا يُوجد أحد.
+    والمبدَّلةُ خضراءُ إن نُفِّذ تبديلُها، وكهرمانيّةٌ ما دام ينتظر موافقةً أو اعتماداً.
     """
+    swapped = swap is not None and swap.status in ("approved", "executed")
     if assignment:
         status_tone = _assignment_tone(assignment)
-        tone, status_label = "green", f"مُغطّاة · {assignment.get_status_display()}"
+        tone, status_label = "green", "مُغطّاة · إشغال"
+    elif swap is not None:
+        tone, status_tone = ("green", "success") if swapped else ("amber", "warning")
+        status_label = AbsenceSwapService.slot_label(swap)
     elif available:
         tone, status_tone = "red", "danger"
         status_label = f"بحاجة بديل · {len(available)} متاح"
@@ -449,6 +306,8 @@ def _slot_presentation(slot, assignment, available) -> dict:
     return {
         "slot": slot,
         "assignment": assignment,
+        "swap": swap,
+        "covered": bool(assignment) or swapped,
         "available": available,
         "title": f"الحصّة {slot.period_number}",
         "who": f"{slot.subject or '—'} · {slot.class_group}",
@@ -492,9 +351,9 @@ def teacher_absence_list(request):
 
 
 @login_required
-@capability_required("operations.reports")
+@capability_required("operations.substitutes_manage")
 def register_teacher_absence(request):
-    """تسجيل غياب معلم — للمدير والمنسق"""
+    """تسجيل غياب معلم — للمدير والمنسق، ومشرفُ الجناح يقرأ ولا يكتب هنا."""
     from core.permissions import get_department_teacher_ids
 
     school = request.school
@@ -522,9 +381,7 @@ def register_teacher_absence(request):
         teachers = CustomUser.objects.filter(id__in=dept_ids).order_by("full_name")
     else:
         teacher_ids = Membership.objects.filter(
-            school=school,
-            is_active=True,
-            role__name__in=("teacher", "coordinator", "ese_teacher", "e_projects_coordinator"),
+            school=school, is_active=True, role__name__in=TEACHING_ROLES
         ).values_list("user_id", flat=True)
         teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
 
@@ -552,31 +409,24 @@ def absence_detail(request, absence_id):
     if dept_ids is not None and absence.teacher_id not in dept_ids:
         return HttpResponse("هذا المعلم ليس من قسمك", status=403)
 
-    our_day = SubstituteService._date_to_day(absence.date)
-    slots = (
-        ScheduleSlot.objects.live(school)
-        .filter(teacher=absence.teacher, day_of_week=our_day)
-        .select_related("class_group", "subject")
-    )
+    slots = sorted(SubstituteService.absence_slots(absence), key=lambda slot: slot.period_number)
 
     assignments = {
         a.slot_id: a
         for a in SubstituteAssignment.objects.filter(absence=absence).select_related("substitute")
     }
-    slots_data = []
-    for slot in slots:
-        available = SubstituteService.get_available_teachers(
-            school,
-            absence.date,
-            slot.day_of_week,
-            slot.period_number,
-            exclude_teacher=absence.teacher,
-            subject_id=slot.subject_id,
+    # المنسّقُ يُشغِل من قسمه وحدَه، والقيادةُ من الكادر كلِّه (قرارُ المالك 2026-09-23).
+    candidates = SubstituteService.coverage_candidates(absence, slots, within_ids=dept_ids)
+    swaps = AbsenceSwapService.swaps_by_slot(absence)
+    slots_data = [
+        _slot_presentation(
+            slot, assignments.get(slot.id), candidates.get(slot.id, []), swaps.get(slot.id)
         )
-        slots_data.append(_slot_presentation(slot, assignments.get(slot.id), available))
+        for slot in slots
+    ]
 
     # عددٌ لا سلسلةُ آحاد: القالبُ كان يطبع «1» لكلّ حصّةٍ مغطّاة، فثلاثٌ تُقرأ «111».
-    covered_count = sum(1 for row in slots_data if row["assignment"])
+    covered_count = sum(1 for row in slots_data if row["covered"])
     _absence_presentation(absence)
     return render(
         request,
@@ -589,15 +439,18 @@ def absence_detail(request, absence_id):
             "covered_label": f"من {len(slots_data)}",
             # حصّةٌ بلا بديلٍ واحدةٌ تكفي للأحمر؛ ولا حصصَ = لا شيءَ ينتظر.
             "covered_tone": "green" if covered_count == len(slots_data) else "red",
+            # مشرفُ الجناح يفتح هذه الصفحةَ (`operations.reports`) ولا يعيّن
+            # (`operations.substitutes_manage`) — فالنموذجُ يظهر لمن يكتب وحدَه.
+            "can_assign": has_capability(request.user, "operations.substitutes_manage"),
         },
     )
 
 
 @login_required
-@capability_required("operations.reports")
+@capability_required("operations.substitutes_manage")
 @require_POST
 def assign_substitute(request, absence_id, slot_id):
-    """HTMX: تعيين بديل لحصة"""
+    """HTMX: تعيين بديل لحصة — مشرفُ الجناح يرى المعيَّن ولا يعيّنه."""
     from core.permissions import get_department_teacher_ids
 
     school = request.school
@@ -608,7 +461,17 @@ def assign_substitute(request, absence_id, slot_id):
     if dept_ids is not None and absence.teacher_id not in dept_ids:
         return HttpResponse("هذا المعلم ليس من قسمك", status=403)
 
-    substitute = get_object_or_404(CustomUser, id=request.POST["substitute"])
+    # يُتحقّق من المختار على الخادم: كان يُقبل أيُّ معرّفٍ يُرسَل — معلّمٌ من
+    # قسمٍ آخر، أو له حصّةٌ في الوقت نفسه، أو غائبٌ هو أيضاً.
+    allowed = {
+        c["id"]
+        for c in SubstituteService.coverage_candidates(absence, [slot], within_ids=dept_ids)[
+            slot.id
+        ]
+    }
+    substitute = get_object_or_404(CustomUser, id=request.POST.get("substitute") or None)
+    if substitute.id not in allowed:
+        return HttpResponse("هذا المعلم غير متاحٍ لهذه الحصّة", status=400)
     assignment = SubstituteService.assign_substitute(
         absence,
         slot,
@@ -616,18 +479,18 @@ def assign_substitute(request, absence_id, slot_id):
         assigned_by=request.user,
         notes=request.POST.get("notes", ""),
     )
-    available = SubstituteService.get_available_teachers(
-        school,
-        absence.date,
-        slot.day_of_week,
-        slot.period_number,
-        exclude_teacher=absence.teacher,
-        subject_id=slot.subject_id,
-    )
+    available = SubstituteService.coverage_candidates(absence, [slot], within_ids=dept_ids)[slot.id]
     return render(
         request,
         "substitute/partials/slot_card.html",
-        {"item": _slot_presentation(slot, assignment, available), "absence": absence},
+        # مسارُ هذا الردّ دائماً وراء `operations.substitutes_manage` (الديكوريتور
+        # أعلاه) — لكن `can_assign` صريحةٌ هنا احتراساً لا اتّكالاً على أنّ
+        # `item.assignment` يبقى صحيحاً أبداً.
+        {
+            "item": _slot_presentation(slot, assignment, available),
+            "absence": absence,
+            "can_assign": True,
+        },
     )
 
 
@@ -940,6 +803,8 @@ def _smart_schedule_presentation(generations, year, occupied_slots, shared_perio
     """
     for g in generations:
         g.lab_tone = tone_for(g.lab_relative, LAB_RELATIVE_TONES, empty="")
+        # ما بقي مكسوراً بموضعه — والإقرارُ به شرطُ اعتماد المسودّة (SCH-05).
+        g.breaches = draft_breaches(g.config_snapshot)
     measured = [g for g in generations if g.lab_rows]
     rows: dict[str, dict] = {}
     for column, g in enumerate(measured):
@@ -1252,30 +1117,6 @@ def teacher_preferences(request):
 # ── اعتماد الجدول ─────────────────────────────────────────────────
 
 
-@login_required
-@capability_required("schedule.settings")
-@require_POST
-def approve_schedule(request, generation_id):
-    """اعتماد الجدول المولّد"""
-    school = request.school
-    gen = get_object_or_404(ScheduleGeneration, id=generation_id, school=school)
-
-    if gen.status != "draft":
-        messages.warning(request, "هذا الجدول ليس مسودة — لا يمكن اعتماده")
-        return redirect("smart_schedule")
-
-    # الاعتمادُ كلُّه في الخدمة — الزرُّ وأمرُ النقل يمرّان من الباب نفسِه.
-    result = ScheduleService.approve_generation(gen)
-    sync = result["sync"]
-
-    messages.success(
-        request,
-        f"تم اعتماد الجدول وإشعار {result['notified']} معلم — جلساتُ الأسبوع: "
-        f"حُذف {sync['deleted']}، أُنشئ {sync['created']}، أُبقي {sync['kept']}",
-    )
-    return redirect("smart_schedule")
-
-
 def _one_of(raw, allowed, fallback):
     """رقمٌ من مدىً مغلق — وما خرج عنه يعود إلى الافتراضيّ بلا سقوط."""
     try:
@@ -1292,6 +1133,8 @@ def _one_of(raw, allowed, fallback):
 @capability_required("schedule.settings")
 def schedule_settings(request):
     """إعدادات الجدول الذكي — تفريغات المعلمين + حصص مزدوجة"""
+    from .departments import active_departments
+
     school = request.school
     year = request.GET.get("year") or academic_year_for(request)
 
@@ -1317,6 +1160,10 @@ def schedule_settings(request):
     ).values_list("user_id", flat=True)
     teachers = CustomUser.objects.filter(id__in=teacher_ids).order_by("full_name")
 
+    #: تفريغُ قسمٍ كاملٍ لاجتماعه الأسبوعيّ (قرارُ 2026-09-18) — خيارٌ في نفس
+    #: قائمة الاختيار، فتفريغُ الاجتماع طلبٌ واحدٌ لا نصابَ قسمٍ يُفرَّغ عضواً عضواً.
+    departments = active_departments(school)
+
     return render(
         request,
         "schedule/schedule_settings.html",
@@ -1325,6 +1172,7 @@ def schedule_settings(request):
             "subjects": subjects,
             "teacher_prefs": teacher_prefs,
             "teachers": teachers,
+            "departments": departments,
             "days": ScheduleSlot.DAYS,
             "periods": ScheduleSlot.PERIODS,
             "year": year,
@@ -1340,30 +1188,13 @@ def exemption_grid(request):
     وبلا معلّمٍ مختارٍ تُعاد شبكةٌ خاوية: المجموعةُ («كلّ المنسّقين») لا جدولَ
     واحدَ لها، فتُظلَّل نمطاً مجرّداً بلا شواغلَ ولا سعة.
     """
-    import uuid
-
-    from operations.exemption_grid import DAYS, PERIODS, build_grid
-
-    from .forms import TeacherExemptionForm
+    from operations.exemption_grid import DAYS, PERIODS, build_grid, resolve_exemption_selection
 
     school = request.school
     year = request.GET.get("year") or academic_year_for(request)
     raw = (request.GET.get("teacher") or "").strip()
 
-    # المجموعةُ («كلّ المنسّقين») لا جدولَ واحداً لها، فشبكتُها مجرّدة. وهي
-    # اسمٌ معلومٌ لا معرّف — فمن أرسل معرّفَ معلّمٍ ليس من المدرسة لا يُعامَل
-    # معاملةَ المجموعة: كان يسقط إلى الشبكة المجرّدة فيرى باباً يُوهمه بأنّ
-    # اختيارَه صالح، والنموذجُ يردّه بعد التظليل لا قبله.
-    group = raw if raw in TeacherExemptionForm.GROUPS else ""
-
-    teacher = None
-    if raw and not group:
-        # القيدُ بالمدرسة لا زينة: بلا `in_school` يُقرأ أسبوعُ معلّمٍ في
-        # مدرسةٍ أخرى بتغيير معرّفٍ في الرابط.
-        try:
-            teacher = CustomUser.objects.in_school(school).filter(pk=uuid.UUID(raw)).first()
-        except ValueError:
-            teacher = None
+    group, group_label, teacher = resolve_exemption_selection(school, raw)
 
     grid = build_grid(school, teacher, year) if teacher is not None else None
     return render(
@@ -1373,6 +1204,7 @@ def exemption_grid(request):
             "grid": grid,
             "teacher": teacher,
             "group": group,
+            "group_label": group_label,
             "days": DAYS,
             "periods": PERIODS,
             "year": year,
@@ -1397,7 +1229,7 @@ def add_exemption(request):
     school = request.school
     year = request.POST.get("year") or academic_year_for(request)
 
-    form = TeacherExemptionForm(request.POST, school=school)
+    form = TeacherExemptionForm(request.POST, school=school, year=year)
     if not form.is_valid():
         for field, errors in form.errors.items():
             label = form.fields[field].label if field in form.fields else ""
@@ -1619,10 +1451,10 @@ def _pages_payload(request) -> dict:
     dept = request.GET.get("dept") or "all"
     teacher_id = request.GET.get("teacher") or ""
     orient = request.GET.get("orient") or DEFAULT_ORIENTATION
-    if orient not in _ORIENTATIONS:
+    if orient not in ORIENTATIONS:
         orient = DEFAULT_ORIENTATION
     paper = request.GET.get("paper") or "a4"
-    if paper not in _PAPERS:
+    if paper not in PAPERS:
         paper = "a4"
 
     departments = ScheduleService.department_options(school, year)
@@ -1675,7 +1507,8 @@ def _pages_payload(request) -> dict:
 @login_required
 @capability_required("schedule.browse")
 def schedule_pages(request):
-    """الصفحةُ داخل المنصّة — هيدرٌ وفوترٌ وأدوات، والورقةُ في إطارٍ يُطبع وحده."""
+    """الصفحةُ داخل المنصّة — عرضٌ عاديٌّ مستقلٌّ عن الطباعة (قرارُ 2026-09-18)،
+    والطباعةُ والتنزيلُ من ورقتهما الحقيقيّة عبر إطارٍ مخفيّ."""
     return render(request, "schedule/pages_view.html", _pages_payload(request))
 
 

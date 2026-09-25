@@ -25,8 +25,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from operations.models import ScheduleSlot
+
+if TYPE_CHECKING:
+    from core.models import CustomUser
 
 #: أيّامُ الأسبوع وحصصُه — من النموذج لا من رقمٍ محفورٍ هنا.
 DAYS = ScheduleSlot.DAYS
@@ -265,3 +269,47 @@ def parse_slots(raw: list[str]) -> list[tuple[int, int | None]]:
     #: اليومُ الكاملُ يغني عن خاناته — وإلّا سُجّل التفريغُ مرّتين بوجهين.
     pairs = [p for p in pairs if p[1] is None or p[0] not in whole]
     return sorted(pairs, key=lambda p: (p[0], -1 if p[1] is None else p[1]))
+
+
+def resolve_exemption_selection(school, raw: str) -> tuple[str, str, CustomUser | None]:
+    """(المجموعة، اسمُها، المعلّمُ) من قيمة اختيار شبكة التفريغ الخام.
+
+    القراءةُ هنا لا في العرض (`views_schedule.py::exemption_grid`) — حارسُ
+    الطبقات يسقف كلَّ دالّة عروضٍ بستّين سطراً وخمسة استدعاءات ORM
+    (`tests/layering_ratchet.py`)، وهذا التحقّقُ الثلاثيُّ (منسّقون؟ قسمٌ
+    كامل؟ معلّمٌ بعينه؟) أثقلُ من ذلك وحده.
+    """
+    import uuid
+
+    from core.models import CustomUser, Department
+
+    from .forms import TeacherExemptionForm
+
+    group, group_label = "", ""
+    if raw in TeacherExemptionForm.GROUPS:
+        group = raw
+        group_label = "منسّقو المواد"
+    elif raw.startswith(TeacherExemptionForm.DEPT_PREFIX):
+        try:
+            dept_id = uuid.UUID(raw[len(TeacherExemptionForm.DEPT_PREFIX) :])
+        except ValueError:
+            dept_id = None
+        department = (
+            Department.objects.filter(pk=dept_id, school=school, is_active=True).first()
+            if dept_id
+            else None
+        )
+        if department is not None:
+            group = raw
+            group_label = department.name
+
+    teacher = None
+    if raw and not group:
+        # القيدُ بالمدرسة لا زينة: بلا `in_school` يُقرأ أسبوعُ معلّمٍ في
+        # مدرسةٍ أخرى بتغيير معرّفٍ في الرابط.
+        try:
+            teacher = CustomUser.objects.in_school(school).filter(pk=uuid.UUID(raw)).first()
+        except ValueError:
+            teacher = None
+
+    return group, group_label, teacher

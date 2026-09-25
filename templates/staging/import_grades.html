@@ -19,10 +19,7 @@
 
   {% section_card "التقييمات المتاحة للاستيراد" meta=year icon="import" empty="لا توجد تقييمات منشورة حالياً" flush=True %}{% if assessments %}
     {% if not openpyxl_ok %}
-    <p class="form-note is-warning import-note" role="note">
-      {% icon "status_warning" %}
-      <span>مكتبة <code>openpyxl</code> غير مثبتة — شغّل <code dir="ltr">pip install openpyxl</code> لتفعيل هذه الميزة.</span>
-    </p>
+    {% callout "warning" %}مكتبة <code>openpyxl</code> غير مثبتة — شغّل <code dir="ltr">pip install openpyxl</code> لتفعيل هذه الميزة.{% endcallout %}
     {% endif %}
     <div class="table-wrap">
       <table>
@@ -57,6 +54,7 @@
               </div>
 
               <div id="upload-{{ a.id }}" class="import-upload" hidden>
+                {% callout "warning" %}الاستيراد يستبدل الدرجةَ المسجّلة لكلّ طالبٍ في الملف، ويُعيد حساب النتائج. استعمل «معاينة» أولاً.{% endcallout %}
                 <form method="post" enctype="multipart/form-data" action="{% url 'upload_grade_file' a.id %}">
                   {% csrf_token %}
                   <input type="hidden" name="dry_run" id="dry-run-{{ a.id }}" value="0">
@@ -99,9 +97,9 @@
 </div>
 
 <script nonce="{{ request.csp_nonce }}">
-function toggleUpload(id) {
+window.toggleUpload = function (id) {
   const el = document.getElementById('upload-' + id);
   if (el) el.hidden = !el.hidden;
-}
+};
 </script>
 {% endblock %}

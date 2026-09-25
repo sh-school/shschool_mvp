@@ -1,7 +1,7 @@
 """توزيعُ حصص المعلّم بنسبٍ متقاربة على الأسبوع — ورخصةُ التلاصق تُلغى.
 
 القيدُ كان موجوداً ولا يُلزم. ثلاثةُ أسبابٍ متراكبة، قيست على الإنتاج
-2026-09-06 حين جاء محمّد صبري 4·2·3·2·4 وتفضيلُه المكتوب ثلاثٌ في اليوم:
+2026-09-06 حين جاء جدولُ معلّمٍ 4·2·3·2·4 وتفضيلُه المكتوب ثلاثٌ في اليوم:
 
     ١ العقوبةُ مسطّحة: خمسُ نقاطٍ للرابعة كما للسابعة، فبعد أوّل تجاوزٍ
       يصير الإثقالُ مجّاناً.
@@ -79,6 +79,9 @@ def _grid_stub(load, days, periods_by_day, teacher="t1"):
     return SimpleNamespace(
         coverage={teacher: (load, load, frozenset(days))},
         teacher_periods_on=lambda tid, day: periods_by_day.get(day, []),
+        # بلا حصصٍ موضوعةٍ ولا جرس: التتابعُ يُحكم برقم الحصّة كما كان (SCH-18).
+        teacher_task_at=lambda tid, day, period: None,
+        interval=lambda band, day, period: None,
     )
 
 

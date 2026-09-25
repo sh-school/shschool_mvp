@@ -1,10 +1,18 @@
 """staff_affairs/forms.py — نماذج إدخال شؤون الموظفين."""
 
+from typing import Any
+
 from django import forms
 
 from core.validators import FileTypeValidator
 
-from .models import LEAVE_TYPES
+from .models import (
+    ABSENCE_TYPES,
+    EXCEPTION_TYPES,
+    LEAVE_TYPES,
+    PERMIT_TYPES,
+    STAFF_ATTENDANCE_STATUS,
+)
 
 
 class LeaveRequestForm(forms.Form):
@@ -127,6 +135,9 @@ class StaffPersonForm(forms.Form):
     email = forms.EmailField(required=False, label="البريد الإلكتروني")
     phone = forms.CharField(max_length=20, required=False, label="الجوال")
     nationality = forms.CharField(max_length=100, required=False, label="الجنسية")
+    service_start_date = forms.DateField(
+        required=False, label="تاريخ المباشرة", widget=forms.DateInput(attrs={"type": "date"})
+    )
     professional_license_number = forms.CharField(
         max_length=50, required=False, label="رقم الرخصة المهنية"
     )
@@ -168,3 +179,78 @@ class StaffEmploymentForm(forms.Form):
         ]
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
+
+
+class PermitRequestForm(forms.Form):
+    """نموذج 02: طلب تأخير / استئذان / خروج مبكر — للموظّف نفسه.
+
+    الشكلُ وحدَه هنا؛ حدودُ السياسة (4.2 و4.3 و4.4) في ``PermitService.submit``.
+    """
+
+    permit_type = forms.ChoiceField(choices=PERMIT_TYPES, label="نوع الطلب")
+    date = forms.DateField(label="التاريخ")
+    start_time = forms.TimeField(label="من الساعة")
+    end_time = forms.TimeField(label="إلى الساعة")
+    reason = forms.CharField(max_length=500, label="سبب الطلب")
+
+
+class ExceptionRequestForm(forms.Form):
+    """نموذج 03: طلبُ استثناء التأخير الصباحيّ أو الخروج المبكر — إلى مدير المدرسة.
+
+    الشكلُ وحدَه هنا؛ الحدودُ (ساعاتُ الدوام، والمرفقُ) في ``ExceptionService.submit``.
+    """
+
+    exception_type = forms.ChoiceField(choices=EXCEPTION_TYPES, label="نوع الاستثناء")
+    start_date = forms.DateField(label="من تاريخ")
+    end_date = forms.DateField(label="إلى تاريخ")
+    boundary_time = forms.TimeField(label="الساعة")
+    content = forms.CharField(max_length=1000, label="محتوى الطلب")
+    #: م-31: المرفقُ إلزاميّ — والخدمةُ تفحصه (النوع والحجم) وترفض غيابَه باسم النموذج.
+    evidence_file = forms.FileField(required=False, label="المرفق (ما يثبت الحاجة)")
+    evidence = forms.CharField(max_length=300, required=False, label="وصف المرفق")
+
+
+class ExceptionDecisionForm(forms.Form):
+    decision = forms.ChoiceField(choices=[("approve", "موافق"), ("reject", "غير موافق")])
+    feedback = forms.CharField(max_length=500, required=False)
+
+
+class AssignmentForm(forms.Form):
+    """تكليفُ موظّفٍ بأعباء وظيفة المكلِّف (م-43 من النظام الوظيفيّ)."""
+
+    assignee = forms.UUIDField(error_messages={"required": "اختر من تكلّفه."})
+    start_date = forms.DateField(label="من تاريخ")
+    end_date = forms.DateField(label="إلى تاريخ")
+    reason = forms.CharField(max_length=300, label="سبب التكليف")
+    reference = forms.CharField(max_length=200, required=False, label="مرجع القرار")
+
+
+class AttendanceExemptionForm(forms.Form):
+    """إعفاءُ موظّفٍ أو أكثر من الرصد اليوميّ — بلا سببٍ (بيانةٌ صحّيّةٌ محتملة)."""
+
+    staff = forms.MultipleChoiceField(
+        choices=[], error_messages={"required": "اختر موظّفاً واحداً على الأقلّ."}
+    )
+    start_date = forms.DateField(label="من تاريخ")
+    end_date = forms.DateField(label="إلى تاريخ", required=False)
+    reference = forms.CharField(max_length=200, required=False, label="مرجع القرار")
+
+    def __init__(self, *args: Any, candidates: Any = (), **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.fields["staff"].choices = [(str(c.pk), c.full_name) for c in candidates]
+
+
+class PermitReviewForm(forms.Form):
+    decision = forms.ChoiceField(choices=[("approve", "اعتماد"), ("reject", "رفض")])
+    rejection_reason = forms.CharField(max_length=300, required=False)
+    written_approval = forms.CharField(max_length=300, required=False)
+
+
+class AttendanceMarkForm(forms.Form):
+    staff_id = forms.UUIDField()
+    date = forms.DateField()
+    status = forms.ChoiceField(choices=STAFF_ATTENDANCE_STATUS)
+    check_in = forms.TimeField(required=False)
+    check_out = forms.TimeField(required=False)
+    absence_type = forms.ChoiceField(choices=[("", ""), *ABSENCE_TYPES], required=False)
+    accepted_excuse = forms.CharField(max_length=300, required=False)

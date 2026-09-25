@@ -22,6 +22,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from functools import cache
+from typing import Any
 
 from core.parent_consent import holds_parent_membership
 from core.permissions import expand_roles, role_required
@@ -65,6 +66,17 @@ def _holds_a_wing(user) -> bool:
     from core.models.academic import Wing
 
     return Wing.is_held_by(user)
+
+
+def _delegated(key: str) -> Callable:
+    """منحٌ لا يقرؤه الدور: القدرةُ المفوَّضةُ باسم مستخدمٍ بمنحٍ فعّال (`core/capability_grants.py`)."""
+
+    def check(user: Any) -> bool:
+        from core.capability_grants import holds
+
+        return holds(user, key)
+
+    return check
 
 
 @cache
@@ -130,6 +142,96 @@ def registry() -> dict[str, Capability]:
         # ── شؤون الموظّفين والتدقيق ─────────────────────────────────
         _cap("staff_affairs.manage", "إدارةُ شؤون الموظّفين", P.STAFF_AFFAIRS_MANAGE),
         _cap(
+            "staff_affairs.own_permits",
+            "طلبُ إذنٍ قصيرٍ للموظّف نفسه",
+            P.ALL_STAFF_ROLES,
+            scope=(
+                "طلباتُ المستخدم نفسِه ورصيدُه، واستثناءاتُه (نموذج 03) لغير المدير — "
+                "وإذنُ المدير تُثبت السكرتاريةُ اعتمادَ رئيسه"
+            ),
+            basis=(
+                "07_forms_catalog.md:13 (نموذج 02) و:14 (نموذج 03) — يقدّمه الموظّف ويوقّعه؛ "
+                "وسجلُّ الاستئذانات المدرسيّ (07-نماذج المدرسة/07) أوّلُ صفوفه المدير (B3:C3)"
+            ),
+        ),
+        _cap(
+            "staff_affairs.attendance_record",
+            "رصدُ حضور الموظّفين اليوميّ",
+            {"principal", "secretary", "vice_admin", "vice_academic"},
+            scope=(
+                "السكرتيرُ والمديرُ ومن كُلّف بأعباء المدير للكادر كلِّه؛ والنائبان لمن تحت "
+                "مسؤوليتهما وحدَهم (النائبُ الإداريّ للإداريّين، والأكاديميّ للأكاديميّين): "
+                "يرصدون ويقبلون العذر لهم لا لغيرهم — قرارُ المالك 2026-09-19"
+            ),
+            basis=(
+                "03_job_descriptions_rbac.md:101 السكرتير «متابعة الحضور والانصراف للموظفين»؛ "
+                "rbac_permissions_matrix.md:55 كتابة ATTENDANCE؛ والمديرُ مالكُ الوحدات (:45)؛ "
+                "وبطاقةُ نائب الشؤون الإدارية «الإنابة عن المدير في مهامه في حال غيابه»، ومنها "
+                "قبولُ العذر (م-7 وم-24 من docs/compliance/staff_attendance_spec.md)"
+            ),
+        ),
+        _cap(
+            "staff_affairs.attendance_report",
+            "تقريرُ حضور الموظّفين الشهريّ",
+            {"principal", "vice_admin", "vice_academic", "secretary"},
+            scope="المديرُ والسكرتيرُ للمدرسة؛ والنائبُ لمن يتبعه في «reports_to» وحدَهم",
+            basis=(
+                "السكرتير «متابعة الحضور والانصراف للموظفين» (03_job_descriptions_rbac.md:101)؛ "
+                "والمديرُ رأسُ الهيكل (rbac_permissions_matrix.md:45)؛ والنائبُ الإداريّ "
+                "«متابعة وتقييم أداء من يندرج تحت مسؤولياته» (:48) والأكاديميّ «تقييم "
+                "المنسقين والمعلمين» (:50)"
+            ),
+        ),
+        _cap(
+            "staff_affairs.permits_review",
+            "مراحلُ اعتماد الأذونات القصيرة",
+            {"principal", "vice_admin", "vice_academic", "secretary", "coordinator"},
+            scope=(
+                "الطلباتُ في مربّع المستخدم وحدَها: السكرتاريةُ للرصيد، ومنسّقُ المادّة لإذن "
+                "معلّمي قسمه قبل النائب (قرارُ المدرسة)، والنائبُ المختصُّ "
+                "لمربّعَي المسؤول المباشر والنائب المسؤول، والمديرُ للاعتماد ولنموذج 03 — "
+                "ونائبُ الشؤون الإدارية فيهما حين تقوم الإنابة بغياب المدير المرصود (م-25)"
+            ),
+            basis=(
+                "نموذج 02 (أصل PDF ص1) بترتيب مربّعاته: السكرتارية ← المسؤول المباشر "
+                "والنائب المسؤول ← الإدارة ← مدير المدرسة (م-19 من "
+                "docs/compliance/staff_attendance_spec.md)؛ والمسؤولُ المباشرُ نائبُ المدير "
+                "المختصُّ بنصّ ترويسة بطاقات الوصف الوظيفيّ لا منسّقُ القسم (م-21)؛ ونموذج "
+                "03 «استخدام مدير المدرسة»؛ والإنابةُ «عن المدير في مهامه في حال غيابه» "
+                "(بطاقة نائب الشؤون الإدارية 1034، م-24 وم-25)"
+            ),
+        ),
+        _cap(
+            "staff_affairs.assignments",
+            "تكليفُ موظّفٍ بأعباء وظيفة (م-43)",
+            {"principal", "vice_admin", "vice_academic"},
+            scope=(
+                "كلٌّ عن وظيفته وحدَها: المديرُ يكلّف نائبَيه (وغيرَهما إن غاب النائبان معاً)، "
+                "والنائبُ الأكاديميّ أحدَ المنسّقين، والنائبُ الإداريّ أحدَ من تحت مسؤوليته"
+            ),
+            basis=(
+                "النظام الوظيفيّ لموظفي المدارس (قرار مجلس الوزراء 32/2019) م-43: «يجوز لمدير "
+                "المدرسة ندب الموظف للقيام مؤقتاً بأعباء وظيفة أخرى داخل المدرسة»، وقانون "
+                "الموارد البشرية 15/2016 م-53؛ وقرارُ المدرسة 2026-09-19 في توزيع التكليف على "
+                "النائبين (docs/compliance/staff_attendance_spec.md، م-25)"
+            ),
+        ),
+        _cap(
+            "staff_affairs.exemptions",
+            "الإعفاءُ من رصد الحضور اليوميّ",
+            {"principal", "vice_admin"},
+            scope=(
+                "المديرُ ونائبُه الإداريّ: يعفيان موظّفاً أو أكثر من الرصد اليوميّ لمدّةٍ أو بلا "
+                "نهاية، فلا يدخل لوحةَ الرصد ولا تقريرَ الغياب الشهريّ ولا إخطارَ الخصم"
+            ),
+            basis=(
+                "قرارُ المالك 2026-09-21 (docs/compliance/staff_attendance_spec.md، ق-16): "
+                "موظّفٌ لا يداوم بحكم وضعه الوظيفيّ يبقى حسابُه، ولا يُرصد غائباً فيُخصم منه "
+                "(سياسة الحضور ت/د 2027/01، البند 5.1). ولا يُخزَّن سببُ الإعفاء: بيانةٌ صحّيّةٌ "
+                "محتملة (قانون 13/2016)"
+            ),
+        ),
+        _cap(
             "audit.permissions_log",
             "سجلُّ تغييرات الصلاحيّات",
             {"principal", "vice_admin", "vice_academic"},
@@ -137,7 +239,9 @@ def registry() -> dict[str, Capability]:
         _cap(
             "breach.manage",
             "تقاريرُ خرق البيانات",
-            {"principal", "vice_admin", "vice_academic", "admin"},
+            # مطوّرُ المنصّة يمارس دورَ مسؤول حماية البيانات، ويصله تنبيهُ مهلة الـ72 ساعة
+            # (`_breach_inapp_recipients`) برابط الصفحة — فلا يُحجب عنها.
+            {"principal", "vice_admin", "vice_academic", "admin", "platform_developer"},
         ),
         # ── الإشعارات والتحليلات ────────────────────────────────────
         _cap("notifications.broadcast", "إدارةُ الإشعارات والإرسالُ الجماعيّ", leadership),
@@ -194,8 +298,9 @@ def registry() -> dict[str, Capability]:
             "workload.edit",
             "إدخالُ خطط الأنصبة",
             WORKLOAD[EDIT],
-            scope="قسمُ المنسّق",
-            basis="افتراضٌ موصى به — تُبدّله المدرسة (WorkloadGovernance)",
+            scope="قسمُ المنسّق — وكلُّ الأقسام لمُشغِّل الجدول",
+            basis="افتراضٌ موصى به — تُبدّله المدرسة (WorkloadGovernance)؛ ومُشغِّلُ الجدول (`schedule.operator`) يُدخل بمنحه",
+            grant=_delegated("schedule.operator"),
         ),
         _cap(
             "workload.review",
@@ -230,12 +335,25 @@ def registry() -> dict[str, Capability]:
         _cap("library.lend", "الإعارةُ والإرجاع", {"librarian", "principal", "vice_admin"}),
         _cap("library.borrowings_all", "سجلُّ استعارات المدرسة", P.LIBRARY_BORROWINGS_ALL),
         _cap("transport.access", "وحدةُ النقل", P.TRANSPORT_FULL | P.TRANSPORT_MANAGE),
+        # ── الأدوات التقنيّة ─────────────────────────────────────────
+        _cap(
+            "it_admin.reset_passwords",
+            "إعادةُ تعيين كلمات مرور المستخدمين",
+            {"it_technician"},
+            basis="قرارُ المالك 2026-09-22",
+        ),
         # ── الكنترول ────────────────────────────────────────────────
         _cap(
             "exam_control.access",
             "نظامُ الكنترول",
             P.EXAM_CONTROL_ACCESS,
             basis="افتراضُ المنصّة — والنصُّ الوزاريُّ يجعله لجنةً موقوتة (الدراسة، ملحق د)",
+        ),
+        _cap(
+            "exam_control.report_incident",
+            "تسجيلُ حادثةِ اختبارٍ ومراجعتُها",
+            P.EXAM_CONTROL_REPORT_INCIDENT,
+            basis="قرارُ 2026-09-15 (النطاق) وقرارُ المستخدم 2026-09-17 (لا شيءَ آخر من الكنترول)",
         ),
         # ── الحضور والجدول ──────────────────────────────────────────
         _cap(
@@ -252,6 +370,11 @@ def registry() -> dict[str, Capability]:
             },
         ),
         _cap("operations.reports", "تقاريرُ الجدول والحضور", P.OPERATIONS_REPORTS),
+        _cap(
+            "operations.substitutes_manage",
+            "تسجيلُ غياب معلّمٍ وتعيينُ بديله",
+            P.OPERATIONS_SUBSTITUTES_MANAGE,
+        ),
         _cap(
             "schedule.day",
             "جدولُ اليوم",
@@ -309,6 +432,29 @@ def registry() -> dict[str, Capability]:
         _cap("schedule.settings", "إعداداتُ الجدول والتفريغات", P.SCHEDULE_SETTINGS),
         _cap("schedule.admin", "إعدادُ الجدول الإداريّ", P.SCHEDULE_ADMIN),
         _cap("schedule.manage", "توزيعاتُ الموادّ", P.SCHEDULE_MANAGE),
+        _cap(
+            "schedule.operator",
+            "مُشغِّلُ الجدول العامّ — إسنادُ الموادّ وتوليدُ الجدول",
+            P.SCHEDULE_ADMIN,
+            scope="المدرسة (كلُّ الأقسام)",
+            basis=(
+                "قرارُ المالك 2026-09-25 (التذكرة SOS-20260924-1CFE): قدرةٌ مفوَّضةٌ باسم المستخدم "
+                "يمنحها ويسحبها المديرُ والنائبُ الأكاديميّ ومطوّرُ المنصّة — إدخالُ الإسناد لكلّ الأقسام "
+                "بلا وقفِ المنسّقين، وتوليدُ الجدول؛ لا اعتمادَ ولا مراجعةَ ولا إعداداتٍ. الأدوارُ هنا من "
+                "يولّد الجدولَ اليوم (`schedule.admin`) فلا يفقد أحدٌ ما يملك"
+            ),
+            grant=_delegated("schedule.operator"),
+        ),
+        _cap(
+            "schedule.approve",
+            "اعتمادُ الجدول",
+            P.SCHEDULE_APPROVE,
+            basis=(
+                "قرارُ المالك 2026-09-25 (جلسةُ الجدول): المديرُ والنائبُ الأكاديميّ، والمطوّرُ استثناءً "
+                "في أيّام الدوام بسببٍ إلزاميٍّ وتدقيق — ولا النائبُ الإداريّ. تُعرَّف هنا ويربطها بواجهة "
+                "الاعتماد مسارُ الجدول"
+            ),
+        ),
         _cap(
             "swap.request",
             "طلبُ تبديل حصّة",

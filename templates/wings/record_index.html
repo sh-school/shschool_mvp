@@ -4,6 +4,9 @@
 
 {% block title %}رصد الغياب{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}page-noscroll{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/wings/" parent_label="أجنحة المدرسة" current="رصد الغياب" %}
 {% endblock %}
@@ -16,6 +19,8 @@
       {% field "date" "اليوم" type="date" value=day|date:'Y-m-d' hide_label=True %}
       <button type="submit" class="btn-secondary btn-sm">اعرض</button>
     </form>
+    {% callout "hint" %}تُرصد كلُّ حصّةٍ بدخول الفصل، والحصّةُ التي لم تُثبَّت حتى خمس دقائق بعد نهايتها
+    تبقى «لم تُرصد». وشعبةٌ «لم تُرصد» ليست شعبةً كلُّها حاضر.{% endcallout %}
   {% endpage_header %}
 
   {% include "wings/partials/student_search_form.html" %}
@@ -23,20 +28,16 @@
   {% if not school_day.is_open %}
     {% include "wings/partials/day_off.html" with dated=True %}
   {% else %}
+    <div class="wing-cols">
     {% for panel in panels %}
     {% include "wings/partials/record_panel.html" %}
     {% empty %}
-      <div class="wing-warn">
-        {% icon "status_warning" %}
-        لا جناحَ مُسنَدٌ إليك اليوم — راجع «تغطية الأجنحة».
-      </div>
+      {% callout "info" show=True %}لا جناحَ مُسنَدٌ إليك اليوم — راجع «تغطية الأجنحة».{% endcallout %}
     {% endfor %}
+    </div>
   {% endif %}
 
-  <p class="bell-note">
-    تُرصد كلُّ حصّةٍ بدخول الفصل، والحصّةُ التي لم تُثبَّت حتى خمس دقائق بعد نهايتها
-    تبقى «لم تُرصد». وشعبةٌ «لم تُرصد» ليست شعبةً كلُّها حاضر.
-  </p>
+  
 
 </div>
 {% endblock %}

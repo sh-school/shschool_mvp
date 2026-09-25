@@ -64,11 +64,11 @@ class DeadLetterMessage(models.Model):
         related_name="dead_letter",
         verbose_name="التسليم",
     )
-    kind = models.CharField(max_length=10, choices=KIND)
-    payload = models.JSONField(default=dict)
-    error = models.TextField(blank=True)
-    resolved = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    kind = models.CharField(max_length=10, choices=KIND, verbose_name="نوع الرسالة")
+    payload = models.JSONField(default=dict, verbose_name="المحتوى")
+    error = models.TextField(blank=True, verbose_name="الخطأ")
+    resolved = models.BooleanField(default=False, verbose_name="عولِجت")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "رسالة فاشلة (DLQ)"
@@ -116,7 +116,9 @@ class NotificationLog(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="notification_logs")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="notification_logs", verbose_name="المدرسة"
+    )
     # [B4-0] الرابط إلى التسليم — خامد حتى يوجد كاتب.
     #
     # `null=True` معناه "سابق للخطّ"، وهو وصف صادق للصفوف القائمة. ولا backfill:
@@ -141,19 +143,26 @@ class NotificationLog(models.Model):
         verbose_name="الطالب",
     )
     recipient = models.CharField(max_length=200, verbose_name="المستلم (email/رقم)")
-    channel = models.CharField(max_length=10, choices=CHANNEL, default="email")
-    notif_type = models.CharField(max_length=20, choices=TYPE, default="custom")
+    channel = models.CharField(
+        max_length=10, choices=CHANNEL, default="email", verbose_name="القناة"
+    )
+    notif_type = models.CharField(
+        max_length=20, choices=TYPE, default="custom", verbose_name="نوع الإشعار"
+    )
     subject = models.CharField(max_length=300, blank=True, verbose_name="الموضوع")
     body = models.TextField(verbose_name="نص الرسالة")
-    status = models.CharField(max_length=10, choices=STATUS, default="pending", db_index=True)
-    error_msg = models.TextField(blank=True)
-    sent_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    status = models.CharField(
+        max_length=10, choices=STATUS, default="pending", db_index=True, verbose_name="الحالة"
+    )
+    error_msg = models.TextField(blank=True, verbose_name="رسالة الخطأ")
+    sent_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="تاريخ الإرسال")
     sent_by = models.ForeignKey(
         CustomUser,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="sent_notifications",
+        verbose_name="أرسله",
     )
 
     class Meta:
@@ -169,25 +178,40 @@ class NotificationLog(models.Model):
 class NotificationSettings(models.Model):
     """إعدادات الإشعارات لكل مدرسة"""
 
-    school = models.OneToOneField(School, on_delete=models.CASCADE, related_name="notif_settings")
+    school = models.OneToOneField(
+        School, on_delete=models.CASCADE, related_name="notif_settings", verbose_name="المدرسة"
+    )
 
     # البريد الإلكتروني
-    email_enabled = models.BooleanField(default=True)
+    email_enabled = models.BooleanField(default=True, verbose_name="البريد الإلكترونيّ مفعّل")
     absence_threshold = models.IntegerField(default=3, verbose_name="حد الغياب (حصص)")
-    absence_email_enabled = models.BooleanField(default=True)
-    fail_email_enabled = models.BooleanField(default=True)
-    from_name = models.CharField(max_length=100, default="إدارة المدرسة")
-    reply_to = models.EmailField(blank=True)
+    absence_email_enabled = models.BooleanField(default=True, verbose_name="بريد الغياب مفعّل")
+    fail_email_enabled = models.BooleanField(default=True, verbose_name="بريد النتيجة مفعّل")
+    from_name = models.CharField(max_length=100, default="إدارة المدرسة", verbose_name="اسم المرسِل")
+    reply_to = models.EmailField(blank=True, verbose_name="عنوان الردّ")
 
     # SMS (Twilio أو أي مزود)
-    sms_enabled = models.BooleanField(default=False)
+    sms_enabled = models.BooleanField(default=False, verbose_name="الرسائل النصّيّة مفعّلة")
     sms_provider = models.CharField(
-        max_length=20, default="twilio", choices=[("twilio", "Twilio"), ("local", "محلي")]
+        max_length=20,
+        default="twilio",
+        choices=[("twilio", "Twilio"), ("local", "محلي")],
+        verbose_name="مزوّد الرسائل النصّيّة",
     )
-    sms_from_number = models.CharField(max_length=20, blank=True)
+    sms_from_number = models.CharField(max_length=20, blank=True, verbose_name="رقم المرسِل")
     # ── VULN-003 Fix: Fernet encryption for Twilio credentials (CWE-312) ──
-    _twilio_account_sid = models.TextField(blank=True, default="", db_column="twilio_account_sid")
-    _twilio_auth_token = models.TextField(blank=True, default="", db_column="twilio_auth_token")
+    _twilio_account_sid = models.TextField(
+        blank=True,
+        default="",
+        db_column="twilio_account_sid",
+        verbose_name="معرّف حساب Twilio (مشفّر)",
+    )
+    _twilio_auth_token = models.TextField(
+        blank=True,
+        default="",
+        db_column="twilio_auth_token",
+        verbose_name="رمز مصادقة Twilio (مشفّر)",
+    )
 
     @property
     def twilio_account_sid(self):
@@ -207,13 +231,17 @@ class NotificationSettings(models.Model):
 
     # نصوص الرسائل (قابلة للتخصيص)
     absence_email_subject = models.CharField(
-        max_length=200, default="تنبيه: غياب متكرر للطالب {student_name}"
+        max_length=200,
+        default="تنبيه: غياب متكرر للطالب {student_name}",
+        verbose_name="عنوان بريد الغياب",
     )
     fail_email_subject = models.CharField(
-        max_length=200, default="إشعار: نتيجة الطالب {student_name}"
+        max_length=200,
+        default="إشعار: نتيجة الطالب {student_name}",
+        verbose_name="عنوان بريد النتيجة",
     )
 
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "إعدادات الإشعارات"
@@ -236,14 +264,19 @@ class PushSubscription(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     user = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="push_subscriptions"
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="push_subscriptions",
+        verbose_name="المستخدم",
     )
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name="push_subscriptions")
+    school = models.ForeignKey(
+        School, on_delete=models.CASCADE, related_name="push_subscriptions", verbose_name="المدرسة"
+    )
     # بيانات الاشتراك من المتصفح
-    endpoint = models.TextField(unique=True, verbose_name="Push Endpoint")
-    p256dh = models.TextField(verbose_name="p256dh key")
+    endpoint = models.TextField(unique=True, verbose_name="عنوان الاشتراك")
+    p256dh = models.TextField(verbose_name="مفتاح التشفير (p256dh)")
     # ── HIGH-003 Fix: Fernet encryption for push auth secret ──
-    _auth = models.TextField(verbose_name="auth secret (encrypted)", db_column="auth", default="")
+    _auth = models.TextField(verbose_name="مفتاح المصادقة", db_column="auth", default="")
 
     @property
     def auth(self):
@@ -254,10 +287,10 @@ class PushSubscription(models.Model):
         self._auth = encrypt_field(value) if value else ""
 
     # معلومات الجهاز
-    user_agent = models.CharField(max_length=300, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    last_used = models.DateTimeField(null=True, blank=True)
-    is_active = models.BooleanField(default=True)
+    user_agent = models.CharField(max_length=300, blank=True, verbose_name="المتصفّح")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
+    last_used = models.DateTimeField(null=True, blank=True, verbose_name="آخر استخدام")
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
 
     class Meta:
         verbose_name = "اشتراك Push"
@@ -334,26 +367,40 @@ class InAppNotification(models.Model):
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)
     user = models.ForeignKey(
-        CustomUser, on_delete=models.CASCADE, related_name="in_app_notifications"
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="in_app_notifications",
+        verbose_name="المستخدم",
     )
     school = models.ForeignKey(
-        School, on_delete=models.CASCADE, related_name="in_app_notifications"
+        School,
+        on_delete=models.CASCADE,
+        related_name="in_app_notifications",
+        verbose_name="المدرسة",
     )
     title = models.CharField(max_length=300, verbose_name="العنوان")
     body = models.TextField(verbose_name="النص", blank=True)
     event_type = models.CharField(
-        max_length=20, choices=EVENT_TYPES, default="general", db_index=True
+        max_length=20,
+        choices=EVENT_TYPES,
+        default="general",
+        db_index=True,
+        verbose_name="نوع الحدث",
     )
-    priority = models.CharField(max_length=10, choices=PRIORITY, default="medium")
+    priority = models.CharField(
+        max_length=10, choices=PRIORITY, default="medium", verbose_name="الأولويّة"
+    )
     # ربط بالكائن المصدر (اختياري)
     related_object_id = models.CharField(
         max_length=100, blank=True, verbose_name="معرّف الكائن المرتبط"
     )
     related_url = models.CharField(max_length=500, blank=True, verbose_name="رابط مباشر")
     # حالة القراءة
-    is_read = models.BooleanField(default=False, db_index=True)
-    read_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    is_read = models.BooleanField(default=False, db_index=True, verbose_name="مقروء")
+    read_at = models.DateTimeField(null=True, blank=True, verbose_name="وقت القراءة")
+    created_at = models.DateTimeField(
+        auto_now_add=True, db_index=True, verbose_name="تاريخ الإنشاء"
+    )
 
     objects = InAppNotificationManager()
 
@@ -388,25 +435,28 @@ class UserNotificationPreference(models.Model):
     """
 
     user = models.OneToOneField(
-        CustomUser, on_delete=models.CASCADE, related_name="notification_preferences"
+        CustomUser,
+        on_delete=models.CASCADE,
+        related_name="notification_preferences",
+        verbose_name="المستخدم",
     )
 
     # تفعيل القنوات
     in_app_enabled = models.BooleanField(default=True, verbose_name="إشعارات المنصة")
-    push_enabled = models.BooleanField(default=True, verbose_name="Push Notifications")
-    whatsapp_enabled = models.BooleanField(default=False, verbose_name="WhatsApp")
+    push_enabled = models.BooleanField(default=True, verbose_name="إشعارات المتصفّح")
+    whatsapp_enabled = models.BooleanField(default=False, verbose_name="واتساب")
     email_enabled = models.BooleanField(default=True, verbose_name="البريد الإلكتروني")
-    sms_enabled = models.BooleanField(default=False, verbose_name="SMS")
+    sms_enabled = models.BooleanField(default=False, verbose_name="الرسائل النصّيّة")
 
     # تفضيلات حسب نوع الحدث (JSON: {"behavior": ["in_app","email"], "absence": ["in_app","whatsapp","email"]})
     # فارغ = استخدام الإعدادات الافتراضية
     event_channels = models.JSONField(default=dict, blank=True, verbose_name="قنوات حسب نوع الحدث")
 
-    # ساعات الهدوء — لا ترسل إشعارات خارجية في هذه الفترة
+    # ساعات الهدوء — الإشعارات الخارجية تُؤجَّل إلى انتهائها (إشعار المنصّة يصل فوراً)
     quiet_hours_start = models.TimeField(null=True, blank=True, verbose_name="بداية ساعات الهدوء")
     quiet_hours_end = models.TimeField(null=True, blank=True, verbose_name="نهاية ساعات الهدوء")
 
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "تفضيلات إشعارات"
@@ -440,15 +490,13 @@ class UserNotificationPreference(models.Model):
 
     def is_quiet_hours(self):
         """هل الوقت الحالي ضمن ساعات الهدوء؟"""
-        if not self.quiet_hours_start or not self.quiet_hours_end:
-            return False
+        # الحكمُ في مكانٍ واحد (`notifications/quiet_hours.py`) — تعبر النافذةُ
+        # منتصفَ الليل، والطرفُ الأخير خارجَها.
         from django.utils import timezone as tz
 
-        now = tz.localtime().time()
-        if self.quiet_hours_start <= self.quiet_hours_end:
-            return self.quiet_hours_start <= now <= self.quiet_hours_end
-        else:  # يعبر منتصف الليل
-            return now >= self.quiet_hours_start or now <= self.quiet_hours_end
+        from .quiet_hours import in_quiet_window
+
+        return in_quiet_window(self.quiet_hours_start, self.quiet_hours_end, tz.localtime().time())
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -491,7 +539,9 @@ class NotificationDispatch(models.Model):
         related_name="notification_dispatches",
         verbose_name="أطلقها",
     )
-    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True, db_index=True, verbose_name="تاريخ الإنشاء"
+    )
 
     class Meta:
         verbose_name = "واقعة إشعار"
@@ -617,7 +667,7 @@ class NotificationDelivery(models.Model):
     # هو ما نتجنّبه: أسوأ من غيابه.
     status_changed_at = models.DateTimeField(default=timezone.now, verbose_name="آخر انتقال")
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "تسليم إشعار"
@@ -700,12 +750,14 @@ class NotificationEnqueueIntent(models.Model):
     # قد استلم الرسالة ثم مات المنتج قبل تسجيل ذلك، فتُعاد رسالة في الوسيط —
     # وسياج التسليم مصمَّم لاحتمال ذلك بالضبط.
     enqueue_token = models.UUIDField(null=True, blank=True, verbose_name="رمز الطبر")
-    enqueue_expires_at = models.DateTimeField(null=True, blank=True)
+    enqueue_expires_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="انتهاء مهلة الإدراج"
+    )
     last_enqueue_attempt_at = models.DateTimeField(
         null=True, blank=True, verbose_name="آخر محاولة طبر"
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
 
     class Meta:
         verbose_name = "نيّة طبر"

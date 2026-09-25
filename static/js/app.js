@@ -34,8 +34,10 @@
   var cmdResults = null;
   var searchTimer = null;
   var activeIdx = -1;
+  var opener = null;
 
   function openPalette() {
+    opener = document.activeElement;
     palette = document.getElementById('cmd-palette');
     cmdInput = document.getElementById('cmd-input');
     cmdResults = document.getElementById('cmd-results');
@@ -47,9 +49,19 @@
     setTimeout(function () { cmdInput.focus(); }, 50);
   }
 
+  /* يُنادى من زرّ الترويسة بـ`data-call` (actions.js — قائمةٌ بيضاء) وبالاختصار معاً. */
+  window.openPalette = openPalette;
+
   window.closePalette = function () {
     if (palette) palette.classList.add('cmd-hidden');
+    /* يعود التركيزُ إلى ما فتحها (الزرُّ أو الصفحة) — وإلّا ضاع موضعُ من يقرأ بلوحة المفاتيح أو قارئ الشاشة. */
+    if (opener && opener.isConnected && typeof opener.focus === 'function') opener.focus();
+    opener = null;
   };
+
+  /* أيقونةُ نتيجةٍ من قاموس core/icons.py — المفتاحُ اسمٌ دلاليٌّ (لا رمزٌ خامّ) يصله JSON
+     من core/views_search.py، والرسمُ من window.iconSvg في base.js (المالكُ الوحيد لمسار
+     الورقة الخارجيّة). مفتاحٌ غيرُ معروفٍ يُرسم فارغاً بدل أن يكسر النتيجةَ كلَّها. */
 
   function renderResults(items) {
     if (!cmdResults) return;
@@ -59,7 +71,7 @@
     }
     cmdResults.innerHTML = items.map(function (r, i) {
       return '<a class="cmd-item" href="' + esc(r.url) + '" data-idx="' + i + '">'
-        + '<span class="cmd-item-icon">' + esc(r.icon) + '</span>'
+        + '<span class="cmd-item-icon">' + window.iconSvg(r.icon) + '</span>'
         + '<div class="cmd-item-text">'
         + '<div class="cmd-item-title">' + esc(r.title) + '</div>'
         + '<div class="cmd-item-sub">' + esc(r.sub) + '</div>'

@@ -3,13 +3,8 @@
 # تجميع كل نماذج core في مكان واحد للتوافق الخلفي الكامل
 # ══════════════════════════════════════════════════════════════════════
 
-# ── التوافق الخلفي مع النماذج المنقولة لتطبيقاتها ────────────────────
-# from core.models import HealthRecord  ← لا يزال يعمل
-from behavior.models import BehaviorInfraction, BehaviorPointRecovery  # noqa: F401,E402
-from clinic.models import ClinicVisit, HealthRecord  # noqa: F401,E402
-from library.models import BookBorrowing, LibraryActivity, LibraryBook  # noqa: F401,E402
-from transport.models import BusRoute, SchoolBus  # noqa: F401,E402
-
+# نماذجُ behavior وclinic وlibrary وtransport تُستورد من تطبيقاتها لا من هنا:
+# النواةُ لا تستورد من التطبيقات النازلة (البند 9).
 from ._crypto import _get_fernet, decrypt_field, encrypt_field, hmac_field  # noqa: F401
 from .academic import (  # noqa: F401
     AcademicYear,
@@ -42,7 +37,9 @@ from .base import (  # noqa: F401
     SoftDeleteModel,
     TimeStampedModel,
 )
+from .capability_grant import DELEGABLE_CAPABILITIES, CapabilityGrant  # noqa: F401
 from .department import Department  # noqa: F401
+from .export_job import ExportJob  # noqa: F401
 from .permission_audit import PermissionAuditLog  # noqa: F401
 from .school import School, _uuid  # noqa: F401
 from .stored_file import StoredFile  # noqa: F401
@@ -85,6 +82,9 @@ __all__ = [
     "ErasureRequest",
     "Department",
     "PermissionAuditLog",
+    "CapabilityGrant",
+    "DELEGABLE_CAPABILITIES",
+    "ExportJob",
     # re-exported from sub-apps
     "HealthRecord",
     "ClinicVisit",

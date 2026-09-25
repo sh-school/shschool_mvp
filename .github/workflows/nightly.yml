@@ -59,9 +59,9 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -81,6 +81,12 @@ jobs:
       - name: تثبيت المتطلبات
         run: pip install -r requirements-dev.txt
 
+      - name: تثبيت متصفّح Chromium (مع مكتبات النظام)
+        # اختباراتُ Playwright (tests/e2e وaxe والحمولة) تحتاج المتصفّح — وتُشغَّل في خطوةٍ
+        # منفصلةٍ أدناه، لأنّ fixture الجلسة تُبقي حلقةَ async قائمةً في العمليّة كلَّها.
+        # وWebKit لسقّاطة الجوال (tests/test_mobile_audit.py، محرّكُ iOS Safari).
+        run: playwright install --with-deps chromium webkit
+
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
 
@@ -88,14 +94,50 @@ jobs:
         # -p no:cacheprovider: لا cache (كل شيء من الصفر)
         # بدون -n auto (متسلسل — لاكتشاف الاختبار المتقلّب بسهولة)
         # العتبةُ من `[tool.coverage.report].fail_under` — pytest-cov يقرؤها.
+        # Playwright خارج هذه العمليّة: حلقةُ async التي يُبقيها fixture الجلسة تُسقط كلَّ
+        # اختبارٍ يلمس القاعدةَ بعده بـSynchronousOnlyOperation (27 فشلاً، 2026-09-19).
+        # والقائمةُ تُنسى: ملفّان أُضيفا بلا استثناء (#416 في 09-19، و09-22) فسقطت الليالي من 09-20
+        # حتّى 09-23. فحارسُ `tests/test_nightly_isolates_browser_tests.py` يُسقط البناءَ إن طلب ملفٌّ
+        # `pytest_playwright` ولم يُستثنَ هنا ويُشغَّل في الخطوة المنفصلة أدناه.
         run: |
           python -m pytest \
+            --ignore=tests/e2e \
+            --ignore=tests/test_a11y_axe_ratchet.py \
+            --ignore=tests/test_web_vitals_budget.py \
+            --ignore=tests/test_mobile_audit.py \
+            --ignore=tests/test_lighthouse_mobile.py \
+            --ignore=tests/test_action_cards_fit_narrow_screens.py \
+            --ignore=tests/test_page_nav_htmx_process.py \
             --junit-xml=test-results.xml \
             -p no:cacheprovider \
             --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov --cov-report=term
 
+      - name: "Playwright — e2e وaxe والحمولة (عمليّةٌ منفصلة)"
+        if: always()
+        env:
+          # كما في وظيفتَي axe وe2e في quality-gate.yml: fixtures المتصفّح تلمس القاعدةَ
+          # من داخل حلقة Playwright. ولا يُضبط على الخطوة الرئيسيّة فيُخفي أعطالاً حقيقيّة.
+          DJANGO_ALLOW_ASYNC_UNSAFE: "1"
+        run: |
+          python -m pytest tests/e2e tests/test_a11y_axe_ratchet.py \
+            $(ls tests/test_web_vitals_budget.py 2>/dev/null) \
+            tests/test_mobile_audit.py \
+            tests/test_action_cards_fit_narrow_screens.py \
+            tests/test_page_nav_htmx_process.py \
+            -p no:cacheprovider -v
+
+      # Q-03: Lighthouse للجوال على خمس صفحاتٍ رئيسة — ليلاً لا في البوّابة (ثلاثُ دقائق
+      # للصفحة، ودرجةُ الأداء تتذبذب)؛ راجع `tests/lighthouse_audit.py`. وNode في المُشغِّل
+      # أصلاً لـ`npx lighthouse`، والمتصفّحُ Chromium الذي ثبّته Playwright أعلاه.
+      - name: "Lighthouse للجوال — الأداء والوصوليّة (Q-03)"
+        if: always()
+        env:
+          DJANGO_ALLOW_ASYNC_UNSAFE: "1"
+          LIGHTHOUSE_RUN: "1"
+        run: python -m pytest tests/test_lighthouse_mobile.py -p no:cacheprovider -v -s
+
       - name: رفع نتائج الاختبارات
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: nightly-test-results
@@ -129,7 +171,7 @@ jobs:
       # التي في `deploy-railway.yml` (ليست PR، من github-actions[bot]، بالبادئة).
       - name: "الفشل: فتحُ قضيّةٍ أو التعليقُ على المفتوحة"
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prefix = '🌙 NIGHTLY FAILED';
@@ -137,7 +179,7 @@ jobs:
               `**Commit**: \`${context.sha}\``,
               `**Time**: ${new Date().toISOString()}`,
               `**Run**: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-              `**Result**: المجموعةُ الكاملةُ المتسلسلة فشلت — إمّا اختبارٌ متقلّبٌ يُخفيه التوزيع في البوّابة، أو التغطيةُ دون عتبة pyproject.`,
+              `**Result**: المجموعةُ الكاملةُ المتسلسلة فشلت — إمّا اختبارٌ متقلّبٌ يُخفيه التوزيع في البوّابة، أو التغطيةُ دون عتبة pyproject، أو انحدرت درجاتُ Lighthouse للجوال (خطوةُ Q-03).`,
             ].join('\n');
             const isOurs = (item) =>
               !item.pull_request &&
@@ -169,7 +211,7 @@ jobs:
 
       - name: "النجاح: إغلاقُ قضايا الفشل المفتوحة"
         if: success()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prefix = '🌙 NIGHTLY FAILED';

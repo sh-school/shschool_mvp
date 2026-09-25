@@ -10,8 +10,16 @@ import datetime as dt
 
 import pytest
 
+from core.academic_calendar import academic_year_for_school
 from core.dashboard_presentation import _delta, chunk_for_grid, present
-from tests.conftest import MembershipFactory, RoleFactory, UserFactory
+from operations.models import AbsenceAlert
+from tests.conftest import (
+    ClassGroupFactory,
+    MembershipFactory,
+    RoleFactory,
+    StudentEnrollmentFactory,
+    UserFactory,
+)
 
 
 class TestDeltaLabels:
@@ -100,8 +108,47 @@ def test_every_role_dashboard_is_drawn_with_the_shared_components(
 
 
 @pytest.mark.django_db
+def test_the_director_dashboard_shows_class_and_days_on_absence_alerts(
+    client_as, school, principal_user
+):
+    """السكرول الرأسيّ كان يدفع الرسمين البيانيّين خارج الشاشة (ملاحظة
+    المدير 2026-09-18): البطاقةُ انضمّت عموداً ثالثاً بجانبهما بدل قسمٍ
+    مستقلٍّ فوقهما، والصفُّ/الشعبةُ صار جزءاً من السطر — لا الاسم وحده."""
+    year = academic_year_for_school(school)
+    klass = ClassGroupFactory(school=school, academic_year=year)
+    student = UserFactory(full_name="طالبٌ متكرّر الغياب")
+    StudentEnrollmentFactory(student=student, class_group=klass)
+    AbsenceAlert.objects.create(
+        school=school,
+        student=student,
+        absence_count=7,
+        period_start=dt.date(2026, 9, 1),
+        period_end=dt.date(2026, 9, 10),
+        status="pending",
+    )
+
+    html = client_as(principal_user).get("/dashboard/").content.decode()
+
+    assert "طالبٌ متكرّر الغياب" in html
+    assert klass.short_label in html
+    assert "7 أيّام" in html
+    assert 'class="plain-list is-scroll"' in html
+
+
+@pytest.mark.django_db
+def test_the_alerts_card_stays_in_place_with_no_pending_alerts(client_as, principal_user):
+    """طلب المدير 2026-09-18: البطاقةُ الثالثةُ دائمةٌ لا تختفي — فاختفاؤها
+    يُخِلّ بشبكة الأعمدة الثلاثة (تعود عموداً واحداً فقط لا اثنين متجاورين
+    بجانب فراغ) كلّما خلا يومٌ من التنبيهات المعلّقة."""
+    html = client_as(principal_user).get("/dashboard/").content.decode()
+
+    assert "تنبيهات الغياب المتكرّر" in html
+    assert "لا تنبيهات معلّقة" in html
+
+
+@pytest.mark.django_db
 class TestTherapistWeekStats:
-    """أسبوعُ لوحة المعالج (`_get_therapist_ctx`) يبدأ الأحد لا الاثنين.
+    """أسبوعُ لوحة المعالج (`get_therapist_ctx`) يبدأ الأحد لا الاثنين.
 
     كان `today.weekday()` (Mon=0) يُستعمل مباشرةً بداية أسبوعٍ، فيُقصي الأحدَ
     والاثنينَ من أسبوعهما الصحيح — يظهر واضحاً حين يكون اليوم الثلاثاء: حصّةُ
@@ -131,24 +178,35 @@ class TestTherapistWeekStats:
         return teacher
 
     def test_sundays_session_counts_in_the_week_of_the_following_tuesday(self, school):
-        from core.views_dashboard import _get_therapist_ctx
+        from core.dashboard_selectors import get_therapist_ctx
 
         sunday = dt.date(2026, 9, 13)
         tuesday = dt.date(2026, 9, 15)
         teacher = self._teacher_with_session(school, sunday)
 
-        ctx = _get_therapist_ctx(teacher, school, tuesday)
+        ctx = get_therapist_ctx(teacher, school, tuesday)
 
         assert ctx["week_total"] == 1
         assert ctx["week_completed"] == 1
 
     def test_a_session_from_last_school_week_is_excluded(self, school):
-        from core.views_dashboard import _get_therapist_ctx
+        from core.dashboard_selectors import get_therapist_ctx
 
         last_thursday = dt.date(2026, 9, 10)
         tuesday = dt.date(2026, 9, 15)
         teacher = self._teacher_with_session(school, last_thursday)
 
-        ctx = _get_therapist_ctx(teacher, school, tuesday)
+        ctx = get_therapist_ctx(teacher, school, tuesday)
 
         assert ctx["week_total"] == 0
+
+
+@pytest.mark.django_db
+def test_the_director_numbers_share_one_card(client_as, principal_user):
+    """طلب المالك 2026-09-23: أرقامُ الحضور ونبضُ الأقسام في بطاقةٍ واحدة لا شريطٌ عائمٌ فوقها."""
+    html = client_as(principal_user).get("/dashboard/").content.decode()
+
+    card = html[html.index("نبض المدرسة") :]
+    card = card[: card.index("</section>")]
+    assert 'aria-label="اليوم"' in card
+    assert 'aria-label="نبض الأقسام"' in card

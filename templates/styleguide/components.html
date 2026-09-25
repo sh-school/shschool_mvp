@@ -1,5 +1,7 @@
 {% extends "base/base.html" %}
-{% load ui icons %}
+{% load static ui icons %}
+
+{% block extra_css %}<link rel="stylesheet" href="{% static 'css/styleguide.css' %}">{% endblock %}
 
 {% block title %}دليلُ الهويّة{% endblock %}
 
@@ -11,13 +13,22 @@
 <div class="exec-dash">
 
   {% page_header "دليلُ الهويّة" subtitle="المرجعُ الواحد: رموزُ :root، ووسومُ core/templatetags/ui.py، وأصنافُ القسم 39 — الأمثلةُ توضيحيّة" icon="wings" %}
-    <a href="{% url 'icon_preview' %}" class="btn-secondary btn-sm">{% icon "reinforcement" %} الأيقونات ({{ icon_count }})</a>
+    {% include "styleguide/_switch.html" with current="components" %}
   {% endpage_header %}
 
+  {# البطاقاتُ تتجاور بعرض حاجتها: span="wide" عمودان، و"full" السطرُ كلُّه (.card-flow). #}
+  <div class="card-flow">
+
   {# ══ 1 ══ #}
-  {% section_card "1 · لوحةُ الرموز" meta=":root · static/css/custom.css" icon="filter" empty="لم يُقرأ ملفُّ الأنماط" empty_sub="css/custom.css غيرُ موجودٍ في مسارات الملفّات الثابتة" %}{% if swatch_groups %}
+  {% section_card "1 · لوحةُ الرموز" meta=":root · static/css/custom/" icon="filter" span="full" empty="لم يُقرأ ملفُّ الأنماط" empty_sub="css/custom/ غيرُ موجودٍ في مسارات الملفّات الثابتة" %}{% if swatch_groups %}
+    {% comment %}كلُّ مجموعةٍ تُطوى — الأولى مفتوحة — فلا تمتدّ البطاقةُ بطول مئتَي رمز؛
+       والشريطُ في العنوان يُري ألوانَ المجموعة وهي مطويّة.{% endcomment %}
     {% for group in swatch_groups %}
-      <p class="sg-label">{{ group.label }} · {{ group.tokens|length }}</p>
+    <details class="sg-group"{% if forloop.first %} open{% endif %}>
+      <summary class="sg-group__summary">
+        <span class="sg-group__label">{{ group.label }} · {{ group.tokens|length }}</span>
+        <span class="sg-group__strip" aria-hidden="true">{% for name in group.tokens|slice:":24" %}<span style="--swatch:var(--{{ name }})"></span>{% endfor %}</span>
+      </summary>
       <ul class="sg-swatches">
         {% for name in group.tokens %}
           <li class="sg-swatch" style="--swatch:var(--{{ name }})">
@@ -29,17 +40,205 @@
           </li>
         {% endfor %}
       </ul>
+    </details>
     {% endfor %}
     <ul class="sg-rules">
       <li>القائمةُ تُقرأ من <code>:root</code> نفسِه — رمزٌ يُضاف هناك يظهر هنا بلا تعديل.</li>
       <li>القيمةُ المكتوبة تحت الاسم قيمةُ الوضع الحاليّ؛ بدِّل الوضعَ تتبدّل.</li>
       <li>في القالب: <code>var(--maroon-fg)</code> لا رقمٌ سداسيّ. واللونُ الذي يُحمل بياناً يُمرَّر متغيّراً: <code>style="--swatch:var(--maroon)"</code>.</li>
-      <li><code>-fg</code> يُقرأ نصّاً على سطحٍ محايد، والاسمُ بلا لاحقةٍ يملأ، و<code>--on-fill</code> ما يُكتب فوق الحشو.</li>
+      <li><code>-fg</code> يُقرأ نصّاً على سطحٍ محايد، والاسمُ بلا لاحقةٍ يملأ، و<code><bdi dir="ltr">--on-fill</bdi></code> ما يُكتب فوق الحشو.</li>
+      <li><b>الذهبيُّ لونُ تمييزٍ لا نصّ (D-15):</b> <code><bdi dir="ltr">--gold-mark</bdi></code> للأيقونة على العنّابيّ أو الداكن (تباينُه 4.2:1 على <code><bdi dir="ltr">--maroon</bdi></code>)، والحدودُ والعلاماتُ <code><bdi dir="ltr">--gold</bdi></code>؛ وعلى السطح الفاتح 2.2:1 فلا يُكتب هناك. والنصُّ <code>-fg</code> أو <code><bdi dir="ltr">--text-*</bdi></code> — ويمنع <code>test_identity_roles</code> كتابةَ <code>gold</code> و<code>palm</code> و<code>sea</code> و<code>maroon-light</code> لوناً للنصّ.</li>
     </ul>
   {% endif %}{% endsection_card %}
 
   {# ══ 2 ══ #}
-  {% section_card "2 · شريطُ الأرقام" meta="kpi_strip · kpi" icon="stats" %}
+  {% section_card "2 · الخطّ" meta="Tajawal · text · lh" icon="document" span="full" %}
+    <div class="ui-grid-2">
+    <div class="sg-stack">
+      <p class="sg-label">العائلةُ والأوزان — Tajawal محلّيّ (WOFF2) بثلاثة أوزان</p>
+      <ul class="sg-weights">
+        <li class="sg-weight" style="--weight:400"><span class="sg-weight__sample">مدرسةُ الشحانية 0123456789</span><span class="sg-weight__use">400 · النصّ</span></li>
+        <li class="sg-weight" style="--weight:500"><span class="sg-weight__sample">مدرسةُ الشحانية 0123456789</span><span class="sg-weight__use">500 · التسميات</span></li>
+        <li class="sg-weight" style="--weight:700"><span class="sg-weight__sample">مدرسةُ الشحانية 0123456789</span><span class="sg-weight__use">700 · العناوين والأرقام</span></li>
+      </ul>
+      <p class="sg-label">ارتفاعُ السطر</p>
+      <ul class="sg-tokens">
+        {% for t in scales.leading %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
+      </ul>
+    </div>
+    <div class="sg-stack">
+      <p class="sg-label">سلّمُ الأحجام · {{ scales.text|length }}</p>
+      <ul class="sg-type-scale">
+        {% for t in scales.text %}
+          <li class="sg-type" style="--size:var(--{{ t.name }})">
+            <span class="sg-type__sample">الحضورُ اليوميّ 98%</span>
+            <code class="sg-type__name"><bdi dir="ltr">--{{ t.name }}</bdi></code>
+            <span class="sg-type__value"><bdi dir="ltr">{{ t.value }}</bdi></span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    </div>
+    <ul class="sg-rules">
+      <li>الحجمُ بـ<code>var(--text-*)</code> أو <code>rem</code> لا <code>px</code> — فيتبع تكبيرَ المستخدم؛ والجذرُ 16px لا يُضبط (<code>test_px_tokens</code>).</li>
+      <li>النصُّ العربيُّ الطويل بـ<code><bdi dir="ltr">--lh-ar</bdi></code> لتتّسع الحركات، والعناوينُ بـ<code><bdi dir="ltr">--lh-tight</bdi></code>.</li>
+      <li>الأرقامُ في الجداول بعرضٍ ثابت (<code>td.num</code> ← <code>tabular-nums</code>) فتتحاذى منازلُها.</li>
+      <li><code>Tajawal Tashkeel</code> للنصّ المشكول وحدَه (رؤيةُ المدرسة) يرسم الحركاتِ بلونٍ من لوحته. وTajawal هو خطُّ الويب كلِّه — جداولُ الجودة منه؛ و<code>Amiri</code> للـPDF وحدَه (ملفّاتُ TTF في <code>core/pdf_utils.py</code>) ويمنعه <code>test_identity_roles</code> من أنماط الويب (D-15).</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 3 ══ #}
+  {% section_card "3 · التباعدُ والتقوّس" meta="sp · radius" icon="filter" span="wide" %}
+    <div class="sg-stack">
+      <p class="sg-label">التباعد · {{ scales.space|length }} درجة — للهوامش والحشو والفجوات</p>
+      <ul class="sg-space-scale">
+        {% for t in scales.space %}
+          <li class="sg-space" style="--bar:var(--{{ t.name }})">
+            <code class="sg-space__name"><bdi dir="ltr">--{{ t.name }}</bdi></code>
+            <span class="sg-space__bar" aria-hidden="true"></span>
+            <span class="sg-space__value"><bdi dir="ltr">{{ t.value }}</bdi></span>
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="sg-label">التقوّس · {{ scales.radius|length }}</p>
+      <ul class="sg-radius-scale">
+        {% for t in scales.radius %}
+          <li class="sg-radius" style="--r:var(--{{ t.name }})">
+            <span class="sg-radius__box" aria-hidden="true"></span>
+            <code><bdi dir="ltr">--{{ t.name }}</bdi></code>
+            <span class="sg-radius__value"><bdi dir="ltr">{{ t.value }}</bdi></span>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+    <ul class="sg-rules">
+      <li><code>margin</code> و<code>padding</code> و<code>gap</code> بـ<code>var(--sp-*)</code>، و<code>border-radius</code> بـ<code>var(--radius-*)</code> — وقيمةُ px حرفيّةٌ تطابق درجةً ممنوعة.</li>
+      <li>ما خارج السلّم (1 و3 و5 و12…) عدُّه سقّاطةٌ لا تزيد؛ والدرجةُ الجديدةُ قرارٌ يُسجَّل لا قيمةٌ تُكتب.</li>
+      <li><code><bdi dir="ltr">--radius-pill</bdi></code> للشارات والرقاقات وحدَها.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 4 ══ #}
+  {% section_card "4 · الظلالُ والارتفاع" meta="shadow · z" icon="dashboard" span="wide" %}
+    <ul class="sg-shadow-scale">
+      {% for t in scales.shadow %}
+        <li class="sg-shadow" style="--shadow:var(--{{ t.name }})">
+          <span class="sg-shadow__box" aria-hidden="true"></span>
+          <code><bdi dir="ltr">--{{ t.name }}</bdi></code>
+        </li>
+      {% endfor %}
+    </ul>
+    <ul class="sg-rules">
+      <li>الظلُّ يدلّ على الارتفاع لا يزيّن: البطاقةُ <code><bdi dir="ltr">--shadow-sm</bdi></code>، والقائمةُ المنسدلة <code><bdi dir="ltr">--shadow-dropdown</bdi></code>، وقوائمُ التنقّل المنسدلة <code><bdi dir="ltr">--shadow-menu</bdi></code> (أغمقُ لأنّها بلونِ القائمة فلا يفصلها عنها غيرُ الظلّ)، والنافذةُ <code><bdi dir="ltr">--shadow-modal</bdi></code> — ولا ظلَّ يُكتب بقيمته.</li>
+      <li>الطبقاتُ بسلّم <code><bdi dir="ltr">--z-*</bdi></code> وحدَه (base · raised · banner · dropdown · sticky · navbar · sidebar · modal · toast) — لا <code>z-index</code> برقمٍ عشوائيّ.</li>
+
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 5 ══ #}
+  {% section_card "5 · الحركةُ والتركيز" meta="transition · focus" icon="time" span="wide" %}
+    <div class="sg-stack">
+      <ul class="sg-tokens">
+        {% for t in scales.motion %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
+      </ul>
+      <p class="sg-label">التركيزُ بلوحة المفاتيح — اضغط Tab على هذه العناصر</p>
+      <div class="sg-row">
+        <button type="button" class="btn-primary btn-sm">زرٌّ أوّل</button>
+        <button type="button" class="btn-secondary btn-sm">زرٌّ ثانٍ</button>
+        <a href="#">رابط</a>
+      </div>
+    </div>
+    <ul class="sg-rules">
+      <li>المدّةُ من الرموز لا رقمٌ في CSS أو JS: <code><bdi dir="ltr">--transition-fast</bdi></code> للمرور، و<code><bdi dir="ltr">--transition-base</bdi></code> للفتح والطيّ، و<code><bdi dir="ltr">--transition-page</bdi></code> لتبديل المحتوى.</li>
+      <li>كلُّ حركةٍ تُعطَّل لمن طلب تقليلَها (<code>prefers-reduced-motion</code>).</li>
+      <li>حلقةُ التركيز لا تُلغى: <code><bdi dir="ltr">:focus-visible</bdi></code> بإطارٍ من <code><bdi dir="ltr">--focus-color</bdi></code> — والحارسُ <code>test_focus_and_names</code>.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 6 ══ #}
+  {% section_card "6 · الرسومُ البيانيّة" meta="chart-1…6 · chartColor" icon="stats" span="wide" %}
+    <ul class="sg-chart">
+      {% for n in "123456" %}
+        <li class="sg-chart__item" style="--swatch:var(--chart-{{ n }})">
+          <span class="sg-chart__bar" aria-hidden="true"></span>
+          <code><bdi dir="ltr">--chart-{{ n }}</bdi></code>
+          <span class="sg-swatch__value"><bdi dir="ltr" data-token="--chart-{{ n }}"></bdi></span>
+        </li>
+      {% endfor %}
+    </ul>
+    <pre class="sg-code" dir="ltr">borderColor: chartColor('chart-1'),
+backgroundColor: chartAlpha('chart-1', .12),</pre>
+    <ul class="sg-rules">
+      <li>الترتيبُ ثابت: العنّابيُّ أوّلاً، والرماديُّ (<code><bdi dir="ltr">--chart-6</bdi></code>) لـ«أخرى» — فيُقرأ اللونُ بالمعنى نفسِه في كلّ رسم.</li>
+      <li>الرسمُ يقرأ اللونَ بـ<code>chartColor()</code> من الرمز فيتبدّل مع الوضع الداكن؛ ولا لونَ سداسيّاً في سكربت الرسم.</li>
+      <li>المعنى بالحالة لا بالترتيب: الخطرُ <code>chartColor('status-danger')</code> والنجاحُ <code>'status-success'</code>. وتباينُ اللون مع خلفيّة الصفحة ≥ 3:1.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 7 ══ #}
+  {% section_card "7 · المقاييسُ والحدودُ الدنيا" meta="control-h · z · safe · media" icon="checklist" span="full" %}
+    <div class="ui-grid-2">
+      <div class="sg-stack">
+        <p class="sg-label">ارتفاعُ عنصر التحكّم · {{ scales.control|length }}</p>
+        <ul class="sg-tokens">
+          {% for t in scales.control %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
+        </ul>
+        <p class="sg-label">الطبقات · {{ scales.layer|length }}</p>
+        <ul class="sg-tokens">
+          {% for t in scales.layer %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
+        </ul>
+        <p class="sg-label">المنطقةُ الآمنة · {{ scales.safe|length }}</p>
+        <ul class="sg-tokens">
+          {% for t in scales.safe %}<li><code><bdi dir="ltr">--{{ t.name }}</bdi></code> <bdi dir="ltr">{{ t.value }}</bdi></li>{% endfor %}
+        </ul>
+        <p class="sg-label">نقاطُ التوقّف في الأنماط · {{ breakpoints|length }}</p>
+        <ul class="chip-row" aria-label="نقاطُ التوقّف وعددُ استعلاماتِ كلٍّ منها">
+          {% for bp in breakpoints %}
+            <li class="chip-stat"><span class="chip-stat__key"><bdi dir="ltr">{{ bp.px }}px</bdi></span><b class="chip-stat__value">{{ bp.uses }}</b></li>
+          {% empty %}
+            <li class="chip-stat"><span class="chip-stat__key">لا استعلاماتِ عرض</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="sg-stack">
+        <p class="sg-label">القواعدُ الخمس (خطّةُ الجوال H-06)</p>
+        <div class="table-wrap">
+          <table data-no-sort>
+            <thead><tr><th>القاعدة</th><th>الحالة</th></tr></thead>
+            <tbody>
+              <tr>
+                <td>لا خطَّ دون 12px (<code><bdi dir="ltr">--text-xs</bdi></code>) إلّا الزخرفيّ الموثَّق.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> حارسُ <code>test_font_scale</code>؛ واستثناءُ الشبكات الكثيفة مؤقّتٌ بسقفٍ لا يزيد.</td>
+              </tr>
+              <tr>
+                <td>هدفُ اللمس 44px (<code><bdi dir="ltr">--control-h</bdi></code>) على المؤشّر الخشن <code>coarse</code>، و24px للفأرة.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> كتلةُ <code>pointer: coarse</code> (M-01) بالرمز لا بالرقم، وحارسُها <code>test_touch_target_token</code>.</td>
+              </tr>
+              <tr>
+                <td>المنطقةُ الآمنة من رموز <code><bdi dir="ltr">--safe-*</bdi></code> لا من <code>env()</code> مباشرةً.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> الرموزُ معرَّفةٌ في <code>:root</code> (H-04) وحارسُها <code>test_safe_area_tokens</code>؛ و<code>app_back_bar</code> تعرّف الرمزَ محلّيّاً لأنّها ورقةٌ مستقلّة.</td>
+              </tr>
+              <tr>
+                <td>الطبقاتُ من سلّم <code><bdi dir="ltr">--z-*</bdi></code> لا أرقامٌ خام.</td>
+                <td><span class="status-badge status-success">مطبَّقة</span> لا <code>z-index</code> خامَّ ≥ 20، و<code><bdi dir="ltr">--z-banner</bdi></code> تحت ما يفتحه المستخدم — حارسُها <code>test_z_scale</code>.</td>
+              </tr>
+              <tr>
+                <td>نقاطُ التوقّف من جدولٍ واحد — الجدولُ الحيُّ بجانبها، وهو مؤشّرُ الخارطة LK2 نفسُه.</td>
+                <td><span class="status-badge status-warning">جزئيّة</span> وُحِّدت في LAY-03 إلى خمس (640 و1024 و1440، واستثناءان 400 و1100)؛ وحدُّ اللوحيّ الأعلى قرارُ المالك D2.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <ul class="sg-rules">
+      <li>كلُّ رقمٍ في هذا القسم يُقرأ من الأنماط عند العرض (<code>core.styleguide.scale_tokens</code> و<code>breakpoints</code>) — رمزٌ يُضاف في <code><bdi dir="ltr">:root</bdi></code> أو استعلامٌ في CSS يظهر هنا بلا تعديل قالب.</li>
+      <li>«المؤشّرُ الخشن» <code>(pointer: coarse)</code> للمؤشّر الأوّليّ وحدَه، لا <code>any-pointer</code>: الجهازُ الهجين يُعامَل بمؤشّره الأساسيّ.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 8 ══ #}
+  {% section_card "8 · شريطُ الأرقام" meta="kpi_strip · kpi" icon="stats" span="wide" %}
     <div class="sg-demo">
       {% kpi_strip label="النغماتُ الستّ الأولى" %}
         {% kpi "maroon" 12 %}
@@ -54,10 +253,10 @@
         {% kpi "purple" 0 tone="purple" %}
         {% kpi "sky" "95%" sub="نسبة" tone="sky" %}
       {% endkpi_strip %}
-      <pre class="sg-code" dir="ltr">{% templatetag openblock %} kpi_strip {% templatetag closeblock %}
+      <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} kpi_strip {% templatetag closeblock %}
   {% templatetag openblock %} kpi "زيارات اليوم" visits_today {% templatetag closeblock %}
   {% templatetag openblock %} kpi "متكرّرو الزيارة" frequent sub="هذا الشهر" tone="red" href=url title="…" {% templatetag closeblock %}
-{% templatetag openblock %} endkpi_strip {% templatetag closeblock %}</pre>
+{% templatetag openblock %} endkpi_strip {% templatetag closeblock %}</pre></details>
       <ul class="sg-rules">
         <li>الاسم ثمّ الرقم ثمّ تفصيلٌ قصير — في سطرٍ واحد. التفصيل يُخفى على الهاتف ويبقى في التلميح.</li>
         <li>ستّ بطاقات على الأكثر؛ السابعة خطأٌ يظهر في الاختبار لا التفافٌ صامت — لذا هنا شريطان.</li>
@@ -67,114 +266,8 @@
     </div>
   {% endsection_card %}
 
-  {# ══ 3 ══ #}
-  {% section_card "3 · بطاقةُ القسم" meta="section_card" icon="dashboard" %}
-    <div class="sg-pair">
-      {% section_card "بمحتوى" meta="4 طلبات" icon="empty" %}
-        <ul class="plain-list">
-          <li class="plain-list__row"><span class="plain-list__main"><b class="plain-list__title">طلبُ استئذان</b><span class="plain-list__sub">الحصّة الثالثة</span></span><span class="status-badge status-warning">بانتظار</span></li>
-          <li class="plain-list__row"><span class="plain-list__main"><b class="plain-list__title">إشعارُ وليّ الأمر</b><span class="plain-list__sub">أُرسل صباحاً</span></span><span class="status-badge status-success">أُرسل</span></li>
-        </ul>
-      {% endsection_card %}
-      {% section_card "فارغة" meta="0" icon="time" empty="لم يتأخّر أحدٌ اليوم" empty_sub="يظهر هنا من يُسجَّل بعد الجرس الأوّل" %}{% for item in nothing %}{{ item }}{% endfor %}{% endsection_card %}
-      {% section_card "flush — جدولٌ يملأها" meta="3 طلاب" icon="students" flush=True %}
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>الطالب</th><th>الشعبة</th><th class="num">الغياب</th></tr></thead>
-            <tbody>
-              <tr><td>طالبٌ أوّل</td><td>10/2</td><td class="num">2</td></tr>
-              <tr class="is-danger"><td>طالبٌ ثانٍ</td><td>7/4</td><td class="num">16</td></tr>
-              <tr><td>طالبٌ ثالث</td><td>12/1</td><td class="num">0</td></tr>
-            </tbody>
-          </table>
-        </div>
-      {% endsection_card %}
-    </div>
-    <pre class="sg-code" dir="ltr">{% templatetag openblock %} section_card "الغائبون اليوم" meta=absent|length icon="students" flush=True empty="لم يغب أحد" empty_sub="…" {% templatetag closeblock %}
-  {% templatetag openblock %} if absent {% templatetag closeblock %}&lt;div class="table-wrap"&gt;…&lt;/div&gt;{% templatetag openblock %} endif {% templatetag closeblock %}
-{% templatetag openblock %} endsection_card {% templatetag closeblock %}</pre>
-    <ul class="sg-rules">
-      <li>الترويسة دائماً الشريط العنّابيّ، والعدد أو الفترة في طرفه لا في سطرٍ تحته.</li>
-      <li>المحتوى الفارغ يُرسم حالةً فارغةً موحّدة تلقائيّاً — غلِّف القائمة بـ<code>{% templatetag openblock %} if {% templatetag closeblock %}</code> ولا تكتب <code>{% templatetag openblock %} empty {% templatetag closeblock %}</code> بجملةٍ خاصّة.</li>
-      <li><code>flush</code> لجدولٍ يملأ البطاقة حتى حوافّها. في الجدول: <code>td.num</code> للأرقام، و<code>tr.is-danger</code> لصفٍّ تجاوز حدّاً.</li>
-      <li>الأمثلة هنا بطاقاتٌ داخل بطاقة للعرض وحده — في الصفحات لا تتداخل البطاقات، والمتجاورتان داخل <code>ui-grid-2</code>.</li>
-    </ul>
-  {% endsection_card %}
-
-  {# ══ 4 ══ #}
-  {% section_card "4 · بطاقةُ الكيان" meta="entity_card · entity_chips · entity_status" icon="school_building" %}
-    <div class="ui-entity-grid">
-      {% entity_card "جناح 1" who="اسم المشرف الإداريّ الكامل" count="164 طالباً" %}
-        {% entity_chips %}<span class="chip">7.1</span><span class="chip">7.2</span><span class="chip">7.3</span><span class="chip">8.1</span>{% endentity_chips %}
-        {% entity_status %}{% icon "time" %} neutral · الحصّة 7 حتّى 13:30{% endentity_status %}
-      {% endentity_card %}
-
-      {% entity_card "جناح 5" count="130 طالباً" %}
-        {% entity_chips %}<span class="chip">11.5</span><span class="chip">12.1</span>{% endentity_chips %}
-        {% entity_status tone="success" %}{% icon "status_success" %} success · رُصدت كلُّ الشُّعب{% endentity_status %}
-      {% endentity_card %}
-
-      {% entity_card "جناح 3" who="اسم مشرفٍ آخر" count="155 طالباً" badge="جرسان" badge_title="ممرٌّ بجرسين — الحصّةُ فيه تُقال بالساعة" %}
-        {% entity_chips %}<span class="chip">9.3</span><span class="chip">10.1</span><span class="chip">10.2</span>{% endentity_chips %}
-        {% entity_status tone="warning" title="الثانويّ 10–12" %}{% icon "time" %} warning · الفسحة حتّى 10:45{% endentity_status %}
-      {% endentity_card %}
-
-      {% entity_card "حافلة 7" who="اسم السائق" count="38/40" tone="amber" href="#" %}
-        {% entity_chips %}<span class="chip">الشحانية</span><span class="chip">المسار 3</span>{% endentity_chips %}
-        {% entity_status tone="danger" %}{% icon "status_warning" %} danger · إشغال 95%{% endentity_status %}
-      {% endentity_card %}
-
-      {% entity_card "العيادة" who="الممرّض المناوب" count="3 زيارات" tone="teal" %}
-        {% entity_chips %}<span class="chip">الطابق الأرضيّ</span>{% endentity_chips %}
-        {% entity_status tone="info" %}{% icon "status_info" %} info · متابعةٌ واحدةٌ مفتوحة{% endentity_status %}
-      {% endentity_card %}
-    </div>
-    <pre class="sg-code" dir="ltr">{% templatetag openblock %} entity_card wing.name who=holder.full_name count=students tone="maroon" href=url badge="…" {% templatetag closeblock %}
-  {% templatetag openblock %} entity_chips {% templatetag closeblock %}…{% templatetag openblock %} endentity_chips {% templatetag closeblock %}
-  {% templatetag openblock %} entity_status tone="warning" title="…" {% templatetag closeblock %}…{% templatetag openblock %} endentity_status {% templatetag closeblock %}
-{% templatetag openblock %} endentity_card {% templatetag closeblock %}</pre>
-    <ul class="sg-rules">
-      <li>ثلاثة أسطر: من وكم · الرقاقات · الحالة. أيُّ محتوى غيرها خطأ — الشرح تلميح.</li>
-      <li>اسم المسؤول الطويل يُقصّ بنقاطٍ وكاملُه في التلميح؛ العنوان والعدد لا يُقصّان.</li>
-      <li>الحالاتُ الخمس: neutral (الافتراضيّة) · success · warning · danger · info. ولونُ الحافّة من نغمات شريط الأرقام.</li>
-      <li>الشبكة <code>ui-entity-grid</code> تملأ السطر ولا تترك عموداً فارغاً.</li>
-    </ul>
-  {% endsection_card %}
-
-  {# ══ 5 + 6 ══ #}
-  <div class="sg-pair">
-    {% section_card "5 · الحالةُ الفارغة" meta="empty_state" icon="empty" %}
-      {% empty_state "لا توجد نتائج" sub="جرّب كلمةً أخرى أو وسّع الفترة" icon="search" %}
-      <pre class="sg-code" dir="ltr">{% templatetag openblock %} empty_state "لا توجد نتائج" sub="…" icon="search" {% templatetag closeblock %}</pre>
-    {% endsection_card %}
-    {% section_card "6 · ترويسةُ الصفحة" meta="page_header" icon="document" %}
-      <p class="sg-p">الترويسة أعلى هذه الصفحة مرسومةٌ به: العنوان وأيقونته، والسطر الوصفيّ، والإجراءات في طرفها — <code>btn-primary btn-sm</code> للفعل الأوّل و<code>btn-secondary btn-sm</code> للبقيّة.</p>
-      <pre class="sg-code" dir="ltr">{% templatetag openblock %} page_header "العيادة" subtitle=today icon="clinic" {% templatetag closeblock %}
-  &lt;a class="btn-primary btn-sm" href="…"&gt;تسجيل زيارة&lt;/a&gt;
-{% templatetag openblock %} endpage_header {% templatetag closeblock %}</pre>
-    {% endsection_card %}
-  </div>
-
-  {# ══ 7 ══ #}
-  {% section_card "7 · بلاطاتُ الانتقال" meta="action_tile" icon="back" %}
-    <nav class="ui-actions" aria-label="مثالُ بلاطات الانتقال">
-      {% action_tile "رصدُ الغياب" desc="الفعلُ الأوّل للدور — واحدةٌ فقط" icon="confirm" href="#" primary=True %}
-      {% action_tile "الجدولُ المدرسيّ" desc="حصصُ اليوم والأسبوع" icon="date" href="#" %}
-      {% action_tile "التقارير" icon="document" href="#" %}
-    </nav>
-    <pre class="sg-code" dir="ltr">&lt;nav class="ui-actions" aria-label="…"&gt;
-  {% templatetag openblock %} action_tile "رصدُ الغياب" desc="…" icon="confirm" href=url primary=True {% templatetag closeblock %}
-  {% templatetag openblock %} action_tile "التقارير" icon="document" href=url {% templatetag closeblock %}
-&lt;/nav&gt;</pre>
-    <ul class="sg-rules">
-      <li>أيقونةٌ وعنوانٌ وسطرُ وصفٍ اختياريّ؛ العنوانُ والرابطُ مطلوبان.</li>
-      <li><code>primary</code> لبلاطةٍ واحدةٍ في الصفّ: فعلُ الدور الأوّل.</li>
-      <li>الشبكة <code>ui-actions</code>: أربعٌ في سطرٍ عريض، واثنتان على الهاتف.</li>
-    </ul>
-  {% endsection_card %}
-
-  {# ══ 8 ══ #}
-  {% section_card "8 · الشاراتُ والأزرار" meta="status-badge · btn-*" icon="reinforcement" %}
+  {# ══ 9 ══ #}
+  {% section_card "9 · الشاراتُ والأزرار" meta="status-badge · btn" icon="reinforcement" span="wide" %}
     <div class="sg-stack">
       <p class="sg-label">status-badge — ستّةُ أسماءٍ فقط</p>
       <div class="sg-row">
@@ -202,11 +295,119 @@
     <ul class="sg-rules">
       <li>الشارة: <code>status-success · status-danger · status-warning · status-info · status-maroon · status-gray</code>. و<code>status-green/red/orange/blue/purple/teal</code> غيرُ معرَّفة — شارةٌ بلا لون.</li>
       <li>في الترويسة: <code>btn-primary btn-sm</code> للفعل الأوّل و<code>btn-secondary btn-sm</code> للبقيّة. و<code>btn-ghost</code> لأفعال الصفّ داخل الجدول.</li>
+      <li>الشارةُ خطُّها لا يقلّ عن 12px (<code><bdi dir="ltr">--text-xs</bdi></code>) — والأسماءُ الستّةُ نفسُها لا تتغيّر.</li>
+      <li>على المؤشّر الخشن (<code>pointer: coarse</code>) يصير <code>btn-sm</code> بارتفاع <code><bdi dir="ltr">--control-h</bdi></code> (44px)، والرابطُ الصغيرُ وزرُّ الإغلاق وأيقونةُ التلميح 44px — مطبَّقٌ في كتلة <code>pointer: coarse</code> (M-01).</li>
     </ul>
   {% endsection_card %}
 
-  {# ══ 9 ══ #}
-  {% section_card "9 · أصنافُ القسم 39" meta="plain-list · chip-row · period-switch" icon="checklist" %}
+  {# ══ 10 ══ #}
+  {% section_card "10 · بطاقةُ القسم" meta="section_card" icon="dashboard" span="full" %}
+    <div class="sg-pair">
+      {% section_card "بمحتوى" meta="4 طلبات" icon="empty" %}
+        <ul class="plain-list">
+          <li class="plain-list__row"><span class="plain-list__main"><b class="plain-list__title">طلبُ استئذان</b><span class="plain-list__sub">الحصّة الثالثة</span></span><span class="status-badge status-warning">بانتظار</span></li>
+          <li class="plain-list__row"><span class="plain-list__main"><b class="plain-list__title">إشعارُ وليّ الأمر</b><span class="plain-list__sub">أُرسل صباحاً</span></span><span class="status-badge status-success">أُرسل</span></li>
+        </ul>
+      {% endsection_card %}
+      {% section_card "فارغة" meta="0" icon="time" empty="لم يتأخّر أحدٌ اليوم" empty_sub="يظهر هنا من يُسجَّل بعد الجرس الأوّل" %}{% for item in nothing %}{{ item }}{% endfor %}{% endsection_card %}
+      {% section_card "flush — جدولٌ يملأها" meta="3 طلاب" icon="students" flush=True %}
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>الطالب</th><th>الشعبة</th><th class="num">الغياب</th></tr></thead>
+            <tbody>
+              <tr><td>طالبٌ أوّل</td><td>10/2</td><td class="num">2</td></tr>
+              <tr class="is-danger"><td>طالبٌ ثانٍ</td><td>7/4</td><td class="num">16</td></tr>
+              <tr><td>طالبٌ ثالث</td><td>12/1</td><td class="num">0</td></tr>
+            </tbody>
+          </table>
+        </div>
+      {% endsection_card %}
+    </div>
+    <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} section_card "الغائبون اليوم" meta=absent|length icon="students" flush=True empty="لم يغب أحد" empty_sub="…" {% templatetag closeblock %}
+  {% templatetag openblock %} if absent {% templatetag closeblock %}&lt;div class="table-wrap"&gt;…&lt;/div&gt;{% templatetag openblock %} endif {% templatetag closeblock %}
+{% templatetag openblock %} endsection_card {% templatetag closeblock %}</pre></details>
+    <ul class="sg-rules">
+      <li>الترويسة دائماً الشريط العنّابيّ، والعدد أو الفترة في طرفه لا في سطرٍ تحته.</li>
+      <li>المحتوى الفارغ يُرسم حالةً فارغةً موحّدة تلقائيّاً — غلِّف القائمة بـ<code>{% templatetag openblock %} if {% templatetag closeblock %}</code> ولا تكتب <code>{% templatetag openblock %} empty {% templatetag closeblock %}</code> بجملةٍ خاصّة.</li>
+      <li><code>flush</code> لجدولٍ يملأ البطاقة حتى حوافّها. في الجدول: <code>td.num</code> للأرقام، و<code>tr.is-danger</code> لصفٍّ تجاوز حدّاً.</li>
+      <li>الأمثلة هنا بطاقاتٌ داخل بطاقة للعرض وحده — في الصفحات لا تتداخل البطاقات، والمتجاورتان داخل <code>ui-grid-2</code>.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 11 ══ #}
+  {% section_card "11 · بطاقةُ الكيان" meta="entity_card · entity_chips · entity_status" icon="school_building" span="full" %}
+    <div class="ui-entity-grid">
+      {% entity_card "جناح 1" who="اسم المشرف الإداريّ الكامل" count="164 طالباً" %}
+        {% entity_chips %}<span class="chip">7.1</span><span class="chip">7.2</span><span class="chip">7.3</span><span class="chip">8.1</span>{% endentity_chips %}
+        {% entity_status %}{% icon "time" %} neutral · الحصّة 7 حتّى 13:30{% endentity_status %}
+      {% endentity_card %}
+
+      {% entity_card "جناح 5" count="130 طالباً" %}
+        {% entity_chips %}<span class="chip">11.5</span><span class="chip">12.1</span>{% endentity_chips %}
+        {% entity_status tone="success" %}{% icon "status_success" %} success · رُصدت كلُّ الشُّعب{% endentity_status %}
+      {% endentity_card %}
+
+      {% entity_card "جناح 3" who="اسم مشرفٍ آخر" count="155 طالباً" badge="جرسان" badge_title="ممرٌّ بجرسين — الحصّةُ فيه تُقال بالساعة" %}
+        {% entity_chips %}<span class="chip">9.3</span><span class="chip">10.1</span><span class="chip">10.2</span>{% endentity_chips %}
+        {% entity_status tone="warning" title="الثانويّ 10–12" %}{% icon "time" %} warning · الفسحة حتّى 10:45{% endentity_status %}
+      {% endentity_card %}
+
+      {% entity_card "حافلة 7" who="اسم السائق" count="38/40" tone="amber" href="#" %}
+        {% entity_chips %}<span class="chip">الشحانية</span><span class="chip">المسار 3</span>{% endentity_chips %}
+        {% entity_status tone="danger" %}{% icon "status_warning" %} danger · إشغال 95%{% endentity_status %}
+      {% endentity_card %}
+
+      {% entity_card "العيادة" who="الممرّض المناوب" count="3 زيارات" tone="teal" %}
+        {% entity_chips %}<span class="chip">الطابق الأرضيّ</span>{% endentity_chips %}
+        {% entity_status tone="info" %}{% icon "status_info" %} info · متابعةٌ واحدةٌ مفتوحة{% endentity_status %}
+      {% endentity_card %}
+    </div>
+    <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} entity_card wing.name who=holder.full_name count=students tone="maroon" href=url badge="…" {% templatetag closeblock %}
+  {% templatetag openblock %} entity_chips {% templatetag closeblock %}…{% templatetag openblock %} endentity_chips {% templatetag closeblock %}
+  {% templatetag openblock %} entity_status tone="warning" title="…" {% templatetag closeblock %}…{% templatetag openblock %} endentity_status {% templatetag closeblock %}
+{% templatetag openblock %} endentity_card {% templatetag closeblock %}</pre></details>
+    <ul class="sg-rules">
+      <li>ثلاثة أسطر: من وكم · الرقاقات · الحالة. أيُّ محتوى غيرها خطأ — الشرح تلميح.</li>
+      <li>اسم المسؤول الطويل يُقصّ بنقاطٍ وكاملُه في التلميح؛ العنوان والعدد لا يُقصّان.</li>
+      <li>الحالاتُ الخمس: neutral (الافتراضيّة) · success · warning · danger · info. ولونُ الحافّة من نغمات شريط الأرقام.</li>
+      <li>الشبكة <code>ui-entity-grid</code> تملأ السطر ولا تترك عموداً فارغاً.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 12 ══ #}
+  {% section_card "12 · بلاطاتُ الانتقال" meta="action_tile" icon="back" span="wide" %}
+    <nav class="ui-actions" aria-label="مثالُ بلاطات الانتقال">
+      {% action_tile "رصدُ الغياب" desc="الفعلُ الأوّل للدور — واحدةٌ فقط" icon="confirm" href="#" primary=True %}
+      {% action_tile "الجدولُ المدرسيّ" desc="حصصُ اليوم والأسبوع" icon="date" href="#" %}
+      {% action_tile "التقارير" icon="document" href="#" %}
+    </nav>
+    <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">&lt;nav class="ui-actions" aria-label="…"&gt;
+  {% templatetag openblock %} action_tile "رصدُ الغياب" desc="…" icon="confirm" href=url primary=True {% templatetag closeblock %}
+  {% templatetag openblock %} action_tile "التقارير" icon="document" href=url {% templatetag closeblock %}
+&lt;/nav&gt;</pre></details>
+    <ul class="sg-rules">
+      <li>أيقونةٌ وعنوانٌ وسطرُ وصفٍ اختياريّ؛ العنوانُ والرابطُ مطلوبان.</li>
+      <li><code>primary</code> لبلاطةٍ واحدةٍ في الصفّ: فعلُ الدور الأوّل.</li>
+      <li>الشبكة <code>ui-actions</code>: أربعٌ في سطرٍ عريض، واثنتان على الهاتف.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 13 ══ #}
+  {% section_card "13 · الحالةُ الفارغة" meta="empty_state" icon="empty" %}
+    {% empty_state "لا توجد نتائج" sub="جرّب كلمةً أخرى أو وسّع الفترة" icon="search" %}
+    <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} empty_state "لا توجد نتائج" sub="…" icon="search" {% templatetag closeblock %}</pre></details>
+  {% endsection_card %}
+
+  {# ══ 14 ══ #}
+  {% section_card "14 · ترويسةُ الصفحة" meta="page_header" icon="document" %}
+    <p class="sg-p">الترويسة أعلى هذه الصفحة مرسومةٌ به: العنوان وأيقونته، والسطر الوصفيّ، والإجراءات في طرفها — <code>btn-primary btn-sm</code> للفعل الأوّل و<code>btn-secondary btn-sm</code> للبقيّة.</p>
+    <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} page_header "العيادة" subtitle=today icon="clinic" {% templatetag closeblock %}
+  &lt;a class="btn-primary btn-sm" href="…"&gt;تسجيل زيارة&lt;/a&gt;
+{% templatetag openblock %} endpage_header {% templatetag closeblock %}</pre></details>
+  {% endsection_card %}
+
+  {# ══ 15 ══ #}
+  {% section_card "15 · أصنافُ القسم 39" meta="plain-list · chip-row · period-switch" icon="checklist" span="wide" %}
     <div class="ui-grid-2">
       <div class="sg-stack">
         <p class="sg-label">plain-list · is-scroll</p>
@@ -240,8 +441,8 @@
     </ul>
   {% endsection_card %}
 
-  {# ══ 10 ══ #}
-  {% section_card "10 · النماذج" meta="ui-switch · form-note · form-actions" icon="edit" %}
+  {# ══ 16 ══ #}
+  {% section_card "16 · النماذج" meta="ui-switch · callout · form-actions" icon="edit" span="wide" %}
     <div class="sg-stack">
       <ul class="plain-list">
         <li class="plain-list__row">
@@ -259,8 +460,14 @@
           </label>
         </li>
       </ul>
-      <p class="form-note">{% icon "status_info" %} form-note — شرحٌ داخل البطاقة التي يخصّها، لا نثرٌ بين البطاقات.</p>
-      <p class="form-note is-warning">{% icon "status_warning" %} form-note is-warning — تنبيهٌ قبل فعلٍ لا يُتراجع عنه.</p>
+      <p class="ui-note">callout — خمسةُ أنواع: تلميحٌ ومعلومةٌ (أيقونةٌ تُظهر نصَّها بالمرور)، وتحذيرٌ وخطأٌ ونجاحٌ (أسطرٌ ظاهرة).</p>
+      <div class="sg-row">
+        <span>{% callout "hint" %}تلميح — يشرح كيف تعمل الخانة أو لماذا؛ لا يزحم البطاقة.{% endcallout %} تلميح</span>
+        <span>{% callout "info" %}معلومة — سياقٌ للقارئ لا يغيّر ما يفعله.{% endcallout %} معلومة</span>
+      </div>
+      {% callout "warning" %}تحذير — تنبيهٌ قبل فعلٍ لا يُتراجع عنه.{% endcallout %}
+      {% callout "error" %}خطأ — تعذّر الحفظ؛ راجع الحقول المظلّلة.{% endcallout %}
+      {% callout "success" %}نجاح — حُفظت البيانات.{% endcallout %}
       <div class="form-actions">
         <button type="button" class="btn-secondary">إلغاء</button>
         <button type="button" class="btn-primary">حفظ</button>
@@ -272,8 +479,8 @@
     </ul>
   {% endsection_card %}
 
-  {# ══ 12 ══ #}
-  {% section_card "12 · الحقلُ وشريطُ الترشيح" meta="field · filter_bar" icon="search" %}
+  {# ══ 17 ══ #}
+  {% section_card "17 · الحقلُ وشريطُ الترشيح" meta="field · filter_bar" icon="search" span="full" %}
     <div class="sg-stack">
       <p class="sg-label">filter_bar — نموذجُ GET بدور بحثٍ واسمٍ معلَن، وحقولُه field</p>
       {% filter_bar "مثالُ شريط الترشيح" %}
@@ -285,10 +492,10 @@
           <a href="#" class="btn-secondary btn-sm">مسح</a>
         </div>
       {% endfilter_bar %}
-      <pre class="sg-code" dir="ltr">{% templatetag openblock %} filter_bar "ترشيحُ سجلّ الطلاب" {% templatetag closeblock %}
+      <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} filter_bar "ترشيحُ سجلّ الطلاب" {% templatetag closeblock %}
   {% templatetag openblock %} field "q" "بحث" value=q grow=True hx_get=url hx_trigger="input changed delay:400ms" hx_target="#rows" {% templatetag closeblock %}
   {% templatetag openblock %} field "grade" "الصفّ" type="select" choices=grades value=grade blank="— الكل —" data_autosubmit=True {% templatetag closeblock %}
-{% templatetag openblock %} endfilter_bar {% templatetag closeblock %}</pre>
+{% templatetag openblock %} endfilter_bar {% templatetag closeblock %}</pre></details>
 
       <p class="sg-label">field في نموذجٍ كامل — الأنواعُ والمساعدةُ والخطأ</p>
       <div class="ui-grid-2">
@@ -298,9 +505,9 @@
         {% field "sg_notes" "ملاحظات" type="textarea" rows=2 placeholder="اختياريّ" %}
         {% field "sg_notify" "إشعارُ وليّ الأمر" type="checkbox" checked=True %}
       </div>
-      <pre class="sg-code" dir="ltr">{% templatetag openblock %} field "phone" "الجوّال" type="tel" inputmode="tel" value=form.phone.value error=form.phone.errors.0 {% templatetag closeblock %}
+      <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} field "phone" "الجوّال" type="tel" inputmode="tel" value=form.phone.value error=form.phone.errors.0 {% templatetag closeblock %}
 {% templatetag openblock %} field "notes" "ملاحظات" type="textarea" rows=3 value=notes help="…" {% templatetag closeblock %}
-{% templatetag openblock %} field "notify" "إشعارُ وليّ الأمر" type="checkbox" checked=obj.notify {% templatetag closeblock %}</pre>
+{% templatetag openblock %} field "notify" "إشعارُ وليّ الأمر" type="checkbox" checked=obj.notify {% templatetag closeblock %}</pre></details>
     </div>
     <ul class="sg-rules">
       <li>الاسمُ البرمجيُّ <code>name</code> والقيمُ كما هي — الوسمُ يملك <code>id</code> و<code>label[for]</code> لا البيانات. و<code>id</code> يُمرَّر صريحاً حين يتكرّر الاسمُ في الصفحة.</li>
@@ -313,8 +520,44 @@
     </ul>
   {% endsection_card %}
 
-  {# ══ 11 ══ #}
-  {% section_card "11 · مكوّناتٌ تُضمَّن" meta="include" icon="wings" %}
+  {# ══ 18 ══ #}
+  {% section_card "18 · الجداول" meta="table-wrap · td.num · data-sort" icon="students" span="wide" %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>الطالب</th><th>الشعبة</th><th class="num">الغياب</th><th data-sort="none">إجراء</th></tr></thead>
+        <tbody>
+          <tr><td>طالبٌ أوّل</td><td>10/2</td><td class="num">2</td><td><button type="button" class="btn-ghost">{% icon "edit" %} تعديل</button></td></tr>
+          <tr class="is-danger"><td>طالبٌ ثانٍ</td><td>7/4</td><td class="num">16</td><td><button type="button" class="btn-ghost">{% icon "edit" %} تعديل</button></td></tr>
+          <tr><td>طالبٌ ثالث</td><td>12/1</td><td class="num">0</td><td><button type="button" class="btn-ghost">{% icon "edit" %} تعديل</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <ul class="sg-rules">
+      <li>كلُّ جدولٍ داخل <code>table-wrap</code>: تمريرٌ أفقيٌّ وترويسةٌ لاصقة. والترويسةُ عنّابيّةٌ ونصُّها أبيضُ دائماً، في الوضعين.</li>
+      <li>الفرزُ تلقائيٌّ لكلّ جدولٍ بلا سطرٍ في القالب، والاستثناءُ صريح: <code>data-no-sort</code> · <code>th[data-sort="none|text|num"]</code> · <code>td[data-sort-value]</code> · <code>tr[data-sort-pin]</code>.</li>
+      <li>السجلُّ العريض عمودٌ واحدٌ بعرض البطاقة، لا يُقسَّم أعمدةً متجاورة.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 19 ══ #}
+  {% section_card "19 · الشبكاتُ والتخطيط" meta="card-flow · ui-grid-2 · auto-grid · fill-grid" icon="dashboard" span="wide" %}
+    <pre class="sg-code" dir="ltr">&lt;div class="card-flow"&gt;
+  {% templatetag openblock %} section_card "…" span="wide" {% templatetag closeblock %}…{% templatetag openblock %} endsection_card {% templatetag closeblock %}
+&lt;/div&gt;
+
+# view: items_cols = chunk_for_grid(items, 4)
+&lt;div class="auto-grid"&gt;{% templatetag openblock %} for col in items_cols {% templatetag closeblock %}…{% templatetag openblock %} endfor {% templatetag closeblock %}&lt;/div&gt;</pre>
+    <ul class="sg-rules">
+      <li><code>card-flow</code> لبطاقاتٍ مختلفةِ الحجم: أعمدتُها 1 ثمّ 2 (641px) ثمّ 4 (1025px) — زوجيّةٌ دائماً فتتجاور العريضتان، وعلى حدود فئات D-16 لا نقطةٍ خاصّة (LK2)؛ والبطاقةُ تعلن عرضَها بـ<code>span="wide"</code> (نصفُ السطر) أو <code>"full"</code> (السطر)، وبطاقاتُ السطر بارتفاعٍ واحد. ويُرتَّب القالبُ صفوفاً متقاربةَ المحتوى.</li>
+      <li><code>ui-grid-2</code> لبطاقتين متجاورتين، و<code>ui-entity-grid</code> لبطاقات الكيان، و<code>ui-actions</code> للبلاطات.</li>
+      <li>قائمةٌ ضيّقةُ الصفّ غيرُ محدودة ← أعمدةٌ بـ<code>chunk_for_grid</code> في العرض و<code>auto-grid</code> في القالب؛ والمحدودةُ (<code>[:10]</code>) لا تُقسَّم.</li>
+      <li>في صفحةٍ <code>page-noscroll</code>: <code>fill-grid is-fit</code> لبطاقةٍ محدودة المحتوى، و<code>fill-grid</code> وحدَه لقائمةٍ غير محدودةٍ تُمرَّر داخلها.</li>
+      <li>الصفحةُ بعرض النافذة كلِّه — لا <code>max-w-*</code> ولا <code><bdi dir="ltr">.container</bdi></code>.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 20 ══ #}
+  {% section_card "20 · مكوّناتٌ تُضمَّن" meta="include" icon="wings" span="full" %}
     <div class="ui-grid-2">
       <div class="sg-stack">
         <p class="sg-label">التنبيهُ العائم — showToast · data-toast</p>
@@ -324,24 +567,24 @@
           <button type="button" class="btn-secondary btn-sm" data-toast="تنبيه مهم|warning">warning</button>
           <button type="button" class="btn-secondary btn-sm" data-toast="معلومة إضافية|info">info</button>
         </div>
-        <pre class="sg-code" dir="ltr">window.showToast("تم الحفظ بنجاح", "success");
-&lt;button data-toast="تم الحفظ|success"&gt;…&lt;/button&gt;</pre>
+        <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">window.showToast("تم الحفظ بنجاح", "success");
+&lt;button data-toast="تم الحفظ|success"&gt;…&lt;/button&gt;</pre></details>
 
         <p class="sg-label">فتاتُ الخبز — كلُّ صفحةٍ تعلنها</p>
         {% include "components/breadcrumbs.html" with parent_url="#" parent_label="الوحدة" current="الصفحة الحالية" no_back=True %}
-        <pre class="sg-code" dir="ltr">{% templatetag openblock %} block breadcrumbs {% templatetag closeblock %}
+        <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} block breadcrumbs {% templatetag closeblock %}
 {% templatetag openblock %} include "components/breadcrumbs.html" with parent_url=url parent_label="…" current="…" {% templatetag closeblock %}
-{% templatetag openblock %} endblock {% templatetag closeblock %}</pre>
+{% templatetag openblock %} endblock {% templatetag closeblock %}</pre></details>
       </div>
       <div class="sg-stack">
         <p class="sg-label">هيكلُ التحميل — skeleton</p>
         {% include "components/skeleton.html" with type="card" count=1 %}
-        <pre class="sg-code" dir="ltr">{% templatetag openblock %} include "components/skeleton.html" with type="card" count=6 {% templatetag closeblock %}
-{% templatetag openblock %} include "components/skeleton.html" with type="table" rows=8 {% templatetag closeblock %}</pre>
+        <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} include "components/skeleton.html" with type="card" count=6 {% templatetag closeblock %}
+{% templatetag openblock %} include "components/skeleton.html" with type="table" rows=8 {% templatetag closeblock %}</pre></details>
 
         <p class="sg-label">البحثُ الحيّ والترقيم — مع HTMX</p>
-        <pre class="sg-code" dir="ltr">{% templatetag openblock %} include "components/search_input.html" with search_url=request.path target="#results" placeholder="…" name="q" value=query {% templatetag closeblock %}
-{% templatetag openblock %} include "components/pagination.html" with page_obj=page_obj target="#results" {% templatetag closeblock %}</pre>
+        <details><summary>الشيفرة</summary><pre class="sg-code" dir="ltr">{% templatetag openblock %} include "components/search_input.html" with search_url=request.path target="#results" placeholder="…" name="q" value=query {% templatetag closeblock %}
+{% templatetag openblock %} include "components/pagination.html" with page_obj=page_obj target="#results" {% templatetag closeblock %}</pre></details>
       </div>
     </div>
     <ul class="sg-rules">
@@ -350,6 +593,58 @@
     </ul>
   {% endsection_card %}
 
+  {# ══ 21 ══ #}
+  {% section_card "21 · الوضعُ الداكن" meta="html.dark · 40-themes.css" icon="settings" span="wide" %}
+    <ul class="sg-rules">
+      <li>يُفعَّل بصنف <code>dark</code> على <code>&lt;html&gt;</code>، وتُعاد فيه قيمُ الرموز نفسِها في <code>40-themes.css</code> — فالقالبُ لا يعرف الوضعَ ولا يكتب له شيئاً. بدِّل الوضعَ تتبدّل قيمُ اللوحة.</li>
+      <li>الأبيضُ للنصوص والأطر وحدَها لا خلفيّةً؛ والخلفيّةُ الفاتحة تُكتب رمزاً له قيمةٌ ليليّة معتمة.</li>
+      <li>ترويسةُ الموقع والذيلُ وترويسةُ الجدول عنّابيّةٌ بنصٍّ أبيض <code><bdi dir="ltr">--on-fill</bdi></code> نهاراً (والترويسةُ والذيلُ بنفسجيٌّ داكنٌ جدّاً ليلاً)؛ والقائمةُ الرئيسيّةُ رملٌ بنصٍّ عنّابيٍّ داكنٍ نهاراً — انظر القسم 23.</li>
+      <li>لونٌ مكتوبٌ في قالبٍ أو <code>style=</code> لا يتبع الوضع — ولذلك يرفضه <code>test_design_ratchet</code>. والتباينُ يُقاس في الوضعين (<code>test_contrast_ratios</code>).</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 22 ══ #}
+  {% section_card "22 · معاييرُ الهويّة" meta="حركة · تنقّل · تنبيه · بطاقة" icon="checklist" span="wide" %}
+    <ul class="sg-rules">
+      <li><b>الانتقال:</b> الترويسةُ والقائمةُ والفوتر ثابتةٌ، والمحتوى وحدَه يتلاشى 500ms ثمّ يظهر 500ms (<code><bdi dir="ltr">--transition-page</bdi></code>)؛ ولا تلاشيَ لمن طلب تقليلَ الحركة.</li>
+      <li><b>القوائم:</b> تُفتح بالمرور على الحاسوب (150ms فتحاً و300ms إغلاقاً)، وبالنقر على اللمس؛ Esc يغلق؛ والقسمُ الحاليّ بخطٍّ سفليٍّ <code><bdi dir="ltr">--nav-mark</bdi></code>. لا شريطَ فرعيّ.</li>
+      <li><b>التنبيهات:</b> <code>{% templatetag openblock %} callout "hint|info|warning|error|success" {% templatetag closeblock %}</code> — التلميحُ والمعلومةُ والتحذيرُ أيقوناتٌ بالترتيب: مصباحٌ، تعجّبٌ أحمر، معلومة؛ والخطأُ والنجاحُ أسطرٌ ظاهرة.</li>
+      <li><b>البطاقات:</b> ارتفاعُها بمحتواها لا بالنافذة (<code>fill-grid is-fit</code>)، ولا تمريرَ داخل بطاقةٍ محدودة؛ والطافيةُ تبقى داخل بطاقتها بخلفيةٍ خضراءَ خافتةٍ (<code><bdi dir="ltr">--popover-bg</bdi></code>) ونصٍّ أسود.</li>
+      <li><b>التباعد والتقوّس:</b> رموزُ <code><bdi dir="ltr">--sp-*</bdi></code> و<code><bdi dir="ltr">--radius-*</bdi></code> وحدَها؛ والألوانُ رموزُ الحالة وحدَها.</li>
+      <li><b>الحرّاس:</b> <code>test_design_ratchet</code> · <code>test_px_tokens</code> · <code>test_dead_classes</code> · <code>test_contrast_ratios</code> · <code>test_admin_theme</code> · <code>test_page_nav_shell</code>.</li>
+    </ul>
+  {% endsection_card %}
+
+  {# ══ 23 ══ #}
+  {% section_card "23 · الترويسةُ والقائمةُ والذيل" meta="header · nav · menu · footer" icon="dashboard" span="full" %}
+    <div class="sg-chrome" role="img" aria-label="معاينةٌ للترويسة والقائمة الرئيسيّة والقائمة المنسدلة والذيل بألوان الوضع الحاليّ">
+      <div class="sg-chrome__header"><span>اسمُ المدرسة</span><span class="sg-chrome__grow"></span><span>المستخدم</span></div>
+      <div class="sg-chrome__nav">
+        <span class="sg-chrome__item">الرئيسية</span>
+        <span class="sg-chrome__item is-current">إدارةُ الشؤون الأكاديميّة</span>
+        <span class="sg-chrome__item is-hover">شؤونُ الموظّفين</span>
+        <span class="sg-chrome__item">الجودة</span>
+      </div>
+      <div class="sg-chrome__page">
+        <div class="sg-chrome__menu">
+          <span class="sg-chrome__label">الجدولُ والجدولة</span>
+          <span class="sg-chrome__link">الجدولةُ الذكيّة</span>
+          <span class="sg-chrome__link is-hover">الإسناد</span>
+          <span class="sg-chrome__link">إعداداتُ الجدول</span>
+        </div>
+      </div>
+      <div class="sg-chrome__footer"><span class="sg-chrome__soft">المدرسةُ · وزارةُ التربية والتعليم والتعليم العالي</span><span>رؤيةُ الوزارة</span></div>
+    </div>
+    <ul class="sg-rules">
+      <li><b>الترويسةُ والذيلُ لونٌ واحد:</b> <code><bdi dir="ltr">--header-bg</bdi></code> (عنّابيٌّ نهاراً، بنفسجيٌّ داكنٌ جدّاً ليلاً) و<code><bdi dir="ltr">--footer-bg: var(--header-bg)</bdi></code>؛ نصُّهما <code><bdi dir="ltr">--on-fill</bdi></code> و<code><bdi dir="ltr">--footer-fg</bdi></code>، والثانويُّ <code><bdi dir="ltr">--footer-fg-soft</bdi></code>، وخطُّ الذيل العلويّ <code><bdi dir="ltr">--gold</bdi></code>.</li>
+      <li><b>القائمةُ الرئيسيّة</b> <code><bdi dir="ltr">--nav-bg</bdi></code> رملٌ خفيفٌ نهاراً بنصٍّ <code><bdi dir="ltr">--nav-fg</bdi></code> عنّابيٍّ داكن، ومرورٌ <code><bdi dir="ltr">--nav-hover</bdi></code>، وعلامةُ القسم الحاليّ <code><bdi dir="ltr">--nav-mark</bdi></code>. لا حدَّ عنّابيَّ تحتها؛ ولا أبيضَ ولا تظليلَ أبيضَ فوق سطحٍ فاتح (<code><bdi dir="ltr">--on-fill</bdi></code> للحشو الثابت وحدَه).</li>
+      <li><b>القوائمُ المنسدلة بلونِ القائمة نفسِه</b> لا أبيضَ ثابتاً: <code><bdi dir="ltr">--menu-bg: var(--nav-bg)</bdi></code>؛ فاصلُها <code><bdi dir="ltr">--menu-rule</bdi></code> وتظليلُ مرورها <code><bdi dir="ltr">--menu-hover</bdi></code> مشتقّان منه، وأسماءُ أعمدتها <code><bdi dir="ltr">--menu-label</bdi></code> عوديّةٌ نهاراً، وظلُّها <code><bdi dir="ltr">--shadow-menu</bdi></code>.</li>
+      <li><b>لوحةُ الإدارة تنسخ الرموزَ نفسَها</b> في <code>admin_theme.css</code>، ويمنع <code>test_admin_theme</code> انجرافَها؛ فتغييرُ لونٍ منها قيمةُ رمزٍ في <code>10-foundation.css</code> و<code>40-themes.css</code> ونظيرِها هناك — لا قاعدةٌ في صفحة.</li>
+      <li>ألوانُ نصّ الذيل مقيَّدةٌ بـ<code>.site-footer</code> لأنّ أصنافَه (<code>site-footer-vision</code> و<code>site-footer-brand*</code>) تُضمَّن في صفحة الدخول والأخطاء على خلفيّاتٍ فاتحة؛ والتشكيلُ الأزرقُ للرؤية يأخذ لوحةَ الخطّ الفاتحة <code><bdi dir="ltr">--tashkeel-dark</bdi></code> فوق الذيل.</li>
+    </ul>
+  {% endsection_card %}
+
+  </div>
 </div>
 {% endblock %}
 

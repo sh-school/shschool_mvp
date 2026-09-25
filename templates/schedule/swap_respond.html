@@ -39,7 +39,7 @@
       </div>
 
       {% if swap.reason %}
-      <p class="form-note is-warning"><span><strong>سبب الطلب:</strong> {{ swap.reason }}</span></p>
+      <p class="ui-note"><strong>سبب الطلب:</strong> {{ swap.reason }}</p>
       {% endif %}
 
       {% if swap.status == "pending_b" %}
@@ -51,15 +51,15 @@
       <div class="respond-actions">
         <form method="post">{% csrf_token %}
           <input type="hidden" name="action" value="accept">
-          <button type="submit" class="btn-respond btn-accept">قبول التبديل</button>
+          <button type="submit" class="btn-success" data-loading>قبول التبديل</button>
         </form>
         <form method="post" id="reject-form">{% csrf_token %}
           <input type="hidden" name="action" value="reject">
-          <button type="button" id="reject-btn" class="btn-respond btn-decline">رفض التبديل</button>
+          <button type="button" id="reject-btn" class="btn-danger">رفض التبديل</button>
         </form>
       </div>
       {% else %}
-      <p class="form-note respond-closed">هذا الطلب بحالة: <strong>{{ swap.get_status_display }}</strong> &mdash; لا يمكن الرد عليه الآن.</p>
+      {% callout "info" %}هذا الطلب بحالة: <strong>{{ swap.get_status_display }}</strong> &mdash; لا يمكن الرد عليه الآن.{% endcallout %}
       {% endif %}
   {% endsection_card %}
 </div>

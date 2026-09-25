@@ -10,17 +10,25 @@ from django_prometheus.exports import ExportToDjangoView
 from core import views_styleguide
 from core.mfa_session import admin_login_redirect
 from core.permissions import internal_only
-from core.views_health import health_check, readiness_check, status_check
-from core.views_media import serve_db_file
+from core.views_health import (
+    health_check,
+    readiness_check,
+    status_check,
+    worker_heartbeat_check,
+)
 from core.views_pwa import global_manifest, global_sw, offline_global
 from core.views_search import global_search
+from governance.views_media import serve_db_file
 
 urlpatterns = [
     path("health/", health_check),
+    path("health/worker/", worker_heartbeat_check, name="worker_heartbeat_check"),
     # ✅ v5.4: Readiness Probe خفيف (DB فقط) — load balancer + rolling deployments
     path("ready/", readiness_check, name="readiness_check"),
     # ✅ v5.4: Full status endpoint — DB + Redis + migrations + uptime + version
-    path("status/", status_check, name="status_check"),
+    # داخليٌّ فقط (P4-9): تفاصيلُ الاتّصال وزمنُ الاستجابة لفريق العمليّات لا
+    # لأيّ زائر — internal_only تحرسه كما تحرس /metrics.
+    path("status/", internal_only(status_check), name="status_check"),
     path("", lambda r: redirect("dashboard/")),
     # خدمة الملفات المُخزَّنة في قاعدة البيانات (DatabaseStorage) — محمية بتسجيل الدخول
     path("dbmedia/<path:name>", serve_db_file, name="serve_db_file"),
@@ -30,6 +38,7 @@ urlpatterns = [
     path("auth/", include("core.urls.auth")),
     path("dashboard/", include("core.urls.dashboard")),
     path("core/", include("core.urls.audit")),
+    path("core/it-admin/", include("core.urls.it_admin")),
     path("core/students/import-export/", include("core.urls.students")),
     path("teacher/", include("operations.urls")),
     path("quality/", include("quality.urls")),
@@ -62,6 +71,8 @@ urlpatterns = [
     ),
     # Developer Feedback — SPRINT-DF-001 — MTG-2026-014/015/016/017/018
     path("developer-feedback/", include("developer_feedback.urls")),
+    # خارطة تجويد المنصّة — لمطوّر المنصّة وحدَه (تحت «دليل الهويّة» في أدوات المطوّر)
+    path("roadmap/", include("roadmap.urls")),
     # ✅ v5.1.1: Prometheus metrics — محمي بمصادقة staff + IP داخلي فقط
     path(
         "metrics",
@@ -78,6 +89,7 @@ urlpatterns = [
     ),
     path("styleguide/components/", views_styleguide.ui_components, name="ui_components"),
     path("styleguide/icons/", views_styleguide.icon_preview, name="icon_preview"),
+    path("styleguide/layouts/", views_styleguide.ui_layouts, name="ui_layouts"),
     path("sw.js", global_sw, name="global_sw"),
     path("manifest.json", global_manifest, name="global_manifest"),
     path("offline/", offline_global, name="offline_global"),

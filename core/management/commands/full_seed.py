@@ -210,8 +210,13 @@ class Command(BaseCommand):
 
             Profile.objects.get_or_create(user=user)
             if "مدير المدرسه" in job_norm or "مدير المدرسة" in job_norm:
-                user.is_superuser = True
-                user.save(update_fields=["is_superuser"])
+                # قرارُ المالك 2026-09-22: is_staff بصلاحيّاتٍ صريحةٍ (core.admin_access)
+                # لا is_superuser — الذي كان يتجاوز كلَّ حارسٍ في المنصّة بلا استثناء.
+                from core.admin_access import sync_principal_admin_group
+
+                user.is_staff = True
+                user.save(update_fields=["is_staff"])
+                user.groups.add(sync_principal_admin_group())
 
             role_name = map_role(job_norm)
             Membership.objects.get_or_create(
@@ -524,6 +529,7 @@ class Command(BaseCommand):
                     defaults={
                         "subject": slot.subject,
                         "end_time": slot.end_time,
+                        "period_number": slot.period_number,
                         "status": "completed",
                     },
                 )

@@ -64,20 +64,40 @@
         <label for="ev-goals">أهداف الفترة القادمة</label>
         <textarea name="goals_next" id="ev-goals" rows="3" class="form-control">{{ obj.goals_next }}</textarea>
         {% if obj.employee_comment %}
-        <p class="form-note"><span><b>تعليق الموظف:</b> {{ obj.employee_comment }}</span></p>
+        <p class="ui-note"><b>تعليق الموظف:</b> {{ obj.employee_comment }}</p>
         {% endif %}
       </div>
     {% endsection_card %}
 
     <div class="form-actions">
       <a href="{% url 'evaluation_dashboard' %}" class="btn-secondary">إلغاء</a>
-      {% if obj.status != 'acknowledged' %}
+      {% if is_editable %}
       <button type="submit" name="action" value="draft" class="btn-secondary">حفظ مسودة</button>
       {# كان الوسمُ بلا «>» فابتلع نصَّه سماتٍ ورُسم الزرُّ فارغاً. #}
       <button type="submit" name="action" value="submitted" class="btn-primary">تقديم التقييم</button>
       {% endif %}
     </div>
   </form>
+
+  {% if can_approve %}
+  {# المادة 16: «يضع الرئيس المباشر تقييم أداء الموظف ويعتمد من مدير المدرسة». #}
+  <form method="post" action="{% url 'approve_evaluation' obj.id %}" class="form-actions">
+    {% csrf_token %}
+    {% callout "warning" %}الاعتماد يقفل التقرير فلا تُعدَّل درجاتُه بعده، ويظهر للموظّف؛ ويبدأ ميعادُ تظلّمه (15 يوماً) من تاريخ علمه به.{% endcallout %}
+    <button type="submit" class="btn-primary">اعتماد التقرير</button>
+  </form>
+  {% endif %}
+
+  {% if can_record_receipt %}
+  {# «تاريخ استلام الموظف (يرجى تدوين التاريخ في حالة رفض الموظف التوقيع)» — استمارة المعلم ص2. #}
+  <form method="post" action="{% url 'record_evaluation_receipt' obj.id %}" class="form-actions">
+    {% csrf_token %}
+    <label for="ev-received-on">تاريخ استلام الموظف (عند رفضه التوقيع)</label>
+    <input type="date" name="received_on" id="ev-received-on" class="form-control" required>
+    {% callout "warning" %}يبدأ به ميعادُ التظلّم القانونيّ (15 يوماً، م 20) ولا يُدوَّن التاريخ ثانيةً.{% endcallout %}
+    <button type="submit" class="btn-secondary">تدوين تاريخ الاستلام</button>
+  </form>
+  {% endif %}
 
 </div>
 {% endblock %}

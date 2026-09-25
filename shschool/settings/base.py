@@ -61,6 +61,10 @@ INSTALLED_APPS = [
     # ✅ مركز معلومات الطلبة — ملفّ الطالب الجامع وملاحظات الجهات الخمس
     "student_info.apps.StudentInfoConfig",
     "wings.apps.WingsConfig",
+    # خارطة تجويد المنصّة — لمطوّر المنصّة وحدَه (أدوات المطوّر)
+    "roadmap.apps.RoadmapConfig",
+    # الحوكمة وحماية البيانات: المحو والاحتفاظ وتدوير المفاتيح ووصول الملفّات (ADR-0004)
+    "governance.apps.GovernanceConfig",
     # ✅ فلترة احترافية
     "django_filters",
     # ✅ [SEC-02] قائمة حظر توكنات التحديث بعد التدوير (JWT) — تتطلب migrate
@@ -75,6 +79,8 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     # ✅ WhiteNoise: static files مع Brotli/GZip + cache headers مثالية
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    # عدُّ استجابات 5xx لبطاقة الإدارة (OWN-23) — مبكّرٌ ليرى ما تنتجه الأوسطةُ الداخليّة، ومتزامنٌ وغيرُ متزامن.
+    "core.middleware_errors.ServerErrorCounterMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     # ✅ CORS — يجب أن يكون قبل CommonMiddleware
     "corsheaders.middleware.CorsMiddleware",
@@ -132,11 +138,22 @@ WSGI_APPLICATION = "shschool.wsgi.application"
 ASGI_APPLICATION = "shschool.asgi.application"
 
 # ── Django Channels — Channel Layer (Redis) ────────────────────────────
+CHANNEL_LAYER_SOCKET_TIMEOUT = 15  # ثانية؛ يجب أن تفوق RedisChannelLayer.brpop_timeout (5)
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [config("REDIS_URL", default="redis://localhost:6379/0")],
+            # مهلةُ القراءة صريحةٌ: redis-py ≥ 8 صار افتراضُها 5s (كان بلا مهلة)،
+            # وchannels_redis يقرأ بـBZPOPMIN بمهلة `brpop_timeout` = 5s على الاتصال
+            # نفسه — فتتساوى المهلتان ويسقط كلُّ مستهلكٍ خامل بـ«Timeout reading from
+            # redis» بعد ~5s. تبقى أكبر من 5s بهامشٍ يكشف الاتصالَ الميّت.
+            "hosts": [
+                {
+                    "address": config("REDIS_URL", default="redis://localhost:6379/0"),
+                    "socket_timeout": CHANNEL_LAYER_SOCKET_TIMEOUT,
+                    "socket_connect_timeout": 5,
+                }
+            ],
             "capacity": 1500,  # حد الرسائل لكل channel
             "expiry": 30,  # TTL الرسالة بالثواني
         },
@@ -450,17 +467,19 @@ VAPID_CLAIMS_EMAIL = os.environ.get("VAPID_CLAIMS_EMAIL", "")
 # وبريدُه وجوّالُه ليست إعداداتٍ تُودَع (انظر `.env.example`).
 DPO_NAME = os.environ.get("DPO_NAME", "")
 DPO_EMAIL = os.environ.get("DPO_EMAIL", "")
+# مستلِمُ إشعارات «أرسل إلى المطوّر»: يُضبط على خدمة الويب؛ فارغٌ = لا إرسال (يُسجَّل فشلاً).
+DEVELOPER_FEEDBACK_RECIPIENT = os.environ.get("DEVELOPER_FEEDBACK_RECIPIENT", "")
 DPO_PHONE = os.environ.get("DPO_PHONE", "")
 
 # ── الاحتفاظُ بالبيانات (PDPPL م.7 و10) ───────────────────────────────
 # بعد كم يوماً يُحذف ما انقضى غرضُه من آثار التشغيل (السياسةُ جدولاً جدولاً في
-# docs/privacy/data_retention.md، والمُنفِّذ core/retention.py). كان المتغيّرُ
+# docs/privacy/data_retention.md، والمُنفِّذ governance/retention.py). كان المتغيّرُ
 # معلَناً في .railway/railway.ts ولا يقرؤه أحد. والصفرُ يعطّل الحذفَ كلَّه.
 #
 # نصٌّ خامٌ لا `int()` هنا: الإعداداتُ تُقرأ عند إقلاع كلّ عمليّة، فخطأٌ مطبعيٌّ
 # في البيئة كان يُسقط المنصّةَ كلَّها لا الحذفَ وحده — وقد وقع يومَ 2026-09-14:
 # القيمةُ على Railway `730)` فسقطت مرحلةُ الإصدار مرّتين. والتحليلُ في
-# `core.retention.retention_days()`: ما لا يُفهم رقماً يعطّل الحذفَ ويُسجَّل خطأً.
+# `governance.retention.retention_days()`: ما لا يُفهم رقماً يعطّل الحذفَ ويُسجَّل خطأً.
 PDPPL_DATA_RETENTION_DAYS = os.environ.get("PDPPL_DATA_RETENTION_DAYS", "730").strip()
 
 # ══════════════════════════════════════════════════════════════════════
@@ -501,8 +520,10 @@ AXES_VERBOSE = False
 AXES_USERNAME_FORM_FIELD = "identifier"
 AXES_USERNAME_CALLABLE = "core.auth_identity.axes_username"
 
-# إعادة توجيه مخصصة عند القفل — None = HTTP 403 الافتراضي
+# صفحةُ القفل بهويّة المنصّة بدل نصّ axes الخام (كانت None = استجابةُ axes الافتراضيّة
+# بلا خطٍّ ولا طريق عودة). AXES_LOCKOUT_URL يبقى None: الاستدعاءُ يستبقه.
 AXES_LOCKOUT_URL = None
+AXES_LOCKOUT_CALLABLE = "core.views_auth.axes_lockout_response"
 
 # ── F-004: حد حجم الرفع (5 MB) — OWASP File Upload ──────────────
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5 MB
@@ -749,4 +770,17 @@ RATELIMIT_FAIL_OPEN = True
 # النسخُ المؤرشفة خمساً في يومٍ واحد (2026-09-05). قرارُ المدرسة يومَها: **جدولٌ
 # واحدٌ فقط، الحيّ**. فما يُؤرشف يذهب مع حصصه عند الاعتماد التالي، والمسودّاتُ
 # باقيةٌ لأنّها عملٌ جارٍ لا نسخةٌ قديمة.
-SCHEDULE_ARCHIVE_RETENTION = int(os.environ.get("SCHEDULE_ARCHIVE_RETENTION", "0"))
+# ثمّ اعتُمد جدولٌ باثنتي عشرةَ مخالفةً (2026-09-24) ولا سابقَ محفوظٌ يُرجَع إليه أو يُقارَن
+# به — فصار الافتراضُ نسختين (SCH-07): السابقُ للتراجع، والذي قبله للمقارنة.
+SCHEDULE_ARCHIVE_RETENTION = int(os.environ.get("SCHEDULE_ARCHIVE_RETENTION", "2"))
+
+# ── محرّكُ الحكم الواحد (`assessments/verdict_engine.py`) ─────────────────
+# مطفأٌ افتراضاً: ما دام كذلك يبقى حسابُ الدرجات على حاله القديم، فلا تتغيّر شهادةٌ ولا
+# نتيجة. تُرفع مع الطلب الذي يحوّل المستهلكين لقراءة الحكم المخزَّن — والحالاتُ الجديدة
+# («مُرفَّع»، «دور ثانٍ»…) لا تفهمها الشاشاتُ التي تعدّ `fail` و`pass` وحدَهما. والمتغيّرُ
+# يُضبط على الخدمات الثلاث (ويب + worker + beat) معاً.
+VERDICT_ENGINE_ENABLED = os.environ.get("VERDICT_ENGINE_ENABLED", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+}

@@ -112,10 +112,16 @@ class TeacherWorkloadPlan(AuditedModel):
     """رأسُ خطّة النصاب لمعلّمٍ في عامٍ ونسخةٍ بعينها."""
 
     school = models.ForeignKey(
-        "core.School", on_delete=models.CASCADE, related_name="workload_plans"
+        "core.School",
+        on_delete=models.CASCADE,
+        related_name="workload_plans",
+        verbose_name="المدرسة",
     )
     teacher = models.ForeignKey(
-        "core.CustomUser", on_delete=models.CASCADE, related_name="workload_plans"
+        "core.CustomUser",
+        on_delete=models.CASCADE,
+        related_name="workload_plans",
+        verbose_name="المعلّم",
     )
     academic_year = models.CharField(max_length=9, verbose_name="العام الدراسي")
     plan_version = models.PositiveIntegerField(default=1, verbose_name="نسخة الخطة")
@@ -160,7 +166,9 @@ class TeacherWorkloadPlan(AuditedModel):
     )
 
     # ── الدورةُ ومن فعل ماذا ومتى ────────────────────────────────
-    status = models.CharField(max_length=10, choices=PLAN_STATUSES, default=DRAFT)
+    status = models.CharField(
+        max_length=10, choices=PLAN_STATUSES, default=DRAFT, verbose_name="الحالة"
+    )
     submitted_by = models.ForeignKey(
         "core.CustomUser",
         on_delete=models.SET_NULL,
@@ -396,7 +404,10 @@ class TeacherWorkloadAllocation(models.Model):
     """
 
     workload_plan = models.ForeignKey(
-        TeacherWorkloadPlan, on_delete=models.CASCADE, related_name="allocations"
+        TeacherWorkloadPlan,
+        on_delete=models.CASCADE,
+        related_name="allocations",
+        verbose_name="خطّة النصاب",
     )
     level_type = models.CharField(max_length=4, choices=LEVEL_TYPES, verbose_name="المرحلة")
     target_periods = models.PositiveIntegerField(verbose_name="الحصص المستهدفة")
@@ -452,7 +463,10 @@ class WorkloadGovernance(models.Model):
     """
 
     school = models.OneToOneField(
-        "core.School", on_delete=models.CASCADE, related_name="workload_governance"
+        "core.School",
+        on_delete=models.CASCADE,
+        related_name="workload_governance",
+        verbose_name="المدرسة",
     )
     edit_roles = models.JSONField(default=list, blank=True, verbose_name="أدوار الإدخال")
     review_roles = models.JSONField(default=list, blank=True, verbose_name="أدوار المراجعة")
@@ -497,6 +511,27 @@ class WorkloadGovernance(models.Model):
         blank=True,
         verbose_name="تحذيراتٌ تُعدّ موانع",
         help_text="رموزُ نتائج الإسناد التي ترفعها المدرسةُ من تحذيرٍ إلى منع",
+    )
+
+    #: وقفُ الإسناد عن المنسّقين: يُوقَف فيبقى الكلُّ يرى الشاشة، ولا يكتب فيها إلّا
+    #: النائبُ الأكاديميُّ والمدير والمطوّر. حقلٌ منطقيٌّ واحدٌ لا حالةٌ لكلّ معلّم —
+    #: فهو قرارٌ على المدرسة كلِّها، ويُفتح بنقرةٍ فلا يبقى قفلٌ منسيّ.
+    coordinator_entry_paused = models.BooleanField(
+        default=False,
+        verbose_name="الإسنادُ موقوفٌ عن المنسّقين",
+        help_text="متى كان مفعّلاً لا يُدخل المنسّقون إسناداً ولا يرفعونه",
+    )
+    #: من بدّل المفتاحَ آخرَ مرّة ومتى — يُقرأ في اللافتة، والتدقيقُ الكاملُ في `AuditLog`.
+    entry_changed_at = models.DateTimeField(
+        null=True, blank=True, verbose_name="وقت آخر تبديل للوقف"
+    )
+    entry_changed_by = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="آخر من بدّل الوقف",
     )
 
     class Meta:
@@ -546,14 +581,20 @@ class CurriculumPlan(AuditedModel):
     """
 
     school = models.ForeignKey(
-        "core.School", on_delete=models.CASCADE, related_name="curriculum_plans"
+        "core.School",
+        on_delete=models.CASCADE,
+        related_name="curriculum_plans",
+        verbose_name="المدرسة",
     )
     academic_year = models.CharField(max_length=9, verbose_name="العام الدراسي")
     grade = models.CharField(max_length=3, verbose_name="الصف")
     #: فارغٌ لغير الحادي عشر والثاني عشر — والعاشرُ ثانويٌّ بلا مسار.
     track = models.CharField(max_length=12, blank=True, verbose_name="المسار")
     subject = models.ForeignKey(
-        "operations.Subject", on_delete=models.PROTECT, related_name="curriculum_rows"
+        "operations.Subject",
+        on_delete=models.PROTECT,
+        related_name="curriculum_rows",
+        verbose_name="المادّة",
     )
     weekly_periods = models.PositiveIntegerField(verbose_name="الحصص الأسبوعية")
 
@@ -591,7 +632,7 @@ class CurriculumPlan(AuditedModel):
         help_text="فارغٌ للمادّة الإلزاميّة؛ والبدائلُ تتقاسم وسماً واحداً",
     )
 
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
 
     objects = YearScopedQuerySet.as_manager()
 
@@ -665,18 +706,27 @@ class CoursePreparation(AuditedModel):
     """
 
     school = models.ForeignKey(
-        "core.School", on_delete=models.CASCADE, related_name="course_preparations"
+        "core.School",
+        on_delete=models.CASCADE,
+        related_name="course_preparations",
+        verbose_name="المدرسة",
     )
     academic_year = models.CharField(max_length=9, verbose_name="العام الدراسي")
     grade = models.CharField(max_length=3, verbose_name="الصف")
     track = models.CharField(max_length=12, blank=True, default="", verbose_name="المسار")
     subject = models.ForeignKey(
-        "operations.Subject", on_delete=models.PROTECT, related_name="course_preparations"
+        "operations.Subject",
+        on_delete=models.PROTECT,
+        related_name="course_preparations",
+        verbose_name="المادّة",
     )
     teacher = models.ForeignKey(
-        "core.CustomUser", on_delete=models.CASCADE, related_name="course_preparations"
+        "core.CustomUser",
+        on_delete=models.CASCADE,
+        related_name="course_preparations",
+        verbose_name="المعلّم",
     )
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name="نشط")
 
     objects = YearScopedQuerySet.as_manager()
 

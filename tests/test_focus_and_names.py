@@ -20,8 +20,8 @@ import pathlib
 import re
 
 from tests.css_contrast import iter_rules, ratio, resolve, token_table
+from tests.css_source import read_css
 
-CSS_PATH = pathlib.Path("static/css/custom.css")
 ROOTS = [pathlib.Path("templates")] + sorted(pathlib.Path(".").glob("*/templates"))
 
 NON_TEXT_AA = 3.0
@@ -31,7 +31,7 @@ LAYERS_ABOVE_THE_RING = ("modules", "utilities", "themes")
 
 
 def _css():
-    return CSS_PATH.read_text(encoding="utf-8")
+    return read_css()
 
 
 def _layer(ctx):

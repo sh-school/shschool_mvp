@@ -9,7 +9,7 @@
 
 ## المطابقة
 
-الأسماءُ في الملفّ مختصرةٌ («أحمد أغلو») وفي المنصّة كاملة («احمد محمد أوغلو»)،
+الأسماءُ في الملفّ مختصرةٌ وفي المنصّة كاملة،
 فتُوحَّد الحروفُ (ألفٌ وهمزةٌ وتاءٌ مربوطةٌ وياءٌ وتطويل) ثمّ يُطابَق بالتضمّن:
 كلُّ كلمةٍ في الملفّ موجودةٌ في اسم المنصّة، ومطابقةٌ واحدةٌ لا أكثر. وما التبس
 يُذكر ولا يُخمَّن.
@@ -26,13 +26,15 @@
 import csv
 import re
 from collections import Counter, defaultdict
+from typing import NamedTuple
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from academic_management import assignment_service as svc
+from academic_management import assignment_services as svc
 from core.academic_calendar import academic_year_for_school
 from core.models import ClassGroup, CustomUser, Membership, School
+from core.private_data import load_private_json
 from operations.models import Subject, SubjectClassAssignment
 
 TEACHING_ROLES = ("teacher", "ese_teacher", "coordinator", "e_projects_coordinator")
@@ -65,34 +67,37 @@ JOINED_SECONDS = (
     "الدين",
 )
 
-#: أسماءُ معلّمين في الجدول لا تُطابق أسماءَ المنصّة بحروفها — تُربط صراحةً.
-#: «علي ضيف» اسمان في المدرسة، ففُصل بمادّته: الاجتماعيّاتُ لحمد عليّ، والأحياءُ
-#: لخريسات. و«يوسف عثامنه» اسمُ شهرةٍ لا يشبه المسجَّل — والفنّيّةُ تدلّ عليه.
-TEACHER_ALIASES = {
-    "علي ضيف": "على ضيف الله حمد على",
-    "يوسف عثامنه": "يوسف جميل سليمان العبدالله",
-    "عبدالرحمن رجا": "عبدالرحمن فيصل اسماعيل راجه",
-    "وليد جمعه عبد اللطيف": "وليد عبد اللطيف",
-}
+#: أسماءُ معلّمين وقواعدُ ربطٍ خاصّةٌ بأسمائهم — بيانٌ شخصيٌّ (PDPPL) والمستودعُ عامّ، فلا تُكتب في الشيفرة
+#: (REP-07b). تُقرأ من ملفّ JSON خارجه: `TIMETABLE_NAME_RULES_FILE` أو `data/timetable_name_rules.json` (يتجاهله git):
+#:   {"teacher_aliases": {"اسمُ الجدول": "اسم المنصّة"},    اسمٌ في الجدول لا يطابق المنصّةَ بحروفه — يُربط صراحةً
+#:    "sole_holders": {"شعبة|مادّة": "اسم"},                 حصصُها باسم القائم بها وحدَه، لا شراكةَ تدريس
+#:    "split_subjects": {"شعبة|اسم المعلّم": "المادّة"}}     نصفُ شعبةٍ سمّاه aSc باسم نصفها الآخر: يُصحَّح بمادّة
+#: قسم المعلّم لا بالتخمين (مجموعاتُ الاختيار في 11/1 و11/2 و12/1 و12/2). وغيابُ الملفّ قواعدُ فارغة: تُطابَق
+#: الأسماءُ بالتشابه وحدَه، وما التبس يُذكر ولا يُخمَّن.
+TIMETABLE_RULES_ENV = "TIMETABLE_NAME_RULES_FILE"
+TIMETABLE_RULES_DEFAULT = "data/timetable_name_rules.json"
 
-#: خانةٌ ظهرت في صفحتَي معلّمَين وليست مقسومةً بينهما — أحياءُ 12/1 أربعُ
-#: حصصٍ لمعلّمٍ واحدٍ لا نصفان. ومنسّقُ الأحياء أحمد محمد إبراهيم مُجازٌ وعليّ
-#: خريسات يقوم بجدوله (2026-09-07)، فالحصصُ باسم القائم بها كما أثبتها
-#: المستخدمُ في الشاشة — والمنصّةُ تسجّل من يُدرّس لا من يُنسَب إليه.
-SOLE_HOLDERS = {("12.1", "احياء"): "علي خريسات"}
 
-#: نصفُ شعبةٍ سمّاه aSc باسم نصفها الآخر. فالخانةُ المقسومةُ في تصديره
-#: تُطبع بمادّةٍ واحدةٍ على صفحتَي المعلّمَين، وهي في الحقيقة مادّتان: نصفٌ
-#: إلى معمل الحاسب ونصفٌ إلى غرفة الفنون — وهو ما تقوله الخطّةُ الدراسيّة
-#: نفسُها (مجموعةُ اختيارٍ في 11/1 و11/2 و12/1 و12/2). فيُصحَّح باسم قسم
-#: المعلّم لا بالتخمين: مدرّسُ الفنون يُدرّس الفنون، ومدرّسُ التكنولوجيا
-#: يُدرّس التكنولوجيا (قرارُ المستخدم 2026-09-07).
-SPLIT_SUBJECTS = {
-    ("11.1", "عبد الله الرمضان"): "الفنون البصرية",
-    ("11.2", "احمد رمضان حامد"): "ادارة اعمال",
-    ("12.1", "محمد اسماعيل السيد"): "التكنولوجيا",
-    ("12.2", "يوسف يعقوب عوض"): "الفنون البصرية",
-}
+class NameRules(NamedTuple):
+    teacher_aliases: dict
+    sole_holders: dict
+    split_subjects: dict
+
+
+def load_name_rules() -> NameRules:
+    data = load_private_json(TIMETABLE_RULES_ENV, TIMETABLE_RULES_DEFAULT)
+    data = data if isinstance(data, dict) else {}
+
+    def pairs(section):
+        out = {}
+        for key, value in (data.get(section) or {}).items():
+            left, _, right = str(key).partition("|")
+            out[(left, right)] = str(value)
+        return out
+
+    aliases = {str(k): str(v) for k, v in (data.get("teacher_aliases") or {}).items()}
+    return NameRules(aliases, pairs("sole_holders"), pairs("split_subjects"))
+
 
 #: بادئةُ وسم الشعبة المقسومة. والوسمُ **واحدٌ لنصفَي الشعبة** لا وسمان:
 #: المولّدُ يجمع في خانةٍ واحدةٍ كلَّ ما تشارك الوسمَ، فلو اختلف الوسمان
@@ -134,7 +139,7 @@ def tokens(name: str) -> set:
 
 
 def closeness(a: str, b: str) -> float:
-    """قربُ اسمين — لمطابقة «أحمد أغلو» بـ«احمد محمد أوغلو»."""
+    """قربُ اسمين — لمطابقة اسمٍ في الجدول باسمٍ في المنصّة."""
     from difflib import SequenceMatcher
 
     first, second = tokens(a), tokens(b)
@@ -243,21 +248,22 @@ class Command(BaseCommand):
 
         والقسمةُ تُعرَف من الخانة لا من المادّة: معلّمان في (شعبةٍ · يومٍ ·
         حصّة) واحدةٍ نصفان، اتّفقت مادّتاهما أو اختلفتا. وكانت تُعرَف بتساوي
-        المادّة، فلمّا صُحِّحت أسماءُ الأنصاف بـ`SPLIT_SUBJECTS` اختلفت
+        المادّة، فلمّا صُحِّحت أسماءُ الأنصاف بقواعد `split_subjects` اختلفت
         المادّتان فانفكّت القسمةُ وصارت الشعبةُ تشغل خانتين.
         """
         counts = Counter()
         cells = defaultdict(list)
+        rules = load_name_rules()
         for row in lessons:
             teacher, class_code, subject = (
                 row["teacher"].strip(),
                 row["class"].strip(),
                 row["subject"].strip(),
             )
-            sole = SOLE_HOLDERS.get((class_code, normal(subject)))
+            sole = rules.sole_holders.get((class_code, normal(subject)))
             if sole and teacher != sole:
                 continue  # تكرارُ تصديرٍ لا شراكةُ تدريس
-            subject = SPLIT_SUBJECTS.get((class_code, teacher), subject)
+            subject = rules.split_subjects.get((class_code, teacher), subject)
             counts[(teacher, class_code, subject)] += 1
             cells[(class_code, row["day"], row["period"])].append((teacher, subject))
 
@@ -283,8 +289,9 @@ class Command(BaseCommand):
         }
         by_name = {normal(p.full_name): p for p in people}
         found, missing = {}, []
+        aliases = load_name_rules().teacher_aliases
         for name in sorted({k[0] for k in wanted}):
-            alias = TEACHER_ALIASES.get(name)
+            alias = aliases.get(name)
             if alias and normal(alias) in by_name:
                 found[name] = by_name[normal(alias)]
                 continue

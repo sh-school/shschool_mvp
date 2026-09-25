@@ -34,6 +34,10 @@
   .week-grid .slot-subject { font-size: {{ geo.css.subject_pt }}; font-weight: 700; color: {% brand_color "MAROON" %}; line-height: 1.2; }
   .week-grid .slot-meta { font-size: {{ geo.css.meta_pt }}; color: {% brand_color "TEXT_SECONDARY" %}; line-height: 1.2; }
   .week-grid .slot-time { font-size: {{ geo.css.time_pt }}; color: {% brand_color "TEXT_MUTED" %}; line-height: 1.2; direction: ltr; unicode-bidi: embed; }
+  {% comment %}عمودُ الفسحة/الصلاة ضيّقٌ بالملّيمتر — «10:25 – 10:45» في سطرٍ واحد يفيض عنه، فيبقى سطرين هنا وحده.{% endcomment %}
+  .week-grid .wg-break .slot-time-sep { display: none; }
+  .week-grid .wg-break .slot-time-start,
+  .week-grid .wg-break .slot-time-end { display: block; }
   .week-grid .slot-empty { color: {% brand_color "TEXT_MUTED" %}; }
   .week-grid .slot-time + .slot-subject { margin-top: 0.8mm; padding-top: 0.8mm; border-top: 1px dashed {% brand_color "BORDER_STRONG" %}; }
   .week-grid .break-label { font-size: {{ geo.css.break_pt }}; font-weight: 700; color: {% brand_color "TEXT_SECONDARY" %}; line-height: 1.15; }
@@ -44,3 +48,21 @@
   .week-grid td.wg-multi .slot-subject { font-size: {{ geo.css.multi_subject_pt }}; line-height: 1.1; }
   .week-grid td.wg-multi .slot-meta, .week-grid td.wg-multi .slot-time { font-size: {{ geo.css.multi_pt }}; line-height: 1.1; }
   .week-grid td.wg-multi .slot-time + .slot-subject { margin-top: 0.4mm; padding-top: 0.4mm; }
+  {% comment %}
+  الأسبوعُ الفعليّ: حصّةٌ حُوّل معلّمُها تُلوَّن خانتُها وتحمل سطرَ «عن فلان» — والألوانُ تلميحٌ لا وسيلةٌ
+  وحيدة: السطرُ نصٌّ يبقى مقروءاً على طابعةٍ بالأبيض والأسود. وشريطُ المفتاح والملاحظات تحت الجدول
+  بارتفاعٍ صريحٍ من `geo.css.notes_h` (`schedule_paper.py`) لأنّ الجدولَ يملأ الورقةَ بالملّيمتر.
+  {% endcomment %}
+  .week-grid td.wg-cover { background: {% brand_color "STATUS_WARNING_BG" %}; }
+  .week-grid td.wg-swap  { background: {% brand_color "STATUS_INFO_BG" %}; }
+  .week-grid td.wg-comp  { background: {% brand_color "STATUS_SUCCESS_BG" %}; }
+  .week-grid .slot-from { font-size: {{ geo.css.meta_pt }}; font-weight: 700; color: {% brand_color "TEXT_PRIMARY" %}; line-height: 1.2; }
+  .week-grid td.wg-multi .slot-from { font-size: {{ geo.css.multi_pt }}; line-height: 1.1; }
+  .week-notes { height: {{ geo.css.notes_h }}; margin-top: {{ geo.css.gap }}; overflow: hidden; font-size: 6.5pt; line-height: 3.4mm; color: {% brand_color "TEXT_SECONDARY" %}; text-align: right; box-sizing: border-box; }
+  .week-notes .week-note { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .week-notes .week-legend { display: flex; flex-wrap: wrap; gap: 3mm; }
+  .week-notes .week-legend__item { display: inline-flex; align-items: center; gap: 1mm; }
+  .week-notes .week-legend__swatch { display: inline-block; width: 3mm; height: 3mm; border: 0.2mm solid {% brand_color "BORDER_STRONG" %}; }
+  .week-notes .week-legend__swatch.is-cover { background: {% brand_color "STATUS_WARNING_BG" %}; }
+  .week-notes .week-legend__swatch.is-swap  { background: {% brand_color "STATUS_INFO_BG" %}; }
+  .week-notes .week-legend__swatch.is-comp  { background: {% brand_color "STATUS_SUCCESS_BG" %}; }

@@ -22,7 +22,7 @@ from core.models.user import CustomUser
 from core.privacy import mask_national_id
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
 
-from . import appointments, profile_service
+from . import appointments, profile_services
 from .forms import (
     StaffAppointmentForm,
     StaffDepartureForm,
@@ -30,6 +30,7 @@ from .forms import (
     StaffPersonForm,
 )
 from .models import LeaveRequest
+from .selectors import phone_holder_ids
 from .services import LeaveService, StaffService
 
 
@@ -158,7 +159,6 @@ STAFF_SORTS = {
     # ترويسةٌ تَعرض شيئاً وترتّب بغيره.
     "title": ("title_key", "name_key"),
     "department": ("dept_key", "name_key"),
-    "phone": ("phone_key", "name_key"),
     "email": ("email_key", "name_key"),
     "residence": ("residence_key", "name_key"),
     "nationality": ("nationality_key", "name_key"),
@@ -241,7 +241,6 @@ def staff_list(request):
         name_key=arabic_key(F("full_name")),
         dept_key=arabic_key(F("gov_department")),
         national_key=blank_as_null("national_id"),
-        phone_key=blank_as_null("phone"),
         email_key=blank_as_null("email"),
         residence_key=blank_as_null("residence_area"),
         nationality_key=arabic_key(F("nationality")),
@@ -262,7 +261,7 @@ def staff_list(request):
             | Q(title_key__icontains=shaped)
             | Q(national_id__icontains=q)
             | Q(employee_number__icontains=q)
-            | Q(phone__icontains=q)
+            | Q(id__in=phone_holder_ids(people, q))
             | Q(email__icontains=q)
             | Q(residence_area__icontains=q)
             | Q(nationality__icontains=q)
@@ -542,7 +541,7 @@ def staff_profile(request, user_id):
     person_form = StaffPersonForm(
         initial={
             field: getattr(user, field, "")
-            for field in profile_service.PERSON_FIELDS + profile_service.LICENSE_FIELDS
+            for field in profile_services.PERSON_FIELDS + profile_services.LICENSE_FIELDS
         }
     )
     employment_form = None
@@ -572,7 +571,7 @@ def staff_profile(request, user_id):
             "employment_form": employment_form,
             # الجدولُ لمن يُدرّس: ملاحظُ الطلبة والمحاسبُ لا حصصَ لهم.
             "teaches": bool(membership and membership.role.name in DEPARTMENT_ROLES),
-            "history": profile_service.history(user, membership),
+            "history": profile_services.history(user, membership),
             **profile_data,  # membership, profile, absences, swaps, ...
         },
     )
@@ -590,7 +589,7 @@ def staff_profile_save(request, user_id, section):
         form = StaffPersonForm(request.POST)
         if form.is_valid():
             try:
-                changed = profile_service.save_person(
+                changed = profile_services.save_person(
                     user=user, data=form.cleaned_data, by=request.user, request=request
                 )
             except ValidationError as exc:
@@ -618,7 +617,7 @@ def staff_profile_save(request, user_id, section):
                 else None
             )
             try:
-                changed = profile_service.save_employment(
+                changed = profile_services.save_employment(
                     membership=membership, data=data, by=request.user, request=request
                 )
             except ValidationError as exc:
@@ -639,7 +638,7 @@ def _flash_saved(request, changed):
     if not changed:
         messages.info(request, "لا تغييرَ — لم يُحفظ شيء.")
         return
-    names = "، ".join(profile_service.LABELS.get(f, f) for f in changed)
+    names = "، ".join(profile_services.LABELS.get(f, f) for f in changed)
     messages.success(request, f"حُفظ: {names}. وسُجّل التغييرُ باسمك ووقته.")
 
 

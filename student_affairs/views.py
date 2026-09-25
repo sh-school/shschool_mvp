@@ -11,6 +11,7 @@ from urllib.parse import quote
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import CharField, Count, Exists, F, Func, OuterRef, Q, Subquery, Value
 from django.http import Http404, HttpResponse
@@ -53,8 +54,10 @@ from core.models.access import Membership
 from core.models.audit import AuditLog
 from core.models.user import CustomUser
 from core.pdf_utils import render_pdf
+from core.photo_privacy import clean_photo
 from core.privacy import mask_national_id
 from core.sorting import apply_sort, arabic_key, blank_as_null, normalise_arabic
+from core.verdict_read import failing_statuses, passing_statuses
 from library.models import BookBorrowing
 from operations.absence_standing import standing_for
 from operations.models import AbsenceAlert, ClassExit, Session, StudentAttendance
@@ -466,22 +469,20 @@ def student_table_partial(request):
 # ═════════════════════════════════════════════════════════════════════
 
 
-@login_required
-@capability_required("student_affairs.manage")
-def student_export_excel(request):
-    """تصدير قائمة الطلاب إلى Excel — مع هيدر وفوتر احترافي."""
-    import openpyxl
-    from openpyxl.styles import Alignment
+def _student_register_queryset(request):
+    """الاستعلامُ المشترَك بين تصديرَي سجل الطلاب — Excel وPDF.
 
+    نفس فلترة student_list، بما فيها الإصلاحُ الذي أخذته الشاشةُ في #191 ولم
+    يكن قد بلغ أيَّ تصدير: المقيَّدُ أوّلاً، ومن لا قيدَ له هذا العامَ يخرج
+    بترشيحٍ صريحٍ (`status=unenrolled` أو `all`) لا بعدٍّ يُساوي به العضويّةَ
+    بالقيد.
+    """
     school = request.school
     year = academic_year_for(request)
     q = request.GET.get("q", "").strip()
     grade_filter = request.GET.get("grade", "")
     section_filter = request.GET.get("section", "")
 
-    ctx = get_export_context(request, "سجل الطلاب")
-
-    # نفس فلترة student_list
     students = (
         Membership.objects.filter(
             school=school,
@@ -496,6 +497,20 @@ def student_export_excel(request):
         students = students.filter(
             Q(user__full_name__icontains=q) | Q(user__national_id__icontains=q)
         )
+
+    status = request.GET.get("status") or "enrolled"
+    is_enrolled = Exists(
+        StudentEnrollment.objects.filter(
+            student_id=OuterRef("user_id"),
+            class_group__school=school,
+            class_group__academic_year=year,
+            is_active=True,
+        )
+    )
+    if status == "enrolled":
+        students = students.filter(is_enrolled)
+    elif status == "unenrolled":
+        students = students.exclude(is_enrolled)
 
     enrollment_data = {}
     for enr in StudentEnrollment.objects.filter(
@@ -519,6 +534,19 @@ def student_export_excel(request):
             if data.get("class_group__section") == section_filter
         ]
         students = students.filter(user_id__in=enrolled_ids)
+
+    return students, enrollment_data, year
+
+
+@login_required
+@capability_required("student_affairs.manage")
+def student_export_excel(request):
+    """تصدير قائمة الطلاب إلى Excel — مع هيدر وفوتر احترافي."""
+    import openpyxl
+    from openpyxl.styles import Alignment
+
+    ctx = get_export_context(request, "سجل الطلاب")
+    students, enrollment_data, year = _student_register_queryset(request)
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -587,6 +615,53 @@ def student_export_excel(request):
     return excel_to_response(wb, filename)
 
 
+@login_required
+@capability_required("student_affairs.manage")
+def student_list_pdf(request):
+    """تصدير قائمة الطلاب إلى PDF — بنفس فلترة student_export_excel."""
+    ctx = get_export_context(request, "سجل الطلاب")
+    students, enrollment_data, year = _student_register_queryset(request)
+
+    rows = []
+    for i, m in enumerate(students, 1):
+        enr = enrollment_data.get(m.user_id, {})
+        rows.append(
+            {
+                "num": i,
+                "full_name": m.user.full_name,
+                "national_id": m.user.national_id,
+                "grade": enr.get("class_group__grade", "—"),
+                "section": enr.get("class_group__section", "—"),
+                "phone": m.user.phone or "—",
+                "email": m.user.email or "—",
+            }
+        )
+
+    pdf_header = get_pdf_header_html(ctx)
+    pdf_footer = get_pdf_footer_html(ctx)
+
+    html = render_to_string(
+        "student_affairs/student_list_pdf.html",
+        {
+            "rows": rows,
+            "total_students": len(rows),
+            "pdf_header": pdf_header,
+            "pdf_footer": pdf_footer,
+            **ctx,
+        },
+    )
+
+    log_export(
+        request,
+        "student_affairs.students_pdf",
+        rows=len(rows),
+        full_national_id=False,
+        object_repr=f"سجل الطلاب PDF — {year}",
+    )
+    filename = generate_export_filename("students", "list", "pdf")
+    return render_pdf(html, filename, paper_size="A4")
+
+
 # ═════════════════════════════════════════════════════════════════════
 # إضافة / تعديل / تعطيل — الخطوات 5 + 7
 # ═════════════════════════════════════════════════════════════════════
@@ -606,64 +681,35 @@ def student_add(request):
     school = request.school
     year = academic_year_for(request)
 
-    if request.method == "POST":
-        form = StudentAddForm(request.POST)
-        if form.is_valid():
-            cd = form.cleaned_data
-
-            # ── تحديد الشعبة (المطلوب للـ Service) ──
-            class_group = ClassGroup.objects.filter(
-                school=school,
-                grade=cd["grade"],
-                section=cd["section"],
-                academic_year=year,
-                is_active=True,
-            ).first()
-            if not class_group:
-                messages.error(
-                    request,
-                    f"لا توجد شعبة {cd['section']} في الصف {cd['grade']} للعام {year}.",
-                )
-                return render(
-                    request,
-                    "student_affairs/student_form.html",
-                    {
-                        "form": form,
-                        "mode": "add",
-                        "year": year,
-                        "grades": ClassGroup.GRADES,
-                        "school": school,
-                    },
-                )
-
+    form = StudentAddForm(request.POST) if request.method == "POST" else StudentAddForm()
+    if request.method == "POST" and form.is_valid():
+        cd = form.cleaned_data
+        class_group = StudentService.find_class_group(school, cd["grade"], cd["section"], year)
+        if not class_group:
+            messages.error(
+                request, f"لا توجد شعبة {cd['section']} في الصف {cd['grade']} للعام {year}."
+            )
+        else:
             # ── تفويض الإنشاء للـ Service Layer ──
             try:
-                user = StudentService.create_student(
-                    school,
+                data = StudentService.student_data_from_form(cd, class_group.pk)
+                user = StudentService.create_student(school, data)
+                StudentService.audit_student_added(school, request.user, user)
+                # لا إعادةَ توجيه: كلمةُ المرور العشوائيّة تُعرض في هذه الاستجابة
+                # وحدَها (لا رسالةَ في الجلسة ولا قاعدة) ثمّ تزول.
+                return render(
+                    request,
+                    "student_affairs/student_credentials.html",
                     {
-                        "national_id": cd["national_id"],
-                        "full_name": cd["full_name"],
-                        "phone": cd.get("phone", ""),
-                        "email": cd.get("email", ""),
-                        "gender": cd.get("gender", ""),
-                        "birth_date": cd.get("birth_date"),
-                        "nationality": cd.get("nationality", ""),
-                        "class_group_id": class_group.pk,
+                        "student": user,
+                        "class_label": class_label(class_group.grade, class_group.section),
+                        "credentials": StudentService.credentials_sheet(user),
                     },
                 )
-                messages.success(
-                    request,
-                    f"تم إضافة الطالب {user.full_name} في "
-                    f"{class_label(class_group.grade, class_group.section)} بنجاح.",
-                )
-                return redirect("student_affairs:student_profile", student_id=user.id)
-
             except ValueError as e:
                 messages.error(request, str(e))
             except Exception as e:
                 messages.error(request, f"خطأ غير متوقع أثناء إضافة الطالب: {e}")
-    else:
-        form = StudentAddForm()
 
     return render(
         request,
@@ -924,8 +970,8 @@ def student_profile(request, student_id):
         )
         grades_summary = grades.aggregate(
             total_subjects=Count("id"),
-            passed=Count("id", filter=Q(status="pass")),
-            failed=Count("id", filter=Q(status="fail")),
+            passed=Count("id", filter=Q(status__in=passing_statuses())),
+            failed=Count("id", filter=Q(status__in=failing_statuses())),
         )
 
     if limited:
@@ -1183,7 +1229,7 @@ def student_movements(request):
     مياهٍ وأخرى. تُقرأ من `ClassExit` نفسها التي يكتبها زرّ «خرج بإذن» في
     كشف الحصّة (`operations.class_exit`) — لا نسخةٌ ثانية من البيانات.
 
-    طلبُ سلطان الهاجرى (SOS-20260915-9077): شاشةٌ كشاشة الغياب لتحركات
+    الطلبُ (SOS-20260915-9077): شاشةٌ كشاشة الغياب لتحركات
     الطلبة. و«الخروج من المدرسة» (انصرافٌ كاملٌ بحضور وليّ الأمر، الدليل
     2026 §3.4.3) نمطٌ مختلفٌ لا تُسجّله `ClassExit` — يبقى خارج هذه الشاشة.
     """
@@ -2716,6 +2762,30 @@ def tardiness_search_students(request):
     return JsonResponse({"results": results})
 
 
+#: مرفقُ إذن التأخّر — ما يُقبل، وسقفُ حجمه قبل التنظيف.
+EXCUSE_EXTENSIONS = (".pdf", ".jpg", ".jpeg", ".png")
+EXCUSE_CONTENT_TYPES = ("application/pdf", "image/jpeg", "image/png")
+EXCUSE_MAX_BYTES = 5 * 1024 * 1024
+
+
+def _screen_excuse_upload(upload):
+    """يفحص مرفقَ إذن التأخّر ويُعيده نظيفاً: `(الملف، سببُ الرفض)` — أحدُهما فارغ.
+
+    الاسمُ ونوعُ المحتوى يعلنهما المتصفّحُ فلا يُوثَق بهما: الحكمُ بالبايتات (`clean_photo`)، والصورةُ
+    تُحفظ JPEG مصغّراً بلا إحداثيّاتٍ ولا تاريخٍ ولا جهاز (`core/photo_privacy`، قرار 2026-09-14) —
+    والملفّاتُ في PostgreSQL فتصغيرُها يخفّ به وزنُ القاعدة والنسخ الاحتياطيّ.
+    """
+    extension = os.path.splitext(upload.name)[1].lower()
+    if extension not in EXCUSE_EXTENSIONS or upload.content_type not in EXCUSE_CONTENT_TYPES:
+        return None, "نوع الملف غير مسموح — يُقبل: PDF, JPG, PNG فقط."
+    if upload.size > EXCUSE_MAX_BYTES:
+        return None, "حجم الملف يتجاوز 5 ميغابايت."
+    try:
+        return clean_photo(upload), ""
+    except ValidationError as exc:
+        return None, exc.messages[0]
+
+
 @login_required
 @capability_required("student_affairs.tardiness")
 @require_POST
@@ -2729,17 +2799,11 @@ def tardiness_record(request):
     excuse_minutes = request.POST.get("excuse_minutes", "").strip()
     excuse_file = request.FILES.get("excuse_file")
 
-    # ── File validation (قبل أي عملية DB) ──
+    # ── فحصُ المرفق وتنظيفُه (قبل أيّ عمليّة DB) ──
     if excuse_file:
-        allowed_ext = (".pdf", ".jpg", ".jpeg", ".png")
-        allowed_ct = ("application/pdf", "image/jpeg", "image/png")
-        max_size = 5 * 1024 * 1024
-        ext = os.path.splitext(excuse_file.name)[1].lower()
-        if ext not in allowed_ext or excuse_file.content_type not in allowed_ct:
-            messages.error(request, "نوع الملف غير مسموح — يُقبل: PDF, JPG, PNG فقط.")
-            return redirect("student_affairs:tardiness_list")
-        if excuse_file.size > max_size:
-            messages.error(request, "حجم الملف يتجاوز 5 ميغابايت.")
+        excuse_file, refusal = _screen_excuse_upload(excuse_file)
+        if refusal:
+            messages.error(request, refusal)
             return redirect("student_affairs:tardiness_list")
 
     # طالبُ جناحٍ آخر: 404 قبل أيّ قراءةٍ أو كتابة — ومعرّفٌ فاسدٌ مثلُه للمقيَّد.

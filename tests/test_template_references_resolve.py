@@ -1,8 +1,10 @@
-"""ما يشير إليه القالبُ موجود: أيقوناتُه في ورقة الرموز، وآباؤه صفحاتٌ قائمة.
+"""ما يشير إليه القالبُ موجود: أيقوناتُه معانٍ حقيقيّةٌ في القاموس، وآباؤه صفحاتٌ قائمة.
 
-`components/icon.html` يكتب `<use href="#icon-{{ name }}"/>`، والمتصفّحُ لا يقول
-شيئاً حين لا يجد المعرَّف: لا خطأَ في الطرفيّة ولا في سجلّ الخادم — خانةٌ فارغة
-وحسب. فاسمٌ مخترَعٌ يمرّ صامتاً حتّى يراه المستخدم.
+كانت `components/icon.html` تكتب `<use href="#icon-{{ name }}"/>` من ورقةٍ خارجيّة،
+والمتصفّحُ لا يقول شيئاً حين لا يجد المعرَّف: لا خطأَ في الطرفيّة ولا في سجلّ
+الخادم — خانةٌ فارغة وحسب. فاسمٌ مخترَعٌ كان يمرّ صامتاً حتّى يراه المستخدم.
+الملفُّ والورقةُ محذوفان 2026-09-18 (`tests/test_icon_dictionary.py` يحرس
+عدم عودتهما)؛ الباقي هنا معنى القاموس وحده.
 
 وقد وقع أسوأُ منه: `components/empty_state.html` كان يطبع `icon` نصّاً خاماً،
 فمن مرّر إليه اسمَ أيقونةٍ رأى الاسمَ بخطٍّ ضخمٍ مكانَ الرسم — «check-circle»
@@ -14,17 +16,11 @@ from pathlib import Path
 
 import pytest
 
+from core.icons import ICONS
+
 TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
-SPRITE = TEMPLATES / "components" / "sprite.html"
 
-#: `{% include "components/icon.html" with name="x" %}` — والاسمُ حرفيٌّ وحدَه؛
-#: ما جاء من متغيّرٍ لا يُقرأ هنا ولا يُدَّعى أنّه فُحص.
-ICON_CALL = re.compile(r'icon\.html["\']?\s+with\s+name=["\']([a-z0-9-]+)["\']')
 EMPTY_STATE_ICON = re.compile(r'empty_state\.html["\']?\s+with[^%]*?\bicon=["\']([^"\']+)["\']')
-
-
-def _sprite_names() -> set[str]:
-    return set(re.findall(r'id="icon-([a-z0-9-]+)"', SPRITE.read_text(encoding="utf-8")))
 
 
 def _templates():
@@ -38,25 +34,12 @@ def _calls(pattern):
             yield path.relative_to(TEMPLATES), name
 
 
-def test_the_sprite_is_not_empty():
-    """حارسٌ يقرأ ملفّاً فارغاً يمرّ دائماً — فيُتحقَّق من المصدر أوّلاً."""
-    assert len(_sprite_names()) > 50
-
-
-@pytest.mark.parametrize("path,name", list(_calls(ICON_CALL)), ids=lambda v: str(v))
-def test_every_requested_icon_exists_in_the_sprite(path, name):
-    assert name in _sprite_names(), f"{path}: لا أيقونةَ باسم «{name}» في ورقة الرموز"
-
-
 @pytest.mark.parametrize("path,name", list(_calls(EMPTY_STATE_ICON)), ids=lambda v: str(v))
-def test_the_empty_state_icon_is_a_sprite_name_not_a_glyph(path, name):
-    """المكوّنُ يرسم أيقونةً الآن — فما يُمرَّر إليه معنًى في القاموس أو اسمٌ في
-    الورقة القديمة (حتّى يكتمل الترحيل)، لا رمزٌ ولا emoji."""
-    from core.icons import ICONS
-
+def test_the_empty_state_icon_is_a_real_meaning_not_a_glyph(path, name):
+    """المكوّنُ يرسم أيقونةً الآن — فما يُمرَّر إليه معنًى في القاموس، لا رمزٌ ولا emoji."""
     assert (
-        name in ICONS or name in _sprite_names()
-    ), f"{path}: «{name}» ليس اسمَ أيقونةٍ — وكان يُطبَع بحروفه مكانَ الرسم"
+        name in ICONS
+    ), f"{path}: «{name}» ليس معنًى في core/icons.py — وكان يُطبَع بحروفه مكانَ الرسم"
 
 
 def test_the_empty_state_renders_an_icon_element_not_bare_text():

@@ -14,7 +14,6 @@ class QualityConfig(AppConfig):
             name="quality_evaluations",
             label="تقييمات الجودة",
             url_prefix="/quality/evaluations/",
-            icon="bi-clipboard-check",
             allowed_roles={
                 "principal",
                 "vice_admin",
@@ -42,6 +41,16 @@ class QualityConfig(AppConfig):
                 "occupational_therapist",
                 "receptionist",
                 "transport_officer",
+                # أدوارٌ تسمّيها الاستماراتُ الوزاريّةُ نصّاً وتُبذر قوالبُها — فبلا هذه تُقيَّم
+                # ولا ترى تقريرَها ولا تُقرّ به، فلا تبدأ مهلةُ التظلّم (المادة 20).
+                "student_observer",
+                "services_worker",
+                "support_companion",
+                "messenger",
+                "storekeeper",
+                "canteen_supervisor",
+                "accountant",
+                "lab_technician",
             },
             sort_order=21,
             parent="quality",
@@ -50,7 +59,6 @@ class QualityConfig(AppConfig):
             name="quality",
             label="الجودة والتطوير",
             url_prefix="/quality/",
-            icon="bi-award",
             # بوّابةُ الوحدة يجب أن تسع من تسمّيه صلاحياتُها: كان
             # `academic_advisor` في `OBSERVATION_CREATE` — أي يُنشئ زيارةً
             # إشرافية — و`activities_coordinator` في `OBSERVATION_SELF_CREATE`،

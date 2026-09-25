@@ -1,0 +1,49 @@
+name: مؤشّرات الهويّة البصريّة — قياسٌ أسبوعيّ
+
+# ══════════════════════════════════════════════
+#  يشغّل scripts/measure_identity_kpis.py على main ويحفظ الناتج JSON.
+#  لا يفشل البناء بسبب رقم — الحرّاسُ في tests/ هي التي تمنع الانحدار.
+#  هذا الخطُّ يوفّر قياساً دوريّاً تُحدَّث به لوحةُ متابعة الهويّة،
+#  فلا يعتمد التحديثُ على تشغيلٍ يدويّ.
+# ══════════════════════════════════════════════
+
+on:
+  schedule:
+    # الأحد 03:00 UTC = 06:00 بتوقيت قطر، قبل بدء الدوام
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+
+concurrency:
+  group: identity-kpis
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    name: قياس مؤشّرات الهويّة
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: القياس
+        run: |
+          # بلا pipefail يُخفي `| tee` فشلَ السكربت (صدفةُ GitHub الافتراضيّة `bash -e`)
+          set -o pipefail
+          python scripts/measure_identity_kpis.py . --json | tee identity_kpis.json
+      - name: ملخّص في صفحة التشغيل
+        run: |
+          {
+            echo "## مؤشّرات الهويّة البصريّة — $(git rev-parse --short HEAD)"
+            echo '```json'
+            cat identity_kpis.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: identity-kpis-${{ github.sha }}
+          path: identity_kpis.json
+          retention-days: 90

@@ -1,0 +1,465 @@
+ /* end @layer themes */
+
+@layer utilities {
+
+/* ── Print — الطباعةُ العامّة ───
+   كانت الكتلةُ في طبقة components، فتخسر أمام كلّ قاعدةٍ في modules وthemes
+   مهما كانت نوعيّتُها: بقي ظلُّ `.table-wrap` في الورق رغم `box-shadow: none`،
+   وبقي نصُّ الوضع الداكن (#f1f5f9) على ورقٍ أبيضَ فرضته `body` هنا. فصارت في
+   utilities، فوق المكوّنات والوحدات. والوضعُ الداكن نفسُه يُنزع قبل الطباعة
+   في base.js (`beforeprint`) — فلا تبلغ قواعدُ themes الورقَ أصلاً.
+
+   وترويسةُ الموقع تبقى رأساً للورقة: الشعارُ واسمُ المدرسة بحبرٍ على الورق
+   لا بياضاً على عنّابيٍّ يسقط حين لا تُطبع الخلفيّات، وأزرارُها تُخفى. */
+@media print {
+  @page { size: A4 portrait; margin: 20mm; }
+
+  nav, footer, .no-print, .pwa-banner, .mobile-bottom-nav, #cmd-palette, #toast-container, .filter-bar, .skip-nav,
+  #htmx-loading-bar, .msgs-wrap,
+  .site-header .theme-toggle, .site-header .nav-bell, .site-header .nav-user-btn,
+  .btn-primary, .btn-secondary, .btn-ghost, .btn-danger, .btn-success, .btn-warning { display: none !important; }
+
+  body {
+    background: var(--paper) !important;
+    font-size: 12pt;
+    line-height: var(--lh-normal);
+    color: var(--paper-ink);
+  }
+
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  .site-header {
+    position: static;
+    background: var(--paper);
+    color: var(--paper-ink);
+    box-shadow: none;
+    border-block-end: 2px solid var(--maroon);
+  }
+  .site-header .nav-logo-text { color: var(--paper-ink); }
+
+  /* بطاقات بدون ظلال */
+  .card-qatar, .kpi-card, .table-wrap, .action-card {
+    box-shadow: none;
+    border: 1px solid var(--paper-rule);
+    break-inside: avoid;
+  }
+  /* بطاقةُ الرقم تُبقي إطارَها: شريطُها الجانبيُّ لونُ نبرتها (خطرٌ، تنبيه…) لا زينة */
+  .ui-kpi { box-shadow: none; break-inside: avoid; }
+
+  /* الجداول */
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  tr { break-inside: avoid; }
+
+  /* أنماط النص */
+  h1, h2, h3 { break-after: avoid; }
+  p { orphans: 3; widows: 3; }
+
+  /* خلفيّاتٌ تحمل نصّاً أبيض — تُطبع وإن أُطفئت «رسومُ الخلفيّة»، وإلّا صار النصُّ بياضاً على بياض */
+  .status-badge, thead tr, .card-bar, .kpi-card::before {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  /* الروابط */
+  a[href]::after { content: none; }
+}
+
+/* ════════════════════
+   35. Dark-Mode-Aware Utility Classes
+   تُستبدل inline styles بهذه الكلاسات لدعم الوضع الليلي
+   ════════════════════ */
+
+/* ── Status Text Colors ─── */
+.text-status-danger  { color: var(--status-danger-fg); }
+.text-status-success { color: var(--status-success-fg); }
+.text-status-warning { color: var(--status-warning-fg); }
+.text-status-info    { color: var(--status-info); }
+
+/* ── Radio Pill (radio-button label wrapper) ─── */
+.radio-pill {
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface-alt);
+  transition: border-color .12s, background .12s;
+}
+
+/* ── Status Background Cards (light tint + border) ─── */
+
+.bg-status-warning-light { background: var(--status-warning-tint-deep); border-color: var(--status-warning-border-soft); }
+
+/* ── Link Accent (for inline links with specific colors) ─── */
+.link-maroon { color: var(--maroon-link); font-weight: 600; }
+
+/* PWA Banner: قاعدتُه الوحيدةُ في 20-components.css؛ يُظهَر بسمة `hidden` (`data-hide`). */
+.pwa-banner__icon { flex-shrink: 0; display: inline-flex; }
+.pwa-banner__icon .icon { width: 28px; height: 28px; }
+.pwa-banner__text { flex: 1; min-inline-size: 0; }
+.pwa-banner__title { margin: 0 0 var(--sp-0-5); font-size: var(--text-sm); font-weight: 700; }
+.pwa-banner .pwa-subtitle { margin: 0; font-size: var(--text-xs); }
+
+/* ── مؤشّرُ الاتّصال: لونان من الرموز لا من الشيفرة ── */
+.status-dot-offline { background: var(--status-danger); animation: status-dot-pulse 1s infinite; }
+@keyframes status-dot-pulse { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .status-dot-offline { animation: none; } }
+
+/* ── بطاقةُ الابن في بوّابة وليّ الأمر ──
+   أرقامٌ في سطرٍ ثمّ روابطُ التفصيل — والروابطُ أزرارٌ بارتفاعٍ يُلمس
+   (≥40px): الصفحةُ تُفتح على الهاتف غالباً. */
+.parent-child { display: grid; gap: var(--sp-3); }
+.parent-child__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.parent-child__actions .btn-secondary { min-height: 40px; display: inline-flex; align-items: center; gap: var(--sp-1-5); }
+
+/* ── PWA Banner — close button ─── */
+.pwa-close-btn {
+  background: none; border: none; color: color-mix(in srgb, var(--on-fill) 60%, transparent);
+  font-size: var(--text-lg); cursor: pointer; flex-shrink: 0; padding: 0 var(--sp-1);
+}
+.pwa-subtitle {
+  color: color-mix(in srgb, var(--on-fill) 75%, transparent);
+}
+
+/* ── Extra Utility Classes ─── */
+
+.text-primary   { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted     { color: var(--text-muted); }
+/* داخلَ ترويسةٍ عنّابيّةٍ نصُّها أبيض: الخافتُ رماديٌّ على عنّابيّ بنسبة 1.64. */
+thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
+
+/* ── الإشعارات: التفضيلات والصندوق واللوحة ───
+   بُنيت الصفحاتُ الثلاث على مكوّنات القسم 39؛ وما هنا ما يخصّها وحدَها. */
+.notif-pref-container { max-width: 640px; margin-inline: auto; }
+.notif-pref-form { display: grid; gap: var(--sp-3); }
+.notif-pref-form .plain-list__row > .ui-switch { padding-block: var(--sp-0-5); }
+.notif-time-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); }
+.notif-time-row .form-group { margin-bottom: 0; }
+
+/* الصندوقُ بعرض الصفحة كسائر المنصّة (معيارُ 2026-09-17): كان عمودَ قراءةٍ
+   بعرض 48rem ونصفُ النافذة فارغ. والإشعاراتُ مجموعاتٌ بالأيّام، كلُّ مجموعةٍ
+   أعمدةٌ متجاورة (`chunk_for_grid` في العرض ← `.auto-grid`). */
+.notif-inline-form { display: contents; }
+.notif-toolbar { align-items: flex-end; }
+.notif-toolbar .ui-field { flex: 1 1 240px; max-inline-size: 26rem; }
+.notif-toolbar__chips { flex: 1 1 360px; align-items: center; padding-block-end: var(--sp-1); }
+.notif-type { text-decoration: none; padding: var(--sp-1) var(--sp-3); }
+/* مفتاحُ التجميع زرّان متلاصقان: الجاري بأرضيّةٍ عنّابيّةٍ خفيفةٍ وخطٍّ تحته. */
+.notif-group-switch {
+  display: inline-flex; flex-shrink: 0; margin-block-end: var(--sp-1);
+  border: 1px solid var(--maroon-border); border-radius: var(--radius-md); overflow: hidden;
+}
+.notif-group-switch__opt {
+  padding: 5px var(--sp-3); font-size: var(--text-xs); font-weight: 700;
+  color: var(--text-secondary); text-decoration: none; white-space: nowrap;
+}
+.notif-group-switch__opt + .notif-group-switch__opt { border-inline-start: 1px solid var(--maroon-border); }
+.notif-group-switch__opt:hover { background: var(--maroon-bg); color: var(--maroon-fg); }
+.notif-group-switch__opt[aria-current="page"] { background: var(--maroon-bg); color: var(--maroon-fg); box-shadow: inset 0 -2px 0 var(--maroon-fg); }
+.notif-type__n { font-weight: 500; opacity: .75; font-variant-numeric: tabular-nums; }
+.notif-shortcuts {
+  display: inline-flex; align-items: center; gap: var(--sp-1);
+  font-size: var(--text-xs); color: var(--text-muted); cursor: help;
+}
+.notif-shortcuts:focus-visible { outline: 2px solid var(--focus-color); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+.notif-feed { display: grid; gap: var(--sp-4); }
+.notif-day__title {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin: 0 0 var(--sp-2); padding-block-end: var(--sp-1-5);
+  border-block-end: 1px solid var(--border-soft);
+  font-size: var(--text-sm); font-weight: 700; color: var(--text-secondary);
+}
+.notif-day__count { font-size: var(--text-xs); font-weight: 500; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+/* 340px أدنى عرضٍ: أضيقُ منه يجعل النصَّ أربعةَ أسطر */
+.notif-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: var(--sp-3); align-items: start; }
+.notif-list { display: flex; flex-direction: column; gap: var(--sp-1-5); min-inline-size: 0; }
+/* العاجل: بطاقاتٌ مباشرةٌ لا أعمدة */
+#urgent-section.notif-grid { display: grid; }
+
+/* غيرُ المقروء: شريطٌ عنّابيٌّ على الحافّة لا أرضيّةٌ ملوّنة (كانت نصفُ الصندوق كتلةً داكنة) */
+.notif-item {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-2);
+  padding: var(--sp-2-5) var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-inline-start-width: 3px;
+  border-radius: var(--radius-md);
+  transition: box-shadow .14s, opacity .2s, border-color .14s;
+}
+.notif-item:hover { box-shadow: var(--shadow-sm); }
+.notif-item.is-unread { border-inline-start-color: var(--maroon-fg); }
+.notif-item.is-active { outline: 2px solid var(--focus-color); outline-offset: 2px; }
+.notif-item__main { flex: 1; min-inline-size: 0; display: grid; gap: 3px; }
+.notif-item__title { margin: 0; font-size: var(--text-sm); font-weight: 500; line-height: 1.45; color: var(--text-secondary); }
+.notif-item.is-unread .notif-item__title { font-weight: 700; color: var(--text-primary); }
+.notif-item__title a { color: inherit; text-decoration: none; }
+.notif-item__title a:hover { color: var(--maroon-fg); text-decoration: underline; }
+/* نصُّ الإشعار كاملاً بلا قصٍّ: كان مقصوصاً بسطرين فلا سبيلَ لقراءته على اللمس (التلميحُ بالمرور لا يعمل عليه). */
+.notif-item__body {
+  margin: 0; font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.6;
+  overflow-wrap: anywhere; white-space: pre-line;
+}
+.notif-item__meta {
+  margin: var(--sp-0-5) 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2);
+  font-size: var(--text-xs); color: var(--text-muted);
+}
+.notif-item__meta .status-badge { padding: 1px var(--sp-2); font-size: var(--text-xs); }
+.notif-item__meta time { font-variant-numeric: tabular-nums; }
+.notif-item__read {
+  flex-shrink: 0;
+  min-inline-size: 32px; min-block-size: 32px;
+  display: inline-grid; place-items: center;
+  background: transparent; color: var(--maroon-fg);
+  border: 1px solid var(--maroon-border); border-radius: var(--radius-md);
+  cursor: pointer; transition: background .12s;
+}
+.notif-item__read:hover { background: var(--maroon-bg); }
+.notif-item__done { flex-shrink: 0; padding: var(--sp-1) var(--sp-2); color: var(--text-muted); opacity: .6; }
+
+/* سجلُّ الإشعارات يتمرّر داخل بطاقته */
+.notif-log-search { padding: var(--sp-2) var(--sp-3); border-block-end: 1px solid var(--border); }
+.notif-log-scroll { max-block-size: 400px; border: 0; border-radius: 0; box-shadow: none; }
+.notif-log-recipient { max-inline-size: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.notif-log-pager {
+  display: flex; align-items: center; justify-content: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3); border-block-start: 1px solid var(--border);
+}
+.notif-log-pager__label { font-size: var(--text-xs); color: var(--text-muted); }
+.notif-settings { display: grid; gap: var(--sp-2); }
+.notif-settings .ui-switch { padding-block: var(--sp-1-5); }
+.notif-settings .ui-section__body > .form-group:last-child { margin-bottom: 0; }
+
+/* سجلُّ الموظفين (DBT-46): دون 1024px تضيق عناوينُه عن كلماتها (9 من 12 عند 641) — حدٌّ أدنى 60rem يسع iPad الأفقيَّ. */
+@media (max-width: 1024px) {
+  .table-wrap-scroll:has(> .staff-register) { overflow-x: auto; }
+  .staff-register { min-inline-size: 60rem; }
+}
+
+/* ════════════════════
+   الهاتف — ما يُقاس لا ما يُرجى
+   ════════════════════
+   مُسحت 68 صفحةً بعروض 360 و390 و414 يومَ 2026-09-13. وهذه الكتلةُ في
+   `utilities` لا في `components`: قواعدُ `modules` تُعلن خطَّ حقولها أصغرَ،
+   و`modules` تغلب `components` أيّاً كان وزنُ المُحدِّد.
+   انظر `tests/test_mobile_layout.py`. */
+@media (max-width: 640px) {
+  /* خطُّ الحقل دون 16px يجعل Safari يُكبّر الصفحةَ عند التركيز ولا يُرجعها (كان في 27 صفحة) */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="image"]),
+  select,
+  textarea { font-size: max(16px, 1em); }
+
+  /* أهدافُ اللمس — WCAG 2.5.8 (24px أدنى)؛ وعلى اللمس 44px في كتلة coarse أسفلَه */
+  .bc-back { width: 32px; height: 32px; }
+
+  /* سجلُّ الموظفين: 12 عموداً في 338px يلفّ الاسمَ حرفاً حرفاً؛ فحدٌّ أدنى أوسعُ من كتلة 1024 أعلاه. */
+  .staff-register { min-inline-size: 64rem; }
+}
+
+/* M-01: 44px على المؤشّر الخشن (D1)؛ الصندوقُ نفسُه يكبر لأنّ mobile_audit يقيسه. */
+@media (pointer: coarse) {
+  .site-header .nav-logo, .site-header .nav-user-btn, .btn-sm, .btn-xs, .parent-child__actions .btn-secondary,
+  .notif-group-switch__opt, .period-switch__item, a.status-badge, a.ui-kpi, .staff-name { min-block-size: var(--control-h); }
+  .site-header .nav-bell, .theme-toggle, .bc-back, .breadcrumbs a, .th-sort, .ui-tip__btn,
+  .pwa-dismiss-btn, .toast-close, .modal-close-btn, .notif-item__read { min-inline-size: var(--control-h); min-block-size: var(--control-h); }
+  .col-actions .btn-xs { min-inline-size: var(--control-h); }
+  .notif-item, .notif-item__read { position: relative; }
+  .notif-item__title a { display: block; padding-block: var(--sp-3-5); margin-block: calc(-1 * var(--sp-3-5)); }
+  .notif-item__title a::after { content: ""; position: absolute; inset: 0; }
+  .site-header .nav-bell, .breadcrumbs a, .btn-xs, .notif-group-switch__opt, a.status-badge, .staff-name {
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  /* gap يعوّض مسافةَ الأيقونة التي يحذفها inline-flex */
+  :is(a, summary).btn-sm { display: inline-flex; align-items: center; justify-content: center; }
+  :is(a, summary).btn-sm, .btn-xs { gap: var(--sp-1); }
+  .ui-tip__btn { margin-block: calc(-1 * var(--sp-2)); } /* لا يُكبّر شريطَ البطاقة */
+  /* قرصُ التحذير الأبيضُ 24px داخل مسٍّ 44px */
+  .card-bar .ui-tip--warning .ui-tip__btn { padding: var(--sp-2-5); background-clip: content-box; }
+}
+
+/* DBT-45: الخانةُ وزرُّ الاختيار 24px لكلّ مؤشّر (D1)؛ وعلى اللمس تكمّلها التسميةُ */
+input[type="checkbox"], input[type="radio"] { min-inline-size: 24px; min-block-size: 24px; }
+
+/* في طبقة utilities لا components: `.exec-dash{display:grid}` و`.qeval-staff{max-height}` في modules،
+   والطبقةُ اللاحقةُ تغلب مهما كانت الخصوصيّة — فبقيت هذه القواعدُ في components بلا أثر. */
+/* main.page-noscroll: الصفحةُ لا تُمرَّر والجدولُ/البطاقةُ يُم */
+@media (min-width: 1025px) {
+  body:has(> #main-content.page-noscroll) { height: 100vh; height: 100dvh; overflow: hidden; }
+  /* auto لا hidden: على شاشةٍ قصيرةٍ يظهر شريطٌ بدل القصّ. */
+  #main-content.page-noscroll { display: flex; flex-direction: column; min-height: 0; overflow: auto; }
+  #main-content.page-noscroll > .exec-dash { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  /* آخرُ قسمٍ (أو غلافُ الجدول بمعرّفه) يملأ الباقي */
+  #main-content.page-noscroll #staff-table-container,
+  #main-content.page-noscroll #student-table-container,
+  #main-content.page-noscroll #links-container,
+  #main-content.page-noscroll > .exec-dash > .table-wrap:last-child,
+  #main-content.page-noscroll > .exec-dash > .ui-section:last-child { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; }
+  #main-content.page-noscroll > .exec-dash > .ui-section:last-child > .ui-section__body { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; overflow: auto; }
+  /* ربط الأولياء: الجدولُ يُمرَّر وحده والترقيمُ ثابتٌ أسفل البطاقة. */
+  #main-content.page-noscroll #links-container > .table-wrap { display: flex; flex-direction: column; overflow: hidden; }
+  #main-content.page-noscroll #links-container > .table-wrap > .overflow-x-auto { flex: 1; min-height: 0; overflow: auto; }
+  /* استدعاء ولي أمر */
+  #main-content.page-noscroll .beh-summon-cards { flex: 0 1 auto; min-height: 0; }
+  #main-content.page-noscroll .beh-summon-cards .form-group { margin-block-end: var(--sp-2); }
+  /* سطرُ بطاقتين أخيرٌ: يملأ الباقي وتُمرَّر قائمةُ كلٍّ داخلها. */
+  #main-content.page-noscroll .auto-grid .table-wrap tbody td { padding-block: 5px; }
+  #main-content.page-noscroll .auto-grid .table-wrap thead th { padding-block: var(--sp-1-5); }
+  #main-content.page-noscroll > .exec-dash > .ui-grid-2:last-child { flex: 1; min-height: 130px; grid-template-rows: minmax(0, 1fr); }
+  #main-content.page-noscroll > .exec-dash > .ui-grid-2:last-child > .ui-section { display: flex; flex-direction: column; min-height: 0; align-self: start; max-block-size: 100%; }
+  #main-content.page-noscroll > .exec-dash > .ui-grid-2:last-child > .ui-section > .ui-section__body { flex: 0 1 auto; min-height: 0; overflow: auto; }
+  /* `.fill-grid`: أعمدتُها في --tc وصفوفُها في --rows، وتُمرَّر  */
+  #main-content.page-noscroll > .exec-dash > .fill-grid:last-child {
+    display: grid;
+    flex: 1;
+    min-height: 130px;
+    gap: var(--sp-2);
+    grid-auto-flow: var(--flow, column);
+    grid-auto-columns: minmax(0, 1fr);
+    grid-template-columns: var(--tc, none);
+    grid-template-rows: repeat(var(--rows, 1), minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+  }
+  /* ارتفاعُ البطاقة = min(محتواها، المتاحُ في الصفحة) (قرارُ المالك 2026-09-20): لا تمتدّ لتملأ الفراغَ فيبقى فيها
+     بياضٌ عند التصغير، وإن طال محتواها فوق المتاح مُرِّر جسمُها داخلها. والبطاقةُ التي يعتمد رسمُها على ارتفاعٍ
+     معلوم (رسمٌ بيانيّ) تمتدّ وحدَها — `:has(.dash-chart-wrap)`. */
+  #main-content.page-noscroll .fill-grid > .ui-section { display: flex; flex-direction: column; min-height: 0; min-width: 0; align-self: start; max-block-size: 100%; }
+  #main-content.page-noscroll .fill-grid > .ui-section > .ui-section__body { flex: 0 1 auto; min-height: 0; overflow: auto; }
+  #main-content.page-noscroll .fill-grid > .ui-section:has(.dash-chart-wrap) { align-self: stretch; }
+  #main-content.page-noscroll .fill-grid > .ui-section:has(.dash-chart-wrap) > .ui-section__body { flex: 1; }
+  /* `.fill-grid.is-stretch`: بطاقاتُ الصفّ الواحد بارتفاعٍ واحد (لوحاتٌ ذاتُ صفوف: أرقامٌ ورسومٌ وجداولُ متجاورة) — لا تُترك كلٌّ بمحتواها. */
+  #main-content.page-noscroll .fill-grid.is-stretch > .ui-section { align-self: stretch; }
+  #main-content.page-noscroll .fill-grid.is-stretch > .ui-section > .ui-section__body { flex: 1; }
+  #main-content.page-noscroll > .exec-dash > .ui-grid-2:not(:last-child) .chip-row { max-block-size: 88px; overflow: auto; }
+  #main-content.page-noscroll .fill-grid .plain-list.is-scroll { max-block-size: none; }
+  #main-content.page-noscroll .fill-grid .dash-chart-wrap { block-size: 100%; min-block-size: 120px; }
+  /* الأجنحة: الطابقان على قدر محتواهما وجدولا الجرس يملآن الباقي. */
+  #main-content.page-noscroll > .exec-dash > .wing-pair--floors { flex: 0 1 auto; min-height: 120px; flex-wrap: nowrap; }
+  #main-content.page-noscroll > .exec-dash > .wing-pair--floors:last-child { flex: 1 1 0; }
+  #main-content.page-noscroll .wing-pair > .wing-panel,
+  #main-content.page-noscroll .wing-pair > .ui-section { min-height: 0; overflow: hidden; }
+  /* البطاقةُ بمحتواها (قرارُ المالك 2026-09-20): لا تمتدّ لتملأ الصفحة، وتُمرَّر داخلها إن طالت فوق المتاح. */
+  #main-content.page-noscroll > .exec-dash > .wing-pair--floors { align-items: flex-start; }
+  #main-content.page-noscroll .wing-pair > .wing-panel,
+  #main-content.page-noscroll .wing-pair > .ui-section { max-block-size: 100%; }
+  #main-content.page-noscroll .wing-pair > .wing-panel > .wing-grid { min-height: 0; overflow: auto; }
+  #main-content.page-noscroll .wing-pair > .ui-section > .ui-section__body { min-height: 0; overflow: auto; }
+  /* أجنحة المدرسة: عمودان رأسيّان (الطابقُ فتوقيتُه) بشبكةٍ واحدة. */
+  #main-content.page-noscroll > .exec-dash > .floor-cols {
+    display: grid;
+    flex: 1;
+    min-height: 0;
+    gap: var(--sp-2);
+    grid-template-columns: var(--floor-cols, repeat(2, minmax(0, 1fr)));
+    /* حدٌّ أدنى مقروءٌ للصفّ الثاني: على نافذةٍ قصيرةٍ تُمرَّر الصفحةُ بدل أن تنكمش البطاقةُ إلى شريطها. */
+    grid-template-rows: auto minmax(160px, 1fr);
+  }
+  #main-content.page-noscroll .floor-cols > .wing-pair { display: contents; }
+  #main-content.page-noscroll .floor-cols > .wing-pair > :is(.wing-panel, .ui-section) { align-self: start; }
+  #main-content.page-noscroll .floor-cols .bell-table th,
+  #main-content.page-noscroll .floor-cols .bell-table td { padding-block: var(--sp-1); }
+  /* التغطية: بطاقةٌ لكلّ جناحٍ تُمرَّر داخلها. */
+  #main-content.page-noscroll > .exec-dash > .wing-row:last-child { flex: 1; min-height: 130px; grid-auto-rows: minmax(0, 1fr); }
+  #main-content.page-noscroll .wing-row > .ui-section { min-height: 0; overflow: auto; align-self: start; max-block-size: 100%; }
+  /* لجنة الضبط: غلافا البطاقتين يُخفيهما السكربتُ بـ hidden. */
+  #main-content.page-noscroll .fill-grid > [data-section]:not([hidden]) { display: flex; flex-direction: column; min-height: 0; min-width: 0; align-self: start; max-block-size: 100%; }
+  #main-content.page-noscroll .fill-grid > [data-section] > .ui-section { flex: 0 1 auto; display: flex; flex-direction: column; min-height: 0; }
+  #main-content.page-noscroll .fill-grid > [data-section] > .ui-section > .ui-section__body { flex: 0 1 auto; min-height: 0; overflow: auto; }
+  /* التكليفات: أربعةُ أعمدةٍ بارتفاع النافذة؛ كلُّ بطاقةٍ تملأ عمودَها وتُمرَّر داخلها. */
+  #main-content.page-noscroll > .exec-dash > .sa-assign { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr); align-items: stretch; }
+  #main-content.page-noscroll .sa-assign > .ui-section { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  #main-content.page-noscroll .sa-assign > .ui-section > .ui-section__body { flex: 1; min-height: 0; overflow: auto; }
+  #main-content.page-noscroll .sa-assign .table-wrap thead th { position: sticky; inset-block-start: 0; z-index: 1; }
+  /* النماذج: ثلاثةُ أعمدة، وتُمرَّر البطاقةُ إن طالت. */
+  #main-content.page-noscroll > .exec-dash > .form-card { flex: 0 1 auto; min-height: 0; overflow: auto; }
+  #main-content.page-noscroll .form-card .form-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2) var(--sp-3); }
+  /* `.fill-grid.is-fit`: بطاقاتٌ يتبع ارتفاعُها محتواها لا النافذة — لا فراغَ أبيضَ عند التصغير، ولا قصَّ عند
+     التكبير (تُمرَّر الصفحةُ حينها). تتحاذى من الأعلى فلا تمتدّ الواحدةُ لتساوي أطولَ جاراتها. */
+  #main-content.page-noscroll > .exec-dash > .fill-grid.is-fit:last-child {
+    flex: 0 1 auto;
+    grid-template-rows: none;
+    grid-auto-rows: auto;
+    align-items: start;
+  }
+  #main-content.page-noscroll .fill-grid.is-fit > .ui-section > .ui-section__body { flex: 0 0 auto; overflow: visible; }
+  /* تسجيل مخالفة: البطاقتان على قدر محتواهما. */
+  #main-content.page-noscroll > .exec-dash > .beh-form-stack.fill-grid:last-child { flex: 0 1 auto; }
+  /* تسجيل مخالفة: قوائمُ الدرجات تملأ الارتفاعَ بلا سقف 220px. */
+  #main-content.page-noscroll .beh-form-stack > .ui-section:first-child > .ui-section__body { display: flex; flex-direction: column; gap: var(--sp-2); overflow: hidden; }
+  #main-content.page-noscroll .beh-degrees {
+    flex: 1;
+    min-height: 0;
+    /* الدرجة 4 أكثرُها بنوداً: ضعفُ العرض. */
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 2fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  #main-content.page-noscroll .beh-vitem { padding: var(--sp-1) var(--sp-2); line-height: 1.4; }
+  #main-content.page-noscroll .beh-degree { display: flex; flex-direction: column; min-height: 0; }
+  #main-content.page-noscroll .beh-degree__list { flex: 1; min-height: 0; max-block-size: none; }
+  /* صندوق الإشعارات: العاجلُ له سقفٌ يُمرَّر داخلَه، فلا يأكل ارتفاعَ الصندوق كلَّه. */
+  #main-content.page-noscroll #urgent-section { max-block-size: 22vh; overflow: auto; }
+  /* «حسب اليوم»: التمريرُ في بدن البطاقة وحدَه. «حسب النوع»: كلُّ نوعٍ صندوقٌ يُمرَّر
+     داخلَه، والصناديقُ تقتسم الارتفاعَ فترى الأنواعَ كلَّها دون تمريرِ الصفحة. */
+  #main-content.page-noscroll .notif-feed--types {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    /* أربعةُ أعمدةٍ كحدٍّ أدنى للعرض؛ والصناديقُ القليلةُ تتمدّد فتملأ الصفَّ (auto-fit يطوي الفارغَ)
+       فنوعٌ واحدٌ لا يبقى في عمودٍ من أربعةٍ ويترك الباقيَ فارغاً. */
+    grid-template-columns: repeat(auto-fit, minmax(calc((100% - 3 * var(--sp-3)) / 4), 1fr));
+    grid-auto-rows: minmax(170px, 1fr);
+    gap: var(--sp-3);
+  }
+  #main-content.page-noscroll .notif-feed--types > [data-notif-day]:not([hidden]) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    min-width: 0;
+    padding: var(--sp-2) var(--sp-3);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-md);
+  }
+  /* «حسب اليوم»: أربعةُ أعمدةٍ ثابتة لكلّ يوم (INBOX_COLUMNS). */
+  #main-content.page-noscroll .notif-feed:not(.notif-feed--types) .notif-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* الشاشةُ العريضةُ: خمسةُ أنواعٍ في الصفّ. */
+  @media (min-width: 1440px) {
+    #main-content.page-noscroll .notif-feed--types { grid-template-columns: repeat(auto-fit, minmax(calc((100% - 4 * var(--sp-3)) / 5), 1fr)); }
+  }
+  #main-content.page-noscroll .notif-feed--types .notif-day__title { flex-shrink: 0; }
+  /* داخل الصندوق: أعمدةُ chunk_for_grid تتجاور بقدر العرض (صندوقٌ عريضٌ = عدّةُ أعمدة)، وتتراصّ
+     عموداً واحداً في صندوقٍ ضيّق — وتُمرَّر القائمةُ داخلَه. */
+  #main-content.page-noscroll .notif-feed--types .notif-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+    align-content: start;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+  /* رصد الغياب: أجنحةٌ أعمدةٌ متجاورة وشُعبُها رأسيّة. */
+  #main-content.page-noscroll > .exec-dash > .wing-cols {
+    display: grid;
+    flex: 0 1 auto;
+    min-height: 120px;
+    gap: var(--sp-2);
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  #main-content.page-noscroll .wing-cols > .wing-panel { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+  #main-content.page-noscroll .wing-cols .wing-panel__bar { flex-wrap: wrap; row-gap: var(--sp-2); }
+  #main-content.page-noscroll .wing-cols .rec-sections { flex: 1; min-height: 0; overflow: auto; align-content: start; grid-template-columns: 1fr; padding: var(--sp-2); }
+  /* شُعبُ مركز المعلومات: من أعلى الشبكة لا مُطاطةً. */
+  #main-content.page-noscroll > .exec-dash > .ui-entity-grid:last-child { align-content: start; }
+  /* تقييم الأداء: بطاقتان صغيرتان في سطر. */
+  #main-content.page-noscroll .qeval-side { flex: 0 0 auto; }
+  #main-content.page-noscroll .qeval-side .plain-list.is-scroll { max-block-size: 96px; }
+  #main-content.page-noscroll .qeval-side .empty-state-v2 { flex-direction: row; justify-content: center; gap: var(--sp-2); padding-block: var(--sp-2); min-block-size: 0; }
+  #main-content.page-noscroll .qeval-side .empty-state-v2 .es-icon { font-size: var(--text-lg); margin: 0; }
+  #main-content.page-noscroll .qeval-side .empty-state-v2 .es-icon svg { inline-size: 24px; block-size: 24px; }
+  #main-content.page-noscroll .qeval-side .empty-state-v2 .es-sub { display: none; }
+  #main-content.page-noscroll .table-wrap-scroll,
+  #main-content.page-noscroll .table-wrap,
+  #main-content.page-noscroll .ui-entity-grid { flex: 1; min-height: 0; max-height: none; overflow: auto; }
+}
+}

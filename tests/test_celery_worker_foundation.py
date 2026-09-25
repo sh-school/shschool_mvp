@@ -241,9 +241,10 @@ def test_worker_script_is_fail_closed_and_not_a_web_release_process():
     for fragment in required:
         assert fragment in script
 
+    # `collectstatic` ليس هنا عمداً (N-042): يكتب في `STATIC_ROOT` المحلّيّ لحاوية العامل وحدَها لا في قرصٍ مشترك،
+    # وقالبُ PDF يحتاج manifest هذه الحاوية؛ وهو لا يلمس القاعدة. يحرسه tests/test_worker_collects_static.py.
     forbidden = (
         "python manage.py migrate",
-        "collectstatic",
         "daphne",
         "provision_rls_role",
     )

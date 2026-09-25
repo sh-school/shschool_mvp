@@ -104,7 +104,7 @@ window.addEventListener('beforeinstallprompt', function(e) {
     }, 3000);
   }
 });
-function installPWA() {
+window.installPWA = function () {
   if (!deferredPrompt) return;
   deferredPrompt.prompt();
   deferredPrompt.userChoice.then(function() {
@@ -112,7 +112,7 @@ function installPWA() {
     var banner = document.getElementById('pwa-banner');
     if (banner) banner.hidden = true;
   });
-}
+};
 
 /* ── Service Worker + Push Notifications ── */
 if ('serviceWorker' in navigator) {

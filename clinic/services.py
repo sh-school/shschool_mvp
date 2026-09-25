@@ -56,7 +56,7 @@ class ClinicService:
         Returns:
             ClinicVisit: سجل الزيارة المنشأ
         """
-        from core.models import ClinicVisit
+        from clinic.models import ClinicVisit
 
         visit = ClinicVisit.objects.create(
             school=school,
@@ -105,7 +105,7 @@ class ClinicService:
         from django.db.models.functions import ExtractHour, TruncDate
         from django.utils import timezone
 
-        from core.models import ClinicVisit
+        from clinic.models import ClinicVisit
 
         today = today or timezone.now().date()
         week_ago = today - timedelta(days=7)
@@ -199,7 +199,7 @@ class ClinicService:
         from django.db.models.functions import TruncDate
         from django.utils import timezone
 
-        from core.models import ClinicVisit
+        from clinic.models import ClinicVisit
 
         today = timezone.now().date()
         start_date = today - timedelta(days=days - 1)
@@ -246,7 +246,7 @@ class ClinicService:
         """
         from django.utils import timezone
 
-        from core.models import ClinicVisit, HealthRecord
+        from clinic.models import ClinicVisit, HealthRecord
 
         now = timezone.now()
 
@@ -304,9 +304,9 @@ class ClinicService:
                     f"إلى المنزل من العيادة المدرسية بسبب: {visit.reason}. "
                     f"يُرجى التواصل مع المدرسة للاستفسار."
                 )
-                NotificationService.send_email(
+                NotificationService.deliver_email(
+                    user=parent,
                     school=school,
-                    recipient_email=parent.email,
                     subject=f"إشعار عيادة: {visit.student.full_name}",
                     body_text=msg,
                     student=visit.student,

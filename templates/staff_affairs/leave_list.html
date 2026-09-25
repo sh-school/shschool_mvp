@@ -2,6 +2,8 @@
 {% load icons %}
 {% load ui %}
 {% block title %}طلبات الإجازات{% endblock %}
+{# الجدولُ يُمرَّر وحدَه، لا الصفحةُ فوقه أيضاً. #}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/staff-affairs/" parent_label="شؤون الموظفين" current="طلبات الإجازات" %}
 {% endblock %}

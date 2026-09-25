@@ -1,8 +1,14 @@
 name: CD — Railway Deploy Pipeline
 
+# يدويٌّ لا تلقائيّ منذ 2026-09-18: النشرُ التلقائيّ على دمج main مقطوعٌ
+# (serviceInstanceAutoDeployUpdate=false على الخدمات الثلاث)، والترقيةُ
+# للإنتاج صارت railway service redeploy --from-source بعد مراجعةٍ على
+# معاينة main المحلّية. فكان `on: push` يفتح «🔴 DEPLOY FAILED» عند كلّ
+# دمجٍ عاديّ لا يتبعه نشرٌ فوريّاً — الفحصُ صحيحٌ والافتراضُ (كلّ دمجٍ ينشر)
+# صار خطأً. شغّل هذا الوركفلو يدويّاً (Actions → هذا الاسم → Run workflow)
+# فور تنفيذ أمر الترقية، لا قبله.
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 # التحقّق البَعدي يُثبت **آخر حالة لـmain**، لا حالةً عبَرت.
 #
@@ -42,9 +48,9 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -132,6 +138,8 @@ jobs:
 
       - name: "Preflight: Static files dry-run (test 7)"
         run: |
+          # بلا pipefail يُخفي `| tee` فشلَ collectstatic؛ وفحصُ grep أدناه لا يلتقط إلا ما طُبع
+          set -o pipefail
           python manage.py collectstatic --dry-run --noinput 2>&1 | tee /tmp/static_output.txt
           if grep -qi "error\|traceback" /tmp/static_output.txt; then
             echo "::error::collectstatic --dry-run has errors"
@@ -249,7 +257,7 @@ jobs:
       # وأغرقت لوحة القضايا حتى صار الحقيقي منها غير مرئي.
       - name: "Rollback: Open or update the deploy-failure issue"
         if: steps.canary.outputs.canary_passed == 'false'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const detail = [
@@ -323,7 +331,7 @@ jobs:
       # v5.7: نشر ناجح ⇒ إغلاق أي قضية فشل مفتوحة (شفاء ذاتي).
       - name: "Rollback: Close stale deploy-failure issues"
         if: steps.canary.outputs.canary_passed == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const open = await github.rest.issues.listForRepo({
@@ -363,7 +371,7 @@ jobs:
 
       - name: Create GitHub deployment status
         if: steps.canary.outputs.canary_passed == 'true'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const deployment = await github.rest.repos.createDeployment({

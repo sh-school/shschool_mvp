@@ -19,6 +19,8 @@ from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 
+from core.admin import SchoolScopedAdmin
+
 from .models import (
     DeadLetterMessage,
     InAppNotification,
@@ -181,7 +183,7 @@ class NotificationEnqueueIntentAdmin(ReadOnlyAdmin):
     """
 
     list_display = (
-        "id",
+        "intent_id",
         "recipient",
         "school",
         "last_enqueue_attempt_at",
@@ -196,9 +198,13 @@ class NotificationEnqueueIntentAdmin(ReadOnlyAdmin):
     list_select_related = ("recipient", "school")
     ordering = ("-created_at",)
 
+    @admin.display(description="المعرّف", ordering="id")
+    def intent_id(self, obj):
+        return obj.pk
+
 
 @admin.register(NotificationLog)
-class NotificationLogAdmin(PurgeAllMixin, ReadOnlyAdmin):
+class NotificationLogAdmin(PurgeAllMixin, SchoolScopedAdmin, ReadOnlyAdmin):
     """محاولةُ نداءِ مزوّدٍ واحدة — صفٌّ لكلّ محاولةٍ لا لكلّ رسالة."""
 
     list_display = ("notif_type", "channel", "recipient", "status", "sent_at", "school")
@@ -213,7 +219,7 @@ class NotificationLogAdmin(PurgeAllMixin, ReadOnlyAdmin):
 
 
 @admin.register(DeadLetterMessage)
-class DeadLetterMessageAdmin(ReadOnlyAdmin):
+class DeadLetterMessageAdmin(SchoolScopedAdmin, ReadOnlyAdmin):
     """طابورُ الرسائل الميّتة — شهادةُ فشلٍ استنفد محاولاته.
 
     الحمولةُ تشخيصيّةٌ لا نسخةٌ من الرسالة، وإعادةُ الإرسال محجوبةٌ من هنا:

@@ -5,6 +5,9 @@
 
 {% block title %}شؤون الطلاب{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}{% page_layout "dashboard" %}{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with current="شؤون الطلاب" %}
 {% endblock %}
@@ -19,12 +22,6 @@
   {% endcomment %}
   {% page_header "شؤون الطلاب" subtitle=page_subtitle icon="students" %}
     {% if not limited or request.user|can_open:'student_affairs:student_add' %}<a href="{% url 'student_affairs:student_add' %}" class="btn-primary btn-sm">{% icon "student_add" %} إضافة طالب</a>{% endif %}
-    {% if not limited or request.user|can_open:'student_affairs:student_list' %}<a href="{% url 'student_affairs:student_list' %}" class="btn-secondary btn-sm">{% icon "student_info" %} سجل الطلاب</a>{% endif %}
-    {% if not limited or request.user|can_open:'student_affairs:transfer_list' %}<a href="{% url 'student_affairs:transfer_list' %}" class="btn-secondary btn-sm">{% icon "refresh" %} الانتقالات</a>{% endif %}
-    {% if not limited or request.user|can_open:'student_affairs:activity_list' %}<a href="{% url 'student_affairs:activity_list' %}" class="btn-secondary btn-sm">{% icon "activities" %} الأنشطة</a>{% endif %}
-    {% if not limited or request.user|can_open:'student_import_export' %}<a href="{% url 'student_import_export' %}" class="btn-secondary btn-sm">{% icon "import" %} استيراد/تصدير</a>{% endif %}
-    {% if not limited or request.user|can_open:'manage_parent_links' %}<a href="{% url 'manage_parent_links' %}" class="btn-secondary btn-sm">{% icon "link" %} ربط الأولياء</a>{% endif %}
-    <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
   {# الإحصائيات اليومية (SOS-20260420-9A91) — والمرحلتان تفصيلُ الإجمالي لا بطاقةٌ بسطرين #}
@@ -41,7 +38,7 @@
   {% endkpi_strip %}
 
   {# القوائم اليومية (SOS-20260420-9A91) #}
-  <div class="charts-grid-3">
+  <div class="fill-grid">
     {% section_card "الغائبون اليوم" meta=absent_today icon="absence" empty="لا غياب اليوم" %}{% if absent_list %}
       <ul class="plain-list is-scroll">
         {% for s in absent_list %}
@@ -68,7 +65,6 @@
         {% endfor %}
       </ul>
     {% endif %}{% endsection_card %}
-  </div>
 
   {% if grade_rows %}
   {% section_card "توزيع الطلاب حسب الصف" icon="stats" flush=True %}
@@ -93,6 +89,7 @@
     </div>
   {% endsection_card %}
   {% endif %}
+  </div>
 
 </div>
 {% endblock %}

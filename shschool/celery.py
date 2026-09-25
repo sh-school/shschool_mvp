@@ -80,6 +80,12 @@ app.conf.beat_schedule = {
         "task": "analytics.send_monthly_kpi_report",
         "schedule": crontab(hour=6, minute=0, day_of_month=1),
     },
+    # سياسةُ الحضور والانصراف 5.1: «الخصم … بعد اشعار الموظف … بداية كل شهر بتقرير أيام الغياب
+    # عن الشهر السابق» — أوّلَ كلّ شهرٍ 7:30، فتبقى مهلةُ التغطية (قبل يوم 15) أسبوعَين.
+    "staff-monthly-absence-notices": {
+        "task": "staff_affairs.send_monthly_absence_notices",
+        "schedule": crontab(hour=7, minute=30, day_of_month=1),
+    },
     # ✅ v7: إلغاء الصلاحيات المؤقتة المنتهية — كل دقيقة
     "revoke-expired-temp-permissions": {
         "task": "operations.revoke_expired_temp_permissions",
@@ -108,6 +114,30 @@ app.conf.beat_schedule = {
     "enforce-data-retention-weekly": {
         "task": "core.enforce_data_retention",
         "schedule": crontab(hour=3, minute=30, day_of_week="5"),  # 5=الجمعة
+    },
+    # نبضةُ حياة العامل كلَّ خمس دقائق (P4-9): غيابُها في Sentry Crons هو
+    # الإنذار — لا فشلُها. `monitor_beat_tasks=True` يفحصها تلقائيّاً.
+    "worker-heartbeat": {
+        "task": "core.worker_heartbeat",
+        "schedule": crontab(minute="*/5"),
+    },
+    # حالةُ النسخ الاحتياطيّ اليوميّ (GitHub Actions) إلى الـcache لبطاقة الإدارة (OWN-23) — كلَّ نصف ساعة،
+    # فطلبان في الساعة يسعهما الحدُّ غيرُ المصادَق (60). لا مراقبَ Sentry Crons لها: الحصّةُ للنبضة وحدَها.
+    "refresh-backup-status": {
+        "task": "core.refresh_backup_status",
+        "schedule": crontab(minute="*/30"),
+    },
+    # صفوفُ تصدير PDF/Excel الخلفيّة (البند 5، P4-6) مؤقّتة — تُحذف بعد يوم
+    # كي لا تتراكم محتوىً ثنائيّاً في القاعدة كملفّات `StoredFile` الدائمة.
+    "purge-expired-export-jobs": {
+        "task": "operations.purge_expired_export_jobs",
+        "schedule": crontab(hour=4, minute=0),  # يومياً 4:00 صباحاً
+    },
+    # طلباتُ التعويض المفتوحة التي مضى يومُها لا يقبلها أحدٌ بعدُ (`_not_past`): تُنهى فجراً
+    # فلا تبقى معلَّقةً في قوائم المنسّق ولا تُعدّ انشغالاً لأصحابها ولا تسدّ خانةَ يومها.
+    "expire-overdue-compensatory": {
+        "task": "operations.expire_overdue_compensatory",
+        "schedule": crontab(hour=4, minute=15),  # يومياً 4:15 صباحاً (الدوحة)
     },
 }
 

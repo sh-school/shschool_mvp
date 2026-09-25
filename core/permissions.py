@@ -14,10 +14,12 @@ core/permissions.py
 """
 
 import logging
+from collections.abc import Callable
 from functools import wraps
 from typing import Any
 
-from django.http import HttpResponseForbidden, JsonResponse
+from django.http import HttpRequest, HttpResponseForbidden, JsonResponse
+from django.http.response import HttpResponseBase
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
@@ -249,6 +251,10 @@ ANALYTICS_VIEW = {
 WORKLOAD_EDIT = {"coordinator", "vice_academic", "principal", "platform_developer"}
 WORKLOAD_REVIEW = {"vice_academic", "principal", "platform_developer"}
 WORKLOAD_APPROVE = {"principal", "platform_developer"}
+# وقفُ الإسناد عن المنسّقين وفتحُه — مفتاحٌ في صفحة الإسناد لهؤلاء الثلاثة وحدَهم،
+# لا يتبدّل بتهيئة أدوار الحوكمة: المنسّقُ هو المحكومُ به، فلا يُترك للمدرسة
+# أن تُدخله في من يملك المفتاح.
+ASSIGNMENT_ENTRY_TOGGLE = {"principal", "vice_academic", "platform_developer"}
 
 # ── إدارة المستخدمين والنظام ────────────────────────────────────
 USER_MANAGE = {"principal"}
@@ -381,13 +387,21 @@ BEHAVIOR_SUMMON = frozenset(
 # الصلاحيّةُ ولا يُعرف أين. وكان منها المكرَّر: `_REPORT_ROLES` بنصّه في الجدول
 # والحضور، و`_QUALITY_ALL` بنصّه في الجودة وتقاريرها.
 #
-# `EXAM_CONTROL_ACCESS` و`OPERATIONS_REPORTS` متطابقتا الأعضاء اليومَ ولم تُدمجا:
-# معناهما مختلف، وقد يفترقان. والنقلُ لم يغيّر عضواً — يحرسه
-# `tests/test_permission_groups_are_central.py`.
+# `EXAM_CONTROL_ACCESS` و`OPERATIONS_REPORTS` متطابقتا الأعضاء حتّى افترقتا
+# 2026-09-17 (قرارُ المستخدم): مشرفُ الجناح يقرأ تقاريرَ البدلاء ولا يفتح
+# الكنترول إطلاقاً، فصار له وحدَه بين الاثنتين. والنقلُ الأصليُّ لم يغيّر
+# عضواً — يحرسه `tests/test_permission_groups_are_central.py`.
 
-#: تقاريرُ الجدول والحضور.
+#: تقاريرُ الجدول والحضور — عرضٌ فقط. من يُعيّن بديلاً أو يسجّل غياب معلّمٍ
+#: فـ`OPERATIONS_SUBSTITUTES_MANAGE` أدناه.
 OPERATIONS_REPORTS = frozenset(
     {"principal", "vice_academic", "vice_admin", "coordinator", "admin_supervisor", "admin"}
+)
+#: تسجيلُ غياب معلّمٍ وتعيينُ بديله — فعلٌ لا تقرير. مشرفُ الجناح يرى
+#: `OPERATIONS_REPORTS` أعلاه ولا يكتب هنا (قرارُ المستخدم 2026-09-17:
+#: «البدلاء مشاهدة فقط»).
+OPERATIONS_SUBSTITUTES_MANAGE = frozenset(
+    {"principal", "vice_academic", "vice_admin", "coordinator", "admin"}
 )
 #: إعدادُ الجدول الإداريّ.
 SCHEDULE_ADMIN = frozenset({"principal", "vice_academic", "admin"})
@@ -395,6 +409,9 @@ SCHEDULE_ADMIN = frozenset({"principal", "vice_academic", "admin"})
 #: 2026-09-09): كان يمرّ بصفة `is_superuser` وحدَها، وهي صفةُ حسابٍ لا دورٌ في
 #: مدرسة — فحسابُ مطوّرٍ بلا تلك الصفة يُردّ عن شاشةٍ هي عملُه.
 SCHEDULE_SETTINGS = frozenset({"principal", "vice_academic", "platform_developer"})
+#: من يعتمد الجدولَ (قرارُ المالك 2026-09-25، جلسةُ الجدول): المديرُ والنائبُ الأكاديميّ، والمطوّرُ استثناءً
+#: بسببٍ إلزاميٍّ وتدقيق — ولا النائبُ الإداريّ. المطابقةُ لأعضاء `SCHEDULE_SETTINGS` قصدٌ لا مصادفة.
+SCHEDULE_APPROVE = frozenset({"principal", "vice_academic", "platform_developer"})
 #: من يتصفّح جداول غيره — القيادة ومن يُنسّق الجداول.
 #: ومن سواهم يرى جدوله هو، مهما كتب في الرابط.
 SCHEDULE_BROWSE = frozenset(
@@ -412,9 +429,17 @@ SCHEDULE_BROWSE = frozenset(
 )
 #: نظامُ الكنترول. (والمصدرُ الوزاريُّ يجعل الكنترولَ لجنةً بعضويّةٍ موقوتة لا
 #: قائمةَ أدوار — `docs/rbac_role_authority_study_2026-09.md` ملحق د؛ والنقلُ لا يحسم ذلك.)
+#: مشرفُ الجناح ليس فيه بشيء (قرارُ المستخدم 2026-09-17) — أُخرج من الأعضاء
+#: بعد أن كان معهم بالنقل الأصليّ. ولا يشمل هذا محضرَ حادثة الاختبار: تلك
+#: مسؤوليّةٌ ميدانيّةٌ لمشرف الجناح وحده — انظر `EXAM_CONTROL_REPORT_INCIDENT`.
 EXAM_CONTROL_ACCESS = frozenset(
-    {"principal", "vice_academic", "vice_admin", "coordinator", "admin_supervisor", "admin"}
+    {"principal", "vice_academic", "vice_admin", "coordinator", "admin"}
 )
+#: تسجيلُ حادثةِ اختبارٍ ومراجعتُها — محضرٌ يكتبه من يراقب الطلبةَ فعلاً أثناء
+#: الاختبار. مشرفُ الجناح يكتب على طلبة جناحه وحدَهم (`_incidents_in_scope`،
+#: قرارُ 2026-09-15)، ولا يفتح شيئاً آخر من الكنترول (قرارُ 2026-09-17) — فهي
+#: قدرةٌ ضيّقةٌ عن `EXAM_CONTROL_ACCESS` لا مرادفةٌ لها.
+EXAM_CONTROL_REPORT_INCIDENT = EXAM_CONTROL_ACCESS | {"admin_supervisor"}
 #: شؤونُ الموظّفين — نظيرةُ `STUDENT_AFFAIRS_MANAGE`.
 STAFF_AFFAIRS_MANAGE = frozenset({"principal", "vice_admin", "vice_academic", "platform_developer"})
 #: بوّابةُ وليّ الأمر، ومن يدخلها من الإدارة.
@@ -922,7 +947,7 @@ def teacher_can_access_student(user, student_id):
     return student_id in ids
 
 
-def get_department_teacher_ids(user):
+def get_department_teacher_ids(user: Any) -> set[Any] | None:
     """
     يُعيد قائمة IDs المعلمين في قسم المنسق.
     - المنسق → معلمي قسمه/تخصصه في نفس المدرسة
@@ -1037,11 +1062,13 @@ def get_accessible_modules(user):
 # ══════════════════════════════════════════════════════════════════════
 
 
-def internal_only(view_func):
+def internal_only(
+    view_func: Callable[..., HttpResponseBase],
+) -> Callable[..., HttpResponseBase]:
     """يسمح فقط بالوصول من عناوين IP الداخلية — لحماية /metrics و endpoints حساسة."""
 
     @wraps(view_func)
-    def wrapper(request, *args, **kwargs):
+    def wrapper(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponseBase:
         from django.conf import settings as _s
 
         from core.request_utils import get_client_ip

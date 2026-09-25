@@ -4,6 +4,9 @@
 
 {% block title %}الانتقالات{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="الانتقالات" %}
 {% endblock %}
@@ -12,7 +15,6 @@
 <div class="exec-dash sa-page">
   {% page_header "سجل الانتقالات" icon="swap_requests" %}
     <a href="{% url 'student_affairs:transfer_create' %}" class="btn-primary btn-sm">{% icon "edit_record" %} طلب انتقال جديد</a>
-    <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
   {# فلتر #}

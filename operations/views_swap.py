@@ -18,7 +18,7 @@ from .models import (
     TeacherAbsence,
     TeacherSwap,
 )
-from .services import CompensatoryService, FreeSlotService, SwapService
+from .services import AbsenceSwapService, CompensatoryService, FreeSlotService, SwapService
 
 logger = logging.getLogger(__name__)
 
@@ -63,9 +63,11 @@ def swap_list(request):
 
     # التوقيعُ حقُّ منسّقِ الجهة، فالزرُّ يظهر لمن يملكه لا لكلّ منسّقٍ في
     # المدرسة. ويُحسَب هنا لا في القالب: القالبُ لا يستدعي خدمةً بمعاملات.
+    # وتبديلُ الغياب بعد التوقيعين يعتمده النائبُ أو من كُلِّف عنه.
     swaps = list(swaps)
     for swap in swaps:
         swap.my_sides = SwapService.signable_sides(swap, request.user)
+        swap.can_final = AbsenceSwapService.can_final_approve(swap, request.user)
 
     return render(
         request,
@@ -283,6 +285,65 @@ def swap_cancel(request, swap_id):
     return redirect("swap_list")
 
 
+# ── التبديل بسبب الغياب ──────────────────────────────────────────
+
+
+def _absence_and_slot(request, absence_id, slot_id):
+    """الغيابُ وحصّتُه — والمنسّقُ لا يمسّ غيابَ معلّمٍ من غير قسمه."""
+    from django.http import Http404
+
+    from core.permissions import get_department_teacher_ids
+
+    school = request.school
+    absence = get_object_or_404(TeacherAbsence, id=absence_id, school=school)
+    slot = get_object_or_404(ScheduleSlot, id=slot_id, school=school, teacher=absence.teacher)
+    dept_ids = get_department_teacher_ids(request.user)
+    if dept_ids is not None and absence.teacher_id not in dept_ids:
+        raise Http404("هذا المعلم ليس من قسمك")
+    return absence, slot
+
+
+@login_required
+@capability_required("operations.substitutes_manage")
+def absence_swap_options(request, absence_id, slot_id):
+    """HTMX: معلّمو الشعبة المتفرّغون للتبديل في حصّة الغائب، ويومُ الردّ لكلٍّ."""
+    absence, slot = _absence_and_slot(request, absence_id, slot_id)
+    return render(
+        request,
+        "substitute/partials/swap_options.html",
+        {
+            "absence": absence,
+            "slot": slot,
+            "options": AbsenceSwapService.options(absence, slot),
+            "immediate": AbsenceSwapService.is_leadership(request.user, absence.school),
+        },
+    )
+
+
+@login_required
+@capability_required("operations.substitutes_manage")
+@require_POST
+def absence_swap_create(request, absence_id, slot_id):
+    """ينشئ التبديلَ: القيادةُ تنفّذه فوراً، والمنسّقُ يبدأ مسارَ موافقته."""
+    from datetime import date as date_cls
+
+    absence, slot = _absence_and_slot(request, absence_id, slot_id)
+    try:
+        slot_b_id, raw_date = request.POST.get("option", "").split("|")
+        slot_b = get_object_or_404(ScheduleSlot, id=slot_b_id, school=absence.school)
+        swap = AbsenceSwapService.request(
+            absence, slot, slot_b, date_cls.fromisoformat(raw_date), request.user
+        )
+    except ValueError as bad:
+        messages.error(request, str(bad) or "اختر تبديلاً من القائمة")
+    else:
+        if swap.status == "executed":
+            messages.success(request, "نُفِّذ التبديلُ وأُبلغ الجميع")
+        else:
+            messages.success(request, "أُرسل التبديلُ إلى المعلّم للموافقة، ثمّ المنسّقَين والنائب")
+    return redirect("absence_detail", absence_id=absence.id)
+
+
 # ── الحصص التعويضية ───────────────────────────────────────────────
 
 
@@ -290,30 +351,10 @@ def swap_cancel(request, swap_id):
 @capability_required("schedule.view")
 def compensatory_list(request):
     """قائمة الحصص التعويضية."""
-    school = request.user.get_school()
-    role = request.user.get_role()
-
-    if role in ("principal", "vice_academic", "vice_admin"):
-        comps = CompensatorySession.objects.filter(school=school)
-    elif role == "coordinator":
-        from core.permissions import get_department_teacher_ids
-
-        dept_teachers = get_department_teacher_ids(request.user) or set()
-        comps = CompensatorySession.objects.filter(school=school, teacher_id__in=dept_teachers)
-    else:
-        comps = CompensatorySession.objects.filter(school=school, teacher=request.user)
-
-    comps = comps.select_related(
-        "teacher",
-        "original_slot__subject",
-        "original_slot__class_group",
-        "class_group",
-        "subject",
-    ).order_by("-created_at")
-
     status_filter = request.GET.get("status", "")
-    if status_filter:
-        comps = comps.filter(status=status_filter)
+    comps = CompensatoryService.listing(
+        request.school, request.user, request.user.get_role(), status_filter
+    )
 
     return render(
         request,
@@ -349,17 +390,17 @@ def compensatory_request(request):
         absence = get_object_or_404(TeacherAbsence, pk=absence_id, school=school)
 
         try:
-            comp_date = date_cls.fromisoformat(comp_date_str)
-            CompensatoryService.request_compensatory(
+            comp = CompensatoryService.request_compensatory(
                 school=school,
                 teacher=request.user,
                 original_slot=slot,
                 absence=absence,
-                compensatory_date=comp_date,
+                compensatory_date=date_cls.fromisoformat(comp_date_str),
                 compensatory_period=int(comp_period),
                 notes=notes,
             )
-            messages.success(request, "تم إرسال طلب التعويض بنجاح")
+            who = comp.colleague.full_name if comp.colleague else "المنسّق"
+            messages.success(request, f"أُرسل طلبُ التعويض إلى {who}")
             return redirect("compensatory_list")
         except (ValueError, Exception) as e:
             messages.error(request, f"خطأ: {e}")
@@ -384,6 +425,60 @@ def compensatory_request(request):
             "my_slots": my_slots,
         },
     )
+
+
+@login_required
+@capability_required("compensatory.request")
+def compensatory_options(request):
+    """HTMX: حصصُ الشعبة يومَ التعويض بجرس طابقها — ولكلٍّ صاحبُها، وهل يُعوَّض فيها."""
+    from datetime import date as date_cls
+
+    from django.core.exceptions import ValidationError
+
+    ctx: dict = {"options": [], "error": "", "ready": False}
+    try:
+        slot = ScheduleSlot.objects.select_related("class_group__time_band").get(
+            pk=request.GET.get("original_slot"), school=request.school, teacher=request.user
+        )
+        day = date_cls.fromisoformat(request.GET.get("compensatory_date", ""))
+    except (ScheduleSlot.DoesNotExist, ValidationError, ValueError):
+        return render(request, "schedule/partials/compensatory_options.html", ctx)
+    ctx["ready"] = True
+    today = timezone.localdate()
+    if not today <= day <= today + timedelta(days=28):
+        # نقطةُ GET تولّد حصصَ أسبوع التاريخ: لا تُفتح لتاريخٍ اعتباطيّ.
+        ctx["error"] = "اختر تاريخاً من اليوم إلى أربعة أسابيع"
+        return render(request, "schedule/partials/compensatory_options.html", ctx)
+    try:
+        ctx["options"] = CompensatoryService.day_options(
+            request.school, request.user, slot.class_group, day
+        )
+    except ValueError as closed:
+        ctx["error"] = str(closed)
+    return render(request, "schedule/partials/compensatory_options.html", ctx)
+
+
+@login_required
+@capability_required("schedule.view")
+@require_POST
+def compensatory_respond(request, comp_id):
+    """صاحبُ الحصّة يوافق أو يعتذر، وصاحبُ الطلب يسحبه — والتحقّقُ من الصفة في الخدمة."""
+    comp = get_object_or_404(CompensatorySession, pk=comp_id, school=request.school)
+    action = request.POST.get("action")
+    try:
+        if action == "withdraw":
+            CompensatoryService.withdraw(comp, request.user)
+            done = "سُحب طلبُ التعويض"
+        else:
+            CompensatoryService.colleague_decide(
+                comp, request.user, action == "accept", request.POST.get("reason", "").strip()
+            )
+            done = "سُجّلت موافقتك — الطلبُ ينتظر الاعتماد" if action == "accept" else "سُجّل اعتذارك"
+    except ValueError as bad:
+        messages.error(request, str(bad))
+    else:
+        messages.success(request, done)
+    return redirect("compensatory_list")
 
 
 @login_required

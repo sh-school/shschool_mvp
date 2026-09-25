@@ -16,39 +16,30 @@
 يراجع، والمديرُ يعتمد؛ ولهما معاً كلُّ الأقسام وكلُّ التعديل. وهذه القدراتُ
 تُقرأ من `workload_workflow` لا تُكتب هنا، فتبقى بوّابةُ الاعتماد وختمُه كما هي.
 
-والكتابةُ كلُّها تمرّ بـ`assignment_service` فتُفحص وتُدقَّق كما كانت.
+والكتابةُ كلُّها تمرّ بـ`assignment_services` فتُفحص وتُدقَّق كما كانت.
 """
-
-from collections import defaultdict
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
 
-from academic_management import assignment_service, curriculum_service, load
+from academic_management import assignment_selectors as selectors
+from academic_management import assignment_services as assignment_service
+from academic_management import curriculum_services as curriculum_service
 from academic_management import workload_workflow as flow
-from academic_management.models import (
-    DRAFT,
-    FROZEN_STATUSES,
-    REVIEWED,
-    SUBMITTED,
-    CoursePreparation,
-    TeacherWorkloadPlan,
-)
+from academic_management.models import FROZEN_STATUSES, CoursePreparation
 from core.academic_calendar import academic_year_for
+from core.dashboard_presentation import chunk_for_grid
 from core.models import ClassGroup, CustomUser, Department, Membership
-from core.models.academic import grade_order
 from core.models.access import DEPARTMENT_ROLES
-from operations import departments as dept_map
 from operations.models import Subject, SubjectClassAssignment
 
 MODULE_NAME = "إدارة الشؤون الأكاديمية"
-#: من تُطبع له بطاقة — الأدوارُ التي تُدرّس.
-TEACHING_ROLES = ("teacher", "ese_teacher", "coordinator", "e_projects_coordinator")
-LEVEL_LABELS = {"prep": "إعدادي", "sec": "ثانوي"}
+
+ENTRY_PAUSED_REASON = "الإسنادُ موقوفٌ عن المنسّقين — يفتحه النائبُ الأكاديميّ أو المدير."
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -56,320 +47,34 @@ LEVEL_LABELS = {"prep": "إعدادي", "sec": "ثانوي"}
 # ══════════════════════════════════════════════════════════════════════
 
 
-def _caps(user, school):
-    """قدراتُ هذا المستخدم على الأنصبة — إدخالٌ ومراجعةٌ واعتماد."""
-    return {
-        "edit": flow.has_capability(user, school, flow.EDIT),
-        "review": flow.has_capability(user, school, flow.REVIEW),
-        "approve": flow.has_capability(user, school, flow.APPROVE),
-    }
-
-
-def _registry_filled(school) -> bool:
-    return Department.objects.filter(school=school, is_active=True).exists()
-
-
-def _department_key(person, school, year):
-    """مفتاحُ قسم شخصٍ واحد — سجلُّه، وإلّا الغالبُ على حصصه.
-
-    وتُقدَّم عضويّةُ التدريس: من كان معلّماً وله عضويّةٌ ثانيةٌ بدورٍ إداريّ
-    لا قسمَ لها، فلولا الترتيبُ لقُرئ بلا قسم.
-    """
-    membership = (
-        Membership.objects.filter(user=person, school=school, is_active=True)
-        .select_related("department_obj")
-        .order_by("department_obj__sort_order")
-        .first()
-    )
-    rows = (
-        SubjectClassAssignment.objects.live(school, year=year)
-        .filter(teacher=person)
-        .select_related("class_group", "subject")
-    )
-    department = membership.department_obj if membership else None
-    return _department_of(department, list(rows), _registry_filled(school))[0]
-
-
 def _guard(request, teacher=None):
     """يرفض من لا قدرةَ له، ومن يمدّ يدَه إلى معلّمٍ خارج قسمه.
 
     تُعيد (المدرسة، القدرات، مفتاحَ نطاق المستخدم، العام). والنطاقُ `None`
-    للنائب والمدير: قسمٌ واحدٌ لا يحدّهما.
+    للنائب والمدير ومُشغِّل الجدول: قسمٌ واحدٌ لا يحدّهم.
     """
     school = request.user.get_school()
-    caps = _caps(request.user, school)
+    caps = selectors.caps(request.user, school)
     if not (caps["edit"] or caps["review"] or caps["approve"]):
         raise PermissionDenied("شاشةُ الإسناد للمنسّق والنائب الأكاديميّ والمدير.")
     year = request.POST.get("year") or request.GET.get("year") or academic_year_for(request)
 
-    unbounded = caps["review"] or caps["approve"] or getattr(request.user, "is_superuser", False)
-    scope = None if unbounded else _department_key(request.user, school, year)
+    unbounded = (
+        caps["review"]
+        or caps["approve"]
+        or caps["operator"]
+        or getattr(request.user, "is_superuser", False)
+    )
+    scope = None if unbounded else selectors.department_key(request.user, school, year)
     if teacher is not None and scope is not None:
-        if _department_key(teacher, school, year) != scope:
+        if selectors.department_key(teacher, school, year) != scope:
             raise PermissionDenied("هذا المعلّمُ خارج قسمك.")
     return school, caps, scope, year
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  بناءُ البطاقة
+#  بناءُ البطاقة — انتقلت إلى academic_management/assignment_selectors.py
 # ══════════════════════════════════════════════════════════════════════
-
-
-def _teachers(school):
-    """معلّمو المدرسة وقسمُ كلٍّ منهم في السجلّ — أو `None` لمن لم يُسجَّل."""
-    memberships = (
-        Membership.objects.filter(school=school, is_active=True, role__name__in=TEACHING_ROLES)
-        .select_related("user", "department_obj")
-        .order_by("department_obj__sort_order", "department_obj__name", "user__full_name")
-    )
-    seen, out = set(), []
-    for m in memberships:
-        if m.user_id in seen:
-            continue
-        seen.add(m.user_id)
-        out.append((m.user, m.department_obj))
-    return out
-
-
-#: مفتاحُ من لا قسمَ مسجّلاً له — يظهر ليُصلَح لا ليُخفى.
-NO_DEPARTMENT = "none"
-
-
-def _department_of(department, rows, registry_filled=False):
-    """قسمُ المعلّم: السجلُّ إن سُجّل، وإلّا فالغالبُ على حصصه.
-
-    سجلُّ الأقسام هو المصدر متى مُلئ. وهو فارغٌ في قاعدة التطوير — ولو تُرك
-    الأمرُ له لظهر المعلّمون جميعاً تحت «بلا قسم» وخلت قائمةُ الترشيح من كلّ
-    خيار. فيُشتقّ القسمُ حينئذٍ من الحصص كما تفعل ورقةُ الجدول العام، ويبقى
-    السجلُّ متقدّماً متى وُجد.
-
-    تُعيد (المفتاح، الاسم، ترتيبَ العرض).
-    """
-    if department is not None:
-        return (
-            f"reg:{department.id}",
-            department.name,
-            (0, department.sort_order or 0, department.name),
-        )
-    # متى سُجّلت أقسامُ المدرسة صار غيابُ القسم نقصاً يُعالَج، لا سؤالاً
-    # يُجاب عنه بالاشتقاق: من نُقل أو عُيّن حديثاً يظهر هنا حتّى يُسنَد قسمُه.
-    if registry_filled:
-        return NO_DEPARTMENT, "بلا قسمٍ مسجَّل", (2, 0, "")
-    code = dept_map.resolve_from_lessons(
-        (row.subject.name_ar, row.class_group.grade, row.weekly_periods) for row in rows
-    )
-    info = dept_map.department_info(code)
-    return f"der:{info['code']}", info["name"], (1, info["order"], info["name"])
-
-
-def _rows_by_teacher(school, year):
-    """كلُّ إسنادات المدرسة مرّةً واحدة — لا استعلامَ لكلّ بطاقة.
-
-    ويُوسَم اليتيمُ في المرور نفسِه: وسمُ توازٍ لا شريكَ له في الشعبة. فمن
-    حذف الكيمياءَ من 11/4 بقيت الفنّيّةُ موسومةً وحدَها — ومجموعةٌ بعضوٍ
-    واحدٍ ليست توازياً، بل أثرٌ من حذفٍ لم يُنظَّف.
-    """
-    out = defaultdict(list)
-    rows = list(
-        SubjectClassAssignment.objects.live(school, year=year)
-        .filter(teacher__isnull=False)
-        .select_related("class_group", "subject")
-        .order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
-    )
-    _decorate(rows, _class_peers(school, year, rows))
-    for row in rows:
-        out[row.teacher_id].append(row)
-    return out
-
-
-def _class_peers(school, year, rows):
-    """كلُّ إسنادات الشُّعب التي تخصّ هذه الصفوف — منها الشركاءُ وحكمُ اليتيم.
-
-    والبطاقةُ الواحدةُ تُعاد بصفوف معلّمها وحدَه، فلو قُرئ الشركاءُ منها لخلت
-    قائمةُ التوازي إلّا من «لا توازي» — وهو ما رآه المستخدم. فالشعبةُ تُقرأ
-    كاملةً ولو كانت موادُّها لمعلّمين آخرين: التوازي بين مادّتين في شعبة، لا
-    بين حصّتَي معلّم.
-    """
-    ids = {row.class_group_id for row in rows}
-    if not ids:
-        return {}
-    peers = defaultdict(list)
-    for row in (
-        SubjectClassAssignment.objects.live(school, year=year)
-        .filter(class_group_id__in=ids)
-        .select_related("class_group", "subject")
-        .order_by("subject__name_ar")
-    ):
-        peers[row.class_group_id].append(row)
-    return peers
-
-
-def _decorate(rows, peers):
-    """سماتُ العرض التي لا تُحفظ: الشركاءُ واليتيمُ والازدواجُ والتباعدُ الفعليّان."""
-    for row in rows:
-        tag = (row.parallel_group or "").strip()
-        family = peers.get(row.class_group_id, [])
-        row.parallel_orphan = (
-            bool(tag) and sum(1 for r in family if (r.parallel_group or "").strip() == tag) < 2
-        )
-        #: ما يقرؤه المولّدُ فعلاً: قرارُ الشعبة إن كُتب، وإلّا إعدادُ المادّة.
-        row.double_effective = (
-            row.double_period
-            if row.double_period is not None
-            else row.subject.requires_double_period
-        )
-        siblings = [r for r in family if r.id != row.id]
-        row.parallel_options = siblings
-        row.parallel_partner = next(
-            (r for r in siblings if tag and (r.parallel_group or "").strip() == tag), None
-        )
-    return rows
-
-
-def _prepared_by_teacher(school, year):
-    out = defaultdict(set)
-    for p in CoursePreparation.objects.live(school, year=year):
-        out[p.teacher_id].add((p.grade, p.track, p.subject_id))
-    return out
-
-
-def _classes(school, year):
-    return list(
-        ClassGroup.objects.filter(
-            school=school, academic_year=year, is_active=True, has_own_timetable=False
-        ).in_school_order()
-    )
-
-
-def _latest_plan(school, teacher, year):
-    return (
-        TeacherWorkloadPlan.objects.filter(school=school, teacher=teacher, academic_year=year)
-        .order_by("-plan_version")
-        .first()
-    )
-
-
-def _plans_by_teacher(school, year):
-    """أحدثُ خطّةٍ لكلّ معلّم — استعلامٌ واحدٌ لا واحدٌ لكلّ بطاقة."""
-    out = {}
-    plans = TeacherWorkloadPlan.objects.filter(school=school, academic_year=year).order_by(
-        "teacher_id", "-plan_version"
-    )
-    for plan in plans:
-        out.setdefault(plan.teacher_id, plan)
-    return out
-
-
-def _may_write(plan, caps):
-    """هل تُحرَّر بطاقةُ هذا المعلّم الآن؟
-
-    المسودّةُ يحرّرها كلُّ مُدخِل. وما رُفع للمراجعة لا يُعدَّل من تحت المراجع
-    إلّا بيده هو — وللنائب والمدير التعديلُ في كلّ حال. والمعتمَدُ لا يُكتب
-    فوقه: يُفتح بإصدارٍ جديدٍ بنقرة، فيبقى الموقَّعُ كما وُقِّع.
-    """
-    if plan is not None and plan.status in FROZEN_STATUSES:
-        return False
-    if plan is not None and plan.status in (SUBMITTED, REVIEWED):
-        return caps["review"] or caps["approve"]
-    return caps["edit"]
-
-
-def _card_rows(school, year, teacher, rows, prepared):
-    """صفوفُ البطاقة مزيَّنةً — تُجلب إن لم تُمرَّر، وتُزيَّن إن لم تكن مزيَّنة.
-
-    الصفحةُ كاملةً تجلب الجميعَ مرّةً وتزيّنهم في `_rows_by_teacher`، وبطاقةٌ
-    تُعاد وحدَها بعد حفظٍ تمرّ من هنا. وفصلُها عن `_card` ليس ترتيباً: تلك
-    بلغت تعقيداً تردّه بوّابةُ الجودة (CC ≥ 31).
-    """
-    if rows is None:
-        rows = list(
-            SubjectClassAssignment.objects.live(school, year=year)
-            .filter(teacher=teacher)
-            .select_related("class_group", "subject")
-            .order_by(grade_order("class_group__grade"), "class_group__section", "subject__name_ar")
-        )
-    if prepared is None:
-        prepared = {
-            (p.grade, p.track, p.subject_id)
-            for p in CoursePreparation.objects.live(school, year=year).filter(teacher=teacher)
-        }
-    if rows and not hasattr(rows[0], "parallel_options"):
-        _decorate(rows, _class_peers(school, year, rows))
-    for row in rows:
-        row.level_label = LEVEL_LABELS.get(row.class_group.level_type, "")
-        row.prepares = (row.class_group.grade, row.class_group.track, row.subject_id) in prepared
-    return rows
-
-
-def _card(
-    school,
-    year,
-    teacher,
-    caps,
-    *,
-    rows=None,
-    prepared=None,
-    plans=None,
-    loads=None,
-    classes=None,
-    registry=None,
-    department=None,
-    error=None,
-    notes=(),
-    transfer=None,
-):
-    """سياقُ بطاقةٍ واحدة — تُبنى للصفحة وتُعاد وحدَها بعد كلّ حفظ."""
-    rows = _card_rows(school, year, teacher, rows, prepared)
-
-    plan = plans.get(teacher.id) if plans is not None else _latest_plan(school, teacher, year)
-    status = plan.status if plan else ""
-    teacher_load = (loads or {}).get(teacher.id) or load.load_for(school, year, teacher.id)
-
-    # التفريغُ يومَ كاملٍ يضغط النصابَ ولا يُخفّفه — ومن يوقّع على ثمانيةَ عشرَ
-    # حصّةً يحقّ له أن يرى أنّها في أربعة أيّام. تُحسب للمرفوع والمُراجَع وحدَهما
-    # كي لا تصير الصفحةُ ثلاثةَ استعلاماتٍ في كلّ بطاقةٍ من ثلاثٍ وسبعين.
-    room = flow.available_capacity(plan) if plan and status in (SUBMITTED, REVIEWED) else None
-
-    # خطّةٌ اعتُمدت ثمّ تبدّل إسنادُها تحتَها: التوقيعُ على شيءٍ والواقعُ شيءٌ
-    # آخر. تُحسب البصمةُ من الصفوف التي في اليد — بلا استعلامٍ لكلّ بطاقة.
-    diverged = flow.has_diverged(plan, rows) if plan and status in FROZEN_STATUSES else None
-
-    return {
-        "teacher": teacher,
-        "rows": rows,
-        "load": teacher_load,
-        "plan": plan,
-        "status": status,
-        "status_label": plan.get_status_display() if plan else "بلا خطّة",
-        "room": room,
-        "diverged": diverged,
-        # نقلُ معلّمٍ بين الأقسام قرارُ إدارةٍ — للنائب والمدير وحدَهما.
-        "registry": registry if registry is not None else [],
-        "department": department if department is not None else _department_object(school, teacher),
-        "writable": _may_write(plan, caps),
-        "classes": classes if classes is not None else _classes(school, year),
-        "year": year,
-        "error": error,
-        "notes": [n for n in notes if n.level != assignment_service.BLOCK],
-        # نقلُ مادّةٍ من زميلٍ — يُعرض ليُؤكَّد لا ليقع صامتاً.
-        "transfer": transfer,
-        # ── أزرارُ الدورة: مسودّةٌ ← رفعٌ ← مراجعةٌ ← اعتماد ──
-        "can_submit": bool(plan) and status == DRAFT and caps["edit"],
-        "can_review": bool(plan) and status == SUBMITTED and caps["review"],
-        "can_return": bool(plan) and status in (SUBMITTED, REVIEWED) and caps["review"],
-        "can_approve": bool(plan) and status == REVIEWED and caps["approve"],
-        "can_revise": bool(plan) and status in FROZEN_STATUSES and caps["edit"],
-    }
-
-
-def _department_object(school, teacher):
-    membership = (
-        Membership.objects.filter(user=teacher, school=school, is_active=True)
-        .select_related("department_obj")
-        .order_by("department_obj__sort_order")
-        .first()
-    )
-    return membership.department_obj if membership else None
 
 
 #: قالبُ البطاقة — يُصيَّر مرّتين حين يلزم تحديثُ بطاقتين معاً.
@@ -395,7 +100,7 @@ def _render_card(request, school, year, teacher, caps, **extra):
     html = render_to_string(
         CARD_TEMPLATE,
         # مفتوحةً: البطاقاتُ مطويّةٌ افتراضاً، ومن حفظ فيها لا تُطوى في وجهه.
-        {"card": _card(school, year, teacher, caps, **extra), "open": True},
+        {"card": selectors.card(school, year, teacher, caps, **extra), "open": True},
         request=request,
     )
     html += _stale_card_html(request, school, year, caps, teacher)
@@ -418,7 +123,7 @@ def _stale_card_html(request, school, year, caps, rendered_teacher):
         return ""
     return render_to_string(
         CARD_TEMPLATE,
-        {"card": _card(school, year, other, caps), "oob": True},
+        {"card": selectors.card(school, year, other, caps), "oob": True},
         request=request,
     )
 
@@ -442,112 +147,35 @@ def _is_uuid(value: str) -> bool:
 def assignments(request):
     school, caps, scope, year = _guard(request)
     selected = request.GET.get("dept") or ""
-    classes = _classes(school, year)
-    loads = load.loads_for(school, year)
-    rows_by = _rows_by_teacher(school, year)
-    prepared_by = _prepared_by_teacher(school, year)
-    plans = _plans_by_teacher(school, year)
-    registry_filled = _registry_filled(school)
-    registry = (
-        list(Department.objects.filter(school=school, is_active=True)) if caps["review"] else []
-    )
-
-    # قائمةُ الترشيح تُبنى ممّا يظهر فعلاً — فلا خيارَ بلا معلّمين، ولا معلّمَ
-    # بلا خيارٍ يبلغه. وعددُ كلّ قسمٍ يُحسب من معلّميه جميعاً لا من المعروضين،
-    # كي يبقى الرقمُ ظاهراً في القائمة قبل الاختيار وبعده.
-    groups = {}
-    for teacher, department in _teachers(school):
-        rows = rows_by.get(teacher.id, [])
-        key, name, order = _department_of(department, rows, registry_filled)
-        if scope is not None and key != scope:
-            continue
-        group = groups.setdefault(
-            key, {"key": key, "name": name, "order": order, "count": 0, "cards": []}
-        )
-        group["count"] += 1
-        if selected and key != selected:
-            continue
-        group["cards"].append(
-            _card(
-                school,
-                year,
-                teacher,
-                caps,
-                rows=rows,
-                prepared=prepared_by.get(teacher.id, set()),
-                plans=plans,
-                loads=loads,
-                classes=classes,
-                registry=registry,
-                department=department,
-            )
-        )
-
-    ordered = sorted(groups.values(), key=lambda g: g["order"])
-    shown = [g for g in ordered if g["cards"]]
-    cards = [c for g in shown for c in g["cards"]]
-    totals = {
-        "teachers": len(cards),
-        "rows": sum(len(c["rows"]) for c in cards),
-        "pending": sum(1 for c in cards if c["status"] == SUBMITTED),
-        "approved": sum(1 for c in cards if c["status"] in FROZEN_STATUSES),
-    }
+    ctx = selectors.assignments_page_context(school, caps, scope, year, selected)
     return render(
         request,
         "academic_management/assignments.html",
         {
             "page_title": "الإسناد",
-            "page_subtitle": _assignments_subtitle(year, totals),
+            "page_subtitle": selectors.assignments_subtitle(year, ctx["totals"]),
             "module_name": MODULE_NAME,
             "year": year,
-            "groups": shown,
-            "departments": ordered,
+            "dept_cols": chunk_for_grid(ctx["groups"], 2),
             "selected_dept": selected,
-            "registry_empty": not registry_filled,
-            "coverage": _coverage(school, year),
-            "totals": totals,
+            "caps": caps,
+            "governance": selectors.WorkloadGovernance.for_school(school),
+            **ctx,
         },
     )
 
 
-def _assignments_subtitle(year, totals) -> str:
-    """سطرُ الترويسة: العامُ وأعدادُ الشاشة، وما لم يقع لا يُذكر."""
-    parts = [str(year), f"{totals['teachers']} معلّماً", f"{totals['rows']} إسناداً"]
-    if totals["pending"]:
-        parts.append(f"{totals['pending']} بانتظار المراجعة")
-    if totals["approved"]:
-        parts.append(f"{totals['approved']} معتمَداً")
-    return " · ".join(parts) + " — يُحفظ كلُّ تغييرٍ في لحظته"
+@login_required
+@require_POST
+def toggle_entry(request):
+    """يوقف الإسنادَ عن المنسّقين (`paused=1`) أو يفتحه (`paused=0`) — للمدير والنائب والمطوّر.
 
-
-def _coverage(school, year):
-    """حارسُ المدرسة: هل يساوي المُسنَدُ ما تطلبه الخطّةُ تماماً؟
-
-    الحملُ الفرديُّ يقول «فلانٌ على ثمانيةَ عشرَ»، ولا يقول إنّ شعبةً بلا معلّم
-    رياضيات. فهذا الحارسُ يقيس المدرسةَ كلَّها خليّةً خليّة (شعبة × مادّة):
-    كم تطلب الخطّةُ، وكم أُسنِد، وأين الفرق. ومن يعتمد يحتاج الرقمين معاً.
+    القيمةُ صريحةٌ لا قلبٌ: نقرتان متتاليتان من صفحتين قديمتين لا تُعيدان الحالَ إلى عكس ما أراده.
     """
-    rows = curriculum_service.plan_rows(school, year)
-    if not rows:
-        return None
-    cells = curriculum_service.coverage(school, year, rows)
-    planned = sum(c["planned"] for c in cells)
-    assigned = sum(c["assigned"] for c in cells)
-    problems = [c for c in cells if c["status"] in curriculum_service.PROBLEM_STATUSES]
-    return {
-        "planned": planned,
-        "assigned": assigned,
-        "delta": assigned - planned,
-        # القسمةُ تُجبَر إلى أسفل: 866 من 870 تُقرَّب إلى مئةٍ فتقول الشاشةُ
-        # «غيرُ مكتملٍ — 100%» في سطرٍ واحد. والمئةُ لا تُقال إلّا عند التطابق.
-        "percent": (100 if assigned == planned else min(99, assigned * 100 // planned))
-        if planned
-        else 0,
-        "complete": assigned == planned and not problems,
-        "problems": problems[:60],
-        "problem_count": len(problems),
-        "summary": curriculum_service.coverage_summary(cells),
-    }
+    school, _caps_, _scope, _year = _guard(request)
+    paused = request.POST.get("paused") == "1"
+    assignment_service.set_coordinator_entry_paused(school, paused, request.user)
+    return redirect("academic_management:assignments")
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -557,14 +185,15 @@ def _coverage(school, year):
 
 def _locked_card(request, school, year, teacher, caps):
     """بطاقةُ خطأٍ حين تكون مقفلةً — بدل تجاهلٍ صامتٍ للنقرة."""
-    plan = _latest_plan(school, teacher, year)
-    if _may_write(plan, caps):
+    plan = selectors.latest_plan(school, teacher, year)
+    if selectors.may_write(plan, caps):
         return None
-    reason = (
-        "هذه الخطّةُ معتمَدةٌ — افتح إصداراً جديداً للتعديل."
-        if plan and plan.status in FROZEN_STATUSES
-        else "الخطّةُ مرفوعةٌ للمراجعة — لا تُعدَّل حتّى تُردَّ إليك."
-    )
+    if plan and plan.status in FROZEN_STATUSES:
+        reason = "هذه الخطّةُ معتمَدةٌ — افتح إصداراً جديداً للتعديل."
+    elif selectors.entry_paused_for(caps):
+        reason = ENTRY_PAUSED_REASON
+    else:
+        reason = "الخطّةُ مرفوعةٌ للمراجعة — لا تُعدَّل حتّى تُردَّ إليك."
     return _render_card(request, school, year, teacher, caps, error=reason)
 
 
@@ -594,6 +223,27 @@ def subject_options(request):
     )
 
 
+def _chosen_plan_row(request, school):
+    """(الشعبة، المادّة، صفُّ خطّتها، الخطأ) — والخطأُ نصٌّ يُقال في البطاقة.
+
+    حقلٌ لم يُختر يصل نصّاً فارغاً، و`get_object_or_404` لا يعدّه «غيرَ موجود» بل
+    يرفعه ValidationError فيسقط الطلبُ بـ500 (الإنتاج 2026-09-22: شعبةٌ لا خطّةَ لها
+    فقائمةُ موادّها خالية). فالناقصُ يُقال في البطاقة كسائر الأخطاء.
+    """
+    class_id = request.POST.get("class_group") or ""
+    subject_id = request.POST.get("subject") or ""
+    if not (_is_uuid(class_id) and _is_uuid(subject_id)):
+        return None, None, None, "اختر الشعبةَ والمادّةَ أوّلاً."
+    group = get_object_or_404(ClassGroup, id=class_id, school=school)
+    subject = get_object_or_404(Subject, id=subject_id, school=school)
+    planned = next(
+        (r for r in curriculum_service.demand_for(group) if r.subject_id == subject.id), None
+    )
+    if planned is None:
+        return group, subject, None, "لا خطّةَ دراسيّةً لهذه المادّة في هذه الشعبة."
+    return group, subject, planned, None
+
+
 @login_required
 @require_POST
 def add_row(request, teacher_id):
@@ -604,20 +254,9 @@ def add_row(request, teacher_id):
     if locked is not None:
         return locked
 
-    group = get_object_or_404(ClassGroup, id=request.POST.get("class_group"), school=school)
-    subject = get_object_or_404(Subject, id=request.POST.get("subject"), school=school)
-    planned = next(
-        (r for r in curriculum_service.demand_for(group) if r.subject_id == subject.id), None
-    )
-    if planned is None:
-        return _render_card(
-            request,
-            school,
-            year,
-            teacher,
-            caps,
-            error="لا خطّةَ دراسيّةً لهذه المادّة في هذه الشعبة.",
-        )
+    group, subject, planned, error = _chosen_plan_row(request, school)
+    if error:
+        return _render_card(request, school, year, teacher, caps, error=error)
 
     try:
         _row, findings = assignment_service.apply_assignment(
@@ -654,8 +293,8 @@ def add_row(request, teacher_id):
                     # وُقّع عليه، فيُقال ذلك قبل الضغط لا بعده.
                     "holder_approved": bool(
                         holder
-                        and (_latest_plan(school, holder.teacher, year) or None)
-                        and _latest_plan(school, holder.teacher, year).status in FROZEN_STATUSES
+                        and (holder_plan := selectors.latest_plan(school, holder.teacher, year))
+                        and holder_plan.status in FROZEN_STATUSES
                     ),
                     "prepares": bool(request.POST.get("prepares")),
                     "year": year,
@@ -903,7 +542,7 @@ def set_load(request, teacher_id):
             request, school, year, teacher, caps, error="النصابُ بين صفرٍ وأربعين حصّة."
         )
 
-    plan = _latest_plan(school, teacher, year)
+    plan = selectors.latest_plan(school, teacher, year)
     try:
         if plan is None:
             flow.open_draft(
@@ -978,7 +617,9 @@ def move(request, teacher_id, action):
     """نقلةٌ واحدةٌ في دورة الخطّة — والبوّابةُ والختمُ في `workload_workflow`."""
     teacher = get_object_or_404(CustomUser, id=teacher_id)
     school, caps, _scope, year = _guard(request, teacher)
-    plan = _latest_plan(school, teacher, year)
+    if selectors.entry_paused_for(caps):
+        return _render_card(request, school, year, teacher, caps, error=ENTRY_PAUSED_REASON)
+    plan = selectors.latest_plan(school, teacher, year)
     if plan is None:
         return _render_card(
             request,

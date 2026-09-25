@@ -17,7 +17,7 @@ from core.models import StudentEnrollment
 
 from .day_attendance import can_record, is_recorder, recorded_by_supervisor
 from .models import Session, StudentAttendance
-from .services import AttendanceService, ScheduleService
+from .services import AttendanceService, ScheduleService, SubstituteService
 
 logger = logging.getLogger(__name__)
 
@@ -73,20 +73,9 @@ def schedule(request):
         elif not show_all:
             # ── افتراضياً: فقط الحصص التي تحتاج تسجيل حضور ──
             sessions = sessions.exclude(status="completed")
-        if period_filter:
-            # Session ليس فيه period_number — نفلتر بوقت البداية عبر ScheduleSlot
-            from operations.models import ScheduleSlot
-
-            # والعامُ قيدٌ: أجراسُ عامٍ مضى تختلف، فبلا قيدٍ تُفلتَر حصصُ اليوم
-            # بأوقات جدولٍ قديم.
-            slot_times = (
-                ScheduleSlot.objects.live(school)
-                .filter(period_number=int(period_filter))
-                .values_list("start_time", flat=True)
-                .distinct()
-            )
-            if slot_times:
-                sessions = sessions.filter(start_time__in=list(slot_times))
+        if period_filter.isdigit():
+            # رقمُ الحصّة محفوظٌ فيها: كان يُستنتج من أوقات الجدول، فيخطئ بين الطوابق والخميس.
+            sessions = sessions.filter(period_number=int(period_filter))
         # إحصائيات سريعة
         all_count = Session.objects.filter(school=school, date=selected_date).count()
         completed_count = Session.objects.filter(
@@ -102,11 +91,9 @@ def schedule(request):
         all_count = completed_count = 0
 
     now = timezone.now().time()
-    next_session = None
-    for s in sessions:
-        if s.start_time >= now and s.status == "scheduled":
-            next_session = s
-            break
+    next_session = next(
+        (s for s in sessions if s.start_time >= now and s.status == "scheduled"), None
+    )
 
     # ── بيانات الفلاتر (للقيادة فقط) ──
     filter_teachers = []
@@ -142,6 +129,8 @@ def schedule(request):
             # ما بقي بلا إنهاءٍ ينبّه، والصفرُ أخضر.
             "open_tone": "orange" if open_count else "green",
             "sessions": sessions,
+            # الإشغالُ والتعويضُ والتبديلُ تكتب `original_teacher`؛ فيُعرف الأوّلان بسجلّيهما.
+            **SubstituteService.moved_marks(sessions),
             "selected_date": selected_date,
             "today": timezone.localdate(),
             "next_session": next_session,

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from . import views
+from .views_schedule_drafts import discard_schedule, stop_schedule_generation
 
 urlpatterns = [
     path("schedule/", views.schedule, name="teacher_schedule"),
@@ -30,6 +31,11 @@ urlpatterns = [
     path(
         "weekly-schedule/export/excel/", views.schedule_export_excel, name="schedule_export_excel"
     ),
+    path(
+        "weekly-schedule/export/status/<uuid:job_id>/",
+        views.export_job_status,
+        name="export_job_status",
+    ),
     # -- المرحلة 2: نظام البديل --
     path("absences/", views.teacher_absence_list, name="absence_list"),
     path("absences/register/", views.register_teacher_absence, name="register_absence"),
@@ -38,6 +44,16 @@ urlpatterns = [
         "absences/<uuid:absence_id>/assign/<uuid:slot_id>/",
         views.assign_substitute,
         name="assign_substitute",
+    ),
+    path(
+        "absences/<uuid:absence_id>/swap/<uuid:slot_id>/",
+        views.absence_swap_options,
+        name="absence_swap_options",
+    ),
+    path(
+        "absences/<uuid:absence_id>/swap/<uuid:slot_id>/create/",
+        views.absence_swap_create,
+        name="absence_swap_create",
     ),
     path("reports/substitutes/", views.substitute_report, name="substitute_report"),
     # -- المرحلة 3: الجدولة الذكية --
@@ -49,6 +65,16 @@ urlpatterns = [
         "smart-schedule/<uuid:generation_id>/approve/",
         views.approve_schedule,
         name="approve_schedule",
+    ),
+    path(
+        "smart-schedule/<uuid:generation_id>/discard/",
+        discard_schedule,
+        name="discard_schedule",
+    ),
+    path(
+        "smart-schedule/<uuid:generation_id>/stop/",
+        stop_schedule_generation,
+        name="stop_schedule_generation",
     ),
     path("reports/teacher-load/", views.teacher_load_report, name="teacher_load_report"),
     path("schedule-settings/", views.schedule_settings, name="schedule_settings"),
@@ -84,6 +110,12 @@ urlpatterns = [
     path("schedule/swap/<uuid:swap_id>/cancel/", views.swap_cancel, name="swap_cancel"),
     path("schedule/compensatory/", views.compensatory_list, name="compensatory_list"),
     path("schedule/compensatory/request/", views.compensatory_request, name="compensatory_request"),
+    path("schedule/compensatory/options/", views.compensatory_options, name="compensatory_options"),
+    path(
+        "schedule/compensatory/<uuid:comp_id>/respond/",
+        views.compensatory_respond,
+        name="compensatory_respond",
+    ),
     path(
         "schedule/compensatory/<uuid:comp_id>/approve/",
         views.compensatory_approve,

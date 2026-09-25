@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core.validators import RegexValidator
@@ -61,16 +61,22 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         default="",
         verbose_name="الجنسية",
     )
-    is_staff = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
-    date_joined = models.DateTimeField(default=timezone.now)
+    #: تاريخُ مباشرة العمل في الخدمة (لا الالتحاق بهذه المدرسة — ذاك `Membership.joined_at`).
+    #: يحسب به تقريرُ السنة الأولى (النظام الوظيفي، المادة 16: مدّةٌ «لا تقل عن ثلاثة أشهر»).
+    #: فارغٌ = غيرُ معروف، فلا يُرفض به تقرير.
+    service_start_date = models.DateField(null=True, blank=True, verbose_name="تاريخ المباشرة")
+    is_staff = models.BooleanField(default=False, verbose_name="دخول لوحة الإدارة")
+    is_active = models.BooleanField(default=True, verbose_name="حساب نشط")
+    date_joined = models.DateTimeField(default=timezone.now, verbose_name="تاريخ الانضمام")
     must_change_password = models.BooleanField(default=True, verbose_name="يجب تغيير كلمة المرور")
     totp_secret = models.CharField(max_length=255, blank=True, verbose_name="مفتاح 2FA")
     totp_enabled = models.BooleanField(default=False, verbose_name="2FA مفعّل")
     last_password_change = models.DateTimeField(
         null=True, blank=True, verbose_name="آخر تغيير لكلمة المرور"
     )
-    failed_login_attempts = models.PositiveSmallIntegerField(default=0)
+    failed_login_attempts = models.PositiveSmallIntegerField(
+        default=0, verbose_name="محاولات الدخول الفاشلة"
+    )
     locked_until = models.DateTimeField(null=True, blank=True, verbose_name="مقفل حتى")
     consent_given_at = models.DateTimeField(
         null=True, blank=True, verbose_name="تاريخ إعطاء الموافقة"
@@ -153,7 +159,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         # إلى AuditLog.object_repr (جدول دائم غير قابل للحذف).
         return self.full_name
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         # ── Auto-populate HMAC + Fernet fields on every save ──
         if self.national_id:
             new_hmac = hmac_field(self.national_id)
@@ -169,6 +175,16 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
             new_enc = encrypt_field(self.phone)
             if new_enc and new_enc != self.phone_encrypted:
                 self.phone_encrypted = new_enc
+        else:
+            # الأعمدةُ الثلاثة وحدةٌ واحدة: مسحُ الرقم يمسح نسختَه المشفَّرة وبصمتَه،
+            # وإلا بقي الرقمُ القديم قابلاً للفكّ وقرأته الإشعاراتُ بعد أن أُلغي.
+            self.phone_encrypted = ""
+            self.phone_hmac = ""
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "phone" in update_fields:
+            # `save(update_fields=["phone"])` كان يحفظ الرقمَ الصريح وحدَه ويترك
+            # النسخةَ المشفَّرة والبصمةَ على القيمة السابقة.
+            kwargs["update_fields"] = {*update_fields, "phone_encrypted", "phone_hmac"}
         super().save(*args, **kwargs)
 
     def get_national_id_decrypted(self):
@@ -179,13 +195,13 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
                 return decrypted
         return self.national_id
 
-    def get_phone_decrypted(self):
+    def get_phone_decrypted(self) -> str:
         """فك تشفير رقم الهاتف — fallback إلى الحقل العادي."""
         if self.phone_encrypted:
             decrypted = decrypt_field(self.phone_encrypted)
             if decrypted and decrypted != self.phone_encrypted:
-                return decrypted
-        return self.phone
+                return str(decrypted)
+        return str(self.phone)
 
     @property
     def active_membership(self):
@@ -244,6 +260,7 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         """يُبطل cache العضوية — استخدمه بعد إنشاء أو تعديل Membership"""
         self.__dict__.pop("_active_membership", None)
         self.__dict__.pop("_active_memberships", None)
+        self.__dict__.pop("_department_obj", None)
 
     def get_active_membership(self):
         return self.active_membership
@@ -296,14 +313,21 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         """قسمُ المستخدم — من عضويّةٍ تحمل قسماً، لا من أوّل عضويّةٍ تُصادَف.
 
         فالقسمُ يخصّ عضويّةَ التدريس، وصاحبُ عضويّتين قد تُقرأ منه الأخرى.
+        تُقرأ من مُعالج السياق في كلّ طلب، وقد تُقرأ ثانيةً في الصلاحيّات أو
+        القالب لنفس المستخدم — فتُحفظ على الكائن كـ`active_membership`.
         """
+        cached = self.__dict__.get("_department_obj", "__unset__")
+        if cached != "__unset__":
+            return cached
         membership = (
             self.memberships.filter(is_active=True, department_obj__isnull=False)
             .select_related("department_obj")
             .order_by("department_obj__sort_order")
             .first()
         )
-        return membership.department_obj if membership else None
+        result = membership.department_obj if membership else None
+        self.__dict__["_department_obj"] = result
+        return result
 
     def get_department(self):
         return self.department
@@ -350,14 +374,17 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
 
 class Profile(models.Model):
     GENDER = [("M", "ذكر"), ("F", "أنثى")]
-    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name="profile")
-    gender = models.CharField(max_length=1, choices=GENDER, blank=True)
-    birth_date = models.DateField(null=True, blank=True)
-    notes = models.TextField(blank=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    user = models.OneToOneField(
+        CustomUser, on_delete=models.CASCADE, related_name="profile", verbose_name="المستخدم"
+    )
+    gender = models.CharField(max_length=1, choices=GENDER, blank=True, verbose_name="الجنس")
+    birth_date = models.DateField(null=True, blank=True, verbose_name="تاريخ الميلاد")
+    notes = models.TextField(blank=True, verbose_name="ملاحظات")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "ملف شخصي"
+        verbose_name_plural = "الملفات الشخصية"
 
     def __str__(self):
         return f"Profile: {self.user.full_name}"

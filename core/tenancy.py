@@ -61,6 +61,7 @@ PARENT_DERIVED = {
     # quality
     "quality_evaluationaxis": "template -> quality_roleevaluationtemplate.school_id",
     "quality_evaluationscore": "evaluation -> quality_employeeevaluation.school_id",
+    "quality_evaluationlevelbackup": "evaluation -> quality_employeeevaluation.school_id",
     "quality_observationscore": (
         "observation -> quality_classroomobservation.school_id (+ criterion consistency)"
     ),
@@ -96,6 +97,7 @@ GLOBAL_INFRASTRUCTURE = {
     "auth_group_permissions": "join table over two global tables",
     "auth_permission": "permission catalogue, created by Django from the models",
     "axes_accessattempt": "login throttling state, keyed on username/IP before a tenant is known",
+    "axes_accessattemptexpiration": "expiry marker (one-to-one, cascade) of an axes_accessattempt row: login throttling state, no tenant",
     "axes_accessfailurelog": "login throttling state, keyed on username/IP before a tenant is known",
     "axes_accesslog": "login throttling state, keyed on username/IP before a tenant is known",
     "behavior_violationcategory": "shared catalogue of violation types, not per school",
@@ -114,6 +116,12 @@ GLOBAL_INFRASTRUCTURE = {
     "django_content_type": "model registry",
     "django_session": "session store, keyed on session id",
     "notifications_usernotificationpreference": "a person's own channel preferences, held once across schools",
+    "roadmap_roadmapchecklistitem": "platform-developer planning document about the platform itself, no school or person data",
+    "roadmap_roadmapdecision": "platform-developer planning document about the platform itself, no school or person data",
+    "roadmap_roadmapitem": "platform-developer planning document about the platform itself, no school or person data",
+    "roadmap_roadmapkpi": "platform-developer planning document about the platform itself, no school or person data",
+    "roadmap_roadmapmeta": "platform-developer planning document about the platform itself, no school or person data",
+    "roadmap_roadmaprisk": "platform-developer planning document about the platform itself, no school or person data",
     "token_blacklist_blacklistedtoken": "JWT revocation list, keyed on token",
     "token_blacklist_outstandingtoken": "JWT revocation list, keyed on token",
 }

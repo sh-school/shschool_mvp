@@ -1,0 +1,127 @@
+{% extends "base/base.html" %}
+{% load icons %}
+{% load ui %}
+{% load navigation %}
+{% block title %}طلبات الأذونات{% endblock %}
+{% block breadcrumbs %}
+{% if request.user|can_open:"staff_affairs:attendance_board" %}
+{% url 'staff_affairs:attendance_board' as board_url %}{% include "components/breadcrumbs.html" with parent_url=board_url parent_label="رصد الحضور" current="طلبات الأذونات" %}
+{% else %}
+{% include "components/breadcrumbs.html" with current="طلبات الأذونات" %}
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "طلبات الأذونات" subtitle="نموذج 02 بترتيب الورقة: السكرتارية (رصيد الساعات) ← منسّق المادّة (للمعلّم) ← المسؤول المباشر والنائب المسؤول ← مدير المدرسة، ويعمل عنه من كلّفه بأعباء وظيفته — ولا يُعتدّ بالإذن إلا بعد اعتماده وإخطار الموظّف" icon="checklist" %}
+    {% if request.user|can_open:"staff_affairs:attendance_board" %}<a href="{% url 'staff_affairs:attendance_board' %}" class="btn-secondary btn-sm">{% icon "attendance_register" %} رصد الحضور</a>{% endif %}
+    {% if request.user|can_open:"staff_affairs:attendance_report" %}<a href="{% url 'staff_affairs:attendance_report' %}" class="btn-secondary btn-sm">{% icon "reports" %} تقرير الشهر</a>{% endif %}
+  {% endpage_header %}
+
+  {% if is_principal or exceptions %}
+  {% section_card "طلبات الاستثناء (نموذج 03)" meta=exceptions|length icon="leave" flush=True empty="لا طلباتِ استثناءٍ تنتظر قرارك" %}{% if exceptions %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>الموظف</th>
+            <th class="col-center">الرقم الوظيفي</th>
+            <th>النوع</th>
+            <th class="col-center">من – إلى</th>
+            <th class="col-center">الساعة</th>
+            <th>محتوى الطلب</th>
+            <th>المرفق</th>
+            <th class="col-actions">استخدام مدير المدرسة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in exceptions %}
+          {% with eid=e.pk|stringformat:"s" %}{% with fid="sa-fb-"|add:eid %}
+          <tr>
+            <td><strong>{{ e.staff.full_name }}</strong></td>
+            <td class="col-center" dir="ltr">{{ e.staff.employee_number|default:"—" }}</td>
+            <td>{{ e.get_exception_type_display }}</td>
+            <td class="col-center">{{ e.start_date|date:"d/m/Y" }} – {{ e.end_date|date:"d/m/Y" }}</td>
+            <td class="col-center" dir="ltr">{{ e.boundary_time|time:"H:i" }}</td>
+            <td class="text-xs">{{ e.content }}</td>
+            <td class="text-xs">{% if e.evidence_file %}{% if can_view_evidence %}<a href="{{ e.evidence_file.url }}" target="_blank" rel="noopener">{% icon "attach" %} فتح المرفق</a>{% else %}{% icon "attach" %} مرفقٌ يفتحه المدير ونائباه{% endif %}{% endif %}{% if e.evidence %} {{ e.evidence }}{% endif %}</td>
+            <td class="col-actions">
+              <form method="post" action="{% url 'staff_affairs:exception_review' e.pk %}">{% csrf_token %}
+                {% field "feedback" "التغذية الراجعة" id=fid hide_label=True placeholder="التغذية الراجعة (لازمة)" maxlength=500 required=True %}
+                <button type="submit" name="decision" value="approve" class="btn-primary btn-xs">{% icon "confirm" %} موافق</button>
+                <button type="submit" name="decision" value="reject" class="btn-secondary btn-xs">{% icon "close" %} غير موافق</button>
+              </form>
+            </td>
+          </tr>
+          {% endwith %}{% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+  {% endif %}
+
+  {% section_card "بانتظار مرحلتك" meta=permits|length icon="leave" flush=True empty="لا طلباتِ أذوناتٍ تنتظر مرحلتك" %}{% if permits %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>الموظف</th>
+            <th class="col-center">الرقم الوظيفي</th>
+            <th>النوع</th>
+            <th class="col-center">التاريخ</th>
+            <th class="col-center">من – إلى</th>
+            <th class="num">الدقائق</th>
+            <th>السبب</th>
+            <th class="col-center">المرحلة</th>
+            <th class="col-actions">القرار</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in permits %}
+          {% with sid=p.pk|stringformat:"s" %}{% with rid="sa-rej-"|add:sid %}
+          <tr>
+            <td><strong>{{ p.staff.full_name }}</strong></td>
+            <td class="col-center" dir="ltr">{{ p.staff.employee_number|default:"—" }}</td>
+            <td>{{ p.get_permit_type_display }}</td>
+            <td class="col-center">{{ p.date|date:"d/m/Y" }}</td>
+            <td class="col-center" dir="ltr">{{ p.start_time|time:"H:i" }} – {{ p.end_time|time:"H:i" }}</td>
+            <td class="num">{{ p.duration_minutes }}{% if p.over_limit %} <span class="status-badge status-warning" title="يجاوز 3 ساعات للمرّة أو 10 في الشهر — لا يُعتمد إلا بموافقة كتابية">فوق الحدّ</span>{% endif %}</td>
+            <td class="text-xs">{{ p.reason }}</td>
+            <td class="col-center"><span class="status-badge status-warning">{{ p.get_stage_display }}</span></td>
+            <td class="col-actions">
+              {% if p.stage == "secretary" %}
+              <form method="post" action="{% url 'staff_affairs:permit_review' p.pk %}">{% csrf_token %}
+                <input type="hidden" name="decision" value="approve">
+                <button type="submit" class="btn-primary btn-xs">{% icon "calculate" %} تسجيل رصيد الساعات</button>
+                <p class="text-xs">مربّع السكرتارية: إثباتُ الرصيد والاسم والتوقيت — لا قرارَ فيه (م-19).</p>
+              </form>
+              {% elif p.stage == "external" %}
+              <form method="post" action="{% url 'staff_affairs:permit_review' p.pk %}">{% csrf_token %}
+                {% field "rejection_reason" "مرجع القرار الوارد من خارج المدرسة" id=rid hide_label=True placeholder="مرجع القرار (بريد/كتاب وتاريخه)" maxlength=300 required=True %}
+                <button type="submit" name="decision" value="approve" class="btn-primary btn-xs">{% icon "confirm" %} معتمد</button>
+                <button type="submit" name="decision" value="reject" class="btn-secondary btn-xs">{% icon "close" %} غير معتمد</button>
+              </form>
+              {% else %}
+              <form method="post" action="{% url 'staff_affairs:permit_review' p.pk %}">{% csrf_token %}
+                <input type="hidden" name="decision" value="approve">
+                {% if p.stage == "principal" and p.over_limit %}{% field "written_approval" "مرجع الموافقة الكتابية" id=rid hide_label=True placeholder="يجاوز 3 ساعات/10 في الشهر — مرجع الموافقة الكتابية (كتاب/بريد وتاريخه)" maxlength=300 required=True %}{% endif %}
+                <button type="submit" class="btn-primary btn-xs">{% icon "confirm" %} {% if p.stage == "principal" %}اعتماد{% else %}موافق{% endif %}</button>
+              </form>
+              <form method="post" action="{% url 'staff_affairs:permit_review' p.pk %}">{% csrf_token %}
+                <input type="hidden" name="decision" value="reject">
+                {% if p.stage == "principal" %}{% field "rejection_reason" "سبب الرفض" id=rid hide_label=True placeholder="سبب الرفض (لازم)" maxlength=300 required=True %}{% else %}{% field "rejection_reason" "سبب عدم الموافقة" id=rid hide_label=True placeholder="السبب (اختياري)" maxlength=300 %}{% endif %}
+                <button type="submit" class="btn-secondary btn-xs">{% icon "close" %} غير موافق</button>
+              </form>
+              {% endif %}
+              {% if p.recorded_balance_minutes is not None %}<p class="text-xs">رصيد الساعات المسجّل: {{ p.recorded_balance_minutes }} د</p>{% endif %}
+            </td>
+          </tr>
+          {% endwith %}{% endwith %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}{% endsection_card %}
+</div>
+{% endblock %}

@@ -1,12 +1,14 @@
 """شريطُ «أضف المنصة لشاشتك الرئيسية» يُغلقه زرُّه.
 
-قاعدةُ `.pwa-banner { display: flex }` في طبقة `utilities` (#232) غلبت
-`display: none` القديمةَ في `components`، والشريطُ يُظهَر ويُخفى بصنف `.visible`
+قاعدةُ `.pwa-banner { display: flex }` (كانت في طبقة `utilities` #232، وهي اليومَ في
+`20-components.css` قاعدةً وحيدة — M-03) غلبت `display: none` القديمة، والشريطُ يُظهَر ويُخفى بصنف `.visible`
 — فصار ظاهراً في كلّ صفحةٍ ولا يُغلقه ✕. والعلاجُ سمةُ `hidden`: قاعدتُها في `reset`
 بـ`!important` تغلب الطبقاتِ كلَّها، وبها يعمل شريطُ وليّ الأمر أصلاً.
 """
 
 from pathlib import Path
+
+from tests.css_source import read_css
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -43,4 +45,4 @@ def test_the_banner_never_returns_once_installed_or_dismissed():
 
 
 def test_hidden_wins_over_every_layer():
-    assert "[hidden] { display: none !important; }" in _read("static/css/custom.css")
+    assert "[hidden] { display: none !important; }" in read_css()

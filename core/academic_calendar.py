@@ -36,7 +36,9 @@ FROZEN_FALLBACKS = Counter(
 _REPORTED: set[str] = set()
 
 if TYPE_CHECKING:  # النماذج تستورد هذه الوحدة لقيمها الافتراضية — فلا نستوردها هنا وقت التشغيل
-    from core.models import AcademicYear, Semester
+    import datetime as dt
+
+    from core.models import AcademicYear, School, Semester
 
 
 @dataclass(frozen=True)
@@ -63,10 +65,28 @@ class AcademicCalendar:
         """يُشتقّ العام والفصل من التاريخ.
 
         `on` للاختبار وللتقارير بأثرٍ رجعيّ — لا يُمرَّر في الاستعمال العاديّ.
+
+        تُستدعى من مواضعَ عدّة في نفس الطلب (معالج السياق، خدمات الحضور
+        والسلوك) بنفس المدرسة واليوم — فتُحفظ نتيجتُها على الطلب الجاري
+        وحدَه (`core.middleware.get_current_request`)، لا خارج الطلب حيث لا
+        خطرَ تكرارٍ (أمرٌ إداريّ، مهمّةُ Celery) ولا مكانَ يُحفظ فيه.
         """
+        from core.middleware import get_current_request
         from core.models import AcademicYear
 
         day = on or timezone.localdate()
+
+        request = get_current_request()
+        cache: dict[tuple, AcademicNow] | None = None
+        key: tuple | None = None
+        if request is not None:
+            cache = request.__dict__.get("_academic_now_cache")
+            if cache is None:
+                cache = {}
+                request.__dict__["_academic_now_cache"] = cache
+            key = (school.pk if school is not None else None, day)
+            if key is not None and key in cache:
+                return cache[key]
 
         year = (
             AcademicYear.objects.filter(school=school, start_date__lte=day, end_date__gte=day)
@@ -81,7 +101,10 @@ class AcademicCalendar:
         if year is not None:
             semester = year.semesters.filter(start_date__lte=day, end_date__gte=day).first()
 
-        return AcademicNow(year=year, semester=semester)
+        result = AcademicNow(year=year, semester=semester)
+        if cache is not None and key is not None:
+            cache[key] = result
+        return result
 
     @staticmethod
     def year_name(school, on=None) -> str:
@@ -141,7 +164,9 @@ def academic_year_for_school(school, on=None) -> str:
     )
 
 
-def academic_year_window(school, on=None):
+def academic_year_window(
+    school: School | None, on: dt.date | None = None
+) -> tuple[dt.date, dt.date] | None:
     """تاريخا بداية العام ونهايته — لا اسمه.
 
     عتبة الغياب القانونية (المادة ٧ من قانون التعليم الإلزامي ٢٥/٢٠٠١) تُحسب

@@ -17,21 +17,26 @@
   aria-label="{{ notif.title }}">
 
   <div class="notif-item__main">
-    {% if notif.priority == "urgent" %}
-      <span class="status-badge status-danger">{% icon "status_critical" %} عاجل</span>
-    {% elif notif.priority == "high" %}
-      <span class="status-badge status-warning">{% icon "status_warning" %} مهم</span>
-    {% elif not notif.is_read %}
-      <span class="status-badge status-maroon">جديد</span>
-    {% endif %}
-
-    <h3 class="notif-item__title">
+    <h4 class="notif-item__title">
       {% if notif.related_url %}<a href="{{ notif.related_url }}">{{ notif.title }}</a>{% else %}{{ notif.title }}{% endif %}
-    </h3>
+    </h4>
 
-    {% if notif.body %}<p class="notif-item__body">{{ notif.body|truncatechars:160 }}</p>{% endif %}
+    {# النصُّ كاملاً: كان يُقصّ بـ160 حرفاً وسطرين فلا يُقرأ على اللمس، والنقرُ على العنوان يفتح صفحةً أخرى. #}
+    {% if notif.body %}<p class="notif-item__body">{{ notif.body }}</p>{% endif %}
 
-    <p class="notif-item__meta"><span>{{ notif.get_event_type_display }}</span><span>{{ notif.created_at|timesince }} مضت</span></p>
+    {# الشارةُ في سطر الوقت لا سطرٌ لها وحدَها — كانت تزيد كلَّ بطاقةٍ سطراً. #}
+    {% now "Ymd" as today_key %}
+    <p class="notif-item__meta">
+      {% if notif.priority == "urgent" %}
+        <span class="status-badge status-danger">{% icon "status_critical" %} عاجل</span>
+      {% elif notif.priority == "high" %}
+        <span class="status-badge status-warning">{% icon "status_warning" %} مهم</span>
+      {% elif not notif.is_read %}
+        <span class="status-badge status-maroon">جديد</span>
+      {% endif %}
+      <span>{{ notif.get_event_type_display }}</span>
+      <time datetime="{{ notif.created_at|date:'c' }}" title="قبل {{ notif.created_at|timesince }}">{% if notif.created_at|date:"Ymd" != today_key %}{{ notif.created_at|date:"j/n" }} · {% endif %}{{ notif.created_at|date:"H:i" }}</time>
+    </p>
   </div>
 
   {% if not notif.is_read %}

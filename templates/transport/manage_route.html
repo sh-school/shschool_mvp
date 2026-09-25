@@ -19,6 +19,7 @@
     <form method="post">
       {% csrf_token %}
       <div class="form-stack">
+        {% callout "warning" %}الحفظ يستبدل قائمةَ طلاب الخطّ كلَّها بما اخترتَه هنا: من لم يُحدَّد يُزال من الخطّ. ولا يُفحص عددُ الطلاب مقابل سعة الحافلة.{% endcallout %}
         {% field "area_name" "اسم المنطقة" value=route.area_name|default:'' required=True placeholder="مثال: حي الشحانية" %}
         {# الطلاب: اختيارٌ متعدّدٌ يُقارَن بعضويّة الخطّ (`st in route.students.all`) — لا يُعبَّر بـchoices، فالقائمةُ باليد بتسميتها #}
         <div class="ui-field">
@@ -31,7 +32,7 @@
             </option>
             {% endfor %}
           </select>
-          <p id="f-students-help" class="form-hint">اضغط Ctrl للاختيار المتعدد</p>
+          <p id="f-students-help" class="ui-field-hint">اضغط Ctrl للاختيار المتعدد</p>
         </div>
       </div>
       <div class="flex gap-3 mt-6">

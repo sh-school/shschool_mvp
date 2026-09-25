@@ -1,10 +1,13 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
+from django.db.models import Prefetch
 from django.utils.html import format_html
 
+from .admin_password_forms import ArabicAdminPasswordChangeForm, ArabicUserChangeForm
 from .models import (
     AcademicYear,
     CalendarEvent,
+    CapabilityGrant,
     ClassGroup,
     CustomUser,
     Department,
@@ -19,6 +22,7 @@ from .models import (
     Wing,
     WingCoverage,
 )
+from .models.user import role_rank
 
 
 class SchoolScopedAdmin(admin.ModelAdmin):
@@ -33,6 +37,22 @@ class SchoolScopedAdmin(admin.ModelAdmin):
     #: مسارُ الترشيح من النموذج إلى `School` — يُسمّى في كلّ لوحةٍ ترث هذا.
     school_lookup = "school"
 
+    def _lookup_is_multivalued(self) -> bool:
+        """هل يمرّ المسارُ بعلاقةٍ متعدّدة القيم (عكسيّة/M2M)؟ وحدها تحتاج `distinct()`.
+
+        `distinct()` على جدولٍ ضخم (سجلُّ الإشعارات) يُكلّف فرزاً بلا فائدة حين
+        يكون المسارُ مفتاحاً أجنبيّاً مباشراً أو سلسلةَ مفاتيح أجنبيّة.
+        """
+        model = self.model
+        for part in self.school_lookup.split("__"):
+            if part == "pk":
+                break
+            field = model._meta.get_field(part)
+            if field.many_to_many or field.one_to_many:
+                return True
+            model = field.related_model
+        return False
+
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
         if request.user.is_superuser:
@@ -40,7 +60,59 @@ class SchoolScopedAdmin(admin.ModelAdmin):
         school = request.user.get_school() if hasattr(request.user, "get_school") else None
         if school is None:
             return queryset.none()
-        return queryset.filter(**{self.school_lookup: school}).distinct()
+        # `.pk` لا الكائن: مسارُ `pk` (لوحة المدرسة نفسِها) يرفض كائناً حيث يقبله المفتاحُ الأجنبيّ.
+        queryset = queryset.filter(**{self.school_lookup: school.pk})
+        return queryset.distinct() if self._lookup_is_multivalued() else queryset
+
+    def _scoped_related_queryset(self, request, db_field):
+        """قائمةُ الخيارات = ما تراه لوحةُ النموذج المرتبط نفسُها لهذا المستخدم.
+
+        بدونها يعرض حقلُ `school` أو `wing` أو `supervisor` كلَّ مدارس القاعدة وأشخاصِها
+        في القائمة المنسدلة ولو كانت الصفوفُ نفسُها مقيَّدة — فيُنشأ صفٌّ في مدرسةٍ أخرى.
+        """
+        related_admin = self.admin_site._registry.get(db_field.remote_field.model)
+        if isinstance(related_admin, SchoolScopedAdmin) and not request.user.is_superuser:
+            return related_admin.get_queryset(request)
+        return None
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        queryset = self._scoped_related_queryset(request, db_field)
+        if queryset is not None and "queryset" not in kwargs:
+            kwargs["queryset"] = queryset
+        field = super().formfield_for_foreignkey(db_field, request, **kwargs)
+        if field is not None and db_field.name in self.list_editable:
+            # قائمةٌ قابلةٌ للتحرير تبني نموذجاً لكلّ صفّ، وكلُّ نموذجٍ يعيد استعلامَ خياراته ويستدعي
+            # `__str__` لكلّ خيار (قسمٌ يسأل عن منسّقه): 373 استعلاماً لقائمة العضويّات. فتُحسب
+            # الخياراتُ مرّةً لكلّ طلب. والتحقّقُ عند الحفظ ما زال على `queryset` لا على هذه القائمة.
+            cache = request.__dict__.setdefault("_admin_editable_choices", {})
+            key = (self.model._meta.label, db_field.name)
+            if key not in cache:
+                cache[key] = list(field.choices)
+            field.choices = cache[key]
+        return field
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        queryset = self._scoped_related_queryset(request, db_field)
+        if queryset is not None and "queryset" not in kwargs:
+            kwargs["queryset"] = queryset
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
+
+
+def _department_sort_key(department: Department) -> int:
+    return int(department.sort_order)
+
+
+class DepartmentListFilter(admin.RelatedFieldListFilter):
+    """مرشّحُ «القسم» في الشريط الجانبيّ بمنسّقيه في استعلامٍ واحد.
+
+    `Department.__str__` يقرأ اسمَ المنسّق، والمرشّحُ الافتراضيّ يسأل عنه لكلّ قسم — فيكبر عددُ
+    الاستعلامات بعدد الأقسام. والخياراتُ نفسُها وترتيبُها كما هي.
+    """
+
+    def field_choices(self, field, request, model_admin):
+        ordering = self.field_admin_ordering(field, request, model_admin)
+        departments = Department.objects.select_related("head").order_by(*(ordering or ("name",)))
+        return [(department.pk, str(department)) for department in departments]
 
 
 class MembershipInline(admin.TabularInline):
@@ -63,6 +135,9 @@ class CustomUserAdmin(SchoolScopedAdmin, UserAdmin):
     """
 
     model = CustomUser
+    # نصوصُ جانغو في صفحتي تعديل المستخدم وتغيير كلمته بلا ترجمةٍ عربيّة (core/admin_password_forms.py)
+    form = ArabicUserChangeForm
+    change_password_form = ArabicAdminPasswordChangeForm
     school_lookup = "memberships__school"
     # ── PDPPL: نستخدم masked_national_id بدل national_id في القائمة ──
     list_display = (
@@ -78,7 +153,7 @@ class CustomUserAdmin(SchoolScopedAdmin, UserAdmin):
         "is_active",
         "is_staff",
         "memberships__role__name",
-        "memberships__department_obj",
+        ("memberships__department_obj", DepartmentListFilter),
     )
     search_fields = ("national_id", "full_name", "email")
     ordering = ("full_name",)
@@ -102,6 +177,22 @@ class CustomUserAdmin(SchoolScopedAdmin, UserAdmin):
         ),
     )
 
+    def get_queryset(self, request):
+        # الدورُ والقسمُ في كلّ صفّ يقرآن العضويّات: تُجلب مرّةً للصفحة إلى المخبأ الذي تقرؤه
+        # `active_memberships` نفسُها (`_active_memberships`) بترتيب الحكم نفسِه — لا نسخةَ ثانيةً من المنطق.
+        active = (
+            Membership.objects.filter(is_active=True)
+            .select_related("school", "role", "department_obj")
+            .order_by(role_rank(), "joined_at", "id")
+        )
+        return (
+            super()
+            .get_queryset(request)
+            .prefetch_related(
+                Prefetch("memberships", queryset=active, to_attr="_active_memberships")
+            )
+        )
+
     @admin.display(description="الدور")
     def role_label(self, obj: CustomUser) -> str:
         """الدورُ الحاكم — والكادرُ يتقدّم على وليّ الأمر عند تعدّد العضويّات."""
@@ -116,8 +207,15 @@ class CustomUserAdmin(SchoolScopedAdmin, UserAdmin):
         عمل في مدرستين له قسمٌ في كلٍّ منهما. فيُعرض هنا ليُقرأ ويُرشَّح به،
         ويُحرَّر في «العضويّات» وحدَها — كي لا يكون للانتماء مصدران.
         """
-        department = obj.department_obj
-        return department.name if department else "—"
+        # من العضويّات المجلوبة سلفاً لا `obj.department_obj` (استعلامٌ لكلّ صفّ) — بالقاعدة نفسِها:
+        # أوّلُ عضويّةٍ نشطةٍ تحمل قسماً بترتيب القسم.
+        departments: list[Department] = [
+            m.department_obj for m in obj.active_memberships if m.department_obj is not None
+        ]
+        if not departments:
+            return "—"
+        first: Department = min(departments, key=_department_sort_key)
+        return str(first.name)
 
     @admin.display(description="الرقم الشخصي", ordering="national_id")
     def masked_national_id(self, obj: CustomUser) -> str:
@@ -137,7 +235,9 @@ class CustomUserAdmin(SchoolScopedAdmin, UserAdmin):
 
 
 @admin.register(School)
-class SchoolAdmin(admin.ModelAdmin):
+class SchoolAdmin(SchoolScopedAdmin):
+    school_lookup = "pk"
+
     list_display = (
         "name",
         "code",
@@ -152,6 +252,14 @@ class SchoolAdmin(admin.ModelAdmin):
     search_fields = ("name", "code", "abbreviation", "ministry_code")
     readonly_fields = ("created_at",)
     autocomplete_fields = ("principal",)
+
+    # حذفُ المدرسة يمسح بالتسلسل كلَّ ما يرتبط بها، وإضافةُ مدرسةٍ مستأجرٌ جديد — للمطوّر وحدَه.
+    # (`core.admin_access.SUPERUSER_ONLY_ACTIONS` تحجبهما عن مجموعة المدير كذلك.)
+    def has_add_permission(self, request):
+        return request.user.is_superuser and super().has_add_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser and super().has_delete_permission(request, obj)
 
     fieldsets = (
         (
@@ -203,14 +311,21 @@ class SchoolAdmin(admin.ModelAdmin):
 
 
 @admin.register(Role)
-class RoleAdmin(admin.ModelAdmin):
-    list_display = ("school", "name", "get_name_display")
+class RoleAdmin(SchoolScopedAdmin):
+    school_lookup = "school"
+
+    list_display = ("school", "name", "code")
     list_filter = ("name", "school")
     search_fields = ("name",)
 
+    @admin.display(description="الرمز", ordering="name")
+    def code(self, obj):
+        # عمودُ «name» يعرض الاسمَ العربيّ من الخيارات، وهذا مفتاحُه البرمجيّ
+        return obj.name
+
 
 @admin.register(Department)
-class DepartmentAdmin(admin.ModelAdmin):
+class DepartmentAdmin(SchoolScopedAdmin):
     """سجلُّ الأقسام — مصدرُ الحقيقة لانتماء المعلّم.
 
     الانتماءُ نفسه في `Membership.department_obj` لا هنا: القسمُ يخصّ العضويّةَ
@@ -220,6 +335,8 @@ class DepartmentAdmin(admin.ModelAdmin):
     ويُملأ الجدولُ مرّةً بأمر `seed_departments` (تقريرٌ أوّلاً، ولا يكتب إلّا
     بـ`--apply`)، ثمّ يُصحَّح من هنا يدويّاً.
     """
+
+    school_lookup = "school"
 
     list_display = ("name", "code", "school", "head", "members", "sort_order", "is_active")
     list_editable = ("sort_order", "is_active")
@@ -248,16 +365,33 @@ class MembershipAdmin(SchoolScopedAdmin):
         "joined_at",
     )
     list_editable = ("department_obj", "specialty")
-    list_filter = ("is_active", "school", "role__name", "department_obj")
-    list_select_related = ("user", "school", "role", "department_obj")
+    list_filter = ("is_active", "school", "role__name", ("department_obj", DepartmentListFilter))
+    list_select_related = (
+        "user",
+        "school",
+        "role__school",
+        "department_obj",
+        "department_obj__head",
+    )
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "department_obj":
+            # `Department.__str__` يقرأ اسمَ المنسّق — بلا هذا سؤالٌ لكلّ قسمٍ في القائمة المنسدلة.
+            scoped = self._scoped_related_queryset(request, db_field)
+            base = Department.objects.all() if scoped is None else scoped
+            kwargs["queryset"] = base.select_related("head")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     search_fields = ("user__full_name", "user__national_id")
     autocomplete_fields = ("user",)
 
 
 @admin.register(ClassGroup)
-class ClassGroupAdmin(admin.ModelAdmin):
+class ClassGroupAdmin(SchoolScopedAdmin):
     """نطاقُ التوقيت يُنسب من هنا: قائمةٌ قابلةٌ للتحرير، فتوزيعُ الشُّعب على
     الأجراس قرارُ إدارةٍ يتبدّل بتبدّل الطوابق لا بترحيل."""
+
+    school_lookup = "school"
 
     list_display = (
         "school",
@@ -273,16 +407,18 @@ class ClassGroupAdmin(admin.ModelAdmin):
     list_editable = ("time_band", "wing")
     search_fields = ("grade", "section")
     autocomplete_fields = ("supervisor",)
-    list_select_related = ("time_band", "wing")
+    list_select_related = ("school", "time_band", "wing")
 
 
 @admin.register(Wing)
-class WingAdmin(admin.ModelAdmin):
+class WingAdmin(SchoolScopedAdmin):
     """المشرفُ يُعيَّن من هنا — و`seed_wings` لا يخمّنه.
 
     و`autocomplete_fields` على المشرف يفتح على كلّ مستخدمي القاعدة؛ والنموذجُ
     يردُّ من ليس مشرفاً إداريّاً ولا نائباً إداريّاً عند الحفظ، لا بعده.
     """
+
+    school_lookup = "school"
 
     list_display = (
         "name",
@@ -318,7 +454,9 @@ class WingCoverageAdmin(SchoolScopedAdmin):
 
 
 @admin.register(TimeBand)
-class TimeBandAdmin(admin.ModelAdmin):
+class TimeBandAdmin(SchoolScopedAdmin):
+    school_lookup = "school"
+
     list_display = ("name", "code", "order", "school", "is_active", "class_count")
     list_filter = ("school", "is_active")
     ordering = ("order", "code")
@@ -353,7 +491,9 @@ class SemesterInline(admin.TabularInline):
 
 
 @admin.register(AcademicYear)
-class AcademicYearAdmin(admin.ModelAdmin):
+class AcademicYearAdmin(SchoolScopedAdmin):
+    school_lookup = "school"
+
     list_display = ("name", "school", "start_date", "end_date", "is_current")
     list_filter = ("school", "is_current")
     search_fields = ("name",)
@@ -362,15 +502,19 @@ class AcademicYearAdmin(admin.ModelAdmin):
 
 
 @admin.register(Semester)
-class SemesterAdmin(admin.ModelAdmin):
+class SemesterAdmin(SchoolScopedAdmin):
+    school_lookup = "academic_year__school"
+
     list_display = ("academic_year", "code", "start_date", "end_date", "max_grade")
     list_filter = ("code", "academic_year__school", "academic_year__name")
-    list_select_related = ("academic_year",)
+    list_select_related = ("academic_year__school",)
     ordering = ("-start_date",)
 
 
 @admin.register(CalendarEvent)
-class CalendarEventAdmin(admin.ModelAdmin):
+class CalendarEventAdmin(SchoolScopedAdmin):
+    school_lookup = "academic_year__school"
+
     list_display = (
         "name",
         "event_type",
@@ -387,7 +531,7 @@ class CalendarEventAdmin(admin.ModelAdmin):
         "grade_scope",
         "audience",
     )
-    list_select_related = ("academic_year", "semester")
+    list_select_related = ("academic_year__school", "semester")
     search_fields = ("name",)
     date_hierarchy = "start_date"
     ordering = ("start_date",)
@@ -396,6 +540,13 @@ class CalendarEventAdmin(admin.ModelAdmin):
 admin.site.site_header = "SchoolOS — لوحة الإدارة"
 admin.site.site_title = "SchoolOS Admin"
 admin.site.index_title = "لوحة إدارة النظام"
+
+# القائمةُ الأفقيّة في الترويسة (`core/admin_menu.py`) تغني عن الشريط الجانبيّ فلا تكرار.
+admin.site.enable_nav_sidebar = False
+
+# جانغو يعرض 100 صفٍّ في كلّ صفحة قائمة، وهو كثيرٌ على شاشةٍ لا تُمرَّر؛ فالافتراضيُّ 25 لكلّ ModelAdmin
+# لم يحدّد `list_per_page` بنفسه (رابطُ «إظهار الكل» يبقى). ولا يُحدّد نموذجٌ رقماً آخر: يحرسه tests/test_admin_menu.py.
+admin.ModelAdmin.list_per_page = 25
 
 
 @admin.register(ParentStudentLink)
@@ -479,3 +630,50 @@ class ConsentRecordAdmin(SchoolScopedAdmin):
     search_fields = ("parent__full_name", "student__full_name")
     autocomplete_fields = ("parent", "student", "recorded_by")
     readonly_fields = ("given_at", "withdrawn_at")
+
+
+# ── منحُ القدرات المفوَّضة (مُشغِّل الجدول) ─────────────────────────
+@admin.register(CapabilityGrant)
+class CapabilityGrantAdmin(SchoolScopedAdmin):
+    """عرضٌ للمنح الفعّالة والمسحوبة — **بلا كتابة**: المنحُ والسحبُ بـ`grant_capability` وحدَه (يفحص المانحَ ويشترط
+    السببَ ويدقّق)؛ وتعديلُ صفٍّ هنا يتجاوز ذلك كلَّه فلا يُتاح حتى للمشرف الأعلى."""
+
+    list_display = (
+        "user",
+        "capability",
+        "school",
+        "is_active",
+        "granted_by",
+        "created_at",
+        "revoked_at",
+    )
+    list_filter = ("capability", "school")
+    list_select_related = ("user", "school", "granted_by", "revoked_by")
+    search_fields = ("user__full_name", "reason", "revoke_reason")
+    ordering = ("-created_at",)
+    readonly_fields = (
+        "id",
+        "school",
+        "user",
+        "capability",
+        "reason",
+        "granted_by",
+        "created_at",
+        "revoked_at",
+        "revoked_by",
+        "revoke_reason",
+        "updated_at",
+    )
+
+    @admin.display(boolean=True, description="فعّال")
+    def is_active(self, obj):
+        return obj.is_active
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

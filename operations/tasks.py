@@ -118,6 +118,34 @@ def finalize_period_exits_task():
 
 
 # ═════════════════════════════════════════════════════════════════════
+# الحصّةُ التعويضيّة — إنهاءُ الطلبات التي فات وقتُها
+# ═════════════════════════════════════════════════════════════════════
+
+
+@shared_task(name="operations.expire_overdue_compensatory")
+def expire_overdue_compensatory_task():
+    """ينهي طلباتِ التعويض المفتوحة التي مضى يومُ تعويضها، في كلّ مدرسة — كلَّ فجر.
+
+    كانت `CompensatoryService.expire_overdue` مكتوبةً لا يستدعيها شيء، فيبقى طلبٌ لزميلٍ لم يردّ
+    معلَّقاً إلى الأبد وهو لا يُقبَل. كلُّ مدرسةٍ في نطاقها وحدَها وعطبُ واحدةٍ يُسجَّل ولا يُسقط
+    غيرَها؛ وثابتةُ التكرار.
+    """
+    from core.models import School
+    from operations.services import CompensatoryService
+
+    expired = 0
+    failed = 0
+    for school in School.objects.filter(is_active=True).iterator(chunk_size=100):
+        try:
+            with school_rls_scope(school.id):
+                expired += CompensatoryService.expire_overdue(school)
+        except Exception:  # noqa: BLE001 — مدرسةٌ معطوبةٌ لا تُسقط غيرَها
+            failed += 1
+            logger.exception("expire_overdue_compensatory: تعذّر في المدرسة %s", school.pk)
+    return {"expired": expired, "failed_schools": failed}
+
+
+# ═════════════════════════════════════════════════════════════════════
 # حارسُ العام الدراسيّ — إطفاءُ جداول الأعوام الماضية
 # طبقةٌ ثالثةٌ فوق وسيطةِ الطلب ومرحلةِ الإصدار، تعمل إن شُغِّل Celery Beat
 # ═════════════════════════════════════════════════════════════════════
@@ -258,6 +286,32 @@ def check_license_expiry_task():
 
 
 # ═════════════════════════════════════════════════════════════════════
+# مصالحةُ الأسابيع المولَّدة سلفاً بعد اعتماد جدول (SCH-08)
+# ═════════════════════════════════════════════════════════════════════
+
+
+@shared_task(
+    name="operations.resync_generated_sessions",
+    max_retries=0,
+    soft_time_limit=600,
+    time_limit=660,
+)
+def resync_generated_sessions_task(school_id, academic_year):
+    """يُصالح حصصَ الأيّام المولَّدة بعد أسبوع الاعتماد مع الجدول المعتمَد.
+
+    الاعتمادُ يصالح الأسبوعَ الجاريَ في الطلب، وهذه تُكمل ما بعده خارجَه: كلفتُها تكبر
+    بعدد الأسابيع المولَّدة (قرابةَ مئةٍ وستٍّ وسبعين حصّةً لكلّ يوم). وثابتةُ التكرار:
+    دورةٌ ثانيةٌ على جدولٍ مصالَحٍ لا تجد ما تحذفه ولا ما تُنشئه.
+    """
+    from core.models import School
+    from operations.services import ScheduleService
+
+    school = School.objects.get(pk=school_id)
+    with school_rls_scope(school.id):
+        return ScheduleService.resync_future_weeks(school, academic_year)
+
+
+# ═════════════════════════════════════════════════════════════════════
 # توليد الجدول الأسبوعيّ الذكيّ — بطلب المستخدم
 # ═════════════════════════════════════════════════════════════════════
 
@@ -298,14 +352,21 @@ def generate_smart_schedule_task(self, generation_id):
         return {"ok": False, "reason": "not_pending", "status": generation.status}
 
     school = generation.school
+    # من «الانتظار» إلى «يجري» شرطاً لا حفظاً: إن أُوقف بين القراءة وهنا فلا يُبعث من جديد.
+    rows = ScheduleGeneration.objects.filter(
+        pk=generation.pk, status__in=ScheduleGeneration.PENDING_STATUSES
+    )
+    if not rows.update(status="running"):
+        return {"ok": False, "reason": "not_pending"}
     generation.status = "running"
-    generation.save(update_fields=["status"])
+
+    from operations.services.schedule_drafts import is_stopped
 
     def _fail(message):
-        generation.status = "failed"
-        generation.error_message = message[:2000]
-        generation.finished_at = timezone.now()
-        generation.save(update_fields=["status", "error_message", "finished_at"])
+        # شرطاً على «يجري»: صفٌّ أوقفه المستخدمُ أو حذفه لا يُكتب فوقه، ولا يُسقط المهمّة.
+        ScheduleGeneration.objects.filter(pk=generation.pk, status="running").update(
+            status="failed", error_message=message[:2000], finished_at=timezone.now()
+        )
         _notify_generation_done(generation, ok=False, summary=message)
 
     try:
@@ -320,6 +381,7 @@ def generate_smart_schedule_task(self, generation_id):
                 user=generation.generated_by,
                 generation=generation,
                 publish=False,
+                should_stop=lambda: is_stopped(generation.pk),
             )
     except SoftTimeLimitExceeded:
         logger.error("generate_smart_schedule: تجاوز الزمنَ المسموح — %s", generation_id)
@@ -331,6 +393,10 @@ def generate_smart_schedule_task(self, generation_id):
         # جداول أو جزءاً من تتبّع المكدّس، وهذه الرسالةُ تُعرض في الواجهة وتُبثّ JSON.
         _fail("خطأ غير متوقَّع في التوليد — سُجّلت التفاصيلُ للمشغّل، أعد المحاولةَ أو راجع السجلّ.")
         return {"ok": False, "reason": "exception"}
+
+    if result.get("stopped"):
+        logger.info("generate_smart_schedule: أُوقف يدويّاً — %s", generation_id)
+        return {"ok": False, "reason": "stopped"}
 
     # مؤشراتُ المختبر تُحسب هنا مرّةً وتُحفظ في صفّ التوليد — فالصفحةُ تعرض ولا تحسب.
     try:
@@ -353,8 +419,10 @@ def generate_smart_schedule_task(self, generation_id):
         return {"ok": False, "reason": "not_saved"}
 
     if result["errors"]:
-        generation.error_message = "؛ ".join(result["errors"])[:2000]
-        generation.save(update_fields=["error_message"])
+        # بالاستعلام لا بالحفظ: مسودّةٌ حُذفت بين الحفظ وهنا لا تُسقط المهمّة.
+        ScheduleGeneration.objects.filter(pk=generation.pk).update(
+            error_message="؛ ".join(result["errors"])[:2000]
+        )
 
     _notify_generation_done(generation, ok=result["success"], summary=summary)
     return {"ok": result["success"], "summary": summary, "failed": len(result["errors"])}
@@ -378,3 +446,108 @@ def _notify_generation_done(generation, *, ok, summary):
         )
     except Exception as exc:  # noqa: BLE001 — الإشعارُ خدمةٌ لا شرطٌ للنجاح
         logger.warning("تعذّر إشعارُ صاحب التوليد: %s", exc)
+
+
+# ═════════════════════════════════════════════════════════════════════
+# تصديرُ ورقة الجدول (PDF/Excel) — خارج دورة الطلب (P4-6، البند 5)
+# ═════════════════════════════════════════════════════════════════════
+#
+# كان `schedule_export_pdf`/`schedule_export_excel` يبنيان الملفَّ متزامناً
+# داخل الطلب — وWeasyPrint بطيءٌ بما يكفي ليُخالف معيار المشروع (>300ms →
+# Background Job). فصار الطلبُ يُنشئ `ExportJob` (حالته `pending`) ويُرجع
+# فوراً، وهذه المهمّة تملؤه، وصفحةُ متابعةٍ (`export_job_status`) تُنزّل
+# الناتج حين يجهز. لا `request` حقيقيّاً هنا — `query_string` المحفوظة في
+# الصفّ تُعاد قراءتها بـ`QueryDict` لبناء نفس السياق الذي كان سيُبنى في الطلب.
+
+
+@shared_task(
+    name="operations.render_schedule_export",
+    bind=True,
+    max_retries=1,
+    default_retry_delay=10,
+    soft_time_limit=60,
+    time_limit=90,
+)
+def render_schedule_export_task(self, job_id, fmt):
+    """`fmt`: `"pdf"` أو `"xlsx"`."""
+    from django.http import QueryDict
+    from django.utils import timezone
+
+    from core.models import ExportJob
+
+    try:
+        job = ExportJob.objects.select_related("school", "requested_by").get(pk=job_id)
+    except ExportJob.DoesNotExist:
+        logger.warning("render_schedule_export: صفّ التصدير %s غير موجود", job_id)
+        return {"ok": False, "reason": "job_not_found"}
+
+    if job.status != "pending":
+        logger.info("render_schedule_export: %s ليس قيدَ الانتظار — يُتخطّى", job_id)
+        return {"ok": False, "reason": "not_pending"}
+
+    job.status = "running"
+    job.save(update_fields=["status"])
+
+    try:
+        with school_rls_scope(job.school_id):
+            from operations.views_schedule import _export_filename, _schedule_print_payload_core
+
+            get_params = QueryDict(job.query_string)
+            ctx = _schedule_print_payload_core(job.school, job.requested_by, get_params)
+            ctx["embed"] = True
+
+            if fmt == "pdf":
+                from django.template.loader import render_to_string
+
+                from core.pdf_utils import render_pdf_bytes
+
+                ctx["for_pdf"] = True
+                html = render_to_string("schedule/print_schedule.html", ctx)
+                content = render_pdf_bytes(
+                    html, paper_size="A3" if ctx.get("paper") == "a3" else "A4"
+                )
+                content_type = "application/pdf"
+                filename = _export_filename(ctx, "pdf")
+            else:
+                from io import BytesIO
+
+                from operations.schedule_export import schedule_workbook
+
+                buffer = BytesIO()
+                schedule_workbook(ctx).save(buffer)
+                content = buffer.getvalue()
+                content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                filename = _export_filename(ctx, "xlsx")
+    except Exception as exc:  # noqa: BLE001 — يُسجَّل ويُنقل لصفّ التصدير لا يُبتلع
+        logger.exception("render_schedule_export: فشل — %s", exc)
+        job.status = "failed"
+        job.error_message = str(exc)[:2000]
+        job.finished_at = timezone.now()
+        job.save(update_fields=["status", "error_message", "finished_at"])
+        return {"ok": False, "reason": "exception"}
+
+    job.status = "done"
+    job.content = content
+    job.content_type = content_type
+    job.filename = filename
+    job.finished_at = timezone.now()
+    job.save(update_fields=["status", "content", "content_type", "filename", "finished_at"])
+    return {"ok": True, "filename": filename}
+
+
+@shared_task(name="operations.purge_expired_export_jobs")
+def purge_expired_export_jobs_task():
+    """صفوفُ التصدير مؤقّتة — لا تتراكم كالملفّات الدائمة في `StoredFile`.
+
+    يوم واحد يكفي: التنزيلُ يقع خلال دقائق من طلبه، ومن تأخّر يعيد التصدير.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from core.models import ExportJob
+
+    cutoff = timezone.now() - timedelta(hours=24)
+    deleted, _ = ExportJob.objects.filter(created_at__lt=cutoff).delete()
+    if deleted:
+        logger.info("purge_expired_export_jobs: حُذف %s صفّ تصدير منتهٍ", deleted)

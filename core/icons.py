@@ -120,6 +120,8 @@ ICONS: dict[str, Icon] = {
     "mail_sent": Icon("الرسائل المرسلة", "module", "hi:mail-send-01"),
     "password": Icon("كلمة المرور", "module", "hi:lock-password"),
     "two_factor": Icon("المصادقة الثنائيّة", "module", "hi:two-factor-access"),
+    "dev_inbox": Icon("صندوق رسائل المطوّر", "module", "hi:mail-open-01"),
+    "roadmap": Icon("خارطة تجويد المنصّة", "module", "hi:chart-gantt"),
     # ── الحياة المدرسيّة ──
     "reinforcement": Icon("التعزيز الإيجابيّ", "school", "hi:medal-01"),
     "psychology": Icon("الأخصائي النفسيّ", "school", "hi:brain-02"),
@@ -150,6 +152,8 @@ ICONS: dict[str, Icon] = {
     "islamic_ed": Icon("التربية الإسلاميّة", "school", "hi:quran-01"),
     "prayer": Icon("الصلاة والمصلّى", "school", "hi:mosque-02"),
     "qr_door": Icon("رمز باب الشعبة", "school", "hi:qr-code"),
+    "injury": Icon("الإصاباتُ والأضرار", "school", "hi:heart-pulse"),
+    "grade_sheets": Icon("أوراقُ الرصد والتصحيح", "school", "hi:clipboard"),
     # ── الكيانات ──
     "students": Icon("الطلاب والشُّعب", "entity", "hi:students"),
     "profile": Icon("الملفّ الشخصيّ", "entity", "hi:user"),
@@ -157,6 +161,7 @@ ICONS: dict[str, Icon] = {
     "school_building": Icon("المدرسة", "entity", "hi:school"),
     "teacher": Icon("المعلّم", "entity", "hi:teacher"),
     "student": Icon("الطالب", "entity", "hi:student"),
+    "supervisors": Icon("مشرفو الكنترول", "entity", "hi:user-check-01"),
     # ── البيانات والتقارير ──
     "location": Icon("الموقع والخريطة", "data", "hi:maps-location-01"),
     "stats": Icon("الإحصائيّات والتوزيعات", "data", "hi:chart-column"),

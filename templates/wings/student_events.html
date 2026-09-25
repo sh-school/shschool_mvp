@@ -3,6 +3,9 @@
 {% load ui %}
 {% block title %}تصحيح وعذر — {{ student.full_name }}{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}page-noscroll{% endblock %}
+
 {% block breadcrumbs %}
 {% url 'wings:record_section' klass.id as section_url %}
 {% include "components/breadcrumbs.html" with parent2_url="/wings/record/" parent2_label="رصد الغياب" parent_url=section_url parent_label=klass.short_code current=student.full_name %}
@@ -15,19 +18,13 @@
     <a href="{% url 'wings:record_section' klass.id %}" class="btn-secondary btn-sm">إلى الكشف</a>
   {% endpage_header %}
 
-  <p class="form-note">
-    {% icon "status_info" %}
-    <span>رُصد شيءٌ على هذا الطالب بالخطأ؟ احذفه هنا بسبب. الحذفُ لا يمحو الأصل: يُسجَّل في سجلّ المراجعة، وتزول معه المخالفةُ التي بُنيت عليه، وتعود الخانةُ «لم تُرصد». ولتصحيحِ حصّةٍ كاملةٍ أعِد تثبيتَها من الكشف.</span>
-  </p>
+  {# ثلاثُ بطاقاتٍ متجاورة، ارتفاعُ كلٍّ منها بمحتواها (`is-fit`) لا بالنافذة. #}
+  <div class="fill-grid is-fit" style="--flow: row; --tc: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.4fr)">
+    {% include "wings/partials/contact_card.html" %}
 
-  {% include "wings/partials/contact_card.html" %}
+    {% include "wings/partials/excuse_card.html" %}
 
-  {% include "wings/partials/excuse_card.html" %}
-
-  {% if attendance_events or exit_events %}
     {% include "wings/partials/student_events.html" %}
-  {% else %}
-    {% include "components/empty_state.html" with title="لا غيابَ ولا تأخّرَ ولا خروجاً مسجَّلاً على هذا الطالب" %}
-  {% endif %}
+  </div>
 </div>
 {% endblock %}

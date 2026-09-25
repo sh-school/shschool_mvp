@@ -1,8 +1,5 @@
-{% load icons %}
-<div class="form-note transport-done">
-  {% icon "status_success" %}
-  <span class="plain-list__main">
+{% load icons ui %}
+{% callout "success" %}<span class="plain-list__main">
     <b class="plain-list__title">{{ route.area_name }}</b>
     <span class="plain-list__sub">{{ route.students.count }} طالب</span>
-  </span>
-</div>
+  </span>{% endcallout %}

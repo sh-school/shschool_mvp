@@ -1,0 +1,43 @@
+{% extends "admin/base.html" %}
+{% load static i18n admin_menu %}
+{% comment %}
+  لوحةُ الإدارة تَرِث هويّةَ المنصّة: ألوانُها النهاريّةُ والليليّةُ (`static/css/admin_theme.css`)
+  وأيقونتُها (favicon)، والوضعُ يُقرأ من `localStorage['theme']` نفسِه الذي تكتبه المنصّة.
+  ما سوى ذلك نسخةٌ من `django/contrib/admin/templates/admin/base_site.html` (5.2).
+{% endcomment %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/admin_theme.css' %}">{% endblock %}
+
+{% block extrahead %}{{ block.super }}
+<link rel="icon" type="image/png" sizes="256x256" href="{% static 'icons/favicon.png' %}">
+<link rel="apple-touch-icon" sizes="180x180" href="{% static 'icons/apple-touch-icon.png' %}">
+{# الخطُّ مسبقاً: بدونه يُرسم نصُّ الترويسة بخطٍّ بديلٍ لحظةً عند كلّ تحميلٍ ثمّ يتبدّل — وميضٌ يراه المستخدمُ في الترويسة والقائمة. #}
+<link rel="preload" href="{% static 'fonts/Tajawal-Regular.woff2' %}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{% static 'fonts/Tajawal-Medium.woff2' %}" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
+<script src="{% static 'js/admin_nav.js' %}" defer></script>
+<script src="{% static 'js/admin_i18n.js' %}" defer></script>
+<script src="{% static 'js/admin_a11y.js' %}" defer></script>
+{# الانتقالُ بين الصفحات بآلية المنصّة نفسِها (تلاشٍ ثمّ تحميل): نمطُ fade لا تبديلَ DOM — صفحاتُ الإدارة تهيّئ أدواتِها عند load. #}
+<script src="{% static 'js/page-nav.js' %}" data-page-nav="fade" data-page-nav-root="#content-start" defer></script>
+{% endblock %}
+
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}" class="adm-brand"><img src="{% static 'brand/emblem-white.svg' %}" width="27" height="27" alt="" class="adm-brand__logo"><span class="adm-brand__name">{{ current_school.name|default:site_header|default:_('Django administration') }}<span class="adm-brand__suffix">&ensp;-&ensp;لوحة الإدارة</span></span></a></div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}
+
+{% comment %}
+  الترحيبُ باسم المستخدم لا برقمه الشخصيّ: نصُّ جانغو `firstof user.get_short_name user.get_username` يقع على `get_username`
+  (الرقمُ الشخصيّ) لأنّ `CustomUser` لا يعرّف `get_short_name` — فكان الرقمُ كاملاً في ترويسة كلّ صفحةٍ يظهر في لقطة الشاشة
+  والمشاركة (PDPPL م.8، وكما يُخفى في `__str__` وقوائم المستخدمين وسجلّ الدخول).
+{% endcomment %}
+{% block welcome-msg %}{% translate 'Welcome,' %} <strong>{{ user.full_name }}</strong>.{% endblock %}
+
+{% block nav-global %}{% admin_nav %}{% endblock %}
+
+{% block footer %}{% if user.is_authenticated %}{% include "admin/_footer.html" %}{% endif %}{% endblock %}

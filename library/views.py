@@ -13,7 +13,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from core import brand
 from core.capabilities import capability_required
-from core.models import BookBorrowing, CustomUser, LibraryBook
+from core.models import CustomUser
+from library.models import BookBorrowing, LibraryBook
 from library.services import LibraryService
 
 

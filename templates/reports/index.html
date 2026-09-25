@@ -114,6 +114,7 @@
 {% if tab == "behavior" %}
   {# ── السلوك: بطاقة واحدة فقط ── #}
   {% section_card "كشف المخالفات السلوكية" icon="behavior_violation" %}
+    {% callout "warning" %}الملفُّ يحوي أسماءَ الطلاب ومخالفاتِهم (بيانات شخصيّة، والرقم الشخصيّ فيه مستور)، ويُسجَّل تنزيلُه باسمك في سجلّ التدقيق. لا تُشاركه خارج من يحقّ له.{% endcallout %}
     <div class="plain-list__row">
       <span class="plain-list__sub">تصدير كامل بيانات السلوك للعام {{ year }}</span>
       <a data-app-file href="{% url 'behavior_excel' %}?year={{ year }}&paper={{ paper }}" class="btn-success btn-sm">
@@ -163,13 +164,13 @@
 {% endif %}
 
 <script nonce="{{ request.csp_nonce }}">
-function applyFilter(name, value) {
+window.applyFilter = function (name, value) {
   var params = new URLSearchParams(window.location.search);
   if (value) params.set(name, value);
   else params.delete(name);
   if (name === 'level') params.delete('grade');
   window.location.search = params.toString();
-}
+};
 
 /* بحث الطالب الفردي */
 var searchBtn = document.getElementById('student-search-btn');

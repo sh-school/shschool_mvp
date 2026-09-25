@@ -162,6 +162,16 @@ class TestSorting:
 
         assert _names(body)[:1] == ["ألف"], "يعود إلى ترتيب الشاشة الأصليّ"
 
+    def test_the_phone_column_is_not_sortable(self, client_as, school, principal):
+        """الجوّالُ مخزَّنٌ مشفَّراً (البند 13) فلا يُفرَز في القاعدة — والترويسةُ بلا رابط فرز،
+        ومفتاحٌ قديمٌ محفوظٌ في علامةٍ يعود إلى ترتيب الشاشة الأصليّ."""
+        self._three(school)
+
+        body = _body(client_as, principal, "?sort=phone&dir=desc")
+
+        assert _names(body)[:1] == ["ألف"]
+        assert "sort=phone" not in body
+
     def test_sorting_covers_the_whole_register_not_the_visible_page(
         self, client_as, school, principal
     ):
@@ -197,15 +207,17 @@ class TestArabicOrder:
     """القاعدةُ ترتّب بالنقطة البرمجيّة، والقارئُ يقرأ بالحرف."""
 
     def test_the_hamza_alif_sorts_with_the_bare_alif(self, client_as, school, principal):
-        """«أكرم» كانت تسبق «ابراهيم» لأنّ همزةَ الألف نقطةٌ أصغرُ من الألف."""
+        """«أنور» كانت تسبق «ابراهيم» لأنّ همزةَ الألف نقطةٌ أصغرُ من الألف."""
         for name, national_id in (
-            ("أكرم رابح", "29000000061"),
-            ("ابراهيم محمد", "29000000062"),
-            ("بشار محمود", "29000000063"),
+            ("أنور تجريبي", "29000000061"),
+            ("ابراهيم تجريبي", "29000000062"),
+            ("بلال تجريبي", "29000000063"),
         ):
             _staff(school, name, national_id)
 
-        places = _order_of(_body(client_as, principal), "ابراهيم محمد", "أكرم رابح", "بشار محمود")
+        places = _order_of(
+            _body(client_as, principal), "ابراهيم تجريبي", "أنور تجريبي", "بلال تجريبي"
+        )
 
         assert places == sorted(places), "الألفُ قبل الباء، وهمزةُ الألف ألفٌ"
 

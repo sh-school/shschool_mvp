@@ -16,6 +16,7 @@
    ────────
      data-autosubmit                 change  → يُرسل النموذج الحاضن
      data-action="print|reload|back|stop"
+     data-loading                    submit  → دوّارةٌ على المفتاح المُرسِل (`is-loading`) حتى يُبدَّل المحتوى
      data-confirm="نصّ"              submit  → يمنع الإرسال ما لم يُؤكَّد
                                      (المُنفِّذ في `base.js` — نافذةٌ مخصّصة)
      data-toggle="#sel"              click   → يقلب إخفاء الهدف (خاصية hidden)
@@ -23,7 +24,7 @@
      data-hide="#sel" / data-show="#sel"
      data-remove="#sel|closest:.sel" click   → يحذف الهدف
      data-click="#sel"               click   → ينقر الهدف نيابةً عنه
-     data-copy="نصّ"                 click   → ينسخ إلى الحافظة
+     data-copy="نصّ"                 click   → ينسخ إلى الحافظة، و«تمّ النسخ» عائمةٌ ثانيتين
      data-call="اسم"                 click   → يُنادي دالّةً من قائمةٍ بيضاء
      data-arg="وسيط"                         → وسيطٌ واحد اختياريّ لـdata-call
      data-mirror="#sel"              input   → يعكس القيمة نصّاً في الهدف
@@ -59,6 +60,7 @@
     "submitScheduleView",
     "installPWA",
     "showToast",
+    "openPalette",
   ];
 
   function resolve(el, sel) {
@@ -80,7 +82,19 @@
 
   /* ── إرسالٌ تلقائيّ عند تغيّر حقل داخل نموذج ───────────────────── */
   on("change", "data-autosubmit", function (el) {
-    if (el.form) el.form.submit();
+    // `requestSubmit` يُطلق حدثَ submit فيلتقطه التنقّلُ بتبديل المحتوى (page-nav.js)؛ `submit()` كان يحمّل مستنداً كاملاً.
+    if (el.form) { if (el.form.requestSubmit) el.form.requestSubmit(); else el.form.submit(); }
+  });
+
+  /* ── حالةُ التحميل: تُضاف بعد أن يستقرّ الإرسال (لم يُمنع بتأكيدٍ) وتُزال إن عاد المستند من ذاكرة التنقّل ── */
+  document.addEventListener("submit", function (e) {
+    var btn = e.submitter;
+    if (!btn || !btn.closest("[data-loading]") && !btn.hasAttribute("data-loading")) return;
+    setTimeout(function () { // مُنع الإرسال: تأكيدٌ معلَّق/مُلغى (لا دوّارة)، أو أخذه التنقّلُ بتبديل المحتوى (`#main-content.is-leaving` — فالدوّارة).
+      if (!e.defaultPrevented || document.querySelector("#main-content.is-leaving")) btn.classList.add("is-loading"); }, 0);
+  });
+  window.addEventListener("pageshow", function (e) {
+    if (e.persisted) document.querySelectorAll(".is-loading").forEach(function (b) { b.classList.remove("is-loading"); });
   });
 
   /* ── تأكيدٌ قبل الإرسال — مالكُه `base.js` وحدَه ──────────────────
@@ -148,9 +162,32 @@
     if (t) t.click();
   });
 
-  /* ── الحافظة ───────────────────────────────────────────────────── */
+  /* ── الحافظة ─── «تمّ النسخ» عائمةٌ عند العنصر نفسِه (لا عند المؤشّر —
+     لمسُ الجوّال بلا مؤشّر)، تختفي بعد ثانيتين. عنصرٌ واحدٌ مشتركٌ يُعاد
+     استعمالُه، لا عنصرٌ جديدٌ لكلّ نسخٍ — فلا تتراكم عند نقراتٍ متتالية. */
+  var copyFeedback = null;
+  var copyFeedbackTimer = null;
+  function showCopyFeedback(el) {
+    if (!copyFeedback) {
+      copyFeedback = document.createElement("span");
+      copyFeedback.className = "copy-feedback";
+      copyFeedback.setAttribute("role", "status");
+      copyFeedback.setAttribute("aria-live", "polite");
+      copyFeedback.textContent = "تمّ النسخ";
+      document.body.appendChild(copyFeedback);
+    }
+    var r = el.getBoundingClientRect();
+    copyFeedback.style.top = r.top + "px";
+    copyFeedback.style.insetInlineStart = r.left + r.width / 2 + "px";
+    copyFeedback.hidden = false;
+    if (copyFeedbackTimer) clearTimeout(copyFeedbackTimer);
+    copyFeedbackTimer = setTimeout(function () { copyFeedback.hidden = true; }, 2000);
+  }
   on("click", "data-copy", function (el) {
-    if (navigator.clipboard) navigator.clipboard.writeText(el.getAttribute("data-copy"));
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(el.getAttribute("data-copy")).then(function () {
+      showCopyFeedback(el);
+    });
   });
 
   /* ── نداءٌ بالاسم من القائمة البيضاء ───────────────────────────── */

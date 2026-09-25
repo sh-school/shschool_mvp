@@ -149,8 +149,8 @@
 
         {# ═══ Footer ═══ #}
         <div class="q-modal-footer">
-          <button type="button" class="btn-cancel" data-close-modal="closest:.q-modal-overlay">إلغاء</button>
-          <button type="submit" class="btn-save">
+          <button type="button" class="btn-secondary" data-close-modal="closest:.q-modal-overlay">إلغاء</button>
+          <button type="submit" class="btn-primary">
             {% icon "all_present" %} حفظ واعتماد
           </button>
         </div>
@@ -161,9 +161,9 @@
 </div>
 
 <script nonce="{{ request.csp_nonce }}">
-function closeModal() {
+window.closeModal = function () {
   document.getElementById('modal-container').innerHTML = '';
-}
+};
 </script>
 
 {% comment %}

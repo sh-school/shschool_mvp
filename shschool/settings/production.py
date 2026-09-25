@@ -7,6 +7,39 @@ from .base import *
 
 DEBUG = False
 
+# ── البريد: بلا مزوّدٍ مُهيَّأ لا يُدَّعى التسليم ─────────────────────────
+# الافتراضيُّ في base.py هو `console` الذي يطبع نصَّ الرسالة (PII) في السجلّ
+# ويردّ «أُرسلت». في الإنتاج يبقى هذا الـbackend إلى أن تُضبط `EMAIL_BACKEND`
+# ومعها `EMAIL_HOST*` على الخدمات الثلاث (web/worker/beat).
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="core.mail_backends.UndeliveredEmailBackend")
+
+# ── قاعدة البيانات: بلا اتّصالاتٍ مستمرّة تحت ASGI (P4-9) ──────────────
+# base.py يقرأ `DB_CONN_MAX_AGE` من البيئة (افتراضُه 600) لخدمةٍ محلّيّةٍ WSGI
+# ولا مشكلةَ فيها. لكنّ daphne هنا يخدم الطلباتِ كلَّها — المتزامنةَ والمُدارةَ
+# بـ`sync_to_async` — على مسبح خيوطٍ واحد: اتّصالٌ «مستمرّ» يعيده Django على
+# طلبٍ لاحقٍ قد يعود إلى خيطٍ غير الذي فتحه، فتظهر أخطاءُ اتّصالٍ متقطّعة لا
+# تُعزى بسهولةٍ إلى هذا. `CONN_HEALTH_CHECKS` يبقى (يفحص قبل الاستعمال لا
+# بعده)، والتكلفةُ فتحُ اتّصالٍ جديدٍ لكلّ طلب — مقبولةٌ أمام صمتِ عطلٍ عشوائيّ.
+DATABASES["default"]["CONN_MAX_AGE"] = 0
+
+# ── statement_timeout: علمٌ صريح من البيئة، لا استنتاجٌ من العملية ─────
+# استعلامٌ معلّقٌ واحد — بلا مهلة — كان يستطيع الاستحواذ على اتّصالٍ إلى
+# الأبد تحت CONN_MAX_AGE=0 (اتصالٌ جديدٌ لكلّ طلبٍ، فلا سقفَ زمنيّاً طبيعيّاً
+# يطويه). لكنّ `settings.py` يُحمَّل بالإعدادات نفسها لثلاث عمليّاتٍ مختلفة
+# (daphne، `manage.py migrate`/`backfill_*`، عامل Celery) — ومهلةٌ عامّةٌ
+# تُخاطر بقطع هجرةٍ تُعبّئ بياناتٍ لجدولٍ ضخم، أو مهمّةَ Celery طويلة (توليد
+# الجدول موثَّقٌ بحدّه الخاصّ 900 ثانية). فالافتراضُ معطَّلٌ (0)، ويُفعَّل
+# فقط بضبط `DB_STATEMENT_TIMEOUT_MS` صراحةً على خدمة الويب في Railway —
+# لا بفحص `sys.argv`/اسم العملية (اكتشافٌ ضمنيّ يكسر بصمت، ممنوعٌ هنا
+# ومُختبَرٌ صراحةً في test_sentry_error_only_mode.py).
+_statement_timeout_ms = config("DB_STATEMENT_TIMEOUT_MS", default=0, cast=int)
+if _statement_timeout_ms > 0:
+    _db_options = DATABASES["default"].setdefault("OPTIONS", {})
+    _existing_options = _db_options.get("options", "")
+    _db_options["options"] = (
+        f"{_existing_options} -c statement_timeout={_statement_timeout_ms}"
+    ).strip()
+
 # ✅ v5.1.1: IPs المسموحة للوصول إلى /metrics (Prometheus)
 METRICS_ALLOWED_IPS = config("METRICS_ALLOWED_IPS", default="127.0.0.1,::1,10.0.0.1").split(",")
 # Railway يكتب X-Forwarded-For «العميل، قفزةُ الحافّة» — قفزةٌ واحدةٌ موثوقة.
@@ -16,6 +49,8 @@ TRUSTED_PROXY_HOPS = int(config("TRUSTED_PROXY_HOPS", default="1"))
 # ✅ v5.5: Sentry — مراقبة أذكياء (PDPPL + smart sampling + context)
 # ══════════════════════════════════════════════════════════════
 SENTRY_DSN = config("SENTRY_DSN", default="")
+# رابطُ صفحة مشكلات المشروع في Sentry — يفتحه المطوّرُ من بطاقة «أخطاء الخادم» في الإدارة (https فقط، وإلّا يُهمَل).
+SENTRY_ISSUES_URL = config("SENTRY_ISSUES_URL", default="")
 
 # [B4-7Q.1] فصلُ رصد الأخطاء عن قياس الأداء — بإعدادٍ صريح لا باستنتاج.
 #
@@ -39,7 +74,7 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.logging import LoggingIntegration
     from sentry_sdk.integrations.redis import RedisIntegration
 
-    from core.sentry_config import before_send, traces_sampler
+    from core.sentry_config import SENTRY_EXCLUDE_BEAT_TASKS, before_send, traces_sampler
 
     # [B4-7Q.1] خياراتُ الأداء كتلةٌ واحدة تُبدَّل، لا ثلاثة أسطر تُنسى واحدةً.
     #
@@ -70,7 +105,8 @@ if SENTRY_DSN:
                 cache_spans=True,  # قياس أداء cache
             ),
             CeleryIntegration(
-                monitor_beat_tasks=True,  # مراقبة Celery Beat
+                monitor_beat_tasks=True,  # مراقبة Celery Beat — للنبضة وحدها (حصّة الخطّة)
+                exclude_beat_tasks=SENTRY_EXCLUDE_BEAT_TASKS,
             ),
             RedisIntegration(),
             LoggingIntegration(
@@ -295,6 +331,13 @@ LOGGING = {
         "operations.tasks": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "operations.scheduler": {"handlers": ["console"], "level": "INFO", "propagate": False},
         "core": {"handlers": ["security_file", "console"], "level": "WARNING", "propagate": False},
+        # المحو والاحتفاظ وتدوير المفاتيح انتقلت من `core` إلى `governance` (ADR-0004):
+        # المعالجةُ نفسُها كي لا تفقد سجلَّ الأمان.
+        "governance": {
+            "handlers": ["security_file", "console"],
+            "level": "WARNING",
+            "propagate": False,
+        },
         # ✅ v5.1: Channels & WebSocket logging
         "channels": {"handlers": ["file"], "level": "WARNING", "propagate": False},
         "daphne": {"handlers": ["console"], "level": "WARNING", "propagate": False},
@@ -347,66 +390,36 @@ else:
     CONTENT_SECURITY_POLICY = None
 
 
-# ── WhiteNoise: static files مع Brotli/GZip + cache forever ──
-# يعمل دائماً في الإنتاج بغض النظر عن USE_S3
+# ── S3 Object Storage للملفات (media) — إلزاميٌّ لا اختياريّ (البند 11) ──
+# حاويةُ الويب على Railway بلا قرصٍ دائم؛ كان التراجعُ الصامتُ إلى
+# DatabaseStorage عند نقص المفاتيح يعني تضخّم القاعدة صامتاً أو فقدان ملفٍّ
+# بلا تنبيه. الآن: `USE_S3` لم يعد يُقرأ هنا أصلاً — الإنتاجُ يتطلّب S3 دائماً،
+# ويفشل عند الإقلاع (`ImproperlyConfigured`) إن نقصت مفاتيحه، لا يتراجع بصمت.
+from core.storage_config import s3_default_storage  # noqa: E402
+
+INSTALLED_APPS = [a for a in INSTALLED_APPS if a != "storages"] + ["storages"]
+_s3_storage, MEDIA_URL = s3_default_storage(
+    access_key_id=AWS_ACCESS_KEY_ID,
+    secret_access_key=AWS_SECRET_ACCESS_KEY,
+    bucket_name=AWS_STORAGE_BUCKET_NAME,
+    region_name=AWS_S3_REGION_NAME,
+    endpoint_url=AWS_S3_ENDPOINT_URL,
+    querystring_expire=AWS_QUERYSTRING_EXPIRE,
+    custom_domain=config("AWS_S3_CUSTOM_DOMAIN", default=""),
+)
 STORAGES = {
-    # الملفات المرفوعة → قاعدة البيانات (تدوم على Railway المؤقّت). S3 يتجاوزه أدناه عند USE_S3.
-    "default": {"BACKEND": "core.db_storage.DatabaseStorage"},
+    "default": _s3_storage,
+    # الملفات الثابتة → WhiteNoise (Brotli + GZip + hash → cache ∞)
     "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        "BACKEND": "core.static_storage.MinifiedManifestStaticFilesStorage",
     },
 }
-
-# ── S3 Object Storage للملفات (media) ────────────────────────
-# فعّله بـ USE_S3=true في .env ومتغيرات AWS_* / نقطة نهاية S3 متوافقة
-if USE_S3:
-    if not all([AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_STORAGE_BUCKET_NAME]):
-        import logging
-
-        logging.getLogger(__name__).warning(
-            "⚠️ USE_S3=true لكن AWS_* credentials ناقصة — سيُستخدم التخزين المحلي"
-        )
-    else:
-        INSTALLED_APPS = [a for a in INSTALLED_APPS if a != "storages"] + ["storages"]
-        STORAGES = {
-            # ملفات المستخدمين (library PDFs، صور) → S3 خاص
-            "default": {
-                "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",
-                "OPTIONS": {
-                    "bucket_name": AWS_STORAGE_BUCKET_NAME,
-                    "region_name": AWS_S3_REGION_NAME,
-                    "endpoint_url": AWS_S3_ENDPOINT_URL or None,
-                    "location": "media",
-                    "file_overwrite": False,
-                    "default_acl": "private",
-                    "querystring_auth": True,
-                    "querystring_expire": AWS_QUERYSTRING_EXPIRE,
-                    "object_parameters": {
-                        "ContentDisposition": "inline",
-                    },
-                },
-            },
-            # الملفات الثابتة → WhiteNoise (Brotli + GZip + hash → cache ∞)
-            "staticfiles": {
-                "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-            },
-        }
-        # MEDIA_URL → روابط S3 (أو CDN)
-        _cdn = config("AWS_S3_CUSTOM_DOMAIN", default="")
-        if _cdn:
-            MEDIA_URL = f"https://{_cdn}/media/"
-        elif AWS_S3_ENDPOINT_URL:
-            MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/media/"
-        else:
-            MEDIA_URL = (
-                f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/media/"
-            )
 
 # ── CDN Configuration (Cloudflare / CloudFront) ─────────────────
 CDN_DOMAIN = config("CDN_DOMAIN", default="")
 if CDN_DOMAIN:
     STATIC_URL = f"https://{CDN_DOMAIN}/static/"
-    # Media continues to use signed S3 URLs if USE_S3 is enabled
+    # الملفّاتُ المرفوعة تبقى بروابط S3 الموقَّعة — لا تتأثّر بهذا النطاق
 
 # ── التحقق من ALLOWED_HOSTS ──────────────────────────────────
 if not ALLOWED_HOSTS or ALLOWED_HOSTS == [""]:
@@ -450,3 +463,15 @@ if _unsafe_cors:
         "الإنتاج: %s. عيّنها بالنطاقات الصحيحة (https://...)",
         _unsafe_cors,
     )
+
+# ── فحوصُ النظام: ما يُسكَت وسببُه ─────────────────────────────────────
+#
+# `manage.py check --deploy --fail-level WARNING` بوّابةُ دمجٍ (وظيفةُ django-check في
+# security-scan.yml). وتحذيراتُ drf-spectacular W001/W002 تخصّ **توثيقَ** واجهة API — أنواعٌ
+# ومُسلسِلاتٌ ناقصةٌ في api/ (26 تحذيراً يومَ 2026-09-25) — لا أمانَ النشر. هي دَينٌ معلَنٌ لا
+# يُصفَّر في طلبٍ واحد، وقد كانت تُخفيها بوّابةٌ لا تفشل؛ فلمّا صدقت البوّابةُ لم يجزْ أن
+# تُغلق الدمجَ على ما ليس من اختصاصها.
+#
+# تُسكَتُ بالمعرِّف لا بالفحص كلِّه: أخطاؤه وأيُّ فحصٍ آخر يبقى حاكماً. ولا تتّسع القائمةُ إلا بسببٍ
+# مكتوبٍ هنا، ويحرسها tests/test_security_gate.py (فمن زاد معرِّفاً عدّل الحارسَ وسُئل عنه في المراجعة).
+SILENCED_SYSTEM_CHECKS = ["drf_spectacular.W001", "drf_spectacular.W002"]

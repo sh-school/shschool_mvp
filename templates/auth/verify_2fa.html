@@ -24,7 +24,7 @@
 
       {% if messages %}
         {% for msg in messages %}
-        <div class="msg-bar mb-4 {% if msg.tags == 'error' %}msg-error{% else %}msg-success{% endif %}">
+        <div class="msg-bar mb-4 {% if msg.tags == 'error' %}msg-error{% else %}msg-success{% endif %}" role="{% if msg.tags == 'error' %}alert{% else %}status{% endif %}">
           <span>{{ msg }}</span>
         </div>
         {% endfor %}
@@ -38,15 +38,15 @@
           <input type="text"
                  id="f-code"
                  name="code"
-                 maxlength="6"
+                 maxlength="7"
                  inputmode="numeric"
-                 pattern="[0-9]{6}"
+                 pattern="[0-9]{3} ?[0-9]{3}"
                  autocomplete="one-time-code"
                  autofocus
                  aria-describedby="f-code-help"
                  placeholder="• • • • • •"
                  class="form-control text-center text-2xl font-mono tracking-widest">
-          <p id="f-code-help" class="form-hint text-center mt-2">الرمز يتجدد كل 30 ثانية</p>
+          <p id="f-code-help" class="ui-field-hint text-center mt-2">الرمز يتجدد كل 30 ثانية</p>
         </div>
 
         <button type="submit" class="btn-primary w-full py-3">

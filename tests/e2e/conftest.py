@@ -78,10 +78,14 @@ def login(page, live_server):
 
     def _login(user, password="TestPass123!"):
         page.goto(f"{live_server.url}/auth/login/")
-        page.fill('input[name="national_id"]', user.national_id)
+        page.fill('input[name="identifier"]', user.national_id)
         page.fill('input[name="password"]', password)
         page.click('button[type="submit"]')
-        page.wait_for_url("**/dashboard/**", timeout=10000)
+        # `dashboard` يعيد توجيه أدوارٍ كالوليّ إلى مسارها الخاصّ (`parent_dashboard`)
+        # فوراً — انتظارُ `/dashboard/**` حرفياً كان يعلّق. عدمُ البقاء في صفحة
+        # الدخول نفسِها هو الدليل الفعليّ على نجاح الدخول، لا اسمُ الوجهة.
+        page.wait_for_load_state("networkidle")
+        page.wait_for_function("!location.pathname.includes('/auth/login')", timeout=10000)
         return page
 
     return _login

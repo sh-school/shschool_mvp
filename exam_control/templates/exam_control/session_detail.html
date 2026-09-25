@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load ui %}
+{% load icons ui %}
 {% block title %}{{ session.name }}{% endblock %}
 
 {% block breadcrumbs %}
@@ -9,8 +9,8 @@
 {% block content %}
 <div class="exec-dash">
 
-  {% page_header session.name subtitle=session.get_status_display icon="clipboard-check" %}
-    <a data-app-file href="{% url 'exam_control:session_report_pdf' session.pk %}" class="btn-secondary btn-sm">{% include "components/icon.html" with name="file-text" %} تقرير PDF</a>
+  {% page_header session.name subtitle=session.get_status_display icon="exam_control" %}
+    <a data-app-file href="{% url 'exam_control:session_report_pdf' session.pk %}" class="btn-secondary btn-sm">{% icon "export_pdf" %} تقرير PDF</a>
     <a href="{% url 'exam_control:dashboard' %}" class="btn-ghost btn-sm">كلُّ الدورات</a>
   {% endpage_header %}
 
@@ -22,13 +22,13 @@
   {% endkpi_strip %}
 
   <nav class="ui-actions" aria-label="إجراءات الدورة">
-    {% url 'exam_control:supervisors' session.pk as u %}{% action_tile "تشكيل الكنترول" desc="المشرفون وقاعاتُهم" icon="users" href=u primary=True %}
-    {% url 'exam_control:schedule' session.pk as u %}{% action_tile "الجدول" desc="الموادُّ والقاعاتُ والأوقات" icon="calendar" href=u %}
-    {% url 'exam_control:incident_add' session.pk as u %}{% action_tile "تسجيل حادث" desc="محضرُ حادثةٍ اختباريّة" icon="alert-triangle" href=u %}
-    {% url 'exam_control:grade_sheets' session.pk as u %}{% action_tile "أوراق الرصد" desc="الرصدُ والتصحيح" icon="clipboard" href=u %}
+    {% url 'exam_control:supervisors' session.pk as u %}{% action_tile "تشكيل الكنترول" desc="المشرفون وقاعاتُهم" icon="supervisors" href=u primary=True %}
+    {% url 'exam_control:schedule' session.pk as u %}{% action_tile "الجدول" desc="الموادُّ والقاعاتُ والأوقات" icon="schedule" href=u %}
+    {% url 'exam_control:incident_add' session.pk as u %}{% action_tile "تسجيل حادث" desc="محضرُ حادثةٍ اختباريّة" icon="status_warning" href=u %}
+    {% url 'exam_control:grade_sheets' session.pk as u %}{% action_tile "أوراق الرصد" desc="الرصدُ والتصحيح" icon="grade_sheets" href=u %}
   </nav>
 
-  {% section_card "جدول الاختبارات" meta=schedules|length icon="calendar" flush=True empty="لا جدولَ بعد" %}{% if schedules %}
+  {% section_card "جدول الاختبارات" meta=schedules|length icon="schedule" flush=True empty="لا جدولَ بعد" %}{% if schedules %}
     {% include "exam_control/_schedule_table.html" %}
   {% endif %}{% endsection_card %}
 

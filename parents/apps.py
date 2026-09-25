@@ -14,7 +14,6 @@ class ParentsConfig(AppConfig):
             name="parents",
             label="بوابة أولياء الأمور",
             url_prefix="/parents/",
-            icon="bi-people",
             allowed_roles={"parent", "principal", "vice_admin", "vice_academic", "admin"},
             sidebar_roles={"parent"},
             # الكادرُ الذي هو وليُّ أمرٍ أيضاً يدخل بوّابتَه بعضويّته تلك لا بدوره

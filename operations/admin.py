@@ -39,6 +39,8 @@ class AttendanceInline(admin.TabularInline):
 @admin.register(Session)
 class SessionAdmin(admin.ModelAdmin):
     list_display = ("class_group", "subject", "teacher", "date", "start_time", "status")
+    # الأعمدةُ و`__str__` تقرأ هذه العلاقات لكلّ صفّ — تُجلب في استعلام القائمة نفسه (كانت ~25 سؤالاً للصفحة).
+    list_select_related = ("class_group", "subject", "teacher")
     list_filter = ("school", "status", "date")
     search_fields = ("teacher__full_name", "class_group__section")
     autocomplete_fields = ("teacher", "class_group", "subject")
@@ -49,6 +51,8 @@ class SessionAdmin(admin.ModelAdmin):
 @admin.register(StudentAttendance)
 class StudentAttendanceAdmin(admin.ModelAdmin):
     list_display = ("student", "session", "status", "marked_by", "marked_at")
+    # الأعمدةُ و`__str__` تقرأ هذه العلاقات لكلّ صفّ — تُجلب في استعلام القائمة نفسه (كانت ~25 سؤالاً للصفحة).
+    list_select_related = ("student", "session__subject", "session__class_group", "marked_by")
     list_filter = ("status", "school")
     search_fields = ("student__full_name", "student__national_id")
     autocomplete_fields = ("student", "marked_by", "session")
@@ -77,6 +81,8 @@ class ScheduleSlotAdmin(admin.ModelAdmin):
         "end_time",
         "is_active",
     )
+    # الأعمدةُ و`__str__` تقرأ هذه العلاقات لكلّ صفّ — تُجلب في استعلام القائمة نفسه (كانت ~25 سؤالاً للصفحة).
+    list_select_related = ("teacher", "class_group", "subject")
     list_filter = ("school", "day_of_week", "is_active", "academic_year")
     search_fields = ("teacher__full_name", "class_group__section", "subject__name_ar")
     autocomplete_fields = ("teacher", "class_group", "subject")
@@ -131,6 +137,8 @@ class SubjectClassAssignmentAdmin(admin.ModelAdmin):
         "double_period",
         "is_active",
     )
+    # الأعمدةُ و`__str__` تقرأ هذه العلاقات لكلّ صفّ — تُجلب في استعلام القائمة نفسه (كانت ~25 سؤالاً للصفحة).
+    list_select_related = ("subject", "class_group", "teacher")
     list_filter = (
         "school",
         "academic_year",
@@ -142,7 +150,6 @@ class SubjectClassAssignmentAdmin(admin.ModelAdmin):
     search_fields = ("teacher__full_name", "subject__name_ar", "class_group__section")
     autocomplete_fields = ("teacher", "class_group", "subject")
     list_editable = ("weekly_periods", "requires_lab", "double_period", "is_active")
-    list_per_page = 50
 
 
 @admin.register(SchedulingResource)

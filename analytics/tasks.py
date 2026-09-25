@@ -122,7 +122,9 @@ def send_monthly_kpi_report(self, school_id=None):
                     mimetype="application/pdf",
                 )
 
-                email.send(fail_silently=False)
+                if not email.send(fail_silently=False):
+                    logger.error("تقرير KPIs لم يُسلَّم للمدرسة %s: لا مزوّد بريد", school.name)
+                    continue
 
                 logger.info(
                     "تقرير KPIs أُرسل إلى %s " "للمدرسة %s",

@@ -23,14 +23,15 @@
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from operations.bells import REGULAR, THURSDAY, Bell, bells_for
 from operations.models import ScheduleSlot
 
 if TYPE_CHECKING:
-    from core.models import School
+    from core.models import CustomUser, School
 
 #: عددُ الحصص في اليوم وعددُ أيّام الدراسة — شكلُ `days` في `ScheduleService`.
 PERIODS = 7
@@ -65,6 +66,11 @@ BAND_LABELS = {
     "ninth": "تاسع \u20663-4\u2069",
     "secondary": "الثانويّ",
 }
+
+#: لونُ تمييز عمود الاستراحة بطابقه — على الشاشة وحدها (2026-09-18)، ليعرف
+#: معلّمُ الطابقين أيَّ صلاةٍ لأيّ طابقٍ بلمحةٍ لا بفتح الخليّة. مفتاحُه نصُّ
+#: `BAND_LABELS` نفسُه، فيبقى صحيحاً لو تغيّر اسمُ طابقٍ يوماً.
+BAND_COLOR_CLASS = {label: f"band-{code}" for code, label in BAND_LABELS.items()}
 
 
 def band_label(bell: Bell) -> str:
@@ -111,6 +117,15 @@ def _day_breaks(bands: list[str], table: dict[str, Bell]) -> list[tuple[int, Bre
     ]
 
 
+def cell_kind(slots: Iterable[Any] | None) -> str:
+    """نوعُ أوّل حصّةٍ حُوّل معلّمُها في خانة: `swap` أو `cover` أو `comp` — وفارغٌ لغيرها.
+
+    وحصصُ الخطّة بلا `kind` أصلاً، فخانتُها فارغةُ العلامة. تقرؤه الشبكةُ (`week_layout`) والجدولُ
+    العامّ (`{{ cell|cell_kind }}`) وExcel — فلا تختلف علامةُ الخانة بين مخرجٍ ومخرج.
+    """
+    return next((kind for slot in slots or () if (kind := getattr(slot, "kind", ""))), "")
+
+
 def week_layout(
     days: list, bands_by_day: list[list[str]], tables: dict[str, dict[str, Bell]]
 ) -> dict:
@@ -136,11 +151,18 @@ def week_layout(
             columns.append({"kind": "period", "number": number})
         if number in positions:
             names = {item.label for breaks in per_day for after, item in breaks if after == number}
+            # طابقُ العمود: صحيحٌ فقط حين يتّفق كلُّ يومٍ يستعمل هذا الموضع على
+            # الاسم نفسه — فموضعٌ يخدم طابقين مختلفين في يومين مختلفين لا يُنسب
+            # لأحدهما كذباً، ويبقى بلا لونٍ في الترويسة.
+            bands = {item.band for breaks in per_day for after, item in breaks if after == number}
+            band = bands.pop() if len(bands) == 1 else ""
             columns.append(
                 {
                     "kind": "break",
                     "after": number,
                     "label": names.pop() if len(names) == 1 else "استراحة",
+                    "band": band,
+                    "band_class": BAND_COLOR_CLASS.get(band, ""),
                 }
             )
 
@@ -152,16 +174,120 @@ def week_layout(
             if column["kind"] == "period":
                 slots = cells[column["number"] - 1]
                 # الخانةُ المشتركةُ (حصّتان متوازيتان) بخطٍّ أصغر: كانت تُقصّ توقيتَ ثانيتهما.
-                entries.append({"kind": "period", "slots": slots, "multi": len(slots) > 1})
+                entries.append(
+                    {
+                        "kind": "period",
+                        "number": column["number"],
+                        "slots": slots,
+                        "multi": len(slots) > 1,
+                        # حصّةٌ حُوّل معلّمُها (أسبوعٌ فعليّ) تُلوَّن خانتُها — والخطّةُ بلا `kind`.
+                        "change": cell_kind(slots),
+                    }
+                )
             else:
                 entries.append(
                     {
                         "kind": "break",
                         "items": [item for after, item in per_day[d] if after == column["after"]],
+                        "band_class": column["band_class"],
                     }
                 )
         lines.append({"day": day_names[d], "entries": entries})
     return {"columns": columns, "lines": lines, "break_count": len(positions)}
+
+
+#: قراراتٌ ثلاثةٌ فقط تُلوَّن في الجدول (قرارُ المستخدم 2026-09-18) — «لتوليد
+#: الجدول» أداةُ تشكيلٍ لا قرارَ جهةٍ (انظر `TeacherExemption.SOFT_SOURCES`)،
+#: و«أخرى» فئةٌ مبهمةٌ لا تستحقّ لوناً مخصَّصاً. والصنفُ والتسميةُ والحرفُ
+#: القصيرُ من مصدرٍ واحدٍ هنا. والحرفُ لخانة الجدول العامّ الضيّقة (13px) —
+#: لا تسع تسميةً كاملةً كخلايا جدول المعلم الفردي فتُقرأ نصّاً هناك.
+EXEMPTION_COLORS: dict[str, tuple[str, str, str]] = {
+    "ministry": ("exempt-ministry", "قرارُ الوزارة", "و"),
+    "school": ("exempt-school", "قرارُ إدارة المدرسة", "إ"),
+    "department": ("exempt-department", "قرارُ القسم الأكاديميّ", "ق"),
+}
+
+
+def _fill_exemption_map(out: dict, day: int, period: int | None, source: str, reason: str) -> None:
+    """يومٌ كاملٌ يملأ حصصَه السبع بمصدره وسببه نفسيهما؛ وحصّةٌ بعينها خانتُها وحدها."""
+    if period is None:
+        for p in range(1, PERIODS + 1):
+            out[(day, p)] = (source, reason)
+    else:
+        out[(day, period)] = (source, reason)
+
+
+def teacher_exemption_map(
+    school: School, teacher: CustomUser, year: str
+) -> dict[tuple[int, int], tuple[str, str]]:
+    """(يوم، حصّة) ← (مصدرُ تفريغه، سببُه) — لمعلّمٍ واحد، وللقرارات الثلاثة الملوَّنة وحدها.
+
+    والخانةُ المشغولةُ فعلاً (تعارضٌ سابقُ التوليد) لا تُلوَّن — التلوينُ حكمٌ
+    على الفراغ لا فوق حصّةٍ قائمة. لجدول العام (معلّمون كثيرون معاً) انظر
+    `colored_exemptions_by_teacher` — استعلامٌ واحدٌ لا واحدٌ لكلّ معلّم.
+    """
+    from operations.models import TeacherExemption
+
+    rows = TeacherExemption.objects.filter(
+        school=school,
+        teacher=teacher,
+        academic_year=year,
+        is_active=True,
+        source__in=EXEMPTION_COLORS,
+    ).values_list("day_of_week", "period_number", "source", "reason")
+
+    out: dict[tuple[int, int], tuple[str, str]] = {}
+    for day, period, source, reason in rows:
+        _fill_exemption_map(out, day, period, source, reason)
+    return out
+
+
+def colored_exemptions_by_teacher(school: School, year: str) -> dict:
+    """معلّمٌ ← {(يوم، حصّة): (مصدر، سبب)} — استعلامٌ واحدٌ للمدرسة كلِّها.
+
+    الجدولُ العامّ سطرٌ لكلّ معلّمٍ من عشرات: استعلامٌ لكلّ سطرٍ سبعون
+    استعلاماً إضافيّاً على صفحةٍ واحدة (`N+1`) — وهذه نظيرتُها الجماعيّة.
+    """
+    from operations.models import TeacherExemption
+
+    rows = TeacherExemption.objects.filter(
+        school=school,
+        academic_year=year,
+        is_active=True,
+        source__in=EXEMPTION_COLORS,
+    ).values_list("teacher_id", "day_of_week", "period_number", "source", "reason")
+
+    out: dict = {}
+    for teacher_id, day, period, source, reason in rows:
+        _fill_exemption_map(out.setdefault(teacher_id, {}), day, period, source, reason)
+    return out
+
+
+def annotate_teacher_exemptions(
+    week: dict, exemption_map: dict[tuple[int, int], tuple[str, str]]
+) -> None:
+    """يضع صنفَ التلوين والسببَ على خانات الفراغ التي تطابق `exemption_map`.
+
+    الخليّةُ تكتب سببَ التفريغ («دورةٌ في الوزارة») لا اسمَ جهته («قرارُ
+    الوزارة») — ذاك تقوله الألوانُ نفسُها وشريطُ تفسيرها أسفل الجدول
+    (قرارُ المستخدم 2026-09-18)، فتكرارُه في كلّ خليّةٍ نثرٌ لا يزيد شيئاً.
+    واسمُ الجهة يبقى في `title` الخليّة للتلميح عند الحاجة.
+
+    يُعدَّل `week["lines"]` في مكانه — نداءٌ بعد `week_layout` مباشرةً، لا بديلٌ
+    عنها: تلك تبني الأعمدة والصفوف، وهذه تُلوّن ما بُني.
+    """
+    for day_index, line in enumerate(week["lines"]):
+        for entry in line["entries"]:
+            if entry["kind"] != "period" or entry["slots"]:
+                continue
+            found = exemption_map.get((day_index, entry["number"]))
+            if not found:
+                continue
+            source, reason = found
+            css_class, label, _letter = EXEMPTION_COLORS[source]
+            entry["exemption_class"] = css_class
+            entry["exemption_label"] = label
+            entry["exemption_reason"] = reason
 
 
 def grid_to_days(grid: dict) -> list:
@@ -208,6 +334,8 @@ class PaperGeometry:
     font_scale: float
     break_col_w: float
     day_col_w: float
+    #: شريطُ المفتاح والملاحظات أسفل الجدول (الأسبوعُ الفعليّ) — صفرٌ للخطّة فلا يتبدّل مقاسُها.
+    notes_h: float = 0.0
 
     @property
     def content_w(self) -> float:
@@ -219,8 +347,10 @@ class PaperGeometry:
 
     @property
     def bands_h(self) -> float:
-        gaps = self.gap * (3 if self.who_h else 2)
-        return self.header_h + self.who_h + self.thead_h + self.footer_h + gaps + self.safety
+        gaps = self.gap * (3 if self.who_h else 2) + (self.gap if self.notes_h else 0)
+        return (
+            self.header_h + self.who_h + self.thead_h + self.footer_h + self.notes_h + gaps
+        ) + self.safety
 
     @property
     def row_h(self) -> float:
@@ -250,6 +380,7 @@ class PaperGeometry:
             "content_w": mm(self.content_w),
             "header_h": mm(self.header_h),
             "who_h": mm(self.who_h),
+            "notes_h": mm(self.notes_h),
             "thead_h": mm(self.thead_h),
             "footer_h": mm(self.footer_h),
             "gap": mm(self.gap),
@@ -273,11 +404,20 @@ _SHEETS[("a3", "landscape")] = (420, 297)
 _SHEETS[("a3", "portrait")] = (297, 420)
 
 
-def paper_geometry(paper: str, orient: str, *, with_who: bool) -> PaperGeometry:
+#: ارتفاعُ سطرٍ من شريط المفتاح والملاحظات: خطُّ 6.5pt بتباعدٍ يسع سطراً بلا قصّ.
+STRIP_LINE_H = 3.4
+
+
+def paper_geometry(
+    paper: str, orient: str, *, with_who: bool, strip_lines: int = 0
+) -> PaperGeometry:
     """مقاسُ ورقة المعلّم أو الشعبة.
 
     `with_who`: سطرُ «المعلّم · القسم · المنسّق» في ورقة الصفحات، ولا سطرَ له في
     الجدول المطبوع (العنوانُ يحمل الاسم).
+
+    `strip_lines`: سطورُ شريط المفتاح والملاحظات أسفل جدول الأسبوع الفعليّ — تُقتطع من ارتفاع
+    الصفوف فتبقى الورقةُ صفحةً واحدة.
 
     والخطُّ يكبر على A3 بقدرٍ معتدل: الخانةُ تتّسع ضعفَها تقريباً، وخطُّ A4 فيها
     يتيه في بياضها.
@@ -302,4 +442,5 @@ def paper_geometry(paper: str, orient: str, *, with_who: bool) -> PaperGeometry:
         font_scale=1.5 if paper == "a3" else 1.0,
         break_col_w=16 if paper == "a3" else 12,
         day_col_w=20 if paper == "a3" else 16,
+        notes_h=round(STRIP_LINE_H * strip_lines, 1),
     )

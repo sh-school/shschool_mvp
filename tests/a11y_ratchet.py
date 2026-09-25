@@ -270,7 +270,7 @@ def _scrolling_classes(css: str) -> set[str]:
 @functools.lru_cache(maxsize=4)
 def _sheet_scroll_classes(css_dir: pathlib.Path) -> frozenset[str]:
     names: set[str] = set()
-    for sheet in sorted(css_dir.glob("*.css")):
+    for sheet in sorted(css_dir.rglob("*.css")):
         # مصدرُ Tailwind قبل البناء يذكر الأصنافَ ولا يعرّفها.
         if sheet.name.endswith("_input.css"):
             continue

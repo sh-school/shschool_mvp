@@ -60,9 +60,9 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -109,7 +109,7 @@ jobs:
             --cov=. --cov-report=xml:coverage.xml --cov-report=html:htmlcov
 
       - name: رفع تقارير التغطية
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: coverage-report
@@ -148,9 +148,9 @@ jobs:
     name: Ruff — lint + format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -176,9 +176,9 @@ jobs:
     name: mypy — سقّاطة الأنواع
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -190,9 +190,9 @@ jobs:
           sudo apt-get install -y --no-install-recommends libcairo2-dev pkg-config
 
       - name: تثبيت mypy + stubs
-        run: |
-          pip install mypy==1.10.0 django-stubs==5.0.2 \
-            djangorestframework-stubs==3.15.0
+        # الإصداراتُ من requirements-mypy.txt وحدَه (OWN-30) — الملفُّ نفسُه الذي يستدعيه requirements-dev.txt،
+        # فما يقيسه المطوّرُ محلّيّاً هو ما تحكم به البوّابة. لا إصدارَ حرفيّاً هنا (يحرسه tests/test_mypy_pins_are_one_source.py).
+        run: pip install -r requirements-mypy.txt
 
       - name: تثبيت المتطلبات (لحل أنواع Django)
         run: pip install -r requirements.txt
@@ -238,16 +238,26 @@ jobs:
       EXCEL_PROTECTION_PASSWORD: ci-testing-only
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # التاريخُ كاملاً: `--git-commit-id` يقارن بفرع الأساس، وهو أسلافُ
           # رأس الفرع أصلاً (طلبُ الدمج/طابورُ الدمج) — لا حاجةَ لجلبٍ إضافيّ.
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
+
+      - name: تثبيت مكتبات النظام (Cairo)
+        # بلا هذه: pip يبني pycairo من المصدر (لا عجلةَ منشورةً له على PyPI)
+        # ويسقط بـ`Dependency "cairo" not found` — كان يمرّ صدفةً بذاكرة pip
+        # المؤقّتة لعجلةٍ بُنيت لإصدارٍ مثبَّتٍ سابقاً، فكشفه أوّلُ ترقية
+        # (1.29.0 → 1.29.1، PR #364).
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libcairo2-dev pkg-config
 
       - name: تحديد الأساس للمقارنة
         run: |
@@ -284,9 +294,9 @@ jobs:
     name: Radon — تعقيد CC ≤ 30
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -336,9 +346,9 @@ jobs:
     name: detect-secrets — كشف الأسرار
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -346,25 +356,11 @@ jobs:
         run: pip install detect-secrets==1.5.0
 
       - name: حارسُ البيانات الشخصيّة — لا رقمَ شخصيّاً ولا جوّالاً حقيقيّاً في مستودعٍ عامّ
-        # المستودعُ عامّ، وخطرُه الحقيقيُّ ليس نسخَ الكود بل أن يتسرّب ملفٌّ فيه
-        # أرقامٌ شخصيّةٌ أو جوّالاتٌ حقيقيّةٌ بغلطةِ إيداع — فيصير حادثةَ PDPPL على
-        # الملأ. والبادئةُ `[23]` لا `2` وحدَها (ثغرةٌ سُدّت 2026-09-11): الرقمُ
-        # القطريُّ يبدأ برقم القرن، فمواليدُ الألفيّة يبدأ رقمُهم بـ3 — وهم أكثرُ
-        # طلبة المدرسة، فكان الحارسُ يمسك الكادرَ ويترك الطلبةَ يمرّون. البياناتُ الحقيقيّةُ في `data/` و`backups/` يتجاهلها git، وهذا
-        # الحارسُ يرفض ما يفلت. الاختباراتُ والوثائقُ خارجَ الفحص، وأنماطُ العيّنات
-        # المصطنعة المعروفةُ مسموحة.
-        run: |
-          set -o pipefail
-          hits=$(git grep -nIE '(\b[23][0-9]{10}\b|\+974[0-9]{8}\b)' -- \
-            ':!tests/*' ':!*/tests/*' ':!*/tests.py' ':!docs/*' ':!*.md' ':!static/*' \
-            ':!*/migrations/*' ':!*.lock' ':!package-lock.json' \
-            | grep -vE '2900000000[0-9]|29012345678|29099999999|28765432101|28760000001|28001234567|29812345678|\+9745500000[0-9]|\+97466123456' || true)
-          if [ -n "$hits" ]; then
-            echo "::error::أرقامٌ شخصيّةٌ أو جوّالاتٌ تشبه الحقيقيّة في ملفّاتٍ متتبَّعة — لا تُودَع في مستودعٍ عامّ:"
-            echo "$hits"
-            exit 1
-          fi
-          echo "لا أرقامَ شخصيّةً ولا جوّالاتٍ حقيقيّةً في الملفّات المتتبَّعة."
+        # المنطقُ كلُّه في `scripts/check_personal_data.py` (وتحرسه `tests/test_personal_data_guard.py`).
+        # كان `grep` هنا يستثني `tests/` فبقي فيها رقمٌ حقيقيٌّ لمعلّم، ويحكم على السطر لا على الرمز،
+        # ويطبع الأرقامَ كاملةً في هذا السجلّ وهو عامّ. والبياناتُ الحقيقيّةُ في `data/` و`backups/`
+        # يتجاهلها git، وهذا الحارسُ يرفض ما يفلت.
+        run: python scripts/check_personal_data.py
 
       - name: فحص الأسرار المسربة — سرٌّ ليس في السجلّ يُسقط البوّابة
         # كان `detect-secrets scan … || true` ثمّ عدٌّ للجديد يُطبع ولا يُقارن —
@@ -392,6 +388,180 @@ jobs:
           esac
 
   # ══════════════════════════════════════════════════════
+  #  6. axe-core — وصوليّةٌ على صفحاتٍ مرسومةٍ فعلياً (P2-1، خارطة الهوية البصرية)
+  # ══════════════════════════════════════════════════════
+  #  `tests/a11y_ratchet.py` يفحص مصدر القالب نصّياً؛ هذا يفتح الصفحةَ في متصفّحٍ
+  #  حقيقيّ (Playwright + Chromium) بعد تسجيل دخولٍ فعليّ، ويُشغّل محرّك axe-core
+  #  نفسَه — فيُمسك ما لا يظهر في المصدر (تبايناً محسوباً، دَوراً مُركَّباً من
+  #  CSS/JS معاً). الخطُّ الأساس لا يبدأ من صفر — سُجِّل بمخالفتين حقيقيّتين
+  #  موجودتين فعلاً (2026-09-18)؛ الحارسُ يمنع الزيادة لا يُصلحهما الآن.
+  axe-a11y:
+    name: axe-core — وصوليّةٌ حيّة
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB:       test_db
+          POSTGRES_USER:     test_user
+          POSTGRES_PASSWORD: test_pass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+      SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
+      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
+      EXCEL_PROTECTION_PASSWORD: ci-testing-only
+      # Playwright يستعمل حلقةَ أحداثٍ داخليّةً (greenlet) تُخطئ حارسَ Django غير
+      # المتزامن ظنّاً منه أنّه استُدعي من سياقٍ غير متزامن — وهو ليس كذلك، لا
+      # استدعاءَ ORM حقيقيّاً من طريقٍ غير متزامن هنا.
+      DJANGO_ALLOW_ASYNC_UNSAFE: "1"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libgdk-pixbuf2.0-dev \
+            libffi-dev \
+            shared-mime-info \
+            pkg-config
+
+      - name: تثبيت المتطلبات
+        # حزمٌ محدّدة لا `requirements-dev.txt` كاملاً — فيه مسافةٌ لتعارضٍ
+        # سابقٍ بين click وmutmut غيرِ متعلّقٍ بهذه الوظيفة (كما تفعل وظيفتا
+        # pytest وmypy أعلاه، كلٌّ يثبّت ما يحتاجه فقط).
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-django factory-boy \
+            pytest-playwright==0.9.0 axe-playwright-python==0.1.8
+
+      # WebKit (محرّكُ iOS Safari) لسقّاطة الجوال وحدها (Q-02)؛ وaxe وCore Web Vitals على Chromium.
+      - name: تثبيت متصفّحَي Chromium وWebKit (مع مكتبات النظام)
+        run: playwright install --with-deps chromium webkit
+
+      - name: تطبيق Migrations
+        run: python manage.py migrate --noinput
+
+      - name: axe-core على الصفحات الحيّة
+        run: python -m pytest tests/test_a11y_axe_ratchet.py -v
+
+      # ميزانية Core Web Vitals (P3-3): الخطوةُ هنا لا في وظيفةٍ جديدة — المتصفّحُ
+      # والخدمات والهجراتُ جاهزةٌ. ولا يُعاد تسمية الوظيفة: اسمُها هو اسمُ الفحص
+      # المطلوب في حماية الفرع وطابور الدمج، وتبديلُه يُعلّق الدمج على اسمٍ لا يصل.
+      - name: ميزانية Core Web Vitals على الصفحات الحيّة
+        run: python -m pytest tests/test_web_vitals_budget.py tests/test_action_cards_fit_narrow_screens.py -v -s
+
+      # سقّاطةُ الجوال (M-00، خطّة الجوال §3): أهدافُ اللمس والنصّ والتجاوز على رحلات خمسة
+      # أدوار، جوالاً بالمحرّكَين وسطحَ مكتبٍ بـChromium. الخطوةُ هنا لا في وظيفةٍ جديدة للسبب أعلاه.
+      - name: سقّاطة الجوال على الرحلات الحيّة
+        run: python -m pytest tests/test_mobile_audit.py -v
+
+  # ══════════════════════════════════════════════════════
+  #  6b. tests/e2e/ — Playwright: مصادقة، تنقّل، صلاحياتُ أدوار (أُحييت 2026-09-19)
+  # ══════════════════════════════════════════════════════
+  #  كانت مستثناةً استثناءً مضاعفاً (norecursedirs + collect_ignore_glob) منذ
+  #  إنشائها — pytest-playwright نفسُه لم يكن مثبَّتاً، فلم تُجمَع قطّ. فُحص كلُّ
+  #  ملفٍّ (6) يدوياً: 17 من 39 اختباراً كانت تفشل فعلياً لأسبابٍ حقيقيّةٍ متعدّدة
+  #  (حقلُ دخولٍ قديم، صيغةُ Playwright API غير مدعومة، `locator("nav")` مبهمٌ
+  #  بعد صار للصفحة عدّةُ معالم nav، وسياسةُ صلاحياتٍ تغيّرت فعلاً) — أُصلحت
+  #  كلُّها، ثمّ أُحيي المجلّدُ هنا. كلُّ ملفٍّ يتخطّى نفسَه بـ
+  #  `pytest.importorskip("pytest_playwright")` إن غابت الحزمة (كوظيفة
+  #  `pytest — تغطية` الرئيسية).
+  e2e:
+    name: Playwright — e2e (مصادقة، تنقّل، صلاحيات)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB:       test_db
+          POSTGRES_USER:     test_user
+          POSTGRES_PASSWORD: test_pass
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+      SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
+      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
+      EXCEL_PROTECTION_PASSWORD: ci-testing-only
+      DJANGO_ALLOW_ASYNC_UNSAFE: "1"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libgdk-pixbuf2.0-dev \
+            libffi-dev \
+            shared-mime-info \
+            pkg-config
+
+      - name: تثبيت المتطلبات
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-django factory-boy pytest-playwright==0.9.0
+
+      - name: تثبيت متصفّح Chromium (مع مكتبات النظام)
+        run: playwright install --with-deps chromium
+
+      - name: تطبيق Migrations
+        run: python manage.py migrate --noinput
+
+      - name: اختبارات Playwright الشاملة
+        run: python -m pytest tests/e2e/ -v
+
+  # ══════════════════════════════════════════════════════
   #  نافذة النشر — الدمجُ إلى main نشرٌ فوريّ (حادثة 2026-09-17)
   # ══════════════════════════════════════════════════════
   #  هنا لا في سير عملٍ مستقلّ: «ملخص بوابة الجودة» هو الفحصُ الإلزاميّ في طابور
@@ -404,7 +574,7 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: الأحد–الخميس 07:00–14:00 بتوقيت قطر ممنوع إلّا «نشر-عاجل»
         env:
           GH_TOKEN: ${{ github.token }}
@@ -414,12 +584,34 @@ jobs:
         run: python3 scripts/deploy_window.py
 
   # ══════════════════════════════════════════════════════
+  #  تحذيرٌ لا حظر — لا يدخل «ملخص بوابة الجودة» ولا يُسقط شيئاً. سواط
+  #  2026-09-17: ثلاثةُ طلباتٍ مفتوحةٍ عدّلت base.html في آنٍ واحد بلا علم
+  #  أصحابها ببعضهم؛ وقبلها طلبان نفّذا البندَ نفسَه خلال 28 دقيقة. القواعدُ
+  #  في scripts/pr_file_collision.py.
+  pr-file-collision:
+    name: تعارضُ ملفّاتٍ بين الطلبات المفتوحة — تحذير
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: مقارنةُ ملفّات هذا الطلب بالطلبات المفتوحة الأخرى
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: python3 scripts/pr_file_collision.py
+
+  # ══════════════════════════════════════════════════════
   #  ملخص بوابة الجودة
   # ══════════════════════════════════════════════════════
   gate-summary:
     name: ملخص بوابة الجودة
     runs-on: ubuntu-latest
-    needs: [test-coverage, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window]
+    needs: [test-coverage, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window, axe-a11y, e2e, tailwind-build]
     if: always()
     steps:
       - name: نتيجة بوابة الجودة
@@ -434,6 +626,9 @@ jobs:
           echo "| Radon CC ≤ 30 | ${{ needs.complexity.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| detect-secrets | ${{ needs.secrets-scan.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| نافذة النشر (لا دمج وقت الدوام) | ${{ needs.deploy-window.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| axe-core — وصوليّةٌ حيّة | ${{ needs.axe-a11y.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Playwright — e2e | ${{ needs.e2e.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tailwind — البناءُ الملتزَم محدَّث | ${{ needs.tailwind-build.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: فشل إذا فشل أي فحص
         if: >-
@@ -443,7 +638,10 @@ jobs:
           needs.migration-linter.result != 'success' ||
           needs.complexity.result != 'success' ||
           needs.secrets-scan.result != 'success' ||
-          needs.deploy-window.result != 'success'
+          needs.deploy-window.result != 'success' ||
+          needs.axe-a11y.result != 'success' ||
+          needs.e2e.result != 'success' ||
+          needs.tailwind-build.result != 'success'
         run: |
           echo "::error::Quality Gate FAILED — one or more checks did not pass"
           exit 1
@@ -459,9 +657,9 @@ jobs:
     name: Tailwind — البناءُ الملتزَم محدَّث
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "20"
           cache: npm

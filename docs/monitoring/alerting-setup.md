@@ -69,7 +69,7 @@ Run `smoke-test.sh` after every Railway deploy:
 |---|----------|----------|-----------|
 | 1 | `/health/` | HTTP 200 | App is alive |
 | 2 | `/ready/` | HTTP 200 | DB + dependencies ready |
-| 3 | `/status/` | HTTP 200 + JSON | Status API works |
+| 3 | `/status/` | HTTP 301/302/401/403 | Operational details are **not** public (`internal_only`, P4-9) — a 200 means it leaked |
 | 4 | `/` | HTTP 200 + login HTML | Frontend loads |
 | 5 | `/admin/` | HTTP 200 or 302 | Admin accessible |
 
@@ -145,7 +145,18 @@ cat /tmp/schoolos-monitor-failures.count
 
 ## 4. GitHub Actions Monitoring
 
-Create `.github/workflows/monitor.yml`:
+> **Live:** `.github/workflows/monitor.yml` exists and is scheduled every 15
+> minutes, **best-effort only** — GitHub throttles scheduled runs (measured at
+> about 7% of the expected cadence on 2026-09-25), so it is a *secondary* check
+> and an absent issue does not prove the site is up. The primary monitor is
+> Sentry Uptime (every 60 seconds on `/`), and
+> `.github/workflows/post-deploy-canary.yml` verifies every deployment on the
+> `deployment_status` event (REP-17 a). `monitor.yml` needs no secret: two
+> attempts a minute apart, a failure opens (or comments on) one `uptime-failure`
+> issue, and the next success closes it — the same pattern as `nightly.yml`. The
+> sample below is the older Slack-webhook design, kept for reference only.
+
+Sample (superseded) `.github/workflows/monitor.yml`:
 
 ```yaml
 name: SchoolOS Health Monitor

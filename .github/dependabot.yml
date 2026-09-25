@@ -1,0 +1,98 @@
+version: 2
+
+updates:
+  # بايثون — requirements.txt مثبَّتٌ بدقّة (==)، فتحديثه هنا لا يغيّر
+  # السلوك الفعليّ حتى يُدمَج — لا فرق عن أيّ تحديث تبعيةٍ يدويّ آخر.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "python"]
+    groups:
+      # الثلاثةُ تُرقّى معاً: سقوطُ «Timeout reading from redis» (2026-09) جاء من ترقيةِ
+      # redis-py وحدَها تحت channels-redis؛ فطلبٌ واحدٌ يمرّ على اختبار التكامل
+      # tests/test_channel_layer_redis_integration.py. أوّلُ مجموعةٍ مطابِقةٍ تكسب، فتسبق الآتية.
+      redis-channels:
+        patterns: ["redis", "channels", "channels-redis"]
+      python-patch-minor:
+        update-types: ["patch", "minor"]
+    ignore:
+      # django-celery-beat يفرض cron-descriptor<2.0.0 حتى في أحدث إصداره
+      # (2.9.0، تحقّقتُ عبر PyPI 2026-09-18) — ليس تعارضاً عابراً يُنتظر
+      # حلّه، بل سقفٌ ثابت. بلا هذا الاستثناء يسقط كلّ تجميعةٍ شهريّةٍ
+      # تضمّه (كما وقع فعلاً في PR #348).
+      # ruff مثبَّتٌ عمداً على 0.4.4 في CI (quality-gate.yml) وpre-commit — إصداراتٌ
+      # أحدث تغيّر قواعد التنسيق فتُسقط بوّابة «Ruff — lint + format» رغم نجاحها
+      # محلّياً (راجع feedback_ruff_pinned_version، وقعَ فعلاً في PR #125 وPR #254).
+      # ترقيةٌ ثلاثيّةٌ (requirements-dev + quality-gate.yml + .pre-commit-config.yaml
+      # معاً بعد مراجعة فروقات التنسيق) لا اقتراحاً أسبوعيّاً متكرّراً (سبّب DBT-18).
+      - dependency-name: "ruff"
+        versions: [">=0.4.5"]
+      # فاحصُ الأنواع وstubاه ثابتةٌ في requirements-mypy.txt (OWN-30): أعدادُ السقّاطة المسجَّلة تخرج من
+      # هذه الإصدارات بعينها، فترقيةُ أحدها اقتراحاً أسبوعيّاً تُفرّق التطويرَ عن البوّابة. تُرقّى الثلاثةُ معاً
+      # بقرارٍ: الملفُّ + `python -m tests.mypy_ratchet --update` بالإصدار الجديد + مراجعةُ فرق السجلّ.
+      - dependency-name: "mypy"
+      - dependency-name: "django-stubs"
+      - dependency-name: "djangorestframework-stubs"
+      - dependency-name: "cron-descriptor"
+        versions: [">=2.0.0"]
+      # الوجهُ الآخر للتعارض نفسِه: django-celery-beat 2.9.0 هو من يفرض
+      # cron-descriptor<2.0.0 (لا العكس) — فتجميدُ cron-descriptor وحده لا
+      # يكفي، لأنّ الدفعة تُبقيها كما هي وتقترح django-celery-beat 2.9.0
+      # بمفردها فيسقط التثبيتُ الكامل (وقع فعلاً في PR #364، إيداع 831b0da2
+      # يشرح السبب). يُرفع هذا القيد حين يرفع django-celery-beat سقفه.
+      - dependency-name: "django-celery-beat"
+        versions: [">=2.9.0"]
+      # قرار المالك 2026-09-18: البقاء على مسار Django 5.2 (LTS، دعمٌ حتى
+      # ~2028) — لا 6.x (إصدارٌ عاديٌّ قصير الدعم ~8 أشهر). الانتقال
+      # القادم يكون لإصدار LTS التالي (على الأرجح 7.2) كمشروعٍ مخطَّطٍ
+      # له، لا اقتراحاً أسبوعياً متكرّراً (أُغلق PR #355 لهذا السبب).
+      - dependency-name: "Django"
+        versions: [">=6"]
+
+  # جافاسكربت — package-lock.json (أدواتُ بناءٍ عابرة مثل tailwindcss/postcss،
+  # لا أثر runtime مباشر — راجع معالجة ثغرات 2026-06-21).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    labels: ["dependencies", "javascript"]
+    groups:
+      npm-patch-minor:
+        update-types: ["patch", "minor"]
+    ignore:
+      # قرار المالك 2026-09-18: البقاء على Tailwind v3 — v4 محرّكٌ جديدٌ
+      # بالكامل (Oxide) وفلسفةُ إعدادٍ مختلفة (@theme بدل tailwind.config.js)،
+      # يكسر خطَّ البناء الحاليّ فعلياً (تحقّقتُ: tailwindcss: not found).
+      # ترقيةٌ كهذه تحتاج مراجعةً بصريّةً شاملةً لنظام التصميم القائم
+      # (توكينات قطرية، Dark Mode، RTL)، لا اقتراحاً أسبوعياً (أُغلق PR #346).
+      - dependency-name: "tailwindcss"
+        versions: [">=4"]
+
+  # صورة الإنتاج (Dockerfile: python:3.12-slim-bookworm وما شابه)
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "docker"]
+    ignore:
+      # قرار المالك 2026-09-18: بايثون 3.12 في كل مكان (الإنتاج وCI
+      # والصورة المحلّية) — راجع project_python_312_migration. لا ترقية
+      # لصورة القاعدة بمعزلٍ عن هذا القرار الموحَّد (أُغلق PR #341).
+      - dependency-name: "python"
+        versions: [">=3.13"]
+
+  # أفعال GitHub Actions المستخدمة في .github/workflows/
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels: ["dependencies", "ci"]

@@ -62,10 +62,10 @@ def evaluation_status_tone(status: str) -> str:
 
 
 def evaluation_rating_tone(rating: str) -> str:
-    """لونُ الدرجة: ممتازٌ أخضر، ويحتاج تطويراً أحمر، وما بينهما كهرمانيّ — كما كان."""
+    """لونُ المستوى: ممتازٌ أخضر، وضعيفٌ أحمر، وما بينهما (جيد جداً، جيد، مقبول) كهرمانيّ."""
     if rating == "excellent":
         return "success"
-    if rating == "needs_dev":
+    if rating == "weak":
         return "danger"
     return "warning"
 
@@ -111,3 +111,19 @@ def decorate_observation(obs) -> None:
     obs.kind_tone = OBSERVATION_KIND_TONE.get(obs.kind, "info")
     obs.status_tone = OBSERVATION_STATUS_TONE.get(obs.status, "neutral")
     obs.score_tone = observation_score_tone(obs.score_percent)
+
+
+#: لونُ مرحلة التظلّم (المادة 20): ما ينتظر أحداً كهرمانيّ، والنهائيُّ أخضر، والرفضُ الحكميّ أحمر.
+GRIEVANCE_STAGE_TONE = {
+    "unknown": "gray",
+    "open": "warning",
+    "filed": "warning",
+    "decided": "warning",
+    "approved": "success",
+    "closed": "success",
+    "lapsed": "danger",
+}
+
+
+def grievance_stage_tone(code: str) -> str:
+    return GRIEVANCE_STAGE_TONE.get(code, "gray")

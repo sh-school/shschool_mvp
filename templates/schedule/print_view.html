@@ -1,4 +1,5 @@
 {% extends "base/base.html" %}
+{% load static %}
 {% load icons %}
 {% load ui %}
 {% block title %}الجدول الأسبوعي — {{ title }}{% endblock %}
@@ -10,10 +11,12 @@
 
 {% block content %}
 {% comment %}
-هذه صفحةُ الجدول الأسبوعيّ نفسُها (قرار 2026-09-06): الورقةُ في إطارٍ داخل
-المنصّة، فيبقى الهيدر والفوتر وشريطُ الأدوات لنا — اختياراً وطباعةً وتصديراً —
-والمطبوعُ ورقةٌ مجرّدة وحدها. وكانت قبلها شبكةٌ ملوّنةٌ على حدة تقول الشيءَ
-نفسَه بشكلٍ آخر، فأُزيلت.
+قرار 2026-09-18: العرضُ والطباعةُ مستقلّان. جدولُ معلّمٍ أو شعبةٍ هنا جدولٌ
+عاديٌّ برموز المنصّة (جزئيّةُ البيانات نفسُها `week_grid.html`، بلا مقاسٍ
+بالملّيمتر) — والطباعةُ والتصديرُ من ورقتهما الحقيقيّة عبر إطارٍ مخفيٍّ لا
+يُعرض. أمّا الجدولُ العامّ (كلّ المعلّمين) فيبقى ورقةً في إطارٍ ظاهر: مصفوفةٌ
+بستٍّ وثلاثين خانةً لا تصلح جدولاً عاديّاً، وفيها بحثٌ ولوحُ تحليلٍ يتّصلان
+بالورقة عبر `postMessage` مباشرةً.
 {% endcomment %}
 {% if preview %}
 {% comment %}معاينةُ مسودّة — لا الجدول الحيّ. اللافتةُ قبل كلّ شيءٍ كي لا تُقرأ المسودّةُ جدولاً معتمَداً.{% endcomment %}
@@ -39,6 +42,7 @@
 {% page_header heading icon="date" %}{% endpage_header %}
 {# بطاقةٌ عاريةٌ بشريط أدواتٍ وإطار — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
 <div class="schedule-pages-card">
+  {% include "schedule/partials/week_nav.html" %}
   <div class="schedule-head">
     <div class="schedule-tools">
       {# القائمةُ الواحدة لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
@@ -49,6 +53,7 @@
         {% if target_teacher %}<input type="hidden" name="teacher" value="{{ target_teacher.id }}">{% endif %}
         {% if target_class %}<input type="hidden" name="class" value="{{ target_class.id }}">{% endif %}
         <input type="hidden" name="year" value="{{ year }}">
+        {% include "schedule/partials/carry_fields.html" %}
         <select name="paper" class="form-select" data-autosubmit title="حجم الورق">
           <option value="a4" {% if paper == 'a4' %}selected{% endif %}>A4</option>
           <option value="a3" {% if paper == 'a3' %}selected{% endif %}>A3</option>
@@ -67,24 +72,43 @@
 
       <button type="button" id="schedule-print-btn" class="btn-primary btn-sm">طباعة</button>
       {# التصديرُ للورقة المعروضة نفسها: الاختيارُ محمولٌ في `selection_query`. #}
-      <a data-app-file href="{% url 'schedule_export_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
-      <a data-app-file href="{% url 'schedule_export_excel' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير Excel</a>
+      <a data-app-file data-export-job="pdf" href="{% url 'schedule_export_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
+      <a data-app-file data-export-job="excel" href="{% url 'schedule_export_excel' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير Excel</a>
     </div>
   </div>
 
+  {% if view_type == 'all_teachers' %}
   <div class="schedule-stage is-sheet">
     <iframe id="schedule-print-frame" title="{{ title }}"
             src="{% url 'schedule_print' %}?embed=1&amp;{{ selection_query }}"
             class="schedule-sheet-frame"></iframe>
-    {% if view_type == 'all_teachers' %}
     {# يُملأ من الورقة عبر postMessage — ولا شيء فيه قبل أن يُنقر اسمٌ في الجدول. #}
     <aside id="teacher-panel" class="teacher-panel" hidden aria-live="polite"></aside>
+  </div>
+  {% else %}
+  {% comment %}عرضٌ عاديٌّ مستقلٌّ عن الطباعة: نفسُ جزئيّة بيانات الورقة، بلا مقاسها بالملّيمتر ولا ترويستها الرسميّة — هوّيةُ المنصّة نفسُها تكفي هنا.{% endcomment %}
+  <div class="table-wrap">
+    {% if view_type == "class" %}
+    {% include "schedule/pdf/week_grid.html" with who="teacher" show_band_labels=True %}
+    {% else %}
+    {% include "schedule/pdf/week_grid.html" with who="class" show_band_labels=True %}
     {% endif %}
   </div>
+  {% comment %}جدولُ المعلّم وحدَه يحمل تفريغاتٍ ملوَّنة — الشعبةُ لا تفريغَ لها. {% endcomment %}
+  {% if view_type == "teacher" and has_colored_exemptions %}
+  {% include "schedule/partials/week_legend.html" %}
+  {% endif %}
+  {% comment %}إطارٌ مخفيٌّ للطباعة والتصدير وحدَهما — ورقتُه الحقيقيّةُ بملّيمترها وترويستها كما كانت دائماً، ولا صلةَ له بما هو معروضٌ أعلاه.{% endcomment %}
+  <iframe id="schedule-print-frame" title="{{ title }}"
+          src="{% url 'schedule_print' %}?embed=1&amp;{{ selection_query }}"
+          class="schedule-print-frame-hidden" aria-hidden="true" tabindex="-1"></iframe>
+  {% endif %}
 </div>
 
+<script src="{% static 'js/schedule-export.js' %}" defer></script>
 <script nonce="{{ request.csp_nonce }}">
-  // الطباعةُ للإطار لا للصفحة: ما يخرج على الورق هو الجدولُ وحده.
+  // الطباعةُ للإطار لا للصفحة: ما يخرج على الورق هو الجدولُ وحده — ظاهراً
+  // كان الإطارُ (الجدول العامّ) أو مخفيّاً (معلّمٌ أو شعبة).
   var scheduleFrame = document.getElementById('schedule-print-frame');
   document.getElementById('schedule-print-btn').addEventListener('click', function () {
     scheduleFrame.contentWindow.focus();

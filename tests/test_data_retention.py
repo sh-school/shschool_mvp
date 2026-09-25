@@ -1,6 +1,6 @@
 """الاحتفاظُ بالبيانات — ما يُحذف يُحذف، وما يُحفظ لا يُلمَس، والوثيقةُ تحكم كلَّ جدول.
 
-`docs/privacy/data_retention.md` هي السياسة، و`core/retention.py` يُنفِّذ شطرَ
+`docs/privacy/data_retention.md` هي السياسة، و`governance/retention.py` يُنفِّذ شطرَ
 «يُحذف» منها. وهذا الملفُّ يربطهما:
 
 - لكلّ صنفٍ محذوف: القديمُ يذهب والحديثُ يبقى — وما ينتهي بذاته يذهب عند أجله.
@@ -24,7 +24,7 @@ from django.core.management import CommandError, call_command
 from django.utils import timezone
 
 from core.models import AuditLog
-from core.retention import RULES, enforce_retention
+from governance.retention import RULES, enforce_retention
 from tests.conftest import UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -452,7 +452,11 @@ class TestEveryTableHasARuling:
         rule_tables = {rule.table for rule in RULES}
         assert rule_tables <= deleted, sorted(rule_tables - deleted)
         # ما في الوثيقة تحت «يُحذف» ولا قاعدةَ له — إلّا ما يتبع أباه بالتسلسل.
-        cascade_only = {"token_blacklist_outstandingtoken", "token_blacklist_blacklistedtoken"}
+        cascade_only = {
+            "token_blacklist_outstandingtoken",
+            "token_blacklist_blacklistedtoken",
+            "axes_accessattemptexpiration",  # OneToOne CASCADE إلى axes_accessattempt (axes 8)
+        }
         every = {m._meta.db_table for m in apps.get_models(include_auto_created=True)}
         undocumented = sorted((deleted & every) - rule_tables - cascade_only)
         assert not undocumented, f"موصوفةٌ بالحذف بلا قاعدةٍ تُنفِّذه: {undocumented}"

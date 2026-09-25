@@ -17,6 +17,7 @@ notifications/tasks.py
 import logging
 import re
 from time import monotonic
+from typing import TYPE_CHECKING, Any
 
 from celery import shared_task
 from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
@@ -752,10 +753,98 @@ def check_breach_deadlines_task():
     }
 
 
+if TYPE_CHECKING:
+    from django.db.models import QuerySet
+
+    from core.models import BreachReport, CustomUser
+
+
+#: لا يُكرَّر تنبيهُ المنصّة لنفس المستلم والبلاغ قبل انقضاء هذه المدّة — والمهمّةُ ساعيّة.
+BREACH_INAPP_REPEAT_HOURS = 12
+
+
+def _breach_inapp_recipients(breach: "BreachReport") -> "QuerySet[CustomUser]":
+    """من يصله تنبيهُ المنصّة: المكلَّف والمُبلِّغ والمدير ومسؤولُ حماية البيانات.
+
+    مسؤولُ حماية البيانات يُعرف بـ`DPO_EMAIL` إن ضُبط، وبدور مطوّر المنصّة في هذه المدرسة
+    (هو من يمارس الدور اليوم). فلا يعتمد الوصولُ على مزوّد بريدٍ لم يُشترَ بعد.
+    """
+    from django.conf import settings
+
+    from core.models import CustomUser
+    from core.models.access import TIER_1_LEADERSHIP, TIER_SYSTEM, Membership
+
+    ids = set(
+        Membership.objects.filter(
+            school=breach.school,
+            is_active=True,
+            role__name__in=TIER_1_LEADERSHIP | TIER_SYSTEM,
+        ).values_list("user_id", flat=True)
+    )
+    if breach.assigned_to_id:
+        ids.add(breach.assigned_to_id)
+    if breach.reported_by_id:
+        ids.add(breach.reported_by_id)
+    dpo_email = getattr(settings, "DPO_EMAIL", "")
+    if dpo_email:
+        ids.update(CustomUser.objects.filter(email__iexact=dpo_email).values_list("pk", flat=True))
+    return CustomUser.objects.filter(pk__in=ids, is_active=True)
+
+
+def _notify_breach_in_app(
+    breach: "BreachReport", hours_left: float | None, overdue: bool = False
+) -> int:
+    """تنبيهُ الخرق داخل المنصّة (الجرس) — لا يعتمد على مزوّد بريد.
+
+    الإنذارُ كان بالبريد وحدَه، و`DPO_EMAIL` ومزوّدُ البريد غيرُ مضبوطَين في الإنتاج
+    (DPIA R8)، فكان مؤقّتُ الـ72 ساعة يعمل ولا يصل أحداً. والنصُّ هنا بلا بياناتٍ
+    شخصيّة ولا عنوانِ البلاغ: رقمٌ ومهلةٌ ورابط.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from notifications.models import InAppNotification
+
+    since = timezone.now() - timedelta(hours=BREACH_INAPP_REPEAT_HOURS)
+    title = (
+        "🚨 تجاوزتَ مهلةَ إشعار الجهة المختصّة عن خرق بيانات"
+        if overdue
+        else f"⚠️ بقي {hours_left} ساعة على مهلة إشعار الجهة المختصّة عن خرق بيانات"
+    )
+    created = 0
+    for user in _breach_inapp_recipients(breach):
+        already = InAppNotification.objects.filter(
+            user=user,
+            school=breach.school,
+            related_object_id=str(breach.pk),
+            created_at__gte=since,
+        ).exists()
+        if already:
+            continue
+        InAppNotification.objects.create(
+            user=user,
+            school=breach.school,
+            title=title,
+            body=f"الخطورة: {breach.get_severity_display()} — افتح البلاغ لاتّخاذ الإجراء.",
+            event_type="general",
+            priority="urgent",
+            related_object_id=str(breach.pk),
+            related_url=f"/breach/{breach.pk}/",
+        )
+        created += 1
+    return created
+
+
 def _send_breach_alert(breach, hours_left, overdue=False):
-    """إرسال تنبيه بريد للمدير والـ DPO"""
+    """تنبيه الخرق: داخل المنصّة أوّلاً (لا يحتاج مزوّداً)، ثمّ بالبريد للمدير والـ DPO"""
     from django.conf import settings
     from django.core.mail import send_mail
+
+    try:
+        _notify_breach_in_app(breach, hours_left, overdue=overdue)
+    except Exception:  # noqa: BLE001 — الإنذارُ لا يسقط ببابٍ منه فيُحجب الآخر
+        logger.error("breach in-app alert failed", exc_info=True)
 
     subject = (
         f"🚨 [عاجل] تجاوز مهلة إشعار NCSA — {breach.title}"
@@ -793,13 +882,15 @@ PDPPL م.11 — يجب إشعار NCSA خلال 72 ساعة من الاكتشا�
 
     if recipients:
         try:
-            send_mail(
+            delivered = send_mail(
                 subject=subject,
                 message=body,
                 from_email=getattr(settings, "DEFAULT_FROM_EMAIL", None),
                 recipient_list=list(set(recipients)),
                 fail_silently=True,
             )
+            if not delivered:
+                logger.error("تنبيه الخرق لم يُسلَّم بالبريد — مهلة NCSA قائمة، تابِعه يدوياً")
         except (OSError, RuntimeError, ValueError) as e:
             logger.error("breach alert email failed error=%s", type(e).__name__, exc_info=True)
 
@@ -1155,10 +1246,10 @@ def hub_send_notification_task(
             results.append(("email", True, None))
 
         # ── SMS ────────────────────────────────────────────────
-        if "sms" in channels and user.phone:
+        if "sms" in channels and user.get_phone_decrypted():
             send_sms_task.delay(
                 school_id=str(school.id),
-                phone_number=user.phone,
+                phone_number=user.get_phone_decrypted(),
                 message=f"{title}\n{body}",
                 notif_type=_hub_to_notif_type(event_type),
                 sent_by_id=str(sender.id) if sender else None,
@@ -1167,10 +1258,10 @@ def hub_send_notification_task(
             results.append(("sms", True, None))
 
         # ── WhatsApp (عبر Twilio WhatsApp API) ────────────────
-        if "whatsapp" in channels and user.phone:
+        if "whatsapp" in channels and user.get_phone_decrypted():
             send_whatsapp_task.delay(
                 school_id=str(school.id),
-                phone_number=user.phone,
+                phone_number=user.get_phone_decrypted(),
                 title=title,
                 body=body,
                 sent_by_id=str(sender.id) if sender else None,
@@ -1345,3 +1436,68 @@ def reconcile_deliveries_task(self, school_id):
     from .reconciler import reconcile_school
 
     return reconcile_school(school_id)
+
+
+@shared_task(
+    base=TenantRLSTask,
+    bind=True,
+    max_retries=0,
+    name="notifications.release_after_quiet_hours",
+)
+def release_after_quiet_hours_task(
+    self: Any, school_id: Any, user_id: Any, target: str, payload: dict
+) -> dict:
+    """يحفظ إرسالاً خارجياً حتى تنتهي ساعاتُ هدوء مستلمه، ثم يُطلقه.
+
+    المرجعُ المشترك لكلّ مسارات الإرسال الخارجيّ (الـHub وخدمة الغياب والرسوب):
+    `quiet_hours.plan`. تُجدوَل هذه المهمّةُ بموعد (`eta`) لا يتجاوز قفزةً واحدة،
+    وعند كلّ قفزةٍ يُعاد السؤال — فإن انتهت الساعاتُ أُطلقت الحمولةُ كما هي إلى
+    مهمّة قناتها، وإلّا أعادت جدولةَ نفسها. القفزاتُ القصيرة عمداً: وسيطُ Redis
+    يُعيد تسليم رسالةٍ مؤجَّلة تجاوزت `visibility_timeout`، فموعدٌ واحدٌ بعيد
+    (حتى ثماني ساعات) كان يُخرجها مكرّرةً كلَّ ساعة.
+
+    `target` مفتاحٌ من قائمةٍ مغلقة لا اسمُ مهمّةٍ حرّ: هذه المهمّة لا تُنفّذ ما
+    يُملى عليها. والحمولةُ لا تحمل `delivery_id` — التسليمُ المتتبَّع يُعاد إنتاجُه
+    بالـHub (`dispatch_id`) لا هنا.
+
+    لا `retry`: الفشلُ في هذه الحلقة القصيرة يُعالَج بأنّ المنتِج (الـHub أو المُصالِح)
+    يعود فيطلب من جديد، ورسالةُ الخدمة المباشرة تبقى في سجلّ تنبيهها `pending`.
+    """
+    from core.models import CustomUser
+    from notifications import quiet_hours
+
+    targets = {
+        "hub": hub_send_notification_task,
+        "email": send_email_task,
+        "sms": send_sms_task,
+    }
+    task = targets.get(target)
+    if task is None:
+        logger.error("release_after_quiet_hours: unknown target=%s", target)
+        return {"status": "unknown_target"}
+
+    user = CustomUser.objects.filter(id=user_id).first()
+    if user is None:
+        plan = quiet_hours.QuietPlan(quiet_hours.SEND_NOW)
+    else:
+        plan = quiet_hours.plan(user)
+
+    if plan.action == quiet_hours.HOLD:
+        assert plan.eta is not None  # HOLD يحمل موعداً دائماً
+        self.apply_async(
+            kwargs={
+                "school_id": school_id,
+                "user_id": user_id,
+                "target": target,
+                "payload": payload,
+            },
+            eta=plan.eta,
+        )
+        return {"status": "held", "until": plan.eta.isoformat()}
+
+    if plan.action == quiet_hours.SKIP:
+        logger.warning("release_after_quiet_hours: no worker to hold — dropped target=%s", target)
+        return {"status": "skipped"}
+
+    task.delay(**payload)
+    return {"status": "released", "target": target}

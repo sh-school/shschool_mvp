@@ -1,0 +1,113 @@
+name: Worker heartbeat — فحصٌ ثانويّ لنبضة العامل من الخارج (جدولةُ GitHub بأفضل جهدٍ)
+
+# ══════════════════════════════════════════════════════
+#  العاملُ الميّتُ لا يُنذِر بنفسه، وSentry Crons على الخطّة المجّانيّة مقعدٌ واحدٌ
+#  استنفدته مراقباتٌ تلقائيّة (2026-09-21) فلا check-in لـ`worker-heartbeat`.
+#  فمهمّةُ `core.worker_heartbeat` تختم نبضتَها في Redis (`core/worker_heartbeat.py`)
+#  ويقرؤها `/health/worker/`؛ وهذا الفحصُ من خارج Railway، مجدولٌ كلَّ 10 دقائق **بأفضل جهدٍ** لا بضمان (REP-17 أ):
+#  GitHub تؤخّر التشغيلاتِ المجدولة وتُسقط بعضَها (قيس 2026-09-25: نحو 4% من الوتيرة المتوقَّعة). فليس مراقباً موثوقاً للعامل؛
+#  والفجوةُ الحقيقيّة تُسدّ بمراقب Cron بـcheck-in (U-34). وغيابُ قضيّةٍ هنا لا يثبت أنّ العامل ينبض.
+#  - العتبةُ 15 دقيقة (ثلاثُ نبضات)؛ ولا إنذارَ بفوتِ نبضةٍ واحدة.
+#  - ثلاثُ محاولاتٍ بينها دقيقتان ونصف: بعد نشرٍ جديد يغيب الختمُ حتى أوّل نبضة
+#    (≤ 5 دقائق) ولا يُفتح له بلاغ؛ الفشلُ المتّصل وحده يفتحه.
+#  - النمطُ نفسُه في monitor.yml: قضيّةٌ واحدة تُفتح أو يُعلَّق عليها وتُغلق عند أوّل نجاح.
+# ══════════════════════════════════════════════════════
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # تشغيلٌ يدويّ للتحقّق
+
+concurrency:
+  group: worker-heartbeat
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  heartbeat:
+    name: نبضةُ العامل
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - name: فحصٌ بثلاث محاولات
+        env:
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        run: |
+          BASE="${PRODUCTION_URL:-https://shschoolmvp-production.up.railway.app}"
+          BASE="${BASE%/}"
+          for attempt in 1 2 3; do
+            if body=$(curl -fsS --max-time 20 "$BASE/health/worker/"); then
+              echo "attempt $attempt: $body"
+              exit 0
+            fi
+            echo "::warning::المحاولة $attempt فشلت"
+            [ "$attempt" -lt 3 ] && sleep 150
+          done
+          echo "::error::نبضةُ العامل متوقّفة أو غائبة — انظر /health/worker/"
+          exit 1
+
+      - name: "الفشل: فتحُ قضيّةٍ أو التعليقُ على المفتوحة"
+        if: failure()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const prefix = '🔴 WORKER HEARTBEAT STALE';
+            const detail = [
+              `**Time**: ${new Date().toISOString()}`,
+              `**Run**: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `**Result**: /health/worker/ لم يُعد 200 في ثلاث محاولات — العاملُ أو Beat أو Redis متوقّف.`,
+            ].join('\n');
+            const isOurs = (item) =>
+              !item.pull_request &&
+              item.user &&
+              item.user.login === 'github-actions[bot]' &&
+              typeof item.title === 'string' &&
+              item.title.startsWith(prefix);
+            const open = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: 'worker-heartbeat-failure',
+              sort: 'updated', direction: 'desc', per_page: 100,
+            });
+            const existing = open.data.filter(isOurs);
+            if (existing.length > 0) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: existing[0].number,
+                body: `### فشلٌ إضافيّ\n\n${detail}`,
+              });
+              core.info(`appended to issue #${existing[0].number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                ...context.repo,
+                title: `${prefix} — العاملُ لا ينبض`,
+                body: [`## نبضةُ العامل — فشلٌ آليّ`, ``, detail, ``,
+                       `افحص سجلّاتِ celery-worker وcelery-beat في Railway (لا /health/ وحده).`,
+                       `تُحدَّث هذه القضيّة عند كلّ فشلٍ لاحق، وتُغلق تلقائيّاً عند أوّل فحصٍ ناجح.`].join('\n'),
+                labels: ['bug', 'worker-heartbeat-failure'],
+              });
+              core.info(`opened issue #${created.data.number}`);
+            }
+
+      - name: "النجاح: إغلاقُ قضايا الفشل المفتوحة"
+        if: success()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const prefix = '🔴 WORKER HEARTBEAT STALE';
+            const open = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: 'worker-heartbeat-failure',
+              sort: 'updated', direction: 'desc', per_page: 100,
+            });
+            for (const issue of open.data) {
+              if (issue.pull_request || !issue.user || issue.user.login !== 'github-actions[bot]'
+                  || typeof issue.title !== 'string' || !issue.title.startsWith(prefix)) continue;
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: issue.number,
+                body: `عاد العاملُ ينبض (${new Date().toISOString()}) — تُغلق تلقائيّاً.`,
+              });
+              await github.rest.issues.update({
+                ...context.repo, issue_number: issue.number, state: 'closed', state_reason: 'completed',
+              });
+            }

@@ -9,89 +9,94 @@
 {% block content %}
 
 <div class="exec-dash">
-{% page_header "تفضيلاتي للجدولة الذكية" subtitle=year icon="settings" %}{% endpage_header %}
+{% page_header "تفضيلاتي للجدولة الذكية" subtitle=year icon="settings" %}
+  {% endpage_header %}
 
-<div class="prefs-page">
-{% section_card "تفضيلات الجدول" icon="settings" %}
-  <p class="form-note prefs-note">حدّد تفضيلاتك ليأخذها النظام بعين الاعتبار عند توليد الجدول.</p>
-  <form method="post" class="prefs-form">
-    {% csrf_token %}
 
-    <div class="form-group">
-      <label class="form-label" for="max_daily">أقصى عدد حصص يومية</label>
-      {% comment %}
-      المدى كاملاً من الواحدة إلى السبع. وكان «3456» يحجب الخيارين 1 و2 عن
-      المنسّقين — أنصبتُهم ثلاثٌ إلى ثمانٍ عمداً مقابلَ عمل التنسيق، وهم أحوجُ
-      الناس إلى تجميع حصصهم. وما دون حصّةِ القسمة يُطفأ لا يُردّ بعد الحفظ.
-      {% endcomment %}
-      <select name="max_daily_periods" id="max_daily" class="form-control">
-        {% for v in periods %}
-        <option value="{{ v }}" {% if pref.max_daily_periods == v %}selected{% endif %}
-                {% if min_daily and v < min_daily %}disabled{% endif %}>
-          {{ v }} {% if v == 1 %}حصة{% else %}حصص{% endif %}{% if v == 7 %} (بدون حد){% endif %}{% if min_daily and v < min_daily %} — لا يسع نصابك{% endif %}
-        </option>
-        {% endfor %}
-      </select>
-      <p class="form-hint">
-        الحد المفضل لعدد حصصك في اليوم الواحد.
-        {% if load %}نصابُك <b>{{ load }}</b> حصة{% if min_daily %} — فأدنى سقفٍ يسعه <b>{{ min_daily }}</b>{% endif %}.{% endif %}
-      </p>
-    </div>
+<form method="post" class="prefs-form">
+  {% csrf_token %}
 
-    <div class="form-group">
-      <label class="form-label" for="max_consecutive">أقصى حصص متتالية</label>
-      <select name="max_consecutive" id="max_consecutive" class="form-control">
-        {% for v in periods %}
-        <option value="{{ v }}" {% if pref.max_consecutive == v %}selected{% endif %}>
-          {% if v == 1 %}حصة واحدة — لا تجاور{% else %}{{ v }} حصص{% endif %}{% if v == 3 %} (الافتراضي){% endif %}
-        </option>
-        {% endfor %}
-      </select>
-      <p class="form-hint">
-        <b class="text-status-warning">مُلزِمٌ للمولّد</b> — الحد الأقصى للحصص المتتالية بدون استراحة.
-        و«حصة واحدة» تعني ألّا تقع لك حصتان متجاورتان البتة.
-      </p>
-    </div>
+  <div class="auto-grid">
+    {% section_card "قيود صلبة — لا تُخرق أبداً" icon="settings" %}
+      <div class="form-group">
+        <label class="form-label" for="max_consecutive">أقصى حصص متتالية</label>
+        <select name="max_consecutive" id="max_consecutive" class="form-control">
+          {% for v in periods %}
+          <option value="{{ v }}" {% if pref.max_consecutive == v %}selected{% endif %}>
+            {% if v == 1 %}حصة واحدة — لا تجاور{% else %}{{ v }} حصص{% endif %}{% if v == 3 %} (الافتراضي){% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        <p class="ui-field-hint">
+          أقصى عدد حصص متتالية بلا استراحة بينها. و«حصة واحدة» تعني ألّا تقع لك حصتان متجاورتان إطلاقاً.
+        </p>
+      </div>
 
-    <div class="form-group">
-      <label class="form-label" for="max_gap">أقصى فجوة بين حصتين</label>
-      <select name="max_gap" id="max_gap" class="form-control">
-        <option value="" {% if pref.max_gap is None %}selected{% endif %}>— بدون حد (الافتراضي) —</option>
-        <option value="0" {% if pref.max_gap == 0 %}selected{% endif %}>بدون فجوة — حصص متصلة</option>
-        <option value="1" {% if pref.max_gap == 1 %}selected{% endif %}>حصة فارغة واحدة</option>
-        <option value="2" {% if pref.max_gap == 2 %}selected{% endif %}>حصتان فارغتان</option>
-        <option value="3" {% if pref.max_gap == 3 %}selected{% endif %}>3 حصص فارغة</option>
-      </select>
-      <p class="form-hint">
-        <b class="text-status-warning">مُلزِمٌ للمولّد</b> — أوسع فراغ مقبول بين حصتين في اليوم الواحد.
-        و«حصة فارغة واحدة» تعني أن تكون حصصك متباعدة حصة حصة — الثانية فالرابعة فالسادسة.
-        و«بدون حد» يجعله ترجيحاً مرناً كحال عامّة الكادر.
-      </p>
-    </div>
+      <div class="form-group">
+        <label class="form-label" for="max_gap">
+          أقصى فجوة بين حصتين
+          {% if pref.max_gap is None %}<span class="badge badge--neutral" title="بلا اختيارٍ بعد — الفراغُ ترجيحٌ عامٌّ كسائر الكادر">بلا قيد شخصي حالياً</span>{% endif %}
+        </label>
+        <select name="max_gap" id="max_gap" class="form-control">
+          <option value="" {% if pref.max_gap is None %}selected{% endif %}>— بدون حد (الافتراضي) —</option>
+          <option value="0" {% if pref.max_gap == 0 %}selected{% endif %}>بدون فجوة — حصص متصلة</option>
+          <option value="1" {% if pref.max_gap == 1 %}selected{% endif %}>حصة فارغة واحدة</option>
+          <option value="2" {% if pref.max_gap == 2 %}selected{% endif %}>حصتان فارغتان</option>
+          <option value="3" {% if pref.max_gap == 3 %}selected{% endif %}>3 حصص فارغة</option>
+        </select>
+        <p class="ui-field-hint">
+          أوسع فراغٍ تقبله بين حصّتين في اليوم نفسه. و«حصّة فارغة واحدة» تعني أن تكون حصصك متباعدة حصّةً حصّة —
+          الثانية فالرابعة فالسادسة. اختيارُ رقمٍ هنا يجعله قيداً شخصيّاً لا يُخرق أبداً؛
+          و«بدون حد» يترك الفراغ ترجيحاً عامّاً كسائر الكادر.
+        </p>
+      </div>
+    {% endsection_card %}
 
-    <div class="form-group">
-      <label class="form-label" for="free_day">يوم التفريغ المفضل</label>
-      <select name="free_day" id="free_day" class="form-control">
-        <option value="">— بدون تفضيل —</option>
-        {% for val, label in days %}
-        <option value="{{ val }}" {% if pref.free_day == val %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-      <p class="form-hint">اليوم الذي تفضّل ألّا تكون فيه حصص — يُرجَّح بقوّة ولا يُضمَن حين يضيق الأسبوع.</p>
-    </div>
+    {% section_card "تفضيلات — نقاربها دون ضمان" icon="settings" %}
+      <div class="form-group">
+        <label class="form-label" for="max_daily">أقصى عدد حصص يومية</label>
+        {% comment %}
+        المدى كاملاً من الواحدة إلى السبع. وكان «3456» يحجب الخيارين 1 و2 عن
+        المنسّقين — أنصبتُهم ثلاثٌ إلى ثمانٍ عمداً مقابلَ عمل التنسيق، وهم أحوجُ
+        الناس إلى تجميع حصصهم. وما دون حصّةِ القسمة يُطفأ لا يُردّ بعد الحفظ.
+        {% endcomment %}
+        <select name="max_daily_periods" id="max_daily" class="form-control">
+          {% for v in periods %}
+          <option value="{{ v }}" {% if pref.max_daily_periods == v %}selected{% endif %}
+                  {% if min_daily and v < min_daily %}disabled{% endif %}>
+            {{ v }} {% if v == 1 %}حصة{% else %}حصص{% endif %}{% if v == 7 %} (بدون حد){% endif %}{% if min_daily and v < min_daily %} — لا يسع نصابك{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        <p class="ui-field-hint">
+          أكبر عدد حصص تريدها في يومك الواحد. نحاول تحقيقه دائماً، وقد نتجاوزه بحصّةٍ واحدة في أضيق أيّام الأسبوع.
+          {% if load %}نصابُك <b>{{ load }}</b> حصة{% if min_daily %} — فأدنى رقمٍ يحتمله نصابُك عادةً <b>{{ min_daily }}</b>{% endif %}.{% endif %}
+        </p>
+      </div>
 
-    <div class="form-group">
-      <label class="form-label" for="notes">ملاحظات إضافية</label>
-      <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="مثال: أفضل الحصص الأولى في الأسبوع...">{{ pref.notes }}</textarea>
-    </div>
+      <div class="form-group">
+        <label class="form-label" for="free_day">يوم التفريغ المفضل</label>
+        <select name="free_day" id="free_day" class="form-control">
+          <option value="">— بدون تفضيل —</option>
+          {% for val, label in days %}
+          <option value="{{ val }}" {% if pref.free_day == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <p class="ui-field-hint">اليوم الذي تفضّل ألّا تكون فيه حصص. نُرجّحه بقوّة، لكن لا نضمنه إذا ضاق الأسبوع.</p>
+      </div>
+    {% endsection_card %}
+  </div>
 
-    <div class="form-actions">
-      <a href="/dashboard/" class="btn-secondary">رجوع</a>
-      <button type="submit" class="btn-primary">حفظ التفضيلات</button>
-    </div>
-  </form>
-{% endsection_card %}
-</div>
+  <div class="form-group">
+    <label class="form-label" for="notes">ملاحظات إضافية</label>
+    <textarea name="notes" id="notes" class="form-control" rows="3" placeholder="مثال: أفضل الحصص الأولى في الأسبوع...">{{ pref.notes }}</textarea>
+  </div>
+
+  <div class="form-actions">
+    <a href="/dashboard/" class="btn-secondary">رجوع</a>
+    <button type="submit" class="btn-primary">حفظ التفضيلات</button>
+  </div>
+</form>
 </div>
 
 {% endblock %}

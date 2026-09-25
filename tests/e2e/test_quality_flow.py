@@ -4,8 +4,12 @@ E2E Tests: تدفق إدارة الجودة — SchoolOS v5.2
 يختبر: لوحة الجودة، الخطط التشغيلية، التنقل.
 """
 
+import re
+
 import pytest
-from playwright.sync_api import expect
+
+pytest.importorskip("pytest_playwright")
+from playwright.sync_api import expect  # noqa: E402
 
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
 
@@ -17,13 +21,13 @@ class TestQualityDashboard:
         """المدير يستطيع الوصول للوحة الجودة."""
         principal_page.goto(f"{live_server.url}/quality/")
         expect(principal_page.locator("main")).to_be_visible()
-        expect(principal_page).to_have_url(lambda url: "/quality/" in url)
+        expect(principal_page).to_have_url(re.compile(r"/quality/"))
 
     def test_quality_page_loads_structure(self, principal_page, live_server):
         """صفحة الجودة تحمّل بالهيكل الصحيح."""
         principal_page.goto(f"{live_server.url}/quality/")
         expect(principal_page.locator("main")).to_be_visible()
-        expect(principal_page.locator("nav")).to_be_visible()
+        expect(principal_page.locator("nav").first).to_be_visible()
 
 
 class TestClinicAccess:

@@ -1,12 +1,27 @@
-{% comment %}بطاقةُ قسم — تُرسم من الوسم `{% section_card %}` في core/templatetags/ui.py.{% endcomment %}
+{% comment %}بطاقةُ قسم — تُرسم من الوسم `{% section_card %}` في core/templatetags/ui.py.
+`foldable` تُبدّل السطرَ العنوانَ بمفتاح طيٍّ — الشريطُ نفسُه لا يتغيّر شكلاً.{% endcomment %}
 {% load icons %}
-<section class="card-qatar ui-section{% if flush %} is-flush{% endif %}">
+<section class="card-qatar ui-section{% if flush %} is-flush{% endif %}{% if span %} is-{{ span }}{% endif %}">
+  {% if foldable %}
+  <details class="ui-section__fold">
+    <summary class="card-bar ui-section__fold-summary">
+      {% icon_named icon %}
+      <h2 class="ui-section__title">{{ title }}</h2>
+      {% if meta or meta == 0 %}<span class="card-bar-sub">{{ meta }}</span>{% endif %}
+    </summary>
+    <div class="ui-section__body">
+      {% if body %}{{ body }}{% else %}{% include "components/empty_state.html" with title=empty subtitle=empty_sub icon="empty" compact=True %}{% endif %}
+    </div>
+  </details>
+  {% else %}
   <header class="card-bar">
     {% icon_named icon %}
     <h2 class="ui-section__title">{{ title }}</h2>
+    {{ tips }}
     {% if meta or meta == 0 %}<span class="card-bar-sub">{{ meta }}</span>{% endif %}
   </header>
   <div class="ui-section__body">
     {% if body %}{{ body }}{% else %}{% include "components/empty_state.html" with title=empty subtitle=empty_sub icon="empty" compact=True %}{% endif %}
   </div>
+  {% endif %}
 </section>

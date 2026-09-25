@@ -16,18 +16,22 @@
   <a href="{% url 'smart_schedule' %}" class="btn-secondary btn-sm">{% icon "back" %} الجدولة الذكية</a>
 {% endpage_header %}
 
+{% comment %}بطاقتان جنباً إلى جنب لا متتاليتان (قرارُ 2026-09-18): كلٌّ منهما
+مستقلّةٌ عن الأخرى، فلا سببَ لتطويل الصفحة برصّهما رأسيّاً بدل عمودَين.{% endcomment %}
+<div class="auto-grid">
 {# ══ القسم 1: تفريغات المعلمين ══ #}
 {% section_card "تفريغات المعلمين والمنسقين" meta=exemptions|length icon="exemptions" %}
-    <p class="form-note settings-note">
-      تفريغ معلم أو منسق من حصة محددة أو يوم كامل (لمهام خارجية أو إدارية).
-      النظام يتجنب جدولة حصص للمعلم في الأوقات المفرّغة.
-    </p>
-
     {# نموذج إضافة تفريغ #}
     <form method="post" action="{% url 'add_exemption' %}" class="exemption-form">
       {% csrf_token %}
       <input type="hidden" name="year" value="{{ year }}">
 
+      {% comment %}
+      ثلاثةُ عناصرَ سطرٍ واحدٍ في أعلى البطاقة (قرارُ 2026-09-18): من، والسبب،
+      وجهةُ القرار — قبل الشبكة لا بينها. وزرُّ الإضافة انتقل إلى سطر الشبكة
+      نفسِها أسفلَ (قرارٌ لاحقٌ في اليوم نفسه): القرارُ يقع حيث تُختار الخانات
+      لا فوقها بسطرٍ لا صلةَ له بالاختيار.
+      {% endcomment %}
       {# خيارُ المجموعة قبل الأشخاص لا يُعبَّر بـ`choices` — فالقائمةُ يدويّةٌ مسمّاة، ومعرّفُها تقرؤه الشبكةُ بـHTMX. #}
       <div class="ui-field">
         <label for="exemption-teacher" class="ui-field__label">المعلم/المنسق</label>
@@ -35,11 +39,36 @@
           <option value="">— اختر —</option>
           {# مجموعةٌ لا شخص: اجتماعُ المنسّقين تفريغٌ واحدٌ لهم جميعاً. #}
           <option value="coordinators">★ كلّ منسّقي المواد</option>
+          {% if departments %}
+          {% comment %}
+          تفريغُ قسمٍ كاملٍ لاجتماعه الأسبوعيّ (قرارُ 2026-09-18) — معرّفُه
+          `dept:<uuid>` تقرؤه `TeacherExemptionForm.clean_teacher` فيُفرَّغ
+          كلُّ معلّمي القسم بطلبٍ واحد، لا المنسّقَ وحدَه.
+          {% endcomment %}
+          <optgroup label="اجتماعُ قسمٍ كامل">
+            {% for d in departments %}
+            <option value="dept:{{ d.id }}">★ {{ d.name }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endif %}
           {% for t in teachers %}
           <option value="{{ t.id }}">{{ t.full_name }}</option>
           {% endfor %}
         </select>
       </div>
+
+      {% callout "warning" %}اختيار «كلّ منسّقي المواد» أو قسمٍ كامل يفرّغ كلَّ أعضائه في الخانات المحدَّدة دفعةً واحدة، ويُحسب الحدّ المسموح لكلّ معلّمٍ على حدة.{% endcallout %}
+
+      {% field "reason" "السبب" placeholder="مثال: دورة تدريبية خارج المدرسة" required=True %}
+
+      {% comment %}
+      جهةُ القرار: تفريغُ يومٍ كاملٍ يُخرج المعلّمَ من الجدول يوماً في الأسبوع
+      كلّه، فيُسأل عن مصدره كما تُسأل خطّةُ النصاب.
+
+      و«لتوليد الجدول» أداةُ تشكيلٍ لا قرارُ جهة: المولّدُ يحترمها، والبديلُ
+      والتبديلُ يجوزان فيها.
+      {% endcomment %}
+      {% field "source" "جهة القرار" type="select" choices="ministry=قرار الوزارة|school=قرار إدارة المدرسة|department=قرار القسم الأكاديمي|generation=لتوليد الجدول — يجوز فيها البديل والتبديل|other=أخرى" value="school" %}
 
       {% comment %}
       الشبكةُ محلَّ «نوعُ التفريغ × الأيّام × الحصص».
@@ -51,36 +80,29 @@
 
       والشبكةُ تُظلَّل خانةً خانة، وتُظهر شاغلَ كلِّ خانةٍ فيُرى ثمنُ التفريغ
       قبل اتّخاذه، وتقيس السعةَ مقابل النصاب بالدالّة نفسِها التي تحرس صفحةَ
-      التفضيلات.
+      التفضيلات. وارتفاعُها الأدنى ثابتٌ قبل الاختيار وبعده — لا تُخفض البطاقةُ
+      ولا تقفز حين تُملأ الشبكةُ (قرارُ المستخدم 2026-09-18: «ثابتٌ ظاهرٌ
+      دائماً لا عند اختيار معلّمٍ فقط»).
       {% endcomment %}
-      <div class="form-group mb-0 sm:col-span-2 lg:col-span-4" id="exemption-grid"
+      <div class="form-group mb-0 exemption-grid-slot" id="exemption-grid"
            hx-get="{% url 'exemption_grid' %}?year={{ year }}"
            hx-trigger="change from:#exemption-teacher"
            hx-include="#exemption-teacher"
            hx-swap="innerHTML">
-        {# الحالةُ نفسُها التي تُعيدها الجزئيّةُ بلا اختيار — فلا يتبدّل الشكلُ عند أوّل تحميل. #}
-        {% empty_state "اختر معلّماً أو مجموعة" sub="تظهر شبكةُ أسبوعه هنا بعد الاختيار" icon="schedule" %}
+        {# نفسُ الجزئيّة التي يُعيدها HTMX بلا اختيار — مصدرٌ واحدٌ للهيكل، فلا يتبدّل الشكلُ عند أوّل تحميل. #}
+        {% include "schedule/partials/exemption_grid.html" with days=days periods=periods %}
       </div>
       <input type="hidden" name="slots" id="exemption-slots" value="">
-
-      {% field "reason" "السبب" placeholder="مثال: دورة تدريبية خارج المدرسة" required=True css="sm:col-span-2" %}
-
-      {% comment %}
-      جهةُ القرار: تفريغُ يومٍ كاملٍ يُخرج المعلّمَ من الجدول يوماً في الأسبوع
-      كلّه، فيُسأل عن مصدره كما تُسأل خطّةُ النصاب.
-
-      و«لتوليد الجدول» أداةُ تشكيلٍ لا قرارُ جهة: المولّدُ يحترمها، والبديلُ
-      والتبديلُ يجوزان فيها.
-      {% endcomment %}
-      {% field "source" "جهة القرار" type="select" choices="ministry=قرار الوزارة|school=قرار إدارة المدرسة|department=قرار القسم الأكاديمي|generation=لتوليد الجدول — يجوز فيها البديل والتبديل|other=أخرى" value="school" %}
-
-      <div class="form-group mb-0 flex items-end">
-        <button type="submit" class="btn-primary w-full">{% icon "add" %} إضافة تفريغ</button>
-      </div>
     </form>
 
-    {# قائمة التفريغات الحالية #}
+    {% comment %}قائمة التفريغات الحالية — قابلةٌ للطيّ (قرارُ 2026-09-18): سجلٌّ
+    يُراجَع أحياناً لا نموذجٌ يُستعمل كلَّ مرّة، فيُطوى افتراضاً كبقيّة سجلّات
+    الصفحة.{% endcomment %}
     {% if exemptions %}
+    <details class="settings-fold">
+      <summary class="settings-fold__summary">
+        التفريغاتُ الحاليّة <span class="settings-fold__count">({{ exemptions|length }})</span>
+      </summary>
     {% comment %}
     الاختيارُ في الجدول والزرُّ في نموذجٍ فوقَه: النماذجُ لا تتداخل، ولكلّ سطرٍ
     نموذجُ إلغائه المفرد. فالمربّعاتُ تُنسَب إلى نموذج الحذف بسمة `form`.
@@ -96,7 +118,17 @@
           إلغاء المحدَّد (<span data-bulk-count>0</span>)
         </button>
       </form>
-      <div class="table-wrap">
+      {% comment %}
+      عمودان قديمان («اليوم»، «الحصة») دُمجا في «التوقيت» — كانا يتّسعان دائماً
+      خانتين فارغتَين جنبَ رقمٍ قصير، وهما معاً لحظةٌ واحدة لا تُقرآن منفصلتين.
+      و«الجهة» تُلوَّن بحكم `binds_people` (قرارُ 2026-09-11): الملزمُ رماديٌّ
+      عاديٌّ، و«لتوليد الجدول» وحدَه مرنٌ يُسمح فيه بالبديل والتبديل فيُميَّز.
+      والغلافُ محدودُ العرض (68rem) — تسعةُ أعمدةٍ قصيرةٍ لا تحتاج عرضَ الصفحة
+      كاملاً، وسقفُ ارتفاعٍ بسكرولٍ داخليٍّ ورأسٍ ثابت لتسعةٍ وتسعين تفريغاً
+      لا تُطيل صفحةَ الإعدادات كلَّها (نمطُ `.load-scroll` القائم في
+      `teacher_load.html`).
+      {% endcomment %}
+      <div class="table-wrap exemption-table">
       <table>
         <thead>
           <tr>
@@ -105,8 +137,7 @@
             </th>
             <th>المعلم</th>
             <th>النوع</th>
-            <th>اليوم</th>
-            <th>الحصة</th>
+            <th>التوقيت</th>
             <th>السبب</th>
             <th>الجهة</th>
             <th>بواسطة</th>
@@ -128,10 +159,14 @@
               <span class="status-badge status-info">حصة محددة</span>
               {% endif %}
             </td>
-            <td>{{ ex.get_day_of_week_display }}</td>
-            <td class="text-center">{% if ex.period_number %}ح{{ ex.period_number }}{% else %}—{% endif %}</td>
+            <td class="text-sm">{{ ex.get_day_of_week_display }}{% if ex.period_number %} · ح{{ ex.period_number }}{% endif %}</td>
             <td class="text-sm">{{ ex.reason }}</td>
-            <td class="text-sm">{{ ex.get_source_display }}</td>
+            <td>
+              <span class="status-badge {% if ex.binds_people %}status-gray{% else %}status-info{% endif %}"
+                    title="{% if ex.binds_people %}يمنع البديلَ والتبديل{% else %}يُسمح فيه بالبديل والتبديل{% endif %}">
+                {{ ex.get_source_display }}
+              </span>
+            </td>
             <td class="text-sm text-muted">{{ ex.created_by.full_name|default:"—" }}</td>
             <td>
               <form method="post" action="{% url 'remove_exemption' ex.id %}" data-confirm="إلغاء تفريغ {{ ex.teacher.full_name }}؟">
@@ -145,6 +180,7 @@
       </table>
       </div>
     </div>
+    </details>
     {% else %}
     {% empty_state "لا توجد تفريغات حالياً" sub="يُضاف التفريغُ من الشبكة أعلاه" icon="exemptions" %}
     {% endif %}
@@ -178,7 +214,9 @@
           حذف المحدَّد (<span data-bulk-count>0</span>)
         </button>
       </form>
-      <div class="table-wrap">
+      {% comment %}سقفُ ارتفاعٍ بسكرولٍ داخليٍّ ورأسٍ ثابت — نفسُ نمط جدول
+      التفريغات المجاور، لعشرات المعلّمين المسجَّلين تفضيلاتُهم.{% endcomment %}
+      <div class="table-wrap preferences-table">
       <table>
         <thead>
           <tr>
@@ -213,6 +251,7 @@
       </div>
     </div>
     {% endif %}{% endsection_card %}
+</div>
 
 </div>
 {% endblock %}

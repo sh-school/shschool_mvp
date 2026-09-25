@@ -32,6 +32,8 @@ class PermissionAuditLog(models.Model):
         ("swap_approved", "موافقة تبديل"),
         ("swap_rejected", "رفض تبديل"),
         ("compensatory_approved", "موافقة تعويض"),
+        ("capability_granted", "منح قدرة مفوَّضة"),
+        ("capability_revoked", "سحب قدرة مفوَّضة"),
     ]
 
     id = models.UUIDField(primary_key=True, default=_uuid, editable=False)

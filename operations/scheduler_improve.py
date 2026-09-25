@@ -18,6 +18,7 @@ from __future__ import annotations
 import random
 import time
 
+from .scheduler_bell import grid_run
 from .scheduler_constraints import (
     MAX_CONSECUTIVE,
     get_max_periods_for_day,
@@ -38,15 +39,6 @@ STALE_ROUNDS = 1
 def _run_cap(preferences: dict | None, teacher_id: str) -> int:
     pref = (preferences or {}).get(teacher_id) or {}
     return pref.get("max_consecutive") or MAX_CONSECUTIVE
-
-
-def _longest_run(periods: list[int]) -> int:
-    ordered = sorted(set(periods))
-    best = run = 1 if ordered else 0
-    for earlier, later in zip(ordered, ordered[1:], strict=False):
-        run = run + 1 if later == earlier + 1 else 1
-        best = max(best, run)
-    return best
 
 
 def fair_share(grid, teacher_id: str, preferences: dict | None) -> int:
@@ -84,7 +76,7 @@ def teacher_day_cost(grid, teacher_id: str, day: int, preferences: dict | None) 
     compactness = alternating_compactness(periods) - 1.0
     edges = sum(1 for p in periods if p in (1, LAST_PERIOD))
     # التلاصقُ أثقلُ ما يُصلَح: رخصةُ ضرورةٍ لا شكلٌ مقبول.
-    breach = 2.0 if _longest_run(periods) > _run_cap(preferences, teacher_id) else 0.0
+    breach = 2.0 if grid_run(grid, teacher_id, day) > _run_cap(preferences, teacher_id) else 0.0
     overload = max(0, len(periods) - fair_share(grid, teacher_id, preferences))
     return (
         gap_weighted + compactness + 0.25 * edges + breach + OVERLOAD_WEIGHT * (overload + deficit)

@@ -5,7 +5,9 @@ E2E Tests: التنقل والوصول — SchoolOS v5.1.1
 """
 
 import pytest
-from playwright.sync_api import expect
+
+pytest.importorskip("pytest_playwright")
+from playwright.sync_api import expect  # noqa: E402
 
 pytestmark = [pytest.mark.e2e, pytest.mark.django_db(transaction=True)]
 
@@ -15,11 +17,11 @@ class TestNavigation:
 
     def test_navbar_visible(self, principal_page):
         """شريط التنقل ظاهر بعد تسجيل الدخول."""
-        expect(principal_page.locator("nav")).to_be_visible()
+        expect(principal_page.locator("nav").first).to_be_visible()
 
     def test_principal_sees_admin_menu(self, principal_page):
         """المدير يرى قائمة الإدارة."""
-        nav = principal_page.locator("nav")
+        nav = principal_page.locator("nav").first
         expect(nav).to_be_visible()
 
     def test_navigate_to_behavior(self, principal_page, live_server):
@@ -38,12 +40,13 @@ class TestDarkMode:
 
     def test_dark_mode_toggle(self, principal_page):
         """تبديل الوضع الداكن يُضيف class dark على html."""
-        toggle = principal_page.locator("#dark-toggle")
-        if toggle.count() > 0:
-            toggle.click()
-            expect(principal_page.locator("html")).to_have_class(lambda c: "dark" in c)
-            toggle.click()
-            expect(principal_page.locator("html")).not_to_have_class(lambda c: "dark" in c)
+        toggle = principal_page.locator("#theme-toggle")
+        html = principal_page.locator("html")
+        expect(toggle).to_be_visible()
+        toggle.click()
+        assert "dark" in (html.get_attribute("class") or "")
+        toggle.click()
+        assert "dark" not in (html.get_attribute("class") or "")
 
 
 class TestAccessibility:
@@ -55,7 +58,7 @@ class TestAccessibility:
 
     def test_nav_landmark_exists(self, principal_page):
         """عنصر nav موجود."""
-        expect(principal_page.locator("nav")).to_be_visible()
+        expect(principal_page.locator("nav").first).to_be_visible()
 
     def test_page_has_rtl_direction(self, principal_page):
         """الصفحة بها اتجاه RTL."""

@@ -10,8 +10,10 @@
 import pathlib
 import re
 
+from tests.css_source import read_css
+
 BASE_JS = pathlib.Path("static/js/base.js").read_text(encoding="utf-8")
-CSS = pathlib.Path("static/css/custom.css").read_text(encoding="utf-8")
+CSS = read_css()
 BASE_HTML = pathlib.Path("templates/base/base.html").read_text(encoding="utf-8")
 
 
@@ -50,7 +52,44 @@ def test_closing_the_drawer_leaves_the_user_menu_alone():
 
 
 def test_submenu_floats_beside_the_drawer_not_over_it():
-    assert "(max-width: 640px)" in BASE_JS  # نقطةُ التحوّل نفسُها في CSS
+    assert (
+        "(max-width: 1024px)" in BASE_JS
+    )  # نقطةُ التحوّل نفسُها في CSS (رُفعت من 640 ليظهر الهامبرغر على الجهاز اللوحيّ)
     drawer = CSS[CSS.index(".nb-bar.nb-split") :]
     assert "inline-size: 50%" in drawer.split("}")[0]
     assert ".sd-menu.sd-drawer" in drawer
+
+
+# ── بلاغ 2026-09-25: القائمةُ الرئيسيّة تبقى مفتوحةً بعد الضغط على رابطٍ فيها ──
+#
+# الانتقالُ بتبديل المحتوى (`page-nav.js`) كان يُغلق القوائمَ المنسدلة (`.sd-menu.open`) ولا يعرف لوحةَ
+# الجوّال نفسَها (`.nb-bar.open`)؛ فيبقى الهامبرغرُ مفتوحاً فوق الصفحة الجديدة. والتحميلُ الكاملُ كان يُغلقها.
+
+PAGE_NAV_JS = pathlib.Path("static/js/page-nav.js").read_text(encoding="utf-8")
+
+
+def _page_nav_function(name):
+    start = PAGE_NAV_JS.index(f"function {name}(")
+    return PAGE_NAV_JS[start : PAGE_NAV_JS.index("\n  }\n", start)]
+
+
+def test_the_panel_can_be_closed_by_name_and_reset_for_readers():
+    closer = _function("closeMobMenu")
+    assert "'open'" in closer and "'nb-split'" in closer
+    assert "setAttribute('aria-expanded', 'false')" in closer, "قارئُ الشاشة يسمعها مفتوحةً"
+
+
+def test_the_outside_click_and_the_navigation_share_that_closer():
+    start = BASE_JS.index("document.addEventListener('click', function(e) {\n  // المسارُ كما كان")
+    outside = BASE_JS[start : BASE_JS.index("\n});", start)]
+    assert "closeMobMenu();" in outside, "النقرُ خارجَها لا يستعمل المُغلقَ نفسَه"
+    assert "window.closeMobMenu" in _page_nav_function("closeMenus")
+
+
+def test_a_navigation_click_closes_the_panel_even_when_no_dropdown_is_open():
+    """رابطٌ مباشرٌ في اللوحة (بلا قائمةٍ فرعيّةٍ مفتوحة) كان يعود مبكّراً من `fadeMenus` فتبقى اللوحة."""
+    fade = _page_nav_function("fadeMenus")
+    assert "window.closeMobMenu" in fade
+    assert fade.index("closeMobMenu") < fade.index(
+        "querySelectorAll(MENUS)"
+    ), "الإغلاقُ بعد الخروج المبكّر — لا يبلغه رابطٌ بلا قائمةٍ منسدلةٍ مفتوحة"

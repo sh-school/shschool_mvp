@@ -1,5 +1,6 @@
 {% extends "base/base.html" %}
 {% load static %}
+{% load icons %}
 {% load ui %}
 {% comment %}
 شاشةُ «الإسناد» الواحدة (قرار 2026-09-06): لكلّ معلّمٍ بطاقة — نصابُه وما يدرّسه
@@ -16,19 +17,33 @@
 <div class="exec-dash">
   {% page_header page_title subtitle=page_subtitle icon="checklist" %}
     <div class="asg-tools">
-    <button type="button" class="btn-secondary btn-sm" data-asg-fold="open">فتحُ الكلّ</button>
-    <button type="button" class="btn-secondary btn-sm" data-asg-fold="close">طيُّ الكلّ</button>
-    <form method="get" class="exec-meta">
+    <div class="search-wrap asg-search">
+      <span class="search-icon" aria-hidden="true">{% icon "search" %}</span>
+      <input type="search" id="asg-teacher-search" class="form-control" autocomplete="off"
+             placeholder="ابحث باسم المعلّم…" aria-label="ابحث باسم المعلّم">
+    </div>
+    <button type="button" class="btn-secondary btn-sm" data-asg-fold-toggle="dept" aria-pressed="false">فتحُ الأقسام</button>
+    <button type="button" class="btn-secondary btn-sm" data-asg-fold-toggle="all" aria-pressed="false">فتحُ الكلّ</button>
+    {% comment %}مفتاحُ الوقف: للمدير والنائب الأكاديميّ والمطوّر (`caps.toggle`). القيمةُ صريحة (paused=1|0) لا قلب.{% endcomment %}
+    {% if caps.toggle %}
+    <form method="post" action="{% url 'academic_management:assignment_entry_toggle' %}">
+      {% csrf_token %}
       <input type="hidden" name="year" value="{{ year }}">
-      <select name="dept" class="form-select" data-autosubmit title="القسم" aria-label="القسم">
-        <option value="">كلُّ الأقسام</option>
-        {% for d in departments %}
-        <option value="{{ d.key }}" {% if selected_dept == d.key %}selected{% endif %}>{{ d.name }} ({{ d.count }})</option>
-        {% endfor %}
-      </select>
+      {% if governance.coordinator_entry_paused %}
+      <input type="hidden" name="paused" value="0">
+      <button type="submit" class="btn-primary btn-sm">فتحُ الإسناد للمنسّقين</button>
+      {% else %}
+      <input type="hidden" name="paused" value="1">
+      <button type="submit" class="btn-secondary btn-sm">وقفُ الإسناد عن المنسّقين</button>
+      {% endif %}
     </form>
+    {% endif %}
     </div>
   {% endpage_header %}
+
+  {% if governance.coordinator_entry_paused %}
+  {% callout "warning" show=True %}الإسنادُ موقوفٌ عن المنسّقين{% if governance.entry_changed_at %} منذ {{ governance.entry_changed_at|date:"Y-m-d H:i" }}{% endif %} — يرون الشاشةَ ولا يكتبون فيها.{% if caps.review or caps.approve %} وأنت غيرُ مشمولٍ بالوقف فتكتب كالمعتاد؛ ولترى أثرَه جرّب بحساب منسّق.{% endif %}{% endcallout %}
+  {% endif %}
 
   {% comment %}
   حارسُ المدرسة: الحملُ الفرديُّ لا يكشف شعبةً بلا معلّم. فيُقاس المطلوبُ من
@@ -82,19 +97,38 @@
   <p class="asg-hint">لا أقسامَ مسجَّلةً في هذه المدرسة — فالتجميعُ مشتقٌّ من حصص كلّ معلّم. ومتى سُجّلت الأقسامُ صارت هي المصدر.</p>
   {% endif %}
 
-  {% for department in groups %}
-    <h2 class="asg-dept">{{ department.name }} <small>— {{ department.cards|length }} معلّماً</small></h2>
-    <div class="asg-grid">
-    {% for card in department.cards %}
-      {% include "academic_management/partials/assignment_teacher.html" %}
+  {% if not groups %}
+    {% include "components/empty_state.html" with title="لا معلّمين في هذا النطاق" %}
+  {% else %}
+  {% comment %}أربعةَ عشرَ قسماً بعرض الصفحة كلٍّ كانت تُطيل التمرير — عمودان
+  متتابعان لا متبادلان (قرارُ تخطيط الصفحات في CLAUDE.md): القسمُ الأوّل حتى
+  السابع في العمود الأوّل، والثامن حتى الرابع عشر في الثاني.{% endcomment %}
+  {% comment %}الأقسامُ كلُّها في بطاقةٍ مركزيّةٍ واحدة (`section_card`) لا مبعثرةً على الصفحة العارية.{% endcomment %}
+  {% section_card "الأقسام" meta=totals.teachers|stringformat:"s"|add:" معلّماً" icon="departments" %}
+  <div class="auto-grid asg-dept-cols">
+  {% for column in dept_cols %}
+    <div class="asg-dept-col">
+    {% for department in column %}
+      <details class="asg-dept-fold dept-{{ department.color }}">
+        <summary class="asg-dept-summary">
+          <h2 class="asg-dept">{{ department.name }} <small>— {{ department.cards|length }} معلّماً</small></h2>
+        </summary>
+        <div class="asg-grid">
+        {% for card in department.cards %}
+          {% include "academic_management/partials/assignment_teacher.html" %}
+        {% endfor %}
+        </div>
+      </details>
     {% endfor %}
     </div>
-  {% empty %}
-    {% include "components/empty_state.html" with title="لا معلّمين في هذا النطاق" %}
   {% endfor %}
+  </div>
+  {% endsection_card %}
+  {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'js/assignment-fold.js' %}" defer></script>
+<script src="{% static 'js/assignment-search.js' %}" defer></script>
 {% endblock %}

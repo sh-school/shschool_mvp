@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load icons %}
+{% load icons ui %}
 {% block title %}إعداد المصادقة الثنائية{% endblock %}
 
 {% block breadcrumbs %}
@@ -18,7 +18,7 @@
 
   {% if messages %}
     {% for msg in messages %}
-    <div class="msg-bar mb-4 {% if msg.tags == 'error' %}msg-error{% else %}msg-success{% endif %}">
+    <div class="msg-bar mb-4 {% if msg.tags == 'error' %}msg-error{% else %}msg-success{% endif %}" role="{% if msg.tags == 'error' %}alert{% else %}status{% endif %}">
       <span>{{ msg }}</span>
     </div>
     {% endfor %}
@@ -71,6 +71,7 @@
     </details>
 
     <h2 class="font-semibold text-[var(--text-primary)] mb-3">الخطوة 2 — أدخل رمز التحقق</h2>
+    {% callout "warning" %}لا تُوجد رموزُ استرجاع. إن فقدتَ الهاتف أو حُذف التطبيق تعذّر الدخول إلى حسابك، ولا يُعاد فتحُه إلا بإعادة ضبط المصادقة من إدارة النظام.{% endcallout %}
     <form method="post">
       {% csrf_token %}
       {# حقلُ الرمز باليد: أصنافُ العرض على الحقل نفسِه، وتسميتُه للقارئ وحدَه — العنوانُ فوقه يقولها للعين #}
@@ -79,9 +80,9 @@
         <input type="text"
                id="f-code"
                name="code"
-               maxlength="6"
+               maxlength="7"
                inputmode="numeric"
-               pattern="[0-9]{6}"
+               pattern="[0-9]{3} ?[0-9]{3}"
                autocomplete="one-time-code"
                autofocus
                placeholder="أدخل الرمز المكوّن من 6 أرقام"

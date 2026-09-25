@@ -3,6 +3,9 @@
 {% load privacy ui %}
 {% block title %}ربط أولياء الأمور — {{ current_school.name|default:"المدرسة" }}{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with current="ربط أولياء الأمور" %}
 {% endblock %}
@@ -67,7 +70,7 @@
         <input type="text" name="parent_national_id" id="parent-nid" class="form-control"
                inputmode="numeric" maxlength="11" autocomplete="off"
                placeholder="11 خانة">
-        <p class="form-hint">إن كان في النظام رُبط، وإلّا أُنشئ له حساب.</p>
+        <p class="ui-field-hint">إن كان في النظام رُبط، وإلّا أُنشئ له حساب.</p>
       </div>
 
       <div class="form-group mb-0 mode-pane--new">
@@ -110,9 +113,10 @@
       </div>
 
     </div>
+    {% callout "warning" %}الربطُ يمنح وليَّ الأمر فوراً حقَّ الاطّلاع على درجات الطالب وحضوره. والرقمُ الشخصيّ المطابق لحسابٍ قائمٍ يُربط به دون مقارنة الاسم، وقد يكون الحسابُ لموظّف.{% endcallout %}
     <div class="mt-4">
       <button type="submit" class="btn-primary">+ إضافة الربط</button>
-      <span class="form-hint mr-3">
+      <span class="ui-field-hint mr-3">
         الحسابُ الجديدُ يُفتح بلا كلمة مرور — تُصدَر له مؤقّتةٌ عند التسليم.
       </span>
     </div>

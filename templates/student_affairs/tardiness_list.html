@@ -4,6 +4,9 @@
 
 {% block title %}التأخر الصباحي — شؤون الطلاب{% endblock %}
 
+{# الصفحةُ لا تُمرَّر؛ ما يطول يُمرَّر داخل بطاقته. #}
+{% block main_class %}{% page_layout "list" %}{% endblock %}
+
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/student-affairs/" parent_label="شؤون الطلاب" current="التأخر الصباحي" %}
 {% endblock %}
@@ -25,7 +28,6 @@
     </form>
     <a data-app-file href="{% url 'student_affairs:tardiness_export' %}?date={{ selected_date|date:'Y-m-d' }}" class="btn-secondary btn-sm">{% icon "export_excel" %} تصدير Excel</a>
     <a data-app-file href="{% url 'student_affairs:tardiness_pdf' %}?date={{ selected_date|date:'Y-m-d' }}" class="btn-secondary btn-sm" target="_blank">{% icon "export_pdf" %} تصدير PDF</a>
-    <button data-action="print" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
   {% endpage_header %}
 
   {% kpi_strip label="أرقام التأخر" %}
@@ -56,7 +58,7 @@
         </div>
         <div class="sa-late-field is-narrow">
           <label for="tardiness-excuse-min">التماس (دقائق)</label>
-          <input id="tardiness-excuse-min" type="number" name="excuse_minutes" class="form-control"
+          <input id="tardiness-excuse-min" type="number" inputmode="numeric" name="excuse_minutes" class="form-control"
                  placeholder="مثال: 15" min="1" max="120" aria-label="دقائق الالتماس">
           <span id="tardiness-excuse-preview" class="sa-late-preview"></span>
         </div>

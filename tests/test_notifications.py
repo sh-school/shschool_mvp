@@ -395,13 +395,23 @@ class TestNotificationHub:
         assert not InAppNotification.objects.filter(user=user).exists()
 
     @patch("notifications.hub._queue_external_after_commit")
-    def test_dispatch_quiet_hours_skips_external(self, mock_queue, db, school):
-        """ساعات الهدوء تمنع القنوات الخارجية — in_app يُرسَل دائماً"""
+    def test_dispatch_quiet_hours_defers_external(self, mock_queue, db, school):
+        """ساعات الهدوء تُؤجِّل الخارجيّ ولا تُتخطّاه — in_app يُرسَل دائماً.
+
+        التأجيل يقع عند الطبر (`_queue_external_now` عبر `quiet_hours.plan`)، فالـHub
+        يُسجّل الإرسالَ كما كان؛ ومنعُ خروجه الآنيّ مُثبَتٌ في tests/test_quiet_hours.py."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        # نافذةٌ حولَ الساعة الآن لا 00:00–23:59: طرفُها الأخير خارجَها (`in_quiet_window`)،
+        # فكان الاختبارُ يسقط كلّما جرى في الدقيقة 23:59 بتوقيت الدوحة — وقد سقط به طابورُ الدمج.
+        now = timezone.localtime()
         user = UserFactory()
         UserNotificationPreference.objects.create(
             user=user,
-            quiet_hours_start=dt_time(0, 0),
-            quiet_hours_end=dt_time(23, 59),
+            quiet_hours_start=(now - timedelta(hours=1)).time(),
+            quiet_hours_end=(now + timedelta(hours=1)).time(),
         )
         result = NotificationHub.dispatch(
             event_type="general",
@@ -410,7 +420,8 @@ class TestNotificationHub:
             title="إشعار",
         )
         assert result["in_app"] == 1
-        assert not mock_queue.called
+        assert mock_queue.called
+        assert result.get("deferred") == 1
 
 
 # ══════════════════════════════════════════════════════════
@@ -478,6 +489,21 @@ class TestDefaultChannelsAndPriority:
 
 @pytest.mark.django_db
 class TestBehaviorHubIntegration:
+    @pytest.fixture(autouse=True)
+    def _explicit_consent(self, request, school, student_user):
+        """PDPPL: لا سجلَّ ⇒ لا إشعارَ سلوكيّ — فيُمنح وليُّ الأمر (إن وُجد في الاختبار) موافقةً صريحة كما في صفحة الموافقات."""
+        from core.models import ConsentRecord
+
+        if "parent_user" not in request.fixturenames:
+            return
+        ConsentRecord.objects.create(
+            school=school,
+            parent=request.getfixturevalue("parent_user"),
+            student=student_user,
+            data_type="behavior",
+            is_given=True,
+        )
+
     @patch("notifications.hub._queue_external_after_commit")
     def test_notify_parents_creates_inapp(
         self, mock_queue, school, student_user, teacher_user, parent_user

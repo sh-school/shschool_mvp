@@ -4,6 +4,7 @@
 سطرُ الحمل مع الصفّ في الضربة نفسها. وأزرارُ الدورة أسفلَها: رفعٌ ثمّ مراجعةٌ
 ثمّ اعتماد — لكلٍّ صاحبُه، ولا يظهر زرٌّ لمن لا يملكه.
 {% endcomment %}
+{% load ui %}
 <section class="asg-card asg-{{ card.status|default:"none" }}" id="teacher-{{ card.teacher.id }}"{% if oob %} hx-swap-oob="outerHTML"{% endif %}>
   {% comment %}
   البطاقةُ مطويّةٌ افتراضاً (قرارُ 2026-09-13): ثلاثةٌ وسبعون معلّماً ومنسّقاً كانوا صفحةً
@@ -14,6 +15,7 @@
   <details class="asg-fold"{% if open or card.error or card.transfer %} open{% endif %}>
   <summary class="asg-summary">
     <span class="asg-name">{{ card.teacher.full_name }}</span>
+    {% if card.coordinator %}<span class="asg-chip asg-chip-coordinator">منسّق</span>{% endif %}
     <span class="asg-chip asg-chip-{{ card.status|default:"none" }}">{{ card.status_label }}</span>
     {% if card.diverged or card.room and not card.room.fits %}<span class="asg-chip asg-chip-alert">يحتاج انتباهاً</span>{% endif %}
     <span class="asg-count">{{ card.rows|length }} إسناداً</span>
@@ -44,7 +46,7 @@
       {% csrf_token %}
       <input type="hidden" name="year" value="{{ card.year }}">
       <label for="quota-{{ card.teacher.id }}">النصاب</label>
-      <input id="quota-{{ card.teacher.id }}" type="number" name="required_weekly_periods" min="0" max="40"
+      <input id="quota-{{ card.teacher.id }}" type="number" inputmode="numeric" name="required_weekly_periods" min="0" max="40"
              value="{% if card.plan %}{{ card.plan.required_weekly_periods }}{% endif %}"
              {% if not card.writable %}disabled{% endif %} placeholder="—">
     </form>
@@ -66,7 +68,7 @@
         <td>
           <form hx-post="{% url 'academic_management:assignment_update_periods' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
             {% csrf_token %}
-            <input type="number" name="weekly_periods" min="1" max="35" value="{{ row.weekly_periods }}" {% if not card.writable %}disabled{% endif %} aria-label="الحصص الأسبوعيّة — {{ row.subject.name_ar }} في {{ row.class_group.short_label }}">
+            <input type="number" inputmode="numeric" name="weekly_periods" min="1" max="35" value="{{ row.weekly_periods }}" {% if not card.writable %}disabled{% endif %} aria-label="الحصص الأسبوعيّة — {{ row.subject.name_ar }} في {{ row.class_group.short_label }}">
             {% if row.periods_override_reason %}<span class="asg-hint" title="{{ row.periods_override_reason }}">(خلافُ الخطّة)</span>{% endif %}
           </form>
         </td>
@@ -90,7 +92,7 @@
           <form hx-post="{% url 'academic_management:assignment_toggle_double' row.id %}" hx-trigger="change" hx-target="#teacher-{{ card.teacher.id }}" hx-swap="outerHTML" class="asg-inline">
             {% csrf_token %}
             <input type="checkbox" name="double" value="1" {% if row.double_effective %}checked{% endif %} {% if not card.writable %}disabled{% endif %}
-                   title="{% if not card.writable %}الخطّةُ مقفلة — افتح إصداراً جديداً للتعديل{% else %}حصّتان متلاصقتان لا تقطعهما فسحةٌ ولا صلاة{% endif %}"
+                   title="{% if card.paused %}الإسنادُ موقوفٌ عن المنسّقين{% elif not card.writable %}الخطّةُ مقفلة — افتح إصداراً جديداً للتعديل{% else %}حصّتان متلاصقتان لا تقطعهما فسحةٌ ولا صلاة{% endif %}"
                    aria-label="حصّة مزدوجة — {{ row.subject.name_ar }} في {{ row.class_group.short_label }}">
           </form>
         </td>
@@ -105,7 +107,7 @@
             {% csrf_token %}
             <select name="partner" {% if not card.writable %}disabled{% endif %}
                     aria-label="متوازية مع — {{ row.subject.name_ar }} في {{ row.class_group.short_label }}"
-                    title="{% if not card.writable %}الخطّةُ مقفلة — افتح إصداراً جديداً للتعديل{% else %}{% if row.parallel_orphan %}موسومةٌ وحدَها — اختر شريكتَها أو فُكَّ الربط{% else %}تُدرَّس في التوقيت نفسه مع…{% endif %}{% endif %}">
+                    title="{% if card.paused %}الإسنادُ موقوفٌ عن المنسّقين{% elif not card.writable %}الخطّةُ مقفلة — افتح إصداراً جديداً للتعديل{% else %}{% if row.parallel_orphan %}موسومةٌ وحدَها — اختر شريكتَها أو فُكَّ الربط{% else %}تُدرَّس في التوقيت نفسه مع…{% endif %}{% endif %}">
               <option value="">— لا توازي —</option>
               {% for opt in row.parallel_options %}
               <option value="{{ opt.id }}" {% if row.parallel_partner and row.parallel_partner.id == opt.id %}selected{% endif %}>{{ opt.subject.name_ar }}</option>
@@ -213,6 +215,7 @@
   {% if card.plan.review_comment %}<div class="asg-note">ملاحظةُ المراجعة: {{ card.plan.review_comment }}</div>{% endif %}
 
   {% if card.can_submit or card.can_review or card.can_return or card.can_approve or card.can_revise %}
+  {% if card.can_approve %}{% callout "warning" %}الاعتمادُ توقيعٌ باسمك يُجمِّد البطاقة؛ ولا يُعدَّل الإسنادُ بعده إلّا بإصدارٍ جديدٍ يُراجَع ويُعتمد من جديد.{% endcallout %}{% endif %}
   <div class="asg-flow">
     {% if card.can_review or card.can_return %}
     <input type="text" name="comment" class="asg-comment" placeholder="ملاحظةُ المراجعة (اختياريّة)" aria-label="ملاحظةُ المراجعة">

@@ -1,4 +1,5 @@
 import os as _os
+from typing import Any
 
 from .base import *
 
@@ -58,6 +59,22 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
+# ── S3/R2 اختياريٌّ محلياً — راية Opt-in لكلّ شجرة عملٍ على حدة (البند 11) ──
+# الإنتاجُ يفرضه دائماً (production.py)؛ التطويرُ يبقى DatabaseStorage افتراضاً
+# كي لا يُكسَر أيّ شجرةِ عملٍ أخرى لا تحمل مفاتيح R2 في .env الخاصّ بها.
+if USE_S3:
+    from core.storage_config import s3_default_storage
+
+    _s3_storage, MEDIA_URL = s3_default_storage(
+        access_key_id=AWS_ACCESS_KEY_ID,
+        secret_access_key=AWS_SECRET_ACCESS_KEY,
+        bucket_name=AWS_STORAGE_BUCKET_NAME,
+        region_name=AWS_S3_REGION_NAME,
+        endpoint_url=AWS_S3_ENDPOINT_URL,
+        querystring_expire=AWS_QUERYSTRING_EXPIRE,
+    )
+    STORAGES["default"] = _s3_storage
+
 # ── تطوير: CSP معطّلة — Tailwind CDN يتعارض معها ──────────
 # نزعُ الوسيط يكفي؛ وأيّ توجيهات هنا لا تُقرأ بعد ذلك، فلا تُترك موهِمة.
 MIDDLEWARE = [m for m in MIDDLEWARE if m != "csp.middleware.CSPMiddleware"]
@@ -109,3 +126,28 @@ if not REDIS_URL and not _redis_running():
             "BACKEND": "channels.layers.InMemoryChannelLayer",
         }
     }
+
+
+# ── فضاءُ الجلسة في redis المشترك ─────────────────────────────
+# خوادمُ الجلسات (docker-compose.session.yml) تشترك في redis الحزمة الأصليّة، ولكلٍّ
+# منها قاعدتُها. فكانت مهمّةُ الخلفيّة تُرسَل إلى الطابور المشترك `celery`، فيلتقطها
+# عاملُ الحزمة الأصليّة ويبحث عن صفّها في `shschool_db` فلا يجده — «صفّ التصدير
+# غير موجود» — ويبقى التصديرُ معلّقاً (2026-09-23). ومثلُه طبقةُ القنوات: مجموعاتُ
+# إشعارات المستخدم نفسِه تعبر من جلسةٍ إلى أخرى.
+#
+# فالجلسةُ تحمل اسمَ قاعدتها (`SESSION_NAMESPACE`)، وبه يُسمّى طابورُها وبادئةُ
+# قنواتها في redis نفسِه. لا رقمَ قاعدةٍ منطقيّةٍ يُوزَّع (ستّ عشرةَ لا تكفي الأشجار)،
+# ولا حالةَ تُحفظ: الاسمُ فريدٌ أصلاً لأنّه اسمُ القاعدة. وفراغُه = السلوكُ المشترك القديم.
+SESSION_NAMESPACE = config("SESSION_NAMESPACE", default="")
+if SESSION_NAMESPACE:
+    CELERY_TASK_DEFAULT_QUEUE = SESSION_NAMESPACE
+    _layer: dict[str, Any] = dict(CHANNEL_LAYERS["default"])
+    if str(_layer["BACKEND"]).startswith("channels_redis"):
+        # نسخةٌ لا تعديلٌ في المكان: القاموسُ نفسُه مستورَدٌ من base.
+        CHANNEL_LAYERS = {
+            **CHANNEL_LAYERS,
+            "default": {
+                **_layer,
+                "CONFIG": {**dict(_layer.get("CONFIG", {})), "prefix": f"asgi:{SESSION_NAMESPACE}"},
+            },
+        }

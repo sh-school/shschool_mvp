@@ -19,6 +19,7 @@
   {% page_header page_title subtitle=session_label icon="checklist" %}
     {% if recorded %}<span class="status-badge status-success">{% icon "confirm" %} رصدها المشرف</span>
     {% else %}<span class="status-badge status-warning">{% icon "time" %} لم يُرصد بعد</span>{% endif %}
+    {% callout "info" %}الرصدُ لمشرف الجناح. ولك نقرتان تسجّلان الوقتَ من فورهما: <b>دخل الآن</b> لمن دخل متأخّراً، و<b>خرج بإذن</b> ثمّ <b>عاد</b> لمن غادر الفصل.{% endcallout %}
   {% endpage_header %}
 
   {% kpi_strip label="الحصّة الآن" %}
@@ -30,10 +31,7 @@
   {% endkpi_strip %}
 
   {% if can_tap_late %}
-  <p class="form-note">
-    {% icon "status_info" %}
-    <span>الرصدُ لمشرف الجناح. ولك نقرتان تسجّلان الوقتَ من فورهما: <b>دخل الآن</b> لمن دخل متأخّراً، و<b>خرج بإذن</b> ثمّ <b>عاد</b> لمن غادر الفصل.</span>
-  </p>
+  
   {% endif %}
 
   {% section_card "الطلاب" meta=students_data|length icon="students" flush=True empty="لا طلابَ مقيَّدون في هذه الشعبة" %}{% if students_data %}

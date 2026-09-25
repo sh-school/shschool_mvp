@@ -18,7 +18,7 @@
 
   {# ── نتيجةُ الاستيراد ── #}
   {% if import_result %}
-  <div id="import-result" role="alert" aria-live="polite">
+  <div id="import-result" role="{% if import_result.success %}status{% else %}alert{% endif %}">
     {% if import_result.success %}
     {% section_card "اكتمل الاستيراد بنجاح" icon="status_success" %}
       {% kpi_strip label="نتيجة الاستيراد" %}
@@ -40,7 +40,7 @@
     {% endsection_card %}
     {% else %}
     {% section_card "فشل الاستيراد" icon="status_error" %}
-      <p class="form-note is-warning">{% icon "status_warning" %}<span>يُرجى مراجعة الملف والمحاولة مجدداً.</span></p>
+      {% callout "warning" %}يُرجى مراجعة الملف والمحاولة مجدداً.{% endcallout %}
       {% if import_result.errors %}
       <ul class="plain-list import-errors" aria-label="الأخطاء">
         {% for err in import_result.errors %}<li class="plain-list__row">{{ err }}</li>{% endfor %}
@@ -50,6 +50,8 @@
     {% endif %}
   </div>
   {% endif %}
+
+  {% include "components/credentials_sheet.html" %}
 
   {# ── الملفّات الثلاثة: ما يحويه كلٌّ منها وزرُّه ── #}
   {% section_card "الملفّات" icon="messages" %}
@@ -84,19 +86,16 @@
   <div id="import-form-area" role="region" aria-label="نموذج استيراد الطلاب" hidden>
     {% section_card "رفع ملف Excel للاستيراد" icon="export_excel" %}
       {% if import_error %}
-      <p class="form-note is-warning" role="alert">{% icon "status_error" %}<span>{{ import_error }}</span></p>
+      {% callout "error" %}{{ import_error }}{% endcallout %}
       {% endif %}
 
-      <div class="form-note is-warning import-rules">
-        {% icon "status_warning" %}
-        <ul>
-          <li>استخدم القالب الرسمي فقط — أعمدة بترتيب ثابت، والبياناتُ ابتداءً من الصف الثالث</li>
-          <li>أعمدة إلزامية: الرقم الشخصي + الاسم الكامل</li>
-          <li>الصفوف المقبولة: G7 G8 G9 G10 G11 G12</li>
-          <li>كلمة المرور الافتراضية = الرقم الشخصي — يُنصح بإبلاغ الطلاب بتغييرها</li>
-          <li>الطلاب الموجودون لن يتم حذفهم — يتم تحديث بياناتهم فقط</li>
-        </ul>
-      </div>
+      {# قواعدُ الملفّ: معلومةٌ لا تغيّر الفعل — أمّا عاقبةُ الاستيراد ففي التحذير أدناه #}
+      {% callout "info" %}
+        استخدم القالب الرسمي فقط: أعمدةٌ بترتيبٍ ثابت، والبياناتُ ابتداءً من الصف الثالث. الإلزاميّ: الرقم الشخصي والاسم الكامل. الصفوف المقبولة: G7 إلى G12.
+      {% endcallout %}
+      {% callout "warning" %}
+        الاستيراد ينشئ حساباتٍ جديدةً للطلاب وأولياء الأمور بكلمة مرورٍ عشوائيّةٍ لكلّ حساب، تُعرض لك في ورقةٍ بعد الاستيراد مرّةً واحدةً فقط ولا تُحفظ في أيّ مكان — نزِّلها ووزّعها، ويُلزَم كلُّ صاحبٍ بتغييرها عند أوّل دخول. الحسابُ الموجود لا يُحذف ولا يُستبدل ما فيه: يُكمَّل الحقلُ الفارغ (الاسم والجوال والبريد) فقط. الاستيراد بلا معاينةٍ ولا تراجع بعد البدء.
+      {% endcallout %}
 
       <form method="post" enctype="multipart/form-data" action="{% url 'student_import_export' %}" id="import-form" novalidate>
         {% csrf_token %}
@@ -104,10 +103,10 @@
         <div class="import-drop" id="drop-zone" role="group" aria-label="منطقة رفع ملف Excel">
           {% icon "export_excel" size="2xl" %}
           <p class="import-drop__title">اسحب ملف Excel هنا أو انقر للاختيار</p>
-          <p class="form-hint">يُقبل: .xlsx أو .xls — الحجم الأقصى: 5 ميغا</p>
+          <p class="ui-field-hint">يُقبل: .xlsx أو .xls — الحجم الأقصى: 5 ميغا</p>
           <label for="student-file-input" class="sr-only">اختر ملف Excel</label>
           <input type="file" name="student_file" id="student-file-input" accept=".xlsx,.xls" required class="import-drop__input" data-call-change="onFileSelected" aria-describedby="file-hint">
-          <p id="file-hint" class="form-hint">لا يوجد ملف محدد</p>
+          <p id="file-hint" class="ui-field-hint">لا يوجد ملف محدد</p>
         </div>
 
         <div id="file-preview" class="import-file" hidden>
@@ -135,7 +134,7 @@
 
 <script nonce="{{ request.csp_nonce }}">
   /* الإظهارُ والإخفاءُ بسمة `hidden` لا بصنفٍ يعرّفه Tailwind. */
-  function toggleImportForm() {
+  window.toggleImportForm = function () {
     var area = document.getElementById('import-form-area');
     var btn  = document.getElementById('btn-show-import');
     var isHidden = area.hidden;
@@ -146,9 +145,9 @@
     if (isHidden) {
       area.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }
+  };
 
-  function onFileSelected(input) {
+  window.onFileSelected = function (input) {
     var submitBtn  = document.getElementById('btn-import-submit');
     var preview    = document.getElementById('file-preview');
     var nameEl     = document.getElementById('file-name-display');
@@ -172,7 +171,7 @@
       submitBtn.disabled = true;
       submitBtn.setAttribute('aria-disabled', 'true');
     }
-  }
+  };
 
   // إظهار شريط التقدم عند إرسال النموذج
   document.getElementById('import-form').addEventListener('submit', function () {
