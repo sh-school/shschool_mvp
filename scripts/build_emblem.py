@@ -3,12 +3,12 @@
     python scripts/build_emblem.py            # من جذر المشروع
     python manage.py build_app_icons          # ثمّ: المقصوصاتُ وأيقونةُ iOS من icon-512.png
 
-الأصلُ `static/brand/logoMaroon.png` (295×295) لونٌ واحدٌ مسطّحٌ #8A1538 بحوافّ ناعمة. تُتتبَّع حوافُّه من ألفا
+الأصلُ `static/brand/logoMaroon.png` (295×295) لونٌ واحدٌ مسطّحٌ (العنّابيّ Al Adaam) بحوافّ ناعمة. تُتتبَّع حوافُّه من ألفا
 مكبَّرةٍ 8× (تكعيبيّاً) لا من البكسلات، فيخرج مضلَّعٌ بأجزاءٍ من البكسل:
 
 - `static/brand/emblem.svg` و`emblem-white.svg`: المتّجهُ بلونَين (الأبيضُ لما يُعرض على العنّابيّ، بلا فلتر).
 - `static/icons/{icon-512,icon-192,favicon,badge-72}.png`: تُرسم من المتّجه بلونٍ دقيقٍ واحد (لوحةُ 32 مستوى
-  ألفا، نحو 5–16KB بدل 20–205KB) — فلا تظليلَ ولا نقشَ ولا لونٌ يخالف #8A1538.
+  ألفا، نحو 5–16KB بدل 20–205KB) — فلا تظليلَ ولا نقشَ ولا لونٌ يخالف العنّابيَّ الرسميّ.
 - `static/icons/icon-{192,512}.webp`: النسخُ غيرُ المستعمَلة اليومَ، تُبقى متّسقةً مع الرسمة.
 
 يحتاج: numpy وPillow وopencv-python-headless وPyMuPDF (كلُّها للتطوير؛ ليست في requirements).
@@ -24,12 +24,14 @@ import numpy as np
 from PIL import Image
 
 ROOT = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".")
+sys.path.insert(0, str(ROOT.resolve()))  # الألوانُ تُقرأ من core.brand لا تُنسخ
+
+from core.brand import MAROON, ON_FILL  # noqa: E402
 SOURCE = ROOT / "static" / "brand" / "logoMaroon.png"
 BRAND = ROOT / "static" / "brand"
 ICONS = ROOT / "static" / "icons"
 
-MAROON = "#8A1538"
-MAROON_RGB = (138, 21, 56)
+MAROON_RGB = tuple(int(MAROON[i : i + 2], 16) for i in (1, 3, 5))
 SCALE = 8  # التكبيرُ قبل التتبّع
 EPSILON = 1.2  # تبسيطُ المضلَّع بوحدة البكسل المكبَّر (1/8 بكسلٍ أصليّ)
 ALPHA_LEVELS = 32  # مستوياتُ الشفّافيّة في لوحة الـPNG
@@ -86,7 +88,7 @@ def save_flat_png(image: Image.Image, target: Path) -> None:
 
 def main() -> None:
     path, box = trace()
-    maroon, white = svg(path, box, MAROON), svg(path, box, "#FFFFFF")
+    maroon, white = svg(path, box, MAROON), svg(path, box, ON_FILL)
     (BRAND / "emblem.svg").write_text(maroon, encoding="utf-8", newline="\n")
     (BRAND / "emblem-white.svg").write_text(white, encoding="utf-8", newline="\n")
     print(f"emblem.svg: {(BRAND / 'emblem.svg').stat().st_size} بايت")

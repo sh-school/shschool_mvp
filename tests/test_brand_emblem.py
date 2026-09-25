@@ -15,7 +15,7 @@ import re
 import numpy as np
 from PIL import Image
 
-from core.brand import MAROON
+from core.brand import MAROON, ON_FILL
 
 BRAND = pathlib.Path("static/brand")
 ICONS = pathlib.Path("static/icons")
@@ -45,8 +45,10 @@ def _silhouette(image: Image.Image, size: int = 256) -> np.ndarray:
 def test_the_two_emblem_svgs_are_one_shape_in_two_fills():
     maroon = (BRAND / "emblem.svg").read_text(encoding="utf-8")
     white = (BRAND / "emblem-white.svg").read_text(encoding="utf-8")
-    assert f'fill="{MAROON}"' in maroon and 'fill="#FFFFFF"' in white
-    assert maroon.replace(f'fill="{MAROON}"', 'fill="#FFFFFF"') == white  # الشكلُ نفسُه بايتاً ببايت
+    assert f'fill="{MAROON}"' in maroon and f'fill="{ON_FILL}"' in white
+    assert (
+        maroon.replace(f'fill="{MAROON}"', f'fill="{ON_FILL}"') == white
+    )  # الشكلُ نفسُه بايتاً ببايت
 
 
 def test_the_emblem_svg_stays_small():
