@@ -144,6 +144,47 @@ class TestNavigationBetweenWeeks:
         assert "18 أكتوبر" in body
 
 
+class TestTheSingleDateFilter:
+    """مرشّحُ التاريخ الواحد (U-20): أيُّ يومٍ يقفز إلى أسبوعه، مع أزرار التنقّل الأربعة."""
+
+    def _field(self, client, world, **params):
+        body = _teacher_page(client, world, world["t1"], **params).content.decode()
+        head, tail = body.split('type="date"', 1)
+        return head.rsplit("<form", 1)[1], tail.split(">", 1)[0]
+
+    def test_the_actual_week_has_a_date_field_that_submits_on_change(self, world, client):
+        _, field = self._field(client, world, week="2026-10-18")
+
+        assert 'name="week"' in field and 'value="2026-10-18"' in field
+        assert "data-autosubmit" in field, "الإرسالُ بالآلية المركزيّة لا بسكربتٍ محلّيّ"
+        assert "aria-label=" in field, "حقلٌ بلا نصٍّ مرئيّ يحتاج اسماً"
+
+    def test_it_carries_the_selection_in_hidden_fields(self, world, client):
+        form, _ = self._field(client, world)
+
+        assert f'name="teacher" value="{world["t1"].id}"' in form
+        assert 'name="view" value="teacher"' in form
+        assert 'name="source" value="actual"' in form
+
+    def test_its_bounds_are_the_navigation_range(self, world, client):
+        _, field = self._field(client, world)
+
+        this_sunday = dt.date(2026, 10, 11)
+        low = this_sunday - dt.timedelta(weeks=60)
+        high = this_sunday + dt.timedelta(weeks=60, days=6)
+        assert f'min="{low}"' in field and f'max="{high}"' in field
+
+    def test_a_chosen_date_lands_on_its_week(self, world, client):
+        body = _teacher_page(client, world, world["t1"], week="2026-10-21").content.decode()
+
+        assert "18 أكتوبر" in body and "22 أكتوبر 2026" in body
+
+    def test_the_plan_view_has_no_date_filter(self, world, client):
+        body = _teacher_page(client, world, world["t1"], source="plan").content.decode()
+
+        assert 'type="date"' not in body
+
+
 class TestThePlanIsAButton:
     def test_the_plan_view_has_no_week_arrows_but_a_way_back(self, world, client):
         _generate(world)
@@ -163,14 +204,14 @@ class TestTheSelectionSurvivesTheFormsOnThePage:
     def test_the_paper_form_carries_the_chosen_week(self, world, client):
         body = _teacher_page(client, world, world["t1"], week="2026-10-18").content.decode()
 
-        form = body.split('name="paper"', 1)[0].rsplit("<form", 1)[1]
+        form = body.split('<select name="paper"', 1)[0].rsplit("<form", 1)[1]
         assert 'name="source" value="actual"' in form
         assert 'name="week" value="2026-10-18"' in form
 
     def test_the_paper_form_keeps_the_plan_view_a_plan(self, world, client):
         body = _teacher_page(client, world, world["t1"], source="plan").content.decode()
 
-        form = body.split('name="paper"', 1)[0].rsplit("<form", 1)[1]
+        form = body.split('<select name="paper"', 1)[0].rsplit("<form", 1)[1]
         assert 'name="source" value="plan"' in form
         assert 'name="week"' not in form
 
