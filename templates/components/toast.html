@@ -19,8 +19,7 @@
 {% if msg %}
 <div
   class="toast toast-{{ type|default:'info' }}"
-  role="alert"
-  aria-live="polite"
+  role="{% if type == 'danger' or type == 'error' or type == 'خطأ' or type == 'warning' or type == 'تحذير' %}alert{% else %}status{% endif %}"
 >
   {% if type == 'success' or type == 'حسن' %}
     <span class="toast-icon">{% icon "status_success" %}</span>

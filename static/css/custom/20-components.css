@@ -11,12 +11,8 @@
   padding-block-start: var(--safe-top);
   border-bottom: 1px solid var(--maroon-dark);
 }
-/* هامشٌ يطابق `#main-content` (قرار 2026-09-11) — لا سقف 1280px القديم
-   الذي كان يُبقي الشعارَ واسمَ المستخدم بعيدَين عن حافّة الصفحة الفعليّة
-   بينما المحتوى تحتهما يمتدّ إلى الحافّة بهامشٍ صغيرٍ فقط. `max-width` و
-   `margin` من `.nav-inner` العامّة (يشاركها شريطُ القوائم تحته) يُبطَلان
-   هنا صراحةً — تركُهما ضمنيّاً لا يكفي، إذ يبقيان نافذين لأنّ القاعدةَ
-   العامّة لا تتعارض معهما فتُطبَّق كما هي رغم هذا السياق الأخصّ. */
+/* هامشٌ يطابق `#main-content` (قرار 2026-09-11) لا سقفَ 1280px القديم؛ و`max-width` و`margin`
+   من `.nav-inner` العامّة (يشاركها شريطُ القوائم) يُبطَلان هنا صراحةً فلا يبقيان نافذين. */
 .site-header .nav-inner {
   max-width: none;
   margin: 0;
@@ -1810,6 +1806,7 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
 @media (min-width: 641px) {
   .mobile-bottom-nav { display: none; }
   body { padding-bottom: 0; }
+  html { scroll-padding-block-end: 0; }
   .pwa-banner { inset-block-end: var(--sp-4); }
   .btn-primary, .btn-secondary, .btn-danger { min-height: auto; }
   .form-control, .form-select { min-height: auto; font-size: inherit; }
