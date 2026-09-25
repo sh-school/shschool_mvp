@@ -2247,7 +2247,7 @@ def test_0025_closes_vi54_by_592_lifting_the_owner_gate_and_saying_it_is_unpubli
     vi54 = RoadmapItem.objects.get(code="VI-54")
     assert (vi54.status, vi54.progress, vi54.pr, vi54.gate) == ("done", 100, "#592", "")
     note = vi54.note
-    assert "مدموجٌ غيرُ منشور" in note and "منشورٌ على الإنتاج" not in note
+    assert "منشورٌ على الإنتاج ضمن main@9acf2e1" in note and "غيرُ منشور" not in note
     # ما لم يُقَس يُقال، والحارسُ باسمه، ولا يُدَّعى فحصٌ على الجوّال.
     assert "لم يُقَس" in note and "الإدارةُ على الجوال" in note
     assert "test_the_admin_is_day_by_default_and_never_reads_the_system_theme" in note
@@ -2267,8 +2267,12 @@ def test_0025_adds_the_591_progress_note_on_dbt44_keeping_it_closed_and_unpublis
     dbt44 = RoadmapItem.objects.get(code="DBT-44")
     assert (dbt44.status, dbt44.progress, dbt44.pr) == ("done", 100, "#576 #591")
     note = dbt44.note
-    assert "1 من 491 (0.2%)" in note and "مدموجٌ غيرُ منشور" in note and "DBT-45" in note
-    assert "منشورٌ على الإنتاج" not in note
+    assert (
+        "1 من 491 (0.2%)" in note
+        and "منشورٌ على الإنتاج ضمن main@9acf2e1" in note
+        and "DBT-45" in note
+    )
+    assert "غيرُ منشور" not in note
 
 
 def test_0025_leaves_a_dbt44_the_developer_reopened():
@@ -2339,9 +2343,15 @@ def test_0025_closes_m04_by_594_keeping_the_open_owner_decision_and_the_unverifi
     m04 = RoadmapItem.objects.get(code="M-04")
     assert (m04.status, m04.progress, m04.pr) == ("done", 100, "#549 #594")
     note = m04.note
-    assert "مدموجٌ غيرُ منشور" in note and "لم يُتحقَّق منه" in note and "جهازٌ حقيقيّ" in note
+    assert (
+        "منشورٌ على الإنتاج ضمن main@9acf2e1" in note
+        and "لم يُتحقَّق منه" in note
+        and "جهازٌ حقيقيّ" in note
+    )
+    assert (
+        "مراجعةُ جهازٍ حقيقيّ" in note and "بنداً معلَّقاً على المالك" in note and "غيرُ منشور" not in note
+    )
     assert "قرارٌ مفتوحٌ للمالك" in note and "black-translucent" in note and "+703 بايتاً" in note
-    assert "منشورٌ على الإنتاج" not in note
 
 
 def test_0025_moves_own23_to_30_as_the_sessions_suggestion_not_a_measurement_and_keeps_the_gate():
@@ -2357,7 +2367,13 @@ def test_0025_moves_own23_to_30_as_the_sessions_suggestion_not_a_measurement_and
         and "اقتراحُ 8096" in note
         and "لا قياس" in note
     )
-    assert "لا نصَّ ولا معرّفاً" in note and "مدموجٌ غيرُ منشور" in note
+    assert "لا نصَّ ولا معرّفاً" in note and "منشورٌ على الإنتاج ضمن main@9acf2e1" in note
+    assert (
+        "لم يُعاين /admin/ مرسوماً" in note
+        and "بناءَ بطاقة النسخ الاحتياطيّ" in note
+        and "لم تُدفع" in note
+    )
+    assert "غيرُ منشور" not in note
 
 
 def test_0025_records_mk8_yes_as_one_with_a_history_point_once():
@@ -2397,11 +2413,28 @@ def test_0025_extends_the_dbt36_note_with_the_594_bytes():
     assert "929 بايتاً" in note and "+703 بايتاً" in note and "ولم يُقَس المجموعُ" in note
 
 
-def test_0025_does_not_touch_n041_until_the_revert_and_reland_actually_happen():
+def test_0025_moves_n041_to_67_as_published_but_not_visually_checked_and_never_closes_it():
     _item("N-041", "doing", 33, pr="#577")
+    assert _sync25.sync(RoadmapItem) == ["N-041"]
     assert _sync25.sync(RoadmapItem) == []
     n041 = RoadmapItem.objects.get(code="N-041")
-    assert (n041.status, n041.progress, n041.pr, n041.note) == ("doing", 33, "#577", "")
+    assert (n041.status, n041.progress, n041.pr) == ("doing", 67, "#577 #584")
+    note = n041.note
+    # منشورٌ بقرار المالك بعد تحقّق 8033 المبكّر، وتحقّقُها النهائيّ باقٍ الأحد، ولا معاينةَ بصريّة، ولا يُغلق.
+    assert (
+        "منشورٌ على الإنتاج ضمن main@9acf2e1" in note
+        and "869/869" in note
+        and "أُلغي الـrevert" in note
+    )
+    assert "تحقّقُ 8033 النهائيّ يبقى صباحَ الأحد 2026-09-27" in note and "لم يُعاين بصريّاً" in note
+    assert "عدُّ طلباتٍ لا جهد ولا يُغلق" in note and "#597" in note and "لم يدخل هذا النشر" in note
+    assert "غيرُ منشور" not in note and "معلَّق" not in note
+
+
+def test_0025_leaves_an_n041_the_developer_moved():
+    _item("N-041", "done", 100)
+    assert "N-041" not in _sync25.sync(RoadmapItem)
+    assert RoadmapItem.objects.get(code="N-041").note == ""
 
 
 def test_0025_moves_sch08_to_95_by_the_sessions_suggestion_never_to_100():
@@ -2427,8 +2460,8 @@ def test_0025_never_claims_a_publication_delay_reason_that_the_owner_decision_ch
 
     origin = importlib.util.find_spec("roadmap.migrations.0025_sync_kpis_2026_09_25").origin
     body = open(origin, encoding="utf-8").read()
-    assert not re.search("تعليق نشر|نشرُ main معلَّق|ينتظر تحقّق 8033", body)
-    assert "مدموجٌ غيرُ منشور بعدُ" in body
+    assert not re.search("تعليق نشر|نشرُ main معلَّق|ينتظر تحقّق 8033|معلَّق النشر", body)
+    assert "مدموجٌ غيرُ منشور" not in body
 
 
 def test_0025_adds_a_dbt36_note_about_the_narrow_css_margin_without_moving_it():
@@ -2512,3 +2545,19 @@ def test_0025_publishes_no_personal_number_and_no_hash():
     bs = chr(92)
     assert not re.search(bs + "b" + bs + "d{11}" + bs + "b", body)
     assert not re.search(bs + "b[0-9a-f]{40}" + bs + "b", body)
+
+
+def test_0025_records_the_n041_reader_measurement_after_publication_as_a_read_not_a_visual_check():
+    _item("N-041", "doing", 33, pr="#577")
+    _sync25.sync(RoadmapItem)
+    note = RoadmapItem.objects.get(code="N-041").note
+    # قياسُ القارئ بعد النشر (869 خانةً، 0/0/0 فروقاً) قراءةٌ على الإنتاج لا معاينةٌ بصريّة للصفحة.
+    assert "869 خانةً كلُّها source=actual" in note and "ناقص 0 وزائد 0 واختلاف 0" in note
+    assert "قياسٌ للقارئ لا معاينةٌ بصريّةٌ للصفحة" in note and "source=plan" in note
+
+
+def test_0025_records_the_591_production_check_and_that_dbt45_started_unpushed():
+    _item("DBT-44", "done", 100, pr="#576")
+    _sync25.sync(RoadmapItem)
+    note = RoadmapItem.objects.get(code="DBT-44").note
+    assert "تحقّقُ 8103 على الإنتاج" in note and "لم يُدفع" in note and "DBT-45" in note
