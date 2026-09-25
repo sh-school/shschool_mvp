@@ -1551,3 +1551,138 @@ def test_0020_publishes_nothing_a_public_repo_must_not_say():
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
     assert not re.search(r"\bR2\b", body)
     assert "كلمة المرور المؤقتة" not in body and "Temp@" not in body
+
+
+# ── 0021: ما اندمج ونُشر بعد #577 و#571 — #572 وM-05 (#579) وDBT-55 (#581) ──
+
+_sync21 = importlib.import_module("roadmap.migrations.0021_sync_items_2026_09_25b")
+
+
+class _Apps21:
+    @staticmethod
+    def get_model(_app, name):
+        return RoadmapKpi if name == "RoadmapKpi" else RoadmapItem
+
+
+def _seed21():
+    _item("DBT-53", "todo", 0)
+    _item("DBT-55", "todo", 0, gate="owner")
+    _item("M-05", "todo", 0)
+    _item("DBT-36", "todo", 0)
+
+
+def test_0021_closes_the_three_published_items_and_only_notes_dbt36():
+    _seed21()
+    assert _sync21.sync(RoadmapItem) == ["DBT-53", "DBT-55", "M-05", "DBT-36"]
+    assert _sync21.sync(RoadmapItem) == []
+    for code, pr in (("DBT-53", "#572"), ("DBT-55", "#581"), ("M-05", "#579")):
+        item = RoadmapItem.objects.get(code=code)
+        assert (item.status, item.progress, item.pr) == ("done", 100, pr), code
+        assert "منشورٌ على الإنتاج" in item.note and "main@38181bc" in item.note, code
+    dbt36 = RoadmapItem.objects.get(code="DBT-36")
+    assert (dbt36.status, dbt36.progress, dbt36.pr) == ("todo", 0, "")
+    assert "468.94KB" in dbt36.note and "ولم يُقَس المجموعُ" in dbt36.note
+
+
+def test_0021_corrects_the_dbt55_estimate_and_lifts_the_owner_gate_only_there():
+    _seed21()
+    RoadmapItem.objects.filter(code="M-05").update(gate="owner")
+    _sync21.sync(RoadmapItem)
+    dbt55 = RoadmapItem.objects.get(code="DBT-55")
+    assert dbt55.gate == ""
+    # التقديرُ «+2px» لم يقع: يُقال ذلك بالقياس، والأرقامُ الرسميّة من CI تُذكر.
+    assert "لم يقع" in dbt55.note and "64.8px" in dbt55.note and "2 (0.41%)" in dbt55.note
+    assert "كانت بوّابةُ «المالك»" in dbt55.note
+    # ولا يُرفع حاجزُ غيره.
+    assert RoadmapItem.objects.get(code="M-05").gate == "owner"
+
+
+def test_0021_states_what_m05_did_not_verify_and_the_real_count():
+    _seed21()
+    _sync21.sync(RoadmapItem)
+    note = RoadmapItem.objects.get(code="M-05").note
+    assert "9 مواضع فعليّة" in note and "لم يُتحقَّق منه" in note and "+218 بايتاً" in note
+    dbt53 = RoadmapItem.objects.get(code="DBT-53").note
+    assert "25 نموذجاً" in dbt53 and "4140" in dbt53 and "2243" in dbt53 and "857" in dbt53
+
+
+def test_0021_leaves_an_item_the_developer_moved():
+    _item("M-05", "doing", 40)
+    assert "M-05" not in _sync21.sync(RoadmapItem)
+    m05 = RoadmapItem.objects.get(code="M-05")
+    assert (m05.status, m05.progress, m05.note) == ("doing", 40, "")
+
+
+def test_0021_fills_mk9_once_with_a_history_point_and_keeps_a_measured_kpi():
+    RoadmapKpi.objects.create(
+        code="MK9",
+        lane="mobile",
+        name="مواضعُ 100vh بلا dvh",
+        baseline_text="6–8",
+        source="خطّة الجوال",
+        text_mode=True,
+    )
+    RoadmapKpi.objects.create(
+        code="MK1", lane="mobile", name="x", current=0.2, measured_at=_sync21.DAY, text_mode=True
+    )
+    assert _sync21.first_readings(RoadmapKpi) == ["MK9"]
+    assert _sync21.first_readings(RoadmapKpi) == []
+    mk9 = RoadmapKpi.objects.get(code="MK9")
+    assert (mk9.current, mk9.measured_at) == (0.0, _sync21.DAY)
+    assert mk9.history == [{"d": "2026-09-25", "v": 0.0}] and "test_dynamic_viewport" in mk9.source
+    assert mk9.baseline_text == "6–8" and mk9.text_mode is True
+    assert RoadmapKpi.objects.get(code="MK1").current == 0.2
+
+
+def test_0021_never_overwrites_a_kpi_the_developer_already_measured():
+    RoadmapKpi.objects.create(
+        code="MK9",
+        lane="mobile",
+        name="x",
+        current=3.0,
+        measured_at=_sync21.DAY,
+        source="ميدانيّ",
+        text_mode=True,
+    )
+    assert _sync21.first_readings(RoadmapKpi) == []
+    assert RoadmapKpi.objects.get(code="MK9").current == 3.0
+
+
+def test_0021_keeps_the_kpi_source_within_the_field_limit():
+    RoadmapKpi.objects.create(code="MK9", lane="mobile", name="x", source="ك" * 250, text_mode=True)
+    assert _sync21.first_readings(RoadmapKpi) == ["MK9"]
+    mk9 = RoadmapKpi.objects.get(code="MK9")
+    assert mk9.source == "ك" * 250 and mk9.current == 0.0
+
+
+def test_0021_forwards_does_nothing_on_an_empty_database_and_is_idempotent():
+    _sync21.forwards(_Apps21, None)
+    assert RoadmapItem.objects.count() == 0
+    _seed21()
+    RoadmapKpi.objects.create(code="MK9", lane="mobile", name="x", source="خطّة", text_mode=True)
+    _sync21.forwards(_Apps21, None)
+
+    def snapshot():
+        return (
+            list(
+                RoadmapItem.objects.order_by("code").values_list(
+                    "code", "status", "progress", "pr", "gate", "note"
+                )
+            ),
+            list(RoadmapKpi.objects.values_list("code", "current", "history", "source")),
+        )
+
+    first = snapshot()
+    _sync21.forwards(_Apps21, None)
+    assert snapshot() == first
+
+
+def test_0021_publishes_no_personal_number_and_does_not_add_unconfirmed_items():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0021_sync_items_2026_09_25b").origin
+    body = open(origin, encoding="utf-8").read()
+    assert not re.search(r"\b\d{11}\b", body) and not re.search(r"\b[0-9a-f]{40}\b", body)
+    # M-05b مقترَحٌ من 8102 ينتظر تأكيد المالك، وREP-01 ينتظر قياسَه الفعليّ: لا يُدرجان هنا.
+    assert "M-05b" not in [row[0] for row in _sync21.UPDATES]
+    assert not hasattr(_sync21, "add_missing") and not hasattr(_sync21, "add_items")
