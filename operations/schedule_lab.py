@@ -13,7 +13,7 @@
   validity.hard_conflicts / completeness / uncovered_days
   teacher.gap_weighted_avg / gap_weighted_max / compactness / run_avg /
           run_breaches / weekly_imbalance / transitions_avg / transitions_max
-  fairness.edge_cv / stress_top / preference_satisfaction
+  fairness.edge_cv / stress / preference_satisfaction / exception_load (عرضٌ لا حكم)
   subject.pattern_match / same_period_max / heavy_morning / activity_afternoon
   class.heavy_streak_days / math_late
   resources.utilization / saturated_slots
@@ -26,7 +26,8 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from statistics import mean, pstdev
 
-from .scheduler_bell import longest_run
+from .schedule_lab_exceptions import exception_load
+from .scheduler_bell import Interval, longest_run
 
 DAYS = (0, 1, 2, 3, 4)
 LAST_PERIOD = 7
@@ -161,10 +162,10 @@ def load_context(school, academic_year) -> Context:
     return ctx
 
 
-def _interval(ctx: Context, band_id: str, day: int, period: int):
+def _interval(ctx: Context, band_id: str, day: int, period: int) -> Interval | None:
     day_type = "thursday" if day == 4 else "regular"
     for key in ((band_id, day_type), ("", day_type), (band_id, "regular"), ("", "regular")):
-        hit = ctx.bells.get((key[0], key[1], period))
+        hit: Interval | None = ctx.bells.get((key[0], key[1], period))
         if hit:
             return hit
     return None
@@ -294,10 +295,15 @@ class ScheduleLab:
         فالفسحةُ والصلاةُ تفصلان (قرارُ المالك 2026-09-24): حصّتان تعبران استراحةً ليستا
         تتابعاً، كما لا تُعدّان معاً في الحصّة المزدوجة. وبلا جرسٍ يبقى الرقمُ حَكَماً.
         """
-        return longest_run(
-            self.by_teacher_day_bands[tid][day],
-            lambda band, period: _interval(self.ctx, band, day, period),
-        )
+        return self.clock_run(self.by_teacher_day_bands[tid][day], day)
+
+    def interval(self, band_id: str, day: int, period: int) -> Interval | None:
+        """جرسُ حصّةٍ في نطاقٍ ويوم — `None` إن لم يُعرف."""
+        return _interval(self.ctx, band_id, day, period)
+
+    def clock_run(self, cells: list[tuple[int, str]], day: int) -> int:
+        """أطولُ تتابعٍ متّصلٍ بالساعة لخانات (حصّة، نطاق) في يوم — لأيّ موضوع، لا للمعلّم وحدَه."""
+        return longest_run(cells, lambda band, period: self.interval(band, day, period))
 
     def run_cap(self, tid: str) -> int:
         pref = self.ctx.preferences.get(tid)
@@ -669,7 +675,8 @@ class ScheduleLab:
         )
 
     # ── الكلّ ──
-    def compute(self) -> dict:
+    def compute(self, *, display_only: bool = True) -> dict:
+        """كلُّ المؤشّرات؛ و`display_only=False` يُسقط ما لا يدخل الدرجة (`grid_lab_score` بالآلاف)."""
         gap_avg, gap_max = self.gaps()
         run_avg, run_breaches = self.runs()
         tr_avg, tr_max = self.transitions()
@@ -703,6 +710,8 @@ class ScheduleLab:
             "resources.utilization": res_util,
             "resources.saturated_slots": res_sat,
         }
+        if display_only:
+            metrics["fairness.exception_load"] = exception_load(self)
         metrics["_meta"] = {"slots": len(self.slots), "teachers": len(self.by_teacher_day)}
         return metrics
 
@@ -727,6 +736,7 @@ CATALOG: dict[str, tuple[str, str, str]] = {
     "teacher.transitions_max": ("انتقالات الطابقين (أقصى يوم)", "عدد", "info"),
     "fairness.edge_cv": ("عدالة الأولى والسابعة (معامل اختلاف)", "نسبة", "low"),
     "fairness.stress": ("ضغط المعلّم (متوسّط)", "رقم", "low"),
+    "fairness.exception_load": ("أقصى استثناءاتٍ على معلّمٍ أو شعبةٍ واحدة", "أيّام", "info"),
     "fairness.preference_satisfaction": ("تلبية التفضيلات", "%", "high"),
     "subject.pattern_match": ("توزيع المادّة على الأسبوع", "% مطابقة", "high"),
     "subject.same_period_max": ("تكرار الحصّة نفسها للمادّة (متوسّط الأقصى)", "عدد", "low"),
@@ -984,5 +994,5 @@ def overall_score(metrics: dict) -> float:
 
 def grid_lab_score(grid, ctx: Context) -> tuple[float, dict]:
     """(الدرجةُ الكلّية، المؤشرات) لشبكةٍ في الذاكرة — بالمختبر نفسِه الذي يقيس الجدولَ الحيّ."""
-    metrics = ScheduleLab(slots_from_grid(grid, ctx), ctx).compute()
+    metrics = ScheduleLab(slots_from_grid(grid, ctx), ctx).compute(display_only=False)
     return overall_score(metrics), metrics

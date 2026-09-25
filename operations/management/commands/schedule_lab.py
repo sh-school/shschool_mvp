@@ -22,6 +22,9 @@ from core.models import School
 from operations.models import ScheduleBaseline, ScheduleGeneration
 from operations.schedule_lab import ScheduleLab, compare, latest_baseline
 
+#: مؤشّراتٌ يُطبع تفصيلُها تحت سطرها — يسمّي المعلّمَ أو الشعبةَ الأثقلَ حملاً.
+DETAILED = ("validity.hard_conflicts", "fairness.stress", "fairness.exception_load")
+
 
 class Command(BaseCommand):
     help = "يقيس مؤشرات جودة جدولٍ (حيّ أو توليد) ويقارنه بأساسٍ أو بجدولٍ آخر"
@@ -80,7 +83,7 @@ class Command(BaseCommand):
                 mark = {"better": "▲", "worse": "▼"}.get(r["verdict"], " ")
                 line += f"   الأساس {base!s:>8}{delta} {mark}"
             self.stdout.write(line)
-            if r["key"] in ("validity.hard_conflicts", "fairness.stress") and r["detail"]:
+            if r["key"] in DETAILED and r["detail"]:
                 self.stdout.write(f"      {json.dumps(r['detail'], ensure_ascii=False)}")
 
         if opts["store"]:
