@@ -1822,3 +1822,163 @@ def test_0022_publishes_no_personal_number_and_no_school_name():
     assert not re.search(bs + "b[0-9a-f]{40}" + bs + "b", body)
     # اسمُ المدرسة الفعليّ يرد في نصّ طلب #583 لا في هجرةٍ عامّة.
     assert "الشحانية" not in body
+
+
+# ── 0023: REP-04 (#588) وREP-01 (بعمليّة) وRK6 = 0 والدَّين DBT-56 ──
+
+_sync23 = importlib.import_module("roadmap.migrations.0023_sync_items_2026_09_25d")
+
+
+class _Apps23:
+    @staticmethod
+    def get_model(_app, name):
+        return RoadmapKpi if name == "RoadmapKpi" else RoadmapItem
+
+
+def _seed23():
+    _item("REP-04", "todo", 0)
+    _item("REP-01", "todo", 0)
+    _item("REP-03", "todo", 0, gate="owner")
+
+
+def test_0023_closes_rep04_by_its_pr_and_rep01_by_an_operation():
+    _seed23()
+    assert _sync23.sync(RoadmapItem) == ["REP-04", "REP-01", "REP-03"]
+    assert _sync23.sync(RoadmapItem) == []
+    rep04 = RoadmapItem.objects.get(code="REP-04")
+    assert (rep04.status, rep04.progress, rep04.pr) == ("done", 100, "#588")
+    assert (
+        "4 فاشلة و2 ناجحة" in rep04.note
+        and "RK6 من 2 إلى 0" in rep04.note
+        and "DBT-56" in rep04.note
+    )
+    # لم يُنشر بعد آخر إخطار نشرٍ: يُقال ذلك ولا يُدَّعى نشرٌ لم يقع.
+    assert "main@6087da6" in rep04.note and "فيُنشر في دورةٍ لاحقة" in rep04.note
+    rep01 = RoadmapItem.objects.get(code="REP-01")
+    assert (rep01.status, rep01.progress, rep01.pr) == ("done", 100, "")
+    assert (
+        "بعمليّةٍ لا بطلب دمج" in rep01.note
+        and "لم يصلني تفصيلُ" in rep01.note
+        and "RK2 لا يتغيّر قبل REP-05" in rep01.note
+    )
+
+
+def test_0023_only_notes_rep03_and_never_invents_a_progress_figure():
+    _seed23()
+    _sync23.sync(RoadmapItem)
+    rep03 = RoadmapItem.objects.get(code="REP-03")
+    assert (rep03.status, rep03.progress, rep03.gate) == ("todo", 0, "owner")
+    assert "ينفّذها المالكُ بنفسه" in rep03.note and "لم تُعطَ نسبةُ تقدّمٍ" in rep03.note
+
+
+def test_0023_leaves_an_item_the_developer_moved():
+    _item("REP-04", "doing", 30)
+    assert "REP-04" not in _sync23.sync(RoadmapItem)
+    assert RoadmapItem.objects.get(code="REP-04").note == ""
+
+
+def test_0023_sets_rk6_to_zero_keeping_the_baseline_and_replacing_todays_point():
+    RoadmapKpi.objects.create(
+        code="RK6",
+        lane="sec",
+        name="x",
+        baseline=2.0,
+        current=2.0,
+        target=0.0,
+        measured_at=_sync23.DAY,
+        history=[{"d": "2026-09-25", "v": 2.0}],
+        source="مراجعةُ workflows",
+    )
+    assert _sync23.sync_kpis(RoadmapKpi) == ["RK6"]
+    assert _sync23.sync_kpis(RoadmapKpi) == []
+    rk6 = RoadmapKpi.objects.get(code="RK6")
+    assert (rk6.baseline, rk6.current) == (2.0, 0.0)
+    # قياسُ اليوم يستبدل نقطةَ اليوم لا يضيف نقطةً ثانيةً بالتاريخ نفسه.
+    assert (
+        rk6.history == [{"d": "2026-09-25", "v": 0.0}]
+        and "#588" in rk6.source
+        and len(rk6.source) <= 255
+    )
+
+
+def test_0023_leaves_an_rk6_the_developer_remeasured():
+    RoadmapKpi.objects.create(
+        code="RK6", lane="sec", name="x", baseline=2.0, current=1.0, measured_at=_sync23.DAY
+    )
+    assert _sync23.sync_kpis(RoadmapKpi) == []
+    assert RoadmapKpi.objects.get(code="RK6").current == 1.0
+
+
+def test_0023_registers_dbt56_open_undated_and_without_a_pr():
+    assert _sync23.add_debts(RoadmapItem) == ["DBT-56"]
+    assert _sync23.add_debts(RoadmapItem) == []
+    dbt56 = RoadmapItem.objects.get(code="DBT-56")
+    assert (dbt56.status, dbt56.progress, dbt56.pr, dbt56.src, dbt56.lane) == (
+        "todo",
+        0,
+        "",
+        "DBT",
+        "backend",
+    )
+    assert dbt56.start_date is None and dbt56.end_date is None and dbt56.sort_order == 725
+    assert "2 ← 0" in dbt56.criterion and "26 ← 0" in dbt56.criterion and "توثيقٍ" in dbt56.note
+
+
+def test_0023_keeps_a_dbt56_the_developer_wrote_first():
+    _item("DBT-56", "doing", 10, title="كتبه المطوّر")
+    assert _sync23.add_debts(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="DBT-56").title == "كتبه المطوّر"
+
+
+def test_0023_forwards_does_nothing_on_an_empty_database_and_is_idempotent():
+    _sync23.forwards(_Apps23, None)
+    assert RoadmapItem.objects.count() == 0
+    _seed23()
+    RoadmapKpi.objects.create(
+        code="RK6",
+        lane="sec",
+        name="x",
+        baseline=2.0,
+        current=2.0,
+        measured_at=_sync23.DAY,
+        source="مراجعة",
+    )
+    _sync23.forwards(_Apps23, None)
+
+    def snapshot():
+        return (
+            list(
+                RoadmapItem.objects.order_by("code").values_list(
+                    "code", "status", "progress", "pr", "note"
+                )
+            ),
+            list(RoadmapKpi.objects.values_list("code", "current", "history", "source")),
+        )
+
+    first = snapshot()
+    _sync23.forwards(_Apps23, None)
+    assert snapshot() == first
+    assert RoadmapItem.objects.filter(code="DBT-56").exists()
+
+
+def test_0023_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0023_sync_items_2026_09_25d").origin
+    body = open(origin, encoding="utf-8").read()
+    bs = chr(92)
+    assert not re.search(bs + "b" + bs + "d{11}" + bs + "b", body)
+    assert not re.search(bs + "b[0-9a-f]{40}" + bs + "b", body)
+    # لا وصفَ لما كان يخفيه الفحصُ ولا لتاريخ ضعفه ولا أسماءَ خطواتٍ حسّاسة ولا بصمات.
+    banned = (
+        "Security Summary",
+        "منذ 2026-09-1",
+        "بصمات",
+        "الحادثة",
+        "FERNET",
+        ".zip",
+        "aaaa",
+        "كم شخصاً",
+        "27 issues",
+    )
+    assert [term for term in banned if term in body] == []
