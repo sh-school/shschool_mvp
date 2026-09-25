@@ -579,7 +579,7 @@ class Command(BaseCommand):
                     academic_year=year,
                     semester=s2,
                     event_type="students_end",
-                    name="نهاية دوام الطلبة",
+                    name="نهاية دوام الطلبة (مشتقّة من آخر اختبارات الفصل الثاني)",
                     start_date=last_day,
                     end_date=last_day,
                     grade_scope=scope,

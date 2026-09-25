@@ -132,3 +132,4 @@ class TestTheSeed:
                 ending.grade_scope,
             )
             assert ending.audience == "students"
+            assert "مشتقّة" in ending.name, "الحدثُ يقول في اسمه إنّه مشتقٌّ لا من نشرة الوزارة"
