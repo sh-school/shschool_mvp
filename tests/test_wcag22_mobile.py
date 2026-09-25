@@ -111,7 +111,7 @@ def test_no_viewport_meta_blocks_zoom():
 
 
 #: ما يقصّه `line-clamp` معاينةٌ مقصودةٌ نصُّها الكاملُ في الصفحة أو الرابط — ولا يفقد محتوىً بتباعد النصّ (1.4.12).
-LINE_CLAMPS = {".notif-item__body", ".grid-cell__name", ".rm-clamp", ".rm-tile p.rm-clamp"}
+LINE_CLAMPS = {".grid-cell__name", ".rm-clamp", ".rm-tile p.rm-clamp"}
 
 
 def test_line_clamps_are_the_known_previews():
