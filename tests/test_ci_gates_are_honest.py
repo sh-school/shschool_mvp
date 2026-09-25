@@ -15,14 +15,23 @@
   `pyproject.toml`. لا `--cov-fail-under` في سيرِ عملٍ ولا Makefile ولا سكربت،
   ولا `pytest.ini` ولا `.coveragerc` يُبطلان pyproject بصمت.
 * ملخّصٌ يحسب حالةَ التغطية يقرأ العتبةَ من pyproject لا يكتب رقماً.
+* خطوةٌ تلتقط مخرجَ أمرٍ بـ`| tee` تُفعِّل `pipefail`. صدفةُ GitHub الافتراضيّة للخطوات
+  `bash -e` بلا pipefail، فخروجُ الخطّ كلِّه خروجُ `tee` (صفرٌ) مهما فعل الأمرُ قبله. وهكذا كانت
+  وظيفةُ `django-check` — أحدُ أربعةٍ يحكمها `Security Summary` — تنجح وفحصُها يُبلِّغ عن مشكلاتٍ
+  (طبع تشغيلُ 2026-09-17 «System check identified 27 issues») ثمّ صار الاستيرادُ ينهار (S3 إلزاميّ)
+  والوظيفةُ ناجحةٌ أيضاً. والحارسُ يشغّل الخطوةَ نفسَها بصدفة GitHub ويُثبت أنّها تفشل حين ينهار الفحص.
 """
 
 from __future__ import annotations
 
+import os
 import pathlib
 import re
+import shutil
+import subprocess
 import tomllib
 
+import pytest
 import yaml
 
 WORKFLOWS = pathlib.Path(".github/workflows")
@@ -36,6 +45,10 @@ SWALLOWED_RE = re.compile(r"\|\|\s*true\s*(#.*)?$")
 TRUNCATED_RE = re.compile(r"\|\s*head\b")
 #: مقارنةٌ برقمٍ حرفيّ في ملخّصٍ — العتبةُ تُقرأ لا تُكتب.
 LITERAL_THRESHOLD_RE = re.compile(r"rate\s*>=\s*\d")
+#: أنبوبٌ إلى `tee` — خروجُ الخطّ كلِّه خروجُ `tee` ما لم يُفعَّل pipefail.
+TEE_PIPE_RE = re.compile(r"\|\s*tee\b")
+#: `set -o pipefail` أو `set -euo pipefail` … في سطرٍ لا يبدأ بتعليق.
+PIPEFAIL_SET_RE = re.compile(r"^\s*set\s+[-+\w ]*\bpipefail\b", re.M)
 
 
 def _workflows() -> dict[str, dict]:
@@ -192,8 +205,133 @@ def test_no_dead_webhook_rollback():
     assert "/health/" in runs
 
 
+def _sets_pipefail(script: str) -> bool:
+    return bool(PIPEFAIL_SET_RE.search(script))
+
+
+def masked_pipes_in(doc: dict) -> list[str]:
+    """خطواتٌ تلتقط مخرجَ أمرٍ بـ`| tee` بلا pipefail — فشلُ الأمر يُبتلع.
+
+    `shell: bash` صريحةً (على الخطوة أو الوظيفة أو الملفّ) تعني عند GitHub `bash -eo pipefail`
+    فهي مقبولة؛ أمّا بلا `shell` فالصدفةُ `bash -e` وحدَها.
+    """
+    found: list[str] = []
+    file_shell = ((doc.get("defaults") or {}).get("run") or {}).get("shell")
+    for job_id, job in (doc.get("jobs") or {}).items():
+        job_shell = ((job.get("defaults") or {}).get("run") or {}).get("shell")
+        for step in job.get("steps") or []:
+            script = step.get("run")
+            if not isinstance(script, str):
+                continue
+            piped = [
+                line.strip()
+                for line in script.splitlines()
+                if TEE_PIPE_RE.search(line) and not line.lstrip().startswith("#")
+            ]
+            shell = step.get("shell") or job_shell or file_shell
+            if piped and shell != "bash" and not _sets_pipefail(script):
+                label = step.get("name") or step.get("uses") or "?"
+                found += [f"{job_id} / {label}: `{line}`" for line in piped]
+    return found
+
+
+def test_no_workflow_hides_a_failing_command_behind_tee():
+    """`أمر | tee ملف` يخرج بخروج `tee` — فالأمرُ المنهارُ تنجح خطوتُه ما لم يُفعَّل pipefail."""
+    offenders = []
+    for file, doc in _workflows().items():
+        offenders += [f"{file}: {problem}" for problem in masked_pipes_in(doc)]
+    assert not offenders, (
+        "خطواتٌ تُخفي فشلَ أمرها خلف `| tee` (أضِف `set -o pipefail` أوّلَ الخطوة):\n  "
+        + "\n  ".join(offenders)
+    )
+
+
+def _github_shell(step: dict) -> list[str]:
+    """صدفةُ الخطوة على Linux كما يشغّلها GitHub: `bash -e`، ومع `shell: bash` صريحةً `bash -eo pipefail`."""
+    return ["bash", "-eo", "pipefail"] if step.get("shell") == "bash" else ["bash", "-e"]
+
+
+def _run_step_like_github(
+    step: dict, cwd: pathlib.Path, *, python_exit: int
+) -> subprocess.CompletedProcess:
+    """يشغّل `run` الخطوةِ بصدفتها الفعليّة، و`python` فيها مزيَّفٌ يخرج بالرمز المطلوب — بلا Django ولا شبكة."""
+    fake_bin = cwd / "bin"
+    fake_bin.mkdir()
+    fake_python = fake_bin / "python"
+    fake_python.write_text(
+        f"#!/bin/sh\necho 'ImproperlyConfigured: مزيَّف' >&2\nexit {python_exit}\n",
+        encoding="utf-8",
+    )
+    fake_python.chmod(0o755)
+    env = {**os.environ, "PATH": f"{fake_bin}{os.pathsep}{os.environ['PATH']}"}
+    return subprocess.run(
+        [*_github_shell(step), "-c", step["run"]],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _django_check_step() -> dict:
+    job = _workflows()["security-scan.yml"]["jobs"]["django-check"]
+    steps = [s for s in job["steps"] if "check --deploy" in (s.get("run") or "")]
+    assert len(steps) == 1, f"خطواتُ فحص النشر ليست واحدة: {[s.get('name') for s in job['steps']]}"
+    return steps[0]
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash غير متاح")
+class TestTheDeployCheckStepIsHonest:
+    """الخطوةُ نفسُها كما في security-scan.yml، مُشغَّلةً بصدفة GitHub: تفشل إن انهار الفحصُ وتنجح إن نجح."""
+
+    def test_a_crashing_check_fails_the_step(self, tmp_path):
+        result = _run_step_like_github(_django_check_step(), tmp_path, python_exit=1)
+        assert result.returncode != 0, "انهار الفحصُ ونجحت الخطوة — الأنبوبُ يبتلع الفشل"
+
+    def test_a_passing_check_passes_the_step_and_keeps_its_report(self, tmp_path):
+        result = _run_step_like_github(_django_check_step(), tmp_path, python_exit=0)
+        assert result.returncode == 0, result.stderr
+        report = (tmp_path / "django-deploy-check.txt").read_text(encoding="utf-8")
+        assert "ImproperlyConfigured" in report, "التقريرُ المرفوع لا يحمل مخرجَ الفحص"
+
+    def test_the_old_form_is_the_bug_this_guard_exists_for(self, tmp_path):
+        """الصيغةُ القديمة: الفحصُ ينهار والخطوةُ تنجح — يُثبَت هنا أنّ الحارسَ يرى الفرق."""
+        old = {
+            "name": "old",
+            "run": "python manage.py check --deploy --fail-level WARNING 2>&1 | tee django-deploy-check.txt\n",
+        }
+        result = _run_step_like_github(old, tmp_path, python_exit=1)
+        assert result.returncode == 0, "لم يُعاد إنتاجُ العطب: الصيغةُ القديمة صارت تفشل"
+        assert masked_pipes_in({"jobs": {"j": {"steps": [old]}}})
+
+
 class TestTheGuardItself:
     """الحارسُ يمسك ما وُضع له."""
+
+    def test_a_tee_pipe_without_pipefail_is_caught(self):
+        doc = {"jobs": {"j": {"steps": [{"name": "s", "run": "cmd 2>&1 | tee out.txt"}]}}}
+        assert len(masked_pipes_in(doc)) == 1
+
+    def test_pipefail_in_the_script_or_an_explicit_bash_shell_is_accepted(self):
+        pipe = "cmd | tee out"
+        docs = [
+            {"jobs": {"j": {"steps": [{"run": f"set -euo pipefail\n{pipe}"}]}}},
+            {"jobs": {"j": {"steps": [{"shell": "bash", "run": pipe}]}}},
+            {"jobs": {"j": {"defaults": {"run": {"shell": "bash"}}, "steps": [{"run": pipe}]}}},
+            {"defaults": {"run": {"shell": "bash"}}, "jobs": {"j": {"steps": [{"run": pipe}]}}},
+        ]
+        assert [masked_pipes_in(doc) for doc in docs] == [[], [], [], []]
+
+    def test_a_custom_shell_or_a_commented_pipefail_is_not_pipefail(self):
+        custom = {"jobs": {"j": {"steps": [{"shell": "bash -e {0}", "run": "cmd | tee out"}]}}}
+        commented = {"jobs": {"j": {"steps": [{"run": "# set -o pipefail\ncmd | tee out"}]}}}
+        assert masked_pipes_in(custom)
+        assert masked_pipes_in(commented)
+
+    def test_a_commented_pipe_is_not_a_pipe(self):
+        doc = {"jobs": {"j": {"steps": [{"run": "# cmd | tee out\necho done"}]}}}
+        assert masked_pipes_in(doc) == []
 
     def test_a_swallowed_step_is_caught(self):
         job = {"steps": [{"name": "x", "run": "mypy . | head -50 || true\necho done"}]}
