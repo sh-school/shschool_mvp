@@ -22,6 +22,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from functools import cache
+from typing import Any
 
 from core.parent_consent import holds_parent_membership
 from core.permissions import expand_roles, role_required
@@ -65,6 +66,17 @@ def _holds_a_wing(user) -> bool:
     from core.models.academic import Wing
 
     return Wing.is_held_by(user)
+
+
+def _delegated(key: str) -> Callable:
+    """منحٌ لا يقرؤه الدور: القدرةُ المفوَّضةُ باسم مستخدمٍ بمنحٍ فعّال (`core/capability_grants.py`)."""
+
+    def check(user: Any) -> bool:
+        from core.capability_grants import holds
+
+        return holds(user, key)
+
+    return check
 
 
 @cache
@@ -286,8 +298,9 @@ def registry() -> dict[str, Capability]:
             "workload.edit",
             "إدخالُ خطط الأنصبة",
             WORKLOAD[EDIT],
-            scope="قسمُ المنسّق",
-            basis="افتراضٌ موصى به — تُبدّله المدرسة (WorkloadGovernance)",
+            scope="قسمُ المنسّق — وكلُّ الأقسام لمُشغِّل الجدول",
+            basis="افتراضٌ موصى به — تُبدّله المدرسة (WorkloadGovernance)؛ ومُشغِّلُ الجدول (`schedule.operator`) يُدخل بمنحه",
+            grant=_delegated("schedule.operator"),
         ),
         _cap(
             "workload.review",
@@ -419,6 +432,29 @@ def registry() -> dict[str, Capability]:
         _cap("schedule.settings", "إعداداتُ الجدول والتفريغات", P.SCHEDULE_SETTINGS),
         _cap("schedule.admin", "إعدادُ الجدول الإداريّ", P.SCHEDULE_ADMIN),
         _cap("schedule.manage", "توزيعاتُ الموادّ", P.SCHEDULE_MANAGE),
+        _cap(
+            "schedule.operator",
+            "مُشغِّلُ الجدول العامّ — إسنادُ الموادّ وتوليدُ الجدول",
+            P.SCHEDULE_ADMIN,
+            scope="المدرسة (كلُّ الأقسام)",
+            basis=(
+                "قرارُ المالك 2026-09-25 (التذكرة SOS-20260924-1CFE): قدرةٌ مفوَّضةٌ باسم المستخدم "
+                "يمنحها ويسحبها المديرُ والنائبُ الأكاديميّ ومطوّرُ المنصّة — إدخالُ الإسناد لكلّ الأقسام "
+                "بلا وقفِ المنسّقين، وتوليدُ الجدول؛ لا اعتمادَ ولا مراجعةَ ولا إعداداتٍ. الأدوارُ هنا من "
+                "يولّد الجدولَ اليوم (`schedule.admin`) فلا يفقد أحدٌ ما يملك"
+            ),
+            grant=_delegated("schedule.operator"),
+        ),
+        _cap(
+            "schedule.approve",
+            "اعتمادُ الجدول",
+            P.SCHEDULE_APPROVE,
+            basis=(
+                "قرارُ المالك 2026-09-25 (جلسةُ الجدول): المديرُ والنائبُ الأكاديميّ، والمطوّرُ استثناءً "
+                "في أيّام الدوام بسببٍ إلزاميٍّ وتدقيق — ولا النائبُ الإداريّ. تُعرَّف هنا ويربطها بواجهة "
+                "الاعتماد مسارُ الجدول"
+            ),
+        ),
         _cap(
             "swap.request",
             "طلبُ تبديل حصّة",

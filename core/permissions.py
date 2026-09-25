@@ -409,6 +409,9 @@ SCHEDULE_ADMIN = frozenset({"principal", "vice_academic", "admin"})
 #: 2026-09-09): كان يمرّ بصفة `is_superuser` وحدَها، وهي صفةُ حسابٍ لا دورٌ في
 #: مدرسة — فحسابُ مطوّرٍ بلا تلك الصفة يُردّ عن شاشةٍ هي عملُه.
 SCHEDULE_SETTINGS = frozenset({"principal", "vice_academic", "platform_developer"})
+#: من يعتمد الجدولَ (قرارُ المالك 2026-09-25، جلسةُ الجدول): المديرُ والنائبُ الأكاديميّ، والمطوّرُ استثناءً
+#: بسببٍ إلزاميٍّ وتدقيق — ولا النائبُ الإداريّ. المطابقةُ لأعضاء `SCHEDULE_SETTINGS` قصدٌ لا مصادفة.
+SCHEDULE_APPROVE = frozenset({"principal", "vice_academic", "platform_developer"})
 #: من يتصفّح جداول غيره — القيادة ومن يُنسّق الجداول.
 #: ومن سواهم يرى جدوله هو، مهما كتب في الرابط.
 SCHEDULE_BROWSE = frozenset(
