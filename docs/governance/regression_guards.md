@@ -77,6 +77,7 @@
 | **صلاحيّاتٌ يتيمة (OWN-19)** | `test_delete_orphan_permissions_migration` | هجرةُ `core/0072` بياناتٌ فقط: تحذف ثمانَ صلاحيّاتٍ لنموذجَين حُذفا (`StaffEvaluation`، `TeacherSubjectQualification`) بالاسم وبشرط أن يبقى النموذجُ غيرَ موجود؛ لا تمسّ صلاحيّةَ نموذجٍ قائمٍ ولا يتيمةً غيرَ مسمّاة (تنظيفٌ عامٌّ قرارٌ مستقلّ)؛ لا رجوعَ لها (الصلاحيّاتُ تُنشأ من النماذج) |
 | **جدولا رموز JWT في الإدارة (OWN-19)** | `test_jwt_tables_hidden_from_admin` | جدولا `token_blacklist` (فارغان دائماً، وبابُ JWT مغلقٌ منذ P1-1) خارجَ لوحة الإدارة وقائمتها وفهرس بحثها ما دامت `API_JWT_ENABLED` مطفأة، ويعودان بها؛ `core/admin_hidden.py` و`core/admin_menu.py:JWT_TABLES` يتبعان الرايةَ نفسَها. الصلاحيّاتُ والمجموعاتُ لا تُمَسّ |
 | **صفحتا كلمة المرور في الإدارة (OWN-19)** | `test_admin_password_arabic` | صفحتا «تعديل مستخدم» و«تغيير كلمة المرور» بلا نصٍّ إنجليزيّ من جانغو («Reset password»، «salt/hash»، «Password-based authentication»…) — يُختبر الرسمُ نفسُه فإن أعاد جانغو صياغةَ نصٍّ سقط؛ والتعريبُ في `core/admin_password_forms.py` (نصوصُه ليست في كتالوج جانغو العربيّ، وبعضُها بلا `gettext` أصلاً) |
+| **بوّاباتُ CI الصادقة** | `test_ci_gates_are_honest` (`test_no_workflow_hides_a_failing_command_behind_tee`، `TestTheDeployCheckStepIsHonest`)، `test_security_gate` (`test_the_deploy_check_environment_boots_the_production_settings`، `test_the_silenced_system_checks_are_only_the_known_documentation_warnings`) | وظيفةٌ تظهر في ملخّصٍ لا تُبتلع أخطاؤها (`\|\| true`، `\| head`، `continue-on-error`)؛ **وخطوةٌ تلتقط مخرجَ أمرٍ بـ`\| tee` تُفعِّل `pipefail`** (صدفةُ GitHub الافتراضيّة `bash -e` بلا pipefail، فخروجُ الخطّ خروجُ `tee`)؛ وخطوةُ `django check --deploy` تُشغَّل بصدفة GitHub وتُثبَت أنّها تفشل حين ينهار الفحص؛ وبيئةُ وظيفتها تُقلع بها إعداداتُ الإنتاج (S3 إلزاميّ)؛ والمُسكَتُ من فحوص النظام في الإنتاج تحذيراتُ توثيق drf-spectacular وحدَها (`SILENCED_SYSTEM_CHECKS`) |
 | **طبقةُ القنوات (redis)** | `test_channel_layer_socket_timeout`، `test_channel_layer_redis_integration` | `socket_timeout` أكبرُ من `brpop_timeout` (5s)؛ ومستهلكٌ خاملٌ 7s على redis **حقيقيّ** لا يسقط بـ«Timeout reading from redis». الثاني يعمل في `test-coverage` (خدمةُ `redis` فيها)، ويُتخطّى محلّياً بلا redis ويفشل في CI إن غاب. مرجعُ الفشل: redis-py 8 (`socket_timeout`=5s افتراضاً). تُرقّى `redis` و`channels-redis` و`channels` معاً (مجموعةُ dependabot) |
 
 ## 3. ما يحجب الدمج فعلاً
@@ -88,7 +89,8 @@
 
 - `ملخص بوابة الجودة` (`gate-summary` في `quality-gate.yml`) يشترط نجاحَ: `test-coverage` · `ruff` · `mypy` ·
   `migration-linter` · `complexity` · `secrets-scan` · `deploy-window` · **`axe-a11y`** · `e2e` · `tailwind-build`.
-- `Security Summary` (في `security-scan.yml`) يشترط: `pip-audit-pypi` · `pip-audit-osv` · `bandit` · `django-check`.
+- `Security Summary` (في `security-scan.yml`) يشترط: `pip-audit-pypi` · `pip-audit-osv` · `bandit` · `django-check`
+  (وقد صار `django-check` يفشل فعلاً حين ينهار فحصُه أو يجد تحذيراً — بعد أن كان يطبعه ولا يفشل).
 
 **القاعدةُ الأهمّ:** وظيفةٌ لا تُذكر في `needs` وفي شرط الفشل داخل `gate-summary` **لا تحجب شيئاً** — تخضرّ
 أو تحمرّ والدمجُ يمرّ. فحارسٌ جديدٌ يُوضع في وظيفةٍ قائمةٍ في القائمة (كما وُضعت ميزانيةُ Web Vitals في `axe-a11y`)،
@@ -126,6 +128,7 @@
 | 2026-09-19 | بطاقةُ إجراءٍ تفيض عند 375px؛ العلاجُ الأوّلُ المقترح (`overflow-wrap`) كسر العربيّةَ وضخّم البطاقة (#416) | القاعدة 3 + جرّب العلاجاتِ قبل اختيار واحد |
 | 2026-09-22 | قائمةُ الجداول لا تفتح جداولَ الأقسام ولا المعلّم ولا الشعبة بعد الوصول بنقرة: `function goToSchedule` صار محلّيّاً في غلاف `page-nav.js`، وثمانيةُ قوالب على النمط نفسه | حارسُ `test_page_nav_callables`: الاسمُ من القائمة البيضاء نفسِها لا من نسخةٍ ثانية |
 | 2026-09-24 | تلاشي الصفحات (قرارُ المالك 2026-09-20) لم يعمل قطّ منذ #423: `#main-content > .exec-dash >  {` سقط منه `*`، فأسقط المتصفّحُ القاعدةَ كلَّها حتى `:not(.exec-dash)` الصحيحةَ في قائمتها، و`page-nav.js` ينتظر مدّةً بلا أثر — ولا خطأَ في الكونسول | حارسُ `test_css_selectors`؛ وأنّ **القاعدةَ المكتوبةَ ليست قاعدةً عاملة**: ما لا يظهر أثرُه يُقاس بـ`CSSOM`/الأنماط المحسوبة لا بقراءة الملفّ. وبعد الإصلاح كشف القياسُ على 74 صفحةً (220 ابناً) أنّ 4 أبناءٍ (`.sa-panel`، `.schedule-pages-card`) لهم `transition` خاصٌّ في طبقةٍ أحدث فيختفون فجأةً عند الخروج — عُولج بفرض انتقال الشفافيّة في حالة `.is-leaving` وحدَها (`test_page_nav_shell`) |
+| 2026-09-25 | وظيفةُ `django-check` (أحدُ أربعةٍ في `Security Summary`) كانت تخضرّ وفحصُها يُبلِّغ عن 27 مشكلة (تشغيلُ 2026-09-17: 26 تحذيرَ توثيقٍ لـdrf-spectacular وتحذيرَ `security.W009` لمفتاحٍ قصير)، ثمّ صار الاستيرادُ ينهار (S3 إلزاميّ، #382) وهي خضراءُ أيضاً: `\| tee` بلا `pipefail` تجعل خروجَ الخطوة خروجَ `tee` | حارسُ `test_no_workflow_hides_a_failing_command_behind_tee` وتشغيلُ الخطوة بصدفة GitHub؛ وأنّ **البوّابةَ التي تصدق أوّلَ مرّةٍ تفشل**: فُتح الدَّينُ الخفيّ صراحةً — تحذيراتُ توثيق API تُسكَت بمعرِّفها في قائمةٍ يحرسها الاختبار (26 يومَ 2026-09-25)، والمفتاحُ الوهميّ في الوظيفة أُطيل — لا بإسكات البوّابة كلِّها |
 
 ## 6. كيف تضيف حارساً جديداً
 
