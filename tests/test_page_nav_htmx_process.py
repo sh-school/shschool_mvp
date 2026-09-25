@@ -25,10 +25,10 @@ pytest.importorskip("pytest_playwright")
 from django.urls import reverse  # noqa: E402
 
 from operations.models import Session, Subject  # noqa: E402
+from operations.school_days import is_school_day  # noqa: E402
+from quality.observation_selectors import default_observation_date  # noqa: E402
 
 pytestmark = pytest.mark.django_db
-
-DAY = dt.date(2026, 9, 20)  # أحد — يوم دراسة
 
 
 @pytest.fixture
@@ -37,13 +37,28 @@ def subject(school):
 
 
 @pytest.fixture
-def a_session(school, class_group, teacher_user, subject):
+def day(school):
+    """اليومُ الذي تفتح عليه الاستمارةُ افتراضيّاً: أقربُ يومِ دراسةٍ للخلف من اليوم.
+
+    كان التاريخُ مثبَّتاً (`dt.date(2026, 9, 20)`) — فلا يمرّ الاختبارُ إلّا في ذلك اليوم نفسِه، وفيما
+    عداه تفتح الاستمارةُ على تاريخٍ لا حصّةَ فيه فيُهلَك الانتظارُ عند `[data-period="1"]`. ولم يظهر ذلك
+    حتّى صار يُشغَّل معزولاً في Nightly (2026-09-25) فسقط أوّلَ تشغيل. فتُزرع الحصّةُ في التاريخ الذي
+    تحسبه الاستمارةُ نفسُه بالدالّة نفسِها، لا في تاريخٍ يُفترض أنّه سيوافقها.
+    """
+    picked = default_observation_date(school)
+    if not is_school_day(school, picked):
+        pytest.skip("لا يومَ دراسةٍ في آخر 14 يوماً (إجازةٌ طويلة) — الاستمارةُ تفتح على تاريخٍ بلا حصص")
+    return picked
+
+
+@pytest.fixture
+def a_session(school, class_group, teacher_user, subject, day):
     return Session.objects.create(
         school=school,
         class_group=class_group,
         teacher=teacher_user,
         subject=subject,
-        date=DAY,
+        date=day,
         start_time=dt.time(7, 10),
         end_time=dt.time(7, 55),
         status="scheduled",
