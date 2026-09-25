@@ -247,7 +247,6 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
 
   /* أهدافُ اللمس — WCAG 2.5.8 (24px أدنى)؛ وعلى اللمس 44px في كتلة coarse أسفلَه */
   .bc-back { width: 32px; height: 32px; }
-  .breadcrumbs a { display: inline-block; padding-block: var(--sp-1); min-height: 24px; }
   .th-sort { min-height: 24px; }
 
   /* سجلُّ الموظفين: 12 عموداً في 338px يلفّ الاسمَ حرفاً حرفاً؛ فيُمرَّر داخل غلافه والاسمُ لاصق. */
