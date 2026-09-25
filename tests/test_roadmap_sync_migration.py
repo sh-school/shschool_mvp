@@ -4394,3 +4394,152 @@ def test_0031_publishes_nothing_a_public_repo_must_not_say():
     assert [term for term in banned if term in body] == []
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
+
+
+# ── 0032: ما نُشر على main@a213d3c (#610 #611 #612 #613 #618) ──
+
+_sync32 = importlib.import_module("roadmap.migrations.0032_sync_items_2026_09_25j")
+
+
+class _Apps32:
+    @staticmethod
+    def get_model(_app, name):
+        return RoadmapDecision if name == "RoadmapDecision" else RoadmapItem
+
+
+def test_0032_closes_u20_and_moves_u40_only_from_their_expected_states():
+    _item("U-20", "todo", 0)
+    _item("U-40", "todo", 0)
+    assert _sync32.sync(RoadmapItem) == ["U-20", "U-40"]
+    assert _sync32.sync(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    assert (by["U-20"].status, by["U-20"].progress, by["U-20"].pr) == ("done", 100, "#612")
+    assert (by["U-40"].status, by["U-40"].progress, by["U-40"].pr) == ("doing", 33, "#613")
+
+
+def test_0032_records_what_was_not_verified_and_never_calls_u40_done():
+    _item("U-20", "todo", 0)
+    _item("U-40", "todo", 0)
+    _sync32.sync(RoadmapItem)
+    u20 = RoadmapItem.objects.get(code="U-20").note
+    assert "75 اختباراً" in u20 and "نقلٌ لا تأكيدٌ مباشرٌ لجلسة الخارطة" in u20
+    assert "لم يُتحقَّق:" in u20 and "معاينةُ حقل التاريخ بصريّاً" in u20
+    u40 = RoadmapItem.objects.get(code="U-40").note
+    assert "الكودُ منشورٌ" in u40 and "لا أثرَ حيّاً حتى تُضاف الأحداث" in u40
+    assert "**مشتقّةٌ**" in u40 and "لا من نشرة الوزارة" in u40
+    assert "اشتقاقٌ لا قياس، ولا يُوسم منجَزاً" in u40 and "12 اختباراً" in u40
+
+
+def test_0032_leaves_items_the_developer_moved():
+    _item("U-20", "doing", 40)
+    _item("U-40", "done", 100)
+    assert _sync32.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="U-20").note == ""
+
+
+def test_0032_creates_n044_once_as_derived_progress_and_never_overwrites():
+    from datetime import date
+
+    assert _sync32.add_new_items(RoadmapItem) == ["N-044"]
+    assert _sync32.add_new_items(RoadmapItem) == []
+    n44 = RoadmapItem.objects.get(code="N-044")
+    assert (n44.lane, n44.src, n44.status, n44.progress, n44.pr) == (
+        "backend",
+        "NEW",
+        "doing",
+        67,
+        "#611",
+    )
+    assert (n44.start_date, n44.end_date) == (date(2026, 9, 25), date(2026, 9, 26))
+    assert "فجرَ 09-26" in n44.date_basis and len(n44.date_basis) <= 120
+    assert "لم يُقَس تشغيلُها الحيّ" in n44.note and "اشتقاقٌ لا قياس" in n44.note
+    assert "بلا إشعارٍ للمعلّم عند الانتهاء" in n44.note and n44.sort_order == 735
+    RoadmapItem.objects.filter(code="N-044").update(title="عنوانٌ حرّره المطوّر")
+    assert _sync32.add_new_items(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="N-044").title == "عنوانٌ حرّره المطوّر"
+
+
+def test_0032_appends_the_notes_once_without_touching_status_or_progress():
+    _item("LAY-08", "todo", 0)
+    _item("REP-18", "todo", 0)
+    _item("U-19", "todo", 0)
+    assert _sync32.sync_notes(RoadmapItem) == ["LAY-08", "REP-18", "U-19"]
+    assert _sync32.sync_notes(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    assert all((i.status, i.progress) == ("todo", 0) for i in by.values())
+    assert (
+        "17 عرضاً (641…1280)" in by["LAY-08"].note
+        and "لم يُعاين بصريّاً على الإنتاج" in by["LAY-08"].note
+    )
+    assert (
+        "لا تقدّمَ يُسجَّل قبل التحقّق" in by["REP-18"].note and "112 اختباراً محلّيّاً" in by["REP-18"].note
+    )
+    assert "ليلةَ 09-25" in by["REP-18"].note and "الأحد 09-27" in by["REP-18"].note
+    assert "railway-predeploy.sh" in by["U-19"].note and "فلا يُغلق البند" in by["U-19"].note
+
+
+def test_0032_notes_a_decided_decision_only():
+    RoadmapDecision.objects.create(
+        code="D-23", title="شريط", status="decided", recommendation="التوصية"
+    )
+    assert _sync32.sync_decision_notes(RoadmapDecision) == ["D-23"]
+    assert _sync32.sync_decision_notes(RoadmapDecision) == []
+    d23 = RoadmapDecision.objects.get(code="D-23")
+    assert d23.status == "decided" and "نُفِّذ بـ#610" in d23.recommendation
+    RoadmapDecision.objects.filter(code="D-23").update(status="open", recommendation="")
+    assert _sync32.sync_decision_notes(RoadmapDecision) == []
+
+
+def test_0032_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
+    _sync32.forwards(_Apps32, None)
+    assert RoadmapItem.objects.count() == 0
+    _item("U-20", "todo", 0)
+    _item("U-40", "todo", 0)
+    _item("REP-18", "todo", 0)
+    RoadmapDecision.objects.create(code="D-23", title="شريط", status="decided")
+    _sync32.forwards(_Apps32, None)
+
+    def snapshot():
+        return list(
+            RoadmapItem.objects.order_by("code").values_list(
+                "code", "status", "progress", "pr", "gate", "note", "sort_order"
+            )
+        ) + list(
+            RoadmapDecision.objects.order_by("code").values_list("code", "status", "recommendation")
+        )
+
+    first = snapshot()
+    _sync32.forwards(_Apps32, None)
+    assert snapshot() == first
+    assert RoadmapItem.objects.filter(code="N-044").count() == 1
+
+
+def test_0032_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0032_sync_items_2026_09_25j").origin
+    body = open(origin, encoding="utf-8").read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "بالبصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "رقمٌ حقيقيّ",
+        "مرض",
+        "C:/",
+        "localhost",
+        "up.railway.app",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
