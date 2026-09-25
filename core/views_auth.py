@@ -450,7 +450,7 @@ def setup_2fa(request):
 def disable_2fa(request):
     """تعطيل المصادقة الثنائية بعد التحقق من الرمز الحالي."""
     if request.method == "POST":
-        code = request.POST.get("code", "").strip()
+        code = request.POST.get("code", "").strip().replace(" ", "")
         user = request.user
         _raw = usable_totp_secret(user)
         if _raw:

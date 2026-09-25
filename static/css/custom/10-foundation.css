@@ -437,7 +437,11 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
 }
 
 /* ── Box sizing عالمي ─── */
-html { box-sizing: border-box; }
+/* 2.4.11: المتصفّحُ يعدّ ما تحت الثابت ظاهراً؛ 91 = ترويسة 48+1 وشريط 42 (`test_wcag22_mobile`). */
+html {
+  box-sizing: border-box;
+  scroll-padding-block: calc(var(--safe-top) + 91px) calc(var(--dock-h) + var(--dock-pad) + var(--sp-2));
+}
 *, *::before, *::after { box-sizing: inherit; }
 
 /* ── RTL عربي عام ─── */
