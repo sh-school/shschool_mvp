@@ -68,7 +68,7 @@ def student(db, school):
     from core.models.access import Membership, Role
 
     user = CustomUser.objects.create(
-        must_change_password=False, national_id="31463401932", full_name="تميم سعد"
+        must_change_password=False, national_id="31400000032", full_name="تميم سعد"
     )
     role, _ = Role.objects.get_or_create(school=school, name="student")
     Membership.objects.create(user=user, school=school, role=role, is_active=True)
@@ -79,7 +79,7 @@ def student(db, school):
 def simple(tmp_path, student):
     return _register(
         tmp_path,
-        {"07": [("31463401932", "تميم سعد منصور", "7", "07/1")]},
+        {"07": [("31400000032", "تميم سعد منصور", "7", "07/1")]},
     )
 
 
@@ -117,7 +117,7 @@ def test_a_student_whose_section_is_created_in_this_run_is_still_enrolled(
     db, school, student, tmp_path
 ):
     """شعبةُ الدعم لم تكن في المنصّة، وطلابُها كانوا يسقطون صامتين."""
-    path = _register(tmp_path, {"08": [("31463401932", "تميم سعد", "8", "08/ESE")]})
+    path = _register(tmp_path, {"08": [("31400000032", "تميم سعد", "8", "08/ESE")]})
 
     _run(path, "--apply")
 
@@ -159,9 +159,9 @@ def test_every_registered_student_lands_in_exactly_one_bucket(db, school, studen
         tmp_path,
         {
             "07": [
-                ("31463401932", "تميم سعد", "7", "07/1"),
-                ("31463403208", "تركي محسن", "7", "07/2"),
-                ("31481800902", "اسامه اشرف", "7", "-"),
+                ("31400000032", "تميم سعد", "7", "07/1"),
+                ("31400000008", "تركي محسن", "7", "07/2"),
+                ("31400000002", "اسامه اشرف", "7", "-"),
             ]
         },
     )
@@ -206,7 +206,7 @@ def contradicting(tmp_path, student):
     """ورقةٌ تسمّي 11/2 «تكنولوجي» — وهو ما تكذّبه موادُّ الجدول."""
     return _register(
         tmp_path,
-        {"11": [("31463401932", "تميم سعد", "11", "11/2")]},
+        {"11": [("31400000032", "تميم سعد", "11", "11/2")]},
         tracks=["الشعبة الصفية- 11-2-Technology-"],
     )
 
@@ -242,7 +242,7 @@ def test_a_section_created_here_gets_no_track_from_the_file(db, school, student,
     حتى يُضبط بـ`set_class_tracks` مقيساً بما يُدرَّس."""
     path = _register(
         tmp_path,
-        {"11": [("31463401932", "تميم سعد", "11", "11/2")]},
+        {"11": [("31400000032", "تميم سعد", "11", "11/2")]},
         tracks=["الشعبة الصفية- 11-2-Technology-"],
     )
 
@@ -265,7 +265,7 @@ def test_the_register_numbering_can_be_mapped_onto_the_schools(db, school, stude
         track="technology",
         academic_year=YEAR,
     )
-    path = _register(tmp_path, {"12": [("31463401932", "تميم", "12-Technology", "12/2")]})
+    path = _register(tmp_path, {"12": [("31400000032", "تميم", "12-Technology", "12/2")]})
 
     _run(path, "--map", "12/2=12/4", "--apply")
 
@@ -295,7 +295,7 @@ def test_nothing_is_written_without_apply(db, school, student, simple):
 
 def test_an_account_is_not_invented_without_the_flag(db, school, tmp_path):
     """رقمٌ شخصيٌّ حقيقيٌّ لقاصر لا يُنشأ به حسابٌ بالصدفة."""
-    path = _register(tmp_path, {"07": [("31463409999", "طالبٌ جديد", "7", "07/1")]})
+    path = _register(tmp_path, {"07": [("31400000099", "طالبٌ جديد", "7", "07/1")]})
 
     assert "بلا حساب — لن يُقيَّدوا: 1" in _run(path)
     with pytest.raises(CommandError, match="--create-missing"):
@@ -307,11 +307,11 @@ def test_a_student_absent_from_the_register_is_left_alone(db, school, student, t
     from core.models.access import Membership, Role
 
     other = CustomUser.objects.create(
-        must_change_password=False, national_id="31463400000", full_name="خرّيج"
+        must_change_password=False, national_id="31400000000", full_name="خرّيج"
     )
     role = Role.objects.get(school=school, name="student")
     Membership.objects.create(user=other, school=school, role=role, is_active=True)
-    path = _register(tmp_path, {"07": [("31463401932", "تميم سعد", "7", "07/1")]})
+    path = _register(tmp_path, {"07": [("31400000032", "تميم سعد", "7", "07/1")]})
 
     out = _run(path, "--apply")
 
@@ -332,11 +332,11 @@ def test_running_twice_changes_nothing_the_second_time(db, school, student, simp
 
 
 def test_a_student_who_changed_section_is_moved_not_duplicated(db, school, student, tmp_path):
-    _run(_register(tmp_path, {"07": [("31463401932", "تميم", "7", "07/1")]}), "--apply")
+    _run(_register(tmp_path, {"07": [("31400000032", "تميم", "7", "07/1")]}), "--apply")
     moved = tmp_path / "b"
     moved.mkdir()
 
-    _run(_register(moved, {"07": [("31463401932", "تميم", "7", "07/2")]}), "--apply")
+    _run(_register(moved, {"07": [("31400000032", "تميم", "7", "07/2")]}), "--apply")
 
     active = StudentEnrollment.objects.filter(student=student, is_active=True)
     assert active.count() == 1
