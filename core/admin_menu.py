@@ -211,6 +211,7 @@ GROUPS: tuple[tuple[str, tuple[tuple[str | None, tuple[str, ...]], ...]], ...] =
                     "core.Role",
                     "core.Membership",
                     "auth.Group",
+                    "core.CapabilityGrant",
                     "core.AuditLog",
                     "developer_feedback.AuditLog",
                     "core.ConsentRecord",

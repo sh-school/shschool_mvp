@@ -30,6 +30,7 @@ from academic_management.models import (
     WorkloadGovernance,
 )
 from core import permissions as perms
+from core.capabilities import capability
 from core.dept_colors import OTHER, dept_key
 from core.models import ClassGroup, Department, Membership
 from core.models.academic import grade_order
@@ -49,9 +50,22 @@ NO_DEPARTMENT = "none"
 # ══════════════════════════════════════════════════════════════════════
 
 
+def is_operator(user) -> bool:
+    """أمُفوَّضٌ باسمه «مُشغِّلَ الجدول»؟ — بمنحٍ فعّالٍ لا بدوره (الأدوارُ الإداريّة تدخل الشاشةَ بقدراتها هي)."""
+    return bool(getattr(user, "is_authenticated", False)) and capability(
+        "schedule.operator"
+    ).granted(user)
+
+
 def caps(user, school):
-    """قدراتُ هذا المستخدم على الأنصبة — إدخالٌ ومراجعةٌ واعتماد ومفتاحُ الوقف."""
+    """قدراتُ هذا المستخدم على الأنصبة — إدخالٌ ومراجعةٌ واعتماد ومفتاحُ الوقف.
+
+    المشغِّلُ (`schedule.operator`) يُدخل الإسنادَ لكلّ الأقسام ولا يوقفه وقفُ المنسّقين، ولا يراجع ولا يعتمد:
+    `edit` تشمله في `workload_workflow.has_capability` (إدخالٌ ورفع)، ولا `review` ولا `approve`؛ وعلمُ `operator`
+    هنا يرفع قيدَ القسم والوقف وحدَهما.
+    """
     return {
+        "operator": is_operator(user),
         "edit": flow.has_capability(user, school, flow.EDIT),
         "review": flow.has_capability(user, school, flow.REVIEW),
         "approve": flow.has_capability(user, school, flow.APPROVE),
@@ -63,9 +77,10 @@ def caps(user, school):
 
 
 def entry_paused_for(teacher_caps) -> bool:
-    """أموقوفٌ الإسنادُ عن **هذا** المستخدم؟ — عن المنسّق وحدَه: من يراجع أو يعتمد يكتب دائماً."""
+    """أموقوفٌ الإسنادُ عن **هذا** المستخدم؟ — عن المنسّق وحدَه: من يراجع أو يعتمد أو يُشغّل الجدول يكتب دائماً."""
     return bool(
-        teacher_caps.get("paused") and not (teacher_caps["review"] or teacher_caps["approve"])
+        teacher_caps.get("paused")
+        and not (teacher_caps["review"] or teacher_caps["approve"] or teacher_caps.get("operator"))
     )
 
 

@@ -85,6 +85,7 @@ DEFAULT_CHANNELS = {
     "appraisal_grievance": ["in_app"],
     # تغطيةُ غياب معلّم (إشغالٌ أو تبديل): تكليفٌ لحصّةٍ قريبة — داخل المنصّة وعلى الهاتف فوراً.
     "teacher_cover": ["in_app", "push"],
+    "breach_assigned": ["in_app", "push"],  # DBT-24: داخلَ المنصّة والهاتف فقط
     "general": ["in_app", "push", "email"],
 }
 
@@ -109,6 +110,7 @@ DEFAULT_PRIORITY = {
     "review_cycle": "low",
     "appraisal_grievance": "high",
     "teacher_cover": "high",
+    "breach_assigned": "urgent",
     "general": "low",
 }
 

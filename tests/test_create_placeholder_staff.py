@@ -32,26 +32,26 @@ def _run(*args, **kw):
 
 
 def test_without_apply_no_person_is_created(db, school):
-    out = _run("--name", "جمال صالح")
+    out = _run("--name", "سالم أحمد")
 
-    assert not CustomUser.objects.filter(full_name="جمال صالح").exists()
+    assert not CustomUser.objects.filter(full_name="سالم أحمد").exists()
     assert "عرضٌ فقط" in out
 
 
 def test_with_apply_the_record_lands(db, school):
-    _run("--name", "جمال صالح", "--name", "علي الطيطي", "--apply")
+    _run("--name", "سالم أحمد", "--name", "خالد يوسف", "--apply")
 
-    made = CustomUser.objects.filter(full_name__in=["جمال صالح", "علي الطيطي"])
+    made = CustomUser.objects.filter(full_name__in=["سالم أحمد", "خالد يوسف"])
     assert made.count() == 2
     assert Membership.objects.filter(user__in=made, role__name="teacher").count() == 2
 
 
 def test_running_it_twice_creates_no_second_record(db, school):
-    _run("--name", "جمال صالح", "--apply")
+    _run("--name", "سالم أحمد", "--apply")
 
-    out = _run("--name", "جمال صالح", "--apply")
+    out = _run("--name", "سالم أحمد", "--apply")
 
-    assert CustomUser.objects.filter(full_name="جمال صالح").count() == 1
+    assert CustomUser.objects.filter(full_name="سالم أحمد").count() == 1
     assert "قائمٌ أصلاً" in out
 
 
@@ -60,9 +60,9 @@ def test_running_it_twice_creates_no_second_record(db, school):
 
 def test_the_placeholder_id_cannot_pass_for_a_real_one(db, school):
     """الرقم القطري أحدَ عشر رقماً. وهذا عشرون تبدأ بتسعات."""
-    _run("--name", "جمال صالح", "--apply")
+    _run("--name", "سالم أحمد", "--apply")
 
-    user = CustomUser.objects.get(full_name="جمال صالح")
+    user = CustomUser.objects.get(full_name="سالم أحمد")
 
     assert len(user.national_id) == 20
     assert user.national_id.startswith("999999999")
@@ -70,9 +70,9 @@ def test_the_placeholder_id_cannot_pass_for_a_real_one(db, school):
 
 def test_the_account_cannot_be_logged_into(db, school):
     """سجلٌّ يُسند إليه جدول، لا بابٌ يُدخل منه."""
-    _run("--name", "جمال صالح", "--apply")
+    _run("--name", "سالم أحمد", "--apply")
 
-    user = CustomUser.objects.get(full_name="جمال صالح")
+    user = CustomUser.objects.get(full_name="سالم أحمد")
 
     assert user.is_active is False
     assert not user.has_usable_password()
@@ -94,11 +94,11 @@ def test_two_placeholders_do_not_collide(db, school):
 
 def test_it_leaves_a_real_record_alone(db, school):
     """اسمٌ قائمٌ في السجلّ لا يُنشأ له ظلّ."""
-    real = CustomUser.objects.create(national_id="28912345678", full_name="جمال صالح")
+    real = CustomUser.objects.create(national_id="28912345678", full_name="سالم أحمد")
 
-    _run("--name", "جمال صالح", "--apply")
+    _run("--name", "سالم أحمد", "--apply")
 
-    assert CustomUser.objects.filter(full_name="جمال صالح").count() == 1
+    assert CustomUser.objects.filter(full_name="سالم أحمد").count() == 1
     real.refresh_from_db()
     assert real.national_id == "28912345678"
 
