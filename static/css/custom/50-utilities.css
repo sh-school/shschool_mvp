@@ -277,7 +277,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
    والطبقةُ اللاحقةُ تغلب مهما كانت الخصوصيّة — فبقيت هذه القواعدُ في components بلا أثر. */
 /* main.page-noscroll: الصفحةُ لا تُمرَّر والجدولُ/البطاقةُ يُم */
 @media (min-width: 1025px) {
-  body:has(> #main-content.page-noscroll) { height: 100vh; overflow: hidden; }
+  body:has(> #main-content.page-noscroll) { height: 100vh; height: 100dvh; overflow: hidden; }
   /* auto لا hidden: على شاشةٍ قصيرةٍ يظهر شريطٌ بدل القصّ. */
   #main-content.page-noscroll { display: flex; flex-direction: column; min-height: 0; overflow: auto; }
   #main-content.page-noscroll > .exec-dash { display: flex; flex-direction: column; flex: 1; min-height: 0; }
