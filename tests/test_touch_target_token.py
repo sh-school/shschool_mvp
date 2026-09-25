@@ -128,3 +128,14 @@ def test_breadcrumb_links_reach_the_mouse_minimum_on_every_pointer():
     body = rule.group(1)
     assert re.search(r"min-block-size:\s*24px", body), "رابطُ الفتات دون 24px على سطح المكتب"
     assert "display: inline-flex" in body and "align-items: center" in body, "النصُّ لا يتوسّط"
+
+
+def test_column_sort_headers_reach_the_mouse_minimum_in_the_central_rule():
+    """DBT-55: رأسُ فرز العمود كان 22.4px على سطح المكتب (8 أهدافٍ دون 24px، قياسُ 25 صفحة) لأنّ الحدَّ
+    الأدنى كان في كتلة الهاتف وحدَها. صار في التعريف المركزيّ `.th-sort` لا في قالبٍ ولا داخل `@media`.
+    وقِيس أنّ ارتفاعَ ترويسة الجدول وارتفاعَ أيّ صفحةٍ لم يتغيّرا: الصفُّ يحدّده أطولُ رأسٍ (الملتفّ)."""
+    css = re.sub(r"/\*.*?\*/", "", read_css(), flags=re.S)
+    rule = re.search(r"(?m)^\.th-sort\s*\{([^}]*)\}", css)
+    assert rule, "لا تعريفَ مركزيّاً لـ.th-sort خارجَ الـ@media"
+    assert re.search(r"min-block-size:\s*24px", rule.group(1)), "رأسُ الفرز دون 24px على سطح المكتب"
+    assert "align-items: center" in rule.group(1), "النصُّ لا يتوسّط"
