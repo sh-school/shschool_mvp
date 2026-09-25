@@ -4459,23 +4459,37 @@ def test_0032_creates_n044_once_as_derived_progress_and_never_overwrites():
     assert RoadmapItem.objects.get(code="N-044").title == "عنوانٌ حرّره المطوّر"
 
 
-def test_0032_appends_the_notes_once_without_touching_status_or_progress():
+def test_0032_appends_the_lay08_note_once_without_touching_status_or_progress():
     _item("LAY-08", "todo", 0)
+    assert _sync32.sync_notes(RoadmapItem) == ["LAY-08"]
+    assert _sync32.sync_notes(RoadmapItem) == []
+    lay08 = RoadmapItem.objects.get(code="LAY-08")
+    assert (lay08.status, lay08.progress) == ("todo", 0)
+    assert "17 عرضاً (641…1280)" in lay08.note and "لم يُعاين بصريّاً على الإنتاج" in lay08.note
+    assert "1025–1028 مع فرض nowrap = 0" in lay08.note
+
+
+def test_0032_moves_rep18_and_u19_to_doing_with_the_owners_derived_progress_and_keeps_them_open():
     _item("REP-18", "todo", 0)
     _item("U-19", "todo", 0)
-    assert _sync32.sync_notes(RoadmapItem) == ["LAY-08", "REP-18", "U-19"]
-    assert _sync32.sync_notes(RoadmapItem) == []
+    assert _sync32.sync(RoadmapItem) == ["REP-18", "U-19"]
+    assert _sync32.sync(RoadmapItem) == []
     by = {i.code: i for i in RoadmapItem.objects.all()}
-    assert all((i.status, i.progress) == ("todo", 0) for i in by.values())
-    assert (
-        "17 عرضاً (641…1280)" in by["LAY-08"].note
-        and "لم يُعاين بصريّاً على الإنتاج" in by["LAY-08"].note
-    )
-    assert (
-        "لا تقدّمَ يُسجَّل قبل التحقّق" in by["REP-18"].note and "112 اختباراً محلّيّاً" in by["REP-18"].note
-    )
-    assert "ليلةَ 09-25" in by["REP-18"].note and "الأحد 09-27" in by["REP-18"].note
-    assert "railway-predeploy.sh" in by["U-19"].note and "فلا يُغلق البند" in by["U-19"].note
+    assert (by["REP-18"].status, by["REP-18"].progress, by["REP-18"].pr) == ("doing", 75, "#618")
+    assert (by["U-19"].status, by["U-19"].progress, by["U-19"].pr) == ("doing", 33, "#618")
+    rep18 = by["REP-18"].note
+    assert "لا يُغلق قبل التحقّق" in rep18 and "8111 ناجحاً" in rep18 and "86.99%" in rep18
+    assert "**لم يُقَس بعد**" in rep18 and "الأحد 09-27" in rep18 and "#422" in rep18
+    assert "3 من 4 معايير — اقتراحُ صاحبه (8204) لا قياس" in rep18
+    u19 = by["U-19"].note
+    assert "railway-predeploy.sh" in u19 and "ولا يُغلق البند" in u19 and "1 من 3" in u19
+
+
+def test_0032_leaves_rep18_and_u19_the_developer_moved():
+    _item("REP-18", "doing", 40)
+    _item("U-19", "done", 100)
+    assert _sync32.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="REP-18").progress == 40
 
 
 def test_0032_notes_a_decided_decision_only():
