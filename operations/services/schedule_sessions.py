@@ -224,7 +224,7 @@ class ScheduleSessionsMixin:
 
         `ensure_sessions_for_date` تملأ الفراغ ولا تصحّح: يومٌ فيه جلساتٌ من
         جدولٍ سابق (أو عامٍ سابق) يبقى كما هو. هنا:
-          - تُحذف الجلساتُ التي لا تطابق حصّةً نشطة (المعلّم، الشعبة، الوقت)
+          - تُحذف الجلساتُ التي لا تطابق حصّةً نشطة (المعلّم، الشعبة، الوقت، المادّة)
             **بشرط** ألّا يكون أحدٌ قد مسّها (`_untouched`) — وما مُسَّ يُبقى ويُعَدّ.
           - تُنشأ الجلساتُ الناقصة من الحصص النشطة بمجموعة الاختيار.
           - ويومُ إجازة الطلبة لا حصّةَ نشطةً فيه: لا يُنشأ فيه شيء، وجلساتُه كلُّها
@@ -240,6 +240,11 @@ class ScheduleSessionsMixin:
         if school_days is None:
             school_days = SchoolDays(school, target_date, target_date)
 
+        def identity(row: Session | ScheduleSlot) -> tuple[Any, ...]:
+            # المادّةُ جزءٌ من الهويّة: معلّمٌ ذاتُه في الشعبة والحصّة نفسِها تبدّلت مادّتُه بين
+            # توليدَين (3 من 869 على الإنتاج 2026-09-25) كانت جلستُه «تطابق» فتبقى بمادّةٍ قديمة.
+            return (row.teacher_id, row.class_group_id, row.start_time, row.subject_id)
+
         wanted: dict[tuple[Any, ...], ScheduleSlot] = {}
         if target_date in school_days:
             # نفسُ سبب ensure_sessions_for_date: عامُ التاريخ لا عامُ اليوم.
@@ -247,17 +252,15 @@ class ScheduleSessionsMixin:
             slots = ScheduleSlot.objects.filter(
                 school=school, academic_year=academic_year, day_of_week=qatar_day, is_active=True
             ).select_related("teacher", "class_group", "subject")
-            wanted = {(s.teacher_id, s.class_group_id, s.start_time): s for s in slots}
+            wanted = {identity(s): s for s in slots}
 
         existing = list(
             Session.objects.filter(school=school, date=target_date).only(
-                "teacher_id", "class_group_id", "start_time"
+                "teacher_id", "class_group_id", "start_time", "subject_id"
             )
         )
-        have = {(s.teacher_id, s.class_group_id, s.start_time) for s in existing}
-        stale = [
-            s.id for s in existing if (s.teacher_id, s.class_group_id, s.start_time) not in wanted
-        ]
+        have = {identity(s) for s in existing}
+        stale = [s.id for s in existing if identity(s) not in wanted]
         deletable = (
             list(cls._untouched(Session.objects.filter(id__in=stale)).values_list("id", flat=True))
             if stale
