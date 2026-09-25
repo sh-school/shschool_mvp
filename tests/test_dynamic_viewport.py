@@ -91,9 +91,7 @@ def test_the_hamburger_panel_takes_its_top_from_one_variable():
         (ROOT / "static/css/custom/20-components.css").read_text(encoding="utf-8")
     )
     panels = re.findall(r"\.nb-bar\s*\{[^{}]*\btop:\s*var\(--nb-top[^{}]*\}", css)
-    assert len(panels) == 1, (
-        "قاعدةُ لوحة الهامبرغر (`.nb-bar` بـ`top: var(--nb-top)`) غيرُ موجودةٍ أو مكرَّرة"
-    )
+    assert len(panels) == 1, "قاعدةُ لوحة الهامبرغر غيرُ موجودةٍ أو مكرَّرة"
     assert "max-height: calc(100dvh - var(--nb-top" in panels[0]
 
 
