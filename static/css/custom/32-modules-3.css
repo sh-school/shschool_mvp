@@ -830,18 +830,11 @@
 .comp-actions { display: flex; gap: var(--sp-1-5); margin-top: var(--sp-2); }
 
 /* ── templates/schedule/pages_view.html و print_view.html — شريطُ الأدوات ── */
-  /* على الحاسوب سطرٌ واحدٌ يتوسّط النافذة (قرار 2026-09-06): القائمةُ وحجمُ
-     الورق والأزرار معاً — و`.form-select` بعرض الصفحة كان يدفع الأزرار إلى سطرٍ ثانٍ.
-
-     وفي الهاتف لا يسع السطرُ الواحد: ثلاثُ قوائمَ أدناها 280px وبحثٌ 200px
-     وثلاثةُ أزرار — فكانت الصفحةُ تُسحب 353px جانباً، والقائمةُ مقصوصةً عند
-     الحافّة. فينكسر الشريطُ سطوراً، والقائمةُ والبحثُ بعرضه، وحجمُ الورق
-     واتّجاهُه يتقاسمان سطراً.
-
-     وكانت هذه الكتلةُ مكتوبةً مرّتين — لكلّ قالبٍ نسخة — فوُحّدت.
-
-     والشريطُ صفٌّ مرنٌ يتوسّط بنفسه: كان يستعير صفَّه من `exec-header` — وهي
-     ترويسةُ الصفحة التي يرسمها المكوّنُ وحده، لا شريطُ أدواتٍ داخل بطاقة. */
+  /* سطرٌ واحدٌ يتوسّط النافذة من 1025px (قرار 2026-09-06)، وما دونه ينكسر: كان السطرُ الواحد من 641px
+     فيفيض في اللوحيّ (قيس 2026-09-25: 79px عند 900 و16 عند 1024، D-23) لأنّ الحدَّ الأدنى 280px كان على
+     كلّ قائمةٍ وحقل بحثٍ وهو للقائمة الأولى وحدَها (أسماءُ المعلّمين). وفي الهاتف القائمةُ والبحثُ بعرضه
+     وحجمُ الورق واتّجاهُه يتقاسمان سطراً (كان يُسحب 353px). الكتلةُ واحدةٌ للقالبين، والشريطُ صفٌّ مرنٌ
+     يتوسّط بنفسه لا يستعير صفَّ `exec-header`. */
   .schedule-head { display: flex; align-items: center; justify-content: center; gap: var(--sp-3); flex-wrap: wrap; }
   .schedule-tools { display: flex; gap: var(--sp-2); align-items: center; justify-content: center; flex-wrap: wrap; width: 100%; }
   .schedule-tools > .form-select,
@@ -849,12 +842,15 @@
   .schedule-tools form { display: flex; gap: var(--sp-2); flex: 1 1 100%; }
   .schedule-tools form .form-select { flex: 1 1 0; min-width: 0; }
   @media (min-width: 641px) {
-    .schedule-tools { flex-wrap: nowrap; }
     .schedule-tools form { display: inline; flex: initial; }
     .schedule-tools .form-select,
     .schedule-tools > .form-select,
-    .schedule-tools form .form-select { width: auto; min-width: 280px; flex: initial; }
-    .schedule-tools .schedule-search { width: 200px; flex: initial; }
+    .schedule-tools form .form-select { width: auto; flex: initial; }
+    .schedule-tools > select.form-select { min-width: 280px; }
+    .schedule-tools .schedule-search { width: 200px; }
+  }
+  @media (min-width: 1025px) {
+    .schedule-tools { flex-wrap: nowrap; }
   }
   /* صفحاتُ الجداول: الورقةُ في إطارٍ بطول النافذة، بيضاءُ في الوضعين لأنّها ورقة.
      والبطاقةُ التي تحمل شريطَ الأدوات والإطارَ بلا شريطٍ عنّابيّ — فليست
