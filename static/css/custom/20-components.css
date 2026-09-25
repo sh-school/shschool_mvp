@@ -1116,7 +1116,7 @@ main.page-wide {
 
 .staff-register tbody tr:hover td:first-child { background: var(--maroon-bg); }
 .staff-name {
-  /* سطريٌّ كان 24.000 على حدّ WCAG 2.5.8 تماماً؛ inline-block بارتفاع السطر (DBT-44) */
+  /* DBT-44: سطريٌّ كان 24.000 تماماً */
   display: inline-block;
   min-block-size: 24px;
   text-decoration: none;
@@ -2001,7 +2001,7 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
   flex-wrap: wrap;
 }
 .breadcrumbs a {
-  /* 24px أدنى هدفٍ في WCAG 2.5.8 على كلّ مؤشّر (D1)؛ وصفُّ الفتات 24px أصلاً بزرّ الرجوع فلا يكبر */
+  /* 24px لكلّ مؤشّر: D1، DBT-44 */
   display: inline-flex;
   align-items: center;
   min-block-size: 24px;

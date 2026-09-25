@@ -99,13 +99,31 @@ def test_coarse_links_and_summaries_are_not_inline_boxes():
     assert {":is(a, summary).btn-sm", ".btn-xs"} <= centred, sorted(centred)
 
 
-def test_coarse_pointer_keeps_checkboxes_at_24px():
-    """WCAG 2.5.8: على اللمس لا تنزل الخاناتُ وأزرارُ الاختيار دون 24px (K2)."""
-    block = _coarse_block(read_css())
-    assert re.search(
-        r'input\[type="checkbox"\],\s*input\[type="radio"\]\s*\{[^}]*min-inline-size:\s*24px[^}]*min-block-size:\s*24px',
-        block,
-    ), "كتلةُ coarse لم تعد ترفع الخانات إلى 24px"
+def test_checkboxes_and_radios_reach_the_mouse_minimum_on_every_pointer():
+    """DBT-45: الحدُّ 24px للخانات وأزرار الاختيار كان في كتلة `coarse` وحدَها (M-01) فبقيت خانةُ clinic-check
+    16×16 على سطح المكتب (آخرُ هدفٍ دون 24px، 1 من 491). صار في قاعدةٍ عامّة خارجَ `@media` — D1: 24px للفأرة —
+    وعلى اللمس تكمّل التسميةُ المرتبطةُ الهدفَ (تقيسها السقّاطةُ اتّحاداً، لا فرضاً)."""
+    css = re.sub(r"/\*.*?\*/", "", read_css(), flags=re.S)
+    rule = re.search(r'(?m)^input\[type="checkbox"\],\s*input\[type="radio"\]\s*\{([^}]*)\}', css)
+    assert rule, "لا قاعدةَ عامّةً للخانات خارجَ الـ@media"
+    assert re.search(r"min-inline-size:\s*24px", rule.group(1)) and re.search(
+        r"min-block-size:\s*24px", rule.group(1)
+    ), "الخانةُ دون 24px على سطح المكتب"
+    assert 'input[type="checkbox"]' not in _coarse_block(
+        read_css()
+    ), "الحدُّ عاد إلى كتلة coarse وحدَها"
+
+
+def test_the_checkbox_classes_leave_the_size_to_the_central_rule():
+    """`.clinic-check` و`.ui-field__check` كانتا 16px صريحةً فتكذبان على القاعدة العامّة (min يغلب، لكنّ القارئ
+    يصدّق الرقم). حجمُهما من موضعٍ واحد."""
+    css = re.sub(r"/\*.*?\*/", "", read_css(), flags=re.S)
+    for name in (".clinic-check", ".ui-field__check"):
+        rule = re.search(rf"(?m)^{re.escape(name)}\s*\{{([^}}]*)\}}", css)
+        assert rule, f"لا تعريفَ لـ{name}"
+        assert not re.search(
+            r"(?<![\w-])(?:inline-size|block-size|width|height)\s*:", rule.group(1)
+        ), f"{name} يكتب حجماً صريحاً — يبقى الحجمُ لقاعدة الخانات العامّة"
 
 
 def test_the_warning_disc_stays_24px_inside_its_44px_target():
