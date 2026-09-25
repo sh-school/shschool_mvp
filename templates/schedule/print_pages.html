@@ -55,7 +55,7 @@
   }
 
   .page-header { text-align: center; height: {{ geo.css.header_h }}; margin-bottom: {{ geo.css.gap }}; overflow: hidden; box-sizing: border-box; }
-  .print-emblem { height: {% if orient == 'landscape' %}11mm{% else %}14mm{% endif %}; margin-bottom: 0.5mm; }
+  .print-emblem { height: {% if orient == 'landscape' %}11mm{% else %}14mm{% endif %}; width: auto; margin-bottom: 0.5mm; }
   .ministry { font-size: 7.5pt; line-height: 3.2mm; color: {% brand_color "TEXT_MUTED" %}; }
   .school-name { font-size: 12pt; line-height: 5.4mm; font-weight: 700; color: {% brand_color "MAROON" %}; }
   .doc-title { font-size: 9.75pt; line-height: 4.2mm; color: {% brand_color "TEXT_SECONDARY" %}; }
@@ -124,7 +124,7 @@
 {% for row in pages %}
 <section class="sheet">
   <div class="page-header">
-    <img class="print-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="شعار {{ school.name }}">
+    <img class="print-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="شعار {{ school.name }}" width="295" height="295">
     <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
     <div class="school-name">{{ school.name }}</div>
     <div class="doc-title">{% if kind == 'classes' %}الجدول الأسبوعي للشعبة{% else %}الجدول الأسبوعي للمعلّم{% endif %}</div>
