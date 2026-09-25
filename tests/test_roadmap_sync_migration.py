@@ -1353,3 +1353,201 @@ def test_0019_publishes_no_personal_number_nor_the_temporary_password_scheme():
     # المستودعُ عامّ: لا رقمَ شخصيٍّ ولا نمطَ كلمةِ مرورٍ مؤقّتة في هجرةٍ متتبَّعة.
     assert not re.search(r"\b\d{11}\b", body)
     assert "كلمة المرور المؤقتة" not in body and "Temp@" not in body
+
+
+# ── 0020: عائلةُ REP — خطّةُ إصلاح Git والمستودع (2026-09-25) ──
+
+_sync20 = importlib.import_module("roadmap.migrations.0020_git_repo_remediation_plan")
+
+
+class _Apps20:
+    @staticmethod
+    def get_model(_app, name):
+        from roadmap.models import RoadmapRisk
+
+        return {
+            "RoadmapDecision": RoadmapDecision,
+            "RoadmapKpi": RoadmapKpi,
+            "RoadmapRisk": RoadmapRisk,
+        }.get(name, RoadmapItem)
+
+
+def test_0020_adds_the_23_rep_items_proposed_todo_and_never_closed():
+    assert _sync20.add_items(RoadmapItem) == [f"REP-{n:02d}" for n in range(1, 24)]
+    assert _sync20.add_items(RoadmapItem) == []
+    items = list(RoadmapItem.objects.filter(src="REP").order_by("sort_order"))
+    assert len(items) == 23
+    assert all((i.status, i.progress, i.src) == ("todo", 0, "REP") for i in items)
+    assert all(
+        "لم يعتمده المالك" in i.date_basis and i.ref.startswith("shschool-docs") for i in items
+    )
+    assert all(i.start_date is not None and i.end_date >= i.start_date for i in items)
+    assert [i.sort_order for i in items] == list(range(701, 724))
+    # بوّابةُ المالك على ما يتوقّف على إذنه أو قراره أو إعدادات حسابه.
+    gated = {i.code for i in items if i.gate == "owner"}
+    assert {"REP-02", "REP-03", "REP-05", "REP-12", "REP-13", "REP-15", "REP-16"} <= gated
+    assert "REP-01" not in gated and "REP-07" not in gated
+
+
+def test_0020_keeps_a_rep_item_the_developer_wrote_first():
+    _item("REP-01", "doing", 40, title="كتبه المطوّر")
+    assert "REP-01" not in _sync20.add_items(RoadmapItem)
+    assert RoadmapItem.objects.get(code="REP-01").title == "كتبه المطوّر"
+
+
+def test_0020_adds_the_eleven_kpis_with_a_measured_baseline_only_where_one_exists():
+    assert _sync20.add_kpis(RoadmapKpi) == [f"RK{n}" for n in range(1, 12)]
+    assert _sync20.add_kpis(RoadmapKpi) == []
+    rk1 = RoadmapKpi.objects.get(code="RK1")
+    assert (rk1.baseline, rk1.current, rk1.target, rk1.direction) == (287.0, 287.0, 40.0, "down")
+    assert rk1.history == [{"d": "2026-09-25", "v": 287.0}] and rk1.measured_at == _sync20.DAY
+    # RK4 وRK5 بلا أساسٍ رقميٍّ إلى أن تُبنى أداتاهما: لا قياسَ مختلَق.
+    for code in ("RK4", "RK5"):
+        k = RoadmapKpi.objects.get(code=code)
+        assert (k.baseline, k.current, k.measured_at, k.history) == (None, None, None, [])
+        assert k.baseline_text
+    assert RoadmapKpi.objects.get(code="RK9").direction == "up"
+    assert RoadmapKpi.objects.get(code="RK11").baseline == 4.0
+    orders = [
+        k.sort_order
+        for k in RoadmapKpi.objects.filter(code__startswith="RK").order_by("sort_order")
+    ]
+    assert orders == list(range(432, 443))
+
+
+def test_0020_opens_the_eight_decisions_without_deciding_any():
+    assert _sync20.add_decisions(RoadmapDecision) == [f"RD{n}" for n in range(1, 9)]
+    assert _sync20.add_decisions(RoadmapDecision) == []
+    decisions = list(RoadmapDecision.objects.filter(src="REP"))
+    assert len(decisions) == 8
+    assert all(
+        (d.status, d.decision_date, d.decider) == ("open", None, "المالك") for d in decisions
+    )
+    assert min(d.sort_order for d in decisions) == 128
+
+
+def test_0020_keeps_a_decision_the_owner_already_took():
+    RoadmapDecision.objects.create(
+        code="RD3", title="x", status="decided", recommendation="حسمه المالك"
+    )
+    assert "RD3" not in _sync20.add_decisions(RoadmapDecision)
+    assert RoadmapDecision.objects.get(code="RD3").recommendation == "حسمه المالك"
+
+
+def test_0020_adds_the_eight_risks_once():
+    from roadmap.models import RoadmapRisk
+
+    assert _sync20.add_risks(RoadmapRisk) == [f"RR{n}" for n in range(1, 9)]
+    assert _sync20.add_risks(RoadmapRisk) == []
+    assert min(r.sort_order for r in RoadmapRisk.objects.filter(code__startswith="RR")) == 19
+
+
+def test_0020_adds_notes_only_and_never_touches_u02_u03_or_dates():
+    from datetime import date
+
+    for code, status, progress in (
+        ("U-01", "todo", 0),
+        ("U-17", "todo", 0),
+        ("U-19", "todo", 0),
+        ("U-34", "todo", 0),
+        ("VI-52", "todo", 0),
+        ("U-02", "doing", 50),
+        ("U-03", "todo", 0),
+    ):
+        _item(code, status, progress, start_date=date(2026, 9, 21), end_date=date(2026, 9, 25))
+    assert _sync20.sync_notes(RoadmapItem) == ["U-01", "U-17", "U-19", "U-34", "VI-52"]
+    assert _sync20.sync_notes(RoadmapItem) == []
+    for code in ("U-02", "U-03"):
+        # تعديلُهما ينتظر قرارَ المالك RD3 المباشر: لا ملاحظةَ ولا حالةَ ولا تاريخ.
+        item = RoadmapItem.objects.get(code=code)
+        assert (
+            item.note == ""
+            and str(item.start_date) == "2026-09-21"
+            and str(item.end_date) == "2026-09-25"
+        )
+    for code in ("U-01", "U-17", "U-19", "U-34", "VI-52"):
+        item = RoadmapItem.objects.get(code=code)
+        assert (item.status, item.progress) == ("todo", 0) and str(
+            item.end_date
+        ) == "2026-09-25", code
+    assert "railway-predeploy.sh" in RoadmapItem.objects.get(code="U-19").note
+
+
+def test_0020_leaves_an_item_the_developer_moved():
+    _item("U-01", "doing", 30)
+    assert "U-01" not in _sync20.sync_notes(RoadmapItem)
+    assert RoadmapItem.objects.get(code="U-01").note == ""
+
+
+def test_0020_annotates_uk7_once_within_the_field_limit_and_keeps_its_baseline():
+    RoadmapKpi.objects.create(
+        code="UK7",
+        lane="sec",
+        name="سجلّ",
+        baseline=None,
+        current=None,
+        source="الخطّة الموحّدة K7",
+        text_mode=True,
+    )
+    assert _sync20.sync_kpi_notes(RoadmapKpi) == ["UK7"]
+    assert _sync20.sync_kpi_notes(RoadmapKpi) == []
+    uk7 = RoadmapKpi.objects.get(code="UK7")
+    assert "RK4" in uk7.source and len(uk7.source) <= 255
+    assert (uk7.baseline, uk7.current, uk7.text_mode) == (None, None, True)
+
+
+def test_0020_skips_a_kpi_note_that_would_overflow_the_field():
+    RoadmapKpi.objects.create(code="UK7", lane="sec", name="سجلّ", source="ك" * 250)
+    assert _sync20.sync_kpi_notes(RoadmapKpi) == []
+    assert RoadmapKpi.objects.get(code="UK7").source == "ك" * 250
+
+
+def test_0020_forwards_does_nothing_on_an_empty_database_and_is_idempotent():
+    _sync20.forwards(_Apps20, None)
+    assert RoadmapItem.objects.count() == 0 and RoadmapKpi.objects.count() == 0
+    _item("U-01", "todo", 0)
+    _sync20.forwards(_Apps20, None)
+
+    def snapshot():
+        return (
+            RoadmapItem.objects.count(),
+            RoadmapKpi.objects.count(),
+            RoadmapDecision.objects.count(),
+            list(RoadmapItem.objects.filter(code="U-01").values_list("note", flat=True)),
+        )
+
+    first = snapshot()
+    _sync20.forwards(_Apps20, None)
+    assert snapshot() == first
+    assert first[:3] == (24, 11, 8)
+
+
+def test_0020_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0020_git_repo_remediation_plan").origin
+    body = open(origin, encoding="utf-8").read()
+    # المستودعُ عامّ: لا وصفَ لما تعرّض ولا أين ولا كم، ولا ثغرةً حيّةً بمقياسها، ولا رقماً شخصيّاً ولا بصمةً.
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "#382",
+        "غيرُ صفر",
+        "كم شخصاً",
+        "التاريخ العامّ",
+        "بصمات",
+        "العروض المخزَّنة",
+        "الحادثة",
+        "الاثنين 09-28",
+        "72 ساعة",
+        "كلمةٌ افتراضيّةٌ",
+        "رقمٌ حقيقيّ",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
+    assert not re.search(r"\bR2\b", body)
+    assert "كلمة المرور المؤقتة" not in body and "Temp@" not in body
