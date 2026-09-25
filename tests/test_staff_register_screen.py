@@ -215,7 +215,9 @@ class TestArabicOrder:
         ):
             _staff(school, name, national_id)
 
-        places = _order_of(_body(client_as, principal), "ابراهيم تجريبي", "أنور تجريبي", "بلال تجريبي")
+        places = _order_of(
+            _body(client_as, principal), "ابراهيم تجريبي", "أنور تجريبي", "بلال تجريبي"
+        )
 
         assert places == sorted(places), "الألفُ قبل الباء، وهمزةُ الألف ألفٌ"
 

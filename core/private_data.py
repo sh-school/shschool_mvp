@@ -7,11 +7,12 @@
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 from django.conf import settings
 
 
-def load_private_json(env_var: str, default_relpath: str):
+def load_private_json(env_var: str, default_relpath: str) -> Any:
     """محتوى ملفّ JSON خاصّ، أو None إن غاب أو فسد. المسارُ من متغيّر البيئة وإلّا `BASE_DIR/<default_relpath>`."""
     path = Path(os.environ.get(env_var) or Path(settings.BASE_DIR) / default_relpath)
     try:
