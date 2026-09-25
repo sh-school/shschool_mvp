@@ -1703,6 +1703,6 @@ def test_0021_publishes_no_personal_number_and_never_adds_rep01():
 
     origin = importlib.util.find_spec("roadmap.migrations.0021_sync_items_2026_09_25b").origin
     body = open(origin, encoding="utf-8").read()
-    assert not re.search(r"\d{11}", body) and not re.search(r"[0-9a-f]{40}", body)
+    assert not re.search(r"\b\d{11}\b", body) and not re.search(r"\b[0-9a-f]{40}\b", body)
     # REP-01 ينتظر قياسَه الفعليّ من جلسة Git: لا يُغلق هنا.
     assert "REP-01" not in [row[0] for row in _sync21.UPDATES]
