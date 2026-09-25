@@ -258,8 +258,11 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   .site-header .nav-logo, .site-header .nav-user-btn, .btn-sm, .btn-xs, .parent-child__actions .btn-secondary,
   .notif-group-switch__opt, .period-switch__item, a.status-badge, a.ui-kpi, .staff-name { min-block-size: var(--control-h); }
   .site-header .nav-bell, .theme-toggle, .bc-back, .breadcrumbs a, .th-sort, .ui-tip__btn,
-  .pwa-dismiss-btn, .toast-close, .modal-close-btn { min-inline-size: var(--control-h); min-block-size: var(--control-h); }
+  .pwa-dismiss-btn, .toast-close, .modal-close-btn, .notif-item__read { min-inline-size: var(--control-h); min-block-size: var(--control-h); }
   .col-actions .btn-xs { min-inline-size: var(--control-h); }
+  .notif-item, .notif-item__read { position: relative; }
+  .notif-item__title a { display: block; padding-block: var(--sp-3-5); margin-block: calc(-1 * var(--sp-3-5)); }
+  .notif-item__title a::after { content: ""; position: absolute; inset: 0; }
   .site-header .nav-bell, .breadcrumbs a, .btn-xs, .notif-group-switch__opt, a.status-badge, .staff-name {
     display: inline-flex; align-items: center; justify-content: center;
   }
