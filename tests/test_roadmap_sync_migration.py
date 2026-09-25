@@ -1986,3 +1986,76 @@ def test_0023_publishes_nothing_a_public_repo_must_not_say():
         "27 issues",
     )
     assert [term for term in banned if term in body] == []
+
+
+# ── 0024: #589 — SCH-10 مؤشّرُ تركّز الاستثناءات (50% لا منجَز) ──
+
+_sync24 = importlib.import_module("roadmap.migrations.0024_sync_items_2026_09_25e")
+
+
+class _Apps24:
+    @staticmethod
+    def get_model(_app, _name):
+        return RoadmapItem
+
+
+def test_0024_moves_sch10_to_doing_at_50_by_the_sessions_explicit_count_and_never_closes_it():
+    from datetime import date
+
+    _item("SCH-10", "todo", 0, start_date=date(2026, 9, 28), end_date=date(2026, 10, 2))
+    assert _sync24.sync(RoadmapItem) == ["SCH-10"]
+    assert _sync24.sync(RoadmapItem) == []
+    sch10 = RoadmapItem.objects.get(code="SCH-10")
+    assert (sch10.status, sch10.progress, sch10.pr) == ("doing", 50, "#589")
+    # الموعدُ لم يُغيَّر، والنسبةُ منسوبةٌ لحسابٍ صريح، وما لم يُنجَز يُقال (كتابةٌ في الإنتاج بإذن المالك).
+    assert (str(sch10.start_date), str(sch10.end_date)) == ("2026-09-28", "2026-10-02")
+    note = sch10.note
+    assert "اشتقاقُ 8033 بحسابٍ صريح" in note and "(100 + 0) / 2 = 50%" in note
+    assert "لم يُنجَز" in note and "ينتظر إذنَ المالك" in note
+    # عرضٌ لا حكم: لا يدخل الدرجة، والقياسُ على نسخةٍ لا الإنتاج نفسه ولا يغيّر SK*.
+    assert (
+        "عرضٌ لا حكم" in note and "نسخةٌ من الإنتاج لا الإنتاج نفسه" in note and "6 أيّامِ معلّمٍ" in note
+    )
+
+
+def test_0024_states_it_was_not_published_after_the_last_deploy_notice():
+    _item("SCH-10", "todo", 0)
+    _sync24.sync(RoadmapItem)
+    note = RoadmapItem.objects.get(code="SCH-10").note
+    assert (
+        "main@6087da6" in note and "فيُنشر في دورةٍ لاحقة" in note and "تحقّقُ الأحد 2026-09-27" in note
+    )
+
+
+def test_0024_leaves_sch10_the_developer_moved():
+    _item("SCH-10", "doing", 20)
+    assert _sync24.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="SCH-10").note == ""
+
+
+def test_0024_does_not_register_sch19_before_the_owner_confirms():
+    assert not hasattr(_sync24, "add_items") and not hasattr(_sync24, "add_proposed")
+    _sync24.forwards(_Apps24, None)
+    assert not RoadmapItem.objects.filter(code="SCH-19").exists()
+
+
+def test_0024_forwards_does_nothing_on_an_empty_database_and_is_idempotent():
+    _sync24.forwards(_Apps24, None)
+    assert RoadmapItem.objects.count() == 0
+    _item("SCH-10", "todo", 0)
+    _sync24.forwards(_Apps24, None)
+    first = list(RoadmapItem.objects.values_list("code", "status", "progress", "pr", "note"))
+    _sync24.forwards(_Apps24, None)
+    assert (
+        list(RoadmapItem.objects.values_list("code", "status", "progress", "pr", "note")) == first
+    )
+
+
+def test_0024_publishes_no_personal_number_and_no_hash():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0024_sync_items_2026_09_25e").origin
+    body = open(origin, encoding="utf-8").read()
+    bs = chr(92)
+    assert not re.search(bs + "b" + bs + "d{11}" + bs + "b", body)
+    assert not re.search(bs + "b[0-9a-f]{40}" + bs + "b", body)
