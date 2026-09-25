@@ -3611,6 +3611,22 @@ def test_0029_closes_vi11_vi31_m06_vi23_and_moves_dbt13_only_from_their_expected
     assert (by["DBT-13"].status, by["DBT-13"].progress) == ("doing", 50)
 
 
+def test_0029_closes_own01_by_the_owners_direct_verification_without_any_session_action():
+    _item("OWN-01", "todo", 0, gate="owner")
+    assert _sync29.sync(RoadmapItem) == ["OWN-01"]
+    assert _sync29.sync(RoadmapItem) == []
+    own01 = RoadmapItem.objects.get(code="OWN-01")
+    assert (own01.status, own01.progress, own01.gate) == ("done", 100, "")
+    assert "بتحقّق المالك المباشر" in own01.note and "غيرُ موجودٍ على الخدمات الثلاث" in own01.note
+    assert "لم يُنفَّذ إجراءٌ من الجلسات" in own01.note
+
+
+def test_0029_leaves_an_own01_the_developer_moved():
+    _item("OWN-01", "doing", 40, gate="owner")
+    assert _sync29.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="OWN-01").gate == "owner"
+
+
 def test_0029_records_the_vi11_measurements_with_their_reservations_and_scope():
     _item("VI-11", "doing", 50, pr="#583")
     _sync29.sync(RoadmapItem)
@@ -3691,13 +3707,19 @@ def test_0029_creates_the_two_approved_mobile_items_open_and_undated_and_never_o
     assert _sync29.add_new_items(RoadmapItem) == []
     m05c = RoadmapItem.objects.get(code="M-05c")
     m19 = RoadmapItem.objects.get(code="M-19")
+    # M-05c مقترَحٌ مفتوحٌ لا يبدأ قبل القرار، وM-19 حسمه المالكُ فقيدُ التنفيذ (مؤجَّلُ التشغيل للذاكرة).
+    assert (m05c.status, m05c.progress) == ("todo", 0)
+    assert (m19.status, m19.progress) == ("doing", 0)
     for item in (m05c, m19):
-        assert (item.status, item.progress, item.lane, item.src) == ("todo", 0, "mobile", "M")
+        assert (item.lane, item.src) == ("mobile", "M")
         assert item.start_date is None and item.end_date is None
-        assert "سجّله المالكُ بنداً مقترَحاً مفتوحاً" in item.note or "وسجّله المالكُ" in item.note
     assert (m05c.sort_order, m19.sort_order) == (726, 727)
+    assert "سجّله المالكُ بنداً مقترَحاً مفتوحاً" in m05c.note
     assert m05c.deps == "M-06" and "60px عند 320px" in m05c.criterion
     assert "عددُ الصفحات ذات العيب المسجَّل" in m19.criterion
+    assert "حسمه المالكُ لجلسة الخارطة مباشرةً" in m19.note and "مؤجَّلُ التشغيل للذاكرة" in m19.note
+    assert "Chromium وحدَه" in m19.note and "WebKit يحتاج إذنَ المالك" in m19.note
+    assert "C:/" not in m19.note
     RoadmapItem.objects.filter(code="M-19").update(status="doing", title="حرّره المطوّر")
     assert _sync29.add_new_items(RoadmapItem) == []
     assert RoadmapItem.objects.get(code="M-19").title == "حرّره المطوّر"
@@ -3740,7 +3762,8 @@ def test_0029_states_that_vi24_and_own20_and_dbt46_proposals_are_not_the_owners_
     assert "الشقُّ الخارجيّ قائم" in notes["DONE-07"] and "فلا تصحيحَ" in notes["DONE-07"]
     assert "وإنذارُه لم يُختبر قطّ" in notes["DONE-07"] and "لا يصمد" not in notes["DONE-07"]
     assert "معطَّلٌ بلا أيّ check-in" in notes["U-07"]
-    assert "لا مورّدَ جديداً" in notes["REP-17"] and "ولم يُعتمدا" in notes["REP-17"]
+    assert "غيرُ ممكنٍ الآن" in notes["REP-17"] and "قرارُ المالك:" in notes["REP-17"]
+    assert "لا «تمديد Uptime»" in notes["REP-17"] and "مقعدُ Cron" in notes["REP-17"]
     assert "ولا يُعدَّل RK8" in notes["REP-17"]
 
 
@@ -3752,6 +3775,7 @@ def test_0029_skips_a_note_for_an_absent_item_and_forwards_is_idempotent_on_an_e
     _item("VI-31", "todo", 0)
     _item("DBT-13", "blocked", 0)
     _item("U-31", "todo", 0)
+    _item("OWN-01", "todo", 0, gate="owner")
     _item("OWN-30", "todo", 0, title="سقّاطةُ mypy تفشل على main نفسها", gate="owner")
     _sync29.forwards(_Apps29, None)
 
