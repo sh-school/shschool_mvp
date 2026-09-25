@@ -38,10 +38,18 @@ def _css_classes():
     return classes
 
 
+#: تعليقاتُ القوالب: `<!-- -->` و`{# #}` و`{% comment %}…{% endcomment %}` — لا تُرسَم، فذكرُ صنفٍ فيها ليس استعمالاً.
+TEMPLATE_COMMENT_RE = re.compile(
+    r"<!--.*?-->|\{#.*?#\}|\{%\s*comment[^%]*%\}.*?\{%\s*endcomment\s*%\}", re.DOTALL
+)
+
+
 def _sources():
     words, prefixes = set(), set()
     for source in _consumer_sources():
         text = source.read_text(encoding="utf-8", errors="ignore")
+        if source.suffix == ".html":
+            text = TEMPLATE_COMMENT_RE.sub(" ", text)
         words |= set(re.findall(r"-?[_a-zA-Z][\w-]*", text))
         prefixes |= {p for p in DYNAMIC_RE.findall(text) if len(p) >= 3}
     return words, prefixes
@@ -68,3 +76,15 @@ def test_no_class_waits_for_capitals_nothing_writes():
         "أصنافٌ بحروفٍ كبيرةٍ لا تُكتب كذلك في أيّ مصدر — والصنفُ حسّاسٌ لحالة الحرف، "
         "فالقاعدةُ لا تقع:\n  " + "\n  ".join(shouting)
     )
+
+
+def test_a_class_named_only_in_a_template_comment_is_still_dead():
+    """`comp-page` و`comp-header` بقيت في `32-modules-3.css` بعد أن أُزيلت من القالب، لأنّ تعليقَ القالب
+    يذكرهما ("كانت بأغلفةٍ خاصّةٍ بها") فمرّ الحارسُ بلا أن يراهما ميّتَين (2026-09-25)."""
+    text = (
+        "<!-- comp-page -->{# comp-header #}{% comment %} comp-old {% endcomment %}"
+        '<div class="alive">x</div>'
+    )
+    words = set(re.findall(r"-?[_a-zA-Z][\w-]*", TEMPLATE_COMMENT_RE.sub(" ", text)))
+    assert "alive" in words
+    assert not {"comp-page", "comp-header", "comp-old"} & words

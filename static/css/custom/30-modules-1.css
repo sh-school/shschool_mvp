@@ -11,10 +11,8 @@
 
 /* ── 2. Page Layout ─── */
 .quality-page {
-  width: 98%;
   max-width: 100%;
   margin: 0 auto;
-  padding: 1rem 0;
 }
 
 /* Per-page selector — مستقل عن quality-header */
@@ -303,7 +301,6 @@
 .q-modal {
   background: var(--surface);
   width: 100%;
-  max-width: 48rem;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
@@ -395,7 +392,6 @@
 }
 .q-modal-info .info-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
   gap: 0.75rem;
 }
 .q-modal-info .info-label {
@@ -418,7 +414,6 @@
 }
 .q-modal-form-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
   gap: 0.75rem;
 }
 .q-modal-form-grid.cols-2 {
@@ -977,13 +972,8 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   /* كشفُ الشعبة: جدولُه في غلافِ تمريرٍ خاصّ (.per-grid-wrap)، والحاويةُ لا تكون صندوقَ
      تمرير — وإلّا صارت مرجعَ الالتصاق فلا يلتصق شريطُ «ثبّت الحصّة» بأسفل شاشة الجوّال. */
   .exec-dash:has(> .rec-form) { overflow: visible; }
-  .kpi-strip { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 
   .dash-chart-wrap { min-height: 180px; }
-}
-@media (max-width: 640px) {
-  .kpi-strip { grid-template-columns: repeat(2, 1fr); }
-
 }
 
 /* ── Dark mode: dashboards ── */
