@@ -220,6 +220,76 @@ def backup(now: float | None = None) -> Card:
     return Card("النسخ الاحتياطيّ", value, detail, level, url)
 
 
+#: مؤشّراتُ صحّة Git في الخارطة (REP-10). تُقرأ منها لا من git: صورةُ الحاوية بلا git والإنتاجُ بلا `.git`، والقياسُ الفعليّ على جهاز المطوّر
+#: (`scripts/prune_local_branches.sh --json`) يدخل الخارطةَ بقراءةٍ مؤرَّخةٍ بأداتها بعينٍ بشريّةٍ — فالبطاقةُ تعرض آخرَ قراءةٍ مسجَّلةٍ وعمرَها.
+GIT_KPIS = (
+    ("RK1", "فروعٌ محلّيّة"),
+    ("RK2", "عملٌ فريدٌ بنسخةٍ وحيدة"),
+    ("RK3", "أشجارٌ للإزالة"),
+)
+#: فقدانُ عملٍ فريدٍ لا يُسترجع، فبُعدُه عن الهدف أحمرُ لا أصفر؛ وغيرُه نظافةٌ.
+GIT_RISK_KPIS = frozenset({"RK2"})
+#: القياسُ أسبوعيّ: بعد ثمانيةِ أيّامٍ القراءةُ متأخّرة (أصفر)، وبعد خمسةَ عشرَ لا يُعتدّ بها (أحمر).
+GIT_KPI_WARN_DAYS = 8
+GIT_KPI_BAD_DAYS = 15
+
+
+def _on_target(current: float, target: float | None, direction: str) -> bool:
+    if target is None:
+        return True  # لا هدفَ مسجَّلٌ فلا انحرافَ يُقاس
+    return current <= target if direction == "down" else current >= target
+
+
+def _number(value: float) -> str:
+    return f"{value:g}"
+
+
+def git_health(today=None) -> Card:
+    """صحّةُ Git: RK1..RK3 من الخارطة (آخرُ قراءةٍ مسجَّلة) — أرقامٌ وتواريخُ وحدَها."""
+    from roadmap.models import RoadmapKpi
+
+    today = today or timezone.localdate()
+    codes = [code for code, _ in GIT_KPIS]
+    rows = {k.code: k for k in RoadmapKpi.objects.filter(code__in=codes)}
+    measured = [
+        (code, label, rows[code])
+        for code, label in GIT_KPIS
+        if code in rows and rows[code].current is not None
+    ]
+    link = "/roadmap/"
+    if not measured:
+        return Card("صحّة Git", "غير مقيس", "لا قراءةَ لـRK1..RK3 في الخارطة بعد", WARN, link)
+
+    level, parts, on_target = OK, [], 0
+    for code, label, kpi in measured:
+        good = _on_target(kpi.current, kpi.target, kpi.direction)
+        on_target += good
+        goal = kpi.target_text or (_number(kpi.target) if kpi.target is not None else "—")
+        parts.append(f"{label} {_number(kpi.current)} (الهدف {goal})")
+        if not good:
+            level = BAD if code in GIT_RISK_KPIS else (level if level == BAD else WARN)
+    if len(measured) < len(GIT_KPIS):
+        level = level if level == BAD else WARN
+        parts.append(f"{len(GIT_KPIS) - len(measured)} بلا قراءة")
+
+    dates = [kpi.measured_at for _, _, kpi in measured if kpi.measured_at]
+    if len(dates) < len(measured):
+        parts.append("قراءةٌ بلا تاريخ")
+        level = level if level == BAD else WARN
+    if dates:
+        age = (today - min(dates)).days
+        parts.append(f"أقدمُ قراءةٍ قبل {age} يوماً")
+        if age > GIT_KPI_BAD_DAYS:
+            level = BAD
+            parts[-1] += " (لا يُعتدّ بها)"
+        elif age > GIT_KPI_WARN_DAYS:
+            level = level if level == BAD else WARN
+            parts[-1] += " (متأخّرة)"
+    return Card(
+        "صحّة Git", f"{on_target} من {len(GIT_KPIS)} على الهدف", " · ".join(parts), level, link
+    )
+
+
 def developer_messages() -> Card:
     from developer_feedback.models import DeveloperMessage, MessageStatus
 
@@ -286,6 +356,7 @@ BUILDERS: tuple[Callable[[], Card], ...] = (
     notifications,
     server_errors,
     backup,
+    git_health,
     sensitive_actions,
     pending_migrations,
     developer_messages,
