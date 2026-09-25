@@ -2240,6 +2240,34 @@ def test_0025_leaves_a_lay03_the_developer_moved():
     assert RoadmapItem.objects.get(code="LAY-03").note == ""
 
 
+def test_0025_moves_n041_to_67_as_merged_but_unpublished_and_never_closes_it():
+    _item("N-041", "doing", 33, pr="#577")
+    assert _sync25.sync(RoadmapItem) == ["N-041"]
+    assert _sync25.sync(RoadmapItem) == []
+    n041 = RoadmapItem.objects.get(code="N-041")
+    assert (n041.status, n041.progress, n041.pr) == ("doing", 67, "#577 #584")
+    note = n041.note
+    # مدموجٌ لا منشور، ونشرُه محجوبٌ حتى تحقّق الأحد، والتقدّمُ عدُّ طلباتٍ ولا يُغلق، والباقي 3/3 لم يُدفع.
+    assert "مدموجٌ غيرُ منشور" in note and "محجوبٌ حتى تحقّق جلسة 8033" in note and "2026-09-27" in note
+    assert "عدُّ طلباتٍ لا جهد ولا يُغلق" in note and "3/3" in note and "لم يُدفع" in note
+    assert "منشورٌ على الإنتاج" not in note and "929 بايتاً" in note
+
+
+def test_0025_leaves_an_n041_the_developer_moved():
+    _item("N-041", "done", 100)
+    assert "N-041" not in _sync25.sync(RoadmapItem)
+    assert RoadmapItem.objects.get(code="N-041").note == ""
+
+
+def test_0025_adds_a_dbt36_note_about_the_narrow_css_margin_without_moving_it():
+    _item("DBT-36", "todo", 0)
+    assert _sync25.sync_notes(RoadmapItem) == ["DBT-36"]
+    assert _sync25.sync_notes(RoadmapItem) == []
+    dbt36 = RoadmapItem.objects.get(code="DBT-36")
+    assert (dbt36.status, dbt36.progress) == ("todo", 0)
+    assert "929 بايتاً" in dbt36.note and "ولم يُقَس المجموعُ" in dbt36.note
+
+
 def test_0025_leaves_a_rep03_the_developer_moved_or_a_rep03_still_at_todo():
     _item("REP-03", "todo", 0, gate="owner")
     assert _sync25.sync(RoadmapItem) == []
