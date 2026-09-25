@@ -101,6 +101,12 @@
 
     <div class="nav-spacer"></div>
 
+    {% comment %}بحثٌ سريع: مدخلُ لمسٍ للوحة الأوامر (Ctrl+K لا يوجد على الجوال) — شرطُه شرطُ وجودها. يشارك `.theme-toggle` مظهرَه ومنطقةَ لمسه (44px على المؤشّر الخشن، ويُخفى في الطباعة)؛ و`.nav-search` مقبضٌ للاختبار لا أنماطَ له — ميزانيّةُ CSS لا تحتمل قاعدةً مكرَّرة.{% endcomment %}
+    {% if user.is_authenticated %}
+    <button type="button" class="theme-toggle nav-search" id="nav-search-btn" data-call="openPalette"
+            aria-haspopup="dialog" aria-controls="cmd-palette" aria-label="بحث سريع" title="بحث سريع (Ctrl+K)">{% icon "search" %}</button>
+    {% endif %}
+
     {# ── Dark Mode Toggle ── #}
     <button class="theme-toggle" id="theme-toggle" title="تبديل الثيم" aria-label="تبديل الثيم الليلي">
       <span id="theme-icon"><span data-theme-icon="dark">{% icon "theme_dark" %}</span><span data-theme-icon="light" hidden>{% icon "theme_light" %}</span></span>
