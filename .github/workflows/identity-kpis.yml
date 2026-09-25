@@ -31,6 +31,8 @@ jobs:
           python-version: "3.12"
       - name: القياس
         run: |
+          # بلا pipefail يُخفي `| tee` فشلَ السكربت (صدفةُ GitHub الافتراضيّة `bash -e`)
+          set -o pipefail
           python scripts/measure_identity_kpis.py . --json | tee identity_kpis.json
       - name: ملخّص في صفحة التشغيل
         run: |

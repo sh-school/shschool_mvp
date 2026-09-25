@@ -302,7 +302,7 @@ html[data-theme="dark"] .vision-text { font-palette: --tashkeel-dark; }
   font-weight: 700;
   text-decoration: none;
 }
-.adm-brand__logo { flex: none; filter: brightness(0) invert(1); }
+.adm-brand__logo { flex: none; }
 .adm-brand__name { white-space: nowrap; }
 .adm-brand__suffix { font-weight: 400; opacity: 0.9; }
 

@@ -93,7 +93,7 @@
     {# ── Logo + اسم المدرسة ── #}
     {% if request.user|can_open:"dashboard" %}
     <a href="{% url 'dashboard' %}" class="nb nav-logo">
-      <img src="{% static 'icons/favicon.png' %}" width="27" height="27"
+      <img src="{% static 'brand/emblem-white.svg' %}" width="27" height="27"
            alt="{{ current_school.name|default:'شعار المدرسة' }}" class="nav-logo-img">
       <span class="nav-logo-text">{{ current_school.name|default:"المدرسة" }}</span>
     </a>

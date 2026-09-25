@@ -190,11 +190,18 @@ jobs:
 
     env:
       DJANGO_SETTINGS_MODULE: shschool.settings.production
-      SECRET_KEY: "test-ci-secret-key-not-for-production-use-only-ci"
+      # ≥ 50 حرفاً و≥ 5 محارفَ مختلفة: دون ذلك يُصدر Django تحذيرَ security.W009، وهو
+      # تحذيرٌ حقيقيّ — كان المفتاحُ القصيرُ هنا (49 حرفاً) يقع فيه والأنبوبُ يُخفيه.
+      SECRET_KEY: "test-ci-secret-key-not-for-production-use-only-ci-0123456789"  # pragma: allowlist secret
       FERNET_KEY: "dGVzdC1jaS1mZXJuZXQta2V5LW5vdC1mb3ItcHJvZHVjdGlvbg=="
       ALLOWED_HOSTS: "localhost,127.0.0.1"
       DATABASE_URL: "postgres://test_user:test_pass@localhost:5432/test_db"
       EXCEL_PROTECTION_PASSWORD: "ci-test-password"
+      # S3 إلزاميٌّ في الإنتاج (البند 11، #382): بلا هذه الثلاث تنهار الإعداداتُ عند الاستيراد
+      # بـImproperlyConfigured فلا يفحص الأمرُ شيئاً. قيمٌ وهميّةٌ — لا اتّصالَ بأيّ خدمة.
+      AWS_ACCESS_KEY_ID: "test-only-access-key"
+      AWS_SECRET_ACCESS_KEY: "test-only-secret-key"  # pragma: allowlist secret
+      AWS_STORAGE_BUCKET_NAME: "test-only-bucket"
 
     steps:
       - uses: actions/checkout@v7
@@ -217,6 +224,10 @@ jobs:
 
       - name: Django deployment check
         run: |
+          # `| tee` وحدها تُخفي فشلَ الأمر: صدفةُ GitHub الافتراضيّة `bash -e` بلا pipefail، فخروجُ
+          # الخطوة هو خروجُ tee (صفرٌ) مهما فعل الفحص — هكذا نجحت الوظيفةُ وفحصُها يُبلِّغ عن
+          # مشكلاتٍ لا يُقرأ منها شيء. يحرس ذلك tests/test_ci_gates_are_honest.py.
+          set -o pipefail
           python manage.py check --deploy --fail-level WARNING 2>&1 | tee django-deploy-check.txt
 
       - name: Upload Django Check Report
