@@ -4,7 +4,8 @@
 وفي `50-utilities.css` (`bottom: 16px`، `z-index: 9999`) — والثانيةُ تغلب بطبقتها، فكان الشريطُ
 يجلس فوق الشريط السفليّ نفسِه على الجوال (K7). صارت قاعدةً واحدة في المكوّنات:
 
-- الجوال: يرتفع فوق الشريط السفليّ (`80px` + المنطقةُ الآمنة)، وحشوةُ `body` تحجز المساحةَ نفسها.
+- الجوال: يرتفع فوق الشريط السفليّ (`--dock-h` + `--dock-pad` + فجوة)، وحشوةُ `body` تحجز المساحةَ نفسها
+  (M-04: رمزان بدل 72 و80 الحرفيّتين).
 - الحاسوب (≥ 641px): لا شريطَ سفليّ فيعود إلى `--sp-4` من الحافّة.
 - الإظهارُ بسمة `hidden` (قاعدةُ `[hidden]` في reset)، فلا `display: none` في قاعدته — وإلّا بقي مخفيّاً دائماً.
 - لا يجلس على شريط الإجراء اللاصق (`.per-bar` في رصد الشعبة): يُخفى حيث وُجد.
@@ -21,6 +22,8 @@ from tests.css_source import read_css
 TARGETS_BANNER = re.compile(r"(?:^|[\s>+~])[.#]pwa-banner$")
 OFFSET_PROPS = ("bottom", "inset-block-end", "inset-block", "inset")
 DESKTOP = "(min-width: 641px)"
+#: ما يحجزه الشريطُ السفليّ: ارتفاعُه وحشوتُه السفلى — بالرمزين لا برقمٍ (M-04).
+DOCK = "calc(var(--dock-h) + var(--dock-pad))"
 
 
 def _banner_rules():
@@ -68,18 +71,16 @@ def test_the_banner_clears_the_bottom_nav_reserved_by_the_body():
     base = next(
         d for _s, d, c in _banner_rules() if "inset-block-end" in d and not _in(c, "@media")
     )
-    offset = re.fullmatch(
-        r"calc\((\d+)px \+ var\(--safe-bottom\)\)", base["inset-block-end"].strip()
-    )
-    assert offset, base["inset-block-end"]
     body = next(
         d["padding-bottom"]
         for s, d, c in iter_rules(read_css())
         if s.strip() == "body" and "padding-bottom" in d and d["padding-bottom"].strip() != "0"
-    )
-    padding = re.fullmatch(r"calc\((\d+)px \+ var\(--safe-bottom\)\)", body.strip())
-    assert padding, "حشوةُ body لا تحجز الشريطَ السفليّ"
-    assert int(offset.group(1)) >= int(padding.group(1)), "الشريطُ أخفضُ من حافّة الشريط السفليّ"
+    ).strip()
+    assert body == DOCK, "حشوةُ body لا تحجز الشريطَ السفليّ برمزَيه"
+    offset = base["inset-block-end"].strip()
+    assert re.fullmatch(
+        rf"calc\({re.escape(DOCK[5:-1])} \+ var\(--sp-\d+\)\)", offset
+    ), f"الشريطُ ليس فوق الشريط السفليّ بفجوة: {offset}"
 
 
 def test_the_desktop_returns_it_to_the_edge():
@@ -94,4 +95,4 @@ def test_the_sticky_action_bar_keeps_clear_of_the_bottom_nav_like_the_body():
         for s, d, c in iter_rules(read_css())
         if s.strip() == ".per-bar" and _in(c, "max-width: 640px") and "bottom" in d
     ]
-    assert bottoms == ["calc(72px + var(--safe-bottom))"], bottoms
+    assert bottoms == [DOCK], bottoms

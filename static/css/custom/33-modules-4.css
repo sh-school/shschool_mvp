@@ -1082,8 +1082,8 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   .per-grid-wrap.is-tiles .per-grid tbody { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-2); }
   .per-grid-wrap.is-tiles .per-cell.is-focus .rec-pick > span { font-size: 0.6875rem; }
   .per-cell.is-focus .rec-pick > span { min-height: var(--control-h); min-width: 50px; }
-  /* فوق شريط التنقّل السفليّ الثابت (72px في الهاتف) لا تحته. */
-  .per-bar { bottom: calc(72px + var(--safe-bottom)); padding: var(--sp-2) var(--sp-3); }
+  /* فوق شريط التنقّل السفليّ الثابت لا تحته. */
+  .per-bar { bottom: calc(var(--dock-h) + var(--dock-pad)); padding: var(--sp-2) var(--sp-3); }
   .per-bar__counts { gap: var(--sp-3); }
   .per-bar__actions { width: 100%; }
   .per-bar__actions > * { flex: 1; }
