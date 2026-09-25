@@ -1083,6 +1083,16 @@ window.fitNoscroll = function () {
   }
 };
 window.fitNoscroll();
+/* القرارُ أعلاه يقيس بخطّ الاحتياط (الخطوطُ 0 من 8). فإن بقيت الصفحةُ «بلا تمرير» يُحجب محتواها بـ opacity حتى
+   يُشدَّد القرارُ بعد تحميل الخطوط (base.js)، فإن انقلب لم يرَ المستخدمُ القفزة (CLS 0.3–0.9 مقيسٌ بلا الحجب
+   على ذاكرةٍ باردة، وبه ≤ 0.076). والحجبُ لا يتجاوز 500ms مهما حدث، ولا يمسّ التركيزَ ولا شجرةَ الوصول (بخلاف visibility). */
+(function () {
+  var m = document.getElementById('main-content');
+  if (!m || !m.classList.contains('page-noscroll') || !document.fonts || document.fonts.status === 'loaded') return;
+  m.style.opacity = '0';
+  window.noscrollReveal = function () { m.style.opacity = ''; window.noscrollReveal = null; };
+  setTimeout(function () { if (window.noscrollReveal) window.noscrollReveal(); }, 500);
+})();
 </script>
 <template id="noscroll-fitted"></template>
 
