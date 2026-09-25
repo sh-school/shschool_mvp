@@ -16,7 +16,9 @@ import re
 from tests.css_contrast import strip_noise
 from tests.css_source import read_css
 
-BARE_AUTO = re.compile(r"(?<![\w-])inset-(?:inline|block)\s*:\s*auto\s*(?:!important\s*)?(?:;|})", re.I)
+BARE_AUTO = re.compile(
+    r"(?<![\w-])inset-(?:inline|block)\s*:\s*auto\s*(?:!important\s*)?(?:;|})", re.I
+)
 
 
 def test_no_inset_shorthand_is_a_bare_auto():
