@@ -1331,7 +1331,7 @@ main.page-wide {
   inset-inline-start: var(--sp-3); inline-size: max-content;
   max-inline-size: min(18rem, calc(100% - 2 * var(--sp-3)));
 }
-.card-bar .ui-tip--hint .ui-tip__btn { color: var(--gold); }
+.card-bar .ui-tip--hint .ui-tip__btn { color: var(--gold-mark); }
 .card-bar .ui-tip--info .ui-tip__btn { color: var(--on-fill); }
 .card-bar .ui-tip__btn:hover,
 .card-bar .ui-tip__btn:focus-visible,

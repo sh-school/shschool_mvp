@@ -297,11 +297,15 @@
     color: {% brand_color "TEXT_MUTED" %};
     font-size: 14px;
   }
-  /* ترويسةُ الجدول العام: اسمُ المدرسة سطرٌ صغير، والعنوانُ كبيرٌ تحته. */
+  /* ترويسةُ الجدول العام: اسمُ المدرسة سطرٌ صغير، والعنوانُ كبيرٌ تحته. وعلى الشاشة داخل إطار المنصّة تُخفى:
+     عنوانُ الصفحة فوقها يقول ما فيها، وشعارُ المدرسة واسمُها للورق (الطباعة وPDF) — «ما على الشاشة يطابق
+     ما يُطبع» (D-16، 7.7). والورقةُ المستقلّةُ المفتوحةُ مباشرةً تبقى بترويستها. */
   .matrix-head { text-align: center; margin-bottom: 8px; }
   .matrix-head .ministry { font-size: 11px; color: {% brand_color "TEXT_PRIMARY" %}; }
   .matrix-head .title { font-size: 26px; font-weight: 700; color: {% brand_color "TEXT_PRIMARY" %}; margin: 2px 0; }
-  .matrix-head .sub { font-size: 11px; color: {% brand_color "TEXT_PRIMARY" %}; }
+  @media screen { .is-embed .matrix-head { display: none; } }
+  /* سطرُ «الوزارة | العام | الأسبوع» تحت الجدول لا فوقه، قبل ذيله. */
+  .matrix-sub { text-align: center; font-size: 11px; color: {% brand_color "TEXT_PRIMARY" %}; margin-top: 6px; }
   .matrix-foot .foot-short { color: {% brand_color "STATUS_DANGER_FG" %}; font-weight: 700; }
   .matrix-foot {
     display: flex;
@@ -539,7 +543,7 @@
 مولّدُ PDF ترويسةً ثانيةً ولا حجمَ ورقٍ يخالف المختار. و`{# #}` لا تمتدّ
 سطرين في Django — فما امتدّ منها ظهر نصّاً في رأس الورقة.
 {% endcomment %}
-<body data-pdf-own-page class="sheet-{{ orient }}">
+<body data-pdf-own-page class="sheet-{{ orient }}{% if embed %} is-embed{% endif %}">
 {% include "components/app_back_bar.html" %}
 
 {# ── Print Controls (hidden in print) ── #}
@@ -622,7 +626,6 @@
     <img class="print-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="شعار {{ school.name }}" width="295" height="295">
     <div class="ministry">{{ school.name }}</div>
     <h1 class="title">الجدول العام للمعلمين</h1>
-    <div class="sub">وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp; العام الدراسي {{ year }}{% if source == "actual" %} &nbsp;|&nbsp; الأسبوع {{ nav.range }}{% endif %}</div>
   </div>
 
   {% if matrix %}
@@ -708,6 +711,7 @@
   </div>
   {% endif %}
   {% for note in nav.notes %}<div class="matrix-note">{{ note }}</div>{% empty %}{% endfor %}
+  {% include "schedule/pdf/matrix_sub.html" %}
   <div class="matrix-foot">
     <span>
       المعلّمون: {{ matrix|length }} &nbsp;·&nbsp; الشُّعب: {{ matrix_totals.sections }}
@@ -722,6 +726,7 @@
   {% else %}
   <div class="matrix-empty">{% if source == "actual" %}لا حصصَ في هذا الأسبوع.{% else %}لا توجد حصص مسجّلة في جدول العام الدراسي {{ year }}.{% endif %}</div>
   {% for note in nav.notes %}<div class="matrix-note">{{ note }}</div>{% empty %}{% endfor %}
+  {% include "schedule/pdf/matrix_sub.html" %}
   {% endif %}
 
 {% else %}
