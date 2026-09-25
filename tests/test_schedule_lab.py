@@ -26,8 +26,11 @@ from operations.schedule_lab import (
     Slot,
     compare,
     ideal_pattern,
+    metric_score,
+    overall_score,
     store_metrics,
 )
+from operations.schedule_lab_exceptions import exception_load
 from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
@@ -176,6 +179,123 @@ def test_edge_fairness_and_stress_name_the_worst():
     lab = ScheduleLab(slots, Context())
     assert lab.edge_fairness()["value"] > 0.9, "أ كلُّ حصصه أولى، وب لا شيء"
     assert list(lab.stress()["detail"])[0] == "a"
+
+
+def _adjacent_pair(teacher, klass, day, subjects=("s1", "s2")):
+    """حصّتان متّصلتان (1، 2) لمعلّمٍ في يوم — بمادّتين حتى لا تُعدّ على الشعبة."""
+    return [
+        slot(teacher=teacher, klass=klass, subject=subjects[0], day=day, period=1),
+        slot(teacher=teacher, klass=klass, subject=subjects[1], day=day, period=2),
+    ]
+
+
+def test_exception_load_names_who_bears_the_most():
+    """SCH-10: المعلّمُ الأكثرُ تحمّلاً يظهر باسمه — لا يذوب في العدد الكلّيّ."""
+    slots = (
+        _adjacent_pair("a", "c1", 0) + _adjacent_pair("a", "c1", 1) + _adjacent_pair("b", "c2", 0)
+    )
+    result = exception_load(ScheduleLab(slots, Context()))
+
+    assert result["value"] == 2
+    assert result["detail"]["معلّم — a"] == 2
+    assert result["detail"]["معلّم — b"] == 1
+    assert result["detail"]["أيّامُ معلّمين فيها استثناء"] == 3
+
+
+def test_the_same_total_is_worse_when_it_lands_on_one_teacher():
+    """ثلاثةُ أيّامٍ موزّعةٌ على ثلاثةِ معلّمين غيرُ ثلاثةٍ على معلّمٍ واحد."""
+    spread = sum((_adjacent_pair(t, f"c{i}", 0) for i, t in enumerate("abc")), [])
+    piled = sum((_adjacent_pair("a", "c1", d) for d in range(3)), [])
+
+    assert exception_load(ScheduleLab(spread, Context()))["value"] == 1
+    assert exception_load(ScheduleLab(piled, Context()))["value"] == 3
+
+
+def _double(teacher, klass, day, first, subject="art"):
+    """مزدوجةٌ مطلوبةٌ: حصّتان متّصلتان لمهمّةٍ واحدة."""
+    return [
+        slot(teacher=teacher, klass=klass, subject=subject, day=day, period=p, double=True)
+        for p in (first, first + 1)
+    ]
+
+
+def test_a_required_double_is_one_task_not_a_run():
+    """معلّمُ فنّيةٍ كلُّ أيّامه مزدوجةٌ لا يحمل استثناءً — كما يحكم HC5 في المولّد."""
+    slots = sum((_double("a", f"c{d}", d, 1) for d in range(5)), [])
+    result = exception_load(ScheduleLab(slots, Context()))
+
+    assert result["value"] == 0
+    assert result["detail"]["أيّامُ معلّمين فيها استثناء"] == 0
+
+
+def test_a_double_followed_by_another_lesson_is_a_run_of_two_tasks():
+    """المزدوجةُ لا تُعفي ما يليها: المزدوجةُ ثمّ حصّةٌ متّصلةٌ مهمّتان متّصلتان."""
+    slots = _double("a", "c1", 0, 1) + [
+        slot(teacher="a", klass="c2", subject="s2", day=0, period=3)
+    ]
+    assert exception_load(ScheduleLab(slots, Context()))["value"] == 1
+
+
+def test_two_doubles_back_to_back_are_a_run_of_two_tasks():
+    slots = _double("a", "c1", 0, 1) + _double("a", "c2", 0, 3, subject="art2")
+    assert exception_load(ScheduleLab(slots, Context()))["value"] == 1
+
+
+def test_exception_load_sees_a_class_that_bears_two_adjacent_lessons_of_one_subject():
+    """الجانبُ الثاني: شعبةٌ فيها حصّتا مادّةٍ متجاورتان بمعلّمَين — لا تلاصقَ على أيٍّ منهما."""
+    slots = [
+        slot(teacher="t1", klass="c1", subject="s1", day=0, period=3),
+        slot(teacher="t2", klass="c1", subject="s1", day=0, period=4),
+    ]
+    result = exception_load(ScheduleLab(slots, Context()))
+
+    assert result["value"] == 1
+    assert result["detail"]["شعبة — c1"] == 1
+    assert result["detail"]["أيّامُ معلّمين فيها استثناء"] == 0
+
+
+@pytest.mark.parametrize("kw", [{"double": True}, {"elective": "e"}])
+def test_a_required_double_or_a_split_class_is_not_an_exception(kw):
+    """المزدوجةُ المطلوبةُ متّصلةٌ عمداً، والمنقسمةُ معلّمان في الحصّة نفسِها."""
+    slots = [
+        slot(teacher="t1", klass="c1", subject="s1", day=0, period=3, **kw),
+        slot(teacher="t2", klass="c1", subject="s1", day=0, period=4, **kw),
+    ]
+    result = exception_load(ScheduleLab(slots, Context()))
+
+    assert result["value"] == 0
+    assert result["detail"]["أيّامُ موادَّ في شعبٍ فيها استثناء"] == 0
+
+
+def test_a_break_between_two_lessons_of_a_subject_is_not_adjacency():
+    """قرارُ المالك 2026-09-24: الفسحةُ والصلاةُ تفصلان — والحكمُ بالساعة لا بالرقم."""
+    ctx = Context()
+    t = dt.time
+    ctx.bells.update(
+        {
+            ("g", "regular", 3): (t(9, 0), t(9, 45)),
+            ("g", "regular", 4): (t(10, 25), t(11, 10)),
+        }
+    )
+    slots = [
+        slot(teacher="t1", klass="c1", subject="s1", day=0, period=3, band="g"),
+        slot(teacher="t2", klass="c1", subject="s1", day=0, period=4, band="g"),
+    ]
+    assert exception_load(ScheduleLab(slots, ctx))["value"] == 0
+
+
+def test_exception_load_is_shown_not_judged_and_costs_the_generator_nothing():
+    """عرضٌ لا حكم: لا يدخل الدرجةَ التي تقود المولّد، ولا يُحسب في قياس المحاولات."""
+    key = "fairness.exception_load"
+    slots = _adjacent_pair("a", "c1", 0) + _adjacent_pair("a", "c1", 1)
+    lab = ScheduleLab(slots, Context())
+
+    assert CATALOG[key][2] == "info"
+    assert metric_score(key, 3) is None
+    assert key in lab.compute()
+    assert key not in lab.compute(display_only=False)
+    assert overall_score(lab.compute()) == overall_score(lab.compute(display_only=False))
+    assert exception_load(ScheduleLab([], Context()))["value"] == 0
 
 
 def test_preference_satisfaction_counts_each_rule():

@@ -122,7 +122,7 @@
   "operations/period_register.py": 11,
   "operations/preference_capacity.py": 1,
   "operations/schedule_feasibility.py": 5,
-  "operations/schedule_lab.py": 14,
+  "operations/schedule_lab.py": 13,
   "operations/scheduler.py": 58,
   "operations/scheduler_constraints.py": 6,
   "operations/scheduler_improve.py": 11,
@@ -157,5 +157,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1736
+ "total": 1735
 }
