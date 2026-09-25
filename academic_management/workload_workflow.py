@@ -15,6 +15,7 @@
 """
 
 import hashlib
+from typing import Any
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
@@ -74,7 +75,7 @@ def capability_roles(school, capability):
     return roles | _ALWAYS
 
 
-def _is_delegated_operator(user):
+def _is_delegated_operator(user: Any) -> bool:
     """أمُفوَّضٌ باسمه «مُشغِّلَ الجدول» بمنحٍ فعّال؟ (`core/capability_grants.py`) — يُدخل الإسنادَ لا يراجع ولا يعتمد."""
     from core.capability_grants import holds
 
