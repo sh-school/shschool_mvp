@@ -17,12 +17,12 @@
   {% endif %}
 </nav>
 {% if source == "actual" %}
-{% for day, why in nav.closed %}<p class="ui-note">{{ day }}: {{ why }} — لا حصص.</p>{% endfor %}
+{% if nav.closed_text %}<p class="ui-note">{{ nav.closed_text }} — لا حصص.</p>{% endif %}
 {% if nav.plan_days %}<p class="ui-note">لم تُولَّد حصصُ {{ nav.plan_days|join:"، " }} بعد، فتُعرض وفق الخطّة المعتمدة.</p>{% endif %}
 {% if nav.unplaced %}<p class="ui-note">{{ nav.unplaced }} حصّةً تاريخيّةً بلا رقمٍ (من جدولٍ سابق) لا تُعرض.</p>{% endif %}
 {% if nav.kinds %}
 <div class="week-legend">
-  {% for kind, label in nav.kinds %}<span class="week-legend__item"><span class="week-legend__swatch is-{{ kind }}"></span> {{ label }}</span>{% endfor %}
+  {% for kind, label in nav.kinds %}<span class="week-legend__item"><span class="week-legend__swatch is-{{ kind }}"></span> {{ label }}</span>{% empty %}{% endfor %}
 </div>
 {% endif %}
 {% endif %}

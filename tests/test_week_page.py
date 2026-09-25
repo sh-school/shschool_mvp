@@ -95,7 +95,7 @@ class TestThePageOpensOnTheActualWeek:
         body = _teacher_page(client, world, world["sub"]).content.decode()
 
         assert "تبديل — كانت لـمعلّمٌ أوّل" in body
-        assert "k-swap" in body, "الخانةُ ملوَّنة"
+        assert "wg-swap" in body, "الخانةُ ملوَّنة"
         assert "week-legend__swatch is-swap" in body, "ومفتاحُ الألوان يفسّرها"
 
     def test_the_original_teachers_week_no_longer_has_it(self, world, client):

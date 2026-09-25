@@ -1035,9 +1035,9 @@
   .week-legend__swatch.is-ministry   { background: var(--accent-sky); }
   .week-legend__swatch.is-school     { background: var(--accent-rose); }
   .week-legend__swatch.is-department { background: var(--accent-green); }
-  .week-grid td.k-cover, .week-legend__swatch.is-cover { background: var(--status-warning-bg); }
-  .week-grid td.k-swap, .week-legend__swatch.is-swap { background: var(--status-info-bg); }
-  .week-grid td.k-comp, .week-legend__swatch.is-comp { background: var(--status-success-bg); }
+  .week-grid td.wg-cover, .week-legend__swatch.is-cover { background: var(--status-warning-bg); }
+  .week-grid td.wg-swap, .week-legend__swatch.is-swap { background: var(--status-info-bg); }
+  .week-grid td.wg-comp, .week-legend__swatch.is-comp { background: var(--status-success-bg); }
   .week-grid .slot-from { font-size: var(--text-xs); color: var(--text-secondary); line-height: 1.2; }
   /* إطارُ الطباعة حين لا يُعرض (معلّمٌ أو شعبة): موجودٌ للعمل لا للعين —
      بلا `display:none` كي تبقى نافذتُه صالحةً للطباعة في كلّ متصفّح. */

@@ -247,14 +247,16 @@ def week_nav(ctx: dict, week_info) -> dict:
         "actual_qs": qs(source="actual", week=start.isoformat()),
         "plan_qs": qs(source="plan"),
         "plan_days": [],
-        "closed": [],
+        "closed_text": "",
         "unplaced": 0,
         "kinds": [],
     }
     if week_info is not None:
         names = dict(ScheduleSlot.DAYS)
         nav["plan_days"] = [names[i] for i in sorted(week_info.plan_days)]
-        nav["closed"] = [(names[i], why) for i, why in sorted(week_info.closed.items())]
+        nav["closed_text"] = "؛ ".join(
+            f"{names[i]}: {why}" for i, why in sorted(week_info.closed.items())
+        )
         nav["unplaced"] = week_info.unplaced
         present = {cell.kind for cell in week_info.lessons if cell.kind}
         nav["kinds"] = [(kind, label) for kind, label in KIND_LABELS.items() if kind in present]
