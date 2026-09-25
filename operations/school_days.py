@@ -28,7 +28,7 @@ from __future__ import annotations
 import datetime as dt
 from dataclasses import dataclass
 
-from django.db.models import Min, QuerySet
+from django.db.models import QuerySet
 
 from core.academic_calendar import _scope_for
 from core.models import CalendarEvent, CustomUser, School, StudentEnrollment
@@ -42,6 +42,10 @@ UNNAMED_BREAK = "إجازة"
 
 #: قبل أوّل `students_start` في عامه — لا إجازةَ في التقويم، ولا طالبَ حضر بعد.
 NOT_YET_OPEN = "لم يبدأ دوامُ الطلبة بعد"
+
+#: بعد آخر يومٍ للطلبة في عامه (`students_end`) إلى نهاية العام — لا إجازةَ في التقويم ولا طالبَ يحضر.
+#: وما دام العامُ بلا هذا الحدث فلا شيء يتغيّر: كان الصيفُ كلُّه «يومَ دراسة» مفتوحاً (U-40).
+ENDED = "انتهى دوامُ الطلبة"
 
 
 def student_grade(student: CustomUser, school: School) -> str | None:
@@ -76,28 +80,59 @@ def student_breaks(
     return _scoped(qs, grade)
 
 
-def _openings(school: School, start: dt.date, end: dt.date) -> list[tuple[dt.date, dt.date]]:
-    """لكلّ عامٍ يتقاطع مع [start, end]: (بدايتُه، أوّلُ `students_start` فيه).
+def _boundaries(
+    school: School, start: dt.date, end: dt.date, grade: str | None = None
+) -> tuple[list[tuple[dt.date, dt.date]], list[tuple[dt.date, dt.date]]]:
+    """حدّا دوام الطلبة لكلّ عامٍ يتقاطع مع [start, end] — باستعلامٍ واحدٍ للتقويم:
+    `(بدايةُ العام، أوّلُ students_start)` و`(آخرُ يومٍ للطلبة، نهايةُ العام)`.
 
-    عامٌ فيه فصلان، فحدثا `students_start` فيه اثنان — وأوّلُهما (أغسطس) هو الحدّ:
-    ما بعد بدء الفصل الثاني يبقى مفتوحاً بإجازة منتصف العام لا بهذا الحساب.
+    استعلامٌ واحدٌ لا اثنان: اختباراتُ الأداء تحصي قراءاتِ التقويم (مرّتان للأسبوع: الإجازاتُ والحدّان).
+
+    البدءُ: عامٌ فيه فصلان، فحدثا `students_start` فيه اثنان — وأوّلُهما (أغسطس) هو الحدّ: ما بعد بدء
+    الفصل الثاني يبقى مفتوحاً بإجازة منتصف العام لا بهذا الحساب. ولا يُقيَّد بنطاق الصفّ.
+
+    والنهايةُ: آخرُ يومٍ هو **أبعدُ** ما يسري على الصفّ — نطاقُه ونطاقُ «الجميع» — و`grade=None` (شاشةٌ
+    فيها صفوفٌ كثيرة) أبعدُ ما في النطاقات كلِّها: فالمغلَق بعده مغلقٌ للجميع، ولا يُغلق يومٌ ما زال فيه
+    صفٌّ يدرس (صفوفُ التاسع فما دون يفرغون قبل الثاني عشر بأيّام).
     """
-    rows = (
-        CalendarEvent.objects.filter(
-            academic_year__school=school,
-            academic_year__start_date__lte=end,
-            academic_year__end_date__gte=start,
-            event_type="students_start",
-        )
-        .values("academic_year__start_date")
-        .annotate(opening=Min("start_date"))
+    rows = CalendarEvent.objects.filter(
+        academic_year__school=school,
+        academic_year__start_date__lte=end,
+        academic_year__end_date__gte=start,
+        event_type__in=("students_start", "students_end"),
+    ).values_list(
+        "event_type",
+        "grade_scope",
+        "start_date",
+        "end_date",
+        "academic_year__start_date",
+        "academic_year__end_date",
     )
-    return [(row["academic_year__start_date"], row["opening"]) for row in rows]
+    scopes = None if grade is None else ("all", _scope_for(grade))
+    first_start: dict[dt.date, dt.date] = {}
+    last_end: dict[dt.date, dt.date] = {}
+    for kind, scope, ev_start, ev_end, year_start, year_end in rows:
+        if kind == "students_start":
+            first_start[year_start] = min(ev_start, first_start.get(year_start, ev_start))
+        elif scopes is None or scope in scopes:
+            last_end[year_end] = max(ev_end, last_end.get(year_end, ev_end))
+    return (
+        list(first_start.items()),
+        [(last, year_end) for year_end, last in last_end.items()],
+    )
 
 
 def _before_opening(day: dt.date, openings: list[tuple[dt.date, dt.date]]) -> bool:
     """أهذا اليومُ قبل بدء دوام الطلبة الأوّل في عامه؟"""
     return any(year_start <= day < opening for year_start, opening in openings)
+
+
+def _after_ending(day: dt.date, endings: list[tuple[dt.date, dt.date]]) -> bool:
+    """أهذا اليومُ بعد آخر يومٍ للطلبة في عامه وقبل نهاية العام؟
+
+    وبعد نهاية العام يبدأ عامٌ آخر بحدّه (`_boundaries`)، فلا يُغلق أوّلَه حدثُ العام السابق.
+    """
+    return any(last < day <= year_end for last, year_end in endings)
 
 
 @dataclass(frozen=True)
@@ -135,8 +170,12 @@ def school_day(school: School, day: dt.date, grade: str | None = None) -> School
         .values_list("name", flat=True)[:1]
     )
     holiday = (names[0].strip() or UNNAMED_BREAK) if names else ""
-    if not holiday and _before_opening(day, _openings(school, day, day)):
-        holiday = NOT_YET_OPEN
+    if not holiday:
+        openings, endings = _boundaries(school, day, day, grade)
+        if _before_opening(day, openings):
+            holiday = NOT_YET_OPEN
+        elif _after_ending(day, endings):
+            holiday = ENDED
     return SchoolDay(day=day, day_type=day_type_for(day), holiday=holiday)
 
 
@@ -149,7 +188,8 @@ def is_school_day(school: School, day: dt.date, grade: str | None = None) -> boo
         return False
     if student_breaks(school, day, day, grade).exists():
         return False
-    return not _before_opening(day, _openings(school, day, day))
+    openings, endings = _boundaries(school, day, day, grade)
+    return not (_before_opening(day, openings) or _after_ending(day, endings))
 
 
 class SchoolDays:
@@ -161,14 +201,16 @@ class SchoolDays:
         self.breaks = list(
             student_breaks(school, start, end, grade).values_list("start_date", "end_date")
         )
-        self.openings = _openings(school, start, end)
+        self.openings, self.endings = _boundaries(school, start, end, grade)
 
     def __contains__(self, day: dt.date) -> bool:
         if not day_type_for(day):
             return False
         if any(a <= day <= b for a, b in self.breaks):
             return False
-        return not _before_opening(day, self.openings)
+        if _before_opening(day, self.openings):
+            return False
+        return not _after_ending(day, self.endings)
 
     def step(self, day: dt.date, direction: int) -> dt.date:
         """اليومُ الدراسيُّ التالي (+1) أو السابق (-1) — بحدٍّ يمنع الدوران بلا نهاية."""

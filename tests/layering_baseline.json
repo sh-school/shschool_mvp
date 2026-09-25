@@ -777,13 +777,13 @@
    "orm": 8
   },
   "wings/views.py::floors": {
-   "orm": 13
+   "orm": 12
   },
   "wings/views.py::guardian_contact_log": {
    "orm": 6
   },
   "wings/views.py::record_index": {
-   "orm": 13
+   "orm": 12
   },
   "wings/views.py::record_period": {
    "orm": 41
