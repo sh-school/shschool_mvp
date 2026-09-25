@@ -544,6 +544,7 @@
     <input type="hidden" name="class" value="{% if target_class %}{{ target_class.id }}{% endif %}">
     <input type="hidden" name="paper" value="{{ paper }}">
     <input type="hidden" name="year" value="{{ year }}">
+    {% include "schedule/partials/carry_fields.html" %}
 
     <select id="schedule-view-select" data-call-change="submitScheduleView" title="نوع العرض">
       <option data-view="all_teachers"
@@ -578,6 +579,7 @@
     {% if target_teacher %}<input type="hidden" name="teacher" value="{{ target_teacher.id }}">{% endif %}
     {% if target_class %}<input type="hidden" name="class" value="{{ target_class.id }}">{% endif %}
     <input type="hidden" name="year" value="{{ year }}">
+    {% include "schedule/partials/carry_fields.html" %}
     <select name="paper" data-autosubmit title="حجم الورق">
       <option value="a4" {% if paper == 'a4' %}selected{% endif %}>{% if view_type == 'all_teachers' %}A4 أفقي{% else %}A4 عمودي{% endif %}</option>
       <option value="a3" {% if paper == 'a3' %}selected{% endif %}>A3 أفقي</option>

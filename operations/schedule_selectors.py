@@ -167,9 +167,12 @@ def schedule_print_selection(school, user, get_params, default_source="plan"):
         selection["class"] = str(target_class.id)
     # ما تحمله روابطُ التنقّل قبل أن يُضاف إليه المصدرُ والأسبوع: كلٌّ منها يضيف ما يخصّه.
     base = dict(selection)
+    # المصدرُ في الرابط دائماً: الورقةُ المستقلّةُ تُصدِّر عبر صفحة الجدول وهي تفتح على الأسبوع
+    # الفعليّ، فورقةُ خطّةٍ بلا مصدرٍ في رابطها كانت تُصدَّر أسبوعاً فعليّاً غيرَ ما تعرضه.
+    selection["source"] = source
     if source == "actual":
-        # الأسبوعُ الفعليّ في الرابط: فالإطارُ وزرّا التصدير والطباعةُ تتبعه لا الخطّةَ.
-        selection.update(source="actual", week=week_start.isoformat())
+        # والأسبوعُ معه: فالإطارُ وزرّا التصدير والطباعةُ تتبعه لا الخطّةَ.
+        selection["week"] = week_start.isoformat()
 
     return {
         "school": school,
