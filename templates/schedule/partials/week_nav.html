@@ -1,0 +1,29 @@
+{% comment %}
+شريطُ التنقّل بين أسابيع الجدول (قرارُ المالك 2026-09-25): الأسبوعُ الفعليّ من حصص الأيّام هو الأصلُ،
+والخطّةُ المعتمدةُ زرٌّ يبقى. والروابطُ استعلاماتٌ جاهزةٌ من `week_nav` تحمل الاختيارَ الحاليَّ كلَّه
+(المعلّمُ والشعبةُ والورقُ) فلا يُبنى شيءٌ منها هنا. والمسودّةُ لا تُعاين إلّا من الخطّة فلا شريطَ لها.
+{% endcomment %}
+{% if not preview %}
+<nav class="schedule-head" aria-label="أسبوع الجدول">
+  {% if source == "actual" %}
+  <a href="?{{ nav.prev_qs }}" class="btn-secondary btn-sm" rel="prev">الأسبوع السابق</a>
+  <strong>{{ nav.start|date:"j F" }} – {{ nav.end|date:"j F Y" }}</strong>
+  <a href="?{{ nav.next_qs }}" class="btn-secondary btn-sm" rel="next">الأسبوع التالي</a>
+  {% if not nav.is_this_week %}<a href="?{{ nav.this_qs }}" class="btn-secondary btn-sm">هذا الأسبوع</a>{% endif %}
+  <a href="?{{ nav.plan_qs }}" class="btn-secondary btn-sm">الخطّة المعتمدة</a>
+  {% else %}
+  <span class="ui-note">الخطّةُ المعتمدة كما اعتُمدت — لا كما جرت الحصص</span>
+  <a href="?{{ nav.actual_qs }}" class="btn-primary btn-sm">الأسبوع الفعليّ</a>
+  {% endif %}
+</nav>
+{% if source == "actual" %}
+{% for day, why in nav.closed %}<p class="ui-note">{{ day }}: {{ why }} — لا حصص.</p>{% endfor %}
+{% if nav.plan_days %}<p class="ui-note">لم تُولَّد حصصُ {{ nav.plan_days|join:"، " }} بعد، فتُعرض وفق الخطّة المعتمدة.</p>{% endif %}
+{% if nav.unplaced %}<p class="ui-note">{{ nav.unplaced }} حصّةً تاريخيّةً بلا رقمٍ (من جدولٍ سابق) لا تُعرض.</p>{% endif %}
+{% if nav.kinds %}
+<div class="week-legend">
+  {% for kind, label in nav.kinds %}<span class="week-legend__item"><span class="week-legend__swatch is-{{ kind }}"></span> {{ label }}</span>{% endfor %}
+</div>
+{% endif %}
+{% endif %}
+{% endif %}

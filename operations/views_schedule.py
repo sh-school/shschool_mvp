@@ -125,7 +125,9 @@ def weekly_schedule(request):
     وما كان في الشبكة القديمة ولم يكن في الورقة انتقل إليها لا سقط: لافتةُ
     معاينة المسودّة (`?generation=`) والتعارضاتُ للإدارة.
     """
-    ctx = _schedule_print_payload(request)
+    ctx = _schedule_print_payload(
+        request, "actual"
+    )  # الصفحةُ على الأسبوع الفعليّ، والطباعةُ على الخطّة
     ctx["departments"] = (
         ScheduleService.department_options(ctx["school"], ctx["year"]) if ctx["may_browse"] else []
     )
@@ -146,14 +148,14 @@ def _schedule_print_selection(request):
     return _schedule_print_selection_core(request.school, request.user, request.GET)
 
 
-def _schedule_print_payload(request) -> dict:
+def _schedule_print_payload(request, default_source: str = "plan") -> dict:
     """سياقُ الورقة كاملاً: الاختيارُ وبياناته.
 
     ثلاثةُ مخارجَ تقرأ هذه الورقة — صفحةٌ في المتصفّح، وPDF، وExcel — فبناؤها
     في موضعٍ واحد يمنع أن يختلف المطبوعُ عن المعروض بعد تعديلٍ في أحدهما.
     الجوهرُ في `operations/schedule_selectors.py` للسبب نفسه أعلاه.
     """
-    return _schedule_print_payload_core(request.school, request.user, request.GET)
+    return _schedule_print_payload_core(request.school, request.user, request.GET, default_source)
 
 
 # `X_FRAME_OPTIONS = "DENY"` عامٌّ على المشروع، فيمنع عرض الورقة داخل إطار
