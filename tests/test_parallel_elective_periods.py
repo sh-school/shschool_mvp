@@ -74,7 +74,7 @@ def _slot(school, section, subject, teacher, *, period=4, group=""):
 
 def test_two_electives_share_one_period(db, school, section, subjects, teachers):
     """نصفا الشعبة في التوقيت نفسه — ولكلٍّ مادّتُه ومعلّمُه."""
-    tech, art = teachers("محمد اسماعيل السيد", "يوسف يعقوب عوض")
+    tech, art = teachers("معلم التكنولوجيا", "معلمة الفنون")
 
     _slot(school, section, subjects["التكنولوجيا"], tech, group="التكنولوجيا")
     _slot(school, section, subjects["الفنون البصرية"], art, group="الفنون البصرية")
@@ -107,7 +107,7 @@ def test_the_class_cell_carries_both_subjects_and_both_teachers(
     db, school, section, subjects, teachers
 ):
     """المطلوب في الشاشة: المادّتان واسما المعلّمين في الخلية الواحدة."""
-    tech, art = teachers("محمد اسماعيل السيد", "يوسف يعقوب عوض")
+    tech, art = teachers("معلم التكنولوجيا", "معلمة الفنون")
     _slot(school, section, subjects["التكنولوجيا"], tech, group="التكنولوجيا")
     _slot(school, section, subjects["الفنون البصرية"], art, group="الفنون البصرية")
 
@@ -116,14 +116,14 @@ def test_the_class_cell_carries_both_subjects_and_both_teachers(
     cell = grid[1][4]
     assert {s.subject.name_ar for s in cell} == {"التكنولوجيا", "الفنون البصرية"}
     assert {s.teacher.full_name for s in cell} == {
-        "محمد اسماعيل السيد",
-        "يوسف يعقوب عوض",
+        "معلم التكنولوجيا",
+        "معلمة الفنون",
     }
 
 
 def test_the_teacher_cell_names_everything_taught_in_it(db, school, section, subjects, teachers):
     """جدولُ المعلّم يُصفّى على حصصه، فلولا الوسمُ لرأى نصفَه وحدَه."""
-    tech, art = teachers("محمد اسماعيل السيد", "يوسف يعقوب عوض")
+    tech, art = teachers("معلم التكنولوجيا", "معلمة الفنون")
     _slot(school, section, subjects["التكنولوجيا"], tech, group="التكنولوجيا")
     _slot(school, section, subjects["الفنون البصرية"], art, group="الفنون البصرية")
 
@@ -137,7 +137,7 @@ def test_one_subject_split_between_two_teachers_is_named_once(
     db, school, section, subjects, teachers
 ):
     """نصفان في المادّة نفسها — فاسمُها مرّةً واحدة لا مرّتين."""
-    first, second = teachers("عبدالله الرمضان", "محمد اسماعيل السيد")
+    first, second = teachers("معلم التكنولوجيا الأول", "معلم التكنولوجيا الثاني")
     _slot(school, section, subjects["التكنولوجيا"], first, group="1·التكنولوجيا")
     _slot(school, section, subjects["التكنولوجيا"], second, group="2·التكنولوجيا")
 
@@ -208,7 +208,7 @@ def test_the_rendered_cell_shows_both_subjects_and_both_teachers(
     """
     from django.urls import reverse
 
-    tech, art = teachers("محمد اسماعيل السيد", "يوسف يعقوب عوض")
+    tech, art = teachers("معلم التكنولوجيا", "معلمة الفنون")
     _slot(school, section, subjects["التكنولوجيا"], tech, group="التكنولوجيا")
     _slot(school, section, subjects["الفنون البصرية"], art, group="الفنون البصرية")
 
@@ -217,5 +217,5 @@ def test_the_rendered_cell_shows_both_subjects_and_both_teachers(
         reverse("schedule_print"), {"view": "class", "class": section.id, "year": YEAR}
     ).content.decode()
 
-    for text in ("التكنولوجيا", "الفنون البصرية", "محمد اسماعيل السيد", "يوسف يعقوب عوض"):
+    for text in ("التكنولوجيا", "الفنون البصرية", "معلم التكنولوجيا", "معلمة الفنون"):
         assert text in html, text

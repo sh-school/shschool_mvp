@@ -69,12 +69,12 @@ def test_an_ordinary_period_carries_no_elective_group():
 def test_each_teacher_gets_the_subject_the_school_declared():
     """الجدول يكتب في الخلية المنقسمة مادّةً واحدة ومعلّمَين."""
     rows = [
-        _row(period=1, subject="الكيمياء", teacher="t1", name="أحمد شاهين"),
-        _row(period=1, subject="الكيمياء", teacher="t2", name="عبد الله الرمضان"),
+        _row(period=1, subject="الكيمياء", teacher="t1", name="معلم الكيمياء"),
+        _row(period=1, subject="الكيمياء", teacher="t2", name="معلمة الفنون"),
     ]
 
     Command()._relabel_parallel_by_teacher(
-        rows, {"أحمد شاهين": "الكيمياء", "عبد الله الرمضان": "الفنون البصرية"}
+        rows, {"معلم الكيمياء": "الكيمياء", "معلمة الفنون": "الفنون البصرية"}
     )
 
     assert [r["subject_name"] for r in rows] == ["الكيمياء", "الفنون البصرية"]
@@ -82,9 +82,9 @@ def test_each_teacher_gets_the_subject_the_school_declared():
 
 def test_a_declaration_does_not_touch_an_ordinary_period():
     """الإعلان للمنقسمة وحدها — وإلّا أعاد تسمية نصاب المعلّم كلّه."""
-    rows = [_row(period=1, name="أحمد شاهين", subject="العلوم")]
+    rows = [_row(period=1, name="معلم الكيمياء", subject="العلوم")]
 
-    Command()._relabel_parallel_by_teacher(rows, {"أحمد شاهين": "الكيمياء"})
+    Command()._relabel_parallel_by_teacher(rows, {"معلم الكيمياء": "الكيمياء"})
 
     assert rows[0]["subject_name"] == "العلوم"
 
