@@ -74,10 +74,19 @@ def capability_roles(school, capability):
     return roles | _ALWAYS
 
 
+def _is_delegated_operator(user):
+    """أمُفوَّضٌ باسمه «مُشغِّلَ الجدول» بمنحٍ فعّال؟ (`core/capability_grants.py`) — يُدخل الإسنادَ لا يراجع ولا يعتمد."""
+    from core.capability_grants import holds
+
+    return holds(user, "schedule.operator")
+
+
 def has_capability(user, school, capability):
     if user is None or not user.is_authenticated:
         return False
     if getattr(user, "is_superuser", False):
+        return True
+    if capability == EDIT and _is_delegated_operator(user):
         return True
     return user.get_role() in capability_roles(school, capability)
 
