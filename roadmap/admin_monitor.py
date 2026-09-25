@@ -1,6 +1,6 @@
 """بطاقاتُ مراقبةِ المطوّر في الصفحة الرئيسيّة للإدارة — `{% dev_cards %}`.
 
-قراءةٌ فقط من جداولَ قائمة (لا جدولَ جديد)، وبلا هويّاتِ أشخاصٍ ولا أسمائهم: أرقامٌ
+قراءةٌ فقط من جداولَ قائمة والـcache (نبضةُ العامل وعدّادُ 5xx) — لا جدولَ جديد، وبلا هويّاتِ أشخاصٍ ولا أسمائهم: أرقامٌ
 وحالاتٌ تكفي المطوّرَ ليعرف أين ينظر، ولا تُعرّض بياناتٍ شخصيّةً (PDPPL).
 كلُّ بطاقةٍ تُحسَب في دالّةٍ مستقلّةٍ تُعيد `Card` أو `None`، وتعطُّل واحدةٍ لا يُسقط اللوحة.
 """
@@ -135,6 +135,45 @@ def notifications(now=None) -> Card:
     )
 
 
+#: خطأٌ واحدٌ يستحقّ النظر (أصفر)، وعشرةٌ في 24 ساعةً انفجارٌ (أحمر).
+SERVER_ERRORS_WARN = 1
+SERVER_ERRORS_BAD = 10
+
+
+def _ago(seconds: float) -> str:
+    minutes = max(int(seconds // 60), 0)
+    if minutes < 120:
+        return f"{minutes} دقيقة"
+    if minutes < 48 * 60:
+        return f"{minutes // 60} ساعة"
+    return f"{minutes // (24 * 60)} يوماً"
+
+
+def server_errors(now: float | None = None) -> Card:
+    """أخطاءُ الخادم (5xx) في آخر 24 ساعة من عدّادٍ ذاتيٍّ لا من Sentry — راجع `core/error_counter.py`."""
+    import time
+
+    from core import error_counter
+
+    moment = time.time() if now is None else now
+    recent, earlier = error_counter.counts(moment)
+    last = error_counter.last_error()
+    parts = [f"استجابةُ 5xx آخر 24 ساعة ({_trend(recent, earlier)})"]
+    if last:
+        what = last.get("exc") or "استجابةٌ بلا استثناء"
+        parts.append(f"آخرُها {last.get('route', '')} · {what} قبل {_ago(moment - last['at'])}")
+    parts.append("Sentry مضبوط" if getattr(settings, "SENTRY_DSN", "") else "Sentry غير مضبوط هنا")
+    url = getattr(settings, "SENTRY_ISSUES_URL", "")
+    level = BAD if recent >= SERVER_ERRORS_BAD else (WARN if recent >= SERVER_ERRORS_WARN else OK)
+    return Card(
+        "أخطاء الخادم",
+        str(recent),
+        " · ".join(parts),
+        level,
+        url if url.startswith("https://") else "",
+    )
+
+
 def developer_messages() -> Card:
     from developer_feedback.models import DeveloperMessage, MessageStatus
 
@@ -199,6 +238,7 @@ BUILDERS: tuple[Callable[[], Card], ...] = (
     worker,
     security,
     notifications,
+    server_errors,
     sensitive_actions,
     pending_migrations,
     developer_messages,

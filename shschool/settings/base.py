@@ -79,6 +79,8 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     # ✅ WhiteNoise: static files مع Brotli/GZip + cache headers مثالية
     "whitenoise.middleware.WhiteNoiseMiddleware",
+    # عدُّ استجابات 5xx لبطاقة الإدارة (OWN-23) — مبكّرٌ ليرى ما تنتجه الأوسطةُ الداخليّة، ومتزامنٌ وغيرُ متزامن.
+    "core.middleware_errors.ServerErrorCounterMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     # ✅ CORS — يجب أن يكون قبل CommonMiddleware
     "corsheaders.middleware.CorsMiddleware",
