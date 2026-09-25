@@ -4312,6 +4312,29 @@ def test_0031_appends_the_item_notes_once_and_skips_an_absent_item():
     assert "لا بندَ مستقلّ لـ#621" in n042 and "لم يُقَس بعدُ" in n042
 
 
+def test_0031_corrects_the_n043_grant_statement_and_records_the_measurement():
+    _sync30.add_new_items(RoadmapItem)
+    assert _sync31.correct_fields(RoadmapItem) == ["N-043"]
+    assert _sync31.correct_fields(RoadmapItem) == []
+    n43 = RoadmapItem.objects.get(code="N-043")
+    assert "لم يُمنح أحدٌ شيئاً بعد" not in n43.criterion
+    assert "مُنحت لمعلّمَين بيد المالك مساء 2026-09-25" in n43.criterion
+    assert "يبقى منحُ القدرة (خطوةُ المالك" not in n43.note
+    assert "تمّ بيد المالك مساء 2026-09-25" in n43.note
+    assert "ويبقى الجزءان ب وج" in n43.note
+    assert _sync31.sync_item_notes(RoadmapItem) == ["N-042", "N-043"]
+    n43.refresh_from_db()
+    assert "منحَين فعّالين" in n43.note and "بلا تأثّرٍ بوقف المنسّقين" in n43.note
+    assert "فلا يُوسم البندُ منجَزاً كلّياً" in n43.note
+    assert (n43.status, n43.progress) == ("doing", 33)
+
+
+def test_0031_leaves_an_n043_the_developer_rewrote():
+    _item("N-043", "doing", 33, criterion="معيارٌ كتبه المطوّر", note="ملاحظةٌ كتبها المطوّر")
+    assert _sync31.correct_fields(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="N-043").criterion == "معيارٌ كتبه المطوّر"
+
+
 def test_0031_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
     from datetime import date
 
