@@ -63,6 +63,27 @@ def test_dark_admin_colours_are_the_platform_dark_tokens():
         assert f"{admin_var}: {_token(themes, token)};" in dark, (admin_var, token)
 
 
+def _without_comments(text: str) -> str:
+    return re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+
+
+def test_the_admin_is_day_by_default_and_never_reads_the_system_theme():
+    """الإدارةُ نهاريّةٌ افتراضيّاً للجميع كالمنصّة (قرارُ المالك 2026-09-25).
+
+    كانت تقرأ `prefers-color-scheme` حين لا اختيار: تُفتح ليليّةً على جهازٍ ليليّ والمنصّةُ نهاريّة. الآن
+    `static/admin/js/theme.js` (بديلُ ما في جانغو) حالتان فقط، و`dark` في `localStorage['theme']` — مفتاحُ المنصّة —
+    وحدَه يفتح الليليَّ؛ ولا شيءَ يُكتب في المفتاح إلّا بضغطة الزرّ؛ ولا قاعدةَ CSS تقرأ النظام.
+    """
+    css = _without_comments(ADMIN.read_text(encoding="utf-8"))
+    assert "prefers-color-scheme" not in css
+
+    js = _without_comments(pathlib.Path("static/admin/js/theme.js").read_text(encoding="utf-8"))
+    assert "prefers-color-scheme" not in js and "matchMedia" not in js
+    assert "'auto'" not in js and '"auto"' not in js  # لا حالةَ ثالثة تعود إلى النظام
+    assert "=== 'dark'" in js  # `dark` وحدَه يفتح الليليَّ
+    assert js.count("setItem") == 1  # الكتابةُ في المفتاح عند الضغط لا عند الفتح
+
+
 def test_the_admin_page_fade_is_the_platform_fade():
     """مدّةُ التلاشي رمزٌ واحدٌ وحركةُ الظهور واحدة — نُقلا حرفيّاً كألوان الهويّة، فلا يتباعد الانتقالان (قرارُ المالك 2026-09-24)."""
     platform_token = re.search(
