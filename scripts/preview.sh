@@ -443,7 +443,12 @@ cmd_status() {
       git -C "$PREVIEW_DIR" log --oneline --no-decorate "$prod..origin/main" | head -30 | sed 's/^/    /'
     fi
   fi
-  if [ -n "$(sget last_error)" ]; then warn "آخرُ خطأ: $(sget last_error) — راجع: docker logs ${PROJECT}-web-1"; fi
+  local err err_ts
+  err="$(sget last_error)"
+  if [ -n "$err" ]; then
+    err_ts="${err%% *}"   # الحالةُ تُخزَّن «<وقت> <نصّ>»؛ يُعرض الوقتُ مقروءاً
+    warn "آخرُ خطأ ($(date -d "@$err_ts" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$err_ts")): ${err#* } — راجع: docker logs ${PROJECT}-web-1"
+  fi
 }
 
 cmd_down() {
