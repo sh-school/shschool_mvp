@@ -8,7 +8,7 @@
 (function () {
   "use strict";
 
-  var root = document.querySelector(".qc[data-qc-url]");
+  var root = document.querySelector("[data-qc-url]");
   if (!root) { return; }
 
   var SCHEMA = Number(root.getAttribute("data-qc-schema")) || 1;
