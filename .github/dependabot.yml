@@ -30,6 +30,12 @@ updates:
       # معاً بعد مراجعة فروقات التنسيق) لا اقتراحاً أسبوعيّاً متكرّراً (سبّب DBT-18).
       - dependency-name: "ruff"
         versions: [">=0.4.5"]
+      # فاحصُ الأنواع وstubاه ثابتةٌ في requirements-mypy.txt (OWN-30): أعدادُ السقّاطة المسجَّلة تخرج من
+      # هذه الإصدارات بعينها، فترقيةُ أحدها اقتراحاً أسبوعيّاً تُفرّق التطويرَ عن البوّابة. تُرقّى الثلاثةُ معاً
+      # بقرارٍ: الملفُّ + `python -m tests.mypy_ratchet --update` بالإصدار الجديد + مراجعةُ فرق السجلّ.
+      - dependency-name: "mypy"
+      - dependency-name: "django-stubs"
+      - dependency-name: "djangorestframework-stubs"
       - dependency-name: "cron-descriptor"
         versions: [">=2.0.0"]
       # الوجهُ الآخر للتعارض نفسِه: django-celery-beat 2.9.0 هو من يفرض

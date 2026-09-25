@@ -19,10 +19,8 @@ black==26.5.1
 isort==9.0.1
 ruff==0.4.4  # ثابتٌ عمداً — يطابق CI (quality-gate.yml) وpre-commit، انظر feedback_ruff_pinned_version
 
-# Type checking
-mypy==2.3.1
-django-stubs==6.1.1
-djangorestframework-stubs==3.18.1
+# Type checking — إصداراتُه ثابتةٌ في ملفٍّ واحدٍ يقرؤه CI أيضاً (OWN-30، انظر رأس الملفّ)
+-r requirements-mypy.txt
 
 # Load testing
 locust==2.46.6
