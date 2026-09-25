@@ -10,7 +10,10 @@
 - **M-05 → منجز** بـ#579، والمؤشّرُ MK9 (مواضعُ 100vh بلا dvh) = 0 (كان 9 مواضع فعليّة والخطّة قدّرت 6–8).
 - ملاحظةٌ على DBT-36 بهامش سقف CSS الخامّ (لا رقمَ مجموعاً للطلبين لأنّهما لم يُقاسا معاً).
 
-لا يُدرج M-05b المقترَح من 8102 قبل تأكيد المالك، ولا REP-01 قبل قياسه الفعليّ من جلسة Git.
+- **M-05b بندٌ مقترَحٌ مفتوحٌ جديد** (اقترحته 8102 وسجّله المالكُ مقترَحاً مفتوحاً بلا تاريخٍ ولا حالةٍ منجزة): القيمُ الجزئيّةُ بـvh من الصنف
+  نفسِه ليست 100vh فلا يعدّها المؤشّر MK9، وهي 8 اليوم.
+
+ولا يُدرج REP-01 قبل قياسه الفعليّ من جلسة Git.
 """
 
 import datetime
@@ -85,6 +88,21 @@ UPDATES = [
 ]
 
 # (الرمز، القيمةُ الأولى، الوحدة، مرجعُ القياس) — يُملأ مؤشّرٌ نصّيّ الأساس لم يُقَس قطّ
+# بنودٌ مقترَحةٌ مفتوحةٌ بلا تاريخٍ (سجّلها المالكُ كذلك): (الرمز، المسار، العنوان، الاعتماديّات، معيار الإغلاق، ملاحظة)
+PROPOSED_ITEMS = [
+    (
+        "M-05b",
+        "mobile",
+        "القيمُ الجزئيّةُ بـvh من الصنف نفسه (90vh و85vh و78vh و70vh و22vh) بلا dvh — لا يعدّها المؤشّر MK9",
+        "M-05",
+        "لا قيمةَ vh جزئيّةً بلا dvh (المقيسُ اليومَ 8 ← 0)، بحارسٍ يعدّها كما يعدّ tests/test_dynamic_viewport.py قيمَ 100vh.",
+        "اقترحته 8102 عند إغلاق M-05 (#579) وسجّله المالكُ بنداً مقترَحاً مفتوحاً بلا تاريخ؛ المواضعُ الثمانية بحسبها: 90vh في حوار "
+        "المكوّنات (20-components) و85vh (30-modules-1) و78vh في قائمة البحث وإطار PDF و70vh و22vh. الجهدُ غيرُ مقدَّرٍ (القيمةُ الافتراضيّة).",
+    ),
+]
+PROPOSED_FIRST_ORDER = 724  # بعد REP-23 (723)
+PROPOSED_BASIS = "غير مجدول — اقترحته جلسة 8102 وسجّله المالك مقترَحاً مفتوحاً"
+
 FIRST_READINGS = [
     (
         "MK9",
@@ -151,12 +169,36 @@ def first_readings(kpi_model):
     return changed
 
 
+def add_proposed(item_model):
+    """تُنشئ البنودَ المقترَحةَ الغائبة مفتوحةً بلا تاريخ؛ تُرجع رموزَ ما أُنشئ."""
+    created = []
+    for offset, (code, lane, title, deps, criterion, note) in enumerate(PROPOSED_ITEMS):
+        if item_model.objects.filter(code=code).exists():
+            continue
+        item_model.objects.create(
+            code=code,
+            src="M",
+            lane=lane,
+            title=title,
+            status="todo",
+            progress=0,
+            date_basis=PROPOSED_BASIS,
+            deps=deps,
+            criterion=criterion,
+            note=f"{STAMP} {note}",
+            sort_order=PROPOSED_FIRST_ORDER + offset,
+        )
+        created.append(code)
+    return created
+
+
 def forwards(apps, schema_editor):
     item_model = apps.get_model("roadmap", "RoadmapItem")
     # قاعدةٌ بلا استيراد (اختبار، شجرةٌ جديدة): لا شيء يُزامَن، ولا بنودٌ يتيمة.
     if not item_model.objects.exists():
         return
     sync(item_model)
+    add_proposed(item_model)
     first_readings(apps.get_model("roadmap", "RoadmapKpi"))
 
 

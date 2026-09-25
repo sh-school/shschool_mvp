@@ -1677,12 +1677,32 @@ def test_0021_forwards_does_nothing_on_an_empty_database_and_is_idempotent():
     assert snapshot() == first
 
 
-def test_0021_publishes_no_personal_number_and_does_not_add_unconfirmed_items():
+def test_0021_registers_m05b_as_a_proposed_open_item_without_dates():
+    assert _sync21.add_proposed(RoadmapItem) == ["M-05b"]
+    assert _sync21.add_proposed(RoadmapItem) == []
+    m05b = RoadmapItem.objects.get(code="M-05b")
+    assert (m05b.status, m05b.progress, m05b.lane, m05b.src, m05b.deps) == (
+        "todo",
+        0,
+        "mobile",
+        "M",
+        "M-05",
+    )
+    assert m05b.start_date is None and m05b.end_date is None and m05b.gate == ""
+    assert "مقترَحاً مفتوحاً" in m05b.note and "8 ← 0" in m05b.criterion and m05b.sort_order == 724
+
+
+def test_0021_keeps_an_m05b_the_developer_wrote_first():
+    _item("M-05b", "doing", 20, title="كتبه المطوّر")
+    assert _sync21.add_proposed(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="M-05b").title == "كتبه المطوّر"
+
+
+def test_0021_publishes_no_personal_number_and_never_adds_rep01():
     import re
 
     origin = importlib.util.find_spec("roadmap.migrations.0021_sync_items_2026_09_25b").origin
     body = open(origin, encoding="utf-8").read()
-    assert not re.search(r"\b\d{11}\b", body) and not re.search(r"\b[0-9a-f]{40}\b", body)
-    # M-05b مقترَحٌ من 8102 ينتظر تأكيد المالك، وREP-01 ينتظر قياسَه الفعليّ: لا يُدرجان هنا.
-    assert "M-05b" not in [row[0] for row in _sync21.UPDATES]
-    assert not hasattr(_sync21, "add_missing") and not hasattr(_sync21, "add_items")
+    assert not re.search(r"\d{11}", body) and not re.search(r"[0-9a-f]{40}", body)
+    # REP-01 ينتظر قياسَه الفعليّ من جلسة Git: لا يُغلق هنا.
+    assert "REP-01" not in [row[0] for row in _sync21.UPDATES]
