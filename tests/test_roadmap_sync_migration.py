@@ -1856,19 +1856,23 @@ def test_0023_closes_rep04_by_its_pr_and_rep01_by_an_operation():
     assert "main@6087da6" in rep04.note and "فيُنشر في دورةٍ لاحقة" in rep04.note
     rep01 = RoadmapItem.objects.get(code="REP-01")
     assert (rep01.status, rep01.progress, rep01.pr) == ("done", 100, "")
-    assert (
-        "بعمليّةٍ لا بطلب دمج" in rep01.note
-        and "لم يصلني تفصيلُ" in rep01.note
-        and "RK2 لا يتغيّر قبل REP-05" in rep01.note
-    )
+    assert "بعمليّةٍ لا بطلب دمج" in rep01.note and "طابقت مراجعَ الحزمة كلَّها" in rep01.note
+    assert "RK2 لا يتغيّر قبل REP-05" in rep01.note
+    assert "آخر 14 نسخة" in rep01.note and "02:00" in rep01.note and "لم يصلني" not in rep01.note
 
 
-def test_0023_only_notes_rep03_and_never_invents_a_progress_figure():
+def test_0023_moves_rep03_to_60_by_the_sessions_explicit_count_and_keeps_the_owner_gate():
     _seed23()
     _sync23.sync(RoadmapItem)
     rep03 = RoadmapItem.objects.get(code="REP-03")
-    assert (rep03.status, rep03.progress, rep03.gate) == ("todo", 0, "owner")
-    assert "ينفّذها المالكُ بنفسه" in rep03.note and "لم تُعطَ نسبةُ تقدّمٍ" in rep03.note
+    assert (rep03.status, rep03.progress, rep03.gate) == ("doing", 60, "owner")
+    # النسبةُ منسوبةٌ لحسابٍ صريح (3 من 5 متساوية الوزن) وما بقي بيد المالك.
+    assert "خمسُ خطواتٍ متساوية الوزن" in rep03.note and "منجزٌ منها ثلاث" in rep03.note
+    assert (
+        "0 من 3" in rep03.note
+        and "ينفّذه المالكُ بنفسه" in rep03.note
+        and "البوّابةُ «المالك» باقية" in rep03.note
+    )
 
 
 def test_0023_leaves_an_item_the_developer_moved():
