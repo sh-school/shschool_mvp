@@ -140,7 +140,7 @@ def cell_labels(grid: ScheduleGrid) -> dict[tuple, tuple[str, str]]:
     out = {}
     for entry in grid.all_entries():
         task = entry["task"]
-        label = " + ".join(f"{m.subject_name}/{m.teacher_name}" for m in task.members)
+        label = " + ".join(sorted(f"{m.subject_name}/{m.teacher_name}" for m in task.members))
         for slot in task.slots(entry["period"]):
             out[(task.class_id, entry["day"], slot)] = (task.class_name, label)
     return out
@@ -278,8 +278,8 @@ def _write_draft(
         generation_time_ms=outcome["elapsed_ms"],
         finished_at=timezone.now(),
         config_snapshot={
-            #: سدادٌ لا توليد — والمصدرُ يُذكر ليُقارَن به قبل الاعتماد.
-            "mode": "settle",
+            #: سدادٌ (`settle`) أو تكييفٌ بعد تغيير إسناد (`adapt`) لا توليد — والمصدرُ يُذكر ليُقارَن به.
+            "mode": outcome.get("mode", "settle"),
             "source_generation": str(source.id) if source else None,
             "total_tasks": len(tasks),
             "budget_seconds": outcome["budget_seconds"],

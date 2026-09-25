@@ -346,3 +346,12 @@ def test_phone_touch_rules_cover_the_admin_controls():
     ):
         assert selector in block, selector
     assert "var(--adm-control-h)" in block and "44px" not in block
+
+
+def test_the_save_bar_is_sticky_on_desktop_only():
+    """أزرارُ الحفظ الأربعةُ بحدّ اللمس تحجب ربعَ شاشة الهاتف إن ثبتت — تثبت على الحاسوب وحدَه."""
+    css = ADMIN.read_text(encoding="utf-8")
+    assert ".submit-row { position: sticky;" in css
+    mobile = css[css.index("على الجوّال لا يثبت") :]
+    assert "@media (max-width: 767px) { .submit-row { position: static;" in mobile
+    assert css.index(".submit-row { position: sticky;") < css.index("على الجوّال لا يثبت")

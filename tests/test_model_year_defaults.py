@@ -35,7 +35,9 @@ def test_the_sweep_reaches_the_model_modules():
     """حارسٌ يمسح لا شيء يمرّ دائماً."""
     names = {f.as_posix() for f, _ in _sources()}
 
-    assert "quality/models.py" in names and "operations/models.py" in names
+    assert any(n.startswith("quality/models") for n in names) and any(
+        n.startswith("operations/models") for n in names
+    )
 
 
 def test_no_model_field_bakes_the_constant_into_its_default():

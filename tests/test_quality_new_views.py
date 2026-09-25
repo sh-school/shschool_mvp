@@ -348,7 +348,7 @@ class TestTaskUpdateModal:
         proc = make_procedure(school, domain)
         client.force_login(admin)
         fake_file = SimpleUploadedFile(
-            "evidence.pdf", b"PDF content", content_type="application/pdf"
+            "evidence.pdf", b"%PDF-1.4 content", content_type="application/pdf"
         )
         client.post(
             reverse("task_update_modal", kwargs={"proc_id": proc.pk}),

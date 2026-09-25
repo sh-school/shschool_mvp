@@ -16,6 +16,7 @@ from django.core.management.base import BaseCommand, CommandError, CommandParser
 from core.academic_calendar import academic_year_for_school
 from core.models import School
 from operations.scheduler import DAY_NAMES
+from operations.scheduler_adapt import adapt_live
 from operations.scheduler_live import LiveScheduleError, settle_live
 
 #: أسماءُ حركات السداد كما تُقرأ — والحركةُ بلا اسمٍ هنا تُطبع برمزها لا تُسقط.
@@ -25,6 +26,8 @@ MOVE_NAMES = {
     "chain": "سلسلة",
     "eject": "إزاحة",
     "eject_deep": "إزاحةٌ عميقة",
+    "inherited": "وُرِّث خانةَ الإسناد القديم",
+    "searched": "وُضع بالبحث",
 }
 
 
@@ -36,16 +39,27 @@ class Command(BaseCommand):
         parser.add_argument("--year", default="", help="العامُ الدراسيّ — والافتراضُ الجاري")
         parser.add_argument("--dry-run", action="store_true", help="اعرض الفرقَ ولا تكتب")
         parser.add_argument(
+            "--adapt",
+            action="store_true",
+            help="كيِّف الجدولَ مع إسنادٍ تغيّر بعد الاعتماد بأقلّ تغيير، بدل سدادِ مخالفاته (SCH-14)",
+        )
+        parser.add_argument(
             "--budget", type=float, default=240.0, help="سقفُ زمن السداد بالثواني (240)"
+        )
+        parser.add_argument(
+            "--settle",
+            action="store_true",
+            help="مع --adapt: أتبِع التكييفَ بسدادِ الجدول كلِّه (يمسّ خاناتٍ لم يتغيّر إسنادُها)",
         )
 
     def handle(self, *args: Any, **opts: Any) -> None:
         school = self._school(opts["school"])
         year = opts["year"] or academic_year_for_school(school)
+        options = {"budget": opts["budget"], "dry_run": opts["dry_run"], "user": None}
+        if opts["adapt"]:
+            options["settle_after"] = opts["settle"]
         try:
-            outcome = settle_live(
-                school, year, budget=opts["budget"], dry_run=opts["dry_run"], user=None
-            )
+            outcome = (adapt_live if opts["adapt"] else settle_live)(school, year, **options)
         except LiveScheduleError as exc:
             raise CommandError(str(exc)) from exc
         self._report(school, year, outcome)
@@ -92,6 +106,13 @@ class Command(BaseCommand):
             self.stdout.write(
                 f"  {row['class']} · {DAY_NAMES[row['day']]} · ح{row['period']}: "
                 f"{row['before'] or 'فراغ'} ← {row['after'] or 'فراغ'}"
+            )
+
+        for reason in outcome.get("unplaced", []):
+            self.stdout.write(self.style.ERROR(f"  ✗ {reason}"))
+        if outcome.get("unplaced"):
+            self.stdout.write(
+                self.style.ERROR("لا مسودّةَ تُكتب ما دامت حصّةٌ بلا موضع — عالِج المانعَ ثمّ أعِد.")
             )
 
         if after["items"]:

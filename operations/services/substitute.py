@@ -280,6 +280,10 @@ class SubstituteService:
                 "status": "pending",
             },
         )
+        # ما اعتُمد له من تعويضٍ ذلك اليوم لا يقع: تعود حصّةُ الزميل ويُلغى ما فُتح.
+        from operations.services.compensatory import CompensatoryService
+
+        CompensatoryService.release_for_absence(absence)
         return absence
 
     @staticmethod
