@@ -140,3 +140,37 @@ def test_the_platform_footer_reflects_a_customised_vision(client, principal_user
 
     assert "رؤيةٌ خاصّةٌ بهذه المدرسة" in html
     assert VISION not in html
+
+
+def _matrix_sub(**extra):
+    from types import SimpleNamespace
+
+    context = {
+        "year": "2026-2027",
+        "source": "actual",
+        "nav": SimpleNamespace(range="27/9 – 1/10"),
+        **extra,
+    }
+    rendered = render_to_string("schedule/pdf/matrix_sub.html", context)
+    text = re.sub(r"<[^>]+>", "", rendered).replace("&nbsp;", " ")
+    return " ".join(text.split())
+
+
+def test_the_general_schedule_sub_line_carries_the_vision_between_two_vertical_bars():
+    """بلاغُ المالك (2026-09-25): في سطر الجدول العامّ بعد «دولة قطر» بين خطّين رأسيّين."""
+    assert _matrix_sub() == (
+        f"وزارة التربية والتعليم والتعليم العالي — دولة قطر | {VISION} | العام الدراسي 2026-2027 | الأسبوع 27/9 – 1/10"
+    )
+
+
+def test_the_general_schedule_sub_line_reads_the_schools_own_vision():
+    from types import SimpleNamespace
+
+    line = _matrix_sub(school=SimpleNamespace(vision="رؤيةٌ اعتمدتها هذه المدرسة"))
+    assert "دولة قطر | رؤيةٌ اعتمدتها هذه المدرسة | العام الدراسي" in line
+    assert VISION not in line
+
+
+def test_the_general_schedule_sub_line_keeps_the_year_only_for_a_planned_week():
+    line = _matrix_sub(source="plan")
+    assert line.endswith(f"| {VISION} | العام الدراسي 2026-2027") and "الأسبوع" not in line
