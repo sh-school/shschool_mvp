@@ -20,9 +20,9 @@ from django.core.management import CommandError, call_command
 from core.models import CustomUser
 
 REAL = {
-    "--name": "جمال صالح محمد ادم",
-    "--national-id": "29273603822",
-    "--employee-number": "197985",
+    "--name": "سالم أحمد علي محمد",
+    "--national-id": "29000000032",
+    "--employee-number": "900101",
 }
 
 
@@ -39,35 +39,35 @@ def _args(**overrides):
 
 @pytest.fixture
 def placeholder(db, school):
-    call_command("create_placeholder_staff", "--name", "جمال صالح", "--apply", stdout=StringIO())
-    return CustomUser.objects.get(full_name="جمال صالح")
+    call_command("create_placeholder_staff", "--name", "سالم أحمد", "--apply", stdout=StringIO())
+    return CustomUser.objects.get(full_name="سالم أحمد")
 
 
 # ── العرض قبل الكتابة ─────────────────────────────────────────────────
 
 
 def test_without_apply_nothing_changes(db, placeholder):
-    out = _run("--placeholder", "جمال صالح", *_args())
+    out = _run("--placeholder", "سالم أحمد", *_args())
 
     placeholder.refresh_from_db()
-    assert placeholder.full_name == "جمال صالح"
+    assert placeholder.full_name == "سالم أحمد"
     assert placeholder.is_active is False
     assert "عرضٌ فقط" in out
 
 
 def test_with_apply_the_record_is_completed(db, placeholder):
-    _run("--placeholder", "جمال صالح", *_args(), "--apply")
+    _run("--placeholder", "سالم أحمد", *_args(), "--apply")
 
     placeholder.refresh_from_db()
-    assert placeholder.full_name == "جمال صالح محمد ادم"
-    assert placeholder.national_id == "29273603822"
-    assert placeholder.employee_number == "197985"
+    assert placeholder.full_name == "سالم أحمد علي محمد"
+    assert placeholder.national_id == "29000000032"
+    assert placeholder.employee_number == "900101"
     assert placeholder.is_active is True
 
 
 def test_the_account_still_has_no_password(db, placeholder):
     """سجلٌّ مكتملٌ لا يعني باباً مفتوحاً — الكلمة تُصدَر على حدة."""
-    _run("--placeholder", "جمال صالح", *_args(), "--apply")
+    _run("--placeholder", "سالم أحمد", *_args(), "--apply")
 
     placeholder.refresh_from_db()
     assert not placeholder.has_usable_password()
@@ -75,7 +75,7 @@ def test_the_account_still_has_no_password(db, placeholder):
 
 def test_the_national_id_is_encrypted_on_save(db, placeholder):
     """`save()` يملأ الحقلين المشفَّرين — ولا يُترك الرقم عارياً."""
-    _run("--placeholder", "جمال صالح", *_args(), "--apply")
+    _run("--placeholder", "سالم أحمد", *_args(), "--apply")
 
     placeholder.refresh_from_db()
     assert placeholder.national_id_hmac
@@ -88,11 +88,11 @@ def test_the_national_id_is_encrypted_on_save(db, placeholder):
 def test_it_refuses_a_record_that_is_not_a_placeholder(db, school):
     """سجلٌّ حقيقيّ بياناته من شؤون الموظفين، ولا يُصحَّح من سطر أوامر."""
     CustomUser.objects.create(
-        must_change_password=False, national_id="28912345678", full_name="جمال صالح"
+        must_change_password=False, national_id="28912345678", full_name="سالم أحمد"
     )
 
     with pytest.raises(CommandError, match="سجلٌّ حقيقيٌّ"):
-        _run("--placeholder", "جمال صالح", *_args(), "--apply")
+        _run("--placeholder", "سالم أحمد", *_args(), "--apply")
 
 
 def test_a_missing_name_stops_the_command(db, school):
@@ -103,14 +103,14 @@ def test_a_missing_name_stops_the_command(db, school):
 def test_a_national_id_held_by_another_is_refused(db, placeholder):
     """رقمٌ يحمله غيرُه قد يكون شخصاً آخر لا خطأ إدخال."""
     CustomUser.objects.create(
-        must_change_password=False, national_id="29273603822", full_name="آخر"
+        must_change_password=False, national_id="29000000032", full_name="آخر"
     )
 
     with pytest.raises(CommandError, match="الرقم الشخصي"):
-        _run("--placeholder", "جمال صالح", *_args(), "--apply")
+        _run("--placeholder", "سالم أحمد", *_args(), "--apply")
 
     placeholder.refresh_from_db()
-    assert placeholder.full_name == "جمال صالح", "لم يُكتب شيء"
+    assert placeholder.full_name == "سالم أحمد", "لم يُكتب شيء"
 
 
 def test_an_employee_number_held_by_another_is_refused(db, placeholder):
@@ -118,11 +118,11 @@ def test_an_employee_number_held_by_another_is_refused(db, placeholder):
         must_change_password=False,
         national_id="28900000001",
         full_name="آخر",
-        employee_number="197985",
+        employee_number="900101",
     )
 
     with pytest.raises(CommandError, match="الرقم الوظيفي"):
-        _run("--placeholder", "جمال صالح", *_args(), "--apply")
+        _run("--placeholder", "سالم أحمد", *_args(), "--apply")
 
 
 def test_blank_employee_numbers_do_not_collide(db, school):
@@ -136,12 +136,15 @@ def test_blank_employee_numbers_do_not_collide(db, school):
 # ── الجدول يعرف الاسم الجديد ─────────────────────────────────────────
 
 
-def test_the_timetable_knows_the_completed_name():
-    """اسمُ المنصّة صار رباعياً ولا يطابق الجدول — فيُقيَّد في جدول الأسماء.
+def test_the_timetable_name_map_is_well_formed():
+    """جدولُ الأسماء يربط اسمَ الجدول المختصر باسم المنصّة الكامل.
 
-    ولولاه لسقط المعلّمان من الاستيراد التالي كما سقطا في الأوّل.
+    كانت هذه الحالةُ تُثبَّت باسمَي معلّمَين حقيقيَّين، فرُفعا من الاختبار: المستودعُ عامّ ولا
+    بيانَ شخصيّاً في اختبار. فيُثبَّت هنا الشكلُ لا الأسماء: جدولٌ غيرُ فارغ، ولكلّ إدخالٍ مفتاحٌ
+    واسمٌ كاملٌ غيرُ فارغَين.
     """
     from operations.management.commands.import_timetable_pdf import TEACHER_MAP
 
-    assert TEACHER_MAP["جمال صالح"] == "جمال صالح محمد ادم"
-    assert TEACHER_MAP["علي الطيطي"] == "علي صالح اسماعيل الطيطي"
+    assert TEACHER_MAP
+    for short, full in TEACHER_MAP.items():
+        assert short.strip() and full.strip()

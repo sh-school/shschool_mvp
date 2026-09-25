@@ -231,7 +231,7 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --q-radius: 8px;
   --q-transition: 0.2s ease;
 
-  /* ══ Typography Scale (7 أحجام — Perfect Fourth) ══ */
+  /* ══ Typography Scale (7 أحجام يدويّة) ══ */
   --text-xs:   0.75rem;    /* 12px — labels, captions */
   --text-sm:   0.875rem;   /* 14px — secondary text */
   --text-base: 1rem;       /* 16px — body */
