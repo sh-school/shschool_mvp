@@ -3276,3 +3276,309 @@ def test_0027_publishes_nothing_a_public_repo_must_not_say():
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
     assert "تعليق نشر" not in body and "معلَّق النشر" not in body and "نشرُ main معلَّق" not in body
+
+
+# ── 0028: قراراتُ المالك المؤكَّدة مباشرةً (2026-09-25) وما يترتّب عليها ──
+
+_sync28 = importlib.import_module("roadmap.migrations.0028_owner_decisions_2026_09_25b")
+
+
+class _Apps28:
+    @staticmethod
+    def get_model(_app, name):
+        return {"RoadmapKpi": RoadmapKpi, "RoadmapDecision": RoadmapDecision}.get(name, RoadmapItem)
+
+
+def _seed_decisions28(only=None):
+    for code, expected, _status, _due, _line in _sync28.DECISIONS:
+        if only is None or code in only:
+            RoadmapDecision.objects.create(
+                code=code,
+                title=f"قرار {code}",
+                status=expected,
+                due="مفتوح",
+                recommendation="توصية",
+            )
+
+
+def test_0028_decides_the_confirmed_decisions_and_only_notes_the_rest():
+    _seed_decisions28()
+    changed = _sync28.decide(RoadmapDecision)
+    assert changed == [code for code, *_ in _sync28.DECISIONS]
+    assert _sync28.decide(RoadmapDecision) == []
+    for code, expected, status, due, line in _sync28.DECISIONS:
+        d = RoadmapDecision.objects.get(code=code)
+        assert d.status == status, code
+        assert line in d.recommendation and d.recommendation.startswith("توصية"), code
+        # الحسمُ/التأجيلُ يكتب تاريخَه؛ والملاحظةُ وحدَها (RD4 وD-06 وMD10 وMD13) لا تكتبه.
+        assert (d.decision_date == _sync28.DAY) == (status != expected), code
+        if due:
+            assert d.due == due, code
+
+
+def test_0028_decides_exactly_the_decisions_the_owner_confirmed_and_defers_the_three_he_postponed():
+    by_code = {code: status for code, _e, status, _d, _l in _sync28.DECISIONS}
+    assert sorted(c for c, s in by_code.items() if s == "decided") == sorted(
+        [
+            "RD5",
+            "RD7",
+            "RD8",
+            "D-01",
+            "D-02",
+            "D-03",
+            "D-04",
+            "D-05",
+            "D-07",
+            "D-14",
+            "D-15",
+            "D-23",
+            "D-24",
+            "MD2",
+            "MD3",
+            "MD4",
+            "MD13",
+        ]
+    )
+    assert sorted(c for c, s in by_code.items() if s == "deferred") == ["D-09", "MD5", "RD6"]
+    # ما لم يؤكّده المالك أو أبقاه مفتوحاً لا يُحسم.
+    for code in ("RD4", "D-06", "MD10"):
+        assert by_code[code] == "open", code
+    for code in ("D-08", "D-21", "D-22", "OWN-03"):
+        assert code not in by_code
+
+
+def test_0028_keeps_rd4_open_with_the_saturday_date_and_states_the_decision_is_still_the_owners():
+    _seed_decisions28({"RD4"})
+    _sync28.decide(RoadmapDecision)
+    rd4 = RoadmapDecision.objects.get(code="RD4")
+    assert (rd4.status, rd4.decision_date, rd4.due) == ("open", None, "2026-09-26")
+    assert "الموعدُ لا القرار" in rd4.recommendation and "ويبقى مفتوحاً" in rd4.recommendation
+
+
+def test_0028_states_that_rd5_replaces_the_original_option_and_counts_no_branches():
+    import re
+
+    _seed_decisions28({"RD5"})
+    _sync28.decide(RoadmapDecision)
+    rec = RoadmapDecision.objects.get(code="RD5").recommendation
+    assert "خلال 48 ساعةً حدّاً أقصى" in rec and "يحلّ محلَّ الخيار (أ) بنصّه الأصليّ" in rec
+    assert "سقفُ 40 وسبعةُ أيّامٍ بعد الدمج" in rec and "RK1 يستثني الفرعَ الحيَّ" in rec
+    # لا عددَ فروعٍ (المستودعُ عامّ): الرقمُ الوحيدُ سقفُ السياسة 40 وساعاتُ المهلة 48.
+    assert set(re.findall(r"\d+", rec)) == {"2026", "09", "25", "48", "40", "1", "08"}
+
+
+def test_0028_leaves_a_decision_the_owner_already_took_differently():
+    RoadmapDecision.objects.create(code="RD7", title="x", status="decided", recommendation="حسمه")
+    RoadmapDecision.objects.create(code="D-09", title="x", status="decided", recommendation="حسمه")
+    assert _sync28.decide(RoadmapDecision) == []
+    assert RoadmapDecision.objects.get(code="RD7").recommendation == "حسمه"
+
+
+def test_0028_moves_d07_from_deferred_to_decided_inside_the_own06_decision_without_describing_passwords():
+    _seed_decisions28({"D-07"})
+    _sync28.decide(RoadmapDecision)
+    d07 = RoadmapDecision.objects.get(code="D-07")
+    assert (d07.status, d07.decision_date) == ("decided", _sync28.DAY)
+    assert "دُمج في قرار OWN-06 (أ)" in d07.recommendation and "المستودع الخاصّ" in d07.recommendation
+
+
+def test_0028_creates_d25_open_for_the_cpsat_measurement_on_oct_5_and_never_overwrites():
+    assert _sync28.add_decisions(RoadmapDecision) == ["D-25"]
+    assert _sync28.add_decisions(RoadmapDecision) == []
+    d25 = RoadmapDecision.objects.get(code="D-25")
+    assert (d25.status, d25.due, d25.blocks, d25.decider) == (
+        "open",
+        "2026-10-05",
+        "SCH-13",
+        "المالك",
+    )
+    assert "SK1 = 0" in d25.options and "SK4 ≤ 15%" in d25.options
+    assert d25.sort_order == 139
+    RoadmapDecision.objects.filter(code="D-25").update(status="decided")
+    assert _sync28.add_decisions(RoadmapDecision) == []
+    assert RoadmapDecision.objects.get(code="D-25").status == "decided"
+
+
+def test_0028_adds_each_item_note_once_without_touching_state_dates_or_gates():
+    from datetime import date
+
+    codes = []
+    for code, _line in _sync28.ITEM_NOTES:
+        if code not in codes:
+            codes.append(code)
+            _item(
+                code,
+                "doing",
+                40,
+                start_date=date(2026, 10, 1),
+                end_date=date(2026, 10, 9),
+                gate="owner",
+            )
+    assert _sync28.sync_notes(RoadmapItem) == [code for code, _l in _sync28.ITEM_NOTES]
+    assert _sync28.sync_notes(RoadmapItem) == []
+    for item in RoadmapItem.objects.all():
+        assert (item.status, item.progress, item.gate) == ("doing", 40, "owner"), item.code
+        assert (str(item.start_date), str(item.end_date)) == ("2026-10-01", "2026-10-09")
+        assert "[2026-09-25]" in item.note
+
+
+def test_0028_skips_a_note_for_an_absent_item():
+    assert _sync28.sync_notes(RoadmapItem) == []
+    assert RoadmapItem.objects.count() == 0
+
+
+def test_0028_clears_only_the_owner_gate_of_the_decided_items():
+    for code in _sync28.GATE_CLEARS:
+        _item(code, "todo", 0, gate="owner")
+    _item("U-01", "todo", 0, gate="owner")  # قرارٌ لم يرفع بوّابتَه (تشغيلٌ بيد المالك)
+    _item("X-1", "todo", 0, gate="")
+    RoadmapItem.objects.filter(code="M-12").update(gate="release")
+    changed = _sync28.clear_gates(RoadmapItem)
+    assert changed == [code for code in _sync28.GATE_CLEARS if code != "M-12"]
+    assert _sync28.clear_gates(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="M-12").gate == "release"
+    assert RoadmapItem.objects.get(code="U-01").gate == "owner"
+    assert RoadmapItem.objects.get(code="VI-19").gate == ""
+
+
+def test_0028_moves_u01_owns25_and_prp01_by_the_owners_decision():
+    from datetime import date
+
+    for code, (status, progress, start, end), *_rest in _sync28.DATES:
+        _item(code, status, progress, start_date=start, end_date=end, gate="owner")
+    assert _sync28.move_dates(RoadmapItem) == ["U-01", "OWN-25", "PRP-01"]
+    assert _sync28.move_dates(RoadmapItem) == []
+    u01 = RoadmapItem.objects.get(code="U-01")
+    assert (str(u01.start_date), str(u01.end_date)) == ("2026-09-28", "2026-09-28")
+    assert "الاثنين 2026-09-28 مساءً بعد الدوام" in u01.note and "كان 2026-09-25" in u01.date_basis
+    assert "نسخةٍ احتياطيّةٍ حديثةٍ متحقَّقةٍ" in u01.note
+    own25 = RoadmapItem.objects.get(code="OWN-25")
+    assert (str(own25.start_date), str(own25.end_date)) == ("2026-09-26", "2026-09-26")
+    assert "السبتَ 2026-09-26" in own25.note and "اقتراحٌ لم يؤكّده المالك" in own25.note
+    prp01 = RoadmapItem.objects.get(code="PRP-01")
+    assert prp01.end_date == date(2027, 5, 15) and "قبل منتصف مايو 2027" in prp01.date_basis
+    # الحالةُ والتقدّمُ والبوّابةُ لا تُمسّ.
+    assert all(
+        (i.status, i.progress, i.gate) == ("todo", 0, "owner") for i in RoadmapItem.objects.all()
+    )
+
+
+def test_0028_leaves_a_date_the_developer_already_moved():
+    from datetime import date
+
+    _item("U-01", "todo", 0, start_date=date(2026, 9, 21), end_date=date(2026, 9, 27))
+    _item("OWN-25", "doing", 20, start_date=date(2026, 9, 22), end_date=date(2026, 9, 29))
+    assert _sync28.move_dates(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="U-01").note == ""
+    assert str(RoadmapItem.objects.get(code="U-01").end_date) == "2026-09-27"
+
+
+def test_0028_defers_m17_and_prp06_and_blocks_dbt34_only_from_their_expected_states():
+    for code, (status, progress), *_rest in _sync28.STATUSES:
+        _item(code, status, progress)
+    assert _sync28.set_statuses(RoadmapItem) == ["M-17", "PRP-06", "DBT-34"]
+    assert _sync28.set_statuses(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="M-17").status == "deferred"
+    assert RoadmapItem.objects.get(code="PRP-06").status == "deferred"
+    assert RoadmapItem.objects.get(code="DBT-34").status == "blocked"
+    assert "مؤجَّلٌ بقرار** لا محجوب" in RoadmapItem.objects.get(code="M-17").note
+
+
+def test_0028_leaves_a_status_the_developer_moved():
+    _item("M-17", "doing", 30)
+    _item("DBT-34", "done", 100)
+    assert _sync28.set_statuses(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="M-17").status == "doing"
+
+
+def test_0028_appends_the_definition_notes_to_rk1_and_rk7_within_the_field_limit():
+    _kpi("RK1", 287.0, _sync28.DAY, source="git for-each-ref refs/heads")
+    _kpi("RK7", 6.0, _sync28.DAY, source="deployments مقابل deploy_window")
+    assert _sync28.kpi_source_notes(RoadmapKpi) == ["RK1", "RK7"]
+    assert _sync28.kpi_source_notes(RoadmapKpi) == []
+    assert "يستثني الفرعَ الحيَّ والمفتوحَ بطلب" in RoadmapKpi.objects.get(code="RK1").source
+    assert "لا يُعدّ مخالفةً" in RoadmapKpi.objects.get(code="RK7").source
+    # المؤشّرُ نفسُه لا يُمسّ قيمةً ولا تاريخاً.
+    assert RoadmapKpi.objects.get(code="RK7").current == 6.0
+
+
+def test_0028_skips_a_kpi_whose_source_would_exceed_255_characters():
+    _kpi("RK1", 287.0, _sync28.DAY, source="س" * 250)
+    assert _sync28.kpi_source_notes(RoadmapKpi) == []
+    assert len(RoadmapKpi.objects.get(code="RK1").source) == 250
+
+
+def test_0028_writes_the_owner05_exception_without_any_reason_and_the_own06_note_without_passwords():
+    notes = dict(_sync28.ITEM_NOTES)
+    assert "استثناءٌ موثَّقٌ للدورين من استمارة التقييم (لا يداوم شاغلُهما)" in notes["OWN-05"]
+    assert "التفصيلُ في المستودع الخاصّ" in notes["OWN-06"]
+    for term in ("كلمة", "مرض", "صحّة", "حمل"):
+        assert term not in notes["OWN-05"] and term not in notes["OWN-06"], term
+
+
+def test_0028_forwards_does_nothing_on_an_empty_database_and_is_idempotent():
+    _sync28.forwards(_Apps28, None)
+    assert RoadmapDecision.objects.count() == 0 and RoadmapItem.objects.count() == 0
+    _seed_decisions28()
+    _item(
+        "U-01",
+        "todo",
+        0,
+        start_date=_sync28.D(2026, 9, 21),
+        end_date=_sync28.D(2026, 9, 25),
+        gate="owner",
+    )
+    for code, (status, progress, start, end), *_rest in _sync28.DATES[1:]:
+        _item(code, status, progress, start_date=start, end_date=end)
+    for code, (status, progress), *_rest in _sync28.STATUSES:
+        _item(code, status, progress)
+    for code in ("VI-19", "M-12", "REP-08", "U-03", "OWN-05"):
+        _item(code, "todo", 0, gate="owner")
+    _kpi("RK1", 287.0, _sync28.DAY, source="س")
+    _sync28.forwards(_Apps28, None)
+
+    def snapshot():
+        return (
+            list(
+                RoadmapDecision.objects.order_by("code").values_list(
+                    "code", "status", "due", "recommendation"
+                )
+            ),
+            list(
+                RoadmapItem.objects.order_by("code").values_list(
+                    "code", "status", "gate", "note", "start_date"
+                )
+            ),
+            list(RoadmapKpi.objects.values_list("code", "source")),
+        )
+
+    first = snapshot()
+    _sync28.forwards(_Apps28, None)
+    assert snapshot() == first
+
+
+def test_0028_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0028_owner_decisions_2026_09_25b").origin
+    body = open(origin, encoding="utf-8").read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "رقمٌ حقيقيّ",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
+    assert "تعليق نشر" not in body and "معلَّق النشر" not in body and "نشرُ main معلَّق" not in body
