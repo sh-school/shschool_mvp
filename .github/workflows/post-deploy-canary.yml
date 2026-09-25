@@ -1,0 +1,121 @@
+name: Canary — فحصُ الإنتاج تلقائيّاً بعد كلّ نشرٍ ناجح
+
+# ══════════════════════════════════════════════════════
+#  REP-17 (أ): كنارٌ عند deployment_status
+# ══════════════════════════════════════════════════════
+#  كان تحقّقُ ما بعد النشر (`deploy-railway.yml` ← Post-Deploy Canary) يدويّاً: يشغّله من يملك أمر الترقية «فور
+#  تنفيذه لا قبله». فنشرٌ لا يتبعه تشغيلٌ يدويّ — أو يتبعه بعد ساعات — يمرّ بلا تحقّق، والمراقبان المجدولان
+#  (monitor.yml وworker-heartbeat.yml) لا يُعتمد عليهما في ذلك: جدولةُ GitHub بأفضل جهدٍ ولا تضمن وتيرةً.
+#
+#  Railway (railway-app[bot]) يُنشئ في GitHub «نشراً» لكلّ ترقيةٍ في البيئة `shschool_mvp / production` ويحدّث حالتَه
+#  (in_progress ← success)، ولو كانت الترقيةُ يدويّةً (`railway service redeploy --from-source`). فهذا الوركفلو
+#  يستمع إلى حالة النجاح ويشغّل `scripts/canary-check.sh`: أصار الـcommit المنشور حيّاً (لا النسخةُ السابقة السليمة)،
+#  وأتُرسم صفحةُ الدخول بالقوالب والثابت؟ وحادثة 2026-09-17 (أخضرُ ساعتين وكلُّ صفحةٍ 500) هي سببُ الشرط الثاني.
+#
+#  - الفشلُ يفتح قضيّةً واحدةً (أو يُعلّق على المفتوحة) بالعنوان والوسم نفسِهما في خطّ النشر اليدويّ
+#    (🔴 DEPLOY FAILED / deploy-failure)، فيغلقها نجاحٌ من أيٍّ من المسارَين؛ وبلا webhook ولا سرٍّ جديد.
+#  - لا يعمل على بيئة `production` التي ينشئها خطُّ النشر اليدويّ نفسُه (بعد نجاح canary اليدويّ) — وإلّا دار في حلقة:
+#    الشرطُ أدناه يحصر البيئةَ في `shschool_mvp / production` ومنشئَها في railway-app[bot].
+#  - `cancel-in-progress: true`: حين يصل نشرٌ أحدث يُلغى فحصُ الأقدم (نتيجتُه لم تعد مطلوبة) — كما في deploy-railway.yml.
+#  - لا يعمل إن نُشر commit أقدمُ من هذا الملفّ (لا وركفلو فيه): إعادةُ نشرٍ إلى نسخةٍ قديمةٍ بلا كنار.
+#  - الفحصُ نفسُه يُختبر بخادمٍ محلّيّ في tests/test_canary_check_script.py، والوركفلو في tests/test_monitoring_claims_are_honest.py.
+# ══════════════════════════════════════════════════════
+
+on:
+  deployment_status:
+
+concurrency:
+  group: railway-post-deploy-canary
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  canary:
+    name: كنارُ ما بعد النشر
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment_status.environment == 'shschool_mvp / production' &&
+      github.event.deployment_status.creator.login == 'railway-app[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.deployment.sha }}
+
+      - name: "كنار: هل صار الـcommit المنشور حيّاً وتُرسم صفحةُ الدخول؟"
+        env:
+          DEPLOY_SHA: ${{ github.event.deployment.sha }}
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        run: bash scripts/canary-check.sh "$DEPLOY_SHA" ${PRODUCTION_URL:+"$PRODUCTION_URL"}
+
+      - name: "الفشل: فتحُ قضيّةٍ أو التعليقُ على المفتوحة"
+        if: failure()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const sha = context.payload.deployment.sha;
+            const detail = [
+              `**Commit**: \`${sha}\``,
+              `**Time**: ${new Date().toISOString()}`,
+              `**Run**: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              `**المصدر**: كنارُ ما بعد النشر التلقائيّ (deployment_status) — لم يصر هذا الـcommit حيّاً أو لم تُرسم صفحةُ الدخول.`,
+            ].join('\n');
+            // ملكيةُ القضية بالشروط الثلاثة نفسِها في deploy-railway.yml (ليست PR، وأنشأها github-actions[bot]، وبادئتُها)
+            const isOurs = (item) =>
+              !item.pull_request &&
+              item.user &&
+              item.user.login === 'github-actions[bot]' &&
+              typeof item.title === 'string' &&
+              item.title.startsWith('🔴 DEPLOY FAILED');
+            const open = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: 'deploy-failure',
+              sort: 'updated', direction: 'desc', per_page: 100,
+            });
+            const existing = open.data.filter(isOurs);
+            if (existing.length > 0) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: existing[0].number,
+                body: `### فشل نشر إضافي\n\n${detail}`,
+              });
+              core.info(`appended to issue #${existing[0].number}`);
+            } else {
+              const created = await github.rest.issues.create({
+                ...context.repo,
+                title: '🔴 DEPLOY FAILED — canary health check failing',
+                body: [`## Deployment Failure — Automated Alert`, ``, detail, ``,
+                       `تُحدَّث هذه القضية عند كل فشل لاحق، وتُغلق تلقائياً عند أول نشر ناجح.`, ``,
+                       `### Action Required`,
+                       `1. Check Railway dashboard for build/deploy errors`,
+                       `2. Review Railway deploy logs`,
+                       `3. If needed, rollback in Railway dashboard → Deployments → previous deploy → Rollback`].join('\n'),
+                labels: ['bug', 'urgent', 'deploy-failure'],
+              });
+              core.info(`opened issue #${created.data.number}`);
+            }
+
+      - name: "النجاح: إغلاقُ قضايا فشل النشر المفتوحة"
+        if: success()
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const sha = context.payload.deployment.sha.substring(0, 7);
+            const open = await github.rest.issues.listForRepo({
+              ...context.repo, state: 'open', labels: 'deploy-failure',
+              sort: 'updated', direction: 'desc', per_page: 100,
+            });
+            for (const issue of open.data) {
+              if (issue.pull_request || !issue.user || issue.user.login !== 'github-actions[bot]'
+                  || typeof issue.title !== 'string' || !issue.title.startsWith('🔴 DEPLOY FAILED')) continue;
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: issue.number,
+                body: `نُشر \`${sha}\` واجتاز كنارَ ما بعد النشر (${new Date().toISOString()}) — تُغلق تلقائياً.`,
+              });
+              await github.rest.issues.update({
+                ...context.repo, issue_number: issue.number, state: 'closed', state_reason: 'completed',
+              });
+            }
