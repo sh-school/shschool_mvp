@@ -25,10 +25,9 @@ pytest.importorskip("pytest_playwright")
 from django.urls import reverse  # noqa: E402
 
 from operations.models import Session, Subject  # noqa: E402
+from quality.observation_selectors import default_observation_date  # noqa: E402
 
 pytestmark = pytest.mark.django_db
-
-DAY = dt.date(2026, 9, 20)  # أحد — يوم دراسة
 
 
 @pytest.fixture
@@ -38,12 +37,15 @@ def subject(school):
 
 @pytest.fixture
 def a_session(school, class_group, teacher_user, subject):
+    # تاريخُ الاستمارة الافتراضيُّ آخرُ يومِ دراسةٍ حقيقيّ (`default_observation_date`) فيتبع الساعةَ؛
+    # وكان الاختبارُ يزرع الحصّةَ على تاريخٍ مثبَّت (2026-09-20) فلا يجد `[data-period="1"]` في أيّ يومٍ
+    # غيرِه — أحمرُ ليالي Nightly منذ ضُمّ إلى خطوة Playwright المنفصلة (REP-18). فتُزرَع على التاريخ نفسِه.
     return Session.objects.create(
         school=school,
         class_group=class_group,
         teacher=teacher_user,
         subject=subject,
-        date=DAY,
+        date=default_observation_date(school),
         start_time=dt.time(7, 10),
         end_time=dt.time(7, 55),
         status="scheduled",

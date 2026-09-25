@@ -187,17 +187,49 @@ jobs:
         # التطوير مصدرٌ واحدٌ للأدوات (وهو يستدعي requirements.txt بنفسه).
         run: pip install -r requirements-dev.txt
 
+      - name: تثبيت متصفّح Chromium وWebKit (مع مكتبات النظام)
+        # اختباراتُ Playwright (tests/e2e وaxe والحمولة والجوال) تحتاج المتصفّحَ — وتُشغَّل في خطوةٍ
+        # منفصلةٍ أدناه كما في nightly.yml. لم يكن هنا تثبيتٌ ولا عزلٌ فسقطت الوظيفةُ 27 مرّةً من 27
+        # بـ`BrowserType.launch` وبـ`SynchronousOnlyOperation` (REP-18، #422).
+        run: playwright install --with-deps chromium webkit
+
       - name: تطبيق Migrations
         run: python manage.py migrate --noinput
 
       - name: تشغيل الاختبارات مع تقرير HTML شامل
+        # Playwright خارج هذه العمليّة: fixture الجلسة تُبقي حلقةَ async قائمةً فيها كلَّها فيسقط كلُّ
+        # اختبارٍ يلمس القاعدةَ بعده بـ`SynchronousOnlyOperation`. والقائمةُ يدويّةٌ تُنسى، فحارسُ
+        # `tests/test_nightly_isolates_browser_tests.py` يُسقط البناءَ إن طلب ملفٌّ `pytest_playwright`
+        # ولم يُستثنَ هنا (ولا في nightly.yml) ويُشغَّل في الخطوة المنفصلة أدناه.
         run: |
           pytest \
+            --ignore=tests/e2e \
+            --ignore=tests/test_a11y_axe_ratchet.py \
+            --ignore=tests/test_web_vitals_budget.py \
+            --ignore=tests/test_mobile_audit.py \
+            --ignore=tests/test_lighthouse_mobile.py \
+            --ignore=tests/test_action_cards_fit_narrow_screens.py \
+            --ignore=tests/test_page_nav_htmx_process.py \
             --cov=. \
             --cov-report=html:htmlcov \
             --cov-report=term-missing \
             --cov-report=json:coverage.json \
             -q
+
+      - name: "Playwright — e2e وaxe والحمولة (عمليّةٌ منفصلة)"
+        if: always()
+        env:
+          # كما في nightly.yml ووظيفتَي axe وe2e في quality-gate.yml: fixtures المتصفّح تلمس القاعدةَ
+          # من داخل حلقة Playwright. ولا يُضبط على الخطوة الرئيسيّة فيُخفي أعطالاً حقيقيّة.
+          DJANGO_ALLOW_ASYNC_UNSAFE: "1"
+        # Lighthouse (tests/test_lighthouse_mobile.py) ليليٌّ فقط — ثلاثُ دقائق للصفحة، فلا يُكرَّر أسبوعيّاً.
+        run: |
+          python -m pytest tests/e2e tests/test_a11y_axe_ratchet.py \
+            $(ls tests/test_web_vitals_budget.py 2>/dev/null) \
+            tests/test_mobile_audit.py \
+            tests/test_action_cards_fit_narrow_screens.py \
+            tests/test_page_nav_htmx_process.py \
+            -p no:cacheprovider -v
 
       - name: رفع تقرير HTML
         uses: actions/upload-artifact@v7
