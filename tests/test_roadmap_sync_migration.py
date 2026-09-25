@@ -4557,3 +4557,171 @@ def test_0032_publishes_nothing_a_public_repo_must_not_say():
     assert [term for term in banned if term in body] == []
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
+
+
+# ── 0033: ما نُشر على main@4e27672 (#624 #623 #615) وبندُ إصلاح الإشعار N-045 (#628) ──
+
+_sync33 = importlib.import_module("roadmap.migrations.0033_sync_items_2026_09_25k")
+
+
+class _Apps33:
+    @staticmethod
+    def get_model(_app, name):
+        return RoadmapItem
+
+
+def test_0033_closes_own30_and_adds_the_615_token_to_the_already_done_own21():
+    _item("OWN-30", "todo", 0, gate="owner")
+    _item("OWN-21", "done", 100, pr="#508 #541 #551 #570")
+    assert _sync33.sync(RoadmapItem) == ["OWN-30", "OWN-21"]
+    assert _sync33.sync(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    assert (by["OWN-30"].status, by["OWN-30"].progress, by["OWN-30"].pr, by["OWN-30"].gate) == (
+        "done",
+        100,
+        "#624",
+        "",
+    )
+    assert (by["OWN-21"].status, by["OWN-21"].progress, by["OWN-21"].pr) == (
+        "done",
+        100,
+        "#508 #541 #551 #570 #615",
+    )
+
+
+def test_0033_moves_n042_to_83_percent_with_the_worker_verification_and_sentry_reading_and_keeps_it_open():
+    _item("N-042", "doing", 0)
+    assert _sync33.sync(RoadmapItem) == ["N-042"]
+    assert _sync33.sync(RoadmapItem) == []
+    n42 = RoadmapItem.objects.get(code="N-042")
+    assert (n42.status, n42.progress, n42.pr) == ("doing", 83, "#626")
+    assert "270 ملفّاً ساكناً" in n42.note and "staticfiles.json" in n42.note
+    assert "RENDER" not in n42.note and "بوضعَي الشاشة وPDF" in n42.note
+    assert "لم يُتحقَّق بعد" in n42.note and "تصديرُ schedule.pdf A3" in n42.note
+    assert "قُرئ Sentry بعد النشر" in n42.note and "نافذةٌ قصيرةٌ" in n42.note
+    assert "خمسُ خطواتٍ من ستّ" in n42.note
+    assert "اشتقاقٌ لا قياس" in n42.note and "خارجَ نطاق الإصلاح" in n42.note
+
+
+def test_0033_leaves_an_n042_the_developer_moved():
+    _item("N-042", "done", 100)
+    assert _sync33.sync(RoadmapItem) == []
+
+
+def test_0033_records_the_measurements_and_what_was_not_verified():
+    _item("OWN-30", "todo", 0)
+    _item("OWN-21", "done", 100)
+    _sync33.sync(RoadmapItem)
+    own30 = RoadmapItem.objects.get(code="OWN-30").note
+    assert "requirements-mypy.txt" in own30 and "1,735 خطأً في 160 ملفّاً" in own30
+    assert "لم يُتحقَّق:" in own30 and "خضرةُ بوّابة الجودة على main" in own30
+    assert "موعدُه (10-02) لم يُعدَّل" in own30
+    own21 = RoadmapItem.objects.get(code="OWN-21").note
+    assert "382 صفحةً على 375px" in own21 and "116 هدفَ لمسٍ" in own21 and "26 عقدةَ axe" in own21
+    assert "ADMIN_SWEEP=1" in own21 and "لا الإنتاج" in own21
+    assert "ينتظر معاينةَ المالك البصريّةَ على الإنتاج" in own21
+
+
+def test_0033_leaves_items_the_developer_moved():
+    _item("OWN-30", "doing", 40)
+    _item("OWN-21", "doing", 60)
+    assert _sync33.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="OWN-30").note == ""
+
+
+def test_0033_never_overflows_the_pr_field_limit():
+    crowded = " ".join(f"#{n}" for n in range(500, 513))
+    _item("OWN-21", "done", 100, pr=crowded)
+    assert _sync33.sync(RoadmapItem) == ["OWN-21"]
+    assert RoadmapItem.objects.get(code="OWN-21").pr == crowded
+
+
+def test_0033_registers_the_notification_fix_as_n045_in_the_frontend_lane_and_keeps_it_open():
+    from datetime import date
+
+    assert _sync33.add_new_items(RoadmapItem) == ["N-045"]
+    assert _sync33.add_new_items(RoadmapItem) == []
+    n45 = RoadmapItem.objects.get(code="N-045")
+    assert (n45.lane, n45.src, n45.status, n45.progress, n45.pr) == (
+        "frontend",
+        "NEW",
+        "doing",
+        50,
+        "#628",
+    )
+    assert (n45.start_date, n45.end_date) == (date(2026, 9, 25), date(2026, 9, 26))
+    assert len(n45.date_basis) <= 120 and n45.sort_order == 736 and n45.effort == 0.5
+    assert "بلاغُ المالك" in n45.note and "truncatechars:160" in n45.note
+    assert "لا يُغلق قبل نشره ومعاينتِه" in n45.note and "اشتقاقٌ لا قياس" in n45.note
+    assert "لم يُتحقَّق:" in n45.note and "جهاز لمسٍ حقيقيّ" in n45.note
+    assert "خارجَ النطاق ولم يُعالَج" in n45.note and "100 حرف" in n45.note
+    assert "لا قصَّ بالحرف ولا بالأسطر" in n45.criterion and "حارسٌ يمنع عودةَ القصّ" in n45.criterion
+
+
+def test_0033_does_not_overwrite_an_existing_n045():
+    _item("N-045", "done", 100, title="أنشأه المطوّر يدوياً")
+    assert _sync33.add_new_items(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="N-045").title == "أنشأه المطوّر يدوياً"
+
+
+def test_0033_appends_the_rep07b_note_once_without_names_or_counts():
+    _item("REP-07", "done", 100)
+    assert _sync33.sync_notes(RoadmapItem) == ["REP-07"]
+    assert _sync33.sync_notes(RoadmapItem) == []
+    rep07 = RoadmapItem.objects.get(code="REP-07")
+    assert (rep07.status, rep07.progress) == ("done", 100)
+    assert "REP-07b (#623)" in rep07.note and "لا اسمَ كاملاً باقياً" in rep07.note
+    assert "لا يُعلن إغلاقُه قبل خضرة CI على main" in rep07.note and "خارجَ معيار REP-07" in rep07.note
+    assert "1,720" not in rep07.note
+
+
+def test_0033_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
+    _sync33.forwards(_Apps33, None)
+    assert RoadmapItem.objects.count() == 0
+    _item("OWN-30", "todo", 0)
+    _item("OWN-21", "done", 100)
+    _item("REP-07", "done", 100)
+    _sync33.forwards(_Apps33, None)
+
+    def snapshot():
+        return list(
+            RoadmapItem.objects.order_by("code").values_list(
+                "code", "status", "progress", "pr", "gate", "note", "sort_order"
+            )
+        )
+
+    first = snapshot()
+    _sync33.forwards(_Apps33, None)
+    assert snapshot() == first
+    assert RoadmapItem.objects.filter(code="N-045").count() == 1
+
+
+def test_0033_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0033_sync_items_2026_09_25k").origin
+    body = open(origin, encoding="utf-8").read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "بالبصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "رقمٌ حقيقيّ",
+        "مرض",
+        "C:/",
+        "localhost",
+        "up.railway.app",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
