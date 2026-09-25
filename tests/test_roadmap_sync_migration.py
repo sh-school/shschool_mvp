@@ -3036,7 +3036,13 @@ def test_0027_closes_n041_at_3_of_3_with_the_three_reservations_and_keeps_d21_op
     note = n041.note
     assert "منشورٌ على الإنتاج ضمن main@f42633b" in note and "N-041 → منجز 3/3" in note
     assert "(1) لم تُعاين الورقةُ وPDF وExcel بصرياً على الإنتاج" in note
-    assert "(2) لم يُقَس تقسيمُ صفحات PDF" in note and "(3) صفحاتُ" in note
+    # قياسُ 8061 اللاحقُ محلّيٌّ لا على الإنتاج، فيُسقط تحفّظَ تقسيم صفحات PDF ويُبقي معاينةَ الإنتاج عند المالك.
+    assert "(2) صفحاتُ «جدول لكلّ معلّم/شعبة» تبقى على الخطّة عمداً" in note
+    assert "على قاعدة جلستها المحلّيّة لا الإنتاج" in note and "8751 حصّة أيّام" in note
+    assert "صفحةٌ واحدة كالخطّة" in note and "شريطٍ 13.6mm بلا قصّ" in note
+    assert "A1:AL81 للعامّ، A1:J11 للمعلّم" in note and "مقيسٌ محلّياً: صفحةٌ واحدة" in note
+    assert "ويبقى (1) معاينةُ الإنتاج نفسِه بصرياً عند المالك" in note
+    assert "لم يُقَس تقسيمُ صفحات PDF" not in note
     assert "عدُّ طلباتٍ (3 من 3) لا جهد" in note and "D-21 ما زال مفتوحاً" in note
     assert "12 اختباراً جديداً" in note and "سقطت الأربعةُ قبل إصلاحين" in note
 
