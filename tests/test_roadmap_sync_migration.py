@@ -3758,13 +3758,20 @@ def test_0029_states_that_vi24_and_own20_and_dbt46_proposals_are_not_the_owners_
     # قياساتُ مسار الديون والتشغيل تُسجَّل بمصدرها وتاريخها.
     assert "1,735 في 160 ملفّاً" in notes["DBT-01"] and "5,728" in notes["DBT-03"]
     assert "29 موقعاً" in notes["DBT-04"] and "سبعَ" in notes["REP-18"]
-    # مراقبُ Sentry Uptime فعّالٌ على الإنتاج (8203): DONE-07 بلا تصحيح، وإنذارُه لم يُختبر، وREP-17 بلا مورّدٍ جديد.
+    # مراقبُ Sentry Uptime فعّالٌ على الإنتاج وقد كشف سقوطاً فعليّاً (8203، ثلاثةُ تصحيحات): DONE-07 بلا تصحيح، ووصولُ بريده للمالك لم يتأكّد.
     assert "الشقُّ الخارجيّ قائم" in notes["DONE-07"] and "فلا تصحيحَ" in notes["DONE-07"]
-    assert "وإنذارُه لم يُختبر قطّ" in notes["DONE-07"] and "لا يصمد" not in notes["DONE-07"]
+    assert (
+        "كشف سقوطاً فعليّاً يوم 2026-09-17" in notes["DONE-07"] and "لا يصمد" not in notes["DONE-07"]
+    )
+    assert (
+        "ووصولُه إلى المالك لم يتأكّد بعد" in notes["DONE-07"]
+        and "لم يُختبر قطّ" not in notes["DONE-07"]
+    )
     assert "معطَّلٌ بلا أيّ check-in" in notes["U-07"]
     assert "غيرُ ممكنٍ الآن" in notes["REP-17"] and "قرارُ المالك:" in notes["REP-17"]
     assert "لا «تمديد Uptime»" in notes["REP-17"] and "مقعدُ Cron" in notes["REP-17"]
-    assert "ولا يُعدَّل RK8" in notes["REP-17"]
+    assert "ولا يُعدَّل RK8" in notes["REP-17"] and "التي لم تُختبر" not in notes["REP-17"]
+    assert "وصولُ بريد الإنذار إلى المالك لم يتأكّد بعد" in notes["REP-17"]
 
 
 def test_0029_skips_a_note_for_an_absent_item_and_forwards_is_idempotent_on_an_empty_database():
