@@ -4973,14 +4973,53 @@ def test_0035_registers_the_pul_family_and_lay09_lay10_as_open_undated_items():
     assert "الطباعةُ لا تتغيّر" in by["LAY-10"].note and "postMessage" in by["LAY-10"].criterion
     assert "لا نشرَ قبل استقرار الأحد" in by["LAY-10"].date_basis
     orders = [i.sort_order for i in by.values()]
-    assert sorted(orders) == list(range(739, 752))
+    assert sorted(orders) == list(range(739, 753))
     assert all(len(i.date_basis) <= 120 for i in by.values())
+
+
+def test_0035_registers_n048_the_academic_menu_link_by_the_owners_request_as_started_not_done():
+    _sync35.add_new_items(RoadmapItem)
+    n48 = RoadmapItem.objects.get(code="N-048")
+    assert (n48.lane, n48.src, n48.status, n48.progress, n48.sort_order) == (
+        "frontend",
+        "NEW",
+        "doing",
+        0,
+        752,
+    )
+    assert n48.effort == 0.2 and n48.start_date is None and n48.end_date is None
+    assert "بطلب المالك المباشر" in n48.note and "لم يُنفَّذ بعد" in n48.note
+    assert "weekly_schedule" in n48.note and "صافي CSS = 0" in n48.criterion
+    assert "الجدولة الذكية" in n48.title and len(n48.date_basis) <= 120
+
+
+def test_0035_moves_rep10_to_70_with_the_first_official_rk1_reading_and_keeps_it_open():
+    from datetime import date
+
+    _item("REP-10", "todo", 0)
+    assert _sync35.sync(RoadmapItem) == ["REP-10"]
+    rep10 = RoadmapItem.objects.get(code="REP-10")
+    assert (rep10.status, rep10.progress, rep10.pr) == ("doing", 70, "#637")
+    assert "RK1 = 331" in rep10.note and "خطُّ أساسٍ لا مستهدَف" in rep10.note
+    assert "RK2 وRK3 في مخرَج الأداة مرشِّحاتٌ لا قراءاتٌ رسميّة" in rep10.note
+    assert "اقتراحُ صاحبه (أمين المستودع) لا قياس" in rep10.note
+    _kpi(
+        "RK1",
+        304.0,
+        date(2026, 9, 25),
+        source="git for-each-ref",
+        history=[{"d": "2026-09-25", "v": 304.0}],
+    )
+    assert _sync35.sync_kpis(RoadmapKpi) == ["RK1"]
+    rk1 = RoadmapKpi.objects.get(code="RK1")
+    assert rk1.current == 331.0 and rk1.history == [{"d": "2026-09-25", "v": 331.0}]
+    assert "prune_local_branches.sh --json" in rk1.source
 
 
 def test_0035_never_overwrites_an_existing_new_item():
     _item("QCC-01", "done", 100, title="أنشأه المطوّر يدوياً")
     created = _sync35.add_new_items(RoadmapItem)
-    assert "QCC-01" not in created and len(created) == 12
+    assert "QCC-01" not in created and len(created) == 13
     assert RoadmapItem.objects.get(code="QCC-01").title == "أنشأه المطوّر يدوياً"
 
 
@@ -5096,8 +5135,8 @@ def test_0035_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
 def test_0035_new_item_codes_and_orders_do_not_collide_with_any_earlier_block():
     codes = [row[0] for row in _sync35.NEW_ITEMS]
     orders = [row[-1] for row in _sync35.NEW_ITEMS]
-    assert len(set(codes)) == len(codes) == 13 and len(set(orders)) == len(orders)
-    assert min(orders) == 739 and max(orders) == 751
+    assert len(set(codes)) == len(codes) == 14 and len(set(orders)) == len(orders)
+    assert min(orders) == 739 and max(orders) == 752
 
 
 def test_0035_publishes_nothing_a_public_repo_must_not_say():
