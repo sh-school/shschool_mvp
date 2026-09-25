@@ -2,4 +2,4 @@
 صفحةُ «لا عضويّة نشطة» — حسابٌ سليمٌ بلا عضويّةٍ في أيّ مدرسة (`core.middleware`).
 هي صفحةُ الخطأ الواحدة بزرّ تسجيل الخروج بدل العودة للرئيسيّة: الرئيسيّةُ تُعيد الصفحةَ نفسَها،
 ومسارُ الخروج POST وحده، فبلا هذا الزرّ لا سبيلَ إلى الدخول بحسابٍ آخر.
-{% endcomment %}{% include "errors/_error_page.html" with code="403" heading="لا عضويّة نشطة" desc="ليس لديك عضويّةٌ نشطةٌ في أيّ مدرسة." desc2="تواصل مع مدير النظام، أو سجّل الخروج للدخول بحسابٍ آخر." icon="lock" accent="STATUS_WARNING" accent_dark="STATUS_WARNING_FG" logout=True brand_footer=True %}
+{% endcomment %}{% include "errors/_error_page.html" with code="403" heading="لا عضويّة نشطة" desc="ليس لديك عضويّةٌ نشطةٌ في أيّ مدرسة." desc2="تواصل مع مدير النظام، أو سجّل الخروج للدخول بحسابٍ آخر." icon="lock" accent="STATUS_WARNING" accent_text="STATUS_WARNING_FG" accent_dark="STATUS_WARNING_FG" logout=True brand_footer=True %}

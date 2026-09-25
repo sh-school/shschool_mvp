@@ -99,7 +99,55 @@ def load_baseline() -> dict[str, int]:
     return json.loads(BASELINE.read_text(encoding="utf-8"))["files"]
 
 
+#: الإصداراتُ الثابتةُ لفاحص الأنواع — مصدرٌ واحدٌ يقرؤه CI وrequirements-dev.txt (OWN-30).
+PINS = pathlib.Path("requirements-mypy.txt")
+PINNED = ("mypy", "django-stubs", "djangorestframework-stubs")
+
+
+def pinned_version(name: str) -> str:
+    """إصدارُ الحزمة في requirements-mypy.txt (سطرُ `name==x.y.z`)."""
+    for line in PINS.read_text(encoding="utf-8").splitlines():
+        match = re.match(rf"^{re.escape(name)}==(\S+?)\s*(?:#.*)?$", line.strip())
+        if match:
+            return match.group(1)
+    raise RuntimeError(f"{name} غيرُ مثبَّتٍ بـ`==` في {PINS}")
+
+
+def installed_version(name: str) -> str:
+    """الإصدارُ المثبَّت في هذه البيئة، أو فارغٌ إن غابت الحزمة."""
+    from importlib.metadata import PackageNotFoundError, version
+
+    try:
+        return version(name)
+    except PackageNotFoundError:
+        return ""
+
+
+def version_skew() -> list[str]:
+    """أسطرٌ تصف ما يخالف الإصداراتِ الثابتة في هذه البيئة — فارغةٌ إن طابقت (وهذا حالُ CI دائماً)."""
+    return [
+        f"{name}: الثابتُ {pinned_version(name)}، والمثبَّتُ عندك {installed_version(name) or 'غائب'}"
+        for name in PINNED
+        if installed_version(name) != pinned_version(name)
+    ]
+
+
 def main(argv: list[str]) -> int:
+    skew = version_skew()
+    if skew and "--update" in argv:
+        # عددٌ يخرج من إصدارٍ لا تحكم به البوّابة يُسجَّل فيُسقط الطلبَ (أو يخضرّ زوراً) — وقد وقع: التطويرُ على
+        # mypy 2.3.1 والبوّابةُ على 1.10.0. فلا تسجيلَ إلّا بالإصدارات الثابتة نفسِها.
+        print(
+            "رُفض --update: إصداراتُ الفاحص عندك غيرُ الثابتة في requirements-mypy.txt (ما تحكم به البوّابة):"
+        )
+        for line in skew:
+            print(f"  {line}")
+        print(
+            "ثبّتها (pip install -r requirements-mypy.txt) ثمّ أعِد الأمر. لا يُسجَّل عددٌ من إصدارٍ آخر."
+        )
+        return 2
+    for line in skew:
+        print(f"تحذير: {line} — قد تخالف الأعدادُ ما تراه البوّابة؛ لا تسجّل بهذه البيئة.")
     current = measure()
     if "--update" in argv:
         BASELINE.write_text(

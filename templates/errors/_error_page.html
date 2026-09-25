@@ -8,7 +8,8 @@
   الصفحة (`eh-*`) لا بأصناف `login-card*` المشتركة (طبقاتُ CSS، انظر التعليق عند تعريفها) — للصفحات
   قبل الدخول أصلاً، كالقفل)،
   brand_footer (اختياريّ: رؤيةُ الوزارة وتوقيعُ المطوّر بأنماط المنصّة نفسِها بدل سطر المدرسة — للصفحات التي تُخدَم فيها الأنماط لا 500)،
-  accent اسمُ ثابت لون النهار في core.brand، وaccent_dark نظيرُه ليلاً في brand.DARK.
+  accent اسمُ ثابت لون النهار في core.brand، وaccent_dark نظيرُه ليلاً في brand.DARK،
+  وaccent_text (اختياريّ) لونُ نصّ الزرّ المحدَّد نهاراً حين لا يبلغ accent تباينَ 4.5:1 على الأبيض (كالكهرمانيّ الفاتح 3.19).
 
 كانت ثلاثَ نسخٍ متطابقةً في 130 سطراً لكلٍّ منها، كلُّ لونٍ فيها مكتوبٌ رقماً
 مرّتين (للنهار ولليل)، وأربعةٌ منها لا رمزَ لها (1a0a12 و0c1a35 وe8a0b5
@@ -57,7 +58,8 @@
     .error-desc { font-size: 14px; color: {% brand_color "TEXT_MUTED" %}; margin-bottom: 28px; line-height: 1.6; }
     .error-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
     .error-btn, .error-btn-outline {
-      display: inline-block;
+      display: inline-flex; align-items: center; justify-content: center;
+      min-block-size: 2.75rem; box-sizing: border-box; /* هدفُ لمسٍ 44px على الجوّال أيضاً (OWN-21) */
       padding: 12px 28px;
       border-radius: 12px;
       text-decoration: none;
@@ -69,8 +71,8 @@
     button.error-btn { border: 0; cursor: pointer; font-family: inherit; }
     .error-btn { background: {% brand_color "MAROON" %}; color: {% brand_color "ON_FILL" %}; }
     .error-btn:hover { background: {% brand_color "MAROON_DARK" %}; box-shadow: 0 4px 16px rgba(138,21,56,.25); }
-    .error-btn-outline { background: transparent; color: {% brand_color accent %}; border: 2px solid {% brand_color accent %}; }
-    .error-btn-outline:hover { background: {% brand_color accent %}; color: {% brand_color "ON_FILL" %}; }
+    .error-btn-outline { background: transparent; color: {% brand_color accent_text|default:accent %}; border: 2px solid {% brand_color accent %}; }
+    .error-btn-outline:hover { background: {% brand_color accent_text|default:accent %}; color: {% brand_color "ON_FILL" %}; }
     .error-footer { margin-top: 32px; font-size: 11px; color: {% brand_color "TEXT_MUTED" %}; }
     .error-icon-bg {
       width: 80px; height: 80px; margin: 0 auto 16px;

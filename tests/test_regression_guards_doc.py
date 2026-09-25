@@ -32,11 +32,14 @@ BASELINE_RE = re.compile(r"\b([a-z0-9_]+_baseline\.json)\b")
 MIN_REFERENCES = 100
 
 
+def _test_files(tests: pathlib.Path) -> list[pathlib.Path]:
+    """ملفّاتُ الاختبار: `tests/*.py` و`tests/e2e/*.py` — اختباراتُ المتصفّح تُحرس بالوثيقة نفسِها."""
+    return sorted(tests.glob("*.py")) + sorted((tests / "e2e").glob("*.py"))
+
+
 def _sources() -> str:
-    """نصُّ كلّ ملفّات `tests/*.py` — للبحث عن `def` و`class`."""
-    return "\n".join(
-        p.read_text(encoding="utf-8", errors="ignore") for p in sorted(TESTS.glob("*.py"))
-    )
+    """نصُّ كلّ ملفّات الاختبار — للبحث عن `def` و`class`."""
+    return "\n".join(p.read_text(encoding="utf-8", errors="ignore") for p in _test_files(TESTS))
 
 
 def references(doc: str) -> tuple[set[str], set[str], set[str]]:
@@ -56,7 +59,7 @@ def missing(
 ):
     names, paths, baselines = references(doc)
     text = _sources() if sources is None else sources
-    stems = {p.stem for p in tests.glob("*.py")}
+    stems = {p.stem for p in _test_files(tests)}
     lost_names = sorted(
         n
         for n in names
@@ -93,10 +96,15 @@ def test_the_detector_sees_what_it_claims_to_see(tmp_path):
         "def test_alive():\n    pass\n\nclass TestKept:\n    pass\n"
     )
     (tmp_path / "tests" / "kept_baseline.json").write_text("{}")
+    (tmp_path / "tests" / "e2e").mkdir()
+    (tmp_path / "tests" / "e2e" / "test_browser_flow.py").write_text(
+        "def test_in_browser():\n    pass\n"
+    )
     (tmp_path / "core").mkdir()
     (tmp_path / "core" / "real.py").write_text("")
     doc = (
         "`test_real` `test_alive` `TestKept` `test_gone_file` `TestGone` `test_renamed_function`\n"
+        "`tests/e2e/test_browser_flow.py` `test_in_browser`\n"
         "`core/real.py` `core/moved.py` `docs/not_a_repo_dir/x.md` `kept_baseline.json` `lost_baseline.json`\n"
         "`tests/test_real.py::test_alive` عبارةٌ خارجَ الاقتباس test_outside_backticks تُتجاهل"
     )
@@ -108,4 +116,4 @@ def test_the_detector_sees_what_it_claims_to_see(tmp_path):
 
 
 def _sources_of(tests_dir: pathlib.Path) -> str:
-    return "\n".join(p.read_text(encoding="utf-8") for p in sorted(tests_dir.glob("*.py")))
+    return "\n".join(p.read_text(encoding="utf-8") for p in _test_files(tests_dir))
