@@ -105,7 +105,8 @@ def test_the_first_seven_characters_of_the_sha_are_what_is_compared(server):
     _healthy(server, commit="abc1234")
 
     assert _canary(server.url, sha="abc1234").returncode == 0
-    assert _canary(server.url, sha="abc1235def").returncode == 1
+    other_sha = "abc1235def"  # pragma: allowlist secret — تجزئةٌ وهميّة لا سرّ
+    assert _canary(server.url, sha=other_sha).returncode == 1
 
 
 def test_an_old_healthy_version_still_serving_is_a_failure_not_a_pass(server):
