@@ -156,6 +156,25 @@ class TestThePlanIsAButton:
         assert "تبديل — كانت" not in body, "الخطّةُ كما اعتُمدت لا كما جرت"
 
 
+class TestTheSelectionSurvivesTheFormsOnThePage:
+    """نموذجا حجم الورق والاتّجاه يُعيدان بناءَ الرابط من حقولهما: ما لم يكن الأسبوعُ والمصدرُ حقلين فيهما
+    عاد المستخدمُ من أسبوعه (أو من الخطّة) إلى الأسبوع الجاريّ بمجرّد تغيير A4 إلى A3."""
+
+    def test_the_paper_form_carries_the_chosen_week(self, world, client):
+        body = _teacher_page(client, world, world["t1"], week="2026-10-18").content.decode()
+
+        form = body.split('name="paper"', 1)[0].rsplit("<form", 1)[1]
+        assert 'name="source" value="actual"' in form
+        assert 'name="week" value="2026-10-18"' in form
+
+    def test_the_paper_form_keeps_the_plan_view_a_plan(self, world, client):
+        body = _teacher_page(client, world, world["t1"], source="plan").content.decode()
+
+        form = body.split('name="paper"', 1)[0].rsplit("<form", 1)[1]
+        assert 'name="source" value="plan"' in form
+        assert 'name="week"' not in form
+
+
 class TestPrintAndExportStayOnThePlan:
     def test_the_print_sheet_without_a_source_is_the_plan(self, world, client):
         _generate(world)
@@ -188,6 +207,41 @@ class TestPrintAndExportStayOnThePlan:
 
         assert "source=actual" in body and "week=2026-10-18" in body
         assert reverse("schedule_export_pdf") + "?" in body
+
+    def test_the_standalone_sheets_own_export_links_keep_the_sheets_source(self, world, client):
+        """الورقةُ المستقلّة تُصدِّر عبر صفحة الجدول (`?export=`)، وهي تفتح على الأسبوع الفعليّ: فورقةُ
+        الخطّة التي بلا مصدرٍ في رابطها كانت تُصدَّر أسبوعاً فعليّاً غيرَ ما تعرضه."""
+        client.force_login(world["principal"])
+        query = {"view": "teacher", "teacher": str(world["t1"].id), "year": YEAR}
+
+        plan = client.get(reverse("schedule_print"), query, HTTP_HOST="localhost").content.decode()
+        actual = client.get(
+            reverse("schedule_print"),
+            {**query, "source": "actual", "week": "2026-10-18"},
+            HTTP_HOST="localhost",
+        ).content.decode()
+
+        plan_link = plan.split("&amp;export=pdf", 1)[0].rsplit('href="', 1)[1]
+        actual_link = actual.split("&amp;export=pdf", 1)[0].rsplit('href="', 1)[1]
+        assert "source=plan" in plan_link
+        assert "source=actual" in actual_link and "week=2026-10-18" in actual_link
+
+    def test_the_standalone_sheets_forms_carry_its_week(self, world, client):
+        client.force_login(world["principal"])
+        body = client.get(
+            reverse("schedule_print"),
+            {
+                "view": "teacher",
+                "teacher": str(world["t1"].id),
+                "year": YEAR,
+                "source": "actual",
+                "week": "2026-10-18",
+            },
+            HTTP_HOST="localhost",
+        ).content.decode()
+
+        for form in body.split("<form")[1:]:
+            assert 'name="week" value="2026-10-18"' in form.split("</form>", 1)[0]
 
     def test_the_general_schedule_frame_follows_the_week(self, world, client):
         client.force_login(world["principal"])
