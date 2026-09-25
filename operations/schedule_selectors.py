@@ -12,9 +12,12 @@
 والعاملُ يستدعيها بمعطياتٍ أعاد بناءها من `query_string` محفوظة.
 """
 
+from datetime import date, timedelta
+from typing import Any
 from urllib.parse import urlencode
 
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
 from core.models import CustomUser, Membership
@@ -31,11 +34,20 @@ from .schedule_paper import (
     week_layout,
 )
 from .services import ScheduleService
+from .services.schedule_week import KIND_LABELS
 
 #: أحجامُ الورق واتّجاهاتُه — تُقرأ من الرابط ولا تُخمَّن من نوع العرض.
 ORIENTATIONS = ("landscape", "portrait")
 PAPERS = ("a4", "a3")
 DEFAULT_ORIENTATION = "landscape"
+
+#: مصدرُ الورقة: الأسبوعُ الفعليّ من حصص الأيّام، أو الخطّةُ المعتمدة. والصفحةُ تفتح على الأوّل
+#: (قرارُ المالك 2026-09-25) والطباعةُ والتصديرُ على الثانية ما لم يُطلب الأوّلُ صراحةً — فالجدولُ
+#: المعلَّقُ في المدرسة هو الخطّةُ لا أسبوعٌ بعينه.
+SOURCES = ("actual", "plan")
+
+#: أبعدُ ما يُتنقَّل إليه من الأسبوع الجاري: سنةٌ تقريباً. وأبعدُ منه — أو تاريخٌ معطوب — يرتدّ إليه.
+MAX_WEEKS_AWAY = 60
 
 
 def browse_lists(school):
@@ -54,7 +66,17 @@ def browse_lists(school):
     return teachers, classes
 
 
-def schedule_print_selection(school, user, get_params):
+def _week_start(raw, today) -> date:
+    """أحدُ الأسبوع المطلوب في `?week=` — والجاري إن غاب أو عُطب أو بَعُد عن مدى التنقّل."""
+    this = ScheduleService._get_week_bounds(today)[0]
+    try:
+        asked = ScheduleService._get_week_bounds(date.fromisoformat(raw))[0]
+    except (TypeError, ValueError):
+        return this
+    return asked if abs((asked - this).days) <= MAX_WEEKS_AWAY * 7 else this
+
+
+def schedule_print_selection(school, user, get_params, default_source="plan"):
     """ما يُطبع ولمن — يشترك فيه الورقُ وصفحةُ العرض التي تحتضنه."""
     from core.models import ClassGroup
 
@@ -114,6 +136,11 @@ def schedule_print_selection(school, user, get_params):
             ScheduleGeneration, id=generation_id, school=school, academic_year=year
         )
 
+    # مسودّةُ توليدٍ ليست في حصص الأيّام بعد: تُعاين من الخطّة دائماً.
+    source = get_params.get("source")
+    source = "plan" if preview else source if source in SOURCES else default_source
+    week_start = _week_start(get_params.get("week"), timezone.localdate())
+
     title = "الجدول الدراسي العام"
     if view_type == "all_teachers":
         title = "الجدول العام للمعلمين"
@@ -138,6 +165,11 @@ def schedule_print_selection(school, user, get_params):
         selection["teacher"] = str(target_teacher.id)
     if target_class:
         selection["class"] = str(target_class.id)
+    # ما تحمله روابطُ التنقّل قبل أن يُضاف إليه المصدرُ والأسبوع: كلٌّ منها يضيف ما يخصّه.
+    base = dict(selection)
+    if source == "actual":
+        # الأسبوعُ الفعليّ في الرابط: فالإطارُ وزرّا التصدير والطباعةُ تتبعه لا الخطّةَ.
+        selection.update(source="actual", week=week_start.isoformat())
 
     return {
         "school": school,
@@ -156,30 +188,100 @@ def schedule_print_selection(school, user, get_params):
         # عنوانُ الترويسة يُبنى هنا: المسودّةُ تُسمّى في العنوان لا في وسمٍ شرطيّ.
         "heading": f"{title} — مسودّة" if preview else title,
         "selection_query": urlencode(selection),
+        "source": source,
+        "week_start": week_start,
+        "selection_base": base,
     }
 
 
-def schedule_print_payload(school, user, get_params) -> dict:
+def _read_sheet(ctx: dict, school, year) -> tuple[dict, list, Any]:
+    """(شبكةُ المعلّم/الشعبة، صفوفُ الجدول العامّ، حصصُ الأسبوع) من المصدر المختار.
+
+    الأسبوعُ الفعليّ من `Session` (`get_week_schedule`/`get_week_matrix`) والخطّةُ من `ScheduleSlot`؛
+    والشكلُ واحدٌ فتقرؤه الورقةُ نفسُها بلا تفريق. والثالثُ `None` للخطّة.
+    """
+    actual = ctx["source"] == "actual"
+    if ctx["view_type"] == "all_teachers":
+        if actual:
+            found = ScheduleService.get_week_matrix(school, ctx["week_start"], year)
+            return {}, found["rows"], found["week"]
+        return (
+            {},
+            ScheduleService.get_teachers_matrix(school, year, generation=ctx["preview"]),
+            None,
+        )
+    if actual:
+        found = ScheduleService.get_week_schedule(
+            school, ctx["week_start"], ctx["target_teacher"], ctx["target_class"], year
+        )
+        return found["grid"], [], found["week"]
+    return (
+        ScheduleService.get_weekly_schedule(
+            school, ctx["target_teacher"], ctx["target_class"], year, generation=ctx["preview"]
+        ),
+        [],
+        None,
+    )
+
+
+def week_nav(ctx: dict, week_info) -> dict:
+    """ما تحتاجه شريطُ التنقّل: الأسبوعُ ورابطاه والتبديلُ بين المصدرين وملاحظاتُ الأسبوع.
+
+    الروابطُ استعلاماتٌ جاهزةٌ (`?…`) على قاعدة الاختيار الحاليّ — فيبقى المعلّمُ والشعبةُ والورقُ
+    كما هي وتتبدّل المعاملاتُ الخاصّةُ به وحدَها.
+    """
+    start = ctx["week_start"]
+    this = ScheduleService._get_week_bounds(timezone.localdate())[0]
+    week = timedelta(days=7)
+
+    def qs(**extra) -> str:
+        return urlencode({**ctx["selection_base"], **extra})
+
+    nav = {
+        "start": start,
+        "end": start + timedelta(days=4),
+        "is_this_week": start == this,
+        "prev_qs": qs(source="actual", week=(start - week).isoformat()),
+        "next_qs": qs(source="actual", week=(start + week).isoformat()),
+        "this_qs": qs(source="actual"),
+        "actual_qs": qs(source="actual", week=start.isoformat()),
+        "plan_qs": qs(source="plan"),
+        "plan_days": [],
+        "closed_text": "",
+        "unplaced": 0,
+        "kinds": [],
+    }
+    if week_info is not None:
+        names = dict(ScheduleSlot.DAYS)
+        nav["plan_days"] = [names[i] for i in sorted(week_info.plan_days)]
+        nav["closed_text"] = "؛ ".join(
+            f"{names[i]}: {why}" for i, why in sorted(week_info.closed.items())
+        )
+        nav["unplaced"] = week_info.unplaced
+        present = {cell.kind for cell in week_info.lessons if cell.kind}
+        nav["kinds"] = [(kind, label) for kind, label in KIND_LABELS.items() if kind in present]
+    return nav
+
+
+def schedule_print_payload(school, user, get_params, default_source="plan") -> dict:
     """سياقُ الورقة كاملاً: الاختيارُ وبياناته.
 
     ثلاثةُ مخارجَ تقرأ هذه الورقة — صفحةٌ في المتصفّح، وPDF، وExcel — فبناؤها
     في موضعٍ واحد يمنع أن يختلف المطبوعُ عن المعروض بعد تعديلٍ في أحدهما.
+    و`default_source`: مصدرُ من لم يطلب مصدراً — الصفحةُ «actual» وما سواها «plan».
     """
-    ctx = schedule_print_selection(school, user, get_params)
+    ctx = schedule_print_selection(school, user, get_params, default_source)
     school, year = ctx["school"], ctx["year"]
 
     # الجدولُ العام يكشف جداول المعلّمين جميعاً، ومن لا يتصفّح غيره صُرف
     # إلى جدوله في اختيار الطباعة.
-    grid, matrix, matrix_totals, week, geometry = {}, [], None, None, None
+    grid, matrix, week_info = _read_sheet(ctx, school, year)
+    matrix_totals, week, geometry = None, None, None
     has_colored_exemptions = False
     if ctx["view_type"] == "all_teachers":
-        matrix = ScheduleService.get_teachers_matrix(school, year, generation=ctx["preview"])
         matrix_totals = ScheduleService.matrix_totals(matrix, school, year)
         has_colored_exemptions = any(row.get("exempt_map") for row in matrix)
     else:
-        grid = ScheduleService.get_weekly_schedule(
-            school, ctx["target_teacher"], ctx["target_class"], year, generation=ctx["preview"]
-        )
         # الفسحةُ والصلاةُ بين الحصص، والورقةُ بالملّيمتر — كورقة الصفحات سواءً.
         days = grid_to_days(grid)
         band_codes = ScheduleService._band_codes(school)
@@ -215,6 +317,8 @@ def schedule_print_payload(school, user, get_params) -> dict:
         "geo": geometry,
         "matrix": matrix,
         "matrix_totals": matrix_totals,
+        "week_info": week_info,
+        "nav": week_nav(ctx, week_info),
         "has_colored_exemptions": has_colored_exemptions,
         "days": days_names,
         "periods": periods,

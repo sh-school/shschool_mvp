@@ -20,7 +20,7 @@
 .site-header .nav-inner {
   max-width: none;
   margin: 0;
-  padding-inline: max(clamp(var(--sp-3), 1.4vw, 28px), var(--safe-inline));
+  padding-inline: var(--edge-inline);
   display: flex;
   align-items: center;
   height: 48px;
@@ -47,7 +47,7 @@
 .nav-inner {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 var(--sp-4);
+  padding: 0 max(var(--sp-4), var(--safe-inline));
   display: flex;
   align-items: center;
   height: 42px;
@@ -249,7 +249,7 @@
 .msgs-wrap {
   position: fixed; inset-inline: 0; top: calc(48px + 42px + var(--sp-3) + var(--safe-top));
   z-index: var(--z-navbar); display: flex; flex-direction: column; align-items: center;
-  padding-inline: var(--sp-4); pointer-events: none;
+  padding-inline: max(var(--sp-4), var(--safe-inline)); pointer-events: none;
 }
 .msg-bar {
   display: flex; align-items: center; gap: var(--sp-2-5);
@@ -442,7 +442,7 @@ div#header h1 a {
 .site-footer {
   background: var(--footer-bg);
   border-top: 1px solid var(--gold);
-  padding: var(--sp-2) var(--sp-4);
+  padding: var(--sp-2) max(var(--sp-4), var(--safe-inline));
   margin-top: auto;
   display: flex;
   flex-direction: column;
@@ -539,8 +539,8 @@ div#header h1 a {
 body:has(.per-bar) .pwa-banner { display: none; }
 .pwa-banner {
   position: fixed;
-  inset-block-end: calc(80px + var(--safe-bottom));
-  inset-inline: var(--sp-3);
+  inset-block-end: calc(var(--dock-h) + var(--dock-pad) + var(--sp-2));
+  inset-inline: max(var(--sp-3), var(--safe-inline));
   z-index: var(--z-banner);
   max-width: 360px;
   margin-inline: auto;
@@ -590,7 +590,7 @@ body:has(.per-bar) .pwa-banner { display: none; }
   z-index: var(--z-critical);
   background: var(--maroon);
   color: var(--on-fill);
-  padding: var(--sp-3-5) var(--sp-5);
+  padding: calc(var(--sp-3-5) + var(--safe-top)) max(var(--sp-5), var(--safe-inline)) var(--sp-3-5);
   font-weight: 700;
   text-align: center;
   font-size: var(--text-base);
@@ -1046,7 +1046,7 @@ tr.active {
    نثرٍ، فتُعطى العرضَ ويبقى هامشٌ يسيرٌ ينمو مع الشاشة ولا يلتصق. */
 #main-content {
   max-width: none;
-  padding-inline: clamp(var(--sp-3), 1.4vw, 28px);
+  padding-inline: var(--edge-inline);
 }
 /* أُبقيت لمن يستعملها في القوالب — وصارت مرادفةً للقاعدة العامّة. */
 main.page-wide {
@@ -1116,6 +1116,9 @@ main.page-wide {
 
 .staff-register tbody tr:hover td:first-child { background: var(--maroon-bg); }
 .staff-name {
+  /* سطريٌّ كان 24.000 على حدّ WCAG 2.5.8 تماماً؛ inline-block بارتفاع السطر (DBT-44) */
+  display: inline-block;
+  min-block-size: 24px;
   text-decoration: none;
   color: var(--maroon-fg);
   font-weight: 600;
@@ -1650,7 +1653,7 @@ textarea:focus-visible {
 #toast-container {
   position: fixed;
   top: calc(48px + 42px + var(--sp-3) + var(--safe-top));
-  inset-inline-end: clamp(var(--sp-3), 1.4vw, 28px);
+  inset-inline-end: var(--edge-inline);
   z-index: var(--z-toast);
   display: flex;
   flex-direction: column;
@@ -1769,7 +1772,8 @@ textarea:focus-visible {
   z-index: var(--z-navbar);
   background: var(--surface);
   border-top: 1px solid var(--border);
-  padding: var(--sp-2) 0 var(--safe-bottom);
+  padding: var(--sp-2) 0 var(--dock-pad);
+  min-block-size: calc(var(--dock-h) + var(--dock-pad));
   box-shadow: var(--shadow-bottom-nav);
 }
 .mobile-bottom-nav-inner {
@@ -1799,7 +1803,7 @@ textarea:focus-visible {
 .mobile-nav-icon { font-size: 1.3rem; }
 /* ── Mobile-First: bottom nav + tap targets (default=mobile) ── */
 .mobile-bottom-nav { display: block; }
-body { padding-bottom: calc(72px + var(--safe-bottom)); }
+body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
 .btn-primary, .btn-secondary, .btn-danger { min-height: var(--control-h); }
 .form-control, .form-select { min-height: var(--control-h); font-size: var(--text-base); }  /* منع zoom على iOS */
 
@@ -1932,8 +1936,8 @@ body { padding-bottom: calc(72px + var(--safe-bottom)); }
     inset-inline-end: 6px;
     inline-size: calc(50% - 12px);
     min-width: 0;
-    max-height: calc(100vh - 140px); /* فوق شريط التنقّل السفليّ لا تحته */
-    max-height: calc(100dvh - 140px);
+    max-height: calc(100vh - 54px - var(--dock-h) - var(--dock-pad) - var(--sp-3)); /* فوق شريط التنقّل السفليّ لا تحته */
+    max-height: calc(100dvh - 54px - var(--dock-h) - var(--dock-pad) - var(--sp-3));
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }

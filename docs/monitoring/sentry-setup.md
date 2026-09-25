@@ -21,7 +21,14 @@ railway variables set RAILWAY_ENVIRONMENT="production"
 
 # Optional — defaults to PLATFORM_VERSION from base.py
 railway variables set APP_VERSION="v5.4"
+
+# Optional — رابطُ صفحة مشكلات المشروع في Sentry؛ تفتحه بطاقةُ «أخطاء الخادم» في رئيسيّة الإدارة (https فقط)
+railway variables set SENTRY_ISSUES_URL="https://sentry.io/organizations/<org>/issues/?project=<id>"
 ```
+
+بطاقةُ «أخطاء الخادم» في `/admin/` (للمطوّر وحدَه، OWN-23) لا تقرأ أرقامها من Sentry: عدّادٌ ذاتيٌّ في الـcache
+(`core/error_counter.py`) يعدّ كلَّ استجابة 5xx ويحفظ آخرَ نمطِ مسارٍ وصنفِ استثناء. Sentry يبقى مصدرَ التفاصيل،
+والبطاقةُ تخبرك بوجود خطأٍ وتفتح رابطَه.
 
 If `SENTRY_DSN` is not set or empty, Sentry will not initialize and the app will run normally without error monitoring. This is by design to avoid crashes in environments that don't need Sentry.
 

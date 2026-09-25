@@ -1,8 +1,9 @@
 /* لوحةُ الإدارة بهويّة المنصّة — ألوانُها النهاريّةُ والليليّة.
    لوحةُ الإدارة لا تحمل رموزَ المنصّة (`static/css/custom/10-foundation.css` و`40-themes.css`)،
    فقيمُها هنا منقولةٌ منها حرفيّاً، وحارسٌ (tests/test_admin_theme.py) يفشل إن اختلفت.
-   الوضعُ: `html[data-theme]` تضبطه `admin/js/theme.js` من `localStorage['theme']` — وهو المفتاحُ
-   نفسُه الذي تكتبه المنصّة (`dark` أو `light`)، فيتّبع الاثنان اختيارَ المستخدم معاً. */
+   الوضعُ: `html[data-theme]` تضبطه `static/admin/js/theme.js` (بديلُ ما في جانغو) من `localStorage['theme']` —
+   المفتاحُ نفسُه الذي تكتبه المنصّة. **نهاريٌّ افتراضيّاً للجميع** (قرارُ المالك 2026-09-25): `dark` وحدَه يفتح الليليَّ،
+   ولا قاعدةَ هنا تقرأ `prefers-color-scheme` — فلا تختلف الإدارةُ عن المنصّة على جهازٍ ليليّ. */
 /* الخطّ: Tajawal نفسُه الذي تحمله المنصّة (`static/fonts/`، ويُحمَّل عند الحاجة الفعليّة بـ`unicode-range`). */
 @font-face {
   font-family: 'Tajawal';
@@ -115,40 +116,6 @@ html[data-theme="light"],
   --close-button-hover-bg: #111827;
   --delete-button-bg: #dc2626;
   --delete-button-hover-bg: #991b1b;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --primary: #8a1538;
-    --secondary: #8a1538;
-    --body-fg: #f1f5f9;
-    --body-bg: #0f172a;
-    --body-quiet-color: #cbd5e1;
-    --body-medium-color: #e2e8f0;
-    --body-loud-color: #fff;
-    --breadcrumbs-bg: #3b1125;
-    --link-fg: #f9a8c9;
-    --link-hover-color: #fff;
-    --link-selected-fg: #f9a8c9;
-    --hairline-color: #334155;
-    --border-color: #475569;
-    --error-fg: #fca5a5;
-    --message-success-bg: #0d2a1a;
-    --message-warning-bg: #3a2a08;
-    --message-error-bg: #3b1114;
-    --darkened-bg: #1e293b;
-    --nav-bg: #2c2922;
-    --nav-fg: #fff;
-    --nav-hover: color-mix(in srgb, #fff 12%, transparent);
-    --nav-mark: var(--accent);
-    --menu-hover: var(--selected-bg);
-    --shadow-menu: 0 12px 40px rgba(0,0,0,.82);
-    --menu-label: var(--body-quiet-color);
-    --selected-bg: #3b1125;
-    --selected-row: #3b1125;
-    --close-button-bg: #64748b;
-    --close-button-hover-bg: #94a3b8;
-  }
 }
 
 html[data-theme="dark"] {
@@ -280,7 +247,6 @@ html[data-theme="dark"] {
 .vision-text { font-family: 'Tajawal Tashkeel', 'Tajawal', sans-serif; }
 .adm-footer .vision-text { font-palette: --tashkeel-dark; }
 html[data-theme="dark"] .vision-text { font-palette: --tashkeel-dark; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .vision-text { font-palette: --tashkeel-dark; } }
 .adm-footer .site-footer-brand { display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.75rem; color: var(--footer-fg-soft); }
 .adm-footer .site-footer-brand-label { font-size: 0.72rem; white-space: nowrap; }
 .adm-footer .site-footer-brand-logo { display: inline-block; block-size: 1.75rem; inline-size: auto; flex: none; }

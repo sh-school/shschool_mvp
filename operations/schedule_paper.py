@@ -170,6 +170,8 @@ def week_layout(
                         "number": column["number"],
                         "slots": slots,
                         "multi": len(slots) > 1,
+                        # حصّةٌ حُوّل معلّمُها (أسبوعٌ فعليّ) تُلوَّن خانتُها — والخطّةُ بلا `kind`.
+                        "change": next((k for s in slots if (k := getattr(s, "kind", ""))), ""),
                     }
                 )
             else:

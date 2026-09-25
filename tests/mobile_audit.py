@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 
 BASELINE = pathlib.Path("tests/mobile_audit_baseline.json")
 
@@ -61,12 +62,22 @@ MEASURE_JS = r"""() => {
   };
   const SEL = 'a[href], button, input:not([type="hidden"]), select, textarea, summary, '
             + '[role="button"], [role="tab"], [role="menuitem"], [role="link"]';
+  // اسمُ العنصر وحجمُه ونصُّه القصير: لرسالة السقوط وحدَها فلا يُخمَّن الهدفُ الذي يخالف (DBT-44).
+  const desc = (el, r) => {
+    const cls = [...el.classList].slice(0, 3).join('.');
+    const txt = (el.getAttribute('aria-label') || el.textContent || el.value || '')
+      .trim().replace(/\s+/g, ' ').slice(0, 18);
+    return el.tagName.toLowerCase() + (cls ? '.' + cls : '') + ' '
+      + Math.round(r.width * 100) / 100 + '×' + Math.round(r.height * 100) / 100
+      + (txt ? ' «' + txt + '»' : '');
+  };
   let targets = 0, small44 = 0, small24 = 0;
+  const els = {small44: [], small24: []};
   for (const el of document.querySelectorAll(SEL)) {
     const r = visible(el); if (!r) continue;
     targets++;
-    if (r.width < 44 || r.height < 44) small44++;
-    if (r.width < 24 || r.height < 24) small24++;
+    if (r.width < 44 || r.height < 44) { small44++; if (els.small44.length < 12) els.small44.push(desc(el, r)); }
+    if (r.width < 24 || r.height < 24) { small24++; if (els.small24.length < 12) els.small24.push(desc(el, r)); }
   }
   const READABLE = /[\p{L}\p{N}]/u;
   let tiny = 0, minFont = 999;
@@ -90,12 +101,41 @@ MEASURE_JS = r"""() => {
     min_font: minFont === 999 ? 0 : Math.round(minFont * 10) / 10,
     h_overflow: Math.max(0, root.scrollWidth - root.clientWidth),
     inputs_under_16: smallInputs,
+    elements: els,
   };
 }"""
 
 
+def measure_page_detailed(page) -> tuple[dict[str, float], dict[str, list[str]]]:
+    """(الأرقامُ التي تُخزَّن في خطّ الأساس، وأسماءُ العناصر التي تُطبع عند السقوط وحدَها).
+
+    الوصفُ يتغيّر بالنصّ والحجم فلا يدخل الملفَّ: صفٌّ في خطّ الأساس لا يُقارَن به.
+    """
+    data = page.evaluate(MEASURE_JS)
+    return data, data.pop("elements")
+
+
 def measure_page(page) -> dict[str, float]:
-    return page.evaluate(MEASURE_JS)
+    return measure_page_detailed(page)[0]
+
+
+_CHANGE = re.compile(r"^(?P<key>.+): (?P<metric>small44|small24) \d+ → \d+$")
+
+
+def describe(changes: list[str], details: dict[str, dict[str, list[str]]]) -> str:
+    """أسماءُ العناصر التي تقف خلف سطور compare لمؤشّرَي small44 وsmall24 — فلا يُخمَّن هدفٌ لا يُرى محلّياً.
+
+    الوصفُ من قياس هذا التشغيل: للتراجع هو العنصرُ الجديد، وللتحسّن ما بقي بعد التحسّن (فيُرى ما لم يُعالَج).
+    """
+    out = []
+    for line in changes:
+        m = _CHANGE.match(line)
+        if not m:
+            continue
+        names = details.get(m["key"], {}).get(m["metric"], [])
+        if names:
+            out.append(f"{m['key']} {m['metric']} — العناصرُ الآن:\n    " + "\n    ".join(names))
+    return "\n  ".join(out)
 
 
 def compare(baseline: dict, current: dict) -> tuple[list[str], list[str]]:

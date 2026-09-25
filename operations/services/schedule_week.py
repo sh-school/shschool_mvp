@@ -34,6 +34,15 @@ if TYPE_CHECKING:
 #: أيّامُ الدوام: أحد … خميس.
 DAYS = 5
 
+#: ما يُكتب في الخانة لمن حُوّلت حصّتُه — بنصوص «حصصي اليوم» نفسِها فلا يقرأ المعلّمُ لغتين.
+KIND_NOTES = {
+    "swap": "تبديل — كانت لـ{}",
+    "cover": "إشغال — عن {}",
+    "comp": "تعويض — في حصّة {}",
+}
+#: وسمُ كلّ نوعٍ في مفتاح الألوان، بترتيب عرضه.
+KIND_LABELS = {"cover": "إشغال", "swap": "تبديل", "comp": "تعويض"}
+
 
 class LessonCell:
     """خانةٌ في أسبوعٍ فعليّ — تلفّ `Session` (فعليّة) أو `ScheduleSlot` (من الخطّة).
@@ -62,6 +71,12 @@ class LessonCell:
         self.original_teacher = original_teacher
         #: تسميةُ الخانة المشتركة في جدول المعلّم — يضبطها القارئُ.
         self.cell_subject = ""
+
+    @property
+    def note(self) -> str:
+        """سطرُ الخانة «إشغال — عن فلان» — وفارغٌ لحصّةٍ لم يُبدَّل معلّمُها."""
+        who = getattr(self.original_teacher, "full_name", "")
+        return KIND_NOTES[self.kind].format(who) if self.kind and who else ""
 
     def __getattr__(self, name: str) -> Any:
         if name == "_lesson":  # قبل أن يُضبط في `__init__` (نسخٌ أو تفريغ): لا تكرارَ لانهائيّ
