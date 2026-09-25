@@ -121,6 +121,12 @@ app.conf.beat_schedule = {
         "task": "core.worker_heartbeat",
         "schedule": crontab(minute="*/5"),
     },
+    # حالةُ النسخ الاحتياطيّ اليوميّ (GitHub Actions) إلى الـcache لبطاقة الإدارة (OWN-23) — كلَّ نصف ساعة،
+    # فطلبان في الساعة يسعهما الحدُّ غيرُ المصادَق (60). لا مراقبَ Sentry Crons لها: الحصّةُ للنبضة وحدَها.
+    "refresh-backup-status": {
+        "task": "core.refresh_backup_status",
+        "schedule": crontab(minute="*/30"),
+    },
     # صفوفُ تصدير PDF/Excel الخلفيّة (البند 5، P4-6) مؤقّتة — تُحذف بعد يوم
     # كي لا تتراكم محتوىً ثنائيّاً في القاعدة كملفّات `StoredFile` الدائمة.
     "purge-expired-export-jobs": {
