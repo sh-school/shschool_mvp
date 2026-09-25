@@ -55,12 +55,12 @@ def test_the_leadership_dashboard_fits_a_1366_by_768_window(
     finally:
         browser.close()
     assert result["tileRows"], "لا شبكةَ بلاطاتٍ في لوحة القيادة"
-    assert all(rows == 1 for rows in result["tileRows"]), (
-        f"بلاطاتُ الانتقال في أكثر من سطرٍ على 1366px: {result['tileRows']} — الحدُّ الأدنى للبلاطة 148px (8×148 + 7×8 ≤ 1328)"
-    )
+    assert all(
+        rows == 1 for rows in result["tileRows"]
+    ), f"بلاطاتُ الانتقال في أكثر من سطرٍ على 1366px: {result['tileRows']} — الحدُّ الأدنى للبلاطة 148px (8×148 + 7×8 ≤ 1328)"
     limit = round(VIEWPORT["height"] * 0.2) + 1
-    assert all(height <= limit for height in result["charts"]), (
-        f"رسمٌ أطولُ من 20% من النافذة ({limit}px): {result['charts']} — `.dash-chart-wrap` يتبع الارتفاعَ فوق 1024px"
-    )
+    assert all(
+        height <= limit for height in result["charts"]
+    ), f"رسمٌ أطولُ من 20% من النافذة ({limit}px): {result['charts']} — `.dash-chart-wrap` يتبع الارتفاعَ فوق 1024px"
     assert result["scroll"] == 0, f"تُمرَّر لوحةُ القيادة {result['scroll']}px على 1366×768"
     assert result["overflow"] <= 0, f"تفيض اللوحةُ أفقيّاً {result['overflow']}px"
