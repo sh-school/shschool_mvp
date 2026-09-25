@@ -52,7 +52,7 @@ def teaching_school(db, school, class_group):
 @pytest.fixture
 def principal(db, school):
     user = CustomUser.objects.create(
-        must_change_password=False, national_id="28644099999", full_name="مدير"
+        must_change_password=False, national_id="28600000099", full_name="مدير"
     )
     role, _ = Role.objects.get_or_create(school=school, name="principal")
     Membership.objects.create(user=user, school=school, role=role)

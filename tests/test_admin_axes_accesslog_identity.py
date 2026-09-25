@@ -91,7 +91,7 @@ def test_the_typed_national_id_is_masked_in_the_list(client_as, superuser):
 def test_mask_keeps_employee_numbers_and_marks_empty():
     from core.admin_axes import mask_national_id
 
-    assert mask_national_id("28181801642") == "****1642"
+    assert mask_national_id("29000000031") == "****0031"
     assert mask_national_id("70009") == "70009"
     assert mask_national_id("NURSETEST7") == "NURSETEST7"
     assert mask_national_id("") == "—"

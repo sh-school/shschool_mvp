@@ -12,7 +12,7 @@ from tests.conftest import UserFactory
 
 pytestmark = pytest.mark.django_db
 
-NUMBER = "+97455001122"
+NUMBER = "+97450000022"
 
 
 def test_clearing_the_phone_clears_its_encrypted_copy_and_hash():
@@ -49,11 +49,11 @@ def test_update_fields_phone_cleared_persists_the_clearing():
 
 def test_changing_the_number_replaces_the_copy():
     user = UserFactory(phone=NUMBER)
-    user.phone = "+97455998877"
+    user.phone = "+97450000077"
     user.save()
 
     fresh = CustomUser.objects.get(pk=user.pk)
-    assert fresh.get_phone_decrypted() == "+97455998877"
+    assert fresh.get_phone_decrypted() == "+97450000077"
 
 
 def test_unrelated_update_fields_do_not_touch_the_phone_columns():
