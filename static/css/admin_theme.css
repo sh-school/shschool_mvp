@@ -367,6 +367,8 @@ thead th, .module caption { text-transform: none; }
 /* على الجوّال لا يثبت: أزرارُه الأربعةُ مكدَّسةٌ بحدّ اللمس (4 × --adm-control-h وفواصلها) فكان الشريطُ يحجب نحوَ 208px من
    812px — ربعَ الشاشة فوق النموذج — ويقصر أكثر على الهواتف الأقصر. يبقى في آخر النموذج ويثبت على الحاسوب. */
 @media (max-width: 767px) { .submit-row { position: static; box-shadow: none; } }
+/* رابطٌ داخل نصٍّ يميّزه اللونُ وحدَه (العنّابيّ على الرماديّ: 1.23:1) يفشل WCAG 1.4.1 — يُميَّز بالتسطير (OWN-21). */
+#content .small a { text-decoration: underline; }
 /* التذييلُ في سطرٍ واحدٍ على الشاشات العريضة: يوفّر نحوَ 80px من ارتفاع الصفحة. */
 /* بعد القواعد الأساسيّة عمداً: بالأولويّة نفسها يحسم الأخيرُ، فتغلب `center` الأساسيّةُ على `start`. */
 @media (min-width: 1025px) {
@@ -429,7 +431,7 @@ thead th, .module caption { text-transform: none; }
    خارجُ القاعدة: لا يُلمس منهما إلّا ما يحمل تسميتَه، والتسميةُ هدفُ اللمس. */
 @media (max-width: 767px) {
   #site-name a,
-  #content :is(td, th, li, p, h3, nav, div.text) > a, #content :is(a.addlink, a.changelink, a.viewlink, a.deletelink, a.inline-deletelink), #content .sortoptions a,
+  #content :is(td, th, li, p, h3, nav, div.text, .small) > a, #content :is(a.addlink, a.changelink, a.viewlink, a.deletelink, a.inline-deletelink), #content .sortoptions a,
   #content .related-widget-wrapper-link, #content .datetimeshortcuts a, #content .selector button {
     display: inline-flex; align-items: center; min-block-size: var(--adm-control-h); min-inline-size: var(--adm-control-h); box-sizing: border-box;
   }
@@ -446,7 +448,10 @@ thead th, .module caption { text-transform: none; }
     font-size: 0.8125rem; line-height: var(--adm-control-h); text-transform: none; border-bottom: 0; text-decoration: underline;
   }
   /* الطيّةُ والمرشِّحُ سطرُهما كاملٌ يُلمس: يبقى عرضُهما ويرتفع الحدُّ الأدنى وحدَه (العلامةُ المرجعيّةُ ::before للسهم). */
-  #content .app-fold__summary, #content #changelist-filter summary { min-block-size: var(--adm-control-h); box-sizing: border-box; }
+  #content .app-fold__summary, #content #changelist-filter summary, #content details > summary { min-block-size: var(--adm-control-h); box-sizing: border-box; }
+  /* حقلُ الملفّ (شعارٌ ومرفقٌ) كان 26px: يُلمس كلُّه فيفتح المنتقي، فيرتفع صندوقُه وزرُّه الداخليّ. */
+  #content input[type=file] { min-block-size: var(--adm-control-h); box-sizing: border-box; }
+  #content input[type=file]::file-selector-button { min-block-size: calc(var(--adm-control-h) - 0.5rem); }
   #content :is(input:not([type=checkbox], [type=radio], [type=hidden], [type=file]), select, textarea, button, a.button) {
     min-block-size: var(--adm-control-h); box-sizing: border-box;
   }
