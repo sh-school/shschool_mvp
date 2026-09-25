@@ -2228,8 +2228,9 @@ def test_0025_adds_the_lay03_note_and_pr_tokens_without_moving_its_state_or_date
     assert (str(lay03.start_date), str(lay03.end_date)) == ("2026-10-19", "2026-11-06")
     note = lay03.note
     assert "لا @container، ويبقى ADR-0005 D3" in note and "«مقترح» مقدَّمٌ لاعتماد المالك" in note
-    # #585 منشورٌ بإخطار جلسة النشر، و#586 و#587 قيد الطابور لا مدموجان.
-    assert "منشورٌ على الإنتاج main@7f7241e" in note and "قيد الطابور" in note
+    # #585 منشورٌ بإخطار جلسة النشر، و#587 مدموجٌ غيرُ منشور، و#586 قيد الطابور لم يندمج.
+    assert "منشورٌ على الإنتاج main@7f7241e" in note and "#586 قيد الطابور" in note
+    assert "#587 مدموجٌ (b46534f6" in note and "غيرُ منشورٍ بعدُ" in note
     assert "لم يُنشر بعد" not in note
     assert "لم تُغيَّر حالةُ البند ولا تقدّمُه ولا موعدُه" in note
 
