@@ -160,6 +160,40 @@ def _elements(changes: list[str], details: dict[str, dict]) -> str:
     return f"\n\n  العناصرُ خلف التغيير:\n  {text}" if text else ""
 
 
+#: أربعُ خاناتٍ بأحجامٍ صريحةٍ بلا أنماطِ المنصّة: تسميةٌ تبلغ 44 وتسميةٌ قصيرةٌ وتسميةٌ أصغرُ من 24 وخانةٌ بلا تسمية.
+CHOICE_PAGE = """<!doctype html><meta name="viewport" content="width=device-width">
+<style>
+  body { margin: 0; font: 16px/24px sans-serif }
+  div { margin: 8px 0 }
+  input { width: 16px; height: 16px; margin: 0; vertical-align: top }
+  label { display: inline-block; vertical-align: top }
+</style>
+<div><input class="wide" id="a" type="checkbox"><label for="a" style="width:200px;height:48px">تسمية</label></div>
+<div><input class="short" id="b" type="radio"><label for="b" style="width:60px;height:24px">تسمية</label></div>
+<div><input class="tiny" id="c" type="checkbox"><label for="c" style="width:30px;height:16px">ت</label></div>
+<div><input class="bare" type="checkbox"></div>"""
+
+
+@pytest.mark.parametrize("engine", ["chromium", "webkit"])
+def test_a_labelled_choice_is_measured_with_its_label(playwright, engine):
+    """DBT-45: النقرُ على تسمية الخانة يفعّلها، فهدفُها اتّحادُ الصندوق والتسمية لا الصندوقُ وحدَه.
+    وهو قياسٌ لا إعفاء: تسميةٌ لا تبلغ الحدَّ تبقى مخالفةً، وخانةٌ بلا تسمية تُقاس بصندوقها."""
+    browser = getattr(playwright, engine).launch()
+    try:
+        page = browser.new_context(**audit.PROFILES["mobile"]).new_page()
+        page.set_content(CHOICE_PAGE)
+        data, elements = audit.measure_page_detailed(page)
+    finally:
+        browser.close()
+    assert (data["targets"], data["small44"], data["small24"]) == (4, 3, 2)
+    small44, small24 = " | ".join(elements["small44"]), " | ".join(elements["small24"])
+    assert "input.wide" not in small44, "تسميةٌ 200×48 ولّدت هدفاً صغيراً — الاتّحادُ لا يُحسب"
+    assert (
+        "input.short" in small44 and "input.short" not in small24
+    ), "التسميةُ القصيرةُ: 24 تكفي و44 لا"
+    assert "input.tiny" in small24 and "input.bare" in small24
+
+
 class TestTheRatchetItself:
     """الحارسُ يحرس ما يقول إنّه يحرسه — المقارنةُ لا تحتاج متصفّحاً."""
 

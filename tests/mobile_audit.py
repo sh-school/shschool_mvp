@@ -8,7 +8,8 @@
 
 لكلّ صفحةٍ في كلّ مِلفّ:
 
-- `targets` — العناصرُ التفاعليّةُ الظاهرة (رابطٌ، زرّ، حقل، `summary`، ودورُ زرٍّ أو تبويب).
+- `targets` — العناصرُ التفاعليّةُ الظاهرة (رابطٌ، زرّ، حقل، `summary`، ودورُ زرٍّ أو تبويب). وخانةُ الاختيار
+  وزرُّه هدفُهما اتّحادُ الصندوق والتسمية المرتبطة (النقرُ على التسمية يفعّلهما) لا الصندوقُ وحدَه.
 - `small44` / `small24` — ما عرضُه أو ارتفاعُه دون 44px (WCAG 2.5.5 AAA، هدفُ K1) ودون 24px
   (WCAG 2.5.8 AA، K2).
 - `tiny_text` — عناصرُ نصُّها المباشرُ دون 12px (K3)، و`min_font` أدنى خطٍّ في الصفحة.
@@ -71,10 +72,24 @@ MEASURE_JS = r"""() => {
       + Math.round(r.width * 100) / 100 + '×' + Math.round(r.height * 100) / 100
       + (txt ? ' «' + txt + '»' : '');
   };
+  // خانةٌ أو زرُّ اختيارٍ بتسميةٍ مرتبطةٍ: النقرُ على التسمية يفعّلها، فهدفُها اتّحادُ الصندوق والتسمية لا الصندوقُ
+  // وحدَه (WCAG 2.5.8، DBT-45). وتسميةٌ قصيرةٌ لا تبلغ الحدَّ تبقى مخالفةً: الاتّحادُ يُقاس ولا يُفترض.
+  const CHOICE = 'input[type="checkbox"], input[type="radio"]';
+  const target = (el, r) => {
+    if (!el.matches(CHOICE) || !el.labels) return r;
+    let left = r.left, right = r.right, top = r.top, bottom = r.bottom;
+    for (const label of el.labels) {
+      const lr = visible(label); if (!lr) continue;
+      left = Math.min(left, lr.left); right = Math.max(right, lr.right);
+      top = Math.min(top, lr.top); bottom = Math.max(bottom, lr.bottom);
+    }
+    return {width: right - left, height: bottom - top};
+  };
   let targets = 0, small44 = 0, small24 = 0;
   const els = {small44: [], small24: []};
   for (const el of document.querySelectorAll(SEL)) {
-    const r = visible(el); if (!r) continue;
+    const box = visible(el); if (!box) continue;
+    const r = target(el, box);
     targets++;
     if (r.width < 44 || r.height < 44) { small44++; if (els.small44.length < 12) els.small44.push(desc(el, r)); }
     if (r.width < 24 || r.height < 24) { small24++; if (els.small24.length < 12) els.small24.push(desc(el, r)); }
