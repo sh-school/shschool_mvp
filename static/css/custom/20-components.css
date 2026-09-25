@@ -1815,11 +1815,10 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
    يميناً وشمالاً، ويخرج نصفُ الجدول عن الشاشة، وكلُّ ضغطةٍ تُصيب موضعاً
    أزاحته الإزاحةُ الأفقيّة. وهذا موضعُ استعمال المشرف: هاتفٌ في الممرّ.
 
-   فالعلاجُ أن يُسمح للعنصرين بالانضغاط ويُقصّ ما زاد بثلاث نقاط. واسمُ
+   فالعلاجُ أن يُسمح للشعار وحدَه بالانضغاط ويُقصّ ما زاد بثلاث نقاط. واسمُ
    المستخدم يُخفى كلَّه — الحرفُ الأوّلُ في الصورة الرمزيّة يكفي هويّةً،
    والقائمةُ تحته تكتب الاسمَ كاملاً. */
-.site-header .nav-logo,
-.site-header .nav-user-btn { flex-shrink: 1; min-width: 0; }
+.site-header .nav-logo { flex-shrink: 1; min-width: 0; }
 .nav-logo-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .nav-user-name { display: none; }
 
