@@ -1174,15 +1174,13 @@ def _open_vd(*codes):
         )
 
 
-def test_0019_decides_vd2_vd3_and_the_delegated_ones_and_keeps_vd4_open():
+def test_0019_decides_all_eight_vd_decisions_including_vd3_and_the_modified_vd4():
     _open_vd()
-    assert _sync19.decide(RoadmapDecision) == ["VD1", "VD2", "VD3", "VD5", "VD6", "VD7", "VD8"]
+    assert _sync19.decide(RoadmapDecision) == [f"VD{n}" for n in range(1, 9)]
     assert _sync19.decide(RoadmapDecision) == []
-    for code in ("VD1", "VD2", "VD3", "VD5", "VD6", "VD7", "VD8"):
+    for code in (f"VD{n}" for n in range(1, 9)):
         d = RoadmapDecision.objects.get(code=code)
         assert (d.status, d.decision_date) == ("decided", _sync19.DAY), code
-    vd4 = RoadmapDecision.objects.get(code="VD4")
-    assert (vd4.status, vd4.decision_date) == ("open", None)
 
 
 def test_0019_states_that_a_decision_is_not_an_implementation():
@@ -1195,6 +1193,9 @@ def test_0019_states_that_a_decision_is_not_an_implementation():
     assert "أكّده لجلسة الخارطة مباشرةً" in vd2 and "الشطرُ الثاني من VI-37" in vd2
     vd3 = RoadmapDecision.objects.get(code="VD3").recommendation
     assert "لا مراسلةَ لـGCO ولا للوزارة ولا لأحد" in vd3 and "اتّساقٌ لا التزام" in vd3
+    # VD4 يحلّ نطاقُه المعدَّل محلَّ توصيته السابقة، وهو قرارٌ لا تنفيذ (VI-11 يبقى مفتوحاً).
+    vd4 = RoadmapDecision.objects.get(code="VD4").recommendation
+    assert "يحلّ محلّ التوصية السابقة" in vd4 and "بلا فلتر تبييض" in vd4 and "قرارٌ لا تنفيذ" in vd4
 
 
 def test_0019_keeps_a_decision_the_owner_already_took_or_deferred():
@@ -1205,18 +1206,6 @@ def test_0019_keeps_a_decision_the_owner_already_took_or_deferred():
     assert _sync19.decide(RoadmapDecision) == []
     assert RoadmapDecision.objects.get(code="VD1").recommendation == "حسمه المالك"
     assert RoadmapDecision.objects.get(code="VD5").status == "deferred"
-
-
-def test_0019_records_vd4_as_a_modified_proposal_without_deciding_it():
-    _open_vd("VD4")
-    assert _sync19.annotate_open(RoadmapDecision) == ["VD4"]
-    assert _sync19.annotate_open(RoadmapDecision) == []
-    vd4 = RoadmapDecision.objects.get(code="VD4")
-    assert (vd4.status, vd4.decision_date) == ("open", None)
-    # مقترَحٌ معدَّل بانتظار التأكيد المباشر: يُقال ذلك، ولا يُحسم بالتوصية الأولى.
-    assert "مقترَحٌ معدَّل مفتوح" in vd4.recommendation and "بلا فلتر تبييض" in vd4.recommendation
-    RoadmapDecision.objects.filter(code="VD4").update(status="decided")
-    assert _sync19.annotate_open(RoadmapDecision) == []
 
 
 def test_0019_adds_notes_without_touching_status_or_dates():
@@ -1244,8 +1233,14 @@ def test_0019_adds_notes_without_touching_status_or_dates():
     )
     assert "لم يُغيَّر موعدُه" in lay05.note
     assert "الشطرُ الثاني" in RoadmapItem.objects.get(code="VI-37").note
-    # VI-11: VD4 مقترَحٌ معدَّل لا محسوم.
-    assert "لا محسوم" in RoadmapItem.objects.get(code="VI-11").note
+    # VI-11: VD4 محسومٌ قراراً لا تنفيذاً، وما تحقّقتُ منه في المستودع يُميَّز عمّا نُقل ولم يُقَس.
+    vi11 = RoadmapItem.objects.get(code="VI-11")
+    assert (
+        "logoMaroon.png" in vi11.note
+        and "بنقل 8104 ولم أقِسه" in vi11.note
+        and "قرارٌ لا تنفيذ" in vi11.note
+    )
+    assert vi11.status == "todo"
 
 
 def test_0019_leaves_an_item_the_developer_moved():
