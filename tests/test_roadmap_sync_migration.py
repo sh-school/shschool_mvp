@@ -1706,3 +1706,119 @@ def test_0021_publishes_no_personal_number_and_never_adds_rep01():
     assert not re.search(r"\b\d{11}\b", body) and not re.search(r"\b[0-9a-f]{40}\b", body)
     # REP-01 ينتظر قياسَه الفعليّ من جلسة Git: لا يُغلق هنا.
     assert "REP-01" not in [row[0] for row in _sync21.UPDATES]
+
+
+# ── 0022: #583 الشعار — تنفيذٌ جزئيٌّ لـVI-11 وقرارِ VD4 ──
+
+_sync22 = importlib.import_module("roadmap.migrations.0022_sync_items_2026_09_25c")
+
+
+class _Apps22:
+    @staticmethod
+    def get_model(_app, name):
+        return {"RoadmapKpi": RoadmapKpi, "RoadmapDecision": RoadmapDecision}.get(name, RoadmapItem)
+
+
+def test_0022_moves_vi11_to_doing_at_50_with_the_derivation_and_never_closes_it():
+    from datetime import date
+
+    _item("VI-11", "todo", 0, start_date=date(2026, 11, 2), end_date=date(2026, 11, 4))
+    assert _sync22.sync(RoadmapItem) == ["VI-11"]
+    assert _sync22.sync(RoadmapItem) == []
+    vi11 = RoadmapItem.objects.get(code="VI-11")
+    assert (vi11.status, vi11.progress, vi11.pr) == ("doing", 50, "#583")
+    # الموعدُ لم يُغيَّر، والنسبةُ منسوبةٌ لحسابٍ صريح، والمعيارُ غيرُ المتحقّق لا يُحتسب تقدّماً.
+    assert (str(vi11.start_date), str(vi11.end_date)) == ("2026-11-02", "2026-11-04")
+    note = vi11.note
+    assert "اشتقاقُ 8104 بحسابٍ صريح" in note and "0 من 4" in note
+    assert "34,167" in note and "تقديرٌ لم يُقَس على الإنتاج" in note
+    assert "منشورٌ على الإنتاج" in note and "main@6087da6" in note and "لم يُنشر بعدُ" not in note
+    assert "لم يُعاين" in note and "الباقي" in note
+
+
+def test_0022_leaves_vi11_the_developer_moved():
+    _item("VI-11", "doing", 20)
+    assert _sync22.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="VI-11").note == ""
+
+
+def test_0022_fills_vk39_once_with_the_measured_zero_and_keeps_its_texts():
+    RoadmapKpi.objects.create(
+        code="V-K39",
+        lane="frontend",
+        name="نسخُ الشعار الرسميّة وفلاترُ التبييض",
+        baseline_text="0 نسخة · 4 فلاتر",
+        target_text="SVG + معكوس · 0 فلتر",
+        direction="down",
+        source="خطّةُ إصلاح الهويّة (جلسة 8104، 2026-09-24)",
+        text_mode=True,
+    )
+    assert _sync22.first_readings(RoadmapKpi) == ["V-K39"]
+    assert _sync22.first_readings(RoadmapKpi) == []
+    k = RoadmapKpi.objects.get(code="V-K39")
+    assert (k.current, k.measured_at, k.unit) == (0.0, _sync22.DAY, "count")
+    assert k.history == [{"d": "2026-09-25", "v": 0.0}] and k.text_mode is True
+    assert k.baseline_text == "0 نسخة · 4 فلاتر" and k.target_text == "SVG + معكوس · 0 فلتر"
+    # ملاحظةُ المصدر تدخل كاملةً ضمن الحدّ 255 (لا تُسقَط بالتجاوز).
+    assert (
+        "فلاترُ التبييض 0 (كانت 4)" in k.source
+        and "لا ملفّ رسميّ" in k.source
+        and len(k.source) <= 255
+    )
+
+
+def test_0022_never_overwrites_a_measured_vk39():
+    RoadmapKpi.objects.create(
+        code="V-K39", lane="frontend", name="x", current=2.0, measured_at=_sync22.DAY
+    )
+    assert _sync22.first_readings(RoadmapKpi) == []
+    assert RoadmapKpi.objects.get(code="V-K39").current == 2.0
+
+
+def test_0022_notes_vd4_as_partly_done_without_changing_its_status():
+    RoadmapDecision.objects.create(
+        code="VD4", title="x", status="decided", recommendation="حسمه المالك"
+    )
+    assert _sync22.annotate_decisions(RoadmapDecision) == ["VD4"]
+    assert _sync22.annotate_decisions(RoadmapDecision) == []
+    vd4 = RoadmapDecision.objects.get(code="VD4")
+    assert vd4.status == "decided" and "نُفِّذ جزءٌ منه بـ#583" in vd4.recommendation
+    assert vd4.recommendation.startswith("حسمه المالك")
+
+
+def test_0022_does_not_touch_a_vd4_that_is_not_decided():
+    RoadmapDecision.objects.create(code="VD4", title="x", status="open", recommendation="مفتوح")
+    assert _sync22.annotate_decisions(RoadmapDecision) == []
+    assert RoadmapDecision.objects.get(code="VD4").recommendation == "مفتوح"
+
+
+def test_0022_forwards_does_nothing_on_an_empty_database_and_is_idempotent():
+    _sync22.forwards(_Apps22, None)
+    assert RoadmapItem.objects.count() == 0
+    _item("VI-11", "todo", 0)
+    RoadmapKpi.objects.create(code="V-K39", lane="frontend", name="x", source="خطّة", text_mode=True)
+    RoadmapDecision.objects.create(code="VD4", title="x", status="decided", recommendation="حسمه")
+    _sync22.forwards(_Apps22, None)
+
+    def snapshot():
+        return (
+            list(RoadmapItem.objects.values_list("code", "status", "progress", "pr", "note")),
+            list(RoadmapKpi.objects.values_list("code", "current", "history", "source")),
+            list(RoadmapDecision.objects.values_list("code", "status", "recommendation")),
+        )
+
+    first = snapshot()
+    _sync22.forwards(_Apps22, None)
+    assert snapshot() == first
+
+
+def test_0022_publishes_no_personal_number_and_no_school_name():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0022_sync_items_2026_09_25c").origin
+    body = open(origin, encoding="utf-8").read()
+    bs = chr(92)
+    assert not re.search(bs + "b" + bs + "d{11}" + bs + "b", body)
+    assert not re.search(bs + "b[0-9a-f]{40}" + bs + "b", body)
+    # اسمُ المدرسة الفعليّ يرد في نصّ طلب #583 لا في هجرةٍ عامّة.
+    assert "الشحانية" not in body
