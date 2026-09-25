@@ -94,7 +94,7 @@
     .eh-card { background: {% brand_color "SURFACE" %}; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.04); max-width: 504px; width: 90%; overflow: hidden; }
     .eh-header { background: linear-gradient(160deg, {% brand_color "MAROON" %} 0%, {% brand_color "MAROON_DARK" %} 100%); padding: 40px 44px 34px; text-align: center; }
     .eh-logo { width: 86px; height: 86px; margin: 0 auto 19px; }
-    .eh-logo img { width: 100%; height: 100%; object-fit: contain; display: block; filter: brightness(0) invert(1); }
+    .eh-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
     .eh-school { font-size: 1.28rem; font-weight: 800; color: {% brand_color "ON_FILL" %}; margin: 0 0 7px; line-height: 1.5; }
     .eh-platform { font-size: 0.94rem; color: {% brand_color "ON_FILL" %}; opacity: .75; margin: 0; }
     .eh-ministry { font-size: 0.8rem; color: {% brand_color "ON_FILL" %}; opacity: .55; margin: 5px 0 0; }
@@ -152,7 +152,7 @@
     {% if login_header %}
     {# ترويسةٌ بهويّة بطاقة الدخول — أصنافُ eh-* أعلاه، لا login-card* المشتركة (طبقاتُ CSS، انظر التعليق أعلاه) #}
     <div class="eh-header">
-      <div class="eh-logo"><img src="{% get_static_prefix %}icons/favicon.png" alt="شعار المدرسة" width="86" height="86"></div>
+      <div class="eh-logo"><img src="{% get_static_prefix %}brand/emblem-white.svg" alt="شعار المدرسة" width="86" height="86"></div>
       <h1 class="eh-school">{{ current_school.name|default:"المدرسة" }}</h1>
       <p class="eh-platform">منصة الإدارة المدرسية</p>
       <p class="eh-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</p>

@@ -25,7 +25,7 @@
 {% endblock %}
 
 {% block branding %}
-<div id="site-name"><a href="{% url 'admin:index' %}" class="adm-brand"><img src="{% static 'icons/favicon.png' %}" width="27" height="27" alt="" class="adm-brand__logo"><span class="adm-brand__name">{{ current_school.name|default:site_header|default:_('Django administration') }}<span class="adm-brand__suffix">&ensp;-&ensp;لوحة الإدارة</span></span></a></div>
+<div id="site-name"><a href="{% url 'admin:index' %}" class="adm-brand"><img src="{% static 'brand/emblem-white.svg' %}" width="27" height="27" alt="" class="adm-brand__logo"><span class="adm-brand__name">{{ current_school.name|default:site_header|default:_('Django administration') }}<span class="adm-brand__suffix">&ensp;-&ensp;لوحة الإدارة</span></span></a></div>
 {% if user.is_anonymous %}
   {% include "admin/color_theme_toggle.html" %}
 {% endif %}

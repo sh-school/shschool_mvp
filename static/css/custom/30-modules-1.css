@@ -695,7 +695,6 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .login-logo img {
   width: 100%; height: 100%;
   object-fit: contain; display: block;
-  filter: brightness(0) invert(1);
 }
 .login-school-name {
   font-size: 1.0625rem;
