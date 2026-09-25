@@ -494,3 +494,102 @@ class TestMyOpenRequestsBusyMe:
         with pytest.raises(ValueError, match="لك طلبُ تعويضٍ آخرُ في هذا الوقت"):
             _request(world, "ground", SUNDAY, 5)
         assert CompensatorySession.objects.count() == 1
+
+
+class TestTheRequesterIsAbsent:
+    """صاحبُ التعويض غاب يومَ تعويضه: حصّتُه ليست في خاناته الأسبوعيّة فلا تظهر في صفحة غيابه."""
+
+    @staticmethod
+    def _absent(world, day, teacher=None):
+        from operations.services import SubstituteService
+
+        return SubstituteService.register_absence(
+            world["school"], teacher or world["teacher"], day, "sick"
+        )
+
+    def test_the_colleagues_lesson_goes_back_to_him_with_his_subject(self, world, principal_user):
+        _science(world, "upper", 0, 5, dt.time(10, 50), dt.time(11, 35))
+        lesson = _through(world, "upper", SUNDAY, 5, principal_user)
+        assert (lesson.teacher, lesson.subject) == (world["teacher"], world["subject"])
+
+        self._absent(world, SUNDAY)
+
+        lesson.refresh_from_db()
+        assert (lesson.teacher, lesson.original_teacher, lesson.subject) == (
+            world["colleague"],
+            None,
+            world["science"],
+        )
+        comp = CompensatorySession.objects.get()
+        assert (comp.status, comp.session_created) == ("cancelled", None)
+        assert "غاب المعلّمُ يومَ التعويض" in comp.notes
+
+    def test_a_lesson_the_compensation_created_is_removed(self, world, principal_user):
+        lesson = _through(world, "upper", THURSDAY, 6, principal_user)  # الشعبةُ فارغةٌ في وقتها
+        assert lesson.original_teacher is None
+
+        self._absent(world, THURSDAY)
+
+        assert not Session.objects.filter(pk=lesson.pk).exists()
+        assert CompensatorySession.objects.get().status == "cancelled"
+
+    def test_a_lesson_already_given_is_kept(self, world, principal_user, student_user):
+        _science(world, "upper", 0, 5, dt.time(10, 50), dt.time(11, 35))
+        lesson = _through(world, "upper", SUNDAY, 5, principal_user)
+        StudentAttendance.objects.create(
+            session=lesson, student=student_user, school=world["school"]
+        )
+
+        self._absent(world, SUNDAY)
+
+        lesson.refresh_from_db()
+        assert lesson.teacher == world["teacher"], "جرت الحصّةُ ورُصد حضورُها: لا يُعاد شيء"
+        assert CompensatorySession.objects.get().status == "approved"
+
+    def test_open_requests_of_that_day_are_cancelled_others_are_not(self, world):
+        _science(world, "upper", 0, 5, dt.time(10, 50), dt.time(11, 35))
+        sunday = _request(world, "upper", SUNDAY, 5)  # ينتظر الزميل
+        thursday = _request(world, "upper", THURSDAY, 6)  # الشعبةُ فارغة: عند المنسّق
+
+        self._absent(world, SUNDAY)
+
+        sunday.refresh_from_db()
+        thursday.refresh_from_db()
+        assert (sunday.status, thursday.status) == ("cancelled", "pending")
+
+    def test_someone_elses_absence_does_not_touch_the_compensation(self, world, principal_user):
+        _science(world, "upper", 0, 5, dt.time(10, 50), dt.time(11, 35))
+        lesson = _through(world, "upper", SUNDAY, 5, principal_user)
+
+        self._absent(world, SUNDAY, teacher=world["colleague"])
+
+        lesson.refresh_from_db()
+        assert lesson.teacher == world["teacher"]
+        assert CompensatorySession.objects.get().status == "approved"
+
+    def test_the_freed_lesson_can_be_covered_again(self, world, principal_user):
+        from operations.services import SubstituteService
+
+        _science(world, "upper", 0, 5, dt.time(10, 50), dt.time(11, 35))
+        _through(world, "upper", SUNDAY, 5, principal_user)
+        self._absent(world, SUNDAY)
+        slot = ScheduleSlot.objects.get(teacher=world["colleague"], day_of_week=0)
+
+        covered = SubstituteService.hand_over_session(
+            world["school"], slot, SUNDAY, _teacher(world["school"], "بديل")
+        )
+
+        assert covered.original_teacher == world["colleague"], "لا حاجزَ تعويضٍ بعد الإلغاء"
+
+    def test_an_absent_day_is_not_offered_and_not_accepted(self, world):
+        _science(world, "upper", 0, 5, dt.time(10, 50), dt.time(11, 35))
+        self._absent(world, SUNDAY)
+
+        rows = CompensatoryService.day_options(
+            world["school"], world["teacher"], world["upper"], SUNDAY
+        )
+
+        assert rows and not any(r["ok"] for r in rows)
+        assert {r["why"] for r in rows} == {"أنت مسجَّلٌ غائباً في هذا اليوم"}
+        with pytest.raises(ValueError, match="مسجَّلٌ غائباً"):
+            _request(world, "upper", SUNDAY, 5)

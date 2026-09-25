@@ -7,6 +7,7 @@ from datetime import date as _date
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.http import HttpResponse
@@ -618,26 +619,18 @@ def upload_evidence(request, proc_id):
         messages.error(request, "عنوان الدليل مطلوب")
         return redirect("procedure_detail", proc_id=proc_id)
 
-    uploaded_file = request.FILES.get("file")
-    # ── HIGH-002 Fix: التحقق من نوع الملف قبل الحفظ ──
-    if uploaded_file:
-        from django.core.exceptions import ValidationError as DjangoValidationError
-
-        from core.validators import FileTypeValidator
-
-        try:
-            FileTypeValidator(allowed_types="document")(uploaded_file)
-        except DjangoValidationError as e:
-            messages.error(request, e.message)
-            return redirect("procedure_detail", proc_id=proc_id)
-
-    QualityService.upload_evidence(
-        procedure=procedure,
-        title=title,
-        description=request.POST.get("description", "").strip(),
-        file=uploaded_file,
-        uploaded_by=request.user,
-    )
+    # الفحصُ والتنظيفُ داخل الخدمة (`quality/evidence_files.py`) — ورفضُها يصل هنا رسالةً.
+    try:
+        QualityService.upload_evidence(
+            procedure=procedure,
+            title=title,
+            description=request.POST.get("description", "").strip(),
+            file=request.FILES.get("file"),
+            uploaded_by=request.user,
+        )
+    except ValidationError as exc:
+        messages.error(request, exc.messages[0])
+        return redirect("procedure_detail", proc_id=proc_id)
     messages.success(request, "تم رفع الدليل بنجاح")
     return redirect("procedure_detail", proc_id=proc_id)
 
@@ -800,7 +793,12 @@ def task_update_modal(request, proc_id):
 
     if request.method == "POST":
         old_status = procedure.status
-        _process_task_update(request, procedure)
+        try:
+            _process_task_update(request, procedure)
+        except ValidationError as exc:
+            # ملفٌّ مرفوض: لا تحديثَ ولا سجلَّ تدقيق — تُعرض علّتُه ويُعاد المستخدمُ من حيث جاء.
+            messages.error(request, exc.messages[0])
+            return _safe_next_redirect(request, "execution_list")
         AuditLog.log(
             user=request.user,
             action="update",
