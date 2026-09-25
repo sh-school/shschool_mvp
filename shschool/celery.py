@@ -133,6 +133,12 @@ app.conf.beat_schedule = {
         "task": "operations.purge_expired_export_jobs",
         "schedule": crontab(hour=4, minute=0),  # يومياً 4:00 صباحاً
     },
+    # طلباتُ التعويض المفتوحة التي مضى يومُها لا يقبلها أحدٌ بعدُ (`_not_past`): تُنهى فجراً
+    # فلا تبقى معلَّقةً في قوائم المنسّق ولا تُعدّ انشغالاً لأصحابها ولا تسدّ خانةَ يومها.
+    "expire-overdue-compensatory": {
+        "task": "operations.expire_overdue_compensatory",
+        "schedule": crontab(hour=4, minute=15),  # يومياً 4:15 صباحاً (الدوحة)
+    },
 }
 
 app.conf.update(timezone="Asia/Qatar")

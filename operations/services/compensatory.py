@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, time
+from datetime import date, time, timedelta
 from typing import TYPE_CHECKING, Any
 
 from django.db import transaction
@@ -555,15 +555,20 @@ class CompensatoryService:
 
     @staticmethod
     def expire_overdue(school: School) -> int:
-        """إلغاء الحصص التعويضية التي انتهت مهلتها (أكثر من أسبوعين)."""
-        from datetime import timedelta
+        """إنهاءُ الطلبات المفتوحة التي فات وقتُها: مضى يومُ التعويض، أو مرّ عليها أكثرُ من أسبوعين.
 
-        cutoff = date.today() - timedelta(days=14)
+        طلبٌ لزميلٍ لم يردّ أو لمنسّقٍ لم يعتمد يبقى معلَّقاً بعد أن يصير يومُه في الماضي، ولا يقبله أحدٌ
+        (`_not_past`) — فيُعدّ انشغالاً في طلبات صاحبه المفتوحة ويسدّ خانةَ يومه في الخيارات إلى أن يُلغيه
+        أحد. فيُنهيه ما تستدعيه المهمّةُ اليوميّة (`operations.expire_overdue_compensatory`). ثابتةُ التكرار:
+        الطلبُ المنتهي ليس مفتوحاً فلا تمسّه الدورةُ الثانية، والمعتمَدُ والمكتمل لا يُمسّان.
+        """
+        today = timezone.localdate()
+        cutoff = today - timedelta(days=MAX_GAP_DAYS)
         updated = CompensatorySession.objects.filter(
+            Q(compensatory_date__lt=today) | Q(created_at__date__lt=cutoff),
             school=school,
             status__in=OPEN_STATUSES,
-            created_at__date__lt=cutoff,
-        ).update(status="expired")
+        ).update(status="expired", updated_at=timezone.now())
         if updated:
             logger.info("CompensatoryService.expire_overdue: expired %d requests", updated)
         return updated

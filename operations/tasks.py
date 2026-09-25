@@ -118,6 +118,34 @@ def finalize_period_exits_task():
 
 
 # ═════════════════════════════════════════════════════════════════════
+# الحصّةُ التعويضيّة — إنهاءُ الطلبات التي فات وقتُها
+# ═════════════════════════════════════════════════════════════════════
+
+
+@shared_task(name="operations.expire_overdue_compensatory")
+def expire_overdue_compensatory_task():
+    """ينهي طلباتِ التعويض المفتوحة التي مضى يومُ تعويضها، في كلّ مدرسة — كلَّ فجر.
+
+    كانت `CompensatoryService.expire_overdue` مكتوبةً لا يستدعيها شيء، فيبقى طلبٌ لزميلٍ لم يردّ
+    معلَّقاً إلى الأبد وهو لا يُقبَل. كلُّ مدرسةٍ في نطاقها وحدَها وعطبُ واحدةٍ يُسجَّل ولا يُسقط
+    غيرَها؛ وثابتةُ التكرار.
+    """
+    from core.models import School
+    from operations.services import CompensatoryService
+
+    expired = 0
+    failed = 0
+    for school in School.objects.filter(is_active=True).iterator(chunk_size=100):
+        try:
+            with school_rls_scope(school.id):
+                expired += CompensatoryService.expire_overdue(school)
+        except Exception:  # noqa: BLE001 — مدرسةٌ معطوبةٌ لا تُسقط غيرَها
+            failed += 1
+            logger.exception("expire_overdue_compensatory: تعذّر في المدرسة %s", school.pk)
+    return {"expired": expired, "failed_schools": failed}
+
+
+# ═════════════════════════════════════════════════════════════════════
 # حارسُ العام الدراسيّ — إطفاءُ جداول الأعوام الماضية
 # طبقةٌ ثالثةٌ فوق وسيطةِ الطلب ومرحلةِ الإصدار، تعمل إن شُغِّل Celery Beat
 # ═════════════════════════════════════════════════════════════════════
