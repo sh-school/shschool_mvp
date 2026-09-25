@@ -16,6 +16,9 @@ import pytest
 from django.template.loader import render_to_string
 from django.urls import reverse
 
+from tests.test_week_page import world  # noqa: F401 — fixture مشتركةٌ مع اختبارات الجدول
+from tests.test_week_paper import _paper
+
 #: نصُّ رؤية الوزارة كما تنشره في صفحة «مهام ومسؤوليات الوزارة»
 #: (edu.gov.qa) ضمن استراتيجيتها 2024-2030 — لا الرسالة، فهما نصّان
 #: مختلفان في الصفحة نفسها. ونصٌّ يُنسب إلى وزارةٍ يُؤخذ عنها لا يُصاغ.
@@ -174,3 +177,15 @@ def test_the_general_schedule_sub_line_reads_the_schools_own_vision():
 def test_the_general_schedule_sub_line_keeps_the_year_only_for_a_planned_week():
     line = _matrix_sub(source="plan")
     assert line.endswith(f"| {VISION} | العام الدراسي 2026-2027") and "الأسبوع" not in line
+
+
+@pytest.mark.django_db
+def test_the_general_schedule_paper_says_the_vision_once_in_the_sub_line_not_the_footer(
+    world, client
+):
+    """قرارُ المالك (2026-09-25): الرؤيةُ في سطر تحت الجدول فقط وتُنقل من ذيل الورقة — فلا تتكرّر."""
+    body = _paper(client, world, view="all_teachers")
+
+    assert body.count(VISION) == 1
+    foot = body.split('<div class="matrix-foot">', 1)[1].split("</div>", 1)[0]
+    assert VISION not in foot and "تاريخ الطباعة" in foot and "المعلّمون" in foot
