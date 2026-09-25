@@ -82,7 +82,7 @@
 
 /* الشعار */
 .nav-logo      { font-weight: 700; font-size: var(--text-sm); gap: 7px; flex-shrink: 0; padding: var(--sp-1) var(--sp-2); }
-.nav-logo-img  { flex-shrink: 0; filter: brightness(0) invert(1); }
+.nav-logo-img  { flex-shrink: 0; }
 .nav-logo-text { white-space: nowrap; }
 
 /* زر الهامبرغر (الجوال) */
