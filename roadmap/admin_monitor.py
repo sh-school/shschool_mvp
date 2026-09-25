@@ -1,6 +1,6 @@
 """بطاقاتُ مراقبةِ المطوّر في الصفحة الرئيسيّة للإدارة — `{% dev_cards %}`.
 
-قراءةٌ فقط من جداولَ قائمة والـcache (نبضةُ العامل وعدّادُ 5xx) — لا جدولَ جديد، وبلا هويّاتِ أشخاصٍ ولا أسمائهم: أرقامٌ
+قراءةٌ فقط من جداولَ قائمة والـcache (نبضةُ العامل وعدّادُ 5xx وحالةُ النسخ) — لا جدولَ جديد، وبلا هويّاتِ أشخاصٍ ولا أسمائهم: أرقامٌ
 وحالاتٌ تكفي المطوّرَ ليعرف أين ينظر، ولا تُعرّض بياناتٍ شخصيّةً (PDPPL).
 كلُّ بطاقةٍ تُحسَب في دالّةٍ مستقلّةٍ تُعيد `Card` أو `None`، وتعطُّل واحدةٍ لا يُسقط اللوحة.
 """
@@ -174,6 +174,52 @@ def server_errors(now: float | None = None) -> Card:
     )
 
 
+#: النسخُ يوميّ (01:00 UTC) لكنّ جدولةَ GitHub تتأخّر ساعاتٍ (05:40Z مرّةً) — فالأخضرُ يتّسع ليومٍ وست ساعات.
+BACKUP_OK_HOURS = 30
+BACKUP_WARN_HOURS = 54
+#: ستّةُ جلباتٍ فائتة (كلُّ نصف ساعة): الحالةُ لم تعد طازجة فلا يُطمأنّ بها وحدَها.
+BACKUP_STATUS_STALE_SECONDS = 3 * 3600
+
+
+def backup(now: float | None = None) -> Card:
+    """آخرُ نسخٍ احتياطيّ ناجح — من حالةٍ تُجلب من GitHub في الخلفيّة (`core/backup_status.py`) لا عند الرسم."""
+    import time
+
+    from core import backup_status
+
+    moment = time.time() if now is None else now
+    status = backup_status.read()
+    url = backup_status.workflow_url()
+    if status is None:
+        return Card(
+            "النسخ الاحتياطيّ",
+            "غير معلوم",
+            "لم تُجلب حالةُ النسخ بعدُ — تُحدَّث كلَّ نصف ساعة من GitHub",
+            WARN,
+            url,
+        )
+    stale = moment - status["fetched_at"] > BACKUP_STATUS_STALE_SECONDS
+    success_at = status.get("success_at")
+    failed_after = status.get("latest_ok") is False and (
+        success_at is None or status["latest_at"] > success_at
+    )
+    if success_at is None:
+        value, level, detail = "لا نسخة", BAD, "لا نسخةَ ناجحةً بين آخر عشرة تشغيلات"
+    else:
+        hours = (moment - success_at) / 3600
+        value = _ago(moment - success_at)
+        detail = "آخرُ نسخٍ ناجح"
+        level = OK if hours <= BACKUP_OK_HOURS else (WARN if hours <= BACKUP_WARN_HOURS else BAD)
+    if failed_after:
+        level = BAD
+        detail += f" · آخرُ تشغيلٍ فشل قبل {_ago(moment - status['latest_at'])}"
+    detail += f" · آخرُ جلبٍ للحالة قبل {_ago(moment - status['fetched_at'])}"
+    if stale:
+        detail += " (قديمة)"
+        level = BAD if level == BAD else WARN
+    return Card("النسخ الاحتياطيّ", value, detail, level, url)
+
+
 def developer_messages() -> Card:
     from developer_feedback.models import DeveloperMessage, MessageStatus
 
@@ -239,6 +285,7 @@ BUILDERS: tuple[Callable[[], Card], ...] = (
     security,
     notifications,
     server_errors,
+    backup,
     sensitive_actions,
     pending_migrations,
     developer_messages,
