@@ -10,8 +10,9 @@
 from tests import px_tokens as px
 from tests.css_source import read_css
 
-#: خارجَ السلّم يومَ الترحيل (2026-09-19). تُخفَّض ولا تُرفع.
-OFF_SCALE_SPACING = 80
+#: خارجَ السلّم يومَ الترحيل (2026-09-19). تُخفَّض ولا تُرفع. 80 ← 79 (2026-09-25): حذفُ التصريحات الميّتة
+#: بالتتالي أسقط `padding: … 28px` من `.form-card` (لا تُرسم أصلاً — يمحوها لاحقٌ بالمُحدِّد نفسِه).
+OFF_SCALE_SPACING = 79
 OFF_SCALE_RADIUS = 31
 
 
