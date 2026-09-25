@@ -53,6 +53,7 @@
         {% if target_teacher %}<input type="hidden" name="teacher" value="{{ target_teacher.id }}">{% endif %}
         {% if target_class %}<input type="hidden" name="class" value="{{ target_class.id }}">{% endif %}
         <input type="hidden" name="year" value="{{ year }}">
+        {% include "schedule/partials/carry_fields.html" %}
         <select name="paper" class="form-select" data-autosubmit title="حجم الورق">
           <option value="a4" {% if paper == 'a4' %}selected{% endif %}>A4</option>
           <option value="a3" {% if paper == 'a3' %}selected{% endif %}>A3</option>

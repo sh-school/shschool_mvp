@@ -23,8 +23,9 @@
 from __future__ import annotations
 
 import datetime as dt
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from operations.bells import REGULAR, THURSDAY, Bell, bells_for
 from operations.models import ScheduleSlot
@@ -116,6 +117,15 @@ def _day_breaks(bands: list[str], table: dict[str, Bell]) -> list[tuple[int, Bre
     ]
 
 
+def cell_kind(slots: Iterable[Any] | None) -> str:
+    """نوعُ أوّل حصّةٍ حُوّل معلّمُها في خانة: `swap` أو `cover` أو `comp` — وفارغٌ لغيرها.
+
+    وحصصُ الخطّة بلا `kind` أصلاً، فخانتُها فارغةُ العلامة. تقرؤه الشبكةُ (`week_layout`) والجدولُ
+    العامّ (`{{ cell|cell_kind }}`) وExcel — فلا تختلف علامةُ الخانة بين مخرجٍ ومخرج.
+    """
+    return next((kind for slot in slots or () if (kind := getattr(slot, "kind", ""))), "")
+
+
 def week_layout(
     days: list, bands_by_day: list[list[str]], tables: dict[str, dict[str, Bell]]
 ) -> dict:
@@ -171,7 +181,7 @@ def week_layout(
                         "slots": slots,
                         "multi": len(slots) > 1,
                         # حصّةٌ حُوّل معلّمُها (أسبوعٌ فعليّ) تُلوَّن خانتُها — والخطّةُ بلا `kind`.
-                        "change": next((k for s in slots if (k := getattr(s, "kind", ""))), ""),
+                        "change": cell_kind(slots),
                     }
                 )
             else:
@@ -324,6 +334,8 @@ class PaperGeometry:
     font_scale: float
     break_col_w: float
     day_col_w: float
+    #: شريطُ المفتاح والملاحظات أسفل الجدول (الأسبوعُ الفعليّ) — صفرٌ للخطّة فلا يتبدّل مقاسُها.
+    notes_h: float = 0.0
 
     @property
     def content_w(self) -> float:
@@ -335,8 +347,10 @@ class PaperGeometry:
 
     @property
     def bands_h(self) -> float:
-        gaps = self.gap * (3 if self.who_h else 2)
-        return self.header_h + self.who_h + self.thead_h + self.footer_h + gaps + self.safety
+        gaps = self.gap * (3 if self.who_h else 2) + (self.gap if self.notes_h else 0)
+        return (
+            self.header_h + self.who_h + self.thead_h + self.footer_h + self.notes_h + gaps
+        ) + self.safety
 
     @property
     def row_h(self) -> float:
@@ -366,6 +380,7 @@ class PaperGeometry:
             "content_w": mm(self.content_w),
             "header_h": mm(self.header_h),
             "who_h": mm(self.who_h),
+            "notes_h": mm(self.notes_h),
             "thead_h": mm(self.thead_h),
             "footer_h": mm(self.footer_h),
             "gap": mm(self.gap),
@@ -389,11 +404,20 @@ _SHEETS[("a3", "landscape")] = (420, 297)
 _SHEETS[("a3", "portrait")] = (297, 420)
 
 
-def paper_geometry(paper: str, orient: str, *, with_who: bool) -> PaperGeometry:
+#: ارتفاعُ سطرٍ من شريط المفتاح والملاحظات: خطُّ 6.5pt بتباعدٍ يسع سطراً بلا قصّ.
+STRIP_LINE_H = 3.4
+
+
+def paper_geometry(
+    paper: str, orient: str, *, with_who: bool, strip_lines: int = 0
+) -> PaperGeometry:
     """مقاسُ ورقة المعلّم أو الشعبة.
 
     `with_who`: سطرُ «المعلّم · القسم · المنسّق» في ورقة الصفحات، ولا سطرَ له في
     الجدول المطبوع (العنوانُ يحمل الاسم).
+
+    `strip_lines`: سطورُ شريط المفتاح والملاحظات أسفل جدول الأسبوع الفعليّ — تُقتطع من ارتفاع
+    الصفوف فتبقى الورقةُ صفحةً واحدة.
 
     والخطُّ يكبر على A3 بقدرٍ معتدل: الخانةُ تتّسع ضعفَها تقريباً، وخطُّ A4 فيها
     يتيه في بياضها.
@@ -418,4 +442,5 @@ def paper_geometry(paper: str, orient: str, *, with_who: bool) -> PaperGeometry:
         font_scale=1.5 if paper == "a3" else 1.0,
         break_col_w=16 if paper == "a3" else 12,
         day_col_w=20 if paper == "a3" else 16,
+        notes_h=round(STRIP_LINE_H * strip_lines, 1),
     )

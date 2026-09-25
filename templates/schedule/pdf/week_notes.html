@@ -1,0 +1,9 @@
+{% comment %}
+شريطُ المفتاح والملاحظات أسفل جدول الأسبوع الفعليّ في الورقة المطبوعة: مفتاحُ ألوان الحصص المحوَّلة
+(ما وُجد منها في الأسبوع وحدَه) ثمّ ملاحظاتُ الأسبوع — إجازةٌ أو أيّامٌ من الخطّة. النصّ نفسُه الذي
+تكتبه الصفحةُ (`week_nav` في `operations/schedule_selectors.py`)، وارتفاعُه من `geo.css.notes_h`.
+{% endcomment %}
+<div class="week-notes">
+  {% if nav.kinds %}<div class="week-legend">{% for kind, label in nav.kinds %}<span class="week-legend__item"><span class="week-legend__swatch is-{{ kind }}"></span> {{ label }}</span>{% empty %}{% endfor %}</div>{% endif %}
+  {% for note in nav.notes %}<div class="week-note">{{ note }}</div>{% empty %}{% endfor %}
+</div>
