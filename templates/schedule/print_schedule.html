@@ -1,5 +1,5 @@
 {% load brand_tags %}
-{% load static dict_filters schedule_filters exemption_tags %}
+{% load static dict_filters schedule_filters exemption_tags week_tags %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -233,6 +233,18 @@
     font-size: 6px; font-weight: 700; text-align: center;
     color: {% brand_color "ON_FILL" %}; border-radius: 2px;
   }
+  {% comment %}
+  الأسبوعُ الفعليّ: خانةُ حصّةٍ حُوّل معلّمُها تُلوَّن وتُثقَّل (والثقلُ يبقى على طابعةٍ بالأبيض والأسود)،
+  ومفتاحُها أسفل الجدول وتفسيرُها «عن فلان» في بطاقة الخانة على الشاشة. والمحدِّدُ أثقلُ من لون القسم
+  (`tbody tr.dept-x td`) بصنفٍ زائد — وإلّا غلبها لونُ القسم.
+  {% endcomment %}
+  .schedule-matrix tbody td.m-cell.mk-cover, .matrix-legend__swatch.mk-cover { background: {% brand_color "STATUS_WARNING_BG" %}; }
+  .schedule-matrix tbody td.m-cell.mk-swap,  .matrix-legend__swatch.mk-swap  { background: {% brand_color "STATUS_INFO_BG" %}; }
+  .schedule-matrix tbody td.m-cell.mk-comp,  .matrix-legend__swatch.mk-comp  { background: {% brand_color "STATUS_SUCCESS_BG" %}; }
+  .schedule-matrix tbody td.m-cell.mk-cover, .schedule-matrix tbody td.m-cell.mk-swap,
+  .schedule-matrix tbody td.m-cell.mk-comp { font-weight: 700; }
+  .matrix-legend__swatch.mk-cover, .matrix-legend__swatch.mk-swap, .matrix-legend__swatch.mk-comp { border: 1px solid {% brand_color "BORDER_STRONG" %}; }
+  .matrix-note { font-size: 9px; color: {% brand_color "TEXT_PRIMARY" %}; margin-top: 3px; }
   .schedule-matrix .m-total { width: 3.5%; font-weight: 700; }
   /* حدُّ اليوم أغلظُ من حدِّ الحصّة — وإلّا ضاعت الأيامُ في خمسٍ وثلاثين
      خانةً متشابهة. والجهةُ هنا ماديّةٌ (يمين) لا منطقيّة: خانةُ الحصّة
@@ -610,7 +622,7 @@
     <img class="print-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="شعار {{ school.name }}">
     <div class="ministry">{{ school.name }}</div>
     <h1 class="title">الجدول العام للمعلمين</h1>
-    <div class="sub">وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp; العام الدراسي {{ year }}</div>
+    <div class="sub">وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp; العام الدراسي {{ year }}{% if source == "actual" %} &nbsp;|&nbsp; الأسبوع {{ nav.range }}{% endif %}</div>
   </div>
 
   {% if matrix %}
@@ -647,9 +659,11 @@
           {% for cell in day %}
           {# رقمُ العمود في الأسبوع كلِّه (0–34) — اليومُ سبعُ حصص. #}
           {% widthratio forloop.parentloop.counter0 1 7 as day_offset %}
-          <td class="m-cell{% if forloop.first %} m-day-start{% endif %}" data-col="{{ day_offset|add:forloop.counter0 }}"{% if cell %} data-c="{% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}" data-s="{% for slot in cell %}{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }} — {{ slot.class_group.short_label }}{% if not forloop.last %} · {% endif %}{% endfor %}"{% endif %}>
+          {% with kind=cell|cell_kind %}
+          <td class="m-cell{% if forloop.first %} m-day-start{% endif %}{% if kind %} mk-{{ kind }}{% endif %}" data-col="{{ day_offset|add:forloop.counter0 }}"{% if cell %} data-c="{% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}" data-s="{% for slot in cell %}{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }} — {{ slot.class_group.short_label }}{% if slot.note %} — {{ slot.note }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}"{% endif %}>
             {% if cell %}{% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}{% else %}{% exempt_dot row.exempt_map forloop.parentloop.counter0 forloop.counter0|add:1 %}{% endif %}
           </td>
+          {% endwith %}
           {% endfor %}
         {% endfor %}
         <td class="m-total">{{ row.total }}</td>
@@ -682,14 +696,18 @@
   </table>
   </div>
 
-  {% if has_colored_exemptions %}
-  {# نقاطُ التفريغ الملوَّنة أعلاه — تفسيرُها هنا، أسفل الجدول لا فوقه. #}
+  {% if has_colored_exemptions or nav.kinds %}
+  {# نقاطُ التفريغ الملوَّنة وخاناتُ الحصص المحوَّلة أعلاه — تفسيرُها هنا، أسفل الجدول لا فوقه. #}
   <div class="matrix-legend">
+    {% if has_colored_exemptions %}
     <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-ministry">و</span> قرارُ الوزارة</span>
     <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-school">إ</span> قرارُ إدارة المدرسة</span>
     <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-department">ق</span> قرارُ القسم الأكاديميّ</span>
+    {% endif %}
+    {% for kind, label in nav.kinds %}<span class="matrix-legend__item"><span class="matrix-legend__swatch mk-{{ kind }}"></span> {{ label }}</span>{% empty %}{% endfor %}
   </div>
   {% endif %}
+  {% for note in nav.notes %}<div class="matrix-note">{{ note }}</div>{% empty %}{% endfor %}
   <div class="matrix-foot">
     <span>
       المعلّمون: {{ matrix|length }} &nbsp;·&nbsp; الشُّعب: {{ matrix_totals.sections }}
@@ -702,7 +720,8 @@
     <span>تاريخ الطباعة: {% now "Y/m/d" %}</span>
   </div>
   {% else %}
-  <div class="matrix-empty">لا توجد حصص مسجّلة في جدول العام الدراسي {{ year }}.</div>
+  <div class="matrix-empty">{% if source == "actual" %}لا حصصَ في هذا الأسبوع.{% else %}لا توجد حصص مسجّلة في جدول العام الدراسي {{ year }}.{% endif %}</div>
+  {% for note in nav.notes %}<div class="matrix-note">{{ note }}</div>{% empty %}{% endfor %}
   {% endif %}
 
 {% else %}
@@ -711,7 +730,7 @@
     <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
     <div class="school-name">{{ school.name }}</div>
     <h1 class="title">{{ title }}</h1>
-    <div class="year">العام الدراسي &#8294;{{ year }}&#8297;</div>
+    <div class="year">العام الدراسي &#8294;{{ year }}&#8297;{% if source == "actual" %} — الأسبوع {{ nav.range }}{% endif %}</div>
   </div>
 
   {% comment %}
@@ -723,6 +742,7 @@
   لعمود «الحصة ٣» تكذب على أحد الطابقين أو على الخميس.
   {% endcomment %}
   {% if view_type == "class" %}{% include "schedule/pdf/week_grid.html" with who="teacher" %}{% else %}{% include "schedule/pdf/week_grid.html" with who="class" %}{% endif %}
+  {% if nav.kinds or nav.notes %}{% include "schedule/pdf/week_notes.html" %}{% endif %}
 
   <div class="schedule-footer">
     وزارة التربية والتعليم والتعليم العالي — دولة قطر &nbsp;|&nbsp;
