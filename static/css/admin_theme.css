@@ -416,6 +416,11 @@ thead th, .module caption { text-transform: none; }
   /* هدفُ لمسٍ لأزرار الشريط وروابط القوائم المنسدلة (WCAG 2.5.5؛ مقياس المنصّة). */
   .adm-nav__btn, #header .adm-nav__menu a { min-block-size: var(--adm-control-h); box-sizing: border-box; }
   #header .adm-nav__menu a { display: flex; align-items: center; }
+  /* القائمةُ المنسدلة عمودٌ واحدٌ بعرض الشريط تحته: كانت أعمدةً أدناها 13rem فيفيض الثاني ويُقصّ بتمريرٍ أفقيٍّ داخليّ. */
+  #header .adm-nav { position: relative; }
+  .adm-nav__item { position: static; }
+  #header .adm-nav__menu { inset-inline: 0; inline-size: auto; max-inline-size: none; max-block-size: 50vh; grid-template-columns: minmax(0, 1fr); }
+  .adm-nav__section:not(:first-child) { border-inline-start: 0; border-block-start: 1px solid var(--menu-rule); }
 }
 /* الحدُّ الأدنى لهدف اللمس — منقولٌ من `--control-h` في `10-foundation.css` (لوحةُ الإدارة لا تحمل رموزَ المنصّة)،
    وحارسٌ (tests/test_admin_theme.py) يفشل إن اختلفا. */

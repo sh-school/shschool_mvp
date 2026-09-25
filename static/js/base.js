@@ -369,6 +369,16 @@ window.toggleMobMenu = function() {
   else sdCloseAll();
 };
 
+// إغلاقُ لوحة الجوّال نفسِها (لا قوائمِها الفرعيّة وحدَها): يستدعيها النقرُ خارجَها وانتقالُ الصفحة بتبديل
+// المحتوى (page-nav.js). كان الانتقالُ يُغلق القوائمَ المنسدلة ويترك اللوحةَ مفتوحةً فوق الصفحة الجديدة
+// فلا تُرى (بلاغ 2026-09-25) — والتحميلُ الكاملُ كان يُغلقها بنفسه.
+window.closeMobMenu = function() {
+  var bar = document.querySelector('.nb-bar');
+  var btn = document.getElementById('mob-menu-btn');
+  if (bar) bar.classList.remove('open', 'nb-split');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+};
+
 // اللوحةُ تبدأ تحت صفّ زرّها لا تحت الترويسة وحدها: كانت `top: 54px` ثابتة،
 // والزرُّ في صفٍّ ثانٍ تحت الترويسة، فتُغطّيه اللوحةُ ولا يُغلَق منها (بلاغ 2026-09-14).
 function mobMenuTop(bar) {
@@ -393,10 +403,7 @@ document.addEventListener('click', function(e) {
       (node.classList && (node.classList.contains('nb-bar') || node.classList.contains('sd-menu')));
   });
   if (!inside) {
-    var bar = document.querySelector('.nb-bar');
-    var btn = document.getElementById('mob-menu-btn');
-    if (bar) bar.classList.remove('open', 'nb-split');
-    if (btn) btn.setAttribute('aria-expanded', 'false');
+    closeMobMenu();
     // قوائمُ اللوحة وحدَها تُغلق معها. لا `sdCloseAll()`: هذا المستمعُ يعمل بعد مستمع
     // التفويض، فكان يُغلق قائمةَ المستخدم (#btn-user خارج اللوحة) لحظةَ فتحها.
     document.querySelectorAll('.sd-menu.sd-drawer.open').forEach(function(x) { x.classList.remove('open', 'sd-drawer'); });
