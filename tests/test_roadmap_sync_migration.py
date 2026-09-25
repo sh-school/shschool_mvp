@@ -1249,16 +1249,23 @@ def test_0019_leaves_an_item_the_developer_moved():
     assert RoadmapItem.objects.get(code="VI-36").note == ""
 
 
-def test_0019_notes_571_on_own19_as_merged_not_published():
+def test_0019_notes_571_on_own19_as_published_and_applied_with_the_measured_numbers():
     _item("OWN-19", "done", 100, pr="#526 #533 #541 #545 #552 #553 #556")
     assert _sync19.sync(RoadmapItem) == ["OWN-19"]
     assert _sync19.sync(RoadmapItem) == []
     own19 = RoadmapItem.objects.get(code="OWN-19")
     assert (own19.status, own19.progress) == ("done", 100)
     assert own19.pr == "#526 #533 #541 #545 #552 #553 #556 #571"
-    # الرقمُ 16 يُقال، والهجرةُ لا رجوعَ لها، والحالةُ «مدموجٌ لا منشور».
-    assert "16 إسناداً مباشراً" in own19.note and "لا رجوع لها" in own19.note
-    assert "مدموجٌ لا منشور" in own19.note
+    # نُشر وطُبّق بتأكيد المالك المباشر: القياسُ الفعليّ بعد النشر لا التقدير، والهجرةُ لا رجوعَ لها.
+    assert "لا رجوع لها" in own19.note and "منشورٌ ومطبَّق على الإنتاج" in own19.note
+    assert (
+        "600 ← 592" in own19.note
+        and "16 لحسابَي مستخدمَين" in own19.note
+        and "0 للمجموعات" in own19.note
+    )
+    assert "بتأكيد المالك المباشر" in own19.note
+    # لا يبقى في الملاحظة أنّه «لا منشور» ولا أنّه ينتظر تأكيداً.
+    assert "مدموجٌ لا منشور" not in own19.note and "لا يُنشر إلا" not in own19.note
 
 
 def test_0019_leaves_own19_the_developer_moved():
@@ -1281,6 +1288,8 @@ def test_0019_registers_the_weekly_schedule_as_in_progress_one_of_three_never_cl
     assert n041.start_date == _sync19.DAY and n041.end_date is None
     # عدُّ طلباتٍ لا جهد، ولا واجهةَ فيه، وقيدُ النشر قبل تحقّق الأحد، وD-21 مفتوح.
     assert "1/3" in n041.note and "لا يُغلق" in n041.note and "لا واجهةَ فيه" in n041.note
+    # نُشر بلا أثرٍ مرئيّ، وتحقّقُه بالاختبارات لا بفحصٍ إنتاجيٍّ حيّ.
+    assert "دُمج ونُشر على الإنتاج" in n041.note and "لم يُؤكَّد بعد" not in n041.note
     assert "2026-09-27" in n041.criterion and "D-21 مفتوحٌ للنقاش" in n041.note
 
 
