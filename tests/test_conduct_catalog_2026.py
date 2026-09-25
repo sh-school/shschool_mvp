@@ -8,12 +8,13 @@
   فصلٍ دراسيّ، والمخالفتان في اليوم نفسِه تكراران.
 """
 
+import importlib
 from collections import Counter
 from datetime import timedelta
 
 import pytest
 
-from behavior.conduct_2026 import BY_CODE, CATALOG, LADDERS, PERIOD_TARDY_CODE, ladder_text
+from behavior.conduct_2026 import BY_CODE, CATALOG, LADDERS, PERIOD_TARDY_CODE, TEAM, ladder_text
 
 # ══════════════════════════════════════════════════════════════════
 # القائمة
@@ -106,6 +107,51 @@ def test_ladder_text_is_numbered_and_ends_with_beyond():
     rows = ladder_text("1-01")
     assert [n for n, _ in rows] == [1, 2, 3, 4, 5, 6, 7]
     assert rows[-1][1].startswith("ما بعد ذلك")
+
+
+def test_drugs_and_weapons_referral_opens_the_second_repetition():
+    """ص125 (4-14 و4-15): الإحالةُ إلى الجهة المختصّة أوّلُ صفوف «الثانية» لا آخرُ «الأولى».
+
+    حدُّ خليّة «عدد التكرار» يقع بين صفّ الاختصاصيّ النفسيّ وصفّ الإحالة (تحقّقٌ بصريٌّ
+    من الـPDF، 2026-09-25). فالتكرارُ الأوّل لا فاعلَ فيه من الفريق، وأوّلُ ما يفعله
+    الفريقُ في الثانية الإحالةُ ثمّ الفصلُ لحين وصول ردّ الجهة المختصّة.
+    """
+    assert BY_CODE["4-14"].steps is BY_CODE["4-15"].steps is LADDERS["d4_danger"]
+    ladder = LADDERS["d4_danger"]
+    first, second = ladder.step(1), ladder.step(2)
+
+    assert all(actor != TEAM for actor, _ in first)
+    assert not any("الجهة المختصّة" in action for _, action in first)
+
+    (actor, action), (next_actor, next_action) = second[0], second[1]
+    assert actor == TEAM
+    assert "إحالةُ الطالب إلى الجهة المختصّة (قسم حماية ورعاية الطلبة)" in action
+    assert "المخدّرات" in action
+    assert next_actor == TEAM and next_action.startswith("فصلُ الطالب من المدرسة")
+    assert len(second) == 6, "الإحالةُ + الفصلُ + التحفّظُ + الأمنيّةُ + توقيعُ الوليّ + تعهّدُ الطالب"
+
+
+def test_prohibited_items_name_lists_the_sources_examples():
+    """ص117 (4-07): الممنوعاتُ أربعةٌ مسمّاة — لا «السجائر والسجائر» المكرَّرة."""
+    name = BY_CODE["4-07"].name
+
+    for item in (
+        "السجائر الإلكترونيّة",
+        "الشيشة الإلكترونيّة",
+        "السويكة أو ما شابه",
+    ):
+        assert item in name
+    assert "السجائر والسجائر" not in name
+
+
+def test_fight_damage_is_assessed_by_the_school_administration():
+    """ص120 (4-09 و4-10): «يقدَّر من قِبَل إدارة المدرسة» — لا النائبُ أو المدير بعينهما."""
+    assert BY_CODE["4-09"].steps is BY_CODE["4-10"].steps is LADDERS["d4_violence"]
+    rows = [action for _, action in LADDERS["d4_violence"].step(2) if "ضرر" in action]
+
+    assert len(rows) == 1
+    assert "إدارة المدرسة" in rows[0]
+    assert "النائب" not in rows[0]
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -203,3 +249,24 @@ def test_the_migration_left_the_2026_catalog_active(db):
         )
     )
     assert active == set(BY_CODE)
+
+
+def test_the_4_07_name_migration_updates_only_the_old_source_name(db):
+    """0020: من هُجِّر على اسم 0015 يلحق بالمصدر، ومن عدّل اسمَه بيده لا يُمسّ."""
+    from django.apps import apps
+
+    from behavior.models import ViolationCategory
+
+    migration = importlib.import_module("behavior.migrations.0020_conduct_4_07_name_from_source")
+    category = ViolationCategory.objects.get(code="4-07")
+    assert category.name_ar == BY_CODE["4-07"].name == migration.NEW_NAME
+
+    ViolationCategory.objects.filter(pk=category.pk).update(name_ar=migration.OLD_NAME)
+    migration.forwards(apps, None)
+    category.refresh_from_db()
+    assert category.name_ar == migration.NEW_NAME
+
+    ViolationCategory.objects.filter(pk=category.pk).update(name_ar="اسمٌ عدّله المدير")
+    migration.forwards(apps, None)
+    category.refresh_from_db()
+    assert category.name_ar == "اسمٌ عدّله المدير"
