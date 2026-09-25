@@ -2969,7 +2969,7 @@ _sync27 = importlib.import_module("roadmap.migrations.0027_sync_items_2026_09_25
 class _Apps27:
     @staticmethod
     def get_model(_app, name):
-        return RoadmapItem
+        return RoadmapKpi if name == "RoadmapKpi" else RoadmapItem
 
 
 def test_0027_corrects_the_sch08_note_written_by_0026_to_published_and_keeps_it_at_95():
@@ -3017,6 +3017,67 @@ def test_0027_corrects_the_n041_and_own23_phrases_written_by_0025():
     own23 = RoadmapItem.objects.get(code="OWN-23").note
     assert "بُنيت واندمجت في #601 ونُشرت ضمن main@e7c461d" in own23
     assert "ولم تُدفع بانتظار إذنٍ صريح" not in own23
+
+
+def test_0027_corrects_the_dbt44_phrase_about_dbt45_being_on_an_unpushed_branch():
+    _item("DBT-44", "done", 100, pr="#576")
+    assert _sync25.sync(RoadmapItem) == ["DBT-44"]
+    assert "بدأته 8103 على فرعٍ محلّيّ لم يُدفع" in RoadmapItem.objects.get(code="DBT-44").note
+    assert _sync27.correct(RoadmapItem) == ["DBT-44"]
+    assert _sync27.correct(RoadmapItem) == []
+    note = RoadmapItem.objects.get(code="DBT-44").note
+    assert "صار #600 مدموجاً وسطحُ المكتب 0 من 491" in note and "لم يُدفع" not in note
+
+
+def test_0027_closes_dbt45_by_600_merged_but_unpublished_with_the_ci_baseline():
+    _item("DBT-45", "todo", 0)
+    assert _sync27.sync(RoadmapItem) == ["DBT-45"]
+    assert _sync27.sync(RoadmapItem) == []
+    dbt45 = RoadmapItem.objects.get(code="DBT-45")
+    assert (dbt45.status, dbt45.progress, dbt45.pr) == ("done", 100, "#600")
+    note = dbt45.note
+    assert "ea95a261" in note and "مدموجٌ وغيرُ منشور" in note and "بعد main@e7c461d" in note
+    assert (
+        "0 من 491" in note and "0 من 431 (Chromium) و0 من 434 (WebKit)" in note and "K2 = 0" in note
+    )
+    assert "قياسٌ لا إعفاء" in note and "23 من 23" in note
+    assert "صافي −282 بايتاً" in note
+
+
+def test_0027_leaves_a_dbt45_the_developer_moved():
+    _item("DBT-45", "doing", 60)
+    assert _sync27.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="DBT-45").note == ""
+
+
+def test_0027_records_mk1_at_zero_and_mk2_kept_at_zero_keeping_history():
+    _kpi(
+        "MK1",
+        0.2,
+        _sync25.PREVIOUS,
+        source="خطّة الجوال K1",
+        history=[{"d": "2026-09-24", "v": 0.2}],
+    )
+    _kpi(
+        "MK2",
+        0.0,
+        _sync25.PREVIOUS,
+        source="خطّة الجوال K2",
+        history=[{"d": "2026-09-24", "v": 0.0}],
+    )
+    assert _sync27.sync_kpis(RoadmapKpi) == ["MK1", "MK2"]
+    assert _sync27.sync_kpis(RoadmapKpi) == []
+    mk1 = RoadmapKpi.objects.get(code="MK1")
+    assert (mk1.current, mk1.measured_at) == (0.0, _sync27.DAY)
+    assert mk1.history == [{"d": "2026-09-24", "v": 0.2}, {"d": "2026-09-25", "v": 0.0}]
+    assert "Chromium 0 من 431 وWebKit 0 من 434" in mk1.source
+    assert RoadmapKpi.objects.get(code="MK2").current == 0.0
+
+
+def test_0027_leaves_an_mk1_that_was_remeasured():
+    _kpi("MK1", 0.1, _sync25.PREVIOUS)
+    assert _sync27.sync_kpis(RoadmapKpi) == []
+    assert RoadmapKpi.objects.get(code="MK1").current == 0.1
 
 
 def test_0027_leaves_a_note_the_developer_already_rewrote():
@@ -3102,19 +3163,41 @@ def test_0027_records_lay03_586_with_the_measurement_and_leaves_state_dates_unto
     assert "تكتمل ثلاثيّةُ إصلاحات ADR-0006 (#585 و#586 و#587)" in note and "LAY-08" in note
 
 
-def test_0027_moves_rep06_to_80_with_a_derivation_and_never_records_rk4_at_zero():
+def test_0027_closes_rep06_at_5_of_5_and_never_records_rk4_at_zero():
     _kpi("RK4", 12.0, _sync26.DAY)
     _item("REP-06", "todo", 0)
     assert _sync27.sync(RoadmapItem) == ["REP-06"]
     assert _sync27.sync(RoadmapItem) == []
     rep06 = RoadmapItem.objects.get(code="REP-06")
-    assert (rep06.status, rep06.progress) == ("doing", 80)
+    assert (rep06.status, rep06.progress) == ("done", 100)
     note = rep06.note
     assert "بروفةُ إعادة الكتابة على مرآة ناجحة (RK4 = 0 على الناتج)" in note
-    assert "4 من 5 خطواتٍ متساوية" in note and "اقتراحُ جلسة Git لا قياس" in note
-    assert "الصفرُ للبروفة وحدها" in note and "لا يُسجَّل RK4 = 0 في المؤشّر" in note
-    # المؤشّرُ نفسُه لا يُمسّ.
+    assert "5 من 5 خطواتٍ متساوية" in note and "إفادةُ جلسة Git" in note
+    assert "الصفرُ للبروفة وحدها" in note and "لا يُسجَّل RK4 = 0 في المؤشّر قبل نافذة 10-02" in note
+    # المؤشّرُ نفسُه لا يُمسّ، ولا وصفَ لحالة المستودع العامّ.
     assert RoadmapKpi.objects.get(code="RK4").current == 12.0
+    assert "غيرُ صفر" not in note and "المستودع العامّ" not in note
+
+
+def test_0027_moves_rep07_to_60_with_a_derivation_and_defers_rk5_to_the_merge():
+    _item("REP-07", "todo", 0)
+    assert _sync27.sync(RoadmapItem) == ["REP-07"]
+    assert _sync27.sync(RoadmapItem) == []
+    rep07 = RoadmapItem.objects.get(code="REP-07")
+    assert (rep07.status, rep07.progress) == ("doing", 60)
+    note = rep07.note
+    assert "3 من 5 خطواتٍ متساوية" in note and "اقتراحُ جلسة Git لا قياس" in note
+    assert "RK5 = 0 يُسجَّل عند اندماج الطلب لا قبله" in note
+    for term in ("يسقط على main", "scripts/", ".py", "قيمة حقيقيّة"):
+        assert term not in note
+
+
+def test_0027_leaves_a_rep06_or_rep07_the_git_session_already_moved():
+    _item("REP-06", "doing", 90)
+    _item("REP-07", "done", 100)
+    assert _sync27.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="REP-06").note == ""
+    assert RoadmapItem.objects.get(code="REP-07").note == ""
 
 
 def test_0027_adds_the_dbt36_margin_note_without_moving_it():
@@ -3125,6 +3208,9 @@ def test_0027_adds_the_dbt36_margin_note_without_moving_it():
     assert (dbt36.status, dbt36.progress) == ("todo", 0)
     assert "481,649 بايتاً من سقف 481,791" in dbt36.note and "هامشٌ 142 بايتاً فقط" in dbt36.note
     assert "129 بايتاً" in dbt36.note and "لم تُغيَّر الحالةُ ولا الموعد" in dbt36.note
+    # بعد #600 (8103): 481,778 ← 481,496 والهامشُ 295 بعد أن كان 13.
+    assert "481,778 ← 481,496" in dbt36.note and "صافي −282 بايتاً" in dbt36.note
+    assert "الهامشُ الآن **295 بايتاً**" in dbt36.note
 
 
 def test_0027_never_overflows_the_pr_field_limit():
