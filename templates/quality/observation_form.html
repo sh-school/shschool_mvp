@@ -45,13 +45,13 @@
           <input type="hidden" name="teacher" id="qobs-teacher"
             value="{% if obs %}{{ obs.teacher_id }}{% endif %}"
             hx-get="{% url 'observation_teacher_schedule' %}" hx-trigger="change, load"
-            hx-target="#teacher-schedule-row" hx-include="#qobs-date">
+            hx-target="#teacher-schedule-row" hx-swap="outerHTML" hx-include="#qobs-date">
         </label>
         {% endif %}
         <label>التاريخ <input type="date" name="observation_date" id="qobs-date" required class="form-control"
           value="{{ default_date|date:'Y-m-d' }}"
           {% if not is_self %}hx-get="{% url 'observation_teacher_schedule' %}" hx-trigger="change"
-          hx-target="#teacher-schedule-row" hx-include="#qobs-teacher"{% endif %}></label>
+          hx-target="#teacher-schedule-row" hx-swap="outerHTML" hx-include="#qobs-teacher"{% endif %}></label>
         <label>المادّة
           <select name="subject" id="qobs-subject" class="form-control">
             <option value="">—</option>
