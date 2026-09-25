@@ -1473,7 +1473,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .ui-field__label { font-size: var(--text-sm); font-weight: 600; color: var(--text-primary); }
 .ui-field--grow { flex: 1 1 240px; }
 .ui-field--check { flex-direction: row; align-items: center; gap: var(--sp-2); }
-.ui-field__check { accent-color: var(--maroon); inline-size: 16px; block-size: 16px; margin: 0; }
+.ui-field__check { accent-color: var(--maroon); margin: 0; } /* حجمُه من قاعدة الخانات في 50-utilities */
 .ui-field.has-error .form-control {
   border-color: var(--status-danger);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-danger) 10%, transparent);
@@ -1740,7 +1740,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
    كانت هذه كلُّها تنسيقاً داخل الوسوم (style=) وألوانَ Tailwind الخضراءَ الثابتة
    في قوالب templates/clinic/ — فلا تتبع الوضعَ الداكن ولا تتغيّر من موضع. */
 .clinic-form-page { max-inline-size: 42rem; margin-inline: auto; inline-size: 100%; }
-.clinic-check { inline-size: 1rem; block-size: 1rem; flex-shrink: 0; accent-color: var(--maroon-fg); }
+.clinic-check { flex-shrink: 0; accent-color: var(--maroon-fg); } /* حجمُه من قاعدة الخانات في 50-utilities */
 /* سجلُّ زيارات الطالب: زيارةٌ لكلّ بند، والقائمةُ تتمرّر داخل بطاقتها. */
 .clinic-visits { list-style: none; margin: 0; padding: 0; max-block-size: 600px; overflow-y: auto; }
 .clinic-visit { padding: var(--sp-4) var(--sp-5); border-block-end: 1px solid var(--border); }
