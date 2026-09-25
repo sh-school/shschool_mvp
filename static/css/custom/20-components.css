@@ -1,8 +1,8 @@
 @layer components {
 
-/* ══════════════════════════════════════════════════════════
+/* ════════════════════
    الهيدر العلوي — الشعار + المستخدم + الأيقونات
-   ══════════════════════════════════════════════════════════ */
+   ════════════════════ */
 .site-header {
   background: var(--header-bg);
   position: sticky;
@@ -34,9 +34,9 @@
 .site-header .nav-logo { padding-inline-start: 0; }
 .site-header .nav-user-btn { padding-inline-end: 0; }
 
-/* ══════════════════════════════════════════════════════════
+/* ════════════════════
    شريط التنقل — القوائم (السطر الثاني)
-   ══════════════════════════════════════════════════════════ */
+   ════════════════════ */
 .site-nav {
   background: var(--nav-bg);
   position: sticky;
@@ -148,7 +148,7 @@
   white-space: nowrap;
 }
 
-/* ══ Dropdown ════════════════════════════════════════════ */
+/* ══ Dropdown ═══ */
 .sd-menu {
   display: none;
   position: fixed;
@@ -299,10 +299,10 @@
 }
 
 
-/* ── الأزرار الرئيسية ───────────────────────────────────────── */
+/* ── الأزرار الرئيسية ─── */
 /* استخدم .btn-primary بدل inline style — see btn-primary below */
 
-/* ── حقول الإدخال — focus بلون الهوية ─────────────────────── */
+/* ── حقول الإدخال — focus بلون الهوية ─── */
 input[type="text"]:focus,
 input[type="password"]:focus,
 input[type="email"]:focus,
@@ -320,14 +320,14 @@ textarea:focus {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--maroon) 12%, transparent);
 }
 
-/* ── الروابط النشطة ─────────────────────────────────────────── */
+/* ── الروابط النشطة ─── */
 a:focus-visible {
   outline: 2px solid var(--focus-color);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
 
-/* ── Tailwind arbitrary value → CSS variable bridge ────────────── */
+/* ── Tailwind arbitrary value → CSS variable bridge ─── */
 /* هذه الـ selectors تترجم Tailwind arbitrary values إلى CSS variables
    حتى يعمل كل شيء من مصدر واحد ويتوافق مع Dark Mode */
 
@@ -341,7 +341,7 @@ a:focus-visible {
   border-color: var(--maroon);
 }
 
-/* ── جداول البيانات ─────────────────────────────────────────── */
+/* ── جداول البيانات ─── */
 table {
   border-collapse: collapse;
   width: 100%;
@@ -375,15 +375,15 @@ tbody tr:nth-child(even):hover {
   background: var(--maroon-bg);
 }
 
-/* ── رأس الصفحة (h1, h2) ────────────────────────────────────── */
+/* ── رأس الصفحة (h1, h2) ─── */
 h1.text-2xl {
   color: var(--text-primary);
   font-weight: 800;
 }
 
-/* ── شارات الحالة ────────────────────────────────────────────── */
+/* ── شارات الحالة ─── */
 
-/* ── بطاقات ─────────────────────────────────────────────────── */
+/* ── بطاقات ─── */
 .card-qatar {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -404,7 +404,7 @@ h1.text-2xl {
   border-color: var(--maroon-border);
 }
 
-/* ── شريط التقدم بلون الهوية ─────────────────────────────────── */
+/* ── شريط التقدم بلون الهوية ─── */
 .progress-qatar {
   height: 8px;
   background: var(--maroon-bg);
@@ -423,7 +423,7 @@ h1.text-2xl {
 .progress-qatar-fill.pf-warning { background: var(--status-warning); }
 .progress-qatar-fill.pf-danger  { background: var(--status-danger);  }
 
-/* ── Django Admin — تعريب اللون الرئيسي ───────────────────── */
+/* ── Django Admin — تعريب اللون الرئيسي ─── */
 /* Django Admin header — مطلوب لتجاوز admin CSS */
 #header {
   background: var(--maroon);
@@ -436,7 +436,7 @@ div#header h1 a {
   color: var(--on-fill);
 }
 
-/* ── الفوتر ─────────────────────────────────────────────────── */
+/* ── الفوتر ─── */
 /* سطرٌ واحد على الحاسوب: هويّةُ المدرسة | الرؤية | التوقيع. وتحت لوحة الجوال
    تتراصّ مركَّزةً كما كانت — السطرُ الواحد لا يتّسع هناك. */
 .site-footer {
@@ -535,7 +535,7 @@ div#header h1 a {
   .site-footer-brand { justify-self: end; }
 }
 
-/* ── PWA Install Banner ──────────────────────────────────── */
+/* ── PWA Install Banner ─── */
 body:has(.per-bar) .pwa-banner { display: none; }
 .pwa-banner {
   position: fixed;
@@ -583,7 +583,7 @@ body:has(.per-bar) .pwa-banner { display: none; }
   flex-shrink: 0;
 }
 
-/* ── Emergency Banner ────────────────────────────────────── */
+/* ── Emergency Banner ─── */
 .emergency-banner {
   position: fixed;
   top: 0; inset-inline-start: 0; inset-inline-end: 0;
@@ -605,7 +605,7 @@ footer {
   font-size: var(--text-xs);
 }
 
-/* ── الإشعارات / Messages ───────────────────────────────────────
+/* ── الإشعارات / Messages ───
    نبرةُ رسالة `msg-bar` وما جاورها من لوحات الحالة. كانت القوالبُ تكتبها
    بثلاثة أصنافٍ من لوحة تايلويند (`bg-red-50 border-red-200 text-red-800`)،
    وهذه الأصنافُ الأربعة بقيت بلا مستعمِلٍ بقيمٍ غيرِ ما تُرسم به الرسالة.
@@ -616,14 +616,14 @@ footer {
 .msg-warning { background:var(--status-warning-tint); border:1px solid var(--status-warning-border-soft); color:var(--status-warning-fg-vivid); }
 .msg-info    { background:var(--status-info-bg); border:1px solid var(--status-info-border-soft); color:var(--status-info-fg-vivid); }
 
-/* ── تمييز الصف المحدد في الجداول ──────────────────────────── */
+/* ── تمييز الصف المحدد في الجداول ─── */
 tr.selected,
 tr.active {
   background: var(--maroon-bg);
   outline: 1px solid var(--maroon-border);
 }
 
-/* ── زر حذف / إجراء خطر ────────────────────────────────────── */
+/* ── زر حذف / إجراء خطر ─── */
 .btn-danger {
   background: var(--status-danger);
   color: var(--on-fill);
@@ -652,7 +652,7 @@ tr.active {
 }
 .btn-warning:hover { background: var(--status-warning); }
 
-/* ── زر أساسي بلون الهوية ───────────────────────────────────── */
+/* ── زر أساسي بلون الهوية ─── */
 .btn-primary {
   background: var(--maroon);
   color: var(--on-fill);
@@ -676,7 +676,7 @@ tr.active {
   transform: translateY(1px);
 }
 
-/* ── زر ثانوي ───────────────────────────────────────────────── */
+/* ── زر ثانوي ─── */
 .btn-secondary {
   background: var(--maroon-bg);
   color: var(--maroon-fg);
@@ -694,7 +694,7 @@ tr.active {
   background: var(--btn-secondary-hover-bg);
 }
 
-/* ── زر شبحيّ — لأفعال الصفّ داخل الجداول (حذف، تبديل) ──────────
+/* ── زر شبحيّ — لأفعال الصفّ داخل الجداول (حذف، تبديل) ───
    كان مستعملاً في القوالب بلا تعريف، فظهر زرّاً عارياً بلا حدود ولا مساحة
    لمس. الحدُّ الأدنى 36px يُبقي الهدفَ قابلاً للنقر باللمس. */
 .btn-ghost {
@@ -725,7 +725,7 @@ tr.active {
 }
 .btn-ghost .icon { width: 16px; height: 16px; }
 
-/* ── زر نجاح ─────────────────────────────────────────────────── */
+/* ── زر نجاح ─── */
 .btn-success {
   /* الأخضرُ الفاتحُ تحت نصٍّ أبيضَ نسبتُه 3.30 — والداكنُ 7.13 */
   background: var(--status-success-dark);
@@ -770,7 +770,7 @@ tr.active {
   opacity: .55; cursor: not-allowed; box-shadow: none;
 }
 
-/* ── Pagination ─────────────────────────────────────────────── */
+/* ── Pagination ─── */
 .pagination {
   display: flex;
   gap: var(--sp-1);
@@ -815,7 +815,7 @@ tr.active {
   pointer-events: none;
 }
 
-/* ── Scrollbar مخصص ─────────────────────────────────────────── */
+/* ── Scrollbar مخصص ─── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: var(--scrollbar-track); }
 ::-webkit-scrollbar-thumb {
@@ -826,7 +826,7 @@ tr.active {
 
 /* ── Print — كتلةُ الطباعة العامّة في طبقة utilities (انظر هناك) ── */
 
-/* ── الجوال ─────────────────────────────────────────────────── */
+/* ── الجوال ─── */
 /* ── Mobile-First: responsive table stacking (default=mobile) ── */
 .login-card { padding: var(--sp-6) var(--sp-4-5); }
 
@@ -835,9 +835,9 @@ tr.active {
 
 }
 
-/* ════════════════════════════════════════════════════════════════
+/* ════════════════════
    مكوّنات الصفحة — Page Layout Components
-   ══════════════════════════════════════════════════════════════ */
+   ════════════════════ */
 
 /* ── عنوان الصفحة ── */
 .page-header {
@@ -861,9 +861,9 @@ tr.active {
   margin: var(--sp-1) 0 0;
 }
 
-/* ══════════════════════════════════════════════════════════════
+/* ════════════════════
    Detail/Profile Layout (MTG-2026-004-STR)
-   ══════════════════════════════════════════════════════════════ */
+   ════════════════════ */
 
 /* ── Definition List (key-value pairs) ── */
 .detail-dl {
@@ -1034,7 +1034,7 @@ tr.active {
   white-space: nowrap;
   border-bottom: 2px solid var(--border);
 }
-/* ── سجلُّ المنتسبين: جدولٌ عريضٌ يُقرأ ────────────────────────────
+/* ── سجلُّ المنتسبين: جدولٌ عريضٌ يُقرأ ───
    خمسةَ عشرَ عموداً لا تسعها شاشة، فيُمرَّر أفقيّاً — والاسمُ يثبت في حافّته
    وإلّا ضاع صاحبُ الصفّ عند العمود العاشر. والترويسةُ ثابتةٌ رأسيّاً أصلاً. */
 /* صفحةُ جدولٍ عريض: سقفُ 1280px قاعدةُ قراءةٍ لصفحات النصّ، وجدولٌ يطلب
@@ -1224,9 +1224,9 @@ main.page-wide {
   background: var(--surface);
 }
 .form-control::placeholder { color: var(--placeholder); }
-/* ══════════════════════════════════════════════════════════
+/* ════════════════════
    التنبيهات — الوسمُ `{% callout %}` (قرارُ المالك 2026-09-20)
-   ══════════════════════════════════════════════════════════
+   ════════════════════
    نوعان: أيقونةٌ تُظهر نصَّها (تلميح ومعلومة) فلا تزحم البطاقة، وسطرٌ ظاهرٌ دائماً
    (تحذير وخطأ ونجاح) لأنّ من لا يمرّ فوقه لا يقرأ ما يغيّر فعلَه. وكلُّ لونٍ رمزٌ من
    رموز الحالة، فيتبع الوضعَ الليليّ. وما كان `form-note` و`bell-note` و`wing-warn`
@@ -1415,10 +1415,10 @@ main.page-wide {
   gap: var(--sp-1);
 }
 
-/* ══════════════════════════════════════════════════════════════════
+/* ════════════════════
    شريط ماروني — الهوية البصرية الموحدة لدولة قطر
    يُستخدم كعنوان للبطاقات والأقسام في كل صفحات المنصة
-   ══════════════════════════════════════════════════════════════════ */
+   ════════════════════ */
 .card-bar {
   display: flex; align-items: center; gap: var(--sp-2-5);
   background: var(--maroon);
@@ -1519,11 +1519,11 @@ tfoot td {
 }
 .action-card.action-primary .action-desc { color: color-mix(in srgb, var(--on-fill) 70%, transparent); }
 
-/* ══════════════════════════════════════════════════════════════
+/* ════════════════════
  * ✅ v5.1 — Design Tokens & Component Extensions
- * ══════════════════════════════════════════════════════════════ */
+ * ════════════════════ */
 
-/* ── WCAG 2.1 AA — Focus Rings ─────────────────────────────── */
+/* ── WCAG 2.1 AA — Focus Rings ─── */
 a:focus-visible,
 button:focus-visible,
 [tabindex]:focus-visible,
@@ -1535,7 +1535,7 @@ textarea:focus-visible {
   box-shadow: var(--focus-ring);
 }
 
-/* ── Reduced Motion — احترام تفضيلات المستخدم ────────────── */
+/* ── Reduced Motion — احترام تفضيلات المستخدم ─── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -1545,7 +1545,7 @@ textarea:focus-visible {
   }
 }
 
-/* ── High Contrast — WCAG 2.2 (prefers-contrast) ──────────── */
+/* ── High Contrast — WCAG 2.2 (prefers-contrast) ─── */
 @media (prefers-contrast: more) {
   :root {
     --border: #999;
@@ -1560,7 +1560,7 @@ textarea:focus-visible {
   }
 }
 
-/* ── Skip Navigation ───────────────────────────────────────── */
+/* ── Skip Navigation ─── */
 .skip-nav {
   position: absolute;
   top: -48px;
@@ -1578,7 +1578,7 @@ textarea:focus-visible {
   top: 0;
 }
 
-/* ── Screen Reader Only (WCAG utility) ─────────────────────── */
+/* ── Screen Reader Only (WCAG utility) ─── */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1591,7 +1591,7 @@ textarea:focus-visible {
   border-width: 0;
 }
 
-/* ── HTMX Global Loading Bar ──────────────────────────────── */
+/* ── HTMX Global Loading Bar ─── */
 #htmx-loading-bar {
   position: fixed;
   top: 0;
@@ -1613,7 +1613,7 @@ textarea:focus-visible {
   100% { background-position: -200% 0; }
 }
 
-/* ── Skeleton / Loading Shimmer ────────────────────────────── */
+/* ── Skeleton / Loading Shimmer ─── */
 @keyframes skeletonShimmer {
   0%   { background-position: -400px 0; }
   100% { background-position: 400px 0; }
@@ -1635,7 +1635,7 @@ textarea:focus-visible {
 
 .skeleton-row    { height: 44px; margin-bottom: var(--sp-1); border-radius: var(--radius-1-5); }
 
-/* ── Toast / Notification Animations ──────────────────────── */
+/* ── Toast / Notification Animations ─── */
 @keyframes toastIn {
   from { opacity: 0; transform: translateY(-12px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -1691,7 +1691,7 @@ textarea:focus-visible {
   padding: 0;
 }
 
-/* ── HTMX States ───────────────────────────────────────────── */
+/* ── HTMX States ─── */
 .htmx-indicator          { display: none; }
 .htmx-request            .htmx-indicator  { display: inline-block; }
 .htmx-request.htmx-indicator             { display: inline-block; }
@@ -1707,7 +1707,7 @@ textarea:focus-visible {
   pointer-events: none;
 }
 
-/* ── Modal System ──────────────────────────────────────────── */
+/* ── Modal System ─── */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -1762,7 +1762,7 @@ textarea:focus-visible {
 .confirm-dlg-title { color: var(--status-danger-fg); }
 .confirm-dlg-message { color: var(--text-secondary); line-height: 1.7; }
 
-/* ── Mobile Bottom Navigation ──────────────────────────────── */
+/* ── Mobile Bottom Navigation ─── */
 .mobile-bottom-nav {
   display: none;
   position: fixed;
@@ -1807,7 +1807,7 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
 .btn-primary, .btn-secondary, .btn-danger { min-height: var(--control-h); }
 .form-control, .form-select { min-height: var(--control-h); font-size: var(--text-base); }  /* منع zoom على iOS */
 
-/* ── الترويسةُ في الهاتف: لا تدفع الصفحةَ أفقيّاً ──────────────
+/* ── الترويسةُ في الهاتف: لا تدفع الصفحةَ أفقيّاً ───
    كان اسمُ المدرسة في `.nav-logo-text` بـ`nowrap` عرضُه 296px، واسمُ
    المستخدم 139px، وكلاهما `flex-shrink: 0` — فمجموعُ الترويسة 552px في
    شاشةٍ عرضُها 375px. والفيضُ لا يُقصّ بل يوسّع الصفحةَ نفسَها، فصار
@@ -1831,12 +1831,12 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
   .nav-user-name { display: revert; }
 }
 
-/* ── Priority Badge ────────────────────────────────────────── */
+/* ── Priority Badge ─── */
 .badge-high    { background: var(--status-warning-badge-bg); color: var(--status-warning-fg); }
 .badge-medium  { background: var(--status-info-bg); color: var(--status-info-dark); }
 .badge-low     { background: var(--surface-alt); color: var(--text-secondary); }
 
-/* ── شاراتُ الحالة — مُعدِّلاتٌ مركزيّة ─────────────────────────────
+/* ── شاراتُ الحالة — مُعدِّلاتٌ مركزيّة ───
    كانت تُكتب في القوالب أسلوباً مضمَّناً (`style="background:#dcfce7;
    color:#15803d"`)، فتبقى خلفيّتُها فاتحةً في الوضع الداكن ويُكتب عليها
    نصٌّ فاتح. وسطحُ الحالة ولونُها ينقلبان الآن معاً. */
@@ -1858,7 +1858,7 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
 .legend-dot--danger  { background: var(--status-danger); }
 .legend-dot--muted   { background: var(--text-muted); }
 
-/* ── Empty State Component ─────────────────────────────────── */
+/* ── Empty State Component ─── */
 .empty-state-v2 {
   display: flex;
   flex-direction: column;
@@ -1877,9 +1877,9 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
 }
 .empty-state-v2 .es-sub { font-size: .9rem; margin-bottom: var(--sp-5); }
 
-/* ══════════════════════════════════════════════════════════
+/* ════════════════════
    Mobile Navigation — Hamburger Menu (v5.2)
-   ══════════════════════════════════════════════════════════ */
+   ════════════════════ */
 
 /* على الديسكتوب: nb-bar شريط أفقي عادي */
 .nb-bar {
@@ -1889,7 +1889,7 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
   gap: var(--sp-0-5);
 }
 
-/* ── Mobile-First: mobile nav is default ────────────────────── */
+/* ── Mobile-First: mobile nav is default ─── */
 #mob-menu-btn {
   display: inline-flex;
   align-items: center;
@@ -1972,7 +1972,7 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
   .nb-bar .chv { display: inline; }
 }
 
-/* ══ Horizontal scroll helpers ══════════════════════════════ */
+/* ══ Horizontal scroll helpers ═══ */
 /* Mobile-First: scroll hint visible by default on mobile */
 .scroll-x-hint {
   display: block;
@@ -1985,11 +1985,11 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
   .scroll-x-hint { display: none; }
 }
 
-/* ══════════════════════════════════════════════════════════════
+/* ════════════════════
    v5.3 — Sticky Table Headers + Breadcrumbs + Command Palette
-   ══════════════════════════════════════════════════════════════ */
+   ════════════════════ */
 
-/* ── Breadcrumbs ──────────────────────────────────────────── */
+/* ── Breadcrumbs ─── */
 .breadcrumbs {
   display: flex;
   align-items: center;
@@ -2041,7 +2041,7 @@ body { padding-bottom: calc(var(--dock-h) + var(--dock-pad)); }
   font-weight: 600;
 }
 
-/* ── Command Palette (Ctrl+K) ─────────────────────────────── */
+/* ── Command Palette (Ctrl+K) ─── */
 .cmd-overlay {
   position: fixed;
   inset: 0;

@@ -20,7 +20,7 @@
  *   1440       شاشةٌ عريضة
  *   واستثناءان مقيسان: 400 (بطاقاتُ الإجراء، ADR-0005 D3) و1100 (خمسةُ أرقامٍ في صفّ).
  *   ومكوّنٌ حدُّه من عرض حاويته يتكيّف بها (auto-fit أو flex-wrap) لا باستعلامٍ جديد.
- * ══════════════════════════════════════════════════════════════
+ * ════════════════════
  */
 
 /* ═══ CSS Layer Order Declaration ═══ */
@@ -41,7 +41,7 @@
 
 @layer base {
 
-/* ── SVG Icon System — Lucide ───────────────────────────────── */
+/* ── SVG Icon System — Lucide ─── */
 .icon {
   width: 20px; height: 20px;
   display: inline-block;
@@ -73,7 +73,7 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
 .icon-info { color: var(--status-info-fg); }
 .icon-muted { color: var(--text-muted); }
 
-/* ── متغيرات الألوان الرسمية ────────────────────────────────── */
+/* ── متغيرات الألوان الرسمية ─── */
 :root {
   --maroon:       #8A1538;   /* Al Adaam — اللون الرئيسي */
   --maroon-dark:  #6b0f2a;   /* للـ hover */
@@ -304,7 +304,7 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --dur-slow:   350ms;
   --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* ══ رموزُ الأدوار — كلُّ لونٍ في قاعدةٍ يُقرأ من هنا ══════════════════
+  /* ══ رموزُ الأدوار — كلُّ لونٍ في قاعدةٍ يُقرأ من هنا ═══
      كانت هذه القيمُ حرفيّةً داخل القواعد (≈380 موضعاً)، ولكثيرٍ منها نظيرةٌ
      في `html.dark` تكرّر القاعدةَ بلونٍ ليليّ. فصار لكلّ دورٍ رمزٌ بقيمتين —
      هنا للنهار، وفي كتلة `html.dark` لليل — والنظيرةُ حُذفت حيث صارت زائدة.
@@ -437,11 +437,11 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --df-success-ring:       #81c784;
 }
 
-/* ── Box sizing عالمي ─────────────────────────────────────────── */
+/* ── Box sizing عالمي ─── */
 html { box-sizing: border-box; }
 *, *::before, *::after { box-sizing: inherit; }
 
-/* ── RTL عربي عام ─────────────────────────────────────────────── */
+/* ── RTL عربي عام ─── */
 html[lang="ar"] {
   letter-spacing: 0;
   hyphens: none;
@@ -455,11 +455,11 @@ html[lang="ar"] {
 
 /* (variables merged into :root above) */
 
-/* ── الخط العربي — Tajawal محلي (WOFF2 + TTF fallback) ─────
+/* ── الخط العربي — Tajawal محلي (WOFF2 + TTF fallback) ───
  * unicode-range يمنع تحميل الخط إلا عند الحاجة الفعلية
  * Arabic: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF
  * Latin:  U+0000-007F (Basic Latin — أرقام + حروف إنجليزية)
- * ────────────────────────────────────────────────────────── */
+ * ──────────────────── */
 /* ── رؤيةُ الوزارة مشكولةً بحركاتٍ زرقاء (قرارُ المالك 2026-09-20) ──
    `Tajawal Tashkeel` نسخةٌ من Tajawal ترسم الحركاتِ بلونٍ من لوحته (`scripts/build_tashkeel_fonts.py`) بدل لون النصّ،
    فيبقى وصلُ الحروف وتموضعُ الحركة كما هما (لفُّ الحركة في عنصرٍ كان يقطع الوصل). ولا يُستعمل إلّا لنصّ الرؤية
@@ -524,10 +524,10 @@ html[lang="ar"] {
   unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF;
 }
 
-/* ── خط Amiri — للجداول فقط (var(--q-font-data)) ──────────
+/* ── خط Amiri — للجداول فقط (var(--q-font-data)) ───
  * يُحمَّل فقط عند عرض عنصر يستخدم font-family: Amiri فعلاً
  * unicode-range يقلل الحجم من 759KB إلى ~120KB
- * ────────────────────────────────────────────────────────── */
+ * ──────────────────── */
 @font-face {
   font-family: 'Amiri';
   src: url('../../fonts/Amiri-Regular.woff2') format('woff2'),
