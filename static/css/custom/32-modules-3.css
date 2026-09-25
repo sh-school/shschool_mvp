@@ -849,8 +849,7 @@
   @media (min-width: 1029px) {
     .schedule-tools { flex-wrap: nowrap; }
   }
-  /* صفحاتُ الجداول: الورقةُ في إطارٍ بطول النافذة، بيضاءُ في الوضعين لأنّها ورقة.
-     والبطاقةُ التي تحمل شريطَ الأدوات والإطارَ بلا شريطٍ عنّابيّ — فليست
+  /* صفحاتُ الجداول: البطاقةُ التي تحمل شريطَ الأدوات والجدولَ بلا شريطٍ عنّابيّ — فليست
      `section_card` — بطاقةٌ عاريةٌ بالرموز نفسِها (سطحٌ وحدٌّ وزوايا وظلٌّ
      وحشو 18×20)، والمسافةُ العشرُ التي كانت تحت الترويسة صارت فوقها. */
   .schedule-pages-card {
@@ -876,17 +875,17 @@
   .pages-screen__title { font-size: var(--text-base); font-weight: 700; color: var(--maroon-fg); margin: 0 0 var(--sp-2); }
 
 /* ── templates/schedule/print_view.html ── */
-  /* الورقةُ على عرض الشاشة كلِّه بهامشٍ صغير: الجدولُ العامّ خمسةٌ وثلاثون
+  /* الجدولُ العامّ على عرض الشاشة كلِّه بهامشٍ صغير: خمسةٌ وثلاثون
      عموداً، وسقفُ المنصّة (max-w-7xl) يحشرها في 1280px على شاشةٍ عرضُها 2560. */
 
-  /* ── لوحُ المعلّم: الورقةُ تبقى ورقةً، والتحليلُ في المنصّة حولَها ──
+  /* ── لوحُ المعلّم: التحليلُ في المنصّة بجوار الجدول ──
      يظهر بالنقر على اسمٍ في الجدول العامّ، ويغيب بفكّ التثبيت. */
-  /* وفي الهاتف يقع اللوحُ تحت الورقة لا بجوارها: كان بعرضٍ ثابتٍ 250px إلى
-     جانب إطارٍ في شاشةٍ عرضُها 390px، فيضيق الجدولُ إلى نحو 140px متى فُتح. */
+  /* وفي الهاتف يقع اللوحُ تحت الجدول لا بجواره: كان بعرضٍ ثابتٍ 250px إلى
+     جانب جدولٍ في شاشةٍ عرضُها 390px، فيضيق إلى نحو 140px متى فُتح. */
   .schedule-stage { display: flex; flex-direction: column; gap: var(--sp-2-5); align-items: stretch; }
-  /* مسرحُ الجدول العامّ وحدَه الآن (2026-09-18): معلّمٌ وشعبةٌ صارا جدولاً
-     عاديّاً تحت `.table-wrap` بلا إطار، فبقي هذا المسرحُ للمصفوفة العريضة.
-     وطولُه بطول النافذة، والإطارُ يملؤه — ورقةٌ بيضاءُ في الوضعين.
+  /* مسرحُ الجدول العامّ وحدَه (2026-09-18): معلّمٌ وشعبةٌ جدولٌ عاديٌّ
+     تحت `.table-wrap` بلا مسرح، فبقي هذا المسرحُ للمصفوفة العريضة.
+     وطولُه بطول النافذة، وغلافُ المصفوفة (`.sheet-frame`) يملؤه.
      كان رقماً مقيساً يدويّاً (`calc(100vh - 450px)`) لارتفاع الترويسة
      والذيل معاً — ينكسر على أيّ نافذةٍ لم تُقَس (بلاغ 2026-09-23: الذيلُ
      يظهر في وسط الصفحة على نوافذَ أطول، والباقي فراغٌ إلى أسفلها). صار
@@ -905,17 +904,8 @@
     flex: 1 1 auto;
     min-block-size: 0;
   }
-  .schedule-sheet-frame {
-    inline-size: 100%;
-    block-size: auto;
-    align-self: stretch;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--on-fill);
-  }
   /* لافتةُ معاينة المسودّة: إطارٌ كهرمانيٌّ كي لا تُقرأ المسودّةُ جدولاً معتمَداً. */
   .schedule-draft-banner { border: 2px solid var(--status-warning); background: var(--surface-alt); }
-  .schedule-stage > iframe { flex: 1 1 auto; min-width: 0; min-height: 0; }
   .teacher-panel {
     flex: 0 0 auto; border: 1px solid var(--border); border-radius: var(--radius-md);
     background: var(--surface-alt); padding: var(--sp-3); overflow-y: auto;
@@ -955,6 +945,117 @@
     font: inherit; color: var(--text-secondary);
   }
   .teacher-panel .tp-close:hover { border-color: var(--maroon); }
+
+  /* ── الجدولُ العامّ على الشاشة (2026-09-25) ──
+     جدولٌ أصيلٌ بمكوّنات المنصّة: غلافُه `.table-wrap`، وألوانُ أقسامه أصنافُ `dept-*` المركزيّة، وخاناتُه من جزئيّة
+     `pdf/matrix_table.html` نفسِها التي تقرؤها الورقةُ (المعروضُ هو المطبوع). الحدودُ على الخلايا (`separate`) كي لا تفقدها
+     الخليّةُ اللاصقةُ عند التمرير، وبجهاتٍ ماديّةٍ لأنّ خانةَ الحصّة `direction: ltr` فتنقلب المنطقيّةُ معها. */
+  .sheet-frame { position: relative; flex: 1 1 auto; min-inline-size: 0; min-block-size: 0; }
+  .table-wrap.sheet-scroll { position: absolute; inset: 0; max-height: none; overflow: auto; }
+  .table-wrap .schedule-matrix {
+    --mx-head-h: 1.75rem; /* سطرُ الأيّام: عليه إزاحةُ سطر الحصص اللاصق */
+    table-layout: fixed; border-collapse: separate; border-spacing: 0;
+    font-size: clamp(0.5rem, 0.5vw, 0.75rem); line-height: 1.5;
+  }
+  .table-wrap .schedule-matrix th,
+  .table-wrap .schedule-matrix td {
+    padding: 0; text-align: center; vertical-align: middle; white-space: nowrap; overflow: hidden;
+    border-right: 1px solid var(--border-strong); border-bottom: 1px solid var(--border-strong);
+  }
+  /* الترويسةُ لاصقةٌ: سطرُ الأيّام عنّابيٌّ كترويسة المنصّة، وسطرُ الحصص أغمقُ تحته. */
+  .table-wrap .schedule-matrix thead th { font-size: inherit; border-color: color-mix(in srgb, var(--on-fill) 32%, transparent); }
+  .table-wrap .schedule-matrix thead .m-day { font-size: clamp(0.6875rem, 0.7vw, 1rem); block-size: var(--mx-head-h); }
+  .table-wrap .schedule-matrix thead tr:nth-child(2) { background: var(--maroon-dark); }
+  .table-wrap .schedule-matrix thead tr:nth-child(2) th { inset-block-start: calc(var(--mx-head-h) - 1px); }
+  .table-wrap .schedule-matrix thead .m-dept,
+  .table-wrap .schedule-matrix thead .m-name { z-index: calc(var(--z-raised) + 1); }
+  /* القسمُ خانةٌ ممتدّةٌ على سطور معلّميه (يُلَفّ نصُّها وحدَها)، والاسمُ أعرضُ الأعمدة فلا يُقصّ بنقاطٍ. */
+  .table-wrap .schedule-matrix .m-dept { inline-size: 5%; padding: var(--sp-0-5) var(--sp-1); font-weight: 700; line-height: 1.2; white-space: normal; border-right: 0; }
+  .table-wrap .schedule-matrix .m-name {
+    inline-size: 14%; padding-inline: var(--sp-1); text-align: start; font-weight: 600;
+    font-size: clamp(0.5625rem, 0.56vw, 0.8125rem); text-overflow: ellipsis; border-right-width: 2px;
+  }
+  .table-wrap .schedule-matrix .m-name.m-name-tagged { font-size: clamp(0.5rem, 0.5vw, 0.6875rem); }
+  .schedule-matrix .m-specialty { color: var(--maroon-fg); font-weight: 500; font-size: 0.875em; }
+  .table-wrap .schedule-matrix .m-total { inline-size: 3.5%; font-weight: 700; border-right-width: 2px; }
+  .table-wrap .schedule-matrix .m-cell { direction: ltr; position: relative; }
+  /* حدُّ اليوم أغلظُ من حدِّ الحصّة وإلّا ضاعت الأيّامُ في خمسٍ وثلاثين خانة. */
+  .table-wrap .schedule-matrix .m-day-start { border-right-width: 2px; border-right-color: var(--text-secondary); }
+  .table-wrap .schedule-matrix thead .m-day-start { border-right-color: color-mix(in srgb, var(--on-fill) 60%, transparent); }
+  /* الجسمُ: الخليّةُ تصبغ نفسَها بـ`--dept-c` (يكتبه الصنفُ المركزيّ على الصفّ) وإلّا شفّت اللاصقةُ عمّا تحتها. */
+  .table-wrap .schedule-matrix tbody td { background: var(--dept-c, var(--surface)); }
+  .table-wrap .schedule-matrix tbody:last-child tr:last-child td,
+  .table-wrap .schedule-matrix tfoot td { border-bottom: 0; }
+  .table-wrap .schedule-matrix tfoot td { background: var(--surface); font-weight: 700; }
+  /* خانةٌ دون المتوقَّع = شعبةٌ بلا معلّم: لونٌ وخطٌّ معاً فاللونُ يضيع على طابعةٍ بالأبيض والأسود. */
+  .table-wrap .schedule-matrix tfoot td.m-short { color: var(--status-danger-fg); text-decoration: underline; }
+  /* نوعُ الخانة في الأسبوع الفعليّ (إشغالٌ وتبديلٌ وتعويض) ومفتاحُه في شريط الأسبوع. */
+  .table-wrap .schedule-matrix tbody td.m-cell.mk-cover { background: var(--status-warning-bg); font-weight: 700; }
+  .table-wrap .schedule-matrix tbody td.m-cell.mk-swap  { background: var(--status-info-bg); font-weight: 700; }
+  .table-wrap .schedule-matrix tbody td.m-cell.mk-comp  { background: var(--status-success-bg); font-weight: 700; }
+  /* نقطةُ تفريغٍ في زاوية الخليّة الفارغة — القراراتُ الثلاثةُ الملوَّنةُ وحدَها، ومفتاحُها أسفل الجدول. */
+  .schedule-matrix .m-exempt-dot {
+    position: absolute; inset-block-start: 0; inset-inline-start: 0;
+    inline-size: 0.5625rem; block-size: 0.5625rem; line-height: 0.5625rem;
+    font-size: 0.3125rem; font-weight: 700; text-align: center; color: var(--on-fill); border-radius: 0 0 var(--radius-sm) 0;
+  }
+  .schedule-matrix .m-exempt-dot.exempt-ministry   { background: var(--accent-sky); }
+  .schedule-matrix .m-exempt-dot.exempt-school     { background: var(--accent-rose); }
+  .schedule-matrix .m-exempt-dot.exempt-department { background: var(--accent-green); }
+  /* التفاعل (`schedule-matrix.js`): صفٌّ بالمرور وعمودٌ بصنفٍ على خاناته — ودرجتُه أخفضُ من نوع الخانة فلا يمحو لونَه. */
+  .table-wrap .schedule-matrix tbody tr:hover > td,
+  .table-wrap .schedule-matrix td.is-hl { background: var(--status-warning-bg); }
+  .table-wrap .schedule-matrix tbody td.m-cell[data-c],
+  .table-wrap .schedule-matrix tbody td.m-name,
+  .table-wrap .schedule-matrix tbody td.m-total { cursor: pointer; }
+  /* التثبيت: الشعبةُ المثبَّتةُ تُضاء وما عداها يخفت (الخاناتُ وحدَها: الاسمُ اللاصقُ لا يشفّ). */
+  .table-wrap .schedule-matrix.has-pin tbody td.m-cell { opacity: .34; }
+  .table-wrap .schedule-matrix.has-pin tbody td.m-cell.is-pin { opacity: 1; background: var(--maroon); color: var(--on-fill); font-weight: 700; box-shadow: inset 0 0 0 1px var(--surface); }
+  .table-wrap .schedule-matrix.has-pin tbody tr.is-pin-row > td.m-cell { opacity: 1; }
+  .table-wrap .schedule-matrix.has-pin tbody tr.is-pin-row > td.m-name,
+  .table-wrap .schedule-matrix.has-pin tbody tr.is-pin-row > td.m-total { background: var(--maroon); color: var(--on-fill); }
+  .table-wrap .schedule-matrix.has-pin tbody tr.is-pin-row > td.m-name .m-specialty { color: var(--maroon-border); }
+  /* البحث: غيرُ المطابق يخفت ولا يختفي فالسطرُ يبقى في موضعه. */
+  .table-wrap .schedule-matrix tbody tr.is-dim > td.m-cell,
+  .table-wrap .schedule-matrix tbody tr.is-dim > td.m-total { opacity: .18; }
+  .table-wrap .schedule-matrix tbody tr.is-dim > td.m-name { color: var(--text-muted); }
+  .table-wrap .schedule-matrix td.is-focus { outline: 2px solid var(--focus-color); outline-offset: -2px; }
+  /* بطاقةُ الخانة: حصّةٌ بتفصيلها، أو فراغٌ بمن يفرُغ معه. */
+  .mx-tip {
+    position: fixed; z-index: var(--z-dropdown); max-inline-size: 320px; pointer-events: none;
+    background: var(--surface); color: var(--text-primary); border: 1px solid var(--maroon); border-radius: var(--radius-md);
+    padding: var(--sp-2) var(--sp-2-5); font-size: var(--text-xs); line-height: 1.7; box-shadow: var(--shadow-dropdown);
+    opacity: 0; transition: opacity var(--transition-fast);
+  }
+  .mx-tip.is-on { opacity: 1; }
+  .mx-tip .t-head { font-weight: 700; color: var(--maroon-fg); border-bottom: 1px solid var(--border); padding-block-end: var(--sp-1); margin-block-end: var(--sp-1); }
+  .mx-tip .t-line { display: block; }
+  .mx-tip .t-muted { color: var(--text-muted); }
+  .mx-tip .t-spec { color: var(--maroon-fg); font-weight: 500; }
+  .mx-tip .t-free { color: var(--status-success-fg); font-weight: 600; }
+  .mx-tip .t-none { color: var(--status-danger-fg); font-weight: 600; }
+  .sheet-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2-5); margin-block-start: var(--sp-2); }
+  .sheet-foot .is-short { color: var(--status-danger-fg); font-weight: 700; }
+  /* الهاتفُ واللوحيُّ الضيّق: الجدولُ بعرضه الطبيعيّ يُمرَّر أفقيّاً وعمودا القسم والمعلّم لاصقان (كانت الخانةُ ثمانيةَ بكسلات).
+     والعرضُ صريحٌ لأنّ إزاحةَ الثاني تُحسب منه، والحدُّ ظلٌّ داخليٌّ لأنّ حدَّ الخانة المجاورة يسافر معها. */
+  @media (max-width: 900px) {
+    .table-wrap .schedule-matrix { table-layout: auto; inline-size: max-content; min-inline-size: 100%; font-size: 0.75rem; }
+    .table-wrap .schedule-matrix th,
+    .table-wrap .schedule-matrix td { padding: var(--sp-0-5); line-height: 1.6; }
+    .table-wrap .schedule-matrix .m-cell { min-inline-size: 30px; }
+    .table-wrap .schedule-matrix thead .m-day { font-size: 0.8125rem; }
+    .table-wrap .schedule-matrix thead .m-period { font-size: 0.6875rem; }
+    .table-wrap .schedule-matrix .m-dept { position: sticky; inset-inline-start: 0; z-index: 2; inline-size: 60px; min-inline-size: 60px; max-inline-size: 60px; font-size: 0.625rem; }
+    .table-wrap .schedule-matrix .m-name {
+      position: sticky; inset-inline-start: 60px; z-index: 2; inline-size: 150px; min-inline-size: 150px; max-inline-size: 150px;
+      font-size: 0.78125rem; white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.35;
+      box-shadow: inset 1px 0 0 var(--border-strong);
+    }
+    .table-wrap .schedule-matrix .m-name.m-name-tagged { font-size: 0.6875rem; }
+    .table-wrap .schedule-matrix thead .m-dept,
+    .table-wrap .schedule-matrix thead .m-name { z-index: calc(var(--z-raised) + 1); }
+    .table-wrap .schedule-matrix tfoot .m-name[colspan] { inset-inline-start: 0; inline-size: 210px; min-inline-size: 210px; max-inline-size: 210px; }
+  }
 
   /* ── جدولُ معلّمٍ أو شعبةٍ على الشاشة (2026-09-18) ──
      جزئيّةُ البيانات نفسُها التي تملأ ورقة الطباعة (`week_grid.html`)، هنا

@@ -1,15 +1,14 @@
-/* schedule-matrix.js — طبقةُ التفاعل على «الجدول العام للمعلمين».
+/* schedule-matrix.js — طبقةُ التفاعل على «الجدول العام للمعلمين» في صفحة المنصّة.
  *
- * تعيش داخل ورقةِ الطباعة نفسِها حين تُعرض في إطار المنصّة (`?embed=1`)،
- * ولا تُحمَّل في الطباعة ولا في تصدير PDF/Excel — فالورقةُ المطبوعةُ لا
- * ترى منها محرفاً.
+ * الجدولُ في الصفحة نفسِها (قرارُ 2026-09-25) لا في إطارٍ: فلوحُ المعلّم وحقلُ البحث وزرُّ فكّ التثبيت
+ * في المستند ذاتِه، بلا رسائلَ بين وثيقتين. والورقةُ المطبوعةُ لا تحمّل هذا الملفَّ أصلاً — لا في الطباعة
+ * ولا في تصدير PDF/Excel — فالمطبوعُ لا يرى منه محرفاً.
  *
- * قراءةٌ فقط: إضاءةٌ وتثبيتٌ وبطاقاتُ تفصيل. لا تكتب في قاعدة البيانات،
- * ولا ترسل طلباً إلى الخادم — كلُّ ما تعرضه محسوبٌ من الورقة الحاضرة.
+ * قراءةٌ فقط: إضاءةٌ وتثبيتٌ وبطاقاتُ تفصيل. لا تكتب في قاعدة البيانات، ولا ترسل طلباً إلى الخادم —
+ * كلُّ ما تعرضه محسوبٌ من الجدول الحاضر.
  *
- * وأربعةُ آلافِ خانةٍ لا تحتمل مستمعاً لكلِّ واحدةٍ منها: الأحداثُ مفوَّضةٌ
- * على الجدول، والإضاءةُ العموديّةُ سمةٌ واحدةٌ عليه يتولّى النمطُ أثرَها —
- * فلا لمسَ لعُقدٍ في حلقة.
+ * وآلافُ الخانات لا تحتمل مستمعاً لكلِّ واحدةٍ منها: الأحداثُ مفوَّضةٌ على الجدول، والإضاءةُ العموديّةُ
+ * صنفٌ على خانات العمود الواحد (نحو ثلاثٍ وسبعين خانةً) لا على الآلاف.
  */
 (function () {
   'use strict';
@@ -19,6 +18,9 @@
 
   var tbody = table.tBodies[0];
   var rows = Array.prototype.slice.call(tbody.rows);
+  var panel = document.getElementById('teacher-panel');
+  var search = document.getElementById('schedule-search');
+  var unpinBtn = document.getElementById('schedule-unpin');
   var dayNames = Array.prototype.map.call(
     table.querySelectorAll('thead .m-day'),
     function (th) { return th.textContent.trim(); }
@@ -41,6 +43,35 @@
     return String(t).replace(/[&<>"]/g, function (c) {
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
     });
+  }
+
+  /* ── خاناتُ العمود الواحد: تُجمع مرّةً واحدةً عند أوّل إضاءة ── */
+  var byCol = null;
+  var litCol = -1;
+
+  function colCells(col) {
+    if (!byCol) {
+      byCol = [];
+      for (var c = 0; c < COLS; c++) byCol.push([]);
+      Array.prototype.forEach.call(table.querySelectorAll('td[data-col]'), function (td) {
+        var i = +td.getAttribute('data-col');
+        if (byCol[i]) byCol[i].push(td);
+      });
+    }
+    return byCol[col] || [];
+  }
+
+  function lightCol(col) {
+    if (col === litCol) return;
+    unlightCol();
+    colCells(col).forEach(function (td) { td.classList.add('is-hl'); });
+    litCol = col;
+  }
+
+  function unlightCol() {
+    if (litCol < 0) return;
+    colCells(litCol).forEach(function (td) { td.classList.remove('is-hl'); });
+    litCol = -1;
   }
 
   /* ── من يفرُغ في هذا العمود؟ ──
@@ -70,7 +101,7 @@
   document.body.appendChild(tip);
 
   var live = document.createElement('div');
-  live.className = 'mx-sr';
+  live.className = 'sr-only';
   live.setAttribute('aria-live', 'polite');
   document.body.appendChild(live);
 
@@ -140,47 +171,7 @@
     };
   }
 
-  function post(msg) {
-    if (window.parent && window.parent !== window) {
-      window.parent.postMessage(msg, window.location.origin);
-    }
-  }
-
-  /* ── التثبيت ── */
-  var pinned = null;      // رمزُ الشعبة المثبَّتة
-  var pinnedRow = null;   // صفُّ المعلّم المثبَّت
-
-  function clearPins() {
-    if (pinned) {
-      Array.prototype.forEach.call(tbody.querySelectorAll('td.is-pin'), function (td) {
-        td.classList.remove('is-pin');
-      });
-      pinned = null;
-    }
-    if (pinnedRow) { pinnedRow.classList.remove('is-pin-row'); pinnedRow = null; }
-    table.classList.remove('has-pin');
-    syncHint();
-    post({ type: 'schedule:clear' });
-  }
-
-  function pinClass(code) {
-    var was = pinned;
-    clearPins();
-    if (was === code) return;
-    var n = 0;
-    rows.forEach(function (tr) {
-      Array.prototype.forEach.call(cellsOf(tr), function (td) {
-        if (codesOf(td).indexOf(code) !== -1) { td.classList.add('is-pin'); n++; }
-      });
-    });
-    if (!n) return;
-    pinned = code;
-    table.classList.add('has-pin');
-    live.textContent = 'ثُبِّتت الشعبة ' + code + ' — ' + n + ' حصّة';
-    syncHint();
-  }
-
-  /* لوحُ المعلّم: يُحسب هنا ويُرسَل إلى الصفحة الحاضنة.
+  /* ── لوحُ المعلّم ──
      الفراغُ فراغٌ بين حصّتين في اليوم — لا الفراغُ قبل أوّلها ولا بعد آخرها. */
   function teacherReport(tr) {
     var cells = cellsOf(tr);
@@ -204,7 +195,6 @@
       if (busy.length > 1) gaps += (busy[busy.length - 1] - busy[0] + 1) - busy.length;
     }
     return {
-      type: 'schedule:teacher',
       name: tr.getAttribute('data-teacher') || '',
       specialty: tr.getAttribute('data-specialty') || '',
       dept: tr.getAttribute('data-dept') || '',
@@ -215,6 +205,81 @@
     };
   }
 
+  function dayBar(day) {
+    var cells = '';
+    for (var p = 1; p <= 7; p++) {
+      var on = day.periods.indexOf(p) !== -1;
+      cells += '<i class="tp-slot' + (on ? ' on' : '') + '" title="الحصّة ' + p + '"></i>';
+    }
+    return '<div class="tp-day"><span class="tp-day-name">' + esc(day.name) +
+           '</span><span class="tp-bar">' + cells +
+           '</span><span class="tp-count">' + day.count + '</span></div>';
+  }
+
+  function showPanel(d) {
+    if (!panel) return;
+    panel.innerHTML =
+      '<h2>' + esc(d.name) +
+        (d.specialty ? ' <span class="tp-spec">(' + esc(d.specialty) + ')</span>' : '') + '</h2>' +
+      '<div class="tp-dept">قسم ' + esc(d.dept) + '</div>' +
+      '<div class="tp-nums">' +
+        '<div class="tp-num"><b>' + d.total + '</b><span>النصاب</span></div>' +
+        '<div class="tp-num"><b>' + d.gaps + '</b><span>فراغات</span></div>' +
+        '<div class="tp-num"><b>' + d.longest + '</b><span>أطول سلسلة</span></div>' +
+      '</div>' +
+      d.days.map(dayBar).join('') +
+      '<button type="button" class="tp-close">إغلاق اللوح</button>';
+    panel.hidden = false;
+  }
+
+  function hidePanel() {
+    if (panel) panel.hidden = true;
+  }
+
+  if (panel) {
+    panel.addEventListener('click', function (e) {
+      if (e.target.closest && e.target.closest('.tp-close')) clearPins();
+    });
+  }
+
+  /* ── التثبيت ── */
+  var pinned = null;      // رمزُ الشعبة المثبَّتة
+  var pinnedRow = null;   // صفُّ المعلّم المثبَّت
+
+  function syncUnpin() {
+    if (unpinBtn) unpinBtn.hidden = !(pinned || pinnedRow);
+  }
+
+  function clearPins() {
+    if (pinned) {
+      Array.prototype.forEach.call(tbody.querySelectorAll('td.is-pin'), function (td) {
+        td.classList.remove('is-pin');
+      });
+      pinned = null;
+    }
+    if (pinnedRow) { pinnedRow.classList.remove('is-pin-row'); pinnedRow = null; }
+    table.classList.remove('has-pin');
+    hidePanel();
+    syncUnpin();
+  }
+
+  function pinClass(code) {
+    var was = pinned;
+    clearPins();
+    if (was === code) return;
+    var n = 0;
+    rows.forEach(function (tr) {
+      Array.prototype.forEach.call(cellsOf(tr), function (td) {
+        if (codesOf(td).indexOf(code) !== -1) { td.classList.add('is-pin'); n++; }
+      });
+    });
+    if (!n) return;
+    pinned = code;
+    table.classList.add('has-pin');
+    live.textContent = 'ثُبِّتت الشعبة ' + code + ' — ' + n + ' حصّة';
+    syncUnpin();
+  }
+
   function pinTeacher(tr) {
     var was = pinnedRow;
     clearPins();
@@ -222,10 +287,12 @@
     pinnedRow = tr;
     tr.classList.add('is-pin-row');
     table.classList.add('has-pin');
-    post(teacherReport(tr));
+    showPanel(teacherReport(tr));
     live.textContent = 'جدول ' + (tr.getAttribute('data-teacher') || '');
-    syncHint();
+    syncUnpin();
   }
+
+  if (unpinBtn) unpinBtn.addEventListener('click', clearPins);
 
   /* ── البحث: غيرُ المطابق يخفت ولا يختفي، فالسطرُ يبقى في موضعه ── */
   function applyFilter(q) {
@@ -249,32 +316,25 @@
     }
   }
 
-  /* ── شريطُ الإرشاد ── */
-  var hint = document.createElement('div');
-  hint.className = 'mx-hint';
-  hint.innerHTML =
-    '<span><b>مرور</b> يُضيء الصفَّ والعمود</span>' +
-    '<span><b>نقر على خانة</b> يثبّت الشعبة عبر الجدول</span>' +
-    '<span><b>نقر على اسم</b> يفتح لوح المعلّم</span>' +
-    '<span><b>الأسهم</b> تنقّل · <b>Esc</b> تفكّ</span>' +
-    '<button type="button" class="mx-clear" hidden>فكّ التثبيت (Esc)</button>';
-  var wrap = document.querySelector('.matrix-wrap');
-  if (wrap && wrap.parentNode) wrap.parentNode.insertBefore(hint, wrap);
-  var clearBtn = hint.querySelector('.mx-clear');
-  clearBtn.addEventListener('click', clearPins);
-
-  function syncHint() { clearBtn.hidden = !(pinned || pinnedRow); }
+  if (search) {
+    var searchTimer = null;
+    search.addEventListener('input', function () {
+      clearTimeout(searchTimer);
+      var q = search.value;
+      searchTimer = setTimeout(function () { applyFilter(q); }, 160);
+    });
+    search.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { search.value = ''; applyFilter(''); }
+    });
+  }
 
   /* ── الأحداث: مفوَّضةٌ على الجدول ── */
   table.addEventListener('mouseover', function (e) {
     var td = e.target.closest ? e.target.closest('td') : null;
     if (!td || !table.contains(td)) return;
 
-    if (td.hasAttribute('data-col')) {
-      table.setAttribute('data-hl-col', td.getAttribute('data-col'));
-    } else {
-      table.removeAttribute('data-hl-col');
-    }
+    if (td.hasAttribute('data-col')) lightCol(+td.getAttribute('data-col'));
+    else unlightCol();
 
     if (td.classList.contains('m-cell') && td.parentNode.hasAttribute('data-teacher')) {
       var t = cellTip(td);
@@ -289,7 +349,7 @@
   });
 
   table.addEventListener('mouseleave', function () {
-    table.removeAttribute('data-hl-col');
+    unlightCol();
     hideTip();
   });
 
@@ -310,7 +370,7 @@
     }
   });
 
-  /* ── لوحةُ المفاتيح: تركيزٌ متجوّلٌ لا أربعةُ آلافِ محطّة ── */
+  /* ── لوحةُ المفاتيح: تركيزٌ متجوّلٌ لا آلافُ المحطّات ── */
   var focused = null;
 
   function focusCell(tr, col) {
@@ -324,7 +384,7 @@
     td.classList.add('is-focus');
     td.setAttribute('tabindex', '-1');
     td.focus();
-    table.setAttribute('data-hl-col', String(col));
+    lightCol(col);
     var t = cellTip(td);
     var r = td.getBoundingClientRect();
     showTip(t.html, r.left + r.width / 2, r.bottom, t.speak);
@@ -356,13 +416,4 @@
     focusCell(rows[idx], col);
     e.preventDefault();
   });
-
-  /* ── أوامرُ الصفحة الحاضنة ── */
-  window.addEventListener('message', function (e) {
-    if (e.origin !== window.location.origin || !e.data) return;
-    if (e.data.type === 'schedule:filter') applyFilter(e.data.q);
-    if (e.data.type === 'schedule:clear') clearPins();
-  });
-
-  post({ type: 'schedule:ready' });
 })();
