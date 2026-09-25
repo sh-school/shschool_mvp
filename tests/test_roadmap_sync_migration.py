@@ -2259,21 +2259,21 @@ def test_0025_adds_a_short_u03_note_without_touching_its_state_dates_or_dependen
     assert "لا تطابق" in u03.note and "لم يُغيَّر موعدُه ولا اعتماديّاتُه" in u03.note
 
 
-def test_0025_widens_sch16_by_a_note_and_adds_a_doc_fix_note_to_sch19_without_moving_either():
+def test_0025_widens_sch16_by_a_note_and_registers_no_doc_fix_debt_on_sch19():
     _item("SCH-16", "todo", 0)
     _item("SCH-19", "todo", 0)
-    assert _sync25.sync_notes(RoadmapItem) == ["SCH-16", "SCH-19"]
+    assert _sync25.sync_notes(RoadmapItem) == ["SCH-16"]
     assert _sync25.sync_notes(RoadmapItem) == []
     sch16 = RoadmapItem.objects.get(code="SCH-16")
     assert (sch16.status, sch16.progress) == ("todo", 0)
     assert (
         "998 من سقف 1000" in sch16.note
         and "يشمل المختبر" in sch16.note
-        and "لم يُغيَّر موعدُه ولا معيارُه" in sch16.note
+        and "latest_baseline" in sch16.note
     )
-    sch19 = RoadmapItem.objects.get(code="SCH-19")
-    assert (sch19.status, sch19.progress) == ("todo", 0)
-    assert "ستّةَ عشرَ مؤشراً" in sch19.note and "25" in sch19.note
+    assert "لم يُغيَّر موعدُه ولا معيارُه" in sch16.note
+    # تصحيحُ الترويسة أُصلح محلّياً عند 8033: لا دَينَ ولا ملاحظة على SCH-19.
+    assert RoadmapItem.objects.get(code="SCH-19").note == ""
 
 
 def test_0025_leaves_sch11_the_developer_moved():
