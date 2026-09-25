@@ -4,7 +4,7 @@ import importlib
 
 import pytest
 
-from roadmap.models import RoadmapItem, RoadmapKpi
+from roadmap.models import RoadmapDecision, RoadmapItem, RoadmapKpi
 
 pytestmark = pytest.mark.django_db
 
@@ -1091,11 +1091,35 @@ def test_0018_keeps_a_debt_the_developer_wrote_first():
     assert RoadmapItem.objects.get(code="DBT-55").title == "كتبه المطوّر"
 
 
+def test_0018_opens_d21_for_discussion_and_never_decides_it():
+    assert _sync18.add_decisions(RoadmapDecision) == ["D-21"]
+    assert _sync18.add_decisions(RoadmapDecision) == []
+    d21 = RoadmapDecision.objects.get(code="D-21")
+    assert (d21.status, d21.decider, d21.decision_date, d21.src) == ("open", "المالك", None, "OWN")
+    # موافقةُ المالك منقولةٌ من جلسةٍ أخرى لا مؤكَّدةٌ هنا: يُقال ذلك، ويُنسب العملُ لصاحبته 8061 لا 8033.
+    assert "مفتوحاً للنقاش" in d21.recommendation and "8061" in d21.recommendation
+    assert "نفت" in d21.recommendation and "2026-09-27" in d21.recommendation
+    assert d21.sort_order == _sync18.DECISIONS_FIRST_ORDER == 127
+
+
+def test_0018_keeps_a_d21_the_owner_already_decided():
+    RoadmapDecision.objects.create(code="D-21", title="حسمه المالك", status="decided")
+    assert _sync18.add_decisions(RoadmapDecision) == []
+    d21 = RoadmapDecision.objects.get(code="D-21")
+    assert (d21.status, d21.title) == ("decided", "حسمه المالك")
+
+
+def test_0018_registers_no_item_for_the_weekly_schedule_prs_before_they_merge():
+    prs = [row[4] for row in _sync18.UPDATES] + [row[3] for row in _sync18.NEW_ITEMS]
+    assert not any("#577" in pr for pr in prs)
+    assert "#577" not in _sync18.CLOSED_BY_PR.values()
+
+
 def test_0018_does_nothing_on_an_empty_database():
     class _Apps:
         @staticmethod
-        def get_model(_app, _name):
-            return RoadmapItem
+        def get_model(_app, name):
+            return RoadmapDecision if name == "RoadmapDecision" else RoadmapItem
 
     _sync18.forwards(_Apps, None)
     assert RoadmapItem.objects.count() == 0
@@ -1104,8 +1128,8 @@ def test_0018_does_nothing_on_an_empty_database():
 def test_0018_forwards_is_idempotent_on_a_seeded_database():
     class _Apps:
         @staticmethod
-        def get_model(_app, _name):
-            return RoadmapItem
+        def get_model(_app, name):
+            return RoadmapDecision if name == "RoadmapDecision" else RoadmapItem
 
     _seed18()
     _sync18.forwards(_Apps, None)
