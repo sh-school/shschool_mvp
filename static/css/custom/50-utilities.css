@@ -263,7 +263,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   .site-header .nav-bell, .breadcrumbs a, .btn-xs, .notif-group-switch__opt, a.status-badge, .staff-name {
     display: inline-flex; align-items: center; justify-content: center;
   }
-  /* الرابطُ والملخّصُ لا يوسّطان محتواهما (والزرُّ يوسّطه)؛ وgap يعوّض مسافةَ الأيقونة التي يحذفها inline-flex */
+  /* gap يعوّض مسافةَ الأيقونة التي يحذفها inline-flex */
   :is(a, summary).btn-sm { display: inline-flex; align-items: center; justify-content: center; }
   :is(a, summary).btn-sm, .btn-xs { gap: var(--sp-1); }
   .ui-tip__btn { margin-block: calc(-1 * var(--sp-2)); } /* لا يُكبّر شريطَ البطاقة */
@@ -271,8 +271,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   .card-bar .ui-tip--warning .ui-tip__btn { padding: var(--sp-2-5); background-clip: content-box; }
 }
 
-/* DBT-45: الخانةُ وزرُّ الاختيار 24px لكلّ مؤشّر (WCAG 2.5.8، D1 للفأرة) — كانت على coarse وحدَه فبقيت 16px
-   في clinic-check على سطح المكتب. وعلى اللمس تكمّل التسميةُ المرتبطةُ الهدفَ إلى 44px (تحسبه السقّاطةُ اتّحاداً). */
+/* DBT-45: الخانةُ وزرُّ الاختيار 24px لكلّ مؤشّر (D1)؛ وعلى اللمس تكمّلها التسميةُ */
 input[type="checkbox"], input[type="radio"] { min-inline-size: 24px; min-block-size: 24px; }
 
 /* في طبقة utilities لا components: `.exec-dash{display:grid}` و`.qeval-staff{max-height}` في modules،
