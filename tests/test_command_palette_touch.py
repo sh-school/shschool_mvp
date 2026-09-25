@@ -16,6 +16,8 @@ from pathlib import Path
 import pytest
 from django.urls import reverse
 
+from tests.css_contrast import iter_rules
+from tests.css_source import read_css
 from tests.test_quality_new_views import make_admin
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -84,3 +86,20 @@ def test_a_signed_in_page_renders_one_button_inside_the_header(client, school):
 def test_the_login_page_has_neither_the_button_nor_the_palette(client):
     html = client.get(reverse("login")).content.decode()
     assert "nav-search-btn" not in html and "cmd-palette" not in html
+
+
+def test_the_user_button_never_shrinks_below_its_avatar():
+    """زرٌّ رابعٌ في صفّ الترويسة يضغط ما بجواره: كان زرُّ المستخدم يُسمح له بالانضغاط دون محتواه
+    (الأفاتار والسهم 52px) فيفيض ما فيه خارجَ الشاشة — 9px عند 375 فتمرّرت كلُّ صفحةٍ أفقيّاً. الانضغاطُ
+    للشعار وحدَه (اسمُ المدرسة يُقصّ بنقاط)."""
+    targets = {".nav-user-btn", ".site-header .nav-user-btn"}
+    shrink, floors = [], []
+    for selector, decls, _ctx in iter_rules(read_css()):
+        if not targets & {" ".join(part.split()) for part in selector.split(",")}:
+            continue
+        if "flex-shrink" in decls:
+            shrink.append(decls["flex-shrink"].strip())
+        if decls.get("min-width", "").strip() in {"0", "0px"}:
+            floors.append(selector)
+    assert shrink and set(shrink) == {"0"}, f"flex-shrink لزرّ المستخدم: {shrink}"
+    assert not floors, f"min-width: 0 يسمح بانضغاطه دون محتواه: {floors}"

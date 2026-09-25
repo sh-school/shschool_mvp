@@ -101,9 +101,9 @@
 
     <div class="nav-spacer"></div>
 
-    {% comment %}بحثٌ سريع: مدخلُ لمسٍ للوحة الأوامر (Ctrl+K لا يوجد على الجوال) — شرطُه شرطُ وجودها. يشارك `.theme-toggle` مظهرَه ومنطقةَ لمسه (44px على المؤشّر الخشن، ويُخفى في الطباعة)؛ و`.nav-search` مقبضٌ للاختبار لا أنماطَ له — ميزانيّةُ CSS لا تحتمل قاعدةً مكرَّرة.{% endcomment %}
+    {% comment %}بحثٌ سريع: مدخلُ لمسٍ للوحة الأوامر (Ctrl+K لا يوجد على الجوال) — شرطُه شرطُ وجودها. يشارك `.theme-toggle` مظهرَه ومنطقةَ لمسه (44px على المؤشّر الخشن، ويُخفى في الطباعة) — ميزانيّةُ CSS لا تحتمل قاعدةً مكرَّرة، والصنفُ بلا تعريفٍ يُسقط حارسَ الهويّة؛ فالمقبضُ معرِّفُه `#nav-search-btn`.{% endcomment %}
     {% if user.is_authenticated %}
-    <button type="button" class="theme-toggle nav-search" id="nav-search-btn" data-call="openPalette"
+    <button type="button" class="theme-toggle" id="nav-search-btn" data-call="openPalette"
             aria-haspopup="dialog" aria-controls="cmd-palette" aria-label="بحث سريع" title="بحث سريع (Ctrl+K)">{% icon "search" %}</button>
     {% endif %}
 
