@@ -4589,6 +4589,25 @@ def test_0033_closes_own30_and_adds_the_615_token_to_the_already_done_own21():
     )
 
 
+def test_0033_moves_n042_to_83_percent_with_the_worker_verification_and_sentry_reading_and_keeps_it_open():
+    _item("N-042", "doing", 0)
+    assert _sync33.sync(RoadmapItem) == ["N-042"]
+    assert _sync33.sync(RoadmapItem) == []
+    n42 = RoadmapItem.objects.get(code="N-042")
+    assert (n42.status, n42.progress, n42.pr) == ("doing", 83, "#626")
+    assert "270 ملفّاً ساكناً" in n42.note and "staticfiles.json" in n42.note
+    assert "RENDER" not in n42.note and "بوضعَي الشاشة وPDF" in n42.note
+    assert "لم يُتحقَّق بعد" in n42.note and "تصديرُ schedule.pdf A3" in n42.note
+    assert "قُرئ Sentry بعد النشر" in n42.note and "نافذةٌ قصيرةٌ" in n42.note
+    assert "خمسُ خطواتٍ من ستّ" in n42.note
+    assert "اشتقاقٌ لا قياس" in n42.note and "خارجَ نطاق الإصلاح" in n42.note
+
+
+def test_0033_leaves_an_n042_the_developer_moved():
+    _item("N-042", "done", 100)
+    assert _sync33.sync(RoadmapItem) == []
+
+
 def test_0033_records_the_measurements_and_what_was_not_verified():
     _item("OWN-30", "todo", 0)
     _item("OWN-21", "done", 100)
