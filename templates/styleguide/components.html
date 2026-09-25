@@ -47,6 +47,7 @@
       <li>القيمةُ المكتوبة تحت الاسم قيمةُ الوضع الحاليّ؛ بدِّل الوضعَ تتبدّل.</li>
       <li>في القالب: <code>var(--maroon-fg)</code> لا رقمٌ سداسيّ. واللونُ الذي يُحمل بياناً يُمرَّر متغيّراً: <code>style="--swatch:var(--maroon)"</code>.</li>
       <li><code>-fg</code> يُقرأ نصّاً على سطحٍ محايد، والاسمُ بلا لاحقةٍ يملأ، و<code><bdi dir="ltr">--on-fill</bdi></code> ما يُكتب فوق الحشو.</li>
+      <li><b>الذهبيُّ لونُ تمييزٍ لا نصّ (D-15):</b> <code><bdi dir="ltr">--gold-mark</bdi></code> للأيقونة على العنّابيّ أو الداكن (تباينُه 4.2:1 على <code><bdi dir="ltr">--maroon</bdi></code>)، والحدودُ والعلاماتُ <code><bdi dir="ltr">--gold</bdi></code>؛ وعلى السطح الفاتح 2.2:1 فلا يُكتب هناك. والنصُّ <code>-fg</code> أو <code><bdi dir="ltr">--text-*</bdi></code> — ويمنع <code>test_identity_roles</code> كتابةَ <code>gold</code> و<code>palm</code> و<code>sea</code> و<code>maroon-light</code> لوناً للنصّ.</li>
     </ul>
   {% endif %}{% endsection_card %}
 
@@ -82,7 +83,7 @@
       <li>الحجمُ بـ<code>var(--text-*)</code> أو <code>rem</code> لا <code>px</code> — فيتبع تكبيرَ المستخدم؛ والجذرُ 16px لا يُضبط (<code>test_px_tokens</code>).</li>
       <li>النصُّ العربيُّ الطويل بـ<code><bdi dir="ltr">--lh-ar</bdi></code> لتتّسع الحركات، والعناوينُ بـ<code><bdi dir="ltr">--lh-tight</bdi></code>.</li>
       <li>الأرقامُ في الجداول بعرضٍ ثابت (<code>td.num</code> ← <code>tabular-nums</code>) فتتحاذى منازلُها.</li>
-      <li><code>Tajawal Tashkeel</code> للنصّ المشكول وحدَه (رؤيةُ المدرسة) يرسم الحركاتِ بلونٍ من لوحته؛ و<code>Amiri</code> لجداول الجودة وحدَها (<code><bdi dir="ltr">--q-font-data</bdi></code>) ولا يُحمَّل إلّا حيث يُستعمل.</li>
+      <li><code>Tajawal Tashkeel</code> للنصّ المشكول وحدَه (رؤيةُ المدرسة) يرسم الحركاتِ بلونٍ من لوحته. وTajawal هو خطُّ الويب كلِّه — جداولُ الجودة منه؛ و<code>Amiri</code> للـPDF وحدَه (ملفّاتُ TTF في <code>core/pdf_utils.py</code>) ويمنعه <code>test_identity_roles</code> من أنماط الويب (D-15).</li>
     </ul>
   {% endsection_card %}
 

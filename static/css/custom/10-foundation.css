@@ -80,7 +80,8 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   --maroon-bg:    #fdf2f5;   /* خلفية خفيفة */
   --maroon-border:#e8b4c3;   /* حدود خفيفة */
 
-  --gold:         #D4A843;   /* ذهبي — للتمييز في الحدود والأيقونات */   /* ذهبي فاتح */
+  --gold:         #D4A843;   /* ذهبي — تمييزٌ على العنّابيّ والداكن: حدٌّ أو أيقونةٌ لا نصٌّ ولا حشو */
+  --gold-mark:    var(--gold);   /* دورُ الأيقونة على العنّابيّ/الداكن — لا يُكتب --gold لوناً */
 
   --skyline:      #0D4261;   /* أزرق داكن */
   --palm:         #129B82;   /* أخضر */
@@ -226,7 +227,6 @@ html[dir="rtl"] .icon-mirror { transform: scaleX(-1); }
   /* وحدةُ الجودة كان لها عنّابيٌّ ثانٍ (#8d1b3d) يخالف علامةَ المنصّة — رُدّ إليها */
   --q-silver: #C0C0C0;
   --q-silver-light: rgba(192,192,192,0.3);
-  --q-font-data: 'Amiri', serif;
   --q-font-ui: inherit;
   --q-radius: 8px;
   --q-transition: 0.2s ease;
@@ -521,31 +521,6 @@ html[lang="ar"] {
   font-style: normal;
   font-display: swap;
   unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF;
-}
-
-/* ── خط Amiri — للجداول فقط (var(--q-font-data)) ───
- * يُحمَّل فقط عند عرض عنصر يستخدم font-family: Amiri فعلاً
- * unicode-range يقلل الحجم من 759KB إلى ~120KB
- * ──────────────────── */
-@font-face {
-  font-family: 'Amiri';
-  src: url('../../fonts/Amiri-Regular.woff2') format('woff2'),
-       url('../../fonts/Amiri-Regular.ttf') format('truetype');
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
-                 U+0000-007F, U+00A0-00FF, U+0660-066F;
-}
-@font-face {
-  font-family: 'Amiri';
-  src: url('../../fonts/Amiri-Bold.woff2') format('woff2'),
-       url('../../fonts/Amiri-Bold.ttf') format('truetype');
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-  unicode-range: U+0600-06FF, U+200C-200D, U+FB50-FDFF, U+FE70-FEFF,
-                 U+0000-007F, U+00A0-00FF, U+0660-066F;
 }
 
 body {

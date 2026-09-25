@@ -70,7 +70,6 @@
   vertical-align: middle;
   font-size: 0.78125rem;
   line-height: 1.65;
-  font-family: var(--q-font-data);
   font-weight: 400;
   color: var(--text-secondary);
 }
@@ -93,7 +92,6 @@
   white-space: normal;
   word-break: break-word;
   line-height: 1.65;
-  font-family: var(--q-font-data);
   color: var(--text-secondary);
   min-width: 160px;
   max-width: 260px;
@@ -332,7 +330,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--gold);
+  color: var(--gold-mark);
   font-size: 1.1rem;
 }
 .q-modal-header h3 {
@@ -358,7 +356,7 @@
 }
 .q-modal-header .close-btn:hover {
   background: color-mix(in srgb, var(--on-fill) 10%, transparent);
-  color: var(--gold);
+  color: var(--gold-mark);
 }
 
 /* Modal body */
@@ -532,7 +530,7 @@
 }
 .q-upload-area:hover .upload-icon {
   background: color-mix(in srgb, var(--gold) 10%, transparent);
-  color: var(--gold);
+  color: var(--maroon-fg);
 }
 
 /* Modal footer */
