@@ -3029,14 +3029,17 @@ def test_0027_corrects_the_dbt44_phrase_about_dbt45_being_on_an_unpushed_branch(
     assert "صار #600 مدموجاً وسطحُ المكتب 0 من 491" in note and "لم يُدفع" not in note
 
 
-def test_0027_closes_dbt45_by_600_merged_but_unpublished_with_the_ci_baseline():
+def test_0027_closes_dbt45_by_600_published_with_the_ci_baseline():
     _item("DBT-45", "todo", 0)
     assert _sync27.sync(RoadmapItem) == ["DBT-45"]
     assert _sync27.sync(RoadmapItem) == []
     dbt45 = RoadmapItem.objects.get(code="DBT-45")
     assert (dbt45.status, dbt45.progress, dbt45.pr) == ("done", 100, "#600")
     note = dbt45.note
-    assert "ea95a261" in note and "مدموجٌ وغيرُ منشور" in note and "بعد main@e7c461d" in note
+    # نُشر #600 في main@ff70a32 بتحقّق 8103 على الإنتاج (القاعدةُ العامّةُ للخانات في CSS المبصوم).
+    assert "ea95a261" in note and "منشورٌ على الإنتاج ضمن main@ff70a32" in note
+    assert "تحقّقُ 8103 على الإنتاج" in note and "خارجَ كتلة coarse" in note
+    assert "غيرُ منشور" not in note and "بعد نشره" not in note
     assert (
         "0 من 491" in note and "0 من 431 (Chromium) و0 من 434 (WebKit)" in note and "K2 = 0" in note
     )
