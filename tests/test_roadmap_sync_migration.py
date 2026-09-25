@@ -3728,7 +3728,9 @@ def test_0029_adds_each_note_once_without_touching_state_dates_or_gates():
 def test_0029_states_that_vi24_and_own20_and_dbt46_proposals_are_not_the_owners_decisions():
     notes = dict(_sync29.NOTES)
     assert "لم يقرّها المالك" in notes["VI-24"]
-    assert "مرشَّحٌ للإغلاق" in notes["OWN-20"] and "ويؤكّد مالكُ النطاق" in notes["OWN-20"]
+    # OWN-20 مُغلَقٌ أصلاً (0010) وقرأه 8096 مُغلَقاً على الإنتاج؛ والأدلّةُ المحلّيّةُ لا تُوسَم مطابقةً للإنتاج.
+    assert "والبندُ مُغلَقٌ أصلاً" in notes["OWN-20"] and "فلم يتحقّق منها أحدٌ" in notes["OWN-20"]
+    assert "محلّيّاً لا على الإنتاج" in notes["OWN-20"]
     assert "لم يُعتمد ترتيبُه" in notes["DBT-46"]
     assert "معيارُ قبولٍ مقترَح" in notes["REP-18"] and "لم يُعتمد" in notes["REP-18"]
     # قياساتُ مسار الديون والتشغيل تُسجَّل بمصدرها وتاريخها.
