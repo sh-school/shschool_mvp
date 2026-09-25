@@ -82,8 +82,9 @@ def _rename_orphan(current: str) -> str | None:
 
     وحدَها: صلاحيّةٌ مخصَّصةٌ (`Meta.permissions`) لنموذجٍ قائمٍ يُبقى اسمُها كما كتبه صاحبُها.
 
-    تبقى في جدول الصلاحيّات بعد حذف النموذج (`StaffEvaluation`، `TeacherSubjectQualification`) وتظهر في صفحة
-    المجموعة كسائر الصلاحيّات. وحذفُها تنظيفُ بياناتٍ مستقلٌّ لا يخصّ التعريب.
+    تبقى في جدول الصلاحيّات بعد حذف النموذج وتظهر في صفحة المجموعة كسائر الصلاحيّات. وحذفُها تنظيفُ بياناتٍ مستقلٌّ
+    لا يخصّ التعريب: حُذفت اليتيماتُ المعروفةُ (`StaffEvaluation`، `TeacherSubjectQualification`) بهجرة
+    `core/0072`، ويبقى هذا احتياطاً لما سيُحذف من النماذج قبل أن يُنظَّف.
     """
     match = _ENGLISH.match(current)
     return permission_name(match.group(1), match.group(2)) if match else None

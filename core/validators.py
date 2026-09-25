@@ -79,6 +79,10 @@ HEIF_TYPES = {"image/heic", "image/heif"}
 ALLOWED_EXCUSE_TYPES = {"application/pdf"} | ALLOWED_IMAGE_TYPES | HEIF_TYPES
 ALLOWED_EXTENSIONS_EXCUSE = {".pdf", ".heic", ".heif"} | ALLOWED_EXTENSIONS_IMAGE
 
+# DBT-43: دليلُ الإجراء (الجودة) — مستندٌ (PDF وOffice وtxt) أو صورةٌ (ومنها HEIC)؛ والصورةُ تُنظَّف قبل الحفظ.
+ALLOWED_EVIDENCE_TYPES = ALLOWED_DOCUMENT_TYPES | ALLOWED_EXCUSE_TYPES
+ALLOWED_EXTENSIONS_EVIDENCE = ALLOWED_EXTENSIONS_DOCUMENT | ALLOWED_EXTENSIONS_EXCUSE
+
 #: علاماتُ حاويةِ HEIF بعد `ftyp` — صورُ آيفون وسلاسلُها.
 HEIF_BRANDS = {b"heic", b"heix", b"hevc", b"hevx", b"heim", b"heis", b"mif1", b"msf1"}
 
@@ -100,6 +104,7 @@ class FileTypeValidator:
         "image": (ALLOWED_IMAGE_TYPES, ALLOWED_EXTENSIONS_IMAGE),
         "library": (ALLOWED_LIBRARY_TYPES, ALLOWED_EXTENSIONS_LIBRARY),
         "excuse": (ALLOWED_EXCUSE_TYPES, ALLOWED_EXTENSIONS_EXCUSE),
+        "evidence": (ALLOWED_EVIDENCE_TYPES, ALLOWED_EXTENSIONS_EVIDENCE),
     }
 
     # امتدادات خطيرة — ممنوعة دائماً بغض النظر عن الإعدادات

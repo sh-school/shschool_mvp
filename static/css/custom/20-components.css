@@ -1995,6 +1995,10 @@ body { padding-bottom: calc(72px + var(--safe-bottom)); }
   flex-wrap: wrap;
 }
 .breadcrumbs a {
+  /* 24px أدنى هدفٍ في WCAG 2.5.8 على كلّ مؤشّر (D1)؛ وصفُّ الفتات 24px أصلاً بزرّ الرجوع فلا يكبر */
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 24px;
   color: var(--maroon-fg);
   text-decoration: none;
   font-weight: 500;
