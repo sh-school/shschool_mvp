@@ -2,7 +2,7 @@
 
 @layer utilities {
 
-/* ── Print — الطباعةُ العامّة ─────────────────────────────────────
+/* ── Print — الطباعةُ العامّة ───
    كانت الكتلةُ في طبقة components، فتخسر أمام كلّ قاعدةٍ في modules وthemes
    مهما كانت نوعيّتُها: بقي ظلُّ `.table-wrap` في الورق رغم `box-shadow: none`،
    وبقي نصُّ الوضع الداكن (#f1f5f9) على ورقٍ أبيضَ فرضته `body` هنا. فصارت في
@@ -68,29 +68,29 @@
   a[href]::after { content: none; }
 }
 
-/* ══════════════════════════════════════════════════════════════════
+/* ════════════════════
    35. Dark-Mode-Aware Utility Classes
    تُستبدل inline styles بهذه الكلاسات لدعم الوضع الليلي
-   ══════════════════════════════════════════════════════════════════ */
+   ════════════════════ */
 
-/* ── Status Text Colors ──────────────────────────────────────────── */
+/* ── Status Text Colors ─── */
 .text-status-danger  { color: var(--status-danger-fg); }
 .text-status-success { color: var(--status-success-fg); }
 .text-status-warning { color: var(--status-warning-fg); }
 .text-status-info    { color: var(--status-info); }
 
-/* ── Radio Pill (radio-button label wrapper) ────────────────────── */
+/* ── Radio Pill (radio-button label wrapper) ─── */
 .radio-pill {
   border: 1.5px solid var(--border-strong);
   background: var(--surface-alt);
   transition: border-color .12s, background .12s;
 }
 
-/* ── Status Background Cards (light tint + border) ───────────────── */
+/* ── Status Background Cards (light tint + border) ─── */
 
 .bg-status-warning-light { background: var(--status-warning-tint-deep); border-color: var(--status-warning-border-soft); }
 
-/* ── Link Accent (for inline links with specific colors) ─────────── */
+/* ── Link Accent (for inline links with specific colors) ─── */
 .link-maroon { color: var(--maroon-link); font-weight: 600; }
 
 /* PWA Banner: قاعدتُه الوحيدةُ في 20-components.css؛ يُظهَر بسمة `hidden` (`data-hide`). */
@@ -112,7 +112,7 @@
 .parent-child__actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .parent-child__actions .btn-secondary { min-height: 40px; display: inline-flex; align-items: center; gap: var(--sp-1-5); }
 
-/* ── PWA Banner — close button ───────────────────────────────────── */
+/* ── PWA Banner — close button ─── */
 .pwa-close-btn {
   background: none; border: none; color: color-mix(in srgb, var(--on-fill) 60%, transparent);
   font-size: var(--text-lg); cursor: pointer; flex-shrink: 0; padding: 0 var(--sp-1);
@@ -121,7 +121,7 @@
   color: color-mix(in srgb, var(--on-fill) 75%, transparent);
 }
 
-/* ── Extra Utility Classes ───────────────────────────────────────── */
+/* ── Extra Utility Classes ─── */
 
 .text-primary   { color: var(--text-primary); }
 .text-secondary { color: var(--text-secondary); }
@@ -129,7 +129,7 @@
 /* داخلَ ترويسةٍ عنّابيّةٍ نصُّها أبيض: الخافتُ رماديٌّ على عنّابيّ بنسبة 1.64. */
 thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
 
-/* ── الإشعارات: التفضيلات والصندوق واللوحة ──────────────────────────
+/* ── الإشعارات: التفضيلات والصندوق واللوحة ───
    بُنيت الصفحاتُ الثلاث على مكوّنات القسم 39؛ وما هنا ما يخصّها وحدَها. */
 .notif-pref-container { max-width: 640px; margin-inline: auto; }
 .notif-pref-form { display: grid; gap: var(--sp-3); }
@@ -232,9 +232,9 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
 .notif-settings .ui-switch { padding-block: var(--sp-1-5); }
 .notif-settings .ui-section__body > .form-group:last-child { margin-bottom: 0; }
 
-/* ══════════════════════════════════════════════════════════════
+/* ════════════════════
    الهاتف — ما يُقاس لا ما يُرجى
-   ══════════════════════════════════════════════════════════════
+   ════════════════════
    مُسحت 68 صفحةً بعروض 360 و390 و414 يومَ 2026-09-13. وهذه الكتلةُ في
    `utilities` لا في `components`: قواعدُ `modules` تُعلن خطَّ حقولها أصغرَ،
    و`modules` تغلب `components` أيّاً كان وزنُ المُحدِّد.

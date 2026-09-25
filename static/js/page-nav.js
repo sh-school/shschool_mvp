@@ -185,10 +185,13 @@
     document.querySelectorAll(MENUS).forEach(function (el) { el.classList.remove('open', 'is-open'); });
     document.querySelectorAll('[data-sd][aria-expanded="true"], .adm-nav__btn[aria-expanded="true"]').forEach(function (el) { el.setAttribute('aria-expanded', 'false'); });
     if (window.sdCloseAll) window.sdCloseAll();   // زرُّ القائمة الرئيسيّة `.nb.on` ولوحةُ الجوّال — وحدَه base.js يعرفهما
+    if (window.closeMobMenu) window.closeMobMenu();   // ولوحةُ الجوّال نفسُها لا قوائمُها الفرعيّةُ وحدَها
   }
 
   // النقرُ على رابطٍ: تتلاشى القائمةُ المفتوحةُ من هذه اللحظة بمدّة تلاشي الصفحة، لا بعد التبديل.
   function fadeMenus() {
+    // لوحةُ الجوّال تُغلق فوراً عند النقر على وجهةٍ فيها — لا تنتظر التلاشي، وقد لا تكون ثمّة قائمةٌ منسدلةٌ مفتوحةٌ أصلاً.
+    if (window.closeMobMenu) window.closeMobMenu();
     var open = document.querySelectorAll(MENUS);
     if (!open.length) return;
     if (reduced) { closeMenus(); return; }

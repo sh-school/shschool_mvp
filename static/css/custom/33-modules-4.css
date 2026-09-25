@@ -1,6 +1,6 @@
 @layer modules {
 
-/* ── البدلاء: الغيابُ والحصّةُ بطاقتا كيان ─────────────────────────────────
+/* ── البدلاء: الغيابُ والحصّةُ بطاقتا كيان ───
    كانت الحالةُ شريطاً على حافّة رأسٍ مكتوبٍ باليد (`absence-head`)؛ صار
    الشريطُ حافّةَ `entity_card` نفسِها بلونٍ يُحسب في العرض. وما هنا غلافُ
    البطاقة — يحمل `id` الذي يبدّله HTMX أو `data-text` الذي يرشّحه البحث —
@@ -12,7 +12,7 @@
 .slot-assign .form-control { flex: 1 1 110px; inline-size: auto; }
 .substitute-form-page { max-width: 640px; margin-inline: auto; }
 
-/* ── Mode Switch — بابان في استمارةٍ واحدة ──────────────────
+/* ── Mode Switch — بابان في استمارةٍ واحدة ───
    شطران متلاصقان يتبادلان الظهور: المختار يُظهر حقولَه ويُخفي الآخر.
    والتبديلُ بـ:has() لا بجافاسكربت — الحالةُ في زرّ الاختيار نفسه،
    فلا تفترق الشاشةُ عمّا يُرسَل.                                   */
@@ -74,7 +74,7 @@ form:has(#parent-mode-existing:checked) .mode-pane--new { display: none; }
 .links-add__chevron { font-size: var(--text-xs); font-weight: 400; opacity: .85; margin-inline-start: auto; }
 .links-add:not([open]) > .links-add__bar { margin-block-end: -18px; border-radius: var(--radius-lg); }
 
-/* ── الحصّةُ المبدَّلة: لونٌ يقول إنّها ليست حصّةَ صاحبها المعتاد ──────────
+/* ── الحصّةُ المبدَّلة: لونٌ يقول إنّها ليست حصّةَ صاحبها المعتاد ───
    التبديلُ مؤقّتٌ ينقضي بانتهاء الحصّة الأبعد، فالخانةُ تعود من نفسها. وحتّى
    تعود يجب أن تُعرَف من بعيد: بنفسجيٌّ لا يشبه أخضرَ «التالية» ولا أصفرَ
    «مجدولة» ولا أحمرَ «ملغاة» — فلا يلتبس التبديلُ بحالةٍ من حالات الحصّة.
@@ -283,7 +283,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .att-btn--tile { min-block-size: var(--control-h); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-0-5); font-weight: 700; }
 .att-btn--tile span { font-size: 0.625rem; }
 
-/* ── توقيعا المنسّقَين على بطاقة التبديل ────────────────────────────────
+/* ── توقيعا المنسّقَين على بطاقة التبديل ───
    القارئُ يحتاج أن يعرف **أين وقف الطلب** لا أن يستنتجه من حالةٍ واحدة:
    جهةٌ وقّعت وأخرى تنتظر، وكلُّ جهةٍ باسم مادّتها ومن يوقّع عنها. */
 .swap-signatures {
@@ -305,9 +305,9 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .swap-sign.is-waiting { color: var(--text-secondary); border-style: dashed; }
 .swap-sign em { font-style: normal; opacity: .75; }
 
-/* ══════════════════════════════════════════════════════════════
+/* ════════════════════
    37. أجنحة المدرسة — templates/wings/floors.html
-   ══════════════════════════════════════════════════════════════
+   ════════════════════
    كانت الصفحةُ تحمل تخطيطَها في `style=` على عناصرها: بطاقةُ جناحٍ مبنيّةٌ
    بيدها، وشبكةٌ مكتوبةٌ في سطرٍ واحد. والأسلوبُ المضمَّن يغلب الطبقاتِ كلَّها
    مهما بلغت نوعيّتُها — فلا يبلغه حكمُ الوضع الداكن ولا تصحيحُ رمزٍ في
@@ -315,7 +315,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 
    والترويسةُ العنّابيّة لا `card-header`: هي ترويسةُ الأقسام في كلّ صفحات
    المنصّة، ونصُّها أبيضُ دائماً.
-   ══════════════════════════════════════════════════════════════ */
+   ════════════════════ */
 
 /* ── لوحُ الجناح: بطاقةٌ بشريطٍ عنّابيٍّ فيه ما لا يحمله `section_card` ──
    ترويسةُ الطابق تحمل شاراتِ الجرس، وترويسةُ لوح الرصد تحمل أزرارَ التصدير —
@@ -583,16 +583,16 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 /* خانةٌ في سطرٍ واحد: البطاقةُ خُمسُ الشاشة، فحقلان متجاوران يقصّان نصَّهما. */
 .wing-row .wing-cover-form { grid-template-columns: 1fr; }
 
-/* ══════════════════════════════════════════════════════════════
+/* ════════════════════
    38. رصدُ الغياب — templates/wings/record_*.html
-   ══════════════════════════════════════════════════════════════
+   ════════════════════
    المشرفُ يرصد واقفاً في ممرٍّ بيدٍ واحدة، وشبكةُ الممرّات ليست كشبكة
    المكتب. فثلاثةُ قيودٍ تحكم هذه الشاشة: الهاتفُ أوّلاً، وهدفُ اللمس
    ≥44 بكسلاً، وضغطةٌ واحدةٌ للطالب لا قائمةٌ منسدلة.
 
    والنافذةُ خمسون دقيقة (07:10–08:00) لـ155 طالباً في خمس شُعب — فشاشةٌ
    تستهلك دقيقتين للشعبة تكفي، وعشراً لا تكفي.
-   ══════════════════════════════════════════════════════════════ */
+   ════════════════════ */
 
 .rec-datebar { display: flex; gap: var(--sp-1-5); align-items: center; }
 .rec-datebar .form-control { width: 150px; }
@@ -695,14 +695,14 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 
 }
 
-/* ══════════════════════════════════════════════════════════════
+/* ════════════════════
    40. كشفُ الحصص — templates/wings/record_section.html
-   ══════════════════════════════════════════════════════════════
+   ════════════════════
    الحصّةُ لا اليوم: شريطٌ بحال كلّ حصّة، وقائمةٌ للحصّة المفتوحة، ونقطةٌ
    لكلّ حصّةٍ بجانب اسم الطالب. والألوانُ حالٌ لا زينة: الأخضرُ حاضر،
    والأحمرُ غائب، والكهرمانيُّ متأخّر — ومعها كلمةٌ دائماً، فاللونُ وحدَه لا
    يُقرأ في الشمس ولا عند ضعف تمييز الألوان.
-   ══════════════════════════════════════════════════════════════ */
+   ════════════════════ */
 
 .rec-row { flex-wrap: wrap; }
 
@@ -925,7 +925,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-grid .rec-row:has(.rec-pick--late input:checked) > th,
 .per-grid .rec-row:has(.rec-pick--late input:checked) > .per-grid__no { background: var(--status-warning-bg); box-shadow: inset -3px 0 0 var(--status-warning-dark); }
 
-/* ── الشبكة: الجدولُ نفسُه صفّاً = بطاقة (لا نسخةَ ثانيةٌ من الحقول) ──────────
+/* ── الشبكة: الجدولُ نفسُه صفّاً = بطاقة (لا نسخةَ ثانيةٌ من الحقول) ───
    تُفعَّل بـ`.is-tiles` على الغلاف. الاسمُ ثمّ الأزرارُ الثلاثةُ ثمّ حالُ الحصص
    الأخرى حروفاً صغيرة. ورأسُ الجدول يُخفى وتحلّ محلَّه `.per-tabs` للتنقّل بين الحصص. */
 .per-view { display: flex; gap: var(--sp-1); }
@@ -954,8 +954,8 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   gap: var(--sp-3);
 }
 .per-grid-wrap.is-tiles .per-grid tbody tr.rec-row {
-  display: flex; flex-wrap: wrap; align-content: flex-start; gap: var(--sp-1-5);
-  padding: var(--sp-2-5); background: var(--surface);
+  display: flex; flex-wrap: wrap; align-content: flex-start;
+  background: var(--surface);
   border: 1px solid var(--border); border-radius: var(--radius-md);
 }
 /* الحالةُ شريطٌ جانبيٌّ بلون رمزها المركزيّ (كشريط `.per-head`) والبطاقةُ محايدة: لا مساحةَ
@@ -971,7 +971,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > .per-grid__no { display: none; }
 .per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > .per-grid__name { flex: 1 1 100%; order: 0; }
 .per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > td.per-cell.is-focus { flex: 1 1 100%; order: 2; border: 0; background: none; }
-.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > td.per-cell.is-focus { display: flex; gap: var(--sp-1); position: relative; }
+.per-grid-wrap.is-tiles .per-grid tbody tr.rec-row > td.per-cell.is-focus { display: flex; gap: var(--sp-1); }
 .per-grid-wrap.is-tiles .per-cell.is-focus .rec-row__pick { flex: 1 1 0; min-width: 0; display: flex; }
 .per-grid-wrap.is-tiles .per-cell.is-focus .rec-pick { flex: 1 1 0; }
 .per-grid-wrap.is-tiles .per-cell.is-focus .rec-pick > span { min-width: 0; min-height: 40px; padding-inline: var(--sp-1); }
@@ -1088,9 +1088,9 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
   .per-bar__actions { width: 100%; }
   .per-bar__actions > * { flex: 1; }
 }
-/* ══════════════════════════════════════════════════════════════
+/* ════════════════════
    39. مكوّناتُ الواجهة — core/templatetags/ui.py
-   ══════════════════════════════════════════════════════════════
+   ════════════════════
    مصدرٌ واحدٌ لما كانت كلُّ صفحةٍ ترسمه بيدها: شريطُ الأرقام، وبطاقةُ القسم،
    وبطاقةُ الكيان، وترويسةُ الصفحة. والبادئةُ `ui-` تفصلها عن الأصناف القديمة
    (`kpi-mini`، `dash-chart-title`…) التي تُرحَّل عنها الصفحاتُ ثمّ تُحذف —
@@ -1098,7 +1098,7 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 
    كلُّ لونٍ هنا رمز، وكلُّ اتّجاهٍ منطقيّ (inline/block) — فالوضعُ الداكنُ
    والاتّجاهُ من اليمين يأتيان من الرموز لا من قواعدَ ثانية.
-   ══════════════════════════════════════════════════════════════ */
+   ════════════════════ */
 
 /* ── 1. شريطُ الأرقام: كلُّ بطاقةٍ سطرٌ واحد ──
    الاسمُ ثمّ الرقمُ ثمّ التفصيل، على خطٍّ قاعديٍّ واحد. والتفصيلُ وحدَه

@@ -28,12 +28,14 @@
         else e.setAttribute(k, v === true ? '' : v);
       });
     }
-    for (var i = 2; i < arguments.length; i++) {
-      var c = arguments[i];
-      if (c == null || c === false) continue;
-      e.append(c.nodeType ? c : document.createTextNode(String(c)));
-    }
+    for (var i = 2; i < arguments.length; i++) add(e, arguments[i]);
     return e;
+  }
+  // مصفوفةُ الأبناء تُلصق عنصراً عنصراً (درجُ خليّة المصفوفة يمرّر `.map(listRow)`)، وإلّا صارت نصَّ «[object HTMLButtonElement]»
+  function add(e, c) {
+    if (c == null || c === false) return;
+    if (Array.isArray(c)) { c.forEach(function (x) { add(e, x); }); return; }
+    e.append(c.nodeType ? c : document.createTextNode(String(c)));
   }
   function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); return el; }
 

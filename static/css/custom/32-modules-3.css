@@ -250,10 +250,10 @@
 }
 
 /* ── templates/quality/dashboard.html ── */
-/* ═══════════════════════════════════════════════════════
+/* ════════════════════
    Quality Dashboard — compact, no-scroll, donut-based
    Brand: --maroon #8A1538 | --skyline #0D4261 | --gold #D4A843
-   ═══════════════════════════════════════════════════════ */
+   ════════════════════ */
 
 .qd { display: flex; flex-direction: column; gap: var(--sp-3); }
 
@@ -378,9 +378,9 @@
 }
 
 /* ── templates/quality/procedure_detail.html ── */
-/* ═══════════════════════════════════════════════════
+/* ════════════════════
    Procedure Detail — dark-mode safe, CSS variables
-   ═══════════════════════════════════════════════════ */
+   ════════════════════ */
 .qproc { display: flex; flex-direction: column; gap: var(--sp-3); max-width: 800px; margin: 0 auto; }
 
 /* الإجراءُ بطاقاتُ `section_card`: حشوُ البطاقة يكفي، فلا حشوَ ثانٍ داخلها.
@@ -526,12 +526,12 @@
 .obs-pdf-frame { width: 100%; height: 78vh; border: 1px solid var(--border); border-radius: var(--radius-md); }
 
 /* ── templates/quality/progress_report.html ── */
-/* ═══════════════════════════════════════════════════════
+/* ════════════════════
    Progress Report — MINIMAL scoped styles
    Uses global: card-qatar, page-header, section-header,
    kpi-card, btn-primary, status-badge, thead/th/td
    Only adds: ring SVG positioning + donut grids
-   ═══════════════════════════════════════════════════════ */
+   ════════════════════ */
 
 .pr-page { display: flex; flex-direction: column; gap: var(--sp-3); }
 
@@ -817,9 +817,6 @@
 /* ── templates/schedule/compensatory_form.html — أصنافُه كتلةُ swap_request أعلاه ── */
 
 /* ── templates/schedule/compensatory_list.html ── */
-.comp-page { max-width: 1100px; margin: 0 auto; padding: var(--sp-4); }
-.comp-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-4); }
-
 .comp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--sp-3-5) var(--sp-4); margin-bottom: var(--sp-2-5); }
 .comp-row { display: flex; gap: var(--sp-3); align-items: center; flex-wrap: wrap; }
 .comp-badge { display: inline-block; font-size: var(--text-xs); font-weight: 700; padding: var(--sp-0-5) var(--sp-2-5); border-radius: 99px; }
@@ -1222,7 +1219,7 @@
 .empty-state { text-align: center; padding: var(--sp-12) var(--sp-4); color: var(--text-muted); }
 
 /* ── templates/schedule/swap_request.html ── */
-.form-page { max-width: 700px; margin: 0 auto; padding: var(--sp-4); }
+.form-page { margin: 0 auto; padding: var(--sp-4); }
 .form-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: var(--sp-5) var(--sp-6); }
 .form-title { font-size: 1.1rem; font-weight: 700; color: var(--maroon-fg); margin-bottom: var(--sp-4); }
 .form-group { margin-bottom: var(--sp-3-5); }
@@ -1289,7 +1286,7 @@
   .sa-change { font-size: var(--text-xs); }
   .sa-nowrap { white-space: nowrap; }
   /* استمارةُ المغادرة وإلغائها: حقولٌ في سطرٍ والزرُّ في ذيله — كانت بتنسيقٍ في وسومها. */
-  .sa-inline-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--sp-2); margin-block-start: var(--sp-3); }
+  .sa-inline-form { flex-wrap: wrap; align-items: flex-end; gap: var(--sp-2); margin-block-start: var(--sp-3); }
   .sa-field--grow { flex: 1 1 240px; }
 
 /* ── templates/staff_affairs/dashboard.html و licensing.html ── */
@@ -1305,7 +1302,6 @@
   /* عمودٌ بعرض 300px أضيقُ من عرض الصفحة — سطرُ قائمةٍ فيه (اسمٌ + شارةٌ + زر)
      يُكدَّس بلا التفافٍ، فيُؤذَن للعناصر أن تنزل سطراً إن ضاق بها المكان. */
   .auto-grid .plain-list__row { flex-wrap: wrap; }
-  .sa-link { color: var(--maroon-fg); text-decoration: none; }
   .sa-link:hover { text-decoration: underline; }
 
 /* ── templates/staff_affairs/leave_*.html و _staff_table.html ── */
@@ -1843,7 +1839,7 @@
 }
 
 /* ==========================================================================
-   ═══════════════ DARK MODE — html.dark ═══════════════
+   ═══ DARK MODE — html.dark ═══
    القاعدة: الأبيض/الفاتح للنصوص والإطارات فقط — ممنوع كخلفيات كاملة.
    الخلفيات الداكنة مبنية على ظلال الماروون. والبطاقاتُ من `section_card`
    فلا نظيرةَ ليليّةً لها هنا.
