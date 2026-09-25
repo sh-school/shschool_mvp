@@ -771,7 +771,6 @@ html.dark .per-grid thead th.per-col.is-focus { background: var(--maroon); color
    كلُّ قاعدة html.dark تعيش في @layer themes وحدها، لا حيث كُتبت أوّل مرّة. النظيرةُ
    النهاريّةُ لكلٍّ منها تبقى في مكانها؛ هذه الطبقةُ تغلبها بترتيب الطبقات لا بالنوعيّة. ── */
 html.dark .staff-register td:first-child { background: var(--surface); }
-html.dark .staff-name { color: var(--gold); }
 html.dark .free-slots-card { background: var(--surface); border-color: var(--border); }
 html.dark .free-slots-th { background: var(--surface-alt); border-color: var(--border); }
 html.dark .free-slots-td { border-color: var(--border); }
