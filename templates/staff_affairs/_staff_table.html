@@ -65,10 +65,10 @@
             <span class="text-xs text-muted">—</span>
           {% endif %}
         </td>
-        {# التاريخُ وحدَه — ومرجعُ التعيين في الملفّ: أكثرُه اسمُ ملفِّ استيرادٍ لا قرار. #}
-        <td class="col-center text-xs">{{ s.joined|date:"d/m/Y"|default:"—" }}</td>
+        {# التاريخُ وحدَه — ومرجعُ التعيين في الملفّ: أكثرُه اسمُ ملفِّ استيرادٍ لا قرار. `col-num`: لا يُكسَر رقمٌ على سطرين (يُقرأ رقمين). #}
+        <td class="col-num col-center text-xs">{{ s.joined|date:"d/m/Y"|default:"—" }}</td>
         {% if status == "left" %}
-        <td class="col-center text-xs">{{ s.left|date:"d/m/Y"|default:"—" }}</td>
+        <td class="col-num col-center text-xs">{{ s.left|date:"d/m/Y"|default:"—" }}</td>
         {% endif %}
         {% comment %}
         «الدخول» لا «كلمة المرور»: الحسابُ الجديدُ يُنشأ بلا كلمةٍ صالحة، فيبقى

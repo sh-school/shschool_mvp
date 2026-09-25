@@ -231,6 +231,12 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
 .notif-settings .ui-switch { padding-block: var(--sp-1-5); }
 .notif-settings .ui-section__body > .form-group:last-child { margin-bottom: 0; }
 
+/* سجلُّ الموظفين (DBT-46): دون 1024px تضيق عناوينُه عن كلماتها (9 من 12 عند 641) — حدٌّ أدنى 60rem يسع iPad الأفقيَّ. */
+@media (max-width: 1024px) {
+  .table-wrap-scroll:has(> .staff-register) { overflow-x: auto; }
+  .staff-register { min-inline-size: 60rem; }
+}
+
 /* ════════════════════
    الهاتف — ما يُقاس لا ما يُرجى
    ════════════════════
@@ -247,8 +253,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   /* أهدافُ اللمس — WCAG 2.5.8 (24px أدنى)؛ وعلى اللمس 44px في كتلة coarse أسفلَه */
   .bc-back { width: 32px; height: 32px; }
 
-  /* سجلُّ الموظفين: 12 عموداً في 338px يلفّ الاسمَ حرفاً حرفاً؛ فيُمرَّر داخل غلافه والاسمُ لاصق. */
-  .table-wrap-scroll:has(> .staff-register) { overflow-x: auto; }
+  /* سجلُّ الموظفين: 12 عموداً في 338px يلفّ الاسمَ حرفاً حرفاً؛ فحدٌّ أدنى أوسعُ من كتلة 1024 أعلاه. */
   .staff-register { min-inline-size: 64rem; }
 }
 

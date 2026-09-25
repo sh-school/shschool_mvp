@@ -18,7 +18,7 @@
 
   {# ── نتيجةُ الاستيراد ── #}
   {% if import_result %}
-  <div id="import-result" role="alert" aria-live="polite">
+  <div id="import-result" role="{% if import_result.success %}status{% else %}alert{% endif %}">
     {% if import_result.success %}
     {% section_card "اكتمل الاستيراد بنجاح" icon="status_success" %}
       {% kpi_strip label="نتيجة الاستيراد" %}

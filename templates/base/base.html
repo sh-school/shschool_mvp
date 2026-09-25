@@ -81,7 +81,7 @@
 <div id="sr-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
 {# ✅ Toast Container #}
-<div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+<div id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
 {% if user.is_authenticated %}
 {% with role=request.user.get_role %}
@@ -1038,7 +1038,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 {% if messages %}
 <div class="msgs-wrap space-y-2" id="msgs-wrap">
   {% for msg in messages %}
-  <div class="msg-bar {% if msg.tags == 'success' %}msg-success{% elif msg.tags == 'error' %}msg-error{% elif msg.tags == 'warning' %}msg-warning{% else %}msg-info{% endif %}">
+  <div class="msg-bar {% if msg.tags == 'success' %}msg-success{% elif msg.tags == 'error' %}msg-error{% elif msg.tags == 'warning' %}msg-warning{% else %}msg-info{% endif %}" role="{% if msg.tags == 'error' or msg.tags == 'warning' %}alert{% else %}status{% endif %}">
     <span class="msg-icon">
       {% if msg.tags == 'success' %}{% icon "status_success" %}{% elif msg.tags == 'error' %}{% icon "status_error" %}{% elif msg.tags == 'warning' %}{% icon "status_warning" %}{% else %}{% icon "status_info" %}{% endif %}
     </span>
