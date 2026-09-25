@@ -111,7 +111,7 @@ def _admin_pages(teacher) -> list[str]:
         "/admin/auth/group/add/",
         "/admin/assessments/assessmentpackage/add/",
         # مسحُ الإدارة كلِّها (OWN-21، 2026-09-25) وجد فئاتٍ لم تُغطَّ: صفحةُ الخطأ 403 لنموذجٍ بلا إضافة (تباينُ زرّ
-        # الرجوع)، وقائمةٌ فيها رابطُ «أظهر الكل» داخل نصّ (يميّزه اللونُ وحدَه). والمسحُ الكامل: test_admin_sweep.py.
+        # الرجوع)، وقائمةٌ فيها رابطُ «أظهر الكل» داخل نصّ (يميّزه اللونُ وحدَه). والمسحُ الكامل: tests/e2e/test_admin_sweep.py.
         "/admin/axes/accessattempt/add/",
         "/admin/roadmap/roadmapitem/",
     ]

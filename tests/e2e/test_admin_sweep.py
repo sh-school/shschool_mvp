@@ -3,7 +3,7 @@
 `test_a11y_axe_ratchet.py` يحرس صفحاتٍ منتقاةً في كلّ طلب دمج (بضع ثوانٍ). وهذا يمسح **كلَّ** `ModelAdmin` مسجَّل
 (قائمتَه وصفحةَ إضافته) والفهرس — نحو 190 مساراً في وضعَين، قرابةَ 25 دقيقة — فلا يجري في CI العاديّ بل حين يُطلب:
 
-    ADMIN_SWEEP=1 pytest tests/test_admin_sweep.py -s
+    ADMIN_SWEEP=1 DJANGO_ALLOW_ASYNC_UNSAFE=1 pytest tests/e2e/test_admin_sweep.py -s
 
 ما يُقاس في كلّ صفحة: تجاوزٌ أفقيٌّ (`scrollWidth` فوق العرض)، وأهدافُ لمسٍ دون 44px (تعريفُ
 `test_a11y_axe_ratchet.SMALL_TARGETS_JS` نفسُه)، ومخالفاتُ axe-core (تباين، وأسماء، وروابطُ داخل نصٍّ، وترتيب)،
