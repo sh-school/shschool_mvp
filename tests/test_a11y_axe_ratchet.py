@@ -110,6 +110,10 @@ def _admin_pages(teacher) -> list[str]:
         f"/admin/core/customuser/{teacher.pk}/change/",
         "/admin/auth/group/add/",
         "/admin/assessments/assessmentpackage/add/",
+        # مسحُ الإدارة كلِّها (OWN-21، 2026-09-25) وجد فئاتٍ لم تُغطَّ: صفحةُ الخطأ 403 لنموذجٍ بلا إضافة (تباينُ زرّ
+        # الرجوع)، وقائمةٌ فيها رابطُ «أظهر الكل» داخل نصّ (يميّزه اللونُ وحدَه). والمسحُ الكامل: tests/e2e/test_admin_sweep.py.
+        "/admin/axes/accessattempt/add/",
+        "/admin/roadmap/roadmapitem/",
     ]
 
 
@@ -217,6 +221,12 @@ def test_the_admin_touch_targets_are_44px_on_phones(
         f"/admin/core/customuser/{teacher_user.pk}/change/",
         "/admin/auth/group/add/",
         "/admin/assessments/assessmentpackage/add/",
+        # فئاتُ أهدافٍ وجدها مسحُ الإدارة كلِّها (OWN-21): زرُّ صفحة الخطأ 403، وطيّةُ الحقول `summary`، وحقلُ الملفّ،
+        # ورابطُ «أظهر الكل» داخل النصّ.
+        "/admin/axes/accessattempt/add/",
+        "/admin/behavior/behaviorinfraction/add/",
+        "/admin/core/school/add/",
+        "/admin/roadmap/roadmapitem/",
     ]:
         page.goto(f"{live_server.url}{path}")
         page.wait_for_load_state("networkidle")

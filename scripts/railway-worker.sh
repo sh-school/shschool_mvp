@@ -22,6 +22,14 @@ export DB_PASSWORD="$APP_DB_PASSWORD"
 echo "Verifying Celery worker database runtime role..."
 python manage.py verify_runtime_db_role
 
+# ملفّاتُ الثابت في القرص المحلّيّ لهذه الحاوية (`STATIC_ROOT`) لا في قرصٍ مشترك: حاويةُ العامل تبدأ بمجلّدٍ فارغٍ بلا
+# `staticfiles.json`، فكلُّ قالبٍ فيه `{% static %}` يُصيَّر داخل العامل — كقالب طباعة الجدول (`print_schedule.html`)
+# لتصدير PDF — يرفع `ValueError: Missing staticfiles manifest entry` فيفشل التصدير. وهذا السطرُ كما في
+# `railway-release.sh` (الإعدادُ production نفسُه، ولا يحتاج القاعدة). ويحرسه `tests/test_worker_collects_static.py`:
+# يفشل إن غاب أو جاء بعد `exec celery`.
+echo "Collecting static files (نسخةٌ محليّةٌ لحاوية العامل)..."
+python manage.py collectstatic --noinput --clear
+
 echo "Starting Celery worker as shschool_app..."
 exec celery -A shschool worker \
     --loglevel="${CELERY_LOG_LEVEL:-info}" \

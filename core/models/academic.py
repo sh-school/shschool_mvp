@@ -872,6 +872,7 @@ class CalendarEvent(models.Model):
     TYPES = [
         ("staff_start", "بدء دوام الموظفين"),
         ("students_start", "بدء دوام الطلبة"),
+        ("students_end", "نهاية دوام الطلبة"),
         ("midterm_exam", "اختبارات منتصف الفصل"),
         ("final_exam", "اختبارات نهاية الفصل"),
         ("makeup_exam", "ملحق الاختبارات"),

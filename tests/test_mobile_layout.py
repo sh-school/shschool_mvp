@@ -108,6 +108,45 @@ def test_the_schedule_toolbar_wraps_on_phones_and_holds_one_line_on_desktop():
     ).strip() == "0", "القائمةُ في الهاتف بحدٍّ أدنى — تتجاوز الشاشةَ بطول أطول خيار"
 
 
+def _min_width_where(selector, prop, value):
+    """أضيقُ `@media (min-width: Npx)` تجعل `selector { prop: value }` نافذةً — أو None."""
+    widths = []
+    for sel, decls, ctx in _rules():
+        if selector not in {" ".join(p.split()) for p in sel.split(",")}:
+            continue
+        if " ".join(str(decls.get(prop, "")).split()) != value:
+            continue
+        widths += [int(m.group(1)) for c in ctx if (m := re.search(r"min-width:\s*(\d+)px", c))]
+    return min(widths) if widths else None
+
+
+def test_the_schedule_toolbar_does_not_overflow_the_tablet_range():
+    """D-23: كان سطراً واحداً لا ينكسر من 641px فيفيض في اللوحيّ.
+
+    قيس على الجدول العامّ (2026-09-25، متصفّحٌ حقيقيّ): الشريطُ يحتاج نحو 1046px، فبلغ الفيضُ 79px عند
+    900 و16px عند 1024. والسببان: الحدُّ الأدنى 280px على كلّ قائمةٍ وحقل بحثٍ (وهو للقائمة الأولى وحدَها)،
+    ومنعُ الانكسار من 641px. وقرارُ المالك (D-23، 2026-09-25): «التفافُ الشريط من 641 إلى 1028px ويبقى
+    nowrap من 1029» — فالسطرُ الواحدُ من 1029px لا قبلها، ولا حدَّ 280px إلّا على قائمة اختيار الجدول. والحارسُ
+    ساكنٌ لأنّ عرضَي التدقيق (حاسوب وجوّال) لا يلمسان مدى 641–1028.
+    """
+    one_line = _min_width_where(".schedule-tools", "flex-wrap", "nowrap")
+    assert (
+        one_line is not None and one_line >= 1029
+    ), f"سطرٌ واحدٌ من {one_line}px — قرارُ المالك أن يلتفّ الشريطُ حتى 1028px (D-23)"
+    assert _min_width_where(
+        ".schedule-tools > select.form-select", "min-width", "280px"
+    ), "قائمةُ اختيار الجدول فقدت حدَّها الأدنى — أسماءُ المعلّمين الطويلة تُقصّ"
+    for selector in (
+        ".schedule-tools .form-select",
+        ".schedule-tools > .form-select",
+        ".schedule-tools form .form-select",
+        ".schedule-tools .schedule-search",
+    ):
+        assert (
+            _min_width_where(selector, "min-width", "280px") is None
+        ), f"`{selector}` بحدٍّ أدنى 280px — حجمُ الورق والاتّجاهُ والبحثُ لا يحتاجونه ويوسّعون الشريطَ (D-23)"
+
+
 def test_no_schedule_toolbar_form_forces_inline_by_hand():
     """`style="display:inline"` كان يغلب قاعدةَ الهاتف فيتكدّس الحقلان."""
     for name in ("print_view.html", "pages_view.html"):

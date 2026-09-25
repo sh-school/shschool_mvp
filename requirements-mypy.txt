@@ -1,0 +1,13 @@
+# مصدرٌ واحدٌ لإصدارات فاحص الأنواع (OWN-30) — يقرؤه CI (وظيفة mypy في quality-gate.yml)
+# ويستدعيه requirements-dev.txt بـ`-r`، فلا يفترق التطوير عن البوّابة.
+#
+# لِمَ ثابتةٌ عمداً: أعدادُ الأخطاء المسجَّلة في tests/mypy_ratchet_baseline.json تخرج من mypy وstubs بعينِ هذه
+# الإصدارات. كان التطويرُ على mypy 2.3.1 وdjango-stubs 6.1.1 والبوّابةُ على 1.10.0 وdjango-stubs 5.0.2 — فيُسجَّل
+# `--update` عدداً لا تراه البوّابة فيسقط الطلبُ أو يخضرّ زوراً. وdependabot لا يستطيع ترقيةَ سطرٍ في workflow.
+#
+# ترقيةٌ ثلاثيّةٌ بقرارٍ لا اقتراحاً أسبوعيّاً: (1) هذا الملف، (2) إعادةُ تسجيل السقّاطة بـ
+# `python -m tests.mypy_ratchet --update` **بالإصدار الجديد نفسِه** (يرفضه الأمرُ بغيره)، (3) مراجعةُ فرق السجلّ في الطلب.
+# ولذلك استثناءُ dependabot لهذه الثلاثة في .github/dependabot.yml؛ والحارسُ tests/test_mypy_pins_are_one_source.py.
+mypy==1.10.0
+django-stubs==5.0.2
+djangorestframework-stubs==3.15.0
