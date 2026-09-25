@@ -172,14 +172,13 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   font-size: var(--text-sm); font-weight: 700; color: var(--text-secondary);
 }
 .notif-day__count { font-size: var(--text-xs); font-weight: 500; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-/* 340px أدنى عرضٍ لا 300: النصُّ سطران بلغةٍ تطول كلماتُها، وأضيقُ من ذلك يصيّره أربعة. */
+/* 340px أدنى عرضٍ: أضيقُ منه يجعل النصَّ أربعةَ أسطر */
 .notif-grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: var(--sp-3); align-items: start; }
 .notif-list { display: flex; flex-direction: column; gap: var(--sp-1-5); min-inline-size: 0; }
-/* قسمُ العاجل بطاقاتٌ مباشرةٌ في الشبكة لا أعمدة — قليلٌ لا يحتاج تقسيماً. */
+/* العاجل: بطاقاتٌ مباشرةٌ لا أعمدة */
 #urgent-section.notif-grid { display: grid; }
 
-/* عنصرُ الإشعار: غيرُ المقروء بشريطٍ عنّابيٍّ على حافّته ونقطةٍ لا بأرضيّةٍ ملوّنة —
-   كانت البطاقةُ كلُّها عنّابيّةً فيصير نصفُ الصندوق كتلةً داكنةً لا يُميَّز فيها شيء. */
+/* غيرُ المقروء: شريطٌ عنّابيٌّ على الحافّة لا أرضيّةٌ ملوّنة (كانت نصفُ الصندوق كتلةً داكنة) */
 .notif-item {
   display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-2);
   padding: var(--sp-2-5) var(--sp-3);
@@ -219,7 +218,7 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
 .notif-item__read:hover { background: var(--maroon-bg); }
 .notif-item__done { flex-shrink: 0; padding: var(--sp-1) var(--sp-2); color: var(--text-muted); opacity: .6; }
 
-/* لوحةُ الإشعارات: سجلٌّ يتمرّر داخل بطاقته، وبحثُه فوقه بحشو البطاقة. */
+/* سجلُّ الإشعارات يتمرّر داخل بطاقته */
 .notif-log-search { padding: var(--sp-2) var(--sp-3); border-block-end: 1px solid var(--border); }
 .notif-log-scroll { max-block-size: 400px; border: 0; border-radius: 0; box-shadow: none; }
 .notif-log-recipient { max-inline-size: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -258,8 +257,11 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
   .site-header .nav-logo, .site-header .nav-user-btn, .btn-sm, .btn-xs, .parent-child__actions .btn-secondary,
   .notif-group-switch__opt, .period-switch__item, a.status-badge, a.ui-kpi, .staff-name { min-block-size: var(--control-h); }
   .site-header .nav-bell, .theme-toggle, .bc-back, .breadcrumbs a, .th-sort, .ui-tip__btn,
-  .pwa-dismiss-btn, .toast-close, .modal-close-btn { min-inline-size: var(--control-h); min-block-size: var(--control-h); }
+  .pwa-dismiss-btn, .toast-close, .modal-close-btn, .notif-item__read { min-inline-size: var(--control-h); min-block-size: var(--control-h); }
   .col-actions .btn-xs { min-inline-size: var(--control-h); }
+  .notif-item, .notif-item__read { position: relative; }
+  .notif-item__title a { display: block; padding-block: var(--sp-3-5); margin-block: calc(-1 * var(--sp-3-5)); }
+  .notif-item__title a::after { content: ""; position: absolute; inset: 0; }
   .site-header .nav-bell, .breadcrumbs a, .btn-xs, .notif-group-switch__opt, a.status-badge, .staff-name {
     display: inline-flex; align-items: center; justify-content: center;
   }

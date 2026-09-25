@@ -4,10 +4,14 @@
 فيُختم مرّةً واحدةً تحت قفلِ الصفّ، وكلُّ انتقالٍ يُدقَّق في `AuditLog`.
 """
 
+import logging
+
 from django.db import transaction
 from django.utils import timezone
 
 from core.models import AuditLog, BreachReport
+
+logger = logging.getLogger(__name__)
 
 NCSA_TEMPLATE = """إلى: المركز الوطني للأمن السيبراني (NCSA)
 الموضوع: إشعار بخرق بيانات — PDPPL م.11
@@ -57,6 +61,44 @@ class InvalidTransitionError(Exception):
     """انتقالٌ غيرُ مسموح — الرسالةُ عربيّةٌ تُعرض للمستخدم كما هي."""
 
 
+ASSIGNED_TITLE = "أُسنِد إليك بلاغُ خرقِ بيانات"
+
+
+def notify_assignee(breach: BreachReport, *, assignee, by=None) -> bool:
+    """يُنبّه المكلَّفَ بالبلاغ عبر `NotificationHub` — يُعيد: أأُرسل؟ (DBT-24، PDPPL م.11).
+
+    لا إشعارَ لمن أسند نفسَه (`assignee == by`) ولا لحسابٍ معطَّل. **والنصُّ بلا بياناتٍ شخصيّة ولا عنوانِ البلاغ**:
+    خطورةٌ ومهلةٌ ورابط، كتنبيه المهلة القائم (`notifications.tasks._notify_breach_in_app`). وعطلُ الإشعار **لا يُسقط**
+    التسجيلَ ولا التعديل (يُسجَّل خطأً يراه Sentry) — في نقطةِ حفظٍ صغيرةٍ كي لا يُفسد معاملةَ المتّصل إن سقط الاستعلام.
+    """
+    if assignee is None or not assignee.is_active:
+        return False
+    if by is not None and assignee.pk == by.pk:
+        return False
+    body = f"الخطورة: {breach.get_severity_display()}"
+    if breach.ncsa_deadline:
+        body += f" — مهلةُ إشعار الجهة المختصّة حتى {timezone.localtime(breach.ncsa_deadline):%Y/%m/%d %H:%M}"
+    body += ". افتح البلاغ لاتّخاذ الإجراء."
+    try:
+        from notifications.hub import NotificationHub
+
+        with transaction.atomic():
+            NotificationHub.dispatch(
+                event_type="breach_assigned",
+                school=breach.school,
+                recipients=[assignee],
+                title=ASSIGNED_TITLE,
+                body=body,
+                related_url=f"/breach/{breach.pk}/",
+                related_object_id=str(breach.pk),
+                sent_by=by,
+            )
+    except Exception:  # noqa: BLE001 — الإشعارُ لا يُسقط تسجيلَ خرقٍ عليه مهلةُ 72 ساعة
+        logger.error("breach assignee notification failed breach=%s", breach.pk, exc_info=True)
+        return False
+    return True
+
+
 def register_breach(*, form, user, school, request=None) -> BreachReport:
     breach = form.save(commit=False)
     breach.school = school
@@ -74,6 +116,7 @@ def register_breach(*, form, user, school, request=None) -> BreachReport:
         school=school,
         request=request,
     )
+    notify_assignee(breach, assignee=breach.assigned_to if breach.assigned_to_id else None, by=user)
     return breach
 
 
@@ -123,6 +166,7 @@ def update_breach(breach: BreachReport, form, *, user, request=None) -> BreachRe
         locked = BreachReport.objects.select_for_update().get(pk=breach.pk)
         if locked.status == "resolved":
             raise InvalidTransitionError("لا يُعدَّل خرقٌ مُغلق.")
+        previous_assignee_id = locked.assigned_to_id
         changed = list(form.changed_data)
         saved = form.save(commit=False)
         # النصُّ يُولَّد إن فُرغ أو طُلبت إعادتُه؛ وبعد «تم الإشعار» مقفلٌ فلا يمسّه شيء.
@@ -141,4 +185,7 @@ def update_breach(breach: BreachReport, form, *, user, request=None) -> BreachRe
                 school=saved.school,
                 request=request,
             )
+        # مرّةً لكلّ تغييرٍ في المكلَّف — المقارنةُ بما تحت القفل لا بما قرأه العرضُ، فتكرارُ إرسال النموذج نفسِه لا يُنبّه ثانيةً.
+        if saved.assigned_to_id and saved.assigned_to_id != previous_assignee_id:
+            notify_assignee(saved, assignee=saved.assigned_to, by=user)
     return saved

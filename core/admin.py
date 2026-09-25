@@ -7,6 +7,7 @@ from .admin_password_forms import ArabicAdminPasswordChangeForm, ArabicUserChang
 from .models import (
     AcademicYear,
     CalendarEvent,
+    CapabilityGrant,
     ClassGroup,
     CustomUser,
     Department,
@@ -629,3 +630,50 @@ class ConsentRecordAdmin(SchoolScopedAdmin):
     search_fields = ("parent__full_name", "student__full_name")
     autocomplete_fields = ("parent", "student", "recorded_by")
     readonly_fields = ("given_at", "withdrawn_at")
+
+
+# ── منحُ القدرات المفوَّضة (مُشغِّل الجدول) ─────────────────────────
+@admin.register(CapabilityGrant)
+class CapabilityGrantAdmin(SchoolScopedAdmin):
+    """عرضٌ للمنح الفعّالة والمسحوبة — **بلا كتابة**: المنحُ والسحبُ بـ`grant_capability` وحدَه (يفحص المانحَ ويشترط
+    السببَ ويدقّق)؛ وتعديلُ صفٍّ هنا يتجاوز ذلك كلَّه فلا يُتاح حتى للمشرف الأعلى."""
+
+    list_display = (
+        "user",
+        "capability",
+        "school",
+        "is_active",
+        "granted_by",
+        "created_at",
+        "revoked_at",
+    )
+    list_filter = ("capability", "school")
+    list_select_related = ("user", "school", "granted_by", "revoked_by")
+    search_fields = ("user__full_name", "reason", "revoke_reason")
+    ordering = ("-created_at",)
+    readonly_fields = (
+        "id",
+        "school",
+        "user",
+        "capability",
+        "reason",
+        "granted_by",
+        "created_at",
+        "revoked_at",
+        "revoked_by",
+        "revoke_reason",
+        "updated_at",
+    )
+
+    @admin.display(boolean=True, description="فعّال")
+    def is_active(self, obj):
+        return obj.is_active
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

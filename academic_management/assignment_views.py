@@ -51,7 +51,7 @@ def _guard(request, teacher=None):
     """يرفض من لا قدرةَ له، ومن يمدّ يدَه إلى معلّمٍ خارج قسمه.
 
     تُعيد (المدرسة، القدرات، مفتاحَ نطاق المستخدم، العام). والنطاقُ `None`
-    للنائب والمدير: قسمٌ واحدٌ لا يحدّهما.
+    للنائب والمدير ومُشغِّل الجدول: قسمٌ واحدٌ لا يحدّهم.
     """
     school = request.user.get_school()
     caps = selectors.caps(request.user, school)
@@ -59,7 +59,12 @@ def _guard(request, teacher=None):
         raise PermissionDenied("شاشةُ الإسناد للمنسّق والنائب الأكاديميّ والمدير.")
     year = request.POST.get("year") or request.GET.get("year") or academic_year_for(request)
 
-    unbounded = caps["review"] or caps["approve"] or getattr(request.user, "is_superuser", False)
+    unbounded = (
+        caps["review"]
+        or caps["approve"]
+        or caps["operator"]
+        or getattr(request.user, "is_superuser", False)
+    )
     scope = None if unbounded else selectors.department_key(request.user, school, year)
     if teacher is not None and scope is not None:
         if selectors.department_key(teacher, school, year) != scope:
