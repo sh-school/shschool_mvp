@@ -32,7 +32,8 @@ permissions:
 
 concurrency:
   group: visual-snapshots-${{ github.ref }}
-  cancel-in-progress: true
+  # طلبُ الدمج يُلغي تشغيلَه القديم؛ أمّا `main` فلا: الأساسُ يُرفع من تشغيلٍ ناجحٍ وحدَه، ودمجان متتاليان كانا يُلغيان أوّلَ تشغيلٍ فلا يبقى أساسٌ (2026-09-25).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   snapshots:
