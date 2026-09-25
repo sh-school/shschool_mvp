@@ -61,7 +61,9 @@ def test_staff_register_headers_fit_their_longest_word_at_every_width(
         try:
             page = context.new_page()
             page.set_viewport_size({"width": 1366, "height": 900})
-            response = page.goto(f"{live_server.url}{_url('staff_affairs:staff_list')}", wait_until="load")
+            response = page.goto(
+                f"{live_server.url}{_url('staff_affairs:staff_list')}", wait_until="load"
+            )
             assert response and response.ok, response and response.status
             assert page.locator(".staff-register").count() == 1, "الجدولُ لم يُرسم — لا صفَّ في السجلّ"
             page.evaluate("document.fonts.ready.then(() => 1)")
@@ -72,7 +74,9 @@ def test_staff_register_headers_fit_their_longest_word_at_every_width(
                 result = page.evaluate(MEASURE)
                 assert result["columns"] >= 12, result
                 if result["narrow"]:
-                    failures.append(f"{width}px: {len(result['narrow'])} عنواناً أضيقُ من أطول كلمةٍ — {result['narrow']}")
+                    failures.append(
+                        f"{width}px: {len(result['narrow'])} عنواناً أضيقُ من أطول كلمةٍ — {result['narrow']}"
+                    )
                 if result["overflow"] > 0:
                     failures.append(f"{width}px: تفيض الصفحةُ أفقيّاً {result['overflow']}px (D2)")
         finally:
