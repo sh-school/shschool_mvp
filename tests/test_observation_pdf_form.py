@@ -399,3 +399,196 @@ def test_the_vision_is_included_never_written_here(source):
     """
     assert 'include "components/ministry_vision.html"' in source
     assert "الريادة في توفير" not in source, "يُضمَّن ولا يُنسخ"
+
+
+# ── ختمُ التوقيع الإلكترونيّ في خانتَي التوقيع (F55E) ─────────────────────────
+# التذكرةُ SOS-20260925-F55E: خانتا «توقيع المعلم» و«توقيع الزائر» كانتا فارغتين في نسخة PDF، والنموذجُ يحمل
+# `submitted_at` (إرسال الزائر) و`teacher_acknowledged_at` (اطّلاع المعلّم). الختمُ عند وجود البيانات، وإلّا تبقى
+# الخانةُ فارغةً للتوقيع اليدويّ؛ لا ختمَ على مسودّةٍ أو مسحوبة؛ والوقتُ بتوقيت الدوحة؛ والأسماءُ وحدَها.
+
+STAMP = "توقيعٌ إلكترونيّ داخل المنصّة"
+VISITOR_NAME = "سالم الزائر الأوّل"
+TEACHER_NAME = "ناصر المعلّم الأوّل"
+SENT_AT = "2026-09-01T09:30:00+00:00"  # 12:30 بتوقيت الدوحة
+ACK_AT = "2026-09-02T06:05:00+00:00"  # 09:05 بتوقيت الدوحة
+
+
+def _stamp_of(name, at):
+    """الختمُ كما يخرج: اسمٌ في سطرٍ ووقتٌ في سطرٍ (لا فاصلٌ يتدلّى في الخانة الضيّقة)."""
+    return f"<div>{name}</div><div>{at}</div>"
+
+
+def _moment(iso):
+    from datetime import datetime
+
+    return datetime.fromisoformat(iso)
+
+
+def _html_of(obs):
+    from quality.observation_views import _pdf_context
+
+    return render_to_string("quality/observation_pdf.html", _pdf_context(obs))
+
+
+@pytest.fixture
+def named(observation):
+    """الزائرُ والمعلّمُ باسمَين لا يُخلطان بكلمتَي «الزائر» و«المعلم» في عنوانَي الخانتين."""
+    observation.observer.full_name = VISITOR_NAME
+    observation.observer.save(update_fields=["full_name"])
+    observation.teacher.full_name = TEACHER_NAME
+    observation.teacher.save(update_fields=["full_name"])
+    return observation
+
+
+def _sent(obs, at=SENT_AT):
+    obs.status = "submitted"
+    obs.submitted_at = _moment(at)
+    obs.submission_count = 1
+    obs.teacher_acknowledged_at = None
+    obs.save()
+    return obs
+
+
+def _acknowledged(obs):
+    _sent(obs)
+    obs.status = "acknowledged"
+    obs.teacher_acknowledged_at = _moment(ACK_AT)
+    obs.save()
+    return obs
+
+
+def test_a_sent_visit_stamps_the_visitor_and_leaves_the_teacher_cell_empty(db, named):
+    html = _html_of(_sent(named))
+
+    assert html.count(STAMP) == 1
+    assert _stamp_of(VISITOR_NAME, "2026/09/01 12:30") in html
+    # الاسمان في ترويسة الاستمارة دائماً؛ الختمُ هو سطرا «الاسم» و«الوقت»
+    assert (
+        f"<div>{TEACHER_NAME}</div>" not in html
+    ), "المعلّمُ لم يطّلع بعدُ — خانتُه فارغةٌ للتوقيع اليدويّ"
+
+
+def test_an_acknowledged_visit_stamps_both_cells(db, named):
+    html = _html_of(_acknowledged(named))
+
+    assert html.count(STAMP) == 2
+    assert _stamp_of(VISITOR_NAME, "2026/09/01 12:30") in html
+    assert _stamp_of(TEACHER_NAME, "2026/09/02 09:05") in html
+
+
+def test_a_draft_is_never_stamped_even_with_a_stale_time(db, named):
+    """المسودّةُ ومنها المسحوبةُ (السحبُ يعيدها مسودّةً) بلا ختم — الحالةُ هي الحكمُ لا الوقتُ وحدَه."""
+    named.status = "draft"
+    named.submitted_at = _moment(SENT_AT)
+    named.teacher_acknowledged_at = _moment(ACK_AT)
+    named.save()
+
+    html = _html_of(named)
+
+    assert STAMP not in html
+    assert f"<div>{VISITOR_NAME}</div>" not in html and f"<div>{TEACHER_NAME}</div>" not in html
+
+
+def test_a_reopened_visit_keeps_the_visitor_stamp_and_drops_the_teachers(db, named):
+    """إعادةُ الفتح: مُقَرّة → مُرسَلة، ويُمحى اطّلاعُ المعلّم فتعود خانتُه فارغة."""
+    _acknowledged(named)
+    named.status = "submitted"
+    named.teacher_acknowledged_at = None
+    named.save()
+
+    html = _html_of(named)
+
+    assert html.count(STAMP) == 1 and f"<div>{TEACHER_NAME}</div>" not in html
+
+
+def test_a_resubmitted_visit_shows_the_last_time(db, named):
+    _sent(named, at="2026-09-01T09:30:00+00:00")
+    named.submission_count = 2
+    named.submitted_at = _moment("2026-09-03T07:15:00+00:00")  # 10:15 بتوقيت الدوحة
+    named.save()
+
+    html = _html_of(named)
+
+    assert "2026/09/03 10:15" in html
+    assert "2026/09/01" not in html
+
+
+def test_the_time_is_doha_whatever_timezone_is_active(db, named):
+    from django.utils import timezone
+
+    _sent(named)
+
+    with timezone.override("UTC"):
+        html = _html_of(named)
+
+    assert "12:30" in html and "09:30" not in html
+
+
+def test_the_stamp_carries_names_only_no_id_and_no_number(db, named):
+    _acknowledged(named)
+    for user in (named.observer, named.teacher):
+        assert user.national_id, "الفرضيّةُ: للمستخدمَين هويّةٌ في القاعدة، ولا تظهر في الختم"
+
+    html = _html_of(named)
+
+    for user in (named.observer, named.teacher):
+        assert user.national_id not in html
+
+
+def test_a_signer_without_a_name_gets_no_stamp(db, named):
+    """ختمٌ بلا اسمٍ ليس توقيعاً — تبقى الخانةُ للتوقيع اليدويّ."""
+    _sent(named)
+    named.observer.full_name = "  "
+    named.observer.save(update_fields=["full_name"])
+
+    assert STAMP not in _html_of(named)
+
+
+def test_the_signature_labels_stay_and_are_not_replaced_by_the_stamp(db, named):
+    html = _html_of(_acknowledged(named))
+
+    assert "توقيع المعلم" in html and "توقيع الزائر" in html
+
+
+def _real_criteria(school, count):
+    """معاييرُ الاستمارة الحقيقيّة (الأولى `count`) لا معيارُ الفحص الواحد — ويُزال ما في الفحوص من معايير."""
+    from quality.management.commands.seed_observation_criteria import CRITERIA
+    from quality.observation_models import ObservationCriterion
+
+    ObservationCriterion.objects.filter(school=school).delete()
+    for order, (domain, text) in enumerate(CRITERIA[:count], start=1):
+        ObservationCriterion.objects.create(school=school, domain=domain, text=text, order=order)
+
+
+def _page_count(obs):
+    import io
+
+    from core.pdf_utils import render_pdf_bytes
+
+    pypdf = pytest.importorskip("pypdf")
+    pdf = render_pdf_bytes(_html_of(obs))
+    return len(pypdf.PdfReader(io.BytesIO(pdf)).pages)
+
+
+def test_a_stamped_form_fits_wherever_the_unstamped_one_fits(db, school, named):
+    """القبولُ: الجدولُ يبقى في صفحةٍ واحدة — الختمان لا يُنزلان الاستمارةَ عن الصفحة الواحدة.
+
+    عددُ صفحات الأصل تحكمه الخطوطُ المثبَّتةُ في البيئة (بخطٍّ بديلٍ عريضٍ ينزل صفُّ التوقيع وحده إلى الصفحة الثانية
+    ولو بلا ختم) — فلا رقمَ مطلقاً هنا: نأخذ أكبرَ عددِ معاييرَ تسعه صفحةٌ واحدةٌ **بلا ختم** (حتّى تمتلئ الصفحةُ إلى
+    حافّتها)، ونقيس الاستمارةَ المختومةَ بالختمَين عند العدد نفسِه. صندوقُ الملاحظات يردّ ما يزيده الختمُ (`.notes.stamped`).
+    """
+    pytest.importorskip("weasyprint")
+    named.general_notes = ""
+    named.status = "draft"
+    named.save()
+
+    for count in range(23, 8, -1):
+        _real_criteria(school, count)
+        if _page_count(named) == 1:
+            break
+    else:
+        pytest.skip("لا عددَ معاييرَ تسعه صفحةٌ في هذه البيئة (خطوطُ PDF غيرُ مثبَّتة)")
+
+    assert (
+        _page_count(_acknowledged(named)) == 1
+    ), f"الختمان أنزلا الاستمارةَ ({count} معياراً) عن صفحتها"
