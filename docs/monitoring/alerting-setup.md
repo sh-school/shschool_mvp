@@ -145,11 +145,16 @@ cat /tmp/schoolos-monitor-failures.count
 
 ## 4. GitHub Actions Monitoring
 
-> **Live:** `.github/workflows/monitor.yml` exists and runs every 15 minutes. It
-> needs no secret: two attempts a minute apart, a failure opens (or comments on)
-> one `uptime-failure` issue, and the next success closes it — the same pattern
-> as `nightly.yml`. The sample below is the older Slack-webhook design, kept for
-> reference only.
+> **Live:** `.github/workflows/monitor.yml` exists and is scheduled every 15
+> minutes, **best-effort only** — GitHub throttles scheduled runs (measured at
+> about 7% of the expected cadence on 2026-09-25), so it is a *secondary* check
+> and an absent issue does not prove the site is up. The primary monitor is
+> Sentry Uptime (every 60 seconds on `/`), and
+> `.github/workflows/post-deploy-canary.yml` verifies every deployment on the
+> `deployment_status` event (REP-17 a). `monitor.yml` needs no secret: two
+> attempts a minute apart, a failure opens (or comments on) one `uptime-failure`
+> issue, and the next success closes it — the same pattern as `nightly.yml`. The
+> sample below is the older Slack-webhook design, kept for reference only.
 
 Sample (superseded) `.github/workflows/monitor.yml`:
 
