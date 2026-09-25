@@ -3582,3 +3582,207 @@ def test_0028_publishes_nothing_a_public_repo_must_not_say():
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
     assert "تعليق نشر" not in body and "معلَّق النشر" not in body and "نشرُ main معلَّق" not in body
+
+
+# ── 0029: #599 وVI-11 وVI-31، #602 وM-06، #606، وإعادةُ تعريف OWN-30، وبندا الجوال، وملاحظاتُ مالكي المسارات ──
+
+_sync29 = importlib.import_module("roadmap.migrations.0029_sync_items_2026_09_25h")
+
+
+class _Apps29:
+    @staticmethod
+    def get_model(_app, name):
+        return RoadmapItem
+
+
+def test_0029_closes_vi11_vi31_m06_vi23_and_moves_dbt13_only_from_their_expected_states():
+    _item("VI-11", "doing", 50, pr="#583")
+    _item("VI-31", "todo", 0)
+    _item("M-06", "todo", 0)
+    _item("VI-23", "todo", 0)
+    _item("DBT-13", "blocked", 0)
+    assert _sync29.sync(RoadmapItem) == ["VI-11", "VI-31", "M-06", "VI-23", "DBT-13"]
+    assert _sync29.sync(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    assert (by["VI-11"].status, by["VI-11"].progress, by["VI-11"].pr) == ("done", 100, "#583 #599")
+    assert (by["VI-31"].status, by["VI-31"].pr) == ("done", "#583 #599")
+    assert (by["M-06"].status, by["M-06"].pr) == ("done", "#602")
+    assert (by["VI-23"].status, by["VI-23"].progress) == ("done", 100)
+    assert (by["DBT-13"].status, by["DBT-13"].progress) == ("doing", 50)
+
+
+def test_0029_records_the_vi11_measurements_with_their_reservations_and_scope():
+    _item("VI-11", "doing", 50, pr="#583")
+    _sync29.sync(RoadmapItem)
+    note = RoadmapItem.objects.get(code="VI-11").note
+    assert "منشوران على الإنتاج ضمن main@ff70a32" in note and "V-K19 من 4 إلى 0" in note
+    assert "−46,339 بايتاً" in note and "لم يُقَس على الإنتاج قبل النشر" in note
+    assert "لم يُقَس:" in note and "VD3/VD4" in note and "خارجَ معيار الإغلاق" in note
+
+
+def test_0029_records_m06_as_published_with_its_measured_cost_and_unverified_device_parts():
+    _item("M-06", "todo", 0)
+    _sync29.sync(RoadmapItem)
+    note = RoadmapItem.objects.get(code="M-06").note
+    assert "منشورٌ على الإنتاج ضمن main@ff70a32" in note and "44×44" in note and "32×32" in note
+    assert "375: 150 ← 84px" in note and "M-05c" in note and "صافي CSS −21 بايتاً" in note
+    assert "لم يُتحقَّق:" in note and "MK10 = نعم" in note
+
+
+def test_0029_marks_vi23_as_a_local_measurement_and_dbt13_progress_as_the_owners_suggestion():
+    _item("VI-23", "todo", 0)
+    _item("DBT-13", "blocked", 0)
+    _sync29.sync(RoadmapItem)
+    vi23 = RoadmapItem.objects.get(code="VI-23").note
+    assert "بياناتٌ محلّيّة لا إنتاج" in vi23 and "تحفّظان" in vi23 and "ولا قياسَ على الإنتاج" in vi23
+    dbt13 = RoadmapItem.objects.get(code="DBT-13").note
+    assert "2,466" in dbt13 and "معيارٌ من اثنين مقيس" in dbt13 and "اقتراحٌ لا قياس" in dbt13
+
+
+def test_0029_leaves_items_the_developer_moved():
+    _item("VI-11", "done", 100)
+    _item("M-06", "doing", 60)
+    _item("DBT-13", "doing", 20)
+    assert _sync29.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="VI-11").note == ""
+
+
+def test_0029_never_overflows_the_pr_field_limit():
+    crowded = " ".join(f"#{n}" for n in range(500, 513))
+    _item("VI-11", "doing", 50, pr=crowded)
+    assert _sync29.sync(RoadmapItem) == ["VI-11"]
+    assert RoadmapItem.objects.get(code="VI-11").pr == crowded
+
+
+def test_0029_redefines_own30_by_the_owners_decision_and_assigns_it_for_oct_2():
+    from datetime import date
+
+    _item(
+        "OWN-30",
+        "todo",
+        0,
+        title="سقّاطةُ mypy تفشل على main نفسها الآن، بمعزلٍ عن أيّ فرعٍ من فروعي",
+        criterion="تحديدٌ من لمس كلّ ملفٍّ",
+        gate="owner",
+    )
+    assert _sync29.redefine(RoadmapItem) == ["OWN-30"]
+    assert _sync29.redefine(RoadmapItem) == []
+    own30 = RoadmapItem.objects.get(code="OWN-30")
+    assert own30.title.startswith("توحيدُ إصدار mypy بين التطوير وCI")
+    assert "mypy==1.10.0" in own30.criterion and "dependabot.yml" in own30.criterion
+    assert "1,735 كـCI" in own30.criterion and "لا `--update` بغير إصدار CI" in own30.criterion
+    assert (own30.start_date, own30.end_date) == (date(2026, 10, 2), date(2026, 10, 2))
+    assert own30.gate == "" and "قرارُ المالك 2026-09-25" in own30.date_basis
+    assert (own30.status, own30.progress) == ("todo", 0)
+
+
+def test_0029_leaves_an_own30_the_developer_rewrote_or_moved():
+    _item("OWN-30", "todo", 0, title="عنوانٌ حرّره المطوّر", gate="owner")
+    assert _sync29.redefine(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="OWN-30").title == "عنوانٌ حرّره المطوّر"
+    RoadmapItem.objects.filter(code="OWN-30").update(
+        title="سقّاطةُ mypy تفشل على main نفسها", status="doing", progress=30
+    )
+    assert _sync29.redefine(RoadmapItem) == []
+
+
+def test_0029_creates_the_two_approved_mobile_items_open_and_undated_and_never_overwrites():
+    assert _sync29.add_new_items(RoadmapItem) == ["M-05c", "M-19"]
+    assert _sync29.add_new_items(RoadmapItem) == []
+    m05c = RoadmapItem.objects.get(code="M-05c")
+    m19 = RoadmapItem.objects.get(code="M-19")
+    for item in (m05c, m19):
+        assert (item.status, item.progress, item.lane, item.src) == ("todo", 0, "mobile", "M")
+        assert item.start_date is None and item.end_date is None
+        assert "سجّله المالكُ بنداً مقترَحاً مفتوحاً" in item.note or "وسجّله المالكُ" in item.note
+    assert (m05c.sort_order, m19.sort_order) == (726, 727)
+    assert m05c.deps == "M-06" and "60px عند 320px" in m05c.criterion
+    assert "عددُ الصفحات ذات العيب المسجَّل" in m19.criterion
+    RoadmapItem.objects.filter(code="M-19").update(status="doing", title="حرّره المطوّر")
+    assert _sync29.add_new_items(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="M-19").title == "حرّره المطوّر"
+
+
+def test_0029_adds_each_note_once_without_touching_state_dates_or_gates():
+    from datetime import date
+
+    codes = []
+    for code, _line in _sync29.NOTES:
+        if code not in codes:
+            codes.append(code)
+            _item(
+                code,
+                "doing",
+                40,
+                start_date=date(2026, 10, 1),
+                end_date=date(2026, 10, 9),
+                gate="owner",
+            )
+    assert _sync29.sync_notes(RoadmapItem) == [code for code, _l in _sync29.NOTES]
+    assert _sync29.sync_notes(RoadmapItem) == []
+    for item in RoadmapItem.objects.all():
+        assert (item.status, item.progress, item.gate) == ("doing", 40, "owner"), item.code
+        assert (str(item.start_date), str(item.end_date)) == ("2026-10-01", "2026-10-09")
+
+
+def test_0029_states_that_vi24_and_own20_and_dbt46_proposals_are_not_the_owners_decisions():
+    notes = dict(_sync29.NOTES)
+    assert "لم يقرّها المالك" in notes["VI-24"]
+    assert "مرشَّحٌ للإغلاق" in notes["OWN-20"] and "ويؤكّد مالكُ النطاق" in notes["OWN-20"]
+    assert "لم يُعتمد ترتيبُه" in notes["DBT-46"]
+    assert "معيارُ قبولٍ مقترَح" in notes["REP-18"] and "لم يُعتمد" in notes["REP-18"]
+    # قياساتُ مسار الديون والتشغيل تُسجَّل بمصدرها وتاريخها.
+    assert "1,735 في 160 ملفّاً" in notes["DBT-01"] and "5,728" in notes["DBT-03"]
+    assert "29 موقعاً" in notes["DBT-04"] and "سبعَ" in notes["REP-18"]
+
+
+def test_0029_skips_a_note_for_an_absent_item_and_forwards_is_idempotent_on_an_empty_database():
+    assert _sync29.sync_notes(RoadmapItem) == []
+    _sync29.forwards(_Apps29, None)
+    assert RoadmapItem.objects.count() == 0
+    _item("VI-11", "doing", 50, pr="#583")
+    _item("VI-31", "todo", 0)
+    _item("DBT-13", "blocked", 0)
+    _item("U-31", "todo", 0)
+    _item("OWN-30", "todo", 0, title="سقّاطةُ mypy تفشل على main نفسها", gate="owner")
+    _sync29.forwards(_Apps29, None)
+
+    def snapshot():
+        return list(
+            RoadmapItem.objects.order_by("code").values_list(
+                "code", "status", "progress", "pr", "gate", "title", "note", "sort_order"
+            )
+        )
+
+    first = snapshot()
+    _sync29.forwards(_Apps29, None)
+    assert snapshot() == first
+    assert RoadmapItem.objects.filter(code__in=["M-05c", "M-19"]).count() == 2
+
+
+def test_0029_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0029_sync_items_2026_09_25h").origin
+    body = open(origin, encoding="utf-8").read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "رقمٌ حقيقيّ",
+        "مرض",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
+    assert "تعليق نشر" not in body and "معلَّق النشر" not in body and "نشرُ main معلَّق" not in body
