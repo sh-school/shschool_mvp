@@ -36,7 +36,9 @@ def _silhouette(image: Image.Image, size: int = 256) -> np.ndarray:
     alpha = np.array(image.convert("RGBA"))[:, :, 3] > 128
     ys, xs = np.where(alpha)
     cropped = alpha[ys.min() : ys.max() + 1, xs.min() : xs.max() + 1]
-    resized = Image.fromarray((cropped * 255).astype("uint8")).resize((size, size), Image.Resampling.LANCZOS)
+    resized = Image.fromarray((cropped * 255).astype("uint8")).resize(
+        (size, size), Image.Resampling.LANCZOS
+    )
     return np.array(resized) > 128
 
 
@@ -73,7 +75,9 @@ def test_the_maroon_surfaces_show_the_white_emblem_and_no_whitening_filter():
     for path in WHITE_ON_MAROON:
         html = pathlib.Path(path).read_text(encoding="utf-8")
         assert "brand/emblem-white.svg" in html, path
-        assert "icons/favicon.png" not in re.sub(r'<link rel="(icon|apple-touch-icon)"[^>]*>', "", html), path
+        assert "icons/favicon.png" not in re.sub(
+            r'<link rel="(icon|apple-touch-icon)"[^>]*>', "", html
+        ), path
     for path in pathlib.Path("static/css").rglob("*.css"):
         assert "brightness(0) invert(1)" not in path.read_text(encoding="utf-8"), path
     for path in WHITE_ON_MAROON:
