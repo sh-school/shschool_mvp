@@ -1318,7 +1318,7 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
   max-inline-size: 100%;
   border: 1px solid var(--maroon-border);
   border-radius: var(--radius-md);
-  overflow-x: auto; /* ثلاثةُ تبويباتٍ nowrap (379px) تتجاوز عمودَ الهاتف: تُمرَّر داخلَه لا تُقصّ */
+  overflow-x: auto;
   overflow-y: hidden;
 }
 .period-switch__item {
