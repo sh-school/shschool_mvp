@@ -757,6 +757,13 @@
 صفحةٌ قائمة بذاتها لا تمتدّ من `base`، فلا تصلها `actions.js` منها. ومفردات
 `data-*` هنا كانت ستصمت بلا أثر — لا خطأ في وحدة التحكّم ولا سلوك.
 {% endcomment %}
+{% comment %}
+**لا سكربتَ في مسار PDF (`for_pdf`)**: يُعرض القالبُ فيه في عامل Celery، ومخزنُ الملفّات الساكنة صارمٌ بـ`manifest`
+لا يملكه العاملُ (`collectstatic` يجري في إقلاع الويب وحده) — فكلُّ `{% static %}` لم يُحرس رمى
+`Missing staticfiles manifest entry` وبقي التصديرُ «جارٍ التحضير» (Sentry SCHOOLOS-PRODUCTION-2X). والـPDF
+لا يحتاج JS أصلاً. يحرسه `tests/test_schedule_pdf_static.py`.
+{% endcomment %}
+{% if not for_pdf %}
 <script src="{% static 'js/actions.js' %}" defer></script>
 {% comment %}
 طبقةُ التفاعل — داخل إطار المنصّة وحدَه، وللجدول العامّ وحدَه. الطباعةُ
@@ -764,6 +771,7 @@
 {% endcomment %}
 {% if embed and view_type == 'all_teachers' %}
 <script src="{% static 'js/schedule-matrix.js' %}" defer></script>
+{% endif %}
 {% endif %}
 </body>
 </html>
