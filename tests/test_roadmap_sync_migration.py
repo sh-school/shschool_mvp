@@ -2033,10 +2033,34 @@ def test_0024_leaves_sch10_the_developer_moved():
     assert RoadmapItem.objects.get(code="SCH-10").note == ""
 
 
-def test_0024_does_not_register_sch19_before_the_owner_confirms():
-    assert not hasattr(_sync24, "add_items") and not hasattr(_sync24, "add_proposed")
-    _sync24.forwards(_Apps24, None)
-    assert not RoadmapItem.objects.filter(code="SCH-19").exists()
+def test_0024_registers_sch19_as_a_proposed_open_item_without_dates_after_the_owner_confirmed():
+    assert _sync24.add_proposed(RoadmapItem) == ["SCH-19"]
+    assert _sync24.add_proposed(RoadmapItem) == []
+    sch19 = RoadmapItem.objects.get(code="SCH-19")
+    assert (sch19.status, sch19.progress, sch19.lane, sch19.src, sch19.deps) == (
+        "todo",
+        0,
+        "backend",
+        "SCH",
+        "SCH-08",
+    )
+    assert (
+        sch19.start_date is None
+        and sch19.end_date is None
+        and sch19.gate == ""
+        and sch19.sort_order == 619
+    )
+    # يغيّر التوليد فيُقاس على نسخة الإنتاج قبل الدمج، ولا يبدأ قبل تحقّق الأحد.
+    assert (
+        "يغيّر التوليد" in sch19.note and "2026-09-27" in sch19.note and "24 يومَ معلّمٍ" in sch19.note
+    )
+    assert "معاملةٌ تُتراجع" in sch19.criterion
+
+
+def test_0024_keeps_a_sch19_the_developer_wrote_first():
+    _item("SCH-19", "doing", 10, title="كتبه المطوّر")
+    assert _sync24.add_proposed(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="SCH-19").title == "كتبه المطوّر"
 
 
 def test_0024_forwards_does_nothing_on_an_empty_database_and_is_idempotent():

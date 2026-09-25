@@ -8,7 +8,10 @@
 - **SCH-10 → قيد التنفيذ 50%** بحسابٍ صريحٍ من 8033: معيارا الإغلاق في وثيقة الخطّة (أ) مؤشّرٌ في المختبر — منجَزٌ ومدموج، و(ب) أساسٌ
   مرجعيٌّ محفوظٌ على الجدول المعتمد — لم يُنجَز لأنّه أمرٌ واحدٌ يكتب في الإنتاج فينتظر إذنَ المالك؛ (100 + 0) / 2 = 50%.
 
-لا يُدرج SCH-19 المقترَح قبل تأكيد المالك، ولا يتغيّر SK* (القياسُ على قاعدة الجلسة، نسخةٍ من الإنتاج لا الإنتاج نفسه).
+- **SCH-19 بندٌ مقترَحٌ مفتوحٌ جديد** (اقترحته 8033 وسجّله المالكُ مقترَحاً مفتوحاً بلا تاريخٍ ولا حالةٍ منجزة): تصحيحُ
+  teacher.run_breaches القائم الذي يعدّ الحصّةَ المزدوجةَ المطلوبة تتابعاً مخالفاً؛ يغيّر التوليدَ فيُقاس على نسخة الإنتاج قبل الدمج.
+
+ولا يتغيّر SK* (القياسُ على قاعدة الجلسة، نسخةٍ من الإنتاج لا الإنتاج نفسه).
 """
 
 import datetime
@@ -40,6 +43,25 @@ UPDATES = [
 ]
 
 
+# بندٌ مقترَحٌ مفتوحٌ بلا تاريخٍ (سجّله المالكُ كذلك): (الرمز، المسار، العنوان، الاعتماديّات، معيار الإغلاق، ملاحظة)
+PROPOSED_ITEMS = [
+    (
+        "SCH-19",
+        "backend",
+        "تصحيحُ teacher.run_breaches: المزدوجةُ المطلوبةُ (التربية الفنّية والمختبرات) مهمّةٌ واحدة لا تتابعٌ مخالف",
+        "SCH-08",
+        "teacher.run_breaches يعدّ المزدوجةَ المطلوبةَ مهمّةً واحدةً كما يحكم HC5 في المولّد، ويُقاس أثرُه على التوليد على نسخة الإنتاج "
+        "(معاملةٌ تُتراجع) قبل الدمج؛ ومعيارُ الإغلاق التفصيليّ في docs/schedule_generation_remediation_plan_2026-09.md.",
+        "اقترحته 8033 عند دمج #589 وسجّله المالكُ بنداً مقترَحاً مفتوحاً بلا تاريخٍ (تحت مظلّة SCH، مسار backend). اكتُشف بقياس #589: "
+        "teacher.run_breaches القائم يعدّ المزدوجةَ المطلوبةَ (التربية الفنّية والمختبرات) تتابعاً مخالفاً — في المختبر 24 يومَ معلّمٍ (6.9%) "
+        "والحقيقيُّ 6 (نحو 1.7%) على قاعدة الجلسة (نسخةٌ من الإنتاج). يدخل الدرجةَ التي تقود المحسِّن فتصحيحُه **يغيّر التوليد**. لا يحجبه "
+        "قرارُ مالك، لكنّ 8033 لن تبدأه قبل تحقّق الأحد 2026-09-27 (SCH-08). الجهدُ غيرُ مقدَّر (القيمةُ الافتراضيّة).",
+    ),
+]
+PROPOSED_FIRST_ORDER = 619  # بعد SCH-18 (618)
+PROPOSED_BASIS = "غير مجدول — اقترحته جلسة الجدولة 8033 وسجّله المالك مقترَحاً مفتوحاً"
+
+
 def _add_pr(existing, pr):
     """تُضيف رموزَ الطلبات الجديدة إلى ما في الحقل بلا تكرار."""
     return " ".join(dict.fromkeys([*existing.split(), *pr.split()]))
@@ -61,12 +83,36 @@ def sync(item_model):
     return changed
 
 
+def add_proposed(item_model):
+    """تُنشئ البنودَ المقترَحةَ الغائبة مفتوحةً بلا تاريخ؛ تُرجع رموزَ ما أُنشئ."""
+    created = []
+    for offset, (code, lane, title, deps, criterion, note) in enumerate(PROPOSED_ITEMS):
+        if item_model.objects.filter(code=code).exists():
+            continue
+        item_model.objects.create(
+            code=code,
+            src="SCH",
+            lane=lane,
+            title=title,
+            status="todo",
+            progress=0,
+            date_basis=PROPOSED_BASIS,
+            deps=deps,
+            criterion=criterion,
+            note=f"{STAMP} {note}",
+            sort_order=PROPOSED_FIRST_ORDER + offset,
+        )
+        created.append(code)
+    return created
+
+
 def forwards(apps, schema_editor):
     item_model = apps.get_model("roadmap", "RoadmapItem")
     # قاعدةٌ بلا استيراد (اختبار، شجرةٌ جديدة): لا شيء يُزامَن، ولا بنودٌ يتيمة.
     if not item_model.objects.exists():
         return
     sync(item_model)
+    add_proposed(item_model)
 
 
 class Migration(migrations.Migration):
