@@ -331,53 +331,6 @@ def scenario_target_blank_links_download_like_the_rest(page, server: Server) -> 
     assert len(page.context.pages) == tabs, "فُتح لسانٌ جديد"
 
 
-def scenario_form_button_sends_its_own_name_and_value(page, server: Server) -> None:
-    """زرُّ نموذجٍ `data-app-file`: يُرسَل ما كان النموذجُ سيرسله (الحقلُ المخفيّ واسمُ الزرّ وقيمتُه) ويُحفظ الملفُّ بلا انتقال؛ ونموذجٌ ناقصٌ لا يُرسَل."""
-    url = page.url
-    calls = len(server.seen)
-    page.click("#probe-form-xlsx")  # حقلٌ مطلوبٌ فارغ: لا طلبَ ولا انتقال
-    page.wait_for_timeout(300)
-    assert len(server.seen) == calls, "أُرسل نموذجٌ ناقص"
-    page.fill("#probe-need", "x")
-    with page.expect_download() as download:
-        page.click("#probe-form-xlsx")
-    assert download.value.suggested_filename == "تقرير.xlsx"
-    assert page.url == url
-    assert any(
-        "/form/" in seen and "format=xlsx" in seen and "need=x" in seen for seen in server.seen
-    ), server.seen
-
-
-def scenario_html_is_a_page_never_a_download(page, server: Server) -> None:
-    """جوابُ HTML صفحةٌ لا ملفّ: تُفتح الصفحةُ (كما كانت بالانتقال) ولا يُنزَّل HTML ملفّاً."""
-    downloads = []
-    page.on("download", lambda download: downloads.append(download))
-    with page.expect_navigation():
-        page.click("#probe-html")
-    assert page.url.endswith("/__export__/html/")
-    assert not downloads, "نُزِّل HTML على أنّه ملفّ"
-
-
-def scenario_target_blank_links_stay_with_the_browser(page, server: Server) -> None:
-    """رابطُ `target=_blank` (عرضُ PDF في لسانٍ جديد) يفتحه المتصفّحُ بنفسه: طلبٌ واحدٌ هو الانتقالُ نفسُه — لا جلبَ خلفيّاً ولا إشعارَ تحضير.
-
-    (فتحُه من blob بعد الجلب يرثُ CSP الصفحة `object-src 'none'` فيُحجب عارضُ PDF؛ وتنزيلُه بدل عرضه يغيّر ما اعتاده المستخدم — انظر ترويسة السكربت.)
-    """
-    url = page.url
-    before = sum("/pdf/" in seen for seen in server.seen)
-    with page.context.expect_page() as popup:
-        page.click("#probe-pdf")
-    tab = popup.value
-    tab.wait_for_timeout(1000)  # Chromium بلا واجهة ينزّل الـPDF بدل عرضه؛ والطلبُ واحدٌ في الحالتين
-    assert (
-        sum("/pdf/" in seen for seen in server.seen) - before == 1
-    ), "طُلب الرابطُ أكثرَ من مرّةٍ (جلبٌ خلفيٌّ فوق الانتقال)"
-    assert page.url == url
-    assert not page.locator("#toast-container .toast").count(), "إشعارٌ لرابطٍ يتركه المركزُ للمتصفّح"
-    if not tab.is_closed():
-        tab.close()
-
-
 #: الترتيبُ مقصود: مشهدُ HTML أخيراً لأنّه ينتقل بالصفحة.
 SCENARIOS = (
     scenario_direct_file_is_saved_silently,
