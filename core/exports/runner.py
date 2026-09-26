@@ -89,6 +89,7 @@ def _audit_built(job: ExportJob, result: registry.ExportResult) -> None:
         user=job.requested_by,
         action="export",
         model_name="other",
+        object_id=result.object_id,
         object_repr=f"{job.kind}:built",
         changes={
             "kind": job.kind,

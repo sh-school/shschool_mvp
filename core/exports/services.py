@@ -74,7 +74,9 @@ def status_payload(job: ExportJob) -> dict:
     return {"status": job.status, "download_url": None, "error": None}
 
 
-def respond_export(request: Any, kind_name: str) -> HttpResponse:
+def respond_export(request: Any, kind_name: str, *, params: Any = None) -> HttpResponse:
+    """`params` (QueryDict) يحلّ محلَّ `request.GET` حين يحمل المسارُ معاملاً خارج الاستعلام (`class_id` من الرابط)؛ فيُحفظ في
+    صفّ التصدير كلُّه ويصل البنّاءَ في العامل."""
     spec = registry.get(kind_name)
     if spec is None:
         # خطأُ برمجةٍ لا خطأُ مستخدم: يفشل مغلقاً برمزٍ ثابتٍ لا بتوليدٍ متزامنٍ صامت (ADR-0004 §2).
@@ -84,9 +86,10 @@ def respond_export(request: Any, kind_name: str) -> HttpResponse:
         if is_xhr(request):
             return error_response(request, 403, messages.FORBIDDEN)
         raise PermissionDenied
-    query = request.GET.urlencode()
+    params = request.GET if params is None else params
+    query = params.urlencode()
     if spec.mode == "direct":
-        return _respond_direct(request, spec, query)
+        return _respond_direct(request, spec, query, params)
     return _start_job(request, spec, query)
 
 
@@ -140,7 +143,9 @@ def _started(request: Any, job: ExportJob) -> HttpResponse:
     return redirect(reverse("export_page", args=[job.id]))
 
 
-def _respond_direct(request: Any, spec: registry.ExportKind, query: str) -> HttpResponse:
+def _respond_direct(
+    request: Any, spec: registry.ExportKind, query: str, params: Any
+) -> HttpResponse:
     """النمطُ المتزامن (300–1000ms مقيسةً p95 دافئاً) — لا يُسجَّل نوعٌ بلا قياسٍ مثبَّت (`registry.register`).
 
     تصديرٌ متزامنٌ واحدٌ للمستخدم في آنٍ، ومدّةُ البناء تُسجَّل لترقيته آليّاً إلى `job` إن تجاوز السقف؛
@@ -151,7 +156,7 @@ def _respond_direct(request: Any, spec: registry.ExportKind, query: str) -> Http
         return error_response(request, 429, messages.BUSY)
     started = time.monotonic()
     try:
-        result = spec.build(request.school, request.user, request.GET)
+        result = spec.build(request.school, request.user, params)
     except Exception:  # noqa: BLE001 — لا نصَّ استثناءٍ في السجلّ ولا في الردّ (رموزٌ ثابتة)
         logger.error("export_direct_failed kind=%s code=%s", spec.kind, messages.FAILED)
         return error_response(request, 500, messages.FAILED)

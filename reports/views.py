@@ -12,7 +12,6 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.http import urlencode
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 
@@ -21,10 +20,12 @@ from core.academic_calendar import academic_year_for
 from core.audit_export import log_export
 from core.capabilities import capability_required
 from core.domain.tones import tone_for
+from core.exports.services import respond_export
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_number
 from core.pdf_utils import render_pdf
 
+from .selectors import class_certificates_context, paper_size, set_final_status
 from .services import ExcelService, ReportDataService
 
 
@@ -121,21 +122,6 @@ VIEWABLE_REPORTS = {
     "student_annual_result_pdf": "كشف نتائج الطالب",
     "student_certificate_pdf": "شهادة الطالب",
 }
-
-
-def _set_final_status(ctx: dict) -> None:
-    """يضيف `final_status` و`status_tone` إلى السياق.
-
-    كان يضع لوناً سداسيّاً (`status_color`) يُكتب في `style=` الشهادة — وأحدُها
-    أخضرُ لا رمزَ له في الهويّة. والنغمةُ اسمٌ تقرؤه الشهادةُ صنفاً
-    (`cert-status is-success`) يأخذ ألوانَه من `brand_color`.
-    """
-    if ctx["failed"] == 0 and ctx["passed"] > 0:
-        ctx.update(final_status="ناجح", status_tone="success")
-    elif ctx["failed"] > 0:
-        ctx.update(final_status="راسب", status_tone="danger")
-    else:
-        ctx.update(final_status="غير مكتمل", status_tone="warning")
 
 
 # ── عرضُ الوثائق المطبوعة: الألوانُ تُحسم هنا لا في القالب ─────────────
@@ -254,8 +240,7 @@ def _attendance_presentation(ctx: dict) -> None:
 
 def _get_paper_size(request) -> str:
     """Return a validated report paper size."""
-    paper = request.GET.get("paper", "A4").upper()
-    return paper if paper in {"A3", "A4"} else "A4"
+    return paper_size(request.GET)
 
 
 # ── فهرس التقارير ───────────────────────────────────────────────────
@@ -369,7 +354,11 @@ def class_results_pdf(request, class_id):
 @capability_required("reports.school")
 @xframe_options_sameorigin
 def class_certificates_pdf(request, class_id):
-    """PDF: شهادات جميع طلاب فصل في ملف واحد"""
+    """PDF: شهادات جميع طلاب فصل في ملف واحد.
+
+    زرُّ «تحميل» (`download=1`) مهمّةٌ خلفيّةٌ (`reports.class_certificates`، كان 2.9ث متزامناً)؛ والمعاينةُ (`preview=1`) والإطارُ
+    المضمَّنُ في عارض التقارير يبقيان هنا متزامنَين — عرضٌ يقرأ المهمّةَ قرارُ تصميمٍ منفصل.
+    """
     if not request.user.is_admin():
         return HttpResponse("غير مسموح", status=403)
 
@@ -379,31 +368,18 @@ def class_certificates_pdf(request, class_id):
     preview = request.GET.get("preview") == "1"
     paper = _get_paper_size(request)
 
-    enrollments = (
-        StudentEnrollment.objects.filter(class_group=class_grp, is_active=True)
-        .select_related("student")
-        .order_by("student__full_name")
-    )
+    if _wants_download(request) and not preview:
+        params = request.GET.copy()
+        params.pop("download", None)
+        params["class_id"] = str(class_grp.pk)
+        return respond_export(request, "reports.class_certificates", params=params)
 
-    students_ctx = []
-    for enr in enrollments:
-        ctx = ReportDataService.get_student_report(enr.student, school, year)
-        _set_final_status(ctx)
-        students_ctx.append(ctx)
-
-    page_ctx = {
-        "students_ctx": students_ctx,
-        "class_group": class_grp,
-        "school": school,
-        "year": year,
-        "print_date": timezone.now().date(),
-        "paper_size": paper,
-    }
+    page_ctx = class_certificates_context(school, class_grp, year, paper)
     # شهاداتُ فصلٍ في ملفٍّ واحدٍ كشفٌ جماعيّ — الرقمُ فيها مستور.
     log_export(
         request,
         "reports.class_certificates",
-        rows=len(students_ctx),
+        rows=len(page_ctx["students_ctx"]),
         object_id=class_grp.pk,
         object_repr=f"شهادات {class_grp} — {year}",
     )
@@ -525,7 +501,7 @@ def student_annual_result_pdf(request, student_id):
             return HttpResponse("غير مسموح", status=403)
 
     ctx = ReportDataService.get_student_report(student, school, year)
-    _set_final_status(ctx)
+    set_final_status(ctx)
     _annual_result_presentation(ctx)
     ctx["paper_size"] = paper
     log_export(
@@ -570,7 +546,7 @@ def student_certificate_pdf(request, student_id):
             return HttpResponse("غير مسموح", status=403)
 
     ctx = ReportDataService.get_student_report(student, school, year)
-    _set_final_status(ctx)
+    set_final_status(ctx)
     _subject_rows_presentation(ctx["rows"])
     ctx["paper_size"] = paper
     log_export(
