@@ -122,6 +122,23 @@ class Ladder:
     def is_beyond(self, repetition: int) -> bool:
         return repetition > len(self.steps)
 
+    def to_json(self) -> dict:
+        """تحويلُ السلّم إلى بنيةٍ قابلةٍ للتخزين في JSONB وإرجاعها للـAPI."""
+        return {
+            "ladder_key": self.key,
+            "pages": self.pages,
+            "max_reps": len(self.steps),
+            "steps": [
+                {
+                    "rep": i + 1,
+                    "actions": [{"actor": actor, "action": action} for actor, action in step],
+                }
+                for i, step in enumerate(self.steps)
+            ],
+            "beyond": self.beyond,
+            "notes": list(self.notes),
+        }
+
 
 def _s(*pairs):
     return tuple(pairs)
