@@ -1654,6 +1654,17 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .beh-combo__empty:hover { background: transparent; }
 .beh-combo .form-control.is-valid { border-color: var(--status-success); }
 
+/* مركز قيادة الجودة (QCC-01b): اللوحاتُ الخمسُ في صفٍّ على اللابتوب فما فوق، وحالةُ اللوحة نصٌّ ولونٌ من رموز الحالة. «غير معلوم»
+   بلون التحذير لا الأخضر — الغيابُ ليس سلامةً (عقدُ اللقطة، `command_center/contract.py`). */
+.qc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: var(--sp-3); }
+.qc-panel { display: grid; gap: var(--sp-1); padding-inline-start: var(--sp-3); border-inline-start: var(--sp-1) solid var(--border-strong); }
+.qc-panel__state { font-size: var(--text-lg); }
+.qc-panel__headline { margin: 0; }
+.qc-panel.is-ok { border-inline-start-color: var(--status-success); }
+.qc-panel.is-warn, .qc-panel.is-unknown { border-inline-start-color: var(--status-warning); }
+.qc-panel.is-bad { border-inline-start-color: var(--status-danger); }
+.qc-panel.is-bad .qc-panel__state { color: var(--status-danger-fg); }
+
 /* نافذةُ التسجيل السريع: أربعُ درجاتٍ أزرارٌ كبيرة، والمختارةُ بلون الهويّة. */
 .beh-quick .ui-field-hint { display: inline; margin: 0; }
 .beh-quick p.ui-field-hint { display: block; margin-block-start: var(--sp-1); }

@@ -55,6 +55,8 @@ GUARDED_INSIDE = {
     "roadmap/items/<str:code>/": "developer_only — superuser أو مجموعة developers",
     "roadmap/decisions/<str:code>/": "developer_only — superuser أو مجموعة developers",
     "roadmap/checklist/<str:code>/": "developer_only — superuser أو مجموعة developers",
+    "command-center/": "developer_only — superuser أو مجموعة developers (مركز قيادة الجودة، QCC-01b)",
+    "command-center/snapshot/": "developer_only — superuser أو مجموعة developers (لقطةُ المركز JSON)",
     "developer-feedback/inbox/": "DeveloperOnlyMixin",
     "developer-feedback/inbox/<int:pk>/": "DeveloperOnlyMixin",
     "developer-feedback/onboarding/": "NotStudentMixin — ورسائلُ المستخدم لنفسه",

@@ -1,22 +1,36 @@
-{% extends "admin/base_site.html" %}
-{% load static %}
+{% extends "base/base.html" %}
+{% load static ui icons %}
 {% comment %}
-  مركز قيادة الجودة — صفحةٌ للمطوّر وحدَه في لوحة الإدارة (عقدُ اللقطة في command_center/contract.py).
-  اللوحاتُ تُرسم هنا من اللقطة الحاليّة وتُحدَّث بالاستطلاع (static/js/command_center.js): يُبدَّل النصُّ
-  بـtextContent على عقدٍ مفاتيحُها data-key، فلا بناءَ DOM في السكربت. والحالةُ تُقرأ نصّاً لا لوناً فقط. وفتاتُ الخبز من قالب جانغو الافتراضيّ (`title`) — فلا شريطَ مكتوبٌ باليد (يحرسه test_breadcrumbs_component).
+  مركز قيادة الجودة — صفحةٌ في المنصّة لمطوّرها وحدَه بجانب خارطة التجويد (QCC-01b؛ عقدُ اللقطة في command_center/contract.py).
+  اللوحاتُ تُرسم هنا من اللقطة الحاليّة وتُحدَّث بالاستطلاع (static/js/command_center.js): يُبدَّل النصُّ بـtextContent على
+  عقدٍ مفاتيحُها data-key، فلا بناءَ DOM في السكربت. والحالةُ تُقرأ نصّاً لا لوناً فقط.
 {% endcomment %}
-{% block extrahead %}{{ block.super }}<script src="{% static 'js/command_center.js' %}" defer></script>{% endblock %}
-{% block content_title %}<h1>مركز قيادة الجودة</h1>{% endblock %}
+{% block title %}مركز قيادة الجودة{% endblock %}
+
+{% block main_class %}{% page_layout "dashboard" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="مركز قيادة الجودة" %}
+{% endblock %}
+
 {% block content %}
-<div data-qc-url="{% url 'command_center:snapshot' %}" data-qc-schema="{{ schema }}">
-  <p class="qc-lead">عرضٌ حيٌّ لصحّة المنصّة: كلُّ لوحةٍ تقرأ آخرَ قيمةٍ جمعها المجمِّعُ الخاصّ بها، و«غير معلوم» يعني أنّها لم تُجمَع بعدُ أو انقطع جمعُها — لا يعني أنّ الأمر سليم.</p>
-  <div class="qc-tools">
-    <button type="button" class="button" data-qc-refresh>تحديثٌ الآن</button>
-    <span class="qc-clock" data-key="generated">لم يُحدَّث بعدُ</span>
-  </div>
-  <p class="qc-note" role="status" data-qc-note hidden></p>
+<div class="exec-dash" data-qc-url="{% url 'command_center:snapshot' %}" data-qc-schema="{{ schema }}">
+
+  {% page_header "مركز قيادة الجودة" subtitle="عرضٌ حيٌّ لصحّة المنصّة" icon="quality" %}
+    {% callout "info" %}كلُّ لوحةٍ تقرأ آخرَ قيمةٍ جمعها المجمِّعُ الخاصّ بها. «غير معلوم» يعني أنّها لم تُجمَع بعدُ أو انقطع جمعُها — ولا يعني أنّ الأمر سليم.{% endcallout %}
+    <button type="button" class="btn-secondary" data-qc-refresh>تحديثٌ الآن</button>
+    <span class="ui-note" data-key="generated">لم يُحدَّث بعدُ</span>
+  {% endpage_header %}
+
+  {# تنبيهُ الجلسة/العقد: مخفيٌّ حتى يكشفه السكربتُ (انتهت الجلسة أو تغيّر إصدارُ العقد) #}
+  <div role="status" data-qc-note hidden>{% callout "error" %}<span data-qc-note-text></span>{% endcallout %}</div>
+
   <div class="qc-grid">
     {% for panel in snapshot.panels %}{% include "command_center/_panel.html" %}{% endfor %}
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/command_center.js' %}" defer></script>
 {% endblock %}

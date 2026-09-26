@@ -1,7 +1,8 @@
-"""[COMMAND-CENTER] مركز قيادة الجودة (PR-A: القشرة) — للمطوّر وحدَه، وقراءةُ cache فقط، وعقدُ اللقطة v1.
+"""[COMMAND-CENTER] مركز قيادة الجودة — صفحةٌ في المنصّة لمطوّرها وحدَه، وقراءةُ cache فقط، وعقدُ اللقطة v1.
 
-المسارُ جذريٌّ تحت `/admin/` قبل `admin.site.urls`: لا حارسَ آليّاً هناك (يُستثنى من اختبار المسارات المحروسة)،
-وخطأٌ في urlconf يُسقط الموقعَ كلَّه. فهذا الملفُّ يحرس كلَّ مسارٍ بنفسه، ويحمّل urlconf كاملاً.
+QCC-01b: طلبها المالكُ في المنصّة (بجانب خارطة التجويد، في «الإدارة ← أدوات المطوّر») لا في `/admin/`؛ فنُقلت من `/admin/command-center/`
+(QCC-01) إلى `/command-center/` وحُذفت نسختُها. وهذا الملفُّ يحرس كلَّ مسارٍ بنفسه (مجهولٌ يُحوَّل إلى الدخول وغيرُ المطوّر 403)
+ويحمّل urlconf كاملاً، ويثبت أنّ النسخةَ القديمة لم تبقَ.
 """
 
 import importlib
@@ -17,17 +18,10 @@ from django.urls import get_resolver, resolve, reverse
 
 from command_center import contract
 from command_center import urls as cc_urls
-from core import admin_menu
 
 pytestmark = pytest.mark.django_db
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-
-
-def _staff(user):
-    user.is_staff = True
-    user.save(update_fields=["is_staff"])
-    return user
 
 
 @pytest.fixture(autouse=True)
@@ -44,26 +38,35 @@ def _routes():
 # ── المسارُ وurlconf ──────────────────────────────────────────────────────────
 
 
-def test_the_full_urlconf_loads_and_the_root_paths_resolve():
+def test_the_full_urlconf_loads_and_the_platform_paths_resolve():
     importlib.import_module(settings.ROOT_URLCONF)
     assert get_resolver().url_patterns
     assert not run_checks(tags=["urls"])
-    assert resolve("/admin/command-center/").view_name == "command_center:index"
-    assert resolve("/admin/command-center/snapshot/").view_name == "command_center:snapshot"
-    # وما حوله لم يتأثّر: الإدارةُ ودخولُها كما كانا
+    assert resolve("/command-center/").view_name == "command_center:index"
+    assert resolve("/command-center/snapshot/").view_name == "command_center:snapshot"
+    # وما حوله لم يتأثّر: خارطةُ التجويد جارتُه والإدارةُ ودخولُها كما كانا
+    assert resolve("/roadmap/").view_name == "improvement_roadmap"
     assert resolve("/admin/").view_name == "admin:index"
     assert resolve("/admin/login/").url_name == "admin_login_redirect"
 
 
-def test_the_center_route_comes_before_the_admin_catch_all():
-    names = [
-        getattr(p, "app_name", None) or getattr(p, "name", "") for p in get_resolver().url_patterns
-    ]
-    assert names.index("command_center") < names.index("admin")
-
-
 def test_the_route_list_is_not_empty():
     assert len(_routes()) >= 2
+
+
+def test_the_old_admin_copy_is_gone(client_as, developer_user):
+    """QCC-01b: نسخةُ /admin/ حُذفت — لا مسارَ مزدوجٌ ولا إعادةُ توجيه."""
+    developer_user.is_staff = True
+    developer_user.save(update_fields=["is_staff"])
+    client = client_as(developer_user)
+
+    for path in ("/admin/command-center/", "/admin/command-center/snapshot/"):
+        assert client.get(path).status_code == 404, path
+
+
+def test_the_admin_menu_no_longer_carries_the_center():
+    source = (ROOT / "core" / "admin_menu.py").read_text(encoding="utf-8")
+    assert "command-center" not in source and "PAGES" not in source
 
 
 # ── 403 لكلّ مسار ─────────────────────────────────────────────────────────────
@@ -73,24 +76,24 @@ def test_an_anonymous_visitor_is_sent_to_login_on_every_route(client):
     for url in _routes():
         response = client.get(url)
         assert response.status_code == 302, url
-        assert "/admin/login/" in response["Location"], url
+        assert "login" in response["Location"], url
 
 
-def test_a_logged_in_non_staff_user_never_gets_the_page(client_as, teacher_user):
-    for url in _routes():
-        response = client_as(teacher_user).get(url)
-        assert response.status_code == 302, url
-
-
-def test_a_staff_member_who_is_not_a_developer_gets_403_on_every_route(client_as, teacher_user):
-    for url in _routes():
-        response = client_as(_staff(teacher_user)).get(url)
-        assert response.status_code == 403, url
+def test_a_non_developer_gets_403_on_every_route(client_as, teacher_user, principal_user):
+    """المعلّمُ والمدير (قيادةٌ لا مطوّر) — 403 لا صفحةٌ ولا تحويل."""
+    for user in (teacher_user, principal_user):
+        for url in _routes():
+            assert client_as(user).get(url).status_code == 403, (user.pk, url)
 
 
 def test_the_developer_gets_every_route(client_as, developer_user):
     for url in _routes():
-        assert client_as(_staff(developer_user)).get(url).status_code == 200, url
+        assert client_as(developer_user).get(url).status_code == 200, url
+
+
+def test_the_routes_accept_get_only(client_as, developer_user):
+    for url in _routes():
+        assert client_as(developer_user).post(url).status_code == 405, url
 
 
 # ── الصفحةُ ولقطتُها ──────────────────────────────────────────────────────────
@@ -99,15 +102,15 @@ def test_the_developer_gets_every_route(client_as, developer_user):
 def test_the_page_draws_every_panel_as_unknown_when_nothing_was_collected(
     client_as, developer_user
 ):
-    html = client_as(_staff(developer_user)).get("/admin/command-center/").content.decode()
+    html = client_as(developer_user).get("/command-center/").content.decode()
     assert html.count('data-panel="') == len(contract.PANELS)
-    assert html.count("qc-panel--unknown") == len(contract.PANELS)
-    assert "qc-panel--ok" not in html
-    assert 'data-qc-url="/admin/command-center/snapshot/"' in html
+    assert html.count("qc-panel is-unknown") == len(contract.PANELS)
+    assert "qc-panel is-ok" not in html
+    assert 'data-qc-url="/command-center/snapshot/"' in html
 
 
 def test_the_snapshot_is_json_v1_in_panel_order_and_never_cached(client_as, developer_user):
-    response = client_as(_staff(developer_user)).get("/admin/command-center/snapshot/")
+    response = client_as(developer_user).get("/command-center/snapshot/")
     assert response["Content-Type"].startswith("application/json")
     assert "max-age=0" in response["Cache-Control"] or "no-store" in response["Cache-Control"]
     body = response.json()
@@ -184,32 +187,35 @@ def test_an_unreadable_cache_shows_unknown_instead_of_failing_the_page(monkeypat
     assert {p["status"] for p in panels} == {contract.UNKNOWN}
 
 
-# ── القائمةُ ──────────────────────────────────────────────────────────────────
+# ── القائمةُ الرئيسيّة (الإدارة ← أدوات المطوّر) ─────────────────────────────────────
 
 
-def test_the_developer_sees_the_center_in_the_admin_nav(client_as, developer_user):
-    html = client_as(_staff(developer_user)).get("/admin/").content.decode()
-    assert 'href="/admin/command-center/"' in html
+def _developer_principal(principal_user):
+    """قائمةُ «الإدارة» تُرسم لأدوار القيادة، و«أدوات المطوّر» فيها لمن هو في مجموعة developers (كما في test_roadmap)."""
+    from django.contrib.auth.models import Group
+
+    principal_user.groups.add(Group.objects.get_or_create(name="developers")[0])
+    return principal_user
 
 
-def test_a_non_developer_staff_member_does_not_see_the_center_in_the_nav(client_as, teacher_user):
-    html = client_as(_staff(teacher_user)).get("/admin/").content.decode()
-    assert "/admin/command-center/" not in html
+def test_the_developer_sees_the_link_in_the_main_menu_above_the_roadmap(client_as, principal_user):
+    url = reverse("command_center:index")
+    html = client_as(_developer_principal(principal_user)).get("/dashboard/").content.decode()
+
+    assert f'href="{url}"' in html
+    assert (
+        html.index(reverse("ui_layouts"))
+        < html.index(f'href="{url}"')
+        < html.index(reverse("improvement_roadmap"))
+    ), "بين «أنماط التخطيط» و«خارطة التجويد»: فوقَ الخارطة مباشرةً"
+    assert 'aria-label="مركز قيادة الجودة' in html
 
 
-def test_the_menu_pages_resolve_and_live_under_the_admin():
-    for page in admin_menu.PAGES:
-        assert page.url.startswith("/admin/"), page
-        assert resolve(page.url), page
+def test_a_non_developer_never_sees_the_link(client_as, teacher_user, principal_user):
+    url = reverse("command_center:index")
 
-
-def test_the_menu_adds_a_developer_page_only_for_the_developer():
-    def names(developer):
-        menu = admin_menu.build_menu([], "/admin/", developer=developer)
-        return [i["name"] for g in menu for s in g["sections"] for i in s["items"]]
-
-    assert "مركز قيادة الجودة" in names(True)
-    assert "مركز قيادة الجودة" not in names(False)
+    assert url not in client_as(teacher_user).get("/dashboard/").content.decode()
+    assert url not in client_as(principal_user).get("/dashboard/").content.decode()
 
 
 # ── الحدودُ ───────────────────────────────────────────────────────────────────
@@ -233,7 +239,17 @@ def test_the_script_is_wrapped_and_builds_no_html():
         assert forbidden not in source, forbidden
 
 
-def test_the_center_styles_live_in_the_admin_theme_and_not_in_the_platform_css():
-    assert ".qc-panel" in (ROOT / "static" / "css" / "admin_theme.css").read_text(encoding="utf-8")
-    for path in (ROOT / "static" / "css" / "custom").glob("*.css"):
-        assert ".qc-" not in path.read_text(encoding="utf-8"), path.name
+def test_the_center_styles_live_in_the_platform_css_and_not_in_the_admin_theme():
+    """QCC-01b: الصفحةُ في المنصّة فأنماطُها في `static/css/custom/` (ملفُّ الوحدات)، ولا شيءَ منها في `admin_theme.css`."""
+    assert ".qc-" not in (ROOT / "static" / "css" / "admin_theme.css").read_text(encoding="utf-8")
+    modules = (ROOT / "static" / "css" / "custom" / "33-modules-4.css").read_text(encoding="utf-8")
+    assert ".qc-panel" in modules and ".qc-grid" in modules
+
+
+def test_the_page_is_a_platform_page_declaring_its_layout_and_using_the_components():
+    source = (ROOT / "templates" / "command_center" / "index.html").read_text(encoding="utf-8")
+    assert '{% extends "base/base.html" %}' in source
+    assert '{% page_layout "dashboard" %}' in source
+    for component in ("components/breadcrumbs.html", "page_header", "callout"):
+        assert component in source, component
+    assert "admin/base" not in source, "لا وراثةَ من قوالب الإدارة"

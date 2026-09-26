@@ -34,8 +34,6 @@ urlpatterns = [
     path("dbmedia/<path:name>", serve_db_file, name="serve_db_file"),
     # قبل admin.site.urls: نموذجُ دخول Django يتخطّى الرمزَ وقفلَ المحاولات (P1-4)
     path("admin/login/", admin_login_redirect, name="admin_login_redirect"),
-    # مركز قيادة الجودة (للمطوّر وحدَه) — جذريٌّ قبل admin.site.urls وإلّا التقطه المسارُ العامّ ثمّ 404
-    path("admin/command-center/", include("command_center.urls")),
     path("admin/", admin.site.urls),
     path("auth/", include("core.urls.auth")),
     path("dashboard/", include("core.urls.dashboard")),
@@ -76,6 +74,8 @@ urlpatterns = [
     path("developer-feedback/", include("developer_feedback.urls")),
     # خارطة تجويد المنصّة — لمطوّر المنصّة وحدَه (تحت «دليل الهويّة» في أدوات المطوّر)
     path("roadmap/", include("roadmap.urls")),
+    # مركز قيادة الجودة — صفحةٌ في المنصّة لمطوّرها وحدَه، بجانب خارطة التجويد (QCC-01b: لا في /admin/)
+    path("command-center/", include("command_center.urls")),
     # ✅ v5.1.1: Prometheus metrics — محمي بمصادقة staff + IP داخلي فقط
     path(
         "metrics",
