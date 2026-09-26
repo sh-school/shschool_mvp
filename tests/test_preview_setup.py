@@ -172,11 +172,26 @@ ALLOWED_GIT = {
     "status",
     "worktree",
 }
-GIT_CALL = re.compile(r'\bgit((?:\s+-[cC]\s+(?:"[^"]*"|\S+))*)\s+([a-z][a-z-]*)')
+GIT_WORD = re.compile(r"\bgit\s")
+SUBCOMMAND = re.compile(r"[a-z][a-z-]*")
+
+
+def _git_subcommands(line: str) -> set[str]:
+    """الأمرُ بعد `git` (يتخطّى `-C <شجرة>` و`-c <إعداد>`). قراءةٌ خطّيّةٌ بالكلمات لا نمطٌ متداخل —
+    نمطٌ بكمّيّاتٍ متداخلةٍ يُنبَّه عليه CodeQL (ارتدادٌ أسّيّ) وهذا الفحصُ لا يستحقّه."""
+    found = set()
+    for match in GIT_WORD.finditer(line):
+        words = line[match.end() :].split()
+        i = 0
+        while i + 1 < len(words) and words[i] in ("-C", "-c"):
+            i += 2
+        if i < len(words) and SUBCOMMAND.fullmatch(words[i]):
+            found.add(words[i])
+    return found
 
 
 def test_the_script_uses_only_read_only_and_plumbing_git_commands():
-    used = {m.group(2) for line in _code_lines() for m in GIT_CALL.finditer(line)}
+    used = {name for line in _code_lines() for name in _git_subcommands(line)}
 
     assert used <= ALLOWED_GIT, sorted(used - ALLOWED_GIT)
     assert {
