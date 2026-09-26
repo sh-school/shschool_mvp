@@ -1034,6 +1034,7 @@
   .mx-tip .t-spec { color: var(--maroon-fg); font-weight: 500; }
   .mx-tip .t-free { color: var(--status-success-fg); font-weight: 600; }
   .mx-tip .t-none { color: var(--status-danger-fg); font-weight: 600; }
+  .mx-sr { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .sheet-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2-5); margin-block-start: var(--sp-2); }
   .sheet-foot .is-short { color: var(--status-danger-fg); font-weight: 700; }
   /* الهاتفُ واللوحيُّ الضيّق: الجدولُ بعرضه الطبيعيّ يُمرَّر أفقيّاً وعمودا القسم والمعلّم لاصقان (كانت الخانةُ ثمانيةَ بكسلات).
@@ -1044,14 +1045,14 @@
     .table-wrap .schedule-matrix td { padding: var(--sp-0-5); line-height: 1.6; }
     .table-wrap .schedule-matrix .m-cell { min-inline-size: 30px; }
     .table-wrap .schedule-matrix thead .m-day { font-size: 0.8125rem; }
-    .table-wrap .schedule-matrix thead .m-period { font-size: 0.6875rem; }
-    .table-wrap .schedule-matrix .m-dept { position: sticky; inset-inline-start: 0; z-index: 2; inline-size: 60px; min-inline-size: 60px; max-inline-size: 60px; font-size: 0.625rem; }
+    .table-wrap .schedule-matrix thead .m-period { font-size: 0.75rem; }
+    .table-wrap .schedule-matrix .m-dept { position: sticky; inset-inline-start: 0; z-index: 2; inline-size: 60px; min-inline-size: 60px; max-inline-size: 60px; font-size: 0.75rem; }
     .table-wrap .schedule-matrix .m-name {
       position: sticky; inset-inline-start: 60px; z-index: 2; inline-size: 150px; min-inline-size: 150px; max-inline-size: 150px;
       font-size: 0.78125rem; white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.35;
       box-shadow: inset 1px 0 0 var(--border-strong);
     }
-    .table-wrap .schedule-matrix .m-name.m-name-tagged { font-size: 0.6875rem; }
+    .table-wrap .schedule-matrix .m-name.m-name-tagged { font-size: 0.75rem; }
     .table-wrap .schedule-matrix thead .m-dept,
     .table-wrap .schedule-matrix thead .m-name { z-index: calc(var(--z-raised) + 1); }
     .table-wrap .schedule-matrix tfoot .m-name[colspan] { inset-inline-start: 0; inline-size: 210px; min-inline-size: 210px; max-inline-size: 210px; }

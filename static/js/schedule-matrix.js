@@ -101,7 +101,7 @@
   document.body.appendChild(tip);
 
   var live = document.createElement('div');
-  live.className = 'sr-only';
+  live.className = 'mx-sr';
   live.setAttribute('aria-live', 'polite');
   document.body.appendChild(live);
 
