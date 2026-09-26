@@ -6358,6 +6358,7 @@ def _seed40():
     _item("Q-11", "doing", 0)
     _item("H-03", "doing", 70)
     for code, status, progress in (
+        ("DBT-01", "todo", 0),
         ("REP-18", "doing", 75),
         ("REP-19", "todo", 0),
         ("DBT-10", "todo", 0),
@@ -6419,12 +6420,13 @@ def test_0040_q11_and_h03_keep_measurements_and_never_claim_v_k25_or_mk17():
 
 def test_0040_appends_the_notes_once_without_touching_state():
     _seed40()
-    codes = ["REP-18", "REP-19", "DBT-10", "LAY-10"]
+    codes = ["REP-18", "REP-19", "DBT-10", "DBT-01", "LAY-10"]
     assert _sync40.sync_notes(RoadmapItem) == codes
     assert _sync40.sync_notes(RoadmapItem) == []
     by = {i.code: i for i in RoadmapItem.objects.all()}
     assert [(by[c].status, by[c].progress) for c in codes] == [
         ("doing", 75),
+        ("todo", 0),
         ("todo", 0),
         ("todo", 0),
         ("doing", 67),
@@ -6439,7 +6441,7 @@ def test_0040_registers_lay11_and_n050_once_with_the_measurements_and_the_css_ex
     from datetime import date
 
     _item("PRP-04a", "todo", 0)
-    assert _sync40.add_new_items(RoadmapItem) == ["LAY-11", "N-050", "VI-56"]
+    assert _sync40.add_new_items(RoadmapItem) == ["LAY-11", "N-050", "VI-56", "N-051"]
     assert _sync40.add_new_items(RoadmapItem) == []
     by = {i.code: i for i in RoadmapItem.objects.all()}
     lay = by["LAY-11"]
@@ -6477,7 +6479,7 @@ def test_0040_registers_lay11_and_n050_once_with_the_measurements_and_the_css_ex
 
 def test_0040_never_overwrites_an_existing_item():
     _item("N-050", "done", 100, title="أنشأه المطوّر يدوياً")
-    assert _sync40.add_new_items(RoadmapItem) == ["LAY-11", "VI-56"]
+    assert _sync40.add_new_items(RoadmapItem) == ["LAY-11", "VI-56", "N-051"]
     assert RoadmapItem.objects.get(code="N-050").title == "أنشأه المطوّر يدوياً"
 
 
@@ -6541,12 +6543,12 @@ def test_0040_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
     first = snapshot()
     _sync40.forwards(_Apps40, None)
     assert snapshot() == first
-    assert RoadmapItem.objects.filter(code__in=["LAY-11", "N-050", "VI-56"]).count() == 3
+    assert RoadmapItem.objects.filter(code__in=["LAY-11", "N-050", "VI-56", "N-051"]).count() == 4
     assert RoadmapDecision.objects.filter(code="D-33").count() == 1
 
 
 def test_0040_orders_follow_0039_and_do_not_collide():
-    assert [row[-1] for row in _sync40.NEW_ITEMS] == [763, 764, 765]
+    assert [row[-1] for row in _sync40.NEW_ITEMS] == [763, 764, 765, 766]
     assert [row[-1] for row in _sync40.NEW_DECISIONS] == [147, 148]
 
 
@@ -6617,3 +6619,28 @@ def test_0040_registers_the_css_trimming_item_as_a_todo_with_no_date_and_no_code
     assert "أكّد المالكُ مباشرةً (2026-09-26) بندَ التقليص" in item.note and "غيرُ مقيسة" in item.note
     assert "≈ 470B" in item.note and "لا شيفرةَ بعدُ" in item.note and "لا موعدَ" in item.note
     assert "صفرُ فرقٍ في الأنماط المحسوبة" in item.criterion and len(item.date_basis) <= 120
+
+
+def test_0040_registers_n051_the_tracked_gitignored_file_guard_as_doing_until_sunday_login_monitoring():
+    _sync40.add_new_items(RoadmapItem)
+    item = RoadmapItem.objects.get(code="N-051")
+    assert (item.lane, item.status, item.progress, item.pr, item.deps) == (
+        "ops",
+        "doing",
+        83,
+        "#684",
+        "",
+    )
+    assert item.sort_order == 766 and len(item.date_basis) <= 120
+    note = item.note
+    assert "#684 اندمج (main@b5b485d" in note and "17:13" in note and "1414 ملفّاً" in note
+    assert "لم يُقَس:" in note and "صباحَ الأحد 09-27" in note and "#687" in note
+    assert "لم يقرّر بعدُ" in note and "لا يُغلق قبلها" in note and "اشتقاقٌ لا قياس" in note
+
+
+def test_0040_dbt01_gets_the_mypy_ratchet_note_without_a_pk6_reading():
+    _item("DBT-01", "todo", 0)
+    _sync40.sync_notes(RoadmapItem)
+    note = RoadmapItem.objects.get(code="DBT-01").note
+    assert "1735 ← 1730" in note and "لا يُسجَّل في PK6" in note and "#660" in note
+    assert not [row for row in _sync40.KPI_WHY_NOTES if row[0] == "PK6"]
