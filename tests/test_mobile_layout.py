@@ -196,42 +196,36 @@ def test_the_back_button_meets_the_minimum_target():
 # ══════════════════════════════════════════════════════════════════
 
 
-def _narrow_embed_block():
-    html = SHEET.read_text(encoding="utf-8")
-    start = html.index("{% if embed and view_type == 'all_teachers' %}")
-    end = html.index("{% endif %}", start)
-    block = html[start:end]
-    m = re.search(r"@media \(max-width: 900px\) \{(.*)", block, re.S)
-    assert m, "لا كتلةَ للإطار الضيّق في طبقة التفاعل"
-    return m.group(1)
+NARROW = "max-width: 900px"
 
 
 def test_the_sheet_takes_its_natural_width_on_a_phone():
-    block = _narrow_embed_block()
+    layout = _decl(".table-wrap .schedule-matrix", "table-layout", media=NARROW)
+    width = _decl(".table-wrap .schedule-matrix", "inline-size", media=NARROW)
     assert (
-        "table-layout: auto" in block and "width: max-content" in block
-    ), "الجدولُ العامّ مضغوطٌ في عرض الإطار — خانةٌ بثمانية بكسلات"
+        layout == "auto" and width == "max-content"
+    ), "الجدولُ العامّ مضغوطٌ في عرض الشاشة — خانةٌ بثمانية بكسلات"
 
 
 def test_the_department_and_teacher_columns_stay_put_while_scrolling():
     """بلا تثبيتٍ يضيع السطرُ عن صاحبه بعد أوّل تمرير."""
-    block = _narrow_embed_block()
     for cls in (".m-dept", ".m-name"):
-        rule = re.search(re.escape(".schedule-matrix " + cls) + r"\s*\{([^}]*)\}", block)
-        assert rule and "position: sticky" in rule.group(1), f"`{cls}` غيرُ مثبَّت"
+        position = _decl(f".table-wrap .schedule-matrix {cls}", "position", media=NARROW)
+        assert position == "sticky", f"`{cls}` غيرُ مثبَّت"
 
 
 def test_teacher_names_wrap_instead_of_being_cut():
-    """«ومن قُصَّ اسمه بنقاطٍ ثلاثٍ لم يجد سطره» — تعليقُ الورقة نفسِها."""
-    block = _narrow_embed_block()
-    rule = re.search(r"\.schedule-matrix \.m-name\s*\{([^}]*)\}", block)
-    assert rule and "white-space: normal" in rule.group(1), "الاسمُ يُقصّ في الهاتف"
+    """«ومن قُصَّ اسمه بنقاطٍ ثلاثٍ لم يجد سطره»."""
+    wrap = _decl(".table-wrap .schedule-matrix .m-name", "white-space", media=NARROW)
+    assert wrap == "normal", "الاسمُ يُقصّ في الهاتف"
 
 
-def test_the_phone_rules_never_reach_paper():
-    """الطباعةُ وملفُّ PDF لا يريان الكتلة: داخل `embed` و`@media screen`."""
+def test_the_phone_rules_live_in_the_platform_not_the_paper():
+    """الورقةُ (الطباعةُ وPDF) لا تحمل قاعدةَ هاتف: كانت داخل `embed` و`@media screen` في قالبها — والجدولُ اليوم في المنصّة."""
     html = SHEET.read_text(encoding="utf-8")
-    narrow = html.index("@media (max-width: 900px)")
-    embed = html.rindex("{% if embed and view_type == 'all_teachers' %}", 0, narrow)
-    screen = html.rindex("@media screen {", 0, narrow)
-    assert embed < screen < narrow, "كتلةُ الهاتف خارج `embed` أو `@media screen`"
+    assert "@media (max-width: 900px)" not in html, "قاعدةُ هاتفٍ في قالب الورقة"
+
+
+def test_the_register_export_row_wraps_instead_of_widening_the_page():
+    """رأسُ كشف الشعبة: قائمةُ الاتّجاه وثلاثةُ أزرارٍ 510px بلا التفاف — فتتّسع صفحةُ المشرف الرئيسيّة 135px عند 375."""
+    assert _decl(".per-exports", "flex-wrap") == "wrap"

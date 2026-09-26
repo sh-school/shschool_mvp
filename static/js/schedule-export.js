@@ -1,9 +1,10 @@
 /**
  * تصديرُ الجدول (PDF/Excel) بإشعارٍ عائمٍ لا بصفحة متابعة.
  *
- * الرابطُ الموسوم `data-export-job` يبدأ المهمّةَ الخلفيّةَ (`X-Requested-With`)، فيردّ الخادمُ
- * JSON فيه رابطُ الحالة؛ ثمّ يُتابَع بإشعارٍ عائمٍ «جارٍ التحضير» كلَّ ثانيتين، فإذا جهز
- * نُزِّل الملفُّ في الخلفيّة والصفحةُ في مكانها، وإن فشل ظهر السببُ في إشعارٍ أحمر.
+ * الرابطُ الموسوم `data-export-job` يبدأ المهمّةَ الخلفيّةَ (`X-Requested-With`)، فيردّ الخادمُ `202` + JSON
+ * فيه رابطُ الحالة (عقدُ التصدير المركزيّ، `core/exports`)؛ ثمّ يُتابَع بإشعارٍ عائمٍ «جارٍ التحضير» باستطلاعٍ
+ * متدرّجٍ (300←600←1200←`poll_ms`)، فإذا جهز نُزِّل الملفُّ في الخلفيّة والصفحةُ في مكانها، وإن فشل ظهر
+ * السببُ (رسالةٌ عربيّةٌ ثابتة من الخادم) في إشعارٍ أحمر.
  * وبلا `showToast` (ورقةٌ مستقلّةٌ بلا base.js) يُترك الرابطُ لسلوكه — صفحةُ المتابعة.
  *
  * والورقةُ المستقلّة (print_schedule.html) تُحيل تصديرَها إلى هذه الصفحة بـ`?export=pdf|excel`:
@@ -62,8 +63,18 @@
     });
   }
 
-  function follow(statusUrl, waiting, started) {
-    fetch(statusUrl + '?format=json', { credentials: 'same-origin' })
+  // استطلاعٌ متدرّج (عقدُ التصدير المركزيّ): سريعٌ أوّلاً فيصل الملفُّ الخفيفُ بلا انتظارٍ طويل، ثمّ يهدأ.
+  var STEPS = [300, 600, 1200];
+
+  function nextDelay(attempt, pollMs) {
+    return attempt < STEPS.length ? STEPS[attempt] : pollMs;
+  }
+
+  function follow(statusUrl, waiting, started, pollMs, attempt) {
+    fetch(statusUrl, {
+      credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
+    })
       .then(function (response) {
         if (!response.ok) throw new Error('status');
         return response.json();
@@ -71,13 +82,14 @@
       .then(function (data) {
         if (data.status === 'done') {
           dismiss(waiting);
-          return save(statusUrl).then(function () {
+          return save(data.download_url).then(function () {
             toast('الملفّ جاهز — بدأ التنزيل.', 'success');
           });
         }
         if (data.status === 'failed') {
           dismiss(waiting);
-          toast('تعذّر التصدير: ' + (data.error || 'خطأ غير متوقَّع.'), 'danger');
+          // رسالةٌ عربيّةٌ ثابتةٌ من الخادم — لا نصَّ استثناء.
+          toast('تعذّر التصدير: ' + ((data.error && data.error.message) || 'خطأ غير متوقَّع.'), 'danger');
           return null;
         }
         if (Date.now() - started > GIVE_UP_MS) {
@@ -85,7 +97,9 @@
           toast('تأخّر تحضير الملفّ — أعِد المحاولة بعد قليل.', 'danger');
           return null;
         }
-        window.setTimeout(function () { follow(statusUrl, waiting, started); }, POLL_MS);
+        window.setTimeout(function () {
+          follow(statusUrl, waiting, started, pollMs, attempt + 1);
+        }, nextDelay(attempt, pollMs));
         return null;
       })
       .catch(function () {
@@ -104,17 +118,26 @@
       headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
     })
       .then(function (response) {
-        if (!response.ok) throw new Error('start');
-        return response.json();
+        // `429 busy` و`403 forbidden`: JSON فيه `error.message` عربيّةٌ ثابتة؛ وغيرُ JSON خطأٌ عامّ.
+        return response.json().then(function (data) {
+          if (!response.ok) {
+            var reason = (data && data.error && data.error.message) || 'تعذّر بدء التصدير — حاول مرّةً أخرى.';
+            var failure = new Error(reason);
+            failure.shown = true;
+            throw failure;
+          }
+          return data;
+        });
       })
-      .then(function (data) { follow(data.status_url, waiting, Date.now()); })
-      .catch(function () {
+      .then(function (data) {
+        follow(data.status_url, waiting, Date.now(), data.poll_ms || POLL_MS, 0);
+      })
+      .catch(function (error) {
         dismiss(waiting);
-        toast('تعذّر بدء التصدير — حاول مرّةً أخرى.', 'danger');
+        toast(error && error.shown ? error.message : 'تعذّر بدء التصدير — حاول مرّةً أخرى.', 'danger');
       })
       .then(function () { link.removeAttribute('aria-busy'); });
   }
-
   // طورُ الالتقاط: قبل معالج app-mode.js الذي يفتح الملفّ بقائمة المشاركة على أجهزة اللمس.
   document.addEventListener('click', function (event) {
     var link = event.target.closest && event.target.closest('a[data-export-job]');

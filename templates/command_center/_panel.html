@@ -1,0 +1,7 @@
+<section class="qc-panel qc-panel--{{ panel.status }}" data-panel="{{ panel.key }}" data-refresh="{{ panel.refresh }}" aria-labelledby="qc-title-{{ panel.key }}">
+  <h2 class="qc-panel__title" id="qc-title-{{ panel.key }}">{{ panel.title }}</h2>
+  <strong class="qc-panel__state" data-key="{{ panel.key }}.state">{% if panel.status == "ok" %}سليم{% elif panel.status == "warn" %}انتبه{% elif panel.status == "bad" %}خطر{% else %}غير معلوم{% endif %}</strong>
+  <p class="qc-panel__headline" data-key="{{ panel.key }}.headline">{% if panel.headline %}{{ panel.headline }}{% else %}لم يُجمَع بعدُ{% endif %}</p>
+  <p class="qc-panel__detail" data-key="{{ panel.key }}.detail">{{ panel.detail }}</p>
+  <span class="qc-panel__age" data-key="{{ panel.key }}.age"></span>
+</section>

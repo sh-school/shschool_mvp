@@ -37,7 +37,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        from core.models._crypto import _get_fernet
+        from core.models.crypto import _get_fernet
 
         fernet = _get_fernet()
         records = list(HealthRecord.objects.all().only("id", *self._fields()))
