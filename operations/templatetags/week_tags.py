@@ -1,3 +1,5 @@
+from typing import Any
+
 from django import template
 from django.utils.html import format_html_join
 from django.utils.safestring import SafeString, mark_safe
@@ -17,13 +19,8 @@ register.filter("cell_kind", cell_kind)
 register.filter("dept_key", dept_key)
 
 
-@register.filter
-def stack_words(text: object) -> SafeString:
-    """اسمُ القسم كلماتٍ متراصّةً بعضُها تحت بعض (قرارُ المالك 2026-09-26): «التربية / الإسلامية».
-
-    حرفُ العطف «و» المفصولُ يلتصق بما بعده (ملتصقاً أصلاً في «وعلوم»)، والشرطةُ «—» في «العلوم — إعدادي» تُسقَط. والفاصلُ `<br>`
-    لا صنفُ CSS — فلا يُضاف إلى أنماطٍ عليها سقفُ حجمٍ (ميزانيّةُ CSS)، ويصلح للورقة والشاشة بلا قاعدةٍ ثانية. كلُّ كلمةٍ تُهرَّب.
-    """
+def dept_words(text: object) -> list[str]:
+    """كلماتُ اسم القسم للتكديس: الشرطةُ «—» تُسقَط، وحرفُ العطف «و» المفصولُ يلتصق بما بعده (ملتصقاً أصلاً في «وعلوم»)."""
     words: list[str] = []
     pending = ""
     for word in str(text or "").replace("—", " ").split():
@@ -34,4 +31,40 @@ def stack_words(text: object) -> SafeString:
         pending = ""
     if pending:
         words.append(pending)
-    return format_html_join(mark_safe("<br>"), "{}", ((word,) for word in words))
+    return words
+
+
+@register.filter
+def stack_words(text: object) -> SafeString:
+    """اسمُ القسم كلماتٍ متراصّةً بعضُها تحت بعض (قرارُ المالك 2026-09-26): «التربية / الإسلامية».
+
+    والفاصلُ `<br>` لا صنفُ CSS — فلا يُضاف إلى أنماطٍ عليها سقفُ حجمٍ (ميزانيّةُ CSS)، ويصلح للورقة والشاشة بلا قاعدةٍ ثانية.
+    كلُّ كلمةٍ تُهرَّب.
+    """
+    return format_html_join(mark_safe("<br>"), "{}", ((word,) for word in dept_words(text)))
+
+
+#: سطرُ الجدول العامّ المطبوع بمباعدة 1.05 (ت1، قرارُ المالك 2026-09-26)، والنقطةُ 0.3528 ملم.
+_LINE_FACTOR = 1.05
+_PT_MM = 0.3528
+
+
+@register.simple_tag
+def dept_row_height(name: object, rows: Any, font_pt: Any) -> str:
+    """ارتفاعُ كلّ صفٍّ من قسمٍ ضيّق حين لا تسع صفوفُه كلماتِ اسمه مكدَّسةً؛ وفارغٌ إن اتّسعت (فلا حشو).
+
+    كلُّ كلمةٍ سطرٌ بارتفاع `1.05 × الخطّ`؛ فقسمٌ بصفّين وثلاثِ كلماتٍ («المهارات الحياتية والمهنية») يرفع صفَّيه ليسع الأسطرَ الثلاثة
+    (`(كلماتٌ × سطر + 0.3) ÷ صفوفٌ` ملم) بدل أن يتمدّد الجدولُ فوضى. يقرؤه وسمُ `--row-h` على السطر في ورقة الطباعة وحدَها.
+    """
+    try:
+        count = int(rows)
+        size = float(font_pt)
+    except (TypeError, ValueError):
+        return ""
+    if count < 1 or size <= 0:
+        return ""
+    line = _LINE_FACTOR * size * _PT_MM
+    need = len(dept_words(name)) * line + 0.3
+    if count * (line + 0.15) >= need:
+        return ""
+    return f"{need / count:.2f}mm"

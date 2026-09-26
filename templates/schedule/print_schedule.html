@@ -347,6 +347,54 @@
   {% endif %}
 
   {% if view_type == 'all_teachers' %}
+  {% if paper == 'a3' %}
+  {% comment %}
+  ── الجدول العامّ على A3 عرضيّة: ت1 (قرارُ المالك 2026-09-26) ──
+  ورقةٌ واحدةٌ لاثنين وسبعين معلّماً بخطٍّ 7.9pt موحَّدٍ (استثناءٌ اختاره المالكُ لهذا الجدول بعد رؤيته: دون 9.5pt المرفوضِ للاستمارة).
+  المتنُ 402×243مم: هوامشُ 6 علويّاً وسفليّاً و9 جانبيّاً، ترويسةٌ كاملةٌ 30مم وفاصلٌ 2، وتذييلٌ صفٌّ واحدٌ 8مم وفاصلٌ 2.
+  الصفُّ سطرٌ واحدٌ بمباعدة 1.05 وحشوٍ رأسيٍّ صفر ⇒ ≈ 3.03مم؛ والأعمدةُ: القسم 16.4 (بالخطّ الغليظ لأطول كلمةٍ «الاجتماعيات»)
+  والاسمُ 23.7 (لأطول ناتجٍ 16 حرفاً) والنصاب 11 (يتبع الخطّ) والخلايا الخمسُ والثلاثون ≈ 10.02 لكلٍّ. والقسمُ الضيّق (صفّان وثلاثُ
+  كلمات) يرفع صفَّيه بقاعدة `pad` (`dept_row_height`). ومن زاد معلّموه عن السعة انتقل الفائضُ إلى ورقةٍ ثانيةٍ بترويسة الجدول نفسِها.
+  المرجعُ بكسلاً: نموذجُ LAY-11 `t1_a3_landscape_1face__pad_7_9pt` (خارج المستودع).
+  {% endcomment %}
+  @page {
+    size: A3 landscape; margin: 6mm 9mm;
+    @bottom-left { content: "صفحة " counter(page) " / " counter(pages); font-family: 'Tajawal', sans-serif; font-size: 8pt; color: {% brand_color "TEXT_MUTED" %}; }
+  }
+  @media print {
+    html, body { height: auto; }
+    .schedule-print { padding: 0; }
+    .matrix-wrap { overflow: visible; }
+    .matrix-head { height: 30mm; margin: 0 0 2mm; overflow: hidden; box-sizing: border-box; }
+    .matrix-head .print-emblem { height: 11mm; margin: 0 auto 0.5mm; }
+    .matrix-head .mh-ministry { font-size: 9pt; line-height: 3.6mm; color: {% brand_color "TEXT_SECONDARY" %}; }
+    .matrix-head .mh-school { font-size: 14pt; line-height: 6mm; font-weight: 700; color: {% brand_color "MAROON" %}; }
+    .matrix-head .title { font-size: 12pt; line-height: 5mm; margin: 0; }
+    .matrix-head .mh-year { font-size: 9pt; line-height: 3.6mm; color: {% brand_color "TEXT_MUTED" %}; }
+    .schedule-matrix { font-size: 7.9pt; }
+    .schedule-matrix th, .schedule-matrix td { height: auto; line-height: 1.05; padding: 0 0.2mm; border-width: 0.3pt; }
+    .schedule-matrix thead th { border-bottom-width: 1pt; }
+    .schedule-matrix .m-day, .schedule-matrix .m-period { font-size: 7.9pt; padding: 0; }
+    .schedule-matrix .m-name, .schedule-matrix .m-name.m-name-tagged { width: 23.7mm; font-size: 7.9pt; padding: 0 0.8mm; }
+    .schedule-matrix .m-specialty { font-size: 7.9pt; }
+    .schedule-matrix .m-dept { width: 16.4mm; font-size: 7.9pt; padding: 0 0.3mm; line-height: 1.05; }
+    .schedule-matrix .m-total { width: 11mm; font-size: 7.9pt; }
+    .schedule-matrix .m-cell { width: auto; }
+    .schedule-matrix tbody tr { height: var(--row-h, auto); }
+    .schedule-matrix thead { display: table-header-group; }
+    .schedule-matrix tr { break-inside: avoid; }
+    .matrix-legend { font-size: 9pt; justify-content: center; flex-wrap: nowrap; gap: 4mm; margin-top: 1mm; width: 100%; }
+    .matrix-legend__item { white-space: nowrap; gap: 1mm; }
+    .matrix-legend__swatch { inline-size: 3mm; block-size: 3mm; line-height: 3mm; }
+    .matrix-note { font-size: 9pt; margin-top: 0.5mm; text-align: center; }
+    .matrix-foot3 {
+      display: flex; justify-content: space-between; align-items: center; height: 8mm; margin-top: 2mm; padding-top: 1mm;
+      border-top: 0.6pt solid {% brand_color "MAROON" %}; box-sizing: border-box; overflow: hidden;
+      font-size: 10pt; line-height: 1.3; color: {% brand_color "TEXT_PRIMARY" %};
+    }
+    .matrix-foot3 .foot-short { color: {% brand_color "STATUS_DANGER_FG" %}; font-weight: 700; }
+  }
+  {% else %}
   /* الورقةُ عرضيّةٌ لأنّ الأسبوع خمسةٌ وثلاثون عموداً — ولا يُطبع عمودياً. */
   @page { size: {% if paper == 'a3' %}A3{% else %}A4{% endif %} {{ orient }}; margin: 7mm; }
   @media print {
@@ -370,6 +418,7 @@
     .schedule-matrix tr { break-inside: avoid; }
     .matrix-foot { font-size: 8px; }
   }
+  {% endif %}
   /* على الشاشة الورقةُ بعرض الإطار كلِّه: هامشٌ صغير، والخطُّ يكبر مع العرض
      (على 2560px تصير الخانةُ مقروءةً بلا تكبير) ولا يتجاوز سقفاً يُبقي
      الأسبوعَ في سطرٍ واحد. والطباعةُ على قياسها المحسوب لا تُمَسّ. */
@@ -486,27 +535,49 @@
 {# ── الجدول العام للمعلمين: صفٌّ لكل معلّم، والأسبوعُ خمسةٌ وثلاثون عموداً ── #}
   <div class="matrix-head">
     <img class="print-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="شعار {{ school.name }}" width="295" height="295">
+    {% if paper == 'a3' %}
+    <div class="mh-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
+    <div class="mh-school">{{ school.name }}</div>
+    <h1 class="title">الجدول العام للمعلمين</h1>
+    <div class="mh-year">العام الدراسي &#8294;{{ year }}&#8297;{% if source == "actual" %} — الأسبوع {{ nav.range }}{% endif %}</div>
+    {% else %}
     <div class="ministry">{{ school.name }}</div>
     <h1 class="title">الجدول العام للمعلمين</h1>
+    {% endif %}
   </div>
 
   {% if matrix %}
   <div class="matrix-wrap">
-  {% include "schedule/pdf/matrix_table.html" %}
+  {% if paper == 'a3' %}{% include "schedule/pdf/matrix_table.html" with pad_pt=7.9 %}{% else %}{% include "schedule/pdf/matrix_table.html" %}{% endif %}
   </div>
 
-  {% if has_colored_exemptions or nav.kinds %}
+  {% if has_colored_exemptions or nav.kinds or paper == 'a3' %}
   {# نقاطُ التفريغ الملوَّنة وخاناتُ الحصص المحوَّلة أعلاه — تفسيرُها هنا، أسفل الجدول لا فوقه. #}
   <div class="matrix-legend">
     {% if has_colored_exemptions %}
-    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-ministry">و</span> قرارُ الوزارة</span>
-    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-school">إ</span> قرارُ إدارة المدرسة</span>
-    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-department">ق</span> قرارُ القسم الأكاديميّ</span>
+    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-ministry">{% if paper != 'a3' %}و{% endif %}</span> قرارُ الوزارة</span>
+    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-school">{% if paper != 'a3' %}إ{% endif %}</span> قرارُ إدارة المدرسة</span>
+    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-department">{% if paper != 'a3' %}ق{% endif %}</span> قرارُ القسم الأكاديميّ</span>
     {% endif %}
     {% for kind, label in nav.kinds %}<span class="matrix-legend__item"><span class="matrix-legend__swatch mk-{{ kind }}"></span> {{ label }}</span>{% empty %}{% endfor %}
+    {# من أُلحق إدارياً بقسمٍ غيرِ تخصّصه: علامةُ «*» بعد اسمه (لا لاحقةٌ بخطٍّ أصغر) وتفسيرُها في سطر المفتاح نفسِه (ورقةُ A3 ممتلئةٌ ولا تسع سطراً زائداً). #}
+    {% if paper == 'a3' %}{% for row in matrix %}{% if row.specialty %}<span class="matrix-legend__item">* {{ row.display_name|default:row.teacher.full_name }}: ملحقٌ إدارياً بقسمٍ غيرِ تخصّصه — تخصّصه {{ row.specialty }}</span>{% endif %}{% endfor %}{% endif %}
   </div>
   {% endif %}
   {% for note in nav.notes %}<div class="matrix-note">{{ note }}</div>{% empty %}{% endfor %}
+  {% if paper == 'a3' %}
+  <div class="matrix-foot3">
+    <span>
+      المعلّمون: {{ matrix|length }} &nbsp;·&nbsp; الشُّعب: {{ matrix_totals.sections }}
+      {% if matrix_totals %}&nbsp;·&nbsp;
+      الحصص: {{ matrix_totals.total }} من {{ matrix_totals.planned }} مخطَّطة
+      (منها {{ matrix_totals.parallel }} متوازية){% if matrix_totals.missing %}<span class="foot-short">
+      — ناقص {{ matrix_totals.missing }}</span>{% endif %}{% endif %}
+    </span>
+    <span>{% include "components/ministry_vision.html" %}</span>
+    <span>تاريخ الطباعة: {% now "Y/m/d" %}</span>
+  </div>
+  {% else %}
   {% include "schedule/pdf/matrix_sub.html" %}
   <div class="matrix-foot">
     <span>
@@ -519,6 +590,7 @@
     {# الرؤيةُ في سطر «الوزارة | الرؤية | العام» تحت الجدول (`pdf/matrix_sub.html`) — لا هنا (قرارُ المالك 2026-09-25). #}
     <span>تاريخ الطباعة: {% now "Y/m/d" %}</span>
   </div>
+  {% endif %}
   {% else %}
   <div class="matrix-empty">{% if source == "actual" %}لا حصصَ في هذا الأسبوع.{% else %}لا توجد حصص مسجّلة في جدول العام الدراسي {{ year }}.{% endif %}</div>
   {% for note in nav.notes %}<div class="matrix-note">{{ note }}</div>{% empty %}{% endfor %}
