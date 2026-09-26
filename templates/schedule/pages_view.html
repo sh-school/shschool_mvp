@@ -37,7 +37,7 @@
       </form>
 
       <button type="button" id="pages-print-btn" class="btn-primary btn-sm">طباعة</button>
-      <a data-app-file data-export-job="pdf" href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تنزيل PDF</a>
+      <a data-app-file href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تنزيل PDF</a>
       <span class="text-sm text-secondary">{{ pages|length }} صفحة</span>
     </div>
   </div>
@@ -69,7 +69,6 @@
           class="schedule-print-frame-hidden" aria-hidden="true" tabindex="-1"></iframe>
 </div>
 
-<script src="{% static 'js/schedule-export.js' %}" defer></script>
 <script nonce="{{ request.csp_nonce }}">
   (function () {
     var frame = document.getElementById('pages-frame');
