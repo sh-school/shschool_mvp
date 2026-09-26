@@ -1,6 +1,6 @@
 """
-core/models/_crypto.py
-━━━━━━━━━━━━━━━━━━━━━
+core/models/crypto.py
+━━━━━━━━━━━━━━━━━━━
 Encryption utilities for SchoolOS — Fernet + HMAC
 
 ✅ v5.2: MultiFernet key rotation support
