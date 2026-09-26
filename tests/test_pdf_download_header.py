@@ -68,7 +68,8 @@ def test_the_download_link_really_sends_attachment(client, principal_user, schoo
     cls = ClassGroup.objects.create(school=school, grade="10", section="3")
     client.force_login(principal_user)
 
-    resp = client.get(reverse("class_certificates_pdf", args=[cls.id]), {"download": "1"})
+    # تقريرُ الحضور ما زال متزامناً؛ أمّا شهاداتُ الفصل فتنزيلُها مهمّةٌ خلفيّة (اختبارُ ترويسته في test_class_certificates_export).
+    resp = client.get(reverse("attendance_report_pdf", args=[cls.id]), {"download": "1"})
 
     disposition = resp.headers.get("Content-Disposition", "")
     assert disposition.startswith("attachment;"), disposition

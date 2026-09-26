@@ -535,7 +535,7 @@
    "orm": 9
   },
   "reports/views.py::class_certificates_pdf": {
-   "orm": 13
+   "orm": 9
   },
   "reports/views.py::class_results_excel": {
    "orm": 11
