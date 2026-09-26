@@ -84,6 +84,14 @@ class Sandbox:
         self.preview = self.wt / "main-preview"
         self.repo.mkdir()
         self.wt.mkdir()
+        # `gh` مزيَّفٌ في PATH يطبع ما في ملفٍّ (رؤوسُ الطلبات المفتوحة) — فلا اتّصالَ بـGitHub ولا يتأثّر الاختبارُ بوجود gh الحقيقيّ.
+        self.fakebin = base / "fakebin"
+        self.fakebin.mkdir()
+        self.gh_out = base / "gh_out.txt"
+        self.gh_out.write_text("", encoding="utf-8")
+        gh = self.fakebin / "gh"
+        gh.write_bytes(b'#!/usr/bin/env bash\ncat "$GH_FAKE_OUTPUT"\n')
+        gh.chmod(0o755)
         _git(self.repo, "init", "-q", "-b", "main")
         _write(self.repo / "notes.txt", "one\ntwo\nthree\n")
         _write(self.repo / "app" / "migrations" / "0001_initial.py", "# 1\n")
@@ -116,6 +124,19 @@ class Sandbox:
             self.base_sha,
         )
 
+        # طلباتٌ مفتوحةٌ لا شجرةَ لها (فرعٌ دُفع ثمّ بدّلت الجلسةُ فرعَها أو أُزيلت شجرتُها): تدخل من gh لا من الأشجار.
+        self.pr = {
+            "only": self._branch_without_tree("pr_only", {"pr_only.txt": "pr\n"}),
+            "conflict": self._branch_without_tree(
+                "pr_conflict", {"notes.txt": "one\nPR-CONFLICT\nthree\n"}
+            ),
+            "old": self._branch_without_tree(
+                "pr_old", {"pr_old.txt": "old\n"}, when=now - 10 * 86400
+            ),
+            "vs_c1": self._branch_without_tree("pr_vs_c1", {"shared.txt": "from pr\n"}),
+        }
+        self.tree_head_a = _git(self.wt / "a", "rev-parse", "HEAD")
+
         # main يتقدّم: يعدّل السطرَ نفسَه الذي عدّله conflict، ويأخذ رقمَ الهجرة 0003، ويضيف s.txt كما في squashed.
         _write(self.repo / "notes.txt", "one\nTWO-main\nthree\n")
         _write(self.repo / "app" / "migrations" / "0003_main.py", "# 3 main\n")
@@ -135,12 +156,28 @@ class Sandbox:
         _git(tree, "add", "-A")
         _git(tree, "commit", "-q", "-m", name, when=when)
 
+    def _branch_without_tree(
+        self, name: str, files: dict[str, str], when: int | None = None
+    ) -> str:
+        """فرعٌ بلا شجرةِ عملٍ: يُنشأ في شجرةٍ مؤقّتةٍ تُزال — ويعيد رأسَه."""
+        tmp = self.wt / f"_tmp_{name}"
+        _git(self.repo, "worktree", "add", "-q", "-b", name, str(tmp), self.base_sha)
+        for rel, text in files.items():
+            _write(tmp / rel, text)
+        _git(tmp, "add", "-A")
+        _git(tmp, "commit", "-q", "-m", name, when=when)
+        sha = _git(tmp, "rev-parse", "HEAD")
+        _git(self.repo, "worktree", "remove", "--force", str(tmp))
+        return sha
+
     # ── ما يجري في bash ──────────────────────────────────────────
     def bash(self, body: str, **env: str) -> subprocess.CompletedProcess[str]:
         program = f'set -eu\nsource "{SCRIPT.as_posix()}"\nset +e\n{body}\n'
         full_env = {
             **os.environ,
             **_ID,
+            "PATH": f"{self.fakebin}{os.pathsep}{os.environ.get('PATH', '')}",
+            "GH_FAKE_OUTPUT": str(self.gh_out),
             "PREVIEW_DIR": str(self.preview),
             "PREVIEW_DRY_RUN": "1",
             "SCHOOLOS_ROOT": str(self.base),
@@ -287,6 +324,80 @@ def test_the_preview_tree_itself_and_the_main_branch_are_never_candidates(sandbo
     assert "main-preview" not in names
     assert "repo" not in names  # الشجرةُ الأصلُ على فرع main
     assert {"a", "b", "conflict", "c1", "c2"} <= names
+
+
+# ── رؤوسُ الطلبات المفتوحة ─────────────────────────────────────
+
+
+@pytest.fixture()
+def gh_output(sandbox):
+    """يضبط ما يعيده `gh pr list` (مزيَّفٌ في PATH — بلا شبكة) ويُفرغه بعد الاختبار."""
+
+    def _set(*lines: str) -> None:
+        sandbox.gh_out.write_text(
+            "".join(f"{line}\n" for line in lines), encoding="utf-8", newline="\n"
+        )
+
+    yield _set
+    sandbox.gh_out.write_text("", encoding="utf-8")
+
+
+def test_an_open_pr_without_a_tree_joins_after_the_tree_heads(sandbox, gh_output):
+    """جلسةٌ بدّلت فرعَها بين طلباتها: لا يظهر منها إلّا رأسُ شجرتها — فتُكمَّل طلباتُها من GitHub."""
+    gh_output(f"pr-101|{sandbox.pr['only']}|عنوان الطلب الأوّل")
+    target, _, report = sandbox.plan()
+
+    assert "pr_only.txt" in sandbox.tree_files(target)
+    assert re.search(r"^\+ pr-101 «عنوان الطلب الأوّل» — 1 ", report, re.M)
+
+
+def test_a_pr_head_that_is_already_a_tree_head_is_not_added_twice(sandbox, gh_output):
+    gh_output(f"pr-102|{sandbox.tree_head_a}|نفس رأس شجرة a")
+    _, _, report = sandbox.plan()
+
+    assert "pr-102" not in report  # سلفٌ لما ضُمّ: يُسقَط بصمت
+
+
+def test_a_conflicting_pr_is_named_with_its_reason(sandbox, gh_output):
+    gh_output(
+        f"pr-103|{sandbox.pr['conflict']}|يعدّل السطر نفسه في main",
+        f"pr-104|{sandbox.pr['vs_c1']}|يضيف الملف نفسه الذي أضافه c1",
+    )
+    _, _, report = sandbox.plan()
+
+    assert re.search(r"^✗ pr-103 «.*» — يتعارض مع main .*notes\.txt", report, re.M)
+    assert re.search(r"^✗ pr-104 «.*» — يتعارض مع فرع.*shared\.txt", report, re.M)
+
+
+def test_pr_heads_are_not_held_to_the_age_cap(sandbox, gh_output):
+    """المفتوحُ قيدُ الدمج مهما قَدُم — فسقفُ الخمول لرؤوس الأشجار وحدَها."""
+    gh_output(f"pr-105|{sandbox.pr['old']}|طلبٌ قديمٌ مفتوح")
+    target, _, report = sandbox.plan()
+
+    assert "pr_old.txt" in sandbox.tree_files(target)
+    assert re.search(r"^\+ pr-105 ", report, re.M)
+
+
+def test_an_unfetchable_pr_head_is_reported_and_does_not_stop_the_rest(sandbox, gh_output):
+    gh_output(f"pr-106|{'a' * 40}|رأسٌ غيرُ موجود", f"pr-101|{sandbox.pr['only']}|طلبٌ سليم")
+    target, _, report = sandbox.plan()
+
+    assert re.search(r"^✗ pr-106 «.*» — تعذّر جلبُ رأسه", report, re.M)
+    assert "pr_only.txt" in sandbox.tree_files(target)  # وما بعده دخل
+
+
+def test_a_pr_can_be_excluded_by_its_name(sandbox, gh_output):
+    gh_output(f"pr-101|{sandbox.pr['only']}|طلبٌ")
+    sandbox.state.mkdir(parents=True, exist_ok=True)
+    exclude = sandbox.state / "integ_exclude"
+    exclude.write_text("pr-101", encoding="utf-8")
+    try:
+        target, _, report = sandbox.plan()
+    finally:
+        exclude.unlink()
+
+    assert "pr_only.txt" not in sandbox.tree_files(target)
+    assert "pr-101" not in report
 
 
 # ── التشغيلُ والإطفاء ───────────────────────────────────────────

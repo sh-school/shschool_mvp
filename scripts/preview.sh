@@ -36,7 +36,8 @@
 #  تطبيقُ إيداعٍ (هجرةٌ مثلاً) عاد إلى آخر نسخةٍ سليمةٍ كي لا تسقط المعاينة، ولا يعيد المحاولةَ
 #  على الإيداع نفسِه — وسقوطُه على بياناتٍ مزروعةٍ إنذارٌ مبكّرٌ بأنّ هجرةَ الإنتاج ستسقط.
 #
-#  التكامل: يُبنى من main ثمّ يُضَمّ رأسُ كلّ شجرةِ جلسةٍ (ما أُودع في فرعها، لا ما لم يُودَع) بـ`git merge-tree`
+#  التكامل: يُبنى من main ثمّ يُضَمّ رأسُ كلّ شجرةِ جلسةٍ (ما أُودع في فرعها، لا ما لم يُودَع) ثمّ رأسُ كلّ طلبٍ
+#  مفتوحٍ غيرِ مسوّدةٍ وغيرِ آليّ (من GitHub بـgh؛ لجلسةٍ بدّلت فرعَها بين طلباتها فلا يظهر منها إلّا رأسُ شجرتها) بـ`git merge-tree`
 #  و`git commit-tree` — أشياءُ وسيطةٌ في مخزن غيت لا تلمس شجرةً ولا فهرساً ولا فرعاً. يُتخطّى ويُذكر في `status`:
 #  فرعٌ يتعارض (مع main أو مع فرعٍ ضُمّ قبله)، وفرعٌ خاملٌ (لا إيداعَ جديداً منذ 48 ساعة)، وفرعٌ تصادم
 #  ترقيمُ هجرته هجرةً سابقةً (فيسقط migrate)، وفرعٌ يعدّل آلةَ المعاينة نفسَها
@@ -301,7 +302,7 @@ served_commit() {
 
 # ── التكامل: main + ما أودعته الجلساتُ ولم يُدمج ─────────────────────────────
 # قراءةٌ وأشياءُ غيت وسيطةٌ فقط (merge-tree وcommit-tree): لا تُفتح شجرةُ جلسةٍ ولا يُبدَّل فرعٌ ولا يُكتب
-# غيرُ كائناتٍ في مخزن غيت المشترك. والمرشَّحُ رأسُ كلّ شجرةِ جلسةٍ في فرعها — ما أُودع لا ما لم يُودَع
+# غيرُ كائناتٍ في مخزن غيت المشترك. والمرشَّحُ رأسُ كلّ شجرةِ جلسةٍ في فرعها ورأسُ كلّ طلبٍ مفتوح — ما أُودع لا ما لم يُودَع
 # (ملفٌّ نصفُ مكتوبٍ يُسقط إقلاعَ الجميع؛ وله `pin`). والإيداعُ المصنوعُ حتميٌّ (هويّةٌ وتاريخٌ ثابتان):
 # المدخلاتُ نفسُها تُنتج الإيداعَ نفسَه فلا تُعاد إقامةُ الخادم بلا تغيُّر.
 integrate_flag() { local v; v="$(sget integrate)"; printf '%s' "${v:-$INTEGRATE}"; }
@@ -324,6 +325,21 @@ integ_candidates() {   # «الاسم|sha|الفرع» لكلّ شجرةِ جل�
   done
 }
 
+# رؤوسُ الطلبات المفتوحة غيرِ المسوّدة وغيرِ الآليّة (من GitHub بـgh): طلباتُ جلسةٍ بدّلت فرعَها بينها لا يظهر منها إلّا
+# رأسُ شجرتها، وطلباتُ شجرةٍ أُزيلت — فتُضاف مرشَّحةً بعد رؤوس الأشجار. «pr-<رقم>|sha|عنوان». فارغٌ إن غاب gh أو تعذّرت
+# الشبكة فيبقى التكاملُ برؤوس الأشجار وحدَها. (لا سقفَ خمولٍ لها: المفتوحُ قيدُ الدمج.)
+integ_pr_heads() {
+  command -v gh >/dev/null 2>&1 || return 0
+  local exclude n h t; exclude=" $(sget integ_exclude) "
+  (cd "$PREVIEW_DIR" && gh pr list --state open --limit 100 --json number,headRefOid,isDraft,title,author \
+      --jq '.[] | select((.isDraft | not) and (.author.is_bot != true)) | "pr-\(.number)|\(.headRefOid)|\(.title)"' 2>/dev/null) \
+    | while IFS='|' read -r n h t; do
+        if [ -z "$h" ]; then continue; fi
+        case "$exclude" in *" $n "*) continue ;; esac
+        printf '%s|%s|%s\n' "$n" "$h" "${t%$'\r'}"   # gh على ويندوز قد ينهي السطرَ بـCR
+      done
+}
+
 # هجرةٌ جديدةٌ برقمٍ أخذته هجرةٌ في مجلّدها نفسِه = فرعان في مخطّط الهجرات فيسقط migrate. يطبع أوّلَ تصادمٍ
 # ويُنجح إن وُجد، وإلّا يُخفق.
 integ_migration_clash() {   # integ_migration_clash <شجرةٌ قبل> <شجرةٌ بعد>
@@ -340,15 +356,26 @@ integ_migration_clash() {   # integ_migration_clash <شجرةٌ قبل> <شجر�
 }
 
 plan_integration() {   # plan_integration <sha-main> — يضبط TARGET وINTEG_KIND وINTEG_REPORT
-  local main="$1" cands key cached cur ctree mtree ct n h b out t rc files why ahead when fresh clash
+  local main="$1" trees prs cands key cached cur ctree mtree grp ct n h b disp out t rc files why ahead when fresh clash
   INTEG_REPORT=""; INTEG_KIND="main"; TARGET="$main"
 
-  cands="$(integ_candidates || true)"
-  if [ -n "$cands" ]; then   # الأقدمُ عملاً أوّلاً: له الأولويّةُ إن تعارض اثنان
-    cands="$(while IFS='|' read -r n h b; do
-      printf '%s|%s|%s|%s\n' "$(git -C "$PREVIEW_DIR" log -1 --format=%ct "$h" 2>/dev/null || echo 0)" "$n" "$h" "$b"
-    done <<<"$cands" | LC_ALL=C sort -t'|' -k1,1n -k2,2)"
-  fi
+  # رؤوسُ الأشجار أوّلاً (0) ثمّ رؤوسُ الطلبات المفتوحة (1)، والأقدمُ عملاً أوّلاً داخل كلٍّ: له الأولويّةُ إن تعارض اثنان.
+  trees="$(integ_candidates || true)"
+  prs="$(integ_pr_heads || true)"
+  cands="$({
+    while IFS='|' read -r n h b; do
+      if [ -n "$h" ]; then
+        printf '0|%s|%s|%s|%s\n' "$(git -C "$PREVIEW_DIR" log -1 --format=%ct "$h" 2>/dev/null || echo 0)" "$n" "$h" "$b"
+      fi
+    done <<<"$trees"
+    while IFS='|' read -r n h b; do
+      if [ -n "$h" ]; then   # رأسٌ دُفع من شجرةٍ أخرى غالباً موجودٌ في المخزن المشترك؛ وإلّا يُجلب من مرجع الطلب
+        git -C "$PREVIEW_DIR" cat-file -e "$h^{commit}" 2>/dev/null \
+          || git -C "$PREVIEW_DIR" fetch -q origin "refs/pull/${n#pr-}/head" 2>/dev/null || true
+        printf '1|%s|%s|%s|%s\n' "$(git -C "$PREVIEW_DIR" log -1 --format=%ct "$h" 2>/dev/null || echo 0)" "$n" "$h" "$b"
+      fi
+    done <<<"$prs"
+  } | LC_ALL=C sort -t'|' -k1,1n -k2,2n -k3,3)"
 
   # لا أُعيد الحسابَ ما لم يتغيّر main ولا رأسُ أيّ مرشَّحٍ ولا الاستثناءات (وفي كلّ ساعةٍ مرّةً: الخمولُ يتبع الوقتَ).
   key="$(printf '%s\n%s\n%s\n%s\n' "$main" "$cands" "$(sget integ_exclude)" "$(( $(now) / 3600 ))" \
@@ -363,16 +390,21 @@ plan_integration() {   # plan_integration <sha-main> — يضبط TARGET وINTEG
 
   cur="$main"
   mtree="$(git -C "$PREVIEW_DIR" rev-parse "$main^{tree}")"; ctree="$mtree"
-  while IFS='|' read -r ct n h b; do
+  while IFS='|' read -r grp ct n h b; do
     if [ -z "$h" ]; then continue; fi
+    disp="$n"; if [ "$grp" = 1 ]; then disp="$n «${b}»"; fi   # الطلبُ يُسمّى برقمه وعنوانه (كاملاً: القصُّ بالبايت يكسر الحرفَ العربيّ)
+    if ! git -C "$PREVIEW_DIR" cat-file -e "$h^{commit}" 2>/dev/null; then
+      INTEG_REPORT+="✗ $disp — تعذّر جلبُ رأسه (الإيداعُ غيرُ موجودٍ في المخزن ولا على GitHub)"$'\n'
+      continue
+    fi
     if git -C "$PREVIEW_DIR" merge-base --is-ancestor "$h" "$cur" 2>/dev/null; then continue; fi   # مدموجٌ بالنسب
     ahead="$(git -C "$PREVIEW_DIR" rev-list --count "$main..$h" 2>/dev/null || echo '؟')"
     when="$(date -d "@$ct" '+%m-%d %H:%M' 2>/dev/null || echo "$ct")"
 
     # آخرُ إيداعٍ جديدٍ في الفرع نفسِه (لا دمجٍ من main: هو يُجدّد التاريخَ بلا عملٍ جديد).
     fresh="$(git -C "$PREVIEW_DIR" log --no-merges -1 --format=%ct "$main..$h" 2>/dev/null || true)"
-    if [ "$MAX_AGE_HOURS" -gt 0 ] && [ -n "$fresh" ] && [ $(( $(now) - fresh )) -gt $(( MAX_AGE_HOURS * 3600 )) ]; then
-      INTEG_REPORT+="✗ $n — خاملٌ: آخرُ إيداعٍ جديدٍ فيه منذ $(( ($(now) - fresh) / 86400 )) يوماً (سقفُ التكامل ${MAX_AGE_HOURS} ساعة)"$'\n'
+    if [ "$grp" = 0 ] && [ "$MAX_AGE_HOURS" -gt 0 ] && [ -n "$fresh" ] && [ $(( $(now) - fresh )) -gt $(( MAX_AGE_HOURS * 3600 )) ]; then
+      INTEG_REPORT+="✗ $disp — خاملٌ: آخرُ إيداعٍ جديدٍ فيه منذ $(( ($(now) - fresh) / 86400 )) يوماً (سقفُ التكامل ${MAX_AGE_HOURS} ساعة)"$'\n'
       continue
     fi
 
@@ -390,20 +422,24 @@ plan_integration() {   # plan_integration <sha-main> — يضبط TARGET وINTEG
         else
           why="يتعارض مع main — يحتاج إعادةَ أساس"
         fi
-        INTEG_REPORT+="✗ $n — $why: ${files:-؟}"$'\n'
+        INTEG_REPORT+="✗ $disp — $why: ${files:-؟}"$'\n'
       else
-        INTEG_REPORT+="✗ $n — خطأ merge-tree ($rc)"$'\n'
+        INTEG_REPORT+="✗ $disp — خطأ merge-tree ($rc)"$'\n'
       fi
       continue
     fi
     if [ "$t" = "$ctree" ]; then continue; fi   # لا جديدَ بالمحتوى: مدموجٌ بالسحق أو مكرَّر
 
     if ! git -C "$PREVIEW_DIR" diff-tree --quiet "$mtree" "$t" -- "${MACHINERY[@]}" 2>/dev/null; then
-      INTEG_REPORT+="✗ $n — يعدّل آلةَ المعاينة نفسَها (${MACHINERY[*]}) فلا يدخل التكاملَ — يُعاين بـ: preview.sh pin $n"$'\n'
+      if [ "$grp" = 0 ]; then
+        INTEG_REPORT+="✗ $disp — يعدّل آلةَ المعاينة نفسَها (${MACHINERY[*]}) فلا يدخل التكاملَ — يُعاين بـ: preview.sh pin $n"$'\n'
+      else
+        INTEG_REPORT+="✗ $disp — يعدّل آلةَ المعاينة نفسَها (${MACHINERY[*]}) فلا يدخل التكاملَ — يُعاين بعد دمجه"$'\n'
+      fi
       continue
     fi
     if clash="$(integ_migration_clash "$ctree" "$t")"; then
-      INTEG_REPORT+="✗ $n — هجرةٌ تصادم رقمَ هجرةٍ سابقةٍ في مجلّدها: $clash"$'\n'
+      INTEG_REPORT+="✗ $disp — هجرةٌ تصادم رقمَ هجرةٍ سابقةٍ في مجلّدها: $clash"$'\n'
       continue
     fi
 
@@ -412,7 +448,7 @@ plan_integration() {   # plan_integration <sha-main> — يضبط TARGET وINTEG
            git -c commit.gpgsign=false -C "$PREVIEW_DIR" commit-tree "$t" -p "$cur" -p "$h" -m "preview: $n@${h:0:7}")"
     ctree="$t"
     INTEG_KIND=integrated
-    INTEG_REPORT+="+ $n — $ahead إيداعاً (آخرُها $when)"$'\n'
+    INTEG_REPORT+="+ $disp — $ahead إيداعاً (آخرُها $when)"$'\n'
   done <<<"$cands"
   TARGET="$cur"
 
