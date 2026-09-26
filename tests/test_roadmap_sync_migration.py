@@ -4055,7 +4055,7 @@ def test_0030_corrects_the_stale_vi24_statement_and_adds_the_prp02_correction_on
     note = RoadmapItem.objects.get(code="VI-24").note
     assert "لم يقرّها المالك" not in note and "أقرّها المالكُ (2026-09-25، مباشرةً" in note
     _item("PRP-02", "todo", 0, note="غير عاجل: مهلة الحرمان الفعليّة 2029–2030")
-    _item("REP-11", "todo", 0)
+    _item("REP-11", "todo", 0, gate="owner")
     assert _sync30.sync_notes(RoadmapItem) == ["PRP-02", "REP-11"]
     assert _sync30.sync_notes(RoadmapItem) == []
     prp02 = RoadmapItem.objects.get(code="PRP-02").note
@@ -5239,9 +5239,9 @@ def test_0036_moves_each_item_only_from_its_expected_state_and_is_idempotent():
     )
     assert (by["DBT-46"].status, by["DBT-46"].progress, by["DBT-46"].pr) == ("done", 100, "#645")
     assert (by["REP-08"].status, by["REP-08"].progress) == ("doing", 60)
-    assert (by["REP-09"].status, by["REP-09"].progress, by["REP-09"].gate) == ("doing", 85, "owner")
+    assert (by["REP-09"].status, by["REP-09"].progress, by["REP-09"].gate) == ("doing", 15, "owner")
     assert (by["REP-10"].progress, by["REP-10"].pr) == (75, "#637 #640 #644")
-    assert (by["REP-11"].status, by["REP-11"].progress, by["REP-11"].pr) == ("doing", 0, "#650")
+    assert (by["REP-11"].status, by["REP-11"].progress, by["REP-11"].pr) == ("done", 100, "#650")
     assert (by["N-047"].status, by["N-047"].progress, by["N-047"].pr) == (
         "doing",
         50,
@@ -5289,10 +5289,12 @@ def test_0036_rep_notes_state_proposals_as_proposals_and_carry_no_branch_counts(
     assert "لا قراءةَ رسميّةً لـRK1 بعدُ" in by["REP-08"]
     for banned in ("166", "273", "194", "322", "331", "168"):
         assert banned not in by["REP-08"], banned
-    assert "لا قياس" in by["REP-09"] and "RK3 (أشجارٌ راكدة) = 0 مرشّحة" in by["REP-09"]
+    assert "فوُحِّدت على رقم مالك البند" in by["REP-09"] and "15%" in by["REP-09"]
+    assert "RK3 (أشجارٌ راكدة) = 0 مرشّحة" in by["REP-09"] and "ولم يُوفَّق بعدُ" in by["REP-09"]
     assert "تُعاد الأدلّةُ قبل كلّ حذف" in by["REP-09"] and "`.env`" in by["REP-09"]
     assert "تُوحَّد النسبةُ على رقم مالك مسار البند" in by["REP-10"] and "ثلاثٌ من أربع" in by["REP-10"]
-    assert "ولا نسبةَ مقترحة" in by["REP-11"] and "لم يُتحقَّق:" in by["REP-11"]
+    assert "REP-11 منجز" in by["REP-11"] and "لم يُتحقَّق:" in by["REP-11"]
+    assert "195" not in by["REP-11"] and "107" not in by["REP-11"]
 
 
 def test_0036_n047_n048_lay03_lay10_never_close_and_state_what_was_not_verified():
