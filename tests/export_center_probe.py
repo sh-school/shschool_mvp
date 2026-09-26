@@ -1,7 +1,7 @@
 """مشاهدُ مركز التصدير (`static/js/export-center.js`، VI-30أ) على صفحةٍ حيّةٍ بمتصفّح — بلا بياناتٍ ولا خادمِ تصدير.
 
 يُحقَن في الصفحة رابطٌ لكلّ حالةٍ ويُعترَض طلبُه (`/__export__/…`) بجوابٍ مصنوع: ملفٌّ مباشر، ومهمّةٌ خلفيّةٌ بالعقد الجديد (202) وبالشكل القديم (200)،
-واستطلاعٌ بطيءٌ يُظهر إشعارَ «جارٍ التحضير»، وخطأٌ 429، وصفحةُ HTML، وسببُ فشلٍ نصّيٌّ (503)، وانقطاعُ شبكة، ولسانٌ لـPDF. فيُقاس السلوكُ لا نصُّ السكربت.
+واستطلاعٌ بطيءٌ يُظهر إشعارَ «جارٍ التحضير»، وخطأٌ 429، وصفحةُ HTML، وسببُ فشلٍ نصّيٌّ (503)، وانقطاعُ شبكة، ورابطُ PDF بـ`target=_blank`، وقائمةُ المشاركة في التطبيق المثبَّت (ومنها انتهاءُ تفعيل الضغطة). فيُقاس السلوكُ لا نصُّ السكربت.
 
 يُستعمل من `tests/e2e/test_export_center_live.py` (صفحةُ اللوحة الحيّة) — ولا يستورد pytest ليعمل أيضاً على لقطةٍ مصيَّرةٍ خارج المجموعة.
 """
@@ -252,6 +252,102 @@ def scenario_form_button_sends_its_own_name_and_value(page, server: Server) -> N
     ), server.seen
 
 
+_FAKE_APP = """(mode) => {
+  window.__shares = [];
+  const real = { mm: window.matchMedia, share: navigator.share, canShare: navigator.canShare };
+  window.matchMedia = (q) => ({ matches: /standalone/.test(q) || /pointer: coarse/.test(q), media: q, addEventListener() {}, removeEventListener() {} });
+  Object.defineProperty(navigator, 'maxTouchPoints', { value: 5, configurable: true });
+  navigator.canShare = () => true;
+  let calls = 0;
+  navigator.share = (data) => {
+    calls += 1;
+    window.__shares.push(data.files[0].name);
+    if (mode === 'expire-first' && calls === 1) return Promise.reject(Object.assign(new Error('x'), { name: 'NotAllowedError' }));
+    return Promise.resolve();
+  };
+  window.__restoreApp = () => {
+    window.matchMedia = real.mm; navigator.share = real.share; navigator.canShare = real.canShare;
+    delete navigator.maxTouchPoints;
+  };
+}"""
+
+
+def scenario_installed_app_hands_the_file_to_the_share_sheet(page, server: Server) -> None:
+    """التطبيقُ المثبَّت على لمس: الملفُّ يُسلَّم لقائمة المشاركة بدل التنزيل، بلا إشعارٍ ولا انتقال."""
+    url = page.url
+    page.evaluate(_FAKE_APP, "ok")
+    try:
+        page.click("#probe-file")
+        page.wait_for_function("window.__shares.length === 1", timeout=3000)
+        assert page.evaluate("window.__shares[0]") == "تقرير.xlsx"
+        assert page.url == url
+        assert not page.locator("#toast-container .toast").count()
+    finally:
+        page.evaluate("window.__restoreApp()")
+
+
+def scenario_expired_activation_waits_for_a_second_tap_with_a_lasting_notice(
+    page, server: Server
+) -> None:
+    """سفاري: انتهى تفعيلُ الضغطة بعد الجلب (`NotAllowedError`) ← إشعارٌ **يبقى** «اضغط مرّةً أخرى» (لا يختفي والملفُّ جاهز)، والضغطةُ الثانيةُ تفتح القائمةَ ويُغلق الإشعار."""
+    page.evaluate(_FAKE_APP, "expire-first")
+    try:
+        page.click("#probe-file")
+        page.wait_for_selector("#toast-container .toast-info", timeout=3000)
+        assert "اضغط الزرّ مرّةً أخرى" in _toast_texts(page, "info")[0]
+        page.wait_for_timeout(7500)  # أطولُ من مدّة الإشعار الافتراضيّة (6s): لا يزول وحدَه
+        assert (
+            page.locator("#toast-container .toast-info").count() == 1
+        ), "اختفى إشعارُ الضغطة الثانية"
+        page.click("#probe-file")
+        page.wait_for_function("window.__shares.length === 2", timeout=3000)
+        page.wait_for_function(
+            "document.querySelectorAll('#toast-container .toast-info').length === 0", timeout=3000
+        )
+    finally:
+        page.evaluate("window.__restoreApp()")
+
+
+def scenario_html_is_a_page_never_a_download(page, server: Server) -> None:
+    """جوابُ HTML صفحةٌ لا ملفّ: تُفتح الصفحةُ (كما كانت بالانتقال) ولا يُنزَّل HTML ملفّاً."""
+    downloads = []
+    page.on("download", lambda download: downloads.append(download))
+    with page.expect_navigation():
+        page.click("#probe-html")
+    assert page.url.endswith("/__export__/html/")
+    assert not downloads, "نُزِّل HTML على أنّه ملفّ"
+
+
+def scenario_target_blank_links_download_like_the_rest(page, server: Server) -> None:
+    """رابطُ `target=_blank` (عرضُ PDF سابقاً) يمرّ بالمركز ويُنزَّل: لا لسانَ جديداً ولا blob يرث CSP الصفحة (قرارُ المالك 2026-09-26)."""
+    url = page.url
+    tabs = len(page.context.pages)
+    with page.expect_download() as download:
+        page.click("#probe-pdf")
+    assert (
+        download.value.suggested_filename == "pdf.pdf"
+    ), download.value.suggested_filename  # لا اسمَ في الترويسة: من المسار والنوع
+    assert page.url == url
+    assert len(page.context.pages) == tabs, "فُتح لسانٌ جديد"
+
+
+def scenario_form_button_sends_its_own_name_and_value(page, server: Server) -> None:
+    """زرُّ نموذجٍ `data-app-file`: يُرسَل ما كان النموذجُ سيرسله (الحقلُ المخفيّ واسمُ الزرّ وقيمتُه) ويُحفظ الملفُّ بلا انتقال؛ ونموذجٌ ناقصٌ لا يُرسَل."""
+    url = page.url
+    calls = len(server.seen)
+    page.click("#probe-form-xlsx")  # حقلٌ مطلوبٌ فارغ: لا طلبَ ولا انتقال
+    page.wait_for_timeout(300)
+    assert len(server.seen) == calls, "أُرسل نموذجٌ ناقص"
+    page.fill("#probe-need", "x")
+    with page.expect_download() as download:
+        page.click("#probe-form-xlsx")
+    assert download.value.suggested_filename == "تقرير.xlsx"
+    assert page.url == url
+    assert any(
+        "/form/" in seen and "format=xlsx" in seen and "need=x" in seen for seen in server.seen
+    ), server.seen
+
+
 def scenario_html_is_a_page_never_a_download(page, server: Server) -> None:
     """جوابُ HTML صفحةٌ لا ملفّ: تُفتح الصفحةُ (كما كانت بالانتقال) ولا يُنزَّل HTML ملفّاً."""
     downloads = []
@@ -290,7 +386,9 @@ SCENARIOS = (
     scenario_busy_is_an_error_toast_with_the_server_message,
     scenario_plain_text_reason_is_read_not_hidden,
     scenario_network_failure_is_never_silent,
-    scenario_target_blank_links_stay_with_the_browser,
+    scenario_target_blank_links_download_like_the_rest,
+    scenario_installed_app_hands_the_file_to_the_share_sheet,
+    scenario_expired_activation_waits_for_a_second_tap_with_a_lasting_notice,
     scenario_form_button_sends_its_own_name_and_value,
     scenario_html_is_a_page_never_a_download,
 )

@@ -15,9 +15,9 @@
  * ويُغلَق عند الجاهزيّة أو الفشل. والفشلُ لا يمرّ صامتاً أبداً: إشعارٌ أحمر، وللاستطلاع سقفٌ أعلى.
  *
  * وبلا إشعارٍ عائم (`showToast` غائب: ورقةٌ مستقلّةٌ بلا base.js) يُترك الرابطُ لسلوكه إلّا في قائمة المشاركة على الجوال المثبَّت.
- * ولا يُلمس ما يحمل مفتاحَ تعديل (Ctrl/Cmd/Shift) أو زرّاً غيرَ الأيسر، ولا رابطاً من أصلٍ آخر، **ولا رابطاً `target=_blank`** (عرضُ PDF في لسانٍ جديد):
- * يبقى للمتصفّح بعارضه الأصليّ — فتحُه من blob بعد الجلب يرثُ سياسةَ CSP للصفحة (`object-src 'none'`) فيُحجب عارضُ PDF، وتنزيلُه بدل عرضه يغيّر
- * ما اعتاده المستخدم. وما كان مهمّةً ثقيلةً منها يحوّله الخادمُ (بلا ترويسة XHR) إلى صفحة المتابعة كما اليوم.
+ * ولا يُلمس ما يحمل مفتاحَ تعديل (Ctrl/Cmd/Shift) أو زرّاً غيرَ الأيسر، ولا رابطاً من أصلٍ آخر.
+ * **وروابطُ `target=_blank` (عرضُ PDF في لسانٍ جديد) تمرّ بالمركز أيضاً وتُنزَّل** (قرارُ المالك 2026-09-26: كلُّ التصديرات تنزيلٌ بإشعارٍ واحد، ولا عرضَ
+ * مضمَّناً في لسان): لا لسانَ يُفتح ولا blob يرث CSP الصفحة (`object-src 'none'`).
  *
  * وحارسُ الوسم: tests/test_app_mode_no_dead_ends.py (رابطُ ملفٍّ بلا `data-app-file` يُفشل البوّابة) واختبارُ التدفّق الحيّ tests/e2e/test_export_center_live.py.
  */
@@ -98,8 +98,14 @@
     }
     var plain = /filename="?([^";]+)"?/i.exec(cd);
     if (plain) return plain[1];
-    var last = new URL(url, window.location.href).pathname.split('/').filter(Boolean).pop();
-    return last || 'file';
+    var last = new URL(url, window.location.href).pathname.split('/').filter(Boolean).pop() || 'file';
+    // بلا اسمٍ في الترويسة ولا امتدادٍ في المسار: الامتدادُ من النوع كي يُفتح الملفُّ بتطبيقه.
+    var type = (response.headers.get('Content-Type') || '').toLowerCase();
+    if (last.indexOf('.') === -1) {
+      if (type.indexOf('application/pdf') === 0) last += '.pdf';
+      else if (type.indexOf('spreadsheetml') !== -1) last += '.xlsx';
+    }
+    return last;
   }
 
   // رابطٌ: GET بعنوانه. زرُّ نموذجٍ: ما كان سيرسله النموذجُ (GET بوسطاءَ في العنوان، أو POST بجسم) — بزرّه وقيمته.
@@ -138,22 +144,38 @@
     window.setTimeout(function () { URL.revokeObjectURL(href); }, 60000);
   }
 
-  // عنصر → {file}: ملفٌّ جُلب في التطبيق المثبَّت ولم تُفتح له قائمةُ المشاركة بعد (سفاري يشترط الضغطةَ نفسَها).
+  // عنصر → {file, url, note, timer}: ملفٌّ جُلب في التطبيق المثبَّت ولم تُفتح له قائمةُ المشاركة بعد (سفاري يشترط الضغطةَ نفسَها).
+  // والإشعارُ «اضغط مرّةً أخرى» يبقى ما بقي الملفُّ جاهزاً (لا يختفي والزرُّ ينتظر)، ويسقط الاثنان بعد دقيقة.
   var READY = new WeakMap();
+  var READY_MS = 60000;
 
+  function clearReady(el) {
+    var ready = READY.get(el);
+    if (!ready) return;
+    window.clearTimeout(ready.timer);
+    dismiss(ready.note);
+    READY.delete(el);
+  }
+
+  // `fresh`: الضغطةُ الثانيةُ وحدَها (طازجةٌ بعد جلبٍ سابق)؛ والمحاولةُ الأولى دائماً `false` — فإن انتهى تفعيلُها بعد الجلب (سفاري) تنتظر ضغطةً ثانية.
   function share(job, file, fresh) {
     return navigator.share({ files: [file] }).then(
-      function () { READY.delete(job.el); },
+      function () { clearReady(job.el); },
       function (err) {
         var name = err && err.name;
         if (name === 'AbortError') {
-          READY.delete(job.el); // أغلق المستخدمُ القائمة — لا خطأ.
+          clearReady(job.el); // أغلق المستخدمُ القائمة — لا خطأ.
         } else if (name === 'NotAllowedError' && !fresh) {
           // الملفُّ تأخّر بعد الضغطة فانتهى تفعيلُها: ضغطةٌ ثانيةٌ تفتح القائمة.
-          READY.set(job.el, { file: file, url: job.req.url });
-          toast('الملفّ جاهز — اضغط الزرّ مرّةً أخرى للحفظ أو الطباعة.', 'info');
+          clearReady(job.el);
+          READY.set(job.el, {
+            file: file,
+            url: job.req.url,
+            note: toast('الملفّ جاهز — اضغط الزرّ مرّةً أخرى للحفظ أو الطباعة.', 'info', 0),
+            timer: window.setTimeout(function () { clearReady(job.el); }, READY_MS),
+          });
         } else {
-          READY.delete(job.el); // رفضٌ لا لتفعيلٍ منتهٍ بل للملفّ نفسِه — فيُنزَّل.
+          clearReady(job.el); // رفضٌ لا لتفعيلٍ منتهٍ بل للملفّ نفسِه — فيُنزَّل.
           save(file);
         }
       }
@@ -166,7 +188,7 @@
     if (sharing) {
       try { shareable = navigator.canShare({ files: [file] }); } catch (e) { shareable = false; }
     }
-    if (shareable) return share(job, file, !job.slow);
+    if (shareable) return share(job, file, false);
     // ما لا تقبله قائمةُ المشاركة (أندرويد لا يشارك xlsx) يُنزَّل — والصفحةُ في مكانها.
     save(file);
     if (job.slow) toast('الملفّ جاهز — بدأ التنزيل.', 'success'); // ما لم يطل التحضيرُ فالتنزيلُ صامتٌ كما كان
@@ -309,10 +331,12 @@
     var req = requestFor(el);
     var ready = READY.get(el);
     if (ready && ready.url === req.url) {
-      share({ el: el, req: req }, ready.file, true);
+      var file = ready.file;
+      clearReady(el); // الضغطةُ الثانية: يُغلق الإشعارُ وتُفتح القائمةُ بضغطةٍ طازجة
+      share({ el: el, req: req }, file, true);
       return;
     }
-    READY.delete(el);
+    clearReady(el);
     if (el.getAttribute('aria-busy') === 'true') return;
     el.setAttribute('aria-busy', 'true');
     var job = { el: el, req: req, notice: null, slow: false, timer: null };
@@ -333,7 +357,6 @@
     if (el.tagName === 'A' && !sameOrigin(el.href)) return; // من أصلٍ آخر: يبقى لسلوكه
     var sharing = inApp() && touchDevice() && canShareFiles();
     if (!sharing && !toaster('showToast')) return; // بلا إشعارٍ عائمٍ ولا قائمةِ مشاركةٍ يُترك الرابطُ لسلوكه
-    if (!sharing && el.tagName === 'A' && el.target === '_blank') return; // عرضُ PDF في لسانٍ جديد: للمتصفّح (انظر الترويسة)
     if (el.tagName === 'BUTTON' && !(el.form && el.form.reportValidity())) return; // نموذجٌ ناقص: يعرض المتصفّحُ ما ينقصه
     event.preventDefault();
     run(el);

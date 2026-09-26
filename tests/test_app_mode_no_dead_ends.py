@@ -208,7 +208,6 @@ def test_export_center_script_keeps_its_contract():
         "navigator.canShare",  # قائمةُ المشاركة على جهاز لمس في التطبيق
         "NotAllowedError",  # سفاري: ضغطةٌ ثانيةٌ حين يتأخّر الملفّ
         "GIVE_UP_MS",  # سقفٌ للاستطلاع: لا انتظارَ بلا نهاية
-        "el.target === '_blank'",  # عرضُ PDF في لسانٍ جديد للمتصفّح (CSP object-src 'none' يحجب عارضَ blob)
     ):
         assert needle in src, needle
 
@@ -221,3 +220,10 @@ def test_the_pages_view_offers_one_pdf_button_on_touch_screens():
     pdf_links = re.findall(r"<a[^>]*schedule_pages_pdf[^>]*>", src)
 
     assert len(pdf_links) == 1
+
+
+def test_export_center_treats_target_blank_links_like_every_other_export():
+    """قرارُ المالك 2026-09-26: لا عرضَ PDF مضمَّناً في لسانٍ جديد — كلُّ التصديرات تُنزَّل بإشعارٍ واحد (ولا blob يرث CSP الصفحة)."""
+    src = pathlib.Path("static/js/export-center.js").read_text(encoding="utf-8")
+    assert "el.target === '_blank'" not in src, "عاد استثناءُ target=_blank"
+    assert "window.open" not in src, "المركزُ لا يفتح ألسنةً"
