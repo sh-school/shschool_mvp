@@ -81,8 +81,8 @@ def _who_of_paper(paper_html: str) -> str:
 
 
 def _cards(screen_html: str) -> list[str]:
-    """كلُّ بطاقةٍ على الشاشة: ما بين ابتداء `<details` وانتهائها."""
-    return re.findall(r"<details\b.*?</details>", screen_html, re.S)
+    """كلُّ بطاقة معلّمٍ/شعبةٍ على الشاشة: الأعمقُ من `<details` (رأسُ القسم يحتوي بطاقاتِ معلّميه)."""
+    return re.findall(r"<details\b(?:(?!<details\b).)*?</details>", screen_html, re.S)
 
 
 @pytest.fixture
@@ -180,7 +180,7 @@ def test_the_screen_writes_no_details_by_hand():
 def test_a_teacher_card_takes_the_department_color_token_not_a_local_hex(teacher_page):
     screen, _, _ = teacher_page
     # كودُ القسم `art` يُترجَم إلى مفتاح لونٍ مركزيّ (core/dept_colors.py) لا إلى صنفٍ محلّيّ.
-    assert 'class="pages-screen__item is-full dept-arts"' in screen
+    assert 'class="pages-screen__item pages-screen__dept is-full dept-arts"' in screen
     rules = "".join(
         re.findall(r"\.pages-screen__item[^{]*\{[^}]*\}", CSS.read_text(encoding="utf-8"))
     )
@@ -207,3 +207,20 @@ def test_the_department_tint_keeps_the_text_readable_in_both_themes():
             for text in ("--text-primary", "--maroon-fg"):
                 fg = contrast.resolve(f"var({text})", tokens)
                 assert contrast.ratio(fg, tint) >= 4.5, f"{theme}: {text} على قسم {key}"
+
+
+def test_teachers_sit_under_a_folded_department_whose_header_carries_the_coordinator(
+    teacher_page, principal_user
+):
+    """رأسُ القسم قابلٌ للطيّ (مطويٌّ افتراضاً) ويحمل عددَ معلّميه واسمَ منسّقه ولونَه، والمعلّمون داخلَه."""
+    screen, _, teacher = teacher_page
+    dept = re.search(
+        r'<div class="pages-screen__item pages-screen__dept[^"]*">(.*)', screen, re.S
+    ).group(1)
+    header = _text(re.search(r"<summary\b.*?</summary>", dept, re.S).group(0))
+    assert "الفنون البصرية" in header and "1 معلّم" in header
+    assert f"المنسّق: {principal_user.full_name}" in header
+    assert teacher.full_name in dept.split("</summary>", 1)[1], "المعلّمُ داخل جسم قسمه"
+    assert screen.count("<details") == 2, "قسمٌ ومعلّمٌ — كلاهما مطويّ"
+    css = CSS.read_text(encoding="utf-8")
+    assert "pages-screen__dept > .ui-section > details > summary" in css
