@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import django.core.mail
 
@@ -21,6 +21,7 @@ from django.utils import timezone
 from kombu.exceptions import OperationalError
 
 from core.academic_calendar import academic_year_for_school
+from core.mail_backends import provider_configured
 from core.models import ParentStudentLink
 
 from . import quiet_hours
@@ -28,6 +29,8 @@ from .models import NotificationLog, NotificationSettings
 
 _EMAIL_FAILURE_MESSAGE = "تعذر إرسال البريد الإلكتروني."
 _EMAIL_UNDELIVERED_MESSAGE = "لم يُسلَّم البريد: لا مزوّد بريد مُهيَّأ."
+#: مستلمٌ في سطر «لم يُسلَّم» بلا مزوّد: العمودُ إلزاميّ في النموذج والعنوانُ الحقيقيُّ لا يُخزَّن (DBT-11).
+_NO_RECIPIENT = "—"
 _SMS_FAILURE_MESSAGE = "تعذر إرسال رسالة SMS."
 _SMS_UNDELIVERED_MESSAGE = "لم تُسلَّم الرسالة: لا مزوّد SMS مُهيَّأ."
 
@@ -217,7 +220,14 @@ class NotificationService:
 
         [B4-1] `delivery` اختياري: يربط هذه المحاولة بتسليمها حين يعرفه
         المُستدعي. لا شيء يُنشئه هنا — الخدمة تنفّذ ولا تُقرّر الهوية.
+
+        [DBT-11] وبلا مزوّدٍ فعليّ لا يُركَّب النصُّ ولا يُستدعى الـbackend، ويُكتب سطرٌ **مُنقًّى**: لا عنوانَ ولا موضوعَ ولا نصَّ
+        (الجدولُ يحفظها 730 يوماً وفي النسخ الاحتياطيّة) — معرّفاتٌ وحالةٌ وسببٌ فقط.
         """
+        if not provider_configured():
+            return NotificationService._record_undelivered_email(
+                school, student, notif_type, sent_by, delivery
+            )
         log = NotificationLog.objects.create(
             school=school,
             delivery=delivery,
@@ -273,6 +283,31 @@ class NotificationService:
             log.error_msg = _EMAIL_FAILURE_MESSAGE
             log.save(update_fields=["status", "error_msg"])
             return False, _EMAIL_FAILURE_MESSAGE
+
+    @staticmethod
+    def _record_undelivered_email(
+        school: School,
+        student: CustomUser | None,
+        notif_type: str,
+        sent_by: CustomUser | None,
+        delivery: Any,
+    ) -> tuple[bool, str]:
+        """[DBT-11] سطرُ «لم يُسلَّم» لبريدٍ لا مزوّدَ له — بلا عنوانٍ ولا موضوعٍ ولا نصّ، وتحذيرٌ واحدٌ (ليس خطأً)."""
+        NotificationLog.objects.create(
+            school=school,
+            delivery=delivery,
+            student=student,
+            recipient=_NO_RECIPIENT,
+            channel="email",
+            notif_type=notif_type,
+            subject="",
+            body="",
+            status="failed",
+            error_msg=_EMAIL_UNDELIVERED_MESSAGE,
+            sent_by=sent_by,
+        )
+        logger.warning("بريدٌ لم يُسلَّم: لا مزوّدَ بريدٍ مُهيَّأ (EMAIL_BACKEND) — رسالةٌ واحدة أُسقطت")
+        return False, _EMAIL_UNDELIVERED_MESSAGE
 
     # ── إرسال SMS ────────────────────────────────────────────
 
