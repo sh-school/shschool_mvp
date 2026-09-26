@@ -237,9 +237,10 @@ def test_the_letterhead_markup_reads_the_school_not_a_hardcoded_name(
     obs = _make_obs(school, principal_user, teacher_user)
     html = render_to_string("quality/observation_pdf.html", _pdf_context(obs))
 
-    # الهويّةُ نصٌّ موحَّدٌ كباقي ملفّات PDF (ترويسةُ الصور أُلغيت) من اسم المدرسة نفسها،
-    # لا ترويسةُ مدرسةٍ أخرى.
-    assert "doc-header" in html
+    # صارت الاستمارة طبق الأصل من نموذج المدرسة، وشريطاها صورتان في
+    # بياناتها. ومن لم يرفعهما — كهذه المدرسة في الاختبار — يُبنَ له
+    # عنوانٌ نصّيّ من اسمه هو، لا ترويسةُ مدرسةٍ أخرى.
+    assert "plain-head" in html
     assert "وزارة التربية والتعليم والتعليم العالي" in html
     assert school.name in html
 

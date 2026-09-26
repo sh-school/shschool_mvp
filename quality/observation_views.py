@@ -241,10 +241,13 @@ def _pdf_context(obs):
         (label, [{"criterion": c, "score": s} for c, s in rows])
         for label, rows in _groups_with_scores(obs)
     ]
+    letterhead = _as_data_uri(obs.school.letterhead)
     return {
         "obs": obs,
-        # الشعار: `School.logo` إن وُجد، وإلّا الشعارُ المعتمد `logoMaroon.png` — وترويسةُ/تذييلُ الصور أُلغيا (2026-09-26)
-        "logo": _as_data_uri(obs.school.logo) or brand_logo_data_uri(),
+        "letterhead": letterhead,
+        # الشعارُ بجانب العنوان النصّيّ فقط حين لا ترويسةَ مرفوعة: `School.logo` إن وُجد، وإلّا الشعارُ المعتمد `logoMaroon.png`
+        "logo": "" if letterhead else (_as_data_uri(obs.school.logo) or brand_logo_data_uri()),
+        "letterfoot": _as_data_uri(obs.school.letterfoot),
         "domains": grouped,
         "ratings": RATING_CHOICES,
         "signatures": signature_stamps(obs),
