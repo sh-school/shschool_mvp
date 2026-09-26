@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("behavior", "0019_arabic_field_labels"),
+        ("behavior", "0020_conduct_4_07_name_from_source"),
     ]
 
     operations = [

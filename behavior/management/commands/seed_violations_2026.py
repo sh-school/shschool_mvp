@@ -5,7 +5,7 @@ python manage.py seed_violations_2026 [--dry-run] [--academic-year 2026-2027]
 المصدر الوحيد: conduct_2026.py — لا ملفَّ خارجيَّ، لا hardcode.
 
 الفرق عن seed_violations_2025:
-  - يملأ ladder_json و ladder_key (الحقلان الجديدان في migration 0020).
+  - يملأ ladder_json و ladder_key (الحقلان الجديدان في migration 0021).
   - يُصحِّح اسم 4-07 (المُدمَج في #658).
   - idempotent: update_or_create بالـcode — آمنٌ للتشغيل أكثرَ من مرّة.
 """
