@@ -58,7 +58,7 @@ def test_d4_danger_rep2_protection_before_suspension():
 
     protection_idx = next((i for i, a in enumerate(rep2_actions) if "حماية ورعاية" in a), None)
     suspension_idx = next(
-        (i for i, a in enumerate(rep2_actions) if "فصل" in a and "الدوام" in a), None
+        (i for i, a in enumerate(rep2_actions) if "فصلُ الطالب من المدرسة" in a), None
     )
     security_idx = next(
         (i for i, a in enumerate(rep2_actions) if "الجهات الأمنيّة" in a or "الجهات الأمنية" in a),
