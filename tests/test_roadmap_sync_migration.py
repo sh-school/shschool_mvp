@@ -6372,7 +6372,7 @@ def test_0040_moves_each_item_only_from_its_expected_state_and_is_idempotent():
     assert _sync40.sync(RoadmapItem) == []
     by = {i.code: i for i in RoadmapItem.objects.all()}
     assert (by["VI-30a"].status, by["VI-30a"].progress, by["VI-30a"].pr) == ("doing", 50, "")
-    assert (by["VI-30b"].status, by["VI-30b"].progress, by["VI-30b"].pr) == ("doing", 33, "")
+    assert (by["VI-30b"].status, by["VI-30b"].progress, by["VI-30b"].pr) == ("doing", 50, "#685")
     assert (by["Q-11"].status, by["Q-11"].progress, by["Q-11"].pr) == ("doing", 50, "")
     assert (by["H-03"].status, by["H-03"].progress, by["H-03"].pr) == ("doing", 70, "")
 
@@ -6390,13 +6390,20 @@ def test_0040_export_items_record_open_prs_as_open_and_the_d33_revert():
     _seed40()
     _sync40.sync(RoadmapItem)
     a = RoadmapItem.objects.get(code="VI-30a").note
-    assert "#686 مفتوحٌ لم يندمج" in a and "D-33" in a and "تصير تنزيلاً باسم الملفّ" in a
-    assert "صافي CSS 0 بايت" in a and "#685 أوّلاً ثمّ #686" in a
+    assert (
+        "#686 مفتوحٌ لم يندمج" in a
+        and "D-33" in a
+        and "وصل بـ#685" in a
+        and "تصير تنزيلاً باسم الملفّ" in a
+    )
+    assert "صافي CSS 0 بايت" in a and "#685 أوّلاً (اندمج ونُشر) ثمّ #686" in a
     assert "لم يُقَس:" in a and "خطوتان" not in a and "ثلاثٌ من ستّ" in a and "اشتقاقٌ لا قياس" in a
     b = RoadmapItem.objects.get(code="VI-30b").note
-    assert "#685 مفتوحٌ لم يندمج" in b and "≈ 19.9ث" in b and "كلَّ ساعة" in b
-    assert "لم يُسجَّل نوعٌ direct" in b and "EX1" in b and "21" in b
-    assert "ولا يُغلق قبل الدمج والنشر وإعادة تشغيل العامل" in b
+    assert "#685 اندمج (main@08e31bd" in b and "ونُشر على الويب والعامل وbeat 16:45" in b
+    assert "≈ 19.9ث" in b and "كلَّ ساعة" in b and "لم يُسجَّل نوعٌ direct" in b
+    assert "PDF الجدول 156KB/6ث" in b and "لم يُقَس:" in b and "مهمّةُ التنظيف الساعيّة" in b
+    assert "EX1" in b and "اشتقاقٌ لا قياس" in b and "ثلاثٌ من ستّ" in b
+    assert "ولا يُغلق قبل الأنواع الستّة ومعاينة المالك" in b
 
 
 def test_0040_q11_and_h03_keep_measurements_and_never_claim_v_k25_or_mk17():
