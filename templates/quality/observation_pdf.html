@@ -49,13 +49,9 @@
 <style>
 @page {
   size: 8.5in 11in;
-  /* هامشا الأصل 1.125 و0.8125 بوصة، والشريطان أقصر منهما بكثير
-     (0.878 و0.405). فضُبطا على ارتفاعهما وفضلةٍ يسيرة، والفائض
-     رُدَّ إلى المتن فكبُر خطُّه. */
-  /* الهامشان يسعان الشريطين وفسحةً حولهما: الترويسة 0.878 بوصة
-     والتذييل 0.367 عند عرض 6.8، وحول كلٍّ منهما 0.14 من فوقه
-     ومثلها من تحته — فلا يلتصق شريطٌ بحافّة ولا بمتن. */
-  margin: 1.08in 0.5in 0.65in 0.5in;
+  /* الترويسةُ والتذييلُ هما هويّةُ المنصّة الموحَّدة نفسُها في باقي ملفّات PDF (`reports/base_qatar_report.html`):
+     شعارٌ فوزارةٌ فاسمُ المدرسة وخطٌّ زخرفيّ، وتذييلٌ بسطرين. ولا صورةَ ترويسةٍ ولا تذييل — أُلغيا. */
+  margin: 1.2in 0.5in 0.62in 0.5in;
   @top-center { content: element(sheet-header); }
   @bottom-center { content: element(sheet-footer); }
 }
@@ -77,30 +73,21 @@ body {
   background: {% brand_color "SURFACE" %};
 }
 
-/* صندوق الهامش بلا عرضٍ محدَّد، فـ`width: 100%` لا تُحلّ عليه: تعود
-   الصورة إلى عرضها الطبيعيّ (٢٤١٠ بكسل ≈ ٢٥ بوصة) فتفيض ولا يظهر شيء —
-   وهو ما خرج من الإنتاج: صفرُ صورٍ في الملفّ بلا خطأٍ ولا شكوى.
-   فالعرض مطلق: ٨٫٥ بوصة ناقص هامشَين نصفِ بوصة. */
-/* الشريطان أضيق من المتن قليلاً ومتوسّطان، وحولهما فسحة — أهدأ من أن
-   يمتدّا بعرض الورقة كلّها ويلتصقا بحوافّها. */
-#sheet-header { position: running(sheet-header); width: 7.5in; padding: 0.14in 0; }
-#sheet-footer { position: running(sheet-footer); width: 7.5in; padding: 0.14in 0; }
-#sheet-header img, #sheet-footer img { width: 6.8in; display: block; margin: 0 auto; }
+/* صندوق الهامش بلا عرضٍ محدَّد، فـ`width: 100%` لا تُحلّ عليه: تعود الصورةُ إلى عرضها الطبيعيّ (٢٤١٠ بكسل ≈ ٢٥ بوصة)
+   فتفيض ولا يظهر شيء — فعرضُ الشريطين مطلق: ٨٫٥ بوصة ناقص هامشَين نصفِ بوصة. */
+#sheet-header { position: running(sheet-header); width: 7.5in; padding-top: 0.08in; }
+#sheet-footer { position: running(sheet-footer); width: 7.5in; padding-bottom: 0.1in; }
 
-/* عنوانٌ نصّيّ لمن لم يرفع ترويسته — لا ترويسة مدرسةٍ أخرى */
-.plain-head { text-align: center; border-bottom: 2pt solid {% brand_color "FORM_BAND" %}; padding-bottom: 4pt; overflow: hidden; }  /* `overflow` يحوي الشعارَ العائم فيبقى الحدُّ تحته لا خلفَه */
-/* الشعارُ بجانب العنوان النصّيّ حين لا ترويسةَ مرفوعة: عن يمين النصّ (بداية السطر في RTL). ارتفاعُه 0.62 بوصة يسعه الهامشُ العلويّ
-   (1.08 بوصة ناقصَ حشوَي الشريط 0.28 وحدَّه السفليّ 4pt+2pt = 0.7 بوصة): فلا يمسّ الشعارُ ارتفاعَ المتن ولا يُنزل الصفحةَ عن الصفحة الواحدة. */
-#sheet-header .plain-head .logo { float: right; display: block; height: 0.62in; width: auto; margin: 0 0 0 8pt; }  /* يسبق قاعدةَ `#sheet-header img` (عرضُ الشريط) بالخصوصيّة */
-.plain-head .ministry { font-size: 10pt; color: {% brand_color "PRINT_INK_SOFT" %}; }
-.plain-head .school { font-size: 14pt; font-weight: 700; color: {% brand_color "FORM_BAND" %}; }
-.plain-foot {
-  text-align: center;
-  border-top: 1pt solid {% brand_color "FORM_BAND" %};
-  padding-top: 3pt;
-  font-size: 9pt;
-  color: {% brand_color "FORM_BAND" %};
-}
+/* الترويسةُ كما في `base_qatar_report.html` بمقاسٍ يسع الصفحةَ الواحدة: شعارٌ معتمدٌ ووزارةٌ واسمُ المدرسة، ثمّ الخطُّ الزخرفيّ المزدوج. */
+.doc-header { text-align: center; }
+.doc-header .emblem { display: block; height: 0.5in; width: auto; margin: 0 auto 2pt; }
+.doc-header .ministry-name { font-size: 8.5pt; color: {% brand_color "TEXT_PRIMARY" %}; }
+.doc-header .school-name { font-size: 14pt; font-weight: 700; color: {% brand_color "MAROON" %}; line-height: 1.25; }
+.ornament-hr { height: 4pt; margin-top: 3pt; border-top: 2pt solid {% brand_color "MAROON" %}; border-bottom: 0.75pt solid {% brand_color "GOLD" %}; }
+
+.running-footer { text-align: center; border-top: 1.5pt solid {% brand_color "MAROON" %}; padding-top: 3pt; line-height: 1.5; }
+.running-footer .ft-school { font-size: 8.5pt; font-weight: 600; color: {% brand_color "TEXT_PRIMARY" %}; }
+.running-footer .ft-ministry { font-size: 9pt; font-weight: 600; color: {% brand_color "MAROON_DARK" %}; }
 
 .form-title {
   text-align: center;
@@ -186,26 +173,20 @@ td {
 <body data-pdf-own-page>
 
 <div id="sheet-header">
-  {% if letterhead %}
-    <img src="{{ letterhead }}" alt="">
-  {% else %}
-    <div class="plain-head">
-      {% if logo %}<img class="logo" src="{{ logo }}" alt="">{% endif %}
-      <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
-      <div class="school">{{ obs.school.name }}</div>
-    </div>
-  {% endif %}
+  <div class="doc-header">
+    {% if logo %}<img class="emblem" src="{{ logo }}" alt="">{% endif %}
+    <div class="ministry-name">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
+    <div class="school-name">{{ obs.school.name }}</div>
+  </div>
+  <div class="ornament-hr"></div>
 </div>
 
 <div id="sheet-footer">
-  {% if letterfoot %}
-    <img src="{{ letterfoot }}" alt="">
-  {% else %}
-    {# تذييل المدرسة صورةٌ ترفعها هي، وفيها رؤيتها. ومن لم يرفعها يُذيَّل باسمه ورؤية الوزارة. #}
-    <div class="plain-foot">
-      {{ obs.school.name }} — {% include "components/ministry_vision.html" with school=obs.school %}
-    </div>
-  {% endif %}
+  {# التذييلُ كما في باقي ملفّات PDF: المدرسةُ وتواصلُها، ثمّ الوزارةُ ورؤيتُها والمنصّة. #}
+  <div class="running-footer">
+    <div class="ft-school">{{ obs.school.name }}{% if obs.school.phone %} · هاتف: {{ obs.school.phone }}{% endif %}{% if obs.school.email %} · {{ obs.school.email }}{% endif %}{% if obs.school.city %} · {{ obs.school.city }}، قطر{% endif %}</div>
+    <div class="ft-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" with school=obs.school %} · SchoolOS-SAMM © {% now "Y" %}</div>
+  </div>
 </div>
 
 <h1 class="form-title">

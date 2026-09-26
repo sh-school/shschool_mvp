@@ -76,17 +76,40 @@ def test_the_side_margins_come_from_the_original(source):
     assert margin.group(2) == margin.group(4) == "0.5"
 
 
-def test_the_vertical_margins_hold_the_bands_and_no_more(source):
-    """هامشا الأصل 1.125 و0.8125 بوصة، والشريطان أقصر: 0.878 و0.405 عند
-    عرض 7.5 بوصة. فضُبطا على ارتفاعهما وفضلةٍ يسيرة، والفائض رُدّ إلى
-    المتن — فالصفحة تمتلئ ولا يبقى بياضٌ فوق التذييل."""
-    import re
+def _margin_boxes(html):
+    """(مربّعُ الهامش ← (ارتفاعُ الهامش، ارتفاعُ محتواه)) من تخطيط WeasyPrint نفسِه لا من نصّ القالب."""
+    weasyprint = pytest.importorskip("weasyprint")
 
-    margin = re.search(r"margin: ([\d.]+)in ([\d.]+)in ([\d.]+)in ([\d.]+)in", source)
-    top, bottom = float(margin.group(1)), float(margin.group(3))
+    page = weasyprint.HTML(string=html).render().pages[0]._page_box
+    found = {}
 
-    assert 0.878 < top < 1.125, "يسع الترويسة ولا يزيد كثيراً"
-    assert 0.405 < bottom < 0.8125, "يسع التذييل ولا يزيد كثيراً"
+    def walk(box):
+        if type(box).__name__ == "MarginBox":
+            found[box.at_keyword] = (
+                box.height,
+                sum(child.margin_height() for child in box.children),
+            )
+        for child in getattr(box, "children", ()):
+            walk(child)
+
+    walk(page)
+    return found
+
+
+def test_the_vertical_margins_hold_the_standard_header_and_footer(db, observation):
+    """الهامشان يسعان الترويسةَ والتذييلَ الموحَّدَين (شعارٌ ووزارةٌ ومدرسةٌ وخطٌّ زخرفيّ؛ وسطران) — فلا يفيضان على المتن ولا يبقى بياضٌ كثير.
+
+    يُقاس المرسومُ فعلاً: ارتفاعُ محتوى كلّ هامشٍ ≤ ارتفاعِه، وما زاد عليه فضلةٌ ≤ 0.35 بوصة (33.6px).
+    """
+    from quality.observation_views import _pdf_context
+
+    boxes_ = _margin_boxes(
+        render_to_string("quality/observation_pdf.html", _pdf_context(observation))
+    )
+    for keyword in ("@top-center", "@bottom-center"):
+        height, content = boxes_[keyword]
+        assert content <= height, (keyword, content, height)
+        assert height - content <= 33.6, (keyword, "هامشٌ أكبر من حاجته", content, height)
 
 
 @pytest.mark.parametrize(
@@ -158,44 +181,43 @@ def test_no_school_name_is_written_into_the_template(source):
     assert "الشحانية" not in source
 
 
-def test_the_letterhead_is_embedded_not_linked(source):
-    """الملفّات المرفوعة في القاعدة لا على قرص، و WeasyPrint يحلّ الروابط
-    النسبية على القرص من `BASE_DIR` — فيبحث عن ملفٍّ لا وجود له ويطبع
-    الصفحة بلا ترويسة، بلا خطأٍ ولا شكوى. فتُضمَّن الصورة."""
-    assert "{{ letterhead }}" in source
-    assert "letterhead.url" not in source
-    assert "letterfoot.url" not in source
-
-
-def test_the_embedded_letterhead_is_a_data_uri(db, observation):
-    """الترويسة تُقرأ من القاعدة وتُضمَّن — لا رابطَ يُحلّ على قرصٍ لا يحملها."""
-    import base64
-    import io
-
-    from django.core.files.base import ContentFile
-
+def test_letterhead_and_letterfoot_images_are_gone(source, db, observation):
+    """ترويسةُ الصور وتذييلُها أُلغيا (2026-09-26): لا يقرأ القالبُ ولا السياقُ صورةً مرفوعةً لهما — الهويّةُ نصٌّ موحَّدٌ كباقي ملفّات PDF."""
     from quality.observation_views import _pdf_context
 
-    png = base64.b64decode(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+    assert "letterhead" not in source and "letterfoot" not in source
+    assert "letterhead" not in _pdf_context(observation) and "letterfoot" not in _pdf_context(
+        observation
     )
-    observation.school.letterhead.save("head.png", ContentFile(png), save=True)
-
-    ctx = _pdf_context(observation)
-
-    assert ctx["letterhead"].startswith("data:image/png;base64,")
-    assert ctx["letterfoot"] == "", "ما لم يُرفع يبقى فارغاً"
-    assert io  # noqa: B018 — الاستيراد يوثّق أنّ القراءة ثنائية
 
 
-def test_a_school_without_a_letterhead_gets_a_text_heading_with_the_approved_logo(db, observation):
-    """لا ترويسةَ مدرسةٍ أخرى — عنوانٌ نصّيٌّ من اسمها هي ومعه الشعارُ المعتمد (لا شعارَ مدرسةٍ أخرى)."""
+def test_the_header_and_footer_are_the_platforms_standard_identity(db, observation):
+    """كما في `reports/base_qatar_report.html`: شعارٌ معتمدٌ فوزارةٌ فاسمُ المدرسة وخطٌّ زخرفيّ؛ وتذييلٌ بسطرين — المدرسةُ وتواصلُها، ثمّ الوزارةُ ورؤيتُها والمنصّة.
+
+    والبيانُ من `obs.school` لا نصٌّ في القالب (منصّةٌ متعدّدةُ المدارس).
+    """
     from quality.observation_views import _pdf_context
+
+    school = observation.school
+    school.phone, school.email = "44000000", "school@example.test"
+    school.save(update_fields=["phone", "email"])
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
 
-    assert observation.school.name in html and "وزارة التربية والتعليم" in html
-    assert html.count("<img") == 1 and 'class="logo"' in html
+    for marker in (
+        'class="doc-header"',
+        'class="emblem"',
+        'class="ministry-name"',
+        'class="school-name"',
+        'class="ornament-hr"',
+        'class="running-footer"',
+        'class="ft-school"',
+        'class="ft-ministry"',
+    ):
+        assert marker in html, marker
+    assert school.name in html and "44000000" in html and "school@example.test" in html
+    assert "SchoolOS-SAMM ©" in html
+    assert html.count("<img") == 1, "الشعارُ وحده — لا صورةَ ترويسةٍ ولا تذييل"
 
 
 # ── قسمة الصفحتين ────────────────────────────────────────────────────
@@ -634,18 +656,18 @@ def test_the_schools_own_logo_comes_before_the_approved_one(db, observation):
     assert ctx["logo"] != brand_logo_data_uri()
 
 
-def test_an_uploaded_letterhead_replaces_the_text_heading_and_no_logo_is_added(db, observation):
-    """الترويسةُ المرفوعة كما هي — لا شعارَ بجانبها ولا يُقرأ ملفُّه."""
+def test_an_uploaded_letterhead_no_longer_replaces_anything(db, observation):
+    """صورةٌ مرفوعةٌ في `School.letterhead` (تراثُ رفعٍ قديم) لا أثرَ لها: الهويّةُ نصٌّ والشعارُ المعتمدُ باقٍ."""
     from quality.observation_views import _pdf_context
 
     _save_image(observation.school.letterhead, "head.png")
-    _save_image(observation.school.logo, "own.png")
+    _save_image(observation.school.letterfoot, "foot.png")
 
     ctx = _pdf_context(observation)
     html = render_to_string("quality/observation_pdf.html", ctx)
 
-    assert ctx["logo"] == ""
-    assert html.count("<img") == 1 and 'class="logo"' not in html
+    assert ctx["logo"]
+    assert html.count("<img") == 1 and 'class="emblem"' in html
 
 
 def test_a_missing_approved_logo_falls_back_to_the_text_heading(db, observation, tmp_path):
@@ -659,18 +681,6 @@ def test_a_missing_approved_logo_falls_back_to_the_text_heading(db, observation,
 
     assert ctx["logo"] == ""
     assert "<img" not in html and observation.school.name in html
-
-
-def test_the_logo_fits_the_top_margin_without_touching_the_body(source):
-    """ارتفاعُ الشعار + حشوا الشريط + حدُّ العنوان السفليّ ≤ الهامش العلويّ — وإلّا نزل من الهامش على المتن."""
-    import re
-
-    logo = float(re.search(r"\.plain-head \.logo \{[^}]*height: ([\d.]+)in", source).group(1))
-    top = float(re.search(r"margin: ([\d.]+)in [\d.]+in [\d.]+in [\d.]+in", source).group(1))
-    padding = 2 * float(re.search(r"#sheet-header \{[^}]*padding: ([\d.]+)in 0", source).group(1))
-    border_and_gap = (2 + 4) / 72  # حدُّ العنوان 2pt وحشوُه السفليّ 4pt
-
-    assert logo + padding + border_and_gap <= top, (logo, padding, top)
 
 
 def _image_boxes(html):
@@ -691,10 +701,10 @@ def _image_boxes(html):
     return found
 
 
-def test_the_logo_is_drawn_small_not_stretched_across_the_header(db, observation):
-    """القاعدةُ العامّة `#sheet-header img` تمدّ صورةَ الترويسة على عرض الشريط (6.8 بوصة) — وشعارٌ بقاعدةٍ أضعفَ خصوصيّةً يُمدّ معها فيغطّي الرأس.
+def test_the_emblem_is_drawn_small_not_stretched_across_the_header(db, observation):
+    """القاعدةُ العامّة `#sheet-header img` كانت تمدّ صورةَ الترويسة على عرض الشريط — والشعارُ الآن `.emblem` بارتفاع 0.5 بوصة (48px) لا أوسعَ من بوصة.
 
-    يُقاس حجمُه المرسوم فعلاً: مربّعٌ صغيرٌ بنحو 0.62 بوصة (59.5px) لا أوسعُ من بوصة.
+    يُقاس حجمُه المرسوم فعلاً من تخطيط WeasyPrint.
     """
     from quality.observation_views import _pdf_context
 
@@ -703,17 +713,7 @@ def test_the_logo_is_drawn_small_not_stretched_across_the_header(db, observation
 
     assert len(images) == 1, images
     width, height = images[0]
-    assert width <= 96 and 50 <= height <= 62, images
-
-
-def test_an_uploaded_letterhead_is_still_stretched_to_the_strip_width(db, observation):
-    """`#sheet-header img` بقيت كما هي: الترويسةُ المرفوعة بعرض الشريط (6.8 بوصة = 652.8px)."""
-    from quality.observation_views import _pdf_context
-
-    _save_image(observation.school.letterhead, "head.png")
-    html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
-
-    assert [w for w, _h in _image_boxes(html)] == [652.8]
+    assert width <= 96 and 40 <= height <= 52, images
 
 
 def _images_and_pages(obs):
