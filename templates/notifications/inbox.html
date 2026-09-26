@@ -47,7 +47,8 @@
       {% for code, label, n, url in event_types %}
       <a href="{% url 'notification_inbox' %}{{ url }}" class="status-badge notif-type {% if event_filter == code %}status-maroon{% else %}status-gray{% endif %}"{% if event_filter == code %} aria-current="page"{% endif %}>{{ label }} <span class="notif-type__n">{{ n }}</span></a>
       {% endfor %}
-      <a href="{% url 'notification_inbox' %}{{ unread_toggle_url }}" class="status-badge notif-type {% if unread_only %}status-maroon{% else %}status-gray{% endif %}" aria-pressed="{{ unread_only|yesno:'true,false' }}">{% icon "filter" %} غير المقروء فقط</a>
+      {# رابطٌ لا زرّ: `aria-pressed` ممنوعٌ على الرابط (axe: aria-allowed-attr) فالحالةُ بـ`aria-current` كأخواته. #}
+      <a href="{% url 'notification_inbox' %}{{ unread_toggle_url }}" class="status-badge notif-type {% if unread_only %}status-maroon{% else %}status-gray{% endif %}"{% if unread_only %} aria-current="true"{% endif %}>{% icon "filter" %} غير المقروء فقط</a>
     </nav>
     {# التجميعُ غيرُ الترشيح: يرتّب الصندوقَ كلَّه ولا يُسقط منه شيئاً. #}
     <nav class="notif-group-switch" aria-label="تجميع الإشعارات">

@@ -126,6 +126,7 @@ def _get_scoped_students(request, school):
 from core.academic_calendar import academic_year_for
 
 from .notify import notify_behavior_after_commit
+from .selectors import student_picker
 from .services import (
     PERIOD_CHOICES,
     BehaviorPermissions,
@@ -357,7 +358,7 @@ def report_infraction(request):
         request,
         "behavior/report_form.html",
         {
-            "students": students,
+            **student_picker(students, school),
             "levels": BehaviorInfraction.LEVELS,
             "violations_by_degree": violations_by_degree,
             "degree_panels": _degree_panels(violations_by_degree),

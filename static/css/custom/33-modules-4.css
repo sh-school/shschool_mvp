@@ -1050,8 +1050,8 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-bar__actions .btn-primary, .per-bar__actions .btn-secondary { min-height: var(--control-h); }
 
 /* أزرارُ التصدير والطباعة: في رأس كشف الشعبة، وفي شريط بطاقة الجناح بعد عدّاد الانتظار. */
-/* مفاتيحُ التصدير والطباعة سطرٌ واحدٌ لا يلتفّ؛ والقائمةُ تضيق أوّلاً. */
-.per-exports { display: flex; gap: var(--sp-2); flex-wrap: nowrap; align-items: center; min-inline-size: 0; }
+/* يلتفّ على الهاتف ولا يوسّع الصفحةَ (510px عند 375). */
+.per-exports { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; min-inline-size: 0; }
 .per-exports .btn-sm { flex-shrink: 0; white-space: nowrap; padding-inline: var(--sp-2); }
 /* قائمةُ التصدير: زرٌّ لكلّ جناحٍ تُفتح في حدّ لوحه (مرساتُها ترويسةُ اللوح لا الزرّ) فلا تخرج عن الصفحة. */
 .wing-panel__bar { position: relative; }
@@ -1430,10 +1430,8 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
    `auto-fit` بحدٍّ أدنى: ثلاثٌ في سطرٍ حيث يتّسع، واثنتان على الهاتف. */
 .ui-actions {
   display: grid;
-  /* 160px: بلاطةٌ أيقونتُها وعنوانُها القصير — لا محتوى جدولٍ يحتاج 300px.
-     ثمانيةُ أقسامٍ (لوحةُ المدير) تسع سطراً واحداً على شاشة لابتوبٍ عاديّة
-     بدل خمسٍ وثلاث. */
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  /* 148px: ثمانيةُ أقسامٍ (لوحةُ المدير) في سطرٍ واحدٍ عند 1366px (1240 ≤ 1328)؛ 160 كانت تُنزل الثامنةَ إلى صفٍّ ثانٍ. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 148px), 1fr));
   gap: var(--sp-2);
 }
 @media (max-width: 640px) { .ui-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -1444,11 +1442,8 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
    224px)، وتقليلُ الحشو/الأيقونة يفشل عند 360 و320، أمّا عمودٌ واحدٌ فيُصلح كلَّ العروض
    والبطاقةُ تنزل إلى 60px. `tests/test_action_cards_fit_narrow_screens.py` يحرسه. */
 @media (max-width: 400px) { .ui-actions { grid-template-columns: 1fr; } }
-/* ارتفاعٌ أقلّ بـ10% من البلاطة العامّة (18px→) — صفٌّ واحدٌ من الأزرار
-   لا يحتاج حشوتها الكاملة، وتقليصُه يُسقط سكرولاً رأسياً في لوحة المدير. */
-/* وارتفاعٌ أقلّ بـ10% أخرى (2026-09-18): 64.7px → 58.7px بقياسٍ فعليّ —
-   الحشوةُ الرأسيّةُ وحدَها تُمسّ (10px→7px)؛ الأيقونةُ 42px والحشوةُ الأفقيّة
-   كما هما. */
+/* حشوةٌ رأسيّةٌ 7px (كانت 10px): 64.7 ← 58.7px بقياسٍ فعليّ (2026-09-18)؛ صفٌّ واحدٌ من الأزرار لا يحتاج حشوةَ البلاطة
+   العامّة، وتقليصُه يُسقط تمريراً رأسيّاً في لوحة المدير. الأيقونةُ 42px والحشوةُ الأفقيّةُ كما هما. */
 .ui-actions .action-card { padding: 7px var(--sp-4); min-inline-size: 0; }
 
 /* ── 12. نموذجٌ بجوار قائمته: الإضافةُ ثُلثٌ والجدولُ ثلثان ──
@@ -1653,6 +1648,10 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 .beh-combo__option { padding: var(--sp-1-5) var(--sp-3); font-size: var(--text-sm); cursor: pointer; }
 .beh-combo__option:hover { background: var(--maroon-bg); }
+.beh-combo__empty { color: var(--text-muted); cursor: default; }
+/* الصفُّ والشعبةُ في سطرٍ واحدٍ ولو ضاقت بطاقةُ «بيانات المخالفة»: الصفُّ أعرض (اسمُه أطول) والشعبةُ رقمٌ أو حرفان. */
+.beh-classpick { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--sp-3); }
+.beh-combo__empty:hover { background: transparent; }
 .beh-combo .form-control.is-valid { border-color: var(--status-success); }
 
 /* نافذةُ التسجيل السريع: أربعُ درجاتٍ أزرارٌ كبيرة، والمختارةُ بلون الهويّة. */

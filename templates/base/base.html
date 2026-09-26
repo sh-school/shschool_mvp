@@ -475,6 +475,12 @@
   {% if request.user|can_open:"smart_schedule" %}
   <a href="{% url 'smart_schedule' %}" role="menuitem">{% icon "generate" %} الجدولة الذكية (توليد الجدول)</a>
   {% endif %}
+  {% endif %}
+  {# الجدولُ العامّ (كلُّ المعلّمين) بنقرةٍ لكلّ من يفتح القائمة ويملك فتحَه — بلا قيد الدور: طلبُ المالك 2026-09-25. #}
+  {% if request.user|can_open:"weekly_schedule" %}
+  <a href="{% url 'weekly_schedule' %}" role="menuitem">{% icon "schedule" %} الجدول العام</a>
+  {% endif %}
+  {% if role == "principal" or role == "vice_academic" or role == "admin" or user.is_superuser %}
   {% if request.user|can_open:"schedule_settings" %}
   <a href="{% url 'schedule_settings' %}" role="menuitem">{% icon "settings" %} إعدادات الجدول والتفريغات</a>
   {% endif %}
@@ -1128,7 +1134,7 @@ window.fitNoscroll();
 {# ════════════════ SCRIPTS ═══════════════════════════════════════════════ #}
 {# APP_CONFIG: متغيرات Django المطلوبة في base.js ─ inline مقصود (CSP nonce) #}
 <script nonce="{{ request.csp_nonce }}">
-window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
+window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }}, rum: {% if rum_endpoint %}{ endpoint: "{{ rum_endpoint|escapejs }}", sample: {{ rum_sample }} }{% else %}null{% endif %} };
 </script>
 {# مفردات data-* المعلنة — تحلّ محلّ معالِجات الأحداث الداخلية التي تحجبها CSP #}
 <script src="{% static 'js/actions.js' %}" defer></script>
@@ -1138,6 +1144,9 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
 <script src="{% static 'js/app-mode.js' %}" defer></script>
 {% comment %}التنقّلُ بين الصفحات بتبديل المحتوى وحدَه: الترويسةُ والقائمةُ والفوتر ثابتةٌ لا تُعاد، والمحتوى يتلاشى ثمّ يظهر بسلاسةٍ (قرارُ المالك 2026-09-20). صفحةٌ لها سكربتُها أو أنماطُها الخاصّة تُحمَّل كاملةً كما كانت.{% endcomment %}
 <script src="{% static 'js/page-nav.js' %}" defer></script>
+{% if rum_endpoint %}{# قياسُ الأداء الميدانيّ (Q-04): لا يُحمَّل ما دام RUM_ENDPOINT فارغاً #}
+<script src="{% static 'js/rum.js' %}" defer></script>
+{% endif %}
 
 {% block extra_js %}{% endblock %}
 
