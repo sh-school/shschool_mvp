@@ -37,7 +37,7 @@
       </form>
 
       <button type="button" id="pages-print-btn" class="btn-primary btn-sm">طباعة</button>
-      <a data-app-file data-export-job="pdf" href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تنزيل PDF</a>
+      <a data-app-file data-export-job="pdf" href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
       <span class="text-sm text-secondary">{{ pages|length }} صفحة</span>
       {% if pages %}<button type="button" id="pages-fold-all" class="btn-secondary btn-sm" aria-controls="pages-list" aria-expanded="false">فتح الكلّ</button>{% endif %}
     </div>
