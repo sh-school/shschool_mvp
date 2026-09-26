@@ -18,11 +18,11 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_POST
 
-from core.academic_calendar import academic_year_for, academic_year_for_school
-from core.audit_export import log_export
+from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required, has_capability
 from core.dashboard_presentation import chunk_for_grid
 from core.domain.tones import tone_for
+from core.exports.services import respond_export
 from core.models import CustomUser, Membership
 from core.models.academic import grade_order
 from core.models.access import EXEMPTABLE_ROLES
@@ -39,10 +39,7 @@ from .models import (
     TeacherPreference,
 )
 from .schedule_breaches import draft_breaches
-from .schedule_paper import paper_geometry
-from .schedule_selectors import DEFAULT_ORIENTATION, ORIENTATIONS, PAPERS
-from .schedule_selectors import browse_lists as _browse_lists
-from .schedule_selectors import export_filename as _export_filename
+from .schedule_selectors import pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
 from .services import AbsenceSwapService, ScheduleService, SubstituteService
@@ -168,82 +165,44 @@ def schedule_print(request):
     return render(request, "schedule/print_schedule.html", _schedule_print_payload(request))
 
 
-def _export_started(request, job):
-    """جوابُ بدء التصدير: JSON لطلب الصفحة (إشعارٌ عائم)، وتحويلٌ لصفحة المتابعة لغيره.
-
-    صفحةُ المتابعة بقيت للرابط المفتوح مباشرةً بلا JS (نافذةٌ خارج المنصّة، روابطٌ محفوظة)؛
-    أمّا من الصفحة فيبدأ `static/js/export-center.js` المهمّةَ ويتابعها بإشعارٍ عائمٍ ثمّ يُنزّل.
-    """
-    status_url = reverse("export_job_status", args=[job.id])
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return JsonResponse({"job_id": str(job.id), "status_url": status_url})
-    return redirect(status_url)
-
-
 @login_required
 @capability_required("schedule.print")
 def schedule_export_pdf(request):
-    """يُنشئ صفَّ تصديرٍ خلفيّاً ويُرجع فوراً — لا توليدَ PDF متزامناً.
+    """يُنشئ صفَّ تصديرٍ خلفيّاً ويُرجع فوراً — لا توليدَ PDF متزامناً (WeasyPrint > 300ms).
 
-    WeasyPrint بطيءٌ بما يكفي ليُخالف معيار المشروع (>300ms → Background
-    Job، راجع `operations/tasks.py::render_schedule_export_task`). صفحةُ
-    المتابعة تتحدَّث تلقائياً وتُنزّل الناتجَ حين يجهز.
+    الآليّةُ مركزيّةٌ: `core.exports.services.respond_export` (سجلُّ الأنواع `schedule.pdf`، بنّاءُ
+    `schedule_export_builders`). من الصفحة يبدأ السكربتُ المهمّةَ بـXHR ويتابعها بإشعارٍ عائم؛ وبلا JS يُحوَّل لصفحة المتابعة.
     """
-    from core.models import ExportJob
-    from operations.tasks import render_schedule_export_task
-
-    query = request.GET.urlencode()
-    log_export(request, "schedule.pdf", object_repr=f"schedule.pdf?{query}")
-    job = ExportJob.objects.create(
-        school=request.school,
-        requested_by=request.user,
-        kind="schedule.pdf",
-        query_string=query,
-    )
-    render_schedule_export_task.delay(str(job.id), "pdf")
-    return _export_started(request, job)
+    return respond_export(request, "schedule.pdf")
 
 
 @login_required
 @capability_required("schedule.print")
 def schedule_export_excel(request):
     """صفُّ تصديرٍ خلفيّ أيضاً — الشرحُ في `schedule_export_pdf`."""
-    from core.models import ExportJob
-    from operations.tasks import render_schedule_export_task
-
-    query = request.GET.urlencode()
-    log_export(request, "schedule.xlsx", object_repr=f"schedule.xlsx?{query}")
-    job = ExportJob.objects.create(
-        school=request.school,
-        requested_by=request.user,
-        kind="schedule.xlsx",
-        query_string=query,
-    )
-    render_schedule_export_task.delay(str(job.id), "xlsx")
-    return _export_started(request, job)
+    return respond_export(request, "schedule.xlsx")
 
 
 @login_required
 def export_job_status(request, job_id):
-    """متابعة/تنزيل صفّ تصديرٍ خلفيّ — تتحدَّث تلقائياً حتى يجهز الناتج أو تنتهي مهلتُه."""
-    from urllib.parse import quote
+    """المسارُ القديمُ لمتابعة التصدير — يبقى لروابطَ قديمةٍ وواجهةٍ لم تُحدَّث؛ والمعتمَدُ اليوم `core.exports.views`.
 
+    `?format=json` ← الشكلُ القديم `{status, error}` (خطأٌ نصٌّ عربيٌّ ثابتٌ لا نصَّ استثناء)، وغيرُه يُحال للصفحة المركزيّة.
+    """
+    from core.exports import messages as export_messages
+    from core.exports.timeouts import expire_if_stale
     from core.models import ExportJob
-    from operations.export_job_services import expire_if_stale
 
     job = get_object_or_404(ExportJob, id=job_id, school=request.school, requested_by=request.user)
-    expire_if_stale(job)  # عالقٌ أكثرَ من المهلة → يفشل برسالةٍ فيتوقّف التحديثُ التلقائيّ
-    if request.GET.get("format") == "json":  # متابعةُ الإشعار العائم — الحالةُ فقط، لا الملفّ
-        return JsonResponse(
-            {"status": job.status, "error": job.error_message if job.status == "failed" else ""}
+    expire_if_stale(job)
+    if request.GET.get("format") == "json":  # متابعةُ الإشعار العائم القديم — الحالةُ فقط
+        error = (
+            export_messages.message_for(export_messages.stored_code(job.error_message))
+            if job.status == "failed"
+            else ""
         )
-    if job.status == "done":
-        response = HttpResponse(bytes(job.content), content_type=job.content_type)
-        response["Content-Disposition"] = (
-            f"attachment; filename=export; filename*=UTF-8''{quote(job.filename)}"
-        )
-        return response
-    return render(request, "operations/export_job_status.html", {"job": job})
+        return JsonResponse({"status": job.status, "error": error})
+    return redirect(reverse("export_page", args=[job.id]))
 
 
 @login_required
@@ -1444,64 +1403,7 @@ def save_subject_scheduling(request):
 
 
 def _pages_payload(request) -> dict:
-    """ما يُطبع: معلّمون (كلُّهم أو قسمٌ أو واحدٌ) أو شُعب — والاتّجاهُ من الرابط."""
-    school = request.school
-    year = request.GET.get("year") or academic_year_for_school(school)
-    kind = "classes" if request.GET.get("kind") == "classes" else "teachers"
-    dept = request.GET.get("dept") or "all"
-    teacher_id = request.GET.get("teacher") or ""
-    orient = request.GET.get("orient") or DEFAULT_ORIENTATION
-    if orient not in ORIENTATIONS:
-        orient = DEFAULT_ORIENTATION
-    paper = request.GET.get("paper") or "a4"
-    if paper not in PAPERS:
-        paper = "a4"
-
-    departments = ScheduleService.department_options(school, year)
-    if kind == "classes":
-        pages = ScheduleService.class_pages(school, year)
-        title = "جداول الشُّعب"
-    else:
-        department = None if dept == "all" or teacher_id else dept
-        pages = ScheduleService.teacher_pages(
-            school, year, department=department, teacher_id=teacher_id or None
-        )
-        if teacher_id:
-            # الاسمُ من القاعدة لا من الصفحات: من لا حصصَ له صفحاتُه فارغةٌ
-            # وعنوانُه كان يصير «جداول معلّمي المدرسة» — عنوانٌ يكذب على قارئه.
-            named = CustomUser.objects.filter(id=teacher_id).first()
-            title = f"جدول المعلّم: {named.full_name}" if named else "جدول المعلّم"
-        elif department:
-            name = next((d["name"] for d in departments if d["code"] == department), department)
-            title = f"جداول معلّمي قسم {name}"
-        else:
-            title = "جداول معلّمي المدرسة"
-
-    selection = {"kind": kind, "dept": dept, "orient": orient, "paper": paper, "year": year}
-    if teacher_id:
-        selection["teacher"] = teacher_id
-
-    teachers, classes = _browse_lists(school)
-    return {
-        "school": school,
-        "year": year,
-        "kind": kind,
-        "paper": paper,
-        "title": title,
-        "pages": pages,
-        "departments": departments,
-        "teachers": teachers,
-        "classes": classes,
-        "picker_current": "pages:classes" if kind == "classes" else f"pages:teachers:{dept}",
-        "selected_dept": dept if not teacher_id else "",
-        "orient": orient,
-        # السطرُ يومٌ والعمودُ حصّة، واسمُ اليوم مقرونٌ بخاناته في `by_day`.
-        "period_numbers": ScheduleSlot.PERIODS,
-        # الورقةُ بالملّيمتر: الجدولُ يملأ ما بقي بعد الترويسة والذيل (قرار 2026-09-14).
-        "geo": paper_geometry(paper, orient, with_who=True),
-        "selection_query": urlencode(selection),
-        "embed": request.GET.get("embed") == "1",
-    }
+    return pages_payload(request.school, request.GET)
 
 
 @login_required
@@ -1523,20 +1425,5 @@ def schedule_pages_paper(request):
 @login_required
 @capability_required("schedule.browse")
 def schedule_pages_pdf(request):
-    """الورقةُ نفسها ملفَّ PDF — قالبٌ واحدٌ للشاشة والورق والملفّ."""
-    from django.template.loader import render_to_string
-
-    from core.pdf_utils import render_pdf
-
-    ctx = _pages_payload(request)
-    ctx["embed"] = True
-    ctx["for_pdf"] = True
-    html = render_to_string("schedule/print_pages.html", ctx, request=request)
-    log_export(request, "schedule.pages_pdf", object_repr=_export_filename(ctx, "pdf"))
-    # الحجمُ المختار لا A4 ثابتاً: WeasyPrint يقرأ @page الورقة، أمّا المسارُ الاحتياطيّ فيقرأ هذا.
-    return render_pdf(
-        html,
-        _export_filename(ctx, "pdf"),
-        paper_size="A3" if ctx["paper"] == "a3" else "A4",
-        as_attachment=True,
-    )
+    """صفحةٌ لكلّ معلّمٍ أو شعبة ملفَّ PDF — كان متزامناً 19.9ث (الأثقلُ في المنصّة) فصار مهمّةً خلفيّةً (`schedule.pages_pdf`)."""
+    return respond_export(request, "schedule.pages_pdf")
