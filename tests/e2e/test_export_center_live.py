@@ -26,6 +26,10 @@ def test_every_export_flow_behaves_on_the_live_dashboard(playwright, live_server
             locale="ar",
             viewport={"width": 1366, "height": 800},
             accept_downloads=True,
+            # عاملُ الخدمة (`/sw.js`) يجلس بين الصفحة والشبكة، وPlaywright يُبلغ اعتراضَه عن طلباتِ العامل نفسِه (بلا ترويسات
+            # الصفحة) فيُرى الطلبُ الفاشلُ المُجهَض مرّتين، الثانيةَ بلا `X-Requested-With` — وليس هذا ما يصنعه العاملُ فعلاً
+            # (`fetch(e.request)` يحفظ الترويسات). قيسَ 2026-09-26: بحجبه تمرّ المشاهدُ الأحدَ عشرَ كلُّها على اللوحة الحيّة.
+            service_workers="block",
         )
         try:
             page = context.new_page()
