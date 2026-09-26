@@ -120,9 +120,11 @@ def _start_job(request: Any, spec: registry.ExportKind, query: str) -> HttpRespo
     )
     from core.tasks import run_export_job
 
-    run_export_job.apply_async(
-        args=(str(job.id),), queue=getattr(settings, "EXPORT_JOB_QUEUE", "celery")
-    )
+    # قائمةٌ صريحةٌ فقط إن ضُبطت `EXPORT_JOB_QUEUE`؛ وإلّا القائمةُ الافتراضيّةُ للمشروع (`task_default_queue`).
+    # كان `queue="celery"` مكتوباً: فخوادمُ الجلسات والمعاينة المركزيّة (8500) قائمتُها الافتراضيّةُ باسم قاعدتها
+    # (`SESSION_NAMESPACE`) وعاملُها لا يسمع «celery»، فتبقى المهمّةُ معلَّقةً حتى «تأخّر تحضير الملفّ» (2026-09-26).
+    queue = getattr(settings, "EXPORT_JOB_QUEUE", None)
+    run_export_job.apply_async(args=(str(job.id),), **({"queue": queue} if queue else {}))
     return _started(request, job)
 
 
