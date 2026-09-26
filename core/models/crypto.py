@@ -1,6 +1,6 @@
 """
 core/models/crypto.py
-━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━
 Encryption utilities for SchoolOS — Fernet + HMAC
 
 ✅ v5.2: MultiFernet key rotation support
@@ -23,12 +23,12 @@ try:
     _FERNET_AVAILABLE = True
 except ImportError:
     _FERNET_AVAILABLE = False
-    InvalidToken = Exception  # fallback
+    InvalidToken = Exception  # type: ignore[assignment,misc]  # fallback: يُستعمل ما دام cryptography غائباً
 
 logger = logging.getLogger(__name__)
 
 
-def _get_fernet():
+def _get_fernet() -> "Fernet | MultiFernet | None":
     """
     يُعيد MultiFernet (يدعم key rotation) أو Fernet عادي.
     المفتاح الأول هو الحالي (للتشفير)، والباقي للفك فقط.
@@ -81,10 +81,7 @@ def encrypt_field(value: Any) -> Any:
     f = _get_fernet()
     if not f:
         return value
-    if isinstance(value, str):
-        encrypted_bytes = f.encrypt(value.encode())
-        return encrypted_bytes.decode()
-    return value
+    return f.encrypt(value.encode()).decode()
 
 
 #: عدّادُ الحقول التي تعذّر فكُّها منذ إقلاع العملية.
@@ -109,9 +106,8 @@ def decrypt_field(value: Any) -> Any:
     if not f:
         return value
     try:
-        value_bytes = value.encode() if isinstance(value, str) else value
-        return f.decrypt(value_bytes).decode()
-    except (InvalidToken, ValueError, TypeError, UnicodeDecodeError) as _:
+        return f.decrypt(value.encode()).decode()
+    except (InvalidToken, ValueError, TypeError, UnicodeDecodeError):
         global _decrypt_failures
         _decrypt_failures += 1
         if _decrypt_failures in (1, 10, 100) or _decrypt_failures % 1000 == 0:
@@ -126,11 +122,18 @@ def decrypt_field(value: Any) -> Any:
 
 
 def hmac_field(value: str) -> str:
-    """HMAC-SHA256 للبحث والتفرد."""
+    """
+    HMAC-SHA256 — يُنتج hash حتمي (deterministic) للبحث والتفرد.
+    لا يمكن عكسه إلى القيمة الأصلية.
+    يُستخدم مع national_id: يُخزّن HMAC في عمود مفهرس للبحث،
+    والقيمة المشفّرة بـ Fernet في عمود آخر للعرض.
+    """
     if not value:
         return ""
     key = getattr(settings, "FERNET_KEY", "")
     if not key:
+        # fail-closed في الإنتاج: بدون مفتاح، إعادة النص الصريح كـ HMAC تكسر
+        # البحث والتفرد وتخزّن معرّفات شخصية بلا حماية.
         if not getattr(settings, "DEBUG", True):
             from django.core.exceptions import ImproperlyConfigured
 
