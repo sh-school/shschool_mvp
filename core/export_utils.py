@@ -5,7 +5,7 @@ core/export_utils.py — أدوات تصدير موحّدة لكل المنصة
 
 import uuid
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from django.conf import settings
 from django.utils import timezone
@@ -37,7 +37,7 @@ def get_export_context(request, title: str) -> dict:
     return get_export_context_for(request.user, title)
 
 
-def get_export_context_for(user, title: str) -> dict:
+def get_export_context_for(user: Any, title: str) -> dict[str, Any]:
     """السياقُ نفسُه من المستخدم وحدَه — لبنّاءات سجلّ التصدير (`core.exports`) التي تعمل في العامل بلا `request`."""
     school = user.get_school()
     now = timezone.localtime()
