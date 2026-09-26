@@ -134,6 +134,37 @@ def test_the_workbook_holds_the_department_column(db, principal, teaching_school
     assert sheet.sheet_view.rightToLeft
 
 
+def test_each_row_of_the_workbook_carries_its_departments_color(db, principal, teaching_school):
+    """بلاغُ المالك 2026-09-26: تصديرُ Excel لا يحمل ألوانَ الأقسام — كان الصفُّ يتناوب بين لونين عامّين.
+
+    اللونُ من `brand.DEPT_*` عبر `dept_key` (مصدرُ الورقة والشاشة نفسُه)، على الصفّ كلِّه بما فيه خانةُ القسم.
+    """
+    from io import BytesIO
+
+    import openpyxl
+
+    from core import brand
+    from core.dept_colors import dept_key
+    from operations.schedule_export import _dept_fill
+
+    resp = _get(principal, "schedule_export_excel", "?view=all_teachers&paper=a3")
+    sheet = openpyxl.load_workbook(BytesIO(resp.content)).active
+
+    seen = {}
+    for row in (6, 7):
+        name = sheet.cell(row=row, column=1).value or ""
+        fills = {sheet.cell(row=row, column=c).fill.fgColor.rgb[-6:] for c in range(1, 8)}
+        assert len(fills) == 1, f"الصفُّ {row} بلونٍ واحد"
+        seen[row] = fills.pop()
+        assert seen[row] != brand.excel(brand.MAROON_BG), "لا الشريطُ العامّ القديم"
+        assert name  # خانةُ القسم في الصفّ الأوّل من كلّ قسم
+    assert seen[6] != seen[7], "قسمان مختلفان بلونين مختلفين"
+    assert seen[6] == _dept_fill("islamic") == brand.excel(brand.DEPT_SHARIA)
+    assert dept_key("science_sec") == "biology"
+    assert _dept_fill("science_sec") == brand.excel(brand.DEPT_BIOLOGY)
+    assert _dept_fill(None) == _dept_fill("unknown-code") == brand.excel(brand.DEPT_OTHER)
+
+
 def test_pdf_export_returns_a_document_or_a_clean_failure_page(db, principal, teaching_school):
     """مولّدُ PDF يتدهور إلى صفحة فشلٍ نظيفة حين تغيب مكتبته — والمسارُ لا ينهار."""
     resp = _get(principal, "schedule_export_pdf", "?view=all_teachers&paper=a3")
