@@ -19,8 +19,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
 
-#: مستوردٌ مصغَّر — لا يُحرَّر، ولا نطالبه.
-VENDOR = {"static/css/tailwind.min.css"}
+#: مستوردٌ مصغَّر — لا يُحرَّر، ولا نطالبه. (خلا بعد VI-12: `tailwind.min.css` حُذف وكتلتُه في `50-utilities.css` تُحرَّر.)
+VENDOR: set[str] = set()
 
 COMMENT = re.compile(r"/\*.*?\*/", re.S)
 #: `prop: value` وفي قيمته `100vh` (وقيمةٌ لا تجاوز `;` `{` `}` ولا علامةَ اقتباس السمة).

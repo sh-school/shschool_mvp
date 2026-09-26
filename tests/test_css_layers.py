@@ -22,9 +22,8 @@ import re
 from tests.css_contrast import iter_rules, strip_noise
 from tests.css_source import read_css
 
-#: `tailwind` مُعلَنةٌ لورقةٍ أخرى (`tailwind.min.css`) تُحمَّل قبل هذه،
-#: فلا كتلةَ لها في هذا الملفّ — وهذا مقصود.
-DECLARED_ELSEWHERE = {"tailwind"}
+#: كانت `tailwind` مُعلَنةً لورقةٍ أخرى (`tailwind.min.css`)؛ وبعد VI-12 لها كتلتان في هذه الملفّات فلا استثناءَ.
+DECLARED_ELSEWHERE: set[str] = set()
 
 #: طبقةُ الثيم يجب أن تكون الأخيرة: قواعدُ `html.dark` تغلب ما قبلها،
 #: وكانت تغلبه وهي خارجَ الطبقات.

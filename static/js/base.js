@@ -1233,7 +1233,8 @@ document.addEventListener('click', function(e) {
       var cap = /px$/.test(cs.maxHeight) ? parseFloat(cs.maxHeight) : 0;
       return !(cap > 0 && el.clientHeight >= cap - 1);
     });
-    if (!squeezed) return;
+    /* D-24: وحجبُ زرّ الإجراء الرئيسيّ خلف تمريرٍ داخليّ شرطٌ آخرُ لازمٌ للانقلاب (يقيسه `primaryActionHidden` المضمَّنُ في base.html). */
+    if (!squeezed && !(window.primaryActionHidden && window.primaryActionHidden(main))) return;
     window.fitNoscroll();
     /* صفحاتٌ تحمل حالةً مرتبطةً بالصنف (مناطقُ التمرير في inbox.html) تُصلح نفسَها عند هذا الحدث. */
     if (!main.classList.contains('page-noscroll')) document.dispatchEvent(new Event('noscroll:changed'));

@@ -1,0 +1,15 @@
+{% comment %}
+جسمُ بطاقةٍ واحدةٍ في صفحة الجداول على الشاشة: شريطُ «من هو» المشتركُ مع الورقة، فالجدولُ، فمفتاحُ تفريغ المعلّم.
+`page`: صفحةُ المعلّم أو الشعبة. والعنوانُ والعددُ في شريط البطاقة (`section_card`) لا هنا.
+{% endcomment %}
+{% include "schedule/partials/page_who.html" with row=page %}
+<div class="table-wrap">
+  {% if kind == "classes" %}
+  {% include "schedule/pdf/week_grid.html" with week=page.week who="teacher" show_band_labels=True %}
+  {% else %}
+  {% include "schedule/pdf/week_grid.html" with week=page.week who="class" show_band_labels=True %}
+  {% endif %}
+</div>
+{% if kind == "teachers" and page.exempt_map %}
+{% include "schedule/partials/week_legend.html" %}
+{% endif %}
