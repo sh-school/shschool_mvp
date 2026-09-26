@@ -6477,7 +6477,7 @@ def test_0040_never_overwrites_an_existing_item():
 def test_0040_records_d33_as_the_owners_reversal_once_and_never_overwrites():
     from datetime import date
 
-    assert _sync40.add_decisions(RoadmapDecision) == ["D-33"]
+    assert _sync40.add_decisions(RoadmapDecision) == ["D-33", "D-34"]
     assert _sync40.add_decisions(RoadmapDecision) == []
     d33 = RoadmapDecision.objects.get(code="D-33")
     assert (d33.status, d33.decider, d33.decision_date, d33.sort_order) == (
@@ -6509,7 +6509,7 @@ def test_0040_adds_the_css_exceptions_log_to_vk01_without_touching_its_value():
     kpi = RoadmapKpi.objects.get(code="V-K01")
     assert kpi.current == 259134.0 and kpi.measured_at == date(2026, 9, 25)
     assert kpi.why.startswith("سبب قديم\n[2026-09-26]") and "#688" in kpi.why and "+135B" in kpi.why
-    assert "لم يؤكّده المالكُ لي بعد" in kpi.why
+    assert "رُفع 260 ← 267KB بقرار المالك المباشر (D-34)" in kpi.why
 
 
 def test_0040_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
@@ -6540,7 +6540,7 @@ def test_0040_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
 
 def test_0040_orders_follow_0039_and_do_not_collide():
     assert [row[-1] for row in _sync40.NEW_ITEMS] == [763, 764]
-    assert _sync40.NEW_DECISIONS[0][-1] == 147
+    assert [row[-1] for row in _sync40.NEW_DECISIONS] == [147, 148]
 
 
 def test_0040_publishes_nothing_a_public_repo_must_not_say():
@@ -6575,3 +6575,22 @@ def test_0040_publishes_nothing_a_public_repo_must_not_say():
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
     assert not re.search(r"\b\d{1,3}(?:\.\d{1,3}){3}\b", body)
+
+
+def test_0040_records_d34_the_267kb_ceiling_as_an_accounting_change_with_the_verified_numbers():
+    from datetime import date
+
+    _sync40.add_decisions(RoadmapDecision)
+    d34 = RoadmapDecision.objects.get(code="D-34")
+    assert (d34.status, d34.decider, d34.decision_date, d34.sort_order) == (
+        "decided",
+        "المالك",
+        date(2026, 9, 26),
+        148,
+    )
+    assert "260KB إلى 267KB" in d34.title and "تغييرٌ محاسبيٌّ" in d34.title
+    rec = d34.recommendation
+    assert "271,843 ← 265,922" in rec and "−5,921" in rec and "9 ← 8" in rec
+    assert "272,972" in rec and "273,408" in rec and "436 بايتاً" in rec
+    assert "صافي ≤ 0 مصغَّراً لكلّ طلب" in rec and "لم يؤكّده المالكُ بعد" in rec
+    assert d34.blocks.startswith("VI-12")
