@@ -17,6 +17,7 @@ from core.academic_calendar import (
     academic_year_for_school,
 )
 from core.models.academic import grade_order
+from core.person_names import short_names
 from operations.departments import (
     attached_specialty,
     derived_department,
@@ -272,6 +273,13 @@ class ScheduleReadMixin:
             members[0]["dept_span"] = len(members)
             for row in members[1:]:
                 row["dept_span"] = 0
+
+        # اسمُ العرض الضيّق (مقطعان: أوّلٌ + كنية) على القائمة كلِّها لأنّ فضَّ التصادم يحتاجها. والاسمُ الكاملُ يبقى في
+        # `row["teacher"]` — للتلميح (`title`) وبطاقةِ الخانة و`data-teacher` والتصدير.
+        for row, display in zip(
+            ordered, short_names([r["teacher"].full_name or "" for r in ordered]), strict=True
+        ):
+            row["display_name"] = display
 
         return ordered
 
