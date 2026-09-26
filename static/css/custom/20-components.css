@@ -2151,21 +2151,22 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
 .skeleton-list-body { flex: 1; }
 .skeleton-kpi-card { padding: var(--sp-5); }
 
-.dept-sharia { background: var(--dept-sharia); }
-.dept-arabic { background: var(--dept-arabic); }
-.dept-math { background: var(--dept-math); }
-.dept-english { background: var(--dept-english); }
-.dept-science { background: var(--dept-science); }
-.dept-biology { background: var(--dept-biology); }
-.dept-chemistry { background: var(--dept-chemistry); }
-.dept-physics { background: var(--dept-physics); }
-.dept-social { background: var(--dept-social); }
-.dept-tech { background: var(--dept-tech); }
-.dept-business { background: var(--dept-business); }
-.dept-pe { background: var(--dept-pe); }
-.dept-arts { background: var(--dept-arts); }
-.dept-life-skills { background: var(--dept-life-skills); }
-.dept-other { background: var(--dept-other); }
+/* لونُ القسم: يصبغ عنصرَه ويكتب `--dept-c` ليصبغ به أبناؤه أنفسَهم (خلايا الجدول العامّ اللاصقة لا تشفّ). */
+.dept-sharia { --dept-c: var(--dept-sharia); background: var(--dept-c); }
+.dept-arabic { --dept-c: var(--dept-arabic); background: var(--dept-c); }
+.dept-math { --dept-c: var(--dept-math); background: var(--dept-c); }
+.dept-english { --dept-c: var(--dept-english); background: var(--dept-c); }
+.dept-science { --dept-c: var(--dept-science); background: var(--dept-c); }
+.dept-biology { --dept-c: var(--dept-biology); background: var(--dept-c); }
+.dept-chemistry { --dept-c: var(--dept-chemistry); background: var(--dept-c); }
+.dept-physics { --dept-c: var(--dept-physics); background: var(--dept-c); }
+.dept-social { --dept-c: var(--dept-social); background: var(--dept-c); }
+.dept-tech { --dept-c: var(--dept-tech); background: var(--dept-c); }
+.dept-business { --dept-c: var(--dept-business); background: var(--dept-c); }
+.dept-pe { --dept-c: var(--dept-pe); background: var(--dept-c); }
+.dept-arts { --dept-c: var(--dept-arts); background: var(--dept-c); }
+.dept-life-skills { --dept-c: var(--dept-life-skills); background: var(--dept-c); }
+.dept-other { --dept-c: var(--dept-other); background: var(--dept-c); }
 
 /* نافذةُ اختيار المعلّم، مُجمَّعةً حسب القسم — نظامُ modal-overlay/modal-box
    نفسُه، حجمٌ جديدٌ وحدَه (modal-lg). */

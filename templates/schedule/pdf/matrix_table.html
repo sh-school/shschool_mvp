@@ -1,0 +1,74 @@
+{% comment %}
+جدولُ المصفوفة العامّة (كلّ المعلّمين × الأسبوع) — علاماتُه في موضعٍ واحدٍ يقرؤه قالبان: ورقةُ الطباعة
+(`print_schedule.html`، بأنماطها بالملّيمتر) وصفحةُ المنصّة (`print_view.html`، بأنماط المنصّة). فالمعروضُ
+هو المطبوعُ خانةً بخانة (D-16 7.7) ولا نسخةَ ثانيةَ تنحرف عن الأولى. اللونُ في الورقة صنفُ `dept-{كود}`
+كما هو، وفي الشاشة `screen=True` يأخذ الصنفَ المركزيَّ `dept-{مفتاح}` من `core/dept_colors.py`.
+{% endcomment %}
+{% load week_tags exemption_tags %}
+  <table class="schedule-matrix">
+    <thead>
+      <tr>
+        <th class="m-dept" rowspan="2">القسم</th>
+        <th class="m-name" rowspan="2">المعلّم</th>
+        {% for day_num, day_name in days %}
+        <th class="m-day m-day-start" colspan="7">{{ day_name }}</th>
+        {% endfor %}
+        <th class="m-total" rowspan="2">النصاب</th>
+      </tr>
+      <tr>
+        {% for day_num, day_name in days %}
+          {% for n in period_numbers %}
+          <th class="m-period{% if forloop.first %} m-day-start{% endif %}">{{ n }}</th>
+          {% endfor %}
+        {% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in matrix %}
+      {# لونُ السطر هو قسمُ المعلّم — والسطورُ آتيةٌ مرتّبةً بالقسم من الخدمة. #}
+      {# و`data-*` غذاءُ طبقةِ التفاعل على الشاشة — تُقرأ ولا تُطبع. #}
+      <tr class="dept-{% if screen %}{{ row.department.code|dept_key }}{% else %}{{ row.department.code }}{% endif %}" data-teacher="{{ row.teacher.full_name }}"
+          data-dept="{{ row.department.name }}" data-total="{{ row.total }}"
+          data-specialty="{{ row.specialty }}">
+        {% if row.dept_span %}<td class="m-dept" rowspan="{{ row.dept_span }}">{{ row.department.name }}</td>{% endif %}
+        {# ومن أُلحق إدارياً بقسمٍ غيرِ تخصّصه يحمل تخصّصَه لاحقةً — انظر `attached_specialty`. #}
+        <td class="m-name{% if row.specialty %} m-name-tagged{% endif %}" title="{{ row.teacher.full_name }} — قسم {{ row.department.name }}{% if row.specialty %} — تخصّصه {{ row.specialty }}{% endif %}">{{ row.teacher.full_name }}{% if row.specialty %} <span class="m-specialty">({{ row.specialty }})</span>{% endif %}</td>
+        {% for day in row.days %}
+          {% for cell in day %}
+          {# رقمُ العمود في الأسبوع كلِّه (0–34) — اليومُ سبعُ حصص. #}
+          {% widthratio forloop.parentloop.counter0 1 7 as day_offset %}
+          {% with kind=cell|cell_kind %}
+          <td class="m-cell{% if forloop.first %} m-day-start{% endif %}{% if kind %} mk-{{ kind }}{% endif %}" data-col="{{ day_offset|add:forloop.counter0 }}"{% if cell %} data-c="{% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}" data-s="{% for slot in cell %}{{ slot.cell_subject|default:slot.subject.name_ar|default:"—" }} — {{ slot.class_group.short_label }}{% if slot.note %} — {{ slot.note }}{% endif %}{% if not forloop.last %} · {% endif %}{% endfor %}"{% endif %}>
+            {% if cell %}{% for slot in cell %}{{ slot.class_group.short_code }}{% if not forloop.last %} {% endif %}{% endfor %}{% else %}{% exempt_dot row.exempt_map forloop.parentloop.counter0 forloop.counter0|add:1 %}{% endif %}
+          </td>
+          {% endwith %}
+          {% endfor %}
+        {% endfor %}
+        <td class="m-total">{{ row.total }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    {% if matrix_totals %}
+    <tfoot>
+      {% comment %}
+        العددُ حصصٌ منعقدة، والتعليمُ على تغطية الشُّعب لا على العدد: عمودٌ فيه
+        ازدواجٌ اختياريٌّ يبلغ خمسةً وعشرين وفيه شعبةٌ بلا درس — فيُعلَّم وإن
+        بلغ العدد. و`{# #}` لا تمتدّ سطرين في Django، فما امتدّ منها تسرّب
+        نصّاً داخل الجدول ورفعه المحلّلُ فوقه.
+      {% endcomment %}
+      <tr>
+        <td class="m-name" colspan="2" title="عدد الشعب المجدولة: {{ matrix_totals.sections }}">مجموع الحصص</td>
+        {% for day in matrix_totals.days %}
+          {# خارجَ حلقةِ الحصص: `forloop` هنا حلقةُ الأيّام نفسُها. #}
+          {% widthratio forloop.counter0 1 7 as day_offset %}
+          {% for column in day %}
+          <td class="m-cell{% if forloop.first %} m-day-start{% endif %}{% if column.short %} m-short{% endif %}"
+              data-col="{{ day_offset|add:forloop.counter0 }}"
+              title="حصص: {{ column.count }} — شُعب في درس: {{ column.sections }} من {{ column.expected }}">{{ column.count }}</td>
+          {% endfor %}
+        {% endfor %}
+        <td class="m-total">{{ matrix_totals.total }}</td>
+      </tr>
+    </tfoot>
+    {% endif %}
+  </table>

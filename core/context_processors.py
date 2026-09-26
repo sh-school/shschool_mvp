@@ -31,6 +31,8 @@ def school_context(request):
         "current_year_name": now.year_name if now else "",
         "current_semester": now.semester if now else None,
         "platform_version": getattr(settings, "PLATFORM_VERSION", "5.1"),
+        "rum_endpoint": getattr(settings, "RUM_ENDPOINT", ""),
+        "rum_sample": max(0, min(100, getattr(settings, "RUM_SAMPLE_PERCENT", 10))),
     }
 
 

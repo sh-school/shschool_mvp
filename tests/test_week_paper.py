@@ -99,19 +99,20 @@ class TestThePaperNamesItsWeek:
 
 
 class TestTheSheetHeaderIsForPaperOnly:
-    """ترويسةُ الجدول العامّ (الشعارُ واسمُ المدرسة والعنوان) للورق: على شاشة المنصّة يقول عنوانُ الصفحة ما فيها."""
+    """ترويسةُ الجدول العامّ (الشعارُ واسمُ المدرسة والعنوان) للورق وحدَه: صفحةُ المنصّة تعرض جدولاً بمكوّناتها لا هذه الورقة (2026-09-25)."""
 
-    def test_the_platform_frame_hides_it_on_screen_only(self, world, client):
+    def test_the_paper_in_the_print_frame_has_no_screen_layer(self, world, client):
+        """الإطارُ المخفيُّ يحمل الورقةَ للطباعة وحدَها — لا طبقةَ تفاعلٍ ولا قاعدةَ شاشة (كانت `is-embed` تُخفي الترويسةَ حين كانت الورقةُ تُعرض)."""
         body = _paper(client, world, view="all_teachers", embed="1")
 
-        assert " is-embed" in body.split("<body", 1)[1][:80], "الإطارُ يضع صنفَه على الجسم"
-        assert "@media screen { .is-embed .matrix-head { display: none; } }" in body
+        assert "is-embed" not in body
+        assert "mx-hint" not in body and "schedule-matrix.js" not in body
         assert '<div class="matrix-head">' in body, "الترويسةُ في المستند — تظهر في الطباعة وPDF"
 
     def test_the_standalone_sheet_keeps_its_header(self, world, client):
         body = _paper(client, world, view="all_teachers")
 
-        assert "is-embed" not in body.split("<body", 1)[1][:80]
+        assert '<div class="matrix-head">' in body
 
     def test_the_pdf_render_still_has_the_header(self, world):
         from django.http import QueryDict

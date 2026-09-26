@@ -63,6 +63,8 @@ INSTALLED_APPS = [
     "wings.apps.WingsConfig",
     # خارطة تجويد المنصّة — لمطوّر المنصّة وحدَه (أدوات المطوّر)
     "roadmap.apps.RoadmapConfig",
+    # مركز قيادة الجودة — عرضٌ حيٌّ لصحّة المنصّة لمطوّر المنصّة وحدَه في /admin/command-center/ (بلا نماذج)
+    "command_center.apps.CommandCenterConfig",
     # الحوكمة وحماية البيانات: المحو والاحتفاظ وتدوير المفاتيح ووصول الملفّات (ADR-0004)
     "governance.apps.GovernanceConfig",
     # ✅ فلترة احترافية
@@ -330,6 +332,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # دخولَ الجلسة: لا ثنائيّة، ولا axes، ولا حدَّ للمحاولات. فلا مساراتِ رموز
 # ولا مُصادِقَ رموز حتى يُبنى التطبيقُ ويُحرَس الباب (P1-1).
 API_JWT_ENABLED = config("API_JWT_ENABLED", default=False, cast=bool)
+
+# قياسُ الأداء الميدانيّ (Q-04): العميلُ `static/js/rum.js` يُرسل LCP وINP وCLS مجمَّعةً بلا هويّةٍ إلى هذا المسار.
+# مطفأٌ ما دام `RUM_ENDPOINT` فارغاً (الأصل) — لا سكربتَ ولا طلب. يُفعَّل بعد موافقة الـDPO على الحمولة
+# ووجودِ نقطة الاستقبال (`docs/rum_client_contract_2026-09.md`)؛ ونسبةُ العيّنة مئويّةٌ صحيحة (0–100).
+RUM_ENDPOINT = config("RUM_ENDPOINT", default="")
+RUM_SAMPLE_PERCENT = config("RUM_SAMPLE_PERCENT", default=10, cast=int)
 
 _AUTH_CLASSES = ["rest_framework.authentication.SessionAuthentication"]
 if API_JWT_ENABLED:

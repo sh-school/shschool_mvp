@@ -12,7 +12,13 @@ import re
 
 MIN_REM = 0.75  # 12px — `--text-xs`
 
-DECORATIVE = (".chv", ".bc-sep", ".kpi-donut-unit")
+DECORATIVE = (
+    ".chv",
+    ".bc-sep",
+    ".kpi-donut-unit",
+    # حرفُ نقطة التفريغ في زاوية خانة الجدول العامّ (و/إ/ق): علامةٌ لونيّةٌ لا نصّ — معناها في `title` الخانة وفي مفتاح الألوان تحت الجدول.
+    ".m-exempt-dot",
+)
 
 _COMMENT = re.compile(r"/\*.*?\*/", re.S)
 _BLOCK = re.compile(r"([^{}]*)\{([^{}]*)\}")
