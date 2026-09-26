@@ -4,7 +4,6 @@
   "academic_management/workload_workflow.py": 59,
   "assessments/models.py": 20,
   "assessments/querysets.py": 15,
-  "behavior/conduct_2026.py": 75,
   "behavior/constants.py": 1,
   "behavior/models.py": 20,
   "behavior/querysets.py": 8,
@@ -123,5 +122,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1324
+ "total": 1249
 }
