@@ -28,6 +28,9 @@ class ExportResult:
     content: bytes
     content_type: str
     filename: str
+    #: عددُ الأشخاص/السطور في الملفّ ورايةُ «فيه رقمٌ شخصيٌّ كامل» — للأثر في سجلّ التدقيق (`runner.run_job`)؛ `None` = لا صفوف.
+    rows: int | None = None
+    full_national_id: bool = False
 
 
 @dataclass(frozen=True)

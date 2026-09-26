@@ -265,6 +265,33 @@ class TestTheWorker:
         assert job.status == "done" and bytes(job.content) == b"data-a=1"
         assert job.content_type == "text/plain" and job.filename == "t.txt"
 
+    def test_a_builder_that_declares_its_rows_leaves_a_built_audit_entry(
+        self, school, principal_user, register
+    ):
+        from core.models import AuditLog
+
+        def counted(school, user, params):
+            return ExportResult(b"x", "text/plain", "t.txt", rows=7, full_national_id=False)
+
+        name = register("test.counted", build=counted)
+        job = _job(school, principal_user, kind=name)
+
+        run_job(str(job.id))
+
+        trail = AuditLog.objects.get(action="export", object_repr=f"{name}:built")
+        assert trail.user == principal_user
+        assert trail.changes == {"kind": name, "rows": 7, "full_national_id": False}
+
+    def test_a_builder_without_rows_writes_no_built_entry(self, school, principal_user, register):
+        from core.models import AuditLog
+
+        register()
+        job = _job(school, principal_user)
+
+        run_job(str(job.id))
+
+        assert not AuditLog.objects.filter(object_repr__endswith=":built").exists()
+
     def test_a_failing_builder_stores_only_a_fixed_code_and_logs_no_exception_text(
         self, school, principal_user, register, caplog
     ):

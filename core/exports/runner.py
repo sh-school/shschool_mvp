@@ -17,7 +17,7 @@ from django.utils import timezone
 
 from core.capabilities import has_capability
 from core.celery_tasks import school_rls_scope
-from core.models import ExportJob
+from core.models import AuditLog, ExportJob
 
 from . import messages, registry
 
@@ -57,6 +57,8 @@ def run_job(job_id: str) -> dict:
             result = spec.build(job.school, job.requested_by, QueryDict(job.query_string))
             if len(result.content) > spec.max_bytes:
                 return _fail(job, messages.TOO_LARGE, started)
+            # قبل `done` وداخلَ عزل المدرسة: وثيقةٌ بلا أثرٍ أسوأُ من وثيقةٍ تأخّرت (`core/audit_export.py`).
+            _audit_built(job, result)
     except SoftTimeLimitExceeded:
         return _fail(job, messages.TIMEOUT, started)
     except Exception:  # noqa: BLE001 — لا `exc_info` ولا نصَّ استثناء (انظر رأس الملفّ)
@@ -74,3 +76,24 @@ def run_job(job_id: str) -> dict:
         "export_job_done kind=%s job=%s ms=%d bytes=%d", job.kind, job.id, ms, len(result.content)
     )
     return {"ok": True, "filename": result.filename}
+
+
+def _audit_built(job: ExportJob, result: registry.ExportResult) -> None:
+    """أثرُ «كم صفّاً خرج» لمن يعلنه بنّاؤه: سطرُ الطلب لا يعرفه (يُكتب قبل البناء)، وكان التصديرُ المتزامنُ يسجّله.
+
+    الشكلُ نفسُه شكلُ `log_export` (`kind` و`rows` و`full_national_id`) فتُقرأ السجلّاتُ معاً؛ ولا يُكتب اسمُ ملفٍّ ولا رقمٌ.
+    """
+    if result.rows is None:
+        return
+    AuditLog.log(
+        user=job.requested_by,
+        action="export",
+        model_name="other",
+        object_repr=f"{job.kind}:built",
+        changes={
+            "kind": job.kind,
+            "rows": result.rows,
+            "full_national_id": bool(result.full_national_id),
+        },
+        school=job.school,
+    )

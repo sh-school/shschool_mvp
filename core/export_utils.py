@@ -34,7 +34,11 @@ def get_export_context(request, title: str) -> dict:
     - export_date, export_time, export_datetime
     - title, academic_year
     """
-    user = request.user
+    return get_export_context_for(request.user, title)
+
+
+def get_export_context_for(user, title: str) -> dict:
+    """السياقُ نفسُه من المستخدم وحدَه — لبنّاءات سجلّ التصدير (`core.exports`) التي تعمل في العامل بلا `request`."""
     school = user.get_school()
     now = timezone.localtime()
 
