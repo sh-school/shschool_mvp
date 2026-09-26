@@ -68,3 +68,49 @@ def dept_row_height(name: object, rows: Any, font_pt: Any) -> str:
     if count * (line + 0.15) >= need:
         return ""
     return f"{need / count:.2f}mm"
+
+
+@register.filter
+def css_string(text: object) -> SafeString:
+    """نصٌّ يُوضع داخل سلسلة CSS بين علامتَي اقتباس (`content: "…"` في هامش الصفحة) دون أن يكسرها ولا يخرج من وسم `<style>`.
+
+    الرؤيةُ (`school.vision`) حقلٌ تحرّره الإدارةُ — فتُهرَّب الشرطةُ المائلةُ والاقتباسُ وسطرُ الفصل وعلاماتُ `<` و`>` و`&`
+    بصيغة CSS (`\3C `…)، فلا يُغلق النصُّ سلسلتَه ولا وسمَ `<style>`. القالبُ يلفّ به كتلةً بـ`{% filter css_string %}`.
+    """
+    out = str(text or "")
+    for raw, escaped in (
+        ("\\", "\\\\"),
+        ('"', '\\"'),
+        ("\r", " "),
+        ("\n", "\\A "),
+        ("<", "\\3C "),
+        (">", "\\3E "),
+        ("&", "\\26 "),
+    ):
+        out = out.replace(raw, escaped)
+    return mark_safe(out)
+
+
+#: عرضُ حرفٍ عريضٍ من Tajawal بخطّ 7.9pt غليظاً ≈ 1.55مم (مقيسٌ: «عبدالباسط الجاسم» 16 حرفاً يسعها 24.8مم)، ومنه هامشُ أمانٍ.
+_NAME_MM_PER_CHAR = 1.7
+_NAME_MM_PAD = 1.6
+_NAME_MM_MIN = 26.0
+_NAME_MM_MAX = 36.0
+
+
+@register.simple_tag
+def name_column_mm(rows: Any) -> str:
+    """عرضُ عمود الاسم في ورقة A3 (ملم) من أطول اسمِ عرضٍ فيها — فلا يُقصّ اسمٌ (بلاغ المالك 2026-09-27: «عبدالباسط الجا»).
+
+    كان ثابتاً 23.7 فقُصّ ما فوق 15 حرفاً؛ والاسمُ من مقطعين طولُه يتغيّر مع المعلّمين، فالعمودُ يتبع أطولَهم (له أرضيّةٌ وسقف)،
+    والخلايا الخمسُ والثلاثون تتقاسم الباقي. نصٌّ لا رقمٌ: كي لا تُترجم الفاصلةُ العشريّةُ بلغة العرض.
+    """
+    longest = max(
+        (
+            len(str(getattr(row, "get", lambda *_: "")("display_name", "") or ""))
+            for row in rows or []
+        ),
+        default=0,
+    )
+    width = min(_NAME_MM_MAX, max(_NAME_MM_MIN, _NAME_MM_PER_CHAR * longest + _NAME_MM_PAD))
+    return f"{width:.1f}"

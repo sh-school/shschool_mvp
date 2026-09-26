@@ -1,5 +1,5 @@
 {% load brand_tags %}
-{% load static dict_filters schedule_filters %}
+{% load static dict_filters schedule_filters week_tags %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -353,13 +353,20 @@
   ورقةٌ واحدةٌ لاثنين وسبعين معلّماً بخطٍّ 7.9pt موحَّدٍ (استثناءٌ اختاره المالكُ لهذا الجدول بعد رؤيته: دون 9.5pt المرفوضِ للاستمارة).
   المتنُ 402×243مم: هوامشُ 6 علويّاً وسفليّاً و9 جانبيّاً، ترويسةٌ كاملةٌ 30مم وفاصلٌ 2، وتذييلٌ صفٌّ واحدٌ 8مم وفاصلٌ 2.
   الصفُّ سطرٌ واحدٌ بمباعدة 1.05 وحشوٍ رأسيٍّ صفر ⇒ ≈ 3.03مم؛ والأعمدةُ: القسم 16.4 (بالخطّ الغليظ لأطول كلمةٍ «الاجتماعيات»)
-  والاسمُ 23.7 (لأطول ناتجٍ 16 حرفاً) والنصاب 11 (يتبع الخطّ) والخلايا الخمسُ والثلاثون ≈ 10.02 لكلٍّ. والقسمُ الضيّق (صفّان وثلاثُ
+  والاسمُ يتبع أطولَ اسمِ عرضٍ (`name_column_mm`: 1.7مم للحرف + 1.6، من 26 إلى 36؛ كان 23.7 ثابتاً فقُصّ «عبدالباسط الجاسم») والنصاب 11 (يتبع الخطّ) والخلايا الخمسُ والثلاثون ≈ 10.02 لكلٍّ. والقسمُ الضيّق (صفّان وثلاثُ
   كلمات) يرفع صفَّيه بقاعدة `pad` (`dept_row_height`). ومن زاد معلّموه عن السعة انتقل الفائضُ إلى ورقةٍ ثانيةٍ بترويسة الجدول نفسِها.
   المرجعُ بكسلاً: نموذجُ LAY-11 `t1_a3_landscape_1face__pad_7_9pt` (خارج المستودع).
   {% endcomment %}
+  {% comment %}
+  التذييلُ صفٌّ واحدٌ 10pt في هوامش الصفحة (يتكرّر على كلّ ورقةٍ ومعه عدّادُ الصفحات): يمين الأعدادُ، وسطُه الرؤيةُ، ويسارُه التاريخُ والصفحة.
+  في الهامش لا في المتن لأنّ عدّادَ الصفحة لا يعمل إلّا هناك — فلا يبقى سطرٌ ثانٍ تحت الصفّ (بلاغ المالك 2026-09-27). الهامشُ السفليُّ 16مم =
+  6 + صفٌّ 8 + فاصل 2. والنصُّ يمرّ بـ`css_string` (الرؤيةُ حقلٌ تحرّره الإدارة).
+  {% endcomment %}
   @page {
-    size: A3 landscape; margin: 6mm 9mm;
-    @bottom-left { content: "صفحة " counter(page) " / " counter(pages); font-family: 'Tajawal', sans-serif; font-size: 8pt; color: {% brand_color "TEXT_MUTED" %}; }
+    size: A3 landscape; margin: 6mm 9mm 16mm;
+    @bottom-right { content: "{% filter css_string %}المعلّمون: {{ matrix|length }} · الشُّعب: {{ matrix_totals.sections }}{% if matrix_totals %} · الحصص: {{ matrix_totals.total }} من {{ matrix_totals.planned }} مخطَّطة (منها {{ matrix_totals.parallel }} متوازية){% if matrix_totals.missing %} — ناقص {{ matrix_totals.missing }}{% endif %}{% endif %}{% endfilter %}"; font-family: 'Tajawal', sans-serif; font-size: 10pt; white-space: nowrap; vertical-align: top; padding-top: 1.5mm; color: {% brand_color "TEXT_PRIMARY" %}; border-top: 0.6pt solid {% brand_color "MAROON" %}; }
+    @bottom-center { content: "{% filter css_string %}{{ school.vision|default:'مُتَعَلِّمٌ رِيَادِيٌّ لِتَنْمِيَةٍ مُسْتَدَامَةٍ'|safe }}{% endfilter %}"; font-family: 'Tajawal', sans-serif; font-size: 10pt; white-space: nowrap; vertical-align: top; padding-top: 1.5mm; color: {% brand_color "TEXT_PRIMARY" %}; border-top: 0.6pt solid {% brand_color "MAROON" %}; }
+    @bottom-left { content: "تاريخ الطباعة: {% now 'Y/m/d' %} · صفحة " counter(page) " / " counter(pages); font-family: 'Tajawal', sans-serif; font-size: 10pt; white-space: nowrap; vertical-align: top; padding-top: 1.5mm; color: {% brand_color "TEXT_PRIMARY" %}; border-top: 0.6pt solid {% brand_color "MAROON" %}; }
   }
   @media print {
     html, body { height: auto; }
@@ -375,11 +382,15 @@
     .schedule-matrix th, .schedule-matrix td { height: auto; line-height: 1.05; padding: 0 0.2mm; border-width: 0.3pt; }
     .schedule-matrix thead th { border-bottom-width: 1pt; }
     .schedule-matrix .m-day, .schedule-matrix .m-period { font-size: 7.9pt; padding: 0; }
-    .schedule-matrix .m-name, .schedule-matrix .m-name.m-name-tagged { width: 23.7mm; font-size: 7.9pt; padding: 0 0.8mm; }
+    .schedule-matrix .m-name, .schedule-matrix .m-name.m-name-tagged { width: {% name_column_mm matrix %}mm; font-size: 7.9pt; padding: 0 0.6mm; }
     .schedule-matrix .m-specialty { font-size: 7.9pt; }
     .schedule-matrix .m-dept { width: 16.4mm; font-size: 7.9pt; padding: 0 0.3mm; line-height: 1.05; }
     .schedule-matrix .m-total { width: 11mm; font-size: 7.9pt; }
     .schedule-matrix .m-cell { width: auto; }
+    /* الرمزُ متوسّطٌ رأسيّاً (بلاغ المالك 2026-09-27): مقاييسُ Tajawal تُجلس الأرقامَ أعلى مركز سطرها بنحو 0.42مم؛ فيُزاح النصُّ لأسفل بحشوٍ
+       علويٍّ ويُنقَص مثلُه من ارتفاع السطر — فيبقى الصفُّ 3.03مم. يقيسه `tests/test_schedule_a3_sheet.py` على PDF مرسوم (±0.2مم). */
+    .schedule-matrix .m-cell, .schedule-matrix .m-name, .schedule-matrix .m-name.m-name-tagged, .schedule-matrix .m-total,
+    .schedule-matrix .m-day, .schedule-matrix .m-period { padding-top: 0.84mm; line-height: 2.09mm; }
     .schedule-matrix tbody tr { height: var(--row-h, auto); }
     .schedule-matrix thead { display: table-header-group; }
     .schedule-matrix tr { break-inside: avoid; }
@@ -387,12 +398,6 @@
     .matrix-legend__item { white-space: nowrap; gap: 1mm; }
     .matrix-legend__swatch { inline-size: 3mm; block-size: 3mm; line-height: 3mm; }
     .matrix-note { font-size: 9pt; margin-top: 0.5mm; text-align: center; }
-    .matrix-foot3 {
-      display: flex; justify-content: space-between; align-items: center; height: 8mm; margin-top: 2mm; padding-top: 1mm;
-      border-top: 0.6pt solid {% brand_color "MAROON" %}; box-sizing: border-box; overflow: hidden;
-      font-size: 10pt; line-height: 1.3; color: {% brand_color "TEXT_PRIMARY" %};
-    }
-    .matrix-foot3 .foot-short { color: {% brand_color "STATUS_DANGER_FG" %}; font-weight: 700; }
   }
   {% else %}
   /* الورقةُ عرضيّةٌ لأنّ الأسبوع خمسةٌ وثلاثون عموداً — ولا يُطبع عمودياً. */
@@ -566,17 +571,6 @@
   {% endif %}
   {% for note in nav.notes %}<div class="matrix-note">{{ note }}</div>{% empty %}{% endfor %}
   {% if paper == 'a3' %}
-  <div class="matrix-foot3">
-    <span>
-      المعلّمون: {{ matrix|length }} &nbsp;·&nbsp; الشُّعب: {{ matrix_totals.sections }}
-      {% if matrix_totals %}&nbsp;·&nbsp;
-      الحصص: {{ matrix_totals.total }} من {{ matrix_totals.planned }} مخطَّطة
-      (منها {{ matrix_totals.parallel }} متوازية){% if matrix_totals.missing %}<span class="foot-short">
-      — ناقص {{ matrix_totals.missing }}</span>{% endif %}{% endif %}
-    </span>
-    <span>{% include "components/ministry_vision.html" %}</span>
-    <span>تاريخ الطباعة: {% now "Y/m/d" %}</span>
-  </div>
   {% else %}
   {% include "schedule/pdf/matrix_sub.html" %}
   <div class="matrix-foot">

@@ -17,14 +17,42 @@ from django.template.loader import render_to_string
 from core.pdf_utils import render_pdf_bytes
 from operations.models import ScheduleSlot
 from operations.schedule_selectors import schedule_print_payload
-from operations.templatetags.week_tags import dept_row_height
+from operations.templatetags.week_tags import dept_row_height, name_column_mm
 from tests.conftest import ClassGroupFactory
+from tests.pdf_geometry import median_center_offset_mm, missing_names, text_chunks
 from tests.test_week_page import YEAR, _teacher, world  # noqa: F401
 
 pytestmark = pytest.mark.django_db
 
 #: أصغرُ خطٍّ يُقبل على ورقة A3 (7.9pt) بهامش تقريبٍ للنقطة العشريّة.
 MIN_PT = 7.9 - 0.05
+
+#: أسماءٌ مصطنعةٌ عريضةُ الحروف — نواتجُ مقطعيها (الأوّل + الكنية) 16–17 حرفاً، أطولُ ما تحمله عمودُ الاسم.
+FIRST = ["سعد", "ناصر", "فيصل", "طلال", "ماجد", "بدر", "راشد", "حمد"]
+LAST = [
+    "الكعبي",
+    "المري",
+    "الهاجري",
+    "النعيمي",
+    "السليطي",
+    "العطية",
+    "الدوسري",
+    "الهتمي",
+    "الكواري",
+]
+WIDE_NAMES = [
+    "عبدالباسط خالد سعد الجاسمي",
+    "عبدالعزيز علي سعد الشمراني",
+    "عبدالمنعم محمد علي المحمدي",
+    "عبدالرحمن يوسف عمر الحمداني",
+]
+
+
+def _synthetic_name(i: int) -> str:
+    """اسمٌ مصطنعٌ فريدٌ بلا أرقامٍ ولا تشكيل (يُقرأ من نصّ الـPDF بلا التباسٍ بين الأرقام والحروف)."""
+    if i < len(WIDE_NAMES):
+        return WIDE_NAMES[i]
+    return f"{FIRST[i % 8]} خالد {LAST[(i // 8) % 9]}"
 
 
 @pytest.fixture
@@ -43,7 +71,7 @@ def staff(world):  # noqa: F811
             )
             for i in range(25)
         ]
-        people = [_teacher(school, f"معلّمٌ رقم {i}") for i in range(teachers)]
+        people = [_teacher(school, _synthetic_name(i)) for i in range(teachers)]
         subjects = [world["math"], world["science"]]
         # خلايا (اليوم × الحصّة) = 35؛ لكلٍّ منها 25 شعبةً على الأكثر، ولا يحجز معلّمٌ خليّتين متطابقتين ولا شعبةٌ خليّةً مرّتين.
         load = [0] * 35
@@ -76,12 +104,17 @@ def staff(world):  # noqa: F811
     return build
 
 
-def _pdf(world, query="view=all_teachers&source=plan&paper=a3&orient=landscape") -> bytes:  # noqa: F811
+def _render(world, query="view=all_teachers&source=plan&paper=a3&orient=landscape"):  # noqa: F811
     ctx = schedule_print_payload(world["school"], world["principal"], QueryDict(query))
     ctx["embed"] = True
     ctx["for_pdf"] = True
     html = render_to_string("schedule/print_schedule.html", ctx)
-    return render_pdf_bytes(html, paper_size="A3" if ctx.get("paper") == "a3" else "A4")
+    pdf = render_pdf_bytes(html, paper_size="A3" if ctx.get("paper") == "a3" else "A4")
+    return pdf, ctx
+
+
+def _pdf(world, query="view=all_teachers&source=plan&paper=a3&orient=landscape") -> bytes:  # noqa: F811
+    return _render(world, query)[0]
 
 
 def _facts(pdf: bytes) -> tuple[int, float, list[str]]:
@@ -108,6 +141,36 @@ class TestTheSeventyTwoTeachersFitOneSheet:
 
         assert pages == 1, "اثنان وسبعون معلّماً صفحةٌ واحدة (ت1)"
         assert smallest >= MIN_PT, f"أصغرُ خطٍّ مرسومٍ {smallest}pt دون 7.9"
+
+    def test_what_the_reader_sees_names_whole_one_footer_row_and_centred_codes(
+        self,
+        world,
+        staff,  # noqa: F811
+    ):
+        """رسمٌ حقيقيٌّ واحدٌ يُقاس عليه ما اشتكى منه المالك (2026-09-27): اسمٌ مقصوصٌ، وتذييلٌ بأكثر من سطر، ورمزٌ يعلو مركزَ خليّته."""
+        staff(teachers=72, per_teacher=12)
+
+        pdf, ctx = _render(world)
+
+        # (٢) لا اسمَ مقصوصاً: كلُّ اسمِ عرضٍ (أطولُها 17 حرفاً عريضاً) بكامله في نصّ الـPDF المرسوم
+        shown = [row["display_name"] for row in ctx["matrix"]]
+        assert any(len(name) >= 16 for name in shown), "الحالةُ الأصعبُ غائبةٌ من العيّنة"
+        assert missing_names(pdf, shown) == [], "أسماءٌ مقصوصةٌ بحدّ عمود الاسم"
+
+        # (٣+٥) التذييلُ صفٌّ واحدٌ: الأعدادُ والرؤيةُ والتاريخُ والصفحةُ على خطٍّ أفقيٍّ واحد (±1pt)
+        keys = ("المعلّمون", "تاريخ الطباعة", "صفحة", "مُتَعَلِّمٌ")
+        footer = [
+            (text, y) for text, _x, y, _size in text_chunks(pdf) if any(k in text for k in keys)
+        ]
+        assert {k for k in keys if any(k in t for t, _ in footer)} == set(keys)
+        ys = [y for _, y in footer]
+        assert (
+            max(ys) - min(ys) <= 1.0
+        ), f"التذييلُ على أكثر من خطّ: {sorted({round(y, 1) for y in ys})}"
+
+        # (٤) الرمزُ متوسّطٌ رأسيّاً في خليّته: وسيطُ الفرق ضمن ±0.2مم على الصفوف العاديّة
+        offset = median_center_offset_mm(pdf)
+        assert abs(offset) <= 0.2, f"الرمزُ يبعد {offset:.2f}مم عن مركز خليّته"
 
     def test_an_overflow_moves_the_rest_to_a_second_sheet_with_the_same_table_header(
         self,
@@ -142,7 +205,11 @@ class TestTheOtherPapersAreUntouched:
         assert "matrix-foot3" not in html and "mh-school" not in html
         assert 'class="matrix-foot"' in html and "--row-h" not in html
 
-    def test_the_a3_sheet_has_the_full_header_and_a_single_footer_row(self, world, staff):  # noqa: F811
+    def test_the_a3_sheet_has_the_full_header_and_the_footer_in_the_page_margins(
+        self,
+        world,
+        staff,  # noqa: F811
+    ):
         staff(teachers=10, per_teacher=6)
         ctx = schedule_print_payload(
             world["school"],
@@ -154,9 +221,29 @@ class TestTheOtherPapersAreUntouched:
             "schedule/print_schedule.html", {**ctx, "embed": True, "for_pdf": True}
         )
 
-        assert html.count('class="matrix-foot3"') == 1 and 'class="matrix-foot"' not in html
+        assert all(box in html for box in ("@bottom-right", "@bottom-center", "@bottom-left"))
+        assert "matrix-foot3" not in html and 'class="matrix-foot"' not in html
         assert all(cls in html for cls in ("mh-ministry", "mh-school", "mh-year"))
-        assert "size: A3 landscape" in html
+        assert "size: A3 landscape" in html and "counter(pages)" in html
+
+    def test_a_vision_with_quotes_or_tags_cannot_break_the_style_block(self, world, staff):  # noqa: F811
+        """الرؤيةُ حقلٌ تحرّره الإدارةُ وتدخل سلسلةَ CSS في هامش الصفحة — فتُهرَّب ولا تُغلق `<style>`."""
+        staff(teachers=5, per_teacher=4)
+        school = world["school"]
+        school.vision = 'رؤية "x" </style><script>alert(1)</script> \\ & '
+        school.save(update_fields=["vision"])
+        ctx = schedule_print_payload(
+            school,
+            world["principal"],
+            QueryDict("view=all_teachers&source=plan&paper=a3&orient=landscape"),
+        )
+
+        html = render_to_string(
+            "schedule/print_schedule.html", {**ctx, "embed": True, "for_pdf": True}
+        )
+
+        assert "<script>alert(1)" not in html and "</style><script" not in html
+        assert "\\3C " in html and '\\"x\\"' in html
 
 
 class TestTheNarrowDepartmentRule:
@@ -189,3 +276,20 @@ class TestTheExemptionDotOnPaper:
 
         assert "m-exempt-dot" in on_paper and "></span>" in on_paper
         assert "m-exempt-dot" in on_screen and "></span>" not in on_screen
+
+
+class TestTheNameColumnFollowsTheLongestName:
+    @pytest.mark.parametrize(
+        ("longest", "expected"),
+        [(0, "26.0"), (10, "26.0"), (16, "28.8"), (17, "30.5"), (60, "36.0")],
+    )
+    def test_the_width_grows_with_the_longest_display_name_within_a_floor_and_a_cap(
+        self, longest, expected
+    ):
+        rows = [{"display_name": "ا" * longest}, {"display_name": "قصير"}]
+
+        assert name_column_mm(rows) == expected
+
+    def test_rows_without_a_display_name_use_the_floor(self):
+        assert name_column_mm([{}, {"display_name": None}]) == "26.0"
+        assert name_column_mm(None) == "26.0"
