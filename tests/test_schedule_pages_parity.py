@@ -223,4 +223,4 @@ def test_teachers_sit_under_a_folded_department_whose_header_carries_the_coordin
     assert teacher.full_name in dept.split("</summary>", 1)[1], "المعلّمُ داخل جسم قسمه"
     assert screen.count("<details") == 2, "قسمٌ ومعلّمٌ — كلاهما مطويّ"
     css = CSS.read_text(encoding="utf-8")
-    assert "pages-screen__dept > .ui-section > details > summary" in css
+    assert ".pages-screen__dept summary {" in css, "أشرطةُ القسم والمعلّمين بلون القسم لا العنّابيّ"
