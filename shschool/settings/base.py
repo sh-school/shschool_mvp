@@ -792,3 +792,6 @@ VERDICT_ENGINE_ENABLED = os.environ.get("VERDICT_ENGINE_ENABLED", "").strip().lo
     "true",
     "yes",
 }
+
+# مركزُ قيادة الجودة: التنبيهُ الحيّ في جرس المطوّر عند الأحمر (command_center/alerts.py). مفتاحُ الإيقاف: false.
+QCC_NOTIFY_ENABLED = config("QCC_NOTIFY_ENABLED", default=True, cast=bool)

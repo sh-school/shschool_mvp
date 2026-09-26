@@ -127,6 +127,16 @@ app.conf.beat_schedule = {
         "task": "core.refresh_backup_status",
         "schedule": crontab(minute="*/30"),
     },
+    # مركزُ قيادة الجودة (QCC): جمعٌ آليٌّ للّوحات في الـcache بلا تدخّل — المحلّيُّ كلَّ دقيقة (قاعدةٌ وcache وملفّات)،
+    # وGitHub كلَّ أربع دقائق بطلباتٍ شرطيّةٍ لا تُحتسب ضمن حدّ الستّين غيرِ المصادَق. الصفحةُ تقرأ الـcache وحدَه.
+    "qcc-collect-local": {
+        "task": "command_center.collect_local",
+        "schedule": crontab(),
+    },
+    "qcc-collect-remote": {
+        "task": "command_center.collect_remote",
+        "schedule": crontab(minute="*/4"),
+    },
     # صفوفُ تصدير PDF/Excel الخلفيّة (البند 5، P4-6؛ VI-30ب) مؤقّتة — حدٌّ صلبٌ 24 ساعةً من الإنشاء لكلّ الصفوف؛
     # وكلَّ ساعةٍ لا يومياً: اليوميّةُ كانت تترك أسوأَ حالةٍ ≈ 48 ساعةً، والمحتوى ثنائيٌّ في القاعدة (`data_retention.md`).
     "purge-expired-export-jobs": {
