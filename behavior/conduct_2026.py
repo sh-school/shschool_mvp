@@ -141,7 +141,7 @@ class Ladder:
         }
 
 
-def _s(*pairs):
+def _s(*pairs: tuple[str, str]) -> tuple[tuple[str, str], ...]:
     return tuple(pairs)
 
 
