@@ -44,6 +44,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 # ── الفاعلون ────────────────────────────────────────────────────────
 T = "المعلّم"
@@ -122,7 +123,7 @@ class Ladder:
     def is_beyond(self, repetition: int) -> bool:
         return repetition > len(self.steps)
 
-    def to_json(self) -> dict:
+    def to_json(self) -> dict[str, Any]:
         """تحويلُ السلّم إلى بنيةٍ قابلةٍ للتخزين في JSONB وإرجاعها للـAPI."""
         return {
             "ladder_key": self.key,
