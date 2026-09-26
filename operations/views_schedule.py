@@ -172,7 +172,7 @@ def _export_started(request, job):
     """جوابُ بدء التصدير: JSON لطلب الصفحة (إشعارٌ عائم)، وتحويلٌ لصفحة المتابعة لغيره.
 
     صفحةُ المتابعة بقيت للرابط المفتوح مباشرةً بلا JS (نافذةٌ خارج المنصّة، روابطٌ محفوظة)؛
-    أمّا من الصفحة فيبدأ `static/js/schedule-export.js` المهمّةَ ويتابعها بإشعارٍ عائمٍ ثمّ يُنزّل.
+    أمّا من الصفحة فيبدأ `static/js/export-center.js` المهمّةَ ويتابعها بإشعارٍ عائمٍ ثمّ يُنزّل.
     """
     status_url = reverse("export_job_status", args=[job.id])
     if request.headers.get("X-Requested-With") == "XMLHttpRequest":
