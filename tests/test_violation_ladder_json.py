@@ -9,6 +9,7 @@
 """
 
 import pytest
+from django.core.management import call_command
 
 from behavior.conduct_2026 import CATALOG, LADDERS
 
@@ -108,21 +109,21 @@ def test_catalog_every_ladder_key_exists():
 
 
 @pytest.mark.django_db
-def test_seed_populates_ladder_json(call_command):
-    """بعد الـseed: كلّ مخالفةٍ لها ladder_json."""
+def test_seed_populates_ladder_json():
+    """بعد الـseed: كلُّ مخالفاتِ 2026 لها ladder_json (41 مخالفة)."""
     from behavior.models import ViolationCategory
 
     call_command("seed_violations_2026")
 
-    total = ViolationCategory.objects.filter(code__regex=r"^\d+-\d+$").count()
+    catalog_codes = {inf.code for inf in CATALOG}
     with_ladder = ViolationCategory.objects.filter(
-        code__regex=r"^\d+-\d+$", ladder_json__isnull=False
+        code__in=catalog_codes, ladder_json__isnull=False
     ).count()
-    assert total == with_ladder == 41
+    assert with_ladder == 41
 
 
 @pytest.mark.django_db
-def test_seed_idempotent(call_command):
+def test_seed_idempotent():
     """التشغيل مرّتين لا يُكرّر السجلّات."""
     from behavior.models import ViolationCategory
 
@@ -133,7 +134,7 @@ def test_seed_idempotent(call_command):
 
 
 @pytest.mark.django_db
-def test_db_query_4_15_rep2_first_action_is_protection(call_command):
+def test_db_query_4_15_rep2_first_action_is_protection():
     """استعلامٌ مباشرٌ: أوّلُ فعلٍ في ت2 لـ4-15 يحتوي «حماية»."""
     from behavior.models import ViolationCategory
 
@@ -146,7 +147,7 @@ def test_db_query_4_15_rep2_first_action_is_protection(call_command):
 
 
 @pytest.mark.django_db
-def test_db_query_ladder_key_index(call_command):
+def test_db_query_ladder_key_index():
     """الاستعلام بـladder_key يعمل بسرعة."""
     from behavior.models import ViolationCategory
 
