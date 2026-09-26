@@ -1,7 +1,7 @@
 {% extends "base/base.html" %}
-{% load ui %}
+{% load ui week_tags %}
 {% block title %}{{ title }}{% endblock %}
-{% block main_class %}page-wide{% endblock %}
+{% block main_class %}{% page_layout "report" "page-wide" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/teacher/weekly-schedule/" parent_label="الجدول الأسبوعي" current=title %}
@@ -15,7 +15,7 @@
 عند أوّل طلب طباعةٍ لا فوراً — فعشراتُ الصفحات لا تُحسب مرّتين بلا حاجة.
 {% endcomment %}
 {% page_header title icon="print" %}{% endpage_header %}
-{# بطاقةٌ عاريةٌ بشريط أدواتٍ وقائمة — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
+{# بطاقةٌ عاريةٌ بشريط أدواتٍ فقط — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
 <div class="schedule-pages-card">
   <div class="schedule-head">
     <div class="schedule-tools">
@@ -38,27 +38,28 @@
       <button type="button" id="pages-print-btn" class="btn-primary btn-sm">طباعة</button>
       <a data-app-file href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تنزيل PDF</a>
       <span class="text-sm text-secondary">{{ pages|length }} صفحة</span>
+      {% if pages %}<button type="button" id="pages-fold-all" class="btn-secondary btn-sm" aria-controls="pages-list" aria-expanded="false">فتح الكلّ</button>{% endif %}
     </div>
   </div>
+  <p class="ui-note">{{ school.name }} — {% include "schedule/partials/page_doc_title.html" %} — العام الدراسي &#8294;{{ year }}&#8297;</p>
+</div>
 
-  <div class="pages-screen">
+  {# كلُّ بطاقةٍ مطويّةٌ افتراضاً (`foldable`) — عشراتُ الجداول في صفحةٍ واحدة؛ ولونُ القسم يصبغ شريطَها وعمودَ الأيّام، واسمُه نصٌّ في الشريط. #}
+  <div class="card-flow" id="pages-list">
     {% for page in pages %}
-    <section class="pages-screen__item">
-      <h2 class="pages-screen__title">
-        {% if kind == "classes" %}{{ page.class_group.label_with_track }}
-        {% else %}{{ page.teacher.full_name }}{% if page.department.name %} — {{ page.department.name }}{% endif %}{% endif %}
-      </h2>
-      <div class="table-wrap">
-        {% if kind == "classes" %}
-        {% include "schedule/pdf/week_grid.html" with week=page.week who="teacher" show_band_labels=True %}
-        {% else %}
-        {% include "schedule/pdf/week_grid.html" with week=page.week who="class" show_band_labels=True %}
-        {% endif %}
-      </div>
-      {% if kind == "teachers" and page.exempt_map %}
-      {% include "schedule/partials/week_legend.html" %}
-      {% endif %}
-    </section>
+    {% if kind == "classes" %}
+    <div class="pages-screen__item is-full">
+      {% section_card page.class_group.label_with_track meta=page.total|stringformat:"d"|add:" حصّة" icon="students" flush=True foldable=True %}{% include "schedule/partials/page_screen_body.html" %}{% endsection_card %}
+    </div>
+    {% else %}
+    <div class="pages-screen__item is-full dept-{{ page.department.code|dept_key }}">
+      {% with n=page.total|stringformat:"d" %}
+      {% section_card page.teacher.full_name meta=page.department.name|add:" · "|add:n|add:" حصّة" icon="staff" flush=True foldable=True %}{% include "schedule/partials/page_screen_body.html" %}{% endsection_card %}
+      {% endwith %}
+    </div>
+    {% endif %}
+    {% empty %}
+    {% include "components/empty_state.html" with icon="empty" title="لا جداول في هذا النطاق" %}
     {% endfor %}
   </div>
 
@@ -66,11 +67,27 @@
   <iframe id="pages-frame" title="{{ title }}"
           data-src="{% url 'schedule_pages_paper' %}?embed=1&amp;{{ selection_query }}"
           class="schedule-print-frame-hidden" aria-hidden="true" tabindex="-1"></iframe>
-</div>
 
 <script nonce="{{ request.csp_nonce }}">
   (function () {
     var frame = document.getElementById('pages-frame');
+    // مفتاحٌ واحدٌ يطوي البطاقاتِ كلَّها أو يفتحها؛ وحالتُه تتبع البطاقات نفسَها (فتحُ واحدةٍ باليد يغيّر تسميتَه).
+    var list = document.getElementById('pages-list');
+    var foldAll = document.getElementById('pages-fold-all');
+    if (list && foldAll) {
+      var folds = list.querySelectorAll('details.ui-section__fold');
+      var sync = function () {
+        var all = Array.prototype.every.call(folds, function (d) { return d.open; });
+        foldAll.setAttribute('aria-expanded', all ? 'true' : 'false');
+        foldAll.textContent = all ? 'طيّ الكلّ' : 'فتح الكلّ';
+      };
+      foldAll.addEventListener('click', function () {
+        var open = foldAll.getAttribute('aria-expanded') !== 'true';
+        Array.prototype.forEach.call(folds, function (d) { d.open = open; });
+        sync();
+      });
+      list.addEventListener('toggle', sync, true);
+    }
     // الطباعةُ للإطار لا للصفحة — ويُحمَّل عند أوّل طلبٍ لا فوراً، وتنتظر
     // تحميلَه أوّلَ مرّةٍ كي لا تُطبَع صفحةٌ بيضاء قبل أن تصل الورقةُ.
     function print() { frame.contentWindow.focus(); frame.contentWindow.print(); }
