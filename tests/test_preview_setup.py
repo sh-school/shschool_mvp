@@ -152,6 +152,39 @@ def test_the_script_never_pushes_switches_or_deletes(pattern):
     assert not offenders, offenders
 
 
+# ما يستعمله السكربتُ من غيت: قائمةٌ بيضاء. التكاملُ يقرأ ويكتب كائناتٍ وسيطةً في المخزن (merge-tree وcommit-tree)
+# ولا يستعمل أمراً يحرّك رأساً أو فهرساً أو فرعاً في شجرةٍ (والقائمةُ السوداءُ أعلاه لا ترى `git -C <شجرة> merge`).
+# أيُّ أمرٍ جديدٍ يُضاف هنا عن قصدٍ وبمراجعة.
+ALLOWED_GIT = {
+    "cat-file",
+    "commit-tree",
+    "diff",
+    "diff-tree",
+    "fetch",
+    "hash-object",
+    "log",
+    "ls-tree",
+    "merge-base",
+    "merge-tree",
+    "reset",
+    "rev-list",
+    "rev-parse",
+    "status",
+    "worktree",
+}
+GIT_CALL = re.compile(r'\bgit((?:\s+-[cC]\s+(?:"[^"]*"|\S+))*)\s+([a-z][a-z-]*)')
+
+
+def test_the_script_uses_only_read_only_and_plumbing_git_commands():
+    used = {m.group(2) for line in _code_lines() for m in GIT_CALL.finditer(line)}
+
+    assert used <= ALLOWED_GIT, sorted(used - ALLOWED_GIT)
+    assert {
+        "merge-tree",
+        "commit-tree",
+    } <= used  # التكاملُ قائم — إن اختفى الأمران فقد اختلّ الفحصُ نفسُه
+
+
 def test_reset_hard_only_targets_the_preview_tree():
     resets = [line for line in _code_lines() if re.search(r"\bgit\b.*reset --hard", line)]
 
