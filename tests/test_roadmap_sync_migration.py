@@ -5290,7 +5290,11 @@ def test_0036_rep_notes_state_proposals_as_proposals_and_carry_no_branch_counts(
     for banned in ("166", "273", "194", "322", "331", "168"):
         assert banned not in by["REP-08"], banned
     assert "فوُحِّدت على رقم مالك البند" in by["REP-09"] and "15%" in by["REP-09"]
-    assert "RK3 (أشجارٌ راكدة) = 0 مرشّحة" in by["REP-09"] and "ولم يُوفَّق بعدُ" in by["REP-09"]
+    assert (
+        "RK3 (أشجارٌ راكدة) = 0 مرشّحة" in by["REP-09"]
+        and "لا قراءةٌ رسميّة فلم يُسجَّل في المؤشّر" in by["REP-09"]
+        and "ولم يُوفَّق بعدُ" in by["REP-09"]
+    )
     assert "تُعاد الأدلّةُ قبل كلّ حذف" in by["REP-09"] and "`.env`" in by["REP-09"]
     assert "تُوحَّد النسبةُ على رقم مالك مسار البند" in by["REP-10"] and "ثلاثٌ من أربع" in by["REP-10"]
     assert "REP-11 منجز" in by["REP-11"] and "لم يُتحقَّق:" in by["REP-11"]
@@ -5436,26 +5440,26 @@ def test_0036_records_mk23_pk28_and_rk3_with_the_chromium_only_note_and_leaves_r
         source="git worktree list",
         history=[{"d": "2026-09-25", "v": 8.0}],
     )
-    assert _sync36.sync_kpis(RoadmapKpi) == ["MK23", "PK28", "RK3"]
+    assert _sync36.sync_kpis(RoadmapKpi) == ["MK23", "PK28"]
     assert _sync36.sync_kpis(RoadmapKpi) == []
     by = {k.code: k for k in RoadmapKpi.objects.all()}
     assert (by["MK23"].current, by["MK23"].measured_at) == (5.0, date(2026, 9, 25))
     assert "بـChromium وحدَه" in by["MK23"].source and "لا جهازٌ حقيقيّ" in by["MK23"].source
     assert by["PK28"].history == [{"d": "2026-09-21", "v": 0}, {"d": "2026-09-25", "v": 5.0}]
     assert by["PK28"].why == "" and "مرآة MK23" in by["PK28"].source
-    assert by["RK3"].history == [{"d": "2026-09-25", "v": 0.0}] and by["RK3"].current == 0.0
+    assert by["RK3"].current == 8.0 and by["RK3"].history == [{"d": "2026-09-25", "v": 8.0}]
+    assert not [row for row in _sync36.KPI_UPDATES if row[0] in ("RK3", "RK1", "RK2")]
     for kpi in by.values():
         assert len(kpi.source) <= 255
 
 
 def test_0036_leaves_a_remeasured_kpi_and_a_source_that_would_overflow():
-    from datetime import date
-
-    _named36("RK3", "أشجارٌ راكدة", 3.0, date(2026, 9, 25), source="س")
+    _named36("MK23", "معاييرُ WCAG", 3.0, None, source="س")
     assert _sync36.sync_kpis(RoadmapKpi) == []
-    RoadmapKpi.objects.filter(code="RK3").update(current=8.0, source="س" * 250)
-    assert _sync36.sync_kpis(RoadmapKpi) == ["RK3"]
-    assert RoadmapKpi.objects.get(code="RK3").source == "س" * 250
+    RoadmapKpi.objects.filter(code="MK23").update(current=None, source="س" * 250)
+    assert _sync36.sync_kpis(RoadmapKpi) == ["MK23"]
+    assert RoadmapKpi.objects.get(code="MK23").source == "س" * 250
+    assert RoadmapKpi.objects.get(code="MK23").current == 5.0
 
 
 def test_0036_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
@@ -5467,6 +5471,7 @@ def test_0036_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
     _item("N-046", "doing", 67, note=f"({_sync36.CORRECTIONS[0][1]})")
     _named36("RK3", "أشجارٌ راكدة", 8.0, date(2026, 9, 25), source="س")
     _sync36.forwards(_Apps36, None)
+    assert RoadmapKpi.objects.get(code="RK3").current == 8.0
 
     def snapshot():
         return (
