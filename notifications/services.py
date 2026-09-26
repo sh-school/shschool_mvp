@@ -21,6 +21,7 @@ from django.utils import timezone
 from kombu.exceptions import OperationalError
 
 from core.academic_calendar import academic_year_for_school
+from core.mail_backends import provider_configured
 from core.models import ParentStudentLink
 
 from . import quiet_hours
@@ -257,7 +258,9 @@ class NotificationService:
                 )
 
             if not delivered:
-                logger.error("البريد لم يُسلَّم: الـbackend ردّ صفراً")
+                if provider_configured():
+                    logger.error("البريد لم يُسلَّم: الـbackend ردّ صفراً")
+                # وبلا مزوّدٍ فعليّ: ليس عطلاً (DBT-11) — الـbackend نفسُه كتب التحذيرَ الوحيد، فلا خطأ يبلغ Sentry.
                 log.status = "failed"
                 log.error_msg = _EMAIL_UNDELIVERED_MESSAGE
                 log.save(update_fields=["status", "error_msg"])
