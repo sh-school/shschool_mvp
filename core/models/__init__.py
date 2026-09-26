@@ -5,7 +5,6 @@
 
 # نماذجُ behavior وclinic وlibrary وtransport تُستورد من تطبيقاتها لا من هنا:
 # النواةُ لا تستورد من التطبيقات النازلة (البند 9).
-from ._crypto import _get_fernet, decrypt_field, encrypt_field, hmac_field  # noqa: F401
 from .academic import (  # noqa: F401
     AcademicYear,
     CalendarEvent,
@@ -38,6 +37,7 @@ from .base import (  # noqa: F401
     TimeStampedModel,
 )
 from .capability_grant import DELEGABLE_CAPABILITIES, CapabilityGrant  # noqa: F401
+from .crypto import _get_fernet, decrypt_field, encrypt_field, hmac_field  # noqa: F401
 from .department import Department  # noqa: F401
 from .export_job import ExportJob  # noqa: F401
 from .permission_audit import PermissionAuditLog  # noqa: F401

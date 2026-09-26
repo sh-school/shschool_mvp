@@ -5,13 +5,9 @@
  * وآيفون لا يعطي فيه زرَّ رجوعٍ ولا إيماءةً يُعتمد عليها. فكلُّ ما يفترض
  * متصفّحاً يصير فخّاً (2026-09-14، بلاغُ المطوّر بلقطةٍ من آيفون):
  *
- *   ١. ملفٌّ (PDF، Excel، مرفق) يُعرض مكانَ المنصّة بعارض النظام، ولا شيءَ يُضغط
- *      للخروج — حتى ما يُطلب «تنزيلاً» (`as_attachment=True`) يعرضه آيفون مكانه.
- *      فالملفُّ لا يُنتقل إليه على جهاز لمس: يُجلب في الخلفيّة ويُسلَّم لقائمة
- *      المشاركة (معاينةٌ، حفظٌ، طباعةٌ، واتساب) — وتُغلق فتبقى في مكانك. وما يرفضه
- *      النظامُ مشاركةً (أندرويد لا يشارك docx/xlsx) يُنزَّل تنزيلاً.
- *      يُعلَّم الرابطُ بـ`data-app-file`، وحارسٌ في
- *      tests/test_app_mode_no_dead_ends.py يُفشل البوّابةَ على رابطٍ بلا وسم.
+ *   ١. الملفّات (PDF، Excel، مرفق): انتقلت إلى `export-center.js` (VI-30أ) — مركزُ التصدير الواحد لكلّ رابطٍ أو زرٍّ يحمل `data-app-file`:
+ *      يُجلب الملفُّ في الخلفيّة بإشعار «جارٍ التحضير»، ويُسلَّم في التطبيق المثبَّت على جهاز لمسٍ لقائمة المشاركة (معاينةٌ، حفظٌ، طباعةٌ، واتساب)
+ *      بدل أن يُعرض مكانَ المنصّة بعارض النظام فلا يُخرج منه شيء. وحارسُ الوسم في tests/test_app_mode_no_dead_ends.py.
  *   ٢. «لسانٌ جديد» (`target="_blank"`) لصفحةٍ من المنصّة يُفتح في النافذة نفسها.
  *      أمّا الملفُّ فلا: حيث لا مشاركة يبقى لسانُه الجديد، ولا يحلّ محلّ التطبيق.
  *   ٣. الأوراقُ المستقلّة (قوالبُ الطباعة بلا إطار المنصّة) تحمل شريطَ
@@ -33,193 +29,12 @@
     return matches(STANDALONE) || window.navigator.standalone === true;
   }
 
-  // جهازُ لمس — لا «pointer: coarse» وحدَه: آيباد بلوحة مفاتيحٍ ولوحةِ لمسٍ يُعلن
-  // مؤشّراً دقيقاً، وهو هو الذي يعرض الملفَّ مكانَ التطبيق.
-  function touchDevice() {
-    return (navigator.maxTouchPoints || 0) > 0 || matches('(pointer: coarse)');
-  }
-
-  function canShareFiles() {
-    if (!navigator.share || !navigator.canShare || !window.File) return false;
-    try {
-      return navigator.canShare({ files: [new File([''], 'x.pdf', { type: 'application/pdf' })] });
-    } catch (e) {
-      return false;
-    }
-  }
-
   function sameOrigin(url) {
     try {
       return new URL(url, window.location.href).origin === window.location.origin;
     } catch (e) {
       return false;
     }
-  }
-
-  /* ── ١. الملفّ إلى قائمة المشاركة ─────────────────────────────── */
-
-  // عنصر → {url, file}: ملفٌّ جُلب ولم تُفتح له القائمةُ بعد. والعنوانُ معه: رابطٌ
-  // يغيّر سكربتُه عنوانَه (الورق، السنة) لا يُشارَك له ملفُّ العنوان القديم.
-  var READY = new WeakMap();
-
-  function filenameFrom(response, url) {
-    var cd = response.headers.get('Content-Disposition') || '';
-    var star = /filename\*=UTF-8''([^;]+)/i.exec(cd);
-    if (star) {
-      try { return decodeURIComponent(star[1]); } catch (e) { /* يسقط إلى التالي */ }
-    }
-    var plain = /filename="?([^";]+)"?/i.exec(cd);
-    if (plain) return plain[1];
-    var last = new URL(url, window.location.href).pathname.split('/').filter(Boolean).pop();
-    return last || 'file';
-  }
-
-  function requestFor(el) {
-    if (el.tagName === 'A') return { url: el.href, init: {}, method: 'GET' };
-    var form = el.form;
-    var data = new FormData(form);
-    if (el.name) data.append(el.name, el.value);
-    var action = el.getAttribute('formaction') || form.getAttribute('action') || window.location.href;
-    var method = (el.getAttribute('formmethod') || form.getAttribute('method') || 'get').toUpperCase();
-    if (method === 'GET') {
-      var url = new URL(action, window.location.href);
-      data.forEach(function (value, key) { url.searchParams.append(key, value); });
-      return { url: url.href, init: {}, method: method };
-    }
-    return { url: new URL(action, window.location.href).href, init: { method: method, body: data }, method: method };
-  }
-
-  function label(el) {
-    return el.querySelector('.app-file-label') || el;
-  }
-
-  // محتوى الزرّ قبل «جارٍ التجهيز»: عُقدُه نفسُها لا نصُّها. وكان يُحفظ `innerHTML`
-  // في سمةٍ ثمّ يُعاد إسنادُه — نصٌّ من الصفحة يُعاد تفسيرُه HTML (CodeQL،
-  // js/xss-through-dom): اسمُ ملفٍّ أو مادّةٍ فيه وسمٌ يصير وسماً.
-  var IDLE = new WeakMap();
-
-  function setState(el, state) {
-    if (!IDLE.has(el)) {
-      IDLE.set(el, Array.prototype.map.call(label(el).childNodes, function (node) {
-        return node.cloneNode(true);
-      }));
-    }
-    if (state === 'busy') {
-      el.setAttribute('data-app-file-state', state);
-      el.setAttribute('aria-busy', 'true');
-      label(el).textContent = 'جارٍ تجهيز الملف…';
-    } else if (state === 'ready') {
-      el.setAttribute('data-app-file-state', state);
-      el.removeAttribute('aria-busy');
-      label(el).textContent = 'الملف جاهز — اضغط للحفظ أو الطباعة';
-    } else {
-      el.removeAttribute('aria-busy');
-      el.removeAttribute('data-app-file-state');
-      var target = label(el);
-      while (target.firstChild) target.removeChild(target.firstChild);
-      IDLE.get(el).forEach(function (node) { target.appendChild(node.cloneNode(true)); });
-    }
-  }
-
-  // الأوراقُ المستقلّة لا تحمّل base.js فلا showToast فيها — والرسالةُ لا تُبتلع.
-  function tell(msg) {
-    if (typeof window.showToast === 'function') window.showToast(msg, 'danger');
-    else window.alert(msg);
-  }
-
-  // تنزيلٌ بلا انتقال: ما لا تقبله قائمةُ المشاركة يُحفظ ملفّاً والصفحةُ في مكانها.
-  function save(file) {
-    var href = URL.createObjectURL(file);
-    var a = document.createElement('a');
-    a.href = href;
-    a.download = file.name;
-    a.hidden = true;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.setTimeout(function () { URL.revokeObjectURL(href); }, 60000);
-  }
-
-  function share(el, url, file, fresh) {
-    return navigator.share({ files: [file] }).then(
-      function () { READY.delete(el); setState(el, 'idle'); },
-      function (err) {
-        var name = err && err.name;
-        if (name === 'AbortError') {
-          // أغلق المستخدمُ القائمة — لا خطأ.
-          READY.delete(el);
-          setState(el, 'idle');
-        } else if (name === 'NotAllowedError' && !fresh) {
-          // سفاري يشترط الضغطةَ نفسَها، والملفُّ تأخّر بعدها: ضغطةٌ ثانيةٌ تفتح القائمة.
-          READY.set(el, { url: url, file: file });
-          setState(el, 'ready');
-        } else {
-          // رفضٌ والضغطةُ طازجة: ليس انتهاءَ تفعيل بل رفضٌ للملفّ نفسه — فيُنزَّل.
-          READY.delete(el);
-          setState(el, 'idle');
-          save(file);
-        }
-      }
-    );
-  }
-
-  function openFile(el) {
-    var req = requestFor(el);
-    var ready = READY.get(el);
-    if (ready && ready.url === req.url) {
-      share(el, req.url, ready.file, true);
-      return;
-    }
-    READY.delete(el);
-    if (el.getAttribute('data-app-file-state') === 'busy') return;
-    setState(el, 'busy');
-    fetch(req.url, Object.assign({ credentials: 'same-origin' }, req.init))
-      .then(function (response) {
-        var type = response.headers.get('Content-Type') || '';
-        var html = type.indexOf('text/html') === 0;
-        // الجلسةُ انتهت أو لا صلاحية: صفحةُ الدخول أو المنع تُعرض في إطار المنصّة
-        // كما كانت تُعرض بالانتقال — لا «حاول مرّةً أخرى» لا تنتهي.
-        if ((response.redirected && html) || response.status === 401 || response.status === 403) {
-          setState(el, 'idle');
-          if (req.method === 'GET') window.location.assign(response.redirected ? response.url : req.url);
-          else tell('انتهت الجلسة أو لا صلاحية — أعد المحاولة بعد الدخول.');
-          return null;
-        }
-        if (!response.ok) {
-          // render_pdf يشرح سببَ الفشل نصّاً (503) — يُقرأ ولا يُطمس.
-          return response.text().then(function (text) {
-            setState(el, 'idle');
-            tell(type.indexOf('text/plain') === 0 && text ? text.slice(0, 300) : 'تعذّر تجهيز الملف — حاول مرّةً أخرى.');
-            return null;
-          });
-        }
-        if (html) {
-          // صفحةٌ لا ملفّ: تُفتح كما كانت.
-          setState(el, 'idle');
-          if (req.method === 'GET') window.location.assign(req.url);
-          return null;
-        }
-        return response.blob().then(function (blob) {
-          return new File([blob], filenameFrom(response, req.url), {
-            type: blob.type || type || 'application/octet-stream',
-          });
-        });
-      })
-      .then(function (file) {
-        if (!file) return;
-        var shareable = false;
-        try { shareable = navigator.canShare({ files: [file] }); } catch (e) { shareable = false; }
-        if (!shareable) {
-          setState(el, 'idle');
-          save(file);
-          return;
-        }
-        return share(el, req.url, file, false);
-      })
-      .catch(function () {
-        setState(el, 'idle');
-        tell('تعذّر تجهيز الملف — حاول مرّةً أخرى.');
-      });
   }
 
   /* ── ٢. «لسانٌ جديد» في النافذة نفسها ────────────────────────── */
@@ -229,15 +44,8 @@
     var el = event.target.closest && event.target.closest('a[href], button[type="submit"], button:not([type])');
     if (!el) return;
 
-    if (el.hasAttribute('data-app-file')) {
-      if (touchDevice() && canShareFiles()) {
-        if (el.tagName === 'BUTTON' && el.form && !el.form.reportValidity()) return;
-        event.preventDefault();
-        openFile(el);
-      }
-      // وحيث لا مشاركة يُترك الرابطُ لسلوكه — ولسانُه الجديدُ إن كان له.
-      return;
-    }
+    // الملفّاتُ لمركز التصدير (`export-center.js`): ما لم يعالجه (بلا إشعارٍ عائم) يُترك لسلوكه ولسانُه الجديدُ إن كان له.
+    if (el.hasAttribute('data-app-file')) return;
 
     if (el.tagName === 'A' && el.target === '_blank' && sameOrigin(el.href)) {
       event.preventDefault();

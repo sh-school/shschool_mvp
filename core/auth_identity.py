@@ -73,7 +73,7 @@ def resolve_user(identifier: str, request=None):
 
 def _lookup(raw: str):
     from core.models import CustomUser
-    from core.models._crypto import hmac_field
+    from core.models.crypto import hmac_field
 
     user = CustomUser.objects.filter(employee_number=raw).first()
     if user is not None:

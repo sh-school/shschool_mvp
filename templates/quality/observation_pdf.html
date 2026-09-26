@@ -88,7 +88,10 @@ body {
 #sheet-header img, #sheet-footer img { width: 6.8in; display: block; margin: 0 auto; }
 
 /* عنوانٌ نصّيّ لمن لم يرفع ترويسته — لا ترويسة مدرسةٍ أخرى */
-.plain-head { text-align: center; border-bottom: 2pt solid {% brand_color "FORM_BAND" %}; padding-bottom: 4pt; }
+.plain-head { text-align: center; border-bottom: 2pt solid {% brand_color "FORM_BAND" %}; padding-bottom: 4pt; overflow: hidden; }  /* `overflow` يحوي الشعارَ العائم فيبقى الحدُّ تحته لا خلفَه */
+/* الشعارُ بجانب العنوان النصّيّ حين لا ترويسةَ مرفوعة: عن يمين النصّ (بداية السطر في RTL). ارتفاعُه 0.62 بوصة يسعه الهامشُ العلويّ
+   (1.08 بوصة ناقصَ حشوَي الشريط 0.28 وحدَّه السفليّ 4pt+2pt = 0.7 بوصة): فلا يمسّ الشعارُ ارتفاعَ المتن ولا يُنزل الصفحةَ عن الصفحة الواحدة. */
+#sheet-header .plain-head .logo { float: right; display: block; height: 0.62in; width: auto; margin: 0 0 0 8pt; }  /* يسبق قاعدةَ `#sheet-header img` (عرضُ الشريط) بالخصوصيّة */
 .plain-head .ministry { font-size: 10pt; color: {% brand_color "PRINT_INK_SOFT" %}; }
 .plain-head .school { font-size: 14pt; font-weight: 700; color: {% brand_color "FORM_BAND" %}; }
 .plain-foot {
@@ -187,6 +190,7 @@ td {
     <img src="{{ letterhead }}" alt="">
   {% else %}
     <div class="plain-head">
+      {% if logo %}<img class="logo" src="{{ logo }}" alt="">{% endif %}
       <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
       <div class="school">{{ obs.school.name }}</div>
     </div>

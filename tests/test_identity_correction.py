@@ -114,7 +114,7 @@ class TestApplying:
         الشخصيّ لكلّ كادرٍ له رقمٌ وظيفيّ) — فيُتحقَّق من البصمة مباشرةً لا
         بمحاولة الدخول بها.
         """
-        from core.models._crypto import hmac_field
+        from core.models.crypto import hmac_field
 
         user = self._staff("سالم المصحَّح", "28100000010", "555555")
         path = _register(

@@ -23,12 +23,12 @@ from typing import Any
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
-from core.models import CustomUser, _crypto
+from core.models import CustomUser, crypto
 
-# `_crypto` غيرُ مُعلَّمة بعد؛ يُسند إلى `Any` كي لا تُحسب أخطاءَ نوعٍ على هذا الملفّ الجديد.
-_decrypt: Any = _crypto.decrypt_field
-_encrypt: Any = _crypto.encrypt_field
-_hmac: Any = _crypto.hmac_field
+# `crypto` غيرُ مُعلَّمة بعد؛ يُسند إلى `Any` كي لا تُحسب أخطاءَ نوعٍ على هذا الملفّ الجديد.
+_decrypt: Any = crypto.decrypt_field
+_encrypt: Any = crypto.encrypt_field
+_hmac: Any = crypto.hmac_field
 
 #: (الصريح، المشفَّر، البصمة)
 FIELDS: tuple[tuple[str, str, str], ...] = (

@@ -4,7 +4,7 @@
 
 - ملفُّ PDF كان يُعرض مكانَ المنصّة بعارض النظام فلا يُخرج منه إلّا بإغلاق
   التطبيق — حتى ما يُطلب تنزيلاً (`as_attachment=True`). فكلُّ رابطِ ملفٍّ يحمل
-  `data-app-file`، وjs/app-mode.js يسلّمه لقائمة المشاركة بدل الانتقال إليه.
+  `data-app-file`، وjs/export-center.js (مركزُ التصدير، VI-30أ) يسلّمه لقائمة المشاركة بدل الانتقال إليه.
 - الأوراقُ المستقلّة (لا تمتدّ من base.html) تحمل شريطَ «رجوع إلى المنصّة».
 
 والحارسُ هنا لأنّ الفخَّ يعود من أوّل زرِّ PDF يُضاف بلا وسم.
@@ -36,7 +36,7 @@ FILE_HINTS = re.compile(
     )
 )
 #: أسماءٌ على الاصطلاح وهي صفحات — و`weekly_schedule?…&export=` صفحةُ الجدول تبدأ التصديرَ
-#: بنفسها بإشعارٍ عائم (schedule-export.js)، فالرابطُ صفحةٌ لا ملفّ.
+#: بنفسها بإشعارٍ عائم (export-center.js)، فالرابطُ صفحةٌ لا ملفّ.
 PAGE_URL_NAMES = re.compile(r"\{%\s*url\s+['\"](?:student_import_export|weekly_schedule)['\"]")
 TAG = re.compile(r"<(?:a|button)\b[^>]*>", re.S)
 
@@ -78,6 +78,7 @@ def _templates():
 
 
 def test_every_file_link_is_handed_to_the_share_sheet_in_the_app():
+    """كلُّ رابطٍ أو زرِّ ملفٍّ يحمل الوسمَ الذي يقرؤه مركزُ التصدير — وإلّا مرّ بلا إشعارٍ ولا قائمةِ مشاركة."""
     untagged = [
         f"{path.as_posix()}: {' '.join(tag.split())[:120]}"
         for path in _templates()
@@ -164,11 +165,49 @@ def test_app_mode_script_keeps_its_contract():
 
     for needle in (
         "(display-mode: standalone)",
-        "data-app-file",
+        "data-app-file",  # يتركه لمركز التصدير ولا يعالجه
         "data-app-back-bar",
         "data-app-back",
-        "NotAllowedError",  # سفاري: ضغطةٌ ثانيةٌ حين يتأخّر الملفّ
         "window.top !== window",  # الورقةُ داخل إطار المنصّة بلا شريط
+    ):
+        assert needle in src, needle
+
+
+def test_the_platform_frame_loads_the_export_center():
+    """VI-30أ: سكربتٌ مركزيٌّ واحدٌ يحلّ محلّ `schedule-export.js` وشقِّ الملفّات في `app-mode.js`."""
+    assert "js/export-center.js" in (TEMPLATES / "base/base.html").read_text(encoding="utf-8")
+    assert not pathlib.Path("static/js/schedule-export.js").exists(), "آليّةُ التصدير الثانية عادت"
+    loaders = [
+        path.as_posix()
+        for path in _templates()
+        if "schedule-export.js" in path.read_text(encoding="utf-8")
+    ]
+    assert not loaders, f"قوالبُ تحمّل schedule-export.js المحذوف: {loaders}"
+
+
+def test_app_mode_no_longer_handles_files_itself():
+    """الشقُّ ١ انتقل: لا جلبَ ولا مشاركةَ ولا تنزيلَ في app-mode.js (وإلّا عاد المسارُ المزدوج)."""
+    src = pathlib.Path("static/js/app-mode.js").read_text(encoding="utf-8")
+    for gone in ("navigator.share", "URL.createObjectURL", "fetch(", "NotAllowedError"):
+        assert gone not in src, f"app-mode.js يعالج الملفّاتِ ثانيةً: {gone}"
+
+
+def test_export_center_script_keeps_its_contract():
+    """عقدُ الاستجابة مع الخادم (VI-30ب) وسلوكُ الجوال المثبَّت — لا يُعاد تسميتُه من طرفٍ واحد."""
+    src = pathlib.Path("static/js/export-center.js").read_text(encoding="utf-8")
+
+    for needle in (
+        "a[data-app-file][href], button[data-app-file]",  # ما يلتقطه
+        "'X-Requested-With': 'XMLHttpRequest'",  # ما يميّز XHR عند الخادم
+        "status_url",  # مهمّةٌ خلفيّة (202، والشكلُ القديم 200)
+        "poll_ms",
+        "error.message",  # نصُّ الخطأ عربيّةٌ ثابتةٌ من الخادم لا استثناء
+        "text/html",  # لا يُنزَّل HTML ملفّاً
+        "NOTICE_AFTER_MS = 600",  # الإشعارُ بعد 600ms فقط
+        "(display-mode: standalone)",
+        "navigator.canShare",  # قائمةُ المشاركة على جهاز لمس في التطبيق
+        "NotAllowedError",  # سفاري: ضغطةٌ ثانيةٌ حين يتأخّر الملفّ
+        "GIVE_UP_MS",  # سقفٌ للاستطلاع: لا انتظارَ بلا نهاية
     ):
         assert needle in src, needle
 
@@ -181,3 +220,10 @@ def test_the_pages_view_offers_one_pdf_button_on_touch_screens():
     pdf_links = re.findall(r"<a[^>]*schedule_pages_pdf[^>]*>", src)
 
     assert len(pdf_links) == 1
+
+
+def test_export_center_treats_target_blank_links_like_every_other_export():
+    """قرارُ المالك 2026-09-26: لا عرضَ PDF مضمَّناً في لسانٍ جديد — كلُّ التصديرات تُنزَّل بإشعارٍ واحد (ولا blob يرث CSP الصفحة)."""
+    src = pathlib.Path("static/js/export-center.js").read_text(encoding="utf-8")
+    assert "el.target === '_blank'" not in src, "عاد استثناءُ target=_blank"
+    assert "window.open" not in src, "المركزُ لا يفتح ألسنةً"

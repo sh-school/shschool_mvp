@@ -362,7 +362,7 @@ class _Apps:
 
 def test_the_migration_peels_and_saves_only_what_changed(key, settings, monkeypatch):
     """طبقتان تصيران واحدة، والسليمُ لا يُحفَظ بلا داعٍ."""
-    monkeypatch.setattr("core.models._crypto._get_fernet", lambda: key)
+    monkeypatch.setattr("core.models.crypto._get_fernet", lambda: key)
     once = key.encrypt(ARABIC.encode()).decode()
     twice = key.encrypt(once.encode()).decode()
     damaged = _Row("r1", allergies=twice, chronic_diseases=once, medications="")
@@ -378,7 +378,7 @@ def test_the_migration_peels_and_saves_only_what_changed(key, settings, monkeypa
 
 def test_the_migration_refuses_to_finish_on_an_unclassified_value(key, monkeypatch):
     """لا يُصلح ما لا يفهمه، ولا يمرّ عنه صامتاً — يقف ويسمّيه."""
-    monkeypatch.setattr("core.models._crypto._get_fernet", lambda: key)
+    monkeypatch.setattr("core.models.crypto._get_fernet", lambda: key)
     bad = key.encrypt(b"\xff\xfe not utf-8 \x80").decode()
     row = _Row("r3", allergies=bad, chronic_diseases="", medications="")
 
@@ -388,7 +388,7 @@ def test_the_migration_refuses_to_finish_on_an_unclassified_value(key, monkeypat
 
 def test_the_migration_does_nothing_without_a_key(monkeypatch):
     """بلا مفتاحٍ لا تُميَّز الحالات — فلا تسويةَ ولا خطأ، وتُترك للبيئة التي تملكه."""
-    monkeypatch.setattr("core.models._crypto._get_fernet", lambda: None)
+    monkeypatch.setattr("core.models.crypto._get_fernet", lambda: None)
     row = _Row("r4", allergies="أيّاً كان", chronic_diseases="", medications="")
 
     _migration()._peel_to_one_layer(_Apps([row]), None)

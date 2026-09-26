@@ -188,14 +188,14 @@ def test_the_embedded_letterhead_is_a_data_uri(db, observation):
     assert io  # noqa: B018 — الاستيراد يوثّق أنّ القراءة ثنائية
 
 
-def test_a_school_without_a_letterhead_gets_a_text_heading(db, observation):
-    """لا ترويسةَ مدرسةٍ أخرى — عنوانٌ نصّيٌّ من اسمها هي."""
+def test_a_school_without_a_letterhead_gets_a_text_heading_with_the_approved_logo(db, observation):
+    """لا ترويسةَ مدرسةٍ أخرى — عنوانٌ نصّيٌّ من اسمها هي ومعه الشعارُ المعتمد (لا شعارَ مدرسةٍ أخرى)."""
     from quality.observation_views import _pdf_context
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
 
-    assert observation.school.name in html
-    assert "<img" not in html
+    assert observation.school.name in html and "وزارة التربية والتعليم" in html
+    assert html.count("<img") == 1 and 'class="logo"' in html
 
 
 # ── قسمة الصفحتين ────────────────────────────────────────────────────
@@ -592,3 +592,174 @@ def test_a_stamped_form_fits_wherever_the_unstamped_one_fits(db, school, named):
     assert (
         _page_count(_acknowledged(named)) == 1
     ), f"الختمان أنزلا الاستمارةَ ({count} معياراً) عن صفحتها"
+
+
+# ── الشعارُ في الرأس (بلاغ المالك 2026-09-26) ─────────────────────────────────
+# الترتيب: صورةُ الترويسة المرفوعة إن وُجدت (كما هي) ← `School.logo` إن وُجد ← الشعارُ المعتمد `static/brand/logoMaroon.png` مع الترويسة
+# النصّيّة. فلا تحتاج مدرسةٌ إلى رفع شيءٍ لتظهر الاستمارةُ بشعار، وتبقى الصفحةُ واحدة.
+
+PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+
+
+def _save_image(field, name):
+    import base64
+
+    from django.core.files.base import ContentFile
+
+    field.save(name, ContentFile(base64.b64decode(PNG)), save=True)
+
+
+def test_without_any_upload_the_approved_logo_is_used(db, observation):
+    import base64
+    import pathlib
+
+    from quality.observation_views import _pdf_context
+
+    logo = _pdf_context(observation)["logo"]
+
+    assert logo.startswith("data:image/png;base64,")
+    expected = pathlib.Path("static/brand/logoMaroon.png").read_bytes()
+    assert base64.b64decode(logo.split(",", 1)[1]) == expected, "الشعارُ المعتمدُ نفسُه لا نسخةٌ أخرى"
+
+
+def test_the_schools_own_logo_comes_before_the_approved_one(db, observation):
+    from quality.observation_views import _as_data_uri, _pdf_context
+    from quality.pdf_assets import brand_logo_data_uri
+
+    _save_image(observation.school.logo, "own.png")
+
+    ctx = _pdf_context(observation)
+
+    assert ctx["logo"] == _as_data_uri(observation.school.logo)
+    assert ctx["logo"] != brand_logo_data_uri()
+
+
+def test_an_uploaded_letterhead_replaces_the_text_heading_and_no_logo_is_added(db, observation):
+    """الترويسةُ المرفوعة كما هي — لا شعارَ بجانبها ولا يُقرأ ملفُّه."""
+    from quality.observation_views import _pdf_context
+
+    _save_image(observation.school.letterhead, "head.png")
+    _save_image(observation.school.logo, "own.png")
+
+    ctx = _pdf_context(observation)
+    html = render_to_string("quality/observation_pdf.html", ctx)
+
+    assert ctx["logo"] == ""
+    assert html.count("<img") == 1 and 'class="logo"' not in html
+
+
+def test_a_missing_approved_logo_falls_back_to_the_text_heading(db, observation, tmp_path):
+    from django.test import override_settings
+
+    from quality.observation_views import _pdf_context
+
+    with override_settings(BASE_DIR=tmp_path):
+        ctx = _pdf_context(observation)
+        html = render_to_string("quality/observation_pdf.html", ctx)
+
+    assert ctx["logo"] == ""
+    assert "<img" not in html and observation.school.name in html
+
+
+def test_the_logo_fits_the_top_margin_without_touching_the_body(source):
+    """ارتفاعُ الشعار + حشوا الشريط + حدُّ العنوان السفليّ ≤ الهامش العلويّ — وإلّا نزل من الهامش على المتن."""
+    import re
+
+    logo = float(re.search(r"\.plain-head \.logo \{[^}]*height: ([\d.]+)in", source).group(1))
+    top = float(re.search(r"margin: ([\d.]+)in [\d.]+in [\d.]+in [\d.]+in", source).group(1))
+    padding = 2 * float(re.search(r"#sheet-header \{[^}]*padding: ([\d.]+)in 0", source).group(1))
+    border_and_gap = (2 + 4) / 72  # حدُّ العنوان 2pt وحشوُه السفليّ 4pt
+
+    assert logo + padding + border_and_gap <= top, (logo, padding, top)
+
+
+def _image_boxes(html):
+    """(عرضٌ، ارتفاعٌ) بالبكسل CSS لكلّ صورةٍ في الصفحة الأولى — من تخطيط WeasyPrint نفسِه لا من نصّ القالب."""
+    weasyprint = pytest.importorskip("weasyprint")
+    from weasyprint.formatting_structure import boxes
+
+    page = weasyprint.HTML(string=html).render().pages[0]._page_box
+    found = []
+
+    def walk(box):
+        if isinstance(box, boxes.InlineReplacedBox | boxes.BlockReplacedBox):
+            found.append((round(box.width, 1), round(box.height, 1)))
+        for child in getattr(box, "children", ()):
+            walk(child)
+
+    walk(page)
+    return found
+
+
+def test_the_logo_is_drawn_small_not_stretched_across_the_header(db, observation):
+    """القاعدةُ العامّة `#sheet-header img` تمدّ صورةَ الترويسة على عرض الشريط (6.8 بوصة) — وشعارٌ بقاعدةٍ أضعفَ خصوصيّةً يُمدّ معها فيغطّي الرأس.
+
+    يُقاس حجمُه المرسوم فعلاً: مربّعٌ صغيرٌ بنحو 0.62 بوصة (59.5px) لا أوسعُ من بوصة.
+    """
+    from quality.observation_views import _pdf_context
+
+    html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
+    images = _image_boxes(html)
+
+    assert len(images) == 1, images
+    width, height = images[0]
+    assert width <= 96 and 50 <= height <= 62, images
+
+
+def test_an_uploaded_letterhead_is_still_stretched_to_the_strip_width(db, observation):
+    """`#sheet-header img` بقيت كما هي: الترويسةُ المرفوعة بعرض الشريط (6.8 بوصة = 652.8px)."""
+    from quality.observation_views import _pdf_context
+
+    _save_image(observation.school.letterhead, "head.png")
+    html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
+
+    assert [w for w, _h in _image_boxes(html)] == [652.8]
+
+
+def _images_and_pages(obs):
+    import io
+
+    from core.pdf_utils import render_pdf_bytes
+
+    pypdf = pytest.importorskip("pypdf")
+    reader = pypdf.PdfReader(io.BytesIO(render_pdf_bytes(_html_of(obs))))
+    return len(reader.pages), len(reader.pages[0].images)
+
+
+def test_the_logo_reaches_the_pdf_as_an_image_and_its_absence_leaves_none(
+    db, school, named, tmp_path
+):
+    """القبولُ: يظهر صورةً في PDF حين يُوجد الشعارُ ولا ترويسة، ولا يظهر حين لا يوجدان."""
+    from django.test import override_settings
+
+    pytest.importorskip("weasyprint")
+    _real_criteria(school, 12)
+
+    pages_with, images_with = _images_and_pages(named)
+    with override_settings(BASE_DIR=tmp_path):  # لا شعارَ معتمداً ولا شعارَ مدرسة ولا ترويسة
+        pages_without, images_without = _images_and_pages(named)
+
+    assert images_with == 1 and images_without == 0
+    assert pages_with == pages_without == 1
+
+
+def test_the_logo_never_costs_a_page(db, school, named, tmp_path):
+    """صفحةٌ واحدة: أكبرُ عددِ معاييرَ تسعه الصفحةُ بلا شعار (حتّى حافّتها) — والشعارُ عند العدد نفسِه لا يُنزلها إلى صفحتين.
+
+    نسبيّ عمداً كما في ختم F55E: عددُ الصفحات المطلق تحكمه خطوطُ PDF المثبَّتةُ في البيئة.
+    """
+    from django.test import override_settings
+
+    pytest.importorskip("weasyprint")
+    named.general_notes = ""
+    named.save()
+
+    for count in range(23, 8, -1):
+        _real_criteria(school, count)
+        with override_settings(BASE_DIR=tmp_path):
+            if _images_and_pages(named)[0] == 1:
+                break
+    else:
+        pytest.skip("لا عددَ معاييرَ تسعه صفحةٌ في هذه البيئة (خطوطُ PDF غيرُ مثبَّتة)")
+
+    assert _images_and_pages(named)[0] == 1, f"الشعارُ أنزل الاستمارةَ ({count} معياراً) عن صفحتها"

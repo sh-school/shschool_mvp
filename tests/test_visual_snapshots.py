@@ -6,6 +6,9 @@
 
 from __future__ import annotations
 
+import ast
+import pathlib
+
 from PIL import Image
 
 from tests import visual_snapshots as vs
@@ -70,13 +73,52 @@ def test_the_diff_image_paints_only_what_changed(tmp_path):
         assert image.getpixel((0, 0)) == (255, 255, 255)
 
 
-def test_the_matrix_is_five_pages_by_two_themes_by_two_widths():
-    combos = vs.matrix()
-    assert len(combos) == len(vs.SHOTS) * len(vs.THEMES) * len(vs.PROFILE_NAMES) == 20
-    assert len(set(combos)) == 20
-    keys = {vs.shot_key(*combo[:2], combo[2], combo[3]) for combo in combos}
-    assert len(keys) == 20 and all("/" in key and key.endswith(".png") for key in keys)
+def _journeys() -> dict[str, tuple[str, ...]]:
+    """`JOURNEYS` من `tests/test_mobile_audit.py` بلا استيراده (يتخطّى نفسَه بلا Playwright)."""
+    tree = ast.parse(pathlib.Path("tests/test_mobile_audit.py").read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "JOURNEYS":
+            return {role: pages for role, (_fixture, pages) in ast.literal_eval(node.value).items()}
+    raise AssertionError("JOURNEYS غيرُ معرَّف في tests/test_mobile_audit.py")
+
+
+def test_the_matrix_is_the_identity_five_the_role_journeys_and_the_steps():
+    shots = vs.matrix()
+    identity = len(vs.SHOTS) * len(vs.THEMES) * len(vs.PROFILE_NAMES)
+    journeys = len(vs.JOURNEY_SHOTS) * len(vs.PROFILE_NAMES)
+    assert identity == 20 and journeys == 40 and len(vs.STEP_SHOTS) == 3
+    assert len(shots) == identity + journeys + len(vs.STEP_SHOTS) == 63
+    keys = [shot.key for shot in shots]
+    assert len(set(keys)) == len(keys), "مفتاحان متطابقان — تُكتب لقطةٌ فوق أخرى"
+    assert all("/" in key and key.endswith(".png") for key in keys)
     assert set(vs.PROFILE_NAMES) == {"mobile", "desktop"}
+
+
+def test_every_shot_page_is_a_role_journey_page():
+    """كلُّ (دور، صفحة) جديدٍ يجب أن يكون في `JOURNEYS` (الحسابُ المبذور والرابط) — شرطُ صاحب VI-13."""
+    journeys = _journeys()
+    every = list(vs.SHOTS) + list(vs.JOURNEY_SHOTS) + [(r, p) for r, p, *_ in vs.STEP_SHOTS]
+    for role, page in every:
+        assert page in journeys.get(role, ()), f"{role}:{page} ليست في JOURNEYS"
+
+
+def test_the_journeys_are_covered_completely():
+    """رحلاتُ الأدوار الخمس كلُّها في المصفوفة — صفحةٌ تُضاف إلى JOURNEYS تُضاف هنا أو تسقط بعلّتها."""
+    every = {(role, page) for role, pages in _journeys().items() for page in pages}
+    covered = set(vs.SHOTS) | set(vs.JOURNEY_SHOTS)
+    assert not (set(vs.SHOTS) & set(vs.JOURNEY_SHOTS)), "صفحةٌ في القائمتَين — لقطتان لشيءٍ واحد"
+    assert (
+        covered == every
+    ), f"غيرُ مغطّاة: {sorted(every - covered)}؛ زائدةٌ: {sorted(covered - every)}"
+
+
+def test_the_steps_are_known_and_the_mobile_menu_is_mobile_only():
+    for role, page, step, profile in vs.STEP_SHOTS:
+        assert step in vs.STEPS and profile in vs.PROFILE_NAMES
+        if step == "menu":
+            assert profile == "mobile", "قائمةُ الهامبرغر لا تظهر على سطح المكتب"
+    assert "@menu" in vs.shot_key("leadership", "dashboard", "light", "mobile", "menu")
+    assert "@" not in vs.shot_key("leadership", "dashboard", "light", "mobile")
 
 
 def test_the_summary_lists_every_shot():

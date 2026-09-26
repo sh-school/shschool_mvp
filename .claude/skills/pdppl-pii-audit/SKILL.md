@@ -38,7 +38,7 @@ python .claude/skills/pdppl-pii-audit/scripts/pii_scan.py --serializers-only
 | الغرض | المكوّن الفعلي | ملاحظة |
 |------|----------------|--------|
 | تشفير حقل | `core.fields.EncryptedTextField` | يشفّر/يفكّ تلقائياً عبر `from_db_value`/`get_prep_value` |
-| تشفير يدوي | `encrypt_field` / `decrypt_field` في `core/models/_crypto.py` | MultiFernet — يدعم تدوير المفاتيح |
+| تشفير يدوي | `encrypt_field` / `decrypt_field` في `core/models/crypto.py` | MultiFernet — يدعم تدوير المفاتيح |
 | بحث دون فك تشفير | `hmac_field` | فهرس HMAC للبحث عن قيمة مشفّرة (مثل national_id) |
 | تدوير المفاتيح | `FERNET_KEY` + `FERNET_OLD_KEYS` + `manage.py rotate_fernet_key` | fail-closed في الإنتاج |
 | سجل تدقيق غير قابل للتعديل | `AuditLog` (`core/models/audit.py`) | manager يمنع UPDATE/DELETE |

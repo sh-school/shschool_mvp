@@ -1,36 +1,48 @@
 #!/usr/bin/env bash
 # ══════════════════════════════════════════════════════════════
-#  المعاينةُ المركزيّة — خادمٌ واحدٌ يعرض main بوضع الإنتاج ويتبعه وحدَه
+#  المعاينةُ المركزيّة — خادمٌ واحدٌ يعرض main وما أودعته الجلساتُ ولم يُدمج، بوضع الإنتاج
 # ══════════════════════════════════════════════════════════════
 #  كان لكلّ جلسةٍ خادمُها لِيراها صاحبُ القرار، فاجتمعت خوادمُ مقيمةٌ أكثرُها خاملٌ على
 #  جهازٍ ذاكرتُه 16 غيغا. فهنا خادمٌ واحد (`docker-compose.preview.yml`، منفذ 8500):
 #
-#    • الافتراضيّ (follow): شجرةُ `main-preview` المثبَّتة على رأس main، بإعدادات الإنتاج
-#      (shschool.settings.preview) — يتبع main تلقائيّاً بعد أن يسكن بضعَ دقائق.
+#    • الافتراضيّ (follow): شجرةُ `main-preview` على رأس main مضموماً إليه ما أودعته الجلساتُ ولم يُدمج
+#      بعدُ (التكامل)، بإعدادات الإنتاج (shschool.settings.preview) — تتحدّث بعد أن يسكن ذلك بضعَ دقائق،
+#      فيرى المالكُ عملَ الجلسات مجتمعاً قبل دمجه ودفعه (قرارُ المالك 2026-09-26). `integrate off` يعيدها
+#      إلى main وحدَه.
 #    • التثبيتُ المؤقّت (pin): شجرةُ جلسةٍ بإعدادات التطوير لمعاينة عملٍ لم يصر طلبَ دمجٍ
-#      بعدُ، ثمّ يعود إلى main وحدَه بعد مدّةٍ (120 دقيقةً افتراضاً) أو بـ`release`.
+#      بعدُ (أو لم يُودَع)، ثمّ يعود إلى main وحدَه بعد مدّةٍ (120 دقيقةً افتراضاً) أو بـ`release`.
 #
 #  الأوامر (bash scripts/preview.sh <أمر>):
 #    up [--lan]            أوّلَ مرّة: الشجرةُ والقاعدةُ ثمّ الإقلاع (متساوي الأثر). `--lan` يفتحه لشبكة
 #                          الجهاز (لمعاينة الجوال)، وبلا `--lan` يعود إلى الحلقة المحلّيّة فقط.
-#    sync [--now]          دورةٌ واحدة: إن تقدّم main وسكن طُبّق. `--now` بلا انتظار السكون.
+#    sync [--now]          دورةٌ واحدة: إن تقدّم main أو ما أودعته الجلساتُ وسكن طُبّق. `--now` بلا انتظار السكون.
 #    watch                 حلقةٌ تستدعي sync كلّ دقيقة (تبقى في تبويب طرفيّةٍ أو مهمّةٍ مجدولة).
 #    pin <شجرة> [دقائق]    حوّل الخادمَ إلى شجرة جلسة (اسمُ مجلّدها، انظر list). لا يُنتزع تثبيتُ غيرك
 #                          ما دامت مدّتُه قائمة إلّا بـ`--force` (بإذن المالك).
-#    release               ارجع إلى main الآن.
+#    release               ارجع إلى main (والتكامل) الآن.
+#    integrate [plan|on|off|exclude <شجرة>|include <شجرة>]
+#                          ما يدخل التكاملَ الآن (plan، وهو الافتراضيّ)، وتشغيلُه وإطفاؤه، واستثناءُ شجرةٍ منه.
 #    list                  الأشجارُ التي يمكن تثبيتُها.
 #    status                ما يخدمه الخادمُ، ومقارنتُه بـmain وبالإنتاج (commit من /health/).
 #    down                  أوقف الخادمَ والعامل (لا يحذف شيئاً).
 #
 #  قبل أن تصل هذه الشيفرةُ إلى main (إعداداتُ preview.py ليست فيه فلا يُقلع عليه) تُجرَّب على إيداعها:
 #      PREVIEW_REF=<sha> bash scripts/preview.sh up        (أو PREVIEW_REF=origin/<فرع>)
-#  وبعد دمجها: `up` بلا PREVIEW_REF من شجرة main-preview نفسِها.
+#  وبعد دمجها: `up` بلا PREVIEW_REF من شجرة main-preview نفسِها. (والتكاملُ لا يعمل مع PREVIEW_REF: مرجعٌ صريحٌ = تجربة.)
 #
 #  لِمَ فحصٌ دوريّ لا خطّاف؟ طابورُ الدمج يدمج على GitHub بلا حدثٍ محلّيّ، والفحصُ يلتقط أيضاً
 #  دمجاً يدويّاً وأيَّ تراجعٍ للإنتاج. ولِمَ السكون (3 دقائق)؟ الدمجُ يأتي دفعات (81 إيداعاً في
 #  يومٍ)، فتحديثٌ لكلّ إيداعٍ هدرٌ؛ وله سقفُ انتظارٍ (15 دقيقة) كي لا يجوع التحديثُ. وإن سقط
 #  تطبيقُ إيداعٍ (هجرةٌ مثلاً) عاد إلى آخر نسخةٍ سليمةٍ كي لا تسقط المعاينة، ولا يعيد المحاولةَ
 #  على الإيداع نفسِه — وسقوطُه على بياناتٍ مزروعةٍ إنذارٌ مبكّرٌ بأنّ هجرةَ الإنتاج ستسقط.
+#
+#  التكامل: يُبنى من main ثمّ يُضَمّ رأسُ كلّ شجرةِ جلسةٍ (ما أُودع في فرعها، لا ما لم يُودَع) بـ`git merge-tree`
+#  و`git commit-tree` — أشياءُ وسيطةٌ في مخزن غيت لا تلمس شجرةً ولا فهرساً ولا فرعاً. يُتخطّى ويُذكر في `status`:
+#  فرعٌ يتعارض (مع main أو مع فرعٍ ضُمّ قبله)، وفرعٌ خاملٌ (لا إيداعَ جديداً منذ 48 ساعة)، وفرعٌ تصادم
+#  ترقيمُ هجرته هجرةً سابقةً (فيسقط migrate)، وفرعٌ يعدّل آلةَ المعاينة نفسَها
+#  (تُنفَّذ من شجرة main-preview كلَّ دقيقةٍ فلا تُعطَب). وقاعدةُ المعاينة لا تحمل هجرةً ليست في الشجرة المعروضة:
+#  إن اختفت هجرةٌ مطبَّقةٌ (سُحب فرعُها) أُنشئت قاعدةٌ جديدةٌ من الأصل المزروع (ss_main_preview_g<N>) — وإلّا
+#  سقطت الصفحاتُ بـ«column … does not exist» كما في حادثة 2026-09-11. وإخفاقان متتاليان للتكامل يطفئانه.
 #
 #  عقدُ الأمان (يحرسه tests/test_preview_setup.py): لا يكتب في شجرة جلسةٍ ولا يبدّل فرعَها ولا
 #  يدفع إلى غيت ولا يحذف قاعدةً أو شجرةً، ولا يمسّ حاوياتٍ غيرَ مشروعه `schoolos-main-preview`.
@@ -56,6 +68,15 @@ DRY="${PREVIEW_DRY_RUN:-0}"                       # 1: يطبع ما سيفعل�
 # ما تتبعه المعاينةُ: main افتراضاً. ولتجربة شيفرةٍ لم تُدمج بعدُ (وأوّلُها هذه المعاينةُ نفسُها: preview.py
 # ليس في main قبل دمجها فلا يُقلع عليه) يُمرَّر إيداعٌ أو فرعٌ: PREVIEW_REF=<sha> أو PREVIEW_REF=origin/<فرع>.
 REF="${PREVIEW_REF:-origin/main}"
+# التكامل: main مضموماً إليه ما أودعته الجلساتُ في أشجارها ولم يُدمج بعدُ (قرارُ المالك 2026-09-26: تلقائيّ).
+# `integrate on|off` يحفظ اختيارَه في الحالة فيغلب هذا الافتراضَ.
+INTEGRATE="${PREVIEW_INTEGRATE:-1}"
+# فرعٌ لم يُودَع فيه عملٌ جديدٌ (غيرُ دمجٍ من main) منذ هذه الساعات يُعدّ منسيّاً فلا يدخل التكامل: أشجارٌ قديمةٌ
+# على فروعٍ لم تُدمج (وُجد منها فرعُ 09-17 وآخرُ 09-22) تُظهر في المعاينة عملاً مهجوراً كأنّه قيدُ الدمج. 0 = بلا سقف.
+MAX_AGE_HOURS="${PREVIEW_INTEGRATE_MAX_AGE_HOURS:-48}"
+# ملفّاتُ آلةِ المعاينة نفسِها: تُنفَّذ من شجرة main-preview كلَّ دقيقة، فلا يدخل التكاملَ فرعٌ يعدّلها
+# (فرعٌ معطوبٌ يكسر المراقبَ الذي يُفترض أن يستردّ المعاينة). يُعاين بـ`pin`.
+MACHINERY=(scripts/preview.sh scripts/session-db.sh docker-compose.preview.yml)
 
 say()  { printf '%s\n' "$*"; }
 idle() { [ "${PREVIEW_QUIET_OUTPUT:-0}" = 1 ] || say "$*"; }
@@ -63,6 +84,9 @@ warn() { printf '! %s\n' "$*" >&2; }
 die()  { printf '✗ %s\n' "$*" >&2; exit 1; }
 now()  { date +%s; }
 run()  { if [ "$DRY" = 1 ]; then printf '[dry] %s\n' "$*"; else "$@"; fi; }
+
+# ما ستعرضه المعاينةُ: يضبطه resolve_target (وتقرؤه deploy_main وapply_main).
+MAIN_SHA=""; TARGET=""; LABEL=""; INTEG_KIND="main"; INTEG_REPORT=""
 
 # ── الحالة: ملفّاتٌ صغيرةٌ داخل .git لهذه الشجرة — لا تُتتبَّع ولا يمسّها reset ──
 STATE_DIR=""
@@ -122,9 +146,49 @@ guard_tree() {
 }
 
 slug_db() { (cd "$1" && bash "$SELF_ROOT/scripts/session-db.sh" --name); }
-ensure_db() {
-  if [ "$DRY" = 1 ]; then say "[dry] قاعدةُ $(slug_db "$1") تُنشأ إن لم توجد"; return 0; fi
-  (cd "$1" && bash "$SELF_ROOT/scripts/session-db.sh")
+ensure_db() {   # ensure_db <شجرة> [اسمٌ صريح]: الاسمُ الصريحُ لأجيال قاعدة المعاينة (انظر preview_db)
+  local name="${2:-}"
+  [ -n "$name" ] || name="$(slug_db "$1")"
+  if [ "$DRY" = 1 ]; then say "[dry] قاعدةُ $name تُنشأ إن لم توجد"; return 0; fi
+  (cd "$1" && SESSION_DB_NAME="$name" bash "$SELF_ROOT/scripts/session-db.sh")
+}
+
+# ── قاعدةُ المعاينة: لا تحمل هجرةً ليست في الشجرة المعروضة ─────────────────────────
+# التكاملُ يطبّق هجراتِ فروعٍ لم تُدمج؛ فإن سُحب فرعٌ (تعارض، أو أعادت جلسةٌ كتابةَ هجرتها) بقيت هجرتُه
+# مطبَّقةً في القاعدة والشيفرةُ لا تعرفها: حذفُ عمودٍ مثلاً يُسقط صفحاتٍ بـ«column … does not exist» —
+# حادثةُ 2026-09-11 نفسُها. فكلُّ هجرةٍ قد طُبّقت تُسجَّل (db_migrations)، وحين تختفي إحداها من الشجرة
+# الجديدة تُنشأ قاعدةٌ جديدةٌ من الأصل المزروع باسمٍ بجيلٍ أعلى؛ والقديمةُ تبقى (عقدُ السكربت ألّا يحذف).
+migration_list() {   # migration_list <إيداع> — «تطبيق/رقم_اسم» لكلّ هجرةِ مشروعٍ فيه (من غيت مباشرةً، بلا django)
+  git -C "$PREVIEW_DIR" ls-tree -r --name-only "$1" 2>/dev/null \
+    | sed -nE 's#^(.*/)?([^/]+)/migrations/([0-9][^/]*)\.py$#\2/\3#p' \
+    | LC_ALL=C sort -u
+}
+
+preview_db() {   # اسمُ قاعدة المعاينة الحاليّ: ss_main_preview ثمّ ss_main_preview_g1 وg2… بعد كلّ إعادة إنشاء
+  local base gen; base="$(slug_db "$PREVIEW_DIR")"; gen="$(sget db_gen)"
+  if [ -n "$gen" ] && [ "$gen" != 0 ]; then printf '%s_g%s' "$base" "$gen"; else printf '%s' "$base"; fi
+}
+
+prepare_db() {   # prepare_db <إيداع> — قبل كلّ إقلاع: هل في القاعدة هجرةٌ ليست في هذا الإيداع؟
+  local target="$1" tree_list applied missing gen
+  tree_list="$(migration_list "$target" || true)"
+  applied="$(sget db_migrations)"
+  # أوّلُ تشغيلٍ بعد هذا الأمر: القاعدةُ على ما خدمته آخرُ نسخة.
+  if [ -z "$applied" ] && [ -n "$(sget served_sha)" ]; then
+    applied="$(migration_list "$(sget served_sha)" || true)"
+  fi
+  if [ -n "$applied" ]; then
+    missing="$(LC_ALL=C comm -23 <(printf '%s\n' "$applied") <(printf '%s\n' "$tree_list"))"
+    if [ -n "$missing" ]; then
+      gen="$(sget db_gen)"; gen=$(( ${gen:-0} + 1 ))
+      warn "في قاعدة المعاينة هجراتٌ طُبّقت ولم تعد في الشجرة ($(printf '%s\n' "$missing" | head -3 | paste -sd' ' -)) — تُنشأ قاعدةٌ جديدةٌ من الأصل المزروع (الجيل $gen)"
+      sset db_gen "$gen"
+      sset db_note "$(now) أُعيدت القاعدةُ (الجيل $gen) لأنّ هجرةً مطبَّقةً سابقاً لم تعد في الشجرة المعروضة"
+      applied=""
+    fi
+  fi
+  # يُفترض الأسوأ: قد تُطبَّق هجراتُ هذا الإيداع كلُّها قبل أن يسقط الإقلاعُ.
+  sset db_migrations "$(printf '%s\n%s\n' "$applied" "$tree_list" | sed '/^$/d' | LC_ALL=C sort -u)"
 }
 
 # ── الصورةُ: تُبنى فقط حين تخالف requirements.txt ما فيها ───────────
@@ -235,40 +299,198 @@ served_commit() {
   curl -s -m 5 "http://127.0.0.1:$PORT/health/" | sed -n 's/.*"commit": *"\([0-9a-f]*\)".*/\1/p' || true
 }
 
-# ── النشرُ المحلّيّ: main (إنتاج) أو شجرةُ جلسة (تطوير) ─────────────
+# ── التكامل: main + ما أودعته الجلساتُ ولم يُدمج ─────────────────────────────
+# قراءةٌ وأشياءُ غيت وسيطةٌ فقط (merge-tree وcommit-tree): لا تُفتح شجرةُ جلسةٍ ولا يُبدَّل فرعٌ ولا يُكتب
+# غيرُ كائناتٍ في مخزن غيت المشترك. والمرشَّحُ رأسُ كلّ شجرةِ جلسةٍ في فرعها — ما أُودع لا ما لم يُودَع
+# (ملفٌّ نصفُ مكتوبٍ يُسقط إقلاعَ الجميع؛ وله `pin`). والإيداعُ المصنوعُ حتميٌّ (هويّةٌ وتاريخٌ ثابتان):
+# المدخلاتُ نفسُها تُنتج الإيداعَ نفسَه فلا تُعاد إقامةُ الخادم بلا تغيُّر.
+integrate_flag() { local v; v="$(sget integrate)"; printf '%s' "${v:-$INTEGRATE}"; }
+integrate_active() { [ "$REF" = "origin/main" ] && [ "$(integrate_flag)" = 1 ]; }
+
+integ_candidates() {   # «الاسم|sha|الفرع» لكلّ شجرةِ جلسةٍ على فرع (بلا main-preview ولا فرعِ main ولا المستثنَين)
+  local exclude; exclude=" $(sget integ_exclude) "
+  git -C "$PREVIEW_DIR" worktree list --porcelain | awk '
+    /^worktree / { p = substr($0, 10); h = ""; b = ""; gone = 0 }
+    /^HEAD /     { h = $2 }
+    /^branch /   { b = $2 }
+    /^prunable/  { gone = 1 }
+    /^$/         { if (p != "" && h != "" && b != "" && !gone) print p "|" h "|" b; p = "" }
+    END          { if (p != "" && h != "" && b != "" && !gone) print p "|" h "|" b }
+  ' | while IFS='|' read -r p h b; do
+    n="${p##*/}"
+    if [ "$n" = "main-preview" ] || [ "$b" = "refs/heads/main" ]; then continue; fi
+    case "$exclude" in *" $n "*) continue ;; esac
+    printf '%s|%s|%s\n' "$n" "$h" "${b#refs/heads/}"
+  done
+}
+
+# هجرةٌ جديدةٌ برقمٍ أخذته هجرةٌ في مجلّدها نفسِه = فرعان في مخطّط الهجرات فيسقط migrate. يطبع أوّلَ تصادمٍ
+# ويُنجح إن وُجد، وإلّا يُخفق.
+integ_migration_clash() {   # integ_migration_clash <شجرةٌ قبل> <شجرةٌ بعد>
+  local f dir num
+  while IFS= read -r f; do
+    dir="${f%/*}"; num="${f##*/}"; num="${num%%_*}"
+    if git -C "$PREVIEW_DIR" ls-tree --name-only "$1" "$dir/" 2>/dev/null \
+        | awk -v p="$dir/${num}_" 'index($0, p) == 1 { found = 1 } END { exit !found }'; then
+      printf '%s' "$f"; return 0
+    fi
+  done < <(git -C "$PREVIEW_DIR" diff-tree -r --no-renames --diff-filter=A --name-only "$1" "$2" 2>/dev/null \
+             | grep -E '(^|/)migrations/[0-9][^/]*\.py$' || true)
+  return 1
+}
+
+plan_integration() {   # plan_integration <sha-main> — يضبط TARGET وINTEG_KIND وINTEG_REPORT
+  local main="$1" cands key cached cur ctree mtree ct n h b out t rc files why ahead when fresh clash
+  INTEG_REPORT=""; INTEG_KIND="main"; TARGET="$main"
+
+  cands="$(integ_candidates || true)"
+  if [ -n "$cands" ]; then   # الأقدمُ عملاً أوّلاً: له الأولويّةُ إن تعارض اثنان
+    cands="$(while IFS='|' read -r n h b; do
+      printf '%s|%s|%s|%s\n' "$(git -C "$PREVIEW_DIR" log -1 --format=%ct "$h" 2>/dev/null || echo 0)" "$n" "$h" "$b"
+    done <<<"$cands" | LC_ALL=C sort -t'|' -k1,1n -k2,2)"
+  fi
+
+  # لا أُعيد الحسابَ ما لم يتغيّر main ولا رأسُ أيّ مرشَّحٍ ولا الاستثناءات (وفي كلّ ساعةٍ مرّةً: الخمولُ يتبع الوقتَ).
+  key="$(printf '%s\n%s\n%s\n%s\n' "$main" "$cands" "$(sget integ_exclude)" "$(( $(now) / 3600 ))" \
+         | git -C "$PREVIEW_DIR" hash-object --stdin)"
+  cached="$(sget integ_target)"
+  if [ "$key" = "$(sget integ_key)" ] && [ -n "$cached" ] \
+      && git -C "$PREVIEW_DIR" cat-file -e "$cached^{commit}" 2>/dev/null; then
+    TARGET="$cached"; INTEG_REPORT="$(sget integ_report)"
+    if [ "$TARGET" != "$main" ]; then INTEG_KIND=integrated; fi
+    return 0
+  fi
+
+  cur="$main"
+  mtree="$(git -C "$PREVIEW_DIR" rev-parse "$main^{tree}")"; ctree="$mtree"
+  while IFS='|' read -r ct n h b; do
+    if [ -z "$h" ]; then continue; fi
+    if git -C "$PREVIEW_DIR" merge-base --is-ancestor "$h" "$cur" 2>/dev/null; then continue; fi   # مدموجٌ بالنسب
+    ahead="$(git -C "$PREVIEW_DIR" rev-list --count "$main..$h" 2>/dev/null || echo '؟')"
+    when="$(date -d "@$ct" '+%m-%d %H:%M' 2>/dev/null || echo "$ct")"
+
+    # آخرُ إيداعٍ جديدٍ في الفرع نفسِه (لا دمجٍ من main: هو يُجدّد التاريخَ بلا عملٍ جديد).
+    fresh="$(git -C "$PREVIEW_DIR" log --no-merges -1 --format=%ct "$main..$h" 2>/dev/null || true)"
+    if [ "$MAX_AGE_HOURS" -gt 0 ] && [ -n "$fresh" ] && [ $(( $(now) - fresh )) -gt $(( MAX_AGE_HOURS * 3600 )) ]; then
+      INTEG_REPORT+="✗ $n — خاملٌ: آخرُ إيداعٍ جديدٍ فيه منذ $(( ($(now) - fresh) / 86400 )) يوماً (سقفُ التكامل ${MAX_AGE_HOURS} ساعة)"$'\n'
+      continue
+    fi
+
+    if out="$(git -C "$PREVIEW_DIR" merge-tree --write-tree --name-only --no-messages "$cur" "$h" 2>/dev/null)"; then
+      rc=0
+    else
+      rc=$?
+    fi
+    t="${out%%$'\n'*}"
+    if [ "$rc" -ne 0 ]; then
+      if [ "$rc" -eq 1 ]; then
+        files="$(printf '%s\n' "$out" | sed -n '2,4p' | paste -sd' ' -)"
+        if git -C "$PREVIEW_DIR" merge-tree --write-tree --no-messages "$main" "$h" >/dev/null 2>&1; then
+          why="يتعارض مع فرعٍ ضُمّ قبله"
+        else
+          why="يتعارض مع main — يحتاج إعادةَ أساس"
+        fi
+        INTEG_REPORT+="✗ $n — $why: ${files:-؟}"$'\n'
+      else
+        INTEG_REPORT+="✗ $n — خطأ merge-tree ($rc)"$'\n'
+      fi
+      continue
+    fi
+    if [ "$t" = "$ctree" ]; then continue; fi   # لا جديدَ بالمحتوى: مدموجٌ بالسحق أو مكرَّر
+
+    if ! git -C "$PREVIEW_DIR" diff-tree --quiet "$mtree" "$t" -- "${MACHINERY[@]}" 2>/dev/null; then
+      INTEG_REPORT+="✗ $n — يعدّل آلةَ المعاينة نفسَها (${MACHINERY[*]}) فلا يدخل التكاملَ — يُعاين بـ: preview.sh pin $n"$'\n'
+      continue
+    fi
+    if clash="$(integ_migration_clash "$ctree" "$t")"; then
+      INTEG_REPORT+="✗ $n — هجرةٌ تصادم رقمَ هجرةٍ سابقةٍ في مجلّدها: $clash"$'\n'
+      continue
+    fi
+
+    cur="$(GIT_AUTHOR_NAME=preview GIT_AUTHOR_EMAIL=preview@localhost GIT_AUTHOR_DATE='1700000000 +0000' \
+           GIT_COMMITTER_NAME=preview GIT_COMMITTER_EMAIL=preview@localhost GIT_COMMITTER_DATE='1700000000 +0000' \
+           git -c commit.gpgsign=false -C "$PREVIEW_DIR" commit-tree "$t" -p "$cur" -p "$h" -m "preview: $n@${h:0:7}")"
+    ctree="$t"
+    INTEG_KIND=integrated
+    INTEG_REPORT+="+ $n — $ahead إيداعاً (آخرُها $when)"$'\n'
+  done <<<"$cands"
+  TARGET="$cur"
+
+  sset integ_key "$key"; sset integ_target "$TARGET"; sset integ_report "$INTEG_REPORT"
+}
+
+target_label() {   # LABEL: نصٌّ مقروءٌ لما ستعرضه المعاينة
+  if [ "$INTEG_KIND" = integrated ]; then
+    LABEL="تكامل@${TARGET:0:7} (main@${MAIN_SHA:0:7} + $(printf '%s' "$INTEG_REPORT" | grep -c '^+' || true) فرعاً)"
+  else
+    LABEL="main@${TARGET:0:7}"
+  fi
+}
+
+resolve_target() {   # يضبط MAIN_SHA وTARGET وINTEG_KIND وINTEG_REPORT وLABEL — بعد fetch_ref
+  MAIN_SHA="$(git -C "$PREVIEW_DIR" rev-parse "$REF")"
+  TARGET="$MAIN_SHA"; INTEG_KIND="main"; INTEG_REPORT=""
+  if integrate_active; then plan_integration "$MAIN_SHA"; fi
+  target_label
+}
+
+# هل الإيداعان بشجرةٍ واحدة؟ تكاملٌ يُعاد بناؤه بإيداعاتٍ مختلفةٍ لمحتوىً واحدٍ لا يستحقّ إعادةَ إنشاء الخادم.
+same_content() {
+  [ -n "$2" ] || return 1
+  if [ "$1" = "$2" ]; then return 0; fi
+  [ "$(git -C "$PREVIEW_DIR" rev-parse "$1^{tree}" 2>/dev/null)" = "$(git -C "$PREVIEW_DIR" rev-parse "$2^{tree}" 2>/dev/null)" ]
+}
+
+# ── النشرُ المحلّيّ: main/التكامل (إنتاج) أو شجرةُ جلسة (تطوير) ─────────────
 deploy_main() {
-  local tree="$PREVIEW_DIR" db
-  db="$(slug_db "$tree")"
-  ensure_db "$tree"
+  local tree="$PREVIEW_DIR" db label
+  db="$(preview_db)"
+  ensure_db "$tree" "$db"
   ensure_image "$tree"
   export_env prod "$tree" "$db"
-  say "▸ يُعاد إنشاءُ الخادم والعامل على main@$PREVIEW_SHA (هجرة ← collectstatic ← daphne) — قاعدة $db"
+  label="${LABEL:-main@$PREVIEW_SHA}"
+  say "▸ يُعاد إنشاءُ الخادم والعامل على $label (هجرة ← collectstatic ← daphne) — قاعدة $db"
   run compose "$tree" up -d --force-recreate --remove-orphans || warn "docker compose up أعاد خطأً"
   wait_web || return 1
   sset mode follow
   sset served_sha "$(git -C "$tree" rev-parse HEAD)"
+  sset served_label "$label"
+  sset served_report "$INTEG_REPORT"
   sset synced_at "$(now)"
   sdel pending_sha; sdel pending_since; sdel wait_since; sdel last_error; sdel pin_tree; sdel pin_until
-  say "✔ main@$PREVIEW_SHA على http://localhost:$PORT — يعلن /health/: commit=$(served_commit)"
+  say "✔ $label على http://localhost:$PORT — يعلن /health/: commit=$(served_commit)"
 }
 
 # يطبّق إيداعاً على شجرة المعاينة؛ وإن سقط عاد إلى آخر نسخةٍ سليمةٍ ولا يكرّر المحاولةَ عليه.
-apply_main() {   # apply_main <sha>
-  local target="$1" good before; good="$(sget served_sha)"
+apply_main() {   # apply_main <sha> — بعد resolve_target (LABEL وINTEG_KIND وINTEG_REPORT للهدف)
+  local target="$1" good before label="$LABEL" kind="$INTEG_KIND" fails msg
+  good="$(sget served_sha)"
   guard_tree
   before="$(git -C "$PREVIEW_DIR" rev-parse HEAD)"
   run git -C "$PREVIEW_DIR" reset --hard "$target" --quiet
   if [ -n "$(git -C "$PREVIEW_DIR" diff --name-only "$before" "$target" -- Dockerfile)" ]; then
     warn "Dockerfile تغيّر في main (مكتباتُ النظام) — الصورةُ الأصل قد تحتاج: docker compose build web (في الجذر)"
   fi
-  if deploy_main; then sdel failed_sha; return 0; fi
+  prepare_db "$target"
+  if deploy_main; then sdel failed_sha; sdel integ_failures; return 0; fi
   sset failed_sha "$target"
-  sset last_error "$(now) main@${target:0:7} لم يُقلع"
-  if [ -n "$good" ] && [ "$good" != "$target" ]; then
-    warn "سقط main@${target:0:7} — أعود إلى آخر نسخةٍ سليمة ${good:0:7} كي لا تسقط المعاينة"
+  msg="$label لم يُقلع"
+  if [ "$kind" = integrated ]; then   # إخفاقان متتاليان: فرعٌ معطوبٌ يُسقط كلَّ تحديث — يُطفأ التكاملُ حتى يراجعه المالك
+    fails="$(sget integ_failures)"; fails=$(( ${fails:-0} + 1 )); sset integ_failures "$fails"
+    if [ "$fails" -ge 2 ]; then
+      sset integrate 0
+      msg="$msg — وأُطفئ التكاملُ بعد إخفاقين متتاليين (راجع: preview.sh integrate plan ثمّ integrate on)"
+      warn "أُطفئ التكاملُ بعد إخفاقين متتاليين — تعود المعاينةُ إلى main وحدَه"
+    fi
+  fi
+  sset last_error "$(now) $msg"
+  if [ -n "$good" ] && [ "$good" != "$target" ] && git -C "$PREVIEW_DIR" cat-file -e "$good^{commit}" 2>/dev/null; then
+    warn "سقط $label — أعود إلى آخر نسخةٍ سليمة ${good:0:7} كي لا تسقط المعاينة"
+    LABEL="$(sget served_label)"; INTEG_REPORT="$(sget served_report)"; LABEL="${LABEL:-main@${good:0:7}}"
     run git -C "$PREVIEW_DIR" reset --hard "$good" --quiet
+    prepare_db "$good"
     if deploy_main; then
-      sset last_error "$(now) main@${target:0:7} لم يُقلع فتُخدَم ${good:0:7}"
+      sset last_error "$(now) $msg فتُخدَم ${good:0:7}"
     else
       warn "وفشلت العودةُ أيضاً — الخادمُ متوقّف؛ راجع: docker logs ${PROJECT}-web-1"
     fi
@@ -299,7 +521,8 @@ deploy_pin() {   # deploy_pin <شجرة> <دقائق>
 release_locked() {
   guard_tree
   fetch_ref
-  apply_main "$(git -C "$PREVIEW_DIR" rev-parse "$REF")"
+  resolve_target
+  apply_main "$TARGET"
 }
 
 # ── الأوامر ─────────────────────────────────────────────────────
@@ -312,7 +535,7 @@ cmd_up() {
   if [ "$lan" = 1 ]; then
     warn "مفتوحٌ لشبكة الجهاز (0.0.0.0) — كلُّ من على الشبكة يصله ببيانات المعاينة. أعِد up بلا --lan لإغلاقه."
   fi
-  say "لتتبّع main تلقائياً: bash scripts/preview.sh watch"
+  say "لتتبّع main وما أودعته الجلساتُ تلقائياً: bash scripts/preview.sh watch"
 }
 
 cmd_sync() {
@@ -334,26 +557,27 @@ cmd_sync() {
   guard_tree
   fetch_ref
   local new served ts since first age waited
-  new="$(git -C "$PREVIEW_DIR" rev-parse "$REF")"
+  resolve_target
+  new="$TARGET"
   served="$(sget served_sha)"
   ts="$(now)"
 
-  if [ "$new" = "$served" ]; then
+  if same_content "$new" "$served"; then
     if [ "$(docker inspect -f '{{.State.Running}}' "${PROJECT}-web-1" 2>/dev/null || echo false)" = "true" ]; then
-      idle "على main@${new:0:7} — لا جديد"
+      idle "على $LABEL — لا جديد"
       return 0
     fi
-    say "▸ الخادمُ متوقّف وmain لم يتغيّر — يُعاد إنشاؤه"
+    say "▸ الخادمُ متوقّف والمعروضُ لم يتغيّر — يُعاد إنشاؤه"
     deploy_main
     return
   fi
 
   if [ "$force" = 0 ] && [ "$(sget failed_sha)" = "$new" ]; then
-    idle "main@${new:0:7} سقط تطبيقُه سابقاً — أنتظر إيداعاً جديداً (أو: sync --now)"
+    idle "$LABEL سقط تطبيقُه سابقاً — أنتظر تغيّراً (أو: sync --now)"
     return 0
   fi
 
-  # main تقدّم: يُنتظر سكونُه (الدمجُ دفعات)، بسقفٍ كي لا يجوع التحديث.
+  # المعروضُ تغيّر (main، أو ما أودعته الجلسات): يُنتظر سكونُه (الدمجُ دفعات)، بسقفٍ كي لا يجوع التحديث.
   if [ "$(sget pending_sha)" != "$new" ]; then
     sset pending_sha "$new"; sset pending_since "$ts"
     [ -n "$(sget wait_since)" ] || sset wait_since "$ts"
@@ -361,15 +585,15 @@ cmd_sync() {
   since="$(sget pending_since)"; first="$(sget wait_since)"
   age=$(( ts - ${since:-$ts} )); waited=$(( ts - ${first:-$ts} ))
   if [ "$force" = 1 ] || [ "$age" -ge "$QUIET" ] || [ "$waited" -ge "$MAX_WAIT" ]; then
-    say "▸ main@${new:0:7} — يُطبَّق"
+    say "▸ $LABEL — يُطبَّق"
     apply_main "$new"
   else
-    idle "main تقدّم إلى ${new:0:7} — يُنتظر سكونُه ($age/$QUIET ثانية، والسقف $waited/$MAX_WAIT)"
+    idle "المعروضُ تغيّر إلى $LABEL — يُنتظر سكونُه ($age/$QUIET ثانية، والسقف $waited/$MAX_WAIT)"
   fi
 }
 
 cmd_watch() {
-  say "مراقبةُ main كلّ ${INTERVAL} ثانية — Ctrl+C يوقف المراقبةَ ويبقى الخادمُ"
+  say "مراقبةُ main وما أودعته الجلساتُ كلّ ${INTERVAL} ثانية — Ctrl+C يوقف المراقبةَ ويبقى الخادمُ"
   while :; do
     PREVIEW_QUIET_OUTPUT=1 bash "${BASH_SOURCE[0]}" sync || warn "دورةٌ فاشلة — تُعاد بعد $INTERVAL ثانية"
     sleep "$INTERVAL"
@@ -416,10 +640,50 @@ cmd_list() {
   done
 }
 
+integrate_text() {
+  local ex; ex="$(sget integ_exclude)"
+  if [ "$(integrate_flag)" = 1 ]; then printf 'مفعَّل'; else printf 'مُطفأ'; fi
+  if [ -n "$ex" ]; then printf ' — مستثنى: %s' "$ex"; fi
+}
+
+integ_exclusion() {   # integ_exclusion add|remove <اسمُ مجلّد الشجرة>
+  local op="$1" name="$2" new="" n
+  [ -n "$name" ] || die "اسمُ مجلّد الشجرة مطلوب — الأسماءُ في: preview.sh list"
+  case "$name" in */* | *\\* | *' '*) die "اسمُ مجلّدٍ لا مسارٌ: $name" ;; esac
+  for n in $(sget integ_exclude); do
+    if [ "$n" != "$name" ]; then new+="$n "; fi
+  done
+  if [ "$op" = add ]; then new+="$name "; fi
+  sset integ_exclude "${new% }"
+  say "✔ المستثنَون من التكامل: ${new% }${new:+ (يسري في الدورة القادمة)}"
+}
+
+integ_show() {   # ما يدخل التكاملَ الآن — قراءةٌ فقط (لا يطبّق شيئاً)
+  git -C "$PREVIEW_DIR" fetch origin main --quiet 2>/dev/null || warn "تعذّر جلبُ main (بلا شبكة؟)"
+  MAIN_SHA="$(git -C "$PREVIEW_DIR" rev-parse origin/main)"
+  plan_integration "$MAIN_SHA"; target_label
+  say "التكامل:      $(integrate_text)"
+  say "الخطّة:       $LABEL"
+  if [ -n "$INTEG_REPORT" ]; then printf '%s' "$INTEG_REPORT" | sed 's/^/    /'; else say "    (لا فرعَ مودَعاً لم يُدمج)"; fi
+}
+
+cmd_integrate() {
+  local sub="${1:-plan}"; shift || true
+  [ -e "$PREVIEW_DIR/.git" ] || die "لا شجرةَ معاينةٍ بعدُ — شغّل: bash scripts/preview.sh up"
+  case "$sub" in
+    plan)    integ_show ;;
+    on)      sset integrate 1; sdel integ_failures; say "✔ التكاملُ مفعَّل — يُطبَّق في الدورة القادمة (أو: sync --now)" ;;
+    off)     sset integrate 0; say "✔ التكاملُ مُطفأ — تعود المعاينةُ إلى main وحدَه في الدورة القادمة (أو: sync --now)" ;;
+    exclude) integ_exclusion add "${1:-}" ;;
+    include) integ_exclusion remove "${1:-}" ;;
+    *)       die "الاستعمال: preview.sh integrate [plan|on|off|exclude <شجرة>|include <شجرة>]" ;;
+  esac
+}
+
 cmd_status() {
   [ -e "$PREVIEW_DIR/.git" ] || { say "لا معاينةَ بعدُ — شغّل: bash scripts/preview.sh up"; return 0; }
   git -C "$PREVIEW_DIR" fetch origin main --quiet 2>/dev/null || warn "تعذّر جلبُ main (بلا شبكة؟)"
-  local mode main prod running serving n pin_note=""
+  local mode main prod running serving n pin_note="" label report served plan_report skipped gen
   mode="$(sget mode)"
   main="$(git -C "$PREVIEW_DIR" rev-parse --short=7 origin/main)"
   [ "$REF" = "origin/main" ] || say "تتبع المعاينةُ الآن $REF لا main (PREVIEW_REF) — لتجربة شيفرةٍ لم تُدمج"
@@ -432,6 +696,24 @@ cmd_status() {
 
   say "الوضع:        ${mode:-—}$pin_note"
   say "الخادم:       $running — http://localhost:$PORT — يعلن commit=${serving:-?}"
+  if [ "$mode" != pin ]; then
+    label="$(sget served_label)"; report="$(sget served_report)"
+    say "المعروض:      ${label:-main@${main}}"
+    printf '%s' "$report" | { grep '^+' || true; } | sed 's/^/    /'   # ما ضُمّ وقتَ التطبيق
+    say "التكامل:      $(integrate_text)"
+    plan_report="$report"
+    if integrate_active; then   # الخطّةُ الآن: ما تغيّر بعد آخر تحديث (المنتظَر) وما يُتخطّى
+      served="$(sget served_sha)"
+      resolve_target
+      plan_report="$INTEG_REPORT"
+      if ! same_content "$TARGET" "$served"; then
+        say "المنتظَر:      $LABEL — يُطبَّق بعد سكونٍ ${QUIET} ثانية"
+        printf '%s' "$INTEG_REPORT" | { grep '^+' || true; } | sed 's/^/    /'
+      fi
+    fi
+    skipped="$(printf '%s' "$plan_report" | { grep '^✗' || true; })"
+    if [ -n "$skipped" ]; then say "متخطَّى:"; printf '%s\n' "$skipped" | sed 's/^/    /'; fi
+  fi
   say "main:         $main"
   say "الإنتاج:       ${prod:-تعذّرت القراءة}"
   if [ -n "$prod" ] && git -C "$PREVIEW_DIR" cat-file -e "$prod^{commit}" 2>/dev/null; then
@@ -449,6 +731,11 @@ cmd_status() {
     err_ts="${err%% *}"   # الحالةُ تُخزَّن «<وقت> <نصّ>»؛ يُعرض الوقتُ مقروءاً
     warn "آخرُ خطأ ($(date -d "@$err_ts" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$err_ts")): ${err#* } — راجع: docker logs ${PROJECT}-web-1"
   fi
+  err="$(sget db_note)"
+  if [ -n "$err" ]; then
+    gen="$(sget db_gen)"; err_ts="${err%% *}"
+    say "القاعدة:      الجيل ${gen:-0} — آخرُ إعادة إنشاءٍ ($(date -d "@$err_ts" '+%Y-%m-%d %H:%M' 2>/dev/null || echo "$err_ts")): ${err#* }"
+  fi
 }
 
 cmd_down() {
@@ -465,16 +752,18 @@ usage() { awk '/^# ═/ { n++ } NR >= 3 { print } n == 3 { exit }' "${BASH_SOURC
 main() {
   local cmd="${1:-help}"; shift || true
   case "$cmd" in
-    up)      cmd_up "$@" ;;
-    sync)    cmd_sync "$@" ;;
-    watch)   cmd_watch ;;
-    pin)     cmd_pin "$@" ;;
-    release) cmd_release ;;
-    list)    cmd_list ;;
-    status)  cmd_status ;;
-    down)    cmd_down ;;
-    *)       usage ;;
+    up)        cmd_up "$@" ;;
+    sync)      cmd_sync "$@" ;;
+    watch)     cmd_watch ;;
+    pin)       cmd_pin "$@" ;;
+    release)   cmd_release ;;
+    integrate) cmd_integrate "$@" ;;
+    list)      cmd_list ;;
+    status)    cmd_status ;;
+    down)      cmd_down ;;
+    *)         usage ;;
   esac
 }
 
-main "$@"; exit $?
+# يُنفَّذ حين يُستدعى الملفُّ لا حين يُستورد بـsource (tests/test_preview_integration.py تستدعي دوالَّه).
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then main "$@"; exit $?; fi

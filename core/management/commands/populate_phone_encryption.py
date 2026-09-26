@@ -31,7 +31,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         from core.models import CustomUser
-        from core.models._crypto import encrypt_field, hmac_field
+        from core.models.crypto import encrypt_field, hmac_field
 
         batch_size = options["batch_size"]
         dry_run = options["dry_run"]

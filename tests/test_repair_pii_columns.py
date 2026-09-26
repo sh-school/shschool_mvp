@@ -12,7 +12,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 
 from core.models import CustomUser
-from core.models._crypto import decrypt_field, hmac_field
+from core.models.crypto import decrypt_field, hmac_field
 from tests.conftest import UserFactory
 
 pytestmark = pytest.mark.django_db

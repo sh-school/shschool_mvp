@@ -23,7 +23,9 @@ DB_CONTAINER="${DB_CONTAINER:-shschool-dev-db}"
 
 # اسمُ القاعدة من اسم الشجرة: الحروفُ والأرقامُ وحدَها، وسقفُ بوستغريس 63 محرفاً.
 slug=$(basename "$PWD" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9' '_' | cut -c1-40)
-TARGET_DB="ss_${slug%_}"
+# SESSION_DB_NAME: اسمٌ صريحٌ بدل المشتقّ من اسم الشجرة — تستعمله المعاينةُ المركزيّة (scripts/preview.sh)
+# لأجيال قاعدتها؛ وجلساتُ العمل العاديّةُ لا تمرّره فيبقى الاسمُ من الشجرة كما كان.
+TARGET_DB="${SESSION_DB_NAME:-ss_${slug%_}}"
 
 if [ "${1:-}" = "--name" ]; then echo "$TARGET_DB"; exit 0; fi
 

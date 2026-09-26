@@ -34,6 +34,39 @@ SHOTS: tuple[tuple[str, str], ...] = (
     ("nurse", "clinic:record_visit"),
     ("leadership", "notification_inbox"),
 )
+#: رحلاتُ الأدوار الباقية (Q-11): كلُّ صفحةٍ في `JOURNEYS` (تسجيلُ الجوال) ولم تدخل الخمسَ أعلاه — الوضعُ النهاريّ وحدَه بالمِلفّين
+#: (الليليُّ للخمس)، فتُمسك انحدارَ الشكل في ما يفتحه كلُّ دورٍ يومَه (قرصُ التحذير الأبيض 24px ← 44px لم يكشفه K1، 2026-09-24).
+JOURNEY_SHOTS: tuple[tuple[str, str], ...] = (
+    ("leadership", "staff_affairs:staff_list"),
+    ("leadership", "daily_report"),
+    ("wing_supervisor", "dashboard"),
+    ("wing_supervisor", "wings:floors"),
+    ("wing_supervisor", "wings:record_index"),
+    ("wing_supervisor", "student_affairs:student_list"),
+    ("wing_supervisor", "notification_inbox"),
+    ("teacher", "dashboard"),
+    ("teacher", "swap_list"),
+    ("teacher", "my_evaluations"),
+    ("teacher", "notification_inbox"),
+    ("parent", "parent_dashboard"),
+    ("parent", "parent_all_attendance"),
+    ("parent", "parent_all_grades"),
+    ("parent", "parent_behavior"),
+    ("parent", "notification_preferences"),
+    ("nurse", "dashboard"),
+    ("nurse", "clinic:dashboard"),
+    ("nurse", "clinic:visits_list"),
+    ("nurse", "clinic:statistics"),
+)
+#: أسماءُ الخطوات المسموحة (Q-11) — تُنفَّذ بعد التحميل وقبل الالتقاط (تنفيذُها في اختبار المتصفّح)، وتدخل اسمَ الملفّ فتبقى الحتميّةُ والمقارنةُ
+#: كما هي (كلُّ لقطةٍ تُلتقط مرّتين). خطوةٌ حتميّةٌ: نقرةٌ ثمّ انتظارُ حالةٍ لا زمن.
+STEPS = ("menu", "palette")
+#: (الدور، الصفحة، الخطوة، المِلفّ): قائمةُ الجوال (تظهر على المِلفّ الجوّال وحدَه) ولوحةُ الأوامر بالمِلفّين — نهاريّةٌ.
+STEP_SHOTS: tuple[tuple[str, str, str, str], ...] = (
+    ("leadership", "dashboard", "menu", "mobile"),
+    ("leadership", "dashboard", "palette", "mobile"),
+    ("leadership", "dashboard", "palette", "desktop"),
+)
 THEMES = ("light", "dark")
 #: المِلفّان: جوالٌ 375 وسطحُ مكتبٍ 1440 (من سقّاطة الجوال نفسِها لا تعريفٌ ثانٍ).
 PROFILE_NAMES = tuple(PROFILES)
@@ -60,19 +93,40 @@ FREEZE_CSS = (
 INIT_SCRIPT = "localStorage.setItem('theme','{theme}');localStorage.setItem('pwaDismissed','1');"
 
 
-def shot_key(role: str, page: str, theme: str, profile: str) -> str:
-    """مفتاحُ اللقطة — يُستعمل اسمَ ملفّ (`mobile/dark/leadership--student_affairs_student_list.png`)."""
-    return f"{profile}/{theme}/{role}--{page.replace(':', '_')}.png"
+def shot_key(role: str, page: str, theme: str, profile: str, step: str = "") -> str:
+    """مفتاحُ اللقطة — يُستعمل اسمَ ملفّ (`mobile/dark/leadership--student_affairs_student_list.png`)؛ وللخطوة `@اسمها`."""
+    suffix = f"@{step}" if step else ""
+    return f"{profile}/{theme}/{role}--{page.replace(':', '_')}{suffix}.png"
 
 
-def matrix() -> list[tuple[str, str, str, str]]:
-    """(الدور، الصفحة، الوضع، المِلفّ) لكلّ لقطةٍ في المصفوفة."""
-    return [
-        (role, page, theme, profile)
+@dataclasses.dataclass(frozen=True)
+class Shot:
+    role: str
+    page: str
+    theme: str
+    profile: str
+    step: str = ""
+
+    @property
+    def key(self) -> str:
+        return shot_key(self.role, self.page, self.theme, self.profile, self.step)
+
+
+def matrix() -> list[Shot]:
+    """كلُّ لقطةٍ في المصفوفة: صفحاتُ الهويّة الخمس نهاراً وليلاً بالمِلفّين، ثمّ رحلاتُ الأدوار نهاراً بالمِلفّين، ثمّ الخطوات."""
+    shots = [
+        Shot(role, page, theme, profile)
         for profile in PROFILE_NAMES
         for theme in THEMES
         for role, page in SHOTS
     ]
+    shots += [
+        Shot(role, page, "light", profile)
+        for profile in PROFILE_NAMES
+        for role, page in JOURNEY_SHOTS
+    ]
+    shots += [Shot(role, page, "light", profile, step) for role, page, step, profile in STEP_SHOTS]
+    return shots
 
 
 @dataclasses.dataclass(frozen=True)

@@ -39,13 +39,31 @@ NO_CHART_ANIMATION = (
 LOGIN_PATH = "/auth/login/"
 
 
-def _capture(page, base: str, name: str, path: pathlib.Path) -> None:
+def _do_step(page, step: str) -> None:
+    """خطوةُ رحلةٍ (Q-11) حتميّة: نقرةٌ ثمّ انتظارُ حالةٍ ظاهرةٍ في الصفحة — لا انتظارَ بالزمن."""
+    if step == "menu":  # لوحةُ الهامبرغر على الجوال
+        page.click("#mob-menu-btn")
+        page.wait_for_selector(".nb-bar.open")
+    elif step == "palette":  # لوحةُ الأوامر من زرّ الترويسة، وحقلُها مركَّز
+        page.click("#nav-search-btn")
+        page.wait_for_selector("#cmd-palette:not(.cmd-hidden)")
+        page.wait_for_function(
+            "document.activeElement && document.activeElement.id === 'cmd-input'"
+        )
+    else:
+        raise AssertionError(f"خطوةٌ غيرُ معرَّفة: {step} (المسموح {vs.STEPS})")
+
+
+def _capture(page, base: str, name: str, path: pathlib.Path, step: str = "") -> None:
     response = page.goto(f"{base}{_url(name)}", wait_until="load")
     assert response and response.ok, f"{name}: {response and response.status}"
     assert LOGIN_PATH not in page.url, f"{name}: أُحيل إلى الدخول — الجلسةُ لم تثبت"
     page.add_style_tag(content=vs.FREEZE_CSS)
     page.evaluate("document.fonts.ready.then(() => 1)")
     page.wait_for_timeout(300)
+    if step:
+        _do_step(page, step)
+        page.wait_for_timeout(300)
     height = min(page.evaluate("document.documentElement.scrollHeight"), vs.MAX_HEIGHT)
     width = page.viewport_size["width"]
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -72,11 +90,19 @@ def test_the_key_pages_are_deterministic_and_have_not_changed_visually(
     rows: list[dict] = []
     browser = playwright.chromium.launch()
     try:
-        for role in sorted({role for role, _ in vs.SHOTS}):
+        plan = vs.matrix()
+        for role in sorted({shot.role for shot in plan}):
             fixture, _ = JOURNEYS[role]
             state = _signed_in_state(browser, live_server.url, request.getfixturevalue(fixture))
             for profile in vs.PROFILE_NAMES:
                 for theme in vs.THEMES:
+                    batch = [
+                        shot
+                        for shot in plan
+                        if (shot.role, shot.profile, shot.theme) == (role, profile, theme)
+                    ]
+                    if not batch:
+                        continue
                     context = browser.new_context(
                         storage_state=state,
                         reduced_motion="reduce",
@@ -87,12 +113,10 @@ def test_the_key_pages_are_deterministic_and_have_not_changed_visually(
                     context.add_init_script(vs.INIT_SCRIPT.format(theme=theme) + NO_CHART_ANIMATION)
                     try:
                         page = context.new_page()
-                        for shot_role, name in vs.SHOTS:
-                            if shot_role != role:
-                                continue
-                            key = vs.shot_key(role, name, theme, profile)
-                            _capture(page, live_server.url, name, shots / key)
-                            _capture(page, live_server.url, name, repeat / key)
+                        for shot in batch:
+                            key = shot.key
+                            _capture(page, live_server.url, shot.page, shots / key, shot.step)
+                            _capture(page, live_server.url, shot.page, repeat / key, shot.step)
                             determinism = vs.compare(shots / key, repeat / key)
                             row = {
                                 "key": key,
