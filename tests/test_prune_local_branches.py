@@ -38,7 +38,8 @@ class World:
         self.root = root
         self.repo = root / "repo"
         if copy_of is not None:
-            shutil.copytree(copy_of, self.repo)
+            # `*.lock`: صيانةُ git التلقائيّة تُنشئ maintenance.lock وتحذفه في الخلفيّة، فيختفي ملفٌّ أثناء النسخ (تذبذبُ CI، #676)
+            shutil.copytree(copy_of, self.repo, ignore=shutil.ignore_patterns("*.lock"))
         else:
             self.repo.mkdir()
         empty_config = root / "gitconfig"
@@ -58,6 +59,13 @@ class World:
         )
         if copy_of is None:
             self.git("init", "-q", "-b", "main")
+            # لا gc ولا صيانةَ في الخلفيّة بعد أوامر الإعداد؛ فالقالبُ يُنسخ والشجرةُ ساكنةٌ
+            for key, value in (
+                ("gc.auto", "0"),
+                ("gc.autoDetach", "false"),
+                ("maintenance.auto", "false"),
+            ):
+                self.git("config", key, value)
 
     def git(self, *args: str, days_ago: float | None = None) -> str:
         env = dict(self.env)
