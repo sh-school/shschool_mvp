@@ -6432,7 +6432,7 @@ def test_0040_registers_lay11_and_n050_once_with_the_measurements_and_the_css_ex
     from datetime import date
 
     _item("PRP-04a", "todo", 0)
-    assert _sync40.add_new_items(RoadmapItem) == ["LAY-11", "N-050"]
+    assert _sync40.add_new_items(RoadmapItem) == ["LAY-11", "N-050", "VI-56"]
     assert _sync40.add_new_items(RoadmapItem) == []
     by = {i.code: i for i in RoadmapItem.objects.all()}
     lay = by["LAY-11"]
@@ -6470,7 +6470,7 @@ def test_0040_registers_lay11_and_n050_once_with_the_measurements_and_the_css_ex
 
 def test_0040_never_overwrites_an_existing_item():
     _item("N-050", "done", 100, title="أنشأه المطوّر يدوياً")
-    assert _sync40.add_new_items(RoadmapItem) == ["LAY-11"]
+    assert _sync40.add_new_items(RoadmapItem) == ["LAY-11", "VI-56"]
     assert RoadmapItem.objects.get(code="N-050").title == "أنشأه المطوّر يدوياً"
 
 
@@ -6534,12 +6534,12 @@ def test_0040_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
     first = snapshot()
     _sync40.forwards(_Apps40, None)
     assert snapshot() == first
-    assert RoadmapItem.objects.filter(code__in=["LAY-11", "N-050"]).count() == 2
+    assert RoadmapItem.objects.filter(code__in=["LAY-11", "N-050", "VI-56"]).count() == 3
     assert RoadmapDecision.objects.filter(code="D-33").count() == 1
 
 
 def test_0040_orders_follow_0039_and_do_not_collide():
-    assert [row[-1] for row in _sync40.NEW_ITEMS] == [763, 764]
+    assert [row[-1] for row in _sync40.NEW_ITEMS] == [763, 764, 765]
     assert [row[-1] for row in _sync40.NEW_DECISIONS] == [147, 148]
 
 
@@ -6592,5 +6592,21 @@ def test_0040_records_d34_the_267kb_ceiling_as_an_accounting_change_with_the_ver
     rec = d34.recommendation
     assert "271,843 ← 265,922" in rec and "−5,921" in rec and "9 ← 8" in rec
     assert "272,972" in rec and "273,408" in rec and "436 بايتاً" in rec
-    assert "صافي ≤ 0 مصغَّراً لكلّ طلب" in rec and "لم يؤكّده المالكُ بعد" in rec
+    assert "صافي ≤ 0 مصغَّراً لكلّ طلب" in rec and "أكّد المالكُ بندَ التقليص VI-56" in rec
     assert d34.blocks.startswith("VI-12")
+
+
+def test_0040_registers_the_css_trimming_item_as_a_todo_with_no_date_and_no_code_yet():
+    _sync40.add_new_items(RoadmapItem)
+    item = RoadmapItem.objects.get(code="VI-56")
+    assert (item.lane, item.status, item.progress, item.deps, item.pr) == (
+        "frontend",
+        "todo",
+        0,
+        "VI-12",
+        "",
+    )
+    assert item.start_date is None and item.end_date is None and item.sort_order == 765
+    assert "أكّد المالكُ مباشرةً (2026-09-26) بندَ التقليص" in item.note and "غيرُ مقيسة" in item.note
+    assert "≈ 470B" in item.note and "لا شيفرةَ بعدُ" in item.note and "لا موعدَ" in item.note
+    assert "صفرُ فرقٍ في الأنماط المحسوبة" in item.criterion and len(item.date_basis) <= 120
