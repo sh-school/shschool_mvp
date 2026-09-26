@@ -24,6 +24,7 @@ from celery.exceptions import MaxRetriesExceededError, SoftTimeLimitExceeded
 from django.conf import settings
 
 from core.celery_tasks import TenantRLSTask, school_rls_scope
+from core.mail_backends import provider_configured
 from notifications.channels import deliverable_external_channels
 from notifications.delivery_state import (
     budget_exhausted,
@@ -31,6 +32,7 @@ from notifications.delivery_state import (
     finalize_delivery,
     mark_undeliverable,
 )
+from notifications.no_provider import clean_payload, drop_undelivered
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +175,7 @@ def _to_dlq(kind, school_id, payload, error, delivery_id=None):
             # الطابور يشير إلى التسليم الذي استنفد محاولاته، ويبقى `None`
             # للمسار القديم الذي لا تسليم له.
             delivery_id=delivery_id,
-            payload=payload,
+            payload=clean_payload(payload),
             error=_safe_error(error),
         )
         logger.error("DLQ: %s message dead-lettered", kind)
@@ -267,6 +269,20 @@ def send_email_task(
         student = CustomUser.objects.filter(id=student_id).first() if student_id else None
         sent_by = CustomUser.objects.filter(id=sent_by_id).first() if sent_by_id else None
         delivery = _resolve_delivery(delivery_id, school_id, "email") if delivery_id else None
+
+        if not provider_configured():
+            # [DBT-11] لا مزوّد فعليّ: وسمٌ `undeliverable` بتحذيرٍ واحد — لا استحواذ ولا إعادة ولا DLQ ولا Sentry.
+            return drop_undelivered(
+                delivery,
+                school,
+                recipient_email=recipient_email,
+                subject=subject,
+                body_text=body_text,
+                body_html=body_html,
+                student=student,
+                notif_type=notif_type,
+                sent_by=sent_by,
+            )
 
         if delivery is not None:
             # [B4-3B] الاستحواذ بعد الحلّ وقبل المزوّد. مهمّة تفشل عند حلّ

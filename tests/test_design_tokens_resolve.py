@@ -1,4 +1,4 @@
-"""[DESIGN] كلُّ رمزٍ يُستعمَل معرَّفٌ — و`tailwind.config.js` لا ينسخ لوناً.
+"""[DESIGN] كلُّ رمزٍ يُستعمَل معرَّفٌ.
 
 `var(--x)` الذي لا يُحَلّ لا يسقط قيمتَه وحدَها: المواصفة تُبطل التصريحَ
 بأكملِه («invalid at computed-value time») فيرتدّ إلى `unset`. فـ:
@@ -17,9 +17,7 @@
 ولأنّ الخطأ صامتٌ — لا استثناء، ولا سطرَ في السجلّ، ولا صفحةَ تُخفق — فلا
 يُمسك إلّا بفحصٍ كهذا.
 
-والشطرُ الثاني: `tailwind.config.js` كان ينسخ ألوانَ العلامة أرقاماً
-سداسيّةً، فتباعد الملفّان — `gold` فيه `#C9A84C` و`--gold` في `custom.css`
-`#D4A843`. فالنسخُ ممنوعٌ: كلُّ لونٍ هناك نافذةٌ على رمزٍ عبر `var()`.
+(كان لهذا الملفّ شطرٌ ثانٍ يمنع نسخَ ألوان العلامة أرقاماً في `tailwind.config.js`؛ حُذف الملفُّ مع خطّ بناء Tailwind في VI-12 فسقط الشطرُ معه.)
 """
 
 import os
@@ -28,8 +26,6 @@ import re
 
 from core.css_files import CSS_FILES
 from tests.css_source import read_css
-
-TW_CONFIG = pathlib.Path("tailwind.config.js")
 
 #: جذورُ القوالب الحيّة — `docs/` وثائقُ مستقلّةٌ لا تُقدَّم من المنصّة.
 TEMPLATE_ROOTS = (pathlib.Path("templates"),)
@@ -160,15 +156,6 @@ def test_no_token_is_defined_that_nothing_reads():
     idle = sorted(defined - read_in_css - words - SCALE_TOKENS - PALETTE_INKS)
     assert not idle, "رموزٌ معرَّفةٌ لا يقرؤها شيء — احذفها أو استعملها:\n  " + "\n  ".join(
         "--" + name for name in idle
-    )
-
-
-def test_tailwind_copies_no_colour_of_its_own():
-    text = TW_CONFIG.read_text(encoding="utf-8")
-    literals = sorted(set(re.findall(r"#[0-9a-fA-F]{3,8}\b", text)))
-    assert not literals, (
-        "ألوانٌ منسوخةٌ في tailwind.config.js — مصدرُ الحقيقةِ `:root` في custom.css، "
-        "والقيمةُ تُقرأ بـ var(): " + ", ".join(literals)
     )
 
 
@@ -363,7 +350,6 @@ def test_the_platform_keeps_one_stylesheet():
     """
     allowed = {
         *(pathlib.Path("static/css/custom") / name for name in CSS_FILES),
-        pathlib.Path("static/css/tailwind_input.css"),
         # لوحةُ الإدارة لا تحمل custom.css (تَرِث قالبَ جانغو) فلها ورقةٌ واحدةٌ بألوان المنصّة منقولةً حرفيّاً؛
         # وحارسُ tests/test_admin_theme.py يفشل إن انجرفت قيمُها عن رموز المنصّة.
         pathlib.Path("static/css/admin_theme.css"),

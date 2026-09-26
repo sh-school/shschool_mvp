@@ -97,6 +97,7 @@ PAGES = [
     ("ui_components", "developer_user"),
     ("ui_layouts", "developer_user"),
     ("improvement_roadmap", "developer_user"),
+    ("command_center:index", "developer_user"),
     ("permission_audit_log", "principal_user"),
 ]
 
