@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 import django.core.mail
 
@@ -285,7 +285,13 @@ class NotificationService:
             return False, _EMAIL_FAILURE_MESSAGE
 
     @staticmethod
-    def _record_undelivered_email(school, student, notif_type, sent_by, delivery) -> tuple:
+    def _record_undelivered_email(
+        school: School,
+        student: CustomUser | None,
+        notif_type: str,
+        sent_by: CustomUser | None,
+        delivery: Any,
+    ) -> tuple[bool, str]:
         """[DBT-11] سطرُ «لم يُسلَّم» لبريدٍ لا مزوّدَ له — بلا عنوانٍ ولا موضوعٍ ولا نصّ، وتحذيرٌ واحدٌ (ليس خطأً)."""
         NotificationLog.objects.create(
             school=school,
