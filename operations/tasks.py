@@ -469,77 +469,22 @@ def _notify_generation_done(generation, *, ok, summary):
     time_limit=90,
 )
 def render_schedule_export_task(self, job_id, fmt):
-    """`fmt`: `"pdf"` أو `"xlsx"`."""
-    from django.http import QueryDict
-    from django.utils import timezone
+    """الاسمُ القديم للمهمّة — يبقى 24 ساعةً بعد نشر التصدير المركزيّ (VI-30ب) لصفوفٍ أُنشئت قبل النشر وعاملٍ لم يُحدَّث.
 
-    from core.models import ExportJob
+    البناءُ كلُّه في `core.exports.runner.run_job` (بنّاءُ `schedule.pdf|xlsx` من `schedule_export_builders`):
+    رموزُ خطأٍ ثابتةٌ بلا نصّ استثناءٍ ولا `exc_info`. و`fmt` يُتجاهل — النوعُ في `job.kind`.
+    """
+    from core.exports.runner import run_job
 
-    try:
-        job = ExportJob.objects.select_related("school", "requested_by").get(pk=job_id)
-    except ExportJob.DoesNotExist:
-        logger.warning("render_schedule_export: صفّ التصدير %s غير موجود", job_id)
-        return {"ok": False, "reason": "job_not_found"}
-
-    if job.status != "pending":
-        logger.info("render_schedule_export: %s ليس قيدَ الانتظار — يُتخطّى", job_id)
-        return {"ok": False, "reason": "not_pending"}
-
-    job.status = "running"
-    job.save(update_fields=["status"])
-
-    try:
-        with school_rls_scope(job.school_id):
-            from operations.views_schedule import _export_filename, _schedule_print_payload_core
-
-            get_params = QueryDict(job.query_string)
-            ctx = _schedule_print_payload_core(job.school, job.requested_by, get_params)
-            ctx["embed"] = True
-
-            if fmt == "pdf":
-                from django.template.loader import render_to_string
-
-                from core.pdf_utils import render_pdf_bytes
-
-                ctx["for_pdf"] = True
-                html = render_to_string("schedule/print_schedule.html", ctx)
-                content = render_pdf_bytes(
-                    html, paper_size="A3" if ctx.get("paper") == "a3" else "A4"
-                )
-                content_type = "application/pdf"
-                filename = _export_filename(ctx, "pdf")
-            else:
-                from io import BytesIO
-
-                from operations.schedule_export import schedule_workbook
-
-                buffer = BytesIO()
-                schedule_workbook(ctx).save(buffer)
-                content = buffer.getvalue()
-                content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                filename = _export_filename(ctx, "xlsx")
-    except Exception as exc:  # noqa: BLE001 — يُسجَّل ويُنقل لصفّ التصدير لا يُبتلع
-        logger.exception("render_schedule_export: فشل — %s", exc)
-        job.status = "failed"
-        job.error_message = str(exc)[:2000]
-        job.finished_at = timezone.now()
-        job.save(update_fields=["status", "error_message", "finished_at"])
-        return {"ok": False, "reason": "exception"}
-
-    job.status = "done"
-    job.content = content
-    job.content_type = content_type
-    job.filename = filename
-    job.finished_at = timezone.now()
-    job.save(update_fields=["status", "content", "content_type", "filename", "finished_at"])
-    return {"ok": True, "filename": filename}
+    return run_job(job_id)
 
 
 @shared_task(name="operations.purge_expired_export_jobs")
 def purge_expired_export_jobs_task():
     """صفوفُ التصدير مؤقّتة — لا تتراكم كالملفّات الدائمة في `StoredFile`.
 
-    يوم واحد يكفي: التنزيلُ يقع خلال دقائق من طلبه، ومن تأخّر يعيد التصدير.
+    حدٌّ صلبٌ 24 ساعةً من `created_at` لكلّ الصفوف (`done` و`failed` و`pending` و`running` معاً — الصفُّ كلُّه لا المحتوى وحدَه)،
+    والمهمّةُ تجري **كلَّ ساعة** (`shschool/celery.py`) فأسوأُ حالةٍ ≈ 25 ساعةً لا 48. والتنزيلُ يقع خلال دقائق من الطلب.
     """
     from datetime import timedelta
 
