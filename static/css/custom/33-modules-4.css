@@ -1050,8 +1050,8 @@ tr.is-swapped:hover { background: color-mix(in srgb, var(--swap-border) 14%, tra
 .per-bar__actions .btn-primary, .per-bar__actions .btn-secondary { min-height: var(--control-h); }
 
 /* أزرارُ التصدير والطباعة: في رأس كشف الشعبة، وفي شريط بطاقة الجناح بعد عدّاد الانتظار. */
-/* مفاتيحُ التصدير والطباعة سطرٌ واحدٌ لا يلتفّ؛ والقائمةُ تضيق أوّلاً. */
-.per-exports { display: flex; gap: var(--sp-2); flex-wrap: nowrap; align-items: center; min-inline-size: 0; }
+/* يلتفّ على الهاتف ولا يوسّع الصفحةَ (510px عند 375). */
+.per-exports { display: flex; gap: var(--sp-2); flex-wrap: wrap; align-items: center; min-inline-size: 0; }
 .per-exports .btn-sm { flex-shrink: 0; white-space: nowrap; padding-inline: var(--sp-2); }
 /* قائمةُ التصدير: زرٌّ لكلّ جناحٍ تُفتح في حدّ لوحه (مرساتُها ترويسةُ اللوح لا الزرّ) فلا تخرج عن الصفحة. */
 .wing-panel__bar { position: relative; }
@@ -1648,6 +1648,10 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 }
 .beh-combo__option { padding: var(--sp-1-5) var(--sp-3); font-size: var(--text-sm); cursor: pointer; }
 .beh-combo__option:hover { background: var(--maroon-bg); }
+.beh-combo__empty { color: var(--text-muted); cursor: default; }
+/* الصفُّ والشعبةُ في سطرٍ واحدٍ ولو ضاقت بطاقةُ «بيانات المخالفة»: الصفُّ أعرض (اسمُه أطول) والشعبةُ رقمٌ أو حرفان. */
+.beh-classpick { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--sp-3); }
+.beh-combo__empty:hover { background: transparent; }
 .beh-combo .form-control.is-valid { border-color: var(--status-success); }
 
 /* نافذةُ التسجيل السريع: أربعُ درجاتٍ أزرارٌ كبيرة، والمختارةُ بلون الهويّة. */

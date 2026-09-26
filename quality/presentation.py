@@ -113,6 +113,36 @@ def decorate_observation(obs) -> None:
     obs.score_tone = observation_score_tone(obs.score_percent)
 
 
+#: الحالاتُ التي بعد الإرسال: توقيعُ الزائر يُختم فيها وحدَها. المسودّةُ لا ختمَ عليها، والمسحوبةُ مسودّةٌ (السحبُ يعيدها
+#: إلى `draft` ويمحو الوقتَين) — فالحالةُ هي الحكمُ لا الوقتُ وحدَه؛ وقتٌ عالقٌ على مسودّةٍ لا يُختم.
+_SIGNED_BY_VISITOR = ("submitted", "acknowledged")
+
+
+def _stamp(user, moment) -> dict[str, str] | None:
+    """{الاسم، الوقت بتوقيت الدوحة} أو None إن غاب أحدُهما — ختمٌ بلا اسمٍ أو وقتٍ ليس توقيعاً."""
+    from django.utils import timezone
+
+    name = (getattr(user, "full_name", "") or "").strip()
+    if not name or moment is None:
+        return None
+    local = timezone.localtime(moment, timezone.get_default_timezone())
+    return {"name": name, "at": local.strftime("%Y/%m/%d %H:%M")}
+
+
+def signature_stamps(obs) -> dict[str, dict[str, str] | None]:
+    """ختمُ «توقيعٌ إلكترونيّ داخل المنصّة» في خانتَي التوقيع من PDF استمارة الزيارة الصفّيّة (F55E).
+
+    الزائرُ: يُختم بعد الإرسال باسمه ووقت **آخرِ** إرسالٍ (`submitted_at` يتجدّد مع كلّ إرسال). والمعلّمُ: بعد اطّلاعه
+    باسمه ووقت اطّلاعه. فإن لم يُرسَل أو لم يطّلع بقيت الخانةُ فارغةً للتوقيع اليدويّ. **الأسماءُ وحدَها** — لا رقمَ
+    وظيفيّاً ولا هويّةً — والوقتُ بتوقيت الدوحة أيّاً كان المنطقةُ الزمنيّةُ النشطة (كسائر وثائق PDF).
+    """
+    visitor = _stamp(obs.observer, obs.submitted_at) if obs.status in _SIGNED_BY_VISITOR else None
+    teacher = (
+        _stamp(obs.teacher, obs.teacher_acknowledged_at) if obs.status == "acknowledged" else None
+    )
+    return {"visitor": visitor, "teacher": teacher}
+
+
 #: لونُ مرحلة التظلّم (المادة 20): ما ينتظر أحداً كهرمانيّ، والنهائيُّ أخضر، والرفضُ الحكميّ أحمر.
 GRIEVANCE_STAGE_TONE = {
     "unknown": "gray",
