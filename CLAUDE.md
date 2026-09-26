@@ -102,6 +102,9 @@ SESSION_DB=$(bash scripts/session-db.sh --name) WEB_PORT=8001 docker compose -p 
 6. **فرعٌ محلّيّ لم يُدفع قطّ لا يعرف عنه GitHub شيئاً**، فلو أُعيد عملُه بفرعٍ
    آخر واندُمج، يبقى الأصلُ محلّيّاً إلى الأبد (17 فرعاً من هذا وُجدت 2026-09-17).
    نظِّف دوريّاً بـ`scripts/prune_local_branches.sh` (عرضٌ فقط بلا `--apply`).
+7. **حارسُ غيت (hook) يحجب** `stash` وforce-push وحذفَ فرعٍ بعيد وreset --hard وbranch -D
+   والدفعَ الجماعيّ و`--no-verify`؛ والتجاوزُ بادئةً `GUARD_GIT_ALLOW='<إذنُ المالك وتاريخُه>'`
+   بإذنه الصريح في المحادثة فقط (REP-19، `docs/governance/regression_guards.md`).
 
 ## سير العمل
 
