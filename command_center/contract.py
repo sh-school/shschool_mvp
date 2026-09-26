@@ -1,6 +1,6 @@
 """عقدُ اللقطة v1 — ما تكتبه المجمِّعاتُ في الـcache وما تقرؤه الصفحةُ منه.
 
-«مركز قيادة الجودة» صفحةٌ للمطوّر وحدَه في `/admin/command-center/`: عرضٌ حيٌّ لصحّة المنصّة. والصفحةُ **لا تحسب
+«مركز قيادة الجودة» صفحةٌ في المنصّة للمطوّر وحدَه في `/command-center/`: عرضٌ حيٌّ لصحّة المنصّة. والصفحةُ **لا تحسب
 شيئاً عند الرسم**: تقرأ الـcache وحدَه (≤ 50ms، بلا شبكةٍ ولا استعلامٍ ثقيل). وما فوق 300ms مجمِّعٌ في مهمّة Celery
 يكتب مغلَّفاً `{data, fetched_at, ok, err}` في مفتاح لوحته بنمط `core/backup_status.py`:
 
@@ -143,6 +143,6 @@ def read_panels(now: float | None = None) -> list[dict[str, Any]]:
 
 
 def snapshot(now: float | None = None) -> dict[str, Any]:
-    """اللقطةُ v1: ما تُرجعه `/admin/command-center/snapshot/` وما ترسمه الصفحةُ عند أوّل تحميل."""
+    """اللقطةُ v1: ما تُرجعه `/command-center/snapshot/` وما ترسمه الصفحةُ عند أوّل تحميل."""
     moment = time.time() if now is None else now
     return {"schema": SCHEMA_VERSION, "generated_at": int(moment), "panels": read_panels(moment)}

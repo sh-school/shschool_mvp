@@ -328,22 +328,6 @@ a.adm-card:hover { background: var(--selected-row); }
 .adm-card__title { font-size: 0.75rem; color: var(--body-quiet-color); }
 .adm-card__value { font-size: 1.5rem; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .adm-card__detail { font-size: 0.75rem; color: var(--body-quiet-color); }
-/* مركز قيادة الجودة (`templates/command_center/`، للمطوّر وحدَه): لوحاتٌ بحالةٍ نصّيّةٍ ولونيّةٍ من رموز جانغو نفسِها فتنقلب مع
-   الوضع الليليّ. «غير معلوم» بلون التحذير لا الأخضر — الغيابُ ليس سلامةً (عقدُ اللقطة، `command_center/contract.py`). */
-.qc-lead { margin-block: 0 0.75rem; max-inline-size: 60rem; color: var(--body-quiet-color); }
-.qc-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-block-end: 0.75rem; }
-.qc-clock { font-size: 0.75rem; color: var(--body-quiet-color); font-variant-numeric: tabular-nums; }
-.qc-note { margin-block: 0 0.75rem; padding: 0.5rem 0.75rem; border-inline-start: 4px solid var(--error-fg); background: var(--message-error-bg); color: var(--body-fg); }
-.qc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 0.75rem; }
-.qc-panel { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.75rem; border: 1px solid var(--hairline-color); border-inline-start: 4px solid var(--border-color); background: var(--darkened-bg); color: var(--body-fg); }
-.qc-panel--ok { border-inline-start-color: var(--message-success-bg); }
-.qc-panel--warn, .qc-panel--unknown { border-inline-start-color: var(--message-warning-bg); }
-.qc-panel--bad { border-inline-start-color: var(--error-fg); }
-.qc-panel__title { margin: 0; font-size: 0.875rem; color: var(--body-quiet-color); }
-.qc-panel__state { font-size: 1.25rem; line-height: 1.2; }
-.qc-panel--bad .qc-panel__state { color: var(--error-fg); }
-.qc-panel__headline, .qc-panel__detail { margin: 0; }
-.qc-panel__detail, .qc-panel__age { font-size: 0.75rem; color: var(--body-quiet-color); }
 /* صفحاتُ الإدارة كلُّها بلا تمريرٍ رأسيٍّ للصفحة: الترويسةُ والقائمةُ والتذييل ثابتة، ومنطقةُ المحتوى تمرّر داخلَ نفسها. */
 @media (min-width: 1025px) and (min-height: 560px) {
   body:not(.popup) #container { height: 100vh; height: 100dvh; min-height: 0; }

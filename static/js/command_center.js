@@ -1,7 +1,7 @@
 /* مركز قيادة الجودة — استطلاعُ اللقطة وتحديثُ اللوحات (عقدُ اللقطة v1: command_center/contract.py).
  *
  * لا بناءَ DOM: تُبدَّل النصوصُ بـtextContent على عقدٍ مفاتيحُها data-key ("<لوحة>.<حقل>") والحالةُ بصنفٍ
- * qc-panel--<حالة>؛ فلا HTML قادمٌ من الخادم يُحقن، ولا يُحرَّك ما يراقبه admin_a11y.js.
+ * is-<حالة> على عنصر اللوحة؛ فلا HTML قادمٌ من الخادم يُحقن. والصفحةُ في المنصّة (لا /admin/) — QCC-01b.
  * الاستطلاعُ يتوقّف عند إخفاء التبويب ويستأنف بجلبٍ فوريّ؛ وردٌّ غيرُ JSON (تحويلٌ لصفحة الدخول أو /offline/)
  * = «انتهت الجلسة» بعد ثلاثة إخفاقاتٍ متتالية، مع تراجعٍ أسّيٍّ في الفواصل. والـWebSocket لاحقاً.
  */
@@ -21,6 +21,7 @@
 
   var url = root.getAttribute("data-qc-url");
   var note = root.querySelector("[data-qc-note]");
+  var noteText = root.querySelector("[data-qc-note-text]");
   var clock = root.querySelector('[data-key="generated"]');
   var button = root.querySelector("[data-qc-refresh]");
   var panels = Array.prototype.slice.call(root.querySelectorAll("[data-panel]"));
@@ -50,15 +51,15 @@
   }
 
   function showNote(text) {
-    if (!note) { return; }
-    note.textContent = text;
+    if (!note || !noteText) { return; }
+    noteText.textContent = text;
     note.hidden = !text;
   }
 
   function paint(panel, data) {
     var status = STATUSES.indexOf(data.status) === -1 ? "unknown" : data.status;
     var previous = panel.getAttribute("data-status");
-    STATUSES.forEach(function (name) { panel.classList.toggle("qc-panel--" + name, name === status); });
+    STATUSES.forEach(function (name) { panel.classList.toggle("is-" + name, name === status); });
     panel.setAttribute("data-status", status);
     var key = data.key;
     setText(panel, key + ".state", STATE_LABEL[status]);
@@ -130,7 +131,7 @@
 
   panels.forEach(function (panel) {
     panel.setAttribute("data-status", STATUSES.filter(function (name) {
-      return panel.classList.contains("qc-panel--" + name);
+      return panel.classList.contains("is-" + name);
     })[0] || "unknown");
   });
   poll();

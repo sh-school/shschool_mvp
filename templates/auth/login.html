@@ -19,8 +19,7 @@
   <link rel="preload" href="{% static 'fonts/Tajawal-Regular.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{% static 'fonts/Tajawal-Bold.woff2' %}" as="font" type="font/woff2" crossorigin>
 
-  {# ── CSS — Tailwind in lowest layer, then the platform sheets (core/css_files.py, ADR-0003) ── #}
-  <style>@import url("{% static 'css/tailwind.min.css' %}") layer(tailwind);</style>
+  {# ── CSS — the platform sheets (core/css_files.py, ADR-0003); the `tailwind` layer lives in them (VI-12) ── #}
   {% custom_css %}
 
   {# Login styles — defined in the modules sheets (static/css/custom/) #}
