@@ -6335,3 +6335,243 @@ def test_0039_publishes_nothing_a_public_repo_must_not_say():
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
     assert not re.search(r"\b\d{1,3}(?:\.\d{1,3}){3}\b", body)
+
+
+# ── 0040: مركزيّةُ التصدير VI-30a/b وLAY-11 وD-33 وقراءاتُ المسارات ──
+
+_sync40 = importlib.import_module("roadmap.migrations.0040_sync_items_2026_09_26d")
+
+
+class _Apps40:
+    @staticmethod
+    def get_model(_app, name):
+        return {
+            "RoadmapItem": RoadmapItem,
+            "RoadmapKpi": RoadmapKpi,
+            "RoadmapDecision": RoadmapDecision,
+        }[name]
+
+
+def _seed40():
+    _item("VI-30a", "todo", 0)
+    _item("VI-30b", "doing", 17)
+    _item("Q-11", "doing", 0)
+    _item("H-03", "doing", 70)
+    for code, status, progress in (
+        ("REP-18", "doing", 75),
+        ("REP-19", "todo", 0),
+        ("DBT-10", "todo", 0),
+        ("LAY-10", "doing", 67),
+    ):
+        _item(code, status, progress)
+
+
+def test_0040_moves_each_item_only_from_its_expected_state_and_is_idempotent():
+    _seed40()
+    assert _sync40.sync(RoadmapItem) == ["VI-30a", "VI-30b", "Q-11", "H-03"]
+    assert _sync40.sync(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    assert (by["VI-30a"].status, by["VI-30a"].progress, by["VI-30a"].pr) == ("doing", 50, "")
+    assert (by["VI-30b"].status, by["VI-30b"].progress, by["VI-30b"].pr) == ("doing", 33, "")
+    assert (by["Q-11"].status, by["Q-11"].progress, by["Q-11"].pr) == ("doing", 50, "")
+    assert (by["H-03"].status, by["H-03"].progress, by["H-03"].pr) == ("doing", 70, "")
+
+
+def test_0040_leaves_items_the_developer_moved():
+    _seed40()
+    RoadmapItem.objects.filter(code="VI-30b").update(progress=60)
+    RoadmapItem.objects.filter(code="Q-11").update(status="done", progress=100)
+    changed = _sync40.sync(RoadmapItem)
+    assert "VI-30b" not in changed and "Q-11" not in changed
+    assert RoadmapItem.objects.get(code="VI-30b").progress == 60
+
+
+def test_0040_export_items_record_open_prs_as_open_and_the_d33_revert():
+    _seed40()
+    _sync40.sync(RoadmapItem)
+    a = RoadmapItem.objects.get(code="VI-30a").note
+    assert "#686 مفتوحٌ لم يندمج" in a and "D-33" in a and "تصير تنزيلاً باسم الملفّ" in a
+    assert "صافي CSS 0 بايت" in a and "#685 أوّلاً ثمّ #686" in a
+    assert "لم يُقَس:" in a and "خطوتان" not in a and "ثلاثٌ من ستّ" in a and "اشتقاقٌ لا قياس" in a
+    b = RoadmapItem.objects.get(code="VI-30b").note
+    assert "#685 مفتوحٌ لم يندمج" in b and "≈ 19.9ث" in b and "كلَّ ساعة" in b
+    assert "لم يُسجَّل نوعٌ direct" in b and "EX1" in b and "21" in b
+    assert "ولا يُغلق قبل الدمج والنشر وإعادة تشغيل العامل" in b
+
+
+def test_0040_q11_and_h03_keep_measurements_and_never_claim_v_k25_or_mk17():
+    _seed40()
+    _sync40.sync(RoadmapItem)
+    q11 = RoadmapItem.objects.get(code="Q-11").note
+    assert "63 لقطةً كلُّها حتميّة" in q11 and "0.0006%" in q11 and "V-K25 يبقى 5" in q11
+    assert "لا يُحتسب V-K25" in q11 and "ثلاثٌ من ستّ" in q11
+    h03 = RoadmapItem.objects.get(code="H-03").note
+    assert "#664 مفتوحٌ" in h03 and "MK17 = 0 خارجَ الزخرفيّ" in h03
+    assert "لا يُسجَّل MK17 ولا يُغلق البند قبل الدمج" in h03
+
+
+def test_0040_appends_the_notes_once_without_touching_state():
+    _seed40()
+    codes = ["REP-18", "REP-19", "DBT-10", "LAY-10"]
+    assert _sync40.sync_notes(RoadmapItem) == codes
+    assert _sync40.sync_notes(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    assert [(by[c].status, by[c].progress) for c in codes] == [
+        ("doing", 75),
+        ("todo", 0),
+        ("todo", 0),
+        ("doing", 67),
+    ]
+    assert "75% باقية حتى ذلك" in by["REP-18"].note
+    assert "معيارُ REP-19 مستوفى" in by["REP-19"].note and "#649 مفتوحٌ لم يندمج" in by["REP-19"].note
+    assert "RTO: لا قياسَ أبداً" in by["DBT-10"].note and "بلا نسبةٍ مقترحة" in by["DBT-10"].note
+    assert "بندٌ منفصل" in by["LAY-10"].note
+
+
+def test_0040_registers_lay11_and_n050_once_with_the_measurements_and_the_css_exception():
+    from datetime import date
+
+    _item("PRP-04a", "todo", 0)
+    assert _sync40.add_new_items(RoadmapItem) == ["LAY-11", "N-050"]
+    assert _sync40.add_new_items(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    lay = by["LAY-11"]
+    assert (lay.lane, lay.status, lay.progress, lay.deps, lay.pr) == (
+        "frontend",
+        "doing",
+        70,
+        "LAY-10",
+        "",
+    )
+    assert lay.start_date == date(2026, 9, 26) and lay.end_date is None
+    assert "20,801" in lay.note and "52,835px" in lay.note
+    assert (
+        "26,956 ← 4,419px" in lay.note
+        and "37,367 ← 5,424px" in lay.note
+        and "≈ 0.9–1.0ث ← 126ms" in lay.note
+    )
+    assert "+135B" in lay.note and "استثناءُ CSS مسجَّلٌ مرّةً واحدة" in lay.note
+    assert "التحميلُ الكسول لم يُبنَ" in lay.note and "لم يُقَس/يُنجَز:" in lay.note
+    assert "اقتراحُ الجلسة المنفِّذة" in lay.note and "ولا يُغلق قبلها" in lay.note
+    n50 = by["N-050"]
+    assert (n50.lane, n50.status, n50.progress, n50.pr, n50.deps) == (
+        "quality",
+        "doing",
+        25,
+        "#653",
+        "PRP-04a",
+    )
+    assert "قياسُ المقعد لم يصلني بعدُ" in n50.note and "لا يُغلق قبل الدمج" in n50.note
+    assert "اعتمده عند أمين البلاغات، لا لي مباشرةً" in n50.note
+    for item in (lay, n50):
+        assert item.note.startswith("[2026-09-26]") and len(item.date_basis) <= 120
+    assert [by[c].sort_order for c in ("LAY-11", "N-050")] == [763, 764]
+
+
+def test_0040_never_overwrites_an_existing_item():
+    _item("N-050", "done", 100, title="أنشأه المطوّر يدوياً")
+    assert _sync40.add_new_items(RoadmapItem) == ["LAY-11"]
+    assert RoadmapItem.objects.get(code="N-050").title == "أنشأه المطوّر يدوياً"
+
+
+def test_0040_records_d33_as_the_owners_reversal_once_and_never_overwrites():
+    from datetime import date
+
+    assert _sync40.add_decisions(RoadmapDecision) == ["D-33"]
+    assert _sync40.add_decisions(RoadmapDecision) == []
+    d33 = RoadmapDecision.objects.get(code="D-33")
+    assert (d33.status, d33.decider, d33.decision_date, d33.sort_order) == (
+        "decided",
+        "المالك",
+        date(2026, 9, 26),
+        147,
+    )
+    assert "تنزيلٌ لا عرض" in d33.options and "أتراجع؛ تحويلٌ إلى تنزيل" in d33.recommendation
+    assert d33.blocks == "VI-30a"
+    RoadmapDecision.objects.filter(code="D-33").update(status="open")
+    assert _sync40.add_decisions(RoadmapDecision) == []
+    assert RoadmapDecision.objects.get(code="D-33").status == "open"
+
+
+def test_0040_adds_the_css_exceptions_log_to_vk01_without_touching_its_value():
+    from datetime import date
+
+    RoadmapKpi.objects.create(
+        code="V-K01",
+        lane="frontend",
+        name="حجم CSS المُشحَن",
+        current=259134.0,
+        measured_at=date(2026, 9, 25),
+        why="سبب قديم",
+    )
+    assert _sync40.sync_kpi_notes(RoadmapKpi) == ["V-K01"]
+    assert _sync40.sync_kpi_notes(RoadmapKpi) == []
+    kpi = RoadmapKpi.objects.get(code="V-K01")
+    assert kpi.current == 259134.0 and kpi.measured_at == date(2026, 9, 25)
+    assert kpi.why.startswith("سبب قديم\n[2026-09-26]") and "#688" in kpi.why and "+135B" in kpi.why
+    assert "لم يؤكّده المالكُ لي بعد" in kpi.why
+
+
+def test_0040_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
+    _sync40.forwards(_Apps40, None)
+    assert RoadmapItem.objects.count() == 0 and RoadmapDecision.objects.count() == 0
+    _seed40()
+    _item("PRP-04a", "todo", 0)
+    RoadmapKpi.objects.create(code="V-K01", lane="frontend", name="حجم CSS", why="")
+    _sync40.forwards(_Apps40, None)
+
+    def snapshot():
+        return (
+            list(
+                RoadmapItem.objects.order_by("code").values_list(
+                    "code", "status", "progress", "pr", "note", "sort_order"
+                )
+            )
+            + list(RoadmapKpi.objects.order_by("code").values_list("code", "why"))
+            + list(RoadmapDecision.objects.order_by("code").values_list("code", "status"))
+        )
+
+    first = snapshot()
+    _sync40.forwards(_Apps40, None)
+    assert snapshot() == first
+    assert RoadmapItem.objects.filter(code__in=["LAY-11", "N-050"]).count() == 2
+    assert RoadmapDecision.objects.filter(code="D-33").count() == 1
+
+
+def test_0040_orders_follow_0039_and_do_not_collide():
+    assert [row[-1] for row in _sync40.NEW_ITEMS] == [763, 764]
+    assert _sync40.NEW_DECISIONS[0][-1] == 147
+
+
+def test_0040_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0040_sync_items_2026_09_26d").origin
+    body = open(origin, encoding="utf-8").read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "بالبصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "رقمٌ حقيقيّ",
+        "مرض",
+        "C:/",
+        "localhost",
+        "up.railway.app",
+        "railway ssh",
+        "schoolos-platform",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
+    assert not re.search(r"\b\d{1,3}(?:\.\d{1,3}){3}\b", body)
