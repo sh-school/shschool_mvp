@@ -74,14 +74,15 @@ def _get_fernet():
         return None
 
 
-def encrypt_field(value: Any) -> Any:
+def encrypt_field(value: Any) -> str | Any:
     """تشفير قيمة نصية بالمفتاح الحالي."""
     if not value:
         return value
     f = _get_fernet()
     if not f:
         return value
-    return f.encrypt(value.encode()).decode()
+    encrypted_bytes = f.encrypt(value.encode() if isinstance(value, str) else value)
+    return encrypted_bytes.decode()
 
 
 #: عدّادُ الحقول التي تعذّر فكُّها منذ إقلاع العملية.
@@ -106,8 +107,9 @@ def decrypt_field(value: Any) -> Any:
     if not f:
         return value
     try:
-        return f.decrypt(value.encode()).decode()
-    except (InvalidToken, ValueError, TypeError, UnicodeDecodeError):
+        value_bytes = value.encode() if isinstance(value, str) else value
+        return f.decrypt(value_bytes).decode()
+    except (InvalidToken, ValueError, TypeError, UnicodeDecodeError) as _:
         global _decrypt_failures
         _decrypt_failures += 1
         if _decrypt_failures in (1, 10, 100) or _decrypt_failures % 1000 == 0:
@@ -130,7 +132,7 @@ def hmac_field(value: str) -> str:
     """
     if not value:
         return ""
-    key = getattr(settings, "FERNET_KEY", "")
+    key: str | bytes = getattr(settings, "FERNET_KEY", "")
     if not key:
         # fail-closed في الإنتاج: بدون مفتاح، إعادة النص الصريح كـ HMAC تكسر
         # البحث والتفرد وتخزّن معرّفات شخصية بلا حماية.
@@ -139,5 +141,5 @@ def hmac_field(value: str) -> str:
 
             raise ImproperlyConfigured("FERNET_KEY مطلوب لتوليد HMAC في الإنتاج. fail-closed.")
         return value
-    key_bytes = key.encode() if isinstance(key, str) else key
+    key_bytes: bytes = key.encode() if isinstance(key, str) else key
     return _hmac.new(key_bytes, value.strip().encode(), hashlib.sha256).hexdigest()
