@@ -373,3 +373,66 @@ def export_filename(ctx: dict, extension: str) -> str:
     if ctx.get("source") == "actual" and ctx.get("week_start"):
         stem = f"{stem} أسبوع {ctx['week_start'].isoformat()}"
     return f"{get_valid_filename(stem)}.{extension}"
+
+
+def pages_payload(school, get_params) -> dict:
+    """ما يُطبع: معلّمون (كلُّهم أو قسمٌ أو واحدٌ) أو شُعب — والاتّجاهُ من الرابط.
+
+    بلا `request`: يقرؤه العاملُ الخلفيّ أيضاً (`operations.schedule_export_builders`) من `query_string` المحفوظة.
+    """
+    year = get_params.get("year") or academic_year_for_school(school)
+    kind = "classes" if get_params.get("kind") == "classes" else "teachers"
+    dept = get_params.get("dept") or "all"
+    teacher_id = get_params.get("teacher") or ""
+    orient = get_params.get("orient") or DEFAULT_ORIENTATION
+    if orient not in ORIENTATIONS:
+        orient = DEFAULT_ORIENTATION
+    paper = get_params.get("paper") or "a4"
+    if paper not in PAPERS:
+        paper = "a4"
+
+    departments = ScheduleService.department_options(school, year)
+    if kind == "classes":
+        pages = ScheduleService.class_pages(school, year)
+        title = "جداول الشُّعب"
+    else:
+        department = None if dept == "all" or teacher_id else dept
+        pages = ScheduleService.teacher_pages(
+            school, year, department=department, teacher_id=teacher_id or None
+        )
+        if teacher_id:
+            # الاسمُ من القاعدة لا من الصفحات: من لا حصصَ له صفحاتُه فارغةٌ
+            # وعنوانُه كان يصير «جداول معلّمي المدرسة» — عنوانٌ يكذب على قارئه.
+            named = CustomUser.objects.filter(id=teacher_id).first()
+            title = f"جدول المعلّم: {named.full_name}" if named else "جدول المعلّم"
+        elif department:
+            name = next((d["name"] for d in departments if d["code"] == department), department)
+            title = f"جداول معلّمي قسم {name}"
+        else:
+            title = "جداول معلّمي المدرسة"
+
+    selection = {"kind": kind, "dept": dept, "orient": orient, "paper": paper, "year": year}
+    if teacher_id:
+        selection["teacher"] = teacher_id
+
+    teachers, classes = browse_lists(school)
+    return {
+        "school": school,
+        "year": year,
+        "kind": kind,
+        "paper": paper,
+        "title": title,
+        "pages": pages,
+        "departments": departments,
+        "teachers": teachers,
+        "classes": classes,
+        "picker_current": "pages:classes" if kind == "classes" else f"pages:teachers:{dept}",
+        "selected_dept": dept if not teacher_id else "",
+        "orient": orient,
+        # السطرُ يومٌ والعمودُ حصّة، واسمُ اليوم مقرونٌ بخاناته في `by_day`.
+        "period_numbers": ScheduleSlot.PERIODS,
+        # الورقةُ بالملّيمتر: الجدولُ يملأ ما بقي بعد الترويسة والذيل (قرار 2026-09-14).
+        "geo": paper_geometry(paper, orient, with_who=True),
+        "selection_query": urlencode(selection),
+        "embed": get_params.get("embed") == "1",
+    }

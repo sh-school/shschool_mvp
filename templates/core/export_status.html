@@ -1,9 +1,9 @@
 {% extends "base/base.html" %}
 {% load ui %}
 {% comment %}
-متابعةُ تصديرٍ خلفيّ (PDF/Excel) — البند 5. الرابطُ نفسُه يُرجع الملفَّ لا
-هذه الصفحة بمجرّد أن تصير الحالةُ `done`، وتُحدَّث الصفحةُ نفسَها كلَّ
-ثانيتين حتى ذلك الحين.
+متابعةُ تصديرٍ خلفيّ (PDF/Excel) — لمن بلا JS أو رابطٍ مفتوحٍ مباشرةً (`core.exports.views.export_page`). حين تصير الحالةُ
+`done` يُحيل الرابطُ إلى الملفّ نفسِه لا إلى هذه الصفحة، وتُحدَّث الصفحةُ نفسَها كلَّ ثانيتين حتى ذلك الحين.
+والخطأُ رسالةٌ عربيّةٌ ثابتةٌ من `core/exports/messages.py` — لا نصَّ استثناء أبداً.
 {% endcomment %}
 {% block title %}تحضير التصدير{% endblock %}
 
@@ -22,8 +22,8 @@
   {% page_header "تحضير الملفّ" %}{% endpage_header %}
 
   {% if job.status == "failed" %}
-  {% callout "error" %}تعذّر التصدير: {{ job.error_message|default:"خطأ غير متوقَّع." }}{% endcallout %}
-  <p><a href="{% url 'weekly_schedule' %}" class="btn-secondary btn-sm">العودة إلى الجدول</a></p>
+  {% callout "error" %}تعذّر التصدير: {{ error }}{% endcallout %}
+  <p><a href="{% url 'dashboard' %}" class="btn-secondary btn-sm">العودة إلى الرئيسيّة</a></p>
   {% else %}
   <p class="ui-note">جارٍ تحضير الملفّ… ستُنزَّل تلقائياً عند الجاهزية.</p>
   {% endif %}
