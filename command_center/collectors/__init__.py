@@ -3,7 +3,7 @@
 الصفحةُ لا تحسب شيئاً عند الرسم؛ هذه الحزمةُ تحسب في الخلفيّة وتكتب المغلَّفَ. قسمان بحسب المصدر:
 
 - **محلّيّة** (`LOCAL`): قاعدةُ البيانات والـcache والملفّاتُ المشحونة — سريعةٌ ولا شبكةَ فيها؛ تُجمَع كلَّ دقيقة.
-- **GitHub** (`REMOTE`): واجهةُ GitHub العامّةُ بلا رمز (الحدُّ 60 طلباً في الساعة) بطلباتٍ شرطيّة (ETag)؛ تُجمَع كلَّ خمس دقائق.
+- **GitHub** (`REMOTE`): واجهةُ GitHub العامّةُ بلا رمز (الحدُّ 60 طلباً في الساعة) بطلباتٍ شرطيّة (ETag)؛ تُجمَع كلَّ أربع دقائق.
 
 كلُّ مجمِّعٍ يعزل عطلَه: يكتب `ok=False` برمزٍ ثابتٍ فتبقى آخرُ قيمةٍ سليمةٍ وتُعرض تحذيراً، ولا يُسقط غيرَه.
 """
@@ -14,7 +14,17 @@ import logging
 from collections.abc import Callable
 
 from command_center import alerts
-from command_center.collectors import ci, guards, production, pulls, roadmap
+from command_center.collectors import (
+    ci,
+    compliance,
+    guards,
+    messaging,
+    production,
+    pulls,
+    roadmap,
+    security,
+    ux,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +33,10 @@ Collector = Callable[[], None]
 #: لوحةٌ ← مجمِّعُها. أسماءُ اللوحات في `contract.PANELS`، واختبارٌ يحرس تطابقَ القائمتين.
 LOCAL: dict[str, Collector] = {
     "production": production.collect,
+    "compliance": compliance.collect,
+    "messaging": messaging.collect,
+    "security": security.collect,
+    "ux": ux.collect,
     "guards": guards.collect,
     "roadmap": roadmap.collect,
 }

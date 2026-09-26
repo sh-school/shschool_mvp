@@ -76,6 +76,8 @@ urlpatterns = [
     path("roadmap/", include("roadmap.urls")),
     # مركز قيادة الجودة — صفحةٌ في المنصّة لمطوّرها وحدَه، بجانب خارطة التجويد (QCC-01b: لا في /admin/)
     path("command-center/", include("command_center.urls")),
+    # استقبالُ القياس الميدانيّ (Q-04): beacon بلا هويّةٍ من `static/js/rum.js` — مطفأٌ ما دام RUM_ENDPOINT فارغاً
+    path("rum/", include("command_center.rum_urls")),
     # ✅ v5.1.1: Prometheus metrics — محمي بمصادقة staff + IP داخلي فقط
     path(
         "metrics",
