@@ -8,7 +8,23 @@ class OperationsConfig(AppConfig):
 
     def ready(self):
         import operations.signals  # noqa: F401
+        from core.exports import registry as export_registry
         from core.module_registry import register_module
+
+        from . import schedule_export_builders as builders
+
+        # تصديرُ الجدول عبر السجلّ المركزيّ (VI-30ب): خلفيٌّ كلُّه — الأثقلُ 19.9ث، وPDF الجدول العامّ أبطأُ من ثانية.
+        export_registry.register(
+            "schedule.pdf", build=builders.build_schedule_pdf, capability="schedule.print"
+        )
+        export_registry.register(
+            "schedule.xlsx", build=builders.build_schedule_xlsx, capability="schedule.print"
+        )
+        export_registry.register(
+            "schedule.pages_pdf",
+            build=builders.build_schedule_pages_pdf,
+            capability="schedule.browse",
+        )
 
         register_module(
             name="schedule",

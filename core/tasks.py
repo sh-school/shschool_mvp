@@ -28,6 +28,18 @@ def worker_heartbeat() -> None:
     heartbeat.record()
 
 
+@shared_task(name="core.export.run_job", soft_time_limit=150, time_limit=170)
+def run_export_job(job_id: str) -> dict:
+    """يبني صفَّ تصديرٍ خلفيّاً (PDF/Excel) — كلُّ الأنواع المسجَّلة في `core.exports.registry`.
+
+    السقفان تحت `EXPORT_JOB_TIMEOUT` (3 دقائق): مهمّةٌ تتجاوز 150ث تُقطع برمز `timeout` قبل أن تنتهي مهلةُ الصفّ.
+    والعاملُ لا يُعيد تحميلَ الكود — تعديلُ بنّاءٍ يلزمه إعادةُ تشغيل العامل.
+    """
+    from core.exports.runner import run_job
+
+    return run_job(job_id)
+
+
 @shared_task(name="core.refresh_backup_status", ignore_result=True)
 def refresh_backup_status() -> None:
     """يجلب حالةَ آخر نسخٍ احتياطيّ من واجهة GitHub العامّة إلى الـcache.

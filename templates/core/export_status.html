@@ -1,0 +1,32 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% comment %}
+متابعةُ تصديرٍ خلفيّ (PDF/Excel) — لمن بلا JS أو رابطٍ مفتوحٍ مباشرةً (`core.exports.views.export_page`). حين تصير الحالةُ
+`done` يُحيل الرابطُ إلى الملفّ نفسِه لا إلى هذه الصفحة، وتُحدَّث الصفحةُ نفسَها كلَّ ثانيتين حتى ذلك الحين.
+والخطأُ رسالةٌ عربيّةٌ ثابتةٌ من `core/exports/messages.py` — لا نصَّ استثناء أبداً.
+{% endcomment %}
+{% block title %}تحضير التصدير{% endblock %}
+{% block main_class %}{% page_layout "detail" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="تحضير التصدير" %}
+{% endblock %}
+
+{% block extra_head %}
+{% if job.status == "pending" or job.status == "running" %}
+<meta http-equiv="refresh" content="2">
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash">
+  {% page_header "تحضير الملفّ" %}{% endpage_header %}
+
+  {% if job.status == "failed" %}
+  {% callout "error" %}تعذّر التصدير: {{ error }}{% endcallout %}
+  <p><a href="{% url 'dashboard' %}" class="btn-secondary btn-sm">العودة إلى الرئيسيّة</a></p>
+  {% else %}
+  <p class="ui-note">جارٍ تحضير الملفّ… ستُنزَّل تلقائياً عند الجاهزية.</p>
+  {% endif %}
+</div>
+{% endblock %}
