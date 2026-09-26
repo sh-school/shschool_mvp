@@ -127,24 +127,12 @@
     <img class="print-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="شعار {{ school.name }}" width="295" height="295">
     <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
     <div class="school-name">{{ school.name }}</div>
-    <div class="doc-title">{% if kind == 'classes' %}الجدول الأسبوعي للشعبة{% else %}الجدول الأسبوعي للمعلّم{% endif %}</div>
+    <div class="doc-title">{% include "schedule/partials/page_doc_title.html" %}</div>
     {% comment %}العامُ بين عازلَي اتّجاه: «2026-2027» في سطرٍ عربيٍّ كان يُقرأ «2027-2026».{% endcomment %}
     <div class="year">العام الدراسي &#8294;{{ year }}&#8297;</div>
   </div>
 
-  {% if kind == 'classes' %}
-  <div class="who">
-    <span>الشعبة: <b>{{ row.class_group.label_with_track }}</b></span>
-    <span>عدد الحصص: <b>{{ row.total }}</b></span>
-  </div>
-  {% else %}
-  <div class="who">
-    <span>المعلّم: <b>{{ row.teacher.full_name }}</b>{% if row.department.specialty %} <span class="specialty">({{ row.department.specialty }})</span>{% endif %}</span>
-    <span class="who-dept">القسم: <b>{{ row.department.name }}</b></span>
-    {% if row.department.head %}<span class="who-head">المنسّق: {{ row.department.head }}</span>{% endif %}
-    <span>النصاب الأسبوعي: <b>{{ row.total }}</b> حصة</span>
-  </div>
-  {% endif %}
+  {% include "schedule/partials/page_who.html" with row=row %}
 
   {% if kind == 'classes' %}{% include "schedule/pdf/week_grid.html" with week=row.week who="teacher" %}{% else %}{% include "schedule/pdf/week_grid.html" with week=row.week who="class" %}{% endif %}
 

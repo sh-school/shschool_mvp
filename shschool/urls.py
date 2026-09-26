@@ -42,6 +42,7 @@ urlpatterns = [
     path("core/", include("core.urls.audit")),
     path("core/it-admin/", include("core.urls.it_admin")),
     path("core/students/import-export/", include("core.urls.students")),
+    path("exports/", include("core.urls.exports")),
     path("teacher/", include("operations.urls")),
     path("quality/", include("quality.urls")),
     path("assessments/", include("assessments.urls")),

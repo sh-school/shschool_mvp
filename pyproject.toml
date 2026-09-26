@@ -147,8 +147,10 @@ skips        = ["B101", "B601"]  # assert + shell=True في مواضع مقبو�
 [tool.mypy]
 python_version         = "3.12"
 ignore_missing_imports = true
-exclude                = ["migrations", ".venv", "manage.py", "scripts"]
-plugins                = ["mypy_django_plugin.main"]
+# management/commands: أوامرُ إدارةٍ تُشغَّل يدويّاً/مجدولةً لا شيفرةُ طلبٍ — استثناءٌ بقرار المالك (2026-09-25، DBT-01)؛
+# تغييرُ نطاقٍ لا إصلاح: ما يُضاف من أوامر خارجَ الفحص تلقائيّاً بالنمط.
+exclude                = ["migrations", ".venv", "manage.py", "scripts", "management/commands"]
+plugins               = ["mypy_django_plugin.main"]
 
 # ✅ v5.2: strict mode — فحص صارم للأنواع
 warn_return_any             = true

@@ -6,7 +6,7 @@ from django.db import migrations
 
 def populate_hmac_encrypted(apps, schema_editor):
     """تعبئة الحقول المشفّرة لكل المستخدمين الحاليين."""
-    from core.models._crypto import encrypt_field, hmac_field
+    from core.models.crypto import encrypt_field, hmac_field
 
     CustomUser = apps.get_model("core", "CustomUser")
     batch_size = 500

@@ -24,7 +24,7 @@ class CustomUserManager(BaseUserManager):
         PDPPL: يبحث عبر HMAC أولاً (مفهرس + مشفّر)، ثم fallback إلى plaintext.
         هذا يُستخدم داخلياً من Django (admin, authenticate, etc.).
         """
-        from .models._crypto import hmac_field
+        from .models.crypto import hmac_field
 
         hashed = hmac_field(username)
         if hashed and hashed != username:
