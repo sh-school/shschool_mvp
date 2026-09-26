@@ -42,7 +42,7 @@ from .observation_selectors import grouped_criteria as _grouped_criteria
 from .observation_selectors import groups_with_scores as _groups_with_scores
 from .observation_selectors import teacher_schedule_context as _teacher_schedule_context
 from .observation_services import ObservationService
-from .presentation import decorate_observation
+from .presentation import decorate_observation, signature_stamps
 
 logger = logging.getLogger(__name__)
 
@@ -246,6 +246,7 @@ def _pdf_context(obs):
         "letterfoot": _as_data_uri(obs.school.letterfoot),
         "domains": grouped,
         "ratings": RATING_CHOICES,
+        "signatures": signature_stamps(obs),
         "academic_year": academic_year_for_school(obs.school).replace("-", "/"),
         "form_subject": {
             "self": "التقييم الذاتي للمعلّم",

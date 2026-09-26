@@ -235,3 +235,8 @@ def test_the_phone_rules_never_reach_paper():
     embed = html.rindex("{% if embed and view_type == 'all_teachers' %}", 0, narrow)
     screen = html.rindex("@media screen {", 0, narrow)
     assert embed < screen < narrow, "كتلةُ الهاتف خارج `embed` أو `@media screen`"
+
+
+def test_the_register_export_row_wraps_instead_of_widening_the_page():
+    """رأسُ كشف الشعبة: قائمةُ الاتّجاه وثلاثةُ أزرارٍ 510px بلا التفاف — فتتّسع صفحةُ المشرف الرئيسيّة 135px عند 375."""
+    assert _decl(".per-exports", "flex-wrap") == "wrap"
