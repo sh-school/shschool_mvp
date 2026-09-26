@@ -99,8 +99,9 @@ class TestTheView:
         def forbidden(*args, **kwargs):
             raise AssertionError("PDF يُولَّد داخل طلب الويب")
 
-        monkeypatch.setattr("core.pdf_utils.render_pdf_bytes", forbidden)
-        monkeypatch.setattr("core.pdf_utils.render_pdf", forbidden)
+        # `_generate_pdf_bytes` يقرؤه `render_pdf` و`render_pdf_bytes` معاً وقتَ النداء؛ ولا يُرقَّع `render_pdf` نفسُه: وحدةُ العرض
+        # تستورده بالاسم عند أوّل طلبٍ فيبقى المرقَّعُ فيها بعد الاختبار ويُفسد ما بعده.
+        monkeypatch.setattr("core.pdf_utils._generate_pdf_bytes", forbidden)
         monkeypatch.setattr("core.tasks.run_export_job.apply_async", lambda *a, **k: None)
 
         resp = client_as(principal_user).get(
