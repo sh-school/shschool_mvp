@@ -387,9 +387,6 @@
    "lines": 111,
    "orm": 29
   },
-  "operations/views_schedule.py::_pages_payload": {
-   "orm": 7
-  },
   "operations/views_schedule.py::_reap_stale_generations": {
    "orm": 6
   },
@@ -399,15 +396,6 @@
   },
   "operations/views_schedule.py::register_teacher_absence": {
    "orm": 11
-  },
-  "operations/views_schedule.py::schedule_pages": {
-   "orm": 7
-  },
-  "operations/views_schedule.py::schedule_pages_paper": {
-   "orm": 7
-  },
-  "operations/views_schedule.py::schedule_pages_pdf": {
-   "orm": 7
   },
   "operations/views_schedule.py::schedule_quality_lab": {
    "lines": 107,

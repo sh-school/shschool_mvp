@@ -1,0 +1,155 @@
+name: لقطات الهويّة البصريّة — قياسٌ استشاريّ (VI-13)
+
+# ══════════════════════════════════════════════
+#  لقطاتٌ آليّةٌ لأهمّ خمس صفحاتٍ نهاراً وليلاً بعرضَي الجوال وسطح المكتب (tests/visual_snapshots.py).
+#
+#  **مرحلةٌ استشاريّة:** هذه الوظيفةُ ليست في `gate-summary` فلا تحجب دمجاً. تقيس أوّلاً **الحتميّةَ** (كلُّ لقطةٍ تُلتقط
+#  مرّتين في التشغيل نفسِه ويجب أن تتطابق) ثمّ الفرقَ عن أساس `main`؛ فتُضبط العتباتُ من أرقامٍ مقيسةٍ لا من تخمين،
+#  وبعد أن يثبت الاستقرارُ تُرفع إلى بوّابةٍ (بند VI-13 في الخارطة).
+#
+#  الأساس: تشغيلٌ على `main` يرفع `visual-baseline` (لا صورَ في git — المستودعُ عامّ). وطلبُ الدمج يُنزّل آخرَ أساسٍ ناجحٍ ويقارن به.
+#  الاعتماد: وسمُ «تغيير-بصريّ» على الطلب يجعل الفرقَ ملخّصاً لا فشلاً (سابقةُ «نشر-عاجل»)، وتُنشر صورُ الفرق في الـartifact.
+# ══════════════════════════════════════════════
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - "templates/**"
+      - "static/css/**"
+      - "static/js/**"
+      - "core/templatetags/**"
+      - "tests/visual_snapshots.py"
+      - "tests/e2e/test_visual_snapshots_live.py"
+      - ".github/workflows/visual-snapshots.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: visual-snapshots-${{ github.ref }}
+  # طلبُ الدمج يُلغي تشغيلَه القديم؛ أمّا `main` فلا: الأساسُ يُرفع من تشغيلٍ ناجحٍ وحدَه، ودمجان متتاليان كانا يُلغيان أوّلَ تشغيلٍ فلا يبقى أساسٌ (2026-09-25).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  snapshots:
+    name: لقطات الهويّة — حتميّةٌ ومقارنة
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB:       test_db
+          POSTGRES_USER:     test_user
+          POSTGRES_PASSWORD: test_pass  # pragma: allowlist secret
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+      SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6  # pragma: allowlist secret
+      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=  # pragma: allowlist secret
+      EXCEL_PROTECTION_PASSWORD: ci-testing-only
+      # Playwright يستعمل حلقةَ أحداثٍ داخليّةً تُخطئ حارسَ Django غير المتزامن (كما في axe-a11y).
+      DJANGO_ALLOW_ASYNC_UNSAFE: "1"
+      VISUAL_SNAPSHOTS: "1"
+      VISUAL_OUT: visual-out
+      # الوسمُ اعتمادٌ للتغيير المقصود: الفرقُ يُنشر ولا يُفشل.
+      VISUAL_ALLOW_CHANGES: ${{ contains(github.event.pull_request.labels.*.name, 'تغيير-بصريّ') && '1' || '' }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libgdk-pixbuf2.0-dev \
+            libffi-dev \
+            shared-mime-info \
+            pkg-config
+
+      - name: تثبيت المتطلبات
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-django factory-boy pytest-playwright==0.9.0
+
+      # Chromium وحدَه: اللقطةُ مقارنةُ بكسلاتٍ لا اختبارُ محرّكات (WebKit على لينكس ليس iOS).
+      - name: تثبيت Chromium (مع مكتبات النظام)
+        run: playwright install --with-deps chromium
+
+      - name: تطبيق Migrations
+        run: python manage.py migrate --noinput
+
+      - name: أساسُ main (إن وُجد)
+        if: github.event_name != 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_id=$(gh run list --workflow visual-snapshots.yml --branch main --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -n "$run_id" ] && gh run download "$run_id" --name visual-baseline --dir visual-baseline; then
+            echo "VISUAL_BASELINE_DIR=visual-baseline" >> "$GITHUB_ENV"
+            echo "أساسُ main من التشغيل $run_id"
+          else
+            echo "::notice::لا أساسَ من main بعدُ (أو انتهى احتفاظُه) — تُقاس الحتميّةُ وحدَها"
+          fi
+
+      # المهلةُ على الخطوة لا الوظيفة: `test_ci_suite_parity` يقرأ مهلةَ الوظيفة ميزانيّةَ مجموعةٍ كاملةٍ تلزمها الموازاة، وهذه مساراتٌ محدَّدة.
+      - name: اللقطات (حتميّةٌ ومقارنة)
+        timeout-minutes: 20
+        run: python -m pytest tests/e2e/test_visual_snapshots_live.py -v
+
+      - name: الملخّص في صفحة التشغيل
+        if: always()
+        run: |
+          if [ -f visual-out/summary.md ]; then
+            {
+              echo "## لقطات الهويّة البصريّة"
+              echo
+              cat visual-out/summary.md
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: رفعُ اللقطات والفروق
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-current-${{ github.sha }}
+          path: visual-out
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # الأساس: لقطاتُ main وحدَها (بلا التكرار ولا الفروق) — يُنزَّل في طلباتِ الدمج التالية.
+      - name: رفعُ أساس main
+        if: github.event_name == 'push' && success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: visual-baseline
+          path: visual-out/shots
+          retention-days: 30

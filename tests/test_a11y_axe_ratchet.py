@@ -114,7 +114,58 @@ def _admin_pages(teacher) -> list[str]:
         # الرجوع)، وقائمةٌ فيها رابطُ «أظهر الكل» داخل نصّ (يميّزه اللونُ وحدَه). والمسحُ الكامل: tests/e2e/test_admin_sweep.py.
         "/admin/axes/accessattempt/add/",
         "/admin/roadmap/roadmapitem/",
+        # مركزُ قيادة الجودة (QCC-01): كلُّ الحالات والوضعين في اختبارٍ خاصٍّ أدناه؛ وهنا حالتُه الأولى «غيرُ معلوم».
+        "/admin/command-center/",
     ]
+
+
+def test_the_command_center_has_no_axe_violations_in_any_state_or_theme(
+    page, live_server, developer_user
+):
+    """QCC-01: القشرةُ نهاراً وليلاً وبكلّ حالةٍ (سليم وانتبه وخطر وغيرُ معلوم) — التباينُ خصوصاً."""
+    from command_center import contract
+
+    developer_user.is_staff = developer_user.is_superuser = True
+    developer_user.save()
+    contract.store("production", {"status": "ok", "headline": "سليم", "detail": "تفصيلٌ قصير"})
+    contract.store("ci", {"status": "warn", "headline": "انتبه", "detail": "تفصيلٌ قصير"})
+    contract.store("guards", {"status": "bad", "headline": "خطر", "detail": "تفصيلٌ قصير"})
+    _login(page, live_server, developer_user)  # «roadmap» و«pulls» تبقيان غيرَ معلومتين
+
+    found = {}
+    for theme in ("light", "dark"):
+        page.goto(f"{live_server.url}/admin/")
+        page.evaluate(f"localStorage.setItem('theme', '{theme}')")
+        page.goto(f"{live_server.url}/admin/command-center/")
+        page.wait_for_load_state("networkidle")
+        page.wait_for_timeout(300)  # الاستطلاعُ الأوّل يعيد رسمَ اللوحات من اللقطة
+        counts = ratchet.measure_page(page)
+        if counts:
+            found[theme] = counts
+
+    assert not found, f"مخالفاتُ axe في مركز قيادة الجودة (راجع .qc-* في admin_theme.css): {found}"
+
+
+def test_the_command_center_does_not_overflow_on_a_phone_or_a_laptop(
+    page, live_server, developer_user
+):
+    """QCC-01: لا تجاوزَ أفقيّاً بعرض 375 (جوّال) ولا 1366 (لابتوب)، ولا يخرج عنصرٌ من الشاشة."""
+    developer_user.is_staff = developer_user.is_superuser = True
+    developer_user.save()
+    _login(page, live_server, developer_user)
+
+    found = {}
+    for width, height in ((375, 812), (1366, 768)):
+        page.set_viewport_size({"width": width, "height": height})
+        page.goto(f"{live_server.url}/admin/command-center/")
+        page.wait_for_load_state("networkidle")
+        over = page.evaluate(
+            "() => document.documentElement.scrollWidth - document.documentElement.clientWidth"
+        )
+        if over > 0:
+            found[width] = over
+
+    assert not found, f"تجاوزٌ أفقيٌّ في مركز قيادة الجودة (بكسل): {found}"
 
 
 def test_the_admin_widgets_have_accessible_names(
@@ -227,6 +278,7 @@ def test_the_admin_touch_targets_are_44px_on_phones(
         "/admin/behavior/behaviorinfraction/add/",
         "/admin/core/school/add/",
         "/admin/roadmap/roadmapitem/",
+        "/admin/command-center/",
     ]:
         page.goto(f"{live_server.url}{path}")
         page.wait_for_load_state("networkidle")

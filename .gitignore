@@ -87,6 +87,9 @@ ZZZZ.zip
 # Claude Code worktrees
 .claude/worktrees/
 
+# إعداداتُ Claude المحلّيّة (أذوناتُ كلّ جلسةٍ ومستخدم): تُعدَّل من كلّ شجرةٍ فتبقى تعديلاً عالقاً وتمنع الدمجَ — REP-11
+.claude/settings.local.json
+
 # Backup files
 *.dump
 *.bak

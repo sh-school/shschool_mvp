@@ -512,7 +512,7 @@ window.showToast = function(msg, type, duration) {
   if (!container) return;
   var toast = document.createElement('div');
   toast.className = 'toast toast-' + type;
-  toast.setAttribute('role', 'alert');
+  toast.setAttribute('role', type === 'danger' || type === 'warning' ? 'alert' : 'status');  // 4.1.3: النجاحُ والمعلومةُ لا تقاطعان القارئ
 
   var icon = document.createElement('span');
   icon.className = 'toast-icon';
@@ -614,6 +614,32 @@ document.addEventListener('htmx:afterSwap', function() {
   }
 });
 
+
+/* ── رأسُ الجدول اللاصق لا يحجب الصفَّ المركَّز (WCAG 2.4.11) ─────
+   داخل حاويةٍ تُمرَّر (`.table-wrap-scroll`) يعدّ المتصفّحُ ما تحت `th` اللاصق ظاهراً فلا يمرّر إليه؛ فإن
+   حُجب المركَّزُ رُفع الصفُّ بمقدار الحجب. (`scroll-padding` لا يصلح: ارتفاعُ الرأس يتبدّل بالتفاف عناوينه.)
+   ولا يُحسب إلّا `th` لاصقٌ حاويتُه هي حاويةُ المركَّز نفسُها — فحقلٌ فوق الجدول في البطاقة نفسِها لا يُلمَس. */
+document.addEventListener('focusin', function(e) {
+  var el = e.target;
+  if (!el.closest || el.closest('thead')) return;
+  var holder = function(n) {
+    for (n = n.parentElement; n; n = n.parentElement) {
+      if (/auto|scroll|hidden|clip/.test(getComputedStyle(n).overflowY)) return n;
+    }
+    return null;
+  };
+  var box = holder(el);
+  while (box && box.scrollHeight <= box.clientHeight) box = holder(box);
+  if (!box) return;
+  var head = 0;
+  box.querySelectorAll('thead th').forEach(function(th) {
+    if (getComputedStyle(th).position === 'sticky' && holder(th) === box) {
+      head = Math.max(head, th.getBoundingClientRect().bottom);
+    }
+  });
+  var hidden = head - el.getBoundingClientRect().top;
+  if (head && hidden > 0) box.scrollTop -= hidden;
+});
 
 /* ── Modal Manager (with Focus Trap — WCAG 2.4.3) ────────── */
 window.modalManager = {

@@ -66,7 +66,6 @@
   "core/middleware.py": 20,
   "core/middleware_rls.py": 7,
   "core/mixins.py": 3,
-  "core/models/_crypto.py": 5,
   "core/models/academic.py": 31,
   "core/models/access.py": 16,
   "core/models/audit.py": 12,
@@ -161,5 +160,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1735
+ "total": 1730
 }

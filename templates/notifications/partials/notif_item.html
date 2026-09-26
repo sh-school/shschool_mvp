@@ -21,7 +21,8 @@
       {% if notif.related_url %}<a href="{{ notif.related_url }}">{{ notif.title }}</a>{% else %}{{ notif.title }}{% endif %}
     </h4>
 
-    {% if notif.body %}<p class="notif-item__body" title="{{ notif.body }}">{{ notif.body|truncatechars:160 }}</p>{% endif %}
+    {# النصُّ كاملاً: كان يُقصّ بـ160 حرفاً وسطرين فلا يُقرأ على اللمس، والنقرُ على العنوان يفتح صفحةً أخرى. #}
+    {% if notif.body %}<p class="notif-item__body">{{ notif.body }}</p>{% endif %}
 
     {# الشارةُ في سطر الوقت لا سطرٌ لها وحدَها — كانت تزيد كلَّ بطاقةٍ سطراً. #}
     {% now "Ymd" as today_key %}

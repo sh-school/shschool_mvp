@@ -88,10 +88,47 @@ class TestThePaperNamesItsWeek:
         assert f"الأسبوع {RANGE}" in actual
         assert "الأسبوع 11 أكتوبر" not in plan, "ورقةُ الخطّة كما كانت: بلا نطاق"
 
-    def test_the_general_schedule_paper_writes_it_too(self, world, client):
+    def test_the_general_schedule_paper_writes_it_under_the_table(self, world, client):
+        """السطرُ (الوزارة | العام | الأسبوع) تحت الجدول قبل ذيله — لا في الترويسة فوقه."""
         body = _paper(client, world, view="all_teachers", source="actual", week=str(SUNDAY))
 
-        assert f"الأسبوع {RANGE}" in body.split('class="sub"', 1)[1].split("</div>", 1)[0]
+        head = body.split('<div class="matrix-head">', 1)[1].split("</div>\n\n", 1)[0]
+        below = body.split("</table>", 1)[1]
+        assert "الأسبوع" not in head and "وزارة التربية" not in head, "لا سطرَ في الترويسة"
+        assert f"الأسبوع {RANGE}" in below.split('<div class="matrix-foot">', 1)[0]
+
+
+class TestTheSheetHeaderIsForPaperOnly:
+    """ترويسةُ الجدول العامّ (الشعارُ واسمُ المدرسة والعنوان) للورق وحدَه: صفحةُ المنصّة تعرض جدولاً بمكوّناتها لا هذه الورقة (2026-09-25)."""
+
+    def test_the_paper_in_the_print_frame_has_no_screen_layer(self, world, client):
+        """الإطارُ المخفيُّ يحمل الورقةَ للطباعة وحدَها — لا طبقةَ تفاعلٍ ولا قاعدةَ شاشة (كانت `is-embed` تُخفي الترويسةَ حين كانت الورقةُ تُعرض)."""
+        body = _paper(client, world, view="all_teachers", embed="1")
+
+        assert "is-embed" not in body
+        assert "mx-hint" not in body and "schedule-matrix.js" not in body
+        assert '<div class="matrix-head">' in body, "الترويسةُ في المستند — تظهر في الطباعة وPDF"
+
+    def test_the_standalone_sheet_keeps_its_header(self, world, client):
+        body = _paper(client, world, view="all_teachers")
+
+        assert '<div class="matrix-head">' in body
+
+    def test_the_pdf_render_still_has_the_header(self, world):
+        from django.http import QueryDict
+        from django.template.loader import render_to_string
+
+        from operations.schedule_selectors import schedule_print_payload
+
+        ctx = schedule_print_payload(
+            world["school"], world["principal"], QueryDict("view=all_teachers")
+        )
+        ctx["embed"] = True  # كما تبنيه مهمّةُ التصدير
+        ctx["for_pdf"] = True
+
+        html = render_to_string("schedule/print_schedule.html", ctx)
+
+        assert '<div class="matrix-head">' in html and "شعار" in html
 
     def test_the_file_name_carries_the_week_only_for_an_actual_week(self, world, client):
         _sheet(

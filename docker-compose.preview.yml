@@ -1,0 +1,144 @@
+# ══════════════════════════════════════════════════════════════
+# SchoolOS — المعاينةُ المركزيّة: خادمٌ واحدٌ (وعاملٌ خفيف) يعرض `main` بوضع الإنتاج.
+#
+# لِمَ؟ كان لكلّ جلسةٍ خادمُها (docker-compose.session.yml) ليرى صاحبُ القرار عملَها، فاجتمعت
+# خمسةُ خوادمَ مقيمةٍ وعاملٌ على جهازٍ ذاكرتُه 16 غيغا وأكثرُها خاملٌ. وصاحبُ القرار لا يحتاج
+# إلّا أن يرى ما أنجزته الجلساتُ كلُّها في مكانٍ واحدٍ **قبل** أن يُرقّى الإنتاجُ (الترقيةُ يدويّة،
+# ومراجعتُها على معاينة main). فهنا خادمٌ واحد بوضعَين:
+#
+#   prod (الافتراضيّ)  شجرةُ main المثبَّتة، بإعدادات الإنتاج (shschool.settings.preview) وdaphne
+#                      و`collectstatic` — يتبع main تلقائيّاً (scripts/preview.sh watch).
+#   dev  (تثبيتٌ مؤقّت) شجرةُ جلسةٍ بإعدادات التطوير وrunserver، لمعاينة عملٍ لم يصر طلبَ دمجٍ بعدُ
+#                      (تعديلاتُها الحيّةُ تظهر)، وبعد مدّةٍ يعود الخادمُ إلى main وحدَه.
+#
+# لا يُشغَّل هذا الملفّ يدويّاً: scripts/preview.sh يضبط متغيّراتِه (الشجرة، القاعدة، الوضع، المنفذ…)
+# ويستدعيه بـ`--project-directory <الشجرة>` فيُربط ما فيها، و`--env-file` من شجرة المعاينة
+# فلا يُكتب ملفٌّ في شجرة جلسةٍ أخرى. ولا قاعدةَ افتراضيّة: `PREVIEW_DB` إلزاميّ، كي لا يقع
+# الخادمُ على `shschool_db` المشتركة (هجرةُ فرعٍ فيها تُسقط صفحاتِ كلّ الأشجار — 2026-09-11).
+#
+# ما لا تفعله: لا يتّصل بأيّ خدمةٍ خارجيّة. مفاتيحُ S3 هنا شكليّةٌ تجتاز فحصَ إقلاع production.py
+# وحدَه (preview.py يستبدل التخزين)، والبريدُ لا يُسلَّم، وSentry مُطفأ، وRedis في قاعدةٍ منطقيّةٍ
+# خاصّة (9) فلا يلتقط عاملُ الحزمة الأصليّة (القاعدة 0) مهامَّه.
+# ══════════════════════════════════════════════════════════════
+x-preview-env: &preview_env
+  DJANGO_SETTINGS_MODULE: ${PREVIEW_SETTINGS:-shschool.settings.preview}
+  PREVIEW_MODE: ${PREVIEW_MODE:-prod}
+  DEBUG: ${PREVIEW_DEBUG:-False}
+  # قاعدةُ البيانات وredis في الحزمة الأصليّة، فيُوصَل إليهما عبر منفذَي المضيف المنشورَين.
+  DB_HOST: host.docker.internal
+  DB_PORT: ${DB_HOST_PORT:-5433}
+  DB_NAME: ${PREVIEW_DB:?PREVIEW_DB إلزاميّ — شغّل scripts/preview.sh لا هذا الملفّ مباشرةً}
+  REDIS_URL: redis://host.docker.internal:${REDIS_HOST_PORT:-6380}/${PREVIEW_REDIS_DB:-9}
+  SESSION_NAMESPACE: ${PREVIEW_DB}
+  CELERY_ASYNC_ENABLED: "true"
+  ALLOWED_HOSTS: ${PREVIEW_ALLOWED_HOSTS:-localhost,127.0.0.1,host.docker.internal}
+  # يعرضه /health/ في حقل commit — فيُعرف ما يخدمه الخادمُ الآن، ويُقارَن بما في الإنتاج.
+  RAILWAY_GIT_COMMIT_SHA: ${PREVIEW_SHA:-}
+  # لا شيءَ يخرج: لا بريدَ يُسلَّم، ولا Sentry، ولا S3 (مفاتيحُ شكليّةٌ لفحص الإقلاع فقط).
+  EMAIL_BACKEND: core.mail_backends.UndeliveredEmailBackend
+  SENTRY_DSN: ""
+  AWS_ACCESS_KEY_ID: preview-not-a-real-key
+  AWS_SECRET_ACCESS_KEY: preview-not-a-real-secret  # pragma: allowlist secret
+  AWS_STORAGE_BUCKET_NAME: preview-not-a-real-bucket
+  AWS_S3_ENDPOINT_URL: ""
+  AWS_S3_CUSTOM_DOMAIN: ""
+  EXCEL_PROTECTION_PASSWORD: preview-local-only  # pragma: allowlist secret
+  PYTHONUNBUFFERED: "1"
+  APP_DB_PASSWORD: ${APP_DB_PASSWORD}
+
+services:
+  web:
+    # لا `build`: صورةُ الحزمة الأصليّة تحمل الاعتماديّات، وscripts/preview.sh يبني صورةً
+    # خاصّةً (`schoolos-preview`) فقط حين تخالف requirements.txt في main ما فيها.
+    image: ${SCHOOLOS_IMAGE:-shschool_mvp-web}
+    restart: unless-stopped
+    # سقفٌ لا حجز: الاستهلاكُ المعتاد ~230 ميغا، والسقفُ يحمي الجهازَ من تسرّبٍ أو تقريرٍ جامح.
+    mem_limit: 768m
+    labels:
+      com.schoolos.role: preview
+    # الهجرةُ بدور المالك، ثمّ الخدمةُ بدور التطبيق غير-superuser (shschool_app) ليخضع لـRLS —
+    # كما في الحزمة الأصليّة وكما في Dockerfile (migrate → collectstatic → daphne). ولأنّ الإقلاعَ
+    # يهاجر ويجمع الثابتَ، فتحديثُ الشجرة = إعادةُ إنشاء الحاوية وحدَها. و`set -e`: هجرةٌ تسقط
+    # توقف الإقلاعَ فيظهر العطلُ (وهو إنذارٌ مبكّرٌ بأنّ هجرةَ الإنتاج ستسقط كذلك).
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        until python -c "import os, psycopg2; psycopg2.connect(host=os.environ['DB_HOST'], port=os.environ['DB_PORT'], dbname=os.environ['DB_NAME'], user=os.environ['DB_USER'], password=os.environ['DB_PASSWORD'], connect_timeout=3).close()" 2>/dev/null; do
+          echo "بانتظار قاعدة البيانات على $$DB_HOST:$$DB_PORT…"; sleep 2
+        done
+        python manage.py migrate --noinput
+        if [ "$$PREVIEW_MODE" = "prod" ]; then
+          python manage.py collectstatic --noinput --clear
+        fi
+        export DB_USER=shschool_app DB_PASSWORD=$$APP_DB_PASSWORD
+        if [ "$$PREVIEW_MODE" = "prod" ]; then
+          exec daphne -b 0.0.0.0 -p 8000 shschool.asgi:application
+        fi
+        exec python manage.py runserver 0.0.0.0:8000
+    environment: *preview_env
+    env_file:
+      - ${PREVIEW_ENV_FILE:-.env}
+    healthcheck:
+      # الإقلاعُ يهاجر ويجمع الثابتَ قبل daphne، فتُمنح فترةُ البدء أطولَ ممّا في الصورة.
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health/ >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 8
+      start_period: 90s
+    volumes:
+      - .:/app                          # الشجرةُ المعروضة (main، أو شجرةُ جلسةٍ مثبَّتة)
+      - /app/.venv                      # لا تُظلِّل بيئة الصورة بأيّ venv محلّي
+      # الثابتُ المجموع (1500 ملفٍّ، 32 ميغا) في حجمٍ مسمّى لا في مجلّد ويندوز المشترك: collectstatic
+      # يستغرق فيه 24 ثانيةً (قِيس) ويشاركه العامل. وأذونُه سليمة: الحجمُ يرث مالكَ /app/staticfiles من الصورة.
+      - preview_static:/app/staticfiles
+    ports:
+      # الحلقةُ المحلّيّة افتراضاً: منافذُ خوادم الجلسات الحاليّةُ كلُّها على 0.0.0.0 أي مكشوفةٌ لشبكة
+      # الجهاز. ويُفتح للشبكة (لمعاينة الجوال) بـ`scripts/preview.sh up --lan` وحدَه.
+      - "${PREVIEW_BIND:-127.0.0.1}:${PREVIEW_PORT:-8500}:8000"
+    # على Docker Desktop يُحلّ الاسمُ تلقائيّاً، وهذا السطرُ لأجل لينكس.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # عاملُ المهامّ الخلفيّة (التصدير، توليدُ الجدول): بلاه يبقى الطلبُ «في الانتظار». عمليّةٌ
+  # واحدةٌ فقط (`--concurrency=1`) — يكفي لمعاينة، ويوفّر الذاكرة. ولا يُعيد تحميلَ الكود
+  # وحدَه: scripts/preview.sh يُعيد إنشاءه مع الخادم عند كلّ تحديث.
+  worker:
+    image: ${SCHOOLOS_IMAGE:-shschool_mvp-web}
+    restart: unless-stopped
+    mem_limit: 768m
+    labels:
+      com.schoolos.role: preview
+    # ينتظر الخادمَ سليماً (أي انتهت الهجرةُ) قبل أن يبدأ.
+    depends_on:
+      web:
+        condition: service_healthy
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        export DB_USER=shschool_app DB_PASSWORD=$$APP_DB_PASSWORD
+        exec celery -A shschool worker -l info --concurrency=1
+    environment: *preview_env
+    env_file:
+      - ${PREVIEW_ENV_FILE:-.env}
+    # فحصُ العامل لا الخادم: الصورةُ ترث فحصَ `/health/` ولا خادمَ في هذه الحاوية.
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A shschool inspect ping -d celery@$$(hostname) --timeout 10 | grep -q pong || exit 1"]
+      interval: 30s
+      timeout: 15s
+      start_period: 60s
+      retries: 3
+    # الحجمُ نفسُه الذي يجمع فيه الخادمُ الثابتَ: قالبُ PDF يحتاج بيانَ الثابت (manifest) في
+    # قرص الحاوية التي تُصيِّره.
+    volumes:
+      - .:/app
+      - /app/.venv
+      - preview_static:/app/staticfiles
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  preview_static:
