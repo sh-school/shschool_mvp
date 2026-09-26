@@ -5541,3 +5541,328 @@ def test_0036_registers_n049_for_the_conduct_ladder_fix_as_done_with_the_open_md
     assert "لم يُتحقَّق:" in item.note and "behavior/0020" in item.note
     assert "محجوبٌ بقرار المالك لا منجَز" in item.note and "ولا بندَ له قبل قرار المالك" in item.note
     assert "فشل اثنان بيئيّان" in item.note
+
+
+# ── 0037: مراجعةُ البنود المتأخّرة بتأكيد المالك + إعادةُ تعريف DBT-11 وقراءاتُ Q-10 وVI-25 ──
+
+_sync37 = importlib.import_module("roadmap.migrations.0037_sync_items_2026_09_26b")
+
+
+class _Apps37:
+    @staticmethod
+    def get_model(_app, name):
+        return {
+            "RoadmapItem": RoadmapItem,
+            "RoadmapKpi": RoadmapKpi,
+            "RoadmapDecision": RoadmapDecision,
+        }[name]
+
+
+def _redef(code):
+    return next(row for row in _sync37.REDEFINES if row[0] == code)
+
+
+def _seed37():
+    from datetime import date
+
+    _item("DBT-14", "blocked", 0, start_date=date(2026, 9, 22), end_date=date(2026, 9, 24))
+    _item("SCH-06", "doing", 80, pr="#548")
+    _item(
+        "OWN-02",
+        "todo",
+        0,
+        gate="owner",
+        start_date=date(2026, 9, 22),
+        end_date=date(2026, 9, 23),
+        date_basis="مقترَح",
+    )
+    _item("VI-25", "todo", 0, gate="owner")
+    _item("Q-10", "todo", 0, criterion=_redef("Q-10")[3])
+    _item("Q-11", "todo", 0, start_date=date(2026, 9, 23), end_date=date(2026, 9, 24))
+    _item(
+        "DBT-11",
+        "todo",
+        0,
+        title=_redef("DBT-11")[1],
+        criterion=_redef("DBT-11")[3],
+        start_date=date(2026, 9, 22),
+        end_date=date(2026, 9, 24),
+        date_basis="مقترَح",
+    )
+
+
+def test_0037_redefines_dbt11_and_q10_only_while_title_and_criterion_are_as_last_snapshot():
+    _seed37()
+    assert _sync37.redefine_items(RoadmapItem) == ["DBT-11", "Q-10"]
+    assert _sync37.redefine_items(RoadmapItem) == []
+    dbt11 = RoadmapItem.objects.get(code="DBT-11")
+    assert dbt11.title.startswith("بريدٌ لا يُسلَّم في غياب المزوّد لا يدخل إعادةً")
+    assert (
+        "D-27" in dbt11.criterion
+        and "D-28" in dbt11.criterion
+        and "وتُعاد بعد" not in dbt11.criterion
+    )
+    assert "**النصُّ القديم:**" in dbt11.note and "أسماء طلبة وأولياء" in dbt11.note
+    assert "لا تسنده" in dbt11.note and "لم يُقَس:" in dbt11.note
+    q10 = RoadmapItem.objects.get(code="Q-10")
+    assert "زياراتِ الصفحات" in q10.criterion and q10.title == "عنوان"
+    assert "أكثرُ الصفحات زيارةً جوّالاً" in q10.note
+
+
+def test_0037_leaves_a_dbt11_the_developer_retitled_or_a_q10_with_an_edited_criterion():
+    _seed37()
+    RoadmapItem.objects.filter(code="DBT-11").update(title="عدّله المطوّر")
+    RoadmapItem.objects.filter(code="Q-10").update(criterion="معيارٌ آخر")
+    assert _sync37.redefine_items(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="DBT-11").title == "عدّله المطوّر"
+    assert RoadmapItem.objects.get(code="Q-10").criterion == "معيارٌ آخر"
+
+
+def test_0037_moves_each_item_only_from_its_expected_state_and_is_idempotent():
+    from datetime import date
+
+    _seed37()
+    expected = ["DBT-14", "SCH-06", "OWN-02", "VI-25", "Q-10", "Q-11", "DBT-11"]
+    assert _sync37.sync(RoadmapItem) == expected
+    assert _sync37.sync(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    assert (by["DBT-14"].status, by["DBT-14"].progress) == ("done", 100)
+    assert (by["SCH-06"].status, by["SCH-06"].progress, by["SCH-06"].pr) == ("deferred", 80, "#548")
+    assert (by["OWN-02"].status, by["OWN-02"].progress, by["OWN-02"].gate) == (
+        "deferred",
+        0,
+        "owner",
+    )
+    assert by["OWN-02"].start_date is None and by["OWN-02"].end_date is None
+    assert (by["VI-25"].status, by["VI-25"].progress, by["VI-25"].pr, by["VI-25"].gate) == (
+        "done",
+        100,
+        "#655",
+        "",
+    )
+    assert (by["Q-10"].status, by["Q-10"].progress, by["Q-10"].pr) == ("done", 100, "")
+    assert (by["Q-11"].status, by["Q-11"].progress) == ("doing", 0)
+    assert (by["Q-11"].start_date, by["Q-11"].end_date) == (date(2026, 9, 26), date(2026, 9, 26))
+    assert (by["DBT-11"].status, by["DBT-11"].progress, by["DBT-11"].pr) == ("doing", 33, "")
+    assert (by["DBT-11"].start_date, by["DBT-11"].end_date) == (
+        date(2026, 9, 26),
+        date(2026, 9, 30),
+    )
+    for item in by.values():
+        assert len(item.date_basis) <= 120 and len(item.pr) <= 64
+
+
+def test_0037_leaves_items_and_dates_the_developer_moved():
+    from datetime import date
+
+    _seed37()
+    RoadmapItem.objects.filter(code="DBT-14").update(status="todo")
+    RoadmapItem.objects.filter(code="Q-11").update(end_date=date(2026, 9, 30))
+    RoadmapItem.objects.filter(code="OWN-02").update(start_date=date(2026, 9, 27))
+    changed = _sync37.sync(RoadmapItem)
+    assert "DBT-14" not in changed and "Q-11" not in changed and "OWN-02" not in changed
+    assert RoadmapItem.objects.get(code="Q-11").end_date == date(2026, 9, 30)
+    assert RoadmapItem.objects.get(code="OWN-02").status == "todo"
+
+
+def test_0037_dbt14_closes_on_the_sentry_reading_without_claiming_the_root_cause_or_resolving_sentry():
+    _seed37()
+    _sync37.sync(RoadmapItem)
+    note = RoadmapItem.objects.get(code="DBT-14").note
+    assert "2,308" in note and "79" in note and "06:17 إلى 09:46 UTC" in note
+    assert "فالتكرارُ توقّف" in note and "لم يثبت السببُ الجذريّ" in note
+    assert "لم تُحلّ القضيّتان في Sentry" in note and "js/actions.js" in note
+
+
+def test_0037_sch06_is_deferred_on_the_owners_direct_confirmation_and_keeps_its_80():
+    _seed37()
+    _sync37.sync(RoadmapItem)
+    note = RoadmapItem.objects.get(code="SCH-06").note
+    assert "مؤجَّلٌ بتأكيد المالك المباشر" in note and "النسبةُ 80% تبقى" in note
+    assert "غيرَ مؤكَّدٍ لجلسة الخارطة" in note
+
+
+def test_0037_own02_is_deferred_with_no_date_and_never_a_production_write_from_the_roadmap():
+    _seed37()
+    _sync37.sync(RoadmapItem)
+    item = RoadmapItem.objects.get(code="OWN-02")
+    assert "بلا موعد" in item.note and "بيده" in item.note and "كتابةُ إنتاجٍ من الخارطة" in item.note
+    assert "بانتظار تنفيذ المالك بيده" in item.date_basis
+
+
+def test_0037_q10_records_the_measurement_with_its_limits_and_no_identity():
+    _seed37()
+    _sync37.sync(RoadmapItem)
+    note = RoadmapItem.objects.get(code="Q-10").note
+    assert "525 دخولاً من 36 مستخدماً متميّزاً" in note
+    assert "10.9% من الدخولات (57 من 525)" in note and "50.0% من المستخدمين (18 من 36)" in note
+    assert "88.2%" in note and "Edge 87.6%" in note and "لا لوحيَّ مصنَّفاً" in note
+    assert "لا سجلَّ لزيارات الصفحات" in note and "لا تمثّل الانتشارَ كلَّه" in note
+    assert "لا IP ولا مستخدم" in note and "الخلايا دون 5 مخفيّة" in note
+    assert "اقتراحُ صاحب المسار لا حسم" in note
+
+
+def test_0037_q11_starts_without_any_measurement_and_states_what_is_not_yet_measured():
+    _seed37()
+    _sync37.sync(RoadmapItem)
+    item = RoadmapItem.objects.get(code="Q-11")
+    assert "لا مقارِنَ ثانياً" in item.note and "VI-13" in item.note and "لم يُقَس شيءٌ بعدُ" in item.note
+    assert "لا طلبَ بعدُ" in item.note and "التزامُ المقعد" in item.date_basis
+
+
+def test_0037_dbt11_shows_671_open_derived_33_and_never_closes_before_production_is_measured():
+    _seed37()
+    _sync37.sync(RoadmapItem)
+    item = RoadmapItem.objects.get(code="DBT-11")
+    note = item.note
+    assert "33% = خطوتان من ستّ" in note and "اشتقاقٌ لا قياس" in note
+    assert "#671 مفتوحٌ لم يندمج" in note and "#671" not in item.pr
+    assert "سقط به عشرةُ اختبارات" in note and "لم يُقَس:" in note and "الإنتاج" in note
+    assert "قراءةٌ فقط" in note and "D-28" in note
+
+
+def test_0037_vi25_closes_with_the_axe_reading_and_the_unverified_ci_part():
+    _seed37()
+    _sync37.sync(RoadmapItem)
+    note = RoadmapItem.objects.get(code="VI-25").note
+    assert "axe 1 ← 0 على 8 تركيبات" in note and "خطُّ أساس السقّاطة صار {}" in note
+    assert "لم يُتحقَّق:" in note and "V-A1 وPK9" in note
+
+
+def test_0037_records_d27_and_d28_as_decided_by_the_owner_once_and_never_overwrites():
+    from datetime import date
+
+    assert _sync37.add_decisions(RoadmapDecision) == ["D-27", "D-28"]
+    assert _sync37.add_decisions(RoadmapDecision) == []
+    by = {d.code: d for d in RoadmapDecision.objects.all()}
+    for code, order in (("D-27", 141), ("D-28", 142)):
+        assert (by[code].status, by[code].decider, by[code].decision_date, by[code].sort_order) == (
+            "decided",
+            "المالك",
+            date(2026, 9, 26),
+            order,
+        )
+        assert by[code].recommendation.startswith("[2026-09-26]")
+    assert "لا تُعاد" in by["D-27"].title and "90 يوماً" in by["D-28"].title
+    RoadmapDecision.objects.filter(code="D-27").update(status="open")
+    assert _sync37.add_decisions(RoadmapDecision) == []
+    assert RoadmapDecision.objects.get(code="D-27").status == "open"
+
+
+def _named37(code, name, current, measured_at, **kw):
+    return RoadmapKpi.objects.create(
+        code=code, lane="mobile", name=name, current=current, measured_at=measured_at, **kw
+    )
+
+
+def test_0037_records_mk26_va1_and_pk9_and_keeps_the_previous_reading_in_history():
+    from datetime import date
+
+    _named37("MK26", "حصّةُ الجوال", None, None, source="خطّة الجوال K26", text_mode=True)
+    _named37(
+        "V-A1",
+        "عقدُ axe",
+        1.0,
+        date(2026, 9, 25),
+        source="لوحة الهويّة A1",
+        history=[{"d": "2026-09-21", "v": 2}, {"d": "2026-09-25", "v": 1.0}],
+    )
+    _named37(
+        "PK9",
+        "عقدُ axe",
+        1.0,
+        date(2026, 9, 25),
+        source="لوحة الجودة",
+        history=[{"d": "2026-09-25", "v": 1.0}],
+    )
+    assert _sync37.sync_kpis(RoadmapKpi) == ["MK26", "V-A1", "PK9"]
+    assert _sync37.sync_kpis(RoadmapKpi) == []
+    by = {k.code: k for k in RoadmapKpi.objects.all()}
+    assert (by["MK26"].current, by["MK26"].measured_at) == (10.9, date(2026, 9, 26))
+    assert "50% من المستخدمين" in by["MK26"].source and "دخولاتٌ لا زيارات" in by["MK26"].source
+    assert by["V-A1"].history == [
+        {"d": "2026-09-21", "v": 2},
+        {"d": "2026-09-25", "v": 1.0},
+        {"d": "2026-09-26", "v": 0.0},
+    ]
+    assert by["PK9"].current == 0.0 and "مرآة V-A1" in by["PK9"].source
+    for kpi in by.values():
+        assert len(kpi.source) <= 255
+
+
+def test_0037_leaves_a_remeasured_kpi_and_a_source_that_would_overflow():
+    from datetime import date
+
+    _named37("V-A1", "عقدُ axe", 3.0, date(2026, 9, 25), source="س")
+    assert _sync37.sync_kpis(RoadmapKpi) == []
+    RoadmapKpi.objects.filter(code="V-A1").update(current=1.0, source="س" * 250)
+    assert _sync37.sync_kpis(RoadmapKpi) == ["V-A1"]
+    assert RoadmapKpi.objects.get(code="V-A1").source == "س" * 250
+
+
+def test_0037_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
+    from datetime import date
+
+    _sync37.forwards(_Apps37, None)
+    assert RoadmapItem.objects.count() == 0 and RoadmapDecision.objects.count() == 0
+    _seed37()
+    _named37("V-A1", "عقدُ axe", 1.0, date(2026, 9, 25), source="س", history=[])
+    _sync37.forwards(_Apps37, None)
+
+    def snapshot():
+        return (
+            list(
+                RoadmapItem.objects.order_by("code").values_list(
+                    "code",
+                    "status",
+                    "progress",
+                    "pr",
+                    "title",
+                    "criterion",
+                    "note",
+                    "start_date",
+                    "end_date",
+                )
+            )
+            + list(RoadmapKpi.objects.order_by("code").values_list("code", "current", "history"))
+            + list(RoadmapDecision.objects.order_by("code").values_list("code", "status"))
+        )
+
+    first = snapshot()
+    _sync37.forwards(_Apps37, None)
+    assert snapshot() == first
+    assert RoadmapDecision.objects.filter(code__in=["D-27", "D-28"]).count() == 2
+    assert RoadmapItem.objects.get(code="DBT-11").title.startswith("بريدٌ لا يُسلَّم في غياب")
+
+
+def test_0037_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0037_sync_items_2026_09_26b").origin
+    body = open(origin, encoding="utf-8").read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "بالبصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "رقمٌ حقيقيّ",
+        "مرض",
+        "C:/",
+        "localhost",
+        "up.railway.app",
+        "railway ssh",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
+    assert not re.search(r"\b\d{1,3}(?:\.\d{1,3}){3}\b", body)
