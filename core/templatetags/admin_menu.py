@@ -10,6 +10,7 @@ from typing import Any
 from django import template
 
 from core.admin_menu import APP_LABELS, build_menu, search_index
+from core.developer_access import is_platform_developer
 
 register = template.Library()
 
@@ -18,7 +19,8 @@ register = template.Library()
 def admin_nav(context: Any) -> dict[str, Any]:
     request = context.get("request")
     path = request.path if request is not None else ""
-    groups = build_menu(context.get("available_apps") or [], path)
+    developer = request is not None and is_platform_developer(getattr(request, "user", None))
+    groups = build_menu(context.get("available_apps") or [], path, developer=developer)
     return {"groups": groups, "search_index": search_index(groups)}
 
 

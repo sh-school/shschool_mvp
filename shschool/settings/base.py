@@ -63,6 +63,8 @@ INSTALLED_APPS = [
     "wings.apps.WingsConfig",
     # خارطة تجويد المنصّة — لمطوّر المنصّة وحدَه (أدوات المطوّر)
     "roadmap.apps.RoadmapConfig",
+    # مركز قيادة الجودة — عرضٌ حيٌّ لصحّة المنصّة لمطوّر المنصّة وحدَه في /admin/command-center/ (بلا نماذج)
+    "command_center.apps.CommandCenterConfig",
     # الحوكمة وحماية البيانات: المحو والاحتفاظ وتدوير المفاتيح ووصول الملفّات (ADR-0004)
     "governance.apps.GovernanceConfig",
     # ✅ فلترة احترافية
