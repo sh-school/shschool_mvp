@@ -194,15 +194,15 @@
 .kpi-donut-val { font-size: 0.8125rem; font-weight: 800; }
 .kpi-donut-unit { font-size: 0.5rem; color: var(--text-muted); }
 .kpi-donut-label {
-  font-size: 0.5625rem; font-weight: 600; color: var(--text-primary);
+  font-size: var(--text-xs); font-weight: 600; color: var(--text-primary);
   text-align: center; line-height: 1.2;
 }
 .kpi-donut-meta {
-  font-size: 0.5rem; color: var(--text-muted); text-align: center;
+  font-size: var(--text-xs); color: var(--text-muted); text-align: center;
 }
 .kpi-donut-meta b { color: var(--text-secondary); font-weight: 600; }
 .kpi-donut-badge {
-  font-size: 0.5rem; font-weight: 600;
+  font-size: var(--text-xs); font-weight: 600;
   padding: 1px 5px; border-radius: var(--radius-pill); white-space: nowrap;
 }
 
@@ -229,12 +229,12 @@
 .kpi-unavail-icon .icon { width: 14px; height: 14px; }
 .kpi-unavail-info { flex: 1; min-width: 0; }
 .kpi-unavail-name {
-  font-size: 0.625rem; font-weight: 600; color: var(--text-secondary);
+  font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.kpi-unavail-detail { font-size: 0.5625rem; color: var(--text-muted); }
+.kpi-unavail-detail { font-size: var(--text-xs); color: var(--text-muted); }
 .kpi-unavail-tag {
-  font-size: 0.5rem; font-weight: 600; color: var(--text-muted);
+  font-size: var(--text-xs); font-weight: 600; color: var(--text-muted);
   background: var(--surface-alt); padding: 1px var(--sp-1-5);
   border-radius: var(--radius-pill);
 }
@@ -1103,13 +1103,13 @@
   .week-grid .slot-empty,
   .week-grid .wg-multi { color: var(--text-muted); }
   .week-grid .break-label { font-size: var(--text-xs); font-weight: 700; color: var(--text-secondary); line-height: 1.15; }
-  .week-grid .break-band { font-size: 0.625rem; font-weight: 400; color: var(--text-muted); }
+  .week-grid .break-band { font-size: var(--text-xs); font-weight: 400; color: var(--text-muted); }
   /* ── تمييزُ عمود الاستراحة بطابقه (2026-09-18) ──
      معلّمُ الطابقين يرى عمودَي «صلاة» أو أكثر بلا فارقٍ بصريّ بينها إلّا
      نصّاً داخل الخليّة. والترويسةُ عنّابيّةٌ كلُّها بلا استثناءٍ مهما كان
      صغيراً (قرارٌ صريحٌ سابق) — فاسمُ الطابق نصّاً تحت اسم الاستراحة يكفي
      هناك، واللونُ يظهر في خلايا الجسم وحدَها. */
-  .week-grid .wg-break-band { display: block; font-size: 0.625rem; font-weight: 400; opacity: .85; }
+  .week-grid .wg-break-band { display: block; font-size: var(--text-xs); font-weight: 400; opacity: .85; }
   .week-grid td.wg-break.band-ground  { background: color-mix(in srgb, var(--accent-teal) 14%, var(--surface-alt)); }
   .week-grid td.wg-break.band-ninth   { background: color-mix(in srgb, var(--accent-orange) 14%, var(--surface-alt)); }
   .week-grid td.wg-break.band-secondary { background: color-mix(in srgb, var(--accent-purple) 14%, var(--surface-alt)); }
