@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 
-from core.models._crypto import decrypt_field
+from core.models.crypto import decrypt_field
 
 #: أقلُّ عددٍ من الأرقام يُفعِّل البحثَ بالهاتف — دونه اسمٌ أو رقمٌ وظيفيّ لا جوّال،
 #: ولا يستأهل فكَّ الأرقام كلِّها.

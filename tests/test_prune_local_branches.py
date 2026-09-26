@@ -38,7 +38,8 @@ class World:
         self.root = root
         self.repo = root / "repo"
         if copy_of is not None:
-            shutil.copytree(copy_of, self.repo)
+            # ملفُّ قفلٍ مؤقّتٌ من صيانةِ غيت الخلفيّة قد يختفي أثناء النسخ (سباقُ توقيتٍ على مشغِّلاتٍ مثقَلة)
+            shutil.copytree(copy_of, self.repo, ignore=shutil.ignore_patterns("*.lock"))
         else:
             self.repo.mkdir()
         empty_config = root / "gitconfig"
@@ -51,6 +52,12 @@ class World:
         self.env.update(
             GIT_CONFIG_GLOBAL=str(empty_config),
             GIT_CONFIG_NOSYSTEM="1",
+            # لا صيانةَ خلفيّةً تلمس المستودعَ العابرَ أثناء بنائه ونسخه (`git maintenance run --auto` تُطلَق بعد الإيداع)
+            GIT_CONFIG_COUNT="2",
+            GIT_CONFIG_KEY_0="gc.auto",
+            GIT_CONFIG_VALUE_0="0",
+            GIT_CONFIG_KEY_1="maintenance.auto",
+            GIT_CONFIG_VALUE_1="false",
             GIT_AUTHOR_NAME="t",
             GIT_AUTHOR_EMAIL="t@example.invalid",
             GIT_COMMITTER_NAME="t",

@@ -68,7 +68,7 @@ python .claude/skills/schoolos-migration-guard/scripts/check_migration.py --file
 
 ## 3. قواعد SchoolOS الخاصة (لا تكسرها)
 
-- **الحقول المشفّرة**: أي حقل يستخدم `core.fields.EncryptedTextField` أو يُشفّر عبر `encrypt_field` (انظر `core/models/_crypto.py`) — **ممنوع** عمل data migration يقرأ/يكتب قيمته الخام بـ raw SQL؛ استخدم الـ ORM حتى يمرّ عبر `from_db_value`/`get_prep_value`. تعبئة بـ SQL مباشر تخزّن نصاً صريحاً وتكسر PDPPL.
+- **الحقول المشفّرة**: أي حقل يستخدم `core.fields.EncryptedTextField` أو يُشفّر عبر `encrypt_field` (انظر `core/models/crypto.py`) — **ممنوع** عمل data migration يقرأ/يكتب قيمته الخام بـ raw SQL؛ استخدم الـ ORM حتى يمرّ عبر `from_db_value`/`get_prep_value`. تعبئة بـ SQL مباشر تخزّن نصاً صريحاً وتكسر PDPPL.
 - **`national_id` / `phone`**: لها ثلاثية (خام + `_encrypted` + `_hmac`). أي migration يمسّها يجب أن يعيد حساب الـ HMAC عبر `hmac_field` وإلا ينكسر تسجيل الدخول (USERNAME_FIELD = national_id).
 - **جداول immutable**: `AuditLog` في `core/models/audit.py` له manager يمنع UPDATE/DELETE. لا تكتب migration يعدّل صفوفه.
 - **`SchoolScopedModel` / `SoftDeleteModel`**: عند إضافة FK جديد إلى model موجود، انتبه أنّ `all_objects` يشمل المحذوف soft-deleted — أي backfill يجب أن يقرر صراحةً `objects` أم `all_objects`.
