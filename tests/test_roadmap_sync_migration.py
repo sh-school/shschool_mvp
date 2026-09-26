@@ -6644,3 +6644,81 @@ def test_0040_dbt01_gets_the_mypy_ratchet_note_without_a_pk6_reading():
     note = RoadmapItem.objects.get(code="DBT-01").note
     assert "1735 ← 1730" in note and "لا يُسجَّل في PK6" in note and "#660" in note
     assert not [row for row in _sync40.KPI_WHY_NOTES if row[0] == "PK6"]
+
+
+# ── 0041: SCH-08 يُغلق بقياسٍ قرائيٍّ شغّله المالكُ على الإنتاج ──
+
+_sync41 = importlib.import_module("roadmap.migrations.0041_sync_items_2026_09_26e")
+
+
+class _Apps41:
+    @staticmethod
+    def get_model(_app, name):
+        return RoadmapItem
+
+
+def test_0041_closes_sch08_only_from_its_expected_state_and_is_idempotent():
+    _item("SCH-08", "doing", 95)
+    assert _sync41.sync(RoadmapItem) == ["SCH-08"]
+    assert _sync41.sync(RoadmapItem) == []
+    item = RoadmapItem.objects.get(code="SCH-08")
+    assert (item.status, item.progress) == ("done", 100)
+
+
+def test_0041_records_the_measurement_its_source_and_the_reason_the_scheduled_run_will_not_happen():
+    _item("SCH-08", "doing", 95)
+    _sync41.sync(RoadmapItem)
+    note = RoadmapItem.objects.get(code="SCH-08").note
+    assert note.startswith("\n[2026-09-26]") or "[2026-09-26]" in note
+    assert "شغّله المالكُ بيده على الإنتاج" in note and "قراءةٌ فقط" in note
+    assert "15007906" in note and "869" in note and "لا ناقصَ ولا زائدَ" in note
+    assert "swapped=1" in note and "متوقَّعٌ لا خلل" in note
+    assert "قرارُ الإغلاق لأمين الخارطة" in note and "لن يعمل" in note
+    assert "تحفّظ:" in note and "SCH-11" in note and "D-25" in note
+
+
+def test_0041_leaves_a_sch08_the_developer_moved():
+    _item("SCH-08", "doing", 80)
+    assert _sync41.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="SCH-08").progress == 80
+
+
+def test_0041_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
+    _sync41.forwards(_Apps41, None)
+    assert RoadmapItem.objects.count() == 0
+    _item("SCH-08", "doing", 95)
+    _sync41.forwards(_Apps41, None)
+    first = list(RoadmapItem.objects.values_list("code", "status", "progress", "note"))
+    _sync41.forwards(_Apps41, None)
+    assert list(RoadmapItem.objects.values_list("code", "status", "progress", "note")) == first
+
+
+def test_0041_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0041_sync_items_2026_09_26e").origin
+    body = open(origin, encoding="utf-8").read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "مرض",
+        "C:/",
+        "localhost",
+        "up.railway.app",
+        "railway ssh",
+        "run_prod",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
