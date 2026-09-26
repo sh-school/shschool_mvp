@@ -42,6 +42,7 @@ from core.export_utils import (
     get_pdf_header_html,
     xl_fill,
 )
+from core.exports.services import respond_export
 from core.labels import class_label
 from core.models.academic import (
     ClassGroup,
@@ -66,6 +67,7 @@ from operations.tardiness import tardiness_now
 from wings.scope import student_scope_for
 
 from .models import StudentActivity, StudentTransfer
+from .selectors import student_register
 
 logger = logging.getLogger(__name__)
 
@@ -470,71 +472,9 @@ def student_table_partial(request):
 
 
 def _student_register_queryset(request):
-    """الاستعلامُ المشترَك بين تصديرَي سجل الطلاب — Excel وPDF.
-
-    نفس فلترة student_list، بما فيها الإصلاحُ الذي أخذته الشاشةُ في #191 ولم
-    يكن قد بلغ أيَّ تصدير: المقيَّدُ أوّلاً، ومن لا قيدَ له هذا العامَ يخرج
-    بترشيحٍ صريحٍ (`status=unenrolled` أو `all`) لا بعدٍّ يُساوي به العضويّةَ
-    بالقيد.
-    """
-    school = request.school
+    """الاستعلامُ المشترَك بين تصديرَي سجلّ الطلاب — الشرحُ في `selectors.student_register`."""
     year = academic_year_for(request)
-    q = request.GET.get("q", "").strip()
-    grade_filter = request.GET.get("grade", "")
-    section_filter = request.GET.get("section", "")
-
-    students = (
-        Membership.objects.filter(
-            school=school,
-            role__name="student",
-            is_active=True,
-        )
-        .select_related("user")
-        .order_by("user__full_name")
-    )
-
-    if q:
-        students = students.filter(
-            Q(user__full_name__icontains=q) | Q(user__national_id__icontains=q)
-        )
-
-    status = request.GET.get("status") or "enrolled"
-    is_enrolled = Exists(
-        StudentEnrollment.objects.filter(
-            student_id=OuterRef("user_id"),
-            class_group__school=school,
-            class_group__academic_year=year,
-            is_active=True,
-        )
-    )
-    if status == "enrolled":
-        students = students.filter(is_enrolled)
-    elif status == "unenrolled":
-        students = students.exclude(is_enrolled)
-
-    enrollment_data = {}
-    for enr in StudentEnrollment.objects.filter(
-        class_group__school=school,
-        class_group__academic_year=year,
-        is_active=True,
-    ).values("student_id", "class_group__grade", "class_group__section"):
-        enrollment_data[enr["student_id"]] = enr
-
-    if grade_filter:
-        enrolled_ids = [
-            sid
-            for sid, data in enrollment_data.items()
-            if data["class_group__grade"] == grade_filter
-        ]
-        students = students.filter(user_id__in=enrolled_ids)
-    if section_filter:
-        enrolled_ids = [
-            sid
-            for sid, data in enrollment_data.items()
-            if data.get("class_group__section") == section_filter
-        ]
-        students = students.filter(user_id__in=enrolled_ids)
-
+    students, enrollment_data = student_register(request.school, year, request.GET)
     return students, enrollment_data, year
 
 
@@ -618,48 +558,11 @@ def student_export_excel(request):
 @login_required
 @capability_required("student_affairs.manage")
 def student_list_pdf(request):
-    """تصدير قائمة الطلاب إلى PDF — بنفس فلترة student_export_excel."""
-    ctx = get_export_context(request, "سجل الطلاب")
-    students, enrollment_data, year = _student_register_queryset(request)
+    """قائمةُ الطلاب PDF — مهمّةٌ خلفيّةٌ (`student_affairs.students_pdf`): كانت متزامنةً 8.3ث على قاعدة القياس 2026-09-26.
 
-    rows = []
-    for i, m in enumerate(students, 1):
-        enr = enrollment_data.get(m.user_id, {})
-        rows.append(
-            {
-                "num": i,
-                "full_name": m.user.full_name,
-                "national_id": m.user.national_id,
-                "grade": enr.get("class_group__grade", "—"),
-                "section": enr.get("class_group__section", "—"),
-                "phone": m.user.phone or "—",
-                "email": m.user.email or "—",
-            }
-        )
-
-    pdf_header = get_pdf_header_html(ctx)
-    pdf_footer = get_pdf_footer_html(ctx)
-
-    html = render_to_string(
-        "student_affairs/student_list_pdf.html",
-        {
-            "rows": rows,
-            "total_students": len(rows),
-            "pdf_header": pdf_header,
-            "pdf_footer": pdf_footer,
-            **ctx,
-        },
-    )
-
-    log_export(
-        request,
-        "student_affairs.students_pdf",
-        rows=len(rows),
-        full_national_id=False,
-        object_repr=f"سجل الطلاب PDF — {year}",
-    )
-    filename = generate_export_filename("students", "list", "pdf")
-    return render_pdf(html, filename, paper_size="A4")
+    بنفس فلترة `student_export_excel`؛ البنّاءُ في `student_affairs.export_builders`، والآليّةُ مركزيّةٌ (`core.exports`).
+    """
+    return respond_export(request, "student_affairs.students_pdf")
 
 
 # ═════════════════════════════════════════════════════════════════════
