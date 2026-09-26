@@ -11,7 +11,7 @@ from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
-from command_center import contract
+from command_center import contract, refresh
 from core.developer_access import developer_only
 
 
@@ -20,6 +20,7 @@ from core.developer_access import developer_only
 @never_cache
 def index(request: HttpRequest) -> HttpResponse:
     """الصفحةُ: لوحاتٌ مرسومةٌ من اللقطة الحاليّة، ويُحدّثها `command_center.js` بالاستطلاع."""
+    refresh.ensure_fresh()
     return render(
         request,
         "command_center/index.html",
@@ -31,5 +32,6 @@ def index(request: HttpRequest) -> HttpResponse:
 @require_GET
 @never_cache
 def snapshot(request: HttpRequest) -> JsonResponse:
-    """اللقطةُ JSON — يستطلعها السكربتُ كلَّ 15–60 ثانية؛ لا شيءَ يُحسب هنا."""
+    """اللقطةُ JSON — يستطلعها السكربتُ كلَّ 15–60 ثانية؛ لا شيءَ يُحسب هنا (القديمةُ يُطلَق جمعُها في الخلفيّة)."""
+    refresh.ensure_fresh()
     return JsonResponse(contract.snapshot())
