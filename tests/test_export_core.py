@@ -271,8 +271,8 @@ class TestTheWorker:
         """الكاناري: قيمةٌ سرّيّةٌ في نصّ الاستثناء لا تظهر في القاعدة ولا الردّ ولا السجلّ ولا الإطارات."""
 
         def boom(school, user, params):
-            secret = CANARY  # noqa: F841 — متغيّرٌ محلّيٌّ كان سيظهر في إطارات Sentry
-            raise RuntimeError(f"SELECT * FROM x WHERE token = '{CANARY}'")
+            secret = CANARY  # متغيّرٌ محلّيٌّ كان سيظهر في إطارات Sentry لو سُجّل الاستثناءُ بـ`exc_info`
+            raise RuntimeError(f"SELECT * FROM x WHERE token = '{secret}'")
 
         register(build=boom)
         job = _job(school, principal_user)
