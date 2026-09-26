@@ -82,7 +82,7 @@ def test_the_tightening_is_a_read_only_filter_before_the_real_decision():
     assert "el.scrollHeight <= el.clientHeight + 1 || el.clientHeight >= floor" in body
     assert "cs.maxHeight" in body
     # الاستدعاءُ الوحيدُ للقرار بعد شرط الترجيح، ثمّ إعلانُ التغيّر لمن يحمل حالةً مرتبطةً بالصنف.
-    assert body.index("if (!squeezed) return;") < body.index("window.fitNoscroll()")
+    assert body.index("if (!squeezed && ") < body.index("window.fitNoscroll()")
     assert "dispatchEvent(new Event('noscroll:changed'))" in body
 
 
@@ -109,3 +109,35 @@ def test_pages_that_tie_state_to_the_class_hear_the_change():
     """صندوقُ الإشعارات يَسِم منطقةَ التمرير (tabindex/role) ما دامت الصفحةُ بلا تمرير؛ فيُصلح وسومَه عند انقلابها."""
     inbox = (ROOT / "templates/notifications/inbox.html").read_text(encoding="utf-8")
     assert "document.addEventListener('noscroll:changed', sync)" in inbox
+
+
+def test_a_primary_action_hidden_behind_an_inner_scroll_turns_the_page_scrollable():
+    """D-24 (قرارُ المالك 2026-09-25): زرُّ الإجراء الرئيسيّ لا يُحجب خلف تمريرٍ داخليّ — بلا CSS جديد.
+
+    قيس 97 من 945 خليّةً يقع فيها «إضافة الطالب» و«إرسال الاستدعاء» و«عيّن بديلاً» تحت طيّ بطاقةٍ تُمرَّر. فمعيارُ «الإجراءُ مرئيّ» شرطٌ ثانٍ للانقلاب
+    إلى تمرير الصفحة، يُقاس والصنفُ `page-noscroll` قائمٌ (حين تكون البطاقةُ مقصوصةً فعلاً).
+    """
+    probe = BASE[
+        BASE.index("window.primaryActionHidden = function") : BASE.index(
+            "window.fitNoscroll = function"
+        )
+    ]
+    assert "form button[type=submit].btn-primary" in probe
+    # زرُّ صفٍّ في جدولٍ أو قائمةٍ تمريرُه بتصميمها، فلا يقلب الصفحة.
+    assert "btn.closest('table, .plain-list')" in probe
+    # الصفحةُ نفسُها (main) قد تكون حاوية التمرير القاصّة.
+    assert "p !== document.body" in probe
+    decision = BASE[
+        BASE.index("window.fitNoscroll = function") : BASE.index("window.fitNoscroll();")
+    ]
+    assert "var actionHidden = window.primaryActionHidden(main);" in decision
+    assert "actionHidden ||" in decision
+    # يُقاس والصنفُ موضوع، لا بعد نزعه (وإلّا لم تكن البطاقةُ مقصوصةً).
+    assert decision.index("primaryActionHidden(main)") < decision.index(
+        "main.classList.remove('page-noscroll')"
+    )
+
+
+def test_the_fonts_pass_also_redecides_when_the_action_is_hidden():
+    """القرارُ المضمَّن يقيس بخطّ الاحتياط؛ فيُعاد بعد جهوز الخطوط إن حُجب الزرُّ كما يُعاد لمنطقةٍ مضغوطة."""
+    assert "window.primaryActionHidden(main)" in _tighten_body()

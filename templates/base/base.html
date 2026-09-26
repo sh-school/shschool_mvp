@@ -1070,6 +1070,24 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   المؤجَّل — فالقرارُ بعد الرسم قفزةٌ في التخطيط (CLS نحو 1.0 مقيسٌ). الشرحُ والمستمعاتُ في base.js.
 {% endcomment %}
 <script nonce="{{ request.csp_nonce }}">
+/* D-24 (قرارُ المالك 2026-09-25): زرُّ الإجراء الرئيسيّ (إرسالُ نموذجٍ) لا يُحجب خلف تمريرٍ داخليّ. يُقاس والصفحةُ «بلا تمرير»:
+   زرٌّ `btn-primary` للإرسال داخل `form` يقصّه سلفٌ يُمرَّر (بطاقةُ النموذج) ولا تنجو منه إلّا بتمرير البطاقة. ولا يُحسب زرُّ صفٍّ في جدولٍ أو
+   قائمة: تمريرُ ما فيها بتصميمها. */
+window.primaryActionHidden = function (main) {
+  return Array.prototype.some.call(main.querySelectorAll('form button[type=submit].btn-primary'), function (btn) {
+    if (btn.closest('table, .plain-list')) return false;
+    var r = btn.getBoundingClientRect();
+    if (!r.height) return false;
+    for (var p = btn.parentElement; p && p !== document.body; p = p.parentElement) {
+      var oy = getComputedStyle(p).overflowY;
+      if ((oy === 'auto' || oy === 'scroll') && p.scrollHeight > p.clientHeight + 1) {
+        var pr = p.getBoundingClientRect();
+        if (r.bottom > pr.bottom + 1 || r.top < pr.top - 1) return true;
+      }
+    }
+    return false;
+  });
+};
 window.fitNoscroll = function () {
   var main = document.getElementById('main-content');
   if (!main || !(main.classList.contains('page-noscroll') || main.dataset.noscroll === 'roomless')) return;
@@ -1079,9 +1097,10 @@ window.fitNoscroll = function () {
     return (oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 1;
   });
   var h = box.map(function (el) { return el.clientHeight; });
+  var actionHidden = window.primaryActionHidden(main);
   main.classList.remove('page-noscroll');
   var floor = 15 * parseFloat(getComputedStyle(document.documentElement).fontSize);
-  if (box.some(function (el, i) { return el.clientHeight > h[i] + 1 && h[i] < floor; })) {
+  if (actionHidden || box.some(function (el, i) { return el.clientHeight > h[i] + 1 && h[i] < floor; })) {
     main.dataset.noscroll = 'roomless';
   } else {
     delete main.dataset.noscroll;
