@@ -13,16 +13,20 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 
-from command_center import alerts
+from command_center import alerts, webstats
 from command_center.collectors import (
     ci,
     compliance,
+    database,
+    delivery,
     guards,
     messaging,
     production,
     pulls,
+    quality,
     roadmap,
     security,
+    supply,
     ux,
 )
 
@@ -33,6 +37,7 @@ Collector = Callable[[], None]
 #: لوحةٌ ← مجمِّعُها. أسماءُ اللوحات في `contract.PANELS`، واختبارٌ يحرس تطابقَ القائمتين.
 LOCAL: dict[str, Collector] = {
     "production": production.collect,
+    "database": database.collect,
     "compliance": compliance.collect,
     "messaging": messaging.collect,
     "security": security.collect,
@@ -43,7 +48,12 @@ LOCAL: dict[str, Collector] = {
 REMOTE: dict[str, Collector] = {
     "ci": ci.collect,
     "pulls": pulls.collect,
+    "supply": supply.collect,
+    "quality": quality.collect,
+    "delivery": delivery.collect,
 }
+#: لوحاتٌ تقرؤها **عمليّةُ الويب** لا العامل (مقاييسُ في ذاكرتها) — تُؤخذ عيّنتُها عند فتح الصفحة أو استطلاعها (`webstats.sample_safe`).
+WEB: dict[str, Collector] = {"latency": webstats.sample}
 
 
 def run(collectors: dict[str, Collector]) -> dict[str, bool]:

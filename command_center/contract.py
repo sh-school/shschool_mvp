@@ -51,11 +51,16 @@ class Panel:
 
 PANELS: tuple[Panel, ...] = (
     Panel("production", "صحّةُ الإنتاج والنشر", 30),
+    Panel("latency", "الأداء والأخطاء (الويب)", 30),
+    Panel("database", "قاعدة البيانات", 60),
     Panel("compliance", "الامتثال (PDPPL)", 60),
     Panel("messaging", "الإشعارات والرسائل", 60),
     Panel("security", "الأمان والدخول", 60),
+    Panel("supply", "الفحص الأمنيّ والاعتماديّات", 60),
     Panel("ux", "تجربةُ المستخدم الفعليّة", 60),
     Panel("ci", "فحوصُ CI", 60),
+    Panel("quality", "جودةُ الاختبارات", 60),
+    Panel("delivery", "إيقاعُ النشر", 60),
     Panel("guards", "الحرّاسُ والميزانيّات", 60),
     Panel("roadmap", "الخارطةُ وقراراتُك", 60),
     Panel("pulls", "الطلباتُ ومسارُ الدمج", 60),

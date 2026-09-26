@@ -11,7 +11,7 @@ from django.shortcuts import render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
-from command_center import contract, refresh
+from command_center import contract, refresh, webstats
 from core.developer_access import developer_only
 
 #: تفضيلُ العرض: لوحاتٌ يخفيها المطوّرُ (مفاتيحُ مفصولةٌ بفواصل). كوكيٌّ لا قاعدةٌ: تفضيلُ متصفّحٍ لا بيانٌ، فلا هجرةَ ولا وميضَ عند التحميل
@@ -31,6 +31,7 @@ def hidden_keys(request: HttpRequest) -> set[str]:
 def index(request: HttpRequest) -> HttpResponse:
     """الصفحةُ: لوحاتٌ مرسومةٌ من اللقطة الحاليّة، ويُحدّثها `command_center.js` بالاستطلاع."""
     refresh.ensure_fresh()
+    webstats.sample_safe()
     snapshot = contract.snapshot()
     hidden = hidden_keys(request)
     for panel in snapshot["panels"]:
@@ -53,4 +54,5 @@ def index(request: HttpRequest) -> HttpResponse:
 def snapshot(request: HttpRequest) -> JsonResponse:
     """اللقطةُ JSON — يستطلعها السكربتُ كلَّ 15–60 ثانية؛ لا شيءَ يُحسب هنا (القديمةُ يُطلَق جمعُها في الخلفيّة)."""
     refresh.ensure_fresh()
+    webstats.sample_safe()
     return JsonResponse(contract.snapshot())
