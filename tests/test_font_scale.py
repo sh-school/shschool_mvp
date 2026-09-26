@@ -3,9 +3,6 @@
 from tests import font_scale as fs
 from tests.css_source import read_css
 
-#: عددُ تصريحات الشبكات الكثيفة المنتظِرة مراجعةَ المالك (2026-09-23) — ينقص ولا يزيد.
-DENSE_PENDING_CEILING = 23
-
 
 def _found():
     return [(sel, decl, fs.allowed(sel)) for sel, decl, _, _ in fs.small_declarations(read_css())]
@@ -16,16 +13,10 @@ def test_no_readable_text_is_below_the_scale():
     assert not bad, "خطٌّ دون 12px — اكتبه var(--text-xs):\n  " + "\n  ".join(bad)
 
 
-def test_the_dense_grid_exception_only_shrinks():
-    pending = sum(1 for *_, why in _found() if why == "dense_pending")
-    assert pending <= DENSE_PENDING_CEILING, (
-        f"{pending} تصريحاً في استثناء الشبكات الكثيفة (السقف {DENSE_PENDING_CEILING}) — "
-        "لا يُضاف إليه؛ ارفع الخطَّ أو اعرضه على المالك"
-    )
-    if pending < DENSE_PENDING_CEILING:
-        raise AssertionError(
-            f"نقص الاستثناءُ إلى {pending} — أحسنت؛ ثبّته بخفض DENSE_PENDING_CEILING في هذا الملفّ"
-        )
+def test_only_decorative_marks_stay_below_the_scale():
+    """كانت 23 تصريحاً في شبكاتٍ كثيفةٍ استثناءً مؤقّتاً؛ رُفعت (H-03) — ولا تعود."""
+    left = {why for *_, why in _found()}
+    assert left <= {"decorative"}, left
 
 
 class TestTheParserItself:
@@ -48,7 +39,7 @@ class TestTheParserItself:
         css = "@media (max-width: 640px) { .nav-item { font-size: 0.65rem } }"
         assert [sel for sel, *_ in fs.small_declarations(css)] == [".nav-item"]
 
-    def test_decorative_and_dense_are_named(self):
+    def test_decorative_is_named_and_the_dense_grids_are_not_exempt(self):
         assert fs.allowed(".nb .chv") == "decorative"
-        assert fs.allowed(".exg-cell") == "dense_pending"
+        assert fs.allowed(".exg-cell") is None
         assert fs.allowed(".hint") is None

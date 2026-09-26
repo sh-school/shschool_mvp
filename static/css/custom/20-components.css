@@ -22,11 +22,7 @@
   height: 48px;
   gap: var(--sp-2);
 }
-/* `.nav-logo` و`.nb` لهما حشوةٌ ذاتيّةٌ (منطقةُ لمسٍ مريحة) تضيف فوق حشوة
-   `.nav-inner` نفسِها — فيبعد الشعارُ عن الحافّة أكثر من محتوى الصفحة تحته
-   رغم تساوي حشوة الحاوية. تُصفَّر هنا حشوةُ الطرف الخارجيّ وحده (الطرفُ
-   الملاصق لحافّة الشاشة)، فتبقى حشوةُ `.nav-inner` هي الفاصلَ الوحيد —
-   مطابقةً لحافّة المحتوى تماماً. */
+/* حشوةُ `.nav-logo` و`.nb` الذاتيّةُ تُبعد الشعارَ عن الحافّة أكثر من المحتوى؛ فتُصفَّر حشوةُ الطرف الخارجيّ وحدَه ويبقى `.nav-inner` الفاصلَ الوحيد. */
 .site-header .nav-logo { padding-inline-start: 0; }
 .site-header .nav-user-btn { padding-inline-end: 0; }
 
@@ -1168,8 +1164,8 @@ main.page-wide {
 
 .free-slots-td { padding: var(--sp-1-5) var(--sp-2); text-align: center; border: 1px solid var(--border); vertical-align: top; }
 
-.free-slot-badge { display: inline-block; background: var(--free-slot-bg); color: var(--free-slot-fg); padding: 1px var(--sp-2); border-radius: 99px; margin: 1px; font-size: .7rem; font-weight: 600; }
-.free-slot-none { color: var(--ink-empty); font-size: .7rem; }
+.free-slot-badge { display: inline-block; background: var(--free-slot-bg); color: var(--free-slot-fg); padding: 1px var(--sp-2); border-radius: 99px; margin: 1px; font-size: var(--text-xs); font-weight: 600; }
+.free-slot-none { color: var(--ink-empty); font-size: var(--text-xs); }
 
 /* ── نقطة الحالة (status dot) ── */
 .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
