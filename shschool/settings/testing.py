@@ -133,3 +133,4 @@ MIGRATION_LINTER_OPTIONS = {"ignore_name_contains": "delete_staffevaluation"}
 # مركزُ قيادة الجودة: الجمعُ الذاتيُّ عند قراءة لقطةٍ قديمة يُطلق خيطاً خلفيّاً — لا مكانَ له في اختبارٍ يقرأ الصفحة؛
 # ويُختبَر `command_center.refresh` مباشرةً وبإعدادٍ صريح.
 QCC_LAZY_REFRESH = False
+QCC_NOTIFY_ENABLED = False  # تُفعَّل صراحةً في tests/test_command_center_alerts.py

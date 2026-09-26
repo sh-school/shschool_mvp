@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 
+from command_center import alerts
 from command_center.collectors import ci, guards, production, pulls, roadmap
 
 logger = logging.getLogger(__name__)
@@ -41,4 +42,5 @@ def run(collectors: dict[str, Collector]) -> dict[str, bool]:
         except Exception:  # noqa: BLE001 — مجمِّعٌ معطوبٌ لا يوقف اللوحاتِ الأخرى
             logger.exception("command center: collector %s failed", panel)
             outcome[panel] = False
+    alerts.safe_evaluate()  # التنبيهُ الحيّ عند الأحمر بعد كلّ دورة جمع (command_center/alerts.py)
     return outcome
