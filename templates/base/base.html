@@ -1081,7 +1081,7 @@ window.fitNoscroll = function () {
   var h = box.map(function (el) { return el.clientHeight; });
   main.classList.remove('page-noscroll');
   var floor = 15 * parseFloat(getComputedStyle(document.documentElement).fontSize);
-  if (box.some(function (el, i) { return el.clientHeight > h[i] + 1 && h[i] < floor; })) {
+  if (box.some(function (el, i) { return h[i] < floor && (el.clientHeight > h[i] + 1 || el.scrollHeight <= el.clientHeight + 1); })) {
     main.dataset.noscroll = 'roomless';
   } else {
     delete main.dataset.noscroll;
