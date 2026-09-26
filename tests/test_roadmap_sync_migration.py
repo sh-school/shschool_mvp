@@ -5866,3 +5866,135 @@ def test_0037_publishes_nothing_a_public_repo_must_not_say():
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
     assert not re.search(r"\b\d{1,3}(?:\.\d{1,3}){3}\b", body)
+
+
+# ── 0038: ساعة المدرسة CLK-01..03 وجدولُ المناوبة DUT-01 (مقترَحةٌ بلا مواعيد بتأكيد المالك) ──
+
+_sync38 = importlib.import_module("roadmap.migrations.0038_school_clock_and_duty_2026_09_26")
+
+
+class _Apps38:
+    @staticmethod
+    def get_model(_app, name):
+        return RoadmapItem
+
+
+def test_0038_registers_the_clock_family_and_the_duty_item_once_as_undated_todo():
+    assert _sync38.add_new_items(RoadmapItem) == ["CLK-01", "CLK-02", "CLK-03", "DUT-01"]
+    assert _sync38.add_new_items(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    for code in ("CLK-01", "CLK-02", "CLK-03", "DUT-01"):
+        item = by[code]
+        assert (item.lane, item.status, item.progress, item.pr) == ("product", "todo", 0, "")
+        assert item.start_date is None and item.end_date is None
+        assert item.note.startswith("[2026-09-26]") and len(item.date_basis) <= 120
+        assert "الجهدُ غيرُ مقدَّر" in item.note and item.effort == 1.0
+    assert [by[c].src for c in ("CLK-01", "CLK-02", "CLK-03", "DUT-01")] == [
+        "CLK",
+        "CLK",
+        "CLK",
+        "NEW",
+    ]
+    assert [by[c].deps for c in ("CLK-01", "CLK-02", "CLK-03", "DUT-01")] == [
+        "",
+        "CLK-01",
+        "CLK-02",
+        "CLK-01",
+    ]
+    assert [by[c].sort_order for c in ("CLK-01", "CLK-02", "CLK-03", "DUT-01")] == [
+        755,
+        756,
+        757,
+        758,
+    ]
+
+
+def test_0038_clock_decisions_relayed_from_the_principal_are_notes_not_decisions():
+    _sync38.add_new_items(RoadmapItem)
+    note = RoadmapItem.objects.get(code="CLK-01").note
+    assert "لم تصل جلسةَ الخارطة مباشرةً فتُكتب ملاحظاتٍ لا قراراتٍ محسومة" in note
+    assert "المنسّقُ يُسند الإشغالَ والتبديلَ كما هو" in note and "ضرورةٌ تنظيميّةٌ لا تجميليّة" in note
+    assert "أين الطالب الآن" in note and "لا سندَ له في الوثائق" in note
+    assert "bell_tables" in note and "أكّد المالكُ تسجيلَه مقترَحاً بلا موعد" in note
+    assert not RoadmapDecision.objects.exists()
+
+
+def test_0038_duty_item_waits_for_the_principal_and_has_no_executor_or_date():
+    _sync38.add_new_items(RoadmapItem)
+    item = RoadmapItem.objects.get(code="DUT-01")
+    assert item.gate == "owner" and "ينتظر ردَّ المدير" in item.date_basis
+    assert "لا بناءَ قبل جواب المدير" in item.note and "ولا مقعدَ منفِّذاً حتى الجواب" in item.note
+    assert "ثمانيةُ أسئلةٍ" in item.criterion and "RLS" in item.criterion
+    assert "SOS-20260926-674D" in item.ref
+
+
+def test_0038_clock_alerts_do_not_rely_on_websocket_and_phase_one_has_no_alert():
+    _sync38.add_new_items(RoadmapItem)
+    clk2 = RoadmapItem.objects.get(code="CLK-02")
+    clk3 = RoadmapItem.objects.get(code="CLK-03")
+    assert "بلا تنبيه" in clk2.title and "ولا تنبيهَ في هذه المرحلة" in clk2.criterion
+    assert "بلا اعتمادٍ على WebSocket للتوقيت" in clk3.criterion and "Web Push" in clk3.criterion
+
+
+def test_0038_never_overwrites_an_existing_item():
+    _item("DUT-01", "doing", 40, title="أنشأه المطوّر يدوياً")
+    assert _sync38.add_new_items(RoadmapItem) == ["CLK-01", "CLK-02", "CLK-03"]
+    assert RoadmapItem.objects.get(code="DUT-01").title == "أنشأه المطوّر يدوياً"
+
+
+def test_0038_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
+    _sync38.forwards(_Apps38, None)
+    assert RoadmapItem.objects.count() == 0
+    _item("VI-25", "done", 100)
+    _sync38.forwards(_Apps38, None)
+    first = list(RoadmapItem.objects.order_by("code").values_list("code", "status", "note"))
+    _sync38.forwards(_Apps38, None)
+    assert list(RoadmapItem.objects.order_by("code").values_list("code", "status", "note")) == first
+    assert (
+        RoadmapItem.objects.filter(code__in=["CLK-01", "CLK-02", "CLK-03", "DUT-01"]).count() == 4
+    )
+
+
+def test_0038_orders_follow_0035_and_do_not_collide():
+    orders = [row[-1] for row in _sync38.NEW_ITEMS]
+    assert orders == [755, 756, 757, 758]
+    assert min(orders) > max(
+        row[-1]
+        for row in importlib.import_module(
+            "roadmap.migrations.0035_families_and_published_2026_09_25"
+        ).NEW_ITEMS
+    )
+    assert 754 < min(orders)
+
+
+def test_0038_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec(
+        "roadmap.migrations.0038_school_clock_and_duty_2026_09_26"
+    ).origin
+    body = open(origin, encoding="utf-8").read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "بالبصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "رقمٌ حقيقيّ",
+        "مرض",
+        "C:/",
+        "localhost",
+        "up.railway.app",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
