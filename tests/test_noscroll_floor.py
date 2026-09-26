@@ -42,8 +42,11 @@ def test_first_paint_waits_for_the_decision():
 def test_the_floor_is_fifteen_rem_and_counts_only_squeezed_regions():
     body = BASE[BASE.index("window.fitNoscroll = function") : BASE.index("window.fitNoscroll();")]
     assert "15 * parseFloat(getComputedStyle(document.documentElement).fontSize)" in body
-    # المنطقةُ القصيرةُ بتصميمها لا تُحسب: يجب أن تطول حين يُنزع الصنف.
-    assert "el.clientHeight > h[i] + 1 && h[i] < floor" in body
+    # المنطقةُ القصيرةُ بتصميمها لا تُحسب: يجب أن تطول حين يُنزع الصنف، أو أن تنكمش فلا يبقى فيها فيضٌ (كشفُ الشعبة: قائمةٌ بعمودٍ واحدٍ تصير شبكةً مدمجة).
+    assert (
+        "h[i] < floor && (el.clientHeight > h[i] + 1 || el.scrollHeight <= el.clientHeight + 1)"
+        in body
+    )
 
 
 def test_base_js_redecides_on_resize_and_swaps_but_not_on_load():
