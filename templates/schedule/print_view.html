@@ -11,12 +11,12 @@
 
 {% block content %}
 {% comment %}
-قرار 2026-09-18: العرضُ والطباعةُ مستقلّان. جدولُ معلّمٍ أو شعبةٍ هنا جدولٌ
-عاديٌّ برموز المنصّة (جزئيّةُ البيانات نفسُها `week_grid.html`، بلا مقاسٍ
-بالملّيمتر) — والطباعةُ والتصديرُ من ورقتهما الحقيقيّة عبر إطارٍ مخفيٍّ لا
-يُعرض. أمّا الجدولُ العامّ (كلّ المعلّمين) فيبقى ورقةً في إطارٍ ظاهر: مصفوفةٌ
-بستٍّ وثلاثين خانةً لا تصلح جدولاً عاديّاً، وفيها بحثٌ ولوحُ تحليلٍ يتّصلان
-بالورقة عبر `postMessage` مباشرةً.
+العرضُ والطباعةُ مستقلّان في كلّ أنواع الجدول (قرارُ 2026-09-18 للمعلّم والشعبة، و2026-09-25 للجدول العامّ):
+ما يُعرض هنا جدولٌ عاديٌّ برموز المنصّة ومكوّناتها — لا ورقةٌ بالملّيمتر في إطار — وجدولُ المعلّم والشعبة
+جزئيّةُ البيانات نفسُها `week_grid.html`، والجدولُ العامّ (كلّ المعلّمين) جزئيّةُ `pdf/matrix_table.html`
+التي تقرؤها الورقةُ المطبوعة أيضاً، فالمعروضُ هو المطبوعُ خانةً بخانة. والطباعةُ والتصديرُ من ورقتهما
+الحقيقيّة عبر إطارٍ مخفيٍّ لا يُعرض ولا يُحمَّل قبل أوّل طلبِ طباعة. وللجدول العامّ بحثٌ ولوحُ تحليلٍ
+في المستند نفسِه (`schedule-matrix.js`) بلا رسائلَ بين وثيقتين.
 {% endcomment %}
 {% if preview %}
 {% comment %}معاينةُ مسودّة — لا الجدول الحيّ. اللافتةُ قبل كلّ شيءٍ كي لا تُقرأ المسودّةُ جدولاً معتمَداً.{% endcomment %}
@@ -26,7 +26,7 @@
     معاينة مسودّة توليد — {{ preview.generated_at|date:"d/m/Y H:i" }} · {{ preview.get_status_display }} · جودة {{ preview.quality_score|floatformat:0 }}%
   </p>
   <p class="text-sm text-secondary mt-1">
-    هذه ليست الجدول المعتمد. الحصص هنا لا يراها المعلّمون حتى تُعتمد المسودّة من
+    هذه ليست الجدول المعتمد. الحصص هنا لا يراها المعلّمون حتى تُعتمد المسودّةُ من
     <a href="{% url 'smart_schedule' %}?year={{ year }}" class="link-maroon">الجدولة الذكية</a>.
     <a href="{% url 'weekly_schedule' %}?year={{ year }}" class="link-maroon">عرض الجدول الحيّ</a>
   </p>
@@ -39,7 +39,7 @@
   {% for c in conflicts %}<span>{{ c.message }}{% if not forloop.last %} · {% endif %}</span>{% endfor %}
 </div>
 {% endif %}
-{% page_header heading icon="date" %}{% endpage_header %}
+{% page_header heading icon="date" %}{% if view_type == 'all_teachers' and matrix %}{% callout "hint" %}مرورٌ على خانةٍ يُضيء صفَّها وعمودَها، ونقرٌ عليها يثبّت شعبتَها عبر الجدول كلِّه، ونقرٌ على اسمِ معلّمٍ يفتح لوحَه. الأسهمُ للتنقّل وEsc يفكّ التثبيت.{% endcallout %}{% endif %}{% endpage_header %}
 {# بطاقةٌ عاريةٌ بشريط أدواتٍ وإطار — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
 <div class="schedule-pages-card">
   {% include "schedule/partials/week_nav.html" %}
@@ -48,17 +48,18 @@
       {# القائمةُ الواحدة لمن يتصفّح غيره وحده — وعرضُها على المعلّم أداةٌ لا تعمل له #}
       {% if may_browse %}{% include "schedule/partials/schedule_picker.html" %}{% endif %}
 
+      {# الورقُ والاتّجاهُ للطباعة والتصدير وحدَهما — لا أثرَ لهما على ما يُعرض هنا. #}
       <form method="get">
         <input type="hidden" name="view" value="{{ view_type }}">
         {% if target_teacher %}<input type="hidden" name="teacher" value="{{ target_teacher.id }}">{% endif %}
         {% if target_class %}<input type="hidden" name="class" value="{{ target_class.id }}">{% endif %}
         <input type="hidden" name="year" value="{{ year }}">
         {% include "schedule/partials/carry_fields.html" %}
-        <select name="paper" class="form-select" data-autosubmit title="حجم الورق">
+        <select name="paper" class="form-select" data-autosubmit title="حجم ورق الطباعة" aria-label="حجم ورق الطباعة">
           <option value="a4" {% if paper == 'a4' %}selected{% endif %}>A4</option>
           <option value="a3" {% if paper == 'a3' %}selected{% endif %}>A3</option>
         </select>
-        <select name="orient" class="form-select" data-autosubmit title="اتّجاه الورقة">
+        <select name="orient" class="form-select" data-autosubmit title="اتّجاه ورق الطباعة" aria-label="اتّجاه ورق الطباعة">
           <option value="portrait" {% if orient == 'portrait' %}selected{% endif %}>عمودي</option>
           <option value="landscape" {% if orient == 'landscape' %}selected{% endif %}>أفقي</option>
         </select>
@@ -78,13 +79,35 @@
   </div>
 
   {% if view_type == 'all_teachers' %}
+  {% if matrix %}
+  {% comment %}
+  المصفوفةُ في غلافٍ يُمرَّر داخلَه (ترويستُه وعمودا القسم والمعلّم لاصقةٌ) بطولِ ما تبقّى من النافذة،
+  ولوحُ المعلّم بجواره (أو تحته في الهاتف) يُملأ بالنقر على اسم — لا شيءَ فيه قبل ذلك.
+  {% endcomment %}
   <div class="schedule-stage is-sheet">
-    <iframe id="schedule-print-frame" title="{{ title }}"
-            src="{% url 'schedule_print' %}?embed=1&amp;{{ selection_query }}"
-            class="schedule-sheet-frame"></iframe>
-    {# يُملأ من الورقة عبر postMessage — ولا شيء فيه قبل أن يُنقر اسمٌ في الجدول. #}
+    <div class="sheet-frame">
+      <div class="table-wrap table-wrap-scroll sheet-scroll">
+        {% include "schedule/pdf/matrix_table.html" with screen=True %}
+      </div>
+    </div>
     <aside id="teacher-panel" class="teacher-panel" hidden aria-live="polite"></aside>
   </div>
+  <div class="sheet-foot">
+    {% if matrix_totals %}
+    <span class="ui-note">
+      المعلّمون: {{ matrix|length }} · الشُّعب: {{ matrix_totals.sections }} ·
+      الحصص: {{ matrix_totals.total }} من {{ matrix_totals.planned }} مخطَّطة (منها {{ matrix_totals.parallel }} متوازية){% if matrix_totals.missing %} <span class="is-short">— ناقص {{ matrix_totals.missing }}</span>{% endif %}
+    </span>
+    {% endif %}
+    <button type="button" id="schedule-unpin" class="btn-secondary btn-sm" hidden>فكّ التثبيت (Esc)</button>
+  </div>
+  {# نقاطُ التفريغ الملوَّنة في الخانات — تفسيرُها هنا كما في جدول المعلّم. #}
+  {% if has_colored_exemptions %}
+  {% include "schedule/partials/week_legend.html" %}
+  {% endif %}
+  {% else %}
+  {% if source == "actual" %}{% empty_state "لا حصصَ في هذا الأسبوع" %}{% else %}{% empty_state "لا توجد حصص مسجّلة في جدول هذا العام" %}{% endif %}
+  {% endif %}
   {% else %}
   {% comment %}عرضٌ عاديٌّ مستقلٌّ عن الطباعة: نفسُ جزئيّة بيانات الورقة، بلا مقاسها بالملّيمتر ولا ترويستها الرسميّة — هوّيةُ المنصّة نفسُها تكفي هنا.{% endcomment %}
   <div class="table-wrap">
@@ -98,83 +121,28 @@
   {% if view_type == "teacher" and has_colored_exemptions %}
   {% include "schedule/partials/week_legend.html" %}
   {% endif %}
-  {% comment %}إطارٌ مخفيٌّ للطباعة والتصدير وحدَهما — ورقتُه الحقيقيّةُ بملّيمترها وترويستها كما كانت دائماً، ولا صلةَ له بما هو معروضٌ أعلاه.{% endcomment %}
-  <iframe id="schedule-print-frame" title="{{ title }}"
-          src="{% url 'schedule_print' %}?embed=1&amp;{{ selection_query }}"
-          class="schedule-print-frame-hidden" aria-hidden="true" tabindex="-1"></iframe>
   {% endif %}
+
+  {% comment %}إطارٌ مخفيٌّ للطباعة والتصدير وحدَهما — ورقتُه الحقيقيّةُ بملّيمترها وترويستها كما كانت دائماً، ولا صلةَ له بما هو معروضٌ أعلاه. لا `src` حتى يُطلب: الورقةُ تُحسب مرّةً واحدةً لا مرّتين عند فتح الصفحة.{% endcomment %}
+  <iframe id="schedule-print-frame" title="{{ title }}"
+          data-src="{% url 'schedule_print' %}?embed=1&amp;{{ selection_query }}"
+          class="schedule-print-frame-hidden" aria-hidden="true" tabindex="-1"></iframe>
 </div>
 
 <script src="{% static 'js/schedule-export.js' %}" defer></script>
+{% if view_type == 'all_teachers' and matrix %}
+<script src="{% static 'js/schedule-matrix.js' %}" defer></script>
+{% endif %}
 <script nonce="{{ request.csp_nonce }}">
-  // الطباعةُ للإطار لا للصفحة: ما يخرج على الورق هو الجدولُ وحده — ظاهراً
-  // كان الإطارُ (الجدول العامّ) أو مخفيّاً (معلّمٌ أو شعبة).
-  var scheduleFrame = document.getElementById('schedule-print-frame');
-  document.getElementById('schedule-print-btn').addEventListener('click', function () {
-    scheduleFrame.contentWindow.focus();
-    scheduleFrame.contentWindow.print();
-  });
-
-  // ── الجسرُ بين الورقة والمنصّة ──
-  // الورقةُ تُحسب فيها الأرقامُ لأنّ البياناتِ فيها، والمنصّةُ تعرضها لأنّ
-  // المساحةَ لها — ورسالةٌ واحدةٌ بينهما، بأصلٍ مُتحقَّقٍ منه في الطرفين.
   (function () {
-    var panel = document.getElementById('teacher-panel');
-    var search = document.getElementById('schedule-search');
-    if (!panel && !search) return;
-
-    function send(msg) {
-      if (scheduleFrame.contentWindow) {
-        scheduleFrame.contentWindow.postMessage(msg, window.location.origin);
-      }
-    }
-
-    if (search) {
-      var timer = null;
-      search.addEventListener('input', function () {
-        clearTimeout(timer);
-        var q = search.value;
-        timer = setTimeout(function () { send({ type: 'schedule:filter', q: q }); }, 160);
-      });
-      search.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') { search.value = ''; send({ type: 'schedule:filter', q: '' }); }
-      });
-    }
-
-    function bar(day) {
-      var cells = '';
-      for (var p = 1; p <= 7; p++) {
-        var on = day.periods.indexOf(p) !== -1;
-        cells += '<i class="tp-slot' + (on ? ' on' : '') + '" title="الحصّة ' + p + '"></i>';
-      }
-      return '<div class="tp-day"><span class="tp-day-name">' + day.name +
-             '</span><span class="tp-bar">' + cells +
-             '</span><span class="tp-count">' + day.count + '</span></div>';
-    }
-
-    function render(d) {
-      panel.innerHTML =
-        '<h2>' + d.name +
-          (d.specialty ? ' <span class="tp-spec">(' + d.specialty + ')</span>' : '') + '</h2>' +
-        '<div class="tp-dept">قسم ' + d.dept + '</div>' +
-        '<div class="tp-nums">' +
-          '<div class="tp-num"><b>' + d.total + '</b><span>النصاب</span></div>' +
-          '<div class="tp-num"><b>' + d.gaps + '</b><span>فراغات</span></div>' +
-          '<div class="tp-num"><b>' + d.longest + '</b><span>أطول سلسلة</span></div>' +
-        '</div>' +
-        d.days.map(bar).join('') +
-        '<button type="button" class="tp-close">إغلاق اللوح</button>';
-      panel.hidden = false;
-      panel.querySelector('.tp-close').addEventListener('click', function () {
-        panel.hidden = true;
-        send({ type: 'schedule:clear' });
-      });
-    }
-
-    window.addEventListener('message', function (e) {
-      if (e.origin !== window.location.origin || !e.data || !panel) return;
-      if (e.data.type === 'schedule:teacher') render(e.data);
-      if (e.data.type === 'schedule:clear') panel.hidden = true;
+    // الطباعةُ للإطار لا للصفحة: ما يخرج على الورق هو الجدولُ وحده. ويُحمَّل الإطارُ عند أوّل طلبٍ
+    // لا فوراً، وتنتظر الطباعةُ تحميلَه أوّلَ مرّةٍ كي لا تُطبَع صفحةٌ بيضاءُ قبل أن تصل الورقة.
+    var frame = document.getElementById('schedule-print-frame');
+    function print() { frame.contentWindow.focus(); frame.contentWindow.print(); }
+    document.getElementById('schedule-print-btn').addEventListener('click', function () {
+      if (frame.getAttribute('src')) { print(); return; }
+      frame.addEventListener('load', print, { once: true });
+      frame.src = frame.dataset.src;
     });
   })();
 </script>
