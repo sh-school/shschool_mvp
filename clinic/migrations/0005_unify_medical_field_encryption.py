@@ -37,7 +37,7 @@ def _peel_to_one_layer(apps, schema_editor):
         UnclassifiedValueError,
         to_single_layer,
     )
-    from core.models._crypto import _get_fernet
+    from core.models.crypto import _get_fernet
 
     fernet = _get_fernet()
     HealthRecord = apps.get_model("clinic", "HealthRecord")
