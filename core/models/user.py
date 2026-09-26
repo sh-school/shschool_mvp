@@ -6,7 +6,7 @@ from django.db import models
 from django.utils import timezone
 
 from ..managers import CustomUserManager
-from ._crypto import decrypt_field, encrypt_field, hmac_field
+from .crypto import decrypt_field, encrypt_field, hmac_field
 from .school import _uuid
 
 if TYPE_CHECKING:

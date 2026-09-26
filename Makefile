@@ -1,7 +1,7 @@
 .PHONY: up down build logs shell migrate seed full-seed test reset \
         quality lint security ci test-cov pre-commit-install minify-js \
         axes-reset health-check ready-check test-v54 pip-audit-check \
-        railway-plan preview-up preview-watch preview-status preview-pin preview-release
+        railway-plan preview-up preview-watch preview-status preview-plan preview-pin preview-release
 
 # ── Docker (Development) ──────────────────────────────
 up:
@@ -288,8 +288,9 @@ session-logs:
 # ── المعاينةُ المركزيّة: خادمٌ واحدٌ يعرض main بوضع الإنتاج ──────────
 #
 # بديلٌ عن خادمٍ لكلّ جلسةٍ لمن يريد أن يرى ما أنجزته الجلساتُ: `make preview-up` مرّةً، ثمّ
-# `make preview-watch` في تبويبٍ يبقى (يتبع main وحدَه). لعملٍ لم يصر طلبَ دمج:
-# `make preview-pin TREE=<مجلّد الشجرة> MIN=<دقائق>` ثمّ `make preview-release`.
+# `make preview-watch` في تبويبٍ يبقى (يتبع main وما أودعته الجلساتُ ولم يُدمج). ما تراه الآن ولماذا
+# يُتخطّى فرعٌ: `make preview-plan`. لعملٍ لم يُودَع بعدُ: `make preview-pin TREE=<مجلّد الشجرة>
+# MIN=<دقائق>` ثمّ `make preview-release`.
 # التفصيلُ في scripts/preview.sh وdocs/deployment/local_preview.md.
 preview-up:
 	bash scripts/preview.sh up
@@ -299,6 +300,9 @@ preview-watch:
 
 preview-status:
 	bash scripts/preview.sh status
+
+preview-plan:
+	bash scripts/preview.sh integrate plan
 
 preview-pin:
 	bash scripts/preview.sh pin $(TREE) $(MIN)
