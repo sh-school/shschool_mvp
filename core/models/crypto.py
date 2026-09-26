@@ -74,15 +74,17 @@ def _get_fernet():
         return None
 
 
-def encrypt_field(value: Any) -> str | Any:
+def encrypt_field(value: Any) -> Any:
     """تشفير قيمة نصية بالمفتاح الحالي."""
     if not value:
         return value
     f = _get_fernet()
     if not f:
         return value
-    encrypted_bytes = f.encrypt(value.encode() if isinstance(value, str) else value)
-    return encrypted_bytes.decode()
+    if isinstance(value, str):
+        encrypted_bytes = f.encrypt(value.encode())
+        return encrypted_bytes.decode()
+    return value
 
 
 #: عدّادُ الحقول التي تعذّر فكُّها منذ إقلاع العملية.
@@ -124,22 +126,15 @@ def decrypt_field(value: Any) -> Any:
 
 
 def hmac_field(value: str) -> str:
-    """
-    HMAC-SHA256 — يُنتج hash حتمي (deterministic) للبحث والتفرد.
-    لا يمكن عكسه إلى القيمة الأصلية.
-    يُستخدم مع national_id: يُخزّن HMAC في عمود مفهرس للبحث،
-    والقيمة المشفّرة بـ Fernet في عمود آخر للعرض.
-    """
+    """HMAC-SHA256 للبحث والتفرد."""
     if not value:
         return ""
-    key: str | bytes = getattr(settings, "FERNET_KEY", "")
+    key = getattr(settings, "FERNET_KEY", "")
     if not key:
-        # fail-closed في الإنتاج: بدون مفتاح، إعادة النص الصريح كـ HMAC تكسر
-        # البحث والتفرد وتخزّن معرّفات شخصية بلا حماية.
         if not getattr(settings, "DEBUG", True):
             from django.core.exceptions import ImproperlyConfigured
 
             raise ImproperlyConfigured("FERNET_KEY مطلوب لتوليد HMAC في الإنتاج. fail-closed.")
         return value
-    key_bytes: bytes = key.encode() if isinstance(key, str) else key
+    key_bytes = key.encode() if isinstance(key, str) else key
     return _hmac.new(key_bytes, value.strip().encode(), hashlib.sha256).hexdigest()
