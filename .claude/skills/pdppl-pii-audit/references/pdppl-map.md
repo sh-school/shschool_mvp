@@ -10,7 +10,7 @@
 | الموافقة (المعالجة تقوم على موافقة أو أساس مشروع) | تسجيل موافقة صريحة قابلة للسحب | `ConsentRecord` (`core/models/audit.py`) |
 | حقوق صاحب البيان (وصول/تصحيح/اعتراض/محو) | آلية طلب ومعالجة | `ErasureRequest` + `api/views_erasure.py` |
 | البيانات ذات الطبيعة الخاصة (الصحة، بيانات الأطفال، العِرق، الدين) | حماية مشدّدة + تقييد وصول + غالباً إذن الجهة المختصة | `clinic.HealthRecord` مشفّر بـ `EncryptedTextField`؛ RBAC صارم |
-| ضمانات الأمن (سرّية/سلامة البيانات) | تشفير، تحكّم وصول، تسجيل | Fernet (`_crypto.py`)، `AuditLog`، `django-axes`، CSP، HSTS |
+| ضمانات الأمن (سرّية/سلامة البيانات) | تشفير، تحكّم وصول، تسجيل | Fernet (`crypto.py`)، `AuditLog`، `django-axes`، CSP، HSTS |
 | إخطار الخرق | إبلاغ الجهة المختصة والمتأثرين خلال المدّة النظامية | `BreachReport` + تطبيق `breach/` |
 | تقليل البيانات + تحديد الغرض | جمع الحدّ الأدنى للغرض المعلن | مراجعة `fields=[...]` في serializers؛ حقول «آمنة» بديلة |
 | الشفافية | إشعار خصوصية واضح لصاحب البيان | صفحة/سياسة خصوصية + `ConsentRecord.purpose` |
@@ -42,7 +42,7 @@ class GuardianContact(models.Model):
 ### ✅ بعد (خيار 2 — ثلاثية HMAC عند الحاجة للبحث)
 كما في `core/models/user.py` للـ `national_id`:
 ```python
-from core.models._crypto import encrypt_field, decrypt_field, hmac_field
+from core.models.crypto import encrypt_field, decrypt_field, hmac_field
 
 class GuardianContact(models.Model):
     phone_encrypted = models.TextField(blank=True)   # القيمة المشفّرة (Fernet)

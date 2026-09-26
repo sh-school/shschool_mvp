@@ -34,12 +34,15 @@ urlpatterns = [
     path("dbmedia/<path:name>", serve_db_file, name="serve_db_file"),
     # قبل admin.site.urls: نموذجُ دخول Django يتخطّى الرمزَ وقفلَ المحاولات (P1-4)
     path("admin/login/", admin_login_redirect, name="admin_login_redirect"),
+    # مركز قيادة الجودة (للمطوّر وحدَه) — جذريٌّ قبل admin.site.urls وإلّا التقطه المسارُ العامّ ثمّ 404
+    path("admin/command-center/", include("command_center.urls")),
     path("admin/", admin.site.urls),
     path("auth/", include("core.urls.auth")),
     path("dashboard/", include("core.urls.dashboard")),
     path("core/", include("core.urls.audit")),
     path("core/it-admin/", include("core.urls.it_admin")),
     path("core/students/import-export/", include("core.urls.students")),
+    path("exports/", include("core.urls.exports")),
     path("teacher/", include("operations.urls")),
     path("quality/", include("quality.urls")),
     path("assessments/", include("assessments.urls")),

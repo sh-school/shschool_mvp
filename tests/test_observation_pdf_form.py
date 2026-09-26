@@ -188,14 +188,14 @@ def test_the_embedded_letterhead_is_a_data_uri(db, observation):
     assert io  # noqa: B018 — الاستيراد يوثّق أنّ القراءة ثنائية
 
 
-def test_a_school_without_a_letterhead_gets_a_text_heading(db, observation):
-    """لا ترويسةَ مدرسةٍ أخرى — عنوانٌ نصّيٌّ من اسمها هي."""
+def test_a_school_without_a_letterhead_gets_a_text_heading_with_the_approved_logo(db, observation):
+    """لا ترويسةَ مدرسةٍ أخرى — عنوانٌ نصّيٌّ من اسمها هي ومعه الشعارُ المعتمد (لا شعارَ مدرسةٍ أخرى)."""
     from quality.observation_views import _pdf_context
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
 
-    assert observation.school.name in html
-    assert "<img" not in html
+    assert observation.school.name in html and "وزارة التربية والتعليم" in html
+    assert html.count("<img") == 1 and 'class="logo"' in html
 
 
 # ── قسمة الصفحتين ────────────────────────────────────────────────────
@@ -399,3 +399,367 @@ def test_the_vision_is_included_never_written_here(source):
     """
     assert 'include "components/ministry_vision.html"' in source
     assert "الريادة في توفير" not in source, "يُضمَّن ولا يُنسخ"
+
+
+# ── ختمُ التوقيع الإلكترونيّ في خانتَي التوقيع (F55E) ─────────────────────────
+# التذكرةُ SOS-20260925-F55E: خانتا «توقيع المعلم» و«توقيع الزائر» كانتا فارغتين في نسخة PDF، والنموذجُ يحمل
+# `submitted_at` (إرسال الزائر) و`teacher_acknowledged_at` (اطّلاع المعلّم). الختمُ عند وجود البيانات، وإلّا تبقى
+# الخانةُ فارغةً للتوقيع اليدويّ؛ لا ختمَ على مسودّةٍ أو مسحوبة؛ والوقتُ بتوقيت الدوحة؛ والأسماءُ وحدَها.
+
+STAMP = "توقيعٌ إلكترونيّ داخل المنصّة"
+VISITOR_NAME = "سالم الزائر الأوّل"
+TEACHER_NAME = "ناصر المعلّم الأوّل"
+SENT_AT = "2026-09-01T09:30:00+00:00"  # 12:30 بتوقيت الدوحة
+ACK_AT = "2026-09-02T06:05:00+00:00"  # 09:05 بتوقيت الدوحة
+
+
+def _stamp_of(name, at):
+    """الختمُ كما يخرج: اسمٌ في سطرٍ ووقتٌ في سطرٍ (لا فاصلٌ يتدلّى في الخانة الضيّقة)."""
+    return f"<div>{name}</div><div>{at}</div>"
+
+
+def _moment(iso):
+    from datetime import datetime
+
+    return datetime.fromisoformat(iso)
+
+
+def _html_of(obs):
+    from quality.observation_views import _pdf_context
+
+    return render_to_string("quality/observation_pdf.html", _pdf_context(obs))
+
+
+@pytest.fixture
+def named(observation):
+    """الزائرُ والمعلّمُ باسمَين لا يُخلطان بكلمتَي «الزائر» و«المعلم» في عنوانَي الخانتين."""
+    observation.observer.full_name = VISITOR_NAME
+    observation.observer.save(update_fields=["full_name"])
+    observation.teacher.full_name = TEACHER_NAME
+    observation.teacher.save(update_fields=["full_name"])
+    return observation
+
+
+def _sent(obs, at=SENT_AT):
+    obs.status = "submitted"
+    obs.submitted_at = _moment(at)
+    obs.submission_count = 1
+    obs.teacher_acknowledged_at = None
+    obs.save()
+    return obs
+
+
+def _acknowledged(obs):
+    _sent(obs)
+    obs.status = "acknowledged"
+    obs.teacher_acknowledged_at = _moment(ACK_AT)
+    obs.save()
+    return obs
+
+
+def test_a_sent_visit_stamps_the_visitor_and_leaves_the_teacher_cell_empty(db, named):
+    html = _html_of(_sent(named))
+
+    assert html.count(STAMP) == 1
+    assert _stamp_of(VISITOR_NAME, "2026/09/01 12:30") in html
+    # الاسمان في ترويسة الاستمارة دائماً؛ الختمُ هو سطرا «الاسم» و«الوقت»
+    assert (
+        f"<div>{TEACHER_NAME}</div>" not in html
+    ), "المعلّمُ لم يطّلع بعدُ — خانتُه فارغةٌ للتوقيع اليدويّ"
+
+
+def test_an_acknowledged_visit_stamps_both_cells(db, named):
+    html = _html_of(_acknowledged(named))
+
+    assert html.count(STAMP) == 2
+    assert _stamp_of(VISITOR_NAME, "2026/09/01 12:30") in html
+    assert _stamp_of(TEACHER_NAME, "2026/09/02 09:05") in html
+
+
+def test_a_draft_is_never_stamped_even_with_a_stale_time(db, named):
+    """المسودّةُ ومنها المسحوبةُ (السحبُ يعيدها مسودّةً) بلا ختم — الحالةُ هي الحكمُ لا الوقتُ وحدَه."""
+    named.status = "draft"
+    named.submitted_at = _moment(SENT_AT)
+    named.teacher_acknowledged_at = _moment(ACK_AT)
+    named.save()
+
+    html = _html_of(named)
+
+    assert STAMP not in html
+    assert f"<div>{VISITOR_NAME}</div>" not in html and f"<div>{TEACHER_NAME}</div>" not in html
+
+
+def test_a_reopened_visit_keeps_the_visitor_stamp_and_drops_the_teachers(db, named):
+    """إعادةُ الفتح: مُقَرّة → مُرسَلة، ويُمحى اطّلاعُ المعلّم فتعود خانتُه فارغة."""
+    _acknowledged(named)
+    named.status = "submitted"
+    named.teacher_acknowledged_at = None
+    named.save()
+
+    html = _html_of(named)
+
+    assert html.count(STAMP) == 1 and f"<div>{TEACHER_NAME}</div>" not in html
+
+
+def test_a_resubmitted_visit_shows_the_last_time(db, named):
+    _sent(named, at="2026-09-01T09:30:00+00:00")
+    named.submission_count = 2
+    named.submitted_at = _moment("2026-09-03T07:15:00+00:00")  # 10:15 بتوقيت الدوحة
+    named.save()
+
+    html = _html_of(named)
+
+    assert "2026/09/03 10:15" in html
+    assert "2026/09/01" not in html
+
+
+def test_the_time_is_doha_whatever_timezone_is_active(db, named):
+    from django.utils import timezone
+
+    _sent(named)
+
+    with timezone.override("UTC"):
+        html = _html_of(named)
+
+    assert "12:30" in html and "09:30" not in html
+
+
+def test_the_stamp_carries_names_only_no_id_and_no_number(db, named):
+    _acknowledged(named)
+    for user in (named.observer, named.teacher):
+        assert user.national_id, "الفرضيّةُ: للمستخدمَين هويّةٌ في القاعدة، ولا تظهر في الختم"
+
+    html = _html_of(named)
+
+    for user in (named.observer, named.teacher):
+        assert user.national_id not in html
+
+
+def test_a_signer_without_a_name_gets_no_stamp(db, named):
+    """ختمٌ بلا اسمٍ ليس توقيعاً — تبقى الخانةُ للتوقيع اليدويّ."""
+    _sent(named)
+    named.observer.full_name = "  "
+    named.observer.save(update_fields=["full_name"])
+
+    assert STAMP not in _html_of(named)
+
+
+def test_the_signature_labels_stay_and_are_not_replaced_by_the_stamp(db, named):
+    html = _html_of(_acknowledged(named))
+
+    assert "توقيع المعلم" in html and "توقيع الزائر" in html
+
+
+def _real_criteria(school, count):
+    """معاييرُ الاستمارة الحقيقيّة (الأولى `count`) لا معيارُ الفحص الواحد — ويُزال ما في الفحوص من معايير."""
+    from quality.management.commands.seed_observation_criteria import CRITERIA
+    from quality.observation_models import ObservationCriterion
+
+    ObservationCriterion.objects.filter(school=school).delete()
+    for order, (domain, text) in enumerate(CRITERIA[:count], start=1):
+        ObservationCriterion.objects.create(school=school, domain=domain, text=text, order=order)
+
+
+def _page_count(obs):
+    import io
+
+    from core.pdf_utils import render_pdf_bytes
+
+    pypdf = pytest.importorskip("pypdf")
+    pdf = render_pdf_bytes(_html_of(obs))
+    return len(pypdf.PdfReader(io.BytesIO(pdf)).pages)
+
+
+def test_a_stamped_form_fits_wherever_the_unstamped_one_fits(db, school, named):
+    """القبولُ: الجدولُ يبقى في صفحةٍ واحدة — الختمان لا يُنزلان الاستمارةَ عن الصفحة الواحدة.
+
+    عددُ صفحات الأصل تحكمه الخطوطُ المثبَّتةُ في البيئة (بخطٍّ بديلٍ عريضٍ ينزل صفُّ التوقيع وحده إلى الصفحة الثانية
+    ولو بلا ختم) — فلا رقمَ مطلقاً هنا: نأخذ أكبرَ عددِ معاييرَ تسعه صفحةٌ واحدةٌ **بلا ختم** (حتّى تمتلئ الصفحةُ إلى
+    حافّتها)، ونقيس الاستمارةَ المختومةَ بالختمَين عند العدد نفسِه. صندوقُ الملاحظات يردّ ما يزيده الختمُ (`.notes.stamped`).
+    """
+    pytest.importorskip("weasyprint")
+    named.general_notes = ""
+    named.status = "draft"
+    named.save()
+
+    for count in range(23, 8, -1):
+        _real_criteria(school, count)
+        if _page_count(named) == 1:
+            break
+    else:
+        pytest.skip("لا عددَ معاييرَ تسعه صفحةٌ في هذه البيئة (خطوطُ PDF غيرُ مثبَّتة)")
+
+    assert (
+        _page_count(_acknowledged(named)) == 1
+    ), f"الختمان أنزلا الاستمارةَ ({count} معياراً) عن صفحتها"
+
+
+# ── الشعارُ في الرأس (بلاغ المالك 2026-09-26) ─────────────────────────────────
+# الترتيب: صورةُ الترويسة المرفوعة إن وُجدت (كما هي) ← `School.logo` إن وُجد ← الشعارُ المعتمد `static/brand/logoMaroon.png` مع الترويسة
+# النصّيّة. فلا تحتاج مدرسةٌ إلى رفع شيءٍ لتظهر الاستمارةُ بشعار، وتبقى الصفحةُ واحدة.
+
+PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+
+
+def _save_image(field, name):
+    import base64
+
+    from django.core.files.base import ContentFile
+
+    field.save(name, ContentFile(base64.b64decode(PNG)), save=True)
+
+
+def test_without_any_upload_the_approved_logo_is_used(db, observation):
+    import base64
+    import pathlib
+
+    from quality.observation_views import _pdf_context
+
+    logo = _pdf_context(observation)["logo"]
+
+    assert logo.startswith("data:image/png;base64,")
+    expected = pathlib.Path("static/brand/logoMaroon.png").read_bytes()
+    assert base64.b64decode(logo.split(",", 1)[1]) == expected, "الشعارُ المعتمدُ نفسُه لا نسخةٌ أخرى"
+
+
+def test_the_schools_own_logo_comes_before_the_approved_one(db, observation):
+    from quality.observation_views import _as_data_uri, _pdf_context
+    from quality.pdf_assets import brand_logo_data_uri
+
+    _save_image(observation.school.logo, "own.png")
+
+    ctx = _pdf_context(observation)
+
+    assert ctx["logo"] == _as_data_uri(observation.school.logo)
+    assert ctx["logo"] != brand_logo_data_uri()
+
+
+def test_an_uploaded_letterhead_replaces_the_text_heading_and_no_logo_is_added(db, observation):
+    """الترويسةُ المرفوعة كما هي — لا شعارَ بجانبها ولا يُقرأ ملفُّه."""
+    from quality.observation_views import _pdf_context
+
+    _save_image(observation.school.letterhead, "head.png")
+    _save_image(observation.school.logo, "own.png")
+
+    ctx = _pdf_context(observation)
+    html = render_to_string("quality/observation_pdf.html", ctx)
+
+    assert ctx["logo"] == ""
+    assert html.count("<img") == 1 and 'class="logo"' not in html
+
+
+def test_a_missing_approved_logo_falls_back_to_the_text_heading(db, observation, tmp_path):
+    from django.test import override_settings
+
+    from quality.observation_views import _pdf_context
+
+    with override_settings(BASE_DIR=tmp_path):
+        ctx = _pdf_context(observation)
+        html = render_to_string("quality/observation_pdf.html", ctx)
+
+    assert ctx["logo"] == ""
+    assert "<img" not in html and observation.school.name in html
+
+
+def test_the_logo_fits_the_top_margin_without_touching_the_body(source):
+    """ارتفاعُ الشعار + حشوا الشريط + حدُّ العنوان السفليّ ≤ الهامش العلويّ — وإلّا نزل من الهامش على المتن."""
+    import re
+
+    logo = float(re.search(r"\.plain-head \.logo \{[^}]*height: ([\d.]+)in", source).group(1))
+    top = float(re.search(r"margin: ([\d.]+)in [\d.]+in [\d.]+in [\d.]+in", source).group(1))
+    padding = 2 * float(re.search(r"#sheet-header \{[^}]*padding: ([\d.]+)in 0", source).group(1))
+    border_and_gap = (2 + 4) / 72  # حدُّ العنوان 2pt وحشوُه السفليّ 4pt
+
+    assert logo + padding + border_and_gap <= top, (logo, padding, top)
+
+
+def _image_boxes(html):
+    """(عرضٌ، ارتفاعٌ) بالبكسل CSS لكلّ صورةٍ في الصفحة الأولى — من تخطيط WeasyPrint نفسِه لا من نصّ القالب."""
+    weasyprint = pytest.importorskip("weasyprint")
+    from weasyprint.formatting_structure import boxes
+
+    page = weasyprint.HTML(string=html).render().pages[0]._page_box
+    found = []
+
+    def walk(box):
+        if isinstance(box, boxes.InlineReplacedBox | boxes.BlockReplacedBox):
+            found.append((round(box.width, 1), round(box.height, 1)))
+        for child in getattr(box, "children", ()):
+            walk(child)
+
+    walk(page)
+    return found
+
+
+def test_the_logo_is_drawn_small_not_stretched_across_the_header(db, observation):
+    """القاعدةُ العامّة `#sheet-header img` تمدّ صورةَ الترويسة على عرض الشريط (6.8 بوصة) — وشعارٌ بقاعدةٍ أضعفَ خصوصيّةً يُمدّ معها فيغطّي الرأس.
+
+    يُقاس حجمُه المرسوم فعلاً: مربّعٌ صغيرٌ بنحو 0.62 بوصة (59.5px) لا أوسعُ من بوصة.
+    """
+    from quality.observation_views import _pdf_context
+
+    html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
+    images = _image_boxes(html)
+
+    assert len(images) == 1, images
+    width, height = images[0]
+    assert width <= 96 and 50 <= height <= 62, images
+
+
+def test_an_uploaded_letterhead_is_still_stretched_to_the_strip_width(db, observation):
+    """`#sheet-header img` بقيت كما هي: الترويسةُ المرفوعة بعرض الشريط (6.8 بوصة = 652.8px)."""
+    from quality.observation_views import _pdf_context
+
+    _save_image(observation.school.letterhead, "head.png")
+    html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
+
+    assert [w for w, _h in _image_boxes(html)] == [652.8]
+
+
+def _images_and_pages(obs):
+    import io
+
+    from core.pdf_utils import render_pdf_bytes
+
+    pypdf = pytest.importorskip("pypdf")
+    reader = pypdf.PdfReader(io.BytesIO(render_pdf_bytes(_html_of(obs))))
+    return len(reader.pages), len(reader.pages[0].images)
+
+
+def test_the_logo_reaches_the_pdf_as_an_image_and_its_absence_leaves_none(
+    db, school, named, tmp_path
+):
+    """القبولُ: يظهر صورةً في PDF حين يُوجد الشعارُ ولا ترويسة، ولا يظهر حين لا يوجدان."""
+    from django.test import override_settings
+
+    pytest.importorskip("weasyprint")
+    _real_criteria(school, 12)
+
+    pages_with, images_with = _images_and_pages(named)
+    with override_settings(BASE_DIR=tmp_path):  # لا شعارَ معتمداً ولا شعارَ مدرسة ولا ترويسة
+        pages_without, images_without = _images_and_pages(named)
+
+    assert images_with == 1 and images_without == 0
+    assert pages_with == pages_without == 1
+
+
+def test_the_logo_never_costs_a_page(db, school, named, tmp_path):
+    """صفحةٌ واحدة: أكبرُ عددِ معاييرَ تسعه الصفحةُ بلا شعار (حتّى حافّتها) — والشعارُ عند العدد نفسِه لا يُنزلها إلى صفحتين.
+
+    نسبيّ عمداً كما في ختم F55E: عددُ الصفحات المطلق تحكمه خطوطُ PDF المثبَّتةُ في البيئة.
+    """
+    from django.test import override_settings
+
+    pytest.importorskip("weasyprint")
+    named.general_notes = ""
+    named.save()
+
+    for count in range(23, 8, -1):
+        _real_criteria(school, count)
+        with override_settings(BASE_DIR=tmp_path):
+            if _images_and_pages(named)[0] == 1:
+                break
+    else:
+        pytest.skip("لا عددَ معاييرَ تسعه صفحةٌ في هذه البيئة (خطوطُ PDF غيرُ مثبَّتة)")
+
+    assert _images_and_pages(named)[0] == 1, f"الشعارُ أنزل الاستمارةَ ({count} معياراً) عن صفحتها"

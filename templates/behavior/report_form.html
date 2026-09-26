@@ -54,6 +54,29 @@
     {% endsection_card %}
 
     {% section_card "بيانات المخالفة" icon="behavior_violation" %}
+      {# الصفُّ والشعبةُ تحصران قائمةَ الطالب وبحثَها (بلاغ المالك 2026-09-26) — واجهةٌ فقط لا تُرسَلان؛ وفي سطرٍ واحدٍ ولو ضاقت البطاقة: سطرٌ زائدٌ يُدخل تمريراً في البطاقة على اللابتوب #}
+      <div class="beh-classpick form-group">
+        <div>
+          <label class="form-label" for="classGradeSelect">الصف</label>
+          <select id="classGradeSelect" class="form-control">
+            <option value="">كل الصفوف</option>
+            {% for code, label in grade_options %}
+            <option value="{{ code }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="form-label" for="classSectionSelect">الشعبة</label>
+          <select id="classSectionSelect" class="form-control">
+            <option value="">كل الشُّعب</option>
+            {% for section in all_sections %}
+            <option value="{{ section }}">{{ section }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      {{ sections_by_grade|json_script:"sectionsByGrade" }}
+
       <div class="form-row form-group">
         <div>
           <label class="form-label" for="studentSearchInput">الطالب <span class="required">*</span></label>
@@ -62,8 +85,9 @@
                    role="combobox" aria-controls="studentDropdown" aria-expanded="false">
             <div id="studentDropdown" class="beh-combo__list" role="listbox" hidden>
               {% for s in students %}
-              <div class="js-student-option beh-combo__option" role="option" data-id="{{ s.id }}" data-name="{{ s.full_name }}">{{ s.full_name }}</div>
+              <div class="js-student-option beh-combo__option" role="option" data-id="{{ s.id }}" data-name="{{ s.full_name }}" data-grade="{{ s.pick_grade }}" data-section="{{ s.pick_section }}">{{ s.full_name }}</div>
               {% endfor %}
+              <div id="studentEmpty" class="beh-combo__option beh-combo__empty" role="option" aria-disabled="true" hidden>لا طالب مطابق لهذا الاختيار</div>
             </div>
           </div>
           <select name="student_id" required id="studentSelect" hidden aria-label="الطالب">
@@ -172,26 +196,79 @@
   });
  });
 
- /* ── بحث ذكي في الطلاب ── */
+ /* ── بحث ذكي في الطلاب: الصفُّ والشعبةُ ثمّ الاسم ── */
  var studentSearch = document.getElementById('studentSearchInput');
  var studentDropdown = document.getElementById('studentDropdown');
  var studentSelect = document.getElementById('studentSelect');
  var studentOptions = document.querySelectorAll('.js-student-option');
+ var studentEmpty = document.getElementById('studentEmpty');
+ var gradeSelect = document.getElementById('classGradeSelect');
+ var sectionSelect = document.getElementById('classSectionSelect');
+ var sectionsByGrade = JSON.parse(document.getElementById('sectionsByGrade').textContent);
+ var allSections = Array.prototype.slice.call(sectionSelect.options, 1).map(function(o) { return o.value; });
 
  function setDropdown(open) {
   studentDropdown.hidden = !open;
   studentSearch.setAttribute('aria-expanded', open ? 'true' : 'false');
  }
 
+ function inClass(opt) {
+  return (!gradeSelect.value || opt.dataset.grade === gradeSelect.value)
+   && (!sectionSelect.value || opt.dataset.section === sectionSelect.value);
+ }
+
+ function applyFilters() {
+  var q = studentSearch.value.trim().toLowerCase();
+  var shown = 0;
+  studentOptions.forEach(function(opt) {
+   var match = inClass(opt) && opt.dataset.name.toLowerCase().indexOf(q) !== -1;
+   opt.hidden = !match;
+   if (match) { shown += 1; }
+  });
+  studentEmpty.hidden = shown !== 0;
+ }
+
+ /* شعبُ الصفّ المختار وحدَها — وما اختير قبلاً يبقى إن كان من شعبه. */
+ function fillSections() {
+  var list = gradeSelect.value ? (sectionsByGrade[gradeSelect.value] || []) : allSections;
+  var keep = sectionSelect.value;
+  sectionSelect.length = 1;
+  list.forEach(function(section) {
+   var option = document.createElement('option');
+   option.value = section;
+   option.textContent = section;
+   sectionSelect.appendChild(option);
+  });
+  sectionSelect.value = list.indexOf(keep) === -1 ? '' : keep;
+ }
+
+ /* من اختير قبل تغيير الصفّ أو الشعبة ولم يعد منهما يُمسح اختيارُه: لا يُسجَّل على طالبٍ لا تراه القائمة. */
+ function dropStaleChoice() {
+  if (!studentSelect.value) { return; }
+  var chosen = document.querySelector('.js-student-option[data-id="' + studentSelect.value + '"]');
+  if (chosen && !inClass(chosen)) {
+   studentSelect.value = '';
+   studentSearch.value = '';
+   studentSearch.classList.remove('is-valid');
+  }
+ }
+
+ gradeSelect.addEventListener('change', function() {
+  fillSections();
+  dropStaleChoice();
+  applyFilters();
+ });
+ sectionSelect.addEventListener('change', function() {
+  dropStaleChoice();
+  applyFilters();
+ });
+
  studentSearch.addEventListener('focus', function() { setDropdown(true); });
 
  studentSearch.addEventListener('input', function() {
-  var q = this.value.trim().toLowerCase();
   setDropdown(true);
   studentSearch.classList.remove('is-valid');
-  studentOptions.forEach(function(opt) {
-   opt.hidden = opt.dataset.name.toLowerCase().indexOf(q) === -1;
-  });
+  applyFilters();
  });
 
  studentOptions.forEach(function(opt) {

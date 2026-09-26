@@ -9,7 +9,7 @@ from django.db import models
 from django.utils import timezone
 
 from core.models import CustomUser, School
-from core.models._crypto import decrypt_field, encrypt_field
+from core.models.crypto import decrypt_field, encrypt_field
 
 
 def _uuid():

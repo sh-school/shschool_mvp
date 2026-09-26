@@ -42,7 +42,8 @@ from .observation_selectors import grouped_criteria as _grouped_criteria
 from .observation_selectors import groups_with_scores as _groups_with_scores
 from .observation_selectors import teacher_schedule_context as _teacher_schedule_context
 from .observation_services import ObservationService
-from .presentation import decorate_observation
+from .pdf_assets import brand_logo_data_uri
+from .presentation import decorate_observation, signature_stamps
 
 logger = logging.getLogger(__name__)
 
@@ -240,12 +241,16 @@ def _pdf_context(obs):
         (label, [{"criterion": c, "score": s} for c, s in rows])
         for label, rows in _groups_with_scores(obs)
     ]
+    letterhead = _as_data_uri(obs.school.letterhead)
     return {
         "obs": obs,
-        "letterhead": _as_data_uri(obs.school.letterhead),
+        "letterhead": letterhead,
+        # الشعارُ بجانب العنوان النصّيّ فقط حين لا ترويسةَ مرفوعة: `School.logo` إن وُجد، وإلّا الشعارُ المعتمد `logoMaroon.png`
+        "logo": "" if letterhead else (_as_data_uri(obs.school.logo) or brand_logo_data_uri()),
         "letterfoot": _as_data_uri(obs.school.letterfoot),
         "domains": grouped,
         "ratings": RATING_CHOICES,
+        "signatures": signature_stamps(obs),
         "academic_year": academic_year_for_school(obs.school).replace("-", "/"),
         "form_subject": {
             "self": "التقييم الذاتي للمعلّم",

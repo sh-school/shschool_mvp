@@ -1135,7 +1135,7 @@ window.fitNoscroll();
 {# ════════════════ SCRIPTS ═══════════════════════════════════════════════ #}
 {# APP_CONFIG: متغيرات Django المطلوبة في base.js ─ inline مقصود (CSP nonce) #}
 <script nonce="{{ request.csp_nonce }}">
-window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }} };
+window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,false" }}, rum: {% if rum_endpoint %}{ endpoint: "{{ rum_endpoint|escapejs }}", sample: {{ rum_sample }} }{% else %}null{% endif %} };
 </script>
 {# مفردات data-* المعلنة — تحلّ محلّ معالِجات الأحداث الداخلية التي تحجبها CSP #}
 <script src="{% static 'js/actions.js' %}" defer></script>
@@ -1143,8 +1143,12 @@ window.APP_CONFIG = { isAuthenticated: {{ user.is_authenticated|yesno:"true,fals
 <script src="{% static 'js/app.js' %}" defer></script>
 {# التطبيقُ المثبَّت بلا شريطِ متصفّح: الملفّاتُ إلى قائمة المشاركة، و«اللسانُ الجديد» في النافذة نفسها #}
 <script src="{% static 'js/app-mode.js' %}" defer></script>
+<script src="{% static 'js/export-center.js' %}" defer></script>
 {% comment %}التنقّلُ بين الصفحات بتبديل المحتوى وحدَه: الترويسةُ والقائمةُ والفوتر ثابتةٌ لا تُعاد، والمحتوى يتلاشى ثمّ يظهر بسلاسةٍ (قرارُ المالك 2026-09-20). صفحةٌ لها سكربتُها أو أنماطُها الخاصّة تُحمَّل كاملةً كما كانت.{% endcomment %}
 <script src="{% static 'js/page-nav.js' %}" defer></script>
+{% if rum_endpoint %}{# قياسُ الأداء الميدانيّ (Q-04): لا يُحمَّل ما دام RUM_ENDPOINT فارغاً #}
+<script src="{% static 'js/rum.js' %}" defer></script>
+{% endif %}
 
 {% block extra_js %}{% endblock %}
 

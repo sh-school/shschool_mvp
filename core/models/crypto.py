@@ -1,5 +1,5 @@
 """
-core/models/_crypto.py
+core/models/crypto.py
 ━━━━━━━━━━━━━━━━━━━━━
 Encryption utilities for SchoolOS — Fernet + HMAC
 
@@ -23,12 +23,12 @@ try:
     _FERNET_AVAILABLE = True
 except ImportError:
     _FERNET_AVAILABLE = False
-    InvalidToken = Exception  # fallback
+    InvalidToken = Exception  # type: ignore[assignment,misc]  # fallback: يُستعمل ما دام cryptography غائباً
 
 logger = logging.getLogger(__name__)
 
 
-def _get_fernet():
+def _get_fernet() -> "Fernet | MultiFernet | None":
     """
     يُعيد MultiFernet (يدعم key rotation) أو Fernet عادي.
     المفتاح الأول هو الحالي (للتشفير)، والباقي للفك فقط.

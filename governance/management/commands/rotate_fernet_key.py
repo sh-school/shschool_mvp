@@ -19,7 +19,7 @@ from typing import Any
 from cryptography.fernet import InvalidToken
 from django.core.management.base import BaseCommand
 
-from core.models._crypto import decrypt_field, encrypt_field
+from core.models.crypto import decrypt_field, encrypt_field
 
 logger = logging.getLogger(__name__)
 

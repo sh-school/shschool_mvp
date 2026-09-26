@@ -88,7 +88,10 @@ body {
 #sheet-header img, #sheet-footer img { width: 6.8in; display: block; margin: 0 auto; }
 
 /* عنوانٌ نصّيّ لمن لم يرفع ترويسته — لا ترويسة مدرسةٍ أخرى */
-.plain-head { text-align: center; border-bottom: 2pt solid {% brand_color "FORM_BAND" %}; padding-bottom: 4pt; }
+.plain-head { text-align: center; border-bottom: 2pt solid {% brand_color "FORM_BAND" %}; padding-bottom: 4pt; overflow: hidden; }  /* `overflow` يحوي الشعارَ العائم فيبقى الحدُّ تحته لا خلفَه */
+/* الشعارُ بجانب العنوان النصّيّ حين لا ترويسةَ مرفوعة: عن يمين النصّ (بداية السطر في RTL). ارتفاعُه 0.62 بوصة يسعه الهامشُ العلويّ
+   (1.08 بوصة ناقصَ حشوَي الشريط 0.28 وحدَّه السفليّ 4pt+2pt = 0.7 بوصة): فلا يمسّ الشعارُ ارتفاعَ المتن ولا يُنزل الصفحةَ عن الصفحة الواحدة. */
+#sheet-header .plain-head .logo { float: right; display: block; height: 0.62in; width: auto; margin: 0 0 0 8pt; }  /* يسبق قاعدةَ `#sheet-header img` (عرضُ الشريط) بالخصوصيّة */
 .plain-head .ministry { font-size: 10pt; color: {% brand_color "PRINT_INK_SOFT" %}; }
 .plain-head .school { font-size: 14pt; font-weight: 700; color: {% brand_color "FORM_BAND" %}; }
 .plain-foot {
@@ -165,6 +168,19 @@ td {
    باليد، فكِبَرُه نفعٌ لا فراغ. */
 .notes { height: 38pt; vertical-align: top; }
 .sign { height: 22pt; }
+/* ختمُ التوقيع الإلكترونيّ (F55E): يملأ الخانةَ حين توجد بياناتُه، وإلّا تبقى فارغةً للتوقيع اليدويّ. سطران صغيران
+   فلا تزيد الخانةُ ارتفاعاً إلّا بقدر الختم، والصفحةُ واحدة. */
+.e-sign {
+  border: 0.6pt solid {% brand_color "FORM_BAND" %};
+  padding: 0.5pt 2pt;
+  text-align: center;
+  line-height: 1.05;
+  font-size: 7.2pt;
+}
+.e-sign .title { font-weight: 700; color: {% brand_color "FORM_BAND" %}; }
+/* الخانةُ المختومةُ أطولُ بنحو ستّ نقاطٍ (ثلاثةُ أسطرٍ في الخانة الضيّقة)، فيردّ صندوقُ الملاحظات — وهو موضعُ الكتابة باليد
+   وأدنى ارتفاعِه فسحةٌ لا محتوى — القدرَ نفسَه: فلا تنزل صفحةٌ عن الصفحة الواحدة بسبب الختم (F55E). */
+.notes.stamped { height: 32pt; }
 </style>
 </head>
 <body data-pdf-own-page>
@@ -174,6 +190,7 @@ td {
     <img src="{{ letterhead }}" alt="">
   {% else %}
     <div class="plain-head">
+      {% if logo %}<img class="logo" src="{{ logo }}" alt="">{% endif %}
       <div class="ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
       <div class="school">{{ obs.school.name }}</div>
     </div>
@@ -266,12 +283,12 @@ td {
     {% endfor %}
   {% endfor %}
   <tr><td class="head" colspan="8">ملاحظات وتوصيات عامّة</td></tr>
-  <tr><td class="notes" colspan="8">{{ obs.general_notes|linebreaksbr }}</td></tr>
+  <tr><td class="notes{% if signatures.teacher or signatures.visitor %} stamped{% endif %}" colspan="8">{{ obs.general_notes|linebreaksbr }}</td></tr>
   <tr>
     <td class="band sign" colspan="2">توقيع المعلم</td>
-    <td class="sign" colspan="2"></td>
+    <td class="sign" colspan="2">{% with stamp=signatures.teacher %}{% include "quality/_pdf_e_sign.html" %}{% endwith %}</td>
     <td class="band sign" colspan="2">توقيع الزائر</td>
-    <td class="sign" colspan="2"></td>
+    <td class="sign" colspan="2">{% with stamp=signatures.visitor %}{% include "quality/_pdf_e_sign.html" %}{% endwith %}</td>
   </tr>
 </table>
 
