@@ -26,7 +26,7 @@
   {# تنبيهُ الجلسة/العقد: مخفيٌّ حتى يكشفه السكربتُ (انتهت الجلسة أو تغيّر إصدارُ العقد) #}
   <div role="status" data-qc-note hidden>{% callout "error" %}<span data-qc-note-text></span>{% endcallout %}</div>
 
-  <div class="qc-grid">
+  <div class="auto-grid is-tiles">
     {% for panel in snapshot.panels %}<div data-card="{{ panel.key }}"{% if panel.hidden %} hidden{% endif %}>{% include "command_center/_panel.html" %}</div>{% endfor %}
   </div>
   <div data-qc-none{% if shown %} hidden{% endif %}>{% callout "info" %}كلُّ المؤشّرات مخفيّة — أظهِر ما تريد من زرّ «المؤشّراتُ المعروضة».{% endcallout %}</div>

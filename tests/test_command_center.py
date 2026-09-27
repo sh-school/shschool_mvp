@@ -243,7 +243,7 @@ def test_the_center_styles_live_in_the_platform_css_and_not_in_the_admin_theme()
     """QCC-01b: الصفحةُ في المنصّة فأنماطُها في `static/css/custom/` (ملفُّ الوحدات)، ولا شيءَ منها في `admin_theme.css`."""
     assert ".qc-" not in (ROOT / "static" / "css" / "admin_theme.css").read_text(encoding="utf-8")
     modules = (ROOT / "static" / "css" / "custom" / "33-modules-4.css").read_text(encoding="utf-8")
-    assert ".qc-panel" in modules and ".qc-grid" in modules
+    assert ".qc-panel" in modules
 
 
 def test_the_page_is_a_platform_page_declaring_its_layout_and_using_the_components():

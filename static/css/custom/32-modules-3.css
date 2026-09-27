@@ -1394,10 +1394,15 @@
      شؤون الموظفين، وأيُّ عددٍ آخر يحتاجه قالبٌ مقبل بلا كلاسٍ جديد. */
   .auto-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--ag-min, 300px)), 1fr));
     gap: var(--sp-2);
     align-items: stretch;
   }
+  /* بلاطاتٌ متساويةُ الارتفاع لأيّ لوحةِ بطاقاتٍ متشابهة (`is-tiles`): أدنى عرضٍ 11rem وأقصى سبعةُ أعمدةٍ — فأربعَ عشرةَ بطاقةً في سطرين حين تتّسع النافذة —
+     وكلُّ الصفوف بارتفاعٍ واحدٍ، والخليّةُ تملأ بطاقتَها (المرجعُ: docs/design/page_layouts.md §7.1). والحدُّ الأدنى 11rem لا 15.5rem
+     (وحيدُ مستعمِلي `.auto-grid.is-tiles` مركزُ قيادة الجودة) فتظهر الأربعَ عشرةَ لوحةً بسطرَيها بلا تمريرٍ رأسيّ على 1366×768. */
+  .auto-grid.is-tiles { --ag-min: max(11rem, calc((100% - 6 * var(--sp-2)) / 7)); grid-auto-rows: 1fr; }
+  .auto-grid.is-tiles > * { display: grid; }
   /* عمودٌ بعرض 300px أضيقُ من عرض الصفحة — سطرُ قائمةٍ فيه (اسمٌ + شارةٌ + زر)
      يُكدَّس بلا التفافٍ، فيُؤذَن للعناصر أن تنزل سطراً إن ضاق بها المكان. */
   .auto-grid .plain-list__row { flex-wrap: wrap; }
