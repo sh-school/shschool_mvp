@@ -13,14 +13,19 @@
 from __future__ import annotations
 
 from core import brand
+from core.dept_colors import dept_key
 from operations.schedule_paper import cell_kind
 
 #: عرضُ خانة الحصّة: رمزُ الشعبة أربعةُ محارف («11/2») لا أكثر.
 _CELL_WIDTH = 4.6
 
-#: شريطُ القسم: الأقسامُ المتجاورة تتناوب على لونين فاتحين — فالحدُّ بينها
-#: يُرى دون أن تُنسخ لوحةُ ألوان الورقة المطبوعة في موضعٍ ثانٍ تشيخ فيه.
-_BAND_FILL = brand.excel(brand.MAROON_BG)
+
+#: لونُ القسم في الصفّ كلِّه: ألوانُ الورقة المطبوعة والشاشة نفسُها (`brand.DEPT_*` ← `core.dept_colors.dept_key`)، لا لوحةٌ ثانيةٌ.
+#: كان الصفُّ يتناوب بين لونين عامّين فلا يحمل الملفّ لونَ قسمٍ أبداً (بلاغ المالك 2026-09-26).
+def _dept_fill(code) -> str:
+    key = dept_key(code).upper().replace("-", "_")
+    return brand.excel(getattr(brand, f"DEPT_{key}", brand.DEPT_OTHER))
+
 
 #: تلوينُ الحصّة المحوَّلة (أسبوعٌ فعليّ) — ألوانُ الورقة المطبوعة نفسُها (`week_grid_css.html`).
 _KIND_FILL = {
@@ -115,11 +120,11 @@ def _legend_rows(ws, ctx: dict, first_row: int, num_cols: int) -> int:
 
 
 def _matrix_row(
-    ws, styles: dict, row_data: dict, row_num: int, band: bool, layout: tuple[int, int, int]
+    ws, styles: dict, row_data: dict, row_num: int, layout: tuple[int, int, int]
 ) -> None:
-    """سطرُ معلّمٍ في الجدول العام: قسمُه واسمُه وحصصُه ونصابُه، بلون شريط قسمه ثمّ علامةِ ما حُوّل.
+    """سطرُ معلّمٍ في الجدول العام: قسمُه واسمُه وحصصُه ونصابُه، بلون قسمه ثمّ علامةِ ما حُوّل.
 
-    `layout`: (أوّلُ عمودِ حصّة، عددُ الحصص في اليوم، عددُ الأعمدة). و`band`: شريطُ القسم الحاليّ.
+    `layout`: (أوّلُ عمودِ حصّة، عددُ الحصص في اليوم، عددُ الأعمدة).
     """
     from openpyxl.styles import Alignment, PatternFill
 
@@ -154,10 +159,9 @@ def _matrix_row(
 
     ExcelService._style_data_row(ws, styles, row_num, num_cols, False)
     ws.row_dimensions[row_num].height = 17
-    if band:
-        fill = PatternFill("solid", fgColor=_BAND_FILL)
-        for column in range(1, num_cols + 1):
-            ws.cell(row=row_num, column=column).fill = fill
+    fill = PatternFill("solid", fgColor=_dept_fill((row_data.get("department") or {}).get("code")))
+    for column in range(1, num_cols + 1):
+        ws.cell(row=row_num, column=column).fill = fill
     for column, kind in moved:
         _mark_moved(ws, row_num, column, kind)
     # المحاذاةُ تُعاد بعد الأنماط: `_style_data_row` يوسّط كلّ خانة،
@@ -208,13 +212,10 @@ def _matrix_workbook(ctx: dict):
     ws.row_dimensions[4].height = 22
     ws.row_dimensions[5].height = 18
 
-    # ── السطور: خانةُ القسم ممتدّةٌ على معلّميه، كما في الورقة ──
-    band = False
+    # ── السطور: خانةُ القسم ممتدّةٌ على معلّميه، كما في الورقة، وكلُّ صفٍّ بلون قسمه ──
     layout = (first_period_col, len(periods), num_cols)
     for index, row_data in enumerate(matrix):
-        if row_data.get("dept_span"):
-            band = not band
-        _matrix_row(ws, styles, row_data, 6 + index, band, layout)
+        _matrix_row(ws, styles, row_data, 6 + index, layout)
 
     # ── سطرُ المجموع ──
     last_row = 6 + len(matrix)

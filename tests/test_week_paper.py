@@ -88,14 +88,32 @@ class TestThePaperNamesItsWeek:
         assert f"الأسبوع {RANGE}" in actual
         assert "الأسبوع 11 أكتوبر" not in plan, "ورقةُ الخطّة كما كانت: بلا نطاق"
 
-    def test_the_general_schedule_paper_writes_it_under_the_table(self, world, client):
-        """السطرُ (الوزارة | العام | الأسبوع) تحت الجدول قبل ذيله — لا في الترويسة فوقه."""
-        body = _paper(client, world, view="all_teachers", source="actual", week=str(SUNDAY))
+    def test_the_a4_general_schedule_paper_writes_it_under_the_table(self, world, client):
+        """A4: السطرُ (الوزارة | العام | الأسبوع) تحت الجدول قبل ذيله — لا في الترويسة فوقه (قرار 2026-09-25، لم يتغيّر)."""
+        body = _paper(
+            client, world, view="all_teachers", source="actual", week=str(SUNDAY), paper="a4"
+        )
 
-        head = body.split('<div class="matrix-head">', 1)[1].split("</div>\n\n", 1)[0]
+        head = body.split('<div class="matrix-head">', 1)[1].split('<div class="matrix-wrap">', 1)[
+            0
+        ]
         below = body.split("</table>", 1)[1]
         assert "الأسبوع" not in head and "وزارة التربية" not in head, "لا سطرَ في الترويسة"
         assert f"الأسبوع {RANGE}" in below.split('<div class="matrix-foot">', 1)[0]
+
+    def test_the_a3_paper_carries_ministry_and_week_in_its_full_header(self, world, client):
+        """A3 (ت1، قرار 2026-09-26): ترويسةٌ كاملةٌ 30مم — الوزارةُ فالمدرسةُ فالعنوانُ فالعامُ والأسبوع؛ والتذييلُ في هوامش الصفحة."""
+        body = _paper(client, world, view="all_teachers", source="actual", week=str(SUNDAY))
+
+        head = body.split('<div class="matrix-head">', 1)[1].split('<div class="matrix-wrap">', 1)[
+            0
+        ]
+        assert "mh-ministry" in head and "وزارة التربية" in head
+        assert f"الأسبوع {RANGE}" in head.split('class="mh-year"', 1)[1]
+        assert (
+            'class="matrix-sub"' not in body
+        ), "لا سطرَ ثانياً تحت الجدول: التذييلُ صفٌّ واحدٌ في الهامش"
+        assert "@bottom-right" in body and "@bottom-left" in body
 
 
 class TestTheSheetHeaderIsForPaperOnly:

@@ -98,3 +98,30 @@ class TestThePageShowsTheShortNameAndKeepsTheFullOne:
         ).content.decode()
 
         assert "عبد الله الكواري" in body and "العلوم<br>ثانوي" in body
+
+
+class TestTheScreenColumnsFollowTheShortNames:
+    """كان الاسمُ يُختصر ويبقى عمودُه 14% (≈57مم) — لا مكسبَ بصريّ (بلاغ المالك 2026-09-27). الآن نسبُ ت1 على الشاشة أيضاً."""
+
+    def _declared(self, selector: str, prop: str) -> float:
+        import re
+
+        from tests.css_source import read_css
+
+        css = read_css()
+        block = css.split(f"{selector} {{", 1)[1].split("}", 1)[0]
+        return float(re.search(rf"{prop}:\s*([0-9.]+)%", block).group(1))
+
+    def test_the_name_column_fits_the_longest_short_name_not_the_full_one(self):
+        name = self._declared(".table-wrap .schedule-matrix .m-name", "inline-size")
+
+        assert name <= 8.0, "عمودُ الاسم ما زال بعرض الأسماء الكاملة"
+
+    def test_the_department_and_total_columns_are_narrow_and_the_cells_get_the_rest(self):
+        dept = self._declared(".table-wrap .schedule-matrix .m-dept", "inline-size")
+        name = self._declared(".table-wrap .schedule-matrix .m-name", "inline-size")
+        total = self._declared(".table-wrap .schedule-matrix .m-total", "inline-size")
+
+        cell = (100 - dept - name - total) / 35
+        assert dept <= 5.5 and total <= 3.5
+        assert cell >= 2.4, f"الخليّةُ {cell:.2f}% — لم تكتسب العرضَ"
