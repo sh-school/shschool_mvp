@@ -6931,7 +6931,8 @@ def test_0042_publishes_nothing_a_public_repo_must_not_say():
     import re
 
     origin = importlib.util.find_spec("roadmap.migrations.0042_sync_items_2026_09_27").origin
-    body = open(origin, encoding="utf-8").read()
+    with open(origin, encoding="utf-8") as f:
+        body = f.read()
     banned = (
         "aaaa",
         ".zip",
