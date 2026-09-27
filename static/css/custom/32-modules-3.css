@@ -194,15 +194,15 @@
 .kpi-donut-val { font-size: 0.8125rem; font-weight: 800; }
 .kpi-donut-unit { font-size: 0.5rem; color: var(--text-muted); }
 .kpi-donut-label {
-  font-size: 0.5625rem; font-weight: 600; color: var(--text-primary);
+  font-size: var(--text-xs); font-weight: 600; color: var(--text-primary);
   text-align: center; line-height: 1.2;
 }
 .kpi-donut-meta {
-  font-size: 0.5rem; color: var(--text-muted); text-align: center;
+  font-size: var(--text-xs); color: var(--text-muted); text-align: center;
 }
 .kpi-donut-meta b { color: var(--text-secondary); font-weight: 600; }
 .kpi-donut-badge {
-  font-size: 0.5rem; font-weight: 600;
+  font-size: var(--text-xs); font-weight: 600;
   padding: 1px 5px; border-radius: var(--radius-pill); white-space: nowrap;
 }
 
@@ -229,12 +229,12 @@
 .kpi-unavail-icon .icon { width: 14px; height: 14px; }
 .kpi-unavail-info { flex: 1; min-width: 0; }
 .kpi-unavail-name {
-  font-size: 0.625rem; font-weight: 600; color: var(--text-secondary);
+  font-size: var(--text-xs); font-weight: 600; color: var(--text-secondary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.kpi-unavail-detail { font-size: 0.5625rem; color: var(--text-muted); }
+.kpi-unavail-detail { font-size: var(--text-xs); color: var(--text-muted); }
 .kpi-unavail-tag {
-  font-size: 0.5rem; font-weight: 600; color: var(--text-muted);
+  font-size: var(--text-xs); font-weight: 600; color: var(--text-muted);
   background: var(--surface-alt); padding: 1px var(--sp-1-5);
   border-radius: var(--radius-pill);
 }
@@ -870,9 +870,12 @@
   /* عرضٌ عاديٌّ مستقلٌّ عن الطباعة (قرارُ 2026-09-18) — بطاقةٌ لكلّ صفحةٍ
      بعنوانها وجدولها، بدل ورقةٍ بالملّيمتر في إطارٍ يُقرأ بتمريرٍ داخل
      تمرير على اللمس. يعمل على كلّ شاشةٍ بلا استثناء الهاتف. */
-  .pages-screen { display: flex; flex-direction: column; gap: 28px; margin-block-start: var(--sp-3-5); }
-  .pages-screen__item { min-width: 0; }
-  .pages-screen__title { font-size: var(--text-base); font-weight: 700; color: var(--maroon-fg); margin: 0 0 var(--sp-2); }
+  /* صفحةُ الجداول: لونُ القسم (`--dept-c` من `.dept-*`) يصبغ شريطَ «من هو» وعمودَ الأيّام (`--t`) بمزيجٍ مع السطح فيبقى النصُّ عالي التباين نهاراً وليلاً؛ واسمُ القسم نصٌّ في الشريط. */
+  .pages-screen__item { background: none; --t: color-mix(in srgb, var(--dept-c, var(--maroon)) 22%, var(--surface)); }
+  .pages-screen__item .who { column-gap: var(--sp-4); padding: var(--sp-2) var(--sp-3); margin-block-end: var(--sp-2); border-inline-start: var(--sp-1) solid var(--dept-c, var(--maroon)); background: var(--t); }
+  .pages-screen__item .ui-section__body { padding: var(--sp-3); }
+  /* رأسُ القسم وأشرطةُ معلّميه بلون القسم: 55% منه مع السطح والنصُّ فوقه ≥ 6.9:1 في الأقسام الخمسة عشر نهاراً وليلاً؛ ورموزُ الشريط تُعاد كتابتُها محلّيّاً لأنّ `html.dark .card-bar` في طبقةٍ لاحقةٍ تغلب أيَّ قاعدةٍ هنا. */
+  .pages-screen__dept summary { --maroon: color-mix(in srgb, var(--dept-c) 55%, var(--surface)); --maroon-dark: var(--maroon); --on-fill: var(--text-primary); }
 
 /* ── templates/schedule/print_view.html ── */
   /* الجدولُ العامّ على عرض الشاشة كلِّه بهامشٍ صغير: خمسةٌ وثلاثون
@@ -955,7 +958,7 @@
   .table-wrap .schedule-matrix {
     --mx-head-h: 1.75rem; /* سطرُ الأيّام: عليه إزاحةُ سطر الحصص اللاصق */
     table-layout: fixed; border-collapse: separate; border-spacing: 0;
-    font-size: clamp(0.5rem, 0.5vw, 0.75rem); line-height: 1.5;
+    font-size: clamp(0.5625rem, 0.58vw, 0.8125rem); line-height: 1.5;
   }
   .table-wrap .schedule-matrix th,
   .table-wrap .schedule-matrix td {
@@ -972,12 +975,12 @@
   /* القسمُ خانةٌ ممتدّةٌ على سطور معلّميه (يُلَفّ نصُّها وحدَها)، والاسمُ أعرضُ الأعمدة فلا يُقصّ بنقاطٍ. */
   .table-wrap .schedule-matrix .m-dept { inline-size: 5%; padding: var(--sp-0-5) var(--sp-1); font-weight: 700; line-height: 1.2; white-space: normal; border-right: 0; }
   .table-wrap .schedule-matrix .m-name {
-    inline-size: 14%; padding-inline: var(--sp-1); text-align: start; font-weight: 600;
-    font-size: clamp(0.5625rem, 0.56vw, 0.8125rem); text-overflow: ellipsis; border-right-width: 2px;
+    inline-size: 7.5%; padding-inline: var(--sp-1); text-align: start; font-weight: 600;
+    font-size: clamp(0.5625rem, 0.62vw, 0.8125rem); text-overflow: ellipsis; border-right-width: 2px;
   }
   .table-wrap .schedule-matrix .m-name.m-name-tagged { font-size: clamp(0.5rem, 0.5vw, 0.6875rem); }
   .schedule-matrix .m-specialty { color: var(--maroon-fg); font-weight: 500; font-size: 0.875em; }
-  .table-wrap .schedule-matrix .m-total { inline-size: 3.5%; font-weight: 700; border-right-width: 2px; }
+  .table-wrap .schedule-matrix .m-total { inline-size: 3%; font-weight: 700; border-right-width: 2px; }
   .table-wrap .schedule-matrix .m-cell { direction: ltr; position: relative; }
   /* حدُّ اليوم أغلظُ من حدِّ الحصّة وإلّا ضاعت الأيّامُ في خمسٍ وثلاثين خانة. */
   .table-wrap .schedule-matrix .m-day-start { border-right-width: 2px; border-right-color: var(--text-secondary); }
@@ -1082,7 +1085,7 @@
      سطرٍ، لا خطٌّ جانبيٌّ وحده. و`td` وحدَها: `th.wg-day` («اليوم» في
      الترويسة) تبقى عنّابيّةً كبقيّة الترويسة — نفسُ الخطأ الذي وقع في
      ترويسة الاستراحة وأُصلح، وقع هنا بعينه فأُصلح معه. */
-  .week-grid td.wg-day { white-space: nowrap; font-weight: 700; color: var(--maroon-fg); background: var(--maroon-bg); }
+  .week-grid td.wg-day { white-space: nowrap; font-weight: 700; color: var(--maroon-fg); background: var(--t, var(--maroon-bg)); }
   .week-grid th.wg-day { white-space: nowrap; }
   .week-grid th.wg-break { line-height: 1.1; }
   /* `td.wg-break` وحدَها — `th.wg-break` تبقى بلا خلفيّةٍ خاصّة كي تبقى
@@ -1102,13 +1105,13 @@
   .week-grid .slot-empty,
   .week-grid .wg-multi { color: var(--text-muted); }
   .week-grid .break-label { font-size: var(--text-xs); font-weight: 700; color: var(--text-secondary); line-height: 1.15; }
-  .week-grid .break-band { font-size: 0.625rem; font-weight: 400; color: var(--text-muted); }
+  .week-grid .break-band { font-size: var(--text-xs); font-weight: 400; color: var(--text-muted); }
   /* ── تمييزُ عمود الاستراحة بطابقه (2026-09-18) ──
      معلّمُ الطابقين يرى عمودَي «صلاة» أو أكثر بلا فارقٍ بصريّ بينها إلّا
      نصّاً داخل الخليّة. والترويسةُ عنّابيّةٌ كلُّها بلا استثناءٍ مهما كان
      صغيراً (قرارٌ صريحٌ سابق) — فاسمُ الطابق نصّاً تحت اسم الاستراحة يكفي
      هناك، واللونُ يظهر في خلايا الجسم وحدَها. */
-  .week-grid .wg-break-band { display: block; font-size: 0.625rem; font-weight: 400; opacity: .85; }
+  .week-grid .wg-break-band { display: block; font-size: var(--text-xs); font-weight: 400; opacity: .85; }
   .week-grid td.wg-break.band-ground  { background: color-mix(in srgb, var(--accent-teal) 14%, var(--surface-alt)); }
   .week-grid td.wg-break.band-ninth   { background: color-mix(in srgb, var(--accent-orange) 14%, var(--surface-alt)); }
   .week-grid td.wg-break.band-secondary { background: color-mix(in srgb, var(--accent-purple) 14%, var(--surface-alt)); }
@@ -1393,10 +1396,15 @@
      شؤون الموظفين، وأيُّ عددٍ آخر يحتاجه قالبٌ مقبل بلا كلاسٍ جديد. */
   .auto-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--ag-min, 300px)), 1fr));
     gap: var(--sp-2);
     align-items: stretch;
   }
+  /* بلاطاتٌ متساويةُ الارتفاع لأيّ لوحةِ بطاقاتٍ متشابهة (`is-tiles`): أدنى عرضٍ 11rem وأقصى سبعةُ أعمدةٍ — فأربعَ عشرةَ بطاقةً في سطرين حين تتّسع النافذة —
+     وكلُّ الصفوف بارتفاعٍ واحدٍ، والخليّةُ تملأ بطاقتَها (المرجعُ: docs/design/page_layouts.md §7.1). والحدُّ الأدنى 11rem لا 15.5rem
+     (وحيدُ مستعمِلي `.auto-grid.is-tiles` مركزُ قيادة الجودة) فتظهر الأربعَ عشرةَ لوحةً بسطرَيها بلا تمريرٍ رأسيّ على 1366×768. */
+  .auto-grid.is-tiles { --ag-min: max(11rem, calc((100% - 6 * var(--sp-2)) / 7)); grid-auto-rows: 1fr; }
+  .auto-grid.is-tiles > * { display: grid; }
   /* عمودٌ بعرض 300px أضيقُ من عرض الصفحة — سطرُ قائمةٍ فيه (اسمٌ + شارةٌ + زر)
      يُكدَّس بلا التفافٍ، فيُؤذَن للعناصر أن تنزل سطراً إن ضاق بها المكان. */
   .auto-grid .plain-list__row { flex-wrap: wrap; }

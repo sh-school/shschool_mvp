@@ -218,7 +218,9 @@ def test_the_scan_actually_reaches_the_stylesheet():
     assert len(light) >= 90, f"رموزُ `:root` {len(light)} — التفكيكُ لم يبلغها"
     flipped = dark_overrides(css)
     fixed = {k for k in light if k not in flipped and not k.startswith(PRINT_TOKEN_PREFIXES)}
-    assert 20 <= len(fixed) <= 100, f"الرموزُ غيرُ المنقلبة {len(fixed)} — رقمٌ لا يُصدَّق"
+    # الحدُّ الأعلى 100 ← 110 (VI-12): ثلاثةُ رموزٍ ثابتةٍ لا تنقلب ليلاً دخلت `:root` — `--radius-full` و`--font-mono` و`--placeholder-base`
+    # (قيمٌ من preflight Tailwind القديم بعد كتابته بيدٍ). والاختبارُ حارسُ اتّزانٍ للمسح لا حارسُ تكافؤ.
+    assert 20 <= len(fixed) <= 110, f"الرموزُ غيرُ المنقلبة {len(fixed)} — رقمٌ لا يُصدَّق"
 
     rules = _screen_rules(css)
     surfaces = sum(1 for _s, d, _c in rules if any(k in d for k in BG_PROPS))

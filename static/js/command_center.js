@@ -1,7 +1,7 @@
 /* مركز قيادة الجودة — استطلاعُ اللقطة وتحديثُ اللوحات (عقدُ اللقطة v1: command_center/contract.py).
  *
  * لا بناءَ DOM: تُبدَّل النصوصُ بـtextContent على عقدٍ مفاتيحُها data-key ("<لوحة>.<حقل>") والحالةُ بصنفٍ
- * qc-panel--<حالة>؛ فلا HTML قادمٌ من الخادم يُحقن، ولا يُحرَّك ما يراقبه admin_a11y.js.
+ * is-<حالة> على عنصر اللوحة؛ فلا HTML قادمٌ من الخادم يُحقن. والصفحةُ في المنصّة (لا /admin/) — QCC-01b.
  * الاستطلاعُ يتوقّف عند إخفاء التبويب ويستأنف بجلبٍ فوريّ؛ وردٌّ غيرُ JSON (تحويلٌ لصفحة الدخول أو /offline/)
  * = «انتهت الجلسة» بعد ثلاثة إخفاقاتٍ متتالية، مع تراجعٍ أسّيٍّ في الفواصل. والـWebSocket لاحقاً.
  */
@@ -18,11 +18,21 @@
   var MAX_BACKOFF_SECONDS = 300;
   var STATE_LABEL = { ok: "سليم", warn: "انتبه", bad: "خطر", unknown: "غير معلوم" };
   var STATUSES = ["ok", "warn", "bad", "unknown"];
+  var ARC_SHARE = 0.75;      // القوسُ 270° من 360°: pathLength=100 فيه 75 وحدة
+  var SWEEP_DEGREES = 270;   // مدى العقرب من أسفل اليسار (−135°) إلى أسفل اليمين (+135°)
+  var METRIC_SLOTS = 4;
+  // تفضيلُ اللوحات المخفيّة: كوكي مفاتيحُه مفصولةٌ بفواصل؛ الخادمُ يقرؤه فيرسم المخفيَّ مخفيّاً (بلا وميض) ويتحقّق من المفاتيح.
+  var HIDDEN_COOKIE = "qcc_hidden";
+  var HIDDEN_MAX_AGE = 365 * 24 * 3600;
 
   var url = root.getAttribute("data-qc-url");
   var note = root.querySelector("[data-qc-note]");
+  var noteText = root.querySelector("[data-qc-note-text]");
   var clock = root.querySelector('[data-key="generated"]');
   var button = root.querySelector("[data-qc-refresh]");
+  var toggles = Array.prototype.slice.call(root.querySelectorAll("[data-qc-toggle]"));
+  var counter = root.querySelector("[data-qc-count]");
+  var none = root.querySelector("[data-qc-none]");
   var panels = Array.prototype.slice.call(root.querySelectorAll("[data-panel]"));
   var failures = 0;
   var timer = null;
@@ -37,9 +47,12 @@
     return Math.min(MAX_SECONDS, Math.max(MIN_SECONDS, smallest));
   }
 
-  function setText(scope, key, text) {
+  function setText(scope, key, text, withTitle) {
     var node = scope.querySelector('[data-key="' + key + '"]');
-    if (node && node.textContent !== text) { node.textContent = text; }
+    if (!node) { return; }
+    if (node.textContent !== text) { node.textContent = text; }
+    // العنوانُ الكاملُ في title لعنصرٍ يقصّه line-clamp (1.4.12) — يُزامَن معه لا يُكتب مرّةً عند الرسم فيَبلى.
+    if (withTitle && node.title !== text) { node.title = text; }
   }
 
   function ageText(seconds) {
@@ -50,21 +63,56 @@
   }
 
   function showNote(text) {
-    if (!note) { return; }
-    note.textContent = text;
+    if (!note || !noteText) { return; }
+    noteText.textContent = text;
     note.hidden = !text;
+  }
+
+  function clampGauge(value) {
+    if (value === null || value === undefined || value === "" || isNaN(Number(value))) { return null; }
+    return Math.max(0, Math.min(100, Math.round(Number(value))));
+  }
+
+  // القرصُ كالساعة: طولُ القوس وزاويةُ العقرب والرقمُ من القراءة 0–100 (100 أسلم)؛ وبلا قراءةٍ يعود العقربُ إلى البداية والرقمُ «؟».
+  function paintDial(panel, key, gauge) {
+    var arc = panel.querySelector("[data-dial-arc]");
+    var needle = panel.querySelector("[data-dial-needle]");
+    var dial = panel.querySelector("[data-dial]");
+    var value = gauge === null ? 0 : gauge;
+    if (arc) { arc.setAttribute("stroke-dasharray", (value * ARC_SHARE) + " 100"); }
+    if (needle) {
+      needle.setAttribute("transform", "rotate(" + (value * SWEEP_DEGREES / 100 - SWEEP_DEGREES / 2) + " 60 60)");
+    }
+    if (dial) {
+      dial.setAttribute("aria-label", gauge === null ? "قراءةُ القرص: لم تُجمَع بعدُ" : "قراءةُ القرص " + gauge + " من 100");
+    }
+    setText(panel, key + ".gauge", gauge === null ? "؟" : String(gauge));
+  }
+
+  function paintMetrics(panel, key, metrics) {
+    var list = Array.isArray(metrics) ? metrics : [];
+    for (var index = 1; index <= METRIC_SLOTS; index += 1) {
+      var metric = list[index - 1];
+      var row = panel.querySelector('[data-row="' + key + ".m" + index + '"]');
+      if (row) { row.hidden = !metric; }
+      setText(panel, key + ".m" + index + "l", metric ? String(metric.label) : "");
+      setText(panel, key + ".m" + index + "v", metric ? String(metric.value) : "");
+    }
   }
 
   function paint(panel, data) {
     var status = STATUSES.indexOf(data.status) === -1 ? "unknown" : data.status;
     var previous = panel.getAttribute("data-status");
-    STATUSES.forEach(function (name) { panel.classList.toggle("qc-panel--" + name, name === status); });
+    STATUSES.forEach(function (name) { panel.classList.toggle("is-" + name, name === status); });
     panel.setAttribute("data-status", status);
     var key = data.key;
     setText(panel, key + ".state", STATE_LABEL[status]);
-    setText(panel, key + ".headline", String(data.headline || "") || "لم يُجمَع بعدُ");
+    setText(root, key + ".pstate", STATE_LABEL[status]);
+    setText(panel, key + ".headline", String(data.headline || "") || "لم يُجمَع بعدُ", true);
     setText(panel, key + ".detail", String(data.detail || ""));
     setText(panel, key + ".age", ageText(data.age_seconds));
+    paintDial(panel, key, clampGauge(data.gauge));
+    paintMetrics(panel, key, data.metrics);
     // يُعلن قارئُ الشاشة الانتقالَ إلى الأحمر وحدَه، لا كلَّ استطلاعٍ (تنبيهٌ عند الأحمر فقط)
     if (status === "bad" && previous && previous !== "bad") {
       showNote("صارت لوحة «" + String(data.title || key) + "» في حالة خطر.");
@@ -85,6 +133,38 @@
       clock.textContent = "آخر تحديث " + new Date(snapshot.generated_at * 1000).toLocaleTimeString("ar");
     }
   }
+
+  function saveHidden(keys) {
+    var secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = HIDDEN_COOKIE + "=" + keys.join(",") + "; Path=/command-center/; Max-Age=" +
+      (keys.length ? HIDDEN_MAX_AGE : 0) + "; SameSite=Lax" + secure;
+  }
+
+  // يطبّق اختيارَ المربّعات: يُظهر ويُخفي بطاقاتِ اللوحات، ويحدّث العدّادَ ورسالةَ «كلُّها مخفيّة»، ويحفظ التفضيل.
+  function applyChoices(save) {
+    var hidden = [];
+    toggles.forEach(function (box) {
+      var key = box.getAttribute("data-qc-toggle");
+      var card = root.querySelector('[data-card="' + key + '"]');
+      if (card) { card.hidden = !box.checked; }
+      if (!box.checked) { hidden.push(key); }
+    });
+    var shown = toggles.length - hidden.length;
+    if (counter) { counter.textContent = shown + " من " + toggles.length; }
+    if (none) { none.hidden = shown > 0; }
+    if (save) { saveHidden(hidden); }
+  }
+
+  toggles.forEach(function (box) {
+    box.addEventListener("change", function () { applyChoices(true); });
+  });
+  Array.prototype.forEach.call(root.querySelectorAll("[data-qc-all]"), function (control) {
+    control.addEventListener("click", function () {
+      var show = control.getAttribute("data-qc-all") === "show";
+      toggles.forEach(function (box) { box.checked = show; });
+      applyChoices(true);
+    });
+  });
 
   function schedule() {
     window.clearTimeout(timer);
@@ -130,8 +210,10 @@
 
   panels.forEach(function (panel) {
     panel.setAttribute("data-status", STATUSES.filter(function (name) {
-      return panel.classList.contains("qc-panel--" + name);
+      return panel.classList.contains("is-" + name);
     })[0] || "unknown");
+    // أوّلُ رسمٍ من قراءة الخادم المضمَّنة فلا يبدأ القرصُ من الصفر حتى يعود الاستطلاع
+    paintDial(panel, panel.getAttribute("data-panel"), clampGauge(panel.getAttribute("data-gauge")));
   });
   poll();
 })();

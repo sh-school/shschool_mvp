@@ -52,8 +52,8 @@ updates:
       - dependency-name: "Django"
         versions: [">=6"]
 
-  # جافاسكربت — package-lock.json (أدواتُ بناءٍ عابرة مثل tailwindcss/postcss،
-  # لا أثر runtime مباشر — راجع معالجة ثغرات 2026-06-21).
+  # جافاسكربت — package-lock.json (أداةُ نشرٍ وحيدة: `railway`، لا أثر runtime؛ أُزيل Tailwind
+  # وخطُّ بنائه في VI-12، فلا `tailwindcss` ولا `postcss` بعد الآن).
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
@@ -64,14 +64,6 @@ updates:
     groups:
       npm-patch-minor:
         update-types: ["patch", "minor"]
-    ignore:
-      # قرار المالك 2026-09-18: البقاء على Tailwind v3 — v4 محرّكٌ جديدٌ
-      # بالكامل (Oxide) وفلسفةُ إعدادٍ مختلفة (@theme بدل tailwind.config.js)،
-      # يكسر خطَّ البناء الحاليّ فعلياً (تحقّقتُ: tailwindcss: not found).
-      # ترقيةٌ كهذه تحتاج مراجعةً بصريّةً شاملةً لنظام التصميم القائم
-      # (توكينات قطرية، Dark Mode، RTL)، لا اقتراحاً أسبوعياً (أُغلق PR #346).
-      - dependency-name: "tailwindcss"
-        versions: [">=4"]
 
   # صورة الإنتاج (Dockerfile: python:3.12-slim-bookworm وما شابه)
   - package-ecosystem: "docker"

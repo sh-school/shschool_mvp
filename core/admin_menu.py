@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from typing import Any, NamedTuple
+from typing import Any
 
 from django.conf import settings
 
@@ -238,22 +238,6 @@ GROUPS: tuple[tuple[str, tuple[tuple[str | None, tuple[str, ...]], ...]], ...] =
 
 OTHER = "أخرى"
 
-
-class Page(NamedTuple):
-    """صفحةٌ ليست نموذجاً تُدرَج في القائمة إلى جانب النماذج (لا تظهر من `available_apps`)."""
-
-    group: str
-    section: str | None
-    name: str
-    #: نصٌّ لا `reverse()`: core لا يستورد التطبيقَ الذي فوقه؛ ويحرس صحّتَه tests/test_admin_menu.py.
-    url: str
-    developer_only: bool = False
-
-
-PAGES: tuple[Page, ...] = (
-    Page("الإدارة", "أدوات المطوّر", "مركز قيادة الجودة", "/admin/command-center/", True),
-)
-
 #: تصحيحاتٌ إملائيّةٌ لأسماء الجموع تخصّ لوحةَ الإدارة وحدَها (لا يُعدَّل نموذجٌ في المنصّة).
 LABELS: Mapping[str, str] = {
     "core.StudentEnrollment": "تسجيلات الطلاب",
@@ -276,31 +260,8 @@ def mapped_keys() -> list[str]:
     return [key for _g, secs in GROUPS for _t, keys in secs for key in keys]
 
 
-def _add_pages(menu: list[dict[str, Any]], path: str, developer: bool) -> None:
-    """يُلحق `PAGES` بأقسامها في آخر القسم؛ ويُنشئ القسمَ أو المجموعةَ إن غابا (لا نموذجَ متاحاً فيهما)."""
-    for page in PAGES:
-        if page.developer_only and not developer:
-            continue
-        group = next((g for g in menu if g["label"] == page.group), None)
-        if group is None:
-            group = {"label": page.group, "sections": []}
-            menu.append(group)
-        section = next((s for s in group["sections"] if s["label"] == page.section), None)
-        if section is None:
-            section = {"label": page.section, "items": []}
-            group["sections"].append(section)
-        section["items"].append(
-            {"name": page.name, "url": page.url, "current": path.startswith(page.url)}
-        )
-
-
-def build_menu(
-    available_apps: Iterable[Mapping[str, Any]], path: str, *, developer: bool = False
-) -> list[dict[str, Any]]:
-    """يُرجع الأقسامَ للعرض: كلُّ نموذجٍ متاحٍ للمستخدم في قسمه، وما لم يُذكر تحت «أخرى».
-
-    وصفحاتُ `PAGES` (مثل مركز قيادة الجودة) تُلحَق بأقسامها؛ ما كان منها «للمطوّر وحدَه» لا يراه غيرُه.
-    """
+def build_menu(available_apps: Iterable[Mapping[str, Any]], path: str) -> list[dict[str, Any]]:
+    """يُرجع الأقسامَ للعرض: كلُّ نموذجٍ متاحٍ للمستخدم في قسمه، وما لم يُذكر تحت «أخرى»."""
     found: dict[str, dict[str, Any]] = {}
     for app in available_apps:
         for model in app.get("models", []):
@@ -325,7 +286,6 @@ def build_menu(
                 out_sections.append({"label": title, "items": items})
         if out_sections:
             menu.append({"label": label, "sections": out_sections})
-    _add_pages(menu, path, developer)
     rest = [found[k] for k in found if k not in used]
     if rest:
         menu.append({"label": OTHER, "sections": [{"label": None, "items": rest}]})

@@ -55,6 +55,8 @@ GUARDED_INSIDE = {
     "roadmap/items/<str:code>/": "developer_only — superuser أو مجموعة developers",
     "roadmap/decisions/<str:code>/": "developer_only — superuser أو مجموعة developers",
     "roadmap/checklist/<str:code>/": "developer_only — superuser أو مجموعة developers",
+    "command-center/": "developer_only — superuser أو مجموعة developers (مركز قيادة الجودة، QCC-01b)",
+    "command-center/snapshot/": "developer_only — superuser أو مجموعة developers (لقطةُ المركز JSON)",
     "developer-feedback/inbox/": "DeveloperOnlyMixin",
     "developer-feedback/inbox/<int:pk>/": "DeveloperOnlyMixin",
     "developer-feedback/onboarding/": "NotStudentMixin — ورسائلُ المستخدم لنفسه",
@@ -91,6 +93,7 @@ OPEN_BY_DESIGN = {
     "api/v1/schema/": "مخطّطُ الـAPI — والوسيطُ يفرض الدخولَ على /api/",
     "api/v1/docs/": "توثيقُ الـAPI",
     "api/v1/redoc/": "توثيقُ الـAPI",
+    "rum/collect/": "beacon القياس الميدانيّ (Q-04): يردّ 204 دائماً، لا يقرأ جلسةً ولا مستخدماً ولا يخزّن IP، والحمولةُ بلا هويّة (rum.parse)؛ مطفأٌ ما دام RUM_ENDPOINT فارغاً",
 }
 
 if settings.API_JWT_ENABLED:

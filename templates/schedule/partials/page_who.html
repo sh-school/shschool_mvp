@@ -1,0 +1,22 @@
+{% comment %}
+شريطُ «من هو» لصفحةٍ واحدة — قالبٌ واحدٌ للورقة (`print_pages.html`) والشاشة (`pages_view.html`).
+
+المعلّمُ وتخصّصُه، والقسمُ، والمنسّقُ، والنصابُ الأسبوعيّ؛ وللشعبة اسمُها وعددُ حصصها.
+كان مكتوباً في الورقة وحدَها فخلت الشاشةُ من نصفه (LAY-11)، وحارسُ التكافؤ
+`tests/test_schedule_pages_parity.py` يقرأ هذا الملفَّ مصدراً وحيداً لحقول الشريط.
+
+`row`: صفحةُ المعلّم أو الشعبة. وللورقة أنماطُها في `print_pages.html`، وللشاشة في `custom/32`.
+{% endcomment %}
+{% if kind == 'classes' %}
+<div class="who chip-row">
+  <span>الشعبة: <b>{{ row.class_group.label_with_track }}</b></span>
+  <span>عدد الحصص: <b>{{ row.total }}</b></span>
+</div>
+{% else %}
+<div class="who chip-row">
+  <span>المعلّم: <b>{{ row.teacher.full_name }}</b>{% if row.department.specialty %} <span class="specialty">({{ row.department.specialty }})</span>{% endif %}</span>
+  <span class="who-dept">القسم: <b>{{ row.department.name }}</b></span>
+  {% if row.department.head %}<span class="who-head">المنسّق: {{ row.department.head }}</span>{% endif %}
+  <span>النصاب الأسبوعيّ: <b>{{ row.total }}</b> حصة</span>
+</div>
+{% endif %}

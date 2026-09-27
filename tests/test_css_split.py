@@ -16,14 +16,14 @@ from tests.css_source import CSS_ROOT, ROOT, css_paths
 
 #: الطبقاتُ التي يحقّ لكلّ ملفٍّ أن يحملها — الاسمُ العدديّ يحدّد الجواب.
 ALLOWED_LAYERS = {
-    "10": {"reset", "base", "tokens", "layout"},
+    "10": {"tailwind", "reset", "base", "tokens", "layout"},
     "20": {"components"},
     "30": {"modules"},
     "31": {"modules"},
     "32": {"modules"},
     "33": {"modules"},
     "40": {"themes"},
-    "50": {"utilities"},
+    "50": {"tailwind", "utilities"},
 }
 
 ORDER_RE = re.compile(r"^@layer\s+([\w\s,-]+);", re.M)

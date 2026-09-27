@@ -27,12 +27,13 @@
       {% for row in matrix %}
       {# لونُ السطر هو قسمُ المعلّم — والسطورُ آتيةٌ مرتّبةً بالقسم من الخدمة. #}
       {# و`data-*` غذاءُ طبقةِ التفاعل على الشاشة — تُقرأ ولا تُطبع. #}
+      {% if pad_pt %}{% dept_row_height row.department.name row.dept_rows pad_pt as pad_h %}{% endif %}
       <tr class="dept-{% if screen %}{{ row.department.code|dept_key }}{% else %}{{ row.department.code }}{% endif %}" data-teacher="{{ row.teacher.full_name }}"
           data-dept="{{ row.department.name }}" data-total="{{ row.total }}"
-          data-specialty="{{ row.specialty }}">
-        {% if row.dept_span %}<td class="m-dept" rowspan="{{ row.dept_span }}">{{ row.department.name }}</td>{% endif %}
+          data-specialty="{{ row.specialty }}"{% if pad_h %} style="--row-h: {{ pad_h }}"{% endif %}>
+        {% if row.dept_span %}<td class="m-dept" rowspan="{{ row.dept_span }}" title="{{ row.department.name }}">{{ row.department.name|stack_words }}</td>{% endif %}
         {# ومن أُلحق إدارياً بقسمٍ غيرِ تخصّصه يحمل تخصّصَه لاحقةً — انظر `attached_specialty`. #}
-        <td class="m-name{% if row.specialty %} m-name-tagged{% endif %}" title="{{ row.teacher.full_name }} — قسم {{ row.department.name }}{% if row.specialty %} — تخصّصه {{ row.specialty }}{% endif %}">{{ row.teacher.full_name }}{% if row.specialty %} <span class="m-specialty">({{ row.specialty }})</span>{% endif %}</td>
+        <td class="m-name{% if row.specialty %} m-name-tagged{% endif %}" title="{{ row.teacher.full_name }} — قسم {{ row.department.name }}{% if row.specialty %} — تخصّصه {{ row.specialty }}{% endif %}">{{ row.display_name|default:row.teacher.full_name }}{% if row.specialty %} <span class="m-specialty">{% if pad_pt %}*{% else %}({{ row.specialty }}){% endif %}</span>{% endif %}</td>
         {% for day in row.days %}
           {% for cell in day %}
           {# رقمُ العمود في الأسبوع كلِّه (0–34) — اليومُ سبعُ حصص. #}

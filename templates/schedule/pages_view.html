@@ -1,8 +1,8 @@
 {% extends "base/base.html" %}
 {% load static %}
-{% load ui %}
+{% load ui week_tags %}
 {% block title %}{{ title }}{% endblock %}
-{% block main_class %}page-wide{% endblock %}
+{% block main_class %}{% page_layout "report" "page-wide" %}{% endblock %}
 
 {% block breadcrumbs %}
 {% include "components/breadcrumbs.html" with parent_url="/teacher/weekly-schedule/" parent_label="الجدول الأسبوعي" current=title %}
@@ -16,7 +16,7 @@
 عند أوّل طلب طباعةٍ لا فوراً — فعشراتُ الصفحات لا تُحسب مرّتين بلا حاجة.
 {% endcomment %}
 {% page_header title icon="print" %}{% endpage_header %}
-{# بطاقةٌ عاريةٌ بشريط أدواتٍ وقائمة — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
+{# بطاقةٌ عاريةٌ بشريط أدواتٍ فقط — لا ترويسةَ عنّابيّةَ لها فليست `section_card`. #}
 <div class="schedule-pages-card">
   <div class="schedule-head">
     <div class="schedule-tools">
@@ -25,6 +25,7 @@
       <form method="get">
         <input type="hidden" name="kind" value="{{ kind }}">
         <input type="hidden" name="dept" value="{{ selected_dept }}">
+        {% if kind == "classes" %}<input type="hidden" name="wing" value="{{ selected_wing }}">{% endif %}
         <input type="hidden" name="year" value="{{ year }}">
         <select name="paper" class="form-select" data-autosubmit title="حجم الورق">
           <option value="a4" {% if paper == 'a4' %}selected{% endif %}>A4</option>
@@ -37,41 +38,81 @@
       </form>
 
       <button type="button" id="pages-print-btn" class="btn-primary btn-sm">طباعة</button>
-      <a data-app-file href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تنزيل PDF</a>
+      <a data-app-file href="{% url 'schedule_pages_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
       <span class="text-sm text-secondary">{{ pages|length }} صفحة</span>
+      {% if pages %}<button type="button" id="pages-fold-all" class="btn-secondary btn-sm" aria-controls="pages-list" aria-expanded="{{ start_open|yesno:'true,false' }}">{% if start_open %}طيّ الكلّ{% else %}فتح الكلّ{% endif %}</button>{% endif %}
     </div>
   </div>
+  <p class="ui-note">{{ school.name }} — {% include "schedule/partials/page_doc_title.html" %} — العام الدراسي &#8294;{{ year }}&#8297;</p>
+</div>
 
-  <div class="pages-screen">
-    {% for page in pages %}
-    <section class="pages-screen__item">
-      <h2 class="pages-screen__title">
-        {% if kind == "classes" %}{{ page.class_group.label_with_track }}
-        {% else %}{{ page.teacher.full_name }}{% if page.department.name %} — {{ page.department.name }}{% endif %}{% endif %}
-      </h2>
-      <div class="table-wrap">
-        {% if kind == "classes" %}
-        {% include "schedule/pdf/week_grid.html" with week=page.week who="teacher" show_band_labels=True %}
-        {% else %}
-        {% include "schedule/pdf/week_grid.html" with week=page.week who="class" show_band_labels=True %}
-        {% endif %}
+  {# البطاقاتُ قابلةٌ للطيّ (`foldable`) والطيُّ افتراضٌ للجدول العامّ للمعلّمين وحدَه (`start_open` = false)؛ وما اختاره المستخدمُ من القائمة (قسمٌ، جناحٌ، الشُّعب، معلّمٌ) يُفتح غلافُه. وداخلَه: بطاقةٌ فرعيّةٌ وحيدةٌ (معلّمٌ اختِير بذاته) تُفتح معه، وعدّةُ بطاقاتٍ (قسمٌ بعشرة معلّمين، جناحٌ بخمس شُعب) تبقى مطويّةً — يتصفّح المستخدمُ الغلافَ المفتوح ويفتح ما يريد بعينه (`start_open|open_if_single:n`، قرارُ المالك 2026-09-27). المعلّمون تحت قسمٍ برأسٍ بلون القسم (`dept-*` المركزيّ)؛ والشُّعبُ تحت جناحها برأسٍ بلونها هي (`dept-{{ order|wing_key }}` — لوحةُ الأقسام نفسُها، خمسةٌ متمايزةٌ بلا صلةٍ بمادّة). #}
+  <div class="card-flow" id="pages-list">
+    {% if kind == "classes" %}
+    {% for group in wing_groups %}
+    <div class="pages-screen__item pages-screen__dept is-full dept-{{ group.order|wing_key }}">
+      {% with n=group.pages|length %}
+      {% section_card group.name meta=n|stringformat:"d"|add:" شُعب" icon="students" flush=True foldable=True opened=start_open %}
+      <div class="card-flow">
+        {% for page in group.pages %}
+        <div class="is-full">
+          {% section_card page.class_group.label_with_track meta=page.total|stringformat:"d"|add:" حصّة" icon="students" flush=True foldable=True opened=start_open|open_if_single:n %}{% include "schedule/partials/page_screen_body.html" %}{% endsection_card %}
+        </div>
+        {% endfor %}
       </div>
-      {% if kind == "teachers" and page.exempt_map %}
-      {% include "schedule/partials/week_legend.html" %}
-      {% endif %}
-    </section>
+      {% endsection_card %}
+      {% endwith %}
+    </div>
     {% endfor %}
+    {% else %}
+    {% regroup pages by department.code as groups %}
+    {% for group in groups %}
+    <div class="pages-screen__item pages-screen__dept is-full dept-{{ group.grouper|dept_key }}">
+      {% with n=group.list|length head=group.list.0.department.head|default:"غير مسجّل" %}
+      {% section_card group.list.0.department.name meta=n|stringformat:"d"|add:" معلّم · المنسّق: "|add:head icon="staff" flush=True foldable=True opened=start_open %}
+      <div class="card-flow">
+        {% for page in group.list %}
+        <div class="is-full">
+          {% with lessons=page.total|stringformat:"d" %}
+          {% section_card page.teacher.full_name meta=lessons|add:" حصّة" icon="staff" flush=True foldable=True opened=start_open|open_if_single:n %}{% include "schedule/partials/page_screen_body.html" %}{% endsection_card %}
+          {% endwith %}
+        </div>
+        {% endfor %}
+      </div>
+      {% endsection_card %}
+      {% endwith %}
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% if not pages %}{% include "components/empty_state.html" with icon="empty" title="لا جداول في هذا النطاق" %}{% endif %}
   </div>
 
   {% comment %}إطارٌ مخفيٌّ للطباعة والتنزيل وحدَهما — ورقتُه الحقيقيّةُ بملّيمترها وترويستها كما كانت دائماً.{% endcomment %}
   <iframe id="pages-frame" title="{{ title }}"
           data-src="{% url 'schedule_pages_paper' %}?embed=1&amp;{{ selection_query }}"
           class="schedule-print-frame-hidden" aria-hidden="true" tabindex="-1"></iframe>
-</div>
 
 <script nonce="{{ request.csp_nonce }}">
   (function () {
     var frame = document.getElementById('pages-frame');
+    // مفتاحٌ واحدٌ يطوي البطاقاتِ كلَّها أو يفتحها؛ وحالتُه تتبع البطاقات نفسَها (فتحُ واحدةٍ باليد يغيّر تسميتَه).
+    var list = document.getElementById('pages-list');
+    var foldAll = document.getElementById('pages-fold-all');
+    if (list && foldAll) {
+      var folds = list.querySelectorAll('details.ui-section__fold');
+      var sync = function () {
+        var all = Array.prototype.every.call(folds, function (d) { return d.open; });
+        foldAll.setAttribute('aria-expanded', all ? 'true' : 'false');
+        foldAll.textContent = all ? 'طيّ الكلّ' : 'فتح الكلّ';
+      };
+      foldAll.addEventListener('click', function () {
+        var open = foldAll.getAttribute('aria-expanded') !== 'true';
+        Array.prototype.forEach.call(folds, function (d) { d.open = open; });
+        sync();
+      });
+      list.addEventListener('toggle', sync, true);
+      sync();
+    }
     // الطباعةُ للإطار لا للصفحة — ويُحمَّل عند أوّل طلبٍ لا فوراً، وتنتظر
     // تحميلَه أوّلَ مرّةٍ كي لا تُطبَع صفحةٌ بيضاء قبل أن تصل الورقةُ.
     function print() { frame.contentWindow.focus(); frame.contentWindow.print(); }

@@ -54,7 +54,8 @@ AAdocs/ministry_data/2026_2027/*
 !AAdocs/ministry_data/2026_2027/04c_academic_deep_part2.md
 !AAdocs/ministry_data/2026_2027/04d_academic_deep_part3.md
 !AAdocs/ministry_data/2026_2027/05_admin_behavioral_health.md
-!AAdocs/ministry_data/2026_2027/05b_health_safety_deep.md
+!AAdocs/ministry_data/2026_2027/05b_admin_specialists_deep.md
+!AAdocs/ministry_data/2026_2027/05c_cafeteria_guide_deep.md
 !AAdocs/ministry_data/2026_2027/06_attendance_performance_review.md
 !AAdocs/ministry_data/2026_2027/07_forms_catalog.md
 !AAdocs/ministry_data/2026_2027/08_conduct_policy_2026.md
@@ -71,6 +72,14 @@ AAdocs/ministry_data/2026_2027/*
 !AAdocs/ministry_data/2026_2027/07d_additional_forms_catalog.md
 !AAdocs/ministry_data/2026_2027/rbac_job_code_conflict_proposal.md
 !AAdocs/ministry_data/2026_2027/conduct_rules_2026.md
+!AAdocs/ministry_data/2026_2027/01e_school_files_guide.md
+!AAdocs/ministry_data/2026_2027/01f_school_evaluation_guide.md
+!AAdocs/ministry_data/2026_2027/04f_activities_policy_2026.md
+!AAdocs/ministry_data/2026_2027/04g_family_culture_curriculum.md
+!AAdocs/ministry_data/2026_2027/05d_educational_support_policy.md
+!AAdocs/ministry_data/2026_2027/01g_annual_operational_plan.md
+!AAdocs/ministry_data/2026_2027/07e_referral_forms.md
+!AAdocs/ministry_data/2026_2027/01h_self_review_quality_domains.md
 nginx/ssl/
 node_modules/
 ZZZZ.zip
