@@ -13,6 +13,9 @@ SCHOOL = "م" * 40
 VISION = "ر" * 49
 MINISTRY = "و" * 38
 CONTACT = "ا" * 48
+STATS = (
+    "س" * 20
+)  # بندُ الإحصاء الحرّ (طلبُ «جدول · التشغيل»، 2026-09-27) — خارجَ اختباراتِ التذييل الافتراضيّة (فارغٌ فيها فيُسقَط بصمت)
 
 
 def _plan(paper, orient, **kw):
@@ -100,8 +103,29 @@ def test_a4_landscape_takes_vision_and_ministry_after_the_mandatory():
 
 
 def test_a3_takes_everything_that_the_priority_list_offers():
-    plan = _plan("a3", "landscape")
+    plan = _plan("a3", "landscape", stats=STATS)
     assert plan.items == pf.FOOTER_ITEMS and not plan.dropped
+
+
+# ══════════════════════ بندُ الإحصاء الحرّ (stats) ═══════════════════════
+
+
+def test_stats_is_skipped_when_empty_not_shown_as_a_blank_item():
+    plan = _plan("a4", "portrait")
+    assert "stats" not in plan.items and "stats" not in plan.dropped
+
+
+def test_stats_sits_right_after_the_mandatory_trio_before_vision():
+    plan = _plan("a3", "landscape", stats=STATS)
+    assert plan.items[:4] == ("school", "page", "date", "stats")
+
+
+def test_a_long_stats_can_bump_a_lower_priority_item_without_touching_the_mandatory_trio():
+    """إحصاءٌ طويلٌ (كالجدول العامّ الحقيقيّ) قد يُسقط الاتّصالَ لكن لا يمسّ الملزِمَ ولا يُقصَّ صامتاً — يظهر أو يسقط كاملاً."""
+    real_stats = "المعلّمون: 72 · الشُّعب: 25 · الحصص: 869 من 869 مخطَّطة (منها 6 متوازية)"
+    plan = _plan("a3", "landscape", stats=real_stats)
+    assert plan.items[:4] == ("school", "page", "date", "stats")
+    assert plan.fits
 
 
 def test_an_item_that_does_not_fit_does_not_block_a_shorter_lower_priority_one():

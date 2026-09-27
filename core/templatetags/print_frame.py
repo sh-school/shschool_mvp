@@ -66,11 +66,13 @@ def print_frame_header(
 
 @register.inclusion_tag("components/print/frame_footer.html")
 def print_frame_footer(
-    paper: str, orient: str, school: Any, printed_at: datetime | None = None
+    paper: str, orient: str, school: Any, printed_at: datetime | None = None, stats: str = ""
 ) -> dict[str, Any]:
-    """صفٌّ واحدٌ ثابتُ الارتفاع: المدرسةُ وص/ص وتاريخُ الطباعة (ملزِمة) ثمّ الرؤيةُ والوزارةُ والاتّصالُ وSchoolOS-SAMM ما وَسِعها الصفّ.
+    """صفٌّ واحدٌ ثابتُ الارتفاع: المدرسةُ وص/ص وتاريخُ الطباعة (ملزِمة) ثمّ إحصاءُ المستهلك (`stats`، اختياريٌّ) فالرؤيةُ والوزارةُ والاتّصالُ وSchoolOS-SAMM ما وَسِعها الصفّ.
 
     ما لا يسع يسقط بالأولويّة بلا قصٍّ؛ والملزِمُ الذي لا يسع (اسمُ مدرسةٍ طويلٌ جدّاً) يُظهر `overflow` في السياق ليقرّر المستهلكُ لا أن يُقصّ صامتاً.
+    و`stats` نصٌّ جاهزٌ يمرّره المستهلكُ (مثلاً «المعلّمون: 72 · الشُّعب: 25 · الحصص: 869 من 869 مخطَّطة») — يُعامَل كنصٍّ حرٍّ عاديٍّ (لا وسومَ HTML فيه) يمرّ بالتهريب
+    التلقائيّ لقوالب Django كسائر عناصر التذييل؛ لا حاجةَ لتهريبٍ إضافيٍّ من المستهلك.
     """
     fr = pf.frame(paper, orient)
     vision = _vision_text(school)
@@ -83,12 +85,14 @@ def print_frame_footer(
         vision=vision,
         ministry=MINISTRY,
         contact=contact,
+        stats=stats,
         date_text=date_text,
     )
     # التاريخُ بين عازلَي اتّجاه: مولّدُ PDF لا يقرأ `unicode-bidi` فيقلب «2026/09/26 22:40» في سطرٍ عربيّ.
     texts = {
         "school": school.name,
         "date": f"تاريخ الطباعة: ⁦{date_text}⁩",
+        "stats": stats,
         "vision": vision,
         "ministry": MINISTRY,
         "contact": contact,

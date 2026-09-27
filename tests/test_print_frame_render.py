@@ -142,3 +142,34 @@ def test_a_school_name_too_long_for_the_row_is_flagged_not_cut():
     assert 'data-overflow="1"' in html
     ok_html, _ = _render("a4", "portrait")
     assert "data-overflow" not in ok_html
+
+
+STATS_DOC = DOC.replace(
+    "{% print_frame_footer paper orient school %}",
+    '{% print_frame_footer paper orient school stats="المعلّمون: 72 · الشُّعب: 25" %}',
+)
+
+
+def test_stats_is_drawn_in_the_footer_row_when_the_consumer_passes_it():
+    """طلبُ «جدول · التشغيل» (2026-09-27): إحصاءٌ حرٌّ يُرسم فعلاً في صفّ التذييل — لا يسقط ولا يُثنّى سطراً."""
+    from core.pdf_utils import _font_face_css_weasyprint
+
+    school = SimpleNamespace(name=SCHOOL_NAME, phone="", email="", city="الشحانية", vision="")
+    html = (
+        engines["django"]
+        .from_string(STATS_DOC)
+        .render(
+            {
+                "paper": "a3",
+                "orient": "landscape",
+                "school": school,
+                "fonts": _font_face_css_weasyprint(),
+            }
+        )
+    )
+    doc = weasyprint.HTML(string=html, base_url=str(ROOT)).render()
+    footer = _margin_box(doc.pages[0], "@bottom-center")
+    words = _texts(footer)
+    joined = "".join(w.text for w in words)
+    assert "المعلّمون: 72" in joined and "الشُّعب: 25" in joined
+    assert len({round(w.position_y) for w in words}) == 1, "صفٌّ واحدٌ — لا سطرَ ثانٍ للإحصاء"
