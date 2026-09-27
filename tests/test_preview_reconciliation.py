@@ -189,6 +189,37 @@ def _run_apply(path, actor, apply=False, approver=None):
     return out.getvalue()
 
 
+def test_apply_reads_a_file_windows_tools_saved_with_a_utf8_bom(
+    tmp_path, school, klass, subject, teacher, actor
+):
+    """PowerShell يكتب UTF-8 بعلامة BOM افتراضيّاً — وjson.load على utf-8 العاديّ يرفضها بخطأ فكِّ ترميز."""
+    payload = {
+        "assignments": [
+            {
+                "school_code": "TST-1",
+                "academic_year": YEAR,
+                "grade": "G12",
+                "section": "1",
+                "subject_code": "CHM",
+                "teacher_hmac": teacher.national_id_hmac,
+                "weekly_periods": 6,
+                "requires_lab": False,
+                "parallel_group": "",
+                "periods_override_reason": "",
+                "is_active": True,
+            }
+        ],
+        "workload_plans": [],
+    }
+    path = tmp_path / "changes.json"
+    path.write_bytes(b"\xef\xbb\xbf" + json.dumps(payload).encode("utf-8"))
+
+    out = _run_apply(str(path), actor, apply=False)
+
+    assert "تقريرٌ فقط" in out
+    assert "خطأ" not in out
+
+
 def test_dry_run_writes_nothing(tmp_path, school, klass, subject, teacher, actor):
     actor.employee_number = "11111"
     actor.save(update_fields=["employee_number"])

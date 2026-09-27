@@ -85,7 +85,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         try:
-            with open(options["in_path"], encoding="utf-8") as handle:
+            # `utf-8-sig` يقرأ الملفَّ بعلامة BOM أو بدونها كليهما — أدواتُ ويندوز (PowerShell) تكتب
+            # UTF-8 بعلامة BOM افتراضيّاً، و`json.load` على `utf-8` العاديّ يرفضها بخطأ فكِّ ترميز.
+            with open(options["in_path"], encoding="utf-8-sig") as handle:
                 payload = json.load(handle)
         except OSError as exc:
             raise CommandError(f"تعذّر فتحُ الملفّ: {options['in_path']}") from exc
