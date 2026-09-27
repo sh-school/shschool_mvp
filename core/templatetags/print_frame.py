@@ -7,6 +7,8 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
+from typing import Any
 
 from django import template
 from django.template.loader import render_to_string
@@ -21,14 +23,14 @@ MINISTRY = "وزارة التربية والتعليم والتعليم العا
 _TAGS = re.compile(r"<[^>]+>")
 
 
-def _vision_text(school) -> str:
+def _vision_text(school: Any) -> str:
     """نصُّ رؤية الوزارة كما تكتبه الجزئيّةُ الموحَّدة (`components/ministry_vision.html`) — مصدرٌ واحد."""
     return _TAGS.sub(
         "", render_to_string("components/ministry_vision.html", {"school": school})
     ).strip()
 
 
-def _contact(school) -> str:
+def _contact(school: Any) -> str:
     parts = [
         f"هاتف: {school.phone}" if getattr(school, "phone", "") else "",
         getattr(school, "email", "") or "",
@@ -38,7 +40,7 @@ def _contact(school) -> str:
 
 
 @register.simple_tag
-def print_frame_css(paper: str, orient: str):
+def print_frame_css(paper: str, orient: str) -> str:
     """كتلةُ `<style>` للصفحة والإطار: `@page` بحجم الورق والهوامش ومربّعَي الترويسة والتذييل، وأنماطُهما بألوان الهويّة."""
     return render_to_string(
         "components/print/frame_css.html",
@@ -48,8 +50,8 @@ def print_frame_css(paper: str, orient: str):
 
 @register.inclusion_tag("components/print/frame_header.html")
 def print_frame_header(
-    paper: str, orient: str, school, title: str, subtitle: str = "", for_pdf: bool = False
-):
+    paper: str, orient: str, school: Any, title: str, subtitle: str = "", for_pdf: bool = False
+) -> dict[str, Any]:
     """الترويسةُ الكاملة: شعارٌ فوزارةٌ فمدرسةٌ فعنوانُ الوثيقة فسطرُ السنة/الأسبوع، وسطرُ الرؤية حيث ينقلها الإطارُ إليها (D1)."""
     fr = pf.frame(paper, orient)
     return {
@@ -63,7 +65,9 @@ def print_frame_header(
 
 
 @register.inclusion_tag("components/print/frame_footer.html")
-def print_frame_footer(paper: str, orient: str, school, printed_at=None):
+def print_frame_footer(
+    paper: str, orient: str, school: Any, printed_at: datetime | None = None
+) -> dict[str, Any]:
     """صفٌّ واحدٌ ثابتُ الارتفاع: المدرسةُ وص/ص وتاريخُ الطباعة (ملزِمة) ثمّ الرؤيةُ والوزارةُ والاتّصالُ وSchoolOS-SAMM ما وَسِعها الصفّ.
 
     ما لا يسع يسقط بالأولويّة بلا قصٍّ؛ والملزِمُ الذي لا يسع (اسمُ مدرسةٍ طويلٌ جدّاً) يُظهر `overflow` في السياق ليقرّر المستهلكُ لا أن يُقصّ صامتاً.
