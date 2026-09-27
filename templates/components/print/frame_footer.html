@@ -1,0 +1,5 @@
+{% comment %}<style>{% include "components/print/frame_css.html" %}</style>{% endcomment %}{% comment %}
+أنماطُه في `frame_css.html` يحقنها `{% print_frame_css %}` (سطرُ `<style>` أعلاه تصريحٌ لحارس الهويّة).
+صفُّ التذييل الواحد (`{% print_frame_footer %}`): العناصرُ بترتيب الأولويّة (المدرسةُ ← ص/ص ← تاريخُ الطباعة ← ما وَسِعه الصفّ)، يفصل بينها « · ».
+ص/ص عدّادان في CSS (`counter(page) / counter(pages)`) فيُحسبان لكلّ صفحة. لا صفَّ ثانياً ولا قصّ: ما لا يسع يسقط بالأولويّة (`core.print_frame.footer_plan`).
+{% endcomment %}<div id="print-footer"{% if overflow %} data-overflow="1"{% endif %}>{% for item in items %}{% if not forloop.first %}<span class="pf-sep">·</span>{% endif %}{% if item.key == "page" %}<span class="pf-page"></span>{% elif item.key == "date" %}<span class="pf-date">{{ item.text }}</span>{% else %}<span class="pf-item pf-item-{{ item.key }}">{{ item.text }}</span>{% endif %}{% endfor %}</div>

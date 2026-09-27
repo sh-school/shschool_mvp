@@ -1,7 +1,8 @@
 """[IDENTITY] تذييلُ نماذج السلوك PDF في أسفل كلّ صفحةٍ لا بعد آخر المحتوى (أمرُ المالك 2026-09-27).
 
 كان `.doc-footer` عنصراً عاديّاً في التدفّق فيأتي **مرّةً واحدةً** بعد آخر سطرٍ من المحتوى (وسطَ الصفحة الأخيرة)، وتبقى الصفحاتُ قبلها
-بلا رؤيةٍ ولا سطرِ مدرسة. صار عنصراً متكرّراً (`position: running(page-footer)`) في صندوق الهامش السفليّ كما في `reports/base_qatar_report.html`.
+بلا رؤيةٍ ولا سطرِ مدرسة. صار عنصراً متكرّراً في صندوق الهامش السفليّ عبر الإطار المطبوع المركزيّ (`core/print_frame.py`،
+طلبُ الترحيل قبل #705، 2026-09-27) بدل تعريفٍ محلّيّ.
 
 الشقّ الأوّل نصّيٌّ (يعمل بلا WeasyPrint)؛ والثاني يولّد PDF فعليّاً متعدّد الصفحات ويقيس أنّ الرؤيةَ ظاهرةٌ في أسفل كلّ صفحةٍ ولا تتراكب مع المحتوى.
 """
@@ -22,15 +23,15 @@ VISUAL_QATAR = "رطق"
 
 def test_the_footer_is_a_running_element_in_the_bottom_margin_box():
     text = BASE.read_text(encoding="utf-8")
-    assert "position: running(page-footer)" in text
-    assert "@bottom-center { content: element(page-footer)" in text
+    assert "{% print_frame_css" in text
+    assert "{% print_frame_footer" in text
 
 
 def test_the_running_footer_is_defined_before_the_content():
     """العنصرُ المتكرّر يسري من الصفحة التي يرد فيها: فإن جاء بعد المحتوى خلت الصفحاتُ السابقةُ منه."""
     text = BASE.read_text(encoding="utf-8")
-    assert text.index('class="doc-footer"') < text.index('class="page-wrapper"')
-    assert text.index('class="doc-footer"') < text.index("{% block content %}")
+    assert text.index("{% print_frame_footer") < text.index('class="page-wrapper"')
+    assert text.index("{% print_frame_footer") < text.index("{% block content %}")
 
 
 @pytest.mark.django_db

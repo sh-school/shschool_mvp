@@ -26,11 +26,12 @@ VISION = "مُتَعَلِّمٌ رِيَادِيٌّ لِتَنْمِيَةٍ �
 
 PARTIAL = pathlib.Path("templates/components/ministry_vision.html")
 
-#: قوالب الطباعة المستقلّة — لا ترث ذيلاً من غيرها.
+#: قوالب الطباعة المستقلّة التي لا تزال تحمل الرؤيةَ نصّاً حرفيّاً — لا ترث ذيلاً من غيرها.
+#: `base_form.html` رُحِّل إلى الإطار المطبوع المركزيّ (core/print_frame.py، #713) فخرج من هذه القائمة —
+#: انظر `test_the_migrated_form_footer_carries_the_vision` أدناه.
 STANDALONE_DOCS = [
     "templates/quality/observation_pdf.html",
     "templates/schedule/print_schedule.html",
-    "templates/behavior/pdf/base_form.html",
     "templates/reports/base_qatar_report.html",
 ]
 
@@ -66,6 +67,18 @@ def test_every_standalone_document_footer_carries_the_vision(doc):
     assert 'include "components/ministry_vision.html"' in pathlib.Path(doc).read_text(
         encoding="utf-8"
     )
+
+
+@pytest.mark.django_db
+def test_the_migrated_form_footer_carries_the_vision(school):
+    """`base_form.html` رُحِّل إلى الإطار المطبوع المركزيّ (core/print_frame.py، #713): الرؤيةُ تصله عبر
+    `core.templatetags.print_frame._vision_text` — رندرٌ للجزئيّة الموحَّدة لا نصٌّ ثابتٌ في القالب — فتُقاس على
+    مُخرَجٍ مُصيَّرٍ كفوتر المنصّة (`test_the_platform_footer_carries_the_vision`)، لا على نصّ القالب."""
+    from django.template.loader import render_to_string
+
+    html = render_to_string("behavior/pdf/base_form.html", {"school": school})
+
+    assert VISION in _plain(html)
 
 
 def test_the_partial_falls_back_without_a_school():
@@ -193,10 +206,10 @@ def test_the_a4_general_schedule_paper_says_the_vision_once_in_the_sub_line_not_
 
 @pytest.mark.django_db
 def test_the_a3_general_schedule_paper_says_the_vision_once_in_its_single_footer_row(world, client):
-    """A3 (ت1، 2026-09-26): التذييلُ صفٌّ واحدٌ في هوامش الصفحة — الرؤيةُ وسطَه مرّةً واحدةً من المكوّن نفسِه، ولا سطرَ ثانياً تحت الجدول."""
+    """A3 (ت1، طلبُ الترحيل #705، 2026-09-27): التذييلُ صفٌّ واحدٌ جارٍ من المكوّن المركزيّ — الرؤيةُ فيه مرّةً واحدة، ولا سطرَ ثانياً تحت الجدول."""
     body = _paper(client, world, view="all_teachers")
 
     assert body.count(VISION) == 1
     assert 'class="matrix-sub"' not in body and 'class="matrix-foot"' not in body
-    centre = body.split("@bottom-center", 1)[1].split("}", 1)[0]
-    assert VISION in centre
+    footer = body.split('id="print-footer"', 1)[1].split("</div>", 1)[0]
+    assert VISION in footer
