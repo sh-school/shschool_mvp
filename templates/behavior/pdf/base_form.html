@@ -4,7 +4,13 @@
 <head>
 <meta charset="UTF-8">
 <style>
-  @page { size: A4; margin: 1.8cm 2cm 2cm 2cm; }
+  /* التذييلُ في أسفل كلّ صفحةٍ لا بعد آخر المحتوى: عنصرٌ متكرّرٌ (running) في صندوق الهامش السفليّ كما في
+     `reports/base_qatar_report.html`. ولا يُعرَّف بعد المحتوى — العنصرُ المتكرّر يسري من الصفحة التي يرد فيها. */
+  @page {
+    size: A4;
+    margin: 1.8cm 2cm 2.6cm 2cm;
+    @bottom-center { content: element(page-footer); vertical-align: top; padding-top: 2mm; }
+  }
   * { box-sizing: border-box; direction: rtl; }
   html, body, div, p, span, td, th, li, h1, h2, h3, h4, h5, h6 {
     direction: rtl !important;
@@ -137,7 +143,7 @@
 
   /* ===== FOOTER ===== */
   .doc-footer {
-    margin-top: 16px;
+    position: running(page-footer);
     padding-top: 6px;
     border-top: 1.5px solid {% brand_color "MAROON" %};
     text-align: center;
@@ -184,6 +190,17 @@
 </style>
 </head>
 <body>
+
+<!-- ===== DOCUMENT FOOTER ===== -->
+{% comment %}
+هوية المدرسة متغيّرة لا ثابتة: كان الذيل يحمل اسم مدرسةٍ بعينها وهاتفها
+وبريدها نصّاً عارياً، فتُطبع على وثائق كل مدرسة في المنصّة.
+{% endcomment %}
+<div class="doc-footer">
+  {{ school.name }}{% if school.phone %} · هاتف: {{ school.phone }}{% endif %}{% if school.email %} · {{ school.email }}{% endif %}{% if school.city %} · {{ school.city }}، قطر{% endif %}
+  <div class="doc-footer-vision">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %}</div>
+</div>
+
 <div class="page-wrapper">
 
 <!-- ===== DOCUMENT HEADER ===== -->
@@ -195,16 +212,6 @@
 
 <!-- ===== CHILD TEMPLATE CONTENT ===== -->
 {% block content %}{% endblock %}
-
-<!-- ===== DOCUMENT FOOTER ===== -->
-{% comment %}
-هوية المدرسة متغيّرة لا ثابتة: كان الذيل يحمل اسم مدرسةٍ بعينها وهاتفها
-وبريدها نصّاً عارياً، فتُطبع على وثائق كل مدرسة في المنصّة.
-{% endcomment %}
-<div class="doc-footer">
-  {{ school.name }}{% if school.phone %} · هاتف: {{ school.phone }}{% endif %}{% if school.email %} · {{ school.email }}{% endif %}{% if school.city %} · {{ school.city }}، قطر{% endif %}
-  <div class="doc-footer-vision">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %}</div>
-</div>
 
 </div>
 </body>
