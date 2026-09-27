@@ -25,6 +25,7 @@ from core.academic_calendar import academic_year_for_school, default_academic_ye
 from core.capabilities import capability_required
 from core.export_utils import (
     add_excel_title_rows,
+    apply_print_footer,
     brand_cell,
     excel_table_styles,
     xl_fill,
@@ -177,8 +178,9 @@ def _finalize_workbook(
     ws.oddFooter.right.text = "&D"
 
 
-def _wb_to_response(wb, filename):
-    """يحوّل Workbook إلى HttpResponse جاهز للتنزيل."""
+def _wb_to_response(wb, filename, school=None):
+    """يحوّل Workbook إلى HttpResponse جاهز للتنزيل — بذيل الطباعة الموحَّد (رؤيةُ الوزارة)."""
+    apply_print_footer(wb, school)
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -358,7 +360,7 @@ def student_export_excel(request):
         object_repr=f"كشف الطلاب الكامل Excel — {year}",
     )
     filename = f"طلاب_{school.name}_{year}_{today_str.replace('/', '-')}.xlsx"
-    return _wb_to_response(wb, filename)
+    return _wb_to_response(wb, filename, school=request.school)
 
 
 @login_required
@@ -457,4 +459,4 @@ def student_import_template(request):
 
     # قالبٌ فارغٌ بأمثلةٍ مصطنعة — لا بياناتٍ فيه، ويُدقَّق كأيّ ملفٍّ يخرج.
     log_export(request, "core.students_import_template_xlsx", rows=0)
-    return _wb_to_response(wb, "قالب_استيراد_الطلاب.xlsx")
+    return _wb_to_response(wb, "قالب_استيراد_الطلاب.xlsx", school=request.school)

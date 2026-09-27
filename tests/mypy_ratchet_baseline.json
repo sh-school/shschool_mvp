@@ -22,7 +22,7 @@
   "core/dashboard_presentation.py": 3,
   "core/dashboard_selectors.py": 15,
   "core/db_storage.py": 12,
-  "core/export_utils.py": 11,
+  "core/export_utils.py": 9,
   "core/fields.py": 2,
   "core/htmx_utils.py": 4,
   "core/logging_filters.py": 15,
@@ -122,5 +122,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1249
+ "total": 1247
 }

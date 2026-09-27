@@ -42,8 +42,12 @@ def build_schedule_xlsx(school: Any, user: Any, params: Any) -> ExportResult:
 
     ctx = schedule_print_payload(school, user, params)
     ctx["embed"] = True
+    from core.export_utils import apply_print_footer
+
+    workbook = schedule_workbook(ctx)
+    apply_print_footer(workbook, school)  # رؤيةُ الوزارة في ذيل الطباعة (قرار المالك 2026-09-27)
     buffer = BytesIO()
-    schedule_workbook(ctx).save(buffer)
+    workbook.save(buffer)
     return ExportResult(buffer.getvalue(), XLSX_TYPE, export_filename(ctx, "xlsx"))
 
 
