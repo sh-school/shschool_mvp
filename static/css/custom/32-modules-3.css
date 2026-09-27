@@ -874,6 +874,8 @@
   .pages-screen__item { background: none; --t: color-mix(in srgb, var(--dept-c, var(--maroon)) 22%, var(--surface)); }
   .pages-screen__item .who { column-gap: var(--sp-4); padding: var(--sp-2) var(--sp-3); margin-block-end: var(--sp-2); border-inline-start: var(--sp-1) solid var(--dept-c, var(--maroon)); background: var(--t); }
   .pages-screen__item .ui-section__body { padding: var(--sp-3); }
+  /* رأسُ القسم وأشرطةُ معلّميه بلون القسم: 55% منه مع السطح والنصُّ فوقه ≥ 6.9:1 في الأقسام الخمسة عشر نهاراً وليلاً؛ ورموزُ الشريط تُعاد كتابتُها محلّيّاً لأنّ `html.dark .card-bar` في طبقةٍ لاحقةٍ تغلب أيَّ قاعدةٍ هنا. */
+  .pages-screen__dept summary { --maroon: color-mix(in srgb, var(--dept-c) 55%, var(--surface)); --maroon-dark: var(--maroon); --on-fill: var(--text-primary); }
 
 /* ── templates/schedule/print_view.html ── */
   /* الجدولُ العامّ على عرض الشاشة كلِّه بهامشٍ صغير: خمسةٌ وثلاثون
@@ -956,7 +958,7 @@
   .table-wrap .schedule-matrix {
     --mx-head-h: 1.75rem; /* سطرُ الأيّام: عليه إزاحةُ سطر الحصص اللاصق */
     table-layout: fixed; border-collapse: separate; border-spacing: 0;
-    font-size: clamp(0.5rem, 0.5vw, 0.75rem); line-height: 1.5;
+    font-size: clamp(0.5625rem, 0.58vw, 0.8125rem); line-height: 1.5;
   }
   .table-wrap .schedule-matrix th,
   .table-wrap .schedule-matrix td {
@@ -973,12 +975,12 @@
   /* القسمُ خانةٌ ممتدّةٌ على سطور معلّميه (يُلَفّ نصُّها وحدَها)، والاسمُ أعرضُ الأعمدة فلا يُقصّ بنقاطٍ. */
   .table-wrap .schedule-matrix .m-dept { inline-size: 5%; padding: var(--sp-0-5) var(--sp-1); font-weight: 700; line-height: 1.2; white-space: normal; border-right: 0; }
   .table-wrap .schedule-matrix .m-name {
-    inline-size: 14%; padding-inline: var(--sp-1); text-align: start; font-weight: 600;
-    font-size: clamp(0.5625rem, 0.56vw, 0.8125rem); text-overflow: ellipsis; border-right-width: 2px;
+    inline-size: 7.5%; padding-inline: var(--sp-1); text-align: start; font-weight: 600;
+    font-size: clamp(0.5625rem, 0.62vw, 0.8125rem); text-overflow: ellipsis; border-right-width: 2px;
   }
   .table-wrap .schedule-matrix .m-name.m-name-tagged { font-size: clamp(0.5rem, 0.5vw, 0.6875rem); }
   .schedule-matrix .m-specialty { color: var(--maroon-fg); font-weight: 500; font-size: 0.875em; }
-  .table-wrap .schedule-matrix .m-total { inline-size: 3.5%; font-weight: 700; border-right-width: 2px; }
+  .table-wrap .schedule-matrix .m-total { inline-size: 3%; font-weight: 700; border-right-width: 2px; }
   .table-wrap .schedule-matrix .m-cell { direction: ltr; position: relative; }
   /* حدُّ اليوم أغلظُ من حدِّ الحصّة وإلّا ضاعت الأيّامُ في خمسٍ وثلاثين خانة. */
   .table-wrap .schedule-matrix .m-day-start { border-right-width: 2px; border-right-color: var(--text-secondary); }

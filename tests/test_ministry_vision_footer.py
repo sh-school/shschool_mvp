@@ -180,12 +180,23 @@ def test_the_general_schedule_sub_line_keeps_the_year_only_for_a_planned_week():
 
 
 @pytest.mark.django_db
-def test_the_general_schedule_paper_says_the_vision_once_in_the_sub_line_not_the_footer(
+def test_the_a4_general_schedule_paper_says_the_vision_once_in_the_sub_line_not_the_footer(
     world, client
 ):
-    """قرارُ المالك (2026-09-25): الرؤيةُ في سطر تحت الجدول فقط وتُنقل من ذيل الورقة — فلا تتكرّر."""
-    body = _paper(client, world, view="all_teachers")
+    """قرارُ المالك (2026-09-25): الرؤيةُ في سطر تحت الجدول فقط وتُنقل من ذيل الورقة — فلا تتكرّر (A4 كما كان)."""
+    body = _paper(client, world, view="all_teachers", paper="a4")
 
     assert body.count(VISION) == 1
     foot = body.split('<div class="matrix-foot">', 1)[1].split("</div>", 1)[0]
     assert VISION not in foot and "تاريخ الطباعة" in foot and "المعلّمون" in foot
+
+
+@pytest.mark.django_db
+def test_the_a3_general_schedule_paper_says_the_vision_once_in_its_single_footer_row(world, client):
+    """A3 (ت1، 2026-09-26): التذييلُ صفٌّ واحدٌ في هوامش الصفحة — الرؤيةُ وسطَه مرّةً واحدةً من المكوّن نفسِه، ولا سطرَ ثانياً تحت الجدول."""
+    body = _paper(client, world, view="all_teachers")
+
+    assert body.count(VISION) == 1
+    assert 'class="matrix-sub"' not in body and 'class="matrix-foot"' not in body
+    centre = body.split("@bottom-center", 1)[1].split("}", 1)[0]
+    assert VISION in centre

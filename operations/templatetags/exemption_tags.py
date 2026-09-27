@@ -6,8 +6,8 @@ from operations.schedule_paper import EXEMPTION_COLORS
 register = template.Library()
 
 
-@register.simple_tag
-def exempt_dot(exempt_map: dict | None, day: int, period: int) -> str:
+@register.simple_tag(takes_context=True)
+def exempt_dot(context: dict, exempt_map: dict | None, day: int, period: int) -> str:
     """شارةُ تفريغٍ صغيرةٌ في زاوية خليّة الجدول العام — أو فراغ.
 
     الجدولُ العامّ مُلوَّنٌ صفّاً كاملاً بقسم معلّمه أصلاً (قرارُ 2026-09-14)،
@@ -25,6 +25,9 @@ def exempt_dot(exempt_map: dict | None, day: int, period: int) -> str:
     source, reason = found
     css_class, label, letter = EXEMPTION_COLORS[source]
     title = f"{label} — {reason}" if reason else label
+    # ورقةُ A3 (ت1): أصغرُ خطٍّ مرسومٍ 7.9pt، وحرفُ الشارة 5px لا يُقرأ مطبوعاً — فالشارةُ لونٌ وحدَه ومفتاحُها أسفل الجدول.
+    if context.get("pad_pt"):
+        letter = ""
     return format_html(
         '<span class="m-exempt-dot {}" title="{}">{}</span>', css_class, title, letter
     )
