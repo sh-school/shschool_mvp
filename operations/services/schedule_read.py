@@ -273,6 +273,17 @@ class ScheduleReadMixin:
             members[0]["dept_span"] = len(members)
             for row in members[1:]:
                 row["dept_span"] = 0
+            for row in members:
+                row["dept_rows"] = len(
+                    members
+                )  # لكلّ صفٍّ: ارتفاعُ الورقة يحتاج حجمَ مجموعته (`dept_row_height`)
+
+        # اسمُ العرض الضيّق (مقطعان: أوّلٌ + كنية) على القائمة كلِّها لأنّ فضَّ التصادم يحتاجها. والاسمُ الكاملُ يبقى في
+        # `row["teacher"]` — للتلميح (`title`) وبطاقةِ الخانة و`data-teacher` والتصدير.
+        for row, display in zip(
+            ordered, short_names([r["teacher"].full_name or "" for r in ordered]), strict=True
+        ):
+            row["display_name"] = display
 
         # اسمُ العرض الضيّق (مقطعان: أوّلٌ + كنية) على القائمة كلِّها لأنّ فضَّ التصادم يحتاجها. والاسمُ الكاملُ يبقى في
         # `row["teacher"]` — للتلميح (`title`) وبطاقةِ الخانة و`data-teacher` والتصدير.
