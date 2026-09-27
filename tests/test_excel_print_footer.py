@@ -1,7 +1,8 @@
 """[BRAND] رؤيةُ الوزارة في ذيل الطباعة لكلّ ملفّ Excel مصدَّر بلا استثناء (قرارُ المالك 2026-09-27).
 
 كانت ملفّاتُ الـPDF تحملها في تذييلها وملفّاتُ Excel تُطبع بـ«صفحة / عدد» والتاريخ فقط. فالمساعدُ الواحد `core.export_utils.apply_print_footer` يضع الرؤيةَ من مصدرها الواحد
-(`components/ministry_vision.html` عبر `core.ministry_vision`) في السطر الأعلى من ذيل كلّ ورقة، وتستدعيه **كلُّ نقطة حفظٍ** لمصنّف. والحارسُ النصّيّ يمنع نقطةَ حفظٍ جديدةً بلا الرؤية.
+(`components/ministry_vision.html` عبر `core.ministry_vision`) في وسط ذيل كلّ ورقة، مندمجةً مع «صفحة / عدد» في **سطرٍ واحدٍ دائماً** (قرارُ المالك 2026-09-27:
+الرؤيةُ لا تُثنّى سطرين في أيّ مخرَج — قاعدةٌ عامّةٌ لا فقرة `\n` في `oddFooter`)، وتستدعيه **كلُّ نقطة حفظٍ** لمصنّف. والحارسُ النصّيّ يمنع نقطةَ حفظٍ جديدةً بلا الرؤية.
 """
 
 import io
@@ -43,14 +44,15 @@ def test_the_vision_text_comes_from_the_single_partial_without_markup():
     assert text == VISION and "<" not in text
 
 
-def test_every_sheet_gets_the_vision_above_the_page_counter_and_keeps_the_date():
+def test_every_sheet_gets_the_vision_merged_with_the_page_counter_in_one_line_and_keeps_the_date():
     wb = _workbook(3)
     apply_print_footer(wb)
     for ws in wb.worksheets:
-        lines = _footer_of(ws).split("\n")
-        assert lines == [VISION, "&P / &N"], lines
+        text = _footer_of(ws)
+        assert "\n" not in text, "الرؤيةُ لا تُثنّى سطرين — سطرٌ واحدٌ دائماً"
+        assert text == f"{VISION} — &P / &N", text
         assert ws.oddFooter.right.text == "&D"
-        assert ws.page_margins.bottom >= 0.75, "سطران في الذيل يلزمهما هامشٌ سفليٌّ"
+        assert ws.page_margins.bottom >= 0.4, "سطرٌ واحدٌ في الذيل يلزمه هامشٌ سفليٌّ أدنى"
 
 
 def test_a_sheet_that_already_had_a_footer_does_not_lose_its_right_side():
@@ -66,7 +68,7 @@ def test_the_schools_own_vision_wins_over_the_default(school):
     school.vision = "رؤيةٌ خاصّةٌ بهذه المدرسة"
     wb = _workbook(1)
     apply_print_footer(wb, school)
-    assert _footer_of(wb.active).split("\n")[0] == "رؤيةٌ خاصّةٌ بهذه المدرسة"
+    assert _footer_of(wb.active) == "رؤيةٌ خاصّةٌ بهذه المدرسة — &P / &N"
 
 
 def test_the_response_helper_stamps_it_into_the_downloaded_file():
@@ -87,7 +89,8 @@ def test_the_real_student_export_carries_the_vision_in_its_print_footer(
     response = client_as(principal_user).get(reverse("student_affairs:student_export"))
     assert response.status_code == 200
     ws = openpyxl.load_workbook(io.BytesIO(response.content)).active
-    assert _footer_of(ws).split("\n")[0] == ministry_vision_text(school)
+    text = _footer_of(ws)
+    assert "\n" not in text and text.startswith(ministry_vision_text(school))
 
 
 # ── الحارس النصّيّ: لا نقطةَ حفظٍ لمصنّفٍ بلا الرؤية ─────────────────────────────────────────────────────────

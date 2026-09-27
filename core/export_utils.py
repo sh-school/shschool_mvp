@@ -276,15 +276,16 @@ def get_pdf_footer_html(context: dict) -> str:
     """
 
 
-#: ما يلزم ذيلَ الطباعة من ارتفاع: سطران بخطّ 9 (≈ 0.3 بوصة) فوق هامش الذيل — فلا يلامس الجدولَ.
-_FOOTER_MIN_BOTTOM_MARGIN_IN = 0.75
+#: ما يلزم ذيلَ الطباعة من ارتفاع بخطّ 9 (≈ 0.2 بوصة) فوق هامش الذيل — فلا يلامس الجدولَ.
+_FOOTER_MIN_BOTTOM_MARGIN_IN = 0.4
 
 
 def apply_print_footer(wb: Any, school: Any = None) -> None:
-    """ذيلُ الطباعة لكلّ ورقة في المصنّف: **رؤيةُ الوزارة** في السطر الأعلى ثمّ «صفحة / عدد» في الوسط، والتاريخُ يميناً.
+    """ذيلُ الطباعة لكلّ ورقة في المصنّف: **رؤيةُ الوزارة** مندمجةً مع «صفحة / عدد» في سطرٍ واحدٍ وسط الصفّ، والتاريخُ يميناً.
 
-    قرارُ المالك (2026-09-27): الرؤيةُ في الفوتر لكلّ الملفّات المصدَّرة بلا استثناء — وExcel منها. والنصُّ من مصدره الواحد (`core.ministry_vision`)،
-    فتحديثُ الوزارة لصياغتها في لوحة الإدارة يصل الـPDF والـExcel معاً. تُستدعى عند كلّ نقطة حفظٍ للمصنّف (`tests/test_excel_print_footer.py` يحرس ذلك).
+    قرارُ المالك (2026-09-27): الرؤيةُ في الفوتر لكلّ الملفّات المصدَّرة بلا استثناء — وExcel منها؛ و**سطرٌ واحدٌ دائماً لا سطران في أيّ مخرَج**
+    (قاعدةٌ عامّةٌ لاحقة، لا خاصّةٌ باستمارة الزيارة). والنصُّ من مصدره الواحد (`core.ministry_vision`)، فتحديثُ الوزارة لصياغتها في لوحة الإدارة
+    يصل الـPDF والـExcel معاً. تُستدعى عند كلّ نقطة حفظٍ للمصنّف (`tests/test_excel_print_footer.py` يحرس ذلك).
     ومن استُدعيت بلا `school` (مسارٌ لا مدرسةَ فيه) يبقى النصُّ الافتراضيُّ لا فراغاً.
     """
     from core.ministry_vision import ministry_vision_text
@@ -292,13 +293,13 @@ def apply_print_footer(wb: Any, school: Any = None) -> None:
     vision = ministry_vision_text(school)
     for ws in wb.worksheets:
         footer = ws.oddFooter
-        footer.center.text = f"{vision}\n&P / &N"
-        footer.center.size = 9
+        footer.center.text = f"{vision} — &P / &N"
+        footer.center.size = 8
         footer.center.font = "Tajawal,Regular"
         if not footer.right.text:
             footer.right.text = "&D"
         ws.page_margins.bottom = max(ws.page_margins.bottom or 0, _FOOTER_MIN_BOTTOM_MARGIN_IN)
-        ws.page_margins.footer = max(ws.page_margins.footer or 0, 0.25)
+        ws.page_margins.footer = max(ws.page_margins.footer or 0, 0.2)
 
 
 def excel_to_response(wb: Any, filename: str, school: Any = None) -> Any:

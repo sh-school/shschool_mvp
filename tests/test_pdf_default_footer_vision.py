@@ -4,7 +4,8 @@
 (قائمةُ الطلاب، تقاريرٌ متفرّقة…) — القوالبُ التي تملك ترويستَها (`STANDALONE_DOCS` في `tests/test_ministry_vision_footer.py`)
 تحمل الرؤيةَ بالفعل عبر الجزئيّة المضمَّنة، فهذا الملفُّ يغطّي المسار الآخر وحدَه.
 
-الذيلُ صار سطرين: عدّادُ الصفحة كما كان، ثمّ رؤيةُ الوزارة تحته — بلا لمس «SchoolOS v6» ولا التاريخ (طلبُ المايسترو).
+**الرؤيةُ سطرٌ واحدٌ دائماً لا سطران** (قرارُ المالك 2026-09-27، قاعدةٌ عامّةٌ لكلّ مخرَج) — تندمج مع عدّاد الصفحة في السطر نفسِه
+(`عدّاد — رؤية`) بخطٍّ أصغر، لا بفاصل سطرٍ/`white-space: pre-line`. بلا لمس «SchoolOS v6» ولا التاريخ (طلبُ المايسترو).
 """
 
 import pytest
@@ -49,11 +50,14 @@ def test_the_vision_text_matches_the_single_source_partial():
 
 
 @pytest.mark.parametrize("paper_size", ["A4", "A3"])
-def test_the_footer_carries_the_vision_as_its_own_line_under_the_page_counter(paper_size):
+def test_the_footer_carries_the_vision_merged_into_the_page_counters_single_line(paper_size):
+    """الرؤيةُ لا تُثنّى سطرين — تندمج مع عدّاد الصفحة في نصٍّ واحدٍ بارتفاعٍ (سطرٍ) واحد."""
     words = _footer_words(paper_size)
-    counter = next(y for y, t in words if "/" in t)
-    vision_row = next(y for y, t in words if t == VISION)
-    assert vision_row > counter, "الرؤيةُ سطرٌ ثانٍ تحت عدّاد الصفحة لا فوقه ولا بجانبه"
+    merged = [t for _y, t in words if VISION in t]
+    assert len(merged) == 1, words
+    assert (
+        merged[0].count(" / ") == 1 and VISION in merged[0]
+    ), "عدّادُ الصفحة والرؤيةُ في النصّ نفسِه — لا مربّعين منفصلين"
 
 
 def test_samm_and_the_date_are_untouched():
