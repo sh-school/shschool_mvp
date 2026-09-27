@@ -149,7 +149,7 @@ def _render_case_heights(cases, font, weight, family, pt):
             paragraph_gap_mm=c["gap"],
             numbered=c["numbered"],
         )
-        prefix = cap._prefix_mm(zone, len(c["paragraphs"]), pt)
+        prefix = cap.prefix_mm(zone, len(c["paragraphs"]), pt)
         prefixes.append(prefix)
         body = ""
         for i, p in enumerate(c["paragraphs"], 1):
@@ -235,9 +235,9 @@ def test_numbered_prefix_narrows_every_line():
         >= cap.capacity(plain, [text] * 12, 9.0).used_lines
     )
     # عرضُ «12.» أعرضُ من «1.»: بندٌ ثانيَ عشرَ يضيّق أكثر
-    assert cap._prefix_mm(numbered, 12, 9.0) > cap._prefix_mm(numbered, 3, 9.0)
+    assert cap.prefix_mm(numbered, 12, 9.0) > cap.prefix_mm(numbered, 3, 9.0)
     assert (
-        cap._prefix_mm(numbered.__class__(**{**numbered.__dict__, "prefix_width_mm": 7.5}), 12, 9.0)
+        cap.prefix_mm(numbered.__class__(**{**numbered.__dict__, "prefix_width_mm": 7.5}), 12, 9.0)
         == 7.5
     )
 

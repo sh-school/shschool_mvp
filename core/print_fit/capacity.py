@@ -63,7 +63,7 @@ def _as_list(paragraphs: str | Sequence[str] | None) -> list[str]:
     return [p for p in paragraphs if p and p.strip()]
 
 
-def _prefix_mm(zone: Zone, n_paragraphs: int, pt: float) -> float:
+def prefix_mm(zone: Zone, n_paragraphs: int, pt: float) -> float:
     if not zone.numbered:
         return 0.0
     if zone.prefix_width_mm is not None:
@@ -78,17 +78,17 @@ def _prefix_mm(zone: Zone, n_paragraphs: int, pt: float) -> float:
     return widest + zone.prefix_gap_em * pt * _MM_PT
 
 
-def paragraph_lines(zone: Zone, paragraph: str, pt: float, prefix_mm: float = 0.0) -> int:
+def paragraph_lines(zone: Zone, paragraph: str, pt: float, prefix: float = 0.0) -> int:
     """أسطرُ فقرةٍ واحدةٍ بعرض المنطقة بعد خصم عمود البادئة المعلَّقة."""
     if not paragraph.strip():
         return 1
-    return len(tm.wrap(paragraph, max(zone.width_mm - prefix_mm, 0.0), pt, zone.font, zone.weight))
+    return len(tm.wrap(paragraph, max(zone.width_mm - prefix, 0.0), pt, zone.font, zone.weight))
 
 
 def used_height_mm(zone: Zone, paragraphs: str | Sequence[str] | None, pt: float) -> float:
     """الارتفاعُ الذي تشغله الفقراتُ عند `pt` (أسطرٌ × مباعدةٌ + مباعدةُ الفقرات)."""
     items = _as_list(paragraphs)
-    prefix = _prefix_mm(zone, len(items), pt)
+    prefix = prefix_mm(zone, len(items), pt)
     lh = tm.line_height_mm(pt, zone.font, zone.line_height)
     lines = sum(paragraph_lines(zone, p, pt, prefix) for p in items)
     return lines * lh + max(len(items) - 1, 0) * zone.paragraph_gap_mm
@@ -99,7 +99,7 @@ def capacity(zone: Zone, paragraphs: str | Sequence[str] | None, min_pt: float) 
     items = _as_list(paragraphs)
     lh = tm.line_height_mm(min_pt, zone.font, zone.line_height)
     total_lines = max(int((zone.height_mm + 1e-6) // lh), 0)
-    prefix = _prefix_mm(
+    prefix = prefix_mm(
         zone, len(items) + 1, min_pt
     )  # البادئةُ تُقاس بحسب ما ستبلغه القائمةُ بعد إضافة بندٍ
     line_w = max(zone.width_mm - prefix, 0.0)
