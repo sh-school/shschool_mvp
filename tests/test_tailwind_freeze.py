@@ -151,6 +151,24 @@ def test_the_built_file_and_its_imports_are_gone():
     assert not offenders, "قوالبُ تستورد `tailwind.min.css` المحذوف: " + ", ".join(sorted(offenders))
 
 
+def test_the_build_pipeline_is_gone():
+    """المرحلةُ الثانية من VI-12: لا تكوينَ ولا مدخلَ ولا سكربتَ بناءٍ ولا حزمةَ Tailwind، ولا فحصَ CI لمخرجٍ لم يعد يُبنى."""
+    for gone in ("tailwind.config.js", "static/css/tailwind_input.css", "build_tailwind.sh"):
+        assert not (ROOT / gone).exists(), f"`{gone}` عاد — حُذف مع خطّ بناء Tailwind (VI-12)"
+    package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
+    dependencies = {**package.get("dependencies", {}), **package.get("devDependencies", {})}
+    assert not any(
+        "tailwind" in name for name in dependencies
+    ), "حزمةُ Tailwind عادت إلى package.json"
+    assert not any("tailwind" in script for script in package.get("scripts", {}).values())
+    workflows = "\n".join(
+        path.read_text(encoding="utf-8") for path in (ROOT / ".github" / "workflows").glob("*.yml")
+    )
+    assert (
+        "tailwind-build" not in workflows and "tw:build" not in workflows
+    ), "فحصُ بناء Tailwind عاد إلى CI"
+
+
 def test_the_baseline_is_a_sorted_list_without_duplicates():
     names = json.loads(BASELINE.read_text(encoding="utf-8"))
     assert names == sorted(

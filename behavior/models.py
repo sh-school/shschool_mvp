@@ -107,6 +107,22 @@ class ViolationCategory(models.Model):
         verbose_name="يتطلب استدعاء ولي أمر فوري",
     )
 
+    # ── سلّم الإجراءات — مستوردٌ من conduct_2026 عبر seed_violations_2026 ──
+    ladder_key = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        verbose_name="مفتاح السلّم",
+        help_text="مثال: d4_danger — يحدّد السلّم المشترَك بين المخالفات",
+        db_index=True,
+    )
+    ladder_json = models.JSONField(
+        null=True,
+        blank=True,
+        verbose_name="سلّم الإجراءات (JSON)",
+        help_text="بنيةٌ قابلةٌ للاستعلام: {ladder_key, pages, max_reps, steps, beyond, notes}",
+    )
+
     class Meta:
         verbose_name = "فئة مخالفة سلوكية"
         verbose_name_plural = "فئات المخالفات السلوكية (2025)"

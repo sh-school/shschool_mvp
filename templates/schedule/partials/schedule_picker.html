@@ -4,7 +4,7 @@
 ثمّ معلّمٌ بعينه، ثمّ شعبةٌ بعينها. قائمةٌ واحدةٌ في صفحة الجدول وفي صفحة
 الصفحات معاً، فلا يبحث أحدٌ عن جدولٍ في صفحةٍ ولا يجده إلّا في الأخرى.
 
-يحتاج: teachers، classes، departments، year، picker_current.
+يحتاج: teachers، classes، departments، wings، year، picker_current.
 {% endcomment %}
 <select id="schedule-picker" class="form-select" data-call-change="goToSchedule" title="اختر الجدول">
   <option data-href="{% url 'weekly_schedule' %}?view=all_teachers&amp;year={{ year }}"
@@ -18,6 +18,11 @@
   {% endfor %}
   <option data-href="{% url 'schedule_pages' %}?kind=classes&amp;year={{ year }}"
     {% if picker_current == 'pages:classes' %}selected{% endif %}>جداول الشُّعب — كل المدرسة</option>
+  {% if wings %}<option disabled>── جداول شُعب الأجنحة ──</option>{% endif %}
+  {% for w in wings %}
+  <option data-href="{% url 'schedule_pages' %}?kind=classes&amp;wing={{ w.code }}&amp;year={{ year }}"
+    {% if picker_current == 'pages:classes:'|add:w.code %}selected{% endif %}>{{ w.name }}</option>
+  {% endfor %}
   <option disabled>── معلّم ──</option>
   {% for t in teachers %}
   <option data-href="{% url 'weekly_schedule' %}?view=teacher&amp;teacher={{ t.id }}&amp;year={{ year }}"

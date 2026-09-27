@@ -127,6 +127,29 @@ class TestTheEntryPoint:
         assert body["job"] == body["job_id"] == str(job.id)
         assert body["status_url"] == f"/exports/{job.id}/status/" and body["poll_ms"] == 2000
 
+    def test_the_job_goes_to_the_projects_default_queue_unless_one_is_configured(
+        self, school, principal_user, register, monkeypatch, settings
+    ):
+        """كان `queue="celery"` مكتوباً: فخادمُ جلسةٍ أو المعاينةُ المركزيّة (8500) قائمتُه الافتراضيّةُ باسم قاعدته
+        (`SESSION_NAMESPACE`) وعاملُه لا يسمع «celery» — فبقي التصديرُ معلَّقاً حتى «تأخّر تحضير الملفّ» (2026-09-26).
+        فبلا `EXPORT_JOB_QUEUE` لا قائمةَ صريحة (تُستعمل الافتراضيّةُ)، ومعها تُستعمل كما هي."""
+        import core.tasks as tasks_module
+
+        register()
+        sent: list[dict] = []
+        monkeypatch.setattr(
+            tasks_module.run_export_job, "apply_async", lambda *a, **k: sent.append(k)
+        )
+
+        if hasattr(settings, "EXPORT_JOB_QUEUE"):
+            del settings.EXPORT_JOB_QUEUE
+        respond_export(_request(school, principal_user, "q=1", **AJAX), "test.export")
+        settings.EXPORT_JOB_QUEUE = "exports"
+        respond_export(_request(school, principal_user, "q=2", **AJAX), "test.export")
+
+        assert "queue" not in sent[0], "قائمةٌ صريحةٌ بلا ضبط تُضيّع المهمّةَ على خوادم الجلسات"
+        assert sent[1]["queue"] == "exports"
+
     def test_the_same_request_within_a_minute_returns_the_same_job(
         self, school, principal_user, register
     ):
@@ -146,6 +169,50 @@ class TestTheEntryPoint:
 
         assert first["job"] == again["job"] and other["job"] != first["job"]
         assert ExportJob.objects.count() == 2
+
+    def test_explicit_params_replace_the_query_and_reach_the_job(
+        self, school, principal_user, register
+    ):
+        """معاملٌ من مسار الرابط (`class_id`) لا من الاستعلام: يُحفَظ في الصفّ فيصل البنّاءَ في العامل."""
+        from django.http import QueryDict
+
+        register()
+        params = QueryDict("a=1&paper=A3", mutable=True)
+        params["class_id"] = "7"
+
+        respond_export(
+            _request(school, principal_user, query="ignored=1", **AJAX),
+            "test.export",
+            params=params,
+        )
+
+        stored = QueryDict(ExportJob.objects.get().query_string)
+        assert dict(stored.items()) == {"a": "1", "paper": "A3", "class_id": "7"}
+
+    def test_a_direct_kind_builds_with_the_explicit_params(self, school, principal_user, register):
+        from django.http import QueryDict
+
+        seen = []
+
+        def build(school, user, params):
+            seen.append(dict(params.items()))
+            return ExportResult(b"x", "text/plain", "t.txt")
+
+        register(
+            "test.direct_params",
+            build=build,
+            mode="direct",
+            p95_ms=300,
+            measured_on="warm×20 2026-09-26",
+        )
+
+        respond_export(
+            _request(school, principal_user, query="ignored=1"),
+            "test.direct_params",
+            params=QueryDict("class_id=9"),
+        )
+
+        assert seen == [{"class_id": "9"}]
 
     def test_a_dedupe_never_reuses_a_failed_job(self, school, principal_user, register):
         register()
@@ -264,6 +331,33 @@ class TestTheWorker:
         assert result == {"ok": True, "filename": "t.txt"}
         assert job.status == "done" and bytes(job.content) == b"data-a=1"
         assert job.content_type == "text/plain" and job.filename == "t.txt"
+
+    def test_a_builder_that_declares_its_rows_leaves_a_built_audit_entry(
+        self, school, principal_user, register
+    ):
+        from core.models import AuditLog
+
+        def counted(school, user, params):
+            return ExportResult(b"x", "text/plain", "t.txt", rows=7, full_national_id=False)
+
+        name = register("test.counted", build=counted)
+        job = _job(school, principal_user, kind=name)
+
+        run_job(str(job.id))
+
+        trail = AuditLog.objects.get(action="export", object_repr=f"{name}:built")
+        assert trail.user == principal_user
+        assert trail.changes == {"kind": name, "rows": 7, "full_national_id": False}
+
+    def test_a_builder_without_rows_writes_no_built_entry(self, school, principal_user, register):
+        from core.models import AuditLog
+
+        register()
+        job = _job(school, principal_user)
+
+        run_job(str(job.id))
+
+        assert not AuditLog.objects.filter(object_repr__endswith=":built").exists()
 
     def test_a_failing_builder_stores_only_a_fixed_code_and_logs_no_exception_text(
         self, school, principal_user, register, caplog
