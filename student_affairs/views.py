@@ -2208,9 +2208,8 @@ def behavior_export_excel(request):
         full_national_id=False,
         object_repr=_with_wing("إحصائيات السلوك Excel", wing),
     )
-    return excel_to_response(
-        wb, generate_export_filename("behavior", "stats", "xlsx"), school=request.school
-    )
+    filename = generate_export_filename("behavior", "stats", "xlsx")
+    return excel_to_response(wb, filename, school=request.school)
 
 
 @login_required
@@ -2314,9 +2313,8 @@ def tardiness_export_excel(request):
         rows=row_count,
         object_repr=_with_wing(f"المتأخّرون Excel — {selected_date:%Y-%m-%d}", wing),
     )
-    return excel_to_response(
-        wb, generate_export_filename("tardiness", "daily", "xlsx"), school=request.school
-    )
+    filename = generate_export_filename("tardiness", "daily", "xlsx")
+    return excel_to_response(wb, filename, school=request.school)
 
 
 @login_required
@@ -2388,9 +2386,8 @@ def activities_export_excel(request):
         rows=row_count,
         object_repr="الأنشطة والإنجازات Excel",
     )
-    return excel_to_response(
-        wb, generate_export_filename("activities", "list", "xlsx"), school=request.school
-    )
+    filename = generate_export_filename("activities", "list", "xlsx")
+    return excel_to_response(wb, filename, school=request.school)
 
 
 # ═════════════════════════════════════════════════════════════════════
