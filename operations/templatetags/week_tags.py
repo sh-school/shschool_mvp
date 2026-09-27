@@ -1,3 +1,4 @@
+import html
 from typing import Any
 
 from django import template
@@ -77,7 +78,8 @@ def css_string(text: object) -> SafeString:
     الرؤيةُ (`school.vision`) حقلٌ تحرّره الإدارةُ — فتُهرَّب الشرطةُ المائلةُ والاقتباسُ وسطرُ الفصل وعلاماتُ `<` و`>` و`&`
     بصيغة CSS (`\3C `…)، فلا يُغلق النصُّ سلسلتَه ولا وسمَ `<style>`. القالبُ يلفّ به كتلةً بـ`{% filter css_string %}`.
     """
-    out = str(text or "")
+    # المكوّنُ يُخرج الرؤيةَ مهرَّبةً بالـHTML (`&quot;`، `&amp;`)؛ تُفكّ هنا ثمّ تُهرَّب من جديدٍ بصيغة CSS فلا يبقى كيانٌ ظاهراً ولا حرفٌ خطير.
+    out = html.unescape(str(text or ""))
     for raw, escaped in (
         ("\\", "\\\\"),
         ('"', '\\"'),

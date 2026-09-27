@@ -360,12 +360,12 @@
   {% comment %}
   التذييلُ صفٌّ واحدٌ 10pt في هوامش الصفحة (يتكرّر على كلّ ورقةٍ ومعه عدّادُ الصفحات): يمين الأعدادُ، وسطُه الرؤيةُ، ويسارُه التاريخُ والصفحة.
   في الهامش لا في المتن لأنّ عدّادَ الصفحة لا يعمل إلّا هناك — فلا يبقى سطرٌ ثانٍ تحت الصفّ (بلاغ المالك 2026-09-27). الهامشُ السفليُّ 10مم =
-  صفٌّ 8 + فاصل 2، والنصُّ ملتصقٌ بأسفله (أعلى النصّ ≈ 290.5مم من رأس الصفحة كما في ت1؛ كان 281.9 فقياسُ LAY-11). والنصُّ يمرّ بـ`css_string` (الرؤيةُ حقلٌ تحرّره الإدارة).
+  صفٌّ 8 + فاصل 2، والنصُّ ملتصقٌ بأسفله (أعلى النصّ ≈ 290.5مم من رأس الصفحة كما في ت1؛ كان 281.9 فقياسُ LAY-11). والنصُّ يمرّ بـ`css_string` (الرؤيةُ حقلٌ تحرّره الإدارة)؛ والرؤيةُ من مكوّنها الوحيد `ministry_vision.html` بلا نصٍّ مكرَّر (`test_ministry_vision_footer`).
   {% endcomment %}
   @page {
     size: A3 landscape; margin: 6mm 9mm 10mm;
     @bottom-right { content: "{% filter css_string %}المعلّمون: {{ matrix|length }} · الشُّعب: {{ matrix_totals.sections }}{% if matrix_totals %} · الحصص: {{ matrix_totals.total }} من {{ matrix_totals.planned }} مخطَّطة (منها {{ matrix_totals.parallel }} متوازية){% if matrix_totals.missing %} — ناقص {{ matrix_totals.missing }}{% endif %}{% endif %}{% endfilter %}"; font-family: 'Tajawal', sans-serif; font-size: 10pt; white-space: nowrap; vertical-align: bottom; padding-bottom: 2mm; color: {% brand_color "TEXT_PRIMARY" %}; border-top: 0.6pt solid {% brand_color "MAROON" %}; }
-    @bottom-center { content: "{% filter css_string %}{{ school.vision|default:'مُتَعَلِّمٌ رِيَادِيٌّ لِتَنْمِيَةٍ مُسْتَدَامَةٍ'|safe }}{% endfilter %}"; font-family: 'Tajawal', sans-serif; font-size: 10pt; white-space: nowrap; vertical-align: bottom; padding-bottom: 2mm; color: {% brand_color "TEXT_PRIMARY" %}; border-top: 0.6pt solid {% brand_color "MAROON" %}; }
+    @bottom-center { content: "{% filter striptags|css_string %}{% include "components/ministry_vision.html" %}{% endfilter %}"; font-family: 'Tajawal', sans-serif; font-size: 10pt; white-space: nowrap; vertical-align: bottom; padding-bottom: 2mm; color: {% brand_color "TEXT_PRIMARY" %}; border-top: 0.6pt solid {% brand_color "MAROON" %}; }
     @bottom-left { content: "تاريخ الطباعة: {% now 'Y/m/d' %} · صفحة " counter(page) " / " counter(pages); font-family: 'Tajawal', sans-serif; font-size: 10pt; white-space: nowrap; vertical-align: bottom; padding-bottom: 2mm; color: {% brand_color "TEXT_PRIMARY" %}; border-top: 0.6pt solid {% brand_color "MAROON" %}; }
   }
   @media print {
