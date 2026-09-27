@@ -361,9 +361,8 @@ def test_open_pulls_summary_keeps_numbers_only():
 
 
 def test_a_sha_from_the_deployments_reply_must_be_hex_like():
-    assert pulls.reduce_deploy([{"sha": "b5b485d2e5fb1505cff74e28ba93a3e0e25c9119"}])[
-        "sha"
-    ].startswith("b5b485d")
+    full_sha = "b5b485d" + "0" * 33  # 40 خانةً سداسيّةً
+    assert pulls.reduce_deploy([{"sha": full_sha}])["sha"].startswith("b5b485d")
     assert pulls.reduce_deploy([{"sha": "../../evil"}])["sha"] == ""
     assert pulls.reduce_deploy([]) == {"sha": ""}
     assert pulls.reduce_compare({"ahead_by": 3}) == {"ahead": 3}
