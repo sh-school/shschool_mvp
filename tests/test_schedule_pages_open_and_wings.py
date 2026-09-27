@@ -147,6 +147,45 @@ def test_the_wingless_group_has_its_own_link(client, principal_user, wings):
     assert special.label_with_track in html and a.label_with_track not in html
 
 
+# ══════════════════════ لونُ الجناح — كالقسم، من لوحة الهويّة نفسِها (قرارُ المالك 2026-09-27) ══════
+
+
+def test_each_wing_card_carries_its_own_color_class_like_a_department(
+    client, principal_user, wings
+):
+    html = _get(client, principal_user, kind="classes")
+    assert (
+        '<div class="pages-screen__item pages-screen__dept is-full dept-math">' in html
+    ), "جناح 1 (order=1) ← مفتاحُ math"
+    assert (
+        '<div class="pages-screen__item pages-screen__dept is-full dept-chemistry">' in html
+    ), "جناح 2 (order=2) ← مفتاحُ chemistry"
+    assert (
+        '<div class="pages-screen__item pages-screen__dept is-full dept-other">' in html
+    ), "خارج الأجنحة — لا لونَ يُخترع"
+
+
+def test_the_five_wing_colors_are_all_distinct_and_reuse_the_department_palette(
+    school, teacher_user
+):
+    """خمسةُ أجنحةٍ ثابتة (المواصفة)، لكلٍّ لونٌ من لوحة `--dept-*` نفسِها لا لوحةٌ ثانية، وكلُّها متمايزة."""
+    from core.dept_colors import DEPT_KEY_OF_CODE, OTHER, WING_KEY_OF_ORDER, wing_key
+
+    known_dept_keys = set(DEPT_KEY_OF_CODE.values()) | {OTHER}
+    keys = [wing_key(n) for n in range(1, 6)]
+    assert len(set(keys)) == 5, "الأجنحةُ الخمسة يجب أن تتمايز بصريّاً"
+    assert OTHER not in keys, "لا جناحَ حقيقيّاً يأخذ لونَ «other» المحايد"
+    assert set(keys) <= known_dept_keys, "ألوانُ الأجنحة من لوحة الأقسام نفسِها — لا لوحةٌ مخترَعة"
+    assert WING_KEY_OF_ORDER[1] == keys[0]
+
+
+def test_wing_key_falls_back_to_other_for_anything_outside_one_to_five():
+    from core.dept_colors import OTHER, wing_key
+
+    for bad in (0, -1, 6, 99, None, "", "abc"):
+        assert wing_key(bad) == OTHER, bad
+
+
 def test_an_unknown_wing_falls_back_to_the_whole_school_not_an_empty_page(
     client, principal_user, wings
 ):

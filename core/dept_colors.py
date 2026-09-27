@@ -41,3 +41,18 @@ OTHER = "other"
 def dept_key(code: object) -> str:
     """مفتاحُ لون هذا الكود — `other` لما لا يُعرف، فلا يسقط عرضٌ من كودٍ جديد."""
     return DEPT_KEY_OF_CODE.get(str(code or "").strip().lower(), OTHER)
+
+
+#: ترتيبُ الجناح (`Wing.order`، 1..5 — المدرسةُ خمسةُ أجنحةٍ ثابتة) → مفتاحُ لونٍ من لوحة الأقسام نفسِها
+#: (الهويّةُ البصريّةُ واحدة، لا لوحةٌ ثانية تُختَرع لصفحات الجداول — قرارُ المالك 2026-09-27)، خمسةٌ متمايزةٌ بصريّاً
+#: (أزرق/أحمر/أصفر/أخضر/بنفسجيّ) بلا صلةٍ بمادّة الاسم — الجناحُ ممرٌّ لا موضوعٌ دراسيّ.
+WING_KEY_OF_ORDER = {1: "math", 2: "chemistry", 3: "social", 4: "sharia", 5: "physics"}
+
+
+def wing_key(order: object) -> str:
+    """مفتاحُ لون هذا الجناح بترتيبه — `other` لِما ليس بين 1 و5 (ومنه سنتينل «خارج الأجنحة»)."""
+    try:
+        n = int(order)
+    except (TypeError, ValueError):
+        return OTHER
+    return WING_KEY_OF_ORDER.get(n, OTHER)

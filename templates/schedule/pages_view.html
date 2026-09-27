@@ -46,11 +46,11 @@
   <p class="ui-note">{{ school.name }} — {% include "schedule/partials/page_doc_title.html" %} — العام الدراسي &#8294;{{ year }}&#8297;</p>
 </div>
 
-  {# البطاقاتُ قابلةٌ للطيّ (`foldable`) والطيُّ افتراضٌ للجدول العامّ للمعلّمين وحدَه (`start_open` = false)؛ وما اختاره المستخدمُ من القائمة (قسمٌ، جناحٌ، الشُّعب، معلّمٌ) يُفتح. المعلّمون تحت قسمٍ برأسٍ بلون القسم (`dept-*` المركزيّ)؛ والشُّعبُ تحت جناحها. #}
+  {# البطاقاتُ قابلةٌ للطيّ (`foldable`) والطيُّ افتراضٌ للجدول العامّ للمعلّمين وحدَه (`start_open` = false)؛ وما اختاره المستخدمُ من القائمة (قسمٌ، جناحٌ، الشُّعب، معلّمٌ) يُفتح. المعلّمون تحت قسمٍ برأسٍ بلون القسم (`dept-*` المركزيّ)؛ والشُّعبُ تحت جناحها برأسٍ بلونها هي (`dept-{{ order|wing_key }}` — لوحةُ الأقسام نفسُها، خمسةٌ متمايزةٌ بلا صلةٍ بمادّة، قرارُ المالك 2026-09-27). #}
   <div class="card-flow" id="pages-list">
     {% if kind == "classes" %}
     {% for group in wing_groups %}
-    <div class="pages-screen__item is-full">
+    <div class="pages-screen__item pages-screen__dept is-full dept-{{ group.order|wing_key }}">
       {% with n=group.pages|length %}
       {% section_card group.name meta=n|stringformat:"d"|add:" شُعب" icon="students" flush=True foldable=True opened=start_open %}
       <div class="card-flow">
