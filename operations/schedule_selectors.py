@@ -394,6 +394,69 @@ def _wing_groups(pages: list[dict]) -> list[dict]:
     return sorted(groups.values(), key=lambda g: (g["order"], g["code"]))
 
 
+def _pages_paper_choice(get_params, key: str, allowed: tuple, default: str) -> str:
+    """قيمةٌ من رابطٍ ضمن مجموعةٍ مسموحة — وإلّا الافتراض؛ لا يسقط عرضٌ من قيمةٍ خارجةٍ عن السلّم."""
+    value = get_params.get(key) or default
+    return value if value in allowed else default
+
+
+def _resolve_wing(get_params, wings: list[dict]) -> str:
+    """رمزُ الجناح المطلوب — وإلّا `all` (جناحٌ لا شُعبَ له في هذا العام يرجع للمدرسة كلِّها، لا صفحةٌ فارغةٌ بعنوانٍ كاذب)."""
+    wing = get_params.get("wing") or "all"
+    if wing != "all" and wing not in {w["code"] for w in wings}:
+        return "all"
+    return wing
+
+
+def _classes_pages_and_title(
+    school, year: str, wing: str, wings: list[dict]
+) -> tuple[list[dict], str]:
+    pages = ScheduleService.class_pages(school, year, wing=None if wing == "all" else wing)
+    if wing == "all":
+        return pages, "جداول الشُّعب"
+    wing_name = next((w["name"] for w in wings if w["code"] == wing), "")
+    return pages, f"جداول شُعب {wing_name}"
+
+
+def _teacher_page_title(teacher_id: str, department: str | None, departments: list[dict]) -> str:
+    if teacher_id:
+        # الاسمُ من القاعدة لا من الصفحات: من لا حصصَ له صفحاتُه فارغةٌ
+        # وعنوانُه كان يصير «جداول معلّمي المدرسة» — عنوانٌ يكذب على قارئه.
+        named = CustomUser.objects.filter(id=teacher_id).first()
+        return f"جدول المعلّم: {named.full_name}" if named else "جدول المعلّم"
+    if department:
+        name = next((d["name"] for d in departments if d["code"] == department), department)
+        return f"جداول معلّمي قسم {name}"
+    return "جداول معلّمي المدرسة"
+
+
+def _teachers_pages_and_title(
+    school, year: str, dept: str, teacher_id: str, departments: list[dict]
+) -> tuple[list[dict], str]:
+    department = None if dept == "all" or teacher_id else dept
+    pages = ScheduleService.teacher_pages(
+        school, year, department=department, teacher_id=teacher_id or None
+    )
+    return pages, _teacher_page_title(teacher_id, department, departments)
+
+
+def _pages_selection_query(
+    kind: str, dept: str, orient: str, paper: str, year: str, wing: str, teacher_id: str
+) -> str:
+    selection = {"kind": kind, "dept": dept, "orient": orient, "paper": paper, "year": year}
+    if kind == "classes" and wing != "all":
+        selection["wing"] = wing
+    if teacher_id:
+        selection["teacher"] = teacher_id
+    return urlencode(selection)
+
+
+def _pages_picker_current(kind: str, wing: str, dept: str) -> str:
+    if kind == "classes":
+        return "pages:classes" if wing == "all" else f"pages:classes:{wing}"
+    return f"pages:teachers:{dept}"
+
+
 def pages_payload(school, get_params) -> dict:
     """ما يُطبع: معلّمون (كلُّهم أو قسمٌ أو واحدٌ) أو شُعب — والاتّجاهُ من الرابط.
 
@@ -403,43 +466,16 @@ def pages_payload(school, get_params) -> dict:
     kind = "classes" if get_params.get("kind") == "classes" else "teachers"
     dept = get_params.get("dept") or "all"
     teacher_id = get_params.get("teacher") or ""
-    orient = get_params.get("orient") or DEFAULT_ORIENTATION
-    if orient not in ORIENTATIONS:
-        orient = DEFAULT_ORIENTATION
-    paper = get_params.get("paper") or "a4"
-    if paper not in PAPERS:
-        paper = "a4"
+    orient = _pages_paper_choice(get_params, "orient", ORIENTATIONS, DEFAULT_ORIENTATION)
+    paper = _pages_paper_choice(get_params, "paper", PAPERS, "a4")
 
     departments = ScheduleService.department_options(school, year)
     wings = ScheduleService.wing_options(school, year)
-    wing = get_params.get("wing") or "all"
-    if wing != "all" and wing not in {w["code"] for w in wings}:
-        wing = "all"  # جناحٌ لا شُعبَ له في هذا العام: المدرسةُ كلُّها لا صفحةٌ فارغةٌ بعنوانٍ كاذب
+    wing = _resolve_wing(get_params, wings)
     if kind == "classes":
-        pages = ScheduleService.class_pages(school, year, wing=None if wing == "all" else wing)
-        wing_name = next((w["name"] for w in wings if w["code"] == wing), "")
-        title = "جداول الشُّعب" if wing == "all" else f"جداول شُعب {wing_name}"
+        pages, title = _classes_pages_and_title(school, year, wing, wings)
     else:
-        department = None if dept == "all" or teacher_id else dept
-        pages = ScheduleService.teacher_pages(
-            school, year, department=department, teacher_id=teacher_id or None
-        )
-        if teacher_id:
-            # الاسمُ من القاعدة لا من الصفحات: من لا حصصَ له صفحاتُه فارغةٌ
-            # وعنوانُه كان يصير «جداول معلّمي المدرسة» — عنوانٌ يكذب على قارئه.
-            named = CustomUser.objects.filter(id=teacher_id).first()
-            title = f"جدول المعلّم: {named.full_name}" if named else "جدول المعلّم"
-        elif department:
-            name = next((d["name"] for d in departments if d["code"] == department), department)
-            title = f"جداول معلّمي قسم {name}"
-        else:
-            title = "جداول معلّمي المدرسة"
-
-    selection = {"kind": kind, "dept": dept, "orient": orient, "paper": paper, "year": year}
-    if kind == "classes" and wing != "all":
-        selection["wing"] = wing
-    if teacher_id:
-        selection["teacher"] = teacher_id
+        pages, title = _teachers_pages_and_title(school, year, dept, teacher_id, departments)
 
     teachers, classes = browse_lists(school)
     return {
@@ -457,17 +493,15 @@ def pages_payload(school, get_params) -> dict:
         "wing_groups": _wing_groups(pages) if kind == "classes" else [],
         "teachers": teachers,
         "classes": classes,
-        "picker_current": (
-            ("pages:classes" if wing == "all" else f"pages:classes:{wing}")
-            if kind == "classes"
-            else f"pages:teachers:{dept}"
-        ),
+        "picker_current": _pages_picker_current(kind, wing, dept),
         "selected_dept": dept if not teacher_id else "",
         "orient": orient,
         # السطرُ يومٌ والعمودُ حصّة، واسمُ اليوم مقرونٌ بخاناته في `by_day`.
         "period_numbers": ScheduleSlot.PERIODS,
         # الورقةُ بالملّيمتر: الجدولُ يملأ ما بقي بعد الترويسة والذيل (قرار 2026-09-14).
         "geo": paper_geometry(paper, orient, with_who=True),
-        "selection_query": urlencode(selection),
+        "selection_query": _pages_selection_query(
+            kind, dept, orient, paper, year, wing, teacher_id
+        ),
         "embed": get_params.get("embed") == "1",
     }
