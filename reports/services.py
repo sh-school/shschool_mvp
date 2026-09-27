@@ -860,7 +860,7 @@ class AcademicReportsExcel:
             data_rows,
             school,
         )
-        return ExcelService.to_response(wb, "quiz_reports.xlsx")
+        return ExcelService.to_response(wb, "quiz_reports.xlsx", school=school)
 
     @classmethod
     def exam_results_excel(cls, data: dict, school) -> HttpResponse:
@@ -899,7 +899,7 @@ class AcademicReportsExcel:
             data_rows,
             school,
         )
-        return ExcelService.to_response(wb, "exam_results.xlsx")
+        return ExcelService.to_response(wb, "exam_results.xlsx", school=school)
 
     @classmethod
     def academic_progress_excel(cls, data: dict, school) -> HttpResponse:
@@ -932,7 +932,7 @@ class AcademicReportsExcel:
             data_rows,
             school,
         )
-        return ExcelService.to_response(wb, "academic_progress.xlsx")
+        return ExcelService.to_response(wb, "academic_progress.xlsx", school=school)
 
     @classmethod
     def monthly_behavior_academic_excel(cls, data: dict, school) -> HttpResponse:
@@ -966,7 +966,9 @@ class AcademicReportsExcel:
             data_rows,
             school,
         )
-        return ExcelService.to_response(wb, f"monthly_ba_{data.get('period', 'report')}.xlsx")
+        return ExcelService.to_response(
+            wb, f"monthly_ba_{data.get('period', 'report')}.xlsx", school=school
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -1150,8 +1152,11 @@ class ExcelService:
         cls._setup_print(ws, num_cols, num_data_rows, paper="a3", orientation="landscape")
 
     @classmethod
-    def to_response(cls, wb: object, filename: str) -> HttpResponse:
-        """تحويل Workbook إلى HttpResponse جاهز للتنزيل"""
+    def to_response(cls, wb: object, filename: str, school: object = None) -> HttpResponse:
+        """تحويل Workbook إلى HttpResponse جاهز للتنزيل — بذيل الطباعة الموحَّد (رؤيةُ الوزارة من `school`)."""
+        from core.export_utils import apply_print_footer
+
+        apply_print_footer(wb, school)
         buf = BytesIO()
         wb.save(buf)
         buf.seek(0)
@@ -1265,7 +1270,7 @@ class ExcelService:
             cls._setup_print_a4_portrait(ws, num_cols, len(data["student_rows"]))
 
         filename = f"نتائج_{class_group.grade.removeprefix('G')}_{class_group.section}_{year}.xlsx"
-        return cls.to_response(wb, filename)
+        return cls.to_response(wb, filename, school=school)
 
     @classmethod
     def attendance_excel(
@@ -1347,7 +1352,7 @@ class ExcelService:
             cls._setup_print_a4_portrait(ws, num_cols, len(data["student_rows"]))
 
         filename = f"غياب_{class_group.grade.removeprefix('G')}_{class_group.section}_{year}.xlsx"
-        return cls.to_response(wb, filename)
+        return cls.to_response(wb, filename, school=school)
 
     @classmethod
     def behavior_excel(
@@ -1435,4 +1440,4 @@ class ExcelService:
         else:
             cls._setup_print_a4_portrait(ws, num_cols, len(data["infractions"]))
 
-        return cls.to_response(wb, f"سلوك_{school.name}_{year}.xlsx")
+        return cls.to_response(wb, f"سلوك_{school.name}_{year}.xlsx", school=school)

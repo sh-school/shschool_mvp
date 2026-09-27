@@ -662,6 +662,9 @@ def export_gradebook(request, setup_id):
         object_id=setup.pk,
         object_repr=f"سجل درجات {setup.subject.name_ar} — {setup.class_group} — {semester}",
     )
+    from core.export_utils import apply_print_footer
+
+    apply_print_footer(wb, request.school)  # رؤيةُ الوزارة في ذيل الطباعة (قرار المالك 2026-09-27)
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)

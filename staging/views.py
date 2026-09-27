@@ -201,6 +201,11 @@ def download_grade_template(request, assessment_id):
         object_id=assessment.pk,
         object_repr=f"قالب درجات {assessment.title} — {assessment.class_group}",
     )
+    from core.export_utils import apply_print_footer
+
+    apply_print_footer(
+        wb, request.user.get_school()
+    )  # رؤيةُ الوزارة في ذيل الطباعة (قرار المالك 2026-09-27)
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
