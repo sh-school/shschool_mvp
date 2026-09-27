@@ -367,7 +367,7 @@ class ScheduleReadMixin:
         من الجدول نفسه لا من جدول الأجنحة وحده (كالأقسام): جناحٌ بلا شُعبٍ مجدولةٍ خيارٌ يفتح صفحةً فارغة.
         """
         academic_year = academic_year or academic_year_for_school(school)
-        rows = (
+        wing_rows = (
             ScheduleSlot.objects.filter(school=school, academic_year=academic_year, is_active=True)
             .order_by()
             .values_list(
@@ -375,13 +375,16 @@ class ScheduleReadMixin:
             )
             .distinct()
         )
-        rows = list(rows)
-        wings = {code: (name, order) for code, name, order in rows if code}
+        # ماديّاً في متغيّرٍ جديد لا إعادةَ الإسناد على `wing_rows` نفسِه: تحويلُ QuerySet إلى list في المكان
+        # ذاته يخلط نوعَي المتغيّر عند mypy (`QuerySet[...]` ثمّ `list[...]`)، وهذا نداءٌ للقاعدة يلزمنا مرّةً واحدة
+        # لا مرّتين (السطرُ التالي والشرطُ الأخير يقرآن النتيجةَ نفسَها).
+        materialized_rows: list[tuple[str | None, str | None, int | None]] = list(wing_rows)
+        wings = {code: (name, order) for code, name, order in materialized_rows if code}
         options = [
             {"code": code, "name": name}
             for code, (name, order) in sorted(wings.items(), key=lambda kv: (kv[1][1], kv[0]))
         ]
-        if any(code is None for code, _name, _order in rows):
+        if any(code is None for code, _name, _order in materialized_rows):
             options.append({"code": cls.NO_WING, "name": "خارج الأجنحة"})
         return options
 
