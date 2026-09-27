@@ -1,0 +1,135 @@
+{
+ "_doc": "خطُّ أساس ملاءمة PDF (المواصفة §٨-٤): engine = سيناريوهاتُ أسوأ المحتوى المرسومةُ بالمحرّك (min_font_pt لا ينزل، pages لا تزيد، continuation_used للقديم وحدَه)؛ legacy = القوالبُ القديمةُ بقيمها المقيسة 2026-09-26 (تُرفع عند كلّ ترحيلٍ إلى المحرّك، لا تُخفض)؛ clipping_sites = مواضعُ القصّ الصامت في قوالب PDF (تنزل ولا تزيد: python -m tests.print_fit_ratchet --update).",
+ "clipping_sites": {
+  "templates/behavior/pdf/student_report.html": 2,
+  "templates/quality/observation_pdf.html": 1,
+  "templates/schedule/pdf/week_grid_css.html": 4,
+  "templates/schedule/print_pages.html": 4,
+  "templates/schedule/print_schedule.html": 5,
+  "templates/student_affairs/student_profile_pdf.html": 1
+ },
+ "engine": {
+  "general_schedule rows25 a3/landscape": {
+   "continuation_used": false,
+   "min_font_pt": 9.5,
+   "pages": 1
+  },
+  "general_schedule rows26 a3/landscape": {
+   "continuation_used": false,
+   "min_font_pt": 9.0,
+   "pages": 1
+  },
+  "visit_form a4/portrait": {
+   "continuation_used": false,
+   "min_font_pt": 10.0,
+   "pages": 1
+  },
+  "visit_form_legacy_overflow a4/portrait": {
+   "continuation_used": true,
+   "min_font_pt": 10.0,
+   "pages": 2
+  }
+ },
+ "legacy": {
+  "attendance_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 6.0,
+   "pages": 2
+  },
+  "attendance_report_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 6.0,
+   "pages": 1
+  },
+  "behavior_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 6.0,
+   "pages": 1
+  },
+  "class_certificates_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 7.5,
+   "pages": 1
+  },
+  "general_schedule a3": {
+   "measured": "2026-09-26",
+   "min_font_pt": 5.2,
+   "pages": 1
+  },
+  "general_schedule a4": {
+   "measured": "2026-09-26",
+   "min_font_pt": 5.2,
+   "pages": 2
+  },
+  "kpi_monthly_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 6.0,
+   "pages": 1
+  },
+  "parent_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 7.5,
+   "pages": 1
+  },
+  "quality_report_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 6.0,
+   "pages": 1
+  },
+  "schedule_pages classes a4": {
+   "measured": "2026-09-26",
+   "min_font_pt": 6.5,
+   "pages": 25
+  },
+  "schedule_pages teachers a4": {
+   "measured": "2026-09-26",
+   "min_font_pt": 6.5,
+   "pages": 72
+  },
+  "student_annual_result_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 6.4,
+   "pages": 1
+  },
+  "student_behavior_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 7.5,
+   "pages": 1
+  },
+  "student_certificate_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 6.0,
+   "pages": 1
+  },
+  "student_list_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 6.0,
+   "pages": 37
+  },
+  "student_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 7.5,
+   "pages": 1
+  },
+  "student_profile_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 6.0,
+   "pages": 1
+  },
+  "student_result_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 6.0,
+   "pages": 1
+  },
+  "visit_form": {
+   "measured": "2026-09-26",
+   "min_font_pt": 7.2,
+   "pages": 1
+  },
+  "warning_pdf": {
+   "measured": "2026-09-26",
+   "min_font_pt": 7.5,
+   "pages": 1
+  }
+ }
+}
