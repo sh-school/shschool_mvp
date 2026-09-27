@@ -52,7 +52,7 @@ WING_KEY_OF_ORDER = {1: "math", 2: "chemistry", 3: "social", 4: "sharia", 5: "ph
 def wing_key(order: object) -> str:
     """مفتاحُ لون هذا الجناح بترتيبه — `other` لِما ليس بين 1 و5 (ومنه سنتينل «خارج الأجنحة»)."""
     try:
-        n = int(order)
+        n = int(str(order))
     except (TypeError, ValueError):
         return OTHER
     return WING_KEY_OF_ORDER.get(n, OTHER)

@@ -21,6 +21,18 @@ register.filter("wing_key", wing_key)
 
 
 @register.filter
+def open_if_single(start_open: object, n: object) -> bool:
+    """`{{ start_open|open_if_single:n }}` — تفتح بطاقةً فرعيّةً (معلّمٌ تحت قسم، شعبةٌ تحت جناح) حين اختِيرت مجموعتُها
+    بعينها من القائمة (`start_open`) **وكانت وحيدةً فيها** (`n<=1`، كمعلّمٍ اختِير بذاته فصار قسمُه مجموعةً من واحد).
+    مجموعةٌ من عدّةٍ (قسمٌ بعشرة معلّمين، جناحٌ بخمس شُعب) تبقى فروعُها مطويّةً افتراضاً وإن فُتح غلافُها (قرارُ المالك 2026-09-27)
+    — يتصفّح المستخدمُ القائمةَ مطويّةً ويفتح ما يريد بعينه، لا شاشةً طويلةً بعشرة جداولَ كاملة."""
+    try:
+        return bool(start_open) and int(str(n)) <= 1
+    except (TypeError, ValueError):
+        return False
+
+
+@register.filter
 def stack_words(text: object) -> SafeString:
     """اسمُ القسم كلماتٍ متراصّةً بعضُها تحت بعض (قرارُ المالك 2026-09-26): «التربية / الإسلامية».
 

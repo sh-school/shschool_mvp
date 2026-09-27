@@ -1,7 +1,10 @@
-"""صفحاتُ جداول المعلّمين والشُّعب: الطيُّ للجدول العامّ للمعلّمين وحدَه، وما يختاره المستخدمُ من القائمة يُفتح، وللشُّعب أجنحتُها في القائمة (قرارُ المالك 2026-09-27).
+"""صفحاتُ جداول المعلّمين والشُّعب: الطيُّ للجدول العامّ للمعلّمين وحدَه، وما يختاره المستخدمُ من القائمة يُفتح غلافُه، وللشُّعب أجنحتُها في القائمة (قرارُ المالك 2026-09-27).
 
 - الجدولُ العامّ للمعلّمين (`kind=teachers&dept=all`): مطويٌّ افتراضاً (عشراتُ الجداول).
-- قسمٌ من القائمة (مثلاً الرياضيات)، أو الشُّعب، أو جناحٌ، أو معلّمٌ بعينه: مفتوحٌ.
+- قسمٌ من القائمة (مثلاً الرياضيات)، أو الشُّعب، أو جناحٌ، أو معلّمٌ بعينه: **غلافُه** يُفتح.
+- **البطاقةُ الفرعيّةُ الوحيدةُ في مجموعتها** (معلّمٌ اختِير بذاته، فقسمُه مجموعةٌ من واحد) تُفتح معه — أمّا **مجموعةٌ من عدّة**
+  (قسمٌ بعشرة معلّمين، جناحٌ بخمس شُعب) فبطاقاتُها الفرعيّةُ تبقى مطويّةً افتراضاً وإن فُتح غلافُها (قرارُ المالك 2026-09-27، ثانياً):
+  يتصفّح المستخدمُ القائمةَ المطويّة ويفتح ما يريد بعينه، لا شاشةً بعشرة جداولَ كاملة.
 - الشُّعبُ تُعرض تحت جناحها بترتيب الأجنحة، و«خارج الأجنحة» (التربية الخاصة) أخيراً؛ وقائمةُ الجداول تحمل خيارَ كلّ جناح، ورابطُه يصفّي الصفحةَ والورقةَ والتنزيل.
 """
 
@@ -13,7 +16,7 @@ from django.urls import reverse
 
 from core.models import Department, Membership, Wing
 from operations.models import ScheduleSlot, Subject
-from tests.conftest import ClassGroupFactory
+from tests.conftest import ClassGroupFactory, MembershipFactory, RoleFactory, UserFactory
 
 pytestmark = pytest.mark.django_db
 YEAR = "2026-2027"
@@ -101,6 +104,26 @@ def test_a_single_teacher_is_open(client, principal_user, teacher_user, maths, w
     assert _details(html) and all(" open" in d for d in _details(html))
 
 
+def test_a_department_of_several_teachers_opens_its_cover_but_folds_each_teacher(
+    client, principal_user, school, teacher_user, maths
+):
+    """قرارُ المالك 2026-09-27: غلافُ القسم المختار يُفتح، وبطاقاتُ معلّميه (عدّةٌ) تبقى مطويّةً — لا شاشةً بعشرة جداولَ كاملة."""
+    second = UserFactory(full_name="معلّمٌ ثانٍ")
+    role = RoleFactory(school=school, name="teacher")
+    MembershipFactory(user=second, school=school, role=role, department_obj=maths)
+    group_a = ClassGroupFactory(school=school, academic_year=YEAR)
+    group_b = ClassGroupFactory(school=school, academic_year=YEAR)
+    _lesson(school, teacher_user, group_a, period=1)
+    _lesson(school, second, group_b, period=2)
+
+    html = _get(client, principal_user, kind="teachers", dept="math")
+    tags = _details(html)
+    assert len(tags) == 3, "قسمٌ ومعلّمان"
+    cover, leaves = tags[0], tags[1:]
+    assert " open" in cover, "غلافُ القسم مفتوح"
+    assert not any(" open" in leaf for leaf in leaves), "بطاقةُ كلّ معلّمٍ مطويّةٌ حين يكونون عدّة"
+
+
 def test_the_classes_views_are_open(client, principal_user, teacher_user, wings):
     for query in ({"kind": "classes"}, {"kind": "classes", "wing": "w1"}):
         html = _get(client, principal_user, **query)
@@ -145,6 +168,28 @@ def test_the_wingless_group_has_its_own_link(client, principal_user, wings):
     _, _, (a, b, special) = wings
     html = _get(client, principal_user, kind="classes", wing="none")
     assert special.label_with_track in html and a.label_with_track not in html
+
+
+def test_a_wing_of_several_classes_opens_its_cover_but_folds_each_class(
+    client, principal_user, school, teacher_user
+):
+    """قرارُ المالك 2026-09-27: غلافُ الجناح المختار يُفتح، وبطاقاتُ شُعبه (عدّةٌ) تبقى مطويّةً."""
+    w = _wing(school, "w5", "جناح 5", 5)
+    a = ClassGroupFactory(
+        school=school, grade="G12", section="1", level_type="sec", academic_year=YEAR, wing=w
+    )
+    b = ClassGroupFactory(
+        school=school, grade="G12", section="2", level_type="sec", academic_year=YEAR, wing=w
+    )
+    _lesson(school, teacher_user, a, period=1)
+    _lesson(school, teacher_user, b, period=2)
+
+    html = _get(client, principal_user, kind="classes", wing="w5")
+    tags = _details(html)
+    assert len(tags) == 3, "جناحٌ وشعبتان"
+    cover, leaves = tags[0], tags[1:]
+    assert " open" in cover, "غلافُ الجناح مفتوح"
+    assert not any(" open" in leaf for leaf in leaves), "بطاقةُ كلّ شعبةٍ مطويّةٌ حين تكون عدّةً"
 
 
 # ══════════════════════ لونُ الجناح — كالقسم، من لوحة الهويّة نفسِها (قرارُ المالك 2026-09-27) ══════

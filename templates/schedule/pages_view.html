@@ -46,7 +46,7 @@
   <p class="ui-note">{{ school.name }} — {% include "schedule/partials/page_doc_title.html" %} — العام الدراسي &#8294;{{ year }}&#8297;</p>
 </div>
 
-  {# البطاقاتُ قابلةٌ للطيّ (`foldable`) والطيُّ افتراضٌ للجدول العامّ للمعلّمين وحدَه (`start_open` = false)؛ وما اختاره المستخدمُ من القائمة (قسمٌ، جناحٌ، الشُّعب، معلّمٌ) يُفتح. المعلّمون تحت قسمٍ برأسٍ بلون القسم (`dept-*` المركزيّ)؛ والشُّعبُ تحت جناحها برأسٍ بلونها هي (`dept-{{ order|wing_key }}` — لوحةُ الأقسام نفسُها، خمسةٌ متمايزةٌ بلا صلةٍ بمادّة، قرارُ المالك 2026-09-27). #}
+  {# البطاقاتُ قابلةٌ للطيّ (`foldable`) والطيُّ افتراضٌ للجدول العامّ للمعلّمين وحدَه (`start_open` = false)؛ وما اختاره المستخدمُ من القائمة (قسمٌ، جناحٌ، الشُّعب، معلّمٌ) يُفتح غلافُه. وداخلَه: بطاقةٌ فرعيّةٌ وحيدةٌ (معلّمٌ اختِير بذاته) تُفتح معه، وعدّةُ بطاقاتٍ (قسمٌ بعشرة معلّمين، جناحٌ بخمس شُعب) تبقى مطويّةً — يتصفّح المستخدمُ الغلافَ المفتوح ويفتح ما يريد بعينه (`start_open|open_if_single:n`، قرارُ المالك 2026-09-27). المعلّمون تحت قسمٍ برأسٍ بلون القسم (`dept-*` المركزيّ)؛ والشُّعبُ تحت جناحها برأسٍ بلونها هي (`dept-{{ order|wing_key }}` — لوحةُ الأقسام نفسُها، خمسةٌ متمايزةٌ بلا صلةٍ بمادّة). #}
   <div class="card-flow" id="pages-list">
     {% if kind == "classes" %}
     {% for group in wing_groups %}
@@ -56,7 +56,7 @@
       <div class="card-flow">
         {% for page in group.pages %}
         <div class="is-full">
-          {% section_card page.class_group.label_with_track meta=page.total|stringformat:"d"|add:" حصّة" icon="students" flush=True foldable=True opened=start_open %}{% include "schedule/partials/page_screen_body.html" %}{% endsection_card %}
+          {% section_card page.class_group.label_with_track meta=page.total|stringformat:"d"|add:" حصّة" icon="students" flush=True foldable=True opened=start_open|open_if_single:n %}{% include "schedule/partials/page_screen_body.html" %}{% endsection_card %}
         </div>
         {% endfor %}
       </div>
@@ -74,7 +74,7 @@
         {% for page in group.list %}
         <div class="is-full">
           {% with lessons=page.total|stringformat:"d" %}
-          {% section_card page.teacher.full_name meta=lessons|add:" حصّة" icon="staff" flush=True foldable=True opened=start_open %}{% include "schedule/partials/page_screen_body.html" %}{% endsection_card %}
+          {% section_card page.teacher.full_name meta=lessons|add:" حصّة" icon="staff" flush=True foldable=True opened=start_open|open_if_single:n %}{% include "schedule/partials/page_screen_body.html" %}{% endsection_card %}
           {% endwith %}
         </div>
         {% endfor %}
