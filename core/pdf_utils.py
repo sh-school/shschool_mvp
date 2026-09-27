@@ -188,13 +188,21 @@ def _inject_wp_page_header_css(
     today_str = timezone.now().strftime("%Y/%m/%d")
     title_part = f" — {title}" if title else ""
 
+    # رؤيةُ الوزارة (قرارُ المالك 2026-09-27: في التذييل لكلّ الملفّات المصدَّرة بلا استثناء) — من المصدر الواحد
+    # (`components/ministry_vision.html` عبر core.ministry_vision)؛ الصفحاتُ هنا بلا `school` حقيقيّ (وصلها نصُّ اسمٍ
+    # مستخرَجٌ من HTML لا كائنٌ)، فتظهر بنصّها الافتراضيّ — كما تفعل الجزئيّةُ نفسُها حين تُستدعى بلا مدرسة.
+    from core.ministry_vision import ministry_vision_text
+
+    vision = ministry_vision_text().replace('"', "'")
+
     # ── إعدادات الحجم والهوامش حسب paper_size ──
+    # الذيلُ صار سطرين (عدّاد الصفحة + رؤية الوزارة، قرارُ المالك)، فالهامشُ السفليّ أوسعُ من العلويّ/الجانبيّ.
     if paper_size == "A3":
         page_size_css = "A3 landscape"
-        page_margin = "2cm 1.5cm"
+        page_margin = "2cm 1.5cm 3cm 1.5cm"
     else:
         page_size_css = "A4"
-        page_margin = "3.2cm 1.5cm 2.8cm 1.5cm"
+        page_margin = "3.2cm 1.5cm 3.4cm 1.5cm"
 
     css = f"""
 /* ── RTL جذري لجميع العناصر ──────────────────── */
@@ -250,11 +258,16 @@ table {{ direction: rtl !important; border-collapse: collapse; }}
         padding-top:  5px;
     }}
     @bottom-center {{
-        content:      counter(page) " / " counter(pages);
+        /* سطرٌ أوّلُ رقمُ الصفحة، وسطرٌ ثانٍ رؤيةُ الوزارة (\\A سطرٌ جديد، white-space يُبقيه) — التذييلُ سطران لا واحد (D1). */
+        content:      counter(page) " / " counter(pages) "\\A" "{vision}";
+        white-space:  pre-line;
+        direction:    rtl;
         font-family:  'Tajawal', Arial, sans-serif;
         font-size:    8.5px;
+        line-height:  1.7;
         color:        {brand.TEXT_SECONDARY};
         vertical-align: top;
+        text-align:   center;
         padding-top:  5px;
     }}
     @bottom-left {{
