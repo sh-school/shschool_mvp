@@ -27,6 +27,7 @@ from core.permissions import (
 )
 from core.sorting import apply_sort
 
+from . import pdf_layout
 from .observation_models import (
     FOLLOW_UP_MODE,
     FOLLOW_UP_SCOPE,
@@ -237,17 +238,23 @@ def _pdf_context(obs):
     والأصل صفحتان، وطلبت المدرسة صفحةً واحدة — فالمجالات الأربعة تُعرض في
     جدولٍ واحد بلا قسمة.
     """
-    grouped = [
-        (label, [{"criterion": c, "score": s} for c, s in rows])
-        for label, rows in _groups_with_scores(obs)
-    ]
-    letterhead = _as_data_uri(obs.school.letterhead)
+    grouped, recs, number = [], [], 0
+    for label, rows in _groups_with_scores(obs):
+        numbered = []
+        for criterion, score in rows:
+            number += 1
+            numbered.append({"criterion": criterion, "score": score, "number": number})
+            text = (score.recommendation if score else "").strip()
+            if text:
+                recs.append({"number": number, "text": text})
+        grouped.append((label, numbered))
     return {
         "obs": obs,
-        "letterhead": letterhead,
-        # الشعارُ بجانب العنوان النصّيّ فقط حين لا ترويسةَ مرفوعة: `School.logo` إن وُجد، وإلّا الشعارُ المعتمد `logoMaroon.png`
-        "logo": "" if letterhead else (_as_data_uri(obs.school.logo) or brand_logo_data_uri()),
-        "letterfoot": _as_data_uri(obs.school.letterfoot),
+        "recs": recs,
+        "free_pt": pdf_layout.format_pt(pdf_layout.free_font(recs, obs.general_notes)),
+        "zone_min_pt": pdf_layout.format_pt(round(pdf_layout.zone_min_pt(), 1)),
+        # الشعار: `School.logo` إن وُجد، وإلّا الشعارُ المعتمد `logoMaroon.png` — وترويسةُ/تذييلُ الصور أُلغيا (2026-09-26)
+        "logo": _as_data_uri(obs.school.logo) or brand_logo_data_uri(),
         "domains": grouped,
         "ratings": RATING_CHOICES,
         "signatures": signature_stamps(obs),

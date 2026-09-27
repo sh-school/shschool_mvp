@@ -21,12 +21,18 @@
   var ARC_SHARE = 0.75;      // القوسُ 270° من 360°: pathLength=100 فيه 75 وحدة
   var SWEEP_DEGREES = 270;   // مدى العقرب من أسفل اليسار (−135°) إلى أسفل اليمين (+135°)
   var METRIC_SLOTS = 4;
+  // تفضيلُ اللوحات المخفيّة: كوكي مفاتيحُه مفصولةٌ بفواصل؛ الخادمُ يقرؤه فيرسم المخفيَّ مخفيّاً (بلا وميض) ويتحقّق من المفاتيح.
+  var HIDDEN_COOKIE = "qcc_hidden";
+  var HIDDEN_MAX_AGE = 365 * 24 * 3600;
 
   var url = root.getAttribute("data-qc-url");
   var note = root.querySelector("[data-qc-note]");
   var noteText = root.querySelector("[data-qc-note-text]");
   var clock = root.querySelector('[data-key="generated"]');
   var button = root.querySelector("[data-qc-refresh]");
+  var toggles = Array.prototype.slice.call(root.querySelectorAll("[data-qc-toggle]"));
+  var counter = root.querySelector("[data-qc-count]");
+  var none = root.querySelector("[data-qc-none]");
   var panels = Array.prototype.slice.call(root.querySelectorAll("[data-panel]"));
   var failures = 0;
   var timer = null;
@@ -41,9 +47,12 @@
     return Math.min(MAX_SECONDS, Math.max(MIN_SECONDS, smallest));
   }
 
-  function setText(scope, key, text) {
+  function setText(scope, key, text, withTitle) {
     var node = scope.querySelector('[data-key="' + key + '"]');
-    if (node && node.textContent !== text) { node.textContent = text; }
+    if (!node) { return; }
+    if (node.textContent !== text) { node.textContent = text; }
+    // العنوانُ الكاملُ في title لعنصرٍ يقصّه line-clamp (1.4.12) — يُزامَن معه لا يُكتب مرّةً عند الرسم فيَبلى.
+    if (withTitle && node.title !== text) { node.title = text; }
   }
 
   function ageText(seconds) {
@@ -98,7 +107,8 @@
     panel.setAttribute("data-status", status);
     var key = data.key;
     setText(panel, key + ".state", STATE_LABEL[status]);
-    setText(panel, key + ".headline", String(data.headline || "") || "لم يُجمَع بعدُ");
+    setText(root, key + ".pstate", STATE_LABEL[status]);
+    setText(panel, key + ".headline", String(data.headline || "") || "لم يُجمَع بعدُ", true);
     setText(panel, key + ".detail", String(data.detail || ""));
     setText(panel, key + ".age", ageText(data.age_seconds));
     paintDial(panel, key, clampGauge(data.gauge));
@@ -123,6 +133,38 @@
       clock.textContent = "آخر تحديث " + new Date(snapshot.generated_at * 1000).toLocaleTimeString("ar");
     }
   }
+
+  function saveHidden(keys) {
+    var secure = window.location.protocol === "https:" ? "; Secure" : "";
+    document.cookie = HIDDEN_COOKIE + "=" + keys.join(",") + "; Path=/command-center/; Max-Age=" +
+      (keys.length ? HIDDEN_MAX_AGE : 0) + "; SameSite=Lax" + secure;
+  }
+
+  // يطبّق اختيارَ المربّعات: يُظهر ويُخفي بطاقاتِ اللوحات، ويحدّث العدّادَ ورسالةَ «كلُّها مخفيّة»، ويحفظ التفضيل.
+  function applyChoices(save) {
+    var hidden = [];
+    toggles.forEach(function (box) {
+      var key = box.getAttribute("data-qc-toggle");
+      var card = root.querySelector('[data-card="' + key + '"]');
+      if (card) { card.hidden = !box.checked; }
+      if (!box.checked) { hidden.push(key); }
+    });
+    var shown = toggles.length - hidden.length;
+    if (counter) { counter.textContent = shown + " من " + toggles.length; }
+    if (none) { none.hidden = shown > 0; }
+    if (save) { saveHidden(hidden); }
+  }
+
+  toggles.forEach(function (box) {
+    box.addEventListener("change", function () { applyChoices(true); });
+  });
+  Array.prototype.forEach.call(root.querySelectorAll("[data-qc-all]"), function (control) {
+    control.addEventListener("click", function () {
+      var show = control.getAttribute("data-qc-all") === "show";
+      toggles.forEach(function (box) { box.checked = show; });
+      applyChoices(true);
+    });
+  });
 
   function schedule() {
     window.clearTimeout(timer);

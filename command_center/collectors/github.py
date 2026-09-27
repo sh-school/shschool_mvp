@@ -47,6 +47,9 @@ def fetch(path: str, reduce: Reducer) -> dict[str, Any] | None:
     key = cache_key(path)
     cached = cache.get(key)
     headers = {"Accept": "application/vnd.github+json", "User-Agent": "schoolos-command-center"}
+    token = str(getattr(settings, "QCC_GITHUB_TOKEN", "") or "")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
     if isinstance(cached, dict) and cached.get("etag"):
         headers["If-None-Match"] = str(cached["etag"])
     try:
