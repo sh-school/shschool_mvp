@@ -158,7 +158,8 @@ class TestTheSeventyTwoTeachersFitOneSheet:
         assert missing_names(pdf, shown) == [], "أسماءٌ مقصوصةٌ بحدّ عمود الاسم"
 
         # (٣+٥) التذييلُ صفٌّ واحدٌ: الأعدادُ والرؤيةُ والتاريخُ والصفحةُ على خطٍّ أفقيٍّ واحد (±1pt)
-        keys = ("المعلّمون", "تاريخ الطباعة", "صفحة", "مُتَعَلِّمٌ")
+        # عدّادُ الصفحة الآن أرقامٌ في CSS محضة («١ / ١» بلا كلمة «صفحة») من المكوّن المركزيّ — لا نصٌّ يُقاس هنا.
+        keys = ("المعلّمون", "تاريخ الطباعة", "مُتَعَلِّمٌ")
         footer = [
             (text, y) for text, _x, y, _size in text_chunks(pdf) if any(k in text for k in keys)
         ]
@@ -221,13 +222,14 @@ class TestTheOtherPapersAreUntouched:
             "schedule/print_schedule.html", {**ctx, "embed": True, "for_pdf": True}
         )
 
-        assert all(box in html for box in ("@bottom-right", "@bottom-center", "@bottom-left"))
+        # الترويسةُ والتذييلُ من المكوّن المركزيّ (core/print_frame.py، طلبُ #705) لا مكتوبَين هنا.
+        assert 'id="print-header"' in html and 'id="print-footer"' in html
         assert "matrix-foot3" not in html and 'class="matrix-foot"' not in html
-        assert all(cls in html for cls in ("mh-ministry", "mh-school", "mh-year"))
+        assert "mh-ministry" not in html and "mh-school" not in html, "الترويسةُ القديمةُ رُحِّلت"
         assert "size: A3 landscape" in html and "counter(pages)" in html
 
-    def test_a_vision_with_quotes_or_tags_cannot_break_the_style_block(self, world, staff):  # noqa: F811
-        """الرؤيةُ حقلٌ تحرّره الإدارةُ وتدخل سلسلةَ CSS في هامش الصفحة — فتُهرَّب ولا تُغلق `<style>`."""
+    def test_a_vision_with_quotes_or_tags_cannot_break_out(self, world, staff):  # noqa: F811
+        """الرؤيةُ حقلٌ تحرّره الإدارةُ وتُعرض نصّاً في تذييل المكوّن المركزيّ — فيهرَّبها Django تلقائيّاً كسائر المتن."""
         staff(teachers=5, per_teacher=4)
         school = world["school"]
         school.vision = 'رؤية "x" </style><script>alert(1)</script> \\ & '
@@ -243,7 +245,7 @@ class TestTheOtherPapersAreUntouched:
         )
 
         assert "<script>alert(1)" not in html and "</style><script" not in html
-        assert "\\3C " in html and '\\"x\\"' in html
+        assert "lt;/style" in html and "lt;script" in html, "المحتوى مفقودٌ لا مهرَّبٌ فقط"
 
 
 class TestTheNarrowDepartmentRule:

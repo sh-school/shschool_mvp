@@ -1,5 +1,5 @@
 {% load brand_tags %}
-{% load static dict_filters schedule_filters week_tags %}
+{% load static dict_filters schedule_filters week_tags print_frame %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -358,26 +358,15 @@
   المرجعُ بكسلاً: نموذجُ LAY-11 `t1_a3_landscape_1face__pad_7_9pt` (خارج المستودع).
   {% endcomment %}
   {% comment %}
-  التذييلُ صفٌّ واحدٌ 10pt في هوامش الصفحة (يتكرّر على كلّ ورقةٍ ومعه عدّادُ الصفحات): يمين الأعدادُ، وسطُه الرؤيةُ، ويسارُه التاريخُ والصفحة.
-  في الهامش لا في المتن لأنّ عدّادَ الصفحة لا يعمل إلّا هناك — فلا يبقى سطرٌ ثانٍ تحت الصفّ (بلاغ المالك 2026-09-27). الهامشُ السفليُّ 10مم =
-  صفٌّ 8 + فاصل 2، والنصُّ ملتصقٌ بأسفله (أعلى النصّ ≈ 290.5مم من رأس الصفحة كما في ت1؛ كان 281.9 فقياسُ LAY-11). والنصُّ يمرّ بـ`css_string` (الرؤيةُ حقلٌ تحرّره الإدارة)؛ والرؤيةُ من مكوّنها الوحيد `ministry_vision.html` بلا نصٍّ مكرَّر (`test_ministry_vision_footer`).
+  الإطارُ (هندسةُ الصفحة، الترويسةُ، التذييلُ) من المكوّن المركزيّ (`core/print_frame.py`، ش1–ش3، المواصفة ٥) لا مكتوباً هنا —
+  حارسُ `tests/print_frame_ratchet.py` يمنع تعريفَ ترويسةٍ أو تذييلٍ جارٍ خارجَه. `{% print_frame_css %}` بعد `</style>` أدناه،
+  والترويسةُ والتذييلُ في المتن (`{% print_frame_header %}`/`{% print_frame_footer %}`) — الرؤيةُ ضمن التذييل لأنّ A3 عرضيّةً
+  خارج `VISION_IN_HEADER`. الأعمدةُ والصفُّ (7.9pt) بلا تغيير — ذلك محتوى الجدول لا الإطار.
   {% endcomment %}
-  @page {
-    size: A3 landscape; margin: 6mm 9mm 10mm;
-    @bottom-right { content: "{% filter css_string %}المعلّمون: {{ matrix|length }} · الشُّعب: {{ matrix_totals.sections }}{% if matrix_totals %} · الحصص: {{ matrix_totals.total }} من {{ matrix_totals.planned }} مخطَّطة (منها {{ matrix_totals.parallel }} متوازية){% if matrix_totals.missing %} — ناقص {{ matrix_totals.missing }}{% endif %}{% endif %}{% endfilter %}"; font-family: 'Tajawal', sans-serif; font-size: 10pt; white-space: nowrap; vertical-align: bottom; padding-bottom: 2mm; color: {% brand_color "TEXT_PRIMARY" %}; border-top: 0.6pt solid {% brand_color "MAROON" %}; }
-    @bottom-center { content: "{% filter striptags|css_string %}{% include "components/ministry_vision.html" %}{% endfilter %}"; font-family: 'Tajawal', sans-serif; font-size: 10pt; white-space: nowrap; vertical-align: bottom; padding-bottom: 2mm; color: {% brand_color "TEXT_PRIMARY" %}; border-top: 0.6pt solid {% brand_color "MAROON" %}; }
-    @bottom-left { content: "تاريخ الطباعة: {% now 'Y/m/d' %} · صفحة " counter(page) " / " counter(pages); font-family: 'Tajawal', sans-serif; font-size: 10pt; white-space: nowrap; vertical-align: bottom; padding-bottom: 2mm; color: {% brand_color "TEXT_PRIMARY" %}; border-top: 0.6pt solid {% brand_color "MAROON" %}; }
-  }
   @media print {
     html, body { height: auto; }
     .schedule-print { padding: 0; }
     .matrix-wrap { overflow: visible; }
-    .matrix-head { height: 30mm; margin: 0 0 2mm; overflow: hidden; box-sizing: border-box; }
-    .matrix-head .print-emblem { height: 11mm; margin: 0 auto 0.5mm; }
-    .matrix-head .mh-ministry { font-size: 9pt; line-height: 3.6mm; color: {% brand_color "TEXT_SECONDARY" %}; }
-    .matrix-head .mh-school { font-size: 14pt; line-height: 6mm; font-weight: 700; color: {% brand_color "MAROON" %}; }
-    .matrix-head .title { font-size: 12pt; line-height: 5mm; margin: 0; }
-    .matrix-head .mh-year { font-size: 9pt; line-height: 3.6mm; color: {% brand_color "TEXT_MUTED" %}; }
     .schedule-matrix { font-size: 7.9pt; }
     .schedule-matrix th, .schedule-matrix td { height: auto; line-height: 1.05; padding: 0 0.2mm; border-width: 0.3pt; }
     .schedule-matrix thead th { border-bottom-width: 1pt; }
@@ -437,6 +426,7 @@
   }
   {% endif %}
 </style>
+{% if view_type == 'all_teachers' and paper == 'a3' %}{% print_frame_css "a3" "landscape" %}{% endif %}
 {% comment %}
 خطُّ الورقة تجوّل — على الشاشة من `/static/`، وفي PDF من القرص.
 
@@ -538,18 +528,18 @@
 
 {% if view_type == 'all_teachers' %}
 {# ── الجدول العام للمعلمين: صفٌّ لكل معلّم، والأسبوعُ خمسةٌ وثلاثون عموداً ── #}
+  {% if paper == 'a3' %}
+  {% schedule_subtitle year source nav.range as subtitle_text %}
+  {% print_frame_header "a3" "landscape" school "الجدول العام للمعلمين" subtitle=subtitle_text for_pdf=for_pdf %}
+  {% matrix_stats_line matrix_totals matrix|length as stats_text %}
+  {% print_frame_footer "a3" "landscape" school stats=stats_text %}
+  {% else %}
   <div class="matrix-head">
     <img class="print-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="شعار {{ school.name }}" width="295" height="295">
-    {% if paper == 'a3' %}
-    <div class="mh-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر</div>
-    <div class="mh-school">{{ school.name }}</div>
-    <h1 class="title">الجدول العام للمعلمين</h1>
-    <div class="mh-year">العام الدراسي &#8294;{{ year }}&#8297;{% if source == "actual" %} — الأسبوع {{ nav.range }}{% endif %}</div>
-    {% else %}
     <div class="ministry">{{ school.name }}</div>
     <h1 class="title">الجدول العام للمعلمين</h1>
-    {% endif %}
   </div>
+  {% endif %}
 
   {% if matrix %}
   <div class="matrix-wrap">

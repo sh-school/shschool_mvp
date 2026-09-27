@@ -116,6 +116,35 @@ _NAME_MM_MAX = 36.0
 
 
 @register.simple_tag
+def matrix_stats_line(totals: dict | None, teacher_count: Any) -> str:
+    """نصُّ إحصاء الجدول العامّ («المعلّمون: 72 · الشُّعب: 25 · الحصص: 869 من 869 مخطَّطة (منها 6 متوازية)») — بندُ `stats` في تذييل
+    الإطار المركزيّ (`core/templatetags/print_frame.py::print_frame_footer`، طلبُ ترحيل ورقة A3 2026-09-27). نصٌّ حرٌّ جاهزٌ يمرّره
+    القالبُ كما هو، لا يُركِّبه الإطارُ العامّ (تركيبتُه تخصّ هذه الوثيقةَ وحدَها).
+    """
+    parts = [f"المعلّمون: {teacher_count}"]
+    if totals:
+        parts.append(f"الشُّعب: {totals.get('sections')}")
+        line = (
+            f"الحصص: {totals.get('total')} من {totals.get('planned')} مخطَّطة"
+            f" (منها {totals.get('parallel')} متوازية)"
+        )
+        if totals.get("missing"):
+            line += f" — ناقص {totals.get('missing')}"
+        parts.append(line)
+    return " · ".join(parts)
+
+
+@register.simple_tag
+def schedule_subtitle(year: object, source: object, week_range: object) -> str:
+    """سطرُ السنة تحت عنوان الجدول العامّ («العام الدراسي ⁦2026-2027⁩ — الأسبوع 27/9 – 1/10») — بمعامل `subtitle` في
+    `print_frame_header`. عازلا الاتّجاه (LRI/PDI حقيقيّان لا كيانَي HTML) حول رقم العام: نصٌّ لاتينيُّ الأرقام وسط عربيٍّ."""
+    text = f"العام الدراسي ⁦{year}⁩"
+    if source == "actual" and week_range:
+        text += f" — الأسبوع {week_range}"
+    return text
+
+
+@register.simple_tag
 def name_column_mm(rows: Any) -> str:
     """عرضُ عمود الاسم في ورقة A3 (ملم) من أطول اسمِ عرضٍ فيها — فلا يُقصّ اسمٌ (بلاغ المالك 2026-09-27: «عبدالباسط الجا»).
 

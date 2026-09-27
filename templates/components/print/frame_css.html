@@ -1,0 +1,18 @@
+{% load brand_tags l10n %}{% comment %}
+أنماطُ الإطار المطبوع المركزيّ — هندسةُ `@page` من `core/print_frame.py` (`fr.page_css`)، وألوانُ الهويّة من `brand_color`؛ الأحجامُ بالنقطة والملّيمتر لا px.
+الترويسةُ والتذييلُ عنصران جاريان (`running`) يملأان مربّعَي الهامش العلويّ والسفليّ: لا قالبَ يعرّف ترويستَه أو تذييلَه، وحارسُ `tests/test_print_frame_guard.py` يمنع ذلك.
+الأرقامُ داخل `{% localize off %}`: اللغةُ العربيّة تكتب الفاصلةَ العشريّة «,» فيسقط `192,0mm` من CSS بلا شكوى.
+{% endcomment %}{% localize off %}<style>
+{{ fr.page_css|safe }}
+#print-header { position: running(print-header); width: {{ fr.body_width }}mm; height: {{ fr.header_h }}mm; text-align: center; padding-top: {{ fr.margin_top|add:"-2" }}mm; font-family: 'Tajawal', 'Amiri', sans-serif; direction: rtl; }
+#print-header .pf-emblem { height: 11mm; width: auto; display: block; margin: 0 auto 0.5mm; }
+#print-header .pf-ministry { font-size: 9pt; line-height: 3.6mm; color: {% brand_color "TEXT_MUTED" %}; }
+#print-header .pf-school { font-size: 14pt; font-weight: 700; line-height: 5.6mm; color: {% brand_color "MAROON" %}; }
+#print-header .pf-title { font-size: 12pt; font-weight: 700; line-height: 4.8mm; color: {% brand_color "TEXT_PRIMARY" %}; }
+#print-header .pf-sub { font-size: 9pt; line-height: 3.6mm; color: {% brand_color "TEXT_MUTED" %}; }
+#print-header .pf-vision { font-size: 10pt; line-height: 4.4mm; color: {% brand_color "MAROON_DARK" %}; }
+#print-footer { position: running(print-footer); width: {{ fr.body_width }}mm; height: {{ fr.footer_h }}mm; box-sizing: border-box; border-top: 0.4mm solid {% brand_color "MAROON" %}; padding-top: 1.4mm; text-align: center; white-space: nowrap; overflow: hidden; font-family: 'Tajawal', 'Amiri', sans-serif; direction: rtl; font-size: {{ footer_pt }}pt; line-height: 1.25; color: {% brand_color "TEXT_PRIMARY" %}; }
+#print-footer .pf-sep { color: {% brand_color "TEXT_MUTED" %}; padding: 0 1mm; }
+#print-footer .pf-item, #print-footer .pf-date { white-space: nowrap; }
+#print-footer .pf-page::after { content: "\2066" counter(page) " / " counter(pages) "\2069"; }
+</style>{% endlocalize %}
