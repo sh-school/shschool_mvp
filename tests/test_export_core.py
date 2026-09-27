@@ -127,6 +127,29 @@ class TestTheEntryPoint:
         assert body["job"] == body["job_id"] == str(job.id)
         assert body["status_url"] == f"/exports/{job.id}/status/" and body["poll_ms"] == 2000
 
+    def test_the_job_goes_to_the_projects_default_queue_unless_one_is_configured(
+        self, school, principal_user, register, monkeypatch, settings
+    ):
+        """كان `queue="celery"` مكتوباً: فخادمُ جلسةٍ أو المعاينةُ المركزيّة (8500) قائمتُه الافتراضيّةُ باسم قاعدته
+        (`SESSION_NAMESPACE`) وعاملُه لا يسمع «celery» — فبقي التصديرُ معلَّقاً حتى «تأخّر تحضير الملفّ» (2026-09-26).
+        فبلا `EXPORT_JOB_QUEUE` لا قائمةَ صريحة (تُستعمل الافتراضيّةُ)، ومعها تُستعمل كما هي."""
+        import core.tasks as tasks_module
+
+        register()
+        sent: list[dict] = []
+        monkeypatch.setattr(
+            tasks_module.run_export_job, "apply_async", lambda *a, **k: sent.append(k)
+        )
+
+        if hasattr(settings, "EXPORT_JOB_QUEUE"):
+            del settings.EXPORT_JOB_QUEUE
+        respond_export(_request(school, principal_user, "q=1", **AJAX), "test.export")
+        settings.EXPORT_JOB_QUEUE = "exports"
+        respond_export(_request(school, principal_user, "q=2", **AJAX), "test.export")
+
+        assert "queue" not in sent[0], "قائمةٌ صريحةٌ بلا ضبط تُضيّع المهمّةَ على خوادم الجلسات"
+        assert sent[1]["queue"] == "exports"
+
     def test_the_same_request_within_a_minute_returns_the_same_job(
         self, school, principal_user, register
     ):

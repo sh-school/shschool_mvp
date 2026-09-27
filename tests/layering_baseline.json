@@ -27,6 +27,41 @@
    "reason": "زاد استدعاءً في #328 (f4828437) قبل وصول الحارس إلى main؛ يُنقل إلى dashboard/ ضمن البند 20",
    "to": 188,
    "where": "core/views_dashboard.py::dashboard"
+  },
+  {
+   "from": 159,
+   "metric": "lines",
+   "reason": "سطرٌ واحدٌ لرؤية الوزارة في التذييل (قرار المالك 2026-09-27)، عرضٌ مديونٌ أصلاً قبل هذا الفرع",
+   "to": 160,
+   "where": "assessments/views.py::export_gradebook"
+  },
+  {
+   "from": 105,
+   "metric": "lines",
+   "reason": "سطرٌ واحدٌ لرؤية الوزارة في التذييل (قرار المالك 2026-09-27)، عرضٌ مديونٌ أصلاً قبل هذا الفرع",
+   "to": 106,
+   "where": "staging/views.py::download_grade_template"
+  },
+  {
+   "from": 68,
+   "metric": "lines",
+   "reason": "سطرٌ واحدٌ لرؤية الوزارة في التذييل (قرار المالك 2026-09-27)، عرضٌ مديونٌ أصلاً قبل هذا الفرع",
+   "to": 69,
+   "where": "student_affairs/views.py::activities_export_excel"
+  },
+  {
+   "from": 72,
+   "metric": "lines",
+   "reason": "سطرٌ واحدٌ لرؤية الوزارة في التذييل (قرار المالك 2026-09-27)، عرضٌ مديونٌ أصلاً قبل هذا الفرع",
+   "to": 73,
+   "where": "student_affairs/views.py::behavior_export_excel"
+  },
+  {
+   "from": 100,
+   "metric": "lines",
+   "reason": "سطرٌ واحدٌ لرؤية الوزارة في التذييل (قرار المالك 2026-09-27)، عرضٌ مديونٌ أصلاً قبل هذا الفرع",
+   "to": 101,
+   "where": "student_affairs/views.py::tardiness_export_excel"
   }
  ],
  "core_import_sites": {
@@ -221,7 +256,7 @@
    "orm": 13
   },
   "assessments/views.py::export_gradebook": {
-   "lines": 159,
+   "lines": 160,
    "orm": 11
   },
   "assessments/views.py::grade_entry": {
@@ -582,7 +617,7 @@
    "orm": 10
   },
   "staging/views.py::download_grade_template": {
-   "lines": 105
+   "lines": 106
   },
   "staging/views.py::import_grades_select": {
    "orm": 15
@@ -595,7 +630,7 @@
    "orm": 8
   },
   "student_affairs/views.py::activities_export_excel": {
-   "lines": 68,
+   "lines": 69,
    "orm": 8
   },
   "student_affairs/views.py::activity_add": {
@@ -620,7 +655,7 @@
    "orm": 26
   },
   "student_affairs/views.py::behavior_export_excel": {
-   "lines": 72,
+   "lines": 73,
    "orm": 12
   },
   "student_affairs/views.py::behavior_overview": {
@@ -664,7 +699,7 @@
    "orm": 12
   },
   "student_affairs/views.py::tardiness_export_excel": {
-   "lines": 100,
+   "lines": 101,
    "orm": 16
   },
   "student_affairs/views.py::tardiness_list": {

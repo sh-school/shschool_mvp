@@ -44,6 +44,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 # ── الفاعلون ────────────────────────────────────────────────────────
 T = "المعلّم"
@@ -122,8 +123,25 @@ class Ladder:
     def is_beyond(self, repetition: int) -> bool:
         return repetition > len(self.steps)
 
+    def to_json(self) -> dict[str, Any]:
+        """تحويلُ السلّم إلى بنيةٍ قابلةٍ للتخزين في JSONB وإرجاعها للـAPI."""
+        return {
+            "ladder_key": self.key,
+            "pages": self.pages,
+            "max_reps": len(self.steps),
+            "steps": [
+                {
+                    "rep": i + 1,
+                    "actions": [{"actor": actor, "action": action} for actor, action in step],
+                }
+                for i, step in enumerate(self.steps)
+            ],
+            "beyond": self.beyond,
+            "notes": list(self.notes),
+        }
 
-def _s(*pairs):
+
+def _s(*pairs: tuple[str, str]) -> tuple[tuple[str, str], ...]:
     return tuple(pairs)
 
 
@@ -1252,7 +1270,8 @@ D4_DANGER = Ladder(
             (PS, CASE_PS),
         ),
         _s(
-            # أوّلُ صفوف «الثانية» لا آخرُ «الأولى»: حدُّ خليّة التكرار في ص125 يسبقه (2026-09-25).
+            # ص125: حدُّ خليّة «عدد التكرار» بين صفّ الاختصاصيّ النفسيّ وصفّ الإحالة (2026-09-25).
+            # ت2 = 6 إجراءات: إحالة + فصل + تحفّظ + أمنية + توقيع ولي الأمر + تعهّد الطالب.
             (
                 TEAM,
                 "إحالةُ الطالب إلى الجهة المختصّة (قسم حماية ورعاية الطلبة) وإشعارُ وليّ الأمر "
@@ -1260,7 +1279,7 @@ D4_DANGER = Ladder(
             ),
             (TEAM, "فصلُ الطالب من المدرسة لحين وصول ردٍّ من الجهة المختصّة"),
             (TEAM, "التحفّظُ على الممنوعات وتسليمُها إلى الجهات المختصّة إذا استدعى الأمر"),
-            (TEAM, "طلبُ الجهات الأمنيّة المختصّة في حال استخدام السكاكين أو حيازتها"),
+            (TEAM, "طلبُ الجهات الأمنيّة المختصّة اتّخاذَ الإجراءات اللازمة"),
             (TEAM, TEAM_SIGN),
             (TEAM, TEAM_PLEDGE),
         ),

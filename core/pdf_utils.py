@@ -188,6 +188,13 @@ def _inject_wp_page_header_css(
     today_str = timezone.now().strftime("%Y/%m/%d")
     title_part = f" — {title}" if title else ""
 
+    # رؤيةُ الوزارة (قرارُ المالك 2026-09-27: في التذييل لكلّ الملفّات المصدَّرة بلا استثناء) — من المصدر الواحد
+    # (`components/ministry_vision.html` عبر core.ministry_vision)؛ الصفحاتُ هنا بلا `school` حقيقيّ (وصلها نصُّ اسمٍ
+    # مستخرَجٌ من HTML لا كائنٌ)، فتظهر بنصّها الافتراضيّ — كما تفعل الجزئيّةُ نفسُها حين تُستدعى بلا مدرسة.
+    from core.ministry_vision import ministry_vision_text
+
+    vision = ministry_vision_text().replace('"', "'")
+
     # ── إعدادات الحجم والهوامش حسب paper_size ──
     if paper_size == "A3":
         page_size_css = "A3 landscape"
@@ -250,11 +257,15 @@ table {{ direction: rtl !important; border-collapse: collapse; }}
         padding-top:  5px;
     }}
     @bottom-center {{
-        content:      counter(page) " / " counter(pages);
+        /* عدّادُ الصفحة ثمّ رؤيةُ الوزارة، **سطرٌ واحدٌ دائماً لا اثنان** (قرارُ المالك 2026-09-27: الرؤيةُ لا تُثنّى سطرين في أيّ مخرَج) —
+           لا `\\A` ولا `white-space: pre-line`؛ خطٌّ أصغرُ من عدّاد الصفحة وحدَه ليتّسعا في السطر نفسِه. */
+        content:      counter(page) " / " counter(pages) " — " "{vision}";
+        direction:    rtl;
         font-family:  'Tajawal', Arial, sans-serif;
-        font-size:    8.5px;
+        font-size:    7px;
         color:        {brand.TEXT_SECONDARY};
         vertical-align: top;
+        text-align:   center;
         padding-top:  5px;
     }}
     @bottom-left {{

@@ -225,7 +225,12 @@ def attendance_report_xlsx(request: HttpRequest) -> HttpResponse:
         object_repr=f"حضور الموظفين {year:04d}-{month:02d}",
     )
     return cast(
-        HttpResponse, excel_to_response(workbook, f"حضور_الموظفين_{year:04d}_{month:02d}.xlsx")
+        HttpResponse,
+        excel_to_response(
+            workbook,
+            f"حضور_الموظفين_{year:04d}_{month:02d}.xlsx",
+            school=getattr(request, "school", None),
+        ),
     )
 
 

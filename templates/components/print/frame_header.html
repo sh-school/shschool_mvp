@@ -1,0 +1,12 @@
+{% load static %}{% comment %}<style>{% include "components/print/frame_css.html" %}</style>{% endcomment %}{% comment %}
+أنماطُ هذا المكوّن في `frame_css.html` يحقنها `{% print_frame_css %}` في رأس الوثيقة (سطرُ `<style>` أعلاه تصريحٌ لحارس الهويّة: الأصنافُ معرَّفةٌ هناك)؛
+الترويسةُ الكاملة للإطار المطبوع المركزيّ (`{% print_frame_header %}`): شعارٌ فوزارةٌ فمدرسةٌ فعنوانٌ فسطرُ السنة، وسطرُ الرؤية حيث ينقلها الإطارُ إليها.
+الشعارُ: في PDF يحلّ WeasyPrint المسارَ النسبيَّ من جذر المشروع، وعلى الشاشة من رابط الملفّات الثابتة (`for_pdf`).
+{% endcomment %}<div id="print-header">
+  <img class="pf-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="" width="295" height="295">
+  <div class="pf-ministry">{{ ministry }}</div>
+  <div class="pf-school">{{ school.name }}</div>
+  <div class="pf-title">{{ title }}</div>
+  {% if subtitle %}<div class="pf-sub">{{ subtitle }}</div>{% endif %}
+  {% if vision %}<div class="pf-vision">{{ vision }}</div>{% endif %}
+</div>

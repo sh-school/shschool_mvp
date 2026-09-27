@@ -19,15 +19,19 @@
   {% page_header "مركز قيادة الجودة" subtitle="عرضٌ حيٌّ لصحّة المنصّة" icon="quality" %}
     {% callout "info" %}كلُّ لوحةٍ تقرأ آخرَ قيمةٍ جمعها المجمِّعُ الخاصّ بها. «غير معلوم» يعني أنّها لم تُجمَع بعدُ أو انقطع جمعُها — ولا يعني أنّ الأمر سليم.{% endcallout %}
     <button type="button" class="btn-secondary" data-qc-refresh>تحديثٌ الآن</button>
+    <button type="button" class="btn-secondary" data-modal-open="qc-panels" aria-haspopup="dialog">المؤشّراتُ المعروضة <span data-qc-count aria-live="polite">{{ shown }} من {{ total }}</span></button>
     <span class="ui-note" data-key="generated">لم يُحدَّث بعدُ</span>
   {% endpage_header %}
 
   {# تنبيهُ الجلسة/العقد: مخفيٌّ حتى يكشفه السكربتُ (انتهت الجلسة أو تغيّر إصدارُ العقد) #}
   <div role="status" data-qc-note hidden>{% callout "error" %}<span data-qc-note-text></span>{% endcallout %}</div>
 
-  <div class="qc-grid">
-    {% for panel in snapshot.panels %}{% include "command_center/_panel.html" %}{% endfor %}
+  <div class="auto-grid is-tiles">
+    {% for panel in snapshot.panels %}<div data-card="{{ panel.key }}"{% if panel.hidden %} hidden{% endif %}>{% include "command_center/_panel.html" %}</div>{% endfor %}
   </div>
+  <div data-qc-none{% if shown %} hidden{% endif %}>{% callout "info" %}كلُّ المؤشّرات مخفيّة — أظهِر ما تريد من زرّ «المؤشّراتُ المعروضة».{% endcallout %}</div>
+
+  {% include "command_center/_picker.html" %}
 </div>
 {% endblock %}
 

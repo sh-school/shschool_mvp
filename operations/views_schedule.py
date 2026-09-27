@@ -128,6 +128,9 @@ def weekly_schedule(request):
     ctx["departments"] = (
         ScheduleService.department_options(ctx["school"], ctx["year"]) if ctx["may_browse"] else []
     )
+    ctx["wings"] = (
+        ScheduleService.wing_options(ctx["school"], ctx["year"]) if ctx["may_browse"] else []
+    )
     ctx["conflicts"] = (
         ScheduleService.detect_conflicts(ctx["school"], ctx["year"])
         if request.user.is_admin() and not ctx["preview"]

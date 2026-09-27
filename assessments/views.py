@@ -19,7 +19,7 @@ from core import brand
 from core.academic_calendar import academic_year_for, academic_year_for_school
 from core.capabilities import capability_required
 from core.domain.tones import GRADE_CELL, tone_for
-from core.export_utils import excel_table_styles, xl_font
+from core.export_utils import apply_print_footer, excel_table_styles, xl_font
 from core.models import ClassGroup, CustomUser, StudentEnrollment
 from core.models.academic import grade_order
 from core.permissions import teacher_can_access_student
@@ -662,6 +662,7 @@ def export_gradebook(request, setup_id):
         object_id=setup.pk,
         object_repr=f"سجل درجات {setup.subject.name_ar} — {setup.class_group} — {semester}",
     )
+    apply_print_footer(wb, request.school)  # رؤيةُ الوزارة في ذيل الطباعة (قرار المالك 2026-09-27)
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
