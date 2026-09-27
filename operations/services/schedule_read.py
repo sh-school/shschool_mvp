@@ -368,15 +368,55 @@ class ScheduleReadMixin:
             )
         return sorted(seen.values(), key=lambda d: (d["order"], d["name"]))
 
+    #: رمزُ «خارج الأجنحة» في الرابط — شُعبُ التربية الخاصة بلا جناحٍ بقرار الإدارة (`Wing`).
+    NO_WING = "none"
+
     @classmethod
-    def class_pages(cls, school: School, academic_year: str | None = None) -> list[dict]:
-        """صفحةٌ لكلّ شعبة بترتيب المدرسة: من 7/1 إلى 12/4 — وفي الخانة المادّةُ والمعلّم."""
+    def wing_options(cls, school: School, academic_year: str | None = None) -> list[dict]:
+        """أجنحةُ العام التي فيها شُعبٌ مجدولةٌ — للقائمة المنسدلة، بترتيب الأجنحة، ثمّ «خارج الأجنحة» إن وُجدت شُعبٌ بلا جناح.
+
+        من الجدول نفسه لا من جدول الأجنحة وحده (كالأقسام): جناحٌ بلا شُعبٍ مجدولةٍ خيارٌ يفتح صفحةً فارغة.
+        """
+        academic_year = academic_year or academic_year_for_school(school)
+        wing_rows = (
+            ScheduleSlot.objects.filter(school=school, academic_year=academic_year, is_active=True)
+            .order_by()
+            .values_list(
+                "class_group__wing__code", "class_group__wing__name", "class_group__wing__order"
+            )
+            .distinct()
+        )
+        # ماديّاً في متغيّرٍ جديد لا إعادةَ الإسناد على `wing_rows` نفسِه: تحويلُ QuerySet إلى list في المكان
+        # ذاته يخلط نوعَي المتغيّر عند mypy (`QuerySet[...]` ثمّ `list[...]`)، وهذا نداءٌ للقاعدة يلزمنا مرّةً واحدة
+        # لا مرّتين (السطرُ التالي والشرطُ الأخير يقرآن النتيجةَ نفسَها).
+        materialized_rows: list[tuple[str | None, str | None, int | None]] = list(wing_rows)
+        wings = {code: (name, order) for code, name, order in materialized_rows if code}
+        options = [
+            {"code": code, "name": name}
+            for code, (name, order) in sorted(wings.items(), key=lambda kv: (kv[1][1], kv[0]))
+        ]
+        if any(code is None for code, _name, _order in materialized_rows):
+            options.append({"code": cls.NO_WING, "name": "خارج الأجنحة"})
+        return options
+
+    @classmethod
+    def class_pages(
+        cls, school: School, academic_year: str | None = None, wing: str | None = None
+    ) -> list[dict]:
+        """صفحةٌ لكلّ شعبة بترتيب المدرسة: من 7/1 إلى 12/4 — وفي الخانة المادّةُ والمعلّم.
+
+        `wing`: رمزُ جناحٍ، أو `NO_WING` للشُّعب بلا جناح؛ وفارغٌ = المدرسةُ كلُّها.
+        """
         academic_year = academic_year or academic_year_for_school(school)
         slots = (
             ScheduleSlot.objects.filter(school=school, academic_year=academic_year, is_active=True)
-            .select_related("teacher", "class_group", "subject")
+            .select_related("teacher", "class_group", "class_group__wing", "subject")
             .order_by(grade_order("class_group__grade"), "class_group__section")
         )
+        if wing == cls.NO_WING:
+            slots = slots.filter(class_group__wing__isnull=True)
+        elif wing:
+            slots = slots.filter(class_group__wing__code=wing)
         rows: dict = {}
         for slot in slots:
             row = rows.get(slot.class_group_id)

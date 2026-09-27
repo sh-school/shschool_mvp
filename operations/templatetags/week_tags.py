@@ -5,7 +5,7 @@ from django import template
 from django.utils.html import format_html_join
 from django.utils.safestring import SafeString, mark_safe
 
-from core.dept_colors import dept_key
+from core.dept_colors import dept_key, wing_key
 from operations.schedule_paper import cell_kind
 
 register = template.Library()
@@ -18,6 +18,21 @@ register.filter("cell_kind", cell_kind)
 #: `{{ row.department.code|dept_key }}` — مفتاحُ لون القسم المركزيّ (`dept-{مفتاح}` في 20-components) لجدول الشاشة العامّ؛
 #: الورقةُ تبقى بصنفها `dept-{كود}` لأنّ ألوانَها في قالبها (انظر `pdf/matrix_table.html`).
 register.filter("dept_key", dept_key)
+
+#: `{{ wing.order|wing_key }}` — مفتاحُ لون الجناح المركزيّ (`dept-{مفتاح}` نفسُه في 20-components، لوحةُ الأقسام) لصفحة جداول الشُّعب.
+register.filter("wing_key", wing_key)
+
+
+@register.filter
+def open_if_single(start_open: object, n: object) -> bool:
+    """`{{ start_open|open_if_single:n }}` — تفتح بطاقةً فرعيّةً (معلّمٌ تحت قسم، شعبةٌ تحت جناح) حين اختِيرت مجموعتُها
+    بعينها من القائمة (`start_open`) **وكانت وحيدةً فيها** (`n<=1`، كمعلّمٍ اختِير بذاته فصار قسمُه مجموعةً من واحد).
+    مجموعةٌ من عدّةٍ (قسمٌ بعشرة معلّمين، جناحٌ بخمس شُعب) تبقى فروعُها مطويّةً افتراضاً وإن فُتح غلافُها (قرارُ المالك 2026-09-27)
+    — يتصفّح المستخدمُ القائمةَ مطويّةً ويفتح ما يريد بعينه، لا شاشةً طويلةً بعشرة جداولَ كاملة."""
+    try:
+        return bool(start_open) and int(str(n)) <= 1
+    except (TypeError, ValueError):
+        return False
 
 
 def dept_words(text: object) -> list[str]:
