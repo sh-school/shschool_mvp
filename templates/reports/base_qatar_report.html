@@ -367,7 +367,7 @@ body {
   بيانات مدرسةٍ بعينها على وثائق كل مدرسة في منصّةٍ متعدّدة المدارس.
   {% endcomment %}
   <div class="ft-school">{{ school.name }}{% if school.phone %} · هاتف: {{ school.phone }}{% endif %}{% if school.email %} · {{ school.email }}{% endif %}{% if school.city %} · {{ school.city }}، قطر{% endif %}</div>
-  <div class="ft-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %}</div>
+  <div class="ft-ministry">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %} · © {% now "Y" %}</div>
 </div>
 
 <!-- الإطار -->
