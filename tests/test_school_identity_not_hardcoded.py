@@ -59,10 +59,12 @@ def test_the_report_base_reads_the_school_object():
 
 
 def test_the_behavior_document_footer_reads_the_school_object():
+    """التذييلُ الآن من الإطار المركزيّ (طلبُ الترحيل قبل #705، 2026-09-27) — يمرَّر `school` نفسُه لا حقولُه نصّاً."""
     src = pathlib.Path("templates/behavior/pdf/base_form.html").read_text(encoding="utf-8")
+    tags_src = pathlib.Path("core/templatetags/print_frame.py").read_text(encoding="utf-8")
 
-    assert "{{ school.name }}" in src
-    assert "{{ school.phone }}" in src
+    assert re.search(r"{%\s*print_frame_footer\s+\S+\s+\S+\s+school\s*%}", src)
+    assert 'getattr(school, "phone"' in tags_src
 
 
 @pytest.mark.parametrize(

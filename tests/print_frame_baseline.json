@@ -1,8 +1,7 @@
 {
  "footer_classes": {
   "core/pdf_utils.py": 1,
-  "templates/behavior/pdf/base_form.html": 2,
-  "templates/quality/observation_pdf.html": 5,
+  "templates/quality/observation_pdf.html": 4,
   "templates/reports/base_qatar_report.html": 2,
   "templates/schedule/print_pages.html": 3,
   "templates/wings/pdf/sheet_footer.html": 1,
