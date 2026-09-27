@@ -375,6 +375,25 @@ def export_filename(ctx: dict, extension: str) -> str:
     return f"{get_valid_filename(stem)}.{extension}"
 
 
+def _wing_groups(pages: list[dict]) -> list[dict]:
+    """شُعبُ العرض مجموعةً بجناحها بترتيب الأجنحة، و«خارج الأجنحة» أخيراً — للشاشة وحدَها (ترتيبُ الورقة المطبوعة يبقى ترتيبَ المدرسة)."""
+    groups: dict[str, dict] = {}
+    for page in pages:
+        wing = page["class_group"].wing
+        code = wing.code if wing else ScheduleService.NO_WING
+        group = groups.setdefault(
+            code,
+            {
+                "code": code,
+                "name": wing.name if wing else "خارج الأجنحة",
+                "order": wing.order if wing else 10**6,
+                "pages": [],
+            },
+        )
+        group["pages"].append(page)
+    return sorted(groups.values(), key=lambda g: (g["order"], g["code"]))
+
+
 def pages_payload(school, get_params) -> dict:
     """ما يُطبع: معلّمون (كلُّهم أو قسمٌ أو واحدٌ) أو شُعب — والاتّجاهُ من الرابط.
 
@@ -392,9 +411,14 @@ def pages_payload(school, get_params) -> dict:
         paper = "a4"
 
     departments = ScheduleService.department_options(school, year)
+    wings = ScheduleService.wing_options(school, year)
+    wing = get_params.get("wing") or "all"
+    if wing != "all" and wing not in {w["code"] for w in wings}:
+        wing = "all"  # جناحٌ لا شُعبَ له في هذا العام: المدرسةُ كلُّها لا صفحةٌ فارغةٌ بعنوانٍ كاذب
     if kind == "classes":
-        pages = ScheduleService.class_pages(school, year)
-        title = "جداول الشُّعب"
+        pages = ScheduleService.class_pages(school, year, wing=None if wing == "all" else wing)
+        wing_name = next((w["name"] for w in wings if w["code"] == wing), "")
+        title = "جداول الشُّعب" if wing == "all" else f"جداول شُعب {wing_name}"
     else:
         department = None if dept == "all" or teacher_id else dept
         pages = ScheduleService.teacher_pages(
@@ -412,6 +436,8 @@ def pages_payload(school, get_params) -> dict:
             title = "جداول معلّمي المدرسة"
 
     selection = {"kind": kind, "dept": dept, "orient": orient, "paper": paper, "year": year}
+    if kind == "classes" and wing != "all":
+        selection["wing"] = wing
     if teacher_id:
         selection["teacher"] = teacher_id
 
@@ -424,9 +450,18 @@ def pages_payload(school, get_params) -> dict:
         "title": title,
         "pages": pages,
         "departments": departments,
+        "wings": wings,
+        "selected_wing": wing if kind == "classes" else "all",
+        # الطيُّ الافتراضيُّ للجدول العامّ للمعلّمين وحدَه (قرارُ المالك 2026-09-27): كلُّ ما اختاره المستخدمُ من القائمة (قسمٌ أو جناحٌ أو الشُّعب أو معلّمٌ) يُفتح.
+        "start_open": not (kind == "teachers" and dept == "all" and not teacher_id),
+        "wing_groups": _wing_groups(pages) if kind == "classes" else [],
         "teachers": teachers,
         "classes": classes,
-        "picker_current": "pages:classes" if kind == "classes" else f"pages:teachers:{dept}",
+        "picker_current": (
+            ("pages:classes" if wing == "all" else f"pages:classes:{wing}")
+            if kind == "classes"
+            else f"pages:teachers:{dept}"
+        ),
         "selected_dept": dept if not teacher_id else "",
         "orient": orient,
         # السطرُ يومٌ والعمودُ حصّة، واسمُ اليوم مقرونٌ بخاناته في `by_day`.

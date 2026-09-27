@@ -245,6 +245,7 @@ def section_card(
     flush=False,
     foldable=False,
     span="",
+    opened=False,
 ):
     """قسمٌ بترويسةٍ عنّابيّة — والعددُ أو الفترةُ في طرفها لا في سطرٍ تحتها.
 
@@ -255,6 +256,8 @@ def section_card(
     يطول محتواها بطول سجلٍّ (قرارُ 2026-09-18). القسّمةُ نفسُها لا مكوّنٌ آخر:
     فمن كتب `card-qatar`/`card-bar` بيده خارج هذا الملفّ رفضته السقّاطةُ
     (`tests/design_ratchet.py`، `legacy_header`).
+
+    و`opened` يفتح البطاقةَ القابلةَ للطيّ عند التحميل — لمن اختار المستخدمُ عرضَه بعينه (قسمٌ أو جناحٌ من القائمة) لا العرضَ الشامل.
 
     و`span` عرضُ البطاقة داخل `.card-flow`: فارغٌ عمودٌ واحد، و`wide` نصفُ السطر،
     و`full` السطرُ كلُّه — فتتجاور البطاقاتُ الصغيرة ولا تحتلّ واحدةٌ سطراً وحدَها.
@@ -281,6 +284,7 @@ def section_card(
                 "empty_sub": empty_sub,
                 "flush": flush,
                 "foldable": foldable,
+                "opened": opened,
                 "span": span,
                 "tips": mark_safe(tips),
             },

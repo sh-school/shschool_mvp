@@ -3,7 +3,7 @@
 {% load icons %}
 <section class="card-qatar ui-section{% if flush %} is-flush{% endif %}{% if span %} is-{{ span }}{% endif %}">
   {% if foldable %}
-  <details class="ui-section__fold">
+  <details class="ui-section__fold"{% if opened %} open{% endif %}>
     <summary class="card-bar ui-section__fold-summary">
       {% icon_named icon %}
       <h2 class="ui-section__title">{{ title }}</h2>
