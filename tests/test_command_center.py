@@ -109,6 +109,14 @@ def test_the_page_draws_every_panel_as_unknown_when_nothing_was_collected(
     assert 'data-qc-url="/command-center/snapshot/"' in html
 
 
+def test_the_headline_carries_its_full_text_in_title_for_the_line_clamp(client_as, developer_user):
+    """QCC-09: العنوانُ مقصوصٌ سطرَين (`.qc-panel__headline`، line-clamp) — والنصُّ الكاملُ في `title` (1.4.12)."""
+    contract.store("production", {"status": "ok", "headline": "عنوانٌ طويلٌ يُختبر قصُّه في اللوحة"})
+    html = client_as(developer_user).get("/command-center/").content.decode()
+    assert 'title="عنوانٌ طويلٌ يُختبر قصُّه في اللوحة"' in html
+    assert 'title="لم يُجمَع بعدُ"' in html  # لوحةٌ لم تُجمَع بعدُ — العنوانُ الافتراضيّ نفسُه في title
+
+
 def test_the_snapshot_is_json_v1_in_panel_order_and_never_cached(client_as, developer_user):
     response = client_as(developer_user).get("/command-center/snapshot/")
     assert response["Content-Type"].startswith("application/json")

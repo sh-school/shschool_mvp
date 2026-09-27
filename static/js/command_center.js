@@ -47,9 +47,12 @@
     return Math.min(MAX_SECONDS, Math.max(MIN_SECONDS, smallest));
   }
 
-  function setText(scope, key, text) {
+  function setText(scope, key, text, withTitle) {
     var node = scope.querySelector('[data-key="' + key + '"]');
-    if (node && node.textContent !== text) { node.textContent = text; }
+    if (!node) { return; }
+    if (node.textContent !== text) { node.textContent = text; }
+    // العنوانُ الكاملُ في title لعنصرٍ يقصّه line-clamp (1.4.12) — يُزامَن معه لا يُكتب مرّةً عند الرسم فيَبلى.
+    if (withTitle && node.title !== text) { node.title = text; }
   }
 
   function ageText(seconds) {
@@ -105,7 +108,7 @@
     var key = data.key;
     setText(panel, key + ".state", STATE_LABEL[status]);
     setText(root, key + ".pstate", STATE_LABEL[status]);
-    setText(panel, key + ".headline", String(data.headline || "") || "لم يُجمَع بعدُ");
+    setText(panel, key + ".headline", String(data.headline || "") || "لم يُجمَع بعدُ", true);
     setText(panel, key + ".detail", String(data.detail || ""));
     setText(panel, key + ".age", ageText(data.age_seconds));
     paintDial(panel, key, clampGauge(data.gauge));
