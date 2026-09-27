@@ -37,9 +37,13 @@ def test_student_search_uses_dom_text_nodes_for_api_data():
     assert "var paper = '{{ paper|escapejs }}';" in source
 
     views = read("reports/views.py")
+    # المقاسُ المسموح في `reports/selectors.py` (تشاركه معاينةُ العرض وبنّاءُ التصدير في العامل)، والـview تفوِّض إليه بلا قراءةٍ خامّ.
+    selectors = read("reports/selectors.py")
     assert "def _get_paper_size(request) -> str:" in views
-    assert 'paper in {"A3", "A4"}' in views
-    assert views.count('request.GET.get("paper"') == 1
+    assert "paper_size(request.GET)" in views
+    assert 'request.GET.get("paper"' not in views
+    assert 'paper in {"A3", "A4"}' in selectors
+    assert selectors.count('params.get("paper"') == 1
 
 
 def test_schedule_controls_do_not_assign_dom_values_to_location_href():

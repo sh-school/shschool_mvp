@@ -285,6 +285,13 @@ class ScheduleReadMixin:
         ):
             row["display_name"] = display
 
+        # اسمُ العرض الضيّق (مقطعان: أوّلٌ + كنية) على القائمة كلِّها لأنّ فضَّ التصادم يحتاجها. والاسمُ الكاملُ يبقى في
+        # `row["teacher"]` — للتلميح (`title`) وبطاقةِ الخانة و`data-teacher` والتصدير.
+        for row, display in zip(
+            ordered, short_names([r["teacher"].full_name or "" for r in ordered]), strict=True
+        ):
+            row["display_name"] = display
+
         return ordered
 
     @staticmethod
