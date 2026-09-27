@@ -92,7 +92,7 @@ def test_score_penalises_red_more_than_amber_and_never_goes_negative():
 
 
 def test_every_panel_has_exactly_one_collector():
-    grouped = [*collectors.LOCAL, *collectors.REMOTE]
+    grouped = [*collectors.LOCAL, *collectors.REMOTE, *collectors.WEB]
     assert sorted(grouped) == sorted(p.key for p in contract.PANELS)
     assert len(grouped) == len(set(grouped))
 

@@ -795,3 +795,7 @@ VERDICT_ENGINE_ENABLED = os.environ.get("VERDICT_ENGINE_ENABLED", "").strip().lo
 
 # مركزُ قيادة الجودة: التنبيهُ الحيّ في جرس المطوّر عند الأحمر (command_center/alerts.py). مفتاحُ الإيقاف: false.
 QCC_NOTIFY_ENABLED = config("QCC_NOTIFY_ENABLED", default=True, cast=bool)
+
+# رمزُ قراءةٍ لـGitHub (fine-grained، قراءةٌ فقط) اختياريّ لمركز قيادة الجودة: يرفع حدَّ الطلبات من 60 إلى 5000 في الساعة ويتيح تنبيهاتِ Dependabot.
+# فارغٌ (الأصل) = بلا رمزٍ وبلا تنبيهات اعتماديّات. سرٌّ: يُضبط في Railway لا في المستودع، ويُعلَن في `.railway/railway.ts` إن ضُبط.
+QCC_GITHUB_TOKEN = config("QCC_GITHUB_TOKEN", default="")

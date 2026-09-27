@@ -124,7 +124,7 @@ def frame(paper: str, orient: str) -> Frame:
 #: بالأولويّة: الثلاثةُ الأولى ملزِمة، والباقي يُدرَج ما وَسِع الصفُّ (اسمُ الوزارة تكرارٌ لما في الترويسة فهو أوّلُ ما يسقط بعد الرؤية).
 #: `stats` بندٌ حرٌّ اختياريّ لمستهلكٍ يحمل رقماً لا يصلح لبقيّة العناصر (مثلاً «المعلّمون: N · الشُّعب: N · الحصص: N من N») — نصٌّ جاهزٌ
 #: يمرّره المستهلكُ، لا حقلاً مُركَّباً هنا: التركيبُ يختلف لكلّ وثيقةٍ ولا يستحقّ تعقيداً في الإطار العامّ لأجل مستهلكٍ واحد (طلبُ «جدول · التشغيل»، 2026-09-27).
-FOOTER_ITEMS = ("school", "page", "date", "stats", "vision", "ministry", "contact", "samm")
+FOOTER_ITEMS = ("school", "page", "date", "stats", "vision", "ministry", "contact")
 FOOTER_MANDATORY = ("school", "page", "date")
 
 _SEPARATOR_EM = 1.5  # « · » بين عنصرين
@@ -163,7 +163,6 @@ def footer_plan(
     vision: str,
     ministry: str,
     contact: str = "",
-    samm: str = "SchoolOS-SAMM ©",
     stats: str = "",
     date_text: str = "2026/09/26 22:40",
     page_text: str = "10 / 10",
@@ -182,7 +181,6 @@ def footer_plan(
         "vision": "" if fr.vision_in_header else vision,
         "ministry": ministry,
         "contact": contact,
-        "samm": samm,
     }
     capacity = footer_capacity_em(fr, font_pt)
     chosen: list[str] = []

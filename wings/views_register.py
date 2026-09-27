@@ -57,6 +57,7 @@ def _respond(request, *, fmt, title, slug, context, workbook):
         return ExcelService.to_response(
             workbook(ctx["school_name"], ctx["exported_by"], ctx["orient"], ctx["footer"]),
             generate_export_filename("wings", slug, "xlsx"),
+            school=ctx["school"],
         )
     ctx.update(context)
     if fmt == "pdf":

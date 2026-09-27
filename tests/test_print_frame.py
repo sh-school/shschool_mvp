@@ -129,10 +129,10 @@ def test_a_long_stats_can_bump_a_lower_priority_item_without_touching_the_mandat
 
 
 def test_an_item_that_does_not_fit_does_not_block_a_shorter_lower_priority_one():
-    """A4 أفقيّ بـ9pt: الاتّصال لا يسع لكنّ SchoolOS-SAMM (أقصرُ منه) يُدرَج (المواصفة ٥-٢)."""
-    plan = _plan("a4", "landscape", font_pt=9.0)
-    assert "contact" in plan.dropped
-    assert "samm" in plan.items
+    """A4 أفقيّ بـ15pt: الرؤيةُ (20.6em) لا تسع لكنّ الوزارةَ (16em، أقصرُ منها وتليها في الأولويّة) تُدرَج (المواصفة ٥-٢)."""
+    plan = _plan("a4", "landscape", font_pt=15.0)
+    assert "vision" in plan.dropped
+    assert "ministry" in plan.items
 
 
 def test_a_school_name_longer_than_the_row_is_reported_not_silently_cut():

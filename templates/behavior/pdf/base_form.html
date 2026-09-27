@@ -1,10 +1,9 @@
-{% load brand_tags %}
+{% load brand_tags print_frame %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
 <style>
-  @page { size: A4; margin: 1.8cm 2cm 2cm 2cm; }
   * { box-sizing: border-box; direction: rtl; }
   html, body, div, p, span, td, th, li, h1, h2, h3, h4, h5, h6 {
     direction: rtl !important;
@@ -24,33 +23,6 @@
     border-top: 2.5px solid {% brand_color "MAROON" %};
     border-bottom: 1px solid {% brand_color "GOLD" %};
     padding: 0;
-  }
-  /* ===== HEADER ===== */
-  .doc-header {
-    width: 100%;
-    padding-bottom: 12px;
-    margin-bottom: 16px;
-    text-align: center !important;
-  }
-  .doc-header-logo {
-    width: 60px;
-    height: 60px;
-    margin: 0 auto 6px auto;
-    display: block;
-    object-fit: contain;
-  }
-  .doc-header-ministry {
-    font-size: 10px;
-    color: {% brand_color "TEXT_SECONDARY" %};
-    margin-bottom: 3px;
-    font-weight: 600;
-    letter-spacing: 0.3px;
-  }
-  .doc-header-school {
-    font-size: 19px;
-    font-weight: 700;
-    color: {% brand_color "MAROON" %};
-    line-height: 1.4;
   }
   /* Suppress duplicated names from child templates */
   .school-name { display: none !important; }
@@ -135,19 +107,6 @@
     text-align: center !important;
   }
 
-  /* ===== FOOTER ===== */
-  .doc-footer {
-    margin-top: 16px;
-    padding-top: 6px;
-    border-top: 1.5px solid {% brand_color "MAROON" %};
-    text-align: center;
-    font-size: 10px;
-    color: {% brand_color "TEXT_PRIMARY" %};
-    font-weight: 600;
-    line-height: 1.7;
-  }
-  .doc-footer-vision { color: {% brand_color "MAROON_DARK" %}; font-size: 13px; font-weight: 600; }
-
   /* ختمُ التصدير: من صدّر الوثيقةَ ومتى — تُلحقه الاستماراتُ الوارثة إن مُرِّر. */
   .export-stamp {
     text-align: center;
@@ -182,29 +141,22 @@
     .no-print { display: none; }
   }
 </style>
+{% print_frame_css "a4" "portrait" %}
 </head>
 <body>
-<div class="page-wrapper">
 
-<!-- ===== DOCUMENT HEADER ===== -->
-<div class="doc-header">
-  <img src="static/brand/logoMaroon.png" class="doc-header-logo" alt="شعار المدرسة">
-  <div class="doc-header-ministry">وزارة التربية والتعليم والتعليم العالي – دولة قطر</div>
-  <div class="doc-header-school">{{ school.name|default:"المدرسة" }}</div>
-</div>
+{% comment %}
+الترويسةُ والتذييلُ من الإطار المركزيّ (`core/print_frame.py`، طلبُ الترحيل قبل PR 705، 2026-09-27) — عنصران جاريان يملآن هامشَي الصفحة
+فيتكرّران في كلّ صفحةٍ بلا تعريفٍ محليّ (حارسُ `tests/test_print_frame_guard.py`). المدرسةُ عنوانُها فارغٌ هنا: كلّ استمارةٍ تضع عنوانَها
+الخاصّ داخل كتلة المحتوى الوارثة (`.header .form-title`) كما كانت.
+{% endcomment %}
+{% print_frame_header "a4" "portrait" school "" for_pdf=True %}
+{% print_frame_footer "a4" "portrait" school %}
+
+<div class="page-wrapper">
 
 <!-- ===== CHILD TEMPLATE CONTENT ===== -->
 {% block content %}{% endblock %}
-
-<!-- ===== DOCUMENT FOOTER ===== -->
-{% comment %}
-هوية المدرسة متغيّرة لا ثابتة: كان الذيل يحمل اسم مدرسةٍ بعينها وهاتفها
-وبريدها نصّاً عارياً، فتُطبع على وثائق كل مدرسة في المنصّة.
-{% endcomment %}
-<div class="doc-footer">
-  {{ school.name }}{% if school.phone %} · هاتف: {{ school.phone }}{% endif %}{% if school.email %} · {{ school.email }}{% endif %}{% if school.city %} · {{ school.city }}، قطر{% endif %}
-  <div class="doc-footer-vision">وزارة التربية والتعليم والتعليم العالي — دولة قطر — {% include "components/ministry_vision.html" %} · SchoolOS-SAMM © {% now "Y" %}</div>
-</div>
 
 </div>
 </body>

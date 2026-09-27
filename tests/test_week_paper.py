@@ -88,29 +88,48 @@ class TestThePaperNamesItsWeek:
         assert f"الأسبوع {RANGE}" in actual
         assert "الأسبوع 11 أكتوبر" not in plan, "ورقةُ الخطّة كما كانت: بلا نطاق"
 
-    def test_the_general_schedule_paper_writes_it_under_the_table(self, world, client):
-        """السطرُ (الوزارة | العام | الأسبوع) تحت الجدول قبل ذيله — لا في الترويسة فوقه."""
-        body = _paper(client, world, view="all_teachers", source="actual", week=str(SUNDAY))
+    def test_the_a4_general_schedule_paper_writes_it_under_the_table(self, world, client):
+        """A4: السطرُ (الوزارة | العام | الأسبوع) تحت الجدول قبل ذيله — لا في الترويسة فوقه (قرار 2026-09-25، لم يتغيّر)."""
+        body = _paper(
+            client, world, view="all_teachers", source="actual", week=str(SUNDAY), paper="a4"
+        )
 
-        head = body.split('<div class="matrix-head">', 1)[1].split("</div>\n\n", 1)[0]
+        head = body.split('<div class="matrix-head">', 1)[1].split('<div class="matrix-wrap">', 1)[
+            0
+        ]
         below = body.split("</table>", 1)[1]
         assert "الأسبوع" not in head and "وزارة التربية" not in head, "لا سطرَ في الترويسة"
         assert f"الأسبوع {RANGE}" in below.split('<div class="matrix-foot">', 1)[0]
+
+    def test_the_a3_paper_carries_ministry_and_week_in_its_full_header(self, world, client):
+        """A3 (ت1، قرار 2026-09-26): ترويسةٌ كاملةٌ 30مم من المكوّن المركزيّ (طلبُ الترحيل #705، 2026-09-27) — الوزارةُ فالمدرسةُ
+        فالعنوانُ فالعامُ والأسبوع؛ والتذييلُ صفٌّ واحدٌ في هوامش الصفحة لا سطرٌ ثانٍ تحت الجدول."""
+        body = _paper(client, world, view="all_teachers", source="actual", week=str(SUNDAY))
+
+        head = body.split('id="print-header"', 1)[1].split('id="print-footer"', 1)[0]
+        assert "وزارة التربية" in head and world["school"].name in head
+        assert f"الأسبوع {RANGE}" in head
+        assert (
+            'class="matrix-sub"' not in body
+        ), "لا سطرَ ثانياً تحت الجدول: التذييلُ صفٌّ واحدٌ في الهامش"
+        assert 'id="print-footer"' in body and "counter(pages)" in body
 
 
 class TestTheSheetHeaderIsForPaperOnly:
     """ترويسةُ الجدول العامّ (الشعارُ واسمُ المدرسة والعنوان) للورق وحدَه: صفحةُ المنصّة تعرض جدولاً بمكوّناتها لا هذه الورقة (2026-09-25)."""
 
     def test_the_paper_in_the_print_frame_has_no_screen_layer(self, world, client):
-        """الإطارُ المخفيُّ يحمل الورقةَ للطباعة وحدَها — لا طبقةَ تفاعلٍ ولا قاعدةَ شاشة (كانت `is-embed` تُخفي الترويسةَ حين كانت الورقةُ تُعرض)."""
-        body = _paper(client, world, view="all_teachers", embed="1")
+        """الإطارُ المخفيُّ يحمل الورقةَ للطباعة وحدَها — لا طبقةَ تفاعلٍ ولا قاعدةَ شاشة (كانت `is-embed` تُخفي الترويسةَ حين كانت الورقةُ تُعرض).
+
+        A4 لا A3 (الافتراضيُّ في `view=all_teachers`): A3 رحّلت ترويستَها إلى المكوّن المركزيّ (`print_schedule/print_frame_migration`)."""
+        body = _paper(client, world, view="all_teachers", embed="1", paper="a4")
 
         assert "is-embed" not in body
         assert "mx-hint" not in body and "schedule-matrix.js" not in body
         assert '<div class="matrix-head">' in body, "الترويسةُ في المستند — تظهر في الطباعة وPDF"
 
     def test_the_standalone_sheet_keeps_its_header(self, world, client):
-        body = _paper(client, world, view="all_teachers")
+        body = _paper(client, world, view="all_teachers", paper="a4")
 
         assert '<div class="matrix-head">' in body
 
@@ -121,7 +140,7 @@ class TestTheSheetHeaderIsForPaperOnly:
         from operations.schedule_selectors import schedule_print_payload
 
         ctx = schedule_print_payload(
-            world["school"], world["principal"], QueryDict("view=all_teachers")
+            world["school"], world["principal"], QueryDict("view=all_teachers&paper=a4")
         )
         ctx["embed"] = True  # كما تبنيه مهمّةُ التصدير
         ctx["for_pdf"] = True

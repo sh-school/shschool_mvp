@@ -18,7 +18,7 @@ from assessments.services import GradeService
 from core import brand
 from core.academic_calendar import academic_year_for
 from core.capabilities import capability_required
-from core.export_utils import excel_table_styles, xl_fill, xl_font
+from core.export_utils import apply_print_footer, excel_table_styles, xl_fill, xl_font
 from core.models import CustomUser, StudentEnrollment
 
 from .models import ImportLog
@@ -201,6 +201,7 @@ def download_grade_template(request, assessment_id):
         object_id=assessment.pk,
         object_repr=f"قالب درجات {assessment.title} — {assessment.class_group}",
     )
+    apply_print_footer(wb, school)  # رؤيةُ الوزارة في ذيل الطباعة (قرار المالك 2026-09-27)
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)

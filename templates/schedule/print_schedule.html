@@ -1,5 +1,5 @@
 {% load brand_tags %}
-{% load static dict_filters schedule_filters %}
+{% load static dict_filters schedule_filters week_tags print_frame %}
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -347,6 +347,48 @@
   {% endif %}
 
   {% if view_type == 'all_teachers' %}
+  {% if paper == 'a3' %}
+  {% comment %}
+  ── الجدول العامّ على A3 عرضيّة: ت1 (قرارُ المالك 2026-09-26) ──
+  ورقةٌ واحدةٌ لاثنين وسبعين معلّماً بخطٍّ 7.9pt موحَّدٍ (استثناءٌ اختاره المالكُ لهذا الجدول بعد رؤيته: دون 9.5pt المرفوضِ للاستمارة).
+  المتنُ 402×243مم: هوامشُ 6 علويّاً وسفليّاً و9 جانبيّاً، ترويسةٌ كاملةٌ 30مم وفاصلٌ 2، وتذييلٌ صفٌّ واحدٌ 8مم وفاصلٌ 2.
+  الصفُّ سطرٌ واحدٌ بمباعدة 1.05 وحشوٍ رأسيٍّ صفر ⇒ ≈ 3.03مم؛ والأعمدةُ: القسم 16.4 (بالخطّ الغليظ لأطول كلمةٍ «الاجتماعيات»)
+  والاسمُ يتبع أطولَ اسمِ عرضٍ (`name_column_mm`: 1.7مم للحرف + 1.6، من 26 إلى 36؛ كان 23.7 ثابتاً فقُصّ «عبدالباسط الجاسم») والنصاب 11 (يتبع الخطّ) والخلايا الخمسُ والثلاثون ≈ 10.02 لكلٍّ. والقسمُ الضيّق (صفّان وثلاثُ
+  كلمات) يرفع صفَّيه بقاعدة `pad` (`dept_row_height`). ومن زاد معلّموه عن السعة انتقل الفائضُ إلى ورقةٍ ثانيةٍ بترويسة الجدول نفسِها.
+  المرجعُ بكسلاً: نموذجُ LAY-11 `t1_a3_landscape_1face__pad_7_9pt` (خارج المستودع).
+  {% endcomment %}
+  {% comment %}
+  الإطارُ (هندسةُ الصفحة، الترويسةُ، التذييلُ) من المكوّن المركزيّ (`core/print_frame.py`، ش1–ش3، المواصفة ٥) لا مكتوباً هنا —
+  حارسُ `tests/print_frame_ratchet.py` يمنع تعريفَ ترويسةٍ أو تذييلٍ جارٍ خارجَه. `{% print_frame_css %}` بعد `</style>` أدناه،
+  والترويسةُ والتذييلُ في المتن (`{% print_frame_header %}`/`{% print_frame_footer %}`) — الرؤيةُ ضمن التذييل لأنّ A3 عرضيّةً
+  خارج `VISION_IN_HEADER`. الأعمدةُ والصفُّ (7.9pt) بلا تغيير — ذلك محتوى الجدول لا الإطار.
+  {% endcomment %}
+  @media print {
+    html, body { height: auto; }
+    .schedule-print { padding: 0; }
+    .matrix-wrap { overflow: visible; }
+    .schedule-matrix { font-size: 7.9pt; }
+    .schedule-matrix th, .schedule-matrix td { height: auto; line-height: 1.05; padding: 0 0.2mm; border-width: 0.3pt; }
+    .schedule-matrix thead th { border-bottom-width: 1pt; }
+    .schedule-matrix .m-day, .schedule-matrix .m-period { font-size: 7.9pt; padding: 0; }
+    .schedule-matrix .m-name, .schedule-matrix .m-name.m-name-tagged { width: {% name_column_mm matrix %}mm; font-size: 7.9pt; padding: 0 0.6mm; }
+    .schedule-matrix .m-specialty { font-size: 7.9pt; }
+    .schedule-matrix .m-dept { width: 16.4mm; font-size: 7.9pt; padding: 0 0.3mm; line-height: 1.05; }
+    .schedule-matrix .m-total { width: 11mm; font-size: 7.9pt; }
+    .schedule-matrix .m-cell { width: auto; }
+    /* الرمزُ متوسّطٌ رأسيّاً (بلاغ المالك 2026-09-27): مقاييسُ Tajawal تُجلس الأرقامَ أعلى مركز سطرها بنحو 0.42مم؛ فيُزاح النصُّ لأسفل بحشوٍ
+       علويٍّ ويُنقَص مثلُه من ارتفاع السطر — فيبقى الصفُّ 3.03مم. يقيسه `tests/test_schedule_a3_sheet.py` على PDF مرسوم (±0.2مم). */
+    .schedule-matrix .m-cell, .schedule-matrix .m-name, .schedule-matrix .m-name.m-name-tagged, .schedule-matrix .m-total,
+    .schedule-matrix .m-day, .schedule-matrix .m-period { padding-top: 0.84mm; line-height: 2.09mm; }
+    .schedule-matrix tbody tr { height: var(--row-h, auto); }
+    .schedule-matrix thead { display: table-header-group; }
+    .schedule-matrix tr { break-inside: avoid; }
+    .matrix-legend { font-size: 9pt; justify-content: center; flex-wrap: nowrap; gap: 4mm; margin-top: 1mm; width: 100%; }
+    .matrix-legend__item { white-space: nowrap; gap: 1mm; }
+    .matrix-legend__swatch { inline-size: 3mm; block-size: 3mm; line-height: 3mm; }
+    .matrix-note { font-size: 9pt; margin-top: 0.5mm; text-align: center; }
+  }
+  {% else %}
   /* الورقةُ عرضيّةٌ لأنّ الأسبوع خمسةٌ وثلاثون عموداً — ولا يُطبع عمودياً. */
   @page { size: {% if paper == 'a3' %}A3{% else %}A4{% endif %} {{ orient }}; margin: 7mm; }
   @media print {
@@ -370,6 +412,7 @@
     .schedule-matrix tr { break-inside: avoid; }
     .matrix-foot { font-size: 8px; }
   }
+  {% endif %}
   /* على الشاشة الورقةُ بعرض الإطار كلِّه: هامشٌ صغير، والخطُّ يكبر مع العرض
      (على 2560px تصير الخانةُ مقروءةً بلا تكبير) ولا يتجاوز سقفاً يُبقي
      الأسبوعَ في سطرٍ واحد. والطباعةُ على قياسها المحسوب لا تُمَسّ. */
@@ -383,6 +426,7 @@
   }
   {% endif %}
 </style>
+{% if view_type == 'all_teachers' and paper == 'a3' %}{% print_frame_css "a3" "landscape" %}{% endif %}
 {% comment %}
 خطُّ الورقة تجوّل — على الشاشة من `/static/`، وفي PDF من القرص.
 
@@ -484,29 +528,40 @@
 
 {% if view_type == 'all_teachers' %}
 {# ── الجدول العام للمعلمين: صفٌّ لكل معلّم، والأسبوعُ خمسةٌ وثلاثون عموداً ── #}
+  {% if paper == 'a3' %}
+  {% schedule_subtitle year source nav.range as subtitle_text %}
+  {% print_frame_header "a3" "landscape" school "الجدول العام للمعلمين" subtitle=subtitle_text for_pdf=for_pdf %}
+  {% matrix_stats_line matrix_totals matrix|length as stats_text %}
+  {% print_frame_footer "a3" "landscape" school stats=stats_text %}
+  {% else %}
   <div class="matrix-head">
     <img class="print-emblem" src="{% if for_pdf %}static/brand/logoMaroon.png{% else %}{% static 'brand/logoMaroon.png' %}{% endif %}" alt="شعار {{ school.name }}" width="295" height="295">
     <div class="ministry">{{ school.name }}</div>
     <h1 class="title">الجدول العام للمعلمين</h1>
   </div>
+  {% endif %}
 
   {% if matrix %}
   <div class="matrix-wrap">
-  {% include "schedule/pdf/matrix_table.html" %}
+  {% if paper == 'a3' %}{% include "schedule/pdf/matrix_table.html" with pad_pt=7.9 %}{% else %}{% include "schedule/pdf/matrix_table.html" %}{% endif %}
   </div>
 
-  {% if has_colored_exemptions or nav.kinds %}
+  {% if has_colored_exemptions or nav.kinds or paper == 'a3' %}
   {# نقاطُ التفريغ الملوَّنة وخاناتُ الحصص المحوَّلة أعلاه — تفسيرُها هنا، أسفل الجدول لا فوقه. #}
   <div class="matrix-legend">
     {% if has_colored_exemptions %}
-    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-ministry">و</span> قرارُ الوزارة</span>
-    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-school">إ</span> قرارُ إدارة المدرسة</span>
-    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-department">ق</span> قرارُ القسم الأكاديميّ</span>
+    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-ministry">{% if paper != 'a3' %}و{% endif %}</span> قرارُ الوزارة</span>
+    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-school">{% if paper != 'a3' %}إ{% endif %}</span> قرارُ إدارة المدرسة</span>
+    <span class="matrix-legend__item"><span class="matrix-legend__swatch exempt-department">{% if paper != 'a3' %}ق{% endif %}</span> قرارُ القسم الأكاديميّ</span>
     {% endif %}
     {% for kind, label in nav.kinds %}<span class="matrix-legend__item"><span class="matrix-legend__swatch mk-{{ kind }}"></span> {{ label }}</span>{% empty %}{% endfor %}
+    {# من أُلحق إدارياً بقسمٍ غيرِ تخصّصه: علامةُ «*» بعد اسمه (لا لاحقةٌ بخطٍّ أصغر) وتفسيرُها في سطر المفتاح نفسِه (ورقةُ A3 ممتلئةٌ ولا تسع سطراً زائداً). #}
+    {% if paper == 'a3' %}{% for row in matrix %}{% if row.specialty %}<span class="matrix-legend__item">* {{ row.display_name|default:row.teacher.full_name }}: ملحقٌ إدارياً بقسمٍ غيرِ تخصّصه — تخصّصه {{ row.specialty }}</span>{% endif %}{% endfor %}{% endif %}
   </div>
   {% endif %}
   {% for note in nav.notes %}<div class="matrix-note">{{ note }}</div>{% empty %}{% endfor %}
+  {% if paper == 'a3' %}
+  {% else %}
   {% include "schedule/pdf/matrix_sub.html" %}
   <div class="matrix-foot">
     <span>
@@ -519,6 +574,7 @@
     {# الرؤيةُ في سطر «الوزارة | الرؤية | العام» تحت الجدول (`pdf/matrix_sub.html`) — لا هنا (قرارُ المالك 2026-09-25). #}
     <span>تاريخ الطباعة: {% now "Y/m/d" %}</span>
   </div>
+  {% endif %}
   {% else %}
   <div class="matrix-empty">{% if source == "actual" %}لا حصصَ في هذا الأسبوع.{% else %}لا توجد حصص مسجّلة في جدول العام الدراسي {{ year }}.{% endif %}</div>
   {% for note in nav.notes %}<div class="matrix-note">{{ note }}</div>{% empty %}{% endfor %}

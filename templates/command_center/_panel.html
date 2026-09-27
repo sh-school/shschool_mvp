@@ -15,7 +15,8 @@
       <text x="60" y="106" text-anchor="middle" font-size="24" font-weight="700" fill="var(--text-primary)" data-key="{{ panel.key }}.gauge">{% if panel.gauge is None %}؟{% else %}{{ panel.gauge }}{% endif %}</text>
     </svg>
     <strong class="qc-panel__state" data-key="{{ panel.key }}.state">{% if panel.status == "ok" %}سليم{% elif panel.status == "warn" %}انتبه{% elif panel.status == "bad" %}خطر{% else %}غير معلوم{% endif %}</strong>
-    <p class="qc-panel__headline" data-key="{{ panel.key }}.headline">{% if panel.headline %}{{ panel.headline }}{% else %}لم يُجمَع بعدُ{% endif %}</p>
+    {# title يحمل النصَّ الكاملَ الذي يقصّه line-clamp (1.4.12)؛ command_center.js يُزامنه عند كلّ تحديث. #}
+    <p class="qc-panel__headline" data-key="{{ panel.key }}.headline" title="{{ panel.headline|default:'لم يُجمَع بعدُ' }}">{% if panel.headline %}{{ panel.headline }}{% else %}لم يُجمَع بعدُ{% endif %}</p>
     <ul class="plain-list">
       <li class="plain-list__row" data-row="{{ panel.key }}.m1"{% if not panel.metrics.0 %} hidden{% endif %}><span data-key="{{ panel.key }}.m1l">{{ panel.metrics.0.label }}</span><strong data-key="{{ panel.key }}.m1v">{{ panel.metrics.0.value }}</strong></li>
       <li class="plain-list__row" data-row="{{ panel.key }}.m2"{% if not panel.metrics.1 %} hidden{% endif %}><span data-key="{{ panel.key }}.m2l">{{ panel.metrics.1.label }}</span><strong data-key="{{ panel.key }}.m2v">{{ panel.metrics.1.value }}</strong></li>
