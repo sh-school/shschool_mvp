@@ -25,11 +25,11 @@ PAPER_TEMPLATES = {
     "schedule/print_schedule.html",  # الجدولُ الورقيّ
     "schedule/print_view.html",  # إطارُ الجدول الورقيّ
     "schedule/pages_view.html",  # إطارُ صفحات الجدول
-    "wings/register_pdf.html",  # كشفُ الشعبة الورقيّ
 }
 
-#: ملفّاتُ JS المسموحُ لها باستدعاء `window.print()`: الإجراءُ العامّ للقوالب الورقيّة وفتحُ الطباعة التلقائيّ.
-PAPER_SCRIPTS = {"actions.js", "print-on-open.js"}
+#: ملفّاتُ JS المسموحُ لها باستدعاء `window.print()`: الإجراءُ العامّ للقوالب الورقيّة.
+#: (`print-on-open.js` حُذف مع كشف الشعبة/الجناح — قرارُ المالك 2026-09-28: لا طباعةَ مباشرة.)
+PAPER_SCRIPTS = {"actions.js"}
 
 _PRINT_ACTION = re.compile(r"""data-action\s*=\s*["']print["']""")
 _WINDOW_PRINT = re.compile(r"\bwindow\.print\s*\(|\bcontentWindow\.print\s*\(")
