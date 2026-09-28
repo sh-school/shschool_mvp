@@ -588,7 +588,7 @@ def apply_assignment(
     weekly_periods,
     by,
     override_reason="",
-    parallel_group="",
+    parallel_group=None,
     requires_lab=False,
     expected_updated_at=None,
     confirm_transfer=False,
@@ -603,14 +603,36 @@ def apply_assignment(
     وكان ذلك يقع صامتاً: منسّقٌ يُسند بالخطأ فيخسر زميلُه حصصَه ولا يعلم
     أحدُهما. فصار النقلُ يحتاج `confirm_transfer=True` — ومن لم يؤكّد رُدَّ
     بمانعٍ يسمّي صاحبَ المادّة الحاليَّ ليقرّر المنسّقُ على بيّنة.
+
+    ## وسمُ التوازي: لم يُمرَّر يعني «رِث»، لا «امسح»
+
+    `parallel_group=None` (الافتراضُ) يحتفظ بوسم السجلّ الحاليّ إن كان هذا تعديلاً، أو يَرِث وسمَ
+    من نُقلت المادّةُ عنه إن كان نقلاً مؤكَّداً وكان الأخيرُ موسوماً — فناقلُ مادّةٍ متوازيةٍ لا يُيتّم
+    شريكتَها بصمت (حادثة 12/2، 2026-09-27). و`parallel_group=""` صريحةٌ تعني امسح الوسمَ عمداً، وأيُّ
+    نصٍّ آخرَ يكتبه كما هو.
     """
-    # المعلّمُ جزءٌ من الهويّة: شعبةٌ مقسومةٌ نصفين لها سجلّان بمعلّمَين،
-    # ولولا ذلك لكتب الثاني فوق الأوّل وضاع نصابُ أحدهما.
-    tag = (parallel_group or "").strip()[:40]
     siblings = _rows_for(school, academic_year, class_group, subject)
     teacher_id = teacher.id if teacher else None
     current = _current_row(siblings, teacher_id)
     _guard_stale(current, expected_updated_at)
+
+    # الوسمُ المبدئيّ يميّز الشريكَ (القسمةَ) عن المنافس قبل أن نعرف من يُنقل عنه: وسمُ السجلّ
+    # الحاليّ إن كان تعديلاً، وإلّا فارغٌ (فلا شريكَ معروفاً بعد لسجلٍّ جديد).
+    provisional_tag = (
+        (parallel_group or "").strip()[:40]
+        if parallel_group is not None
+        else ((current.parallel_group if current else "") or "")
+    )
+    rival = _rival_row(siblings, current, teacher_id, provisional_tag)
+
+    if parallel_group is not None:
+        tag = (parallel_group or "").strip()[:40]
+    elif current is not None:
+        tag = current.parallel_group or ""
+    elif rival is not None and confirm_transfer and (rival.parallel_group or "").strip():
+        tag = (rival.parallel_group or "").strip()
+    else:
+        tag = ""
 
     findings = check_assignment(
         school=school,
@@ -620,11 +642,10 @@ def apply_assignment(
         teacher=teacher,
         weekly_periods=weekly_periods,
         override_reason=override_reason,
-        parallel_group=parallel_group,
+        parallel_group=tag,
         current=current,
     )
 
-    rival = _rival_row(siblings, current, teacher_id, tag)
     holder = rival.teacher if rival else None
     if holder and teacher and not confirm_transfer:
         findings.append(

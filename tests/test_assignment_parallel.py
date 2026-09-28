@@ -28,6 +28,20 @@ pytestmark = pytest.mark.django_db
 YEAR = "2026-2027"
 
 
+#: خطّةٌ دراسيّةٌ لمادّة (لا يقبل `add_row` إلّا موادَّ الخطّة) — أدنى ما يلزم لهذا الملفّ.
+def plan_row(school, subject, *, grade, periods=2, track=""):
+    from academic_management.models import CurriculumPlan
+
+    return CurriculumPlan.objects.create(
+        school=school,
+        academic_year=YEAR,
+        grade=grade,
+        track=track,
+        subject=subject,
+        weekly_periods=periods,
+    )
+
+
 @pytest.fixture
 def group(school):
     return ClassGroupFactory(school=school, grade="G11", level_type="sec", academic_year=YEAR)
@@ -149,6 +163,52 @@ def test_a_teacher_may_not_link(client, school, group, teacher):
 
     art.refresh_from_db()
     assert art.parallel_group == ""
+
+
+# ════════════════════ النقلُ عن منافسٍ موسومٍ يَرِث الوسمَ لا يمحوه ════════════════════
+
+
+def test_transferring_a_parallel_subject_makes_the_new_teacher_inherit_the_tag(
+    client, school, group, teacher, principal
+):
+    """حادثة 12/2 (2026-09-27): نقلُ التكنولوجيا عن معلّمٍ لآخر كان يكتب وسماً فارغاً فيُيتّم الفنّيّة."""
+    art_subject = Subject.objects.create(school=school, name_ar="الفنون البصرية", code="ART")
+    tech_subject = Subject.objects.create(school=school, name_ar="التكنولوجيا", code="TECH")
+    plan_row(school, art_subject, grade=group.grade)
+    plan_row(school, tech_subject, grade=group.grade)
+    art = assign(school, group, teacher, "الفنون البصرية", 2, tag="par-11.1")
+    tech = assign(school, group, teacher, "التكنولوجيا", 2, tag="par-11.1")
+    new_teacher = UserFactory(full_name="معلّمٌ آخر")
+    MembershipFactory(
+        user=new_teacher, school=school, role=RoleFactory(school=school, name="teacher")
+    )
+    client.force_login(principal)
+    before_demand = CapacityCheckService.slot_demand(
+        list(SubjectClassAssignment.objects.filter(class_group=group))
+    )
+
+    client.post(
+        reverse("academic_management:assignment_add_row", args=[new_teacher.id]),
+        {
+            "class_group": str(group.id),
+            "subject": str(tech_subject.id),
+            "confirm_transfer": "1",
+            "year": YEAR,
+        },
+        HTTP_HOST="localhost",
+    )
+
+    art.refresh_from_db()
+    tech.refresh_from_db()  # الآن غيرُ فعّال — نُقلت مادّتُه
+    new_row = SubjectClassAssignment.objects.get(
+        class_group=group, subject=tech_subject, teacher=new_teacher, is_active=True
+    )
+    assert new_row.parallel_group == "par-11.1", "المعلّمُ الجديدُ لم يرث وسمَ من نُقلت عنه المادّة"
+    assert art.parallel_group == "par-11.1", "الشريكةُ يُتّمت رغم أنّها لم تُمسّ"
+    after_demand = CapacityCheckService.slot_demand(
+        list(SubjectClassAssignment.objects.filter(class_group=group))
+    )
+    assert after_demand == before_demand == 2, "النقلُ لا يغيّر طلبَ الشعبة بالخانات"
 
 
 # ════════════════════ الوسمُ لا يُمحى بتعديل الحصص ════════════════════
