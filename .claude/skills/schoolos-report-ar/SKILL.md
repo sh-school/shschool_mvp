@@ -1,99 +1,53 @@
 ---
 name: schoolos-report-ar
 description: |
-  مولّد التقارير الرسمية العربية (RTL) لمنصة SchoolOS — PDF عبر core.pdf_utils.render_pdf
-  (WeasyPrint) وExcel عبر reports.services.ExcelService (openpyxl، rightToLeft). يضمن ترويسة
-  موحّدة بشعار دولة قطر ووزارة التعليم، ترقيم «صفحة X من Y»، تذييل سرّية وتاريخ هجري/ميلادي،
-  خطوط عربية صحيحة، وجداول تُطبع على A4/A3 دون كسر الاتجاه. استخدمها دائماً وتلقائياً عند: طلب
-  تقرير/كشف/شهادة/بيان رسمي، توليد PDF أو Excel عربي، أو تنسيق مستند للطباعة. Trigger on:
-  report, تقرير, كشف, شهادة, PDF عربي, Excel, طباعة, RTL, ترويسة رسمية, بيان درجات, print.
+  Use for building or fixing official Arabic (RTL) PDF and Excel exports in SchoolOS: the central export registry (core/exports, background job by default), core.pdf_utils.render_pdf / render_pdf_bytes (WeasyPrint), the print frame ({% print_frame_css/header/footer %}, data-pdf-own-page), font minimums (D2, print-fit spec v2.4), ministry vision footer, ExcelService / excel_to_response, log_export audit, national-ID masking in bulk documents. Trigger on: PDF, Excel, xlsx, export, تصدير, تقرير, كشف, شهادة, طباعة, ترويسة, تذييل, render_pdf, openpyxl, WeasyPrint, A3, A4, "الخط صغير في الـPDF".
+  استخدمها عند: إضافة تقريرٍ أو كشفٍ أو شهادةٍ أو ملفّ Excel، أو تعديل قالبٍ تحت templates/*/pdf/ أو *_pdf.html، أو نقل تصديرٍ إلى المهمّة الخلفيّة، أو شكوى من خطٍّ صغير أو ترويسةٍ مزدوجة أو تذييلٍ بلا رؤية — ولو لم تُذكر كلمة «تقرير».
+  ليست لـ: صفحات الويب التفاعليّة (web-design-mastery)، ولا قرارِ ما يجوز إظهارُه من بياناتٍ شخصيّة (pdppl-pii-audit)، ولا بطءِ الاستعلامات، ولا الجدولِ المدرسيّ المطبوع (مسارُ «جدول · التشغيل»).
 ---
 
-# مولّد تقارير SchoolOS الرسمية
+# التقارير الرسميّة PDF وExcel — SchoolOS
 
-> الهدف: كل تقرير يخرج **رسمياً ومتّسقاً وقابلاً للطباعة** بهوية الدولة، ويعيد استخدام محرّكات
-> المشروع القائمة لا يخترعها. أي مخرج رسمي يُحتمل أن يُوقَّع ويُختم — الدقّة والاتّساق إلزاميان.
+الغرض: أن يخرج كلُّ ملفٍّ رسميٍّ من **مسارٍ واحد**: بنّاءٌ في سجلّ التصدير، وقالبٌ على الإطار المطبوع المركزيّ، وخطٌّ مقروءٌ بحدود المالك، وسطرُ تدقيق — لا نسخةً محلّيّةً لكلّ قالب.
+كلُّ ما هنا متحقَّقٌ على `main` في 2026-09-28؛ والتفاصيلُ في المراجع.
 
-المسار الوحيد: `D:\shschool_mvp` مباشرة.
+## متى تُستعمل ومتى لا
+- نعم: PDF أو Excel يُنزَّل أو يُطبع، قالبٌ ورقيّ، ترويسةٌ أو تذييل، مقاسُ ورق، حجمُ خطٍّ مطبوع، تحويلُ تصديرٍ متزامنٍ إلى خلفيّ.
+- لا: صفحةُ ويبٍ تُعرض على الشاشة (ولا «زرَّ طباعة صفحة» — ممنوعٌ بحارس)، ولا قرارُ الخصوصيّة نفسُه.
 
----
+## الإجراء
+1. **ابنِ البنّاءَ لا الـview**: دالّةٌ نقيّةٌ `build(school, user, params) -> ExportResult` تُسجَّل في `AppConfig.ready()` بـ`core.exports.registry.register(kind, build=…, capability=…)`، والـview تنادي `respond_export(request, kind)`. الافتراضُ `mode="job"` (خلفيّ)، و`direct` يرفضه السجلُّ بلا p95 مقيسٍ ≤ 1000ms. ← `references/00-export-pipeline.md`
+2. **القالبُ على الإطار المركزيّ**: انسخ `assets/report_template.html` (ترويسةٌ وتذييلٌ بوسوم `print_frame`، وعلامةُ `data-pdf-own-page`)، وعبّئ المحتوى وحدَه. ← `references/10-print-frame.md`
+3. **الخطُّ بحدود المالك (D2)**: قوائمُ وجداولُ متعدّدةُ الصفحات 10pt، متنُ النماذج 11–12pt وأدنى 10، العنوانُ 16 (أدنى 14)، التذييلُ 10 (أدنى 9). ما لا يسع يأخذ A3 أو صفحاتٍ أكثر — لا خطّاً أصغر.
+4. **Excel بأدوات المنصّة**: `ExcelService` أو `core.export_utils` (`add_excel_title_rows`، `excel_table_styles`)، ويخرج بـ`excel_to_response`/`ExcelService.to_response` لتلحقه رؤيةُ الوزارة في ذيل الطباعة. ← `references/20-excel.md`
+5. **الخصوصيّة والتدقيق**: `log_export` (أو `rows`/`full_national_id` في `ExportResult`)، والرقمُ الشخصيّ مستورٌ في كلّ كشفٍ جماعيّ. ← `references/30-content-and-privacy.md` ومهارة `pdppl-pii-audit`.
+6. **تحقّق**: صيّر PDF حقيقيّاً (WeasyPrint في حاوية الجلسة) وقس الصفحاتِ وأصغرَ خطّ، وشغّل `tests/test_print_frame_guard.py` و`tests/test_export_guards.py` و`tests/test_national_id_never_bulk.py`. تشغيلُ الخادم والاختبارات في شجرة عملك بأوامر `CLAUDE.md`؛ وخطواتُ الفلو في `schoolos-flow`.
 
-## 1. لا تعِد اختراع المحرّك — أعِد استخدامه
+## القواعد وأسبابها
+- **لا `render_pdf`/`render_pdf_bytes`/`Workbook` جديدٌ داخل view** — `HEAVY_IN_VIEWS` في `tests/test_export_guards.py` سقّاطةٌ تنقص ولا تزيد. السبب: WeasyPrint وحدَه 400–550ms، وأبطأُ تصديرٍ كان 19.9ث يزاحم daphne الذي يخدم WebSocket (ADR-0007).
+- **الإطارُ في مكوّنٍ واحد**: لا `running(` ولا `@bottom-` ولا أصنافُ `*-footer` في قالب — `tests/print_frame_ratchet.py` (ملفٌّ جديدٌ رقمُه صفر). السبب: خمسُ نسخٍ متباينةٍ أخرجت تذييلاً بسطرين وخطّاً 6–8pt.
+- **`data-pdf-own-page` إلزاميٌّ مع وسوم الإطار**: بدونه يحقن `core/pdf_utils.py` إطارَه القديم (يغلب الترويسةَ المركزيّةَ أو يضيف «SchoolOS v6» والتاريخ في الزاويتين). مقيسٌ بتصيير WeasyPrint في 2026-09-28.
+- **الرؤيةُ سطرٌ واحدٌ في كلّ تذييل** (PDF وExcel)، ونصُّها من `components/ministry_vision.html` لا حرفيّاً. السبب: أمرُ المالك 2026-09-27 (المواصفة v2.4، D1).
+- **لا `@font-face` ولا `{% static %}` للخطّ في قالب PDF**: `_inject_fonts` يحقن Tajawal/Amiri/Noto Naskh بمساراتٍ مطلقة؛ والرابطُ النسبيّ يسقط صامتاً إلى DejaVu. وفي العامل لا manifest: الشعارُ بمسارٍ نسبيٍّ (`for_pdf=True`).
+- **لا قصَّ للنصّ الحرّ في المطبوع** (لا `line-clamp` ولا `truncatechars`) — رفضه المالك؛ والطويلُ يأخذ صفحةً أخرى.
+- **الألوانُ `{% brand_color "…" %}`** لا سداسيّاً — حارسُ الهويّة يعدّ السداسيَّ في القوالب.
 
-| المخرج | المحرّك الفعلي | كيف |
-|--------|----------------|-----|
-| PDF | `core.pdf_utils.render_pdf(html, filename, paper_size)` | تبني HTML بقالب Django ثم تمرّره — WeasyPrint أساسي، Playwright/xhtml2pdf احتياطي |
-| Excel | `reports.services.ExcelService` / `AcademicReportsExcel` | openpyxl مع `ws.sheet_view.rightToLeft = True` وترويسة الهوية القطرية |
-| بيانات التقرير | `reports.services.ReportDataService` / `AcademicReportsService` | تجهيز البيانات (محسّن، بلا N+1) قبل التصيير |
+## فخاخٌ حقيقيّة
+- خطأ: نسخُ ترويسة `reports/base_qatar_report.html` أو `@page { @top-center … }` إلى قالبٍ جديد. الصواب: `{% print_frame_css %}` + `{% print_frame_header %}` + `{% print_frame_footer %}` قبل المحتوى.
+- خطأ: «وزارة التعليم والتعليم العالي» و`assets/brand/qatar-emblem-2022.svg`. الصواب: «وزارة التربية والتعليم والتعليم العالي — دولة قطر» (`core/templatetags/print_frame.py::MINISTRY`) و`static/brand/logoMaroon.png` — والإطارُ يكتبهما عنك.
+- خطأ: خطوط Noto Sans Arabic أو Cairo أو IBM Plex. الصواب: غيرُ موجودةٍ في `static/fonts/`؛ المتاح Tajawal وAmiri وNoto Naskh Arabic (وTraditional Arabic من `StoredFile` إن ثُبّت).
+- خطأ: «≥ 9pt للبيانات يكفي». الصواب: D2: 10pt للقوائم والجداول؛ الاستثناءُ الوحيد الجدولُ العامّ 7.9pt بقرارٍ خاصّ.
+- خطأ: `ws.oddFooter.center.text = "صفحة &P من &N"` بعد البناء. الصواب: `apply_print_footer` (عبر `excel_to_response`) يكتب الصفحةَ والرؤيةَ سطراً واحداً — والكتابةُ فوقه تُسقط الرؤية.
+- خطأ: `ws.freeze_panes = "A2"` مع ترويسة المنصّة. الصواب: ثلاثةُ صفوف عنوانٍ ثمّ رأسُ الأعمدة في الصفّ 4، فالتجميدُ `"A5"` وتكرارُ الطباعة `"1:4"`.
+- خطأ: «التاريخ الهجريّ بـ`hijri-converter`» و«تصنيفُ السرّيّة في التذييل». الصواب: لا مكتبةَ هجريّةً في `requirements.txt` ولا تصنيفَ سرّيّةٍ في الإطار؛ كلاهما يحتاج قرارَ المالك قبل أن يُكتب.
+- خطأ: جدولٌ فارغٌ يُمرَّر إلى المولّد. الصواب: حارسٌ قبل التوليد (رسالةٌ أو حالةٌ فارغة) — مسارُ xhtml2pdf الاحتياطيّ ينهار على الجدول الفارغ (`reports/views.py`).
 
-نمط الـ view الحقيقي (`reports/views.py`):
-```python
-from core.pdf_utils import render_pdf
-html = render_to_string("reports/class_results.html", context)
-return render_pdf(html, f"نتائج_{class_grp.get_grade_display()}_{year}.pdf", paper_size="A4")
-```
-
-عند بناء قالب جديد، ابدأ من `assets/report_template.html` في هذه المهارة (RTL + @page + ترويسة/
-تذييل لكل صفحة + خطوط عربية) وعبّئ منطقة المحتوى فقط.
-
----
-
-## 2. عقد التقرير الرسمي (كل تقرير يلتزم به)
-
-للتفاصيل الكاملة والقياسات: `references/report-contract.md`. الملخّص:
-
-**الترويسة (كل صفحة)**: شعار دولة قطر (يمين) · اسم الوزارة + المدرسة (وسط) · شعار/رقم المدرسة
-(يسار) · سطر عنوان التقرير · العام الدراسي والفصل.
-
-**المحتوى**: عنوان واضح → بيانات وصفية (الصف، المادة، المعلّم، التاريخ) → جدول/بيانات →
-ملخّص/إجماليات → مكان التوقيع والختم.
-
-**التذييل (كل صفحة)**: تصنيف السرّية (مثال: «سرّي — للاستخدام الرسمي») · التاريخ (ميلادي +
-هجري عند اللزوم) · «صفحة X من Y» · بصمة التوليد (المنصة + الوقت).
-
----
-
-## 3. قواعد RTL والطباعة (لا تُكسر)
-
-- **الاتجاه**: `dir="rtl"` على `<html>`، ومحاذاة منطقية `text-align: start` — لا `left/right`
-  صريحة، اتّساقاً مع معيار المشروع (Logical properties: `margin-inline`, `padding-inline`).
-- **الأرقام**: استخدم أرقاماً عربية-هندية أو لاتينية باتّساق داخل التقرير الواحد — لا تخلط.
-  الجداول الرقمية (درجات) تُحاذى وسطاً.
-- **الخطوط** (بالأولوية): Noto Sans Arabic · IBM Plex Sans Arabic · Cairo · Sakkal Majalla.
-  تُحمّل عبر `@font-face` من مجلد الخطوط (WeasyPrint يحتاج مساراً فعلياً — انظر `core/pdf_utils`).
-- **الجداول العريضة**: إن تجاوزت عرض A4، انتقل إلى A3 (`paper_size="A3"`) بدل تصغير الخط تحت
-  الحدّ المقروء (≥ 9pt للبيانات). كرّر رأس الجدول على كل صفحة: `thead { display: table-header-group }`.
-- **الهوامش**: 20mm قياسي؛ هامش تجليد 30mm يمين (RTL). المنطقة الآمنة A4 ≈ 170×257mm.
-- **فواصل الصفحات**: `page-break-inside: avoid` على صفوف الجدول والبطاقات؛ لا تقطع طالباً بين صفحتين.
-
----
-
-## 4. Excel رسمي (reports/services.py)
-
-```python
-ws.sheet_view.rightToLeft = True              # إلزامي — الورقة من اليمين
-# ترويسة الهوية: شعار + عنوان مدموج + ألوان الدولة (كما في ExcelService._add_professional_header)
-# تجميد الصفوف العلوية: ws.freeze_panes = "A4"
-# عرض أعمدة يناسب المحتوى العربي؛ wrap_text=True؛ محاذاة center للأرقام، start للنصوص
-```
-أعِد استخدام أنماط `ExcelService` (Font/Alignment/Border/PatternFill) بدل تعريف جديد، لتبقى
-كل ملفات المنصة متطابقة الهوية.
-
----
-
-## 5. الأداء والامتثال
-
-- **جهّز البيانات محسّنةً** عبر `ReportDataService` (select_related/prefetch_related) — تقرير على
-  مئات الطلاب يجب ألا يُصدر N+1 (راجع مهارة nplus1-hunter).
-- **التوليد الثقيل** (كشوف مدرسة كاملة) → مهمة Celery وتنزيل لاحق، التزاماً بقاعدة >300ms.
-- **PDPPL**: التقرير قد يحوي بيانات قُصّر — لا تُدرج حقلاً شخصياً (national_id/هاتف/بيان صحي) إلا
-  إذا كان التقرير يستوجبه ولمن يملك الصلاحية. صنّف السرّية في التذييل (راجع مهارة pdppl-pii-audit).
-- **أسماء الملفات**: عربية وصفية كما في المشروع (`نتيجة_<اسم>_<العام>.pdf`).
-
-## 6. قائمة تحقّق قبل التسليم
-- [ ] الترويسة والتذييل يظهران على **كل** صفحة، والترقيم «X من Y» صحيح.
-- [ ] لا كسر اتجاه ولا حروف عربية مقطّعة (خطّ محمّل صحيح).
-- [ ] الجدول لا يُقطع طالباً بين صفحتين؛ الرأس يتكرّر.
-- [ ] جُرّب على A4 وعلى بيانات فارغة (حارس: reportlab يفشل مع جدول فارغ — عالِجه).
-- [ ] لا PII غير مبرّر؛ تصنيف السرّية موجود.
-- [ ] Excel: `rightToLeft=True` + تجميد الرأس + هوية موحّدة.
+## المراجع
+| الملف | متى تقرأه |
+|---|---|
+| `references/00-export-pipeline.md` | قبل كتابة أيّ تصدير: السجلّ، البنّاء، الـview، العامل، الحرّاس |
+| `references/10-print-frame.md` | حين تكتب قالب PDF أو تشتكي من ترويسةٍ أو تذييلٍ أو خطٍّ أو مقاس |
+| `references/20-excel.md` | حين تبني ملفّ Excel أو تعدّل واحداً |
+| `references/30-content-and-privacy.md` | لبنية المحتوى، والتوقيعات، والرقم الشخصيّ، واسم الملفّ، والحالات الحدّيّة |
+| `references/99-test-cases.md` | لاختبار تفعيل المهارة وجودة جوابها |
+| `assets/report_template.html` | نقطةُ بدايةٍ لقالب تقريرٍ جدوليٍّ جديد (مُختبَرٌ بتصييرٍ حقيقيّ) |
