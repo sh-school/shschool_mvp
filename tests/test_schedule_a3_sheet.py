@@ -1,6 +1,6 @@
 """الجدولُ العامّ المطبوع على A3 عرضيّة = ت1 (قرارُ المالك 2026-09-26): ورقةٌ واحدةٌ بخطٍّ مقروء.
 
-اثنان وسبعون معلّماً على صفحةٍ واحدةٍ بخطٍّ 7.9pt موحَّدٍ (استثناءٌ اختاره المالكُ لهذا الجدول بعد رؤية النماذج الأربعة). فالاختبارُ
+اثنان وسبعون معلّماً على صفحةٍ واحدةٍ بخطّ `A3_SHEET_PT` موحَّدٍ (استثناءٌ اختاره المالكُ لهذا الجدول بعد رؤية النماذج الأربعة). فالاختبارُ
 **رسمٌ حقيقيّ** بـWeasyPrint لا نصٌّ: عددُ الصفحات وأصغرُ خطٍّ مرسومٍ في الملفّ يُقرآن من الـPDF نفسِه. وسلوكُ الفائض يبقى: من زاد
 معلّموه عن السعة انتقل الباقي إلى ورقةٍ ثانيةٍ بترويسة الجدول نفسِها. وA4 لا يُمَسّ. أسماءٌ ومعلّمون مصطنعون.
 """
@@ -17,15 +17,20 @@ from django.template.loader import render_to_string
 from core.pdf_utils import render_pdf_bytes
 from operations.models import ScheduleSlot
 from operations.schedule_selectors import schedule_print_payload
-from operations.templatetags.week_tags import dept_row_height, name_column_mm
+from operations.templatetags.week_tags import (
+    A3_SHEET_PT,
+    a3_metrics,
+    dept_row_height,
+    name_column_mm,
+)
 from tests.conftest import ClassGroupFactory
 from tests.pdf_geometry import median_center_offset_mm, missing_names, text_chunks
 from tests.test_week_page import YEAR, _teacher, world  # noqa: F401
 
 pytestmark = pytest.mark.django_db
 
-#: أصغرُ خطٍّ يُقبل على ورقة A3 (7.9pt) بهامش تقريبٍ للنقطة العشريّة.
-MIN_PT = 7.9 - 0.05
+#: أصغرُ خطٍّ يُقبل على ورقة A3 = خطُّ الورقة نفسُه (`A3_SHEET_PT`: 7.9 في ت1، ورُفع بقرار المالك 2026-09-27) بهامش تقريبٍ للنقطة العشريّة.
+MIN_PT = A3_SHEET_PT - 0.05
 
 #: أسماءٌ مصطنعةٌ عريضةُ الحروف — نواتجُ مقطعيها (الأوّل + الكنية) 16–17 حرفاً، أطولُ ما تحمله عمودُ الاسم.
 FIRST = ["سعد", "ناصر", "فيصل", "طلال", "ماجد", "بدر", "راشد", "حمد"]
@@ -104,8 +109,10 @@ def staff(world):  # noqa: F811
     return build
 
 
-def _render(world, query="view=all_teachers&source=plan&paper=a3&orient=landscape"):  # noqa: F811
+def _render(world, query="view=all_teachers&source=plan&paper=a3&orient=landscape", notes=None):  # noqa: F811
     ctx = schedule_print_payload(world["school"], world["principal"], QueryDict(query))
+    if notes is not None:
+        ctx["nav"] = {**ctx["nav"], "notes": notes}
     ctx["embed"] = True
     ctx["for_pdf"] = True
     html = render_to_string("schedule/print_schedule.html", ctx)
@@ -134,13 +141,13 @@ def _facts(pdf: bytes) -> tuple[int, float, list[str]]:
 
 
 class TestTheSeventyTwoTeachersFitOneSheet:
-    def test_one_page_and_no_font_below_7_9pt(self, world, staff):  # noqa: F811
+    def test_one_page_and_no_font_below_the_sheet_font(self, world, staff):  # noqa: F811
         staff(teachers=72, per_teacher=12)
 
         pages, smallest, _ = _facts(_pdf(world))
 
         assert pages == 1, "اثنان وسبعون معلّماً صفحةٌ واحدة (ت1)"
-        assert smallest >= MIN_PT, f"أصغرُ خطٍّ مرسومٍ {smallest}pt دون 7.9"
+        assert smallest >= MIN_PT, f"أصغرُ خطٍّ مرسومٍ {smallest}pt دون {A3_SHEET_PT}"
 
     def test_what_the_reader_sees_names_whole_one_footer_row_and_centred_codes(
         self,
@@ -295,3 +302,38 @@ class TestTheNameColumnFollowsTheLongestName:
     def test_rows_without_a_display_name_use_the_floor(self):
         assert name_column_mm([{}, {"display_name": None}]) == "26.0"
         assert name_column_mm(None) == "26.0"
+
+
+#: أسوأُ أسبوعٍ فعليّ: الأسطرُ الثلاثةُ التي يكتبها `_week_notes` معاً بأطولِ ما تحمل (كلُّ الأيّام مغلقةٌ بسببٍ طويل، وكلُّ الأيّام من الخطّة، وحصصٌ بلا رقم).
+WORST_NOTES = [
+    "الأحد، الاثنين، الثلاثاء، الأربعاء، الخميس: إجازةُ منتصف الفصل الدراسيّ بقرار وزارة التربية والتعليم والتعليم العالي — لا حصص.",
+    "لم تُولَّد حصصُ الأحد، الاثنين، الثلاثاء، الأربعاء، الخميس بعد، فتُعرض وفق الخطّة المعتمدة.",
+    "137 حصّةً تاريخيّةً بلا رقمٍ (من جدولٍ سابق) لا تُعرض.",
+]
+
+
+class TestAWeekWithNotesStillFitsOnOneSheet:
+    """قياسُ المايسترو 2026-09-27: عند A3_SHEET_PT لا يتّسع سطرُ ملاحظاتٍ فيسقط شرطُ «ورقةٌ واحدة» في أسابيع الإغلاق — فالخطُّ يُصغَّر بقدر ما يلزم."""
+
+    def test_the_worst_week_is_one_page_at_the_scaled_font(self, world, staff):  # noqa: F811
+        staff(teachers=72, per_teacher=12)
+
+        pdf, _ctx = _render(world, notes=WORST_NOTES)
+        pages, smallest, texts = _facts(pdf)
+
+        expected = a3_metrics(len(WORST_NOTES))["pt"]
+        assert pages == 1, f"أسوأُ أسبوعٍ ({len(WORST_NOTES)} ملاحظات) كسر الصفحةَ عند {expected}pt"
+        assert smallest >= expected - 0.05
+        assert all(note.split()[0] in texts[0] for note in WORST_NOTES), "الملاحظاتُ تُرسم كلُّها"
+
+    def test_the_font_only_shrinks_when_notes_need_the_room(self):
+        fonts = [a3_metrics(n)["pt"] for n in range(0, 4)]
+
+        assert fonts[0] == A3_SHEET_PT, "بلا ملاحظاتٍ الخطُّ كاملاً"
+        assert fonts == sorted(fonts, reverse=True), "كلُّ ملاحظةٍ تُصغّر ولا تكبّر"
+        assert fonts[3] >= A3_SHEET_PT - 0.5, "التصغيرُ طفيفٌ حتّى في أسوأ أسبوع"
+
+    def test_bad_input_keeps_the_full_font(self):
+        assert a3_metrics(None)["pt"] == A3_SHEET_PT
+        assert a3_metrics("x")["pt"] == A3_SHEET_PT
+        assert a3_metrics(-2)["pt"] == A3_SHEET_PT
