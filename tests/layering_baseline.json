@@ -181,13 +181,13 @@
    "orm": 16
   },
   "academic_management/assignment_views.py::set_parallel": {
-   "orm": 18
+   "orm": 14
   },
   "academic_management/assignment_views.py::subject_options": {
    "orm": 8
   },
   "academic_management/assignment_views.py::toggle_double": {
-   "orm": 11
+   "orm": 10
   },
   "academic_management/assignment_views.py::toggle_preparation": {
    "orm": 14
