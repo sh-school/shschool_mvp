@@ -11,12 +11,12 @@
 
 {% block content %}
 {% comment %}
-العرضُ والطباعةُ مستقلّان في كلّ أنواع الجدول (قرارُ 2026-09-18 للمعلّم والشعبة، و2026-09-25 للجدول العامّ):
-ما يُعرض هنا جدولٌ عاديٌّ برموز المنصّة ومكوّناتها — لا ورقةٌ بالملّيمتر في إطار — وجدولُ المعلّم والشعبة
-جزئيّةُ البيانات نفسُها `week_grid.html`، والجدولُ العامّ (كلّ المعلّمين) جزئيّةُ `pdf/matrix_table.html`
-التي تقرؤها الورقةُ المطبوعة أيضاً، فالمعروضُ هو المطبوعُ خانةً بخانة. والطباعةُ والتصديرُ من ورقتهما
-الحقيقيّة عبر إطارٍ مخفيٍّ لا يُعرض ولا يُحمَّل قبل أوّل طلبِ طباعة. وللجدول العامّ بحثٌ ولوحُ تحليلٍ
-في المستند نفسِه (`schedule-matrix.js`) بلا رسائلَ بين وثيقتين.
+العرضُ والتصديرُ مستقلّان في كلّ أنواع الجدول (قرارُ 2026-09-18 للمعلّم والشعبة، و2026-09-25 للجدول العامّ؛
+ولا طباعةَ مباشرةً — قرارُ المالك 2026-09-28): ما يُعرض هنا جدولٌ عاديٌّ برموز المنصّة ومكوّناتها — لا ورقةٌ
+بالملّيمتر في إطار — وجدولُ المعلّم والشعبة جزئيّةُ البيانات نفسُها `week_grid.html`، والجدولُ العامّ (كلّ
+المعلّمين) جزئيّةُ `pdf/matrix_table.html` التي تقرؤها الورقةُ المطبوعة أيضاً، فالمعروضُ هو المطبوعُ خانةً
+بخانة. والتصديرُ من ورقتهما الحقيقيّة (زرّا PDF وExcel أعلاه). وللجدول العامّ بحثٌ ولوحُ تحليلٍ في المستند
+نفسِه (`schedule-matrix.js`) بلا رسائلَ بين وثيقتين.
 {% endcomment %}
 {% if preview %}
 {% comment %}معاينةُ مسودّة — لا الجدول الحيّ. اللافتةُ قبل كلّ شيءٍ كي لا تُقرأ المسودّةُ جدولاً معتمَداً.{% endcomment %}
@@ -55,11 +55,11 @@
         {% if target_class %}<input type="hidden" name="class" value="{{ target_class.id }}">{% endif %}
         <input type="hidden" name="year" value="{{ year }}">
         {% include "schedule/partials/carry_fields.html" %}
-        <select name="paper" class="form-select" data-autosubmit title="حجم ورق الطباعة" aria-label="حجم ورق الطباعة">
+        <select name="paper" class="form-select" data-autosubmit title="حجم ورق التصدير" aria-label="حجم ورق التصدير">
           <option value="a4" {% if paper == 'a4' %}selected{% endif %}>A4</option>
           <option value="a3" {% if paper == 'a3' %}selected{% endif %}>A3</option>
         </select>
-        <select name="orient" class="form-select" data-autosubmit title="اتّجاه ورق الطباعة" aria-label="اتّجاه ورق الطباعة">
+        <select name="orient" class="form-select" data-autosubmit title="اتّجاه ورق التصدير" aria-label="اتّجاه ورق التصدير">
           <option value="portrait" {% if orient == 'portrait' %}selected{% endif %}>عمودي</option>
           <option value="landscape" {% if orient == 'landscape' %}selected{% endif %}>أفقي</option>
         </select>
@@ -71,7 +71,6 @@
              placeholder="ابحث: معلّم أو قسم أو رمز شعبة" aria-label="بحث في الجدول العام" autocomplete="off">
       {% endif %}
 
-      <button type="button" id="schedule-print-btn" class="btn-primary btn-sm">طباعة</button>
       {# التصديرُ للورقة المعروضة نفسها: الاختيارُ محمولٌ في `selection_query`. #}
       <a data-app-file data-export-job="pdf" href="{% url 'schedule_export_pdf' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير PDF</a>
       <a data-app-file data-export-job="excel" href="{% url 'schedule_export_excel' %}?{{ selection_query }}" class="btn-secondary btn-sm">تصدير Excel</a>
@@ -123,26 +122,9 @@
   {% endif %}
   {% endif %}
 
-  {% comment %}إطارٌ مخفيٌّ للطباعة والتصدير وحدَهما — ورقتُه الحقيقيّةُ بملّيمترها وترويستها كما كانت دائماً، ولا صلةَ له بما هو معروضٌ أعلاه. لا `src` حتى يُطلب: الورقةُ تُحسب مرّةً واحدةً لا مرّتين عند فتح الصفحة.{% endcomment %}
-  <iframe id="schedule-print-frame" title="{{ title }}"
-          data-src="{% url 'schedule_print' %}?embed=1&amp;{{ selection_query }}"
-          class="schedule-print-frame-hidden" aria-hidden="true" tabindex="-1"></iframe>
 </div>
 
 {% if view_type == 'all_teachers' and matrix %}
 <script src="{% static 'js/schedule-matrix.js' %}" defer></script>
 {% endif %}
-<script nonce="{{ request.csp_nonce }}">
-  (function () {
-    // الطباعةُ للإطار لا للصفحة: ما يخرج على الورق هو الجدولُ وحده. ويُحمَّل الإطارُ عند أوّل طلبٍ
-    // لا فوراً، وتنتظر الطباعةُ تحميلَه أوّلَ مرّةٍ كي لا تُطبَع صفحةٌ بيضاءُ قبل أن تصل الورقة.
-    var frame = document.getElementById('schedule-print-frame');
-    function print() { frame.contentWindow.focus(); frame.contentWindow.print(); }
-    document.getElementById('schedule-print-btn').addEventListener('click', function () {
-      if (frame.getAttribute('src')) { print(); return; }
-      frame.addEventListener('load', print, { once: true });
-      frame.src = frame.dataset.src;
-    });
-  })();
-</script>
 {% endblock %}
