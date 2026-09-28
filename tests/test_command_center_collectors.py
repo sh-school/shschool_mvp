@@ -355,9 +355,14 @@ def test_open_pulls_summary_keeps_numbers_only():
         },
         {"created_at": "2026-09-20T00:00:00Z", "draft": True},
     ]
+    payload[0]["head"] = {
+        "sha": "C" * 40,
+        "ref": "claude/اسمُ-فرع",
+    }  # قيمٌ رتيبةٌ لا يحسبها فاحصُ الأسرار سرّاً
     summary = pulls.reduce_open(payload)
-    assert set(summary) == {"open", "drafts", "oldest"}
+    assert set(summary) == {"open", "drafts", "oldest", "heads"}
     assert summary["open"] == 2 and summary["drafts"] == 1
+    assert summary["heads"] == ["c" * 12]  # طرفٌ سداسيٌّ مقصوصٌ بحروفٍ صغيرة، لا اسمُ الفرع
 
 
 def test_a_sha_from_the_deployments_reply_must_be_hex_like():
@@ -385,6 +390,72 @@ def test_pulls_collect_combines_open_pulls_and_deploy_lag(monkeypatch):
     assert panel["status"] == contract.OK
     assert panel["gauge"] == 100 - 12 - 4
     assert {"label": "إيداعاتٌ غيرُ منشورة", "value": "4"} in panel["metrics"]
+
+
+def test_branches_summary_keeps_tips_only_and_skips_main():
+    sha = "d" * 40
+    payload = [
+        {"name": "main", "commit": {"sha": "f" * 40}},
+        {"name": "claude/عملٌ", "commit": {"sha": sha}, "protected": False},
+        {"name": "sandbox", "commit": {"sha": "../../evil"}},
+        "تالف",
+    ]
+    summary = pulls.reduce_branches(payload)
+    assert summary == {"tips": ["d" * 12], "full": False}
+    assert pulls.reduce_branches(
+        [{"name": f"b{i}", "commit": {"sha": "a" * 40}} for i in range(100)]
+    )["full"]
+    assert pulls.reduce_branches({"message": "Not Found"}) is None
+
+
+def test_orphans_count_branches_without_an_open_pull():
+    opened = {"heads": ["aaaaaaaaaaaa"]}
+    assert pulls.orphans(opened, {"tips": ["aaaaaaaaaaaa", "bbbbbbbbbbbb"], "full": False}) == 1
+    assert pulls.orphans(opened, None) is None
+    assert (
+        pulls.orphans({"open": 1}, {"tips": [], "full": False}) is None
+    )  # خلاصةٌ قديمةٌ قبل الأطراف
+
+
+def test_many_stray_branches_turn_the_panel_amber(monkeypatch):
+    now = time.time()
+    tips = [f"{i:012x}" for i in range(13)]
+
+    def fake(path, reduce):
+        if path.startswith("pulls"):
+            return {"open": 3, "drafts": 0, "oldest": now - 86400, "heads": tips[:1]}
+        if path.startswith("branches"):
+            return {"tips": tips, "full": False}
+        if path.startswith("deployments"):
+            return {"sha": "b5b485d2e5fb1505"}
+        return {"ahead": 0}
+
+    monkeypatch.setattr(github, "fetch", fake)
+    pulls.collect(now)
+    panel = _panel("pulls")
+    assert panel["status"] == contract.WARN and panel["gauge"] == 100 - 2 * (12 - pulls.ORPHAN_WARN)
+    assert {"label": "فروعٌ بلا طلب", "value": "12"} in panel["metrics"]
+
+
+def test_unknown_branches_do_not_change_the_level(monkeypatch):
+    now = time.time()
+
+    def fake(path, reduce):
+        if path.startswith("pulls"):
+            return {"open": 1, "drafts": 0, "oldest": now, "heads": []}
+        if path.startswith("branches"):
+            return None
+        if path.startswith("deployments"):
+            return {"sha": "b5b485d2e5fb1505"}
+        return {"ahead": 0}
+
+    monkeypatch.setattr(github, "fetch", fake)
+    pulls.collect(now)
+    panel = _panel("pulls")
+    assert (
+        panel["status"] == contract.OK
+        and {"label": "فروعٌ بلا طلب", "value": "؟"} in panel["metrics"]
+    )
 
 
 def test_pulls_without_a_recorded_deployment_is_amber_with_no_dial(monkeypatch):
