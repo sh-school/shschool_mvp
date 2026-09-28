@@ -348,9 +348,12 @@
 
   {% if view_type == 'all_teachers' %}
   {% if paper == 'a3' %}
+  {% a3_metrics nav.notes|length as m %}
   {% comment %}
   ── الجدول العامّ على A3 عرضيّة: ت1 (قرارُ المالك 2026-09-26) ──
-  ورقةٌ واحدةٌ لاثنين وسبعين معلّماً بخطٍّ 7.9pt موحَّدٍ (استثناءٌ اختاره المالكُ لهذا الجدول بعد رؤيته: دون 9.5pt المرفوضِ للاستمارة).
+  ورقةٌ واحدةٌ لاثنين وسبعين معلّماً بخطٍّ موحَّدٍ (`A3_SHEET_PT` في week_tags؛ ت1 = 7.9pt، ورُفع إلى 8.1 بقرار المالك 2026-09-27
+  بما كسبه المتنُ من ارتفاعٍ بعد التصاق التذييل بأسفل الصفحة — ويُصغَّر قليلاً تلقائيّاً لأسبوعٍ بملاحظاتٍ كي تبقى الورقةُ واحدة)
+  (استثناءٌ اختاره المالكُ لهذا الجدول بعد رؤيته: دون 9.5pt المرفوضِ للاستمارة).
   المتنُ 402×243مم: هوامشُ 6 علويّاً وسفليّاً و9 جانبيّاً، ترويسةٌ كاملةٌ 30مم وفاصلٌ 2، وتذييلٌ صفٌّ واحدٌ 8مم وفاصلٌ 2.
   الصفُّ سطرٌ واحدٌ بمباعدة 1.05 وحشوٍ رأسيٍّ صفر ⇒ ≈ 3.03مم؛ والأعمدةُ: القسم 16.4 (بالخطّ الغليظ لأطول كلمةٍ «الاجتماعيات»)
   والاسمُ يتبع أطولَ اسمِ عرضٍ (`name_column_mm`: 1.7مم للحرف + 1.6، من 26 إلى 36؛ كان 23.7 ثابتاً فقُصّ «عبدالباسط الجاسم») والنصاب 11 (يتبع الخطّ) والخلايا الخمسُ والثلاثون ≈ 10.02 لكلٍّ. والقسمُ الضيّق (صفّان وثلاثُ
@@ -361,25 +364,25 @@
   الإطارُ (هندسةُ الصفحة، الترويسةُ، التذييلُ) من المكوّن المركزيّ (`core/print_frame.py`، ش1–ش3، المواصفة ٥) لا مكتوباً هنا —
   حارسُ `tests/print_frame_ratchet.py` يمنع تعريفَ ترويسةٍ أو تذييلٍ جارٍ خارجَه. `{% print_frame_css %}` بعد `</style>` أدناه،
   والترويسةُ والتذييلُ في المتن (`{% print_frame_header %}`/`{% print_frame_footer %}`) — الرؤيةُ ضمن التذييل لأنّ A3 عرضيّةً
-  خارج `VISION_IN_HEADER`. الأعمدةُ والصفُّ (7.9pt) بلا تغيير — ذلك محتوى الجدول لا الإطار.
+  خارج `VISION_IN_HEADER`. الأعمدةُ والصفُّ من `a3_metrics` (`A3_SHEET_PT` في week_tags.py) — ذلك محتوى الجدول لا الإطار.
   {% endcomment %}
   @media print {
     html, body { height: auto; }
     .schedule-print { padding: 0; }
     .matrix-wrap { overflow: visible; }
-    .schedule-matrix { font-size: 7.9pt; }
+    .schedule-matrix { font-size: {{ m.font }}; }
     .schedule-matrix th, .schedule-matrix td { height: auto; line-height: 1.05; padding: 0 0.2mm; border-width: 0.3pt; }
     .schedule-matrix thead th { border-bottom-width: 1pt; }
-    .schedule-matrix .m-day, .schedule-matrix .m-period { font-size: 7.9pt; padding: 0; }
-    .schedule-matrix .m-name, .schedule-matrix .m-name.m-name-tagged { width: {% name_column_mm matrix %}mm; font-size: 7.9pt; padding: 0 0.6mm; }
-    .schedule-matrix .m-specialty { font-size: 7.9pt; }
-    .schedule-matrix .m-dept { width: 16.4mm; font-size: 7.9pt; padding: 0 0.3mm; line-height: 1.05; }
-    .schedule-matrix .m-total { width: 11mm; font-size: 7.9pt; }
+    .schedule-matrix .m-day, .schedule-matrix .m-period { font-size: {{ m.font }}; padding: 0; }
+    .schedule-matrix .m-name, .schedule-matrix .m-name.m-name-tagged { width: {% name_column_mm matrix m.k %}mm; font-size: {{ m.font }}; padding: 0 0.6mm; }
+    .schedule-matrix .m-specialty { font-size: {{ m.font }}; }
+    .schedule-matrix .m-dept { width: {{ m.dept_w }}; font-size: {{ m.font }}; padding: 0 0.3mm; line-height: 1.05; }
+    .schedule-matrix .m-total { width: {{ m.total_w }}; font-size: {{ m.font }}; }
     .schedule-matrix .m-cell { width: auto; }
     /* الرمزُ متوسّطٌ رأسيّاً (بلاغ المالك 2026-09-27): مقاييسُ Tajawal تُجلس الأرقامَ أعلى مركز سطرها بنحو 0.42مم؛ فيُزاح النصُّ لأسفل بحشوٍ
-       علويٍّ ويُنقَص مثلُه من ارتفاع السطر — فيبقى الصفُّ 3.03مم. يقيسه `tests/test_schedule_a3_sheet.py` على PDF مرسوم (±0.2مم). */
+       علويٍّ ويُنقَص مثلُه من ارتفاع السطر — فيبقى الصفُّ تابعاً لـa3_metrics. يقيسه `tests/test_schedule_a3_sheet.py` على PDF مرسوم (±0.2مم). */
     .schedule-matrix .m-cell, .schedule-matrix .m-name, .schedule-matrix .m-name.m-name-tagged, .schedule-matrix .m-total,
-    .schedule-matrix .m-day, .schedule-matrix .m-period { padding-top: 0.84mm; line-height: 2.09mm; }
+    .schedule-matrix .m-day, .schedule-matrix .m-period { padding-top: {{ m.pad }}; line-height: {{ m.lh }}; }
     .schedule-matrix tbody tr { height: var(--row-h, auto); }
     .schedule-matrix thead { display: table-header-group; }
     .schedule-matrix tr { break-inside: avoid; }
@@ -543,7 +546,7 @@
 
   {% if matrix %}
   <div class="matrix-wrap">
-  {% if paper == 'a3' %}{% include "schedule/pdf/matrix_table.html" with pad_pt=7.9 %}{% else %}{% include "schedule/pdf/matrix_table.html" %}{% endif %}
+  {% if paper == 'a3' %}{% include "schedule/pdf/matrix_table.html" with pad_pt=m.pt %}{% else %}{% include "schedule/pdf/matrix_table.html" %}{% endif %}
   </div>
 
   {% if has_colored_exemptions or nav.kinds or paper == 'a3' %}
