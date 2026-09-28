@@ -15,7 +15,13 @@ import pytest
 from django.urls import reverse
 
 from operations import schedule_feasibility as sf
-from operations.models import SchedulingResource, Subject, SubjectClassAssignment, TeacherExemption
+from operations.models import (
+    ScheduleGeneration,
+    SchedulingResource,
+    Subject,
+    SubjectClassAssignment,
+    TeacherExemption,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -276,3 +282,81 @@ def test_a_healthy_school_is_told_so(client_as, vice, school, teacher):
 
     assert "لا عجزَ في العدّ" in page
     assert "عجزٌ يقينيّ" not in page
+
+
+# ── بوّابةُ العجز اليقينيّ (G4-أ) ────────────────────────────────────
+#
+# الفحصُ كان معروضاً تحذيراً فقط — الزرُّ يعمل رغمه بلا فرق. فصار العجزُ
+# اليقينيّ يمنع الزرَّ افتراضيّاً، ولا يتجاوزه إلّا سببٌ صريحٌ يُسجَّل في
+# AuditLog (لا في config_snapshot الذي يُستبدَل بالكامل حين يكتمل التوليدُ).
+
+
+@pytest.fixture
+def no_op_task(monkeypatch):
+    """يعطّل إرسالَ مهمّة التوليد الفعليّة — البوّابةُ تُختبَر لا المولّد."""
+    monkeypatch.setattr("operations.tasks.generate_smart_schedule_task.delay", lambda *a, **k: None)
+
+
+def test_infeasible_generation_is_blocked_without_a_reason(
+    client_as, vice, school, teacher, no_op_task
+):
+    section = a_class(school)
+    assign(school, a_subject(school, "الرياضيات", "MAT"), section, teacher, 35)
+
+    response = client_as(vice).post(reverse("smart_generate"), {"year": YEAR}, follow=True)
+
+    assert "عجزٌ يقينيّ يمنع التوليد" in response.content.decode()
+    assert not ScheduleGeneration.objects.filter(school=school, academic_year=YEAR).exists()
+
+
+def test_infeasible_generation_proceeds_with_a_reason_and_is_logged(
+    client_as, vice, school, teacher, no_op_task
+):
+    from core.models import AuditLog
+
+    section = a_class(school)
+    assign(school, a_subject(school, "الرياضيات", "MAT"), section, teacher, 35)
+
+    response = client_as(vice).post(
+        reverse("smart_generate"),
+        {"year": YEAR, "feasibility_override_reason": "جدولٌ مؤقّتٌ لحين تعديل الإسناد"},
+        follow=True,
+    )
+
+    assert response.status_code == 200
+    generation = ScheduleGeneration.objects.get(school=school, academic_year=YEAR)
+    log = AuditLog.objects.get(
+        school=school,
+        object_id=str(generation.pk),
+        changes__event="schedule_generate_despite_infeasibility",
+    )
+    assert log.changes["reason"] == "جدولٌ مؤقّتٌ لحين تعديل الإسناد"
+    assert log.changes["minimum_unplaceable"] == 1
+
+
+def test_a_feasible_generation_needs_no_reason(client_as, vice, school, teacher, no_op_task):
+    """لا عجزَ في العدّ → الزرُّ العاديّ يعمل كما كان، بلا سببٍ ولا سجلّ تجاوز."""
+    from core.models import AuditLog
+
+    assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 20)
+
+    response = client_as(vice).post(reverse("smart_generate"), {"year": YEAR}, follow=True)
+
+    assert response.status_code == 200
+    assert ScheduleGeneration.objects.filter(school=school, academic_year=YEAR).exists()
+    assert not AuditLog.objects.filter(
+        changes__event="schedule_generate_despite_infeasibility"
+    ).exists()
+
+
+def test_the_generate_button_hides_when_infeasible_and_the_override_form_appears(
+    client_as, vice, school, teacher
+):
+    section = a_class(school)
+    assign(school, a_subject(school, "الرياضيات", "MAT"), section, teacher, 35)
+
+    page = client_as(vice).get(f"{reverse('smart_schedule')}?year={YEAR}").content.decode()
+
+    assert "بدء التوليد" not in page
+    assert "ولِّد على أيّ حال" in page
+    assert "سببُ التوليد رغم العجز" in page

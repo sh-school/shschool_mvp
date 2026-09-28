@@ -419,7 +419,7 @@
    "orm": 20
   },
   "operations/views_schedule.py::smart_generate": {
-   "orm": 13
+   "orm": 10
   },
   "operations/views_schedule.py::smart_generate_status": {
    "orm": 14

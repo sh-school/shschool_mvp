@@ -42,7 +42,7 @@ from .schedule_breaches import draft_breaches
 from .schedule_selectors import pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
-from .services import AbsenceSwapService, ScheduleService, SubstituteService
+from .services import AbsenceSwapService, ScheduleService, SubstituteService, schedule_gate
 from .services.substitute import TEACHING_ROLES
 
 logger = logging.getLogger(__name__)
@@ -833,12 +833,13 @@ def smart_generate(request):
         )
         return _smart_schedule_redirect(year)
 
-    generation = ScheduleGeneration.objects.create(
-        school=school,
-        academic_year=year,
-        generated_by=request.user,
-        status="queued",
-    )
+    try:
+        gate = schedule_gate.enforce(school, year, request.POST.get("feasibility_override_reason"))
+    except schedule_gate.FeasibilityBlockedError as exc:
+        messages.error(request, str(exc))
+        return _smart_schedule_redirect(year)
+
+    generation = gate.create_generation(school, request.user)
 
     from .tasks import generate_smart_schedule_task
 

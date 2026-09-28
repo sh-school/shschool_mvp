@@ -16,7 +16,7 @@
   <a href="{% url 'schedule_settings' %}" class="btn-secondary btn-sm">{% icon "settings" %} الإعدادات</a>
   <a href="{% url 'schedule_quality_lab' %}?year={{ year }}" class="btn-secondary btn-sm">{% icon "quality" %} مختبر الجودة</a>
   <a href="{% url 'weekly_schedule' %}" class="btn-secondary btn-sm">{% icon "schedule" %} الجدول الحالي</a>
-  {% if assignments_count and not pending_generation %}
+  {% if assignments_count and not pending_generation and not feasibility.blocking %}
   <form method="post" action="{% url 'smart_generate' %}" class="gen-inline-form"
         data-confirm="بدء توليد مسودّة جدول جديدة؟ الجدول القائم يبقى كما هو حتى تعتمدها.">
     {% csrf_token %}
@@ -48,6 +48,21 @@
     {% if feasibility.blocking %}
     {% callout "warning" %}<strong>{{ feasibility.minimum_unplaceable }} حصّةً على الأقلّ لن تجد موضعاً مهما طال البحث.</strong>
       والعلاجُ في التوزيعات لا في المولّد: راجع ما دونه ثمّ أعد الفحص.{% endcallout %}
+    {% if assignments_count and not pending_generation %}
+    {% comment %}
+    بوّابةُ العجز اليقينيّ (G4-أ): الزرُّ العاديّ في الترويسة يختفي حين
+    `feasibility.blocking`، وهذا وحدَه بديلُه — سببٌ صريحٌ مطلوبٌ يُسجَّل في
+    AuditLog (لا في config_snapshot: يُستبدَل بالكامل حين يكتمل التوليدُ
+    الحقيقيّ فلا يصلح مكاناً دائماً للسبب). القرارُ قرارُ من يملك «schedule.admin».
+    {% endcomment %}
+    <form method="post" action="{% url 'smart_generate' %}" class="gen-inline-form"
+          data-confirm="توليدٌ رغم عجزٍ يقينيّ — الحصصُ المذكورةُ أعلاه لن تجد موضعاً مهما طال البحث. تابع؟">
+      {% csrf_token %}
+      <input type="hidden" name="year" value="{{ year }}">
+      {% field "feasibility_override_reason" "سببُ التوليد رغم العجز" required=True placeholder="لماذا تُولِّد رغم هذا العجز؟" %}
+      <button type="submit" class="btn-danger btn-sm">{% icon "generate" %} ولِّد على أيّ حال</button>
+    </form>
+    {% endif %}
     {% else %}
     {% callout "info" %}لا عجزَ في العدّ: الطلبُ يسعه ما في الأسبوع من خانات. وبقيّةُ التعذّر — إن وقع —
       من تشابك القيود لا من ضيق الطاقة.{% endcallout %}
