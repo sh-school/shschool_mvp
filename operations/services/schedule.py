@@ -84,10 +84,14 @@ class ScheduleService(
 
             gen.status = "approved"
             # ويُعاد القياسُ عند الاعتماد: المصادقةُ قد تكون بعد تعديلٍ يدويّ على المسودّة.
+            # نقطةُ حفظٍ مستقلّة (savepoint متداخل): خطأُ قاعدة بياناتٍ هنا يُفسد المعاملةَ
+            # الخارجيّةَ كلَّها صامتاً بلا هذا التداخل — فيسقط `gen.save` بعده بخطإٍ لا صلةَ
+            # له بالقياس، ويتراجع الاعتمادُ كلُّه (F-15).
             try:
-                from operations.schedule_lab import store_metrics
+                with transaction.atomic():
+                    from operations.schedule_lab import store_metrics
 
-                store_metrics(gen)
+                    store_metrics(gen)
             except Exception:  # noqa: BLE001
                 logger.exception("schedule_lab: تعذّر القياسُ عند الاعتماد %s", gen.id)
             gen.save(update_fields=["status"])

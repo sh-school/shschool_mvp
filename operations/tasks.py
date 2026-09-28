@@ -413,8 +413,12 @@ def generate_smart_schedule_task(self, generation_id):
         f"في {result['elapsed_ms']}ms"
     )
 
-    if result["generation"] is None:
-        # لم يُحفَظ شيء — والصفُّ ما زال «قيد التوليد»، فلا يُترك معلّقاً أبداً.
+    # الحكمُ بحالة الصفّ لا بمرجع الكائن: `generation` هنا صفٌّ موجودٌ سلفاً (مُرِّر من الطلب)،
+    # فـ`result["generation"] is None` لا يقع أبداً لهذا المسار — وكان هذا الشرطَ الوحيد. فإن
+    # فشل الحفظُ داخل معاملة `generate_schedule` (استثناءٌ، أو صفرُ حصصٍ فتخطّاها شرطُ الحفظ)
+    # يُعاد الكائنُ نفسُه بلا تغييرٍ وخطأٌ في `errors`، فيبقى الصفُّ «يجري» إلى الأبد ويُنسَب لاحقاً
+    # إلى توقّف العامل (F-09) — والحارسُ الصحيح: هل تحوّل الصفُّ فعلاً إلى «مسوَّدة»؟
+    if ScheduleGeneration.objects.filter(pk=generation.pk, status="running").exists():
         _fail("؛ ".join(result["errors"]) or "تعذّر حفظ الجدول المولَّد.")
         return {"ok": False, "reason": "not_saved"}
 
