@@ -1,8 +1,9 @@
-"""تصديرُ كشف الحصص وطباعتُه — كشفُ الشعبة وكشفُ الجناح.
+"""تصديرُ كشف الحصص — كشفُ الشعبة وكشفُ الجناح.
 
-ثلاثةُ مخارجَ من بياناتٍ واحدة (`wings/register.py`)، بـ`?format=`:
+ثلاثةُ مخارجَ من بياناتٍ واحدة (`wings/register.py`)، بـ`?format=` — ولا طباعةَ مباشرةً من أيٍّ منها
+(قرارُ المالك 2026-09-28: طباعةٌ مباشرة تُلغى ويُكتفى بالتصدير):
 
-- `html` — نسخةٌ ورقيّةٌ في المتصفّح، و`?print=1` يفتح نافذةَ الطباعة وحدَها.
+- `html` — معاينةٌ في المتصفّح بلا زرِّ طباعةٍ ولا تذييلٍ متكرّر (`running()` لا يعمل خارج الطباعة/PDF).
 - `pdf`  — `render_pdf` تنزيلاً، من القالب نفسِه.
 - `xlsx` — ورقةٌ محميّةٌ للقراءة، ولكشف الجناح ورقةُ ملخّصٍ ثمّ ورقةٌ لكلّ شعبة.
 
@@ -63,8 +64,6 @@ def _respond(request, *, fmt, title, slug, context, workbook):
     if fmt == "pdf":
         html = render_to_string("wings/register_pdf.html", ctx, request=request)
         return render_pdf(html, generate_export_filename("wings", slug, "pdf"), as_attachment=True)
-    ctx["for_screen"] = True
-    ctx["autoprint"] = request.GET.get("print") == "1"
     return render(request, "wings/register_pdf.html", ctx)
 
 

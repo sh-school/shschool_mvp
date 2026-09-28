@@ -1,8 +1,8 @@
 {% extends "reports/base_qatar_report.html" %}
-{% load static brand_tags %}
+{% load brand_tags %}
 {% comment %}
-  كشفُ الحصص مطبوعاً — كشفُ شعبةٍ، أو كشفُ جناحٍ (ملخّصٌ ثمّ شعبةٌ في كلّ صفحة).
-  قالبٌ واحدٌ للـPDF وللطباعة من المتصفّح (`for_screen`)، والبياناتُ من `wings/register.py`.
+  كشفُ الحصص — كشفُ شعبةٍ، أو كشفُ جناحٍ (ملخّصٌ ثمّ شعبةٌ في كلّ صفحة).
+  قالبٌ للـPDF وحدَه (لا طباعةَ مباشرةً — قرارُ المالك 2026-09-28)، والبياناتُ من `wings/register.py`.
   ولا رقمَ شخصيّاً فيه (قرارُ 2026-09-13).
 {% endcomment %}
 
@@ -13,17 +13,6 @@
   /* الذيلُ في أعلى مساحته لا في حافّة الورقة: كان يلتصق بها فتقصّه الطابعات. */
   @bottom-center { vertical-align: top; padding-top: 3mm; }
 }
-{% if for_screen %}
-/* المتصفّحُ لا يفهم `position: running()` — فالذيلُ المتكرّرُ يُخفى، ويُكتب بدلَه
-   ذيلٌ في آخر كلّ صفحة فصلٍ (`.sheet-footer`) بالنصّ نفسِه. */
-.running-footer { display: none; }
-.sheet-footer { margin-top: 8px; padding-top: 5px; border-top: 1.5px solid {% brand_color "MAROON" %}; text-align: center !important; line-height: 1.7; page-break-inside: avoid; }
-.sheet-footer div { text-align: center !important; }
-.sheet-footer .ft-school { font-size: 10px; color: {% brand_color "TEXT_PRIMARY" %}; font-weight: 600; }
-.sheet-footer .ft-ministry { font-size: 9px; color: {% brand_color "MAROON_DARK" %}; font-weight: 600; }
-.print-bar { display: flex; gap: 8px; justify-content: center; padding: 10px; }
-@media print { .print-bar { display: none; } }
-{% endif %}
 .sheet + .sheet { page-break-before: always; }
 .doc-body { padding: 6px 14px 12px; }
 .report-title-bar { font-size: 13px; padding: 6px 16px; }
@@ -99,29 +88,18 @@
 {% endblock %}
 
 {% block content %}
-{% if for_screen %}
-<div class="print-bar">
-  <button type="button" data-action="print">طباعة</button>
-</div>
-<script src="{% static 'js/actions.js' %}" defer></script>
-{% if autoprint %}<script src="{% static 'js/print-on-open.js' %}" defer></script>{% endif %}
-{% endif %}
-
 {% if wing_register %}
   <section class="sheet">
     {% include "wings/pdf/wing_summary.html" with register=wing_register %}
-    {% if for_screen %}{% include "wings/pdf/sheet_footer.html" %}{% endif %}
   </section>
   {% for register in wing_register.sections %}
   <section class="sheet">
     {% include "wings/pdf/section_sheet.html" %}
-    {% if for_screen %}{% include "wings/pdf/sheet_footer.html" %}{% endif %}
   </section>
   {% endfor %}
 {% else %}
   <section class="sheet">
     {% include "wings/pdf/section_sheet.html" with register=section_register %}
-    {% if for_screen %}{% include "wings/pdf/sheet_footer.html" %}{% endif %}
   </section>
 {% endif %}
 {% endblock %}
