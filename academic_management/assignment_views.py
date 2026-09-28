@@ -386,10 +386,23 @@ def remove_row(request, assignment_id):
     locked = _locked_card(request, school, year, teacher, caps)
     if locked is not None:
         return locked
-    assignment_service.remove_assignment(
+    _obj, cleared_partner = assignment_service.remove_assignment(
         assignment=obj, by=request.user, reason="حُذف من شاشة الإسناد"
     )
-    return _render_card(request, school, year, teacher, caps)
+    notes = []
+    if cleared_partner is not None:
+        holder = cleared_partner.teacher.full_name if cleared_partner.teacher else "—"
+        notes.append(
+            assignment_service.Finding(
+                level=assignment_service.INFO,
+                code=assignment_service.PARALLEL_PARTNER_TAG_CLEARED,
+                message=(
+                    f"رُفع وسمُ التوازي عن {cleared_partner.subject.name_ar} ({holder}) "
+                    "بعد حذف شريكتها في التوازي — صارت وحدَها."
+                ),
+            )
+        )
+    return _render_card(request, school, year, teacher, caps, notes=notes)
 
 
 @login_required

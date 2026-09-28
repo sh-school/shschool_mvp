@@ -61,6 +61,7 @@ PREPARER_DOES_NOT_TEACH = "preparer_does_not_teach"
 COURSE_ALREADY_PREPARED = "course_already_prepared"
 SUBJECT_HELD_BY_OTHER = "subject_held_by_other"
 STALE_WRITE = "stale_write"
+PARALLEL_PARTNER_TAG_CLEARED = "parallel_partner_tag_cleared"
 
 #: الصفوفُ الانتقاليّة التي تنصح الوزارةُ بألّا يُكلَّف بها معلّمٌ في عامه الأوّل
 #: (توجيهات التوجيه التربويّ 2025-2026). معلومةٌ لا منع.
@@ -674,15 +675,9 @@ def apply_assignment(
     if blocking(findings):
         raise AssignmentError(findings)
 
-    # النقلُ المؤكَّد يُسقط سجلَّ صاحبها السابق — ولا يُترك سجلّان لمادّةٍ
-    # واحدةٍ في شعبةٍ واحدةٍ يتنازعان خانتها.
-    if rival is not None:
-        remove_assignment(
-            assignment=rival,
-            by=by,
-            reason=f"نُقلت {subject.name_ar} إلى {teacher.full_name}",
-        )
-
+    # السجلُّ الجديدُ يُكتب **قبل** إسقاط سجلّ المنافس — لا بعده: لو حمل الوسمَ الموروثَ منه (`tag`)
+    # وأُسقط المنافسُ أوّلاً، لرأى `remove_assignment` الشريكةَ وحيدةَ حاملي الوسم لحظةً ورفعته عنها
+    # خطأً، ثمّ يعيد السجلُّ الجديدُ وسمَه فتبقى الشريكةُ يتيمةً (تكرارُ العلّة نفسِها من زاويةٍ أخرى).
     current, before, previous_teacher_id = _save_row(
         current,
         school=school,
@@ -697,6 +692,15 @@ def apply_assignment(
         by=by,
     )
 
+    # النقلُ المؤكَّد يُسقط سجلَّ صاحبها السابق — ولا يُترك سجلّان لمادّةٍ
+    # واحدةٍ في شعبةٍ واحدةٍ يتنازعان خانتها.
+    if rival is not None:
+        remove_assignment(
+            assignment=rival,
+            by=by,
+            reason=f"نُقلت {subject.name_ar} إلى {teacher.full_name}",
+        )
+
     _audit(current, "create" if before is None else "update", before, _snapshot(current), findings)
 
     # سقوطُ شرط التدريس عن المحضِّر السابق — يُحرَس هنا لا يُترك للمصادفة.
@@ -710,7 +714,16 @@ def apply_assignment(
 
 @transaction.atomic
 def remove_assignment(*, assignment, by, reason, expected_updated_at=None):
-    """حذفٌ ناعمٌ بأثره — من حذف ومتى ولماذا. والسببُ لا يُترك فارغاً."""
+    """حذفٌ ناعمٌ بأثره — من حذف ومتى ولماذا. والسببُ لا يُترك فارغاً.
+
+    ## يتيمٌ لا يُترك موسوماً وحدَه
+
+    حذفُ أحد طرفَي مجموعةٍ متوازيةٍ كان يترك العضوَ الباقي موسوماً وحدَه — فيُجدول للشعبة كاملةً في خانة،
+    ويظهر فائضٌ كاذبٌ في فحص الجدوى (D-05). فإن صار العضوُ الباقي **وحيدَ** حاملي الوسم نفسِه في الشعبة
+    بعد هذا الحذف، يُرفع وسمُه في المعاملة نفسها — لا في مجموعةٍ أكبرَ من عضوين، فبقيّتُها تبقى مجموعةً.
+
+    تُعيد `(assignment, cleared_partner)` — والثانيةُ `None` ما لم يُرفع وسمٌ عن أحد.
+    """
     if not (reason or "").strip():
         raise ValidationError({"reason": "الحذفُ قرارٌ إداريّ — ويُكتب سببُه."})
     _guard_stale(assignment, expected_updated_at)
@@ -724,6 +737,24 @@ def remove_assignment(*, assignment, by, reason, expected_updated_at=None):
     assignment.save()
     _audit(assignment, "delete", before, _snapshot(assignment))
 
+    cleared_partner = None
+    tag = (assignment.parallel_group or "").strip()
+    if tag:
+        from operations.models import SubjectClassAssignment
+
+        remaining = list(
+            SubjectClassAssignment.objects.filter(
+                class_group=assignment.class_group, parallel_group=tag, is_active=True
+            ).exclude(pk=assignment.pk)
+        )
+        if len(remaining) == 1:
+            cleared_partner = remaining[0]
+            partner_before = _snapshot(cleared_partner)
+            cleared_partner.parallel_group = ""
+            cleared_partner.updated_by = by
+            cleared_partner.save(update_fields=["parallel_group", "updated_by", "updated_at"])
+            _audit(cleared_partner, "update", partner_before, _snapshot(cleared_partner))
+
     if assignment.teacher_id:
         _drop_orphaned_preparation(
             assignment.school,
@@ -733,7 +764,7 @@ def remove_assignment(*, assignment, by, reason, expected_updated_at=None):
             assignment.teacher_id,
             by,
         )
-    return assignment
+    return assignment, cleared_partner
 
 
 # ══════════════════════════════════════════════════════════════════════

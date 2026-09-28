@@ -211,6 +211,67 @@ def test_transferring_a_parallel_subject_makes_the_new_teacher_inherit_the_tag(
     assert after_demand == before_demand == 2, "النقلُ لا يغيّر طلبَ الشعبة بالخانات"
 
 
+# ════════════════════ الحذفُ يرفع الوسمَ عن العضو الباقي وحدَه ════════════════════
+
+
+def remove(client, row):
+    return client.post(
+        reverse("academic_management:assignment_remove_row", args=[row.id]),
+        {"year": YEAR},
+        HTTP_HOST="localhost",
+    )
+
+
+def test_deleting_one_of_a_pair_clears_the_survivors_tag_and_notes_it(
+    client, school, group, teacher, principal
+):
+    """D-05: حذفُ أحد الطرفين كان يترك الآخرَ موسوماً وحدَه فيُجدول للشعبة كاملةً في خانة."""
+    art = assign(school, group, teacher, "الفنون البصرية", 2, tag="par-11.1")
+    tech = assign(school, group, teacher, "التكنولوجيا", 2, tag="par-11.1")
+    client.force_login(principal)
+
+    response = remove(client, tech)
+
+    art.refresh_from_db()
+    assert art.parallel_group == ""
+    assert "رُفع وسمُ التوازي" in response.content.decode()
+
+
+def a_second_teacher(school, name):
+    role = RoleFactory(school=school, name="teacher")
+    user = UserFactory(full_name=name)
+    MembershipFactory(user=user, school=school, role=role)
+    return user
+
+
+def test_deleting_one_of_a_group_of_three_does_not_clear_the_other_two(
+    school, group, teacher, principal
+):
+    """المجموعةُ التي تبقى أكثرَ من عضوين بعد الحذف تبقى مجموعةً — ليست الوسمَ الأخير."""
+    from academic_management import assignment_services as svc
+
+    art = assign(school, group, teacher, "الفنون البصرية", 2, tag="par-11.1")
+    other1 = a_second_teacher(school, "معلّمٌ ثانٍ")
+    other2 = a_second_teacher(school, "معلّمٌ ثالث")
+    tech = assign(school, group, other1, "التكنولوجيا", 2, tag="par-11.1")
+    chem = assign(school, group, other2, "الكيمياء", 2, tag="par-11.1")
+
+    svc.remove_assignment(assignment=tech, by=principal, reason="اختبار")
+
+    art.refresh_from_db(), chem.refresh_from_db()
+    assert art.parallel_group == "par-11.1" and chem.parallel_group == "par-11.1"
+
+
+def test_deleting_an_untagged_row_clears_nothing(school, group, teacher, principal):
+    from academic_management import assignment_services as svc
+
+    row = assign(school, group, teacher, "الرياضيات", 2)
+
+    _obj, cleared = svc.remove_assignment(assignment=row, by=principal, reason="اختبار")
+
+    assert cleared is None
+
+
 # ════════════════════ الوسمُ لا يُمحى بتعديل الحصص ════════════════════
 
 
