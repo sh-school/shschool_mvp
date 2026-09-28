@@ -172,7 +172,7 @@ def schedule_print_selection(school, user, get_params, default_source="plan"):
     # الفعليّ، فورقةُ خطّةٍ بلا مصدرٍ في رابطها كانت تُصدَّر أسبوعاً فعليّاً غيرَ ما تعرضه.
     selection["source"] = source
     if source == "actual":
-        # والأسبوعُ معه: فالإطارُ وزرّا التصدير والطباعةُ تتبعه لا الخطّةَ.
+        # والأسبوعُ معه: فزرّا تصدير PDF وExcel يتبعانه لا الخطّةَ.
         selection["week"] = week_start.isoformat()
 
     return {

@@ -2,10 +2,11 @@
 
 كان الجدولُ العامّ (كلّ المعلّمين) الوحيدَ الباقيَ ورقةَ طباعةٍ ظاهرةً داخل إطار (استثناءُ قرار 2026-09-18 الذي فصل المعلّمَ
 والشعبةَ)، فظهرت ترويستُها وسطرُها في المنصّة، وزحم الشريطَ ورقٌ واتّجاهٌ لا يغيّران ما يُرى، وسبق الحسابَ المزدوجُ للمصفوفة
-(الصفحةُ ثمّ الإطار)، ولوحُ المعلّم والبحثُ يتراسلان بين وثيقتين. صار العرضُ جدولاً بمكوّنات المنصّة، والطباعةُ ورقتَها كما هي.
+(الصفحةُ ثمّ الإطار)، ولوحُ المعلّم والبحثُ يتراسلان بين وثيقتين. صار العرضُ جدولاً بمكوّنات المنصّة، والتصديرُ
+ورقتَه كما هي — بلا طباعةٍ مباشرةٍ ولا إطارٍ مخفيٍّ بعد الآن (قرارُ المالك 2026-09-28).
 
 والحارسُ الجوهريّ: علاماتُ المصفوفة جزئيّةٌ واحدة (`pdf/matrix_table.html`) تقرؤها الورقةُ والصفحةُ معاً، وما تعرضه الصفحةُ
-خانةً بخانة هو ما تطبعه الورقة (D-16 7.7).
+خانةً بخانة هو ما يُصدَّر في الورقة (D-16 7.7).
 """
 
 import pathlib
@@ -53,27 +54,17 @@ def _grid(html: str) -> list:
 
 class TestTheGeneralScheduleIsARealTable:
     def test_the_page_shows_the_table_itself_not_a_frame(self, world, client):
+        """لا طباعةَ مباشرةً (قرارُ المالك 2026-09-28)، فلا إطارَ مخفيّاً بعد اليوم — التصديرُ رابطٌ مباشر."""
         body = _page(client, world)
 
         assert '<table class="schedule-matrix">' in body
         assert "sheet-scroll" in body and "schedule-sheet-frame" not in body
-        # إطارٌ واحدٌ فحسب: إطارُ الطباعة المخفيّ.
-        assert body.count("<iframe") == 1
-        assert "schedule-print-frame-hidden" in body.split("<iframe", 1)[1].split(">", 1)[0]
+        assert "<iframe" not in body
 
-    def test_the_print_frame_loads_only_when_asked(self, world, client):
-        """يُحمَّل عند أوّل طلبِ طباعة (`data-src`) — فالورقةُ لا تُحسب مرّةً ثانيةً عند فتح الصفحة."""
-        body = _page(client, world, source="actual", week="2026-10-18")
-
-        frame = body.split('id="schedule-print-frame"', 1)[1].split(">", 1)[0]
-        assert " src=" not in frame and "data-src=" in frame
-        assert "embed=1" in frame and "view=all_teachers" in frame
-        assert "source=actual" in frame and "week=2026-10-18" in frame
-
-    def test_the_toolbar_names_paper_and_orientation_for_print(self, world, client):
+    def test_the_toolbar_names_paper_and_orientation_for_export(self, world, client):
         body = _page(client, world)
 
-        assert 'title="حجم ورق الطباعة"' in body and 'title="اتّجاه ورق الطباعة"' in body
+        assert 'title="حجم ورق التصدير"' in body and 'title="اتّجاه ورق التصدير"' in body
 
     def test_the_page_loads_the_interaction_layer_and_its_panel(self, world, client):
         body = _page(client, world)

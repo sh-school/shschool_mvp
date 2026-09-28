@@ -889,7 +889,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <a href="{% url 'weekly_schedule' %}?view=teacher&teacher={{ request.user.id }}">{% icon "schedule" %} الجدول الأسبوعي</a>
   {% endif %}
   {% if request.user|can_open:"schedule_print" %}
-  <a href="{% url 'schedule_print' %}?view=teacher&teacher={{ request.user.id }}">{% icon "print" %} طباعة الجدول</a>
+  <a href="{% url 'schedule_print' %}?view=teacher&teacher={{ request.user.id }}">{% icon "export_pdf" %} تصدير الجدول</a>
   {% endif %}
   {% if request.user|can_open:"teacher_preferences" %}
   <a href="{% url 'teacher_preferences' %}">{% icon "settings" %} تفضيلاتي للجدولة</a>
@@ -934,7 +934,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <a href="{% url 'weekly_schedule' %}?view=teacher&teacher={{ request.user.id }}">{% icon "schedule" %} الجدول الأسبوعي</a>
   {% endif %}
   {% if request.user|can_open:"schedule_print" %}
-  <a href="{% url 'schedule_print' %}?view=teacher&teacher={{ request.user.id }}">{% icon "print" %} طباعة الجدول</a>
+  <a href="{% url 'schedule_print' %}?view=teacher&teacher={{ request.user.id }}">{% icon "export_pdf" %} تصدير الجدول</a>
   {% endif %}
   {% if role == "e_projects_coordinator" and request.user|can_open:"weekly_schedule" %}
   <a href="{% url 'weekly_schedule' %}">{% icon "schedule" %} الجدول العام</a>
