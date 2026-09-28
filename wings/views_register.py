@@ -3,7 +3,8 @@
 ثلاثةُ مخارجَ من بياناتٍ واحدة (`wings/register.py`)، بـ`?format=` — ولا طباعةَ مباشرةً من أيٍّ منها
 (قرارُ المالك 2026-09-28: طباعةٌ مباشرة تُلغى ويُكتفى بالتصدير):
 
-- `html` — معاينةٌ في المتصفّح بلا زرِّ طباعةٍ ولا تذييلٍ متكرّر (`running()` لا يعمل خارج الطباعة/PDF).
+- `html` — معاينةٌ في المتصفّح بلا زرِّ طباعة؛ الذيلُ سطرٌ ثابتٌ في آخر كلّ صفحةٍ لا تذييلٌ متكرّرٌ جارٍ
+  (`running()` لا يعمل خارج الطباعة/PDF).
 - `pdf`  — `render_pdf` تنزيلاً، من القالب نفسِه.
 - `xlsx` — ورقةٌ محميّةٌ للقراءة، ولكشف الجناح ورقةُ ملخّصٍ ثمّ ورقةٌ لكلّ شعبة.
 
@@ -64,13 +65,14 @@ def _respond(request, *, fmt, title, slug, context, workbook):
     if fmt == "pdf":
         html = render_to_string("wings/register_pdf.html", ctx, request=request)
         return render_pdf(html, generate_export_filename("wings", slug, "pdf"), as_attachment=True)
+    ctx["for_screen"] = True
     return render(request, "wings/register_pdf.html", ctx)
 
 
 @login_required
 @capability_required("wings.record_day")
 def section_register_export(request, class_id):
-    """كشفُ شعبةٍ لليوم — طباعةً أو PDF أو Excel."""
+    """كشفُ شعبةٍ لليوم — معاينةً أو PDF أو Excel."""
     _school, klass = _own_class(request, class_id)
     day = _day(request.GET.get("date"), timezone.localdate())
     register = section_register(klass, day)
