@@ -6957,3 +6957,179 @@ def test_0042_publishes_nothing_a_public_repo_must_not_say():
     assert [term for term in banned if term in body] == []
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
+
+
+# ── 0043: ثلاثُ نشراتٍ بعد 0042 (main=7c7b22c) — القرصُ/QCC-02/03 وN-050 وVI-57 وU-33 وREP-24 ──
+
+_sync43 = importlib.import_module("roadmap.migrations.0043_sync_items_2026_09_28")
+
+
+class _Apps43:
+    @staticmethod
+    def get_model(_app, name):
+        return {
+            "RoadmapItem": RoadmapItem,
+            "RoadmapKpi": RoadmapKpi,
+        }[name]
+
+
+def _seed43_items():
+    for code, status, progress in (
+        ("QCC-02", "doing", 50),
+        ("QCC-03", "doing", 45),
+        ("QCC-01b", "doing", 80),
+        ("N-050", "doing", 25),
+        ("VI-57", "todo", 0),
+        ("LAY-03", "doing", 75),
+        ("U-33", "todo", 0),
+    ):
+        _item(code, status, progress)
+
+
+def test_0043_updates_each_item_only_from_its_expected_state_and_is_idempotent():
+    _seed43_items()
+    changed = _sync43.sync(RoadmapItem)
+    assert set(changed) == {"QCC-02", "QCC-03", "QCC-01b", "N-050", "VI-57", "LAY-03", "U-33"}
+    assert _sync43.sync(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    assert (by["QCC-02"].status, by["QCC-02"].progress) == ("done", 100)
+    assert (by["QCC-03"].status, by["QCC-03"].progress) == ("done", 100)
+    assert (by["QCC-01b"].status, by["QCC-01b"].progress) == ("doing", 80)
+    assert (by["N-050"].status, by["N-050"].progress) == ("doing", 75)
+    assert (by["VI-57"].status, by["VI-57"].progress) == ("doing", 35)
+    assert (by["LAY-03"].status, by["LAY-03"].progress) == ("doing", 75)
+    assert (by["U-33"].status, by["U-33"].progress) == ("doing", 25)
+
+
+def test_0043_appends_pr_tokens_without_duplicating_existing_ones():
+    _item("QCC-02", "doing", 50, pr="#702")
+    _item("U-33", "todo", 0, pr="")
+    _sync43.sync(RoadmapItem)
+    assert RoadmapItem.objects.get(code="QCC-02").pr == "#702 #707"
+    assert RoadmapItem.objects.get(code="U-33").pr == "#705 #708 #709 #710 #713"
+
+
+def test_0043_leaves_items_the_developer_moved():
+    _seed43_items()
+    RoadmapItem.objects.filter(code="QCC-02").update(status="done", progress=100)
+    RoadmapItem.objects.filter(code="LAY-03").update(status="doing", progress=60)
+    changed = _sync43.sync(RoadmapItem)
+    assert "QCC-02" not in changed and "LAY-03" not in changed
+    assert RoadmapItem.objects.get(code="LAY-03").progress == 60
+
+
+def test_0043_never_touches_qcc04_qcc05_qcc06_and_flags_the_mismatch():
+    _item("QCC-04", "todo", 0)
+    _item("QCC-05", "todo", 0)
+    _item("QCC-06", "todo", 0)
+    _seed43_items()
+    _sync43.sync(RoadmapItem)
+    for code in ("QCC-04", "QCC-05", "QCC-06"):
+        item = RoadmapItem.objects.get(code=code)
+        assert (item.status, item.progress) == ("todo", 0)
+    qcc01b = RoadmapItem.objects.get(code="QCC-01b").note
+    assert "لا يطابق تعريفَ هذه الرموز" in qcc01b
+
+
+def test_0043_flags_n050_page_count_note_as_pending_not_decided():
+    _seed43_items()
+    _sync43.sync(RoadmapItem)
+    n050 = RoadmapItem.objects.get(code="N-050").note
+    assert "لا تأكيدٌ مباشرٌ لي" in n050 and "يُترك معلَّقاً" in n050
+    assert "صفحةٌ واحدةٌ في كلّ حال" in n050 and "صفحةٍ ثانيةٍ" in n050
+
+
+def test_0043_creates_rep24_once_and_never_overwrites():
+    assert _sync43.add_new_items(RoadmapItem) == ["REP-24"]
+    assert _sync43.add_new_items(RoadmapItem) == []
+    item = RoadmapItem.objects.get(code="REP-24")
+    assert (item.lane, item.status, item.progress, item.sort_order) == ("ops", "todo", 0, 724)
+    assert "apply_preview_workload_changes" in item.title
+    assert len(item.date_basis) <= 120
+    RoadmapItem.objects.filter(code="REP-24").update(status="doing")
+    assert _sync43.add_new_items(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="REP-24").status == "doing"
+
+
+def test_0043_appends_v_k01_why_note_once_correcting_the_0042_claim():
+    from datetime import date
+
+    RoadmapKpi.objects.create(
+        code="V-K01",
+        lane="frontend",
+        name="حجم CSS المُشحَن",
+        current=259134.0,
+        measured_at=date(2026, 9, 25),
+        why="[2026-09-27] لم يندمج بعدُ فلا يُسجَّل رقمُه هنا.",
+    )
+    assert _sync43.sync_kpi_notes(RoadmapKpi) == ["V-K01"]
+    assert _sync43.sync_kpi_notes(RoadmapKpi) == []
+    kpi = RoadmapKpi.objects.get(code="V-K01")
+    assert kpi.current == 259134.0 and kpi.measured_at == date(2026, 9, 25)
+    assert "اندمج ونُشر على الإنتاج" in kpi.why and "7c7b22c" in kpi.why
+
+
+def test_0043_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
+    _sync43.forwards(_Apps43, None)
+    assert RoadmapItem.objects.count() == 0
+
+    from datetime import date
+
+    _seed43_items()
+    RoadmapKpi.objects.create(
+        code="V-K01",
+        lane="frontend",
+        name="حجم CSS",
+        current=259134.0,
+        measured_at=date(2026, 9, 25),
+        why="",
+    )
+    _sync43.forwards(_Apps43, None)
+
+    def snapshot():
+        return list(
+            RoadmapItem.objects.order_by("code").values_list(
+                "code", "status", "progress", "pr", "note"
+            )
+        ) + list(RoadmapKpi.objects.order_by("code").values_list("code", "current", "why"))
+
+    first = snapshot()
+    _sync43.forwards(_Apps43, None)
+    assert snapshot() == first
+    assert RoadmapItem.objects.filter(code="REP-24").count() == 1
+
+
+def test_0043_orders_the_new_item_after_0042s_last_slot():
+    assert _sync43.NEW_ITEMS[0][-1] == 724
+
+
+def test_0043_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0043_sync_items_2026_09_28").origin
+    with open(origin, encoding="utf-8") as f:
+        body = f.read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "مرض",
+        "C:/",
+        "localhost",
+        "up.railway.app",
+        "railway ssh",
+        "run_prod",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
