@@ -13,7 +13,7 @@
         {% endif %}
       </span>
       <details class="per-exports-menu">
-        <summary class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير وطباعة</summary>
+        <summary class="btn-secondary btn-sm">{% icon "export_pdf" %} تصدير</summary>
         <form method="get" action="{% url 'wings:wing_register' panel.wing.code %}" class="per-exports">
           <input type="hidden" name="date" value="{{ day|date:'Y-m-d' }}">
           <select name="orient" class="form-select per-orient" aria-label="اتّجاه الصفحة">
@@ -22,7 +22,6 @@
           </select>
           <button data-app-file type="submit" name="format" value="xlsx" class="btn-secondary btn-sm">{% icon "export_excel" %} Excel</button>
           <button data-app-file type="submit" name="format" value="pdf" class="btn-secondary btn-sm">{% icon "export_pdf" %} PDF</button>
-          <button type="submit" name="print" value="1" formtarget="_blank" class="btn-secondary btn-sm">{% icon "print" %} طباعة</button>
         </form>
       </details>
     </div>

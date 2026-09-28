@@ -172,6 +172,39 @@ def test_a_transfer_leaves_two_entries_not_one(school, subjects, seventh, teache
     assert opened.changes["after"]["teacher"] == str(other.id)
 
 
+def test_a_transfer_from_a_tagged_rival_inherits_the_tag_by_default(
+    school, subjects, seventh, teacher, actor
+):
+    """`parallel_group` غيرُ مُمرَّرة (الافتراضُ `None`) تعني رِث — لا امحُ (حادثة 12/2، 2026-09-27)."""
+    plan_row(school, subjects["MAT"], periods=5)
+    apply(school, seventh, subjects["MAT"], teacher, actor, parallel_group="par-7.1")
+    other = a_teacher(school, "معلّمٌ آخر")
+
+    row, _findings = apply(school, seventh, subjects["MAT"], other, actor, confirm_transfer=True)
+
+    assert row.parallel_group == "par-7.1"
+
+
+def test_editing_in_place_without_a_tag_argument_keeps_its_own_tag(
+    school, subjects, seventh, teacher, actor
+):
+    plan_row(school, subjects["MAT"], periods=5)
+    apply(school, seventh, subjects["MAT"], teacher, actor, parallel_group="par-7.1")
+
+    row, _findings = apply(school, seventh, subjects["MAT"], teacher, actor)
+
+    assert row.parallel_group == "par-7.1"
+
+
+def test_an_explicit_empty_tag_clears_it_on_purpose(school, subjects, seventh, teacher, actor):
+    plan_row(school, subjects["MAT"], periods=5)
+    apply(school, seventh, subjects["MAT"], teacher, actor, parallel_group="par-7.1")
+
+    row, _findings = apply(school, seventh, subjects["MAT"], teacher, actor, parallel_group="")
+
+    assert row.parallel_group == ""
+
+
 # ══════════════════════════════════════════════════════════════════════
 #  الخطّةُ مرجعُ الحصص
 # ══════════════════════════════════════════════════════════════════════

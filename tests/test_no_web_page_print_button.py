@@ -22,17 +22,14 @@ import re
 ROOTS = [pathlib.Path("templates"), *sorted(pathlib.Path(".").glob("*/templates"))]
 JS = pathlib.Path("static/js")
 
-#: قوالبُ ورقيّةٌ (كشوفٌ وأوراقُ اعتماد) تبقى قابلةً للطباعة بقرار المالك: ليست صفحةَ ويب.
-#: (طلباتٌ متوازيةٌ تُفرغها واحداً واحداً 2026-09-28 — كشفُ كلمات المرور وكشفُ الشعبة لم يُدمجا بعدُ
-#: حين كُتب هذا الطلب، فبقيا هنا حتى يندمجا.)
-PAPER_TEMPLATES = {
-    "components/credentials_sheet.html",  # ورقةُ اعتمادٍ تُسلَّم مرّة واحدة — طلبٌ منفصلٌ يحذف طباعتَها
-    "wings/register_pdf.html",  # كشفُ الشعبة الورقيّ — طلبٌ منفصلٌ يحذف طباعتَه
-}
+#: قوالبُ ورقيّةٌ تبقى قابلةً للطباعة المباشرة بقرار المالك: لا شيءَ منذ 2026-09-28 — أُلغيت الطباعةُ المباشرة من
+#: ورقة كلمات المرور (#722) وكشف الشعبة والجناح (#725) وصفحات الجدول (هذا الطلب). قالبٌ يعيد زرَّ طباعةٍ
+#: يسقط عليه الحارسُ ما لم يُضَف هنا بقرارٍ صريحٍ من المالك.
+PAPER_TEMPLATES: set[str] = set()
 
-#: ملفّاتُ JS المسموحُ لها باستدعاء `.print(`: الإجراءُ العامّ للقوالب الورقيّة الباقية، وفتحُ الطباعة
-#: التلقائيّ لكشف الشعبة (يُحذف مع طلبه المنفصل).
-PAPER_SCRIPTS = {"actions.js", "print-on-open.js"}
+#: ملفّاتُ JS المسموحُ لها باستدعاء `.print(`: الإجراءُ العامّ `actions.js` وحدَه، ويُحذف مقبضُه في الطلب الأخير
+#: من هذه الحزمة. (`print-on-open.js` حُذف مع كشف الشعبة/الجناح ولا يعود — انظر الاختبار الأخير أدناه.)
+PAPER_SCRIPTS = {"actions.js"}
 
 _PRINT_ACTION = re.compile(r"""data-action\s*=\s*["']print["']""")
 _WINDOW_PRINT = re.compile(r"\.print\s*\(")
@@ -95,3 +92,8 @@ def test_window_print_in_scripts_is_limited_to_the_paper_helpers():
     ]
 
     assert not offenders, f"window.print() خارج مساعدَي الورق: {offenders}"
+
+
+def test_print_on_open_script_is_gone_for_good():
+    """فتحُ نافذة الطباعة تلقائيّاً (`?print=1`) حُذف 2026-09-28 — لا يعود ملفُّه."""
+    assert not (JS / "print-on-open.js").exists()
