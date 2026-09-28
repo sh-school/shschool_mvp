@@ -1,120 +1,57 @@
 ---
 name: drf-endpoint-scaffold
 description: |
-  مولّد نقاط طرفية DRF لمنصة SchoolOS وفق معماريتها الطبقية (Clean Architecture: Models →
-  Selectors/Services → Serializers → Views → URLs) ومعايير SOLID وأمن OWASP المعتمدة.
-  ينتج الطبقات الأربع متّسقة: خدمة سمينة (@transaction.atomic)، serializer نظيف (لا منطق أعمال)،
-  view نحيف بصلاحية RBAC وتحسين استعلام (select_related/prefetch_related + pagination)،
-  واختبار pytest يشمل الصلاحيات وعدّ الاستعلامات. استخدمها دائماً وتلقائياً عند: إضافة endpoint
-  أو REST API جديد، كتابة serializer/view/viewset، توسيع api/، أو السؤال "كيف أبني endpoint
-  صحيح؟". Trigger on: DRF, endpoint, REST API, serializer, viewset, api/views, نقطة طرفية, واجهة برمجية.
+  Use when adding or reshaping a REST endpoint under /api/v1/ in SchoolOS (DRF 3.18 + drf-spectacular, session auth): ListAPIView/ListCreateAPIView/APIView, serializer, selector, service, route in api/urls.py, RBAC from api/permissions.py, school (tenant) isolation, StandardPagination, idempotent create, and the endpoint tests (401/403, other-school isolation, flat query count). scripts/scaffold_endpoint.py generates the layers and a failing-until-filled test. Trigger on: DRF, endpoint, REST API, /api/v1/, serializer, APIView, ViewSet, permission_classes, api/urls.py, "new API for ...".
+  استخدمها عند: إضافة نقطةٍ تحت /api/v1/، أو كتابة serializer أو view في api/، أو توسيع نقطةٍ بالإنشاء، أو مراجعة طلبٍ يضيف مساراً في api/urls.py — ولو لم تُذكر كلمة DRF: أيُّ JSON يخرج لتطبيقٍ من /api/v1/ يمرّ بها.
+  ليست لـ: شاشات HTML وHTMX، ولا تحسينِ استعلامٍ وحده (nplus1-hunter)، ولا قرارِ عرض حقلٍ شخصيّ (pdppl-pii-audit)، ولا هجرةِ قيدٍ فريد (schoolos-migration-guard)، ولا الدفعِ والدمج (schoolos-flow).
 ---
 
-# مولّد نقاط SchoolOS الطرفية
+# بناءُ نقطة REST في SchoolOS
 
-> الهدف: كل endpoint جديد يولد **متّسقاً** مع الطبقات القائمة — لا منطق أعمال في الـ view،
-> لا استعلامات N+1، صلاحية RBAC صريحة، واختبار يثبت الأمان والأداء.
+الغرض: كلُّ نقطةٍ جديدة تولد بصلاحيّة دورٍ صريحة، ومقيّدةً بمدرسة المستخدم، بعددِ استعلاماتٍ ثابت، ومع اختبارٍ يثبت الثلاثة — وتعبر حرّاسَ CI من أوّل دفع.
+السببُ الحيّ: مراجعةُ 2026-09-13 وجدت نقاطاً تكتفي بـ«مسجَّل الدخول» فبلغ الطالبُ سجلَّ حضور المدرسة ودرجاتِ زملائه (المصدر: `tests/test_every_route_is_guarded.py`، `tests/test_borrowings_api_scope.py`).
 
-المسار الوحيد: `D:\shschool_mvp` مباشرة.
+## متى تُستعمل ومتى لا
+- نعم: نقطةٌ جديدة في `/api/v1/` (المسجّلة في `shschool/urls.py` باسم `api_v1`)، أو إنشاءٌ يُضاف لنقطةٍ قائمة.
+- لا: `/api/students/search/` وأخواتُها في `operations/api_urls.py` (نقاطٌ داخليّةٌ للشاشات)، ولا شاشاتُ HTML.
 
----
+## الإجراء
+1. **اقرأ الأعراف** في `references/00-api-conventions.md` (الصلاحيّات، الترقيم، الوسائط، سقوفُ الملفّات).
+2. **ولّد الهيكل** من جذر شجرتك (بايثون المضيف يكفي؛ لا يحتاج Django):
+   ```bash
+   python .claude/skills/drf-endpoint-scaffold/scripts/scaffold_endpoint.py --app transport --model BusRoute \
+       --name bus-routes --fields id,area_name --school-path bus__school --order-by area_name,id \
+       --permission IsStaffMember --readonly
+   ```
+   للإنشاء: `--write-fields a,b --unique-key b` بدل `--readonly`. يتحقّق من وجود التطبيق والنموذج والصلاحيّة، ويرفض `__all__` و`school` في حقول الإنشاء، وينذر بغياب قيدٍ فريدٍ أو ترتيبٍ أو حقل `school`.
+3. **وزّع الكتل** من `<app>/_scaffold_<name>.py`: الـselector إلى ملفّ selectors المجال، والخدمةُ إلى خدمات التطبيق، والـserializer والـview إلى وحدةٍ جديدة `api/views_<name>.py` (السابقة `api/views_erasure.py`)، والمسارُ إلى `api/urls.py`. ثمّ **احذف ملفَّ التجهيز** — يتجاهله git (`_*.py`) فلن يذكّرك به `git status`.
+4. **اكتب ما عليه `NotImplementedError`** في `tests/test_<name>_api.py` (`make_row`، و`payload` للإنشاء) — الاختبارُ يسقط حتّى تكتبه، عمداً.
+5. **أضِف `select_related`/`prefetch_related`** لكلّ علاقةٍ يقرؤها الـserializer حتّى يخضرّ اختبارُ الثبات (مهارة nplus1-hunter).
+6. **شغّل في حاوية جلستك:** اختبارَك، ثمّ `tests/test_every_route_is_guarded.py` و`tests/test_api_contract.py` و`tests/test_file_size.py` (بأمر الاختبار في `CLAUDE.md`)، ثمّ ruff بإصدار CI. التفصيل في `references/02-testing.md`.
 
-## 1. ولّد الهيكل ثم ادمجه
+## القواعد وأسبابها
+- **صلاحيّةُ دورٍ من `api/permissions.py`، لا `IsAuthenticated` وحدها.** الحارسُ `tests/test_every_route_is_guarded.py` يسقط أيَّ مسارٍ صلاحيّتُه «مسجَّل الدخول» أو «الجميع» ما لم يُسمَّ في `GUARDED_INSIDE`/`OPEN_BY_DESIGN` بسببه. و`permission_classes = [IsTeacherOrAdmin]` تستبدل الافتراضيَّ (`IsAuthenticated` في `REST_FRAMEWORK`) وهي تفحص المصادقةَ بنفسها.
+- **المدرسةُ من المستخدم لا من الطلب.** `_school(request)` = `request.user.get_school()` (`api/views.py`)، والاستعلامُ يبدأ منها بالمسار الصحيح للنموذج (`school`، أو `class_group__school`، أو `bus__school`). ولا `school` في حقول الكتابة: من يرسلها يكتب في مدرسةٍ أخرى.
+- **حقولٌ صريحة، لا `__all__`.** الإضافةُ اللاحقة لحقلٍ شخصيٍّ في النموذج تخرج في الـAPI بلا مراجعة؛ القائمةُ الصريحة تجعل كلَّ عرضٍ قراراً (مهارة pdppl-pii-audit).
+- **الإنشاءُ idempotent بقيدٍ في القاعدة.** `get_or_create` بلا `UniqueConstraint` على المفتاح يسبق فيه طلبان متزامنان فيتكرّر الصفّ (وثائق Django: `get_or_create`). مثالُ الإصدار السابق (`Subject` على `code`) بلا قيدٍ كهذا، و`code` فيه `blank=True` — فالمفتاحُ الفارغ يدمج موادَّ مختلفة (`operations/models/schedule.py`).
+- **ترتيبٌ حتميٌّ لكلّ قائمةٍ مرقّمة.** نموذجٌ بلا `Meta.ordering` (مثل `BusRoute`) يكرّر صفوفاً ويُسقط أخرى بين الصفحات؛ مرّر `--order-by`.
+- **لا تكبر `api/views.py`:** 915 سطراً وسقفُ الملفّ الجديد 1000 (`tests/file_size_ratchet.py`، 2026-09-28) — النقطةُ الجديدة في وحدتها.
+- **ما يزيد عن 300ms مهمّةٌ خلفيّة؛** والتصديرُ بالآليّة المركزيّة (ADR-0007، `core/exports/`) لا في طلب API.
 
-```bash
-python .claude/skills/drf-endpoint-scaffold/scripts/scaffold_endpoint.py \
-    --app operations --model Subject --name subjects --permission IsTeacherOrAdmin
-# للقراءة فقط أضِف: --readonly
-```
+## فخاخٌ حقيقيّة
+- خطأ: `client.force_authenticate(user)` أو `APIClient` في الاختبار. الصواب: `Client().force_login(user)` — `SchoolPermissionMiddleware` يفحص جلسةَ Django ويردّ `/api/` بـ401 قبل DRF (`core/middleware.py`)؛ مُثبَت: الاختبارُ القديم أخذ 401 حيث توقّع 200 و403.
+- خطأ: ملفُّ الاختبار في `<app>/tests/`. الصواب: `tests/test_<name>_api.py` — fixtures الأدوار في `tests/conftest.py` لا تُرى خارجه (الاختبارُ القديم: «fixture 'teacher_user' not found»).
+- خطأ: `django_assert_num_queries(4)` برقمٍ «يُضبط بعد أوّل تشغيل». الصواب: صفٌّ واحد مقابل ثلاثة بعد إحماء (نمط `tests/test_n_plus_one_queries.py`).
+- خطأ: `assert r.status_code in (201, 400)` «مؤقّتاً». الصواب: `NotImplementedError` حتّى تُكتب الحمولة — القيمةُ المؤقّتة يجب أن تُفشل (ذاكرة `feedback_placeholders_must_fail.md`).
+- خطأ: `fields = "__all__"` في serializer الكتابة. الصواب: قائمةٌ بلا `school`، واختبارُ `test_school_cannot_be_injected`.
+- خطأ: `.order_by("-created_at")` لكلّ نموذج. الصواب: كثيرٌ من النماذج بلا `created_at` (`Subject`، `BusRoute`) — `Meta.ordering` أو `--order-by`.
+- خطأ: «النماذجُ ترث `SchoolScopedModel`». الصواب: أربعةُ نماذج فقط ترثه؛ أغلبُها حقلُ `school` صريح أو مدرسةٌ عبر علاقة.
+- خطأ: «المسار الوحيد `D:\shschool_mvp`». الصواب: اعمل في شجرتك (`CLAUDE.md`، القاعدة رقم 1).
 
-يُنشئ ملف تجهيز `operations/_scaffold_subjects.py` يحوي الطبقات الأربع (كل كتلة معلّمة بوجهتها
-النهائية)، وملف اختبار `operations/tests/test_subjects_api.py`. انقل كل كتلة إلى موضعها ثم احذف
-ملف التجهيز. للتفاصيل والأنماط الكاملة: `references/layers.md`.
-
----
-
-## 2. الطبقات ومسؤولياتها (لا تخلطها — هذا جوهر SOLID هنا)
-
-```
-core/models          الكيانات — نحيفة (Skinny Models): حقول + علاقات + خصائص مشتقة فقط
-<app>/selectors.py   القراءة — دوال تُرجع QuerySet محسّناً (select/prefetch) وقابلاً لإعادة الاستخدام
-<app>/services.py    الكتابة/الأعمال — Fat Service، @staticmethod، @transaction.atomic، idempotent
-api/serializers.py   العرض/التحقّق — ModelSerializer فقط؛ لا منطق أعمال ولا وصول DB إضافي
-api/views.py         التنسيق — view نحيف: صلاحية + استدعاء selector/service + إرجاع serializer
-api/urls.py          التوجيه
-api/permissions.py   RBAC — أعد استخدام IsTeacherOrAdmin / IsLeadership / IsSchoolAdmin / ...
-```
-
-**القاعدة**: الـ view لا يحسب ولا يكتب في DB مباشرة لأعمال معقّدة — ينادي `services.py`.
-الـ serializer لا يستعلم — الـ selector جهّز الاستعلام. كل عملية >300ms → مهمة Celery.
-
----
-
-## 3. المتطلّبات الإلزامية لكل endpoint في SchoolOS
-
-1. **حصر بالمدرسة**: كل استعلام يبدأ من `School` الحالية (`request.user` → membership). النماذج
-   ترث `SchoolScopedModel`؛ لا تُرجع بيانات مدرسة أخرى أبداً (عزل المستأجرين).
-2. **صلاحية صريحة**: `permission_classes = [IsAuthenticated, <Role>]` — لا endpoint مفتوح.
-   للكائن المفرد أضِف `has_object_permission`.
-3. **تحسين الاستعلام**: `select_related` للـ FK، `prefetch_related` للـ M2M/العكسي — في الـ
-   selector، ويُتحقّق منه باختبار `django_assert_num_queries`.
-4. **الترقيم**: القوائم تستخدم `StandardPagination` (`api/pagination.py`).
-5. **حقول آمنة**: لا تعرض PII في serializer دون مبرّر صلاحية (انظر مهارة pdppl-pii-audit).
-6. **التوثيق**: `drf-spectacular` مفعّل — أضِف `@extend_schema` عند الحاجة لوصف دقيق.
-7. **idempotency**: خدمات الكتابة يجب أن تُعطي نفس النتيجة عند التكرار (لا تُنشئ مكرّراً).
-
----
-
-## 4. نمط مرجعي مختصر (المصدر الحقيقي: `api/views.py`)
-
-```python
-# api/serializers.py — عرض فقط
-class SubjectSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Subject
-        fields = ["id", "name_ar", "code"]
-
-# operations/selectors.py — قراءة محسّنة
-def subjects_for_school(school) -> QuerySet[Subject]:
-    return Subject.objects.filter(school=school).select_related("school").order_by("name_ar")
-
-# api/views.py — view نحيف
-class SubjectListView(generics.ListAPIView):
-    serializer_class = SubjectSerializer
-    permission_classes = [IsAuthenticated, IsTeacherOrAdmin]
-    pagination_class = StandardPagination
-
-    def get_queryset(self):
-        return subjects_for_school(_school(self.request))
-```
-
-الكتابة تذهب لخدمة:
-```python
-# operations/services.py
-class SubjectService:
-    @staticmethod
-    @transaction.atomic
-    def create(school, *, name_ar: str, code: str) -> Subject:
-        obj, _ = Subject.objects.get_or_create(       # idempotent
-            school=school, code=code, defaults={"name_ar": name_ar})
-        return obj
-```
-
----
-
-## 5. الاختبار جزء من التعريف (لا endpoint بلا اختبار)
-
-كل endpoint يحتاج على الأقل:
-- **صلاحية**: مستخدم بلا الدور → 403؛ بالدور → 200.
-- **عزل المدرسة**: مستخدم مدرسة A لا يرى بيانات مدرسة B.
-- **الأداء**: `django_assert_num_queries(n)` يثبت غياب N+1.
-- **الحالة السعيدة + حالة حافة** (فارغ/غير موجود → 404).
-
-النمط الكامل في `references/layers.md`. الإعداد: `pytest`، `DJANGO_SETTINGS_MODULE=shschool.settings.testing`.
-
-## 6. بعد الدمج
-
-```bash
-ruff check . && mypy api <app> && pytest <app>/tests/test_<name>_api.py -q
-```
-حدّث `api/urls.py` بالمسار الجديد، وتأكّد من ظهوره في مخطّط drf-spectacular.
+## المراجع
+| الملف | متى تقرأه |
+|---|---|
+| `references/00-api-conventions.md` | قبل التصميم: المصادقة والصلاحيّات والترقيم والوسائط والحرّاس التي تمرّ عليها كلُّ نقطة |
+| `references/01-layers.md` | حين توزّع الكتل: ما يذهب إلى selector وخدمةٍ وserializer وview، ومثالٌ كاملٌ مصحَّح |
+| `references/02-testing.md` | حين تكتب الاختبار أو تفهم سقوطه، وما يشغّله CI على النقطة |
+| `references/99-test-cases.md` | عند تعديل الوصف أو الجسم أو السكربت |
