@@ -42,7 +42,7 @@ from .schedule_breaches import draft_breaches
 from .schedule_selectors import pages_payload
 from .schedule_selectors import schedule_print_payload as _schedule_print_payload_core
 from .schedule_selectors import schedule_print_selection as _schedule_print_selection_core
-from .services import AbsenceSwapService, ScheduleService, SubstituteService
+from .services import AbsenceSwapService, ScheduleService, SubstituteService, schedule_gate
 from .services.substitute import TEACHING_ROLES
 
 logger = logging.getLogger(__name__)
@@ -833,46 +833,13 @@ def smart_generate(request):
         )
         return _smart_schedule_redirect(year)
 
-    # بوّابةُ العجز اليقينيّ (G4-أ) — الفحصُ يعدّ ولا يبحث، وما ظهر عجزُه هنا
-    # لن يجده بحثٌ مهما طال. فالزرُّ العاديّ يُمنع افتراضيّاً، ولا يتجاوزه
-    # إلّا سببٌ صريحٌ يُسجَّل — القرارُ قرارُ النائب الأكاديميّ لا الشيفرة.
-    from . import schedule_feasibility
-
-    feasibility = schedule_feasibility.check(school, year)
-    override_reason = (request.POST.get("feasibility_override_reason") or "").strip()
-    if feasibility.blocking and not override_reason:
-        top = feasibility.blocking[0]
-        messages.error(
-            request,
-            f"عجزٌ يقينيّ يمنع التوليد: {top.summary} — عالِج التوزيعاتِ ثمّ أعد الفحص، "
-            "أو اكتب سبباً صريحاً في بطاقة فحص الجدوى وولِّد على أيّ حال.",
-        )
+    try:
+        gate = schedule_gate.enforce(school, year, request.POST.get("feasibility_override_reason"))
+    except schedule_gate.FeasibilityBlockedError as exc:
+        messages.error(request, str(exc))
         return _smart_schedule_redirect(year)
 
-    generation = ScheduleGeneration.objects.create(
-        school=school,
-        academic_year=year,
-        generated_by=request.user,
-        status="queued",
-    )
-
-    if override_reason:
-        from core.models import AuditLog
-
-        AuditLog.objects.create(
-            school=school,
-            user=request.user,
-            action="create",
-            model_name="other",
-            object_id=str(generation.pk),
-            object_repr=f"توليدٌ رغم عجزٍ يقينيّ {year}"[:300],
-            changes={
-                "event": "schedule_generate_despite_infeasibility",
-                "reason": override_reason,
-                "minimum_unplaceable": feasibility.minimum_unplaceable,
-                "blocking_codes": [f.code for f in feasibility.blocking],
-            },
-        )
+    generation = gate.create_generation(school, request.user)
 
     from .tasks import generate_smart_schedule_task
 
