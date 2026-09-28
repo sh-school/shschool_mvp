@@ -833,12 +833,46 @@ def smart_generate(request):
         )
         return _smart_schedule_redirect(year)
 
+    # بوّابةُ العجز اليقينيّ (G4-أ) — الفحصُ يعدّ ولا يبحث، وما ظهر عجزُه هنا
+    # لن يجده بحثٌ مهما طال. فالزرُّ العاديّ يُمنع افتراضيّاً، ولا يتجاوزه
+    # إلّا سببٌ صريحٌ يُسجَّل — القرارُ قرارُ النائب الأكاديميّ لا الشيفرة.
+    from . import schedule_feasibility
+
+    feasibility = schedule_feasibility.check(school, year)
+    override_reason = (request.POST.get("feasibility_override_reason") or "").strip()
+    if feasibility.blocking and not override_reason:
+        top = feasibility.blocking[0]
+        messages.error(
+            request,
+            f"عجزٌ يقينيّ يمنع التوليد: {top.summary} — عالِج التوزيعاتِ ثمّ أعد الفحص، "
+            "أو اكتب سبباً صريحاً في بطاقة فحص الجدوى وولِّد على أيّ حال.",
+        )
+        return _smart_schedule_redirect(year)
+
     generation = ScheduleGeneration.objects.create(
         school=school,
         academic_year=year,
         generated_by=request.user,
         status="queued",
     )
+
+    if override_reason:
+        from core.models import AuditLog
+
+        AuditLog.objects.create(
+            school=school,
+            user=request.user,
+            action="create",
+            model_name="other",
+            object_id=str(generation.pk),
+            object_repr=f"توليدٌ رغم عجزٍ يقينيّ {year}"[:300],
+            changes={
+                "event": "schedule_generate_despite_infeasibility",
+                "reason": override_reason,
+                "minimum_unplaceable": feasibility.minimum_unplaceable,
+                "blocking_codes": [f.code for f in feasibility.blocking],
+            },
+        )
 
     from .tasks import generate_smart_schedule_task
 
