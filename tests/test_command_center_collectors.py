@@ -355,11 +355,14 @@ def test_open_pulls_summary_keeps_numbers_only():
         },
         {"created_at": "2026-09-20T00:00:00Z", "draft": True},
     ]
-    payload[0]["head"] = {"sha": "ABCDEF1234567890" + "0" * 24, "ref": "claude/اسمُ-فرع"}
+    payload[0]["head"] = {
+        "sha": "C" * 40,
+        "ref": "claude/اسمُ-فرع",
+    }  # قيمٌ رتيبةٌ لا يحسبها فاحصُ الأسرار سرّاً
     summary = pulls.reduce_open(payload)
     assert set(summary) == {"open", "drafts", "oldest", "heads"}
     assert summary["open"] == 2 and summary["drafts"] == 1
-    assert summary["heads"] == ["abcdef123456"]  # طرفٌ سداسيٌّ مقصوص، لا اسمُ الفرع
+    assert summary["heads"] == ["c" * 12]  # طرفٌ سداسيٌّ مقصوصٌ بحروفٍ صغيرة، لا اسمُ الفرع
 
 
 def test_a_sha_from_the_deployments_reply_must_be_hex_like():
@@ -390,7 +393,7 @@ def test_pulls_collect_combines_open_pulls_and_deploy_lag(monkeypatch):
 
 
 def test_branches_summary_keeps_tips_only_and_skips_main():
-    sha = "1234567abcdef" + "0" * 27
+    sha = "d" * 40
     payload = [
         {"name": "main", "commit": {"sha": "f" * 40}},
         {"name": "claude/عملٌ", "commit": {"sha": sha}, "protected": False},
@@ -398,7 +401,7 @@ def test_branches_summary_keeps_tips_only_and_skips_main():
         "تالف",
     ]
     summary = pulls.reduce_branches(payload)
-    assert summary == {"tips": ["1234567abcde"], "full": False}
+    assert summary == {"tips": ["d" * 12], "full": False}
     assert pulls.reduce_branches(
         [{"name": f"b{i}", "commit": {"sha": "a" * 40}} for i in range(100)]
     )["full"]
