@@ -420,9 +420,23 @@ def check_assignment(
 
 
 def _guard_stale(instance, expected_updated_at):
+    """مقارنةُ **قيمةٍ** لا نصّ: `expected_updated_at` كائنُ datetime أو نصُّ ISO يُحوَّل إليه.
+
+    كانت المقارنةُ `instance.updated_at.isoformat() != str(expected_updated_at)` — و`.isoformat()`
+    يفصل التاريخَ عن الوقت بحرف T، وstr() على datetime بمسافة، فلا يتساويان نصّاً أبداً لقيمةٍ واحدةٍ
+    بعينها. فكان الحارسُ يرفض **كلَّ** كتابةٍ يُمرَّر معها طابعٌ حقيقيّ، طازجةً كانت أم بائتة —
+    لا البائتةَ وحدَها كما قُصد (W-20260928-001).
+    """
     if expected_updated_at is None or instance is None:
         return
-    if instance.updated_at.isoformat() != str(expected_updated_at):
+    expected = expected_updated_at
+    if isinstance(expected, str):
+        from django.utils.dateparse import parse_datetime
+
+        expected = parse_datetime(expected)
+    if expected is None:
+        return
+    if instance.updated_at != expected:
         raise StaleWriteError(
             "عُدِّل هذا الإسنادُ من مكانٍ آخر بعد أن فتحتَه — أعِد التحميلَ لترى ما تغيّر قبل أن تكتب فوقه."
         )

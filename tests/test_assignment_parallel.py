@@ -232,6 +232,24 @@ def test_editing_periods_keeps_the_parallel_tag(client, school, group, teacher, 
     assert art.parallel_group == "par-11.1"
 
 
+def test_editing_periods_through_the_screen_actually_writes_the_new_value(
+    client, school, group, teacher, principal
+):
+    """W-20260928-001: حارسُ التزامن كان يرفض كلَّ كتابةٍ طازجةٍ خطأً (isoformat() مقابل str())،
+    فيبدو التعديلُ من الشاشة ناجحاً بلا أثر — لم يكشفه اختبارٌ من قبل لأنّه لم يتحقّق من الرقم نفسِه."""
+    art = assign(school, group, teacher, "الفنون البصرية", 2)
+    client.force_login(principal)
+
+    client.post(
+        reverse("academic_management:assignment_update_periods", args=[art.id]),
+        {"weekly_periods": "3", "year": YEAR},
+        HTTP_HOST="localhost",
+    )
+
+    art.refresh_from_db()
+    assert art.weekly_periods == 3
+
+
 # ════════════════════ الازدواجُ قرارُ الشعبة ════════════════════
 
 

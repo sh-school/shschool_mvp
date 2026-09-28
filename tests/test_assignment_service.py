@@ -384,6 +384,31 @@ def test_a_stale_write_is_refused_not_merged(school, subjects, seventh, teacher,
         )
 
 
+def test_a_fresh_datetime_timestamp_is_accepted_not_just_a_string(
+    school, subjects, seventh, teacher, actor
+):
+    """W-20260928-001: كائنُ datetime حقيقيّ (لا نصُّه) كان يُرفض دائماً — بصرف النظر عن طزاجته فعلاً.
+
+    `instance.updated_at.isoformat()` مقابل `str(expected_updated_at)` نصّان مختلفان دائماً للقيمة
+    نفسِها؛ فتعديلُ الحصص من الشاشة (يمرّر `obj.updated_at` كائناً لا نصّاً) كان يُرفض دوماً برسالة
+    «عُدِّل من جهازٍ آخر» — لا اختبارٌ كشفه لأنّه لم يتحقّق من نجاح الكتابة، بل من أثرٍ جانبيٍّ يبقى
+    صحيحاً حتى لو فشلت الكتابةُ صامتة."""
+    plan_row(school, subjects["MAT"], periods=5)
+    row, _ = apply(school, seventh, subjects["MAT"], teacher, actor)
+
+    row, _ = apply(
+        school,
+        seventh,
+        subjects["MAT"],
+        teacher,
+        actor,
+        requires_lab=True,
+        expected_updated_at=row.updated_at,
+    )
+
+    assert row.requires_lab is True
+
+
 def test_a_deletion_carries_who_and_why(school, subjects, seventh, teacher, actor):
     plan_row(school, subjects["MAT"], periods=5)
     row, _ = apply(school, seventh, subjects["MAT"], teacher, actor)
