@@ -28,34 +28,38 @@
     </a>
   {% endpage_header %}
 
+  {# ثلاثةُ أعمدةٍ على الحاسوب فتسع البطاقاتُ كاملةً النافذةَ بلا تمريرٍ رأسيّ (1366×768)؛ وتتكدّس دونه. #}
   <div id="kpiGrid" class="kpi-board">
-    {% section_card "ملخّص المؤشرات" icon="kpi" %}
-      <ul class="chip-row" id="kpiSummary" aria-live="polite"><li class="kpi-loading">جاري تحميل المؤشرات...</li></ul>
-    {% endsection_card %}
-
-    <div class="kpi-main-grid">
+    <div class="kpi-col kpi-col--overview">
+      {% section_card "ملخّص المؤشرات" icon="kpi" %}
+        <ul class="chip-row" id="kpiSummary" aria-live="polite"><li class="kpi-loading">جاري تحميل المؤشرات...</li></ul>
+      {% endsection_card %}
       {% section_card "بصمة أداء المدرسة" icon="kpi" %}
         <div class="dash-chart-wrap"><canvas id="radarChart" role="img" aria-label="رسم راداريّ: المؤشرات منسوبةً إلى أهدافها"></canvas></div>
       {% endsection_card %}
+    </div>
+
+    <div class="kpi-col">
       {% section_card "المؤشرات" icon="kpi" %}
         <div class="kpi-donut-grid" id="kpiDonuts"></div>
       {% endsection_card %}
+      <div id="kpiUnavailWrap" hidden>
+        {% section_card "مؤشرات تحتاج إدخالاً يدوياً" icon="kpi" %}
+          <div class="kpi-unavailable-strip" id="kpiUnavail"></div>
+        {% endsection_card %}
+      </div>
     </div>
 
-    {% section_card "تفاصيل المؤشرات" icon="kpi" flush=True %}
-      <div class="table-wrap">
-        <table>
-          <thead><tr>
-            <th scope="col" class="num">الحالة</th><th scope="col">المؤشر</th><th scope="col" class="num">الفعلي</th><th scope="col" class="num">الهدف</th><th scope="col" class="num">التحذير</th><th scope="col">التكرار</th>
-          </tr></thead>
-          <tbody id="kpiDetails"></tbody>
-        </table>
-      </div>
-    {% endsection_card %}
-
-    <div id="kpiUnavailWrap" hidden>
-      {% section_card "مؤشرات تحتاج إدخالاً يدوياً" icon="kpi" %}
-        <div class="kpi-unavailable-strip" id="kpiUnavail"></div>
+    <div class="kpi-col kpi-col--details">
+      {% section_card "تفاصيل المؤشرات" icon="kpi" flush=True %}
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th scope="col" class="num">الحالة</th><th scope="col">المؤشر</th><th scope="col" class="num">الفعلي</th><th scope="col" class="num">الهدف</th><th scope="col" class="num">التحذير</th><th scope="col">التكرار</th>
+            </tr></thead>
+            <tbody id="kpiDetails"></tbody>
+          </table>
+        </div>
       {% endsection_card %}
     </div>
   </div>

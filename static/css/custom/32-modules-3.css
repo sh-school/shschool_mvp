@@ -147,12 +147,31 @@
 .kpi-tone--danger  { color: var(--status-danger-fg); }
 .kpi-tone--muted   { color: var(--text-muted); }
 
-/* Main 2-column: radar + donuts */
-.kpi-main-grid {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: var(--sp-2);
-  align-items: stretch;
+/* ثلاثةُ أعمدة: نظرةٌ عامّة (ملخّصٌ ورادار) · حلقاتٌ ويدويّ · تفاصيل — فتسع اللوحةُ 1366×768 بلا تمرير. */
+.kpi-col { display: flex; flex-direction: column; gap: var(--sp-2); min-inline-size: 0; }
+@media (min-width: 1025px) {
+  .kpi-board { grid-template-columns: minmax(15rem, .75fr) minmax(0, 1.2fr) minmax(0, 1.3fr); align-items: stretch; }
+  /* الرادارُ يملأ ما بقي من عموده فيتساوى طولُ الأعمدة. */
+  .kpi-col--overview > .ui-section:last-child { flex: 1; display: flex; flex-direction: column; }
+  .kpi-col--overview > .ui-section:last-child > .ui-section__body { flex: 1; display: flex; }
+  .kpi-col--overview .dash-chart-wrap { flex: 1; block-size: auto; min-block-size: 11rem; }
+  .kpi-col--details :is(th, td) { padding: var(--sp-1-5) var(--sp-2); }
+  /* الشارةُ بجانب الهدف لا سطرٌ فوق الحلقة. */
+  .kpi-board .kpi-donut-card {
+    display: grid; grid-template-areas: "ring ring" "label label" "badge meta";
+    justify-content: center; justify-items: center; align-items: center;
+    gap: 0 var(--sp-0-5); padding: var(--sp-1) var(--sp-0-5);
+  }
+  .kpi-board .kpi-donut-ring { grid-area: ring; }
+  .kpi-board .kpi-donut-label { grid-area: label; }
+  .kpi-board .kpi-donut-badge { grid-area: badge; }
+  .kpi-board .kpi-donut-meta { grid-area: meta; white-space: nowrap; }
+  .kpi-board .kpi-donut-grid { gap: var(--sp-1-5); }
+  /* عنوانُ البطاقة يقول «يدويّ» فلا تكرّره الشارةُ ولا الأيقونة، فيتّسع الاسمُ في ثلاثة أعمدة. */
+  .kpi-board .kpi-unavailable-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .kpi-board .kpi-unavail-item { padding: var(--sp-0-5) var(--sp-1-5); }
+  .kpi-board .kpi-unavail-name { white-space: normal; }
+  .kpi-board :is(.kpi-unavail-tag, .kpi-unavail-icon) { display: none; }
 }
 
 /* Donuts: fixed 4+3 grid */
@@ -241,7 +260,6 @@
 
 /* Responsive */
 @media (max-width: 1024px) {
-  .kpi-main-grid { grid-template-columns: 1fr; }
   .kpi-donut-grid { grid-template-columns: repeat(4, 1fr); }
 }
 @media (max-width: 640px) {
