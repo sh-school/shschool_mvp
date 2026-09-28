@@ -21,7 +21,6 @@
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_GET, require_POST
@@ -423,7 +422,7 @@ def set_parallel(request, assignment_id):
     فيُوسَم الطرفان معاً، ويُفكّ الوسمُ عنهما معاً — فلا يُولَد يتيمٌ من هذا
     الباب.
 
-    والوسمُ يُشتقّ من الشعبة ولا يُكتب نصّاً، فلا يُطلب من أحدٍ أن يتذكّر
+    والوسمُ يخصّ هذا الزوجَ وحدَه (`assignment_service.set_parallel`، D-04) — لا يُطلب من أحدٍ أن يتذكّر
     حروفاً يطابقها.
     """
     obj = get_object_or_404(SubjectClassAssignment, id=assignment_id, is_active=True)
@@ -448,25 +447,17 @@ def set_parallel(request, assignment_id):
                 request, school, year, teacher, caps, error="الشريكةُ ليست من موادّ هذه الشعبة."
             )
 
-    old_tag = (obj.parallel_group or "").strip()
-    with transaction.atomic():
-        if partner is None:
-            #: فكُّ الربط يرفع الوسمَ عن الطرفين — وإلّا بقي الآخرُ يتيماً.
-            if old_tag:
-                SubjectClassAssignment.objects.filter(
-                    class_group_id=obj.class_group_id, parallel_group=old_tag, is_active=True
-                ).update(parallel_group="", updated_by=request.user)
-            else:
-                obj.parallel_group = ""
-                obj.updated_by = request.user
-                obj.save(update_fields=["parallel_group", "updated_by", "updated_at"])
-        else:
-            tag = f"par-{obj.class_group.short_code}"[:40]
-            for row in (obj, partner):
-                row.parallel_group = tag
-                row.updated_by = request.user
-                row.save(update_fields=["parallel_group", "updated_by", "updated_at"])
-    return _render_card(request, school, year, teacher, caps)
+    try:
+        _obj, _partner, findings = assignment_service.set_parallel(
+            obj,
+            partner,
+            by=request.user,
+            expected_updated_at=obj.updated_at,
+            partner_expected_updated_at=partner.updated_at if partner else None,
+        )
+    except (ValidationError, assignment_service.StaleWriteError) as exc:
+        return _render_card(request, school, year, teacher, caps, error=_message(exc))
+    return _render_card(request, school, year, teacher, caps, notes=findings)
 
 
 @login_required
@@ -491,9 +482,15 @@ def toggle_double(request, assignment_id):
     if locked is not None:
         return locked
 
-    obj.double_period = bool(request.POST.get("double"))
-    obj.updated_by = request.user
-    obj.save(update_fields=["double_period", "updated_by", "updated_at"])
+    try:
+        assignment_service.set_double(
+            obj,
+            bool(request.POST.get("double")),
+            by=request.user,
+            expected_updated_at=obj.updated_at,
+        )
+    except assignment_service.StaleWriteError as exc:
+        return _render_card(request, school, year, teacher, caps, error=_message(exc))
     return _render_card(request, school, year, teacher, caps)
 
 

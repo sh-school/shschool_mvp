@@ -62,6 +62,7 @@ COURSE_ALREADY_PREPARED = "course_already_prepared"
 SUBJECT_HELD_BY_OTHER = "subject_held_by_other"
 STALE_WRITE = "stale_write"
 PARALLEL_PARTNER_TAG_CLEARED = "parallel_partner_tag_cleared"
+PARALLEL_DOUBLE_MISMATCH = "parallel_double_mismatch"
 
 #: الصفوفُ الانتقاليّة التي تنصح الوزارةُ بألّا يُكلَّف بها معلّمٌ في عامه الأوّل
 #: (توجيهات التوجيه التربويّ 2025-2026). معلومةٌ لا منع.
@@ -451,6 +452,7 @@ def _snapshot(a):
         "parallel_group": a.parallel_group,
         "periods_override_reason": a.periods_override_reason,
         "is_active": a.is_active,
+        "double_period": a.double_period,
     }
 
 
@@ -765,6 +767,156 @@ def remove_assignment(*, assignment, by, reason, expected_updated_at=None):
             by,
         )
     return assignment, cleared_partner
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  التوازي والازدواج — عبر الخدمة لا مباشرةً من الشاشة (D-06)
+# ══════════════════════════════════════════════════════════════════════
+
+
+def _unlink_from_group(class_group, tag, by, *, excluding):
+    """يُخرج `excluding` من مجموعة `tag`؛ وإن بقي عضوٌ واحدٌ فعّالٌ يُرفع وسمُه — لا يُترك يتيماً (كـD-05)."""
+    if not tag:
+        return
+    from operations.models import SubjectClassAssignment
+
+    remaining = list(
+        SubjectClassAssignment.objects.filter(
+            class_group=class_group, parallel_group=tag, is_active=True
+        ).exclude(pk__in=excluding)
+    )
+    if len(remaining) == 1:
+        row = remaining[0]
+        before = _snapshot(row)
+        row.parallel_group = ""
+        row.updated_by = by
+        row.save(update_fields=["parallel_group", "updated_by", "updated_at"])
+        _audit(row, "update", before, _snapshot(row))
+
+
+def _unique_parallel_tag(class_group):
+    """وسمٌ يخصّ هذا الزوجَ وحدَه — لا يتصادم مع زوجٍ آخر في الشعبة نفسها (D-04)، ولا مع صيغِ
+    الاستيراد القائمة (`نصفان-`، `متوازي-`): الاحتمالُ صفرٌ إذ لا يُكتب إلّا `par-`."""
+    from operations.models import SubjectClassAssignment
+
+    base = f"par-{class_group.short_code}"[:36]
+    taken = set(
+        SubjectClassAssignment.objects.filter(class_group=class_group, is_active=True)
+        .exclude(parallel_group="")
+        .values_list("parallel_group", flat=True)
+    )
+    if base not in taken:
+        return base
+    n = 2
+    while f"{base}-{n}" in taken:
+        n += 1
+    return f"{base}-{n}"[:40]
+
+
+def _effective_double(row):
+    """`double_period` الصريحُ إن كُتب، وإلّا افتراضُ المادّة — ما يقرؤه المولّدُ فعلاً."""
+    return (
+        row.double_period if row.double_period is not None else row.subject.requires_double_period
+    )
+
+
+@transaction.atomic
+def set_parallel(
+    assignment, partner, *, by, expected_updated_at=None, partner_expected_updated_at=None
+):
+    """يربط مادّتين توازياً أو يفكّ الربط — عبر الخدمة بتدقيقٍ وحارس تزامنٍ وفحص نطاق (D-06).
+
+    ## استبدالٌ لا دمج (D-04)
+
+    `partner` شريكةٌ جديدةٌ تستبدل أيَّ مجموعةٍ سابقةٍ لكلا الطرفين — لا تُضاف إلى مجموعةٍ قائمة. فتُفكّ
+    مجموعتا الطرفين القديمتان أوّلاً (وتُنظَّفان من يتيمٍ محتمل بالقاعدة نفسِها في D-05)، ثمّ يُكتب لهما
+    وسمٌ **يخصّ هذا الزوجَ وحدَه** لا مشتقّاً من الشعبة فقط — فزوجان في الشعبة نفسها لا يتصادمان.
+
+    ## ما يُمنع وما يُحذَّر منه (F-16، D-07، D-06)
+
+    معلّمٌ واحدٌ لطرفَي التوازي يُمنع دائماً — يمرّ صامتاً حتى الاعتماد ثمّ يسقط بخطأ خادمٍ (D-08). واختلافُ
+    عدد الحصص بين الطرفين يُمنع أيضاً **مؤقّتاً**: خاناتُ المجموعة تُحسب من أكبر نصابٍ فيها، لكنّ مهمّة
+    المولّد تُبنى من «القائد» الأبجديّ بنصابه هو (F-11 لم يُصلَح بعد)، فمجموعةٌ غيرُ متساوية تُنتج تعذّراً
+    كاذباً أو حملاً ناقصاً. يُرفع هذا المنعُ حين يُصلَح حسابُ المولّد. أمّا اختلافُ الازدواج الفعليّ
+    (`double_period` الصريح أو افتراضُ المادّة) فتحذيرٌ لا منع — حالُ 11/1 اليوم.
+
+    partner=None يفكّ الربط. تُعيد `(assignment, partner_or_None, findings)`.
+    """
+    _guard_stale(assignment, expected_updated_at)
+    old_tag = (assignment.parallel_group or "").strip()
+
+    if partner is None:
+        if old_tag:
+            before = _snapshot(assignment)
+            assignment.parallel_group = ""
+            assignment.updated_by = by
+            assignment.save(update_fields=["parallel_group", "updated_by", "updated_at"])
+            _audit(assignment, "update", before, _snapshot(assignment))
+            _unlink_from_group(assignment.class_group, old_tag, by, excluding={assignment.pk})
+        return assignment, None, []
+
+    _guard_stale(partner, partner_expected_updated_at)
+    if partner.pk == assignment.pk:
+        raise ValidationError({"partner": "لا تُربط المادّةُ بنفسها."})
+    if assignment.class_group_id != partner.class_group_id:
+        raise ValidationError({"partner": "الشريكةُ ليست من موادّ هذه الشعبة."})
+    if (
+        assignment.school_id != partner.school_id
+        or assignment.academic_year != partner.academic_year
+    ):
+        raise ValidationError({"partner": "الشريكةُ خارج نطاق هذا الإسناد."})
+    if assignment.teacher_id and partner.teacher_id and assignment.teacher_id == partner.teacher_id:
+        raise ValidationError(
+            {
+                "partner": f"{assignment.teacher.full_name} معلّمٌ واحدٌ — "
+                "لا يكفي طرفَي التوازي (F-16)."
+            }
+        )
+    if assignment.weekly_periods != partner.weekly_periods:
+        raise ValidationError(
+            {
+                "partner": (
+                    f"عددُ الحصص يختلف ({assignment.weekly_periods} و{partner.weekly_periods}) — "
+                    "منعٌ مؤقّتٌ حتى يُصلَح حسابُ المولّد لمجموعاتٍ غيرِ متساوية (D-07)."
+                )
+            }
+        )
+
+    partner_tag = (partner.parallel_group or "").strip()
+    if not (old_tag and old_tag == partner_tag):
+        _unlink_from_group(assignment.class_group, old_tag, by, excluding={assignment.pk})
+        _unlink_from_group(partner.class_group, partner_tag, by, excluding={partner.pk})
+        new_tag = _unique_parallel_tag(assignment.class_group)
+        for row in (assignment, partner):
+            before = _snapshot(row)
+            row.parallel_group = new_tag
+            row.updated_by = by
+            row.save(update_fields=["parallel_group", "updated_by", "updated_at"])
+            _audit(row, "update", before, _snapshot(row))
+
+    findings = []
+    if _effective_double(assignment) != _effective_double(partner):
+        findings.append(
+            Finding(
+                WARN,
+                PARALLEL_DOUBLE_MISMATCH,
+                f"الازدواجُ يختلف بين {assignment.subject.name_ar} و{partner.subject.name_ar} — "
+                "تحقّق قبل التوليد.",
+            )
+        )
+    return assignment, partner, findings
+
+
+@transaction.atomic
+def set_double(assignment, value, *, by, expected_updated_at=None):
+    """يكتب `double_period` صريحاً — `True` أو `False` لا `None` («اتبع المادّة») — عبر الخدمة بتدقيق (D-06)."""
+    _guard_stale(assignment, expected_updated_at)
+    before = _snapshot(assignment)
+    assignment.double_period = bool(value)
+    assignment.updated_by = by
+    assignment.save(update_fields=["double_period", "updated_by", "updated_at"])
+    _audit(assignment, "update", before, _snapshot(assignment))
+    return assignment
 
 
 # ══════════════════════════════════════════════════════════════════════

@@ -121,7 +121,7 @@ def link(client, row, partner):
 
 def test_choosing_a_partner_tags_both_rows(client, school, group, teacher, principal):
     art = assign(school, group, teacher, "الفنون البصرية", 2)
-    chem = assign(school, group, teacher, "الكيمياء", 2)
+    chem = assign(school, group, a_second_teacher(school, "معلّمُ الكيمياء"), "الكيمياء", 2)
     client.force_login(principal)
 
     link(client, art, chem)
@@ -163,6 +163,82 @@ def test_a_teacher_may_not_link(client, school, group, teacher):
 
     art.refresh_from_db()
     assert art.parallel_group == ""
+
+
+# ════════════════════ الربطُ استبدالٌ لا دمج، ووسمٌ يخصّ الزوجَ وحدَه (D-04) ════════════════════
+
+
+def test_choosing_a_new_partner_replaces_not_merges(client, school, group, teacher, principal):
+    """اختيارُ شريكةٍ ثالثة يستبدل الثانية لا يدمج الثلاثَ في مجموعةٍ واحدة."""
+    art = assign(school, group, teacher, "الفنون البصرية", 2)
+    chem = assign(school, group, a_second_teacher(school, "معلّمُ الكيمياء"), "الكيمياء", 2)
+    bio = assign(school, group, a_second_teacher(school, "معلّمُ الأحياء"), "الأحياء", 2)
+    client.force_login(principal)
+    link(client, art, chem)
+
+    link(client, art, bio)
+
+    art.refresh_from_db(), chem.refresh_from_db(), bio.refresh_from_db()
+    assert art.parallel_group and art.parallel_group == bio.parallel_group
+    assert chem.parallel_group == "", "الشريكةُ القديمةُ بقيت موسومةً وحدَها — دُمجت لا اسُتبدلت"
+    assert art.parallel_group != chem.parallel_group
+
+
+def test_two_pairs_in_the_same_class_get_different_tags(client, school, group, teacher, principal):
+    art = assign(school, group, teacher, "الفنون البصرية", 2)
+    chem = assign(school, group, a_second_teacher(school, "معلّمُ الكيمياء"), "الكيمياء", 2)
+    other1 = a_second_teacher(school, "معلّمٌ ثانٍ")
+    other2 = a_second_teacher(school, "معلّمٌ ثالث")
+    tech = assign(school, group, other1, "التكنولوجيا", 2)
+    pe = assign(school, group, other2, "التربية البدنية", 2)
+    client.force_login(principal)
+
+    link(client, art, chem)
+    link(client, tech, pe)
+
+    art.refresh_from_db(), tech.refresh_from_db()
+    assert art.parallel_group and tech.parallel_group and art.parallel_group != tech.parallel_group
+
+
+def test_the_same_teacher_may_not_hold_both_sides(school, group, teacher, principal):
+    """F-16/D-08: معلّمٌ واحدٌ لطرفَي التوازي يمرّ صامتاً حتى الاعتماد ثمّ يسقط بخطأٍ لا يُفسَّر."""
+    from academic_management import assignment_services as svc
+
+    art = assign(school, group, teacher, "الفنون البصرية", 2)
+    chem = assign(school, group, teacher, "الكيمياء", 2)
+
+    with pytest.raises(svc.ValidationError):
+        svc.set_parallel(art, chem, by=principal)
+
+    art.refresh_from_db()
+    assert art.parallel_group == ""
+
+
+def test_mismatched_periods_are_refused_for_now(school, group, teacher, principal):
+    """D-07: منعٌ مؤقّتٌ حتى يُصلَح حسابُ المولّد لمجموعاتٍ غيرِ متساوية (F-11)."""
+    from academic_management import assignment_services as svc
+
+    other = a_second_teacher(school, "معلّمٌ آخر")
+    art = assign(school, group, teacher, "الفنون البصرية", 2)
+    tech = assign(school, group, other, "التكنولوجيا", 3)
+
+    with pytest.raises(svc.ValidationError):
+        svc.set_parallel(art, tech, by=principal)
+
+
+def test_mismatched_double_period_warns_but_still_links(school, group, teacher, principal):
+    """D-06: الازدواجُ يختلف — حالُ 11/1 اليوم — يُحذَّر منه ولا يُمنع."""
+    from academic_management import assignment_services as svc
+
+    other = a_second_teacher(school, "معلّمٌ آخر")
+    art = assign(school, group, teacher, "الفنون البصرية", 2, double=True)
+    tech = assign(school, group, other, "التكنولوجيا", 2, double=False)
+
+    _art, _tech, findings = svc.set_parallel(art, tech, by=principal)
+
+    art.refresh_from_db(), tech.refresh_from_db()
+    assert art.parallel_group and art.parallel_group == tech.parallel_group
+    assert any(f.code == svc.PARALLEL_DOUBLE_MISMATCH for f in findings)
 
 
 # ════════════════════ النقلُ عن منافسٍ موسومٍ يَرِث الوسمَ لا يمحوه ════════════════════
