@@ -78,10 +78,12 @@ class SwapService:
         if slot_a.class_group_id != slot_b.class_group_id:
             errors.append("التبديل مسموح فقط مع معلمي نفس الفصل")
 
-        # ── القانون 9: لا تبديلَ إلى خانةٍ مفرَّغةٍ بقرارٍ ملزم ─────────────
+        # ── القانون 9: لا تبديلَ إلى خانةٍ مفرَّغة ──────────────────────
         # كلٌّ من المعلّمَين يأخذ خانةَ الآخر؛ فإن كان أحدُهما مفرَّغاً فيها
-        # بقرار وزارةٍ أو إدارةٍ أو قسمٍ رُفض التبديل — وكان لا يُفحص أصلاً.
-        # أمّا تفريغُ «لتوليد الجدول» فيُوسَم ولا يمنع (قرار 2026-09-11).
+        # رُفض التبديل — وكان لا يُفحص أصلاً.
+        #
+        # D-61م: `exempted_teacher_ids` (في SubstituteService) تشمل كلَّ
+        # مصدرٍ الآن، بما فيه «لتوليد الجدول» — كان يُستثنى (قرار 2026-09-11).
         for mover, target in ((teacher, slot_b), (slot_b.teacher, slot_a)):
             if mover and mover.id in SubstituteService.exempted_teacher_ids(
                 school, target.day_of_week, target.period_number
