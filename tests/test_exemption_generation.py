@@ -1,8 +1,14 @@
-"""تفريغُ «لتوليد الجدول» — موسومٌ للمولّد، ولا يمنع البديلَ ولا التبديل.
+"""تفريغُ «لتوليد الجدول» — كان يُوسَم للمولّد ولا يمنع، والآن يمنع كسواه.
 
 كان البديلُ والتبديلُ يتجاهلان التفريغَ كلَّه: يُقترح معلّمٌ أخرجته الوزارةُ من
-الحصّة. والآن يحترمان التفريغَ الملزم (وزارة/إدارة/قسم/أخرى) ويعبران «لتوليد
-الجدول» وحدَه — فهو أداةُ تشكيلٍ للجدول لا منعٌ لصاحبه (قرار 2026-09-11).
+الحصّة. فصارا يحترمان التفريغَ الملزم (وزارة/إدارة/قسم/أخرى) ويعبران «لتوليد
+الجدول» وحدَه — أداةُ تشكيلٍ للجدول لا منعٌ لصاحبه (قرار 2026-09-11).
+
+D-61م (قرارُ المالك 2026-09-29، مؤقّت): حصّةٌ على الإنتاج (مدرسة الشحانية)
+أُسندت في خانةِ تفريغٍ مصدرُه «لتوليد الجدول» بعينه، فصلّب المالكُ التمييزَ —
+كلُّ تفريغٍ يمنع الآن لحين تقييم الوضع الحاليّ للمولّد. `binds_people` نفسُها
+(الحكمُ الأصليّ في النموذج) لم تتغيّر؛ التعليقُ في `SubstituteService.
+_day_exemptions` وحدَه، والبديلُ والتبديلُ كلاهما يمرّان بها.
 """
 
 from datetime import date, time, timedelta
@@ -78,11 +84,11 @@ class TestSubstitutes:
         _exempt(school, teacher, source="school", full_day=True)
         assert "مفرَّغٌ يوماً" not in self._available(school)
 
-    def test_a_generation_exemption_keeps_the_teacher_available(self, school):
-        """موسومٌ لا ممنوع: رُتّب له جدولُه، ولم يُمنَع من الحصّة."""
+    def test_a_generation_exemption_now_removes_the_teacher_too(self, school):
+        """D-61م: كان يبقى متاحاً، والآن يُستبعد كسواه من التفريغ."""
         teacher = _teacher(school, "مفرَّغٌ للتوليد")
         _exempt(school, teacher, source="generation")
-        assert "مفرَّغٌ للتوليد" in self._available(school)
+        assert "مفرَّغٌ للتوليد" not in self._available(school)
 
     def test_another_period_of_the_same_day_is_untouched(self, school):
         teacher = _teacher(school, "مفرَّغٌ في غيرها")
@@ -134,13 +140,14 @@ class TestSwaps:
         errors = self._errors(school, a, slot_a, slot_b)
         assert any("الطالبُ أ" in e and "ملزم" in e for e in errors)
 
-    def test_a_generation_exemption_does_not_block_the_swap(self, school):
+    def test_a_generation_exemption_now_blocks_the_swap_too(self, school):
+        """D-61م: كان لا يمنع، والآن يمنع كتفريغٍ ملزم."""
         a, b = _teacher(school, "أ للتوليد"), _teacher(school, "ب للتوليد")
         slot_a, slot_b = self._slots(school, a, b)
         _exempt(school, b, source="generation", day=slot_a.day_of_week, period=slot_a.period_number)
 
         errors = self._errors(school, a, slot_a, slot_b)
-        assert not any("ملزم" in e for e in errors)
+        assert any("ب للتوليد" in e and "ملزم" in e for e in errors)
 
 
 class TestGrid:

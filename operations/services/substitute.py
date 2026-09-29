@@ -82,9 +82,17 @@ class SubstituteService:
             "teacher_id", flat=True
         )
 
-        # ومن فُرّغ في هذه الخانة بقرارٍ ملزم — وكان البديلُ يتجاهل التفريغَ كلَّه،
-        # فيُقترح معلّمٌ أخرجته الوزارةُ من الحصّة. أمّا تفريغُ «لتوليد الجدول»
-        # فيُوسَم ولا يمنع: صاحبُه رُتّب له جدولُه ولم يُمنَع من الحصّة.
+        # ومن فُرّغ في هذه الخانة — وكان البديلُ يتجاهل التفريغَ كلَّه، فيُقترح
+        # معلّمٌ أخرجته الوزارةُ من الحصّة.
+        #
+        # D-61م (قرارُ المالك 2026-09-29، يُعلّق قرارَ 2026-09-11 مؤقّتاً):
+        # تفريغُ «لتوليد الجدول» (`TeacherExemption.SOFT_SOURCES`) كان يُوسَم
+        # ولا يمنع — أداةُ تشكيلٍ لا قرارَ جهة. لكن حادثةً على الإنتاج (مدرسة
+        # الشحانية) أظهرت حصّتين مُسندتين في خانتَي تفريغٍ من هذا المصدر
+        # بعينه، والمالكُ غيرُ راضٍ بعدُ عن جودة التوليد ليثق بهذا التمييز
+        # فقرّر تصليبَه: كلُّ تفريغٍ يمنع الآن، لحين تقييم الوضع. الحكمُ
+        # الأصليّ `TeacherExemption.binds_people` (`operations/models/schedule.py`)
+        # لم يتغيّر — القرارُ هنا تعليقٌ مؤقّتٌ للتمييز لا نقضٌ للتصميم.
         exempt_ids = SubstituteService.exempted_teacher_ids(school, day_of_week, period_number)
 
         available_ids = teacher_ids - set(busy_ids) - set(absent_ids) - exempt_ids
@@ -115,10 +123,12 @@ class SubstituteService:
 
     @staticmethod
     def exempted_teacher_ids(school: School, day_of_week: int, period_number: int) -> set:
-        """من لا يجوز إشغالُه في هذه الخانة بحكم تفريغٍ ملزم.
+        """من لا يجوز إشغالُه في هذه الخانة بحكم تفريغٍ.
 
-        يومٌ كاملٌ أو الحصّةُ بعينها، من عام المدرسة الجاري، وبجهةٍ تُلزم —
-        فتفريغُ «لتوليد الجدول» لا يدخل هنا (`TeacherExemption.SOFT_SOURCES`).
+        يومٌ كاملٌ أو الحصّةُ بعينها، من عام المدرسة الجاري.
+
+        D-61م (قرارُ المالك 2026-09-29، مؤقّت): كلُّ مصدرٍ يمنع الآن، بما فيه
+        «لتوليد الجدول» (`TeacherExemption.SOFT_SOURCES`) — كان يُستثنى.
         """
         full_day, by_period = SubstituteService._day_exemptions(school, day_of_week)
         return full_day | by_period.get(period_number, set())
@@ -128,16 +138,13 @@ class SubstituteService:
         """تفريغاتُ اليوم الملزمة مرّةً: من فُرّغ يومَه كلَّه، ومن فُرّغ في كلّ حصّة."""
         from core.querysets import year_or_current
 
-        rows = (
-            TeacherExemption.objects.filter(
-                school=school,
-                academic_year=year_or_current(school),
-                is_active=True,
-                day_of_week=day_of_week,
-            )
-            .exclude(source__in=TeacherExemption.SOFT_SOURCES)
-            .values_list("teacher_id", "exemption_type", "period_number")
-        )
+        # D-61م: لا استثناءَ لمصدرٍ — انظر التوثيق في exempted_teacher_ids.
+        rows = TeacherExemption.objects.filter(
+            school=school,
+            academic_year=year_or_current(school),
+            is_active=True,
+            day_of_week=day_of_week,
+        ).values_list("teacher_id", "exemption_type", "period_number")
         full_day: set = set()
         by_period: dict[int, set] = {}
         for teacher_id, kind, period in rows:
