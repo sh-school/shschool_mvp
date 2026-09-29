@@ -143,6 +143,12 @@ app.conf.beat_schedule = {
         "task": "operations.purge_expired_export_jobs",
         "schedule": crontab(minute=5),  # كلَّ ساعة عند الدقيقة 5
     },
+    # حارسُ توليداتٍ عالقةٍ في «قيد التوليد» بعد انقطاع اتّصال القاعدة أثناء الاستثناء
+    # الأصليّ نفسِه (W-20260929-022، P0) — يُعلنها فاشلةً بعد سقفٍ زمنيّ. كلَّ خمس دقائق.
+    "reap-stuck-schedule-generations": {
+        "task": "operations.reap_stuck_schedule_generations",
+        "schedule": crontab(minute="*/5"),
+    },
     # طلباتُ التعويض المفتوحة التي مضى يومُها لا يقبلها أحدٌ بعدُ (`_not_past`): تُنهى فجراً
     # فلا تبقى معلَّقةً في قوائم المنسّق ولا تُعدّ انشغالاً لأصحابها ولا تسدّ خانةَ يومها.
     "expire-overdue-compensatory": {
