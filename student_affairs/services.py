@@ -583,9 +583,8 @@ class StudentService:
         )
 
         logger.info(
-            "تم إنشاء طالب جديد: %s (national_id=%s) في المدرسة %s",
-            user.full_name,
-            national_id,
+            "تم إنشاء طالب جديد: user=%s في المدرسة %s",
+            user.pk,
             school.code,
         )
         return user
@@ -656,7 +655,7 @@ class StudentService:
                 enrollment.save(update_fields=["is_active"])
             StudentEnrollment.objects.create(student=student, class_group=new_class, is_active=True)
 
-        logger.info("تم تحديث الطالب: %s (school=%s)", student.full_name, school.code)
+        logger.info("تم تحديث الطالب: user=%s (school=%s)", student.pk, school.code)
         return student
 
     # ── تعطيل طالب ─────────────────────────────────────────────────
@@ -692,10 +691,10 @@ class StudentService:
         student.invalidate_active_membership()
 
         logger.info(
-            "تم تعطيل الطالب %s في المدرسة %s بواسطة %s (عضويات: %d، تسجيلات: %d)",
-            student.full_name,
+            "تم تعطيل الطالب user=%s في المدرسة %s بواسطة user=%s (عضويات: %d، تسجيلات: %d)",
+            student.pk,
             school.code,
-            user.full_name,
+            user.pk,
             updated_memberships,
             updated_enrollments,
         )
@@ -983,9 +982,9 @@ class TransferService:
         )
 
         logger.info(
-            "تم إنشاء طلب انتقال %s للطالب %s — %s",
+            "تم إنشاء طلب انتقال %s للطالب user=%s — %s",
             transfer.get_direction_display(),
-            student.full_name,
+            student.pk,
             school.code,
         )
         return transfer
@@ -1035,16 +1034,16 @@ class TransferService:
                 user=reviewer,
             )
             logger.info(
-                "تم إتمام انتقال صادر وتعطيل الطالب %s من المدرسة %s",
-                transfer.student.full_name,
+                "تم إتمام انتقال صادر وتعطيل الطالب user=%s من المدرسة %s",
+                transfer.student_id,
                 transfer.school.code,
             )
 
         logger.info(
-            "تمت مراجعة طلب انتقال #%s — الإجراء: %s بواسطة %s",
+            "تمت مراجعة طلب انتقال #%s — الإجراء: %s بواسطة user=%s",
             transfer.pk,
             action,
-            reviewer.full_name,
+            reviewer.pk,
         )
 
 

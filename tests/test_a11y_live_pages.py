@@ -177,7 +177,7 @@ def test_saving_the_health_record_still_posts_the_same_names(client_as, nurse_us
     )
     assert response.status_code in (200, 302)
     health_record.refresh_from_db()
-    assert health_record.blood_type == "A-"
+    assert health_record.blood_type_encrypted == "A-"
     assert health_record.allergies == "حساسيّةٌ من اللاتكس"
     assert health_record.emergency_contact_name == "وليُّ الأمر"
 

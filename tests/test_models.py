@@ -82,8 +82,8 @@ class TestCustomUser:
 @pytest.mark.django_db
 class TestHealthRecord:
     def test_create_health_record(self, db, student_user):
-        record = HealthRecordFactory(student=student_user, blood_type="A+")
-        assert record.blood_type == "A+"
+        record = HealthRecordFactory(student=student_user, blood_type_encrypted="A+")
+        assert record.blood_type_encrypted == "A+"
         assert record.student == student_user
 
     def test_one_to_one_student(self, db, student_user):
