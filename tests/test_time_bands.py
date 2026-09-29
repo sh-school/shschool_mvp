@@ -176,7 +176,12 @@ def test_generated_slots_carry_their_bands_clock(school, bands):
 
 
 def test_a_two_floor_teacher_never_overlaps_by_the_clock(school, bands):
-    """جدولٌ كامل لمعلّمٍ يقطع الطابقين: لا حصّتان له تتداخلان بالساعة في يوم."""
+    """جدولٌ كامل لمعلّمٍ يقطع الطابقين: لا حصّتان له تتداخلان بالساعة في يوم.
+
+    D-61م: نصابُ الحصّة صار 3 لا 5 — فأربعُ شعبٍ بخمسٍ (20 حصّةً أسبوعيّاً) صار
+    مُتعذَّراً حقّاً بعد أن سدّ G2 رخصةَ HC5 التي كانت تُخرج هذا الحملَ بمخالفةٍ
+    صامتة؛ والحكمُ بالساعة (غرضُ هذا الاختبار) لا يحتاج حملاً بهذا الثقل ليُختبر.
+    """
     maths = Subject.objects.create(school=school, name_ar="الرياضيات", code="MAT")
     teacher = _teacher(school, "معلّمُ الطابقين")
     for grade, level, band in (
@@ -188,7 +193,7 @@ def test_a_two_floor_teacher_never_overlaps_by_the_clock(school, bands):
         group = ClassGroupFactory(
             school=school, grade=grade, level_type=level, academic_year=YEAR, time_band=bands[band]
         )
-        _assign(school, group, teacher, maths, 5)
+        _assign(school, group, teacher, maths, 3)
 
     result = generate_schedule(school, YEAR)
 
