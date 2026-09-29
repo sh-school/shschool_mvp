@@ -27,7 +27,6 @@ from core.permissions import (
 )
 from core.sorting import apply_sort
 
-from . import pdf_layout
 from .observation_models import (
     FOLLOW_UP_MODE,
     FOLLOW_UP_SCOPE,
@@ -232,30 +231,25 @@ def _as_data_uri(image_field):
     return f"data:{kind};base64,{payload}"
 
 
-def _pdf_context(obs):
-    """سياق الاستمارة المطبوعة — طبق الأصل من نموذج المدرسة.
+#: المجالات المطبوعة على الصفحة الأولى — كما في نموذج المدرسة الورقيّ (استعادةُ بنية الاستمارة، قرارُ المالك 2026-09-28).
+#: الأصل يفصل بعد «تنفيذ الدرس» ويُعيد العنوانَ ورؤوسَ الأعمدة في الثانية، فالقسمة قصدٌ لا نتيجةَ امتلاء صفحة.
+FIRST_PAGE_DOMAINS = ("التخطيط", "تنفيذ الدرس")
 
-    والأصل صفحتان، وطلبت المدرسة صفحةً واحدة — فالمجالات الأربعة تُعرض في
-    جدولٍ واحد بلا قسمة.
-    """
-    grouped, recs, number = [], [], 0
-    for label, rows in _groups_with_scores(obs):
-        numbered = []
-        for criterion, score in rows:
-            number += 1
-            numbered.append({"criterion": criterion, "score": score, "number": number})
-            text = (score.recommendation if score else "").strip()
-            if text:
-                recs.append({"number": number, "text": text})
-        grouped.append((label, numbered))
+
+def _pdf_context(obs):
+    """سياق الاستمارة المطبوعة — طبق الأصل من نموذج المدرسة: صفحتان بالمجال، وتوصيةُ كلّ معيارٍ في عمودٍ داخل صفّه
+    (استعادةُ البنية الأصليّة، قرارُ المالك 2026-09-28؛ نقيضُ التصميم المؤقّت «صفحةٌ واحدة + قائمةٌ تحت الجدول» في #711)."""
+    grouped = [
+        (label, [{"criterion": c, "score": s} for c, s in rows])
+        for label, rows in _groups_with_scores(obs)
+    ]
+    first = [g for g in grouped if g[0] in FIRST_PAGE_DOMAINS]
+    rest = [g for g in grouped if g[0] not in FIRST_PAGE_DOMAINS]
     return {
         "obs": obs,
-        "recs": recs,
-        "free_pt": pdf_layout.format_pt(pdf_layout.free_font(recs, obs.general_notes)),
-        "zone_min_pt": pdf_layout.format_pt(round(pdf_layout.zone_min_pt(), 1)),
+        "blocks": [b for b in (first, rest) if b],
         # الشعار: `School.logo` إن وُجد، وإلّا الشعارُ المعتمد `logoMaroon.png` — وترويسةُ/تذييلُ الصور أُلغيا (2026-09-26)
         "logo": _as_data_uri(obs.school.logo) or brand_logo_data_uri(),
-        "domains": grouped,
         "ratings": RATING_CHOICES,
         "signatures": signature_stamps(obs),
         "academic_year": academic_year_for_school(obs.school).replace("-", "/"),

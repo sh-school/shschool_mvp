@@ -28,12 +28,26 @@ PARTIAL = pathlib.Path("templates/components/ministry_vision.html")
 
 #: قوالب الطباعة المستقلّة التي لا تزال تحمل الرؤيةَ نصّاً حرفيّاً — لا ترث ذيلاً من غيرها.
 #: `base_form.html` رُحِّل إلى الإطار المطبوع المركزيّ (core/print_frame.py، #713) فخرج من هذه القائمة —
-#: انظر `test_the_migrated_form_footer_carries_the_vision` أدناه.
+#: انظر `test_the_migrated_form_footer_carries_the_vision` أدناه. و`observation_pdf.html` رُحِّل مثلَه إلى
+#: المكوّن المركزيّ الأبسط `components/pdf_footer.html` (قرارُ المالك 2026-09-28، W-20260928-003) — انظر
+#: `test_the_shared_footer_component_carries_the_vision` أدناه.
 STANDALONE_DOCS = [
-    "templates/quality/observation_pdf.html",
     "templates/schedule/print_schedule.html",
     "templates/reports/base_qatar_report.html",
 ]
+
+
+@pytest.mark.django_db
+def test_the_shared_footer_component_carries_the_vision(school):
+    """`components/pdf_footer.html` (استمارةُ الزيارة الصفّيّة وصفحاتُ الجدول الفرديّة، W-20260928-003):
+    مصدرُه الوحيد `ministry_vision.html` أيضاً — يُقاس على القالب نفسِه (مصدرٌ حرفيٌّ لا رسمٌ متعدّد الطبقات)
+    لا على المستهلكَين، فلا يتكرّر القياسُ عليهما."""
+    assert 'include "components/ministry_vision.html"' in pathlib.Path(
+        "templates/components/pdf_footer.html"
+    ).read_text(encoding="utf-8")
+
+    rendered = render_to_string("components/pdf_footer.html", {"school": school})
+    assert VISION in _plain(rendered)
 
 
 def _plain(rendered: str) -> str:

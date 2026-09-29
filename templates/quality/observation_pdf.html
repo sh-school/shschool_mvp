@@ -1,19 +1,28 @@
 {% load static brand_tags %}
 {% comment %}
-استمارة الإشراف على أداء المعلّم — من نموذج المدرسة (docx)، بتصميمٍ يسع A4 بمتنٍ مقروء (قرارُ المالك 2026-09-26).
+استمارة الإشراف على أداء المعلّم — من نموذج المدرسة (docx)، **بنيتُه الأصليّة مُستعادةً** (قرارُ المالك 2026-09-28، W-20260928-003)
+بعد تجربة التصميم المؤقّت «صفحةٌ واحدة» في طلب الدمج 711 (اعتمده المالكُ بصريّاً بعد أربع تصييرات PDF فعليّة).
 
 الورقُ A4 (210 × 297 مم)؛ والأصلُ Letter بهوامش 1620/1170/720 twip. والجانبيّان نصفُ بوصة كالأصل.
 
-**التصميم** (المقيسُ في `tests/test_observation_pdf_a4.py`): متنٌ 12pt ونصوصٌ حرّةٌ 11pt تتدرّج بنصف نقطةٍ إلى حدٍّ أدنى.
-- المناطقُ الثابتة: العنوانُ، جدولُ المعلومات، جدولُ المعايير، جدولُ التوقيعات.
-- جدولُ المعايير: رؤوسُ التقدير أرقامٌ 1–5 بوسيلة إيضاحٍ بسطرين فوقه — فتضيق أعمدتُها (7مم) ويتّسع عمودُ المعايير (≈136مم) فيسعُ كلُّ معيارٍ
-  سطراً واحداً. والأصلُ خمسةُ رؤوسٍ نصّيّة وعمودُ توصيات: يحتاج 818pt فارغاً عند 12pt ولا يسعه A4 (المتاحُ ≈712).
-- **منطقةُ النصوص الحرّة** تحت الجدول: توصيةُ كلّ معيارٍ قائمةٌ مرقَّمةٌ برقم المعيار، ثمّ الملاحظاتُ العامّة. وحجمُ خطّها من
-  `quality/pdf_layout.py::free_font` — بلا قصٍّ ولا إخفاء: النصُّ الكاملُ يُطبع.
-- توقيعاتُ المعلّم والزائر جدولٌ منفصلٌ بأربع خلايا (خانةُ الختم F55E بلا مزاحمةٍ لأعمدة التقدير).
+**البنيةُ المستعادة:**
+- **صفحتان بالمجال لا صفحةٌ واحدة**: الأصلُ يفصل بعد «تنفيذ الدرس» ويُعيد العنوانَ ورؤوسَ الأعمدة في الثانية (`FIRST_PAGE_DOMAINS` في
+  `quality/observation_views.py`) — قسمةٌ قصديّةٌ لا نتيجةَ امتلاء صفحة.
+- **رؤوسُ التقدير خمسةٌ نصّيّة** (كالأصل) لا أرقامٌ بوسيلة إيضاح: فلا حاجةَ لسطر الإيضاح، ويتّسع عمودُ المعايير بقدر ما تسمح به الأعمدةُ
+  الخمسةُ النصّيّة (٦-١ من ضيق العمود على هذا الحساب — القسمةُ صفحتين تفسح له).
+- **التوصيةُ عمودٌ داخل صفّ كلّ معيار** (كالأصل) لا منطقةَ نصٍّ حرٍّ تحت الجدول: فلا حاجةَ لنموذج سعةٍ (`quality/pdf_layout.py` حُذف)
+  ولا لترقيم المعايير (كان يربط التوصيةَ بمعيارها في القائمة).
+- **ملاحظاتٌ وتوصياتٌ عامّةٌ**: صندوقٌ ثابتُ الحدّ الأدنى (لا حدَّ أقصى) في آخر صفحة — النصُّ الطويل يمدّد الصفَّ فيُتِمّ نفسَه في صفحةٍ
+  ثالثة عند الحاجة (`table` لا يقصّ محتوى خليّته)، فتبقى سياسةُ «لا قصَّ للنصّ الحرّ» (قرارُ المالك 2026-09-26) قائمةً بلا نموذج تدرّجٍ خاصّ.
+- **الخطّ**: المتنُ 13.5pt (بدل 12pt)، عنوانُ الاستمارة 16pt (بدل 15)، واسمُ المدرسة في الترويسة 15pt (بدل 14) — تكبيرٌ عامٌّ (قرارُ
+  المالك 2026-09-28).
 
-**الإطار (الترويسة والتذييل) مؤقّت**: افتراضُه الترويسةُ 1.2 بوصة (شعارٌ فوزارةٌ فاسمُ المدرسة، **بلا رؤية**) والتذييلُ **سطرٌ واحد**: المدرسةُ والوزارةُ والرؤيةُ متّصلةً بفواصل — لا عنصرين (طلب المالك 2026-09-27، تصحيحٌ ثانٍ: الرؤيةُ في نفس السطر لا سطراً وحدها)، من مصدرها الواحد `components/ministry_vision.html`. وهو كتلةٌ واحدةٌ مُعلَّمةٌ
-ويحلّ محلّها المكوّنان المركزيّان حين يُبنيان — فلا يُعرَّف تذييلٌ ولا يُنسخ قالبُ غيرِه هنا. والهوامشُ في `@page` هي حدودُهما.
+**الترويسة تبقى نصّيّةً كما في طلب الدمج 711** (شعارٌ صغيرٌ فوزارةٌ فاسمُ المدرسة، بلا صورة ترويسةٍ كاملة ولا سطرَ رؤية — الرؤيةُ في التذييل وحده).
+
+**التذييلُ من المكوّن المركزيّ الجديد** `components/pdf_footer.html` (قرارُ المالك 2026-09-28): سطرٌ واحد «الوزارة — المدرسة — رؤيةُ
+الوزارة»، من مصدر الرؤية الواحد `components/ministry_vision.html`؛ والمكوّنُ نفسُه يستهلكه `schedule/print_pages.html` — لا نسختان
+متباينتان. وهو غيرُ الإطار المركزيّ الأعمّ (`core/print_frame.py` وحلقةُ `print_frame_footer`) ذو ترقيم الصفحات: هذه وثيقةٌ لا تحتاج
+«صفحة N من M»، فبقي القالبُ يملك `@page`/الهوامشَ الخاصّةَ به (خارجَ نطاق هذا الطلب دمجُه في الإطار الأعمّ).
 
 واللونان من الملفّ نفسه: 943634 لشرائط العناوين، وDDD9C3 لكل خليّة عنوان (`FORM_BAND` و`FORM_KEY_BG` في `core/brand.py`).
 
@@ -38,7 +47,7 @@
 <style>
 @page {
   size: A4;
-  /* الهوامشُ = حدُّ الإطار المؤقّت: الترويسةُ 1.2 بوصة (بلا رؤية)، والتذييلُ سطرٌ واحد (المدرسةُ والوزارةُ والرؤيةُ معاً) فـ0.42 بوصة. الجانبيّان كالأصل. */
+  /* الهوامشُ: ترويسةٌ 1.2 بوصة (بلا رؤية) وتذييلٌ سطرٌ واحد 0.42 بوصة. الجانبيّان كالأصل. */
   margin: 1.2in 0.5in 0.42in 0.5in;
   @top-center { content: element(sheet-header); }
   @bottom-center { content: element(sheet-footer); }
@@ -55,36 +64,33 @@
 body {
   direction: rtl;
   font-family: 'Traditional Arabic', 'Noto Naskh Arabic', 'Amiri', serif;
-  font-size: 12pt;
+  font-size: 13.5pt;
   line-height: 1.15;
   color: {% brand_color "PRINT_INK" %};
   background: {% brand_color "SURFACE" %};
 }
 
-/* ══ TEMP-FRAME: الترويسةُ والتذييل (مؤقّتان إلى أن يُبنى المكوّنان المركزيّان) ══════════════════════════════════
-   صندوق الهامش بلا عرضٍ محدَّد، فـ`width: 100%` لا تُحلّ عليه: عرضُ الشريطين مطلق = عرضُ A4 (210مم) ناقص هامشَين نصفِ بوصة = 184.6مم. */
+/* ══ الترويسةُ والتذييل — الترويسةُ نصّيّةٌ محلّيّة (كما في طلب الدمج 711)، والتذييلُ من المكوّن المركزيّ `components/pdf_footer.html` ══ */
 #sheet-header { position: running(sheet-header); width: 184.6mm; padding-top: 0.08in; }
 #sheet-footer { position: running(sheet-footer); width: 184.6mm; padding-bottom: 0.1in; }
 .doc-header { text-align: center; }
 .doc-header .emblem { display: block; height: 0.5in; width: auto; margin: 0 auto 2pt; }
 .doc-header .ministry-name { font-size: 8.5pt; color: {% brand_color "TEXT_PRIMARY" %}; }
-.doc-header .school-name { font-size: 14pt; font-weight: 700; color: {% brand_color "MAROON" %}; line-height: 1.25; }
+.doc-header .school-name { font-size: 15pt; font-weight: 700; color: {% brand_color "MAROON" %}; line-height: 1.25; }
 .ornament-hr { height: 4pt; margin-top: 3pt; border-top: 2pt solid {% brand_color "MAROON" %}; border-bottom: 0.75pt solid {% brand_color "GOLD" %}; }
-.running-footer {
+.pdf-footer-line {
   text-align: center;
   border-top: 1.5pt solid {% brand_color "MAROON" %};
   padding-top: 3pt;
   font-size: 9pt;
   font-weight: 600;
   color: {% brand_color "MAROON_DARK" %};
-  /* سطرٌ واحد (طلب المالك 2026-09-27، تصحيحٌ ثانٍ): المدرسةُ والوزارةُ والرؤيةُ نصٌّ متّصلٌ لا عنصرَين. مقيسةٌ 9pt تسع 184.6مم باسمِ
-     مدرسةٍ وموضعٍ طويلَين (≈485pt من 523pt المتاحة، `tests/test_observation_pdf_a4.py`) فلا يُتوقَّع التفافٌ في الاستعمال العاديّ. */
 }
-/* ══ /TEMP-FRAME ═══════════════════════════════════════════════════════════════════════════════════════════ */
+/* ══ /الترويسةُ والتذييل ══ */
 
 .form-title {
   text-align: center;
-  font-size: 15pt;
+  font-size: 16pt;
   font-weight: 700;
   margin: 2pt 0 5pt;
 }
@@ -94,7 +100,7 @@ table { width: 100%; border-collapse: collapse; direction: rtl; margin-bottom: 3
 td {
   border: 0.5pt solid {% brand_color "PRINT_INK" %};
   padding: 0.5pt 3.5pt;
-  font-size: 12pt;
+  font-size: 13.5pt;
   vertical-align: middle;
   text-align: right;
 }
@@ -116,73 +122,35 @@ td {
 }
 .center { text-align: center; }
 
-/* خطٌّ أسمك يفصل مجالاً عن مجال — الحدُّ العاديّ نصفُ نقطة، فلا تكاد العينُ ترى أين ينتهي «التخطيط» ويبدأ «تنفيذ الدرس». */
-.domain-start td { border-top: 1.5pt solid {% brand_color "PRINT_INK" %}; }
-
 /* خانتا العنوان في سطر المدرسة: عرضُهما يثبّت ما تحتهما من أعمدة. */
 .key.is-school { width: 8%; }
 .key.is-date { width: 11%; }
 
 .vert { text-align: center; vertical-align: middle; padding: 2pt 1pt; }
 
-/* رقمُ التقدير في دائرةٍ صغيرة */
-.n {
-  display: inline-block;
-  min-width: 1.35em;
-  height: 1.35em;
-  line-height: 1.3em;
-  border: 0.6pt solid {% brand_color "PRINT_INK" %};
-  border-radius: 50%;
-  text-align: center;
-  font-size: 0.85em;
-  font-weight: 700;
-}
-/* وسيلةُ إيضاح التقدير: سطران بعرض الصفحة فوق الجدول */
-.legend { font-size: 10pt; line-height: 1.3; text-align: center; margin: 0 0 3pt; }
-.legend .lg { display: inline-block; margin: 0 5pt; white-space: nowrap; }
-
 .rate { text-align: center; font-weight: 700; }
-/* علامةُ الصحّ من خطٍّ احتياطيّ أطولَ مقاساً من خطّ المتن فتُطيل كلَّ صفٍّ يحملها نحو 2pt (49pt على 23 معياراً) — فارتفاعُ سطرها دون سطر المتن لتبقى الصفوفُ بارتفاع نصّها */
+/* علامةُ الصحّ من خطٍّ احتياطيّ أطولَ مقاساً من خطّ المتن فتُطيل السطر — ارتفاعُ سطرها دون سطر المتن لتبقى الصفوفُ بارتفاع نصّها */
 .rate, .tk { line-height: 0.8; }
 .crit { line-height: 1.1; }
-.crit .cn { display: inline-block; min-width: 1.5em; font-weight: 700; color: {% brand_color "FORM_BAND" %}; }
 
-/* جدولُ المعايير: عرضٌ مثبَّت — رقمُ المعيار ونصُّه في عمودٍ عريض (≈136مم)، وخمسةُ أعمدةِ تقديرٍ بـ7مم */
+/* جدولُ المعايير: عرضٌ مثبَّت — المجالُ 8%، المعاييرُ 26%، خمسةُ أعمدةِ تقديرٍ 8.4% لكلٍّ، والتوصياتُ 24% (طبق الأصل) */
 .grid { table-layout: fixed; }
-.c-domain { width: 7.5%; }
-.c-rate   { width: 3.8%; }
+.c-domain { width: 8%; }
+.c-crit   { width: 26%; }
+.c-rate   { width: 8.4%; }
+.c-rec    { width: 24%; }
 
-/* منطقةُ النصوص الحرّة: توصياتُ المعايير ثمّ الملاحظاتُ العامّة. حجمُ الخطّ من `free_font` (11pt المثاليّ إلى الحدّ الأدنى بنصف نقطة)،
-   ولا قصَّ: النصُّ كلُّه يُطبع. صندوقُ الملاحظات أدنى ارتفاعٍ 38pt — موضعُ الكتابة باليد إن لم تُدخَل ملاحظات. */
-.zone {
-  margin-top: 3pt;
-  margin-bottom: 3pt;
-  border: 0.5pt solid {% brand_color "PRINT_INK" %};
-  /* من السياق (`quality/pdf_layout.py`) لا رقمٌ في القالب: خطُّ التدرّج وأدنى ارتفاعٍ يملأ الصفحةَ */
-  font-size: {{ free_pt }}pt;
-  min-height: {{ zone_min_pt }}pt;
-}
-.zh {
-  background: {% brand_color "FORM_KEY_BG" %};
-  font-weight: 700;
-  font-size: 10pt;
-  line-height: 1.2;
-  padding: 0.5pt 3.5pt;
-  border-bottom: 0.5pt solid {% brand_color "PRINT_INK" %};
-}
-.zl + .zh { border-top: 0.5pt solid {% brand_color "PRINT_INK" %}; }
-.zl { list-style: none; padding: 1pt 3.5pt; }
-.zl li { line-height: 1.2; }
-.zl .cn { font-weight: 700; color: {% brand_color "FORM_BAND" %}; margin-left: 0.45em; }  /* inline لا inline-block: صندوقٌ مُضمَّن يُطيل سطرَه فوق ارتفاع السطر المحسوب */
-.zt { padding: 1pt 3.5pt; line-height: 1.2; min-height: 38pt; }
-/* ما يفيض عن الصفحة (نصٌّ يزيد عن السعة — بياناتٌ قديمة) يتمّ في صفحةٍ ثانيةٍ لا يُقصّ: لا يُقسَّم بندٌ ولا صفُّ توقيع */
-.zl li { break-inside: avoid; }
-.signs tr { break-inside: avoid; }
+.rec { font-size: 11pt; line-height: 1.15; }
 
-/* التوقيعات: جدولٌ منفصلٌ بأربع خلايا (عنوانٌ وخانةٌ لكلٍّ) */
-.signs { table-layout: fixed; margin-bottom: 0; }
-.signs .sign-l { width: 20%; }
-.signs .sign { width: 30%; height: 26pt; }
+/* ملاحظاتٌ عامّة: صندوقٌ ثابتُ الحدّ الأدنى، لا حدَّ أقصى — النصُّ الطويل يمدّد الصفَّ ويُتِمّ نفسَه في صفحةٍ إضافيّة (لا قصّ، قرار 2026-09-26) */
+.notes { height: 90pt; vertical-align: top; }
+.sign { height: 30pt; }
+/* ما يفيض عن الصفحة (نصٌّ طويل) لا يُقسَّم بندٌ ولا صفُّ توقيع */
+.notes, .sign { break-inside: avoid; }
+
+/* فاصلُ صفحةٍ بين كتلتَي المجالات (صفٌّ ثابتٌ لا خاصّيّةً حرفيّةً في الوسم) */
+.page-break { break-before: page; }
+
 /* ختمُ التوقيع الإلكترونيّ (F55E): يملأ الخانةَ حين توجد بياناتُه، وإلّا تبقى فارغةً للتوقيع اليدويّ. */
 .e-sign {
   border: 0.6pt solid {% brand_color "FORM_BAND" %};
@@ -196,7 +164,6 @@ td {
 </head>
 <body data-pdf-own-page>
 
-{# ══ TEMP-FRAME (انظر أعلاه): الترويسةُ والتذييل ══ #}
 <div id="sheet-header">
   <div class="doc-header">
     {% if logo %}<img class="emblem" src="{{ logo }}" alt="">{% endif %}
@@ -206,104 +173,101 @@ td {
   <div class="ornament-hr"></div>
 </div>
 <div id="sheet-footer">
-  <div class="running-footer">{{ obs.school.name }}{% if obs.school.city %} · {{ obs.school.city }}، قطر{% endif %} — وزارة التربية والتعليم والتعليم العالي — {% include "components/ministry_vision.html" with school=obs.school %}</div>
+  {% include "components/pdf_footer.html" with school=obs.school %}
 </div>
-{# ══ /TEMP-FRAME ══ #}
 
-<h1 class="form-title">
-  استمارة <span class="subject">{{ form_subject }}</span> – العام الأكاديميّ {{ academic_year }}
-</h1>
-
-{# ══ المعلومات الأساسيّة ══ #}
-<table>
-  <tr><td class="band" colspan="12">المعلومات الأساسيّة</td></tr>
-  <tr>
-    <td class="key is-school">المــدرسة</td>
-    <td colspan="5">{{ obs.school.name }}</td>
-    <td class="key is-date" colspan="2">اليوم/التاريخ</td>
-    <td colspan="4">{{ obs.observation_date|date:"Y/m/d" }}</td>
-  </tr>
-  <tr>
-    <td class="key">المادّة</td>
-    <td colspan="3">{{ obs.subject.name_ar|default:"" }}</td>
-    <td class="key">الصّف</td>
-    <td colspan="3">{{ obs.class_group|default:"" }}</td>
-    <td class="key">الحصة</td>
-    <td colspan="3">{{ obs.period|default:"" }}</td>
-  </tr>
-  <tr>
-    <td class="key">الموضوع</td>
-    <td colspan="6">{{ obs.topic }}</td>
-    <td class="key">الزائر</td>
-    <td colspan="4">{{ obs.observer.full_name }}</td>
-  </tr>
-  {# الأصل يجمع الأربعة في صفٍّ واحد، ويُفرد الصفَّ الذي يليه لخياري البثّ #}
-  <tr>
-    <td class="key" rowspan="2">المعلّم</td>
-    <td colspan="2" rowspan="2">{{ obs.teacher.full_name }}</td>
-    <td class="key">نوع المتابعة</td>
-    <td class="key center">ميدانيّة</td>
-    <td class="center tk">{% if obs.follow_up_mode == 'field' %}✓{% endif %}</td>
-    <td class="key center">عن بُعد</td>
-    <td class="center tk">{% if obs.follow_up_mode == 'remote' %}✓{% endif %}</td>
-    <td class="key center">جزئيّة</td>
-    <td class="center tk">{% if obs.follow_up_scope == 'partial' %}✓{% endif %}</td>
-    <td class="key center">كلّيّة</td>
-    <td class="center tk">{% if obs.follow_up_scope == 'full' %}✓{% endif %}</td>
-  </tr>
-  <tr>
-    <td class="key">ملاحظات</td>
-    <td class="key center" colspan="2">بث مباشر مدمج</td>
-    <td class="center tk">{% if obs.broadcast_note == 'بث مباشر مدمج' %}✓{% endif %}</td>
-    <td class="key center" colspan="3">بث مباشر غير مدمج</td>
-    <td class="center tk" colspan="2">{% if obs.broadcast_note == 'بث مباشر غير مدمج' %}✓{% endif %}</td>
-  </tr>
-</table>
-
-{# ══ المعايير: وسيلةُ إيضاح التقدير ثمّ جدولٌ واحد — رأسُ كلّ تقديرٍ رقمُه ══ #}
-<div class="legend">{% for value, label in ratings %}<span class="lg"><span class="n">{{ forloop.counter }}</span> {{ label }}</span>{% endfor %}</div>
-<table class="grid">
-  <tr>
-    <td class="head c-domain">المجال</td>
-    <td class="head">معايير الأداء</td>
-    {% for value, label in ratings %}
-      <td class="head c-rate"><span class="n">{{ forloop.counter }}</span></td>
-    {% endfor %}
-  </tr>
-  {% for domain, rows in domains %}
-    {% for row in rows %}
-      <tr{% if forloop.first %} class="domain-start"{% endif %}>
-        {% if forloop.first %}
-          <td class="head vert" rowspan="{{ rows|length }}">{{ domain }}</td>
-        {% endif %}
-        <td class="crit"><span class="cn">{{ row.number }}</span> {{ row.criterion.text }}</td>
-        {% for value, label in ratings %}
-          <td class="rate">{% if row.score and row.score.rating == value %}✓{% endif %}</td>
-        {% endfor %}
-      </tr>
-    {% endfor %}
-  {% endfor %}
-</table>
-
-{# ══ النصوصُ الحرّة: توصياتُ المعايير ثمّ الملاحظاتُ العامّة — بلا قصّ، بخطٍّ يتدرّج (`free_pt`) ══ #}
-<div class="zone">
-  {% if recs %}
-    <div class="zh">توصيات المعايير (تتضمن توجيهات لزيادة أثر الممارسات في تعلم الطلاب)</div>
-    <ul class="zl">{% for rec in recs %}<li><span class="cn">{{ rec.number }}</span> {{ rec.text|linebreaksbr }}</li>{% endfor %}</ul>
+{% for block in blocks %}
+  {% if not forloop.first %}
+    <div class="page-break"></div>
   {% endif %}
-  <div class="zh">ملاحظات وتوصيات عامّة</div>
-  <div class="zt">{{ obs.general_notes|linebreaksbr }}</div>
-</div>
+  <h1 class="form-title">
+    استمارة <span class="subject">{{ form_subject }}</span> – العام الأكاديميّ {{ academic_year }}
+  </h1>
 
-{# ══ التوقيعات: جدولٌ منفصل ══ #}
-<table class="signs">
-  <tr>
-    <td class="band sign-l">توقيع المعلم</td>
-    <td class="sign">{% with stamp=signatures.teacher %}{% include "quality/_pdf_e_sign.html" %}{% endwith %}</td>
-    <td class="band sign-l">توقيع الزائر</td>
-    <td class="sign">{% with stamp=signatures.visitor %}{% include "quality/_pdf_e_sign.html" %}{% endwith %}</td>
-  </tr>
-</table>
+  {% if forloop.first %}
+    {# ══ المعلومات الأساسيّة — على الصفحة الأولى وحدها ══ #}
+    <table>
+      <tr><td class="band" colspan="12">المعلومات الأساسيّة</td></tr>
+      <tr>
+        <td class="key is-school">المــدرسة</td>
+        <td colspan="5">{{ obs.school.name }}</td>
+        <td class="key is-date" colspan="2">اليوم/التاريخ</td>
+        <td colspan="4">{{ obs.observation_date|date:"Y/m/d" }}</td>
+      </tr>
+      <tr>
+        <td class="key">المادّة</td>
+        <td colspan="3">{{ obs.subject.name_ar|default:"" }}</td>
+        <td class="key">الصّف</td>
+        <td colspan="3">{{ obs.class_group|default:"" }}</td>
+        <td class="key">الحصة</td>
+        <td colspan="3">{{ obs.period|default:"" }}</td>
+      </tr>
+      <tr>
+        <td class="key">الموضوع</td>
+        <td colspan="6">{{ obs.topic }}</td>
+        <td class="key">الزائر</td>
+        <td colspan="4">{{ obs.observer.full_name }}</td>
+      </tr>
+      {# الأصل يجمع الأربعة في صفٍّ واحد، ويُفرد الصفَّ الذي يليه لخياري البثّ #}
+      <tr>
+        <td class="key" rowspan="2">المعلّم</td>
+        <td colspan="2" rowspan="2">{{ obs.teacher.full_name }}</td>
+        <td class="key">نوع المتابعة</td>
+        <td class="key center">ميدانيّة</td>
+        <td class="center tk">{% if obs.follow_up_mode == 'field' %}✓{% endif %}</td>
+        <td class="key center">عن بُعد</td>
+        <td class="center tk">{% if obs.follow_up_mode == 'remote' %}✓{% endif %}</td>
+        <td class="key center">جزئيّة</td>
+        <td class="center tk">{% if obs.follow_up_scope == 'partial' %}✓{% endif %}</td>
+        <td class="key center">كلّيّة</td>
+        <td class="center tk">{% if obs.follow_up_scope == 'full' %}✓{% endif %}</td>
+      </tr>
+      <tr>
+        <td class="key">ملاحظات</td>
+        <td class="key center" colspan="2">بث مباشر مدمج</td>
+        <td class="center tk">{% if obs.broadcast_note == 'بث مباشر مدمج' %}✓{% endif %}</td>
+        <td class="key center" colspan="3">بث مباشر غير مدمج</td>
+        <td class="center tk" colspan="2">{% if obs.broadcast_note == 'بث مباشر غير مدمج' %}✓{% endif %}</td>
+      </tr>
+    </table>
+  {% endif %}
+
+  {# ══ المجالات ومعايير الأداء: رؤوسُ تقديرٍ نصّيّةٌ، وتوصيةُ كلّ معيارٍ عمودٌ في صفّه (كالأصل) ══ #}
+  <table class="grid">
+    <tr>
+      <td class="head c-domain">المجال</td>
+      <td class="head c-crit">معايير الأداء</td>
+      {% for value, label in ratings %}
+        <td class="head c-rate">{{ label }}</td>
+      {% endfor %}
+      <td class="head c-rec">التوصيات<br>(تتضمن توجيهات لزيادة أثر الممارسات في تعلم الطلاب)</td>
+    </tr>
+    {% for domain, rows in block %}
+      {% for row in rows %}
+        <tr>
+          {% if forloop.first %}
+            <td class="head vert" rowspan="{{ rows|length }}">{{ domain }}</td>
+          {% endif %}
+          <td class="crit">{{ row.criterion.text }}</td>
+          {% for value, label in ratings %}
+            <td class="rate">{% if row.score and row.score.rating == value %}✓{% endif %}</td>
+          {% endfor %}
+          <td class="rec">{% if row.score %}{{ row.score.recommendation }}{% endif %}</td>
+        </tr>
+      {% endfor %}
+    {% endfor %}
+    {% if forloop.last %}
+      <tr><td class="head" colspan="8">ملاحظات وتوصيات عامّة</td></tr>
+      <tr><td class="notes" colspan="8">{{ obs.general_notes|linebreaksbr }}</td></tr>
+      <tr>
+        <td class="band sign" colspan="2">توقيع المعلم</td>
+        <td class="sign" colspan="2">{% with stamp=signatures.teacher %}{% include "quality/_pdf_e_sign.html" %}{% endwith %}</td>
+        <td class="band sign" colspan="2">توقيع الزائر</td>
+        <td class="sign" colspan="2">{% with stamp=signatures.visitor %}{% include "quality/_pdf_e_sign.html" %}{% endwith %}</td>
+      </tr>
+    {% endif %}
+  </table>
+{% endfor %}
 
 </body>
 </html>
