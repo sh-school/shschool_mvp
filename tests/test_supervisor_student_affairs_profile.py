@@ -372,7 +372,7 @@ HIDDEN_TABLES = (
 class TestTheProfileHidesWhatIsNotHis:
     @pytest.fixture
     def health(self, school, wing_kid):
-        HealthRecordFactory(student=wing_kid, blood_type="AB-")
+        HealthRecordFactory(student=wing_kid, blood_type_encrypted="AB-")
         ClinicVisitFactory(school=school, student=wing_kid, reason="سببٌ طبّيٌّ خاصّ", is_sent_home=True)
 
     def test_the_hidden_sections_are_not_even_queried(

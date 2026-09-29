@@ -51,7 +51,7 @@ def student_health_record(request, student_id):
     # وكان المسارُ القديم يشفّر يدوياً بـ`save_encrypted()`، والقالبُ يطبع
     # الحقلَ الخام — فتُعرض الطلاسمُ في المربّع ويُعاد تشفيرُها مع كلّ حفظ.
     if request.method == "POST":
-        health_record.blood_type = request.POST.get("blood_type", "")
+        health_record.blood_type_encrypted = request.POST.get("blood_type", "")
         health_record.emergency_contact_name = request.POST.get("emergency_contact_name", "")
         health_record.emergency_contact_phone = request.POST.get("emergency_contact_phone", "")
         health_record.allergies = request.POST.get("allergies", "")

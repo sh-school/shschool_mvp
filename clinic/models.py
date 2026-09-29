@@ -37,8 +37,19 @@ class HealthRecord(models.Model):
         related_name="health_record",
         verbose_name="الطالب",
     )
+    # [W-029] القديمُ `blood_type` عمودٌ نصٌّ صريحٌ (مرحلة التوسيع): لا يُقرأ ولا
+    # يُكتب من الشيفرة بعد الآن، وتنقل الهجرةُ 0008 قيمَه إلى الحقل المشفَّر
+    # وتفرّغه. حذفُه طلبٌ لاحقٌ منفصل (التقليص) بعد استقرار الإصدار.
     blood_type = models.CharField(
-        max_length=3, choices=BLOOD_TYPES, blank=True, verbose_name="فصيلة الدم"
+        max_length=3, choices=BLOOD_TYPES, blank=True, verbose_name="فصيلة الدم (قديم)"
+    )
+    # القراءةُ والكتابةُ من هذا الحقل وحده. لا فلترةَ عليه (التشفير غير حتمي).
+    blood_type_encrypted = EncryptedTextField(
+        blank=True,
+        default="",
+        db_default="",
+        choices=BLOOD_TYPES,
+        verbose_name="فصيلة الدم",
     )
     # [PII-11] الحقولُ الطبّيّةُ الثلاثة كانت `TextField` تُشفَّر يدوياً عبر
     # `save_encrypted()`، بينما جهةُ الطوارئ تحتها `EncryptedTextField`. ومن

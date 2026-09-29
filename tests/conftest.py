@@ -106,7 +106,7 @@ class HealthRecordFactory(factory.django.DjangoModelFactory):
         model = HealthRecord
 
     student = factory.SubFactory(UserFactory)
-    blood_type = "O+"
+    blood_type_encrypted = "O+"
     allergies = ""
     chronic_diseases = ""
     medications = ""
