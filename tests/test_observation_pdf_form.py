@@ -193,10 +193,9 @@ def test_letterhead_and_letterfoot_images_are_gone(source, db, observation):
     )
 
 
-def test_the_temporary_frame_is_a_header_and_a_one_line_footer_with_the_vision(db, observation):
-    """الإطارُ مؤقّتٌ (كتلةُ `TEMP-FRAME`) إلى أن يُبنى المكوّنان المركزيّان: ترويسةٌ (شعارٌ فوزارةٌ فاسمُ المدرسة وخطٌّ زخرفيّ — **بلا رؤية**) وتذييلٌ
-    **سطرٌ واحد**: المدرسةُ والوزارةُ والرؤيةُ متّصلةً بفواصل — لا عنصرَين (أمرُ المالك 2026-09-27، تصحيحٌ ثانٍ: الرؤيةُ في نفس السطر لا سطراً وحدها)،
-    من مصدرها الواحد.
+def test_the_header_is_local_and_the_footer_is_the_shared_component(db, observation):
+    """الترويسةُ نصّيّةٌ محلّيّة (شعارٌ فوزارةٌ فاسمُ المدرسة وخطٌّ زخرفيّ — **بلا رؤية**)، والتذييلُ من المكوّن المركزيّ
+    `components/pdf_footer.html` (استعادةُ البنية، قرارُ المالك 2026-09-28): سطرٌ واحد — المدرسةُ والوزارةُ والرؤيةُ من مصدرها الواحد.
 
     والبيانُ من `obs.school` لا نصٌّ في القالب (منصّةٌ متعدّدةُ المدارس)؛ واسمُ المنصّة لا يظهر.
     """
@@ -214,15 +213,14 @@ def test_the_temporary_frame_is_a_header_and_a_one_line_footer_with_the_vision(d
         'class="ministry-name"',
         'class="school-name"',
         'class="ornament-hr"',
-        'class="running-footer"',
+        'class="pdf-footer-line"',
     ):
         assert marker in html, marker
     header = html.split('<div id="sheet-header">', 1)[1].split('<div id="sheet-footer">', 1)[0]
-    footer = html.split('<div id="sheet-footer">', 1)[1].split("{# ", 1)[0].split("<h1", 1)[0]
+    footer = html.split('<div id="sheet-footer">', 1)[1].split("<h1", 1)[0]
     assert "vision-text" not in header and school.vision not in header, "لا رؤيةَ في الترويسة"
-    assert footer.count('class="running-footer"') == 1 and observation.school.name in footer
+    assert footer.count('class="pdf-footer-line"') == 1 and observation.school.name in footer
     assert 'class="vision-text"' in footer and school.vision in footer, "الرؤيةُ في السطر نفسِه"
-    assert footer.count("<div>") == 0, "سطرٌ واحدٌ متّصلٌ لا عنصرَين منفصلَين"
     assert "ft-school" not in html and "ft-ministry" not in html
     assert (
         "SchoolOS" not in html and "SAMM" not in html
@@ -230,29 +228,29 @@ def test_the_temporary_frame_is_a_header_and_a_one_line_footer_with_the_vision(d
     assert html.count("<img") == 1, "الشعارُ وحده — لا صورةَ ترويسةٍ ولا تذييل"
 
 
-def test_all_four_domains_sit_in_one_table(db, observation, criteria):
-    """الأصل صفحتان، وطلبت المدرسة صفحةً واحدة — فلا قسمة ولا فاصل."""
+def test_two_planning_domains_sit_on_the_first_page_the_rest_on_the_second(
+    db, observation, criteria
+):
+    """استعادةُ البنية الأصليّة (قرارُ المالك 2026-09-28): الصفحةُ الأولى «التخطيط» و«تنفيذ الدرس»، والثانيةُ الباقي — لا جدولٌ واحد."""
     from quality.observation_views import _pdf_context
 
     ctx = _pdf_context(observation)
 
-    assert [d for d, _ in ctx["domains"]] == [
-        "التخطيط",
-        "تنفيذ الدرس",
-        "التقويم",
-        "الإدارة الصفية وبيئة التعلم",
-    ]
+    assert [d for d, _ in ctx["blocks"][0]] == ["التخطيط", "تنفيذ الدرس"]
+    assert [d for d, _ in ctx["blocks"][1]] == ["التقويم", "الإدارة الصفية وبيئة التعلم"]
 
 
-def test_nothing_forces_a_second_page(db, observation, criteria):
-    """عنوانٌ واحد، وجدولٌ واحد للمعايير، ولا `break-before`."""
+def test_the_second_domain_block_forces_a_page_break_and_repeats_the_grid(
+    db, observation, criteria
+):
+    """عنوانان (أوّلٌ لكلّ صفحة) وجدولا معاييرَ (أوّلٌ لكلّ صفحة)، وفاصلُ صفحةٍ واحد بينهما — استعادةٌ من نموذج المدرسة الأصليّ."""
     from quality.observation_views import _pdf_context
 
     html = render_to_string("quality/observation_pdf.html", _pdf_context(observation))
 
-    assert html.count('class="subject"') == 1
-    assert "break-before" not in html
-    assert html.count('class="grid"') == 1
+    assert html.count('class="subject"') == 2
+    assert html.count("break-before: page") == 1
+    assert html.count('class="grid"') == 2
 
 
 def test_a_self_assessment_is_titled_as_one(db, observation, criteria):
@@ -336,19 +334,22 @@ def test_no_vertical_writing_mode(source):
     assert "rotate(" not in css
 
 
-def test_the_criteria_column_keeps_its_width(source):
-    """بلا عرضٍ مثبَّت تسحب الأعمدةُ الضيّقة عرضَ عمود المعايير فتنكسر كل كلمةٍ على سطر — وهو ما حدث.
+def test_the_five_columns_and_the_recommendation_column_sum_to_the_full_width(source):
+    """بلا عرضٍ مثبَّت تسحب الأعمدةُ الضيّقة عرضَ عمود المعايير فتنكسر كل كلمةٍ على سطر — وهو ما حدث في نسخةٍ سابقة.
 
-    فالجدولُ مثبَّتُ العرض وأعمدتُه الضيّقة (المجال وخمسةُ التقدير) بنسبٍ صريحة، ويأخذ عمودُ المعايير الباقيَ: ≥120مم فيسعُ كلُّ معيارٍ
-    سطراً واحداً عند 12pt (327pt للمعايير الـ23؛ عند 61مم كانت 538).
+    البنيةُ المستعادة (كالأصل): المجالُ 8% والمعاييرُ 26% وخمسةُ أعمدة تقديرٍ 8.4% لكلٍّ والتوصياتُ 24% — نسبٌ صريحةٌ تجمع 100%
+    لا عمودَ معاييرَ يبتلع الباقي (خلافَ التصميم المؤقّت أحاديِّ الصفحة الذي لم يكن فيه عمودُ توصيات).
     """
     import re
 
     assert "table-layout: fixed" in source
     domain = float(re.search(r"\.c-domain \{ width: ([\d.]+)%", source).group(1))
+    crit = float(re.search(r"\.c-crit\s*\{ width: ([\d.]+)%", source).group(1))
     rate = float(re.search(r"\.c-rate\s*\{ width: ([\d.]+)%", source).group(1))
-    criteria_mm = 184.6 * (100 - domain - 5 * rate) / 100
-    assert criteria_mm >= 120, criteria_mm
+    rec = float(re.search(r"\.c-rec\s*\{ width: ([\d.]+)%", source).group(1))
+
+    assert domain + crit + 5 * rate + rec == pytest.approx(100.0)
+    assert 184.6 * crit / 100 >= 40, "عمودُ المعايير يسع نصّاً مقروءاً ولو التفّ على أكثرَ من سطر"
 
 
 # ── الخطّ المملوك يصل الخادم ولا يدخل المستودع ───────────────────────
@@ -434,7 +435,9 @@ def test_the_vision_is_included_never_written_here(source):
     وحدها. ووثيقةٌ رسميةٌ لا تنسب إلى وزارةٍ قولاً بلا مصدر، ولا تكتبه
     مرّتين فيختلفان.
     """
-    assert 'include "components/ministry_vision.html"' in source
+    assert (
+        'include "components/pdf_footer.html"' in source
+    ), "الرؤيةُ تصل عبر المكوّن المركزيّ لا نصّاً هنا"
     assert "الريادة في توفير" not in source and "رِيَادِيٌّ" not in source, "يُضمَّن ولا يُنسخ"
 
 
@@ -608,11 +611,11 @@ def _page_count(obs):
 
 
 def test_a_stamped_form_fits_wherever_the_unstamped_one_fits(db, school, named):
-    """القبولُ: الجدولُ يبقى في صفحةٍ واحدة — الختمان لا يُنزلان الاستمارةَ عن الصفحة الواحدة.
+    """القبولُ: الجدولُ يبقى بعدد الصفحات نفسِه — الختمان لا يزيدان صفحةً.
 
-    عددُ صفحات الأصل تحكمه الخطوطُ المثبَّتةُ في البيئة (بخطٍّ بديلٍ عريضٍ ينزل صفُّ التوقيع وحده إلى الصفحة الثانية
-    ولو بلا ختم) — فلا رقمَ مطلقاً هنا: نأخذ أكبرَ عددِ معاييرَ تسعه صفحةٌ واحدةٌ **بلا ختم** (حتّى تمتلئ الصفحةُ إلى
-    حافّتها)، ونقيس الاستمارةَ المختومةَ بالختمَين عند العدد نفسِه. صندوقُ الملاحظات يردّ ما يزيده الختمُ (`.notes.stamped`).
+    البنيةُ المستعادة (قرارُ المالك 2026-09-28) صفحتان دائماً على الأقلّ (فصلٌ قصديٌّ بالمجال)، فلا معنى للبحث عن صفحةٍ
+    واحدة كما في التصميم المؤقّت السابق. نأخذ أكبرَ عددِ معاييرَ تسعه صفحتان **بلا ختم**، ونقيس الاستمارةَ المختومةَ
+    بالختمَين عند العدد نفسِه.
     """
     pytest.importorskip("weasyprint")
     named.general_notes = ""
@@ -621,14 +624,14 @@ def test_a_stamped_form_fits_wherever_the_unstamped_one_fits(db, school, named):
 
     for count in range(23, 8, -1):
         _real_criteria(school, count)
-        if _page_count(named) == 1:
+        if _page_count(named) == 2:
             break
     else:
-        pytest.skip("لا عددَ معاييرَ تسعه صفحةٌ في هذه البيئة (خطوطُ PDF غيرُ مثبَّتة)")
+        pytest.skip("لا عددَ معاييرَ تسعه صفحتان في هذه البيئة (خطوطُ PDF غيرُ مثبَّتة)")
 
     assert (
-        _page_count(_acknowledged(named)) == 1
-    ), f"الختمان أنزلا الاستمارةَ ({count} معياراً) عن صفحتها"
+        _page_count(_acknowledged(named)) == 2
+    ), f"الختمان أنزلا الاستمارةَ ({count} معياراً) عن صفحتَيها"
 
 
 # ── الشعارُ في الرأس (بلاغ المالك 2026-09-26) ─────────────────────────────────
@@ -755,11 +758,11 @@ def test_the_logo_reaches_the_pdf_as_an_image_and_its_absence_leaves_none(
         pages_without, images_without = _images_and_pages(named)
 
     assert images_with == 1 and images_without == 0
-    assert pages_with == pages_without == 1
+    assert pages_with == pages_without, "الشعارُ لا يغيّر عددَ الصفحات"
 
 
 def test_the_logo_never_costs_a_page(db, school, named, tmp_path):
-    """صفحةٌ واحدة: أكبرُ عددِ معاييرَ تسعه الصفحةُ بلا شعار (حتّى حافّتها) — والشعارُ عند العدد نفسِه لا يُنزلها إلى صفحتين.
+    """صفحتان: أكبرُ عددِ معاييرَ تسعه الصفحتان بلا شعار (حتّى حافّتهما) — والشعارُ عند العدد نفسِه لا يُنزلها إلى ثالثة.
 
     نسبيّ عمداً كما في ختم F55E: عددُ الصفحات المطلق تحكمه خطوطُ PDF المثبَّتةُ في البيئة.
     """
@@ -772,9 +775,9 @@ def test_the_logo_never_costs_a_page(db, school, named, tmp_path):
     for count in range(23, 8, -1):
         _real_criteria(school, count)
         with override_settings(BASE_DIR=tmp_path):
-            if _images_and_pages(named)[0] == 1:
+            if _images_and_pages(named)[0] == 2:
                 break
     else:
-        pytest.skip("لا عددَ معاييرَ تسعه صفحةٌ في هذه البيئة (خطوطُ PDF غيرُ مثبَّتة)")
+        pytest.skip("لا عددَ معاييرَ تسعه صفحتان في هذه البيئة (خطوطُ PDF غيرُ مثبَّتة)")
 
-    assert _images_and_pages(named)[0] == 1, f"الشعارُ أنزل الاستمارةَ ({count} معياراً) عن صفحتها"
+    assert _images_and_pages(named)[0] == 2, f"الشعارُ أنزل الاستمارةَ ({count} معياراً) عن صفحتَيها"
