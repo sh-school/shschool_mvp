@@ -21,7 +21,7 @@
     python scripts/auto_merge_gate.py <رقم الطلب> [--repo owner/name] [--enable]
 
 بلا --enable: يطبع الحكمَ فقط (وضعُ الفحص الجاف). بـ--enable: يستدعي
-`gh pr merge --auto --squash` إن اجتمعت الشروط.
+`gh pr merge --auto` إن اجتمعت الشروط (لا --squash: طابورُ الدمج في هذا المستودع يفرض استراتيجيّتَه هو).
 رمزُ الخروج: 0 = مسموحٌ بالدمج الآليّ (أو فُعِّل)، 1 = ممنوعٌ ويبقى يدويّاً، 2 = خطأ استعمال/شبكة.
 """
 
@@ -122,7 +122,7 @@ def main() -> int:
     if ok:
         print(f"[مسموح] الطلبُ #{args.pr_number} يستوفي شروطَ الدمج الآليّ")
         if args.enable:
-            cmd = ["gh", "pr", "merge", args.pr_number, "--auto", "--squash"]
+            cmd = ["gh", "pr", "merge", args.pr_number, "--auto"]
             if args.repo:
                 cmd += ["--repo", args.repo]
             subprocess.run(cmd, check=True)
