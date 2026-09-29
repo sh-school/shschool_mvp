@@ -6,6 +6,11 @@
 `assignment_services.apply_assignment` (لا `save()` مباشرةً)، وخطّةُ النصاب عبر `workload_workflow`
 (بوّابةٌ وتوقيعٌ لا حقلَ حالةٍ يُكتب) — فتبقى الحراسةُ والتدقيقُ كما لكلّ تعديلٍ آخر في المنصّة.
 
+صفٌّ غيرُ نشطٍ في الدمق (`is_active: false`) لا يُنشأ له سجلٌّ هنا، وإن كان نشطاً على هذه القاعدة يُطفَأ —
+ولا يُفعَّل أبداً حتى لو اختلفت حصصُه (`apply_assignment` يُفعِّل دائماً فلا يصلح لهذا المسار). والإطفاءُ يُطبَّق
+على كلّ صفوف الدمق قبل أن يُطبَّق أيُّ تفعيل، بصرف النظر عن ترتيبها في الملفّ — فنقلُ مادّةٍ من معلّمٍ إلى آخر في
+الدمق نفسِه لا يمرّ بلحظةٍ سجلّان نشطان فيها (F-10).
+
 خطّةٌ معتمَدةٌ أو مقفلةٌ على هذه القاعدة تختلف عمّا دُمق **لا تُعدَّل آليّاً أبداً** — تُذكر لمراجعةٍ يدويّة.
 والإسنادُ يُطبَّق قبل خطط الأنصبة دائماً: الاعتمادُ يتحقّق من أنّ المُسنَدَ الفعليّ يساوي الهدفَ التدريسيّ،
 فلا يصحّ إلّا بعد أن يستقرّ الإسنادُ.
@@ -101,8 +106,15 @@ class Command(BaseCommand):
         self.stdout.write("")
 
         self.stdout.write(self.style.MIGRATE_HEADING("الإسنادُ"))
-        for data in payload.get("assignments", []):
-            self._one_assignment(data, actor, options["apply"])
+        assignments = payload.get("assignments", [])
+        # الإطفاءُ قبل التفعيل: فصفٌّ فُقد صاحبُه في 8500 يُطفَأ أوّلاً، ولا يُترك سجلٌّ نشطٌ
+        # عابرٌ لحظةً حين يحلّ محلَّه صفٌّ آخر في الدمق نفسِه (F-10).
+        for data in assignments:
+            if not data["is_active"]:
+                self._one_assignment(data, actor, options["apply"])
+        for data in assignments:
+            if data["is_active"]:
+                self._one_assignment(data, actor, options["apply"])
 
         self.stdout.write("")
         self.stdout.write(self.style.MIGRATE_HEADING("خططُ الأنصبة"))
@@ -153,12 +165,17 @@ class Command(BaseCommand):
             subject=resolved.subject,
             teacher=resolved.teacher,
         ).first()
+
+        if not data["is_active"]:
+            self._one_inactive_assignment(current, actor, apply, label)
+            return
+
         if (
             current is not None
             and current.weekly_periods == data["weekly_periods"]
             and current.requires_lab == data["requires_lab"]
             and (current.parallel_group or "") == (data.get("parallel_group") or "")
-            and current.is_active == data["is_active"]
+            and current.is_active
         ):
             self.stdout.write(f"   = {label} — مطابقٌ سلفاً، لا تغيير")
             return
@@ -187,6 +204,21 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS("      ✓ كُتب"))
         except svc.AssignmentError as exc:
             self.stdout.write(self.style.ERROR(f"      ✗ رُفض: {exc}"))
+
+    def _one_inactive_assignment(self, current, actor, apply, label):
+        """صفٌّ غيرُ نشطٍ في 8500: لا يُنشأ له سجلٌّ هنا، وإن كان نشطاً هنا يُطفَأ — لا يُفعَّل أبداً
+
+        (`apply_assignment` يُفعِّل دائماً، فلا يصلح لهذا؛ الإطفاءُ عبر `remove_assignment` وحدَه).
+        """
+        if current is None or not current.is_active:
+            self.stdout.write(f"   = {label} — غيرُ نشطٍ سلفاً، لا تغيير")
+            return
+
+        self.stdout.write(f"   - {label} — إطفاءٌ (غيرُ نشطٍ في 8500)")
+        if not apply:
+            return
+        svc.remove_assignment(assignment=current, by=actor, reason=REPLAY_REFERENCE)
+        self.stdout.write(self.style.SUCCESS("      ✓ أُطفئ"))
 
     # ── خطّةُ النصاب ──────────────────────────────────────────────────
 

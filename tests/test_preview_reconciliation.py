@@ -403,3 +403,174 @@ def test_apply_never_touches_an_approved_plan_that_differs_it_only_warns(
     assert "لا تُعدَّل آليّاً" in out
     existing.refresh_from_db()
     assert existing.required_weekly_periods == 18
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  احترامُ is_active — لا يُنشئ صفّاً غيرَ نشطٍ، ولا يُفعِّل ما أُطفئ (F-10)
+# ══════════════════════════════════════════════════════════════════════
+
+
+def _assignment_row(school, academic_year, grade, section, subject_code, teacher_hmac, **extra):
+    row = {
+        "school_code": school,
+        "academic_year": academic_year,
+        "grade": grade,
+        "section": section,
+        "subject_code": subject_code,
+        "teacher_hmac": teacher_hmac,
+        "weekly_periods": 6,
+        "requires_lab": False,
+        "parallel_group": "",
+        "periods_override_reason": "",
+        "is_active": True,
+    }
+    row.update(extra)
+    return row
+
+
+def test_apply_never_creates_a_row_for_an_inactive_dumped_assignment(
+    tmp_path, school, klass, subject, teacher, actor
+):
+    row = _assignment_row(
+        "TST-1", YEAR, "G12", "1", "CHM", teacher.national_id_hmac, is_active=False
+    )
+    path = tmp_path / "changes.json"
+    path.write_text(json.dumps({"assignments": [row], "workload_plans": []}), encoding="utf-8")
+
+    out = _run_apply(str(path), actor, apply=True)
+
+    from operations.models import SubjectClassAssignment
+
+    assert "لا تغيير" in out
+    assert not SubjectClassAssignment.objects.exists()
+
+
+def test_apply_deactivates_a_currently_active_row_when_the_dump_says_inactive(
+    tmp_path, school, klass, subject, teacher, actor
+):
+    from operations.models import SubjectClassAssignment
+
+    live = SubjectClassAssignment.objects.create(
+        school=school,
+        class_group=klass,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=6,
+        academic_year=YEAR,
+    )
+    row = _assignment_row(
+        "TST-1", YEAR, "G12", "1", "CHM", teacher.national_id_hmac, is_active=False
+    )
+    path = tmp_path / "changes.json"
+    path.write_text(json.dumps({"assignments": [row], "workload_plans": []}), encoding="utf-8")
+
+    out = _run_apply(str(path), actor, apply=True)
+
+    assert "✓ أُطفئ" in out
+    live.refresh_from_db()
+    assert live.is_active is False
+
+
+def test_dry_run_reports_the_deactivation_without_writing_it(
+    tmp_path, school, klass, subject, teacher, actor
+):
+    from operations.models import SubjectClassAssignment
+
+    live = SubjectClassAssignment.objects.create(
+        school=school,
+        class_group=klass,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=6,
+        academic_year=YEAR,
+    )
+    row = _assignment_row(
+        "TST-1", YEAR, "G12", "1", "CHM", teacher.national_id_hmac, is_active=False
+    )
+    path = tmp_path / "changes.json"
+    path.write_text(json.dumps({"assignments": [row], "workload_plans": []}), encoding="utf-8")
+
+    out = _run_apply(str(path), actor, apply=False)
+
+    assert "إطفاءٌ" in out
+    live.refresh_from_db()
+    assert live.is_active is True
+    assert SubjectClassAssignment.objects.filter(pk=live.pk, is_active=True).exists()
+
+
+def test_apply_never_reactivates_a_row_that_the_dump_still_marks_inactive(
+    tmp_path, school, klass, subject, teacher, actor
+):
+    """حتّى لو اختلفت حصصُه — لا تُفعَّل مادّةٌ غيرُ نشطةٍ في 8500 أبداً (`apply_assignment` يُفعِّل دائماً)."""
+    from operations.models import SubjectClassAssignment
+
+    dormant = SubjectClassAssignment.objects.create(
+        school=school,
+        class_group=klass,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=4,
+        academic_year=YEAR,
+        is_active=False,
+        deletion_reason="حُذفت سابقاً",
+    )
+    row = _assignment_row(
+        "TST-1",
+        YEAR,
+        "G12",
+        "1",
+        "CHM",
+        teacher.national_id_hmac,
+        weekly_periods=6,
+        is_active=False,
+    )
+    path = tmp_path / "changes.json"
+    path.write_text(json.dumps({"assignments": [row], "workload_plans": []}), encoding="utf-8")
+
+    out = _run_apply(str(path), actor, apply=True)
+
+    assert "لا تغيير" in out
+    dormant.refresh_from_db()
+    assert dormant.is_active is False and dormant.weekly_periods == 4
+
+
+def test_deactivations_apply_before_activations_so_a_transfer_lands_correctly(
+    tmp_path, school, klass, subject, teacher, actor
+):
+    """نقلُ مادّةٍ من معلّمٍ إلى آخر في الدمق نفسِه: الإطفاءُ يُطبَّق قبل التفعيل مهما كان ترتيبُ السطور."""
+    from operations.models import SubjectClassAssignment
+
+    new_teacher = _teacher(school, employee_number="55555")
+    SubjectClassAssignment.objects.create(
+        school=school,
+        class_group=klass,
+        subject=subject,
+        teacher=teacher,
+        weekly_periods=6,
+        academic_year=YEAR,
+    )
+    # التفعيلُ يسبق الإطفاءَ في الملفّ نفسِه عمداً — ليثبت أنّ الأمرَ لا يعتمد على ترتيب السطور.
+    payload = {
+        "assignments": [
+            _assignment_row(
+                "TST-1", YEAR, "G12", "1", "CHM", new_teacher.national_id_hmac, is_active=True
+            ),
+            _assignment_row(
+                "TST-1", YEAR, "G12", "1", "CHM", teacher.national_id_hmac, is_active=False
+            ),
+        ],
+        "workload_plans": [],
+    }
+    path = tmp_path / "changes.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    _run_apply(str(path), actor, apply=True)
+
+    live = SubjectClassAssignment.objects.filter(
+        school=school, class_group=klass, subject=subject, is_active=True
+    )
+    assert live.count() == 1 and live.first().teacher_id == new_teacher.id
+    old = SubjectClassAssignment.objects.get(
+        school=school, class_group=klass, subject=subject, teacher=teacher
+    )
+    assert old.is_active is False
