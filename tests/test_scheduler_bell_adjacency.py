@@ -143,6 +143,25 @@ def test_without_a_bell_the_hard_constraint_is_unchanged():
     assert is_slot_valid(grid, 0, 4, task()) is False
 
 
+def test_the_last_round_licence_no_longer_allows_a_third_lesson():
+    """D-61م: كان `allow_adjacent` يسمح بثلاثٍ متتاليةٍ في جولة الاسترخاء — صار ممنوعاً بلا استثناء.
+
+    معلّمٌ ضيّقُ الخانات يحتاج ثلاث حصصٍ متتالية: قبل D-61م كانت الجولةُ
+    الأخيرة تضعها بمخالفةٍ صامتة، والآن تبقى الحصّةُ الثالثةُ متعذّرةً صراحةً.
+    """
+    grid = ScheduleGrid()
+    grid.place(0, 2, other_class())
+    grid.place(0, 3, other_class(class_id="c3", class_name="c3"))
+
+    assert is_slot_valid(grid, 0, 4, task()) is False, "بلا رخصةٍ ممنوعٌ كما كان"
+    assert (
+        is_slot_valid(grid, 0, 4, task(), allow_adjacent=True) is False
+    ), "وبالرخصة أيضاً — لم تعد تُفتح"
+    assert (
+        is_slot_valid(grid, 0, 4, task(), allow_adjacent=True, allow_dense=True) is False
+    ), "ولا برخصتين معاً"
+
+
 # ── الترجيحُ والمحسّنُ والمدقّق ───────────────────────────────────────
 
 
