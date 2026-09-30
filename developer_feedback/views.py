@@ -420,6 +420,25 @@ def broadcast_create(request):
             )
             return redirect("developer_feedback:broadcast_sent")
 
+    from core.models import CustomUser
+    from developer_feedback.services.audience import STAFF_ROLES
+
+    role_labels = dict(Role.ROLES)
+    staff_qs = (
+        CustomUser.objects.filter(
+            memberships__school=school,
+            memberships__is_active=True,
+            memberships__role__name__in=STAFF_ROLES,
+        )
+        .exclude(id=request.user.id)
+        .distinct()
+        .order_by("full_name")
+    )
+    # فردٌ بعينه: كلُّ موظّفي المدرسة — لا المعلّمين المنتمين لقسمٍ وحدَهم
+    # (تصحيحُ طلبٍ 2026-10-01: كان مقصوراً على `get_teachers()` فيُغيب الإداريّين
+    # والممرّضين وغيرهم). `get_role()` نصٌّ لا حقلَ اختياراتٍ، فالتسميةُ تُحسب هنا.
+    all_staff = [(u, role_labels.get(u.get_role(), u.get_role())) for u in staff_qs]
+
     return render(
         request,
         "developer_feedback/broadcast_create.html",
@@ -429,6 +448,7 @@ def broadcast_create(request):
                 "sort_order", "name"
             ),
             "roles": Role.ROLES,
+            "all_staff": all_staff,
         },
     )
 

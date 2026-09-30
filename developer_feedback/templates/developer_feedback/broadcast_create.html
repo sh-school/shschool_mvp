@@ -96,11 +96,10 @@
   </form>
 
   {% comment %}
-  نافذةُ اختيار المستخدم — أقسامٌ قابلةٌ للطيّ بنمط لوحة «الإسناد»
-  (`asg-dept-fold`/`asg-dept-summary`/`asg-dept`، templates/academic_management/assignments.html)
-  مغلقةٌ افتراضاً فلا تُغرق القائمةُ كلُّها الواجهةَ دفعةً واحدة، وأعضاءُ كلّ
-  قسمٍ بنمط نافذة اختيار المعلّم في استمارة الزيارة الصفّية (`qobs-dept-members`/
-  `qobs-teacher-chip`، templates/quality/observation_form.html) — طلبُ المالك 2026-09-30.
+  نافذةُ اختيار المستخدم — كلُّ موظّفي المدرسة (لا المعلّمين المنتمين لقسمٍ
+  وحدَهم) في قائمةٍ واحدةٍ قابلةٍ للبحث الفوريّ بالاسم (`window.smartFilter`،
+  نمطُ بحث الموظّفين في `templates/quality/evaluation_dashboard.html`) —
+  طلبُ المالك 2026-10-01.
   {% endcomment %}
   <div id="modal-bc-user-picker" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="bc-user-picker-title">
     <div class="modal-box modal-lg" role="document">
@@ -109,25 +108,23 @@
         <button type="button" class="modal-close-btn" data-modal-close="bc-user-picker" aria-label="{% trans 'إغلاق النافذة' %}">×</button>
       </div>
       <div class="modal-body">
-        {% for dept in departments %}
-        {% with dept_teachers=dept.get_teachers %}
-        {% if dept_teachers %}
-        <details class="asg-dept-fold">
-          <summary class="asg-dept-summary">
-            <h2 class="asg-dept">{{ dept.name }} <small>— {{ dept_teachers|length }} معلّماً</small></h2>
-          </summary>
-          <div class="qobs-dept-members">
-            {% for t in dept_teachers %}
+        <input type="text" id="bc-staff-search" class="form-control"
+               placeholder="{% trans 'بحث بالاسم…' %}" aria-label="{% trans 'بحث في الموظفين' %}">
+        <ul class="plain-list is-scroll" id="bc-staff-list" tabindex="0" aria-label="{% trans 'الموظفون' %}">
+          {% for u, role_label in all_staff %}
+          <li class="plain-list__row" data-text="{{ u.full_name }} {{ role_label }}">
             <label class="qobs-teacher-chip">
-              <input type="radio" name="bc-user-radio" value="{{ t.id }}" data-name="{{ t.full_name }}">
-              {{ t.full_name }}
+              <input type="radio" name="bc-user-radio" value="{{ u.id }}" data-name="{{ u.full_name }}">
+              <span class="plain-list__main">
+                <b class="plain-list__title">{{ u.full_name }}</b>
+                <span class="plain-list__sub">{{ role_label }}</span>
+              </span>
             </label>
-            {% endfor %}
-          </div>
-        </details>
-        {% endif %}
-        {% endwith %}
-        {% endfor %}
+          </li>
+          {% empty %}
+          <li class="plain-list__row">{% trans "لا موظّفون في المدرسة." %}</li>
+          {% endfor %}
+        </ul>
       </div>
     </div>
   </div>
@@ -197,6 +194,20 @@
     document.querySelectorAll('[data-target-kind], #bc-department, #bc-role').forEach(function (el) {
       el.addEventListener('change', refreshCount);
     });
+
+    // `base.js` مؤجَّلٌ (defer) فيُعرَّف `window.smartFilter` بعد هذا السكربت
+    // المضمَّن لا قبله — فالربطُ ينتظر DOMContentLoaded (تُشغَّل السكربتاتُ
+    // المؤجَّلةُ قبله دائماً)، أو يستدعي فوراً لو كان المستندُ جاهزاً أصلاً.
+    function bindStaffSearch() {
+      if (window.smartFilter) {
+        window.smartFilter('bc-staff-search', '#bc-staff-list li[data-text]', { parent: '#modal-bc-user-picker' });
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', bindStaffSearch);
+    } else {
+      bindStaffSearch();
+    }
 
     var modal = document.getElementById('modal-bc-user-picker');
     var hiddenVal = document.getElementById('bc-user-value');

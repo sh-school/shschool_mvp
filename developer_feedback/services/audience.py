@@ -14,11 +14,22 @@ class AudienceError(ValueError):
     """قيمةُ هدفٍ غيرُ صالحة — تُعرض رسالتُها للمستخدم كما هي."""
 
 
+#: «فردٌ بعينه» و«الجميع» يعنيان موظّفي المدرسة — لا طلبتها وأولياءَ أمورها
+#: (قرارُ 2026-10-01). الدورُ الوظيفيّ يبقى بابَه الخاصّ: مَن أراد مراسلةَ
+#: الطلبة يختار دورَ «طالب» صراحةً من قائمة الأدوار. والقيدُ هنا **داخل** فلترٍ
+#: واحد (لا `.exclude()` منفصل) كي يلزم عضويّةً واحدةً تحمل الشرطين معاً — وإلّا
+#: استُبعد معلّمٌ هو وليُّ أمرٍ أيضاً لعضويّته الأخرى لا لدوره في المدرسة.
+STAFF_ROLES = [code for code, _label in Role.ROLES if code not in ("student", "parent")]
+
+
 def resolve_recipients(school, sender, target_kind: str, target_value: str):
     """يُعيد QuerySet[CustomUser] حسب `target_kind`، مُستبعِداً المرسِلَ نفسَه دائماً."""
     if target_kind == "user":
         qs = CustomUser.objects.filter(
-            id=target_value, memberships__school=school, memberships__is_active=True
+            id=target_value,
+            memberships__school=school,
+            memberships__is_active=True,
+            memberships__role__name__in=STAFF_ROLES,
         )
     elif target_kind == "department":
         try:
@@ -36,7 +47,11 @@ def resolve_recipients(school, sender, target_kind: str, target_value: str):
             memberships__role__name=target_value,
         )
     elif target_kind == "all":
-        qs = CustomUser.objects.filter(memberships__school=school, memberships__is_active=True)
+        qs = CustomUser.objects.filter(
+            memberships__school=school,
+            memberships__is_active=True,
+            memberships__role__name__in=STAFF_ROLES,
+        )
     else:
         raise AudienceError("نوعُ الفئة المستهدفة غيرُ معروف.")
     return qs.exclude(id=sender.id).distinct()

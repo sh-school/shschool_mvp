@@ -47,6 +47,14 @@ class TestResolveRecipients:
     ):
         qs = resolve_recipients(school, developer_user, "all", "")
         assert teacher_user in qs
+
+    def test_all_excludes_students_and_parents(self, school, developer_user, student_user):
+        qs = resolve_recipients(school, developer_user, "all", "")
+        assert student_user not in qs
+
+    def test_individual_user_rejects_a_student_id(self, school, developer_user, student_user):
+        qs = resolve_recipients(school, developer_user, "user", str(student_user.id))
+        assert student_user not in qs
         assert developer_user not in qs
 
     def test_sender_is_always_excluded(self, school, developer_user):
