@@ -7,6 +7,7 @@ W-20260930-002: لا عارضَ مركزيّاً لملفّات md في المش
 from __future__ import annotations
 
 import mimetypes
+import time
 
 from django.http import FileResponse, HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
@@ -14,7 +15,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
 from core.developer_access import developer_only
-from docs_viewer import services
+from docs_viewer import perf, services
 from docs_viewer.rendering import render_markdown
 
 #: الملفّ الافتراضيّ عند فتح `/docs/` بلا مسار — طلبُ المالك: الشجرةُ حاضرةٌ من
@@ -39,7 +40,12 @@ def index(request: HttpRequest) -> HttpResponse:
 @require_GET
 @never_cache
 def detail(request: HttpRequest, doc_path: str) -> HttpResponse:
-    """عرضُ ملفٍّ واحد (نمط `layout-report`) — `services.safe_resolve` يحرس المسار."""
+    """عرضُ ملفٍّ واحد (نمط `layout-report`) — `services.safe_resolve` يحرس المسار.
+
+    زمنُ التحميل يُقاس ويُسجَّل (`docs_viewer/perf.py`) — طلبُ المالك 2026-09-30
+    لمتابعة أثر التحسينات بأرقامٍ لا انطباع.
+    """
+    start = time.perf_counter()
     file_path = services.safe_resolve(doc_path)
     text = file_path.read_text(encoding="utf-8", errors="replace")
     rel_path = file_path.relative_to(services.DOCS_ROOT).as_posix()
@@ -47,7 +53,12 @@ def detail(request: HttpRequest, doc_path: str) -> HttpResponse:
     # لا من داخل render_markdown، فيبقى التصييرُ بلا معرفةٍ بمواضع الملفّات.
     source_dir = rel_path.rsplit("/", 1)[0] if "/" in rel_path else ""
     rendered = render_markdown(text, source_dir=source_dir)
-    return render(
+
+    tree_start = time.perf_counter()
+    tree = services.build_tree()
+    tree_ms = (time.perf_counter() - tree_start) * 1000
+
+    response = render(
         request,
         "docs_viewer/detail.html",
         {
@@ -57,15 +68,15 @@ def detail(request: HttpRequest, doc_path: str) -> HttpResponse:
             "title": services.extract_title(text, fallback=file_path.name),
             "filename": file_path.name,
             "content_html": rendered.content_html,
-            "toc_html": rendered.toc_html,
-            "has_toc": rendered.has_toc,
             # الشجرةُ الجانبيّة (قرارُ المالك ب+ج): التصفّحُ بين الملفّات بلا رجوعٍ لـ/docs/
-            "tree": services.build_tree(),
+            "tree": tree,
             # الحالةُ الافتراضيّةُ مطويّة (ملاحظةُ المالك) — تُفتح سلسلةُ مجلّدات
             # الملفّ الحاليّ وحدَها.
             "open_dirs": services.ancestor_dirs(rel_path),
         },
     )
+    perf.record_load(rel_path, tree_ms, (time.perf_counter() - start) * 1000)
+    return response
 
 
 @developer_only

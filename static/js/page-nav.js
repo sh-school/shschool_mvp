@@ -229,6 +229,25 @@
     closeMenus();
   });
 
+  // مؤشّرُ التحميل الوسطيّ (#page-nav-loading، 20-components.css) — يظهر بعد
+  // تأخّرٍ لا فوراً (W-20260930-002: صفحاتٌ ثقيلةٌ كعارض md تبدو عالقةً بلا مؤشّر
+  // أثناء انتظار الخادم، لأنّ المحتوى القديم متلاشٍ فقط)؛ فلا وميضَ لانتقالٍ
+  // عاديّ أسرعَ من LOADING_DELAY_MS.
+  var LOADING_DELAY_MS = 220;
+  var loadingTimer = null;
+  function showLoadingSoon() {
+    clearTimeout(loadingTimer);
+    loadingTimer = setTimeout(function () {
+      var el = document.getElementById('page-nav-loading');
+      if (el) el.classList.add('active');
+    }, LOADING_DELAY_MS);
+  }
+  function hideLoading() {
+    clearTimeout(loadingTimer);
+    var el = document.getElementById('page-nav-loading');
+    if (el) el.classList.remove('active');
+  }
+
   function download(res, name) {
     return res.blob().then(function (blob) {
       var m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(res.headers.get('content-disposition') || '');
@@ -246,10 +265,12 @@
     if (!main) { if (post) return; full(url); return; }
     if (!reduced) main.classList.add('is-leaving');
     fadeMenus();
+    showLoadingSoon();
     var fade = new Promise(function (r) { setTimeout(r, reduced ? 0 : fadeMs()); });
     var options = { credentials: 'same-origin', headers: { 'X-Page-Nav': '1', Accept: 'text/html' } };
     if (init) { options.method = init.method; options.body = init.body; }
     Promise.all([fetch(url, options), fade]).then(function (pair) {
+      hideLoading();
       var res = pair[0];
       if (mine !== token) return null;
       var type = res.headers.get('content-type') || '';
@@ -289,7 +310,7 @@
         fresh.dispatchEvent(new CustomEvent('htmx:afterSwap', { bubbles: true, detail: { pageNav: true } }));
         return more.scripts.reduce(function (p, item) { return p.then(function () { return runScript(item); }); }, Promise.resolve());
       });
-    }).catch(function () { if (!post) full(url); else main.classList.remove('is-leaving'); });
+    }).catch(function () { hideLoading(); if (!post) full(url); else main.classList.remove('is-leaving'); });
   }
 
   document.addEventListener('click', function (e) {

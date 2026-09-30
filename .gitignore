@@ -8,6 +8,7 @@ venv/
 dist/
 build/
 *.log
+logs/docs_viewer_perf.json
 db.sqlite3
 media/
 staticfiles/

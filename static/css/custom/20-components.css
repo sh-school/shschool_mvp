@@ -1585,6 +1585,24 @@ textarea:focus-visible {
   100% { background-position: -200% 0; }
 }
 
+/* ── مؤشّرُ تحميلٍ وسط الصفحة (page-nav.js) — لانتقالاتٍ أبطأ من fadeMs() عادةً
+   (W-20260930-002: صفحاتٌ ثقيلةٌ كعارض md)؛ نفسُ الحركة الدوّارة `btn-spin`
+   الموجودة لا حركةٌ جديدة، بحجمٍ يناسب وسط الصفحة لا زرّاً. ─── */
+#page-nav-loading {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; z-index: var(--z-critical);
+  transition: opacity var(--dur-normal);
+}
+#page-nav-loading.active { opacity: 1; }
+.page-nav-loading__spinner {
+  inline-size: var(--sp-10); block-size: var(--sp-10);
+  border: 3px solid var(--maroon-border); border-inline-end-color: var(--maroon);
+  border-radius: var(--radius-full);
+  background: var(--surface); box-shadow: var(--shadow-md);
+  animation: btn-spin .7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .page-nav-loading__spinner { animation-duration: 2s; } }
+
 /* ── Skeleton / Loading Shimmer ─── */
 @keyframes skeletonShimmer {
   0%   { background-position: -400px 0; }

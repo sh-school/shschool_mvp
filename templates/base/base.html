@@ -76,6 +76,9 @@
 {# ✅ HTMX Loading Bar — شريط تحميل أعلى الصفحة #}
 <div id="htmx-loading-bar" aria-hidden="true"></div>
 
+{# ✅ مؤشّرُ تحميلٍ وسط الصفحة — لانتقالات page-nav.js البطيئة (static/js/page-nav.js::showLoadingSoon)؛ لا يظهر إلا بعد تأخّرٍ محسوس فلا وميضَ لانتقالٍ سريع #}
+<div id="page-nav-loading" aria-hidden="true"><span class="page-nav-loading__spinner"></span></div>
+
 {# ✅ Screen Reader Live Region — يُنبِّه بتحديثات HTMX #}
 <div id="sr-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
@@ -791,6 +794,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   </a>
   <a href="{% url 'improvement_roadmap' %}" role="menuitem" aria-label="خارطة تجويد المنصة الزمنية">
     {% icon "roadmap" %} خارطة التجويد
+  </a>
+  <a href="{% url 'docs_viewer:index' %}" role="menuitem" aria-label="عارض الوثائق — ملفّات md في المشروع">
+    {% icon "document" %} عارضُ الوثائق
   </a>
   {% if request.user|can_open:"developer_feedback:inbox_list" %}
   <a href="{% url 'developer_feedback:inbox_list' %}" role="menuitem"

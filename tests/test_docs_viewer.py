@@ -276,6 +276,25 @@ def test_the_readme_page_shows_a_working_logo_not_a_broken_one(client_as, develo
     assert client_as(developer_user).get(asset_url).status_code == 200
 
 
+# ── القائمةُ الرئيسيّة (الإدارة ← أدوات المطوّر) ─────────────────────────────────
+
+
+def test_the_developer_sees_the_docs_viewer_link_under_the_roadmap(client_as, principal_user):
+    """المالكُ لم يجد رابطاً للصفحة في القائمة الرئيسيّة — أُضيف تحت خارطة التجويد."""
+    from django.contrib.auth.models import Group
+
+    principal_user.groups.add(Group.objects.get_or_create(name="developers")[0])
+    url = reverse("docs_viewer:index")
+    html = client_as(principal_user).get("/dashboard/").content.decode()
+    assert f'href="{url}"' in html
+    assert html.index(reverse("improvement_roadmap")) < html.index(f'href="{url}"')
+
+
+def test_a_non_developer_does_not_see_the_docs_viewer_link(client_as, teacher_user):
+    html = client_as(teacher_user).get("/dashboard/").content.decode()
+    assert reverse("docs_viewer:index") not in html
+
+
 def _flatten_files(node: services.DocNode) -> set[str]:
     found: set[str] = set()
     for child in node.children:

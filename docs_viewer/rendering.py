@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import markdown as markdown_lib
 from django.urls import reverse
 
-_EXTENSIONS = ["tables", "fenced_code", "toc", "sane_lists"]
+_EXTENSIONS = ["tables", "fenced_code", "sane_lists"]
 
 #: جدولُ md يخرج `<table>…</table>` خاماً — يُغلَّف بمكوّن العرض القائم `.table-wrap`
 #: (تمريرٌ أفقيٌّ وترويسةٌ ثابتة، `20-components.css`) بدل صنفٍ جديد.
@@ -22,15 +22,13 @@ _IMG_SRC_RE = re.compile(r'(<img\b[^>]*\bsrc=")([^"]+)(")')
 
 @dataclass
 class RenderedDoc:
-    """محتوى ملفٍّ مصيَّرٌ: النصُّ وفهرسُ عناوينه (فارغٌ إن لم توجد عناوين)."""
+    """محتوى ملفٍّ مصيَّر."""
 
     content_html: str
-    toc_html: str
-    has_toc: bool
 
 
 def render_markdown(text: str, source_dir: str = "") -> RenderedDoc:
-    """يصيّر نصَّ md إلى HTML — جداول وكتلُ شيفرةٍ، وفهرسَ عناوينَ (`toc`) لعمودٍ جانبيّ.
+    """يصيّر نصَّ md إلى HTML — جداول وكتلُ شيفرة.
 
     `source_dir` مجلّدُ الملفّ المصدر نسبةً إلى جذر المشروع — يلزم لتصحيح مسارات
     الصور النسبيّة (`_rewrite_relative_images`؛ شعاراتٌ غالباً، مثل `README.md`
@@ -40,8 +38,7 @@ def render_markdown(text: str, source_dir: str = "") -> RenderedDoc:
     html = _TABLE_OPEN.sub('<div class="table-wrap"><table>', html)
     html = _TABLE_CLOSE.sub("</table></div>", html)
     html = _rewrite_relative_images(html, source_dir)
-    has_toc = bool(getattr(md, "toc_tokens", None))
-    return RenderedDoc(content_html=html, toc_html=md.toc, has_toc=has_toc)
+    return RenderedDoc(content_html=html)
 
 
 def _rewrite_relative_images(html: str, source_dir: str) -> str:

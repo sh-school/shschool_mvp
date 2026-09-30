@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -97,11 +98,23 @@ def resolve_asset(rel_path: str) -> Path:
     return candidate
 
 
-#: بناءُ الشجرة يفتح كلَّ ملفّ md (٢٣٩+) لاستخراج عنوانه، وكلَّ مجلّدٍ لفحص
-#: README/index بداخله — بطيءٌ محسوسٌ لو تكرّر مع كلّ عرض ملفّ (كان سببَ بطء
-#: الصفحة، 2026-09-30). قراءةٌ حيّةٌ حقّاً كلَّ TREE_CACHE_SECONDS، لا مع كلّ نقرة.
+#: بناءُ الشجرة يفتح كلَّ ملفّ md (٢٣٩+) لاستخراج عنوانه — بطيءٌ محسوسٌ لو تكرّر
+#: مع كلّ عرض ملفّ (كان سببَ بطء الصفحة، 2026-09-30؛ ٤+ ثوانٍ فوق Docker/ويندوز
+#: رغم التخزين المؤقّت الأوّل، لأنّ كلَّ عشرين ثانيةً طلبٌ يدفع الثمنَ كاملاً من
+#: جديد). عولج الأمرُ من جذره في `_build_tree_uncached`: فتحٌ متوازٍ بخيوطٍ
+#: (الكلفةُ إدخالٌ/إخراجٌ لا حساب، فالخيوطُ تتداخل رغم GIL) لا تتابعيّاً، وقراءةُ
+#: كلّ مجلّدٍ لمحتوياته مرّةً واحدة (`os.walk` نفسِه) لا مرّتين (عنوانُ الملفّات
+#: ثمّ `iterdir()` ثانيةً لعنوان المجلّد). والتخزينُ المؤقّت طبقةٌ ثانيةٌ فوق هذا،
+#: لا بديلاً عنه.
 TREE_CACHE_KEY = "docs_viewer:tree"
-TREE_CACHE_SECONDS = 20
+#: حتى بعد التوازي (٢.٥ث~ بدل ٤+) يبقى الفتحُ الباردُ محسوساً — عبورُ bind-mount
+#: دوكر على ويندوز كلفةٌ بنيويّةٌ لا يُزيلها تطبيقٌ. فخمسُ دقائق لا عشرون ثانية:
+#: التصفّحُ العاديّ يبقى شبه فوريّ، والتعديلُ يظهر خلال دقائقَ لا ثوانٍ — توازنٌ
+#: معقول لأداة مطوّرٍ داخليّة، لا وثيقةً يُنتظر ظهورُها لحظيّاً.
+TREE_CACHE_SECONDS = 300
+#: خيوطُ فتح الملفّات المتوازي — الإدخال/الإخراج يتداخل بينها رغم GIL، فعددٌ
+#: أكبر من أنوية المعالج مفيدٌ هنا لا ضارّاً (انتظارُ قرصٍ لا حسابٌ).
+_TITLE_WORKERS = 16
 
 
 def build_tree() -> DocNode:
@@ -117,8 +130,11 @@ def build_tree() -> DocNode:
 
 
 def _build_tree_uncached() -> DocNode:
-    root = DocNode(name="/", rel_path="", is_dir=True)
-    nodes_by_rel: dict[str, DocNode] = {"": root}
+    # مسحٌ أوّليٌّ رخيصٌ (os.walk نفسُه لا يفتح ملفّاتٍ) يجمع كلَّ دليلٍ وأسماءَ
+    # ملفّاته كاملةً — لا md وحدَها، فتُستعمَل لاحقاً لعنوان المجلّد (`_folder_title`)
+    # بلا `iterdir()` ثانية لكلّ مجلّد.
+    dir_all_names: dict[str, list[str]] = {}
+    file_entries: list[tuple[str, str, str]] = []  # (rel_dir, filename, file_rel)
 
     for dirpath, dirnames, filenames in os.walk(DOCS_ROOT):
         dirnames[:] = sorted(
@@ -126,23 +142,37 @@ def _build_tree_uncached() -> DocNode:
             for d in dirnames
             if d not in EXCLUDED_DIR_NAMES and (d in ALLOWED_DOT_DIRS or not d.startswith("."))
         )
-        md_files = sorted(f for f in filenames if f.lower().endswith(".md"))
-        if not md_files:
-            continue
-
         rel_dir = os.path.relpath(dirpath, DOCS_ROOT)
         rel_dir = "" if rel_dir == "." else rel_dir.replace(os.sep, "/")
+        dir_all_names[rel_dir] = filenames
 
-        parent = _ensure_dir_node(nodes_by_rel, rel_dir)
+        md_files = sorted(f for f in filenames if f.lower().endswith(".md"))
         for filename in md_files:
             file_rel = f"{rel_dir}/{filename}" if rel_dir else filename
-            title = _display_title(Path(dirpath) / filename, fallback=filename)
-            parent.children.append(
-                DocNode(name=title, rel_path=file_rel, is_dir=False, filename=filename)
-            )
+            file_entries.append((rel_dir, filename, file_rel))
+
+    # الخطوةُ البطيئة فعلاً (فتحُ كلّ ملفٍّ لاستخراج عنوانه) — بالتوازي بخيوطٍ لا
+    # تتابعيّاً؛ هذا وحدَه خفّض زمن ٢٣٩+ ملفّاً من ثوانٍ إلى كسورٍ منها.
+    def _title_for(entry: tuple[str, str, str]) -> str:
+        rel_dir, filename, _ = entry
+        return _display_title(DOCS_ROOT / rel_dir / filename, fallback=filename)
+
+    if file_entries:
+        with ThreadPoolExecutor(max_workers=_TITLE_WORKERS) as pool:
+            titles = list(pool.map(_title_for, file_entries))
+    else:
+        titles = []
+
+    root = DocNode(name="/", rel_path="", is_dir=True)
+    nodes_by_rel: dict[str, DocNode] = {"": root}
+    for (rel_dir, filename, file_rel), title in zip(file_entries, titles, strict=True):
+        parent = _ensure_dir_node(nodes_by_rel, rel_dir)
+        parent.children.append(
+            DocNode(name=title, rel_path=file_rel, is_dir=False, filename=filename)
+        )
 
     _prune_empty(root)
-    _apply_folder_titles(root)
+    _apply_folder_titles(root, dir_all_names)
     return root
 
 
@@ -160,29 +190,30 @@ def _ensure_dir_node(nodes_by_rel: dict[str, DocNode], rel_dir: str) -> DocNode:
 
 #: ملفّاتُ الفهرسة الشائعة — عنوانُ أوّلها الموجود يصير اسمَ المجلّد المعروض
 #: (طلبُ المالك 2026-09-30: التعريبُ يشمل أسماء المجلّدات أيضاً، لا الملفّات وحدَها).
-_FOLDER_TITLE_FILES = ("README.md", "Readme.md", "readme.md", "INDEX.md", "Index.md", "index.md")
+_FOLDER_TITLE_FILES = ("README.md", "index.md")
 
 
-def _folder_title(rel_dir: str) -> str | None:
+def _folder_title(rel_dir: str, dir_all_names: dict[str, list[str]]) -> str | None:
     """عنوانُ README/index داخل المجلّد، إن وُجد وله عنوانٌ فعليّ — وإلّا None
-    (فيبقى اسمُ المجلّد الخام)."""
-    dir_path = DOCS_ROOT / rel_dir
+    (فيبقى اسمُ المجلّد الخام). `dir_all_names` من مسح `_build_tree_uncached`
+    الأوّليّ — لا `iterdir()` ثانيةً لكلّ مجلّد."""
+    names_lower = {n.lower(): n for n in dir_all_names.get(rel_dir, [])}
     for candidate_name in _FOLDER_TITLE_FILES:
-        candidate = dir_path / candidate_name
-        if candidate.is_file():
-            title = _display_title(candidate, fallback="")
+        real_name = names_lower.get(candidate_name.lower())
+        if real_name:
+            title = _display_title(DOCS_ROOT / rel_dir / real_name, fallback="")
             if title:
                 return title
     return None
 
 
-def _apply_folder_titles(node: DocNode) -> None:
+def _apply_folder_titles(node: DocNode, dir_all_names: dict[str, list[str]]) -> None:
     for child in node.children:
         if child.is_dir:
-            title = _folder_title(child.rel_path)
+            title = _folder_title(child.rel_path, dir_all_names)
             if title:
                 child.name = title
-            _apply_folder_titles(child)
+            _apply_folder_titles(child, dir_all_names)
 
 
 #: أوّلُ سطرِ عنوانٍ (`# `..`###### `) — لا كتلُ شيفرةٍ (` ``` `) فأسطرُ التعليقات

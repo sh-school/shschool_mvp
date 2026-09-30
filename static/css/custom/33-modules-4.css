@@ -1973,43 +1973,38 @@ body:has(.rm-page) .site-footer { flex: none; }
 .docs-content img { max-inline-size: 100%; border-radius: var(--radius-sm); }
 .docs-content .table-wrap { max-inline-size: 100%; }
 
-/* شبكةُ صفحة التفصيل الثلاثيّة: شجرةٌ (ثابتةٌ) + محتوًى (مرنٌ) + toc (ثابتٌ) —
-   تستثمر عرضَ النافذة (معيار 2026-09-17) بعنصرَي تصفّحٍ حقيقيَّين لا بتمديد
-   النثر. تنهار عموداً واحداً دون 1100px: التصفّحُ يبقى أوّلاً، ثمّ المحتوى،
-   والتوك يُطوى تحته (لا يُخفى — لا يزال مفيداً على الجوّال). */
+/* شبكةُ صفحة التفصيل: شجرةٌ (ثابتةٌ) + محتوًى (مرنٌ) — تستثمر عرضَ النافذة
+   (معيار 2026-09-17) بعنصر تصفّحٍ حقيقيٍّ لا بتمديد النثر. (كان عمودٌ ثالثٌ
+   لفهرس عناوين الملفّ — ألغاه المالك 2026-09-30.) تنهار عموداً واحداً دون
+   1100px: التصفّحُ يبقى أوّلاً، ثمّ المحتوى. */
 .docs-detail-grid {
   display: grid;
-  grid-template-columns: minmax(300px, 390px) minmax(0, 1fr) minmax(270px, 330px);
+  grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
   align-items: start;
   gap: var(--sp-5);
 }
-/* `min-inline-size: 0` إلزاميّة على عناصر الشبكة الثلاثة: أسماءُ الملفّات
-   شرطاتٌ سفليّةٌ بلا مسافات («school_files_guide.md»)، فلا نقطةَ التفافٍ فيها
+/* `min-inline-size: 0` إلزاميّة على عنصرَي الشبكة: أسماءُ الملفّات شرطاتٌ
+   سفليّةٌ بلا مسافات («school_files_guide.md»)، فلا نقطةَ التفافٍ فيها
    افتراضاً — يحسبها المتصفّحُ «كلمةً» واحدةً طويلة ويوسّع عمودَها ليسعها
-   (فيُقتطع طرفُها المرئيّ، أو يُزاحم عمودَ المحتوى الأوسط). `overflow-wrap: anywhere`
+   (فيُقتطع طرفُها المرئيّ، أو يُزاحم عمودَ المحتوى). `overflow-wrap: anywhere`
    يتيح الالتفافَ من أيّ نقطة، و`min-inline-size: 0` يمنع تمدّد العمود أصلاً. */
-.docs-detail-grid__tree, .docs-detail-grid__content, .docs-detail-grid__toc {
+.docs-detail-grid__tree, .docs-detail-grid__content {
   min-inline-size: 0;
 }
-.docs-detail-grid__tree, .docs-detail-grid__toc {
+.docs-detail-grid__tree {
   position: sticky; top: var(--sp-4);
   max-block-size: calc(100vh - var(--sp-8));
   overflow-y: auto;
 }
-.docs-tree__summary span, .docs-tree__file .plain-list__title, .docs-toc a {
+.docs-tree__summary span, .docs-tree__file .plain-list__title {
   overflow-wrap: anywhere; min-inline-size: 0;
 }
 .docs-detail-grid__tree .docs-tree__file.is-current {
   background: var(--maroon-bg); color: var(--maroon-fg); font-weight: 700;
 }
-.docs-toc ul { list-style: none; margin: 0; padding-inline-start: var(--sp-3); display: grid; gap: var(--sp-1); }
-.docs-toc > ul { padding-inline-start: 0; }
-.docs-toc a { display: inline-block; font-size: var(--text-sm); color: var(--text-secondary); text-decoration: none; }
-.docs-toc a:hover { color: var(--maroon-fg); text-decoration: underline; }
 
 @media (max-width: 1100px) {
   .docs-detail-grid { grid-template-columns: 1fr; }
-  .docs-detail-grid__tree, .docs-detail-grid__toc { position: static; max-block-size: none; }
-  .docs-detail-grid__toc { order: 3; }
+  .docs-detail-grid__tree { position: static; max-block-size: none; }
 }
 } /* end @layer modules */
