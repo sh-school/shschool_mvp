@@ -449,6 +449,15 @@
     {% if role != "parent" and request.user.has_parent_membership and request.user|can_open:"parent_dashboard" %}
       <a href="{% url 'parent_dashboard' %}" class="nb" id="nav-my-portal">{% icon "children" %} بوابتي</a>
     {% endif %}
+    {% comment %}
+    تبويبٌ مستقلٌّ في القائمة الرئيسيّة للمطوّر — طلبُ المالك 2026-09-30: كانت
+    روابطُ رسائل المطوّر مدفونةً داخل «الإدارة ← أدوات المطوّر»، فصارت هنا
+    وحدَها. بلا ارتباطٍ بالدور (`is_developer` وحدَه من `core.context_processors`)
+    فيظهر لمن يحمل صلاحيّةَ صندوق الوارد أينما كان دورُه.
+    {% endcomment %}
+    {% if is_developer and request.user|can_open:"developer_feedback:inbox_list" %}
+      <button class="nb" id="btn-dev-messages" data-sd="m-dev-messages" aria-expanded="false" aria-controls="m-dev-messages">{% icon "messages" %} رسائل المطوّر <span class="chv">▼</span></button>
+    {% endif %}
     </div>
 
   </div>
@@ -792,24 +801,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <a href="{% url 'improvement_roadmap' %}" role="menuitem" aria-label="خارطة تجويد المنصة الزمنية">
     {% icon "roadmap" %} خارطة التجويد
   </a>
-  {% if request.user|can_open:"developer_feedback:inbox_list" %}
-  <a href="{% url 'developer_feedback:inbox_list' %}" role="menuitem"
-     aria-label="صندوق الوارد للمطوّر">
-    {% icon "messages" %} صندوق الوارد
-  </a>
-  {% endif %}
-  {% if request.user|can_open:"developer_feedback:inbox_list" %}
-  <a href="{% url 'developer_feedback:inbox_list' %}?status=new" role="menuitem"
-     aria-label="الرسائل الجديدة غير المقروءة">
-    {% icon "mail_unread" %} الرسائل الجديدة
-  </a>
-  {% endif %}
-  {% if request.user|can_open:"developer_feedback:my_messages" %}
-  <a href="{% url 'developer_feedback:my_messages' %}" role="menuitem"
-     aria-label="الرسائل التي أرسلتها">
-    {% icon "mail_sent" %} رسائلي المرسلة
-  </a>
-  {% endif %}
+  {% comment %}روابطُ رسائل المطوّر (صندوق الوارد/الجديدة/المرسلة/أرسل) انتقلت إلى تبويبها المستقلّ «رسائل المطوّر» في الشريط الرئيسيّ (2026-09-30).{% endcomment %}
   </div>
   {% endif %}
   {% if is_leadership %}
@@ -823,6 +815,36 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% endif %}
   </div>
   {% endif %}
+</div>
+{% endif %}
+
+{% comment %}
+تبويبُ «رسائل المطوّر» المستقلّ (طلبُ المالك 2026-09-30): كان صندوقُ الوارد
+والرسائلُ الجديدة والمرسلة مدفونةً داخل «الإدارة ← أدوات المطوّر»، فصارت هنا
+بابها الخاصّ في الشريط الرئيسيّ. و«أرسل إلى المطوّر» مكرَّرٌ هنا عمداً (يبقى
+في «الإدارة» لعموم الكادر أيضاً) — فالمطوّرُ يراسل نفسَه من صندوقه مباشرةً
+بلا تنقّلٍ بين قائمتين.
+{% endcomment %}
+{% if is_developer and request.user|can_open:"developer_feedback:inbox_list" %}
+<div class="sd-menu" id="m-dev-messages" role="menu" aria-label="رسائل المطوّر">
+  <div class="sd-section">
+  {% if request.user|can_open:"developer_feedback:message_create" %}
+  <a href="{% url 'developer_feedback:message_create' %}" role="menuitem" aria-label="إرسال رسالة إلى المطوّر">
+    {% icon "developer" %} أرسل إلى المطوّر
+  </a>
+  {% endif %}
+  <a href="{% url 'developer_feedback:inbox_list' %}" role="menuitem" aria-label="صندوق الوارد للمطوّر">
+    {% icon "messages" %} صندوق الوارد
+  </a>
+  <a href="{% url 'developer_feedback:inbox_list' %}?status=new" role="menuitem" aria-label="الرسائل الجديدة غير المقروءة">
+    {% icon "mail_unread" %} الرسائل الجديدة
+  </a>
+  {% if request.user|can_open:"developer_feedback:my_messages" %}
+  <a href="{% url 'developer_feedback:my_messages' %}" role="menuitem" aria-label="الرسائل التي أرسلتها">
+    {% icon "mail_sent" %} رسائلي المرسلة
+  </a>
+  {% endif %}
+  </div>
 </div>
 {% endif %}
 
