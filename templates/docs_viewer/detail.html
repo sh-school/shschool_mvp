@@ -1,0 +1,25 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% comment %}
+  عرضُ ملفّ md واحد (W-20260930-002) — نمطُ `layout-report`: وثيقةٌ تُقرأ. المحتوى
+  مصيَّرٌ في العرض (`docs_viewer/rendering.py::render_markdown`) — لا شيءَ يُصيَّر هنا.
+{% endcomment %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block main_class %}{% page_layout "report" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/docs/" parent_label="عارضُ الوثائق" current=title %}
+{% endblock %}
+
+{% block content %}
+<div>
+  {% page_header title subtitle=doc_path icon="document" %}
+  <a class="btn-secondary" href="/docs/">الشجرةُ</a>
+  {% endpage_header %}
+
+  {% section_card title icon="document" %}
+  <div class="md-content" dir="rtl">{{ content_html|safe }}</div>
+  {% endsection_card %}
+</div>
+{% endblock %}

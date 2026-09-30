@@ -1,0 +1,32 @@
+{% extends "base/base.html" %}
+{% load ui %}
+{% comment %}
+  فهرسُ عارض الوثائق — شجرةُ ملفّات md تحت جذر المشروع (W-20260930-002). نمطُ
+  `layout-hub`: اختيارُ ملفٍّ من شجرةٍ لا سجلٌّ يُصفّى. القراءةُ حيّةٌ من القرص في
+  كلّ طلب (`docs_viewer/services.py::build_tree`) — لا تخزينَ ولا فهرسةً مسبقة.
+{% endcomment %}
+{% block title %}عارضُ الوثائق{% endblock %}
+
+{% block main_class %}{% page_layout "hub" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with current="عارضُ الوثائق" %}
+{% endblock %}
+
+{% block content %}
+<div>
+  {% page_header "عارضُ الوثائق" subtitle="ملفّاتُ md في المشروع (بما فيها .claude/) — تُقرأ حيّةً من القرص" icon="document" %}{% endpage_header %}
+
+  {% section_card "شجرةُ الملفّات" icon="document" empty="لا توجد ملفّاتُ md في المشروع" %}
+  {% if tree.children %}
+  <ul class="plain-list">
+    {% for child in tree.children %}
+    <li{% if not child.is_dir %} class="plain-list__row"{% endif %}>
+      {% include "docs_viewer/_node.html" with node=child %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% endsection_card %}
+</div>
+{% endblock %}
