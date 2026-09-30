@@ -11,7 +11,7 @@ import pytest
 from django.http import Http404
 from django.urls import resolve, reverse
 
-from docs_viewer import services
+from docs_viewer import rendering, services
 from docs_viewer.rendering import render_markdown
 
 pytestmark = pytest.mark.django_db
@@ -249,6 +249,15 @@ def test_render_markdown_rewrites_a_relative_image_into_an_asset_link():
     rendered = render_markdown('<img src="static/brand/emblem.svg" alt="شعار">', source_dir="")
     expected = reverse("docs_viewer:asset", kwargs={"rel_path": "static/brand/emblem.svg"})
     assert expected in rendered.content_html
+
+
+def test_the_hardcoded_asset_prefix_matches_the_real_url():
+    """rendering._rewrite_relative_images تبني الرابطَ نصّاً لا عبر reverse() —
+    أوّلُ استدعاءٍ لـreverse()/resolve() في عمر العمليّة يبني فهرسَ مسارات
+    المشروع الكامل (٨+ ثوانٍ قِيست فعلاً)؛ الرابطُ النصّيّ يتجنّب هذه الكلفةَ
+    في التصيير، وهذا الاختبارُ وحدَه يتحقّق من تطابقه مع urls.py الفعليّ."""
+    expected = reverse("docs_viewer:asset", kwargs={"rel_path": "x.svg"})
+    assert expected == rendering._ASSET_URL_PREFIX + "x.svg"
 
 
 def test_render_markdown_resolves_relative_to_the_source_file_directory():
