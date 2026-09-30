@@ -1905,4 +1905,66 @@ body:has(.rm-page) .site-footer { flex: none; }
   .rm-filter { display: block; }
   .rm-filter .form-control { inline-size: 100%; min-inline-size: 0; }
 }
+
+/* ── عارضُ md: شجرةُ الملفّات ومحتوى الوثيقة (W-20260930-002) ──────────────
+   الشجرةُ `<details>` متداخلةٌ (لا JS)؛ التعشيشُ مسافةُ `--sp-5` لكلّ مستوًى
+   عبر الحشو على القائمة الأبناء، لا هامشاً على كلّ عنصر — فلا يتراكم خطأُ
+   التقريب بعمق. والمحتوى `.docs-content` طباعةُ نثرٍ: عرضٌ محصورٌ للقراءة
+   المريحة (measure)، وتدرّجُ عناوين، وجدولٌ عبر `.table-wrap` القائمة لا
+   صنفٌ جديد (`docs_viewer/rendering.py`). */
+.docs-tree { --docs-indent: var(--sp-5); }
+.docs-tree__dir > summary.docs-tree__summary { list-style: none; }
+.docs-tree__summary {
+  display: flex; align-items: center; gap: var(--sp-1-5);
+  padding-block: var(--sp-1-5); padding-inline: var(--sp-1);
+  border-radius: var(--radius-sm); cursor: pointer; font-weight: 600;
+  color: var(--text-primary);
+}
+.docs-tree__summary::-webkit-details-marker { display: none; }
+.docs-tree__summary:hover, .docs-tree__file:hover { background: var(--maroon-bg); }
+.docs-tree__summary:focus-visible, .docs-tree__file:focus-visible { outline: 2px solid var(--maroon-fg); outline-offset: 2px; }
+.docs-tree__dir[open] > .docs-tree__summary .icon { color: var(--maroon-fg); }
+.docs-tree__list { padding-inline-start: var(--docs-indent); border-inline-start: 1px solid var(--border); margin-inline-start: var(--sp-2); }
+.docs-tree__file { display: flex; align-items: center; gap: var(--sp-1-5); padding-block: var(--sp-1-5); padding-inline: var(--sp-1); border-radius: var(--radius-sm); }
+.docs-tree__file .icon { color: var(--text-muted); flex-shrink: 0; }
+
+.docs-content {
+  max-inline-size: 72ch; margin-inline: auto;
+  font-size: var(--text-base); line-height: 1.8; color: var(--text-primary);
+}
+.docs-content > :first-child { margin-block-start: 0; }
+.docs-content h1, .docs-content h2, .docs-content h3, .docs-content h4 {
+  color: var(--maroon-fg); font-weight: 700; line-height: 1.4;
+  margin-block: var(--sp-6) var(--sp-3);
+}
+.docs-content h1 { font-size: var(--text-2xl); padding-block-end: var(--sp-2); border-block-end: 1px solid var(--border); }
+.docs-content h2 { font-size: var(--text-xl); }
+.docs-content h3 { font-size: var(--text-lg); }
+.docs-content h4 { font-size: var(--text-base); }
+.docs-content p, .docs-content ul, .docs-content ol, .docs-content blockquote, .docs-content .table-wrap {
+  margin-block: var(--sp-3);
+}
+.docs-content ul, .docs-content ol { padding-inline-start: var(--sp-6); display: grid; gap: var(--sp-1-5); }
+.docs-content li > ul, .docs-content li > ol { margin-block: var(--sp-1-5); }
+.docs-content a { color: var(--maroon-link); text-decoration: underline; text-underline-offset: 2px; }
+.docs-content a:hover { color: var(--maroon-dark); }
+.docs-content blockquote {
+  border-inline-start: 3px solid var(--maroon-border); background: var(--maroon-bg);
+  padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-sm); color: var(--text-secondary);
+}
+.docs-content blockquote > :last-child { margin-block-end: 0; }
+.docs-content code {
+  font-family: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  font-size: var(--text-sm); background: var(--surface-alt);
+  padding-inline: var(--sp-1-5); border-radius: var(--radius-sm);
+}
+.docs-content pre {
+  background: var(--surface-alt); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: var(--sp-4); overflow-x: auto;
+  margin-block: var(--sp-3);
+}
+.docs-content pre code { background: none; padding: 0; font-size: var(--text-sm); }
+.docs-content hr { border: none; border-block-start: 1px solid var(--border); margin-block: var(--sp-6); }
+.docs-content img { max-inline-size: 100%; border-radius: var(--radius-sm); }
+.docs-content .table-wrap { max-inline-size: 100%; }
 } /* end @layer modules */

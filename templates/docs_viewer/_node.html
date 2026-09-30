@@ -1,11 +1,12 @@
+{% load icons %}
 {% comment %}
   عقدةٌ واحدةٌ في شجرة عارض الوثائق — تستدعي نفسَها لمجلّدٍ فرعيّ (تضمينٌ ذاتيّ).
   الجذرُ لا يُمرَّر هنا؛ `docs_viewer/index.html` يبدأ من أبناء الجذر مباشرةً.
 {% endcomment %}
 {% if node.is_dir %}
-<details>
-  <summary>{{ node.name }}</summary>
-  <ul class="plain-list">
+<details class="docs-tree__dir">
+  <summary class="docs-tree__summary">{% icon "folder" size="sm" %}<span>{{ node.name }}</span></summary>
+  <ul class="plain-list docs-tree__list">
     {% for child in node.children %}
     <li{% if not child.is_dir %} class="plain-list__row"{% endif %}>
       {% include "docs_viewer/_node.html" with node=child %}
@@ -14,7 +15,8 @@
   </ul>
 </details>
 {% else %}
-<a class="plain-list__main" href="{% url 'docs_viewer:detail' doc_path=node.rel_path %}">
+<a class="plain-list__main docs-tree__file" href="{% url 'docs_viewer:detail' doc_path=node.rel_path %}">
+  {% icon "document" size="sm" %}
   <span class="plain-list__title">{{ node.name }}</span>
 </a>
 {% endif %}

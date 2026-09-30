@@ -19,7 +19,7 @@
 
   {% section_card "شجرةُ الملفّات" icon="document" empty="لا توجد ملفّاتُ md في المشروع" %}
   {% if tree.children %}
-  <ul class="plain-list">
+  <ul class="plain-list docs-tree">
     {% for child in tree.children %}
     <li{% if not child.is_dir %} class="plain-list__row"{% endif %}>
       {% include "docs_viewer/_node.html" with node=child %}
