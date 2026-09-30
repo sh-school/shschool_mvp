@@ -135,6 +135,13 @@ def test_build_tree_finds_readme_and_claude_md():
     assert "CLAUDE.md" in all_files
 
 
+def test_build_tree_includes_files_inside_dot_claude():
+    """طلبُ المالك صراحةً: `.claude/` تظهر في الشجرة رغم أنّها تبدأ بنقطة (خلافاً لمجلّداتٍ أخرى بنقطة)."""
+    all_files = _flatten_files(services.build_tree())
+    assert any(path.startswith(".claude/") for path in all_files), all_files
+    assert ".claude/skills/drf-endpoint-scaffold/CHANGES.md" in all_files
+
+
 def _flatten_files(node: services.DocNode) -> set[str]:
     found: set[str] = set()
     for child in node.children:

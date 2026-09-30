@@ -36,6 +36,10 @@ EXCLUDED_DIR_NAMES = {
     ".vscode",
 }
 
+#: استثناءٌ صريحٌ من قاعدة «تجاهُل كلّ مجلّدٍ بنقطة»: `.claude/` فيها مهاراتٌ وذاكرةٌ
+#: طلب المالكُ عرضَها صراحةً (بطاقةُ W-20260930-002).
+ALLOWED_DOT_DIRS = {".claude"}
+
 
 @dataclass
 class DocNode:
@@ -70,7 +74,9 @@ def build_tree() -> DocNode:
 
     for dirpath, dirnames, filenames in os.walk(DOCS_ROOT):
         dirnames[:] = sorted(
-            d for d in dirnames if d not in EXCLUDED_DIR_NAMES and not d.startswith(".")
+            d
+            for d in dirnames
+            if d not in EXCLUDED_DIR_NAMES and (d in ALLOWED_DOT_DIRS or not d.startswith("."))
         )
         md_files = sorted(f for f in filenames if f.lower().endswith(".md"))
         if not md_files:
