@@ -3,6 +3,10 @@
 {% comment %}
   عرضُ ملفّ md واحد (W-20260930-002) — نمطُ `layout-report`: وثيقةٌ تُقرأ. المحتوى
   مصيَّرٌ في العرض (`docs_viewer/rendering.py::render_markdown`) — لا شيءَ يُصيَّر هنا.
+
+  قرارُ المالك (ب+ج، 2026-09-30): ثلاثةُ أعمدةٍ تستثمر عرضَ النافذة — شجرةُ التصفّح
+  يميناً (فلا رجوعَ إلى /docs/ للتنقّل بين الملفّات)، والمحتوى وسطاً، وفهرسُ عناوين
+  الملفّ نفسِه (toc) يساراً حين توجد عناوين. `.docs-detail-grid` في 33-modules-4.css.
 {% endcomment %}
 {% block title %}{{ title }}{% endblock %}
 
@@ -14,12 +18,33 @@
 
 {% block content %}
 <div>
-  {% page_header title subtitle=doc_path icon="document" %}
-  <a class="btn-secondary" href="/docs/">الشجرةُ</a>
-  {% endpage_header %}
+  {% page_header title subtitle=doc_path icon="document" %}{% endpage_header %}
 
-  {% section_card title icon="document" %}
-  <div class="docs-content" dir="rtl">{{ content_html|safe }}</div>
-  {% endsection_card %}
+  <div class="docs-detail-grid">
+    <nav class="docs-detail-grid__tree card-qatar" aria-label="شجرةُ الملفّات">
+      {% if tree.children %}
+      <ul class="plain-list docs-tree">
+        {% for child in tree.children %}
+        <li{% if not child.is_dir %} class="plain-list__row"{% endif %}>
+          {% include "docs_viewer/_node.html" with node=child current=doc_path %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </nav>
+
+    <div class="docs-detail-grid__content">
+      {% section_card title icon="document" %}
+      <div class="docs-content">{{ content_html|safe }}</div>
+      {% endsection_card %}
+    </div>
+
+    {% if has_toc %}
+    <nav class="docs-detail-grid__toc card-qatar" aria-label="فهرسُ عناوين الملفّ">
+      <p class="ui-note">فهرسُ العناوين</p>
+      <div class="docs-toc">{{ toc_html|safe }}</div>
+    </nav>
+    {% endif %}
+  </div>
 </div>
 {% endblock %}

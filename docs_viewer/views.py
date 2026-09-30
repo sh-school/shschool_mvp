@@ -32,7 +32,7 @@ def detail(request: HttpRequest, doc_path: str) -> HttpResponse:
     """عرضُ ملفٍّ واحد (نمط `layout-report`) — `services.safe_resolve` يحرس المسار."""
     file_path = services.safe_resolve(doc_path)
     text = file_path.read_text(encoding="utf-8", errors="replace")
-    html = render_markdown(text)
+    rendered = render_markdown(text)
     rel_path = file_path.relative_to(services.DOCS_ROOT).as_posix()
     return render(
         request,
@@ -40,6 +40,10 @@ def detail(request: HttpRequest, doc_path: str) -> HttpResponse:
         {
             "doc_path": rel_path,
             "title": file_path.name,
-            "content_html": html,
+            "content_html": rendered.content_html,
+            "toc_html": rendered.toc_html,
+            "has_toc": rendered.has_toc,
+            # الشجرةُ الجانبيّة (قرارُ المالك ب+ج): التصفّحُ بين الملفّات بلا رجوعٍ لـ/docs/
+            "tree": services.build_tree(),
         },
     )
