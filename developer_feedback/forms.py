@@ -12,7 +12,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
-from developer_feedback.models import DeveloperMessage
+from developer_feedback.models import DeveloperMessage, OutboundMessage
 
 # ═══════════════════════════════════════════════════════════════
 # 1) DeveloperMessageForm
@@ -185,6 +185,56 @@ class DeveloperMessageEditForm(forms.ModelForm):
 
     clean_subject = DeveloperMessageForm.clean_subject
     clean_body = DeveloperMessageForm.clean_body
+
+
+# ═══════════════════════════════════════════════════════════════
+# 1.c) BroadcastMessageForm — رسالةُ المطوّر إلى مستخدمين (الاتّجاه المعاكس)
+# ═══════════════════════════════════════════════════════════════
+
+
+class BroadcastMessageForm(forms.ModelForm):
+    """نموذجُ نصّ الرسالة الصادرة — الفئةُ المستهدفة حقولٌ منفصلة تُقرأ في العرض
+    (`target_kind`/`target_value`) لا في هذا النموذج، لأنّ التحقّق منها يحتاج
+    `school` الذي لا يملكه نموذجٌ عاديّ بلا تمرير المستخدم إليه صراحةً."""
+
+    class Meta:
+        model = OutboundMessage
+        fields = ["subject", "body"]
+        widgets = {
+            "subject": forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "maxlength": 200,
+                    "aria-required": "true",
+                    "placeholder": _("ملخّص قصير وواضح"),
+                }
+            ),
+            "body": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 8,
+                    "maxlength": 4000,
+                    "aria-required": "true",
+                }
+            ),
+        }
+        labels = {"subject": _("الموضوع"), "body": _("نصّ الرسالة")}
+        error_messages = {
+            "subject": {"required": _("الموضوع مطلوب.")},
+            "body": {"required": _("نصّ الرسالة مطلوب.")},
+        }
+
+    def clean_subject(self):
+        subject = (self.cleaned_data.get("subject") or "").strip()
+        if len(subject) < 5:
+            raise ValidationError(_("الموضوعُ يجب أن يكون 5 أحرف على الأقل."))
+        return subject
+
+    def clean_body(self):
+        body = (self.cleaned_data.get("body") or "").strip()
+        if len(body) < 10:
+            raise ValidationError(_("نصُّ الرسالة يجب أن يكون 10 أحرف على الأقل."))
+        return body
 
 
 # ═══════════════════════════════════════════════════════════════

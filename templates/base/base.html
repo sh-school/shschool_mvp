@@ -450,12 +450,14 @@
       <a href="{% url 'parent_dashboard' %}" class="nb" id="nav-my-portal">{% icon "children" %} بوابتي</a>
     {% endif %}
     {% comment %}
-    تبويبٌ مستقلٌّ في القائمة الرئيسيّة للمطوّر — طلبُ المالك 2026-09-30: كانت
-    روابطُ رسائل المطوّر مدفونةً داخل «الإدارة ← أدوات المطوّر»، فصارت هنا
-    وحدَها. بلا ارتباطٍ بالدور (`is_developer` وحدَه من `core.context_processors`)
-    فيظهر لمن يحمل صلاحيّةَ صندوق الوارد أينما كان دورُه.
+    تبويبٌ مستقلٌّ «رسائل المطوّر» لكلّ مستخدم — طلبُ المالك 2026-09-30: كان
+    محصوراً بالمطوّر (صندوقُه الإداريّ وحدَه)، فصار عامّاً — كلُّ مستخدمٍ يرسل
+    ويرى صندوقَي «رسائلي» و«الوارد من المطوّر»، والمطوّرُ يرى فوقها صندوقَه
+    الإداريّ وتأليفَ رسالةٍ لمستخدمين (الاتّجاه المعاكس). بلا ارتباطٍ بالدور
+    (`is_developer` وحدَه من `core.context_processors`؛ والشرطُ العامّ
+    can_open يستثني الطلبةَ تلقائياً عبر NotStudentMixin في الشاشة نفسها).
     {% endcomment %}
-    {% if is_developer and request.user|can_open:"developer_feedback:inbox_list" %}
+    {% if request.user|can_open:"developer_feedback:message_create" %}
       <button class="nb" id="btn-dev-messages" data-sd="m-dev-messages" aria-expanded="false" aria-controls="m-dev-messages">{% icon "messages" %} رسائل المطوّر <span class="chv">▼</span></button>
     {% endif %}
     </div>
@@ -782,9 +784,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   {% if request.user.is_staff %}
   <a href="/admin/">{% icon "maintenance" %} لوحة الإدارة التقنية</a>
   {% endif %}
-  {% if request.user|can_open:"developer_feedback:message_create" %}
-  <a href="{% url 'developer_feedback:message_create' %}">{% icon "developer" %} أرسل إلى المطوّر</a>
-  {% endif %}
+  {% comment %}«أرسل إلى المطوّر» لا صلةَ له بإدارة المدرسة — انتقل إلى رابطٍ مستقلٍّ في الشريط الرئيسيّ (طلبُ المالك 2026-09-30).{% endcomment %}
   </div>
   {% if is_developer %}
   <div class="sd-section">
@@ -819,32 +819,47 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 {% endif %}
 
 {% comment %}
-تبويبُ «رسائل المطوّر» المستقلّ (طلبُ المالك 2026-09-30): كان صندوقُ الوارد
-والرسائلُ الجديدة والمرسلة مدفونةً داخل «الإدارة ← أدوات المطوّر»، فصارت هنا
-بابها الخاصّ في الشريط الرئيسيّ. و«أرسل إلى المطوّر» مكرَّرٌ هنا عمداً (يبقى
-في «الإدارة» لعموم الكادر أيضاً) — فالمطوّرُ يراسل نفسَه من صندوقه مباشرةً
-بلا تنقّلٍ بين قائمتين.
+تبويبُ «رسائل المطوّر» — عامٌّ لكلّ مستخدم (قرارُ المالك 2026-09-30): قسمٌ أوّلُ
+شخصيٌّ (أرسل/صندوق رسائلي) يراه الجميع — والرسائلُ **الواردةُ** من المطوّر
+تصل عبر جرس الإشعارات القائم (`InAppNotification`) لا صندوقٍ هنا. وقسمٌ ثانٍ
+إداريٌّ (صندوق الوارد للمطوّر من الكلّ + الرسائل الجديدة + تأليف رسالةٍ
+جديدة + سجلُّ ما بُثّ) يراه المطوّر وحدَه.
 {% endcomment %}
-{% if is_developer and request.user|can_open:"developer_feedback:inbox_list" %}
-<div class="sd-menu" id="m-dev-messages" role="menu" aria-label="رسائل المطوّر">
+{% if request.user|can_open:"developer_feedback:message_create" %}
+<div class="sd-menu{% if is_developer %} sd-menu--cols-2{% endif %}" id="m-dev-messages" role="menu" aria-label="رسائل المطوّر">
   <div class="sd-section">
-  {% if request.user|can_open:"developer_feedback:message_create" %}
+  <div class="sd-label">رسائلي</div>
   <a href="{% url 'developer_feedback:message_create' %}" role="menuitem" aria-label="إرسال رسالة إلى المطوّر">
     {% icon "developer" %} أرسل إلى المطوّر
   </a>
+  {% if request.user|can_open:"developer_feedback:my_messages" %}
+  <a href="{% url 'developer_feedback:my_messages' %}" role="menuitem" aria-label="الرسائل التي أرسلتها للمطوّر">
+    {% icon "mail_sent" %} صندوق رسائلي
+  </a>
   {% endif %}
-  <a href="{% url 'developer_feedback:inbox_list' %}" role="menuitem" aria-label="صندوق الوارد للمطوّر">
-    {% icon "messages" %} صندوق الوارد
+  {% comment %}
+  رسائلُ المطوّر الواردة تصل عبر جرس الإشعارات القائم (`notification_inbox`،
+  أعلى كلّ صفحة) لا صندوقٍ مستقلٍّ هنا — تصحيحُ تصميمٍ 2026-09-30: أوّل
+  تنفيذٍ بنى صندوقاً موازياً لـ`InAppNotification` القائم فعلاً.
+  {% endcomment %}
+  </div>
+  {% if is_developer and request.user|can_open:"developer_feedback:inbox_list" %}
+  <div class="sd-section">
+  <div class="sd-label">إدارةُ الرسائل</div>
+  <a href="{% url 'developer_feedback:inbox_list' %}" role="menuitem" aria-label="صندوق الوارد للمطوّر من الجميع">
+    {% icon "messages" %} صندوق الوارد (من الجميع)
   </a>
   <a href="{% url 'developer_feedback:inbox_list' %}?status=new" role="menuitem" aria-label="الرسائل الجديدة غير المقروءة">
     {% icon "mail_unread" %} الرسائل الجديدة
   </a>
-  {% if request.user|can_open:"developer_feedback:my_messages" %}
-  <a href="{% url 'developer_feedback:my_messages' %}" role="menuitem" aria-label="الرسائل التي أرسلتها">
-    {% icon "mail_sent" %} رسائلي المرسلة
+  <a href="{% url 'developer_feedback:broadcast_create' %}" role="menuitem" aria-label="إرسال رسالة لمستخدمين">
+    {% icon "edit_record" %} إرسال رسالة لمستخدمين
   </a>
-  {% endif %}
+  <a href="{% url 'developer_feedback:broadcast_sent' %}" role="menuitem" aria-label="سجلّ ما أرسلتُه للمستخدمين">
+    {% icon "checklist" %} ما أرسلتُه للمستخدمين
+  </a>
   </div>
+  {% endif %}
 </div>
 {% endif %}
 

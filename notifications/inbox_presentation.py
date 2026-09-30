@@ -110,8 +110,17 @@ def role_event_types(role: str, all_types) -> list[tuple[str, str]]:
         "meeting",
         "parent_summon",
         "general",
+        "developer_message",
     }
-    student_types = {"grade", "fail", "behavior", "absence", "clinic", "general"}
+    student_types = {
+        "grade",
+        "fail",
+        "behavior",
+        "absence",
+        "clinic",
+        "general",
+        "developer_message",
+    }
     if role == "parent":
         return [t for t in all_types if t[0] in parent_types]
     if role == "student":

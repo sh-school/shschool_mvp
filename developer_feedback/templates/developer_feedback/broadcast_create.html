@@ -1,0 +1,179 @@
+{% extends "base/base.html" %}
+{% load i18n icons ui %}
+{% comment %}
+تأليفُ رسالةٍ من المطوّر إلى مستخدمين — الاتّجاه المعاكس لـ«أرسل إلى المطوّر»
+(قرارُ المالك 2026-09-30). أربعُ فئاتٍ مستهدفة: فردٌ/قسمٌ أكاديميّ/دورٌ وظيفيّ/الجميع
+— زرّ راديو واحد يختار الفئة، وحقلُ الاختيار الموافق وحدَه يظهر (JS أسفله).
+{% endcomment %}
+
+{% block title %}{% trans "إرسال رسالة لمستخدمين" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/developer-feedback/inbox/" parent_label="صندوق الوارد للمطوّر" current="رسالة جديدة" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash df-page">
+  {% page_header _("إرسال رسالة لمستخدمين") icon="messages" %}
+    <a href="{% url 'developer_feedback:broadcast_sent' %}" class="btn-secondary btn-sm">
+      {% icon "checklist" %} {% trans "ما أرسلتُه سابقاً" %}
+    </a>
+  {% endpage_header %}
+
+  <form method="post" novalidate class="df-form">
+    {% csrf_token %}
+
+    {% if form.non_field_errors %}
+      <div class="df-errorlist" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    {% section_card _("المستلِمون") icon="students" %}
+      <div class="df-form-group">
+        <label><input type="radio" name="target_kind" value="user" data-target-kind checked> {% trans "فردٌ بعينه" %}</label>
+        <label><input type="radio" name="target_kind" value="department" data-target-kind> {% trans "قسمٌ أكاديميّ بعينه" %}</label>
+        <label><input type="radio" name="target_kind" value="role" data-target-kind> {% trans "دورٌ وظيفيٌّ كامل" %}</label>
+        <label><input type="radio" name="target_kind" value="all" data-target-kind> {% trans "الجميع" %}</label>
+      </div>
+
+      <div class="df-form-group" data-target-panel="user">
+        <label for="bc-user-trigger">{% trans "اختر المستخدم" %}</label>
+        <button type="button" id="bc-user-trigger" class="form-control" data-modal-open="bc-user-picker">— {% trans "اختر —" %}</button>
+        <input type="hidden" id="bc-user-value">
+      </div>
+
+      <div class="df-form-group" data-target-panel="department" hidden>
+        <label for="bc-department">{% trans "القسم الأكاديميّ" %}</label>
+        <select id="bc-department" name="target_value_department" class="form-control">
+          <option value="">— {% trans "اختر —" %}</option>
+          {% for dept in departments %}
+          <option value="{{ dept.id }}">{{ dept.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="df-form-group" data-target-panel="role" hidden>
+        <label for="bc-role">{% trans "الدور الوظيفيّ" %}</label>
+        <select id="bc-role" name="target_value_role" class="form-control">
+          <option value="">— {% trans "اختر —" %}</option>
+          {% for code, label in roles %}
+          <option value="{{ code }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="df-form-group" data-target-panel="all" hidden>
+        {% callout "hint" %}{% trans "سترسل الرسالة إلى كلّ حسابات المدرسة." %}{% endcallout %}
+      </div>
+    {% endsection_card %}
+
+    {% section_card _("الرسالة") icon="edit_record" %}
+      <div class="df-form-group">
+        <label for="{{ form.subject.id_for_label }}">
+          {{ form.subject.label }}<span class="required" aria-hidden="true">*</span>
+        </label>
+        {{ form.subject }}
+        {% if form.subject.errors %}
+          <ul class="df-errorlist" role="alert">{% for error in form.subject.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="df-form-group">
+        <label for="{{ form.body.id_for_label }}">
+          {{ form.body.label }}<span class="required" aria-hidden="true">*</span>
+        </label>
+        {{ form.body }}
+        {% if form.body.errors %}
+          <ul class="df-errorlist" role="alert">{% for error in form.body.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+        {% endif %}
+      </div>
+
+      <div class="form-actions">
+        <a href="{% url 'developer_feedback:inbox_list' %}" class="btn-secondary">{% trans "إلغاء" %}</a>
+        <button type="submit" class="btn-primary">{% icon "messages" %} {% trans "إرسال" %}</button>
+      </div>
+    {% endsection_card %}
+  </form>
+
+  {% comment %}
+  نافذةُ اختيار المستخدم — أقسامٌ قابلةٌ للطيّ بنمط لوحة «الإسناد»
+  (`asg-dept-fold`/`asg-dept-summary`/`asg-dept`، templates/academic_management/assignments.html)
+  مغلقةٌ افتراضاً فلا تُغرق القائمةُ كلُّها الواجهةَ دفعةً واحدة، وأعضاءُ كلّ
+  قسمٍ بنمط نافذة اختيار المعلّم في استمارة الزيارة الصفّية (`qobs-dept-members`/
+  `qobs-teacher-chip`، templates/quality/observation_form.html) — طلبُ المالك 2026-09-30.
+  {% endcomment %}
+  <div id="modal-bc-user-picker" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="bc-user-picker-title">
+    <div class="modal-box modal-lg" role="document">
+      <div class="modal-header">
+        <span id="bc-user-picker-title">{% trans "اختيار المستخدم" %}</span>
+        <button type="button" class="modal-close-btn" data-modal-close="bc-user-picker" aria-label="{% trans 'إغلاق النافذة' %}">×</button>
+      </div>
+      <div class="modal-body">
+        {% for dept in departments %}
+        {% with dept_teachers=dept.get_teachers %}
+        {% if dept_teachers %}
+        <details class="asg-dept-fold">
+          <summary class="asg-dept-summary">
+            <h2 class="asg-dept">{{ dept.name }} <small>— {{ dept_teachers|length }} معلّماً</small></h2>
+          </summary>
+          <div class="qobs-dept-members">
+            {% for t in dept_teachers %}
+            <label class="qobs-teacher-chip">
+              <input type="radio" name="bc-user-radio" value="{{ t.id }}" data-name="{{ t.full_name }}">
+              {{ t.full_name }}
+            </label>
+            {% endfor %}
+          </div>
+        </details>
+        {% endif %}
+        {% endwith %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script nonce="{{ request.csp_nonce }}">
+  (function () {
+    var radios = document.querySelectorAll('[data-target-kind]');
+    var panels = document.querySelectorAll('[data-target-panel]');
+    function sync() {
+      var kind = document.querySelector('[data-target-kind]:checked').value;
+      panels.forEach(function (p) { p.hidden = p.dataset.targetPanel !== kind; });
+    }
+    radios.forEach(function (r) { r.addEventListener('change', sync); });
+    sync();
+
+    // تُرسَل قيمةُ الفئة المختارة فعليّاً كـ target_value وقت الإرسال — حقلٌ واحدٌ
+    // يُملأ من حقل الاختيار النشط، فلا يصل الخادمَ إلّا القيمةُ المختارة.
+    var form = document.querySelector('.df-form');
+    form.addEventListener('submit', function () {
+      var kind = document.querySelector('[data-target-kind]:checked').value;
+      var value = '';
+      if (kind === 'user') value = document.getElementById('bc-user-value').value;
+      else if (kind === 'department') value = document.getElementById('bc-department').value;
+      else if (kind === 'role') value = document.getElementById('bc-role').value;
+      else if (kind === 'all') value = 'all';
+      var hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = 'target_value';
+      hidden.value = value;
+      form.appendChild(hidden);
+    });
+
+    var modal = document.getElementById('modal-bc-user-picker');
+    var hiddenVal = document.getElementById('bc-user-value');
+    var trigger = document.getElementById('bc-user-trigger');
+    if (modal) {
+      modal.addEventListener('change', function (e) {
+        if (e.target.name !== 'bc-user-radio') return;
+        hiddenVal.value = e.target.value;
+        trigger.textContent = e.target.dataset.name;
+        window.modalManager.close('bc-user-picker');
+      });
+    }
+  })();
+</script>
+{% endblock %}

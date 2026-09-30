@@ -22,4 +22,7 @@ urlpatterns = [
         views.DeveloperInboxDetailView.as_view(),
         name="inbox_detail",
     ),
+    # ── الاتّجاه المعاكس: المطوّر يرسل لمستخدمين (التسليمُ عبر جرس الإشعارات القائم) ──
+    path("broadcast/send/", views.broadcast_create, name="broadcast_create"),
+    path("broadcast/sent/", views.BroadcastSentListView.as_view(), name="broadcast_sent"),
 ]
