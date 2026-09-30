@@ -87,9 +87,10 @@
         {% endif %}
       </div>
 
+      <span class="ui-note" id="bc-recipient-count" aria-live="polite"></span>
       <div class="form-actions">
         <a href="{% url 'developer_feedback:inbox_list' %}" class="btn-secondary">{% trans "إلغاء" %}</a>
-        <button type="submit" class="btn-primary">{% icon "messages" %} {% trans "إرسال" %}</button>
+        <button type="submit" id="bc-submit-btn" class="btn-primary">{% icon "messages" %} {% trans "إرسال" %}</button>
       </div>
     {% endsection_card %}
   </form>
@@ -146,21 +147,55 @@
     radios.forEach(function (r) { r.addEventListener('change', sync); });
     sync();
 
-    // تُرسَل قيمةُ الفئة المختارة فعليّاً كـ target_value وقت الإرسال — حقلٌ واحدٌ
-    // يُملأ من حقل الاختيار النشط، فلا يصل الخادمَ إلّا القيمةُ المختارة.
-    var form = document.querySelector('.df-form');
-    form.addEventListener('submit', function () {
+    // قيمةُ الفئة المختارة فعليّاً — تُقرأ من حقل الاختيار النشط وحدَه، فلا يصل
+    // الخادمَ (ولا عدّادُ المستلِمين) إلّا القيمةُ المختارة.
+    function currentTarget() {
       var kind = document.querySelector('[data-target-kind]:checked').value;
       var value = '';
       if (kind === 'user') value = document.getElementById('bc-user-value').value;
       else if (kind === 'department') value = document.getElementById('bc-department').value;
       else if (kind === 'role') value = document.getElementById('bc-role').value;
       else if (kind === 'all') value = 'all';
+      return { kind: kind, value: value };
+    }
+
+    var form = document.querySelector('.df-form');
+    form.addEventListener('submit', function (e) {
+      var t = currentTarget();
       var hidden = document.createElement('input');
       hidden.type = 'hidden';
       hidden.name = 'target_value';
-      hidden.value = value;
+      hidden.value = t.value;
       form.appendChild(hidden);
+
+      // تأكيدٌ صريحٌ قبل بثٍّ واسع (دورٌ وظيفيّ أو الجميع) — لا رجوعَ بعد الإرسال.
+      var countEl = document.getElementById('bc-recipient-count');
+      var n = parseInt(countEl.dataset.count || '0', 10);
+      if ((t.kind === 'role' || t.kind === 'all') && n > 0) {
+        if (!window.confirm('سيصل هذا إلى ' + n + ' مستخدماً. إرسال؟')) {
+          e.preventDefault();
+          return;
+        }
+      }
+      // تعطيلُ الزرّ بعد التأكيد يمنع نقرةً مزدوجةً تُنشئ رسالتين — الصفحةُ
+      // تُحمَّل من جديد سواءٌ نجح الإرسالُ (تحويل) أو فشل (أخطاءُ النموذج)، فلا
+      // حاجةَ لإعادة تفعيله يدويّاً.
+      document.getElementById('bc-submit-btn').disabled = true;
+    });
+
+    // عدّادُ المستلِمين الحيّ — يُستعلَم عند كلّ تغييرٍ في الاختيار.
+    var countEl = document.getElementById('bc-recipient-count');
+    function refreshCount() {
+      var t = currentTarget();
+      if (!t.value) { countEl.textContent = ''; countEl.dataset.count = '0'; return; }
+      var url = '{% url "developer_feedback:broadcast_recipient_count" %}?target_kind=' + encodeURIComponent(t.kind) + '&target_value=' + encodeURIComponent(t.value);
+      fetch(url).then(function (r) { return r.json(); }).then(function (data) {
+        countEl.dataset.count = data.count;
+        countEl.textContent = data.count ? ('سيصل هذا إلى ' + data.count + ' مستخدماً.') : 'لا مستلِمون مطابقون.';
+      }).catch(function () {});
+    }
+    document.querySelectorAll('[data-target-kind], #bc-department, #bc-role').forEach(function (el) {
+      el.addEventListener('change', refreshCount);
     });
 
     var modal = document.getElementById('modal-bc-user-picker');
@@ -172,6 +207,7 @@
         hiddenVal.value = e.target.value;
         trigger.textContent = e.target.dataset.name;
         window.modalManager.close('bc-user-picker');
+        refreshCount();
       });
     }
   })();

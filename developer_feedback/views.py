@@ -349,6 +349,21 @@ class DeveloperInboxDetailView(DeveloperOnlyMixin, DetailView):
 
 
 @developer_only
+def broadcast_recipient_count(request):
+    """عدّادٌ حيٌّ لعدد المستلِمين قبل الإرسال — يُستدعى بـHTMX عند تغيير الاختيار."""
+    from django.http import JsonResponse
+
+    school = request.user.get_school()
+    target_kind = request.GET.get("target_kind", "")
+    target_value = request.GET.get("target_value", "")
+    try:
+        count = resolve_recipients(school, request.user, target_kind, target_value).count()
+    except AudienceError:
+        count = 0
+    return JsonResponse({"count": count})
+
+
+@developer_only
 def broadcast_create(request):
     """تأليفُ رسالةٍ من المطوّر — فردٌ/قسمٌ أكاديميّ/دورٌ وظيفيّ/الجميع (قرارُ 2026-09-30).
 
