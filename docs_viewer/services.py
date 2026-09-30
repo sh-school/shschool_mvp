@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from django.conf import settings
+from django.core.cache import cache
 from django.http import Http404
 
 #: جذرُ المشروع — نفسُ BASE_DIR، فيشمل `.claude/` (طلبُ المالك صراحةً).
@@ -96,8 +97,26 @@ def resolve_asset(rel_path: str) -> Path:
     return candidate
 
 
+#: بناءُ الشجرة يفتح كلَّ ملفّ md (٢٣٩+) لاستخراج عنوانه، وكلَّ مجلّدٍ لفحص
+#: README/index بداخله — بطيءٌ محسوسٌ لو تكرّر مع كلّ عرض ملفّ (كان سببَ بطء
+#: الصفحة، 2026-09-30). قراءةٌ حيّةٌ حقّاً كلَّ TREE_CACHE_SECONDS، لا مع كلّ نقرة.
+TREE_CACHE_KEY = "docs_viewer:tree"
+TREE_CACHE_SECONDS = 20
+
+
 def build_tree() -> DocNode:
-    """يبني شجرةَ ملفّات `.md` تحت `DOCS_ROOT` — للفهرس `/docs/`."""
+    """شجرةُ ملفّات `.md` تحت `DOCS_ROOT` — من ذاكرةٍ مؤقّتةٍ قصيرة (`TREE_CACHE_SECONDS`)،
+    وإلّا تُبنى من القرص وتُخزَّن. عدِّل ملفّاً فيتأخّر ظهورُه في الشجرة عشرين
+    ثانيةً أقصى — لا فوراً، ولا يوماً بعد."""
+    cached = cache.get(TREE_CACHE_KEY)
+    if cached is not None:
+        return cached
+    tree = _build_tree_uncached()
+    cache.set(TREE_CACHE_KEY, tree, TREE_CACHE_SECONDS)
+    return tree
+
+
+def _build_tree_uncached() -> DocNode:
     root = DocNode(name="/", rel_path="", is_dir=True)
     nodes_by_rel: dict[str, DocNode] = {"": root}
 

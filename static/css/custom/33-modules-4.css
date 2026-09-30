@@ -1979,7 +1979,7 @@ body:has(.rm-page) .site-footer { flex: none; }
    والتوك يُطوى تحته (لا يُخفى — لا يزال مفيداً على الجوّال). */
 .docs-detail-grid {
   display: grid;
-  grid-template-columns: minmax(240px, 312px) minmax(0, 1fr) minmax(216px, 264px);
+  grid-template-columns: minmax(300px, 390px) minmax(0, 1fr) minmax(270px, 330px);
   align-items: start;
   gap: var(--sp-5);
 }
