@@ -22,7 +22,7 @@
   <ul class="plain-list docs-tree">
     {% for child in tree.children %}
     <li{% if not child.is_dir %} class="plain-list__row"{% endif %}>
-      {% include "docs_viewer/_node.html" with node=child %}
+      {% include "docs_viewer/_node.html" with node=child open_dirs=open_dirs %}
     </li>
     {% endfor %}
   </ul>

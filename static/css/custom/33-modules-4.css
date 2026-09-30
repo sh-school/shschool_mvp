@@ -1928,11 +1928,10 @@ body:has(.rm-page) .site-footer { flex: none; }
 .docs-tree__file { display: flex; align-items: center; gap: var(--sp-1-5); padding-block: var(--sp-1-5); padding-inline: var(--sp-1); border-radius: var(--radius-sm); }
 .docs-tree__file .icon { color: var(--text-muted); flex-shrink: 0; }
 
-/* عمودُ المحتوى وسط شبكة التفصيل (`.docs-detail-grid`) — عرضُه العمودُ نفسُه لا
-   ثابتاً؛ 90ch سقفٌ أقصى وحسب، كي لا يمتدّ النثرُ كامل الشاشة على شاشةٍ عريضةٍ
-   جدّاً حتى مع تضييق العمود الجانبيّ (قرارُ المالك ب+ج، 2026-09-30). */
+/* عمودُ المحتوى وسط شبكة التفصيل (`.docs-detail-grid`) — يملأ عرضَ بطاقته كاملاً
+   (طلبُ المالك 2026-09-30: لا سقفَ قراءةٍ يُهدر عرضَ البطاقة، والعمودان الجانبيّان
+   يكفيان للتصفّح فلا يطول سطرٌ بلا داعٍ). */
 .docs-content {
-  max-inline-size: 90ch;
   font-size: var(--text-base); line-height: 1.8; color: var(--text-primary);
 }
 .docs-content > :first-child { margin-block-start: 0; }
@@ -1945,7 +1944,10 @@ body:has(.rm-page) .site-footer { flex: none; }
 .docs-content h3 { font-size: var(--text-lg); }
 .docs-content h4 { font-size: var(--text-base); }
 .docs-content p, .docs-content ul, .docs-content ol, .docs-content blockquote, .docs-content .table-wrap {
-  margin-block: var(--sp-3);
+  /* بعضُ هذه العناصر (`blockquote` تحديداً) له هامشٌ أفقيٌّ افتراضيٌّ في المتصفّح
+     (٤٠px من كلّ جهة) — يترك فراغاً أبيض لا مسوَّغَ له داخل بطاقةٍ تملأ عرضَها
+     أصلاً؛ فيُصفَّر هنا صراحةً بدل تركه للافتراض. */
+  margin-block: var(--sp-3); margin-inline: 0;
 }
 .docs-content ul, .docs-content ol { padding-inline-start: var(--sp-6); display: grid; gap: var(--sp-1-5); }
 .docs-content li > ul, .docs-content li > ol { margin-block: var(--sp-1-5); }
@@ -1977,21 +1979,32 @@ body:has(.rm-page) .site-footer { flex: none; }
    والتوك يُطوى تحته (لا يُخفى — لا يزال مفيداً على الجوّال). */
 .docs-detail-grid {
   display: grid;
-  grid-template-columns: minmax(200px, 260px) minmax(0, 1fr) minmax(180px, 220px);
+  grid-template-columns: minmax(240px, 312px) minmax(0, 1fr) minmax(216px, 264px);
   align-items: start;
   gap: var(--sp-5);
+}
+/* `min-inline-size: 0` إلزاميّة على عناصر الشبكة الثلاثة: أسماءُ الملفّات
+   شرطاتٌ سفليّةٌ بلا مسافات («school_files_guide.md»)، فلا نقطةَ التفافٍ فيها
+   افتراضاً — يحسبها المتصفّحُ «كلمةً» واحدةً طويلة ويوسّع عمودَها ليسعها
+   (فيُقتطع طرفُها المرئيّ، أو يُزاحم عمودَ المحتوى الأوسط). `overflow-wrap: anywhere`
+   يتيح الالتفافَ من أيّ نقطة، و`min-inline-size: 0` يمنع تمدّد العمود أصلاً. */
+.docs-detail-grid__tree, .docs-detail-grid__content, .docs-detail-grid__toc {
+  min-inline-size: 0;
 }
 .docs-detail-grid__tree, .docs-detail-grid__toc {
   position: sticky; top: var(--sp-4);
   max-block-size: calc(100vh - var(--sp-8));
   overflow-y: auto;
 }
+.docs-tree__summary span, .docs-tree__file .plain-list__title, .docs-toc a {
+  overflow-wrap: anywhere; min-inline-size: 0;
+}
 .docs-detail-grid__tree .docs-tree__file.is-current {
   background: var(--maroon-bg); color: var(--maroon-fg); font-weight: 700;
 }
 .docs-toc ul { list-style: none; margin: 0; padding-inline-start: var(--sp-3); display: grid; gap: var(--sp-1); }
 .docs-toc > ul { padding-inline-start: 0; }
-.docs-toc a { font-size: var(--text-sm); color: var(--text-secondary); text-decoration: none; }
+.docs-toc a { display: inline-block; font-size: var(--text-sm); color: var(--text-secondary); text-decoration: none; }
 .docs-toc a:hover { color: var(--maroon-fg); text-decoration: underline; }
 
 @media (max-width: 1100px) {

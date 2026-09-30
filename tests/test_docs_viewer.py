@@ -12,6 +12,7 @@ from django.http import Http404
 from django.urls import resolve, reverse
 
 from docs_viewer import services
+from docs_viewer.rendering import render_markdown
 
 pytestmark = pytest.mark.django_db
 
@@ -30,9 +31,18 @@ def test_a_non_developer_gets_403(client_as, teacher_user):
 
 
 def test_the_developer_reaches_the_index(client_as, developer_user):
+    """`/docs/` يحوِّل إلى README.md (طلبُ المالك: الشجرةُ والمحتوى حاضران من أوّل زيارة)."""
     response = client_as(developer_user).get(reverse("docs_viewer:index"))
+    assert response.status_code == 302
+    assert response["Location"] == reverse("docs_viewer:detail", kwargs={"doc_path": "README.md"})
+
+
+def test_the_index_redirect_lands_on_a_full_working_page(client_as, developer_user):
+    response = client_as(developer_user).get(reverse("docs_viewer:index"), follow=True)
     assert response.status_code == 200
-    assert "CLAUDE.md" in response.content.decode("utf-8")
+    body = response.content.decode("utf-8")
+    assert "README.md" in body
+    assert "CLAUDE.md" in body  # الشجرةُ الجانبيّةُ حاضرةٌ في الصفحة نفسِها
 
 
 def test_a_non_developer_gets_403_on_detail(client_as, teacher_user):
@@ -140,6 +150,130 @@ def test_build_tree_includes_files_inside_dot_claude():
     all_files = _flatten_files(services.build_tree())
     assert any(path.startswith(".claude/") for path in all_files), all_files
     assert ".claude/skills/drf-endpoint-scaffold/CHANGES.md" in all_files
+
+
+# ── عنوانُ العرض (طلبُ المالك: يعبّر عن المحتوى لا اسم الملفّ) ────────────────
+
+
+def test_extract_title_prefers_a_markdown_heading():
+    assert services.extract_title("# عنوانٌ فعليّ\n\nنصّ", fallback="x.md") == "عنوانٌ فعليّ"
+
+
+def test_extract_title_skips_headings_inside_code_blocks():
+    text = "```\n# ليس عنواناً\n```\n\n## هذا هو العنوان"
+    assert services.extract_title(text, fallback="x.md") == "هذا هو العنوان"
+
+
+def test_extract_title_falls_back_to_an_html_h1():
+    """`README.md` يكتب عنوانَه `<h1>` HTML لا md (لتوسيط الشعار) — يجب أن يُلتقط أيضاً."""
+    text = '<p>مقدّمة</p>\n<h1 align="center">عنوانٌ HTML</h1>'
+    assert services.extract_title(text, fallback="x.md") == "عنوانٌ HTML"
+
+
+def test_extract_title_falls_back_to_the_filename_when_no_heading_exists():
+    assert services.extract_title("نصٌّ بلا عنوان", fallback="x.md") == "x.md"
+
+
+def test_the_tree_shows_a_real_extracted_title_not_the_raw_filename():
+    """README.md الفعليّ في المشروع عنوانُه HTML — الشجرةُ تعرضه لا «README.md»."""
+    tree = services.build_tree()
+    readme_node = next(c for c in tree.children if c.rel_path == "README.md")
+    assert readme_node.name != "README.md"
+    assert readme_node.filename == "README.md"
+    assert "SchoolOS" in readme_node.name
+
+
+# ── عنوانُ المجلّد (طلبُ المالك: التعريبُ يشمل المجلّدات أيضاً) ─────────────────
+
+
+def test_a_folder_with_a_readme_shows_its_title_not_its_raw_name():
+    """`docs/adr/README.md` الفعليّ عنوانُه «سجلّات القرارات المعماريّة (ADR)»."""
+    tree = services.build_tree()
+    docs_node = next(c for c in tree.children if c.is_dir and c.rel_path == "docs")
+    adr_node = next(c for c in docs_node.children if c.is_dir and c.rel_path == "docs/adr")
+    assert adr_node.filename == "adr"
+    assert adr_node.name != "adr"
+    assert "قرار" in adr_node.name
+
+
+def test_a_folder_without_a_readme_keeps_its_raw_name():
+    tree = services.build_tree()
+    claude_node = next(c for c in tree.children if c.is_dir and c.rel_path == ".claude")
+    skills_node = next(
+        c for c in claude_node.children if c.is_dir and c.rel_path == ".claude/skills"
+    )
+    # لا README.md مباشرةً في .claude/skills نفسِها — يبقى اسمُها الخام
+    assert skills_node.name == "skills"
+
+
+# ── صورُ md النسبيّة (شعاراتٌ غالباً) — `resolve_asset` و`asset` view ──────────
+
+
+def test_resolve_asset_serves_a_real_allowed_image():
+    resolved = services.resolve_asset("static/brand/emblem.svg")
+    assert resolved == (services.DOCS_ROOT / "static/brand/emblem.svg").resolve()
+
+
+def test_resolve_asset_refuses_a_disallowed_extension():
+    """`.py`/`.env` ونحوهما ممنوعةٌ صراحةً — لا يتحوّل مسارُ الصور نافذةَ تسريب."""
+    with pytest.raises(Http404):
+        services.resolve_asset("manage.py")
+
+
+@pytest.mark.parametrize(
+    "traversal_path",
+    [
+        "../../../../../../etc/passwd.svg",
+        "../../requirements.txt",
+        "/etc/passwd.svg",
+    ],
+)
+def test_resolve_asset_refuses_escape_attempts(traversal_path):
+    with pytest.raises(Http404):
+        services.resolve_asset(traversal_path)
+
+
+def test_a_non_developer_gets_403_on_asset(client_as, teacher_user):
+    url = reverse("docs_viewer:asset", kwargs={"rel_path": "static/brand/emblem.svg"})
+    assert client_as(teacher_user).get(url).status_code == 403
+
+
+def test_the_developer_can_fetch_a_real_logo_asset(client_as, developer_user):
+    url = reverse("docs_viewer:asset", kwargs={"rel_path": "static/brand/emblem.svg"})
+    response = client_as(developer_user).get(url)
+    assert response.status_code == 200
+    assert response["Content-Type"] == "image/svg+xml"
+
+
+def test_render_markdown_rewrites_a_relative_image_into_an_asset_link():
+    rendered = render_markdown('<img src="static/brand/emblem.svg" alt="شعار">', source_dir="")
+    expected = reverse("docs_viewer:asset", kwargs={"rel_path": "static/brand/emblem.svg"})
+    assert expected in rendered.content_html
+
+
+def test_render_markdown_resolves_relative_to_the_source_file_directory():
+    """صورةٌ نسبيّةٌ داخل `docs/adr/foo.md` تشير إلى `../assets/x.svg` — النتيجةُ
+    `docs/assets/x.svg` لا `docs/adr/assets/x.svg`."""
+    rendered = render_markdown('<img src="../assets/x.svg">', source_dir="docs/adr")
+    expected = reverse("docs_viewer:asset", kwargs={"rel_path": "docs/assets/x.svg"})
+    assert expected in rendered.content_html
+
+
+def test_render_markdown_leaves_absolute_and_external_images_untouched():
+    html = '<img src="https://example.com/a.png"><img src="/static/x.svg">'
+    rendered = render_markdown(html, source_dir="")
+    assert 'src="https://example.com/a.png"' in rendered.content_html
+    assert 'src="/static/x.svg"' in rendered.content_html
+
+
+def test_the_readme_page_shows_a_working_logo_not_a_broken_one(client_as, developer_user):
+    """الشكوى الأصليّة: الشعارُ مكسورٌ في README — الرابطُ المُصيَّر يجب أن يردّ 200 فعلاً."""
+    url = reverse("docs_viewer:detail", kwargs={"doc_path": "README.md"})
+    response = client_as(developer_user).get(url)
+    body = response.content.decode("utf-8")
+    asset_url = reverse("docs_viewer:asset", kwargs={"rel_path": "static/brand/emblem.svg"})
+    assert asset_url in body
+    assert client_as(developer_user).get(asset_url).status_code == 200
 
 
 def _flatten_files(node: services.DocNode) -> set[str]:

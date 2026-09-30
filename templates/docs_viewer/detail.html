@@ -7,6 +7,8 @@
   قرارُ المالك (ب+ج، 2026-09-30): ثلاثةُ أعمدةٍ تستثمر عرضَ النافذة — شجرةُ التصفّح
   يميناً (فلا رجوعَ إلى /docs/ للتنقّل بين الملفّات)، والمحتوى وسطاً، وفهرسُ عناوين
   الملفّ نفسِه (toc) يساراً حين توجد عناوين. `.docs-detail-grid` في 33-modules-4.css.
+  وملاحظةٌ لاحقة: البطاقتان الجانبيّتان عنوانٌ صريحٌ (`section_card` لا `<nav>`
+  عارٍ) والشجرةُ مطويّةٌ افتراضاً — `open_dirs` سلسلةُ مجلّدات الملفّ الحاليّ وحدَها.
 {% endcomment %}
 {% block title %}{{ title }}{% endblock %}
 
@@ -21,17 +23,19 @@
   {% page_header title subtitle=doc_path icon="document" %}{% endpage_header %}
 
   <div class="docs-detail-grid">
-    <nav class="docs-detail-grid__tree card-qatar" aria-label="شجرةُ الملفّات">
+    <div class="docs-detail-grid__tree">
+      {% section_card "شجرةُ الملفّات" icon="folder" empty="لا توجد ملفّاتُ md" %}
       {% if tree.children %}
       <ul class="plain-list docs-tree">
         {% for child in tree.children %}
         <li{% if not child.is_dir %} class="plain-list__row"{% endif %}>
-          {% include "docs_viewer/_node.html" with node=child current=doc_path %}
+          {% include "docs_viewer/_node.html" with node=child current=doc_path open_dirs=open_dirs %}
         </li>
         {% endfor %}
       </ul>
       {% endif %}
-    </nav>
+      {% endsection_card %}
+    </div>
 
     <div class="docs-detail-grid__content">
       {% section_card title icon="document" %}
@@ -40,10 +44,11 @@
     </div>
 
     {% if has_toc %}
-    <nav class="docs-detail-grid__toc card-qatar" aria-label="فهرسُ عناوين الملفّ">
-      <p class="ui-note">فهرسُ العناوين</p>
+    <div class="docs-detail-grid__toc">
+      {% section_card "فهرسُ العناوين" icon="document" %}
       <div class="docs-toc">{{ toc_html|safe }}</div>
-    </nav>
+      {% endsection_card %}
+    </div>
     {% endif %}
   </div>
 </div>

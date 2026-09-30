@@ -10,6 +10,9 @@ app_name = "docs_viewer"
 
 urlpatterns = [
     path("", views.index, name="index"),
+    # صورُ md المُشار إليها بمسارٍ نسبيٍّ (شعاراتٌ غالباً) — بادئةٌ مميَّزةٌ فلا
+    # تتصادم مع `.+\.md` أدناه (`docs_viewer/rendering.py` يبني هذا الرابط).
+    path("_asset/<path:rel_path>", views.asset, name="asset"),
     # `.+` لا `path:` وحدَه: يلزم امتدادَ .md في نهاية الرابط نفسِه (لا شرطة بلا امتداد)
     re_path(r"^(?P<doc_path>.+\.md)/?$", views.detail, name="detail"),
 ]
