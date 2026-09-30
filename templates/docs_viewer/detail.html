@@ -1,5 +1,5 @@
 {% extends "base/base.html" %}
-{% load ui %}
+{% load static ui %}
 {% comment %}
   عرضُ ملفّ md واحد (W-20260930-002) — نمطُ `layout-report`: وثيقةٌ تُقرأ. المحتوى
   مصيَّرٌ في العرض (`docs_viewer/rendering.py::render_markdown`) — لا شيءَ يُصيَّر هنا.
@@ -43,4 +43,8 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/docs_viewer.js' %}" defer></script>
 {% endblock %}
