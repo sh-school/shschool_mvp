@@ -7,9 +7,12 @@ W-20260930-002: لا عارضَ مركزيّاً لملفّات md في المش
 from __future__ import annotations
 
 import mimetypes
+from urllib.parse import quote
 
-from django.http import FileResponse, HttpRequest, HttpResponse
+from django.http import FileResponse, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.template.loader import render_to_string
+from django.utils.safestring import mark_safe
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
@@ -22,6 +25,19 @@ from docs_viewer.rendering import render_markdown
 DEFAULT_DOC = "README.md"
 
 
+def _tree_search_box() -> str:
+    """صندوقُ البحث لطرف ترويسة بطاقة الشجرة (`meta=` في section_card — القالبُ
+    لا يكتب card-bar باليد). ثابتٌ بلا بياناتٍ لكلّ طلب؛ `render_to_string` لا
+    تُعلِم Django أنّ ناتجها آمنٌ فيُهرَب افتراضاً، فـ`mark_safe` صريحةٌ هنا."""
+    return mark_safe(render_to_string("docs_viewer/_search_box.html"))
+
+
+def _content_search_box() -> str:
+    """صندوقُ بحثٍ داخل محتوى الملفّ المفتوح — طرف ترويسة بطاقة المحتوى (طلبُ
+    المالك: «نفسُ الشيء على البطاقة الأخرى»)؛ تظليلٌ حيٌّ في docs_viewer.js."""
+    return mark_safe(render_to_string("docs_viewer/_content_search_box.html"))
+
+
 @developer_only
 @require_GET
 @never_cache
@@ -32,7 +48,11 @@ def index(request: HttpRequest) -> HttpResponse:
         return redirect("docs_viewer:detail", doc_path=DEFAULT_DOC)
     tree = services.build_tree()
     # الحالةُ الافتراضيّةُ مطويّة (ملاحظةُ المالك) — لا ملفَّ حاليّاً يفتح مجلّداتٍ هنا.
-    return render(request, "docs_viewer/index.html", {"tree": tree, "open_dirs": set()})
+    return render(
+        request,
+        "docs_viewer/index.html",
+        {"tree": tree, "open_dirs": set(), "tree_search_box": _tree_search_box()},
+    )
 
 
 @developer_only
@@ -63,7 +83,33 @@ def detail(request: HttpRequest, doc_path: str) -> HttpResponse:
             # الحالةُ الافتراضيّةُ مطويّة (ملاحظةُ المالك) — تُفتح سلسلةُ مجلّدات
             # الملفّ الحاليّ وحدَها.
             "open_dirs": services.ancestor_dirs(rel_path),
+            "tree_search_box": _tree_search_box(),
+            "content_search_box": _content_search_box(),
         },
+    )
+
+
+@developer_only
+@require_GET
+@never_cache
+def search(request: HttpRequest) -> HttpResponse:
+    """بحثٌ في محتوى كلّ ملفّات md (JSON) — `services.search_content` يستعمل
+    نسخةً مُخزَّنةً مؤقّتاً من محتوى الملفّات (`services.build_corpus`) فلا يُعاد
+    فتحُ المئات من الملفّات مع كلّ ضغطة مفتاح."""
+    query = request.GET.get("q", "")
+    results = services.search_content(query)
+    return JsonResponse(
+        {
+            "results": [
+                {
+                    "rel_path": r.rel_path,
+                    "title": r.title,
+                    "snippet": r.snippet,
+                    "url": f"/docs/{quote(r.rel_path, safe='/')}/",
+                }
+                for r in results
+            ]
+        }
     )
 
 

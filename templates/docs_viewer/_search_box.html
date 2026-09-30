@@ -1,0 +1,10 @@
+{% load ui %}
+{% comment %}
+  صندوقُ البحث في طرف ترويسة بطاقة «شجرةُ الملفّات» (`meta=` في section_card —
+  المكانُ الوحيدُ المُتاح في الترويسة بلا كتابة card-bar باليد، ممنوعةٌ بحارس
+  التصميم). فوريٌّ بأسماء/عناوين الملفّات (smartMatch، docs_viewer.js) +
+  بحثٌ في محتوى كلّ الملفّات عبر /docs/_search/ (طلبُ المالك: «الاثنين»).
+{% endcomment %}
+{% filter_bar "بحثٌ في الملفّات والمحتوى" live=True id="docs-search-bar" css="docs-search-bar" %}
+{% field "q" "بحثٌ في الملفّات والمحتوى" type="search" id="docs-search-input" hide_label=True placeholder="بحثٌ…" autocomplete="off" %}
+{% endfilter_bar %}

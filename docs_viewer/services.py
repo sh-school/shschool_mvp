@@ -283,3 +283,91 @@ def ancestor_dirs(rel_path: str) -> set[str]:
         built = f"{built}/{part}" if built else part
         dirs.add(built)
     return dirs
+
+
+# ── بحثُ المحتوى (طلبُ المالك 2026-09-30: فوريٌّ بالأسماء + بحثٌ في المحتوى) ──
+
+
+@dataclass
+class SearchResult:
+    """نتيجةُ بحثٍ في محتوى ملفّ: مقتطفٌ حول أوّل تطابق."""
+
+    rel_path: str
+    title: str
+    snippet: str
+
+
+#: محتوى كلّ الملفّات كاملاً — أثقلُ من الشجرة (٨٠ سطراً للعنوان فقط) فمفتاحٌ
+#: مستقلّ؛ نفسُ مدّة التخزين والتوازي (`_build_tree_uncached`). لا يُبنى إلا
+#: عند أوّل بحثٍ فعليّ — لا كلفةَ على فتح صفحةٍ عاديّة لا تستعمل البحث.
+CORPUS_CACHE_KEY = "docs_viewer:corpus"
+
+
+def build_corpus() -> list[tuple[str, str, str]]:
+    """`[(rel_path, title, النصّ الكامل)]` لكلّ ملفّ md — من ذاكرةٍ مؤقّتةٍ
+    (`TREE_CACHE_SECONDS`) وإلّا تُبنى بالتوازي وتُخزَّن."""
+    cached = cache.get(CORPUS_CACHE_KEY)
+    if cached is not None:
+        return cached
+    corpus = _build_corpus_uncached()
+    cache.set(CORPUS_CACHE_KEY, corpus, TREE_CACHE_SECONDS)
+    return corpus
+
+
+def _build_corpus_uncached() -> list[tuple[str, str, str]]:
+    file_entries: list[tuple[str, str]] = []  # (rel_dir, filename)
+    for dirpath, dirnames, filenames in os.walk(DOCS_ROOT):
+        dirnames[:] = sorted(
+            d
+            for d in dirnames
+            if d not in EXCLUDED_DIR_NAMES and (d in ALLOWED_DOT_DIRS or not d.startswith("."))
+        )
+        rel_dir = os.path.relpath(dirpath, DOCS_ROOT)
+        rel_dir = "" if rel_dir == "." else rel_dir.replace(os.sep, "/")
+        for filename in sorted(f for f in filenames if f.lower().endswith(".md")):
+            file_entries.append((rel_dir, filename))
+
+    def _read(entry: tuple[str, str]) -> tuple[str, str, str]:
+        rel_dir, filename = entry
+        file_rel = f"{rel_dir}/{filename}" if rel_dir else filename
+        try:
+            text = (DOCS_ROOT / rel_dir / filename).read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            text = ""
+        title = _first_heading(text.splitlines()[:_TITLE_SCAN_LINES]) or filename
+        return (file_rel, title, text)
+
+    if not file_entries:
+        return []
+    with ThreadPoolExecutor(max_workers=_TITLE_WORKERS) as pool:
+        return list(pool.map(_read, file_entries))
+
+
+#: نصفُ طول المقتطف حول أوّل تطابق (حرفاً) على كلّ جهة.
+_SNIPPET_RADIUS = 60
+_SEARCH_RESULT_LIMIT = 30
+
+
+def search_content(query: str, limit: int = _SEARCH_RESULT_LIMIT) -> list[SearchResult]:
+    """بحثٌ حرفيٌّ (غيرُ حسّاسٍ لحالة الأحرف) في محتوى كلّ ملفّات md — أوّلُ
+    تطابقٍ في كلّ ملفٍّ وحدَه، بمقتطفٍ حوله."""
+    query = query.strip()
+    if len(query) < 2:
+        return []
+    needle = query.lower()
+    results: list[SearchResult] = []
+    for rel_path, title, text in build_corpus():
+        idx = text.lower().find(needle)
+        if idx == -1:
+            continue
+        start = max(0, idx - _SNIPPET_RADIUS)
+        end = min(len(text), idx + len(query) + _SNIPPET_RADIUS)
+        snippet = " ".join(text[start:end].split())
+        if start > 0:
+            snippet = "…" + snippet
+        if end < len(text):
+            snippet += "…"
+        results.append(SearchResult(rel_path=rel_path, title=title, snippet=snippet))
+        if len(results) >= limit:
+            break
+    return results

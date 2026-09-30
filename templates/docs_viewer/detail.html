@@ -8,6 +8,11 @@
   (فلا رجوعَ إلى /docs/ للتنقّل بين الملفّات، والملفُّ المفتوح مُميَّزٌ فيها)
   والمحتوى يملأ عرضَ بطاقته. `.docs-detail-grid` في 33-modules-4.css. (فهرسُ
   العناوين الجانبيّ أُلغي — كان عموداً ثالثاً هنا، ألغاه المالك 2026-09-30.)
+
+  البحثُ (طلبُ المالك 2026-09-30): صندوقٌ في طرف ترويسة «شجرةُ الملفّات»
+  (`meta=tree_search_box` من العرض — القالبُ لا يكتب card-bar باليد، الحارسُ
+  يرفضه). فوريٌّ بالأسماء/العناوين (smartMatch على `[data-filter-row]`،
+  docs_viewer.js) + بحثٌ في المحتوى عبر /docs/_search/ يُعرض تحت الشجرة.
 {% endcomment %}
 {% block title %}{{ title }}{% endblock %}
 
@@ -23,22 +28,23 @@
 
   <div class="docs-detail-grid">
     <div class="docs-detail-grid__tree">
-      {% section_card "شجرةُ الملفّات" icon="folder" empty="لا توجد ملفّاتُ md" %}
+      {% section_card "شجرةُ الملفّات" icon="folder" meta=tree_search_box empty="لا توجد ملفّاتُ md" %}
       {% if tree.children %}
-      <ul class="plain-list docs-tree">
+      <ul class="plain-list docs-tree" id="docs-tree-list">
         {% for child in tree.children %}
-        <li{% if not child.is_dir %} class="plain-list__row"{% endif %}>
+        <li{% if not child.is_dir %} class="plain-list__row" data-filter-row{% endif %}>
           {% include "docs_viewer/_node.html" with node=child current=doc_path open_dirs=open_dirs %}
         </li>
         {% endfor %}
       </ul>
       {% endif %}
+      <div id="docs-search-results" class="docs-search-results" hidden></div>
       {% endsection_card %}
     </div>
 
     <div class="docs-detail-grid__content">
-      {% section_card title icon="document" %}
-      <div class="docs-content">{{ content_html|safe }}</div>
+      {% section_card title icon="document" meta=content_search_box %}
+      <div class="docs-content" id="docs-content-body">{{ content_html|safe }}</div>
       {% endsection_card %}
     </div>
   </div>

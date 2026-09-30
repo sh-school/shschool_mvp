@@ -1970,7 +1970,11 @@ body:has(.rm-page) .site-footer { flex: none; }
 }
 .docs-content pre code { background: none; padding: 0; font-size: var(--text-sm); }
 .docs-content hr { border: none; border-block-start: 1px solid var(--border); margin-block: var(--sp-6); }
-.docs-content img { max-inline-size: 100%; border-radius: var(--radius-sm); }
+/* `img { display: block }` من Tailwind preflight (سيطرةٌ عامّةٌ للمنصّة) تكسّر
+   شارات md (Django/Python/…) المتجاورة في سطرٍ واحد — كلُّ صورةٍ تصير سطراً
+   وحدَها. `inline-block` يعيدها تتدفّق وتلتفّ كالنصّ العاديّ؛ صورةٌ كبيرةٌ
+   بمفردها في فقرتها لا يتغيّر مظهرُها بهذا (لا جارَ لها يتدفّق معه أصلاً). */
+.docs-content img { display: inline-block; max-inline-size: 100%; border-radius: var(--radius-sm); }
 .docs-content .table-wrap { max-inline-size: 100%; }
 
 /* شبكةُ صفحة التفصيل: شجرةٌ (ثابتةٌ) + محتوًى (مرنٌ) — تستثمر عرضَ النافذة
@@ -2002,6 +2006,36 @@ body:has(.rm-page) .site-footer { flex: none; }
 .docs-detail-grid__tree .docs-tree__file.is-current {
   background: var(--maroon-bg); color: var(--maroon-fg); font-weight: 700;
 }
+
+/* صندوقُ البحث في طرف ترويسة «شجرةُ الملفّات» (`meta=` في section_card —
+   القالبُ لا يكتب card-bar باليد، الحارسُ يرفضه). `.card-bar-sub` نفسُها تُدفع
+   لطرف الشريط بـ`margin-inline-start: auto` — هنا صندوقٌ لا نصّاً، فصنفٌ
+   مستقلٌّ بنفس الدفع، يصفّر مظهر `.filter-bar` الافتراضيّ (بطاقةٌ بحدٍّ وظلّ لا
+   تناسب داخل شريطٍ عنّابيٍّ مضغوط). */
+.docs-search-bar {
+  background: none; border: none; box-shadow: none; padding: 0; margin: 0 0 0 auto;
+  flex-wrap: nowrap;
+}
+.docs-search-bar .ui-field { margin: 0; }
+.docs-search-bar .form-control {
+  inline-size: 11rem; padding-block: var(--sp-1); font-size: var(--text-xs);
+  border-color: transparent; background: color-mix(in srgb, var(--on-fill) 92%, transparent);
+}
+.docs-search-bar .form-control::placeholder { color: var(--text-muted); }
+.docs-search-bar .form-control:focus { inline-size: 14rem; }
+
+.docs-search-results { margin-block-start: var(--sp-4); border-block-start: 1px solid var(--border); padding-block-start: var(--sp-3); }
+.docs-search-results__label { font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); margin-block-end: var(--sp-2); }
+.docs-search-results .plain-list__sub { overflow-wrap: anywhere; white-space: normal; }
+
+/* بحثُ محتوى الملفّ المفتوح (طرف ترويسة بطاقة المحتوى — نفسُ نمط بحث الشجرة):
+   عدّادٌ وزرّا تنقّلٍ بجانب الحقل، وتظليلُ المطابقات داخل النصّ نفسِه. */
+.docs-content-search-bar { gap: var(--sp-1); }
+.docs-content-search-bar .btn-ghost { color: var(--on-fill); padding: var(--sp-1); min-inline-size: 0; }
+.docs-content-search-bar .btn-ghost:hover { background: color-mix(in srgb, var(--on-fill) 18%, transparent); }
+.docs-search-count { font-size: var(--text-xs); color: var(--on-fill); opacity: .85; min-inline-size: 2.5rem; text-align: center; }
+.docs-highlight { background: var(--gold-mark); color: var(--text-primary); border-radius: var(--radius-sm); }
+.docs-highlight.is-active { background: var(--maroon-light); color: var(--on-fill); }
 
 @media (max-width: 1100px) {
   .docs-detail-grid { grid-template-columns: 1fr; }

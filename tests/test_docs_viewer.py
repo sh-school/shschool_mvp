@@ -60,6 +60,15 @@ def test_the_developer_can_view_a_real_project_file(client_as, developer_user):
     assert response.context["doc_path"] == "README.md"
 
 
+def test_the_detail_page_carries_both_search_boxes(client_as, developer_user):
+    """بحثُ الشجرة (طرف ترويستها) + بحثُ محتوى الملفّ المفتوح (طرف ترويسته) — طلبُ المالك."""
+    url = reverse("docs_viewer:detail", kwargs={"doc_path": "README.md"})
+    body = client_as(developer_user).get(url).content.decode("utf-8")
+    assert 'id="docs-search-input"' in body
+    assert 'id="docs-content-search-input"' in body
+    assert 'id="docs-content-body"' in body
+
+
 def test_a_missing_file_is_404(client_as, developer_user):
     url = reverse("docs_viewer:detail", kwargs={"doc_path": "this-file-does-not-exist.md"})
     assert client_as(developer_user).get(url).status_code == 404
@@ -302,6 +311,68 @@ def test_the_developer_sees_the_docs_viewer_link_under_the_roadmap(client_as, pr
 def test_a_non_developer_does_not_see_the_docs_viewer_link(client_as, teacher_user):
     html = client_as(teacher_user).get("/dashboard/").content.decode()
     assert reverse("docs_viewer:index") not in html
+
+
+# ── بحثُ المحتوى (طلبُ المالك: «الاثنين» — فوريٌّ بالاسم + بحثٌ في المحتوى) ───
+
+
+def test_search_content_finds_a_real_word_in_a_real_file():
+    results = services.search_content("SchoolOS")
+    assert any(r.rel_path == "README.md" for r in results)
+
+
+def test_search_content_is_case_insensitive():
+    results = services.search_content("schoolos")
+    assert any(r.rel_path == "README.md" for r in results)
+
+
+def test_search_content_refuses_a_too_short_query():
+    assert services.search_content("a") == []
+    assert services.search_content(" ") == []
+
+
+def test_search_content_returns_no_match_for_nonsense():
+    assert services.search_content("xyzxyzxyzxyzxyz_no_such_text_anywhere") == []
+
+
+def test_search_content_snippet_contains_the_query():
+    results = services.search_content("SchoolOS")
+    match = next(r for r in results if r.rel_path == "README.md")
+    assert "schoolos" in match.snippet.lower()
+
+
+def test_a_non_developer_gets_403_on_search(client_as, teacher_user):
+    assert (
+        client_as(teacher_user).get(reverse("docs_viewer:search"), {"q": "test"}).status_code == 403
+    )
+
+
+def test_an_anonymous_visitor_is_sent_to_login_on_search(client):
+    response = client.get(reverse("docs_viewer:search"), {"q": "test"})
+    assert response.status_code == 302
+    assert "login" in response["Location"]
+
+
+def test_the_developer_gets_json_results_for_a_real_query(client_as, developer_user):
+    response = client_as(developer_user).get(reverse("docs_viewer:search"), {"q": "SchoolOS"})
+    assert response.status_code == 200
+    assert response["Content-Type"] == "application/json"
+    payload = response.json()
+    matches = [r for r in payload["results"] if r["rel_path"] == "README.md"]
+    assert matches
+    assert matches[0]["url"] == "/docs/README.md/"
+
+
+def test_the_developer_gets_an_empty_list_for_a_short_query(client_as, developer_user):
+    response = client_as(developer_user).get(reverse("docs_viewer:search"), {"q": "a"})
+    assert response.json()["results"] == []
+
+
+def test_build_corpus_includes_every_markdown_file():
+    corpus = services.build_corpus()
+    rel_paths = {rel_path for rel_path, _, _ in corpus}
+    assert "README.md" in rel_paths
+    assert "CLAUDE.md" in rel_paths
 
 
 def _flatten_files(node: services.DocNode) -> set[str]:

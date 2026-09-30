@@ -1,9 +1,11 @@
 {% extends "base/base.html" %}
-{% load ui %}
+{% load static ui %}
 {% comment %}
   فهرسُ عارض الوثائق — شجرةُ ملفّات md تحت جذر المشروع (W-20260930-002). نمطُ
   `layout-hub`: اختيارُ ملفٍّ من شجرةٍ لا سجلٌّ يُصفّى. القراءةُ حيّةٌ من القرص في
   كلّ طلب (`docs_viewer/services.py::build_tree`) — لا تخزينَ ولا فهرسةً مسبقة.
+  احتياطيٌّ: `/docs/` يحوِّل إلى README.md عادةً (`views.index`)، وهذه الصفحةُ
+  تظهر فقط لو غاب README.md استثناءً.
 {% endcomment %}
 {% block title %}عارضُ الوثائق{% endblock %}
 
@@ -17,16 +19,21 @@
 <div>
   {% page_header "عارضُ الوثائق" subtitle="ملفّاتُ md في المشروع (بما فيها .claude/) — تُقرأ حيّةً من القرص" icon="document" %}{% endpage_header %}
 
-  {% section_card "شجرةُ الملفّات" icon="document" empty="لا توجد ملفّاتُ md في المشروع" %}
+  {% section_card "شجرةُ الملفّات" icon="document" meta=tree_search_box empty="لا توجد ملفّاتُ md في المشروع" %}
   {% if tree.children %}
-  <ul class="plain-list docs-tree">
+  <ul class="plain-list docs-tree" id="docs-tree-list">
     {% for child in tree.children %}
-    <li{% if not child.is_dir %} class="plain-list__row"{% endif %}>
+    <li{% if not child.is_dir %} class="plain-list__row" data-filter-row{% endif %}>
       {% include "docs_viewer/_node.html" with node=child open_dirs=open_dirs %}
     </li>
     {% endfor %}
   </ul>
   {% endif %}
+  <div id="docs-search-results" class="docs-search-results" hidden></div>
   {% endsection_card %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/docs_viewer.js' %}" defer></script>
 {% endblock %}

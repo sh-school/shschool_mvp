@@ -12,7 +12,7 @@
   <summary class="docs-tree__summary" title="{{ node.filename }}">{% icon "folder" size="sm" %}<span>{{ node.name }}</span></summary>
   <ul class="plain-list docs-tree__list">
     {% for child in node.children %}
-    <li{% if not child.is_dir %} class="plain-list__row"{% endif %}>
+    <li{% if not child.is_dir %} class="plain-list__row" data-filter-row{% endif %}>
       {% include "docs_viewer/_node.html" with node=child current=current open_dirs=open_dirs %}
     </li>
     {% endfor %}
