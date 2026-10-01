@@ -67,7 +67,16 @@ def _resolve_within_root(rel_path: str) -> Path:
     لا من النصّ الخام — فـ`../../etc/passwd` أو رابطٌ رمزيٌّ يخرج بها يُرفض هنا.
     """
     candidate = (DOCS_ROOT / rel_path).resolve()
-    if not candidate.is_relative_to(DOCS_ROOT):
+    root = str(DOCS_ROOT)
+    # تحقّقان لا تحقّقٌ واحد: `is_relative_to` (منطقُ pathlib) و`commonpath`
+    # (مقارنةُ مسارٍ نصّيّةٌ تقليديّة) — فحصُ CodeQL الساكن لا يتتبّع الأوّل عبر
+    # حدود الدالّة أحياناً (py/path-injection، راجع #746)، والثاني نمطٌ يتعرّف
+    # عليه مباشرةً. كلاهما يرفض الناتجَ لا النصَّ الخام، فـ`..` ورابطٌ رمزيٌّ
+    # خارجان يُرفضان بعد `resolve()` سواءً بسواء.
+    if (
+        not candidate.is_relative_to(DOCS_ROOT)
+        or os.path.commonpath([str(candidate), root]) != root
+    ):
         raise Http404("مسارٌ خارج جذر المشروع")
     if not candidate.is_file():
         raise Http404("الملفُّ غير موجود")
