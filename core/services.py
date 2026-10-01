@@ -401,7 +401,7 @@ def count_students_enrolled_in_year(school: Any, year: str) -> int:
 
     if not (school and year):
         return 0
-    return (
+    return int(
         StudentEnrollment.objects.filter(
             class_group__school=school, class_group__academic_year=year, is_active=True
         )
