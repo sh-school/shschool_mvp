@@ -16,7 +16,7 @@
   "core/audit_export.py": 1,
   "core/auth_identity.py": 6,
   "core/backends.py": 1,
-  "core/capabilities.py": 13,
+  "core/capabilities.py": 11,
   "core/celery_tasks.py": 15,
   "core/context_processors.py": 4,
   "core/dashboard_presentation.py": 3,
@@ -27,7 +27,7 @@
   "core/htmx_utils.py": 4,
   "core/logging_filters.py": 15,
   "core/managers.py": 28,
-  "core/middleware.py": 20,
+  "core/middleware.py": 19,
   "core/middleware_rls.py": 7,
   "core/mixins.py": 3,
   "core/models/academic.py": 31,
@@ -41,7 +41,7 @@
   "core/models/user.py": 26,
   "core/module_registry.py": 1,
   "core/pdf_utils.py": 22,
-  "core/permissions.py": 52,
+  "core/permissions.py": 44,
   "core/querysets.py": 19,
   "core/request_utils.py": 2,
   "core/rls.py": 2,
@@ -122,5 +122,5 @@
   "transport/querysets.py": 4,
   "wings/services.py": 15
  },
- "total": 1247
+ "total": 1236
 }
