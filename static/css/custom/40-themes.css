@@ -254,7 +254,17 @@ html.dark .action-card-icon { background: var(--maroon-bg); }
 html.dark .action-card-body .action-desc { color: var(--text-muted); }
 
 /* ── 9. Tables ─── */
-html.dark .table-wrap {
+/* مُجمَّعةٌ هنا: ثمانيةُ أوعيةٍ بلا لونِ نصٍّ تشترك السطحَ والحدَّ الليليّين نفسَهما
+   (`.table-wrap`، `.filter-bar`، `.q-modal-info`، `.q-modal-decision`،
+   `.report-student-dropdown`، `.free-slots-card`، `.kpi-donut-card`، `.kpi-unavail-item`). */
+html.dark .table-wrap,
+html.dark .filter-bar,
+html.dark .q-modal-info,
+html.dark .q-modal-decision,
+html.dark .report-student-dropdown,
+html.dark .free-slots-card,
+html.dark .kpi-donut-card,
+html.dark .kpi-unavail-item {
   background: var(--surface);
   border-color: var(--border);
 }
@@ -294,10 +304,6 @@ html.dark .form-select:focus {
   background: var(--surface);
 }
 html.dark .form-card .form-footer { border-top-color: var(--border); }
-html.dark .filter-bar {
-  background: var(--surface);
-  border-color: var(--border);
-}
 
 /* Login card */
 html.dark .login-input {
@@ -327,7 +333,6 @@ html.dark .q-modal {
 }
 html.dark .q-modal-header { background: linear-gradient(135deg, var(--maroon-bg) 0%, var(--maroon-bg) 100%); }
 html.dark .q-modal-body { color: var(--text-primary); }
-html.dark .q-modal-info { background: var(--surface); border-color: var(--border); }
 html.dark .q-modal-field select,
 html.dark .q-modal-field input,
 html.dark .q-modal-field textarea {
@@ -336,7 +341,6 @@ html.dark .q-modal-field textarea {
   color: var(--text-primary);
 }
 html.dark .q-modal-field label { color: var(--text-secondary); }
-html.dark .q-modal-decision { background: var(--surface); border-color: var(--border); }
 html.dark .q-modal-decision select,
 html.dark .q-modal-decision textarea {
   background: var(--surface-alt);
@@ -361,7 +365,10 @@ html.dark .msg-info    { background: var(--status-info-bg); border-color: var(--
 html.dark .status-success { background: var(--status-success-bg); color: var(--status-success-fg); }
 html.dark .status-danger  { background: var(--status-danger-bg); color: var(--status-danger-fg); border-color: var(--status-danger-dark); }
 html.dark .status-info    { background: var(--status-info-bg); color: var(--status-info-fg); }
-html.dark .status-maroon  { background: var(--maroon-bg); color: var(--maroon-fg); border-color: var(--maroon-border); }
+html.dark .status-maroon,
+html.dark .btn-secondary,
+html.dark .pagination a:hover,
+html.dark .df-ticket-inline { background: var(--maroon-bg); color: var(--maroon-fg); border-color: var(--maroon-border); }
 
 /* Priority badges */
 html.dark .badge-medium  { background: var(--status-info-bg); color: var(--status-info-fg); }
@@ -388,13 +395,6 @@ html.dark footer:not(.site-footer) {
 }
 html.dark .site-footer-brand-logo-chip {
   border-color: transparent;
-}
-
-/* ── 19. Buttons ─── */
-html.dark .btn-secondary {
-  background: var(--maroon-bg);
-  color: var(--maroon-fg);
-  border-color: var(--maroon-border);
 }
 
 /* ── 22. Breadcrumbs ─── */
@@ -442,12 +442,6 @@ html.dark .q-badge-info     { background: color-mix(in srgb, var(--accent-sky) 2
 /* Mini progress percentage */
 html.dark .mini-progress-pct { color: var(--text-secondary); }
 
-/* ── 28. Report Dropdown ─── */
-html.dark .report-student-dropdown {
-  background: var(--surface);
-  border-color: var(--border);
-}
-
 /* ── 28a. Report Tabs & Cards (dark) ─── */
 html.dark .report-tabs { border-bottom-color: var(--border); }
 
@@ -463,10 +457,13 @@ html.dark .report-tabs { border-bottom-color: var(--border); }
 .import-meta { margin-block-start: var(--sp-2); }
 .import-errors { margin-block-start: var(--sp-3); }
 .import-errors .plain-list__row { justify-content: flex-start; font-size: var(--text-xs); color: var(--status-danger-fg); }
+/* كانت حشوتُها الرأسيّة (sp-6) تترك فراغاً فارغاً كبيراً حول أيقونةٍ ونصّين
+   قصيرين فقط — صفحةُ استيراد الطلاب طلبت تنظيماً أفضل (2026-10-01) فصارت
+   أضيق (sp-4) دون أن تفقد وضوحَها كمنطقة إفلاتٍ واضحة الحدود. */
 .import-drop {
   display: grid; justify-items: center; gap: var(--sp-1);
   margin-block-start: var(--sp-3);
-  padding: var(--sp-6, var(--sp-6)) var(--sp-3);
+  padding: var(--sp-4) var(--sp-3);
   border: 2px dashed var(--border-strong);
   border-radius: var(--radius-lg);
   color: var(--text-muted);
@@ -642,11 +639,6 @@ html.dark .pagination span {
   border-color: var(--border-strong);
   color: var(--text-secondary);
 }
-html.dark .pagination a:hover {
-  background: var(--maroon-bg);
-  border-color: var(--maroon-border);
-  color: var(--maroon-fg);
-}
 html.dark .pagination .active,
 html.dark .pagination .current {
   background: var(--maroon);
@@ -771,7 +763,6 @@ html.dark .per-grid thead th.per-col.is-focus { background: var(--maroon); color
    كلُّ قاعدة html.dark تعيش في @layer themes وحدها، لا حيث كُتبت أوّل مرّة. النظيرةُ
    النهاريّةُ لكلٍّ منها تبقى في مكانها؛ هذه الطبقةُ تغلبها بترتيب الطبقات لا بالنوعيّة. ── */
 html.dark .staff-register td:first-child { background: var(--surface); }
-html.dark .free-slots-card { background: var(--surface); border-color: var(--border); }
 html.dark .free-slots-th { background: var(--surface-alt); border-color: var(--border); }
 html.dark .free-slots-td { border-color: var(--border); }
 html.dark .card-bar { background: var(--maroon-dark); }
@@ -783,9 +774,6 @@ html.dark .radio-pill {
   border-color: var(--border-strong);
   background: var(--surface-alt);
 }
-/* Dark */
-html.dark .kpi-donut-card { background: var(--surface); border-color: var(--border); }
-html.dark .kpi-unavail-item { background: var(--surface); border-color: var(--border); }
 html.dark .pr-dom { background: var(--surface-alt); border-color: var(--surface); }
 html.dark .pr-dom:hover { border-color: var(--border-strong); }
 html.dark .pr-exec { background: var(--surface-alt); border-color: var(--surface); }
@@ -820,11 +808,6 @@ html.dark .df-ticket-number {
   background: var(--maroon-bg);
   color: var(--maroon-fg);
   border-color: var(--maroon-fg);
-}
-html.dark .df-ticket-inline {
-  background: var(--maroon-bg);
-  color: var(--maroon-fg);
-  border-color: var(--maroon-border);
 }
 html.dark .df-timeline {
   border-color: var(--maroon-border);

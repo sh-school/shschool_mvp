@@ -228,7 +228,11 @@
   border: none; cursor: pointer; font-family: inherit;
 }
 .sd-2fa-enabled  { color: var(--status-success-fg); }
-.sd-2fa-disabled { color: var(--status-danger-fg); }
+.sd-2fa-disabled,
+.ui-callout--warning > .icon,
+.ui-tip--warning .ui-tip__btn,
+.confirm-dlg-title,
+.confirm-dialog-title { color: var(--status-danger-fg); }
 /* قائمة المستخدم — min-width */
 #m-user { min-width: 200px; }
 
@@ -389,7 +393,9 @@ h1.text-2xl {
   transition: box-shadow var(--transition-base), border-color var(--transition-base), transform var(--transition-base);
 }
 
-.card-qatar:hover {
+.card-qatar:hover,
+.kpi-card:hover,
+.action-card:hover {
   box-shadow: var(--shadow-md);
   border-color: var(--maroon-border);
 }
@@ -889,10 +895,6 @@ tr.active {
   position: relative;
   overflow: hidden;
 }
-.kpi-card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--maroon-border);
-}
 .kpi-card::before {
   content: '';
   position: absolute;
@@ -1247,7 +1249,6 @@ main.page-wide {
 .ui-callout--info > .icon { color: var(--status-info-fg); }
 .ui-callout--warning { background: var(--status-warning-bg); color: var(--status-warning-fg); border-color: var(--status-warning-border-soft); }
 /* علامةُ التعجّب في التحذير حمراء (قرارُ المالك 2026-09-20) والخلفيةُ والنصّ عنبريّان: العينُ تلتقط الأيقونةَ أوّلاً. */
-.ui-callout--warning > .icon { color: var(--status-danger-fg); }
 .ui-callout--error { background: var(--status-danger-bg); color: var(--status-danger-fg); border-color: var(--status-danger-border); }
 .ui-callout--success { background: var(--status-success-bg); color: var(--status-success-fg); border-color: var(--status-success-border-soft); }
 
@@ -1298,7 +1299,6 @@ main.page-wide {
 }
 .ui-tip--info .ui-tip__panel { border-inline-start-color: var(--status-info); }
 /* علامةُ التعجّب: حمراءُ كالتحذير، وفي الشريط العنّابيّ دائرةٌ بيضاء تُرى عليه. */
-.ui-tip--warning .ui-tip__btn { color: var(--status-danger-fg); }
 .ui-tip--warning .ui-tip__btn:hover,
 .ui-tip--warning .ui-tip__btn:focus-visible,
 .ui-tip--warning.is-open .ui-tip__btn { background: var(--status-danger-bg); }
@@ -1460,10 +1460,6 @@ tfoot td {
   color: var(--text-primary);
   transition: box-shadow .15s, border-color .15s, transform .12s;
   box-shadow: var(--shadow-sm);
-}
-.action-card:hover {
-  box-shadow: var(--shadow-md);
-  border-color: var(--maroon-border);
 }
 .action-card.action-primary {
   background: var(--maroon);
@@ -1731,7 +1727,6 @@ textarea:focus-visible {
 }
 .modal-close-btn:hover { color: var(--text-primary); }
 /* حوارُ التأكيد (base.js، data-confirm): العنوانُ بلون الخطر المقروء، والسؤالُ ثانويّ. */
-.confirm-dlg-title { color: var(--status-danger-fg); }
 .confirm-dlg-message { color: var(--text-secondary); line-height: 1.7; }
 
 /* ── Mobile Bottom Navigation ─── */
@@ -2141,7 +2136,6 @@ html[dir="rtl"] .search-wrap input[type="search"] { padding-right: 38px; padding
 .search-wrap .htmx-indicator { position: absolute; inset-inline-end: 12px; }
 
 /* ── Confirm Dialog ── */
-.confirm-dialog-title { color: var(--status-danger-fg); }
 .confirm-dialog-message { color: var(--text-secondary); line-height: 1.7; }
 .confirm-dialog-form { display: inline; }
 
