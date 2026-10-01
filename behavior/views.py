@@ -433,9 +433,7 @@ def quick_log(request):
         errors = []
         if not student_id:
             errors.append("يرجى اختيار الطالب.")
-        if not description:
-            errors.append("يرجى كتابة وصف المخالفة.")
-        elif len(description) > _MAX_DESC_LEN:
+        if len(description) > _MAX_DESC_LEN:
             errors.append(f"الوصف لا يتجاوز {_MAX_DESC_LEN} حرف.")
         if level not in _VALID_LEVELS:
             errors.append("درجة المخالفة يجب أن تكون بين 1 و 4.")

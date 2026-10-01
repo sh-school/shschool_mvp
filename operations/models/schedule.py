@@ -111,6 +111,9 @@ class ScheduleSlot(models.Model):
     )
     notes = models.TextField(blank=True, default="", verbose_name="ملاحظات")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الإنشاء")
+    #: SCH-20 (2026-10-01): كان لا أثرَ لتعديلٍ بعد الإنشاء — فتعذّر معرفةُ هل تحرّكت
+    #: حصّةٌ (تبديلٌ يدويّ، تعويضٌ) بعد لحظة التوليد التي كتبت لقطةَ مخالفاتها.
+    updated_at = models.DateTimeField(auto_now=True, null=True, verbose_name="تاريخ التعديل")
 
     objects = YearScopedQuerySet.as_manager()
 
@@ -415,6 +418,11 @@ class TeacherPreference(models.Model):
         verbose_name="يوم التفريغ المفضل",
     )
     notes = models.TextField(blank=True, verbose_name="ملاحظات")
+    #: SCH-20 (2026-10-01): بلا طابعٍ زمنيّ لا سبيلَ لمعرفة هل كان تفضيلٌ قائماً
+    #: وقتَ توليدٍ بعينه أم أُضيف بعده — سؤالٌ تكرّر في تحقيق W-20260930-005/D-76م
+    #: ولم يكن له جواب.
+    created_at = models.DateTimeField(auto_now_add=True, null=True, verbose_name="تاريخ الإنشاء")
+    updated_at = models.DateTimeField(auto_now=True, null=True, verbose_name="تاريخ التعديل")
 
     class Meta:
         verbose_name = "تفضيلات معلم"

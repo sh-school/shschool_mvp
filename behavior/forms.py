@@ -30,8 +30,8 @@ class InfractionForm(forms.Form):
     violation_category = forms.UUIDField(required=False)
     description = forms.CharField(
         max_length=_MAX_DESC_LEN,
+        required=False,
         error_messages={
-            "required": "يرجى كتابة وصف المخالفة.",
             "max_length": f"الوصف لا يتجاوز {_MAX_DESC_LEN} حرف.",
         },
     )
