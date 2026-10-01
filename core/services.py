@@ -334,6 +334,7 @@ def _parse_ministry_date(raw: str) -> Any:
 def _upsert_user_from_registry(
     nid: str,
     *,
+    users_cache: dict[str, Any],
     full_name: str,
     phone: str,
     email: str,
@@ -343,21 +344,44 @@ def _upsert_user_from_registry(
     employer_sector: str,
     employer_name: str,
     kahramaa_number: str,
+    uses_bus: bool | None = None,
     role_label: str,
     issued: list[dict],
 ) -> tuple[Any, bool]:
-    """get_or_create بالرقم الشخصيّ — ومصدرُ مركز البيانات الوطنيّ يغلب دائماً
-    على القيم الموجودة (قرارُ المالك 2026-10-01)، فتُكتب هذه الحقول فوق
-    الموجود لا شرط الفراغ، خلافاً لـ`_upsert_user` القديمة."""
+    """upsert بالرقم الشخصيّ من ذاكرةٍ مُحمَّلةٌ مسبقاً (`users_cache`) لا استعلامٍ
+    لكلّ سطر — المدرسةُ فيها مئاتُ الطلّاب، وقراءةَ كلٍّ منهم على حِدة أبطأت
+    استيرادَ 734 صفاً إلى دقيقتين (شكوى المالك 2026-10-01). ومصدرُ مركز
+    البيانات الوطنيّ يغلب دائماً على القيم الموجودة، فتُكتب هذه الحقول فوق
+    الموجود لا شرط الفراغ، خلافاً لـ`_upsert_user` القديمة.
+
+    `users_cache` يُحدَّث داخل الدالّة عند إنشاء مستخدمٍ جديد — ليراه الاستدعاءُ
+    التالي لنفس الرقم الشخصيّ (أخٌ لطالبٍ سابق، أو وليّ أمرٍ تكرّر) بلا استعلامٍ ثانٍ.
+    """
     from core.initial_passwords import assign_initial_password
     from core.models import CustomUser
 
-    user, created = CustomUser.objects.get_or_create(
-        national_id=nid,
-        defaults={"full_name": full_name or nid, "is_active": True},
+    user = users_cache.get(nid)
+    created = False
+    if user is None:
+        user = CustomUser(national_id=nid, full_name=full_name or nid, is_active=True)
+        created = True
+
+    # [أداء] كلّ `save()` يُطلق `core.signals.audit_user_change` فيكتب سطراً
+    # في AuditLog — وغالبيّةُ صفوف الاستيراد المتكرّر بلا تغييرٍ فعليّ (الملفُّ
+    # نفسُه أعيد رفعُه). فنقيس قبل الكتابة: لا نكتب شيئاً إن لم يتغيّر شيء،
+    # بدل upsert أعمى يكلّف صفّاً في سجلّ التدقيق لكلّ طالبٍ في كلّ مرّة.
+    before = (
+        user.full_name,
+        user.phone,
+        user.email,
+        user.nationality,
+        user.municipality,
+        user.region,
+        user.employer_sector,
+        user.employer_name,
+        user.kahramaa_number,
+        user.uses_bus,
     )
-    if created:
-        assign_initial_password(user, issued, role_label)
 
     if full_name:
         user.full_name = full_name
@@ -375,7 +399,29 @@ def _upsert_user_from_registry(
     user.employer_sector = employer_sector
     user.employer_name = employer_name
     user.kahramaa_number = kahramaa_number
-    user.save()
+    if uses_bus is not None:
+        user.uses_bus = uses_bus
+
+    if created:
+        assign_initial_password(user, issued, role_label)  # يضبط كلمةَ المرور قبل أوّل save()
+        user.save()
+    else:
+        after = (
+            user.full_name,
+            user.phone,
+            user.email,
+            user.nationality,
+            user.municipality,
+            user.region,
+            user.employer_sector,
+            user.employer_name,
+            user.kahramaa_number,
+            user.uses_bus,
+        )
+        if after != before:
+            user.save()
+
+    users_cache[nid] = user
     return user, created
 
 
@@ -385,43 +431,35 @@ def _sync_student_class_group(
     year: str,
     grade_raw: str,
     section: str,
+    *,
+    class_groups: dict[tuple[str, str], Any],
+    enrollments_cache: dict[Any, Any],
     stats: dict[str, Any],
     row_num: int,
 ) -> None:
-    """يزامن شعبة الطالب — ترفيعٌ أو نقلٌ داخل العام نفسِه يُطفئ القيدَ
-    القديم (is_active=False) وينشئ قيداً جديداً، بدل تركِ قيدَين نشطَين
-    معاً في العام نفسه (ما لا يمنعه القيدُ الفريد في القاعدة إذ هو على
-    زوج (طالب، شعبة) لا (طالب، عام))."""
-    from core.models import ClassGroup, StudentEnrollment
+    """يزامن شعبة الطالب من فهارس مُحمَّلةٍ مسبقاً — ترفيعٌ أو نقلٌ داخل العام
+    نفسِه يُطفئ القيدَ القديم (is_active=False) وينشئ قيداً جديداً، بدل تركِ
+    قيدَين نشطَين معاً في العام نفسه (ما لا يمنعه القيدُ الفريد في القاعدة إذ
+    هو على زوج (طالب، شعبة) لا (طالب، عام))."""
+    from core.models import StudentEnrollment
 
     grade = _IMPORT_GRADE_NORMALIZE.get(grade_raw, "")
     if not (grade and section):
         stats["errors"].append(f"سطر {row_num}: تعذّر تفسير الصفّ/الشعبة ({grade_raw}/{section})")
         return
 
-    class_group = ClassGroup.objects.filter(
-        school=school, grade=grade, section=section, academic_year=year, is_active=True
-    ).first()
+    class_group = class_groups.get((grade, section))
     if not class_group and "/" in section:
         # شُعبُ التربية الخاصّة تحمل الصفَّ أحياناً داخل اسمها («08/ESE») وأحياناً
         # لا («ESE» وحدها، كما صار العُرف من 2026-2027) — جُرِّب الاسمَ المجرَّد.
-        bare_section = section.rsplit("/", 1)[-1]
-        class_group = ClassGroup.objects.filter(
-            school=school, grade=grade, section=bare_section, academic_year=year, is_active=True
-        ).first()
+        class_group = class_groups.get((grade, section.rsplit("/", 1)[-1]))
     if not class_group:
         stats["errors"].append(
             f"سطر {row_num}: الشعبة {grade}/{section} غير موجودة في {year} — تجاوز التسجيل"
         )
         return
 
-    current = (
-        StudentEnrollment.objects.filter(
-            student=student, is_active=True, class_group__academic_year=year
-        )
-        .select_related("class_group")
-        .first()
-    )
+    current = enrollments_cache.get(student.id)
     if current and current.class_group_id == class_group.id:
         return  # لا تغيير
     if current:
@@ -429,38 +467,70 @@ def _sync_student_class_group(
         current.save(update_fields=["is_active"])
         stats["enrollments_transferred"] += 1
 
-    _, created = StudentEnrollment.objects.get_or_create(
+    enrollment, created = StudentEnrollment.objects.get_or_create(
         student=student, class_group=class_group, defaults={"is_active": True}
     )
     if not created:
-        StudentEnrollment.objects.filter(student=student, class_group=class_group).update(
-            is_active=True
-        )
+        enrollment.is_active = True
+        enrollment.save(update_fields=["is_active"])
+    enrollment.class_group = class_group  # للمقارنة التالية إن تكرّر الرقمُ لاحقاً في نفس الملف
+    enrollments_cache[student.id] = enrollment
     stats["enrollments_created"] += 1
 
 
 def _sync_health_record(
-    student: Any, health_center_name: str, health_card_number: str, hamad_hospital_number: str
+    student: Any,
+    health_center_name: str,
+    health_card_number: str,
+    hamad_hospital_number: str,
+    *,
+    health_cache: dict[Any, Any],
 ) -> None:
-    """upsert لسجلّ العيادة — الحقولُ الثلاثةُ الوزاريّةُ وحدها، مشفَّرةٌ at-rest
-    بالحقل الشفّاف (core/fields.py)."""
+    """upsert لسجلّ العيادة من ذاكرةٍ مُحمَّلةٍ مسبقاً — الحقولُ الثلاثةُ
+    الوزاريّةُ وحدها، مشفَّرةٌ at-rest بالحقل الشفّاف (core/fields.py)."""
     from clinic.models import HealthRecord
 
-    record, _ = HealthRecord.objects.get_or_create(student=student)
+    record = health_cache.get(student.id)
+    is_new = record is None
+    if is_new:
+        record = HealthRecord(student=student)
+    changed = is_new or (
+        record.health_center_name,
+        record.health_card_number,
+        record.hamad_hospital_number,
+    ) != (health_center_name, health_card_number, hamad_hospital_number)
     record.health_center_name = health_center_name
     record.health_card_number = health_card_number
     record.hamad_hospital_number = hamad_hospital_number
-    record.save()
+    if changed:  # [أداء] كلّ save() يكتب سطراً في AuditLog — راجع _upsert_user_from_registry
+        record.save()
+    health_cache[student.id] = record
 
 
 def process_ministry_registry_import(
     uploaded_file: Any, school: Any, year: str, header_row: int, cols: dict[str, int]
 ) -> dict[str, Any]:
     """يستورد سجلّ القيد الوزاريّ (26 عموداً، W-028) — upsert مباشر فوق الحقول
-    التشغيليّة، ومصدرُ مركز البيانات الوطنيّ يغلب دائماً عند التعارض."""
+    التشغيليّة، ومصدرُ مركز البيانات الوطنيّ يغلب دائماً عند التعارض.
+
+    [أداء] الصفُّ الواحد كان يُجري نحو 15-20 استعلاماً (get_or_create لكلّ
+    علاقة) فاستغرق استيرادُ 734 صفاً نحو دقيقتين — شكوى المالك 2026-10-01.
+    فصار كلُّ ما يُحتمل تكراره عبر الصفوف (مستخدمون، شُعَب، قيودٌ، سجلّاتٌ
+    صحّيّة، روابطُ قرابة، عضويّات) يُحمَّل مرّةً واحدةً قبل الحلقة في فهارس
+    ذاكرةٍ، فلا تبقى استعلاماتُ القراءة إلّا لصفٍّ لم يُر من قبل.
+    """
     import openpyxl
 
-    from core.models import Membership, ParentStudentLink, Role
+    from clinic.models import HealthRecord
+    from core.models import (
+        ClassGroup,
+        CustomUser,
+        Membership,
+        ParentStudentLink,
+        Profile,
+        Role,
+        StudentEnrollment,
+    )
 
     roles = {r.name: r for r in Role.objects.all()}
     student_role = roles.get("student")
@@ -481,6 +551,60 @@ def process_ministry_registry_import(
         v = str(row[idx]).strip()
         return "" if v == "-" else v
 
+    # قراءةٌ أحاديّةٌ: `read_only=True` يُنتج صفوفاً عبر مولِّدٍ لا يُعاد تصفّحه،
+    # ويلزمنا تصفّحان (استخراجُ الأرقام الشخصيّة، ثمّ المعالجةُ الفعليّة).
+    rows = [
+        r
+        for r in ws.iter_rows(min_row=header_row + 1, values_only=True)
+        if r and _cell(r, "student_nid")
+    ]
+    wb.close()
+
+    all_nids = set()
+    for r in rows:
+        all_nids.add(_cell(r, "student_nid"))
+        pnid = _cell(r, "parent_nid")
+        if pnid:
+            all_nids.add(pnid)
+
+    # ── فهارسُ التحميل المسبق ────────────────────────────────────────
+    users_cache: dict[str, Any] = {
+        u.national_id: u for u in CustomUser.objects.filter(national_id__in=all_nids)
+    }
+    class_groups: dict[tuple[str, str], Any] = {
+        (cg.grade, cg.section): cg
+        for cg in ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
+    }
+    existing_memberships: set[tuple[Any, Any]] = (
+        set(Membership.objects.filter(school=school).values_list("user_id", "role_id"))
+        if school
+        else set()
+    )
+    enrollments_cache: dict[Any, Any] = (
+        {
+            e.student_id: e
+            for e in StudentEnrollment.objects.filter(
+                class_group__school=school, class_group__academic_year=year, is_active=True
+            ).select_related("class_group")
+        }
+        if school
+        else {}
+    )
+    health_cache: dict[Any, Any] = {
+        h.student_id: h for h in HealthRecord.objects.filter(student__national_id__in=all_nids)
+    }
+    profiles_cache: dict[Any, Any] = {
+        p.user_id: p for p in Profile.objects.filter(user__national_id__in=all_nids)
+    }
+    links_cache: dict[tuple[Any, Any], Any] = (
+        {
+            (link.parent_id, link.student_id): link
+            for link in ParentStudentLink.objects.filter(school=school)
+        }
+        if school
+        else {}
+    )
+
     stats: dict[str, Any] = {
         "students_created": 0,
         "students_existed": 0,
@@ -494,20 +618,18 @@ def process_ministry_registry_import(
     issued: list[dict] = []
 
     with transaction.atomic():
-        for row_num, row in enumerate(
-            ws.iter_rows(min_row=header_row + 1, values_only=True), start=header_row + 1
-        ):
-            if not row or not _cell(row, "student_nid"):
-                continue
-
+        for row_num, row in enumerate(rows, start=header_row + 1):
             student_nid = _cell(row, "student_nid")
             full_name = _cell(row, "full_name")
             if not full_name:
                 stats["errors"].append(f"سطر {row_num}: اسم الطالب {student_nid} فارغ — تجاوز")
                 continue
 
+            birth_date = _parse_ministry_date(_cell(row, "birth_date_raw"))
+            uses_bus_raw = _cell(row, "uses_bus_raw")
             student, s_created = _upsert_user_from_registry(
                 student_nid,
+                users_cache=users_cache,
                 full_name=full_name,
                 phone=_first_phone(_cell(row, "phone")),
                 email=_cell(row, "email"),
@@ -517,33 +639,48 @@ def process_ministry_registry_import(
                 employer_sector="",
                 employer_name="",
                 kahramaa_number=_cell(row, "kahramaa_number"),
+                uses_bus=uses_bus_raw in ("نعم", "Yes", "yes", "true", "True"),
                 role_label="طالب",
                 issued=issued,
             )
             stats["students_created" if s_created else "students_existed"] += 1
 
-            uses_bus_raw = _cell(row, "uses_bus_raw")
-            student.uses_bus = uses_bus_raw in ("نعم", "Yes", "yes", "true", "True")
-            student.save(update_fields=["uses_bus"])
-
-            birth_date = _parse_ministry_date(_cell(row, "birth_date_raw"))
             if birth_date:
-                from core.models import Profile
-
-                Profile.objects.update_or_create(user=student, defaults={"birth_date": birth_date})
+                profile = profiles_cache.get(student.id)
+                if profile is None:
+                    profile = Profile(user=student, birth_date=birth_date)
+                    profile.save()
+                    profiles_cache[student.id] = profile
+                elif profile.birth_date != birth_date:
+                    profile.birth_date = birth_date
+                    profile.save(update_fields=["birth_date"])
 
             if school:
-                Membership.objects.get_or_create(
-                    user=student, school=school, role=student_role, defaults={"is_active": True}
-                )
+                membership_key = (student.id, student_role.id)
+                if membership_key not in existing_memberships:
+                    Membership.objects.create(
+                        user=student, school=school, role=student_role, is_active=True
+                    )
+                    existing_memberships.add(membership_key)
                 grade_raw, section = _split_ministry_class(_cell(row, "class_combined"))
-                _sync_student_class_group(student, school, year, grade_raw, section, stats, row_num)
+                _sync_student_class_group(
+                    student,
+                    school,
+                    year,
+                    grade_raw,
+                    section,
+                    class_groups=class_groups,
+                    enrollments_cache=enrollments_cache,
+                    stats=stats,
+                    row_num=row_num,
+                )
 
             _sync_health_record(
                 student,
                 _cell(row, "health_center_name"),
                 _cell(row, "health_card_number"),
                 _cell(row, "hamad_hospital_number"),
+                health_cache=health_cache,
             )
 
             parent_nid = _cell(row, "parent_nid")
@@ -552,6 +689,7 @@ def process_ministry_registry_import(
 
             parent, p_created = _upsert_user_from_registry(
                 parent_nid,
+                users_cache=users_cache,
                 full_name=_cell(row, "parent_name"),
                 phone=_first_phone(_cell(row, "parent_phone")),
                 email=_cell(row, "parent_email"),
@@ -567,27 +705,31 @@ def process_ministry_registry_import(
             stats["parents_created" if p_created else "parents_existed"] += 1
 
             if school:
-                Membership.objects.get_or_create(
-                    user=parent, school=school, role=parent_role, defaults={"is_active": True}
-                )
+                membership_key = (parent.id, parent_role.id)
+                if membership_key not in existing_memberships:
+                    Membership.objects.create(
+                        user=parent, school=school, role=parent_role, is_active=True
+                    )
+                    existing_memberships.add(membership_key)
+
                 relation = _IMPORT_RELATION_MAP.get(_cell(row, "relation_raw"), "father")
-                _, link_created = ParentStudentLink.objects.get_or_create(
-                    parent=parent,
-                    student=student,
-                    school=school,
-                    defaults={
-                        "relationship": relation,
-                        "is_primary": True,
-                        "can_view_grades": True,
-                        "can_view_attendance": True,
-                    },
-                )
-                if not link_created:
-                    ParentStudentLink.objects.filter(
-                        parent=parent, student=student, school=school
-                    ).update(relationship=relation)
-                else:
+                link_key = (parent.id, student.id)
+                link = links_cache.get(link_key)
+                if link is None:
+                    ParentStudentLink.objects.create(
+                        parent=parent,
+                        student=student,
+                        school=school,
+                        relationship=relation,
+                        is_primary=True,
+                        can_view_grades=True,
+                        can_view_attendance=True,
+                    )
+                    links_cache[link_key] = True
                     stats["links_created"] += 1
+                elif link is not True and link.relationship != relation:
+                    link.relationship = relation
+                    link.save(update_fields=["relationship"])
 
     return {
         "success": True,
