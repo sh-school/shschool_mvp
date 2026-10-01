@@ -119,8 +119,272 @@ def day_caps(src: dict) -> tuple[int, int]:
     return (min(reg) if reg else 4), (min(thu) if thu else 4)
 
 
+class Layer:
+    """حالةُ توليدِ طبقةِ المعلّمين — تُمرَّر بين خطواتها بدل وسائطَ طويلة."""
+
+    def __init__(self, src: dict, out: dict) -> None:
+        self.out = out
+        self.dem = out["demand"]
+        self.cb = src["class_band"]
+        reg_cap, thu_cap = day_caps(src)
+        self.reg_cap, self.thu_cap = reg_cap, thu_cap
+        self.ceiling = min(MAX_GEN_LOAD, reg_cap * 4 + thu_cap - WEEK_SLACK)
+        self.pool = [f"GEN-T-{k + 1:03d}" for k in range(len({r["teacher"] for r in self.dem}))]
+        RNG.shuffle(self.pool)
+        self.load: Counter = Counter()
+        self.taken: dict = defaultdict(set)
+        self.mine_subj: dict = defaultdict(set)
+        self.drift = 0
+        self.serves: dict = {}
+        self.target_of: dict = {}
+        self.budget: dict = {}
+
+    def cap_of(self, teacher: str) -> int:
+        """سقفُ المعلّم: السقفُ البنيويُّ، وأخفضُ لمن يخدم ثلاثةَ نطاقات.
+
+        والهدفُ (`target_of`) توجيهٌ في الترتيب لا سقفٌ صلب — سقفاً يُوقف
+        التوليدَ حين يضيق معلّمو نطاقٍ (قيس: «تعذّر توليدُ طبقةِ معلّمين»).
+        """
+        return TRI_BAND_LOAD if len(self.serves[teacher]) >= 3 else self.ceiling
+
+    def fits(self, teacher: str, need: int, cls: str, elec: str, band: str) -> bool:
+        """أيقبل هذا المعلّمُ هذا الصفَّ؟ نطاقاً وسقفاً ومجموعةً متوازية.
+
+        والمجموعاتُ المتوازيةُ تلزمها معلّمون مختلفون: مادّتان في الخانة نفسِها
+        لنصفَي الشعبة. وأربعُ شُعبٍ في هذه البيانات نصابُها سبعٌ وثلاثون
+        وخاناتُها خمسٌ وثلاثون — فلا تُسع إلّا بالتوازي، ومعلّمٌ واحدٌ لمجموعتين
+        يُسقط الحزمةَ كلَّها (`INFEASIBLE`، قيس).
+        """
+        if band not in self.serves[teacher] or self.load[teacher] + need > self.cap_of(teacher):
+            return False
+        return not any(c == cls and e and elec and e != elec for c, e in self.taken[teacher])
+
+    def give(self, index: int, teacher: str) -> None:
+        """يُسند صفَّ الطلب إلى معلّمٍ ويُحدّث حالتَه."""
+        row = self.dem[index]
+        previous = row.get("teacher")
+        if previous in self.load:
+            self.load[previous] -= row["n"]
+        row["teacher"] = teacher
+        self.load[teacher] += row["n"]
+        self.taken[teacher].add((row["cls"], row["elec"]))
+        self.mine_subj[teacher].add(row["subj"])
+
+
+def band_sets(state: Layer) -> dict:
+    """مجموعةُ النطاقات لكلّ معلّم — والنطاقُ الأوّلُ بالتناسب مع حِمله.
+
+    التجميعُ بالنطاق مقصود: جرسُ النطاقات متداخلٌ بالساعة وفجواتُه صفر،
+    فأكثرُ أزواج الحصص بين نطاقين متلاصقةٌ وHC5 يمنعها — فمعلّمٌ يخدم نطاقين
+    يضيق يومُه. وفي الواقع سبعةٌ وأربعون من اثنين وسبعين يخدمون نطاقاً واحداً.
+    """
+    need: Counter = Counter()
+    for row in state.dem:
+        need[state.cb[row["cls"]]] += row["n"]
+    bands = sorted(need, key=lambda b: -need[b])
+    total = sum(need.values())
+    weighted = [b for b in bands for _ in range(max(1, round(20 * need[b] / total)))]
+    counts = [max(1, round(len(state.pool) * share)) for _k, share in BAND_MIX]
+    counts[0] = len(state.pool) - sum(counts[1:])
+    serves: dict = {}
+    cursor = 0
+    for (how_many_bands, _share), how_many_teachers in zip(BAND_MIX, counts, strict=False):
+        for _ in range(how_many_teachers):
+            first = weighted[RNG.randrange(len(weighted))]
+            extra = [b for b in bands if b != first]
+            RNG.shuffle(extra)
+            serves[state.pool[cursor]] = {first, *extra[: how_many_bands - 1]}
+            cursor += 1
+    return serves
+
+
+def load_targets(src: dict, pool: list) -> dict:
+    """أهدافُ النصاب: كلُّ هدفٍ متوسّطُ ثلاثةِ أنصبةٍ حقيقيّةٍ متجاورة.
+
+    فيبقى **مدى** التوزيع كما هو ويذهب نصابُ الفرد — ولا قيمةَ في الملفّ هي
+    نصابُ شخصٍ بعينه. والباقي يُوزَّع فيُحفظ المجموعُ تماماً.
+    """
+    real: Counter = Counter()
+    for row in src["demand"]:
+        real[row["teacher"]] += row["n"]
+    ordered = sorted(real.values())
+    targets: list = []
+    for start in range(0, len(ordered), SMOOTH_GROUP):
+        chunk = ordered[start : start + SMOOTH_GROUP]
+        base, extra = divmod(sum(chunk), len(chunk))
+        targets += [base + 1] * extra + [base] * (len(chunk) - extra)
+    RNG.shuffle(targets)
+    return dict(zip(pool, targets, strict=False))
+
+
+def subject_budget(pool: list) -> dict:
+    """ميزانيّةُ موادٍّ لكلّ معلّم — قيدُ تخصّصٍ لا أولويّة."""
+    quota = [max(0, round(len(pool) * share)) for _k, share in SUBJ_MIX]
+    quota[0] = len(pool) - sum(quota[1:])
+    spread = [k for (k, _share), many in zip(SUBJ_MIX, quota, strict=False) for _ in range(many)]
+    RNG.shuffle(spread)
+    return dict(zip(pool, spread, strict=False))
+
+
+def candidates(state: Layer, index: int, band: str) -> list:
+    """من يقبل هذا الصفّ: المتخصّصُ أوّلاً، ثمّ صاحبُ ميزانيّة، ثمّ أيُّ أحد.
+
+    والدرجةُ الثالثةُ تُحصى في `drift` وتُعلَن في `_fixture` فلا يُخفى تخصّصٌ
+    أُضعف اضطراراً.
+    """
+    row = state.dem[index]
+    args = (row["n"], row["cls"], row["elec"], band)
+    room = [t for t in state.pool if row["subj"] in state.mine_subj[t] and state.fits(t, *args)]
+    if room:
+        return room
+    room = [
+        t for t in state.pool if len(state.mine_subj[t]) < state.budget[t] and state.fits(t, *args)
+    ]
+    if room:
+        return room
+    room = [t for t in state.pool if state.fits(t, *args)]
+    if room:
+        state.drift += 1
+    return room
+
+
+def assign_rows(state: Layer, by_subj: dict) -> None:
+    """يُسند صفوفَ الطلب: المادّةُ الأثقلُ أوّلاً، والأبعدُ عن هدفه يأخذ.
+
+    فتأخذ المادّةُ الثقيلةُ معلّميها وهم فارغون ولا تُحشر في البقيّة؛ ويتحقّق
+    مدى الأنصبة بدل أن تتوازن في مدًى ضيّق.
+    """
+    order = sorted(by_subj.items(), key=lambda z: -sum(state.dem[i]["n"] for i in z[1]))
+    for _key, idxs in order:
+        band = state.cb[state.dem[idxs[0]]["cls"]]
+        for index in sorted(idxs, key=lambda j: -state.dem[j]["n"]):
+            room = candidates(state, index, band)
+            if not room:
+                raise SystemExit("تعذّر توليدُ طبقةِ معلّمين بهذه النسب — راجع BAND_MIX أو السقف")
+            state.give(index, max(room, key=lambda t: (state.target_of[t] - state.load[t], t)))
+
+
+def activate_bands(state: Layer) -> None:
+    """يُفعّل خدمةَ النطاقات فعلاً لمن أُهّل لها ولم تقع له.
+
+    معلّمٌ مؤهَّلٌ لنطاقين وقعت صفوفُه كلُّها في نطاقٍ واحدٍ **لا يُفعّل القيدَ
+    الذي يُراد اختبارُه** — وحزمةٌ كذلك «تحذف حالةَ القيد» (حكمُ 0403). فيُنقل
+    إليه صفٌّ من نطاقه الآخر، بشرط أن يبقى المانحُ في نطاقه (له فيه صفٌّ آخر):
+    وشرطُ «أن يكون المانحُ متعدّدَ النطاقات أصلاً» عاطلٌ حين يبدأ الجميعُ
+    بنطاقٍ واحد (قيس: التمريرةُ لم تُحرّك شيئاً والنتيجةُ مئةٌ بالمئة).
+    """
+    actual: dict = defaultdict(set)
+    for row in state.dem:
+        actual[row["teacher"]].add(state.cb[row["cls"]])
+    for teacher in state.pool:
+        for band in sorted(state.serves[teacher] - actual[teacher]):
+            rows_in_band: Counter = Counter()
+            for row in state.dem:
+                rows_in_band[row["teacher"], state.cb[row["cls"]]] += 1
+            moved = next(
+                (
+                    i
+                    for i, row in enumerate(state.dem)
+                    if state.cb[row["cls"]] == band
+                    and row["teacher"] != teacher
+                    and rows_in_band[row["teacher"], band] > 1
+                    and (
+                        row["subj"] in state.mine_subj[teacher]
+                        or len(state.mine_subj[teacher]) < state.budget[teacher]
+                    )
+                    and state.fits(teacher, row["n"], row["cls"], row["elec"], band)
+                ),
+                None,
+            )
+            if moved is None:
+                continue
+            previous = state.dem[moved]["teacher"]
+            state.give(moved, teacher)
+            actual[teacher].add(band)
+            actual[previous] = {state.cb[r["cls"]] for r in state.dem if r["teacher"] == previous}
+
+
+def fill_empty(state: Layer) -> None:
+    """لا معلّمَ بلا نصاب: يأخذ صفّاً من أثقلِ من يحتمل فقدَه في نطاقٍ يخدمه."""
+    for teacher in state.pool:
+        if state.load[teacher]:
+            continue
+        row = next(
+            (
+                i
+                for donor in sorted(state.load, key=lambda z: -state.load[z])
+                for i, r in enumerate(state.dem)
+                if r["teacher"] == donor
+                and state.load[donor] > r["n"]
+                and state.cb[r["cls"]] in state.serves[teacher]
+            ),
+            None,
+        )
+        if row is not None:
+            state.give(row, teacher)
+
+
+def full_day_exemptions(state: Layer, src: dict) -> list:
+    """اليومُ المُفرَّغُ كاملاً لمن يحتمله نصابُه على أربعة أيّامٍ بالهامش.
+
+    وشرطٌ ثانٍ لا يُغفَل: صفٌّ نصابُه خمسُ حصصٍ سقفُه حصّةٌ في اليوم فيلزمه
+    خمسةُ أيّامٍ مختلفة — فمن له صفٌّ كهذا لا يُمنح يوماً مُفرَّغاً أصلاً.
+    (قيس: معلّمٌ نصابُه خمسٌ في صفٍّ واحدٍ ومعه يومٌ مُفرَّغ = `INFEASIBLE`.)
+    """
+    four_day = state.reg_cap * 3 + state.thu_cap - WEEK_SLACK
+    biggest: Counter = Counter()
+    for row in state.dem:
+        biggest[row["teacher"]] = max(biggest[row["teacher"]], row["n"])
+    eligible = [t for t in state.pool if state.load[t] <= four_day and biggest[t] <= 4]
+    RNG.shuffle(eligible)
+    return [[t, RNG.randrange(5)] for t in eligible[: len(src["ex_full"])]]
+
+
+def period_exemptions(state: Layer, src: dict) -> list:
+    """تفريغاتُ الحصص: أعدادُها كما هي، وأصحابُها ومواضعُها مُولَّدة.
+
+    ولا تُعطى لمن نصابُه قريبٌ من سقفه.
+    """
+    light = [t for t in state.pool if state.load[t] <= state.ceiling - 2] or state.pool
+    owners = {t for t, *_ in src["ex_period"]}
+    holders = RNG.sample(light, k=min(len(owners), len(light)))
+    counts = sorted((sum(1 for t, *_ in src["ex_period"] if t == o) for o in owners), reverse=True)
+    cells: set = set()
+    made: list = []
+    for holder, want in zip(holders, counts, strict=False):
+        while sum(1 for h, *_ in made if h == holder) < want:
+            day, period = RNG.randrange(5), RNG.randrange(1, 8)
+            if (holder, day, period) in cells:
+                continue
+            cells.add((holder, day, period))
+            made.append([holder, day, period])
+    return made
+
+
+def preferences(state: Layer, src: dict, ex_full: list) -> list:
+    """التفضيلُ يُسند لمن يحتمله: سقفٌ شخصيٌّ منخفضٌ على عاليِ النصاب يُسقط الحزمة.
+
+    (`res,maxd` = `INFEASIBLE`، قيس.) فيُشترط أن يبلغ نصابُه السقفَ الشخصيَّ في
+    أيّامه بهامشٍ — ومن لا يحتمله لا يُسند له.
+    """
+    free_days = {t: 5 - sum(1 for u, _ in ex_full if u == t) for t in state.pool}
+    out: list = []
+    used: set = set()
+    for pref in src["prefs"]:
+        personal = pref.get("max_daily_periods") or 5
+        fits = [
+            t for t in state.pool if t not in used and state.load[t] + 2 <= personal * free_days[t]
+        ]
+        if not fits:
+            continue
+        owner = min(fits, key=lambda t: (state.load[t], t))
+        used.add(owner)
+        out.append({**{k: v for k, v in pref.items() if k != "teacher_id"}, "teacher_id": owner})
+    return out
+
+
 def generate_teachers(src: dict) -> dict:
-    """طبقةُ المعلّمين **مُولَّدةٌ** بقيدٍ بنيويّ — D-96م، بعد إخفاقَين مقيسين.
+    """طبقةُ المعلّمين **مُولَّدةٌ** بقيدٍ بنيويّ — D-96م، بعد إخفاقاتٍ مقيسة.
 
     الفرقُ الذي بُني عليه التصميم: **خطّةُ كلّ شعبةٍ (شعبة + مادّة + عددُ حصص)
     ليست بياناً شخصيّاً** — هي الخطّةُ الدراسيّة، تُترك حرفيّاً فتبقى الحزمةُ
@@ -128,256 +392,70 @@ def generate_teachers(src: dict) -> dict:
     وتفضيلاتُهم — فيُولَّد توليداً، فلا يبقى في الملفّ نصابُ أحدٍ ولا نمطُ
     تفريغه، ولا مطابقةَ ولا ندرةَ تُقاس.
 
-    **وإخفاقان سبقا هذا التصميم، وقياسُهما هو تبريره:**
+    **وثلاثةُ إخفاقاتٍ سبقت هذا التصميم، وقياسُها هو تبريره:**
 
     1. *تشويشٌ بالإزاحة* (خلطُ معلّمين داخل المادّة، ثمّ إلزامُ k على قيم
        الأنصبة): فشل في **الخصوصيّة** — سبعةٌ وأربعون بالمئة حفظوا نصابَهم
-       الحقيقيَّ بالضبط، وأقلُّ حاملي قيمةٍ واحدٌ في ثلاثٍ من خمس تشغيلات.
-       والعلّةُ بنيويّة: النصابُ مجموعُ الصفوف، وأحجامُها في المادّة محدودةٌ،
-       فكسرُ ندرةٍ يصنع أخرى.
+       الحقيقيَّ بالضبط. والعلّةُ بنيويّة: النصابُ مجموعُ الصفوف وأحجامُها في
+       المادّة محدودةٌ، فكسرُ ندرةٍ يصنع أخرى.
     2. *توليدٌ بلا قيدٍ بنيويّ*: فشل في **الجدوى** — `INFEASIBLE` حتّى بلا أيّ
-       سقفٍ اختياريّ. والسببُ معلّمٌ مُولَّدٌ نصابُه ستّةَ عشرَ ومعه يومٌ مُفرَّغٌ
-       كاملاً: أربعٌ في كلّ يومٍ من أربعةٍ، على الحدّ البنيويّ بلا هامشٍ واحد.
-
-    فصار التوليدُ مقيَّداً بسقف الجرس (`day_caps`) ناقصاً `WEEK_SLACK`، ولا
-    يُمنح يومٌ مُفرَّغٌ كاملاً إلّا لمن يحتمله نصابُه بعد الهامش.
+       سقفٍ اختياريّ (معلّمٌ نصابُه ستّةَ عشرَ ومعه يومٌ مُفرَّغٌ كاملاً).
+    3. *مطابقةُ التوزيعات الهامشيّة وحدَها*: لا تضمن الجدوى — مرشَّحٌ
+       `INFEASIBLE` ومرشَّحٌ بالنسب نفسِها `OPTIMAL`. فالإسنادُ نقطةٌ صالحةٌ في
+       فضاءٍ ضيّق لا نمطٌ إحصائيّ، ويلزمه **تحقّقٌ بالحلّال** لا نسبٌ وحدَها.
     """
     out = json.loads(json.dumps(src))
-    dem = out["demand"]
-    reg_cap, thu_cap = day_caps(src)
-    ceiling = min(MAX_GEN_LOAD, reg_cap * 4 + thu_cap - WEEK_SLACK)
+    state = Layer(src, out)
+    state.serves = band_sets(state)
+    state.target_of = load_targets(src, state.pool)
+    state.budget = subject_budget(state.pool)
 
-    #: التجميعُ بـ(مادّة، نطاق) لا بالمادّة وحدَها — وهذا هو الدرسُ الثالث:
-    #: جرسُ النطاقات متداخلٌ بالساعة وفجواتُه صفر، فأكثرُ أزواج الحصص بين
-    #: نطاقين متلاصقةٌ بالساعة، وHC5 يمنعها. فمعلّمٌ يخدم نطاقين يضيق يومُه إلى
-    #: حصّتين أو ثلاث. وفي الواقع سبعةٌ وأربعون من اثنين وسبعين يخدمون نطاقاً
-    #: واحداً — فتوليدٌ يخالف ذلك يُخرج حزمةً `INFEASIBLE` (قيس مرّتين).
-    cb = src["class_band"]
     by_subj: dict = defaultdict(list)
-    for i, row in enumerate(dem):
-        by_subj[(row["subj"], cb[row["cls"]])].append(i)
+    for i, row in enumerate(state.dem):
+        by_subj[(row["subj"], state.cb[row["cls"]])].append(i)
 
-    pool = [f"GEN-T-{k + 1:03d}" for k in range(len({r["teacher"] for r in dem}))]
-    RNG.shuffle(pool)
-    load: Counter = Counter()
-    taken: dict = defaultdict(set)
+    assign_rows(state, by_subj)
+    activate_bands(state)
+    fill_empty(state)
 
-    #: حِملُ كلّ نطاقٍ أوّلاً، فيُوزَّع المعلّمون عليه بنسبته لا بالتساوي.
-    band_need: Counter = Counter()
-    for row in dem:
-        band_need[cb[row["cls"]]] += row["n"]
-    bands = sorted(band_need, key=lambda b: -band_need[b])
-    total_need = sum(band_need.values())
-
-    #: مجموعاتُ النطاقات: من يخدم نطاقاً، ومن يخدم اثنين، ومن ثلاثة — بالنسب
-    #: المقيسة. والنطاقُ الأوّلُ لكلّ معلّمٍ يُسحب بالتناسب مع حِمل النطاقات،
-    #: والإضافيُّ عشوائيٌّ من البقيّة.
-    serves: dict = {}
-    counts = [max(1, round(len(pool) * share)) for _k, share in BAND_MIX]
-    counts[0] = len(pool) - sum(counts[1:])
-    cursor = 0
-    weighted = [b for b in bands for _ in range(max(1, round(20 * band_need[b] / total_need)))]
-    for (k, _share), how_many in zip(BAND_MIX, counts, strict=False):
-        for _ in range(how_many):
-            first = weighted[RNG.randrange(len(weighted))]
-            extra = [b for b in bands if b != first]
-            RNG.shuffle(extra)
-            serves[pool[cursor]] = {first, *extra[: k - 1]}
-            cursor += 1
-
-    #: أهدافُ النصاب: الأنصبةُ الحقيقيّةُ مُرتَّبةً، ثمّ كلُّ ثلاثةٍ متجاورةٍ
-    #: تُستبدل بثلاثِ نسخٍ من متوسّطها (والباقي يُوزَّع فيحفظ المجموع تماماً).
-    #: فيبقى المدى ويذهب نصابُ الفرد.
-    real_loads = Counter()
-    for row in src["demand"]:
-        real_loads[row["teacher"]] += row["n"]
-    ordered = sorted(real_loads.values())
-    targets: list = []
-    for start in range(0, len(ordered), SMOOTH_GROUP):
-        chunk = ordered[start : start + SMOOTH_GROUP]
-        base, extra = divmod(sum(chunk), len(chunk))
-        targets += [base + 1] * extra + [base] * (len(chunk) - extra)
-    RNG.shuffle(targets)
-
-    #: ميزانيّةُ موادٍّ لكلّ معلّمٍ بالنسب المقيسة — قيدُ تخصّصٍ لا أولويّة.
-    quota = [max(0, round(len(pool) * share)) for _k, share in SUBJ_MIX]
-    quota[0] = len(pool) - sum(quota[1:])
-    spread = [k for (k, _share), many in zip(SUBJ_MIX, quota, strict=False) for _ in range(many)]
-    RNG.shuffle(spread)
-    budget = dict(zip(pool, spread, strict=False))
-    mine_subj: dict = defaultdict(set)
-    drift = [0]
-
-    def ceiling_for(teacher: str) -> int:
-        #: الهدفُ توجيهٌ في الترتيب لا سقفٌ صلب: سقفاً يُوقف التوليدَ حين يضيق
-        #: معلّمو نطاقٍ (قيس: «تعذّر توليدُ طبقةِ معلّمين»). والسقفُ البنيويُّ
-        #: وحدَه يمنع، والهدفُ يجذب.
-        return TRI_BAND_LOAD if len(serves[teacher]) >= 3 else ceiling
-
-    target_of = dict(zip(pool, targets, strict=False))
-
-    #: المادّةُ الأثقلُ أوّلاً: تأخذ معلّميها وهم فارغون فلا تُحشر في البقيّة.
-    for _key, idxs in sorted(by_subj.items(), key=lambda z: -sum(dem[i]["n"] for i in z[1])):
-        band = cb[dem[idxs[0]]["cls"]]
-        for i in sorted(idxs, key=lambda j: -dem[j]["n"]):
-            need = dem[i]["n"]
-            here = dem[i]["cls"], dem[i]["elec"]
-            #: والمجموعاتُ المتوازيةُ تلزمها معلّمون مختلفون: مادّتان في الخانة
-            #: نفسِها لنصفَي الشعبة. وأربعُ شُعبٍ في هذه البيانات نصابُها سبعٌ
-            #: وثلاثون وخاناتُها خمسٌ وثلاثون — فلا تُسع إلّا بالتوازي، ومعلّمٌ
-            #: واحدٌ لمجموعتين يُسقط الحزمةَ كلَّها (`INFEASIBLE`، قيس).
-            subject = dem[i]["subj"]
-
-            def fits(t, need=need, here=here, band=band):
-                return (
-                    band in serves[t]
-                    and load[t] + need <= ceiling_for(t)
-                    and not any(
-                        c == here[0] and e and here[1] and e != here[1] for c, e in taken[t]
-                    )
-                )
-
-            #: المتخصّصُ في المادّة أوّلاً، ثمّ من بقيت له ميزانيّةُ مادّةٍ
-            #: جديدة، ثمّ — عند الضيق وحدَه — أيُّ معلّمٍ في النطاق، ويُحصى
-            #: الانحرافُ ويُعلَن في `_fixture` فلا يُخفى تخصّصٌ أُضعف اضطراراً.
-            room = [t for t in pool if subject in mine_subj[t] and fits(t)]
-            if not room:
-                room = [t for t in pool if len(mine_subj[t]) < budget[t] and fits(t)]
-            if not room:
-                room = [t for t in pool if fits(t)]
-                drift[0] += 1
-            if not room:
-                raise SystemExit("تعذّر توليدُ طبقةِ معلّمين بهذه النسب — راجع BAND_MIX أو السقف")
-            #: الأبعدُ عن هدفه أوّلاً — فتتحقّق الأهدافُ بدل أن تتوازن
-            #: الأنصبةُ في مدًى ضيّق.
-            pick = max(room, key=lambda t: (target_of[t] - load[t], t))
-            dem[i]["teacher"] = pick
-            load[pick] += need
-            taken[pick].add(here)
-            mine_subj[pick].add(subject)
-
-    #: تمريرةٌ تُفعّل خدمةَ النطاقات فعلاً: معلّمٌ مؤهَّلٌ لنطاقين وقد وقعت
-    #: صفوفُه كلُّها في نطاقٍ واحدٍ لا يُفعّل القيدَ الذي يُراد اختبارُه — وحزمةٌ
-    #: كذلك «تحذف حالةَ القيد» (حكمُ 0403). فيُنقل إليه صفٌّ من نطاقه الآخر.
-    actual: dict = defaultdict(set)
-    for row in dem:
-        actual[row["teacher"]].add(cb[row["cls"]])
-    for teacher in pool:
-        for band in sorted(serves[teacher] - actual[teacher]):
-            #: والمانحُ يُشترط أن يبقى في نطاقه بعد المنح (له فيه صفٌّ آخر) —
-            #: لا أن يكون متعدّدَ النطاقات أصلاً، فذاك شرطٌ عاطلٌ حين يبدأ
-            #: الجميعُ بنطاقٍ واحد (قيس: التمريرةُ لم تُحرّك شيئاً والنتيجةُ
-            #: مئةٌ بالمئة نطاقاً واحداً). والمادّةُ تُحترم كذلك: التخصّصُ قيدٌ.
-            rows_in_band: Counter = Counter()
-            for r in dem:
-                rows_in_band[r["teacher"], cb[r["cls"]]] += 1
-            moved = next(
-                (
-                    i
-                    for i, r in enumerate(dem)
-                    if cb[r["cls"]] == band
-                    and r["teacher"] != teacher
-                    and rows_in_band[r["teacher"], band] > 1
-                    and (
-                        r["subj"] in mine_subj[teacher] or len(mine_subj[teacher]) < budget[teacher]
-                    )
-                    and load[teacher] + r["n"] <= ceiling_for(teacher)
-                    and not any(
-                        c == r["cls"] and e and r["elec"] and e != r["elec"]
-                        for c, e in taken[teacher]
-                    )
-                ),
-                None,
-            )
-            if moved is None:
-                continue
-            previous = dem[moved]["teacher"]
-            dem[moved]["teacher"] = teacher
-            load[previous] -= dem[moved]["n"]
-            load[teacher] += dem[moved]["n"]
-            taken[teacher].add((dem[moved]["cls"], dem[moved]["elec"]))
-            actual[teacher].add(band)
-            mine_subj[teacher].add(dem[moved]["subj"])
-            actual[previous] = {cb[r["cls"]] for r in dem if r["teacher"] == previous}
-
-    #: ولا معلّمَ بلا نصاب: يأخذ صفّاً من أثقلِ من يحتمل فقدَه في نطاقٍ يخدمه.
-    for teacher in pool:
-        if load[teacher]:
-            continue
-        row = next(
-            (
-                i
-                for donor in sorted(load, key=lambda z: -load[z])
-                for i, r in enumerate(dem)
-                if r["teacher"] == donor
-                and load[donor] > r["n"]
-                and cb[r["cls"]] in serves[teacher]
-            ),
-            None,
-        )
-        if row is None:
-            continue
-        previous = dem[row]["teacher"]
-        dem[row]["teacher"] = teacher
-        load[teacher] += dem[row]["n"]
-        load[previous] -= dem[row]["n"]
-
-    #: اليومُ المُفرَّغُ كاملاً لمن يحتمله نصابُه على أربعة أيّامٍ بالهامش.
-    four_day = reg_cap * 3 + thu_cap - WEEK_SLACK
-    #: وشرطٌ ثانٍ لا يُغفَل: صفٌّ نصابُه خمسُ حصصٍ سقفُه حصّةٌ في اليوم، فيلزمه
-    #: خمسةُ أيّامٍ مختلفة — فمن له صفٌّ كهذا لا يُمنح يوماً مُفرَّغاً أصلاً.
-    #: (قيس: معلّمٌ نصابُه خمسٌ في صفٍّ واحدٍ ومعه يومٌ مُفرَّغ = `INFEASIBLE`.)
-    biggest: Counter = Counter()
-    for row in dem:
-        biggest[row["teacher"]] = max(biggest[row["teacher"]], row["n"])
-    eligible = [t for t in pool if load[t] <= four_day and biggest[t] <= 4]
-    RNG.shuffle(eligible)
-    out["ex_full"] = [[t, RNG.randrange(5)] for t in eligible[: len(src["ex_full"])]]
-
-    #: وتفريغاتُ الحصص: أعدادُها كما هي، وأصحابُها ومواضعُها مُولَّدة، ولا
-    #: تُعطى لمن نصابُه قريبٌ من سقفه.
-    light = [t for t in pool if load[t] <= ceiling - 2] or pool
-    owners = {t for t, *_ in src["ex_period"]}
-    holders = RNG.sample(light, k=min(len(owners), len(light)))
-    counts = sorted(
-        (sum(1 for t, *_ in src["ex_period"] if t == o) for o in owners),
-        reverse=True,
-    )
-    cells: set = set()
-    out["ex_period"] = []
-    for holder, want_n in zip(holders, counts, strict=False):
-        made = 0
-        while made < want_n:
-            day, period = RNG.randrange(5), RNG.randrange(1, 8)
-            if (holder, day, period) in cells:
-                continue
-            cells.add((holder, day, period))
-            out["ex_period"].append([holder, day, period])
-            made += 1
-
-    #: والتفضيلُ يُسند لمن يحتمله: سقفٌ يوميٌّ شخصيٌّ منخفضٌ على معلّمٍ نصابُه
-    #: عالٍ يُسقط الحزمةَ (`res,maxd` = `INFEASIBLE`، قيس). فيُشترط أن يبلغ
-    #: نصابُه السقفَ الشخصيَّ في أيّامه بهامشٍ — ومن لا يحتمله لا يُسند له.
-    free_days = {t: 5 - sum(1 for u, _ in out["ex_full"] if u == t) for t in pool}
-    out["prefs"] = []
-    used: set = set()
-    for pref in src["prefs"]:
-        personal = pref.get("max_daily_periods") or 5
-        fits = [t for t in pool if t not in used and load[t] + 2 <= personal * free_days[t]]
-        if not fits:
-            continue
-        owner = min(fits, key=lambda t: (load[t], t))
-        used.add(owner)
-        out["prefs"].append(
-            {**{k: v for k, v in pref.items() if k != "teacher_id"}, "teacher_id": owner}
-        )
-    out["teacher_names"] = {t: t for t in pool}
-    OVERRUNS[0] = drift[0]
+    out["ex_full"] = full_day_exemptions(state, src)
+    out["ex_period"] = period_exemptions(state, src)
+    out["prefs"] = preferences(state, src, out["ex_full"])
+    out["teacher_names"] = {t: t for t in state.pool}
+    OVERRUNS[0] = state.drift
     return out
 
 
 #: يُحمل من آخر توليدٍ ليُعلَن في `_fixture`.
 OVERRUNS = [0]
+
+
+def renamed(src: dict, t_id: Ids, c_id: Ids, s_id: Ids) -> dict:
+    """الأسماءُ: الموادُّ منهجٌ معلَن فتبقى، والمعلّمون والشُّعبُ ترقيمٌ وصفيّ."""
+    return {
+        "subject_names": {s_id(k): v for k, v in src["subject_names"].items() if k in s_id.seen},
+        "teacher_names": {v: f"معلّم {v.split('-')[1]}" for v in t_id.seen.values()},
+        "class_names": {v: f"شعبة {v.split('-')[1]}" for v in c_id.seen.values()},
+    }
+
+
+def resources_of(src: dict, r_id: Ids, s_id: Ids) -> dict:
+    """المواردُ وموادُّها: أوصافُ أماكنَ وسعاتٌ — لا هويّاتَ أشخاصٍ فيها."""
+    return {
+        "resources": [
+            {"id": r_id(r["id"]), "name": r["name"], "capacity": r["capacity"]}
+            for r in src["resources"]
+        ],
+        "res_subjects": {
+            r_id(k): sorted({s_id(s) for s in v if s in s_id.seen})
+            for k, v in src["res_subjects"].items()
+        },
+        "subjects": [
+            {**{k: v for k, v in x.items() if k != "id"}, "id": s_id(x["id"])}
+            for x in src["subjects"]
+            if x["id"] in s_id.seen
+        ],
+    }
 
 
 def build(src: dict) -> dict:
@@ -425,25 +503,8 @@ def build(src: dict) -> dict:
         if p["teacher_id"] in t_id.seen
     ]
 
-    #: أسماءُ الموادِّ منهجٌ معلَن فتبقى؛ وأسماءُ المعلّمين تُستبدل بترقيمٍ وصفيّ؛
-    #: وأسماءُ الشُّعب تُبنى من الصفّ والشعبة بلا ربطٍ بالسجلّ الحقيقيّ.
-    out["subject_names"] = {s_id(k): v for k, v in src["subject_names"].items() if k in s_id.seen}
-    out["teacher_names"] = {v: f"معلّم {v.split('-')[1]}" for v in t_id.seen.values()}
-    out["class_names"] = {v: f"شعبة {v.split('-')[1]}" for v in c_id.seen.values()}
-
-    out["resources"] = [
-        {"id": r_id(r["id"]), "name": r["name"], "capacity": r["capacity"]}
-        for r in src["resources"]
-    ]
-    out["res_subjects"] = {
-        r_id(k): sorted({s_id(s) for s in v if s in s_id.seen})
-        for k, v in src["res_subjects"].items()
-    }
-    out["subjects"] = [
-        {**{k: v for k, v in s.items() if k != "id"}, "id": s_id(s["id"])}
-        for s in src["subjects"]
-        if s["id"] in s_id.seen
-    ]
+    out.update(renamed(src, t_id, c_id, s_id))
+    out.update(resources_of(src, r_id, s_id))
 
     out["_fixture"] = {
         "origin": "خطّةٌ دراسيّةٌ حقيقيّةٌ مُقنَّعة + طبقةُ معلّمين مُولَّدة — D-93م/D-96م، W-20261001-037",
