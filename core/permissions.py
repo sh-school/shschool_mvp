@@ -606,6 +606,36 @@ def role_required(*roles):
     return decorator
 
 
+def deny_role(role: str, *, reason: str):
+    """استبعادٌ صريحٌ لدورٍ بعينه عن شاشةٍ — ولو كان `is_superuser` (`role_required` يُمرّره دائماً).
+
+    حارسُ `role_required`/`capability_required` العاديّ يعتمد على **غياب** الدور عن مجموعة
+    الأدوار المسموحة؛ وهذا هشٌّ أمام تجاوز `is_superuser` الذي يمرّ قبل أيّ تحقّقٍ من الدور
+    (`platform_developer` قد يحمل `is_superuser=True` في بيئةٍ ما). فحين يكون الاستبعادُ
+    قرارَ سياسةٍ مقصوداً — لا نتيجةً عرضيّةً لعدم الإدراج — يُطبَّق هذا الديكوريتورُ **قبل**
+    `role_required`/`capability_required` ليحجب الدورَ بالاسم مهما كانت صفاتُ الحساب الأخرى.
+
+    Usage:
+        @deny_role("platform_developer", reason="تحليلاتُ المدرسة محجوبةٌ عنه — قرارُ المالك D-98م")
+        @login_required
+        @capability_required("analytics.school")
+        def my_view(request): ...
+    """
+
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapper(request, *args, **kwargs):
+            if request.user.is_authenticated and request.user.get_role() == role:
+                log_denial(request, role=role, required=f"ليس {role} ({reason})")
+                return _forbidden_response(request, reason)
+            return view_func(request, *args, **kwargs)
+
+        wrapper._denied_role = role
+        return wrapper
+
+    return decorator
+
+
 def department_scoped(*roles):
     """
     ديكوريتور للصلاحيات المقيّدة بالقسم/التخصص.
