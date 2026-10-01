@@ -29,12 +29,18 @@ _IMPORT_RELATION_MAP: dict[str, str] = {
     "والدة": "mother",
     "وصي": "guardian",
     "وصية": "guardian",
+    "شقيق أخ": "other",
+    "أخ": "other",
+    "جد": "other",
 }
 
 _IMPORT_GRADE_NORMALIZE = {
     "7": "G7",
     "8": "G8",
     "9": "G9",
+    "07": "G7",
+    "08": "G8",
+    "09": "G9",
     "10": "G10",
     "11": "G11",
     "12": "G12",
@@ -217,10 +223,25 @@ def process_student_import(uploaded_file: Any, school: Any, year: Any) -> dict[s
     """
     يقرأ ملف Excel ويستورد الطلاب + أولياء الأمور.
     يُعيد dict بإحصائيات النتيجة + قائمة الأخطاء.
+
+    يُحاول أوّلاً التعرّفَ على قالب سجلّ القيد الوزاريّ (W-028 — رأسٌ بعموده
+    الأوّل «الرقم» خلال أوّل عشرة صفوف) وتفويضَ المعالجة لـ
+    `process_ministry_registry_import`، وهو القالبُ المعتمَد منذ 2026-10-01؛
+    فإن لم يكن كذلك يرجع إلى القالب المبسَّط القديم (11 عموداً) للتوافق مع
+    ملفّاتٍ محليّةٍ قد تبقى مستعملةً.
     """
     import openpyxl
 
+    from core.ministry_import import _locate_ministry_header, process_ministry_registry_import
     from core.models import Membership, Role
+
+    detect_wb = openpyxl.load_workbook(uploaded_file, read_only=True, data_only=True)
+    located = _locate_ministry_header(detect_wb.active)
+    detect_wb.close()
+    if located:
+        header_row, cols = located
+        uploaded_file.seek(0)
+        return process_ministry_registry_import(uploaded_file, school, year, header_row, cols)
 
     roles = {r.name: r for r in Role.objects.all()}
     student_role = roles.get("student")

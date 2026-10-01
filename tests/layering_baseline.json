@@ -62,6 +62,13 @@
    "reason": "سطرٌ واحدٌ لرؤية الوزارة في التذييل (قرار المالك 2026-09-27)، عرضٌ مديونٌ أصلاً قبل هذا الفرع",
    "to": 101,
    "where": "student_affairs/views.py::tardiness_export_excel"
+  },
+  {
+   "from": 1,
+   "metric": "import",
+   "reason": "W-028: استيرادُ سجلّ القيد يكتب أطلسياً سطرَ الطالب (core) وسجلَّه الصحّيّ (clinic.HealthRecord) من صفٍّ واحد",
+   "to": 2,
+   "where": "core → clinic"
   }
  ],
  "core_import_sites": {
@@ -76,7 +83,8 @@
    "core/dashboard_selectors.py"
   ],
   "clinic": [
-   "core/dashboard_selectors.py"
+   "core/dashboard_selectors.py",
+   "core/ministry_import.py"
   ],
   "library": [
    "core/dashboard_selectors.py"
@@ -118,7 +126,7 @@
   "academic_management": 2,
   "assessments": 3,
   "behavior": 1,
-  "clinic": 1,
+  "clinic": 2,
   "library": 1,
   "notifications": 1,
   "operations": 15,
