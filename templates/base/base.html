@@ -307,13 +307,30 @@
       <a href="{% url 'my_procedures' %}" class="nb">{% icon "my_actions" %} إجراءاتي</a>
       {% endif %}
 
-    {% elif role == "secretary" or role == "admin_supervisor" %}
+    {% elif role == "secretary" %}
+      {# W-20261001-026: STAFF_AFFAIRS_MANAGE اتّسعت لتشمله، فيفتح القائمةَ
+         الكاملةَ لا الرابطين الثابتين وحدَهما — والجودةُ والخدماتُ والإدارةُ
+         نظيرُ ما يراه الإداريّ (T4)، بلا الشؤون الأكاديميّة ولا شؤون الطلاب
+         ولا مركز معلومات الطلبة (قرارُ المالك 2026-10-01). #}
       {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% icon "dashboard" %} الرئيسية</a>
       {% endif %}
-      {% if role == "secretary" %}<a href="{% url 'staff_affairs:attendance_board' %}" class="nb">{% icon "attendance_register" %} حضور الموظفين</a>
-      <a href="{% url 'staff_affairs:permit_queue' %}" class="nb">{% icon "tardiness" %} طلبات الأذونات</a>{% endif %}
-      {% if role == "admin_supervisor" %}<a href="{% url 'wings:record_index' %}" class="nb">{% icon "attendance_register" %} رصد الغياب</a>
+      <button class="nb" id="btn-staff-affairs" data-sd="m-staff-affairs" aria-expanded="false" aria-controls="m-staff-affairs">{% icon "staff" %} شؤون الموظفين <span class="chv">▼</span></button>
+      <button class="nb" id="btn-quality" data-sd="m-quality" aria-expanded="false" aria-controls="m-quality">{% icon "quality" %} الجودة <span class="chv">▼</span></button>
+      <button class="nb" id="btn-services" data-sd="m-services" aria-expanded="false" aria-controls="m-services">{% icon "services" %} الخدمات <span class="chv">▼</span></button>
+      <button class="nb" id="btn-admin" data-sd="m-admin" aria-expanded="false" aria-controls="m-admin">{% icon "maintenance" %} الإدارة <span class="chv">▼</span></button>
+      {% if request.user|can_open:"notification_inbox" %}
+      <a href="{% url 'notification_inbox' %}" class="nb">{% icon "notifications" %} الإشعارات</a>
+      {% endif %}
+      {% if request.user|can_open:"my_procedures" %}
+      <a href="{% url 'my_procedures' %}" class="nb">إجراءاتي</a>
+      {% endif %}
+
+    {% elif role == "admin_supervisor" %}
+      {% if request.user|can_open:"dashboard" %}
+      <a href="{% url 'dashboard' %}" class="nb">{% icon "dashboard" %} الرئيسية</a>
+      {% endif %}
+      <a href="{% url 'wings:record_index' %}" class="nb">{% icon "attendance_register" %} رصد الغياب</a>
       {# طلبةُ جناحه في قائمةٍ منسدلةٍ واحدة (m-wing-students أدناه): خمسةُ روابطَ مستقلّةٍ كانت تلفّ الشريطَ سطرين على الحاسوب #}
       <button class="nb" id="btn-wing-students" data-sd="m-wing-students" aria-expanded="false" aria-controls="m-wing-students">{% icon "students" %} طلبة جناحي <span class="chv">▼</span></button>
       {% if request.user|can_open:"student_info:sections" %}
@@ -321,7 +338,6 @@
       {% endif %}
       {% if request.user|can_open:"wings:floors" %}
       <a href="{% url 'wings:floors' %}" class="nb">{% icon "wings" %} أجنحة المدرسة</a>
-      {% endif %}
       {% endif %}
       {% if request.user|can_open:"notification_inbox" %}
       <a href="{% url 'notification_inbox' %}" class="nb">{% icon "notifications" %} الإشعارات</a>
