@@ -125,23 +125,32 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     )
 
     # ── W-028: سجلّ القيد الوزاريّ — حقولٌ من ملف مركز البيانات الوطنيّ ──
+    # `db_default` إلزاميّةٌ على جدولٍ فيه صفوفٌ بالفعل (CustomUser) — إضافةُ
+    # عمودٍ بلا افتراضٍ على مستوى القاعدة تُسقط هجرةً في النشر المتدحرج
+    # (حارسُ migration-linter، راجع clinic.HealthRecord.blood_type_encrypted).
     #: البلديّة («الدوحة»، «الريان»...) — عمودُ «البلدية» الوزاريّ. للطالب ولوليّ الأمر معاً.
-    municipality = models.CharField(max_length=100, blank=True, default="", verbose_name="البلدية")
+    municipality = models.CharField(
+        max_length=100, blank=True, default="", db_default="", verbose_name="البلدية"
+    )
     #: المنطقة داخل البلديّة — عمودُ «المنطقة» الوزاريّ.
-    region = models.CharField(max_length=100, blank=True, default="", verbose_name="المنطقة")
+    region = models.CharField(
+        max_length=100, blank=True, default="", db_default="", verbose_name="المنطقة"
+    )
     #: يستخدم حافلة المدرسة؟ — عمودُ «يستخدم الحافلة» الوزاريّ (للطالب).
-    uses_bus = models.BooleanField(default=False, verbose_name="يستخدم الحافلة")
+    uses_bus = models.BooleanField(default=False, db_default=False, verbose_name="يستخدم الحافلة")
     #: قطاع عمل وليّ الأمر («حكومة»، «مؤسسة خاصة»...) — عمودُ «قطاع جهة العمل» الوزاريّ.
     employer_sector = models.CharField(
-        max_length=100, blank=True, default="", verbose_name="قطاع جهة العمل"
+        max_length=100, blank=True, default="", db_default="", verbose_name="قطاع جهة العمل"
     )
     #: جهةُ عمل وليّ الأمر — عمودُ «جهة العمل» الوزاريّ.
     employer_name = models.CharField(
-        max_length=200, blank=True, default="", verbose_name="جهة العمل"
+        max_length=200, blank=True, default="", db_default="", verbose_name="جهة العمل"
     )
     #: رقمُ حساب كهرماء — عمودُ «رقم كهرماء» الوزاريّ. مشفَّرٌ at-rest (قرارُ
     #: المالك 2026-10-01: الأحوط، كالحقول الصحّيّة — مرتبطٌ بعنوانٍ وفوترة).
-    kahramaa_number = EncryptedTextField(blank=True, default="", verbose_name="رقم كهرماء")
+    kahramaa_number = EncryptedTextField(
+        blank=True, default="", db_default="", verbose_name="رقم كهرماء"
+    )
 
     # ── v5.1.1: HMAC + Fernet encryption for national_id (PDPPL) ──
     national_id_encrypted = models.TextField(

@@ -65,10 +65,18 @@ class HealthRecord(models.Model):
     emergency_contact_name = EncryptedTextField(blank=True, verbose_name="اسم جهة الطوارئ")
     emergency_contact_phone = EncryptedTextField(blank=True, verbose_name="هاتف جهة الطوارئ")
     # [W-028] سجلّ القيد الوزاريّ — ثلاثةُ أعمدةٍ صحّيّةٍ من ملف مركز البيانات
-    # الوطنيّ، مشفَّرةٌ at-rest كبقيّة هذا النموذج (م.8 PDPPL).
-    health_center_name = EncryptedTextField(blank=True, verbose_name="اسم المركز الصحي الرئيسي")
-    health_card_number = EncryptedTextField(blank=True, verbose_name="رقم الرعاية الصحية الرئيسي")
-    hamad_hospital_number = EncryptedTextField(blank=True, verbose_name="رقم مستشفى حمد")
+    # الوطنيّ، مشفَّرةٌ at-rest كبقيّة هذا النموذج (م.8 PDPPL). و`db_default`
+    # لازمةٌ كحقل `blood_type_encrypted` أعلاه: الجدولُ فيه صفوفٌ بالفعل، فإضافةُ
+    # عمودٍ بلا افتراضٍ على مستوى القاعدة تُسقط الهجرةَ (حارسُ migration-linter).
+    health_center_name = EncryptedTextField(
+        blank=True, default="", db_default="", verbose_name="اسم المركز الصحي الرئيسي"
+    )
+    health_card_number = EncryptedTextField(
+        blank=True, default="", db_default="", verbose_name="رقم الرعاية الصحية الرئيسي"
+    )
+    hamad_hospital_number = EncryptedTextField(
+        blank=True, default="", db_default="", verbose_name="رقم مستشفى حمد"
+    )
     updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
