@@ -8,6 +8,7 @@ tests/test_observation_send.py
 """
 
 import pytest
+from django.contrib.messages import get_messages
 from django.urls import reverse
 
 from core.models import Department, Membership, Role
@@ -32,6 +33,14 @@ def _put_in_department(school, teacher, head):
     dept = Department.objects.create(school=school, name="الرياضيات", code="MATH", head=head)
     Membership.objects.filter(user=teacher, school=school).update(department_obj=dept)
     return dept
+
+
+def _submitted(obs, observer):
+    """`send_copy` ترفض المسوّدة الآن (W-20261001-004) — فاختبارات المشاركة
+    تحتاج زيارةً أُرسلت رسميّاً أوّلاً، لا مسوّدةً."""
+    ObservationService.submit(obs, observer)
+    obs.refresh_from_db()
+    return obs
 
 
 def _vice_academic(school, name="النائب الأكاديميّ"):
@@ -87,7 +96,7 @@ def test_only_the_chosen_recipients_receive_a_copy(
     school, principal_user, teacher_user, coordinator_user
 ):
     _put_in_department(school, teacher_user, coordinator_user)
-    obs = _make_obs(school, principal_user, teacher_user)
+    obs = _submitted(_make_obs(school, principal_user, teacher_user), principal_user)
 
     sent = ObservationService.send_copy(obs, principal_user, ["teacher"])
 
@@ -97,7 +106,7 @@ def test_only_the_chosen_recipients_receive_a_copy(
 @pytest.mark.django_db
 def test_the_sender_is_never_sent_a_copy_of_their_own_send(school, principal_user, teacher_user):
     """المدير يُرسل ويختار «مدير المدرسة» — إشعارُ نفسه ضجيجٌ لا فائدة فيه."""
-    obs = _make_obs(school, principal_user, teacher_user)
+    obs = _submitted(_make_obs(school, principal_user, teacher_user), principal_user)
 
     sent = ObservationService.send_copy(obs, principal_user, ["principal", "teacher"])
 
@@ -114,7 +123,7 @@ def test_a_missing_role_holder_is_skipped_not_reported_as_sent(
     الاسم لا يظهر في الحصيلة إن لم يوجد شاغلٌ للدور — وإلا أعطت الرسالة
     للمُرسِل يقيناً بأن نائباً أكاديميّاً غير موجود قد اطّلع.
     """
-    obs = _make_obs(school, principal_user, teacher_user)
+    obs = _submitted(_make_obs(school, principal_user, teacher_user), principal_user)
 
     sent = ObservationService.send_copy(obs, principal_user, ["vice_academic", "teacher"])
 
@@ -126,7 +135,7 @@ def test_one_person_holding_two_roles_is_notified_once(school, principal_user, t
     """المنسّق قد يكون هو النائب الأكاديميّ نفسه — إشعارٌ واحد لا اثنان."""
     vice = _vice_academic(school)
     _put_in_department(school, teacher_user, vice)
-    obs = _make_obs(school, principal_user, teacher_user)
+    obs = _submitted(_make_obs(school, principal_user, teacher_user), principal_user)
 
     sent = ObservationService.send_copy(obs, principal_user, ["coordinator", "vice_academic"])
 
@@ -140,13 +149,28 @@ def test_sending_does_not_touch_the_workflow_state(school, principal_user, teach
     خلطُهما يجعل زرّ مشاركةٍ يُغيّر حالةً رسميّة ويستهلك `submission_count`
     بلا أن يقصد المستخدم ذلك.
     """
-    obs = _make_obs(school, principal_user, teacher_user)
+    obs = _submitted(_make_obs(school, principal_user, teacher_user), principal_user)
     before = (obs.status, obs.submitted_at, obs.submission_count)
 
     ObservationService.send_copy(obs, principal_user, ["teacher"])
     obs.refresh_from_db()
 
     assert (obs.status, obs.submitted_at, obs.submission_count) == before
+
+
+@pytest.mark.django_db
+def test_sending_a_copy_of_a_draft_is_rejected(school, principal_user, teacher_user):
+    """W-20261001-004: بوّابةٌ صريحة — لا نسخةَ لمسوّدةٍ لم تُرسَل رسميّاً بعد.
+
+    كان زرُّ «إرسال نسخة» متاحاً على مسوّدةٍ، و«المعلّم» خيارُه الأوّل الدائم،
+    فيظنّ المُرسِل أنّه أرسل الزيارةَ رسميّاً بينما تبقى حالتُها `draft` ولا
+    يظهر توقيعُ الزائر في الاستمارة أبداً.
+    """
+    obs = _make_obs(school, principal_user, teacher_user)
+    assert obs.status == "draft"
+
+    with pytest.raises(ValueError, match="مسوّدة"):
+        ObservationService.send_copy(obs, principal_user, ["teacher"])
 
 
 # ══════════════════════ الصفحة العارضة والصلاحية ══════════════════════
@@ -165,15 +189,53 @@ def test_the_viewer_page_offers_a_way_back(client, school, principal_user, teach
 
 
 @pytest.mark.django_db
+def test_the_share_button_is_hidden_on_a_draft(client, school, principal_user, teacher_user):
+    """W-20261001-004: لا يُعرض زرٌّ سيُرفَض أصلاً — تجربةُ مستخدمٍ أفضل."""
+    obs = _make_obs(school, principal_user, teacher_user)
+    client.force_login(principal_user)
+
+    html = client.get(reverse("observation_pdf_view", args=[obs.id])).content.decode()
+
+    assert "مشاركةُ نسخةٍ للاطّلاع" not in html
+
+
+@pytest.mark.django_db
+def test_the_share_button_appears_once_submitted(client, school, principal_user, teacher_user):
+    obs = _submitted(_make_obs(school, principal_user, teacher_user), principal_user)
+    client.force_login(principal_user)
+
+    html = client.get(reverse("observation_pdf_view", args=[obs.id])).content.decode()
+
+    assert "مشاركةُ نسخةٍ للاطّلاع" in html
+
+
+@pytest.mark.django_db
 def test_a_teacher_may_send_a_copy_of_their_own_observation(
     client, school, principal_user, teacher_user
 ):
-    obs = _make_obs(school, principal_user, teacher_user)
+    obs = _submitted(_make_obs(school, principal_user, teacher_user), principal_user)
     client.force_login(teacher_user)
 
     resp = client.post(reverse("observation_send", args=[obs.id]), {"recipients": ["principal"]})
 
     assert resp.status_code == 302
+    messages = list(get_messages(resp.wsgi_request))
+    assert any("أُرسلت نسخة" in str(m) for m in messages)
+
+
+@pytest.mark.django_db
+def test_posting_a_copy_request_to_a_draft_shows_a_clear_error(
+    client, school, principal_user, teacher_user
+):
+    """W-20261001-004: الرفضُ من الخدمة يصل المستخدمَ رسالةَ خطأٍ واضحة، لا 500."""
+    obs = _make_obs(school, principal_user, teacher_user)
+    client.force_login(principal_user)
+
+    resp = client.post(reverse("observation_send", args=[obs.id]), {"recipients": ["teacher"]})
+
+    assert resp.status_code == 302
+    messages = list(get_messages(resp.wsgi_request))
+    assert any("مسوّدة" in str(m) for m in messages)
 
 
 @pytest.mark.django_db
