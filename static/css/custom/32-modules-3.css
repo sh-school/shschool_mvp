@@ -141,7 +141,6 @@
 .kpi-select-paper { inline-size: 80px; }
 .kpi-loading { font-size: var(--text-sm); color: var(--text-muted); list-style: none; }
 .kpi-loading.is-error,
-.qproc-field__val--danger,
 .sa-btn-danger,
 .sa-late-msg.is-error { color: var(--status-danger-fg); }
 /* لونُ الرقم بإشارته — كان `style="color:…"` يُكتب في كلّ عنصر. */
@@ -425,6 +424,7 @@
   color: var(--text-primary);
 }
 .qproc-field__val--muted { color: var(--text-secondary); font-weight: 400; font-size: var(--text-xs); }
+.qproc-field__val--danger { color: var(--status-danger-fg); }
 
 /* ── Strips (evaluation, comments) ── */
 .qproc-strip {

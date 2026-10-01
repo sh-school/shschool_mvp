@@ -637,8 +637,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 
 /* نص خطر */
 .text-danger,
-.report-search-status.is-error,
-.chart-error { color: var(--status-danger-fg); }
+.report-search-status.is-error { color: var(--status-danger-fg); }
 
 /* نموذج داخل السطر */
 .form-inline { display: inline; }
@@ -964,6 +963,7 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-size: var(--text-xs); color: var(--text-muted); z-index: 2; background: var(--surface);
 }
+.chart-error { color: var(--status-danger-fg); }
 .chart-loading.hidden, .chart-error.hidden { display: none; }
 
 /* ── Mobile: dashboards ── */
