@@ -12,31 +12,45 @@
     body {
       font-family: 'Tajawal', 'Segoe UI', Arial, sans-serif;
       background: {% brand_color "MAROON" %};
-      color: {% brand_color "ON_FILL" %};
       min-height: 100vh;
       min-height: 100dvh;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 24px;
       text-align: center;
     }
+    /* بطاقةٌ واحدةٌ كبطاقة الدخول (auth/login.html: .login-card) — ترويسةٌ
+       عنّابيّةٌ أعلاها (شعارٌ واسمُ مدرسة) وجسمٌ أبيضُ تحتها (رسالةٌ وزرٌّ وذيلٌ
+       مركزيّ)، لا عنصرين منفصلين فوق/تحت بطاقةٍ شفّافة كما كانت. الأنماطُ
+       مضمَّنةٌ هنا لا بوسم تحميل أنماط المنصّة كاملةً (الصفحةُ ذاتُ اكتفاءٍ
+       ذاتيّ، وأصولُها الثلاثةُ مُدرَجةٌ في STATIC_ASSETS بملفّ عامل الخدمة
+       فتبقى معروضةً دون شبكة). */
     .card {
-      background: rgba(255,255,255,0.12);
-      border: 1px solid rgba(255,255,255,0.2);
+      background: {% brand_color "SURFACE" %};
       border-radius: 20px;
-      padding: 40px 32px;
-      max-width: 360px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.10), 0 4px 16px rgba(0,0,0,.06);
+      max-width: 380px;
       width: 100%;
+      overflow: hidden;
     }
-    .offline-icon { font-size: 4rem; margin-bottom: 20px; }
-    h1 { font-size: 1.5rem; font-weight: 800; margin-bottom: 10px; }
-    p { font-size: 14px; opacity: 0.85; line-height: 1.7; margin-bottom: 28px; }
+    .card-header {
+      background: linear-gradient(160deg, {% brand_color "MAROON" %} 0%, {% brand_color "MAROON_DARK" %} 100%);
+      padding: 32px 28px 24px;
+    }
+    .card-logo { width: 56px; height: 56px; margin: 0 auto 10px; }
+    .card-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    .card-school-name { font-size: 1.0625rem; font-weight: 800; color: {% brand_color "ON_FILL" %}; margin: 0 0 2px; line-height: 1.5; }
+    .card-platform-name { font-size: 12px; color: {% brand_color "ON_FILL" %}; opacity: .78; margin: 0; }
+    .card-body { padding: 28px 28px 24px; }
+    .offline-icon { font-size: 4rem; margin-bottom: 16px; color: {% brand_color "MAROON" %}; }
+    .offline-icon svg { width: 4rem; height: 4rem; }
+    h1 { font-size: 1.25rem; font-weight: 800; margin-bottom: 8px; color: {% brand_color "TEXT_PRIMARY" %}; }
+    p { font-size: 14px; line-height: 1.7; margin-bottom: 24px; color: {% brand_color "TEXT_SECONDARY" %}; }
     .btn {
       display: inline-block;
-      background: {% brand_color "SURFACE" %};
-      color: {% brand_color "MAROON" %};
+      background: {% brand_color "MAROON" %};
+      color: {% brand_color "ON_FILL" %};
       font-weight: 700;
       font-size: 15px;
       padding: 12px 32px;
@@ -44,48 +58,37 @@
       border: none;
       cursor: pointer;
       text-decoration: none;
-      transition: opacity .15s;
+      transition: background .15s;
     }
-    .btn:hover { opacity: .88; }
-    /* أحجامُ الأيقونات — كانت `style=` على كلّ واحدة. والصفحةُ تُعرض بلا
-       شبكةٍ فلا تبلغها `custom.css`؛ فمكانُها هنا. */
+    .btn:hover { background: {% brand_color "MAROON_DARK" %}; }
+    /* أحجامُ الأيقونات — كانت `style=` على كلّ واحدة. */
     .inline-icon { width: 16px; height: 16px; display: inline-block; vertical-align: -2px; }
-    .offline-icon svg { width: 4rem; height: 4rem; }
-    /* هويّةٌ بصريّةٌ كصفحة الدخول (auth/login.html): شعارٌ واسمُ مدرسةٍ أعلى
-       البطاقة، ورؤيةُ الوزارة وتوقيعُ المطوّر أسفلها — بأنماطٍ مضمَّنةٍ هنا
-       لا بوسم تحميل أنماط المنصّة كاملةً (الصفحةُ ذاتُ اكتفاءٍ ذاتيّ، وأصولُها
-       الثلاثةُ مُدرَجةٌ في `STATIC_ASSETS` بـ`sw_global.js` فتبقى معروضةً دون شبكة). */
-    .site-header { margin-bottom: 24px; }
-    .site-logo { margin-bottom: 10px; }
-    .site-school-name { font-size: 1.1rem; font-weight: 800; margin-bottom: 2px; }
-    .site-platform-name { font-size: 12px; opacity: .75; }
-    .site-footer-offline { margin-top: 28px; max-width: 360px; width: 100%; }
-    .vision-line { font-size: 13px; font-weight: 600; opacity: .85; margin-bottom: 12px; letter-spacing: 0.01em; }
-    .brand-line { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; font-size: 12px; opacity: .8; }
-    .brand-chip { display: inline-flex; align-items: center; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); border-radius: 6px; padding: 3px 6px; line-height: 0; }
-    .brand-sep { width: 1px; height: 12px; background: rgba(255,255,255,.3); }
+    /* الذيلُ المركزيّ نفسُه المستعمَل في صفحة الدخول وأسفل كلّ صفحة
+       (components/site_brand.html) — رؤيةُ الوزارة وتوقيعُ المطوّر، بألوانه
+       الافتراضيّة (بطاقةٌ بيضاءُ الجسم كبطاقة الدخول). */
+    .card-footer { margin-top: 20px; padding-top: 20px; border-top: 1px solid {% brand_color "BORDER" %}; }
+    .site-footer-vision { font-size: 13px; font-weight: 600; color: {% brand_color "MAROON_FG" %}; margin: 0 0 10px; letter-spacing: 0.01em; }
+    .site-footer-brand { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: center; justify-content: center; gap: 8px; margin: 0; font-size: 12px; color: {% brand_color "TEXT_MUTED" %}; line-height: 1; }
+    .site-footer-brand-label { color: {% brand_color "TEXT_MUTED" %}; font-size: 12px; white-space: nowrap; }
+    .site-footer-brand-logo { display: inline-block; height: 24px; width: auto; vertical-align: middle; flex-shrink: 0; }
+    .site-footer-brand-sep { width: 1px; height: 14px; background: {% brand_color "BORDER" %}; flex-shrink: 0; }
+    .site-footer-brand-logo-chip { display: inline-flex; align-items: center; background: #fff; border: 1px solid {% brand_color "BORDER" %}; border-radius: 6px; padding: 3px 6px; line-height: 0; flex-shrink: 0; }
+    .site-footer-brand-name { font-size: 12px; font-weight: 600; color: {% brand_color "TEXT_PRIMARY" %}; white-space: nowrap; letter-spacing: 0.01em; }
   </style>
 </head>
 <body>
-  <div class="site-header">
-    <img class="site-logo" src="{% static 'brand/emblem-white.svg' %}" alt="شعار المدرسة" width="56" height="56">
-    <h2 class="site-school-name">{{ current_school.name|default:"المدرسة" }}</h2>
-    <p class="site-platform-name">منصّة الإدارة المدرسية</p>
-  </div>
   <div class="card">
-    <div class="offline-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg></div>
-    <h1>أنت غير متصل بالإنترنت</h1>
-    <p>يبدو أن الاتصال بالشبكة انقطع.<br>تحقق من الاتصال ثم أعد المحاولة.</p>
-    <button class="btn" data-action="reload"><svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="{% brand_color "MAROON" %}" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg> إعادة المحاولة</button>
-  </div>
-  <div class="site-footer-offline">
-    <p class="vision-line">{% include "components/ministry_vision.html" with school=current_school %}</p>
-    <div class="brand-line" aria-label="توقيع المطوّر: أذكياء للبرمجيات وسفيان مسيف">
-      <span>طُوِّر بواسطة</span>
-      <span class="brand-chip"><img src="{% static 'brand/azkia-logo.svg' %}" alt="شعار أذكياء للبرمجيات" width="22" height="22"></span>
-      <span>أذكياء للبرمجيات</span>
-      <span class="brand-sep" aria-hidden="true"></span>
-      <span class="brand-chip"><img src="{% static 'brand/sufyan-logo.png' %}" alt="شعار سفيان مسيف" width="44" height="22"></span>
+    <div class="card-header">
+      <div class="card-logo"><img src="{% static 'brand/emblem-white.svg' %}" alt="شعار المدرسة" width="56" height="56"></div>
+      <h2 class="card-school-name">{{ current_school.name|default:"المدرسة" }}</h2>
+      <p class="card-platform-name">منصّة الإدارة المدرسية</p>
+    </div>
+    <div class="card-body">
+      <div class="offline-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg></div>
+      <h1>أنت غير متصل بالإنترنت</h1>
+      <p>يبدو أن الاتصال بالشبكة انقطع.<br>تحقق من الاتصال ثم أعد المحاولة.</p>
+      <button class="btn" data-action="reload"><svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="{% brand_color "ON_FILL" %}" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg> إعادة المحاولة</button>
+      <div class="card-footer">{% include "components/site_brand.html" %}</div>
     </div>
   </div>
   <script nonce="{{ request.csp_nonce }}">
