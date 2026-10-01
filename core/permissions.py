@@ -440,8 +440,13 @@ EXAM_CONTROL_ACCESS = frozenset(
 #: قرارُ 2026-09-15)، ولا يفتح شيئاً آخر من الكنترول (قرارُ 2026-09-17) — فهي
 #: قدرةٌ ضيّقةٌ عن `EXAM_CONTROL_ACCESS` لا مرادفةٌ لها.
 EXAM_CONTROL_REPORT_INCIDENT = EXAM_CONTROL_ACCESS | {"admin_supervisor"}
-#: شؤونُ الموظّفين — نظيرةُ `STUDENT_AFFAIRS_MANAGE`.
-STAFF_AFFAIRS_MANAGE = frozenset({"principal", "vice_admin", "vice_academic", "platform_developer"})
+#: شؤونُ الموظّفين — نظيرةُ `STUDENT_AFFAIRS_MANAGE`. والسكرتيرُ معهم (قرارُ المالك
+#: 2026-10-01، W-20261001-026): توسيعٌ لصلاحيّاته الثلاث القائمة (الحضور، التقريرُ
+#: الشهريّ، مراحلُ `PermitService`) ليشمل ملفَّ الموظّف كاملاً وإجازاته وبياناته
+#: الشخصيّة — بعد أن كشفت المراجعةُ الرجعيّةُ (W-20261001-006) استثناءَه صراحةً.
+STAFF_AFFAIRS_MANAGE = frozenset(
+    {"principal", "vice_admin", "vice_academic", "platform_developer", "secretary"}
+)
 #: بوّابةُ وليّ الأمر، ومن يدخلها من الإدارة.
 PARENT_PORTAL = frozenset({"parent", "principal", "vice_admin", "vice_academic", "admin"})
 #: إدارةُ ربط أولياء الأمور.
