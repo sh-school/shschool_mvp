@@ -9,6 +9,10 @@
 {% endcomment %}
 {% block title %}عارضُ الوثائق{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/custom/34-docs-viewer.css' %}">
+{% endblock %}
+
 {% block main_class %}{% page_layout "hub" %}{% endblock %}
 
 {% block breadcrumbs %}
