@@ -7198,10 +7198,18 @@ def test_0044_creates_new_items_once_with_correct_status_and_never_overwrites():
     assert (by["VI-58"].status, by["VI-58"].progress, by["VI-58"].deps) == ("done", 100, "VI-30")
     assert (by["VI-59"].status, by["VI-59"].progress) == ("todo", 0)
     assert (by["SCH-20"].status, by["SCH-20"].progress) == ("done", 100)
-    assert (by["SCH-21"].status, by["SCH-21"].progress) == ("doing", 30)
-    assert (by["MAE-04"].status, by["MAE-04"].progress) == ("todo", 0)
+    assert (by["SCH-21"].status, by["SCH-21"].progress, by["SCH-21"].gate) == ("doing", 30, "owner")
+    assert (by["MAE-04"].status, by["MAE-04"].progress, by["MAE-04"].gate) == (
+        "blocked",
+        0,
+        "owner",
+    )
     assert "لا يُغلق قبل تأكيد المالك المباشر لي" in by["MAE-04"].note
-    assert (by["MAE-06"].status, by["MAE-06"].progress) == ("doing", 60)
+    assert (by["MAE-06"].status, by["MAE-06"].progress, by["MAE-06"].gate) == (
+        "blocked",
+        60,
+        "owner",
+    )
     assert "فعلُ مالكٍ مطلوب" in by["MAE-06"].note
     assert (by["MAE-13"].status, by["MAE-13"].progress) == ("blocked", 0)
     RoadmapItem.objects.filter(code="VI-58").update(title="أعاد المطوّرُ تسميته")
@@ -7253,14 +7261,30 @@ def test_0044_updates_kpis_only_from_expected_snapshot_and_is_idempotent():
     assert set(changed) == {"UK4", "UK5", "PK3", "V-K01", "PK6"}
     assert _sync44.sync_kpi_values(RoadmapKpi) == []
     by = {k.code: k for k in RoadmapKpi.objects.all()}
-    assert (by["UK4"].current, by["UK4"].measured_at) == (0.0, date(2026, 9, 29))
-    assert (by["UK5"].current, by["UK5"].measured_at) == (0.0, date(2026, 9, 29))
-    assert (by["PK3"].current, by["PK3"].measured_at) == (0.0, date(2026, 9, 29))
-    assert (by["V-K01"].current, by["V-K01"].measured_at) == (275398.0, date(2026, 9, 29))
+    assert (by["UK4"].current, by["UK4"].measured_at) == (0.0, date(2026, 9, 28))
+    assert (by["UK5"].current, by["UK5"].measured_at) == (0.0, date(2026, 9, 28))
+    assert (by["PK3"].current, by["PK3"].measured_at) == (0.0, date(2026, 9, 28))
+    assert (by["V-K01"].current, by["V-K01"].measured_at) == (275398.0, date(2026, 9, 28))
     assert (by["PK6"].current, by["PK6"].measured_at) == (1247.0, date(2026, 9, 29))
     assert "repair_pii_columns" in by["UK4"].source
     assert "269KB" in by["V-K01"].source
     assert "mypy_ratchet" in by["PK6"].source
+
+
+def test_0044_with_source_compacts_oldest_reference_on_overflow_keeping_newest():
+    class _Kpi:
+        pass
+
+    kpi = _Kpi()
+    kpi.source = (
+        "أساسٌ (مرجعٌ قديمٌ جدّاً من 0031 بتفصيلٍ طويل) (مرجعٌ آخرُ من 0042 بتفصيلٍ طويلٍ أيضاً)" + "س" * 150
+    )
+    assert len(kpi.source) > 200
+    new_note = "0702، بوّابةُ الجودة main@8648d0f5، 2026-09-29: python -m tests.mypy_ratchet"
+    result = _sync44._with_source(kpi, new_note)
+    assert len(result) <= 255
+    assert new_note in result
+    assert "مرجعٌ قديمٌ جدّاً من 0031" not in result
 
 
 def test_0044_leaves_a_kpi_the_developer_remeasured():
