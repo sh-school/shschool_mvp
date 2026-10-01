@@ -372,13 +372,75 @@ def import_result_context(user: Any, school: Any, result: dict[str, Any]) -> dic
 
 
 def count_active_students(school: Any) -> int:
-    """عددُ الطلاب الفاعلين في المدرسة (عضويّةٌ بدور student)."""
+    """عددُ الطلاب الفاعلين في المدرسة (عضويّةٌ بدور student) — بلا قيدٍ بعام.
+
+    مضلِّلٌ لعرضٍ بعنوان «المسجّلون هذا العام»: `Membership.is_active` لا تحمل
+    بُعدَ العام إطلاقاً (على خلاف `StudentEnrollment` التي توثّق ذلك صراحةً —
+    راجع `StudentEnrollmentQuerySet` docstring)، فتُحسب فيه طلّابُ أعوامٍ
+    سابقةٍ لم تُغلق عضويّتُهم صراحةً. استعمل `count_students_enrolled_in_year`
+    لعددٍ يخصّ عاماً بعينه.
+    """
     from core.models import Membership, Role
 
     student_role = Role.objects.filter(name="student").first()
     if not (school and student_role):
         return 0
     return Membership.objects.filter(school=school, role=student_role, is_active=True).count()
+
+
+def count_students_enrolled_in_year(school: Any, year: str) -> int:
+    """عددُ الطلاب المسجَّلين فعلاً في شعبةٍ لهذا العام الدراسيّ بعينه.
+
+    بلاغُ المالك 2026-10-01: عددُ `count_active_students` «مضلِّل» — ٨٩٢
+    تضمّ طلّاب أعوامٍ سابقةٍ لم تُغلق عضويّتُهم. والقيدُ الصحيحُ `StudentEnrollment`
+    لا `Membership`: تُحمل فيه مئاتُ قيودٍ نشطةٍ معاً، واحدٌ لكلّ عامٍ شارك فيه
+    الطالب (`StudentEnrollmentQuerySet` docstring) — فالعدّ هنا يُقيَّد بشعبة
+    هذا العام تحديداً عبر `class_group__academic_year`، لا بـ`is_active` وحدَها.
+    """
+    from core.models.academic import StudentEnrollment
+
+    if not (school and year):
+        return 0
+    return (
+        StudentEnrollment.objects.filter(
+            class_group__school=school, class_group__academic_year=year, is_active=True
+        )
+        .values("student_id")
+        .distinct()
+        .count()
+    )
+
+
+def students_by_grade_in_year(school: Any, year: str) -> list[tuple[str, str, int]]:
+    """عددُ الطلاب لكلّ صفٍّ هذا العامَ — `[(رمزٌ، اسمٌ عربيّ، عدد), ...]` بترتيب الصفوف.
+
+    بلاغُ المالك 2026-10-01: «يجب تفصيل هذا الرقم» — تفصيلُ ٧٣٥ (العددُ الصحيح
+    بعد `count_students_enrolled_in_year`) بالصفّ. نفسُ منطق العدّ (شعبةُ هذا
+    العام تحديداً، طالبٌ واحدٌ ولو تعدّدت شعبُه — نادرٌ لكنّه ممكن) بتجميعٍ على
+    الصفّ بدل المجموع الكلّي؛ `distinct()` على (الصفّ، الطالب) لا على الطالب
+    وحدَه، فطالبٌ في شعبتين من الصفّ نفسِه (تبديلٌ أثناء العام) لا يُحتسب مرّتين
+    لذلك الصفّ، وفي شعبتين من صفّين مختلفَين (ترقيةٌ متأخّرة) يُحتسب في كلٍّ مرّة.
+    """
+    from django.db.models import Count
+
+    from core.models.academic import ClassGroup, StudentEnrollment
+
+    if not (school and year):
+        return []
+    grade_names = dict(ClassGroup.GRADES)
+    counted = (
+        StudentEnrollment.objects.filter(
+            class_group__school=school, class_group__academic_year=year, is_active=True
+        )
+        .values("class_group__grade")
+        .annotate(n=Count("student_id", distinct=True))
+    )
+    by_grade = {row["class_group__grade"]: row["n"] for row in counted}
+    return [
+        (code, grade_names.get(code, code), by_grade.get(code, 0))
+        for code, _ in ClassGroup.GRADES
+        if by_grade.get(code, 0)
+    ]
 
 
 # ── إعادةُ تعيين كلمات مرور المستخدمين (فنّي تقنية المعلومات) ────────────

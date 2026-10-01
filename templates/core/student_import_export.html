@@ -12,9 +12,26 @@
 
   {% page_header "استيراد / تصدير الطلاب" subtitle=subtitle icon="import" %}{% endpage_header %}
 
+  {% comment %}
+  الأخضرُ لا المرجانيّ الافتراضيّ: المرجانيّ لونُ الصفحة كلِّها فلا يُميَّز به رقم،
+  والأخضرُ يقول «نشطٌ فعلاً هذا العامَ» بوضوح (طلبُ المالك 2026-10-01).
+  {% endcomment %}
   {% kpi_strip label="الطلاب" %}
-    {% kpi "الطلاب المسجّلون" total_students %}
+    {% kpi "الطلاب المسجّلون" total_students tone="green" title="العددُ الفعليُّ النشطُ في العام الدراسيّ الحاليّ" %}
   {% endkpi_strip %}
+
+  {% comment %}
+  تفصيلُ العدد بالصفّ (طلبُ المالك 2026-10-01) — مصدرُه نفسُ استعلام العدّ
+  الإجماليّ (students_by_grade_in_year)، فلا يفترق مجموعُ الأرقام هنا عن
+  البطاقة الخضراء أعلاه أبداً.
+  {% endcomment %}
+  {% if students_by_grade %}
+  <ul class="chip-row" aria-label="الطلاب حسب الصفّ">
+    {% for code, name, n in students_by_grade %}
+    <li class="chip-stat"><span class="chip-stat__key">{{ name }}</span><b class="chip-stat__value">{{ n }}</b></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
 
   {# ── نتيجةُ الاستيراد ── #}
   {% if import_result %}
