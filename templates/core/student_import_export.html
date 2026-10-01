@@ -53,7 +53,13 @@
 
   {% include "components/credentials_sheet.html" %}
 
-  {# ── الملفّات الثلاثة: ما يحويه كلٌّ منها وزرُّه ── #}
+  {% comment %}
+  بطاقتان لا ثلاث (قرارُ 2026-10-01): كانت «استيراد الطلاب» زرَّ إظهارٍ/إخفاءٍ
+  لبطاقة رفع الملفّ أدناه، فصارت البطاقةُ دائمةً ظاهرةً دوماً — لا حاجةَ لزرٍّ
+  يفتحها. والبطاقتان («الملفّات» و«رفع ملف الاستيراد») تتجاوران في سطرٍ واحد
+  (`ui-grid-2`، شبكةُ بطاقتين — معيار تخطيط الصفحات) بدل التكديس الرأسيّ.
+  {% endcomment %}
+  <div class="ui-grid-2">
   {% section_card "الملفّات" icon="messages" %}
     <ul class="plain-list">
       <li class="plain-list__row">
@@ -70,20 +76,11 @@
         </span>
         <a data-app-file href="{% url 'student_import_template' %}" class="btn-secondary btn-sm" aria-label="تحميل قالب Excel للاستيراد">{% icon "download" %} تحميل القالب</a>
       </li>
-      <li class="plain-list__row">
-        <span class="plain-list__main">
-          <b class="plain-list__title">استيراد الطلاب</b>
-          <span class="plain-list__sub">ينشئ حسابات الطلاب وأولياء الأمور ويربط الطالب بفصله تلقائيّاً</span>
-        </span>
-        <button type="button" data-call="toggleImportForm" class="btn-secondary btn-sm" aria-expanded="false" aria-controls="import-form-area" id="btn-show-import">
-          {% icon "import" %} رفع ملف الاستيراد
-        </button>
-      </li>
     </ul>
   {% endsection_card %}
 
-  {# ── منطقة الاستيراد المخفية ── #}
-  <div id="import-form-area" role="region" aria-label="نموذج استيراد الطلاب" hidden>
+  {# ── منطقة الاستيراد — دائمةُ الظهور (2026-10-01)، لا تُخفى ولا تحتاج زرَّ إظهار ── #}
+  <div id="import-form-area" role="region" aria-label="نموذج استيراد الطلاب">
     {% section_card "رفع ملف Excel للاستيراد" icon="export_excel" %}
       {% if import_error %}
       {% callout "error" %}{{ import_error }}{% endcallout %}
@@ -101,7 +98,7 @@
         {% csrf_token %}
 
         <div class="import-drop" id="drop-zone" role="group" aria-label="منطقة رفع ملف Excel">
-          {% icon "export_excel" size="2xl" %}
+          {% icon "export_excel" size="xl" %}
           <p class="import-drop__title">اسحب ملف Excel هنا أو انقر للاختيار</p>
           <p class="ui-field-hint">يُقبل: .xlsx أو .xls — الحجم الأقصى: 5 ميغا</p>
           <label for="student-file-input" class="sr-only">اختر ملف Excel</label>
@@ -116,7 +113,7 @@
         </div>
 
         <div class="form-actions">
-          <button type="button" data-call="toggleImportForm" class="btn-secondary btn-sm">إلغاء</button>
+          <button type="button" data-call="resetImportForm" class="btn-secondary btn-sm">إلغاء الاختيار</button>
           <button type="submit" id="btn-import-submit" disabled class="btn-primary btn-sm" aria-disabled="true" title="سيتم إنشاء الحسابات وتسجيل الطلاب في فصولهم تلقائياً">
             {% icon "import" %} بدء الاستيراد
           </button>
@@ -129,22 +126,17 @@
       </form>
     {% endsection_card %}
   </div>
+  </div>
 
 </div>
 
 <script nonce="{{ request.csp_nonce }}">
-  /* الإظهارُ والإخفاءُ بسمة `hidden` لا بصنفٍ يعرّفه Tailwind. */
-  window.toggleImportForm = function () {
-    var area = document.getElementById('import-form-area');
-    var btn  = document.getElementById('btn-show-import');
-    var isHidden = area.hidden;
-
-    area.hidden = !isHidden;
-    btn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
-
-    if (isHidden) {
-      area.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+  /* البطاقةُ دائمةُ الظهور (2026-10-01) — لا إظهارَ ولا إخفاءَ بعد اليوم،
+     و«إلغاء الاختيار» يُفرغ الحقلَ وحدَه لا يُخفي البطاقة. */
+  window.resetImportForm = function () {
+    var input = document.getElementById('student-file-input');
+    input.value = '';
+    window.onFileSelected(input);
   };
 
   window.onFileSelected = function (input) {
@@ -179,15 +171,5 @@
     document.getElementById('btn-import-submit').disabled = true;
     document.getElementById('btn-import-submit').setAttribute('aria-disabled', 'true');
   });
-
-  // فتح منطقة الاستيراد تلقائياً إذا كانت هناك نتيجة
-  {% if import_result or import_error %}
-  document.addEventListener('DOMContentLoaded', function () {
-    var area = document.getElementById('import-form-area');
-    if (area) area.hidden = false;
-    var btn = document.getElementById('btn-show-import');
-    if (btn) btn.setAttribute('aria-expanded', 'true');
-  });
-  {% endif %}
 </script>
 {% endblock %}
