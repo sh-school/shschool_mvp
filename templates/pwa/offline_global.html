@@ -51,23 +51,42 @@
        شبكةٍ فلا تبلغها `custom.css`؛ فمكانُها هنا. */
     .inline-icon { width: 16px; height: 16px; display: inline-block; vertical-align: -2px; }
     .offline-icon svg { width: 4rem; height: 4rem; }
-    .logo {
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      font-size: 13px;
-      opacity: .6;
-      font-weight: 600;
-    }
+    /* هويّةٌ بصريّةٌ كصفحة الدخول (auth/login.html): شعارٌ واسمُ مدرسةٍ أعلى
+       البطاقة، ورؤيةُ الوزارة وتوقيعُ المطوّر أسفلها — بأنماطٍ مضمَّنةٍ هنا
+       لا بوسم تحميل أنماط المنصّة كاملةً (الصفحةُ ذاتُ اكتفاءٍ ذاتيّ، وأصولُها
+       الثلاثةُ مُدرَجةٌ في `STATIC_ASSETS` بـ`sw_global.js` فتبقى معروضةً دون شبكة). */
+    .site-header { margin-bottom: 24px; }
+    .site-logo { margin-bottom: 10px; }
+    .site-school-name { font-size: 1.1rem; font-weight: 800; margin-bottom: 2px; }
+    .site-platform-name { font-size: 12px; opacity: .75; }
+    .site-footer-offline { margin-top: 28px; max-width: 360px; width: 100%; }
+    .vision-line { font-size: 13px; font-weight: 600; opacity: .85; margin-bottom: 12px; letter-spacing: 0.01em; }
+    .brand-line { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; font-size: 12px; opacity: .8; }
+    .brand-chip { display: inline-flex; align-items: center; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); border-radius: 6px; padding: 3px 6px; line-height: 0; }
+    .brand-sep { width: 1px; height: 12px; background: rgba(255,255,255,.3); }
   </style>
 </head>
 <body>
-  <div class="logo"><svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/><path d="M10 6h4"/><path d="M10 10h4"/><path d="M10 14h4"/><path d="M10 18h4"/></svg> منصّة المدرسة</div>
+  <div class="site-header">
+    <img class="site-logo" src="{% static 'brand/emblem-white.svg' %}" alt="شعار المدرسة" width="56" height="56">
+    <h2 class="site-school-name">{{ current_school.name|default:"المدرسة" }}</h2>
+    <p class="site-platform-name">منصّة الإدارة المدرسية</p>
+  </div>
   <div class="card">
     <div class="offline-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h.01"/><path d="M8.5 16.429a5 5 0 0 1 7 0"/><path d="M5 12.859a10 10 0 0 1 5.17-2.69"/><path d="M19 12.859a10 10 0 0 0-2.007-1.523"/><path d="M2 8.82a15 15 0 0 1 4.177-2.643"/><path d="M22 8.82a15 15 0 0 0-11.288-3.764"/><path d="m2 2 20 20"/></svg></div>
     <h1>أنت غير متصل بالإنترنت</h1>
     <p>يبدو أن الاتصال بالشبكة انقطع.<br>تحقق من الاتصال ثم أعد المحاولة.</p>
     <button class="btn" data-action="reload"><svg class="inline-icon" viewBox="0 0 24 24" fill="none" stroke="{% brand_color "MAROON" %}" stroke-width="2"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg> إعادة المحاولة</button>
+  </div>
+  <div class="site-footer-offline">
+    <p class="vision-line">{% include "components/ministry_vision.html" with school=current_school %}</p>
+    <div class="brand-line" aria-label="توقيع المطوّر: أذكياء للبرمجيات وسفيان مسيف">
+      <span>طُوِّر بواسطة</span>
+      <span class="brand-chip"><img src="{% static 'brand/azkia-logo.svg' %}" alt="شعار أذكياء للبرمجيات" width="22" height="22"></span>
+      <span>أذكياء للبرمجيات</span>
+      <span class="brand-sep" aria-hidden="true"></span>
+      <span class="brand-chip"><img src="{% static 'brand/sufyan-logo.png' %}" alt="شعار سفيان مسيف" width="44" height="22"></span>
+    </div>
   </div>
   <script nonce="{{ request.csp_nonce }}">
     /* إعادة التحميل تلقائياً عند استعادة الاتصال */
