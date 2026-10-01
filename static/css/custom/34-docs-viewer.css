@@ -1,0 +1,143 @@
+@layer modules {
+
+/* ── عارضُ md: شجرةُ الملفّات ومحتوى الوثيقة (W-20260930-002) ──────────────
+   هذا الملفُّ وحدَه لا يُحمَّل على كلّ صفحة (قرارُ المالك D-81م): قوالبُ
+   docs_viewer تحمّله صراحةً عبر `{% block extra_css %}`، فلا يدخل في ميزانيّة
+   `tests/test_css_budget.py` ولا يصل مستخدماً لا يفتح `/docs/` أصلاً.
+
+   الشجرةُ `<details>` متداخلةٌ (لا JS)؛ التعشيشُ مسافةُ `--sp-5` لكلّ مستوًى
+   عبر الحشو على القائمة الأبناء، لا هامشاً على كلّ عنصر — فلا يتراكم خطأُ
+   التقريب بعمق. والمحتوى `.docs-content` طباعةُ نثرٍ: عرضٌ محصورٌ للقراءة
+   المريحة (measure)، وتدرّجُ عناوين، وجدولٌ عبر `.table-wrap` القائمة لا
+   صنفٌ جديد (`docs_viewer/rendering.py`). */
+.docs-tree { --docs-indent: var(--sp-5); }
+.docs-tree__summary {
+  display: flex; align-items: center; gap: var(--sp-1-5); list-style: none;
+  padding-block: var(--sp-1-5); padding-inline: var(--sp-1);
+  border-radius: var(--radius-sm); cursor: pointer; font-weight: 600;
+  color: var(--text-primary);
+}
+.docs-tree__summary::-webkit-details-marker { display: none; }
+.docs-tree__summary:hover, .docs-tree__file:hover { background: var(--maroon-bg); }
+.docs-tree__summary:focus-visible, .docs-tree__file:focus-visible {
+  outline: 2px solid var(--focus-color); outline-offset: var(--focus-ring-offset); box-shadow: var(--focus-ring);
+}
+.docs-tree__dir[open] > .docs-tree__summary .icon { color: var(--maroon-fg); }
+.docs-tree__list { padding-inline-start: var(--docs-indent); border-inline-start: 1px solid var(--border); margin-inline-start: var(--sp-2); }
+.docs-tree__file { display: flex; align-items: center; gap: var(--sp-1-5); padding-block: var(--sp-1-5); padding-inline: var(--sp-1); border-radius: var(--radius-sm); }
+.docs-tree__file .icon { color: var(--text-muted); flex-shrink: 0; }
+
+/* عمودُ المحتوى وسط شبكة التفصيل (`.docs-detail-grid`) — يملأ عرضَ بطاقته كاملاً
+   (طلبُ المالك 2026-09-30: لا سقفَ قراءةٍ يُهدر عرضَ البطاقة، والعمودان الجانبيّان
+   يكفيان للتصفّح فلا يطول سطرٌ بلا داعٍ). */
+.docs-content {
+  font-size: var(--text-base); line-height: 1.8; color: var(--text-primary);
+}
+.docs-content > :first-child { margin-block-start: 0; }
+.docs-content h1, .docs-content h2, .docs-content h3, .docs-content h4 {
+  color: var(--maroon-fg); font-weight: 700; line-height: 1.4;
+  margin-block: var(--sp-6) var(--sp-3);
+}
+.docs-content h1 { font-size: var(--text-2xl); padding-block-end: var(--sp-2); border-block-end: 1px solid var(--border); }
+.docs-content h2 { font-size: var(--text-xl); }
+.docs-content h3 { font-size: var(--text-lg); }
+.docs-content h4 { font-size: var(--text-base); }
+.docs-content p, .docs-content ul, .docs-content ol, .docs-content blockquote, .docs-content .table-wrap {
+  /* بعضُ هذه العناصر (`blockquote` تحديداً) له هامشٌ أفقيٌّ افتراضيٌّ في المتصفّح
+     (٤٠px من كلّ جهة) — يترك فراغاً أبيض لا مسوَّغَ له داخل بطاقةٍ تملأ عرضَها
+     أصلاً؛ فيُصفَّر هنا صراحةً بدل تركه للافتراض. */
+  margin-block: var(--sp-3); margin-inline: 0;
+}
+.docs-content ul, .docs-content ol { padding-inline-start: var(--sp-6); display: grid; gap: var(--sp-1-5); }
+.docs-content li > ul, .docs-content li > ol { margin-block: var(--sp-1-5); }
+.docs-content a { color: var(--maroon-link); text-decoration: underline; text-underline-offset: 2px; }
+.docs-content a:hover { color: var(--maroon-fg); }
+.docs-content blockquote {
+  border-inline-start: 3px solid var(--maroon-border); background: var(--maroon-bg);
+  padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-sm); color: var(--text-secondary);
+}
+.docs-content blockquote > :last-child { margin-block-end: 0; }
+.docs-content code {
+  font-family: ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  font-size: var(--text-sm); background: var(--surface-alt);
+  padding-inline: var(--sp-1-5); border-radius: var(--radius-sm);
+}
+.docs-content pre {
+  background: var(--surface-alt); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: var(--sp-4); overflow-x: auto;
+  margin-block: var(--sp-3);
+}
+.docs-content pre code { background: none; padding: 0; font-size: var(--text-sm); }
+.docs-content hr { border: none; border-block-start: 1px solid var(--border); margin-block: var(--sp-6); }
+/* `img { display: block }` من Tailwind preflight (سيطرةٌ عامّةٌ للمنصّة) تكسّر
+   شارات md (Django/Python/…) المتجاورة في سطرٍ واحد — كلُّ صورةٍ تصير سطراً
+   وحدَها. `inline-block` يعيدها تتدفّق وتلتفّ كالنصّ العاديّ؛ صورةٌ كبيرةٌ
+   بمفردها في فقرتها لا يتغيّر مظهرُها بهذا (لا جارَ لها يتدفّق معه أصلاً). */
+.docs-content img { display: inline-block; max-inline-size: 100%; border-radius: var(--radius-sm); }
+.docs-content .table-wrap { max-inline-size: 100%; }
+
+/* شبكةُ صفحة التفصيل: شجرةٌ (ثابتةٌ) + محتوًى (مرنٌ) — تستثمر عرضَ النافذة
+   (معيار 2026-09-17) بعنصر تصفّحٍ حقيقيٍّ لا بتمديد النثر. (كان عمودٌ ثالثٌ
+   لفهرس عناوين الملفّ — ألغاه المالك 2026-09-30.) تنهار عموداً واحداً دون
+   1100px: التصفّحُ يبقى أوّلاً، ثمّ المحتوى. */
+.docs-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sp-5);
+}
+/* `min-inline-size: 0` إلزاميّة على عنصرَي الشبكة: أسماءُ الملفّات شرطاتٌ
+   سفليّةٌ بلا مسافات («school_files_guide.md»)، فلا نقطةَ التفافٍ فيها
+   افتراضاً — يحسبها المتصفّحُ «كلمةً» واحدةً طويلة ويوسّع عمودَها ليسعها
+   (فيُقتطع طرفُها المرئيّ، أو يُزاحم عمودَ المحتوى). `overflow-wrap: anywhere`
+   يتيح الالتفافَ من أيّ نقطة، و`min-inline-size: 0` يمنع تمدّد العمود أصلاً. */
+.docs-detail-grid__tree, .docs-detail-grid__content {
+  min-inline-size: 0;
+}
+.docs-detail-grid__tree {
+  position: sticky; top: var(--sp-4);
+  max-block-size: calc(100vh - var(--sp-8));
+  max-block-size: calc(100dvh - var(--sp-8));
+  overflow-y: auto;
+}
+.docs-tree__summary span, .docs-tree__file .plain-list__title {
+  overflow-wrap: anywhere; min-inline-size: 0;
+}
+.docs-detail-grid__tree .docs-tree__file.is-current {
+  background: var(--maroon-bg); color: var(--maroon-fg); font-weight: 700;
+}
+
+/* صندوقُ البحث في طرف ترويسة «شجرةُ الملفّات» (`meta=` في section_card —
+   القالبُ لا يكتب card-bar باليد، الحارسُ يرفضه). `.card-bar-sub` نفسُها تُدفع
+   لطرف الشريط بـ`margin-inline-start: auto` — هنا صندوقٌ لا نصّاً، فصنفٌ
+   مستقلٌّ بنفس الدفع، يصفّر مظهر `.filter-bar` الافتراضيّ (بطاقةٌ بحدٍّ وظلّ لا
+   تناسب داخل شريطٍ عنّابيٍّ مضغوط). */
+.docs-search-bar {
+  background: none; border: none; box-shadow: none; padding: 0; margin: 0 0 0 auto;
+  flex-wrap: nowrap;
+}
+.docs-search-bar .ui-field { margin: 0; }
+.docs-search-bar .form-control {
+  inline-size: 11rem; padding-block: var(--sp-1); font-size: var(--text-xs);
+  border-color: transparent; background: color-mix(in srgb, var(--on-fill) 92%, transparent);
+}
+.docs-search-bar .form-control::placeholder { color: var(--text-muted); }
+
+.docs-search-results { margin-block-start: var(--sp-4); border-block-start: 1px solid var(--border); padding-block-start: var(--sp-3); }
+.docs-search-results__label { font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); margin-block-end: var(--sp-2); }
+.docs-search-results .plain-list__sub { overflow-wrap: anywhere; white-space: normal; }
+
+/* بحثُ محتوى الملفّ المفتوح (طرف ترويسة بطاقة المحتوى — نفسُ نمط بحث الشجرة):
+   عدّادٌ وزرّا تنقّلٍ بجانب الحقل، وتظليلُ المطابقات داخل النصّ نفسِه. */
+.docs-content-search-bar { gap: var(--sp-1); }
+.docs-content-search-bar .btn-ghost { color: var(--on-fill); padding: var(--sp-1); min-inline-size: 0; }
+.docs-content-search-bar .btn-ghost:hover { background: color-mix(in srgb, var(--on-fill) 18%, transparent); }
+.docs-search-count { font-size: var(--text-xs); color: var(--on-fill); opacity: .85; min-inline-size: 2.5rem; text-align: center; }
+.docs-highlight { background: var(--maroon-bg); color: var(--maroon-fg); border-radius: var(--radius-sm); }
+.docs-highlight.is-active { box-shadow: 0 0 0 2px var(--maroon-fg); }
+
+@media (max-width: 1100px) {
+  .docs-detail-grid { grid-template-columns: 1fr; }
+  .docs-detail-grid__tree { position: static; max-block-size: none; }
+}
+} /* end @layer modules */

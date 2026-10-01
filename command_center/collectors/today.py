@@ -66,7 +66,7 @@ def collect(now: float | None = None) -> None:
     merged_today = len(today_stamps)
 
     deploy = github.fetch(DEPLOY_PATH, reduce_deploy)
-    deploy_stamp = deploy["stamp"] if deploy else None
+    deploy_stamp = deploy.get("stamp") if deploy else None
 
     if deploy_stamp is not None:
         published = sum(1 for t in today_stamps if t <= deploy_stamp)
