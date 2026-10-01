@@ -36,8 +36,10 @@ from core.services import (  # noqa: F401 — أسماءٌ كانت هنا وت�
     _parse_import_row,
     _split_class_notation,
     count_active_students,
+    count_students_enrolled_in_year,
     import_result_context,
     process_student_import,
+    students_by_grade_in_year,
 )
 
 logger = logging.getLogger(__name__)
@@ -212,7 +214,8 @@ def student_import_export(request):
         "school": school,
         "year": year,
         "subtitle": f"إدارة بيانات الطلاب عبر ملفات Excel — {year}",
-        "total_students": count_active_students(school),
+        "total_students": count_students_enrolled_in_year(school, year),
+        "students_by_grade": students_by_grade_in_year(school, year),
         "import_result": None,
     }
 

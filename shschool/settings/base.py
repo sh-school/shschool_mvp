@@ -67,6 +67,8 @@ INSTALLED_APPS = [
     "command_center.apps.CommandCenterConfig",
     # الحوكمة وحماية البيانات: المحو والاحتفاظ وتدوير المفاتيح ووصول الملفّات (ADR-0004)
     "governance.apps.GovernanceConfig",
+    # عارضُ md المركزيّ — لمطوّر المنصّة وحدَه، في /docs/ (W-20260930-002)
+    "docs_viewer.apps.DocsViewerConfig",
     # ✅ فلترة احترافية
     "django_filters",
     # ✅ [SEC-02] قائمة حظر توكنات التحديث بعد التدوير (JWT) — تتطلب migrate

@@ -1,0 +1,61 @@
+{% extends "base/base.html" %}
+{% load static ui %}
+{% comment %}
+  عرضُ ملفّ md واحد (W-20260930-002) — نمطُ `layout-report`: وثيقةٌ تُقرأ. المحتوى
+  مصيَّرٌ في العرض (`docs_viewer/rendering.py::render_markdown`) — لا شيءَ يُصيَّر هنا.
+
+  قرارُ المالك 2026-09-30: عمودان يستثمران عرضَ النافذة — شجرةُ التصفّح جانباً
+  (فلا رجوعَ إلى /docs/ للتنقّل بين الملفّات، والملفُّ المفتوح مُميَّزٌ فيها)
+  والمحتوى يملأ عرضَ بطاقته. `.docs-detail-grid` في 34-docs-viewer.css، تُحمَّل
+  هنا وحدَها لا في كلّ صفحة (قرارُ المالك D-81م). (فهرسُ
+  العناوين الجانبيّ أُلغي — كان عموداً ثالثاً هنا، ألغاه المالك 2026-09-30.)
+
+  البحثُ (طلبُ المالك 2026-09-30): صندوقٌ في طرف ترويسة «شجرةُ الملفّات»
+  (`meta=tree_search_box` من العرض — القالبُ لا يكتب ترويسةَ البطاقة يدويّاً، الحارسُ
+  يرفضه). فوريٌّ بالأسماء/العناوين (smartMatch على `[data-filter-row]`،
+  docs_viewer.js) + بحثٌ في المحتوى عبر /docs/_search/ يُعرض تحت الشجرة.
+{% endcomment %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/custom/34-docs-viewer.css' %}">
+{% endblock %}
+
+{% block main_class %}{% page_layout "report" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/docs/" parent_label="عارضُ الوثائق" current=title %}
+{% endblock %}
+
+{% block content %}
+<div>
+  {% page_header title subtitle=doc_path icon="document" %}{% endpage_header %}
+
+  <div class="docs-detail-grid">
+    <div class="docs-detail-grid__tree">
+      {% section_card "شجرةُ الملفّات" icon="folder" meta=tree_search_box empty="لا توجد ملفّاتُ md" %}
+      {% if tree.children %}
+      <ul class="plain-list docs-tree" id="docs-tree-list">
+        {% for child in tree.children %}
+        <li{% if not child.is_dir %} class="plain-list__row" data-filter-row{% endif %}>
+          {% include "docs_viewer/_node.html" with node=child current=doc_path open_dirs=open_dirs %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+      <div id="docs-search-results" class="docs-search-results" hidden></div>
+      {% endsection_card %}
+    </div>
+
+    <div class="docs-detail-grid__content">
+      {% section_card title icon="document" meta=content_search_box %}
+      <div class="docs-content" id="docs-content-body">{{ content_html|safe }}</div>
+      {% endsection_card %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/docs_viewer.js' %}" defer></script>
+{% endblock %}

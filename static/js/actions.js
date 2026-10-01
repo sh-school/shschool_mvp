@@ -50,7 +50,7 @@
   var CALLABLE = [
     "goToSchedule",
     "closeModal",
-    "toggleImportForm",
+    "resetImportForm",
     "toggleForm",
     "toggleUpload",
     "onFileSelected",
