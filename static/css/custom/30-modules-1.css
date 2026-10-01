@@ -636,7 +636,8 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 .required-star { color: var(--status-danger-fg); }
 
 /* نص خطر */
-.text-danger { color: var(--status-danger-fg); }
+.text-danger,
+.report-search-status.is-error { color: var(--status-danger-fg); }
 
 /* نموذج داخل السطر */
 .form-inline { display: inline; }
@@ -865,7 +866,6 @@ a.btn-primary, a.btn-secondary { text-decoration: none; }
 }
 /* سطرُ الحال في نتائج البحث — يكتبه `searchStudent()` في templates/reports/index.html. */
 .report-search-status { margin: 0; font-size: var(--text-xs); color: var(--text-muted); }
-.report-search-status.is-error { color: var(--status-danger-fg); }
 
 /* ── templates/reports/report_viewer.html — الوثيقةُ في إطارٍ داخل الصفحة ── */
 .report-viewer { max-width: 1200px; margin-inline: auto; }
