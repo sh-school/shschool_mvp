@@ -9,9 +9,12 @@
 ويُحرَم المولّدُ من خاناتٍ صالحةٍ خوفاً منها.
 
 فالحكمُ هنا واحدٌ لكلّ من يسأل: حصّتان متّصلتان إن كان الفاصلُ بين نهاية الأولى
-وبداية الثانية `JOINABLE_GAP_MINUTES` فأقلّ — وهو التعريفُ نفسُه الذي تُعرَف به
-الحصّةُ المزدوجة (`joinable_pairs`). ومن لا جرسَ معروفاً له يُحكم برقم الحصّة
-كما كان: الصمتُ لا يُقرأ فصلاً.
+وبداية الثانية `HC5_JOINABLE_GAP_MINUTES` فأقلّ. ومن لا جرسَ معروفاً له يُحكم
+برقم الحصّة كما كان: الصمتُ لا يُقرأ فصلاً.
+
+والحصّةُ المزدوجةُ (`joinable_pairs`) تُحكم بثابتٍ مستقلٍّ (`DOUBLE_PERIOD_GAP_MINUTES`،
+SCH-21، 2026-10-01) — كان رقماً واحداً يخدم المعنيين معاً، فصار اثنين متساويَي
+القيمة اليوم (١٠) بلا تغييرِ سلوك، ليتحرّر أحدُهما لاحقاً بقرارٍ لا يمسّ الآخر.
 """
 
 from __future__ import annotations
@@ -25,9 +28,20 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from .scheduler import ScheduleGrid
 
-#: أطولُ فاصلٍ بين حصّتين يبقيان معه متّصلتين (بالدقائق).
-#: فخمسُ دقائقَ انتقالٌ بين صفّين، وعشرون فسحةٌ وخمسَ عشرةَ صلاة.
-JOINABLE_GAP_MINUTES = 10
+#: أطولُ فاصلٍ بين حصّتين تُحكمان معه متّصلتين بالساعة — حكمُ HC5 (`are_joined`
+#: وما يُبنى عليها: `cells_joined`، `longest_run`، `grid_run`). فخمسُ دقائقَ
+#: انتقالٌ بين صفّين، وعشرون فسحةٌ وخمسَ عشرةَ صلاة.
+#:
+#: SCH-21 (2026-10-01): كان هذا الرقمُ يخدم معنيَين مختلفين معاً — حكمَ
+#: التلاصق هنا، وشرعيّةَ الحصّة المزدوجة في `_joinable_pairs_from_bell`
+#: (`DOUBLE_PERIOD_GAP_MINUTES` أدناه) — فتغييرُ أحدهما بقرارٍ لاحقٍ (مثلاً
+#: تخفيفُ HC5 إلى ١٥ دقيقة) كان سيُعبث بتعريف المزدوجة صامتاً. فُصلا إلى
+#: ثابتين، وقيمتاهما اليوم متساويتان (١٠) بلا تغييرِ سلوك.
+HC5_JOINABLE_GAP_MINUTES = 10
+
+#: أطولُ فاصلٍ بين حصّتين تصيران معه حصّةً مزدوجةً شرعيّة — `_joinable_pairs_from_bell`
+#: وحدَها. مستقلٌّ عن `HC5_JOINABLE_GAP_MINUTES` (SCH-21) وإن تساويا اليوم.
+DOUBLE_PERIOD_GAP_MINUTES = 10
 
 Interval = tuple[time, time]
 
@@ -43,7 +57,7 @@ def are_joined(before: Interval | None, after: Interval | None) -> bool:
     """أتتّصل هذه الحصّةُ بالتي بعدها؟ — وبلا جرسٍ معروفٍ تتّصلان."""
     if before is None or after is None:
         return True
-    return _minutes(after[0]) - _minutes(before[1]) <= JOINABLE_GAP_MINUTES
+    return _minutes(after[0]) - _minutes(before[1]) <= HC5_JOINABLE_GAP_MINUTES
 
 
 def cells_joined(
@@ -146,6 +160,6 @@ def _joinable_pairs_from_bell(school: Any, band_id: str = "") -> set[tuple[int, 
         gap = (later.start_time.hour * 60 + later.start_time.minute) - (
             earlier.end_time.hour * 60 + earlier.end_time.minute
         )
-        if gap <= JOINABLE_GAP_MINUTES:
+        if gap <= DOUBLE_PERIOD_GAP_MINUTES:
             pairs.add((earlier.period_number, later.period_number))
     return pairs

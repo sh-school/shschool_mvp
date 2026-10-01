@@ -115,12 +115,50 @@ def test_the_fetch_stores_numbers_only_and_calls_a_fixed_url_without_a_secret(mo
     assert url.startswith(
         "https://api.github.com/repos/sh-school/shschool_mvp/actions/workflows/backup.yml/runs"
     )
-    assert "Authorization" not in kwargs["headers"]  # المستودعُ عامّ: لا رمزَ ولا سرّ
+    assert "Authorization" not in kwargs["headers"]  # بلا رمزٍ مضبوطٍ لا ترويسةَ مصادقة
     assert kwargs["timeout"]  # لا طلبَ بلا مهلة
     stored = backup_status.read()
     assert stored is not None
     assert set(stored) == {"success_at", "latest_at", "latest_ok", "fetched_at"}
     assert "https://x" not in repr(stored)  # لا نصَّ من ردّ الطرف الخارجيّ
+
+
+def test_the_token_is_sent_when_set_and_never_stored(monkeypatch, settings):
+    settings.QCC_GITHUB_TOKEN = "token-for-tests-only"
+    calls = _stub_get(monkeypatch, _Reply(payload={"workflow_runs": [_run("success", 4)]}))
+
+    assert backup_status.refresh(NOW) is True
+
+    assert calls[0][1]["headers"]["Authorization"] == "Bearer token-for-tests-only"
+    assert "token-for-tests-only" not in repr(backup_status.read())
+
+
+def test_an_older_reply_never_moves_the_last_success_backwards(monkeypatch, caplog):
+    """حادثة 09-29: ردٌّ بـ200 أعاد نجاحاً أقدمَ فتقلّبت البطاقةُ بين «9 ساعات» و«5 أيّام»."""
+    _stub_get(monkeypatch, _Reply(payload={"workflow_runs": [_run("success", 9)]}))
+    backup_status.refresh(NOW)
+    fresh = backup_status.read()
+
+    _stub_get(monkeypatch, _Reply(payload={"workflow_runs": [_run("success", 5 * 24)]}))
+    assert backup_status.refresh(NOW + 1800) is True
+
+    kept = backup_status.read()
+    assert kept["success_at"] == fresh["success_at"]
+    assert kept["latest_at"] == fresh["latest_at"] and kept["latest_ok"] is True
+    assert kept["fetched_at"] == NOW + 1800  # الجلبُ نفسُه حديث
+    assert "older than the stored status" in caplog.text
+
+
+def test_a_newer_failure_still_replaces_the_stored_result(monkeypatch):
+    _stub_get(monkeypatch, _Reply(payload={"workflow_runs": [_run("success", 30)]}))
+    backup_status.refresh(NOW)
+    _stub_get(
+        monkeypatch, _Reply(payload={"workflow_runs": [_run("failure", 1), _run("success", 30)]})
+    )
+    backup_status.refresh(NOW)
+
+    stored = backup_status.read()
+    assert stored["latest_ok"] is False and stored["latest_at"] > stored["success_at"]
 
 
 @pytest.mark.parametrize(

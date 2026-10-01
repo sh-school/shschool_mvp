@@ -86,7 +86,7 @@ def test_the_default_ranks_mirror_todays_generator():
     """
     policy = cr.default_policy()
 
-    assert policy.break_at("HC5") == cr.RELAXED
+    assert policy.break_at("HC5") == cr.NEVER, "D-61م: لا يُكسَر ولا يُحرَّر (قرارُ المالك 2026-09-29)"
     assert policy.break_at("HC20") == cr.RELAXED, "تلاصقُ المادّة يُكسَر في الرخصة الأولى"
     assert {c for c in policy.breaks if policy.break_at(c) == cr.DENSE} == {"HC14", "HC16B"}
     assert policy.break_at("HC6") == cr.NEVER
@@ -111,11 +111,18 @@ def test_the_distribution_can_never_be_loosened_from_the_admin_panel(school):
 def test_a_licence_of_the_second_round_carries_the_first():
     policy = cr.default_policy()
 
-    assert policy.licence("HC5", allow_adjacent=False, allow_dense=False) is False
-    assert policy.licence("HC5", allow_adjacent=True, allow_dense=False) is True
-    assert policy.licence("HC5", allow_adjacent=False, allow_dense=True) is True
+    assert policy.licence("HC20", allow_adjacent=False, allow_dense=False) is False
+    assert policy.licence("HC20", allow_adjacent=True, allow_dense=False) is True
+    assert policy.licence("HC20", allow_adjacent=False, allow_dense=True) is True
     assert policy.licence("HC14", allow_adjacent=True, allow_dense=False) is False
     assert policy.licence("HC14", allow_adjacent=False, allow_dense=True) is True
+
+
+def test_hc5_has_no_licence_at_all():
+    """D-61م: `never` لا `relaxed` — لا رخصةَ في أيّ جولة، بصرف النظر عن الرايتين."""
+    policy = cr.default_policy()
+
+    assert policy.licence("HC5", allow_adjacent=True, allow_dense=True) is False
 
 
 # ── القاعدةُ تستثني ──────────────────────────────────────────────────
@@ -126,11 +133,11 @@ def test_no_rows_means_the_code_exactly(school):
 
 
 def test_a_row_moves_the_rank(school):
-    override(school, "HC5", break_at=cr.NEVER)
+    override(school, "HC5", break_at=cr.RELAXED)
 
     policy = cr.resolve(school, YEAR)
 
-    assert policy.break_at("HC5") == cr.NEVER
+    assert policy.break_at("HC5") == cr.RELAXED
     assert policy.overridden == ("HC5",)
     assert policy.break_at("HC6") == cr.NEVER, "ولا يمسّ غيرَه"
 
@@ -142,9 +149,9 @@ def test_a_row_moves_a_soft_weight(school):
 
 
 def test_another_year_is_untouched(school):
-    override(school, "HC5", break_at=cr.NEVER)
+    override(school, "HC5", break_at=cr.RELAXED)
 
-    assert cr.resolve(school, "2027-2028").break_at("HC5") == cr.RELAXED
+    assert cr.resolve(school, "2027-2028").break_at("HC5") == cr.NEVER
 
 
 def test_a_stale_code_is_ignored_not_fatal(school):
@@ -223,10 +230,13 @@ def test_a_rank_lets_thursday_bend_in_the_last_round_only(school):
     assert is_slot_valid(grid, 4, 3, second, allow_adjacent=True, allow_dense=True) is True
 
 
-def test_a_rank_can_tighten_not_only_loosen(school):
-    """الرتبةُ تشدّ كما ترخي — وهذا ما لا يقدر عليه زرُّ الإطفاء.
+def test_a_rank_can_loosen_not_only_tighten(school):
+    """الرتبةُ تُرخي كما تشدّ — وهذا ما لا يقدر عليه زرُّ الإطفاء.
 
-    التلاصقُ يُرخى افتراضاً في الرخصة الأولى؛ فبرتبة `never` لا يُرخى أبداً.
+    D-61م: التلاصقُ (HC5) صار `never` افتراضاً — لا يُرخى بحال. وما زال
+    `tunable` (قرارٌ في حقّ معلّمٍ بعينه لا رخصةٌ عامّة)، فيُختبَر أنّ صفَّ
+    استثناءٍ من الإدارة يقدر أن يُحرِّره إلى `relaxed` صراحةً حين تحتاجه
+    مدرسةٌ بعينها — عكسَ ما كان يُختبَر قبل D-61م (شدٌّ من الرخصة لا إرخاءٌ إليها).
     """
     #: شعبتان ومادّتان لمعلّمٍ واحد — فالمانعُ تلاصقُه هو، لا قسمةُ مادّةٍ
     #: على أيّامها (HC6). واختبارٌ يمرّ لسببٍ غيرِ الذي يدّعيه لا يحرس شيئاً.
@@ -234,14 +244,16 @@ def test_a_rank_can_tighten_not_only_loosen(school):
 
     grid_default = ScheduleGrid()
     grid_default.place(0, 3, before)
-    assert is_slot_valid(grid_default, 0, 4, task(), allow_adjacent=True) is True
+    assert (
+        is_slot_valid(grid_default, 0, 4, task(), allow_adjacent=True) is False
+    ), "الافتراضُ الآن لا يُرخى"
 
-    override(school, "HC5", break_at=cr.NEVER)
+    override(school, "HC5", break_at=cr.RELAXED)
     grid = ScheduleGrid(policy=cr.resolve(school, YEAR))
     grid.place(0, 3, before)
 
-    assert is_slot_valid(grid, 0, 4, task(), allow_adjacent=True) is False
-    assert is_slot_valid(grid, 0, 4, task(), allow_adjacent=True, allow_dense=True) is False
+    assert is_slot_valid(grid, 0, 4, task(), allow_adjacent=True) is True
+    assert is_slot_valid(grid, 0, 4, task()) is False, "بلا رخصةٍ يبقى ممنوعاً حتى بعد التحرير"
 
 
 def test_the_relaxed_constraint_still_holds_its_ceiling(school):
