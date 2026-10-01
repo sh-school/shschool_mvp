@@ -8,8 +8,17 @@
 
 from datetime import time
 
+import pytest
+
+from operations.models import TimeSlotConfig
 from operations.scheduler import ScheduleGrid, Task
-from operations.scheduler_bell import are_joined, cells_joined, grid_run, longest_run
+from operations.scheduler_bell import (
+    are_joined,
+    cells_joined,
+    grid_run,
+    joinable_pairs,
+    longest_run,
+)
 from operations.scheduler_constraints import (
     _run_length,
     check_max_consecutive,
@@ -219,3 +228,49 @@ def test_the_subject_pair_is_judged_by_number_when_no_bell_is_known():
     grid.place(0, 3, task())
 
     assert check_subject_not_adjacent(grid, 0, 4, task()) is False
+
+
+# ── SCH-21: ثابتُ التلاصق (HC5) مستقلٌّ عن ثابت المزدوجة ──────────────
+
+
+@pytest.mark.django_db
+def test_changing_the_hc5_constant_does_not_move_the_double_period_boundary(school, monkeypatch):
+    """ثمانُ دقائقَ فاصلٌ: مزدوجةٌ شرعيّةٌ اليوم — وتشديدُ حكم HC5 لا يُسقطها."""
+    import operations.scheduler_bell as scheduler_bell
+
+    TimeSlotConfig.objects.create(
+        school=school, period_number=1, start_time=time(7, 0), end_time=time(7, 45)
+    )
+    TimeSlotConfig.objects.create(
+        school=school, period_number=2, start_time=time(7, 53), end_time=time(8, 38)
+    )
+
+    assert (1, 2) in joinable_pairs(school)
+    assert are_joined((time(7, 0), time(7, 45)), (time(7, 53), time(8, 38))) is True
+
+    monkeypatch.setattr(scheduler_bell, "HC5_JOINABLE_GAP_MINUTES", 5)
+
+    assert (1, 2) in joinable_pairs(school), "ثابتُ المزدوجة لم يتغيّر — لا يزال شرعيّاً"
+    assert (
+        are_joined((time(7, 0), time(7, 45)), (time(7, 53), time(8, 38))) is False
+    ), "ثابتُ HC5 وحدَه تشدّد — ثمانٍ > خمس"
+
+
+@pytest.mark.django_db
+def test_changing_the_double_period_constant_does_not_move_the_hc5_boundary(school, monkeypatch):
+    """العكسُ بالعكس: تشديدُ حدّ المزدوجة لا يمسّ حكم HC5 على نفس الفجوة."""
+    import operations.scheduler_bell as scheduler_bell
+
+    TimeSlotConfig.objects.create(
+        school=school, period_number=1, start_time=time(7, 0), end_time=time(7, 45)
+    )
+    TimeSlotConfig.objects.create(
+        school=school, period_number=2, start_time=time(7, 53), end_time=time(8, 38)
+    )
+
+    monkeypatch.setattr(scheduler_bell, "DOUBLE_PERIOD_GAP_MINUTES", 5)
+
+    assert (1, 2) not in joinable_pairs(school), "ثمانٍ > خمس — لم تعد مزدوجةً شرعيّة"
+    assert (
+        are_joined((time(7, 0), time(7, 45)), (time(7, 53), time(8, 38))) is True
+    ), "ثابتُ HC5 لم يتغيّر — التلاصقُ الحقيقيّ قائمٌ (ثمانٍ ≤ عشر)"

@@ -74,6 +74,41 @@ class TestReportInfraction:
         assert response.status_code in [200, 302]
         assert BehaviorInfraction.objects.count() > count_before
 
+    def test_post_succeeds_without_description(
+        self, client_as, teacher_user, school, student_user, enrolled_student
+    ):
+        """W-20261001-003: وصفُ المخالفة اختياريٌّ لكلّ فئات المخالفات بلا استثناء."""
+        client = client_as(teacher_user)
+        count_before = BehaviorInfraction.objects.count()
+        response = client.post(
+            "/behavior/report/",
+            {
+                "student_id": str(student_user.id),
+                "level": 1,
+                "description": "",
+                "disciplinary_action_type": "verbal_warning",
+            },
+        )
+        assert response.status_code in (200, 302)
+        assert BehaviorInfraction.objects.count() > count_before
+
+    def test_post_succeeds_with_description(
+        self, client_as, teacher_user, school, student_user, enrolled_student
+    ):
+        client = client_as(teacher_user)
+        count_before = BehaviorInfraction.objects.count()
+        response = client.post(
+            "/behavior/report/",
+            {
+                "student_id": str(student_user.id),
+                "level": 1,
+                "description": "تأخر عن الحصة",
+                "disciplinary_action_type": "verbal_warning",
+            },
+        )
+        assert response.status_code in (200, 302)
+        assert BehaviorInfraction.objects.count() > count_before
+
     def test_parent_cannot_report_infraction(self, client_as, parent_user, school, student_user):
         client = client_as(parent_user)
         response = client.post(

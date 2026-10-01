@@ -140,7 +140,9 @@
 .kpi-select-year { inline-size: 120px; }
 .kpi-select-paper { inline-size: 80px; }
 .kpi-loading { font-size: var(--text-sm); color: var(--text-muted); list-style: none; }
-.kpi-loading.is-error { color: var(--status-danger-fg); }
+.kpi-loading.is-error,
+.sa-btn-danger,
+.sa-late-msg.is-error { color: var(--status-danger-fg); }
 /* لونُ الرقم بإشارته — كان `style="color:…"` يُكتب في كلّ عنصر. */
 .kpi-tone--success { color: var(--status-success-fg); }
 .kpi-tone--warning { color: var(--status-warning-fg); }
@@ -273,7 +275,7 @@
    Brand: --maroon #8A1538 | --skyline #0D4261 | --gold #D4A843
    ════════════════════ */
 
-.qd { display: flex; flex-direction: column; gap: var(--sp-3); }
+.qd, .qdom, .qmy, .pr-page, .qeval, .qexec, .qcom, .qobs, .qobs-form-stack { display: flex; flex-direction: column; gap: var(--sp-3); }
 
 /* كانت اللوحةُ بطاقتين متجاورتين: يسراهما بلا ترويسةٍ فيها حلقةٌ كبرى وستُّ
    رقاقاتِ رقم، ويمناهما بشريطٍ عنّابيّ. صارت الأرقامُ شريطَ `kpi_strip`، ونسبةُ
@@ -333,7 +335,6 @@
 /* ── templates/quality/domain_detail.html ──
    كانت نسبةُ الإنجاز تُقال ثلاثاً (سطرُ الترويسة، وبطاقةُ الرقم، وشريطُ تقدّمٍ في
    بطاقةٍ وحده)، والهدفُ ترويسةً رماديّةً مكتوبةً باليد — صار الهدفُ `section_card`. */
-.qdom { display: flex; flex-direction: column; gap: var(--sp-3); }
 .qdom-filters { margin: 0; }
 
 /* ── Indicator row ── */
@@ -381,7 +382,6 @@
 /* ── templates/quality/my_procedures.html ──
    لافتةُ «غير مربوط» كانت شريطاً بتنسيقٍ داخل الوسم بين الترويسة والأرقام —
    صارت `ui-callout` داخل بطاقة القائمة التي تفسّر فراغَها. */
-.qmy { display: flex; flex-direction: column; gap: var(--sp-3); }
 .qmy-filters { margin: 0; }
 .qmy-item__link { text-decoration: none; color: inherit; }
 .qmy-item__link:hover .plain-list__title { color: var(--maroon-fg); }
@@ -423,8 +423,8 @@
   display: block; font-size: var(--text-sm); font-weight: 600;
   color: var(--text-primary);
 }
-.qproc-field__val--danger { color: var(--status-danger-fg); }
 .qproc-field__val--muted { color: var(--text-secondary); font-weight: 400; font-size: var(--text-xs); }
+.qproc-field__val--danger { color: var(--status-danger-fg); }
 
 /* ── Strips (evaluation, comments) ── */
 .qproc-strip {
@@ -551,7 +551,6 @@
    Only adds: ring SVG positioning + donut grids
    ════════════════════ */
 
-.pr-page { display: flex; flex-direction: column; gap: var(--sp-3); }
 
 /* ── حلقاتُ الإنجاز: المسارُ والقوسُ ولونُه من `quality/presentation.py::progress_tone` ──
    كانت الألوانُ سداسيّةً في سماتِ SVG (`stroke="#16a34a"`) فلا تتبع الوضعَ الداكن،
@@ -653,7 +652,6 @@
 /* ── templates/quality/evaluation_dashboard.html ──
    كانت بطاقاتُ `card-qatar` بأرقامٍ بمقاس text-3xl وألوانِ Tailwind، وترويساتٌ
    رماديّةٌ مكتوبةٌ باليد، وشريطُ تقدّمِ الدورة بلا عرضٍ يُرسم فلا يُرى. */
-.qeval { display: flex; flex-direction: column; gap: var(--sp-3); }
 .qeval-cycle__bar { flex: 0 1 160px; min-inline-size: 60px; }
 .qeval-search {
   display: flex; align-items: center; gap: var(--sp-2);
@@ -698,7 +696,6 @@
 /* ── templates/quality/executor_mapping.html ──
    ثلاثُ بطاقاتِ card-qatar بأرقامٍ text-3xl صارت شريطاً، وعمودُ «الحالة» كان
    يكرّر ما يقوله عمودُ «الموظف الحالي» — صار الشارةَ فيه. */
-.qexec { display: flex; flex-direction: column; gap: var(--sp-3); }
 .qexec-apply { display: contents; }
 .qexec-user { font-weight: 600; color: var(--status-success-fg); }
 .qexec-suggest { display: block; margin-top: var(--sp-1); font-size: var(--text-xs); color: var(--status-info-fg); }
@@ -713,7 +710,6 @@
 .qexec-proc-link:hover { color: var(--maroon-fg); text-decoration: underline; }
 
 /* ── templates/quality/executor_committee.html ── */
-.qcom { display: flex; flex-direction: column; gap: var(--sp-3); }
 /* نموذجُ الإضافة مطويٌّ حتى يُفتح بزرّ الترويسة — `toggleForm` في quality.js
    يبدّل `is-open`؛ وكان الطيُّ `style="display:none"` داخل الوسم. */
 .qcom-add:not(.is-open) { display: none; }
@@ -726,7 +722,6 @@
    كانت ترويسةُ الصفحة متداخلةً داخل بطاقةٍ واحدةٍ تحمل الصفحةَ كلَّها، ولكلّ
    صفحةٍ ثمانيةُ تنسيقاتٍ إلى تسعةَ عشرَ داخل الوسم. صارت الترويسةُ `page_header`،
    وكلُّ مجالٍ من المعايير `section_card`، والإجراءاتُ في رأس الصفحة. */
-.qobs { display: flex; flex-direction: column; gap: var(--sp-3); }
 /* `qobs--wide`/`qobs--narrow` (max-width + توسيط) أُعيد تجريبُهما مرّتين
    (1100px ثمّ 1400px) قبل أن يتّضح أنّ observation_form.html ليس صفَّ
    حقولٍ وحده: جداولُ المعايير أسفله (معيار + خمس خانات تقييم + توصية)
@@ -790,7 +785,6 @@
 .qobs-rec { min-height: 34px; resize: vertical; line-height: 1.5; }
 .qobs-notes { margin: 0; font-size: var(--text-sm); line-height: 1.8; color: var(--text-primary); }
 
-.qobs-form-stack { display: flex; flex-direction: column; gap: var(--sp-3); }
 .qobs-fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -1481,7 +1475,6 @@
 .sa-span-full { grid-column: 1 / -1; }
 
 .sa-link { color: var(--maroon-fg); font-weight: 600; text-decoration: none; }
-.sa-btn-danger { color: var(--status-danger-fg); }
 .sa-inline-form { display: inline; }
 .sa-row-actions { display: flex; gap: var(--sp-1); justify-content: center; flex-wrap: nowrap; }
 .sa-cell-clip { max-inline-size: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1538,7 +1531,6 @@
 .sa-late-result.is-already { cursor: default; opacity: .5; }
 .sa-late-result__meta { font-size: var(--text-xs); color: var(--text-muted); }
 .sa-late-msg { padding: var(--sp-2-5) var(--sp-3-5); font-size: var(--text-sm); color: var(--text-muted); }
-.sa-late-msg.is-error { color: var(--status-danger-fg); }
 .sa-late-form { display: none; }
 .sa-late-fields { display: flex; gap: var(--sp-2-5); align-items: flex-end; flex-wrap: wrap; }
 .sa-late-field { flex: 1; min-inline-size: 160px; }
