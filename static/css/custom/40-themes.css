@@ -457,10 +457,13 @@ html.dark .report-tabs { border-bottom-color: var(--border); }
 .import-meta { margin-block-start: var(--sp-2); }
 .import-errors { margin-block-start: var(--sp-3); }
 .import-errors .plain-list__row { justify-content: flex-start; font-size: var(--text-xs); color: var(--status-danger-fg); }
+/* كانت حشوتُها الرأسيّة (sp-6) تترك فراغاً فارغاً كبيراً حول أيقونةٍ ونصّين
+   قصيرين فقط — صفحةُ استيراد الطلاب طلبت تنظيماً أفضل (2026-10-01) فصارت
+   أضيق (sp-4) دون أن تفقد وضوحَها كمنطقة إفلاتٍ واضحة الحدود. */
 .import-drop {
   display: grid; justify-items: center; gap: var(--sp-1);
   margin-block-start: var(--sp-3);
-  padding: var(--sp-6, var(--sp-6)) var(--sp-3);
+  padding: var(--sp-4) var(--sp-3);
   border: 2px dashed var(--border-strong);
   border-radius: var(--radius-lg);
   color: var(--text-muted);
