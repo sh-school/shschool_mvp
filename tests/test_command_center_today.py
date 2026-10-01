@@ -91,6 +91,26 @@ def test_nothing_merged_today_has_no_gauge(monkeypatch):
     assert panel["gauge"] is None
 
 
+def test_a_deploy_reply_missing_the_stamp_key_does_not_raise(monkeypatch):
+    """W-20260930-001: قاموسُ نشرٍ خالٍ من "stamp" كان يُسقط المجمِّع بـKeyError."""
+    merged = [{"merged_at": _iso(3600)}]
+
+    def fake_fetch(path, reduce):
+        if path == today.MERGED_PATH:
+            return reduce(merged)
+        if path == today.DEPLOY_PATH:
+            return {}
+        raise AssertionError(path)
+
+    monkeypatch.setattr(github, "fetch", fake_fetch)
+    today.collect(NOW)
+    panel = _panel()
+    assert panel["ok"] is True
+    values = {m["label"]: m["value"] for m in panel["metrics"]}
+    assert values["نُشرت منها"] == "0"
+    assert values["بانتظار الدفعة"] == "1"
+
+
 def test_a_github_failure_keeps_the_last_value(monkeypatch):
     merged = [{"merged_at": _iso(3600)}]
     deploy = [{"created_at": _iso(0)}]

@@ -463,9 +463,24 @@ def test_pulls_without_a_recorded_deployment_is_amber_with_no_dial(monkeypatch):
     monkeypatch.setattr(
         github,
         "fetch",
-        lambda path, reduce: {"open": 1, "drafts": 0, "oldest": now}
-        if path.startswith("pulls")
-        else {"sha": ""},
+        lambda path, reduce: (
+            {"open": 1, "drafts": 0, "oldest": now} if path.startswith("pulls") else {"sha": ""}
+        ),
+    )
+    pulls.collect(now)
+    panel = _panel("pulls")
+    assert panel["status"] == contract.WARN and panel["gauge"] is None
+
+
+def test_a_deploy_reply_missing_the_sha_key_does_not_raise(monkeypatch):
+    """W-20260930-001: قاموسُ نشرٍ خالٍ من "sha" (لا سطرَ نشرٍ حيّ) كان يُسقط المجمِّع بـKeyError."""
+    now = time.time()
+    monkeypatch.setattr(
+        github,
+        "fetch",
+        lambda path, reduce: (
+            {"open": 1, "drafts": 0, "oldest": now} if path.startswith("pulls") else {}
+        ),
     )
     pulls.collect(now)
     panel = _panel("pulls")
