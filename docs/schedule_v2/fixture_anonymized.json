@@ -579,77 +579,77 @@
   {
    "cls": "C-006",
    "subj": "S-001",
-   "teacher": "T-005",
+   "teacher": "T-006",
    "elec": "",
    "n": 5
   },
   {
    "cls": "C-007",
    "subj": "S-005",
-   "teacher": "T-006",
+   "teacher": "T-007",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-008",
    "subj": "S-005",
-   "teacher": "T-007",
+   "teacher": "T-008",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-009",
    "subj": "S-006",
-   "teacher": "T-008",
+   "teacher": "T-009",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-010",
    "subj": "S-007",
-   "teacher": "T-009",
+   "teacher": "T-010",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-011",
    "subj": "S-008",
-   "teacher": "T-010",
+   "teacher": "T-011",
    "elec": "",
    "n": 6
   },
   {
    "cls": "C-012",
    "subj": "S-009",
-   "teacher": "T-011",
+   "teacher": "T-012",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-013",
    "subj": "S-003",
-   "teacher": "T-012",
+   "teacher": "T-013",
    "elec": "",
    "n": 5
   },
   {
    "cls": "C-014",
    "subj": "S-010",
-   "teacher": "T-013",
+   "teacher": "T-014",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-015",
    "subj": "S-011",
-   "teacher": "T-014",
+   "teacher": "T-015",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-016",
    "subj": "S-011",
-   "teacher": "T-015",
+   "teacher": "T-005",
    "elec": "",
    "n": 2
   },
@@ -670,1071 +670,1071 @@
   {
    "cls": "C-019",
    "subj": "S-010",
-   "teacher": "T-013",
+   "teacher": "T-018",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-020",
    "subj": "S-012",
-   "teacher": "T-018",
+   "teacher": "T-019",
    "elec": "",
    "n": 5
   },
   {
    "cls": "C-021",
    "subj": "S-003",
-   "teacher": "T-019",
+   "teacher": "T-020",
    "elec": "",
    "n": 6
   },
   {
    "cls": "C-022",
    "subj": "S-002",
-   "teacher": "T-020",
+   "teacher": "T-005",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-023",
    "subj": "S-013",
-   "teacher": "T-007",
+   "teacher": "T-021",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-024",
    "subj": "S-001",
-   "teacher": "T-021",
+   "teacher": "T-022",
    "elec": "",
    "n": 6
   },
   {
    "cls": "C-025",
    "subj": "S-003",
-   "teacher": "T-022",
+   "teacher": "T-023",
    "elec": "",
    "n": 5
   },
   {
    "cls": "C-022",
    "subj": "S-008",
-   "teacher": "T-023",
+   "teacher": "T-010",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-016",
    "subj": "S-002",
-   "teacher": "T-020",
+   "teacher": "T-024",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-014",
    "subj": "S-014",
-   "teacher": "T-024",
+   "teacher": "T-025",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-021",
    "subj": "S-001",
-   "teacher": "T-025",
+   "teacher": "T-026",
    "elec": "",
    "n": 6
   },
   {
    "cls": "C-012",
    "subj": "S-003",
-   "teacher": "T-019",
+   "teacher": "T-027",
    "elec": "",
    "n": 6
   },
   {
    "cls": "C-001",
    "subj": "S-003",
-   "teacher": "T-026",
+   "teacher": "T-028",
    "elec": "",
    "n": 5
   },
   {
    "cls": "C-019",
+   "subj": "S-001",
+   "teacher": "T-020",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-002",
+   "subj": "S-013",
+   "teacher": "T-015",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-005",
+   "subj": "S-012",
+   "teacher": "T-029",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-023",
+   "subj": "S-008",
+   "teacher": "T-030",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-020",
+   "subj": "S-002",
+   "teacher": "T-031",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-007",
+   "subj": "S-013",
+   "teacher": "T-032",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-015",
+   "subj": "S-012",
+   "teacher": "T-033",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-018",
+   "subj": "S-002",
+   "teacher": "T-034",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-004",
+   "subj": "S-001",
+   "teacher": "T-011",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-008",
+   "subj": "S-003",
+   "teacher": "T-035",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-013",
+   "subj": "S-015",
+   "teacher": "T-036",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-017",
+   "subj": "S-003",
+   "teacher": "T-037",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-003",
    "subj": "S-001",
    "teacher": "T-027",
    "elec": "",
    "n": 6
   },
   {
-   "cls": "C-002",
-   "subj": "S-013",
-   "teacher": "T-008",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-005",
-   "subj": "S-012",
-   "teacher": "T-028",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-023",
-   "subj": "S-008",
-   "teacher": "T-023",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-020",
-   "subj": "S-002",
-   "teacher": "T-020",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-007",
-   "subj": "S-013",
-   "teacher": "T-006",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-015",
-   "subj": "S-012",
-   "teacher": "T-029",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-018",
-   "subj": "S-002",
-   "teacher": "T-017",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-004",
-   "subj": "S-001",
-   "teacher": "T-030",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-008",
-   "subj": "S-003",
-   "teacher": "T-026",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-013",
-   "subj": "S-015",
-   "teacher": "T-011",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-017",
-   "subj": "S-003",
-   "teacher": "T-031",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-003",
-   "subj": "S-001",
-   "teacher": "T-032",
-   "elec": "",
-   "n": 6
-  },
-  {
    "cls": "C-009",
    "subj": "S-005",
-   "teacher": "T-010",
+   "teacher": "T-038",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-024",
    "subj": "S-005",
-   "teacher": "T-033",
+   "teacher": "T-009",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-006",
    "subj": "S-004",
-   "teacher": "T-034",
+   "teacher": "T-039",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-025",
    "subj": "S-012",
-   "teacher": "T-035",
+   "teacher": "T-010",
    "elec": "",
    "n": 5
   },
   {
    "cls": "C-011",
    "subj": "S-001",
-   "teacher": "T-036",
+   "teacher": "T-038",
    "elec": "",
    "n": 6
   },
   {
    "cls": "C-008",
    "subj": "S-001",
-   "teacher": "T-005",
+   "teacher": "T-001",
    "elec": "",
    "n": 5
   },
   {
    "cls": "C-020",
    "subj": "S-003",
-   "teacher": "T-026",
+   "teacher": "T-040",
    "elec": "",
    "n": 5
   },
   {
    "cls": "C-003",
    "subj": "S-016",
-   "teacher": "T-037",
+   "teacher": "T-041",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-021",
    "subj": "S-012",
-   "teacher": "T-038",
+   "teacher": "T-015",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-017",
    "subj": "S-017",
-   "teacher": "T-039",
+   "teacher": "T-042",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-018",
    "subj": "S-005",
-   "teacher": "T-006",
+   "teacher": "T-030",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-005",
    "subj": "S-003",
-   "teacher": "T-040",
+   "teacher": "T-001",
    "elec": "",
    "n": 5
   },
   {
    "cls": "C-002",
    "subj": "S-008",
-   "teacher": "T-010",
+   "teacher": "T-036",
    "elec": "",
    "n": 6
   },
   {
    "cls": "C-004",
    "subj": "S-014",
-   "teacher": "T-041",
+   "teacher": "T-043",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-025",
    "subj": "S-008",
-   "teacher": "T-042",
+   "teacher": "T-044",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-019",
    "subj": "S-003",
-   "teacher": "T-031",
+   "teacher": "T-045",
    "elec": "",
    "n": 6
   },
   {
    "cls": "C-007",
    "subj": "S-001",
-   "teacher": "T-043",
+   "teacher": "T-046",
    "elec": "",
    "n": 5
   },
   {
    "cls": "C-015",
    "subj": "S-004",
-   "teacher": "T-044",
+   "teacher": "T-047",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-001",
    "subj": "S-005",
-   "teacher": "T-045",
+   "teacher": "T-021",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-014",
    "subj": "S-012",
-   "teacher": "T-046",
+   "teacher": "T-017",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-022",
    "subj": "S-011",
-   "teacher": "T-015",
+   "teacher": "T-023",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-016",
    "subj": "S-013",
-   "teacher": "T-007",
+   "teacher": "T-048",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-012",
    "subj": "S-006",
+   "teacher": "T-049",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-010",
+   "subj": "S-008",
+   "teacher": "T-050",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-006",
+   "subj": "S-013",
+   "teacher": "T-028",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-009",
+   "subj": "S-012",
+   "teacher": "T-043",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-023",
+   "subj": "S-002",
    "teacher": "T-008",
    "elec": "",
    "n": 4
   },
   {
-   "cls": "C-010",
-   "subj": "S-008",
-   "teacher": "T-042",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-006",
-   "subj": "S-013",
-   "teacher": "T-007",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-009",
-   "subj": "S-012",
-   "teacher": "T-047",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-023",
-   "subj": "S-002",
-   "teacher": "T-020",
-   "elec": "",
-   "n": 4
-  },
-  {
    "cls": "C-014",
    "subj": "S-002",
-   "teacher": "T-003",
+   "teacher": "T-014",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-010",
-   "subj": "S-003",
-   "teacher": "T-040",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-024",
-   "subj": "S-013",
-   "teacher": "T-044",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-019",
-   "subj": "S-014",
-   "teacher": "T-041",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-013",
-   "subj": "S-012",
-   "teacher": "T-048",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-005",
-   "subj": "S-008",
-   "teacher": "T-042",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-007",
-   "subj": "S-002",
-   "teacher": "T-017",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-011",
-   "subj": "S-003",
-   "teacher": "T-049",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-003",
-   "subj": "S-010",
-   "teacher": "T-024",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-006",
-   "subj": "S-002",
-   "teacher": "T-050",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-009",
    "subj": "S-003",
    "teacher": "T-051",
    "elec": "",
    "n": 5
   },
   {
-   "cls": "C-018",
-   "subj": "S-013",
-   "teacher": "T-006",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-008",
-   "subj": "S-004",
-   "teacher": "T-052",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-023",
-   "subj": "S-001",
-   "teacher": "T-053",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-017",
-   "subj": "S-012",
-   "teacher": "T-054",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-002",
-   "subj": "S-001",
-   "teacher": "T-055",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-022",
-   "subj": "S-012",
-   "teacher": "T-056",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-025",
-   "subj": "S-007",
-   "teacher": "T-009",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-015",
-   "subj": "S-003",
-   "teacher": "T-051",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-001",
-   "subj": "S-002",
-   "teacher": "T-050",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-012",
-   "subj": "S-011",
-   "teacher": "T-014",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-016",
-   "subj": "S-001",
-   "teacher": "T-053",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-020",
-   "subj": "S-008",
-   "teacher": "T-042",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-004",
-   "subj": "S-010",
-   "teacher": "T-024",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-018",
-   "subj": "S-003",
-   "teacher": "T-043",
-   "elec": "",
-   "n": 5
-  },
-  {
    "cls": "C-024",
-   "subj": "S-008",
-   "teacher": "T-033",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-020",
-   "subj": "S-001",
-   "teacher": "T-053",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-014",
-   "subj": "S-016",
-   "teacher": "T-037",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-013",
-   "subj": "S-005",
-   "teacher": "T-010",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-016",
-   "subj": "S-012",
-   "teacher": "T-056",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-015",
-   "subj": "S-008",
-   "teacher": "T-033",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-002",
-   "subj": "S-012",
-   "teacher": "T-057",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-022",
    "subj": "S-013",
-   "teacher": "T-007",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-006",
-   "subj": "S-012",
-   "teacher": "T-058",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-011",
-   "subj": "S-002",
-   "teacher": "T-003",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-005",
-   "subj": "S-001",
-   "teacher": "T-059",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-010",
-   "subj": "S-002",
-   "teacher": "T-050",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-007",
-   "subj": "S-011",
-   "teacher": "T-006",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-021",
-   "subj": "S-014",
-   "teacher": "T-041",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-009",
-   "subj": "S-002",
-   "teacher": "T-003",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-008",
-   "subj": "S-012",
-   "teacher": "T-058",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-004",
-   "subj": "S-018",
-   "teacher": "T-060",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-003",
-   "subj": "S-011",
-   "teacher": "T-014",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-012",
-   "subj": "S-004",
-   "teacher": "T-044",
-   "elec": "G91",
-   "n": 2
-  },
-  {
-   "cls": "C-001",
-   "subj": "S-013",
-   "teacher": "T-007",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-023",
-   "subj": "S-003",
-   "teacher": "T-040",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-012",
-   "subj": "S-007",
-   "teacher": "T-061",
-   "elec": "G16",
-   "n": 2
-  },
-  {
-   "cls": "C-006",
-   "subj": "S-003",
-   "teacher": "T-062",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-002",
-   "subj": "S-003",
-   "teacher": "T-063",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-009",
-   "subj": "S-011",
-   "teacher": "T-014",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-020",
-   "subj": "S-005",
-   "teacher": "T-064",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-025",
-   "subj": "S-013",
-   "teacher": "T-045",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-012",
-   "subj": "S-001",
-   "teacher": "T-046",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-014",
-   "subj": "S-001",
-   "teacher": "T-055",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-001",
-   "subj": "S-008",
-   "teacher": "T-065",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-004",
-   "subj": "S-011",
-   "teacher": "T-014",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-008",
-   "subj": "S-008",
-   "teacher": "T-065",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-015",
-   "subj": "S-001",
-   "teacher": "T-046",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-021",
-   "subj": "S-010",
-   "teacher": "T-024",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-022",
-   "subj": "S-001",
-   "teacher": "T-059",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-017",
-   "subj": "S-015",
-   "teacher": "T-011",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-024",
-   "subj": "S-012",
-   "teacher": "T-066",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-011",
-   "subj": "S-012",
-   "teacher": "T-067",
-   "elec": "",
-   "n": 6
-  },
-  {
-   "cls": "C-003",
-   "subj": "S-014",
-   "teacher": "T-041",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-016",
-   "subj": "S-005",
-   "teacher": "T-064",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-010",
-   "subj": "S-001",
-   "teacher": "T-059",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-018",
-   "subj": "S-001",
-   "teacher": "T-043",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-013",
-   "subj": "S-017",
-   "teacher": "T-039",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-023",
-   "subj": "S-011",
-   "teacher": "T-015",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-007",
-   "subj": "S-012",
-   "teacher": "T-068",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-019",
-   "subj": "S-016",
-   "teacher": "T-037",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-005",
-   "subj": "S-002",
-   "teacher": "T-050",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-014",
-   "subj": "S-003",
-   "teacher": "T-069",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-011",
-   "subj": "S-013",
-   "teacher": "T-044",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-016",
-   "subj": "S-003",
-   "teacher": "T-062",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-010",
-   "subj": "S-012",
-   "teacher": "T-058",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-022",
-   "subj": "S-003",
-   "teacher": "T-062",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-007",
-   "subj": "S-003",
-   "teacher": "T-068",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-021",
-   "subj": "S-018",
-   "teacher": "T-060",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-018",
-   "subj": "S-012",
-   "teacher": "T-068",
-   "elec": "",
-   "n": 5
-  },
-  {
-   "cls": "C-001",
-   "subj": "S-012",
    "teacher": "T-022",
    "elec": "",
-   "n": 5
+   "n": 3
   },
   {
-   "cls": "C-024",
+   "cls": "C-019",
+   "subj": "S-014",
+   "teacher": "T-052",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-013",
+   "subj": "S-012",
+   "teacher": "T-021",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-005",
+   "subj": "S-008",
+   "teacher": "T-006",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-007",
+   "subj": "S-002",
+   "teacher": "T-021",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-011",
    "subj": "S-003",
-   "teacher": "T-069",
+   "teacher": "T-023",
    "elec": "",
    "n": 5
   },
   {
    "cls": "C-003",
+   "subj": "S-010",
+   "teacher": "T-053",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-006",
+   "subj": "S-002",
+   "teacher": "T-054",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-009",
    "subj": "S-003",
    "teacher": "T-025",
    "elec": "",
    "n": 5
   },
   {
+   "cls": "C-018",
+   "subj": "S-013",
+   "teacher": "T-048",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-008",
+   "subj": "S-004",
+   "teacher": "T-055",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-023",
+   "subj": "S-001",
+   "teacher": "T-051",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-017",
+   "subj": "S-012",
+   "teacher": "T-052",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-002",
+   "subj": "S-001",
+   "teacher": "T-031",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-022",
+   "subj": "S-012",
+   "teacher": "T-030",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-025",
+   "subj": "S-007",
+   "teacher": "T-030",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-015",
+   "subj": "S-003",
+   "teacher": "T-036",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-001",
+   "subj": "S-002",
+   "teacher": "T-032",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-012",
+   "subj": "S-011",
+   "teacher": "T-022",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-016",
+   "subj": "S-001",
+   "teacher": "T-039",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-020",
+   "subj": "S-008",
+   "teacher": "T-056",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-004",
+   "subj": "S-010",
+   "teacher": "T-013",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-018",
+   "subj": "S-003",
+   "teacher": "T-046",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-024",
+   "subj": "S-008",
+   "teacher": "T-027",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-020",
+   "subj": "S-001",
+   "teacher": "T-005",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-014",
+   "subj": "S-016",
+   "teacher": "T-057",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-013",
+   "subj": "S-005",
+   "teacher": "T-049",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-016",
+   "subj": "S-012",
+   "teacher": "T-044",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-015",
+   "subj": "S-008",
+   "teacher": "T-045",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-002",
+   "subj": "S-012",
+   "teacher": "T-048",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-022",
+   "subj": "S-013",
+   "teacher": "T-035",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-006",
+   "subj": "S-012",
+   "teacher": "T-050",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-011",
+   "subj": "S-002",
+   "teacher": "T-018",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-005",
+   "subj": "S-001",
+   "teacher": "T-024",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-010",
+   "subj": "S-002",
+   "teacher": "T-007",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-007",
+   "subj": "S-011",
+   "teacher": "T-050",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-021",
+   "subj": "S-014",
+   "teacher": "T-058",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-009",
+   "subj": "S-002",
+   "teacher": "T-013",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-008",
+   "subj": "S-012",
+   "teacher": "T-006",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-004",
+   "subj": "S-018",
+   "teacher": "T-013",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-003",
+   "subj": "S-011",
+   "teacher": "T-026",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-012",
+   "subj": "S-004",
+   "teacher": "T-016",
+   "elec": "G81",
+   "n": 2
+  },
+  {
+   "cls": "C-001",
+   "subj": "S-013",
+   "teacher": "T-040",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-023",
+   "subj": "S-003",
+   "teacher": "T-059",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-012",
+   "subj": "S-007",
+   "teacher": "T-027",
+   "elec": "G74",
+   "n": 2
+  },
+  {
+   "cls": "C-006",
+   "subj": "S-003",
+   "teacher": "T-039",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-002",
+   "subj": "S-003",
+   "teacher": "T-028",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-009",
+   "subj": "S-011",
+   "teacher": "T-037",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-020",
+   "subj": "S-005",
+   "teacher": "T-054",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-025",
+   "subj": "S-013",
+   "teacher": "T-001",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-012",
+   "subj": "S-001",
+   "teacher": "T-053",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-014",
+   "subj": "S-001",
+   "teacher": "T-054",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-001",
+   "subj": "S-008",
+   "teacher": "T-060",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-004",
+   "subj": "S-011",
+   "teacher": "T-061",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-008",
+   "subj": "S-008",
+   "teacher": "T-062",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-015",
+   "subj": "S-001",
+   "teacher": "T-049",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-021",
+   "subj": "S-010",
+   "teacher": "T-063",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-022",
+   "subj": "S-001",
+   "teacher": "T-008",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-017",
+   "subj": "S-015",
+   "teacher": "T-041",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-024",
+   "subj": "S-012",
+   "teacher": "T-012",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-011",
+   "subj": "S-012",
+   "teacher": "T-064",
+   "elec": "",
+   "n": 6
+  },
+  {
+   "cls": "C-003",
+   "subj": "S-014",
+   "teacher": "T-012",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-016",
+   "subj": "S-005",
+   "teacher": "T-032",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-010",
+   "subj": "S-001",
+   "teacher": "T-032",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-018",
+   "subj": "S-001",
+   "teacher": "T-065",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-013",
+   "subj": "S-017",
+   "teacher": "T-002",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-023",
+   "subj": "S-011",
+   "teacher": "T-033",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-007",
+   "subj": "S-012",
+   "teacher": "T-046",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-019",
+   "subj": "S-016",
+   "teacher": "T-064",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-005",
+   "subj": "S-002",
+   "teacher": "T-019",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-014",
+   "subj": "S-003",
+   "teacher": "T-035",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-011",
+   "subj": "S-013",
+   "teacher": "T-026",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-016",
+   "subj": "S-003",
+   "teacher": "T-017",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-010",
+   "subj": "S-012",
+   "teacher": "T-056",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-022",
+   "subj": "S-003",
+   "teacher": "T-020",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-007",
+   "subj": "S-003",
+   "teacher": "T-065",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-021",
+   "subj": "S-018",
+   "teacher": "T-063",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-018",
+   "subj": "S-012",
+   "teacher": "T-065",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-001",
+   "subj": "S-012",
+   "teacher": "T-060",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-024",
+   "subj": "S-003",
+   "teacher": "T-040",
+   "elec": "",
+   "n": 5
+  },
+  {
+   "cls": "C-003",
+   "subj": "S-003",
+   "teacher": "T-066",
+   "elec": "",
+   "n": 5
+  },
+  {
    "cls": "C-008",
    "subj": "S-002",
-   "teacher": "T-023",
+   "teacher": "T-029",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-025",
    "subj": "S-001",
-   "teacher": "T-028",
+   "teacher": "T-007",
    "elec": "",
    "n": 5
   },
   {
    "cls": "C-019",
    "subj": "S-011",
-   "teacher": "T-051",
+   "teacher": "T-042",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-023",
    "subj": "S-012",
-   "teacher": "T-022",
+   "teacher": "T-062",
    "elec": "",
    "n": 5
   },
   {
    "cls": "C-013",
    "subj": "S-002",
-   "teacher": "T-003",
+   "teacher": "T-025",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-009",
    "subj": "S-001",
-   "teacher": "T-030",
+   "teacher": "T-059",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-004",
    "subj": "S-016",
-   "teacher": "T-037",
+   "teacher": "T-067",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-015",
    "subj": "S-002",
-   "teacher": "T-070",
+   "teacher": "T-058",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-005",
    "subj": "S-011",
-   "teacher": "T-015",
+   "teacher": "T-040",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-006",
    "subj": "S-005",
-   "teacher": "T-064",
+   "teacher": "T-068",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-020",
    "subj": "S-013",
-   "teacher": "T-045",
+   "teacher": "T-069",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-012",
    "subj": "S-017",
-   "teacher": "T-039",
+   "teacher": "T-003",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-022",
    "subj": "S-005",
-   "teacher": "T-064",
+   "teacher": "T-048",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-018",
    "subj": "S-011",
-   "teacher": "T-006",
+   "teacher": "T-005",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-023",
    "subj": "S-007",
-   "teacher": "T-009",
+   "teacher": "T-044",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-025",
    "subj": "S-002",
-   "teacher": "T-023",
+   "teacher": "T-070",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-016",
    "subj": "S-004",
-   "teacher": "T-028",
+   "teacher": "T-004",
    "elec": "",
    "n": 2
   },
@@ -1748,35 +1748,35 @@
   {
    "cls": "C-004",
    "subj": "S-002",
-   "teacher": "T-070",
+   "teacher": "T-036",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-009",
    "subj": "S-017",
-   "teacher": "T-008",
+   "teacher": "T-038",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-008",
    "subj": "S-013",
-   "teacher": "T-045",
+   "teacher": "T-051",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-013",
    "subj": "S-011",
-   "teacher": "T-069",
+   "teacher": "T-002",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-003",
    "subj": "S-018",
-   "teacher": "T-060",
+   "teacher": "T-025",
    "elec": "",
    "n": 2
   },
@@ -1790,504 +1790,504 @@
   {
    "cls": "C-010",
    "subj": "S-004",
-   "teacher": "T-056",
+   "teacher": "T-071",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-023",
    "subj": "S-005",
-   "teacher": "T-064",
+   "teacher": "T-007",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-012",
    "subj": "S-002",
-   "teacher": "T-070",
+   "teacher": "T-045",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-017",
    "subj": "S-007",
-   "teacher": "T-061",
-   "elec": "G16",
+   "teacher": "T-067",
+   "elec": "G74",
    "n": 2
   },
   {
    "cls": "C-025",
    "subj": "S-005",
-   "teacher": "T-064",
+   "teacher": "T-019",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-017",
    "subj": "S-006",
-   "teacher": "T-008",
-   "elec": "G30",
+   "teacher": "T-016",
+   "elec": "G20",
    "n": 2
   },
   {
    "cls": "C-006",
    "subj": "S-008",
-   "teacher": "T-065",
+   "teacher": "T-023",
    "elec": "",
    "n": 4
   },
   {
    "cls": "C-001",
    "subj": "S-011",
-   "teacher": "T-015",
+   "teacher": "T-039",
    "elec": "",
    "n": 2
   },
   {
    "cls": "C-015",
    "subj": "S-013",
-   "teacher": "T-044",
+   "teacher": "T-037",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-019",
    "subj": "S-012",
-   "teacher": "T-047",
+   "teacher": "T-037",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-005",
    "subj": "S-013",
-   "teacher": "T-045",
+   "teacher": "T-072",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-013",
    "subj": "S-001",
-   "teacher": "T-036",
+   "teacher": "T-063",
    "elec": "",
    "n": 3
   },
   {
    "cls": "C-018",
-   "subj": "S-007",
-   "teacher": "T-006",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-007",
-   "subj": "S-004",
-   "teacher": "T-068",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-004",
-   "subj": "S-012",
-   "teacher": "T-054",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-008",
-   "subj": "S-011",
-   "teacher": "T-015",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-021",
-   "subj": "S-016",
-   "teacher": "T-039",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-019",
-   "subj": "S-002",
-   "teacher": "T-070",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-002",
-   "subj": "S-011",
-   "teacher": "T-030",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-017",
-   "subj": "S-002",
-   "teacher": "T-070",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-006",
-   "subj": "S-011",
-   "teacher": "T-071",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-005",
-   "subj": "S-005",
-   "teacher": "T-064",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-013",
-   "subj": "S-019",
-   "teacher": "T-061",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-020",
-   "subj": "S-011",
-   "teacher": "T-071",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-003",
-   "subj": "S-012",
-   "teacher": "T-066",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-007",
-   "subj": "S-008",
-   "teacher": "T-017",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-010",
-   "subj": "S-005",
-   "teacher": "T-064",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-024",
-   "subj": "S-002",
-   "teacher": "T-014",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-025",
-   "subj": "S-004",
-   "teacher": "T-058",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-016",
-   "subj": "S-008",
-   "teacher": "T-065",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-021",
-   "subj": "S-002",
-   "teacher": "T-014",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-002",
-   "subj": "S-005",
-   "teacher": "T-033",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-004",
-   "subj": "S-005",
-   "teacher": "T-066",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-014",
-   "subj": "S-018",
-   "teacher": "T-060",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-021",
-   "subj": "S-011",
-   "teacher": "T-036",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-020",
-   "subj": "S-004",
-   "teacher": "T-022",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-008",
-   "subj": "S-007",
-   "teacher": "T-009",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-005",
-   "subj": "S-007",
-   "teacher": "T-009",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-018",
-   "subj": "S-004",
-   "teacher": "T-072",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-025",
-   "subj": "S-011",
-   "teacher": "T-071",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-011",
-   "subj": "S-011",
-   "teacher": "T-055",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-023",
-   "subj": "S-004",
-   "teacher": "T-026",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-003",
-   "subj": "S-005",
-   "teacher": "T-067",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-024",
-   "subj": "S-004",
-   "teacher": "T-044",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-013",
-   "subj": "S-006",
-   "teacher": "T-013",
-   "elec": "G30",
-   "n": 2
-  },
-  {
-   "cls": "C-020",
-   "subj": "S-007",
-   "teacher": "T-009",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-013",
-   "subj": "S-018",
-   "teacher": "T-060",
-   "elec": "G42",
-   "n": 2
-  },
-  {
-   "cls": "C-010",
-   "subj": "S-011",
-   "teacher": "T-071",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-014",
-   "subj": "S-005",
-   "teacher": "T-003",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-017",
-   "subj": "S-019",
-   "teacher": "T-061",
-   "elec": "",
-   "n": 4
-  },
-  {
-   "cls": "C-024",
-   "subj": "S-011",
-   "teacher": "T-046",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-009",
-   "subj": "S-004",
-   "teacher": "T-044",
-   "elec": "G91",
-   "n": 2
-  },
-  {
-   "cls": "C-011",
-   "subj": "S-005",
-   "teacher": "T-070",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-015",
-   "subj": "S-005",
-   "teacher": "T-013",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-009",
-   "subj": "S-007",
-   "teacher": "T-061",
-   "elec": "G16",
-   "n": 2
-  },
-  {
-   "cls": "C-010",
-   "subj": "S-013",
-   "teacher": "T-045",
-   "elec": "",
-   "n": 3
-  },
-  {
-   "cls": "C-022",
-   "subj": "S-004",
-   "teacher": "T-040",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-011",
-   "subj": "S-004",
-   "teacher": "T-060",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-016",
-   "subj": "S-007",
-   "teacher": "T-009",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-006",
-   "subj": "S-007",
-   "teacher": "T-009",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-019",
-   "subj": "S-018",
-   "teacher": "T-060",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-014",
-   "subj": "S-011",
-   "teacher": "T-047",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-022",
-   "subj": "S-007",
-   "teacher": "T-015",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-001",
-   "subj": "S-004",
-   "teacher": "T-062",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-017",
-   "subj": "S-011",
-   "teacher": "T-054",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-002",
-   "subj": "S-004",
-   "teacher": "T-060",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-001",
-   "subj": "S-007",
-   "teacher": "T-015",
-   "elec": "",
-   "n": 2
-  },
-  {
-   "cls": "C-007",
    "subj": "S-007",
    "teacher": "T-043",
    "elec": "",
    "n": 2
   },
   {
+   "cls": "C-007",
+   "subj": "S-004",
+   "teacher": "T-004",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-004",
+   "subj": "S-012",
+   "teacher": "T-061",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-008",
+   "subj": "S-011",
+   "teacher": "T-001",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-021",
+   "subj": "S-016",
+   "teacher": "T-061",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-019",
+   "subj": "S-002",
+   "teacher": "T-016",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-002",
+   "subj": "S-011",
+   "teacher": "T-003",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-017",
+   "subj": "S-002",
+   "teacher": "T-066",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-006",
+   "subj": "S-011",
+   "teacher": "T-055",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-005",
+   "subj": "S-005",
+   "teacher": "T-029",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-013",
+   "subj": "S-019",
+   "teacher": "T-057",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-020",
+   "subj": "S-011",
+   "teacher": "T-069",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-003",
+   "subj": "S-012",
+   "teacher": "T-042",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-007",
+   "subj": "S-008",
+   "teacher": "T-059",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-010",
+   "subj": "S-005",
+   "teacher": "T-070",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-024",
+   "subj": "S-002",
+   "teacher": "T-053",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-025",
+   "subj": "S-004",
+   "teacher": "T-017",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-016",
+   "subj": "S-008",
+   "teacher": "T-033",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-021",
+   "subj": "S-002",
+   "teacher": "T-063",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-002",
+   "subj": "S-005",
+   "teacher": "T-016",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-004",
+   "subj": "S-005",
+   "teacher": "T-066",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-014",
+   "subj": "S-018",
+   "teacher": "T-043",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-021",
+   "subj": "S-011",
+   "teacher": "T-014",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-020",
+   "subj": "S-004",
+   "teacher": "T-020",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-008",
+   "subj": "S-007",
+   "teacher": "T-028",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-005",
+   "subj": "S-007",
+   "teacher": "T-050",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-018",
+   "subj": "S-004",
+   "teacher": "T-007",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-025",
+   "subj": "S-011",
+   "teacher": "T-051",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-011",
+   "subj": "S-011",
+   "teacher": "T-018",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-023",
+   "subj": "S-004",
+   "teacher": "T-034",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-003",
+   "subj": "S-005",
+   "teacher": "T-015",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-024",
+   "subj": "S-004",
+   "teacher": "T-066",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-013",
+   "subj": "S-006",
+   "teacher": "T-066",
+   "elec": "G20",
+   "n": 2
+  },
+  {
+   "cls": "C-020",
+   "subj": "S-007",
+   "teacher": "T-006",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-013",
+   "subj": "S-018",
+   "teacher": "T-052",
+   "elec": "G00",
+   "n": 2
+  },
+  {
+   "cls": "C-010",
+   "subj": "S-011",
+   "teacher": "T-004",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-014",
+   "subj": "S-005",
+   "teacher": "T-022",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-017",
+   "subj": "S-019",
+   "teacher": "T-064",
+   "elec": "",
+   "n": 4
+  },
+  {
+   "cls": "C-024",
+   "subj": "S-011",
+   "teacher": "T-013",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-009",
+   "subj": "S-004",
+   "teacher": "T-014",
+   "elec": "G81",
+   "n": 2
+  },
+  {
+   "cls": "C-011",
+   "subj": "S-005",
+   "teacher": "T-026",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-015",
+   "subj": "S-005",
+   "teacher": "T-037",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-009",
+   "subj": "S-007",
+   "teacher": "T-047",
+   "elec": "G74",
+   "n": 2
+  },
+  {
+   "cls": "C-010",
+   "subj": "S-013",
+   "teacher": "T-059",
+   "elec": "",
+   "n": 3
+  },
+  {
+   "cls": "C-022",
+   "subj": "S-004",
+   "teacher": "T-024",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-011",
+   "subj": "S-004",
+   "teacher": "T-018",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-016",
+   "subj": "S-007",
+   "teacher": "T-056",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-006",
+   "subj": "S-007",
+   "teacher": "T-060",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-019",
+   "subj": "S-018",
+   "teacher": "T-058",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-014",
+   "subj": "S-011",
+   "teacher": "T-025",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-022",
+   "subj": "S-007",
+   "teacher": "T-035",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-001",
+   "subj": "S-004",
+   "teacher": "T-031",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-017",
+   "subj": "S-011",
+   "teacher": "T-058",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-002",
+   "subj": "S-004",
+   "teacher": "T-053",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-001",
+   "subj": "S-007",
+   "teacher": "T-062",
+   "elec": "",
+   "n": 2
+  },
+  {
+   "cls": "C-007",
+   "subj": "S-007",
+   "teacher": "T-039",
+   "elec": "",
+   "n": 2
+  },
+  {
    "cls": "C-021",
    "subj": "S-005",
-   "teacher": "T-013",
+   "teacher": "T-061",
    "elec": "",
    "n": 1
   },
   {
    "cls": "C-017",
    "subj": "S-005",
-   "teacher": "T-013",
+   "teacher": "T-042",
    "elec": "",
    "n": 1
   },
   {
    "cls": "C-012",
    "subj": "S-005",
-   "teacher": "T-013",
+   "teacher": "T-002",
    "elec": "",
    "n": 1
   },
   {
    "cls": "C-019",
    "subj": "S-005",
-   "teacher": "T-013",
+   "teacher": "T-003",
    "elec": "",
    "n": 1
   }
@@ -2299,243 +2299,243 @@
  ],
  "ex_full": [
   [
-   "T-052",
-   4
-  ],
-  [
-   "T-038",
+   "T-041",
    0
   ],
   [
-   "T-016",
-   3
+   "T-009",
+   2
+  ],
+  [
+   "T-070",
+   2
   ]
  ],
  "ex_period": [
   [
-   "T-071",
-   3,
-   6
-  ],
-  [
-   "T-071",
-   2,
-   2
-  ],
-  [
-   "T-071",
-   1,
-   6
-  ],
-  [
-   "T-071",
-   0,
-   7
-  ],
-  [
-   "T-071",
-   1,
+   "T-067",
+   4,
    3
   ],
   [
-   "T-071",
-   4,
-   6
+   "T-067",
+   2,
+   3
   ],
   [
-   "T-071",
+   "T-067",
    3,
    5
   ],
   [
-   "T-071",
-   1,
-   7
-  ],
-  [
-   "T-071",
+   "T-067",
    2,
-   5
-  ],
-  [
-   "T-071",
-   0,
    4
   ],
   [
-   "T-071",
+   "T-067",
    4,
    2
   ],
   [
-   "T-071",
-   4,
-   1
-  ],
-  [
-   "T-029",
-   0,
+   "T-067",
+   2,
    5
   ],
   [
-   "T-029",
-   3,
-   7
-  ],
-  [
-   "T-029",
-   0,
-   6
-  ],
-  [
-   "T-029",
+   "T-067",
    2,
    1
   ],
   [
-   "T-029",
+   "T-067",
+   1,
+   7
+  ],
+  [
+   "T-067",
+   2,
+   6
+  ],
+  [
+   "T-067",
+   1,
+   4
+  ],
+  [
+   "T-067",
+   0,
+   3
+  ],
+  [
+   "T-067",
+   4,
+   4
+  ],
+  [
+   "T-056",
+   4,
+   6
+  ],
+  [
+   "T-056",
    4,
    7
   ],
   [
-   "T-029",
+   "T-056",
+   1,
+   7
+  ],
+  [
+   "T-056",
    0,
+   6
+  ],
+  [
+   "T-056",
+   3,
+   2
+  ],
+  [
+   "T-056",
+   0,
+   4
+  ],
+  [
+   "T-056",
+   2,
+   7
+  ],
+  [
+   "T-056",
+   4,
+   4
+  ],
+  [
+   "T-024",
+   4,
    1
   ],
   [
-   "T-029",
-   1,
-   2
-  ],
-  [
-   "T-029",
-   4,
-   3
-  ],
-  [
-   "T-028",
-   0,
-   4
-  ],
-  [
-   "T-028",
-   4,
-   3
-  ],
-  [
-   "T-028",
-   3,
-   5
-  ],
-  [
-   "T-012",
-   4,
-   6
-  ],
-  [
-   "T-012",
-   3,
-   2
-  ],
-  [
-   "T-012",
-   1,
-   2
-  ],
-  [
-   "T-053",
-   3,
-   3
-  ],
-  [
-   "T-053",
+   "T-024",
    4,
    2
   ],
   [
-   "T-038",
-   4,
-   2
-  ],
-  [
-   "T-038",
+   "T-024",
    0,
    6
   ],
   [
-   "T-066",
+   "T-035",
+   4,
+   2
+  ],
+  [
+   "T-035",
+   4,
+   6
+  ],
+  [
+   "T-035",
    2,
-   5
+   2
   ],
   [
-   "T-066",
-   1,
-   6
-  ],
-  [
-   "T-021",
-   4,
-   5
-  ],
-  [
-   "T-021",
-   3,
-   5
-  ],
-  [
-   "T-002",
-   2,
-   7
-  ],
-  [
-   "T-002",
-   3,
-   4
-  ],
-  [
-   "T-048",
-   0,
-   5
-  ],
-  [
-   "T-048",
+   "T-011",
    3,
    2
   ],
   [
-   "T-063",
-   0,
-   7
+   "T-011",
+   4,
+   5
   ],
   [
-   "T-063",
-   1,
-   4
-  ],
-  [
-   "T-036",
-   1,
-   3
-  ],
-  [
-   "T-036",
-   1,
+   "T-023",
+   2,
    1
   ],
   [
-   "T-054",
-   3,
-   3
+   "T-023",
+   4,
+   7
   ],
   [
-   "T-054",
-   0,
+   "T-009",
+   3,
    6
   ],
   [
-   "T-032",
+   "T-009",
+   2,
+   6
+  ],
+  [
+   "T-049",
+   3,
+   4
+  ],
+  [
+   "T-049",
+   1,
+   4
+  ],
+  [
+   "T-065",
+   0,
+   4
+  ],
+  [
+   "T-065",
+   4,
+   2
+  ],
+  [
+   "T-033",
+   3,
+   4
+  ],
+  [
+   "T-033",
+   3,
+   6
+  ],
+  [
+   "T-058",
    2,
    5
+  ],
+  [
+   "T-058",
+   4,
+   2
+  ],
+  [
+   "T-039",
+   0,
+   5
+  ],
+  [
+   "T-039",
+   4,
+   7
+  ],
+  [
+   "T-068",
+   4,
+   4
+  ],
+  [
+   "T-068",
+   2,
+   6
+  ],
+  [
+   "T-026",
+   0,
+   7
   ]
  ],
  "prefs": [
@@ -2544,42 +2544,42 @@
    "max_consecutive": 1,
    "max_gap": null,
    "free_day": null,
-   "teacher_id": "T-072"
+   "teacher_id": "T-071"
   },
   {
    "max_daily_periods": 3,
    "max_consecutive": 2,
    "max_gap": 1,
    "free_day": null,
-   "teacher_id": "T-034"
+   "teacher_id": "T-068"
   },
   {
    "max_daily_periods": 2,
    "max_consecutive": 2,
    "max_gap": 1,
    "free_day": null,
-   "teacher_id": "T-052"
+   "teacher_id": "T-072"
   },
   {
    "max_daily_periods": 3,
    "max_consecutive": 1,
    "max_gap": null,
    "free_day": null,
-   "teacher_id": "T-016"
+   "teacher_id": "T-047"
   },
   {
    "max_daily_periods": 3,
    "max_consecutive": 1,
    "max_gap": 1,
    "free_day": null,
-   "teacher_id": "T-038"
+   "teacher_id": "T-055"
   },
   {
    "max_daily_periods": 3,
    "max_consecutive": 2,
    "max_gap": 1,
    "free_day": null,
-   "teacher_id": "T-002"
+   "teacher_id": "T-069"
   }
  ],
  "subject_names": {

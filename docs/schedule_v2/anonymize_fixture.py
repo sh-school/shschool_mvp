@@ -38,13 +38,31 @@ DROP = ("current",)
 #: إعادة بنائها (D-96م).
 RNG = random.Random(int.from_bytes(os.urandom(8), "big"))
 
-#: هامشُ أمانٍ أسبوعيٌّ فوق السقف البنيويّ. فمعلّمٌ نصابُه يساوي سقفَه بالضبط
-#: يلزمه بلوغُ الحدّ الأقصى في كلّ يومٍ من أيّامه، وتضاربُ شعبةٍ واحدٍ يُسقط
-#: الجدولَ كلَّه. (قيس: نصابُ ١٦ مع يومٍ مُفرَّغٍ كاملاً = `INFEASIBLE`.)
-WEEK_SLACK = 3
+#: هامشٌ أسبوعيٌّ تحت السقف البنيويّ — صفرٌ بقرار مراجعة 0403: هامشٌ يُسهّل
+#: المسألةَ بلا داعٍ، وأعلى نصابٍ حقيقيٍّ قيسَ عشرون وهو مجدولٌ فعلاً.
+WEEK_SLACK = 0
 
-#: سقفُ نصابٍ مُولَّدٍ لمعلّم — دون أعلى نصابٍ حقيقيٍّ قيسَ (عشرون).
-MAX_GEN_LOAD = 17
+#: سقفُ نصابٍ مُولَّدٍ لمعلّم — أعلى نصابٍ حقيقيٍّ قيس.
+MAX_GEN_LOAD = 20
+
+#: توزيعُ خدمة النطاقات كما قيس على الواقع (2026-10-01): خمسةٌ وستّون بالمئة
+#: نطاقاً واحداً، وستّةٌ وعشرون نطاقين، وثمانيةٌ ثلاثة. وهذا **ليس تجميلاً
+#: إحصائيّاً**: خدمةُ نطاقين هي التفاعلُ الذي يضيق به يومُ المعلّم (جرسُ
+#: النطاقات متداخلٌ بالساعة وفجواتُه صفرٌ، فأكثرُ أزواج الحصص بينها متلاصقةٌ
+#: وHC5 يمنعها). وحزمةٌ كلُّ معلّميها في نطاقٍ واحدٍ **تحذف حالةَ القيد** فلا
+#: تُثبت جدوى شيء — حكمُ 0403 على النسخة السابقة، وقد قُبل.
+BAND_MIX = ((1, 0.65), (2, 0.26), (3, 0.09))
+
+#: وأنصبةُ متعدّدي النطاقات في الواقع 11..20 ووسيطُها 13، ومن يخدم ثلاثةً
+#: أعلاه 16 — فيُسقَّف المُولَّدُ بمثله.
+TRI_BAND_LOAD = 16
+
+#: حجمُ مجموعة التنعيم: كلُّ هدفِ نصابٍ مُولَّدٍ هو **متوسّطُ ثلاثة أنصبةٍ
+#: حقيقيّةٍ متجاورة**. فلا نصابُ شخصٍ بعينه في الملفّ، وكلُّ قيمةٍ يحملها ثلاثةٌ
+#: على الأقلّ — وفي الوقت نفسِه يبقى **مدى** التوزيع كما هو (ثلاثٌ إلى عشرين).
+#: وهذا يعالج ملاحظةَ 0403: حزمةٌ أنصبتُها متوازنةٌ في مدًى ضيّقٍ تُحَلُّ في
+#: ثانيتين بدل مئةٍ وثمانٍ وأربعين — فقد تبدّد الضيقُ الذي يُراد اختبارُه.
+SMOOTH_GROUP = 3
 
 
 class Ids:
@@ -130,41 +148,113 @@ def generate_teachers(src: dict) -> dict:
     pool = [f"GEN-T-{k + 1:03d}" for k in range(len({r["teacher"] for r in dem}))]
     RNG.shuffle(pool)
     load: Counter = Counter()
-    band_of: dict = {}
     taken: dict = defaultdict(set)
 
-    #: ضمانتان صلبتان لا احتياطَ يتجاوزهما: **نطاقٌ واحدٌ لكلّ معلّم** (وإلّا
-    #: ضاق يومُه بتلاصق الساعة بين النطاقات)، و**نصابٌ لا يبلغ السقفَ البنيويّ**
-    #: (نصابُ واحدٍ وعشرين على سقفِ عشرين استحالةٌ حسابيّةٌ مضمونة — قيس).
+    #: حِملُ كلّ نطاقٍ أوّلاً، فيُوزَّع المعلّمون عليه بنسبته لا بالتساوي.
+    band_need: Counter = Counter()
+    for row in dem:
+        band_need[cb[row["cls"]]] += row["n"]
+    bands = sorted(band_need, key=lambda b: -band_need[b])
+    total_need = sum(band_need.values())
+
+    #: مجموعاتُ النطاقات: من يخدم نطاقاً، ومن يخدم اثنين، ومن ثلاثة — بالنسب
+    #: المقيسة. والنطاقُ الأوّلُ لكلّ معلّمٍ يُسحب بالتناسب مع حِمل النطاقات،
+    #: والإضافيُّ عشوائيٌّ من البقيّة.
+    serves: dict = {}
+    counts = [max(1, round(len(pool) * share)) for _k, share in BAND_MIX]
+    counts[0] = len(pool) - sum(counts[1:])
+    cursor = 0
+    weighted = [b for b in bands for _ in range(max(1, round(20 * band_need[b] / total_need)))]
+    for (k, _share), how_many in zip(BAND_MIX, counts, strict=False):
+        for _ in range(how_many):
+            first = weighted[RNG.randrange(len(weighted))]
+            extra = [b for b in bands if b != first]
+            RNG.shuffle(extra)
+            serves[pool[cursor]] = {first, *extra[: k - 1]}
+            cursor += 1
+
+    #: أهدافُ النصاب: الأنصبةُ الحقيقيّةُ مُرتَّبةً، ثمّ كلُّ ثلاثةٍ متجاورةٍ
+    #: تُستبدل بثلاثِ نسخٍ من متوسّطها (والباقي يُوزَّع فيحفظ المجموع تماماً).
+    #: فيبقى المدى ويذهب نصابُ الفرد.
+    real_loads = Counter()
+    for row in src["demand"]:
+        real_loads[row["teacher"]] += row["n"]
+    ordered = sorted(real_loads.values())
+    targets: list = []
+    for start in range(0, len(ordered), SMOOTH_GROUP):
+        chunk = ordered[start : start + SMOOTH_GROUP]
+        base, extra = divmod(sum(chunk), len(chunk))
+        targets += [base + 1] * extra + [base] * (len(chunk) - extra)
+    RNG.shuffle(targets)
+
+    def ceiling_for(teacher: str) -> int:
+        #: الهدفُ توجيهٌ في الترتيب لا سقفٌ صلب: سقفاً يُوقف التوليدَ حين يضيق
+        #: معلّمو نطاقٍ (قيس: «تعذّر توليدُ طبقةِ معلّمين»). والسقفُ البنيويُّ
+        #: وحدَه يمنع، والهدفُ يجذب.
+        return TRI_BAND_LOAD if len(serves[teacher]) >= 3 else ceiling
+
+    target_of = dict(zip(pool, targets, strict=False))
+
+    #: المادّةُ الأثقلُ أوّلاً: تأخذ معلّميها وهم فارغون فلا تُحشر في البقيّة.
     for _key, idxs in sorted(by_subj.items(), key=lambda z: -sum(dem[i]["n"] for i in z[1])):
         band = cb[dem[idxs[0]]["cls"]]
         for i in sorted(idxs, key=lambda j: -dem[j]["n"]):
             need = dem[i]["n"]
+            here = dem[i]["cls"], dem[i]["elec"]
             #: والمجموعاتُ المتوازيةُ تلزمها معلّمون مختلفون: مادّتان في الخانة
             #: نفسِها لنصفَي الشعبة. وأربعُ شُعبٍ في هذه البيانات نصابُها سبعٌ
             #: وثلاثون وخاناتُها خمسٌ وثلاثون — فلا تُسع إلّا بالتوازي، ومعلّمٌ
             #: واحدٌ لمجموعتين يُسقط الحزمةَ كلَّها (`INFEASIBLE`، قيس).
-            here = dem[i]["cls"], dem[i]["elec"]
             room = [
                 t
                 for t in pool
-                if band_of.get(t, band) == band
-                and load[t] + need <= ceiling
+                if band in serves[t]
+                and load[t] + need <= ceiling_for(t)
                 and not any(c == here[0] and e and here[1] and e != here[1] for c, e in taken[t])
             ]
             if not room:
-                raise SystemExit(
-                    "تعذّر توليدُ طبقةِ معلّمين بهذا السقف — ارفع MAX_GEN_LOAD أو أنقص WEEK_SLACK"
-                )
-            #: الأخفُّ في نطاقه أوّلاً، ومن لم يُسند له نطاقٌ بعدُ يؤخَّر قليلاً
-            #: حتى يُستنفد من هو في النطاق — فيقلّ عددُ من يخدم نطاقين.
-            pick = min(room, key=lambda t: (t not in band_of, load[t], t))
+                raise SystemExit("تعذّر توليدُ طبقةِ معلّمين بهذه النسب — راجع BAND_MIX أو السقف")
+            #: الأبعدُ عن هدفه أوّلاً — فتتحقّق الأهدافُ بدل أن تتوازن
+            #: الأنصبةُ في مدًى ضيّق.
+            pick = max(room, key=lambda t: (target_of[t] - load[t], t))
             dem[i]["teacher"] = pick
-            band_of[pick] = band
             load[pick] += need
             taken[pick].add(here)
 
-    #: ولا معلّمَ بلا نصاب: يأخذ صفّاً من أثقلِ من يحتمل فقدَه في نطاقه.
+    #: تمريرةٌ تُفعّل خدمةَ النطاقات فعلاً: معلّمٌ مؤهَّلٌ لنطاقين وقد وقعت
+    #: صفوفُه كلُّها في نطاقٍ واحدٍ لا يُفعّل القيدَ الذي يُراد اختبارُه — وحزمةٌ
+    #: كذلك «تحذف حالةَ القيد» (حكمُ 0403). فيُنقل إليه صفٌّ من نطاقه الآخر.
+    actual: dict = defaultdict(set)
+    for row in dem:
+        actual[row["teacher"]].add(cb[row["cls"]])
+    for teacher in pool:
+        for band in sorted(serves[teacher] - actual[teacher]):
+            moved = next(
+                (
+                    i
+                    for i, r in enumerate(dem)
+                    if cb[r["cls"]] == band
+                    and r["teacher"] != teacher
+                    and len(actual[r["teacher"]]) > 1
+                    and load[teacher] + r["n"] <= ceiling_for(teacher)
+                    and not any(
+                        c == r["cls"] and e and r["elec"] and e != r["elec"]
+                        for c, e in taken[teacher]
+                    )
+                ),
+                None,
+            )
+            if moved is None:
+                continue
+            previous = dem[moved]["teacher"]
+            dem[moved]["teacher"] = teacher
+            load[previous] -= dem[moved]["n"]
+            load[teacher] += dem[moved]["n"]
+            taken[teacher].add((dem[moved]["cls"], dem[moved]["elec"]))
+            actual[teacher].add(band)
+            actual[previous] = {cb[r["cls"]] for r in dem if r["teacher"] == previous}
+
+    #: ولا معلّمَ بلا نصاب: يأخذ صفّاً من أثقلِ من يحتمل فقدَه في نطاقٍ يخدمه.
     for teacher in pool:
         if load[teacher]:
             continue
@@ -173,15 +263,16 @@ def generate_teachers(src: dict) -> dict:
                 i
                 for donor in sorted(load, key=lambda z: -load[z])
                 for i, r in enumerate(dem)
-                if r["teacher"] == donor and load[donor] > r["n"]
+                if r["teacher"] == donor
+                and load[donor] > r["n"]
+                and cb[r["cls"]] in serves[teacher]
             ),
             None,
         )
         if row is None:
-            break
+            continue
         previous = dem[row]["teacher"]
         dem[row]["teacher"] = teacher
-        band_of[teacher] = cb[dem[row]["cls"]]
         load[teacher] += dem[row]["n"]
         load[previous] -= dem[row]["n"]
 

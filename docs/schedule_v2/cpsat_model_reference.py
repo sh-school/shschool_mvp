@@ -201,7 +201,12 @@ st = sv.Solve(m)
 print(f"قيودٌ مُنمذجةٌ زائدةً: {sorted(ON)} · سقفُ الأولى ≤ {CAP_FIRST} · سقفُ الأخيرة ≤ {MAX_LAST}")
 print(f"الحالة: {sv.StatusName(st)} | الزمن: {round(sv.WallTime(),1)}ث")
 if st not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-    print("لا حلّ — الهدفُ غيرُ قابلٍ للتحقيق بهذه القيود")
+    #: التمييزُ واجب: `INFEASIBLE` برهانٌ على الاستحالة، و`UNKNOWN` نفادُ مهلةٍ
+    #: لا حكمَ فيه. وخلطُهما يوقف العملَ بدعوى الاستحالة وهي ضيقُ وقت.
+    if st == cp_model.INFEASIBLE:
+        print("مستحيلٌ مُبرهَن: لا حلَّ لهذه القيود مهما طال الوقت")
+    else:
+        print(f"نفدت المهلةُ بلا حكم ({LIMIT}ث) — ليست استحالةً؛ أعِد بمهلةٍ أطول")
     raise SystemExit
 if kept:
     moved = TOTAL - sum(1 for v in kept if sv.Value(v))
