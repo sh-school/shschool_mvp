@@ -45,13 +45,25 @@ WEEK_SLACK = 0
 #: سقفُ نصابٍ مُولَّدٍ لمعلّم — أعلى نصابٍ حقيقيٍّ قيس.
 MAX_GEN_LOAD = 20
 
-#: توزيعُ خدمة النطاقات كما قيس على الواقع (2026-10-01): خمسةٌ وستّون بالمئة
+#: **مَدخلُ معايرةٍ لا توزيعٌ مرصود.** المرصودُ على الواقع (2026-10-01): خمسةٌ
+#: وستّون بالمئة
 #: نطاقاً واحداً، وستّةٌ وعشرون نطاقين، وثمانيةٌ ثلاثة. وهذا **ليس تجميلاً
 #: إحصائيّاً**: خدمةُ نطاقين هي التفاعلُ الذي يضيق به يومُ المعلّم (جرسُ
 #: النطاقات متداخلٌ بالساعة وفجواتُه صفرٌ، فأكثرُ أزواج الحصص بينها متلاصقةٌ
 #: وHC5 يمنعها). وحزمةٌ كلُّ معلّميها في نطاقٍ واحدٍ **تحذف حالةَ القيد** فلا
 #: تُثبت جدوى شيء — حكمُ 0403 على النسخة السابقة، وقد قُبل.
-BAND_MIX = ((1, 0.65), (2, 0.26), (3, 0.09))
+#: والأرقامُ أدناه **قبل الاستنزاف**: مؤهَّلٌ لنطاقين قد لا يقع له صفٌّ في
+#: الثاني، فتنزل النسبةُ المحقَّقة. فعُيِّرت بالتجربة حتّى طابق **المحقَّقُ**
+#: الواقعَ: 66/29/5 مقابل 65/26/8 مرصوداً (أربعُ تشغيلاتٍ، متوسّط).
+BAND_MIX = ((1, 0.48), (2, 0.38), (3, 0.14))
+
+#: وتوزيعُ تعدّد الموادّ كما قيس على الواقع: اثنان وثمانون بالمئة مادّةً
+#: واحدةً، وسبعةَ عشرَ مادّتين، وواحدٌ ثلاثاً (المتوسّط 1.19). والترشيحُ
+#: بالنطاق وحدَه يجعل كلَّ معلّمٍ مؤهَّلاً لكلّ مادّةٍ في نطاقه فتتراكم عليه
+#: الموادُّ حتى 3.33 — **تخصّصٌ شبه معدومٍ لا وجودَ له في الواقع**. كشفته
+#: مراجعةُ 0403 على الملفّ، وكان تقريري عنه خاطئاً بقياسٍ من نسخةٍ أقدم.
+#: ومعايرتُها كذلك قبل الاستنزاف: المحقَّقُ 83/17 مقابل 82/17/1 مرصوداً.
+SUBJ_MIX = ((1, 0.52), (2, 0.42), (3, 0.06))
 
 #: وأنصبةُ متعدّدي النطاقات في الواقع 11..20 ووسيطُها 13، ومن يخدم ثلاثةً
 #: أعلاه 16 — فيُسقَّف المُولَّدُ بمثله.
@@ -187,6 +199,15 @@ def generate_teachers(src: dict) -> dict:
         targets += [base + 1] * extra + [base] * (len(chunk) - extra)
     RNG.shuffle(targets)
 
+    #: ميزانيّةُ موادٍّ لكلّ معلّمٍ بالنسب المقيسة — قيدُ تخصّصٍ لا أولويّة.
+    quota = [max(0, round(len(pool) * share)) for _k, share in SUBJ_MIX]
+    quota[0] = len(pool) - sum(quota[1:])
+    spread = [k for (k, _share), many in zip(SUBJ_MIX, quota, strict=False) for _ in range(many)]
+    RNG.shuffle(spread)
+    budget = dict(zip(pool, spread, strict=False))
+    mine_subj: dict = defaultdict(set)
+    drift = [0]
+
     def ceiling_for(teacher: str) -> int:
         #: الهدفُ توجيهٌ في الترتيب لا سقفٌ صلب: سقفاً يُوقف التوليدَ حين يضيق
         #: معلّمو نطاقٍ (قيس: «تعذّر توليدُ طبقةِ معلّمين»). والسقفُ البنيويُّ
@@ -205,13 +226,26 @@ def generate_teachers(src: dict) -> dict:
             #: نفسِها لنصفَي الشعبة. وأربعُ شُعبٍ في هذه البيانات نصابُها سبعٌ
             #: وثلاثون وخاناتُها خمسٌ وثلاثون — فلا تُسع إلّا بالتوازي، ومعلّمٌ
             #: واحدٌ لمجموعتين يُسقط الحزمةَ كلَّها (`INFEASIBLE`، قيس).
-            room = [
-                t
-                for t in pool
-                if band in serves[t]
-                and load[t] + need <= ceiling_for(t)
-                and not any(c == here[0] and e and here[1] and e != here[1] for c, e in taken[t])
-            ]
+            subject = dem[i]["subj"]
+
+            def fits(t, need=need, here=here, band=band):
+                return (
+                    band in serves[t]
+                    and load[t] + need <= ceiling_for(t)
+                    and not any(
+                        c == here[0] and e and here[1] and e != here[1] for c, e in taken[t]
+                    )
+                )
+
+            #: المتخصّصُ في المادّة أوّلاً، ثمّ من بقيت له ميزانيّةُ مادّةٍ
+            #: جديدة، ثمّ — عند الضيق وحدَه — أيُّ معلّمٍ في النطاق، ويُحصى
+            #: الانحرافُ ويُعلَن في `_fixture` فلا يُخفى تخصّصٌ أُضعف اضطراراً.
+            room = [t for t in pool if subject in mine_subj[t] and fits(t)]
+            if not room:
+                room = [t for t in pool if len(mine_subj[t]) < budget[t] and fits(t)]
+            if not room:
+                room = [t for t in pool if fits(t)]
+                drift[0] += 1
             if not room:
                 raise SystemExit("تعذّر توليدُ طبقةِ معلّمين بهذه النسب — راجع BAND_MIX أو السقف")
             #: الأبعدُ عن هدفه أوّلاً — فتتحقّق الأهدافُ بدل أن تتوازن
@@ -220,6 +254,7 @@ def generate_teachers(src: dict) -> dict:
             dem[i]["teacher"] = pick
             load[pick] += need
             taken[pick].add(here)
+            mine_subj[pick].add(subject)
 
     #: تمريرةٌ تُفعّل خدمةَ النطاقات فعلاً: معلّمٌ مؤهَّلٌ لنطاقين وقد وقعت
     #: صفوفُه كلُّها في نطاقٍ واحدٍ لا يُفعّل القيدَ الذي يُراد اختبارُه — وحزمةٌ
@@ -229,13 +264,23 @@ def generate_teachers(src: dict) -> dict:
         actual[row["teacher"]].add(cb[row["cls"]])
     for teacher in pool:
         for band in sorted(serves[teacher] - actual[teacher]):
+            #: والمانحُ يُشترط أن يبقى في نطاقه بعد المنح (له فيه صفٌّ آخر) —
+            #: لا أن يكون متعدّدَ النطاقات أصلاً، فذاك شرطٌ عاطلٌ حين يبدأ
+            #: الجميعُ بنطاقٍ واحد (قيس: التمريرةُ لم تُحرّك شيئاً والنتيجةُ
+            #: مئةٌ بالمئة نطاقاً واحداً). والمادّةُ تُحترم كذلك: التخصّصُ قيدٌ.
+            rows_in_band: Counter = Counter()
+            for r in dem:
+                rows_in_band[r["teacher"], cb[r["cls"]]] += 1
             moved = next(
                 (
                     i
                     for i, r in enumerate(dem)
                     if cb[r["cls"]] == band
                     and r["teacher"] != teacher
-                    and len(actual[r["teacher"]]) > 1
+                    and rows_in_band[r["teacher"], band] > 1
+                    and (
+                        r["subj"] in mine_subj[teacher] or len(mine_subj[teacher]) < budget[teacher]
+                    )
                     and load[teacher] + r["n"] <= ceiling_for(teacher)
                     and not any(
                         c == r["cls"] and e and r["elec"] and e != r["elec"]
@@ -252,6 +297,7 @@ def generate_teachers(src: dict) -> dict:
             load[teacher] += dem[moved]["n"]
             taken[teacher].add((dem[moved]["cls"], dem[moved]["elec"]))
             actual[teacher].add(band)
+            mine_subj[teacher].add(dem[moved]["subj"])
             actual[previous] = {cb[r["cls"]] for r in dem if r["teacher"] == previous}
 
     #: ولا معلّمَ بلا نصاب: يأخذ صفّاً من أثقلِ من يحتمل فقدَه في نطاقٍ يخدمه.
@@ -326,7 +372,12 @@ def generate_teachers(src: dict) -> dict:
             {**{k: v for k, v in pref.items() if k != "teacher_id"}, "teacher_id": owner}
         )
     out["teacher_names"] = {t: t for t in pool}
+    OVERRUNS[0] = drift[0]
     return out
+
+
+#: يُحمل من آخر توليدٍ ليُعلَن في `_fixture`.
+OVERRUNS = [0]
 
 
 def build(src: dict) -> dict:
@@ -401,6 +452,7 @@ def build(src: dict) -> dict:
         "subjects": len(s_id),
         "lessons": sum(r["n"] for r in src["demand"]),
         "dropped_fields": list(DROP),
+        "subject_budget_overruns": OVERRUNS[0],
         "note": (
             "خطّةُ كلّ شعبةٍ (شعبة + مادّة + عددُ حصص) مطابقةٌ للواقع حرفيّاً — وليست بياناً "
             "شخصيّاً. وطبقةُ المعلّمين (الإسنادُ والتفريغاتُ والتفضيلات) مُولَّدةٌ بقيد الجرس، "
