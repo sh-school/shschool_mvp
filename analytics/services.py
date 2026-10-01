@@ -63,7 +63,8 @@ class AnalyticsService:
                 {
                     "date": row["session__date"],
                     "present_pct": pct,
-                    "absent_pct": 100 - pct,
+                    # تواجدٌ في الحصص لا غيابٌ يوميٌّ وزاريّ — لا تُسمَّ "absent" (ADR-0009).
+                    "non_attendance_pct": 100 - pct,
                     "total": row["total"],
                 }
             )

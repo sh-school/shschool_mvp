@@ -26,6 +26,7 @@ from core.domain.grades import GRADE_BANDS, band_of
 from core.models import Membership, StudentEnrollment
 from core.models.academic import grade_order
 from core.pdf_utils import render_pdf
+from core.permissions import deny_role
 from library.models import BookBorrowing, LibraryBook
 from operations.models import Session, StudentAttendance
 from quality.models import OperationalDomain, OperationalProcedure
@@ -35,6 +36,7 @@ from .services import KPIService
 
 
 # ── لوحة القيادة الرئيسية ────────────────────────────────────
+@deny_role("platform_developer", reason="تحليلاتُ المدرسة محجوبةٌ عنه — قرارُ المالك D-98م")
 @login_required
 @capability_required("analytics.school")
 @cache_page(300)
@@ -160,6 +162,7 @@ def _dashboard_presentation(kpis: dict, school) -> dict:
 
 
 # ── API 1: منحنى الحضور (آخر 30 يوم) ────────────────────────
+@deny_role("platform_developer", reason="تحليلاتُ المدرسة محجوبةٌ عنه — قرارُ المالك D-98م")
 @login_required
 @capability_required("analytics.school")
 @cache_page(300)
@@ -203,7 +206,8 @@ def api_attendance_trend(request):
                     "tension": 0.3,
                 },
                 {
-                    "label": "نسبة الغياب %",
+                    # تواجدٌ في الحصص لا غيابٌ يوميٌّ وزاريّ — لا تُسمَّ "غياب" (ADR-0009).
+                    "label": "نسبة عدم التواجد بالحصص %",
                     "data": absent_data,
                     "borderColor": brand.STATUS_DANGER,
                     "backgroundColor": brand.rgba(brand.STATUS_DANGER, 0.1),
@@ -216,6 +220,7 @@ def api_attendance_trend(request):
 
 
 # ── API 2: توزيع الدرجات ────────────────────────────────────
+@deny_role("platform_developer", reason="تحليلاتُ المدرسة محجوبةٌ عنه — قرارُ المالك D-98م")
 @login_required
 @capability_required("analytics.school")
 @cache_page(300)
@@ -259,6 +264,7 @@ def api_grades_distribution(request):
 
 
 # ── API 3: مقارنة الفصول الدراسية ───────────────────────────
+@deny_role("platform_developer", reason="تحليلاتُ المدرسة محجوبةٌ عنه — قرارُ المالك D-98م")
 @login_required
 @capability_required("analytics.school")
 @cache_page(300)
@@ -297,6 +303,7 @@ def api_class_comparison(request):
 
 
 # ── API 4: مقارنة المواد الدراسية ───────────────────────────
+@deny_role("platform_developer", reason="تحليلاتُ المدرسة محجوبةٌ عنه — قرارُ المالك D-98م")
 @login_required
 @capability_required("analytics.school")
 @cache_page(300)
@@ -347,6 +354,7 @@ def api_subject_comparison(request):
 
 
 # ── API 5: تقدم الخطة التشغيلية (حسب المجال) ───────────────
+@deny_role("platform_developer", reason="تحليلاتُ المدرسة محجوبةٌ عنه — قرارُ المالك D-98م")
 @login_required
 @capability_required("analytics.school")
 @cache_page(300)
@@ -388,6 +396,7 @@ def api_plan_progress(request):
 
 
 # ── API 6: مخالفات السلوك (آخر 6 أشهر) ─────────────────────
+@deny_role("platform_developer", reason="تحليلاتُ المدرسة محجوبةٌ عنه — قرارُ المالك D-98م")
 @login_required
 @capability_required("analytics.school")
 @cache_page(300)
@@ -455,6 +464,7 @@ def api_behavior_trend(request):
 
 
 # ── API 7: الطلاب الراسبون (حسب الفصل) ─────────────────────
+@deny_role("platform_developer", reason="تحليلاتُ المدرسة محجوبةٌ عنه — قرارُ المالك D-98م")
 @login_required
 @capability_required("analytics.school")
 @cache_page(300)
@@ -490,6 +500,7 @@ def api_failing_by_class(request):
 
 
 # ── API 8: إحصائيات العيادة (آخر 30 يوم) ────────────────────
+@deny_role("platform_developer", reason="تحليلاتُ المدرسة محجوبةٌ عنه — قرارُ المالك D-98م")
 @login_required
 @capability_required("analytics.school")
 @cache_page(300)
@@ -538,6 +549,7 @@ def api_clinic_stats(request):
 # ════════════════════════════════════════════════════════════════════
 
 
+@deny_role("platform_developer", reason="تحليلاتُ المدرسة محجوبةٌ عنه — قرارُ المالك D-98م")
 @login_required
 @capability_required("analytics.school")
 def kpi_dashboard(request):
@@ -555,6 +567,7 @@ def kpi_dashboard(request):
     )
 
 
+@deny_role("platform_developer", reason="تحليلاتُ المدرسة محجوبةٌ عنه — قرارُ المالك D-98م")
 @login_required
 @capability_required("analytics.school")
 @cache_page(300)
@@ -580,6 +593,7 @@ def api_kpis_all(request):
 # ── تقرير KPIs الشهري — PDF فوري ────────────────────────────────────
 
 
+@deny_role("platform_developer", reason="تحليلاتُ المدرسة محجوبةٌ عنه — قرارُ المالك D-98م")
 @login_required
 @capability_required("analytics.school")
 def kpi_monthly_pdf(request):

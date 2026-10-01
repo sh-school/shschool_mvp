@@ -71,7 +71,12 @@ def attendance_rate(
 def attendance_rate(
     present: Number | None, total: Number | None, *, digits: int = 0, empty: int | None = 0
 ) -> int | float | None:
-    """نسبةُ الحضور: الحاضرون من المرصودين، بالمئة.
+    """نسبةُ تواجدٍ في الحصص: الحاضرون من المرصودين، بالمئة — لا علاقةَ لها بالغياب اليوميّ الوزاريّ.
+
+    **لا تُستعمَل نتيجتُها خلف تسميةِ "غياب"** (ADR-0009): حصّةٌ غائبةٌ بسبب نشاطٍ
+    مدرسيٍّ أو عيادةٍ تدخل هنا بنفس وزن غياب يومٍ كاملٍ بلا عذر، فمزجُهما مضلِّل.
+    الغيابُ اليوميّ الرسميّ عددٌ لا نسبة، مصدرُه الوحيد
+    `operations.daily_absence.DailyReport.ministry_absent_count`.
 
     >>> attendance_rate(23, 40)
     58
