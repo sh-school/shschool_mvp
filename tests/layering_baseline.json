@@ -304,7 +304,7 @@
    "orm": 17
   },
   "behavior/views.py::quick_log": {
-   "lines": 97,
+   "lines": 95,
    "orm": 30
   },
   "behavior/views.py::report_infraction": {
