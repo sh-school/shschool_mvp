@@ -524,14 +524,16 @@ DASHBOARD_ROLES = (
 # ══════════════════════════════════════════════════════════════════════
 
 
-def _get_user_role(request):
+def _get_user_role(request: HttpRequest) -> str | None:
     """يستخلص الدور بأمان — يدعم WSGIRequest و HttpRequest."""
     if not hasattr(request, "user") or not request.user.is_authenticated:
         return None
     return request.user.get_role()
 
 
-def log_denial(request, *, role, required=None, source="decorator"):
+def log_denial(
+    request: HttpRequest, *, role: str | None, required: Any = None, source: str = "decorator"
+) -> None:
     """يكتب سطراً لكلّ رفض — والرفضُ الصامتُ لا يُشخَّص ولا يُقاس.
 
     كان الـ403 يخرج من الديكوريتور والميدلوير بلا أثر: لا يُعرف من حاول،
@@ -552,7 +554,7 @@ def log_denial(request, *, role, required=None, source="decorator"):
     )
 
 
-def forbidden_page(request, message):
+def forbidden_page(request: HttpRequest, message: str) -> HttpResponseBase:
     """صفحةُ الرفض 403 برسالتها — قالبُ الخطأ الواحد لا نصٌّ يُبنى هنا.
 
     كان عنوانٌ أحمرُ يُبنى هنا نصّاً بتنسيقٍ داخل الوسم ولونٍ لا رمزَ له، في
@@ -561,7 +563,7 @@ def forbidden_page(request, message):
     return render(request, "errors/forbidden.html", {"message": message}, status=403)
 
 
-def _forbidden_response(request, message):
+def _forbidden_response(request: HttpRequest, message: str) -> HttpResponseBase:
     """يُعيد رد مناسب حسب نوع الطلب (API vs HTML)."""
     if request.path.startswith("/api/"):
         return JsonResponse({"error": message, "code": "forbidden"}, status=403)
@@ -606,7 +608,9 @@ def role_required(*roles):
     return decorator
 
 
-def deny_role(role: str, *, reason: str):
+def deny_role(
+    role: str, *, reason: str
+) -> Callable[[Callable[..., HttpResponseBase]], Callable[..., HttpResponseBase]]:
     """استبعادٌ صريحٌ لدورٍ بعينه عن شاشةٍ — ولو كان `is_superuser` (`role_required` يُمرّره دائماً).
 
     حارسُ `role_required`/`capability_required` العاديّ يعتمد على **غياب** الدور عن مجموعة
@@ -622,15 +626,15 @@ def deny_role(role: str, *, reason: str):
         def my_view(request): ...
     """
 
-    def decorator(view_func):
+    def decorator(view_func: Callable[..., HttpResponseBase]) -> Callable[..., HttpResponseBase]:
         @wraps(view_func)
-        def wrapper(request, *args, **kwargs):
+        def wrapper(request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponseBase:
             if request.user.is_authenticated and request.user.get_role() == role:
-                log_denial(request, role=role, required=f"ليس {role} ({reason})")
+                log_denial(request, role=role, source="deny_role")
                 return _forbidden_response(request, reason)
             return view_func(request, *args, **kwargs)
 
-        wrapper._denied_role = role
+        wrapper._denied_role = role  # type: ignore[attr-defined]
         return wrapper
 
     return decorator
