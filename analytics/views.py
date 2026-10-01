@@ -26,7 +26,7 @@ from core.domain.grades import GRADE_BANDS, band_of
 from core.models import Membership, StudentEnrollment
 from core.models.academic import grade_order
 from core.pdf_utils import render_pdf
-from core.permissions import deny_role
+from core.permissions_deny import deny_role
 from library.models import BookBorrowing, LibraryBook
 from operations.models import Session, StudentAttendance
 from quality.models import OperationalDomain, OperationalProcedure
