@@ -15,6 +15,8 @@
     <li{% if not child.is_dir %} class="plain-list__row" data-filter-row{% endif %}>
       {% include "docs_viewer/_node.html" with node=child current=current open_dirs=open_dirs %}
     </li>
+    {% empty %}
+    <li class="ui-note">لا ملفّاتٍ</li>
     {% endfor %}
   </ul>
 </details>
