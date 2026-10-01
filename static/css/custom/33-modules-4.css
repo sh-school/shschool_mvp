@@ -1953,7 +1953,7 @@ body:has(.rm-page) .site-footer { flex: none; }
 .docs-content ul, .docs-content ol { padding-inline-start: var(--sp-6); display: grid; gap: var(--sp-1-5); }
 .docs-content li > ul, .docs-content li > ol { margin-block: var(--sp-1-5); }
 .docs-content a { color: var(--maroon-link); text-decoration: underline; text-underline-offset: 2px; }
-.docs-content a:hover { color: var(--maroon-dark); }
+.docs-content a:hover { color: var(--maroon-fg); }
 .docs-content blockquote {
   border-inline-start: 3px solid var(--maroon-border); background: var(--maroon-bg);
   padding: var(--sp-3) var(--sp-4); border-radius: var(--radius-sm); color: var(--text-secondary);

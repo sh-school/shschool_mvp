@@ -64,6 +64,7 @@ FILE_VIEWS_OUTSIDE_CONVENTION = {
     "academic_management:quiz_reports",
     "observation_pdf_view",  # صفحةٌ عارضة؛ ذكرُ الترويسة في وثيقتها لا في شيفرتها
     "serve_db_file",  # الملفّاتُ المخزَّنة: `.file.url` (نمطٌ أعلاه)
+    "docs_viewer:asset",  # صورةٌ مضمَّنةٌ بـ<img src> داخل محتوى md — لا رابطَ نقرٍ ولا طريقَ مسدود
     "student_affairs:protected_media",  # نمطٌ أعلاه
     "api_v1:schema",
     "pwa_manifest",
