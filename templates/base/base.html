@@ -308,10 +308,12 @@
       {% endif %}
 
     {% elif role == "secretary" %}
-      {# W-20261001-026: STAFF_AFFAIRS_MANAGE اتّسعت لتشمله، فيفتح القائمةَ
-         الكاملةَ لا الرابطين الثابتين وحدَهما — والجودةُ والخدماتُ والإدارةُ
-         نظيرُ ما يراه الإداريّ (T4)، بلا الشؤون الأكاديميّة ولا شؤون الطلاب
-         ولا مركز معلومات الطلبة (قرارُ المالك 2026-10-01). #}
+      {% comment %}
+      W-20261001-026: STAFF_AFFAIRS_MANAGE اتّسعت لتشمله، فيفتح القائمةَ
+      الكاملةَ لا الرابطين الثابتين وحدَهما — والجودةُ والخدماتُ والإدارةُ
+      نظيرُ ما يراه الإداريّ (T4)، بلا الشؤون الأكاديميّة ولا شؤون الطلاب
+      ولا مركز معلومات الطلبة (قرارُ المالك 2026-10-01).
+      {% endcomment %}
       {% if request.user|can_open:"dashboard" %}
       <a href="{% url 'dashboard' %}" class="nb">{% icon "dashboard" %} الرئيسية</a>
       {% endif %}
@@ -471,7 +473,15 @@
 </nav>
 
 {# ════════════════ DROPDOWN MENUS ═══════════════════════════════════════ #}
-{% if is_admin_role %}
+{% comment %}
+role == "secretary": W-20261001-026 — شريطُه يفتح أربعاً من هذه القوائم
+(m-staff-affairs، m-quality، m-services، m-admin) فتحتاج أوعيتُها أن تُرسَم،
+وكلُّ رابطٍ بداخلها مقيَّدٌ بـ can_open أصلاً (التعليقُ أعلى m-academic يؤكّد
+ذلك) — فلا تسريبَ من توسيع الشرط. والقوائمُ التي لا يملك زرَّها (m-academic،
+m-student-affairs، m-student-info) تُرسَم في DOM بلا زرٍّ يفتحها، فتبقى غيرَ
+قابلةٍ للوصول له (قرارُ المالك 2026-10-01).
+{% endcomment %}
+{% if is_admin_role or role == "secretary" %}
 
 {# ✅ REQ-SH-002 — Client 001 menu restructure (11 items، كلُّها باقيةٌ بلا حذف). #}
 {% comment %}
@@ -778,7 +788,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 عددُ الأعمدة يتبع الدورَ لا رقماً ثابتاً — القاعدةُ نفسُها في build_menu بلوحة
 الإدارة (core/admin_menu.py).
 {% endcomment %}
-{% if is_admin_role or role == "coordinator" or role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" or role == "e_projects_coordinator" %}
+{% if is_admin_role or role == "coordinator" or role == "teacher" or role == "specialist" or role == "ese_teacher" or role == "teacher_assistant" or role == "ese_assistant" or role == "e_projects_coordinator" or role == "secretary" %}
 <div class="sd-menu{% if is_developer and is_leadership %} sd-menu--cols-3{% elif is_developer or is_leadership %} sd-menu--cols-2{% endif %}" id="m-admin" role="menu" aria-label="الإدارة">
   <div class="sd-section">
   <div class="sd-label">إدارة المدرسة</div>
