@@ -507,39 +507,13 @@ def _sync_health_record(
     health_cache[student.id] = record
 
 
-def process_ministry_registry_import(
-    uploaded_file: Any, school: Any, year: str, header_row: int, cols: dict[str, int]
-) -> dict[str, Any]:
-    """يستورد سجلّ القيد الوزاريّ (26 عموداً، W-028) — upsert مباشر فوق الحقول
-    التشغيليّة، ومصدرُ مركز البيانات الوطنيّ يغلب دائماً عند التعارض.
-
-    [أداء] الصفُّ الواحد كان يُجري نحو 15-20 استعلاماً (get_or_create لكلّ
-    علاقة) فاستغرق استيرادُ 734 صفاً نحو دقيقتين — شكوى المالك 2026-10-01.
-    فصار كلُّ ما يُحتمل تكراره عبر الصفوف (مستخدمون، شُعَب، قيودٌ، سجلّاتٌ
-    صحّيّة، روابطُ قرابة، عضويّات) يُحمَّل مرّةً واحدةً قبل الحلقة في فهارس
-    ذاكرةٍ، فلا تبقى استعلاماتُ القراءة إلّا لصفٍّ لم يُر من قبل.
-    """
+def _read_ministry_rows(
+    uploaded_file: Any, header_row: int, cols: dict[str, int]
+) -> list[dict[str, str]]:
+    """يقرأ ملفَّ الإكسل مرّةً واحدةً ويُعيد صفوفاً جاهزةً كقواميسَ نصّيّةٍ
+    (مفاتيحُها أسماءُ الحقول في `_MINISTRY_HEADER_MAP`، لا فهارسَ أعمدة) —
+    فيُستهلَك مولِّدُ `read_only=True` مرّةً، ويستقلّ باقي الكودِ عن بنية الملف."""
     import openpyxl
-
-    from clinic.models import HealthRecord
-    from core.models import (
-        ClassGroup,
-        CustomUser,
-        Membership,
-        ParentStudentLink,
-        Profile,
-        Role,
-        StudentEnrollment,
-    )
-
-    roles = {r.name: r for r in Role.objects.all()}
-    student_role = roles.get("student")
-    parent_role = roles.get("parent")
-    if not student_role or not parent_role:
-        return {
-            "success": False,
-            "errors": ["الأدوار الأساسية (student/parent) غير موجودة — شغّل seed_data أولاً."],
-        }
 
     wb = openpyxl.load_workbook(uploaded_file, read_only=True, data_only=True)
     ws = wb.active
@@ -551,59 +525,261 @@ def process_ministry_registry_import(
         v = str(row[idx]).strip()
         return "" if v == "-" else v
 
-    # قراءةٌ أحاديّةٌ: `read_only=True` يُنتج صفوفاً عبر مولِّدٍ لا يُعاد تصفّحه،
-    # ويلزمنا تصفّحان (استخراجُ الأرقام الشخصيّة، ثمّ المعالجةُ الفعليّة).
+    # كلُّ مفاتيح الحقول المعروفة — لا `cols.keys()` وحدها: عمودٌ غائبٌ عن ملفٍّ
+    # بعينه (نسخةٌ وزاريّةٌ ناقصةٌ) يجب أن يُقرأ فارغاً ("") لا أن يُسقط المفتاحَ
+    # من القاموس فيفجّر `KeyError` لاحقاً في معالجة الصفّ.
+    all_keys = {v[1] for v in _MINISTRY_HEADER_MAP.values()} | {
+        "parent_nationality",
+        "parent_employer_sector",
+        "parent_employer_name",
+    }
     rows = [
-        r
+        {k: _cell(r, k) for k in all_keys}
         for r in ws.iter_rows(min_row=header_row + 1, values_only=True)
         if r and _cell(r, "student_nid")
     ]
     wb.close()
+    return rows
 
-    all_nids = set()
+
+def _load_ministry_caches(school: Any, year: str, all_nids: set[str]) -> dict[str, Any]:
+    """يحمّل كلَّ ما يُحتمل تكرارُه عبر صفوف الاستيراد في فهارس ذاكرةٍ مرّةً
+    واحدة — راجع تعليق الأداء في `process_ministry_registry_import`."""
+    from clinic.models import HealthRecord
+    from core.models import (
+        ClassGroup,
+        CustomUser,
+        Membership,
+        ParentStudentLink,
+        Profile,
+        StudentEnrollment,
+    )
+
+    return {
+        "users": {u.national_id: u for u in CustomUser.objects.filter(national_id__in=all_nids)},
+        "class_groups": {
+            (cg.grade, cg.section): cg
+            for cg in ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
+        },
+        "memberships": (
+            set(Membership.objects.filter(school=school).values_list("user_id", "role_id"))
+            if school
+            else set()
+        ),
+        "enrollments": (
+            {
+                e.student_id: e
+                for e in StudentEnrollment.objects.filter(
+                    class_group__school=school, class_group__academic_year=year, is_active=True
+                ).select_related("class_group")
+            }
+            if school
+            else {}
+        ),
+        "health": {
+            h.student_id: h for h in HealthRecord.objects.filter(student__national_id__in=all_nids)
+        },
+        "profiles": {p.user_id: p for p in Profile.objects.filter(user__national_id__in=all_nids)},
+        "links": (
+            {
+                (link.parent_id, link.student_id): link
+                for link in ParentStudentLink.objects.filter(school=school)
+            }
+            if school
+            else {}
+        ),
+    }
+
+
+def _sync_student_profile(student: Any, birth_date: Any, profiles_cache: dict[Any, Any]) -> None:
+    """upsert لتاريخ ميلاد الطالب من ذاكرةٍ مُحمَّلةٍ مسبقاً — لا كتابة إن لم يتغيّر."""
+    from core.models import Profile
+
+    if not birth_date:
+        return
+    profile = profiles_cache.get(student.id)
+    if profile is None:
+        profile = Profile(user=student, birth_date=birth_date)
+        profile.save()
+        profiles_cache[student.id] = profile
+    elif profile.birth_date != birth_date:
+        profile.birth_date = birth_date
+        profile.save(update_fields=["birth_date"])
+
+
+def _ensure_membership(
+    user: Any, school: Any, role: Any, memberships_cache: set[tuple[Any, Any]]
+) -> None:
+    """ينشئ العضويّة إن لم تكن موجودةً في الفهرس المحمَّل مسبقاً — بلا استعلامٍ لكلّ سطر."""
+    from core.models import Membership
+
+    key = (user.id, role.id)
+    if key not in memberships_cache:
+        Membership.objects.create(user=user, school=school, role=role, is_active=True)
+        memberships_cache.add(key)
+
+
+def _process_ministry_student_row(
+    row_num: int,
+    cell: dict[str, str],
+    *,
+    school: Any,
+    year: str,
+    student_role: Any,
+    caches: dict[str, Any],
+    issued: list[dict],
+    stats: dict[str, Any],
+) -> Any | None:
+    """يعالج شطرَ الطالب من صفٍّ واحد: upsert + ملفٌّ شخصيّ + عضويّة + شعبة +
+    سجلٌّ صحّيّ. يُعيد كائنَ الطالب، أو None إن تُجووز السطرُ (اسمٌ فارغ)."""
+    student_nid = cell["student_nid"]
+    full_name = cell["full_name"]
+    if not full_name:
+        stats["errors"].append(f"سطر {row_num}: اسم الطالب {student_nid} فارغ — تجاوز")
+        return None
+
+    birth_date = _parse_ministry_date(cell["birth_date_raw"])
+    uses_bus_raw = cell["uses_bus_raw"]
+    student, s_created = _upsert_user_from_registry(
+        student_nid,
+        users_cache=caches["users"],
+        full_name=full_name,
+        phone=_first_phone(cell["phone"]),
+        email=cell["email"],
+        nationality=cell["nationality"],
+        municipality=cell["municipality"],
+        region=cell["region"],
+        employer_sector="",
+        employer_name="",
+        kahramaa_number=cell["kahramaa_number"],
+        uses_bus=uses_bus_raw in ("نعم", "Yes", "yes", "true", "True"),
+        role_label="طالب",
+        issued=issued,
+    )
+    stats["students_created" if s_created else "students_existed"] += 1
+
+    _sync_student_profile(student, birth_date, caches["profiles"])
+
+    if school:
+        _ensure_membership(student, school, student_role, caches["memberships"])
+        grade_raw, section = _split_ministry_class(cell["class_combined"])
+        _sync_student_class_group(
+            student,
+            school,
+            year,
+            grade_raw,
+            section,
+            class_groups=caches["class_groups"],
+            enrollments_cache=caches["enrollments"],
+            stats=stats,
+            row_num=row_num,
+        )
+
+    _sync_health_record(
+        student,
+        cell["health_center_name"],
+        cell["health_card_number"],
+        cell["hamad_hospital_number"],
+        health_cache=caches["health"],
+    )
+    return student
+
+
+def _process_ministry_parent_row(
+    cell: dict[str, str],
+    *,
+    student: Any,
+    school: Any,
+    parent_role: Any,
+    caches: dict[str, Any],
+    issued: list[dict],
+    stats: dict[str, Any],
+) -> None:
+    """يعالج شطرَ وليّ الأمر من صفٍّ واحد: upsert + عضويّة + رابطُ قرابة.
+    لا شيءَ إن كان عمودُ رقم وليّ الأمر فارغاً."""
+    from core.models import ParentStudentLink
+
+    parent_nid = cell["parent_nid"]
+    if not parent_nid:
+        return
+
+    parent, p_created = _upsert_user_from_registry(
+        parent_nid,
+        users_cache=caches["users"],
+        full_name=cell["parent_name"],
+        phone=_first_phone(cell["parent_phone"]),
+        email=cell["parent_email"],
+        nationality=cell["parent_nationality"],
+        municipality="",
+        region="",
+        employer_sector=cell["parent_employer_sector"],
+        employer_name=cell["parent_employer_name"],
+        kahramaa_number="",
+        role_label="ولي أمر",
+        issued=issued,
+    )
+    stats["parents_created" if p_created else "parents_existed"] += 1
+
+    if not school:
+        return
+
+    _ensure_membership(parent, school, parent_role, caches["memberships"])
+
+    relation = _IMPORT_RELATION_MAP.get(cell["relation_raw"], "father")
+    links_cache = caches["links"]
+    link_key = (parent.id, student.id)
+    link = links_cache.get(link_key)
+    if link is None:
+        ParentStudentLink.objects.create(
+            parent=parent,
+            student=student,
+            school=school,
+            relationship=relation,
+            is_primary=True,
+            can_view_grades=True,
+            can_view_attendance=True,
+        )
+        links_cache[link_key] = True
+        stats["links_created"] += 1
+    elif link is not True and link.relationship != relation:
+        link.relationship = relation
+        link.save(update_fields=["relationship"])
+
+
+def process_ministry_registry_import(
+    uploaded_file: Any, school: Any, year: str, header_row: int, cols: dict[str, int]
+) -> dict[str, Any]:
+    """يستورد سجلّ القيد الوزاريّ (26 عموداً، W-028) — upsert مباشر فوق الحقول
+    التشغيليّة، ومصدرُ مركز البيانات الوطنيّ يغلب دائماً عند التعارض.
+
+    [أداء] الصفُّ الواحد كان يُجري نحو 15-20 استعلاماً (get_or_create لكلّ
+    علاقة) فاستغرق استيرادُ 734 صفاً نحو دقيقتين — شكوى المالك 2026-10-01.
+    فصار كلُّ ما يُحتمل تكراره عبر الصفوف (مستخدمون، شُعَب، قيودٌ، سجلّاتٌ
+    صحّيّة، روابطُ قرابة، عضويّات) يُحمَّل مرّةً واحدةً قبل الحلقة في فهارس
+    ذاكرةٍ (`_load_ministry_caches`)، ومعالجةُ كلّ صفٍّ مقسومةٌ على دالّتَي
+    الطالب ووليّ الأمر (`_process_ministry_student_row`/`_parent_row`) — فلا
+    يبقى في هذه الدالّة إلّا التنسيق.
+    """
+    from core.models import Role
+
+    roles = {r.name: r for r in Role.objects.all()}
+    student_role = roles.get("student")
+    parent_role = roles.get("parent")
+    if not student_role or not parent_role:
+        return {
+            "success": False,
+            "errors": ["الأدوار الأساسية (student/parent) غير موجودة — شغّل seed_data أولاً."],
+        }
+
+    rows = _read_ministry_rows(uploaded_file, header_row, cols)
+
+    all_nids: set[str] = set()
     for r in rows:
-        all_nids.add(_cell(r, "student_nid"))
-        pnid = _cell(r, "parent_nid")
-        if pnid:
-            all_nids.add(pnid)
+        all_nids.add(r["student_nid"])
+        if r["parent_nid"]:
+            all_nids.add(r["parent_nid"])
 
-    # ── فهارسُ التحميل المسبق ────────────────────────────────────────
-    users_cache: dict[str, Any] = {
-        u.national_id: u for u in CustomUser.objects.filter(national_id__in=all_nids)
-    }
-    class_groups: dict[tuple[str, str], Any] = {
-        (cg.grade, cg.section): cg
-        for cg in ClassGroup.objects.filter(school=school, academic_year=year, is_active=True)
-    }
-    existing_memberships: set[tuple[Any, Any]] = (
-        set(Membership.objects.filter(school=school).values_list("user_id", "role_id"))
-        if school
-        else set()
-    )
-    enrollments_cache: dict[Any, Any] = (
-        {
-            e.student_id: e
-            for e in StudentEnrollment.objects.filter(
-                class_group__school=school, class_group__academic_year=year, is_active=True
-            ).select_related("class_group")
-        }
-        if school
-        else {}
-    )
-    health_cache: dict[Any, Any] = {
-        h.student_id: h for h in HealthRecord.objects.filter(student__national_id__in=all_nids)
-    }
-    profiles_cache: dict[Any, Any] = {
-        p.user_id: p for p in Profile.objects.filter(user__national_id__in=all_nids)
-    }
-    links_cache: dict[tuple[Any, Any], Any] = (
-        {
-            (link.parent_id, link.student_id): link
-            for link in ParentStudentLink.objects.filter(school=school)
-        }
-        if school
-        else {}
-    )
+    caches = _load_ministry_caches(school, year, all_nids)
 
     stats: dict[str, Any] = {
         "students_created": 0,
@@ -618,118 +794,28 @@ def process_ministry_registry_import(
     issued: list[dict] = []
 
     with transaction.atomic():
-        for row_num, row in enumerate(rows, start=header_row + 1):
-            student_nid = _cell(row, "student_nid")
-            full_name = _cell(row, "full_name")
-            if not full_name:
-                stats["errors"].append(f"سطر {row_num}: اسم الطالب {student_nid} فارغ — تجاوز")
-                continue
-
-            birth_date = _parse_ministry_date(_cell(row, "birth_date_raw"))
-            uses_bus_raw = _cell(row, "uses_bus_raw")
-            student, s_created = _upsert_user_from_registry(
-                student_nid,
-                users_cache=users_cache,
-                full_name=full_name,
-                phone=_first_phone(_cell(row, "phone")),
-                email=_cell(row, "email"),
-                nationality=_cell(row, "nationality"),
-                municipality=_cell(row, "municipality"),
-                region=_cell(row, "region"),
-                employer_sector="",
-                employer_name="",
-                kahramaa_number=_cell(row, "kahramaa_number"),
-                uses_bus=uses_bus_raw in ("نعم", "Yes", "yes", "true", "True"),
-                role_label="طالب",
+        for row_num, cell in enumerate(rows, start=header_row + 1):
+            student = _process_ministry_student_row(
+                row_num,
+                cell,
+                school=school,
+                year=year,
+                student_role=student_role,
+                caches=caches,
                 issued=issued,
+                stats=stats,
             )
-            stats["students_created" if s_created else "students_existed"] += 1
-
-            if birth_date:
-                profile = profiles_cache.get(student.id)
-                if profile is None:
-                    profile = Profile(user=student, birth_date=birth_date)
-                    profile.save()
-                    profiles_cache[student.id] = profile
-                elif profile.birth_date != birth_date:
-                    profile.birth_date = birth_date
-                    profile.save(update_fields=["birth_date"])
-
-            if school:
-                membership_key = (student.id, student_role.id)
-                if membership_key not in existing_memberships:
-                    Membership.objects.create(
-                        user=student, school=school, role=student_role, is_active=True
-                    )
-                    existing_memberships.add(membership_key)
-                grade_raw, section = _split_ministry_class(_cell(row, "class_combined"))
-                _sync_student_class_group(
-                    student,
-                    school,
-                    year,
-                    grade_raw,
-                    section,
-                    class_groups=class_groups,
-                    enrollments_cache=enrollments_cache,
-                    stats=stats,
-                    row_num=row_num,
-                )
-
-            _sync_health_record(
-                student,
-                _cell(row, "health_center_name"),
-                _cell(row, "health_card_number"),
-                _cell(row, "hamad_hospital_number"),
-                health_cache=health_cache,
-            )
-
-            parent_nid = _cell(row, "parent_nid")
-            if not parent_nid:
+            if student is None:
                 continue
-
-            parent, p_created = _upsert_user_from_registry(
-                parent_nid,
-                users_cache=users_cache,
-                full_name=_cell(row, "parent_name"),
-                phone=_first_phone(_cell(row, "parent_phone")),
-                email=_cell(row, "parent_email"),
-                nationality=_cell(row, "parent_nationality"),
-                municipality="",
-                region="",
-                employer_sector=_cell(row, "parent_employer_sector"),
-                employer_name=_cell(row, "parent_employer_name"),
-                kahramaa_number="",
-                role_label="ولي أمر",
+            _process_ministry_parent_row(
+                cell,
+                student=student,
+                school=school,
+                parent_role=parent_role,
+                caches=caches,
                 issued=issued,
+                stats=stats,
             )
-            stats["parents_created" if p_created else "parents_existed"] += 1
-
-            if school:
-                membership_key = (parent.id, parent_role.id)
-                if membership_key not in existing_memberships:
-                    Membership.objects.create(
-                        user=parent, school=school, role=parent_role, is_active=True
-                    )
-                    existing_memberships.add(membership_key)
-
-                relation = _IMPORT_RELATION_MAP.get(_cell(row, "relation_raw"), "father")
-                link_key = (parent.id, student.id)
-                link = links_cache.get(link_key)
-                if link is None:
-                    ParentStudentLink.objects.create(
-                        parent=parent,
-                        student=student,
-                        school=school,
-                        relationship=relation,
-                        is_primary=True,
-                        can_view_grades=True,
-                        can_view_attendance=True,
-                    )
-                    links_cache[link_key] = True
-                    stats["links_created"] += 1
-                elif link is not True and link.relationship != relation:
-                    link.relationship = relation
-                    link.save(update_fields=["relationship"])
 
     return {
         "success": True,
