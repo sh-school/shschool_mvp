@@ -64,6 +64,11 @@ class HealthRecord(models.Model):
     # [PII-04] بيانات جهة اتصال الطوارئ (طرف ثالث بجوار سجل صحي لقاصر) — مشفّرة at-rest
     emergency_contact_name = EncryptedTextField(blank=True, verbose_name="اسم جهة الطوارئ")
     emergency_contact_phone = EncryptedTextField(blank=True, verbose_name="هاتف جهة الطوارئ")
+    # [W-028] سجلّ القيد الوزاريّ — ثلاثةُ أعمدةٍ صحّيّةٍ من ملف مركز البيانات
+    # الوطنيّ، مشفَّرةٌ at-rest كبقيّة هذا النموذج (م.8 PDPPL).
+    health_center_name = EncryptedTextField(blank=True, verbose_name="اسم المركز الصحي الرئيسي")
+    health_card_number = EncryptedTextField(blank=True, verbose_name="رقم الرعاية الصحية الرئيسي")
+    hamad_hospital_number = EncryptedTextField(blank=True, verbose_name="رقم مستشفى حمد")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="تاريخ التعديل")
 
     class Meta:
