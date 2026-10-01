@@ -1,0 +1,28 @@
+{% load icons %}
+{% comment %}
+  عقدةٌ واحدةٌ في شجرة عارض الوثائق — تستدعي نفسَها لمجلّدٍ فرعيّ (تضمينٌ ذاتيّ).
+  الجذرُ لا يُمرَّر هنا؛ `docs_viewer/index.html` و`detail.html` يبدآن من أبناء الجذر
+  مباشرةً. `current` مسارُ الملفّ المفتوح حالياً (فارغٌ في الفهرس) — يُميَّز في
+  القائمة. `open_dirs` مجموعةُ مساراتِ المجلّدات المفتوحة افتراضاً (ملاحظةُ
+  المالك: الحالةُ الافتراضيّةُ مطويّة — سلسلةُ مجلّدات الملفّ الحاليّ وحدَها تُفتح،
+  `services.ancestor_dirs`؛ فارغةٌ في الفهرس فكلُّ شيءٍ مطويّ).
+{% endcomment %}
+{% if node.is_dir %}
+<details class="docs-tree__dir"{% if node.rel_path in open_dirs %} open{% endif %}>
+  <summary class="docs-tree__summary" title="{{ node.filename }}">{% icon "folder" size="sm" %}<span>{{ node.name }}</span></summary>
+  <ul class="plain-list docs-tree__list">
+    {% for child in node.children %}
+    <li{% if not child.is_dir %} class="plain-list__row" data-filter-row{% endif %}>
+      {% include "docs_viewer/_node.html" with node=child current=current open_dirs=open_dirs %}
+    </li>
+    {% empty %}
+    <li class="ui-note">لا ملفّاتٍ</li>
+    {% endfor %}
+  </ul>
+</details>
+{% else %}
+<a class="plain-list__main docs-tree__file{% if node.rel_path == current %} is-current{% endif %}" href="{% url 'docs_viewer:detail' doc_path=node.rel_path %}" title="{{ node.filename }}">
+  {% icon "document" size="sm" %}
+  <span class="plain-list__title">{{ node.name }}</span>
+</a>
+{% endif %}

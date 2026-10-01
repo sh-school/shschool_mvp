@@ -792,6 +792,9 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
   <a href="{% url 'improvement_roadmap' %}" role="menuitem" aria-label="خارطة تجويد المنصة الزمنية">
     {% icon "roadmap" %} خارطة التجويد
   </a>
+  <a href="{% url 'docs_viewer:index' %}" role="menuitem" aria-label="عارض الوثائق — ملفّات md في المشروع">
+    {% icon "document" %} عارضُ الوثائق
+  </a>
   {% if request.user|can_open:"developer_feedback:inbox_list" %}
   <a href="{% url 'developer_feedback:inbox_list' %}" role="menuitem"
      aria-label="صندوق الوارد للمطوّر">
