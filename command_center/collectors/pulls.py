@@ -91,9 +91,10 @@ def reduce_compare(payload: Any) -> dict[str, Any] | None:
 def _lag() -> int | None:
     """إيداعاتُ main غيرُ المنشورة، أو None إن لم يُعرف (لا نشرٌ مسجَّل أو عطلُ الجلب)."""
     deploy = github.fetch(DEPLOY_PATH, reduce_deploy)
-    if not deploy or not deploy["sha"]:
+    sha = deploy.get("sha") if deploy else None
+    if not sha:
         return None
-    compare = github.fetch(f"compare/{deploy['sha']}...main", reduce_compare)
+    compare = github.fetch(f"compare/{sha}...main", reduce_compare)
     return None if compare is None else int(compare["ahead"])
 
 

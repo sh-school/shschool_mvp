@@ -27,6 +27,7 @@ from command_center.collectors import (
     roadmap,
     security,
     supply,
+    today,
     ux,
 )
 
@@ -51,6 +52,7 @@ REMOTE: dict[str, Collector] = {
     "supply": supply.collect,
     "quality": quality.collect,
     "delivery": delivery.collect,
+    "today": today.collect,
 }
 #: لوحاتٌ تقرؤها **عمليّةُ الويب** لا العامل (مقاييسُ في ذاكرتها) — تُؤخذ عيّنتُها عند فتح الصفحة أو استطلاعها (`webstats.sample_safe`).
 WEB: dict[str, Collector] = {"latency": webstats.sample}

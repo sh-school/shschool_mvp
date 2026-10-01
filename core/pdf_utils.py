@@ -249,7 +249,8 @@ table {{ direction: rtl !important; border-collapse: collapse; }}
     }}
 
     @bottom-right {{
-        content:      "SchoolOS v6";
+        /* بلا رقم إصدارٍ ثابت (قرارُ المالك D-70م، 2026-09-29): الرقمُ يقدُم فيُضلِّل — الإنتاجُ كان v5.5 حين طبعت هذه الصفحاتُ "v6". */
+        content:      "SchoolOS";
         font-family:  'Tajawal', Arial, sans-serif;
         font-size:    8px;
         color:        {brand.BORDER_STRONG};
@@ -619,7 +620,7 @@ def _playwright_footer_template(today: str) -> str:
 .pf-date  {{ color: {brand.TEXT_MUTED}; font-size: 7.5px; direction: ltr; }}
 </style>
 <div class="pf">
-    <span class="pf-brand">SchoolOS v6</span>
+    <span class="pf-brand">SchoolOS</span>
     <span class="pf-pages">
         صفحة <span class="pageNumber"></span> / <span class="totalPages"></span>
     </span>
