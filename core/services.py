@@ -492,7 +492,7 @@ def _sync_health_record(
 
     record = health_cache.get(student.id)
     is_new = record is None
-    if is_new:
+    if record is None:
         record = HealthRecord(student=student)
     changed = is_new or (
         record.health_center_name,
