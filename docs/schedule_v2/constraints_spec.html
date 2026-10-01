@@ -1,0 +1,200 @@
+<title>قيود جدول الحصص</title>
+<style>
+/* التخطيط: عمودٌ واحدٌ من بطاقاتِ قيدٍ، عنوانُها رمزٌ ورتبةٌ، ومتنُها النصُّ الرياضيُّ ومصدرُ القيمة */
+:root{
+  --bg:#f7f5f2; --card:#ffffff; --fg:#1c1a17; --mut:#6b6558; --line:#dcd6cb;
+  --ink:#5b1a22; --gold:#9a7b2e; --ok:#2f6b4f; --warn:#8a5a10; --bad:#8f2a2a;
+  --f-disp:"Readex Pro",system-ui,sans-serif; --f-body:"Noto Naskh Arabic",serif; --f-mono:ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141311; --card:#1e1c19; --fg:#ece7df; --mut:#a09889; --line:#332f29;
+  --ink:#d59aa4; --gold:#d8b45c; --ok:#79c49f; --warn:#e0ae5c; --bad:#e58d8d; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141311; --card:#1e1c19; --fg:#ece7df; --mut:#a09889; --line:#332f29;
+  --ink:#d59aa4; --gold:#d8b45c; --ok:#79c49f; --warn:#e0ae5c; --bad:#e58d8d; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);line-height:1.85;
+  margin:0;padding-block:clamp(24px,5vw,56px);padding-inline:16px;direction:rtl}
+.wrap{max-width:62rem;margin-inline:auto;display:flex;flex-direction:column;gap:clamp(20px,3vw,34px)}
+h1,h2,h3{font-family:var(--f-disp);text-wrap:balance;margin:0;line-height:1.3}
+h1{font-size:clamp(1.6rem,4.4vw,2.5rem);letter-spacing:-.01em}
+h2{font-size:clamp(1.15rem,2.6vw,1.5rem);color:var(--ink);padding-block-end:.4rem;border-block-end:2px solid var(--line)}
+h3{font-size:1.02rem}
+.lede{color:var(--mut);font-size:1.03rem;max-width:58ch}
+section{display:flex;flex-direction:column;gap:14px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+  display:flex;flex-direction:column;gap:7px;min-width:0}
+.c.never{border-inline-start:4px solid var(--bad)}
+.c.relaxed{border-inline-start:4px solid var(--warn)}
+.c.dense{border-inline-start:4px solid var(--gold)}
+.c.open{background:color-mix(in srgb,var(--warn) 9%,var(--card));border:1px solid color-mix(in srgb,var(--warn) 34%,var(--line))}
+.hd{display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}
+code,.k{font-family:var(--f-mono);direction:ltr;unicode-bidi:isolate;font-size:.88em}
+.k{background:color-mix(in srgb,var(--ink) 12%,transparent);color:var(--ink);
+  padding:1px 7px;border-radius:5px;font-weight:700}
+.tag{font-family:var(--f-disp);font-size:.72rem;letter-spacing:.04em;padding:2px 8px;border-radius:99px;
+  border:1px solid var(--line);color:var(--mut);white-space:nowrap}
+.tag.n{color:var(--bad)}.tag.r{color:var(--warn)}.tag.d{color:var(--gold)}.tag.s{color:var(--ok)}
+.math{font-family:var(--f-mono);direction:ltr;unicode-bidi:isolate;background:color-mix(in srgb,var(--fg) 5%,transparent);
+  border-radius:7px;padding:8px 11px;font-size:.86rem;overflow-x:auto}
+.src{color:var(--mut);font-size:.92rem;margin:0}
+.src b{color:var(--fg);font-weight:600}
+table{border-collapse:collapse;width:100%;font-size:.92rem;font-variant-numeric:tabular-nums}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+th,td{padding:8px 11px;text-align:start;border-block-end:1px solid var(--line)}
+th{font-family:var(--f-disp);font-size:.8rem;color:var(--mut);font-weight:600}
+tr:last-child td{border-block-end:none}
+ol,ul{margin:0;padding-inline-start:1.3rem;display:flex;flex-direction:column;gap:9px}
+.foot{color:var(--mut);font-size:.88rem;border-block-start:1px solid var(--line);padding-block-start:14px}
+</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;600&amp;family=Noto+Naskh+Arabic:wght@400;600&amp;display=swap">
+
+<div class="wrap">
+<header>
+<h1>قيود جدول الحصص — المواصفة من مصدرها</h1>
+<p class="lede">ثمانيةَ عشرَ قيداً صلباً وثلاثةَ عشرَ مرناً، مستخرجةً من <code>constraint_registry.py</code> و<code>scheduler_constraints.py</code> كما تعرّفها الشيفرةُ اليومَ لا كما تُروى. لكلّ قيدٍ رمزُه ونصُّه ورتبةُ كسره ومصدرُ قيمته. والمُلزِمُ هو القيدُ؛ وبياناتُ الجدول القائم غيرُ مُلزِمةٍ بقرار المالك 2026-10-01.</p>
+</header>
+
+<section>
+<h2>كيف تُقرأ رتبةُ الكسر</h2>
+<div class="tw"><table>
+<tr><th>الرتبة</th><th>المعنى</th><th>متى تُستعمل</th></tr>
+<tr><td><span class="tag n">never</span></td><td>لا يُكسَر وإن بقيت حصّةٌ بلا موضع</td><td>النواةُ الفيزيائيّة وقرارُ المالك</td></tr>
+<tr><td><span class="tag r">relaxed</span></td><td>يُكسَر في الرخصة الأولى</td><td><code>allow_adjacent</code></td></tr>
+<tr><td><span class="tag d">dense</span></td><td>يُكسَر في الملاذ الأخير وحدَه</td><td><code>allow_dense</code></td></tr>
+<tr><td><span class="tag s">soft</span></td><td>وزنٌ في دالّة الكلفة لا منع</td><td>دائماً</td></tr>
+</table></div>
+<p class="src">وفي تاريخ هذه المنصّة <b>لم يُطفأ قيدٌ قطّ</b>: عولج التلاصقُ بمعايرة الرقم (٣ ← ٢ ← ١)، والخميسُ بتضييق النطاق، والتباعدُ بنطاق المرحلة. والإطفاءُ يتساهل ولا يشدّد.</p>
+</section>
+
+<section>
+<h2>النواةُ الفيزيائيّة — لا تُكسَر ولا تُحرَّر من اللوحة</h2>
+
+<div class="c never"><div class="hd"><span class="k">HC1</span><h3>المعلّم لا يُدرّس شعبتين معاً</h3><span class="tag n">never</span></div>
+<div class="math">∀ t, d, p : Σ_c x[t,c,d,p] ≤ 1</div>
+<p class="src"><b>المصدر:</b> نواة. <b>الدالّة:</b> <code>check_teacher_conflict</code></p></div>
+
+<div class="c never"><div class="hd"><span class="k">HC2</span><h3>الشعبة لا تأخذ مادّتين معاً</h3><span class="tag n">never</span></div>
+<div class="math">∀ c, d, p : Σ_s x[c,s,d,p] ≤ 1</div>
+<p class="src"><b>المصدر:</b> نواة. والمجموعاتُ الاختياريّةُ تتقاسم الخانةَ في مجموعتها. <b>الدالّة:</b> <code>check_class_conflict</code></p></div>
+
+<div class="c never"><div class="hd"><span class="k">HC9</span><h3>سعةُ المورد في التوقيت</h3><span class="tag n">never</span></div>
+<div class="math">∀ r, d, p : Σ_{s ∈ subjects(r)} x[s,d,p] ≤ capacity(r)</div>
+<p class="src"><b>المصدر:</b> نواة — ملعبٌ يسع اثنين لا يسع أربعاً. <b>الدالّة:</b> <code>check_resource_capacity</code></p></div>
+
+<div class="c never"><div class="hd"><span class="k">HC12</span><h3>لا تداخلَ بالساعة بين الجرسين</h3><span class="tag n">never</span></div>
+<div class="math">overlap(time(band1,p1), time(band2,p2)) = ∅</div>
+<p class="src"><b>المصدر:</b> نواة — <b>الحكمُ بالساعة لا بالرقم</b> (SCH-18). فحصّةُ الأرضيّ ٣ قد تتزامن بالساعة مع حصّة العلويّ ٢. <b>الدالّة:</b> <code>check_teacher_time_overlap</code></p></div>
+
+<div class="c never"><div class="hd"><span class="k">HC13</span><h3>لا تماسَّ بين طابقين</h3><span class="tag n">never</span></div>
+<div class="math">end(band1,p1) = start(band2,p2) ∧ floor1 ≠ floor2 ⇒ ممنوع</div>
+<p class="src"><b>المصدر:</b> نواة — الانتقالُ يحتاج زمناً؛ حصّةٌ تنتهي 11:35 أرضيّاً وأخرى تبدأ 11:35 علويّاً. <b>الدالّة:</b> <code>check_band_transition</code></p></div>
+
+<div class="c never"><div class="hd"><span class="k">HC19</span><h3>المزدوجةُ لا تعبر فسحةً ولا صلاة</h3><span class="tag n">never</span></div>
+<div class="math">∀ double(p, p+1) : ¬is_break(p) ∧ ¬is_break(p+1)</div>
+<p class="src"><b>المصدر:</b> نواة. <b>الدالّة:</b> <code>check_double_not_split_by_break</code></p></div>
+</section>
+
+<section>
+<h2>قراراتُ المالك والإدارة — موثَّقةٌ بتاريخها</h2>
+
+<div class="c never"><div class="hd"><span class="k">HC5</span><h3>معلّمٌ لا يقف حصّتين متّصلتين بلا استراحة</h3><span class="tag n">never</span></div>
+<div class="math">MAX_CONSECUTIVE = 1   ·   gap ≤ JOINABLE_GAP_MINUTES (10) ⇒ متلاصقتان</div>
+<p class="src"><b>المصدر:</b> <b>قرارُ المالك D-61م (2026-09-29)</b> — «لا يقف المعلّمُ حصّتين متّصلتين إلّا في مزدوجةٍ مقصودة». كان الرخصةَ الأولى فصار <code>never</code>، وهو مصدرُ أكثرِ مخالفات التوليد. <b>والاستثناءُ:</b> المزدوجةُ المعلَنةُ الوسم؛ و<code>PE</code>/<code>SCI</code> تُعيدان العدّاد (تغيّران المكانَ والنشاط). <b>وقرارُ المالك 2026-10-01: لا وسمَ مزدوجاتٍ للعلوم المعمليّة ولا للتربية البدنيّة</b> — فالمئةُ وأربعٌ وسبعون حصّةً تخضع للقيد كاملاً.</p></div>
+
+<div class="c never"><div class="hd"><span class="k">HC6</span><h3>المادّةُ تُوزَّع على الأيّام بالقسمة</h3><span class="tag n">never</span></div>
+<div class="math">perDayCap = ⌈W / D⌉   ·   daysAtCap = W mod D</div>
+<p class="src"><b>المصدر:</b> <b>قرارُ المالك D-17 (2026-09-24)</b> — «لا تكسر توزيع المادة أبداً». كان <code>dense</code> فاعتُمد جدولٌ باثنتَي عشرةَ مخالفة؛ وبلا رخصةٍ: ٨٦٩ من ٨٦٩ بلا متعذّر والمخالفاتُ ٣٠ بدل ٦٧. <b>خللٌ معروفٌ غيرُ مُصحَّح:</b> يَعدُّ الكتلَ لا الحصص، فيخطئ عند نصابٍ ستٍّ (كتلتان = أربعُ حصصٍ في يومٍ واحد).</p></div>
+
+<div class="c never"><div class="hd"><span class="k">HC10</span><h3>فراغُ المعلّم لا يتجاوز سقفَه الشخصيّ</h3><span class="tag n">never</span></div>
+<div class="math">gap(t,d) ≤ TeacherPreference.max_gap   (إن كُتب؛ و null = لا قيد)</div>
+<p class="src"><b>المصدر:</b> قرارٌ في حقّ شخصٍ يسبق كلّ رخصة. والفراغُ لعامّة الكادر <b>ترجيحٌ مرنٌ</b> (وزن ٨) — منعُه للجميع يُغلق جدولاً إشغالُه ٩٨٪. <b>الدالّة:</b> <code>check_max_gap</code></p></div>
+
+<div class="c never"><div class="hd"><span class="k">HC16</span><h3>لا يومَ فوق سقف القسمة</h3><span class="tag n">never</span></div>
+<div class="math">periods(t,d) ≤ ⌈load(t) / days(t)⌉</div>
+<p class="src"><b>المصدر:</b> <b>قرارُ الإدارة 2026-09-06</b> — الفرقُ بين أثقل يومٍ وأخفّه لا يتجاوز حصّة: ١٨ = ٣+٤+٤+٤+٣، و١٣ = ٣+٣+٣+٢+٢. <b>الدالّة:</b> <code>check_week_balance_cap</code>، و<code>week_share</code> تحسب الحدَّين.</p></div>
+
+<div class="c dense"><div class="hd"><span class="k">HC16B</span><h3>يومٌ دون الحدّ الأدنى لحصص المعلّم</h3><span class="tag d">dense</span></div>
+<div class="math">periods(t,d) ≥ ⌊load(t) / days(t)⌋   (احتياطٌ مسبقٌ لا فحصٌ بعديّ)</div>
+<p class="src"><b>المصدر:</b> قياس 2026-09-06 — <b>ثمانٍ وخمسون محاولةَ إصلاحٍ بعد الاكتمال بلا نجاحٍ واحد</b> في مدرسةٍ إشغالُها ٩٨٪. فيُحجز الحدُّ قبل الوضع. <b>مستثنىً:</b> من مواضعُه دون أيّامه (فنّانٌ بثلاث مزدوجات). <b>الدالّة:</b> <code>check_week_floor_reservation</code></p></div>
+
+<div class="c dense"><div class="hd"><span class="k">HC14</span><h3>لا يومَ فارغاً لمعلّمٍ تامّ النصاب</h3><span class="tag d">dense</span></div>
+<div class="math">load(t) ≥ |days(t)| ⇒ ∀ d ∈ days(t) : periods(t,d) ≥ 1</div>
+<p class="src"><b>المصدر:</b> احتياطٌ لا نتيجة. <b>مستثنىً:</b> منسّقٌ نصابُه دون أيّامه، واليومُ المفرَّغُ من الإعدادات ليس من أيّامه. وعند التنازل <b>يُسمّى اليومُ الفارغُ باسم صاحبه في السجلّ</b> لا يُخفى. <b>الدالّة:</b> <code>check_day_coverage</code></p></div>
+
+<div class="c never"><div class="hd"><span class="k">HC17</span><h3>لا حصّتان لمادّةٍ يومَ الخميس في الحادي عشر والثاني عشر</h3><span class="tag n">never</span></div>
+<div class="math">d = THURSDAY ∧ grade ∈ {G11, G12} ⇒ subject_on_day(c,s,d) = 0</div>
+<p class="src"><b>المصدر:</b> <b>قرار 2026-09-06</b>، وخُفّف نطاقُه إلى هذين الصفّين وحدَهما؛ وما دونهما على الترجيح القويّ (وزن ١٥). والمزدوجةُ كتلةٌ واحدةٌ لا زوج. <b>الدالّة:</b> <code>check_thursday_secondary_pair</code></p></div>
+
+<div class="c never"><div class="hd"><span class="k">HC4</span><h3>سقفُ حصص اليوم</h3><span class="tag n">never</span></div>
+<div class="math">p ≤ get_max_periods_for_day(d, level)   ·   الخميس: إعداديٌّ ٦ · ثانويٌّ ٧</div>
+<p class="src"><b>المصدر:</b> الجرسُ نفسُه. <b>بندٌ معلَّق:</b> أرقامُ الخميس (٦ و٧) بلا مرجعٍ وزاريٍّ في <code>AAdocs</code> — قرارٌ محلّيٌّ من المالك أم من دليلٍ لم يصل؟</p></div>
+
+<div class="c never"><div class="hd"><span class="k">HC11</span><h3>موردٌ لا يجمع مرحلتين في التوقيت</h3><span class="tag n">never</span></div>
+<div class="math">∀ r, d, p : |{ level(c) : x[c,·,d,p] ∧ uses(c,r) }| ≤ 1</div>
+<p class="src"><b>المصدر:</b> قرار 2026-09-03. <b>الدالّة:</b> <code>check_resource_level_homogeneity</code></p></div>
+</section>
+
+<section>
+<h2>قيودُ العدالة والتنويع — وهنا مربطُ النقاش</h2>
+
+<div class="c never"><div class="hd"><span class="k">HC7</span><h3>لا تُكدَّس المادّةُ في حصّةٍ واحدةٍ من اليوم</h3><span class="tag n">never</span></div>
+<div class="math">MAX_SAME_PERIOD = 2   ·   ∀ c,s,p : Σ_d x[c,s,d,p] ≤ 2</div>
+<p class="src"><b>العلّةُ المقيسة:</b> كانت الرياضياتُ للثاني عشر/٤ في الحصّة الخامسة <b>كلَّ يوم</b> — لأنّ القيودَ تنظر إلى اليوم ولا تنظر إلى موقع الحصّة فيه. <b>ولِمَ مرّتان لا مرّة:</b> نصابُ ستٍّ على خمسة أيّامٍ لا يسع تنويعاً كاملاً، والمنعُ الكلّيُّ يجعل الجدولَ متعذّراً عند إشغال ٩٨٪. <b>الدالّة:</b> <code>check_period_variety</code></p></div>
+
+<div class="c never"><div class="hd"><span class="k">HC8</span><h3>لا تتكدّس السابعةُ على معلّم</h3><span class="tag n">never</span></div>
+<div class="math">MAX_LAST_PERIODS = 2   ·   Σ_d x[t,d,7] ≤ 2   ∧   طرفاه لا يقعان على شعبةٍ واحدة</div>
+<p class="src"><b>القاعدةُ المطلوبةُ «سابعةٌ واحدةٌ في الأسبوع» — ومستحيلةٌ حسابيّاً:</b> مئةٌ واثنتا عشرةَ خانةً سابعةً على ثلاثةٍ وسبعين معلّماً، أي سابعةٌ ونصفٌ لكلٍّ. فالحدُّ اثنتان والوزنُ المتصاعدُ يدفع نحو الواحدة. <b>والمنعُ للسابعة وحدَها وإن كان الترجيحُ للطرفين</b> — وثلاثُ صيغٍ قيست على ٨٦٩ حصّةً في 2026-09-10، وجدولُها أدناه. <b>الدالّة:</b> <code>check_last_period_share</code></p></div>
+
+<div class="tw"><table>
+<tr><th>الصيغة</th><th>حصصٌ بلا موضع</th><th>عدالةُ الأطراف</th><th>تلاصق</th></tr>
+<tr><td>السابعةُ وحدَها (القائم)</td><td>٠</td><td>٠٫٣٥٥</td><td>٥٢</td></tr>
+<tr><td>الترجيحُ للطرفين</td><td>٠</td><td>٠٫٣٦٦</td><td>٤٧</td></tr>
+<tr><td><b>الترجيحُ + منعُ الأولى</b></td><td><b>٥</b></td><td>٠٫٢٥١</td><td>٥٨</td></tr>
+</table></div>
+<p class="src">فمنعُ الأولى صلباً يشتري العدالةَ بخمسِ حصصٍ بلا موضع — وخانةُ الأولى مئةٌ وخمسٌ وعشرون على ثلاثةٍ وسبعين معلّماً، ويلزم مئةٌ وستٌّ وأربعون لضمان اثنتين للجميع، <b>فجوةُ إحدى وعشرين خانةً على الأقلّ</b>. <b>وهذا بالمحرّك الجشع. وبُرهِن بـCP-SAT على بيانات 2026-09-29 (ستُّ قيودٍ منمذجةٌ من عشرين):</b> «٢ لكلّ طرف» <b><code>INFEASIBLE</code> استحالةً هيكليّةً</b> — والقيودُ وحدَها تحسم الجدوى، والجدولُ القائمُ لم يدخل أيَّ قيدٍ منها، فالنتيجةُ تسري على التوليد من الصفر كما تسري على الإصلاح. و«أولى ≤ ٣» مستحيلةٌ كذلك مع أخيرةٍ ≤ ٢. <b>وأقلُّ ما يُمكن: أولى ≤ ٢ مع أخيرةٍ ≤ ٤ — `OPTIMAL` بصفرِ متعذّر، حيث أعطى الجشعُ خمسَ حصصٍ بلا موضع.</b> فالذي صحّحه الحلّالُ أنّ سقفَ الأولى ليس مستحيلاً في ذاته — ثمنُه رفعُ سقف الأخيرة من اثنتين إلى أربع، لا حصصٌ بلا موضع.</p>
+
+<div class="c relaxed"><div class="hd"><span class="k">HC20</span><h3>حصّتا المادّة في اليوم الواحد لا تتجاوران</h3><span class="tag r">relaxed</span></div>
+<div class="math">adjacent(p1,p2) ∧ same_subject ∧ ¬prefers_double ⇒ ممنوع   (والفسحةُ تفصل)</div>
+<p class="src">حلَّ محلَّ HC18 «أيّامٌ مختلفة» — فالتباعدَ بين الأيّام يحسبه HC6. وكان مرناً بوزن ٧ فصار منعاً. <b>ولِمَ رتبتُه الرخصةُ الأولى:</b> التشديدُ بلا كسرٍ جُرّب فأنتج <b>ثمانيةً وعشرين يومَ تلاصقٍ مخالفٍ وثلاثَ حصصٍ بلا موضع</b>. <b>والفسحةُ والصلاةُ تفصلان</b> (قرارُ المالك 2026-09-24). <b>الدالّة:</b> <code>check_subject_not_adjacent</code></p></div>
+</section>
+
+<section>
+<h2>القيودُ المرنةُ الثلاثةَ عشرَ — أوزانُها هي دالّةُ الكلفة</h2>
+<div class="tw"><table>
+<tr><th>المفتاح</th><th>النصّ</th><th>الوزن</th><th>ملاحظةٌ من الشيفرة</th></tr>
+<tr><td><code>core_early</code></td><td>الموادُّ الأساسيّةُ مبكّراً</td><td>٣٠</td><td>أثقلُ وزنٍ في النظام</td></tr>
+<tr><td><code>thursday_pair</code></td><td>حصّتا المادّة يومَ الخميس</td><td>١٥</td><td>لما دون G11/G12 (وHC17 صلبٌ لهما)</td></tr>
+<tr><td><code>free_day</code></td><td>يومُ التفريغ الذي طلبه المعلّم</td><td>١٤</td><td>كان حقلاً يَعِد ولا يفي (قياس 2026-09-09)؛ وصلباً لا يصلح — أربعون طلباً تُغلق الأسبوع</td></tr>
+<tr><td><code>extra_edge_period</code></td><td><b>طرفٌ زائدٌ للمعلّم (أولى أو سابعة)</b></td><td><b>١٢</b></td><td><b>عقوبةٌ متصاعدةٌ من الطرف الثاني؛ والعدُّ للطرفين معاً — قرارُ الإدارة 2026-09-10</b></td></tr>
+<tr><td><code>consecutive</code></td><td>تلاصقُ حصص المعلّم</td><td>١٠</td><td>فوق HC5 الصلب</td></tr>
+<tr><td><code>first_period_floor</code></td><td><b>حصّةٌ أولى تحت الحدّ الأدنى</b></td><td><b>−٩</b></td><td><b>مكافأةٌ متصاعدةٌ لمن دون <code>MIN_FIRST_PERIODS = 2</code> (2026-09-17)</b></td></tr>
+<tr><td><code>gap</code></td><td>فراغاتُ المعلّم</td><td>٨</td><td>وصلبٌ لمن كُتب له سقفٌ (HC10)</td></tr>
+<tr><td><code>high_weekly_adjacent</code></td><td>تلاصقُ مادّةٍ عاليةِ النصاب</td><td>٧</td><td>تجربةُ وزنٍ لم تُجرَ بعد</td></tr>
+<tr><td><code>subject_spread</code></td><td>تفريقُ حصص المادّة</td><td>٦</td><td></td></tr>
+<tr><td><code>day_balance</code></td><td>توازنُ الأيّام</td><td>٦</td><td></td></tr>
+<tr><td><code>daily_load</code></td><td>الحملُ اليوميّ</td><td>٥</td><td>و<code>EXPLICIT_PREFERENCE_FACTOR = 2</code> يضاعفه لمن كُتب في حقّه</td></tr>
+<tr><td><code>pe_after_break</code></td><td>البدنيّةُ بعد الاستراحة</td><td>٢</td><td></td></tr>
+<tr><td><code>double_bonus</code></td><td>مكافأةُ الحصّة المزدوجة</td><td>−٥</td><td>سالبٌ = ترغيب</td></tr>
+</table></div>
+<p class="src"><b>وثابتان حاكمان خارج الجدول:</b> <code>DEFAULT_MAX_DAILY = 5</code> سقفُ الحمل لمن لا تفضيلَ مكتوباً له — <b>ويحكم ستّةً وستّين معلّماً من اثنين وسبعين اليوم</b>؛ و<code>TeacherPreference.max_daily_periods</code> افتراضيّتُه ٥ في النموذج نفسِه.</p>
+</section>
+
+<section>
+<h2>ما ينقص المواصفةَ قبل أن تُبنى شيفرةُ V2</h2>
+
+<div class="c open"><h3>١. تخصيصُ موضعٍ قاطعٍ لمعلّم — <span class="k">HC21</span> مقترح</h3>
+<p class="src">النظامُ يملك <b>النفيَ وحدَه</b>: <code>TeacherExemption</code> بنوعين (يومٌ كامل · حصّةٌ محدّدة) وخمسةِ مصادرَ (وزارة · إدارة · قسم · <b>لتوليد الجدول</b> · أخرى). و«لتوليد الجدول» بنصّ تعليق المالك <b>أداةُ تشكيل</b>: خاناتٌ تُغلق ليقع جدولُ المعلّم حيث يُراد. <b>والموجَبُ («يُشغَّل وجوباً في الأولى كلَّ يوم») لا صفَّ له في قاعدة البيانات</b> — فيُؤدّى اليومَ بإغلاق ستِّ حصصٍ في خمسة أيّام (ثلاثين صفّاً) وهو لا يُلزم شيئاً. والمطلوب: حالةٌ ثالثةٌ في شبكةِ <code>/operations/schedule-settings/</code> نفسِها؛ ودلالةٌ صريحةٌ <b>برقم حصّةٍ</b> أو <b>بموضعٍ من اليوم</b> (وهما يختلفان على الخميس وبين النطاقات)؛ وفحصُ جدوى عند الإدخال يرفض المستحيلَ فوراً لا بعد التوليد؛ وخروجُ المخصَّص من عدّ قيود الحافّة بقرارٍ مسجَّلٍ له سببٌ وجهة.</p></div>
+
+<div class="c open"><h3>٢. بُعدُ «موضع الحصّة في اليوم» في تفضيلات المعلّم</h3>
+<p class="src"><code>TeacherPreference</code> فيه أربعةُ حقولٍ تُقرأ فعلاً (<code>max_daily_periods</code> · <code>max_consecutive</code> · <code>max_gap</code> · <code>free_day</code>) <b>ولا شيءَ فيها عن صباحيٍّ ومسائيّ</b> — وهو عينُ ما يفسّر شكوى «ثلاثُ حصصٍ أولى وحصّتان أخيرتان». والتغطيةُ ستّةُ معلّمين من اثنين وسبعين (٨٫٣٪).</p></div>
+
+<div class="c open"><h3>٣. قيمتان بلا مرجعٍ موثَّق</h3>
+<p class="src"><b>سقفُ الخميس ٦ و٧</b> (HC4) و<b>حصرُ HC17 في الحادي عشر والثاني عشر</b> — لا مرجعَ وزاريٌّ لهما في <code>AAdocs</code>. قرارٌ محلّيٌّ من المالك أم دليلٌ لم يصل؟</p></div>
+
+<div class="c open"><h3>٤. مقياسانِ منفصلانِ ومُقيِّمٌ مستقلٌّ عن الباني</h3>
+<p class="src">أعطى توليدٌ واحدٌ ثلاثةَ أرقامٍ متضاربة (<code>hard_violations = 7</code> · <code>validity.hard_conflicts = 0</code> · والفحصُ الطازج ١٥). والحلُّ نمطُ XHSTT: <code>InfeasibilityValue</code> (حصصٌ لم توضع) و<code>ObjectiveValue</code> (مخالفاتٌ على حصصٍ موضوعة) يُصغَّران معجميّاً، يحسبهما <b>مُقيِّمٌ مستقلٌّ</b> لا عدّادٌ يحفظه المولِّدُ عن نفسه — ويُعاد الحسابُ ذرّيّاً <b>عند فعل الاعتماد</b> لا لقطةً للتوليد.</p></div>
+</section>
+
+<p class="foot">مستخرَجٌ في 2026-10-01 من <code>operations/constraint_registry.py</code> (٢٢٧ سطراً) و<code>operations/scheduler_constraints.py</code> في شجرة العمل <code>vigilant-nightingale-b8df9f</code>. كلُّ قيمةٍ هنا مقروءةٌ من الشيفرة أو من تعليقٍ فيها يحمل تاريخَ قراره؛ وما لا مصدرَ له وُسم «بلا مرجعٍ موثَّق» ولم يُملأ بتقدير.</p>
+</div>

@@ -7,7 +7,7 @@
 
 import pathlib
 
-from core.css_files import CSS_DIR, CSS_FILES
+from core.css_files import ALWAYS_LOADED_CSS_FILES, CSS_DIR, CSS_FILES
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CSS_ROOT = ROOT / "static" / CSS_DIR
@@ -15,6 +15,13 @@ CSS_ROOT = ROOT / "static" / CSS_DIR
 
 def css_paths() -> list[pathlib.Path]:
     return [CSS_ROOT / name for name in CSS_FILES]
+
+
+def always_loaded_css_paths() -> list[pathlib.Path]:
+    """ما يحمّله `{% custom_css %}` فعليّاً — لـ`shipped_size()` وحدها (قرارُ
+    المالك D-81م: `34-docs-viewer.css` خارج الميزانيّة العامّة، يُحمَّل بصفحات
+    عارض الوثائق وحدَها عبر `{% block extra_css %}`)."""
+    return [CSS_ROOT / name for name in ALWAYS_LOADED_CSS_FILES]
 
 
 def read_css() -> str:
@@ -27,7 +34,12 @@ def css_size() -> int:
 
 
 def shipped_size() -> int:
-    """بايتاتُ ما يصل المتصفّحَ: المصدرُ بعد التصغير الذي يجريه `collectstatic` في الإنتاج."""
+    """بايتاتُ ما يصل المتصفّحَ على كلّ صفحة: المصدرُ بعد التصغير الذي يجريه
+    `collectstatic` في الإنتاج — ما يحمّله `{% custom_css %}` وحده (انظر
+    `always_loaded_css_paths`)."""
     from core.static_storage import minify_css
 
-    return sum(len(minify_css(path.read_text(encoding="utf-8")).encode()) for path in css_paths())
+    return sum(
+        len(minify_css(path.read_text(encoding="utf-8")).encode())
+        for path in always_loaded_css_paths()
+    )
