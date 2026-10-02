@@ -53,6 +53,20 @@ def test_absent_first_two_periods_is_flagged_for_the_ministry(
     assert flags[kids[1]] == "", "غاب الأولى وحدَها"
 
 
+def test_ministry_absent_count_is_a_number_not_a_rate(
+    school, seeded_calendar, klass, kids, teacher, supervisor
+):
+    """ADR-0009: المصدرُ الوحيدُ للغياب اليوميّ الوزاريّ — عددٌ لا نسبة، منفصلٌ عن attendance_rate()."""
+    periods = _periods(school, klass, teacher, 2)
+    _confirm(klass, periods[0], {kids[0]: "absent", kids[1]: "absent"}, supervisor)
+    _confirm(klass, periods[1], {kids[0]: "absent", kids[1]: "present"}, supervisor)
+
+    report = daily_report(school, SUNDAY)
+
+    assert report.ministry_absent_count == 1
+    assert report.ministry_absent_count == len(report.ministry_rows)
+
+
 def test_no_flag_on_an_incomplete_record(school, seeded_calendar, klass, kids, teacher, supervisor):
     """الثانيةُ لم تُرصد — لا يُرفع طالبٌ على رصدٍ ناقص."""
     periods = _periods(school, klass, teacher, 3)

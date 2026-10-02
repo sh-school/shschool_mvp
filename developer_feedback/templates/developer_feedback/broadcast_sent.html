@@ -1,0 +1,43 @@
+{% extends "base/base.html" %}
+{% load i18n icons ui %}
+
+{% block title %}{% trans "ما أرسلتُه للمستخدمين" %}{% endblock %}
+
+{% block breadcrumbs %}
+{% include "components/breadcrumbs.html" with parent_url="/developer-feedback/inbox/" parent_label="صندوق الوارد للمطوّر" current="ما أرسلتُه" %}
+{% endblock %}
+
+{% block content %}
+<div class="exec-dash df-page">
+  {% page_header _("ما أرسلتُه للمستخدمين") icon="checklist" %}
+    <a href="{% url 'developer_feedback:broadcast_create' %}" class="btn-primary btn-sm">
+      {% icon "messages" %} {% trans "رسالة جديدة" %}
+    </a>
+  {% endpage_header %}
+
+  {% section_card _("السجلّ") meta=page_obj.paginator.count icon="checklist" flush=True empty=_("لم تُرسل شيئاً بعد") %}{% if broadcasts %}
+    <div class="table-wrap">
+    <table data-no-sort>
+      <thead>
+        <tr>
+          <th scope="col">{% trans "الموضوع" %}</th>
+          <th scope="col">{% trans "الفئة" %}</th>
+          <th scope="col">{% trans "عدد المستلِمين" %}</th>
+          <th scope="col">{% trans "التاريخ" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in broadcasts %}
+        <tr>
+          <td>{{ b.subject }}</td>
+          <td>{{ b.audience_label }}</td>
+          <td class="col-num">{{ b.recipient_count }}</td>
+          <td><time datetime="{{ b.created_at|date:'c' }}">{{ b.created_at|date:"Y/m/d H:i" }}</time></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  {% endif %}{% endsection_card %}
+</div>
+{% endblock %}

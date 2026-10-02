@@ -450,6 +450,55 @@ class LegalOnboardingConsent(models.Model):
 # ═══════════════════════════════════════════════════════════════
 
 
+class OutboundMessage(models.Model):
+    """سجلُّ رسالةٍ بثَّها المطوّر لمستخدمٍ أو أكثر — اتّجاهٌ معاكسٌ لـ`DeveloperMessage`.
+
+    التسليمُ الفعليّ عبر `notifications.InAppNotification` القائم (الجرسُ وصندوقُ
+    الإشعارات اللذان يملكهما كلُّ مستخدمٍ أصلاً) — صفٌّ لكلّ مستلِم هناك، لا هنا.
+    فهذا النموذجُ **سجلٌّ للمطوّر فقط** («ما أرسلتُه»): لا يملك `InAppNotification`
+    حقلَ «مَن أرسل» ولا تجميعاً للبثّة الواحدة، وهذا ما يسدّه (قرارُ المالك
+    2026-09-30). لا موافقةَ قانونيّةً هنا: المستخدِمُ لم يبدأ التواصل، والمطوّرُ هو
+    الكاتب — الحاجزُ في `LegalOnboardingConsent` يخصّ إرسال المستخدم للمطوّر وحدَه.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="dev_feedback_broadcasts_sent",
+        verbose_name=_("أرسلها"),
+    )
+
+    subject = models.CharField(
+        _("الموضوع"),
+        max_length=200,
+        validators=[MinLengthValidator(5), MaxLengthValidator(200)],
+    )
+    body = models.TextField(
+        _("نصّ الرسالة"),
+        validators=[MinLengthValidator(10), MaxLengthValidator(4000)],
+    )
+
+    #: وصفٌ نصّيٌّ لهدف الإرسال كما اختاره المطوّر — للسجلّ فقط، لا يُعاد قراءتُه برمجيّاً.
+    audience_label = models.CharField(_("الفئة المستهدفة"), max_length=200, blank=True)
+
+    #: عددُ المستلِمين وقتَ الإرسال — مُقاسٌ لا مُشتقّ: التسليمُ نفسُه صفوفٌ في
+    #: `InAppNotification` لا علاقةَ لها بهذا السجلّ، فلا استعلامَ يُعيد حسابَه.
+    recipient_count = models.PositiveIntegerField(_("عدد المستلِمين"), default=0)
+
+    created_at = models.DateTimeField(_("أُرسلت في"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("رسالةٌ من المطوّر")
+        verbose_name_plural = _("رسائل المطوّر الصادرة")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.subject} ({self.created_at:%Y-%m-%d %H:%M})"
+
+
 class AuditLog(models.Model):
     """سجل وصول للـ Inbox — يسجّل كل عرض/تحديث/حذف للرسائل."""
 
