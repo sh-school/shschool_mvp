@@ -160,8 +160,13 @@ def test_the_strip_says_no_red_when_none_and_never_mentions_decisions(client_as,
     strip = html.split('data-key="strip.reds"')[1].split("</p>")[0]
     assert "لا لوحةَ في حالة خطر" in html
     assert "قرار" not in strip
-    # «الإيداعات غير المنشورة» لم تُجمَع لوحتُها: يُسمّى مجهولاً («؟») لا صفراً
-    assert re.search(r'data-key="strip\.unpublished">؟<', html)
+    # البطاقةُ تُرسم دائماً: رقماً إن جُمعت لوحةُ pulls وإلّا «؟» (لا فراغاً) — والمخزنُ المشتركُ قد يحمل لقطةً من اختبارٍ آخر، فلا يُفرض أحدُهما هنا
+    assert re.search(r'data-key="strip\.unpublished">(؟|\d+)<', html)
+
+
+def test_the_strip_names_an_uncollected_unpublished_count_unknown_not_zero():
+    """«الإيداعات غير المنشورة» لم تُجمَع لوحتُها: يُسمّى مجهولاً («؟») لا صفراً — بلا اعتمادٍ على حالة المخزن."""
+    assert layout.strip([])["unpublished_text"] == "؟"
 
 
 def test_the_panel_picker_and_its_cookie_are_gone_entirely(client_as, developer_user):
