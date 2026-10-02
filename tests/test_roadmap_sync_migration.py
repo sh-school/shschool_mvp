@@ -7792,3 +7792,110 @@ def test_0047_publishes_nothing_a_public_repo_must_not_say():
     assert [term for term in banned if term in body] == []
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
+
+
+# ── 0048: إغلاقُ SCH-23 وزرُّ الرجوع في صفحات الأخطاء ──
+
+_sync48 = importlib.import_module("roadmap.migrations.0048_sync_items_2026_10_02d")
+
+
+class _Apps48:
+    @staticmethod
+    def get_model(_app, name):
+        return {"RoadmapItem": RoadmapItem, "RoadmapKpi": RoadmapKpi}[name]
+
+
+def test_0048_closes_sch23_only_from_its_expected_state_and_is_idempotent():
+    _item("SCH-23", "doing", 90)
+    assert _sync48.sync(RoadmapItem) == ["SCH-23"]
+    assert _sync48.sync(RoadmapItem) == []
+    item = RoadmapItem.objects.get(code="SCH-23")
+    assert (item.status, item.progress) == ("done", 100)
+    assert "عدمُ تطابقٍ = 0" in item.note and "لا حكمٌ بالسببيّة" in item.note
+
+
+def test_0048_leaves_sch23_if_the_developer_moved_it():
+    _item("SCH-23", "doing", 95)
+    assert _sync48.sync(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="SCH-23").progress == 95
+
+
+def test_0048_appends_rep10_note_once_without_touching_status():
+    _item("REP-10", "done", 100)
+    assert _sync48.sync_notes(RoadmapItem) == ["REP-10"]
+    assert _sync48.sync_notes(RoadmapItem) == []
+    item = RoadmapItem.objects.get(code="REP-10")
+    assert (item.status, item.progress) == ("done", 100)
+    assert "#737" in item.note
+
+
+def test_0048_creates_new_items_once_and_never_overwrites():
+    created = _sync48.add_new_items(RoadmapItem)
+    assert set(created) == {"N-064", "SCH-24", "N-065", "N-066", "N-067"}
+    assert _sync48.add_new_items(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    item = by["N-064"]
+    assert (item.status, item.progress, item.deps, item.sort_order) == ("done", 100, "N-059", 788)
+    assert (by["SCH-24"].status, by["SCH-24"].progress) == ("done", 100)
+    assert (by["N-065"].status, by["N-065"].progress) == ("done", 100)
+    assert (by["N-066"].status, by["N-066"].progress) == ("doing", 60)
+    assert "حذفُ العمود القديم" in by["N-066"].note and "لا إغلاق" in by["N-066"].note
+    assert (by["N-067"].status, by["N-067"].progress) == ("done", 100)
+    assert "#744" in by["SCH-24"].pr and "#751" in by["N-065"].pr and "#735" in by["N-066"].pr
+    RoadmapItem.objects.filter(code="N-064").update(title="أعاد المطوّرُ تسميته")
+    assert _sync48.add_new_items(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="N-064").title == "أعاد المطوّرُ تسميته"
+
+
+def test_0048_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
+    _sync48.forwards(_Apps48, None)
+    assert RoadmapItem.objects.count() == 0
+    _item("SCH-23", "doing", 90)
+    _sync48.forwards(_Apps48, None)
+
+    def snapshot():
+        return list(
+            RoadmapItem.objects.order_by("code").values_list(
+                "code", "status", "progress", "pr", "note"
+            )
+        )
+
+    first = snapshot()
+    _sync48.forwards(_Apps48, None)
+    assert snapshot() == first
+    assert (
+        RoadmapItem.objects.filter(code__in=["N-064", "SCH-24", "N-065", "N-066", "N-067"]).count()
+        == 5
+    )
+
+
+def test_0048_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0048_sync_items_2026_10_02d").origin
+    with open(origin, encoding="utf-8") as f:
+        body = f.read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "مرض",
+        "C:/",
+        "localhost",
+        "up.railway.app",
+        "railway ssh",
+        "run_prod",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
