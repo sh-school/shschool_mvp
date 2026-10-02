@@ -688,7 +688,7 @@ def student_edit(request, student_id):
                 "email": student.email,
                 "grade": enrollment.class_group.grade if enrollment else "",
                 "section": enrollment.class_group.section if enrollment else "",
-                "birth_date": profile.birth_date if profile else None,
+                "birth_date": profile.date_of_birth if profile else None,
                 "notes": profile.notes if profile else "",
             }
         )
