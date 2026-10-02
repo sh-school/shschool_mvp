@@ -26,6 +26,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from core.unrestricted_role import has_unrestricted_role
+
 logger = logging.getLogger(__name__)
 
 # ══════════════════════════════════════════════════════════════════
@@ -144,7 +146,7 @@ def gate_admits(user: Any, prefix: str, allowed_roles: Any) -> bool:
 
     والمنحُ يُسأل فقط حين يردّه الدور، فلا يكلّف أحداً شيئاً في الطريق الغالب.
     """
-    if user.get_role() in allowed_roles:
+    if has_unrestricted_role(user) or user.get_role() in allowed_roles:
         return True
     grant = get_protected_grants().get(prefix)
     return grant is not None and bool(grant(user))
@@ -162,7 +164,7 @@ def get_accessible_modules_from_registry(user) -> list[dict]:
     if not user or not user.is_authenticated:
         return []
 
-    if user.is_superuser:
+    if user.is_superuser or has_unrestricted_role(user):
         return [
             {
                 "name": m.name,

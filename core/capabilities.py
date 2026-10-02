@@ -26,6 +26,7 @@ from typing import Any
 
 from core.parent_consent import holds_parent_membership
 from core.permissions import expand_roles, role_required
+from core.unrestricted_role import has_unrestricted_role
 
 #: الأساسُ حين لا نصَّ ولا قرار — القدرةُ كما في الشيفرة، تنتظر المراجعة.
 PLATFORM_ASSUMPTION = "افتراضُ المنصّة — لم يُراجَع مقابل نصّ"
@@ -552,7 +553,7 @@ def has_capability(user, key: str) -> bool:
     """أيملك هذا المستخدمُ هذه القدرة؟ — بالوراثة نفسِها التي يفحص بها الحارس."""
     if user is None or not user.is_authenticated:
         return False
-    if user.is_superuser:
+    if user.is_superuser or has_unrestricted_role(user):
         return True
     cap = capability(key)
     return user.get_role() in cap.expanded_roles or cap.granted(user)
@@ -595,7 +596,12 @@ def _roles_or_grant(cap: Capability, view_func):
         user = request.user
         if not user.is_authenticated:
             return redirect("login")
-        if user.is_superuser or user.get_role() in expanded or cap.granted(user):
+        if (
+            user.is_superuser
+            or has_unrestricted_role(user)
+            or user.get_role() in expanded
+            or cap.granted(user)
+        ):
             return view_func(request, *args, **kwargs)
         role = user.get_role()
         log_denial(request, role=role, required=expanded)

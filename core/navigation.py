@@ -19,6 +19,8 @@ from typing import Any
 
 from django.urls import NoReverseMatch, resolve, reverse
 
+from core.unrestricted_role import has_unrestricted_role
+
 
 def _guard_roles(view: Any) -> frozenset[str] | None:
     fn, seen = view, set()
@@ -91,7 +93,7 @@ def can_open(user: Any, url_name: str) -> bool:
     """هل يُفتح الرابطُ ``url_name`` (بلا وسائط) لهذا المستخدم؟"""
     if user is None or not getattr(user, "is_authenticated", False):
         return False
-    if user.is_superuser:
+    if user.is_superuser or has_unrestricted_role(user):
         return True
     role = user.get_role() or ""
     if _role_opens(role, url_name):
