@@ -259,6 +259,8 @@ def test_the_report_is_storable(school, teacher):
         "capacity.teacher",
         "capacity.resource",
         "assignment.unassigned",
+        "assignment.daily_band",
+        "assignment.parallel_same_teacher",
     }
 
 
@@ -349,6 +351,107 @@ def test_a_feasible_generation_needs_no_reason(client_as, vice, school, teacher,
     ).exists()
 
 
+# ── AS-1/AS-4/AS-5: النصابُ مقابلَ سقف الجرس الفعليّ ─────────────────
+
+
+def test_a_personal_cap_tighter_than_the_bell_blocks_the_load(school, teacher):
+    """تفضيلٌ شخصيٌّ أضيقُ من الجرس هو الحاكم (AS-4) — والمنصّةُ تسمّيه."""
+    from operations.models import TeacherPreference
+
+    TeacherPreference.objects.create(
+        school=school, teacher=teacher, academic_year=YEAR, max_daily_periods=2
+    )
+    subject = a_subject(school, "الرياضيات", "MAT")
+    assign(school, subject, a_class(school), teacher, 15)  # 5 أيّام × 2 = 10 أقصى
+
+    found = finding(sf.check(school, YEAR), "assignment.daily_band")
+
+    assert found.status == "fail"
+    assert found.rows[0].capacity == 10
+    assert "تفضيلُه الشخصيّ" in found.rows[0].note
+
+
+def test_margin_free_edge_warns_without_blocking(school, teacher):
+    """على الحدّ بلا هامشٍ يُحذَّر لا يُرفَض — والتوليدُ لا يُمنع بتحذير."""
+    from operations.models import TeacherPreference
+
+    TeacherPreference.objects.create(
+        school=school, teacher=teacher, academic_year=YEAR, max_daily_periods=4
+    )
+    subject = a_subject(school, "الرياضيات", "MAT")
+    assign(school, subject, a_class(school), teacher, 20)  # 5 × 4 = 20، هامشٌ صفر
+
+    report = sf.check(school, YEAR)
+    found = finding(report, "assignment.daily_band")
+
+    assert found.status == "warn"
+    assert report.feasible, "التحذيرُ لا يحجب — لا هامشَ لا استحالة"
+
+
+def test_a_teacher_with_margin_passes_the_daily_band_check(school, teacher):
+    subject = a_subject(school, "الرياضيات", "MAT")
+    assign(school, subject, a_class(school), teacher, 10)
+
+    assert finding(sf.check(school, YEAR), "assignment.daily_band").status == "ok"
+
+
+# ── AS-2: تمايزُ معلّمي المجموعة المتوازية ────────────────────────────
+
+
+def test_the_same_teacher_on_both_sides_of_a_parallel_group_is_a_silent_breach(school, teacher):
+    """معلّمٌ واحدٌ لعضوَي مجموعةٍ متوازية — خرقٌ لا يراه HC1 (AS-2)."""
+    section = a_class(school)
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        subject=a_subject(school, "الفنون", "ART"),
+        class_group=section,
+        teacher=teacher,
+        weekly_periods=2,
+        parallel_group="فنون-تكنولوجيا",
+    )
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        subject=a_subject(school, "التكنولوجيا", "TECH"),
+        class_group=section,
+        teacher=teacher,
+        weekly_periods=2,
+        parallel_group="فنون-تكنولوجيا",
+    )
+
+    found = finding(sf.check(school, YEAR), "assignment.parallel_same_teacher")
+
+    assert found.status == "fail"
+    assert found.rows[0].demand == 2 and found.rows[0].capacity == 1
+    assert "معلّمُ الرياضيات" in found.rows[0].note
+
+
+def test_different_teachers_on_a_parallel_group_pass(school, teacher):
+    other = a_user(school, "معلّمةُ الفنون", "teacher")
+    section = a_class(school)
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        subject=a_subject(school, "الفنون", "ART"),
+        class_group=section,
+        teacher=teacher,
+        weekly_periods=2,
+        parallel_group="فنون-تكنولوجيا",
+    )
+    SubjectClassAssignment.objects.create(
+        school=school,
+        academic_year=YEAR,
+        subject=a_subject(school, "التكنولوجيا", "TECH"),
+        class_group=section,
+        teacher=other,
+        weekly_periods=2,
+        parallel_group="فنون-تكنولوجيا",
+    )
+
+    assert finding(sf.check(school, YEAR), "assignment.parallel_same_teacher").status == "ok"
+
+
 def test_the_generate_button_hides_when_infeasible_and_the_override_form_appears(
     client_as, vice, school, teacher
 ):
@@ -360,3 +463,165 @@ def test_the_generate_button_hides_when_infeasible_and_the_override_form_appears
     assert "بدء التوليد" not in page
     assert "ولِّد على أيّ حال" in page
     assert "سببُ التوليد رغم العجز" in page
+
+
+# ── AS-1: سقفُ الجرس بالأوقات الفعليّة (وإصلاحُ عدّ التكتّلات) ──────────
+
+
+def a_bell(school, band, spans, day_types=("regular", "thursday")):
+    """جرسٌ لنطاق: spans قائمةُ (بدء، انتهاء) بـ"س:د" — رقمُ الحصّة ترتيبُها."""
+    from datetime import time
+
+    from operations.models import TimeSlotConfig
+
+    for day_type in day_types:
+        for number, (start, end) in enumerate(spans, 1):
+            sh, sm = map(int, start.split(":"))
+            eh, em = map(int, end.split(":"))
+            TimeSlotConfig.objects.create(
+                school=school,
+                band=band,
+                period_number=number,
+                start_time=time(sh, sm),
+                end_time=time(eh, em),
+                day_type=day_type,
+            )
+
+
+SEVEN_BACK_TO_BACK = [
+    ("07:00", "07:45"),
+    ("07:50", "08:35"),
+    ("08:40", "09:25"),
+    ("09:30", "10:15"),
+    ("10:20", "11:05"),
+    ("11:10", "11:55"),
+    ("12:00", "12:45"),
+]
+
+
+def test_a_back_to_back_bell_caps_at_four_a_day_not_one(school):
+    """سبعُ حصصٍ بفاصل خمس دقائق ⇒ ٤ لا ١ — HC5 يمنع المتلاصقتين لا اليومَ كلَّه."""
+    a_bell(school, None, SEVEN_BACK_TO_BACK)
+
+    assert sf._band_day_cap(school, frozenset({""}), "regular") == 4
+
+
+def test_a_normal_load_is_not_flagged_on_a_realistic_bell(school, teacher):
+    """نصابٌ ١٦ على جرسٍ متتالٍ (سقفُه ٢٠) لا يُحجَب — العدُّ بالتكتّلات كان يحجبه."""
+    a_bell(school, None, SEVEN_BACK_TO_BACK)
+    assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 16)
+
+    assert finding(sf.check(school, YEAR), "assignment.daily_band").status == "ok"
+
+
+def test_two_bands_union_caps_below_the_sum_of_their_bells(school, teacher):
+    """AS-1: خانةُ نطاقٍ تتلاصق بالساعة مع خانة نطاقٍ آخر — الاتّحادُ لا يزيد السقف."""
+    from core.models import ClassGroup, TimeBand
+
+    ground = TimeBand.objects.create(school=school, code="g", name="أرضيّ")
+    upper = TimeBand.objects.create(school=school, code="u", name="علويّ")
+    a_bell(school, ground, [("07:00", "07:45"), ("08:00", "08:45")])
+    a_bell(school, upper, [("07:50", "08:35"), ("08:50", "09:35")])
+    subject = a_subject(school, "الرياضيات", "MAT")
+    for section, band in (("1", ground), ("2", upper)):
+        klass = ClassGroup.objects.create(
+            school=school,
+            grade="G8",
+            section=section,
+            level_type="prep",
+            academic_year=YEAR,
+            time_band=band,
+        )
+        assign(school, subject, klass, teacher, 6)  # 12 > 5 أيّام × 2
+
+    found = finding(sf.check(school, YEAR), "assignment.daily_band")
+
+    assert found.status == "fail"
+    assert found.rows[0].capacity == 10, "اتّحادُ الخانات ٢ في اليوم لا مجموعُ سقفَي النطاقين"
+    assert "سقفُ الجرس" in found.rows[0].note
+
+
+def test_a_clean_report_says_no_blocker_was_found_not_that_it_is_valid(school, teacher):
+    """AS-6: الفحصُ يثبت الاستحالةَ لا الإمكان، فرسالةُ النجاح تقول ذلك."""
+    assign(school, a_subject(school, "الرياضيات", "MAT"), a_class(school), teacher, 10)
+
+    report = sf.check(school, YEAR)
+
+    for code in ("assignment.daily_band", "assignment.parallel_same_teacher"):
+        summary = finding(report, code).summary
+        assert summary.startswith("لم يُكتشف مانع")
+        assert "صالح" not in summary
+
+
+# ── عند الإدخال: الفحصُ موصولٌ بمسار الإسناد لا بالتوليد وحدَه ─────────
+
+
+def _apply(svc, school, section, subject, who, vice, periods, **kw):
+    return svc.apply_assignment(
+        school=school,
+        academic_year=YEAR,
+        class_group=section,
+        subject=subject,
+        teacher=who,
+        weekly_periods=periods,
+        by=vice,
+        **kw,
+    )
+
+
+def test_entry_rejects_a_load_beyond_the_personal_cap_and_names_it(school, teacher, vice):
+    from academic_management import assignment_services as svc
+    from operations.models import TeacherPreference
+
+    TeacherPreference.objects.create(
+        school=school, teacher=teacher, academic_year=YEAR, max_daily_periods=2
+    )
+    subject = a_subject(school, "الرياضيات", "MAT")
+
+    with pytest.raises(svc.AssignmentError) as raised:
+        _apply(svc, school, a_class(school), subject, teacher, vice, 11)  # فوق 5 × 2
+
+    blocked = [f for f in raised.value.findings if f.code == svc.BAND_LOAD_IMPOSSIBLE]
+    assert blocked and "تفضيلُه الشخصيّ" in blocked[0].message
+    assert not SubjectClassAssignment.objects.filter(subject=subject).exists()
+
+
+def test_entry_accepts_a_load_within_every_cap(school, teacher, vice):
+    from academic_management import assignment_services as svc
+
+    subject = a_subject(school, "الرياضيات", "MAT")
+    row, findings = _apply(svc, school, a_class(school), subject, teacher, vice, 10)
+
+    assert row.pk
+    assert not [f for f in findings if f.code == svc.BAND_LOAD_IMPOSSIBLE]
+
+
+def test_entry_rejects_the_same_teacher_twice_in_one_parallel_group(school, teacher, vice):
+    from academic_management import assignment_services as svc
+
+    section = a_class(school)
+    art = a_subject(school, "الفنون", "ART")
+    tech = a_subject(school, "التكنولوجيا", "TECH")
+    _apply(svc, school, section, art, teacher, vice, 2, parallel_group="فنون-تكنولوجيا")
+
+    with pytest.raises(svc.AssignmentError) as raised:
+        _apply(svc, school, section, tech, teacher, vice, 2, parallel_group="فنون-تكنولوجيا")
+
+    blocked = [f for f in raised.value.findings if f.code == svc.PARALLEL_SAME_TEACHER]
+    assert blocked and "الفنون" in blocked[0].message
+    assert not SubjectClassAssignment.objects.filter(subject=tech).exists()
+
+
+def test_entry_accepts_a_different_teacher_on_the_same_parallel_group(school, teacher, vice):
+    from academic_management import assignment_services as svc
+
+    other = a_user(school, "معلّمةُ التكنولوجيا", "teacher")
+    section = a_class(school)
+    for subject, who in (
+        (a_subject(school, "الفنون", "ART"), teacher),
+        (a_subject(school, "التكنولوجيا", "TECH"), other),
+    ):
+        row, _ = _apply(
+            svc, school, section, subject, who, vice, 2, parallel_group="فنون-تكنولوجيا"
+        )
+        assert row.pk
