@@ -47,6 +47,8 @@ urlpatterns = [
     path("import/", include("staging.urls")),
     path("parents/", include("parents.urls")),
     path("reports/", include("reports.urls")),
+    # عارضُ md المركزيّ — لمطوّر المنصّة وحدَه (W-20260930-002)
+    path("docs/", include("docs_viewer.urls")),
     path("analytics/", include("analytics.urls")),
     path("notifications/", include("notifications.urls")),
     path("clinic/", include("clinic.urls")),
