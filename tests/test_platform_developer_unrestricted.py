@@ -435,3 +435,33 @@ def test_the_developer_cannot_delete_a_tardiness_record(client_as, developer):
     )
 
     assert resp.status_code == 403
+
+
+# ── استيراد كشف بصمة الكادر: يُفتح للمطوّر موسوماً (D-118م، قرار المالك 2026-10-02) ──
+
+
+def test_the_developer_opens_the_biometric_import_and_can_record_staff(
+    client_as, developer, school
+):
+    from staff_affairs.attendance import StaffAttendanceService
+
+    assert StaffAttendanceService.can_record(school, developer)
+    resp = client_as(developer).get("/staff-affairs/attendance/import/")
+
+    assert resp.status_code == 200
+
+
+def test_a_teacher_still_cannot_open_the_biometric_import(client_as, teacher_user, school):
+    from staff_affairs.attendance import StaffAttendanceService
+
+    assert not StaffAttendanceService.can_record(school, teacher_user)
+    assert client_as(teacher_user).get("/staff-affairs/attendance/import/").status_code == 403
+
+
+def test_a_developer_write_to_the_import_is_tagged_in_the_audit(client_as, developer):
+    from core.models import AuditLog
+
+    client_as(developer).post("/staff-affairs/attendance/import/")
+
+    row = AuditLog.objects.filter(user=developer, changes__via="platform_developer").last()
+    assert row is not None and row.changes["path"] == "/staff-affairs/attendance/import/"
