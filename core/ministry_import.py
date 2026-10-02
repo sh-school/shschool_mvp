@@ -331,7 +331,7 @@ def _sync_student_profile(student: Any, birth_date: Any, profiles_cache: dict[An
         profile = Profile(user=student, birth_date=birth_date)
         profile.save()
         profiles_cache[student.id] = profile
-    elif profile.birth_date != birth_date:
+    elif profile.date_of_birth != birth_date:
         profile.birth_date = birth_date
         profile.save(update_fields=["birth_date"])
 

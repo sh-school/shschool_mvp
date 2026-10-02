@@ -622,3 +622,55 @@ class AutoInfractionNotice(models.Model):
 
     def __str__(self) -> str:
         return f"{self.student_id} {self.date} {self.auto_rule} {self.start_time:%H:%M}"
+
+
+# ─────────────────────────────────────────────────────────────────
+# BehaviorCommitteeVote — صوتُ عضو اللجنة في قرارٍ جماعيّ (D-116م، W-20261001-024)
+# ─────────────────────────────────────────────────────────────────
+class BehaviorCommitteeVote(models.Model):
+    """صوتُ عضوٍ مؤهَّلٍ في تصعيدٍ أو إيقافٍ — لا يُنفَّذ القرارُ إلا بأغلبيّة الأعضاء المؤهَّلين.
+
+    القرارُ جماعيٌّ لا فرديّ (قرار المالك D-116م): التصعيد `escalate` والإيقاف `suspend`
+    يحتاجان أغلبيّةَ أعضاء اللجنة، وإغلاقُ المخالفة `resolve` يبقى بعضوٍ واحد. والصوتُ
+    لا يُحذف بعد التنفيذ: يصير `applied` (من أغلبيّة القرار المنفَّذ) أو `dropped` (لقرارٍ
+    آخرَ لم يُنفَّذ) — سجلُّ تدقيقٍ لمن صوّت لماذا ومتى. وحذفُ حساب العضو لا يمحو صوتَه.
+    """
+
+    OPEN, APPLIED, DROPPED = "open", "applied", "dropped"
+    STATUS = [(OPEN, "مفتوح"), (APPLIED, "نُفِّذ"), (DROPPED, "أُسقط")]
+
+    infraction = models.ForeignKey(
+        BehaviorInfraction,
+        on_delete=models.CASCADE,
+        related_name="committee_votes",
+        verbose_name="المخالفة",
+    )
+    voter = models.ForeignKey(
+        "core.CustomUser",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="behavior_committee_votes",
+        verbose_name="العضو",
+    )
+    decision = models.CharField(max_length=10, verbose_name="القرار")
+    action_taken = models.TextField(blank=True, verbose_name="الإجراء المقترح")
+    suspension_type = models.CharField(max_length=20, blank=True, verbose_name="نوع الإيقاف")
+    suspension_days = models.PositiveSmallIntegerField(default=1, verbose_name="أيام الإيقاف")
+    status = models.CharField(max_length=8, choices=STATUS, default=OPEN, verbose_name="الحالة")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="وقت التصويت")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="آخر تعديل للصوت")
+
+    class Meta:
+        verbose_name = "صوت لجنة الضبط"
+        verbose_name_plural = "أصوات لجنة الضبط"
+        ordering = ["created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["infraction", "voter"],
+                condition=models.Q(status="open"),
+                name="one_open_committee_vote_per_member",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.infraction_id} {self.voter_id} {self.decision}"

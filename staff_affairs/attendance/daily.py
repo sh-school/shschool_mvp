@@ -18,6 +18,7 @@ import staff_affairs.attendance as _pkg
 from core.models.access import Membership
 from core.models.school import School
 from core.models.user import CustomUser
+from core.unrestricted_role import has_unrestricted_role
 from staff_affairs.models import (
     ABSENCE_TYPES,
     AttendanceException,
@@ -270,9 +271,11 @@ class StaffAttendanceService:
         """أيرصد هذا المستخدمُ حضورَ الكادر الآن؟
 
         السكرتيرُ والمديرُ دائماً، ونائبُ الشؤون الإدارية حين يعمل بصفة المدير (م-24:
-        إنابتُه «في مهامه» كلِّها، ومنها قبولُ العذر في م-7) — وإلّا فلا.
+        إنابتُه «في مهامه» كلِّها، ومنها قبولُ العذر في م-7) — وإلّا فلا. ومطوّرُ المنصّة يرصد
+        ويستورد (لا حظرَ عليه، D-118م؛ والاستثناءُ D-128م لغياب الطلبة وتأخّرهم الصباحيّ فقط)،
+        وكلُّ كتابةٍ منه موسومةٌ «بصفة مطوّر» في التدقيق (`middleware_developer_audit`).
         """
-        if _role_of(user) in RECORDERS:
+        if _role_of(user) in RECORDERS or has_unrestricted_role(user):
             return True
         return user.pk in PermitService._principal_side(_StageDay(school, _pkg._now()), None)
 

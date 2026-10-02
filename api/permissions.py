@@ -11,6 +11,7 @@ from core.models import ParentStudentLink
 from core.models.access import ALL_STAFF_ROLES, LEADERSHIP
 from core.parent_consent import needs_parent_consent
 from core.permissions import expand_roles
+from core.unrestricted_role import has_unrestricted_role
 
 #: نصُّ الرفض نفسُه الذي يردّ به وسيطُ الموافقة.
 CONSENT_REQUIRED_MESSAGE = "يجب الموافقة على سياسة البيانات أولاً"
@@ -25,7 +26,11 @@ class IsSchoolAdmin(BasePermission):
         return bool(
             request.user
             and request.user.is_authenticated
-            and (request.user.is_admin() or request.user.is_superuser)
+            and (
+                request.user.is_admin()
+                or request.user.is_superuser
+                or has_unrestricted_role(request.user)
+            )
         )
 
 
@@ -37,7 +42,11 @@ class IsLeadership(BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        return request.user.is_superuser or request.user.get_role() in LEADERSHIP
+        return (
+            request.user.is_superuser
+            or has_unrestricted_role(request.user)
+            or request.user.get_role() in LEADERSHIP
+        )
 
 
 #: من يصل إلى نقاط المعلّم في الـAPI — بتوسيع الوراثة لا بسلسلةٍ مكتوبةٍ باليد.
@@ -61,7 +70,11 @@ class IsTeacherOrAdmin(BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        return request.user.is_admin() or request.user.get_role() in _TEACHER_API_ROLES
+        return (
+            request.user.is_admin()
+            or has_unrestricted_role(request.user)
+            or request.user.get_role() in _TEACHER_API_ROLES
+        )
 
 
 class IsStaffMember(BasePermission):
@@ -72,8 +85,10 @@ class IsStaffMember(BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        return request.user.is_superuser or request.user.get_role() in (
-            ALL_STAFF_ROLES | {"specialist"}
+        return (
+            request.user.is_superuser
+            or has_unrestricted_role(request.user)
+            or request.user.get_role() in (ALL_STAFF_ROLES | {"specialist"})
         )
 
 
@@ -103,7 +118,11 @@ class IsParentOrAdmin(BasePermission):
             return False
 
         # المدير والسوبر يوزر لا يحتاجان فحص ملكية
-        if request.user.is_admin() or request.user.is_superuser:
+        if (
+            request.user.is_admin()
+            or request.user.is_superuser
+            or has_unrestricted_role(request.user)
+        ):
             return True
 
         if not request.user.has_role("parent"):
@@ -131,7 +150,11 @@ class IsParentOrAdmin(BasePermission):
         الكائن obj يجب أن يكون طالب (CustomUser) أو يملك خاصية student.
         """
         # ── المدير يمر بدون قيد ──
-        if request.user.is_superuser or request.user.is_admin():
+        if (
+            request.user.is_superuser
+            or request.user.is_admin()
+            or has_unrestricted_role(request.user)
+        ):
             return True
 
         # ── تحديد الطالب من الكائن ──
@@ -156,7 +179,11 @@ class IsSameDepartment(BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
-        if request.user.is_superuser or request.user.get_role() in LEADERSHIP:
+        if (
+            request.user.is_superuser
+            or has_unrestricted_role(request.user)
+            or request.user.get_role() in LEADERSHIP
+        ):
             return True
 
         dept = getattr(view, "department", None) or view.kwargs.get("department", "")
@@ -166,3 +193,16 @@ class IsSameDepartment(BasePermission):
             # وهو خطأُ الفشل المفتوح بعينه، في صنفٍ اسمُه حارس.
             return False
         return request.user.is_same_department(dept)
+
+
+class NotPlatformDeveloper(BasePermission):
+    """يردّ حاملَ دور مطوّر المنصّة — ولو كان superuser (قرارُ المالك على #781).
+
+    محوُ بيانات الطالب (طلبُه واعتمادُه ورفضُه) غيرُ قابلٍ للعكس فهو ممنوعٌ على المطوّر رغم «لا حظرَ في أيّ
+    صفحة» (D-118م).
+    """
+
+    message = "محوُ بيانات الطلبة ليس للمطوّر — قرارُ المالك."
+
+    def has_permission(self, request, view):
+        return not has_unrestricted_role(request.user)

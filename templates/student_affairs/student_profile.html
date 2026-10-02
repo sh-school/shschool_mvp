@@ -57,8 +57,8 @@
           {% if enrollment %}
           <dt>الصف / الشعبة</dt><dd>{% class_label enrollment.class_group.grade enrollment.class_group.section %}</dd>
           {% endif %}
-          {% if profile and profile.birth_date %}
-          <dt>تاريخ الميلاد</dt><dd>{{ profile.birth_date|date:"d/m/Y" }}</dd>
+          {% if profile and profile.date_of_birth %}
+          <dt>تاريخ الميلاد</dt><dd>{{ profile.date_of_birth|date:"d/m/Y" }}</dd>
           {% endif %}
           {% if student.phone %}
           <dt>الجوال</dt><dd dir="ltr">{{ student.phone }}</dd>

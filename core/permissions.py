@@ -24,6 +24,7 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from core.academic_calendar import academic_year_for_school
+from core.unrestricted_role import has_unrestricted_role
 
 from .models.access import (
     ACADEMIC_ROLES,
@@ -461,13 +462,12 @@ BEHAVIOR_STATS_TEACHING = frozenset({"teacher", "coordinator", "ese_teacher"})
 #: وعاملُ الخدمات وصدّراها (مراجعةُ 2026-09-13، ن٢). ومن يُراد له نطاقٌ أضيق — المنسّقُ
 #: لقسمه، والمعلّمُ لشُعبه — يحتاج تقريراً مقيَّداً بنطاقه، لا فتحَ هذا.
 ACADEMIC_REPORTS_VIEW = frozenset(ASSESSMENT_VIEW_ALL)
-#: رصدُ حضور اليوم في الجناح: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادةُ ومطوّرُ المنصّة.
-WING_DAY_RECORD = frozenset(
-    {"admin_supervisor", "vice_admin", "vice_academic", "principal", "platform_developer"}
-)
+#: رصدُ حضور اليوم في الجناح: مشرفُ الجناح (أصيلاً أو بديلاً) والقيادة — ولا مطوّرَ المنصّة (D-128م:
+#: لا يُدخل ولا يعتمد رصدَ غياب الطلبة)، حذفه 0105 شرطاً للدمج.
+WING_DAY_RECORD = frozenset({"admin_supervisor", "vice_admin", "vice_academic", "principal"})
 
 #: قبولُ عذرِ غيابٍ بعد مهلة اليومين (الدليل 2026 م 3.4.1.5) — النائبُ الإداريّ لا المشرف.
-EXCUSE_AFTER_DEADLINE = frozenset({"vice_admin", "principal", "platform_developer"})
+EXCUSE_AFTER_DEADLINE = frozenset({"vice_admin", "principal"})
 
 #: من يُحصر في طلبة جناحه متى بلغ شاشةَ طلبة (قرارا 2026-09-14/15: «المشرفُ لجناحه فقط»).
 #: تُقارَن بالدور **الخامّ** ولا تمرّ على `expand_roles`: النائبُ الإداريّ يرث المشرفَ في
@@ -596,7 +596,7 @@ def role_required(*roles):
         def wrapper(request, *args, **kwargs):
             if not request.user.is_authenticated:
                 return redirect("login")
-            if request.user.is_superuser:
+            if request.user.is_superuser or has_unrestricted_role(request.user):
                 return view_func(request, *args, **kwargs)
             user_role = request.user.get_role()
             if user_role not in expanded_roles:
@@ -611,9 +611,6 @@ def role_required(*roles):
         return wrapper
 
     return decorator
-
-
-#: `deny_role` انتقلت إلى core/permissions_deny.py (حدُّ 1000 سطر، tests/test_file_size.py).
 
 
 def department_scoped(*roles):
@@ -636,7 +633,7 @@ def department_scoped(*roles):
         def wrapper(request, *args, **kwargs):
             if not request.user.is_authenticated:
                 return redirect("login")
-            if request.user.is_superuser:
+            if request.user.is_superuser or has_unrestricted_role(request.user):
                 return view_func(request, *args, user_department=None, **kwargs)
 
             user_role = request.user.get_role()
@@ -759,7 +756,7 @@ def is_leadership(user):
     """
     if not user or not user.is_authenticated:
         return False
-    if user.is_superuser:
+    if user.is_superuser or has_unrestricted_role(user):
         return True
     return user.get_role() in ("principal", "vice_admin", "vice_academic")
 
@@ -772,7 +769,7 @@ def can_manage_department(user, department):
     """
     if not user or not user.is_authenticated:
         return False
-    if user.is_superuser:
+    if user.is_superuser or has_unrestricted_role(user):
         return True
     role = user.get_role()
     if role in LEADERSHIP:
@@ -791,7 +788,7 @@ def can_view_student_data(user, student=None):
     """
     if not user or not user.is_authenticated:
         return False
-    if user.is_superuser:
+    if user.is_superuser or has_unrestricted_role(user):
         return True
     role = user.get_role()
     return role in (
