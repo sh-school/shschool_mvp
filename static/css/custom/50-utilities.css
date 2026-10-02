@@ -252,6 +252,8 @@ thead .text-muted, thead .text-xs { color: inherit; opacity: .85; }
 
   /* أهدافُ اللمس — WCAG 2.5.8 (24px أدنى)؛ وعلى اللمس 44px في كتلة coarse أسفلَه */
   .bc-back { width: 32px; height: 32px; }
+  /* رابطُ «حالةُ اليوم»: عرضُ الجوّال لا يفعّل coarse في كلّ متصفّحٍ (محاكاةُ المقياس بلا لمس) فيُرفع هنا أيضاً إلى 44px */
+  .qc-status-link { display: inline-flex; align-items: center; min-block-size: var(--control-h); }
 
   /* سجلُّ الموظفين: 12 عموداً في 338px يلفّ الاسمَ حرفاً حرفاً؛ فحدٌّ أدنى أوسعُ من كتلة 1024 أعلاه. */
   .staff-register { min-inline-size: 64rem; }
