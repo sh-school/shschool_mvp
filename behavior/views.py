@@ -63,6 +63,7 @@ def _behavior_report_redirect(
     )
 
 
+from behavior.committee_quorum import COLLECTIVE_DECISIONS, cast_vote
 from behavior.forms import InfractionForm
 from behavior.models import BehaviorInfraction, ViolationCategory
 from core.capabilities import capability_required, has_capability
@@ -571,17 +572,32 @@ def committee_decision(request, infraction_id):
         BehaviorInfraction, id=infraction_id, level__in=[3, 4], school=school
     )
     if request.method == "POST":
-        # نظام النقاط ملغى — restore_pts=0 دائماً
-        msg, level = BehaviorService.apply_committee_decision(
-            infraction=infraction,
-            decision=request.POST.get("decision"),
-            action=request.POST.get("action_taken", "").strip(),
-            restore_pts=0,
-            reason="",
-            approved_by=request.user,
-            suspension_type=request.POST.get("suspension_type", "internal"),
-            suspension_days=int(request.POST.get("suspension_days", 1) or 1),
-        )
+        decision = request.POST.get("decision")
+        action = request.POST.get("action_taken", "").strip()
+        suspension_type = request.POST.get("suspension_type", "internal")
+        suspension_days = int(request.POST.get("suspension_days", 1) or 1)
+        if decision in COLLECTIVE_DECISIONS:
+            # التصعيد والإيقاف قرارٌ جماعيّ بأغلبيّة الأعضاء (D-116م) — صوتٌ لا تنفيذٌ فوريّ.
+            msg, level = cast_vote(
+                infraction,
+                request.user,
+                decision,
+                action=action,
+                suspension_type=suspension_type,
+                suspension_days=suspension_days,
+            )
+        else:
+            # نظام النقاط ملغى — restore_pts=0 دائماً
+            msg, level = BehaviorService.apply_committee_decision(
+                infraction=infraction,
+                decision=decision,
+                action=action,
+                restore_pts=0,
+                reason="",
+                approved_by=request.user,
+                suspension_type=suspension_type,
+                suspension_days=suspension_days,
+            )
         getattr(messages, level)(request, msg)
         return redirect("behavior:committee")
 
