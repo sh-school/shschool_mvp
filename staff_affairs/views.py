@@ -30,7 +30,7 @@ from .forms import (
     StaffPersonForm,
 )
 from .models import LeaveRequest
-from .selectors import phone_holder_ids
+from .selectors import active_staff_memberships, phone_holder_ids, staff_memberships
 from .services import LeaveService, StaffService
 
 
@@ -191,13 +191,7 @@ def staff_list(request):
     # كي يبقى العددُ في الترويسة هو عددَ من في القائمة.
     # «المغادرون» من لا عضويّةَ كادرٍ نشطةً له وله عضويّةٌ منتهية — لا كلُّ من له صفٌّ منتهٍ:
     # من غادر ثمّ أُعيد تعيينُه (أو عُطّلت عضويّةٌ قديمةٌ له) له صفٌّ منتهٍ وآخرُ نشط، وهو على رأس عمله.
-    staff = Membership.objects.filter(school=school).exclude(role__name__in=("student", "parent"))
-    if status == "left":
-        memberships = staff.filter(is_active=False).exclude(
-            user_id__in=staff.filter(is_active=True).values("user_id")
-        )
-    else:
-        memberships = staff.filter(is_active=True)
+    memberships = staff_memberships(school, departed=status == "left")
     if role_filter:
         memberships = memberships.filter(role__name=role_filter)
     if dept_filter:
@@ -579,11 +573,7 @@ def staff_profile(request, user_id):
             "profile_subtitle": profile_subtitle,
             "today": timezone.localdate(),
             "departure_form": StaffDepartureForm(initial={"on": timezone.localdate()}),
-            "departure_roles": services.departure_choices(
-                Membership.objects.filter(user=user, school=school, is_active=True)
-                .exclude(role__name__in=("student", "parent"))
-                .select_related("role")
-            ),
+            "departure_roles": services.departure_choices(active_staff_memberships(user, school)),
             "person_form": person_form,
             "employment_form": employment_form,
             # الجدولُ لمن يُدرّس: ملاحظُ الطلبة والمحاسبُ لا حصصَ لهم.
