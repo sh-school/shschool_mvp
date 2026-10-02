@@ -125,6 +125,22 @@ def approval_holder(session: Session) -> CustomUser | None:
     return holder
 
 
+def approval_evidence(session: Session) -> dict[str, str | None]:
+    """دليلُ الصلاحيّة وقتَ القرار: الجناحُ والتغطيةُ والحامل — يُحفظ مع القرار فلا يُعاد حسابُه بعد تغيّر التغطية."""
+    wing = session.class_group.wing
+    if wing is None:
+        return {"wing_id": None, "coverage_id": None, "holder_id": None}
+    if not wing.is_active:
+        return {"wing_id": str(wing.pk), "coverage_id": None, "holder_id": None}
+    cover = wing.active_coverage(on_date=session.date)  # type: ignore[no-untyped-call]
+    holder = cover.substitute if cover else wing.supervisor
+    return {
+        "wing_id": str(wing.pk),
+        "coverage_id": str(cover.pk) if cover else None,
+        "holder_id": str(holder.pk) if holder else None,
+    }
+
+
 def _roles_in_school(user: CustomUser, school_id: Any) -> set[str]:
     return set(
         user.memberships.filter(is_active=True, school_id=school_id).values_list(

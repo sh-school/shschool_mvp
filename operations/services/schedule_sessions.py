@@ -201,10 +201,15 @@ class ScheduleSessionsMixin:
         مجدولةٌ بلا حضور، ولا خروجٍ منها ولا مخالفةٍ فيها، ولم يُبدَّل معلّمُها ولم
         تُنشأ تعويضاً. فحذفُ الجلسة يمحو معها سجلَّ الخروج، ويقطع المخالفةَ عن
         مادّتها، ويترك التعويضَ المعتمَدَ بلا حصّة.
+
+        **وبلا إدخالِ معلّمٍ** ولو معلَّقاً (`attendance_entries`): سجلُّ الرصد مضافٌ إليه ولا يُمحى
+        (W-20261002-020)، وحصّةٌ لها إدخالٌ محميّةٌ بـ`PROTECT` — فلو عُدّت «لم يمسّها أحد» لفشل
+        توليدُ اليوم كلِّه بـ`ProtectedError` أو اختفت أدلّةُ سندِ الخصم.
         """
         return sessions.filter(
             status="scheduled",
             attendances__isnull=True,
+            attendance_entries__isnull=True,
             class_exits__isnull=True,
             infractions__isnull=True,
             original_teacher__isnull=True,

@@ -7,18 +7,16 @@
   لا المعلّمُ ولا من أدخل، ولا المطوّرُ ولو كان superuser.
 - التربيةُ الخاصّة (شعبةٌ بلا جناح): رصدُ معلّمها نهائيٌّ بلا اعتماد.
 
-هذه اختباراتُ السياسة وحدَها (دوالُّ بلا تخزين)؛ والتخزينُ والسجلُّ في ملفٍّ آخر.
+هذه اختباراتُ السياسة وحدَها (دوالُّ بلا تخزين)؛ والتخزينُ والسجلُّ في `test_attendance_entries.py`.
 الرموزُ E/S/A/G/X من مواصفة W-020.
 """
 
 import datetime as dt
 
 import pytest
-from django.utils import timezone
 
-from core.academic_calendar import academic_year_for_school
 from core.models import TimeBand, Wing
-from core.models.academic import WingCoverage
+from core.models.academic import WingCoverage  # noqa: F401
 from operations.attendance_policy import (
     approval_holder,
     can_approve,
@@ -27,129 +25,24 @@ from operations.attendance_policy import (
     school_day_end,
 )
 from operations.models import Session, TimeSlotConfig
+from tests.attendance_fixtures import *  # noqa: F401,F403
+from tests.attendance_fixtures import (
+    ENROLLED,
+    MONDAY,
+    SATURDAY,
+    SUNDAY,
+    _cover,
+    _staff,
+    at,
+)
 from tests.conftest import (
     ClassGroupFactory,
-    MembershipFactory,
-    RoleFactory,
     SchoolFactory,
     StudentEnrollmentFactory,
     UserFactory,
 )
 
 pytestmark = pytest.mark.django_db
-
-SUNDAY = dt.date(2026, 9, 13)
-MONDAY = dt.date(2026, 9, 14)
-SATURDAY = dt.date(2026, 9, 12)
-ENROLLED = dt.date(2026, 9, 1)
-
-
-def at(hour, minute, second=0, day=SUNDAY):
-    return timezone.make_aware(dt.datetime.combine(day, dt.time(hour, minute, second)))
-
-
-def _staff(school, role, name, national_id):
-    user = UserFactory(full_name=name, national_id=national_id)
-    MembershipFactory(user=user, school=school, role=RoleFactory(school=school, name=role))
-    return user
-
-
-@pytest.fixture
-def year(school):
-    return academic_year_for_school(school)
-
-
-@pytest.fixture
-def band(school):
-    return TimeBand.objects.create(school=school, code="ground", name="الأرضيّ", floor="ground")
-
-
-@pytest.fixture
-def bells(school, band):
-    """جرسُ الأحد: حصّتان ثمّ فسحةٌ ثمّ حصّةٌ — **آخرُ الدوام 13:30** (لا ثابتَ في الكود)."""
-    for number, start, end, brk in (
-        (1, dt.time(7, 10), dt.time(7, 55), False),
-        (2, dt.time(8, 0), dt.time(8, 45), False),
-        (3, dt.time(12, 45), dt.time(13, 30), False),
-    ):
-        TimeSlotConfig.objects.create(
-            school=school,
-            band=band,
-            day_type="regular",
-            period_number=number,
-            start_time=start,
-            end_time=end,
-            is_break=brk,
-        )
-    return band
-
-
-@pytest.fixture
-def wing(school, year, holder):
-    return Wing.objects.create(
-        school=school, code="w1", name="جناح 1", academic_year=year, supervisor=holder
-    )
-
-
-@pytest.fixture
-def klass(school, year, wing, band):
-    return ClassGroupFactory(
-        school=school, grade="G7", section="1", level_type="prep", academic_year=year, wing=wing
-    )
-
-
-@pytest.fixture
-def special_klass(school, year):
-    """شعبةُ تربيةٍ خاصّة: بلا جناح عمداً (D-126م)."""
-    return ClassGroupFactory(
-        school=school,
-        grade="G7",
-        section="07/ESE",
-        level_type="prep",
-        academic_year=year,
-        wing=None,
-    )
-
-
-@pytest.fixture
-def kid(school, klass):
-    student = UserFactory(full_name="طالب الشعبة", national_id="29000001001")
-    StudentEnrollmentFactory(student=student, class_group=klass, enrolled_at=ENROLLED)
-    return student
-
-
-@pytest.fixture
-def teacher(school):
-    return _staff(school, "teacher", "معلّم الحصّة", "29000001010")
-
-
-@pytest.fixture
-def other_teacher(school):
-    return _staff(school, "teacher", "معلّم آخر", "29000001011")
-
-
-@pytest.fixture
-def holder(school):
-    return _staff(school, "admin_supervisor", "حاملُ الجناح", "29000001020")
-
-
-@pytest.fixture
-def session(school, klass, teacher, bells):
-    return Session.objects.create(
-        school=school,
-        class_group=klass,
-        teacher=teacher,
-        date=SUNDAY,
-        start_time=dt.time(7, 10),
-        end_time=dt.time(7, 55),
-        status="scheduled",
-    )
-
-
-def _cover(wing, substitute, start, end, by):
-    return WingCoverage.objects.create(
-        wing=wing, substitute=substitute, start_date=start, end_date=end, assigned_by=by
-    )
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -204,7 +97,7 @@ def test_e3_a_student_of_another_section_is_refused(school, year, session, teach
     other_klass = ClassGroupFactory(
         school=school, grade="G7", section="2", level_type="prep", academic_year=year
     )
-    outsider = UserFactory(full_name="طالبٌ من شعبةٍ أخرى", national_id="29000001002")
+    outsider = UserFactory(full_name="طالبٌ من شعبةٍ أخرى", national_id="29300001002")
     StudentEnrollmentFactory(student=outsider, class_group=other_klass, enrolled_at=ENROLLED)
     verdict = can_enter(teacher, session, outsider, now=at(7, 30))
     assert not verdict.allowed
@@ -276,7 +169,7 @@ def test_e6_an_inactive_enrollment_is_refused(session, teacher, kid, klass):
 
 def test_e7_a_teacher_of_another_school_is_refused(session, kid):
     foreign_school = SchoolFactory()
-    foreigner = _staff(foreign_school, "teacher", "معلّمٌ من مدرسةٍ أخرى", "29000001099")
+    foreigner = _staff(foreign_school, "teacher", "معلّمٌ من مدرسةٍ أخرى", "29300001099")
     verdict = can_enter(foreigner, session, kid, now=at(7, 30))
     assert not verdict.allowed
 
@@ -309,7 +202,7 @@ def test_s2_the_original_teacher_loses_the_right_on_that_session(
 
 
 def test_g1a_the_developer_may_not_enter_even_as_the_session_teacher(school, session, kid):
-    developer = _staff(school, "platform_developer", "المطوّر", "29000001030")
+    developer = _staff(school, "platform_developer", "المطوّر", "29300001030")
     session.teacher = developer
     session.save(update_fields=["teacher"])
     verdict = can_enter(developer, session, kid, now=at(7, 30))
@@ -320,7 +213,7 @@ def test_g1a_the_developer_may_not_enter_even_as_the_session_teacher(school, ses
 def test_g1b_the_developer_may_not_approve_even_as_a_superuser_holder(
     school, wing, session, teacher
 ):
-    developer = _staff(school, "platform_developer", "المطوّر", "29000001031")
+    developer = _staff(school, "platform_developer", "المطوّر", "29300001031")
     developer.is_superuser = True
     developer.save(update_fields=["is_superuser"])
     wing.supervisor = developer
@@ -331,13 +224,13 @@ def test_g1b_the_developer_may_not_approve_even_as_a_superuser_holder(
 
 
 def test_g2_a_superuser_who_is_not_the_teacher_may_not_enter(school, session, kid):
-    root = UserFactory(full_name="superuser", national_id="29000001032", is_superuser=True)
+    root = UserFactory(full_name="superuser", national_id="29300001032", is_superuser=True)
     verdict = can_enter(root, session, kid, now=at(7, 30))
     assert not verdict.allowed
 
 
 def test_g2_a_superuser_with_no_role_may_not_approve(session, teacher):
-    root = UserFactory(full_name="superuser", national_id="29000001033", is_superuser=True)
+    root = UserFactory(full_name="superuser", national_id="29300001033", is_superuser=True)
     assert not can_approve(root, session, entered_by=teacher).allowed
 
 
@@ -347,7 +240,7 @@ def test_g3_a_student_may_not_enter_nor_approve(school, session, kid, teacher):
 
 
 def test_g3_a_parent_may_not_enter_nor_approve(school, session, kid, teacher):
-    parent = _staff(school, "parent", "وليّ أمر", "29000001034")
+    parent = _staff(school, "parent", "وليّ أمر", "29300001034")
     assert not can_enter(parent, session, kid, now=at(7, 30)).allowed
     assert not can_approve(parent, session, entered_by=teacher).allowed
 
@@ -364,7 +257,7 @@ def test_a1_the_holder_of_the_section_wing_approves(session, holder, teacher):
 
 def test_a2_the_holder_of_another_wing_may_not_approve(school, year, session, teacher):
     """**الأهمّ**: جناحُ الشعبة هو الحدّ — حاملُ جناحٍ آخر مرفوض."""
-    other_holder = _staff(school, "admin_supervisor", "مشرفُ جناحٍ آخر", "29000001021")
+    other_holder = _staff(school, "admin_supervisor", "مشرفُ جناحٍ آخر", "29300001021")
     Wing.objects.create(
         school=school, code="w2", name="جناح 2", academic_year=year, supervisor=other_holder
     )
@@ -376,7 +269,7 @@ def test_a2_the_holder_of_another_wing_may_not_approve(school, year, session, te
 def test_a3_the_original_loses_the_right_while_a_coverage_is_in_force(
     school, wing, session, holder, teacher
 ):
-    substitute = _staff(school, "admin_supervisor", "البديل", "29000001022")
+    substitute = _staff(school, "admin_supervisor", "البديل", "29300001022")
     _cover(wing, substitute, SUNDAY, None, by=teacher)
     assert can_approve(substitute, session, entered_by=teacher).allowed
     verdict = can_approve(holder, session, entered_by=teacher)
@@ -385,7 +278,7 @@ def test_a3_the_original_loses_the_right_while_a_coverage_is_in_force(
 
 
 def test_a4_coverage_bounds_are_inclusive(school, wing, session, holder, teacher):
-    substitute = _staff(school, "admin_supervisor", "البديل", "29000001022")
+    substitute = _staff(school, "admin_supervisor", "البديل", "29300001022")
     # البدايةُ يومَ الحصّة: البديلُ يحمل.
     cover = _cover(wing, substitute, SUNDAY, SUNDAY + dt.timedelta(days=3), by=teacher)
     assert can_approve(substitute, session, entered_by=teacher).allowed
@@ -411,7 +304,7 @@ def test_a5_the_holder_is_the_one_on_the_session_day_not_the_approval_day(
     school, wing, session, holder, teacher
 ):
     """حصّةُ الأحد غطّاها بديلٌ وانتهت تغطيتُه الاثنين: يعتمدها هو لا الأصيلُ العائد."""
-    substitute = _staff(school, "admin_supervisor", "البديل", "29000001022")
+    substitute = _staff(school, "admin_supervisor", "البديل", "29300001022")
     _cover(wing, substitute, SUNDAY, SUNDAY, by=teacher)
     assert approval_holder(session) == substitute
     assert can_approve(substitute, session, entered_by=teacher).allowed
@@ -437,9 +330,9 @@ def test_a6_nobody_approves_what_he_entered_himself(session, holder, teacher):
 
 def test_a7_leadership_may_not_approve_while_a_holder_exists(school, session, teacher):
     for role, nid in (
-        ("principal", "29000001040"),
-        ("vice_admin", "29000001041"),
-        ("vice_academic", "29000001042"),
+        ("principal", "29300001040"),
+        ("vice_admin", "29300001041"),
+        ("vice_academic", "29300001042"),
     ):
         leader = _staff(school, role, role, nid)
         verdict = can_approve(leader, session, entered_by=teacher)
@@ -452,9 +345,9 @@ def test_a7_leadership_approves_when_no_holder_exists(school, wing, session, tea
     wing.save(update_fields=["supervisor"])
     assert approval_holder(session) is None
     for role, nid in (
-        ("principal", "29000001040"),
-        ("vice_admin", "29000001041"),
-        ("vice_academic", "29000001042"),
+        ("principal", "29300001040"),
+        ("vice_admin", "29300001041"),
+        ("vice_academic", "29300001042"),
     ):
         leader = _staff(school, role, role, nid)
         verdict = can_approve(leader, session, entered_by=teacher)
@@ -465,10 +358,10 @@ def test_a8_roles_without_a_wing_or_coverage_may_not_approve(
     school, wing, session, teacher, holder
 ):
     for role, nid in (
-        ("student_observer", "29000001050"),
-        ("services_worker", "29000001051"),
-        ("admin_supervisor", "29000001052"),
-        ("coordinator", "29000001053"),
+        ("student_observer", "29300001050"),
+        ("services_worker", "29300001051"),
+        ("admin_supervisor", "29300001052"),
+        ("coordinator", "29300001053"),
     ):
         user = _staff(school, role, role, nid)
         assert not can_approve(user, session, entered_by=teacher).allowed, role
@@ -477,7 +370,7 @@ def test_a8_roles_without_a_wing_or_coverage_may_not_approve(
 def test_a8_a_student_observer_with_a_coverage_is_the_holder_and_approves(
     school, wing, session, teacher
 ):
-    observer = _staff(school, "student_observer", "ملاحظ طلبة", "29000001054")
+    observer = _staff(school, "student_observer", "ملاحظ طلبة", "29300001054")
     _cover(wing, observer, SUNDAY, None, by=teacher)
     assert can_approve(observer, session, entered_by=teacher).allowed
 
@@ -496,7 +389,7 @@ def test_x1_special_education_needs_no_approval(session, special_klass):
 def test_x1a_a_teacher_of_a_section_without_a_wing_enters_for_his_student(
     school, teacher, special_klass, bells
 ):
-    student = UserFactory(full_name="طالب التربية الخاصّة", national_id="29000001060")
+    student = UserFactory(full_name="طالب التربية الخاصّة", national_id="29300001060")
     StudentEnrollmentFactory(student=student, class_group=special_klass, enrolled_at=ENROLLED)
     sess = Session.objects.create(
         school=school,
@@ -517,7 +410,7 @@ def test_x1_a_wingless_ordinary_section_is_not_special_education(school, year, s
     )
     session.class_group = stray
     assert needs_approval(session) is True
-    leader = _staff(school, "principal", "المدير", "29000001070")
+    leader = _staff(school, "principal", "المدير", "29300001070")
     assert approval_holder(session) is None
     assert can_approve(leader, session, entered_by=teacher).allowed
 
@@ -525,7 +418,7 @@ def test_x1_a_wingless_ordinary_section_is_not_special_education(school, year, s
 def test_x1_nobody_approves_a_final_special_education_entry(school, session, special_klass):
     """لا اعتمادَ يُطلب للنهائيّ: لا قيادةَ ولا غيرُها."""
     session.class_group = special_klass
-    leader = _staff(school, "principal", "المدير", "29000001071")
+    leader = _staff(school, "principal", "المدير", "29300001071")
     verdict = can_approve(leader, session, entered_by=session.teacher)
     assert not verdict.allowed
     assert verdict.reason == "final_entry"
@@ -533,7 +426,7 @@ def test_x1_nobody_approves_a_final_special_education_entry(school, session, spe
 
 def test_e6_an_enrollment_that_began_after_the_session_date_is_refused(session, teacher, klass):
     """القيدُ بتاريخ الحصّة لا باليوم: طالبٌ قُيّد بعد الحصّة لا تُرصد له."""
-    latecomer = UserFactory(full_name="طالبٌ قُيّد لاحقاً", national_id="29000001003")
+    latecomer = UserFactory(full_name="طالبٌ قُيّد لاحقاً", national_id="29300001003")
     StudentEnrollmentFactory(student=latecomer, class_group=klass, enrolled_at=MONDAY)
     verdict = can_enter(teacher, session, latecomer, now=at(7, 30))
     assert not verdict.allowed

@@ -143,6 +143,18 @@ class ErasureService:
         if files_purged:
             summary["files_purged"] = files_purged
 
+        # 2.9 سجلُّ رصد المعلّم (إدخالاتٌ وقراراتٌ مضافةٌ فقط، W-20261002-020): يُمحى بمساره المسمّى وحدَه — لا
+        #     بالحلقة العامّة أدناه (حارسُ ORM وحارسُ القاعدة يرفضان الحذفَ العامّ). يكتب AuditLog بالأعداد.
+        from operations.attendance_entries import erase_attendance_ledger
+
+        ledger = erase_attendance_ledger(
+            student, actor=erasure_request.reviewed_by, school=erasure_request.school
+        )
+        if ledger["entries"]:
+            summary["models"]["AttendanceEntry"] = ledger["entries"]
+        if ledger["decisions"]:
+            summary["models"]["AttendanceDecision"] = ledger["decisions"]
+
         # 3. Delete child FK records (CASCADE would do this, but explicit is better for counting)
         for Model, fk_field, _ in _lazy_student_fk_models():
             Model.objects.filter(**{fk_field: student}).delete()

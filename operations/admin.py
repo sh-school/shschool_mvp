@@ -2,6 +2,8 @@ from django.contrib import admin, messages
 
 from .models import (
     AbsenceAlert,
+    AttendanceDecision,
+    AttendanceEntry,
     ScheduleBaseline,
     ScheduleConstraintOverride,
     ScheduleGeneration,
@@ -28,12 +30,33 @@ class SubjectAdmin(admin.ModelAdmin):
     search_fields = ("name_ar", "code")
 
 
-class AttendanceInline(admin.TabularInline):
+class ReadOnlyAdminMixin:
+    """قراءةٌ فقط — لا إضافةَ ولا تعديلَ ولا حذفَ ولا إجراءاتٍ جماعيّة.
+
+    الرصدُ سندُ خصمٍ وتأديب، وسلسلتُه (إدخالٌ ← قرارٌ ← رصدٌ معتمَد) تُكتب بخدماتها وحدَها بتدقيقٍ وصلاحيّة
+    (W-20261002-020). فمن عدّل صفّاً من لوحة الإدارة أفلت من كلّ ذلك — وإجراءُ «حذف المحدَّد» يتجاوز
+    `has_delete_permission` في بعض الإصدارات إن لم يُعطَّل، فيُعطَّل صراحةً.
+    """
+
+    actions = None
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class AttendanceInline(ReadOnlyAdminMixin, admin.TabularInline):
     model = StudentAttendance
     extra = 0
+    max_num = 0
+    can_delete = False
     fields = ("student", "status", "excuse_type", "marked_by", "marked_at")
-    readonly_fields = ("marked_at",)
-    autocomplete_fields = ("student", "marked_by")
+    readonly_fields = fields
 
 
 @admin.register(Session)
@@ -49,14 +72,29 @@ class SessionAdmin(admin.ModelAdmin):
 
 
 @admin.register(StudentAttendance)
-class StudentAttendanceAdmin(admin.ModelAdmin):
+class StudentAttendanceAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
     list_display = ("student", "session", "status", "marked_by", "marked_at")
     # الأعمدةُ و`__str__` تقرأ هذه العلاقات لكلّ صفّ — تُجلب في استعلام القائمة نفسه (كانت ~25 سؤالاً للصفحة).
     list_select_related = ("student", "session__subject", "session__class_group", "marked_by")
     list_filter = ("status", "school")
     search_fields = ("student__full_name", "student__national_id")
-    autocomplete_fields = ("student", "marked_by", "session")
     date_hierarchy = "marked_at"
+
+
+@admin.register(AttendanceEntry)
+class AttendanceEntryAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ("student", "session", "status", "entered_by", "entered_at", "supersedes")
+    list_select_related = ("student", "session__class_group", "entered_by")
+    list_filter = ("status", "school")
+    date_hierarchy = "entered_at"
+
+
+@admin.register(AttendanceDecision)
+class AttendanceDecisionAdmin(ReadOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ("entry", "decision", "basis", "decided_by", "decided_at")
+    list_select_related = ("entry", "decided_by")
+    list_filter = ("decision", "basis", "school")
+    date_hierarchy = "decided_at"
 
 
 @admin.register(AbsenceAlert)
