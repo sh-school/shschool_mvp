@@ -423,3 +423,48 @@ class TestAttendanceBoardSearch:
         )  # fmt: skip
         html = self._page(client_as, secretary, date=DAY.isoformat()).content.decode()
         assert 'data-state="present"' in html and 'data-state="unmarked"' in html
+
+
+class TestAbsentFromFile:
+    """كادرُ المنصّة الذي لا سطرَ له في الكشف يُعرض — فيُكشف المنقولون الذين لم تُسجَّل مغادرتُهم."""
+
+    def _plan(self, school, actor, *lines):
+        parsed = biometric.parse(_csv(*lines))
+        return biometric.preview(school, actor, parsed.rows, parsed.issues)
+
+    def test_staff_without_a_row_are_listed_and_those_with_a_row_are_not(self, school, secretary):
+        listed, silent = _person(school, 8001), _person(school, 8002)
+        plan = self._plan(school, secretary, _line(8001))
+        names = {p.pk for _, people in plan.absent_from_file for p in people}
+        assert silent.pk in names and listed.pk not in names
+
+    def test_exempt_staff_are_not_listed(self, school, secretary):
+        exempt = _person(school, 8003)
+        StaffAttendanceExemption.objects.create(
+            school=school, staff=exempt, start_date=date(2026, 1, 1), created_by=secretary
+        )
+        plan = self._plan(school, secretary, _line(8001))
+        assert exempt.pk not in {p.pk for _, people in plan.absent_from_file for p in people}
+
+    def test_departed_staff_are_not_listed(self, school, secretary):
+        from core.models.access import Membership
+
+        gone = _person(school, 8004)
+        Membership.objects.filter(user=gone).update(is_active=False)
+        plan = self._plan(school, secretary, _line(8001))
+        assert gone.pk not in {p.pk for _, people in plan.absent_from_file for p in people}
+
+    def test_nothing_is_recorded_for_them(self, school, secretary):
+        _person(school, 8005)
+        biometric.commit(school, secretary, _rows(_line(8001)))
+        assert not StaffAttendance.objects.filter(staff__employee_number="8005").exists()
+
+    def test_the_screen_shows_the_section(self, client_as, school, secretary):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        _person(school, 8006)
+        response = client_as(secretary).post(
+            reverse("staff_affairs:attendance_import"),
+            {"file": SimpleUploadedFile("كشف.csv", _csv(_line(8001)))},
+        )
+        assert "ولم يظهروا في الكشف" in response.content.decode()

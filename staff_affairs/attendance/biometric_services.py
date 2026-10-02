@@ -170,6 +170,9 @@ class PlanItem:
 class ImportPreview:
     items: list[PlanItem]
     issues: list[ParseIssue]
+    #: كادرُ المنصّة المرصودُ يومَه ولا سطرَ له في الكشف — يكشف المنقولين الذين لم تُسجَّل مغادرتُهم،
+    #: ومن لم يبصم أصلاً؛ والحكمُ لمن يقرؤه (لا يُرصد غيابٌ منه تلقائيّاً).
+    absent_from_file: list[tuple[date, list[CustomUser]]] = field(default_factory=list)
 
     @property
     def counts(self) -> dict[str, int]:
