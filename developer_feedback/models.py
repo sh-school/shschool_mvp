@@ -498,9 +498,6 @@ class OutboundMessage(models.Model):
     def __str__(self) -> str:
         return f"{self.subject} ({self.created_at:%Y-%m-%d %H:%M})"
 
-    def __str__(self) -> str:
-        return f"{self.message_id} → {self.recipient_id}"
-
 
 class AuditLog(models.Model):
     """سجل وصول للـ Inbox — يسجّل كل عرض/تحديث/حذف للرسائل."""
