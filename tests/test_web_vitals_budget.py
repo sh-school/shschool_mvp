@@ -95,8 +95,8 @@ def test_the_pages_stay_within_the_web_vitals_budget(browser, live_server, princ
             summary.write("### Core Web Vitals — ميزانية الصفحات الحيّة\n\n" + table + "\n")
 
     assert results["login"]["lcp_ms"] > 0, (
-        "صفحةُ الدخول لا تُبلِّغ LCP — عادت بطاقتُها تدخل من opacity: 0 "
-        "(`@keyframes loginCardIn`)، فيُفقد قياسُ أوّل ما يراه كلُّ مستخدم.\n\n" + table
+        "صفحةُ الدخول لا تُبلِّغ LCP — تحقّق من أنّ بطاقتها لا تدخل بـopacity: 0، "
+        "فيُفقد قياسُ أوّل ما يراه كلُّ مستخدم.\n\n" + table
     )
     found = [
         line for name, metrics in results.items() for line in web_vitals.violations(name, metrics)
@@ -104,17 +104,22 @@ def test_the_pages_stay_within_the_web_vitals_budget(browser, live_server, princ
     assert not found, "تجاوزت الصفحاتُ ميزانيةَ الأداء:\n  " + "\n  ".join(found) + "\n\n" + table
 
 
-def test_the_login_card_enters_without_an_opacity_fade():
-    """السببُ نفسُه بلا متصفّح: مفتاحُ الأنيميشن لا يحمل `opacity`."""
-    import re
+def test_the_login_card_has_no_entrance_animation():
+    """لا حركةَ دخولٍ لبطاقة الدخول إطلاقاً — قرارُ المالك المباشر 2026-10-01/02.
 
+    كانت `.login-card` تحمل `animation: loginCardIn` (انزلاقٌ بـ`transform`
+    وحدَه، بلا `opacity`، تفادياً لحجب قياس FCP/LCP — الحارسُ السابق هنا كان
+    يتحقّق من غياب `opacity` في مفتاح الحركة). أُلغيت الحركةُ كلُّها بأمر
+    المالك المباشر؛ هذا الحارسُ يمنع عودتها (بأيّ صيغة، لا بـ`opacity` وحدَه)
+    بدل حراسة تفصيلةٍ في حركةٍ لم تعد موجودة.
+    """
     from tests.css_source import read_css
 
-    match = re.search(r"@keyframes loginCardIn\s*\{(.*?)\n\}", read_css(), re.S)
-    assert match, "لا @keyframes loginCardIn"
-    assert "opacity" not in match.group(
-        1
-    ), "loginCardIn يبدأ من opacity: 0 — لا يُبلَّغ FCP/LCP على صفحة الدخول"
+    css = read_css()
+    assert "loginCardIn" not in css, "عادت حركةُ دخول بطاقة الدخول (loginCardIn) رغم قرار إلغائها"
+    assert (
+        "animation" not in css.split(".login-card {", 1)[1].split("}", 1)[0]
+    ), "`.login-card` تحمل خاصّيّةَ animation من جديد رغم قرار إلغائها"
 
 
 class TestTheBudgetItself:
