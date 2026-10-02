@@ -323,7 +323,13 @@ def superuser_developer(school, django_user_model):
 
 
 @pytest.mark.parametrize(
-    "key", ["attendance.mark", "wings.record_day", "wings.excuse_after_deadline"]
+    "key",
+    [
+        "attendance.mark",
+        "wings.record_day",
+        "wings.excuse_after_deadline",
+        "student_affairs.tardiness",
+    ],
 )
 def test_the_developer_holds_no_attendance_capability(developer, superuser_developer, key):
     """D-128م: لا يُدخل ولا يعتمد رصدَ غياب الطلبة — بالدور، ولو كان الحسابُ superuser."""
@@ -403,3 +409,29 @@ def test_every_successful_developer_write_is_marked_with_the_capacity(rf, develo
 
     row = _audits(developer).get()
     assert row.changes["capacity"] == "بصفة مطوّر" and row.action == "update"
+
+
+@pytest.mark.parametrize("view", ["student_affairs:tardiness_record"])
+@pytest.mark.parametrize("who", ["developer", "superuser_developer"])
+def test_the_developer_cannot_record_morning_tardiness(request, client_as, view, who):
+    """قرارُ المالك: D-128م يشمل التأخّرَ الصباحيّ كتابةً وحذفاً."""
+    from django.urls import reverse
+
+    actor = request.getfixturevalue(who)
+
+    resp = client_as(actor).post(reverse(view), {})
+
+    assert resp.status_code == 403
+
+
+def test_the_developer_cannot_delete_a_tardiness_record(client_as, developer):
+    from django.urls import reverse
+
+    resp = client_as(developer).post(
+        reverse(
+            "student_affairs:tardiness_delete",
+            kwargs={"pk": "00000000-0000-0000-0000-000000000001"},
+        )
+    )
+
+    assert resp.status_code == 403

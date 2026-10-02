@@ -29,7 +29,12 @@ def has_unrestricted_role(user: Any) -> bool:
 #: لا يُدخل ولا يعتمد رصدَ غياب الطلبة. والاستثناءُ بالدور الحاكم لا بصفة الحساب، فيسري ولو كان
 #: حسابُه superuser (وهو الغالب في الإنتاج).
 DEVELOPER_EXCLUDED_CAPABILITIES = frozenset(
-    {"attendance.mark", "wings.record_day", "wings.excuse_after_deadline"}
+    {
+        "attendance.mark",
+        "wings.record_day",
+        "wings.excuse_after_deadline",
+        "student_affairs.tardiness",
+    }
 )
 
 
