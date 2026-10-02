@@ -18,8 +18,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Collection
 from dataclasses import dataclass, field
 from datetime import time
+from typing import Any
 
 from core.models import School
 
@@ -133,7 +135,7 @@ def weekly_capacity(level_type: str) -> int:
     return sum(get_max_periods_for_day(day, level_type) for day in DAYS)
 
 
-def _exempt_map(school: School, year: str, teacher_id=None) -> tuple[dict, dict]:
+def _exempt_map(school: School, year: str, teacher_id: object | None = None) -> tuple[dict, dict]:
     """لكلّ معلّم: أيّامُه المفرَّغةُ كاملةً، وعددُ حصصه المفرَّغة في كلّ يوم.
 
     والقيودُ الشخصيّةُ الدائمةُ («لا أولى ولا سابعة») تُحسب معها: المولّدُ
@@ -345,7 +347,7 @@ def _band_day_cap(school: School, band_ids: frozenset[str], day_type: str) -> in
     rows = TimeSlotConfig.objects.filter(school=school, day_type=day_type, is_break=False)
     intervals: set[tuple[time, time]] = set()
     for band_id in band_ids or {""}:
-        scoped = rows.filter(band_id=band_id) if band_id else rows.filter(band__isnull=True)
+        scoped = rows.filter(band__id=band_id) if band_id else rows.filter(band__isnull=True)
         for row in scoped.only("start_time", "end_time"):
             intervals.add((row.start_time, row.end_time))
     if not intervals:
@@ -355,7 +357,8 @@ def _band_day_cap(school: School, band_ids: frozenset[str], day_type: str) -> in
     #: أقصى مجموعةٍ لا يتلاصق فيها عنصران (HC5: `MAX_CONSECUTIVE = 1`) — لا عدُّ
     #: التكتّلات. الأولى تعطي ٤ لسبعِ حصصٍ متتالية، والثانيةُ ١ فتُرفَض الأنصبةُ
     #: كلُّها. والجشعُ بأبكر انتهاءٍ مثاليٌّ لهذه الهيئة (جدولةُ الفترات بفاصل).
-    count, last_end = 0, None
+    count = 0
+    last_end: time | None = None
     for start, finish in sorted(intervals, key=lambda iv: (iv[1], iv[0])):
         if last_end is None or _minutes(start) - _minutes(last_end) > HC5_JOINABLE_GAP_MINUTES:
             count += 1
@@ -366,7 +369,7 @@ def _band_day_cap(school: School, band_ids: frozenset[str], day_type: str) -> in
 def binding_daily_cap(
     school: School,
     band_ids: frozenset[str],
-    full_days,
+    full_days: Collection[int],
     blocked: dict,
     personal_max_daily: int | None,
 ) -> tuple[int, str | None]:
@@ -397,7 +400,7 @@ def binding_daily_cap(
 
 
 def entry_load_violation(
-    school: School, year: str, teacher, class_group, projected_teaching: int
+    school: School, year: str, teacher: Any, class_group: Any, projected_teaching: int
 ) -> str | None:
     """AS-1/AS-4/AS-5 عند الإدخال: رسالةُ الاستحالة إن كان نصابُ المعلّم بعد هذا
     الإسناد فوقَ سقفه الساري، وإلّا `None`.
@@ -434,7 +437,7 @@ def entry_load_violation(
 
 
 def _check_daily_band_load(
-    school: School, year: str, assignments, full_days: dict, blocked: dict
+    school: School, year: str, assignments: Any, full_days: dict, blocked: dict
 ) -> Finding:
     """AS-1 + AS-4/AS-5: نصابُ المعلّم مقابلَ سقفَين، والسَّاري أضيقُهما.
 
@@ -513,7 +516,7 @@ def _check_daily_band_load(
     )
 
 
-def _check_parallel_same_teacher(assignments) -> Finding:
+def _check_parallel_same_teacher(assignments: Any) -> Finding:
     """AS-2: المجموعةُ المتوازيةُ تلزمها معلّمون مختلفون — خرقٌ صامتٌ عن HC1.
 
     `_to_tasks` يدمج أعضاءَ المجموعة المتوازية (الشعبة نفسُها + الوسمُ نفسُه)
