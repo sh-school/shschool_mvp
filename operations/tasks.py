@@ -270,7 +270,7 @@ def check_license_expiry_task():
             except Exception as exc:
                 logger.warning(
                     "license_expiry alert failed for %s: %s",
-                    user.full_name,
+                    user.pk,
                     exc,
                 )
 

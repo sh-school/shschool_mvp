@@ -230,7 +230,7 @@ class ExamControlService:
             "حادثة اختبار جديدة: نوع=%s جلسة=%s طالب=%s",
             incident_type,
             session.pk,
-            student.full_name if student else "—",
+            student.pk if student else "—",
         )
         return incident
 
