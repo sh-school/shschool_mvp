@@ -31,7 +31,7 @@ from core.models.user import CustomUser
 
 from .context import PolicyError, _minute, staff_members
 from .daily import StaffAttendanceService
-from .exemptions import exempt_ids
+from .exemptions import exempt_ids, recording_staff
 from .rules import STATUS_LABELS
 
 #: مصدرُ الرصد في أثر التدقيق — يفرّق المستورَدَ عن اليدويّ عند أيّ مراجعة.
@@ -361,7 +361,22 @@ def preview(
         )
         for row in rows
     ]
-    return ImportPreview(items, issues)
+    return ImportPreview(items, issues, _absent_from_file(school, rows))
+
+
+def _absent_from_file(
+    school: School, rows: list[BiometricRow]
+) -> list[tuple[date, list[CustomUser]]]:
+    """لكلّ يومٍ في الكشف: كادرُ ذلك اليوم (بلا المعفَيْن) ممّن ليس له سطرٌ فيه."""
+    out = []
+    for day in sorted({row.day for row in rows}):
+        listed = {row.employee_number for row in rows if row.day == day}
+        missing = [
+            s for s in recording_staff(school, day) if (s.employee_number or "") not in listed
+        ]
+        if missing:
+            out.append((day, missing))
+    return out
 
 
 def commit(

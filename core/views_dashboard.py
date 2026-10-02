@@ -73,9 +73,7 @@ def dashboard(request):
         ctx.update(get_therapist_ctx(user, school, today))
     elif role == "activities_coordinator":
         ctx.update(get_activities_ctx(user, school, today))
-    elif role_dashboard_provider(
-        role
-    ):  # دورٌ لوحتُه عند وحدةٍ تملك بياناتِه (core/dashboard_registry.py)
+    elif role_dashboard_provider(role):
         ctx.update(role_dashboard_context(role, ctx, user, school, today))
     elif role in ADMIN_OPS_ROLES:
         ctx.update(get_admin_ops_ctx(user, school, today, role))
