@@ -26,6 +26,7 @@ from core.exports.services import respond_export
 from core.models import CustomUser, Membership
 from core.models.academic import grade_order
 from core.models.access import EXEMPTABLE_ROLES
+from core.safe_redirect import safe_redirect
 
 from .models import (
     ScheduleBaseline,
@@ -1047,10 +1048,7 @@ def teacher_preferences(request):
             pref.save()
             messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
             # العامُ يبقى في الرابط: الرجوعُ بلا عامٍ يفتح تفضيلاتِ عامٍ آخر.
-            target = f"{reverse('teacher_preferences')}?{urlencode({'year': year})}"
-            if not url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}):
-                return redirect("teacher_preferences")
-            return redirect(target)
+            return safe_redirect(request, "teacher_preferences", {"year": year})
 
     #: نصابُ صاحب الصفحة وأدنى سقفٍ يومّيٍّ يسعه — يُعرضان قبل الاختيار لا
     #: بعده. وكانت الصفحةُ تفتح على قوائمَ بلا سياق، فيختار المعلّمُ سقفاً

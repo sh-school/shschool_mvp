@@ -9,19 +9,18 @@ Phase 6 — واجهات تقييم الموظفين
 """
 
 from datetime import date
-from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from core.academic_calendar import academic_year_for, default_academic_year
 from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
+from core.safe_redirect import safe_redirect
 
 from . import evaluation_selectors as selectors
 from .appraisal_forms import forms_by_role
@@ -221,6 +220,18 @@ def _evaluation_target(request, employee_id):
     return employee, year, period, None
 
 
+def _back_to_form(request, employee, year, period):
+    """إعادةُ بناءٍ من قيمٍ مُتحقَّقٍ منها لا `get_full_path()` (py/url-redirection):
+    العامُ والفترةُ مرّا بـ`_evaluation_target` فهما صالحان."""
+    return safe_redirect(
+        request,
+        "create_evaluation",
+        {"year": year, "period": period},
+        args=[employee.pk],
+        fallback="evaluation_dashboard",
+    )
+
+
 @login_required
 @capability_required("quality.evaluations")
 def create_evaluation(request, employee_id):
@@ -257,14 +268,7 @@ def create_evaluation(request, employee_id):
             )
         except EvaluationRejectedError as exc:
             messages.error(request, str(exc))
-            # إعادةُ بناءٍ من قيمٍ مُتحقَّقٍ منها لا `get_full_path()` (py/url-redirection):
-            # العامُ والفترةُ مرّا بـ`_evaluation_target` فهما صالحان.
-            target = f"{reverse('create_evaluation', args=[employee.pk])}?" + urlencode(
-                {"year": year, "period": period}
-            )
-            if not url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}):
-                return redirect("evaluation_dashboard")
-            return redirect(target)
+            return _back_to_form(request, employee, year, period)
         _audit_saved(request, obj)
         if obj.status == "submitted":
             messages.success(request, f"تم تقديم تقييم {employee.full_name} بنجاح.")
