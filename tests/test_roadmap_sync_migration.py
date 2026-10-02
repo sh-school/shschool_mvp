@@ -7684,3 +7684,111 @@ def test_0046_publishes_nothing_a_public_repo_must_not_say():
     assert [term for term in banned if term in body] == []
     assert not re.search(r"\b\d{11}\b", body)
     assert not re.search(r"\b[0-9a-f]{40}\b", body)
+
+
+# ── 0047: مختبرُ الجدول، عدّادُ المخالفات الواحد، CodeQL، وMAE-09/MAE-11 ──
+
+_sync47 = importlib.import_module("roadmap.migrations.0047_sync_items_2026_10_02c")
+
+
+class _Apps47:
+    @staticmethod
+    def get_model(_app, name):
+        return {"RoadmapItem": RoadmapItem, "RoadmapKpi": RoadmapKpi}[name]
+
+
+def _seed47_items():
+    _item("SCH-19", "doing", 60)
+    _item("SCH-21", "doing", 40)
+    _item("SCH-22", "doing", 15)
+
+
+def test_0047_appends_notes_once_without_touching_status_or_progress():
+    _seed47_items()
+    assert set(_sync47.sync_notes(RoadmapItem)) == {"SCH-19", "SCH-21", "SCH-22"}
+    assert _sync47.sync_notes(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    assert (by["SCH-19"].status, by["SCH-19"].progress) == ("doing", 60)
+    assert (by["SCH-21"].status, by["SCH-21"].progress) == ("doing", 40)
+    assert (by["SCH-22"].status, by["SCH-22"].progress) == ("doing", 15)
+    assert "#774" in by["SCH-22"].note and "لم يُنشر بعدُ" in by["SCH-22"].note
+    assert "لا قياسٌ" in by["SCH-19"].note and "#779" in by["SCH-19"].note
+    assert "#777" in by["SCH-21"].note
+
+
+def test_0047_creates_new_items_once_with_honest_status_and_never_overwrites():
+    created = _sync47.add_new_items(RoadmapItem)
+    assert set(created) == {"N-063", "SCH-23", "MAE-09", "MAE-11"}
+    assert _sync47.add_new_items(RoadmapItem) == []
+    by = {i.code: i for i in RoadmapItem.objects.all()}
+    assert (by["N-063"].status, by["N-063"].progress) == ("done", 100)
+    assert (by["SCH-23"].status, by["SCH-23"].progress) == ("doing", 90)
+    assert "مدموجٌ ولم يُنشر" in by["SCH-23"].note
+    assert (by["MAE-09"].status, by["MAE-09"].progress) == ("doing", 50)
+    assert "اشتقاقٌ" in by["MAE-09"].note
+    assert (by["MAE-11"].status, by["MAE-11"].progress) == ("done", 100)
+    RoadmapItem.objects.filter(code="MAE-11").update(title="أعاد المطوّرُ تسميته")
+    assert _sync47.add_new_items(RoadmapItem) == []
+    assert RoadmapItem.objects.get(code="MAE-11").title == "أعاد المطوّرُ تسميته"
+
+
+def test_0047_still_never_fabricates_the_other_mae_items():
+    _sync47.add_new_items(RoadmapItem)
+    for code in ("MAE-03", "MAE-05", "MAE-07", "MAE-08", "MAE-10", "MAE-14", "MAE-15"):
+        assert not RoadmapItem.objects.filter(code=code).exists()
+
+
+def test_0047_forwards_is_a_noop_on_an_empty_database_and_idempotent_after():
+    _sync47.forwards(_Apps47, None)
+    assert RoadmapItem.objects.count() == 0
+    _seed47_items()
+    _sync47.forwards(_Apps47, None)
+
+    def snapshot():
+        return list(
+            RoadmapItem.objects.order_by("code").values_list(
+                "code", "status", "progress", "pr", "note"
+            )
+        )
+
+    first = snapshot()
+    _sync47.forwards(_Apps47, None)
+    assert snapshot() == first
+    assert RoadmapItem.objects.filter(code__in=["N-063", "SCH-23", "MAE-09", "MAE-11"]).count() == 4
+
+
+def test_0047_orders_new_items_after_0046s_last_slot_and_mae_continues_at_906():
+    orders = {row[0]: row[-1] for row in _sync47.NEW_ITEMS}
+    assert orders == {"N-063": 786, "SCH-23": 787, "MAE-09": 906, "MAE-11": 907}
+
+
+def test_0047_publishes_nothing_a_public_repo_must_not_say():
+    import re
+
+    origin = importlib.util.find_spec("roadmap.migrations.0047_sync_items_2026_10_02c").origin
+    with open(origin, encoding="utf-8") as f:
+        body = f.read()
+    banned = (
+        "aaaa",
+        ".zip",
+        "FERNET",
+        "artifact",
+        "Security Summary",
+        "بصمات",
+        "الحادثة",
+        "قيد التقييم",
+        "wave2",
+        "archive/",
+        "كلمة المرور",
+        "كلمة مرور",
+        "Temp@",
+        "مرض",
+        "C:/",
+        "localhost",
+        "up.railway.app",
+        "railway ssh",
+        "run_prod",
+    )
+    assert [term for term in banned if term in body] == []
+    assert not re.search(r"\b\d{11}\b", body)
+    assert not re.search(r"\b[0-9a-f]{40}\b", body)
