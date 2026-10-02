@@ -1,4 +1,5 @@
-/* SchoolOS — Global Service Worker v5.3
+{% load static %}
+/* SchoolOS — Global Service Worker v5.4
    يُغطّي جميع المسارات ما عدا /parents/ (التي لها SW خاص)
 
    ── لِمَ لا تُخزَّن كلُّ `/static/` تخزيناً أوّليّاً ──────────────────────
@@ -16,11 +17,17 @@
    فالتفرقةُ بالبصمة لا بالمسار: المبصومُ من الذاكرة، وغيرُه من الشبكة مع
    سقوطٍ إلى الذاكرة عند الانقطاع — فتبقى فائدةُ العمل دون شبكة.
 */
-var CACHE_NAME = 'schoolos-global-v2';
+var CACHE_NAME = 'schoolos-global-v3';
 
-/* لا يُخزَّن مسبقاً إلّا ما لا يشيخ. وأصولُ التطوير غيرُ مبصومةٍ فتُترك
-   للشبكة، وأصولُ الإنتاج مبصومةٌ بأسماءٍ لا تُعرف هنا. */
-var STATIC_ASSETS = ['/offline/'];
+/* لا يُخزَّن مسبقاً إلّا ما لا يشيخ. وهذا الملفُّ نفسُه يُصيَّر بقالب جانغو
+   (`core.views_pwa.global_sw`)، فعنوانُ كلّ أصلٍ هنا يحمل بصمةَ الإنتاج
+   الفعليّة عبر وسم تحميل الثابت — لا مساراً خاماً قد لا يطابق المنشور. */
+var STATIC_ASSETS = [
+  '/offline/',
+  '{% static "brand/emblem-white.svg" %}',
+  '{% static "brand/azkia-logo.svg" %}',
+  '{% static "brand/sufyan-logo.png" %}'
+];
 
 /* بصمةُ المحتوى: `name.<hex8+>.ext` — ما يكتبه manifest storage. */
 var FINGERPRINTED = /\.[0-9a-f]{8,}\.[a-z0-9]+$/i;
