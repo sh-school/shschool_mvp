@@ -141,3 +141,115 @@ def test_a_single_school_student_gets_no_scope_warning(admin_client, kid):
     request_id = _file_request(client, kid)
     response = _approve(client, request_id)
     assert "attendance_ledger_note" not in response.data["summary"]
+
+
+# ══════════════════════════════════════════════════════════════════
+# حكمُ 0105 الثاني (N1/N2/N3): الملفّاتُ لا تُمحى قبل فشل، وأيُّ استثناءٍ لا يترك processing، وإعادةٌ بتدقيق المراجع
+# ══════════════════════════════════════════════════════════════════
+
+
+def _stored_attachment(school, kid):
+    """نشاطٌ طلابيٌّ بمرفقٍ في التخزين (StoredFile) — ملفٌّ يُمحى مع الطالب."""
+    import datetime
+
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+
+    from student_affairs.models import StudentActivity
+
+    name = default_storage.save("student_activities/2026/10/w020.pdf", ContentFile(b"PII"))
+    StudentActivity.objects.create(
+        school=school,
+        student=kid,
+        activity_type="certificate",
+        title="شهادة",
+        date=datetime.date(2026, 10, 1),
+        attachment=name,
+    )
+    return name
+
+
+def test_the_uploaded_files_survive_when_the_ledger_step_fails(
+    school, admin_client, monkeypatch, kid, django_capture_on_commit_callbacks
+):
+    """N1: «لم يُمسّ شيء» صادقةٌ — الملفُّ لا يُحذف قبل أن يفشل المحو (على S3 لا يتراجع)."""
+    from core.models import StoredFile
+
+    client, _admin = admin_client
+    name = _stored_attachment(school, kid)
+    request_id = _file_request(client, kid)
+    _break_the_ledger_eraser(monkeypatch)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = _approve(client, request_id)
+
+    assert response.status_code == 409
+    assert StoredFile.objects.filter(name=name).exists()
+
+
+def test_the_uploaded_files_are_purged_only_after_a_successful_commit(
+    school, admin_client, kid, django_capture_on_commit_callbacks
+):
+    from core.models import StoredFile
+
+    client, _admin = admin_client
+    name = _stored_attachment(school, kid)
+    request_id = _file_request(client, kid)
+
+    with django_capture_on_commit_callbacks(execute=False) as callbacks:
+        response = _approve(client, request_id)
+        assert response.status_code == 200, response.data
+        # قبل التثبيت: الملفُّ باقٍ.
+        assert StoredFile.objects.filter(name=name).exists()
+    for callback in callbacks:
+        callback()
+    assert not StoredFile.objects.filter(name=name).exists()
+
+
+def test_any_unexpected_exception_also_leaves_the_request_retryable(
+    admin_client, monkeypatch, kid, caplog
+):
+    """N2: ليس EntryError وحدَه — أيُّ استثناءٍ يعيد الطلبَ approved ويُكتب رمزٌ عامّ ويُسجَّل للمراقبة."""
+    client, admin = admin_client
+    request_id = _file_request(client, kid)
+
+    def boom(student, *, actor=None, school=None):
+        raise RuntimeError("انقطع التخزين")
+
+    monkeypatch.setattr("operations.attendance_entries.erase_attendance_ledger", boom)
+
+    response = _approve(client, request_id)
+
+    assert response.status_code == 409
+    assert response.data["code"] == "erasure_error"
+    assert ErasureRequest.objects.get(pk=request_id).status == "approved"
+    line = AuditLog.objects.filter(user=admin, object_repr__contains="تعثّر محوٍ").get()
+    assert line.changes["code"] == "erasure_error"
+    assert any("فشل محوٌ غيرُ متوقَّع" in record.getMessage() for record in caplog.records)
+
+
+def test_a_retry_records_the_previous_reviewer_in_the_audit(school, monkeypatch, kid):
+    """N3: reviewed_by يتبدّل بالإعادة — فيُدوَّن المراجعُ الأصليُّ."""
+    first = _staff(school, "principal", "المدير الأوّل", "29000006010")
+    second = _staff(school, "principal", "المدير الثاني", "29000006011")
+    first_client, second_client = APIClient(), APIClient()
+    first_client.force_login(first)
+    second_client.force_login(second)
+    request_id = _file_request(first_client, kid)
+    with monkeypatch.context() as patch:
+        _break_the_ledger_eraser(patch)
+        assert _approve(first_client, request_id).status_code == 409
+
+    assert _approve(second_client, request_id).status_code == 200
+
+    line = AuditLog.objects.filter(object_repr__contains="إعادةُ تنفيذٍ").get()
+    assert line.user_id == second.id
+    assert line.changes["previous_reviewer"] == str(first.id)
+
+
+def test_a_request_already_processing_is_refused(school, admin_client, kid):
+    """N3: الثاني المتزامن يجد الحالةَ processing فيُردّ (قفلُ الصفّ يسلسل الاثنين)."""
+    client, _admin = admin_client
+    request_id = _file_request(client, kid)
+    ErasureRequest.objects.filter(pk=request_id).update(status="processing")
+    assert _approve(client, request_id).status_code == 400

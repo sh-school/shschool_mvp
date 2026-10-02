@@ -90,6 +90,15 @@ def _lazy_file_field_models() -> list[tuple[Any, str, str]]:
     return _FILE_FIELD_MODELS
 
 
+def _purge_files(files: list[tuple[str, Any]]) -> None:
+    """يحذف ملفّاتِ التخزين بعد نجاح معاملة المحو كلِّها (on_commit) — فشلُ ملفٍّ لا يوقف الباقي."""
+    for file_field, f in files:
+        try:
+            f.delete(save=False)  # يفوّض storage backend (DatabaseStorage/S3)
+        except Exception:
+            logger.warning("تعذّر حذف ملف %s أثناء المحو", file_field, exc_info=True)
+
+
 class ErasureFailedError(Exception):
     """تعثّر المحو برسالةٍ مفهومةٍ للمدير — الطلبُ عاد «approved» وتجوز إعادةُ التنفيذ."""
 
@@ -98,38 +107,93 @@ class ErasureFailedError(Exception):
         self.code = code
 
 
+class ErasureStateError(Exception):
+    """الطلبُ ليس في حالةٍ تقبل الموافقة/التنفيذ (غيرُ pending ولا approved)."""
+
+    def __init__(self, status_display: str):
+        super().__init__(f"لا يمكن الموافقة — الحالة الحالية: {status_display}")
+
+
 class ErasureService:
     """Anonymize all PII for a student — PDPPL م.18."""
 
     @staticmethod
-    def execute_safely(erasure_request: ErasureRequest, actor: Any) -> dict[str, Any]:
-        """ينفّذ المحوَ دون أن يترك الطلبَ عالقاً «processing» إن تعثّر محوُ سجلّ رصد المعلّم (حكمُ 0105 M5).
+    def approve_and_execute(
+        request_id: Any, reviewer: Any, note: str = ""
+    ) -> tuple[ErasureRequest, dict[str, Any]]:
+        """يوافق ويُنفّذ — بقفلِ صفّ الطلب كي لا يُنفّذ مديران متزامنان معاً (حكمُ 0105 N3).
 
-        معاملةُ `execute` تتراجع كلُّها عند الخطأ (الطالبُ لم يُمسّ)، لكنّ الطلبَ كان محفوظاً «processing» قبلها فيبقى بلا
-        مخرجٍ (إعادةُ الموافقة تُردّ لأنّ الحالةَ ليست pending). فهنا: يعود «approved»، ويُكتب AuditLog بالفشل
-        ورمزِه، ويُرفع `ErasureFailedError` برسالةٍ تذكر المدرسةَ (لا معرّفاً) — فيُعيد المديرُ التنفيذَ بعد معالجة السبب.
+        القفلُ والانتقالُ إلى «processing» في معاملةٍ قصيرةٍ تُثبَّت قبل التنفيذ: الثاني يجد الحالةَ «processing» فيُردّ.
+        وإن كان الطلبُ «approved» فهو تنفيذٌ سابقٌ تعثّر فيُعاد، ويُكتب المراجعُ الأصليُّ في AuditLog لأنّ `reviewed_by`
+        يتبدّل بالإعادة.
+        """
+        with transaction.atomic():
+            obj = (
+                ErasureRequest.objects.select_for_update()
+                .select_related("school")
+                .get(pk=request_id)
+            )
+            if obj.status not in ("pending", "approved"):
+                raise ErasureStateError(obj.get_status_display())
+            if obj.status == "approved":
+                AuditLog.log(
+                    user=reviewer,
+                    action="update",
+                    model_name="other",
+                    object_id=obj.pk,
+                    object_repr="محوُ طالبٍ — إعادةُ تنفيذٍ بعد تعثّر",
+                    changes={
+                        "request": str(obj.pk),
+                        "previous_reviewer": str(obj.reviewed_by_id)
+                        if obj.reviewed_by_id
+                        else None,
+                    },
+                    school=obj.school,
+                )
+            obj.status = "processing"
+            obj.reviewed_by = reviewer
+            obj.reviewed_at = timezone.now()
+            obj.review_note = note
+            obj.save()
+        return obj, ErasureService.execute_safely(obj, reviewer)
+
+    @staticmethod
+    def execute_safely(erasure_request: ErasureRequest, actor: Any) -> dict[str, Any]:
+        """ينفّذ المحوَ دون أن يترك الطلبَ عالقاً «processing» أيّاً كان الفشلُ (حكمُ 0105 M5 وN2).
+
+        معاملةُ `execute` تتراجع كلُّها عند الخطأ (الطالبُ لم يُمسّ، وملفّاتُ التخزين لا تُحذف إلّا بعد النجاح)، لكنّ الطلبَ
+        كان محفوظاً «processing» قبلها فيبقى بلا مخرجٍ. فهنا: يعود «approved»، ويُكتب AuditLog بالفشل ورمزِه
+        (رمزُ خطأ سجلّ الرصد، أو `erasure_error` لأيّ استثناءٍ آخر ويُسجَّل في logger للمراقبة)، ويُرفع
+        `ErasureFailedError` برسالةٍ مفهومةٍ — فيُعيد المديرُ التنفيذَ بعد معالجة السبب.
         """
         from operations.attendance_entries import EntryError
 
         try:
             return ErasureService.execute(erasure_request)
         except EntryError as exc:
-            erasure_request.status = "approved"
-            erasure_request.save(update_fields=["status"])
-            AuditLog.log(
-                user=actor,
-                action="update",
-                model_name="other",
-                object_id=erasure_request.pk,
-                object_repr="محوُ طالبٍ — تعثّر محوٍ في سجلّ رصد المعلّم",
-                changes={"code": exc.code, "request": str(erasure_request.pk)},
-                school=erasure_request.school,
-            )
-            raise ErasureFailedError(
-                f"تعذّر محو سجلّ رصد المعلّم لهذا الطالب ({exc}) — لم يُمسّ شيء. الطلبُ باقٍ «تمّت الموافقة» "
-                "ويمكن إعادة التنفيذ بعد معالجة السبب.",
-                exc.code,
-            ) from exc
+            code = exc.code
+            detail = f"تعذّر محو سجلّ رصد المعلّم لهذا الطالب ({exc})"
+            cause: Exception = exc
+        except Exception as exc:  # أيُّ فشلٍ آخر (قيدٌ، تخزينٌ…): لا يُترك الطلبُ عالقاً
+            logger.exception("فشل محوٌ غيرُ متوقَّع لطلب %s", erasure_request.pk)
+            code = "erasure_error"
+            detail = "تعذّر تنفيذ المحو لخطأٍ غيرِ متوقَّع سُجّل للمراجعة"
+            cause = exc
+        erasure_request.status = "approved"
+        erasure_request.save(update_fields=["status"])
+        AuditLog.log(
+            user=actor,
+            action="update",
+            model_name="other",
+            object_id=erasure_request.pk,
+            object_repr="محوُ طالبٍ — تعثّر محوٍ",
+            changes={"code": code, "request": str(erasure_request.pk)},
+            school=erasure_request.school,
+        )
+        raise ErasureFailedError(
+            f"{detail} — لم يُمسّ شيء. الطلبُ باقٍ «تمّت الموافقة» ويمكن إعادة التنفيذ بعد معالجة السبب.",
+            code,
+        ) from cause
 
     @staticmethod
     @transaction.atomic
@@ -167,22 +231,7 @@ class ErasureService:
                 route.students.remove(student)
             summary["models"]["BusRoute_m2m"] = route_count
 
-        # 2.5 Purge uploaded files (storage blobs) before bulk delete — bulk .delete()
-        #     لا يستدعي storage backend فتبقى ملفات الطالب يتيمة في StoredFile/S3 (فجوة محو م.18).
-        files_purged = 0
-        for Model, fk_field, file_field in _lazy_file_field_models():
-            for obj in Model.objects.filter(**{fk_field: student}):
-                f = getattr(obj, file_field, None)
-                if f:
-                    try:
-                        f.delete(save=False)  # يفوّض storage backend (DatabaseStorage/S3)
-                        files_purged += 1
-                    except Exception:
-                        logger.warning("تعذّر حذف ملف %s أثناء المحو", file_field, exc_info=True)
-        if files_purged:
-            summary["files_purged"] = files_purged
-
-        # 2.9 سجلُّ رصد المعلّم (إدخالاتٌ وقراراتٌ مضافةٌ فقط، W-20261002-020): يُمحى بمساره المسمّى وحدَه — لا
+        # 2.5 سجلُّ رصد المعلّم (إدخالاتٌ وقراراتٌ مضافةٌ فقط، W-20261002-020): يُمحى بمساره المسمّى وحدَه — لا
         #     بالحلقة العامّة أدناه (حارسُ ORM وحارسُ القاعدة يرفضان الحذفَ العامّ). يكتب AuditLog بالأعداد.
         from operations.attendance_entries import erase_attendance_ledger
 
@@ -199,6 +248,20 @@ class ErasureService:
                 "سجلُّ رصد المعلّم مُحيَ لمدرسة الطلب الحاليّة فقط؛ وللطالب عضويّاتٌ في مدارسَ أخرى قد تبقى فيها "
                 "إدخالاتٌ وقراراتٌ — يلزم محوُها بدور تلك المدارس."
             )
+
+        # 2.9 محوُ ملفّات التخزين (blobs) — **بعد** ما قد يفشل، وعند **نجاح المعاملة كلِّها فقط** (حكمُ 0105 N1):
+        #     حذفُ الملفّ في S3 لا يتراجع مع معاملة القاعدة، فلو حُذف قبل فشلٍ لاحقٍ بقيت صفوفٌ تشير إلى ملفّاتٍ
+        #     مفقودة. والحذفُ العامّ للصفوف لا يستدعي storage backend فتبقى الملفّاتُ يتيمةً (فجوة محو م.18) — لذلك
+        #     تُجمع المراجعُ الآن وتُحذف في on_commit.
+        files_to_purge = []
+        for Model, fk_field, file_field in _lazy_file_field_models():
+            for obj in Model.objects.filter(**{fk_field: student}):
+                f = getattr(obj, file_field, None)
+                if f:
+                    files_to_purge.append((file_field, f))
+        if files_to_purge:
+            summary["files_purged"] = len(files_to_purge)
+            transaction.on_commit(lambda: _purge_files(files_to_purge))
 
         # 3. Delete child FK records (CASCADE would do this, but explicit is better for counting)
         for Model, fk_field, _ in _lazy_student_fk_models():
