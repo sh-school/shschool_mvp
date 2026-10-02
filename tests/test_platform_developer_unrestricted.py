@@ -200,3 +200,45 @@ def test_the_developer_cannot_read_a_child_through_the_parent_api_without_a_link
     for name in ("api_v1:parent-child-attendance", "api_v1:parent-child-grades"):
         resp = client.get(reverse(name, kwargs={"student_id": foreign.pk}))
         assert resp.status_code in (403, 404), name
+
+
+# ── سجلُّ التدقيق على دخوله المسارات الحسّاسة: يسجّل ولا يمنع ──
+
+
+def _audits(user):
+    from core.models import AuditLog
+
+    return AuditLog.objects.filter(user=user, changes__via="platform_developer")
+
+
+def test_a_developer_visit_to_a_sensitive_page_leaves_an_audit_row(client_as, developer):
+    resp = client_as(developer).get("/clinic/")
+
+    assert resp.status_code == 200
+    row = _audits(developer).get()
+    assert row.changes["path"] == "/clinic/" and row.changes["status"] == 200
+
+
+def test_the_audit_covers_evaluations_and_grievances(client_as, developer):
+    client = client_as(developer)
+    client.get("/quality/evaluations/")
+    client.get("/quality/evaluations/grievances/")
+
+    paths = set(_audits(developer).values_list("changes__path", flat=True))
+    assert {"/quality/evaluations/", "/quality/evaluations/grievances/"} <= paths
+
+
+def test_the_audit_never_blocks_the_developer(client_as, developer):
+    assert client_as(developer).get("/clinic/").status_code != 403
+
+
+def test_other_pages_are_not_audited(client_as, developer):
+    client_as(developer).get("/analytics/")
+
+    assert not _audits(developer).exists()
+
+
+def test_other_roles_are_not_audited_on_the_same_pages(client_as, principal_user):
+    client_as(principal_user).get("/clinic/")
+
+    assert not _audits(principal_user).exists()
