@@ -317,6 +317,25 @@ def test_percent_is_the_generic_form():
     assert percent(7.0, 9.0) == round(7 * 100 / 9)
 
 
+def test_no_screen_labels_a_session_level_rate_as_absence():
+    """ADR-0009: تواجدُ الحصص لا يُسمّى "غياب" — الغيابُ اليوميّ الوزاريّ عددٌ من
+    `operations.daily_absence.DailyReport.ministry_absent_count` وحدَه، لا نسبةٌ من `attendance_rate()`.
+    """
+    from pathlib import Path
+
+    repo_root = Path(__file__).resolve().parent.parent
+    forbidden = "نسبة الغياب %"
+    offenders = [
+        path
+        for directory in ("analytics", "student_affairs", "parents", "reports", "core", "templates")
+        for path in (repo_root / directory).rglob("*")
+        if path.is_file()
+        and path.suffix in {".py", ".html", ".js"}
+        and forbidden in path.read_text(encoding="utf-8")
+    ]
+    assert not offenders, f"تسميةٌ ممنوعةٌ («{forbidden}») في: {offenders}"
+
+
 # ══════════════════════════════════════════════════════════════════════
 #  شرائحُ الدرجات
 # ══════════════════════════════════════════════════════════════════════

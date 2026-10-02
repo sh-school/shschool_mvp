@@ -16,12 +16,16 @@ import logging
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView, View
 
+from core.developer_access import developer_only
+from core.models.access import Role
 from developer_feedback.forms import (
+    BroadcastMessageForm,
     DeveloperMessageEditForm,
     DeveloperMessageForm,
     OnboardingConsentForm,
@@ -39,12 +43,15 @@ from developer_feedback.permissions import (
     NotStudentMixin,
     OnboardingRequiredMixin,
 )
+from developer_feedback.selectors import active_departments, broadcasts_sent_by, staff_directory
+from developer_feedback.services.audience import AudienceError
 from developer_feedback.services.audit import (
     log_inbox_view,
     log_message_edit,
     log_message_view,
     log_status_update,
 )
+from developer_feedback.services.broadcast import preview_recipient_count, send_broadcast
 from developer_feedback.services.notifications import (
     send_developer_edit_notification,
     send_developer_notification,
@@ -337,3 +344,65 @@ class DeveloperInboxDetailView(DeveloperOnlyMixin, DetailView):
             messages.success(request, _("تم تحديث حالة الرسالة."))
 
         return redirect("developer_feedback:inbox_detail", pk=self.object.pk)
+
+
+# ═══════════════════════════════════════════════════════════════
+# 7) BroadcastCreateView — المطوّرُ يرسل لمستخدمٍ أو أكثر (الاتّجاه المعاكس)
+# ═══════════════════════════════════════════════════════════════
+
+
+@developer_only
+def broadcast_recipient_count(request):
+    """عدّادٌ حيٌّ لعدد المستلِمين قبل الإرسال — يُستدعى عند تغيير الاختيار."""
+    count = preview_recipient_count(
+        request.school,
+        request.user,
+        request.GET.get("target_kind", ""),
+        request.GET.get("target_value", ""),
+    )
+    return JsonResponse({"count": count})
+
+
+@developer_only
+def broadcast_create(request):
+    """تأليفُ رسالةٍ من المطوّر — فردٌ/قسمٌ أكاديميّ/دورٌ وظيفيّ/الجميع (قرارُ 2026-09-30).
+
+    القراءةُ في `selectors.py` والكتابةُ والتسليمُ في `services/broadcast.py`.
+    """
+    form = BroadcastMessageForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            sent = send_broadcast(
+                request.school,
+                request.user,
+                form,
+                request.POST.get("target_kind", ""),
+                request.POST.get("target_value", ""),
+            )
+        except AudienceError as exc:
+            form.add_error(None, str(exc))
+        else:
+            messages.success(request, _("أُرسلت الرسالة إلى %(n)s مستخدماً.") % {"n": sent})
+            return redirect("developer_feedback:broadcast_sent")
+
+    return render(
+        request,
+        "developer_feedback/broadcast_create.html",
+        {
+            "form": form,
+            "departments": active_departments(request.school),
+            "roles": Role.ROLES,
+            "all_staff": staff_directory(request.school, request.user),
+        },
+    )
+
+
+class BroadcastSentListView(DeveloperOnlyMixin, ListView):
+    """سجلُّ ما بثَّه المطوّر سابقاً."""
+
+    template_name = "developer_feedback/broadcast_sent.html"
+    context_object_name = "broadcasts"
+    paginate_by = 25
+
+    def get_queryset(self):
+        return broadcasts_sent_by(self.request.user)

@@ -1685,7 +1685,10 @@ def generate_schedule(
                 fields = {
                     "status": "draft",
                     "quality_score": quality["score"],
-                    "hard_violations": len(errors) + breaches["count"],
+                    # رقمٌ واحدٌ من مصدرٍ واحد: عددُ مخالفات المُقيِّم نفسُه الذي تقرؤه بوّابةُ الاعتماد
+                    # (`config_snapshot["breaches"]["count"]`). وكان `len(errors)` يُضاف إليه — وهو نصوصٌ
+                    # (نصائحُ الهامش وتقاريرُ «يومٌ فارغ» وسطرٌ لكلّ متعذّرة) لا مخالفات، فيظهر 8 والإقرارُ عن 1.
+                    "hard_violations": breaches["count"],
                     "soft_violations": quality["violations"],
                     "total_slots_created": quality["total_slots"],
                     "generation_time_ms": elapsed_ms,
@@ -1703,6 +1706,8 @@ def generate_schedule(
                         #: ما بقي مكسوراً بعد السداد — بموضعه، لبوّابة الاعتماد (SCH-04).
                         "settlement": settled,
                         "breaches": breaches,
+                        #: المهامُّ التي لم تجد موضعاً — رقمٌ مستقلٌّ لا يدخل عدّادَ المخالفات.
+                        "unplaced": len(leftovers),
                         "repaired": repaired,
                         "relaxed": relaxed,
                         "densed": densed,
