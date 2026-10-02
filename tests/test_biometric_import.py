@@ -321,3 +321,55 @@ class TestScreens:
         client = client_as(deputy)
         assert reverse(self.URL) not in client.get(reverse("dashboard")).content.decode()
         assert client.get(reverse(self.URL)).status_code == 403
+
+    def test_oversized_upload_is_refused_before_reading(self, client_as, secretary):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        big = SimpleUploadedFile("كشف.csv", b"x" * (biometric.MAX_BYTES + 1))
+        response = client_as(secretary).post(reverse(self.URL), {"file": big})
+        assert response.status_code == 200 and "plan" not in response.context
+
+
+class TestLimitsAndSchoolScope:
+    def test_too_many_rows_are_rejected(self, monkeypatch):
+        monkeypatch.setattr(biometric, "MAX_ROWS", 2)
+        with pytest.raises(biometric.BiometricFileError):
+            biometric.parse(_csv(_line(1), _line(2), _line(3)))
+
+    def test_commit_matches_inside_the_session_school_only(self, school, secretary):
+        from tests.conftest import SchoolFactory
+
+        other = SchoolFactory()
+        outsider = UserFactory(full_name="غريب", employee_number="5100")
+        MembershipFactory(
+            user=outsider, school=other, role=RoleFactory(school=other, name="teacher")
+        )
+        result = biometric.commit(school, secretary, _rows(_line(5100)))
+        assert result.written == 0 and not StaffAttendance.objects.exists()
+
+
+class TestImportWindow:
+    """قرارُ المالك D-117م: لا يُستورد يومٌ أقدمُ من شهرٍ من تاريخ الاستيراد (والساعةُ هنا 2026-02-15)."""
+
+    def _action(self, school, secretary, day):
+        parsed = biometric.parse(_csv(_line(6001, day=day)))
+        return biometric.preview(school, secretary, parsed.rows, parsed.issues).items[0]
+
+    def test_last_day_inside_the_window_passes(self, school, secretary):
+        _person(school, 6001)
+        assert self._action(school, secretary, "15/01/2026").action == biometric.NEW
+
+    def test_day_before_the_window_is_rejected_with_its_limit(self, school, secretary):
+        _person(school, 6001)
+        item = self._action(school, secretary, "14/01/2026")
+        assert item.action == biometric.INVALID
+        assert "15/01/2026" in item.note
+
+    def test_window_start_clamps_to_the_shorter_month(self):
+        assert biometric.window_start(date(2026, 3, 31)) == date(2026, 2, 28)
+        assert biometric.window_start(date(2026, 1, 10)) == date(2025, 12, 10)
+
+    def test_commit_does_not_write_a_day_outside_the_window(self, school, secretary):
+        _person(school, 6001)
+        result = biometric.commit(school, secretary, _rows(_line(6001, day="14/01/2026")))
+        assert result.written == 0 and not StaffAttendance.objects.exists()

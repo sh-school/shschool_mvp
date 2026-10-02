@@ -15,6 +15,7 @@
 
 from __future__ import annotations
 
+import calendar
 import csv
 import io
 from dataclasses import dataclass, field
@@ -54,8 +55,17 @@ _MIN_COLUMNS_AFTER_ANCHOR = _OFF_OUT + 1
 
 #: أقصى حجم ملفٍّ مقبول — كشفُ يومٍ للكادر كلِّه بضعُ عشراتٍ من الكيلوبايت.
 MAX_BYTES = 2 * 1024 * 1024
+#: أقصى عدد أسطرٍ مقبول — كادرُ المدرسة بضعُ مئاتٍ × أيّامٌ قليلة؛ وكلُّ سطرٍ يُحفظ في الجلسة.
+MAX_ROWS = 2000
 #: ما يبقى للمعاينة قبل الاعتماد (بالثواني).
 PREVIEW_TTL_SECONDS = 30 * 60
+
+
+def window_start(today: date) -> date:
+    """أقدمُ يومٍ يُقبل استيرادُه: قبل شهرٍ من اليوم (قرارُ المالك D-117م، 2026-10-02)."""
+    year, month = (today.year, today.month - 1) if today.month > 1 else (today.year - 1, 12)
+    return date(year, month, min(today.day, calendar.monthrange(year, month)[1]))
+
 
 # أفعالُ الصفّ في المعاينة.
 NEW = "new"
@@ -246,6 +256,8 @@ def parse(raw: bytes) -> ParsedFile:
             parsed.issues.append(ParseIssue(line, f"كودُ حالةٍ غيرُ معروف للجهاز ({code or 'فارغ'})."))
             continue
         parsed.rows.append(BiometricRow(line, number, day, check_in, check_out, code))
+        if len(parsed.rows) > MAX_ROWS:
+            raise BiometricFileError(f"أسطرُ الكشف أكثرُ من الحدّ المقبول ({MAX_ROWS}).")
     if not anchored:
         raise BiometricFileError(
             "الملفُّ ليس كشفَ حضورٍ وانصرافٍ من جهاز البصمة بالصيغة المعروفة — "
@@ -270,6 +282,13 @@ def _plan_row(
     seen.add(key)
     if row.day > today:
         return PlanItem(row, INVALID, staff, note="تاريخٌ لم يأتِ بعد.")
+    if row.day < window_start(today):
+        return PlanItem(
+            row,
+            INVALID,
+            staff,
+            note=f"أقدمُ من نافذة الاستيراد (شهر) — أقدمُ يومٍ مقبول {window_start(today):%d/%m/%Y}.",
+        )
     if staff is None:
         return PlanItem(row, UNMATCHED, note="لا موظّفَ بهذا الرقم الوظيفيّ في هذه المدرسة.")
     if staff.pk == actor.pk:

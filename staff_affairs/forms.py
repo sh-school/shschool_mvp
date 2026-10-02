@@ -6,6 +6,7 @@ from django import forms
 
 from core.validators import FileTypeValidator
 
+from .attendance.biometric import MAX_BYTES as MAX_BIOMETRIC_BYTES
 from .models import (
     ABSENCE_TYPES,
     EXCEPTION_TYPES,
@@ -265,4 +266,7 @@ class BiometricUploadForm(forms.Form):
         upload = self.cleaned_data["file"]
         if not (upload.name or "").lower().endswith(".csv"):
             raise forms.ValidationError("يُقبل ملفّ CSV فقط — صدِّر الكشفَ من الجهاز بهذه الصيغة.")
+        # الحجمُ قبل القراءة: الملفُّ الأكبر لا يُحمَّل في الذاكرة ليُرفض.
+        if upload.size > MAX_BIOMETRIC_BYTES:
+            raise forms.ValidationError("الملفُّ أكبرُ من الحدّ المقبول — كشفُ يومٍ واحدٍ أصغرُ بكثير.")
         return upload
