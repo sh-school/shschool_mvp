@@ -7831,7 +7831,16 @@ def test_0048_appends_rep10_note_once_without_touching_status():
 
 def test_0048_creates_new_items_once_and_never_overwrites():
     created = _sync48.add_new_items(RoadmapItem)
-    assert set(created) == {"N-064", "SCH-24", "N-065", "N-066", "N-067"}
+    assert set(created) == {
+        "N-064",
+        "SCH-24",
+        "N-065",
+        "N-066",
+        "N-067",
+        "N-068",
+        "N-069",
+        "N-070",
+    }
     assert _sync48.add_new_items(RoadmapItem) == []
     by = {i.code: i for i in RoadmapItem.objects.all()}
     item = by["N-064"]
@@ -7842,6 +7851,10 @@ def test_0048_creates_new_items_once_and_never_overwrites():
     assert "حذفُ العمود القديم" in by["N-066"].note and "لا إغلاق" in by["N-066"].note
     assert (by["N-067"].status, by["N-067"].progress) == ("done", 100)
     assert "#744" in by["SCH-24"].pr and "#751" in by["N-065"].pr and "#735" in by["N-066"].pr
+    assert (by["N-068"].status, by["N-068"].progress) == ("doing", 90)
+    assert "مدموجٌ ولم يُنشر" in by["N-068"].note
+    assert (by["N-069"].status, by["N-069"].progress) == ("done", 100)
+    assert (by["N-070"].status, by["N-070"].progress) == ("done", 100)
     RoadmapItem.objects.filter(code="N-064").update(title="أعاد المطوّرُ تسميته")
     assert _sync48.add_new_items(RoadmapItem) == []
     assert RoadmapItem.objects.get(code="N-064").title == "أعاد المطوّرُ تسميته"
