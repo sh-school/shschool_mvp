@@ -179,6 +179,20 @@ def registry() -> dict[str, Capability]:
             ),
         ),
         _cap(
+            "staff_affairs.attendance_import",
+            "استيرادُ كشف البصمة اليوميّ",
+            {"principal", "secretary"},
+            scope=(
+                "السكرتيرُ والمديرُ للكادر كلِّه: الكشفُ يحوي المدرسةَ كلَّها فلا يستورده النائبُ "
+                "المحصورُ بمن تحته؛ ومن ينوب عن المدير بتكليفٍ يرصد يدويّاً من لوحة الرصد"
+            ),
+            basis=(
+                "السكرتير «متابعة الحضور والانصراف للموظفين» (03_job_descriptions_rbac.md:101)؛ "
+                "والاستيرادُ يكتب عبر StaffAttendanceService.mark نفسِها فيحمل قيودَ الرصد كلَّها؛ "
+                "طلبُ المالك 2026-10-02 (W-20261002-011)"
+            ),
+        ),
+        _cap(
             "staff_affairs.attendance_report",
             "تقريرُ حضور الموظّفين الشهريّ",
             {"principal", "vice_admin", "vice_academic", "secretary"},

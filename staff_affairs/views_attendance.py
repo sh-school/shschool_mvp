@@ -6,7 +6,7 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 from typing import Any, cast
 from uuid import UUID
 
@@ -34,6 +34,7 @@ from .attendance import (
     StaffAttendanceService,
     can_submit_permits,
 )
+from .attendance.rules import STATUS_LABELS, STATUSES
 from .forms import (
     AssignmentForm,
     AttendanceMarkForm,
@@ -108,6 +109,10 @@ def _month(raw: str | None) -> tuple[int, int]:
     return year, month
 
 
+#: ما يرشّحه سطرُ اللوحة بالحالة: «لم يُرصد» ثمّ الحالاتُ الأربع — مطابقةٌ لـ`data-state` على السطر.
+BOARD_STATE_CHOICES = [("unmarked", "لم يُرصد"), *((key, STATUS_LABELS[key]) for key in STATUSES)]
+
+
 @login_required
 @capability_required("staff_affairs.attendance_record")  # type: ignore[misc]  # الحارسُ بلا أنواع في core
 def attendance_board(request: HttpRequest) -> HttpResponse:
@@ -124,12 +129,25 @@ def attendance_board(request: HttpRequest) -> HttpResponse:
         board = StaffAttendanceService.daily_board(_school(request), day, viewer=_user(request))
         for row in board["rows"]:
             row["values"] = _row_values(row["record"], can_excuse)
+        # بطاقتان متجاورتان بدل واحدةٍ طويلة: من يتبع النائبَ الأكاديميّ، والباقي (م-21).
+        board["groups"] = [
+            ("الكادر الأكاديميّ", [r for r in board["rows"] if r["academic"]]),
+            ("الكادر الإداريّ والخدمات", [r for r in board["rows"] if not r["academic"]]),
+        ]
+    today = timezone.localdate()
+    state = request.GET.get("status", "")
     return render(
         request,
         "staff_affairs/attendance_board.html",
         {
             "day": day,
-            "today": timezone.localdate(),
+            "today": today,
+            "prev_day": day - timedelta(days=1),
+            "next_day": day + timedelta(days=1) if day < today else None,
+            # البحثُ والحالةُ يُطبَّقان في المتصفّح؛ وتعودان من الرابط لئلّا يمحوهما تغييرُ اليوم.
+            "q": request.GET.get("q", "").strip()[:80],
+            "state_choices": BOARD_STATE_CHOICES,
+            "state_filter": state if state in dict(BOARD_STATE_CHOICES) else "",
             "absence_types": ABSENCE_TYPES,
             "can_record": can_record,
             "can_excuse": can_excuse,
