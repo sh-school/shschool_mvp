@@ -1,7 +1,7 @@
 .PHONY: up down build logs shell migrate seed full-seed test reset \
         quality lint security ci test-cov pre-commit-install minify-js \
         axes-reset health-check ready-check test-v54 pip-audit-check \
-        railway-plan preview-up preview-watch preview-status preview-plan preview-pin preview-release
+        prepush railway-plan preview-up preview-watch preview-status preview-plan preview-pin preview-release
 
 # ── Docker (Development) ──────────────────────────────
 up:
@@ -83,6 +83,10 @@ test-cov:
 	@echo "التقرير: htmlcov/index.html"
 
 # جودة الكود — ruff
+# الفحوصُ السريعةُ نفسُها التي يشغّلها CI (ruff, أسرار, تعقيد, بيانات شخصيّة) — قبل كلّ دفع
+prepush:
+	python scripts/prepush_check.py
+
 lint:
 	ruff check . --fix
 	ruff format .

@@ -61,6 +61,20 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          # حسابُ BASE...HEAD يلزمه التاريخُ (على الطلب وحدَه؛ ما سواه لا يحسب فروقاً)
+          fetch-depth: ${{ github.event_name == 'pull_request' && '0' || '1' }}
+
+      # طلبٌ وثائقيٌّ (.md تحت docs/ وAAdocs/ حصراً): لا تُتخطّى المجموعةُ بل يُشغَّل «قرّاءُ الوثائق» وحدَهم
+      # (scripts/ci_docs_only.py) — فمن الاختبارات ما يقرأ وثيقةً ويفشل بتعديلها. والمرشّحُ داخلَ المهمّة لا
+      # `paths-ignore` (الأخير يحجب السياقَ فيتعلّق الطلب). وعلى push وطابور الدمج تشغيلٌ كاملٌ دائماً، وأيُّ
+      # خطأٍ في الحساب ⇒ كامل. ولا تفشل هذه الخطوةُ أبداً.
+      - name: تصنيف الطلب — وثائقيٌّ فقط؟
+        id: diff
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python3 scripts/ci_docs_only.py classify "$BASE_SHA" >> "$GITHUB_OUTPUT" || echo "docs_only=false" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-python@v7
         with:
@@ -86,16 +100,24 @@ jobs:
             pytest-xdist==3.8.0
 
       - name: تطبيق Migrations
+        if: steps.diff.outputs.docs_only != 'true'
         run: python manage.py migrate --noinput
 
       # كانتا في ci.yml وحده، وهو الملفُّ الذي أُزيل لأنّ بقيّته تكرارٌ لهذه البوّابة.
       - name: التحقق من عدم وجود migrations غير مطبّقة
+        if: steps.diff.outputs.docs_only != 'true'
         run: python manage.py makemigrations --check --noinput
 
       - name: فحص إعدادات Django
+        if: steps.diff.outputs.docs_only != 'true'
         run: python manage.py check --fail-level WARNING
 
+      - name: "pytest — قرّاءُ الوثائق (طلبٌ وثائقيٌّ؛ بلا تغطية لأنّ العتبةَ لا تُقاس على مجموعةٍ جزئيّة)"
+        if: steps.diff.outputs.docs_only == 'true'
+        run: python -m pytest -n auto $(python3 scripts/ci_docs_only.py readers)
+
       - name: "pytest + Coverage Gate"
+        if: steps.diff.outputs.docs_only != 'true'
         # العتبةُ ليست هنا: pytest-cov يقرأ `fail_under` من
         # `[tool.coverage.report]` في pyproject.toml — الرقمُ الوحيدُ في المستودع.
         # كانت 70 هنا و60 في nightly و85 في عنوانه، والملخّصُ يطبع PASS عند 60.
@@ -110,7 +132,7 @@ jobs:
 
       - name: رفع تقارير التغطية
         uses: actions/upload-artifact@v7
-        if: always()
+        if: always() && steps.diff.outputs.docs_only != 'true'
         with:
           name: coverage-report
           path: |
@@ -120,7 +142,7 @@ jobs:
           retention-days: 14
 
       - name: ملخص Coverage
-        if: always()
+        if: always() && steps.diff.outputs.docs_only != 'true'
         # الحالةُ تُحسب بالعتبة نفسِها التي حكمت — تُقرأ من pyproject لا تُكتب هنا.
         run: |
           echo "## نتائج التغطية — Quality Gate" >> $GITHUB_STEP_SUMMARY
@@ -175,6 +197,8 @@ jobs:
   mypy:
     name: mypy — سقّاطة الأنواع
     runs-on: ubuntu-latest
+    # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
+    if: github.event_name != 'push'
     steps:
       - uses: actions/checkout@v7
 
@@ -398,6 +422,8 @@ jobs:
   axe-a11y:
     name: axe-core — وصوليّةٌ حيّة
     runs-on: ubuntu-latest
+    # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
+    if: github.event_name != 'push'
 
     services:
       postgres:
@@ -496,6 +522,8 @@ jobs:
   e2e:
     name: Playwright — e2e (مصادقة، تنقّل، صلاحيات)
     runs-on: ubuntu-latest
+    # push إلى main: يُفحص على الطلب وطابور الدمج قبل الدمج (يُعفى skipped وحدَه في scripts/ci_needs_gate.py)
+    if: github.event_name != 'push'
 
     services:
       postgres:
@@ -606,40 +634,75 @@ jobs:
         run: python3 scripts/pr_file_collision.py
 
   # ══════════════════════════════════════════════════════
+  #  حرّاسٌ نصّيّةٌ تفشل مبكّراً (W-20261002-031) — تقسيمٌ لا تخفيف
+  # ══════════════════════════════════════════════════════
+  #
+  # الاختباراتُ نفسُها باقيةٌ في pytest الكامل أيضاً (لا استثناءَ بـ--deselect)؛ المكسوبُ أنّ من يخطئ في حارسٍ
+  # يراه بعد دقائقَ لا بعد دورةٍ كاملةٍ (postgres وredis وWeasyPrint وmigrate). بلا قاعدةٍ ولا redis.
+  # يدخل needs وشرطَ الفشل في الملخّص، ولا يُضاف إلى «الفحوص المطلوبة» في حماية الفرع (قرارُ المالك وحدَه).
+  fast-guards:
+    name: حرّاسٌ سريعة — فشلٌ مبكّر
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DJANGO_SETTINGS_MODULE: shschool.settings.testing
+      SECRET_KEY: ci-testing-only-not-for-production-use-a1b2c3d4e5f6
+      FERNET_KEY: dGVzdC1mZXJuZXQta2V5LTMyLWJ5dGVzLWZvcmNpLS0=
+      EXCEL_PROTECTION_PASSWORD: ci-testing-only
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: تثبيت مكتبات النظام (Cairo)
+        run: |
+          sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libcairo2-dev pkg-config
+
+      - name: تثبيت المتطلبات
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-django pytest-asyncio factory-boy
+
+      - name: الحرّاسُ النصّيّة (حجمُ الملفّات، الطبقات، حارسُ المسارات، سقّاطاتُ CSS، حارسُ البوّابة)
+        run: |
+          python -m pytest -p no:cacheprovider -q \
+            tests/test_file_size.py \
+            tests/test_layering.py \
+            tests/test_every_route_is_guarded.py \
+            tests/test_css_budget.py \
+            tests/test_css_split.py \
+            tests/test_css_layers.py \
+            tests/test_css_selectors.py \
+            tests/test_css_colours_are_tokens.py \
+            tests/test_css_dead_overrides.py \
+            tests/test_css_comment_decoration.py \
+            tests/test_px_tokens.py \
+            tests/test_design_ratchet.py \
+            tests/test_regression_guards_doc.py \
+            tests/test_ci_gate_needs.py \
+            tests/test_ci_docs_only.py
+
+  # ══════════════════════════════════════════════════════
   #  ملخص بوابة الجودة
   # ══════════════════════════════════════════════════════
   gate-summary:
     name: ملخص بوابة الجودة
     runs-on: ubuntu-latest
-    needs: [test-coverage, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window, axe-a11y, e2e]
+    needs: [test-coverage, fast-guards, ruff, mypy, migration-linter, complexity, secrets-scan, deploy-window, axe-a11y, e2e]
     if: always()
     steps:
-      - name: نتيجة بوابة الجودة
-        run: |
-          echo "## بوابة الجودة — Quality Gate" >> $GITHUB_STEP_SUMMARY
-          echo "| الفحص | النتيجة |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|---------|" >> $GITHUB_STEP_SUMMARY
-          echo "| pytest + التغطية (py3.12، العتبة في pyproject) | ${{ needs.test-coverage.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Ruff lint + format | ${{ needs.ruff.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| mypy — سقّاطة الأنواع | ${{ needs.mypy.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| مدقّق الهجرات — Expand/Contract | ${{ needs.migration-linter.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Radon CC ≤ 30 | ${{ needs.complexity.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| detect-secrets | ${{ needs.secrets-scan.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| نافذة النشر (لا دمج وقت الدوام) | ${{ needs.deploy-window.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| axe-core — وصوليّةٌ حيّة | ${{ needs.axe-a11y.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Playwright — e2e | ${{ needs.e2e.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+      - uses: actions/checkout@v7
 
-      - name: فشل إذا فشل أي فحص
-        if: >-
-          needs.test-coverage.result != 'success' ||
-          needs.ruff.result != 'success' ||
-          needs.mypy.result != 'success' ||
-          needs.migration-linter.result != 'success' ||
-          needs.complexity.result != 'success' ||
-          needs.secrets-scan.result != 'success' ||
-          needs.deploy-window.result != 'success' ||
-          needs.axe-a11y.result != 'success' ||
-          needs.e2e.result != 'success'
-        run: |
-          echo "::error::Quality Gate FAILED — one or more checks did not pass"
-          exit 1
+      # أحدُ سياقَين مطلوبَين في حماية `main`. الحكمُ في scripts/ci_needs_gate.py: كلُّ مهمّةٍ في needs يجب أن
+      # تنتهي `success` — `skipped` و`cancelled` فشلٌ إلّا الإعفاءَ المعلَّلَ في جدول السكربت (حدثٌ + مهمّةٌ +
+      # skipped فقط). مهمّةٌ تُضاف إلى needs تُحكم بلا تعديل هذه الخطوة؛ ويفرض tests/test_ci_gate_needs.py
+      # أن تُذكر كلُّ مهمّةٍ في needs أو في قائمة إعفاءٍ معلَّلة.
+      - name: حكمُ بوابة الجودة
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: python3 scripts/ci_needs_gate.py "بوابة الجودة — Quality Gate"

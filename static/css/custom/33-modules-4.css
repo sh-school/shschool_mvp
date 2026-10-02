@@ -1893,4 +1893,14 @@ body:has(.rm-page) .site-footer { flex: none; }
   .rm-filter .form-control { inline-size: 100%; min-inline-size: 0; }
 }
 
+/* لوحةُ رصد الحضور: الترشيحُ في المتصفّح يُخفي السطرَ بالسمة hidden، و`display: flex` تغلب سمةَ hidden
+   الافتراضيّةَ فيلزم أن تُعاد صراحةً. */
+.att-row[hidden], .att-board__empty[hidden] { display: none; }
+.att-board__nav { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); }
+/* سهما التنقّل بين الأيّام على جانبَي حقل التاريخ — يحاذيان الحقلَ لا تسميتَه. */
+.att-board__day { display: flex; align-items: flex-end; gap: var(--sp-1-5); }
+.att-board__step { align-self: flex-end; }
+.att-board__step.is-disabled { opacity: .45; pointer-events: none; }
+.att-board__count { font-size: var(--text-xs); color: var(--text-muted); font-variant-numeric: tabular-nums; margin-inline-start: var(--sp-1); }
+
 } /* end @layer modules */

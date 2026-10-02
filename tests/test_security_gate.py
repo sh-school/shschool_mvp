@@ -20,6 +20,7 @@
 """
 
 import ast
+import importlib.util
 import os
 import pathlib
 import subprocess
@@ -45,12 +46,24 @@ def _workflow():
 
 
 def _summary_gate_step():
+    """خطوةُ الحكم — واحدةٌ، تستدعي الحَكَمَ المشتركَ (`scripts/ci_needs_gate.py`، W-20261002-031).
+
+    كان الحكمُ سطورَ bash تُعدّد الوظائفَ بالاسم في موضعَين؛ فصار سكربتاً يقرأ `toJSON(needs)` كلَّه،
+    وهذه الاختباراتُ تحرس **السلوكَ** نفسَه: كلُّ وظيفةٍ مطلوبةٍ تُغلق البوّابة، والنجاحُ وحدَه يفتحها.
+    """
     steps = _workflow()["jobs"]["summary"]["steps"]
-    gate = [s for s in steps if "exit 1" in s.get("run", "")]
+    gate = [s for s in steps if "ci_needs_gate.py" in s.get("run", "")]
 
     assert len(gate) == 1, f"خطوة الحكم ليست واحدة: {[s.get('name') for s in steps]}"
 
-    return gate[0]["run"]
+    return gate[0]
+
+
+def _judge():
+    spec = importlib.util.spec_from_file_location("ci_needs_gate", "scripts/ci_needs_gate.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_the_summary_job_name_is_the_protected_context():
@@ -67,32 +80,55 @@ def test_the_summary_waits_for_every_gating_job():
     assert set(_workflow()["jobs"]["summary"]["needs"]) == set(REQUIRED_JOBS)
 
 
-@pytest.mark.parametrize("job", REQUIRED_JOBS)
-def test_every_required_job_can_block_the_merge(job):
-    """الأربع كلّها تحكم — لا بعضها يحكم وبعضها يُطبَع."""
-    condition = f'"${{{{ needs.{job}.result }}}}" != "success"'
+def test_the_gate_step_reads_all_needs_unconditionally_and_without_exemptions():
+    """الحكمُ على `toJSON(needs)` كلِّه، بلا شرطٍ على الخطوة (وإلّا تُتخطّى فتمرّ)، وبلا إعفاءٍ على أيّ حدث."""
+    step = _summary_gate_step()
 
-    assert condition in _summary_gate_step(), f"{job} لا يُغلق البوابة"
+    assert "toJSON(needs)" in step["env"]["NEEDS_JSON"]
+    assert "if" not in step
+    assert "--no-exempt" in step["run"]
+    assert str(_workflow()["jobs"]["summary"]["if"]).strip() == "always()"
+
+
+@pytest.mark.parametrize("job", REQUIRED_JOBS)
+@pytest.mark.parametrize("result", ["failure", "cancelled", "skipped"])
+def test_every_required_job_can_block_the_merge(job, result):
+    """الأربع كلّها تحكم — على كلّ حدثٍ، وأيُّ نتيجةٍ غيرِ النجاح (ومنها skipped) تُغلق."""
+    gate = _judge()
+    needs = {j: {"result": "success"} for j in REQUIRED_JOBS}
+    needs[job] = {"result": result}
+
+    for event in sorted(gate.KNOWN_EVENTS):
+        _, failures = gate.judge(needs, event, exempt={})
+        assert failures, f"{job}={result} على {event} لا يُغلق البوابة"
 
 
 def test_the_gate_accepts_success_only_not_a_list_of_failures():
-    """`!= success` لا `== failure`.
+    """النجاحُ وحدَه نجاح — لا تعدادَ لصيغ الفشل.
 
     تعدادُ صيغ الفشل يترك ما لم يُعدّ: `cancelled` و`timed_out` و`skipped` —
     وصيغةً جديدة من GitHub غداً. وقبولُ النجاح وحده يجعل المجهول يُغلق لا يفتح.
     """
-    gate = _summary_gate_step()
+    gate = _judge()
+    all_ok = {j: {"result": "success"} for j in REQUIRED_JOBS}
 
-    assert '== "failure"' not in gate, "عادت المقارنة إلى تعداد صيغ الفشل"
-    assert gate.count('!= "success"') == len(REQUIRED_JOBS)
+    assert gate.judge(all_ok, "pull_request", exempt={})[1] == []
+    for odd in ("timed_out", "neutral", "", "something-new"):
+        needs = {**all_ok, "bandit": {"result": odd}}
+        assert gate.judge(needs, "pull_request", exempt={})[1], f"نتيجةٌ مجهولة {odd!r} فتحت البوابة"
+    assert '== "failure"' not in _summary_gate_step()["run"]
 
 
 @pytest.mark.parametrize("job", REQUIRED_JOBS)
 def test_the_gate_reports_which_check_failed(job):
     """رسالةٌ بلا تفصيل تُجبر القارئ على فتح الوظائف واحدةً واحدة."""
-    message = _summary_gate_step().split("then")[1]
+    gate = _judge()
+    needs = {j: {"result": "success"} for j in REQUIRED_JOBS}
+    needs[job] = {"result": "failure"}
 
-    assert f"needs.{job}.result }}}}" in message
+    _, failures = gate.judge(needs, "pull_request", exempt={})
+
+    assert [f for f in failures if f.startswith(f"{job}:")], failures
 
 
 # ═══════════════════════════════════════════════════════════════════
