@@ -106,15 +106,6 @@
             data-confirm="تسجيلُ مغادرة {{ staff_user.full_name }}؟ العضويّةُ تُطفأ ويبقى سجلُّه."
             class="sa-inline-form">
         {% csrf_token %}
-        {% if departure_roles %}
-        <div class="sa-field">
-          <label for="depart-membership">الدورُ المغادَر</label>
-          <select id="depart-membership" name="membership" class="form-control" required>
-            <option value="">— اختر —</option>
-            {% for value, label in departure_roles %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
-          </select>
-        </div>
-        {% endif %}
         {% for field in departure_form %}
         <div class="sa-field">
           <label for="{{ field.id_for_label }}">{{ field.label }}</label>

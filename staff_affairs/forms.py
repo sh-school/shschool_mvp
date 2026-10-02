@@ -119,13 +119,29 @@ class StaffDepartureForm(forms.Form):
     reference = forms.CharField(max_length=200, label="مرجع القرار")
     note = forms.CharField(max_length=200, required=False, label="ملاحظة")
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, roles=(), **kwargs):
         super().__init__(*args, **kwargs)
         from core.models.access import DEPARTURE_REASONS
 
         self.fields["reason"].choices = DEPARTURE_REASONS
+        if roles:
+            # لمن له أكثرُ من دورٍ: اختيارٌ صريحٌ لما يُنهى، فلا تذهب أدوارُه كلُّها بضغطةٍ.
+            self.fields["membership"] = forms.ChoiceField(
+                label="الدورُ المغادَر", choices=[("", "— اختر —"), *roles]
+            )
+            self.order_fields(["membership"])
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
+
+    @classmethod
+    def for_person(cls, user, school):
+        """نموذجُ مغادرة هذا الشخص: يسأل عن الدور إن كان له أكثرُ من دور."""
+        from django.utils import timezone
+
+        from . import selectors, services
+
+        roles = services.departure_choices(selectors.active_staff_memberships(user, school))
+        return cls(initial={"on": timezone.localdate()}, roles=roles)
 
 
 class StaffPersonForm(forms.Form):

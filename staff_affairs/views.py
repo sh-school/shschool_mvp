@@ -30,7 +30,7 @@ from .forms import (
     StaffPersonForm,
 )
 from .models import LeaveRequest
-from .selectors import active_staff_memberships, phone_holder_ids, staff_memberships
+from .selectors import phone_holder_ids, staff_memberships
 from .services import LeaveService, StaffService
 
 
@@ -572,8 +572,7 @@ def staff_profile(request, user_id):
             "role_display": role_display,
             "profile_subtitle": profile_subtitle,
             "today": timezone.localdate(),
-            "departure_form": StaffDepartureForm(initial={"on": timezone.localdate()}),
-            "departure_roles": services.departure_choices(active_staff_memberships(user, school)),
+            "departure_form": StaffDepartureForm.for_person(user, school),
             "person_form": person_form,
             "employment_form": employment_form,
             # الجدولُ لمن يُدرّس: ملاحظُ الطلبة والمحاسبُ لا حصصَ لهم.
