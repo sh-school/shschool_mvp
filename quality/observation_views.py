@@ -26,6 +26,7 @@ from core.permissions import (
     OBSERVATION_VIEW_ALL,
 )
 from core.sorting import apply_sort
+from core.unrestricted_role import has_unrestricted_role
 
 from .observation_models import (
     FOLLOW_UP_MODE,
@@ -75,7 +76,11 @@ ARCHIVE_DESC_FIRST = ("date", "score", "archived")
 
 # ══════════════════════════ مساعدات ══════════════════════════════════
 def _is_leadership(user):
-    return user.is_superuser or user.get_role() in OBSERVATION_VIEW_ALL
+    # رؤيةُ كلّ الزيارات للمطوّر (D-118م). أمّا التعديلُ فللزائر وحده حتى للمطوّر (D-122م) —
+    # فلا يدخل `has_unrestricted_role` في `_can_send` ولا في can_edit/can_delete ولا في الإنشاء.
+    return (
+        user.is_superuser or has_unrestricted_role(user) or user.get_role() in OBSERVATION_VIEW_ALL
+    )
 
 
 def _can_send(user):

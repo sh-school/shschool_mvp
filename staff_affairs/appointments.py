@@ -69,6 +69,13 @@ def appoint(
     _require(full_name, "full_name", "الاسمُ الكاملُ لازم.")
     _require(reference, "reference", "التعيينُ قرارٌ — ومرجعُه لازم.")
     _require(role_name in ALL_STAFF_ROLES, "role_name", "هذا الدورُ ليس من أدوار الكادر.")
+    # مطوّرُ المنصّة يمرّ بوّابات الصفحات كلَّها (D-118م) — فإسنادُه ترقيةٌ كاملة لا تُمنح من واجهة
+    # شؤون الكادر (مراجعة 0105، W-20261002-012): لا يُسنده إلا حسابٌ بصفة superuser.
+    _require(
+        role_name != "platform_developer" or getattr(by, "is_superuser", False),
+        "role_name",
+        "دورُ مطوّر المنصّة لا يُسنده إلا حسابٌ بصفة superuser.",
+    )
     _require(
         department is None or role_name in DEPARTMENT_ROLES,
         "department",

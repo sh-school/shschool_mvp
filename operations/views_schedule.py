@@ -26,6 +26,7 @@ from core.exports.services import respond_export
 from core.models import CustomUser, Membership
 from core.models.academic import grade_order
 from core.models.access import EXEMPTABLE_ROLES
+from core.unrestricted_role import has_unrestricted_role
 
 from .models import (
     ScheduleBaseline,
@@ -646,6 +647,7 @@ def schedule_quality_lab(request):
             "resources": by_key.get("resources.utilization", {}).get("detail", {}),
             "missed_prefs": by_key.get("fairness.preference_satisfaction", {}).get("detail", {}),
             "can_save": request.user.is_superuser
+            or has_unrestricted_role(request.user)
             or request.user.get_role() in ("principal", "vice_academic"),
         },
     )
@@ -740,6 +742,7 @@ def smart_schedule_view(request):
             # زرُّ الاعتماد لمن يملكه: كان يظهر لكلّ من يرى الصفحةَ، و`admin`
             # يضغطه فيُصدَم بـ403.
             "can_approve": request.user.is_superuser
+            or has_unrestricted_role(request.user)
             or request.user.get_role() in ("principal", "vice_academic"),
             "year": year,
             "baseline": baseline,

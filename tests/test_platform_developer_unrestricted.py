@@ -64,3 +64,64 @@ def test_a_teacher_is_still_refused_the_analytics_pages(client_as, teacher_user)
 
 def test_reverse_of_the_sidebar_link_resolves():
     assert reverse("analytics_dashboard") == "/analytics/"
+
+
+# ── إسنادُ الدور نفسِه: ترقيةٌ كاملة لا تُمنح من واجهة شؤون الكادر (مراجعة 0105) ──
+
+
+def _appoint(school, by, role_name="platform_developer", national_id="28700000444"):
+    from staff_affairs.appointments import appoint
+
+    return appoint(
+        school=school,
+        national_id=national_id,
+        full_name="مرشَّح",
+        role_name=role_name,
+        by=by,
+        reference="قرار 1",
+    )
+
+
+def test_a_principal_cannot_appoint_the_developer_role(school, principal_user):
+    from staff_affairs.appointments import AppointmentError
+
+    with pytest.raises(AppointmentError):
+        _appoint(school, principal_user)
+
+
+def test_a_developer_cannot_appoint_another_developer(school, developer):
+    from staff_affairs.appointments import AppointmentError
+
+    with pytest.raises(AppointmentError):
+        _appoint(school, developer)
+
+
+def test_only_a_superuser_can_appoint_the_developer_role(school, django_user_model):
+    admin = django_user_model.objects.create(
+        national_id="28700000333", full_name="سوبريوزر", is_superuser=True
+    )
+
+    membership = _appoint(school, admin)
+
+    assert membership.role.name == "platform_developer"
+
+
+def test_ordinary_appointments_are_unaffected(school, principal_user):
+    membership = _appoint(school, principal_user, role_name="librarian", national_id="28700000555")
+
+    assert membership.role.name == "librarian"
+
+
+# ── مواضعُ كانت تحجبه بالاسم ضمنيّاً ──
+
+
+def test_the_developer_sees_the_whole_school_in_student_info(developer):
+    from student_info.access import sees_whole_school
+
+    assert sees_whole_school(developer)
+
+
+def test_the_developer_sees_every_classroom_observation_but_cannot_edit(developer, school):
+    from quality.observation_services import ObservationService
+
+    assert ObservationService.visible_to(developer, school).query is not None
