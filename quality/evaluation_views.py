@@ -20,6 +20,7 @@ from django.views.decorators.http import require_POST
 from core.academic_calendar import academic_year_for, default_academic_year
 from core.capabilities import capability_required
 from core.models import AuditLog, CustomUser
+from core.safe_redirect import safe_redirect
 from core.unrestricted_role import has_unrestricted_role
 
 from . import evaluation_selectors as selectors
@@ -221,6 +222,18 @@ def _evaluation_target(request, employee_id):
     return employee, year, period, None
 
 
+def _back_to_form(request, employee, year, period):
+    """إعادةُ بناءٍ من قيمٍ مُتحقَّقٍ منها لا `get_full_path()` (py/url-redirection):
+    العامُ والفترةُ مرّا بـ`_evaluation_target` فهما صالحان."""
+    return safe_redirect(
+        request,
+        "create_evaluation",
+        {"year": year, "period": period},
+        args=[employee.pk],
+        fallback="evaluation_dashboard",
+    )
+
+
 @login_required
 @capability_required("quality.evaluations")
 def create_evaluation(request, employee_id):
@@ -257,7 +270,7 @@ def create_evaluation(request, employee_id):
             )
         except EvaluationRejectedError as exc:
             messages.error(request, str(exc))
-            return redirect(request.get_full_path())
+            return _back_to_form(request, employee, year, period)
         _audit_saved(request, obj)
         if obj.status == "submitted":
             messages.success(request, f"تم تقديم تقييم {employee.full_name} بنجاح.")
