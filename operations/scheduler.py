@@ -29,7 +29,9 @@ from .models import (
     TeacherPreference,
     TimeSlotConfig,
 )
+from .scheduler_advice import _capacity_shortfalls, _day_coverage, _slack_advice
 from .scheduler_audit import unplaced_message
+from .scheduler_clock import Deadline
 from .scheduler_constraints import (
     calculate_quality_score,
     evaluate_soft_constraints,
@@ -55,32 +57,6 @@ logger = logging.getLogger(__name__)
 MIN_ATTEMPTS = 3
 MAX_ATTEMPTS = 20
 PATIENCE = 3
-
-
-class Deadline:
-    """ساعةُ البحث: تُمرَّر إلى الإصلاح فيقف عند نفاد الميزانية، وتذكر أنّها قطعت ومتى (لتُسجَّل في اللقطة).
-
-    كانت الميزانيةُ تُسأل **بين المحاولات** وحدَها، والمحاولةُ نفسُها (الإزاحةُ الموجَّهة بعمق 3 لكلّ متعذّرة،
-    ثلاثَ مرّاتٍ) بلا ساعةٍ — فشعبةٌ فوق سعتها تُنفق ≈290 ثانيةً على ميزانيةِ 4 ثوانٍ (W-20261002-033).
-    والفحصُ عند كلّ متعذّرة: تجاوزُه بقدر إزاحةٍ واحدةٍ لا أكثر. وبساعةٍ رتيبةٍ (`monotonic`) فلا يُربكها تعديلُ
-    ساعة النظام. وبعد أوّل قطعٍ تبقى منتهيةً: المحاولاتُ اللاحقةُ تُنهي إصلاحَها فوراً (مقصود).
-    """
-
-    def __init__(self, seconds: float, clock=time.monotonic):
-        self._clock = clock
-        self._started = clock()
-        self.at = self._started + seconds
-        self.attempt = 0  # المحاولةُ الجاريةُ — تضعها حلقةُ التوليد
-        self.hit = False
-        self.hit_attempt: int | None = None
-        self.hit_after: float | None = None
-
-    def expired(self) -> bool:
-        if not self.hit and self._clock() >= self.at:
-            self.hit = True
-            self.hit_attempt = self.attempt
-            self.hit_after = round(self._clock() - self._started, 1)
-        return self.hit
 
 
 DAYS = [0, 1, 2, 3, 4]  # أحد - خميس
@@ -1404,32 +1380,6 @@ def _search_exhausted(done: int, elapsed: float, budget: float, idle: int, compl
     return done >= MIN_ATTEMPTS and idle >= PATIENCE and complete
 
 
-def _day_coverage(tasks: list[Task], blocked_slots: set) -> dict:
-    """{معلّم: (نصابُه، أيّامُه المتاحة)} — واليومُ المفرَّغُ كاملاً ليس متاحاً.
-
-    قرارُ الإدارة 2026-09-04: حصصُ المعلّم على أيّام الأسبوع كلِّها، لا يومَ
-    بلا حصّة إلّا بتفريغٍ من الإعدادات. ومن نصابُه دون عدد أيّامه (منسّقٌ
-    بأربع حصص) مستثنىً بالضرورة — والقيدُ لا يمسّه.
-    """
-    placements: dict[str, int] = defaultdict(int)
-    periods: dict[str, int] = defaultdict(int)
-    for t in tasks:
-        for m in t.members:
-            placements[m.teacher_id] += 1
-            periods[m.teacher_id] += t.span
-    blocked_per_day: dict[tuple[str, int], int] = defaultdict(int)
-    for teacher_id, day, _period in blocked_slots:
-        blocked_per_day[(teacher_id, day)] += 1
-    return {
-        tid: (
-            count,
-            periods[tid],
-            frozenset(d for d in DAYS if blocked_per_day[(tid, d)] < LAST_PERIOD),
-        )
-        for tid, count in placements.items()
-    }
-
-
 def _empty_day_reports(grid: ScheduleGrid, tasks: list[Task], skip: set | None = None) -> list[str]:
     """معلّمون بقي لهم يومٌ فارغٌ رغم أنّ نصابَهم يبلغ أيّامَهم — يُقالون بالاسم."""
     names = {m.teacher_id: m.teacher_name for t in tasks for m in t.members}
@@ -1446,75 +1396,6 @@ def _empty_day_reports(grid: ScheduleGrid, tasks: list[Task], skip: set | None =
                 f"يومٌ بلا حصّة لـ{names.get(tid, tid)}: "
                 + "، ".join(day_names.get(d, str(d)) for d in empty)
             )
-    return found
-
-
-def _slack_advice(leftovers: list[Task], prefs, blocked_slots: set, tasks: list[Task]) -> list[str]:
-    """متعذّرةٌ لمعلّمٍ سعتُه تساوي نصابَه: يُقال له أين الهامشُ لا «تعذّر» وحدَها.
-
-    سفيان (2026-09-04): تفريغاتٌ تترك له اثنتي عشرةَ خانةً بلا تلاصق لاثنتي عشرةَ
-    حصّة — فأيُّ قيدٍ آخر (تنوّعُ الحصّة، القسمة، شعبةٌ بلا خانةٍ فائضة) يُسقط
-    حصّة. والعلاجُ بياناتٌ لا خوارزميّة: تفريغٌ واحدٌ أقلّ.
-    """
-    from .preference_capacity import weekly_capacity
-
-    load: dict[str, int] = defaultdict(int)
-    for t in tasks:
-        for m in t.members:
-            load[m.teacher_id] += t.span
-    blocked_per_day: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
-    for teacher_id, day, _period in blocked_slots:
-        blocked_per_day[teacher_id][day] += 1
-    by_teacher = {str(p.teacher_id): p for p in prefs}
-    advice, seen = [], set()
-    for task in leftovers:
-        for m in task.members:
-            pref = by_teacher.get(m.teacher_id)
-            if pref is None or m.teacher_id in seen:
-                continue
-            seen.add(m.teacher_id)
-            free = {d: LAST_PERIOD - n for d, n in blocked_per_day[m.teacher_id].items()}
-            capacity = weekly_capacity(
-                pref.max_daily_periods, pref.max_consecutive, pref.max_gap, pref.free_day, free
-            )
-            if capacity - load[m.teacher_id] <= 1:
-                advice.append(
-                    f"قيودُ {m.teacher_name} تسع {capacity} حصّةً ونصابُه {load[m.teacher_id]} — "
-                    "بلا هامش، فأيُّ قيدٍ آخر يُسقط حصّة: أزل تفريغاً واحداً أو ارفع سقفاً "
-                    "ليكتمل الجدول"
-                )
-    return advice
-
-
-def _capacity_shortfalls(tasks: list[Task], prefs, blocked_slots: set) -> list[str]:
-    """معلّمون تسع قيودُهم أقلَّ من نصابهم — بالحساب لا بالتخمين."""
-    from .preference_capacity import explain_shortfall, weekly_capacity
-
-    load: dict[str, int] = defaultdict(int)
-    names: dict[str, str] = {}
-    for t in tasks:
-        for m in t.members:
-            load[m.teacher_id] += t.span
-            names[m.teacher_id] = m.teacher_name
-    blocked_per_day: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
-    for teacher_id, day, _period in blocked_slots:
-        blocked_per_day[teacher_id][day] += 1
-
-    found = []
-    for pref in prefs:
-        tid = str(pref.teacher_id)
-        if tid not in load:
-            continue
-        free_per_day = {d: LAST_PERIOD - n for d, n in blocked_per_day[tid].items()}
-        capacity = weekly_capacity(
-            pref.max_daily_periods,
-            pref.max_consecutive,
-            pref.max_gap,
-            pref.free_day,
-            free_per_day,
-        )
-        if capacity < load[tid]:
-            found.append(explain_shortfall(names[tid], capacity, load[tid], pref))
     return found
 
 
