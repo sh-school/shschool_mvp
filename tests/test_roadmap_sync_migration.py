@@ -7700,15 +7700,18 @@ class _Apps47:
 def _seed47_items():
     _item("SCH-19", "doing", 60)
     _item("SCH-21", "doing", 40)
+    _item("SCH-22", "doing", 15)
 
 
 def test_0047_appends_notes_once_without_touching_status_or_progress():
     _seed47_items()
-    assert set(_sync47.sync_notes(RoadmapItem)) == {"SCH-19", "SCH-21"}
+    assert set(_sync47.sync_notes(RoadmapItem)) == {"SCH-19", "SCH-21", "SCH-22"}
     assert _sync47.sync_notes(RoadmapItem) == []
     by = {i.code: i for i in RoadmapItem.objects.all()}
     assert (by["SCH-19"].status, by["SCH-19"].progress) == ("doing", 60)
     assert (by["SCH-21"].status, by["SCH-21"].progress) == ("doing", 40)
+    assert (by["SCH-22"].status, by["SCH-22"].progress) == ("doing", 15)
+    assert "#774" in by["SCH-22"].note and "لم يُنشر بعدُ" in by["SCH-22"].note
     assert "لا قياسٌ" in by["SCH-19"].note and "#779" in by["SCH-19"].note
     assert "#777" in by["SCH-21"].note
 
