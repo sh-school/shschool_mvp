@@ -55,6 +55,18 @@ logger = logging.getLogger(__name__)
 _GENERATION_STALE_AFTER = timedelta(minutes=20)
 
 
+def _may_decide_schedule(user) -> bool:
+    """من يحفظ جدولاً مولَّداً أو يعتمده: المدير والنائبُ الأكاديميّ، والمطوّرُ (D-118م) وsuperuser.
+
+    دالّةٌ واحدة للزرّين بدل شرطٍ مكرَّر في عرضين (حدُّ تعقيد Radon ≤ 30 على `schedule_quality_lab`).
+    """
+    return (
+        user.is_superuser
+        or has_unrestricted_role(user)
+        or user.get_role() in ("principal", "vice_academic")
+    )
+
+
 def _reap_stale_generations(school, year):
     """يُنهي التوليداتِ المعلّقةَ التي لا عاملَ لها — ويعيد ما بقي حيّاً.
 
@@ -647,9 +659,7 @@ def schedule_quality_lab(request):
             "stress_top": by_key.get("fairness.stress", {}).get("detail", {}),
             "resources": by_key.get("resources.utilization", {}).get("detail", {}),
             "missed_prefs": by_key.get("fairness.preference_satisfaction", {}).get("detail", {}),
-            "can_save": request.user.is_superuser
-            or has_unrestricted_role(request.user)
-            or request.user.get_role() in ("principal", "vice_academic"),
+            "can_save": _may_decide_schedule(request.user),
         },
     )
 
@@ -742,9 +752,7 @@ def smart_schedule_view(request):
             "pending_generation": pending_generation,
             # زرُّ الاعتماد لمن يملكه: كان يظهر لكلّ من يرى الصفحةَ، و`admin`
             # يضغطه فيُصدَم بـ403.
-            "can_approve": request.user.is_superuser
-            or has_unrestricted_role(request.user)
-            or request.user.get_role() in ("principal", "vice_academic"),
+            "can_approve": _may_decide_schedule(request.user),
             "year": year,
             "baseline": baseline,
             "total_weekly": total_weekly,
