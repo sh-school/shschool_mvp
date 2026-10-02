@@ -242,3 +242,49 @@ def test_other_roles_are_not_audited_on_the_same_pages(client_as, principal_user
     client_as(principal_user).get("/clinic/")
 
     assert not _audits(principal_user).exists()
+
+
+def test_the_audit_covers_the_student_profile_that_shows_the_health_record(
+    client_as, developer, student_user
+):
+    """مراجعة 0105 على #781: السجلُّ الصحّيّ يظهر في ملفّ الطالب خارج /clinic/ — فيُدقَّق."""
+    path = f"/student-affairs/profile/{student_user.pk}/"
+
+    resp = client_as(developer).get(path)
+
+    assert resp.status_code == 200, "التدقيقُ لا يمنع"
+    assert _audits(developer).filter(changes__path=path).exists()
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/quality/evaluations/approve/00000000-0000-0000-0000-000000000001/",
+        "/teacher/smart-schedule/00000000-0000-0000-0000-000000000001/approve/",
+    ],
+)
+def test_a_developer_approval_carries_a_distinct_capacity_mark(rf, developer, path):
+    """قرارُ المالك على #781: اعتمادُ الجدول وتقييم الأداء بيد المطوّر بوسمٍ «بصفة مطوّر»."""
+    from django.http import HttpResponse
+
+    from core.middleware_developer_audit import DeveloperAccessAuditMiddleware
+
+    request = rf.post(path)
+    request.user = developer
+    DeveloperAccessAuditMiddleware(lambda r: HttpResponse(status=302))(request)
+
+    row = _audits(developer).get()
+    assert row.changes["approval"] is True and row.changes["capacity"] == "بصفة مطوّر"
+    assert row.action == "update"
+
+
+def test_a_plain_get_of_the_approval_url_is_not_marked_as_an_approval(rf, developer):
+    from django.http import HttpResponse
+
+    from core.middleware_developer_audit import DeveloperAccessAuditMiddleware
+
+    request = rf.get("/quality/evaluations/approve/00000000-0000-0000-0000-000000000001/")
+    request.user = developer
+    DeveloperAccessAuditMiddleware(lambda r: HttpResponse(status=200))(request)
+
+    assert "approval" not in _audits(developer).get().changes
