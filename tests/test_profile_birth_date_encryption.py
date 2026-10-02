@@ -156,3 +156,15 @@ def test_admin_inline_does_not_expose_plain_birth_date():
 
     assert "birth_date" not in ProfileInline.fields
     assert "date_of_birth" in ProfileInline.readonly_fields
+
+
+@pytest.mark.django_db
+def test_verify_fails_on_unreadable_encrypted_value():
+    """مشفَّرٌ تالفٌ لا يمرّ التحقّقَ بسقوط date_of_birth إلى الصريح (0105 P3)."""
+    from django.core.management.base import CommandError
+
+    profile = Profile.objects.create(user=UserFactory(), birth_date=DOB)
+    Profile.objects.filter(pk=profile.pk).update(birth_date_encrypted="not-a-date")
+
+    with pytest.raises(CommandError):
+        call_command("backfill_birth_date_encrypted", "--verify")
