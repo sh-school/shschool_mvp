@@ -27,6 +27,10 @@ SKIP_PARTS = {".claude", "tests", "migrations", "staticfiles", "node_modules", "
 NOT_PHOTOS = {
     "core/views_students.py::student_import_export": "مصنَّفُ Excel لاستيراد الطلبة",
     "staging/views.py::_validate_upload_request": "مصنَّفُ درجاتٍ يُستورد",
+    "staff_affairs/views_biometric.py::attendance_import": (
+        "كشفُ CSV من جهاز البصمة (حضورُ الموظّفين) يُحلَّل نصّاً في الذاكرة ولا يُخزَّن، "
+        "ويُرفض ما امتدادُه غيرُ .csv — ملفُّ جدولٍ لا صورة"
+    ),
 }
 
 #: تمرّر الملفَّ إلى خدمةٍ تنظّفه: {الدالّة: (ملفُّ الخدمة، السبب)} — ويتحقّق الحارسُ أنّ ملفَّ الخدمة يستدعي
