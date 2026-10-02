@@ -786,15 +786,16 @@ class TestTheTeacherDoesNotRecord:
         assert "تسجيل حضور" not in body
 
     def test_a_section_outside_the_wings_keeps_its_teacher_recording(
-        self, client_as, school, year, teacher
+        self, client_as, school, year, teacher, monkeypatch
     ):
-        """التربيةُ الخاصّة خارجَ الأجنحة، ويرصدها معلّموها."""
+        """التربيةُ الخاصّة خارجَ الأجنحة، ويرصدها معلّموها — معلّمُ الحصّة وحدَه داخل نافذتها (W-026)."""
         ese = ClassGroupFactory(
             school=school, grade="G7", section="9", level_type="prep", academic_year=year
         )
         student = UserFactory(full_name="طالب خاصّ", national_id="29300000099")
-        StudentEnrollmentFactory(student=student, class_group=ese)
+        StudentEnrollmentFactory(student=student, class_group=ese, enrolled_at=SUNDAY)
         (session,) = _periods(school, ese, teacher, 1)
+        monkeypatch.setattr(timezone, "now", lambda: at(7, 30))
 
         response = client_as(teacher).post(
             reverse("mark_single", args=[session.id]),
