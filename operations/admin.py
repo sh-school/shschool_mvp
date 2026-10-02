@@ -1,4 +1,7 @@
+from typing import Any
+
 from django.contrib import admin, messages
+from django.http import HttpRequest
 
 from .models import (
     AbsenceAlert,
@@ -38,15 +41,16 @@ class ReadOnlyAdminMixin:
     `has_delete_permission` في بعض الإصدارات إن لم يُعطَّل، فيُعطَّل صراحةً.
     """
 
-    actions = None
+    def get_actions(self, request: HttpRequest) -> dict[str, Any]:
+        return {}
 
-    def has_add_permission(self, request, obj=None):
+    def has_add_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return False
 
-    def has_change_permission(self, request, obj=None):
+    def has_change_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return False
 
-    def has_delete_permission(self, request, obj=None):
+    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return False
 
 

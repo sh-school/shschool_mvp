@@ -18,6 +18,7 @@ from __future__ import annotations
 import datetime as dt
 import logging
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 from django.db import IntegrityError, connection, transaction
 from django.utils import timezone
@@ -31,8 +32,11 @@ from .attendance_policy import (
     can_enter,
     needs_approval,
 )
-from .models import StudentAttendance
+from .models import Session, StudentAttendance
 from .models.attendance_ledger import ERASURE_FLAG, AttendanceDecision, AttendanceEntry
+
+if TYPE_CHECKING:
+    from core.models import CustomUser, School
 
 logger = logging.getLogger(__name__)
 
@@ -90,17 +94,18 @@ def state_of(entry: AttendanceEntry) -> str:
     return next(iter(decision), "pending")
 
 
-def head_of(session, student, *, lock: bool = False) -> AttendanceEntry | None:
+def head_of(session: Session, student: CustomUser, *, lock: bool = False) -> AttendanceEntry | None:
     """رأسُ سلسلة الإدخالات لهذا الزوج — الإدخالُ الذي لا خلفَ له."""
     qs = AttendanceEntry.objects.filter(
         session=session, student=student, superseded_by__isnull=True
     )
     if lock:
         qs = qs.select_for_update(of=("self",))
-    return qs.first()
+    head: AttendanceEntry | None = qs.first()
+    return head
 
 
-def pending_entries(session):
+def pending_entries(session: Session) -> list[AttendanceEntry]:
     """الإدخالاتُ المعلَّقةُ في حصّة: رؤوسٌ بلا قرار — «بانتظار الاعتماد»."""
     return list(
         AttendanceEntry.objects.filter(
@@ -110,7 +115,7 @@ def pending_entries(session):
 
 
 def unapproved_report(
-    school, *, older_than_hours: float, now: dt.datetime | None = None
+    school: School, *, older_than_hours: float, now: dt.datetime | None = None
 ) -> list[PendingRow]:
     """تقريرُ النائب: إدخالاتٌ معلَّقةٌ مضى عليها أكثرُ من `older_than_hours` ساعة. قراءةٌ فقط، لمدرسةٍ واحدة.
 
@@ -144,7 +149,14 @@ def unapproved_report(
 # ══════════════════════════════════════════════════════════════════
 
 
-def _audit(user, session, action: str, obj_id, title: str, changes: dict) -> None:
+def _audit(
+    user: CustomUser,
+    session: Session,
+    action: str,
+    obj_id: Any,
+    title: str,
+    changes: dict[str, Any],
+) -> None:
     """سطرُ تدقيقٍ بالمعرّفات — `role` هو الدورُ الحاكم للفاعل وقتَه."""
     AuditLog.log(
         user=user,
@@ -162,7 +174,13 @@ def _audit(user, session, action: str, obj_id, title: str, changes: dict) -> Non
 # ══════════════════════════════════════════════════════════════════
 
 
-def _supersession(head: AttendanceEntry | None, user, status: str, minutes, reason: str):
+def _supersession(
+    head: AttendanceEntry | None,
+    user: CustomUser,
+    status: str,
+    minutes: int | None,
+    reason: str,
+) -> tuple[AttendanceEntry | None, str, AttendanceEntry | None]:
     """يقرّر ما يفعله إدخالٌ جديدٌ فوق الرأس القائم: `(supersedes, reason, idempotent_entry)`."""
     if head is None:
         return None, "", None
@@ -191,9 +209,9 @@ def _supersession(head: AttendanceEntry | None, user, status: str, minutes, reas
 
 @transaction.atomic
 def submit_entry(
-    user,
-    session,
-    student,
+    user: CustomUser,
+    session: Session,
+    student: CustomUser,
     status: str,
     *,
     now: dt.datetime | None = None,
@@ -270,7 +288,7 @@ def submit_entry(
 # ══════════════════════════════════════════════════════════════════
 
 
-def _apply_to_effective(entry: AttendanceEntry, actor) -> None:
+def _apply_to_effective(entry: AttendanceEntry, actor: CustomUser) -> None:
     """يكتب الرصدَ المعتمَدَ في `StudentAttendance` — بلا كتابةٍ فوق رصدٍ بشريٍّ آخر، وبتدقيقٍ عند الاستبدال."""
     session, student = entry.session, entry.student
     row = (
@@ -336,11 +354,11 @@ def _apply_to_effective(entry: AttendanceEntry, actor) -> None:
 
 def _decide(
     entry: AttendanceEntry,
-    user,
+    user: CustomUser,
     *,
     approve: bool,
     basis: str,
-    evidence: dict,
+    evidence: dict[str, Any],
     reason: str,
     now: dt.datetime | None = None,
 ) -> AttendanceDecision:
@@ -375,7 +393,12 @@ def _decide(
 
 @transaction.atomic
 def decide_entry(
-    user, entry: AttendanceEntry, approve: bool, *, reason: str = "", now: dt.datetime | None = None
+    user: CustomUser,
+    entry: AttendanceEntry,
+    approve: bool,
+    *,
+    reason: str = "",
+    now: dt.datetime | None = None,
 ) -> tuple[AttendanceDecision, bool]:
     """حاملُ الجناح (أو القيادةُ حين لا حامل) يعتمد الإدخالَ أو يرفضه. يعيد `(القرار، أُنشئ الآن؟)`.
 
@@ -420,7 +443,7 @@ def decide_entry(
 # ══════════════════════════════════════════════════════════════════
 
 
-def _role_tenant():
+def _role_tenant() -> Any:
     """مدرسةُ دور القاعدة الحاليّ (`app_rls_school()`، هويّةُ المستأجِر من الدور لا من سياقٍ يضبطه التطبيق) أو `None`.
 
     `None` لمالك الجداول/المتميّز (لا مستأجِرَ له فلا يُقيَّد بـRLS) ولقاعدةٍ بلا الدالّة.
@@ -437,7 +460,9 @@ def _role_tenant():
 
 
 @transaction.atomic
-def erase_attendance_ledger(student, *, actor=None, school=None) -> dict[str, int]:
+def erase_attendance_ledger(
+    student: CustomUser, *, actor: CustomUser | None = None, school: School | None = None
+) -> dict[str, int]:
     """يمحو إدخالاتِ طالبٍ وقراراتِها — حقُّ المحو. يضبط علَمَ المحو المحلّيّ في المعاملة (يسمح بالحذف وحدَه
     لا بالتعديل) ويكتب `AuditLog` بالأعداد. **يُستدعى من `ErasureService` وحدَه.**
 

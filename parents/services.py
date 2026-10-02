@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from django.db.models import Count, Q
+from django.db.models import Count, Manager, Q, QuerySet
 from django.utils import timezone
 
 from assessments.models import AnnualSubjectResult, StudentSubjectResult
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     from core.models import CustomUser, School
 
 
-def _confirmed_only(manager):
+def _confirmed_only(manager: Manager[StudentAttendance]) -> QuerySet[StudentAttendance]:
     """ما يراه وليُّ الأمر من الحضور: **بلا نقرةِ المعلّم «دخل متأخّراً» التي لم يثبّتها المشرف** (D-139م).
 
     النقرةُ (`source="teacher_late"`) استثناءٌ مسمّىً من «مبدئيٌّ حتى الاعتماد» يكتب `late` فوراً؛ وقرّر المالكُ أنّها لا

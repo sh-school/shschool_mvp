@@ -28,6 +28,8 @@
 مفتاحٌ لا إذن، فحارسٌ معماريٌّ يمنع ظهورَ اسمه خارج موضعه.
 """
 
+from typing import Any, NoReturn
+
 from django.core.exceptions import PermissionDenied
 from django.db import models
 from django.db.models import Q
@@ -45,13 +47,13 @@ ERASURE_FLAG = "app.attendance_erasure"
 class AppendOnlyQuerySet(models.QuerySet):
     """يمنع التعديلَ والحذفَ الجماعيَّ — السجلُّ يُضاف إليه ولا يُمحى."""
 
-    def update(self, **kwargs):
+    def update(self, **kwargs: Any) -> NoReturn:
         raise PermissionDenied("سجلُّ الرصد مضافٌ-إليه فقط: لا تعديل.")
 
-    def bulk_update(self, objs, fields, batch_size=None):
+    def bulk_update(self, objs: Any, fields: Any, batch_size: int | None = None) -> NoReturn:
         raise PermissionDenied("سجلُّ الرصد مضافٌ-إليه فقط: لا تعديل.")
 
-    def delete(self):
+    def delete(self) -> NoReturn:
         raise PermissionDenied("سجلُّ الرصد مضافٌ-إليه فقط: لا حذف.")
 
     def _erase(self) -> int:
@@ -60,7 +62,8 @@ class AppendOnlyQuerySet(models.QuerySet):
         حذفٌ خامٌّ بلا جامعِ تتابعٍ: `PROTECT` على `supersedes` وعلى القرارات يمنع جامعَ Django حتى لو حُذف
         الطرفان معاً، والقاعدةُ تتحقّق من قيودها (مؤجَّلةً) بعد العبارة.
         """
-        return self._raw_delete(self.db)
+        count: int = self._raw_delete(self.db)  # type: ignore[attr-defined]  # واجهةٌ خاصّةٌ ثابتةٌ في Django بلا تلميح
+        return count
 
 
 class AppendOnlyModel(models.Model):
@@ -69,12 +72,12 @@ class AppendOnlyModel(models.Model):
     class Meta:
         abstract = True
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         if not self._state.adding:
             raise PermissionDenied("سجلُّ الرصد مضافٌ-إليه فقط: لا تعديل.")
         super().save(*args, **kwargs)
 
-    def delete(self, *args, **kwargs):
+    def delete(self, *args: Any, **kwargs: Any) -> NoReturn:
         raise PermissionDenied("سجلُّ الرصد مضافٌ-إليه فقط: لا حذف.")
 
 
@@ -139,14 +142,14 @@ class AttendanceEntry(AppendOnlyModel):
                 condition=Q(supersedes__isnull=True),
                 name="unique_root_attendance_entry",
             ),
-            models.CheckConstraint(
+            models.CheckConstraint(  # type: ignore[call-arg]  # `condition` (Django 5.1+) غيرُ معروفٍ لـdjango-stubs 5.0
                 condition=Q(supersedes__isnull=True) | ~Q(correction_reason=""),
                 name="attendance_entry_correction_has_reason",
             ),
         ]
         indexes = [models.Index(fields=["session", "student"], name="idx_attentry_session_student")]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.session_id} · {self.student_id} · {self.status}"
 
 
@@ -191,11 +194,11 @@ class AttendanceDecision(AppendOnlyModel):
         verbose_name_plural = "قراراتُ الرصد"
         ordering = ["decided_at"]
         constraints = [
-            models.CheckConstraint(
+            models.CheckConstraint(  # type: ignore[call-arg]  # `condition` (Django 5.1+) غيرُ معروفٍ لـdjango-stubs 5.0
                 condition=Q(decision="approved") | ~Q(reason=""),
                 name="attendance_decision_rejection_has_reason",
             ),
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.entry_id} · {self.decision}"
