@@ -12,6 +12,15 @@ from core.models import CustomUser
 from core.models.access import Membership, Role
 from core.module_registry import _MODULES, gate_admits
 from core.navigation import can_open
+from core.unrestricted_role import DEVELOPER_EXCLUDED_CAPABILITIES
+from tests.test_period_register import (  # noqa: F401 — التجهيزاتُ نفسُها
+    _periods,
+    kids,
+    klass,
+    supervisor,
+    teacher,
+    year,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -30,7 +39,11 @@ def developer(school):
 
 
 def test_the_developer_holds_every_capability(developer):
-    missing = [key for key in registry() if not has_capability(developer, key)]
+    missing = [
+        key
+        for key in registry()
+        if key not in DEVELOPER_EXCLUDED_CAPABILITIES and not has_capability(developer, key)
+    ]
     assert not missing, f"قدراتٌ محجوبةٌ عن المطوّر: {missing}"
 
 
@@ -288,3 +301,105 @@ def test_a_plain_get_of_the_approval_url_is_not_marked_as_an_approval(rf, develo
     DeveloperAccessAuditMiddleware(lambda r: HttpResponse(status=200))(request)
 
     assert "approval" not in _audits(developer).get().changes
+
+
+# ── استثناءاتُ المالك الصريحة التي لا يفتحها «لا حظرَ»: D-128م (رصدُ الغياب)، D-122م (الزيارة)، المحو ──
+
+
+@pytest.fixture
+def superuser_developer(school, django_user_model):
+    """الغالبُ في الإنتاج: حسابُ المطوّر superuser ودورُه platform_developer معاً."""
+    user = django_user_model.objects.create(
+        must_change_password=False,
+        national_id="28700000888",
+        full_name="مطوّر-سوبريوزر",
+        is_superuser=True,
+    )
+    user.set_password("Aa!23456789")
+    user.save()
+    role, _ = Role.objects.get_or_create(school=school, name="platform_developer")
+    Membership.objects.create(user=user, school=school, role=role)
+    return user
+
+
+@pytest.mark.parametrize(
+    "key", ["attendance.mark", "wings.record_day", "wings.excuse_after_deadline"]
+)
+def test_the_developer_holds_no_attendance_capability(developer, superuser_developer, key):
+    """D-128م: لا يُدخل ولا يعتمد رصدَ غياب الطلبة — بالدور، ولو كان الحسابُ superuser."""
+    assert not has_capability(developer, key)
+    assert not has_capability(superuser_developer, key)
+
+
+@pytest.mark.parametrize("view", ["mark_single", "mark_all_present", "mark_late_tap"])
+@pytest.mark.parametrize("who", ["developer", "superuser_developer"])
+def test_the_developer_cannot_write_attendance(
+    request, client_as, school, seeded_calendar, view, who
+):
+    from django.urls import reverse
+
+    from operations.models import StudentAttendance
+
+    actor = request.getfixturevalue(who)
+    klass_ = request.getfixturevalue("klass")
+    teacher_ = request.getfixturevalue("teacher")
+    (session,) = _periods(school, klass_, teacher_, 1)
+
+    resp = client_as(actor).post(reverse(view, kwargs={"session_id": session.pk}), {})
+
+    assert resp.status_code == 403
+    assert not StudentAttendance.objects.filter(session=session).exists()
+
+
+def test_an_excuse_after_the_deadline_is_refused_to_the_developer(developer, superuser_developer):
+    from core.permissions import EXCUSE_AFTER_DEADLINE, WING_DAY_RECORD
+
+    assert "platform_developer" not in EXCUSE_AFTER_DEADLINE | WING_DAY_RECORD
+
+
+@pytest.mark.parametrize("name", ["erasure-create"])
+@pytest.mark.parametrize("who", ["developer", "superuser_developer"])
+def test_the_developer_cannot_request_an_erasure(request, client_as, name, who):
+    from django.urls import reverse
+
+    actor = request.getfixturevalue(who)
+
+    resp = client_as(actor).post(
+        reverse(f"api_v1:{name}"), {"student_id": str(actor.pk), "reason": "x"}, format="json"
+    )
+
+    assert resp.status_code == 403
+
+
+@pytest.mark.parametrize("who", ["developer", "superuser_developer"])
+def test_the_developer_cannot_edit_or_archive_an_observation_that_is_not_his(
+    request, client_as, school, teacher_user, coordinator_user, who
+):
+    """D-122م: تعديلُ الزيارة للزائر وحده — ولا أرشفةَ لمن لا يملك الحذف."""
+    from django.urls import reverse
+
+    from tests.test_observation_crud import _make_obs
+
+    actor = request.getfixturevalue(who)
+    obs, _ = _make_obs(school, coordinator_user, teacher_user, status="draft")
+    client = client_as(actor)
+
+    edit = client.post(reverse("observation_edit", kwargs={"obs_id": obs.pk}), {})
+    delete = client.post(reverse("observation_delete", kwargs={"obs_id": obs.pk}), {})
+
+    obs.refresh_from_db()
+    assert (edit.status_code, delete.status_code) == (403, 403)
+
+
+def test_every_successful_developer_write_is_marked_with_the_capacity(rf, developer):
+    """C2 (0105): وسمٌ عامٌّ لكلّ كتابةٍ ناجحة، على أيّ مسار."""
+    from django.http import HttpResponse
+
+    from core.middleware_developer_audit import DeveloperAccessAuditMiddleware
+
+    request = rf.post("/behavior/anything/at/all/")
+    request.user = developer
+    DeveloperAccessAuditMiddleware(lambda r: HttpResponse(status=302))(request)
+
+    row = _audits(developer).get()
+    assert row.changes["capacity"] == "بصفة مطوّر" and row.action == "update"

@@ -23,3 +23,16 @@ def has_unrestricted_role(user: Any) -> bool:
         and getattr(user, "is_authenticated", False)
         and user.get_role() == PLATFORM_DEVELOPER
     )
+
+
+#: قدراتٌ يُستثنى منها المطوّرُ بقرارٍ مباشرٍ من المالك رغم «لا حظرَ في أيّ صفحة» (D-128م):
+#: لا يُدخل ولا يعتمد رصدَ غياب الطلبة. والاستثناءُ بالدور الحاكم لا بصفة الحساب، فيسري ولو كان
+#: حسابُه superuser (وهو الغالب في الإنتاج).
+DEVELOPER_EXCLUDED_CAPABILITIES = frozenset(
+    {"attendance.mark", "wings.record_day", "wings.excuse_after_deadline"}
+)
+
+
+def is_excluded_developer(user: Any, capability_key: str) -> bool:
+    """أمطوّرٌ يُمنع من هذه القدرة بقرارٍ مالكيّ صريح؟"""
+    return capability_key in DEVELOPER_EXCLUDED_CAPABILITIES and has_unrestricted_role(user)

@@ -111,17 +111,20 @@ def _collect_post(request, school):
 def _obs_perms(user, obs):
     """صلاحيات الإجراءات على زيارة بعينها — مصدر واحد للقوالب والتحقّق الخادمي."""
     role = user.get_role()
-    lead = user.is_superuser or role in OBSERVATION_VIEW_ALL
+    # D-122م: تعديلُ الزيارة للزائر وحده ولو كان مطوّراً — حتى لو كان حسابُه superuser (الغالبُ في الإنتاج)،
+    # فصفةُ superuser لا تفتح له ما استثناه المالكُ بالدور.
+    su = user.is_superuser and not has_unrestricted_role(user)
+    lead = su or role in OBSERVATION_VIEW_ALL
     is_observer = obs.observer_id == user.id
     is_teacher = obs.teacher_id == user.id
     status = obs.status
-    can_edit = (is_observer or user.is_superuser) and status != "acknowledged"
+    can_edit = (is_observer or su) and status != "acknowledged"
     if status == "draft":
-        can_delete = is_observer or user.is_superuser
+        can_delete = is_observer or su
     elif status == "submitted":
         can_delete = lead
     else:  # acknowledged
-        can_delete = user.is_superuser or role == "principal"
+        can_delete = su or role == "principal"
     return {
         "is_teacher": is_teacher,
         "is_observer": is_observer,

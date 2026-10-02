@@ -193,3 +193,16 @@ class IsSameDepartment(BasePermission):
             # وهو خطأُ الفشل المفتوح بعينه، في صنفٍ اسمُه حارس.
             return False
         return request.user.is_same_department(dept)
+
+
+class NotPlatformDeveloper(BasePermission):
+    """يردّ حاملَ دور مطوّر المنصّة — ولو كان superuser (قرارُ المالك على #781).
+
+    محوُ بيانات الطالب (طلبُه واعتمادُه ورفضُه) غيرُ قابلٍ للعكس فهو ممنوعٌ على المطوّر رغم «لا حظرَ في أيّ
+    صفحة» (D-118م).
+    """
+
+    message = "محوُ بيانات الطلبة ليس للمطوّر — قرارُ المالك."
+
+    def has_permission(self, request, view):
+        return not has_unrestricted_role(request.user)
