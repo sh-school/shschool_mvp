@@ -13,8 +13,9 @@
 """
 
 import json
+from typing import Any
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 
 from core.academic_calendar import academic_year_for_school
@@ -29,7 +30,7 @@ DETAILED = ("validity.hard_conflicts", "fairness.stress", "fairness.exception_lo
 class Command(BaseCommand):
     help = "يقيس مؤشرات جودة جدولٍ (حيّ أو توليد) ويقارنه بأساسٍ أو بجدولٍ آخر"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--school", default=None, help="كود المدرسة (وإلّا الأولى)")
         parser.add_argument("--year", default="", help="العام الدراسيّ")
         target = parser.add_mutually_exclusive_group(required=True)
@@ -47,7 +48,7 @@ class Command(BaseCommand):
         parser.add_argument("--store", action="store_true", help="يحفظ المؤشرات في صفّ التوليد")
         parser.add_argument("--json", default="", help="يكتب التقرير الكامل JSON")
 
-    def handle(self, *args, **opts):
+    def handle(self, *args: Any, **opts: Any) -> None:
         school = (
             School.objects.filter(code=opts["school"]).first()
             if opts["school"]
@@ -122,9 +123,9 @@ class Command(BaseCommand):
                 )
             self.stdout.write(f"كُتب {opts['json']}")
 
-    def _generation(self, school, year, ident):
+    def _generation(self, school: School, year: str, ident: str) -> ScheduleGeneration:
         qs = ScheduleGeneration.objects.filter(school=school, academic_year=year)
-        obj = (
+        obj: ScheduleGeneration | None = (
             qs.filter(id__startswith=ident).first()
             if len(ident) < 32
             else qs.filter(id=ident).first()
@@ -133,7 +134,7 @@ class Command(BaseCommand):
             raise CommandError(f"لا توليدَ يبدأ بـ{ident}")
         return obj
 
-    def _reference(self, school, year, spec):
+    def _reference(self, school: School, year: str, spec: str) -> tuple[dict | None, str]:
         if not spec:
             return None, ""
         if spec == "live":

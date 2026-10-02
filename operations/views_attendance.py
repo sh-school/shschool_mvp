@@ -15,7 +15,7 @@ from core.academic_calendar import academic_year_for_school
 from core.capabilities import capability_required
 from core.models import StudentEnrollment
 
-from .day_attendance import can_record, is_recorder, recorded_by_supervisor
+from .day_attendance import can_record, is_recorder
 from .models import Session, StudentAttendance
 from .services import AttendanceService, ScheduleService, SubstituteService
 
@@ -275,12 +275,11 @@ def mark_single(request, session_id):
         enrollments__class_group=session.class_group,
         enrollments__is_active=True,
     )
-    # الرصدُ لمشرف الجناح (قرارُ المدير) — والمعلّمُ لا يرصد في شُعب الأجنحة،
-    # وما رصده المشرفُ لا يُكتب فوقه إلّا من أهل الرصد.
-    if not can_record(request.user, session) or (
-        not is_recorder(request.user) and recorded_by_supervisor(session, student)
+    # الرصدُ لمشرف الجناح (قرارُ المدير)، وفي شُعبٍ بلا جناحٍ لمعلّم الحصّة داخل وقتها (W-026).
+    if not can_record(request.user, session) or not AttendanceService.may_write(
+        request.user, session, student
     ):
-        return HttpResponse("الرصدُ لمشرف الجناح.", status=403)
+        return HttpResponse("الرصدُ لمشرف الجناح أو لمعلّم الحصّة داخل وقتها.", status=403)
     att, _ = AttendanceService.mark_attendance(
         session=session,
         student=student,

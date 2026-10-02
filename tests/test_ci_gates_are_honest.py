@@ -68,6 +68,10 @@ def reported_jobs(doc: dict) -> dict[str, str]:
     found: dict[str, str] = {}
     for name, job in (doc.get("jobs") or {}).items():
         for step in job.get("steps") or []:
+            # الحكمُ المشتركُ يقرأ `toJSON(needs)` كلَّه: كلُّ مهمّةٍ في needs مُبلَّغٌ عنها وتُحكم.
+            if "ci_needs_gate.py" in (step.get("run") or ""):
+                for job_id in job.get("needs") or []:
+                    found[job_id] = name
             for line in _run_lines(step):
                 if "GITHUB_STEP_SUMMARY" not in line:
                     continue

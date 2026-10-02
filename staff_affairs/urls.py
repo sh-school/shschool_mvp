@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_attendance, views_exemptions
+from . import views, views_attendance, views_biometric, views_exemptions
 
 app_name = "staff_affairs"
 
@@ -32,6 +32,12 @@ urlpatterns = [
         "attendance/report/xlsx/",
         views_attendance.attendance_report_xlsx,
         name="attendance_report_xlsx",
+    ),
+    path("attendance/import/", views_biometric.attendance_import, name="attendance_import"),
+    path(
+        "attendance/import/commit/",
+        views_biometric.attendance_import_commit,
+        name="attendance_import_commit",
     ),
     path("permits/mine/", views_attendance.my_permits, name="my_permits"),
     path("permits/<uuid:pk>/cancel/", views_attendance.permit_cancel, name="permit_cancel"),

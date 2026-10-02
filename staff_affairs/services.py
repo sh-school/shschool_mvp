@@ -324,9 +324,9 @@ class LeaveService:
             updated_by=creator,
         )
         logger.info(
-            "طلب إجازة جديد: %s لـ %s (%d يوم) في %s",
+            "طلب إجازة جديد: %s لـ موظف %s (%d يوم) في %s",
             leave.pk,
-            staff.full_name,
+            staff.pk,
             days_count,
             school.code,
         )
@@ -400,16 +400,16 @@ class LeaveService:
             balance.used_days += leave.days_count
             balance.save(update_fields=["used_days"])
             logger.info(
-                "رصيد إجازات %s: استُخدم %d يوم (إجمالي مُستخدم: %d)",
-                leave.staff.full_name,
+                "رصيد إجازات موظف %s: استُخدم %d يوم (إجمالي مُستخدم: %d)",
+                leave.staff_id,
                 leave.days_count,
                 balance.used_days,
             )
 
         logger.info(
-            "طلب إجازة #%s: %s بواسطة %s",
+            "طلب إجازة #%s: %s بواسطة موظف %s",
             leave.pk,
             action,
-            reviewer.full_name,
+            reviewer.pk,
         )
         return leave
