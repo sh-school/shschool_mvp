@@ -67,12 +67,15 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: python3 scripts/ci_docs_only.py classify "$BASE_SHA" >> "$GITHUB_OUTPUT" || echo "docs_only=false" >> "$GITHUB_OUTPUT"
 
+      # على طلبٍ وثائقيٍّ لا يعمل إلّا shard 1 («قرّاءُ الوثائق»)؛ فلا تُجهَّز البيئةُ في 2–5 هدراً (مراجعة 0105).
       - uses: actions/setup-python@v7
+        if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
         with:
           python-version: "3.12"
           cache: pip
 
       - name: تثبيت مكتبات النظام (Cairo + WeasyPrint)
+        if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
         run: |
           sudo rm -f /etc/apt/sources.list.d/*microsoft* /etc/apt/sources.list.d/*azure*  # مستودعاتٌ لا نستعملها تُسقط apt-get update حين يسقط توقيعها
           sudo apt-get update -qq
@@ -85,6 +88,7 @@ jobs:
             pkg-config
 
       - name: تثبيت المتطلبات
+        if: steps.diff.outputs.docs_only != 'true' || matrix.shard == 1
         run: |
           pip install -r requirements.txt
           pip install pytest pytest-django pytest-cov pytest-asyncio factory-boy \

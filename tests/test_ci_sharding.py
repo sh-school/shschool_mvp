@@ -135,11 +135,13 @@ _WF = yaml.safe_load((_ROOT / ".github/workflows/quality-gate.yml").read_text(en
 ]
 
 
-def _write_reports(tmp_path, reports):
+def _write_reports(tmp_path, reports, coverage_files=True):
     for report in reports:
         (tmp_path / f"shard-report-{report['index']}.json").write_text(
             json.dumps(report), encoding="utf-8"
         )
+        if coverage_files:
+            (tmp_path / f".coverage.shard{report['index']}").write_bytes(b"")
 
 
 def _report(index, selected, files, total=10, count=2):
@@ -190,3 +192,34 @@ def test_docs_only_classification_is_kept_in_both_jobs():
     for job in ("pytest-shards", "test-coverage"):
         diff = next(s for s in _WF[job]["steps"] if s.get("id") == "diff")
         assert diff["if"] == "github.event_name == 'pull_request'"
+
+
+def test_the_verifier_catches_a_missing_coverage_file(tmp_path):
+    """shard نجح وقدّم تقريره لكنّ ملفَّ تغطيته لم يصل: يسقط من الدمج بصمتٍ (مراجعة 0105)."""
+    _write_reports(tmp_path, [_report(1, 6, ["a.py"]), _report(2, 4, ["b.py"])])
+    (tmp_path / ".coverage.shard2").unlink()
+    assert any("التغطية" in p for p in verify_mod.verify(tmp_path, 2))
+
+
+def test_the_zero_threshold_exemption_is_confined_to_the_shard_job():
+    """`--cov-fail-under=0` يظهر في أوامر pytest-shards وحدَها — لا في المُجمِّع ولا في أيّ وظيفة أخرى."""
+    carriers = [
+        name
+        for name, job in _WF.items()
+        if any("--cov-fail-under" in (s.get("run") or "") for s in job.get("steps") or [])
+    ]
+    assert carriers == ["pytest-shards"], f"استثناءُ العتبة 0 خرج عن وظيفة الـshards: {carriers}"
+
+
+def test_docs_only_prepares_no_environment_in_shards_2_to_5():
+    steps = _WF["pytest-shards"]["steps"]
+    setup = [
+        s
+        for s in steps
+        if s.get("uses", "").startswith("actions/setup-python")
+        or "apt-get install" in (s.get("run") or "")
+        or "pip install -r requirements.txt" in (s.get("run") or "")
+    ]
+    assert len(setup) == 3
+    for step in setup:
+        assert step["if"] == "steps.diff.outputs.docs_only != 'true' || matrix.shard == 1"

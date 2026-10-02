@@ -30,6 +30,15 @@ def verify(directory: Path, expected: int) -> list[str]:
         problems.append(
             f"مجموعُ المختار {sum(r['selected'] for r in reports)} ≠ الكلّ {next(iter(totals))} — اختبارٌ ضاع أو تكرّر"
         )
+    # بياناتُ التغطية أيضاً: لو غاب ملفُّ shard لسقطت تغطيتُه من الدمج بصمتٍ فيُحكم بتغطيةٍ أقلّ (أو بالخطأ أعلى
+    # إن اختلّت العتبة) — مراجعة 0105. الأسماءُ `.coverage.shardN` يكتبها pytest-cov بـCOVERAGE_FILE.
+    covered = sorted(
+        int(p.name.rsplit("shard", 1)[1])
+        for p in directory.rglob(".coverage.shard*")
+        if p.name.rsplit("shard", 1)[1].isdigit()
+    )
+    if covered != list(range(1, expected + 1)):
+        problems.append(f"ملفّاتُ التغطية .coverage.shardN {covered} لا تساوي 1..{expected} — تغطيةُ shard ستسقط من الدمج")
     seen: dict[str, int] = {}
     for r in reports:
         for name in r["files"]:
