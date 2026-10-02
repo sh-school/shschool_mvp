@@ -66,21 +66,18 @@ def _resolve_within_root(rel_path: str) -> Path:
     `resolve()` يبتلع `..` والروابطَ الرمزيّة، و`is_relative_to` يتحقّق من الناتج
     لا من النصّ الخام — فـ`../../etc/passwd` أو رابطٌ رمزيٌّ يخرج بها يُرفض هنا.
     """
-    candidate = (DOCS_ROOT / rel_path).resolve()
     root = str(DOCS_ROOT)
-    # تحقّقان لا تحقّقٌ واحد: `is_relative_to` (منطقُ pathlib) و`commonpath`
-    # (مقارنةُ مسارٍ نصّيّةٌ تقليديّة) — فحصُ CodeQL الساكن لا يتتبّع الأوّل عبر
-    # حدود الدالّة أحياناً (py/path-injection، راجع #746)، والثاني نمطٌ يتعرّف
-    # عليه مباشرةً. كلاهما يرفض الناتجَ لا النصَّ الخام، فـ`..` ورابطٌ رمزيٌّ
-    # خارجان يُرفضان بعد `resolve()` سواءً بسواء.
-    if (
-        not candidate.is_relative_to(DOCS_ROOT)
-        or os.path.commonpath([str(candidate), root]) != root
-    ):
+    # النمطُ الذي يتعرّف عليه CodeQL حاجزاً لـpy/path-injection: `realpath` (يطبّع
+    # `..` ويحلّ الرمزيّات) ثمّ `startswith(root + sep)` على السلسلة نفسِها قبل أيّ
+    # وصولٍ للقرص. `commonpath`/`is_relative_to` (#746) لم يُسقطا التنبيهات 116/117/
+    # 119/120. الفحصُ على الناتج المحلول لا النصّ الخام، فـ`..` ورابطٌ رمزيٌّ خارجان
+    # يُرفضان.
+    full_path = os.path.realpath(os.path.join(root, rel_path))
+    if not full_path.startswith(root + os.sep):
         raise Http404("مسارٌ خارج جذر المشروع")
-    if not candidate.is_file():
+    if not os.path.isfile(full_path):
         raise Http404("الملفُّ غير موجود")
-    return candidate
+    return Path(full_path)
 
 
 def safe_resolve(rel_path: str) -> Path:

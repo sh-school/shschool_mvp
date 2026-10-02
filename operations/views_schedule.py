@@ -1047,7 +1047,10 @@ def teacher_preferences(request):
             pref.save()
             messages.success(request, "تم حفظ تفضيلاتك للجدولة الذكية")
             # العامُ يبقى في الرابط: الرجوعُ بلا عامٍ يفتح تفضيلاتِ عامٍ آخر.
-            return redirect(f"{reverse('teacher_preferences')}?year={year}")
+            target = f"{reverse('teacher_preferences')}?{urlencode({'year': year})}"
+            if not url_has_allowed_host_and_scheme(target, allowed_hosts={request.get_host()}):
+                return redirect("teacher_preferences")
+            return redirect(target)
 
     #: نصابُ صاحب الصفحة وأدنى سقفٍ يومّيٍّ يسعه — يُعرضان قبل الاختيار لا
     #: بعده. وكانت الصفحةُ تفتح على قوائمَ بلا سياق، فيختار المعلّمُ سقفاً
