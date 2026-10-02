@@ -52,6 +52,22 @@ class AttendanceService:
         )
 
     @staticmethod
+    def may_tap(kind: str, user: CustomUser, session: Session, student: CustomUser) -> bool:
+        """أينقر هذا المستخدمُ «دخل متأخّراً» (`late`) أو «خرج بإذن» (`out`) لهذا الطالب الآن؟
+
+        معلّمُ الحصّة الفعليّ وحدَه (لا القيادةُ تنقر باسمه ولا المطوّر): النقرةُ بنافذة الحصّة نفسِها (D-136م)،
+        والخروجُ بنافذة اليوم الدراسيّ (G4) — `attendance_policy.can_tap_late` / `can_enter`.
+        """
+        from operations.attendance_policy import can_enter, can_tap_late
+
+        verdict = (
+            can_tap_late(user, session, student)
+            if kind == "late"
+            else can_enter(user, session, student)
+        )
+        return bool(verdict)
+
+    @staticmethod
     def _audit_teacher_mark(
         marked_by: CustomUser | None,
         session: Session,

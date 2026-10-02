@@ -671,9 +671,13 @@ class TestTheTeacherTapsLate:
         assert _auto(kids[0], "period_tardy").count() == 1
 
     def test_the_teacher_sees_the_button_and_the_supervisor_page_does_not_count_the_tap_as_recorded(
-        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor
+        self, client_as, school, seeded_calendar, klass, kids, teacher, supervisor, monkeypatch
     ):
         (period,) = _periods(school, klass, teacher, 1)
+        # النقرةُ لمعلّم الحصّة بنافذة الحصّة (D-136م/W-020): نثبّت الساعةَ داخلها وقيدَ الطلبة بتاريخ الحصّة.
+        monkeypatch.setattr(timezone, "now", lambda: at(7, 30))
+        for kid in kids:
+            kid.enrollments.update(enrolled_at=SUNDAY)
 
         body = client_as(teacher).get(reverse("attendance", args=[period.id])).content.decode()
         assert reverse("mark_late_tap", args=[period.id]) in body

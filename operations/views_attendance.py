@@ -324,14 +324,15 @@ def mark_late_tap(request, session_id):
 
     school = request.user.get_school()
     session = get_object_or_404(Session, id=session_id, school=school)
-    if request.user != session.teacher and not request.user.is_leadership():
-        return HttpResponse("هذه الحصّة ليست لك.", status=403)
     student = get_object_or_404(
         CustomUser,
         id=request.POST.get("student_id"),
         enrollments__class_group=session.class_group,
         enrollments__is_active=True,
     )
+    # معلّمُ الحصّة وحدَه وبنافذة الحصّة نفسِها (D-136م) — لا القيادةُ باسمه.
+    if not AttendanceService.may_tap("late", request.user, session, student):
+        return HttpResponse("النقرةُ لمعلّم الحصّة وحدَه وأثناء الحصّة.", status=403)
     minutes = tap_late(session, student, by=request.user)
     return render(
         request,
@@ -380,6 +381,10 @@ def mark_exit(request, session_id):
     if denied:
         return denied
     student = _enrolled_student(request, session)
+    if not AttendanceService.may_tap(
+        "out", request.user, session, student
+    ):  # G4: بنافذة اليوم لمعلّم الحصّة وحدَه
+        return HttpResponse("الخروجُ بإذنٍ لمعلّم الحصّة وحدَه خلال اليوم الدراسيّ.", status=403)
     leave(session, student, request.POST.get("destination", "restroom"), by=request.user)
     return _exit_cell(request, session, student)
 

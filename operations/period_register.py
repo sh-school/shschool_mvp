@@ -364,13 +364,11 @@ def tap_late(session, student, by, now: dt.datetime | None = None) -> int:
     """
     now = now or timezone.now()
     existing = StudentAttendance.objects.filter(session=session, student=student).first()
-    if existing is not None and existing.source == SOURCE:
+    # لا تكتب فوق **أيِّ** رصدٍ قائمٍ غيرِ نقرةٍ سابقة — مشرفٍ (كما كان) ولا معلّمٍ معتمَدٍ ولا عيادةٍ ولا بوّابةٍ ولا
+    # نظام (D-136م وحكمُ 0105): النقرةُ تسجّل لحظةَ دخولٍ ولا تستبدل ما رُصد.
+    if existing is not None and existing.source != TEACHER_LATE:
         return existing.late_minutes or 0
-    if (
-        existing is not None
-        and existing.source == TEACHER_LATE
-        and existing.late_minutes is not None
-    ):
+    if existing is not None and existing.late_minutes is not None:
         return existing.late_minutes
     minutes = minutes_after_start(session, timezone.localtime(now))
     StudentAttendance.objects.update_or_create(

@@ -149,10 +149,21 @@ def _roles_in_school(user: CustomUser, school_id: Any) -> set[str]:
     )
 
 
-def can_enter(
-    user: CustomUser, session: Session, student: CustomUser, *, now: dt.datetime | None = None
+def tap_window(session: Session) -> tuple[dt.datetime, dt.datetime]:
+    """نافذةُ نقرة «دخل متأخّراً» (D-136م): الحصّةُ نفسُها، من بدئها إلى نهايتها — لا إلى نهاية اليوم (لحظتان واعيتان بالدوحة)."""
+    start = timezone.make_aware(dt.datetime.combine(session.date, session.start_time))
+    end = timezone.make_aware(dt.datetime.combine(session.date, session.end_time))
+    return start, end
+
+
+def _teacher_write_verdict(
+    user: CustomUser,
+    session: Session,
+    student: CustomUser,
+    window: tuple[dt.datetime, dt.datetime],
+    now: dt.datetime | None,
 ) -> Verdict:
-    """هل يُدخل هذا المستخدمُ رصداً مبدئيّاً لهذا الطالب في هذه الحصّة الآن؟"""
+    """الفحصُ المشترك لكلّ كتابةٍ يجريها معلّمُ الحصّة الفعليّ: من هو، وفي أيّ حصّةٍ، ولأيّ طالبٍ، وضمن أيّ نافذة."""
     if not getattr(user, "is_authenticated", False):
         return _deny("anonymous")
     if is_developer(user):
@@ -169,12 +180,29 @@ def can_enter(
         return _deny("not_enrolled")
 
     moment = now or timezone.now()
-    opens, closes = entry_window(session)
+    opens, closes = window
     if moment < opens:
         return _deny("before_start")
     if moment > closes:
         return _deny("after_window")
     return _allow()
+
+
+def can_enter(
+    user: CustomUser, session: Session, student: CustomUser, *, now: dt.datetime | None = None
+) -> Verdict:
+    """هل يُدخل هذا المستخدمُ رصداً مبدئيّاً لهذا الطالب في هذه الحصّة الآن؟ (نافذةُ اليوم الدراسيّ.)
+
+    وبها أيضاً «خرج بإذن» (`teacher_out`، G4): معلّمُ الحصّة وحدَه بنافذة اليوم.
+    """
+    return _teacher_write_verdict(user, session, student, entry_window(session), now)
+
+
+def can_tap_late(
+    user: CustomUser, session: Session, student: CustomUser, *, now: dt.datetime | None = None
+) -> Verdict:
+    """هل ينقر هذا المستخدمُ «دخل متأخّراً» لهذا الطالب الآن؟ — معلّمُ الحصّة وحدَه، **بنافذة الحصّة نفسِها** (D-136م)."""
+    return _teacher_write_verdict(user, session, student, tap_window(session), now)
 
 
 def _is_enrolled(student: CustomUser, session: Session) -> bool:
