@@ -21,7 +21,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from .scheduler_bell import (  # noqa: F401  (تُصدَّر من هنا لمن استوردها منه)
-    JOINABLE_GAP_MINUTES,
+    DOUBLE_PERIOD_GAP_MINUTES,
+    HC5_JOINABLE_GAP_MINUTES,
     cells_joined,
     joinable_pairs,
     joinable_pairs_cached,

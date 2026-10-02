@@ -1,0 +1,12 @@
+{% load ui icons %}
+{% comment %}
+  صندوقُ بحثٍ داخل محتوى الملفّ المفتوح — طرف ترويسة بطاقة المحتوى (نفسُ مكان
+  صندوق بحث الشجرة). تظليلٌ حيٌّ للمطابقات (docs_viewer.js) + تنقّلٌ بينها —
+  بحثٌ داخل الصفحة نفسِها لا في ملفّاتٍ أخرى (`_search_box.html` لذاك).
+{% endcomment %}
+{% filter_bar "بحثٌ في محتوى الملفّ" live=True id="docs-content-search-bar" css="docs-search-bar docs-content-search-bar" %}
+{% field "cq" "بحثٌ في محتوى الملفّ" type="search" id="docs-content-search-input" hide_label=True placeholder="بحثٌ في النصّ…" autocomplete="off" %}
+<span id="docs-content-search-count" class="docs-search-count" hidden>0/0</span>
+<button type="button" id="docs-content-search-prev" class="btn-ghost btn-xs" hidden aria-label="المطابقةُ السابقة">{% icon "prev" size="sm" %}</button>
+<button type="button" id="docs-content-search-next" class="btn-ghost btn-xs" hidden aria-label="المطابقةُ التالية">{% icon "next" size="sm" %}</button>
+{% endfilter_bar %}
