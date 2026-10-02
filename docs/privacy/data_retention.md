@@ -231,6 +231,7 @@ Cloudflare لا في المستودع. فما يُحذف من القاعدة ي�
 | `django_content_type` | فهرسُ النماذج |
 | `developer_feedback_developermessage` | رسائلُ المطوّر — قناةٌ عابرةٌ للمدارس، ولها محوٌ داخلها |
 | `developer_feedback_developermessagenotification` | إشعاراتُها |
+| `developer_feedback_outboundmessage` | سجلُّ ما بثّه المطوّر لمستخدمين («ما أرسلتُه») — قناةٌ عابرةٌ للمدارس؛ والتسليمُ الفعليّ في `notifications_inappnotification` ولها حكمُها |
 | `roadmap_roadmapitem` | بنودُ خارطة تجويد المنصّة — وثيقةُ مطوّرٍ عن المنصّة نفسها، بلا مدرسةٍ ولا أشخاص؛ تُحرَّر من واجهةِ المطوّر وتُدقَّق في `core_auditlog` |
 | `roadmap_roadmapkpi` | مؤشّراتُها |
 | `roadmap_roadmapdecision` | قراراتُها |

@@ -182,12 +182,17 @@ for t, idxs in by_t.items():
 idx_of = {(r["cls"], r["subj"], r["teacher"], r["elec"]): i for i, r in enumerate(demand)}
 cur_cells = {}
 kept = []
-for t, c, s, e, d, p in D["current"]:
+#: حزمةُ الاختبار المقنَّعةُ تُسقط `current` عمداً — وهو وضعُ V2 نفسِه: توليدٌ من
+#: الصفر بلا جدولٍ سابق. فبلا جدولٍ لا ميزانيّةَ حركةٍ تُصغَّر، ويُحَلُّ للجدوى
+#: وحدَها. ومع جدولٍ تعمل دالّةُ الهدف الأصليّة (وقد بطلت لجدول الإنتاج بقرار
+#: المالك 2026-10-01، وتبقى صالحةً لأيّ مسألة إصلاحٍ أخرى).
+for t, c, s, e, d, p in D.get("current", []):
     i = idx_of.get((c, s, t, e))
     if i is not None and (i, d, p) in x:
         kept.append(x[i, d, p])
         cur_cells.setdefault(i, []).append((d, p))
-m.Minimize(TOTAL - sum(kept))
+if kept:
+    m.Minimize(TOTAL - sum(kept))
 
 sv = cp_model.CpSolver()
 sv.parameters.max_time_in_seconds = LIMIT
@@ -196,16 +201,26 @@ st = sv.Solve(m)
 print(f"قيودٌ مُنمذجةٌ زائدةً: {sorted(ON)} · سقفُ الأولى ≤ {CAP_FIRST} · سقفُ الأخيرة ≤ {MAX_LAST}")
 print(f"الحالة: {sv.StatusName(st)} | الزمن: {round(sv.WallTime(),1)}ث")
 if st not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
-    print("لا حلّ — الهدفُ غيرُ قابلٍ للتحقيق بهذه القيود")
+    #: التمييزُ واجب: `INFEASIBLE` برهانٌ على الاستحالة، و`UNKNOWN` نفادُ مهلةٍ
+    #: لا حكمَ فيه. وخلطُهما يوقف العملَ بدعوى الاستحالة وهي ضيقُ وقت.
+    if st == cp_model.INFEASIBLE:
+        print("مستحيلٌ مُبرهَن: لا حلَّ لهذه القيود مهما طال الوقت")
+    else:
+        print(f"نفدت المهلةُ بلا حكم ({LIMIT}ث) — ليست استحالةً؛ أعِد بمهلةٍ أطول")
     raise SystemExit
-moved = TOTAL - sum(1 for v in kept if sv.Value(v))
-print(f"أصغرُ حركةٍ: {moved} | حدٌّ أدنى مُثبَت: {int(sv.BestObjectiveBound())}")
+if kept:
+    moved = TOTAL - sum(1 for v in kept if sv.Value(v))
+    print(f"أصغرُ حركةٍ: {moved} | حدٌّ أدنى مُثبَت: {int(sv.BestObjectiveBound())}")
+else:
+    print(f"توليدٌ من الصفر: {TOTAL} حصّةً وُضعت كلُّها (لا جدولَ سابقٍ فلا حركةَ تُقاس)")
 print(
     f"أقصى أولى: {max(sv.Value(f) for f in firsts.values())} | أقصى أخيرة: {max(sv.Value(l) for l in lasts.values())}"
 )
 print(f"نمطُ المظلوم: {sum(1 for t in firsts if sv.Value(firsts[t])>=3 and sv.Value(lasts[t])>=2)}")
 
-# فارقُ الحصص
+# فارقُ الحصص — بلا جدولٍ سابقٍ لا فارقَ يُحسب، فيُتخطّى كلُّه
+if not cur_cells:
+    raise SystemExit
 new = defaultdict(list)
 for (i, d, p), v in x.items():
     if sv.Value(v):
