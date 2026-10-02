@@ -72,3 +72,87 @@ class TestBirthDateEncrypted:
         assert first and "2011" not in first
         assert Profile.objects.get(pk=profile.pk).date_of_birth == DOB
         assert _raw(profile, "birth_date_encrypted") == first, "الأمرُ أعاد كتابة صفٍّ مملوء"
+
+
+# ── [M1] كتابةٌ تتجاوز save() تترك مشفَّراً قديماً يتقدّم على الصريح ──
+
+
+@pytest.mark.django_db
+class TestVerifyAndGuards:
+    def test_verify_passes_when_in_step(self):
+        Profile.objects.create(user=UserFactory(), birth_date=DOB)
+
+        call_command("backfill_birth_date_encrypted", "--verify")
+
+    def test_verify_fails_on_missing_encrypted(self):
+        from django.core.management.base import CommandError
+
+        profile = Profile.objects.create(user=UserFactory(), birth_date=DOB)
+        Profile.objects.filter(pk=profile.pk).update(birth_date_encrypted="")
+
+        with pytest.raises(CommandError):
+            call_command("backfill_birth_date_encrypted", "--verify")
+
+    def test_verify_fails_on_stale_encrypted(self):
+        """الكتابةُ بـupdate() تُبقي المشفَّرَ قديماً — وهو ما يُعرض خاطئاً بصمت."""
+        from django.core.management.base import CommandError
+
+        profile = Profile.objects.create(user=UserFactory(), birth_date=DOB)
+        Profile.objects.filter(pk=profile.pk).update(birth_date=date(2000, 1, 1))
+
+        with pytest.raises(CommandError):
+            call_command("backfill_birth_date_encrypted", "--verify")
+
+    def test_corrupt_value_falls_back_and_logs_pk_not_value(self, caplog):
+        profile = Profile.objects.create(user=UserFactory(), birth_date=DOB)
+        Profile.objects.filter(pk=profile.pk).update(birth_date_encrypted="not-a-date")
+
+        with caplog.at_level("WARNING"):
+            value = Profile.objects.get(pk=profile.pk).date_of_birth
+
+        assert value == DOB
+        assert str(profile.pk) in caplog.text
+        assert "not-a-date" not in caplog.text and "2011" not in caplog.text
+
+
+def test_no_write_bypasses_profile_save():
+    """حارسٌ معماريّ: لا `.update(birth_date…)` ولا `bulk_*` على Profile خارج save().
+
+    وإلّا بقي المشفَّرُ قديماً وتقدّم على الصريح الصحيح (حكم 0105 M1).
+    """
+    import ast
+    import pathlib
+
+    root = pathlib.Path(__file__).resolve().parent.parent
+    skipped = {"tests", "migrations", "scripts", "node_modules", "worktrees", "staticfiles"}
+    offenders = []
+    for path in root.rglob("*.py"):
+        rel = path.relative_to(root)
+        if skipped & set(rel.parts) or any(p.startswith(".") for p in rel.parts):
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError):
+            continue
+        for node in ast.walk(tree):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
+                continue
+            attr = node.func.attr
+            if attr == "update" and any(
+                k.arg in {"birth_date", "birth_date_encrypted"} for k in node.keywords
+            ):
+                offenders.append(f"{rel}:{node.lineno}")
+            elif attr in {"bulk_create", "bulk_update"} and any(
+                isinstance(n, ast.Name) and n.id == "Profile" for n in ast.walk(node.func)
+            ):
+                offenders.append(f"{rel}:{node.lineno}")
+
+    assert offenders == [], f"كتابةٌ على Profile تتجاوز save(): {offenders}"
+
+
+@pytest.mark.django_db
+def test_admin_inline_does_not_expose_plain_birth_date():
+    from core.admin import ProfileInline
+
+    assert "birth_date" not in ProfileInline.fields
+    assert "date_of_birth" in ProfileInline.readonly_fields

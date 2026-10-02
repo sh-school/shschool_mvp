@@ -1,3 +1,4 @@
+import logging
 from typing import TYPE_CHECKING, Any
 
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
@@ -9,6 +10,8 @@ from ..fields import EncryptedTextField
 from ..managers import CustomUserManager
 from .crypto import decrypt_field, encrypt_field, hmac_field
 from .school import _uuid
+
+_logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from .access import Membership
@@ -431,7 +434,9 @@ class Profile(models.Model):
             try:
                 return date.fromisoformat(self.birth_date_encrypted)
             except ValueError:
-                pass  # قيمةٌ تالفة: لا نُسقط الصفحة، نسقط إلى القديم
+                # قيمةٌ تالفة أو مفتاحٌ ضائع: لا نُسقط الصفحة بل نسقط إلى القديم،
+                # لكنّ الصمتَ يُخفي ضياعَ المفتاح — فيُسجَّل المعرّفُ (لا القيمة).
+                _logger.warning("Profile %s: birth_date_encrypted غير قابلٍ للقراءة", self.pk)
         return self.birth_date
 
     def save(self, *args, **kwargs):
