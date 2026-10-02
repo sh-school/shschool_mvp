@@ -62,13 +62,31 @@
     note.hidden = !text;
   }
 
-  // بارُ قراءة اللوحة (0–100، 100 أسلم): `.value` على عنصر <progress> لا بناءَ DOM؛ وبلا قراءةٍ يعود إلى 0 مع نصٍّ بديلٍ «لم تُجمَع بعدُ».
-  function paintBar(panel, gauge) {
+  // بارُ قراءة اللوحة (0–100، 100 أسلم) بمكوّن الهويّة `progress-qatar`: متغيّرُ CSS `--progress-w` وصنفُ النبرة `pf-*` — لا بناءَ DOM ولا لونَ محلّيّ؛
+  // وبلا قراءةٍ يعود إلى 0 بنصٍّ بديلٍ «لم تُجمَع بعدُ».
+  var BAR_TONE = { ok: "pf-success", warn: "pf-warning", bad: "pf-danger", unknown: "" };
+  var BADGE = { ok: "status-success", warn: "status-warning", bad: "status-danger", unknown: "status-gray" };
+
+  function paintBar(panel, gauge, status) {
     var bar = panel.querySelector("[data-bar]");
     if (!bar) { return; }
     var value = gauge === null || gauge === undefined || gauge === "" || isNaN(Number(gauge)) ? null : Math.max(0, Math.min(100, Math.round(Number(gauge))));
-    bar.value = value === null ? 0 : value;
+    var fill = bar.querySelector(".progress-qatar-fill");
+    if (fill) {
+      fill.style.setProperty("--progress-w", (value === null ? 0 : value) + "%");
+      Object.keys(BAR_TONE).forEach(function (name) {
+        if (BAR_TONE[name]) { fill.classList.toggle(BAR_TONE[name], name === status); }
+      });
+    }
+    bar.setAttribute("aria-valuenow", String(value === null ? 0 : value));
     if (value === null) { bar.setAttribute("aria-valuetext", "لم تُجمَع بعدُ"); } else { bar.removeAttribute("aria-valuetext"); }
+  }
+
+  // شارةُ الحالة بصنف الهويّة المركزيّ `status-*` (والنصُّ والرمزُ يبقيان: لا لونٌ وحدَه).
+  function paintBadge(panel, key, status) {
+    var badge = panel.querySelector('[data-key="' + key + '.state"]');
+    if (!badge) { return; }
+    Object.keys(BADGE).forEach(function (name) { badge.classList.toggle(BADGE[name], name === status); });
   }
 
   function paintMetrics(panel, key, metrics) {
@@ -95,7 +113,8 @@
     setText(panel, key + ".headline", String(data.headline || "") || "لم يُجمَع بعدُ", true);
     setText(panel, key + ".detail", String(data.detail || ""));
     setText(panel, key + ".age", ageText(data.age_seconds));
-    paintBar(panel, data.gauge);
+    paintBar(panel, data.gauge, status);
+    paintBadge(panel, key, status);
     paintMetrics(panel, key, data.metrics);
     // يُعلن قارئُ الشاشة الانتقالَ إلى الأحمر وحدَه، لا كلَّ استطلاعٍ (تنبيهٌ عند الأحمر فقط)
     if (status === "bad" && previous && previous !== "bad") {
@@ -120,8 +139,10 @@
       }
     });
     setText(root, "strip.reds", reds.length ? "✖ خطر: " + reds.join("، ") : "✔ لا لوحةَ في حالة خطر");
-    setText(root, "strip.counts", "▲ انتبه: " + warns + " · ؟ غير معلوم: " + unknown);
-    setText(root, "strip.unpublished", "الإيداعاتُ غيرُ المنشورة: " + (unpublished === null ? "غيرُ معلومة" : unpublished));
+    setText(root, "strip.bad", String(reds.length));
+    setText(root, "strip.warn", String(warns));
+    setText(root, "strip.unknown", String(unknown));
+    setText(root, "strip.unpublished", unpublished === null ? "؟" : unpublished);
     var byKey = {};
     list.forEach(function (data) { byKey[data.key] = data; });
     Array.prototype.forEach.call(root.querySelectorAll("[data-group]"), function (group) {

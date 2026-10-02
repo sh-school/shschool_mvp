@@ -360,3 +360,14 @@ class TestCallout:
             '{% section_card "س" foldable=True %}{% callout "hint" %}شرح{% endcallout %}ب{% endsection_card %}'
         )
         assert html.index("ui-section__body") < html.index("ui-tip")
+
+
+def test_kpi_key_is_optional_and_only_adds_a_data_key_on_the_value():
+    """`key` لسكربتٍ يحدّث الرقمَ حيّاً (مركزُ قيادة الجودة): بلاه ناتجُ البطاقة كما كان حرفيّاً."""
+    from django.template import Context, Template
+
+    plain = Template('{% load ui %}{% kpi "عنوان" 5 %}').render(Context())
+    keyed = Template('{% load ui %}{% kpi "عنوان" 5 key="strip.x" %}').render(Context())
+    assert "data-key" not in plain
+    assert keyed.replace(' data-key="strip.x"', "") == plain
+    assert '<span class="ui-kpi__value" data-key="strip.x">5</span>' in keyed

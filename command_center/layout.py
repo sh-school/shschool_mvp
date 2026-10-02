@@ -64,6 +64,14 @@ CARDS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 STATE_LABELS = {"ok": "✔ سليم", "warn": "▲ انتبه", "bad": "✖ خطر", "unknown": "؟ غير معلوم"}
+#: شارةُ الحالة (`status-badge status-*`) وبارُ القراءة (`progress-qatar-fill pf-*`) من مكوّنات الهويّة المركزيّة (20-components.css) لا ألوانٌ محلّيّة.
+BADGES = {
+    "ok": "status-success",
+    "warn": "status-warning",
+    "bad": "status-danger",
+    "unknown": "status-gray",
+}
+BAR_TONES = {"ok": "pf-success", "warn": "pf-warning", "bad": "pf-danger", "unknown": ""}
 _ORDER = (contract.BAD, contract.WARN, contract.UNKNOWN, contract.OK)
 
 
@@ -89,6 +97,9 @@ def _tile(panel: dict[str, Any]) -> dict[str, Any]:
         "target": TARGETS.get(panel["key"], ""),
         "slots": slots,
         "state_label": STATE_LABELS.get(panel["status"], STATE_LABELS["unknown"]),
+        "badge": BADGES.get(panel["status"], BADGES["unknown"]),
+        "bar_tone": BAR_TONES.get(panel["status"], ""),
+        "bar_value": panel["gauge"] if isinstance(panel["gauge"], int) else 0,
     }
 
 
@@ -144,4 +155,11 @@ def strip(panels: list[dict[str, Any]]) -> dict[str, Any]:
         if pulls
         else None
     )
-    return {"reds": reds, "warns": warns, "unknown": unknown, "unpublished": unpublished}
+    return {
+        "reds": reds,
+        "bad_count": len(reds),
+        "warns": warns,
+        "unknown": unknown,
+        "unpublished": unpublished,
+        "unpublished_text": "؟" if unpublished is None else unpublished,
+    }

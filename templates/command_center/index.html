@@ -25,15 +25,15 @@
   {# تنبيهُ الجلسة/العقد: مخفيٌّ حتى يكشفه السكربتُ (انتهت الجلسة أو تغيّر إصدارُ العقد) #}
   <div role="status" data-qc-note hidden>{% callout "error" %}<span data-qc-note-text></span>{% endcallout %}</div>
 
-  {# شريطُ «ما ينتظرك الآن»: ما يراه الخادمُ من مصادره وحدَها (لوحاتُ هذه الصفحة) — لا قراراتٍ مفتوحةً ولا ما في الدفتر المحلّيّ ولا رقماً مخمَّناً #}
+  {# «ما ينتظرك الآن»: أربعُ بطاقاتِ رقمٍ مركزيّة (`kpi_strip`) بما يراه الخادمُ من مصادره وحدَها — لا قراراتٍ مفتوحةً ولا ما في الدفتر المحلّيّ ولا رقماً مخمَّناً. وبلا callout «info» مفروضٍ ظهورُه: أيقونتُه (i) تبدو زرّاً ولا تعمل. #}
   {% url 'command_center:status' as status_url %}
-  {% callout "info" show=True %}
-    <strong>ما ينتظرك الآن:</strong>
-    <span data-key="strip.reds">{% if strip.reds %}✖ خطر: {{ strip.reds|join:"، " }}{% else %}✔ لا لوحةَ في حالة خطر{% endif %}</span> ·
-    <span data-key="strip.counts">▲ انتبه: {{ strip.warns }} · ؟ غير معلوم: {{ strip.unknown }}</span> ·
-    <span data-key="strip.unpublished">الإيداعاتُ غيرُ المنشورة: {% if strip.unpublished is None %}غيرُ معلومة{% else %}{{ strip.unpublished }}{% endif %}</span>
-    {% if status_url %} · <a href="{{ status_url }}">حالةُ اليوم</a>{% endif %}
-  {% endcallout %}
+  {% kpi_strip "ما ينتظرك الآن" %}
+    {% kpi "خطر" strip.bad_count sub="لوحة" tone="red" key="strip.bad" %}
+    {% kpi "انتبه" strip.warns sub="لوحة" tone="amber" key="strip.warn" %}
+    {% kpi "غير معلوم" strip.unknown sub="لم تُجمَع بعدُ" tone="sky" key="strip.unknown" %}
+    {% kpi "إيداعاتٌ غيرُ منشورة" strip.unpublished_text sub="في main" tone="maroon" key="strip.unpublished" %}
+  {% endkpi_strip %}
+  <p class="ui-note"><span data-key="strip.reds">{% if strip.reds %}✖ خطر: {{ strip.reds|join:"، " }}{% else %}✔ لا لوحةَ في حالة خطر{% endif %}</span>{% if status_url %} · <a href="{{ status_url }}">حالةُ اليوم</a>{% endif %}</p>
 
   {# بطاقتان متجاورتان متطابقتان طولاً وعرضاً افتراضاً (طلبُ المالك 2026-10-02) آخرَ أبناء الغلاف فتملآن الباقيَ بلا تمرير (50-utilities: .qc-cards). لكلّ مؤشّرٍ بارٌ في سطرٍ واحد. #}
   <div class="ui-grid-2 qc-cards">

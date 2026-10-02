@@ -1642,15 +1642,13 @@ a.ui-entity__title:hover { color: var(--maroon-fg); }
 .beh-combo__empty:hover { background: transparent; }
 .beh-combo .form-control.is-valid { border-color: var(--status-success); }
 
-/* مركز قيادة الجودة (QCC-01b، W-027): بطاقتان متجاورتان، لكلّ مؤشّرٍ صفٌّ بسطرٍ واحد (عنوانٌ وبارٌ ورقمٌ وهدفٌ وحالةٌ نصّاً ورمزاً) يلتفّ وحدَه حين يضيق؛ لون الحالة من رموزها، و«غير معلوم» بلون التحذير. */
-.qc-group h3 { margin-block: var(--sp-2) var(--sp-0-5); font-size: var(--text-sm); }
-.qc-panel { --c: var(--status-warning); --fg: var(--status-warning-fg); display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-0-5) var(--sp-2); padding-block: var(--sp-1); border-block-end: 1px solid var(--border); font-size: var(--text-sm); }
-.qc-panel.is-ok { --c: var(--status-success); --fg: var(--status-success-fg); }
-.qc-panel.is-bad { --c: var(--status-danger); --fg: var(--status-danger-fg); }
+/* مركز قيادة الجودة (QCC-01b، W-027): بطاقتان متجاورتان، لكلّ مؤشّرٍ صفٌّ بسطرٍ واحدٍ يلتفّ وحدَه حين يضيق. الألوانُ كلُّها من الهويّة المركزيّة:
+   شارةُ الحالة `status-badge` وبارُ القراءة `progress-qatar` ورقاقاتُ `ui-kpi`؛ ولا لونَ محلّيّ هنا. */
+.qc-group h3 { margin-block: var(--sp-2) var(--sp-0-5); font-size: var(--text-sm); color: var(--maroon-fg); }
+.qc-panel { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-0-5) var(--sp-2); padding-block: var(--sp-1); border-block-end: 1px solid var(--border-soft); font-size: var(--text-sm); }
 .qc-panel__title { flex: 1 1 9rem; min-inline-size: 0; }
-.qc-panel__bar { flex: 1 1 5rem; block-size: 0.5rem; accent-color: var(--c); }
+.qc-panel__bar { flex: 1 1 5rem; }
 .qc-panel__figure { flex: 2 1 10rem; min-inline-size: 0; font-size: var(--text-xs); }
-.qc-panel__state { flex: 0 0 auto; font-size: var(--text-xs); font-weight: 700; color: var(--fg); }
 .qc-panel__more { flex: 1 0 100%; font-size: var(--text-xs); }
 .qc-panel .plain-list__row { padding-block: var(--sp-0-5); }
 

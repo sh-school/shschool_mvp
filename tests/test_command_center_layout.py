@@ -75,10 +75,13 @@ def test_the_strip_shows_only_what_the_server_sees():
     assert strip["unpublished"] == "4"
     assert set(strip) == {
         "reds",
+        "bad_count",
         "warns",
         "unknown",
         "unpublished",
+        "unpublished_text",
     }  # لا قراراتٍ ولا ما في الدفتر المحلّيّ
+    assert strip["bad_count"] == 1
 
 
 def test_the_strip_never_invents_an_unpublished_count():
@@ -103,8 +106,14 @@ def test_every_panel_has_exactly_one_bar_with_its_reading(client_as, developer_u
     """طلبُ المالك: بارٌ لكلّ مؤشّر. القيمةُ من قراءة اللوحة، وبلا قراءةٍ 0 مع نصٍّ بديل."""
     contract.store("ci", {"status": "ok", "headline": "x", "gauge": 82})
     html = _page(client_as, developer_user)
-    assert html.count("<progress") == len(contract.PANELS)
-    assert re.search(r'<progress[^>]*value="82"[^>]*data-bar', html)
+    assert html.count("progress-qatar qc-panel__bar") == len(
+        contract.PANELS
+    )  # بارُ الهويّة المركزيّ لا عنصرٌ محلّيّ
+    assert "<progress" not in html
+    assert re.search(
+        r'aria-valuenow="82"[^>]*data-bar><span class="progress-qatar-fill pf-success" style="--progress-w:82%"',
+        html,
+    )
     assert 'aria-valuetext="لم تُجمَع بعدُ"' in html  # لوحةٌ لم تُجمَع: لا بارَ مملوءاً يوهم سليماً
 
 
@@ -148,10 +157,11 @@ def test_each_panel_has_a_unique_key_per_metric_slot(client_as, developer_user):
 
 def test_the_strip_says_no_red_when_none_and_never_mentions_decisions(client_as, developer_user):
     html = _page(client_as, developer_user)
-    strip = html.split('data-key="strip.reds"')[1].split("</p>")[0].split("</div>")[0]
+    strip = html.split('data-key="strip.reds"')[1].split("</p>")[0]
     assert "لا لوحةَ في حالة خطر" in html
     assert "قرار" not in strip
-    assert "الإيداعاتُ غيرُ المنشورة: غيرُ معلومة" in html  # لم تُجمَع لوحتُها: يُسمّى مجهولاً لا صفراً
+    # «الإيداعات غير المنشورة» لم تُجمَع لوحتُها: يُسمّى مجهولاً («؟») لا صفراً
+    assert re.search(r'data-key="strip\.unpublished">؟<', html)
 
 
 def test_the_panel_picker_and_its_cookie_are_gone_entirely(client_as, developer_user):
@@ -189,3 +199,45 @@ def test_the_script_labels_match_the_server_labels_and_it_has_no_dial():
     assert pairs == layout.STATE_LABELS
     assert "paintDial" not in source and "data-dial" not in source
     assert "paintBar" in source and "[data-bar]" in source
+
+
+# ── الهويّةُ المركزيّة: مكوّناتٌ لا ألوانٌ محلّيّة، ولا (i) مزيّفة ─────────────────────────────────────────
+
+
+def test_the_strip_is_four_central_kpi_cards_with_live_keys(client_as, developer_user):
+    html = _page(client_as, developer_user)
+    assert html.count('class="ui-kpis"') == 1 and html.count('class="ui-kpi kpi-') == 4
+    for key in ("strip.bad", "strip.warn", "strip.unknown", "strip.unpublished"):
+        assert f'data-key="{key}"' in html
+    for tone in ("kpi-red", "kpi-amber", "kpi-sky", "kpi-maroon"):
+        assert tone in html
+
+
+def test_no_always_shown_info_callout_with_a_fake_info_icon(client_as, developer_user):
+    """«i لا تعمل» (المالك 2026-10-02): `callout "info" show=True` يرسم أيقونةَ (i) تبدو زرّاً وهي لا تعمل. المعلومةُ الحقيقيّةُ تلميحٌ بزرّ (ui-tip) في الترويسة وحدَها."""
+    html = _page(client_as, developer_user)
+    source = (ROOT / "templates" / "command_center" / "index.html").read_text(encoding="utf-8")
+    live = re.sub(r"\{#.*?#\}", "", source, flags=re.S)  # بلا التعليقات (فيها ذكرُ الممنوع شرحاً)
+    assert 'callout "info" show=True' not in live
+    assert html.count('class="ui-tip ') <= 1  # تلميحُ الترويسة وحدَه
+
+
+def test_status_badge_and_bar_use_the_central_identity_classes_and_no_local_colors(
+    client_as, developer_user
+):
+    html = _page(client_as, developer_user)
+    assert html.count("status-badge status-") >= len(contract.PANELS)
+    css = (ROOT / "static" / "css" / "custom" / "33-modules-4.css").read_text(encoding="utf-8")
+    block = css[css.index("/* مركز قيادة الجودة (QCC-01b") : css.index("/* نافذةُ التسجيل السريع")]
+    assert not re.search(
+        r"#[0-9a-fA-F]{3,8}\b|rgb\(|hsl\(", block
+    ), "لونٌ حرفيّ — الهويّةُ رموزٌ var(--…) وحدَها"
+    for old in ("accent-color", "--c:", "--fg:"):
+        assert old not in block, old
+
+
+def test_the_script_paints_the_central_bar_and_badge_not_local_elements():
+    source = (ROOT / "static" / "js" / "command_center.js").read_text(encoding="utf-8")
+    assert "--progress-w" in source and "progress-qatar-fill" in source
+    assert "status-success" in source and "status-gray" in source
+    assert "strip.counts" not in source

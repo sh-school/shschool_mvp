@@ -6,12 +6,12 @@
 {% endcomment %}
 <div class="qc-panel is-{{ panel.status }}" data-panel="{{ panel.key }}" data-refresh="{{ panel.refresh }}"{% if panel.featured_index %} data-featured="{{ panel.featured_index }}"{% endif %}>
   <strong class="qc-panel__title" data-key="{{ panel.key }}.title" title="{{ panel.headline|default:'لم يُجمَع بعدُ' }}">{{ panel.title }}</strong>
-  <progress class="qc-panel__bar" max="100" value="{{ panel.gauge|default_if_none:0 }}" data-bar aria-label="قراءةُ لوحة {{ panel.title }}"{% if panel.gauge is None %} aria-valuetext="لم تُجمَع بعدُ"{% endif %}></progress>
+  <span class="progress-qatar qc-panel__bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ panel.bar_value }}" aria-label="قراءةُ لوحة {{ panel.title }}"{% if panel.gauge is None %} aria-valuetext="لم تُجمَع بعدُ"{% endif %} data-bar><span class="progress-qatar-fill {{ panel.bar_tone }}" style="--progress-w:{{ panel.bar_value }}%"></span></span>
   <span class="qc-panel__figure">
     {% if panel.featured_index %}<strong data-key="{{ panel.key }}.m{{ panel.featured_index }}v">{{ panel.featured.value }}</strong> <span data-key="{{ panel.key }}.m{{ panel.featured_index }}l">{{ panel.featured.label }}</span>{% endif %}
-    {% if panel.target %}<span class="qc-panel__target">· الهدف: {{ panel.target }}</span>{% endif %}
+    {% if panel.target %}<span>· الهدف: {{ panel.target }}</span>{% endif %}
   </span>
-  <span class="qc-panel__state" data-key="{{ panel.key }}.state">{{ panel.state_label }}</span>
+  <span class="status-badge {{ panel.badge }}" data-key="{{ panel.key }}.state">{{ panel.state_label }}</span>
   <details class="qc-panel__more">
     <summary>التفاصيل</summary>
     <p class="ui-note" data-key="{{ panel.key }}.headline" title="{{ panel.headline|default:'لم يُجمَع بعدُ' }}">{% if panel.headline %}{{ panel.headline }}{% else %}لم يُجمَع بعدُ{% endif %}</p>
