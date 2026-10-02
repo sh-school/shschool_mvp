@@ -313,13 +313,16 @@ class ScheduleGrid:
             for member in task.members:
                 self._teacher_slots[member.teacher_id].append((day, slot))
                 self._teacher_at[(member.teacher_id, day, slot)] = task
-            self._subject_period[(task.subject_id, task.class_id, slot)] += 1
             for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] += 1
                 self._resource_levels[(resource_id, day, slot)][task.level_type] += 1
                 self._resource_bands[(resource_id, day, slot)][
                     (task.band_id or "", task.level_type)
                 ] += 1
+        # موضعُ البداية وحدَه: `check_period_variety` (HC7) يسأل عن موضع بداية الكتلة، فلو عُدّت كلُّ خانةٍ
+        # تغطّيها المزدوجةُ رُفع العدّادُ على حصّتَيها وضاقت مواضعُ البدء الأربعةُ (ح1، ح2، ح4، ح6) فتعذّرت
+        # كتلةٌ من نصاب 12 مزدوجة (W-20261002-014). والمفردةُ بدايتُها هي خانتُها فلا تتغيّر.
+        self._subject_period[(task.subject_id, task.class_id, period)] += 1
         # كتلةٌ واحدةٌ لا حصّةٌ لكلّ خانة: `per_day_cap` يُحسب بالكتل (⌈W/D⌉ على عدد الكتل)، فلو عُدّت
         # الخاناتُ كانت المزدوجةُ تُحسب اثنتين ويضيق السقفُ إلى النصف صامتاً (W-20260930-003).
         self._subject_class_day[(task.subject_id, task.class_id, day)] += 1
@@ -351,7 +354,6 @@ class ScheduleGrid:
             for member in task.members:
                 self._teacher_slots[member.teacher_id].remove((day, slot))
                 self._teacher_at.pop((member.teacher_id, day, slot), None)
-            self._subject_period[(task.subject_id, task.class_id, slot)] -= 1
             for resource_id, *_ in task.resources:
                 self._resource_at[(resource_id, day, slot)] -= 1
                 self._resource_levels[(resource_id, day, slot)][task.level_type] -= 1
@@ -359,6 +361,7 @@ class ScheduleGrid:
                     (task.band_id or "", task.level_type)
                 ] -= 1
         self._subject_class_day[(task.subject_id, task.class_id, day)] -= 1
+        self._subject_period[(task.subject_id, task.class_id, start)] -= 1
         for member in task.members:
             self._teacher_tasks[member.teacher_id] -= 1
         self._entries.pop(id(task), None)
@@ -491,7 +494,7 @@ class ScheduleGrid:
         return self._subject_class_day.get((subject_id, class_id, day), 0)
 
     def subject_at_period(self, class_id: str, subject_id: str, period: int) -> int:
-        """كم مرّةً وقعت هذه المادّةُ في هذه الحصّة من اليوم خلال الأسبوع.
+        """كم كتلةً بدأت لهذه المادّة في هذه الحصّة من اليوم خلال الأسبوع (المزدوجةُ كتلةٌ تُعدّ عند بدايتها).
 
         فمادّةٌ كلُّ حصصها في الحصّة الخامسة جدولٌ لا يقبله أحد: الطالبُ يلقاها
         في التوقيت نفسه كلَّ يوم، والمعلّمُ كذلك. والتنوّعُ مقصودٌ لا مصادفة.

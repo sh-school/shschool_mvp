@@ -126,7 +126,7 @@ def test_twelve_double_periods_fill_five_days_then_double_one_day():
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     ("weekly", "expected"),
-    [(6, [2, 2, 2]), (8, [2, 2, 2, 2])],
+    [(6, [2, 2, 2]), (8, [2, 2, 2, 2]), (12, [2, 2, 2, 2, 4])],
 )
 def test_a_generated_double_lands_by_blocks_per_day(school, weekly, expected):
     for period, (start, end) in enumerate(
