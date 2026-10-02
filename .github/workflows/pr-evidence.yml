@@ -1,0 +1,37 @@
+name: حزمةُ الأدلّة — تعليقٌ آليٌّ على كلّ طلب دمج (MAE-09، المرحلة 1)
+
+# ══════════════════════════════════════════════════════
+#  تعليقٌ واحدٌ يُحدَّث في مكانه على كلّ طلب: الخطورةُ من المسارات، وسطرُ اعتماد المالك،
+#  والهجراتُ، والمساراتُ المحظورةُ على الدمج الآليّ. المنطقُ كلُّه في scripts/pr_evidence.py
+#  (وتحرسه tests/test_pr_evidence.py).
+#  **معلوماتيٌّ لا بوّابة**: لا يفشل ولا يمنع دمجاً (الفشلُ عند تجاوز ميزانيّةٍ مقيسةٍ هو المرحلة 2).
+#  يُعاد عند تعديل وصف الطلب (edited) فيظهر سطرُ الاعتماد متى أُضيف.
+#  الطلباتُ من نسخٍ شقيقةٍ (fork) رمزُها للقراءة وحدَها: تطبع الأداةُ إشعاراً وتنجح.
+# ══════════════════════════════════════════════════════
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    branches: [main]
+
+concurrency:
+  group: pr-evidence-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  evidence:
+    name: حزمةُ الأدلّة
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: تعليقُ حزمة الأدلّة
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: python3 scripts/pr_evidence.py "$PR_NUMBER" --repo "$REPO" --post
