@@ -247,38 +247,13 @@ jobs:
     needs: [pip-audit-pypi, pip-audit-osv, bandit, django-check]
     if: always()
     steps:
-      - name: Security scan results
-        run: |
-          echo "## Security Scan Results" >> $GITHUB_STEP_SUMMARY
-          echo "| Check | Result |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| pip-audit (PyPI) | ${{ needs.pip-audit-pypi.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| pip-audit (OSV) | ${{ needs.pip-audit-osv.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Bandit (SAST) | ${{ needs.bandit.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Django --deploy | ${{ needs.django-check.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+      - uses: actions/checkout@v7
 
-      # هذه الوظيفة أحد سياقين مطلوبين في حماية `main` — أي أنها بوابة دمج
-      # فعلية لا تقريراً.
-      #
-      # وكانت تفشل على `== "failure"` لوظيفتين من أربع، فيعبرها أمران:
-      #
-      #   - وظيفةٌ أُلغيت أو تجاوزت مهلتها تُنتج `cancelled` لا `failure`،
-      #     فتمرّ البوابة وهي لم تفحص شيئاً. وليس هذا افتراضاً: وقع فعلاً
-      #     لوظيفة pytest في خطّ النشر (15:22 مقابل timeout-minutes: 15).
-      #   - و`safety` و`django-check` كانتا تُطبَعان في الجدول ولا تحكمان.
-      #
-      # فالشرط الآن `!= "success"` للأربع. ولا نُعدّد صيغ الفشل — نقبل النجاح
-      # وحده، فصيغةٌ جديدة من GitHub غداً تُغلق البوابة بدل أن تفتحها.
-      - name: Fail if any required security check did not succeed
-        run: |
-          if [[ "${{ needs.pip-audit-pypi.result }}" != "success" ]] || \
-             [[ "${{ needs.pip-audit-osv.result }}" != "success" ]] || \
-             [[ "${{ needs.bandit.result }}" != "success" ]] || \
-             [[ "${{ needs.django-check.result }}" != "success" ]]; then
-            echo "CRITICAL: one or more required security checks did not succeed"
-            echo "  pip-audit-pypi = ${{ needs.pip-audit-pypi.result }}"
-            echo "  pip-audit-osv  = ${{ needs.pip-audit-osv.result }}"
-            echo "  bandit         = ${{ needs.bandit.result }}"
-            echo "  django-check   = ${{ needs.django-check.result }}"
-            exit 1
-          fi
+      # أحدُ سياقَين مطلوبَين في حماية `main` — بوابةُ دمجٍ فعليّةٌ لا تقرير. الحكمُ في scripts/ci_needs_gate.py
+      # (المصدرُ نفسُه لبوابة الجودة): النجاحُ وحدَه نجاح؛ `cancelled` (مهلةٌ أو إلغاءُ concurrency، وقع فعلاً
+      # لوظيفة pytest في خطّ النشر) و`skipped` وأيُّ صيغةٍ جديدةٍ من GitHub فشلٌ تُغلق البوابةَ لا تفتحها.
+      # بلا إعفاءاتٍ هنا: كلُّ المهامّ تعمل على كلّ الأحداث.
+      - name: حكمُ الفحوص الأمنيّة
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: python3 scripts/ci_needs_gate.py "Security Scan Results"
