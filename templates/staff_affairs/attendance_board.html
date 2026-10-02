@@ -24,13 +24,15 @@
 
   {% if can_record %}
   {% filter_bar "ترشيحُ رصد اليوم" %}
-    {% field "date" "اليوم" type="date" value=day|date:"Y-m-d" max=today|date:"Y-m-d" data_autosubmit=True %}
+    <div class="att-board__day">
+      <a href="?date={{ prev_day|date:'Y-m-d' }}" class="btn-secondary btn-sm att-board__step" rel="prev" aria-label="اليومُ السابق" title="اليومُ السابق">{% icon "prev" %}</a>
+      {% field "date" "اليوم" type="date" value=day|date:"Y-m-d" max=today|date:"Y-m-d" data_autosubmit=True %}
+      {% if next_day %}<a href="?date={{ next_day|date:'Y-m-d' }}" class="btn-secondary btn-sm att-board__step" rel="next" aria-label="اليومُ التالي" title="اليومُ التالي">{% icon "next" %}</a>{% else %}<span class="btn-secondary btn-sm att-board__step is-disabled" aria-disabled="true" title="لا رصدَ لما بعد اليوم">{% icon "next" %}</span>{% endif %}
+    </div>
     {% field "q" "بحث" value=q id="board-q" grow=True placeholder="ابحث باسم الموظّف أو رقمه الوظيفيّ…" autocomplete="off" %}
     {% field "status" "الحالة" type="select" choices=state_choices value=state_filter blank="— الكلّ —" id="board-status" %}
     <div class="filter-actions att-board__nav">
-      <a href="?date={{ prev_day|date:'Y-m-d' }}" class="btn-secondary btn-xs" rel="prev">{% icon "prev" %} اليومُ السابق</a>
       <a href="{% url 'staff_affairs:attendance_board' %}" class="btn-secondary btn-xs">اليوم</a>
-      {% if next_day %}<a href="?date={{ next_day|date:'Y-m-d' }}" class="btn-secondary btn-xs" rel="next">اليومُ التالي {% icon "next" %}</a>{% endif %}
       <span id="board-count" class="att-board__count" role="status" aria-live="polite"></span>
     </div>
   {% endfilter_bar %}
@@ -43,12 +45,16 @@
     {% kpi "لم يُرصد" counts.unmarked tone="maroon" %}
   {% endkpi_strip %}
 
-  {% section_card "الكادر" meta=day|date:"l d/m/Y" icon="staff" flush=True empty="لا كادرَ نشطاً في هذه المدرسة" %}{% if rows %}
-    <div class="att-list" id="att-board-list">
-      {% for row in rows %}{% include "staff_affairs/partials/attendance_row.html" with staff=row.staff record=row.record values=row.values %}{% endfor %}
+  <div class="ui-grid-2" id="att-board">
+  {% for title, group_rows in groups %}
+  {% section_card title meta=group_rows|length icon="staff" flush=True empty="لا موظّفين في هذه الفئة" %}{% if group_rows %}
+    <div class="att-list" data-att-list>
+      {% for row in group_rows %}{% include "staff_affairs/partials/attendance_row.html" with staff=row.staff record=row.record values=row.values %}{% endfor %}
     </div>
-    <div id="board-empty" class="att-board__empty" hidden>{% empty_state "لا موظّفَ يطابق الترشيح" sub="غيّر كلمةَ البحث أو الحالة" icon="search" %}</div>
+    <div class="att-board__empty" hidden>{% empty_state "لا موظّفَ يطابق الترشيح" sub="غيّر كلمةَ البحث أو الحالة" icon="search" %}</div>
   {% endif %}{% endsection_card %}
+  {% endfor %}
+  </div>
   {% else %}
   {% section_card "الرصد بالإنابة" icon="staff" %}
     <p>يُفتح رصدُ الحضور وقبولُ العذر لنائب الشؤون الإدارية حين ينوب عن المدير: غيابُه المرصودُ اليوم، أو إنابتُه الصريحة، أو شغورُ المنصب (م-24 وم-25). والمديرُ حاضرٌ الآن، فالرصدُ للسكرتارية والمدير.</p>

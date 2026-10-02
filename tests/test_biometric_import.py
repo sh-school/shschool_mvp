@@ -393,7 +393,8 @@ class TestAttendanceBoardSearch:
             'id="board-q"',
             'id="board-status"',
             "attendance-board.js",
-            'id="att-board-list"',
+            'id="att-board"',
+            "data-att-list",
         ):
             assert needle in html
 
@@ -468,3 +469,49 @@ class TestAbsentFromFile:
             {"file": SimpleUploadedFile("كشف.csv", _csv(_line(8001)))},
         )
         assert "ولم يظهروا في الكشف" in response.content.decode()
+
+
+class TestBoardIsSplitIntoTwoCards:
+    """بطاقتان متجاورتان: من يتبع النائبَ الأكاديميّ (م-21) والباقي — والترشيحُ يعمل عليهما معاً."""
+
+    def _groups(self, client_as, user):
+        response = client_as(user).get(reverse("staff_affairs:attendance_board"))
+        return response, {
+            title: {r["staff"].pk for r in rows} for title, rows in response.context["groups"]
+        }
+
+    def test_teachers_and_administrative_staff_land_in_their_own_card(
+        self, client_as, school, secretary
+    ):
+        teacher = _person(school, 9101, "teacher")
+        nurse = _person(school, 9102, "nurse")
+        _, groups = self._groups(client_as, secretary)
+        assert (
+            teacher.pk in groups["الكادر الأكاديميّ"]
+            and teacher.pk not in groups["الكادر الإداريّ والخدمات"]
+        )
+        assert (
+            nurse.pk in groups["الكادر الإداريّ والخدمات"]
+            and nurse.pk not in groups["الكادر الأكاديميّ"]
+        )
+
+    def test_every_staff_member_is_in_exactly_one_card(self, client_as, school, secretary):
+        _person(school, 9103, "coordinator")
+        response, groups = self._groups(client_as, secretary)
+        everyone = [r["staff"].pk for r in response.context["rows"]]
+        in_cards = [pk for ids in groups.values() for pk in ids]
+        assert sorted(map(str, everyone)) == sorted(map(str, in_cards))
+
+    def test_two_cards_sit_side_by_side_in_a_grid(self, client_as, secretary):
+        html = client_as(secretary).get(reverse("staff_affairs:attendance_board")).content.decode()
+        assert 'class="ui-grid-2" id="att-board"' in html and html.count("data-att-list") >= 1
+
+    def test_arrows_flank_the_date_field(self, client_as, secretary):
+        html = (
+            client_as(secretary)
+            .get(reverse("staff_affairs:attendance_board"), {"date": "2026-02-02"})
+            .content.decode()
+        )
+        before_date = html.index('rel="prev"')
+        after_date = html.index('rel="next"')
+        assert before_date < html.index('name="date"') < after_date

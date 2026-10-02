@@ -129,6 +129,11 @@ def attendance_board(request: HttpRequest) -> HttpResponse:
         board = StaffAttendanceService.daily_board(_school(request), day, viewer=_user(request))
         for row in board["rows"]:
             row["values"] = _row_values(row["record"], can_excuse)
+        # بطاقتان متجاورتان بدل واحدةٍ طويلة: من يتبع النائبَ الأكاديميّ، والباقي (م-21).
+        board["groups"] = [
+            ("الكادر الأكاديميّ", [r for r in board["rows"] if r["academic"]]),
+            ("الكادر الإداريّ والخدمات", [r for r in board["rows"] if not r["academic"]]),
+        ]
     today = timezone.localdate()
     state = request.GET.get("status", "")
     return render(

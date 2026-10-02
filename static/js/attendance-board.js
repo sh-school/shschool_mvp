@@ -1,18 +1,17 @@
 /**
  * لوحةُ رصد حضور الموظّفين — بحثٌ وترشيحٌ بالحالة في المتصفّح بلا طلب خادم:
- * كادرُ المدرسة كلُّه مرسومٌ في الصفحة أصلاً. والبحثُ عربيٌّ ذكيّ (`smartMatch` من base.js:
- * يُسقط التشكيلَ ويوحّد الهمزات وكلُّ كلمةٍ يجب أن تطابق). وبعد كلّ رصدٍ يستبدل HTMX
- * سطرَه بنسخةٍ جديدة، فيُعاد الترشيحُ: من رُصد وهو في قائمة «لم يُرصد» يغادرها.
+ * كادرُ المدرسة كلُّه مرسومٌ في الصفحة أصلاً (بطاقتان: الأكاديميّ والإداريّ). والبحثُ عربيٌّ ذكيّ
+ * (`smartMatch` من base.js: يُسقط التشكيلَ ويوحّد الهمزات وكلُّ كلمةٍ يجب أن تطابق). وبعد كلّ رصدٍ
+ * يستبدل HTMX سطرَه بنسخةٍ جديدة، فيُعاد الترشيحُ: من رُصد وهو في قائمة «لم يُرصد» يغادرها.
  */
 (function () {
   'use strict';
-  var list = document.getElementById('att-board-list');
+  var board = document.getElementById('att-board');
   var query = document.getElementById('board-q');
   var state = document.getElementById('board-status');
-  if (!list || !query || !state) return;
+  if (!board || !query || !state) return;
 
   var count = document.getElementById('board-count');
-  var empty = document.getElementById('board-empty');
   var timer = null;
 
   function matches(row, text, wanted) {
@@ -25,19 +24,24 @@
   }
 
   function apply() {
-    var rows = list.querySelectorAll('.att-row--staff');
     var text = query.value.trim();
     var wanted = state.value;
     var shown = 0;
-    rows.forEach(function (row) {
-      var ok = matches(row, text, wanted);
-      row.hidden = !ok;
-      if (ok) shown++;
+    var total = 0;
+    board.querySelectorAll('[data-att-list]').forEach(function (list) {
+      var rows = list.querySelectorAll('.att-row--staff');
+      var visible = 0;
+      rows.forEach(function (row) {
+        var ok = matches(row, text, wanted);
+        row.hidden = !ok;
+        if (ok) visible++;
+      });
+      var empty = list.nextElementSibling;
+      if (empty && empty.classList.contains('att-board__empty')) empty.hidden = visible !== 0;
+      shown += visible;
+      total += rows.length;
     });
-    if (count) {
-      count.textContent = (text || wanted) ? shown + ' من ' + rows.length : rows.length + ' موظّفاً';
-    }
-    if (empty) empty.hidden = shown !== 0;
+    if (count) count.textContent = (text || wanted) ? shown + ' من ' + total : total + ' موظّفاً';
   }
 
   query.addEventListener('input', function () {
@@ -50,6 +54,6 @@
     if (event.key === 'Enter') event.preventDefault();
   });
   state.addEventListener('change', apply);
-  list.addEventListener('htmx:afterSwap', apply);
+  board.addEventListener('htmx:afterSwap', apply);
   apply();
 })();
