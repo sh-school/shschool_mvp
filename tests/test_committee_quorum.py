@@ -6,7 +6,7 @@
 
 import pytest
 
-from behavior.committee_quorum import cast_vote, eligible_member_ids, majority_needed
+from behavior.committee_services import cast_vote, eligible_member_ids, majority_needed
 from behavior.models import BehaviorCommitteeVote
 from tests.conftest import (
     BehaviorInfractionFactory,

@@ -308,7 +308,7 @@
    "orm": 30
   },
   "behavior/views.py::report_infraction": {
-   "lines": 111,
+   "lines": 109,
    "orm": 31
   },
   "behavior/views.py::student_behavior_pdf": {
@@ -420,7 +420,7 @@
    "orm": 11
   },
   "operations/views_schedule.py::schedule_quality_lab": {
-   "lines": 107,
+   "lines": 106,
    "orm": 10
   },
   "operations/views_schedule.py::schedule_settings": {
@@ -433,7 +433,7 @@
    "orm": 14
   },
   "operations/views_schedule.py::smart_schedule_view": {
-   "lines": 97,
+   "lines": 96,
    "orm": 24
   },
   "operations/views_schedule.py::teacher_load_report": {

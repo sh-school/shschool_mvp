@@ -63,7 +63,7 @@ def _behavior_report_redirect(
     )
 
 
-from behavior.committee_quorum import decide_committee
+from behavior.committee_services import decide_committee
 from behavior.forms import InfractionForm
 from behavior.models import BehaviorInfraction, ViolationCategory
 from core.capabilities import capability_required, has_capability
