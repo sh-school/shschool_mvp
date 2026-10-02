@@ -48,6 +48,45 @@ class TestAnalyticsViews:
         resp = c.get("/analytics/")
         assert resp.status_code == 403
 
+    def test_platform_developer_is_denied_even_without_superuser(
+        self, client_as, school, django_user_model
+    ):
+        """D-98م: platform_developer مستبعدٌ من /analytics/ كاملاً."""
+        from core.models.access import Membership, Role
+
+        user = django_user_model.objects.create(
+            must_change_password=False, national_id="28700000099", full_name="مطوّر"
+        )
+        user.set_password("Aa!23456789")
+        user.save()
+        role, _ = Role.objects.get_or_create(school=school, name="platform_developer")
+        Membership.objects.create(user=user, school=school, role=role)
+
+        resp = client_as(user).get("/analytics/")
+
+        assert resp.status_code == 403
+
+    def test_platform_developer_is_denied_even_as_superuser(
+        self, client_as, school, django_user_model
+    ):
+        """الاستبعادُ صريحٌ، لا يعتمد على تجاوز `is_superuser` (اكتشافُ W-20261001-040)."""
+        from core.models.access import Membership, Role
+
+        user = django_user_model.objects.create(
+            must_change_password=False,
+            national_id="28700000098",
+            full_name="مطوّر-سوبريوزر",
+            is_superuser=True,
+        )
+        user.set_password("Aa!23456789")
+        user.save()
+        role, _ = Role.objects.get_or_create(school=school, name="platform_developer")
+        Membership.objects.create(user=user, school=school, role=role)
+
+        resp = client_as(user).get("/analytics/api/attendance-trend/")
+
+        assert resp.status_code == 403
+
     def test_api_attendance_trend(self, client_as, principal_user):
         c = client_as(principal_user)
         resp = c.get("/analytics/api/attendance-trend/")
