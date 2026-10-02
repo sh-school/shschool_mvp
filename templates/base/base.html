@@ -475,7 +475,7 @@
     (`is_developer` وحدَه من `core.context_processors`؛ والشرطُ العامّ
     can_open يستثني الطلبةَ تلقائياً عبر NotStudentMixin في الشاشة نفسها).
     {% endcomment %}
-    {% if request.user|can_open:"developer_feedback:message_create" %}
+    {% if role != "student" and request.user|can_open:"developer_feedback:message_create" %}
       <button class="nb" id="btn-dev-messages" data-sd="m-dev-messages" aria-expanded="false" aria-controls="m-dev-messages">{% icon "messages" %} رسائل المطوّر <span class="chv">▼</span></button>
     {% endif %}
     </div>
@@ -854,7 +854,7 @@ is_staff/is_developer/is_leadership) فتُظهر لكلٍّ ما يملكه ه�
 إداريٌّ (صندوق الوارد للمطوّر من الكلّ + الرسائل الجديدة + تأليف رسالةٍ
 جديدة + سجلُّ ما بُثّ) يراه المطوّر وحدَه.
 {% endcomment %}
-{% if request.user|can_open:"developer_feedback:message_create" %}
+{% if role != "student" and request.user|can_open:"developer_feedback:message_create" %}
 <div class="sd-menu{% if is_developer %} sd-menu--cols-2{% endif %}" id="m-dev-messages" role="menu" aria-label="رسائل المطوّر">
   <div class="sd-section">
   <div class="sd-label">رسائلي</div>

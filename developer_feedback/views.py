@@ -16,12 +16,14 @@ import logging
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Q
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import CreateView, DetailView, ListView, TemplateView, UpdateView, View
 
 from core.developer_access import developer_only
+from core.models.access import Role
 from developer_feedback.forms import (
     BroadcastMessageForm,
     DeveloperMessageEditForm,
@@ -35,20 +37,21 @@ from developer_feedback.models import (
     MessageEditHistory,
     MessageStatus,
     MessageStatusLog,
-    OutboundMessage,
 )
 from developer_feedback.permissions import (
     DeveloperOnlyMixin,
     NotStudentMixin,
     OnboardingRequiredMixin,
 )
-from developer_feedback.services.audience import AudienceError, audience_label, resolve_recipients
+from developer_feedback.selectors import active_departments, broadcasts_sent_by, staff_directory
+from developer_feedback.services.audience import AudienceError
 from developer_feedback.services.audit import (
     log_inbox_view,
     log_message_edit,
     log_message_view,
     log_status_update,
 )
+from developer_feedback.services.broadcast import preview_recipient_count, send_broadcast
 from developer_feedback.services.notifications import (
     send_developer_edit_notification,
     send_developer_notification,
@@ -350,16 +353,13 @@ class DeveloperInboxDetailView(DeveloperOnlyMixin, DetailView):
 
 @developer_only
 def broadcast_recipient_count(request):
-    """عدّادٌ حيٌّ لعدد المستلِمين قبل الإرسال — يُستدعى بـHTMX عند تغيير الاختيار."""
-    from django.http import JsonResponse
-
-    school = request.user.get_school()
-    target_kind = request.GET.get("target_kind", "")
-    target_value = request.GET.get("target_value", "")
-    try:
-        count = resolve_recipients(school, request.user, target_kind, target_value).count()
-    except AudienceError:
-        count = 0
+    """عدّادٌ حيٌّ لعدد المستلِمين قبل الإرسال — يُستدعى عند تغيير الاختيار."""
+    count = preview_recipient_count(
+        request.school,
+        request.user,
+        request.GET.get("target_kind", ""),
+        request.GET.get("target_value", ""),
+    )
     return JsonResponse({"count": count})
 
 
@@ -367,88 +367,32 @@ def broadcast_recipient_count(request):
 def broadcast_create(request):
     """تأليفُ رسالةٍ من المطوّر — فردٌ/قسمٌ أكاديميّ/دورٌ وظيفيّ/الجميع (قرارُ 2026-09-30).
 
-    التسليمُ عبر `InAppNotification` القائم (الجرسُ وصندوقُ الإشعارات اللذان يملكهما
-    كلُّ مستخدمٍ أصلاً) — لا صندوقَ واردٍ موازياً هنا (تصحيحُ تصميمٍ 2026-09-30: كان
-    أوّل تنفيذٍ يبني صندوقاً مستقلّاً فيكرّر نظاماً قائماً).
+    القراءةُ في `selectors.py` والكتابةُ والتسليمُ في `services/broadcast.py`.
     """
-    from core.models import Department
-    from core.models.access import Role
-    from notifications.models import InAppNotification
-
-    school = request.user.get_school()
     form = BroadcastMessageForm(request.POST or None)
-
-    if request.method == "POST":
-        target_kind = request.POST.get("target_kind", "")
-        target_value = request.POST.get("target_value", "")
-        recipients = None
+    if request.method == "POST" and form.is_valid():
         try:
-            recipients = resolve_recipients(school, request.user, target_kind, target_value)
-            recipient_ids = list(recipients.values_list("id", flat=True))
+            sent = send_broadcast(
+                request.school,
+                request.user,
+                form,
+                request.POST.get("target_kind", ""),
+                request.POST.get("target_value", ""),
+            )
         except AudienceError as exc:
             form.add_error(None, str(exc))
-            recipient_ids = []
-
-        if recipients is not None and not recipient_ids:
-            form.add_error(None, _("لا يوجد مستلِمون مطابقون لهذا الاختيار."))
-
-        if form.is_valid() and recipient_ids:
-            with transaction.atomic():
-                outbound = form.save(commit=False)
-                outbound.sent_by = request.user
-                outbound.audience_label = audience_label(
-                    target_kind, target_value, len(recipient_ids)
-                )
-                outbound.recipient_count = len(recipient_ids)
-                outbound.save()
-                InAppNotification.objects.bulk_create(
-                    [
-                        InAppNotification(
-                            user_id=uid,
-                            school=school,
-                            title=outbound.subject,
-                            body=outbound.body,
-                            event_type="developer_message",
-                            priority="medium",
-                        )
-                        for uid in recipient_ids
-                    ]
-                )
-            messages.success(
-                request,
-                _("أُرسلت الرسالة إلى %(n)s مستخدماً.") % {"n": len(recipient_ids)},
-            )
+        else:
+            messages.success(request, _("أُرسلت الرسالة إلى %(n)s مستخدماً.") % {"n": sent})
             return redirect("developer_feedback:broadcast_sent")
-
-    from core.models import CustomUser
-    from developer_feedback.services.audience import STAFF_ROLES
-
-    role_labels = dict(Role.ROLES)
-    staff_qs = (
-        CustomUser.objects.filter(
-            memberships__school=school,
-            memberships__is_active=True,
-            memberships__role__name__in=STAFF_ROLES,
-        )
-        .exclude(id=request.user.id)
-        .distinct()
-        .order_by("full_name")
-    )
-    # فردٌ بعينه: كلُّ موظّفي المدرسة — لا المعلّمين المنتمين لقسمٍ وحدَهم
-    # (تصحيحُ طلبٍ 2026-10-01: كان مقصوراً على `get_teachers()` فيُغيب الإداريّين
-    # والممرّضين وغيرهم). `get_role()` نصٌّ لا حقلَ اختياراتٍ، فالتسميةُ تُحسب هنا.
-    all_staff = [(u, role_labels.get(u.get_role(), u.get_role())) for u in staff_qs]
 
     return render(
         request,
         "developer_feedback/broadcast_create.html",
         {
             "form": form,
-            "departments": Department.objects.filter(school=school, is_active=True).order_by(
-                "sort_order", "name"
-            ),
+            "departments": active_departments(request.school),
             "roles": Role.ROLES,
-            "all_staff": all_staff,
+            "all_staff": staff_directory(request.school, request.user),
         },
     )
 
@@ -456,10 +400,9 @@ def broadcast_create(request):
 class BroadcastSentListView(DeveloperOnlyMixin, ListView):
     """سجلُّ ما بثَّه المطوّر سابقاً."""
 
-    model = OutboundMessage
     template_name = "developer_feedback/broadcast_sent.html"
     context_object_name = "broadcasts"
     paginate_by = 25
 
     def get_queryset(self):
-        return OutboundMessage.objects.filter(sent_by=self.request.user).order_by("-created_at")
+        return broadcasts_sent_by(self.request.user)
