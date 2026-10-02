@@ -1,3 +1,4 @@
+import datetime
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -426,7 +427,7 @@ class Profile(models.Model):
         verbose_name_plural = "الملفات الشخصية"
 
     @property
-    def date_of_birth(self):
+    def date_of_birth(self) -> datetime.date | None:
         """تاريخُ الميلاد للقراءة: المشفَّرُ أوّلاً، ثمّ القديمُ لصفٍّ لم يُملأ بعد."""
         from datetime import date
 
@@ -439,7 +440,7 @@ class Profile(models.Model):
                 _logger.warning("Profile %s: birth_date_encrypted غير قابلٍ للقراءة", self.pk)
         return self.birth_date
 
-    def save(self, *args, **kwargs):
+    def save(self, *args: Any, **kwargs: Any) -> None:
         """كتابةٌ مزدوجة: كلُّ من يضبط `birth_date` يُحدِّث المشفَّرَ تلقائياً."""
         self.birth_date_encrypted = self.birth_date.isoformat() if self.birth_date else ""
         update_fields = kwargs.get("update_fields")
