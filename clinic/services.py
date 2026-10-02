@@ -79,7 +79,7 @@ class ClinicService:
 
         logger.info(
             "زيارة عيادة جديدة: طالب=%s مدرسة=%s منزل=%s",
-            student.full_name,
+            student.pk,
             school.code,
             is_sent_home,
         )
