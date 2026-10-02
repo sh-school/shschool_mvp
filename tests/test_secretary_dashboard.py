@@ -6,7 +6,8 @@
 
 from __future__ import annotations
 
-from datetime import time
+from datetime import datetime, time
+from zoneinfo import ZoneInfo
 
 import pytest
 from django.urls import reverse
@@ -14,6 +15,7 @@ from django.utils import timezone
 
 from core.dashboard_registry import role_dashboard_provider
 from core.models import AuditLog
+from staff_affairs import attendance as attendance_module
 from staff_affairs import dashboard as secretary_dashboard
 from staff_affairs.attendance import StaffAttendanceService
 from tests.conftest import MembershipFactory, RoleFactory, UserFactory
@@ -30,6 +32,18 @@ def _person(school, number, role="teacher"):
 @pytest.fixture
 def secretary(school):
     return _person(school, 90001, "secretary")
+
+
+@pytest.fixture(autouse=True)
+def _clock(monkeypatch):
+    """ساعةُ الرصد مثبَّتةٌ على 09:30 من «اليوم» الحقيقيّ.
+
+    الاختبارُ يرصد حضوراً بـ06:30 «اليوم»، والسياسةُ ترفض ما لم يقع بعدُ — فكان يسقط
+    كلَّ ليلةٍ من منتصف الليل حتى 06:30 بتوقيت الدوحة (W-20261002-045). و`localdate`
+    يبقى الحقيقيَّ فيتّفق «اليومُ» في الاختبار وفي لوحة السكرتير.
+    """
+    now = datetime.combine(timezone.localdate(), time(9, 30), tzinfo=ZoneInfo("Asia/Qatar"))
+    monkeypatch.setattr(attendance_module, "_now", lambda: now, raising=False)
 
 
 @pytest.fixture
