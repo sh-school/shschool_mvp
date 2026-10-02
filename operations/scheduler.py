@@ -56,6 +56,26 @@ MIN_ATTEMPTS = 3
 MAX_ATTEMPTS = 20
 PATIENCE = 3
 
+
+class Deadline:
+    """ساعةُ البحث: تُمرَّر إلى الإصلاح فيقف عند نفاد الميزانية، وتذكر أنّها قطعت لتُسجَّل في اللقطة.
+
+    كانت الميزانيةُ تُسأل **بين المحاولات** وحدَها، والمحاولةُ نفسُها (الإزاحةُ الموجَّهة بعمق 3 لكلّ متعذّرة،
+    ثلاثَ مرّاتٍ) بلا ساعةٍ — فشعبةٌ فوق سعتها تُنفق ≈290 ثانيةً على ميزانيةِ 4 ثوانٍ (W-20261002-033).
+    والفحصُ عند كلّ متعذّرة: تجاوزُه بقدر إزاحةٍ واحدةٍ لا أكثر.
+    """
+
+    def __init__(self, at: float, clock=time.time):
+        self.at = at
+        self.hit = False
+        self._clock = clock
+
+    def expired(self) -> bool:
+        if self._clock() >= self.at:
+            self.hit = True
+        return self.hit
+
+
 DAYS = [0, 1, 2, 3, 4]  # أحد - خميس
 #: آخرُ حصّةٍ في اليوم — لها حكمُها الخاصّ في التوزيع.
 LAST_PERIOD = 7
@@ -978,6 +998,7 @@ def _repair_pass(
     allow_adjacent=False,
     allow_dense=False,
     depth: int = 3,
+    deadline: Deadline | None = None,
 ):
     """الإزاحةُ الموجَّهة: أخرِج ساكنَ الخانة، وأنزِل المتعذّرة، ثمّ أعِد الساكن.
 
@@ -994,14 +1015,18 @@ def _repair_pass(
     remaining = list(leftovers)
     for _ in range(3):
         still = []
-        for task in remaining:
+        for position, task in enumerate(remaining):
+            if deadline is not None and deadline.expired():
+                # نفدت الميزانيةُ: ما بقي يبقى متعذّراً بموضعه — لا يُترك بلا ذكر (يُسجَّل `budget_cut`).
+                still.extend(remaining[position:])
+                break
             if budget <= 0 or not _try_eject(
                 grid, task, blocked, preferences, depth, school, allow_adjacent, allow_dense
             ):
                 still.append(task)
             else:
                 budget -= 1
-        if len(still) == len(remaining):
+        if len(still) == len(remaining) or (deadline is not None and deadline.hit):
             return still
         remaining = still
     return remaining
@@ -1231,6 +1256,7 @@ def _run_attempt(
     school,
     rng,
     max_backtrack,
+    deadline: Deadline | None = None,
 ) -> tuple:
     """محاولةٌ واحدة: الدقيقُ للضيّقين، فالجشع، فالإصلاح، فالرخصتان، فالإنقاذ.
 
@@ -1243,7 +1269,9 @@ def _run_attempt(
     pending = [t for t in sorted_tasks if grid.home_of(t) is None]
     leftovers = _greedy_pass(grid, pending, blocked_slots, preferences, school, rng)
     before_repair = len(leftovers)
-    leftovers = _repair_pass(grid, leftovers, blocked_slots, preferences, max_backtrack, school)
+    leftovers = _repair_pass(
+        grid, leftovers, blocked_slots, preferences, max_backtrack, school, deadline=deadline
+    )
     repaired = before_repair - len(leftovers)
 
     # الرخصةُ الأولى: زوجٌ واحدٌ متلاصق. والقياسُ هو الذي فرض تأخيرَها —
@@ -1260,6 +1288,7 @@ def _run_attempt(
             max_backtrack,
             school,
             allow_adjacent=True,
+            deadline=deadline,
         )
         relaxed = before - len(leftovers)
 
@@ -1286,6 +1315,7 @@ def _run_attempt(
             school,
             allow_adjacent=True,
             allow_dense=True,
+            deadline=deadline,
         )
         densed = before - len(leftovers)
 
@@ -1303,6 +1333,7 @@ def _run_attempt(
             allow_adjacent=True,
             allow_dense=True,
             depth=4,
+            deadline=deadline,
         )
 
     # والمفاضلةُ بالثمن لا بالعدد وحدَه: جدولٌ تامٌّ بلا رخصةِ كثافةٍ خيرٌ
@@ -1322,7 +1353,9 @@ def _search_exhausted(done: int, elapsed: float, budget: float, idle: int, compl
     """
     # وما دام الأفضلُ ناقصاً تُمَدّ الميزانيةُ إلى ضعفها: حصّةٌ بلا موضعٍ أغلى من دقيقة.
     limit = budget if complete else 2 * budget
-    if done >= MAX_ATTEMPTS or (done >= MIN_ATTEMPTS and elapsed >= limit):
+    # الحدُّ الأدنى للمقارنة (ثلاثُ محاولات) يسقط حين تنفد الميزانية: محاولةٌ واحدةٌ على الأقلّ لا ثلاثٌ مهما طالت
+    # الأولى (قرارُ المالك W-20261002-033) — فمحاولاتٌ سريعةٌ لا تبلغ الميزانيةَ فلا يتغيّر شيءٌ.
+    if done >= MAX_ATTEMPTS or (done >= 1 and elapsed >= limit):
         return True
     return done >= MIN_ATTEMPTS and idle >= PATIENCE and complete
 
@@ -1556,6 +1589,8 @@ def generate_schedule(
     from operations.schedule_lab import grid_lab_score, load_context
 
     budget = float(getattr(_settings, "SCHEDULE_TIME_BUDGET_SECONDS", 60))
+    # سقفُ البحث الصلب ضعفُ الميزانية (كما في `_search_exhausted` لما بقي متعذّرٌ): الإصلاحُ يقف عنده داخل المحاولة.
+    search_deadline = Deadline(start_time + 2 * budget)
     lab_ctx = load_context(school, academic_year)
     attempt_log: list[dict] = []
     since_improvement = 0
@@ -1573,7 +1608,15 @@ def generate_schedule(
             policy=constraint_registry.resolve(school, academic_year),
         )
         leftovers, repaired, relaxed, densed, tight_done = _run_attempt(
-            grid, sorted_tasks, blocked_slots, preferences, prefs_qs, school, rng, max_backtrack
+            grid,
+            sorted_tasks,
+            blocked_slots,
+            preferences,
+            prefs_qs,
+            school,
+            rng,
+            max_backtrack,
+            search_deadline,
         )
         uncovered = len(
             _empty_day_reports(grid, tasks, {m.teacher_id for t in leftovers for m in t.members})
@@ -1609,6 +1652,13 @@ def generate_schedule(
             break
 
     _, grid, leftovers, repaired, relaxed, densed, chosen = best
+    if search_deadline.hit:
+        logger.warning(
+            "قُطع إصلاحُ التوليد بنفاد الميزانية (%.0f ثانية) بعد %d محاولة — متعذّرات: %d",
+            budget,
+            attempt + 1,
+            len(leftovers),
+        )
 
     # التحسينُ المحلّيّ على الجدول الكامل: نقلٌ أو تبديلٌ يُقبل إن رفع درجةَ
     # المختبر بلا كسر قيد — فيما بقي من الميزانية، وربعُها على الأقلّ.
@@ -1701,6 +1751,8 @@ def generate_schedule(
                         "attempts": attempt + 1,
                         "chosen_attempt": chosen,
                         "budget_seconds": budget,
+                        #: قُطع الإصلاحُ بنفاد الميزانية — فالمتعذّراتُ قد تكون من قطعٍ لا من استحالة.
+                        "budget_cut": search_deadline.hit,
                         "attempt_log": attempt_log,
                         "improvement": improvement,
                         #: ما بقي مكسوراً بعد السداد — بموضعه، لبوّابة الاعتماد (SCH-04).
