@@ -61,9 +61,19 @@ class Command(BaseCommand):
             for p in profile_model.objects.filter(birth_date__isnull=False)
             .exclude(birth_date_encrypted="")
             .iterator()
-            if p.date_of_birth != p.birth_date
+            if self._decrypted(p) != p.birth_date
         )
         self.stdout.write(f"بلا مشفَّر: {missing} — مختلفٌ عن الصريح: {mismatched}")
         if missing or mismatched:
             raise CommandError("التحقّق فشل: لا يُسمح بالتقليص")
         self.stdout.write(self.style.SUCCESS("التحقّق نجح"))
+
+    @staticmethod
+    def _decrypted(profile):
+        """فكٌّ مباشرٌ بلا سقوطٍ للصريح: التالفُ أو بمفتاحٍ ضائعٍ يُعدّ اختلافاً (None)."""
+        from datetime import date
+
+        try:
+            return date.fromisoformat(profile.birth_date_encrypted)
+        except ValueError:
+            return None
