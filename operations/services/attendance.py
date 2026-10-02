@@ -40,10 +40,10 @@ class AttendanceService:
         قيدُ الطالب بتاريخها، من بدء الحصّة إلى نهاية الدوام بتوقيت الدوحة، وليس المطوّر) — W-20261002-026.
         وتُستدعى من هنا لا من العرض لأنّ القراءةَ تُنقل إلى طبقة الخدمات.
         """
-        from operations.attendance_policy import DEVELOPER_ROLE, can_enter
+        from operations.attendance_policy import can_enter, is_developer
         from operations.day_attendance import is_recorder, recorded_by_supervisor
 
-        if user.has_role(DEVELOPER_ROLE):
+        if is_developer(user):
             return False  # D-128م: المطوّرُ لا يُدخل ولو كان superuser، فلا يمرّ بـ`is_recorder`
         if is_recorder(user):
             return True
@@ -52,7 +52,14 @@ class AttendanceService:
         )
 
     @staticmethod
-    def _audit_teacher_mark(marked_by, session, student, before, after, created) -> None:
+    def _audit_teacher_mark(
+        marked_by: CustomUser | None,
+        session: Session,
+        student: CustomUser,
+        before: str | None,
+        after: str,
+        created: bool,
+    ) -> None:
         """سطرُ تدقيقٍ بالقيمتين لكتابة غير أهل الرصد (معلّمُ ESE) — D-126م: رصدٌ نهائيٌّ **بتدقيقٍ كامل**.
 
         أهلُ الرصد لهم مساراتُهم وتدقيقُهم (كشفُ الحصص). والمعرّفاتُ لا الأسماء (PDPPL).

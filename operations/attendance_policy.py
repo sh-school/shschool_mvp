@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import datetime as dt
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 from django.db.models import Max
 from django.utils import timezone
@@ -28,7 +29,10 @@ from django.utils import timezone
 from core.models import StudentEnrollment
 
 from .bells import day_type_for
-from .models import TimeSlotConfig
+from .models import Session, TimeSlotConfig
+
+if TYPE_CHECKING:
+    from core.models import ClassGroup, CustomUser, School, TimeBand
 
 DEVELOPER_ROLE = "platform_developer"
 
@@ -50,6 +54,14 @@ class Verdict:
         return self.allowed
 
 
+def is_developer(user: CustomUser) -> bool:
+    """أللمستخدم عضويّةٌ نشطةٌ بدور المطوّر (في أيّ مدرسة)؟ — فشلٌ مغلقٌ أوسعُ من المطلوب، مقبول.
+
+    استعلامٌ مباشرٌ على العضويّات لا `user.has_role` (دالّةٌ بلا أنواعٍ تُحمَّل على سقّاطة mypy)، والمعنى نفسُه.
+    """
+    return bool(user.memberships.filter(is_active=True, role__name=DEVELOPER_ROLE).exists())
+
+
 def _allow() -> Verdict:
     return Verdict(True)
 
@@ -58,7 +70,7 @@ def _deny(reason: str) -> Verdict:
     return Verdict(False, reason)
 
 
-def school_day_end(school, day: dt.date, band=None) -> dt.time | None:
+def school_day_end(school: School, day: dt.date, band: TimeBand | None = None) -> dt.time | None:
     """نهايةُ اليوم الدراسيّ: آخرُ خانةٍ في جرس المدرسة لهذا النوع من الأيّام — وهي دالّةٌ واحدة.
 
     بإعداد المدرسة (`TimeSlotConfig`) لا بثابت. و`band` يحصر الحسابَ بجرس الشعبة إن كان له خاناتٌ في
@@ -72,10 +84,11 @@ def school_day_end(school, day: dt.date, band=None) -> dt.time | None:
         scoped = rows.filter(band=band)
         if scoped.exists():
             rows = scoped
-    return rows.aggregate(last=Max("end_time"))["last"]
+    last: dt.time | None = rows.aggregate(last=Max("end_time"))["last"]
+    return last
 
 
-def entry_window(session) -> tuple[dt.datetime, dt.datetime]:
+def entry_window(session: Session) -> tuple[dt.datetime, dt.datetime]:
     """نافذةُ إدخال المعلّم: من بدء الحصّة إلى نهاية اليوم الدراسيّ، لحظتان واعيتان بتوقيت الدوحة.
 
     وحيث لا جرسَ مضبوطاً تضيق النافذةُ إلى نهاية الحصّة نفسِها — الأضيقُ لا ثابتٌ مخترَع. ولا تُقصَّر
@@ -87,19 +100,19 @@ def entry_window(session) -> tuple[dt.datetime, dt.datetime]:
     return start, timezone.make_aware(dt.datetime.combine(session.date, last))
 
 
-def is_special_education(class_group) -> bool:
+def is_special_education(class_group: ClassGroup) -> bool:
     """شعبةُ تربيةٍ خاصّة: بلا جناحٍ **و**شعبةُ ESE — العلامتان معاً، فالفراغُ وحدَه لا يكفي."""
     if class_group.wing_id is not None:
         return False
-    return class_group.section.rsplit("/", 1)[-1].strip().upper() == SPECIAL_EDUCATION_SECTION
+    return bool(class_group.section.rsplit("/", 1)[-1].strip().upper() == SPECIAL_EDUCATION_SECTION)
 
 
-def needs_approval(session) -> bool:
+def needs_approval(session: Session) -> bool:
     """أيحتاج رصدُ هذه الحصّة اعتماداً؟ — كلُّ الشُّعب إلّا التربية الخاصّة (D-126م)."""
     return not is_special_education(session.class_group)
 
 
-def approval_holder(session):
+def approval_holder(session: Session) -> CustomUser | None:
     """من يحمل جناحَ شعبة الحصّة **يومَ الحصّة**: بديلُ التغطية الساريةِ بتاريخها وإلّا الأصيل.
 
     و`None` إن لم يكن للشعبة جناحٌ أو كان الجناحُ غيرَ نشطٍ أو بلا مشرفٍ ولا تغطية. و`Wing.is_held_by`
@@ -108,10 +121,11 @@ def approval_holder(session):
     wing = session.class_group.wing
     if wing is None or not wing.is_active:
         return None
-    return wing.current_supervisor(on_date=session.date)
+    holder: CustomUser | None = wing.current_supervisor(on_date=session.date)  # type: ignore[no-untyped-call]
+    return holder
 
 
-def _roles_in_school(user, school_id) -> set[str]:
+def _roles_in_school(user: CustomUser, school_id: Any) -> set[str]:
     return set(
         user.memberships.filter(is_active=True, school_id=school_id).values_list(
             "role__name", flat=True
@@ -119,11 +133,13 @@ def _roles_in_school(user, school_id) -> set[str]:
     )
 
 
-def can_enter(user, session, student, *, now: dt.datetime | None = None) -> Verdict:
+def can_enter(
+    user: CustomUser, session: Session, student: CustomUser, *, now: dt.datetime | None = None
+) -> Verdict:
     """هل يُدخل هذا المستخدمُ رصداً مبدئيّاً لهذا الطالب في هذه الحصّة الآن؟"""
     if not getattr(user, "is_authenticated", False):
         return _deny("anonymous")
-    if user.has_role(DEVELOPER_ROLE):
+    if is_developer(user):
         return _deny("developer")
 
     roles = _roles_in_school(user, session.school_id)
@@ -145,17 +161,21 @@ def can_enter(user, session, student, *, now: dt.datetime | None = None) -> Verd
     return _allow()
 
 
-def _is_enrolled(student, session) -> bool:
+def _is_enrolled(student: CustomUser, session: Session) -> bool:
     """قيدٌ نشطٌ في شعبة الحصّة بدأ في تاريخها أو قبله — فطالبٌ قُيّد بعدها لا تُرصد له."""
-    return StudentEnrollment.objects.filter(
-        student=student,
-        class_group_id=session.class_group_id,
-        is_active=True,
-        enrolled_at__lte=session.date,
-    ).exists()
+    return bool(
+        StudentEnrollment.objects.filter(
+            student=student,
+            class_group_id=session.class_group_id,
+            is_active=True,
+            enrolled_at__lte=session.date,
+        ).exists()
+    )
 
 
-def can_approve(user, session, *, entered_by=None) -> Verdict:
+def can_approve(
+    user: CustomUser, session: Session, *, entered_by: CustomUser | None = None
+) -> Verdict:
     """هل يعتمد هذا المستخدمُ رصدَ هذه الحصّة (أو يرفضه)؟
 
     لا يقرأ وقتَ الاعتماد: الحاملُ هو من حمل الجناحَ يومَ الحصّة. و`entered_by` صاحبُ الإدخال المعلَّق
@@ -163,7 +183,7 @@ def can_approve(user, session, *, entered_by=None) -> Verdict:
     """
     if not getattr(user, "is_authenticated", False):
         return _deny("anonymous")
-    if user.has_role(DEVELOPER_ROLE):
+    if is_developer(user):
         return _deny("developer")
 
     roles = _roles_in_school(user, session.school_id)
