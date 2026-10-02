@@ -366,8 +366,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
         return self.department
 
     def is_admin(self):
-        """مدير أو superuser — صلاحيات إدارية كاملة."""
-        return self.is_superuser or self.get_role() == "principal"
+        """مدير أو مطوّر المنصّة أو superuser — صلاحيات إدارية كاملة.
+
+        والمطوّرُ بقرار المالك D-118م (لا حظرَ عليه في أيّ صفحة): عشراتُ الفحوص المضمَّنة في الـviews
+        تقيس `is_admin()` فتحجبه صفحةً صفحة، فتوحيدُها هنا مرجعٌ واحد (ينتمي الدورُ لـ`core/unrestricted_role`).
+        """
+        return self.is_superuser or self.get_role() in ("principal", "platform_developer")
 
     def is_teacher(self):
         return self.get_role() in ("teacher", "coordinator", "ese_teacher")

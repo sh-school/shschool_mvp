@@ -22,6 +22,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from core.models.academic import ClassGroup, StudentEnrollment
+from core.unrestricted_role import has_unrestricted_role
 
 if TYPE_CHECKING:
     from wings.scope import StudentScope
@@ -99,7 +100,11 @@ def taught_class_ids(user, year):
 
 def sees_whole_school(user: Any) -> bool:
     """أيقرأ هذا المستخدمُ المدرسةَ كلَّها بلا شرطِ تدريسٍ ولا جناح؟"""
-    return bool(user.is_superuser) or user.get_role() in SCHOOL_WIDE_READERS
+    return (
+        bool(user.is_superuser)
+        or has_unrestricted_role(user)
+        or user.get_role() in SCHOOL_WIDE_READERS
+    )
 
 
 def _wing_scope(user: Any, school: Any, scope: StudentScope | None) -> StudentScope | None:

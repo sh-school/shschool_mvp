@@ -14,6 +14,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from core.unrestricted_role import has_unrestricted_role
 from quality.observation_models import (
     ClassroomObservation,
     ObservationCriterion,
@@ -238,8 +239,8 @@ class ObservationService:
 
         qs = qs.select_related("teacher", "observer", "subject", "class_group")
         role = user.get_role()
-        if user.is_superuser or role in OBSERVATION_VIEW_ALL:
-            return qs
+        if user.is_superuser or has_unrestricted_role(user) or role in OBSERVATION_VIEW_ALL:
+            return qs  # رؤيةٌ فقط؛ التعديلُ للزائر وحده حتى للمطوّر (D-122م)
         cond = Q(observer=user) | Q(teacher=user)
         if role in OBSERVATION_CREATE:
             cond |= Q(kind="self")

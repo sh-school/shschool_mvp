@@ -97,6 +97,7 @@ class DeveloperOnlyMixin(LoginRequiredMixin, UserPassesTestMixin):
         user = self.request.user
         if not user.is_authenticated:
             return False
-        if user.is_superuser:
-            return True
-        return user.groups.filter(name__iexact="developers").exists()
+        # superuser أو مجموعة developers أو الدورُ الحاكم platform_developer (D-118م).
+        from core.developer_access import can_use_developer_tools
+
+        return can_use_developer_tools(user)

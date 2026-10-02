@@ -19,6 +19,8 @@ from typing import Any
 
 from django.urls import NoReverseMatch, resolve, reverse
 
+from core.unrestricted_role import has_unrestricted_role, is_excluded_developer
+
 
 def _guard_roles(view: Any) -> frozenset[str] | None:
     fn, seen = view, set()
@@ -87,11 +89,35 @@ def _url_grant(
     return _guard_grant(resolve(path).func), gate
 
 
+def _guard_capability(view: Any) -> str | None:
+    """مفتاحُ القدرة التي تحرس هذه الشاشة (``_capability``) — أو ``None``."""
+    fn, seen = view, set()
+    while fn is not None and id(fn) not in seen:
+        seen.add(id(fn))
+        key: str | None = getattr(fn, "_capability", None)
+        if key is not None:
+            return key
+        fn = getattr(fn, "__wrapped__", None)
+    return None
+
+
+@lru_cache(maxsize=1024)
+def _url_capability(url_name: str) -> str | None:
+    try:
+        return _guard_capability(resolve(reverse(url_name)).func)
+    except NoReverseMatch:
+        return None
+
+
 def can_open(user: Any, url_name: str) -> bool:
     """هل يُفتح الرابطُ ``url_name`` (بلا وسائط) لهذا المستخدم؟"""
     if user is None or not getattr(user, "is_authenticated", False):
         return False
-    if user.is_superuser:
+    # قدراتٌ استثناها المالكُ للمطوّر (D-128م: رصدُ الغياب) فلا يَعِده رابطٌ يُردّ عنده بـ403.
+    key = _url_capability(url_name)
+    if key is not None and is_excluded_developer(user, key):
+        return False
+    if user.is_superuser or has_unrestricted_role(user):
         return True
     role = user.get_role() or ""
     if _role_opens(role, url_name):
